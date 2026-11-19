@@ -25,11 +25,11 @@
  * leaves captains out, not may().
  *
  * What there is:
- *   SKINS        30 full looks in five rarities. Each has an avatar look (drawn over avatar.js's face: a background pattern,
+ *   SKINS        100 full looks in five rarities (31-100 added 19 Nov 2026: sports, pirates, suits, robots and more). Each has an avatar look (drawn over avatar.js's face: a background pattern,
  *                an outfit, something on the head, maybe a skin tone) and a colour set for 3D games:
  *                colors { body, accent, trim, emissive, pattern } (hex colours; pattern names a texture that texture()
  *                paints, so a game can use it as a THREE.CanvasTexture).
- *   ACCESSORIES  23 extras, each in one SLOT (hat, glasses, cape, trail, aura, pet): one per slot can be worn with any skin.
+ *   ACCESSORIES  59 extras (24-59 added 19 Nov 2026), each in one SLOT (hat, glasses, cape, trail, aura, pet): one per slot can be worn with any skin.
  *                Each also has `three`, a small description a 3D game can build it from (see "For 3D games" below).
  *   Prices       By rarity, the same for skins, accessories and game items (PRICE, whole mangos; 17 mangos = 1 emerald):
  *                common 60 ($0.50), uncommon 119 (7 emeralds, $0.99), rare 420 ($3.49), epic 600 ($4.99), legendary 1,200
@@ -62,7 +62,8 @@
  * needs the look published (w.e in their stats node already says what they wear) and a hook in avatar.js.
  *
  * For 3D games: read equipped().colors for the body, and for each worn accessory ACCESSORIES_BY_ID[id].three:
- *   { attach: 'head' | 'face' | 'back' | 'feet' | 'around' | 'follow', shape, color, color2, size }
+ *   { attach: 'head' | 'face' | 'back' | 'neck' | 'feet' | 'around' | 'follow', shape, color, color2, size }
+ * ('neck': a bow tie or chain, worn in the cape slot; wave 2 items may add trim, num or opts for the 2D drawing.)
  * attach says where it goes (top of the head, in front of the eyes, on the back, a ribbon behind the feet, a ring round
  * the body, a pet that follows a step behind). For example, in a Three.js game:
  *   var eq = BackRoomCosmetics.equipped(), hat = eq.accessories.hat && BackRoomCosmetics.ACCESSORIES_BY_ID[eq.accessories.hat];
@@ -127,6 +128,7 @@
 
   // ---------------- Skins ----------------
   // look: bg / bg2 background colours, bgp background pattern, outfit, head (piece on the head), tone (skin colour, optional),
+  // (wave 2 looks may also have face, fx, num, h1 / h2, nohat and a few part options: see "Wave 2 parts" below),
   // hair / hairc (avatar.js hair style / colour index, optional). colors: the 3D colour set.
   function S(no, id, name, rarity, theme, desc, look, colors) { return { no: no, id: id, name: name, rarity: rarity, theme: theme, desc: desc, look: look, colors: colors }; }
   var SKINS = [
@@ -223,7 +225,223 @@
       { body: '#D9A62E', accent: '#FFF2C2', trim: '#7A5410', emissive: '#FFE08A', pattern: 'circuit' }),
     S(30, 'four-seasons', 'Four Seasons', 'legendary', 'seasons', 'Spring, summer, autumn and winter, all at the same time.',
       { bg: '#7CCB5A', bg2: '#FFFFFF', bgp: 'quarters', outfit: 'robe', head: 'crownleaf' },
-      { body: '#4E9E6A', accent: '#FFC93C', trim: '#E07A2E', emissive: '#BFE4FF', pattern: 'quarters' })
+      { body: '#4E9E6A', accent: '#FFC93C', trim: '#E07A2E', emissive: '#BFE4FF', pattern: 'quarters' }),
+    // ---- Wave 2 (19 Nov 2026): sports, pirates, suits, robots and more. Numbers 31 onwards. ----
+    // Sports
+    S(31, 'striker', 'Striker', 'common', 'sports', 'Shin pads on, laces tied, aiming for the top corner.',
+      { nohat: true, bg: '#2E9E4F', bg2: '#7BD88F', bgp: 'pitch', outfit: 'kit', num: 9, band: true },
+      { body: '#E5484D', accent: '#FFFFFF', trim: '#9E1F25', emissive: '#FFD23F', pattern: 'stripes' }),
+    S(32, 'point-guard', 'Point Guard', 'common', 'sports', 'Calls the play, dribbles low, passes before anyone sees it.',
+      { bg: '#D9873A', bg2: '#A85A1E', bgp: 'court', outfit: 'tank', num: 3, head: 'band', h1: '#FFFFFF', h2: '#2E5FD9' },
+      { body: '#2E5FD9', accent: '#FFFFFF', trim: '#173A8C', emissive: '#FFD23F', pattern: 'plain' }),
+    S(33, 'lineman', 'Lineman', 'common', 'sports', 'Big pads, bigger heart, never lets anyone through.',
+      { bg: '#2E7D3E', bg2: '#FFFFFF', bgp: 'stripes', outfit: 'pads', num: 72, head: 'fbhelm', h1: '#7A1F2B', h2: '#F5C542', face: 'eyeblack' },
+      { body: '#7A1F2B', accent: '#9E2A38', trim: '#F5C542', emissive: '#DDE3EA', pattern: 'plain' }),
+    S(34, 'slugger', 'Slugger', 'common', 'sports', 'Steps up to the plate and points at the far fence.',
+      { bg: '#4FA8E0', bg2: '#FFFFFF', bgp: 'dots', outfit: 'kit', num: 24, head: 'cap', h1: '#1F3A6E', h2: '#E5484D' },
+      { body: '#F4F1EA', accent: '#1F3A6E', trim: '#E5484D', emissive: '#FFFFFF', pattern: 'pinstripes' }),
+    S(35, 'puck-chaser', 'Puck Chaser', 'common', 'sports', 'Fast skates, a quick stick and ice in the eyebrows.',
+      { bg: '#DDEFFF', bg2: '#9CC8EE', bgp: 'rink', outfit: 'kit', num: 19, band: true, head: 'hockey', h1: '#1B1513', h2: '#F28C28' },
+      { body: '#F28C28', accent: '#1B1513', trim: '#FFFFFF', emissive: '#FFE0B8', pattern: 'stripes' }),
+    S(36, 'baseline-ace', 'Baseline Ace', 'common', 'sports', 'Crisp whites and a serve nobody has returned yet.',
+      { bg: '#4FAE5A', bg2: '#FFFFFF', bgp: 'pitch', outfit: 'polo', head: 'visorcap', h1: '#FFFFFF', h2: '#2EC4B6' },
+      { body: '#FFFFFF', accent: '#2EC4B6', trim: '#D9DEE6', emissive: '#E8FF6B', pattern: 'plain' }),
+    S(37, 'sprinter', 'Sprinter', 'common', 'sports', 'On your marks, get set, already at the finish line.',
+      { bg: '#D9583B', bg2: '#FFFFFF', bgp: 'track', outfit: 'tank', num: 1, head: 'band', h1: '#FFD23F', h2: '#1B1513' },
+      { body: '#FFD23F', accent: '#1B1513', trim: '#E59A0B', emissive: '#FFF6C2', pattern: 'plain' }),
+    S(38, 'lap-swimmer', 'Lap Swimmer', 'common', 'sports', 'Fifty lengths before breakfast, and still smiling.',
+      { bg: '#1E9FD9', bg2: '#BDF0FF', bgp: 'waves', outfit: 'wetsuit', head: 'swim', h1: '#E5484D', h2: '#FFFFFF', face: 'goggles', gl: '#7FE7FF', gc: '#E5484D' },
+      { body: '#14385C', accent: '#1E9FD9', trim: '#0B2238', emissive: '#7FE7FF', pattern: 'waves' }),
+    S(39, 'fairway-pro', 'Fairway Pro', 'common', 'sports', 'A tidy swing, a tidy collar, and a lucky tee behind one ear.',
+      { bg: '#8CCB6E', bg2: '#C9EBAE', bgp: 'pitch', outfit: 'polo', head: 'flatcap', h1: '#C9A46B', h2: '#8A6A3A' },
+      { body: '#F7B2C4', accent: '#3E8A2E', trim: '#D98AA0', emissive: '#FFFFFF', pattern: 'checker' }),
+    S(40, 'skate-rat', 'Skate Rat', 'common', 'sports', 'Scuffed shoes, a backwards cap and one more try at the trick.',
+      { bg: '#6B6F7A', bg2: '#A9ADB8', bgp: 'bricks', outfit: 'hoodie', head: 'capback', h1: '#2EC4B6', h2: '#1B1513' },
+      { body: '#3A3F4B', accent: '#FF7A2E', trim: '#1B1F27', emissive: '#2EC4B6', pattern: 'plain' }),
+    S(41, 'surf-rider', 'Surf Rider', 'common', 'sports', 'Waits all morning for the one perfect wave.',
+      { nohat: true, bg: '#2BB3D9', bg2: '#FFFFFF', bgp: 'waves', outfit: 'wetsuit', hairc: 4 },
+      { body: '#1B1F27', accent: '#2EC4B6', trim: '#0E1116', emissive: '#FFD23F', pattern: 'waves' }),
+    S(42, 'slope-racer', 'Slope Racer', 'common', 'sports', 'Tucked low between the gates, down the mountain in a blur.',
+      { bg: '#BFE4FF', bg2: '#FFFFFF', bgp: 'snow', outfit: 'racesuit', head: 'skihelm', h1: '#E5484D', h2: '#FFFFFF' },
+      { body: '#E5484D', accent: '#FFFFFF', trim: '#1B1513', emissive: '#FFB13D', pattern: 'stripes' }),
+    S(43, 'referee', 'Referee', 'uncommon', 'sports', 'Fair to both sides, and the loudest whistle in the building.',
+      { bg: '#3F8F4F', bg2: '#7BD88F', bgp: 'pitch', outfit: 'vstripes', head: 'cap', h1: '#1B1513', h2: '#1B1513', logo: 'none' },
+      { body: '#FFFFFF', accent: '#1B1513', trim: '#1B1513', emissive: '#FFFFFF', pattern: 'vstripes' }),
+    S(44, 'coach', 'Coach', 'uncommon', 'sports', 'Clipboard, whistle and a speech that wins the second half.',
+      { bg: '#33415C', bg2: '#5A6B8C', bgp: 'grid', outfit: 'polo', whistle: true, head: 'cap', h1: '#1F3A6E', h2: '#FFD23F', face: 'stache' },
+      { body: '#1F3A6E', accent: '#E5484D', trim: '#FFD23F', emissive: '#FFFFFF', pattern: 'plain' }),
+    S(45, 'prizefighter', 'Prizefighter', 'uncommon', 'sports', 'A shiny robe, padded headgear and very quick feet.',
+      { bg: '#2A1E3A', bg2: '#FFFFFF', bgp: 'spot', outfit: 'boxrobe', num: 1, head: 'boxhead', h1: '#D93636', h2: '#FFFFFF' },
+      { body: '#D93636', accent: '#F5C542', trim: '#7A1414', emissive: '#FFE79A', pattern: 'plain' }),
+    S(46, 'black-belt', 'Black Belt', 'uncommon', 'sports', 'Years of practice, a calm mind and a very loud kiai.',
+      { bg: '#F2E6CF', bg2: '#C9A46B', bgp: 'checker', outfit: 'gi', head: 'hachimaki', h1: '#D93636', h2: '#FFFFFF' },
+      { body: '#FFFFFF', accent: '#1B1513', trim: '#D9DEE6', emissive: '#D93636', pattern: 'plain' }),
+    S(47, 'fencer', 'Fencer', 'uncommon', 'sports', 'En garde! A mesh mask, a white jacket and perfect footwork.',
+      { bg: '#2E3A55', bg2: '#8FA3B8', bgp: 'stripes', outfit: 'polo', head: 'fencing', h1: '#FFFFFF' },
+      { body: '#FFFFFF', accent: '#3D8BFF', trim: '#C8D2DC', emissive: '#E8ECF2', pattern: 'plain' }),
+    S(48, 'cheer-captain', 'Cheer Captain', 'uncommon', 'sports', 'Leads every chant, and the bow is not optional.',
+      { bg: '#FF7EB9', bg2: '#FFFFFF', bgp: 'confetti', outfit: 'kit', head: 'bow', h1: '#FFD23F', h2: '#FFFFFF', hair: 10 },
+      { body: '#7A3DB8', accent: '#FFD23F', trim: '#FFFFFF', emissive: '#FFB3E6', pattern: 'stripes' }),
+    S(49, 'pole-position', 'Pole Position', 'rare', 'sports', 'Fastest in qualifying and first into the first corner.',
+      { bg: '#1B1F27', bg2: '#FFFFFF', bgp: 'checker', outfit: 'racesuit', head: 'race', h1: '#E5484D', h2: '#FFFFFF', num: 7 },
+      { body: '#E5484D', accent: '#FFFFFF', trim: '#1B1513', emissive: '#3DE0FF', pattern: 'stripes' }),
+    S(50, 'hawk-mascot', 'Hawk Mascot', 'rare', 'sports', 'The team\'s big feathery friend, flapping on the touchline.',
+      { bg: '#1F3A6E', bg2: '#FFD23F', bgp: 'confetti', outfit: 'feathers', head: 'hood', h1: '#8A5A36', h2: '#FFFFFF', crest: true, eyes2: true, beak: '#F5B82E' },
+      { body: '#8A5A36', accent: '#6B4428', trim: '#4A2E18', emissive: '#C9A07A', pattern: 'scales' }),
+    S(51, 'safe-hands', 'Safe Hands', 'rare', 'sports', 'A goalkeeper who dives the right way every single time.',
+      { bg: '#2E9E4F', bg2: '#7BD88F', bgp: 'pitch', outfit: 'kit', num: 1, stars: true, head: 'cap', h1: '#7CE38B', h2: '#1B1513', logo: 'none' },
+      { body: '#7CE38B', accent: '#1B1513', trim: '#3E8A2E', emissive: '#E6FFB0', pattern: 'grid' }),
+    S(52, 'title-belt', 'Title Belt', 'rare', 'sports', 'A wrestling champ in a glittery cape, belt held high.',
+      { bg: '#3A1450', bg2: '#FF4FB4', bgp: 'spot', outfit: 'hero', emblem: 'star', head: 'band', h1: '#FF4FB4', h2: '#F5C542' },
+      { body: '#7A2BB8', accent: '#F5C542', trim: '#3A1450', emissive: '#FF4FB4', pattern: 'stars' }),
+    S(53, 'gold-medalist', 'Gold Medalist', 'epic', 'sports', 'A personal best on the biggest day, with the medal to prove it.',
+      { bg: '#1F3A6E', bg2: '#FFE79A', bgp: 'rays', outfit: 'kit', medal: true, head: 'laurel', h1: '#7CB342', h2: '#3E6B1F', fx: 'twinkle' },
+      { body: '#FFFFFF', accent: '#1F3A6E', trim: '#3D8BFF', emissive: '#FFE79A', pattern: 'plain' }),
+    S(54, 'all-star', 'All-Star', 'epic', 'sports', 'Voted in by everyone, cameras flashing on every play.',
+      { bg: '#0E1A3A', bg2: '#5CC8FF', bgp: 'flash', outfit: 'kit', num: 23, stars: true, numc: '#FFD23F', head: 'band', h1: '#FFD23F', h2: '#E5484D', fx: 'twinkle' },
+      { body: '#1F3A6E', accent: '#FFD23F', trim: '#E5484D', emissive: '#5CC8FF', pattern: 'stars' }),
+    S(55, 'hall-of-famer', 'Hall of Famer', 'legendary', 'sports', 'A golden kit for a career nobody will ever forget.',
+      { bg: '#2A1A05', bg2: '#FFE08A', bgp: 'spot', outfit: 'kit', num: 99, medal: true, numc: '#2A1A05', head: 'laurel', h1: '#F5C542', h2: '#B8860B', gem: true, fx: 'shine frame twinkle' },
+      { body: '#E8B92E', accent: '#FFF2C2', trim: '#8A6410', emissive: '#FFE08A', pattern: 'stars' }),
+    // Pirates
+    S(56, 'deckhand', 'Deckhand', 'common', 'pirates', 'Swabs the deck, ties the knots, sings the loudest shanty.',
+      { bg: '#C49A6C', bg2: '#8A6A3A', bgp: 'deck', outfit: 'stripes', head: 'bandana', h1: '#D93636', h2: '#FFFFFF' },
+      { body: '#FFFFFF', accent: '#1F3A6E', trim: '#1F3A6E', emissive: '#FFD23F', pattern: 'stripes' }),
+    S(57, 'sea-dog', 'Sea Dog', 'common', 'pirates', 'One eye patch, one big moustache, a hundred sea stories.',
+      { bg: '#2B6E8A', bg2: '#BDF0FF', bgp: 'waves', outfit: 'stripes', head: 'bandana', h1: '#1F3A6E', h2: '#FFFFFF', face: 'patch stache' },
+      { body: '#F4F1EA', accent: '#D93636', trim: '#7A1414', emissive: '#FFD23F', pattern: 'stripes' }),
+    S(58, 'lookout', 'Lookout', 'common', 'pirates', 'Up in the crow\'s nest, first to shout "Land ho!".',
+      { bg: '#7EC8E3', bg2: '#FFFFFF', bgp: 'map', outfit: 'pirate', head: 'bandana', h1: '#2EA36B', h2: '#FFE45C', face: 'patch' },
+      { body: '#5C3A20', accent: '#C9A46B', trim: '#3A2418', emissive: '#FFD23F', pattern: 'plain' }),
+    S(59, 'first-mate', 'First Mate', 'uncommon', 'pirates', 'The captain\'s right hand. The left one is a shiny hook.',
+      { bg: '#1E4E6B', bg2: '#7EC8E3', bgp: 'waves', outfit: 'pirate', hook: true, sash: '#D93636', head: 'bandana', h1: '#1B1513', h2: '#D93636', face: 'patch stache' },
+      { body: '#1F3A6E', accent: '#F5C542', trim: '#0E1E3A', emissive: '#FFD23F', pattern: 'plain' }),
+    S(60, 'buccaneer', 'Buccaneer', 'uncommon', 'pirates', 'A three-cornered hat, an eye patch and a map with an X on it.',
+      { bg: '#E8D5A8', bg2: '#A0522D', bgp: 'map', outfit: 'pirate', head: 'tricorn', h1: '#1B1513', h2: '#F5C542', face: 'patch' },
+      { body: '#7A1F2B', accent: '#F5C542', trim: '#4A0F18', emissive: '#FFD23F', pattern: 'plain' }),
+    S(61, 'pirate-captain', 'Pirate Captain', 'rare', 'pirates', 'Commands the fastest ship on the seven seas, feather first.',
+      { bg: '#123B5A', bg2: '#FFE79A', bgp: 'moon', outfit: 'pirate', sash: '#F5C542', head: 'tricorn', h1: '#1B1513', h2: '#F5C542', feather: '#D93636', face: 'patch stache', sc: '#1B1513' },
+      { body: '#B3261E', accent: '#F5C542', trim: '#5C0F0B', emissive: '#FFE79A', pattern: 'plain' }),
+    S(62, 'ghost-pirate', 'Ghost Pirate', 'epic', 'pirates', 'Sailed off the map long ago and never quite came back.',
+      { bg: '#0B2233', bg2: '#7FFFD4', bgp: 'fog', outfit: 'pirate', head: 'tricorn', h1: '#2A5C66', h2: '#7FFFD4', ragged: true, skullc: '#CFFFF2', face: 'patch', fc: '#1E4450', tone: '#BFF0E6', fx: 'twinkle' },
+      { body: '#2A5C66', accent: '#7FFFD4', trim: '#163840', emissive: '#7FFFD4', pattern: 'waves' }),
+    S(63, 'pirate-king', 'Pirate King', 'legendary', 'pirates', 'Every pirate on every ocean answers to this crown.',
+      { bg: '#2A0A0A', bg2: '#F5C542', bgp: 'map', outfit: 'pirate', sash: '#F5C542', head: 'tricornking', h1: '#3A0F2B', h2: '#F5C542', feather: '#FFFFFF', face: 'patch stache', sc: '#1B1513', fc: '#1B1513', fx: 'shine frame' },
+      { body: '#7A0F2B', accent: '#F5C542', trim: '#3A0612', emissive: '#FFE79A', pattern: 'stars' }),
+    // Suits and mobsters (costume-party style)
+    S(64, 'nine-to-five', 'Nine to Five', 'common', 'suits', 'A sharp suit, a straight tie and a very full inbox.',
+      { nohat: true, bg: '#8FA3B8', bg2: '#C9D3EA', bgp: 'skyline', outfit: 'business' },
+      { body: '#33415C', accent: '#3D8BFF', trim: '#1E2738', emissive: '#FFFFFF', pattern: 'plain' }),
+    S(65, 'tracksuit-tough', 'Tracksuit Tough', 'common', 'suits', 'Shiny tracksuit, flat cap and the chunkiest gold chain in town.',
+      { bg: '#4A4E58', bg2: '#8A8F9C', bgp: 'bricks', outfit: 'track', chain: true, head: 'flatcap', h1: '#3A3F4B', h2: '#1B1F27' },
+      { body: '#1F3A6E', accent: '#FFFFFF', trim: '#0E1E3A', emissive: '#F5C542', pattern: 'stripes' }),
+    S(66, 'banker', 'Banker', 'common', 'suits', 'Counts every coin twice, wears a bowler hat once a day.',
+      { bg: '#2E5E4E', bg2: '#7FBFA0', bgp: 'grid', outfit: 'business', pin: '#C8D2DC', head: 'bowler', h1: '#1B1513', h2: '#3A2E2A' },
+      { body: '#3A3F4B', accent: '#7A1F2B', trim: '#22262E', emissive: '#C8D2DC', pattern: 'pinstripes' }),
+    S(67, 'roaring-twenties', 'Roaring Twenties', 'uncommon', 'suits', 'Pinstripes, a fedora and a jazz band playing somewhere.',
+      { bg: '#3A2A1A', bg2: '#C9A46B', bgp: 'bricks', outfit: 'business', pin: '#D9DEE6', head: 'fedora', h1: '#3A3F4B', h2: '#1B1513' },
+      { body: '#2B2F3A', accent: '#D93636', trim: '#16181E', emissive: '#F5C542', pattern: 'pinstripes' }),
+    S(68, 'gumshoe', 'Gumshoe', 'uncommon', 'suits', 'A private detective in a trench coat, following every clue.',
+      { bg: '#2B2F3A', bg2: '#8FA3B8', bgp: 'skyline', outfit: 'trench', head: 'fedora', h1: '#6B5236', h2: '#2B1B12' },
+      { body: '#C9A46B', accent: '#7A1F2B', trim: '#8A6A3A', emissive: '#FFE79A', pattern: 'plain' }),
+    S(69, 'bodyguard', 'Bodyguard', 'uncommon', 'suits', 'Dark suit, dark shades, and a wire in one ear. Says nothing.',
+      { bg: '#1B1F27', bg2: '#5A6273', bgp: 'grid', outfit: 'business', head: 'slick earpiece', h1: '#17110E', face: 'shades' },
+      { body: '#1B1F27', accent: '#1B1513', trim: '#0E1116', emissive: '#FFFFFF', pattern: 'plain' }),
+    S(70, 'black-tie', 'Black Tie', 'rare', 'suits', 'A perfect tuxedo for the fanciest party of the year.',
+      { bg: '#2A1A40', bg2: '#F5C542', bgp: 'sparkle', outfit: 'tux', head: 'slick', h1: '#17110E', pocket: '#F5C542' },
+      { body: '#16181E', accent: '#16181E', trim: '#0B0C10', emissive: '#3A3F4B', pattern: 'plain' }),
+    S(71, 'secret-agent', 'Secret Agent', 'rare', 'suits', 'Tuxedo, shades and a gadget hidden in the cufflinks.',
+      { bg: '#0B1026', bg2: '#E5484D', bgp: 'spot', outfit: 'tux', head: 'slick earpiece', h1: '#2B1B12', face: 'shades' },
+      { body: '#16181E', accent: '#16181E', trim: '#0B0C10', emissive: '#3A3F4B', pattern: 'plain' }),
+    S(72, 'the-don', 'The Don', 'epic', 'suits', 'Pinstripes, a red rose and an offer you would happily accept.',
+      { bg: '#1A1210', bg2: '#8A6A3A', bgp: 'bricks', outfit: 'business', pin: '#C8D2DC', rose: true, chain: false, head: 'fedora', h1: '#E8E2D4', h2: '#1B1513', face: 'stache', sc: '#3A2A20', fx: 'flicker', gc: '#F5C542' },
+      { body: '#22262E', accent: '#7A1F2B', trim: '#121418', emissive: '#F5C542', pattern: 'pinstripes' }),
+    S(73, 'the-boss', 'The Boss', 'legendary', 'suits', 'Long coat, fur collar, a tall fur hat and gold on everything.',
+      { bg: '#0E0C14', bg2: '#5A4A7A', bgp: 'skyline', outfit: 'longcoat', chain: true, head: 'furhat', h1: '#3A2A20', h2: '#F5C542', gem: true, face: 'stache', sc: '#2B1B12', fx: 'shine frame' },
+      { body: '#1B1513', accent: '#5C4636', trim: '#7A1F2B', emissive: '#F5C542', pattern: 'plain' }),
+    // Robots
+    S(74, 'retro-tin-bot', 'Retro Tin Bot', 'common', 'robot', 'Wind the key on its back and it marches off beeping.',
+      { bg: '#D9583B', bg2: '#FFD23F', bgp: 'rays', outfit: 'tinbody', head: 'dome', h1: '#B8C2CC', h2: '#E5484D', tone: '#C8D2DC' },
+      { body: '#9AA8B6', accent: '#E5484D', trim: '#5A6878', emissive: '#FFD23F', pattern: 'plates' }),
+    S(75, 'vacuum-bot', 'Vacuum Bot', 'common', 'robot', 'Hums round the room, bumps into the sofa, tries again.',
+      { bg: '#E8ECF2', bg2: '#B8C2CC', bgp: 'checker', outfit: 'tinbody', head: 'vacuum', h1: '#3A3F4B', h2: '#2EC4B6', tone: '#D9DEE6' },
+      { body: '#3A3F4B', accent: '#2EC4B6', trim: '#22262E', emissive: '#2EC4B6', pattern: 'circuit' }),
+    S(76, 'junkyard-bot', 'Junkyard Bot', 'uncommon', 'robot', 'Built from bits nobody wanted, and proud of every dent.',
+      { bg: '#6B5236', bg2: '#C9A46B', bgp: 'gears', outfit: 'tinbody', head: 'junk', h1: '#A0522D', h2: '#7A8A6A', tone: '#B9A68A' },
+      { body: '#8A6A4A', accent: '#D9822B', trim: '#4A3828', emissive: '#7CE38B', pattern: 'plates' }),
+    S(77, 'sleek-android', 'Sleek Android', 'rare', 'robot', 'Smooth white panels and a calm blue glow. Very polite.',
+      { bg: '#0E1A2A', bg2: '#5CC8FF', bgp: 'grid', outfit: 'circuit', head: 'android', h1: '#F4F7FA', h2: '#5CC8FF', tone: '#EEF2F6', face: 'visor', vc: '#5CC8FF' },
+      { body: '#E8ECF2', accent: '#5CC8FF', trim: '#9AA8B6', emissive: '#5CC8FF', pattern: 'circuit' }),
+    S(78, 'mech-pilot', 'Mech Pilot', 'epic', 'robot', 'Straps into a robot ten storeys tall, visor up, ready.',
+      { bg: '#1A2230', bg2: '#FF7A2E', bgp: 'gears', outfit: 'mech', head: 'pilot', h1: '#E8ECF2', h2: '#FF7A2E', fx: 'flicker', gc: '#FF7A2E' },
+      { body: '#3A4A5C', accent: '#FF7A2E', trim: '#1B2430', emissive: '#7FE7FF', pattern: 'plates' }),
+    // Variety
+    S(79, 'mission-specialist', 'Mission Specialist', 'common', 'space', 'Orange suit, big helmet, a checklist for every button.',
+      { bg: '#0E1A3A', bg2: '#C9D3EA', bgp: 'stars', outfit: 'suit', head: 'helmet' },
+      { body: '#F28C28', accent: '#FFFFFF', trim: '#C8D2DC', emissive: '#7FD4FF', pattern: 'quilt' }),
+    S(80, 'head-chef', 'Head Chef', 'common', 'jobs', 'Tall hat, clean whites, and the soup is perfect today.',
+      { bg: '#E8ECF2', bg2: '#2E5FD9', bgp: 'kitchen', outfit: 'apron', head: 'toque', face: 'stache', sc: '#2B1B12' },
+      { body: '#FFFFFF', accent: '#E5484D', trim: '#9AA8B6', emissive: '#FFFFFF', pattern: 'checker' }),
+    S(81, 'firefighter', 'Firefighter', 'common', 'jobs', 'First up the ladder, last to leave, always helps the cat down.',
+      { bg: '#B3261E', bg2: '#FF7A2E', bgp: 'flames', outfit: 'fire', head: 'firehelm', h1: '#D93636', h2: '#F5C542' },
+      { body: '#3A3428', accent: '#F5C542', trim: '#1B1513', emissive: '#DDE3EA', pattern: 'stripes' }),
+    S(82, 'panda', 'Panda', 'common', 'animals', 'Black, white and only slightly interested in bamboo.',
+      { bg: '#9BD86F', bg2: '#5CA040', bgp: 'leaves', outfit: 'hoodie', head: 'bear' },
+      { body: '#1B1513', accent: '#FFFFFF', trim: '#1B1513', emissive: '#FFFFFF', pattern: 'spots' }),
+    S(83, 'penguin', 'Penguin', 'common', 'animals', 'Dressed for dinner every day, waddles everywhere.',
+      { bg: '#BFE4FF', bg2: '#FFFFFF', bgp: 'snow', outfit: 'belly', head: 'hood', h1: '#22262E', h2: '#FFFFFF', beak: '#F5A524' },
+      { body: '#22262E', accent: '#F5A524', trim: '#11131A', emissive: '#FFFFFF', pattern: 'plain' }),
+    S(84, 'pizza-slice', 'Pizza Slice', 'common', 'food', 'Extra cheese, extra pepperoni, extra everything.',
+      { bg: '#FFE6B8', bg2: '#D9483B', bgp: 'dots', outfit: 'overalls', head: 'pizza' },
+      { body: '#D9483B', accent: '#FFD45C', trim: '#F4F1EA', emissive: '#FFD45C', pattern: 'spots' }),
+    S(85, 'pumpkin-patch', 'Pumpkin Patch', 'common', 'seasons', 'A round orange hat picked fresh from the field.',
+      { bg: '#4A2E5C', bg2: '#FF9A3D', bgp: 'moon', outfit: 'puffer', head: 'pumpkin', h1: '#F28C28', h2: '#B8481F' },
+      { body: '#5C3A7A', accent: '#F28C28', trim: '#2E1A40', emissive: '#FF9A3D', pattern: 'leaves' }),
+    S(86, 'snow-day', 'Snow Day', 'common', 'seasons', 'School is closed, the sled is waxed, the earmuffs are on.',
+      { bg: '#9FD3FF', bg2: '#FFFFFF', bgp: 'snow', outfit: 'puffer', head: 'earmuffs', h1: '#FF7EB9', h2: '#FFFFFF' },
+      { body: '#4FA8E0', accent: '#FFFFFF', trim: '#2C6FB0', emissive: '#C8F0FF', pattern: 'snow' }),
+    S(87, 'apprentice-wizard', 'Apprentice Wizard', 'uncommon', 'fantasy', 'Still learning the spells. Mostly turns things blue.',
+      { bg: '#2A1F5C', bg2: '#B98BFF', bgp: 'stars', outfit: 'robe', head: 'wizhat', h1: '#3D5FD9', h2: '#FFD86B' },
+      { body: '#3D5FD9', accent: '#FFD86B', trim: '#1E2F7A', emissive: '#B98BFF', pattern: 'stars' }),
+    S(88, 'night-ninja', 'Night Ninja', 'uncommon', 'fantasy', 'Quiet as a cat on a roof. You did not see this one.',
+      { bg: '#1A1530', bg2: '#5A4A8A', bgp: 'moon', outfit: 'gi', head: 'ninja', h1: '#2B2F3A', h2: '#D93636', face: 'mask', mc: '#2B2F3A' },
+      { body: '#2B2F3A', accent: '#D93636', trim: '#16181E', emissive: '#8EA0FF', pattern: 'plain' }),
+    S(89, 'turntable-dj', 'Turntable DJ', 'uncommon', 'music', 'Big headphones, bigger beats, the whole room dancing.',
+      { bg: '#160F2E', bg2: '#FF4FB4', bgp: 'notes', outfit: 'hoodie', head: 'phones', h1: '#1B1F27', h2: '#FF4FB4', face: 'shades', fc: '#1B1F27' },
+      { body: '#3A2A6E', accent: '#FF4FB4', trim: '#1B1530', emissive: '#38F2C8', pattern: 'grid' }),
+    S(90, 'tiger', 'Tiger', 'uncommon', 'animals', 'Big stripes, soft paws and a very proud roar.',
+      { bg: '#2F5D3A', bg2: '#5CA040', bgp: 'leaves', outfit: 'stripes', head: 'hood', h1: '#F28C28', h2: '#FFF3E6', ears: 'round', stripes: true },
+      { body: '#F28C28', accent: '#1B1513', trim: '#1B1513', emissive: '#FFD38A', pattern: 'stripes' }),
+    S(91, 'rock-star', 'Rock Star', 'rare', 'music', 'A leather jacket, a tall mohawk and one very loud guitar.',
+      { bg: '#1B1513', bg2: '#E5484D', bgp: 'spot', outfit: 'leather', head: 'mohawk', h1: '#FF3FA4', h2: '#FFB3E6' },
+      { body: '#22262E', accent: '#E5484D', trim: '#0E1116', emissive: '#FF3FA4', pattern: 'plain' }),
+    S(92, 'bolt-guardian', 'Bolt Guardian', 'rare', 'hero', 'A hero of our own making, faster than a thunderclap.',
+      { nohat: true, bg: '#1F3A6E', bg2: '#FFE45C', bgp: 'rays', outfit: 'hero', emblem: 'bolt', face: 'domino', mc: '#1B1513' },
+      { body: '#2E5FD9', accent: '#FFE45C', trim: '#E5484D', emissive: '#E5484D', pattern: 'rays' }),
+    S(93, 'wrapped-up', 'Wrapped Up', 'rare', 'spooky', 'A friendly mummy who just woke up from a very long nap.',
+      { bg: '#C9A46B', bg2: '#8A6A3A', bgp: 'bricks', outfit: 'wrap', head: 'mummy', h1: '#EDE4CC', h2: '#B5A27A', tone: '#E8DCC0' },
+      { body: '#EDE4CC', accent: '#B5A27A', trim: '#8A7A5A', emissive: '#7CE38B', pattern: 'stripes' }),
+    S(94, 'wise-wizard', 'Wise Wizard', 'rare', 'fantasy', 'A long white beard and a hat full of old, kind spells.',
+      { bg: '#1A2A5C', bg2: '#8FD6FF', bgp: 'swirl', outfit: 'robe', head: 'wizhat', h1: '#6B3DB8', h2: '#FFD86B', face: 'beard' },
+      { body: '#6B3DB8', accent: '#FFD86B', trim: '#3A1F70', emissive: '#8FD6FF', pattern: 'stars' }),
+    S(95, 'vampire-count', 'Vampire Count', 'epic', 'spooky', 'A tall collar, a red-lined cape and very good manners.',
+      { bg: '#1A0A14', bg2: '#E5484D', bgp: 'moon', outfit: 'vamp', head: 'vampslick', h1: '#120C10', face: 'collar fangs', tone: '#E8E0F0', fx: 'twinkle' },
+      { body: '#16121A', accent: '#B3261E', trim: '#0B080C', emissive: '#FF5C5C', pattern: 'plain' }),
+    S(96, 'samurai', 'Samurai', 'epic', 'fantasy', 'Costume armour in red lacquer with a golden crest.',
+      { bg: '#F2E6CF', bg2: '#D93636', bgp: 'rays', outfit: 'samurai', head: 'kabuto', h1: '#2B1B12', h2: '#D93636' },
+      { body: '#B3261E', accent: '#2B1B12', trim: '#1B1513', emissive: '#F5C542', pattern: 'plates' }),
+    S(97, 'royal-knight', 'Royal Knight', 'epic', 'fantasy', 'Polished armour, a crown on the helmet and a tall plume.',
+      { bg: '#1F3A6E', bg2: '#F5C542', bgp: 'checker', outfit: 'tabard', head: 'royalknight', h1: '#C8D2DC', h2: '#8FA3B8' },
+      { body: '#8A95A3', accent: '#1F3A6E', trim: '#5A6878', emissive: '#E5484D', pattern: 'plates' }),
+    S(98, 'cosmic-hero', 'Cosmic Hero', 'epic', 'hero', 'Got super powers from a passing comet. Uses them nicely.',
+      { nohat: true, bg: '#1E1352', bg2: '#FF7AE0', bgp: 'sparkle', outfit: 'hero', emblem: 'star', face: 'domino', mc: '#FF7AE0', fx: 'orbit', oc: '#FF9AF0' },
+      { body: '#3A1F8A', accent: '#FFE45C', trim: '#FF7AE0', emissive: '#FF7AE0', pattern: 'stars' }),
+    S(99, 'archmage', 'Archmage', 'legendary', 'fantasy', 'The oldest wizard of all, with stars that circle the hat.',
+      { bg: '#0A0626', bg2: '#8FD6FF', bgp: 'swirl', outfit: 'robe', head: 'archhat', h1: '#1E1352', h2: '#F5C542', face: 'beard', fx: 'orbit shine frame' },
+      { body: '#1E1352', accent: '#F5C542', trim: '#0A0626', emissive: '#8FD6FF', pattern: 'stars' }),
+    S(100, 'phoenix', 'Phoenix', 'legendary', 'mythic', 'Rises from the sparks with wings of fire and gold.',
+      { bg: '#2A0A05', bg2: '#FF5A1F', bgp: 'wings', outfit: 'feathers', head: 'flame', h1: '#FF5A1F', h2: '#FFD23F', tone: '#FFE2C2', fx: 'flicker shine frame' },
+      { body: '#D9381E', accent: '#FF7A2E', trim: '#7A1414', emissive: '#FFD23F', pattern: 'flames' })
   ];
 
   // ---------------- Accessories ----------------
@@ -251,7 +469,44 @@
     A(20, 'mini-bot', 'Mini Bot', 'pet', 'uncommon', 'A tiny robot helper with one antenna and lots of opinions.', 'bot', { attach: 'follow', shape: 'box', color: '#9AA8B6', color2: '#38F2C8', size: .4 }),
     A(21, 'star-buddy', 'Star Buddy', 'pet', 'common', 'A smiling sea star who came out of a rock pool to see the world.', 'starfish', { attach: 'follow', shape: 'star', color: '#FF8A5C', color2: '#FFD2B8', size: .35 }),
     A(22, 'ghost-pup', 'Ghost Pup', 'pet', 'epic', 'A see-through puppy who is not scary at all.', 'ghost', { attach: 'follow', shape: 'blob', color: '#EEF2FF', color2: '#8EA0FF', size: .4, glow: true }),
-    A(23, 'baby-drake', 'Baby Drake', 'pet', 'legendary', 'A pocket-sized dragon who sneezes little sparks.', 'dragon', { attach: 'follow', shape: 'creature', color: '#8A5CF0', color2: '#FFD23F', size: .45, glow: true })
+    A(23, 'baby-drake', 'Baby Drake', 'pet', 'legendary', 'A pocket-sized dragon who sneezes little sparks.', 'dragon', { attach: 'follow', shape: 'creature', color: '#8A5CF0', color2: '#FFD23F', size: .45, glow: true }),
+    // ---- Wave 2 (19 Nov 2026). Numbers 24 onwards. ----
+    A(24, 'ball-cap', 'Ball Cap', 'hat', 'common', 'A team-style cap with a star on the front.', 'cap', { attach: 'head', shape: 'cap', color: '#2E5FD9', color2: '#FFFFFF', size: 1 }),
+    A(25, 'sweatband', 'Sweatband', 'hat', 'common', 'Keeps the sweat out of your eyes in overtime.', 'band', { attach: 'head', shape: 'band', color: '#FFFFFF', color2: '#E5484D', size: 1 }),
+    A(26, 'hockey-helmet', 'Hockey Helmet', 'hat', 'common', 'Hard shell, chin strap, ready for the rink.', 'hockey', { attach: 'head', shape: 'dome', color: '#1F3A6E', color2: '#FFFFFF', size: 1.05 }),
+    A(27, 'bandana', 'Bandana', 'hat', 'common', 'A spotty pirate bandana, knotted at the side.', 'bandana', { attach: 'head', shape: 'dome', color: '#D93636', color2: '#FFFFFF', size: 1 }),
+    A(28, 'flat-cap', 'Flat Cap', 'hat', 'common', 'A soft tweed cap for the golf course or the street corner.', 'flatcap', { attach: 'head', shape: 'cap', color: '#7A6A58', color2: '#4A3E32', size: 1 }),
+    A(29, 'chef-toque', 'Chef Toque', 'hat', 'common', 'A tall white chef\'s hat. Cooking skills not included.', 'toque', { attach: 'head', shape: 'cylinder', color: '#FFFFFF', color2: '#D3D8E0', size: 1.3 }),
+    A(30, 'fedora', 'Fedora', 'hat', 'uncommon', 'A pinched felt hat with a dark band, very 1920s.', 'fedora', { attach: 'head', shape: 'fedora', color: '#3A3F4B', color2: '#1B1513', size: 1.1 }),
+    A(31, 'tricorn', 'Tricorn', 'hat', 'uncommon', 'A three-cornered pirate hat with gold trim.', 'tricorn', { attach: 'head', shape: 'tricorn', color: '#1B1513', color2: '#F5C542', size: 1.2, opts: { feather: '#D93636' } }),
+    A(32, 'bowler', 'Bowler', 'hat', 'uncommon', 'A round hard hat for bankers and butlers.', 'bowler', { attach: 'head', shape: 'dome', color: '#1B1513', color2: '#3A2E2A', size: 1 }),
+    A(33, 'dj-headphones', 'DJ Headphones', 'hat', 'uncommon', 'Big cushioned headphones with a glow on each side.', 'phones', { attach: 'head', shape: 'band', color: '#1B1F27', color2: '#FF4FB4', size: 1, trim: '#1B1513', glowc: '#38F2C8' }),
+    A(34, 'football-helmet', 'Football Helmet', 'hat', 'rare', 'A shiny helmet with a stripe down the middle and a face mask.', 'fbhelm', { attach: 'head', shape: 'helmet', color: '#7A1F2B', color2: '#F5C542', size: 1.15, glowc: '#DDE3EA' }),
+    A(35, 'racing-helmet', 'Racing Helmet', 'hat', 'rare', 'A full racing helmet with the visor flipped up.', 'race', { attach: 'head', shape: 'helmet', color: '#FFFFFF', color2: '#E5484D', size: 1.2, glowc: '#3DE0FF', opts: { num: 1 } }),
+    A(36, 'fur-hat', 'Fur Hat', 'hat', 'rare', 'A tall, warm fur hat for the coldest boss in town.', 'furhat', { attach: 'head', shape: 'cylinder', color: '#5C4636', color2: '#F5C542', size: 1.2 }),
+    A(37, 'golden-laurel', 'Golden Laurel', 'hat', 'epic', 'A wreath of golden leaves for winners only.', 'laurel', { attach: 'head', shape: 'torus', color: '#F5C542', color2: '#FFF2C2', size: 1, trim: '#B8860B', glow: true }),
+    A(38, 'eye-patch', 'Eye Patch', 'glasses', 'common', 'A pirate\'s patch on a thin strap. Arr.', 'patch', { attach: 'face', shape: 'patch', color: '#1B1513', color2: '#1B1513', size: .5 }),
+    A(39, 'dark-shades', 'Dark Shades', 'glasses', 'common', 'Flat black sunglasses. Bodyguard approved.', 'shades', { attach: 'face', shape: 'band', color: '#16181E', color2: '#FFFFFF', size: 1 }),
+    A(40, 'eye-black', 'Eye Black', 'glasses', 'common', 'Two stripes under the eyes, game-day style.', 'eyeblack', { attach: 'face', shape: 'stripes', color: '#1B1513', color2: '#1B1513', size: .6 }),
+    A(41, 'aviators', 'Aviators', 'glasses', 'uncommon', 'Teardrop lenses in a thin gold frame.', 'aviators', { attach: 'face', shape: 'lens', color: '#3A4A5C', color2: '#F5C542', size: 1 }),
+    A(42, 'cyborg-eye', 'Cyborg Eye', 'glasses', 'rare', 'One glowing robot eye with a little scanner inside.', 'cyborg', { attach: 'face', shape: 'ring', color: '#E5484D', color2: '#FFD2D2', size: .6, glow: true }),
+    A(43, 'bow-tie', 'Bow Tie', 'cape', 'common', 'A neat bow tie for the neck. Worn in the cape spot.', 'bowtie', { attach: 'neck', shape: 'bowtie', color: '#B3261E', color2: '#7A1414', size: .5 }),
+    A(44, 'number-cape', 'Number Cape', 'cape', 'uncommon', 'A team cape with a big number 1 on the back.', 'numcape', { attach: 'back', shape: 'cloth', color: '#1F3A6E', color2: '#FFD23F', size: 1, num: 1 }),
+    A(45, 'gold-chain', 'Gold Chain', 'cape', 'uncommon', 'A chunky gold chain with a star on the end.', 'chain', { attach: 'neck', shape: 'chain', color: '#F5C542', color2: '#FFF2C2', size: .6 }),
+    A(46, 'royal-ermine', 'Royal Ermine', 'cape', 'epic', 'A velvet cape with a fluffy white collar, fit for a ruler.', 'ermine', { attach: 'back', shape: 'cloth', color: '#7A1F8A', color2: '#FFFFFF', size: 1.1 }),
+    A(47, 'soccer-trail', 'Soccer Ball Trail', 'trail', 'common', 'A ball that bounces along behind you.', 'soccer', { attach: 'feet', shape: 'ball', color: '#FFFFFF', color2: '#7BD88F', size: 1 }),
+    A(48, 'football-trail', 'Football Trail', 'trail', 'common', 'A spinning football that follows your every step.', 'football', { attach: 'feet', shape: 'ball', color: '#8A4A22', color2: '#FFFFFF', size: 1 }),
+    A(49, 'doubloon-trail', 'Doubloon Trail', 'trail', 'uncommon', 'Gold pirate coins that spill out behind you.', 'coins', { attach: 'feet', shape: 'particles', color: '#F5C542', color2: '#FFF2C2', size: 1, glow: true }),
+    A(50, 'music-trail', 'Music Trail', 'trail', 'rare', 'Little musical notes float up wherever you go.', 'notes', { attach: 'feet', shape: 'particles', color: '#FF4FB4', color2: '#38F2C8', size: 1, glow: true }),
+    A(51, 'confetti-pop', 'Confetti Pop', 'aura', 'uncommon', 'Party confetti hanging in the air around you.', 'confetti', { attach: 'around', shape: 'particles', color: '#FF5C5C', color2: '#FFD23F', size: 1.2 }),
+    A(52, 'spotlight', 'Spotlight', 'aura', 'rare', 'A bright stage light that follows you everywhere.', 'spot', { attach: 'head', shape: 'cone', color: '#FFE79A', color2: '#FFFFFF', size: 1.4, glow: true }),
+    A(53, 'camera-flash', 'Camera Flash', 'aura', 'epic', 'Flashes go off all around you, like on a red carpet.', 'flash', { attach: 'around', shape: 'particles', color: '#FFFFFF', color2: '#BFE4FF', size: 1.2, glow: true }),
+    A(54, 'champion-glow', 'Champion Glow', 'aura', 'legendary', 'Slowly turning golden rays for a true champion.', 'trophy', { attach: 'around', shape: 'rays', color: '#F5C542', color2: '#FFF2C2', size: 1.4, glow: true }),
+    A(55, 'parrot', 'Parrot', 'pet', 'uncommon', 'A chatty red parrot who repeats everything you say.', 'parrot', { attach: 'follow', shape: 'creature', color: '#E5484D', color2: '#2EA36B', size: .4 }),
+    A(56, 'penguin-chick', 'Penguin Chick', 'pet', 'uncommon', 'A fluffy grey chick who waddles after you.', 'chick', { attach: 'follow', shape: 'creature', color: '#5A6273', color2: '#F5A524', size: .35 }),
+    A(57, 'robo-pup', 'Robo Pup', 'pet', 'rare', 'A metal puppy with glowing eyes and a wagging antenna.', 'robopup', { attach: 'follow', shape: 'box', color: '#9AA8B6', color2: '#38F2C8', size: .4, trim: '#3A4A5C' }),
+    A(58, 'drone-buddy', 'Drone Buddy', 'pet', 'epic', 'A tiny hovering drone that keeps an eye on you.', 'drone', { attach: 'follow', shape: 'box', color: '#3A3F4B', color2: '#5CC8FF', size: .35, trim: '#1B1F27', glow: true }),
+    A(59, 'pocket-kraken', 'Pocket Kraken', 'pet', 'legendary', 'A small purple sea monster with a crown and a big grin.', 'kraken', { attach: 'follow', shape: 'creature', color: '#8A5CF0', color2: '#FFB3E6', size: .45, glow: true })
   ];
   var SKINS_BY_ID = {}, ACC_BY_ID = {}, SKIN_BY_NO = {}, ACC_BY_NO = {};
   SKINS.forEach(function (s) { SKINS_BY_ID[s.id] = s; SKIN_BY_NO[s.no] = s; });
@@ -1101,7 +1356,26 @@
     itemPack('ss-helmets-odd', 'slipstream', 'Odd Lids', 'Six helmets that are really something else.', ['ss-helmet-galaxy-helmet', 'ss-helmet-disco-ball', 'ss-helmet-watermelon-helmet', 'ss-helmet-eight-ball', 'ss-helmet-pumpkin-helmet', 'ss-helmet-pizza-helmet']),
     itemPack('ss-effects-air', 'slipstream', 'Clean Air', 'Four boost effects.', ['ss-effect-white-air-streaks', 'ss-effect-vapor-trail', 'ss-effect-flames', 'ss-effect-sparks']),
     itemPack('ss-effects-show', 'slipstream', 'Light Show', 'Four brighter boost effects.', ['ss-effect-electric-arcs', 'ss-effect-rainbow', 'ss-effect-confetti', 'ss-effect-purple-plasma']),
-    itemPack('ss-extras', 'slipstream', 'Pit Wall Party', 'Five tyre smoke colours and two podium celebrations.', ['ss-smoke-pink-tyre-smoke', 'ss-smoke-blue-tyre-smoke', 'ss-smoke-green-tyre-smoke', 'ss-smoke-purple-tyre-smoke', 'ss-smoke-gold-tyre-smoke', 'ss-podium-confetti-podium', 'ss-podium-fireworks-podium'])
+    itemPack('ss-extras', 'slipstream', 'Pit Wall Party', 'Five tyre smoke colours and two podium celebrations.', ['ss-smoke-pink-tyre-smoke', 'ss-smoke-blue-tyre-smoke', 'ss-smoke-green-tyre-smoke', 'ss-smoke-purple-tyre-smoke', 'ss-smoke-gold-tyre-smoke', 'ss-podium-confetti-podium', 'ss-podium-fireworks-podium']),
+    // Wave 2 packs (19 Nov 2026): skins of the new themes (common to rare; epic and legendary come from chests) and accessories.
+    { id: 'skins-team', kind: 'skins', name: 'Kickoff', desc: 'Six team-sport kits: soccer, hoops, gridiron, baseball, hockey and tennis.', price: 0, contents: { skins: ['striker', 'point-guard', 'lineman', 'slugger', 'puck-chaser', 'baseline-ace'] } },
+    { id: 'skins-solo', kind: 'skins', name: 'Personal Best', desc: 'Six looks for track, pool, golf, skatepark, surf and snow.', price: 0, contents: { skins: ['sprinter', 'lap-swimmer', 'fairway-pro', 'skate-rat', 'surf-rider', 'slope-racer'] } },
+    { id: 'skins-sideline', kind: 'skins', name: 'Sideline', desc: 'The referee, the coach, the cheer captain and the hawk mascot.', price: 0, contents: { skins: ['referee', 'coach', 'cheer-captain', 'hawk-mascot'] } },
+    { id: 'skins-ring', kind: 'skins', name: 'Ring and Mat', desc: 'A boxer, a black belt, a fencer and a wrestling champ.', price: 0, contents: { skins: ['prizefighter', 'black-belt', 'fencer', 'title-belt'] } },
+    { id: 'skins-pros', kind: 'skins', name: 'Pro Tour', desc: 'A racing driver and a goalkeeper.', price: 0, contents: { skins: ['pole-position', 'safe-hands'] } },
+    { id: 'skins-pirates', kind: 'skins', name: 'Jolly Crew', desc: 'Six pirates, from the deckhand to the captain. Eye patches included.', price: 0, contents: { skins: skinIds('pirates', CR) } },
+    { id: 'skins-office', kind: 'skins', name: 'Corner Office', desc: 'A suit and tie, a banker and a tracksuit tough guy.', price: 0, contents: { skins: ['nine-to-five', 'banker', 'tracksuit-tough'] } },
+    { id: 'skins-speakeasy', kind: 'skins', name: 'Speakeasy', desc: 'Pinstripes, a detective, a bodyguard, a tuxedo and a secret agent.', price: 0, contents: { skins: ['roaring-twenties', 'gumshoe', 'bodyguard', 'black-tie', 'secret-agent'] } },
+    { id: 'skins-scrap', kind: 'skins', name: 'Scrap Heap', desc: 'Four new robots, from tin toy to android.', price: 0, contents: { skins: ['retro-tin-bot', 'vacuum-bot', 'junkyard-bot', 'sleek-android'] } },
+    { id: 'skins-tales', kind: 'skins', name: 'Tall Tales', desc: 'Two wizards, a ninja, a mummy, a hero and a rock star.', price: 0, contents: { skins: ['apprentice-wizard', 'wise-wizard', 'night-ninja', 'wrapped-up', 'bolt-guardian', 'rock-star'] } },
+    { id: 'skins-everyday', kind: 'skins', name: 'Day Job', desc: 'An astronaut, a chef, a firefighter and a DJ.', price: 0, contents: { skins: ['mission-specialist', 'head-chef', 'firefighter', 'turntable-dj'] } },
+    { id: 'skins-critters', kind: 'skins', name: 'Critters and Snacks', desc: 'A panda, a penguin, a tiger, a pizza slice, a pumpkin and a snow day.', price: 0, contents: { skins: ['panda', 'penguin', 'tiger', 'pizza-slice', 'pumpkin-patch', 'snow-day'] } },
+    { id: 'acc-kitbag', kind: 'accessories', name: 'Kit Bag', desc: 'Sports headgear, eye black and two ball trails.', price: 0, contents: { acc: ['ball-cap', 'sweatband', 'hockey-helmet', 'football-helmet', 'racing-helmet', 'eye-black', 'soccer-trail', 'football-trail', 'number-cape'] } },
+    { id: 'acc-pirate', kind: 'accessories', name: 'Pirate Kit', desc: 'Eye patch, bandana, tricorn, a parrot and a trail of gold coins.', price: 0, contents: { acc: ['eye-patch', 'bandana', 'tricorn', 'parrot', 'doubloon-trail'] } },
+    { id: 'acc-sharp', kind: 'accessories', name: 'Sharp Dresser', desc: 'Fedora, bowler, flat cap, fur hat, bow tie, gold chain and shades.', price: 0, contents: { acc: ['fedora', 'bowler', 'flat-cap', 'fur-hat', 'bow-tie', 'gold-chain', 'dark-shades', 'aviators'] } },
+    { id: 'acc-stage', kind: 'accessories', name: 'Showtime', desc: 'Spotlight, confetti, camera flashes, headphones and a music trail.', price: 0, contents: { acc: ['spotlight', 'confetti-pop', 'camera-flash', 'dj-headphones', 'music-trail'] } },
+    { id: 'acc-gadgets', kind: 'accessories', name: 'Gadget Box', desc: 'A cyborg eye, a robot pup, a drone and a penguin chick who came along anyway.', price: 0, contents: { acc: ['cyborg-eye', 'robo-pup', 'drone-buddy', 'penguin-chick'] } },
+    { id: 'acc-kraken', kind: 'accessories', name: 'Message in a Bottle', desc: 'Uncorks the Pocket Kraken. Legendary.', price: 0, contents: { acc: ['pocket-kraken'] } }
   ];
   // Skin and accessory packs cost the sum of their items' prices, like the game item packs.
   PACKS.forEach(function (p) { if (p.kind === 'skins' || p.kind === 'accessories') p.price = sumPrice(p.contents.skins || p.contents.acc); });
@@ -1395,7 +1669,7 @@
       case 'checker': var c = ''; for (var cy = 0; cy < 64; cy += 8) for (var cx = ((cy / 8) % 2) * 8; cx < 64; cx += 16) c += R(cx, cy, 8, 8, 0, b2, ' opacity=".3"'); return s + c;
       case 'swirl': return s + P('M32 32 m-24 0 a24 24 0 1 1 48 0 a20 20 0 1 1 -40 0 a16 16 0 1 1 32 0 a12 12 0 1 1 -24 0', null, b2, 2.4, ' opacity=".35"') + star(12, 12, 2.6, WH, 4, .3, ' opacity=".8"') + star(52, 16, 2, WH, 4, .3, ' opacity=".7"');
       case 'quarters': return '<g>' + P('M32 32 L32 -4 A36 36 0 0 0 -4 32 Z', '#9BE07A') + P('M32 32 L68 32 A36 36 0 0 0 32 -4 Z', '#FFC93C') + P('M32 32 L32 68 A36 36 0 0 0 68 32 Z', '#E07A2E') + P('M32 32 L-4 32 A36 36 0 0 0 32 68 Z', '#9FD3FF') + '</g>' + star(10, 14, 2, WH, 6, .25, ' opacity=".8"') + E(52, 12, 3, 1.5, '#3E8A2E', ' transform="rotate(30 52 12)"');
-      default: return s;
+      default: return s + bgMore(lk, b2, id);
     }
   }
   function outfit(lk, c, id) {
@@ -1411,7 +1685,7 @@
       case 'puffer': deco = P('M10 59 Q32 56 54 59 M8 63 Q32 60 56 63', null, t, 1.1, ' opacity=".8"') + P('M32 55 L32 66', null, a, 1.8) + P('M24 54.5 Q32 57 40 54.5', null, a, 3); break;
       case 'overalls': base = P(SH, t); deco = R(24, 58, 16, 12, 2, b) + P('M24 59 L17 55 M40 59 L47 55', null, b, 3) + C(26.5, 60.5, 1.1, a) + C(37.5, 60.5, 1.1, a) + R(29, 62, 6, 3, 1, a, ' opacity=".7"'); break;
       case 'circuit': deco = P('M12 60 L20 60 L23 63 L30 63 M52 60 L44 60 L41 63 L34 63 M32 55 L32 61', null, a, 1.1) + C(12, 60, 1.2, em) + C(52, 60, 1.2, em) + C(32, 61.5, 1.5, em) + C(30, 63, .8, em) + C(34, 63, .8, em); break;
-      default: deco = '';
+      default: deco = outfitMore(lk, c, id);
     }
     return base + '<g' + cl + '>' + deco + '</g>';
   }
@@ -1435,7 +1709,7 @@
       case 'fins': return P('M16 33 L6 26 L8 40 Z', a, null, 0, ' opacity=".9"') + P(mirrorX('M16 33 L6 26 L8 40 Z'), a, null, 0, ' opacity=".9"') + P('M28 15 Q32 2 38 6 Q35 10 36 15 Z', a) + C(32, 6, 2, em) + C(32, 6, 4, em, ' opacity=".25"');
       case 'crown': return P('M19 19 L20.5 6 L26.5 12.5 L32 3.5 L37.5 12.5 L43.5 6 L45 19 Z', a, t, .8) + C(32, 9.5, 1.8, em) + C(23, 13.5, 1.2, '#FF7AE0') + C(41, 13.5, 1.2, '#7FD4FF') + star(50, 6, 2.2, WH, 4, .3) + star(13, 9, 1.6, WH, 4, .3);
       case 'crownleaf': var cl = ''; [[20, 16, -40, '#9BE07A'], [26, 11, -15, '#FFC93C'], [32, 9, 0, '#E07A2E'], [38, 11, 15, '#9FD3FF'], [44, 16, 40, '#9BE07A']].forEach(function (p) { cl += E(p[0], p[1], 2.4, 5, p[3], ' transform="rotate(' + p[2] + ' ' + p[0] + ' ' + p[1] + ')" stroke="' + t + '" stroke-width=".6"'); }); return cl + star(32, 3, 2.2, WH, 6, .3);
-      default: return '';
+      default: return headMore(lk, c);
     }
   }
   // Accessory layers: 'back' (behind the face: capes, trails, auras), 'front' (glasses, hats, halos, pets).
@@ -1450,7 +1724,7 @@
       case 'rainbow': var cols = ['#FF5C5C', '#FFA63D', '#FFE45C', '#5CE07A', '#5CC8FF', '#9A7CFF'], r = ''; cols.forEach(function (k, i) { r += P('M-4 ' + (40 + i * 2.6) + ' Q10 ' + (36 + i * 2.6) + ' 18 ' + (46 + i * 2.6), null, k, 2.6); }); return r;
       case 'ember': return '<defs><radialGradient id="' + id + 'em"><stop offset="0" stop-color="' + c + '" stop-opacity=".75"/><stop offset="1" stop-color="' + c + '" stop-opacity="0"/></radialGradient></defs>' + C(32, 34, 28, 'url(#' + id + 'em)') + P('M10 30 Q8 24 11 20 Q12 25 10 30 Z M54 28 Q56 22 53 18 Q52 23 54 28 Z M18 12 Q17 8 19 6 Q20 9 18 12 Z', c2);
       case 'frost': return C(32, 34, 26, 'none', ' stroke="' + c + '" stroke-width="2.2" stroke-dasharray="3 3" opacity=".9"') + star(8, 30, 2.2, c2, 6, .25) + star(56, 30, 2.2, c2, 6, .25) + star(32, 7, 1.8, c2, 6, .25);
-      default: return '';
+      default: return accBackMore(a, id);
     }
   }
   function accFront(a) {
@@ -1474,7 +1748,273 @@
       case 'starfish': return star(52, 54, 8, c, 5, .48) + C(50.5, 53, .9, INK) + C(53.5, 53, .9, INK) + P('M50.5 55.6 Q52 56.8 53.5 55.6', null, INK, .8) + C(52, 54, 2.4, c2, ' opacity=".35"');
       case 'ghost': return P('M45 62 L45 52 Q45 45 52 45 Q59 45 59 52 L59 62 L56.7 60 L54.3 62 L52 60 L49.7 62 L47.3 60 Z', c, null, 0, ' opacity=".92"') + P('M45.5 49 L43.5 45.5 L47.5 47 Z M58.5 49 L60.5 45.5 L56.5 47 Z', c2) + C(49.8, 52, 1.1, INK) + C(54.2, 52, 1.1, INK) + E(52, 55, 1.4, 1, c2);
       case 'dragon': return P('M47 52 L41 46 L45 54 Z M57 52 L63 46 L59 54 Z', c2, null, 0, ' opacity=".9"') + E(52, 56, 7, 6.5, c) + P('M48 50.5 L47 46 L50.5 49.5 Z M56 50.5 L57 46 L53.5 49.5 Z', c2) + C(49.5, 55, 1.1, WH) + C(54.5, 55, 1.1, WH) + C(49.7, 55.2, .55, INK) + C(54.7, 55.2, .55, INK) + C(51, 59, .5, INK) + C(53, 59, .5, INK) + star(58, 60, 1.4, c2, 4, .3);
+      default: return accFrontMore(a);
+    }
+  }
+
+  // ---- Wave 2 parts (19 Nov 2026): sports kits, pirates, suits, robots and more. Only skins and accessories that name
+  // these parts reach this code (the switches above fall through to it), so every older look draws exactly as before.
+  // A look may also have: face (space-separated: patch, shades, stache, beard, mask, domino, eyeblack, goggles, fangs,
+  // visor), fx (space-separated: shine, frame, orbit, twinkle, flicker; animated SVG, for the special ones), num (a
+  // number on a kit), h1 / h2 (the head piece's own colours) and a few options named where they are used.
+  var GOLD = '#F5C542', STEEL = '#C8D2DC', SHIRT = '#F4F1EA';
+  var SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+  // A number in chunky sporty segments, centred on x, top at y, h tall.
+  function digits(str, x, y, h, col, w) {
+    str = String(str || '').replace(/\D/g, '').slice(0, 2); if (!str) return '';
+    var W = h * .5, gap = h * .32, tot = str.length * W + (str.length - 1) * gap, d = '';
+    str.split('').forEach(function (ch, i) {
+      var x0 = x - tot / 2 + i * (W + gap), m = h / 2, s = SEG[ch];
+      var L = { a: [0, 0, W, 0], b: [W, 0, W, m], c: [W, m, W, h], d: [0, h, W, h], e: [0, m, 0, h], f: [0, 0, 0, m], g: [0, m, W, m] };
+      s.split('').forEach(function (k) { var q = L[k]; d += 'M' + (x0 + q[0]).toFixed(2) + ' ' + (y + q[1]).toFixed(2) + ' L' + (x0 + q[2]).toFixed(2) + ' ' + (y + q[3]).toFixed(2) + ' '; });
+    });
+    return P(d, null, col, w || h * .22);
+  }
+  function skull(cx, cy, s, col) { return C(cx, cy, 2.6 * s, col) + R(cx - 1.7 * s, cy + 1, 3.4 * s, 2.4 * s, .7 * s, col) + C(cx - .95 * s, cy - .1 * s, .7 * s, INK) + C(cx + .95 * s, cy - .1 * s, .7 * s, INK); }
+  function bgMore(lk, b2, id) {
+    var o = ' opacity=".35"', s = '', i, x, y;
+    switch (lk.bgp) {
+      case 'pitch': for (y = 0; y < 64; y += 8) s += R(0, y, 64, 4, 0, b2, ' opacity=".28"'); return s + C(32, 66, 16, 'none', ' stroke="#FFFFFF" stroke-width="1.2" opacity=".55"') + P('M0 50 L64 50', null, WH, 1.2, ' opacity=".55"');
+      case 'court': for (x = 3; x < 64; x += 6) s += P('M' + x + ' 0 L' + x + ' 64', null, b2, .8, o); return s + P('M8 64 Q32 30 56 64', null, WH, 1.4, ' opacity=".6"') + R(0, 10, 64, 1.4, 0, WH, ' opacity=".45"');
+      case 'rink': return R(0, 18, 64, 1.8, 0, '#E5484D', ' opacity=".55"') + R(0, 46, 64, 1.8, 0, '#3D8BFF', ' opacity=".55"') + C(32, 32, 9, 'none', ' stroke="#E5484D" stroke-width="1.1" opacity=".45"') + C(10, 10, 4, b2, o) + C(54, 56, 4, b2, o);
+      case 'track': for (i = 0; i < 4; i++) s += P('M-4 ' + (8 + i * 14) + ' Q32 ' + (-4 + i * 14) + ' 68 ' + (8 + i * 14), null, WH, 1.1, ' opacity=".5"'); return R(0, 0, 64, 64, 0, b2, ' opacity=".2"') + s;
+      case 'bricks': for (y = 0; y < 64; y += 6) for (x = (y / 6) % 2 ? -6 : 0; x < 64; x += 12) s += R(x + .6, y + .6, 10.8, 4.8, .6, b2, ' opacity=".3"'); return s;
+      case 'spot': return P('M24 -2 L40 -2 L62 64 L2 64 Z', b2, null, 0, ' opacity=".28"') + E(32, 60, 26, 6, b2, ' opacity=".35"');
+      case 'skyline': [[0, 40, 8], [8, 32, 7], [15, 44, 6], [44, 36, 7], [51, 28, 6], [57, 42, 8]].forEach(function (q) { s += R(q[0], q[1], q[2], 64 - q[1], 0, b2, ' opacity=".35"'); for (y = q[1] + 3; y < 60; y += 5) s += R(q[0] + 1.6, y, 1.4, 1.6, 0, GOLD, ' opacity=".7"'); }); return C(50, 12, 5, b2, ' opacity=".7"') + s;
+      case 'flash': [[10, 14, 4], [54, 12, 3.2], [56, 36, 2.6], [7, 38, 2.4], [22, 5, 2]].forEach(function (q) { s += star(q[0], q[1], q[2], WH, 4, .25, ' opacity=".85"') + C(q[0], q[1], q[2] * .9, b2, ' opacity=".3"'); }); return s;
+      case 'confetti': var cc = ['#FF5C5C', '#FFD23F', '#5CC8FF', '#7CE38B', '#B98BFF'];
+        [[8, 12, 30], [16, 4, -20], [52, 8, 50], [57, 22, -35], [6, 30, 70], [58, 40, 15], [46, 3, -60], [12, 46, 40]].forEach(function (q, k) { s += R(q[0] - 1.8, q[1] - .8, 3.6, 1.6, .5, cc[k % 5], ' transform="rotate(' + q[2] + ' ' + q[0] + ' ' + q[1] + ')"'); }); return s;
+      case 'wings': return P('M32 40 Q8 34 -2 12 Q8 18 12 14 Q14 22 20 22 Q18 30 32 34 Z', b2, null, 0, ' opacity=".85"') + P(mirrorX('M32 40 Q8 34 -2 12 Q8 18 12 14 Q14 22 20 22 Q18 30 32 34 Z'), b2, null, 0, ' opacity=".85"') + P('M28 36 Q14 30 6 18 M28 38 Q16 36 4 28', null, GOLD, 1, ' opacity=".7"') + P(mirrorX('M28 36 Q14 30 6 18 M28 38 Q16 36 4 28'), null, GOLD, 1, ' opacity=".7"');
+      case 'fog': return E(12, 18, 14, 4, b2, ' opacity=".3"') + E(52, 10, 12, 3.4, b2, ' opacity=".3"') + E(56, 40, 12, 3.6, b2, ' opacity=".25"') + E(6, 44, 10, 3, b2, ' opacity=".25"');
+      case 'notes': [[10, 16], [52, 12], [55, 36], [8, 38]].forEach(function (q) { s += C(q[0], q[1] + 4, 1.9, b2, ' opacity=".55"') + P('M' + (q[0] + 1.7) + ' ' + (q[1] + 4) + ' L' + (q[0] + 1.7) + ' ' + (q[1] - 3) + ' L' + (q[0] + 5) + ' ' + (q[1] - 2), null, b2, 1, ' opacity=".55"'); }); return s;
+      case 'gears': [[10, 14, 7], [54, 12, 6], [56, 40, 5], [6, 40, 5]].forEach(function (q) { s += star(q[0], q[1], q[2], b2, 8, .78, o) + C(q[0], q[1], q[2] * .35, lk.bg); }); return s;
+      case 'deck': for (y = 2; y < 64; y += 7) s += P('M0 ' + y + ' L64 ' + y, null, b2, .9, o); for (y = 2; y < 64; y += 7) s += C(((y * 7) % 50) + 6, y + 3.5, .6, b2, ' opacity=".5"'); return s;
+      case 'map': return R(4, 4, 56, 56, 4, b2, ' opacity=".25"') + P('M8 50 Q16 40 12 30 Q8 20 20 16 Q30 13 30 6', null, '#A0522D', 1.2, ' stroke-dasharray="2 2" opacity=".7"') + P('M50 8 L56 14 M56 8 L50 14', null, '#D9483B', 1.6) + C(54, 44, 3, 'none', ' stroke="' + b2 + '" stroke-width="1" opacity=".6"');
+      case 'moon': return C(50, 13, 6.5, b2, ' opacity=".9"') + C(47.5, 11.5, 5.5, lk.bg) + star(12, 12, 1.8, WH, 4, .3, ' opacity=".8"') + star(56, 34, 1.4, WH, 4, .3, ' opacity=".7"') + star(8, 34, 1.2, WH, 4, .3, ' opacity=".7"');
+      case 'kitchen': for (y = 0; y < 64; y += 8) for (x = 0; x < 64; x += 8) s += R(x + .5, y + .5, 7, 7, 1, b2, ((x + y) / 8) % 2 ? ' opacity=".18"' : ' opacity=".35"'); return s;
+      case 'flames': return P('M-2 64 Q2 46 8 50 Q8 36 16 42 Q18 30 24 40 L24 64 Z', b2, null, 0, ' opacity=".55"') + P(mirrorX('M-2 64 Q2 46 8 50 Q8 36 16 42 Q18 30 24 40 L24 64 Z'), b2, null, 0, ' opacity=".55"');
       default: return '';
+    }
+  }
+  function outfitMore(lk, c, id) {
+    var b = c.body, a = c.accent, t = c.trim, em = c.emissive, d = '', x, y;
+    var num = lk.num != null ? digits(lk.num, 41.5, 56.6, 4.6, lk.numc || a, 1.2) : '';
+    switch (lk.outfit) {
+      case 'kit': d = P('M26 54.5 L32 59.5 L38 54.5', null, a, 2.2) + P('M8 61 L15 56.5 M56 61 L49 56.5', null, a, 2) + C(23, 59, 1.6, t) + num;
+        if (lk.band) d = R(0, 59.6, 64, 2.4, 0, t, ' opacity=".85"') + d;
+        if (lk.stars) d += star(14, 60, 1.8, a, 5, .45) + star(50, 60, 1.8, a, 5, .45) + star(19, 63, 1.4, a, 5, .45);
+        if (lk.medal) d += P('M27 54.8 L32 60 L37 54.8', null, '#3D8BFF', 1.6) + C(32, 61.2, 2.7, GOLD, ' stroke="#B8860B" stroke-width=".5"') + star(32, 61.2, 1.5, '#FFF2C2', 5, .45);
+        return d;
+      case 'tank': return P('M25 54.6 Q32 61 39 54.6', null, a, 2.2) + P('M20.5 55.2 Q19.5 60 14 64.5', null, a, 2) + P(mirrorX('M20.5 55.2 Q19.5 60 14 64.5'), null, a, 2) + (lk.num != null ? digits(lk.num, 32, 59.2, 4.4, lk.numc || a, 1.15) : '');
+      case 'pads': return E(14, 57.5, 9.5, 5, a) + E(50, 57.5, 9.5, 5, a) + P('M7 56 Q14 52 21 55.5', null, WH, 1, ' opacity=".55"') + P(mirrorX('M7 56 Q14 52 21 55.5'), null, WH, 1, ' opacity=".55"') + P('M26 54.6 L32 58.6 L38 54.6', null, t, 2) + (lk.num != null ? digits(lk.num, 32, 59.4, 4.4, lk.numc || WH, 1.15) : '');
+      case 'vstripes': for (x = 8; x < 58; x += 6) d += R(x, 50, 2.8, 18, 0, INK); return d + P('M25 54.6 L32 58.6 L39 54.6', null, INK, 2.4) + P('M27 55.5 Q29.5 60 33 61', null, a, .9) + R(32.5, 59.8, 4.4, 2.4, 1, STEEL, ' stroke="' + INK + '" stroke-width=".4"');
+      case 'polo': d = P('M25.5 54.4 L29.2 59.4 L32 56.4 Z', t) + P(mirrorX('M25.5 54.4 L29.2 59.4 L32 56.4 Z'), t) + R(31.2, 56, 1.6, 6.5, .8, t, ' opacity=".7"') + C(32, 58.3, .55, WH) + C(32, 60.7, .55, WH) + C(42, 60, 1.4, a);
+        if (lk.whistle) d += P('M27 55.5 Q28 61 33.5 62', null, a, .9) + R(33, 61, 4.4, 2.4, 1, STEEL, ' stroke="' + INK + '" stroke-width=".4"');
+        return d;
+      case 'gi': return P('M25 54.6 L35.5 66', null, t, 2.6) + P('M39 54.6 L33.4 60.6', null, t, 2.6) + R(26, 62.6, 12, 3, .8, a) + P('M30 64 L28 67 M34 64 L36 67', null, a, 1.6);
+      case 'boxrobe': return P('M23.5 54.6 Q27 61 30.5 66', null, a, 3.2) + P(mirrorX('M23.5 54.6 Q27 61 30.5 66'), null, a, 3.2) + P('M12 59 Q16 57 20 58', null, WH, 1, ' opacity=".45"') + (lk.num != null ? digits(lk.num, 47, 58.4, 3.6, a, 1) : '');
+      case 'racesuit': return P('M25 54.6 Q32 57.6 39 54.6', null, a, 2.6) + P('M11.5 58 L19 66', null, a, 2.2) + P(mirrorX('M11.5 58 L19 66'), null, a, 2.2) + R(19.5, 59.2, 5.4, 3, 1, WH) + R(39.5, 59.2, 5.4, 3, 1, em) + P('M32 57.6 L32 66', null, t, .8);
+      case 'wetsuit': return P('M8 60 Q32 64 56 60 L56 70 L8 70 Z', a) + P('M24.5 54.8 Q32 57.4 39.5 54.8', null, t, 1.8) + P('M32 56.6 L32 66', null, t, 1) + P('M12 58 L20 56', null, em, 1.2);
+      case 'pirate': d = P('M26 54.4 L32 66 L38 54.4 Z', SHIRT) + P('M27.5 56 Q32 58.4 36.5 56 M28.6 58.6 Q32 61 35.4 58.6', null, '#D9D3C4', .9) + P('M26 54.4 L30 66', null, a, 1.8) + P('M38 54.4 L34 66', null, a, 1.8) + C(24, 60, 1, a) + C(40, 60, 1, a) + C(23.4, 63.4, 1, a) + C(40.6, 63.4, 1, a);
+        if (lk.sash) d += P('M14 57 L50 66', null, lk.sash, 3);
+        if (lk.hook) d += P('M51 67 L51 61 Q51 56.6 47 57 Q44 57.6 45.4 60', null, STEEL, 1.6) + R(48.6, 63, 5, 4, 1, t);
+        return d;
+      case 'business': case 'tux': case 'trench':
+        var tie = lk.tie || (lk.outfit === 'tux' ? 'bow' : 'tie'), shirt = lk.shirt || (lk.outfit === 'tux' ? WH : SHIRT);
+        if (lk.pin) for (x = 9.5; x < 56; x += 3.2) d += P('M' + x + ' 52 L' + x + ' 66', null, lk.pin, .45, ' opacity=".7"');
+        if (lk.outfit === 'trench') d += C(26, 61, .9, t) + C(38, 61, .9, t) + C(26, 64.2, .9, t) + C(38, 64.2, .9, t);
+        d += P('M27 54.5 L32 63.5 L37 54.5 Z', shirt);
+        if (tie === 'tie') d += P('M31.1 56.6 L32.9 56.6 L33.8 62.6 L32 64.8 L30.2 62.6 Z', a) + R(30.6, 55, 2.8, 2, .6, a);
+        if (tie === 'bow') d += P('M32 56.3 L28.4 54.5 L28.4 58.1 Z M32 56.3 L35.6 54.5 L35.6 58.1 Z', a) + C(32, 56.3, .95, a);
+        var lap = lk.outfit === 'tux' ? em : t, lw = lk.outfit === 'trench' ? 'M26.4 54.4 L30.4 62.8 L21.6 59.2 Z' : 'M26.8 54.4 L30.2 62 L25.4 58.6 Z';
+        d += P(lw, lap) + P(mirrorX(lw), lap);
+        if (lk.rose) d += C(41.5, 58.6, 1.5, '#D9483B') + C(41.5, 58.6, .6, '#8E1F1F') + P('M41.5 60 L41 62', null, '#3E8A2E', .7);
+        else if (lk.outfit !== 'trench') d += R(40, 58.4, 3.4, 1.4, .4, lk.pocket || WH);
+        if (lk.chain) d += P('M26.8 55.6 Q32 62 37.2 55.6', null, GOLD, 1.3, ' stroke-dasharray="1.1 .7"');
+        return d;
+      case 'track': d = P('M25 54.6 Q32 57.4 39 54.6', null, t, 2.4) + P('M32 56.4 L32 66', null, t, 1.2) + R(31.3, 57, 1.4, 2.4, .5, STEEL) + P('M8 61.6 L17.4 55.8 M9.4 63.6 L18.8 57.8', null, a, 1.1) + P(mirrorX('M8 61.6 L17.4 55.8 M9.4 63.6 L18.8 57.8'), null, a, 1.1);
+        if (lk.chain) d += P('M26 55.4 Q32 63.4 38 55.4', null, GOLD, 1.9, ' stroke-dasharray="1.3 .7"') + C(32, 61.6, 1.7, GOLD, ' stroke="#B8860B" stroke-width=".4"');
+        return d;
+      case 'longcoat': d = P('M27.5 54.5 L32 63 L36.5 54.5 Z', t) + P('M12 59.5 Q16 52.6 25 54 Q29 58.6 32 59.6 Q35 58.6 39 54 Q48 52.6 52 59.5 Q46 61.4 41 59.6 Q36 63 32 62 Q28 63 23 59.6 Q18 61.4 12 59.5 Z', a) + P('M15 58.6 Q17 56.6 19 57.6 M45 58.6 Q47 56.6 49 57.6 M27 58 Q28 56.8 29.4 57.6 M37 58 Q36 56.8 34.6 57.6', null, INK, .5, ' opacity=".25"') + C(28, 63.4, .9, GOLD) + C(36, 63.4, .9, GOLD);
+        if (lk.chain) d += P('M27.4 57.6 Q32 64.6 36.6 57.6', null, GOLD, 1.9, ' stroke-dasharray="1.3 .7"');
+        return d;
+      case 'apron': return C(27.4, 58.4, .9, t) + C(36.6, 58.4, .9, t) + C(27.4, 61.6, .9, t) + C(36.6, 61.6, .9, t) + P('M26.6 54.4 Q32 58.4 37.4 54.4 L35.6 57.4 Q32 59.2 28.4 57.4 Z', a) + P('M24 55 Q32 52.6 40 55', null, t, .7, ' opacity=".5"');
+      case 'fire': return R(0, 59, 64, 2, 0, a) + R(0, 61, 64, .8, 0, em) + R(0, 58.2, 64, .8, 0, em) + P('M25 54.6 Q32 57.6 39 54.6', null, t, 2.6) + R(30.4, 56.6, 3.2, 9, .8, t, ' opacity=".7"');
+      case 'hero': d = P('M7 61 Q11 54.6 20.4 55.6 L18.4 58.6 Z', em) + P(mirrorX('M7 61 Q11 54.6 20.4 55.6 L18.4 58.6 Z'), em) + C(32, 60.4, 3.9, a, ' stroke="' + t + '" stroke-width=".7"');
+        d += lk.emblem === 'star' ? star(32, 60.4, 2.8, t, 5, .45) : P('M33 57.2 L30.2 60.8 L32.2 60.8 L31 63.6 L34 59.8 L32 59.8 Z', t);
+        return d + P('M25 54.6 Q32 57 39 54.6', null, t, 1.4);
+      case 'vamp': return P('M27 54.5 L32 64 L37 54.5 Z', a) + P('M28.6 55.4 L32 57.4 L35.4 55.4', null, WH, 1.2) + C(32, 60.6, 1.7, GOLD, ' stroke="#8E1F1F" stroke-width=".5"') + P('M26.6 54.4 L29.8 64 M37.4 54.4 L34.2 64', null, em, 1);
+      case 'samurai': for (y = 58; y < 66; y += 3.2) d += P('M8 ' + y + ' L56 ' + y, null, t, 1) + C(20, y + 1.6, .45, GOLD) + C(32, y + 1.6, .45, GOLD) + C(44, y + 1.6, .45, GOLD);
+        return d + E(12.5, 58.6, 8.4, 4.6, a) + E(51.5, 58.6, 8.4, 4.6, a) + P('M6 58 L19 58 M6 60.6 L19 60.6 M45 58 L58 58 M45 60.6 L58 60.6', null, t, .6) + P('M25 54.6 Q32 57.6 39 54.6', null, GOLD, 1.4);
+      case 'tabard': for (y = 56; y < 66; y += 2.2) for (x = 8 + (y % 4.4 ? 1.1 : 0); x < 58; x += 2.2) d += C(x, y, .55, t, ' opacity=".55"');
+        return d + P('M24.4 54.6 L39.6 54.6 L39.6 66 L24.4 66 Z', a) + star(32, 60.6, 2.8, em, 5, .45) + E(13, 58.2, 8.4, 4.2, STEEL) + E(51, 58.2, 8.4, 4.2, STEEL) + P('M7 57 Q13 54 19 56.6', null, WH, .8, ' opacity=".6"') + P(mirrorX('M7 57 Q13 54 19 56.6'), null, WH, .8, ' opacity=".6"');
+      case 'wrap': for (y = 53; y < 68; y += 3) d += P('M4 ' + (y + 2) + ' L60 ' + (y - 1.5), null, t, .7, ' opacity=".55"'); return d + P('M14 56 L30 64', null, t, .6, ' opacity=".45"') + P('M40 55 L52 60', null, t, .6, ' opacity=".45"');
+      case 'leather': return P('M27.6 54.5 L32 59 L36.4 54.5 Z', a) + P('M26.6 54.4 L30 64 L23 59 Z', t) + P(mirrorX('M26.6 54.4 L30 64 L23 59 Z'), t) + C(24.4, 57.2, .5, STEEL) + C(39.6, 57.2, .5, STEEL) + C(25.6, 60, .5, STEEL) + C(38.4, 60, .5, STEEL) + P('M33.4 60 L36.6 66', null, STEEL, .9) + P('M10 58 L18 58', null, STEEL, .6, ' opacity=".6"');
+      case 'mech': return P('M22.6 55 L26.4 66 M41.4 55 L37.6 66', null, t, 2.4) + P('M24 61.4 L40 61.4', null, t, 1.8) + R(29.6, 59.6, 4.8, 3.6, 1, em) + R(10, 58.4, 6, 3, .8, a) + P('M25.4 54.6 Q32 57 38.6 54.6', null, a, 1.6);
+      case 'feathers': for (x = 4; x < 62; x += 5) d += P('M' + (x - 2.6) + ' 56 Q' + x + ' 63 ' + (x + 2.6) + ' 56 Z', (x / 5) % 2 < 1 ? a : em) + P('M' + (x - 2.6) + ' 61 Q' + (x + 2.5) + ' 68 ' + (x + 5) + ' 61 Z', (x / 5) % 2 < 1 ? em : a, null, 0, ' opacity=".9"');
+        return d + P('M25 54.6 Q32 58 39 54.6', null, t, 1.6) + C(32, 60.4, 1.6, WH, ' opacity=".9"');
+      case 'tinbody': return R(22.6, 56, 18.8, 10, 2, t) + C(27.6, 59.6, 1.7, em) + C(36.4, 59.6, 1.7, a) + P('M26 63.4 L38 63.4', null, a, .8) + P('M36.4 59.6 L37.4 58.6', null, INK, .6) + C(12, 60, .8, t) + C(52, 60, .8, t) + C(16, 57.4, .8, t) + C(48, 57.4, .8, t);
+      case 'belly': return E(32, 66, 11, 10, lk.belly || WH) + P('M24.4 54.8 Q32 57 39.6 54.8', null, a, 1.4);
+      default: return '';
+    }
+  }
+  // Head pieces by name, shared by the new skins (look.head, space-separated) and the new hat accessories.
+  // h1: main colour, h2: second colour, t: dark trim, em: glow / light colour.
+  function hatPart(n, h1, h2, t, em, lk) {
+    lk = lk || {};
+    var d = '', i;
+    switch (n) {
+      case 'cap': return P('M15 27 C15 13 23 9 32 9 C41 9 49 13 49 27 Z', h1) + P('M24 10.6 Q22 18 22.4 27 M40 10.6 Q42 18 41.6 27', null, INK, .6, ' opacity=".18"') + C(32, 9.6, 1.6, h2) + (lk.logo === 'none' ? '' : star(32, 18.4, 3.2, h2, 5, .45)) + P('M14 26 Q32 22 50 26 Q52.4 30.6 46 31 Q32 28.6 18 31 Q11.6 30.6 14 26 Z', h2);
+      case 'capback': return P('M43 14 Q50 8 56 10.6 Q53 15 47 17.6 Z', h2) + P('M15 27 C15 13 23 9 32 9 C41 9 49 13 49 27 Z', h1) + R(15, 25, 34, 3.4, 1.7, h2) + R(28, 22.6, 8, 3, 1.4, t, ' opacity=".5"') + C(32, 9.6, 1.6, h2);
+      case 'band': return R(15.6, 21, 32.8, 5, 2.5, h1) + R(15.6, 22.8, 32.8, 1.4, .7, h2);
+      case 'hachimaki': return R(15.6, 21.4, 32.8, 4.4, 2.2, h1) + P('M47 23.6 L56.6 19.4 L55.2 24 Z M47 24.6 L55.6 29.6 L52.8 31.2 Z', h1) + C(48, 23.8, 2.2, h1) + C(32, 23.6, 1.6, h2);
+      case 'fbhelm': return P('M13 34 C12 15 22 8 32 8 C42 8 52 15 51 34 L51 40 Q48.4 42.6 46 40 L46 30 Q32 25 18 30 L18 40 Q15.6 42.6 13 40 Z', h1) + P('M32 8.2 L32 26.4', null, h2, 3) + P('M19 13 Q24 9.6 30 9', null, WH, 1.4, ' opacity=".45"') + C(15.6, 35, 1.5, INK, ' opacity=".35"') + C(48.4, 35, 1.5, INK, ' opacity=".35"') + P('M17 39.4 Q32 46 47 39.4 M18 44.6 Q32 52 46 44.6 M24 41.8 L24 49.4 M40 41.8 L40 49.4', null, lk.mask || em, 1.6);
+      case 'hockey': return P('M14 32 C13 15 22 9 32 9 C42 9 51 15 50 32 L46.6 32 L46.6 28 Q32 23 17.4 28 L17.4 32 Z', h1) + R(25, 11.4, 3, 6, 1.5, INK, ' opacity=".28"') + R(36, 11.4, 3, 6, 1.5, INK, ' opacity=".28"') + P('M17.4 27.4 Q32 22.6 46.6 27.4', null, h2, 1.6) + P('M17.4 32 Q19.6 50 32 52.4 Q44.4 50 46.6 32', null, t, 1, ' opacity=".55"');
+      case 'swim': return P('M15 30 C14 13 23 8.6 32 8.6 C41 8.6 50 13 49 30 Q32 24.6 15 30 Z', h1) + P('M20 20 Q24 13 31 11.6', null, WH, 1.6, ' opacity=".5"') + (lk.logo === 'none' ? '' : star(39, 17, 2.4, h2, 5, .45));
+      case 'flatcap': return P('M15 26 C15 16 24 12.6 34 12.6 C44 12.6 50 16.6 50 23.6 Q52.6 27 49 28 Q32 25 15 28 Z', h1) + P('M18 18 L46 18 M17 22 L48 22', null, h2, .6, ' opacity=".55"') + P('M15 26 Q32 23 49 26 L48 29 Q32 26.6 16 29 Z', h2) + C(33.4, 13.2, 1.2, h2);
+      case 'visorcap': return R(15.6, 21.6, 32.8, 4.2, 2.1, h1) + P('M17 25 Q32 21.6 47 25 Q49.4 30.2 43 29.8 Q32 27.6 21 29.8 Q14.6 30.2 17 25 Z', h2);
+      case 'skihelm': return P('M14 31 C13 14 22 8.6 32 8.6 C42 8.6 51 14 50 31 L46.4 31 Q46 22 32 21 Q18 22 17.6 31 Z', h1) + P('M16 20.6 L48 20.6', null, INK, 2) + R(18, 15.4, 28, 8, 4, em, ' stroke="' + INK + '" stroke-width="1.2"') + P('M21 17.6 L26 17.6', null, WH, 1, ' opacity=".8"');
+      case 'boxhead': return P('M15 31 C14 13 23 8.6 32 8.6 C41 8.6 50 13 49 31 L45 31 Q44.4 18.6 32 18.6 Q19.6 18.6 19 31 Z', h1) + P('M14 30 L19.4 30 L20.4 45 Q17 47.4 14 44 Z', h1) + P(mirrorX('M14 30 L19.4 30 L20.4 45 Q17 47.4 14 44 Z'), h1) + P('M21 13 Q32 9 43 13', null, h2, 1.6) + P('M19 13.6 Q24 10.4 29 10', null, WH, 1.2, ' opacity=".45"');
+      case 'fencing': for (i = 0; i < 5; i++) d += P('M' + (20 + i * 6) + ' 6.6 L' + (20 + i * 6) + ' 21.4', null, INK, .5, ' opacity=".5"'); return E(32, 14, 14.6, 8.4, '#5B6573') + d + P('M18 11 L46 11 M17.6 15 L46.4 15 M19 19 L45 19', null, INK, .5, ' opacity=".5"') + E(32, 14, 14.6, 8.4, 'none', ' stroke="' + h1 + '" stroke-width="1.6"') + R(23, 20.6, 18, 3, 1.4, h1);
+      case 'bow': return P('M32 14 L21.6 7.6 Q18.6 13 21.6 19.4 Z M32 14 L42.4 7.6 Q45.4 13 42.4 19.4 Z', h1) + P('M30 14 L23.4 10.6 M34 14 L40.6 10.6', null, h2, .9) + C(32, 14, 2.6, h1, ' stroke="' + h2 + '" stroke-width=".7"');
+      case 'race': return P('M10 38 C10 16 20 7 32 7 C44 7 54 16 54 38 C54 48 50 54 44 56 L20 56 C14 54 10 48 10 38 Z M18.6 34 C18.6 26 24.4 21.6 32 21.6 C39.6 21.6 45.4 26 45.4 34 L45.4 44 C45.4 50 39.6 53 32 53 C24.4 53 18.6 50 18.6 44 Z', h1, null, 0, ' fill-rule="evenodd"') +
+          P('M13.6 22 Q32 2 50.4 22', null, h2, 2.6) + R(17.6, 16.4, 28.8, 5.6, 2.8, em, ' opacity=".9"') + P('M21 18.4 L27 18.4', null, WH, 1, ' opacity=".8"') + (lk.num != null ? digits(lk.num, 13.6, 40, 5, h2, 1.3) : '');
+      case 'hood': d = P('M7 36 C7 18 18 8 32 8 C46 8 57 18 57 36 C57 50 50 60 32 60 C14 60 7 50 7 36 Z M16.4 36 C16.4 26 23 19.4 32 19.4 C41 19.4 47.6 26 47.6 36 C47.6 46 41 52.6 32 52.6 C23 52.6 16.4 46 16.4 36 Z', h1, null, 0, ' fill-rule="evenodd"');
+        if (lk.ears === 'round') d = C(13, 12, 6.4, h1) + C(51, 12, 6.4, h1) + C(13, 12, 3.2, h2) + C(51, 12, 3.2, h2) + d;
+        if (lk.ears === 'point') d = P('M8 20 L10 0 L24 10 Z', h1) + P(mirrorX('M8 20 L10 0 L24 10 Z'), h1) + P('M10.6 15 L11.6 4.6 L19 10 Z', h2) + P(mirrorX('M10.6 15 L11.6 4.6 L19 10 Z'), h2) + d;
+        if (lk.crest) d = P('M24 10 L26 -2 L30 7 L32 -4 L34 7 L38 -2 L40 10 Z', h2) + d;
+        if (lk.stripes) d += P('M9 28 L14 30 M8.4 36 L14.6 36.4 M9.4 44 L14.8 42 M55 28 L50 30 M55.6 36 L49.4 36.4 M54.6 44 L49.2 42 M28 9.6 L29.4 15 M36 9.6 L34.6 15', null, t, 1.6);
+        if (lk.eyes2) d += C(25.4, 12.6, 3.6, WH) + C(38.6, 12.6, 3.6, WH) + C(26, 13.4, 1.7, INK) + C(38, 13.4, 1.7, INK) + C(26.6, 12.6, .6, WH) + C(38.6, 12.6, .6, WH);
+        if (lk.beak) d += P('M27.4 15.6 L36.6 15.6 Q36 19.6 32 23.4 Q28 19.6 27.4 15.6 Z', lk.beak) + P('M28.4 17.4 Q32 18.8 35.6 17.4', null, INK, .6, ' opacity=".4"');
+        return d;
+      case 'laurel': var lv = [[16.6, 30, -10], [16.8, 25, -30], [18.8, 20.6, -45], [22, 17, -60], [26, 14.4, -75]];
+        lv.forEach(function (p) { d += E(p[0], p[1], 3.4, 1.6, h1, ' transform="rotate(' + p[2] + ' ' + p[0] + ' ' + p[1] + ')" stroke="' + t + '" stroke-width=".5"'); d += E(64 - p[0], p[1], 3.4, 1.6, h1, ' transform="rotate(' + (-p[2]) + ' ' + (64 - p[0]) + ' ' + p[1] + ')" stroke="' + t + '" stroke-width=".5"'); });
+        return P('M17.4 32 Q17 18 28 13.6 M46.6 32 Q47 18 36 13.6', null, t, .8) + d + (lk.gem ? C(32, 13.4, 1.8, em) : '');
+      case 'starcrown': [[18.4, 19, 3.4], [24.6, 13, 3.8], [32, 10.4, 4.4], [39.4, 13, 3.8], [45.6, 19, 3.4]].forEach(function (p) { d += star(p[0], p[1], p[2], h1, 5, .45, ' stroke="' + t + '" stroke-width=".6"'); }); return d + C(32, 10.6, 1, em);
+      case 'bandana': return P('M15 27 C15 13 23 9.4 32 9.4 C41 9.4 49 13 49 27 Q32 22 15 27 Z', h1) + C(22, 17, 1.2, h2) + C(29, 13, 1.2, h2) + C(36, 16, 1.2, h2) + C(43, 19, 1.2, h2) + C(27, 21, 1.2, h2) + C(38, 22, 1.1, h2) + C(33, 10.6, 1, h2) +
+          P('M48 23.6 L56.6 21.4 L54.4 27 Z M48 25 L55.2 31.4 L51 31.6 Z', h1) + C(48.6, 25, 2.2, h1);
+      case 'tricorn': case 'tricornking':
+        d = P('M7 25 Q11 16.6 19.6 19.6 Q23.6 7.6 32 7.6 Q40.4 7.6 44.4 19.6 Q53 16.6 57 25 Q46 27.6 32 30.4 Q18 27.6 7 25 Z', h1) + P('M7 25 Q18 27.6 32 30.4 Q46 27.6 57 25', null, h2, 1.4) + P('M19.6 19.6 Q32 15.6 44.4 19.6', null, INK, .7, ' opacity=".3"');
+        if (lk.feather) d = P('M41 15 Q49 1 60 2.6 Q53 7.6 45.4 17 Z', lk.feather) + P('M44 14 Q51 6 58 3.6', null, WH, .6, ' opacity=".5"') + d;
+        if (lk.ragged) d += P('M12 24 L13.6 26.6 L15 24.6 M50 24.6 L51.4 26.6 L52.6 24', null, INK, .8, ' opacity=".5"');
+        if (n === 'tricornking') d += P('M23.4 10.6 L24.6 2.4 L28.6 6.6 L32 0 L35.4 6.6 L39.4 2.4 L40.6 10.6 Z', GOLD, '#B8860B', .5) + C(32, 6.4, 1.2, '#D9483B') + C(26.4, 8, .8, '#5CC8FF') + C(37.6, 8, .8, '#7CE38B');
+        else if (lk.skull !== false) d += skull(32, 17, 1, lk.skullc || WH);
+        return d;
+      case 'fedora': return P('M9 26 Q32 19.6 55 26 Q51 30.4 32 28.6 Q13 30.4 9 26 Z', h1) + P('M18 25 Q17 11.6 24 10 Q28 13 32 11 Q36 13 40 10 Q47 11.6 46 25 Z', h1) + P('M18 21.4 Q32 19.6 46 21.4 L46 25 Q32 23 18 25 Z', h2) + P('M32 11.4 L32 20', null, INK, .8, ' opacity=".2"') + P('M20 14 Q22 11.6 25 11.4', null, WH, .8, ' opacity=".3"');
+      case 'bowler': return P('M18 25 C18 10.6 46 10.6 46 25 Z', h1) + E(32, 25.4, 17.4, 3, h1) + R(18, 21.4, 28, 3, 0, h2) + P('M22 15 Q25 12.6 29 12.4', null, WH, .9, ' opacity=".35"');
+      case 'furhat': for (i = 16; i <= 48; i += 4) d += C(i, 25, 2.8, h1) + P('M' + (i - 1.4) + ' 24 Q' + i + ' 26.6 ' + (i + 1.4) + ' 24', null, INK, .45, ' opacity=".3"');
+        return R(16, 4.4, 32, 21, 8, h1) + P('M20 9 Q22 7 24 9 M28 7 Q30 5 32 7 M36 8 Q38 6 40 8 M22 15 Q24 13 26 15 M32 13 Q34 11 36 15 M40 16 Q42 14 44 16', null, INK, .5, ' opacity=".28"') + d + (lk.gem ? C(32, 14, 1.8, em, ' stroke="' + GOLD + '" stroke-width=".8"') : '');
+      case 'earpiece': return P('M48.6 37.4 Q51.6 42 49.4 47 Q47.4 52 44 56', null, '#E8ECF2', .7, ' opacity=".85"') + C(48.2, 36.6, 1.3, INK);
+      case 'slick': case 'vampslick': return P('M16 31 C15 16 23 11 32 11 C41 11 49 16 48 31 C45 22.6 39 19.6 32 20 C25 19.6 19 22.6 16 31 Z', h1) + (n === 'vampslick' ? P('M27 19.6 L32 25 L37 19.6 Z', h1) : '') + P('M22 16 Q30 12 40 14 M20 21 Q26 16.6 34 16', null, WH, .8, ' opacity=".3"');
+      case 'mohawk': return P('M26 21 L23.4 1.6 L29 10 L31 -1.4 L34 9 L38.6 0.4 L39 12 L42.6 4 L40.4 21 Z', h1) + P('M29 18 L28 6 M35 17 L37 6', null, h2, .9, ' opacity=".7"');
+      case 'dome': return P('M32 10.6 L32 3', null, t, 1.4) + C(32, 3, 2, em) + C(32, 3, 3.6, em, ' opacity=".3"') + R(17, 10, 30, 12.6, 4, h1) + C(20, 13, .8, t) + C(44, 13, .8, t) + C(20, 19.6, .8, t) + C(44, 19.6, .8, t) + R(26, 13.6, 12, 4, 2, t) + C(29, 15.6, 1, em) + C(35, 15.6, 1, h2) + C(15, 36, 4, t) + C(49, 36, 4, t) + P('M13.4 34.4 L16.6 37.6 M47.4 34.4 L50.6 37.6', null, em, 1.2);
+      case 'vacuum': return E(32, 18, 17, 9.4, h1) + R(14, 20.6, 36, 4.2, 2.1, t) + C(32, 11.4, 2, em) + C(32, 11.4, 3.6, em, ' opacity=".3"') + P('M20 16 Q25 11 31 10', null, WH, 1, ' opacity=".5"') + C(15, 36, 3.4, t) + C(49, 36, 3.4, t);
+      case 'junk': return P('M40 15.6 L42 8 L47 6', null, t, 1.4) + C(47, 6, 1.7, em) + R(18, 14.6, 28, 8.4, 1.4, h1) + R(20, 15.6, 7, 4.6, .6, h2, ' opacity=".85"') + P('M34 16 L36 21 M38 15.6 L36.6 21.6', null, t, .7) + C(21, 21, .7, t) + C(43, 16.6, .7, t) + C(15, 36, 4.2, h2) + R(45.4, 32.6, 7, 7, 1.4, t) + C(15, 36, 1.4, em) + C(49, 36, 1.3, em);
+      case 'android': return P('M15 36 C14 18 22 11 32 11 C42 11 50 18 49 36 L46 36 C46 24 40 19 32 19 C24 19 18 24 18 36 Z', h1) + P('M32 11.4 L32 19', null, em, 1) + C(15.6, 36, 2.6, h1) + C(48.4, 36, 2.6, h1) + C(15.6, 36, 1.2, em) + C(48.4, 36, 1.2, em) + P('M20 16.6 Q25 12.6 31 12', null, WH, 1, ' opacity=".6"');
+      case 'pilot': return P('M14 33 C13 15 22 9 32 9 C42 9 51 15 50 33 L46.6 33 L46.6 28 Q32 23 17.4 28 L17.4 33 Z', h1) + R(18, 17, 28, 6.6, 3.3, em, ' opacity=".85" stroke="' + t + '" stroke-width="1"') + P('M21 19 L27 19', null, WH, 1, ' opacity=".8"') + R(29, 9.4, 6, 3, 1, h2) + P('M47 38 Q47 46.6 39 48', null, INK, 1) + C(38.6, 48, 1.3, INK);
+      case 'toque': return P('M19 26 L19 18 C13 17 12 8 19 7 C21 2 28 1 32 4 C36 1 43 2 45 7 C52 8 51 17 45 18 L45 26 Z', WH, '#D3D8E0', .8) + R(19, 21.4, 26, 5, 1, '#EEF1F5', ' stroke="#D3D8E0" stroke-width=".6"') + P('M25 9 L25.6 18 M32 6 L32 18 M39 9 L38.4 18', null, '#D3D8E0', .7);
+      case 'firehelm': return P('M14 26 C14 12 23 8 32 8 C41 8 50 12 50 26 Z', h1) + P('M7 27 Q32 21 57 27 L55 30.6 Q32 25.4 9 30.6 Z', h1, INK, .6) + P('M32 8 L32 13', null, t, 1.8) + P('M28 13 L36 13 L36 19 Q32 22.4 28 19 Z', h2, t, .6) + C(32, 16.6, 1.2, t) + P('M18 15 Q22 10.6 28 9.6', null, WH, 1.1, ' opacity=".4"');
+      case 'pizza': return P('M15.6 25 Q32 17 48.4 25 L32 -1 Z', '#FFD45C') + P('M14 25 Q32 16.6 50 25 L49 29 Q32 21.4 15 29 Z', '#D9973A') + C(27.6, 15.6, 2.4, '#D9483B') + C(35, 9.4, 1.9, '#D9483B') + C(37, 18, 2.2, '#D9483B') + C(31, 5, 1.2, '#7CB342') + P('M22 20.6 Q22.6 24 21.6 25 M40.4 20.4 L41 24', null, '#FFD45C', 1.4);
+      case 'pumpkin': return R(30.6, 2.6, 3.4, 5.4, 1, '#5C8A2E') + E(37, 4.4, 4, 1.8, '#7CB342', ' transform="rotate(-20 37 4.4)"') + E(32, 15, 15.6, 9, h1) + P('M24 7.6 Q21 15 24 22.4 M32 6.4 L32 23.6 M40 7.6 Q43 15 40 22.4', null, h2, 1, ' opacity=".6"') + P('M19 13 Q21 9.4 25 8.6', null, WH, .9, ' opacity=".4"');
+      case 'earmuffs': return P('M15.4 31 C15 9.6 49 9.6 48.6 31', null, h2, 2.4) + C(15.4, 35, 5.6, h1) + C(48.6, 35, 5.6, h1) + C(14, 33.4, 1.6, WH, ' opacity=".5"') + C(47.2, 33.4, 1.6, WH, ' opacity=".5"');
+      case 'wizhat': case 'archhat':
+        d = P('M14 27 Q31 23 50 27 L46 30 Q31 27 18 30 Z', h1) + P('M18 27 Q24 14 31 3 Q34 -1 40 4 Q36 3 35 7 Q40 16 46 27 Z', h1) + P('M18.6 25.4 Q32 21.6 45.4 25.4', null, h2, 1.6) + star(28, 16, 2, h2, 5, .45) + star(38, 21, 1.5, h2, 5, .45) + C(33, 10, .9, h2);
+        if (n === 'archhat') d += C(37, 6, 3.4, GOLD) + C(38.6, 5, 2.9, h1) + star(40, 4, 1.8, em, 4, .3, ' opacity=".9"') + star(13, 14, 1.6, em, 4, .3);
+        return d;
+      case 'ninja': return P('M15 31 C15 13 23 9 32 9 C41 9 49 13 49 31 Q32 26.6 15 31 Z', h1) + P('M47.4 22 L57.4 28 L55.4 21.4 Z M47.6 24 L54.6 33.6 L50.6 33 Z', h1) + P('M16 28.4 Q32 24 48 28.4', null, h2, 1.2);
+      case 'phones': return P('M15 33 C14 8 50 8 49 33', null, h1, 3) + R(9.6, 29, 8.4, 13, 3.4, h1) + R(46, 29, 8.4, 13, 3.4, h1) + R(15.6, 31, 2.6, 9, 1.3, em) + R(45.8, 31, 2.6, 9, 1.3, em) + C(13.8, 35.4, 1.6, h2) + C(50.2, 35.4, 1.6, h2);
+      case 'mummy': return P('M15.6 26 C15 13 49 13 48.4 26', null, h1, 4.4) + P('M16.6 20 Q32 14 47.6 21', null, h1, 3.4) + P('M18 28.6 Q32 24.6 46 29', null, h1, 3) + P('M16.6 20 Q32 14 47.6 21 M18 28.6 Q32 24.6 46 29', null, t, .5, ' opacity=".55"') + P('M20 11 L44 17', null, h1, 3) + P('M44 26 L47.6 33', null, h1, 2.4);
+      case 'kabuto': return P('M12 26 L9.4 40.6 L18 38.6 L18 28 Z', h1) + P(mirrorX('M12 26 L9.4 40.6 L18 38.6 L18 28 Z'), h1) + P('M10.6 31 L17.6 30.4 M10 35.4 L17.8 34.4', null, h2, .8) + P('M53.4 31 L46.4 30.4 M54 35.4 L46.2 34.4', null, h2, .8) +
+          P('M14 28 C14 12 23 8 32 8 C41 8 50 12 50 28 Z', h1) + P('M14.6 26 Q32 21.6 49.4 26', null, h2, 1.6) + P('M32 13 Q22 7 19 -2.4 Q26 4 32 7.6 Q38 4 45 -2.4 Q42 7 32 13 Z', GOLD, '#B8860B', .5) + C(32, 13.4, 2, em) + P('M20 14 Q24 10.6 29 10', null, WH, .9, ' opacity=".35"');
+      case 'knight': case 'royalknight':
+        d = P('M32 7 Q40 -4 53 1.6 Q45 2 38.6 8.6 Z', em) + P('M11 38 C11 16 20 7 32 7 C44 7 53 16 53 38 L53 50 L46 52 L46 34 C46 26 40 21.6 32 21.6 C24 21.6 18 26 18 34 L18 52 L11 50 Z', h1) + P('M14 22 Q32 6 50 22', null, h2, 1.4) + P('M18 16 Q23 11 29 10', null, WH, 1.2, ' opacity=".55"') + C(14.4, 44, .8, h2) + C(49.6, 44, .8, h2);
+        if (n === 'royalknight') d += P('M22 10.6 L23.4 3 L27.4 7 L32 1 L36.6 7 L40.6 3 L42 10.6 Q32 8 22 10.6 Z', GOLD, '#B8860B', .5) + C(32, 6.4, 1.1, '#D9483B');
+        return d;
+      case 'flame': return '<g>' + P('M19 23 Q12 12 21 3 Q21 11 26.6 13.6 Q25 3 32 -3 Q35.4 7.6 37.4 13.6 Q42 6 44.4 3 Q51 12 45 23 Q32 18 19 23 Z', h1) + P('M24 21 Q21 14 25 9 Q27 15 30.6 16 Q30 9 32.6 4.6 Q35.6 11 36.4 16 Q39 12 40.4 10 Q43 15 40 21 Q32 18.6 24 21 Z', h2) + C(32, 17, 1.8, WH, ' opacity=".8"') +
+          '<animateTransform attributeName="transform" type="scale" values="1 1;1 1.05;1 .97;1 1" dur="1.1s" repeatCount="indefinite" additive="sum"/></g>';
+      default: return '';
+    }
+  }
+  function headMore(lk, c) {
+    if (!lk.head) return '';
+    var h1 = lk.h1 || c.accent, h2 = lk.h2 || c.trim;
+    return String(lk.head).split(' ').map(function (n) { return hatPart(n, h1, h2, c.trim, c.emissive, lk); }).join('');
+  }
+  // Things on the face, over the face and outfit, under the head piece.
+  function facePiece(lk, c) {
+    var out = '';
+    String(lk.face || '').split(' ').forEach(function (n) {
+      var pc = lk.fc || INK;
+      switch (n) {
+        case 'patch': out += P('M16.4 26.6 L35 31.6 M43.4 34.6 L49 37', null, INK, 1.1) + P('M33.6 30 Q39 27.6 44.4 30 Q45.4 36 39 39.6 Q32.6 36 33.6 30 Z', pc) + P('M35.4 30.6 Q38 29.6 40.6 30', null, WH, .6, ' opacity=".35"'); break;
+        case 'shades': out += P('M17.4 31 L30.4 31 L29.6 36.6 Q24 39 18.4 36.6 Z', pc) + P(mirrorX('M17.4 31 L30.4 31 L29.6 36.6 Q24 39 18.4 36.6 Z'), pc) + P('M30.4 31.6 L33.6 31.6 M17.4 31.4 L15 30.6 M46.6 31.4 L49 30.6', null, pc, 1.1) + P('M20 32.6 L24 32.6 M36 32.6 L40 32.6', null, WH, .8, ' opacity=".5"'); break;
+        case 'stache': out += P('M32 40.2 Q28 38.4 24.4 40.6 Q22.6 42 21 41 Q22.4 44.2 26.4 43.2 Q30 42.4 32 41.4 Q34 42.4 37.6 43.2 Q41.6 44.2 43 41 Q41.4 42 39.6 40.6 Q36 38.4 32 40.2 Z', lk.sc || '#2B1B12'); break;
+        case 'beard': out += P('M17 38 Q18 52 32 60 Q46 52 47 38 Q44 46 38 44 Q32 41 26 44 Q20 46 17 38 Z', lk.sc || '#E8ECF2') + P('M24 47 Q26 53 30 56 M40 47 Q38 53 34 56 M32 50 L32 58', null, INK, .5, ' opacity=".2"') + P('M32 40.6 Q27.6 39 24 41 Q22.4 43.6 25.6 43.4 Q30 42.4 32 41.6 Q34 42.4 38.4 43.4 Q41.6 43.6 40 41 Q36.4 39 32 40.6 Z', lk.sc || '#E8ECF2'); break;
+        case 'mask': out += P('M16.4 38 Q32 35.6 47.6 38 L46.6 46 Q43.6 52.6 32 53.4 Q20.4 52.6 17.4 46 Z', lk.mc || c.accent) + P('M19 41 Q32 39 45 41', null, INK, .5, ' opacity=".25"'); break;
+        case 'domino': out += P('M17 30.4 Q24 27.4 32 31 Q40 27.4 47 30.4 L46 37 Q40 39.6 34 36.4 L32 35.4 L30 36.4 Q24 39.6 18 37 Z M21.2 34 a3.8 3 0 1 0 7.6 0 a3.8 3 0 1 0 -7.6 0 Z M35.2 34 a3.8 3 0 1 0 7.6 0 a3.8 3 0 1 0 -7.6 0 Z', lk.mc || c.accent, null, 0, ' fill-rule="evenodd"'); break;
+        case 'eyeblack': out += R(20.4, 38.4, 8.6, 2.2, 1, INK) + R(35, 38.4, 8.6, 2.2, 1, INK); break;
+        case 'goggles': out += P('M16 33.6 L48 33.6', null, lk.gc || c.trim, 1.6) + E(25, 34, 5.4, 4, lk.gl || c.emissive, ' opacity=".8" stroke="' + INK + '" stroke-width="1"') + E(39, 34, 5.4, 4, lk.gl || c.emissive, ' opacity=".8" stroke="' + INK + '" stroke-width="1"') + P('M22 32.6 L25 32 M36 32.6 L39 32', null, WH, .8, ' opacity=".8"'); break;
+        case 'fangs': out += P('M28.6 43.6 L29.6 46.6 L30.6 43.8 Z M33.4 43.8 L34.4 46.6 L35.4 43.6 Z', WH, INK, .3); break;
+        case 'visor': out += R(17, 30.6, 30, 7, 3.5, lk.vc || c.emissive, ' opacity=".55"') + P('M19 32.6 L28 32.6', null, WH, 1, ' opacity=".8"'); break;
+        case 'collar': out += P('M23 55 L12 41 L17 54 Z', c.accent) + P(mirrorX('M23 55 L12 41 L17 54 Z'), c.accent) + P('M22.4 55 L14.4 44.6', null, '#8E1F1F', .8); break;
+      }
+    });
+    return out;
+  }
+  // Animated extras for the special skins (SVG animation: no script, nothing to run).
+  function fxPart(lk, id) {
+    var out = '';
+    String(lk.fx || '').split(' ').forEach(function (n) {
+      switch (n) {
+        case 'shine': out += '<defs><linearGradient id="' + id + 'sh" x1="0" x2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset=".5" stop-color="#FFFFFF" stop-opacity=".75"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient></defs>' +
+          '<rect x="-30" y="-16" width="12" height="96" fill="url(#' + id + 'sh)" transform="rotate(24 32 32)"><animate attributeName="x" values="-30;84;84" keyTimes="0;.42;1" dur="3.4s" repeatCount="indefinite"/></rect>'; break;
+        case 'frame': out += C(32, 32, 30.8, 'none', ' stroke="' + GOLD + '" stroke-width="2.4"') + C(32, 32, 28.8, 'none', ' stroke="#FFF2C2" stroke-width=".6" opacity=".8"') + star(32, 1.6, 2.6, '#FFF2C2', 4, .35) + star(2.4, 32, 2, GOLD, 4, .35) + star(61.6, 32, 2, GOLD, 4, .35); break;
+        case 'orbit': out += '<g>' + star(32, 5, 2.4, lk.oc || '#FFE79A', 5, .45) + star(8.6, 45.6, 1.8, lk.oc || '#FFE79A', 5, .45) + C(55.4, 45.6, 1.3, lk.oc || '#FFE79A') + '<animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="10s" repeatCount="indefinite"/></g>'; break;
+        case 'twinkle': [[9, 12, 0], [55, 16, .7], [54, 42, 1.4], [10, 44, 2.1]].forEach(function (q) { out += star(q[0], q[1], 2.4, '#FFFFFF', 4, .3, ' opacity="0"').replace('/>', '><animate attributeName="opacity" values="0;1;0" dur="2.8s" begin="' + q[2] + 's" repeatCount="indefinite"/></path>'); }); break;
+        case 'flicker': out += C(32, 20, 22, lk.gc || '#FF7A2E', ' opacity=".12"').replace('/>', '><animate attributeName="opacity" values=".08;.22;.1;.18;.08" dur="1.6s" repeatCount="indefinite"/></circle>'); break;
+      }
+    });
+    return out;
+  }
+  // Accessories (wave 2): behind the face, then in front.
+  function accBackMore(a, id) {
+    var c = a.three.color, c2 = a.three.color2, s = '';
+    switch (a.draw) {
+      case 'numcape': return P('M0 68 L5 44 Q32 37 59 44 L64 68 Z', c) + P('M5 44 Q32 37 59 44', null, c2, 1.4) + digits(a.three.num, 6.6, 50, 7, c2, 1.6) + digits(a.three.num, 57.4, 50, 7, c2, 1.6);
+      case 'ermine': return P('M0 68 L5 44 Q32 37 59 44 L64 68 Z', c) + P('M2 62 Q4 54 7 48', null, GOLD, 1, ' opacity=".8"') + P(mirrorX('M2 62 Q4 54 7 48'), null, GOLD, 1, ' opacity=".8"');
+      case 'soccer': return '<g transform="translate(4 -3)">' + P('M14 52 L22 50 M15 46 L22 46.6 M15 57 L21 55', null, c2, 1, ' opacity=".5"') + C(8.4, 52, 4.6, c, ' stroke="' + INK + '" stroke-width=".7"') + star(8.4, 52, 1.9, INK, 5, .9) + P('M8.4 50.1 L8.4 47.4 M10.2 51.4 L12.6 50.4 M9.5 53.6 L11 55.8 M7.3 53.6 L5.8 55.8 M6.6 51.4 L4.2 50.4', null, INK, .5) + C(12.6, 41, 2.6, c, ' stroke="' + INK + '" stroke-width=".5" opacity=".6"') + C(6, 35, 1.7, c, ' opacity=".4"') + '</g>';
+      case 'football': return '<g transform="translate(4 -3)">' + P('M15 52 L22 50.6 M15 47 L21 47 M15 57 L20 55.4', null, c2, 1, ' opacity=".5"') + E(8.6, 52, 5.6, 3.6, c, ' transform="rotate(-30 8.6 52)" stroke="' + INK + '" stroke-width=".5"') + P('M6.6 53.6 L10.6 50.4 M7.2 51.6 L8.2 52.8 M8.4 50.8 L9.4 52 M9.6 49.8 L10.4 51', null, WH, .6) + E(12.8, 41, 3, 2, c, ' transform="rotate(-30 12.8 41)" opacity=".6"') + E(6.4, 35, 2, 1.3, c, ' transform="rotate(-30 6.4 35)" opacity=".4"') + '</g>';
+      case 'coins': [[7, 52, 3.4, 1], [13, 44, 2.6, .8], [5, 38, 2.2, .7], [15, 54, 1.8, .6], [10, 33, 1.5, .5]].forEach(function (q) { s += '<g opacity="' + q[3] + '">' + C(q[0], q[1], q[2], c, ' stroke="#B8860B" stroke-width=".5"') + star(q[0], q[1], q[2] * .5, c2, 5, .45) + '</g>'; }); return s;
+      case 'notes': [[6, 50, 1], [13, 42, .8], [5, 36, .6]].forEach(function (q) { s += '<g opacity="' + q[2] + '">' + E(q[0], q[1] + 4, 2.2, 1.6, c, ' transform="rotate(-20 ' + q[0] + ' ' + (q[1] + 4) + ')"') + P('M' + (q[0] + 2) + ' ' + (q[1] + 3.6) + ' L' + (q[0] + 2) + ' ' + (q[1] - 3) + ' Q' + (q[0] + 5) + ' ' + (q[1] - 1) + ' ' + (q[0] + 5) + ' ' + (q[1] + 1.6), null, c, 1) + '</g>'; }); return s + C(16, 52, .9, c2) + C(9, 30, .8, c2);
+      case 'spot': return '<defs><linearGradient id="' + id + 'sp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + c2 + '" stop-opacity=".85"/><stop offset="1" stop-color="' + c + '" stop-opacity=".25"/></linearGradient></defs>' + P('M24 -4 L40 -4 L62 66 L2 66 Z', 'url(#' + id + 'sp)') + E(32, 62, 26, 6, c2, ' opacity=".45"') + E(32, -2, 10, 4, WH, ' opacity=".9"');
+      case 'confetti': var cc = [c, c2, '#5CC8FF', '#7CE38B', '#B98BFF'];
+        [[7, 18, 30], [14, 9, -20], [50, 7, 50], [57, 20, -35], [5, 32, 70], [59, 34, 15], [44, 3, -60], [10, 44, 40], [55, 47, -15], [22, 3, 20]].forEach(function (q, k) { s += R(q[0] - 1.8, q[1] - .8, 3.6, 1.6, .5, cc[k % 5], ' transform="rotate(' + q[2] + ' ' + q[0] + ' ' + q[1] + ')"'); }); return s;
+      case 'flash': [[9, 14, 3.6, 0], [55, 11, 3, .5], [57, 36, 2.6, 1], [6, 38, 2.4, 1.5], [24, 4, 2.2, 2]].forEach(function (q) { s += '<g opacity=".3">' + star(q[0], q[1], q[2] * 1.6, c, 8, .2) + C(q[0], q[1], q[2] * .6, c2) + '<animate attributeName="opacity" values=".15;1;.15" dur="2.4s" begin="' + q[3] + 's" repeatCount="indefinite"/></g>'; }); return s;
+      case 'trophy': for (var i = 0; i < 12; i++) { var t0 = i * Math.PI / 6, t1 = t0 + Math.PI / 14; s += P('M32 34 L' + (32 + 60 * Math.cos(t0)).toFixed(1) + ' ' + (34 + 60 * Math.sin(t0)).toFixed(1) + ' L' + (32 + 60 * Math.cos(t1)).toFixed(1) + ' ' + (34 + 60 * Math.sin(t1)).toFixed(1) + ' Z', c, null, 0, ' opacity=".4"'); }
+        return '<g>' + s + '<animateTransform attributeName="transform" type="rotate" from="0 32 34" to="360 32 34" dur="24s" repeatCount="indefinite"/></g>' + C(32, 34, 24, c2, ' opacity=".18"') + star(9, 14, 2, WH, 4, .3) + star(55, 14, 1.6, WH, 4, .3);
+      default: return '';
+    }
+  }
+  function accFrontMore(a) {
+    var c = a.three.color, c2 = a.three.color2, T = a.three.trim || INK, E2 = a.three.glowc || c2;
+    switch (a.draw) {
+      case 'patch': return facePiece({ face: 'patch', fc: c }, {});
+      case 'shades': return facePiece({ face: 'shades', fc: c }, {});
+      case 'eyeblack': return facePiece({ face: 'eyeblack' }, {});
+      case 'aviators': return P('M17.6 31 L30 31 Q31 39 25 40 Q18 40 17.6 31 Z', c, c2, .9, ' opacity=".9"') + P(mirrorX('M17.6 31 L30 31 Q31 39 25 40 Q18 40 17.6 31 Z'), c, c2, .9, ' opacity=".9"') + P('M30 31.6 Q32 30.4 34 31.6 M30.6 33.4 L33.4 33.4 M17.6 31.4 L15 30.6 M46.4 31.4 L49 30.6', null, c2, .9) + P('M20 33 L24 33 M36 33 L40 33', null, WH, .8, ' opacity=".6"');
+      case 'cyborg': return P('M44.6 32.6 L48.6 30.4 M44.6 35.6 L48.6 37.8', null, STEEL, 1.2) + C(39, 34, 5.6, '#2E3742') + C(39, 34, 3.6, c) + C(39, 34, 5.8, c, ' opacity=".2"') + C(39, 34, 1.4, c2) + C(37.6, 32.6, .7, WH);
+      case 'bowtie': return P('M32 55.8 L26.6 53.2 L26.6 58.4 Z M32 55.8 L37.4 53.2 L37.4 58.4 Z', c) + C(32, 55.8, 1.3, c2 === WH ? c : c2) + P('M27.6 54.6 L30 55.6 M36.4 54.6 L34 55.6', null, WH, .5, ' opacity=".4"');
+      case 'numcape': return C(43, 56, 2.2, c2) + R(14.4, 56.4, 9.4, 7.6, 2, c, ' stroke="' + c2 + '" stroke-width=".8"') + digits(a.three.num, 19.1, 57.8, 4.6, c2, 1.1);
+      case 'chain': return P('M24.4 54.6 Q32 64.4 39.6 54.6', null, c, 2, ' stroke-dasharray="1.4 .8"') + C(32, 61.4, 2.4, c, ' stroke="#B8860B" stroke-width=".5"') + star(32, 61.4, 1.3, c2, 5, .45);
+      case 'ermine': return P('M8 60 Q12 53 22 53.6 Q32 57 42 53.6 Q52 53 56 60 Q50 59 44 57.6 Q32 61 20 57.6 Q14 59 8 60 Z', c2) + C(14, 57.6, .6, INK) + C(22, 56, .6, INK) + C(42, 56, .6, INK) + C(50, 57.6, .6, INK) + C(32, 58.6, 1.4, GOLD);
+      case 'parrot': return P('M50 60 L48 66 L51 62 L53 66 L52 60 Z', '#3D8BFF') + E(52, 54, 5, 7, c) + P('M48 52 Q44 58 49 61 Q51 57 50 53 Z', c2) + C(53, 48.6, 4, c) + P('M55.6 48 Q59.6 48.6 58 52.6 Q57 50.6 55.4 50.6 Z', '#F5C542', INK, .4) + C(54, 47.6, 1.4, WH) + C(54.2, 47.6, .7, INK) + P('M51 45 Q51 42 53.4 41.6', null, c, 1.2);
+      case 'chick': return E(52, 56, 6, 7, c) + E(52, 57.6, 3.6, 4.6, WH) + C(52, 49, 4.4, c) + E(52, 49.6, 3, 2.6, WH) + C(50.8, 49, .7, INK) + C(53.2, 49, .7, INK) + P('M51 50.6 L53 50.6 L52 52.2 Z', c2) + P('M49 63 L50.6 62 M55 63 L53.4 62', null, c2, 1.2) + P('M46.4 54 Q45.4 58 47 60 M57.6 54 Q58.6 58 57 60', null, c, 1.6);
+      case 'robopup': return P('M47 55 L43.6 52.6', null, T, 1.2) + R(45.6, 53, 12, 7, 2, c) + R(52, 46.6, 9, 7.4, 2, c) + R(52.4, 45, 2, 3, .6, T) + R(58.4, 45, 2, 3, .6, T) + C(55, 50, .9, c2) + C(58.4, 50, .9, c2) + R(55, 52, 4, 1, .4, T) + R(46.6, 60, 2.4, 3, .6, T) + R(54, 60, 2.4, 3, .6, T) + C(49.6, 56.4, 1.1, c2);
+      case 'drone': return '<g>' + R(46, 51.6, 12, 5, 2, c) + P('M46 53 L42 50 M58 53 L62 50', null, T, 1) + E(42, 49.6, 4, 1, c2, ' opacity=".8"') + E(62, 49.6, 4, 1, c2, ' opacity=".8"') + C(52, 54, 1.4, c2) + C(52, 54, 2.6, c2, ' opacity=".3"') + P('M49 56.6 L48 59 M55 56.6 L56 59', null, T, .8) +
+          '<animateTransform attributeName="transform" type="translate" values="0 0;0 -1.4;0 0" dur="1.8s" repeatCount="indefinite"/></g>';
+      case 'kraken': return '<g>' + P('M45.6 56 Q43 62 46 64 Q46 60 48 58 M49 58 Q48 64 51 65 Q50.6 61 51.6 59 M53.6 59 Q55 64 57.4 64 Q55.6 61 55.6 58.6 M57 57 Q61 61 61 64 Q59.4 59.6 58 56', null, c, 2) + E(52, 52, 7.4, 6.6, c) + C(49.4, 51.6, 1.6, WH) + C(54.6, 51.6, 1.6, WH) + C(49.6, 52, .8, INK) + C(54.8, 52, .8, INK) + P('M50.6 55 Q52 56 53.4 55', null, INK, .6) + C(47.4, 49, 1, c2, ' opacity=".7"') + C(56.6, 48.4, .8, c2, ' opacity=".7"') +
+          P('M48.6 45.6 L49.4 42.4 L51 44.4 L52 41.6 L53 44.4 L54.6 42.4 L55.4 45.6 Z', GOLD) + '<animateTransform attributeName="transform" type="rotate" values="0 52 58;4 52 58;0 52 58;-4 52 58;0 52 58" dur="2.6s" repeatCount="indefinite"/></g>';
+      default: return hatPart(a.draw, c, c2, T, E2, a.three.opts);
     }
   }
 
@@ -1497,6 +2037,9 @@
       if (lk && lk.hairc != null) s.hairc = lk.hairc;
       if (ac.hat || (lk && lk.head)) s.hat = 0;
       if (ac.glasses) s.glasses = 0;
+      if (lk && lk.nohat) s.hat = 0;   // wave 2: a bare-headed look (kits, suits) hides avatar.js's own hat
+      if (lk && lk.face && /patch|shades|domino|goggles|visor/.test(lk.face)) s.glasses = 0;   // wave 2 faces: no avatar.js glasses under them
+      if ((s.hair === 4 || s.hair === 5) && ((lk && lk.head && headMore(lk, col)) || (ac.hat && accFrontMore(ac.hat)))) s.hair = 0;   // wave 2 hats tuck a bun or spikes in
       if (lk && (lk.head === 'cat' || lk.head === 'bear' || lk.head === 'bunny' || lk.head === 'fox' || lk.head === 'horns') && (s.hair === 4 || s.hair === 5)) s.hair = 0;
       var raw = BA.svg(uid, 64, { seed: s });
       bgHex = (BA.PALETTE || [])[s.bg] || '';
@@ -1511,10 +2054,10 @@
     var back = '', front = '';
     ['aura', 'trail', 'cape'].forEach(function (k) { if (ac[k]) back += accBack(ac[k], id); });
     ['cape', 'aura', 'glasses', 'hat', 'pet'].forEach(function (k) { if (ac[k]) front += k === 'pet' ? '<g transform="translate(-5 -4)">' + accFront(ac[k]) + '</g>' : accFront(ac[k]); });
-    var body = lk ? outfit(lk, col, id) + headPiece(lk, col) : '';
+    var body = lk ? outfit(lk, col, id) + (lk.face ? facePiece(lk, col) : '') + headPiece(lk, col) : '';
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="' + size + '" height="' + size + '" aria-hidden="true" focusable="false">' +
       '<defs><clipPath id="' + id + '"><circle cx="32" cy="32" r="32"/></clipPath><clipPath id="' + id + 's"><path d="' + SH + '"/></clipPath></defs>' +
-      '<g clip-path="url(#' + id + ')">' + bg + back + '<g>' + face + '</g>' + body + front + '</g></svg>';
+      '<g clip-path="url(#' + id + ')">' + bg + back + '<g>' + face + '</g>' + body + front + (lk && lk.fx ? fxPart(lk, id) : '') + '</g></svg>';
   }
 
   // A small picture of a game item for the shop and pickers: one simple shape per slot, in the item's two colours.
@@ -1556,6 +2099,8 @@
       case 'leaves': case 'spots': case 'sprinkles': case 'snow': for (i = 0; i < 26; i++) { g.fillStyle = i % 3 === 0 ? c.trim : (i % 3 === 1 ? c.accent : c.emissive); g.beginPath(); g.ellipse(rnd() * size, rnd() * size, u * .9, u * .55, rnd() * 3.2, 0, 7); g.fill(); } break;
       case 'waves': for (j = 2; j < 16; j += 4) { g.beginPath(); for (i = 0; i <= 16; i += .5) g.lineTo(i * u, (j + Math.sin(i) * .7) * u); g.stroke(); } break;
       case 'rays': case 'flames': g.fillStyle = c.pattern === 'flames' ? c.emissive : c.accent; for (i = 0; i < 16; i += 2) { g.beginPath(); g.moveTo(i * u, size); g.lineTo((i + 1) * u, size * .55); g.lineTo((i + 2) * u, size); g.fill(); } break;
+      case 'pinstripes': g.strokeStyle = c.accent; g.lineWidth = u * .18; for (i = 1; i < 16; i += 1.5) { g.beginPath(); g.moveTo(i * u, 0); g.lineTo(i * u, size); g.stroke(); } break;
+      case 'vstripes': g.fillStyle = c.accent; for (i = 0; i < 16; i += 4) g.fillRect(i * u, 0, u * 2, size); break;
       case 'quarters': ['#9BE07A', '#FFC93C', '#E07A2E', '#9FD3FF'].forEach(function (k, n) { g.fillStyle = k; g.fillRect((n % 2) * size / 2, Math.floor(n / 2) * size / 2, size / 2, size / 2); }); break;
       default: break;
     }
