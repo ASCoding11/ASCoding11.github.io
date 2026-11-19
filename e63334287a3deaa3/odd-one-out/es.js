@@ -133,5 +133,12 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Janitor': 'Conserje', 'Park Ranger': 'Guardaparques', 'Exterminator': 'Fumigador', 'Construction Worker': 'Obrero', 'Cowboy': 'Vaquero', 'Pirate': 'Pirata', 'Top Hat': 'Galera',
   'Traffic Cone': 'Cono', 'Flashlight': 'Linterna', 'Price Scanner': 'Lector de precios', 'Flyswatter': 'Matamoscas', 'Butterfly Net': 'Red de mariposas', 'Broom': 'Escoba',
   'Rubber Chicken': 'Pollo de goma', 'Bike Horn': 'Bocina de bici', 'Squeaky Duck': 'Patito de goma', 'Slide Whistle': 'Silbato de émbolo', 'Boing': 'Boing', 'Cuckoo': 'Cucú',
-  'Kazoo': 'Kazoo', 'Doorbell': 'Timbre', 'Party Blower': 'Espantasuegras', 'Cloud Poof': 'Nube', 'Feather Poof': 'Plumas', 'Bubble Poof': 'Burbujas', 'Star Poof': 'Estrellas', 'Price Tag Poof': 'Etiquetas'
+  'Kazoo': 'Kazoo', 'Doorbell': 'Timbre', 'Party Blower': 'Espantasuegras', 'Cloud Poof': 'Nube', 'Feather Poof': 'Plumas', 'Bubble Poof': 'Burbujas', 'Star Poof': 'Estrellas', 'Price Tag Poof': 'Etiquetas',
+  // added on 19 Nov
+  'Soccer Striker': 'Delantero de fútbol', 'Basketball Star': 'Estrella del básquet', 'Gridiron': 'Fútbol americano', 'Baseball Slugger': 'Bateador',
+  'Hockey Skater': 'Patinador de hockey', 'Tennis Ace': 'As del tenis', 'Golfer': 'Golfista', 'Boxer': 'Boxeador', 'Referee': 'Árbitro', 'Racing Driver': 'Piloto de carreras',
+  'Pirate Deckhand': 'Marinero pirata', 'First Mate': 'Primer oficial', 'Ghost Pirate': 'Pirata fantasma', 'The Boss': 'El Jefe', 'Pinstripe Suit': 'Traje a rayas',
+  'Tracksuit': 'Ropa deportiva', 'Bodyguard': 'Guardaespaldas', 'Butler': 'Mayordomo', 'Tin Robot': 'Robot de hojalata', 'Android': 'Androide',
+  'Tennis Racket': 'Raqueta de tenis', 'Hockey Stick': 'Palo de hockey', 'Foam Finger': 'Mano de espuma', 'Golf Club': 'Palo de golf', 'Spyglass': 'Catalejo',
+  'Walking Cane': 'Bastón', 'Serving Tray': 'Bandeja', 'Megaphone': 'Megáfono', 'Robot Claw': 'Garra robótica',
 });

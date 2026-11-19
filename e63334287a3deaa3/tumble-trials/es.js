@@ -1,6 +1,6 @@
 /* Tumble Trials in Spanish: this game's own words for lang.js (see the comment at the top of ../lang.js). Also used by closet.js.
    Round names and bots' names stay in English as names; the show's calls, menus, HUD, lobby and results are translated.
-   Closet item names come from the lists shared with ../cosmetics.js and stay English. */
+   Closet item names come from the lists shared with ../cosmetics.js and stay English, except the wave added in November 2026 (at the end). */
 if (window.BackRoomLang) BackRoomLang.add({
   // HUD and the show's calls
   'Tumble Trials game view': 'Vista del juego Tumble Trials', 'Lobby': 'Sala de espera', 'Round {a} of {b}': 'Ronda {a} de {b}', 'Round 1': 'Ronda 1',
@@ -113,5 +113,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'One hat at a time. A costume or undies on the head takes its place.': 'Un sombrero a la vez. Un disfraz o calzones en la cabeza ocupan su lugar.',
   'Extras over your face.': 'Extras sobre tu cara.', 'A whole costume around the same bean: same size, same hitbox, your face still shows.': 'Un disfraz completo alrededor del mismo frijolito: mismo tamaño, misma hitbox, y tu cara se sigue viendo.',
   'Danced when you qualify from a race or win the crown.': 'Se baila cuando clasificas en una carrera o ganas la corona.', 'Heard as you fall towards the slime.': 'Se escucha mientras caes a la baba.',
-  'Goes off as well as the slime when you are knocked out.': 'Salta junto con la baba cuando quedas eliminado.'
+  'Goes off as well as the slime when you are knocked out.': 'Salta junto con la baba cuando quedas eliminado.',
+  // Closet items added in November 2026 (wave 2); the older ones stay English
+  'Eye Patch': 'Parche en el ojo', 'Black Shades': 'Gafas oscuras', 'Eye Black': 'Pintura de partido', 'Baseball Cap': 'Gorra de béisbol', 'Fedora': 'Sombrero fedora', 'Pirate Bandana': 'Pañuelo pirata', 'Fur Hat': 'Gorro de piel', 'Bowler Hat': 'Bombín', 'Soccer Kit': 'Equipo de fútbol', 'Basketball Kit': 'Equipo de básquet', 'Gridiron Gear': 'Equipo de fútbol americano', 'Baseball Uniform': 'Uniforme de béisbol', 'Hockey Kit': 'Equipo de hockey', 'Tennis Whites': 'Ropa de tenis', 'Boxing Champ': 'Campeón de boxeo', 'Track Star': 'Estrella del atletismo', 'Swim Team': 'Equipo de natación', 'Ski Racer': 'Esquiador de carreras', 'Racing Driver': 'Piloto de carreras', 'Referee': 'Árbitro', 'Team Mascot': 'Mascota del equipo', 'Karate Gi': 'Karategui', 'Golf Pro': 'Golfista', 'Cheer Squad': 'Porrista', 'Pirate Captain': 'Capitán pirata', 'Deckhand': 'Marinero pirata', 'Parrot Pal': 'Pirata con loro', 'Ghost Pirate': 'Pirata fantasma', 'Pinstripe Suit': 'Traje a rayas', 'The Boss': 'El Jefe', 'Tracksuit Tough Guy': 'Tipo duro en chándal', 'Bodyguard': 'Guardaespaldas', 'Tuxedo': 'Esmoquin', 'Business Suit': 'Traje de oficina', 'Tin Robot': 'Robot de hojalata', 'Sleek Android': 'Androide elegante', 'Junkyard Bot': 'Robot chatarra', 'Wizard': 'Mago', 'Firefighter': 'Bombero', 'Touchdown Spike': 'Festejo de touchdown', 'Boxer Shuffle': 'Paso de boxeador', 'Hornpipe Jig': 'Baile marinero', 'Big Boss Shrug': 'Encogida del jefe'
 });

@@ -51,5 +51,22 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Pop!': '¡Pum!', "If the puffer is still swelling when your time runs out, it pops on you and you lose a life. Lose all three and you're out.": 'Si el pez sigue inflándose cuando se acaba tu tiempo, te explota y pierdes una vida. Si pierdes las tres, quedas fuera.',
   'Shorter fuses:': 'Mechas más cortas:', 'each answer makes the next turn a bit quicker. After a pop, the next round starts with a new category and the full fuse again.': 'cada respuesta hace el turno siguiente un poco más rápido. Después de una explosión, la ronda siguiente empieza con otra categoría y la mecha completa.',
   'Online:': 'Online:', 'Quick match, or a room code your friends type in (or the invite link). Bots can fill a small room. Solo practice plays against bots on this device.': 'Partida rápida, o un código de sala que tus amigos escriben (o la invitación). Los bots pueden completar una sala chica. La práctica solo es contra bots en este dispositivo.',
-  'Got it': 'Entendido', 'Language': 'Idioma', 'host': 'anfitrión', '{n} joined': '{n} entró'
+  'Got it': 'Entendido', 'Language': 'Idioma', 'host': 'anfitrión', '{n} joined': '{n} entró',
+  // the Wardrobe (wardrobe.js; captains only for now)
+  'Wardrobe': 'Vestidor', 'Done': 'Listo', 'Wardrobe sections': 'Secciones del vestidor', 'Try it': 'Probar', 'The puffer on your turn': 'El pez globo en tu turno',
+  'Captains only for now. Everything is free to wear, and only changes how things look.': 'Por ahora solo para capitanes. Todo es gratis y solo cambia cómo se ven las cosas.',
+  'Hats': 'Sombreros', 'Trails': 'Estelas', 'Pops': 'Estallidos', 'Victory': 'Victoria',
+  "The pufferfish wears your hat while it's your turn. It swells, changes colour and pops exactly the same.": 'El pez globo usa tu sombrero mientras es tu turno. Se infla, cambia de color y explota exactamente igual.',
+  'Fly to the next player when your answer counts, in place of the bubbles.': 'Vuelan hacia el siguiente jugador cuando tu respuesta vale, en lugar de las burbujas.',
+  'Extra pieces when the puffer pops on you.': 'Piezas extra cuando el pez globo te explota a vos.',
+  'Plays at the sides of the screen for everyone when you win a match.': 'Aparece a los costados de la pantalla para todos cuando ganás una partida.',
+  'No hat': 'Sin sombrero', 'Bubbles': 'Burbujas', 'Usual pop': 'Estallido normal', 'Usual win': 'Victoria normal',
+  'Common': 'Común', 'Uncommon': 'Poco común', 'Rare': 'Raro', 'Epic': 'Épico', 'Legendary': 'Legendario',
+  'Baseball Cap': 'Gorra de béisbol', 'Sweatband': 'Vincha', 'Football Helmet': 'Casco de americano', 'Swim Cap and Goggles': 'Gorra y antiparras', 'Referee Cap': 'Gorra de árbitro',
+  'Ski Beanie': 'Gorro de esquí', 'Tennis Visor': 'Visera de tenis', 'Laurel Wreath': 'Corona de laurel', 'Cheer Bow': 'Moño de porrista', 'Tin Robot Dome': 'Cúpula de robot',
+  'Android Visor': 'Visor de androide', 'Pirate Captain': 'Capitán pirata', 'Bandana and Patch': 'Pañuelo y parche', 'The Boss Fedora': 'Sombrero del Jefe',
+  'Top Hat and Monocle': 'Galera y monóculo', 'Bodyguard Shades': 'Lentes de guardaespaldas', 'Wizard Hat': 'Sombrero de mago', 'Crown': 'Corona',
+  'Stars': 'Estrellas', 'Hearts': 'Corazones', 'Soccer Balls': 'Pelotas de fútbol', 'Basketballs': 'Pelotas de básquet', 'Gold Doubloons': 'Doblones de oro', 'Gears': 'Engranajes',
+  'Feathers': 'Plumas', 'Gumballs': 'Chicles', 'Nuts and Bolts': 'Tuercas y tornillos', 'Playing Cards': 'Naipes', 'Fireworks': 'Fuegos artificiales',
+  'Ticker Tape': 'Lluvia de papelitos', 'Trophy Lift': 'Trofeo en alto', 'Gold Rain': 'Lluvia de oro'
 });

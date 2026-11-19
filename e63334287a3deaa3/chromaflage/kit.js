@@ -51,12 +51,32 @@ const ITEMS={
     ['Hard Hat','#FFC21A','#FFFFFF','Safety first, even when the danger is a sofa that blinks.'],
     ['Exterminator Cap','#3E7D3A','#E23B3B','A green cap with a no-bugs badge. Hiders are not bugs, but still.'],
     ['Goggles','#3A3A46','#5FD0E6','Big round lenses pushed up on the forehead, ready for a closer look.'],
+    ['Team Cap','#E2433A','#FFC83D','Team red with a white panel and a gold star.'],
+    ['Football Helmet','#2F6FD8','#FFFFFF','A glossy blue helmet with a stripe and a face guard.'],
+    ['Sweatband','#3A7FE0','#FFFFFF','Blue towelling with white stripes, for long searches.'],
+    ['Referee Cap','#FFFFFF','#34353E','Black and white panels. Fair play only.'],
+    ['Pirate Hat','#2E2A2A','#E8B830','A tricorn with gold trim and a plume, and an eye patch to match.'],
+    ['Fedora','#7C8192','#2E2E36','Grey felt with a dark band, like an old detective film.'],
+    ['Top Hat','#3C3C46','#A8222E','Tall and smart, with a deep red band.'],
+    ['Robot Antenna','#C9CED6','#FF4A3A','A riveted metal cap and a springy aerial.'],
+    ['Champion Headband','#E2433A','#FFFFFF','A red band with long tails that flap as you run.'],
+    ['Hockey Helmet','#F4F6F8','#4A4E5C','A white helmet with vents and a chin strap.'],
+    ['Bowler Hat','#7A5E46','#3A2C22','Round and brown, for detectives and bankers.'],
+    ['Mascot Ears','#B8834E','#3A7FE0','A fuzzy mascot hood with round bear ears.'],
   ],
   tool:[
     ['Magnifying Glass','#C9962E','#BFEFFF','A brass-rimmed lens on a wooden handle. Very detective.'],
     ['Paint Scraper','#14B8A6','#C9D1DA','A wide blade for scraping the camouflage off a suspicious wall.'],
     ['Spray Bottle','#7FE3D6','#FF4F8B','A trigger spray for misting anything that looks too much like the wallpaper.'],
     ['Feather Duster','#A0673C','#FF4F8B','Fluffy rainbow feathers for dusting off whoever is hiding on the shelf.'],
+    ['Foam Finger','#FFD23F','#2F6FD8','A big yellow foam hand. Number one seeker.'],
+    ['Pirate Hook','#C9D0D8','#6A4426','A shiny hook on a wooden grip. Arr.'],
+    ['Walking Cane','#2E2E36','#FFCF3F','Black with a gold knob, for a boss on a stroll.'],
+    ['Whistle','#C9D0D8','#E2433A',"The coach's whistle. Time out, you've been found."],
+    ['Tennis Racket','#FFFFFF','#E8F4A0','A white frame and a tight string bed.'],
+    ['Hockey Stick','#D9B07A','#2A2B32','Taped at the top and on the blade.'],
+    ['Spyglass','#D8B04A','#8A5A34','Three brass tubes for spotting a hider across the room.'],
+    ['Robot Claw','#C9D0D8','#3EC8E8','Three claw fingers and a glowing ring.'],
   ],
   splash:[
     ['Paint Splash','#FF4F8B','#FFC83D','A ring of paint droplets in every colour, and a little SPLAT! over their head, when you catch someone.'],
@@ -185,7 +205,93 @@ const HAT_BUILD=[
     }
     b.add(Box(),RIM,[0,.7,1.04],[.2,.07,.08],[-.38,0,0]);
     return b.done()},
+  // ---- wave 2 (19 Nov): sports, pirates, suits and robots ----
+  // 8 Team Cap: a red ball cap with a white panel, a gold star and a curved peak
+  ()=>{const b=new Bake(),R='#E2433A',R2='#C2342C';
+    b.add(domeTo(1.1,.38,24,10),c=>c.z>.55&&c.y>.5&&Math.abs(c.x)<.42?'#FFFFFF':R,[0,0,0],[1,1,1]);
+    b.add(Sph(8,6),R2,[0,1.1,0],[.1,.07,.1]);
+    b.add(Cyl(1,1,16,false,-Math.PI/2,Math.PI),R2,[0,.42,.55],[.98,.05,1.06],[.1,0,0]);
+    star5(b,'#FFC83D',[0,.78,1.0],.2,-.45);
+    return b.done()},
+  // 9 Football Helmet: a glossy blue shell with a white stripe, ear pads and a face guard below the visor
+  ()=>{const b=new Bake(),B='#2F6FD8',B2='#2558B0',W='#FFFFFF',GY='#C9CED6';
+    b.add(domeTo(1.2,.3,26,10),B,[0,0,0],[1,1,1.05]);b.add(Cyl(1.2,1.2,26,true),B2,[0,.34,0],[1,.1,1.05]);
+    b.add(Tor(1.21,.09,6,22,Math.PI*.82),W,[0,0,0],[1,1,1.05],[0,Math.PI/2,.28]);
+    for(const s of [1,-1]){b.add(Cyl(1,1,16),B2,[s*1.1,.0,0],[.34,.14,.34],[0,0,Math.PI/2]);b.add(Box(),GY,[s*1.0,-.45,.55],[.07,.07,.9],[.5,0,0])}
+    for(const y of [-.45,-.68])b.add(Tor(1.18,.045,5,20,Math.PI),GY,[0,y,0],[.94,1,1],[Math.PI/2,0,Math.PI]);
+    b.add(Box(),GY,[0,-.57,1.16],[.07,.3,.07]);
+    return b.done()},
+  // 10 Sweatband: blue towelling with two white stripes, above the visor
+  ()=>{const b=new Bake(),B='#3A7FE0';
+    b.add(Cyl(1.04,1.07,28,true),B,[0,.56,0],[1,.32,1]);for(const y of [.47,.65])b.add(Cyl(1.065,1.065,28,true),'#FFFFFF',[0,y,0],[1,.045,1]);
+    b.add(Cyl(.95,1.04,28,true),B,[0,.76,0],[1,.08,1]);
+    return b.done()},
+  // 11 Referee Cap: black and white panels, a black peak and a button on top
+  ()=>{const b=new Bake(),K='#34353E';
+    b.add(domeTo(1.1,.38,24,10),c=>Math.floor((Math.atan2(c.x,c.z)+Math.PI)/(TAU/6))%2?K:'#FFFFFF',[0,0,0],[1,1,1]);
+    b.add(Sph(8,6),K,[0,1.1,0],[.1,.07,.1]);
+    b.add(Cyl(1,1,16,false,-Math.PI/2,Math.PI),K,[0,.42,.55],[.98,.05,1.06],[.1,0,0]);
+    return b.done()},
+  // 12 Pirate Hat: a black tricorn with gold trim and a white plume, and an eye patch over one side of the visor
+  ()=>{const b=new Bake(),K='#2E2A2A',GD='#E8B830';
+    b.add(domeTo(1.05,.3,22,8),K,[0,.1,0],[1,1.1,1]);
+    // three turned-up brims, one facing forward: each is tall in the middle and falls away to the corners (the pirate-hat outline),
+    // built from 9 slices with the gold trim following the top edge. Same footprint as a plain triangle of walls.
+    for(let i=0;i<3;i++){const a=i*TAU/3,L=2.45,N=9,r=.76,y0=.36,hE=.26,hM=i?.78:.95,ca=Math.cos(a),sa=Math.sin(a);
+      for(let j=0;j<N;j++){const t=((j+.5)/N-.5)*L,u=Math.PI*t/L,h=hE+(hM-hE)*Math.cos(u)*Math.cos(u),sl=Math.atan(-(hM-hE)*Math.sin(2*u)*Math.PI/L);
+        b.add(Box(),K,[sa*r+ca*t,y0+h/2,ca*r-sa*t],[L/N+.01,h,.12],[.1,a,0]);
+        b.add(Box(),GD,[sa*(r+.01+h*.1)+ca*t,y0+h,ca*(r+.01+h*.1)-sa*t],[L/N/Math.cos(sl)+.02,.075,.15],[.1,a,sl])}}
+    for(let i=0;i<3;i++){const a=Math.PI/3+i*TAU/3;b.add(Sph(8,6),GD,[Math.sin(a)*1.44,.36+.26,Math.cos(a)*1.44],[.09,.09,.09])}
+    for(let k=0;k<5;k++)b.add(Sph(8,6),'#FFFFFF',[-.55-k*.07,1.05+k*.1,-.3-k*.05],[.12,.2,.1],[0,0,.6]);
+    b.add(Cyl(1,1,18),'#15151A',[.38,.12,1.04],[.26,.06,.24],[Math.PI/2,0,0]);
+    b.add(Tor(1.05,.035,5,30),'#15151A',[0,.2,0],[1,1,1],[Math.PI/2-.25,0,-.2]);
+    return b.done()},
+  // 13 Fedora: grey felt, a pinched crown with a crease, a dark band and a snap brim
+  ()=>{const b=new Bake(),F='#7C8192',F2='#666A7A';
+    b.add(Cyl(1,1,30),F,[0,.38,0],[1.6,.06,1.5],[-.05,0,0]);
+    b.add(Cyl(.86,1.06,24),F,[0,.78,0],[1,.8,1.05]);b.add(Sph(20,6,0,Math.PI/2),F,[0,1.18,0],[.86,.16,.9]);
+    b.add(Box(),F2,[0,1.3,0],[.12,.08,1.1]);
+    b.add(Cyl(1.07,1.07,24,true),'#2E2E36',[0,.52,0],[1,.2,1.06]);
+    return b.done()},
+  // 14 Top Hat: tall, with a deep red band
+  ()=>{const b=new Bake(),K='#3C3C46';
+    b.add(Cyl(1,1,30),K,[0,.4,0],[1.55,.06,1.55]);b.add(Cyl(1,1,24),K,[0,1.05,0],[.98,1.3,.98]);
+    b.add(Cyl(1,1,24,true),'#A8222E',[0,.62,0],[1.0,.24,1.0]);b.add(Cyl(1,1,24),'#4A4A56',[0,1.71,0],[.95,.02,.95]);
+    return b.done()},
+  // 15 Robot Antenna: a riveted metal cap, a springy aerial with a red bulb, bolts at the sides
+  ()=>{const b=new Bake(),S='#C9CED6',D='#8A929E';
+    b.add(domeTo(1.1,.42,24,8),S,[0,0,0],[1,1,1]);b.add(Cyl(1.1,1.1,24,true),D,[0,.45,0],[1,.08,1]);
+    for(let i=0;i<10;i++){const a=i/10*TAU;b.add(Sph(6,4),D,[Math.sin(a)*1.1,.55,Math.cos(a)*1.1],[.06,.06,.06])}
+    b.add(Cyl(1,1,8),D,[0,1.3,0],[.05,.5,.05]);for(let k=0;k<4;k++)b.add(Tor(.12,.03,5,12),S,[0,1.55+k*.1,0],[1,1,1],[Math.PI/2,0,0]);
+    b.add(Sph(10,8),'#FF4A3A',[0,2.0,0],[.17,.17,.17]);
+    for(const s of [1,-1])b.add(Cyl(1,1,12),D,[s*1.02,.5,0],[.22,.14,.22],[0,0,Math.PI/2]);
+    return b.done()},
+  // 16 Champion Headband: a red band above the visor, knotted at the back with two long tails
+  ()=>{const b=new Bake(),R='#E2433A';
+    b.add(Cyl(1.03,1.07,28,true),R,[0,.52,0],[1,.22,1]);
+    b.add(Sph(8,6),R,[0,.52,-1.06],[.2,.16,.12]);
+    for(const s of [1,-1])b.add(Box(),R,[s*.18,.25,-1.12],[.14,.6,.04],[.2,0,s*.35]);
+    return b.done()},
+  // 17 Hockey Helmet: a white helmet with vents and a dark chin strap
+  ()=>{const b=new Bake(),W='#F4F6F8';
+    b.add(domeTo(1.16,.32,26,10),c=>c.y>.95&&Math.abs(c.x)>.15&&Math.abs(c.x)<.35&&c.z<.3?'#4A4E5C':W,[0,0,0],[1,1,1.06]);
+    b.add(Cyl(1.16,1.16,26,true),'#D8DEE6',[0,.36,0],[1,.08,1.06]);
+    for(const s of [1,-1])b.add(Box(),'#3A3C46',[s*1.02,-.2,.15],[.06,1,.12],[0,0,s*.1]);
+    return b.done()},
+  // 18 Bowler Hat: a round brown crown with a curled brim, for detectives and bankers
+  ()=>{const b=new Bake(),C='#7A5E46';
+    b.add(Sph(22,10,0,Math.PI*.55),C,[0,.4,0],[1.08,.95,1.12]);
+    b.add(Cyl(1,1,30),C,[0,.4,0],[1.42,.05,1.46]);b.add(Tor(1.42,.07,5,30),'#5E4634',[0,.44,0],[1,1,1.03],[Math.PI/2,0,0]);
+    b.add(Cyl(1.09,1.09,24,true),'#3A2C22',[0,.52,0],[1,.16,1.12]);
+    return b.done()},
+  // 19 Mascot Ears: a fuzzy team-mascot hood with round bear ears and a blue stripe
+  ()=>{const b=new Bake(),C='#B8834E',L='#F0D2A8';
+    b.add(domeTo(1.1,.36,24,10),C,[0,0,0],[1,1,1]);b.add(Cyl(1.1,1.1,24,true),'#3A7FE0',[0,.42,0],[1,.1,1]);
+    for(const s of [1,-1]){b.add(Sph(12,8),C,[s*.72,.98,0],[.32,.32,.16]);b.add(Sph(10,6),L,[s*.72,.98,.1],[.2,.2,.08])}
+    return b.done()},
 ];
+// a flat five-point star facing out of the front of a hat, tilted back by tilt
+function star5(b,col,p,R,tilt){for(let i=0;i<5;i++){const a=i/5*TAU;b.add(new THREE.ConeGeometry(1,1,4),col,[p[0]+Math.sin(a)*R*.45,p[1]+Math.cos(a)*R*.45*Math.cos(tilt),p[2]-Math.cos(a)*R*.45*Math.sin(tilt)],[R*.3,R*.95,.03],[tilt,0,-a])}}
 // ---------- tools, drawn held upright in the hand (the hand at the origin, +y up, +z forward); toolGeo turns them to
 // the way the hand holds the blaster: the Doll aims with its arm out and the blaster standing up on its fist, the
 // Block holds it level at its side ----------
@@ -224,6 +330,52 @@ const TOOL_BUILD=[
     b.add(Sph(10,8),'#FFC83D',[0,.145,0],[.045,.05,.045]);
     for(let i=0;i<10;i++){const a=i/10*TAU,ring=i%2?.75:.42;b.add(Sph(7,5),F[i%F.length],[Math.cos(a)*.035,.205,Math.sin(a)*.035],[.032,.1,.032],[Math.sin(a)*ring,0,-Math.cos(a)*ring])}
     b.add(Sph(8,6),'#FFFFFF',[0,.245,0],[.035,.085,.035]);
+    return b.done()},
+  // ---- wave 2 (19 Nov) ----
+  // 5 Foam Finger: a big yellow foam hand with a blue cuff, pointing up
+  ()=>{const b=new Bake(),Y='#FFD23F';
+    b.add(Cyl(1,1,14),'#2F6FD8',[0,-.04,0],[.05,.06,.05]);b.add(Box(),Y,[0,.06,0],[.1,.13,.07]);
+    b.add(Box(),Y,[0,.19,.005],[.035,.15,.04]);b.add(Box(),Y,[.06,.07,.01],[.03,.06,.03],[0,0,-.5]);
+    for(let i=0;i<3;i++)b.add(Box(),'#F4C42A',[-.03+i*.025,.13,.035],[.022,.02,.02]);
+    return b.done()},
+  // 6 Pirate Hook: a wooden grip with a brass cuff and a shiny hook
+  ()=>{const b=new Bake();
+    b.add(Cyl(1,1.1,12),'#6A4426',[0,-.02,0],[.03,.14,.03]);b.add(Cyl(1,1,14),'#E8B830',[0,.06,0],[.042,.03,.042]);
+    b.add(Cyl(1,1,8),'#C9D0D8',[0,.11,0],[.01,.08,.01]);b.add(Tor(.045,.011,6,16,Math.PI*1.3),'#C9D0D8',[.045,.16,0],[1,1,1],[0,0,-.3]);
+    b.add(new THREE.ConeGeometry(1,1,8),'#C9D0D8',[.085,.12,0],[.012,.03,.012],[0,0,Math.PI*.85]);
+    return b.done()},
+  // 7 Walking Cane: black with a gold knob, held upright
+  ()=>{const b=new Bake();
+    b.add(Cyl(1,1,10),'#2E2E36',[0,.02,0],[.014,.36,.014]);b.add(Sph(10,8),'#FFCF3F',[0,.21,0],[.03,.03,.03]);
+    b.add(Cyl(1,1,10),'#FFCF3F',[0,.18,0],[.018,.02,.018]);b.add(Cyl(1,1,8),'#C9D0D8',[0,-.155,0],[.016,.012,.016]);
+    return b.done()},
+  // 8 Whistle: a big silver coach's whistle on a red cord
+  ()=>{const b=new Bake(),S='#C9D0D8';
+    b.add(Cyl(1,1,16),S,[0,.08,0],[.05,.06,.05],[0,0,Math.PI/2]);b.add(Box(),S,[0,.12,.05],[.04,.03,.09]);
+    b.add(Box(),'#2A2B32',[0,.137,.07],[.025,.006,.03]);b.add(Sph(8,6),'#E2433A',[0,.08,0],[.025,.025,.025]);
+    b.add(Tor(.05,.008,5,16),'#E2433A',[0,.0,-.04],[1,1.4,1],[0,Math.PI/2,0]);
+    return b.done()},
+  // 9 Tennis Racket: a white frame on a dark grip, a pale string bed
+  ()=>{const b=new Bake();
+    b.add(Cyl(1,1,8),'#3A3A44',[0,-.02,0],[.018,.12,.018]);b.add(Cyl(1,1,8),'#FFFFFF',[0,.08,0],[.012,.1,.012]);
+    b.add(Tor(1,.12,6,24),'#FFFFFF',[0,.2,0],[.075,.1,.1]);
+    b.add(Cyl(1,1,20),c=>(Math.round(c.x*90)+Math.round(c.y*90))%3?'#E8F4A0':'#FFFFFF',[0,.2,0],[.07,.004,.095],[Math.PI/2,0,0]);
+    return b.done()},
+  // 10 Hockey Stick: a wooden shaft with white tape at the top and a black-taped blade at the bottom
+  ()=>{const b=new Bake();
+    b.add(Cyl(1,1,8),'#D9B07A',[0,.06,0],[.014,.36,.014]);b.add(Cyl(1,1,8),'#FFFFFF',[0,.21,0],[.017,.06,.017]);
+    b.add(Box(),'#2A2B32',[0,-.12,.05],[.02,.04,.12],[.2,0,0]);
+    return b.done()},
+  // 11 Spyglass: three brass tubes and a leather grip, held upright
+  ()=>{const b=new Bake();
+    b.add(Cyl(1,1,14),'#8A5A34',[0,-.02,0],[.032,.14,.032]);b.add(Cyl(1,1,14),'#D8B04A',[0,.1,0],[.027,.11,.027]);
+    b.add(Cyl(1,1,14),'#C9A040',[0,.2,0],[.023,.1,.023]);for(const y of [.05,.155])b.add(Cyl(1,1,14),'#E8B830',[0,y,0],[.035,.015,.035]);
+    b.add(Cyl(1,1,14),'#BFE6FF',[0,.252,0],[.024,.005,.024]);
+    return b.done()},
+  // 12 Robot Claw: a silver arm with a glowing ring and three claw fingers
+  ()=>{const b=new Bake(),S='#C9D0D8',D='#8A929E';
+    b.add(Cyl(1,1,12),S,[0,0,0],[.04,.16,.04]);b.add(Cyl(1,1,14),'#3EC8E8',[0,.05,0],[.045,.02,.045]);b.add(Sph(10,8),D,[0,.1,0],[.045,.045,.045]);
+    for(let i=0;i<3;i++){const a=i/3*TAU;b.add(Box(),S,[Math.sin(a)*.03,.16,Math.cos(a)*.03],[.016,.09,.016],[Math.cos(a)*.35,0,-Math.sin(a)*.35])}
     return b.done()},
 ];
 const geoCache={};

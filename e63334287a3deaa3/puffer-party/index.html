@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
 <script src="es.js"></script> <!-- Puffer Party's Spanish words (categories and answers stay English) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Wardrobe (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Puffer Party</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -806,6 +807,8 @@ function onNode(uid,v){
   const o={n:cleanName(v.n)||'Player',c:hexOk(v.c)?v.c:'#888888',j:+v.j||+v.ts||0,ts:+v.ts||0,he:(typeof v.he==='number'&&isFinite(v.he)&&v.he>=0&&v.he<1e6)?v.he|0:0,
     rs:typeof v.rs==='string'&&v.rs.length<20000?v.rs:'',rsOk:false,a:typeof v.a==='string'?v.a.slice(0,90):'',ty:typeof v.ty==='string'?v.ty.slice(0,90):'',rm:(typeof v.rm==='number'&&isFinite(v.rm))?v.rm|0:-1};
   if(o.rs){if(prev&&prev.rs===o.rs){o.rsOk=prev.rsOk;o.parsed=prev.parsed}else{let p=null;try{p=JSON.parse(o.rs)}catch(e){}o.parsed=cleanRS(p);o.rsOk=!!o.parsed}}
+  // cz: what they wear from the Wardrobe (wardrobe.js); older pages never read it
+  o.cz=typeof v.cz==='string'&&v.cz.length<=20?v.cz:'';if(!WD&&/[1-9]/.test(o.cz))wdLoad();
   Net.others.set(uid,o);
   if(o.rsOk&&o.he>B.maxHe)B.maxHe=o.he;
   if(!prev&&B.on&&performance.now()-B.joinedAt>2500&&Net.now()-o.ts<LIVE_MS)toast(LT('{n} joined',{n:o.n}),1400);
@@ -1038,11 +1041,11 @@ function applyRS(rs){
   const inMatch=rs.pl.indexOf(Net.uid)>=0;
   // an answer was accepted
   if(newTurn&&!newMatch&&rs.last&&rs.last.tn===prevTn){
-    flashSeat(rs.last.u,'✓ '+rs.last.a,'ok');Fish.deflate(rs.cur);
+    flashSeat(rs.last.u,'✓ '+rs.last.a,'ok');Fish.deflate(rs.cur,wdTrail(rs.last.u,rs.cur));
     if(rs.last.u===Net.uid){Snd.mine();countAnswer(rs)}else Snd.good();
   }
   if(newPh&&rs.ph==='pop'&&rs.pop){
-    Fish.burst();buzz(rs.pop.u===Net.uid?[80,40,120]:40);
+    Fish.burst();wdPop(rs.pop.u);buzz(rs.pop.u===Net.uid?[80,40,120]:40);
     const me=rs.pop.u===Net.uid,nm=nameOf(rs.pop.u);
     if(rs.pop.lf)banner(LT('{n} left',{n:nameOf(rs.pop.u)}),'',2000);
     else banner(LT('POP!'),rs.pop.out?(me?LT('You\'re out!'):LT('{n} is out!',{n:nm})):(me?LT('You lose a life'):LT('{n} loses a life',{n:nm})),2400,'pop');
@@ -1241,6 +1244,7 @@ function renderOver(rs){
   const humans=rs.pl.filter(u=>!isBot(u)).length;
   // ranked rating (../elo.js): by finishing place in the list above
   if(!Net.solo&&rs.pl.indexOf(Net.uid)>=0&&window.BackRoomElo){try{const mi=order.indexOf(Net.uid);BackRoomElo.report({id:Net.room+':'+rs.id,won:win===Net.uid,opp:order.filter(u=>u!==Net.uid).map(u=>({u,bot:isBot(u)?1:0,s:order.indexOf(u)>mi?1:0}))})}catch(e){}}
+  if(win)wdWin(win);
   if(win===Net.uid){confetti(W*.5,H*.35,1);Snd.win();
     if(!Net.solo&&humans>=2&&!B.counted.has('w'+rs.id)){B.counted.add('w'+rs.id);store.set('wins',(+store.get('wins',0)||0)+1);if(window.BackRoomStats){try{BackRoomStats.add('wins',1)}catch(e){}}}}
   else Snd.bad();
@@ -1272,7 +1276,7 @@ async function joinRoom(room,isPublic){
     await Net.join(room,isPublic);
   }catch(e){setMsg(e.message||String(e),true);$('quick').disabled=$('joinRoom').disabled=false;return}
   $('quick').disabled=$('joinRoom').disabled=false;setMsg('');
-  B.reset();B.on=true;B.joinedAt=performance.now();G.mode='online';
+  B.reset();B.on=true;B.joinedAt=performance.now();G.mode='online';Net.czSent='';wdPush();
   show('lobby');$('lbRoom').textContent=isPublic?'Public room':'Room '+room;$('invMsg').textContent='';
   renderLobby();
 }
@@ -1332,7 +1336,7 @@ function drawSea(g,t,dt){
 }
 const Fish={ang:-Math.PI/2,face:1,tilt:0,p:0,pv:0,popT:-1,flat:0,squash:0,blink:0,
   reset(){this.p=0;this.pv=0;this.popT=-1;this.flat=0;this.squash=0},
-  deflate(to){this.pv=-2.5;this.squash=.25;const s=seatPos.get(to);if(s&&ST.ok)for(let i=0;i<10;i++)spawn({k:'b',x:ST.cx+this.face*Math.cos(this.tilt)*ST.R0,y:ST.fy+Math.sin(this.tilt)*ST.R0,tx:s.x,ty:s.y,t:-i*.04,life:.6+Math.random()*.2,r:rand(3,7)})},
+  deflate(to,skip){this.pv=-2.5;this.squash=.25;const s=seatPos.get(to);if(s&&ST.ok&&!skip)for(let i=0;i<10;i++)spawn({k:'b',x:ST.cx+this.face*Math.cos(this.tilt)*ST.R0,y:ST.fy+Math.sin(this.tilt)*ST.R0,tx:s.x,ty:s.y,t:-i*.04,life:.6+Math.random()*.2,r:rand(3,7)})},
   burst(){this.popT=0;this.p=0;this.pv=0;const R=ST.Rmax||60;for(let i=0;i<26;i++){const a=i/26*TAU+rand(-.1,.1),sp=rand(220,520);spawn({k:'s',x:ST.cx+Math.cos(a)*R*.8,y:ST.fy+Math.sin(a)*R*.8,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,rot:a,vr:rand(-9,9),life:1.1,r:rand(6,12)})}
     spawn({k:'ring',x:ST.cx,y:ST.fy,life:.6,r:R});confetti(ST.cx,ST.fy,.7);Snd.pop()}
 };
@@ -1345,7 +1349,7 @@ function bodyCol(p){ // sunny yellow, then orange, then angry red
   const m=t<.7?a.map((v,i)=>lerp(v,b[i],t/.7)):b.map((v,i)=>lerp(v,c[i],(t-.7)/.3));
   return'rgb('+m.map(Math.round).join(',')+')';
 }
-function drawPuffer(g,x,y,R,p,face,tilt,t,popped){
+function drawPuffer(g,x,y,R,p,face,tilt,t,popped,hat){   // hat: an item number from the Wardrobe (wardrobe.js), drawn on top; nearly always none
   g.save();g.translate(x,y);g.scale(face,1);g.rotate(tilt);
   const sq=Fish.squash;g.scale(1+sq*.3,1-sq*.25);
   if(popped){ // flat, sad and slowly sinking
@@ -1387,6 +1391,7 @@ function drawPuffer(g,x,y,R,p,face,tilt,t,popped){
   const mr=R*(.09-.04*p);g.fillStyle='#5a1a20';g.beginPath();g.ellipse(R*.93,R*.1,mr*.7,mr,0,0,TAU);g.fill();
   // sweat drop
   if(p>.72){const d=((t*1.4)%1);g.fillStyle='rgba(140,210,255,'+(1-d)+')';const sx=R*.05,sy=-R*1.0+d*R*.5;g.beginPath();g.moveTo(sx,sy-R*.12);g.quadraticCurveTo(sx+R*.08,sy,sx,sy+R*.05);g.quadraticCurveTo(sx-R*.08,sy,sx,sy-R*.12);g.fill()}
+  if(hat&&WD)WD.hat(g,R,p,hat,t);
   g.restore();
 }
 function drawParts(g,dt){
@@ -1419,13 +1424,40 @@ function drawGame(g,t,dt,now){
   if(p>.75&&rs.ph==='turn'){const s=(p-.75)/.25*R*.05;x+=Math.sin(t*61)*s;y+=Math.cos(t*47)*s}
   if(rs.ph==='pop'){Fish.popT+=dt;const sink=Math.min(1,Fish.popT/1.5)*ST.R0*.4;if(Fish.popT>.35)drawPuffer(g,x,y+sink,ST.R0*.9,0,Fish.face,0,t,true);return}
   if(rs.ph==='count')R=ST.R0*(1+.05*Math.sin(t*4));
-  drawPuffer(g,x,y,R,p,Fish.face,Fish.tilt,t,false);
+  drawPuffer(g,x,y,R,p,Fish.face,Fish.tilt,t,false,wdHat(rs.cur));
   // the fuse on the hot seat, and the ticking that speeds up with it
   if(rs.ph==='turn'){
     const el=seatEls.get(rs.cur);if(el){const f=1-target;el.style.setProperty('--t',f.toFixed(3));el.classList.toggle('low',f<.3)}
     G.tick=(G.tick||0)+dt/lerp(.55,.11,p);if(G.tick>=1&&now<rs.t0+rs.dur){G.tick=0;Snd.tick(p)}
   }
 }
+
+// ---------- the Wardrobe (not public yet): puffer hats, answer trails, pops and victory effects ----------
+// wardOn(): may this player open the Wardrobe and wear things? True for the site's captains (../captains.js: the Google
+// account signed in is one of miles.js's Captains), or with ?wardrobe=1 on localhost or in an automated browser
+// (remembered for the tab; ?wardrobe=0 forgets it). On the live site the address does nothing. To make it public for
+// everyone, change PF_PUBLIC to true: that one line is all it takes. Everything is drawn by wardrobe.js beside this page,
+// which is fetched the first time wardOn() is true, or when a player in the room wears something (their node's cz, see
+// onNode). For everyone else it is never loaded, WD stays null and the game is exactly as it was.
+// Looks only: the puffer's size, colour, spikes and timing (what everyone reads) never change.
+const PF_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardOn=()=>PF_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','pf-wardrobe'));
+let WD=null,wdAsked=false;
+function wdLoad(){
+  if(wdAsked)return;wdAsked=true;
+  loadScript('wardrobe.js').then(()=>{WD=window.PufferWardrobe({$,store,wardOn,drawPuffer,size:()=>({W,H}),changed:wdPush});wdPush()}).catch(e=>{wdAsked=false;console.error(e)});
+}
+// what a player wears: [hat, trail, pop, victory] item numbers, or null (bots and nearly everyone)
+function wearOf(u){if(!WD||!u||isBot(u))return null;if(u===Net.uid)return WD.mine();const o=Net.others.get(u);return o&&o.cz?WD.parse(o.cz):null}
+function wdHat(u){const w=wearOf(u);return w?w[0]:0}
+function wdTrail(from,to){const w=wearOf(from),s=seatPos.get(to);if(!w||!w[1]||!s||!ST.ok)return false;return WD.trail(w[1],ST.cx+Fish.face*Math.cos(Fish.tilt)*ST.R0,ST.fy+Math.sin(Fish.tilt)*ST.R0,s.x,s.y)}
+function wdPop(u){const w=wearOf(u);if(w&&w[2]&&ST.ok)WD.pop(w[2],ST.cx,ST.fy,ST.Rmax||60)}
+function wdWin(u){const w=wearOf(u);if(w&&w[3])WD.victory(w[3])}
+// this player's cz in their own node: only while something is worn
+function wdPush(){if(!WD)return;WD.sync();if(!Net.refs)return;const cz=WD.wire();if(cz!==(Net.czSent||'')){Net.czSent=cz;Net.upd({cz:cz||null})}}
+if(wardOn())wdLoad();
+if(CAPTAINS)CAPTAINS.onChange(()=>{if(wardOn())wdLoad();wdPush()});
 
 // =====================================================================
 //  Ads
@@ -1462,7 +1494,7 @@ function frame(nowP){
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0}
   if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').style.opacity=0}
   if(G.scene==='lobby'&&Net.isPublic&&B.rs&&B.rs.as)renderLobby();
-  drawConf(dt);
+  drawConf(dt);if(WD)WD.draw(fx,dt);
 }
 // Solo pauses while the tab is hidden; online, the 1 s heartbeat keeps the host's turns moving.
 document.addEventListener('visibilitychange',()=>{
@@ -1507,7 +1539,7 @@ if(!store.get('seenHelp',false)&&!inv){store.set('seenHelp',true);$('howMenu').o
 requestAnimationFrame(frame);
 
 // Test hook: only for automated browsers.
-if(navigator.webdriver)window.__pf={flashSeat,norm,check,nearMiss,oneOff,CATS,CATL,cleanRS,onNode,applyRS,acceptAnswer,popTurn,afterPop,dropLeavers,judgeAttempt,newMatchRS,beginTurn,fuseFor,nextAlive,parseAttempt,aliveOf,setRS,startMatch,startSolo,joinRoom,toMenu,lobbyRS,B,G,Net,get ST(){return ST},Fish,store,seatPos,layout};
+if(navigator.webdriver)window.__pf={get WD(){return WD},wardOn,wdLoad,wearOf,drawPuffer,flashSeat,norm,check,nearMiss,oneOff,CATS,CATL,cleanRS,onNode,applyRS,acceptAnswer,popTurn,afterPop,dropLeavers,judgeAttempt,newMatchRS,beginTurn,fuseFor,nextAlive,parseAttempt,aliveOf,setRS,startMatch,startSolo,joinRoom,toMenu,lobbyRS,B,G,Net,get ST(){return ST},Fish,store,seatPos,layout};
 })();
 </script>
 <script>if(window.BackRoomLang){BackRoomLang.englishOnly(document.querySelector('#menu .title'));BackRoomLang.englishOnly(document.getElementById('catBox'));document.addEventListener('backroom:lang',function(){BackRoomLang.englishOnly(document.querySelector('#menu .title'));BackRoomLang.englishOnly(document.getElementById('catBox'))})}</script>

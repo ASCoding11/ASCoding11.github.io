@@ -30,7 +30,29 @@
     'READY': 'LISTOS', 'GO!': '¡YA!', 'QUAD!': '¡CUÁDRUPLE!', 'TRIPLE': 'TRIPLE', 'DOUBLE': 'DOBLE',
     'T-SPIN SINGLE': 'T-SPIN SIMPLE', 'T-SPIN DOUBLE': 'T-SPIN DOBLE', 'MINI T-SPIN SINGLE': 'MINI T-SPIN SIMPLE', 'MINI T-SPIN DOUBLE': 'MINI T-SPIN DOBLE',
     'BACK-TO-BACK': 'EN SERIE', 'COMBO ×{n}': 'COMBO ×{n}', 'CHAIN ×{n}': 'CADENA ×{n}', '{n} COLOURS +{p}': '{n} COLORES +{p}',
-    'COLOUR MIX': 'MEZCLA DE COLORES', '{n} colours +{p}': '{n} colores +{p}', 'LEVEL {n}': 'NIVEL {n}', 'faster!': '¡más rápido!', 'Language': 'Idioma'
+    'COLOUR MIX': 'MEZCLA DE COLORES', '{n} colours +{p}': '{n} colores +{p}', 'LEVEL {n}': 'NIVEL {n}', 'faster!': '¡más rápido!', 'Language': 'Idioma',
+    // Styles (captains only for now: styles.js)
+    'Styles': 'Estilos', 'Captains': 'Capitanes', 'Done': 'Listo', 'Blocks': 'Bloques', 'Boards': 'Tableros', 'Clear effects': 'Efectos al limpiar',
+    'Keycaps': 'Teclas', 'Night Well': 'Pozo nocturno', 'Sparks': 'Chispas',
+    "Keycaps: The game's own glassy keycaps.": 'Teclas: las teclas de vidrio del juego.', "Night Well: The game's own night-blue well.": 'Pozo nocturno: el pozo azul noche del juego.', "Sparks: The game's own sparks.": 'Chispas: las chispas del juego.',
+    'Sports Balls': 'Pelotas', 'Circuit Board': 'Placa de circuitos', 'Treasure Chest': 'Cofre del tesoro', 'Pinstripe and Gold': 'Rayas y oro', '8-Bit': '8 bits', 'Gem Cut': 'Gema tallada', 'Jelly Candy': 'Gomitas',
+    'Stadium Night': 'Noche de estadio', 'Pirate Deck': 'Cubierta pirata', 'Robot Lab': 'Laboratorio robot', 'Gold Pinstripe': 'Rayas de oro', 'Outer Space': 'Espacio exterior',
+    'Confetti': 'Papel picado', 'Gold Coins': 'Monedas de oro', 'Star Sparkles': 'Destellos de estrella',
+    'Sports Balls: A different ball on every piece: football, basketball, baseball and more.': 'Pelotas: una pelota distinta en cada pieza: fútbol, básquet, béisbol y más.',
+    'Circuit Board: Traces, pads and four rivets on every block.': 'Placa de circuitos: pistas, contactos y cuatro remaches en cada bloque.',
+    "Treasure Chest: Planks and brass corners, like a pirate's chest.": 'Cofre del tesoro: tablas y esquinas de bronce, como un cofre pirata.',
+    'Pinstripe and Gold: Fine pinstripes and a thin gold edge.': 'Rayas y oro: rayas finas y un borde dorado.',
+    '8-Bit: Flat blocks with a stepped bevel, like an old console.': '8 bits: bloques planos con bisel escalonado, como una consola vieja.',
+    'Gem Cut: Every block cut like a jewel.': 'Gema tallada: cada bloque tallado como una joya.',
+    'Jelly Candy: Round, glossy and probably sticky.': 'Gomitas: redondas, brillantes y seguramente pegajosas.',
+    'Stadium Night: A floodlit frame and a dark pitch.': 'Noche de estadio: un marco iluminado y una cancha oscura.',
+    'Pirate Deck: A wooden frame on a dark sea, with anchors.': 'Cubierta pirata: un marco de madera sobre un mar oscuro, con anclas.',
+    'Robot Lab: A riveted steel frame and gears in the dark.': 'Laboratorio robot: un marco de acero remachado y engranajes en la oscuridad.',
+    'Gold Pinstripe: A gold frame on a pinstripe suit.': 'Rayas de oro: un marco dorado sobre un traje a rayas.',
+    'Outer Space: Stars and ringed planets around the well.': 'Espacio exterior: estrellas y planetas con anillos alrededor del pozo.',
+    'Confetti: Every cleared row is a party.': 'Papel picado: cada fila limpia es una fiesta.',
+    'Gold Coins: Cleared rows pay out in spinning coins.': 'Monedas de oro: las filas limpias pagan con monedas que giran.',
+    'Star Sparkles: Little four-point stars that twinkle out.': 'Destellos de estrella: estrellitas de cuatro puntas que se apagan titilando.'
   });
   // Paragraphs with bold words inside are swapped whole (they carry data-i18n-html and data-noi18n).
   function rich() {

@@ -38,5 +38,20 @@ window.BackRoomLang && BackRoomLang.add({
   'Only with Strict mode off': 'Solo sin el modo estricto', 'Sound on / off': 'Sonido sí / no', 'Menu, how to play': 'Menú, cómo se juega',
   // dessert tiles (drawn on the board)
   'Cracker': 'Galletita', 'Cookie': 'Galleta', 'Cupcake': 'Cupcake', 'Donut': 'Dona', 'Brownie': 'Brownie', 'Pie': 'Tarta', 'Cake': 'Torta',
-  'Sundae': 'Sundae', 'Macarons': 'Macarons', 'Soufflé': 'Suflé', 'Wedding cake': 'Torta de bodas', 'Croquembouche': 'Croquembouche'
+  'Sundae': 'Sundae', 'Macarons': 'Macarons', 'Soufflé': 'Suflé', 'Wedding cake': 'Torta de bodas', 'Croquembouche': 'Croquembouche',
+  // Styles (captains only for now: styles.js)
+  'Styles': 'Estilos', 'Captains': 'Capitanes', 'Close': 'Cerrar', 'Tiles': 'Fichas', 'Boards': 'Tableros', 'Edit ›': 'Editar ›',
+  'Tile sets and boards (captains only for now).': 'Juegos de fichas y tableros (por ahora solo para capitanes).',
+  'Plain Tiles': 'Fichas lisas', 'Walnut Tray': 'Bandeja de nogal',
+  "Plain Tiles: The game's own tiles.": 'Fichas lisas: las fichas del juego.', "Walnut Tray: The game's own walnut tray.": 'Bandeja de nogal: la bandeja de nogal del juego.',
+  'Baseball Stitches': 'Costuras de béisbol', 'Circuit Rivets': 'Remaches y circuitos', 'Treasure Corners': 'Esquinas del tesoro', 'Pinstripe': 'Rayas finas',
+  'Stadium Turf': 'Césped de estadio', 'Pirate Deck': 'Cubierta pirata', 'Robot Steel': 'Acero robot', 'Velvet and Gold': 'Terciopelo y oro',
+  'Baseball Stitches: A row of stitches down each side of every tile.': 'Costuras de béisbol: una fila de puntadas a cada lado de cada ficha.',
+  'Circuit Rivets: Rivets in the corners and traces along the edges.': 'Remaches y circuitos: remaches en las esquinas y pistas por los bordes.',
+  "Treasure Corners: Brass corner pieces, like a pirate's chest.": 'Esquinas del tesoro: esquineros de bronce, como un cofre pirata.',
+  'Pinstripe: Faint pinstripes and a thin gold edge.': 'Rayas finas: rayas suaves y un borde dorado fino.',
+  'Stadium Turf: A green tray with mown stripes.': 'Césped de estadio: una bandeja verde con franjas de césped cortado.',
+  'Pirate Deck: Deck planks with dark seams.': 'Cubierta pirata: tablas de cubierta con juntas oscuras.',
+  'Robot Steel: Brushed steel with a row of rivets top and bottom.': 'Acero robot: acero cepillado con remaches arriba y abajo.',
+  'Velvet and Gold: Plum velvet with a gold rim.': 'Terciopelo y oro: terciopelo ciruela con borde dorado.'
 });

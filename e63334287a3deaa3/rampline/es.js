@@ -148,6 +148,11 @@
     'Garbage Truck': 'Camión de basura', 'Tractor': 'Tractor', 'Golf Cart': 'Carrito de golf', 'Lunar Rover': 'Vehículo lunar', 'Wooden Toy': 'Juguete de madera', 'Wind-Up Car': 'Auto a cuerda',
     'RC Car': 'Auto a control remoto', 'Soapbox Crate': 'Cajón con ruedas', 'Cardboard Box': 'Caja de cartón', 'Shopping Cart': 'Carrito de compras', 'Bathtub': 'Bañera', 'Couch': 'Sillón',
     'Hot Dog': 'Hot dog', 'Banana': 'Banana', 'Rubber Duck': 'Patito de goma', 'Giant Shoe': 'Zapato gigante', 'Rocket Car': 'Auto cohete',
+    'Sports cars': 'Autos deportivos', 'Pirates, suits and robots': 'Piratas, trajes y robots', 'Team Bus': 'Autobús del equipo', 'Ice Resurfacer': 'Pulidora de hielo',
+    'Golf Cart Racer': 'Carrito de golf de carreras', 'Football Helmet': 'Casco de fútbol americano', 'Soccer Ball': 'Pelota de fútbol', 'Pirate Ship': 'Barco pirata',
+    'Black Sedan': 'Sedán negro', 'VIP Limo': 'Limusina VIP', 'Armoured Van': 'Camioneta blindada', 'Robo Walker': 'Robot caminante', 'Lowrider': 'Lowrider',
+    'Jersey Blue': 'Azul camiseta', 'Turf Green': 'Verde césped', 'Ice White': 'Blanco hielo', 'Varsity Maroon': 'Granate universitario', 'Gunmetal': 'Gris metal',
+    'Tuxedo Black': 'Negro esmoquin', 'Parrot Green': 'Verde loro', 'Plank Brown': 'Marrón tablón', 'Circuit Green': 'Verde circuito', "Ship's Bell": 'Campana de barco', 'Ref Whistle': 'Silbato de árbitro',
     // builder
     'New track': 'Pista nueva', 'Start from a built-in track': 'Empezar desde una pista del juego', 'Import': 'Importar', 'Paste a track code': 'Pega un código de pista',
     'Track code to import': 'Código de pista para importar', 'Your tracks stay in this browser. Share one as a code; anyone can paste it in below.': 'Tus pistas se guardan en este navegador. Comparte una como código; cualquiera puede pegarlo abajo.',

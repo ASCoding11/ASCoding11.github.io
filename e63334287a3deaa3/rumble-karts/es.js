@@ -77,6 +77,9 @@
     'Beep beep': 'Bip bip', 'Goose Honk': 'Graznido de ganso', 'Clown Horn': 'Bocina de payaso', 'Air Horn': 'Bocina de aire', 'Kazoo': 'Kazoo', 'Bike Bell': 'Timbre de bici',
     'Confetti Pop': 'Lluvia de papelitos', 'Feather Poof': 'Nube de plumas', 'Bubble Burst': 'Explosión de burbujas', 'Jelly Splat': 'Salpicón de gelatina',
     'Nuts and Bolts': 'Tuercas y tornillos', 'Fireworks': 'Fuegos artificiales', 'Popcorn': 'Palomitas', 'Snow Globe': 'Bola de nieve',
+    'Rowboat': 'Bote de remos', 'Long Sedan': 'Sedán largo', 'Soccer Ball': 'Pelota de fútbol', 'Basketball': 'Pelota de básquet', 'Grandstand': 'Tribuna',
+    'Ice Groomer': 'Pulidora de hielo', 'Robo Racer': 'Robocorredor', 'Tea Trolley': 'Carrito de té', 'Football Helmet': 'Casco de fútbol americano', 'Boxing Ring': 'Ring de boxeo',
+    'Stadium Horn': 'Bocina de estadio', "Ship's Bell": 'Campana de barco', 'Ref Whistle': 'Silbato de árbitro', 'Rally Organ': 'Órgano de estadio',
     // weapons (names that are just words are translated; invented names stay)
     'Rocket': 'Cohete', 'Mine': 'Mina', 'A mine': 'Una mina', 'Shockwave': 'Onda expansiva', 'Freeze Ray': 'Rayo congelante', 'Magnet': 'Imán',
     'Shrink Ray': 'Rayo encogedor', 'Boomerang': 'Bumerán', 'Ghost': 'Fantasma', 'Warp': 'Salto', 'Decoy Box': 'Caja trampa', 'Gravity': 'Gravedad',

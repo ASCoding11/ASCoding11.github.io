@@ -5,6 +5,7 @@
 <script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
 <script src="es.js"></script> <!-- this game's Spanish words -->
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Locker while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Blockstorm</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -596,6 +597,18 @@ function makeDaily(key) {
   return { key, guns, featured, sets };
 }
 
+/* ================= the Locker (not public yet) ================= */
+// Outfits, hats and gun skins, all drawn by locker.js beside this page. kitOn(): may this player see the Locker and wear
+// things? True for the site's captains (../captains.js: the Google account signed in is one of miles.js's Captains), or
+// with ?locker=1 on localhost or in an automated browser. To make it public for everyone, change BS_PUBLIC to true:
+// that one line is all it takes. locker.js is fetched the first time kitOn() is true, or when another player in the
+// room arrives wearing something (its node's ck); for everyone else it is never loaded, KIT stays null and the game is
+// exactly as it was. Everything in it is looks only.
+const BS_PUBLIC = false;
+const CAPTAINS = window.BackRoomCaptains || null;
+const kitOn = () => BS_PUBLIC || !!(CAPTAINS && CAPTAINS.may(false, 'locker', 'blockstorm-locker'));
+let KIT = null;
+
 /* ================= profile ================= */
 const DEFAULT_SETTINGS = { sens: 1.0, fov: 80, vol: 0.8, botLevel: 1, minutes: 5, bots: 9, quality: 1 };
 let profile = store.get('profile', null);
@@ -820,10 +833,11 @@ function glowMat(color) {
   return _matCache[key];
 }
 const _unitBox = new THREE.BoxGeometry(1, 1, 1);
-function makeGunModel(def) {
+function makeGunModel(def, skin) {
   const grp = new THREE.Group();
   const rc = RARITIES[def.r].color;
-  const body = stdMat(def.c[0]), dark = stdMat(def.c[1], { roughness: 0.6 }), trim = stdMat(def.c[2]);
+  const pal = skin && KIT ? KIT.gunPal(skin) : null;   // a Locker gun skin (locker.js): body, grip and trim only
+  const body = pal ? pal.body : stdMat(def.c[0]), dark = pal ? pal.dark : stdMat(def.c[1], { roughness: 0.6 }), trim = pal ? pal.trim : stdMat(def.c[2]);
   const glowing = def.r >= 2 || ['laser', 'plasma', 'rail', 'blaster'].includes(def.type);
   const glow = glowing ? glowMat(def.r >= 3 ? def.c[2] : rc) : trim;
   const accent = def.r >= 2 ? glowMat(rc) : stdMat(rc, { roughness: 0.3 });
@@ -1805,6 +1819,7 @@ function liveOthers() { const out = []; for (const [k, o] of NET.others) if (nod
 function netState() {
   const p = G.player;
   const o = { n: cleanName(profile.name) || 'Player', c: myColor(), x: 0, z: 0, h: 0, ts: Math.round(netNow()), j: NET.j, lk: (profile.look >>> 0), v: NET_V };
+  if (KIT) { const ck = KIT.wire(); if (ck) o.ck = ck; }   // what this fighter wears from the Locker (locker.js); nothing at all for everyone else
   if (p && (G.state === 'play' || G.state === 'end')) {
     o.x = r2(p.pos.x); o.z = r2(p.pos.z); o.y = r2(p.pos.y); o.h = r3(p.yaw); o.p = r3(p.pitch);
     o.w = p.cur; o.sc = p.shots | 0; o.lf = p.life | 0; o.a = p.alive ? 1 : 0; o.m = G.matchId | 0;
@@ -1916,6 +1931,7 @@ function onNode(uid, v) {
     if (list.length) { NET.lastEv.set(uid, list[list.length - 1].i); for (const x of list) { try { handleNetEv(uid, x); } catch (e) { console.warn(e); } } }
   }
   if (uid === NET.hostUid && NET.mode === 'client') applyHostState(v);
+  if (v.ck != null || kitSeen.has(uid)) kitHeard(uid, v.ck);   // what it wears from the Locker (locker.js)
   humanUpdate(uid, v);
   lobbyDirty = true;
 }
@@ -2421,6 +2437,7 @@ class Char {
     this.tpGuns = this.weapons.map(w => { if (!w) return null; const g = makeGunModel(w.def); g.scale.setScalar(0.85); return g; });
     this.setGunModel();
     if (isPlayer) m.root.visible = false;
+    if (KIT) KIT.dress(this);   // what this fighter wears from the Locker (locker.js)
   }
   get w() { return this.weapons[this.cur]; }
   setGunModel() { const h = this.model.gunHolder; h.clear(); const g = this.tpGuns[this.cur]; if (g) h.add(g); }
@@ -2949,7 +2966,7 @@ function buildViewmodels(p) {
   for (const w of p.weapons) {
     if (!w) continue;
     const grp = new THREE.Group();
-    const gun = makeGunModel(w.def); gun.scale.setScalar(0.5); grp.add(gun); grp.userData.gun = gun;
+    const gun = makeGunModel(w.def, KIT ? KIT.mySkin() : 0); gun.scale.setScalar(0.5); grp.add(gun); grp.userData.gun = gun;
     const sleeve = new THREE.Mesh(_unitBox, new THREE.MeshLambertMaterial({ color: p.look.shirt, map: TEX.noise }));
     sleeve.scale.set(0.15, 0.15, 0.5); sleeve.position.set(0.04, -0.12, 0.3); sleeve.rotation.set(0.35, 0.1, 0); grp.add(sleeve);
     const hand = new THREE.Mesh(_unitBox, new THREE.MeshLambertMaterial({ color: p.look.skin, map: TEX.noise }));
@@ -3396,7 +3413,25 @@ function frame() {
   _listenerPos.copy(camera.position); updateListener(camera);
   renderer.clear(); renderer.render(scene, camera);
   if (G.state === 'play' && G.player) { renderer.clearDepth(); renderer.render(vmScene, vmCam); }
+  if (KIT) KIT.update(dt);
 }
+// ---------- the Locker (locker.js; see BS_PUBLIC near the top) ----------
+let kitAsked = false;
+const kitSeen = new Map();   // uid -> the last ck heard before locker.js was here
+function kitLoad() {
+  if (kitAsked) return; kitAsked = true;
+  (kitOn() && !window.BackRoomCosmetics ? loadScript('../cosmetics.js').catch(() => { }) : Promise.resolve()).then(() => loadScript('locker.js')).then(() => {
+    KIT = window.BlockKit({ THREE, store, $, TX, makeGunModel, makeCharacter, makeLook, faceCanvas, tierGuns, noise: TEX.noise, sUI,
+      get on() { return kitOn(); }, chars: () => G.chars, get player() { return G.player; }, get state() { return G.state; }, lookSeed: () => profile.look >>> 0,
+      vmRefresh() { const p = G.player; if (!p) return; for (const w of p.weapons) if (w && w.vm) vmScene.remove(w.vm); buildViewmodels(p); } });
+    for (const [uid, ck] of kitSeen) KIT.heard(uid, ck);
+    for (const c of G.chars) KIT.dress(c);
+    KIT.access();
+  }).catch(e => { kitAsked = false; console.error(e); });
+}
+function kitSync() { if (kitOn()) kitLoad(); if (KIT) KIT.access(); }
+// Another fighter's ck: drawn once locker.js is here (fetched now if this is the first one seen wearing something).
+function kitHeard(uid, ck) { if (KIT) { KIT.heard(uid, ck); kitSeen.set(uid, ck); } else { kitSeen.set(uid, ck); if (typeof ck === 'string' && /^[0-9a-z]{3}$/.test(ck) && ck !== '000') kitLoad(); } }
 
 /* ================= input ================= */
 function bindInput() {
@@ -3525,6 +3560,7 @@ function applyTier(c, tier) {
   c.weapons = tierGuns(tier).map(g => makeWeapon(g.def, g.level));
   c.tpGuns = c.weapons.map(w => { const g = makeGunModel(w.def); g.scale.setScalar(0.85); return g; });
   c.cur = c.weapons[cur] ? cur : 0; c.setGunModel();
+  if (KIT) { c._gs = 0; KIT.dress(c); }   // a Locker gun skin on the new guns too
   if (c.isPlayer) {
     for (const w of old) if (w && w.vm) vmScene.remove(w.vm);
     buildViewmodels(c); buildSlotsHud(); hudWeapon();
@@ -3770,6 +3806,7 @@ function renderMain() {
   $('#btnLook').onclick = () => { profile.look = Math.floor(Math.random() * 1e9); saveProfile(); drawFace(); };
   $('#selLo').onchange = e => { profile.active = +e.target.value; saveProfile(); renderMain(); };
   setTimeout(() => refreshPublic(true), 300);
+  if (KIT) KIT.access();   // the Locker button (locker.js) goes back next to New look
 }
 // The play box's buttons and the name box, bound once (the box itself is never rebuilt).
 let invited = '';
@@ -3918,7 +3955,8 @@ async function boot() {
   showScreen('main'); updateBadge();
   addEventListener('pagehide', () => netLeave());
   frame();
-  if (navigator.webdriver) window.__bs = { G, NET, startMatch, hostStartMatch, NODES, BRIDGES, COL, findPath, nearestNode, get renderer() { return renderer; }, get scene() { return scene; }, get camera() { return camera; }, updateBot, joinRoomCode, quickMatch, setTouchUI, charById, CTF, losClear, onFloor, TOWERS };
+  kitSync(); if (CAPTAINS) CAPTAINS.onChange(kitSync);
+  if (navigator.webdriver) window.__bs = { get KIT() { return KIT; }, kitOn, kitLoad, G, NET, startMatch, hostStartMatch, NODES, BRIDGES, COL, findPath, nearestNode, get renderer() { return renderer; }, get scene() { return scene; }, get camera() { return camera; }, updateBot, joinRoomCode, quickMatch, setTouchUI, charById, CTF, losClear, onFloor, TOWERS };
 }
 boot().catch(e => { console.error(e); const l = $('#loading'); if (l) l.innerHTML = '<div>COULD NOT START: ' + esc(e.message) + '</div>'; });
 

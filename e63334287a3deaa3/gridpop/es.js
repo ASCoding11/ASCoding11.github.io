@@ -22,5 +22,19 @@ window.BackRoomLang && BackRoomLang.add({
   'Put back / pause': 'Devolver / pausa', 'Language': 'Idioma',
   'Drag a piece onto the board · or {a} to pick, {b} to move, {c} to place': 'Arrastra una pieza al tablero · o {a} para elegir, {b} para mover, {c} para colocar',
   // drawn on the board
-  'Nice!': '¡Bien!', 'Great!': '¡Genial!', 'Amazing!': '¡Increíble!', 'Incredible!': '¡Tremendo!', 'Unbelievable!': '¡Impresionante!', 'No room there': 'No entra ahí'
+  'Nice!': '¡Bien!', 'Great!': '¡Genial!', 'Amazing!': '¡Increíble!', 'Incredible!': '¡Tremendo!', 'Unbelievable!': '¡Impresionante!', 'No room there': 'No entra ahí',
+  // Styles (captains only for now: styles.js)
+  'Styles': 'Estilos', 'Captains': 'Capitanes', 'Done': 'Listo', 'Blocks': 'Bloques', 'Boards': 'Tableros',
+  'Plain Blocks': 'Bloques lisos', 'Night Board': 'Tablero nocturno',
+  "Plain Blocks: The game's own plain blocks.": 'Bloques lisos: los bloques lisos del juego.', "Night Board: The game's own night-blue board.": 'Tablero nocturno: el tablero azul noche del juego.',
+  'Sports Balls': 'Pelotas', 'Circuit Rivets': 'Remaches y circuitos', 'Treasure Corners': 'Esquinas del tesoro', 'Pinstripe': 'Rayas finas',
+  'Stadium Night': 'Noche de estadio', 'Pirate Deck': 'Cubierta pirata', 'Robot Steel': 'Acero robot', 'Gold Pinstripe': 'Rayas de oro',
+  'Sports Balls: A different ball for every colour.': 'Pelotas: una pelota distinta para cada color.',
+  'Circuit Rivets: A trace, two pads and four rivets on every block.': 'Remaches y circuitos: una pista, dos contactos y cuatro remaches en cada bloque.',
+  "Treasure Corners: Brass corners and a plank seam, like a pirate's chest.": 'Esquinas del tesoro: esquinas de bronce y una junta de tabla, como un cofre pirata.',
+  'Pinstripe: Fine pinstripes and a thin gold square.': 'Rayas finas: rayas finas y un cuadrado dorado fino.',
+  'Stadium Night: A floodlit white frame round a dark pitch.': 'Noche de estadio: un marco blanco iluminado alrededor de una cancha oscura.',
+  'Pirate Deck: A wooden frame over dark water.': 'Cubierta pirata: un marco de madera sobre agua oscura.',
+  'Robot Steel: A brushed steel frame.': 'Acero robot: un marco de acero cepillado.',
+  'Gold Pinstripe: A gold frame round a charcoal board.': 'Rayas de oro: un marco dorado alrededor de un tablero gris carbón.'
 });

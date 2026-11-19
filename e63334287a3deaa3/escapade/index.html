@@ -5,6 +5,7 @@
 <script src="/e63334287a3deaa3/lang.js"></script>
 <script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the Wardrobe while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Escapade</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -2901,7 +2902,7 @@ function w6Sign(g,sg,W,w,h,font){
 function w6Ending(online){
   $('resTitle').textContent='You beat Escapade!';
   if(!online)$('resMsg').textContent='That was the last door of all '+NWORLDS+' worlds. Thank you for playing! Go back for every star and gem, or race your best times.';
-  confetti(me.x,me.y+3,me.z,260);
+  cheerFx(me.x,me.y+3,me.z,260,myKit(),myColor);
 }
 // ---- end of World 6 drawing additions ----
 
@@ -3479,7 +3480,7 @@ function setView(v,quiet){
 }
 const toggleView=()=>setView(G.view==='fp'?'tp':'fp');
 
-function makeMe(){if(G.av)G.av.dispose();G.av=makeAvatar(myColor);me=newPlayer(0,0,0,0);me.px=me.py=me.pz=0;me.ryaw=0}
+function makeMe(){if(G.av)G.av.dispose();G.av=makeAvatar(myColor);wrDressMe();me=newPlayer(0,0,0,0);me.px=me.py=me.pz=0;me.ryaw=0}
 function respawnMe(full){
   const W=G.W,c=W.cps[full?0:me.cp]||W.cps[0];
   if(full)me.cp=0;
@@ -3634,7 +3635,7 @@ function selfReset(){
 function doRespawn(){softReset(G.W);respawnMe(false)}
 function myTime(){return G.mode==='online'?G.t-G.joinT:G.t-G.startT}
 function onFinish(){
-  G.finished=true;G.finT=myTime();G.finAt=G.mode==='online'?Net.now():0;sfx('finish');confetti(me.x,me.y+1.5,me.z,170);
+  G.finished=true;G.finT=myTime();G.finAt=G.mode==='online'?Net.now():0;sfx('finish');cheerFx(me.x,me.y+1.5,me.z,170,myKit(),myColor);
   const d=LEVELS[G.lv],tm=G.finT,old=starsOf(d.id),pb=prof.best[d.id];
   const gem=G.gemRun||!!(old&4);
   const mask=old|1|(tm<=d.par?2:0)|(G.gemRun?4:0);
@@ -3851,7 +3852,7 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  base(){return{n:myName||'Escaper',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),a:animCode(me),j:this.j,rr:G.room?G.room.rr:0,f:'',lr:0,ll:0,lt:0,v:CORE_VER}},
+  base(){const o={n:myName||'Escaper',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),a:animCode(me),j:this.j,rr:G.room?G.room.rr:0,f:'',lr:0,ll:0,lt:0,v:CORE_VER};const wk=myKitStr();if(wk){o.wk=wk;this.wkSent=true}return o},
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});
@@ -3894,11 +3895,12 @@ function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const now=Net.now();
   const o={n:cleanName(v.n)||'Escaper',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff6b6b',j:num(+v.j)?+v.j:+v.ts||0,ts:Math.min(+v.ts||0,now+5000),
-    rr:Number.isInteger(v.rr)&&v.rr>=0&&v.rr<1e9?v.rr:0,f:'',lr:0,ll:0,lt:0,v:Number.isInteger(v.v)&&v.v>0&&v.v<1e4?v.v:0}; // v: their page's CORE_VER (0: a page from before worlds)
+    rr:Number.isInteger(v.rr)&&v.rr>=0&&v.rr<1e9?v.rr:0,f:'',lr:0,ll:0,lt:0,v:Number.isInteger(v.v)&&v.v>0&&v.v<1e4?v.v:0, // v: their page's CORE_VER (0: a page from before worlds)
+    wk:typeof v.wk==='string'&&/^\d{1,3}(\.\d{1,3}){0,3}$/.test(v.wk)?v.wk:''};   // wk: a Wardrobe kit (wardrobe.js)
   if(typeof v.f==='string'&&/^\d{1,9}:\d{1,8}:\d{1,15}$/.test(v.f)){const q=v.f.split(':').map(Number);if(q[1]>=3000&&q[1]<=36e5)o.f={rr:q[0],ms:q[1],at:q[2]}}
   if(Number.isInteger(v.lr)&&v.lr>0&&v.lr<1e9&&Number.isInteger(v.ll)&&v.ll>=0&&v.ll<NLV&&num(v.lt)&&Math.abs(v.lt-now)<DAY_MS){o.lr=v.lr;o.ll=v.ll;o.lt=v.lt}
   const was=Net.others.get(uid);Net.others.set(uid,o);
-  if(o.f&&(!was||!was.f||was.f.ms!==o.f.ms||was.f.rr!==o.f.rr)&&G.room&&o.f.rr===G.room.rr){feed('<span class="hl">'+esc(o.n)+'</span> escaped in '+fmtTime(o.f.ms/1000));const e=ents.get(uid);if(e)confetti(e.pos.x,e.pos.y+1.5,e.pos.z,60);if(G.overlay==='results')renderRoomList($('resList'))}
+  if(o.f&&(!was||!was.f||was.f.ms!==o.f.ms||was.f.rr!==o.f.rr)&&G.room&&o.f.rr===G.room.rr){feed('<span class="hl">'+esc(o.n)+'</span> escaped in '+fmtTime(o.f.ms/1000));const e=ents.get(uid);if(e)cheerFx(e.pos.x,e.pos.y+1.5,e.pos.z,60,WR&&WR.kitOf(o.wk),o.c);if(G.overlay==='results')renderRoomList($('resList'))}
   let e=ents.get(uid);
   if(!e){
     if(now-o.ts>LIVE_MS||!isFinite(+v.x)||!isFinite(+v.z))return;
@@ -3909,6 +3911,7 @@ function onNode(uid,v){
   }
   e.seen=performance.now();e.rr=o.rr;
   if(e.name!==o.n||e.color!==o.c){e.name=o.n;e.color=o.c;e.av.setColor(o.c)}
+  if(e.wk!==o.wk){e.wk=o.wk;if(o.wk&&!WR)wrLoad();else wrDressEnt(e)}   // fetched only when someone wears one
   if(isFinite(+v.x)&&isFinite(+v.z))e.tpos.set(clamp(+v.x,-400,400),clamp(+v.y||0,-50,200),clamp(+v.z,-400,400));
   e.tyaw=+v.h||0;e.a=clamp(v.a|0,0,6);
   // a short history to draw them from (netsmooth.js); a jump of more than 6 m is a respawn, so start afresh there.
@@ -4402,15 +4405,51 @@ const inv=/^#er-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room er-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('coral');$('quick').classList.remove('coral');$('quick').classList.add('alt')}
 if(touchUI)setTouchUI(true);
 
+// ---------- the Wardrobe (captains only for now; README, "Escapade") ----------
+// Outfits (drawn by ../outfits.js, shared with Spire and Turbo Trail) and celebrations, in wardrobe.js beside this
+// page. wardrobeOn() says whether this player may open it: WARDROBE_PUBLIC (the one line that opens it to everyone), one
+// of the site's captains (../captains.js), or ?wardrobe=1 on localhost or in an automated browser (remembered for the
+// tab; ?wardrobe=0 forgets it). The files are fetched only when it is true, or when an escaper in the room wears a kit
+// (then only outfits.js and wardrobe.js, to draw them); until then WR is null and every escaper looks as before.
+// Saved as escapade:wardrobe; online as `wk` in this player's node, only while worn.
+const WARDROBE_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardrobeOn=()=>WARDROBE_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','escapade-wardrobe'));
+let WR=null,wrAsked=false,cosAsked=false;
+const myKit=()=>WR&&wardrobeOn()?WR.mine():null;
+function myKitStr(){return WR?WR.kitStr(myKit()):''}
+function wrDressMe(){if(WR&&G.av)WR.dress(G.av,myKit(),myColor)}
+function wrDressEnt(e){if(WR&&e.av)WR.dress(e.av,WR.kitOf(e.wk),e.color)}
+function cheerFx(x,y,z,n,kit,col){if(!(WR&&kit&&WR.cheer(kit,x,y,z,n,col)))confetti(x,y,z,n)}
+function wrApi(){return{THREE,store,emit,FXS,FXG,hiQ,glowBurst,get color(){return myColor},get me(){return me},changed(){wrDressMe();wrSend()}}}
+function wrSend(){if(!WR||!Net.refs)return;const s=myKitStr();if(s||Net.wkSent){Net.wkSent=!!s;Net.upd({wk:s||null})}}
+const wrAdd=src=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=src;e.onload=res;e.onerror=rej;document.head.appendChild(e)});
+function wrLoad(){
+  // the names (../cosmetics.js) only for a player who may open the Wardrobe
+  if(wardrobeOn()&&!window.BackRoomCosmetics&&!cosAsked){cosAsked=true;wrAdd('../cosmetics.js').then(wrSync).catch(e=>{cosAsked=false;console.error(e)})}
+  if(wrAsked)return;wrAsked=true;
+  (window.BlockFits?Promise.resolve():wrAdd('../outfits.js')).then(()=>wrAdd('wardrobe.js')).then(()=>{
+    if(!window.EscapadeWardrobe||!window.BlockFits)throw new Error('wardrobe did not load');
+    WR=window.EscapadeWardrobe(wrApi());wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){
+  if(wardrobeOn())wrLoad();
+  if(!WR)return;
+  WR.menu(wardrobeOn());wrDressMe();ents.forEach(wrDressEnt);wrSend();
+}
+if(CAPTAINS)CAPTAINS.onChange(wrSync);
+
 // Test hook (automated browsers only): step the simulation without waiting for frames, play levels with the bot.
 if(navigator.webdriver)window.__er={G,PHYS,LEVELS,fx:{FXS,FXG,FXB},updateParts,get me(){return me},ents,Net,onNode,KB,keys,tAct,tMove,buildLevel,runBot,makeBot,startLevel,toMenu,goOnline,applyRoom,startRoomRound,onlineTick,showPause,resume,setView,
-  usable,useBtn,tryCode,flagOn,softReset,renderer,scene,camera,camRay,openKeypad,kpPress,renderLevels,renderWorlds,renderMenu,
+  usable,useBtn,tryCode,flagOn,softReset,renderer,scene,camera,camRay,openKeypad,kpPress,renderLevels,renderWorlds,renderMenu,get WR(){return WR},wardrobeOn,wrSync,wrLoad,cheerFx,
+  render(){renderer.render(scene,camera)},
   WORLDS,ensureWorld,ensureLevel,levelReady,unlocked,worldOpen,firstOpen,nextLevel,clearedCount,totalStars,worldTotal,prof,leaderStart,followRound,
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){tick();if(G.respawnAt&&performance.now()>=G.respawnAt)doRespawn()}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
   respawnNow(){if(G.respawnAt)doRespawn()},
   autopilot(on){G.auto=on?makeBot(G.W.route):null},
   get bot(){return G.auto},
-  decoys(list){(G.decoys||[]).forEach(d=>{d.av.dispose();d.tag.remove()});G.decoys=list.map(q=>{const av=makeAvatar(q.c);av.root.position.set(q.x,q.y,q.z);av.root.rotation.y=q.yaw||0;for(let i=0;i<30;i++)animate(av,q.a||0,q.a===1?7:0,1/30);placeBlob(av,q.x,q.y,q.z,G.t);const tag=document.createElement('div');tag.innerHTML='<i style="background:'+q.c+'"></i>'+esc(q.n);$('tags').appendChild(tag);return{av,tag,q}})},
+  decoys(list){(G.decoys||[]).forEach(d=>{d.av.dispose();d.tag.remove()});G.decoys=list.map(q=>{const av=makeAvatar(q.c);if(WR&&q.wk)WR.dress(av,WR.kitOf(q.wk),q.c);av.root.position.set(q.x,q.y,q.z);av.root.rotation.y=q.yaw||0;for(let i=0;i<30;i++)animate(av,q.a||0,q.a===1?7:0,1/30);placeBlob(av,q.x,q.y,q.z,G.t);const tag=document.createElement('div');tag.innerHTML='<i style="background:'+q.c+'"></i>'+esc(q.n);$('tags').appendChild(tag);return{av,tag,q}})},
   frame(n){G.freeze=true;try{n=n||1;for(let i=0;i<n;i++){G.noRender=i<n-1;update(1/60)}}finally{G.freeze=false;G.noRender=false;if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}},
   // play the real update() at a given frame time (seconds), n frames, with the bot or a fixed input
   frames(n,dt){for(let i=0;i<n;i++){const t0=performance.now();if(G.mode!=='online')G.tBase-=dt;update(dt);if(G.mode!=='online')G.tBase+=(performance.now()-t0)/1000}},
@@ -4424,7 +4463,7 @@ if(navigator.webdriver)window.__er={G,PHYS,LEVELS,fx:{FXS,FXG,FXB},updateParts,g
 setInterval(()=>{if(!document.hidden||!Net.refs)return;try{onlineTick();if(performance.now()-(Net.hbT||0)>2000)Net.upd({})}catch(err){console.error(err)}},1000);
 renderSwatches();renderGfx();applyQuality();
 try{document.fonts.ready.then(()=>{if(G.W)loadWorld(G.W)})}catch(e){}
-setupAttract(0);showAd('adMenu');
+setupAttract(0);showAd('adMenu');wrSync();
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
 </script>
