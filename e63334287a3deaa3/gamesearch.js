@@ -67,9 +67,18 @@
     '<p class="gs-msg" aria-live="polite" hidden></p>';
   var q = wrap.querySelector('input'), x = wrap.querySelector('.gs-x'), kb = wrap.querySelector('kbd'), msg = wrap.querySelector('.gs-msg');
 
+  // Keep the box right in front of the row of game types. Edit layout (layout.js) moves the two as one piece. In case
+  // any other script ever moves the box away each time it's put back, this gives up after a few tries in a row rather
+  // than fight it on every frame (a fight like that once re-inserted the Online panel 50 times a second).
+  var moves = [], gaveUp = false;
   function place() {
     var nav = navEl(); if (!nav || !nav.parentNode) return false;
-    if (wrap.nextElementSibling !== nav) nav.parentNode.insertBefore(wrap, nav);
+    if (wrap.nextElementSibling === nav) return true;
+    if (gaveUp && wrap.isConnected) return true;
+    var t = Date.now(); moves = moves.filter(function (m) { return t - m < 3000; });
+    if (moves.length >= 4 && wrap.isConnected) { gaveUp = true; return true; }
+    moves.push(t);
+    nav.parentNode.insertBefore(wrap, nav);
     return true;
   }
 
@@ -148,10 +157,19 @@
     if (!place()) { setTimeout(start, 200); return; }
     // Keep the box in front of the row of game types if Edit layout moves it, and re-run a search when the phone
     // page's lists are rebuilt or new cards arrive.
-    var busy = false;
-    new MutationObserver(function () {
-      if (busy) return; busy = true;
-      requestAnimationFrame(function () { busy = false; place(); if (q.value && !wrap.contains(document.activeElement)) run(); });
+    // Only what happens outside the box counts (its own "3 games match" line changing must not start another pass), and
+    // a search is only run again when games were added or taken away, not when some other panel redraws.
+    var busy = false, again = false;
+    function inGames(n) { return !!(n && n.closest && n.closest('.br-games .gc-grid, .br-games .pz-grid, #lists')); }
+    new MutationObserver(function (list) {
+      var any = false;
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i]; if (wrap.contains(m.target)) continue;
+        any = true;
+        if (inGames(m.target) && !(m.target.closest && m.target.closest('.onl, #party, #playingnow'))) again = true;
+      }
+      if (!any || busy) return; busy = true;
+      requestAnimationFrame(function () { busy = false; place(); if (again) { again = false; if (q.value) run(); } });
     }).observe(document.body, { childList: true, subtree: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
