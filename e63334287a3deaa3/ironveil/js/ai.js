@@ -75,7 +75,9 @@
     if (!this.alive) return;
     this.hp -= dmg;
     if (this.hp <= 0) return this.die(dir, b && b.explosive);
-    this.actor.setUpper('hit'); this.suppr = Math.min(1, this.suppr + 0.6); this.stagger = 0.45;
+    // flinch (upper body) for light hits, a full stagger for heavy ones; either way his aim is thrown off for a moment
+    if (dmg >= 60 && IVChars.clips && IVChars.clips.indexOf('stagger') >= 0) this.actor.play('stagger', { once: true, fade: 0.08 }); else this.actor.setUpper('hit');
+    this.suppr = Math.min(1, this.suppr + 0.6); this.stagger = dmg >= 60 ? 0.7 : 0.45; this.shotT = Math.max(this.shotT, 0.5);
     if (from) { this.lkp = { x: from.x, z: from.z, t: IV.time }; this.target = this.target || WPent(); }
     this.aw = 1; this.setState('combat');
     AI.noise(this.pos.x, this.pos.z, 25, 'shout', this);
@@ -85,8 +87,11 @@
     this.alive = false; this.state = 'dead'; this.hp = 0; this.aw = 0;
     const front = dir ? (dir.x * -Math.sin(this.bodyYaw) + dir.z * -Math.cos(this.bodyYaw)) < 0 : Math.random() < 0.5;
     // shot from the front falls backwards
-    this.actor.setUpper(null); this.actor.play(front ? 'deathBack' : 'deathFront', { fade: 0.08, once: true });
-    if (dir && !blast) { this.fallV = { x: dir.x * 1.2, z: dir.z * 1.2 }; }
+    this.actor.setUpper(null);
+    const running = this.speed > 3 && IVChars.clips && IVChars.clips.indexOf('deathRun') >= 0;
+    this.actor.play(running ? 'deathRun' : front ? 'deathBack' : 'deathFront', { fade: 0.08, once: true });
+    // the body carries its momentum: running men tumble forward, a shot pushes a little
+    if (dir && !blast) { this.fallV = { x: dir.x * 1.2 + this.vel.x * 0.5, z: dir.z * 1.2 + this.vel.z * 0.5 }; }
     if (blast && dir) this.fallV = { x: dir.x * 3, z: dir.z * 3 };
     this.deadT = 0; this.bodyAt = null;
     if (this.glint) this.glint.material.opacity = 0;

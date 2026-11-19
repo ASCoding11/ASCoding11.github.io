@@ -55,7 +55,7 @@
       lastW = ws;
       if (WP.binoc) { $('wName').textContent = IV.t('Binoculars'); $('wAmmo').innerHTML = ''; }
       else if (WP.busyThrow) { $('wName').textContent = IV.t(WP.busyThrow.kind === 'grenade' ? 'Grenade' : 'Rock'); $('wAmmo').innerHTML = WP.busyThrow.kind === 'grenade' ? `${Math.max(0, Math.ceil(T.weapons.grenade.fuse - (IV.time - WP.busyThrow.t0)))}<small> ${IV.t('s fuse')}</small>` : ''; }
-      else { $('wName').textContent = WP.name(WP.cur); $('wAmmo').innerHTML = WP.reloadT > 0 ? `<small>${IV.t('Reloading')}</small>` : `${inv.mag}<small> / ${inv.res}</small>`; }
+      else { $('wName').textContent = WP.name(WP.cur); const low = inv.mag <= Math.ceil(T.weapons[WP.cur].mag * 0.25); $('wAmmo').innerHTML = WP.reloadT > 0 ? `<small>${IV.t('Reloading')}</small>` : `<span style="color:${low ? 'var(--warn)' : 'inherit'}">${inv.mag}</span><small> / ${inv.res}</small>`; }
       $('wGear').innerHTML = `<span>${IV.t('Grenades')} <b>${WP.inv.grenades}</b></span><span>${IV.t('Rocks')} <b>∞</b></span>`;
     }
     const AL = IV.ally;
@@ -67,6 +67,7 @@
     if (IV.weapons.takedownTarget && !P.frozen) { ptxt = IV.t('Takedown'); key = IV.touch ? IV.t('Use') : IV.input.label('knife'); }
     else if (M.interAt) { ptxt = IV.t(M.interAt.text); prog = M.interAt.prog; key = IV.touch ? IV.t('Use') : IV.input.label('use'); }
     else if (H.hint) { ptxt = H.hint.text; key = H.hint.key || ''; }
+    else if (WP.inv && WP.inv[WP.cur] && WP.inv[WP.cur].mag === 0 && WP.inv[WP.cur].res > 0 && WP.reloadT <= 0) { ptxt = IV.t('Reload'); key = IV.touch ? '' : IV.input.label('reload'); }
     if (ptxt) {
       pr.hidden = false;
       const html = `${key ? `<kbd>${esc(key)}</kbd>` : ''}<span>${esc(ptxt)}</span>${M.interAt && M.interAt.hold > 0.3 && !IV.weapons.takedownTarget ? `<span class="bar"><i style="width:${Math.round(prog * 100)}%"></i></span>` : ''}`;
@@ -97,7 +98,8 @@
     const WP = IV.weapons, C = IV.camera, cx = w / 2, cy = h / 2, u = dpr;
     if (C.mode === 'scope' && WP.scoped) drawScope(w, h, u);
     else if (WP.binoc) drawBinoc(w, h, u);
-    else if (P.alive && !P.cine) drawReticle(cx, cy, u);
+    else if (P.alive && !P.cine && !P.sprinting && !(WP.reloadT > 0)) drawReticle(cx, cy, u);   // no crosshair while sprinting or reloading
+    drawGrenadeWarn(cx, cy, u);
     drawAwareness(cx, cy, u);
     drawCompass(w, u);
     drawMarkers(u);
@@ -105,6 +107,20 @@
     if (H.dmgDir && H.dmgDir.t > 0) { H.dmgDir.t -= dt; const a = H.dmgDir.a, r = 120 * u; g.save(); g.translate(cx, cy); g.rotate(-a); g.fillStyle = `rgba(200,30,20,${Math.min(0.8, H.dmgDir.t)})`; g.beginPath(); g.moveTo(-26 * u, -r); g.quadraticCurveTo(0, -r - 16 * u, 26 * u, -r); g.lineTo(0, -r + 10 * u); g.closePath(); g.fill(); g.restore(); }
     if (fleckT > 0 && flecks.length) { for (const f of flecks) { g.fillStyle = `rgba(110,8,4,${f.o * Math.min(1, fleckT)})`; g.beginPath(); g.ellipse(f.x * w, f.y * h, f.r * u, f.r * 0.7 * u, f.x, 0, 6.29); g.fill(); } }
   };
+  // an enemy grenade within lethal range: an icon by the crosshair with an arrow toward it
+  function drawGrenadeWarn(cx, cy, u) {
+    const g = IV.weapons.throws.find(g => g.kind === 'grenade' && g.enemy && Math.hypot(g.x - P.pos.x, g.z - P.pos.z) < IV.TUNING.weapons.grenade.radius + 2);
+    if (!g) return;
+    const a = IV.wrapA(IV.yawTo(g.x - P.pos.x, g.z - P.pos.z) - P.yaw), r = 92 * u, x = cx - Math.sin(a) * r, y = cy - Math.cos(a) * r, k = 0.6 + 0.4 * Math.sin(IV.time * 14);
+    g2(x, y, u, k, a);
+  }
+  function g2(x, y, u, k, a) {
+    g.save(); g.translate(x, y); g.globalAlpha = k;
+    g.fillStyle = 'rgba(10,8,6,.7)'; g.beginPath(); g.arc(0, 0, 15 * u, 0, 6.29); g.fill();
+    g.fillStyle = '#cf4630'; g.beginPath(); g.ellipse(0, 2 * u, 6 * u, 8 * u, 0, 0, 6.29); g.fill(); g.fillRect(-2 * u, -9 * u, 4 * u, 4 * u);
+    g.rotate(-a); g.beginPath(); g.moveTo(0, -24 * u); g.lineTo(-6 * u, -16 * u); g.lineTo(6 * u, -16 * u); g.closePath(); g.fill();
+    g.restore();
+  }
   function drawReticle(cx, cy, u) {
     const WP = IV.weapons, aiming = WP.aiming;
     // the gap is the real spread cone at this field of view, plus a small minimum so the marks never touch

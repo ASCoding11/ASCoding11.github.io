@@ -13,7 +13,9 @@
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     ctx = AU.ctx = new AC();
     comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.connect(ctx.destination);
-    master = ctx.createGain(); master.connect(comp);
+    // master -> deafen filter (a close blast muffles everything for a few seconds) -> compressor
+    AU.deaf = ctx.createBiquadFilter(); AU.deaf.type = 'lowpass'; AU.deaf.frequency.value = 20000; AU.deaf.connect(comp);
+    master = ctx.createGain(); master.connect(AU.deaf);
     sfx = ctx.createGain(); sfx.connect(master);
     mus = ctx.createGain(); mus.connect(master);
     amb = ctx.createGain(); amb.connect(master);
@@ -120,7 +122,20 @@
     if (!ctx || !AU.ready || ctx.state !== 'running') return;
     const f = SND[name]; if (!f) return;
     const t = performance.now(); if (lastPlay[name] && t - lastPlay[name] < (name === 'smg' || name === 'mg' || name === 'esmg' ? 25 : 35)) return; lastPlay[name] = t;
+    // sound travels at 343 m/s: far shots and blasts arrive after their flash
+    if (o && o.x != null && IV.world.camera && /rifle|smg|mg|pistol|explosion/.test(name)) {
+      const c = IV.world.camera.position, d = Math.hypot(o.x - c.x, o.z - c.z);
+      if (name === 'explosion' && d < 16) AU.deafen(1 - d / 16);
+      if (d > 20) { setTimeout(() => { try { f(o); } catch (e) {} }, d / 343 * 1000); return; }
+    }
     try { f(o); } catch (e) {}
+  };
+  // a blast right beside you: everything muffles and a high ring fades out over a few seconds
+  AU.deafen = function (k) {
+    if (!ctx || IV.settings.motion) return;
+    const t = now(); AU.deaf.frequency.cancelScheduledValues(t); AU.deaf.frequency.setValueAtTime(400 + (1 - k) * 2000, t); AU.deaf.frequency.exponentialRampToValueAtTime(20000, t + 3.5);
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 3400; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05 * k, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+    o.connect(g); g.connect(comp); o.start(t); o.stop(t + 3.1);
   };
   // footsteps: surface sets the filter, gait the loudness
   AU.step = function (surf, gait, vol, pos) {

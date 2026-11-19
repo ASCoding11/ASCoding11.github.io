@@ -204,6 +204,14 @@
     { const gy = W.height(BELL.x, BELL.z); K.add(b, 'wood', K.GEO.box, BELL.x, gy + 1.6, BELL.z, 0.18, 3.2, 0.18, 0, 0, 0, 0x5a4a38); K.add(b, 'wood', K.GEO.box, BELL.x, gy + 3.2, BELL.z + 0.3, 0.12, 0.12, 0.8, 0, 0, 0, 0x5a4a38); W.addBox(BELL.x, BELL.z, 0.12, 0.12, gy, gy + 3.2, 0, F.SOLID | F.BULLET | F.NAV, 'wood'); }
     IV.art.prop('woodpile', b, 92, -80, 0); IV.art.prop('cart', b, 116, -60, 2.2); IV.art.prop('barrel', b, 117, -82, W.height(117, -82)); IV.art.prop('barrel', b, 118, -83, W.height(118, -83));
     for (const q of [[112, -84], [96, -70]]) IV.art.prop('crate', b, q[0], W.height(q[0], q[1]), q[1], 0.4, 0.9);
+    // cover for the hold-out (level-design pass: cover within 4-6 m anywhere in the yard, low and high, staggered)
+    for (const q of [[100, -75, 0.3], [113.5, -72, 1.1], [104, -62.5, 0.7], [121, -80, 0.2], [93.5, -63, 1.4]]) { IV.art.prop('crate', b, q[0], W.height(q[0], q[1]), q[1], q[2], 1.0); IV.art.prop('crate', b, q[0] + 0.5, W.height(q[0], q[1]) + 1.0, q[1] + 0.2, q[2] + 0.4, 0.7); }
+    IV.art.prop('sandbags', b, 96, -67, 99.5, -67.5, 4); IV.art.prop('sandbags', b, 124, -63, 127, -61, 4);
+    IV.art.prop('woodpile', b, 108, -80, 1.4);
+    // cover down the extraction lane: a fallen trunk to vault, a broken cart, stacked crates
+    { const gy = W.height(127.5, -26); K.box(b, 'bark', 127.5, gy, -26, 4.2, 0.75, 0.75, 0.4, 0x7a6a58, F.SOLID | F.BULLET | F.NAV | F.LOW | F.VAULT, 'wood', 0.3); }
+    IV.art.prop('cart', b, 138.5, 18, 0.25);
+    IV.art.prop('crate', b, 147.5, W.height(147.5, 50), 50, 0.3, 1.0); IV.art.prop('crate', b, 146.6, W.height(146.6, 51.2), 51.2, 1.0, 0.9);
     // the flak pit: a ring of sandbags, ammunition crates; MG nest to the west of it
     // gaps in the ring: the yard side, and the north (the quiet way in)
     const ring = 8; for (let i = 0; i < ring; i++) { if (i === 2 || i === 6) continue; const a0 = i / ring * 6.283, a1 = (i + 1) / ring * 6.283; IV.art.prop('sandbags', b, AA.x + Math.cos(a0) * 4, AA.z + Math.sin(a0) * 4, AA.x + Math.cos(a1) * 4, AA.z + Math.sin(a1) * 4, 4); }
@@ -354,21 +362,24 @@
     // player + loadout
     if (cp === 0) P.spawn(OAK.x + 0.4, OAK.z + 0.3, -0.6, 'stand');
     else if (cp === 1) P.spawn(JPOLE.x - 2, JPOLE.z + 2.5, -1.9, 'crouch');
-    else P.spawn(HOUSE.x + 1, HOUSE.z + 7, Math.PI * 0.4, 'crouch');
+    else if (cp === 2) P.spawn(HOUSE.x + 1, HOUSE.z + 7, Math.PI * 0.4, 'crouch');
+    else P.spawn(118, -54, Math.PI * 0.95, 'stand');
     WP.reset({ start: 'smg', rifleRes: 25, smgRes: 120, grenades: 2 });
     // squadmate
     if (cp === 0) { AL.spawn(LINK.x, LINK.z, 2.4); AL.goTo(LINK.x, LINK.z, { stance: 'crouch', run: false }); AL.met = false; }
     else if (cp === 1) { AL.spawn(JPOLE.x - 3.5, JPOLE.z + 4, -1.9); }
-    else { AL.spawn(HOUSE.x - 2, HOUSE.z + 7.5, Math.PI * 0.4); }
+    else if (cp === 2) { AL.spawn(HOUSE.x - 2, HOUSE.z + 7.5, Math.PI * 0.4); }
+    else { AL.spawn(116.5, -55.5, Math.PI * 0.95); }
     enemies(M, M.flags.dead);
     // the searchlight: sweeping until the gun goes
     M.spot = { on: !M.flags.blown, a: 0 };
     if (M.flags.blown) { M.aa.g.visible = false; }
     // ---- beats
-    M.phase = cp === 0 ? 'harness' : cp === 1 ? 'approach' : 'hold';
+    M.phase = cp === 0 ? 'harness' : cp === 1 ? 'approach' : cp === 2 ? 'hold' : 'run';
     if (cp === 0) beatHarness(M);
     else if (cp === 1) { beatApproach(M, true); }
-    else beatHold(M, true);
+    else if (cp === 2) beatHold(M, true);
+    else { M.flags.blown = 1; M.aa.g.rotation.z = 0.5; M.aa.mount.rotation.x = 0.7; M.spot.on = false; IV.fx.fire(AA.x, W.height(AA.x, AA.z) + 0.5, AA.z, 400, 22); IV.audio.alarm(true); M.say(IV.t('Down the lane! Go!')); beatRun(M); }
     // things that can happen any time
     M.when(() => IV.ai.alarmRung && !M.flags.alarmTold, () => { M.flags.alarmTold = true; if (M.phase === 'approach' || M.phase === 'overwatch') M.say(IV.t('That\'s the bell. Every soldier on the farm is awake now.')); });
   }
@@ -437,7 +448,10 @@
       M.after(2.5, () => M.checkpoint(1));
     } });
     // orchard edge: overwatch on the sniper, then the charge
-    M.when(() => P.pos.x > 33 && P.pos.z < -58 && P.pos.z > -112, () => beatOverwatch(M));
+    // the farm beat starts at the orchard, or anywhere near the gun if you came another way (never a soft-lock)
+    M.when(() => (P.pos.x > 33 && P.pos.z < -58) || Math.hypot(P.pos.x - AA.x, P.pos.z - AA.z) < 35, () => beatOverwatch(M));
+    // a nudge if nothing has happened for a while
+    M.when(() => M.phase === 'approach' && M.time - (M.flags.lastBeat || 0) > 200, () => { M.flags.lastBeat = M.time; M.say(t('Farm\'s north-east, past the orchard. Keep moving.')); }, { once: false });
     if (fromCp) M.say(t('Line\'s cut. Orchard next, then the farm.'));
   }
   function beatOverwatch(M) {
@@ -556,7 +570,7 @@
     // if the gun went while you were still in the house, those objectives are over
     M.drop('fuse'); if (!M.isDone('house')) M.drop('house'); if (!M.isDone('map')) M.drop('map'); if (!M.isDone('sniper')) M.drop('sniper');
     M.after(1.2, () => M.say(t('Gun\'s gone! Out the gap by the barn and down the lane! Go, go!')));
-    M.after(2, () => beatRun(M));
+    M.after(2, () => { beatRun(M); M.checkpoint(3); });
   }
   function $flash(k) { const f = IV.$('flash'); f.style.transition = 'none'; f.style.opacity = String(k); requestAnimationFrame(() => { f.style.transition = 'opacity .8s'; f.style.opacity = '0'; }); }
   function beatRun(M) {

@@ -165,6 +165,9 @@
     for (let i = 0; i < 26 * k; i++) norm.emit(x, y + 0.5, z, rr(-9, 9), rr(5, 16), rr(-9, 9), rr(1.2, 2.6), rr(0.06, 0.18), 0.1, 0.12, 0.1, 0.08, 1, 0.3, 9.8);
     for (let i = 0; i < 30 * k; i++) norm.emit(x + rr(-1, 1), y + rr(0.5, 2), z + rr(-1, 1), rr(-2, 2), rr(2, 7), rr(-2, 2), rr(4, 9), rr(1, 2) * k, rr(5, 9) * k, 0.1, 0.09, 0.08, 0.75, 0.6, -0.2);
     for (let i = 0; i < 36; i++) { const a = i / 36 * 6.28; norm.emit(x, W.height(x, z) + 0.3, z, Math.cos(a) * 12 * k, 0.3, Math.sin(a) * 12 * k, rr(1.5, 2.5), 0.8, 3.5 * k, 0.42, 0.38, 0.32, 0.5, 1.8, 0); }
+    // smoke lit from inside by the fireball, then the scorch left on the ground
+    for (let i = 0; i < 10 * k; i++) norm.emit(x + rr(-0.6, 0.6), y + rr(0.3, 1.2), z + rr(-0.6, 0.6), rr(-1.5, 1.5), rr(2, 5), rr(-1.5, 1.5), rr(1.2, 2.2), rr(0.8, 1.4) * k, rr(3, 5) * k, 0.42, 0.24, 0.11, 0.7, 0.8, -0.3);
+    FX.hole(x, W.height(x, z) + 0.02, z, 0, 1, 0, 2.6 * k);
     // shockwave ring
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffe6c0, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(x, W.height(x, z) + 0.4, z); W.scene.add(ring); rings.push({ m: ring, t: 0, k });

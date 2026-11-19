@@ -99,7 +99,10 @@
   });
   IV.on('lostlock', () => { if (state === 'play' && !IV.touch) app.pause(); });
   IV.on('missionComplete', s => { setTimeout(() => { if (!M.finished) return; state = 'results'; IV.hud.show(false); IV.input.unlock(); IV.audio.music(false); UI.results(s); }, 1600); });
-  IV.on('missionFailed', r => { setTimeout(() => { if (!M.failed) return; state = 'results'; IV.hud.show(false); IV.input.unlock(); UI.failed(r); }, 900); });
+  // killed: a short fade and straight back to the last checkpoint (a campaign keeps you playing); other failures show why
+  IV.on('missionFailed', r => {
+    if (r === 'You were killed.' && !IV.test) { $('fade').style.opacity = 1; IV.hud.toast(IV.t('Killed. Back to the last checkpoint.')); setTimeout(() => { if (!M.failed) return; app.retry(true); $('fade').style.opacity = 0; }, 1400); return; }
+    setTimeout(() => { if (!M.failed) return; state = 'results'; IV.hud.show(false); IV.input.unlock(); UI.failed(r); }, 900); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play' && !IV.test) app.pause(); });
 
   // ---------------------------------------------------------------- the loop
