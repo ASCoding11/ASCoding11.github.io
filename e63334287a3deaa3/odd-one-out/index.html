@@ -196,6 +196,15 @@ h1 .o{color:var(--hunt)}h1 .t{color:var(--prop)}
 .hset .seg{justify-self:start;max-width:100%;overflow-x:auto}
 #lobby.guest .hset .seg{pointer-events:none;opacity:.75}
 #lobbyMin{display:none}
+/* ready up: the button and the count stay outside the scrolling body, so they show even with the card hidden (Hide) */
+#lobby .rdrow{margin-top:10px;flex-wrap:nowrap}
+#lobbyReady{flex:0 0 auto;min-height:44px;min-width:104px;font-size:16px;padding:8px 14px;background:#fff}
+#lobbyReady[aria-pressed="true"]{background:var(--prop);color:#fff}
+#lobbyReady[aria-pressed="true"]::before{content:'\2713'}
+#rdNote{margin:0;min-width:0;font-weight:900;font-size:13px;line-height:1.3;color:var(--ink-2)}
+#rdNote.go{color:var(--hunt-2)}
+#plist .rd{flex:0 0 auto;width:18px;height:18px;border-radius:50%;border:2px solid var(--ink-3);font-size:11px;font-weight:900;line-height:14px;text-align:center;color:#fff}
+#plist .rd.on{background:var(--prop);border-color:var(--ink)}
 
 /* ---------- results ---------- */
 .mini{max-width:680px;width:100%}
@@ -322,6 +331,10 @@ body.touch #banner span{font-size:14px}
     <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
       <div style="min-width:0"><h2 id="lobbyTitle">Lobby</h2><p class="code" id="lobbyCode"></p></div>
       <button class="btn sm alt" id="lobbyMin" type="button">Hide</button>
+    </div>
+    <div class="row rdrow" id="rdRow" hidden>
+      <button class="btn" id="lobbyReady" type="button" aria-pressed="false" aria-keyshortcuts="Enter">Ready</button>
+      <p id="rdNote" data-noi18n></p>
     </div>
     <div class="lb-body">
       <ul id="plist"></ul>
@@ -2055,7 +2068,9 @@ function makeTag(e){
 //  {id, mid (match), rn (round number), ph: lobby|hide|hunt|end|over, t0, dur, map,
 //   set: {map, rounds, hide, hunt, ratio, ping, pen, hps},
 //   hu: hunters, pr: props, hf: {uid: share of health lost, 0-1}, el: {uid: [by, seconds into the hunt]},
-//   k: {uid: eliminations}, sc: match points, hn: times each player has hunted, res: last result}
+//   k: {uid: eliminations}, sc: match points, hn: times each player has hunted, res: last result,
+//   in the lobby: as (public rooms: when the match starts), and from hosts with ready up lr: 1, al (when the lobby
+//   timer runs out) and rr (when the ready countdown ends); see hostLobby}
 // =====================================================================
 const G={
   mode:'menu',pmode:null,rs:null,role:'free',rid:-1,ph:'',paused:false,host:false,diff:clamp(+store.get('diff',2)|0,1,3),pracMap:clamp(+store.get('pmap',0)|0,0,2),
@@ -2083,7 +2098,7 @@ const DEF_SET={map:-1,rounds:5,hide:30,hunt:240,ratio:0,ping:15,pen:0,hps:1};   
 // A saved penalty only counts if the host chose it since wrong shots became free by default (hostpen): the 3 HP saved
 // with older settings was the old default, not a choice.
 function defaultSet(){const s=Object.assign({},DEF_SET,store.get('hostset',{}));if(!store.get('hostpen',0))s.pen=DEF_SET.pen;return cleanSet(s)}
-function lobbyRS(prev,set){return{id:prev?prev.id:0,mid:prev?prev.mid||0:0,rn:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:mapIdx<0?0:mapIdx,set:set||(prev&&prev.set)||defaultSet(),hu:[],pr:[],hf:{},el:{},k:{},sc:prev&&prev.ph!=='over'?prev.sc||{}:{},hn:{},as:0}}
+function lobbyRS(prev,set){return{id:prev?prev.id:0,mid:prev?prev.mid||0:0,rn:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:mapIdx<0?0:mapIdx,set:set||(prev&&prev.set)||defaultSet(),hu:[],pr:[],hf:{},el:{},k:{},sc:prev&&prev.ph!=='over'?prev.sc||{}:{},hn:{},as:0,lr:1}}
 function liveIds(){if(G.mode==='practice')return[...ents.keys()];const a=[Net.uid];for(const k of Net.others.keys())if(Net.live(k))a.push(k);return a}
 function huntersFor(n,set){const want=set.ratio|0?set.ratio|0:n<=3?1:n<=6?2:n<=10?3:4;return clamp(want,1,Math.max(1,n-1))}
 function newRound(prev,fresh){
@@ -2094,12 +2109,37 @@ function newRound(prev,fresh){
   return{id:(prev.id|0)+1,mid,rn,ph:'hide',t0:now(),dur:set.hide*1000,map,set,hu,pr:ids.filter(u=>hu.indexOf(u)<0),hf:{},el:{},k:{},sc:fresh?{}:prev.sc||{},hn,res:null,as:0};
 }
 function setRS(rs){G.rs=rs;if(G.mode==='online'&&G.host)G.rsDirty=true;applyRS(rs)}
+// ---------- ready up and the lobby timer (online lobby only) ----------
+// Each player says it's ready with rd in its own node: the lobby's key (round id + 1), so a ready from an earlier
+// lobby never counts and nobody has to clear it. Once 2 are in, the host runs the lobby timer (al: 60 s in a room,
+// 20 s in a public lobby, not reset by new joiners, cancelled below 2), and when at least half the room is ready
+// (rounded up) a 5 s countdown (rr); the match starts at whichever comes first. Public rooms copy that moment to as,
+// which pages from before ready up read and run; private rooms leave as at 0, so an older host page shows nothing
+// stuck (its Start button still works, nothing starts by itself). lr: 1 says the host does all this.
+const LOBBY_MS=60000,PUB_LOBBY_MS=20000,READY_MS=5000;
+const lobbyKey=rs=>rs&&rs.ph==='lobby'?(rs.id|0)+1:0;
+function isReady(id,rs){const k=lobbyKey(rs);if(!k)return false;if(id===Net.uid)return G.myRd===k;const o=Net.others.get(id);return !!o&&o.rd===k}
+function readyCount(rs){const ids=liveIds();let r=0;for(const u of ids)if(isReady(u,rs))r++;return{r,n:ids.length,need:Math.ceil(ids.length/2)}}
+function startAt(rs){if(!rs||rs.ph!=='lobby')return 0;if(!rs.lr)return rs.as||0;const a=rs.al||0,b=rs.rr||0;return a&&b?Math.min(a,b):a||b}
+function toggleReady(){
+  const rs=G.rs;if(G.mode!=='online'||!Net.refs||!rs||rs.ph!=='lobby'||!rs.lr)return;
+  const k=lobbyKey(rs);G.myRd=G.myRd===k?0:k;Net.upd({rd:G.myRd});sfx('ui');delete hudCache.lobby;hudDirty();
+}
+function hostLobby(rs,t){
+  const c=readyCount(rs);let al=rs.al||0,rr=rs.rr||0;
+  if(c.n<2){al=0;rr=0}
+  else{if(!al)al=t+(Net.isPublic?PUB_LOBBY_MS:LOBBY_MS);if(c.r>=c.need){if(!rr)rr=t+READY_MS}else rr=0}
+  const go=al&&rr?Math.min(al,rr):al;
+  if(go&&t>=go){setRS(newRound(rs,true));return}
+  const as=Net.isPublic?go:0;
+  if(al!==(rs.al||0)||rr!==(rs.rr||0)||as!==(rs.as||0)||!rs.lr)setRS(Object.assign({},rs,{al,rr,as,lr:1}));
+}
 // The host's clock: phases, who is left, points.
 function hostTick(){
   const rs=G.rs;if(!rs)return;const t=now();
   if(G.mode==='online'&&G.rsDirty&&Net.rsDue(rs)){G.rsDirty=false;Net.pubRS(rs)}
   if(rs.ph==='lobby'){
-    if(G.mode==='online'&&Net.isPublic){const n=liveIds().length;if(n>=2){if(!rs.as)setRS(Object.assign({},rs,{as:t+20000}));else if(t>=rs.as)setRS(newRound(rs,true))}else if(rs.as)setRS(Object.assign({},rs,{as:0}))}
+    if(G.mode==='online')hostLobby(rs,t);
     return;
   }
   if(rs.ph==='hide'){
@@ -2689,11 +2729,12 @@ function sanitizeRS(p){
     set:cleanSet(p.set),hu,pr:idList(p.pr).filter(u=>hu.indexOf(u)<0),hf:idMap(p.hf,v=>finN(v)?clamp(v,0,1):undefined),
     el:idMap(p.el,v=>Array.isArray(v)?[typeof v[0]==='string'&&(v[0]===''||ID_RE.test(v[0]))?v[0]:'',numIn(v[1],0,3600,0)]:undefined),
     k:intMap(p.k),sc:intMap(p.sc),hn:intMap(p.hn),as:numIn(p.as,0,1e15,0),ob:idMap(p.ob,v=>v?1:undefined),
+    ...(p.ph==='lobby'&&p.lr===1?{lr:1,al:numIn(p.al,0,now()+3e5,0),rr:numIn(p.rr,0,now()+3e5,0)}:{}),
     res:isObj(res)?{win:res.win==='hunters'?'hunters':'props',pts:intMap(res.pts),names:idMap(res.names,v=>typeof v==='string'&&cleanName(v)||undefined),surv:intMap(res.surv),forms:idMap(res.forms,v=>ptOf(v)?v:undefined)}:null};
 }
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
-  const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),hd:typeof v.hd==='string'?v.hd:''};
+  const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),hd:typeof v.hd==='string'?v.hd:'',rd:finN(v.rd)?v.rd:0};
   const prev=Net.others.get(uid);
   Net.others.set(uid,o);G.nm.set(uid,o.n);
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
@@ -2782,6 +2823,7 @@ function becomeHost(){
   if(G.hdStr){const f=G.hdStr.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(Net.uid,{rid:+f[0],t,w:+f[2]||0,s:f[3]})}
   const base=validRS(G.lastRS)?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
   if(!G.lastRS)base.map=mapIdx<0?0:mapIdx;
+  if(base.ph==='lobby'&&!base.lr){base.lr=1;base.al=base.as||0}   // taking over from a host page from before ready up: its public timer carries on
   if(G.lastRS&&G.rs&&G.rs.id===base.id)feed(LT('You\'re the host now'));
   setRS(base);G.rsDirty=true;
 }
@@ -2806,7 +2848,8 @@ function updateHud(){
   const rs=G.rs,inGame=G.mode==='online'||G.mode==='practice';if(!inGame)return;
   const role=G.role,ph=rs?rs.ph:'lobby',left=phaseLeft();
   let pn='Lobby',ck='–';
-  if(ph==='lobby'){const n=G.mode==='online'?liveIds().length:1;ck=rs&&rs.as?fmtT((rs.as-now())/1000):n+'/'+MAX_ROOM;pn=rs&&rs.as?'Starting':'Lobby'}
+  if(ph==='lobby'){const n=G.mode==='online'?liveIds().length:1,go=G.mode==='online'?startAt(rs):0;ck=go?fmtT((go-now())/1000):n+'/'+MAX_ROOM;pn=go?'Starting':'Lobby';
+    if(go){const s=Math.ceil((go-now())/1000);if(s!==G.lastTick){G.lastTick=s;if(s<=5&&s>0)sfx('tock',null,.7)}}}
   else if(ph==='hide'){pn='Hide · round '+rs.rn+'/'+rs.set.rounds;ck=fmtT(left)}else if(ph==='hunt'){pn='Hunt · round '+rs.rn+'/'+rs.set.rounds;ck=fmtT(left)}else{pn=ph==='over'?'Match over':'Round over';ck=G.mode==='online'?fmtT(left):'–'}
   if(G.mode==='practice'&&ph!=='lobby')pn=pn.replace(/ · round.*/,'')+' · practice';
   setText('phaseName',pn);setText('clock',ck);setClass('clockBox','pill'+(ph==='hunt'&&left<30?' hurry':''));
@@ -2839,7 +2882,7 @@ function updateHud(){
   let hint='';const K=id=>'<kbd>'+esc(keyName(id))+'</kbd>';
   if(ph==='end'||ph==='over')hint='';
   else if(role==='hunter')hint=ph==='hunt'?'<span>'+K('fire')+' shoot</span><span>'+K('aim')+' aim</span><span>'+K('reload')+' reload</span><span>'+K('board')+' scores</span>':'<span>Wait for the doors to open</span><span>'+K('board')+' scores</span>';
-  else if(role==='prop'||role==='free')hint='<span>'+K('transform')+' become</span><span class="'+(G.lock?'on':'')+'">'+K('lock')+' lock rotation</span><span>'+K('rotL')+' '+K('rotR')+' turn</span><span>'+K('align')+' line up</span><span>'+K('jump')+' jump</span>'+(WD?WD.hint():'')+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m hidden</span>':'');
+  else if(role==='prop'||role==='free')hint='<span>'+K('transform')+' become</span><span class="'+(G.lock?'on':'')+'">'+K('lock')+' lock rotation</span><span>'+K('rotL')+' '+K('rotR')+' turn</span><span>'+K('align')+' line up</span><span>'+K('jump')+' jump</span>'+(WD?WD.hint():'')+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m hidden</span>':'')+(G.mode==='online'&&ph==='lobby'&&rs&&rs.lr?'<span><kbd>Enter</kbd> '+(isReady(Net.uid,rs)?'not ready':'ready')+'</span>':'');
   else hint='<span>'+K('specPrev')+' '+K('specNext')+' watch someone else</span><span>'+K('board')+' scores</span>';
   if(G.mode==='practice'&&ph==='hide'&&role==='hunter')hint+='<span><kbd>Enter</kbd> skip the wait</span>';
   if(hudCache.hint!==hint){hudCache.hint=hint;$('hint').innerHTML=hint}
@@ -2850,8 +2893,15 @@ function updateHud(){
   setHidden('lockHint',!needLock);
   // lobby panel
   setHidden('lobby',!(G.mode==='online'&&rs&&ph==='lobby'));
-  if(G.mode==='online'&&rs&&ph==='lobby'){const lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':liveIds().length<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start match when everyone is in.':'Waiting for the host to start.';setText('lobbyMsg',lm);
-    const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host;if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
+  if(G.mode==='online'&&rs&&ph==='lobby'){const n=liveIds().length;let lm;
+    if(rs.lr){   // a host with ready up: the count and the timer go in the ready row, which stays put while lobbyMsg shows "Copied"
+      lm=n<2?(Net.isPublic?'Starts by itself once 2 players are here.':'Waiting for at least one more player. Send them the invite link.'):G.host&&!Net.isPublic?'Starts 5 s after half the room is ready, or when the timer runs out. Start match starts it now.':'Starts 5 s after half the room is ready, or when the timer runs out.';
+      const c=readyCount(rs),go=startAt(rs),s=Math.max(0,Math.ceil((go-now())/1000)),soon=go&&rs.rr&&go===rs.rr;
+      setText('rdNote',LT('{n} of {m} ready',{n:c.r,m:c.n})+(go?' · '+(soon?LT('Starting in {n}…',{n:s}):LT('Starting in {t}',{t:fmtT(s)})):''));setClass('rdNote',soon||go&&s<=5?'go':'');
+      const on=String(isReady(Net.uid,rs));if(hudCache.rdOn!==on){hudCache.rdOn=on;$('lobbyReady').setAttribute('aria-pressed',on)}}
+    else lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':n<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start match when everyone is in.':'Waiting for the host to start.';
+    setHidden('rdRow',!rs.lr);setText('lobbyMsg',LT(lm));
+    const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host+(rs.lr?liveIds().map(u=>isReady(u,rs)?1:0).join(''):'');if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
   if(G.mode==='online'&&(ph==='end'||ph==='over')&&!$('end').hidden)setText('endMsg',ph==='over'?'Back to the lobby in '+Math.max(0,Math.ceil(left))+'…':(rs.rn<rs.set.rounds?'Next round in ':'Final scores in ')+Math.max(0,Math.ceil(left))+'…');
   // scoreboard
   const showBoard=(held('board')||G.boardHeld)&&ph!=='end'&&ph!=='over';setHidden('board',!showBoard);if(showBoard)renderBoard();
@@ -2891,7 +2941,9 @@ function renderLobby(){
   const ids=[Net.uid,...[...Net.others.keys()].filter(k=>Net.live(k))];
   for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),t=document.createElement('span');
     const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.setAttribute('data-noi18n','');nm.textContent=id===Net.uid?LT('{n} (you)',{n:myName||LT('You')}):nameOf(id);t.className='t';
-    t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);ul.appendChild(li)}
+    t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);
+    if(rs.lr){const r=document.createElement('span'),on=isReady(id,rs);r.className='rd'+(on?' on':'');r.textContent=on?'✓':'';r.title=LT(on?'Ready':'Not ready');r.setAttribute('role','img');r.setAttribute('aria-label',r.title);li.append(r)}
+    ul.appendChild(li)}
   const set=rs.set||defaultSet();segSet($('setMap'),set.map);segSet($('setRounds'),set.rounds);segSet($('setHide'),set.hide);segSet($('setHunt'),set.hunt);segSet($('setRatio'),set.ratio);segSet($('setPing'),set.ping);segSet($('setPen'),set.pen);segSet($('setHp'),set.hps);
   $('lobby').classList.toggle('guest',!G.host);$('hostNote').textContent=G.host?'(you\'re the host)':'(host picks)';
   const sb=$('startRound');sb.hidden=Net.isPublic;sb.disabled=!G.host||ids.length<2;sb.textContent=G.host?'Start match':'Host starts';
@@ -2964,7 +3016,7 @@ async function goOnline(room,isPublic){
   if(Net.refs)Net.leave();
   clearEnts();clearFx();loadMap(0);makeMe(Net.uid);
   const sp=MAP.propSpawns[Math.floor(Math.random()*MAP.propSpawns.length)];me.pos.set(sp[0]+rand(-1,1),0,sp[1]+rand(-1,1));
-  Object.assign(G,{mode:'online',pmode:null,rs:null,host:false,hostUid:null,he:0,maxHe:0,lastRS:null,rsSeen:'',rid:-1,ph:'',role:'free',seenEl:{},hfSeen:{},paused:false,joinedAt:performance.now(),rsDirty:false});
+  Object.assign(G,{mode:'online',pmode:null,rs:null,host:false,hostUid:null,he:0,maxHe:0,lastRS:null,rsSeen:'',rid:-1,ph:'',role:'free',seenEl:{},hfSeen:{},paused:false,joinedAt:performance.now(),rsDirty:false,myRd:0});
   G.hitSeen=new Map();
   try{await Net.join(room,isPublic)}catch(err){G.mode='menu';throw err}
   enterGame();renderLobby();
@@ -3091,7 +3143,7 @@ addEventListener('keydown',ev=>{
   if(c==='Escape'){if(G.paused){if(performance.now()-pauseShownAt>350)resume()}else showPause();return}
   if(c==='Tab'||c==='Space'||KB.actionsFor(c).length)ev.preventDefault();
   keys[c]=true;if(ev.repeat)return;
-  if(c==='Enter'){practiceReady();return}
+  if(c==='Enter'){if(G.mode==='online'){if(!(ev.target&&ev.target.tagName==='BUTTON'))toggleReady()}else practiceReady();return}
   pressAction(c);
 });
 addEventListener('keyup',ev=>{keys[ev.code]=false});
@@ -3180,6 +3232,7 @@ segSet($('pracDiff'),G.diff);$('pracDiff').onclick=ev=>{const b2=ev.target.close
 buildSeg($('setMap'),[[-1,'Rotate'],...MAPS.map((m,i)=>[i,m.short])],-1,v=>hostSet('map',+v));
 for(const [id,key] of [['setRounds','rounds'],['setHide','hide'],['setHunt','hunt'],['setRatio','ratio'],['setPing','ping'],['setPen','pen'],['setHp','hps']])$(id).onclick=ev=>{const b2=ev.target.closest('button');if(b2)hostSet(key,+b2.dataset.v)};
 $('startRound').onclick=()=>{if(G.host&&G.rs&&G.rs.ph==='lobby'&&liveIds().length>=2)setRS(newRound(G.rs,true))};
+$('lobbyReady').onclick=toggleReady;
 $('lobbyMin').onclick=()=>{$('lobby').classList.toggle('min');$('lobbyMin').textContent=$('lobby').classList.contains('min')?'Show':'Hide'};
 const copyInvite=msgEl=>{const url=location.origin+'/#'+Net.room,m=$(msgEl);const done=ok=>{m.textContent=ok?'Invite link copied. Your friend opens it and enters the code to join.':url};try{navigator.clipboard.writeText(url).then(()=>done(true),()=>done(false))}catch(e){done(false)}};
 $('lobbyInvite').onclick=()=>copyInvite('lobbyMsg');$('copyInvite').onclick=()=>copyInvite('inviteMsg');
@@ -3281,7 +3334,7 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room ph-'+inv[1]+'. P
 
 // In automated browsers only: a handle for tests (advance runs the game without drawing).
 if(navigator.webdriver)window.__ph={clearFx,moveEnt,shapeOf,groundAt,pushOut,turnTo,rebuildDyn,dynBoxes,makeEnt,removeEnt,setLook,solidsNear,propAABB,GRAV,JUMP,STEP,tfCheck,oobAt,nearestAllowed,capFor,
-  get lidAt(){return MAP&&MAP.lidAt},setGfx,get gfx(){return gfx},sky,hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,onNode,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
+  get lidAt(){return MAP&&MAP.lidAt},setGfx,get gfx(){return gfx},sky,hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,onNode,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,toggleReady,readyCount,startAt,hostHits,roleOf,hpOf,maxHpOf,
   doTransform,toggleLock,alignMe,fire,startReload,findTarget,rayWorld,camRay,cycleSpec,specTarget,showPause,resume,overlapping,keys,tAct,KB,renderer,scene,camera,step,
   get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},propModel,
   get WD(){return WD},wardOn,wdSync,wdLoad,hunterModel,onElim,wearHeard,
