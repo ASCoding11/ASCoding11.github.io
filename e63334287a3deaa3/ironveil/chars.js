@@ -4,7 +4,7 @@
  * Load after three.min.js. It loads its own GLTFLoader / SkeletonUtils copies from assets/lib/ if the page has not.
  *   IVChars.load(onProgress) -> Promise           fetches hero, ally, enemies, clips and weapons (about 9 MB)
  *   IVChars.spawn(kind) -> actor                    'hero','ally','rifleman','officer','sniper','gunner'
- *   IVChars.weapon(kind) -> THREE.Object3D          'rifleScoped','smg','pistol','enemyRifle','enemySmg','mg','knife','binoculars','grenade'
+ *   IVChars.weapon(kind[, {lod:true}]) -> Object3D  'rifleScoped','smg','pistol','enemyRifle','enemySmg','mg','knife','binoculars','grenade','stickGrenade' (lod: reduced rifle/SMG for others)
  *   IVChars.tris(kind), IVChars.info, IVChars.clips (names), IVChars.camera (set it for LOD + far-actor throttling)
  * Actor (1 unit = 1 m, feet at the origin, facing +Z):
  *   actor.root, play(name,{fade,loop,speed,once}), setUpper(name|null), setAim(pitch,yaw), attach(obj,socket), detach(obj),
@@ -52,7 +52,7 @@
     sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair'], lod: ['SniperLOD'] },
     gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair'], lod: ['GunnerLOD'] }
   };
-  var WEAPONS = ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade'];
+  var WEAPONS = ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade', 'stickGrenade', 'rifleScopedLod', 'smgLod'];
   var LONG = { rifleScoped: 1, smg: 1, enemyRifle: 1, enemySmg: 1, mg: 1 };
 
   // clip aliases: API names that are served by another clip (documented in README)
@@ -244,14 +244,15 @@
   IV.lodTris = function (kind) { return TRIS[kind] ? TRIS[kind].lod || 0 : 0; };
 
   // ---------- weapons
-  IV.weapon = function (kind) {
-    var t = WTEMPLATES[kind], o;
+  IV.weapon = function (kind, opts) {
+    var src = opts && opts.lod && WTEMPLATES[kind + 'Lod'] ? kind + 'Lod' : kind;   // reduced model (other characters, distance)
+    var t = WTEMPLATES[src], o;
     if (t) {
       o = t.clone(true);
       o.position.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1);
       o.userData.kind = kind;
-      o.userData.muzzle = o.getObjectByName(kind + '_muzzle') || o;
-      var gr = o.getObjectByName(kind + '_gripR'), gl = o.getObjectByName(kind + '_gripL');
+      o.userData.muzzle = o.getObjectByName(src + '_muzzle') || o;
+      var gr = o.getObjectByName(src + '_gripR'), gl = o.getObjectByName(src + '_gripL');
       o.userData.grip = { r: gr || null, l: gl || null };
       o.userData.gripR = gr; o.userData.gripL = gl;
     } else {
