@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 import { makeKeys, fakeFirestore, fakeStripe, fakeFetch, stripeSig, plain } from './fakes.mjs';
-import { CATALOG, roll, cryptoNext, encFields } from '../../../functions/_wallet.js';
+import { CATALOG, roll, cryptoNext, encFields, nameClean } from '../../../functions/_wallet.js';
+import vm from 'node:vm';
 import { OWNERS } from '../../../functions/_captains.js';
 import * as checkout from '../../../functions/api/checkout.js';
 import * as webhook from '../../../functions/api/stripe-webhook.js';
@@ -241,12 +242,12 @@ test('gift: sender pays, recipient owns it and gets a notice; refusals; seen cle
   assert.equal(nobody.status, 404); assert.equal(nobody.data.reason, 'recipient'); assert.equal(bal(ALICE), 1000);
   await call(wallet, 'GET', 'wallet', { as: BOB });   // Bob opens the shop once: his wallet now exists
   assert.equal(bal(BOB), 0);
-  const note = 'Happy birthday! '.repeat(6);
+  const note = 'Happy birthday! '.repeat(4).trim().slice(0, 60);
   const g = await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'item:' + ITEM_RARE, to: BOB, toName: 'Bob', fromName: 'Alice <b>', note, req: 'giftreq0001' } });
   assert.equal(g.status, 200); assert.equal(g.data.spent, 420); assert.equal(bal(ALICE), 580);
   const bw = doc('wallets/' + BOB);
   assert.ok(bw.owned[ITEM_RARE]); assert.equal(bw.balance, 0);
-  assert.equal(bw.notices.length, 1); assert.equal(bw.notices[0].from, 'Alice b'); assert.equal(bw.notices[0].note.length, 60);
+  assert.equal(bw.notices.length, 1); assert.equal(bw.notices[0].from, 'Alice b'); assert.equal(bw.notices[0].note, note);
   const again = await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'item:' + ITEM_RARE, to: BOB } });
   assert.equal(again.status, 409); assert.equal(again.data.reason, 'owned'); assert.equal(bal(ALICE), 580);
   assert.equal((await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'item:' + ITEM_RARE2, to: ALICE } })).data.reason, 'self');
@@ -264,6 +265,34 @@ test('gift: sender pays, recipient owns it and gets a notice; refusals; seen cle
   assert.equal(s.data.notices.length, 0);
   assert.ok(st.data.recent.some(l => l[1] === 48 && /Gift from Alice/.test(l[3])));
 });
+test('gift notes are filtered on the server: clean passes, rude masked, hidden-worst and 61 characters refused', async () => {
+  world(); CATALOG.PUBLIC = true;
+  seed(ALICE, { balance: 5000 }); seed(BOB, {});
+  const rot = w => w.replace(/[a-z]/g, c => String.fromCharCode((c.charCodeAt(0) - 84) % 26 + 97));
+  const bad = rot('shpx'), bad2 = rot('fuvg');   // two words from namefilter.js's list (kept in ROT13 here too)
+  const send = (n, what) => call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: what, to: BOB, toName: 'Bob', fromName: 'Alice', note: n } });
+  const items = Object.keys(CATALOG.ITEMS).filter(id => CATALOG.ITEMS[id][0] === 'common' && !CATALOG.ITEMS[id][3]);
+  const ok = await send('Have fun with this one!', 'item:' + items[0]);
+  assert.equal(ok.status, 200);
+  const masked = await send('you ' + bad + 'ing legend', 'item:' + items[1]);
+  assert.equal(masked.status, 200);
+  const ns = doc('wallets/' + BOB).notices;
+  assert.equal(ns[0].note, 'Have fun with this one!');
+  assert.equal(ns[1].note, 'you ' + bad[0] + '******' + ' legend', 'masked like namefilter.js masks names');
+  assert.ok(!ns[1].note.includes(bad));
+  const hidden = await send(bad2.split('').join('.') + ' x', 'item:' + items[2]);
+  assert.equal(hidden.status, 400); assert.equal(hidden.data.reason, 'note');
+  const long = await send('a'.repeat(61), 'item:' + items[3]);
+  assert.equal(long.status, 400); assert.equal(long.data.reason, 'note');
+  assert.equal((await send('a'.repeat(60), 'item:' + items[3])).status, 200);
+  assert.equal(bal(ALICE), 5000 - 3 * 60, 'refused notes cost nothing');
+  // the server's copy behaves exactly like /namefilter.js's NameFilter.clean
+  const ctx = { window: {}, document: { readyState: 'complete', addEventListener() {}, querySelectorAll: () => [] }, setTimeout() {} };
+  vm.createContext(ctx); vm.runInContext(fs.readFileSync(path.join(ROOT, 'namefilter.js'), 'utf8'), ctx);
+  const samples = ['Morgan', 'Shiitake fan', 'grapes', 'therapist', bad, 'big_' + rot('fuvg'), bad.toUpperCase() + 'face', bad2.split('').join(' '), rot('ovgpu') + 'y day',
+    '5h' + rot('vg') + 'e', 'p0rn', 'nice ' + rot('cbea'), 'f' + 'uuuu' + bad.slice(1), 'hello there', 'x' + bad + 'x', 'a|b'];
+  for (const t of samples) assert.equal(nameClean(t), ctx.window.NameFilter.clean(t), 'same answer for ' + rot(t));
+});
 test('chest odds over 1,000,000 server rolls are within 0.2 points', async () => {
   const next = cryptoNext(), n = 1000000, c = {};
   for (let i = 0; i < n; i++) { const r = roll(next); c[r.rarity] = (c[r.rarity] || 0) + 1; }
@@ -275,12 +304,13 @@ test('catalogue check: passes in sync, fails when cosmetics.js, wallet.js, miles
   execFileSync('node', [path.join(ROOT, 'e63334287a3deaa3/shop/tools/server-data.js'), '--check'], { stdio: 'pipe' });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wallet-check-'));
   const copy = (f) => { fs.mkdirSync(path.dirname(path.join(tmp, f)), { recursive: true }); fs.copyFileSync(path.join(ROOT, f), path.join(tmp, f)); };
-  ['e63334287a3deaa3/cosmetics.js', 'e63334287a3deaa3/wallet.js', 'e63334287a3deaa3/miles.js', 'e63334287a3deaa3/shop/tools/server-data.js', 'functions/_catalog.js', 'functions/_captains.js'].forEach(copy);
+  ['e63334287a3deaa3/cosmetics.js', 'e63334287a3deaa3/wallet.js', 'e63334287a3deaa3/miles.js', 'namefilter.js', 'e63334287a3deaa3/shop/tools/server-data.js', 'functions/_catalog.js', 'functions/_captains.js', 'functions/_namefilter.js'].forEach(copy);
   const run = () => { try { execFileSync('node', [path.join(tmp, 'e63334287a3deaa3/shop/tools/server-data.js'), '--check'], { stdio: 'pipe' }); return true; } catch (e) { return false; } };
   assert.equal(run(), true);
   const edits = [['e63334287a3deaa3/cosmetics.js', 'common: 60,', 'common: 61,'], ['e63334287a3deaa3/wallet.js', 'emeralds: 39, usd: 4.99', 'emeralds: 40, usd: 4.99'],
     ['e63334287a3deaa3/wallet.js', 'enabled: false,', 'enabled: true,'], ['e63334287a3deaa3/miles.js', "'6QQvFAzdtMeJdAUSPwHd6v2zaDk1',", "'6QQvFAzdtMeJdAUSPwHd6v2zaDk1', 'someoneElse12345',"],
-    ['functions/_catalog.js', '"CHEST_PRICE": 119', '"CHEST_PRICE": 1']];
+    ['functions/_catalog.js', '"CHEST_PRICE": 119', '"CHEST_PRICE": 1'], ['namefilter.js', "'shx'].map(rot)", "'shx', 'tbbsl'].map(rot)"],
+    ['functions/_namefilter.js', '"shpx",', '']];
   for (const [f, a, b] of edits) {
     const p = path.join(tmp, f), was = fs.readFileSync(p, 'utf8');
     assert.ok(was.includes(a), f + ' has ' + a);

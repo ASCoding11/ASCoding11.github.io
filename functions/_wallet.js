@@ -24,6 +24,7 @@
 import { DOCS, FS, googleToken, googleUser, json, cors } from './_lib.js';
 import { CATALOG } from './_catalog.js';
 import { OWNERS } from './_captains.js';
+import { NAMEFILTER } from './_namefilter.js';
 
 export { CATALOG };
 export const MPE = CATALOG.MANGOS_PER_EMERALD;
@@ -124,6 +125,43 @@ function clean(d, now) {
 }
 export function cleanText(t, max) {
   return String(t == null ? '' : t).replace(/[|<>\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+// ---------- Rude words in gift notes and names: a copy of /namefilter.js's NameFilter.clean ----------
+// The word lists are generated from namefilter.js (_namefilter.js, ROT13 there too). Keep these functions in step with
+// namefilter.js's clean(), norm(), squash(), unsafe() and mask(); the server tests compare the two on sample text.
+const rot = w => w.replace(/[a-z]/g, c => String.fromCharCode((c.charCodeAt(0) - 84) % 26 + 97));
+const NF_WORDS = NAMEFILTER.words.map(rot), NF_WORST = NAMEFILTER.worst.map(rot), NF_SAFE = NAMEFILTER.safe, NF_LEET = NAMEFILTER.leet;
+const NF_RE = new RegExp('(^|[^a-z])(' + NF_WORDS.join('|') + ')[a-z]*', 'g');
+function nfNorm(s) { const low = s.toLowerCase(); let out = ''; for (let i = 0; i < low.length; i++) { const c = low.charAt(i); out += (c.length === s.charAt(i).length && NF_LEET[c]) || c; } return out; }
+const nfSquash = n => n.replace(/[^a-z]/g, '').replace(/(.)\1{2,}/g, '$1');
+const NF_WORST_SQ = NF_WORST.map(nfSquash);
+function nfUnsafe(sq) { for (const w of NF_SAFE) sq = sq.split(w).join('_'); return sq; }
+function nfMask(s, n) {
+  if (n.length !== s.length) return s;
+  let out = s, m; NF_RE.lastIndex = 0;
+  while ((m = NF_RE.exec(n))) { const st = m.index + m[1].length, len = m[0].length - m[1].length; out = out.slice(0, st + 1) + new Array(len).join('*') + out.slice(st + len); }
+  return out;
+}
+export function nameClean(name) {
+  if (name == null) return name;
+  const s = String(name); if (!s) return s;
+  const n = nfNorm(s), sq = nfUnsafe(nfSquash(n));
+  for (const w of NF_WORST_SQ) if (sq.indexOf(w) !== -1) {
+    const masked = nfMask(s, n);
+    if (nfUnsafe(nfSquash(nfNorm(masked))).indexOf(w) !== -1 || masked === s) return 'Player';
+  }
+  return n.length === s.length ? nfMask(s, n) : s;
+}
+// A gift note: at most NOTE_MAX characters (longer is refused, not cut), a rude word masked the way namefilter.js masks
+// names ("F***"); a note that hides one of the worst words some other way (which namefilter.js turns into "Player") is
+// refused. -> the note to keep
+export function cleanNote(raw) {
+  const t = cleanText(raw, 1000);
+  if (t.length > CATALOG.NOTE_MAX) throw new WErr(400, 'note', 'A note can be at most ' + CATALOG.NOTE_MAX + ' characters.');
+  if (!t) return '';
+  const c = nameClean(t);
+  if (c === 'Player' && t !== 'Player') throw new WErr(400, 'note', 'Please change the note: it has a word that isn’t allowed.');
+  return c;
 }
 function newId() { return crypto.randomUUID().replace(/-/g, ''); }
 // A ledger line: added to the wallet's recent list and written as its own ledger row (never edited).
@@ -230,7 +268,7 @@ export async function walletGift(env, user, body, next) {
   const p = pack(what);
   if (!p) throw new WErr(400, /^emeralds[-_]/.test(what) ? 'money' : 'unknown', /^emeralds[-_]/.test(what) ? 'Emeralds and mangos can’t be gifted.' : 'Unknown item.');
   if (isCaptain(to)) throw new WErr(409, 'captain', 'Captains already own everything.');
-  const note = cleanText(body.note, CATALOG.NOTE_MAX), from = cleanText(body.fromName, 14) || 'A player', toName = cleanText(body.toName, 14) || 'a player';
+  const note = cleanNote(body.note), from = nameClean(cleanText(body.fromName, 14)) || 'A player', toName = nameClean(cleanText(body.toName, 14)) || 'a player';
   const cap = isCaptain(user.uid), req = body.req ? String(body.req) : '';
   next = next || cryptoNext();
   return transact(env, async get => {
