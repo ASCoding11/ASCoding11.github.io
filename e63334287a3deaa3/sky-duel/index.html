@@ -97,6 +97,8 @@ table.standings th{font-size:11.5px;letter-spacing:.12em;text-transform:uppercas
 table.standings td{padding:6px;border-top:2px solid var(--line);font-weight:700}
 table.standings td.n,table.standings th.n{text-align:right;width:54px}
 table.standings tr.me td{background:#fff3cf}
+.rank{margin:12px 0 0;padding:8px 12px;border-radius:10px;background:#eef4fb;border:2px solid var(--line);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums}
+.rank b{font-family:var(--f-d);font-weight:400;font-size:18px}.rank .up{color:#178a43}.rank .dn{color:#c8392f}.rank small{display:block;font-weight:600;color:var(--ink-2);font-size:13px;margin-top:2px}
 table.standings i.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:7px;border:1.5px solid var(--ink);vertical-align:-1px}
 .plist{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:5px;font-size:15px}
 .plist li{display:flex;align-items:center;gap:8px;font-weight:700}
@@ -214,6 +216,7 @@ body.touch #banner{top:30%}
 @media (prefers-reduced-motion:reduce){#warn div{animation:none}}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="sky-duel" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="sky-duel" defer></script> <!-- ranked rating for online matches (see README) -->
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -377,6 +380,7 @@ body.touch #banner{top:30%}
       <h2 id="endTitle">Match over</h2>
       <p class="tag" id="endSub" style="margin:2px 0 4px"></p>
       <table class="standings" id="endTable"></table>
+      <p class="rank" id="endRank" role="status" hidden></p>
       <div class="row" style="margin-top:14px">
         <button class="btn" id="again" type="button">Fly again</button>
         <button class="btn alt" id="toMenu" type="button">Menu</button>
@@ -1331,7 +1335,7 @@ function applyRS(rs){
   lobbyDirty=true;
 }
 function beginMatch(){
-  const rs=G.rs;G.matchId=rs.id;G.phase='play';G.ended=false;G.paused=false;setSky(rs.sky);
+  const rs=G.rs;G.matchId=rs.id;G.phase='play';G.flewFrom=Math.max(netNow(),rs.t0);G.ended=false;G.paused=false;setSky(rs.sky);
   for(const m of G.missiles)scene.remove(m.mesh);G.missiles.length=0;G.flares.length=0;hitAcc.clear();
   let i=0;
   for(const e of G.ents.values())if(e.local){e.kills=0;e.deaths=0;e.alive=false;e.respT=.05+(e.bot?.12*(++i):0);e.mesh.visible=false}
@@ -1357,8 +1361,38 @@ function endMatch(){
   $('endTitle').textContent=me&&me.out?'Match over':draw?'Draw':won?'Victory':'Shot down';
   $('endSub').textContent=draw?'Nobody came out ahead.':won?(rs.md===2?'Your team wins.':'You win the match.'):rs.md===2?TX(who+' team wins.'):TX('{w} wins the match.',{w:who});
   $('endTable').innerHTML=tableHTML();
+  rateMatch(rs,me,won);
   $('end').hidden=false;$('touch').hidden=true;$('pause').hidden=true;
   sfx(won?'win':'lose');showAd('adEnd');endButtons();
+}
+// ---------- ranked rating (../elo.js) ----------
+// Only online matches count, against the other real pilots who were flying at the end (bots and teammates don't), and
+// only if you flew at least a minute of the match, or were there from the start of one that ended on the kill target.
+// A free-for-all goes by the final standings (kills, then fewer losses; equal both is a draw); a duel and 2v2 by the result.
+const RANK_MIN=60000;
+let rankView=null;
+function rateMatch(rs,me,won){
+  rankView=null;
+  if(G.online&&me&&!me.out&&window.BackRoomElo){
+    const opp=[...G.ents.values()].filter(e=>e!==me&&!e.out&&enemies(me,e)),humans=opp.filter(e=>!e.bot).length;
+    const end=rs.et||netNow(),from=G.flewFrom||end,full=rs.md===1?standings().some(e=>e.kills>=rs.kl):Math.max(teamScore(0),teamScore(1))>=rs.kl;
+    if(!humans)rankView={why:'Unranked: no other real pilot was flying against you.'};
+    else if(end-from<RANK_MIN&&!(full&&from<=rs.t0+5000))rankView={why:'Unranked: you flew less than a minute of this match.'};
+    else{
+      const res=e=>rs.md!==1?(rs.win?(won?1:0):.5):me.kills!==e.kills?(me.kills>e.kills?1:0):me.deaths!==e.deaths?(me.deaths<e.deaths?1:0):.5;
+      rankView={wait:true};
+      try{const id=Net.room+':'+rs.id;BackRoomElo.report({id,won,opp:opp.map(e=>e.bot?{bot:1,s:res(e)}:{u:e.id,s:res(e)})}).then(r=>{if(G.matchId!==rs.id)return;rankView=r?{r}:null;showRank()},()=>{rankView=null;showRank()})}catch(e){rankView=null}
+    }
+  }
+  showRank();
+}
+function showRank(){
+  const el=$('endRank'),v=rankView;el.hidden=!v;if(!v)return;el.textContent='';
+  if(v.why){el.textContent=TX(v.why);return}
+  if(v.wait){el.textContent=TX('Ranked match: working out your rating…');return}
+  const r=v.r,b=document.createElement('b'),d=document.createElement('span'),sm=document.createElement('small');
+  b.textContent=r.after;d.className=r.delta>0?'up':r.delta<0?'dn':'';d.textContent=' ('+(r.delta>0?'+':r.delta<0?'−':'±')+Math.abs(r.delta)+')';
+  el.append(TX('Ranked rating')+' ',b,d);sm.textContent=TX(r.humans>1?'Rated against {n} other pilots':'Rated against 1 other pilot',{n:r.humans});el.appendChild(sm);
 }
 function endButtons(){
   const b=$('again'),host=isHost();
@@ -1815,7 +1849,7 @@ function syncSettings(){
   else $('room').value=store.get('room','')||'';
   if(touchUI)setTouch(true);
   // English / Español switched (lang.js): redo what this page put together itself (fixed text switches by itself)
-  document.addEventListener('backroom:lang',()=>{$('warn').dataset.k='';if(G.online&&G.phase==='lobby')renderLobby();if(G.phase==='end'&&$('end').hidden===false)$('endTable').innerHTML=tableHTML()});
+  document.addEventListener('backroom:lang',()=>{$('warn').dataset.k='';if(G.online&&G.phase==='lobby')renderLobby();if(G.phase==='end'&&$('end').hidden===false){$('endTable').innerHTML=tableHTML();showRank()}});
   addEventListener('pointerdown',initAudio,{once:true});
 })();
 
@@ -1850,7 +1884,7 @@ function frame(t){
 setSky(0);showMenu();requestAnimationFrame(frame);
 addEventListener('pagehide',()=>{if(G.online)Net.leave()});
 // A hook for automated tests only (browsers driven by a test tool say so with navigator.webdriver).
-if(navigator.webdriver)window.__skd={ff(s){for(let i=0;i<s*30;i++)simStep(1/30,performance.now())},G,Net,FX,PICKS,KB,camera,spawn,kill,emit,hostStart,hostTick,groundH,keys,touch,standings,fireMissile,dropFlare,setSky,onlineCfg,solo,DIFF};
+if(navigator.webdriver)window.__skd={ff(s){for(let i=0;i<s*30;i++)simStep(1/30,performance.now())},G,Net,FX,PICKS,KB,camera,spawn,kill,emit,hostStart,hostTick,groundH,keys,touch,standings,fireMissile,dropFlare,setSky,onlineCfg,solo,DIFF,mkEnt,endMatch,rateMatch,startSolo};
 })();
 </script>
 </body>
