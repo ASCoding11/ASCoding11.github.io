@@ -956,6 +956,36 @@
   I('odd-one-out', 'poof', 3, 'Bubble Poof', 'rare', '#BFE9FF', '#D8C8FF', 'Bubbles that float up and pop.');
   I('odd-one-out', 'poof', 4, 'Star Poof', 'epic', '#FFD23F', '#FFFFFF', 'A ring of spinning gold stars.');
   I('odd-one-out', 'poof', 5, 'Price Tag Poof', 'epic', '#FFE24A', '#FF5A4A', 'Clearance. Everything must go.');
+  // Wave 2 (19 Nov): sports kits, pirates, suits and robots for hunters, and tools to match. Looks only, as above.
+  I('odd-one-out', 'outfit', 15, 'Soccer Striker', 'common', '#E2433A', '#FBFBFB', 'Red shirt, white shorts, socks pulled up.');
+  I('odd-one-out', 'outfit', 16, 'Basketball Star', 'common', '#6A3FD0', '#FFC93C', 'Purple and gold, with a headband for the big game.');
+  I('odd-one-out', 'outfit', 17, 'Gridiron', 'epic', '#2F6FD8', '#FBFBFB', 'Shoulder pads, a glossy helmet and a face guard.');
+  I('odd-one-out', 'outfit', 18, 'Baseball Slugger', 'common', '#F8F6EF', '#26325E', 'Pinstripes, a navy cap and high socks.');
+  I('odd-one-out', 'outfit', 19, 'Hockey Skater', 'rare', '#2FA060', '#FBFBFB', 'A bulky jersey, a helmet and skates.');
+  I('odd-one-out', 'outfit', 20, 'Tennis Ace', 'common', '#FBFBF6', '#2FA060', 'Crisp whites and a green visor.');
+  I('odd-one-out', 'outfit', 21, 'Golfer', 'uncommon', '#9CC8EC', '#F4D06A', 'A diamond sweater, a flat cap and loud trousers.');
+  I('odd-one-out', 'outfit', 22, 'Boxer', 'uncommon', '#D8343A', '#FFC93C', 'A satin robe, a headguard and big red gloves.');
+  I('odd-one-out', 'outfit', 23, 'Referee', 'common', '#FBFBFB', '#34353E', 'Stripes, a whistle and no favourites.');
+  I('odd-one-out', 'outfit', 24, 'Racing Driver', 'rare', '#2A64D8', '#E2433A', 'A race suit and a helmet with a tinted visor.');
+  I('odd-one-out', 'outfit', 25, 'Pirate Deckhand', 'rare', '#D8343A', '#FBF6EA', 'A striped shirt, an eye patch and a parrot on the shoulder.');
+  I('odd-one-out', 'outfit', 26, 'First Mate', 'epic', '#36508A', '#F0C445', 'A navy coat, a knitted cap and a hook for a hand.');
+  I('odd-one-out', 'outfit', 27, 'Ghost Pirate', 'legendary', '#7FD8C8', '#C8FF6A', 'Pale sea green from hat to boots. One eye glows.');
+  I('odd-one-out', 'outfit', 28, 'The Boss', 'legendary', '#B08A5C', '#EFE4D0', 'A long camel coat, a fur collar and a grey fedora.');
+  I('odd-one-out', 'outfit', 29, 'Pinstripe Suit', 'rare', '#5E6680', '#C8323A', 'A 1920s suit, a red tie and a flower in the lapel.');
+  I('odd-one-out', 'outfit', 30, 'Tracksuit', 'uncommon', '#2F58C8', '#FFCF3F', 'Stripes down the sides, a gold chain and a flat cap.');
+  I('odd-one-out', 'outfit', 31, 'Bodyguard', 'uncommon', '#5A5E6E', '#1D1F26', 'A grey suit, sunglasses and an earpiece.');
+  I('odd-one-out', 'outfit', 32, 'Butler', 'rare', '#4E505E', '#FBFBFB', 'A tailcoat, a bow tie and spotless white gloves.');
+  I('odd-one-out', 'outfit', 33, 'Tin Robot', 'epic', '#C9CED6', '#FFE27A', 'Rivets, lamp eyes and a little aerial.');
+  I('odd-one-out', 'outfit', 34, 'Android', 'legendary', '#F2F5F8', '#3EC8E8', 'Glossy white panels and a dark visor.');
+  I('odd-one-out', 'tool', 7, 'Tennis Racket', 'common', '#FBFBFB', '#D6F04A', 'A white frame and a tight string bed.');
+  I('odd-one-out', 'tool', 8, 'Hockey Stick', 'common', '#D9B07A', '#2A2B32', 'Taped at the top and on the blade.');
+  I('odd-one-out', 'tool', 9, 'Foam Finger', 'uncommon', '#FFD23F', '#2F6FD8', 'Big, yellow and pointing the way.');
+  I('odd-one-out', 'tool', 10, 'Golf Club', 'uncommon', '#C9D0D8', '#5A6070', 'A long shaft and a polished driver head.');
+  I('odd-one-out', 'tool', 11, 'Spyglass', 'rare', '#D8B04A', '#8A5A34', 'Three brass tubes for spotting the odd one out.');
+  I('odd-one-out', 'tool', 12, 'Walking Cane', 'rare', '#2E2E36', '#FFCF3F', 'Black with a gold top. For bosses only.');
+  I('odd-one-out', 'tool', 13, 'Serving Tray', 'epic', '#DFE5EC', '#FFB43C', 'A covered dish and a glass of juice. Dinner is served.');
+  I('odd-one-out', 'tool', 14, 'Megaphone', 'common', '#FBFBFB', '#E2433A', "The coach's megaphone, for shouting tips.");
+  I('odd-one-out', 'tool', 15, 'Robot Claw', 'epic', '#C9D0D8', '#3EC8E8', 'Three claw fingers and a glowing core.');
   // ---- Driftfall items ----
   // Driftfall (drop-zone/locker-extra.js draws them by number, the outfits are in drop-zone/index.html): outfits, backpacks, gliders, glider trails, gun skins,
   // build skins, emotes and victory poses. Hidden: worn from the game's Locker by captains only.
