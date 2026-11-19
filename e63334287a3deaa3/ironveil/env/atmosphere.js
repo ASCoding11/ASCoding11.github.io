@@ -14,8 +14,8 @@
   E.PRESETS = {
     night_moon: {
       skyTop: 0x070a12, skyHor: 0x26303f, ground: 0x0e1014, fog: 0x1d2531, fogD: 0.0105, mist: 0.55, mistTop: 1.8,
-      sunDir: [-0.42, 0.62, 0.48], sunCol: 0xb4c6ea, sunI: 1.5, sunShadow: true, moon: 1, stars: 1, cloud: 0.4, cloudCol: 0x2b3442,
-      hemiSky: 0x5f7298, hemiGround: 0x2e2a22, hemiI: 0.55, env: 0.6, exposure: 1.0, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
+      sunDir: [-0.42, 0.62, 0.48], sunCol: 0xb4c6ea, sunI: 1.3, sunShadow: true, moon: 1, stars: 1, cloud: 0.4, cloudCol: 0x2b3442,
+      hemiSky: 0x5f7298, hemiGround: 0x3a3630, hemiI: 0.85, env: 0.6, exposure: 0.9, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
     },
     night_overcast: {
       skyTop: 0x080a0d, skyHor: 0x1b1f25, ground: 0x0b0c0d, fog: 0x171b20, fogD: 0.0135, mist: 0.7, mistTop: 2.2,

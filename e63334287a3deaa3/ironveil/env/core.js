@@ -10,9 +10,9 @@
   // ------------------------------------------------------------------ quality
   // tex: hero texture size, texLo: everything else. grass*: see grass.js. post / pom / shadows decided here too.
   E.QUALITY = {
-    low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 9, grassMid: 24, grassDens: 50, grassMidDens: 8, bladeSegs: 1, seedHeads: false, carpetDens: 110, carpetR: 6, treeLod: 26, decals: 64 },
-    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: true, aniso: 8, grassNear: 12, grassMid: 42, grassDens: 40, grassMidDens: 8, bladeSegs: 3, seedHeads: true, carpetDens: 160, carpetR: 7, treeLod: 40, decals: 160 },
-    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: true, post: true, aniso: 16, grassNear: 15, grassMid: 45, grassDens: 70, grassMidDens: 10, bladeSegs: 3, seedHeads: true, carpetDens: 220, carpetR: 10, treeLod: 60, decals: 256 }
+    low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 9, grassMid: 24, grassDens: 50, grassMidDens: 8, bladeSegs: 1, seedHeads: false, carpetDens: 150, carpetR: 6, treeLod: 26, decals: 64 },
+    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: true, aniso: 8, grassNear: 12, grassMid: 42, grassDens: 40, grassMidDens: 6, bladeSegs: 3, seedHeads: false, carpetDens: 230, carpetR: 7, treeLod: 40, decals: 160 },
+    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: true, post: true, aniso: 16, grassNear: 15, grassMid: 45, grassDens: 70, grassMidDens: 10, bladeSegs: 3, seedHeads: true, carpetDens: 300, carpetR: 10, treeLod: 60, decals: 256 }
   };
   E.Q = E.QUALITY.medium;
 
@@ -77,7 +77,7 @@
   E.RECIPES = {
     brick_red: { tex: 'brick_red', size: 1.35, hero: 1, ns: 1.0, id: 0.22, pom: 0.012, macro: 0.16 },
     brick_sooty: { tex: 'brick_sooty', size: 1.35, hero: 0, hero2: 1, ns: 1.0, id: 0.18, pom: 0.012, macro: 0.2 },
-    fieldstone: { tex: 'fieldstone', size: 2.0, hero: 1, ns: 1.0, id: 0.18, pom: 0.03, macro: 0.18 },
+    fieldstone: { tex: 'fieldstone', size: 1.6, hero: 1, ns: 1.0, id: 0.08, pom: 0.03, macro: 0.18 },
     ashlar: { tex: 'ashlar', size: 1.2, hero: 0, minor: 1, ns: 1.0, id: 0.1, macro: 0.12 },
     plaster: { tex: 'plaster', size: 2.5, hero: 0, hero2: 1, ns: 1.0, macro: 0.2 },
     plaster_interior: { tex: 'plaster_interior', size: 2.5, hero: 0, minor: 1, ns: 0.8, macro: 0.14 },
@@ -204,6 +204,7 @@
     m.map.repeat.set(1 / R.size, 1 / R.size); m.normalMap.repeat.copy(m.map.repeat);
     if (R.glass) { m.transparent = true; m.opacity = 0.62; m.depthWrite = false; }
     if (variant === 'lit') { m.emissive = E.lin(0xffb46a); m.emissiveIntensity = 1.6; m.transparent = false; m.opacity = 1; m.depthWrite = true; }
+    m.shadowSide = THREE.DoubleSide;   // walls are open shells: both faces must block the moon
     patch(m, R, T.alb.image.width);
     m.userData.linear = true; m.userData.ivenv = name;
     MATS[key] = m; return m;

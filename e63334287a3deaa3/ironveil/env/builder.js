@@ -151,3 +151,51 @@
     return m;
   };
 })();
+
+/* IVEnv.mergeStatic(root, opts) -> Group: merges every static mesh under root (buildings, walls, fences, props) that
+   shares a material into one mesh per material, in root's space. Door pivots (objects with userData.dynamic or named
+   in opts.keep) are left alone. Cuts draw calls from one per material per object to one per material. */
+(function () {
+  'use strict';
+  const E = window.IVEnv;
+  E.mergeStatic = function (root, opts) {
+    opts = opts || {};
+    root.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+    const groups = new Map(), victims = [];
+    const nm = new THREE.Matrix3(), m = new THREE.Matrix4(), v = new THREE.Vector3();
+    root.traverse(o => {
+      if (!o.isMesh || o.isInstancedMesh || o.userData.dynamic || !o.geometry.index) return;
+      let p = o.parent; while (p && p !== root) { if (p.userData.dynamic) return; p = p.parent; }
+      const mat = o.material; if (Array.isArray(mat)) return;
+      const k = mat.uuid; if (!groups.has(k)) groups.set(k, { mat, list: [], cast: o.castShadow, order: o.renderOrder });
+      groups.get(k).list.push(o); victims.push(o);
+    });
+    const out = new THREE.Group(); out.name = 'IVEnv.merged';
+    for (const [, G] of groups) {
+      let nv = 0, ni = 0; for (const o of G.list) { nv += o.geometry.attributes.position.count; ni += o.geometry.index.count; }
+      const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2), env = new Float32Array(nv * 4), idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
+      let vo = 0, io = 0;
+      for (const o of G.list) {
+        const g = o.geometry, P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, A = g.attributes.aEnv, I = g.index;
+        m.multiplyMatrices(inv, o.matrixWorld); nm.getNormalMatrix(m);
+        for (let i = 0; i < P.count; i++) {
+          v.fromBufferAttribute(P, i).applyMatrix4(m); pos[(vo + i) * 3] = v.x; pos[(vo + i) * 3 + 1] = v.y; pos[(vo + i) * 3 + 2] = v.z;
+          if (N) { v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor[(vo + i) * 3] = v.x; nor[(vo + i) * 3 + 1] = v.y; nor[(vo + i) * 3 + 2] = v.z; }
+          if (U) { uv[(vo + i) * 2] = U.getX(i); uv[(vo + i) * 2 + 1] = U.getY(i); }
+          if (A) for (let c = 0; c < 4; c++) env[(vo + i) * 4 + c] = A.array[i * 4 + c];
+        }
+        for (let i = 0; i < I.count; i++) idx[io + i] = I.getX(i) + vo;
+        vo += P.count; io += I.count;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setAttribute('aEnv', new THREE.BufferAttribute(env, 4)); geo.setIndex(new THREE.BufferAttribute(idx, 1));
+      geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, G.mat); mesh.castShadow = G.cast; mesh.receiveShadow = true; mesh.renderOrder = G.order; mesh.name = 'merged:' + (G.mat.userData.ivenv || G.mat.type);
+      out.add(mesh);
+    }
+    for (const o of victims) { o.parent.remove(o); if (opts.dispose !== false) o.geometry.dispose(); }
+    return out;
+  };
+})();

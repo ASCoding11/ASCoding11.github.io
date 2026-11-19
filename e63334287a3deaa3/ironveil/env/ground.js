@@ -71,13 +71,13 @@
           galb *= mix(0.72, 1.18, mA) * mix(0.9, 1.08, mC);
           // far grass colour carried by the ground (blades end, colour does not)
           float gd = length(vGW - cameraPosition);
-          float carry = vGC.a * mix(0.85, 0.95, smoothstep(uCarry.x, uCarry.y, gd));
+          float carry = vGC.a * 0.95;
           float under = vGC.a * (1.0 - smoothstep(uCarry.x, uCarry.y, gd));
           float tl = dot(sRGBToLinear(vec4(a0.rgb, 1.0)).rgb, vec3(0.3, 0.5, 0.2));
           float clumpN = texture2D(uMacro, gp * 0.9 + 0.17).b;
           float midN = texture2D(uMacro, gp * 0.31 + 0.61).g;
           vec3 gcol = vGC.rgb * mix(0.7, 1.25, mB) * clamp(tl / 0.045, 0.35, 2.2) * mix(0.45, 1.45, clumpN * clumpN * 1.4) * mix(0.65, 1.3, midN);
-          galb = mix(galb, gcol, carry) * (1.0 - under * 0.25);
+          galb = mix(galb, gcol, carry);
           grough = mix(grough, 0.88, carry);
           // standing water: wet places, low in the texture height and the slow noise
           float wet = vW1.y;
@@ -92,7 +92,7 @@
         .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(grough, 0.03, 1.0);')
         .replace('#include <normal_fragment_maps>', `
           vec3 mapN = vec3(gn.xy * 2.0 - 1.0, 0.0);
-          mapN.xy *= (1.0 - ivPud * 0.97) * (1.0 - vGC.a * 0.6);
+          mapN.xy *= (1.0 - ivPud * 0.97) * (1.0 - vGC.a * 0.2);
           mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
           normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);`)
         .replace('#include <aomap_fragment>', `

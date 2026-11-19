@@ -283,10 +283,10 @@
       while (x < S) { const w = R.range(0.18, 0.46) / 2 * S; pts.push({ x: (x + w / 2) % S, y: y + hgt / 2 + R.range(-6, 6), w: Math.sqrt(w * hgt) / 60 * (1 + R.range(-0.1, 0.1)) }); x += w; }
       y += hgt;
     }
-    pts.forEach((p, i) => { p.col = R(); p.k = 1 + R.int(27); p.tint = R.range(0.8, 1.15); p.sz = p.w * 60; });
+    pts.forEach((p, i) => { p.col = R(); p.k = 1 + R.int(27); p.tint = R.range(0.88, 1.1); p.sz = p.w * 60; });
     const W = worley(S, pts, 1.35, true);
     const n1 = fbm(S, 32, 4, seed + 1), n2 = fbm(S, 8, 4, seed + 2), grit = fbm(S, 256, 2, seed + 3), lich = fbm(S, 48, 3, seed + 4);
-    const pal = [[132, 128, 118], [148, 132, 100], [112, 100, 84], [92, 90, 86], [140, 136, 126], [122, 110, 92]];
+    const pal = [[126, 122, 112], [134, 124, 104], [116, 108, 94], [108, 104, 98], [130, 126, 116], [120, 112, 98]];
     for (let q = 0; q < S * S; q++) {
       const p = pts[W.ID[q]], e = (W.F2[q] - W.F1[q]) * p.w, r = W.F1[q] * p.w / p.sz;
       const edge = e + (n1[q] - 0.5) * 9 * S / 1024 - (n2[q] - 0.5) * 10 * S / 1024;
@@ -477,7 +477,7 @@
     const R = rng(seed), o = Out(S);
     const n1 = fbm(S, 6, 5, seed + 1), n2 = fbm(S, 24, 4, seed + 2), grit = fbm(S, 256, 2, seed + 3), patch = fbm(S, 4, 5, seed + 4), stain = fbm(S, 14, 4, seed + 5, 3);
     const ck = new Float32Array(S * S);
-    for (let i = 0; i < (interior ? 4 : 9); i++) crack(ck, S, R, R() * S, R() * S, R.range(60, 260) * S / 1024, R() * 6.28, R.range(0.7, 1.4) * S / 1024, 1, true);
+    for (let i = 0; i < (interior ? 2 : 9); i++) crack(ck, S, R, R() * S, R() * S, R.range(60, 260) * S / 1024, R() * 6.28, R.range(0.7, 1.4) * S / 1024 * (interior ? 0.5 : 1), interior ? 0.5 : 1, true);
     const pts = []; for (let i = 0; i < 260; i++) pts.push({ x: R() * S, y: R() * S, w: R.range(0.8, 1.2) });
     const Wn = worley(S, pts, 1.5, true);
     const base = interior ? [200, 192, 172] : [184, 176, 156];
@@ -488,12 +488,12 @@
       const sh = 0.25 + 0.25 * stone + 0.05 * grit[q];
       o.h[q] = lerp(ph, sh, fall);
       const t = (0.88 + 0.16 * n1[q]) * (0.95 + 0.08 * grit[q]) * (1 - ck[q] * 0.45);
-      const s = clamp((stain[q] - 0.45) * 1.6, 0, 1);
+      const s = clamp((stain[q] - 0.45) * 1.6, 0, 1) * (interior ? 0.4 : 1);
       let c = [base[0] * t * (1 - s * 0.25), base[1] * t * (1 - s * 0.23), base[2] * t * (1 - s * 0.28)];
       const stc = [118 * (0.8 + 0.4 * grit[q]), 110 * (0.8 + 0.4 * grit[q]), 96 * (0.8 + 0.4 * grit[q])];
       c = [lerp(c[0], lerp(70, stc[0], stone), fall), lerp(c[1], lerp(66, stc[1], stone), fall), lerp(c[2], lerp(58, stc[2], stone), fall)];
       // a dark rim where the plaster edge has broken away
-      const rim = sstep(0.62, 0.66, patch[q] + n2[q] * 0.08) * (1 - fall); c = c.map(v => v * (1 - rim * 0.3));
+      const rim = interior ? 0 : sstep(0.62, 0.66, patch[q] + n2[q] * 0.08) * (1 - fall); c = c.map(v => v * (1 - rim * 0.3));
       setc(o, q, c); o.ro[q] = 0.9 + 0.06 * grit[q] - s * 0.05;
     }
     return finish(o, S * 0.012 / 2.5, 2.0, S / 90);

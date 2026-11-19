@@ -32,6 +32,8 @@
 <script src="env/atmosphere.js"></script>
 <script src="env/grass.js"></script>
 <script src="env/ground.js"></script>
+<script src="env/builder.js"></script>
+<script src="env/build.js"></script>
 <script src="env/post.js"></script>
 <script src="env/index.js"></script>
 <script>
@@ -115,6 +117,18 @@
     fig10: { p: [-92, 0, 98], look: [-92, 0, 88], eye: 1.65 },
     fig40: { p: [-92, 0, 128], look: [-92, 0, 88], eye: 1.65 },
     dent: { p: [-90, 0, 91], look: [-92, -1.4, 88], eye: 1.9 },
+    b_farmhouse: { p: [46, 0, -68], look: [52, 3, -80], eye: 1.7 },
+    b_barn: { p: [84, 0, -50], look: [72, 3, -60], eye: 1.7 },
+    b_shed: { p: [48, 0, -56], look: [40, 1, -62], eye: 1.7 },
+    b_cottage: { p: [26, 0, -84], look: [20, 2.5, -95], eye: 1.7 },
+    b_ruin: { p: [72, 0, -84], look: [80, 2, -95], eye: 1.7 },
+    b_bunker: { p: [2, 0, -66], look: [8, 1, -58], eye: 1.7 },
+    b_church: { p: [92, 0, -96], look: [96, 6, -120], eye: 1.7 },
+    b_shoprow: { p: [60, 0, -102], look: [60, 3, -115], eye: 1.7 },
+    brick1m: { p: [20.75, 0, -91.0], look: [19.96, -0.45, -91.96], eye: 1.45 },
+    brick5m: { p: [22, 0, -87.5], look: [20.5, 1.8, -92.6], eye: 1.7 },
+    brick30m: { p: [28, 0, -64], look: [20, 2.2, -95], eye: 1.7 },
+    inside: { p: [50.5, 0, -79.5], look: [46, 1.2, -82], eye: 1.65 },
     figlong10: { p: [-70, 0, -30], look: [-60, 0, -30], eye: 1.65 }
   };
   const pitchYaw = { yaw: 0, pitch: 0 };
@@ -161,6 +175,30 @@
     const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.6, 8), fm); legs.position.y = 0.3; figure.add(legs);
     figure.traverse(o => { o.castShadow = true; });
     figure.position.set(-92, height(-92, 88), 88); scene.add(figure);
+    // ---------------------------------------------------------------- buildings
+    window.T.buildings = [];
+    const place = (spec, x, z, rot) => {
+      const b = E.building(spec); const y = height(x, z);
+      b.group.position.set(x, y, z); b.group.rotation.y = rot || 0; scene.add(b.group);
+      b.group.traverse(o => { if (o.isMesh) { o.matrixAutoUpdate = true; } });
+      window.T.buildings.push({ spec, b, x, z, rot });
+      // lit windows become lamp-like lights (the game gives them pooled point lights; here a few real ones)
+      for (const l of b.lights) if (l.power > 0 && window.T.lampsUsed < 6) { const L = new THREE.PointLight(l.color, l.power * 1.2, l.r, 2); const c = Math.cos(rot || 0), sn = Math.sin(rot || 0); L.position.set(x + l.x * c + l.z * sn, y + l.y, z - l.x * sn + l.z * c); scene.add(L); window.T.lampsUsed++; }
+      return b;
+    };
+    window.T.lampsUsed = 2;
+    if (!qs.get('nobuild')) {
+      place({ kind: 'farmhouse', w: 12, d: 7.5, floors: 2, seed: 3, damage: 0.15, lit: 0.35 }, 52, -80, 0);
+      place({ kind: 'barn', w: 10, d: 16, seed: 4, damage: 0.35 }, 72, -60, -Math.PI / 2);
+      place({ kind: 'shed', w: 4, d: 3, seed: 5, damage: 0.2 }, 40, -62, Math.PI / 2);
+      place({ kind: 'cottage', w: 8, d: 6, seed: 6, damage: 0.1, lit: 0.5 }, 20, -95, 0.15);
+      place({ kind: 'ruin', w: 9, d: 7, seed: 7, damage: 0.8 }, 80, -95, -0.2);
+      place({ kind: 'bunker', w: 5, d: 5, seed: 8, damage: 0.5 }, 8, -58, Math.PI * 0.85);
+      place({ kind: 'church', w: 16, d: 8, seed: 9, damage: 0.2, lit: 0.2 }, 100, -120, 0.1);
+      place({ kind: 'shoprow', units: 3, d: 8, seed: 10, damage: 0.25, lit: 0.4 }, 60, -115, 0);
+    }
+    // one mesh per material for everything static (buildings, walls, fences, props)
+    if (!qs.get('nomerge')) { const statics = new THREE.Group(); for (const o of scene.children.slice()) if (o.name && /^IVEnv\.(building|wall|fence|prop)/.test(o.name)) { scene.remove(o); statics.add(o); } scene.add(statics); scene.add(E.mergeStatic(statics)); }
     window.T.ready = true;
   });
 

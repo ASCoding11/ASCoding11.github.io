@@ -119,7 +119,8 @@
       const cn = Math.ceil(Math.sqrt(Q.carpetDens * TS * TS)), cc = TS / cn;
       for (let j = 0; j < cn; j++) for (let i = 0; i < cn; i++) {
         const gi = tx * cn + i, gj = tz * cn + j;
-        const x = x0 + (i + H(gi, gj, 31)) * cc, z = z0 + (j + H(gi, gj, 32)) * cc;
+        let x = x0 + (i + H(gi, gj, 31)) * cc, z = z0 + (j + H(gi, gj, 32)) * cc;
+        { const ti = Math.floor(x / 0.3), tj = Math.floor(z / 0.3), tcx = (ti + 0.2 + 0.6 * H(ti, tj, 41)) * 0.3, tcz = (tj + 0.2 + 0.6 * H(ti, tj, 42)) * 0.3; x += (tcx - x) * 0.45; z += (tcz - z) * 0.45; }
         const kind = TC.kind(x, z), K = KINDS[kind]; if (!K || !K.c) continue;
         if (H(gi, gj, 33) > K.c * E.sstep(0.12, 0.4, F.dens(x, z) + 0.15)) continue;
         const rnd = H(gi, gj, 34), y = TC.h(x, z);
@@ -131,7 +132,9 @@
         const qd = (x - x0 >= TS / 2 ? 1 : 0) + (z - z0 >= TS / 2 ? 2 : 0); for (let k = 0; k < 12; k++) carpet[qd].push(rec[k]);
       }
     }
-    return { full: full ? full.map(a => new Float32Array(a)) : null, carpet: carpet ? carpet.map(a => new Float32Array(a)) : null, mid: new Float32Array(mid), seed: new Float32Array(seed), ymin: 0, ymax: 0 };
+    // carpet blades sorted by their random value: far quadrants upload only the first 55% (the shader keeps the same ones)
+    const sortRec = (a) => { const n = a.length / 12, idx = []; for (let i = 0; i < n; i++) idx.push(i); idx.sort((p, q) => (a[p * 12 + 7] % 1) - (a[q * 12 + 7] % 1)); const o = new Float32Array(a.length); idx.forEach((k, i) => { for (let c = 0; c < 12; c++) o[i * 12 + c] = a[k * 12 + c]; }); return o; };
+    return { full: full ? full.map(a => new Float32Array(a)) : null, carpet: carpet ? carpet.map(sortRec) : null, mid: new Float32Array(mid), seed: new Float32Array(seed), ymin: 0, ymax: 0 };
   }
 
   // ------------------------------------------------------------------ blade geometry (per ring)
@@ -176,6 +179,13 @@
       // ring ownership + thinning: near ring hands over to the mid subset (rnd < uRing.w) over its last uRing.z metres
       float fo = smoothstep(uRing.y - uRing.z, uRing.y, dist);
       keep = step(uRing.x, dist) * step(dist, uRing.y);
+      #ifdef IV_CARPET
+        // full density right at the lens, thinning to 55% past 4 m; close blades broader, lower, leaning more
+        keep *= step(rnd, mix(1.0, 0.55, smoothstep(2.5, 4.5, dist)));
+        float nearK = 1.0 - smoothstep(2.0, 4.0, dist);
+        float broad = step(fract(rnd * 7.7), 0.35);
+        w *= 1.0 + nearK * broad * 1.4; h *= 1.0 - nearK * 0.2; lean += nearK * 0.25;
+      #endif
       #ifdef IV_NEAR
         keep *= step(rnd, mix(1.0, uRing.w, fo));
       #else
@@ -219,7 +229,7 @@
       return p;
     }
   `;
-  function bladeMaterial(near, seedHeads) {
+  function bladeMaterial(near, seedHeads, carpet) {
     const m = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.6, metalness: 0, envMapIntensity: 0.6 });
     m.userData.linear = true;
     const uni = {
@@ -229,7 +239,7 @@
       uTrans: { value: 1.0 }
     };
     m.userData.uniforms = uni;
-    m.defines = { IV_GRASS: '' }; if (near) m.defines.IV_NEAR = ''; if (seedHeads) m.defines.IV_SEED = '';
+    m.defines = { IV_GRASS: '' }; if (near) m.defines.IV_NEAR = ''; if (carpet) m.defines.IV_CARPET = ''; if (seedHeads) m.defines.IV_SEED = '';
     m.onBeforeCompile = function (sh) {
       Object.assign(sh.uniforms, uni);
       sh.vertexShader = BLADE_VS + sh.vertexShader
@@ -294,7 +304,7 @@
           roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.55, uWet);`)
         .replace('#include <aomap_fragment>', 'reflectedLight.indirectDiffuse *= ao; reflectedLight.indirectSpecular *= ao;');
     };
-    m.customProgramCacheKey = () => 'ivgrass' + (near ? 'n' : 'm') + (seedHeads ? 's' : '');
+    m.customProgramCacheKey = () => 'ivgrass' + (near ? 'n' : 'm') + (seedHeads ? 's' : '') + (carpet ? 'c' : '');
     return m;
   }
 
@@ -307,7 +317,7 @@
     geo.setAttribute('iB', new THREE.InterleavedBufferAttribute(buf, 4, 4));
     geo.setAttribute('iC', new THREE.InterleavedBufferAttribute(buf, 4, 8));
     geo.instanceCount = 0;
-    const mat = bladeMaterial(near, seed);
+    const mat = bladeMaterial(near, seed, name === 'carpet');
     const mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.castShadow = false; mesh.name = 'grass-' + name;
     return { name, geo, buf, cap, mesh, mat, count: 0, key: '' };
@@ -393,12 +403,13 @@
       G.warm = true; G.genMs = performance.now() - t0;
     };
     function fill(ring, tiles, field, alt) {
-      const key = field + tiles.map(t => t.tx + ':' + t.tz + (t.qd != null ? 'q' + t.qd : '')).join('|');
+      const key = field + tiles.map(t => t.tx + ':' + t.tz + (t.qd != null ? 'q' + t.qd + (field === 'carpet' && t.dq > 4.5 ? 'f' : '') : '')).join('|');
       if (key === ring.key) return; ring.key = key;
       const arr = ring.buf.array; let n = 0;
       const midFrac2 = midFrac;
       for (const t of tiles) {
         let src = (field === 'full' || field === 'carpet') ? t.t[field][t.qd] : t[field];
+        if (field === 'carpet' && t.dq > 4.5) src = src.subarray(0, Math.floor(src.length / 12 * 0.55) * 12);
         if (field === 'seed' && alt === 'mid') { // seed heads of mid blades only (rnd < midFrac)
           const out = []; for (let i = 0; i < src.length; i += 12) if (src[i + 7] % 1 < midFrac2) for (let k = 0; k < 12; k++) out.push(src[i + k]); src = out;
         }
@@ -415,6 +426,14 @@
       return o;
     };
     G.setVisible = (v) => { G.group.visible = v; };
+    // For the game's automatic quality scaling: 0.4..1 shrinks every ring (mid first, carpet last) without a reload.
+    G.baseR = { near: G.rNear, mid: G.rMid, carpet: G.rCarpet };
+    G.setScale = function (k) {
+      k = E.clamp(k, 0.3, 1); G.scale = k;
+      G.rMid = G.baseR.mid * k; G.rNear = Math.min(G.baseR.near, G.baseR.near * (0.5 + 0.5 * k)); G.rCarpet = Math.min(G.rNear, G.baseR.carpet * (0.7 + 0.3 * k));
+      for (const r of G.rings) { const u = r.mat.userData.uniforms.uRing.value; if (r.name === 'carpet') u.set(0, G.rCarpet, Math.min(3, G.rCarpet * 0.4), 0); else if (r.name === 'near' || r.name === 'seedNear') { u.x = 0; u.y = G.rNear; } else { u.x = G.rNear; u.y = G.rMid; } r.key = ''; }
+    };
+    G.counts = () => ({ near: G.rNear, mid: G.rMid, carpet: G.rCarpet, dens: E.Q.grassDens, midDens: E.Q.grassMidDens, carpetDens: E.Q.carpetDens });
     G.dispose = function () { for (const r of G.rings) { r.geo.dispose(); r.mat.dispose(); } G.tiles.clear(); };
     (E._systems = E._systems || []).push(G);
     return G;

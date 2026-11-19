@@ -1,0 +1,796 @@
+/* Midnight Ops environment: buildings, field walls and fences.
+   IVEnv.building(spec) -> { group, colliders, doors, windows, lights }
+     spec = { kind, w, d, floors, seed, damage (0..1), lit (0..1 share of lit windows), roof ('tile'|'slate') }
+     kinds: farmhouse, barn, shed, cottage, church, shoprow, ruin, bunker (alias pillbox)
+     Local space: origin on the ground at the centre of the footprint, front door faces +Z, Y up, metres.
+     colliders: [{ x, z, hx, hz, y0, y1, rot, surf, kind }] boxes in local space (rot about Y).
+     doors: [{ pivot (Object3D, rotate .rotation.y to open), width, x, z, open(angle) }]
+     windows: [{ x, y, z, nx, nz, w, h, lit }] ; lights: [{ x, y, z, color, r, power }] for lit windows and lamps.
+   IVEnv.wall(points, { type: 'stone'|'brick', h, t, gaps: [[from, to] metres along], brokenStart, brokenEnd, seed,
+                       heightFn }) -> { group, colliders }   (points are [x, z] in world or parent space)
+   IVEnv.fence(points, kind, { heightFn, seed }) -> { group, colliders }   kinds: rail, picket, barbed, hurdle
+   Everything is built brick by brick where the outline shows it: arches, sills, quoins, ridge tiles, eaves, slipped
+   and missing tiles, broken wall tops with loose bricks, rubble. Wear decals are placed where wear happens. */
+(function () {
+  'use strict';
+  const E = window.IVEnv;
+  const TAU = Math.PI * 2;
+
+  // ------------------------------------------------------------------ rocks / rubble geometry (cached)
+  const rockCache = {};
+  E.rockGeo = function (seed, detail) {
+    const k = seed + ':' + (detail || 1); if (rockCache[k]) return rockCache[k];
+    const g = new THREE.IcosahedronGeometry(1, detail || 1), p = g.attributes.position, R = E.rng(seed);
+    const sx = R.range(0.8, 1.3), sy = R.range(0.45, 0.8), sz = R.range(0.75, 1.2), o = [R() * 9, R() * 9, R() * 9];
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 0.78 + 0.35 * E.vnoise(x * 1.7 + o[0], z * 1.7 + y * 1.3 + o[1], seed) + 0.12 * E.vnoise(x * 4 + o[2], y * 4, seed + 1);
+      p.setXYZ(i, x * sx * n, Math.max(y * sy * n, -0.25 * sy), z * sz * n);
+    }
+    g.computeVertexNormals(); rockCache[k] = g; return g;
+  };
+  const _M = new THREE.Matrix4(), _Q = new THREE.Quaternion(), _Eu = new THREE.Euler(), _P = new THREE.Vector3(), _S = new THREE.Vector3();
+  function placeRock(B, mat, x, y, z, s, seed, rot, tint) {
+    _Eu.set(rot ? rot[0] : 0, rot ? rot[1] : 0, rot ? rot[2] : 0); _Q.setFromEuler(_Eu); _P.set(x, y, z); _S.set(s, s, s);
+    B.geo(mat, E.rockGeo(seed % 23, s > 0.25 ? 1 : 0), _M.compose(_P, _Q, _S), { tint });
+  }
+  // a loose brick (or any small block) lying at a random angle
+  function looseBlock(B, mat, x, y, z, R, sx, sy, sz, tint) {
+    B.box(mat, x, y, z, sx || 0.215, sy || 0.065, sz || 0.1025, R() * TAU, { rx: R.range(-0.4, 0.4), rz: R.range(-0.4, 0.4), tint });
+  }
+  E.looseBlock = looseBlock;
+  // rubble pile: bricks, stone lumps and dust, a low mound
+  function rubble(B, x, z, r, R, mats, n, y0) {
+    y0 = y0 || 0;
+    for (let i = 0; i < n; i++) {
+      const a = R() * TAU, d = Math.sqrt(R()) * r, hx = x + Math.cos(a) * d, hz = z + Math.sin(a) * d, hy = y0 + (1 - d / r) * r * 0.35 * R();
+      if (R() < 0.6) looseBlock(B, mats.brick || 'brick_red', hx, hy, hz, R, null, null, null, tintJ(R, 0.12));
+      else placeRock(B, mats.stone || 'fieldstone', hx, hy, hz, R.range(0.08, 0.22), (R() * 1000) | 0, [R() * 3, R() * 3, R() * 3]);
+    }
+    // the mound under it
+    placeRock(B, 'mud', x, y0 - r * 0.15, z, r * 0.8, (R() * 1000) | 0, [0, R() * 3, 0]);
+  }
+  const tintJ = (R, v, base) => { const k = 1 + R.range(-v, v); const c = new THREE.Color(base || 0xffffff); return new THREE.Color(c.r * k, c.g * k * (1 + R.range(-0.03, 0.03)), c.b * k); };
+
+  // ------------------------------------------------------------------ walls with openings
+  // A straight wall: from local point (x0, z0) along unit dir (dx, dz) for length L; outward normal (nx, nz) = right of dir.
+  // ops: openings [{ a0, a1, y0, y1 }]; mats: { out, in }; uStart: perimeter u for the outer face (bricks wrap corners).
+  function wallRun(B, W) {
+    const { x0, z0, dx, dz, L, T, H, y0 = 0, ops = [], mats, uStart = 0 } = W;
+    const nx = -dz, nz = dx; // outward (left of the direction of travel)
+    const xs = new Set([0, L]), ys = new Set([y0, y0 + H]);
+    for (const o of ops) { xs.add(Math.max(0, Math.min(L, o.a0))); xs.add(Math.max(0, Math.min(L, o.a1))); ys.add(Math.max(y0, Math.min(y0 + H, o.y0))); ys.add(Math.max(y0, Math.min(y0 + H, o.y1))); }
+    const X = [...xs].sort((a, b) => a - b), Y = [...ys].sort((a, b) => a - b);
+    const isOpen = (a, y) => ops.some(o => a > o.a0 && a < o.a1 && y > o.y0 && y < o.y1);
+    const P = (a, y, side) => [x0 + dx * a + nx * side * T / 2, y, z0 + dz * a + nz * side * T / 2];
+    const top = W.topAt; // optional broken top profile: topAt(a) -> y
+    for (let j = 0; j < Y.length - 1; j++) for (let i = 0; i < X.length - 1; i++) {
+      const a0 = X[i], a1 = X[i + 1], ya = Y[j], yb = Y[j + 1], am = (a0 + a1) / 2, ym = (ya + yb) / 2;
+      if (isOpen(am, ym) || a1 - a0 < 1e-4 || yb - ya < 1e-4) continue;
+      // outer face
+      B.quad(mats.out, P(a0, ya, 1), P(a1, ya, 1), P(a1, yb, 1), P(a0, yb, 1), [[uStart + a0, ya], [uStart + a1, ya], [uStart + a1, yb], [uStart + a0, yb]], W.tint, 0);
+      if (mats.in) B.quad(mats.in, P(a1, ya, -1), P(a0, ya, -1), P(a0, yb, -1), P(a1, yb, -1), [[L - a1, ya], [L - a0, ya], [L - a0, yb], [L - a1, yb]], null, W.inFoot != null ? W.inFoot : 0);
+      // reveals next to openings (and wall ends)
+      const rev = (aa, flip) => B.quad(mats.out, flip ? P(aa, ya, -1) : P(aa, ya, 1), flip ? P(aa, ya, 1) : P(aa, ya, -1), flip ? P(aa, yb, 1) : P(aa, yb, -1), flip ? P(aa, yb, -1) : P(aa, yb, 1), [[0, ya], [T, ya], [T, yb], [0, yb]], W.tint, 0);
+      if ((i > 0 && isOpen(a0 - 1e-3, ym)) || (i === 0 && W.capStart)) rev(a0, true);
+      if ((i < X.length - 2 && isOpen(a1 + 1e-3, ym)) || (i === X.length - 2 && W.capEnd)) rev(a1, false);
+      const hz = (yy, down) => { const p0 = P(a0, yy, 1), p1 = P(a1, yy, 1), p2 = P(a1, yy, -1), p3 = P(a0, yy, -1); if (down) B.quad(mats.out, p3, p2, p1, p0, [[a0, 0], [a1, 0], [a1, T], [a0, T]], W.tint, 0); else B.quad(mats.out, p0, p1, p2, p3, [[a0, 0], [a1, 0], [a1, T], [a0, T]], W.tint, 0); };
+      if (j < Y.length - 2 && isOpen(am, yb + 1e-3)) hz(yb, true);   // soffit over an opening
+      if (j > 0 && isOpen(am, ya - 1e-3)) hz(ya, false);             // sill bed under a window
+      if (j === Y.length - 2 && W.capTop !== false) hz(yb, false);
+    }
+    // colliders: one box per run of solid columns at full height, and lintel/sill boxes around openings
+    const cx = (a) => x0 + dx * a, cz = (a) => z0 + dz * a, rot = Math.atan2(-dz, dx);
+    for (let i = 0; i < X.length - 1; i++) {
+      const a0 = X[i], a1 = X[i + 1], am = (a0 + a1) / 2;
+      const segs = []; let cur = null;
+      for (let j = 0; j < Y.length - 1; j++) { const solid = !isOpen(am, (Y[j] + Y[j + 1]) / 2); if (solid) { if (!cur) cur = [Y[j], Y[j + 1]]; else cur[1] = Y[j + 1]; } else if (cur) { segs.push(cur); cur = null; } }
+      if (cur) segs.push(cur);
+      for (const s of segs) B.col(cx(am), cz(am), a1 - a0, T, s[0], s[1], rot, W.surf || 'stone', 'wall');
+    }
+  }
+  E._wallRun = wallRun;
+
+  // ------------------------------------------------------------------ window and door dressing
+  // frame + glazing bars + glass + sill + head (brick arch, stone lintel or timber lintel) + optional shutters
+  function dressWindow(B, S, o) {
+    // o: { cx, cz (centre of the opening on the wall line), dx, dz, T, w, y0, y1, head: 'arch'|'lintel'|'timber'|'pointed', sill, shutters, lit, broken }
+    const R = S.R, nx = -o.dz, nz = o.dx, rot = Math.atan2(-o.dz, o.dx);
+    const out = (d) => [o.cx + nx * d, o.cz + nz * d];
+    const inset = Math.min(0.12, o.T * 0.35), fp = out(o.T / 2 - inset - 0.03);
+    // frame (four bars) and glazing bars
+    const fw = 0.06, fd = 0.07, wood = 'wood_painted', tint = S.paintTint;
+    B.box(wood, fp[0], o.y0, fp[1], o.w, fw, fd, rot, { tint });
+    B.box(wood, fp[0], o.y1 - fw, fp[1], o.w, fw, fd, rot, { tint });
+    for (const s of [-1, 1]) { const q = [fp[0] + o.dx * s * (o.w / 2 - fw / 2), fp[1] + o.dz * s * (o.w / 2 - fw / 2)]; B.box(wood, q[0], o.y0, q[1], fw, o.y1 - o.y0, fd, rot, { tint }); }
+    const mid = (o.y0 + o.y1) / 2;
+    B.box(wood, fp[0], mid - 0.02, fp[1], o.w, 0.035, 0.04, rot, { tint });
+    B.box(wood, fp[0], o.y0, fp[1], 0.035, o.y1 - o.y0, 0.04, rot, { tint });
+    // glass panes (four), some broken out when damaged
+    const gp = out(o.T / 2 - inset - 0.03 - 0.01), hw = o.w / 2 - fw, panes = [[-1, 0], [1, 0], [-1, 1], [1, 1]];
+    for (const [sx, sy] of panes) {
+      const broken = o.broken && R() < 0.5;
+      if (broken) continue;
+      const ax = sx < 0 ? -hw : 0.02, bx = sx < 0 ? -0.02 : hw, ya = sy ? mid + 0.015 : o.y0 + fw, yb = sy ? o.y1 - fw : mid - 0.02;
+      const P = (a, y) => [gp[0] + o.dx * a, y, gp[1] + o.dz * a];
+      B.quad(o.lit ? 'glass_lit' : 'glass', P(ax, ya), P(bx, ya), P(bx, yb), P(ax, yb), [[ax, ya], [bx, ya], [bx, yb], [ax, yb]], null, null);
+    }
+    // a dark backing so an unlit window does not show the sky through the building
+    if (!o.lit && !S.interior) { const bp = out(o.T / 2 - inset - 0.2), P = (a, y) => [bp[0] + o.dx * a, y, bp[1] + o.dz * a]; B.quad('timber', P(-o.w / 2, o.y0), P(o.w / 2, o.y0), P(o.w / 2, o.y1), P(-o.w / 2, o.y1), [[0, 0], [1, 0], [1, 1], [0, 1]], new THREE.Color(0.08, 0.08, 0.08), null); }
+    // sill: dressed stone, proud of the wall and wider than the opening, with a drip and a stain under it
+    const sp = out(o.T / 2 + 0.03);
+    if (o.sill !== false) {
+      B.box(o.sillMat || 'ashlar', sp[0] - nx * 0.06, o.y0 - 0.07, sp[1] - nz * 0.06, o.w + 0.16, 0.07, 0.2, rot, { tint: tintJ(R, 0.08) });
+      B.decal('waterstain', [sp[0] + nx * 0.0, o.y0 - 0.32, sp[1] + nz * 0.0], [nx, 0, nz], o.w * 0.9, 0.45, 0);
+    }
+    // head
+    const hp = out(o.T / 2);
+    if (o.head === 'arch' || o.head === 'pointed') {
+      // a segmental (or pointed) arch of individual bricks / voussoirs, rising over the opening
+      const span = o.w + 0.02, rise = o.head === 'pointed' ? span * 0.55 : span * 0.16, mat = o.head === 'pointed' ? 'ashlar' : S.brickMat || 'brick_red';
+      const rad = o.head === 'pointed' ? span * 0.8 : (span * span / 4 + rise * rise) / (2 * rise), depth = o.head === 'pointed' ? 0.3 : 0.215;
+      const n = Math.max(7, Math.round((span + rise) / (o.head === 'pointed' ? 0.22 : 0.075)));
+      const cy = o.y1 + rise - rad;
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n;
+        let ang, cxo;
+        if (o.head === 'pointed') { const side = t < 0.5 ? -1 : 1, tt = t < 0.5 ? t * 2 : (1 - t) * 2; const a0 = Math.acos((rad - span / 2) / rad); ang = Math.PI / 2 + side * (a0 * (1 - tt)); cxo = -side * (rad - span / 2); ang = side < 0 ? Math.PI - (a0 * (1 - tt)) : a0 * (1 - tt); }
+        const half = Math.asin(Math.min(1, span / 2 / rad));
+        if (o.head !== 'pointed') ang = Math.PI / 2 + half - t * 2 * half;
+        let px, py;
+        if (o.head === 'pointed') { const side = t < 0.5 ? -1 : 1; const ccx = side < 0 ? span / 2 - rad : -span / 2 + rad; px = ccx + Math.cos(ang) * (rad + depth / 2); py = o.y1 + Math.sin(ang) * (rad + depth / 2); }
+        else { px = Math.cos(ang) * (rad + depth / 2); py = cy + Math.sin(ang) * (rad + depth / 2); }
+        const tang = ang - Math.PI / 2;
+        const wx = hp[0] + o.dx * px, wz = hp[1] + o.dz * px;
+        // each voussoir is a box turned in the wall plane: rotate about the wall normal
+        const bw = o.head === 'pointed' ? 0.2 : 0.068;
+        const g = new THREE.BoxGeometry(bw, depth, 0.1 + (o.head === 'pointed' ? 0.02 : 0));
+        _Eu.set(0, rot, 0); _Q.setFromEuler(_Eu);
+        const q2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), tang);
+        _Q.multiply(q2); _P.set(wx + nx * 0.035, py, wz + nz * 0.035); _S.set(1, 1, 1);
+        B.geo(mat, g, _M.compose(_P, _Q, _S), { tint: tintJ(R, 0.14) });
+      }
+    } else if (o.head === 'lintel') {
+      B.box('ashlar', hp[0] + nx * 0.015, o.y1, hp[1] + nz * 0.015, o.w + 0.36, 0.24, 0.12, rot, { tint: tintJ(R, 0.08) });
+    } else if (o.head === 'timber') {
+      B.box('timber', hp[0] + nx * 0.02, o.y1, hp[1] + nz * 0.02, o.w + 0.4, 0.18, 0.16, rot, { grain: 'long' });
+    }
+    // shutters: open against the wall, one sometimes hanging off a hinge
+    if (o.shutters) for (const s of [-1, 1]) {
+      const hang = S.damage > 0.3 && R() < S.damage * 0.5, sw = o.w / 2 + 0.02;
+      const q = [hp[0] + nx * 0.03 + o.dx * s * (o.w / 2 + sw / 2 + 0.02), hp[1] + nz * 0.03 + o.dz * s * (o.w / 2 + sw / 2 + 0.02)];
+      B.box(wood, q[0], o.y0 + (hang ? -0.15 : 0), q[1], sw, o.y1 - o.y0, 0.035, rot, { rz: hang ? s * 0.35 : 0, tint });
+      // ledges on the shutter
+      for (const yy of [0.15, 0.5, 0.85]) B.box(wood, q[0] + nx * 0.025, o.y0 + (o.y1 - o.y0) * yy + (hang ? -0.15 : 0), q[1] + nz * 0.025, sw * 0.9, 0.08, 0.02, rot, { rz: hang ? s * 0.35 : 0, tint });
+      if (R() < 0.6) B.decal('chipped', [q[0] + nx * 0.05, o.y0 + (o.y1 - o.y0) * 0.4, q[1] + nz * 0.05], [nx, 0, nz], sw * 0.8, 0.5, R() * 3);
+    }
+    // soot streak over a lit / once-burnt window, crack from a corner
+    if (S.damage > 0.2 && R() < S.damage) B.decal('soot', [hp[0] + nx * 0.005, o.y1 + 0.45, hp[1] + nz * 0.005], [nx, 0, nz], o.w * 1.2, 0.9, 0);
+    if (R() < 0.35 + S.damage * 0.4) B.decal('crack', [hp[0] + nx * 0.005 + o.dx * (R() < 0.5 ? -1 : 1) * o.w * 0.55, o.y1 + 0.25, hp[1] + nz * 0.005], [nx, 0, nz], 0.5, 0.6, R.range(-0.4, 0.4));
+    S.windows.push({ x: hp[0], y: (o.y0 + o.y1) / 2, z: hp[1], nx, nz, w: o.w, h: o.y1 - o.y0, lit: !!o.lit });
+    if (o.lit) S.lights.push({ x: hp[0] - nx * 0.8, y: (o.y0 + o.y1) / 2, z: hp[1] - nz * 0.8, color: 0xffb060, r: 7, power: 0.9 });
+  }
+  // door: frame, threshold stone, a hinged plank door (its own little group so it can swing), wear decals
+  function dressDoor(B, S, o, group) {
+    const R = S.R, nx = -o.dz, nz = o.dx, rot = Math.atan2(-o.dz, o.dx);
+    const fp = [o.cx + nx * (o.T / 2 - 0.1), o.cz + nz * (o.T / 2 - 0.1)];
+    const tint = S.paintTint;
+    for (const s of [-1, 1]) B.box('timber', fp[0] + o.dx * s * (o.w / 2 - 0.05), 0, fp[1] + o.dz * s * (o.w / 2 - 0.05), 0.1, o.h, 0.12, rot, { grain: 'long' });
+    B.box('timber', fp[0], o.h - 0.1, fp[1], o.w, 0.1, 0.12, rot, { grain: 'long' });
+    const tp = [o.cx + nx * (o.T / 2), o.cz + nz * (o.T / 2)];
+    if (o.threshold !== false) B.box('ashlar', tp[0] - nx * (o.T / 2 - 0.12), -0.02, tp[1] - nz * (o.T / 2 - 0.12), o.w + 0.2, 0.1, o.T + 0.24, rot, { tint: tintJ(R, 0.06, 0xb8b0a0) });
+    B.decal('mud', [tp[0] + nx * 0.25, 0.09, tp[1] + nz * 0.25], [0, 1, 0], o.w * 1.1, 0.7, R() * 0.4);
+    B.decal('grime', [tp[0] + o.dx * (o.w / 2 + 0.1), 0.95, tp[1] + o.dz * (o.w / 2 + 0.1)], [nx, 0, nz], 0.35, 0.8, 0);
+    if (o.leaf !== false) {
+      // the door leaf: boards, ledges and braces, iron latch; built in its own builder, hinged at one side
+      const D = E.builder(S.seed + 77 + S.doors.length), lw = o.w - 0.12, lh = o.h - 0.12, th = 0.05;
+      D.box('wood_painted', lw / 2, 0, 0, lw, lh, th, 0, { tint });
+      for (const yy of [0.12, 0.5, 0.86]) D.box('wood_painted', lw / 2, lh * yy - 0.06, -th / 2 - 0.012, lw - 0.06, 0.12, 0.025, 0, { tint });
+      D.box('wood_painted', lw / 2, lh * 0.18, -th / 2 - 0.012, 0.1, lh * 0.66, 0.022, 0, { rz: Math.atan2(lw * 0.85, lh * 0.66) * 0.6, tint });
+      D.box('metal_rust', lw - 0.12, lh * 0.48, th / 2 + 0.01, 0.03, 0.12, 0.03, 0, { noFoot: true });
+      D.box('metal_rust', lw - 0.2, lh * 0.53, th / 2 + 0.01, 0.16, 0.025, 0.02, 0, { noFoot: true });
+      D.decal('scratches', [lw - 0.12, lh * 0.5, th / 2 + 0.002], [0, 0, 1], 0.3, 0.35, R() * 3);
+      D.decal('chipped', [lw * 0.5, 0.25, th / 2 + 0.002], [0, 0, 1], lw * 0.9, 0.45, 0);
+      D.decal('scratches', [lw * 0.5, 0.18, th / 2 + 0.002], [0, 0, 1], lw * 0.9, 0.3, Math.PI / 2);
+      const leaf = D.finish(); const pivot = new THREE.Group();
+      const hx = o.cx - o.dx * (lw / 2) + nx * (o.T / 2 - 0.12), hz = o.cz - o.dz * (lw / 2) + nz * (o.T / 2 - 0.12);
+      pivot.position.set(hx, 0.06, hz); pivot.rotation.y = rot; pivot.add(leaf); pivot.userData.dynamic = true; group.add(pivot);
+      const door = { pivot, width: lw, x: o.cx, z: o.cz, closedY: rot, open(a) { pivot.rotation.y = rot - a; } };
+      if (o.ajar) door.open(o.ajar);
+      S.doors.push(door);
+    }
+  }
+
+  // ------------------------------------------------------------------ roofs
+  // Gable roof over a rectangle centred on the origin: ridge along X. eave: wall top height; pitch in radians.
+  function gableRoof(B, S, P) {
+    const R = S.R, ov = P.over || 0.35, gov = P.gable || 0.25, w = P.w, d = P.d, eave = P.eave, pitch = P.pitch || 0.72, mat = P.mat, th = 0.07;
+    const run = d / 2 + ov, rise = run * Math.tan(pitch), ridge = eave + (d / 2) * Math.tan(pitch);
+    const x0 = -w / 2 - gov, x1 = w / 2 + gov, L = x1 - x0, slope = Math.hypot(run, rise);
+    const sag = (x) => -P.sag * Math.sin(Math.PI * (x - x0) / L);
+    const holes = new Set();
+    const NX = Math.max(2, Math.round(L / 1.0)), NS = Math.max(2, Math.round(slope / 0.9));
+    if (S.damage > 0.25) { const nh = Math.round(S.damage * S.damage * NX * NS * 0.12); for (let k = 0; k < nh; k++) holes.add(((1 + R.int(NX - 2)) + ':' + (R.int(NS - 1)) + ':' + (R() < 0.5 ? 1 : -1))); }
+    for (const side of [1, -1]) {
+      for (let i = 0; i < NX; i++) for (let j = 0; j < NS; j++) {
+        const xa = x0 + L * i / NX, xb = x0 + L * (i + 1) / NX, ta = j / NS, tb = (j + 1) / NS;
+        const yE = eave - (ov * Math.tan(pitch));
+        const pt = (x, t, off) => { const z = side * (run - t * run), y = yE + t * (ridge - yE) + sag(x) * t + off; return [x, y, z]; };
+        const nOff = (p, k) => [p[0], p[1] + k * Math.cos(pitch), p[2] + side * k * Math.sin(pitch)];
+        const hole = holes.has(i + ':' + j + ':' + side);
+        const a = pt(xa, ta, 0), b = pt(xb, ta, 0), c = pt(xb, tb, 0), dd = pt(xa, tb, 0);
+        const sa = slope * ta, sb = slope * tb;
+        if (!hole) {
+          const A = nOff(a, th), Bp = nOff(b, th), C = nOff(c, th), D = nOff(dd, th);
+          if (side > 0) B.quad(mat, A, Bp, C, D, [[xa, sa], [xb, sa], [xb, sb], [xa, sb]], null, null);
+          else B.quad(mat, Bp, A, D, C, [[-xb, sa], [-xa, sa], [-xa, sb], [-xb, sb]], null, null);
+          // underside: roof boards
+          if (side > 0) B.quad('planks', b, a, dd, c, [[xb, sa], [xa, sa], [xa, sb], [xb, sb]], new THREE.Color(0.7, 0.66, 0.6), null);
+          else B.quad('planks', a, b, c, dd, [[xa, sa], [xb, sa], [xb, sb], [xa, sb]], new THREE.Color(0.7, 0.66, 0.6), null);
+        } else {
+          // missing tiles: battens across the hole, a few broken tiles hanging at the edge
+          for (let k = 0; k < 4; k++) { const t = ta + (tb - ta) * (k + 0.5) / 4, p = pt((xa + xb) / 2, t, -0.01); B.box('timber', p[0], p[1] - 0.012, p[2], xb - xa, 0.025, 0.05, 0, { rx: side * pitch, noFoot: true }); }
+          for (let k = 0; k < 3; k++) { const p = pt(xa + (xb - xa) * R(), ta + (tb - ta) * R() * 0.3, th); looseBlock(B, mat, p[0], p[1], p[2], R, 0.165, 0.014, 0.26); }
+        }
+        // eave edge (the tile thickness shows as a fascia board) at j == 0; gable verge at the ends
+        if (j === 0) { const A = nOff(a, th), Bp = nOff(b, th); B.quad('timber', side > 0 ? a : b, side > 0 ? b : a, side > 0 ? Bp : A, side > 0 ? A : Bp, [[0, 0], [1, 0], [1, 0.1], [0, 0.1]], null, null); }
+      }
+      // rafters' ends and barge boards along the gable edges
+      for (const ex of [x0, x1]) {
+        const a = [ex, eave - ov * Math.tan(pitch), side * run], c = [ex, ridge + sag(ex), 0], len = Math.hypot(c[1] - a[1], c[2] - a[2]);
+        B.box('timber', ex - Math.sign(ex) * 0.02, (a[1] + c[1]) / 2 - 0.11, (a[2] + c[2]) / 2, 0.05, 0.22, len, 0, { rx: side * pitch, grain: 'long', noFoot: true });
+      }
+      // a fascia board under the tiles along the eave
+      B.box('timber', 0, eave - ov * Math.tan(pitch) - 0.16, side * (run - 0.03), L, 0.18, 0.04, 0, { grain: 'long', noFoot: true });
+      // slipped tiles lying on the roof
+      for (let k = 0; k < Math.round(1 + S.damage * 6); k++) {
+        const t = R.range(0.1, 0.8), x = R.range(x0 + 0.5, x1 - 0.5), y = eave - ov * Math.tan(pitch) + t * (ridge - eave + ov * Math.tan(pitch)) + th + 0.02, z = side * (run - t * run);
+        B.box(mat, x, y, z, 0.17, 0.014, 0.27, R.range(-0.4, 0.4), { rx: side * pitch + R.range(-0.15, 0.15), noFoot: true });
+      }
+    }
+    // ridge: a row of half-round ridge tiles, each a little out of line
+    const rN = Math.ceil(L / 0.42);
+    for (let i = 0; i < rN; i++) {
+      const x = x0 + (i + 0.5) * L / rN, g = new THREE.CylinderGeometry(0.13, 0.13, L / rN + 0.01, 8, 1, false, 0, Math.PI);
+      _Eu.set(R.range(-0.03, 0.03), 0, Math.PI / 2 + R.range(-0.02, 0.02)); _Q.setFromEuler(_Eu);
+      // cylinder axis is Y; turned to X, opening downward
+      const q2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+      _Q.multiply(q2);
+      _P.set(x, ridge + sag(x) + th + 0.02, R.range(-0.01, 0.01)); _S.set(1, 1, 1);
+      B.geo(P.ridgeMat || 'roof_tile', g, _M.compose(_P, _Q, _S), { tint: tintJ(R, 0.1), noFoot: true });
+    }
+    return { ridge, eave, x0, x1, run };
+  }
+  // the triangular gable wall above the eaves (outer + inner faces), local x = +-w/2
+  function gableWall(B, S, P, xSide) {
+    const x = xSide * P.w / 2, T = P.T, eave = P.eave, ridge = P.ridge, d = P.d;
+    for (const side of [1, -1]) {
+      const xx = x + xSide * side * T / 2 * (side > 0 ? 1 : 1) * 0 + (side > 0 ? xSide * T / 2 : -xSide * T / 2);
+      const mat = side > 0 ? P.out : P.in; if (!mat) continue;
+      const A = [xx, eave, -d / 2], Bp = [xx, eave, d / 2], C = [xx, ridge, 0];
+      const fwd = (xSide > 0) === (side > 0);
+      const uA = P.uStart != null ? P.uStart : 0;
+      if (fwd) B.tri(mat, A, C, Bp, [[uA, eave], [uA + d / 2, ridge], [uA + d, eave]], null, 0);
+      else B.tri(mat, Bp, C, A, [[uA + d, eave], [uA + d / 2, ridge], [uA, eave]], null, 0);
+    }
+  }
+  // corner quoins: alternating long and short dressed stones, slightly proud
+  function quoins(B, S, w, d, H, T) {
+    const R = S.R; let y = 0, k = 0;
+    while (y < H - 0.1) {
+      const h = Math.min(0.3, H - y), long = k % 2 === 0;
+      for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+        const tint = tintJ(R, 0.1, 0xb0aaa0), la = long ? 0.42 : 0.24, lb = long ? 0.24 : 0.42;
+        B.box('ashlar', sx * (w / 2 - la / 2 + 0.015), y, sz * (d / 2 + 0.015) - sz * 0.0, la + 0.03, h - 0.012, 0.03 + 0.001, 0, { tint });
+        B.box('ashlar', sx * (w / 2 + 0.015) - sx * 0.0, y, sz * (d / 2 - lb / 2 + 0.015), 0.03 + 0.001, h - 0.012, lb + 0.03, 0, { tint });
+      }
+      y += h; k++;
+    }
+  }
+  function chimney(B, S, x, z, base, top, sooty) {
+    const R = S.R, mat = sooty ? 'brick_sooty' : 'brick_red';
+    B.box(mat, x, base, z, 0.62, top - base, 0.5, 0, { noFoot: true });
+    B.box(mat, x, top - 0.12, z, 0.72, 0.14, 0.6, 0, { noFoot: true });
+    for (const s of [-0.13, 0.15]) { const g = new THREE.CylinderGeometry(0.075, 0.09, 0.32 + R() * 0.1, 10); B.geo('roof_tile', g, _M.compose(_P.set(x + s, top + 0.16, z), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true, tint: tintJ(R, 0.1) }); }
+    B.decal('soot', [x, top - 0.45, z + 0.252], [0, 0, 1], 0.6, 0.9, 0); B.decal('soot', [x, top - 0.45, z - 0.252], [0, 0, -1], 0.6, 0.9, 0);
+    B.decal('soot', [x + 0.312, top - 0.45, z], [1, 0, 0], 0.5, 0.9, 0); B.decal('soot', [x - 0.312, top - 0.45, z], [-1, 0, 0], 0.5, 0.9, 0);
+  }
+
+  // ------------------------------------------------------------------ interiors
+  function furn(B, S, kind, x, z, rot) {
+    const R = S.R, c = Math.cos(rot || 0), s = Math.sin(rot || 0), L = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];
+    const add = (mat, lx, y0, lz, sx, sy, sz, o) => { const p = L(lx, lz); B.box(mat, p[0], y0 + (S.fy || 0), p[1], sx, sy, sz, rot || 0, Object.assign({ grain: 'long', foot: S.fy || 0 }, o || {})); };
+    const col = (sx, sz, h) => B.col(x, z, sx, sz, S.fy || 0, (S.fy || 0) + h, rot || 0, 'wood', 'furniture');
+    if (kind === 'table') { add('timber', 0, 0.72, 0, 1.6, 0.06, 0.85); for (const [a, b] of [[-0.7, -0.35], [0.7, -0.35], [-0.7, 0.35], [0.7, 0.35]]) add('timber', a, 0, b, 0.07, 0.72, 0.07); add('timber', 0, 0.55, 0, 1.4, 0.08, 0.04); B.decal('scratches', [x, (S.fy || 0) + 0.783, z], [0, 1, 0], 0.8, 0.5, rot || 0); col(1.6, 0.85, 0.78); }
+    else if (kind === 'chair') { add('timber', 0, 0.44, 0, 0.42, 0.04, 0.42); for (const [a, b] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) add('timber', a, 0, b, 0.04, 0.44, 0.04); for (const a of [-0.18, 0.18]) add('timber', a, 0.44, -0.19, 0.04, 0.5, 0.04); add('timber', 0, 0.8, -0.19, 0.4, 0.08, 0.03); }
+    else if (kind === 'dresser') { add('planks', 0, 0, 0, 1.4, 0.9, 0.5, { tint: new THREE.Color(0.8, 0.7, 0.6) }); add('timber', 0, 0.9, 0, 1.46, 0.04, 0.54); add('planks', 0, 0.94, -0.2, 1.4, 1.0, 0.04, { tint: new THREE.Color(0.8, 0.7, 0.6) }); for (const yy of [1.2, 1.5]) add('timber', 0, yy, -0.1, 1.36, 0.03, 0.22); for (let k = 0; k < 5; k++) { const p = L(-0.5 + k * 0.25, -0.08); B.geo('roof_tile', new THREE.CylinderGeometry(0.06, 0.05, 0.12, 10), _M.compose(_P.set(p[0], (S.fy || 0) + 1.29, p[1]), _Q.identity(), _S.set(1, 1, 1)), { tint: new THREE.Color(0.9, 0.9, 0.85) }); } col(1.46, 0.54, 1.94); }
+    else if (kind === 'cupboard') { add('wood_painted', 0, 0, 0, 1.0, 1.9, 0.55, { tint: S.paintTint }); add('timber', 0, 1.9, 0, 1.06, 0.06, 0.6); B.decal('chipped', L(0, 0.28).concat([]).length ? [L(0, 0.28)[0], (S.fy || 0) + 0.6, L(0, 0.28)[1]] : [0, 0, 0], [s, 0, c], 0.8, 0.8, 0); col(1.06, 0.6, 1.96); }
+    else if (kind === 'bed') { add('timber', 0, 0, 0, 1.0, 0.4, 2.0); add('canvas', 0, 0.4, 0.05, 0.94, 0.14, 1.9, { tint: new THREE.Color(0.9, 0.88, 0.8) }); add('timber', 0, 0, -1.0, 1.06, 0.9, 0.06); col(1.0, 2.0, 0.55); }
+    else if (kind === 'desk') { add('timber', 0, 0.74, 0, 1.3, 0.05, 0.7); add('timber', -0.45, 0, 0, 0.4, 0.74, 0.66); add('timber', 0.6, 0, 0, 0.05, 0.74, 0.66); add('canvas', 0.1, 0.79, 0.05, 0.5, 0.004, 0.35, { tint: new THREE.Color(1.2, 1.15, 1.0) }); add('canvas', -0.2, 0.795, -0.1, 0.3, 0.004, 0.22, { tint: new THREE.Color(1.1, 1.05, 0.9), rz: 0 }); col(1.3, 0.7, 0.8); }
+    else if (kind === 'bench') { add('timber', 0, 0.42, 0, 1.6, 0.05, 0.3); for (const a of [-0.65, 0.65]) add('timber', a, 0, 0, 0.06, 0.42, 0.26); }
+    else if (kind === 'stove') { add('metal_rust', 0, 0, 0, 0.8, 0.75, 0.6, { noFoot: true }); add('metal_painted', 0, 0.75, 0, 0.84, 0.04, 0.64, { tint: new THREE.Color(0.25, 0.25, 0.25), noFoot: true }); const g = new THREE.CylinderGeometry(0.07, 0.07, 1.8, 10); const p = L(0.25, -0.2); B.geo('metal_rust', g, _M.compose(_P.set(p[0], (S.fy || 0) + 1.7, p[1]), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true }); col(0.8, 0.6, 0.8); }
+    else if (kind === 'barrel') { const g = new THREE.CylinderGeometry(0.28, 0.28, 0.85, 14); g.attributes.position.array.forEach((v, i, a) => { if (i % 3 === 0 || i % 3 === 2) { const y = a[i - (i % 3) + 1]; a[i] = v * (1 + 0.12 * (1 - (y / 0.425) ** 2)); } }); g.computeVertexNormals(); B.geo('planks', g, _M.compose(_P.set(x, (S.fy || 0) + 0.425, z), _Q.identity(), _S.set(1, 1, 1)), { keepUv: true, uvW: 1.8, uvH: 0.85 }); for (const yy of [0.12, 0.73]) B.geo('metal_rust', new THREE.CylinderGeometry(0.315, 0.315, 0.04, 14, 1, true), _M.compose(_P.set(x, (S.fy || 0) + yy, z), _Q.identity(), _S.set(1, 1, 1)), {}); col(0.6, 0.6, 0.85); }
+  }
+  function fireplace(B, S, x, z, rot) {
+    const c = Math.cos(rot), s = Math.sin(rot), L = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];
+    const a = (mat, lx, y, lz, sx, sy, sz, o) => { const p = L(lx, lz); B.box(mat, p[0], y + (S.fy || 0), p[1], sx, sy, sz, rot, o); };
+    a('fieldstone', -0.75, 0, 0.1, 0.4, 1.3, 0.55); a('fieldstone', 0.75, 0, 0.1, 0.4, 1.3, 0.55);
+    a('timber', 0, 1.3, 0.12, 1.95, 0.25, 0.6, { grain: 'long' });
+    a('brick_sooty', 0, 0, -0.12, 1.1, 1.3, 0.1);
+    a('ashlar', 0, -0.02, 0.25, 2.0, 0.06, 0.8, { tint: new THREE.Color(0.55, 0.52, 0.48) });
+    const p = L(0, 0.0); B.decal('scorch', [p[0], (S.fy || 0) + 0.06, p[1]], [0, 1, 0], 1.0, 0.7, rot);
+    const ps = L(0, 0.41); B.decal('soot', [ps[0], (S.fy || 0) + 1.75, ps[1]], [s, 0, c], 1.6, 0.9, 0);
+    for (let k = 0; k < 3; k++) { const q = L(-0.2 + k * 0.2, 0.05); B.box('bark_oak', q[0], (S.fy || 0) + 0.08 + k * 0.03, q[1], 0.6, 0.1, 0.1, rot + 0.3 * k, { noFoot: true, tint: new THREE.Color(0.5, 0.45, 0.4) }); }
+    B.col(x, z, 2.0, 0.8, S.fy || 0, (S.fy || 0) + 1.55, rot, 'stone', 'fireplace');
+  }
+  function floorDeck(B, S, w, d, y, T, mat, hole) {
+    // boards on joists; hole = { x0, x1, z0, z1 } left open for the stairs
+    const iw = w - 2 * T, id = d - 2 * T;
+    const pieces = hole ? [[-iw / 2, hole.x0, -id / 2, id / 2], [hole.x1, iw / 2, -id / 2, id / 2], [hole.x0, hole.x1, -id / 2, hole.z0], [hole.x0, hole.x1, hole.z1, id / 2]] : [[-iw / 2, iw / 2, -id / 2, id / 2]];
+    for (const [xa, xb, za, zb] of pieces) if (xb - xa > 0.01 && zb - za > 0.01) { B.box(mat, (xa + xb) / 2, y - 0.03, (za + zb) / 2, xb - xa, 0.03, zb - za, 0, { grain: 'long', noFoot: true }); B.col((xa + xb) / 2, (za + zb) / 2, xb - xa, zb - za, y - 0.25, y, 0, 'wood', 'floor'); }
+    // joists across the depth, seen from the room below
+    for (let x = -iw / 2 + 0.3; x < iw / 2 - 0.1; x += 0.6) { if (hole && x > hole.x0 && x < hole.x1) continue; B.box('timber', x, y - 0.23, 0, 0.12, 0.2, id, 0, { grain: 'long', noFoot: true }); }
+    B.box('timber', 0, y - 0.3, 0, iw, 0.26, 0.24, 0, { grain: 'long', noFoot: true });   // the main beam
+  }
+  function stairs(B, S, x0, z0, dirX, y0, y1, width) {
+    const n = Math.round((y1 - y0) / 0.2), rise = (y1 - y0) / n, run = 0.25;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + dirX * (i + 0.5) * run;
+      B.box('floorboards', x, y0 + i * rise + rise - 0.035, z0, run + 0.02, 0.035, width, 0, { noFoot: true });
+      B.box('planks', x + dirX * run * 0.45, y0 + i * rise, z0, 0.02, rise, width, 0, { noFoot: true, tint: new THREE.Color(0.7, 0.65, 0.6) });
+      B.col(x, z0, run, width, y0, y0 + i * rise + rise, 0, 'wood', 'stairs');
+    }
+    for (const s of [-1, 1]) { const len = Math.hypot(n * run, y1 - y0); B.box('timber', x0 + dirX * n * run / 2, y0 + (y1 - y0) / 2 - 0.15, z0 + s * (width / 2 + 0.03), len, 0.25, 0.05, 0, { rz: -dirX * Math.atan2(y1 - y0, n * run), grain: 'long', noFoot: true }); }
+  }
+
+  // ------------------------------------------------------------------ house-like buildings
+  // Shared by farmhouse, cottage, shop units, church nave: four walls with openings, gable roof, details.
+  function house(B, S, H) {
+    const { w, d, T, floors, storey } = H, R = S.R, wallH = floors * storey + (H.knee || 0);
+    const mats = { out: H.out, in: H.in };
+    // plinth course
+    if (H.plinth) { B.box(H.plinth, 0, -0.3, 0, w + 0.08, 0.6, d + 0.08, 0, { tint: tintJ(R, 0.05) }); }
+    // openings per side from the layout
+    const sides = [
+      { name: 'front', x0: -w / 2, z0: d / 2, dx: 1, dz: 0, L: w, ops: H.front || [] },
+      { name: 'right', x0: w / 2, z0: d / 2, dx: 0, dz: -1, L: d, ops: H.right || [] },
+      { name: 'back', x0: w / 2, z0: -d / 2, dx: -1, dz: 0, L: w, ops: H.back || [] },
+      { name: 'left', x0: -w / 2, z0: -d / 2, dx: 0, dz: 1, L: d, ops: H.left || [] }
+    ];
+    let u = 0;
+    for (const sd of sides) {
+      // walls on the sides are inset by the thickness so the corners overlap cleanly
+      const along = sd.name === 'front' || sd.name === 'back';
+      const W = {
+        x0: sd.x0 + sd.dz * (T / 2) * 0 - sd.dz * 0, z0: sd.z0, dx: sd.dx, dz: sd.dz, L: sd.L, T, H: wallH, ops: sd.ops, mats, uStart: u, surf: H.surf,
+        capStart: false, capEnd: false
+      };
+      // shift the wall inward by T/2 (its centre line)
+      const nx = -sd.dz, nz = sd.dx; W.x0 -= nx * T / 2; W.z0 -= nz * T / 2;
+      if (!along) { W.x0 += sd.dx * T; W.z0 += sd.dz * T; W.L -= 2 * T; }
+      wallRun(B, W);
+      // dress the openings
+      for (const o of sd.ops) {
+        const am = (o.a0 + o.a1) / 2 - (along ? 0 : T), cx = W.x0 + sd.dx * am, cz = W.z0 + sd.dz * am;
+        if (o.door) dressDoor(B, S, { cx, cz, dx: sd.dx, dz: sd.dz, T, w: o.a1 - o.a0, h: o.y1 - o.y0, ajar: o.ajar, leaf: o.leaf, threshold: o.threshold }, S.group);
+        else dressWindow(B, S, { cx, cz, dx: sd.dx, dz: sd.dz, T, w: o.a1 - o.a0, y0: o.y0, y1: o.y1, head: o.head || H.head, shutters: o.shutters != null ? o.shutters : H.shutters, lit: o.lit, broken: o.broken, sill: H.sill, sillMat: H.sillMat });
+        if (o.door && H.head && H.head !== 'none') dressWindow; // (door heads use the same dressing below)
+        if (o.door && H.doorHead) { const nn = [-sd.dz, sd.dx], hp = [cx + nn[0] * T / 2, cz + nn[1] * T / 2]; if (H.doorHead === 'lintel') B.box('ashlar', hp[0] + nn[0] * 0.015, o.y1, hp[1] + nn[1] * 0.015, o.a1 - o.a0 + 0.4, 0.26, 0.12, Math.atan2(-sd.dz, sd.dx), { tint: tintJ(R, 0.06) }); else if (H.doorHead === 'timber') B.box('timber', hp[0] + nn[0] * 0.02, o.y1, hp[1] + nn[1] * 0.02, o.a1 - o.a0 + 0.4, 0.2, 0.16, Math.atan2(-sd.dz, sd.dx), { grain: 'long' }); }
+      }
+      // wear along the foot of the wall and the odd bullet pock
+      for (let k = 0; k < Math.round(sd.L / 3); k++) {
+        const a = R.range(0.3, sd.L - 0.3), p = [W.x0 + sd.dx * a + nx * (T / 2 + 0.001), W.z0 + sd.dz * a + nz * (T / 2 + 0.001)];
+        if (sd.ops.some(o => a > o.a0 - 0.2 && a < o.a1 + 0.2 && o.door)) continue;
+        B.decal(R() < 0.5 ? 'moss' : 'mud', [p[0], R.range(0.1, 0.3), p[1]], [nx, 0, nz], R.range(0.6, 1.4), R.range(0.3, 0.6), 0);
+        if (R() < 0.3) B.decal('waterstain', [p[0], R.range(0.5, wallH - 0.5), p[1]], [nx, 0, nz], R.range(0.8, 1.6), R.range(0.8, 1.6), R() * 3);
+      }
+      const pocks = Math.round(S.damage * sd.L * 0.6);
+      for (let k = 0; k < pocks; k++) { const a = R.range(0.3, sd.L - 0.3), p = [W.x0 + sd.dx * a + nx * (T / 2), W.z0 + sd.dz * a + nz * (T / 2)]; B.decal(R() < 0.7 ? 'pocks' : 'bullethole', [p[0], R.range(0.4, wallH - 0.3), p[1]], [nx, 0, nz], R.range(0.25, 0.6), null, R() * 6); }
+      u += sd.L;
+    }
+    if (H.quoins) quoins(B, S, w, d, wallH, T);
+    // roof and gables
+    const roof = gableRoof(B, S, { w, d, eave: wallH, pitch: H.pitch || 0.75, mat: H.roof, sag: H.sag != null ? H.sag : 0.04 + S.damage * 0.08, over: H.over, gable: H.gableOver });
+    for (const xs of [1, -1]) gableWall(B, S, { w: w - T, d: d - 0.001, T, eave: wallH, ridge: roof.ridge - 0.05, out: H.out, in: H.in, uStart: 0 }, xs);
+    B.col(-w / 2 + T / 2, 0, T, d, wallH, roof.ridge, 0, H.surf || 'stone', 'gable'); B.col(w / 2 - T / 2, 0, T, d, wallH, roof.ridge, 0, H.surf || 'stone', 'gable');
+    S.roofTop = roof.ridge;
+    return { wallH, ridge: roof.ridge };
+  }
+  // window / door layout along a wall of length L for n bays
+  function bays(L, n, y0, y1, extra) { const out = []; for (let i = 0; i < n; i++) { const c = L * (i + 0.5) / n, w = (extra && extra.w) || 0.9; out.push(Object.assign({ a0: c - w / 2, a1: c + w / 2, y0, y1 }, extra || {})); } return out; }
+
+  // ------------------------------------------------------------------ the kinds
+  const KINDS = {};
+  KINDS.farmhouse = function (B, S, sp) {
+    const w = sp.w || 12, d = sp.d || 7.5, floors = sp.floors || 2, storey = 2.8, T = 0.5, R = S.R;
+    const litW = (i) => R() < (sp.lit || 0);
+    const front = [];
+    const nb = Math.max(3, Math.round(w / 3)), mid = Math.floor(nb / 2);
+    for (let f = 0; f < floors; f++) for (let i = 0; i < nb; i++) {
+      const c = w * (i + 0.5) / nb;
+      if (f === 0 && i === mid) front.push({ a0: c - 0.55, a1: c + 0.55, y0: 0, y1: 2.15, door: true, ajar: sp.doorAjar || 0 });
+      else front.push({ a0: c - 0.5, a1: c + 0.5, y0: f * storey + 0.9, y1: f * storey + 2.25 - (f ? 0.15 : 0), lit: litW(), broken: R() < sp.damage * 0.6, shutters: true });
+    }
+    const back = []; for (let f = 0; f < floors; f++) for (let i = 0; i < nb - 1; i++) { const c = w * (i + 0.5) / (nb - 1); if (f === 0 && i === 0) back.push({ a0: c - 0.45, a1: c + 0.45, y0: 0, y1: 2.05, door: true }); else back.push({ a0: c - 0.45, a1: c + 0.45, y0: f * storey + 0.95, y1: f * storey + 2.15, lit: litW(), broken: R() < sp.damage * 0.6, shutters: true }); }
+    const right = [{ a0: d / 2 - 0.4 - 0.5, a1: d / 2 - 0.4 + 0.5, y0: storey + 0.95, y1: storey + 2.1, lit: litW() }];
+    const H = { w, d, T, floors, storey, out: 'fieldstone', in: 'plaster_interior', roof: sp.roof === 'slate' ? 'slate' : 'roof_tile', head: 'lintel', doorHead: 'lintel', shutters: true, quoins: true, front, back, right, left: [], pitch: 0.78, surf: 'stone' };
+    const r = house(B, S, H);
+    chimney(B, S, -w / 2 + T + 0.31, -0.3, 0, r.ridge + 0.9, true);
+    if (w > 10) chimney(B, S, w / 2 - T - 0.31, 0.4, 0, r.ridge + 0.75, false);
+    // interior: ground floor flags, upper floor, stairs, a partition with a doorway, fireplace, furniture
+    B.box('ashlar', 0, -0.05, 0, w - 2 * T, 0.06, d - 2 * T, 0, { tint: new THREE.Color(0.62, 0.6, 0.56), noFoot: true });
+    const sx0 = w / 2 - T - 0.35 - 3.8, hole = { x0: sx0, x1: w / 2 - T, z0: -d / 2 + T, z1: -d / 2 + T + 1.0 };
+    for (let f = 1; f < floors; f++) floorDeck(B, S, w, d, f * storey, T, 'floorboards', f === 1 ? hole : null);
+    stairs(B, S, w / 2 - T - 0.2, -d / 2 + T + 0.5, -1, 0, storey, 0.9);
+    // partition wall (plaster both sides) with a doorway, splitting off the office at the right end
+    const px = w / 2 - T - 3.6;
+    wallRun(B, { x0: px, z0: d / 2 - T, dx: 0, dz: -1, L: d - 2 * T - 1.2, T: 0.14, H: storey - 0.32, ops: [{ a0: 0.6, a1: 1.5, y0: 0, y1: 2.0 }], mats: { out: 'plaster_interior', in: 'plaster_interior' }, surf: 'stone', capStart: true, capEnd: true });
+    fireplace(B, S, -w / 2 + T + 0.45, -0.3, Math.PI / 2);
+    S.fy = 0;
+    furn(B, S, 'table', -1.2, 0.6, 0); furn(B, S, 'chair', -1.6, 1.25, Math.PI); furn(B, S, 'chair', -0.6, 0.0, 0.2); furn(B, S, 'bench', -1.2, -0.2, 0);
+    furn(B, S, 'dresser', -2.2, -d / 2 + T + 0.3, 0); furn(B, S, 'stove', 0.9, -d / 2 + T + 0.4, 0);
+    furn(B, S, 'desk', w / 2 - T - 1.0, d / 2 - T - 0.8, Math.PI); furn(B, S, 'chair', w / 2 - T - 1.0, d / 2 - T - 1.4, 0.3); furn(B, S, 'cupboard', px + 0.45, -d / 2 + T + 1.6, -Math.PI / 2);
+    furn(B, S, 'barrel', -w / 2 + T + 1.6, d / 2 - T - 0.5);
+    if (floors > 1) { S.fy = storey; furn(B, S, 'bed', -w / 2 + T + 2.0, -d / 2 + T + 1.1, 0); furn(B, S, 'bed', -0.5, -d / 2 + T + 1.1, 0); furn(B, S, 'cupboard', 1.8, d / 2 - T - 0.35, Math.PI); furn(B, S, 'chair', -2.5, 1.5, 1.0); S.fy = 0; }
+    S.lights.push({ x: -1.2, y: 2.2, z: 0.6, color: 0xffa860, r: 6, power: sp.lit ? 1.2 : 0, interior: true });
+  };
+  KINDS.cottage = function (B, S, sp) {
+    const w = sp.w || 8, d = sp.d || 6, T = 0.3, storey = 2.6, R = S.R, floors = sp.floors || 1;
+    const front = [{ a0: w / 2 - 0.5, a1: w / 2 + 0.5, y0: 0, y1: 2.05, door: true }, ...bays(w, 2, 0.9, 2.05, { w: 0.9 }).map((o, i) => Object.assign(o, { a0: i ? w * 0.8 - 0.45 : w * 0.2 - 0.45, a1: i ? w * 0.8 + 0.45 : w * 0.2 + 0.45, lit: R() < (sp.lit || 0), broken: R() < sp.damage * 0.6 }))];
+    const back = bays(w, 2, 0.95, 2.0, { w: 0.8 }).map(o => Object.assign(o, { lit: R() < (sp.lit || 0) }));
+    const r = house(B, S, { w, d, T, floors, storey, knee: floors === 1 ? 0.4 : 0, out: 'brick_red', in: 'plaster_interior', roof: sp.roof === 'tile' ? 'roof_tile' : 'slate', head: 'arch', doorHead: 'timber', shutters: false, quoins: false, front, back, right: [{ a0: d / 2 - 0.4, a1: d / 2 + 0.4, y0: storey * floors - 0.2, y1: storey * floors + 0.8 }], left: [], pitch: 0.8, plinth: 'brick_sooty', sill: true, surf: 'stone' });
+    chimney(B, S, w / 2 - T - 0.31, 0, 0, r.ridge + 0.8, true);
+    B.box('floorboards', 0, -0.03, 0, w - 2 * T, 0.03, d - 2 * T, 0, { noFoot: true });
+  };
+  KINDS.shoprow = function (B, S, sp) {
+    const n = sp.units || 3, uw = sp.w ? sp.w / n : 5.4, d = sp.d || 8, R = S.R, T = 0.3, storey = 3.0;
+    const NAMES = ['BOULANGERIE', 'EPICERIE', 'QUINCAILLERIE', 'CAFE DU PONT', 'MERCERIE', 'TABAC', 'BOUCHERIE', 'HORLOGERIE'];
+    for (let i = 0; i < n; i++) {
+      const ox = (i - (n - 1) / 2) * uw, Bu = E.builder(S.seed + i * 13), floors = 2 + (R() < 0.3 ? 1 : 0);
+      const Su = Object.assign({}, S, { R: E.rng(S.seed + i * 13), windows: [], lights: [], doors: [], group: new THREE.Group() });
+      const plaster = R() < 0.35;
+      const front = [{ a0: uw * 0.72 - 0.5, a1: uw * 0.72 + 0.5, y0: 0, y1: 2.3, door: true }, { a0: 0.45, a1: uw * 0.55, y0: 0.6, y1: 2.5, lit: R() < (sp.lit || 0), broken: R() < sp.damage * 0.7, head: 'timber' }];
+      for (let f = 1; f < floors; f++) for (const c of [uw * 0.27, uw * 0.73]) front.push({ a0: c - 0.45, a1: c + 0.45, y0: f * storey + 0.9, y1: f * storey + 2.2, lit: R() < (sp.lit || 0) * 0.6, broken: R() < sp.damage * 0.5, shutters: plaster });
+      const r = house(Bu, Su, { w: uw, d, T, floors, storey, out: plaster ? 'plaster' : (R() < 0.3 ? 'brick_sooty' : 'brick_red'), in: 'plaster_interior', roof: R() < 0.6 ? 'slate' : 'roof_tile', head: plaster ? 'lintel' : 'arch', doorHead: 'timber', front, back: bays(uw, 2, storey + 0.9, storey + 2.1, { w: 0.8 }), left: [], right: [], pitch: 0.7 + R() * 0.15, quoins: plaster, sag: 0.03 + R() * 0.05, gableOver: 0.02, over: 0.3 });
+      // fascia sign with a painted name (invented shop words only)
+      const sign = signMesh(NAMES[(S.seed + i * 3) % NAMES.length], uw - 0.6, 0.45, Su.R);
+      sign.position.set(ox, 2.62, d / 2 + 0.06); S.group.add(sign);
+      Bu.box('timber', 0, 2.55, d / 2 + 0.02, uw - 0.4, 0.62, 0.06, 0, { grain: 'long', tint: new THREE.Color(0.55, 0.5, 0.45) });
+      chimney(Bu, Su, uw / 2 - 0.35, -1, r.wallH - 1, r.ridge + 1.0, true);
+      const g = Bu.finish(); g.position.x = ox; S.group.add(g);
+      Su.colliders = Bu.colliders.map(c => Object.assign(c, { x: c.x + ox })); S.extraCols.push(...Su.colliders);
+      for (const wv of Su.windows) S.windows.push(Object.assign(wv, { x: wv.x + ox })); for (const l of Su.lights) S.lights.push(Object.assign(l, { x: l.x + ox }));
+      for (const dr of Su.doors) { dr.pivot.parent.remove(dr.pivot); dr.pivot.position.x += ox; S.group.add(dr.pivot); S.doors.push(dr); }
+      for (const c of Su.group.children.slice()) { c.position.x += ox; S.group.add(c); }
+    }
+  };
+  function signMesh(text, w, h, R) {
+    const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w);
+    const g = c.getContext('2d'); g.fillStyle = '#2c3a33'; g.fillRect(0, 0, c.width, c.height);
+    g.font = 'bold ' + Math.round(c.height * 0.6) + 'px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#c9b98a'; g.fillText(text, c.width / 2, c.height * 0.55);
+    // weathering: flaked paint and grime
+    for (let i = 0; i < 400; i++) { g.fillStyle = `rgba(${R() < 0.5 ? '20,18,14' : '90,80,64'},${R() * 0.35})`; g.fillRect(R() * c.width, R() * c.height, R() * 6, R() * 3); }
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
+    const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.85 }); m.userData.linear = true;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); mesh.receiveShadow = true; return mesh;
+  }
+  KINDS.barn = function (B, S, sp) {
+    const w = sp.w || 10, d = sp.d || 16, R = S.R, T = 0.45, base = 1.1, eave = 4.6;
+    // a stone plinth wall, then vertical boards on a timber frame; the long side faces +Z (big doors)
+    // here the ridge runs along the barn's length: we build it rotated so the length is local X
+    const L = d, Wd = w;
+    const dw = 3.4, dh = 3.6;
+    // stone lower walls
+    const sides = [
+      { x0: -L / 2, z0: Wd / 2, dx: 1, dz: 0, len: L, ops: [{ a0: L / 2 - dw / 2, a1: L / 2 + dw / 2, y0: 0, y1: 3.0 }] },
+      { x0: L / 2, z0: Wd / 2, dx: 0, dz: -1, len: Wd, ops: [{ a0: Wd / 2 - 0.5, a1: Wd / 2 + 0.5, y0: 0, y1: 2.0 }] },
+      { x0: L / 2, z0: -Wd / 2, dx: -1, dz: 0, len: L, ops: [] },
+      { x0: -L / 2, z0: -Wd / 2, dx: 0, dz: 1, len: Wd, ops: [] }
+    ];
+    let u = 0;
+    for (const sd of sides) {
+      const nx = -sd.dz, nz = sd.dx, along = sd.dx !== 0;
+      const W = { x0: sd.x0 - nx * T / 2, z0: sd.z0 - nz * T / 2, dx: sd.dx, dz: sd.dz, L: sd.len, T, H: base, ops: sd.ops.map(o => Object.assign({}, o, { y1: Math.min(o.y1, base + 0.01) })), mats: { out: 'fieldstone', in: 'fieldstone' }, uStart: u, surf: 'stone' };
+      if (!along) { W.x0 += sd.dx * T; W.z0 += sd.dz * T; W.L -= 2 * T; }
+      wallRun(B, W);
+      // boarded upper walls: vertical planks on the outside of a timber frame
+      const bt = 0.04, H2 = eave - base;
+      const W2 = { x0: sd.x0 - nx * bt / 2, z0: sd.z0 - nz * bt / 2, dx: sd.dx, dz: sd.dz, L: sd.len, T: bt, H: H2, y0: base, ops: sd.ops.concat(along && sd.z0 > 0 ? [{ a0: L * 0.2 - 0.6, a1: L * 0.2 + 0.6, y0: 3.0, y1: 4.1 }] : []).map(o => Object.assign({}, o)), mats: { out: 'planks', in: 'planks' }, uStart: u, surf: 'wood', capTop: true };
+      wallRun(B, W2);
+      // posts of the frame inside, every 2.5 m, and a wall plate
+      for (let a = 0; a <= sd.len + 0.01; a += sd.len / Math.round(sd.len / 2.5)) {
+        if (sd.ops.some(o => a > o.a0 - 0.1 && a < o.a1 + 0.1)) continue;
+        const px = sd.x0 + sd.dx * a - nx * (bt + 0.1), pz = sd.z0 + sd.dz * a - nz * (bt + 0.1);
+        B.box('timber', px, base, pz, 0.2, H2, 0.2, 0, { grain: 'long', noFoot: true });
+      }
+      B.box('timber', sd.x0 + sd.dx * sd.len / 2 - nx * (bt + 0.1), eave - 0.22, sd.z0 + sd.dz * sd.len / 2 - nz * (bt + 0.1), along ? sd.len : 0.22, 0.22, along ? 0.22 : sd.len, 0, { grain: 'long', noFoot: true });
+      // wear on the lower boards
+      for (let k = 0; k < Math.round(sd.len / 2); k++) B.decal(R() < 0.5 ? 'mud' : 'grime', [sd.x0 + sd.dx * R.range(0.5, sd.len - 0.5) + nx * 0.025, base + R.range(0.2, 0.6), sd.z0 + sd.dz * R.range(0.5, sd.len - 0.5) + nz * 0.025], [nx, 0, nz], R.range(0.6, 1.4), 0.5, 0);
+      u += sd.len;
+    }
+    // big doors: two leaves hung open, frame, and the loft hatch
+    for (const s of [-1, 1]) {
+      const D = E.builder(S.seed + 40 + s), lw = dw / 2 - 0.05;
+      D.box('planks', lw / 2, 0, 0, lw, dh - 0.05, 0.05, 0, {});
+      for (const yy of [0.15, 0.5, 0.85]) D.box('timber', lw / 2, (dh - 0.05) * yy - 0.08, 0.04, lw - 0.05, 0.16, 0.04, 0, { grain: 'long' });
+      D.box('timber', lw / 2, 0.4, 0.04, 0.14, dh - 0.9, 0.035, 0, { rz: s * 0.62, grain: 'long' });
+      D.decal('mud', [lw / 2, 0.25, 0.03], [0, 0, 1], lw * 0.9, 0.5, 0); D.decal('scratches', [lw / 2, 1.0, 0.03], [0, 0, 1], lw * 0.7, 0.6, 0.3);
+      const leaf = D.finish(), pv = new THREE.Group(); pv.add(leaf); pv.userData.dynamic = true;
+      if (s < 0) { pv.position.set(-dw / 2, 0.02, Wd / 2 + 0.03); } else { pv.position.set(dw / 2, 0.02, Wd / 2 + 0.03); pv.scale.x = -1; }
+      S.group.add(pv);
+      const door = { pivot: pv, width: lw, x: s * dw / 4, z: Wd / 2, open(a) { pv.rotation.y = -s * a; } };
+      door.open(sp.doorOpen != null ? sp.doorOpen : 1.4 + R() * 0.3); S.doors.push(door);
+    }
+    B.box('timber', 0, dh, Wd / 2 + 0.02, dw + 0.5, 0.25, 0.25, 0, { grain: 'long' });
+    // interior: posts, tie beams, half loft with ladder, hay, stalls
+    for (let x = -L / 2 + 2.5; x < L / 2 - 1; x += 2.5) {
+      for (const z of [-Wd / 2 + 2.2, Wd / 2 - 2.2]) { B.box('timber', x, 0, z, 0.24, eave - 0.2, 0.24, 0, { grain: 'long' }); B.col(x, z, 0.26, 0.26, 0, eave, 0, 'wood', 'post'); B.decal('scratches', [x, 0.9, z + 0.121], [0, 0, 1], 0.2, 0.5, Math.PI / 2); }
+      B.box('timber', x, eave - 0.25, 0, 0.22, 0.26, Wd - 0.2, 0, { grain: 'long', noFoot: true });
+    }
+    const loftX0 = 1.0, loftY = 2.7;
+    B.box('floorboards', (loftX0 + L / 2 - T) / 2, loftY, 0, L / 2 - T - loftX0, 0.05, Wd - 0.2, 0, { noFoot: true, grain: 'long' });
+    B.col((loftX0 + L / 2 - T) / 2, 0, L / 2 - T - loftX0, Wd - 0.2, loftY - 0.2, loftY + 0.05, 0, 'wood', 'floor');
+    for (let z = -Wd / 2 + 0.6; z < Wd / 2 - 0.3; z += 0.6) B.box('timber', (loftX0 + L / 2 - T) / 2, loftY - 0.2, z, L / 2 - T - loftX0, 0.2, 0.12, 0, { grain: 'long', noFoot: true });
+    // ladder up to the loft
+    const lx = loftX0 - 0.05, lz = 1.0;
+    for (const s of [-0.22, 0.22]) B.box('timber', lx - 0.45, 0, lz + s, 0.06, 3.0, 0.06, 0, { rz: 0.28, grain: 'long', noFoot: true });
+    for (let k = 1; k < 10; k++) B.box('timber', lx - 0.45 + k * 0.08, k * 0.29, lz, 0.04, 0.04, 0.5, 0, { noFoot: true });
+    // hay in the loft and on the floor, a stall partition, a cart wheel against the wall
+    for (let k = 0; k < 14; k++) { const x = R.range(loftX0 + 0.8, L / 2 - T - 0.7), z = R.range(-Wd / 2 + 0.8, Wd / 2 - 0.8); E.hayBale(B, x, loftY + 0.05 + (k > 9 ? 0.4 : 0), z, R.range(-0.2, 0.2) + (R() < 0.5 ? 0 : Math.PI / 2), R); }
+    for (let k = 0; k < 5; k++) E.hayBale(B, -L / 2 + T + 0.8 + (k % 2) * 0.95, (k > 2 ? 0.4 : 0), -Wd / 2 + T + 0.6 + Math.floor(k / 2) * 0.0, 0, R);
+    B.decal('leaves', [-1.5, 0.01, 0.5], [0, 1, 0], 3.5, 2.5, 0.3); B.decal('mud', [0, 0.01, Wd / 2 - 0.8], [0, 1, 0], 3.2, 1.6, 0);
+    for (let k = 0; k < 4; k++) B.box('planks', -L / 2 + T + 3.2 + k * 0.0, 0, -Wd / 2 + T + 1.3, 0.05, 1.3, 2.4, 0, { noFoot: true });
+    // straw on the floor
+    B.box('earth', 0, -0.04, 0, L - 2 * T, 0.05, Wd - 2 * T, 0, { noFoot: true, tint: new THREE.Color(0.7, 0.65, 0.55) });
+    // roof along the barn's length (local X)
+    const roof = gableRoof(B, S, { w: L, d: Wd, eave, pitch: 0.82, mat: sp.roof === 'tile' ? 'roof_tile' : 'slate', sag: 0.1 + S.damage * 0.1, over: 0.4, gable: 0.3 });
+    // boarded gables
+    for (const xs of [1, -1]) gableWall(B, S, { w: L - 0.04, d: Wd, T: 0.04, eave, ridge: roof.ridge - 0.05, out: 'planks', in: 'planks' }, xs);
+    S.lights.push({ x: 0, y: 3, z: 0, color: 0xffa860, r: 8, power: sp.lit ? 1 : 0, interior: true });
+    S.roofTop = roof.ridge;
+  };
+  KINDS.shed = function (B, S, sp) {
+    const w = sp.w || 4, d = sp.d || 3, R = S.R, h1 = 2.4, h2 = 1.9, bt = 0.04;
+    const sides = [
+      { x0: -w / 2, z0: d / 2, dx: 1, dz: 0, len: w, ops: [{ a0: w * 0.3, a1: w * 0.3 + 0.9, y0: 0, y1: 1.95 }], h: h1 },
+      { x0: w / 2, z0: d / 2, dx: 0, dz: -1, len: d, ops: [{ a0: d / 2 - 0.3, a1: d / 2 + 0.3, y0: 1.1, y1: 1.6 }], h: h2 },
+      { x0: w / 2, z0: -d / 2, dx: -1, dz: 0, len: w, ops: [], h: h2 },
+      { x0: -w / 2, z0: -d / 2, dx: 0, dz: 1, len: d, ops: [], h: h2 }
+    ];
+    let u = 0;
+    for (const sd of sides) { const nx = -sd.dz, nz = sd.dx; wallRun(B, { x0: sd.x0 - nx * bt / 2, z0: sd.z0 - nz * bt / 2, dx: sd.dx, dz: sd.dz, L: sd.len, T: bt, H: sd.h, ops: sd.ops, mats: { out: 'planks', in: 'planks' }, uStart: u, surf: 'wood' }); u += sd.len; }
+    // gaps up the sides between front (taller) and back: triangles of boards
+    for (const xs of [-1, 1]) for (const io of [1, -1]) { const x = xs * w / 2 + xs * io * 0.0; const A = [x, h2, -d / 2], Bq = [x, h2, d / 2], C = [x, h1, d / 2]; if ((xs > 0) === (io > 0)) B.tri('planks', A, C, Bq, [[0, h2], [d, h1], [d, h2]], null, 0); else B.tri('planks', A, Bq, C, [[0, h2], [d, h2], [d, h1]], null, 0); }
+    // posts in the corners, a mono-pitch roof of slates (corrugated sheets would need a new material)
+    for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) B.box('timber', a * (w / 2 - 0.06), 0, b * (d / 2 - 0.06), 0.1, b > 0 ? h1 : h2, 0.1, 0, { grain: 'long' });
+    const pitch = Math.atan2(h1 - h2, d), len = Math.hypot(d + 0.5, h1 - h2);
+    B.box(sp.roof === 'tile' ? 'roof_tile' : 'slate', 0, (h1 + h2) / 2 + 0.02, 0, w + 0.4, 0.05, len, 0, { rx: -pitch, noFoot: true });
+    B.box('planks', 0, (h1 + h2) / 2 - 0.01, 0, w + 0.3, 0.025, len - 0.05, 0, { rx: -pitch, noFoot: true, tint: new THREE.Color(0.6, 0.55, 0.5) });
+    for (let k = 0; k < 3; k++) B.box('timber', -w / 2 + 0.2 + k * (w - 0.4) / 2, (h1 + h2) / 2 - 0.12, 0, 0.08, 0.1, len - 0.1, 0, { rx: -pitch, noFoot: true });
+    // door leaf
+    dressDoor(B, S, { cx: -w / 2 + w * 0.3 + 0.45, cz: d / 2 - bt / 2, dx: 1, dz: 0, T: bt, w: 0.9, h: 1.95, ajar: 0.5, threshold: false }, S.group);
+    E.prop && null;
+    for (let k = 0; k < 3; k++) B.decal(R() < 0.5 ? 'mud' : 'moss', [R.range(-w / 2 + 0.3, w / 2 - 0.3), 0.2, d / 2 + 0.003], [0, 0, 1], 0.8, 0.35, 0);
+    S.roofTop = h1 + 0.1;
+  };
+  KINDS.church = function (B, S, sp) {
+    const w = sp.w || 16, d = sp.d || 8, R = S.R, T = 0.7, nave = 5.6;
+    const side = []; for (let i = 0; i < 4; i++) { const c = w * (i + 0.5) / 4; side.push({ a0: c - 0.45, a1: c + 0.45, y0: 1.8, y1: 4.4, head: 'pointed', lit: R() < (sp.lit || 0) * 0.5, broken: R() < sp.damage * 0.6 }); }
+    const r = house(B, S, { w, d, T, floors: 1, storey: nave, out: 'fieldstone', in: 'plaster_interior', roof: 'slate', head: 'pointed', shutters: false, quoins: true, front: side, back: side.map(o => Object.assign({}, o, { lit: false })), right: [{ a0: d / 2 - 0.9, a1: d / 2 + 0.9, y0: 2.0, y1: 4.8, head: 'pointed' }], left: [], pitch: 0.95, sag: 0.03 + S.damage * 0.1, plinth: 'ashlar', sillMat: 'ashlar' });
+    // the tower at the west end (local -X), with a pointed door, louvred belfry openings and a pyramid spire
+    const tw = 4.4, th = 15, tx = -w / 2 - tw / 2 + 0.2, Tt = 0.8;
+    const T2 = E.builder(S.seed + 9), S2 = Object.assign({}, S, { R: E.rng(S.seed + 9), windows: S.windows, lights: S.lights, doors: S.doors });
+    const bell = (o) => Object.assign({ y0: th - 3.4, y1: th - 1.2, head: 'pointed', a0: tw / 2 - 0.5, a1: tw / 2 + 0.5 }, o || {});
+    const sidesT = [
+      { x0: -tw / 2, z0: tw / 2, dx: 1, dz: 0, ops: [{ a0: tw / 2 - 0.7, a1: tw / 2 + 0.7, y0: 0, y1: 2.8, door: true }, bell()] },
+      { x0: tw / 2, z0: tw / 2, dx: 0, dz: -1, ops: [bell()] },
+      { x0: tw / 2, z0: -tw / 2, dx: -1, dz: 0, ops: [bell()] },
+      { x0: -tw / 2, z0: -tw / 2, dx: 0, dz: 1, ops: [bell(), { a0: tw / 2 - 0.3, a1: tw / 2 + 0.3, y0: 6, y1: 7.6 }] }
+    ];
+    let u = 0;
+    for (const sd of sidesT) {
+      const nx = -sd.dz, nz = sd.dx, along = sd.dx !== 0, Wt = { x0: sd.x0 - nx * Tt / 2, z0: sd.z0 - nz * Tt / 2, dx: sd.dx, dz: sd.dz, L: tw, T: Tt, H: th, ops: sd.ops, mats: { out: 'fieldstone', in: 'fieldstone' }, uStart: u, surf: 'stone' };
+      if (!along) { Wt.x0 += sd.dx * Tt; Wt.z0 += sd.dz * Tt; Wt.L -= 2 * Tt; }
+      wallRun(T2, Wt);
+      for (const o of sd.ops) {
+        const am = (o.a0 + o.a1) / 2 - (along ? 0 : Tt), cx = Wt.x0 + sd.dx * am, cz = Wt.z0 + sd.dz * am;
+        if (o.door) dressDoor(T2, S2, { cx, cz, dx: sd.dx, dz: sd.dz, T: Tt, w: 1.4, h: 2.8 }, S.group);
+        else if (o.y0 > 10) { // belfry: louvre boards instead of glass
+          const nn = [-sd.dz, sd.dx], hp = [cx + nn[0] * (Tt / 2 - 0.2), cz + nn[1] * (Tt / 2 - 0.2)];
+          for (let k = 0; k < 7; k++) T2.box('planks', hp[0], o.y0 + 0.15 + k * 0.28, hp[1], 0.95, 0.03, 0.22, Math.atan2(-sd.dz, sd.dx), { rx: 0.6, noFoot: true, tint: new THREE.Color(0.5, 0.48, 0.45) });
+          dressWindow(T2, S2, { cx, cz, dx: sd.dx, dz: sd.dz, T: Tt, w: 1.0, y0: o.y0, y1: o.y1, head: 'pointed', sill: true, shutters: false, lit: false, broken: true });
+        } else dressWindow(T2, S2, { cx, cz, dx: sd.dx, dz: sd.dz, T: Tt, w: o.a1 - o.a0, y0: o.y0, y1: o.y1, head: 'lintel', sill: true });
+      }
+      u += tw;
+    }
+    quoins(T2, S2, tw, tw, th, Tt);
+    // string course and a parapet-less pyramid spire of slate
+    T2.box('ashlar', 0, th - 0.2, 0, tw + 0.12, 0.2, tw + 0.12, 0, { noFoot: true });
+    const sh = 6.5, cone = new THREE.ConeGeometry((tw + 0.4) * 0.707, sh, 4, 3); cone.rotateY(Math.PI / 4);
+    T2.geo('slate', cone, _M.compose(_P.set(0, th + sh / 2, 0), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true });
+    T2.box('metal_rust', 0, th + sh - 0.1, 0, 0.05, 1.4, 0.05, 0, { noFoot: true }); T2.box('metal_rust', 0, th + sh + 0.8, 0, 0.5, 0.05, 0.05, 0, { noFoot: true });
+    const g2 = T2.finish(); g2.position.x = tx; S.group.add(g2);
+    for (const c of T2.colliders) S.extraCols.push(Object.assign(c, { x: c.x + tx }));
+    for (const dr of S.doors) if (dr.pivot.parent === S.group && !dr._moved && dr.x < 0) { }
+    S.roofTop = th + sh;
+  };
+  KINDS.ruin = function (B, S, sp) {
+    // a burnt-out brick house: walls with stepped broken tops and loose bricks, no roof, charred beams, rubble
+    const w = sp.w || 9, d = sp.d || 7, R = S.R, T = 0.33, H = 5.4, dmg = Math.max(0.5, S.damage);
+    const sides = [
+      { x0: -w / 2, z0: d / 2, dx: 1, dz: 0, L: w, ops: [{ a0: w / 2 - 0.5, a1: w / 2 + 0.5, y0: 0, y1: 2.1 }, { a0: 1.0, a1: 1.9, y0: 0.9, y1: 2.1 }, { a0: w - 1.9, a1: w - 1.0, y0: 0.9, y1: 2.1 }, { a0: 1.0, a1: 1.9, y0: 3.4, y1: 4.5 }] },
+      { x0: w / 2, z0: d / 2, dx: 0, dz: -1, L: d, ops: [{ a0: d / 2 - 0.45, a1: d / 2 + 0.45, y0: 0.9, y1: 2.1 }] },
+      { x0: w / 2, z0: -d / 2, dx: -1, dz: 0, L: w, ops: [{ a0: 2.0, a1: 2.9, y0: 0.9, y1: 2.1 }] },
+      { x0: -w / 2, z0: -d / 2, dx: 0, dz: 1, L: d, ops: [] }
+    ];
+    let u = 0; const course = 0.075, bw = 0.225;
+    for (let si = 0; si < 4; si++) {
+      const sd = sides[si], nx = -sd.dz, nz = sd.dx, along = sd.dx !== 0;
+      // broken top profile: a smooth random line, quantised to brick courses and half-bricks, with a deep bite
+      const prof = (a) => { const n = E.fbm2(a * 0.35 + si * 7, si * 3.1, 900 + S.seed, 3); const bite = Math.exp(-((a - sd.L * (0.3 + 0.4 * E.hash(si, 1, S.seed))) ** 2) / 2.5) * 2.5 * dmg; return Math.max(0.6, H * (1 - dmg * 0.55 * n) - bite); };
+      let x0 = sd.x0 - nx * T / 2, z0 = sd.z0 - nz * T / 2, L = sd.L; if (!along) { x0 += sd.dx * T; z0 += sd.dz * T; L -= 2 * T; }
+      // split the wall into columns of one brick length; each column has its own height, rounded to courses
+      for (let a = 0; a < L - 1e-3; a += bw) {
+        const a1 = Math.min(L, a + bw), top = Math.floor(prof(a + bw / 2) / course) * course;
+        const ops = sd.ops.map(o => ({ a0: o.a0 - a, a1: o.a1 - a, y0: o.y0, y1: o.y1 })).filter(o => o.a1 > 0 && o.a0 < a1 - a);
+        wallRun(B, { x0: x0 + sd.dx * a, z0: z0 + sd.dz * a, dx: sd.dx, dz: sd.dz, L: a1 - a, T, H: top, ops, mats: { out: 'brick_red', in: 'brick_sooty' }, uStart: u + a, surf: 'stone' });
+        // ragged course on top: some bricks of the next course still sitting there, half-bricks proud
+        if (R() < 0.6) B.box('brick_red', x0 + sd.dx * (a + bw / 2) + R.range(-0.02, 0.02), top, z0 + sd.dz * (a + bw / 2), along ? 0.215 : T * 0.9, 0.065, along ? T * 0.9 : 0.215, R.range(-0.08, 0.08), { tint: tintJ(R, 0.12), uvOff: [R() * 3, R() * 3] });
+        if (R() < 0.25) looseBlock(B, 'brick_red', x0 + sd.dx * (a + bw / 2) + nx * R.range(-0.1, 0.1), top + 0.07, z0 + sd.dz * (a + bw / 2) + nz * R.range(-0.1, 0.1), R, null, null, null, tintJ(R, 0.12));
+      }
+      // soot above the openings, scorch, pocks, a big crack
+      for (const o of sd.ops) { const am = (o.a0 + o.a1) / 2 - (along ? 0 : T); B.decal('soot', [x0 + sd.dx * am + nx * (T / 2 + 0.003), o.y1 + 0.6, z0 + sd.dz * am + nz * (T / 2 + 0.003)], [nx, 0, nz], 1.4, 1.4, 0); B.decal('soot', [x0 + sd.dx * am - nx * (T / 2 + 0.003), o.y1 + 0.6, z0 + sd.dz * am - nz * (T / 2 + 0.003)], [-nx, 0, -nz], 1.4, 1.6, 0); }
+      for (let k = 0; k < Math.round(L * 0.8); k++) { const a = R.range(0.3, L - 0.3); B.decal(R() < 0.6 ? 'pocks' : 'bullethole', [x0 + sd.dx * a + nx * (T / 2 + 0.002), R.range(0.5, 2.5), z0 + sd.dz * a + nz * (T / 2 + 0.002)], [nx, 0, nz], R.range(0.25, 0.5), null, R() * 6); }
+      B.decal('crack', [x0 + sd.dx * L * 0.6 + nx * (T / 2 + 0.002), 1.6, z0 + sd.dz * L * 0.6 + nz * (T / 2 + 0.002)], [nx, 0, nz], 1.2, 1.6, 0.2);
+      B.decal('scorch', [x0 + sd.dx * L * 0.4 - nx * (T / 2 + 0.002), 1.2, z0 + sd.dz * L * 0.4 - nz * (T / 2 + 0.002)], [-nx, 0, -nz], 2.4, 2.4, 0);
+      // loose bricks fallen at the foot, both sides
+      for (let k = 0; k < Math.round(L * 2.5); k++) { const a = R.range(0, L), side = R() < 0.5 ? 1 : -1; looseBlock(B, 'brick_red', x0 + sd.dx * a + nx * side * R.range(0.25, 1.4), 0.03, z0 + sd.dz * a + nz * side * R.range(0.25, 1.4), R, null, null, null, tintJ(R, 0.14)); }
+      u += sd.L;
+    }
+    // rubble piles inside, charred beams fallen across, a burnt floor
+    rubble(B, -w * 0.15, -d * 0.1, 1.8, R, {}, 70); rubble(B, w * 0.25, d * 0.15, 1.3, R, {}, 40);
+    for (let k = 0; k < 3; k++) B.box('timber', R.range(-w / 4, w / 4), 0.2 + k * 0.25, R.range(-d / 4, d / 4), w * 0.7, 0.22, 0.24, R.range(-0.6, 0.6), { rz: R.range(-0.35, 0.35), tint: new THREE.Color(0.18, 0.16, 0.15), grain: 'long', noFoot: true });
+    B.box('timber', -w / 2 + 0.6, 2.4, 0, 0.24, 0.24, d * 0.8, 0, { rx: 0.35, tint: new THREE.Color(0.15, 0.13, 0.12), grain: 'long', noFoot: true });
+    B.decal('scorch', [0, 0.02, 0], [0, 1, 0], Math.min(w, d) * 0.8, Math.min(w, d) * 0.8, 0);
+    B.box('earth', 0, -0.04, 0, w - 2 * T, 0.05, d - 2 * T, 0, { tint: new THREE.Color(0.45, 0.42, 0.4), noFoot: true });
+    S.roofTop = H;
+  };
+  KINDS.bunker = function (B, S, sp) {
+    // a concrete pillbox with board-marked walls, a firing slit on each face, a thick roof slab, sandbags and earth
+    const w = sp.w || 5, d = sp.d || 5, R = S.R, T = 0.9, H = 2.2;
+    const slit = (L) => [{ a0: L / 2 - 0.7, a1: L / 2 + 0.7, y0: 1.15, y1: 1.45 }];
+    const sides = [
+      { x0: -w / 2, z0: d / 2, dx: 1, dz: 0, L: w, ops: slit(w) }, { x0: w / 2, z0: d / 2, dx: 0, dz: -1, L: d, ops: slit(d) },
+      { x0: w / 2, z0: -d / 2, dx: -1, dz: 0, L: w, ops: [{ a0: w / 2 - 0.45, a1: w / 2 + 0.45, y0: 0, y1: 1.9 }] }, { x0: -w / 2, z0: -d / 2, dx: 0, dz: 1, L: d, ops: slit(d) }
+    ];
+    let u = 0;
+    for (const sd of sides) {
+      const nx = -sd.dz, nz = sd.dx, along = sd.dx !== 0, W = { x0: sd.x0 - nx * T / 2, z0: sd.z0 - nz * T / 2, dx: sd.dx, dz: sd.dz, L: sd.L, T, H, ops: sd.ops, mats: { out: 'concrete', in: 'concrete' }, uStart: u, surf: 'stone' };
+      if (!along) { W.x0 += sd.dx * T; W.z0 += sd.dz * T; W.L -= 2 * T; }
+      wallRun(B, W);
+      for (let k = 0; k < Math.round(sd.L * 1.2 * (0.3 + S.damage)); k++) { const a = R.range(0.3, sd.L - 0.3); B.decal(R() < 0.7 ? 'pocks' : 'gouges', [W.x0 + sd.dx * a + nx * (T / 2 + 0.002), R.range(0.6, H - 0.2), W.z0 + sd.dz * a + nz * (T / 2 + 0.002)], [nx, 0, nz], R.range(0.3, 0.7), null, R() * 6); }
+      const am = sd.L / 2; B.decal('scorch', [W.x0 + sd.dx * am + nx * (T / 2 + 0.003), 1.3, W.z0 + sd.dz * am + nz * (T / 2 + 0.003)], [nx, 0, nz], 1.8, 1.2, 0);
+      B.decal('waterstain', [W.x0 + sd.dx * am * 0.6 + nx * (T / 2 + 0.002), H - 0.5, W.z0 + sd.dz * am * 0.6 + nz * (T / 2 + 0.002)], [nx, 0, nz], 1.5, 1.2, 0);
+      u += sd.L;
+    }
+    B.box('concrete', 0, H, 0, w + 0.6, 0.6, d + 0.6, 0, { noFoot: true }); B.col(0, 0, w + 0.6, d + 0.6, H, H + 0.6, 0, 'stone', 'roof');
+    // earth and grass sods on the roof, sandbags round the entrance
+    placeRock(B, 'mud', 0, H + 0.45, 0, Math.min(w, d) * 0.45, 77, [0, 0.4, 0]);
+    for (let k = 0; k < 2; k++) for (let i = 0; i < 6; i++) E.sandbag(B, -1.4 + i * 0.5 + (k % 2) * 0.25, k * 0.17, -d / 2 - 1.3, (k ? 0.1 : -0.1), R);
+    B.box('concrete', 0, -0.05, 0, w - 2 * T, 0.06, d - 2 * T, 0, { noFoot: true, tint: new THREE.Color(0.7, 0.7, 0.7) });
+    S.roofTop = H + 1;
+  };
+  KINDS.pillbox = KINDS.bunker;
+
+  // small helpers other files use too
+  E.hayBale = function (B, x, y, z, rot, R) {
+    B.box('straw', x, y, z, 0.9, 0.4, 0.48, rot, { noFoot: true, tint: tintJ(R, 0.12) });
+    for (const s of [-0.25, 0.25]) { const c = Math.cos(rot), sn = Math.sin(rot); B.box('canvas', x + c * s, y - 0.001, z - sn * s, 0.012, 0.402, 0.482, rot, { noFoot: true, tint: new THREE.Color(0.7, 0.62, 0.45) }); }
+    B.col(x, z, 0.9, 0.48, y, y + 0.4, rot, 'wood', 'hay');
+  };
+  E.sandbag = function (B, x, y, z, rot, R) {
+    const g = new THREE.SphereGeometry(0.5, 10, 6); const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) { const X = p.getX(i), Y = p.getY(i), Z = p.getZ(i); p.setXYZ(i, Math.sign(X) * Math.pow(Math.abs(X) * 2, 0.45) / 2, Y * (Y < 0 ? 0.7 : 1), Math.sign(Z) * Math.pow(Math.abs(Z) * 2, 0.6) / 2); }
+    g.computeVertexNormals();
+    _Eu.set(R.range(-0.05, 0.05), rot + R.range(-0.08, 0.08), R.range(-0.04, 0.04)); _Q.setFromEuler(_Eu); _P.set(x, y + 0.085, z); _S.set(0.56, 0.17, 0.32);
+    B.geo('sandbag', g, _M.compose(_P, _Q, _S), { tint: tintJ(R, 0.1), uvOff: [R() * 5, R() * 5] });
+    B.col(x, z, 0.55, 0.33, y, y + 0.17, rot, 'cloth', 'sandbag');
+  };
+  E.placeRock = placeRock; E.rubble = rubble; E.tintJ = tintJ;
+
+  // ------------------------------------------------------------------ the public building call
+  E.building = function (spec) {
+    spec = Object.assign({ kind: 'farmhouse', seed: 1, damage: 0, lit: 0 }, spec || {});
+    const kind = spec.kind === 'church with tower' ? 'church' : spec.kind === 'village shop row' || spec.kind === 'shop' ? 'shoprow' : spec.kind === 'ruined shell' || spec.kind === 'ruined' ? 'ruin' : spec.kind;
+    const fn = KINDS[kind]; if (!fn) throw new Error('IVEnv.building: unknown kind ' + spec.kind);
+    const B = E.builder(spec.seed), group = new THREE.Group();
+    const R = E.rng(spec.seed * 7 + 3);
+    const paints = [0x5a6b5c, 0x4d5a66, 0x6b4a3e, 0x6a6a5a, 0x3e4a40];
+    const S = { R, seed: spec.seed, damage: spec.damage || 0, group, windows: [], lights: [], doors: [], extraCols: [], paintTint: new THREE.Color(paints[spec.seed % paints.length]).multiplyScalar(1 / 0.36), interior: kind === 'farmhouse' || kind === 'barn' };
+    // paint tint is relative to the texture's own paint (about 0.36 of white): keep it near 1
+    S.paintTint.r = E.clamp(S.paintTint.r * 0.36 / 0.3, 0.6, 1.5); S.paintTint.g = E.clamp(S.paintTint.g * 0.36 / 0.36, 0.6, 1.5); S.paintTint.b = E.clamp(S.paintTint.b * 0.36 / 0.32, 0.6, 1.5);
+    fn(B, S, spec);
+    const g = B.finish(); group.add(g);
+    group.name = 'IVEnv.building:' + kind; group.userData.kind = kind;
+    const colliders = B.colliders.concat(S.extraCols);
+    return { group, colliders, doors: S.doors, windows: S.windows, lights: S.lights, height: S.roofTop || 0 };
+  };
+
+  // ------------------------------------------------------------------ field walls
+  E.wall = function (points, opts) {
+    opts = Object.assign({ type: 'stone', h: 1.2, t: 0.55, gaps: [], seed: 11 }, opts || {});
+    const B = E.builder(opts.seed), R = E.rng(opts.seed * 3 + 1), hf = opts.heightFn || (() => 0), stone = opts.type !== 'brick';
+    const mat = stone ? 'fieldstone' : 'brick_red';
+    let total = 0; const segs = [];
+    for (let i = 0; i < points.length - 1; i++) { const a = points[i], b = points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, L, s0: total }); total += L; }
+    const inGap = (s) => opts.gaps.some(g => s > g[0] && s < g[1]);
+    const STEP = 1.2;
+    for (const sg of segs) {
+      const dx = (sg.b[0] - sg.a[0]) / sg.L, dz = (sg.b[1] - sg.a[1]) / sg.L, rot = Math.atan2(-dz, dx), n = Math.max(1, Math.round(sg.L / STEP));
+      for (let k = 0; k < n; k++) {
+        const s0 = sg.s0 + sg.L * k / n, s1 = sg.s0 + sg.L * (k + 1) / n, sm = (s0 + s1) / 2; if (inGap(sm)) continue;
+        // height falls off toward broken ends and gap edges in steps
+        let h = opts.h * (0.92 + 0.16 * E.vnoise(sm * 0.4, 3, opts.seed));
+        const dEnd = Math.min(opts.brokenStart ? sm : 1e9, opts.brokenEnd ? total - sm : 1e9, ...opts.gaps.map(g => sm < g[0] ? g[0] - sm : sm > g[1] ? sm - g[1] : 1e9));
+        if (dEnd < 3) h *= E.clamp(0.25 + dEnd / 3, 0.25, 1);
+        const len = (s1 - s0) + 0.02, cx = sg.a[0] + dx * (sm - sg.s0), cz = sg.a[1] + dz * (sm - sg.s0), y = Math.min(hf(sg.a[0] + dx * (s0 - sg.s0), sg.a[1] + dz * (s0 - sg.s0)), hf(sg.a[0] + dx * (s1 - sg.s0), sg.a[1] + dz * (s1 - sg.s0)), hf(cx, cz));
+        // battered wall: wide base course, narrower body, coping
+        B.box(mat, cx, y - 0.25, cz, len, h * 0.45 + 0.25, opts.t, rot, { foot: y, uvOff: [sm, 0] });
+        B.box(mat, cx, y + h * 0.45, cz, len, h * 0.45, opts.t * 0.82, rot, { foot: y, uvOff: [sm, 0] });
+        B.col(cx, cz, len, opts.t, y - 0.2, y + h * 0.9, rot, 'stone', 'wall');
+        if (stone) { // coping: stones set on edge ("cock and hen"), each tilted a little
+          for (let c = 0; c < Math.round(len / 0.16); c++) {
+            const off = -len / 2 + (c + 0.5) * len / Math.round(len / 0.16), px = cx + dx * off, pz = cz + dz * off, tall = R() < 0.35;
+            B.box('fieldstone', px, y + h * 0.9 - 0.02, pz, R.range(0.09, 0.15), tall ? R.range(0.26, 0.34) : R.range(0.17, 0.24), opts.t * R.range(0.7, 0.9), rot, { rz: R.range(-0.15, 0.15), tint: tintJ(R, 0.14), foot: y, uvOff: [R() * 9, R() * 9] });
+          }
+        } else B.box('ashlar', cx, y + h * 0.9, cz, len, 0.1, opts.t * 0.95, rot, { foot: y, tint: tintJ(R, 0.06) });
+        // moss and damp along the foot, a pock or two
+        if (R() < 0.5) B.decal('moss', [cx + dz * (opts.t / 2 + 0.003), y + 0.2, cz - dx * (opts.t / 2 + 0.003)], [dz, 0, -dx], len * 0.9, 0.4, 0);
+        if (R() < 0.3) B.decal('moss', [cx - dz * (opts.t / 2 + 0.003), y + 0.25, cz + dx * (opts.t / 2 + 0.003)], [-dz, 0, dx], len * 0.8, 0.45, 0);
+        // fallen stones at broken ends
+        if (dEnd < 3) for (let r = 0; r < 6; r++) placeRock(B, mat === 'brick_red' ? 'brick_red' : 'fieldstone', cx + dz * R.range(-1, 1) * 0.9 + dx * R.range(-0.5, 0.5), y + 0.02, cz - dx * R.range(-1, 1) * 0.9 + dz * R.range(-0.5, 0.5), R.range(0.1, 0.2), (R() * 999) | 0, [R() * 3, R() * 3, R() * 3], tintJ(R, 0.12));
+      }
+    }
+    const g = B.finish(); g.name = 'IVEnv.wall';
+    return { group: g, colliders: B.colliders };
+  };
+
+  // ------------------------------------------------------------------ fences
+  E.fence = function (points, kind, opts) {
+    opts = Object.assign({ seed: 5 }, opts || {}); kind = kind || 'rail';
+    const B = E.builder(opts.seed), R = E.rng(opts.seed * 5 + 2), hf = opts.heightFn || (() => 0);
+    const wires = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i], b = points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), dx = (b[0] - a[0]) / L, dz = (b[1] - a[1]) / L, rot = Math.atan2(-dz, dx);
+      const sp = kind === 'picket' ? 2.0 : kind === 'barbed' ? 3.0 : 2.4, n = Math.max(1, Math.round(L / sp));
+      for (let k = 0; k <= n; k++) {
+        if (k === n && i < points.length - 2) continue;
+        const px = a[0] + dx * L * k / n, pz = a[1] + dz * L * k / n, y = hf(px, pz), lean = R.range(-0.06, 0.06);
+        const ph = kind === 'picket' ? 1.1 : kind === 'barbed' ? 1.25 : 1.3;
+        B.box('timber', px, y - 0.3, pz, 0.11, ph + 0.3, 0.11, rot + R.range(-0.2, 0.2), { rz: lean, rx: R.range(-0.04, 0.04), foot: y, grain: 'long', tint: tintJ(R, 0.15, 0xc0b8b0) });
+        B.col(px, pz, 0.12, 0.12, y, y + ph, 0, 'wood', 'post');
+        if (R() < 0.4) B.decal('moss', [px + dz * 0.056, y + 0.2, pz - dx * 0.056], [dz, 0, -dx], 0.1, 0.3, 0);
+        if (k < n) {
+          const qx = a[0] + dx * L * (k + 1) / n, qz = a[1] + dz * L * (k + 1) / n, y2 = hf(qx, qz), len = L / n, mx = (px + qx) / 2, mz = (pz + qz) / 2, ym = (y + y2) / 2, slope = Math.atan2(y2 - y, len);
+          if (kind === 'rail') for (const hh of [0.45, 1.0]) { const broken = R() < (opts.damage || 0) * 0.5; B.box('timber', mx, ym + hh + (broken ? -0.35 : 0), mz, len + 0.15, 0.1, 0.05, rot, { rz: slope + (broken ? R.range(-0.4, 0.4) : 0), foot: ym, grain: 'long', tint: tintJ(R, 0.15, 0xc0b8b0) }); }
+          if (kind === 'picket') { B.box('timber', mx, ym + 0.25, mz, len, 0.07, 0.04, rot, { rz: slope, grain: 'long' }); B.box('timber', mx, ym + 0.85, mz, len, 0.07, 0.04, rot, { rz: slope, grain: 'long' }); for (let p = 0; p < Math.round(len / 0.14); p++) { if (R() < (opts.damage || 0) * 0.3) continue; const o = -len / 2 + (p + 0.5) * len / Math.round(len / 0.14), x = mx + dx * o, z = mz + dz * o; B.box('wood_painted', x + dz * 0.03, hf(x, z) + 0.05, z - dx * 0.03, 0.08, 1.0 + R.range(-0.03, 0.03), 0.02, rot, { rz: R.range(-0.03, 0.03), tint: new THREE.Color(1.5, 1.5, 1.45) }); } }
+          if (kind === 'hurdle') { for (let p = 0; p < 8; p++) B.box('bark_oak', mx, ym + 0.15 + p * 0.12, mz, len, 0.05, 0.05, rot, { rz: slope, grain: 'long', tint: new THREE.Color(0.75, 0.7, 0.62) }); }
+          if (kind === 'barbed') for (const hh of [0.4, 0.75, 1.1]) wires.push([px, y + hh, pz, qx, y2 + hh, qz]);
+          B.col(mx, mz, len, 0.1, ym, ym + 1.0, rot, 'wood', 'fence');
+        }
+      }
+    }
+    const g = B.finish(); g.name = 'IVEnv.fence:' + kind;
+    if (wires.length) g.add(E.wireMesh(wires, 0.004, 0.08));
+    return { group: g, colliders: B.colliders };
+  };
+  // sagging wires (telegraph, barbed): thin tubes, each sagging between its ends
+  E.wireMesh = function (list, radius, sag) {
+    const B = E.builder(3);
+    for (const w of list) {
+      const pts = []; for (let i = 0; i <= 10; i++) { const t = i / 10; pts.push(new THREE.Vector3(w[0] + (w[3] - w[0]) * t, w[1] + (w[4] - w[1]) * t - Math.sin(Math.PI * t) * (sag != null ? sag : 0.3), w[2] + (w[5] - w[2]) * t)); }
+      const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 10, radius || 0.006, 3, false);
+      B.geo('metal_rust', g, new THREE.Matrix4(), { noFoot: true });
+    }
+    return B.finish({ castShadow: false });
+  };
+})();
