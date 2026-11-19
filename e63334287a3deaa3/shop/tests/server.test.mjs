@@ -653,6 +653,41 @@ test('owned.js: check() is batched, cached, true/false/undefined, and fails to "
   ctx.BackRoomWallet = { PAYMENTS: { enabled: true } }; assert.equal(O.active(), true);
 });
 
+test('attack: buy + gift at once, and chest + chest at once, with money for one: exactly one goes through', async () => {
+  world(); CATALOG.PUBLIC = true;
+  seed(ALICE, { balance: 420 }); seed(BOB, {});
+  W.fs.gate = 2;
+  const rs = await Promise.all([call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what: 'item:' + ITEM_RARE } }),
+    call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'item:' + ITEM_RARE2, to: BOB } })]);
+  assert.deepEqual(rs.map(r => r.status).sort(), [200, 402]); assert.equal(bal(ALICE), 0); assert.ok(W.fs.aborts >= 1);
+  seed(ALICE, { balance: 119 }); W.fs.gate = 2;
+  const cs = await Promise.all([1, 2].map(() => call(chest, 'POST', 'wallet/chest', { as: ALICE, body: { n: 1 } })));
+  assert.deepEqual(cs.map(r => r.status).sort(), [200, 402]);
+  const ok = cs.find(r => r.status === 200);
+  assert.equal(bal(ALICE), ok.data.refund);
+  CATALOG.PUBLIC = false;
+});
+test('attack: junk counts, ids and recipients are refused and cost nothing', async () => {
+  world(); CATALOG.PUBLIC = true;
+  seed(ALICE, { balance: 5000 }); seed(BOB, {});
+  for (const n of [-1, 0, 1.5, 'NaN', 1e309, 2, 100, null, {}, [1, 5], true]) {
+    const r = await call(chest, 'POST', 'wallet/chest', { as: ALICE, body: { n } });
+    assert.equal(r.status, 400, 'n = ' + JSON.stringify(n));
+  }
+  for (const what of ['', '__proto__', 'constructor', 'item:__proto__', 'item:constructor', 'item:', 'draw-1000', 'draw--1', { x: 1 }, 'emeralds_4000', 'item:' + ITEM_RARE + ' ']) {
+    const r = await call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what } });
+    assert.equal(r.status, 400, 'what = ' + JSON.stringify(what));
+  }
+  for (const to of ['', 'x', '../wallets/' + BOB, [BOB], { a: 1 }, BOB + '/x']) {
+    const r = await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'item:' + ITEM_RARE, to } });
+    assert.equal(r.status, 400, 'to = ' + JSON.stringify(to));
+  }
+  assert.equal((await call(buy, 'POST', 'wallet/buy', { as: ALICE, body: [1, 2] })).status, 400);
+  assert.equal((await call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what: 'item:' + ITEM_RARE, req: 'BAD REQ!' } })).status, 400);
+  assert.equal(bal(ALICE), 5000); assert.equal(ledger(ALICE).length, 0);
+  CATALOG.PUBLIC = false;
+});
+
 for (const [name, fn] of tests) {
   try { await fn(); passed++; console.log('ok   ' + name); }
   catch (e) { console.log('FAIL ' + name + '\n     ' + (e.stack || e).toString().split('\n').slice(0, 4).join('\n     ')); process.exitCode = 1; }

@@ -279,7 +279,7 @@ export async function walletBuy(env, user, body, next) {
   });
 }
 export function walletChest(env, user, body, next) {
-  const n = Number(body.n);
+  const n = typeof body.n === 'number' || typeof body.n === 'string' ? Number(body.n) : NaN;   // not true, [5] or {}
   if (n !== 1 && n !== 5 && n !== 10) return Promise.reject(new WErr(400, 'bad', 'Chests come in 1, 5 or 10.'));
   return walletBuy(env, user, { what: 'draw-' + n, req: body.req }, next);
 }
@@ -287,7 +287,7 @@ export function walletChest(env, user, body, next) {
 // Send an item, pack or chests to another player: the sender pays the same price, the recipient gets it (a chest is
 // opened for them here) and a notice. The recipient must have a wallet (opened the shop signed in with Google once).
 export async function walletGift(env, user, body, next) {
-  const to = String(body.to || ''), what = String(body.what || '');
+  const to = typeof body.to === 'string' ? body.to : '', what = String(body.what || '');
   if (!UID_RE.test(to)) throw new WErr(400, 'recipient', 'Pick who to send it to.');
   if (to === user.uid) throw new WErr(400, 'self', 'You can’t send a gift to yourself.');
   const p = pack(what);
