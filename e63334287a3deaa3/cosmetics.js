@@ -762,7 +762,7 @@
   I('shell-crackers', 'hat', 11, 'Football Helmet', 'epic', '#2F6FD8', '#FFFFFF', 'Glossy blue with a stripe and a face guard under the chin.');
   I('shell-crackers', 'hat', 12, 'Top Hat', 'uncommon', '#3C3C46', '#A8222E', 'Tall and smart, with a deep red band.');
   I('shell-crackers', 'hat', 13, 'Referee Cap', 'common', '#FBFBFB', '#34343C', 'Black and white panels. The whistle is extra.');
-  I('shell-crackers', 'hat', 14, 'Ball Cap', 'common', '#D8343A', '#FFD04A', 'Team red with a gold star on the front.');
+  I('shell-crackers', 'hat', 14, 'Ball Cap', 'common', '#D8343A', '#FFD04A', 'Team red with a white peak and a gold star on the front.');
   I('shell-crackers', 'hat', 15, 'Robot Antenna', 'rare', '#C9CED6', '#FF4A3A', 'A metal cap, a springy aerial and bolts for ears.');
   I('shell-crackers', 'hat', 16, 'Parrot', 'legendary', '#E2343A', '#2F7AD8', 'A loud friend who sits on your head and watches.');
   I('shell-crackers', 'hat', 17, 'Bowler Hat', 'common', '#7A5E46', '#3A2C22', 'Round and brown, for detectives and bankers.');

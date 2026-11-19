@@ -423,10 +423,10 @@ const HATS=[null,
   // 13 Referee Cap: black and white panels, a black peak and a button on top
   L=>{const W=0xfbfbfb,K=0x34343c;P(L,'dome',W,0,.56,0,.27,.2,.27);
     for(let i=0;i<6;i+=2)P(L,'sect',K,0,.56,0,.276,.205,.276,0,i/6*Math.PI*2,0);
-    P(L,'cyl',K,0,.57,-.33,.19,.016,.17,.1,0,0);P(L,'sph',K,0,.765,0,.03,.02,.03);P(L,'band',K,0,.575,0,.272,.03,.272)},
+    P(L,'cyl',K,0,.575,-.36,.21,.018,.19,.12,0,0);P(L,'sph',K,0,.765,0,.03,.02,.03);P(L,'band',K,0,.575,0,.272,.03,.272)},
   // 14 Ball Cap: team red, a white front panel with a gold star badge, curved peak
   L=>{const R=0xd8343a,Rd=0xb02a30;P(L,'dome',R,0,.56,0,.27,.21,.27);
-    poly3(L,0xffd04a,0,.705,-.2,.07,.78);P(L,'cyl',Rd,0,.57,-.33,.19,.016,.17,.1,0,0);P(L,'sph',Rd,0,.775,0,.03,.02,.03);P(L,'band',Rd,0,.575,0,.272,.03,.272)},
+    poly3(L,0xffd04a,0,.705,-.2,.07,.78);P(L,'cyl',0xfbfbfb,0,.575,-.36,.21,.018,.19,.12,0,0);P(L,'sph',Rd,0,.775,0,.03,.02,.03);P(L,'band',Rd,0,.575,0,.272,.03,.272)},
   // 15 Robot Antenna: a riveted metal cap, a springy aerial with a red bulb, and bolt ears at the sides
   L=>{const S=0xc9ced6,Sd=0x9aa2ac,R=0xff4a3a;P(L,'dome',S,0,.6,0,.25,.13,.25);P(L,'band',Sd,0,.61,0,.252,.03,.252);
     for(let i=0;i<8;i++){const a=i/8*Math.PI*2;P(L,'sph',Sd,Math.sin(a)*.252,.63,-Math.cos(a)*.252,.016,.016,.016)}

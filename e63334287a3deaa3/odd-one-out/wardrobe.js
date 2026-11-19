@@ -431,7 +431,7 @@ const OUTFITS=[null,
     name:'Tracksuit',body(P){
       person(P,{shirt:'#2f58c8'});P(box(.014,.5,.012,0,1.2,.146),'#fbfbfb');
       P(tf(box(.09,.04,.1),-.06,1.48,.1,0,0,-.4),'#fbfbfb');P(tf(box(.09,.04,.1),.06,1.48,.1,0,0,.4),'#fbfbfb');
-      for(let i=0;i<14;i++){const a=PI*.15+i/13*PI*.7;P(sph(.016,Math.cos(a)*.12,1.47-Math.sin(a)*.12,.12+Math.sin(a)*.03,1,1,1,6,4),'#ffcf3f')}
+      P(torus(.105,.022,0,1.47,.045,PI/2+.5,0),'#ffcf3f');P(tf(new THREE.CylinderGeometry(.042,.042,.014,12),0,1.42,.165,PI/2-.3),'#ffcf3f');   // a chunky gold chain round the neck, above the arms
       P(dome(.19,0,1.72,0,.55),'#8a8f9a');P(tf(rb(.22,.03,.14,.012,0,0,0),0,1.74,.16,.18),'#8a8f9a');
     },leg:{pants:'#2f58c8',boot:'#fbfbfb'},legO:{stripe:'#fbfbfb'},arms:{shirt:'#2f58c8',hand:SKIN,stripe:'#fbfbfb',cuffs:'#fbfbfb'}},
   { // 31 Bodyguard: a grey suit, white shirt, dark tie, sunglasses and a coiled earpiece

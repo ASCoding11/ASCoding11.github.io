@@ -223,7 +223,7 @@ const HAT_BUILD=[
     return b.done()},
   // 10 Sweatband: blue towelling with two white stripes, above the visor
   ()=>{const b=new Bake(),B='#3A7FE0';
-    b.add(Cyl(1.04,1.07,28,true),c=>Math.abs(c.y-.49)<.035||Math.abs(c.y-.63)<.035?'#FFFFFF':B,[0,.56,0],[1,.32,1]);
+    b.add(Cyl(1.04,1.07,28,true),B,[0,.56,0],[1,.32,1]);for(const y of [.47,.65])b.add(Cyl(1.065,1.065,28,true),'#FFFFFF',[0,y,0],[1,.045,1]);
     b.add(Cyl(.95,1.04,28,true),B,[0,.76,0],[1,.08,1]);
     return b.done()},
   // 11 Referee Cap: black and white panels, a black peak and a button on top
@@ -235,8 +235,8 @@ const HAT_BUILD=[
   // 12 Pirate Hat: a black tricorn with gold trim and a white plume, and an eye patch over one side of the visor
   ()=>{const b=new Bake(),K='#2E2A2A',GD='#E8B830';
     b.add(domeTo(1.05,.3,22,8),K,[0,.1,0],[1,1.1,1]);
-    for(let i=0;i<3;i++){const a=Math.PI/3+i*TAU/3;b.add(Box(),K,[Math.sin(a)*.8,.62,Math.cos(a)*.8],[2.6,.5,.12],[.25,a,0]);b.add(Box(),GD,[Math.sin(a)*.86,.86,Math.cos(a)*.86],[2.6,.07,.14],[.25,a,0])}
-    for(let i=0;i<3;i++){const a=i*TAU/3;b.add(Sph(8,6),GD,[Math.sin(a)*1.66,.86,Math.cos(a)*1.66],[.1,.1,.1])}
+    for(let i=0;i<3;i++){const a=Math.PI/3+i*TAU/3;b.add(Box(),K,[Math.sin(a)*.76,.7,Math.cos(a)*.76],[2.45,.66,.12],[.1,a,0]);b.add(Box(),GD,[Math.sin(a)*.795,1.03,Math.cos(a)*.795],[2.45,.07,.14],[.1,a,0])}
+    for(let i=0;i<3;i++){const a=i*TAU/3;b.add(Sph(8,6),GD,[Math.sin(a)*1.5,1.03,Math.cos(a)*1.5],[.09,.09,.09])}
     for(let k=0;k<5;k++)b.add(Sph(8,6),'#FFFFFF',[-.55-k*.07,1.05+k*.1,-.3-k*.05],[.12,.2,.1],[0,0,.6]);
     b.add(Cyl(1,1,18),'#15151A',[.38,.12,1.04],[.26,.06,.24],[Math.PI/2,0,0]);
     b.add(Tor(1.05,.035,5,30),'#15151A',[0,.2,0],[1,1,1],[Math.PI/2-.25,0,-.2]);
