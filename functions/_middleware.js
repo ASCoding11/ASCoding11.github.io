@@ -10,6 +10,7 @@
  *     the address Cloudflare serves it at). Nothing else in the page changes.
  *   - /sitemap.xml: every github.io address becomes the ascoding11.com one.
  *   - /robots.txt: the Sitemap line points at https://ascoding11.com/sitemap.xml.
+ *   - / and /showcase/: AdSense's site code (adsbygoogle.js with the publisher ID) is added to the <head>.
  * Any other host (ascoding11.github.io never runs this; *.pages.dev previews) and anything that isn't one of
  * those three gets the response untouched, including every /api/* reply.
  *
@@ -21,6 +22,7 @@
 const GH = 'https://ascoding11.github.io';
 const COM = 'https://ascoding11.com';
 const COM_HOST = /^(www\.)?ascoding11\.com$/;
+const ADSENSE = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1712937102765568"\n     crossorigin="anonymous"></script>\n';
 
 function toCom(u) {
   if (!u || !u.startsWith(GH + '/') && u !== GH) return u;
@@ -54,7 +56,14 @@ export async function onRequest(context) {
   }
   if (!(res.headers.get('content-type') || '').includes('text/html')) return res;
 
-  return new HTMLRewriter()
+  let rw = new HTMLRewriter();
+  // AdSense's site code, in the <head> of the two pages a visit to ascoding11.com/ can land on (the home page,
+  // and showcase/, where its script sends bare visits), so AdSense finds it whether or not it runs JavaScript.
+  if (path === '/' || path === '/showcase/') {
+    const html = await res.clone().text();
+    if (!html.includes('adsbygoogle.js?client=')) rw = rw.on('head', { element(el) { el.append(ADSENSE, { html: true }); } });
+  }
+  return rw
     .on('link[rel="canonical"]', fixAttr('href'))
     .on('meta[property="og:url"]', fixAttr('content'))
     .on('meta[name="twitter:url"]', fixAttr('content'))
