@@ -167,6 +167,11 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
 #giftdlg .who small{color:var(--ink-3);font-weight:700}
 #giftdlg .err{color:var(--bad);font-size:13.5px;min-height:1em;margin:0}
 #giftdlg .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+/* The server wallet: the captains' preview and Stripe test mode bar, and the signed-out note */
+.modebar{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:center;align-items:center;padding:6px max(16px,env(safe-area-inset-right)) 6px max(16px,env(safe-area-inset-left));font-size:12.5px;font-weight:800;color:var(--ink-2);background:rgba(255,178,56,.08);border-bottom:1px solid var(--line);text-align:center}
+.modebar .tag{display:inline-block;background:var(--mango);color:#2a1700;border-radius:999px;padding:2px 9px;font-size:12px;letter-spacing:.02em;margin-right:4px}
+.signin{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:12px 0 0;padding:10px 14px;border:1px solid rgba(255,178,56,.45);border-radius:12px;background:rgba(255,178,56,.08);font-size:14px;font-weight:700}
+.signin .btn{min-height:36px;padding:6px 12px}
 #toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-weight:700;font-size:14px;max-width:calc(100vw - 32px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
 
 @media (max-width:760px){
@@ -228,11 +233,24 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
   'use strict';
   // Everything here waits for cosmetics.js and wallet.js (deferred), then builds the shop only when cosmetics are switched on.
   function ready(fn) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+  var built = false;
   ready(function () {
     var C = window.BackRoomCosmetics, W = window.BackRoomWallet;
-    if (!C || !W || !C.on()) return;                 // switched off: the page stays "not open yet"
-    build(C, W);
+    if (!C || !W) return;
+    if (C.on()) { build(C, W); if (C.previewing && C.previewing()) watchPreview(C); return; }
+    // The captains' preview (cosmetics.js CAPTAIN_PREVIEW): once captains.js confirms a captain, the real shop opens in
+    // this tab with the server wallet. Anyone else keeps "not open yet" (and the server refuses them anyway).
+    var K = window.BackRoomCaptains;
+    if (!C.previewAllowed || !C.previewAllowed() || !K || !K.onChange) return;   // switched off: the page stays "not open yet"
+    var go = function () { if (!built && K.captain() && C.startPreview()) { build(C, W); watchPreview(C); } };
+    K.ready.then(go); K.onChange(go);
   });
+  // A preview tab whose account stops being a captain (signed out, another account) goes back to "not open yet".
+  function watchPreview(C) {
+    var K = window.BackRoomCaptains; if (!K || !K.onChange) return;
+    var end = function () { if (!K.captain()) { C.stopPreview(); location.reload(); } };
+    K.ready.then(end); K.onChange(end);
+  }
 
   function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -249,7 +267,9 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
   function price(n) { var e = Math.floor(n / MPE), m = n % MPE; return '<span class="p" title="' + e + (e === 1 ? ' emerald' : ' emeralds') + (m ? ' ' + m + (m === 1 ? ' mango' : ' mangos') : '') + '">' + (e || !m ? EMS + e : '') + (m ? (e ? ' ' : '') + MANGO + m : '') + '</span>'; }
 
   function build(C, W) {
+    built = true;
     document.getElementById('closed').hidden = true;
+    var S = !!(C.server && C.server());                 // the server wallet (functions/_wallet.js) is in use
     var uid = ls('lbs:uid') || 'you';
     MPE = W.MANGOS_PER_EMERALD || MPE;
     var RC = {}; C.RARITY.forEach(function (r) { RC[r.id] = r; });
@@ -259,6 +279,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     bar.innerHTML = '<a class="back" href="/e63334287a3deaa3/' + (location.search.indexOf('cosmetics=1') >= 0 ? '?cosmetics=1' : '') + '">&larr; Back Room</a><h1>Shop</h1>' +
       '<div class="wallet" id="wallet" title=""><span class="big" id="wEm"></span><span class="small" id="wMa"></span></div>';
     document.body.appendChild(bar);
+    var modeBar = el('div', 'modebar'); modeBar.id = 'modebar'; modeBar.hidden = true; document.body.appendChild(modeBar);
     var acc = document.createElement('script'); acc.src = '/account/account.js'; acc.defer = true; document.body.appendChild(acc);
 
     var main = el('main');
@@ -267,6 +288,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
         '<h2>Chest</h2><p>Each chest costs ' + W.format(C.CHEST_PRICE) + ' and gives one random skin. A skin you already have gives back ' + W.format(C.DUP_REFUND) + '.</p>' +
         '<ul class="odds" aria-label="Chest odds">' + C.RARITY.slice().reverse().map(function (r) { return '<li style="color:' + r.color + '">' + r.name + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%</li>'; }).join('') + '</ul>' +
         '</div><div class="drawbtns" id="drawbtns"></div></section>' +
+      '<div class="signin" id="signinNote" hidden></div>' +
       '<nav class="tabs" role="tablist"><button role="tab" data-tab="packs" aria-selected="true">Packs</button><button role="tab" data-tab="locker" aria-selected="false">Locker</button><button role="tab" data-tab="history" aria-selected="false">Wallet</button></nav>' +
       '<section id="t-packs"></section><section id="t-locker" hidden></section><section id="t-history" hidden></section>';
     document.body.appendChild(main);
@@ -295,27 +317,47 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var id = b.getAttribute('data-pack'), p = C.pack(id), pv = C.preview(id), have = W.balance(), cost = p.price;
       var lab = b.getAttribute('data-label') || 'Buy';
       b.classList.remove('confirm');
+      if (S && W.signedIn() !== true) { b.disabled = W.signedIn() === null; b.textContent = W.signedIn() === null ? 'Loading…' : 'Sign in to buy'; return; }
       if (pv.all) { b.disabled = true; b.textContent = 'Owned'; return; }
       if (!W.unlimited() && have < cost) { b.disabled = true; b.innerHTML = 'Need ' + price(cost - have) + ' more'; return; }
       b.disabled = false;
       if (armed === id) { b.classList.add('confirm'); b.innerHTML = 'Tap again: ' + price(p.price); }
       else b.innerHTML = lab + ' ' + price(p.price);
     }
+    // With the server wallet buying needs a Google sign-in (account.js's button in the top bar).
+    function signIn() { try { if (window.SiteAccount && SiteAccount.signIn) SiteAccount.signIn().then(function () { W.refresh(); }, function () {}); } catch (e) {} }
+    var busy = false;                                  // one purchase at a time (the server also does each request once)
     document.addEventListener('click', function (e) {
       var b = e.target.closest('button[data-pack]'); if (!b || b.disabled) return;
       var id = b.getAttribute('data-pack');
+      if (S && W.signedIn() === false) { toast('Buying needs a Google sign-in.'); signIn(); return; }
+      if (busy) return;
       if (armed !== id) { armed = id; clearTimeout(armT); armT = setTimeout(function () { armed = null; draw(); }, 3000); draw(); return; }
       armed = null; clearTimeout(armT);
-      var r = C.buy(id);
-      if (!r.ok) { toast(r.reason === 'funds' ? 'Not enough emeralds yet.' : r.reason === 'owned' ? 'You already own ' + (/^item:/.test(id) ? 'this.' : 'everything in this pack.') : 'That didn’t work. Try again.'); draw(); return; }
-      if (r.got.draws.length) reveal(r);
-      else { var n = r.got.skins.length + r.got.acc.length + (r.got.items || []).length; toast('Added ' + n + (n === 1 ? ' item' : ' items') + ' to your locker' + (r.refund ? ', and ' + W.format(r.refund) + ' back for ones you had' : '') + '. You have ' + W.format(r.balance) + ' left.'); }
-      draw();
+      busy = true; b.disabled = true; if (S) b.textContent = 'Buying…';
+      Promise.resolve(C.buy(id)).then(function (r) {
+        busy = false;
+        if (!r.ok) { toast(r.reason === 'funds' ? 'Not enough emeralds yet.' : r.reason === 'owned' ? 'You already own ' + (/^item:/.test(id) ? 'this.' : 'everything in this pack.') : r.reason === 'signin' ? 'Buying needs a Google sign-in.' : r.message || 'That didn’t work. Try again.'); draw(); return; }
+        if (r.got.draws.length) reveal(r);
+        else { var n = r.got.skins.length + r.got.acc.length + (r.got.items || []).length; toast('Added ' + n + (n === 1 ? ' item' : ' items') + ' to your locker' + (r.refund ? ', and ' + W.format(r.refund) + ' back for ones you had' : '') + '. You have ' + W.format(r.balance) + ' left.'); }
+        draw();
+      }, function () { busy = false; toast('That didn’t work. Try again.'); draw(); });
+    });
+    // Emerald packs (real money): Stripe Checkout through store.js; Stripe sends the tab back here afterwards.
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-emerald]'); if (!b || b.disabled) return;
+      if (W.signedIn() === false) { toast('Buying needs a Google sign-in.'); signIn(); return; }
+      b.disabled = true; b.textContent = 'Opening checkout…';
+      W.buyEmeralds(b.getAttribute('data-emerald')).then(function (r) {
+        if (r.ok) return;
+        toast(r.reason === 'signin' ? 'Buying needs a Google sign-in.' : r.reason === 'closed' ? 'The shop isn’t open yet.' : r.message || 'Couldn’t start checkout. Try again in a minute.');
+        draw();
+      });
     });
 
     // ---------- Packs ----------
     function packCard(p) {
-      var c = el('div', 'pack' + (p.kind === 'emeralds' ? ' money' : ''));
+      var c = el('div', 'pack' + (p.kind === 'emeralds' && !S ? ' money' : ''));
       if (p.kind === 'emeralds') p = { kind: 'emeralds', name: p.name, desc: p.emeralds.toLocaleString('en-US') + ' emeralds, to spend in the shop.', usd: p.usd, emeralds: p.emeralds, link: p.link, contents: {} };
       var faces = '';
       if (p.contents.skins) faces = p.contents.skins.map(function (id) { return C.avatarSvg(uid, 48, { look: { skin: id, accessories: {} } }); }).join('');
@@ -326,6 +368,11 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       c.innerHTML = '<div class="faces">' + faces + '</div><div class="nm">' + esc(p.name) + '</div><div class="ds">' + esc(p.desc) + '</div>';
       if (p.kind === 'emeralds') {
         c.innerHTML += '<div class="own">$' + p.usd.toFixed(2) + '</div>';
+        if (S) {                                        // the server wallet: Stripe Checkout (store.js), credited by the webhook
+          var sb = el('button', 'btn go', 'Buy for $' + p.usd.toFixed(2)); sb.type = 'button'; sb.setAttribute('data-emerald', p.id);
+          c.appendChild(sb);
+          return c;
+        }
         // Only a pack with a Payment Link pasted in wallet.js AND PAYMENTS switched on links anywhere; today none does.
         var live = !!(p.link && W.PAYMENTS && W.PAYMENTS.enabled && /^https:\/\/buy\.stripe\.com\//.test(p.link));
         var mb = live ? el('a', 'btn go', 'Buy for $' + p.usd.toFixed(2)) : el('button', 'btn', 'Not available yet');
@@ -341,7 +388,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     }
     function drawPacks() {
       var t = document.getElementById('t-packs'); t.innerHTML = '';
-      [['skins', 'Skin packs', 'A pack costs the same as its skins bought one by one. Every skin, accessory and game item can also be bought on its own in the Locker.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.']].concat(Object.keys(C.GAMES || {}).map(function (gm) { return ['items', C.GAMES[gm].name + ' packs', 'Things to wear in ' + C.GAMES[gm].name + '. Put them on here in your locker or in the game’s own garage.', gm]; }), [['draws', 'Chests', 'Bought with emeralds only. Odds for every chest: ' + C.RARITY.slice().reverse().map(function (r) { return r.name.toLowerCase() + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%'; }).join(', ') + '.'], ['emeralds', 'Buy emeralds', 'Packs of emeralds for real money (not loot chests). Buying them isn’t available yet.']]).forEach(function (g) {
+      [['skins', 'Skin packs', 'A pack costs the same as its skins bought one by one. Every skin, accessory and game item can also be bought on its own in the Locker.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.']].concat(Object.keys(C.GAMES || {}).map(function (gm) { return ['items', C.GAMES[gm].name + ' packs', 'Things to wear in ' + C.GAMES[gm].name + '. Put them on here in your locker or in the game’s own garage.', gm]; }), [['draws', 'Chests', 'Bought with emeralds only. Odds for every chest: ' + C.RARITY.slice().reverse().map(function (r) { return r.name.toLowerCase() + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%'; }).join(', ') + '.'], ['emeralds', 'Buy emeralds', S ? 'Packs of emeralds for real money (not loot chests). You pay on Stripe’s own page and come back here; the emeralds arrive a few seconds later. Buying needs a Google sign-in.' : 'Packs of emeralds for real money (not loot chests). Buying them isn’t available yet.']]).forEach(function (g) {
         var h = el('h3', null, esc(g[1])); t.appendChild(h);
         if (g[2]) t.appendChild(el('p', 'note', esc(g[2])));
         var grid = el('div', 'grid'); grid.style.marginTop = '10px';
@@ -439,6 +486,21 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
 
     function drawWallet() {
       var e = W.inEmeralds(), inf = W.unlimited();
+      if (S) {
+        var bits = [];
+        if (C.previewing && C.previewing()) bits.push('<span>Captains’ preview: only captains can open this shop until it launches.</span>');
+        if (W.testMode()) bits.push('<span><span class="tag" id="testTag">Test mode</span>Stripe sandbox: no real money is taken.</span>');
+        modeBar.innerHTML = bits.join(''); modeBar.hidden = !bits.length;
+        var sn = document.getElementById('signinNote'), st = W.state();
+        sn.hidden = !(st.signedIn === false || st.closed);
+        if (!sn.hidden) sn.innerHTML = st.closed ? 'The shop isn’t open to this account yet.' : '<span>Buying needs a Google sign-in. Your emeralds and items stay with your Google account.</span><button type="button" class="btn go" id="signinBtn">Sign in with Google</button>';
+        if (W.signedIn() !== true && !inf) {
+          document.getElementById('wEm').innerHTML = EM + ' —';
+          document.getElementById('wMa').textContent = W.signedIn() === false ? 'Sign in' : '…';
+          document.getElementById('wallet').title = W.signedIn() === false ? 'Sign in with Google to see your emeralds.' : '';
+          return;
+        }
+      }
       document.getElementById('wEm').innerHTML = EM + ' ' + (inf ? '∞' : e.emeralds.toLocaleString('en-US'));
       document.getElementById('wMa').innerHTML = inf ? 'Captain' : MANGO + ' ' + e.mangos + '/' + MPE;
       document.getElementById('wallet').title = inf ? 'Captains have no limit: everything is free and owned.' : W.format();
@@ -479,7 +541,8 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
           if (!gdlg) return;
           if (!r.ok) {
             yes.disabled = false;
-            gdlg.querySelector('#gerr').textContent = { signin: 'Sign in with Google to send gifts.', owned: pick.n + ' already has this.', busy: 'You have ' + W.GIFT_MAX + ' gifts still waiting to be opened. Try again once they are.', funds: 'Not enough emeralds yet.', recipient: pick.n + ' needs to sign in with Google first.', money: 'Emeralds and mangos can’t be gifted.' }[r.reason] || 'That didn’t work. Try again.';
+            var gm = { signin: 'Sign in with Google to send gifts.', owned: pick.n + ' already has this.', busy: 'You have ' + W.GIFT_MAX + ' gifts still waiting to be opened. Try again once they are.', funds: 'Not enough emeralds yet.', recipient: pick.n + ' needs to sign in with Google first.', money: 'Emeralds and mangos can’t be gifted.' };
+            gdlg.querySelector('#gerr').textContent = (S && r.reason !== 'signin' && r.reason !== 'funds' && r.message) || gm[r.reason] || r.message || 'That didn’t work. Try again.';
             return;
           }
           close(); toast('Gift sent to ' + pick.n + '.' + (r.spent ? ' You have ' + W.format(r.balance) + ' left.' : '')); draw();
@@ -534,6 +597,31 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       setTimeout(showCards, still ? 0 : 1400);
     }
     if (navigator.webdriver) window.__shop = { reveal: reveal, draw: draw, toast: toast, giftDialog: giftDialog };
+
+    // ---------- The server wallet: sign-in changes and coming back from Stripe ----------
+    if (S) {
+      document.addEventListener('click', function (e) { if (e.target.closest('#signinBtn')) signIn(); });
+      var tries = 0;
+      (function hookAcct() { var A = window.SiteAccount; if (A && A.onChange) { A.onChange(function () { W.refresh(); }); return; } if (++tries < 60) setTimeout(hookAcct, 250); })();
+      W.refresh().then(function () { draw(); returned(); });
+    }
+    // Stripe sends the tab back with ?purchase=success&sku=emeralds_7&session=cs_… (or purchase=cancel). The webhook,
+    // not this page, adds the emeralds: wait for the wallet's ledger to show that Checkout session.
+    function returned() {
+      var q = new URLSearchParams(location.search), st = q.get('purchase'), sku = q.get('sku') || '', ses = q.get('session') || '';
+      if ((st !== 'success' && st !== 'cancel') || !/^emeralds_\d+$/.test(sku)) return;
+      ['purchase', 'sku', 'session'].forEach(function (k) { q.delete(k); });
+      try { history.replaceState(history.state, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) {}
+      if (st === 'cancel') { toast('Checkout cancelled: nothing was charged.'); return; }
+      var pk = (W.EMERALD_PACKS || []).filter(function (x) { return x.id === sku.replace(/_/g, '-'); })[0], end = Date.now() + 45000;
+      toast('Payment received. Adding your emeralds…');
+      (function poll() {
+        var hit = W.state().recent.some(function (l) { return l[4] === ses; });
+        if (hit) { toast('Added ' + (pk ? pk.emeralds.toLocaleString('en-US') + ' emeralds' : 'your emeralds') + '. You have ' + W.format() + '.'); draw(); return; }
+        if (Date.now() > end) { toast('Your emeralds are on their way: it can take a minute. Reload the page to check.'); return; }
+        setTimeout(function () { W.refresh().then(poll); }, 2000);
+      })();
+    }
 
     document.addEventListener('backroom:wallet', function () { draw(); });
     document.addEventListener('backroom:captain', function () { draw(); });
