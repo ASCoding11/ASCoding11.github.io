@@ -919,6 +919,27 @@
   I('chromaflage', 'tool', 4, 'Feather Duster', 'rare', '#A0673C', '#FF4F8B', 'Fluffy rainbow feathers for dusting off whoever is hiding on the shelf.');
   I('chromaflage', 'splash', 1, 'Paint Splash', 'epic', '#FF4F8B', '#FFC83D', 'A ring of paint droplets in every colour, and a little SPLAT! over their head, when you catch someone.');
   I('chromaflage', 'caught', 1, 'Surprise Spin', 'epic', '#FF4F8B', '#3F7CFF', 'The hider you catch jumps in surprise, spins round and pops in a puff of paint.');
+  // Wave 2 (19 Nov): sports, pirate, suit and robot hats and tools. Seekers only, as above.
+  I('chromaflage', 'hat', 8, 'Team Cap', 'common', '#E2433A', '#FFC83D', 'Team red with a white panel and a gold star.');
+  I('chromaflage', 'hat', 9, 'Football Helmet', 'rare', '#2F6FD8', '#FFFFFF', 'A glossy blue helmet with a stripe and a face guard.');
+  I('chromaflage', 'hat', 10, 'Sweatband', 'common', '#3A7FE0', '#FFFFFF', 'Blue towelling with white stripes, for long searches.');
+  I('chromaflage', 'hat', 11, 'Referee Cap', 'common', '#FFFFFF', '#34353E', 'Black and white panels. Fair play only.');
+  I('chromaflage', 'hat', 12, 'Pirate Hat', 'epic', '#2E2A2A', '#E8B830', 'A tricorn with gold trim and a plume, and an eye patch to match.');
+  I('chromaflage', 'hat', 13, 'Fedora', 'uncommon', '#7C8192', '#2E2E36', 'Grey felt with a dark band, like an old detective film.');
+  I('chromaflage', 'hat', 14, 'Top Hat', 'uncommon', '#3C3C46', '#A8222E', 'Tall and smart, with a deep red band.');
+  I('chromaflage', 'hat', 15, 'Robot Antenna', 'rare', '#C9CED6', '#FF4A3A', 'A riveted metal cap and a springy aerial.');
+  I('chromaflage', 'hat', 16, 'Champion Headband', 'common', '#E2433A', '#FFFFFF', 'A red band with long tails that flap as you run.');
+  I('chromaflage', 'hat', 17, 'Hockey Helmet', 'uncommon', '#F4F6F8', '#4A4E5C', 'A white helmet with vents and a chin strap.');
+  I('chromaflage', 'hat', 18, 'Bowler Hat', 'common', '#7A5E46', '#3A2C22', 'Round and brown, for detectives and bankers.');
+  I('chromaflage', 'hat', 19, 'Mascot Ears', 'legendary', '#B8834E', '#3A7FE0', 'A fuzzy mascot hood with round bear ears.');
+  I('chromaflage', 'tool', 5, 'Foam Finger', 'common', '#FFD23F', '#2F6FD8', 'A big yellow foam hand. Number one seeker.');
+  I('chromaflage', 'tool', 6, 'Pirate Hook', 'epic', '#C9D0D8', '#6A4426', 'A shiny hook on a wooden grip. Arr.');
+  I('chromaflage', 'tool', 7, 'Walking Cane', 'rare', '#2E2E36', '#FFCF3F', 'Black with a gold knob, for a boss on a stroll.');
+  I('chromaflage', 'tool', 8, 'Whistle', 'common', '#C9D0D8', '#E2433A', "The coach's whistle. Time out, you've been found.");
+  I('chromaflage', 'tool', 9, 'Tennis Racket', 'uncommon', '#FFFFFF', '#E8F4A0', 'A white frame and a tight string bed.');
+  I('chromaflage', 'tool', 10, 'Hockey Stick', 'common', '#D9B07A', '#2A2B32', 'Taped at the top and on the blade.');
+  I('chromaflage', 'tool', 11, 'Spyglass', 'uncommon', '#D8B04A', '#8A5A34', 'Three brass tubes for spotting a hider across the room.');
+  I('chromaflage', 'tool', 12, 'Robot Claw', 'epic', '#C9D0D8', '#3EC8E8', 'Three claw fingers and a glowing ring.');
   // ---- Odd One Out items ----
   // Drawn and played by odd-one-out/wardrobe.js (by slot and number). Outfits and tools are worn by hunters only (a prop
   // always looks exactly like the real object); a taunt plays only when a prop presses its key; a poof plays where a prop
