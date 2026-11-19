@@ -193,6 +193,7 @@ test('pack: costs the sum of its items, duplicates refunded 48 each', async () =
 test('two concurrent buys cannot overspend', async () => {
   world(); CATALOG.PUBLIC = true;
   seed(ALICE, { balance: 500 });
+  W.fs.gate = 2;   // both buys have read the balance before either commits
   const rs = await Promise.all([ITEM_RARE, ITEM_RARE2].map(id => call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what: 'item:' + id } })));
   assert.deepEqual(rs.map(r => r.status).sort(), [200, 402]);
   assert.equal(bal(ALICE), 80); assert.ok(W.fs.aborts >= 1, 'the race really happened (a transaction was retried)');
