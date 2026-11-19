@@ -129,8 +129,8 @@ void main(){float d=distance(vW,uP);
 const VS_RIM=`varying vec3 vW,vNv,vV;
 void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vec4 mv=viewMatrix*w;vV=mv.xyz;vNv=normalize(normalMatrix*normal);gl_Position=projectionMatrix*mv;}`;
 const FS_RIM=SPACE+`varying vec3 vW,vNv,vV;
-void main(){vec3 n=normalize(vNv);float fr=1.-abs(dot(n,normalize(-vV)));float rim=pow(fr,1.9);
-  gl_FragColor=vec4(space(normalize(vW-cameraPosition))*.7+vec3(.93,.96,1.)*(rim*1.7+.02),1.);}`;
+void main(){vec3 n=normalize(vNv);float fr=1.-abs(dot(n,normalize(-vV)));float rim=pow(fr,3.)*1.9+pow(fr,9.)*1.2;
+  gl_FragColor=vec4(space(normalize(vW-cameraPosition))*.75+vec3(.93,.96,1.)*(rim+.03),1.);}`;
 // star dust behind the cars: points that move on their own in the vertex shader (written once, when emitted)
 const VS_DUST=`attribute vec3 aV;attribute vec2 aT,aS;uniform float uTime,uScale;varying float vA,vS;
 void main(){float t=uTime-aT.x,age=t/aT.y;if(age<0.||age>1.){gl_Position=vec4(2.,2.,2.,1.);gl_PointSize=0.;vA=0.;return;}
