@@ -276,6 +276,8 @@ button:disabled{opacity:.45;cursor:default}
 .seg button[aria-checked="true"]{background:rgba(217,178,92,.18);color:var(--gold-2)}
 .opts{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;margin-top:10px}
 .opts>span{font:700 13px var(--f-u);color:var(--ink-2)}
+.opts>.nobots{grid-column:2;font-weight:600;margin-top:-4px}
+.opts .seg button:disabled{cursor:not-allowed;opacity:.6}
 .msg{margin:10px 0 0;font:600 14px/1.45 var(--f-u);color:var(--ink-2);min-height:1.45em}
 .msg.err{color:var(--bad)}
 details.how summary{cursor:pointer;font:800 15px var(--f-u);color:var(--ink-2);list-style:none}
@@ -435,6 +437,7 @@ details.how[open] summary::before{content:'– '}
             <span>Stack</span><div class="seg" role="radiogroup" data-opt="depth"><button type="button" role="radio" data-v="50">50 BB</button><button type="button" role="radio" data-v="100">100 BB</button><button type="button" role="radio" data-v="200">200 BB</button></div>
             <span>Timer</span><div class="seg" role="radiogroup" data-opt="timer"><button type="button" role="radio" data-v="15">15 s</button><button type="button" role="radio" data-v="30">30 s</button><button type="button" role="radio" data-v="60">60 s</button></div>
             <span>Fill seats</span><div class="seg" role="radiogroup" data-opt="bots"><button type="button" role="radio" data-v="1">With bots</button><button type="button" role="radio" data-v="0">People only</button></div>
+            <span id="noBotsNote" class="nobots" hidden>No bots in party games</span>
           </div>
           <p class="msg">Used for Practice and for rooms you start. Blinds are 10 / 20. Quick match tables are 6-max, 100 BB, 30 s, Normal bots.</p>
         </details>
@@ -1193,6 +1196,9 @@ function practiceStats(){
 }
 // ---- online ----
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: no bots, whatever this browser's Fill seats says, and a new dealer keeps it so.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^sd-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['river','flop','turn','ace','king','queen','jack','nuts','felt','chips'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
@@ -1220,6 +1226,7 @@ async function quickMatch(){
 }
 async function goOnline(room,isPublic,set){
   stopLoop();
+  if(isPartyRoom(room))set=Object.assign({},set,{bots:0});
   await Net.join(room,isPublic);
   G.mode='online';G.me=Net.uid;G.host=false;G.E=null;G.S=null;G.hole=null;G.holeId=-1;G.lastPub=null;G.lastHc='';G.hostUid=null;
   G.roomSet=Object.assign({},set);G.logs.clear();G.chat=[];G.seenCh.clear();G.seenAc.clear();G.seenRb.clear();G.seenSit.clear();G.he=0;G.maxHe=0;G.sent=-1;G.Sfrom=null;G.preCF=false;G.joinedAt=performance.now();
@@ -1253,6 +1260,7 @@ function becomeHost(){
   const prev=G.lastPub;
   const E=prev&&prev.seats?Table.fromPub(prev,()=>Net.now()):new Table(G.roomSet,()=>Net.now());
   useEngine(E);G.sealedId=-1;
+  if(isPartyRoom(Net.room)&&E.set.bots){E.set=Object.assign({},E.set,{bots:0});for(const s of E.seats)if(s&&s.bot)s.kick=1}
   E.seatHuman(Net.uid,myName||'Player',myAv);
   for(const [uid,o] of Net.others)if(Net.live(uid)){G.seenAc.set(uid,o.ac);G.seenRb.set(uid,o.rb);G.seenSit.set(uid,o.sit);E.seatHuman(uid,o.n,o.av)}
   E.maybeStart();E.changed();
@@ -1792,7 +1800,15 @@ $('swatches').innerHTML=AVC.map((c,i)=>'<button type="button" role="radio" aria-
 function paintSwatches(){for(const b of $('swatches').children)b.setAttribute('aria-checked',String(+b.dataset.i===myAv))}
 $('swatches').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;myAv=+b.dataset.i;store.set('av',myAv);paintSwatches()});
 // table settings
-function paintOpts(){for(const seg of document.querySelectorAll('[data-opt]'))for(const b of seg.children)b.setAttribute('aria-checked',String(String(prefs[seg.dataset.opt])===b.dataset.v))}
+function paintOpts(){
+  const party=isPartyRoom($('room').value);
+  for(const seg of document.querySelectorAll('[data-opt]'))for(const b of seg.children){
+    const lock=party&&seg.dataset.opt==='bots';b.disabled=lock;
+    b.setAttribute('aria-checked',String(lock?b.dataset.v==='0':String(prefs[seg.dataset.opt])===b.dataset.v));
+  }
+  $('noBotsNote').hidden=!party;
+}
+$('room').addEventListener('input',paintOpts);
 document.querySelectorAll('[data-opt]').forEach(seg=>seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;prefs[seg.dataset.opt]=+b.dataset.v;store.set('prefs',prefs);paintOpts()}));
 // hand rankings
 (function(){
@@ -1867,7 +1883,7 @@ setupAttract();
 requestAnimationFrame(ringLoop);
 // An invite opens this page with #sd-<code>: fill in the room and point at the join button.
 const inv=/^#sd-([a-z0-9-]{1,17})$/.exec(location.hash);
-if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited to room sd-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost','cta');$('quick').classList.replace('cta','ghost')}
+if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited to room sd-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost','cta');$('quick').classList.replace('cta','ghost');paintOpts()}
 if(TEST)window.__sd={Table,evalHand,handName,best5,equity,strCards,cardsStr,botDecide,G,Net,startPractice,doAct,myView,pfPct,get PF(){return PF}};
 })();
 </script>
