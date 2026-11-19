@@ -1,0 +1,671 @@
+/*
+ * Ironveil characters (window.IVChars) for three.js r128 (global build).
+ *
+ * Load after three.min.js. It loads its own GLTFLoader / SkeletonUtils copies from assets/lib/ if the page has not.
+ *   IVChars.load(onProgress) -> Promise           fetches hero, ally, enemies, clips and weapons (about 9 MB)
+ *   IVChars.spawn(kind) -> actor                    'hero','ally','rifleman','officer','sniper','gunner'
+ *   IVChars.weapon(kind) -> THREE.Object3D          'rifleScoped','smg','pistol','enemyRifle','enemySmg','mg','knife','binoculars','grenade'
+ *   IVChars.tris(kind), IVChars.info, IVChars.clips (names), IVChars.camera (set it for LOD + far-actor throttling)
+ * Actor (1 unit = 1 m, feet at the origin, facing +Z):
+ *   actor.root, play(name,{fade,loop,speed,once}), setUpper(name|null), setAim(pitch,yaw), attach(obj,socket), detach(obj),
+ *   bone(name), height, setVisible(b), update(dt), dispose(), plus: actor.clipLength(name), actor.isPlaying(name),
+ *   actor.onFinished = fn(name) for one-shot clips, actor.leftHandIK (0..1 override, default automatic).
+ * If any file fails, a code-made skinned human with procedural animation is used instead (info.fallback = true).
+ * Assets and their licences: CREDITS.md. Pipeline notes: README section "Ironveil characters".
+ */
+(function () {
+  'use strict';
+  if (!window.THREE) { console.warn('IVChars: three.js missing'); return; }
+  var T = THREE;
+  var SCRIPT = document.currentScript && document.currentScript.src;
+  var BASE = SCRIPT ? SCRIPT.replace(/[^\/]*$/, '') : '';
+  var ASSETS = BASE + 'assets/';
+  var VERSION = '1';
+
+  // ---------- kinds and files
+  var FILES = {
+    hero: 'hero.glb', ally: 'ally.glb', enemy: 'enemy.glb', anims: 'anims.glb', weapons: 'weapons.glb'
+  };
+  // which meshes of which file make each kind (enemy.glb holds all four enemy outfits + their LODs on one body)
+  var KINDS = {
+    hero: { file: 'hero', meshes: ['Hero', 'HeroHair'] },
+    ally: { file: 'ally', meshes: ['Ally', 'AllyHair'] },
+    rifleman: { file: 'enemy', meshes: ['Rifleman', 'EnemyHair'], lod: ['RiflemanLOD'] },
+    officer: { file: 'enemy', meshes: ['Officer', 'EnemyHair'], lod: ['OfficerLOD'] },
+    sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair'], lod: ['SniperLOD'] },
+    gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair'], lod: ['GunnerLOD'] }
+  };
+  var WEAPONS = ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade'];
+  var LONG = { rifleScoped: 1, smg: 1, enemyRifle: 1, enemySmg: 1, mg: 1 };
+
+  // clip aliases: API names that are served by another clip (documented in README)
+  var ALIAS = {
+    takedownVictim: 'takedownVictim', crouchAimWalk: 'crouchWalk'
+  };
+  // clips where the left hand belongs on the weapon's fore-end (left-hand IK on when a long gun is in handR)
+  var TWO_HAND = { aimIdle: 1, aimWalk: 1, crouchAim: 1, holdRifle: 1, sprintRifle: 1, fire: 1, fireCrouch: 1, fireCover: 1,
+    proneAim: 1, proneIdle: 1, stackUp: 1, boltCycle: 0, aimPistol: 1, firePistol: 1, holdPistol: 0, wallLean: 1, limp: 1, aimCover: 1 };
+  var UPPER_ROOTS = ['spine_01'];
+
+  var IV = window.IVChars = {
+    info: { loaded: false, fallback: false, files: {}, bytes: 0, errors: [], version: VERSION },
+    clips: [], camera: null, lodDistance: 22, throttleDistance: 45
+  };
+  var gltf = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {}, WTEMPLATES = {}, TRIS = {}, upperSet = null;
+
+  // ---------- script loading (own copies of the r128 example loaders)
+  function addScript(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('script ' + src)); };
+      document.head.appendChild(s);
+    });
+  }
+  function needLibs() {
+    var p = [];
+    if (!T.GLTFLoader) p.push(addScript(ASSETS + 'lib/GLTFLoader.js'));
+    return Promise.all(p).then(function () {
+      var q = [];
+      if (!T.SkeletonUtils) q.push(addScript(ASSETS + 'lib/SkeletonUtils.js'));
+      if (!window.MeshoptDecoder) q.push(addScript(ASSETS + 'lib/meshopt_decoder.js'));
+      return Promise.all(q);
+    }).then(function () { return window.MeshoptDecoder && MeshoptDecoder.ready; });
+  }
+
+  function loadGLB(name, prog) {
+    return new Promise(function (res, rej) {
+      var l = new T.GLTFLoader();
+      if (window.MeshoptDecoder) l.setMeshoptDecoder(window.MeshoptDecoder);
+      l.load(ASSETS + FILES[name] + '?v=' + VERSION, function (g) { res(g); }, function (e) { prog(name, e.loaded, e.total || 0); }, function (e) { rej(e); });
+    });
+  }
+
+  // ---------- material tweaks
+  function prepMaterial(m) {
+    if (!m) return;
+    if (/Hair/.test(m.name)) {
+      m.alphaTest = 0.5; m.transparent = false; m.depthWrite = true; m.side = T.DoubleSide;
+      m.roughness = 0.55; m.metalness = 0;
+    } else if (/Weapon/.test(m.name)) {
+      m.metalness = 0.45;
+    } else {
+      m.metalness = 0;
+    }
+    if (m.map) m.map.anisotropy = 4;
+  }
+
+  // ---------- clips
+  function prepClips(anims) {
+    var bones = {};
+    anims.forEach(function (c) {
+      c.tracks = c.tracks.filter(function (t) {
+        var bn = t.name.split('.')[0], prop = t.name.split('.')[1];
+        bones[bn] = 1;
+        if (prop === 'scale') return false;
+        if (prop === 'position' && bn !== 'pelvis') return false;
+        return true;
+      });
+    });
+    // upper body = spine_01 and everything below it in the hierarchy (bone names from the shared skeleton)
+    upperSet = {};
+    ['spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'weapon_r'].forEach(function (b) { upperSet[b] = 1; });
+    Object.keys(bones).forEach(function (b) {
+      if (/(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)_/.test(b)) upperSet[b] = 1;
+    });
+    anims.forEach(function (c) {
+      CLIPS[c.name] = c;
+      UPPER[c.name] = new T.AnimationClip(c.name + '#U', c.duration, c.tracks.filter(function (t) { return upperSet[t.name.split('.')[0]]; }));
+      LOWER[c.name] = new T.AnimationClip(c.name + '#L', c.duration, c.tracks.filter(function (t) { return !upperSet[t.name.split('.')[0]]; }));
+    });
+    IV.clips = Object.keys(CLIPS);
+  }
+  function clipName(n) {
+    if (CLIPS[n]) return n;
+    if (ALIAS[n] && CLIPS[ALIAS[n]]) return ALIAS[n];
+    return null;
+  }
+
+  // ---------- templates
+  function triCount(o) {
+    var n = 0;
+    o.traverse(function (m) { if (m.isMesh) { var g = m.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3; } });
+    return Math.round(n);
+  }
+  function buildTemplate(kind) {
+    var def = KINDS[kind], g = gltf[def.file];
+    if (!g) return null;
+    var keep = {};
+    def.meshes.concat(def.lod || []).forEach(function (n) { keep[n] = 1; });
+    var src = g.scene;
+    // clone the whole file once per kind, then drop meshes of the other kinds
+    var root = T.SkeletonUtils.clone(src);
+    var drop = [];
+    root.traverse(function (o) {
+      if (o.isMesh) {
+        var nm = meshName(o);
+        if (!keep[nm]) drop.push(o);
+      }
+    });
+    drop.forEach(function (o) { o.parent.remove(o); });
+    var tris = 0, lodTris = 0;
+    root.traverse(function (o) {
+      if (!o.isMesh) return;
+      prepMaterial(o.material);
+      o.castShadow = true; o.receiveShadow = false;
+      var g2 = o.geometry;
+      // skinned bounds: generous sphere around the body so animated limbs (prone, deaths) never pop out
+      g2.boundingSphere = new T.Sphere(new T.Vector3(0, 0.9, 0), 1.45);
+      var nm = meshName(o);
+      o.userData.lod = (def.lod || []).indexOf(nm) >= 0;
+      var c = (g2.index ? g2.index.count : g2.attributes.position.count) / 3;
+      if (o.userData.lod) lodTris += c; else tris += c;
+    });
+    TRIS[kind] = { tris: Math.round(tris), lod: Math.round(lodTris) };
+    return root;
+  }
+  function meshName(o) {
+    // GLTFLoader names a single-primitive mesh after its node; multi-primitive meshes become groups
+    var n = o.name || '';
+    if (o.parent && o.parent.isGroup && o.parent.name && !o.parent.isBone) n = o.parent.name;
+    return n.replace(/_\d+$/, '');
+  }
+
+  function prepWeapons(g) {
+    g.scene.updateMatrixWorld(true);
+    WEAPONS.forEach(function (k) {
+      var o = g.scene.getObjectByName(k);
+      if (!o) return;
+      o.traverse(function (m) { if (m.isMesh) { prepMaterial(m.material); m.castShadow = true; } });
+      WTEMPLATES[k] = o;
+      TRIS[k] = { tris: triCount(o) };
+    });
+  }
+
+  // ---------- load
+  IV.load = function (onProgress) {
+    if (IV._loading) return IV._loading;
+    var seen = {}, totals = { hero: 2.9e6, ally: 2.9e6, enemy: 3.2e6, anims: 1.2e6, weapons: 0.5e6 };
+    function prog(name, loaded, total) {
+      seen[name] = loaded; if (total) totals[name] = total;
+      var a = 0, b = 0;
+      for (var k in totals) { a += Math.min(seen[k] || 0, totals[k]); b += totals[k]; }
+      if (onProgress) try { onProgress(Math.min(0.99, a / b)); } catch (e) {}
+    }
+    IV._loading = needLibs().then(function () {
+      var names = Object.keys(FILES);
+      return Promise.all(names.map(function (n) {
+        return loadGLB(n, prog).then(function (g) { gltf[n] = g; IV.info.files[n] = 'ok'; }, function (e) {
+          IV.info.files[n] = 'failed'; IV.info.errors.push(n + ': ' + (e && e.message || e));
+        });
+      }));
+    }).then(function () {
+      if (gltf.anims) prepClips(gltf.anims.animations);
+      if (gltf.weapons) prepWeapons(gltf.weapons);
+      Object.keys(KINDS).forEach(function (k) {
+        var t = buildTemplate(k);
+        if (t) TEMPLATES[k] = t;
+      });
+      if (!gltf.anims || !TEMPLATES.hero) IV.info.fallback = true;
+      IV.info.loaded = true;
+      for (var k in seen) IV.info.bytes += seen[k];
+      if (onProgress) try { onProgress(1); } catch (e) {}
+      return IV;
+    }).catch(function (e) {
+      IV.info.errors.push(String(e && e.message || e)); IV.info.fallback = true; IV.info.loaded = true;
+      if (onProgress) try { onProgress(1); } catch (e2) {}
+      return IV;
+    });
+    return IV._loading;
+  };
+
+  IV.tris = function (kind) {
+    if (TRIS[kind]) return TRIS[kind].tris;
+    return kind in KINDS || WEAPONS.indexOf(kind) >= 0 ? (FB.tris || 0) : 0;
+  };
+  IV.lodTris = function (kind) { return TRIS[kind] ? TRIS[kind].lod || 0 : 0; };
+
+  // ---------- weapons
+  IV.weapon = function (kind) {
+    var t = WTEMPLATES[kind], o;
+    if (t) {
+      o = t.clone(true);
+      o.position.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1);
+      o.userData.kind = kind;
+      o.userData.muzzle = o.getObjectByName(kind + '_muzzle') || o;
+      var gr = o.getObjectByName(kind + '_gripR'), gl = o.getObjectByName(kind + '_gripL');
+      o.userData.grip = { r: gr || null, l: gl || null };
+      o.userData.gripR = gr; o.userData.gripL = gl;
+    } else {
+      o = FB.weapon(kind);
+    }
+    o.userData.long = !!LONG[kind];
+    return o;
+  };
+
+  // ---------- math helpers
+  var _v1 = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _v4 = new T.Vector3(), _v5 = new T.Vector3();
+  var _q1 = new T.Quaternion(), _q2 = new T.Quaternion(), _q3 = new T.Quaternion(), _m1 = new T.Matrix4();
+  function worldPos(o, v) { return v.setFromMatrixPosition(o.matrixWorld); }
+  function worldQuat(o, q) { o.matrixWorld.decompose(_v5, q, _v4); return q; }
+  // rotate bone by a world-space rotation q (pre-multiplied), keeping children attached
+  function rotWorld(bone, q) {
+    var p = bone.parent;
+    worldQuat(p, _q2);
+    // local' = inv(P) * q * P * local
+    _q3.copy(_q2).invert().multiply(q).multiply(_q2);
+    bone.quaternion.premultiply(_q3);
+    bone.updateMatrixWorld(true);
+  }
+  function setWorldQuat(bone, q) {
+    worldQuat(bone.parent, _q2);
+    bone.quaternion.copy(_q2.invert().multiply(q));
+    bone.updateMatrixWorld(true);
+  }
+  function angleBetween(a, b) { return Math.acos(Math.max(-1, Math.min(1, a.dot(b) / (a.length() * b.length() || 1)))); }
+  // two-bone IK (keeps the clip's current bend plane), then matches the end rotation
+  function twoBone(a, b, c, tPos, tQuat, w) {
+    if (w <= 0) return;
+    var qa = a.quaternion.clone(), qb = b.quaternion.clone(), qc = c.quaternion.clone();
+    var A = worldPos(a, new T.Vector3()), B = worldPos(b, new T.Vector3()), C = worldPos(c, new T.Vector3());
+    var lab = B.distanceTo(A), lcb = C.distanceTo(B);
+    var lat = Math.max(0.01, Math.min(tPos.distanceTo(A), lab + lcb - 0.001));
+    var ac = _v1.copy(C).sub(A), ab = _v2.copy(B).sub(A), ba = new T.Vector3().copy(A).sub(B), bc = new T.Vector3().copy(C).sub(B), at = _v3.copy(tPos).sub(A);
+    var ac_ab_0 = angleBetween(ac, ab), ba_bc_0 = angleBetween(ba, bc), ac_at_0 = angleBetween(ac, at);
+    var ac_ab_1 = Math.acos(Math.max(-1, Math.min(1, (lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat))));
+    var ba_bc_1 = Math.acos(Math.max(-1, Math.min(1, (lat * lat - lab * lab - lcb * lcb) / (-2 * lab * lcb))));
+    var axis0 = new T.Vector3().crossVectors(ac, ab);
+    if (axis0.lengthSq() < 1e-8) axis0.set(0, 1, 0);
+    axis0.normalize();
+    var axis1 = new T.Vector3().crossVectors(ac, at);
+    if (axis1.lengthSq() < 1e-10) axis1.copy(axis0); else axis1.normalize();
+    rotWorld(a, _q1.setFromAxisAngle(axis0, ac_ab_1 - ac_ab_0));
+    rotWorld(b, _q1.setFromAxisAngle(axis0, ba_bc_1 - ba_bc_0));
+    rotWorld(a, _q1.setFromAxisAngle(axis1, ac_at_0));
+    if (tQuat) setWorldQuat(c, tQuat);
+    if (w < 1) {
+      a.quaternion.copy(qa.slerp(a.quaternion, w)); b.quaternion.copy(qb.slerp(b.quaternion, w));
+      c.quaternion.copy(qc.slerp(c.quaternion, w)); a.updateMatrixWorld(true);
+    }
+  }
+
+  // sockets for attach(): bone and, for back/hip, a carry pose in the bind-pose character frame
+  var SOCKET = { handR: 'weapon_r', handL: 'hand_l', back: 'spine_03', hip: 'pelvis', head: 'Head' };
+  function carryMatrix(socket, obj) {
+    var m = new T.Matrix4(), q = new T.Quaternion(), p = new T.Vector3();
+    var long = obj.userData.long;
+    if (socket === 'back') {
+      // slung across the back, muzzle up over the left shoulder
+      var z = new T.Vector3(0.42, 0.9, 0).normalize(), y = new T.Vector3(0, 0, -1), x = new T.Vector3().crossVectors(y, z);
+      m.makeBasis(x, y, z); p.set(-0.05, 1.28, -0.2);
+      if (!long) { m.identity(); p.set(0.12, 1.05, -0.17); }
+    } else if (socket === 'hip') {
+      // holstered on the right hip, muzzle down
+      var z2 = new T.Vector3(0, -1, 0.15).normalize(), y2 = new T.Vector3(-1, 0, 0), x2 = new T.Vector3().crossVectors(y2, z2);
+      m.makeBasis(x2, y2, z2); p.set(-0.2, 0.98, 0.03);
+      if (long) { p.set(-0.25, 1.0, 0); }
+    } else { m.identity(); p.set(0, 0, 0); }
+    m.setPosition(p);
+    return m;
+  }
+
+  // ---------- actor
+  function Actor(kind) {
+    var t = TEMPLATES[kind];
+    this.kind = kind;
+    this.fb = !t || IV.info.fallback;
+    if (this.fb) { FB.init(this, kind); return; }
+    var root = T.SkeletonUtils.clone(t);
+    this.root = new T.Group(); this.root.name = 'IV_' + kind; this.root.add(root);
+    this.model = root;
+    var bones = {}, meshes = [], lods = [];
+    root.traverse(function (o) {
+      if (o.isBone) bones[o.name] = o;
+      if (o.isMesh) { if (o.userData.lod) lods.push(o); else meshes.push(o); }
+    });
+    this.bones = bones; this.meshes = meshes; this.lods = lods;
+    lods.forEach(function (m) { m.visible = false; });
+    this.lodLevel = 0;
+    this.mixer = new T.AnimationMixer(root);
+    this.base = []; this.upper = []; this.cur = null; this.curUpper = null;
+    this.aimP = 0; this.aimY = 0; this.aimPT = 0; this.aimYT = 0;
+    this.attached = [];
+    this.leftHandIK = null; this._lhW = 0;
+    this._acc = 0; this._frame = 0;
+    this.height = kind === 'hero' || kind === 'ally' ? 1.79 : (kind === 'officer' ? 1.83 : 1.80);
+    var self = this;
+    this.mixer.addEventListener('finished', function (e) {
+      var n = e.action._ivName;
+      if (self.onFinished && n) self.onFinished(n);
+    });
+    this.play('idle', { fade: 0 });
+  }
+  var AP = Actor.prototype;
+  AP._action = function (clip, tag) {
+    var a = this.mixer.clipAction(clip);
+    a._ivName = tag;
+    return a;
+  };
+  AP.clipLength = function (n) { var c = clipName(n); return c ? CLIPS[c].duration : 0; };
+  AP.isPlaying = function (n) { return this.cur && this.cur.name === n; };
+  AP.play = function (name, o) {
+    if (this.fb) return FB.play(this, name, o);
+    o = o || {};
+    var c = clipName(name);
+    if (!c) { if (!this._warned) { console.warn('IVChars: no clip', name); this._warned = 1; } c = 'idle'; }
+    var fade = o.fade == null ? 0.2 : o.fade;
+    var once = o.once || o.loop === false;
+    if (this.cur && this.cur.name === name && !once) {
+      if (o.speed != null) { this.cur.full.timeScale = this.cur.lower.timeScale = o.speed; }
+      return this;
+    }
+    var full = this._action(CLIPS[c], name), lower = this._action(LOWER[c], name);
+    [full, lower].forEach(function (a) {
+      a.reset(); a.enabled = true;
+      a.setLoop(once ? T.LoopOnce : T.LoopRepeat, Infinity);
+      a.clampWhenFinished = !!once;
+      a.timeScale = o.speed == null ? 1 : o.speed;
+      a.setEffectiveWeight(0); a.play();
+    });
+    lower._ivName = null;
+    for (var i = 0; i < this.base.length; i++) this.base[i].target = 0;
+    var e = { name: name, clip: c, full: full, lower: lower, w: fade > 0 ? 0 : 1, target: 1, rate: fade > 0 ? 1 / fade : 1e9 };
+    this.base = this.base.filter(function (b) { return b.full !== full; });
+    if (fade <= 0) this.base.forEach(function (b) { b.w = 0; });
+    this.base.push(e); this.cur = e;
+    return this;
+  };
+  AP.setUpper = function (name, o) {
+    if (this.fb) return FB.setUpper(this, name, o);
+    o = o || {};
+    var fade = o.fade == null ? 0.2 : o.fade;
+    if (this.curUpper && this.curUpper.name === name) return this;
+    for (var i = 0; i < this.upper.length; i++) this.upper[i].target = 0;
+    this.curUpper = null;
+    if (name) {
+      var c = clipName(name);
+      if (!c) { console.warn('IVChars: no clip', name); return this; }
+      var a = this._action(UPPER[c], name), once = o.once || o.loop === false;
+      a.reset(); a.enabled = true; a.setLoop(once ? T.LoopOnce : T.LoopRepeat, Infinity); a.clampWhenFinished = !!once;
+      a.timeScale = o.speed == null ? 1 : o.speed; a.setEffectiveWeight(0); a.play();
+      this.upper = this.upper.filter(function (u) { return u.action !== a; });
+      var e = { name: name, clip: c, action: a, w: fade > 0 ? 0 : 1, target: 1, rate: fade > 0 ? 1 / fade : 1e9 };
+      this.upper.push(e); this.curUpper = e;
+    }
+    this._autoUpper = !!o.auto;
+    return this;
+  };
+  AP.setAim = function (p, y) {
+    this.aimPT = Math.max(-1.2, Math.min(1.2, p || 0));
+    this.aimYT = Math.max(-1.1, Math.min(1.1, y || 0));
+    return this;
+  };
+  AP.bone = function (n) { return this.fb ? FB.bone(this, n) : (this.bones[n] || (n === 'handR' ? this.bones.hand_r : null) || null); };
+  AP.setVisible = function (b) { this.root.visible = !!b; return this; };
+  AP.attach = function (obj, socket) {
+    socket = socket || 'handR';
+    var bn = SOCKET[socket] || socket, bone = this.bone(bn) || this.bone('hand_r');
+    if (!bone) return this;
+    this.detach(obj);
+    bone.add(obj);
+    var grip = socket === 'handL' ? (obj.userData.gripL || obj.userData.gripR) : obj.userData.gripR;
+    if ((socket === 'handR' || socket === 'handL') && grip) {
+      // weapon placed so its grip frame coincides with the hand bone
+      grip.updateMatrix();
+      var inv = new T.Matrix4().copy(grip.matrix).invert();
+      inv.decompose(obj.position, obj.quaternion, obj.scale);
+    } else if (socket === 'back' || socket === 'hip') {
+      // carry pose defined in the bind-pose character frame, converted into the bone's frame
+      var rest = this._restWorld(bn);
+      var m = new T.Matrix4().copy(rest).invert().multiply(carryMatrix(socket, obj));
+      m.decompose(obj.position, obj.quaternion, obj.scale);
+    } else {
+      obj.position.set(0, 0, 0); obj.quaternion.identity();
+    }
+    this.attached.push({ obj: obj, socket: socket });
+    if (socket === 'handR') this.held = obj;
+    return this;
+  };
+  AP._restWorld = function (bn) {
+    // bone's bind-pose matrix in the actor frame, from the skeleton's inverse bind matrices
+    var sk = this.meshes[0].skeleton, i = sk.bones.indexOf(this.bones[bn]);
+    var m = new T.Matrix4();
+    if (i >= 0) m.copy(sk.boneInverses[i]).invert();
+    return m;
+  };
+  AP.detach = function (obj) {
+    if (obj.parent) obj.parent.remove(obj);
+    this.attached = this.attached.filter(function (a) { return a.obj !== obj; });
+    if (this.held === obj) this.held = null;
+    return this;
+  };
+  AP.update = function (dt) {
+    if (this.fb) return FB.update(this, dt);
+    dt = Math.min(dt || 0, 0.1);
+    // far actors: LOD mesh and update every other frame
+    var far = 0;
+    if (IV.camera && this.root.parent) {
+      worldPos(this.root, _v1);
+      far = _v1.distanceTo(IV.camera.position);
+      var lod = this.lods.length && far > IV.lodDistance ? 1 : 0;
+      if (lod !== this.lodLevel) {
+        this.lodLevel = lod;
+        this.meshes.forEach(function (m) { m.visible = !lod || /Hair/.test(m.name) ? !lod : false; });
+        this.lods.forEach(function (m) { m.visible = !!lod; });
+      }
+    }
+    this._frame++;
+    this._acc += dt;
+    if (far > IV.throttleDistance && (this._frame & 1)) return this;
+    dt = this._acc; this._acc = 0;
+    // automatic weapon hold when nothing is layered on top
+    var held = this.held, autoName = null;
+    if (held && (!this.curUpper || this._autoUpper)) {
+      var cn = this.cur ? this.cur.name : '';
+      var needs = !/^(aim|crouchAim|prone|death|takedown|vault|sit|salute|throw|melee|hit|stagger|reload|bolt|fire|sprintRifle|stackUp|breach|signal|wallLean|limp|alert)/.test(cn);
+      autoName = needs ? (held.userData.long ? 'holdRifle' : (held.userData.kind === 'pistol' ? 'holdPistol' : null)) : null;
+      if (autoName && !clipName(autoName)) autoName = null;
+      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true });
+      if (!autoName && this._autoUpper && this.curUpper) this.setUpper(null);
+    }
+    // weights
+    var U = 0, i, e;
+    for (i = 0; i < this.upper.length; i++) {
+      e = this.upper[i];
+      e.w += Math.sign(e.target - e.w) * Math.min(Math.abs(e.target - e.w), e.rate * dt);
+      U += e.w;
+    }
+    U = Math.min(1, U);
+    for (i = 0; i < this.upper.length; i++) this.upper[i].action.setEffectiveWeight(this.upper[i].w);
+    this.upper = this.upper.filter(function (u) { if (u.w <= 0 && u.target === 0) { u.action.stop(); return false; } return true; });
+    for (i = 0; i < this.base.length; i++) {
+      e = this.base[i];
+      e.w += Math.sign(e.target - e.w) * Math.min(Math.abs(e.target - e.w), e.rate * dt);
+      e.full.setEffectiveWeight(e.w * (1 - U));
+      e.lower.setEffectiveWeight(e.w * U);
+    }
+    this.base = this.base.filter(function (b) { if (b.w <= 0 && b.target === 0) { b.full.stop(); b.lower.stop(); return false; } return true; });
+    this.mixer.update(dt);
+    for (i = 0; i < this.base.length; i++) { e = this.base[i]; e.lower.time = e.full.time; }
+    this.root.updateMatrixWorld(true);
+    // aim offset over spine, neck and head
+    var k = 1 - Math.exp(-dt * 14);
+    this.aimP += (this.aimPT - this.aimP) * k; this.aimY += (this.aimYT - this.aimY) * k;
+    if (Math.abs(this.aimP) > 1e-4 || Math.abs(this.aimY) > 1e-4) this._applyAim();
+    // left hand onto the fore-end
+    var want = 0;
+    if (held && held.userData.gripL && held.userData.long !== undefined) {
+      var on = (this.curUpper && TWO_HAND[this.curUpper.name]) || (!this.curUpper && this.cur && TWO_HAND[this.cur.name]);
+      want = on ? 1 : 0;
+      if (this.leftHandIK != null) want = this.leftHandIK;
+    }
+    this._lhW += (want - this._lhW) * Math.min(1, dt * 10);
+    if (this._lhW > 0.01 && held) {
+      held.userData.gripL.updateMatrixWorld(true);
+      var tp = worldPos(held.userData.gripL, new T.Vector3()), tq = worldQuat(held.userData.gripL, new T.Quaternion());
+      twoBone(this.bones.upperarm_l, this.bones.lowerarm_l, this.bones.hand_l, tp, tq, this._lhW);
+    }
+    return this;
+  };
+  var AIM_P = [['spine_01', 0.15], ['spine_02', 0.2], ['spine_03', 0.35], ['neck_01', 0.12], ['Head', 0.18]];
+  var AIM_Y = [['spine_01', 0.18], ['spine_02', 0.22], ['spine_03', 0.3], ['neck_01', 0.12], ['Head', 0.18]];
+  AP._applyAim = function () {
+    var rq = worldQuat(this.root, new T.Quaternion());
+    var left = new T.Vector3(1, 0, 0).applyQuaternion(rq), up = new T.Vector3(0, 1, 0).applyQuaternion(rq);
+    var q = new T.Quaternion();
+    for (var i = 0; i < AIM_Y.length; i++) {
+      var b = this.bones[AIM_Y[i][0]]; if (!b) continue;
+      q.setFromAxisAngle(up, this.aimY * AIM_Y[i][1]); rotWorld(b, q);
+    }
+    for (i = 0; i < AIM_P.length; i++) {
+      b = this.bones[AIM_P[i][0]]; if (!b) continue;
+      // pitch about the character's current left axis (after yaw)
+      var l2 = left.clone().applyAxisAngle(up, this.aimY * 0.7);
+      q.setFromAxisAngle(l2, -this.aimP * AIM_P[i][1]); rotWorld(b, q);
+    }
+  };
+  AP.dispose = function () {
+    if (this.fb) return FB.dispose(this);
+    this.mixer.stopAllAction(); this.mixer.uncacheRoot(this.model);
+    if (this.root.parent) this.root.parent.remove(this.root);
+  };
+
+  IV.spawn = function (kind) {
+    if (!(kind in KINDS)) kind = 'rifleman';
+    return new Actor(kind);
+  };
+
+  // =====================================================================================
+  // Fallback: a code-made skinned human (lofted limbs on the same 22-bone layout) with procedural motion.
+  // Used only when the GLB files cannot be loaded, so the game never shows nothing.
+  // =====================================================================================
+  var FB = IV._fallback = (function () {
+    var J = { // bind-pose joint positions (three.js frame: +X left, +Y up, +Z forward)
+      pelvis: [0, 1.0, 0.007], spine_01: [0, 1.09, 0.031], spine_02: [0, 1.16, 0.039], spine_03: [0, 1.22, 0.037], neck_01: [0, 1.57, 0.12],
+      Head: [0, 1.68, 0.14], clavicle_l: [0.024, 1.5, 0.124], upperarm_l: [0.188, 1.5, 0.027], lowerarm_l: [0.456, 1.5, 0.022],
+      hand_l: [0.728, 1.5, 0.027], thigh_l: [0.113, 1.0, -0.005], calf_l: [0.113, 0.54, -0.009], foot_l: [0.113, 0.086, -0.045], ball_l: [0.113, 0.01, 0.083]
+    };
+    ['clavicle', 'upperarm', 'lowerarm', 'hand', 'thigh', 'calf', 'foot', 'ball'].forEach(function (n) {
+      var p = J[n + '_l']; J[n + '_r'] = [-p[0], p[1], p[2]];
+    });
+    var PARENT = { pelvis: null, spine_01: 'pelvis', spine_02: 'spine_01', spine_03: 'spine_02', neck_01: 'spine_03', Head: 'neck_01' };
+    ['l', 'r'].forEach(function (s) {
+      PARENT['clavicle_' + s] = 'spine_03'; PARENT['upperarm_' + s] = 'clavicle_' + s; PARENT['lowerarm_' + s] = 'upperarm_' + s;
+      PARENT['hand_' + s] = 'lowerarm_' + s; PARENT['thigh_' + s] = 'pelvis'; PARENT['calf_' + s] = 'thigh_' + s; PARENT['foot_' + s] = 'calf_' + s; PARENT['ball_' + s] = 'foot_' + s;
+    });
+    PARENT.weapon_r = 'hand_r'; J.weapon_r = J.hand_r;
+    var NAMES = Object.keys(PARENT);
+    // limb segments: [bone, from joint, to joint, radius at start, radius at end]
+    var SEG = [
+      ['pelvis', [0, 0.92, 0.0], [0, 1.1, 0.0], 0.16, 0.15], ['spine_02', [0, 1.1, 0.0], [0, 1.3, 0.0], 0.15, 0.17],
+      ['spine_03', [0, 1.3, 0.0], [0, 1.52, 0.0], 0.18, 0.15], ['neck_01', [0, 1.52, 0.03], [0, 1.66, 0.05], 0.06, 0.055],
+      ['Head', [0, 1.62, 0.06], [0, 1.82, 0.06], 0.085, 0.07]
+    ];
+    ['l', 'r'].forEach(function (s) {
+      var m = s === 'l' ? 1 : -1;
+      SEG.push(['upperarm_' + s, [m * 0.17, 1.47, 0.02], [m * 0.456, 1.5, 0.022], 0.065, 0.048]);
+      SEG.push(['lowerarm_' + s, [m * 0.456, 1.5, 0.022], [m * 0.728, 1.5, 0.027], 0.045, 0.034]);
+      SEG.push(['hand_' + s, [m * 0.728, 1.5, 0.027], [m * 0.85, 1.5, 0.03], 0.033, 0.028]);
+      SEG.push(['thigh_' + s, [m * 0.11, 1.0, 0.0], [m * 0.113, 0.54, -0.009], 0.095, 0.06]);
+      SEG.push(['calf_' + s, [m * 0.113, 0.54, -0.009], [m * 0.113, 0.1, -0.04], 0.058, 0.04]);
+      SEG.push(['foot_' + s, [m * 0.113, 0.06, -0.06], [m * 0.113, 0.03, 0.17], 0.045, 0.04]);
+    });
+    var geo = null, matCache = {};
+    function buildGeo() {
+      var pos = [], nrm = [], idx = [], si = [], sw = [], col = [];
+      var RING = 12, ROWS = 6;
+      SEG.forEach(function (s) {
+        var bi = NAMES.indexOf(s[0]), pi = NAMES.indexOf(PARENT[s[0]] || s[0]);
+        var a = new T.Vector3().fromArray(s[1]), b = new T.Vector3().fromArray(s[2]);
+        var ax = b.clone().sub(a), len = ax.length(); ax.normalize();
+        var u = Math.abs(ax.y) > 0.9 ? new T.Vector3(1, 0, 0) : new T.Vector3(0, 1, 0);
+        var v1 = new T.Vector3().crossVectors(ax, u).normalize(), v2 = new T.Vector3().crossVectors(ax, v1).normalize();
+        var base = pos.length / 3;
+        for (var r = 0; r <= ROWS; r++) {
+          var f = r / ROWS, rad = s[3] + (s[4] - s[3]) * f;
+          rad *= Math.sin(Math.PI * (0.12 + 0.76 * f)) * 0.25 + 0.8;   // rounded ends
+          var c = a.clone().addScaledVector(ax, len * f);
+          for (var k = 0; k < RING; k++) {
+            var th = k / RING * Math.PI * 2, n = v1.clone().multiplyScalar(Math.cos(th)).addScaledVector(v2, Math.sin(th));
+            var p = c.clone().addScaledVector(n, rad);
+            pos.push(p.x, p.y, p.z); nrm.push(n.x, n.y, n.z);
+            // blend into the parent bone over the first third
+            var wp = Math.max(0, 0.5 - f * 1.6);
+            si.push(bi, pi, 0, 0); sw.push(1 - wp, wp, 0, 0);
+          }
+        }
+        for (r = 0; r < ROWS; r++) for (k = 0; k < RING; k++) {
+          var i0 = base + r * RING + k, i1 = base + r * RING + (k + 1) % RING;
+          idx.push(i0, i1, i0 + RING, i1, i1 + RING, i0 + RING);
+        }
+      });
+      var g = new T.BufferGeometry();
+      g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+      g.setAttribute('normal', new T.Float32BufferAttribute(nrm, 3));
+      g.setAttribute('skinIndex', new T.Uint16BufferAttribute(si, 4));
+      g.setAttribute('skinWeight', new T.Float32BufferAttribute(sw, 4));
+      g.setIndex(idx); g.computeVertexNormals();
+      g.boundingSphere = new T.Sphere(new T.Vector3(0, 0.9, 0), 1.45);
+      return g;
+    }
+    var COL = { hero: 0x67664a, ally: 0x6a6a4c, rifleman: 0x5f6352, officer: 0x56594c, sniper: 0x65684e, gunner: 0x5f6352 };
+    var api = { tris: 0 };
+    api.init = function (a, kind) {
+      if (!geo) { geo = buildGeo(); api.tris = geo.index.count / 3; }
+      var mat = matCache[kind] || (matCache[kind] = new T.MeshStandardMaterial({ color: COL[kind] || 0x666655, roughness: 0.85 }));
+      var bones = {}, list = [];
+      NAMES.forEach(function (n) { var b = new T.Bone(); b.name = n; bones[n] = b; list.push(b); });
+      NAMES.forEach(function (n) {
+        var p = PARENT[n], b = bones[n], jp = new T.Vector3().fromArray(J[n]);
+        if (p) { bones[p].add(b); jp.sub(new T.Vector3().fromArray(J[p])); }
+        b.position.copy(jp);
+      });
+      var mesh = new T.SkinnedMesh(geo, mat); mesh.castShadow = true;
+      var root = new T.Group(); root.name = 'IV_' + kind + '_fallback';
+      root.add(mesh); mesh.add(bones.pelvis); root.updateMatrixWorld(true);
+      mesh.bind(new T.Skeleton(list));
+      a.root = root; a.bones = bones; a.meshes = [mesh]; a.lods = []; a.t = 0; a.state = 'idle'; a.upperName = null;
+      a.aimP = a.aimY = 0; a.attached = []; a.height = 1.8; a.speed = 1; a.once = false; a.stateT = 0;
+      a.rest = {}; NAMES.forEach(function (n) { a.rest[n] = bones[n].quaternion.clone(); });
+    };
+    api.play = function (a, name, o) { o = o || {}; if (a.state !== name) a.stateT = 0; a.state = name; a.speed = o.speed == null ? 1 : o.speed; a.once = !!(o.once || o.loop === false); return a; };
+    api.setUpper = function (a, name) { a.upperName = name; return a; };
+    api.bone = function (a, n) { return a.bones[n] || null; };
+    var q = new T.Quaternion(), e = new T.Euler();
+    function rot(a, n, x, y, z) { var b = a.bones[n]; if (!b) return; e.set(x, y, z); b.quaternion.copy(a.rest[n]).multiply(q.setFromEuler(e)); }
+    api.update = function (a, dt) {
+      a.t += dt * a.speed; a.stateT += dt;
+      var s = a.state, t = a.t, k;
+      var gait = { walk: [1.9, 0.45], run: [2.8, 0.75], sprint: [3.4, 0.95], crouchWalk: [1.6, 0.4], aimWalk: [1.9, 0.4], limp: [1.5, 0.35] }[s];
+      for (var n in a.rest) a.bones[n].quaternion.copy(a.rest[n]);
+      a.bones.pelvis.position.set(0, 1.0, 0.007);
+      // arms down from the T bind pose
+      rot(a, 'upperarm_l', 0, 0, -1.25); rot(a, 'upperarm_r', 0, 0, 1.25);
+      if (gait) {
+        var ph = t * gait[0] * Math.PI, amp = gait[1];
+        rot(a, 'thigh_l', Math.sin(ph) * amp, 0, 0); rot(a, 'thigh_r', -Math.sin(ph) * amp, 0, 0);
+        rot(a, 'calf_l', Math.max(0, -Math.cos(ph)) * amp * 1.3, 0, 0); rot(a, 'calf_r', Math.max(0, Math.cos(ph)) * amp * 1.3, 0, 0);
+        rot(a, 'upperarm_l', -Math.sin(ph) * amp * 0.6, 0, -1.25); rot(a, 'upperarm_r', Math.sin(ph) * amp * 0.6, 0, 1.25);
+        rot(a, 'pelvis', 0, Math.sin(ph) * 0.08, Math.sin(ph) * 0.04);
+        a.bones.pelvis.position.y = 1.0 - Math.abs(Math.cos(ph)) * 0.03 * amp - (s === 'crouchWalk' ? 0.3 : 0);
+      }
+      if (/crouch/.test(s)) { a.bones.pelvis.position.y = 0.7; rot(a, 'thigh_l', -1.2, 0, 0); rot(a, 'thigh_r', -1.0, 0, 0); rot(a, 'calf_l', 1.9, 0, 0); rot(a, 'calf_r', 1.7, 0, 0); }
+      if (/prone/.test(s)) { a.bones.pelvis.position.y = 0.15; rot(a, 'pelvis', 1.5, 0, 0); }
+      if (/death/.test(s)) { k = Math.min(1, a.stateT / 0.9); a.bones.pelvis.position.y = 1.0 - k * 0.85; rot(a, 'pelvis', (s === 'deathBack' ? -1 : 1) * 1.45 * k * k, 0, 0); }
+      if (/aim|fire|hold/.test(s) || (a.upperName && /aim|fire|hold/.test(a.upperName))) {
+        rot(a, 'upperarm_r', -1.2, 0.3, 0.3); rot(a, 'lowerarm_r', 0, -1.2, 0); rot(a, 'upperarm_l', -1.2, -0.6, -0.2); rot(a, 'lowerarm_l', 0, 0.6, 0);
+      }
+      rot(a, 'spine_02', -a.aimP * 0.5, a.aimY * 0.5, 0);
+      a.root.updateMatrixWorld(true);
+      return a;
+    };
+    api.dispose = function (a) { if (a.root.parent) a.root.parent.remove(a.root); };
+    api.weapon = function (kind) {
+      var L = { rifleScoped: 1.1, smg: 0.75, pistol: 0.2, enemyRifle: 1.1, enemySmg: 0.6, mg: 1.2, knife: 0.3, binoculars: 0.15, grenade: 0.1 }[kind] || 0.5;
+      var g = new T.BoxGeometry(0.04, 0.06, L); g.translate(0, 0, L * 0.4);
+      var m = new T.Mesh(g, new T.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.6 }));
+      var mz = new T.Object3D(); mz.name = kind + '_muzzle'; mz.position.set(0, 0, L * 0.9); m.add(mz);
+      m.userData.muzzle = mz; m.userData.grip = { r: null, l: null }; m.userData.kind = kind;
+      return m;
+    };
+    return api;
+  })();
+})();
