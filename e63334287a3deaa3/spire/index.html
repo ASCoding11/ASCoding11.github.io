@@ -5,6 +5,7 @@
 <script src="/e63334287a3deaa3/lang.js"></script>
 <script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the Wardrobe while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Spire</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -2079,7 +2080,7 @@ function hatOwned(h){return !!h&&(h.coins?profile.hats.indexOf(h.id)>=0:levelOf(
 if(!hatOwned(HATS.find(h=>h.id===myHat)))myHat='';
 function makeMe(){
   if(G.av)G.av.dispose();
-  G.av=makeAvatar(myColor,myHat);
+  G.av=makeAvatar(myColor,myHat);wrDressMe();
   me=G.me=newPlayer(0,0,9.5,0);me.px=0;me.py=0;me.pz=9.5;me.ryaw=0;
 }
 function spawnPoint(){
@@ -2318,11 +2319,11 @@ function untintCps(){if(G.W&&G.W.kind==='tower')for(const m of cpMeshes.values()
 function fanfare(x,y,z){
   sfx('cp');glowBurst(x,y+.3,z,'#7ef0b4',30,6,3);
   _fc.set('#b9fbd8');for(let i=0;i<24;i++){const a=i/24*TAU;emit(FXG,x+Math.cos(a)*.6,y+.15,z+Math.sin(a)*.6,Math.cos(a)*7,.6,Math.sin(a)*7,.55,.34,.08,_fc,.95,0,3.2,0)}
-  confetti(x,y+1.2,z,40);
+  cheerFx(x,y+1.2,z,40,myKit(),myColor);
 }
 function obbyEnv(snap){const w=WORLDS[obbyStageOf(G.cp).world];setSky(w.sky[0],w.sky[1]);if(G.W)G.W.killY=G.W.cps[G.cp].y-35}
 function onFinish(){
-  G.finished=true;sfx('finish');confetti(me.x,me.y+1.5,me.z,170);
+  G.finished=true;sfx('finish');cheerFx(me.x,me.y+1.5,me.z,170,myKit(),myColor);
   const tm=G.t-G.startT;
   if(G.mode==='solo'){
     const k=G.soloEasy?'easy':'tower',pb=profile.best[k];const nb=!pb||tm<pb;if(nb)profile.best[k]=r2(tm);
@@ -2546,7 +2547,7 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  base(){return{n:myName||'Climber',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),j:this.j,a:animCode(me),r:G.rs?G.rs.id:0,f:'',k:myHat}},
+  base(){const o={n:myName||'Climber',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),j:this.j,a:animCode(me),r:G.rs?G.rs.id:0,f:'',k:myHat};const wk=myKitStr();if(wk){o.wk=wk;this.wkSent=true}return o},
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});
@@ -2615,7 +2616,7 @@ function cleanRS(p){
 function nameOf(uid){if(uid===Net.uid)return myName||'You';const o=Net.others.get(uid);return o?o.n:'Climber'}
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
-  const o={n:cleanName(v.n)||'Climber',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff5e6c',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),f:typeof v.f==='string'?v.f:'',r:+v.r||0,k:HAT_SET.has(v.k)?v.k:''};
+  const o={n:cleanName(v.n)||'Climber',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff5e6c',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),f:typeof v.f==='string'?v.f:'',r:+v.r||0,k:HAT_SET.has(v.k)?v.k:'',wk:typeof v.wk==='string'&&/^\d{1,3}(\.\d{1,3}){0,3}$/.test(v.wk)?v.wk:''};
   const was=Net.others.get(uid);Net.others.set(uid,o);
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
   let e=ents.get(uid);
@@ -2629,6 +2630,7 @@ function onNode(uid,v){
   e.seen=performance.now();
   if(e.name!==o.n||e.color!==o.c){e.name=o.n;e.color=o.c;e.av.setColor(o.c)}
   if(e.hat!==o.k){e.hat=o.k;e.av.setHat(o.k)}
+  if(e.wk!==o.wk){e.wk=o.wk;if(o.wk&&!WR)wrLoad();else wrDressEnt(e)}   // a Wardrobe kit (wardrobe.js): fetched only when someone wears one
   if(isFinite(+v.x)&&isFinite(+v.z))e.tpos.set(clamp(+v.x,-400,400),clamp(+v.y||0,-50,2000),clamp(+v.z,-2000,400));
   e.tyaw=+v.h||0;e.a=clamp(v.a|0,0,5);e.r=o.r;
   // keep a short history to draw them from (netsmooth.js); a jump of more than 6 m is a respawn or checkpoint, so start afresh there.
@@ -2694,7 +2696,7 @@ function applyRS(rs){
   }
   // others reaching the top
   if(G.finSeenRound!==rs.id){G.finSeenRound=rs.id;G.finSeen=rs.fin.length}
-  for(let k=G.finSeen;k<rs.fin.length;k++){const f=rs.fin[k];if(f[0]!==Net.uid){feed('<span class="hl">'+esc(f[2]||'Someone')+'</span> reached the top · '+(k+1)+ordinal(k+1));sfx('cp');const e=ents.get(f[0]);if(e)confetti(e.pos.x,e.pos.y+1.5,e.pos.z,90)}if(k===0&&f[0]!==Net.uid)banner('Clock at double speed!',(f[2]||'Someone')+' made it to the top',2.2)}
+  for(let k=G.finSeen;k<rs.fin.length;k++){const f=rs.fin[k];if(f[0]!==Net.uid){feed('<span class="hl">'+esc(f[2]||'Someone')+'</span> reached the top · '+(k+1)+ordinal(k+1));sfx('cp');const e=ents.get(f[0]);if(e)cheerFx(e.pos.x,e.pos.y+1.5,e.pos.z,90,WR&&WR.kitOf(e.wk),e.color)}if(k===0&&f[0]!==Net.uid)banner('Clock at double speed!',(f[2]||'Someone')+' made it to the top',2.2)}
   G.finSeen=rs.fin.length;
   if(rs.ph==='inter'&&G.shownInter!==rs.id){G.shownInter=rs.id;showOnlineResults()}
   const i=rs.fin.findIndex(f=>f[0]===Net.uid);
@@ -3204,16 +3206,53 @@ const inv=/^#tw-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];showRoom(true);setMsg('You were invited to room tw-'+inv[1]+'. Press Join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('coral')}
 if(touchUI)setTouchUI(true);
 
+// ---------- the Wardrobe (captains only for now; README, "Spire") ----------
+// Outfits (drawn by ../outfits.js, shared with Turbo Trail and Escapade) and celebrations, in wardrobe.js beside this
+// page. wardrobeOn() says whether this player may open it: WARDROBE_PUBLIC (the one line that opens it to everyone), one
+// of the site's captains (../captains.js), or ?wardrobe=1 on localhost or in an automated browser (remembered for the
+// tab; ?wardrobe=0 forgets it). The files are fetched only when it is true, or when a climber in the room wears a kit
+// (then only outfits.js and wardrobe.js, to draw them); until then WR is null and every climber looks as before.
+// Saved as spire:wardrobe; online as `wk` in this player's node, only while worn.
+const WARDROBE_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardrobeOn=()=>WARDROBE_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','spire-wardrobe'));
+let WR=null,wrAsked=false;
+const myKit=()=>WR&&wardrobeOn()?WR.mine():null;
+function myKitStr(){return WR?WR.kitStr(myKit()):''}
+function wrDressMe(){if(WR&&G.av)WR.dress(G.av,myKit(),myColor)}
+function wrDressEnt(e){if(WR&&e.av)WR.dress(e.av,WR.kitOf(e.wk),e.color)}
+function cheerFx(x,y,z,n,kit,col){if(!(WR&&kit&&WR.cheer(kit,x,y,z,n,col)))confetti(x,y,z,n)}
+function wrApi(){return{THREE,store,emit,FXS,FXG,hiQ,glowBurst,get color(){return myColor},get me(){return me},
+  changed(){wrDressMe();wrSend()}}}
+function wrSend(){if(!WR||!Net.refs)return;const s=myKitStr();if(s||Net.wkSent){Net.wkSent=!!s;Net.upd({wk:s||null})}}
+let cosAsked=false;
+const wrAdd=src=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=src;e.onload=res;e.onerror=rej;document.head.appendChild(e)});
+function wrLoad(){
+  // the names (../cosmetics.js) only for a player who may open the Wardrobe
+  if(wardrobeOn()&&!window.BackRoomCosmetics&&!cosAsked){cosAsked=true;wrAdd('../cosmetics.js').then(wrSync).catch(e=>{cosAsked=false;console.error(e)})}
+  if(wrAsked)return;wrAsked=true;
+  (window.BlockFits?Promise.resolve():wrAdd('../outfits.js')).then(()=>wrAdd('wardrobe.js')).then(()=>{
+    if(!window.SpireWardrobe||!window.BlockFits)throw new Error('wardrobe did not load');
+    WR=window.SpireWardrobe(wrApi());wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){
+  if(wardrobeOn())wrLoad();
+  if(!WR)return;
+  WR.menu(wardrobeOn());wrDressMe();ents.forEach(wrDressEnt);wrSend();
+}
+if(CAPTAINS)CAPTAINS.onChange(wrSync);
+
 // Test hook (automated browsers only): step the simulation without waiting for frames, check modules, drive the climber.
 if(navigator.webdriver)window.__tw={G,PHYS,MODS,WORLDS,OBBY_STAGES,get me(){return me},ents,Net,onNode,KB,keys,tAct,tMove,
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){tick();if(G.respawnAt&&performance.now()>=G.respawnAt)respawnMe(true)}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
   respawnNow(){if(G.respawnAt)respawnMe()},
   verifyModule,runBot,buildTower,wearHat,renderHats,get coins(){return coins},buildObby,buildSingle,towerPlan,makeBot,startSolo,startObby,startPractice,toMenu,goOnline,setRS,newRound,hostTick,remaining,showPause,resume,
-  setView,toggleView,fpOn,startSpectate,aimOn,guideMesh,
+  setView,toggleView,fpOn,startSpectate,aimOn,guideMesh,get WR(){return WR},wardrobeOn,wrSync,wrLoad,
   autopilot(on,from){G.auto=on?makeBot(G.W.route):null;if(G.auto&&from)G.auto.i=from},
   get camDist(){return camera.position.distanceTo(camT)},
   // stand-in climbers for screenshots: [{x,y,z,yaw,c,n,a}]
-  decoys(list){(G.decoys||[]).forEach(d=>{d.av.dispose();d.tag.remove()});G.decoys=list.map(q=>{const av=makeAvatar(q.c,q.k);av.root.position.set(q.x,q.y,q.z);av.root.rotation.y=q.yaw||0;for(let i=0;i<30;i++)animate(av,q.a||0,q.a===1?7:0,1/30);placeBlob(av,q.x,q.y,q.z,G.t);const tag=document.createElement('div');tag.innerHTML='<i style="background:'+q.c+'"></i>'+esc(q.n);$('tags').appendChild(tag);return{av,tag,q}})},camRay,renderer,scene,camera,render(){renderer.render(scene,camera)},
+  decoys(list){(G.decoys||[]).forEach(d=>{d.av.dispose();d.tag.remove()});G.decoys=list.map(q=>{const av=makeAvatar(q.c,q.k);if(WR&&q.wk)WR.dress(av,WR.kitOf(q.wk),q.c);av.root.position.set(q.x,q.y,q.z);av.root.rotation.y=q.yaw||0;for(let i=0;i<30;i++)animate(av,q.a||0,q.a===1?7:0,1/30);placeBlob(av,q.x,q.y,q.z,G.t);const tag=document.createElement('div');tag.innerHTML='<i style="background:'+q.c+'"></i>'+esc(q.n);$('tags').appendChild(tag);return{av,tag,q}})},camRay,renderer,scene,camera,render(){renderer.render(scene,camera)},
   // settle the camera and render once, without moving the simulation on
   frame(n){G.freeze=true;try{n=n||1;for(let i=0;i<n;i++){G.noRender=i<n-1;update(1/60)}}finally{G.freeze=false;G.noRender=false;if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}}};
 
@@ -3223,7 +3262,7 @@ setInterval(()=>{if(!document.hidden||!Net.refs)return;try{onlineTick();if(perfo
 renderSwatches();renderHats();renderCpSeg();renderProfile();renderGfx();renderGuide();renderView();applyQuality();
 // signs are drawn with the display font: redraw the menu tower once it has loaded
 try{document.fonts.ready.then(()=>{if(G.mode==='menu'&&G.W)loadWorld(G.W)})}catch(e){}
-setupAttract();showAd('adMenu');
+setupAttract();showAd('adMenu');wrSync();
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
 </script>
