@@ -255,6 +255,7 @@
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
     showdown: { name: 'Showdown', prefix: 'sd', slots: [['seat', 'Seat looks'], ['back', 'Card backs'], ['felt', 'Felts'], ['win', 'Win flourishes']] },
+    'puffer-party': { name: 'Puffer Party', prefix: 'pp', slots: [['hat', 'Puffer hats'], ['trail', 'Answer trails'], ['pop', 'Pops'], ['win', 'Victory effects']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1052,6 +1053,42 @@
   I('showdown', 'win', 3, 'Trophy', 'rare', '#FFC93C', '#6A3A1A', 'A gold cup rises beside your seat in a sparkle.');
   I('showdown', 'win', 4, 'Fireworks', 'epic', '#FF4F8B', '#3FD2FF', 'Three little bursts go off round your seat.');
   I('showdown', 'win', 5, 'Treasure Chest', 'legendary', '#A8662F', '#F2C230', 'A chest pops up and spills gold coins.');
+  // ---- Puffer Party items ----
+  // Puffer Party (puffer-party/wardrobe.js draws them by slot and number): hats the room's pufferfish wears while it's your
+  // turn, trails from the puffer to the next player when your answer counts, extra pieces when it pops on you, and a
+  // victory effect at the sides of the screen when you win. Hidden: worn from the game's Wardrobe by captains only.
+  I('puffer-party', 'hat', 1, 'Baseball Cap', 'common', '#E23B3B', '#B81F2A', 'A red cap with the peak out front.');
+  I('puffer-party', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E23B3B', 'A white band with a red stripe for the big rally.');
+  I('puffer-party', 'hat', 3, 'Football Helmet', 'uncommon', '#1F4FB8', '#D5DAE2', 'A blue shell, a white stripe and a face cage.');
+  I('puffer-party', 'hat', 4, 'Swim Cap and Goggles', 'uncommon', '#3FA9F5', '#FF6A3A', 'A blue cap and orange goggles. The puffer was born for this.');
+  I('puffer-party', 'hat', 5, 'Referee Cap', 'common', '#16161B', '#C9CED6', 'A black cap and a whistle on a red cord.');
+  I('puffer-party', 'hat', 6, 'Ski Beanie', 'common', '#2F7BD6', '#FFFFFF', 'A striped knit hat with a fluffy bobble.');
+  I('puffer-party', 'hat', 7, 'Tennis Visor', 'common', '#26B868', '#FFFFFF', 'A green visor on a white band.');
+  I('puffer-party', 'hat', 8, 'Laurel Wreath', 'rare', '#6CBF4A', '#FFD23F', 'Green leaves for the winner of the big race.');
+  I('puffer-party', 'hat', 9, 'Cheer Bow', 'common', '#FF5FA8', '#FFFFFF', 'A big pink bow with white spots.');
+  I('puffer-party', 'hat', 10, 'Tin Robot Dome', 'uncommon', '#B6C0CC', '#FF4A3A', 'A riveted dome with a blinking aerial.');
+  I('puffer-party', 'hat', 11, 'Android Visor', 'rare', '#38E8FF', '#E8EDF3', 'A see-through cyan visor and a chrome crest.');
+  I('puffer-party', 'hat', 12, 'Pirate Captain', 'epic', '#1B1820', '#F2C230', 'A three-cornered hat, a feather and an eye patch.');
+  I('puffer-party', 'hat', 13, 'Bandana and Patch', 'rare', '#D7262F', '#15110E', 'A spotted red bandana and an eye patch.');
+  I('puffer-party', 'hat', 14, 'The Boss Fedora', 'epic', '#5E6474', '#141418', 'A grey fedora with a black band, worn at an angle.');
+  I('puffer-party', 'hat', 15, 'Top Hat and Monocle', 'rare', '#16161B', '#F2C230', 'A tall black hat and a gold monocle on a chain.');
+  I('puffer-party', 'hat', 16, 'Bodyguard Shades', 'uncommon', '#0E0F14', '#DADDE4', 'Dark glasses and an earpiece. Nobody gets near this puffer.');
+  I('puffer-party', 'hat', 17, 'Wizard Hat', 'epic', '#5A2FA8', '#FFD23F', 'A tall purple hat with twinkling stars.');
+  I('puffer-party', 'hat', 18, 'Crown', 'legendary', '#FFC93C', '#D7262F', 'A gold crown with jewels and a glint.');
+  I('puffer-party', 'trail', 1, 'Stars', 'common', '#FFD23F', '#FFF2B8', 'Gold stars fly to the next player.');
+  I('puffer-party', 'trail', 2, 'Hearts', 'common', '#FF5FA8', '#FF4A6A', 'Pink hearts fly to the next player.');
+  I('puffer-party', 'trail', 3, 'Soccer Balls', 'uncommon', '#FFFFFF', '#1A1A1F', 'A volley of little footballs.');
+  I('puffer-party', 'trail', 4, 'Basketballs', 'uncommon', '#F0822A', '#2A1408', 'Pass it on, chest height.');
+  I('puffer-party', 'trail', 5, 'Gold Doubloons', 'rare', '#FFC93C', '#8A5A10', 'Spinning pirate coins.');
+  I('puffer-party', 'trail', 6, 'Gears', 'uncommon', '#AEB8C4', '#3A424E', 'Little robot gears spin across.');
+  I('puffer-party', 'pop', 1, 'Feathers', 'common', '#F8F8F2', '#9AA6B4', 'White feathers float down after the pop.');
+  I('puffer-party', 'pop', 2, 'Gumballs', 'uncommon', '#FF5FA8', '#3FA9F5', 'A burst of bright gumballs.');
+  I('puffer-party', 'pop', 3, 'Nuts and Bolts', 'uncommon', '#9AA6B4', '#3A424E', 'Bolts everywhere. Was it a robot all along?');
+  I('puffer-party', 'pop', 4, 'Playing Cards', 'rare', '#FFFDF6', '#D7262F', 'A whole deck goes flying.');
+  I('puffer-party', 'pop', 5, 'Fireworks', 'epic', '#FF4F8B', '#3FD2FF', 'Four little bursts round the pop.');
+  I('puffer-party', 'win', 1, 'Ticker Tape', 'common', '#FF4F8B', '#3FA9F5', 'Streamers fall down both sides of the screen.');
+  I('puffer-party', 'win', 2, 'Trophy Lift', 'rare', '#FFC93C', '#6A3A1A', 'Two gold cups rise at the sides in a sparkle.');
+  I('puffer-party', 'win', 3, 'Gold Rain', 'legendary', '#FFC93C', '#C98A12', 'Gold coins rain down both sides of the screen.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
