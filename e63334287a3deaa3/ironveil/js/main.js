@@ -42,9 +42,9 @@
       };
     }
     // the environment art (ironveil/env/env.js, window.IVEnv) if it is there; the code-made stand-ins otherwise
-    if (!IV.params.has('noenv')) { try { await loadScript('env/index.js'); } catch (e) { /* not there yet */ } }
-    if (window.IVEnv && IVEnv.init) {
-      try { IVEnv.init(W.renderer, W.quality); if (IVEnv.load) await IVEnv.load(k => progress(0.45 + k * 0.1, 'Loading the countryside…')); IVEnv.ready = true; }
+    // the environment kit (?noenv keeps the code-made stand-ins, for comparison)
+    if (window.IVEnv && IVEnv.init && !IV.params.has('noenv')) {
+      try { IVEnv.init(W.renderer, ['low', 'medium', 'high'][W.quality]); if (IVEnv.load) await IVEnv.load(k => progress(0.45 + k * 0.1, 'Loading the countryside…')); IVEnv.ready = true; }
       catch (e) { console.warn('env failed, using stand-ins', e); IVEnv.ready = false; }
     }
     IV.hud.init();
@@ -155,7 +155,7 @@
     if (M.def && M.def.frame) M.def.frame(M, dt);
     IV.hud.frame(dt);
     IV.touchUI.frame();
-    W.renderer.render(W.scene, W.camera);
+    W.draw(dt);
   }
   function frame(now) {
     requestAnimationFrame(frame);
@@ -174,7 +174,8 @@
       if (state !== 'paused') { IV.ai.frame(1, dt); IV.ally.frame(1, dt); if (IV.player.actor && IV.player.actor.root.parent) IV.player.frame(1, dt); }
       IV.fx.frame(dt); W.frame(dt, W.camera.position);
       if (state === 'menu' && IV.camera.override) IV.camera.frame(dt);
-      W.renderer.render(W.scene, W.camera);
+      IV.art.frame(dt);
+      W.draw(dt);
     }
   }
 

@@ -209,7 +209,7 @@
     IV.art.prop('sandbags', b, 96, -67, 99.5, -67.5, 4); IV.art.prop('sandbags', b, 124, -63, 127, -61, 4);
     IV.art.prop('woodpile', b, 108, -80, 1.4);
     // cover down the extraction lane: a fallen trunk to vault, a broken cart, stacked crates
-    { const gy = W.height(127.5, -26); K.box(b, 'bark', 127.5, gy, -26, 4.2, 0.75, 0.75, 0.4, 0x7a6a58, F.SOLID | F.BULLET | F.NAV | F.LOW | F.VAULT, 'wood', 0.3); }
+    { const gy = W.height(126.4, -26); K.box(b, 'bark', 126.4, gy, -26, 2.2, 0.75, 0.75, 0.4, 0x7a6a58, F.SOLID | F.BULLET | F.NAV | F.LOW | F.VAULT, 'wood', 0.3); }
     IV.art.prop('cart', b, 138.5, 18, 0.25);
     IV.art.prop('crate', b, 147.5, W.height(147.5, 50), 50, 0.3, 1.0); IV.art.prop('crate', b, 146.6, W.height(146.6, 51.2), 51.2, 1.0, 0.9);
     // the flak pit: a ring of sandbags, ammunition crates; MG nest to the west of it
@@ -290,7 +290,7 @@
     M.group.add(sh); M.spotHead = sh; M.spotLens = lens;
     // the beam: a faint additive cone from the lamp toward where it points
     const beamGeo = new THREE.CylinderGeometry(0.35, 6.5, 1, 20, 1, true); beamGeo.translate(0, -0.5, 0); beamGeo.rotateX(-Math.PI / 2);
-    const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: 0xc8d4ff, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+    const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: 0xc8d4ff, transparent: true, opacity: IV.art.envOn() ? 0.018 : 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
     beam.position.copy(sh.position); M.group.add(beam); M.spotBeam = beam;
   }
   function truckModel() {

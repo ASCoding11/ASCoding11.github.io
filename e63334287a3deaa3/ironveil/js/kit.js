@@ -85,7 +85,7 @@
     // vegetation in 96 m chunks so whole chunks behind you or deep in the fog are skipped (W.frame culls them)
     const chunks = (list, make) => { const m = new Map(); for (const f of list) { const k = Math.floor(f[0] / 96) * 100 + Math.floor(f[2] / 96); let a = m.get(k); if (!a) m.set(k, a = []); a.push(f); } for (const a of m.values()) { const im = make(a, parent); let cx = 0, cz = 0; for (const f of a) { cx += f[0]; cz += f[2]; } cx /= a.length; cz /= a.length; let r = 0; for (const f of a) r = Math.max(r, Math.hypot(f[0] - cx, f[2] - cz)); im.userData.cull = new THREE.Sphere(new THREE.Vector3(cx, W.height(cx, cz) + 4, cz), r + 8); im.frustumCulled = false; W.cullList.push(im); out.push(im); } };
     if (b.foliage.length) chunks(b.foliage, K.foliageMesh);
-    if (b.cards.length) chunks(W.quality === 0 ? b.cards.filter((c, i) => i % 2 === 0) : b.cards, K.cardMesh);
+    if (b.cards.length && W.quality > 0) chunks(b.cards, K.cardMesh);   // Low: no leaf cards
     return out;
   };
 

@@ -195,7 +195,7 @@
   FX.frame = function (dt) {
     const c = cam();
     const scale = W.renderer.domElement.height / (2 * Math.tan(c.fov * Math.PI / 360));
-    for (const s of [add, norm]) { s.mat.uniforms.uScale.value = scale; if (W.scene.fog) { s.mat.uniforms.fogC.value.copy(W.scene.fog.color); s.mat.uniforms.fogD.value = W.scene.fog.density; } s.update(dt); }
+    for (const s of [add, norm]) { s.mat.uniforms.uScale.value = scale; if (W.scene.fog) { s.mat.uniforms.fogC.value.copy(W.scene.fog.color); s.mat.uniforms.fogD.value = W.scene.fog.density || 0.01; } s.update(dt); }
     for (let i = flashes.length - 1; i >= 0; i--) { const s = flashes[i]; s.userData.t -= dt; if (s.userData.t <= 0) { s.visible = false; flashes.splice(i, 1); } }
     // tracers
     let q = 0; const cp = c.position, tp = tracerPos, tcol = tracerMesh.geometry.attributes.color.array;

@@ -70,6 +70,8 @@
     progress && progress(0.35, 'Planting hedgerows…');
     await tick();
     def.build(M);
+    IV.art.flush();
+    IV.menus && IV.menus.applySettings();
     W.lamps.forEach(l => { l.static = true; });
     progress && progress(0.7, 'Walking the lanes…');
     await tick();

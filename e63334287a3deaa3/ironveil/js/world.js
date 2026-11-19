@@ -39,10 +39,13 @@
     W.resize();
     addEventListener('resize', W.resize);
   };
+  // one place that draws a frame: IVEnv's post stack when there is one (not on Low), else the plain renderer
+  W.draw = function (dt) { if (W.post) W.post.render(dt); else W.renderer.render(W.scene, W.camera); };
   W.resize = function () {
     const w = innerWidth, h = innerHeight;
     W.renderer.setSize(w, h, false);
     W.camera.aspect = w / h; W.camera.updateProjectionMatrix();
+    if (W.post && W.post.setSize) W.post.setSize(w, h);
     const hc = IV.$('hudc'), d = Math.min(devicePixelRatio || 1, 2);
     hc.width = Math.round(w * d); hc.height = Math.round(h * d);
     IV.emit('resize');
@@ -224,6 +227,7 @@
       o.traverse(n => { if (n.geometry && !n.userData.keepGeo) n.geometry.dispose(); });
     }
     W.colliders = []; W.hash = new Map(); W.lamps = []; W.flashes = []; W.roofs = []; W.waterPolys = []; W.cullList = [];
+    IV.art && IV.art.reset();
     W.statics = new THREE.Group(); W.dynamic = new THREE.Group(); sc.add(W.statics); sc.add(W.dynamic);
   };
 
@@ -244,6 +248,8 @@
     }
     lights(cfg);
     if (!W.atm) sky(cfg);
+    // IVEnv's post stack (sharpening, grading, bloom...) on Medium and High
+    W.post = IV.art.envOn() && window.IVEnv.post ? window.IVEnv.post(W.renderer, W.scene, W.camera, ['low', 'medium', 'high'][W.quality]) : null;
     terrain(cfg);
   };
 
@@ -349,9 +355,9 @@
 
   function terrain(cfg) {
     // IVEnv draws the ground from the same height function when it is loaded
-    const E = window.IVEnv && window.IVEnv.ready ? window.IVEnv : null;
-    if (E && E.ground) { const g = E.ground(W.heightAt, { size: W.size, surfaceAt: W.surfaceAt, day: W.day }); if (g) { W.terrainMesh = g.group || g; W.statics.add(W.terrainMesh); return; } }
-    const step = cfg.terrainStep || (W.quality === 0 ? 3 : 2), n = Math.floor(W.size / step) + 1, half = W.half;
+    const eg = IV.art.ground(cfg);
+    if (eg) { W.terrainMesh = eg.group || eg; W.statics.add(W.terrainMesh); return; }
+    const step = cfg.terrainStep || (W.quality === 0 ? 4 : 2), n = Math.floor(W.size / step) + 1, half = W.half;
     const pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3), mud = new Float32Array(n * n);
     const v3 = new THREE.Vector3(), c = new THREE.Color();
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
@@ -611,7 +617,7 @@
     const fl = W.flashLight;
     if (fb) { fl.position.set(fb.x, fb.y, fb.z); fl.distance = Math.min(60, fb.r * 1.6); fl.intensity = Math.min(5, fv * 3); fl.color.setHex(fb.color); } else fl.intensity = 0;
     // shadow camera follows the focus point, snapped to texels so shadows do not swim
-    if (W.sun.castShadow && focus) {
+    if (W.sun.castShadow && focus && !W.atm) {
       const s = W.shadowR || 40, texel = (2 * s) / (W.sun.shadow.mapSize.x || 1024);
       const fx = Math.round(focus.x / texel) * texel, fz = Math.round(focus.z / texel) * texel;
       W.sun.target.position.set(fx, focus.y, fz);

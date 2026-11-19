@@ -128,7 +128,8 @@
     const s = S();
     document.documentElement.style.setProperty('--subscale', s.sub);
     IV.audio.apply();
-    if (IV.world.renderer) IV.world.renderer.toneMappingExposure = 0.92 * s.bright;
+    if (IV.world.atm && IV.world.atm.setBrightness) IV.world.atm.setBrightness(s.bright);
+    else if (IV.world.renderer) IV.world.renderer.toneMappingExposure = 0.92 * s.bright;
   };
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => {
     document.querySelectorAll('.tabs [data-tab]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
