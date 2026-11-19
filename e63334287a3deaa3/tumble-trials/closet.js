@@ -467,8 +467,8 @@ const bandanaB=(c,c2)=>b=>{const y=.5;b.add(Sph(.395,18,9,0,Math.PI/2),c,[0,y,0]
   for(const s of [-1,1])b.add(Box(.09,.24,.025),c2||c,[s*.07,y-.12,-.42],[.2,0,s*.38]);
   for(let i=0;i<10;i++){const a=i/10*TAU+.3,r=.395*Math.sin(Math.PI*.3);b.add(Sph(.022,6,4),'#ffffff',[Math.sin(a)*r*1.02,y+.395*.8*Math.cos(Math.PI*.3),Math.cos(a)*r*1.04])}};
 const furHatB=c=>b=>{const y=.76;b.add(Cyl(.37,.35,.34,22),c,[0,y,0]).add(Sph(.37,22,6,0,Math.PI/2),c,[0,y+.16,0],null,[1,.3,1]);const R=G.rng(41);
-  for(let i=0;i<54;i++){const a=i/54*TAU*3+R()*.3,h=-.15+(i%3)*.13+R()*.04;b.add(Sph(.075,7,5),i%2?shade(c,.14):shade(c,-.06),[Math.sin(a)*.355,y+h,Math.cos(a)*.355])}
-  for(let i=0;i<10;i++){const a=i/10*TAU;b.add(Sph(.08,7,5),shade(c,.14),[Math.sin(a)*.2,y+.24,Math.cos(a)*.2])}};
+  for(let i=0;i<36;i++){const a=i/36*TAU*3+R()*.3,h=-.15+(i%3)*.13+R()*.04;b.add(Sph(.08,6,4),i%2?shade(c,.14):shade(c,-.06),[Math.sin(a)*.355,y+h,Math.cos(a)*.355])}
+  for(let i=0;i<8;i++){const a=i/8*TAU;b.add(Sph(.085,6,4),shade(c,.14),[Math.sin(a)*.2,y+.24,Math.cos(a)*.2])}};
 // a gold chain hanging round the neck, with a round medallion at the front
 function chainB(b,c,medal){b.add(Tor(.455,.022,5,34),c,[0,.04,0],[Math.PI/2+.38,0,0]);if(medal)b.add(Cyl(.075,.075,.025,16),c,[0,-.2,.43],[Math.PI/2-.25,0,0]).add(Sph(.03,8,6),medal,[0,-.2,.45])}
 function bowTieB(b,c){b.add(Sph(.035,8,6),c,[0,.07,.445]);for(const s of [-1,1])b.add(Cone(.065,.13,4),c,[s*.08,.07,.43],[0,0,s*Math.PI/2],[1,1,.45])}
@@ -612,7 +612,7 @@ COSTUMES.push(
       bandY(x,'#a3763f',.42,.47);x.fillStyle='#e8b923';x.fillRect(U(.3)-8,V(.475),16,V(.415)-V(.475));
       x.strokeStyle='rgba(90,58,26,.35)';x.lineWidth=3;for(const s of [-1,1]){x.beginPath();x.moveTo(U(s*.06),V(.56));x.lineTo(U(s*.06),V(0));x.stroke()}
       x.fillStyle='#fbfbf8';poly(x,[[-.42,.92],[-.3,.92],[-.2,.62],[-.3,.58]]);sheen(x,.18)},
-    b=>{b.add(Tor(.44,.085,8,28),'#7a6250',[0,.09,-.02],[Math.PI/2+.12,0,0]);const R=G.rng(43);for(let i=0;i<18;i++){const a=R()*TAU;b.add(Sph(.05,6,5),'#8f7663',[Math.sin(a)*.47,.09-Math.cos(a)*.05,Math.cos(a)*.47-.02])}
+    b=>{b.add(Tor(.44,.085,8,28),'#7a6250',[0,.09,-.02],[Math.PI/2+.12,0,0]);const R=G.rng(43);for(let i=0;i<18;i++){const a=R()*TAU;b.add(Sph(.05,5,4),'#8f7663',[Math.sin(a)*.47,.09-Math.cos(a)*.05,Math.cos(a)*.47-.02])}
       furHatB('#7a6250')(b)},'#b98a52','#2a2830'],
   ['Tracksuit Tough Guy','#2e5ad9','#ffcf3d',(x,c)=>{fillC(x,'#2e5ad9');for(const off of [-10,6])for(const s of [-1,1]){x.fillStyle='#ffffff';x.fillRect(U(s*SIDE)+off,0,5,V(0)-V(NECK)+H)}
       neck(x,c,'#ffffff',.02,.24);x.fillStyle='#ffffff';x.fillRect(U(0)-2,V(NECK),4,V(.38)-V(NECK));x.fillStyle='#c9d1da';x.fillRect(U(0)-4,V(.86),8,10);
