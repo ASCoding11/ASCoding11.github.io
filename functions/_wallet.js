@@ -8,9 +8,14 @@
  *                   { id, t, from, what, note, got, refund }], reqs { request id: time } (the last 30, so a request
  *                   sent twice is done once), created, updated
  *   ledger/{id}     one row per change, never edited: uid, t, d, b, w, r, kind (emeralds | buy | chest | gift-out |
- *                   gift-in | refund)
+ *                   gift-in | refund | reversal (mangos taken back for a Stripe refund or chargeback, or returned when
+ *                   the chargeback is won))
+ *   wallets/{uid}.lim  { m: [minute, changes], gd: [day, gifts sent], gr: [day, gifts received] }: the rate limits
  *   orders/{session id}  the shop's existing record of a paid Checkout; for emeralds it also says kind 'emeralds',
- *                   mangos credited, and status 'mismatch' when the amount paid didn't match the pack (nothing credited)
+ *                   mangos credited, and status 'mismatch' when the amount paid didn't match the pack (nothing credited),
+ *                   'unclaimed' (paid, but not through our own checkout, e.g. a Payment Link, or in the other Stripe
+ *                   mode: nothing credited, the owners decide by hand), 'refunded' / 'partly-refunded' / 'disputed'
+ *                   (refunded = cents refunded, dispute = Stripe's dispute status, clawed = mangos taken back)
  *
  * Every change is one Firestore transaction (read the wallet, check, debit, grant, write the ledger), retried when
  * Firestore says another request changed the same wallet first, so double clicks and concurrent requests can't
@@ -21,7 +26,7 @@
  * Captains are never charged, own everything and are never paid refunds or rewards. While wallet.js's
  * PAYMENTS.enabled is false (CATALOG.PUBLIC), only captains may use any of this: the live captains' preview.
  */
-import { DOCS, FS, googleToken, googleUser, json, cors } from './_lib.js';
+import { DOCS, FS, googleToken, googleUser, json, cors, readBody, underLimit, stripe } from './_lib.js';
 import { CATALOG } from './_catalog.js';
 import { OWNERS } from './_captains.js';
 import { NAMEFILTER } from './_namefilter.js';
@@ -29,6 +34,11 @@ import { NAMEFILTER } from './_namefilter.js';
 export { CATALOG };
 export const MPE = CATALOG.MANGOS_PER_EMERALD;
 const RECENT_MAX = 40, NOTICE_MAX = 20, REQ_MAX = 30, MAX_BAL = 1e12;
+// Rate limits, kept in the wallet document and checked inside the same transaction (no extra reads or writes):
+// changes a minute per player (buy, chest, gift, seen), gifts sent a day (captains have their own cap), gifts one
+// player can receive a day, and plain calls a minute per player per Cloudflare instance (reads included).
+export const LIMITS = { perMinute: 20, giftsPerDay: 30, captainGiftsPerDay: 200, receivedPerDay: 40, callsPerMinute: 120 };
+const MINUTE = 60000, DAY = 86400000, BODY_MAX = 4096;
 export const UID_RE = /^[A-Za-z0-9_-]{6,128}$/;
 const REQ_RE = /^[a-z0-9]{8,40}$/;
 const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -110,13 +120,27 @@ export function fill(owned, p, next, now) {
 }
 
 // ---------- The wallet document ----------
-function blank(now) { return { balance: 0, owned: {}, recent: [], notices: [], reqs: {}, created: now, updated: now }; }
+function blank(now) { return { balance: 0, owned: {}, recent: [], notices: [], reqs: {}, lim: {}, created: now, updated: now }; }
+// Counts one more against a limit kept in w.lim[key] (per span of time); refuses with 429 once max is reached.
+function limit(w, key, now, span, max, reason, message) {
+  const slot = Math.floor(now / span), c = w.lim[key], n = c && c[0] === slot ? c[1] : 0;
+  if (n >= max) throw new WErr(429, reason, message);
+  w.lim[key] = [slot, n + 1];
+}
+const busy = (w, now) => limit(w, 'm', now, MINUTE, LIMITS.perMinute, 'slow', 'That’s a lot of clicks. Wait a minute and try again.');
+// A wallet below zero (a refund or chargeback took back mangos already spent) can't buy, open chests or send gifts.
+function notNegative(w) {
+  if (w.balance < 0) throw new WErr(402, 'negative', 'Your wallet is below zero after a refund or chargeback. Buy emeralds to top it up first.', { balance: w.balance });
+}
 function int(v) { return typeof v === 'number' && Number.isSafeInteger(v); }
 function clean(d, now) {
   if (!d) return null;
   const w = blank(now);
-  if (int(d.balance) && d.balance >= 0) w.balance = d.balance;
-  if (d.owned && typeof d.owned === 'object') for (const k of Object.keys(d.owned)) if (has(ITEMS, k)) w.owned[k] = int(d.owned[k]) ? d.owned[k] : now;
+  // The balance can be below zero after a refund or chargeback took mangos back (see reverseEmeralds).
+  if (int(d.balance) && d.balance >= -MAX_BAL) w.balance = d.balance;
+  // Items the catalogue no longer lists are kept (a renamed or removed item must not silently vanish from a wallet).
+  if (d.owned && typeof d.owned === 'object') for (const k of Object.keys(d.owned)) if (k.length <= 80) w.owned[k] = int(d.owned[k]) ? d.owned[k] : now;
+  if (d.lim && typeof d.lim === 'object') for (const k of ['m', 'gd', 'gr']) { const c = d.lim[k]; if (Array.isArray(c) && c.length === 2 && int(c[0]) && int(c[1])) w.lim[k] = c; }
   if (Array.isArray(d.recent)) w.recent = d.recent.filter(x => x && int(x.t)).slice(-RECENT_MAX);
   if (Array.isArray(d.notices)) w.notices = d.notices.filter(x => x && typeof x.id === 'string').slice(-NOTICE_MAX);
   if (d.reqs && typeof d.reqs === 'object') for (const k of Object.keys(d.reqs)) if (REQ_RE.test(k) && int(d.reqs[k])) w.reqs[k] = d.reqs[k];
@@ -239,6 +263,7 @@ export async function walletBuy(env, user, body, next) {
     const now = Date.now(), writes = [];
     const w = clean(await get(docPath('wallets', user.uid)), now) || blank(now);
     seenReq(w, req, now);
+    busy(w, now); notNegative(w);
     const items = p.contents.items || [];
     if (!p.contents.draws && (cap || items.every(id => w.owned[id]))) throw new WErr(409, 'owned', p.kind === 'one' ? 'You already own this.' : 'You already own everything in this pack.');
     const price = cap ? 0 : p.price;
@@ -277,13 +302,20 @@ export async function walletGift(env, user, body, next) {
     const r = clean(await get(docPath('wallets', to)), now);
     if (!r) throw new WErr(404, 'recipient', toName + ' needs to open the shop once, signed in with Google, before they can get gifts.');
     seenReq(w, req, now);
-    if (p.kind === 'one' && r.owned[p.contents.items[0]]) throw new WErr(409, 'owned', toName + ' already has this.');
+    busy(w, now); notNegative(w);
+    limit(w, 'gd', now, DAY, cap ? LIMITS.captainGiftsPerDay : LIMITS.giftsPerDay, 'gifts', 'That’s the most gifts you can send today. Try again tomorrow.');
+    limit(r, 'gr', now, DAY, LIMITS.receivedPerDay, 'inbox', toName + ' has had a lot of gifts today. Try again tomorrow.');
+    const its = p.contents.items || [];
+    if (!p.contents.draws && its.length && its.every(id => r.owned[id])) throw new WErr(409, 'owned', toName + (p.kind === 'one' ? ' already has this.' : ' already has everything in this pack.'));
     const price = cap ? 0 : p.price;
     if (w.balance < price) throw new WErr(402, 'funds', 'Not enough emeralds yet.', { need: price - w.balance, balance: w.balance });
     w.balance -= price;
     const id = newId();
     line(w, user.uid, now, -price, (cap ? 'Free gift (captain) to ' : 'Gift to ') + toName + ': ' + p.name, 'gift:' + id, 'gift-out', writes, id + 'o');
     const f = fill(r.owned, p, next, now);
+    // A free (captain's) gift pays no duplicate refunds: otherwise a captain could print mangos for anyone by sending
+    // chests to a player who already owns every skin.
+    if (cap) f.refund = 0;
     r.balance = Math.min(MAX_BAL, r.balance + f.refund);
     line(r, to, now, f.refund, 'Gift from ' + from + ': ' + p.name + (f.refund ? ' (' + (f.dups === 1 ? 'already had one' : 'already had ' + f.dups) + ')' : ''), 'gift:' + id, 'gift-in', writes, id + 'i');
     r.notices.push({ id, t: now, from, what: p.name, pack: p.id, note, got: f.got, refund: f.refund });
@@ -303,6 +335,7 @@ export async function walletSeen(env, user, body) {
     const before = w.notices.length;
     w.notices = w.notices.filter(n => ids.indexOf(n.id) < 0);
     if (w.notices.length === before) return { writes: [], result: view(w, user.uid, env) };
+    busy(w, now);
     return { writes: [put(docPath('wallets', user.uid), w)], result: view(w, user.uid, env) };
   });
 }
@@ -311,22 +344,85 @@ export async function walletSeen(env, user, body) {
 // from CATALOG.EMERALDS by the sku our own checkout put in the metadata, never from Stripe's metadata or the page, and
 // the amount and currency paid must match the pack exactly. Credits once per Checkout session: orders/{session id}
 // is read and written in the same transaction, so a repeated or concurrent webhook finds it and does nothing.
+// The player is metadata.uid, which only our /api/checkout sets (with kind 'emeralds'); never client_reference_id,
+// which a Payment Link takes from its own address (?client_reference_id=anyone). A session without them is
+// recorded as 'unclaimed' and credits nobody.
 export async function creditEmeralds(env, s, at) {
   const md = s.metadata || {}, sku = String(md.sku || ''), E = has(CATALOG.EMERALDS, sku) ? CATALOG.EMERALDS[sku] : null;
-  const uid = String(md.uid || s.client_reference_id || '');
-  if (!E || !UID_RE.test(uid) || !/^[A-Za-z0-9_]{1,200}$/.test(String(s.id || ''))) return { skipped: 'not an emerald pack' };
+  const uid = String(md.uid || '');
+  if (!E || !/^[A-Za-z0-9_]{1,200}$/.test(String(s.id || ''))) return { skipped: 'not an emerald pack' };
+  if (md.kind !== 'emeralds' || !UID_RE.test(uid)) return recordUnclaimed(env, s, at, 'not from our checkout');
   const paidOk = s.amount_total === E.cents && String(s.currency || '').toLowerCase() === E.currency;
   return transact(env, async get => {
     const op = docPath('orders', s.id);
     if (await get(op)) return { writes: [], result: { already: true } };
     const order = { uid, sku, amount: int(s.amount_total) ? s.amount_total : 0, currency: String(s.currency || ''),
-      email: (s.customer_details && s.customer_details.email) || s.customer_email || '', created: at, kind: 'emeralds' };
+      email: (s.customer_details && s.customer_details.email) || s.customer_email || '', created: at, kind: 'emeralds',
+      pi: typeof s.payment_intent === 'string' ? s.payment_intent : '' };
     if (!paidOk) return { writes: [put(op, Object.assign(order, { status: 'mismatch', mangos: 0 }), true)], result: { refused: 'amount' } };
     const w = clean(await get(docPath('wallets', uid)), at) || blank(at), m = E.emeralds * MPE, writes = [];
     w.balance = Math.min(MAX_BAL, w.balance + m); w.updated = at;
     line(w, uid, at, m, 'Bought ' + E.name + ' (' + E.emeralds.toLocaleString('en-US') + ' emeralds)', s.id, 'emeralds', writes, 'stripe_' + s.id);
     writes.unshift(put(docPath('wallets', uid), w), put(op, Object.assign(order, { status: 'credited', mangos: m }), true));
     return { writes, result: { credited: m } };
+  });
+}
+
+// A paid Checkout we won't credit (a Payment Link, a session not made by our checkout, or one from the other Stripe
+// mode): written once to orders/{session id} with status 'unclaimed' and the reason, so the owners can see it in
+// Firestore (and the webhook's 200 reply in Stripe) and refund it or credit the right player by hand.
+export async function recordUnclaimed(env, s, at, reason) {
+  if (!/^[A-Za-z0-9_]{1,200}$/.test(String(s.id || ''))) return { unclaimed: reason };
+  const md = s.metadata || {};
+  const order = { status: 'unclaimed', reason, uid: '', sku: String(md.sku || '').slice(0, 40), mangos: 0,
+    amount: int(s.amount_total) ? s.amount_total : 0, currency: String(s.currency || '').slice(0, 8),
+    email: String((s.customer_details && s.customer_details.email) || s.customer_email || '').slice(0, 200),
+    paymentLink: String(s.payment_link || '').slice(0, 80), clientRef: String(s.client_reference_id || '').slice(0, 200),
+    livemode: !!s.livemode, created: at };
+  const r = await fetch(FS + ':commit', { method: 'POST', headers: await headers(env), body: JSON.stringify({ writes: [put(docPath('orders', s.id), order, true)] }) });
+  if (!r.ok && r.status !== 409 && !(r.status === 400 && /FAILED_PRECONDITION|ALREADY_EXISTS/.test(await r.text()))) throw new Error('Firestore error ' + r.status);
+  return { unclaimed: reason };
+}
+
+// Refunds and chargebacks (charge.refunded, charge.dispute.created, charge.dispute.closed): take back the mangos of
+// the emerald pack that was refunded or disputed. The Checkout session is found from the charge's payment intent
+// (Stripe: GET checkout/sessions?payment_intent=…), so only a session our checkout made for an emerald pack counts.
+// Worked out as a target, not a step: clawed = all the pack's mangos while a dispute is open or lost, else the share
+// refunded (rounded up); the wallet changes by the difference from what was already taken back. So a repeated,
+// late or out-of-order event changes nothing twice, a won dispute gives the mangos back, and the balance may go
+// below zero (the wallet then can't buy, open chests or send gifts until topped up). A refund that arrives before
+// the purchase was credited writes the order first, so the purchase is never credited afterwards.
+const DISPUTE_FREE = ['won', 'warning_closed'];
+export async function reverseEmeralds(env, ev, at, fetchFn) {
+  const o = (ev.data && ev.data.object) || {}, isDispute = /^charge\.dispute\./.test(ev.type);
+  const pi = typeof o.payment_intent === 'string' ? o.payment_intent : (o.payment_intent && o.payment_intent.id) || '';
+  if (!/^pi_[A-Za-z0-9_]{1,200}$/.test(pi)) return { skipped: 'no payment intent' };
+  const list = await stripe(env, 'GET', 'checkout/sessions', { payment_intent: pi, limit: 1 }, fetchFn);
+  const s = list && list.data && list.data[0], md = (s && s.metadata) || {};
+  const sku = String(md.sku || ''), E = has(CATALOG.EMERALDS, sku) ? CATALOG.EMERALDS[sku] : null, uid = String(md.uid || '');
+  if (!s || !E || md.kind !== 'emeralds' || !UID_RE.test(uid) || !/^[A-Za-z0-9_]{1,200}$/.test(String(s.id || ''))) return { skipped: 'not an emerald pack' };
+  const evAt = int(ev.created) ? ev.created * 1000 : at;
+  return transact(env, async get => {
+    const op = docPath('orders', s.id), writes = [];
+    const order = (await get(op)) || { uid, sku, kind: 'emeralds', status: 'reversed', mangos: 0, created: at, pi,
+      amount: int(s.amount_total) ? s.amount_total : 0, currency: String(s.currency || '') };
+    order.clawed = int(order.clawed) ? order.clawed : 0;
+    if (!isDispute) order.refunded = Math.max(int(order.refunded) ? order.refunded : 0, int(o.amount_refunded) ? o.amount_refunded : 0);
+    else if (!int(order.disputeAt) || evAt >= order.disputeAt) { order.dispute = String(o.status || 'needs_response').slice(0, 30); order.disputeAt = evAt; }
+    const m = int(order.mangos) && order.mangos > 0 ? order.mangos : 0, amt = int(order.amount) && order.amount > 0 ? order.amount : 0;
+    const disputed = !!order.dispute && DISPUTE_FREE.indexOf(order.dispute) < 0;
+    const share = disputed ? m : amt ? Math.min(m, Math.ceil(m * Math.min(order.refunded || 0, amt) / amt)) : 0;
+    const delta = share - order.clawed;
+    if (delta && order.uid) {
+      const w = clean(await get(docPath('wallets', order.uid)), at) || blank(at);
+      w.balance = Math.max(-MAX_BAL, w.balance - delta); w.updated = at;
+      line(w, order.uid, at, -delta, (delta > 0 ? (disputed ? 'Taken back (chargeback): ' : 'Taken back (refund): ') : 'Given back (chargeback won): ') + E.name, s.id, 'reversal', writes);
+      writes.unshift(put(docPath('wallets', order.uid), w));
+    }
+    order.clawed = share;
+    if (m) order.status = disputed ? 'disputed' : share >= m ? 'refunded' : share > 0 ? 'partly-refunded' : 'credited';
+    writes.unshift(put(op, order));
+    return { writes, result: { clawed: share, change: -delta } };
   });
 }
 
@@ -339,9 +435,12 @@ export function endpoint(fn) {
     try { user = await googleUser(request); } catch (e) { return json({ error: 'Couldn’t check your sign-in. Try again in a minute.', reason: 'server' }, 502, h); }
     if (!user) return json({ error: 'Buying needs a Google sign-in.', reason: 'signin' }, 401, h);
     if (!allowed(user.uid)) return json({ error: 'The shop isn’t open yet.', reason: 'closed' }, 403, h);
+    if (!underLimit('w:' + user.uid, LIMITS.callsPerMinute)) return json({ error: 'That’s a lot of clicks. Wait a minute and try again.', reason: 'slow' }, 429, h);
     let body = {};
     if (request.method === 'POST') {
-      try { body = await request.json(); } catch (e) { return json({ error: 'Bad request.', reason: 'bad' }, 400, h); }
+      const raw = await readBody(request, BODY_MAX);
+      if (raw === null) return json({ error: 'Bad request.', reason: 'bad' }, 413, h);
+      try { body = JSON.parse(raw); } catch (e) { return json({ error: 'Bad request.', reason: 'bad' }, 400, h); }
       if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Bad request.', reason: 'bad' }, 400, h);
     }
     try { return json(await fn(env, user, body), 200, h); }

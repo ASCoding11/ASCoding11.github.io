@@ -171,7 +171,7 @@ for (const [sz, vp] of SIZES) {
     await page.waitForURL(/checkout\.stripe\.com/, { timeout: 8000 });
     const s = st.sessions[st.sessions.length - 1];
     assert.equal(s.params['metadata[uid]'], ALICE);
-    const raw = JSON.stringify({ id: 'evt_1', type: 'checkout.session.completed', created: Math.floor(Date.now() / 1000), data: { object: {
+    const raw = JSON.stringify({ id: 'evt_1', type: 'checkout.session.completed', livemode: false, created: Math.floor(Date.now() / 1000), data: { object: {
       id: s.id, mode: 'payment', payment_status: 'paid', amount_total: 499, currency: 'usd', client_reference_id: ALICE, metadata: { uid: ALICE, sku: 'emeralds_39', kind: 'emeralds' } } } });
     const wr = await webhook.onRequestPost({ request: new Request('https://ascoding11.com/api/stripe-webhook', { method: 'POST', headers: { 'Stripe-Signature': await stripeSig(raw, FAKE_WH) }, body: raw }), env });
     assert.equal(wr.status, 200);

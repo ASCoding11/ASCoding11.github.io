@@ -97,6 +97,13 @@ function build() {
     EMERALDS: emeralds
   };
   C.RARITY.forEach(r => { if (!C.SKINS.some(s => s.rarity === r.id)) throw new Error('no skin is ' + r.id + ': a chest roll could not be paid out'); });
+  // No purchase may pay back as much as it costs, or a loop of buys and gifts would make mangos from nothing: a
+  // duplicate refund must be below every price and below a chest, and every pack must cost more than its refunds.
+  const minPrice = Math.min.apply(null, Object.values(cat.PRICE));
+  if (!(cat.DUP_REFUND < minPrice && cat.DUP_REFUND < cat.CHEST_PRICE)) throw new Error('DUP_REFUND ' + cat.DUP_REFUND + ' must be below every price and the chest price');
+  Object.keys(packs).forEach(id => { const c = packs[id].contents, slots = (c.items || []).length + (c.draws || 0);
+    if (!(packs[id].price > slots * cat.DUP_REFUND)) throw new Error('pack ' + id + ' costs ' + packs[id].price + ' but its duplicates could pay back ' + slots * cat.DUP_REFUND);
+    (c.items || []).forEach(i => { if (items[i][3]) throw new Error('pack ' + id + ' holds ' + i + ', which is a give item (never sold)'); }); });
 
   const mctx = sandbox();
   run(mctx, 'miles.js');

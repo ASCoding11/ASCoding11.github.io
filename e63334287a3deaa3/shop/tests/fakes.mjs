@@ -10,9 +10,10 @@ const DOCS = 'projects/' + PROJECT + '/databases/(default)/documents';
 const FS = 'https://firestore.googleapis.com/v1/' + DOCS;
 const tick = () => new Promise(r => setImmediate(r));
 
-export async function makeKeys() {
+export async function makeKeys(kid) {
+  kid = kid || 'test-kid';
   const id = await wc.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign', 'verify']);
-  const jwk = Object.assign(await wc.subtle.exportKey('jwk', id.publicKey), { kid: 'test-kid', alg: 'RS256', use: 'sig' });
+  const jwk = Object.assign(await wc.subtle.exportKey('jwk', id.publicKey), { kid, alg: 'RS256', use: 'sig' });
   const sa = await wc.subtle.generateKey({ name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' }, true, ['sign']);
   const pk = Buffer.from(await wc.subtle.exportKey('pkcs8', sa.privateKey)).toString('base64');
   const pem = '-----BEGIN PRIVATE KEY-----\n' + pk.match(/.{1,64}/g).join('\n') + '\n-----END PRIVATE KEY-----\n';
@@ -22,11 +23,16 @@ export async function makeKeys() {
     // A Firebase ID token for uid, signed with the in-memory key. provider: 'google.com' or 'anonymous'.
     async token(uid, provider) {
       const now = Math.floor(Date.now() / 1000);
-      const h = b64u(JSON.stringify({ alg: 'RS256', kid: 'test-kid', typ: 'JWT' }));
+      const h = b64u(JSON.stringify({ alg: 'RS256', kid, typ: 'JWT' }));
       const p = b64u(JSON.stringify({ aud: PROJECT, iss: 'https://securetoken.google.com/' + PROJECT, sub: uid, iat: now - 5, exp: now + 3600,
         email: uid + '@example.invalid', firebase: { sign_in_provider: provider || 'google.com' } }));
       const s = await wc.subtle.sign('RSASSA-PKCS1-v1_5', id.privateKey, enc.encode(h + '.' + p));
       return h + '.' + p + '.' + b64u(s);
+    },
+    // Any header and payload, signed with the in-memory key (for tests of tokens that must be refused).
+    async tokenWith(head, pay) {
+      const h = b64u(JSON.stringify(head)), p = b64u(JSON.stringify(pay));
+      return h + '.' + p + '.' + b64u(await wc.subtle.sign('RSASSA-PKCS1-v1_5', id.privateKey, enc.encode(h + '.' + p)));
     }
   };
 }
@@ -84,6 +90,10 @@ export function fakeFirestore() {
         }
         return res(200, { commitTime: new Date().toISOString() });
       }
+      if (u.pathname.endsWith(':batchGet')) {
+        api.batchGets = (api.batchGets || 0) + 1;
+        return res(200, body.documents.map(n => { const d = docs.get(pathOf(n)); return d ? { found: { name: n, fields: JSON.parse(JSON.stringify(d.fields)) } } : { missing: n }; }));
+      }
       if (method === 'GET' && u.pathname.startsWith('/v1/' + DOCS + '/')) {
         const p = decodeURIComponent(u.pathname.slice(('/v1/' + DOCS + '/').length)), tx = u.searchParams.get('transaction');
         const d = docs.get(p);
@@ -99,7 +109,7 @@ export function fakeFirestore() {
 
 // Stripe: prices by lookup key, and Checkout sessions (remembered, so tests can look at what was asked for).
 export function fakeStripe(prices) {
-  const api = { prices, sessions: [], calls: 0,
+  const api = { prices, sessions: [], paid: [], calls: 0,
     async handle(url, opts) {
       api.calls++;
       const u = new URL(url), method = (opts && opts.method) || 'GET';
@@ -107,6 +117,12 @@ export function fakeStripe(prices) {
       if (method === 'GET' && u.pathname === '/v1/prices') {
         const key = u.searchParams.get('lookup_keys[0]');
         return res(200, { data: api.prices[key] ? [api.prices[key]] : [] });
+      }
+      // Finished Checkout sessions, found by payment intent (what a refund or dispute event points at): tests put the
+      // session objects Stripe would hold into api.paid.
+      if (method === 'GET' && u.pathname === '/v1/checkout/sessions') {
+        const pi = u.searchParams.get('payment_intent');
+        return res(200, { data: (api.paid || []).filter(s => s.payment_intent === pi).slice(0, 1) });
       }
       if (method === 'POST' && u.pathname === '/v1/checkout/sessions') {
         const p = new URLSearchParams(opts.body), o = {}; for (const [k, v] of p) o[k] = v;

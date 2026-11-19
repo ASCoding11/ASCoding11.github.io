@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs'; import os from 'node:os'; import path from 'node:path'; import { fileURLToPath } from 'node:url';
 import { makeKeys, fakeFirestore, fakeStripe, fakeFetch, stripeSig, plain } from './fakes.mjs';
-import { CATALOG, roll, cryptoNext, encFields, nameClean } from '../../../functions/_wallet.js';
+import { CATALOG, LIMITS, roll, cryptoNext, encFields, nameClean } from '../../../functions/_wallet.js';
+import { googleUser, resetKeyCache, resetLimits } from '../../../functions/_lib.js';
 import vm from 'node:vm';
 import { OWNERS } from '../../../functions/_captains.js';
 import * as checkout from '../../../functions/api/checkout.js';
@@ -24,7 +25,7 @@ const PRICES = {};
 Object.entries(CATALOG.EMERALDS).forEach(([k, e]) => { PRICES[k] = { id: 'price_' + k, unit_amount: e.cents, currency: 'usd', type: 'one_time', lookup_key: k }; });
 PRICES.boostball_flame = { id: 'price_bf', unit_amount: 299, currency: 'usd', type: 'one_time' };
 let W;   // this test's world: { fs, st }
-function world() { W = { fs: fakeFirestore(), st: fakeStripe(JSON.parse(JSON.stringify(PRICES))) }; return W; }
+function world() { resetLimits(); W = { fs: fakeFirestore(), st: fakeStripe(JSON.parse(JSON.stringify(PRICES))) }; return W; }
 const realFetch = globalThis.fetch;
 globalThis.fetch = (u, o) => fakeFetch(keys, W.fs, W.st)(u, o);
 
@@ -43,9 +44,10 @@ function seed(uid, w) { W.fs.docs.set('wallets/' + uid, { fields: encFields(Obje
 const doc = (p) => { const d = W.fs.docs.get(p); return d ? plain(d.fields) : null; };
 const bal = (uid) => doc('wallets/' + uid).balance;
 const ledger = (uid) => [...W.fs.docs.entries()].filter(([k, d]) => k.startsWith('ledger/') && plain(d.fields).uid === uid).map(([, d]) => plain(d.fields));
-async function event(s, type, secret) {
-  const raw = JSON.stringify({ id: 'evt_' + Math.random().toString(36).slice(2), type: type || 'checkout.session.completed', created: Math.floor(Date.now() / 1000), data: { object: s } });
-  const request = new Request('https://ascoding11.com/api/stripe-webhook', { method: 'POST', headers: { 'Stripe-Signature': await stripeSig(raw, secret || FAKE_WH) }, body: raw });
+// A signed webhook delivery. extra: more event fields (livemode, account, created); sig: a Stripe-Signature to send instead.
+async function event(s, type, secret, extra, sig) {
+  const raw = JSON.stringify(Object.assign({ id: 'evt_' + Math.random().toString(36).slice(2), type: type || 'checkout.session.completed', livemode: false, created: Math.floor(Date.now() / 1000), data: { object: s } }, extra || {}));
+  const request = new Request('https://ascoding11.com/api/stripe-webhook', { method: 'POST', headers: { 'Stripe-Signature': sig ? await sig(raw) : await stripeSig(raw, secret || FAKE_WH) }, body: raw });
   const r = await webhook.onRequestPost({ request, env });
   return { status: r.status, data: await r.json() };
 }
@@ -321,6 +323,262 @@ test('catalogue check: passes in sync, fails when cosmetics.js, wallet.js, miles
     assert.equal(run(), true);
   }
   fs.rmSync(tmp, { recursive: true, force: true });
+});
+
+// ---------- Hardening (attacks a cheater would try) ----------
+test('attack: webhook replay older than 5 minutes, a non-numeric timestamp and a huge body are refused', async () => {
+  world();
+  const old = await event(session(), null, null, null, raw => stripeSig(raw, FAKE_WH, Math.floor(Date.now() / 1000) - 301));
+  assert.equal(old.status, 400);
+  const nan = await event(session(), null, null, null, raw => stripeSig(raw, FAKE_WH, 'abc'));
+  assert.equal(nan.status, 400, 'Number("abc") is NaN, and NaN > 300 is false: the age check must not be skipped');
+  const big = await event(session({ pad: 'x'.repeat(600 * 1024) }));
+  assert.equal(big.status, 413);
+  assert.equal(W.fs.writes, 0);
+});
+test('attack: test-mode event while a live key is set (and the other way round) credits nobody, recorded unclaimed', async () => {
+  world();
+  const live = Object.assign({}, env, { STRIPE_SECRET_KEY: 'sk_' + 'live_' + 'not-real' });
+  const req = async (s, extra, e) => {
+    const raw = JSON.stringify(Object.assign({ id: 'evt_x', type: 'checkout.session.completed', created: Math.floor(Date.now() / 1000), data: { object: s } }, extra));
+    const r = await webhook.onRequestPost({ request: new Request('https://ascoding11.com/api/stripe-webhook', { method: 'POST', headers: { 'Stripe-Signature': await stripeSig(raw, FAKE_WH) }, body: raw }), env: e });
+    return { status: r.status, data: await r.json() };
+  };
+  const a = await req(session({ id: 'cs_test_m1' }), { livemode: false }, live);
+  assert.equal(a.status, 200); assert.equal(a.data.unclaimed, 'mode');
+  const b = await req(session({ id: 'cs_live_m2' }), { livemode: true }, env);
+  assert.equal(b.data.unclaimed, 'mode');
+  const c = await req(session({ id: 'cs_test_m3' }), {}, env);   // no livemode at all
+  assert.equal(c.data.unclaimed, 'mode');
+  assert.equal(doc('wallets/' + ALICE), null);
+  assert.equal(doc('orders/cs_test_m1').status, 'unclaimed'); assert.equal(doc('orders/cs_test_m1').reason, 'mode');
+  const d = await event(session({ id: 'cs_test_m4' }), null, null, { account: 'acct_seller1' });
+  assert.equal(d.data.ignored, 'connected account'); assert.equal(doc('orders/cs_test_m4'), null);
+  assert.equal(doc('wallets/' + ALICE), null);
+});
+test('attack: a Payment Link (?client_reference_id=anyone) or a session not made by our checkout credits nobody, recorded', async () => {
+  world();
+  // one of the owners' Payment Links, opened with someone's uid in the address
+  const a = await event(session({ id: 'cs_test_pl1', payment_link: 'plink_test_1', client_reference_id: BOB, metadata: {} }));
+  assert.equal(a.data.unclaimed, 'payment link');
+  // the same, if the link had been given the pack's sku as metadata
+  const b = await event(session({ id: 'cs_test_pl2', payment_link: 'plink_test_2', client_reference_id: BOB, metadata: { sku: 'emeralds_7' } }));
+  assert.equal(b.data.unclaimed, 'payment link');
+  // a session with the sku but without our checkout's uid and kind (made in the dashboard or by another tool)
+  const c = await event(session({ id: 'cs_test_pl3', client_reference_id: BOB, metadata: { sku: 'emeralds_7' } }));
+  assert.equal(c.data.unclaimed, 'not from our checkout');
+  // an item session with only client_reference_id
+  const d = await event(session({ id: 'cs_test_pl4', amount_total: 299, client_reference_id: BOB, metadata: { sku: 'boostball_flame' } }));
+  assert.equal(d.data.unclaimed, 'no player or item');
+  assert.equal(doc('wallets/' + BOB), null); assert.equal(doc('entitlements/' + BOB), null);
+  for (const id of ['cs_test_pl1', 'cs_test_pl2', 'cs_test_pl3', 'cs_test_pl4']) assert.equal(doc('orders/' + id).status, 'unclaimed', id);
+  assert.equal(doc('orders/cs_test_pl1').clientRef, BOB); assert.equal(doc('orders/cs_test_pl1').paymentLink, 'plink_test_1');
+  // a repeat delivery doesn't fail or change it
+  assert.equal((await event(session({ id: 'cs_test_pl1', payment_link: 'plink_test_1', metadata: {} }))).status, 200);
+  // async payments: unpaid on completion, then failed: nothing; then succeeded: credited once
+  const s2 = session({ id: 'cs_test_async', payment_status: 'unpaid' });
+  await event(s2); await event(Object.assign({}, s2), 'checkout.session.async_payment_failed');
+  assert.equal(doc('orders/cs_test_async'), null);
+  await event(Object.assign({}, s2, { payment_status: 'paid' }), 'checkout.session.async_payment_succeeded');
+  assert.equal(doc('orders/cs_test_async').status, 'credited'); assert.equal(bal(ALICE), 119);
+});
+// A paid emerald session that Stripe holds (found by payment intent for refunds and disputes).
+function paidSession(id, pi, sku, uid) {
+  const e = CATALOG.EMERALDS[sku];
+  const s = session({ id, payment_intent: pi, amount_total: e.cents, client_reference_id: uid, metadata: { uid, sku, kind: 'emeralds' } });
+  W.st.paid.push(s); return s;
+}
+const charge = (pi, refunded, amount) => ({ id: 'ch_' + pi, object: 'charge', payment_intent: pi, amount, amount_refunded: refunded, refunded: refunded >= amount });
+const dispute = (pi, status, amount) => ({ id: 'dp_' + pi, object: 'dispute', payment_intent: pi, status, amount });
+test('refund: pay, spend, refund: the mangos are taken back, the wallet goes below zero and is frozen; idempotent', async () => {
+  world(); CATALOG.PUBLIC = true;
+  const s = paidSession('cs_test_r1', 'pi_r1', 'emeralds_39', ALICE);
+  await event(s);
+  assert.equal(bal(ALICE), 39 * 17);
+  const b = await call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what: 'item:' + ITEM_RARE } });
+  assert.equal(b.status, 200); assert.equal(bal(ALICE), 663 - 420);
+  const r = await event(charge('pi_r1', 499, 499), 'charge.refunded');
+  assert.equal(r.status, 200); assert.equal(r.data.clawed, 663);
+  assert.equal(bal(ALICE), 243 - 663);
+  assert.equal(doc('orders/cs_test_r1').status, 'refunded'); assert.equal(doc('orders/cs_test_r1').clawed, 663);
+  assert.equal(ledger(ALICE).filter(l => l.kind === 'reversal').length, 1);
+  const again = await event(charge('pi_r1', 499, 499), 'charge.refunded');
+  assert.equal(again.status, 200); assert.equal(bal(ALICE), -420, 'a repeated event takes nothing twice');
+  assert.equal(ledger(ALICE).filter(l => l.kind === 'reversal').length, 1);
+  // frozen: no buy, chest or gift while below zero
+  seed(BOB, {});
+  const nb = await call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what: 'item:' + ITEM_COMMON } });
+  assert.equal(nb.status, 402); assert.equal(nb.data.reason, 'negative');
+  assert.equal((await call(chest, 'POST', 'wallet/chest', { as: ALICE, body: { n: 1 } })).data.reason, 'negative');
+  assert.equal((await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'item:' + ITEM_COMMON, to: BOB } })).data.reason, 'negative');
+  const w = await call(wallet, 'GET', 'wallet', { as: ALICE });
+  assert.equal(w.status, 200); assert.equal(w.data.balance, -420, 'the page sees the debt');
+  // topping up pays off the debt first
+  await event(paidSession('cs_test_r2', 'pi_r2', 'emeralds_80', ALICE));
+  assert.equal(bal(ALICE), -420 + 80 * 17);
+  assert.equal((await call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what: 'item:' + ITEM_COMMON } })).status, 200);
+  CATALOG.PUBLIC = false;
+});
+test('refund: partial refunds take back their share (rounded up); a refund before the credit means no credit later', async () => {
+  world();
+  const s = paidSession('cs_test_p1', 'pi_p1', 'emeralds_80', ALICE);   // 999 cents, 1360 mangos
+  await event(s);
+  await event(charge('pi_p1', 500, 999), 'charge.refunded');
+  assert.equal(bal(ALICE), 1360 - Math.ceil(1360 * 500 / 999)); assert.equal(doc('orders/cs_test_p1').status, 'partly-refunded');
+  await event(charge('pi_p1', 400, 999), 'charge.refunded');   // an older event arriving late: never gives back
+  assert.equal(bal(ALICE), 1360 - Math.ceil(1360 * 500 / 999));
+  await event(charge('pi_p1', 999, 999), 'charge.refunded');
+  assert.equal(bal(ALICE), 0); assert.equal(doc('orders/cs_test_p1').status, 'refunded');
+  // refunded before the payment webhook arrived
+  const s2 = paidSession('cs_test_p2', 'pi_p2', 'emeralds_7', BOB);
+  await event(charge('pi_p2', 99, 99), 'charge.refunded');
+  assert.equal(doc('orders/cs_test_p2').status, 'reversed');
+  const late = await event(s2);
+  assert.equal(late.data.already, true); assert.equal(doc('wallets/' + BOB), null, 'never credited');
+  // not one of ours: an item session, or an unknown payment intent
+  W.st.paid.push(session({ id: 'cs_test_item9', payment_intent: 'pi_item9', amount_total: 299, metadata: { uid: BOB, sku: 'boostball_flame' } }));
+  assert.equal((await event(charge('pi_item9', 299, 299), 'charge.refunded')).data.skipped, 'not an emerald pack');
+  assert.equal((await event(charge('pi_nobody', 99, 99), 'charge.refunded')).data.skipped, 'not an emerald pack');
+  // the mode check applies to refunds too
+  assert.equal((await event(charge('pi_p1', 999, 999), 'charge.refunded', null, { livemode: true })).data.ignored, 'mode');
+});
+test('chargeback: dispute takes everything back, won gives it back, lost keeps it taken; out of order is safe', async () => {
+  world();
+  await event(paidSession('cs_test_d1', 'pi_d1', 'emeralds_180', ALICE));
+  const full = 180 * 17, t = Math.floor(Date.now() / 1000);
+  await event(charge('pi_d1', 999, 1999), 'charge.refunded');   // half refunded first
+  const half = Math.ceil(full * 999 / 1999);
+  assert.equal(bal(ALICE), full - half);
+  await event(dispute('pi_d1', 'needs_response', 1999), 'charge.dispute.created', null, { created: t });
+  assert.equal(bal(ALICE), 0); assert.equal(doc('orders/cs_test_d1').status, 'disputed');
+  await event(dispute('pi_d1', 'needs_response', 1999), 'charge.dispute.created', null, { created: t });
+  assert.equal(bal(ALICE), 0, 'idempotent');
+  await event(dispute('pi_d1', 'won', 1999), 'charge.dispute.closed', null, { created: t + 10 });
+  assert.equal(bal(ALICE), full - half, 'a won dispute gives back what the dispute took, not the refund');
+  await event(dispute('pi_d1', 'needs_response', 1999), 'charge.dispute.created', null, { created: t });   // stale, late
+  assert.equal(bal(ALICE), full - half, 'an older dispute event arriving late changes nothing');
+  await event(paidSession('cs_test_d2', 'pi_d2', 'emeralds_7', BOB));
+  await event(dispute('pi_d2', 'lost', 99), 'charge.dispute.closed', null, { created: t + 20 });
+  assert.equal(bal(BOB), 0); assert.equal(doc('orders/cs_test_d2').clawed, 119);
+  const rev = ledger(ALICE).filter(l => l.kind === 'reversal').map(l => l.d);
+  assert.deepEqual(rev, [-half, -(full - half), full - half]);
+});
+test('attack: captain free gifts pay no duplicate refunds; a pack the recipient fully owns is refused', async () => {
+  world(); CATALOG.PUBLIC = true;
+  const all = {}; SKINS.forEach(id => { all[id] = 1; });
+  seed(BOB, { balance: 0, owned: all });
+  const g = await call(gift, 'POST', 'wallet/gift', { as: CAP, body: { what: 'draw-10', to: BOB, fromName: 'Cap' } });
+  assert.equal(g.status, 200); assert.equal(bal(BOB), 0, 'before the fix: 480 mangos from nothing per free gift');
+  seed(ALICE, { balance: 5000 });
+  const p = await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'skins-animals', to: BOB } });
+  assert.equal(p.status, 409); assert.equal(p.data.reason, 'owned'); assert.equal(bal(ALICE), 5000);
+  // a paid gift of chests still refunds the recipient's duplicates (the sender paid more than that)
+  const c = await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'draw-1', to: BOB } });
+  assert.equal(c.status, 200); assert.equal(bal(BOB), 48); assert.equal(bal(ALICE), 5000 - 119);
+});
+test('money: no sequence of buys, packs, chests and gifts makes mangos (every refund is below its price)', async () => {
+  // The rule behind it, checked over the whole catalogue: a duplicate pays back 48, every item costs at least 60,
+  // a chest 119, and every pack costs more than 48 per thing in it. So each purchase or gift takes more from the
+  // payer than it can ever pay back to anyone, and the total of all wallets only grows when emeralds are bought.
+  const minPrice = Math.min(...Object.values(CATALOG.PRICE));
+  assert.ok(CATALOG.DUP_REFUND < minPrice && CATALOG.DUP_REFUND < CATALOG.CHEST_PRICE);
+  for (const [id, p] of Object.entries(CATALOG.PACKS)) {
+    const slots = (p.contents.items || []).length + (p.contents.draws || 0);
+    assert.ok(p.price > slots * CATALOG.DUP_REFUND, id + ' costs ' + p.price + ' but could pay back ' + slots * CATALOG.DUP_REFUND);
+  }
+  world(); CATALOG.PUBLIC = true;
+  const saved = Object.assign({}, LIMITS); LIMITS.perMinute = 1e6; LIMITS.giftsPerDay = 1e6; LIMITS.receivedPerDay = 1e6; LIMITS.callsPerMinute = 1e6;
+  const C = 'carolCCCCCCCCCCCCCCCCCCCCCC3', people = [ALICE, BOB, C];
+  people.forEach(u => seed(u, { balance: 20000 }));
+  const whats = Object.keys(CATALOG.PACKS).concat(Object.keys(CATALOG.ITEMS).filter(id => !CATALOG.ITEMS[id][3]).slice(0, 40).map(id => 'item:' + id));
+  let total = 60000, seedn = 12345; const rnd = n => { seedn = (seedn * 1103515245 + 12345) % 2147483648; return seedn % n; };
+  for (let i = 0; i < 250; i++) {
+    const u = people[rnd(3)], what = whats[rnd(whats.length)], kind = rnd(3);
+    if (kind === 0) await call(buy, 'POST', 'wallet/buy', { as: u, body: { what } });
+    else if (kind === 1) await call(chest, 'POST', 'wallet/chest', { as: u, body: { n: [1, 5, 10][rnd(3)] } });
+    else await call(gift, 'POST', 'wallet/gift', { as: u, body: { what, to: people[(people.indexOf(u) + 1 + rnd(2)) % 3] } });
+    const now = people.reduce((t, p) => t + bal(p), 0);
+    assert.ok(now <= total, 'step ' + i + ': mangos went up from ' + total + ' to ' + now);
+    total = now;
+  }
+  assert.ok(total < 60000);
+  Object.assign(LIMITS, saved);
+});
+test('attack: rate limits: changes a minute, gifts a day (sent and received), calls a minute, body size', async () => {
+  world(); CATALOG.PUBLIC = true;
+  seed(ALICE, { balance: 100000 }); seed(BOB, {});
+  const rs = [];
+  for (let i = 0; i < LIMITS.perMinute + 2; i++) rs.push(await call(chest, 'POST', 'wallet/chest', { as: ALICE, body: { n: 1 } }));
+  assert.equal(rs.filter(r => r.status === 200).length, LIMITS.perMinute);
+  assert.equal(rs[rs.length - 1].status, 429); assert.equal(rs[rs.length - 1].data.reason, 'slow');
+  // gifts a day: the minute limit lifted to see the daily one
+  world(); seed(ALICE, { balance: 100000 }); seed(BOB, {});
+  const saved = LIMITS.perMinute; LIMITS.perMinute = 1000;
+  let last;
+  for (let i = 0; i < LIMITS.giftsPerDay + 1; i++) last = await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'draw-1', to: BOB } });
+  assert.equal(last.status, 429); assert.equal(last.data.reason, 'gifts');
+  assert.equal(bal(ALICE), 100000 - LIMITS.giftsPerDay * 119);
+  // received a day: many senders, one inbox
+  world(); seed(BOB, {});
+  const senders = Array.from({ length: LIMITS.receivedPerDay + 1 }, (_, i) => 'sender' + String(i).padStart(22, 'S'));
+  senders.forEach(u => seed(u, { balance: 1000 }));
+  for (const u of senders) last = await call(gift, 'POST', 'wallet/gift', { as: u, body: { what: 'draw-1', to: BOB } });
+  assert.equal(last.status, 429); assert.equal(last.data.reason, 'inbox');
+  assert.equal(doc('wallets/' + BOB).notices.length, 20);
+  LIMITS.perMinute = saved;
+  // plain calls a minute (per Cloudflare instance), before any Firestore read
+  world(); const savedC = LIMITS.callsPerMinute; LIMITS.callsPerMinute = 5;
+  const gets = []; for (let i = 0; i < 7; i++) gets.push((await call(wallet, 'GET', 'wallet', { as: ALICE })).status);
+  assert.deepEqual(gets, [200, 200, 200, 200, 200, 429, 429]);
+  LIMITS.callsPerMinute = savedC; resetLimits();
+  const huge = await call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what: 'item:' + ITEM_RARE, pad: 'x'.repeat(5000) } });
+  assert.equal(huge.status, 413);
+  CATALOG.PUBLIC = false;
+});
+test('attack: sign-in tokens: alg none, wrong kid, other project, wrong issuer, expired, future, no exp, anonymous', async () => {
+  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+  const good = { aud: 'rumblekarts', iss: 'https://securetoken.google.com/rumblekarts', sub: ALICE, iat: now - 5, exp: now + 3600, firebase: { sign_in_provider: 'google.com' } };
+  const ask = async tok => googleUser(new Request('https://x/', { headers: { Authorization: 'Bearer ' + tok } }), (u, o) => fakeFetch(keys, fakeFirestore(), fakeStripe({}))(u, o));
+  resetKeyCache();
+  assert.ok(await ask(await keys.token(ALICE)), 'a good token passes');
+  assert.equal(await ask(b64({ alg: 'none', kid: 'test-kid' }) + '.' + b64(good) + '.x'), null);
+  assert.equal(await ask(b64({ alg: 'HS256', kid: 'test-kid' }) + '.' + b64(good) + '.x'), null);
+  const bad = [Object.assign({}, good, { aud: 'other-project' }), Object.assign({}, good, { iss: 'https://securetoken.google.com/other-project' }),
+    Object.assign({}, good, { exp: now - 1 }), Object.assign({}, good, { iat: now + 3600 }), Object.assign({}, good, { exp: undefined }),
+    Object.assign({}, good, { firebase: { sign_in_provider: 'anonymous' } }), Object.assign({}, good, { sub: '' })];
+  for (const p of bad) assert.equal(await ask(await keys.tokenWith({ alg: 'RS256', kid: 'test-kid', typ: 'JWT' }, p)), null, JSON.stringify(p));
+  assert.ok(await ask(await keys.tokenWith({ alg: 'RS256', kid: 'test-kid', typ: 'JWT' }, good)));
+  // a token signed by some other key that claims our kid: the signature fails
+  const other = await makeKeys();
+  assert.equal(await ask(await other.token(ALICE)), null);
+});
+test('attack: Google rotates its keys: a new kid is fetched again (at most once a minute), junk kids do not refetch', async () => {
+  resetKeyCache();
+  const k1 = keys, k2 = await makeKeys('rotated-kid');
+  let served = [k1.jwk], fetches = 0;
+  const f = async (u) => { fetches++; return new Response(JSON.stringify({ keys: served }), { status: 200, headers: { 'Cache-Control': 'public, max-age=20000' } }); };
+  const ask = async tok => googleUser(new Request('https://x/', { headers: { Authorization: 'Bearer ' + tok } }), f);
+  assert.ok(await ask(await k1.token(ALICE))); assert.equal(fetches, 1);
+  served = [k1.jwk, k2.jwk];
+  // within a minute of the last fetch an unknown kid is not refetched (junk kids can't make us fetch every time)
+  assert.equal(await ask(await k2.token(ALICE)), null); assert.equal(fetches, 1);
+  const realNow = Date.now; Date.now = () => realNow() + 61000;
+  try { assert.ok(await ask(await k2.token(ALICE)), 'the rotated key is picked up'); assert.equal(fetches, 2); }
+  finally { Date.now = realNow; }
+  // an empty answer is never cached over good keys
+  resetKeyCache(); served = []; let threw = false;
+  try { await ask(await k1.token(ALICE)); } catch (e) { threw = true; }
+  assert.ok(threw); served = [k1.jwk];
+  assert.ok(await ask(await k1.token(ALICE)));
+  resetKeyCache();
+});
+test('a renamed or removed item stays in the wallet (not silently dropped by the next purchase)', async () => {
+  world(); CATALOG.PUBLIC = true;
+  seed(ALICE, { balance: 500, owned: { 'retired-item': 5 } });
+  await call(buy, 'POST', 'wallet/buy', { as: ALICE, body: { what: 'item:' + ITEM_COMMON } });
+  assert.equal(doc('wallets/' + ALICE).owned['retired-item'], 5);
+  CATALOG.PUBLIC = false;
 });
 
 for (const [name, fn] of tests) {
