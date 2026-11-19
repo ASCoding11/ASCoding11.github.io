@@ -110,6 +110,7 @@
     'layout:v1',   // Edit layout (layout.js): the order of the Back Room's blocks
     'nametile:v1', // the colour of the player's name tile (avatar.js), which only a Google account can choose
     'school:v1',   // Your school (school.js): the school the player picked
+    'school:req',  // ...and the school they asked us to add, if theirs wasn't listed
     'lang:v1',     // English / Español (lang.js)
     'wallet:v1', 'cosmetics:v1',   // coins and the locker (wallet.js, cosmetics.js), switched off for now
     // Rumble Karts

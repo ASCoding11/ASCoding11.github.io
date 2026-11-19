@@ -274,5 +274,15 @@
     throw fail(r.status === 403 ? 'denied' : r.status === 429 ? 'busy' : 'net');
   }
 
+  // For other scripts (school.js's "Add your school"): send one note the same way the box does, with the same limits.
+  // Resolves when it's saved; rejects with err.code 'limit' (too many notes), 'denied', 'busy' or 'net'.
+  window.BackRoomFeedback.send = function (text) {
+    var msg = cut(text, MAX.msg), t = sentTimes(), now = Date.now();
+    if (!msg) return Promise.reject(fail('empty'));
+    if (t.length >= PER_DAY || (t.length && now - t[t.length - 1] < GAP)) return Promise.reject(fail('limit'));
+    return submit({ msg: msg, game: 'other', kind: 'other', name: '', contact: '', page: String(location.pathname || '/').slice(0, MAX.page) })
+      .then(function () { noteSent(); });
+  };
+
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
