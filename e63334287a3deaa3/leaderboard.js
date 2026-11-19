@@ -936,7 +936,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { rows: rows, tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------

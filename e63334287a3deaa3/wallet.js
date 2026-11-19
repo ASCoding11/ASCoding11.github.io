@@ -82,6 +82,11 @@
   var PLAY_PAYS = false;
   var WELCOME = 0;                           // was 20 emeralds, a one-time gift the first time the shop opened
   var PATH = 'rooms/lb-all/players';
+  var LOBBY = 'rooms/ol-lobby/players';      // social.js's Online room: who is online now (read only, for the gift picker)
+  // Rewards and gifts (see that section below). Kept tiny: w must stay well under leaderboard.js's 8,000 characters per
+  // node together with what stats.js writes (it prunes to 7,000), so w is held to W_MAX characters.
+  var TITLE_PAY = 10, AISLE_POT = 100, GS_MAX = 3, GC_MAX = 8, NOTE_MAX = 60, W_MAX = 950, SCAN_MS = 10 * 60000;
+  var WEEK_RE = /^20\d{6}$/, GID_RE = /^[a-z0-9]{8}$/, GX_RE = /^[a-z0-9][a-z0-9:-]{0,59}$/;
   var DB_URL = 'https://rumblekarts-default-rtdb.firebaseio.com';
   var API_KEY = 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM';   // only to recognise the site's own Firebase app (as stats.js does)
   var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
@@ -192,6 +197,11 @@
     if (w.base + w.pend < 0) w.pend = -w.base;
     if (obj(o.dc)) Object.keys(o.dc).forEach(function (g) { if (okGame(g) && int(o.dc[g]) && o.dc[g] > 0) w.dc[g] = o.dc[g]; });
     if (w.day !== today()) { w.day = today(); w.dc = {}; }
+    // Rewards and gifts (see "Rewards and gifts" below): the last week whose titles (tw) and Aisle reward (aw) were
+    // claimed, gifts claimed (gc: sender uid -> time of the newest gift taken from them) and gifts sent and not yet
+    // opened (gs: gift id -> gift).
+    w.tw = WEEK_RE.test(o.tw) ? o.tw : ''; w.aw = WEEK_RE.test(o.aw) ? o.aw : '';
+    w.gc = cleanGc(o.gc); w.gs = cleanGs(o.gs);
     return w;
   }
   function save(w) { w.dv = dev(); ls(KEY, JSON.stringify(w)); }
@@ -244,13 +254,18 @@
   function balance() { return on() ? bal(load()) : 0; }
   function inEmeralds(m) { m = m == null ? balance() : m; if (!int(m) || m < 0) m = 0; return { emeralds: Math.floor(m / MANGOS_PER_EMERALD), mangos: m % MANGOS_PER_EMERALD }; }
   function format(m, short) {
+    if (m == null && unlimited()) return '∞';            // a captain: no balance to show
     var e = inEmeralds(m);
     if (short) return e.emeralds.toLocaleString('en-US') + (e.mangos ? ' ' + e.mangos + '/' + MANGOS_PER_EMERALD : '');
     var s = e.emeralds.toLocaleString('en-US') + (e.emeralds === 1 ? ' emerald' : ' emeralds');
     return e.mangos ? s + ' ' + e.mangos + (e.mangos === 1 ? ' mango' : ' mangos') : s;
   }
   function earn(mangos, reason) { if (!int(mangos) || mangos < 1 || mangos > MAX_GRANT) return false; return change(mangos, reason || 'earned'); }
-  function spend(mangos, reason) { if (!int(mangos) || mangos < 1) return false; return change(-mangos, reason || 'spent'); }
+  function spend(mangos, reason) {
+    if (!int(mangos) || mangos < 1) return false;
+    if (unlimited()) { var b = bal(load()); addLog(0, b, why('Free (captain): ' + (reason || 'spent'))); fire(b, 0, why(reason)); return b; }   // captains are never charged
+    return change(-mangos, reason || 'spent');
+  }
 
   // ---------------- Earning from play (stats.js's hooks) ----------------
   function baseStat(k) { return String(k).split(':')[0].replace(/-(w\d+|easy|medium|hard)$/, ''); }
@@ -310,6 +325,7 @@
       var b = balance(); fire(b, 0, 'another tab');
     });
     setTimeout(function () { sync(); }, 4000);
+    setTimeout(function () { scan(); }, 6000);                // gifts to open, last week's titles and Aisle reward
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') sync(); });
   }
 
@@ -346,7 +362,8 @@
   function locker() { try { return window.BackRoomCosmetics && window.BackRoomCosmetics._mirror ? window.BackRoomCosmetics._mirror() : null; } catch (e) { return null; } }
   function cleanW(v) {
     if (!obj(v) || v.v !== 1 || !int(v.b) || v.b < 0 || v.b > MAX_BAL) return null;
-    return { b: v.b, s: typeof v.s === 'string' && /^[0-9a-f]{0,32}$/.test(v.s) ? v.s : '', a: typeof v.a === 'string' && /^[0-9a-f]{0,32}$/.test(v.a) ? v.a : '', e: typeof v.e === 'string' && /^[a-z0-9,]{0,60}$/.test(v.e) ? v.e : '' };
+    return { b: v.b, s: typeof v.s === 'string' && /^[0-9a-f]{0,32}$/.test(v.s) ? v.s : '', a: typeof v.a === 'string' && /^[0-9a-f]{0,32}$/.test(v.a) ? v.a : '', e: typeof v.e === 'string' && /^[a-z0-9,]{0,60}$/.test(v.e) ? v.e : '',
+      tw: WEEK_RE.test(v.tw) ? v.tw : '', aw: WEEK_RE.test(v.aw) ? v.aw : '', gc: cleanGc(v.gc, true), gs: cleanGs(v.gs, true) };
   }
   // One sync: add this browser's pend to the node's balance, join the lockers, all in one transaction on w.
   function sync() {
@@ -366,13 +383,19 @@
           var r = cleanW(cur);
           var start = r ? r.b : (w0.su === u.uid ? w0.base : 0);
           var m = mine && window.BackRoomCosmetics._join ? window.BackRoomCosmetics._join(mine, r) : { s: '', a: '', e: '' };
-          used = { b: Math.max(0, Math.min(MAX_BAL, start + pend)), s: m.s, a: m.a, e: m.e, r: r };
-          return { v: 1, b: used.b, s: m.s, a: m.a, e: m.e, lh: hash(JSON.stringify(readLog())), t: Date.now() };
+          var x = mergeRewards(w0, r);
+          used = { b: Math.max(0, Math.min(MAX_BAL, start + pend)), s: m.s, a: m.a, e: m.e, r: r, x: x };
+          var out = { v: 1, b: used.b, s: m.s, a: m.a, e: m.e, lh: hash(JSON.stringify(readLog())), t: Date.now() };
+          if (x.tw) out.tw = x.tw; if (x.aw) out.aw = x.aw;
+          if (Object.keys(x.gc).length) out.gc = packGc(x.gc); if (Object.keys(x.gs).length) out.gs = packGs(x.gs);
+          return fit(out);
         }, null, false);
       }).then(function (res) {
         if (!res || !res.committed || !used) return false;
         var w = load(), before = bal(w);
         w.base = used.b; w.pend -= pend; w.su = u.uid;            // anything earned while the sync ran stays pending
+        var x2 = mergeRewards(w, { tw: used.x.tw, aw: used.x.aw, gc: used.x.gc, gs: used.x.gs });
+        w.tw = x2.tw; w.aw = x2.aw; w.gc = x2.gc; w.gs = x2.gs;
         save(w);
         if (used.r && window.BackRoomCosmetics && window.BackRoomCosmetics._adopt) window.BackRoomCosmetics._adopt(used.r);
         if (bal(w) !== before) fire(bal(w), bal(w) - before, 'sync');
@@ -395,10 +418,274 @@
     }, function () {});
   }
 
+
+  // ---------------- Rewards and gifts ----------------
+  // Captains (captains.js, which asks miles.js's OWNERS; Vice Captains are not captains here) have no limit: their
+  // balance shows ∞, spending never charges them, they own everything (cosmetics.js) and gift for free.
+  function captain() { try { return !!(window.BackRoomCaptains && window.BackRoomCaptains.captain && window.BackRoomCaptains.captain()); } catch (e) { return false; } }
+  function unlimited() { return on() && captain(); }
+  function isCaptainUid(u) { try { var M = window.BackRoomMiles; return !!(M && M.isOwner && M.isOwner(u)); } catch (e) { return false; } }
+  function cleanText(t, max) {
+    t = String(t == null ? '' : t).replace(/[|<>\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+    try { if (window.NameFilter && window.NameFilter.clean) t = window.NameFilter.clean(t); } catch (e) {}
+    return t;
+  }
+  // gc: { sender uid: time ms of the newest gift claimed from them }, the GC_MAX most recent senders. In the node the
+  // times are base 36 (packed).
+  function cleanGc(v, packed) {
+    var out = {}, list = [];
+    if (obj(v)) Object.keys(v).forEach(function (u) { var t = packed && typeof v[u] === 'string' ? parseInt(v[u], 36) : v[u]; if (okUid(u) && int(t) && t > 0) list.push([u, t]); });
+    list.sort(function (a, b) { return b[1] - a[1]; }).slice(0, GC_MAX).forEach(function (x) { out[x[0]] = x[1]; });
+    return out;
+  }
+  function packGc(gc) { var o = {}; Object.keys(gc).forEach(function (u) { o[u] = gc[u].toString(36); }); return o; }
+  // gs: { gift id: { to, k: 'i' one item | 'p' a pack or chests, x: item or pack id, t: time ms, f: sender's name, n: note } },
+  // at most GS_MAX unopened. In the node each is one string 'to|k|x|t36|f|n'.
+  function cleanGift(g) {
+    if (!obj(g) || !okUid(g.to) || (g.k !== 'i' && g.k !== 'p') || typeof g.x !== 'string' || !GX_RE.test(g.x) || !int(g.t) || g.t <= 0) return null;
+    return { to: g.to, k: g.k, x: g.x, t: g.t, f: cleanText(g.f, 14) || 'A player', n: cleanText(g.n, NOTE_MAX) };
+  }
+  function cleanGs(v, packed) {
+    var list = [];
+    if (obj(v)) Object.keys(v).forEach(function (id) {
+      var g = v[id];
+      if (packed) { if (typeof g !== 'string' || g.length > 260) return; var p = g.split('|'); g = p.length === 6 ? { to: p[0], k: p[1], x: p[2], t: parseInt(p[3], 36), f: p[4], n: p[5] } : null; }
+      g = GID_RE.test(id) && cleanGift(g); if (g) list.push([id, g]);
+    });
+    var out = {}; list.sort(function (a, b) { return b[1].t - a[1].t; }).slice(0, GS_MAX).forEach(function (x) { out[x[0]] = x[1]; });
+    return out;
+  }
+  function packGs(gs) { var o = {}; Object.keys(gs).forEach(function (id) { var g = gs[id]; o[id] = [g.to, g.k, g.x, g.t.toString(36), g.f, g.n].join('|'); }); return o; }
+  // Two copies (this browser's and the account node's, or after a sync) joined: the later week, each sender's later gift,
+  // every unopened gift sent (less any this page saw opened).
+  var openedOut = {};
+  function mergeRewards(a, b) {
+    b = b || {};
+    var gc = {}, gs = {};
+    [a.gc || {}, b.gc || {}].forEach(function (m) { Object.keys(m).forEach(function (u) { if (!(gc[u] >= m[u])) gc[u] = m[u]; }); });
+    [a.gs || {}, b.gs || {}].forEach(function (m) { Object.keys(m).forEach(function (id) { if (!openedOut[id]) gs[id] = m[id]; }); });
+    return { tw: (b.tw || '') > (a.tw || '') ? b.tw : (a.tw || ''), aw: (b.aw || '') > (a.aw || '') ? b.aw : (a.aw || ''), gc: cleanGc(gc), gs: cleanGs(gs) };
+  }
+  // Keep w under W_MAX characters: drop the oldest claimed senders first (never an unopened gift).
+  function fit(out) {
+    while (JSON.stringify(out).length > W_MAX && out.gc) {
+      var ks = Object.keys(out.gc); if (!ks.length) { delete out.gc; break; }
+      var old = ks.sort(function (x, y) { return parseInt(out.gc[x], 36) - parseInt(out.gc[y], 36); })[0];
+      delete out.gc[old];
+    }
+    return out;
+  }
+
+  // Weeks run Monday to Sunday by this browser's clock (leaderboard.js's and aisles.js's week). The key of a week is its
+  // Monday as YYYYMMDD; lastWeek() is the week that ended most recently.
+  function dayOf(t, back) { var d = new Date(t); d.setDate(d.getDate() - back); return dayKey(d); }
+  function lastWeek(t) { t = t || Date.now(); return dayOf(t, (new Date(t).getDay() + 6) % 7 + 7); }
+
+  /*
+   * grant(kind, detail): THE ONE PLACE a reward or a gift is handed out. Everything here runs in the player's own browser,
+   * so a player could fake a title, an Aisle win or a gift from the browser console. Before real money is switched on,
+   * THIS FUNCTION MUST MOVE SERVER-SIDE (a Cloud Function that checks the boards, the Aisle and the sender's payment and
+   * writes a ledger players can't write), and this page would only read the result.
+   *   'title' { week, games: [game folder] }   10 mangos for each game whose main board this player topped that week
+   *   'aisle' { week, K, each }                 this player's share of the weekly Aisle pot
+   *   'gift'  { from, id, gift }                a gift addressed to this player (the item into the locker, a chest
+   *                                             opened, anything already owned paid back as the duplicate refund)
+   * Each pays once: the claimed week (tw, aw) or the sender's newest claimed gift (gc) is saved before the mangos are added.
+   * Returns { mangos, ... } or false.
+   */
+  function grant(kind, d) {
+    if (!on() || !obj(d)) return false;
+    var w = load();
+    if (kind === 'title' || kind === 'aisle') {
+      var key = kind === 'title' ? 'tw' : 'aw';
+      if (!WEEK_RE.test(d.week) || d.week > lastWeek() || w[key] >= d.week) return false;
+      w[key] = d.week; save(w); soon();
+      if (captain()) return { mangos: 0 };                                        // captains have no limit: never paid
+      var m = kind === 'title' ? TITLE_PAY * (Array.isArray(d.games) ? d.games.length : 0) : (int(d.each) && d.each > 0 && d.each <= AISLE_POT ? d.each : 0);
+      if (m > 0) change(m, kind === 'title' ? (d.games.length === 1 ? 'Top of ' + gameName(d.games[0]) : 'Top of ' + d.games.length + ' boards') + ' (week of ' + d.week.slice(4, 6) + '/' + d.week.slice(6) + ')' : 'Aisle won the week of ' + d.week.slice(4, 6) + '/' + d.week.slice(6));
+      return { mangos: m };
+    }
+    if (kind === 'gift') {
+      var g = cleanGift(d.gift), C = window.BackRoomCosmetics;
+      if (!g || !okUid(d.from) || !GID_RE.test(d.id) || !C || !C._receive || (w.gc[d.from] || 0) >= g.t) return false;
+      w.gc[d.from] = g.t; w.gc = cleanGc(w.gc); save(w); soon();
+      var f = C._receive(g.k === 'i' ? 'item:' + g.x : g.x);
+      if (!f) return false;
+      if (f.refund) change(f.refund, 'Gift from ' + g.f + ': already had ' + (f.dups === 1 ? 'it' : f.dups));
+      addLog(0, bal(load()), why('Gift from ' + g.f + ': ' + f.pack.name));
+      notice(g.f + ' sent you a gift: ' + f.pack.name + (g.n ? ' “' + g.n + '”' : ''));
+      try { document.dispatchEvent(new CustomEvent('backroom:gift', { detail: { from: g.f, name: f.pack.name, note: g.n, got: f.got, refund: f.refund } })); } catch (e) {}
+      return { mangos: f.refund, got: f.got, pack: f.pack.id };
+    }
+    return false;
+  }
+  function gameName(k) { try { var B = window.BackRoomBoards, r = B && B.BY && B.BY[k]; return r ? r.n : k; } catch (e) { return k; } }
+
+  // A short notice at the bottom of the page (the Back Room or the shop), a few seconds each, one after another.
+  var notes = [], noteEl = null;
+  function notice(text) {
+    notes.push(String(text)); if (noteEl) return;
+    (function next() {
+      var t = notes.shift(); if (t == null || !document.body) { noteEl = null; return; }
+      noteEl = document.createElement('div'); noteEl.setAttribute('role', 'status'); noteEl.className = 'wallet-notice';
+      noteEl.style.cssText = 'position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:70;background:#161f48;color:#f3f5ff;border:1px solid rgba(124,240,176,.5);border-radius:12px;padding:10px 14px;font:700 14px/1.3 Nunito,system-ui,sans-serif;max-width:calc(100vw - 32px);box-shadow:0 8px 30px rgba(0,0,0,.4)';
+      noteEl.textContent = t; document.body.appendChild(noteEl);
+      setTimeout(function () { if (noteEl) noteEl.remove(); next(); }, 6000);
+    })();
+  }
+
+  // Titles: rank 1 on each game's main board (the first board leaderboard.js lists for it: its first stat that isn't
+  // hidden, all time) from the raw nodes, checked by leaderboard.js's own parse / collapse / rows. -> { game: [uids] }
+  function boardTops(val, now) {
+    var B = window.BackRoomBoards; if (!B || !B.parse || !B.collapse || !B.rows || !obj(val)) return null;
+    var all = []; Object.keys(val).slice(0, 5000).forEach(function (u) { try { var p = B.parse(u, val[u], now); if (p) all.push(p); } catch (e) {} });
+    var list = B.collapse(all).filter(function (p) { return p && !p.hidden && !p.into; }), out = {};
+    B.GAMES.forEach(function (g) {
+      var st = (g.st || []).filter(function (x) { return !x.hide; })[0]; if (!st) return;
+      var r = B.rows({ g: g.d, st: st }, list), ids = [];
+      for (var i = 0; i < r.length && r[i].rank === 1; i++) ids.push(r[i].p.uid);
+      if (ids.length) out[g.d] = ids;
+    });
+    return out;
+  }
+  // Claim last week's titles: every game where this player is ranked 1 (ties all count). A captain at the top of a board
+  // is not paid and nobody else is paid for that board (leaderboard.js shows captains like anyone, so they keep the top).
+  function claimTitles(tops, me, week) {
+    if (!tops || !okUid(me)) return false;
+    var games = Object.keys(tops).filter(function (g) { return tops[g].indexOf(me) >= 0; });
+    return grant('title', { week: week || lastWeek(), games: games });
+  }
+  // Claim the weekly Aisle reward: winners as BackRoomAisles.lastWinners() gives them ([{ K, members }]).
+  function claimAisle(winners, me, week) {
+    if (!Array.isArray(winners) || !okUid(me)) return false;
+    var A = winners.filter(function (x) { return x && Array.isArray(x.members) && x.members.indexOf(me) >= 0; })[0];
+    var w = load(); week = week || lastWeek();
+    if (!A) { if (w.aw < week) { w.aw = week; save(w); } return { mangos: 0 }; }
+    return grant('aisle', { week: week, K: A.K, each: Math.floor(AISLE_POT / Math.max(1, A.members.length)) });
+  }
+  // Claim gifts addressed to me in the raw nodes, oldest first; and forget my own sent gifts their recipient has opened.
+  function claimGifts(val, me) {
+    if (!obj(val) || !okUid(me)) return [];
+    var got = [], found = [];
+    Object.keys(val).forEach(function (u) {
+      var n = val[u], r = obj(n) ? cleanW(n.w) : null; if (!r || u === me) return;
+      Object.keys(r.gs).forEach(function (id) { if (r.gs[id].to === me) found.push({ from: u, id: id, gift: r.gs[id] }); });
+    });
+    found.sort(function (a, b) { return a.gift.t - b.gift.t; }).forEach(function (x) { var r = grant('gift', x); if (r) got.push(r); });
+    var w = load(), changed = false;
+    Object.keys(w.gs).forEach(function (id) {
+      var g = w.gs[id], to = obj(val[g.to]) ? cleanW(val[g.to].w) : null;
+      if (to && (to.gc[me] || 0) >= g.t) { openedOut[id] = 1; delete w.gs[id]; changed = true; }
+    });
+    if (changed) { save(w); soon(); }
+    return got;
+  }
+  // What the recipient's account says it owns (skins and accessories only; game items aren't mirrored), or null.
+  var lastVal = null, lastValAt = 0;
+  function knownLocker(u) {
+    var r = lastVal && obj(lastVal[u]) ? cleanW(lastVal[u].w) : null, C = window.BackRoomCosmetics;
+    return r && C && C._owns ? C._owns(r) : null;
+  }
+
+  // Send a gift: what (a pack id, 'item:<id>' or a chest pack), to (uid), toName, note. Charged like buying it (captains:
+  // free). Refused: off, signin (the sender must be signed in with Google, so the gift can be published), self, unknown,
+  // money (emeralds and mangos can't be gifted), recipient (not signed in with Google), owned (their locker is known to
+  // hold that one item), busy (GS_MAX gifts still unopened), funds.
+  function gift(what, to, toName, note) {
+    var C = window.BackRoomCosmetics;
+    if (!on() || !C || !C.pack) return Promise.resolve({ ok: false, reason: 'off' });
+    return getConn().then(function (c) { return c.user(); }, function () { return null; }).then(function (u) {
+      if (!googleOk(u) || !okUid(u.uid)) return { ok: false, reason: 'signin' };
+      if (!okUid(to) || to === u.uid) return { ok: false, reason: 'self' };
+      var p = C.pack(what);
+      if (!p) return { ok: false, reason: /^emeralds-/.test(String(what)) ? 'money' : 'unknown' };
+      var rn = lastVal && obj(lastVal[to]) ? lastVal[to] : null;
+      if (rn && rn.ga !== 1) return { ok: false, reason: 'recipient' };
+      if (p.kind === 'one' && (p.contents.skins || p.contents.acc)) {
+        var have = knownLocker(to), id = (p.contents.skins || p.contents.acc)[0];
+        if (have && have.indexOf(id) >= 0) return { ok: false, reason: 'owned' };
+      }
+      var w = load();
+      if (Object.keys(w.gs).length >= GS_MAX) return { ok: false, reason: 'busy' };
+      var name = cleanText(toName, 14) || 'a player';
+      if (!unlimited() && bal(w) < p.price) return { ok: false, reason: 'funds', need: p.price - bal(w) };
+      if (spend(p.price, 'Gift to ' + name + ': ' + p.name) === false) return { ok: false, reason: 'funds' };
+      var gid = ''; try { var a = new Uint8Array(8); crypto.getRandomValues(a); for (var i = 0; i < 8; i++) gid += 'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(a[i] % 36); } catch (e) { gid = (Math.random().toString(36) + '00000000').slice(2, 10); }
+      var g = cleanGift({ to: to, k: p.kind === 'one' ? 'i' : 'p', x: p.kind === 'one' ? what.slice(5) : p.id, t: Date.now(), f: myName(), n: note });
+      w = load(); w.gs[gid] = g; save(w);
+      sync();
+      return { ok: true, id: gid, spent: unlimited() ? 0 : p.price, gift: g, balance: balance() };
+    });
+  }
+  function myName() { return cleanText(ls('ol:name') || ls('party:name') || '', 14) || 'A player'; }
+
+  // The once-in-a-while read: every player's node (rooms/lb-all/players, the same read the Leaderboards make), for
+  // gifts addressed to this player, the opened state of the gifts it sent, last week's titles and, on a page with
+  // aisles.js, the Aisle reward. Signed in with Google only; at most every SCAN_MS per browser unless forced.
+  var scanning = null;
+  function scan(force) {
+    if (!on()) return Promise.resolve(false);
+    if (scanning) return scanning;
+    var at = +(ls('wallet:scan') || 0);
+    if (!force && Date.now() - at < SCAN_MS && lastVal) return Promise.resolve(false);
+    scanning = getConn().then(function (c) {
+      var u = c.user(); if (!googleOk(u) || !okUid(u.uid)) return false;
+      return c.db.ref(PATH).once('value').then(function (s) {
+        var val = s.val(); if (!obj(val)) return false;
+        lastVal = val; lastValAt = Date.now(); ls('wallet:scan', String(lastValAt));
+        claimGifts(val, u.uid);
+        return boards().then(function () {
+          var w = load();
+          if (w.tw < lastWeek()) claimTitles(boardTops(val, Date.now()), u.uid);
+          aisleLater(u.uid);
+          return true;
+        });
+      });
+    }).catch(function () { return false; }).then(function (r) { scanning = null; return r; });
+    return scanning;
+  }
+  // leaderboard.js's checks: already on the hub pages; elsewhere (the shop) loaded as a library (data-lib adds nothing).
+  function boards() {
+    if (window.BackRoomBoards && window.BackRoomBoards.rows) return Promise.resolve(true);
+    return new Promise(function (res) { var s = document.createElement('script'); s.src = '/e63334287a3deaa3/leaderboard.js'; s.setAttribute('data-lib', ''); s.onload = function () { res(true); }; s.onerror = function () { res(false); }; document.head.appendChild(s); });
+  }
+  // The Aisle reward needs aisles.js (the Back Room page) and the boards read there; asked for once, then waited for.
+  function aisleLater(me) {
+    var A = window.BackRoomAisles; if (!A || !A.lastWinners || load().aw >= lastWeek()) return;
+    var n = 0;
+    (function look() {
+      var win = A.lastWinners();
+      if (win) return claimAisle(win, me);
+      if (n === 1 && window.BackRoomBoards && window.BackRoomBoards.readTops) window.BackRoomBoards.readTops();
+      if (++n < 30) setTimeout(look, 4000);
+    })();
+  }
+  // People a gift can go to: online now (social.js's room), this player's Aisle and party, each signed in with Google
+  // (ga: 1 on their Leaderboards node). -> Promise [{ uid, n, from: 'online' | 'aisle' | 'party' }]
+  function giftPeople() {
+    if (!on()) return Promise.resolve([]);
+    return getConn().then(function (c) {
+      var u = c.user(), me = u && u.uid;
+      return Promise.all([lastVal && Date.now() - lastValAt < SCAN_MS ? Promise.resolve(lastVal) : c.db.ref(PATH).once('value').then(function (s) { lastVal = s.val() || {}; lastValAt = Date.now(); return lastVal; }),
+        c.db.ref(LOBBY).once('value').then(function (s) { return s.val() || {}; }, function () { return {}; })]).then(function (r) {
+        var lb = r[0] || {}, lobby = r[1], out = [], seen = {};
+        var add = function (id, n, from) { if (!okUid(id) || id === me || seen[id] || !obj(lb[id]) || lb[id].ga !== 1) return; seen[id] = 1; out.push({ uid: id, n: cleanText(n || lb[id].n, 14) || 'Player', from: from }); };
+        var host = function (k) { try { return window[k] || (window.parent !== window ? window.parent[k] : null); } catch (e) { return null; } };
+        var P = host('Party'), A = host('BackRoomAisles');
+        try { if (P && P.roster) P.roster.forEach(function (m) { add(m.uid, m.n, 'party'); }); } catch (e) {}
+        try { var mine = A && A.mine && A.of && A.of(me); if (mine) mine.members.forEach(function (id) { add(id, '', 'aisle'); }); } catch (e) {}
+        var t = Date.now();
+        Object.keys(obj(lobby) ? lobby : {}).forEach(function (id) { var o = lobby[id]; if (obj(o) && typeof o.ts === 'number' && t - o.ts < 120000) add(id, o.n, 'online'); });
+        return out;
+      });
+    }).catch(function () { return []; });
+  }
+
   // ---------------- API ----------------
   window.BackRoomWallet = {
     balance: balance, inEmeralds: inEmeralds, format: format, earn: earn, spend: spend,
     log: function () { return readLog(); }, on: on, sync: sync,
+    unlimited: unlimited, gift: gift, giftPeople: giftPeople, scan: scan, NOTE_MAX: NOTE_MAX, GIFT_MAX: GS_MAX,
     // The welcome gift (once per browser), given by the shop page the first time it opens.
     welcome: function () { if (!on() || !(WELCOME > 0)) return false; var w = load(); if (w.gift) return false; w.gift = 1; save(w); return change(WELCOME, 'Welcome gift'); },
     MANGOS_PER_EMERALD: MANGOS_PER_EMERALD, EMERALD_PACKS: EMERALD_PACKS, EARN: EARN, PLAY_PAYS: PLAY_PAYS, PAYMENTS: PAYMENTS
@@ -406,6 +693,9 @@
   if (navigator.webdriver) window.__wallet = {
     load: load, onStat: onStat, hookStats: hookStats, cleanW: cleanW, sync: sync, setDay: function (d) { testDay = d; },
     anyUser: function () { anyUser = true; }, get conn() { return conn; }, change: change,
+    grant: grant, claimTitles: claimTitles, claimAisle: claimAisle, claimGifts: claimGifts, boardTops: boardTops, lastWeek: lastWeek,
+    cleanText: cleanText, packGs: packGs,
+    useDb: function (db, uid) { conn = { db: db, user: function () { return { uid: uid, isAnonymous: false }; } }; lastVal = null; watched = ''; },
     reset: function () { ls(KEY, null); ls(LOG_KEY, null); }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

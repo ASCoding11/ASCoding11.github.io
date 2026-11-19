@@ -11,7 +11,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
 <script src="/e63334287a3deaa3/avatar.js" defer></script>
-<script src="/e63334287a3deaa3/captains.js" data-switches defer></script>
+<script src="/namefilter.js"></script>
+<script src="/e63334287a3deaa3/captains.js" defer></script>
 <script src="/e63334287a3deaa3/cosmetics.js" defer></script>
 <script src="/e63334287a3deaa3/wallet.js" defer></script>
 <style>
@@ -152,6 +153,19 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
 @keyframes pop{to{opacity:1;transform:scale(1) rotateY(0)}}
 @media (prefers-reduced-motion:reduce){#reveal .gem,#reveal .burst{animation:none}#reveal .card{animation:none;opacity:1;transform:none}}
 
+/* Gifting */
+.gift-b{min-height:34px!important;padding:5px 10px!important;font-size:13px!important;background:transparent!important}
+.item .igift{min-height:26px;padding:2px 6px;font-size:12px;border-radius:8px;width:100%;background:transparent}
+#giftdlg{position:fixed;inset:0;z-index:55;display:grid;place-items:center;background:rgba(4,6,18,.8);padding:16px;overflow:auto}
+#giftdlg .box{width:min(440px,100%);background:var(--panel-2);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
+#giftdlg h2{font-family:var(--f-d);font-weight:600;font-size:20px;margin:0}
+#giftdlg input{font:inherit;color:var(--ink);background:var(--night);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+#giftdlg .who{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}
+#giftdlg .who button{display:flex;justify-content:space-between;gap:8px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:700}
+#giftdlg .who button[aria-pressed="true"]{border-color:var(--em);box-shadow:0 0 0 2px rgba(47,191,113,.35)}
+#giftdlg .who small{color:var(--ink-3);font-weight:700}
+#giftdlg .err{color:var(--bad);font-size:13.5px;min-height:1em;margin:0}
+#giftdlg .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 #toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-weight:700;font-size:14px;max-width:calc(100vw - 32px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
 
 @media (max-width:760px){
@@ -281,7 +295,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var lab = b.getAttribute('data-label') || 'Buy';
       b.classList.remove('confirm');
       if (pv.all) { b.disabled = true; b.textContent = 'Owned'; return; }
-      if (have < cost) { b.disabled = true; b.innerHTML = 'Need ' + price(cost - have) + ' more'; return; }
+      if (!W.unlimited() && have < cost) { b.disabled = true; b.innerHTML = 'Need ' + price(cost - have) + ' more'; return; }
       b.disabled = false;
       if (armed === id) { b.classList.add('confirm'); b.innerHTML = 'Tap again: ' + price(p.price); }
       else b.innerHTML = lab + ' ' + price(p.price);
@@ -321,6 +335,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var pv = C.preview(p.id);
       if (pv.items && pv.have && !pv.all) c.innerHTML += '<div class="own">You have ' + pv.have + ' of ' + pv.items + '; each of those gives back ' + W.format(C.DUP_REFUND) + '.</div>';
       var b = buyBtn(p); c.appendChild(b); setBuyState(b);
+      c.appendChild(giftBtn(p.id, 'btn gift-b'));
       return c;
     }
     function drawPacks() {
@@ -353,6 +368,9 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var one = C.pack('item:' + id);
       return (src ? '<span class="lock">Or in ' + esc(src) + '</span>' : '') + (one ? '<button type="button" class="btn go ibuy" data-pack="item:' + esc(id) + '"></button>' : '');
     }
+    // A Gift button for a pack, a chest or one item ('item:<id>'): same price as buying it, for someone else.
+    function giftBtn(id, cls) { var b = el('button', cls || 'btn igift', 'Gift'); b.type = 'button'; b.setAttribute('data-gift', id); return b; }
+    function giftHtml(id) { var gi = C.GAME_ITEMS_BY_ID && C.GAME_ITEMS_BY_ID[id]; return gi && gi.give ? '' : giftBtn('item:' + id).outerHTML; }
     function drawLocker() {
       var t = document.getElementById('t-locker'), own = C.owned(), eq = C.equipped();
       var sk = eq.skin && C.SKINS_BY_ID[eq.skin];
@@ -377,7 +395,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
           var ghas = own.items.indexOf(it.id) >= 0, gon = !!gworn[it.slot] && gworn[it.slot].id === it.id, gr = RC[it.rarity];
           html += '<div class="item' + (ghas ? '' : ' locked') + (gon ? ' on' : '') + '"' + (ghas ? ' role="button" tabindex="0" aria-pressed="' + gon + '"' : '') + ' data-item="' + it.id + '" title="' + esc(it.desc) + '">' +
             C.itemSvg(it.id, 72) + '<span class="in">' + esc(it.name) + '</span><span class="ir" style="color:' + gr.color + '">' + gr.name + '</span>' +
-            (gon ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (ghas ? '' : lockHtml(it.id)) + '</div>';
+            (gon ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (ghas ? '' : lockHtml(it.id)) + giftHtml(it.id) + '</div>';
           return;
         }
         var isSkin = filter === 'skins', has = (isSkin ? own.skins : own.accessories).indexOf(it.id) >= 0;
@@ -386,7 +404,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
         if (!isSkin) look.accessories[it.slot] = it.id;
         html += '<div class="item' + (has ? '' : ' locked') + (worn ? ' on' : '') + '"' + (has ? ' role="button" tabindex="0" aria-pressed="' + worn + '"' : '') + ' data-item="' + it.id + '" title="' + esc(it.desc) + '">' +
           C.avatarSvg(uid, 72, { look: look }) + '<span class="in">' + esc(it.name) + '</span><span class="ir" style="color:' + r.color + '">' + r.name + '</span>' +
-          (worn ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (has ? '' : lockHtml(it.id)) + '</div>';
+          (worn ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (has ? '' : lockHtml(it.id)) + giftHtml(it.id) + '</div>';
       });
       html += '</div></div></div>';
       t.innerHTML = html;
@@ -395,7 +413,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     document.addEventListener('click', function (e) {
       var f = e.target.closest('[data-filter]'); if (f) { filter = f.getAttribute('data-filter'); drawLocker(); return; }
       var o = e.target.closest('[data-off]'); if (o) { C.unequip(o.getAttribute('data-off')); draw(); return; }
-      if (e.target.closest('button[data-pack]')) return;
+      if (e.target.closest('button[data-pack],button[data-gift]')) return;
       var it = e.target.closest('.item[data-item]'); if (!it || it.classList.contains('locked')) return;
       var id = it.getAttribute('data-item');
       if (it.classList.contains('on')) C.unequip(id); else C.equip(id);
@@ -419,11 +437,56 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     }
 
     function drawWallet() {
-      var e = W.inEmeralds();
-      document.getElementById('wEm').innerHTML = EM + ' ' + e.emeralds.toLocaleString('en-US');
-      document.getElementById('wMa').innerHTML = MANGO + ' ' + e.mangos + '/' + MPE;
-      document.getElementById('wallet').title = W.format();
+      var e = W.inEmeralds(), inf = W.unlimited();
+      document.getElementById('wEm').innerHTML = EM + ' ' + (inf ? '∞' : e.emeralds.toLocaleString('en-US'));
+      document.getElementById('wMa').innerHTML = inf ? 'Captain' : MANGO + ' ' + e.mangos + '/' + MPE;
+      document.getElementById('wallet').title = inf ? 'Captains have no limit: everything is free and owned.' : W.format();
     }
+
+    // ---------- Gifting ----------
+    var gdlg = null;
+    function giftDialog(id) {
+      var p = C.pack(id); if (!p) return;
+      if (gdlg) gdlg.remove();
+      gdlg = el('div'); gdlg.id = 'giftdlg'; gdlg.setAttribute('role', 'dialog'); gdlg.setAttribute('aria-modal', 'true'); gdlg.setAttribute('aria-label', 'Send a gift');
+      gdlg.innerHTML = '<div class="box"><h2>Gift: ' + esc(p.name) + '</h2><p class="note">' + (W.unlimited() ? 'Free for captains.' : 'Costs ' + price(p.price) + ', the same as buying it.') + ' They get it the next time they open the Back Room or the shop.</p>' +
+        '<input type="search" id="gq" placeholder="Search people online, your Aisle and party" aria-label="Search for a player" autocomplete="off"><div class="who" id="gwho"><p class="empty">Looking for people…</p></div>' +
+        '<input type="text" id="gnote" maxlength="' + W.NOTE_MAX + '" placeholder="Short note (optional)" aria-label="Note" data-name-filter autocomplete="off">' +
+        '<p class="err" id="gerr"></p><div class="row"><button type="button" class="btn" id="gno">Cancel</button><button type="button" class="btn go" id="gyes" disabled>Send gift</button></div></div>';
+      document.body.appendChild(gdlg);
+      var pick = null, people = [];
+      function list() {
+        var q = gdlg.querySelector('#gq').value.trim().toLowerCase(), box = gdlg.querySelector('#gwho');
+        var l = people.filter(function (x) { return !q || x.n.toLowerCase().indexOf(q) >= 0; }).slice(0, 40);
+        box.innerHTML = l.length ? l.map(function (x) { return '<button type="button" data-to="' + esc(x.uid) + '" aria-pressed="' + (pick && pick.uid === x.uid) + '">' + esc(x.n) + '<small>' + (x.from === 'online' ? 'online' : x.from === 'aisle' ? 'your Aisle' : 'your party') + '</small></button>'; }).join('')
+          : '<p class="empty">' + (people.length ? 'Nobody by that name.' : 'Nobody to send to right now: they need to be online, in your Aisle or your party, and signed in with Google.') + '</p>';
+      }
+      W.giftPeople().then(function (l) { people = l; if (gdlg) list(); });
+      gdlg.querySelector('#gq').addEventListener('input', list);
+      gdlg.querySelector('#gwho').addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-to]'); if (!b) return;
+        pick = people.filter(function (x) { return x.uid === b.getAttribute('data-to'); })[0] || null;
+        gdlg.querySelector('#gyes').disabled = !pick; list();
+      });
+      function close() { if (gdlg) { gdlg.remove(); gdlg = null; } }
+      gdlg.querySelector('#gno').addEventListener('click', close);
+      gdlg.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+      gdlg.querySelector('#gyes').addEventListener('click', function () {
+        if (!pick) return;
+        var yes = gdlg.querySelector('#gyes'); yes.disabled = true;
+        W.gift(id, pick.uid, pick.n, gdlg.querySelector('#gnote').value).then(function (r) {
+          if (!gdlg) return;
+          if (!r.ok) {
+            yes.disabled = false;
+            gdlg.querySelector('#gerr').textContent = { signin: 'Sign in with Google to send gifts.', owned: pick.n + ' already has this.', busy: 'You have ' + W.GIFT_MAX + ' gifts still waiting to be opened. Try again once they are.', funds: 'Not enough emeralds yet.', recipient: pick.n + ' needs to sign in with Google first.', money: 'Emeralds and mangos can’t be gifted.' }[r.reason] || 'That didn’t work. Try again.';
+            return;
+          }
+          close(); toast('Gift sent to ' + pick.n + '.' + (r.spent ? ' You have ' + W.format(r.balance) + ' left.' : '')); draw();
+        });
+      });
+      gdlg.querySelector('#gq').focus();
+    }
+    document.addEventListener('click', function (e) { var b = e.target.closest('button[data-gift]'); if (b) giftDialog(b.getAttribute('data-gift')); });
     function draw() {
       drawWallet(); drawDrawBtns();
       if (tab === 'packs') drawPacks(); else if (tab === 'locker') drawLocker(); else drawHistory();
@@ -469,9 +532,12 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       document.addEventListener('keydown', function esc1(e) { if (!rv) { document.removeEventListener('keydown', esc1); return; } if (e.key === 'Escape') { if (!shown) showCards(); else close(); } });
       setTimeout(showCards, still ? 0 : 1400);
     }
-    if (navigator.webdriver) window.__shop = { reveal: reveal, draw: draw, toast: toast };
+    if (navigator.webdriver) window.__shop = { reveal: reveal, draw: draw, toast: toast, giftDialog: giftDialog };
 
     document.addEventListener('backroom:wallet', function () { draw(); });
+    document.addEventListener('backroom:captain', function () { draw(); });
+    document.addEventListener('backroom:gift', function (e) { var d = e.detail || {}; if (d.got && d.got.draws && d.got.draws.length) reveal({ got: d.got }); draw(); });
+    if (W.scan) W.scan(true);                         // open any gifts waiting, and claim last week's rewards
     document.addEventListener('backroom:cosmetics', function () { if (tab === 'locker') drawLocker(); });
     addEventListener('storage', function (e) { if (e.key === 'cosmetics:v1') draw(); });
     document.addEventListener('backroom:avatar', function () { draw(); });

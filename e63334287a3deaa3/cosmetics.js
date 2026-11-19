@@ -1127,13 +1127,22 @@
   }
   function json(s) { try { return JSON.parse(s); } catch (e) { return null; } }
   function obj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
-  function load() {
+  // Captains (captains.js: miles.js's OWNERS, not Vice Captains) own everything while the cosmetics are on: load() then
+  // lists every skin, accessory and game item as owned, and save() writes back only what they really own (L.raw), so
+  // nothing they didn't buy is ever saved, mirrored into their account or kept after they sign out. load(true) is the
+  // real locker alone (the account mirror and buying use it).
+  function cap() { try { return !!(on() && SHARED && SHARED.captain && SHARED.captain()); } catch (e) { return false; } }
+  function load(raw) {
     var o = json(ls(KEY)), L = { v: 1, s: [], a: [], g: [], e: { skin: '' }, ge: {} };
     SLOTS.forEach(function (k) { L.e[k] = ''; });
-    if (!obj(o) || o.v !== 1) return L;
+    if (!obj(o) || o.v !== 1) o = {};
     if (Array.isArray(o.s)) o.s.forEach(function (id) { if (SKINS_BY_ID[id] && L.s.indexOf(id) < 0) L.s.push(id); });
     if (Array.isArray(o.a)) o.a.forEach(function (id) { if (ACC_BY_ID[id] && L.a.indexOf(id) < 0) L.a.push(id); });
     if (Array.isArray(o.g)) o.g.forEach(function (id) { if (ITEM_BY_ID[id] && L.g.indexOf(id) < 0) L.g.push(id); });
+    if (!raw && cap()) {
+      Object.defineProperty(L, 'raw', { value: { s: L.s, a: L.a, g: L.g }, enumerable: false });
+      L.s = SKINS.map(function (x) { return x.id; }); L.a = ACCESSORIES.map(function (x) { return x.id; }); L.g = GAME_ITEMS.map(function (x) { return x.id; });
+    }
     if (obj(o.ge)) Object.keys(o.ge).forEach(function (k) { var it = ITEM_BY_ID[o.ge[k]]; if (it && it.game + ':' + it.slot === k && L.g.indexOf(it.id) >= 0) L.ge[k] = it.id; });
     if (obj(o.e)) {
       if (L.s.indexOf(o.e.skin) >= 0) L.e.skin = o.e.skin;
@@ -1142,7 +1151,8 @@
     return L;
   }
   function save(L) {
-    if (!L.g.length) { delete L.g; delete L.ge; }      // no game items: the saved locker is exactly what it was before they existed
+    if (L.raw) { var r = L.raw; L = { v: 1, s: r.s, a: r.a, g: r.g, e: L.e, ge: L.ge }; }   // a captain: only what they really own
+    if (!L.g.length && !Object.keys(L.ge || {}).length) { delete L.g; delete L.ge; }      // no game items: the saved locker is exactly what it was before they existed
     ls(KEY, JSON.stringify(L)); try { document.dispatchEvent(new CustomEvent('backroom:cosmetics', { detail: { equipped: equipped() } })); } catch (e) {} }
   function equip(id) {
     if (!on()) return false;
@@ -1176,7 +1186,7 @@
   function grant(id) {
     var it = ITEM_BY_ID[id];
     if (!on() || !it || !it.give) return false;
-    var L = load(); if (L.g.indexOf(id) >= 0) return false;
+    var L = load(true); if (L.g.indexOf(id) >= 0) return false;
     L.g.push(id); save(L); return true;
   }
   // What is worn in one game: { slot: item } (the item objects, so the game has the number to send). Empty while switched off.
@@ -1216,7 +1226,7 @@
     return e;
   }
   function mirror() {
-    var L = load();
+    var L = load(true);
     return { s: toMask(L.s.map(function (id) { return SKINS_BY_ID[id].no; })), a: toMask(L.a.map(function (id) { return ACC_BY_ID[id].no; })), e: eqString(L.e) };
   }
   function join(mine, remote) {
@@ -1227,7 +1237,7 @@
   }
   function adopt(remote) {
     if (!on() || !remote) return;
-    var L = load(), changed = false;
+    var L = load(true), changed = false;
     fromMask(remote.s).forEach(function (n) { var x = SKIN_BY_NO[n]; if (x && L.s.indexOf(x.id) < 0) { L.s.push(x.id); changed = true; } });
     fromMask(remote.a).forEach(function (n) { var x = ACC_BY_NO[n]; if (x && L.a.indexOf(x.id) < 0) { L.a.push(x.id); changed = true; } });
     if (!eqString(L.e) && remote.e) {
@@ -1262,7 +1272,14 @@
     var w = W(); if (!w) return { ok: false, reason: 'wallet' };
     if (w.balance() < p.price) return { ok: false, reason: 'funds', need: p.price - w.balance() };
     if (w.spend(p.price, 'Bought ' + p.name) === false) return { ok: false, reason: 'funds' };
-    var L = load(), got = { skins: [], acc: [], items: [], draws: [] }, dups = 0, next = opts && opts.next;
+    var f = fill(p, opts);
+    if (f.refund) w.earn(f.refund, f.dups === 1 ? 'Back for a duplicate' : 'Back for ' + f.dups + ' duplicates');
+    return { ok: true, pack: p.id, spent: p.price, got: f.got, refund: f.refund, balance: w.balance() };
+  }
+  // Put what a pack (or one item, or chests) holds into the real locker, opening chests here. Pays nothing: the caller
+  // pays the refund for duplicates (buy() above, or wallet.js's grant() for a gift). -> { got, dups, refund }
+  function fill(p, opts) {
+    var L = load(true), got = { skins: [], acc: [], items: [], draws: [] }, dups = 0, next = opts && opts.next;
     (p.contents.items || []).forEach(function (id) { if (L.g.indexOf(id) < 0) { L.g.push(id); got.items.push(id); } else dups++; });
     (p.contents.skins || []).forEach(function (id) { if (L.s.indexOf(id) < 0) { L.s.push(id); got.skins.push(id); } else dups++; });
     (p.contents.acc || []).forEach(function (id) { if (L.a.indexOf(id) < 0) { L.a.push(id); got.acc.push(id); } else dups++; });
@@ -1273,10 +1290,10 @@
     }
     if (!L.e.skin && L.s.length) L.e.skin = (got.skins[0] || (got.draws[0] && got.draws[0].skin) || L.s[0]);
     save(L);
-    var refund = dups * DUP_REFUND;
-    if (refund) w.earn(refund, dups === 1 ? 'Back for a duplicate' : 'Back for ' + dups + ' duplicates');
-    return { ok: true, pack: p.id, spent: p.price, got: got, refund: refund, balance: w.balance() };
+    return { got: got, dups: dups, refund: dups * DUP_REFUND };
   }
+  // A gift arriving (wallet.js's grant('gift'), the only caller): fill the locker with what packId holds, free.
+  function receive(packId, opts) { var p = pack(packId); if (!on() || !p) return null; var f = fill(p, opts); f.pack = p; return f; }
 
   // ---------------- Drawing (64 × 64 units, avatar.js's grid) ----------------
   var INK = '#1B1513', WH = '#FFFFFF';
@@ -1493,11 +1510,12 @@
     var draw = function () {
       var w = window.BackRoomWallet;
       a.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L14 6 L8 15 L2 6 Z" fill="#2FBF71"/><path d="M8 1 L10.5 6 L8 15 L5.5 6 Z" fill="#7CF0B0" opacity=".7"/></svg>';
-      a.appendChild(document.createTextNode((w ? w.format(w.balance(), true) : '0') + ' · Shop'));
-      a.title = w ? w.format(w.balance()) : '';
+      a.appendChild(document.createTextNode((w ? w.format(null, true) : '0') + ' · Shop'));   // null: the balance, or ∞ for a captain
+      a.title = w ? w.format() : '';
     };
     draw();
     document.addEventListener('backroom:wallet', draw);
+    document.addEventListener('backroom:captain', draw);
     var acct = slot.querySelector('#acct');
     if (acct) slot.insertBefore(a, acct); else slot.appendChild(a);
   }
@@ -1514,7 +1532,9 @@
     GAMES: GAMES, GAME_ITEMS: GAME_ITEMS, GAME_ITEMS_BY_ID: ITEM_BY_ID, ITEM_PRICE: PRICE, gameItems: gameItems, gameEquipped: gameEquipped, itemSvg: itemSvg,
     grant: grant,
     equip: equip, unequip: unequip, equipped: equipped,
-    preview: preview, buy: buy, draw: function (n, opts) { return buy('draw-' + (n === 5 || n === 10 ? n : 1), opts); },
+    preview: preview, buy: buy, _receive: receive, captain: cap,
+    // The skin and accessory ids an account's mirrored locker (wallet.js's cleaned w: s and a bitmasks) holds.
+    _owns: function (r) { return fromMask(r && r.s).map(function (n) { return SKIN_BY_NO[n]; }).concat(fromMask(r && r.a).map(function (n) { return ACC_BY_NO[n]; })).filter(Boolean).map(function (x) { return x.id; }); }, draw: function (n, opts) { return buy('draw-' + (n === 5 || n === 10 ? n : 1), opts); },
     avatarSvg: avatarSvg, texture: texture,
     _mirror: function () { return on() ? mirror() : null; }, _join: join, _adopt: adopt
   };
