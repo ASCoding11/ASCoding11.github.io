@@ -85,6 +85,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.30.2', title: 'No more "moved" error offline', kind: 'fix',
+     tags: ['Offline'], items: [
+      'Opening a game that isn\'t saved while you\'re offline no longer shows the browser\'s "may have moved" error page.',
+      'Tapping a faded game while offline now just tells you to play it once with internet first.'
+    ]},
     {date: '2026-11-19', version: '1.30.1', title: 'Offline mode fixes', kind: 'fix',
      tags: ['Offline'], items: [
       'The page you open first is now always saved for offline, even if you start clicking straight away.',

@@ -70,6 +70,15 @@ function keep(cache, key, res) {
 }
 function keyOf(url) { const u = new URL(url); u.hash = ''; return u.href; }
 
+function fallback() {
+  return new Response('<!DOCTYPE html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Offline</title><body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#15122a;color:#f2f0ea;' +
+    'font:16px/1.5 system-ui,sans-serif;text-align:center;padding:24px"><main><h1 style="font-size:1.4rem">You\u2019re offline</h1>' +
+    '<p style="color:#a7a3b5">This isn\u2019t saved on this device yet. Open it once with internet and it will work offline after that.</p>' +
+    '<button onclick="location.reload()" style="font:inherit;padding:.5rem 1.1rem;border-radius:8px;border:0;cursor:pointer">Try again</button></main>',
+    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
 async function own(req, nav) {
   const cache = await caches.open(CACHE);
   try {
@@ -80,10 +89,9 @@ async function own(req, nav) {
     const hit = (await cache.match(keyOf(req.url), { ignoreVary: true }))
       || (await cache.match(keyOf(req.url), { ignoreVary: true, ignoreSearch: true }));
     if (hit) return hit;
-    if (nav) {
-      const off = await cache.match('/offline.html');
-      if (off) return off;
-    }
+    // A page must never fail outright (the browser would show its own "may have moved" error), so if even
+    // offline.html isn't saved, a short built-in note is shown instead.
+    if (nav) return (await cache.match('/offline.html')) || fallback();
     throw err;
   }
 }

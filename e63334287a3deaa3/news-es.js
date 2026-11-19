@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "No more \"moved\" error offline": "Se acabó el error de \"moved\" sin conexión",
+    "Opening a game that isn't saved while you're offline no longer shows the browser's \"may have moved\" error page.": "Abrir un juego que no está guardado mientras estás sin conexión ya no muestra la página de error del navegador que dice que pudo haberse movido.",
+    "Tapping a faded game while offline now just tells you to play it once with internet first.": "Tocar un juego atenuado sin conexión ahora solo te avisa que lo juegues una vez con internet primero.",
     "Offline mode fixes": "Arreglos del modo sin conexión",
     "The page you open first is now always saved for offline, even if you start clicking straight away.": "La primera página que abres ahora siempre se guarda para usarla sin conexión, aunque empieces a hacer clic enseguida.",
     "The \"You're offline\" page now also shows on ascoding11.com.": "La página \"You're offline\" ahora también aparece en ascoding11.com.",
