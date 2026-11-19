@@ -10,7 +10,16 @@
  * Set it to true to open everything. For testing only, ?cosmetics=1 in the page address turns it on, and only when the
  * page is on localhost or driven by an automated browser (navigator.webdriver): that check is captains.js's, the one
  * file every hidden cosmetic asks (without it on the page the address does nothing).
- * The site's captains are NOT let in here early. captains.js lets them see the games' own screens (Driftfall's Locker,
+ * THE REAL SWITCH is wallet.js's PAYMENTS.enabled: true opens the shop for everyone with the server wallet (server()
+ * below; functions/_wallet.js): balance, locker and every purchase, chest and gift come from and go to the server. The
+ * browser-only locker and wallet (the old local mode) are kept only for the ?cosmetics=1 test switch. ENABLED, if set,
+ * also opens the shop with the server wallet.
+ * CAPTAINS' PREVIEW (CAPTAIN_PREVIEW, below): while PAYMENTS.enabled is false, a captain who opens the shop page gets the
+ * real shop with the server wallet in that browser tab (sessionStorage 'cosmetics:preview', set by shop/ once
+ * captains.js confirms the captain), so the owners can try the whole flow on the live site; everyone else still sees
+ * "not open yet", and the server refuses everyone but captains until PAYMENTS.enabled is true. Turn the preview off
+ * by setting CAPTAIN_PREVIEW to false (?preview=0 on the shop page also ends it for that tab).
+ * Apart from that preview, the site's captains are NOT let in here early. captains.js lets them see the games' own screens (Driftfall's Locker,
  * Boostball's garage and Kit, Slipstream's Garage), where every item is free to wear while this file is off; the
  * shop, the wallet, earning and buying stay shut for them like everyone else, so on() asks captains.js's open(), which
  * leaves captains out, not may().
@@ -67,7 +76,9 @@
   'use strict';
   if (window.BackRoomCosmetics) return;
 
-  var ENABLED = false;   // THE SWITCH: false keeps every part of the cosmetics hidden; true opens the shop for everyone.
+  var ENABLED = false;   // false keeps every part of the cosmetics hidden (see THE REAL SWITCH above: wallet.js PAYMENTS.enabled)
+  var CAPTAIN_PREVIEW = true;   // the captains' preview of the real shop (see above); false turns it off for everyone
+  var PREVIEW_KEY = 'cosmetics:preview';
 
   var me0 = document.currentScript;
   var HUB = !!(me0 && me0.hasAttribute('data-hub'));
@@ -97,7 +108,22 @@
 
   var SHARED = window.BackRoomCaptains || null;      // captains.js: the test switch lives there, with the others
   var FLAG = !!(SHARED && SHARED.open(false, 'cosmetics'));
-  function on() { return !!(api.ENABLED || FLAG); }
+  function on() { return server() || FLAG; }
+  // The server wallet is in use: PAYMENTS.enabled (wallet.js), ENABLED, or the captains' preview on the shop page.
+  // Otherwise, with the test switch alone, the old browser-only mode.
+  function payments() { try { var w = window.BackRoomWallet; return !!(w && w.PAYMENTS && w.PAYMENTS.enabled); } catch (e) { return false; } }
+  function shopPage() { try { return /^\/e63334287a3deaa3\/shop(\/(index\.html)?)?$/.test(location.pathname); } catch (e) { return false; } }
+  function previewOn() { if (!CAPTAIN_PREVIEW || !shopPage()) return false; try { return sessionStorage.getItem(PREVIEW_KEY) === '1'; } catch (e) { return false; } }
+  function server() { return !!(api.ENABLED || payments() || previewOn()); }
+  // shop/ calls these: start the preview once captains.js has confirmed a captain; stop it when that changes.
+  function previewAllowed() { return CAPTAIN_PREVIEW && shopPage() && !payments() && !api.ENABLED; }
+  function startPreview() {
+    if (!previewAllowed() || !(SHARED && SHARED.captain && SHARED.captain())) return false;
+    try { sessionStorage.setItem(PREVIEW_KEY, '1'); } catch (e) { return false; }
+    return previewOn();
+  }
+  function stopPreview() { try { sessionStorage.removeItem(PREVIEW_KEY); } catch (e) {} }
+  try { if (/[?&]preview=0(&|$)/.test(location.search)) stopPreview(); } catch (e) {}
 
   // ---------------- Skins ----------------
   // look: bg / bg2 background colours, bgp background pattern, outfit, head (piece on the head), tone (skin colour, optional),
@@ -2170,14 +2196,25 @@
   // lists every skin, accessory and game item as owned, and save() writes back only what they really own (L.raw), so
   // nothing they didn't buy is ever saved, mirrored into their account or kept after they sign out. load(true) is the
   // real locker alone (the account mirror and buying use it).
-  function cap() { try { return !!(on() && SHARED && SHARED.captain && SHARED.captain()); } catch (e) { return false; } }
+  function cap() {
+    try { if (on() && server() && window.BackRoomWallet && window.BackRoomWallet.unlimited && window.BackRoomWallet.unlimited()) return true; } catch (e) {}
+    try { return !!(on() && SHARED && SHARED.captain && SHARED.captain()); } catch (e) { return false; }
+  }
   function load(raw) {
     var o = json(ls(KEY)), L = { v: 1, s: [], a: [], g: [], e: { skin: '' }, ge: {} };
     SLOTS.forEach(function (k) { L.e[k] = ''; });
     if (!obj(o) || o.v !== 1) o = {};
+    if (server()) {
+      // The server wallet: what's owned is the server's answer (wallet.js), plus the game items a game hands over
+      // itself (give: free to everyone, so kept in this browser). Only what is worn (e, ge) is read from here.
+      var w = window.BackRoomWallet, mine = w && w._owned ? w._owned() : [];
+      mine.forEach(function (id) { if (SKINS_BY_ID[id]) L.s.push(id); else if (ACC_BY_ID[id]) L.a.push(id); else if (ITEM_BY_ID[id]) L.g.push(id); });
+      if (Array.isArray(o.g)) o.g.forEach(function (id) { var it = ITEM_BY_ID[id]; if (it && it.give && L.g.indexOf(id) < 0) L.g.push(id); });
+    } else {
     if (Array.isArray(o.s)) o.s.forEach(function (id) { if (SKINS_BY_ID[id] && L.s.indexOf(id) < 0) L.s.push(id); });
     if (Array.isArray(o.a)) o.a.forEach(function (id) { if (ACC_BY_ID[id] && L.a.indexOf(id) < 0) L.a.push(id); });
     if (Array.isArray(o.g)) o.g.forEach(function (id) { if (ITEM_BY_ID[id] && L.g.indexOf(id) < 0) L.g.push(id); });
+    }
     if (!raw && cap()) {
       Object.defineProperty(L, 'raw', { value: { s: L.s, a: L.a, g: L.g }, enumerable: false });
       L.s = SKINS.map(function (x) { return x.id; }); L.a = ACCESSORIES.map(function (x) { return x.id; }); L.g = GAME_ITEMS.map(function (x) { return x.id; });
@@ -2191,6 +2228,14 @@
   }
   function save(L) {
     if (L.raw) { var r = L.raw; L = { v: 1, s: r.s, a: r.a, g: r.g, e: L.e, ge: L.ge }; }   // a captain: only what they really own
+    if (server()) {
+      // The server wallet: ownership is never saved here (the server holds it). What was saved before is left as it
+      // was; only what is worn and the game-given items change.
+      var o = json(ls(KEY)); o = obj(o) && o.v === 1 ? o : {};
+      var keep = Array.isArray(o.g) ? o.g.filter(function (id) { return ITEM_BY_ID[id]; }) : [];
+      L.g.forEach(function (id) { if (ITEM_BY_ID[id] && ITEM_BY_ID[id].give && keep.indexOf(id) < 0) keep.push(id); });
+      L = { v: 1, s: Array.isArray(o.s) ? o.s : [], a: Array.isArray(o.a) ? o.a : [], g: keep, e: L.e, ge: L.ge };
+    }
     if (!L.g.length && !Object.keys(L.ge || {}).length) { delete L.g; delete L.ge; }      // no game items: the saved locker is exactly what it was before they existed
     ls(KEY, JSON.stringify(L)); try { document.dispatchEvent(new CustomEvent('backroom:cosmetics', { detail: { equipped: equipped() } })); } catch (e) {} }
   function equip(id) {
@@ -2301,9 +2346,12 @@
   // unknown, money (emerald packs: wallet.js EMERALD_PACKS and PAYMENTS), owned (you already own everything in it),
   // wallet (no wallet.js), funds (not enough mangos).
   function emeraldPack(id) { var w = W(); return w && w.EMERALD_PACKS ? w.EMERALD_PACKS.filter(function (e) { return e.id === id; })[0] : null; }
+  // With the server wallet buy() returns a PROMISE of the same answer (the server buys, rolls and fills the locker;
+  // extra reasons: signin, closed, server, duplicate, with a message). Callers: Promise.resolve(buy(id)).then(...).
   function buy(packId, opts) {
     var p = pack(packId);
     if (!on()) return { ok: false, reason: 'off' };
+    if (server()) return serverBuy(p, packId);
     if (!p && emeraldPack(packId)) return { ok: false, reason: 'money', checkout: W().PAYMENTS.checkout(packId) };
     if (!p) return { ok: false, reason: 'unknown' };
     var pv = preview(packId);
@@ -2315,6 +2363,20 @@
     var f = fill(p, opts);
     if (f.refund) w.earn(f.refund, f.dups === 1 ? 'Back for a duplicate' : 'Back for ' + f.dups + ' duplicates');
     return { ok: true, pack: p.id, spent: free ? 0 : p.price, got: f.got, refund: f.refund, balance: w.balance() };
+  }
+  function serverBuy(p, packId) {
+    if (!p && emeraldPack(packId)) return Promise.resolve({ ok: false, reason: 'money' });
+    if (!p) return Promise.resolve({ ok: false, reason: 'unknown' });
+    if (preview(packId).all) return Promise.resolve({ ok: false, reason: 'owned' });
+    var w = W(); if (!w || !w._buy) return Promise.resolve({ ok: false, reason: 'wallet' });
+    var dm = /^draw-(\d+)$/.exec(p.id);
+    return (dm ? w._chest(+dm[1]) : w._buy(p.id)).then(function (r) {
+      if (!r || !r.ok) return r || { ok: false, reason: 'server' };
+      var got = { skins: (r.got && r.got.skins) || [], acc: (r.got && r.got.acc) || [], items: (r.got && r.got.items) || [], draws: (r.got && r.got.draws) || [] };
+      var L = load(), first = got.skins[0] || (got.draws[0] && got.draws[0].skin);
+      if (!L.e.skin && first && L.s.indexOf(first) >= 0) { L.e.skin = first; save(L); }
+      return { ok: true, pack: p.id, spent: r.spent, got: got, refund: r.refund || 0, balance: r.balance };
+    });
   }
   // Put what a pack (or one item, or chests) holds into the real locker, opening chests here. Pays nothing: the caller
   // pays the refund for duplicates (buy() above, or wallet.js's grant() for a gift). -> { got, dups, refund }
@@ -2333,7 +2395,7 @@
     return { got: got, dups: dups, refund: dups * DUP_REFUND };
   }
   // A gift arriving (wallet.js's grant('gift'), the only caller): fill the locker with what packId holds, free.
-  function receive(packId, opts) { var p = pack(packId); if (!on() || !p) return null; var f = fill(p, opts); f.pack = p; return f; }
+  function receive(packId, opts) { var p = pack(packId); if (!on() || server() || !p) return null; var f = fill(p, opts); f.pack = p; return f; }
 
   // ---------------- Drawing (64 × 64 units, avatar.js's grid) ----------------
   var INK = '#1B1513', WH = '#FFFFFF';
@@ -2563,7 +2625,8 @@
   // ---------------- API ----------------
   var api = {
     ENABLED: ENABLED,
-    on: on,
+    on: on, server: server, previewAllowed: previewAllowed, startPreview: startPreview, stopPreview: stopPreview,
+    previewing: function () { return previewOn() && !payments() && !api.ENABLED; },
     SKINS: SKINS, ACCESSORIES: ACCESSORIES, SKINS_BY_ID: SKINS_BY_ID, ACCESSORIES_BY_ID: ACC_BY_ID, SLOTS: SLOTS, SLOT_NAMES: SLOT_NAMES,
     RARITY: RARITY, RARITY_BY_ID: RARITY_BY_ID, RARITY_TOTAL: RARITY_TOTAL, PACKS: PACKS, PACKS_BY_ID: PACKS_BY_ID,
     PRICE: PRICE, CHEST_PRICE: CHEST_PRICE, DUP_REFUND: DUP_REFUND, pack: pack,

@@ -968,7 +968,10 @@ function onActClick(e){
   }
   if(act==='st-remove'){setSticker(null);G.draft.t='';$('gsText').value='';m.className='msg';m.textContent='Sticker removed.';renderAct();refreshPv();return}
   const it=BY_ID[G.sel];if(!it)return;
-  if(act==='buy'){const pk=packOf(it),r=pk?C.buy(pk.id):{ok:false};if(!r.ok){renderAct();return}wear(it)}
+  if(act==='buy'){const pk=packOf(it),r=pk?C.buy(pk.id):{ok:false};
+    // the server wallet (wallet.js PAYMENTS.enabled): buy() answers with a promise
+    if(r&&typeof r.then==='function'){r.then(x=>{if(x&&x.ok)wear(it);mine=null;G.tryOn={};showBalance();keepScroll(render);refreshPv()});return}
+    if(!r.ok){renderAct();return}wear(it)}
   else if(act==='wear')wear(it);
   else if(act==='off')takeOff(it.id);
   mine=null;G.tryOn={};showBalance();keepScroll(render);refreshPv();
