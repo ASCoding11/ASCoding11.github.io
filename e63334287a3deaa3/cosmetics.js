@@ -1308,8 +1308,10 @@
   // game items, see above; game says which game). price: whole mangos; for skin, accessory and item packs it is the sum of
   // the items' PRICE. Emerald packs (real money) are wallet.js's EMERALD_PACKS. One item on its own is offered as
   // 'item:<id>' (pack(), below), kind 'one'.
-  function skinIds(theme, rarities) { return SKINS.filter(function (s) { return s.theme === theme && rarities.indexOf(s.rarity) >= 0; }).map(function (s) { return s.id; }); }
-  function accIds(slot) { return ACCESSORIES.filter(function (a) { return a.slot === slot && a.rarity !== 'legendary'; }).map(function (a) { return a.id; }); }
+  // Both list only the first wave (skins 1-30, accessories 1-23), so the packs from before 19 Nov 2026 keep exactly what they held;
+  // the wave 2 packs below name their items.
+  function skinIds(theme, rarities) { return SKINS.filter(function (s) { return s.no <= 30 && s.theme === theme && rarities.indexOf(s.rarity) >= 0; }).map(function (s) { return s.id; }); }
+  function accIds(slot) { return ACCESSORIES.filter(function (a) { return a.no <= 23 && a.slot === slot && a.rarity !== 'legendary'; }).map(function (a) { return a.id; }); }
   var CR = ['common', 'uncommon', 'rare'];
   var PACKS = [
     { id: 'draw-1', kind: 'draws', name: 'One chest', desc: 'One skin at the chest odds.', price: CHEST_PRICE, contents: { draws: 1 } },
@@ -1363,7 +1365,7 @@
     { id: 'skins-sideline', kind: 'skins', name: 'Sideline', desc: 'The referee, the coach, the cheer captain and the hawk mascot.', price: 0, contents: { skins: ['referee', 'coach', 'cheer-captain', 'hawk-mascot'] } },
     { id: 'skins-ring', kind: 'skins', name: 'Ring and Mat', desc: 'A boxer, a black belt, a fencer and a wrestling champ.', price: 0, contents: { skins: ['prizefighter', 'black-belt', 'fencer', 'title-belt'] } },
     { id: 'skins-pros', kind: 'skins', name: 'Pro Tour', desc: 'A racing driver and a goalkeeper.', price: 0, contents: { skins: ['pole-position', 'safe-hands'] } },
-    { id: 'skins-pirates', kind: 'skins', name: 'Jolly Crew', desc: 'Six pirates, from the deckhand to the captain. Eye patches included.', price: 0, contents: { skins: skinIds('pirates', CR) } },
+    { id: 'skins-pirates', kind: 'skins', name: 'Jolly Crew', desc: 'Six pirates, from the deckhand to the captain. Eye patches included.', price: 0, contents: { skins: ['deckhand', 'sea-dog', 'lookout', 'first-mate', 'buccaneer', 'pirate-captain'] } },
     { id: 'skins-office', kind: 'skins', name: 'Corner Office', desc: 'A suit and tie, a banker and a tracksuit tough guy.', price: 0, contents: { skins: ['nine-to-five', 'banker', 'tracksuit-tough'] } },
     { id: 'skins-speakeasy', kind: 'skins', name: 'Speakeasy', desc: 'Pinstripes, a detective, a bodyguard, a tuxedo and a secret agent.', price: 0, contents: { skins: ['roaring-twenties', 'gumshoe', 'bodyguard', 'black-tie', 'secret-agent'] } },
     { id: 'skins-scrap', kind: 'skins', name: 'Scrap Heap', desc: 'Four new robots, from tin toy to android.', price: 0, contents: { skins: ['retro-tin-bot', 'vacuum-bot', 'junkyard-bot', 'sleek-android'] } },
@@ -2026,7 +2028,7 @@
   function avatarSvg(uid, size, opts) {
     size = Math.max(8, Math.min(512, Math.round(Number(size) || 32)));
     var look = opts && opts.look ? opts.look : null, eq = look || (on() ? (function () { var e = equipped(); return { skin: e.skin, accessories: e.accessories }; })() : { skin: null, accessories: {} });
-    var sk = eq.skin && SKINS_BY_ID[eq.skin], ac = {}, id = 'brc' + (++nid).toString(36);
+    var sk = eq.skin && SKINS_BY_ID[eq.skin], ac = {}, id = 'brc' + (++nid).toString(36) + '_';   // the _ keeps 'brc1' + 's' (shoulders) apart from avatar 64's 'brc1s'
     SLOTS.forEach(function (k) { var a = eq.accessories && ACC_BY_ID[eq.accessories[k]]; if (a && a.slot === k) ac[k] = a; });
     var lk = sk ? sk.look : null, col = sk ? sk.colors : DEFAULT_COLORS;
     // The face: avatar.js's drawing for this uid, without its background, its hat or glasses under ours, recoloured.
