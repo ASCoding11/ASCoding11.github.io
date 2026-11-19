@@ -585,7 +585,7 @@ function thumb(slot,no){
 //  The Locker screen (made here, only for a player who may see it: nobody else's menu changes)
 // =====================================================================
 const TABS=[['egg','Eggs'],['hat','Hats'],['gun','Gun skins'],['crack','Cracks']];
-const RAR={common:'#7d8ea3',rare:'#2f7fe8',epic:'#9b4fe8',legendary:'#d98a0b'};
+const RAR={common:'#7d8ea3',uncommon:'#3fae55',rare:'#2f7fe8',epic:'#9b4fe8',legendary:'#d98a0b'};
 let ui=null,tab='egg',spin=0,pvT=0,playT=-1;
 function items(slot){const C=cat();if(C)return C.gameItems(GAME,slot);const out=[];for(let i=1;i<=N[slot];i++)out.push({no:i,name:slot+' '+i,rarity:'common',desc:''});return out}
 function css(){

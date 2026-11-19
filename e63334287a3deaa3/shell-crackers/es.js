@@ -83,7 +83,7 @@
     'Egg types, hats, gun skins and crack effects. Captains only for now.': 'Tipos de huevo, sombreros, diseños de armas y efectos al cascar. Por ahora solo para capitanes.',
     'Everything is free to wear while the Locker is captains only. Looks only: every egg is the same size with the same hit box, and in capture the flag eggs keep their team colour.': 'Todo se puede usar gratis mientras el casillero sea solo para capitanes. Es solo apariencia: todos los huevos tienen el mismo tamaño y la misma zona de impacto, y en captura la bandera mantienen el color de su equipo.',
     'Plain': 'Básico', 'Your own shell colour.': 'El color de tu cáscara.', 'Just the usual crack.': 'El cascado de siempre.', 'The gun as it comes.': 'El arma tal cual.', 'No hat.': 'Sin sombrero.',
-    'common': 'común', 'rare': 'raro', 'epic': 'épico', 'legendary': 'legendario',
+    'common': 'común', 'uncommon': 'poco común', 'rare': 'raro', 'epic': 'épico', 'legendary': 'legendario',
     // the Change keys panel (keybinds.js) and its action names
     'Move forward': 'Avanzar', 'Move back': 'Retroceder', 'Move left': 'Ir a la izquierda', 'Move right': 'Ir a la derecha',
     'Fight': 'Pelea', 'Match': 'Partida', 'Hold': 'Mantener', 'Aim / scope': 'Apuntar / mira', 'Main gun': 'Arma principal',

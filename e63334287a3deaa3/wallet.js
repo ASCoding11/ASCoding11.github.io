@@ -4,17 +4,19 @@
  *   <script src="/e63334287a3deaa3/cosmetics.js" defer></script>   (holds the one on/off switch, ENABLED)
  *   <script src="/e63334287a3deaa3/wallet.js" defer></script>
  *
- * OFF BY DEFAULT. Everything here does nothing (earns nothing, saves nothing, connects to nothing, draws nothing) unless
+ * OFF BY DEFAULT. Everything here does nothing (earns nothing, saves nothing, connects to nothing, opens no chest) unless
  * BackRoomCosmetics.on() says the cosmetics are switched on (cosmetics.js: ENABLED at the top of that file, or the
  * test-only ?cosmetics=1 flag). Without cosmetics.js on the page the wallet is off too.
  *
  * Units. Mangos are the small coin and emeralds the big one:
- *   13 mangos = 1 emerald          (MANGOS_PER_EMERALD)
- *   7,321 mangos = 1 US dollar     (MANGOS_PER_DOLLAR; so $1 is about 563.15 emeralds)
+ *   17 mangos = 1 emerald          (MANGOS_PER_EMERALD; it was 13 until 19 Nov 2026. Saved balances were kept as the
+ *                                   same number of mangos: the system has never been public, so only test data had them.)
+ * Emeralds are only bought with real money, in the EMERALD_PACKS below (7 emeralds for $0.99, and so on); there is no other
+ * dollar rate. Mangos only come from breaking emeralds: a price that isn't whole emeralds leaves the change in mangos.
  * The balance is ALWAYS a whole number of mangos, and every sum is done in whole mangos, so nothing is ever rounded.
- * Emeralds are shown with the leftover mangos as a fraction ("12 emeralds 5 mangos", or "12 5/13" short).
- * Every price is in whole emeralds. Mangos and emeralds are only ever bought with real money: play pays nothing and
- * there is no welcome gift (PLAY_PAYS below is false, on purpose; the EARN table is kept in case that ever changes).
+ * Emeralds are shown with the leftover mangos ("3 emeralds 9 mangos", or "3 9/17" short). Prices are whole mangos
+ * (cosmetics.js PRICE). Play pays nothing and there is no welcome gift (PLAY_PAYS below is false, on purpose; the EARN
+ * table is kept in case that ever changes).
  *
  * Money. There is no way to put real money in yet and there is no payment code here: PAYMENTS is a switched-off hook
  * that says what a real setup needs. Read it before turning it on.
@@ -57,13 +59,13 @@
  *
  * API (window.BackRoomWallet):
  *   balance()            whole mangos
- *   inEmeralds(m)        { emeralds, mangos } for m (default the balance): whole emeralds and the mangos left over (0–12)
- *   format(m, short)     '12 emeralds 5 mangos' (short: '12 5/13'); m defaults to the balance
+ *   inEmeralds(m)        { emeralds, mangos } for m (default the balance): whole emeralds and the mangos left over (0–16)
+ *   format(m, short)     '12 emeralds 5 mangos' (short: '12 5/17'); m defaults to the balance
  *   earn(mangos, why)    adds whole mangos (1 to MAX_GRANT); returns the new balance, or false
- *   spend(emeralds, why) takes whole emeralds if the balance covers them; returns the new balance, or false
+ *   spend(mangos, why)   takes whole mangos if the balance covers them; returns the new balance, or false
  *   log()                a copy of the log
  *   on()                 whether the wallet is switched on
- *   MANGOS_PER_EMERALD, MANGOS_PER_DOLLAR, EARN, PAYMENTS
+ *   MANGOS_PER_EMERALD, EMERALD_PACKS, EARN, PAYMENTS
  * Fires 'backroom:wallet' on document ({ detail: { balance, change, why } }) whenever the balance changes, here or in
  * another tab of this browser or from another device through the sync.
  */
@@ -71,9 +73,9 @@
   'use strict';
   if (window.BackRoomWallet) return;
 
-  var MANGOS_PER_EMERALD = 13, MANGOS_PER_DOLLAR = 7321;
+  var MANGOS_PER_EMERALD = 17;
   var KEY = 'wallet:v1', LOG_KEY = 'wallet:log', DEV_KEY = 'wallet:dev', LOG_MAX = 200, MERGE_MS = 60000;
-  var MAX_GRANT = 13 * 2000;                 // the most one earn() can add (a pack refund or a gift; games pay far less)
+  var MAX_GRANT = 17 * 2000;                 // the most one earn() can add (a pack refund or a gift; games pay far less)
   var MAX_BAL = 1e12;                        // far above anything real, still a safe integer
   // The owners' decision (19 Nov 2026): coins come from real money only. Playing pays nothing and there is no welcome
   // gift. Set PLAY_PAYS to true to bring back earning from EARN, and WELCOME above 0 to bring back the gift.
@@ -90,7 +92,8 @@
    *   best: { <stat>: mangos per call }   for BackRoomStats.max / min(stat, v): a finished run, round or lap
    *   cap:  mangos a day from this game, all stats together
    * Stat names are matched without their suffix: 'lap:monza' is lap, 'total-w3' is total, 'fast-easy' is fast.
-   * A game that isn't listed uses '*'. 13 mangos make an emerald and a skin draw costs 10 emeralds (130 mangos).
+   * A game that isn't listed uses '*'. (These numbers were set when 13 mangos made an emerald; today 17 do and a chest
+   * costs 7 emeralds, 119 mangos. Recheck them before turning PLAY_PAYS back on.)
    */
   var EARN = {
     '*':              { add: { wins: 13, escapes: 13, perfect: 6, levels: 2 }, best: {}, cap: 130 },
@@ -123,11 +126,24 @@
   };
 
   /*
+   * EMERALD_PACKS: the only way to get emeralds, with real money. 7 emeralds for $0.99 is the base rate; there is no other
+   * dollar rate. `link` is where the owner pastes that pack's Stripe Payment Link later (like AD_SLOT: left empty here).
+   * While a pack's link is empty, or PAYMENTS.enabled is false, the shop shows it as "Not available yet". A pasted link on
+   * its own sells nothing safely: read PAYMENTS below first (the emeralds must be added by a server, not by this page).
+   */
+  var EMERALD_PACKS = [
+    { id: 'emeralds-7', name: 'Emerald Handful', emeralds: 7, usd: 0.99, link: '' },     // paste the Stripe Payment Link for $0.99 here
+    { id: 'emeralds-36', name: 'Emerald Pouch', emeralds: 36, usd: 4.99, link: '' },     // paste the Stripe Payment Link for $4.99 here
+    { id: 'emeralds-71', name: 'Emerald Sack', emeralds: 71, usd: 9.99, link: '' },      // paste the Stripe Payment Link for $9.99 here
+    { id: 'emeralds-142', name: 'Emerald Vault', emeralds: 142, usd: 19.99, link: '' }   // paste the Stripe Payment Link for $19.99 here
+  ];
+
+  /*
    * PAYMENTS: the hook for buying emeralds with real money. SWITCHED OFF, and there is deliberately no payment code here.
    *
    * A static site can't take money safely: anything the browser does, the player can change, so the browser must never be
-   * the one that says "paid, add 7,321 mangos". A real setup needs:
-   *   1. Stripe prices for the emerald packs (cosmetics.js PACKS with kind 'emeralds'; e.g. lookup key emeralds_1).
+   * the one that says "paid, add 7 emeralds". A real setup needs:
+   *   1. Stripe prices (or Payment Links) for the EMERALD_PACKS above (e.g. lookup key emeralds_7).
    *   2. A server (a Cloud Function, or the Cloudflare Pages Functions this repo already has for the item shop: store.js
    *      and functions/api/checkout.js, see README) that checks the player's Google sign-in and creates a Stripe Checkout
    *      Session for the pack. checkout() below would call it and send the player to Stripe's page (store.js shows how).
@@ -229,12 +245,12 @@
   function inEmeralds(m) { m = m == null ? balance() : m; if (!int(m) || m < 0) m = 0; return { emeralds: Math.floor(m / MANGOS_PER_EMERALD), mangos: m % MANGOS_PER_EMERALD }; }
   function format(m, short) {
     var e = inEmeralds(m);
-    if (short) return e.emeralds.toLocaleString('en-US') + (e.mangos ? ' ' + e.mangos + '/13' : '');
+    if (short) return e.emeralds.toLocaleString('en-US') + (e.mangos ? ' ' + e.mangos + '/' + MANGOS_PER_EMERALD : '');
     var s = e.emeralds.toLocaleString('en-US') + (e.emeralds === 1 ? ' emerald' : ' emeralds');
     return e.mangos ? s + ' ' + e.mangos + (e.mangos === 1 ? ' mango' : ' mangos') : s;
   }
   function earn(mangos, reason) { if (!int(mangos) || mangos < 1 || mangos > MAX_GRANT) return false; return change(mangos, reason || 'earned'); }
-  function spend(emeralds, reason) { if (!int(emeralds) || emeralds < 1) return false; return change(-emeralds * MANGOS_PER_EMERALD, reason || 'spent'); }
+  function spend(mangos, reason) { if (!int(mangos) || mangos < 1) return false; return change(-mangos, reason || 'spent'); }
 
   // ---------------- Earning from play (stats.js's hooks) ----------------
   function baseStat(k) { return String(k).split(':')[0].replace(/-(w\d+|easy|medium|hard)$/, ''); }
@@ -385,7 +401,7 @@
     log: function () { return readLog(); }, on: on, sync: sync,
     // The welcome gift (once per browser), given by the shop page the first time it opens.
     welcome: function () { if (!on() || !(WELCOME > 0)) return false; var w = load(); if (w.gift) return false; w.gift = 1; save(w); return change(WELCOME, 'Welcome gift'); },
-    MANGOS_PER_EMERALD: MANGOS_PER_EMERALD, MANGOS_PER_DOLLAR: MANGOS_PER_DOLLAR, EARN: EARN, PLAY_PAYS: PLAY_PAYS, PAYMENTS: PAYMENTS
+    MANGOS_PER_EMERALD: MANGOS_PER_EMERALD, EMERALD_PACKS: EMERALD_PACKS, EARN: EARN, PLAY_PAYS: PLAY_PAYS, PAYMENTS: PAYMENTS
   };
   if (navigator.webdriver) window.__wallet = {
     load: load, onStat: onStat, hookStats: hookStats, cleanW: cleanW, sync: sync, setDay: function (d) { testDay = d; },
