@@ -13,7 +13,8 @@
  *   7,321 mangos = 1 US dollar     (MANGOS_PER_DOLLAR; so $1 is about 563.15 emeralds)
  * The balance is ALWAYS a whole number of mangos, and every sum is done in whole mangos, so nothing is ever rounded.
  * Emeralds are shown with the leftover mangos as a fraction ("12 emeralds 5 mangos", or "12 5/13" short).
- * Every price is in whole emeralds. Players earn mangos by playing (EARN below).
+ * Every price is in whole emeralds. Mangos and emeralds are only ever bought with real money: play pays nothing and
+ * there is no welcome gift (PLAY_PAYS below is false, on purpose; the EARN table is kept in case that ever changes).
  *
  * Money. There is no way to put real money in yet and there is no payment code here: PAYMENTS is a switched-off hook
  * that says what a real setup needs. Read it before turning it on.
@@ -74,7 +75,10 @@
   var KEY = 'wallet:v1', LOG_KEY = 'wallet:log', DEV_KEY = 'wallet:dev', LOG_MAX = 200, MERGE_MS = 60000;
   var MAX_GRANT = 13 * 2000;                 // the most one earn() can add (a pack refund or a gift; games pay far less)
   var MAX_BAL = 1e12;                        // far above anything real, still a safe integer
-  var WELCOME = 20 * MANGOS_PER_EMERALD;     // a one-time gift the first time the shop opens, so a new player can try a draw
+  // The owners' decision (19 Nov 2026): coins come from real money only. Playing pays nothing and there is no welcome
+  // gift. Set PLAY_PAYS to true to bring back earning from EARN, and WELCOME above 0 to bring back the gift.
+  var PLAY_PAYS = false;
+  var WELCOME = 0;                           // was 20 emeralds, a one-time gift the first time the shop opened
   var PATH = 'rooms/lb-all/players';
   var DB_URL = 'https://rumblekarts-default-rtdb.firebaseio.com';
   var API_KEY = 'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM';   // only to recognise the site's own Firebase app (as stats.js does)
@@ -235,7 +239,7 @@
   // ---------------- Earning from play (stats.js's hooks) ----------------
   function baseStat(k) { return String(k).split(':')[0].replace(/-(w\d+|easy|medium|hard)$/, ''); }
   function onStat(game, how, k, v) {
-    if (!on() || !okGame(game) || typeof k !== 'string') return;
+    if (!PLAY_PAYS || !on() || !okGame(game) || typeof k !== 'string') return;
     var rule = EARN[game] || EARN['*'], name = baseStat(k), pay = 0;
     if (how === 'add') {
       var n = Number(v == null ? 1 : v);
@@ -380,8 +384,8 @@
     balance: balance, inEmeralds: inEmeralds, format: format, earn: earn, spend: spend,
     log: function () { return readLog(); }, on: on, sync: sync,
     // The welcome gift (once per browser), given by the shop page the first time it opens.
-    welcome: function () { if (!on()) return false; var w = load(); if (w.gift) return false; w.gift = 1; save(w); return change(WELCOME, 'Welcome gift'); },
-    MANGOS_PER_EMERALD: MANGOS_PER_EMERALD, MANGOS_PER_DOLLAR: MANGOS_PER_DOLLAR, EARN: EARN, PAYMENTS: PAYMENTS
+    welcome: function () { if (!on() || !(WELCOME > 0)) return false; var w = load(); if (w.gift) return false; w.gift = 1; save(w); return change(WELCOME, 'Welcome gift'); },
+    MANGOS_PER_EMERALD: MANGOS_PER_EMERALD, MANGOS_PER_DOLLAR: MANGOS_PER_DOLLAR, EARN: EARN, PLAY_PAYS: PLAY_PAYS, PAYMENTS: PAYMENTS
   };
   if (navigator.webdriver) window.__wallet = {
     load: load, onStat: onStat, hookStats: hookStats, cleanW: cleanW, sync: sync, setDay: function (d) { testDay = d; },
