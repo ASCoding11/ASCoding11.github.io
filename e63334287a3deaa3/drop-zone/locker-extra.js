@@ -855,7 +855,8 @@ const PICKS=[null,
   B=>{pX(B,0,-.1,.12,.04,.16,.04,0x8a5a2b);pX(B,0,-.17,.06,.04,.04,.1,0x8a5a2b);pX(B,0,0,-.1,.03,.03,.3,0x8a96a0);for(let k=0;k<5;k++){const w=.14-Math.abs(k-1.5)*.03;pX(B,0,0,-.3-k*.1,w,w,.1,k%2?0xe8453c:WHITE)}pX(B,0,0,-.84,.025,.025,.1,0x8a96a0)},   // a closed umbrella
   B=>{pX(B,0,0,-.3,.035,.035,.76,WHITE);pL(B,0,0,-.84,.07,.42,.42,0xff6fb5);for(const r of [0,.785,1.57,2.36])pT(B,0,.04,0,-.84,.01,.4,.05,r%1.57?0xffd23f:WHITE,r,0,0)}];   // a giant lollipop
 const pickGeo=[];
-function pickOf(n){if(!PICKS[n])return null;if(!pickGeo[n]){const B=G.Bag();PICKS[n](B);pickGeo[n]=G.bagGeo(B)}return pickGeo[n]}
+function pickOf(n){if(!PICKS[n]||!G.Bag)return null;   // (an older page lends no Bag: it keeps the crowbar)
+  if(!pickGeo[n]){const B=G.Bag();PICKS[n](B);pickGeo[n]=G.bagGeo(B)}return pickGeo[n]}
 const pIMs={};
 function pickIM(n){let im=pIMs[n];if(!im){im=pIMs[n]=new THREE.InstancedMesh(pickOf(n),G.MAT,G.LIMB_N);im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.count=0;im.visible=false;im.castShadow=im.receiveShadow=true;G.scene.add(im)}return im}
 function pickPic(n,W,H){const sc=new THREE.Scene();lights(sc);const m=new THREE.Mesh(pickOf(n),G.MAT),g=new THREE.Group();m.rotation.x=Math.PI/2;m.position.y=-.35;g.add(m);g.rotation.set(0,Math.PI/2-.35,.18);sc.add(g);   // stood up, its business end on top
@@ -891,7 +892,7 @@ function tick(dt){
 }
 const gIMs={};
 function gunReset(){for(const k in gIMs)gIMs[k].count=0;for(const k in pIMs)pIMs[k].count=0}
-function gunIM(k,s,pk){if(k==='cb')return pk>=1&&pk<=PICK_NAMES.length?pickIM(pk):G.gunIM[k];if(!G.WEAP[k]||!(s>=1&&s<=WRAP_NAMES.length))return G.gunIM[k];let im=gIMs[k];if(!im){im=gIMs[k]=gunMesh(k,G.LIMB_N);G.scene.add(im)}
+function gunIM(k,s,pk){if(k==='cb')return pk>=1&&pk<=PICK_NAMES.length&&G.Bag?pickIM(pk):G.gunIM[k];if(!G.WEAP[k]||!(s>=1&&s<=WRAP_NAMES.length))return G.gunIM[k];let im=gIMs[k];if(!im){im=gIMs[k]=gunMesh(k,G.LIMB_N);G.scene.add(im)}
   if(im.count<G.LIMB_N){const a=im.geometry.attributes.gsk;if(a.array[im.count]!==s){a.array[im.count]=s;a.needsUpdate=true}}return im}
 function gunDone(){for(const M of [gIMs,pIMs])for(const k in M){const im=M[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}}
 function bsOf(oid){if(oid==null)return 0;let e=null;if(oid===G.myId()||oid==='me')e=G.player;else for(const x of G.ents)if(x.id===oid){e=x;break}
@@ -937,7 +938,7 @@ function buildMenu(){
 function pick(id,n){if(!G.lockerOn())return;if(id==='e'){G.store.set('em',String(n||1));stageA=performance.now();mark();return}const o=worn();delete o.e;if(n)o[id]=n;else delete o[id];if(id==='v')stageA=performance.now();G.setLx(str(o));mark()}
 function nameOf(id){const o=worn();o.e=myEmote();const n=o[id];return n?SLOT[id][n-1]:id==='o'?'Crowbar':id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':id==='v'?'No victory pose':'Standard glider'}
 function mark(){if(!built)return;const o=worn();o.e=myEmote();for(const id in cards)cards[id].forEach((b,n)=>b.setAttribute('aria-pressed',(o[id]||0)===n?'true':'false'));
-  if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)+(tab==='e'&&emoteKeyName()?'  ['+emoteKeyName()+']':'')}
+  if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)+(tab==='e'&&!G.touchUI&&emoteKeyName()?'  ['+emoteKeyName()+']':'')}
 function setTab(id){tab=id;const sec=G.Locker.sec;
   for(const b of sec.querySelectorAll('.lk-tabs button')){b.setAttribute('aria-pressed',b.dataset.tab===id?'true':'false');if(b.dataset.tab===id&&sec.offsetParent!==null){const bar=b.parentNode;if(b.offsetLeft<bar.scrollLeft||b.offsetLeft+b.offsetWidth>bar.scrollLeft+bar.clientWidth)bar.scrollLeft=b.offsetLeft-12}}
   G.$('lkGrid').hidden=id!=='outfits';for(const k in cards)G.$('lkGrid-'+k).hidden=k!==id;
