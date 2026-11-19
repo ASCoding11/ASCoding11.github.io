@@ -1402,18 +1402,26 @@ function endMatch(){
 // A free-for-all goes by the final standings (kills, then fewer losses; equal both is a draw); a duel and 2v2 by the result.
 const RANK_MIN=60000;
 let rankView=null;
+// The match can end (the host's rs) a moment before the last scores arrive from the other browsers, so the rating
+// waits RANK_SETTLE for them (and redraws the standings with them) before it is worked out.
+const RANK_SETTLE=1500;
 function rateMatch(rs,me,won){
   rankView=null;
-  if(G.online&&me&&!me.out&&window.BackRoomElo){
-    const opp=[...G.ents.values()].filter(e=>e!==me&&!e.out&&enemies(me,e)),humans=opp.filter(e=>!e.bot).length;
-    const end=rs.et||netNow(),from=G.flewFrom||end,full=rs.md===1?standings().some(e=>e.kills>=rs.kl):Math.max(teamScore(0),teamScore(1))>=rs.kl;
-    if(!humans)rankView={why:'Unranked: no other real pilot was flying against you.'};
-    else if(end-from<RANK_MIN&&!(full&&from<=rs.t0+5000))rankView={why:'Unranked: you flew less than a minute of this match.'};
-    else{
-      const res=e=>rs.md!==1?(rs.win?(won?1:0):.5):me.kills!==e.kills?(me.kills>e.kills?1:0):me.deaths!==e.deaths?(me.deaths<e.deaths?1:0):.5;
-      rankView={wait:true};
-      try{const id=Net.room+':'+rs.id;BackRoomElo.report({id,won,opp:opp.map(e=>e.bot?{bot:1,s:res(e)}:{u:e.id,s:res(e)})}).then(r=>{if(G.matchId!==rs.id)return;rankView=r?{r}:null;showRank()},()=>{rankView=null;showRank()})}catch(e){rankView=null}
-    }
+  if(G.online&&me&&!me.out&&window.BackRoomElo){rankView={wait:true};setTimeout(()=>rateNow(rs,me,won),RANK_SETTLE)}
+  showRank();
+}
+function rateNow(rs,me,won){
+  if(G.matchId!==rs.id||!rankView||!rankView.wait)return;
+  if(G.phase==='end'&&!$('end').hidden)$('endTable').innerHTML=tableHTML();
+  const opp=[...G.ents.values()].filter(e=>e!==me&&!e.out&&enemies(me,e)),humans=opp.filter(e=>!e.bot).length;
+  // ended before the clock ran out: someone reached the kill target
+  const end=rs.et||netNow(),from=G.flewFrom||end,full=end-rs.t0<rs.tl*1000-500;
+  if(!humans)rankView={why:'Unranked: no other real pilot was flying against you.'};
+  else if(end-from<RANK_MIN&&!(full&&from<=rs.t0+5000))rankView={why:'Unranked: you flew less than a minute of this match.'};
+  else{
+    // the host's verdict on the winner stands even if a score hasn't arrived; everyone else by kills, then losses
+    const res=e=>rs.md!==1?(rs.win?(won?1:0):.5):rs.win===me.id?1:rs.win===e.id?0:me.kills!==e.kills?(me.kills>e.kills?1:0):me.deaths!==e.deaths?(me.deaths<e.deaths?1:0):.5;
+    try{const id=Net.room+':'+rs.id;BackRoomElo.report({id,won,opp:opp.map(e=>e.bot?{bot:1,s:res(e)}:{u:e.id,s:res(e)})}).then(r=>{if(G.matchId!==rs.id)return;rankView=r?{r}:null;showRank()},()=>{rankView=null;showRank()})}catch(e){rankView=null}
   }
   showRank();
 }
