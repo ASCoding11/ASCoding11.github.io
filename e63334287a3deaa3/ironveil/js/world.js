@@ -223,7 +223,7 @@
       sc.remove(o);
       o.traverse(n => { if (n.geometry && !n.userData.keepGeo) n.geometry.dispose(); });
     }
-    W.colliders = []; W.hash = new Map(); W.lamps = []; W.flashes = []; W.roofs = []; W.waterPolys = [];
+    W.colliders = []; W.hash = new Map(); W.lamps = []; W.flashes = []; W.roofs = []; W.waterPolys = []; W.cullList = [];
     W.statics = new THREE.Group(); W.dynamic = new THREE.Group(); sc.add(W.statics); sc.add(W.dynamic);
   };
 
@@ -588,7 +588,7 @@
   };
 
   // Each frame: give the pooled point lights to the lamps nearest the camera, drive the flash light, follow the shadow.
-  const lampSort = [];
+  const lampSort = [], cullM = new THREE.Matrix4(), cullF = new THREE.Frustum();
   W.frame = function (dt, focus) {
     W.windU.value += dt;
     const cam = W.camera.position;
@@ -609,7 +609,7 @@
     let fb = null, fv = 0;
     for (let i = 0; i < W.flashes.length; i++) { const f = W.flashes[i], k = (f.until - IV.time) / f.dur; if (k * f.i > fv) { fv = k * f.i; fb = f; } }
     const fl = W.flashLight;
-    if (fb) { fl.position.set(fb.x, fb.y, fb.z); fl.distance = fb.r * 1.6; fl.intensity = fv * 5; fl.color.setHex(fb.color); } else fl.intensity = 0;
+    if (fb) { fl.position.set(fb.x, fb.y, fb.z); fl.distance = Math.min(60, fb.r * 1.6); fl.intensity = Math.min(5, fv * 3); fl.color.setHex(fb.color); } else fl.intensity = 0;
     // shadow camera follows the focus point, snapped to texels so shadows do not swim
     if (W.sun.castShadow && focus) {
       const s = W.shadowR || 40, texel = (2 * s) / (W.sun.shadow.mapSize.x || 1024);
@@ -618,5 +618,11 @@
       W.sun.position.set(fx + W.moonDir.x * 90, focus.y + W.moonDir.y * 90, fz + W.moonDir.z * 90);
     }
     if (W.skyDome) W.skyDome.position.copy(cam);
+    // chunked vegetation: off screen or past the fog, don't draw it
+    if (W.cullList && W.cullList.length) {
+      const c = W.camera; c.updateMatrixWorld(); cullM.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); cullF.setFromProjectionMatrix(cullM);
+      const far = W.day ? 400 : 190;
+      for (const m of W.cullList) { const s = m.userData.cull; m.visible = s.center.distanceTo(cam) - s.radius < far && cullF.intersectsSphere(s); }
+    }
   };
 })();

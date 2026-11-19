@@ -82,8 +82,10 @@
       m.matrixAutoUpdate = false; m.updateMatrix();
       parent.add(m); out.push(m);
     }
-    if (b.foliage.length) out.push(K.foliageMesh(b.foliage, parent));
-    if (b.cards.length) out.push(K.cardMesh(b.cards, parent));
+    // vegetation in 96 m chunks so whole chunks behind you or deep in the fog are skipped (W.frame culls them)
+    const chunks = (list, make) => { const m = new Map(); for (const f of list) { const k = Math.floor(f[0] / 96) * 100 + Math.floor(f[2] / 96); let a = m.get(k); if (!a) m.set(k, a = []); a.push(f); } for (const a of m.values()) { const im = make(a, parent); let cx = 0, cz = 0; for (const f of a) { cx += f[0]; cz += f[2]; } cx /= a.length; cz /= a.length; let r = 0; for (const f of a) r = Math.max(r, Math.hypot(f[0] - cx, f[2] - cz)); im.userData.cull = new THREE.Sphere(new THREE.Vector3(cx, W.height(cx, cz) + 4, cz), r + 8); im.frustumCulled = false; W.cullList.push(im); out.push(im); } };
+    if (b.foliage.length) chunks(b.foliage, K.foliageMesh);
+    if (b.cards.length) chunks(W.quality === 0 ? b.cards.filter((c, i) => i % 2 === 0) : b.cards, K.cardMesh);
     return out;
   };
 
@@ -91,7 +93,7 @@
   let clumpGeo = null;
   function makeClump() { // a lumpy, slightly flattened ball of leaves with darker, occluded underside
     // High: a subdivided icosahedron (80 tris); Low/Medium: an octahedron (32 tris). Spherical normals hide the facets.
-    const g = W.quality >= 2 ? new THREE.IcosahedronGeometry(0.5, 1) : new THREE.OctahedronGeometry(0.5, 1), p = g.attributes.position, R = IV.rng(5);
+    const g = W.quality >= 2 ? new THREE.IcosahedronGeometry(0.5, 1) : W.quality === 1 ? new THREE.OctahedronGeometry(0.5, 1) : new THREE.IcosahedronGeometry(0.5, 0), p = g.attributes.position, R = IV.rng(5);
     const col = new Float32Array(p.count * 3);
     const seen = new Map();
     for (let i = 0; i < p.count; i++) {

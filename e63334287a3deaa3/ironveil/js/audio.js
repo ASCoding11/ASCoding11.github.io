@@ -147,7 +147,7 @@
     else if (surf === 'wood') { noise(d, t, 0.07, 'lowpass', 600, 2, 0.8); tone(d, t, 0.08, 'sine', V(130, 170), 90, 0.3); }
     else if (surf === 'stone') noise(d, t, 0.05, 'bandpass', V(1300, 1800), 2, 0.6);
     else if (surf === 'water') { noise(d, t, 0.25, 'bandpass', V(700, 1100), 1, 0.6, 0, 400); noise(d, t + 0.05, 0.15, 'highpass', 2500, 1, 0.3); }
-    else if (surf === 'mud') { noise(d, t, 0.12, 'lowpass', V(350, 500), 2, 0.7); }
+    else if (surf === 'mud') { noise(d, t, 0.12, 'lowpass', V(350, 500), 2, 0.7); noise(d, t + 0.05, 0.14, 'bandpass', V(700, 1000), 6, 0.25, 0, 300); /* the squelch as the boot comes out */ }
     else if (surf === 'crops' || surf === 'tallgrass') { noise(d, t, 0.22, 'bandpass', V(2200, 3200), 0.8, 0.45); noise(d, t, 0.08, 'lowpass', 300, 1, 0.3); }
     else { noise(d, t, 0.1, 'bandpass', V(500, 900), 0.9, 0.5); noise(d, t, 0.14, 'highpass', 3000, 0.8, 0.15); }
     if (gait === 'prone' || gait === 'crouch') noise(d, t, 0.25, 'bandpass', 1000, 1, 0.12);

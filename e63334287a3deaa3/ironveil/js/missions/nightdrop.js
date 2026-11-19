@@ -572,7 +572,7 @@
     M.after(1.2, () => M.say(t('Gun\'s gone! Out the gap by the barn and down the lane! Go, go!')));
     M.after(2, () => { beatRun(M); M.checkpoint(3); });
   }
-  function $flash(k) { const f = IV.$('flash'); f.style.transition = 'none'; f.style.opacity = String(k); requestAnimationFrame(() => { f.style.transition = 'opacity .8s'; f.style.opacity = '0'; }); }
+  function $flash(k) { const f = IV.$('flash'); f.style.transition = 'none'; f.style.opacity = String(k * 0.5); requestAnimationFrame(() => { f.style.transition = 'opacity .8s'; f.style.opacity = '0'; }); }
   function beatRun(M) {
     const t = IV.t, AI = IV.ai;
     M.obj('run', 'Reach the extraction lane', { marker: { x: EXTRACT.x, z: EXTRACT.z, y: W.height(EXTRACT.x, EXTRACT.z) + 1.8 } });
@@ -602,7 +602,7 @@
         s.a += dt * 0.22;
         const yaw = 2.2 + Math.sin(s.a) * 1.0, dist = 45 + Math.sin(s.a * 0.7) * 15;
         const sp = M.spotPos, tx = sp.x - Math.sin(yaw) * dist, tz = sp.z - Math.cos(yaw) * dist;
-        W.spot.position.set(sp.x, sp.y + 0.2, sp.z); W.spot.target.position.set(tx, W.height(tx, tz), tz); W.spot.intensity = 5.5;
+        W.spot.position.set(sp.x, sp.y + 0.2, sp.z); W.spot.target.position.set(tx, W.height(tx, tz), tz); W.spot.intensity = 2.6;
         M.spotHead.lookAt(tx, W.height(tx, tz), tz);
       } else W.spot.intensity = 0;
     }
@@ -675,7 +675,7 @@
     if (!W.spot || !M.spot) return;
     const s = M.spot; s.a += dt * 0.22; W.spotOn = true;
     const yaw = 2.2 + Math.sin(s.a) * 1.0, dist = 45 + Math.sin(s.a * 0.7) * 15, sp = M.spotPos, tx = sp.x - Math.sin(yaw) * dist, tz = sp.z - Math.cos(yaw) * dist;
-    W.spot.position.set(sp.x, sp.y + 0.2, sp.z); W.spot.target.position.set(tx, W.height(tx, tz), tz); W.spot.intensity = 5.5; M.spotHead.lookAt(tx, W.height(tx, tz), tz);
+    W.spot.position.set(sp.x, sp.y + 0.2, sp.z); W.spot.target.position.set(tx, W.height(tx, tz), tz); W.spot.intensity = 2.6; M.spotHead.lookAt(tx, W.height(tx, tz), tz);
   }
 
   // ---------------------------------------------------------------- the briefing sketch
