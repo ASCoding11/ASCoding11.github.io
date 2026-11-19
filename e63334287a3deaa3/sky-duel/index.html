@@ -445,7 +445,11 @@ let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: 
 // ---------- tuning ----------
 const SPD_MIN=62,SPD_MAX=132,BOOST_ADD=75,STALL=46,STALL_OUT=64,TURN=1.2,PITCH_MAX=1.3;
 const CEIL=900;                       // the air thins out above this and the engine fades
-const BULLET_V=540,BULLET_LIFE=1.25,BULLET_DMG=6,GUN_RATE=.085,HIT_R=9;
+// The planes are drawn PLANE_SIZE times the size they're built at (1.15, then 12% bigger in November 2026), and the
+// bullet hit sphere grew with them (9 m to 10.08 m), so what you see is what you hit. The shooter's own browser decides
+// its bullets' hits, so a page from before this change in the same room still works; its hits use the old 9 m.
+const PLANE_SIZE=1.15*1.12;
+const BULLET_V=540,BULLET_LIFE=1.25,BULLET_DMG=6,GUN_RATE=.085,HIT_R=9*1.12;
 const HEAT_UP=.024,HEAT_COOL=.3;      // per shot / per second
 const LOCK_T=1.3,LOCK_RANGE=950,LOCK_CONE=.25,MSL_DMG=55,MSL_LIFE=6.5,MSL_TURN=1.9,MSL_MAX=4,FLARE_MAX=4,FLARE_R=520;
 const RESPAWN=3.2,SHIELD=2.5,PICK_R=18,PICK_RESPAWN=20000;
@@ -799,12 +803,12 @@ const PLANE_GEO=[];
   // Dart: a delta-wing jet with canards
   PLANE_GEO.push({body:mergeGeo([tube(.8,.7,11,8),at(wingGeo(12.5,5.6,.22,4.2,.1,.8),0,-.15,-.9),at(wingGeo(4.4,1.2,.14,.8,.1,.5),0,.25,3.3),fin(2.6,2.6,0,-4.2)]),
     trim:mergeGeo([at(cone(.8,3.2,8),0,0,7.1),glass(0,.7,1.6,.55,.5,1.7),at(tube(.62,.5,1,8),0,0,-5.8)]),prop:0,propR:0,tip:6.1,tail:-6.2});
-  for(const p of PLANE_GEO){p.body.scale(1.15,1.15,1.15);p.trim.scale(1.15,1.15,1.15);p.tip*=1.15;p.tail*=1.15;p.prop*=1.15;p.propR*=1.15}
+  for(const p of PLANE_GEO){p.body.scale(PLANE_SIZE,PLANE_SIZE,PLANE_SIZE);p.trim.scale(PLANE_SIZE,PLANE_SIZE,PLANE_SIZE);p.tip*=PLANE_SIZE;p.tail*=PLANE_SIZE;p.prop*=PLANE_SIZE;p.propR*=PLANE_SIZE}
 })();
 const TRIM_MAT=new THREE.MeshLambertMaterial({color:0x23324a,emissive:0x0a1220});
 const PROP_MAT=new THREE.MeshBasicMaterial({color:0xdfe8f2,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
 const SHIELD_MAT=new THREE.MeshBasicMaterial({color:0x9fe3ff,transparent:true,opacity:.13,depthWrite:false});
-const SHIELD_GEO=new THREE.SphereGeometry(9,14,10),PROP_GEO=new THREE.CircleGeometry(1,14);
+const SHIELD_GEO=new THREE.SphereGeometry(9*1.12,14,10),PROP_GEO=new THREE.CircleGeometry(1,14);
 // Every plane is drawn through instanced meshes: one body and one trim per airframe, one for all the propellers and
 // one for the spawn shields, so 8 planes cost at most 10 draw calls instead of 3 or 4 each. e.mesh only holds where
 // a plane is (position, YXZ rotation, scale); drawEnts copies that into the instances every frame.
@@ -1662,7 +1666,7 @@ function updateHud(dt){
     const on=s.front&&s.x>10&&s.x<VW-10&&s.y>10&&s.y<VH-10;
     if(!on&&!isT&&(!foe||d>1300))continue;
     mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off');
-    if(on){const sz=Math.round(clamp(2600/d,24,64));if(m.sz!==sz){m.sz=sz;m.el.style.width=m.el.style.height=sz+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px'}put(m.el,s.x,s.y)}
+    if(on){const sz=Math.round(clamp(2600*1.12/d,24,72));if(m.sz!==sz){m.sz=sz;m.el.style.width=m.el.style.height=sz+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px'}put(m.el,s.x,s.y)}
     else{let ax=s.cx,ay=-s.cy;if(!s.front&&Math.hypot(ax,ay)<1e-3)ay=1;const a=Math.atan2(ay,ax),deg=Math.round(a*57.2958);if(m.sz!==0){m.sz=0;m.el.style.width=m.el.style.height='';m.el.style.margin=''}if(m.deg!==deg){m.deg=deg;m.el.style.setProperty('--a',deg+'deg')}put(m.el,VW/2+Math.cos(a)*edge,VH/2+Math.sin(a)*edge)}
     if(m.cls!==cls){m.cls=cls;m.el.className=cls}
     const dm=Math.round(d/10)*10;if(m.e!==e||m.dm!==dm||m.nm!==e.name){m.e=e;m.dm=dm;m.nm=e.name;m.name.textContent=e.name+' '+dm+'m'}
