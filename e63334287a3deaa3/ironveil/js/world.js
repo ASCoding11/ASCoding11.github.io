@@ -326,11 +326,12 @@
   };
   // ---- hooks for the environment art (IVEnv): one terrain height, one ground-kind map, the characters that bend grass
   W.heightAt = (x, z) => W.height(x, z);     // the same height physics, placement and rendering use
-  const KIND = { grass: 'grass', tallgrass: 'longgrass', mud: 'mud', gravel: 'road', crops: 'crop', water: 'water', stone: 'yard', wood: 'indoors' };
-  // grass | longgrass | lane | mud | yard | road | ploughed | crop | water | indoors. Long grass and crops are also the
-  // stealth cover (ai.js reads the same surface data), so what looks like cover is cover.
+  // IVEnv's vocabulary. Grass grows on grass, pasture, meadow, tussock, verge, lanemid, worn, leaves, yardedge; bare: lane,
+  // mud, yard, road, gravel, cobbles, field (crops), water, floor, none. Meadow (long grass) and field (crops) are also the
+  // stealth cover (the player and ai.js read this same function), so what looks like cover is cover.
+  const KIND = { grass: 'grass', tallgrass: 'meadow', mud: 'mud', gravel: 'road', crops: 'field', water: 'water', stone: 'yard', wood: 'floor' };
   W.surfaceAt = function (x, z) {
-    if (W.underRoof(x, z)) return 'indoors';
+    if (W.underRoof(x, z)) return 'floor';
     if (W.cfg && W.cfg.surfaceKind) { const k = W.cfg.surfaceKind(x, z); if (k) return k; }
     return KIND[SURF[W.surfAt(x, z)]] || 'grass';
   };

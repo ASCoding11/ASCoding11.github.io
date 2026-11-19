@@ -136,6 +136,8 @@
     else if (surf === 'crops' || surf === 'tallgrass') { noise(d, t, 0.22, 'bandpass', V(2200, 3200), 0.8, 0.45); noise(d, t, 0.08, 'lowpass', 300, 1, 0.3); }
     else { noise(d, t, 0.1, 'bandpass', V(500, 900), 0.9, 0.5); noise(d, t, 0.14, 'highpass', 3000, 0.8, 0.15); }
     if (gait === 'prone' || gait === 'crouch') noise(d, t, 0.25, 'bandpass', 1000, 1, 0.12);
+    // kit: a quiet rattle of webbing and canteen on each running step
+    if (gait === 'run' || gait === 'sprint') { noise(d, t + 0.03, 0.06, 'bandpass', V(2600, 3400), 4, gait === 'sprint' ? 0.14 : 0.08); noise(d, t + 0.02, 0.12, 'bandpass', 900, 1.5, 0.06); }
   };
 
   // ---------------------------------------------------------------- ambience, artillery, aircraft, alarm, music

@@ -37,8 +37,9 @@
       slopeCos: 0.766, slideAccel: 9,    // cos(40 deg): steeper terrain can't be climbed and slides you back
       radius: 0.32,                      // m, body radius
       vaultMin: 0.45, vaultMax: 1.35,    // m, heights you can vault over
-      vaultTime: 0.62,                   // s
-      stanceTime: 0.28,                  // s, time to change stance
+      vaultTime: 0.62, vaultTimeClip: 1.1, // s: stand-in vault; chars.js's vault clip (in place, root moved by us)
+      stanceTime: 0.28,                  // s, (see setStance: 0.25 / 0.6 / 0.9 s by how far the change goes)
+      sprintOut: 0.22,                   // s after a sprint before the weapon can fire or aim
       waterMul: 0.55                     // speed in the stream
     },
     cam: {
@@ -72,8 +73,8 @@
     },
     weapons: {
       rifle:  { dmg: 140, rpm: 0, mag: 5, reserve: 30, reload: 2.6, bolt: 1.05, spread: 0.0004, hipSpread: 0.03, recoil: 0.065, noise: 260, zoom: 4 },
-      smg:    { dmg: 30, rpm: 600, mag: 30, reserve: 120, reload: 2.2, spread: 0.008, hipSpread: 0.03, bloom: 0.0025, bloomMax: 0.04, recoil: 0.012, noise: 180 },
-      pistol: { dmg: 45, rpm: 300, mag: 8, reserve: 32, reload: 1.6, spread: 0.006, hipSpread: 0.018, recoil: 0.03, noise: 42 },
+      smg:    { dmg: 30, fall: [20, 45, 0.6], rpm: 600, mag: 30, reserve: 120, reload: 2.2, spread: 0.008, hipSpread: 0.03, bloom: 0.0025, bloomMax: 0.04, recoil: 0.012, noise: 180 },
+      pistol: { dmg: 45, fall: [15, 35, 0.5], rpm: 300, mag: 8, reserve: 32, reload: 1.6, spread: 0.006, hipSpread: 0.018, recoil: 0.03, noise: 42 },
       headMul: 2.6, limbMul: 0.65,
       grenade: { fuse: 4.0, radius: 7, dmg: 220, throwV: 16, count: 2 },
       rock: { throwV: 15, noise: 15, count: 99 },
@@ -105,6 +106,7 @@
       searchTime: 38,           // s
       runSpeed: 3.9, walkSpeed: 1.45, searchSpeed: 2.2, turnRate: 6.3, // m/s; rad/s body turn (360 deg/s)
       grenadeCooldown: 24,      // s, shared by all enemies
+      tokens: [2, 3, 4],        // how many soldiers may shoot at you at once (difficulty)
       alarmDelay: 2.2,          // s ringing before the alarm counts
       truckDelay: 28            // s after the alarm (or 60 when the telephone wire is cut)
     },

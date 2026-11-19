@@ -236,7 +236,7 @@
     let amp = mix(mix(0.42, 0.68, k1), 0.88, k2) * mix(0.35, 1, k0), knee = mix(mix(0.75, 1.3, k1), 1.7, k2) * mix(0.4, 1, k0);
     const bob = mix(mix(0.022, 0.045, k1), 0.06, k2) * k0, lean = mix(mix(0.04, 0.14, k1), 0.28, k2), arm = d.aiming ? 0 : mix(mix(0.3, 0.52, k1), 0.75, k2) * k0;
     let cf = 1, sf = 0;
-    if (s > 0.15) { const th = Math.atan2(d.vx, d.vz); cf = Math.cos(th); sf = Math.sin(th); }
+    if (s > 0.15) { const th = Math.atan2(-d.vx, d.vz); cf = Math.cos(th); sf = Math.sin(th); }   // vx arrives +left; th is +right
     else if (Math.abs(d.yawRate) > 0.5) { amp = 0.2; knee = 0.45; cf = 0.25; sf = -Math.sign(d.yawRate); }   // stepping round on the spot
     const sw = sin(ph);
     set(p, 'thighL', -amp * sw * cf, 0, -amp * sw * sf * 0.6); set(p, 'thighR', amp * sw * cf, 0, amp * sw * sf * 0.6);
@@ -252,7 +252,7 @@
   }
   function locoCrouch(p, a) {
     const d = a.dp, s = d.speed, ph = (a.phase + 0.25) * PI * 2, k0 = cl01(s / 1.3);
-    let cf = 1, sf = 0; if (s > 0.1) { const th = Math.atan2(d.vx, d.vz); cf = Math.cos(th); sf = Math.sin(th); }
+    let cf = 1, sf = 0; if (s > 0.1) { const th = Math.atan2(-d.vx, d.vz); cf = Math.cos(th); sf = Math.sin(th); }
     const amp = mix(0.15, 0.45, k0) * (s > 1.6 ? 1.15 : 1), sw = sin(ph);
     p[HY] = -0.3 - 0.015 * Math.abs(cos(ph));
     set(p, 'thighL', -1.0 - amp * sw * cf, 0, -amp * sw * sf * 0.5); set(p, 'thighR', -1.0 + amp * sw * cf, 0, amp * sw * sf * 0.5);

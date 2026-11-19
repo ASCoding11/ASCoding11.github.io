@@ -17,7 +17,7 @@
   C.kick = function (p, y) { P.pitch += p; P.yaw += y; C.kickP += p * 0.72; C.kickY += y * 0.6; };
   // a very small bob on each foot contact (Settings: Camera bob), and a dip on landing
   C.bobV = 0; C.bobY = 0;
-  C.footBob = function (k) { if (!IV.settings.bob || IV.settings.motion) return; C.bobV -= CT.bob * 9 * (k || 1); };
+  C.footBob = function (k) { if (!IV.settings.bob || IV.settings.motion || (IV.weapons && (IV.weapons.aiming || IV.weapons.scoped))) return; C.bobV -= CT.bob * 9 * (k || 1); };
   C.landDip = function (k) { if (IV.settings.motion) return; C.bobV -= CT.landDip * 9 * (k || 1); };
 
   // look input (mouse/touch), applied every render frame (raw, no smoothing)

@@ -28,6 +28,7 @@
     if (!P.actor) {
       P.actor = IVChars.spawn('hero');
       P.actor.root.traverse(o => { o.userData.player = true; });
+      P.actor.groundAt = (x, z) => W.groundAt(x, z, P.render.y + 0.4);   // chars.js foot IK
       // footsteps come from the animation's foot contacts
       P.actor.onFoot = (side, strength) => footFx(P.render, P.stance === 'stand' ? (P.sprinting ? 'sprint' : P.speed > 2.6 ? 'run' : 'walk') : P.stance === 'crouch' ? 'crouch' : 'prone', strength, true);
     }
@@ -35,7 +36,7 @@
     P.actor.play(P.stance === 'prone' ? 'proneIdle' : P.stance === 'crouch' ? 'crouchIdle' : 'idle', { fade: 0 });
   };
   // the ground kind under a point, as the audio and effects know it
-  const AUDIO_SURF = { grass: 'grass', longgrass: 'tallgrass', lane: 'mud', mud: 'mud', yard: 'gravel', road: 'gravel', ploughed: 'mud', crop: 'crops', water: 'water', indoors: 'wood' };
+  const AUDIO_SURF = { grass: 'grass', pasture: 'grass', meadow: 'tallgrass', tussock: 'tallgrass', verge: 'grass', lanemid: 'grass', worn: 'mud', leaves: 'grass', yardedge: 'gravel', lane: 'mud', mud: 'mud', yard: 'gravel', road: 'gravel', gravel: 'gravel', cobbles: 'stone', field: 'crops', water: 'water', floor: 'wood', none: 'grass' };
   function footFx(p, gait, strength, isPlayer, vol) {
     const kind = W.surfaceAt(p.x, p.z), wet = W.height(p.x, p.z) < W.waterLevel(p.x, p.z) - 0.25;
     let surf = wet ? 'water' : AUDIO_SURF[kind] || 'grass';
@@ -54,7 +55,8 @@
       const cl = W.ceilingAt(P.pos.x, P.pos.z, P.pos.y);
       if (cl < P.pos.y + HEIGHT[s] + 0.05) return;           // no room to get up
     }
-    P.stance = s; P.stanceT = MV.stanceTime;
+    // stance changes take longer the further you go (stand-crouch 0.25 s, to or from prone 0.6-0.9 s)
+    P.stanceT = (P.stance === 'prone' || s === 'prone') ? (P.stance === 'stand' || s === 'stand' ? 0.9 : 0.6) : 0.25; P.stance = s;
     IV.audio && IV.audio.play('cloth', { vol: 0.6 });
     IV.emit('stance', s);
   };
@@ -109,7 +111,7 @@
     if (P.cine) { P.cine(dt); P.speed = 0; return; }     // a scripted moment moves the player
     if (P.frozen) { P.vel.set(0, 0, 0); P.speed = 0; return; }
     if (P.vault) {
-      const v = P.vault; v.t += dt / MV.vaultTime; const k = Math.min(1, v.t), e = IV.smooth(k);
+      const v = P.vault; v.t += dt / (IVChars.standin ? MV.vaultTime : MV.vaultTimeClip); const k = Math.min(1, v.t), e = IV.smooth(k);
       P.pos.x = v.sx + (v.ex - v.sx) * e; P.pos.z = v.sz + (v.ez - v.sz) * e;
       P.pos.y = v.sy + (v.ey - v.sy) * e + Math.sin(k * Math.PI) * Math.max(0.25, v.top - Math.min(v.sy, v.ey) + 0.15) * 0.85 + (v.top - v.sy) * 0.15 * Math.sin(k * Math.PI);
       if (k >= 1) { P.vault = null; P.vel.set((v.ex - v.sx) * 1.2, 0, (v.ez - v.sz) * 1.2); IV.audio && IV.audio.play('land', { surf: IV.SURF[W.surfAt(P.pos.x, P.pos.z)] }); IV.camera && IV.camera.landDip(0.6); }
@@ -122,6 +124,8 @@
     const W8 = IV.weapons, aiming = W8 && (W8.aiming || W8.scoped), binoc = W8 && W8.binoc;
     // sprint: standing, moving mostly forward, not aiming. Shift while crouched is a quieter crouch-run.
     const sprint = I.held('sprint') && I.moveY > 0.3 && !aiming && !binoc && !(W8 && W8.busyThrow) && P.stance === 'stand';
+    if (P.sprinting && !sprint) P.sprintOutT = MV.sprintOut;   // the weapon needs a moment to come up after a sprint
+    P.sprintOutT = Math.max(0, (P.sprintOutT || 0) - dt);
     P.sprinting = sprint;
     P.crouchRun = I.held('sprint') && P.stance === 'crouch';
     // target velocity, camera relative; strafe and backpedal slower than forward
@@ -137,6 +141,7 @@
     if (aiming && P.stance !== 'stand') sp = Math.min(sp, MV.crouch * 0.85);
     if (binoc) sp *= 0.5;
     if (P.stanceT > 0) sp *= 0.5;
+    if (P.landT > 0) { P.landT -= dt; sp *= 0.5; }
     P.inWater = W.height(P.pos.x, P.pos.z) < W.waterLevel(P.pos.x, P.pos.z) - 0.25;
     if (P.inWater) sp *= MV.waterMul;
     sp *= ml * (sprint ? 1 : dirMul);
@@ -172,6 +177,7 @@
     // vertical: snap to ground within reach, otherwise fall
     const g = W.groundAt(P.pos.x, P.pos.z, P.pos.y);
     if (P.pos.y - g < MV.snap && P.vel.y <= 0.01) {
+      if (!P.grounded && P.vel.y < -6) P.landT = 0.25;   // a heavy landing slows you for a moment
       if (!P.grounded && P.vel.y < -6) { IV.audio && IV.audio.play('land', { surf: IV.SURF[W.surfAt(P.pos.x, P.pos.z)] }); IV.ai && IV.ai.noise(P.pos.x, P.pos.z, T.noise.land, 'step', P); IV.camera && IV.camera.landDip(Math.min(1, -P.vel.y / 10)); }
       P.pos.y = g; P.vel.y = 0; P.grounded = true;
     } else { P.vel.y -= MV.gravity * dt; P.pos.y += P.vel.y * dt; P.grounded = false; if (P.pos.y < g) { P.pos.y = g; P.vel.y = 0; P.grounded = true; } }
@@ -193,7 +199,7 @@
     P.surface = P.inWater ? 'water' : AUDIO_SURF[kind] || 'grass';
     const onBox = g > W.height(P.pos.x, P.pos.z) + 0.05;
     if (onBox) { const c = W.near(P.pos.x, P.pos.z, 0.3).find(c => Math.abs(c.y1 - g) < 0.03); if (c) P.surface = c.surf === 'foliage' ? 'grass' : c.surf; }
-    P.crops = !onBox && (kind === 'crop' || kind === 'longgrass');
+    P.crops = !onBox && (kind === 'field' || kind === 'meadow');
     if (P.gait !== 'still' && P.grounded) {
       const strideLen = P.gait === 'sprint' ? 1.9 : P.gait === 'run' ? 1.5 : P.gait === 'prone' ? 0.8 : 0.9;
       P.stride += P.speed * dt;
@@ -225,9 +231,9 @@
 
   // ---------------------------------------------------------------- render: interpolate, then one drive() call
   const st = { vx: 0, vz: 0, speed: 0, yawRate: 0, stance: 'stand', aiming: false, aimPitch: 0, aimYawOffset: 0, sprinting: false, grounded: true, fallSpeed: 0, slopeY: 1, weapon: '', dt: 0 };
-  IV.driveState = function (out, vel, bodyYaw, o) { // fill a drive() state (vx, vz in the character's own frame: x right, z forward)
+  IV.driveState = function (out, vel, bodyYaw, o) { // fill a drive() state (vx, vz in the character's own frame: +x LEFT, +z forward, as IVChars wants)
     const f = IV.fwd(bodyYaw), rx = -f.z, rz = f.x;
-    out.vx = vel.x * rx + vel.z * rz; out.vz = vel.x * f.x + vel.z * f.z; out.speed = Math.hypot(vel.x, vel.z);
+    out.vx = -(vel.x * rx + vel.z * rz); out.vz = vel.x * f.x + vel.z * f.z; out.speed = Math.hypot(vel.x, vel.z);
     return Object.assign(out, o);
   };
   P.frame = function (alpha, dt) {

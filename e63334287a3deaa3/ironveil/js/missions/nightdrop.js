@@ -65,9 +65,12 @@
   }
   // finer ground kinds for the environment art (lanes vs mud, the yard), from the same layout
   function surfaceKind(x, z) {
-    if (pd(x, z, L1) < 2.3 || pd(x, z, L2) < 2.3) return 'lane';
+    const dl = Math.min(pd(x, z, L1), pd(x, z, L2));
+    if (dl < 0.35) return 'lanemid';        // the grassy strip between the ruts
+    if (dl < 2.3) return 'lane';
+    if (dl < 3.2) return 'verge';
     if (x > 88 && x < 132 && z > -86 && z < -55) return 'yard';
-    if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'ploughed';
+    if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'field';
     return null;
   }
   function groundColor(x, z, y, n, c) {

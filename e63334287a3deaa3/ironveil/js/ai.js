@@ -33,6 +33,7 @@
     this.wkind = o.weapon || (this.kind === 'gunner' ? 'mg' : this.kind === 'officer' ? 'pistol' : this.kind === 'sniper' ? 'rifleScoped' : (o.smg ? 'enemySmg' : 'enemyRifle'));
     this.weapon = IVChars.weapon(this.wkind);
     this.actor.attach(this.weapon, 'handR');
+    this.actor.groundAt = (x, z) => W.groundAt(x, z, this.pos.y + 0.4);
     this.actor.onFoot = (side, k) => { if (Math.hypot(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z) < 32) IV.footFx(this.pos, this.speed > 3 ? 'run' : this.stance === 'crouch' ? 'crouch' : 'walk', k, false, 0.5); };
     // never start inside a hedge or a wall (scripted spawns use rough positions)
     if (o.y == null && IV.nav.grid && !IV.nav.walkable(o.x, o.z)) { const p = IV.nav.nearest(o.x, o.z, 6); if (p) { o.x = p.x; o.z = p.z; } }
@@ -272,9 +273,18 @@
     }
     return best;
   }
+  // attack tokens: only a few soldiers shoot at you at once (the rest move, hide or suppress), so fights stay readable
+  AI.tokens = new Map();
+  function haveToken(e) {
+    const now = IV.time; for (const [k, t] of AI.tokens) if (t < now || !k.alive) AI.tokens.delete(k);
+    if (AI.tokens.has(e)) return true;
+    if (AI.tokens.size >= A.tokens[diff()]) return false;
+    AI.tokens.set(e, now + 2.5 + Math.random()); return true;
+  }
   function shoot(e, tgt, dt) {
     const d = Math.hypot(tgt.pos.x - e.pos.x, tgt.pos.z - e.pos.z);
     const isP = !!tgt.isPlayer;
+    if (isP && e.kind !== 'gunner' && !haveToken(e)) { if (e.lkp && Math.random() < 0.35) suppressFire(e, e.lkp); return; }
     // the accuracy ramp: grows with continuous exposure, shrinks when suppressed
     const exp = isP ? e.seeT : 1.5;
     const ramp = IV.clamp(exp / (A.accRamp * (e.kind === 'sniper' ? 2.3 : 1)), 0.05, 1);
@@ -283,7 +293,9 @@
     if (e.kind === 'sniper') p = Math.min(0.9, p * 2.4);
     if (e.kind === 'gunner') p *= 0.55;
     if (IV.mission.enemyAccMul) p *= IV.mission.enemyAccMul;
-    const hit = Math.random() < p;
+    // the first shots of an engagement miss close by on purpose: a warning, and a direction
+    e.engShots = e.seeT < 0.2 ? 0 : (e.engShots || 0) + 1;
+    const hit = (!isP || e.engShots > 2 || e.kind === 'sniper') && Math.random() < p;
     const muz = e.weapon.userData.muzzle.getWorldPosition(new THREE.Vector3());
     const tp = targetPoint(tgt);
     if (hit) { tp.y += (Math.random() - 0.5) * 0.4; }
@@ -390,6 +402,10 @@
       if (e.fixed || moveTo(e, h.x, h.z, A.walkSpeed * 1.1, dt)) { e.setState('unaware'); e.headYaw = 0; }
     },
     combat(e, dt) {
+      // a live grenade close by: get away from it first
+      const g = IV.weapons.throws.find(g => g.kind === 'grenade' && !g.enemy && g.fuse < 3.5 && Math.hypot(g.x - e.pos.x, g.z - e.pos.z) < 6.5);
+      if (g && !e.fixed) { if (!e.fleeT) AI.bark(e, 'grenade'); e.fleeT = 1; const ax = e.pos.x - g.x, az = e.pos.z - g.z, al = Math.hypot(ax, az) || 1; moveTo(e, e.pos.x + ax / al * 9, e.pos.z + az / al * 9, A.runSpeed * 1.1, dt); e.stance = 'stand'; return; }
+      e.fleeT = 0;
       const tgt = e.target = pickTarget(e);
       if (e.o.noShoot) { e.speed = IV.damp(e.speed, 0, 8, dt); faceTo(e, P.pos.x, P.pos.z, 6, dt); e.actor.setUpper('aimIdle'); return; }
       const tp = e.seeing || (tgt !== WPent() && e.seeAlly) ? tgt.pos : e.lkp ? e.lkp : tgt.pos;

@@ -22,7 +22,7 @@
     W.init($('view'));
     if (window.IVChars) IVChars.camera = W.camera;          // chars.js uses it for LOD and far-actor throttling
     // the environment art (ironveil/env/env.js, window.IVEnv) if it is there; the code-made stand-ins otherwise
-    if (!IV.params.has('noenv')) { try { await loadScript('env/env.js'); } catch (e) { /* not there yet */ } }
+    if (!IV.params.has('noenv')) { try { await loadScript('env/index.js'); } catch (e) { /* not there yet */ } }
     if (window.IVEnv && IVEnv.init) {
       try { IVEnv.init(W.renderer, W.quality); if (IVEnv.load) await IVEnv.load(k => progress(0.45 + k * 0.1, 'Loading the countryside…')); IVEnv.ready = true; }
       catch (e) { console.warn('env failed, using stand-ins', e); IVEnv.ready = false; }

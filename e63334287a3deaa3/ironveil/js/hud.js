@@ -75,6 +75,8 @@
     // damage vignette
     const hp = P.hp / T.health.max;
     $('dmg').style.opacity = String(Math.max(dmgT * 0.7, (1 - hp) * 0.85, sup * 0.35));
+    // badly hurt: the colour drains out of the world until you recover
+    const lowK = IV.clamp((0.45 - hp) / 0.35, 0, 1); if (Math.abs(lowK - (H._lowK || 0)) > 0.02) { H._lowK = lowK; $('view').style.filter = lowK > 0 ? `saturate(${1 - lowK * 0.7}) contrast(${1 + lowK * 0.1})` : ''; }
   }
   function makeFlecks(dmg) {
     if (!IV.settings.blood) { flecks = []; return; }
@@ -105,7 +107,8 @@
   };
   function drawReticle(cx, cy, u) {
     const WP = IV.weapons, aiming = WP.aiming;
-    const sp = (WP.cur === 'smg' ? WP.bloom * 900 : 0) + (aiming ? 4 : 11) + (P.speed > 1 ? 6 : 0);
+    // the gap is the real spread cone at this field of view, plus a small minimum so the marks never touch
+    const ppr = (cv.height / 2) / Math.tan(W.camera.fov * Math.PI / 360), sp = Math.tan(WP.currentSpread()) * ppr / u + 3;
     g.strokeStyle = 'rgba(240,232,210,.9)'; g.lineWidth = 2 * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
     if (WP.busyThrow) { g.beginPath(); g.arc(cx, cy, 3 * u, 0, 6.29); g.stroke(); }
     else {

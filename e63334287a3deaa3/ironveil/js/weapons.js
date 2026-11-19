@@ -149,7 +149,8 @@
       const hx = x0 + ux * best, hy = y0 + uy * best, hz = z0 + uz * best;
       const mul = b.flat ? (hitZone === 'head' ? 1.4 : 1) : hitZone === 'head' ? WT.headMul : hitZone === 'limb' ? WT.limbMul : 1;
       const wasAlive = hitEnt.alive;
-      hitEnt.hit(hitZone, b.dmg * mul, { x: ux, y: uy, z: uz }, b.owner ? b.owner.pos : null, b);
+      const fo = b.fall ? IV.clamp(1 - (b.travelled - b.fall[0]) / (b.fall[1] - b.fall[0]), 0, 1) * (1 - b.fall[2]) + b.fall[2] : 1;
+      hitEnt.hit(hitZone, b.dmg * mul * fo, { x: ux, y: uy, z: uz }, b.owner ? b.owner.pos : null, b);
       IV.fx.blood(hx, hy, hz, ux, uy, uz, hitZone === 'head' || b.dmg > 100);
       if (b.owner === WP.playerEnt) {
         WP.stats.hits++;
@@ -204,7 +205,11 @@
       dx = v.x; dy = v.y; dz = v.z;
     } else {
       const dist = camRayPoint();
-      ox = mz.x; oy = mz.y; oz = mz.z;
+      // the shot travels along the reticle's line (gunplay skill): it starts where that line passes the player's
+      // shoulder, so nothing between the camera and you is hit and the bullet goes exactly where the sight points
+      const cp = c.position, t0 = Math.max(0, (P.pos.x - cp.x) * d.x + (P.eyeY() - 0.2 - cp.y) * d.y + (P.pos.z - cp.z) * d.z);
+      ox = cp.x + d.x * t0; oy = cp.y + d.y * t0; oz = cp.z + d.z * t0;
+      if (!W.clear(mz.x, mz.y, mz.z, ox, oy, oz, F.BULLET)) { ox = mz.x; oy = mz.y; oz = mz.z; }   // muzzle round a corner: from the muzzle
       // from the muzzle toward the point under the reticle (if the muzzle is inside a wall, fire from the camera line)
       if (!W.clear(c.position.x, c.position.y, c.position.z, ox, oy, oz, F.BULLET)) { ox = c.position.x + d.x * 0.5; oy = c.position.y + d.y * 0.5; oz = c.position.z + d.z * 0.5; }
       // point blank (the muzzle is already past the target): fire from the eye instead
@@ -212,15 +217,13 @@
       dx = aimPt.x - ox; dy = aimPt.y - oy; dz = aimPt.z - oz; const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l;
     }
     // spread: tight aimed, loose from the hip, bloom for the SMG, worse while moving
-    let sp = (WP.aiming || WP.scoped) ? w.spread : w.hipSpread;
-    if (k === 'smg') sp += WP.bloom;
-    if (P.speed > 1) sp *= 1.6;
-    if (P.stance === 'crouch') sp *= 0.8; else if (P.stance === 'prone') sp *= 0.6;
+    let sp = WP.currentSpread();
+    if ((WP.aiming || WP.scoped) && P.speed < 0.3 && (k !== 'smg' || WP.burst === 0)) sp = 0;   // first aimed shot, standing still: dead on
     const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * sp;
     const ux = new THREE.Vector3(dx, dy, dz), ortho1 = new THREE.Vector3().crossVectors(ux, Math.abs(dy) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize(), ortho2 = new THREE.Vector3().crossVectors(ux, ortho1);
     ux.addScaledVector(ortho1, Math.cos(a) * r).addScaledVector(ortho2, Math.sin(a) * r).normalize();
     const v0 = k === 'rifle' ? BL.v0 : k === 'smg' ? BL.smgV0 : BL.pistolV0;
-    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2 });   // tracer rounds every third in the SMG magazine
+    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2 });   // tracer rounds every third in the SMG magazine
     // effects
     IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle');
     if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
@@ -236,6 +239,14 @@
     IV.setUpper(P.actor, k === 'rifle' ? 'boltCycle' : 'fire');
     IV.emit('shot', k);
   }
+  // the current spread cone (rad): the HUD crosshair draws exactly this
+  WP.currentSpread = function () {
+    const k = WP.cur, w = WT[k]; let sp = (WP.aiming || WP.scoped) ? w.spread : w.hipSpread;
+    if (k === 'smg') sp += WP.bloom;
+    if (P.speed > 1) sp *= 1.6;
+    if (P.stance === 'crouch') sp *= 0.8; else if (P.stance === 'prone') sp *= 0.6;
+    return sp;
+  };
   function startReload() {
     const k = WP.cur, inv = WP.inv[k];
     if (WP.reloadT > 0 || inv.res <= 0 || inv.mag >= WT[k].mag) return;
@@ -361,7 +372,7 @@
     P.cine = function (dt) {
       t += dt; const k = Math.min(1, t / 0.25);
       P.pos.x = sx + (tx - sx) * k; P.pos.z = sz + (tz - sz) * k; P.pos.y = W.groundAt(P.pos.x, P.pos.z, P.pos.y);
-      if (t > 1.3) { P.cine = null; P.frozen = false; P.cineClip = false; P.actor.play(P.stance === 'crouch' ? 'crouchIdle' : 'idle', { fade: 0.25 }); }
+      if (t > (IVChars.standin ? 1.3 : 2.6)) { P.cine = null; P.frozen = false; P.cineClip = false; P.actor.play(P.stance === 'crouch' ? 'crouchIdle' : 'idle', { fade: 0.25 }); }
     };
     IV.emit('takedown', e);
   }
@@ -370,6 +381,7 @@
     const I = IV.input;
     WP.cool = Math.max(0, WP.cool - dt); WP.throwCool = Math.max(0, (WP.throwCool || 0) - dt);
     if (WP.boltT > 0) { WP.boltT -= dt; if (WP.boltT <= 0) P.actor.setUpper(WP.aiming ? 'aimIdle' : null); }
+    if (WP.reloadT > 0 && P.sprinting) { WP.reloadT = 0; P.actor.setUpper(null); }   // sprinting cancels a reload (no rounds added)
     if (WP.reloadT > 0) { WP.reloadT -= dt; if (WP.reloadT <= 0) finishReload(); }
     WP.bloom = Math.max(0, WP.bloom - dt * (I.held('fire') ? 0.01 : 0.12));
     if (!I.held('fire')) WP.burst = 0;
@@ -415,7 +427,7 @@
     // fire
     const auto = WT[WP.cur].rpm >= 400;
     const trig = auto ? I.held('fire') : I.pressed('fire');
-    if (trig && WP.cool <= 0 && WP.reloadT <= 0 && WP.boltT <= 0 && !P.sprinting) fire();
+    if (trig && WP.cool <= 0 && WP.reloadT <= 0 && WP.boltT <= 0 && !P.sprinting && !(P.sprintOutT > 0)) fire();
     else if (trig && P.sprinting) P.sprinting = false;
   };
 

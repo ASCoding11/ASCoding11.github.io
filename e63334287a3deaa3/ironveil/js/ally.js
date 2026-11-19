@@ -14,6 +14,7 @@
     AL.remove();
     const actor = IVChars.spawn('ally'), weapon = IVChars.weapon('smg');
     actor.attach(weapon, 'handR');
+    actor.groundAt = (x, z) => W.groundAt(x, z, (AL.ent ? AL.ent.pos.y : 0) + 0.4);
     const e = AL.ent = {
       team: 'us', isAlly: true, actor, weapon, pos: new THREE.Vector3(x, W.height(x, z), z), prev: new THREE.Vector3(), bodyYaw: yaw || 0, bodyPrev: yaw || 0,
       hp: 250, alive: true, stance: 'stand', speed: 0, vel: new THREE.Vector3(), path: null, pathI: 0, goal: null, repath: 0, shotT: 1, target: null, stanceDelay: 0,
