@@ -548,7 +548,7 @@ const CARS=[null,
 }},
 {name:'Soccer Ball',grp:'sport',own:0xf6f7f9,wheel:null,W:W4(.92,1.0,-1.0,.32,.32,.26),draw(g,m){
   g.box(0,-.36,0,1.5,.2,2.6,DK,{bottom:false});
-  g.ball(0,.3,0,.82,.82,.82,m,12,8,(j,i)=>(j===0||j===7)?DK:((i+(j%2?0:2))%4===0&&j%2?DK:(j%2===0&&(i+1)%4===0?DK:m)));   // patches
+  g.ball(0,.3,0,.82,.82,.82,m,12,8,(j,i)=>j===0||j===7||(j===2&&i%4===0)||(j===4&&i%4===2)||(j===6&&i%4===0)?DK:m);   // patches
   g.ball(0,.62,.5,.36,.26,.3,GL,8,4);lights(g,1.32,-.3,.45,.2,.1);lights(g,-1.32,-.3,.45,.2,.1);
 }},
 // ---------------- Pirates, suits and robots (second wave) ----------------
@@ -558,8 +558,8 @@ const CARS=[null,
   sidePlate(g,.952,-.4,.28,2.4,.07,0xd9a441);
   g.box(0,.4,-.2,1.75,.06,3.1,0xc08a4a);g.both(s=>g.rod([s*.88,.62,-1.9],[s*.88,.62,.9],.06,DW));
   for(const z of [-1.0,-.2,.6])sideDisc(g,.955,z,.02,.1,0xd9a441,10);
-  g.cyl('y',0,.95,.3,.06,1.1,DW,8);g.box(0,.78,.3,1.3,.66,.04,SA);                                       // mast and black sail
-  for(const z of [.33,.27])for(const s of [1,-1]){g.rod([-.45*s,.88,z],[.45*s,1.32,z],.06,WH);g.box(.48*s,1.3,z,.12,.18,.02,WH)}   // crossed oars
+  g.cyl('y',0,.98,.3,.06,1.12,DW,8);g.box(0,.6,.3,1.6,.86,.04,SA);                                       // mast and black sail
+  for(const z of [.33,.27])for(const s of [1,-1]){g.rod([-.5*s,.72,z],[.5*s,1.34,z],.07,WH);g.box(.54*s,1.28,z,.14,.2,.02,WH)}   // crossed oars
   g.box(0,1.45,.32,.04,.08,.4,m);g.box(0,1.47,.5,.03,.12,.3,0xd8262f);
   g.rod([0,.4,2.15],[0,.7,2.55],.07,DW);g.cyl('z',0,.75,-1.7,.26,.05,DW,8);g.both(s=>g.rod([s*.38,.75,-1.7],[-s*.38,.75,-1.7],.03,DW));
   lights(g,-2.1,.1,.55,.2,.12);
