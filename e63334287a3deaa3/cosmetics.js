@@ -259,6 +259,7 @@
     flickerwood: { name: 'Flickerwood', prefix: 'fw', slots: [['kit', 'Kits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
     stackfall: { name: 'Stackfall', prefix: 'sf', slots: [['blocks', 'Block sets'], ['board', 'Boards'], ['clear', 'Clear effects']] },
     'melon-merge': { name: 'Melon Merge', prefix: 'mm', slots: [['fruit', 'Fruit sets'], ['wall', 'Walls'], ['pop', 'Merge pops']] },
+    '2048': { name: '2048', prefix: 'tf', slots: [['tiles', 'Tile sets'], ['board', 'Boards']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1151,6 +1152,17 @@
   I('melon-merge', 'pop', 1, 'Confetti Pop', 'common', '#FF5A6E', '#FFD166', 'Every merge throws a handful of confetti.');
   I('melon-merge', 'pop', 2, 'Star Shower', 'rare', '#FFD166', '#FFF6D8', 'Gold stars burst out of every merge.');
   I('melon-merge', 'pop', 3, 'Bubble Rings', 'common', '#CFEAFF', '#FFFFFF', 'Soap rings drift up from every merge.');
+  // ---- 2048 items ----
+  // 2048: tile sets and boards, drawn by 2048/styles.js by slot and number. In no pack: captains pick them free in the game's
+  // Styles. Tile art stays out of the middle where the number sits; boards keep the walnut tray's brightness step for step.
+  I('2048', 'tiles', 1, 'Baseball Stitches', 'common', '#FDF7EA', '#D9363E', 'A row of stitches down each side of every tile.');
+  I('2048', 'tiles', 2, 'Circuit Rivets', 'uncommon', '#2F86D6', '#C8D2E0', 'Rivets in the corners and traces along the edges.');
+  I('2048', 'tiles', 3, 'Treasure Corners', 'rare', '#F5B921', '#D6A83A', 'Brass corner pieces, like a pirate\'s chest.');
+  I('2048', 'tiles', 4, 'Pinstripe', 'epic', '#4A5FD9', '#E8B84A', 'Faint pinstripes and a thin gold edge.');
+  I('2048', 'board', 1, 'Stadium Turf', 'common', '#94A47F', '#FFFFFF', 'A green tray with mown stripes.');
+  I('2048', 'board', 2, 'Pirate Deck', 'uncommon', '#B89A74', '#7F6650', 'Deck planks with dark seams.');
+  I('2048', 'board', 3, 'Robot Steel', 'rare', '#9CA0A8', '#6A6E78', 'Brushed steel with a row of rivets top and bottom.');
+  I('2048', 'board', 4, 'Velvet and Gold', 'legendary', '#B49AA8', '#E8B84A', 'Plum velvet with a gold rim.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
