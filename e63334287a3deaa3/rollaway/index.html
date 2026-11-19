@@ -138,6 +138,7 @@ body.touch .kbonly,body:not(.touch) .tconly{display:none!important}
 .haz figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:800;color:var(--tx-2);width:62px}
 .haz svg{width:40px;height:40px}
 @media (max-height:430px){.card{padding:12px 16px}.bignum{font-size:40px;margin-top:6px}.facts{margin-top:8px}.stack{margin-top:8px;flex-direction:row}.stack .btn{flex:1}#over .card{width:min(520px,100%)}}
+@media (max-height:430px){#how .card{width:min(680px,100%)}#how ol{font-size:13px;line-height:1.35;margin-top:6px}#how ol li{margin-bottom:2px}.haz{margin:6px 0 0}.haz figure{width:56px}.haz svg{width:26px;height:26px}#how .stack{margin-top:8px}}
 @media (max-width:420px){.wordmark{font-size:40px}.card{padding:15px 14px}}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="rollaway" defer></script>
@@ -269,7 +270,7 @@ var RA = (function () {
     A_STEER: 28,              // sideways push from steering (m/s²)
     A_TURN: 1.5,              // times that, when steering against the way the ball is drifting
     GRIP: 4.2, GRIP_IDLE: 6.5, // sideways damping on the ground (1/s), stronger with no input: a little drift, never ice
-    AIR_CTRL: 0.35, AIR_DRAG: 0.5,
+    AIR_CTRL: 0.35, AIR_DRAG: 0.5, AIR_VMAX: 3, // in the air: 35 % steering, and it can't push the sideways speed past 3 m/s
     EDGE: 0.1,                // the ball's centre may hang this far past a drop edge before it tips off
     RAIL: 0.34,               // walls (half-pipes, the wall ride) have a rail at the top: the centre stays this far inside it
     CATCH: 0.5,               // a falling ball still lands this far below a deck's top; any deeper and it hit the side
@@ -357,8 +358,8 @@ var RA = (function () {
     let h = 0, d = 0;
     if (p.wl) { const w = p.wl, x = ua + w.w - u; if (x > 0) { const H = wallH(w, p, s), q = Math.min(x, w.w) / w.w; h += H * q * q; d -= 2 * H * q / w.w; } }
     if (p.wr) { const w = p.wr, x = u - (ub - w.w); if (x > 0) { const H = wallH(w, p, s), q = Math.min(x, w.w) / w.w; h += H * q * q; d += 2 * H * q / w.w; } }
-    if (p.ramp) { const q = (s - p.sa) / (p.sb - p.sa); h += p.ramp * q * q; }
-    if (p.hump) { const q = (s - p.sa) / (p.sb - p.sa), sn = Math.sin(Math.PI * q * p.hump.n); h += p.hump.a * sn * sn; }
+    if (p.ramp) { const q = (s - p.r0) / (p.r1 - p.r0); h += p.ramp * q * q; }
+    if (p.hump) { const q = (s - p.r0) / (p.r1 - p.r0), sn = Math.sin(Math.PI * q * p.hump.n); h += p.hump.a * sn * sn; }
     if (p.tilt) { const b = p.tilt.a * Math.sin(p.tilt.w * t + p.tilt.ph), uc = (ua + ub) / 2; h -= b * (u - uc); d -= b; }
     o.h = h; o.d = d;
   }
@@ -405,7 +406,7 @@ var RA = (function () {
   Ctx.prototype.run = function (a, b, extra, o) {
     extra = extra || 0; const TAP = 8, W = this.W + extra;
     const w = x => x >= TAP ? W : lerp(this.Win, W, x / TAP);
-    if (a < TAP && b > a) { const m = Math.min(b, TAP); this.deck(a, m, -w(a) / 2, w(a) / 2, -w(m) / 2, w(m) / 2, o); a = m; }
+    if (a < TAP && b > a) { const m = Math.min(b, TAP); this.deck(a, m, -w(a) / 2, w(a) / 2, -w(m) / 2, w(m) / 2, o && Object.assign({}, o)); a = m; }
     if (b > a) this.deck(a, b, -W / 2, W / 2, -W / 2, W / 2, o);
   };
   // an eased turn starting at a, len metres long, curvature k; bank cancels bf of the outward pull at this speed
@@ -475,7 +476,7 @@ var RA = (function () {
   });
   M('rollers', 'rest', 0.12, () => 0.5, c => {
     const lead = c.v * 0.4, n = 2 + (c.r() * 2 | 0), hl = c.v * 0.5, a = lerp(0.35, 0.7, c.D), L = lead + n * hl + c.v * 0.8;
-    c.run(0, lead, 0.4); c.deck(lead, lead + n * hl, -(c.W + 0.4) / 2, (c.W + 0.4) / 2, undefined, undefined, { hump: { a, n } });
+    c.run(0, lead, 0.4); c.deck(lead, lead + n * hl, -(c.W + 0.4) / 2, (c.W + 0.4) / 2, undefined, undefined, { hump: { a, n }, r0: lead, r1: lead + n * hl });
     c.run(lead + n * hl, L, 0.4);
     const sd = c.sgn(); for (let i = 0; i < n; i++) c.gem(lead + (i + 0.5) * hl, sd * 1.2, a + 1.0);
     c.end(L);
@@ -623,7 +624,7 @@ var RA = (function () {
   // --- air ---
   function ramp(c, x, p, drop, f) { // a kicker from x, the gap and the landing drop; returns {lip, land, X}
     const Lr = c.vx(x) * 0.3, Hr = p * Lr / 2, v = c.vx(x + Lr), fl = flight(v, p, Hr, drop), gap = fl.X * f;
-    c.run(x, x + Lr, 0, { k: 'ramp', ramp: Hr }); const lip = x + Lr, land = lip + gap; c.drop(lip, land, drop);
+    c.run(x, x + Lr, 0, { k: 'ramp', ramp: Hr, r0: x, r1: x + Lr }); const lip = x + Lr, land = lip + gap; c.drop(lip, land, drop);
     return { lip, land, X: fl.X, Hr, v, vy: fl.vy, t: fl.t, drop, gap };
   }
   function arcGems(c, R, u, n) {
@@ -772,7 +773,7 @@ var RA = (function () {
     }
     this.n = i0 + L + 1;
     const pieceBase = this.pieces.length;
-    for (const p of c.pieces) { if (p.sb > c.len - 0.01) p.sb = L; p.sa += s0; p.sb += s0; if (p.sb > s0 + L) p.sb = s0 + L; p.mod = this.mods.length; this.pieces.push(p); this.maxLen = Math.max(this.maxLen, p.sb - p.sa); }
+    for (const p of c.pieces) { if (p.sb > c.len - 0.01) p.sb = L; p.sa += s0; p.sb += s0; if (p.r0 != null) { p.r0 += s0; p.r1 += s0; } if (p.sb > s0 + L) p.sb = s0 + L; p.mod = this.mods.length; this.pieces.push(p); this.maxLen = Math.max(this.maxLen, p.sb - p.sa); }
     // keep pieces sorted by start (a module's own pieces may be out of order)
     const tail = this.pieces.splice(pieceBase); tail.sort((a, b) => a.sa - b.sa); for (const p of tail) this.pieces.push(p);
     for (const h of c.haz) { h.s += s0; h.y = this.yAt(h.s) - this.bAt(h.s) * (h.u || h.c || 0); h.mod = this.mods.length; }
@@ -842,7 +843,7 @@ var RA = (function () {
     const onGround = !st.air && sup.ok;
     let inv = 1;
     if (onGround) { const d = sup.d; inv = 1 / Math.sqrt(1 + d * d); a += -P.G * d * inv - v * v * k * inv; }
-    else { a *= P.AIR_CTRL; a -= v * v * k; }
+    else { a *= P.AIR_CTRL; if (steer * st.vl > 0 && Math.abs(st.vl) > P.AIR_VMAX) a = 0; a -= v * v * k; } // in the air, steering can only add a little sideways speed
     st.vl += a * dt;
     st.vl *= onGround ? (steer === 0 ? DAMP_IDLE : DAMP) : DAMP_AIR;
     st.u += st.vl * inv * dt;
@@ -869,7 +870,7 @@ var RA = (function () {
     else {
       const ballistic = st.y + st.vy * dt - 0.5 * P.G * dt * dt;
       if (sup.h < ballistic - 0.003) { st.air = true; st.ev |= EV_LAUNCH; st.vy -= P.G * dt; st.y = ballistic; }
-      else if (sup.h > st.y + P.STEP_UP) { const bump = sup.h - st.y; st.y = sup.h; st.vy = svy + Math.min(5, 1.5 + bump * 8); st.air = true; st.ev |= EV_BOUNCE; st.land = bump * 6; }
+      else if (sup.h > st.y + Math.max(0, st.vy * dt) + P.STEP_UP) { const bump = sup.h - st.y; st.y = sup.h; st.vy = svy + Math.min(5, 1.5 + bump * 8); st.air = true; st.ev |= EV_BOUNCE; st.land = bump * 6; }
       else { st.vy = (sup.h - st.y) / dt; st.y = sup.h; }
     }
     // hazards near the ball
@@ -902,7 +903,7 @@ var RA = (function () {
         const c = copy(n.s), first = n.first === null ? a : n.first; let k = 0;
         for (; k < every; k++) { step(tr, c, a, opt); if (c.dead) break; }
         if (c.dead) { const sc = d * every + k; if (!dead || sc > dead.sc) dead = { sc, first }; continue; }
-        const mid = c.air ? c.u : centreAt(tr, c);
+        const mid = c.air ? airAim(tr, c) : centreAt(tr, c);
         const half = c.air ? 9 : (_cs.ub - _cs.ua) / 2, edge = half - Math.abs(c.u - mid);
         next.push({ s: c, first, score: n.score + (c.gems - n.s.gems) * 0.4 + (d === 0 && a === o.prev ? 0.8 : 0) + (c.near - n.s.near) * 0.2 - Math.abs(c.u - mid) * 0.3 - (edge < 0.5 ? (0.5 - edge) * 3 : 0) - Math.abs(c.vl) * 0.03 - (a !== n.a ? 0.05 : 0), a });
       }
@@ -920,6 +921,8 @@ var RA = (function () {
   // the middle of whatever deck is under the ball (the bot's comfort line)
   const _cs = { ok: false };
   function centreAt(tr, st) { const sup = tr.support(st.s, st.u, st.t, st.y + 0.05, P.EDGE, _cs); return sup.ok ? (sup.ua + sup.ub) / 2 : st.u; }
+  // in the air: aim for the middle of the nearest deck ahead (or the centre line)
+  function airAim(tr, st) { const v = vAt(st.s); for (const k of [0.5, 0.9, 1.4]) { const sup = tr.support(st.s + v * k, st.u, st.t, -1e9, 3, _cs); if (sup.ok) return (sup.ua + sup.ub) / 2; } return 0; }
   function Bot(tr, o) { this.tr = tr; this.k = 0; this.a = 0; this.o = o || {}; }
   Bot.prototype.steer = function (st) { if (this.k-- <= 0) { this.a = botPlan(this.tr, st, { prev: this.a, depth: this.o.depth, beam: this.o.beam }); this.k = BOT.every - 1; } return this.a; };
 
@@ -1574,6 +1577,7 @@ function newRun(daily, seed) {
   G.daily = !!daily; G.seed = seed != null ? seed : daily ? dailySeed(todayKey()) : (Math.random() * 4294967296) >>> 0;
   G.tr = new RA.Track(G.seed); G.tr.ensure(700);
   G.st = RA.newState(G.tr, G.startS); G.prev = RA.copy(G.st); G.score = 0; G.mult = 1; G.multT = 0; G.combo = 0; G.comboT = 0; G.nextMile = 500; G.gemsRun = 0; G.nearRun = 0;
+  G.steps = 0; G.snap = null;
   G.over = false; G.deadT = 0; G.passedBest = false; G.unlocked = []; G.fallV = null; G.t0 = performance.now();
   const b = G.daily ? dailyBest().bestD : save.bestD; G.best = b;
   O = { x: 0, y: 0, z: 0 }; clearChunks(); updateChunks(G.st.s, true); cam.reset = true; ball.quaternion.identity(); acc = 0; G.lastGem = -1;
@@ -1620,14 +1624,15 @@ let acc = 0, last = performance.now(), simT = 0;
 function tick() {
   const st = G.st; if (!st || G.paused) return;
   G.prev.s = st.s; G.prev.u = st.u; G.prev.y = st.y; G.prev.air = st.air;
-  if (G.over && !G.demo) { // keep the marble moving on its fall for the camera
-    if (G.st.cause === 'fall') { st.vy -= P.G * P.STEP; st.y += st.vy * P.STEP; st.s += RA.vAt(st.s) * 0.7 * P.STEP; st.u += st.vl * P.STEP; }
-    return;
+  if (G.over && !G.demo) { // after the end, the marble keeps falling (or is knocked back off the deck) for the camera to watch
+    const f = G.fallV; st.vy -= P.G * P.STEP; st.y += st.vy * P.STEP; st.s += f.vs * P.STEP; st.u += f.vu * P.STEP; f.vs *= 0.995; return;
   }
   let a = G.bot ? G.bot.steer(st) : steerInput();
   if (G.forceSteer != null) a = G.forceSteer;
+  if (G.inputFn) a = G.inputFn(st);
   G.tr.ensure(st.s + 700);
-  const ds0 = st.s; RA.step(G.tr, st, a, LIVE); simT += P.STEP;
+  const ds0 = st.s; RA.step(G.tr, st, a, LIVE); simT += P.STEP; G.steps = (G.steps || 0) + 1;
+  if (G.snapAt && G.steps === G.snapAt) G.snap = [st.s, st.u, st.vl, st.y, st.vy, st.gems, st.near, G.score].map(x => x.toFixed(9)).join(' ');
   if (G.demo && st.dead) { startDemo(); return; }
   if (G.demo) return;
   // scoring: distance times the multiplier, which rises with gems and close calls and slowly settles back
@@ -1642,7 +1647,12 @@ function tick() {
   if (d >= G.nextMile) { banner(TX('{m} m', { m: NUM(G.nextMile) }), mileLine(G.nextMile)); AU.play('mile'); G.nextMile += 500; }
   if (!G.passedBest && G.best > 50 && d > G.best) { G.passedBest = true; popText(TX('New best!'), 'n'); AU.play('best'); }
   for (const b of BALLS) if (b.at > save.bestD && d >= b.at && !G.unlocked.includes(b.id)) { G.unlocked.push(b.id); popText(TX('{n} unlocked', { n: b.name }), 'n'); }
-  if (st.dead) { if (st.cause !== 'fall') { const v = ballWorld(new THREE.Vector3()); burst(v, 24, 5, 0xffe2b8, 0.7, 1); flash(0.35); st.vy = 6; } endRun(); }
+  if (st.dead) {
+    const v0 = RA.vAt(st.s);
+    if (st.cause !== 'fall') { const v = ballWorld(new THREE.Vector3()); burst(v, 24, 5, 0xffe2b8, 0.7, 1); flash(0.35); const h = st.hit, side = h ? Math.sign(st.u - RA.hazPos(h, st.t, {}).u) || 1 : 1; G.fallV = { vs: -v0 * 0.12, vu: side * 5 }; st.vy = 7; }
+    else G.fallV = { vs: v0 * 0.75, vu: st.vl };
+    endRun();
+  }
 }
 function mileLine(m) { const left = BALLS.find(b => b.at > save.bestD); return m === 500 ? TX('Keep it rolling') : TX('Faster now'); }
 function bumpMult(x) { G.mult = Math.min(9.9, Math.round((G.mult + x) * 100) / 100); G.multT = 0; const el = $('multi'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
@@ -1667,7 +1677,7 @@ function updateCamera(dt, p) {
   tr.frame(p.s + 5, FR); const yaw = FR.yaw;
   if (cam.reset) cam.yaw = yaw; cam.yaw += (yaw - cam.yaw) * (1 - Math.exp(-5 * dt));
   const fx = Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = Math.cos(cam.yaw), rz = Math.sin(cam.yaw);
-  const falling = G.over && G.st.cause === 'fall' && !G.demo;
+  const falling = G.over && !G.demo;
   wpos(p.s, p.u, p.y + P.R, _bw);
   if (!falling) cam.pos.copy(_bw); else cam.pos.lerp(_bw, 1 - Math.exp(-1.5 * dt));
   // height: follow the deck line, and only part of an airborne marble's height (so bounces don't shake the view)
@@ -1707,13 +1717,12 @@ function draw(alpha, dt, now) {
   // the marble: on the surface (offset along the deck's slope on a wall), rolling by how far it moved
   let d = 0; const sup = tr.support(p.s, p.u, tt, p.y + 0.05, 0.4, _sup); if (sup.ok && !G.st.air) d = sup.d;
   const inv = 1 / Math.sqrt(1 + d * d); wpos(p.s, p.u, p.y + P.R * inv, _bw); tr.frame(p.s, FR); _bw.x -= Math.cos(FR.yaw) * d * P.R * inv; _bw.z -= Math.sin(FR.yaw) * d * P.R * inv;
-  if (!cam.reset && !G.over) { _v.subVectors(_bw, _prevBall); const dist = _v.length(); if (dist > 1e-5 && dist < 5) { _n.crossVectors(_up, _v).normalize(); _q.setFromAxisAngle(_n, dist / P.R); ball.quaternion.premultiply(_q); } }
-  else if (G.over && G.st.cause !== 'fall') { _q.setFromAxisAngle(_up, dt * 4); ball.quaternion.premultiply(_q); }
+  if (!cam.reset) { _v.subVectors(_bw, _prevBall); const dist = _v.length(); if (dist > 1e-5 && dist < 5) { _n.crossVectors(_up, _v).normalize(); _q.setFromAxisAngle(_n, dist / P.R); ball.quaternion.premultiply(_q); } }
   _prevBall.copy(_bw); ball.position.copy(_bw);
   if (sup.ok) lastBallKind = sup.p.k;
   // contact shadow on whatever is below; a ring where an airborne marble will come down
   const below = tr.support(p.s, p.u, tt, p.y + 0.3, 0.2, _sup);
-  if (below.ok && !(G.over && G.st.cause === 'fall')) { const h = p.y - below.h; wpos(p.s, p.u, below.h + 0.02, blob.position); const sc = Math.max(0.35, 1 - h * 0.12); blob.scale.set(sc, sc, 1); blob.material.opacity = Math.max(0.15, 1 - h * 0.18); blob.visible = true; blob.rotation.set(-Math.PI / 2, 0, -FR.yaw); }
+  if (below.ok && !G.over) { const h = p.y - below.h; wpos(p.s, p.u, below.h + 0.02, blob.position); const sc = Math.max(0.35, 1 - h * 0.12); blob.scale.set(sc, sc, 1); blob.material.opacity = Math.max(0.15, 1 - h * 0.18); blob.visible = true; blob.rotation.set(-Math.PI / 2, 0, -FR.yaw); }
   else blob.visible = false;
   ring.visible = false;
   if (G.st.air && !G.over && !G.demo) { const L = predictLanding(); if (L) { wpos(L.s, L.u, L.h + 0.03, ring.position); tr.frame(L.s, FR); ring.rotation.set(-Math.PI / 2, 0, -FR.yaw); const k = 0.8 + Math.sin(now / 90) * 0.06; ring.scale.set(k, k, 1); ring.visible = true; } }

@@ -235,6 +235,10 @@
       { k: 'levels', l: 'Levels cleared (of 57)', chip: 'Levels', f: 'n', u: 'level', hi: 57 },
       { k: 'crystals', l: 'Power crystals collected', chip: 'Crystals', f: 'n', u: 'crystal', hi: 100000, sum: 1 },
       { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
+    { d: 'rollaway', n: 'Rollaway', st: [
+      { k: 'distance', l: 'Longest run', chip: 'Distance', f: 'm', hi: 100000 },
+      { k: 'score', l: 'Best score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
+      { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 5 }] },
     { d: 'rampline', n: 'Rampline', st: [
       { k: 'medals', l: 'Medals (of 120)', chip: 'Medals', f: 'n', u: 'medal', hi: 120 },
       { k: 'golds', l: 'Gold medals or better (of 30)', chip: 'Golds', f: 'n', u: 'gold', hi: 30 },
