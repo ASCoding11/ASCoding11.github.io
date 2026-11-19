@@ -33,7 +33,7 @@
     'Plated truck': 'Camión blindado', 'Kit': 'Accesorios', '· not public yet': '· aún no es público', 'Decal': 'Calcomanía', 'Boost trail': 'Estela de turbo',
     'Goal explosion': 'Explosión de gol', 'Topper': 'Adorno', 'Hat': 'Sombrero', 'Wheels': 'Ruedas', 'Engine': 'Motor', 'Preview': 'Vista previa', 'None': 'Ninguno',
     // second-wave Kit items (Nov 2026)
-    'Team Hoops': 'Aros del equipo', 'Varsity': 'Universitaria', 'Pinstripe Suit': 'Traje a rayas', 'Tuxedo': 'Esmoquin', 'Circuit Board': 'Placa de circuito', 'Robot Plating': 'Blindaje de robot',
+    'Team Hoops': 'Aros del equipo', 'Varsity': 'Universitaria', 'Pinstripe Suit': 'Traje a rayas', 'Tuxedo': 'Esmoquin', 'Circuit Board': 'Placa de circuito', 'Gold Circuit': 'Circuito dorado', 'Robot Plating': 'Blindaje de robot',
     'Jolly Oars': 'Remos cruzados', 'Gold Coins': 'Monedas de oro', 'Sea Spray': 'Espuma de mar', 'Circuit Sparks': 'Chispas de circuito', 'Ticker Tape': 'Serpentinas', 'Camera Flashes': 'Flashes de cámara',
     'Ticker Tape Parade': 'Desfile de serpentinas', 'Treasure Chest': 'Cofre del tesoro', 'Floodlights': 'Reflectores', 'Soccer Ball': 'Pelota de fútbol', 'Basketball': 'Pelota de básquet',
     'Baseball': 'Pelota de béisbol', 'Anchor': 'Ancla', 'Robot Head': 'Cabeza de robot', 'Parrot': 'Loro', 'Pirate Tricorn': 'Tricornio pirata', 'Fedora': 'Fedora', 'Football Helmet': 'Casco de fútbol americano',

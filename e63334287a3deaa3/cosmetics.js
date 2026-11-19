@@ -369,7 +369,7 @@
   I('boostball', 'decal', 33, 'Varsity', 'uncommon', '#7A1F3D', '#FFFFFF', 'A chunky stripe and a big star, like a letter jacket.');
   I('boostball', 'decal', 34, 'Pinstripe Suit', 'uncommon', '#2F3140', '#B4B8CC', 'Chalk pinstripes over your paint and a pocket square.');
   I('boostball', 'decal', 35, 'Tuxedo', 'epic', '#15161C', '#F6F6F6', 'Black lapels, a white shirt front and a bow tie in your accent colour.');
-  I('boostball', 'decal', 36, 'Circuit Board', 'rare', '#1D8A4E', '#E0B54A', 'Gold traces, pads and little chips.');
+  I('boostball', 'decal', 36, 'Gold Circuit', 'rare', '#1D8A4E', '#E0B54A', 'Gold traces, pads and little chips.');
   I('boostball', 'decal', 37, 'Robot Plating', 'rare', '#B8BCCF', '#3FD2FF', 'Panel seams, rivets and a glowing visor line.');
   I('boostball', 'decal', 38, 'Jolly Oars', 'epic', '#1D1F27', '#E9DCC0', 'Two crossed oars and gold rope trim. A pirate flag with no skull.');
   I('boostball', 'trail', 28, 'Gold Coins', 'legendary', '#FFD23F', '#C98A12', 'Coins bounce out behind you.');

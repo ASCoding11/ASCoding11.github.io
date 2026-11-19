@@ -472,7 +472,7 @@ const DECALS=[null,
     else if(P.panel==='side'){rect(g,-1.5,-.42,3,.3,K);rect(g,-1.5,-.13,3,.02,W)}
     else rect(g,-1,-.42,2,.5,K);
   },
-  // 36 Circuit Board: gold traces, pads and little chips
+  // 36 Gold Circuit: gold traces, pads and little chips
   (g,P)=>{
     const au='#e0b54a',w=P.panel==='side'||P.panel==='top'?3:2,x0=w===3?-1.5:-1,y0=P.panel==='top'?-1:-.42,h=P.panel==='top'?2:1.32;
     for(let i=0;i<16;i++){let x=x0+P.r()*w,y=y0+P.r()*h;const pts=[[x,y]];for(let k=0;k<3;k++){if(k%2)y=clamp(y+(P.r()-.5)*.8,y0,y0+h);else x=clamp(x+(P.r()-.5)*1.2,x0,x0+w);pts.push([x,y])}line(g,pts,.025,au);dot(g,pts[0][0],pts[0][1],.04,au);dot(g,x,y,.04,au)}
@@ -613,7 +613,11 @@ const HATS=[null,
   /* 5 Cowboy Hat */ (b,y,z)=>{b.cyl(.47,.47,.03,0x8a5a36,0,y+.02,z,0,0,0,18);for(const s of[-1,1])b.box(.1,.03,.66,0x8a5a36,s*.44,y+.07,z,0,0,s*.6);b.cyl(.17,.22,.3,0x8a5a36,0,y+.18,z,0,0,0,14);b.cyl(.225,.225,.05,0xe8c9a0,0,y+.07,z,0,0,0,14);b.box(.3,.04,.12,0x6b4428,0,y+.33,z)},
   /* 6 Chef Hat */ (b,y,z)=>{b.cyl(.2,.2,.26,0xffffff,0,y+.13,z,0,0,0,14);for(let i=0;i<6;i++){const a=i/6*TAU;b.sph(.14,0xffffff,Math.cos(a)*.15,y+.33,z+Math.sin(a)*.15)}b.sph(.17,0xffffff,0,y+.38,z)},
   // ---- second wave (Nov 2026)
-  /* 7 Pirate Tricorn */ (b,y,z)=>{b.cyl(.37,.37,.02,0xe0b040,0,y+.01,z,0,0,0,3);b.cyl(.35,.35,.06,0x2a2440,0,y+.05,z,0,0,0,3);b.sph(.2,0x2a2440,0,y+.08,z,1,.75,1);b.sph(.035,0xd8262f,.16,y+.2,z-.08,1,3.2,1)},
+  /* 7 Pirate Tricorn */ (b,y,z)=>{b.cyl(.37,.37,.02,0x2a2440,0,y+.01,z,0,0,0,3);b.sph(.2,0x2a2440,0,y+.06,z,1,.8,1);
+    for(let i=0;i<3;i++){const a1=i/3*TAU,a2=(i+1)/3*TAU,R=.36,x1=Math.sin(a1)*R,z1=Math.cos(a1)*R,x2=Math.sin(a2)*R,z2=Math.cos(a2)*R,L=Math.hypot(x2-x1,z2-z1),ry=Math.atan2(-(z2-z1),x2-x1);
+      for(const [h,c,dz] of[[.25,0xe0b040,-.012],[.23,0x2a2440,0]]){const sh=new THREE.Shape();sh.moveTo(-L/2,0);sh.lineTo(L/2,0);sh.lineTo(L/2,h*.25);sh.quadraticCurveTo(0,h*1.75,-L/2,h*.25);sh.closePath();   // a brim turned up: tall in the middle, low at the corners
+        const g=new THREE.ExtrudeGeometry(sh,{depth:.025,bevelEnabled:false,curveSegments:8});g.translate(0,0,dz-.0125);b.add(g,c,(x1+x2)/2*.96,y+.01,z+(z1+z2)/2*.96,0,ry,0)}}
+    b.sph(.035,0xd8262f,.12,y+.24,z-.1,1,3.2,1)},
   /* 8 Fedora */ (b,y,z)=>{b.cyl(.38,.38,.03,0x2e2a40,0,y+.02,z,0,0,0,18);b.cyl(.2,.23,.24,0x3a3550,0,y+.15,z,0,0,0,14);b.cyl(.235,.235,.06,0x15161c,0,y+.06,z,0,0,0,14);b.box(.05,.03,.3,0x2e2a40,0,y+.27,z)},
   /* 9 Football Helmet */ (b,y,z,ac)=>{b.sph(.3,ac,0,y+.06,z,1,.82,1.1);b.tor(.25,.025,0xffffff,0,y+.06,z,0,Math.PI/2,0);for(const h of[.0,.08])b.box(.42,.022,.022,0xc8d2dc,0,y+h,z+.34);b.box(.022,.12,.022,0xc8d2dc,0,y+.04,z+.35)},
   /* 10 Captain's Cap */ (b,y,z)=>{b.cyl(.26,.25,.12,0xffffff,0,y+.06,z,0,0,0,16);b.cyl(.32,.3,.05,0xffffff,0,y+.14,z,0,0,0,16);b.cyl(.262,.262,.04,0x15161c,0,y+.04,z,0,0,0,16);b.box(.34,.02,.16,0x15161c,0,y+.03,z+.3);b.sph(.035,0xe0b040,0,y+.08,z+.26,1,1,.5)},
@@ -1351,11 +1355,11 @@ const GOALS=[null,
       if(S.at(1.2))S.burst(S.x0,1,3.5,40,8,18,1.2,.5,.8,[CELL.strip],[0xffffff,0xffe9a8],oConf,.8);
     }
   },
-  { // 24 Treasure Chest: a chest rises from the pitch, its lid flies open and gold coins and gems pour out
+  { // 24 Treasure Chest: a chest rises from the pitch, its rounded lid (half a cylinder) flies open and gold coins and gems pour out
     dur:2.7,
     go(S){
       S.d.b=S.model('chestB',()=>{const b=Build(),W=0x8a5a2b,D=0x5e3a1a,Gd=0xffd23f;b.box(6,3.2,3.6,W,0,1.6,0);for(const x of[-2.2,0,2.2])b.box(.4,3.3,3.7,Gd,x,1.6,0);b.box(6.1,.3,3.7,D,0,.15,0);b.box(.8,.9,.2,Gd,0,2.6,1.85);return b.mesh()});
-      S.d.l=S.model('chestL',()=>{const b=Build(),W=0x8a5a2b,Gd=0xffd23f;b.cyl(1.8,1.8,6,W,0,0,1.8,0,0,Math.PI/2,12);for(const x of[-2.2,0,2.2])b.cyl(1.85,1.85,.42,Gd,x,0,1.8,0,0,Math.PI/2,12);b.box(6,.2,3.6,W,0,0,1.8);return b.mesh()});
+      S.d.l=S.model('chestL',()=>{const b=Build(),W=0x8a5a2b,Gd=0xffd23f;b.add(new THREE.CylinderGeometry(1.8,1.8,6,12,1,false,0,Math.PI),W,0,0,1.8,0,0,Math.PI/2);for(const x of[-2.2,0,2.2])b.add(new THREE.CylinderGeometry(1.85,1.85,.42,12,1,false,0,Math.PI),Gd,x,0,1.8,0,0,Math.PI/2);b.box(6,.2,3.6,W,0,0,1.8);return b.mesh()});
       S.d.b.position.set(S.x0,-4,5);S.d.l.position.set(S.x0,-.8,5-1.8);S.d.l.rotation.set(0,0,0);S.ball.visible=false;
     },
     step(S,t,dt){
