@@ -3974,7 +3974,7 @@ function syncLimbs(){
     const u=g.userData;g.updateMatrix();
     if(u.leg){if(u.legs[0].visible&&nf+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();fitLegIM.setMatrixAt(nf,_lm.multiplyMatrices(g.matrix,l.matrix));fk[nf]=l.k;legPut(fitLegIM.geometry,nf++,u.leg)}}
     else if(u.legs[0].visible&&nl+2<=LIMB_N*2)for(const l of u.legs){l.updateMatrix();lk[nl]=l.k;legIM.setMatrixAt(nl++,_lm.multiplyMatrices(g.matrix,l.matrix))}
-    const im=u.gs&&LX?LX.gunIM(u.gk,u.gs):gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
+    const im=(u.gs||u.lxO)&&LX?LX.gunIM(u.gk,u.gs,u.lxO):gunIM[u.gk];if(u.gun.visible&&im&&im.count<LIMB_N){u.gun.updateMatrix();im.setMatrixAt(im.count++,_lm.multiplyMatrices(g.matrix,u.gun.matrix));
       const T=RTAG[u.gk];if(T&&u.gr>=0&&nr<LIMB_N){rarIM.setMatrixAt(nr,_lm.multiply(_tm.compose(_p.set(0,T[0],T[1]),_iq,_s.set(T[2],T[3],T[4]))));rarIM.setColorAt(nr++,_col.setHex(RARC[u.gr]))}}
   }
   // (audit, November 2026) aiming an AR puts the camera at your eye and hides your body, which left nothing of the gun
@@ -7737,7 +7737,7 @@ function lxSync(){
   LX.menu(lockerOn()&&Locker.built);
 }
 // What the extras are lent from this page (locker-extra.js only draws: nothing here lets it touch the physics or the room).
-const LXAPI={THREE,scene,camera,renderer,MAT,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
+const LXAPI={THREE,scene,camera,renderer,MAT,Bag,bagGeo,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
   GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,BMAT,setModelColor,makeModel,disposeModel,LEG_GEO,NOOB,bagRBox,bagRLo,bagBox,bagTurn,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
   get ents(){return ents},get state(){return state},get touchUI(){return touchUI},get low(){return touchUI||gfxPref==='fast'},get lookOn(){return lookOn},
   get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},

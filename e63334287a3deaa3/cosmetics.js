@@ -253,7 +253,7 @@
     rampline: { name: 'Rampline', prefix: 'rl', slots: [['car', 'Cars'], ['paint', 'Paints'], ['wheels', 'Wheels'], ['smoke', 'Tyre smoke'], ['horn', 'Horns']] },
     chromaflage: { name: 'Chromaflage', prefix: 'cf', slots: [['hat', 'Seeker hats'], ['tool', 'Seeker tools'], ['splash', 'Catch splashes'], ['caught', 'Caught animations']] },
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
-    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
+    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses'], ['pick', 'Pickaxes']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1104,6 +1104,71 @@
   I('drop-zone', 'outfit', 109, 'Dino Onesie', 'common', '#FF8A1F', '#5CE1FF', 'An orange dino hood, spikes and a tail.');
   I('drop-zone', 'outfit', 110, 'Burger Mascot', 'common', '#FFD23F', '#F2C27A', 'A bun head with seeds, cheese, tomato and a lettuce frill.');
   I('drop-zone', 'outfit', 111, 'Hot Dog Mascot', 'common', '#FFE4B0', '#FF6A55', 'A bun hood, a sausage and a mustard zigzag.');
+  I('drop-zone', 'glider', 31, 'Rainbow Umbrella', 'uncommon', '#FF4F5E', '#3FA9F5', 'Eight rainbow panels that pop open over your head.');
+  I('drop-zone', 'glider', 32, 'Polka Dot Umbrella', 'common', '#FFD23F', '#FFFFFF', 'A sunny yellow umbrella with white dots.');
+  I('drop-zone', 'glider', 33, 'Paper Parasol', 'uncommon', '#FFE0EA', '#E8453C', 'A flat paper parasol with sixteen ribs and a red rim.');
+  I('drop-zone', 'glider', 34, 'Bubble Umbrella', 'rare', '#D6F2FF', '#FF6FB5', 'A deep, clear bubble dome with a pink rim.');
+  I('drop-zone', 'glider', 35, 'Team Flag', 'common', '#5CE1FF', '#FF6A55', 'A big cyan and pink flag between two poles, a white sash and a gold star.');
+  I('drop-zone', 'glider', 36, 'Hot-Air Balloon', 'epic', '#E8453C', '#FFD23F', 'A striped balloon on ropes with a glowing burner.');
+  I('drop-zone', 'glider', 37, 'Robot Wings', 'rare', '#DFE4EA', '#5CE1FF', 'Metal feathers with glowing blue edges along your arms.');
+  I('drop-zone', 'glider', 38, 'Star Kite', 'uncommon', '#FFD23F', '#FF6A55', 'A gold star kite with a tail of bows.');
+  I('drop-zone', 'glider', 39, 'Dragon Kite', 'legendary', '#E8453C', '#FFD23F', 'A dragon head on a long rippling body of gold and red.');
+  I('drop-zone', 'glider', 40, 'Hoverboard', 'epic', '#FF6FB5', '#5CE1FF', 'A pink board with glowing jets underneath.');
+  I('drop-zone', 'glider', 41, 'Toy Rocket', 'rare', '#F6F4EE', '#E8453C', 'A red and white rocket you ride, a flame flickering out of it.');
+  I('drop-zone', 'glider', 42, 'Paper Boat', 'common', '#F6F4EE', '#FF6A55', 'A folded boat of blue paper with a little flag, rocking as it flies.');
+  I('drop-zone', 'trail', 7, 'Confetti', 'common', '#FF4F4F', '#3FA9F5', 'Bright confetti tumbling behind you.');
+  I('drop-zone', 'trail', 8, 'Hearts', 'uncommon', '#FF4F7A', '#FFC2D6', 'Pink and red hearts floating up.');
+  I('drop-zone', 'trail', 9, 'Music Notes', 'uncommon', '#FFE14F', '#5CE1FF', 'Little notes bobbing along behind you.');
+  I('drop-zone', 'trail', 10, 'Fire Sparks', 'rare', '#FF9A3C', '#FFE14F', 'Quick orange sparks.');
+  I('drop-zone', 'trail', 11, 'Snowflakes', 'common', '#FFFFFF', '#DFF4FF', 'Snowflakes drifting down behind you.');
+  I('drop-zone', 'trail', 12, 'Gold Glitter', 'epic', '#FFD23F', '#FFFFFF', 'Twinkling gold glitter.');
+  I('drop-zone', 'trail', 13, 'Team Colours', 'common', '#FFD23F', '#5CE1FF', 'A band of gold, white and cyan.');
+  I('drop-zone', 'trail', 14, 'Comet Tail', 'legendary', '#9FE8FF', '#C8B4FF', 'A long glowing tail like a comet.');
+  I('drop-zone', 'wrap', 25, 'Tiger Stripes', 'common', '#FF8C1A', '#121212', 'Orange with black stripes.');
+  I('drop-zone', 'wrap', 26, 'Polka Dots', 'common', '#FF73B3', '#FFFFFF', 'Pink with white dots.');
+  I('drop-zone', 'wrap', 27, 'Race Check', 'uncommon', '#F2F2F2', '#121212', 'A black and white chequered flag.');
+  I('drop-zone', 'wrap', 28, 'Watermelon', 'uncommon', '#F2525C', '#59BF4D', 'Red with seeds and a green grip.');
+  I('drop-zone', 'wrap', 29, 'Denim', 'common', '#4773BF', '#FFA840', 'Blue jeans with orange stitching.');
+  I('drop-zone', 'wrap', 30, 'Comic Pop', 'rare', '#FFD91A', '#FF4D4D', 'Comic-book dots with a bold outline.');
+  I('drop-zone', 'wrap', 31, 'Sunset', 'rare', '#FFD140', '#8C4DE6', 'Gold to pink to purple along the barrel.');
+  I('drop-zone', 'wrap', 32, 'Ocean Waves', 'epic', '#1A73E6', '#33C7F2', 'Waves of blue and white foam flowing down the barrel.');
+  I('drop-zone', 'wrap', 33, 'Rainbow Flow', 'legendary', '#FF4F4F', '#6A7CFF', 'Every colour, flowing and glowing.');
+  I('drop-zone', 'wrap', 34, 'Heartbeat', 'epic', '#D91F33', '#FF3355', 'Deep red that pulses with a heartbeat glow.');
+  I('drop-zone', 'wrap', 35, 'Electric', 'epic', '#141F4D', '#99F2FF', 'Dark blue with cyan lightning crackling over it.');
+  I('drop-zone', 'wrap', 36, 'Molten Gold', 'legendary', '#E69919', '#FFE673', 'Gold with bright veins flowing through it.');
+  I('drop-zone', 'wrap', 37, 'Gold Chevrons', 'uncommon', '#F7F5EB', '#FFC726', 'White with gold V stripes.');
+  I('drop-zone', 'pack', 15, 'Giant Soccer Ball', 'common', '#F6F4EE', '#2A2D34', 'A huge ball on a strap in your colour.');
+  I('drop-zone', 'pack', 16, 'Pirate Barrel', 'uncommon', '#D99A52', '#8D96A0', 'A barrel with iron hoops and your mark.');
+  I('drop-zone', 'pack', 17, 'Boombox', 'uncommon', '#DFE4EA', '#FF6FB5', 'Two big speakers and a light in your colour.');
+  I('drop-zone', 'pack', 18, 'Robot Buddy', 'rare', '#FFD23F', '#5CE1FF', 'A little robot riding piggyback.');
+  I('drop-zone', 'pack', 19, 'Ice Cream Cone', 'common', '#F2C27A', '#FF9FC7', 'Two scoops and a cherry on top.');
+  I('drop-zone', 'pack', 20, 'Trophy Cup', 'epic', '#FFC93C', '#5CE1FF', 'A big gold cup on your back.');
+  I('drop-zone', 'pack', 21, 'Rocket Pack', 'rare', '#F6F4EE', '#E8453C', 'A little rocket with fins and a window.');
+  I('drop-zone', 'pack', 22, 'Penguin Plush', 'common', '#5A8AD0', '#F6F4EE', 'A penguin with a scarf in your colour.');
+  I('drop-zone', 'emote', 11, 'Slam Dunk', 'rare', '#F08A2A', '#FFFFFF', 'Crouch, leap, slam it down.');
+  I('drop-zone', 'emote', 12, 'Touchdown Spike', 'uncommon', '#A8562C', '#FFFFFF', 'Ball up high, spike it, shimmy.');
+  I('drop-zone', 'emote', 13, 'Home Run', 'uncommon', '#F0D8A8', '#E8453C', 'A big swing, then watch it fly.');
+  I('drop-zone', 'emote', 14, 'Chicken Dance', 'common', '#FFD23F', '#FF8A1F', 'Flap those elbows.');
+  I('drop-zone', 'emote', 15, 'Arm Wave', 'common', '#5CE1FF', '#FFFFFF', 'A wave from one hand to the other.');
+  I('drop-zone', 'emote', 16, 'Salute', 'common', '#F2EFE8', '#3A7AD0', 'A crisp salute.');
+  I('drop-zone', 'emote', 17, 'Star Jump', 'uncommon', '#FFD23F', '#FF6FB5', 'Jump out wide like a star.');
+  I('drop-zone', 'emote', 18, 'Pirate Jig', 'rare', '#FF6A55', '#FFC93C', 'Fists on hips, knees up.');
+  I('drop-zone', 'emote', 19, 'Big Shrug', 'common', '#C8B4FF', '#FFFFFF', 'Who, me?');
+  I('drop-zone', 'emote', 20, 'Mic Drop', 'epic', '#2A2D34', '#FFC93C', 'Hold it out, let it go, walk away.');
+  I('drop-zone', 'emote', 21, 'Thinking', 'common', '#8FD0FF', '#FFFFFF', 'Hand on chin, foot tapping.');
+  I('drop-zone', 'emote', 22, 'Air Guitar', 'rare', '#E8453C', '#FFD23F', 'Strum it, then lean back for the big note.');
+  I('drop-zone', 'pick', 1, 'Hockey Stick', 'common', '#3FA9F5', '#FFFFFF', 'A taped hockey stick.');
+  I('drop-zone', 'pick', 2, 'Golf Club', 'common', '#DFE4EA', '#FFC93C', 'A silver club with a gold head.');
+  I('drop-zone', 'pick', 3, 'Baseball Bat', 'common', '#F0D8A8', '#E8453C', 'A big wooden bat with a red grip.');
+  I('drop-zone', 'pick', 4, 'Foam Cutlass', 'uncommon', '#DFE9F2', '#FFC93C', 'A soft foam pirate sword with a gold guard.');
+  I('drop-zone', 'pick', 5, 'Robot Claw', 'rare', '#B9C2CC', '#5CE1FF', 'A grabber arm with gold fingers.');
+  I('drop-zone', 'pick', 6, 'Giant Foam Finger', 'uncommon', '#FFD23F', '#E8453C', 'We are number one.');
+  I('drop-zone', 'pick', 7, 'Trophy', 'epic', '#FFC93C', '#FFE98F', 'Swing the cup you just won.');
+  I('drop-zone', 'pick', 8, 'Guitar', 'rare', '#E8453C', '#FFFFFF', 'A red guitar, held by the neck.');
+  I('drop-zone', 'pick', 9, 'Anchor', 'uncommon', '#5CE1FF', '#FFC93C', 'A toy anchor with a gold ring.');
+  I('drop-zone', 'pick', 10, 'Giant Wrench', 'common', '#DFE4EA', '#E8453C', 'A huge silver wrench.');
+  I('drop-zone', 'pick', 11, 'Closed Umbrella', 'common', '#E8453C', '#FFFFFF', 'A red and white umbrella, folded.');
+  I('drop-zone', 'pick', 12, 'Giant Lollipop', 'legendary', '#FF6FB5', '#FFD23F', 'A swirly lollipop as big as your head.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
