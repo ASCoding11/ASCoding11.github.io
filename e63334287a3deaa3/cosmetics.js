@@ -363,6 +363,7 @@
   I('boostball', 'engine', 2, 'Buzz', 'uncommon', '#FFD23F', '#FF8A1F', 'High and angry, like a go-kart.');
   I('boostball', 'engine', 3, 'Rumble', 'rare', '#7A5230', '#FF4D6D', 'A big lazy burble.');
   I('boostball', 'engine', 4, 'Whirr', 'epic', '#3EE6FF', '#FFFFFF', 'Electric: it sings as it speeds up.');
+  I('boostball', 'goal', 22, 'Carbon Star', 'legendary', '#2A1048', '#FF6A2E', 'Made for Carbon: a red giant flares in the goal and the whole arena drifts into deep space.'); ITEM_BY_ID['bb-goal-carbon-star'].give = 'exclusive';   // an exclusive gift (../captains.js GIFTS): in no pack or chest, never sold or gifted on
   // second wave (Nov 2026): sports, pirates, suits and robots. (Goal explosion 22 is Carbon Star, an exclusive gift from another branch.)
   I('boostball', 'decal', 32, 'Team Hoops', 'common', '#3F8CFF', '#FFFFFF', 'Wide bands round the car in your accent colour.');
   I('boostball', 'decal', 33, 'Varsity', 'uncommon', '#7A1F3D', '#FFFFFF', 'A chunky stripe and a big star, like a letter jacket.');
