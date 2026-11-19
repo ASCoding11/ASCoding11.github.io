@@ -41,7 +41,7 @@ window.ShellKit=function(X){
 const {THREE,store,$}=X;
 const GAME='shell-crackers';
 const SLOTS=['egg','hat','gun','crack'];
-const N={egg:19,hat:7,gun:12,crack:5};
+const N={egg:34,hat:17,gun:12,crack:5};
 const V3=THREE.Vector3;
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const now=()=>performance.now()/1000;
@@ -201,9 +201,138 @@ const EGGS=[null,
       g.strokeStyle='#b98656';g.lineWidth=2.5;g.stroke();g.fillStyle='#fbe6cf';g.fillRect(-L*.17,-H/2+4,L*.34,H-8);g.strokeStyle='#d9a878';g.lineWidth=2;g.strokeRect(-L*.17,-H/2+4,L*.34,H-8);
       g.fillStyle='rgba(140,90,50,.6)';for(const sx of [-1,1])for(let i=0;i<3;i++)for(const py of [-H*.18,H*.18]){g.beginPath();g.arc(sx*(L*.26+i*L*.07),py,2,0,7);g.fill()}g.restore()};
     plaster(262,162,-.12,112,36);
-    wrap(10,xx=>{plaster(xx,96,.7,74,22);plaster(xx,96,-.7,74,22)})}}
-
+    wrap(10,xx=>{plaster(xx,96,.7,74,22);plaster(xx,96,-.7,74,22)})}},
+  // ---- wave 2: sports balls and kits, pirates, suits, robots (20 to 34) ----
+  // 20 Soccer Ball Egg: white panels, dark pentagons (none on the face), grey seams
+  {shard:'#f4f4f2',paint(g){grad(g,'#ffffff','#e9ebee');
+    const D='#3c3c46',seam='rgba(120,126,138,.85)';
+    const spots=[];for(let i=0;i<5;i++)spots.push([51.2+102.4*i,i===2?50:62,16]);   // the row above the face: the middle one sits high, clear of the brows
+    for(let i=0;i<5;i++)spots.push([102.4*i+256,166,21]);
+    g.lineWidth=2.5;g.strokeStyle=seam;
+    for(const [x,y,R] of spots)wrap(x%TW,xx=>{for(let k=0;k<5;k++){const a=-Math.PI/2+k/5*Math.PI*2,kk=kAt(y);g.beginPath();g.moveTo(xx+Math.cos(a)*R*kk,y+Math.sin(a)*R);g.lineTo(xx+Math.cos(a)*(R+24)*kk,y+Math.sin(a)*(R+24));g.stroke()}});
+    for(const [x,y,R] of spots)wrap(x%TW,xx=>poly(g,xx,y,R,5,-Math.PI/2,D));
+    g.fillStyle=D;g.beginPath();g.moveTo(0,0);for(let x=0;x<=TW;x+=8)g.lineTo(x,13+5*Math.cos(x/TW*Math.PI*10));g.lineTo(TW,0);g.fill();
+    g.beginPath();g.moveTo(0,TH);for(let x=0;x<=TW;x+=8)g.lineTo(x,TH-12-5*Math.cos(x/TW*Math.PI*10+1));g.lineTo(TW,TH);g.fill();
+    g.fillStyle='rgba(255,255,255,.7)';g.fillRect(0,32,TW,7)}},
+  // 21 Basketball Egg: pebbled orange with dark seams
+  {shard:'#e8843a',paint(g,r){grad(g,'#f29a4e','#d9762e');dots(g,r,900,['#c4651f','#ffb070'],.8,1.6,.35,.6);
+    g.strokeStyle='#3a2216';g.lineWidth=5;g.lineCap='round';
+    g.beginPath();g.moveTo(0,150);g.lineTo(TW,150);g.stroke();
+    for(const x of [128,384]){g.beginPath();g.moveTo(x,0);g.lineTo(x,TH);g.stroke()}
+    for(const c of [0,TW])for(const s of [-1,1]){g.beginPath();for(let y=0;y<=TH;y+=4){const q=Math.sin(y/TH*Math.PI);g.lineTo(c+s*(30+62*q),y)}g.stroke()}
+    g.fillStyle='rgba(255,220,180,.35)';g.fillRect(0,34,TW,8)}},
+  // 22 Baseball Egg: white leather, one red stitched seam that loops round under the face
+  {shard:'#f6f2e8',paint(g,r){grad(g,'#fffdf6','#ece6d8');dots(g,r,120,['#ddd5c4'],.8,2,.3,.5);
+    const sy=x=>140+62*Math.cos(x/TW*Math.PI*4);
+    g.strokeStyle='#e8a5a0';g.lineWidth=3;g.beginPath();for(let x=0;x<=TW;x+=4)g.lineTo(x,sy(x));g.stroke();
+    g.strokeStyle='#d8343a';g.lineWidth=2.6;g.lineCap='round';
+    for(let x=0;x<TW;x+=11){const y=sy(x),d=(sy(x+1)-sy(x-1))/2,n=Math.hypot(1,d),nx=-d/n,ny=1/n;
+      for(const s of [-1,1]){g.beginPath();g.moveTo(x+nx*s*3,y+ny*s*3);g.lineTo(x+nx*s*11-5,y+ny*s*11);g.stroke()}}}},
+  // 23 Football Egg: pebbled brown leather, white stripes near both ends, white laces down the back
+  {shard:'#a8643a',paint(g,r){grad(g,'#b5703f','#9a5c32');dots(g,r,1100,['#8a4e28','#c98654'],.8,1.5,.35,.6);
+    g.fillStyle='#fff8ec';g.fillRect(0,40,TW,11);g.fillRect(0,206,TW,11);
+    g.strokeStyle='rgba(70,36,16,.55)';g.lineWidth=2;for(const x of [128,384]){g.beginPath();g.moveTo(x,0);g.lineTo(x,TH);g.stroke()}
+    wrap(0,xx=>{g.strokeStyle='#5a3418';g.lineWidth=3;g.beginPath();g.moveTo(xx,70);g.lineTo(xx,186);g.stroke();
+      g.fillStyle='#fffaf0';g.strokeStyle='#c9b8a0';g.lineWidth=1.5;for(let y=78;y<=180;y+=13){g.beginPath();g.roundRect?g.roundRect(xx-20,y-3,40,7,3):g.rect(xx-20,y-3,40,7);g.fill();g.stroke()}})}},
+  // 24 Tennis Ball Egg: fuzzy yellow-green with a white seam over the forehead
+  {shard:'#d6ea3e',paint(g,r){grad(g,'#e2f25a','#c8de30');dots(g,r,1500,['#f4ff9a','#b4c824','#eaf880'],.7,1.6,.3,.6);
+    const sy=x=>128-62*Math.cos(x/TW*Math.PI*4)*(x>200&&x<312?1:1);
+    g.lineCap='round';g.strokeStyle='rgba(150,165,30,.55)';g.lineWidth=13;g.beginPath();for(let x=0;x<=TW;x+=4)g.lineTo(x,sy(x)+1);g.stroke();
+    g.strokeStyle='#fbfff0';g.lineWidth=9;g.beginPath();for(let x=0;x<=TW;x+=4)g.lineTo(x,sy(x));g.stroke()}},
+  // 25 Eight Ball Egg: glossy, never darker than the Charcoal shell, with the white circle on the forehead
+  {shard:'#5c5c68',mat:'shiny',spec:0x9a9aa8,shin:80,paint(g){grad(g,'#686876','#575762');
+    g.fillStyle='rgba(255,255,255,.45)';g.fillRect(0,30,TW,8);g.fillStyle='rgba(255,255,255,.2)';g.fillRect(0,42,TW,5);
+    wrap(256,xx=>{g.fillStyle='#fbfbf6';g.beginPath();g.ellipse(xx,58,15*kAt(58)*1.1,17,0,0,7);g.fill();
+      g.save();g.translate(xx,59);g.scale(kAt(59)*.95,1.1);g.fillStyle='#2b2b30';g.font='900 22px Arial, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('8',0,1);g.restore()});
+    wrap(0,xx=>{g.fillStyle='#fbfbf6';g.beginPath();g.ellipse(xx,128,13*kAt(128)*1.15,15,0,0,7);g.fill();g.save();g.translate(xx,129);g.scale(kAt(128)*.95,1);g.fillStyle='#2b2b30';g.font='900 22px Arial, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('8',0,1);g.restore()})}},
+  // 26 Hockey Mask Egg: a white goalie mask with breathing holes, a red and blue stripe over the top, and straps behind
+  {shard:'#f4f4f0',mat:'shiny',spec:0x50545c,shin:35,paint(g){grad(g,'#ffffff','#eceef0');
+    g.fillStyle='#d8343a';g.fillRect(244,0,24,96);g.fillStyle='#3a6fd8';g.fillRect(234,0,8,90);g.fillRect(270,0,8,90);
+    for(const s of [-1,1]){g.fillStyle='#d8343a';g.beginPath();g.moveTo(256+s*70,30);g.lineTo(256+s*120,70);g.lineTo(256+s*112,80);g.lineTo(256+s*62,42);g.fill()}
+    g.fillStyle='#4a4a54';for(const s of [-1,1]){g.beginPath();g.ellipse(256+s*25,104,24,15,0,0,7);g.fill()}
+    for(let row=0;row<3;row++)for(let i=-2;i<=2;i++){const x=256+i*15+(row%2?7:0),y=146+row*13;if(Math.abs(i)===2&&row===2)continue;g.beginPath();g.ellipse(x,y,4.5,3.5,0,0,7);g.fill()}
+    for(const s of [-1,1])for(let i=0;i<3;i++){g.beginPath();g.ellipse(256+s*(62+i*9),122+i*12,3.5,4.5,0,0,7);g.fill()}
+    g.strokeStyle='#b0b4bc';g.lineWidth=3;g.beginPath();g.ellipse(256,120,118,88,0,0,7);g.stroke();
+    g.fillStyle='#7a7e88';for(const y of [70,160])wrap(0,xx=>g.fillRect(xx-138,y-6,276,12))}},
+  // 27 Referee Egg: plain shell on top, a black-and-white striped shirt below with a collar and a whistle on a cord
+  {shard:'#f2f2f2',paint(g,r){grad(g,'#fffdf7','#efe9dc');dots(g,r,80,['#d9d1c0'],.8,2,.15,.4);
+    const top=x=>150+10*Math.cos((x-256)/TW*Math.PI*2);
+    for(let x=0;x<TW;x+=32){g.fillStyle=(x/32)%2?'#fbfbfb':'#3a3a42';g.beginPath();g.moveTo(x,top(x));g.lineTo(x+32,top(x+32));g.lineTo(x+32,TH);g.lineTo(x,TH);g.fill()}
+    g.fillStyle='#3a3a42';g.beginPath();g.moveTo(0,top(0)-6);for(let x=0;x<=TW;x+=8)g.lineTo(x,top(x)-6);g.lineTo(TW,top(TW)+6);for(let x=TW;x>=0;x-=8)g.lineTo(x,top(x)+6);g.fill();
+    g.fillStyle='#fbfbfb';g.beginPath();g.moveTo(222,top(222)-6);g.lineTo(256,200);g.lineTo(290,top(290)-6);g.fill();g.strokeStyle='#3a3a42';g.lineWidth=4;g.stroke();
+    g.strokeStyle='#e2343a';g.lineWidth=3;g.beginPath();g.moveTo(226,152);g.quadraticCurveTo(256,214,286,152);g.stroke();
+    g.fillStyle='#c9ced6';g.beginPath();g.roundRect?g.roundRect(244,180,26,14,6):g.rect(244,180,26,14);g.fill();g.strokeStyle='#7a808a';g.lineWidth=2;g.stroke()}},
+  // 28 Golf Ball Egg: bright white with rows of dimples
+  {shard:'#f8f9fb',paint(g){grad(g,'#ffffff','#eef0f4');
+    for(let row=0;row<17;row++){const y=8+row*15,k=kAt(Math.min(248,Math.max(8,y))),step=14*Math.min(k,4.5);
+      for(let x=(row%2)*step/2;x<TW;x+=step){if(Math.abs(x-256)<46&&y>84&&y<136)continue;
+        g.fillStyle='rgba(150,160,175,.45)';g.beginPath();g.ellipse(x,y+1,5.5*Math.min(k,4.5)*.75,5,0,0,7);g.fill();g.fillStyle='rgba(255,255,255,.95)';g.beginPath();g.ellipse(x-1,y-1.4,3.6*Math.min(k,4.5)*.75,3,0,0,7);g.fill()}}}},
+  // 29 Pirate Egg: a red spotted bandana knotted at the back, an earring, the eye patch's strap (the patch itself is below)
+  {shard:'#f2e4cc',parts:pirateParts,paint(g,r){grad(g,'#f8ecd6','#e6d4b4');dots(g,r,120,['#d6c09c'],.8,2,.2,.5);
+    const edge=x=>64+6*Math.sin(x/TW*Math.PI*6)+(Math.abs(((x+TW/2)%TW)-TW/2)<40?14:0);
+    g.fillStyle='#d8343a';g.beginPath();g.moveTo(0,0);for(let x=0;x<=TW;x+=4)g.lineTo(x,edge(x));g.lineTo(TW,0);g.fill();
+    g.fillStyle='#fff6e8';for(let i=0;i<46;i++){const x=r()*TW,y=6+r()*48;g.beginPath();g.ellipse(x,y,5*kAt(y)*.6,4,0,0,7);g.fill()}
+    g.strokeStyle='#9e1e24';g.lineWidth=3;g.beginPath();for(let x=0;x<=TW;x+=4)g.lineTo(x,edge(x));g.stroke();
+    wrap(0,xx=>{g.fillStyle='#d8343a';for(const s of [-1,1]){g.beginPath();g.moveTo(xx+s*6,74);g.lineTo(xx+s*30,124);g.lineTo(xx+s*12,128);g.closePath();g.fill()}g.beginPath();g.ellipse(xx,74,13,10,0,0,7);g.fill()});
+    g.strokeStyle='#2e2e34';g.lineWidth=5;g.lineCap='round';g.beginPath();g.moveTo(300,edge(300)-2);g.quadraticCurveTo(262,84,231,104);g.quadraticCurveTo(190,128,128,134);g.lineTo(0,120);g.stroke();
+    g.beginPath();g.moveTo(TW,120);g.lineTo(440,90);g.stroke();
+    g.strokeStyle='#e8b830';g.lineWidth=3.5;g.beginPath();g.ellipse(384,142,7,10,0,0,7);g.stroke()}},
+  // 30 Pinstripe Suit Egg: shell on top, a pinstripe jacket below, white shirt, a tie and a pocket square
+  {shard:'#5e647c',paint(g,r){grad(g,'#fffdf7','#efe9dc');dots(g,r,60,['#d9d1c0'],.8,2,.15,.4);
+    suit(g,{jacket:'#5e647c',lapel:'#6e7590',pin:'rgba(235,238,248,.55)',shirt:'#fbfbfb'});
+    g.fillStyle='#c8323a';g.beginPath();g.moveTo(249,150);g.lineTo(263,150);g.lineTo(266,166);g.lineTo(262,214);g.lineTo(256,224);g.lineTo(250,214);g.lineTo(246,166);g.fill();
+    g.fillStyle='#e85a60';for(let y=170;y<214;y+=12){g.fillRect(250,y,12,3)}
+    g.fillStyle='#a8222a';g.beginPath();g.moveTo(248,142);g.lineTo(264,142);g.lineTo(262,154);g.lineTo(250,154);g.fill();
+    g.fillStyle='#fbfbfb';g.beginPath();g.moveTo(318,172);g.lineTo(338,172);g.lineTo(333,160);g.lineTo(326,166);g.lineTo(321,160);g.fill()}},
+  // 31 Tuxedo Egg: a dark jacket with satin lapels, a white shirt with studs, and a bow tie (below)
+  {shard:'#5c5c68',parts:bowTieParts,paint(g,r){grad(g,'#fffdf7','#efe9dc');dots(g,r,60,['#d9d1c0'],.8,2,.15,.4);
+    suit(g,{jacket:'#5c5c68',lapel:'#7c7c8c',pin:null,shirt:'#ffffff'});
+    g.strokeStyle='rgba(180,184,196,.8)';g.lineWidth=1.5;for(let y=176;y<240;y+=6){g.beginPath();g.moveTo(240,y);g.lineTo(272,y);g.stroke()}
+    g.fillStyle='#3a3a44';for(const y of [168,190,212]){g.beginPath();g.arc(256,y,3.4,0,7);g.fill()}
+    g.fillStyle='#fbfbfb';g.beginPath();g.moveTo(318,172);g.lineTo(338,172);g.lineTo(328,160);g.fill()}},
+  // 32 Tin Robot Egg: polished tin with rivets, a chest panel of lights and a dial, and a wind-up key on the back (below)
+  {shard:'#c8ccd4',mat:'shiny',spec:0x8c929c,shin:70,parts:keyParts,paint(g,r){grad(g,'#d6dbe2','#aab1bb');
+    g.fillStyle='rgba(255,255,255,.55)';g.fillRect(0,40,TW,9);
+    for(const y of [74,150,214]){g.fillStyle='#8a929e';g.fillRect(0,y,TW,4);g.fillStyle='#eef1f5';g.fillRect(0,y+4,TW,2);
+      for(let x=6;x<TW;x+=22){g.fillStyle='#7a828e';g.beginPath();g.arc(x,y-6,2.8,0,7);g.fill();g.fillStyle='#f4f6f9';g.beginPath();g.arc(x-.8,y-6.8,1.1,0,7);g.fill()}}
+    g.fillStyle='#8a929e';g.fillRect(224,160,64,44);g.fillStyle='#c4cad2';g.fillRect(227,163,58,38);
+    [['#e2503f',238],['#ffd04a',256],['#36b37e',274]].forEach(([c,x])=>{g.fillStyle=c;g.beginPath();g.arc(x,174,5,0,7);g.fill();g.fillStyle='rgba(255,255,255,.7)';g.beginPath();g.arc(x-1.5,172.5,1.6,0,7);g.fill()});
+    g.fillStyle='#fbfbfb';g.beginPath();g.arc(256,192,6,0,7);g.fill();g.strokeStyle='#e2503f';g.lineWidth=2;g.beginPath();g.moveTo(256,192);g.lineTo(260,188);g.stroke();
+    g.strokeStyle='#7a828e';g.lineWidth=2;for(let i=0;i<4;i++){g.beginPath();g.moveTo(240,133+i*4);g.lineTo(272,133+i*4);g.stroke()}}},
+  // 33 Android Egg: glossy white panels with thin cyan seams and two little temple lights
+  {shard:'#eef3f8',mat:'shiny',spec:0x6a7480,shin:90,paint(g){grad(g,'#ffffff','#dfe6ee');
+    g.strokeStyle='#3ec8e8';g.lineWidth=3;g.lineCap='round';
+    g.beginPath();for(let x=0;x<=TW;x+=4)g.lineTo(x,62+8*Math.cos((x-256)/TW*Math.PI*2));g.stroke();
+    g.beginPath();for(let x=0;x<=TW;x+=4)g.lineTo(x,150-16*Math.cos((x-256)/TW*Math.PI*2));g.stroke();
+    for(const x of [150,362]){g.beginPath();g.moveTo(x,62);g.lineTo(x,150);g.stroke()}
+    g.beginPath();g.moveTo(0,62);g.lineTo(0,240);g.stroke();g.beginPath();g.moveTo(TW,62);g.lineTo(TW,240);g.stroke();
+    g.strokeStyle='rgba(120,140,160,.4)';g.lineWidth=2;g.beginPath();g.moveTo(200,170);g.lineTo(256,206);g.lineTo(312,170);g.stroke();
+    for(const x of [176,336]){g.fillStyle='#bdf3ff';g.beginPath();g.arc(x,104,7,0,7);g.fill();g.fillStyle='#3ec8e8';g.beginPath();g.arc(x,104,4.5,0,7);g.fill()}
+    g.fillStyle='rgba(255,255,255,.8)';g.fillRect(0,30,TW,8)}},
+  // 34 Junkyard Bot Egg: patched plates in odd metals, bolts at the corners, a rust streak or two
+  {shard:'#a8a49c',paint(g,r){grad(g,'#b4b0a8','#9c988f');
+    const cols=['#b8b4aa','#b07a4c','#94a496','#a2abb6','#c4b08a'];
+    for(let i=0;i<34;i++){const w=40+r()*70,h=26+r()*40,x=r()*TW,y=r()*(TH-20),c=cols[i%5];if(x>196&&x<316&&y>70&&y<132)continue;
+      wrap(x,xx=>{g.fillStyle=c;g.fillRect(xx-w/2,y-h/2,w,h);g.strokeStyle='rgba(70,64,56,.6)';g.lineWidth=2;g.strokeRect(xx-w/2,y-h/2,w,h);
+        g.fillStyle='#6e6a62';for(const [px,py] of [[-1,-1],[1,-1],[-1,1],[1,1]]){g.beginPath();g.arc(xx+px*(w/2-5),y+py*(h/2-5),2.6,0,7);g.fill()}})}
+    for(let i=0;i<9;i++){const x=r()*TW,y=r()*TH;g.fillStyle='rgba(170,96,44,.45)';g.fillRect(x,y,5+r()*4,18+r()*30)}
+    g.strokeStyle='#3e3a34';g.lineWidth=2.5;g.beginPath();g.moveTo(200,150);g.lineTo(212,160);g.lineTo(206,168);g.lineTo(218,178);g.stroke()}}
 ];
+// how much wider than tall a round spot must be painted at canvas row y to look round on the egg
+function kAt(y){const t=Math.PI*(1-Math.min(250,Math.max(6,y))/TH),s=Math.sin(t),c=Math.cos(t),rr=.44*s*(1+.12*c),dr=.44*(c*(1+.12*c)-.12*s*s),dy=.72*s;return Math.hypot(dr,dy)/rr}
+function poly(g,x,y,R,n,a0,col){const k=kAt(y);g.fillStyle=col;g.beginPath();for(let i=0;i<n;i++){const a=a0+i/n*Math.PI*2;g.lineTo(x+Math.cos(a)*R*k,y+Math.sin(a)*R)}g.closePath();g.fill()}
+// a jacket over the lower half (front open on a shirt), with lapels and, if given, pinstripes
+function suit(g,o){const top=x=>146+8*Math.cos((x-256)/TW*Math.PI*2);
+  g.fillStyle=o.jacket;g.beginPath();g.moveTo(0,top(0));for(let x=0;x<=TW;x+=8)g.lineTo(x,top(x));g.lineTo(TW,TH);g.lineTo(0,TH);g.fill();
+  if(o.pin){g.strokeStyle=o.pin;g.lineWidth=1.4;for(let x=4;x<TW;x+=11){g.beginPath();g.moveTo(x,top(x)+2);g.lineTo(x,TH);g.stroke()}}
+  g.fillStyle=o.shirt;g.beginPath();g.moveTo(222,top(222)-2);g.lineTo(290,top(290)-2);g.lineTo(272,TH);g.lineTo(240,TH);g.fill();
+  g.fillStyle=o.lapel;for(const s of [-1,1]){g.beginPath();g.moveTo(256+s*34,top(256)-2);g.lineTo(256+s*14,TH-30);g.lineTo(256+s*46,200);g.lineTo(256+s*54,top(256)+4);g.fill()}
+  g.fillStyle=o.shirt;for(const s of [-1,1]){g.beginPath();g.moveTo(256,142);g.lineTo(256+s*34,top(256)-6);g.lineTo(256+s*26,162);g.fill()}}
+// Parts some egg types add to the face's mesh (merged like a hat, so no draw call): the pirate's patch, the tuxedo's
+// bow tie, the tin robot's wind-up key. Like hats, none of them hides the eyes, except the patch over one (its job).
+function pirateParts(L){const K=0x2e2e34;P(L,'sph',K,.13,.2,-.445,.108,.096,.046);P(L,'sph',0x45454e,.11,.225,-.475,.03,.022,.012)}
+function bowTieParts(L){const K=0x34343e,S=0x4a4a56;for(const s of [-1,1]){P(L,'cone',K,s*.06,-.1,-.45,.055,.1,.03,0,0,s*Math.PI/2);P(L,'sph',S,s*.07,-.09,-.465,.02,.02,.01)}P(L,'sph',K,0,-.1,-.455,.026,.03,.022)}
+function keyParts(L){const M=0xc9a040,D=0xa8822e;P(L,'cyl',M,0,.05,.44,.025,.12,.025,Math.PI/2);for(const s of [-1,1]){P(L,'tor',M,s*.08,.05,.51,.07,.07,.12);P(L,'cyl',D,s*.08,.05,.51,.05,.02,.05,Math.PI/2)}P(L,'sph',D,0,.05,.51,.035,.035,.035)}
 // The same cracks as a plain egg's (index.html's eggTex), drawn over the type's picture as it is hurt.
 function crackOver(g,r,stage){
   const crack=(x,y,len)=>{g.beginPath();g.moveTo(x,y);let a=r()*Math.PI*2;for(let k=0;k<len;k++){a+=r()*1.4-.7;x+=Math.cos(a)*18;y+=Math.sin(a)*12;g.lineTo(x,y)}g.stroke()};
@@ -225,7 +354,7 @@ function eggTexture(n,stage){
 //  Small shapes, merged into one geometry with colours as vertex colours (index.html's mergeParts)
 // =====================================================================
 const G={box:new THREE.BoxGeometry(1,1,1),cyl:new THREE.CylinderGeometry(1,1,1,16),sph:new THREE.SphereGeometry(1,12,8),cone:new THREE.ConeGeometry(1,1,12),
-  tor:new THREE.TorusGeometry(1,.1,8,28),taper:new THREE.CylinderGeometry(.72,1,1,16),band:new THREE.CylinderGeometry(1,1,1,28,1,true),ico:new THREE.IcosahedronGeometry(1,0)};
+  tor:new THREE.TorusGeometry(1,.1,8,28),dome:new THREE.SphereGeometry(1,20,8,0,Math.PI*2,0,Math.PI/2),sect:new THREE.SphereGeometry(1,5,8,0,Math.PI/3,0,Math.PI/2),arc:new THREE.TorusGeometry(1,.03,6,24,Math.PI),taper:new THREE.CylinderGeometry(.72,1,1,16),band:new THREE.CylinderGeometry(1,1,1,28,1,true),ico:new THREE.IcosahedronGeometry(1,0)};
 function P(L,geo,c,x,y,z,sx,sy,sz,rx,ry,rz){L.push({g:G[geo]||geo,c,m:X.partM(x,y,z,sx,sy,sz,rx,ry,rz)})}
 
 // =====================================================================
@@ -265,8 +394,58 @@ const HATS=[null,
   L=>{const W=0xfffdf8,Wd=0xf3efe6;const M=new THREE.Matrix4().compose(new V3(.03,.635,.01),new THREE.Quaternion().setFromEuler(new THREE.Euler(-.08,0,.26)),new V3(1,1,1));
     const Q=[];P(Q,'sph',W,0,0,0,.3,.1,.29);for(let i=0;i<9;i++){const a=i/9*Math.PI*2;P(Q,'sph',i%2?W:Wd,Math.sin(a)*.27,-.005,Math.cos(a)*.27,.09,.05,.09)}
     P(Q,'sph',0xffc93c,.05,.06,.02,.1,.06,.1);P(Q,'sph',0xffe27a,.03,.09,0,.035,.02,.035);P(Q,'cyl',Wd,.05,.11,.02,.012,.04,.012);
-    for(const q of Q){q.m.premultiply(M);L.push(q)}}
+    for(const q of Q){q.m.premultiply(M);L.push(q)}},
+  // ---- wave 2 (8 to 17) ----
+  // 8 Fedora: grey felt, a dark band, a pinched crown and a snap brim
+  L=>{const F=0x7c8192,Fd=0x666a7a,K=0x2e2e36;P(L,'cyl',F,0,.565,0,.41,.018,.4);P(L,'tor',Fd,0,.565,0,.41,.4,.4,Math.PI/2);
+    P(L,'taper',F,0,.715,0,.27,.3,.27);P(L,'sph',F,0,.86,0,.195,.045,.2);P(L,'box',Fd,0,.885,0,.03,.03,.24);
+    P(L,'band',K,0,.605,0,.266,.065,.266);P(L,'box',K,.2,.61,.17,.06,.05,.03,0,.8,0)},
+  // 9 Pirate Tricorn: three turned-up sides with gold trim, a point to the front and a red plume
+  L=>{const C=0x3e302a,Gd=0xe8b830;P(L,'sph',C,0,.72,0,.215,.19,.215);
+    for(let i=0;i<3;i++){const b=Math.PI/3+i*Math.PI*2/3,Q=[];P(Q,'box',C,0,0,0,.8,.13,.035);P(Q,'box',Gd,0,.065,-.004,.8,.02,.04);
+      const M=new THREE.Matrix4().compose(new V3(Math.sin(b)*.215,.67,-Math.cos(b)*.215),new THREE.Quaternion().setFromEuler(new THREE.Euler(-.14,-b,0,'YXZ')),new V3(1,1,1));
+      for(const q of Q){q.m.premultiply(M);L.push(q)}}
+    for(let i=0;i<3;i++){const a=i*Math.PI*2/3;P(L,'sph',Gd,Math.sin(a)*.43,.73,-Math.cos(a)*.43,.03,.03,.03)}
+    for(let k=0;k<5;k++)P(L,'sph',k%2?0xe2503f:0xff7a6a,.16+k*.02,.8+k*.035,.1+k*.015,.035,.06,.025,0,0,-.6)},
+  // 10 Sweatband: white terry towelling with two red stripes, worn above the brows
+  L=>{const B=0x3a7fe0,W=0xfbfbf6;P(L,'band',B,0,.43,0,.348,.09,.348);P(L,'band',W,0,.41,0,.352,.014,.352);P(L,'band',W,0,.45,0,.344,.014,.344);
+    P(L,'band',B,0,.48,0,.322,.03,.322)},
+  // 11 Football Helmet: a glossy blue shell with a white stripe, ear pads and a face guard that stays under the mouth
+  L=>{const B=0x2f6fd8,Bd=0x2558b0,W=0xffffff,Gy=0xc9ced6;P(L,'dome',B,0,.4,0,.37,.37,.38);P(L,'tor',Bd,0,.4,0,.37,.38,.3,Math.PI/2);
+    for(let k=0;k<=14;k++){const th=-Math.PI/2+k/14*Math.PI;P(L,'box',W,0,.4+Math.cos(th)*.372,Math.sin(th)*.382,.05,.012,.07,th)}
+    for(const s of [-1,1]){P(L,'sph',B,s*.36,.32,.05,.06,.12,.16);P(L,'cyl',Bd,s*.41,.3,.06,.045,.02,.045,0,0,Math.PI/2);P(L,'cyl',Gy,s*.435,.09,.01,.014,.39,.014,0,0,s*.18)}
+    for(const y of [-.06,-.13])L.push({g:G.arc,c:Gy,m:X.partM(0,y,0,.47,.5,.5,Math.PI/2,0,Math.PI)});
+    P(L,'cyl',Gy,0,-.095,-.5,.014,.09,.014)},
+  // 12 Top Hat: tall, with a deep red band
+  L=>{const K=0x3c3c46,Kl=0x4a4a56,R=0xa8222e;P(L,'cyl',K,0,.6,0,.36,.022,.36);P(L,'tor',Kl,0,.605,0,.36,.36,.3,Math.PI/2);
+    P(L,'cyl',K,0,.8,0,.215,.4,.215);P(L,'cyl',Kl,0,1.0,0,.205,.01,.205);P(L,'band',R,0,.65,0,.219,.07,.219)},
+  // 13 Referee Cap: black and white panels, a black peak and a button on top
+  L=>{const W=0xfbfbfb,K=0x34343c;P(L,'dome',W,0,.56,0,.27,.2,.27);
+    for(let i=0;i<6;i+=2)P(L,'sect',K,0,.56,0,.276,.205,.276,0,i/6*Math.PI*2,0);
+    P(L,'cyl',K,0,.57,-.33,.19,.016,.17,.1,0,0);P(L,'sph',K,0,.765,0,.03,.02,.03);P(L,'band',K,0,.575,0,.272,.03,.272)},
+  // 14 Ball Cap: team red, a white front panel with a gold star badge, curved peak
+  L=>{const R=0xd8343a,Rd=0xb02a30;P(L,'dome',R,0,.56,0,.27,.21,.27);
+    poly3(L,0xffd04a,0,.705,-.2,.07,.78);P(L,'cyl',Rd,0,.57,-.33,.19,.016,.17,.1,0,0);P(L,'sph',Rd,0,.775,0,.03,.02,.03);P(L,'band',Rd,0,.575,0,.272,.03,.272)},
+  // 15 Robot Antenna: a riveted metal cap, a springy aerial with a red bulb, and bolt ears at the sides
+  L=>{const S=0xc9ced6,Sd=0x9aa2ac,R=0xff4a3a;P(L,'dome',S,0,.6,0,.25,.13,.25);P(L,'band',Sd,0,.61,0,.252,.03,.252);
+    for(let i=0;i<8;i++){const a=i/8*Math.PI*2;P(L,'sph',Sd,Math.sin(a)*.252,.63,-Math.cos(a)*.252,.016,.016,.016)}
+    P(L,'cyl',Sd,0,.78,0,.012,.14,.012);for(let k=0;k<4;k++)P(L,'tor',S,0,.86+k*.03,0,.03,.03,.03,Math.PI/2);P(L,'cyl',Sd,0,.99,0,.01,.06,.01);
+    P(L,'sph',R,0,1.04,0,.045,.045,.045);P(L,'sph',0xffc0b0,-.015,1.055,-.02,.014,.014,.014);
+    for(const s of [-1,1]){P(L,'cyl',Sd,s*.42,.2,0,.07,.05,.07,0,0,Math.PI/2);P(L,'cyl',S,s*.45,.2,0,.045,.03,.045,0,0,Math.PI/2)}},
+  // 16 Parrot: a red, blue and yellow parrot perched on top, looking ahead
+  L=>{const R=0xe2343a,Rd=0xb82a30,B=0x2f7ad8,Y=0xffd04a,K=0x2b1a10,W=0xffffff;
+    P(L,'sph',R,0,.86,.03,.1,.14,.1,-.25,0,0);P(L,'sph',R,0,1.0,-.02,.085,.085,.085);
+    P(L,'sph',W,0,1.0,-.075,.05,.045,.03);for(const s of [-1,1]){P(L,'sph',W,s*.05,1.01,-.06,.03,.03,.02);P(L,'sph',K,s*.06,1.015,-.075,.013,.015,.01)}
+    P(L,'sph',0x3a3a40,0,.985,-.11,.03,.04,.035);P(L,'cone',0x3a3a40,0,.955,-.12,.02,.05,.02,Math.PI*.9,0,0);
+    for(const s of [-1,1]){P(L,'sph',B,s*.085,.85,.05,.03,.11,.08,-.2,0,s*.15);P(L,'sph',Y,s*.088,.92,.02,.028,.04,.06,-.2,0,s*.15);P(L,'box',0x6a6a70,s*.035,.72,-.02,.015,.02,.06)}
+    for(let k=0;k<3;k++)P(L,'box',k===1?B:Rd,(k-1)*.025,.7,.17,.025,.012,.2,.9,0,0)},
+  // 17 Bowler Hat: a round brown crown with a curled brim, for detectives and bankers
+  L=>{const C=0x7a5e46,Cd=0x5e4634,K=0x3a2c22;P(L,'sph',C,0,.62,0,.265,.24,.265);P(L,'cyl',C,0,.565,0,.34,.016,.34);
+    P(L,'tor',Cd,0,.575,0,.335,.335,.3,Math.PI/2);P(L,'band',K,0,.6,0,.248,.05,.248)}
 ];
+// a flat five-point star facing out of a tilted panel (the ball cap's badge)
+function poly3(L,c,x,y,z,R,tilt){const Q=[];for(let i=0;i<5;i++){const a=i/5*Math.PI*2;P(Q,'cone',c,Math.sin(a)*R*.5,Math.cos(a)*R*.5,0,R*.32,R,.01,Math.PI/2*0,0,-a)}
+  const M=new THREE.Matrix4().compose(new V3(x,y,z),new THREE.Quaternion().setFromEuler(new THREE.Euler(tilt,0,0)),new V3(1,1,1));for(const q of Q){q.m.premultiply(M);L.push(q)}}
 // The rotten egg's stink lines (merged like a hat) and its flies (one small mesh that circles: the egg's only extra draw call)
 function stinkParts(L){const c=[0x8fa05a,0x9db06a,0x7d8d48];
   for(let i=0;i<3;i++){const x=(i-1)*.16,z=.08+(i===1?.04:0);for(let k=0;k<9;k++){const y=.72+k*.04,dx=Math.sin(k*.9+i)*.035;P(L,'box',c[i],x+dx,y,z,.022,.045,.018,0,0,Math.cos(k*.9+i)*.6)}}}
@@ -276,8 +455,8 @@ function flies(){if(fliesGeo)return fliesGeo;const L=[];
     for(const s of [-1,1])P(L,'sph',0xe8f0f6,x+s*.026,y+.022,z,.03,.008,.018,0,a,s*.5)}
   return fliesGeo=X.mergeParts(L)}
 const faceCache=new Map();
-function faceGeo(hat,rot){const key=hat+':'+rot;if(faceCache.has(key))return faceCache.get(key);
-  const L=[{g:X.faceGeos.ink,c:0x2b1a10,m:new THREE.Matrix4()}];if(hat)HATS[hat](L);if(rot)stinkParts(L);
+function faceGeo(hat,egg){const key=hat+':'+egg;if(faceCache.has(key))return faceCache.get(key);
+  const L=[{g:X.faceGeos.ink,c:0x2b1a10,m:new THREE.Matrix4()}];if(hat)HATS[hat](L);if(egg===7)stinkParts(L);else if(egg&&EGGS[egg].parts)EGGS[egg].parts(L);
   const geo=X.mergeParts(L);faceCache.set(key,geo);return geo}
 
 // =====================================================================
@@ -292,8 +471,8 @@ function dress(m,k,anyMode){
   else if(kind==='shiny'){m.mat.specular.setHex(E.spec);m.mat.shininess=E.shin}
   m.emi=E&&E.emi?new THREE.Color(E.emi):null;if(!m.emi)m.mat.emissive.setRGB(0,0,0);
   m.stage=-1;   // index.html's updateModel puts the right picture on at the next frame
-  const hat=k?k.hat:0,rot=egg===7,ink=m.face.children[1];
-  if(hat||rot){ink.geometry=faceGeo(hat,rot?1:0);ink.material=X.gunMat}else{ink.geometry=X.faceGeos.ink;ink.material=X.inkMat}
+  const hat=k?k.hat:0,rot=egg===7,ep=rot||!!(E&&E.parts),ink=m.face.children[1];
+  if(hat||ep){ink.geometry=faceGeo(hat,ep?egg:0);ink.material=X.gunMat}else{ink.geometry=X.faceGeos.ink;ink.material=X.inkMat}
   if(m.fest)m.fest.geometry=X.turkeyKit(!!hat);   // Turkey Week: a Locker hat in place of the pilgrim hat
   if(rot&&!m.flies){m.flies=new THREE.Mesh(flies(),X.gunMat);m.body.add(m.flies)}else if(!rot&&m.flies){m.body.remove(m.flies);m.flies=null}
   const skin=k?k.gun:0;if((m.gunSkin|0)!==skin){m.gunSkin=skin;m.gunKey=null}   // updateModel builds the gun again
@@ -701,7 +880,7 @@ if(navigator.webdriver)window.__kit={parse,wireOf,wear,get mine(){return Object.
   // one picture of every item in a slot: eggs and hats front and back, gun skins on the given gun from both sides,
   // crack effects at three moments of the real effect
   sheet(slot,opt){opt=opt||{};const n=N[slot],cell=opt.cell||220,cols=slot==='crack'?3:opt.cols||(slot==='gun'?4:8),p=pvInit();
-    const shots=[];for(let i=0;i<=n;i++){
+    const shots=[];for(let i=0;i<=n;i++){if(opt.from&&i&&i<opt.from)continue;   // opt.from: only the items from that number on (and the plain one)
       if(slot==='egg'||slot==='hat'){for(const yaw of [.5,Math.PI+.4]){const k=parse('');k[slot]=i;pvSet(k);pvShot(slot,yaw);shots.push([pvRender(cell,cell),(i?items(slot)[i-1].name:'Plain')+(yaw>1?' (back)':'')])}}
       else if(slot==='gun'){const key=opt.key||'beater';for(const side of [1,-1]){const k=parse('');pvSet(k);p.gun.clear();p.gun.add(X.buildGun(key,false,i));p.cam.aspect=1.4;pvShot('gun');if(side<0){const c=p.cam,b=new THREE.Box3().setFromObject(p.gun).getCenter(new V3());c.position.x=2*b.x-c.position.x;c.position.z=b.z-(c.position.z-b.z);c.lookAt(b)}
         shots.push([pvRender(cell*1.4|0,cell),(i?items('gun')[i-1].name:'Plain')+(side<0?' (left)':'')]);p.gun.clear()}}

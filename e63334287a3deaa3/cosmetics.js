@@ -740,6 +740,32 @@
   I('shell-crackers', 'crack', 3, 'Chick Hatches', 'epic', '#FFD84A', '#F4A41C', 'A chick hops out and runs off.');
   I('shell-crackers', 'crack', 4, 'Shell Confetti', 'rare', '#FF5C8A', '#58B4FF', 'The shell bursts into bright confetti.');
   I('shell-crackers', 'crack', 5, 'Stink Puff', 'common', '#A3B85E', '#5A6B2A', 'A green whiff and two very happy flies.');
+  // Wave 2 (19 Nov): sports balls and kits, pirates, suits and robots. Same egg, same size, same hit box.
+  I('shell-crackers', 'egg', 20, 'Soccer Ball Egg', 'common', '#FFFFFF', '#3C3C46', 'Black and white panels, ready for kick-off.');
+  I('shell-crackers', 'egg', 21, 'Basketball Egg', 'common', '#F29A4E', '#3A2216', 'Pebbly orange with dark seams. Nothing but net.');
+  I('shell-crackers', 'egg', 22, 'Baseball Egg', 'common', '#FFFDF6', '#D8343A', 'White leather and red stitches.');
+  I('shell-crackers', 'egg', 23, 'Football Egg', 'uncommon', '#B5703F', '#FFF8EC', 'Already the right shape. Laces at the back.');
+  I('shell-crackers', 'egg', 24, 'Tennis Ball Egg', 'common', '#E2F25A', '#FBFFF0', 'Fuzzy, bright and a little bouncy.');
+  I('shell-crackers', 'egg', 25, 'Eight Ball Egg', 'rare', '#686876', '#FBFBF6', 'Glossy, with the eight right on the forehead.');
+  I('shell-crackers', 'egg', 26, 'Hockey Mask Egg', 'rare', '#FFFFFF', '#D8343A', 'A white goalie mask with stripes over the top.');
+  I('shell-crackers', 'egg', 27, 'Referee Egg', 'uncommon', '#FBFBFB', '#3A3A42', 'Striped shirt, whistle on a cord. Fair calls only.');
+  I('shell-crackers', 'egg', 28, 'Golf Ball Egg', 'common', '#FFFFFF', '#AAB2C0', 'Rows and rows of dimples.');
+  I('shell-crackers', 'egg', 29, 'Pirate Egg', 'epic', '#D8343A', '#2E2E34', 'A spotted bandana, a gold earring and an eye patch.');
+  I('shell-crackers', 'egg', 30, 'Pinstripe Suit Egg', 'rare', '#5E647C', '#C8323A', 'A sharp pinstripe jacket, a red tie and a pocket square.');
+  I('shell-crackers', 'egg', 31, 'Tuxedo Egg', 'epic', '#5C5C68', '#FFFFFF', 'Dressed for the gala, bow tie and all.');
+  I('shell-crackers', 'egg', 32, 'Tin Robot Egg', 'epic', '#D6DBE2', '#E2503F', 'Rivets, blinking lights and a wind-up key on the back.');
+  I('shell-crackers', 'egg', 33, 'Android Egg', 'legendary', '#FFFFFF', '#3EC8E8', 'Glossy white panels with thin glowing seams.');
+  I('shell-crackers', 'egg', 34, 'Junkyard Bot Egg', 'uncommon', '#B4B0A8', '#B07A4C', 'Patched together from whatever was lying around.');
+  I('shell-crackers', 'hat', 8, 'Fedora', 'uncommon', '#7C8192', '#2E2E36', 'Grey felt with a dark band. Very old-movie.');
+  I('shell-crackers', 'hat', 9, 'Pirate Tricorn', 'rare', '#3E302A', '#E8B830', 'Three turned-up sides, gold trim and a red plume.');
+  I('shell-crackers', 'hat', 10, 'Sweatband', 'common', '#3A7FE0', '#FBFBF6', 'Blue towelling band with white stripes, for the final set.');
+  I('shell-crackers', 'hat', 11, 'Football Helmet', 'epic', '#2F6FD8', '#FFFFFF', 'Glossy blue with a stripe and a face guard under the chin.');
+  I('shell-crackers', 'hat', 12, 'Top Hat', 'uncommon', '#3C3C46', '#A8222E', 'Tall and smart, with a deep red band.');
+  I('shell-crackers', 'hat', 13, 'Referee Cap', 'common', '#FBFBFB', '#34343C', 'Black and white panels. The whistle is extra.');
+  I('shell-crackers', 'hat', 14, 'Ball Cap', 'common', '#D8343A', '#FFD04A', 'Team red with a gold star on the front.');
+  I('shell-crackers', 'hat', 15, 'Robot Antenna', 'rare', '#C9CED6', '#FF4A3A', 'A metal cap, a springy aerial and bolts for ears.');
+  I('shell-crackers', 'hat', 16, 'Parrot', 'legendary', '#E2343A', '#2F7AD8', 'A loud friend who sits on your head and watches.');
+  I('shell-crackers', 'hat', 17, 'Bowler Hat', 'common', '#7A5E46', '#3A2C22', 'Round and brown, for detectives and bankers.');
   // ---- Asteroid Run items ----
   // Asteroid Run: aliens to run as (a new picture on the runner's own plane, same size and hit area), run trails and
   // tunnel colours, drawn by asteroid-run/wardrobe.js by slot and number. In no pack: captains wear them free in the
