@@ -3,7 +3,7 @@
 if (window.BackRoomLang) BackRoomLang.add({
   // page and HUD
   'Flipline game view': 'Vista del juego Flipline', 'Distance': 'Distancia', 'Score': 'Puntos', 'Time': 'Tiempo', 'Flips': 'Giros', 'Pause': 'Pausa',
-  'combo': 'combo', 'Best': 'Récord', 'Hold {k} to ride': 'Mantén {k} para avanzar', 'Touch and hold to ride': 'Toca y mantén para avanzar',
+  'combo': 'combo', 'Best': 'Récord', 'best': 'récord', 'Hold {k} to ride': 'Mantén {k} para avanzar', 'Touch and hold to ride': 'Toca y mantén para avanzar',
   'Replay: slow motion': 'Repetición: cámara lenta',
   // tricks
   'Backflip!': '¡Mortal atrás!', 'Double flip!': '¡Doble giro!', 'Triple flip!': '¡Triple giro!', 'Quadruple flip!': '¡Cuádruple giro!', '{n}× flip!': '¡Giro ×{n}!',
@@ -65,8 +65,8 @@ if (window.BackRoomLang) BackRoomLang.add({
   // pause and results
   'Paused': 'En pausa', 'Resume': 'Seguir', 'Menu': 'Menú', 'Crashed!': '¡Choque!', 'Finished!': '¡Terminado!', 'Down the gap!': '¡Al vacío!', 'Ouch!': '¡Auch!', 'Stuck!': '¡Atascado!', 'Bad landing!': '¡Mal aterrizaje!',
   'Endless · best {d} m': 'Infinito · récord {d} m', 'Daily run · today’s best {d} m': 'Carrera del día · récord de hoy {d} m',
-  'New best time!': '¡Nuevo mejor tiempo!', 'New best!': '¡Nuevo récord!', 'Finish': 'Terminar', '{n} flips': '{n} giros', 'Under {t}': 'Menos de {t}',
+  'New best time!': '¡Nuevo mejor tiempo!', 'New best!': '¡Nuevo récord!', 'Finish': 'Terminar', '{n} flips': '{n} giros', '1 flip': '1 giro', 'Under {t}': 'Menos de {t}',
   '{n} new medals (+{c} coins)': '{n} medallas nuevas (+{c} monedas)', 'coins': 'monedas', 'Secret vehicle unlocked: {v}': 'Vehículo secreto desbloqueado: {v}',
   'Again': 'Otra vez', 'Next level': 'Nivel siguiente', 'Watch the crash': 'Ver el choque', 'Edit': 'Editar',
-  'Tap anywhere else to go again': 'Toca en cualquier otro lugar para volver a empezar', '{k} or {r} to go again': '{k} o {r} para volver a empezar'
+  'Tap to go again': 'Toca para volver a empezar', '{k} to go again': '{k} para volver a empezar', 'Tap anywhere else to go again': 'Toca en cualquier otro lugar para volver a empezar', '{k} or {r} to go again': '{k} o {r} para volver a empezar'
 });
