@@ -254,6 +254,13 @@
     chromaflage: { name: 'Chromaflage', prefix: 'cf', slots: [['hat', 'Seeker hats'], ['tool', 'Seeker tools'], ['splash', 'Catch splashes'], ['caught', 'Caught animations']] },
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
+    tidewick: { name: 'Tidewick', prefix: 'tw', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
+    'patchwork-tower': { name: 'Patchwork Tower', prefix: 'pt', slots: [['paint', 'Paint jobs'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Hop trails']] },
+    flickerwood: { name: 'Flickerwood', prefix: 'fw', slots: [['kit', 'Kits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
+    stackfall: { name: 'Stackfall', prefix: 'sf', slots: [['blocks', 'Block sets'], ['board', 'Boards'], ['clear', 'Clear effects']] },
+    'melon-merge': { name: 'Melon Merge', prefix: 'mm', slots: [['fruit', 'Fruit sets'], ['wall', 'Walls'], ['pop', 'Merge pops']] },
+    '2048': { name: '2048', prefix: 'tf', slots: [['tiles', 'Tile sets'], ['board', 'Boards']] },
+    gridpop: { name: 'Gridpop', prefix: 'gp', slots: [['blocks', 'Block sets'], ['board', 'Boards']] },
     showdown: { name: 'Showdown', prefix: 'sd', slots: [['seat', 'Seat looks'], ['back', 'Card backs'], ['felt', 'Felts'], ['win', 'Win flourishes']] },
     'puffer-party': { name: 'Puffer Party', prefix: 'pp', slots: [['hat', 'Puffer hats'], ['trail', 'Answer trails'], ['pop', 'Pops'], ['win', 'Victory effects']] },
     lanternhold: { name: 'Lanternhold', prefix: 'lh', slots: [['banner', 'Tower banners'], ['lantern', 'Lanterns'], ['flame', 'Flame colours'], ['burst', 'Build bursts']] },
@@ -1205,6 +1212,163 @@
   I('drop-zone', 'victory', 2, 'Flex', 'uncommon', '#E8742A', '#FFFFFF', 'Show those arms.');
   I('drop-zone', 'victory', 3, 'Take a Bow', 'rare', '#8A5A2B', '#F2EFE8', 'A deep, slow bow to the crowd.');
   I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
+  // ---- Tidewick items ----
+  // Tidewick: outfits, hats, face pieces and trails for Pip, drawn in pixels by tidewick/wardrobe.js by slot and number.
+  // In no pack: captains wear them free in the game's Wardrobe. Outfits repaint only Pip's ordinary form (power-ups keep
+  // their colours) and every outfit stands out from the night sky at least as much as wardrobe.js's MIN_CR says.
+  I('tidewick', 'outfit', 1, 'Striker Kit', 'common', '#2FB65A', '#FFFFFF', 'A green shirt, white shorts and socks pulled up high.');
+  I('tidewick', 'outfit', 2, 'Hoops Jersey', 'common', '#FF8A2A', '#7A4FE0', 'A sleeveless orange jersey with purple trim.');
+  I('tidewick', 'outfit', 3, 'Gridiron Gear', 'uncommon', '#E8453C', '#D9DEE6', 'A red jersey with shoulder stripes and a silver helmet.');
+  I('tidewick', 'outfit', 4, 'Ballpark Pinstripes', 'uncommon', '#F4F1E8', '#3A6AD0', 'Cream with thin blue pinstripes and a blue belt.');
+  I('tidewick', 'outfit', 5, 'Rink Sweater', 'common', '#3A7BE0', '#FFFFFF', 'A thick blue sweater with a white band.');
+  I('tidewick', 'outfit', 6, 'Track Star', 'common', '#38C8E8', '#FFFFFF', 'A sky-blue tracksuit with a stripe down each side.');
+  I('tidewick', 'outfit', 7, 'Referee', 'uncommon', '#F4F6F8', '#2A2C3A', 'Black and white stripes. Fair calls only.');
+  I('tidewick', 'outfit', 8, 'Racing Suit', 'rare', '#F4F6F8', '#E8453C', 'A fireproof suit in white and red, and a red helmet.');
+  I('tidewick', 'outfit', 9, 'Tin Robot', 'rare', '#C8D2DC', '#FF5A5A', 'Riveted tin plates and a face of polished steel.');
+  I('tidewick', 'outfit', 10, 'Pirate Captain', 'legendary', '#D9363E', '#FFD23F', 'A long red coat with gold buttons and gold trim.');
+  I('tidewick', 'outfit', 11, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A striped shirt and rolled-up sailcloth trousers.');
+  I('tidewick', 'outfit', 12, 'Pinstripe Suit', 'rare', '#B8BCC8', '#E8453C', 'A grey pinstripe suit and a red tie, sharp as a tack.');
+  I('tidewick', 'outfit', 13, 'Gold Chain Tracksuit', 'legendary', '#9A6AF0', '#FFD23F', 'A shiny tracksuit, white stripes and a heavy gold chain.');
+  I('tidewick', 'outfit', 14, 'White Tuxedo', 'epic', '#F8F4E8', '#1A1C2A', 'A white dinner jacket, a black bow tie and a red flower.');
+  I('tidewick', 'outfit', 15, 'Astronaut', 'uncommon', '#F4F6F8', '#FF8A2A', 'A puffy white space suit with orange patches.');
+  I('tidewick', 'outfit', 16, 'Starry Wizard Robe', 'epic', '#A57CFF', '#FFE45C', 'A long violet robe scattered with little gold stars.');
+  I('tidewick', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap with the peak out front.');
+  I('tidewick', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E8453C', 'A white band to keep the rain and the sweat out of your eyes.');
+  I('tidewick', 'hat', 3, 'Robot Antenna', 'uncommon', '#C8D2DC', '#FF5A5A', 'A little aerial with a blinking red tip.');
+  I('tidewick', 'hat', 4, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered captain\'s hat with a gold edge.');
+  I('tidewick', 'hat', 5, 'Pirate Bandana', 'uncommon', '#E8453C', '#FFFFFF', 'A spotted red bandana knotted at the back.');
+  I('tidewick', 'hat', 6, 'Fedora', 'rare', '#8A7A6A', '#2A1D3A', 'A pinched felt hat with a dark band, worn low.');
+  I('tidewick', 'hat', 7, 'Top Hat', 'epic', '#3A3A4C', '#E8453C', 'A tall silk hat with a red band.');
+  I('tidewick', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#F8D8A8', 'One eye on the sea, one patch on the other.');
+  I('tidewick', 'face', 2, 'Shades', 'common', '#1A1C2A', '#3A8AE0', 'Dark glasses, even at night. Especially at night.');
+  I('tidewick', 'face', 3, 'Big Moustache', 'common', '#6A4028', '#F8D8A8', 'A bushy moustache with curled ends.');
+  I('tidewick', 'trail', 1, 'Sparkles', 'common', '#FFFFFF', '#FFE680', 'Little twinkles left on the quay behind you.');
+  I('tidewick', 'trail', 2, 'Bubbles', 'common', '#CFE8F0', '#5AA0C8', 'Tiny bubbles that float up into the rain.');
+  I('tidewick', 'trail', 3, 'Confetti', 'uncommon', '#FF5A8A', '#FFD23F', 'Bits of coloured paper that flutter down.');
+  I('tidewick', 'trail', 4, 'Music Notes', 'rare', '#FFE680', '#CFE8F0', 'A little tune follows you along the harbour.');
+  // ---- Patchwork Tower items ----
+  // Patchwork Tower: paint jobs, hats, face pieces and hop trails for Rivet, drawn by patchwork-tower/wardrobe.js by slot and
+  // number in the bot's own rectangles. In no pack: captains wear them free in the game's Wardrobe. Cocoa still turns Rivet
+  // gold, and every paint stands out from the brick wall at least as much as wardrobe.js's MIN_CR says.
+  I('patchwork-tower', 'paint', 1, 'Striker Kit', 'common', '#5FE07A', '#FFFFFF', 'A green shirt with a number 9 and white shorts.');
+  I('patchwork-tower', 'paint', 2, 'Hoops Jersey', 'common', '#7FD0FF', '#2F4FA0', 'A sky-blue jersey, number 11, navy trim.');
+  I('patchwork-tower', 'paint', 3, 'Gridiron Gear', 'uncommon', '#F4F6F8', '#FFD23F', 'A white jersey and a gold helmet with a face guard.');
+  I('patchwork-tower', 'paint', 4, 'Hockey Sweater', 'common', '#F4F6F8', '#2FB65A', 'A white sweater with green shoulders and a green band.');
+  I('patchwork-tower', 'paint', 5, 'Referee', 'uncommon', '#F4F6F8', '#1A1C2A', 'Stripes, a whistle somewhere, and no favourites.');
+  I('patchwork-tower', 'paint', 6, 'Racing Driver', 'rare', '#F4F6F8', '#E8453C', 'A white race suit, a striped helmet and a blue visor.');
+  I('patchwork-tower', 'paint', 7, 'Ballpark Pinstripes', 'uncommon', '#F4F1E8', '#3A6AD0', 'Cream with blue pinstripes, ready for the ninth inning.');
+  I('patchwork-tower', 'paint', 8, 'Retro Tin Bot', 'rare', '#D9E0EA', '#FFD35A', 'Riveted tin, a dial on the chest and two round yellow eyes.');
+  I('patchwork-tower', 'paint', 9, 'Chrome Bot', 'legendary', '#E8F0FF', '#7FF0FF', 'Polished till it shines, with a cool blue glow.');
+  I('patchwork-tower', 'paint', 10, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A red and white striped sailor shirt.');
+  I('patchwork-tower', 'paint', 11, 'Pirate Captain', 'legendary', '#D9363E', '#FFD23F', 'A red captain\'s coat with gold buttons over a cream shirt.');
+  I('patchwork-tower', 'paint', 12, 'Pinstripe Suit', 'rare', '#C8CCD6', '#E8453C', 'A grey pinstripe suit, a white collar and a red tie.');
+  I('patchwork-tower', 'paint', 13, 'Gold Chain Tracksuit', 'epic', '#7FF0C8', '#FFD23F', 'A mint tracksuit and a chunky gold chain.');
+  I('patchwork-tower', 'paint', 14, 'Secret Agent', 'epic', '#F4F6F8', '#2A2C3A', 'A dark suit, a thin tie, black glasses and an earpiece.');
+  I('patchwork-tower', 'paint', 15, 'Astronaut', 'uncommon', '#F4F6F8', '#FFC83A', 'A white suit, a gold visor and a control box with three lights.');
+  I('patchwork-tower', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap with the peak out front.');
+  I('patchwork-tower', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E8453C', 'Hard work makes even robots sweat.');
+  I('patchwork-tower', 'hat', 3, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered hat with a gold edge.');
+  I('patchwork-tower', 'hat', 4, 'Pirate Bandana', 'uncommon', '#E8453C', '#FFFFFF', 'A spotted red bandana knotted at the back.');
+  I('patchwork-tower', 'hat', 5, 'Fedora', 'rare', '#8A7A6A', '#2A1D3A', 'A felt hat with a dark band, worn low.');
+  I('patchwork-tower', 'hat', 6, 'Top Hat', 'epic', '#3A3A4C', '#E8453C', 'A tall silk hat with a red band.');
+  I('patchwork-tower', 'hat', 7, 'Wizard Hat', 'rare', '#4A6AE8', '#FFE45C', 'A floppy blue cone with little stars.');
+  I('patchwork-tower', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#FFFFFF', 'A patch over one eye. Rivet still sees every crack.');
+  I('patchwork-tower', 'face', 2, 'Shades', 'common', '#05070F', '#FFFFFF', 'Dark glasses for the night shift.');
+  I('patchwork-tower', 'face', 3, 'Big Moustache', 'common', '#6A4028', '#9FF2E6', 'A bushy moustache bolted on under the visor.');
+  I('patchwork-tower', 'trail', 1, 'Confetti', 'common', '#FF5A8A', '#FFD23F', 'Every hop is a little party.');
+  I('patchwork-tower', 'trail', 2, 'Loose Bolts', 'common', '#C9D0E8', '#9AA3D6', 'Nuts and bolts rattle off with every hop.');
+  I('patchwork-tower', 'trail', 3, 'Music Notes', 'uncommon', '#FFF6C9', '#9FF2E6', 'Rivet hums a tune while it works.');
+  I('patchwork-tower', 'trail', 4, 'Rainbow', 'epic', '#FF5C5C', '#5CC8FF', 'A short rainbow streak behind every hop.');
+  // ---- Flickerwood items ----
+  // Flickerwood: kits, hats, face pieces and trails for Glim, drawn by flickerwood/wardrobe.js by slot and number on Glim's own
+  // 16 x 16 pixels, seen from above. In no pack: captains wear them free in the game's Wardrobe. No kit recolours the glowing
+  // tail or the halo, and no trail is a small yellow dot that could pass for pollen.
+  I('flickerwood', 'kit', 1, 'Striker Kit', 'common', '#5CC8FF', '#FFFFFF', 'Sky blue and white, with a navy head.');
+  I('flickerwood', 'kit', 2, 'Hoops Jersey', 'common', '#FF8A2A', '#1A1C2A', 'Orange with dark seams, like a ball on wings.');
+  I('flickerwood', 'kit', 3, 'Racing Suit', 'uncommon', '#F4F6F8', '#E8453C', 'White with a red stripe and a red helmet.');
+  I('flickerwood', 'kit', 4, 'Referee', 'uncommon', '#F4F6F8', '#1A1C2A', 'Black and white stripes. The critters are offside.');
+  I('flickerwood', 'kit', 5, 'Hockey Sweater', 'common', '#3A7BE0', '#FFFFFF', 'Blue with a white band and a white helmet.');
+  I('flickerwood', 'kit', 6, 'Tin Firefly', 'rare', '#C8D2DC', '#FF5A5A', 'A wind-up firefly with tin wings and red eyes.');
+  I('flickerwood', 'kit', 7, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A striped sailor shirt and sailcloth wings.');
+  I('flickerwood', 'kit', 8, 'Pinstripe Suit', 'rare', '#B8BCC8', '#E8453C', 'A grey suit with a red tie, out for a night in the glade.');
+  I('flickerwood', 'kit', 9, 'Gold Chain Tracksuit', 'epic', '#2FD6B0', '#FFD23F', 'A teal tracksuit with gold at the collar.');
+  I('flickerwood', 'kit', 10, 'Tuxedo', 'epic', '#2A2A38', '#FFFFFF', 'Black tie, white shirt front, pale wings.');
+  I('flickerwood', 'kit', 11, 'Bumblebee', 'uncommon', '#FFD23F', '#1A1C2A', 'Yellow and black stripes. Still not a bee.');
+  I('flickerwood', 'kit', 12, 'Golden Firefly', 'legendary', '#FFC83A', '#FFF8DC', 'Gold from head to wingtip.');
+  I('flickerwood', 'kit', 13, 'Rainbow Wings', 'epic', '#FF5C5C', '#5CC8FF', 'Every colour on every wing.');
+  I('flickerwood', 'kit', 14, 'Astronaut', 'rare', '#F4F6F8', '#FF8A2A', 'A white suit with an orange pack and a blue visor.');
+  I('flickerwood', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap, peak to the front.');
+  I('flickerwood', 'hat', 2, 'Racing Helmet', 'uncommon', '#F4F6F8', '#E8453C', 'White with a red stripe and a blue visor.');
+  I('flickerwood', 'hat', 3, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered hat trimmed with gold.');
+  I('flickerwood', 'hat', 4, 'Pirate Bandana', 'common', '#E8453C', '#FFFFFF', 'A spotted red bandana with the ends flying.');
+  I('flickerwood', 'hat', 5, 'Top Hat', 'rare', '#3A3A4C', '#E8453C', 'A tall black hat with a red band, seen from above.');
+  I('flickerwood', 'hat', 6, 'Fedora', 'uncommon', '#8A7A6A', '#2A1D3A', 'A wide felt hat with a dark band.');
+  I('flickerwood', 'hat', 7, 'Crown', 'legendary', '#FFD23F', '#E8453C', 'A small gold crown for the queen of the glade.');
+  I('flickerwood', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#FFFFFF', 'A patch over one eye, strapped across the head.');
+  I('flickerwood', 'face', 2, 'Shades', 'common', '#1A1C2A', '#5AA0E8', 'Dark glasses. The moon is very bright tonight.');
+  I('flickerwood', 'trail', 1, 'Hearts', 'common', '#FF6FA8', '#FFC2DD', 'Little pink hearts where you have just been.');
+  I('flickerwood', 'trail', 2, 'Confetti', 'common', '#FF4FA3', '#38C8E8', 'Bright bits of paper, never yellow.');
+  I('flickerwood', 'trail', 3, 'Music Notes', 'uncommon', '#9FD0FF', '#FFFFFF', 'Glim hums along the hedges.');
+  I('flickerwood', 'trail', 4, 'Bubbles', 'rare', '#BFE6FF', '#7FA8DC', 'Tiny bubbles that pop behind you.');
+  I('flickerwood', 'trail', 5, 'Comet Tail', 'epic', '#FFFFFF', '#7FA8DC', 'A thin white streak that fades to blue.');
+  // ---- Stackfall items ----
+  // Stackfall: block sets, boards and clear effects, drawn by stackfall/styles.js by slot and number. In no pack: captains
+  // pick them free in the game's Styles. Every block set keeps each piece's own colour (only the art on the face changes),
+  // and every board keeps the inside of the well as dark as the game's own.
+  I('stackfall', 'blocks', 1, 'Sports Balls', 'uncommon', '#FF8A2A', '#FFFFFF', 'A different ball on every piece: football, basketball, baseball and more.');
+  I('stackfall', 'blocks', 2, 'Circuit Board', 'uncommon', '#3EE0C6', '#C8D2E0', 'Traces, pads and four rivets on every block.');
+  I('stackfall', 'blocks', 3, 'Treasure Chest', 'rare', '#B07A40', '#D6A83A', 'Planks and brass corners, like a pirate\'s chest.');
+  I('stackfall', 'blocks', 4, 'Pinstripe and Gold', 'epic', '#2A2A38', '#F0C85A', 'Fine pinstripes and a thin gold edge.');
+  I('stackfall', 'blocks', 5, '8-Bit', 'common', '#6278FF', '#FFC840', 'Flat blocks with a stepped bevel, like an old console.');
+  I('stackfall', 'blocks', 6, 'Gem Cut', 'rare', '#E064D8', '#FFFFFF', 'Every block cut like a jewel.');
+  I('stackfall', 'blocks', 7, 'Jelly Candy', 'common', '#FF625E', '#FFFFFF', 'Round, glossy and probably sticky.');
+  I('stackfall', 'board', 1, 'Stadium Night', 'common', '#EEF3FA', '#0A1C12', 'A floodlit frame and a dark pitch.');
+  I('stackfall', 'board', 2, 'Pirate Deck', 'uncommon', '#B07A40', '#0A1830', 'A wooden frame on a dark sea, with anchors.');
+  I('stackfall', 'board', 3, 'Robot Lab', 'uncommon', '#C8D2E0', '#0C1418', 'A riveted steel frame and gears in the dark.');
+  I('stackfall', 'board', 4, 'Gold Pinstripe', 'legendary', '#FFE08A', '#15131C', 'A gold frame on a pinstripe suit.');
+  I('stackfall', 'board', 5, 'Outer Space', 'epic', '#C8B8FF', '#0A0820', 'Stars and ringed planets around the well.');
+  I('stackfall', 'clear', 1, 'Confetti', 'common', '#FF4FA3', '#FFD23F', 'Every cleared row is a party.');
+  I('stackfall', 'clear', 2, 'Gold Coins', 'rare', '#E0A420', '#FFE27A', 'Cleared rows pay out in spinning coins.');
+  I('stackfall', 'clear', 3, 'Star Sparkles', 'common', '#FFFFFF', '#FFD84A', 'Little four-point stars that twinkle out.');
+  // ---- Melon Merge items ----
+  // Melon Merge: fruit sets, walls and merge pops, drawn by melon-merge/styles.js by slot and number. In no pack: captains pick
+  // them free in the game's Styles. Every fruit set keeps each stage's own colours and size, and every wall is as dark as the
+  // game's own, since it shows through the jar.
+  I('melon-merge', 'fruit', 1, 'Sports Balls', 'uncommon', '#FF9A1F', '#FFFFFF', 'From a ping-pong ball up to a beach ball, with a numbered pool ball on the way.');
+  I('melon-merge', 'fruit', 2, 'Robot Bolts', 'uncommon', '#BBE46E', '#C8D2E0', 'Every stage riveted, seamed and fitted with an aerial.');
+  I('melon-merge', 'fruit', 3, 'Treasure Gems', 'rare', '#8A55DC', '#E8B84A', 'Cut like jewels and set in gold.');
+  I('melon-merge', 'fruit', 4, 'Dapper', 'epic', '#2A2A38', '#E8453C', 'Pinstripes, a bow tie, and a hat once they grow up.');
+  I('melon-merge', 'fruit', 5, 'Planets', 'rare', '#31A040', '#FFFFFF', 'Little moons with craters up to a ringed giant.');
+  I('melon-merge', 'wall', 1, 'Stadium', 'common', '#13283A', '#78FFA0', 'A night pitch with mown stripes behind the jar.');
+  I('melon-merge', 'wall', 2, 'Pirate Cabin', 'uncommon', '#2E1E14', '#FFDCAA', 'Dark planks and brass nails below deck.');
+  I('melon-merge', 'wall', 3, 'Robot Workshop', 'common', '#0E2238', '#8CC8FF', 'A blueprint grid on the workshop wall.');
+  I('melon-merge', 'wall', 4, 'Gold Pinstripe', 'legendary', '#1E1A24', '#F0C85A', 'Charcoal with fine gold pinstripes.');
+  I('melon-merge', 'pop', 1, 'Confetti Pop', 'common', '#FF5A6E', '#FFD166', 'Every merge throws a handful of confetti.');
+  I('melon-merge', 'pop', 2, 'Star Shower', 'rare', '#FFD166', '#FFF6D8', 'Gold stars burst out of every merge.');
+  I('melon-merge', 'pop', 3, 'Bubble Rings', 'common', '#CFEAFF', '#FFFFFF', 'Soap rings drift up from every merge.');
+  // ---- 2048 items ----
+  // 2048: tile sets and boards, drawn by 2048/styles.js by slot and number. In no pack: captains pick them free in the game's
+  // Styles. Tile art stays out of the middle where the number sits; boards keep the walnut tray's brightness step for step.
+  I('2048', 'tiles', 1, 'Baseball Stitches', 'common', '#FDF7EA', '#D9363E', 'A row of stitches down each side of every tile.');
+  I('2048', 'tiles', 2, 'Circuit Rivets', 'uncommon', '#2F86D6', '#C8D2E0', 'Rivets in the corners and traces along the edges.');
+  I('2048', 'tiles', 3, 'Treasure Corners', 'rare', '#F5B921', '#D6A83A', 'Brass corner pieces, like a pirate\'s chest.');
+  I('2048', 'tiles', 4, 'Pinstripe', 'epic', '#4A5FD9', '#E8B84A', 'Faint pinstripes and a thin gold edge.');
+  I('2048', 'board', 1, 'Stadium Turf', 'common', '#94A47F', '#FFFFFF', 'A green tray with mown stripes.');
+  I('2048', 'board', 2, 'Pirate Deck', 'uncommon', '#B89A74', '#7F6650', 'Deck planks with dark seams.');
+  I('2048', 'board', 3, 'Robot Steel', 'rare', '#9CA0A8', '#6A6E78', 'Brushed steel with a row of rivets top and bottom.');
+  I('2048', 'board', 4, 'Velvet and Gold', 'legendary', '#B49AA8', '#E8B84A', 'Plum velvet with a gold rim.');
+  // ---- Gridpop items ----
+  // Gridpop: block sets and boards, drawn by gridpop/styles.js by slot and number. In no pack: captains pick them free in the
+  // game's Styles. Every block keeps its own colour (only white or black art and the same brass on every colour is added),
+  // and every board keeps its wells as dark as the game's own.
+  I('gridpop', 'blocks', 1, 'Sports Balls', 'uncommon', '#FE0047', '#FFFFFF', 'A different ball for every colour.');
+  I('gridpop', 'blocks', 2, 'Circuit Rivets', 'common', '#62BFFF', '#C8D2E0', 'A trace, two pads and four rivets on every block.');
+  I('gridpop', 'blocks', 3, 'Treasure Corners', 'rare', '#F48D00', '#D6A83A', 'Brass corners and a plank seam, like a pirate\'s chest.');
+  I('gridpop', 'blocks', 4, 'Pinstripe', 'epic', '#4E56FF', '#F0C85A', 'Fine pinstripes and a thin gold square.');
+  I('gridpop', 'board', 1, 'Stadium Night', 'common', '#EEF3FA', '#0C1C12', 'A floodlit white frame round a dark pitch.');
+  I('gridpop', 'board', 2, 'Pirate Deck', 'uncommon', '#C89058', '#0C1624', 'A wooden frame over dark water.');
+  I('gridpop', 'board', 3, 'Robot Steel', 'rare', '#D0D8E4', '#0E141C', 'A brushed steel frame.');
+  I('gridpop', 'board', 4, 'Gold Pinstripe', 'legendary', '#FFE08A', '#121018', 'A gold frame round a charcoal board.');
   // ---- Showdown items ----
   // Showdown (showdown/wardrobe.js draws them by slot and number): seat looks (a portrait in your seat's circle, on your own
   // colour), card backs (your face-down cards as the table sees them), felts (your own screen only) and win flourishes.
