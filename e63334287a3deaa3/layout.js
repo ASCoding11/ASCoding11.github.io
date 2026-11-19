@@ -201,7 +201,7 @@
     '@media (prefers-reduced-motion:reduce){.lay-tl{transition:none}.lay-tl:active{transform:none}}' +
     '@media (prefers-reduced-motion:reduce){.lay-it.lay-moved{animation:none}}' +
     // while editing, the blocks themselves are hidden (the editor shows them as bars)
-    'html.lay-editing [data-lay],html.lay-editing [data-lay-x]{display:none!important}' +
+    'html.lay-editing [data-lay],html.lay-editing [data-lay-x],html.lay-editing .gsearch{display:none!important}' +
     // a custom order on the Back Room page: the panels sit inside section.br-games with the game sections
     '.br-games.lay-on > #party,.br-games.lay-on > #online,.br-games.lay-on > #leaderboards{padding-top:0}' +
     '.br-games.lay-on > [data-lay] + [data-lay]{margin-top:44px}' +
@@ -210,6 +210,8 @@
     // the row of game types, when it sits under a panel in a custom order
     '.br-games.lay-on > [data-lay] + .gs-nav{margin-top:44px}' +
     '@media (max-width:560px){.br-games.lay-on > [data-lay] + .gs-nav{margin-top:34px}}' +
+    // ...and the game search box (gamesearch.js), which sits right above that row and moves with it
+    '.br-games.lay-on > [data-lay] + .gsearch{margin-top:28px}' +
     // a custom order on the phone page: the rows sit outside #lists, so their headings get #lists h3's look here
     'html.lay-m-on .wrap > h3[data-lay]{font-family:var(--f-m);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin:18px 0 10px}' +
     'html.lay-m-on .wrap > .grid + #party,html.lay-m-on .wrap > .grid + #online{margin-top:26px}' +
@@ -424,6 +426,11 @@
   // The row of game types (see the top of this file) and where it goes in a different order: `at` is called
   // with seq.length just before each games block is added, `online` when the Online panel is added.
   function typeNav() { return phone ? wrap.querySelector(':scope > .gnav') : games.querySelector(':scope > .gs-nav'); }
+  // The game search box (gamesearch.js) lives right above the row of game types. It goes wherever that row goes, as one
+  // piece with it: left out of the order, the box in front of the row made the block before it (the Online panel) look
+  // out of place, this file moved it, gamesearch.js moved its box back, and the two went round for ever, re-inserting
+  // the Online panel on every frame (which threw away every click in it).
+  function searchBox() { return doc.querySelector('.gsearch'); }
   function navSpot() {
     var first = -1, after = -1, seen = false;
     return {
@@ -461,7 +468,7 @@
       on = false; games.classList.remove('lay-on');
       var gs = DEFAULT.map(function (id) { return id !== 'daily' && b[id] && b[id][0].parentNode === games ? b[id][0] : null; }).filter(Boolean);
       genres().forEach(function (g) { if (gs.indexOf(g) < 0) gs.push(g); });
-      if (nav) gs.unshift(nav);
+      if (nav) { gs.unshift(nav); var sb0 = searchBox(); if (sb0) gs.unshift(sb0); }
       if (ask) gs.push(ask);
       arrange(games, gs, null);
       if (online) before(online, games);
@@ -479,7 +486,7 @@
       if (!PANEL[id]) last = seq.length - 1;
     });
     if (ask) seq.splice(last + 1, 0, ask);
-    if (nav && spot.pos() >= 0) seq.splice(spot.pos(), 0, nav);
+    if (nav && spot.pos() >= 0) { var sb = searchBox(); seq.splice(spot.pos(), 0, nav); if (sb) seq.splice(spot.pos(), 0, sb); }
     arrange(games, seq, null);
   }
 
@@ -521,7 +528,7 @@
       on = false; root.classList.remove('lay-m-on');
       if (bar) seq.unshift(bar);
       arrange(lists, seq, null);
-      if (nav) before(nav, lists);
+      if (nav) { before(nav, lists); var sbp0 = searchBox(); if (sbp0) before(sbp0, nav); }
       var anchor = byId('tip') || byId('cont') || lists;
       if (online) before(online, anchor);
       if (party) before(party, online || anchor);
@@ -529,7 +536,7 @@
       return;
     }
     on = true; root.classList.add('lay-m-on');
-    if (nav && spot.pos() >= 0) seq.splice(spot.pos(), 0, nav);
+    if (nav && spot.pos() >= 0) { var sbp = searchBox(); seq.splice(spot.pos(), 0, nav); if (sbp) seq.splice(spot.pos(), 0, sbp); }
     if (bar) seq.unshift(bar);
     if (ed) seq.unshift(ed);
     arrange(wrap, seq, lists);
