@@ -581,6 +581,78 @@ test('a renamed or removed item stays in the wallet (not silently dropped by the
   CATALOG.PUBLIC = false;
 });
 
+// ---------- Wearing what you don't own: the public owned list ----------
+async function ownedOf(uids, extra) {
+  const r = await owned.onRequestGet(Object.assign({ request: new Request('https://ascoding11.com/api/owned?uids=' + uids, { headers: { Origin: 'https://ascoding11.github.io' } }), env }, extra || {}));
+  return { status: r.status, data: await r.json(), headers: r.headers };
+}
+test('public owned list: wallet items, gifts and item-shop skus; captains own everything; nothing private; negative = nothing', async () => {
+  world(); CATALOG.PUBLIC = true;
+  seed(ALICE, { balance: 1000, owned: { [ITEM_RARE]: 1 } }); seed(BOB, {});
+  await call(gift, 'POST', 'wallet/gift', { as: ALICE, body: { what: 'item:' + ITEM_COMMON, to: BOB, note: 'secret note' } });
+  W.fs.docs.set('entitlements/' + BOB, { fields: encFields({ items: { boostball_flame: 5 } }), v: 1 });
+  const C = 'carolCCCCCCCCCCCCCCCCCCCCCC3';
+  const r = await ownedOf([BOB, ALICE, CAP, C].join(','));
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.data.players[ALICE], [ITEM_RARE]);
+  assert.deepEqual(r.data.players[BOB], ['boostball_flame', ITEM_COMMON].sort(), 'a gift counts, and so does an item-shop purchase');
+  assert.equal(r.data.players[CAP], '*'); assert.deepEqual(r.data.players[C], []);
+  assert.ok(r.data.give.length > 0 && r.data.give.every(id => CATALOG.ITEMS[id][3]));
+  const text = JSON.stringify(r.data);
+  assert.ok(!/secret note|balance|recent|notices|reqs|example\.invalid/.test(text), 'no balance, notes, history or email');
+  assert.equal(r.headers.get('Access-Control-Allow-Origin'), '*'); assert.match(r.headers.get('Cache-Control'), /max-age=60/);
+  assert.equal(W.fs.batchGets, 1, 'one Firestore call for the whole list (captains need none)');
+  // a wallet below zero shows nothing until topped up
+  seed(ALICE, { balance: -5, owned: { [ITEM_RARE]: 1 } });
+  assert.deepEqual((await ownedOf(ALICE)).data.players[ALICE], []);
+  // bad lists
+  assert.equal((await ownedOf(Array.from({ length: 25 }, (_, i) => 'user' + String(i).padStart(24, 'x')).join(','))).status, 400);
+  assert.equal((await ownedOf('../wallets/x')).status, 400);
+  assert.equal((await ownedOf('')).status, 400);
+  // the signed-in form is unchanged
+  assert.equal((await call(owned, 'GET', 'owned')).status, 401);
+  CATALOG.PUBLIC = false;
+});
+test('public owned list: edge-cached by the sorted list; a flood from one address is limited', async () => {
+  world(); seed(ALICE, { owned: { [ITEM_RARE]: 1 } });
+  const store = new Map(); let puts = 0;
+  globalThis.caches = { default: { match: async k => { const v = store.get(k.url); return v ? v.clone() : undefined; }, put: async (k, v) => { puts++; store.set(k.url, v); } } };
+  try {
+    const a = await ownedOf(ALICE + ',' + BOB), b = await ownedOf(BOB + ',' + ALICE);
+    assert.deepEqual(a.data, b.data); assert.equal(W.fs.batchGets, 1, 'the second order was answered from the cache'); assert.equal(puts, 1);
+    store.clear();
+    const st = [];
+    for (let i = 0; i < 62; i++) st.push((await ownedOf('', { request: new Request('https://ascoding11.com/api/owned?uids=flood' + String(i).padStart(10, '0'), { headers: { 'CF-Connecting-IP': '203.0.113.9' } }) })).status);
+    assert.equal(st.filter(s => s === 429).length, 2, 'cache misses (a new list each time) are limited per address');
+  } finally { delete globalThis.caches; resetLimits(); }
+});
+test('owned.js: check() is batched, cached, true/false/undefined, and fails to "default look" without throwing', async () => {
+  world(); seed(ALICE, { owned: { [ITEM_RARE]: 1 } });
+  const calls = []; let down = false;
+  const ctx = { location: { hostname: 'ascoding11.github.io' }, setTimeout, clearTimeout, Date, console,
+    fetch: async (u) => { calls.push(u); if (down) throw new Error('offline'); const q = new URL(u).searchParams.get('uids');
+      const r = await owned.onRequestGet({ request: new Request(u), env }); return r; } };
+  ctx.window = ctx; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'e63334287a3deaa3/owned.js'), 'utf8'), ctx);
+  const O = ctx.BackRoomOwned; const changed = []; O.onChange(u => changed.push(u));
+  assert.equal(O.check(ALICE, ITEM_RARE), undefined, 'not known yet: draw the default look');
+  assert.equal(O.check(BOB, ITEM_RARE), undefined); assert.equal(O.check(CAP, ITEM_RARE), undefined);
+  await new Promise(r => setTimeout(r, 150));
+  assert.equal(calls.length, 1, 'three asks, one request'); assert.match(calls[0], /^https:\/\/ascoding11\.com\/api\/owned\?uids=/);
+  assert.equal(changed.length, 1);
+  assert.equal(O.check(ALICE, ITEM_RARE), true); assert.equal(O.check(ALICE, ITEM_RARE2), false);
+  assert.equal(O.check(BOB, ITEM_RARE), false); assert.equal(O.check(CAP, ITEM_RARE2), true);
+  const free = Object.keys(CATALOG.ITEMS).find(id => CATALOG.ITEMS[id][3]);
+  assert.equal(O.check(BOB, free), true, 'a give item anyone may wear');
+  assert.equal(calls.length, 1, 'answers are kept');
+  O._reset(); down = true; resetLimits();
+  assert.equal(O.check(ALICE, ITEM_RARE), undefined);
+  await new Promise(r => setTimeout(r, 150));
+  assert.equal(O.check(ALICE, ITEM_RARE), undefined, 'offline: still the default look, no throw');
+  assert.equal(O.active(), false);
+  ctx.BackRoomWallet = { PAYMENTS: { enabled: true } }; assert.equal(O.active(), true);
+});
+
 for (const [name, fn] of tests) {
   try { await fn(); passed++; console.log('ok   ' + name); }
   catch (e) { console.log('FAIL ' + name + '\n     ' + (e.stack || e).toString().split('\n').slice(0, 4).join('\n     ')); process.exitCode = 1; }
