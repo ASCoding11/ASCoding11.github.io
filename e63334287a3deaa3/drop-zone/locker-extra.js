@@ -39,19 +39,26 @@ function rng(seed){let s=(seed>>>0)||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s
 const GLIDER_NAMES=['Umbrella','Paper Airplane','Hang Glider','Kite','Bedsheet Parachute','Trash Bag Parachute','Cardboard Wings','Dragon Wings',
   'Bat Wings','Bunch of Balloons','Lawn Chair with Balloons','Magic Carpet','Picnic Blanket','Surfboard','Pizza Slice','Broomstick','Giant Leaf',
   'Spinning Maple Seed','Rubber Duck Float','Giant Pigeon','Pterodactyl','Flying Squirrel Suit','UFO Disc','Small Cloud',
-  'Pirate Sail','Giant Football','Soccer Goal','Hockey Stick','Robot Rotor','Briefcase Parachute'];
-const TRAIL_NAMES=['Smoke','Sparkles','Rainbow','Feathers','Leaves','Bubbles'];
+  'Pirate Sail','Giant Football','Soccer Goal','Hockey Stick','Robot Rotor','Briefcase Parachute',
+  'Rainbow Umbrella','Polka Dot Umbrella','Paper Parasol','Bubble Umbrella','Team Flag','Hot-Air Balloon','Robot Wings','Star Kite','Dragon Kite',
+  'Hoverboard','Toy Rocket','Paper Boat'];
+const TRAIL_NAMES=['Smoke','Sparkles','Rainbow','Feathers','Leaves','Bubbles','Confetti','Hearts','Music Notes','Fire Sparks','Snowflakes','Gold Glitter','Team Colours','Comet Tail'];
 const WRAP_NAMES=['Gold','Chrome','Wood Grain','Forest Camo','Desert Camo','Arctic Camo','Pixel Camo','Neon Outline','Toy Blaster','Cardboard',
   'Candy Cane','Lava','Ice','Galaxy','Rust','Graffiti','Bubblegum Pink','Hazard Stripes','Plastic Brick',
-  'Team Stripes','Pinstripe','Treasure Map','Circuit Board','Basketball'];
+  'Team Stripes','Pinstripe','Treasure Map','Circuit Board','Basketball',
+  'Tiger Stripes','Polka Dots','Race Check','Watermelon','Denim','Comic Pop','Sunset','Ocean Waves','Rainbow Flow','Heartbeat','Electric','Molten Gold','Gold Chevrons'];
 const BUILD_NAMES=['Cardboard','Frosted Glass','Ice','Candy','Stone','Scrap Metal'];
 const PACK_NAMES=['Rucksack','Jetpack','Teddy Bear','Tortoise Shell','Treasure Chest','Lunchbox','Guitar Case','Fishbowl',
-  'Sports Bag','Briefcase','Robot Power Pack','Bag of Balls','Spyglass and Map','Lucky Mascot'];
-const EMOTE_NAMES=['Wave','Dance','Clap','Jumping Jacks','Robot','Twirl','Goal Celebration','Tip the Hat','Pirate Arr','Power Down'],VICTORY_NAMES=['Champion','Flex','Take a Bow','Jump for Joy'];
-const SLOT={g:GLIDER_NAMES,t:TRAIL_NAMES,w:WRAP_NAMES,b:BUILD_NAMES,p:PACK_NAMES,e:EMOTE_NAMES,v:VICTORY_NAMES};
+  'Sports Bag','Briefcase','Robot Power Pack','Bag of Balls','Spyglass and Map','Lucky Mascot',
+  'Giant Soccer Ball','Pirate Barrel','Boombox','Robot Buddy','Ice Cream Cone','Trophy Cup','Rocket Pack','Penguin Plush'];
+const EMOTE_NAMES=['Wave','Dance','Clap','Jumping Jacks','Robot','Twirl','Goal Celebration','Tip the Hat','Pirate Arr','Power Down',
+  'Slam Dunk','Touchdown Spike','Home Run','Chicken Dance','Arm Wave','Salute','Star Jump','Pirate Jig','Big Shrug','Mic Drop','Thinking','Air Guitar'],VICTORY_NAMES=['Champion','Flex','Take a Bow','Jump for Joy'];
+// pickaxes (wave four, `o` in the worn string): what you swing in place of the crowbar. An older page leaves `o` alone.
+const PICK_NAMES=['Hockey Stick','Golf Club','Baseball Bat','Foam Cutlass','Robot Claw','Giant Foam Finger','Trophy','Guitar','Anchor','Giant Wrench','Closed Umbrella','Giant Lollipop'];
+const SLOT={g:GLIDER_NAMES,t:TRAIL_NAMES,w:WRAP_NAMES,b:BUILD_NAMES,p:PACK_NAMES,e:EMOTE_NAMES,v:VICTORY_NAMES,o:PICK_NAMES};
 // a worn string ('g12t3') as {g:12,t:3}; numbers this file does not know are left out
 function parse(s){const o={};if(typeof s!=='string')return o;for(const m of s.matchAll(/([a-z])([0-9]+)/g)){const L=SLOT[m[1]],n=+m[2];if(L&&n>=1&&n<=L.length)o[m[1]]=n}return o}
-function str(o){let s='';for(const k of 'gtwbpve')if(o[k])s+=k+o[k];return s}
+function str(o){let s='';for(const k of 'gtwbpveo')if(o[k])s+=k+o[k];return s}
 
 // =====================================================================
 //  Gliders
@@ -330,7 +337,57 @@ const GLIDERS=[null,
     AN=(x,y,z)=>[4,.04*clamp((y-1.5)/.7,0,1),0];
     sheet(B,24,6,polar(v=>.15+1.45*v,v=>top-.6*v*v),(u)=>Math.floor(u*12)%2?0x3a7ad0:0xe8ecf2,(u)=>Math.floor(u*12)%2?0x2f62a8:0xc9d1da,outward(0,1.0,0));AN=null;
     for(let k=0;k<8;k++){const a=(k+.5)/8*TAU;rope(B,Math.cos(a)*1.6,top-.6,Math.sin(a)*1.6,Math.cos(a)*.3,cy+.06,Math.sin(a)*.2,0xdfe4ea)}}
+  ,
+  // wave four (19 November 2026)
+  // 31-34 umbrellas, held like the first one: rainbow panels, yellow with white dots, a flat paper parasol with many
+  // ribs, a clear bubble dome
+  B=>umbrella(B,{cols:u=>[0xff4f5e,0xff9a3c,0xffe14f,0x5fd068,0x3fa9f5,0x6a7cff,0xb46cff,0xff6fb5][Math.floor(u*8)%8],rib:WH}),
+  B=>umbrella(B,{cols:(u,v,i,j)=>(i*5+j*3)%7===0&&j>0?WH:0xffd23f,rib:0x3a7ad0,n:8}),
+  B=>umbrella(B,{cols:(u,v,i,j)=>j===6?0xe8453c:Math.floor(u*16)%2?0xff9fc7:0xfff4e0,rib:0xc8955a,n:16,depth:.32,r:1.7}),
+  B=>umbrella(B,{cols:(u,v,i,j)=>j===6?0xff6fb5:0xd6f2ff,rib:0xb8c0c8,depth:1.0,r:1.35}),
+  // 35 Team Flag: a big flag between two poles over your head, cyan and pink with a white sash and a gold star, rippling
+  B=>{const yl=.75,yt=2.2,X0=1.25;grips(B,WH);for(const s of [-1,1])bar(B,s*.48,.09,0,s*X0,yt+.15,0,.035,WH,PR.cyl8);for(const s of [-1,1])put(B,PR.sph,s*X0,yt+.2,0,.14,.14,.14,0xffd23f);
+    AN=(x,y,z)=>[4,.06*Math.sin(Math.PI*clamp((x+X0)/(2*X0),0,1)),0];
+    const fc=(u,v)=>{const cx=Math.abs(u-.5)*2,cy=Math.abs(v-.5)*2;return cx<.18&&cy<.3?0xffd23f:Math.abs(u-v)<.17?WH:u<v?0x5ce1ff:0xff6fb5};
+    sheet(B,12,9,(u,v)=>{const x=(u-.5)*2*X0*(.86+.14*v);return [x,yl+(yt-yl)*v,.18*Math.sin(Math.PI*u)]},fc,(u,v)=>dim(fc(1-u,v),.85),()=>v3(0,0,-1));AN=null},
+  // 36 Hot-Air Balloon: a striped envelope overhead on ropes to your hands, a little burner glowing under it
+  B=>{const cy=1.85,R=1.05;for(const s of [-1,1])put(B,PR.slo,s*.27,.15,-.04,.08,.08,.08,0xeeeeee);
+    AN=()=>[3,.03,0];sheet(B,24,10,(u,v)=>{const t=.06+v*.86*Math.PI,r=R*Math.sin(t)*(t>2.2?1-(t-2.2)*.55:1);return [Math.cos(u*TAU)*r,cy+R*Math.cos(t)*1.1,Math.sin(u*TAU)*r]},(u,v,i,j)=>j<2?0xffd23f:Math.floor(u*12)%2?0xe8453c:0xfff4e0,()=>0xc8c0b0,outward(0,cy,0));
+    const yb=cy+R*Math.cos(.92*Math.PI)*1.1;for(let k=0;k<6;k++){const a=(k+.5)/6*TAU;rope(B,Math.cos(a)*.42,yb,Math.sin(a)*.42,a<Math.PI/2||a>3*Math.PI/2?.27:-.27,.17,-.04,0xf4f0e6)}
+    put(B,PR.cyl8,0,yb-.12,0,.2,.1,.2,0x8d96a0);put(B,PR.cone,0,yb-.02,0,.12,.16,.12,0xffb03a);AN=null},
+  // 37 Robot Wings: metal feather panels along your arms with glowing blue edges, flapping a little
+  B=>{for(const s of [-1,1]){anim(7,.36,.08);for(let k=0;k<6;k++){const x=s*(.5+k*.27),len=1.2-k*.12;put(B,PR.box,x,SH-len/2+.12,.08,.32,len,.04,k%2?0xeef2f6:0xc9d1da,0,0,s*.08);put(B,PR.box,x+s*.15,SH-len/2+.12,.08,.04,len,.05,0x5ce1ff,0,0,s*.08)}
+      put(B,PR.box,s*1.18,SH+.14,.08,1.5,.1,.08,0x8d96a0);put(B,PR.box,s*.62,SH,.06,.2,.12,.14,0x5a606b);anim(0)}},
+  // 38 Star Kite: a five-pointed star kite in gold and white on two lines, a tail of bows streaming behind
+  B=>{const c=v3(0,1.55,.35),pts=[];for(let k=0;k<10;k++){const a=k/10*TAU,r=k%2?.55:1.35;pts.push(v3(Math.sin(a)*r,c.y+Math.cos(a)*r*.85,c.z+Math.cos(a)*r*.35))}
+    for(let k=0;k<10;k++)tri2(B,c,pts[k],pts[(k+1)%10],k%2?0xffd23f:0xffe98f);put(B,PR.sph,c.x,c.y,c.z-.04,.3,.3,.08,0xff6a55);
+    for(const s of [-1,1]){rope(B,s*.38,.12,-.06,c.x+s*.3,c.y-.2,c.z-.1,0xf4f0e6);put(B,PR.cyl8,s*.38,.12,-.06,.06,.12,.06,0x9a6a3c,0,0,Math.PI/2)}
+    const tl=pts[5];AN=(x,y,z)=>[4,.12*clamp((z-tl.z)/1.4,0,1),0];for(let k=0;k<6;k++){const z0=tl.z+k*.22,y0=tl.y-k*.08;bar(B,0,y0,z0,0,y0-.08,z0+.22,.008,0xeeeeee);if(k%2)for(const s of [-1,1])put(B,PR.box,s*.06,y0-.08,z0+.22,.12,.03,.07,[0xff6a55,0x5ce1ff,0xff6fb5][k%3],0,s*.5,0)}AN=null},
+  // 39 Dragon Kite: a red dragon head on a long rippling body of gold and red segments, flown on two lines
+  B=>{const hy=1.6,hz=-.2;put(B,PR.box,0,hy,hz,.9,.6,.3,0xe8453c);put(B,PR.box,0,hy-.18,hz-.2,.6,.22,.3,0xff6a55);for(const s of [-1,1]){put(B,PR.sph,s*.24,hy+.12,hz-.17,.18,.18,.06,WH);put(B,PR.sph,s*.24,hy+.12,hz-.2,.08,.08,.04,DK);put(B,PR.cone,s*.3,hy+.42,hz,.1,.3,.1,0xffd23f,0,0,-s*.4)}
+    for(let k=0;k<6;k++)put(B,PR.box,(k-2.5)*.12,hy-.32,hz-.32,.06,.08,.04,WH);
+    for(const s of [-1,1]){rope(B,s*.38,.12,-.06,s*.3,hy-.3,hz,0xf4f0e6);put(B,PR.cyl8,s*.38,.12,-.06,.06,.12,.06,0x9a6a3c,0,0,Math.PI/2)}
+    AN=(x,y,z)=>[4,.16*clamp((z-hz)/2,0,1),0];for(let k=0;k<8;k++){const z=hz+.3+k*.26,y=hy-.05*k,w=.8-k*.07;put(B,PR.box,0,y,z,w,.5-k*.03,.2,k%2?0xffd23f:0xe8453c);put(B,PR.cone,0,y+.3,z,.08,.16,.08,0xffd23f)}AN=null},
+  // 40 Hoverboard: a pink board with cyan jets underneath, glowing, bobbing a little; you stand on it
+  B=>{AN=()=>[3,.03,0];board(B,6,10,(u,v)=>{const z=(v-.5)*2.0,w=.5*Math.sqrt(1-Math.pow(2*v-1,6));return [(u-.5)*2*w,z,.06*Math.pow(2*v-1,2)]},(u,v,i,j)=>i===0||i===5?0x5ce1ff:j===4||j===5?WH:0xff6fb5,()=>0xc8508a,.08);
+    for(const z of [-.5,.5]){put(B,PR.cyl8,0,FEET-.16,z,.3,.1,.3,0x8d96a0);put(B,PR.cyl8,0,FEET-.22,z,.24,.04,.24,0x9fe8ff)}AN=null},
+  // 41 Toy Rocket: a red and white rocket you sit astride, fins at the back, a yellow flame flickering out of it
+  B=>{const F=v3(0,-.76,-1.32),Rr=v3(0,-1.07,.6),d=Rr.clone().sub(F),N=6;for(let k=0;k<N;k++){const a=F.clone().addScaledVector(d,.12+k/N*.8),b=F.clone().addScaledVector(d,.12+(k+1)/N*.8);bar(B,a.x,a.y,a.z,b.x,b.y,b.z,.26,k===1||k===4?0xe8453c:WH,PR.cyl8)}
+    const n0=F.clone().addScaledVector(d,.12);put(B,PR.cone,n0.x,n0.y+.02,n0.z-.2,.52,.44,.52,0xe8453c,-Math.PI/2+.16);put(B,PR.sph,0,n0.y+.12,n0.z+.3,.16,.16,.08,0x9fe8ff);
+    const t=F.clone().addScaledVector(d,.92);for(const [x,y,rz] of [[-.24,0,0],[.24,0,0],[0,.24,Math.PI/2]])put(B,PR.box,x,t.y+y,t.z,.04,.3,.3,0xe8453c,0,0,rz);
+    AN=(x,y,z)=>[3,.04,0];put(B,PR.cone,0,t.y-.02,t.z+.32,.3,.4,.3,0xffd23f,Math.PI/2+.16);put(B,PR.cone,0,t.y-.02,t.z+.26,.18,.26,.18,0xff8a1f,Math.PI/2+.16);AN=null},
+  // 42 Paper Boat: a folded boat of blue paper you stand in, a little paper flag on top; it rocks gently
+  B=>{AN=(x,y,z)=>[4,.025*Math.abs(z),0];const y0=FEET-.08;for(const s of [-1,1]){tri2(B,v3(s*.5,y0,-.9),v3(s*.5,y0,.9),v3(s*.7,y0+.42,1.2),0x8fd0ff);tri2(B,v3(s*.5,y0,-.9),v3(s*.7,y0+.42,1.2),v3(s*.7,y0+.42,-1.2),0x8fd0ff);
+      tri2(B,v3(-.5,y0,s*.9),v3(.5,y0,s*.9),v3(0,y0+.5,s*1.25),0xdff4ff)}
+    sheet(B,2,4,(u,v)=>[(u-.5),y0,(v-.5)*1.8],(u,v,i,j)=>0xdcdad0);for(let k=0;k<4;k++)put(B,PR.box,.71,y0+.3,-.6+k*.4,.01,.04,.3,0x9cc3ea);
+    bar(B,0,y0,.6,0,y0+1.0,.6,.015,0x8a96a0);tri2(B,v3(0,y0+1.0,.6),v3(0,y0+.78,.6),v3(0,y0+.89,.95),0xff6a55);AN=null}
 ];
+// an umbrella like the first glider in other colours: o.cols(u,v,i,j) the panels, o.rib, o.n ribs, o.r the radius, o.depth
+function umbrella(B,o){const hx=.33,hy=.14,cx=.3,top=2.0,r=o.r||1.6,dp=o.depth||.66,n=o.n||8;
+  bar(B,hx,hy+.08,-.04,hx,hy-.1,-.04,.03,0x6b3a22,PR.cyl8);bar(B,hx,hy-.1,-.04,hx+.07,hy-.18,-.04,.028,0x6b3a22);bar(B,hx+.07,hy-.18,-.04,hx+.14,hy-.1,-.04,.026,0x6b3a22);
+  bar(B,hx,hy+.08,-.04,cx,top,0,.022,DK);put(B,PR.cone,cx,top+.12,0,.05,.22,.05,o.rib);
+  sheet(B,32,7,polar(v=>r*v,(v,u)=>top-dp*v*v-.07*Math.pow(v,5)*Math.abs(Math.sin(u*Math.PI*n)),cx,0),o.cols,(u,v,i,j)=>dim(o.cols(u,v,i,j),.82),outward(cx,1.0,0));
+  for(let k=0;k<n;k++){const a=k/n*TAU,x=Math.cos(a)*r,z=Math.sin(a)*r;bar(B,cx,top-dp*.9,0,cx+x*.5,top-dp*.25-.02,z*.5,.009,0x8a8f98);put(B,PR.slo,cx+x,top-dp-.02,z,.06,.06,.06,o.rib)}}
 const gliderGeo=[];
 function gliderOf(n){if(!GLIDERS[n])return null;if(!gliderGeo[n]){const B=Kit();AN=null;NSH=null;GLIDERS[n](B);AN=null;NSH=null;gliderGeo[n]=kitGeo(B)}return gliderGeo[n]}
 
@@ -393,7 +450,18 @@ const HOLDS=[null,
   {pose:ARMS_UP,hands:[[-.44,.1,-.02],[.44,.1,-.02]],pit:-.1,legs:'dangle',place:'billow',sway:.04},
   {pose:{lean:-.55,L:[-.4,.3,-.1,.6],R:[-.4,-.3,.1,.6]},hands:[[-.1,-.8,-.47],[.1,-.83,-.32]],pit:-.22,legs:'astride',place:'body',sway:.03},
   {pose:ARMS_UP,hands:[[-.16,.1,-.04],[.16,.1,-.04]],pit:-.04,legs:'dangle',place:'unfold',sway:.03},
-  {pose:ARMS_UP,hands:[[-.33,.12,-.02],[.33,.12,-.02]],pit:-.06,legs:'dangle',place:'pop',sway:.05}];
+  {pose:ARMS_UP,hands:[[-.33,.12,-.02],[.33,.12,-.02]],pit:-.06,legs:'dangle',place:'pop',sway:.05},
+  // wave four: the umbrellas like the first; the flag by its poles; the hot-air balloon on its ropes like the football; the
+  // robot wings along the arms; the kites on their lines; the hoverboard and the paper boat stood on; the rocket ridden
+  ...[1,1,1,1].map(()=>({pose:{L:[.5,1.3,-.5,.35],R:ARMS_UP.R,turn:.08},hands:[null,[.33,.14,-.04]],pit:-.05,legs:'dangle',place:'pop',sway:.07})),
+  {pose:ARMS_UP,hands:[[-.44,.1,-.02],[.44,.1,-.02]],pit:-.1,legs:'dangle',place:'unfold',sway:.05},
+  {pose:ARMS_UP,hands:[[-.27,.11,-.04],[.27,.11,-.04]],pit:-.04,legs:'dangle',place:'rise',sway:.04},
+  {pose:ARMS_WING,hands:[[-.86,-.4,-.01],[.86,-.4,-.01]],pit:-1.1,legs:'spread',place:'body'},
+  {pose:ARMS_UP,hands:[[-.38,.09,-.06],[.38,.09,-.06]],pit:-.12,legs:'dangle',place:'unfold',sway:.04},
+  {pose:ARMS_UP,hands:[[-.38,.09,-.06],[.38,.09,-.06]],pit:-.12,legs:'dangle',place:'unfold',sway:.04},
+  {pose:Object.assign({lean:-.15},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board'},
+  {pose:{lean:-.55,L:[-.4,.3,-.1,.6],R:[-.4,-.3,.1,.6]},hands:[[-.1,-.8,-.47],[.1,-.83,-.32]],pit:-.22,legs:'astride',place:'body',sway:.03},
+  {pose:Object.assign({lean:-.1},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board',sway:.03}];
 const gstyles=[];
 function gstyle(n){if(!HOLDS[n])return null;if(gstyles[n])return gstyles[n];const H=HOLDS[n],L=LEGS[H.legs]||LEGS.trail,pl=PLACE[H.place]||PLACE.unfold;
   return gstyles[n]={pose:G.pose(H.pose),hands:H.hands,pit:H.pit,pole:null,
@@ -440,6 +508,8 @@ const tTex=(()=>{const S=64,c=document.createElement('canvas');c.width=S*4;c.hei
     g.lineWidth=1.2;for(let y=-14;y<16;y+=8){g.beginPath();g.moveTo(0,y);g.lineTo(-9,y-7);g.moveTo(0,y);g.lineTo(9,y-7);g.stroke()}});
   at(5,()=>{g.strokeStyle='rgba(255,255,255,.95)';g.lineWidth=3;g.beginPath();g.arc(0,0,25,0,TAU);g.stroke();const r=g.createRadialGradient(0,0,10,0,0,25);r.addColorStop(0,'rgba(255,255,255,.05)');r.addColorStop(1,'rgba(255,255,255,.35)');g.fillStyle=r;g.beginPath();g.arc(0,0,25,0,TAU);g.fill();
     g.fillStyle='rgba(255,255,255,.95)';g.beginPath();g.ellipse(-9,-10,6,3.5,-.7,0,TAU);g.fill()});
+  at(6,()=>{g.fillStyle='#fff';g.beginPath();g.moveTo(0,24);g.bezierCurveTo(-34,0,-18,-28,0,-10);g.bezierCurveTo(18,-28,34,0,0,24);g.fill()});   // a heart (wave four)
+  at(7,()=>{g.fillStyle='#fff';g.beginPath();g.ellipse(-8,16,11,8,-.4,0,TAU);g.fill();g.fillRect(1,-24,5,40);g.beginPath();g.moveTo(6,-24);g.quadraticCurveTo(24,-14,18,2);g.quadraticCurveTo(18,-10,6,-12);g.fill()});   // a music note
   const t=new THREE.CanvasTexture(c);t.minFilter=THREE.LinearMipmapLinearFilter;return t})();
 const tMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:true,
   uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{map:{value:null},uScale:{value:400}}]),
@@ -457,7 +527,16 @@ const TRAILS=[null,
   {sp:2,cols:RAINBOW,s0:.5,s1:.62,life:1.3,rate:26,a:.85,spread:0,vy:0,band:1},
   {sp:3,cols:[0xffffff,0xf4efe2,0xe6e8ee],s0:.55,s1:.55,life:2.2,rate:12,a:1,spread:.5,vy:-1.2,spin:3},
   {sp:4,cols:[0xe8782e,0xd9442f,0xf2b632,0x8bb04a],s0:.5,s1:.5,life:2.2,rate:12,a:1,spread:.5,vy:-1.4,spin:4},
-  {sp:5,cols:[0xcff6ff,0xffffff,0xd9ecff,0xf2d9ff],s0:.25,s1:.48,life:1.6,rate:20,a:.95,spread:.45,vy:1.2,pop:1}];
+  {sp:5,cols:[0xcff6ff,0xffffff,0xd9ecff,0xf2d9ff],s0:.25,s1:.48,life:1.6,rate:20,a:.95,spread:.45,vy:1.2,pop:1},
+  // wave four: confetti, hearts, music notes, fire sparks, snowflakes, gold glitter, a band in team colours, a comet's tail
+  {sp:2,cols:RAINBOW,s0:.22,s1:.2,life:2,rate:30,a:1,spread:.7,vy:-1.0,spin:6},
+  {sp:6,cols:[0xff4f7a,0xff8fb0,0xffc2d6],s0:.35,s1:.55,life:1.6,rate:14,a:1,spread:.5,vy:.6},
+  {sp:7,cols:[0xffffff,0xffe14f,0x5ce1ff,0xff6fb5],s0:.4,s1:.5,life:1.8,rate:10,a:1,spread:.5,vy:.5,spin:2},
+  {sp:2,cols:[0xffe14f,0xff9a3c,0xff5a2a],s0:.3,s1:.08,life:.8,rate:40,a:1,spread:.4,vy:.3,tw:1},
+  {sp:1,cols:[0xffffff,0xdff4ff],s0:.3,s1:.3,life:2.4,rate:14,a:.95,spread:.6,vy:-.6,spin:2},
+  {sp:1,cols:[0xffd23f,0xffe98f,0xffc93c,0xffffff],s0:.35,s1:.1,life:1.2,rate:34,a:1,spread:.5,vy:0,tw:1},
+  {sp:2,cols:[0xffd23f,0xffffff,0x5ce1ff,0xffd23f,0xffffff,0x5ce1ff],s0:.5,s1:.6,life:1.3,rate:26,a:.85,spread:0,vy:0,band:1},
+  {sp:0,cols:[0x9fe8ff,0xffffff,0xc8b4ff],s0:.9,s1:2.8,life:1.4,rate:24,a:.6,spread:.15,vy:.2}];
 function emit(T,x,y,z,col,vx,vy,vz,cx,cy,cz){
   if(tp.n>=TCAP)return;const i=tp.n++;_c.setHex(col);
   tp.x[i*3]=x;tp.x[i*3+1]=y;tp.x[i*3+2]=z;tp.v[i*3]=vx+(cx||0);tp.v[i*3+1]=vy+(cy||0);tp.v[i*3+2]=vz+(cz||0);tp.c[i*3]=_c.r;tp.c[i*3+1]=_c.g;tp.c[i*3+2]=_c.b;
@@ -533,7 +612,22 @@ const GLSL_SKIN='vec4 c4(float f,vec3 a,vec3 b,vec3 c,vec3 d){return vec4(f<.4?a
   +'else if(k<21.5){c=vec3(.5,.54,.6)*(dk>.5?.7:1.);c=mix(c,vec3(.92,.93,.95),step(fract(p.y*28.+p.x*2.),.12));}\n'
   +'else if(k<22.5){c=vec3(.93,.84,.64)*(.82+.18*fb(p*6.));float l=abs(p.y-.06*sin(p.z*9.)-.02);c=mix(c,vec3(.72,.16,.1),(1.-smoothstep(.006,.012,l))*step(.5,fract(p.z*14.)));c=mix(c,vec3(.55,.38,.22),smoothstep(.62,.7,fb(p*3.+2.))*.5);c*=dk>.5?.8:1.;}\n'
   +'else if(k<23.5){vec3 q=fract(p*18.);vec3 i3=floor(p*18.);float h=h3(i3);float tr=(1.-smoothstep(.06,.1,min(abs(q.y-.5),abs(q.z-.5))))*step(.45,h);c=dk>.5?vec3(.04,.12,.22):vec3(.06,.22,.38);c=mix(c,vec3(1.,.8,.3),tr);em=vec3(.2,.9,1.)*tr*(.4+.4*sin(uT*3.+h*20.));}\n'
-  +'else{c=vec3(.94,.48,.12)*(.9+.1*n3(p*90.));float sm=1.-smoothstep(.01,.02,min(abs(fract(p.z*3.)-.5),abs(p.y-.04*sin(p.z*6.))));c=mix(c,vec3(.08),sm);c*=dk>.5?.75:1.;}\n'
+  +'else if(k<24.5){c=vec3(.94,.48,.12)*(.9+.1*n3(p*90.));float sm=1.-smoothstep(.01,.02,min(abs(fract(p.z*3.)-.5),abs(p.y-.04*sin(p.z*6.))));c=mix(c,vec3(.08),sm);c*=dk>.5?.75:1.;}\n'
+  // wave four: tiger stripes, polka dots, a race check, watermelon, denim, comic pop, a sunset; then the moving ones: ocean
+  // waves, rainbow flow, a heartbeat pulse, electric, molten gold; and gold chevrons
+  +'else if(k<25.5){c=vec3(1.,.55,.1);c=mix(c,vec3(.07),step(fract(p.z*7.+.25*sin(p.y*30.)+.15*sin(p.x*40.)),.22));c*=dk>.5?.8:1.;}\n'
+  +'else if(k<26.5){vec2 q=fract(vec2(p.y+p.x,p.z)*12.)-.5;c=mix(vec3(1.,.45,.7),vec3(1.),1.-smoothstep(.22,.26,length(q)));c*=dk>.5?.8:1.;}\n'
+  +'else if(k<27.5){float q=mod(floor(p.y*16.)+floor(p.z*16.)+floor(p.x*16.),2.);c=q>.5?vec3(.95):vec3(.07);}\n'
+  +'else if(k<28.5){c=vec3(.95,.32,.36);vec2 q=fract(vec2(p.x+p.y*1.3,p.z)*9.)-.5;c=mix(c,vec3(.08),1.-smoothstep(.07,.1,length(q*vec2(1.,.6))));if(dk>.5)c=vec3(.35,.75,.3);}\n'
+  +'else if(k<29.5){c=vec3(.28,.45,.75)*(.82+.18*n3(p*180.));c=mix(c,vec3(1.,.66,.25),step(.94,fract(p.z*5.))*step(.5,fract(p.z*60.)));c*=dk>.5?.75:1.;}\n'
+  +'else if(k<30.5){vec2 q=fract(vec2(p.y,p.z)*20.)-.5;float r=.15+.25*smoothstep(-.3,.3,p.y);c=mix(vec3(1.,.85,.1),vec3(1.,.3,.3),1.-smoothstep(r,r+.04,length(q)));c=mix(c,vec3(.05),smoothstep(.55,.75,1.-abs(dot(vn,vd))));}\n'
+  +'else if(k<31.5){float f=clamp(p.z*1.4+.6+p.y,0.,1.);c=mix(mix(vec3(1.,.82,.25),vec3(1.,.4,.45),smoothstep(0.,.5,f)),vec3(.55,.3,.9),smoothstep(.5,1.,f));c*=dk>.5?.8:1.;}\n'
+  +'else if(k<32.5){float s=fract(p.z*4.-uT*.6+.12*sin(p.y*30.+uT*2.));c=s<.45?vec3(.1,.45,.9):s<.8?vec3(.2,.78,.95):vec3(.95,1.,1.);em=c*.12;c*=dk>.5?.8:1.;}\n'
+  +'else if(k<33.5){c=hsv(fract(p.z*1.5-uT*.25+p.y*2.),.8,1.);em=c*.35;c*=dk>.5?.8:1.;}\n'
+  +'else if(k<34.5){float b=pow(max(0.,sin(uT*5.)),8.)+.6*pow(max(0.,sin(uT*5.-.9)),8.);c=vec3(.85,.12,.2)*(dk>.5?.7:1.);em=vec3(1.,.2,.3)*b*.9;}\n'
+  +'else if(k<35.5){float l=1.-smoothstep(0.,.05,abs(n3(p*7.+vec3(0.,0.,uT*3.))-.5));float fl=step(.4,fract(sin(floor(uT*12.))*43758.5));c=mix(vec3(.12,.22,.55),vec3(.2,.35,.75),n3(p*9.))*(dk>.5?.75:1.);c=mix(c,vec3(.6,.95,1.),l);em=vec3(.3,.9,1.)*l*(.5+fl);}\n'
+  +'else if(k<36.5){float f=fb(p*6.+vec3(0.,0.,-uT*.5));c=mix(vec3(.9,.6,.1),vec3(1.,.9,.45),smoothstep(.45,.6,f));em=vec3(1.,.65,.15)*smoothstep(.55,.7,f)*.8;c*=dk>.5?.8:1.;}\n'
+  +'else{c=fract((p.z+abs(p.y-.05)*1.5)*5.)<.4?vec3(1.,.78,.15):vec3(.97,.96,.92);c*=dk>.5?.75:1.;c+=vec3(.12)*smoothstep(.5,.9,up);}\n'
   +'return c;}\n';
 GSK.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float gsk;attribute float gcl;varying float vSk;varying float vCl;varying vec3 vP;varying vec3 vN;varying vec3 vVN;varying vec3 vVD;')
@@ -627,6 +721,15 @@ function pack(B,n,a){const R=(...v)=>G.bagRBox(B,...v),L=(...v)=>G.bagRLo(B,...v
     case 11:R(0,1.24,.36,.5,.6,.24,0xc9d1da);for(const s of [-1,1])L(s*.16,.86,.38,.14,.16,.14,0x5a606b);L(0,1.28,.5,.2,.2,.04,a);X(0,1.28,.525,.08,.08,.02,0xffffff);for(const y of [1.5,1.06])X(0,y,.49,.3,.03,.02,0x5a606b);T(0,.18,1.66,.36,.02,.26,.02,0x8d96a0);L(.18,1.8,.36,.05,.05,.05,0xe8453c);break;   // robot power pack: casing, thrusters, a glowing core, vents, an aerial
     case 12:R(0,1.18,.36,.46,.6,.18,0xf2efe8);for(const [x,y,c] of [[-.1,1.3,0xf08a2a],[.11,1.32,0x3fa9f5],[0,1.08,0xffd23f]]){L(x,y,.48,.2,.2,.12,c);X(x,y,.55,.2,.02,.01,0x3a3e45)}X(0,1.5,.38,.48,.05,.28,a);break;   // a net bag of balls, its drawstring in your colour
     case 13:R(0,1.22,.34,.44,.52,.22,0xb85a3a);T(1,-.1,1.3,.46,.16,.6,.16,0xf4e6c8,0,0,.2);T(1,.14,1.32,.46,.1,.66,.1,0xffc93c,0,0,-.25);L(.22,1.62,.46,.12,.06,.12,0x8fe3ff);X(0,1.04,.46,.3,.06,.02,a);break;   // spyglass and map: a leather holder, a rolled map, a brass spyglass, a band in your colour
+    // wave four: a giant soccer ball, a pirate barrel, a boombox, a robot buddy, an ice cream cone, a trophy, a rocket pack, a penguin
+    case 15:R(0,1.22,.38,.56,.56,.32,0xf6f4ee);for(const [x,y] of [[0,1.22],[-.17,1.38],[.17,1.38],[-.17,1.06],[.17,1.06]])X(x,y,.54,.13,.13,.02,0x2a2d34);X(0,.92,.38,.4,.06,.3,a);break;   // a giant soccer ball, a strap in your colour
+    case 16:R(0,1.2,.38,.5,.66,.3,0xd99a52);for(const y of [.96,1.44])L(0,y,.38,.54,.05,.34,0x8d96a0);X(0,1.2,.54,.06,.66,.02,0xc07a3a);X(0,1.2,.55,.2,.2,.02,a);break;   // a barrel with iron hoops, a mark in your colour
+    case 17:X(0,1.22,.38,.6,.4,.26,0xdfe4ea);for(const s of [-1,1])L(s*.17,1.2,.52,.2,.2,.04,0x3a3e45);X(0,1.48,.38,.44,.04,.06,0x8d96a0);X(0,1.34,.515,.12,.05,.02,a);X(0,1.08,.515,.3,.04,.02,0xff6fb5);break;   // a boombox: speakers, handle, a light in your colour
+    case 18:R(0,1.12,.38,.4,.4,.26,0xffd23f);R(0,1.48,.38,.36,.32,.26,0xdfe4ea);for(const s of [-1,1]){X(s*.08,1.5,.52,.07,.07,.02,0x5ce1ff);T(1,s*.26,1.16,.38,.08,.3,.08,0xdfe4ea,0,0,s*.6)}X(0,1.12,.52,.16,.1,.02,a);T(0,0,1.72,.38,.02,.18,.02,0x8d96a0);L(0,1.82,.38,.06,.06,.06,0xe8453c);break;   // a little robot riding piggyback
+    case 19:T(2,0,1.08,.38,.36,.5,.3,0xf2c27a,0,0,Math.PI);for(const [x,c2] of [[-.1,0xff9fc7],[.1,0xfff4e0]])R(x,1.42,.38,.3,.28,.28,c2);L(0,1.62,.38,.2,.16,.2,0xff9fc7);L(0,1.74,.38,.08,.08,.08,0xe8453c);X(0,1.12,.54,.3,.04,.02,a);break;   // an ice cream cone with two scoops and a cherry
+    case 20:L(0,.94,.38,.34,.12,.3,0x5ce1ff);T(1,0,1.06,.38,.08,.18,.08,0xffc93c);R(0,1.34,.38,.46,.44,.32,0xffc93c);for(const s of [-1,1])T(1,s*.3,1.34,.38,.06,.26,.06,0xffc93c,0,0,s*.4);X(0,1.58,.38,.5,.04,.34,0xffe98f);X(0,.94,.54,.2,.06,.02,a);break;   // a trophy cup
+    case 21:R(0,1.2,.38,.36,.66,.3,0xf6f4ee);L(0,1.6,.38,.3,.18,.26,0xe8453c);for(const s of [-1,1])T(1,s*.22,.92,.38,.04,.3,.24,0xe8453c,0,0,s*.4);L(0,.82,.38,.18,.12,.18,0xffd23f);L(0,1.24,.54,.14,.14,.04,0x9fe8ff);X(0,1.02,.54,.3,.05,.02,a);break;   // a rocket pack: body, nose, fins, a flame, a window
+    case 22:R(0,1.18,.38,.46,.56,.3,0x5a8ad0);L(0,1.18,.53,.32,.42,.02,0xf6f4ee);R(0,1.56,.38,.36,.3,.28,0x5a8ad0);for(const s of [-1,1]){L(s*.08,1.6,.52,.08,.08,.03,0xffffff);T(1,s*.28,1.14,.38,.06,.34,.16,0x5a8ad0,0,0,s*.4)}L(0,1.5,.54,.1,.06,.06,0xff8a1f);X(0,1.36,.52,.4,.06,.04,a);break;   // a penguin plush with a scarf in your colour
     case 14:R(0,1.16,.38,.44,.5,.26,0xffc93c);R(0,1.52,.38,.36,.32,.28,0xffc93c);L(0,1.48,.54,.12,.08,.12,0xff8a1f);for(const s of [-1,1]){L(s*.09,1.58,.52,.08,.08,.03,0xffffff);X(s*.09,1.58,.54,.035,.04,.01,0x15171b);T(1,s*.26,1.24,.36,.08,.28,.14,0xffc93c,0,0,s*.6)}for(let k=0;k<3;k++)T(0,(k-1)*.08,1.72,.38,.05,.16,.08,a,0,0,(k-1)*-.4);X(0,1.14,.52,.22,.16,.02,a);break;   // a mascot plush: body, head, beak, eyes, wings round you, a crest and a shirt in your colour
   }
 }
@@ -656,7 +759,37 @@ const EMOTES=[null,
   {dur:3,f:t=>{const j=Math.max(0,sn(t*5));return{L:[-.3,.95,-.3,1.8],R:[1.45+.3*j,-.25,.1,.12],lean:-.12+.06*j,turn:-.18,legs:[.35,-.05,.2,-.1,.08,.1]}}},
   // the robot runs out of power: it slumps, hangs, then jerks back on with stiff arms
   {dur:3.4,f:t=>{const d=Math.min(1,t/.7),up=t>1.9?Math.min(1,(t-1.9)/.15):0,sl=d*(1-up),tw=t>2.05?.25*Math.sign(sn(t*14)):0;
-    return{L:[-1.42+.5*sl+up*2.6,.2,-.14,.25+.6*sl+up*1.3],R:[-1.42+.5*sl+up*2.6,-.2,.14,.25+.6*sl+up*1.3],lean:-.55*sl,turn:tw*up,y:-.1*sl,legs:[.15*sl,-.06,.5*sl,.15*sl,.06,.5*sl]}}}];
+    return{L:[-1.42+.5*sl+up*2.6,.2,-.14,.25+.6*sl+up*1.3],R:[-1.42+.5*sl+up*2.6,-.2,.14,.25+.6*sl+up*1.3],lean:-.55*sl,turn:tw*up,y:-.1*sl,legs:[.15*sl,-.06,.5*sl,.15*sl,.06,.5*sl]}}},
+  // wave four (19 November 2026): big, readable at a distance
+  // slam dunk: crouch, leap with both arms up, slam them down, land
+  {dur:2.4,f:t=>{const cr=t<.45?Math.sin(t/.45*Math.PI/2):Math.max(0,1-(t-.45)/.1),j=t>.45&&t<1.25?Math.sin((t-.45)/.8*Math.PI):0,sl=t>.85?Math.min(1,(t-.85)/.12):0,ld=t>1.25&&t<1.6?Math.sin((t-1.25)/.35*Math.PI):0;
+    const a=2.5*(1-sl)+.3*sl;return{L:[a,.25,-.15,.3],R:[a,-.25,.15,.3],lean:.1*j-.25*sl*(1-ld)-.2*cr,y:.55*j-.12*cr-.1*ld,legs:[.6*cr+.3*ld,-.06,1.1*cr+.6*ld+.2*j,.6*cr+.3*ld,.06,1.1*cr+.6*ld+.2*j]}}},
+  // touchdown spike: the ball goes up high in one hand, comes down hard, then a shimmy
+  {dur:2.8,f:t=>{const up=Math.min(1,t/.5),dn=t>.6?Math.min(1,(t-.6)/.1):0,sh=t>.8?Math.sin(t*14):0;
+    return{L:[t>.8?.2:-1.2,t>.8?1.4:.2,-.1,.3],R:[2.6*up*(1-dn)-.4*dn+(t>.8?.6:0),t>.8?-1.4:-.2,.15,.2],lean:-.35*dn*(t<.9?1:0),turn:.25*sh,roll:.08*sh,y:.04*Math.abs(sh),legs:[.2*Math.max(0,sh),-.1,.3,.2*Math.max(0,-sh),.1,.3]}}},
+  // home run: a big two-handed swing round, then a hand over the eyes watching it fly
+  {dur:3,f:t=>{const s=Math.min(1,t/.45),w=t<.45?.7-1.9*s*s:-1.2,look=t>.7?Math.min(1,(t-.7)/.3):0;
+    return{L:look?[.2+.2*look,.4,-.1,.6]:[.6,-.4,-.1,.9],R:look?[1.5,-.2,.35,2.3*look]:[.6,.4,.1,.9],turn:w*(1-look)-.4*look,lean:-.15*look,roll:.06*look,legs:[.2,-.08,.15,-.1,.12,.25]}}},
+  // chicken dance: elbows flapping, knees bobbing
+  {dur:4,f:t=>{const f=Math.sin(t*12),b=Math.abs(Math.sin(t*6));return{L:[-.2,.95,-.55-.35*f,1.9],R:[-.2,-.95,.55+.35*f,1.9],lean:-.2,y:-.06*b,turn:.15*Math.sin(t*3),legs:[.3*b,-.18,.6*b,.3*b,.18,.6*b]}}},
+  // arm wave: both arms out to the side, a wave running from one hand to the other
+  {dur:3,f:t=>{const a=Math.sin(t*6),b=Math.sin(t*6-1.6);return{L:[.15+.55*a,1.5,-.1,.4+.4*Math.max(0,a)],R:[.15+.55*b,-1.5,.1,.4+.4*Math.max(0,b)],roll:.12*Math.sin(t*6-.8),y:.03*Math.abs(Math.sin(t*6))}}},
+  // salute: stand straight, a crisp hand to the brow
+  {dur:2.4,f:t=>{const k=Math.min(1,t/.25)*Math.min(1,Math.max(0,(2.4-t)/.3));return{L:[-1.5,.15,-.1,.1],R:[-1.42+3.4*k,-.2-.35*k,.14,.25+2.0*k],lean:.06,legs:[0,-.02,0,0,.02,0]}}},
+  // star jump: two big jumps, arms and legs out wide like a star
+  {dur:2,f:t=>{const h=Math.sin((t%1)*Math.PI);return{L:[1.0+1.0*h,1.0,-.3,.2],R:[1.0+1.0*h,-1.0,.3,.2],y:.45*h,legs:[0,-.5*h,.15*(1-h),0,.5*h,.15*(1-h)]}}},
+  // pirate jig: fists on hips, kicking each knee up in turn
+  {dur:4,f:t=>{const k=Math.sin(t*8);return{L:[-.3,.95,-.3,1.8],R:[-.3,-.95,.3,1.8],lean:-.08,turn:.2*Math.sin(t*4),y:.06*Math.abs(k),legs:[1.1*Math.max(0,k),-.06,1.4*Math.max(0,k),1.1*Math.max(0,-k),.06,1.4*Math.max(0,-k)]}}},
+  // big shrug: palms up and out, shoulders up, head to one side
+  {dur:2.2,f:t=>{const k=Math.min(1,t/.3)*Math.min(1,Math.max(0,(2.2-t)/.4)),b=.03*Math.sin(t*9)*k;return{L:[-.6+.8*k,.6,-.6*k,1.7*k+.25],R:[-.6+.8*k,-.6,.6*k,1.7*k+.25],roll:.12*k,lean:.05*k,y:.04*k+b}}},
+  // mic drop: an arm held out, the hand lets go, the arm drops, you turn away
+  {dur:2.8,f:t=>{const out=Math.min(1,t/.4),drop=t>1.3?Math.min(1,(t-1.3)/.15):0,away=t>1.6?Math.min(1,(t-1.6)/.5):0;
+    return{L:[-1.42,.2,-.14,.25],R:[-1.42+(2.7*out)*(1-drop),-.2,.14,.2],turn:-1.2*away,lean:-.12*drop,legs:[0,-.04,.05,.25*away,.06,.3*away]}}},
+  // thinking: a hand on the chin, the other arm across, a foot tapping
+  {dur:3.6,f:t=>{const tap=Math.max(0,Math.sin(t*9));return{L:[.3,-.5,-.2,1.7],R:[.9,.25,.3,2.5],roll:.1,lean:-.06,legs:[0,-.04,0,.2*tap,.06,.15*tap]}}},
+  // air guitar: one hand up the neck, the other strumming fast, knees bobbing, leaning back on the big note
+  {dur:4,f:t=>{const st=Math.sin(t*16),b=Math.abs(Math.sin(t*5)),big=t>2.6&&t<3.4?Math.sin((t-2.6)/.8*Math.PI):0;
+    return{L:[.7+.5*big,.9,-.35,.5],R:[.1+.15*st,-.4,.45,1.5+.2*st],lean:-.2-.3*big,turn:.3,y:-.05*b,legs:[.2+.3*b,-.14,.3+.5*b,.1,.14,.2+.3*b]}}}];
 const VICTORIES=[null,
   {f:t=>{const b=Math.abs(sn(t*4));return{L:[1.95,.75,-.14,.2+.5*b],R:[1.95,-.75,.14,.2+.5*b],lean:.12,y:.12*b}}},
   {f:t=>({L:[0,1.5,-.05,1.5+.15*sn(t*3)],R:[0,-1.5,.05,1.5+.15*sn(t*3)],lean:-.08,turn:.15*sn(t*1.5),legs:[0,-.12,.05,0,.12,.05]})},
@@ -688,14 +821,46 @@ function canEmote(){const p=G.player;return G.lockerOn()&&G.canLook()&&p.alive&&
 function startEmote(){if(!canEmote())return;const n=myEmote(),o=worn();o.e=n;G.setLxNet(str(o));G.player.lxEA=performance.now();G.player.lxEN=n}
 function stopEmote(){const o=worn();if(!o.e)return;delete o.e;G.setLxNet(str(o))}
 const myEmote=()=>{const n=+G.store.get('em','1')|0;return n>=1&&n<=EMOTE_NAMES.length?n:1};
-addEventListener('keydown',e=>{if(e.code!=='KeyT'||e.repeat||e.ctrlKey||e.metaKey||e.altKey||G.kbUsed('KeyT')||!G.lockerOn())return;const a=document.activeElement;if(a&&/INPUT|TEXTAREA/.test(a.tagName))return;if(worn().e)stopEmote();else startEmote()});
+// The emote's key (wave four): J, or what the player set for Emote in Controls (G.isEmoteKey). It was T, but in a party
+// frame gamechat.js takes T for chat first, so it never reached here. (An older page without isEmoteKey keeps T.)
+const isEmoteKey=c=>G.isEmoteKey?G.isEmoteKey(c):c==='KeyT'&&!G.kbUsed('KeyT');
+const emoteKeyName=()=>G.emoteKeyName?G.emoteKeyName():'T';
+addEventListener('keydown',e=>{if(!isEmoteKey(e.code)||e.repeat||e.ctrlKey||e.metaKey||e.altKey||!G.lockerOn())return;const a=document.activeElement;if(a&&/INPUT|TEXTAREA/.test(a.tagName))return;if(worn().e)stopEmote();else startEmote()});
 function emoteTick(){
   const p=G.player,o=parse(G.myLx||'');
   if(o.e){const E=EMOTES[o.e],t=(performance.now()-(p.lxEA||0))/1000;if(!E||t>E.dur||!p.alive||!p.onGround||Math.hypot(p.vel.x,p.vel.z)>1||G.player.cd>0&&t>.3)stopEmote()}
-  if(G.touchUI&&G.lockerOn()){if(!emoteBtn){emoteBtn=document.createElement('button');emoteBtn.className='tb';emoteBtn.id='tEmote';emoteBtn.type='button';emoteBtn.textContent=lxT('EMOTE');
+  if(G.touchUI&&G.lockerOn()){if(!emoteBtn){emoteBtn=document.createElement('button');emoteBtn.className='tb';emoteBtn.id='tEmote';emoteBtn.type='button';emoteBtn.textContent=lxT('EMOTE');emoteBtn.title=lxT('Emote')+(emoteKeyName()?' ('+emoteKeyName()+')':'');
       emoteBtn.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(worn().e)stopEmote();else startEmote()});const T=G.$('touch');if(T)T.appendChild(emoteBtn)}
     emoteBtn.hidden=!(canEmote()||o.e)}else if(emoteBtn)emoteBtn.hidden=true;
 }
+
+
+// =====================================================================
+//  Pickaxes (wave four): what you swing in place of the crowbar, `o` in the worn string. Each is one small geometry in the
+//  crowbar's own frame (the grip at z 0.06 in the right hand, the business end out at z -0.8), drawn by one more instanced
+//  mesh per kind while anyone holds one. The swing, its reach, its timing and what it hits are the crowbar's, unchanged.
+// =====================================================================
+const WHITE=0xf2efe8,GOLD=0xffc93c,pX=G.bagBox,pL=G.bagRLo,pT=G.bagTurn;
+const PICKS=[null,
+  B=>{pX(B,0,0,-.32,.06,.06,.86,0x3fa9f5);pX(B,0,0,.07,.07,.07,.22,WHITE);pX(B,0,-.08,-.76,.05,.2,.1,WHITE);pX(B,0,-.17,-.86,.05,.08,.28,WHITE);pX(B,0,-.17,-.86,.056,.086,.08,0xe8453c)},   // hockey stick
+  B=>{pX(B,0,0,-.32,.035,.035,.9,0xdfe4ea);pX(B,0,0,.07,.055,.055,.24,0xe8453c);pL(B,0,-.07,-.8,.09,.18,.2,GOLD);pX(B,0,-.07,-.9,.095,.14,.02,0xffe98f)},   // golf club
+  B=>{pX(B,0,0,.19,.08,.08,.03,0xc8955a);pX(B,0,0,.07,.06,.06,.2,0xe8453c);for(let k=0;k<5;k++){const w=.06+k*.022;pX(B,0,0,-.07-k*.17,w,w,.18,0xf0d8a8)}pX(B,0,0,-.79,.15,.15,.08,0xf0d8a8)},   // baseball bat
+  B=>{pX(B,0,0,.06,.05,.05,.2,0x8a5a2b);pL(B,0,0,-.07,.06,.2,.06,GOLD);pT(B,1,0,-.08,.02,.03,.04,.16,GOLD,.6,0,0);for(let k=0;k<6;k++)pT(B,0,0,.01*k*k,-.18-k*.12,.045,.15-k*.012,.17,k===5?0xffe98f:0xdfe9f2,-.04*k,0,0)},   // a foam cutlass
+  B=>{pX(B,0,0,-.32,.07,.07,.82,0xb9c2cc);for(const z of [-.08,-.42])pX(B,0,0,z,.085,.085,.05,0x5ce1ff);pL(B,0,0,-.76,.16,.16,.1,0x8d96a0);for(const [x,y] of [[0,.07],[0,-.07],[.07,0]])pT(B,0,x,y,-.88,.03,.03,.2,GOLD,y*3,-x*3,0);pL(B,0,0,-.76,.06,.06,.12,0xe8453c)},   // a robot claw
+  B=>{pX(B,0,0,-.22,.04,.04,.62,WHITE);pL(B,0,0,-.66,.1,.3,.28,0xffd23f);pL(B,0,.26,-.72,.09,.28,.09,0xffd23f);pL(B,0,.06,-.52,.08,.08,.14,0xffd23f);pX(B,.055,-.04,-.66,.01,.1,.1,0xe8453c)},   // a giant foam finger
+  B=>{pX(B,0,0,.08,.16,.16,.08,0xe8eef4);pX(B,0,0,-.28,.06,.06,.66,GOLD);pL(B,0,0,-.68,.26,.26,.32,GOLD);pX(B,0,0,-.86,.28,.28,.03,0xffe98f);for(const s of [-1,1])pT(B,1,0,s*.17,-.66,.03,.08,.16,GOLD,0,0,0)},   // a trophy cup
+  B=>{pX(B,0,0,.1,.04,.07,.14,0x3a3e45);pX(B,0,0,-.28,.05,.035,.62,0xc8955a);pL(B,0,0,-.68,.09,.28,.22,0xe8453c);pL(B,0,0,-.88,.09,.36,.26,0xe8453c);pX(B,.05,0,-.82,.01,.12,.18,WHITE);pX(B,.05,0,-.62,.01,.06,.02,0x2a2d34)},   // a guitar
+  B=>{for(const [y,z] of [[.06,.16],[-.06,.16],[0,.22],[0,.1]])pX(B,0,y,z,.04,.05,.05,GOLD);pX(B,0,0,-.35,.05,.05,.84,0x5ce1ff);pX(B,0,0,-.02,.04,.3,.04,0x5ce1ff);for(const s of [-1,1]){pT(B,0,0,s*.12,-.78,.05,.05,.26,0x5ce1ff,s*.7,0,0);pT(B,0,0,s*.22,-.68,.06,.12,.08,WHITE,0,0,0)}},   // a toy anchor
+  B=>{pX(B,0,0,.07,.06,.09,.22,0xe8453c);pX(B,0,0,-.35,.045,.09,.66,0xdfe4ea);pX(B,0,0,-.74,.06,.24,.14,0xdfe4ea);for(const s of [-1,1])pX(B,0,s*.09,-.86,.06,.07,.14,0xdfe4ea);pX(B,.035,0,-.4,.01,.04,.4,0xb9c2cc)},   // a giant wrench
+  B=>{pX(B,0,-.1,.12,.04,.16,.04,0x8a5a2b);pX(B,0,-.17,.06,.04,.04,.1,0x8a5a2b);pX(B,0,0,-.1,.03,.03,.3,0x8a96a0);for(let k=0;k<5;k++){const w=.14-Math.abs(k-1.5)*.03;pX(B,0,0,-.3-k*.1,w,w,.1,k%2?0xe8453c:WHITE)}pX(B,0,0,-.84,.025,.025,.1,0x8a96a0)},   // a closed umbrella
+  B=>{pX(B,0,0,-.3,.035,.035,.76,WHITE);pL(B,0,0,-.84,.07,.42,.42,0xff6fb5);for(const r of [0,.785,1.57,2.36])pT(B,0,.04,0,-.84,.01,.4,.05,r%1.57?0xffd23f:WHITE,r,0,0)}];   // a giant lollipop
+const pickGeo=[];
+function pickOf(n){if(!PICKS[n]||!G.Bag)return null;   // (an older page lends no Bag: it keeps the crowbar)
+  if(!pickGeo[n]){const B=G.Bag();PICKS[n](B);pickGeo[n]=G.bagGeo(B)}return pickGeo[n]}
+const pIMs={};
+function pickIM(n){let im=pIMs[n];if(!im){im=pIMs[n]=new THREE.InstancedMesh(pickOf(n),G.MAT,G.LIMB_N);im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);im.frustumCulled=false;im.count=0;im.visible=false;im.castShadow=im.receiveShadow=true;G.scene.add(im)}return im}
+function pickPic(n,W,H){const sc=new THREE.Scene();lights(sc);const m=new THREE.Mesh(pickOf(n),G.MAT),g=new THREE.Group();m.rotation.x=Math.PI/2;m.position.y=-.35;g.add(m);g.rotation.set(0,Math.PI/2-.35,.18);sc.add(g);   // stood up, its business end on top
+  const h=.68,cam=new THREE.OrthographicCamera(-h*W/H,h*W/H,h,-h,.1,20);cam.position.set(0,.2,5);cam.lookAt(0,0,0);return render(sc,cam,W,H)}
 
 // =====================================================================
 //  Dressing an entity, the frame's work
@@ -704,7 +869,7 @@ function dress(e){
   if(!e||!e.model)return;const o=parse(e.lx||''),u=e.model.userData;e.lxo=o;
   const g=o.g?gliderOf(o.g):null;
   if(g){u.glider.geometry=g;u.glider.material=GLX;u.glider.castShadow=true}else if(u.glider.material===GLX){u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.BMAT}   // (a Locker glider is drawn unskinned: it opens its own way, PLACE)
-  u.gs=o.w||0;
+  u.gs=o.w||0;u.lxO=o.o||0;
   const pk=o.p||0;if((u.lxPk|0)!==pk){u.lxPk=pk;G.setModelColor(e.model,u.hex,u.skinIx,u.fit,u.face)}
 }
 function setGlider(model,n){const u=model.userData,g=n?gliderOf(n):null;if(g){u.glider.geometry=g;u.glider.material=GLX}else{u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.BMAT}}
@@ -726,25 +891,25 @@ function tick(dt){
     tMat.uniforms.uScale.value=G.renderer.domElement.height/(2*Math.tan(G.camera.fov*Math.PI/360))}
 }
 const gIMs={};
-function gunReset(){for(const k in gIMs)gIMs[k].count=0}
-function gunIM(k,s){if(!G.WEAP[k]||!(s>=1&&s<=WRAP_NAMES.length))return G.gunIM[k];let im=gIMs[k];if(!im){im=gIMs[k]=gunMesh(k,G.LIMB_N);G.scene.add(im)}
+function gunReset(){for(const k in gIMs)gIMs[k].count=0;for(const k in pIMs)pIMs[k].count=0}
+function gunIM(k,s,pk){if(k==='cb')return pk>=1&&pk<=PICK_NAMES.length&&G.Bag?pickIM(pk):G.gunIM[k];if(!G.WEAP[k]||!(s>=1&&s<=WRAP_NAMES.length))return G.gunIM[k];let im=gIMs[k];if(!im){im=gIMs[k]=gunMesh(k,G.LIMB_N);G.scene.add(im)}
   if(im.count<G.LIMB_N){const a=im.geometry.attributes.gsk;if(a.array[im.count]!==s){a.array[im.count]=s;a.needsUpdate=true}}return im}
-function gunDone(){for(const k in gIMs){const im=gIMs[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}}
+function gunDone(){for(const M of [gIMs,pIMs])for(const k in M){const im=M[k];im.visible=im.count>0;if(im.count)im.instanceMatrix.needsUpdate=true}}
 function bsOf(oid){if(oid==null)return 0;let e=null;if(oid===G.myId()||oid==='me')e=G.player;else for(const x of G.ents)if(x.id===oid){e=x;break}
   const o=e?parse(e.lx||''):null;return o&&o.b||0}
 function bsk(mesh,i,bs){const a=mesh.geometry.attributes.bsk;if(!a||i<0||i>=a.count)return;const v=bs|0;if(a.array[i]!==v){a.array[i]=v;a.needsUpdate=true}}
 const bsCol=bs=>BS_DEBRIS[bs]||BS_DEBRIS[0];
 const bsMat=bs=>['wood','crate','stone','stone','crate','stone','metal'][bs]||'wood';   // what a skinned piece's crowbar chips and sound are
-const botLx=i=>'g'+(1+(i*7)%GLIDER_NAMES.length)+'t'+(1+i%6)+'w'+(1+(i*5)%WRAP_NAMES.length)+'b'+(1+i%6)+'p'+(1+(i*3)%PACK_NAMES.length)+'v'+(1+i%4);
+const botLx=i=>'g'+(1+(i*7)%GLIDER_NAMES.length)+'t'+(1+i%6)+'w'+(1+(i*5)%WRAP_NAMES.length)+'b'+(1+i%6)+'p'+(1+(i*3)%PACK_NAMES.length)+'v'+(1+i%4)+'o'+(1+i%PICK_NAMES.length);
 
 // =====================================================================
 //  The Locker's tabs
 // =====================================================================
-const TABS=[['outfits','Outfits','OUT','FITS'],['p','Backpacks','BACK','PACKS'],['e','Emotes','EMO','TES'],['v','Victory','VIC','TORY'],['g','Gliders','GLI','DERS'],['t','Trails','TRA','ILS'],['w','Gun skins','GUN ','SKINS'],['b','Builds','BUI','LDS']];
+const TABS=[['outfits','Outfits','OUT','FITS'],['p','Backpacks','BACK','PACKS'],['e','Emotes','EMO','TES'],['v','Victory','VIC','TORY'],['g','Gliders','GLI','DERS'],['t','Trails','TRA','ILS'],['w','Gun skins','GUN ','SKINS'],['o','Pickaxes','PICK','AXES'],['b','Builds','BUI','LDS']];
 // (the HUD the Emote button sits in is left alone by ../lang.js, so it's put in the player's language here; the Locker's own words
 // are translated by lang.js, from the page's es.js)
 const lxT=s=>window.BackRoomLang?window.BackRoomLang.t(s):s;
-const LEDE={outfits:'Pick what you wear. Every outfit is the same size and just as easy to hit as the standard one.',g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',e:'Pick the emote to play in a match: T on a keyboard, the Emote button on a touch screen. Standing still only; moving stops it.',v:'Pick what you do when you win: everyone watching you sees it.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
+const LEDE={outfits:'Pick what you wear. Every outfit is the same size and just as easy to hit as the standard one.',g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',e:'Pick the emote to play in a match: the Emote key on a keyboard (J unless you change it in Controls), the Emote button on a touch screen. Standing still only; moving stops it.',v:'Pick what you do when you win: everyone watching you sees it.',o:'Swing something sillier than the crowbar. Same reach, same swing, same damage, and it gathers scrap just the same.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
 let stageA=0,lede0=null,tab='outfits',built=false,drawnPics=false,stageEnt=null,stageTrail=0,posed=false,disp=null;
 const cards={};
 function worn(){return parse(G.myLx)}
@@ -766,14 +931,14 @@ function buildMenu(){
   grid0.before(bar);
   for(const [id] of TABS.slice(1)){const gr=document.createElement('div');gr.className='lk-grid';gr.id='lkGrid-'+id;gr.hidden=true;grid0.after(gr);const L=SLOT[id];cards[id]=[];
     for(let n=id==='e'?1:0;n<=L.length;n++){const b=document.createElement('button');b.type='button';b.className='lk-card';
-      b.innerHTML=(id==='e'||id==='v')&&!n?'<span class="lk-none lk-big">&ndash;</span><span>None</span>':(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'Outfit\'s own':'Standard')+'</span>';
+      b.innerHTML=(id==='e'||id==='v')&&!n?'<span class="lk-none lk-big">&ndash;</span><span>None</span>':(n?'<img alt="" hidden>':'<span class="lk-none">'+(id==='g'?'Standard':'None')+'</span>')+'<span>'+G.esc(n?L[n-1]:id==='o'?'Crowbar':id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'Outfit\'s own':'Standard')+'</span>';
       b.addEventListener('click',()=>pick(id,n));gr.appendChild(b);cards[id][n]=b}}
   setTab('outfits');
 }
 function pick(id,n){if(!G.lockerOn())return;if(id==='e'){G.store.set('em',String(n||1));stageA=performance.now();mark();return}const o=worn();delete o.e;if(n)o[id]=n;else delete o[id];if(id==='v')stageA=performance.now();G.setLx(str(o));mark()}
-function nameOf(id){const o=worn();o.e=myEmote();const n=o[id];return n?SLOT[id][n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':id==='v'?'No victory pose':'Standard glider'}
+function nameOf(id){const o=worn();o.e=myEmote();const n=o[id];return n?SLOT[id][n-1]:id==='o'?'Crowbar':id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':id==='v'?'No victory pose':'Standard glider'}
 function mark(){if(!built)return;const o=worn();o.e=myEmote();for(const id in cards)cards[id].forEach((b,n)=>b.setAttribute('aria-pressed',(o[id]||0)===n?'true':'false'));
-  if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)}
+  if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)+(tab==='e'&&!G.touchUI&&emoteKeyName()?'  ['+emoteKeyName()+']':'')}
 function setTab(id){tab=id;const sec=G.Locker.sec;
   for(const b of sec.querySelectorAll('.lk-tabs button')){b.setAttribute('aria-pressed',b.dataset.tab===id?'true':'false');if(b.dataset.tab===id&&sec.offsetParent!==null){const bar=b.parentNode;if(b.offsetLeft<bar.scrollLeft||b.offsetLeft+b.offsetWidth>bar.scrollLeft+bar.clientWidth)bar.scrollLeft=b.offsetLeft-12}}
   G.$('lkGrid').hidden=id!=='outfits';for(const k in cards)G.$('lkGrid-'+k).hidden=k!==id;
@@ -805,13 +970,13 @@ function trailPic(n){const W=180,H=270,c=document.createElement('canvas');c.widt
     g.globalAlpha=(T.a)*(1-f*.7);g.drawImage(tmp,x-s/2+(r()-.5)*20,y-s/2,s,s)}
   return c.toDataURL('image/png')}
 function pics(){if(drawnPics||tab==='outfits')return;drawnPics=true;
-  try{for(const id of ['g','t','w','b'])cards[id].forEach((b,n)=>{if(!n)return;const im=b.firstChild;im.src=id==='g'?gliderPic(n,180,270):id==='w'?gunPic(n,180,270):id==='b'?buildPic(n):trailPic(n);im.hidden=false});
+  try{for(const id of ['g','t','w','b','o'])cards[id].forEach((b,n)=>{if(!n)return;const im=b.firstChild;im.src=id==='g'?gliderPic(n,180,270):id==='w'?gunPic(n,180,270):id==='o'?pickPic(n,180,270):id==='b'?buildPic(n):trailPic(n);im.hidden=false});
     const pp=packPics();cards.p.forEach((b,n)=>{if(!n||!pp[n-1])return;const im=b.firstChild;im.src=pp[n-1];im.hidden=false});
     for(const k of ['e','v']){const pp=posePics(k);cards[k].forEach((b,n)=>{if(!n||!pp[n-1])return;const im=b.firstChild;im.src=pp[n-1];im.hidden=false})}}catch(e){console.error(e)}}
 // emotes and victory poses: your character caught in the middle of each (a model posed by the page's own animModel, its
 // legs as plain meshes for the picture), from the front
 function posePics(kind){
-  const out=[],W=180,H=270,L=kind==='e'?EMOTES:VICTORIES,T=kind==='e'?[0,.32,.36,.5,.48,.1,.3,1.0,.9,.33,1.2]:[0,.4,.5,1.2,.25];
+  const out=[],W=180,H=270,L=kind==='e'?EMOTES:VICTORIES,T=kind==='e'?[0,.32,.36,.5,.48,.1,.3,1.0,.9,.33,1.2,.8,.45,.3,1.0,.6,1.0,.5,.8,1.0,.9,1.5,1.0]:[0,.4,.5,1.2,.25];
   const sc=new THREE.Scene();lights(sc);const cam=new THREE.OrthographicCamera(-.95,.95,1.42,-1.42,.1,40);cam.position.set(2.3,2.1,-6);cam.lookAt(0,1.27,0);
   const u0=G.player.model.userData,cp=G.camera.position;
   for(let n=1;n<L.length;n++){const m=G.makeModel(G.player.hex,u0.skinIx,u0.fit,'');
@@ -832,11 +997,11 @@ function stage(dt,model,yaw){
   e.st=air?'glide':'ground';e.glide=air;e.onGround=!air;
   const em=tab==='e'?myEmote():tab==='v'?o.v||0:0;   // an emote (played again and again) or the victory pose
   if(em){const now=performance.now(),D=tab==='e'?EMOTES[em]:null;if(D&&now-stageA>D.dur*1000+700)stageA=now;e.lxForce={k:tab,n:em,t0:stageA}}else e.lxForce=null;
-  e.lxo={g:air?o.g||0:0};setGlider(model,air?o.g||0:0);model.userData.gs=tab==='w'?o.w||0:0;
+  e.lxo={g:air?o.g||0:0};setGlider(model,air?o.g||0:0);model.userData.gs=tab==='w'?o.w||0:0;model.userData.lxO=o.o||0;
   G.setHeldModel(model,tab==='w'?'ar':'cb',tab==='w'?3:-1);
   G.animModel(e,dt);model.visible=true;
   stageTrail=tab==='t'?o.t||0:0;
-  V.zoom=air?1.85:tab==='w'?.8:tab==='b'?2.7:1.15;V.y=air?1.0:tab==='w'?.38:tab==='b'?1.3:.15;
+  V.zoom=air?1.85:tab==='w'||tab==='o'?.8:tab==='b'?2.7:1.15;V.y=air?1.0:tab==='w'||tab==='o'?.38:tab==='b'?1.3:.15;
   if(tab==='b'){if(!disp)disp=makeDisp();disp.visible=true;const n=o.b||0;if(disp.userData.n!==n){disp.userData.n=n;for(const m of disp.children)m.material=n?dispMat(n):G.plyMat}
     const C=G.STAGE.CAM;disp.position.set(S[0],S[1],S[2]);disp.rotation.y=Math.atan2(-C[0],-C[1])}else if(disp)disp.visible=false;   // the pieces stay behind the character, facing the camera
 }
@@ -847,5 +1012,5 @@ function makeDisp(){const g=new THREE.Group();const w=new THREE.Mesh(G.geoPWall,
 
 return{relang(){if(emoteBtn)emoteBtn.textContent=lxT('EMOTE')},canEmote,pick,emote,EMOTES,VICTORIES,startEmote,stopEmote,pack,dress,tick,gunReset,gunIM,gunDone,bsOf,bsk,bsCol,bsMat,botLx,menu,shown,stage,gstyle,HOLDS,
   // for tests and contact sheets
-  parse,str,GLIDER_NAMES,TRAIL_NAMES,WRAP_NAMES,BUILD_NAMES,gliderOf,setGlider,gunMesh,GLX,GSK,tp,TRAILS,emit,buildTex,tileCanvas,setTab,get tab(){return tab},gT,uT,gliderPic,gunPic};
+  parse,str,PICK_NAMES,pickOf,pickPic,PACK_NAMES,EMOTE_NAMES,GLIDER_NAMES,TRAIL_NAMES,WRAP_NAMES,BUILD_NAMES,gliderOf,setGlider,gunMesh,GLX,GSK,tp,TRAILS,emit,buildTex,tileCanvas,setTab,get tab(){return tab},gT,uT,gliderPic,gunPic};
 };
