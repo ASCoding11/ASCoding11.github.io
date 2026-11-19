@@ -29,13 +29,16 @@
 
   // ---------------- Names (the same as ../cosmetics.js) ----------------
   var NAMES = {
-    skin: ['Classic Climber', 'Jungle Explorer', 'Mountaineer', 'Arctic Explorer', 'Safari Guide', 'Deep-Sea Diver', 'Aviator', 'Cave Explorer', 'Treasure Hunter', 'Dusty Archaeologist', 'Storm Chaser', 'Balloonist', 'Old-Timey Explorer', 'Pirate', 'Park Ranger', 'Astronaut', 'Tourist', 'Pizza Delivery', 'Window Washer', 'Grandma', 'Knight', 'Ninja', 'Chicken Suit'],
-    pack: ['Climbing Pack', 'Parachute Pack', 'Teddy Bear', 'Picnic Basket', 'Giant Sandwich', 'Fake Jetpack', 'Rolled-Up Tent'],
+    skin: ['Classic Climber', 'Jungle Explorer', 'Mountaineer', 'Arctic Explorer', 'Safari Guide', 'Deep-Sea Diver', 'Aviator', 'Cave Explorer', 'Treasure Hunter', 'Dusty Archaeologist', 'Storm Chaser', 'Balloonist', 'Old-Timey Explorer', 'Pirate', 'Park Ranger', 'Astronaut', 'Tourist', 'Pizza Delivery', 'Window Washer', 'Grandma', 'Knight', 'Ninja', 'Chicken Suit',
+      'Soccer Star', 'Basketball Pro', 'Gridiron Gear', 'Baseball Slugger', 'Hockey Player', 'Tennis Ace', 'Boxer', 'Sprinter', 'Swimmer', 'Ski Racer', 'Racing Driver', 'Skateboarder', 'Surfer', 'Referee', 'Team Mascot', 'Karate Champ', 'Tin Robot', 'Sleek Android', 'Mech Pilot', 'Pirate Deckhand', 'First Mate', 'Ghost Pirate', 'Pinstripe Suit', 'The Boss', 'Tracksuit Tough Guy', 'Bodyguard', 'Tuxedo', 'Detective', 'Business Suit', 'Wizard', 'Firefighter', 'Rock Star'],
+    pack: ['Climbing Pack', 'Parachute Pack', 'Teddy Bear', 'Picnic Basket', 'Giant Sandwich', 'Fake Jetpack', 'Rolled-Up Tent', 'Sports Bag', 'Treasure Chest', 'Briefcase', 'Robot Battery Pack'],
     reward: ['None', '1,000 m Badge', 'Space Helmet', 'Golden Crown'],
     scream: ['None', 'Aaaah!', 'Yodel', 'Slide Whistle', 'Opera Note', 'Wheee!'],
     trail: ['None', 'Rainbow Streamer', 'Comet Tail', 'Smoke Trail', 'Gold Sparkles']
   };
   var ADVENTURERS = 15;                     // skins 1-15; 16-22 are the silly ones
+  // the November 2026 wave, shown in its own groups after Silly: [label, first, last]
+  var GROUPS2 = [['Sports', 23, 38], ['Robots', 39, 41], ['Pirates', 42, 44], ['Suits and bosses', 45, 51], ['And more', 52, 54]];
   var REWARD_AT = [0, 1000, 2200, 3000];    // best height that earns each reward
   var REWARD_WHERE = ['', 'the old summit', 'Orbit Yard, where space starts', 'the Crown: finish the climb'];
   var MAX = { s: NAMES.skin.length - 1, p: NAMES.pack.length - 1, r: 3, x: NAMES.scream.length - 1, t: NAMES.trail.length - 1 };
@@ -466,6 +469,342 @@
     b.cyl('spine', [.26, .4, -.22], [.01, .05, .01], '#9aa3ad', [0, 0, Math.PI / 2]);
     straps(b, '#5a4a32', .126);
   };
+  // ---- Wave 2 (Nov 2026): sports, robots, pirates, suits and more (skins 23-54, packs 7-10) ----
+  var SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+  // a shirt number in bars, readable from the front (dir 1) or from behind (dir -1)
+  function digits(b, bone, str, cy, z, h, col, dir) {
+    var w = h * .55, t = h * .17, n = str.length, gap = w * 1.6;
+    for (var i = 0; i < n; i++) {
+      var x0 = (i - (n - 1) / 2) * gap, segs = SEG[str.charAt(i)];
+      for (var j = 0; j < segs.length; j++) {
+        var sg = segs.charAt(j), X = 0, Y, hz = 'adg'.indexOf(sg) >= 0;
+        if (sg === 'a') Y = h / 2; else if (sg === 'g') Y = 0; else if (sg === 'd') Y = -h / 2;
+        else { X = 'bc'.indexOf(sg) >= 0 ? w / 2 : -w / 2; Y = 'bf'.indexOf(sg) >= 0 ? h / 4 : -h / 4; }
+        b.box(bone, [(x0 + X) * dir, cy + Y, z], hz ? [w + t, t, .008] : [t, h / 2 + t * .6, .008], col);
+      }
+    }
+  }
+  var SKT = ['#efc6a2', '#c68a5e', '#8d5a3b'];   // skin tones
+  function cap(b, col, brim) { b.hemi('neck', [0, .16, 0], [.162, .12, .162], col, null, 'hat'); b.box('neck', [0, .17, .15], [.2, .022, .13], brim || col, [-.1, 0, 0], 'hat'); b.ball('neck', [0, .28, 0], [.02, .015, .02], brim || col, null, 'hat'); }
+  function band(b, col, y) { b.cyl('neck', [0, y || .21, 0], [.166, .04, .166], col); }
+  function cuffs(b, col, bone, y, r) { b.cyl(bone, [0, y, 0], [r, .035, r], col); }
+  function shades(b, col) { b.box('neck', [0, .135, .152], [.16, .045, .014], col || '#1d1f24'); for (var s = -1; s <= 1; s += 2) b.box('neck', [s * .12, .14, .09], [.012, .012, .12], col || '#1d1f24'); }
+  function eyePatch(b) { b.box('neck', [.05, .13, .153], [.055, .05, .014], '#111'); b.ring('neck', [0, .15, 0], [.16, .16, .16], '#111', [Math.PI / 2, 0, .35]); }
+  function tie(b, col, w) { b.box('spine', [0, .29, .124], [w || .045, .3, .008], col); b.box('spine', [0, .45, .126], [.05, .04, .012], col); }
+  function suitFront(b, shirt, lap, tieCol) {   // a shirt V, lapels and a tie on the jacket's front
+    b.box('spine', [0, .38, .122], [.13, .2, .01], shirt);
+    for (var s = -1; s <= 1; s += 2) b.box('spine', [s * .075, .36, .125], [.05, .26, .01], lap, [0, 0, s * .3]);
+    if (tieCol) { b.box('spine', [0, .36, .128], [.04, .2, .008], tieCol); b.box('spine', [0, .465, .129], [.045, .035, .01], tieCol); }
+    for (var y = .12; y < .25; y += .08) b.ball('spine', [0, y, .126], [.012, .012, .008], '#1d1f24');
+  }
+  function coatTails(b, col, len) { b.box('hips', [0, -.04 - (len || .3) / 2 + .08, 0], [.43, len || .3, .27], col); }
+  function tricorn(b, col, trim) {
+    b.cyl('neck', [0, .25, 0], [.15, .1, .15], col, null, 'hat');
+    for (var i = 0; i < 3; i++) {
+      var a = i / 3 * Math.PI * 2 + Math.PI / 3;
+      b.box('neck', [Math.sin(a) * .15, .275, Math.cos(a) * .15], [.31, .11, .025], col, [.45, a, 0, 'YXZ'], 'hat');
+      if (trim) b.box('neck', [Math.sin(a) * .175, .325, Math.cos(a) * .175], [.31, .014, .03], trim, [.45, a, 0, 'YXZ'], 'hat');
+    }
+  }
+  function bandana(b, col, dot) {
+    b.hemi('neck', [0, .165, 0], [.164, .125, .164], col, null, 'hat');
+    if (dot) for (var s = -1; s <= 1; s += 2) b.ball('neck', [s * .05, .2, .08], [.014, .014, .014], dot, null, 'hat');
+    b.ball('neck', [0, .17, -.16], [.035, .03, .03], col, null, 'hat');
+    b.box('neck', [.025, .1, -.16], [.03, .1, .015], col, [0, 0, .3], 'hat'); b.box('neck', [-.025, .1, -.16], [.03, .09, .015], col, [0, 0, -.3], 'hat');
+  }
+  function fedora(b, crown, bandCol) { brimHat(b, { y: .235, brim: crown, crown: crown, band: bandCol, brimR: .24, crownR: .14, crownH: .12 }); b.box('neck', [0, .355, 0], [.03, .018, .16], shadeHex(crown.length === 7 ? crown : '#555555', .7), null, 'hat'); }
+  function chain(b, col) { b.ring('spine', [0, .45, .02], [.15, .15, .13], col, [Math.PI / 2 - .55, 0, 0]); b.cyl('spine', [0, .34, .135], [.035, .012, .035], col, [Math.PI / 2, 0, 0]); }
+  function furHat(b, col) { b.cyl('neck', [0, .29, 0], [.18, .17, .18], col, null, 'hat'); for (var i = 0; i < 14; i++) { var a = i / 14 * Math.PI * 2; b.ball('neck', [Math.sin(a) * .18, .23 + (i % 2) * .09, Math.cos(a) * .18], [.035, .035, .035], shadeHex(col, i % 2 ? 1.15 : .9), null, 'hat'); } }
+  function sevenStripes(b, col, n, z) { for (var i = 0; i < n; i++) b.box('spine', [-.16 + i * .32 / (n - 1), .25, z], [.012, .46, .006], col); }
+  // ---- Sports ----
+  SKIN[23] = function (b) {   // soccer star
+    figure(b, { shirt: '#2e8bff', sleeve: '#2e8bff', pants: '#ffffff', shin: '#2e8bff', shoe: '#1d1f24', hair: '#2a1a10', bag: '#1f5fbf', skin: SKT[1] });
+    for (var s = -1; s <= 1; s += 2) b.box('spine', [s * .2, .25, 0], [.012, .46, .14], '#ffffff');
+    b.box('spine', [0, .47, .121], [.12, .03, .012], '#ffffff'); cuffs(b, '#ffffff', 'arm', -.22, .064); cuffs(b, '#ffffff', 'shin', -.03, .074);
+    b.cone5('spine', [-.09, .38, .124], [.03, .01, .03], '#ffffff', [Math.PI / 2, 0, 0]);
+    digits(b, 'spine', '9', .26, -.126, .17, '#ffffff', -1); digits(b, 'spine', '9', .38, .124, .05, '#ffffff', 1);
+  };
+  SKIN[24] = function (b) {   // basketball pro
+    var sk = SKT[2];
+    figure(b, { shirt: '#7a3cff', sleeve: sk, pants: '#7a3cff', shin: sk, shoe: '#ffffff', hair: '#1d1410', bag: '#5a2ad0', skin: sk });
+    b.box('spine', [0, .47, .121], [.16, .025, .012], '#ffd23f'); for (var s = -1; s <= 1; s += 2) b.box('spine', [s * .17, .44, 0], [.07, .025, .25], '#ffd23f');
+    b.box('thigh', [.08, -.15, 0], [.012, .3, .12], '#ffd23f'); b.cyl('thigh', [0, -.3, 0], [.088, .035, .088], '#ffd23f');
+    boots(b, '#ffffff', .12); cuffs(b, '#ffd23f', 'fore', -.2, .058); band(b, '#ffffff');
+    digits(b, 'spine', '7', .27, .124, .16, '#ffd23f', 1); digits(b, 'spine', '7', .27, -.126, .18, '#ffd23f', -1);
+  };
+  SKIN[25] = function (b) {   // gridiron gear
+    figure(b, { shirt: '#d9312b', sleeve: '#d9312b', fore: SKT[1], hand: SKT[1], pants: '#f2e6c9', shin: '#ffffff', shoe: '#1d1f24', hair: '#2a1a10', bag: '#a8231d', skin: SKT[1] });
+    for (var s = -1; s <= 1; s += 2) { b.ball('spine', [s * .17, .47, 0], [.13, .07, .16], '#d9312b'); b.box('arm', [0, -.08, 0], [.122, .03, .122], '#ffffff'); }
+    digits(b, 'spine', '42', .24, .124, .13, '#ffffff', 1); digits(b, 'spine', '42', .24, -.126, .15, '#ffffff', -1);
+    b.hemi('neck', [0, .16, 0], [.19, .19, .19], '#d9312b', null, 'helm'); b.box('neck', [0, .345, 0], [.04, .02, .3], '#ffffff', null, 'helm');
+    for (s = -1; s <= 1; s += 2) b.box('neck', [s * .165, .1, -.02], [.05, .14, .2], '#d9312b', null, 'helm');
+    b.box('neck', [0, .1, -.15], [.28, .12, .07], '#d9312b', null, 'helm');
+    b.box('neck', [0, .06, .2], [.22, .016, .016], '#c8ccd4', null, 'helm'); b.box('neck', [0, .1, .205], [.2, .016, .016], '#c8ccd4', null, 'helm'); b.box('neck', [0, .08, .208], [.016, .07, .016], '#c8ccd4', null, 'helm');
+    for (s = -1; s <= 1; s += 2) b.box('neck', [s * .11, .09, .17], [.016, .08, .07], '#c8ccd4', [0, s * .5, 0], 'helm');
+  };
+  SKIN[26] = function (b) {   // baseball slugger
+    figure(b, { shirt: '#fbfaf5', sleeve: '#fbfaf5', pants: '#fbfaf5', shin: '#1f3b73', shoe: '#1d1f24', hair: '#5a3c28', bag: '#1f3b73' });
+    sevenStripes(b, '#7d8db8', 7, .121); sevenStripes(b, '#7d8db8', 7, -.121);
+    b.box('spine', [.01, .25, .124], [.022, .46, .01], '#1f3b73'); for (var y = .12; y < .45; y += .1) b.ball('spine', [.035, y, .127], [.012, .012, .008], '#1f3b73');
+    belt(b, '#1f3b73', '#c8ccd4'); cuffs(b, '#1f3b73', 'arm', -.22, .064);
+    digits(b, 'spine', '12', .27, -.126, .15, '#1f3b73', -1); cap(b, '#1f3b73');
+  };
+  SKIN[27] = function (b) {   // hockey player
+    figure(b, { shirt: '#19b3a6', sleeve: '#19b3a6', fore: '#19b3a6', hand: '#2a2d34', handK: 1.25, pants: '#2a2a33', thigh: '#2a2a33', shin: '#19b3a6', shoe: '#2a2d34', hair: '#a0602a', bag: '#0f7d74' });
+    b.box('spine', [0, .1, 0], [.414, .06, .254], '#ffffff'); b.box('spine', [0, .1, 0], [.418, .02, .258], '#1d1f24'); cuffs(b, '#ffffff', 'fore', -.15, .056);
+    b.cyl('thigh', [0, -.12, 0], [.1, .24, .1], '#2a2a33'); cuffs(b, '#ffffff', 'shin', -.12, .074);
+    b.box('shin', [0, -.48, .05], [.014, .04, .3], '#c8ccd4');
+    digits(b, 'spine', '88', .28, -.126, .15, '#ffffff', -1);
+    b.hemi('neck', [0, .17, 0], [.172, .155, .182], '#ffffff', null, 'helm'); for (var s = -1; s <= 1; s += 2) b.cyl('neck', [s * .15, .14, 0], [.04, .03, .04], '#e6e9ee', [0, 0, Math.PI / 2], 'helm');
+    for (var i = -1; i <= 1; i++) { b.box('neck', [i * .055, .09, .2], [.012, .12, .012], '#9aa3ad', null, 'helm'); b.box('neck', [0, .05 + (i + 1) * .045, .2], [.17, .012, .012], '#9aa3ad', null, 'helm'); }
+  };
+  SKIN[28] = function (b) {   // tennis ace
+    figure(b, { shirt: '#ffffff', pants: '#ffffff', shin: SKT[0], shoe: '#ffffff', hair: '#e0b040', bag: '#46d37a' });
+    for (var s = -1; s <= 1; s += 2) b.box('spine', [s * .06, .47, .12], [.09, .04, .02], '#46d37a', [0, 0, s * .4]);
+    b.box('spine', [0, .4, .123], [.02, .1, .01], '#e6e9ee'); b.cyl('arm', [0, -.2, 0], [.064, .02, .064], '#46d37a'); cuffs(b, '#46d37a', 'fore', -.2, .056);
+    b.cyl('shin', [0, -.33, 0], [.07, .05, .07], '#ffffff');
+    band(b, '#46d37a', .2); b.box('neck', [0, .2, .16], [.24, .016, .12], '#46d37a', [-.15, 0, 0]);
+  };
+  SKIN[29] = function (b) {   // boxer
+    var sk = SKT[1];
+    figure(b, { shirt: sk, sleeve: sk, pants: '#e8282b', thigh: sk, shin: sk, hand: '#e8282b', handK: 1.75, shoe: '#ffffff', hair: '#1d1410', noPack: true, skin: sk, front: .125 });
+    b.box('hips', [0, .07, 0], [.36, .06, .236], '#ffffff'); b.cyl('thigh', [0, -.06, 0], [.096, .14, .096], '#e8282b'); b.cyl('thigh', [0, -.13, 0], [.098, .02, .098], '#ffffff');
+    boots(b, '#ffffff', .14); cuffs(b, '#ffffff', 'fore', -.2, .056);
+    b.box('hips', [0, .13, 0], [.38, .07, .25], '#ffcf3d'); b.cyl('hips', [0, .13, .125], [.06, .015, .06], '#ffe58a', [Math.PI / 2, 0, 0]); b.ball('hips', [0, .13, .135], [.02, .02, .01], '#e8282b');
+    b.hemi('neck', [0, .17, 0], [.172, .15, .175], '#e8282b', null, 'helm'); for (var s = -1; s <= 1; s += 2) b.box('neck', [s * .13, .09, .06], [.05, .1, .1], '#e8282b', [0, s * .4, 0], 'helm');
+    b.box('neck', [0, .23, .15], [.16, .04, .04], '#e8282b', null, 'helm');
+  };
+  SKIN[30] = function (b) {   // sprinter
+    var sk = SKT[2];
+    figure(b, { shirt: '#ff3b5c', sleeve: sk, pants: '#1f3b73', thigh: sk, shin: sk, shoe: '#9be84a', hair: '#1d1410', bag: '#c8203e', skin: sk });
+    b.cyl('thigh', [0, -.04, 0], [.088, .1, .088], '#1f3b73');
+    b.box('spine', [0, .29, .124], [.2, .14, .008], '#ffffff'); digits(b, 'spine', '205', .29, .129, .07, '#1d1f24', 1);
+    for (var s = -1; s <= 1; s += 2) b.box('spine', [s * .2, .25, 0], [.012, .46, .1], '#ffffff');
+  };
+  SKIN[31] = function (b) {   // swimmer
+    var sk = SKT[0];
+    figure(b, { shirt: sk, sleeve: sk, pants: '#1f3b73', thigh: '#1f3b73', shin: sk, shoe: sk, foot: [.11, .05, .24], hair: '#5a3c28', bag: '#ffd23f' });
+    b.box('thigh', [.08, -.18, 0], [.012, .34, .1], '#ffd23f');
+    b.hemi('neck', [0, .165, 0], [.166, .148, .172], '#ffd23f', null, 'hat'); b.cyl('neck', [0, .17, 0], [.166, .012, .172], '#e0b520', null, 'hat');
+    goggles(b, .205, .14, '#2ec5ff', '#1d1f24', 'hat', .35);
+  };
+  SKIN[32] = function (b) {   // ski racer
+    figure(b, { shirt: '#ff3b3b', sleeve: '#ff3b3b', fore: '#2e5ad9', hand: '#1d1f24', pants: '#2e5ad9', shin: '#ffffff', shoe: '#ffffff', foot: [.14, .1, .3], hair: '#3a2a1a', bag: '#2e5ad9' });
+    for (var s = -1; s <= 1; s += 2) b.box('spine', [s * .1, .2, .123], [.04, .32, .01], '#ffffff', [0, 0, s * .6]);
+    boots(b, '#ffffff', .2); b.box('spine', [0, .36, .124], [.18, .12, .008], '#ffffff'); digits(b, 'spine', '3', .36, .129, .08, '#ff3b3b', 1);
+    b.hemi('neck', [0, .17, 0], [.178, .162, .185], '#ff3b3b', null, 'helm'); b.box('neck', [0, .33, 0], [.035, .02, .28], '#ffffff', null, 'helm');
+    b.box('neck', [0, .22, .16], [.2, .07, .05], '#ff9f1a', [-.3, 0, 0], 'helm'); b.ring('neck', [0, .22, 0], [.18, .18, .18], '#1d1f24', [Math.PI / 2 - .2, 0, 0], 'helm');
+  };
+  SKIN[33] = function (b) {   // racing driver
+    var O = '#ff6b1a';
+    figure(b, { shirt: O, sleeve: O, fore: O, hand: '#1d1f24', pants: O, shoe: '#1d1f24', hair: '#3a2a1a', bag: '#c94e0e', crownY: .37, front: .13 });
+    for (var i = 0; i < 8; i++) for (var r = 0; r < 2; r++) { b.box('spine', [-.175 + i * .05, .07 + r * .04, .121], [.05, .04, .008], (i + r) % 2 ? '#ffffff' : '#1d1f24'); b.box('spine', [-.175 + i * .05, .07 + r * .04, -.121], [.05, .04, .008], (i + r) % 2 ? '#ffffff' : '#1d1f24'); }
+    b.box('spine', [-.1, .38, .124], [.09, .06, .008], '#ffffff'); b.cone5('spine', [-.1, .38, .129], [.022, .01, .022], O, [Math.PI / 2, 0, 0]);
+    b.box('spine', [.1, .38, .124], [.09, .06, .008], '#1f3b73'); for (var s = -1; s <= 1; s += 2) b.box('thigh', [.08, -.2, 0], [.012, .4, .06], '#1d1f24');
+    digits(b, 'spine', '1', .3, -.126, .16, '#ffffff', -1);
+    b.ball2('neck', [0, .15, 0], [.2, .205, .2], '#ffffff', null, 'helm'); b.box('neck', [0, .14, .165], [.22, .09, .07], '#2a3a5a', null, 'helm');
+    b.box('neck', [0, .3, .02], [.05, .08, .36], O, null, 'helm'); b.cyl('neck', [0, -.06, 0], [.17, .04, .17], '#1d1f24', null, 'helm');
+  };
+  SKIN[34] = function (b) {   // skateboarder: beanie, hoodie, knee pads, a board on the back
+    figure(b, { shirt: '#46d37a', sleeve: '#46d37a', fore: '#46d37a', pants: '#3b4252', thigh: '#3b4252', shoe: '#ffffff', hair: '#a0602a', noPack: true });
+    b.box('neck', [0, .07, -.12], [.26, .14, .1], '#46d37a'); b.box('spine', [0, .14, .124], [.22, .1, .01], '#3aa85a');
+    for (var s = -1; s <= 1; s += 2) b.cyl('spine', [s * .04, .38, .125], [.006, .12, .006], '#ffffff');
+    b.ball('shin', [0, 0, .05], [.075, .07, .05], '#1d1f24'); b.box('shin', [0, -.46, .05], [.13, .02, .26], '#1d1f24');
+    b.hemi('neck', [0, .17, 0], [.165, .16, .165], '#ff8a1f', null, 'hat'); b.cyl('neck', [0, .19, 0], [.17, .05, .17], '#e06a0a', null, 'hat');
+    b.box('spine', [0, .28, -.19], [.13, .56, .02], '#ff4f9a', null, 'back'); b.box('spine', [0, .28, -.202], [.1, .5, .006], '#ffd23f', null, 'back');
+    for (var y = -1; y <= 1; y += 2) for (s = -1; s <= 1; s += 2) b.cyl('spine', [s * .05, .28 + y * .19, -.215], [.025, .02, .025], '#f6f2ea', [Math.PI / 2, 0, 0], 'back');
+  };
+  SKIN[35] = function (b) {   // surfer: wetsuit and a board on the back
+    var sk = SKT[1];
+    figure(b, { shirt: '#1d3a5a', sleeve: '#1d3a5a', fore: '#1d3a5a', pants: '#1d3a5a', shin: sk, shoe: sk, foot: [.11, .05, .24], hair: '#e8c870', noPack: true, skin: sk });
+    for (var s = -1; s <= 1; s += 2) { b.box('spine', [s * .2, .25, 0], [.012, .46, .2], '#2ec5c0'); b.box('thigh', [.08, -.2, 0], [.012, .4, .1], '#2ec5c0'); }
+    b.box('spine', [0, .25, -.124], [.02, .44, .01], '#2ec5c0');
+    b.ball('spine', [0, .3, -.2], [.14, .44, .025], '#ffd23f', null, 'back'); b.box('spine', [0, .3, -.226], [.03, .8, .006], '#ff6b1a', null, 'back');
+    b.cone3('spine', [0, -.05, -.24], [.04, .07, .015], '#ff6b1a', [Math.PI / 2, 0, 0], 'back');
+  };
+  SKIN[36] = function (b) {   // referee
+    figure(b, { shirt: '#ffffff', sleeve: '#ffffff', pants: '#1d1f24', shoe: '#1d1f24', hair: '#8a8a8a', bag: '#2a2d34' });
+    sevenStripes(b, '#1d1f24', 6, .122); sevenStripes(b, '#1d1f24', 6, -.122); cuffs(b, '#1d1f24', 'arm', -.22, .064);
+    b.box('spine', [0, .47, .121], [.13, .03, .012], '#1d1f24'); belt(b, '#1d1f24', '#c8ccd4');
+    b.ring('spine', [0, .45, .02], [.14, .14, .12], '#1d1f24', [Math.PI / 2 - .55, 0, 0]); b.cyl('spine', [0, .34, .14], [.018, .06, .018], '#c8ccd4', [0, 0, Math.PI / 2]);
+    b.box('spine', [.1, .37, .125], [.06, .05, .006], '#ffd23f'); cap(b, '#1d1f24');
+  };
+  SKIN[37] = function (b) {   // team mascot: a fluffy bird with a big head
+    var Y = '#ffb21f';
+    figure(b, { shirt: '#2e5ad9', sleeve: Y, fore: Y, hand: Y, handK: 1.35, pants: Y, shoe: '#ff7a1a', foot: [.16, .07, .3], hair: Y, bag: '#2e5ad9', crownY: .45, front: .13 });
+    b.box('spine', [0, .1, 0], [.414, .04, .254], '#ffffff'); b.box('spine', [0, .45, 0], [.414, .04, .254], '#ffffff');
+    digits(b, 'spine', '00', .27, -.126, .15, '#ffffff', -1); b.ball('thigh', [0, -.15, 0], [.11, .18, .11], Y);
+    b.ball2('neck', [0, .18, 0], [.25, .25, .24], Y, null, 'helm');
+    for (var s = -1; s <= 1; s += 2) { b.ball('neck', [s * .09, .24, .19], [.07, .08, .05], '#ffffff', null, 'helm'); b.ball('neck', [s * .08, .24, .235], [.03, .035, .02], '#1d1f24', null, 'helm'); b.box('neck', [s * .09, .33, .18], [.1, .025, .03], '#c96a10', [0, 0, -s * .3], 'helm'); }
+    b.cone('neck', [0, .13, .27], [.08, .16, .05], '#ff7a1a', [Math.PI / 2, 0, 0], 'helm'); b.cone('neck', [0, .09, .25], [.05, .1, .035], '#e85f0c', [Math.PI / 2 + .3, 0, 0], 'helm');
+    for (var i = -1; i <= 1; i++) b.ball('neck', [i * .045, .45 + (i ? 0 : .03), -.02 - Math.abs(i) * .03], [.03, .08, .03], '#e8282b', [0, 0, -i * .4], 'helm');
+    for (i = -2; i <= 2; i++) b.box('hips', [i * .06, -.02, -.15], [.05, .2, .02], i % 2 ? '#ff8a1f' : '#e8282b', [-.6, 0, i * .3]);
+  };
+  SKIN[38] = function (b) {   // karate
+    var W = '#fbfbf8';
+    figure(b, { shirt: W, sleeve: W, fore: W, pants: W, shin: W, shoe: SKT[0], foot: [.11, .05, .24], hair: '#1d1410', bag: '#8a6a3c' });
+    b.box('spine', [-.03, .36, .124], [.035, .28, .008], '#d8d8e0', [0, 0, .55]); b.box('spine', [.04, .4, .1225], [.03, .2, .008], '#d8d8e0', [0, 0, -.55]);
+    belt(b, '#1d1f24', null, .07); b.ball('hips', [0, .07, .12], [.03, .025, .02], '#1d1f24');
+    for (var s = -1; s <= 1; s += 2) b.box('hips', [s * .035, -.02, .122], [.03, .13, .008], '#1d1f24', [0, 0, s * .2]);
+    band(b, '#e8282b', .2); for (s = -1; s <= 1; s += 2) b.box('neck', [s * .03, .14, -.17], [.03, .13, .01], '#e8282b', [.35, 0, s * .25]);
+  };
+  // ---- Robots ----
+  SKIN[39] = function (b) {   // tin robot
+    var M = '#aab3bd', D = '#7d8794';
+    figure(b, { shirt: M, sleeve: M, fore: M, hand: D, pants: D, thigh: M, shin: M, shoe: '#6b7480', hair: M, noPack: true, crownY: .32, front: .14 });
+    for (var y = .06; y < .5; y += .14) b.box('spine', [0, y, 0], [.414, .018, .254], D);
+    b.box('spine', [0, .27, .13], [.24, .2, .02], D); b.ball('spine', [-.06, .33, .142], [.022, .022, .01], '#e8282b'); b.ball('spine', [0, .33, .142], [.022, .022, .01], '#ffd23f'); b.ball('spine', [.06, .33, .142], [.022, .022, .01], '#46d37a');
+    b.cyl('spine', [.04, .23, .142], [.045, .01, .045], '#f6f6f2', [Math.PI / 2, 0, 0]); b.box('spine', [-.07, .22, .142], [.06, .02, .006], '#2ec5ff');
+    for (var s = -1; s <= 1; s += 2) b.cyl('arm', [0, -.1, 0], [.064, .02, .064], D);
+    b.box('neck', [0, .15, 0], [.3, .27, .27], '#bcc5cf', null, 'helm'); b.box('neck', [0, .06, .137], [.14, .05, .006], D, null, 'helm');
+    for (var i = -2; i <= 2; i++) b.box('neck', [i * .025, .06, .14], [.008, .04, .006], '#5a6370', null, 'helm');
+    for (s = -1; s <= 1; s += 2) { b.cyl('neck', [s * .06, .17, .137], [.035, .01, .035], '#2a2d34', [Math.PI / 2, 0, 0], 'helm'); b.cyl('neck', [s * .06, .17, .143], [.022, .006, .022], '#ffd23f', [Math.PI / 2, 0, 0], 'helm'); b.cyl('neck', [s * .16, .15, 0], [.05, .04, .05], D, [0, 0, Math.PI / 2], 'helm'); }
+    b.cyl('neck', [0, .34, 0], [.012, .12, .012], D, null, 'helm'); b.ball('neck', [0, .41, 0], [.03, .03, .03], '#e8282b', null, 'helm');
+    b.cyl('spine', [0, .3, -.17], [.02, .1, .02], '#c9a46a', [Math.PI / 2, 0, 0], 'back'); for (s = -1; s <= 1; s += 2) b.ball('spine', [s * .04, .3, -.22], [.04, .05, .012], '#e8b923', null, 'back');
+  };
+  SKIN[40] = function (b) {   // sleek android
+    var W = '#f4f7fb', C = '#2ec5ff';
+    figure(b, { shirt: W, sleeve: W, fore: W, hand: '#e6ecf3', pants: W, shoe: '#c9d3df', hair: W, bag: '#c9d3df', crownY: .31, front: .13 });
+    for (var s = -1; s <= 1; s += 2) { b.box('spine', [s * .09, .25, .122], [.012, .4, .006], C); b.box('spine', [s * .2, .25, 0], [.006, .4, .14], C); b.box('thigh', [.079, -.2, 0], [.006, .34, .04], C); }
+    b.cyl('spine', [0, .36, .123], [.04, .008, .04], C, [Math.PI / 2, 0, 0]); b.box('spine', [0, .12, .122], [.2, .012, .006], C);
+    b.ball2('neck', [0, .15, 0], [.165, .175, .165], W, null, 'helm'); b.box('neck', [0, .14, .12], [.22, .075, .07], '#1b2333', null, 'helm'); b.box('neck', [0, .14, .156], [.16, .012, .006], C, null, 'helm');
+    for (s = -1; s <= 1; s += 2) { b.cyl('neck', [s * .16, .15, 0], [.06, .03, .06], '#e6ecf3', [0, 0, Math.PI / 2], 'helm'); b.cyl('neck', [s * .17, .15, 0], [.04, .03, .04], C, [0, 0, Math.PI / 2], 'helm'); }
+  };
+  SKIN[41] = function (b) {   // mech pilot
+    var S = '#3b4a6b', Y = '#ffd23f';
+    figure(b, { shirt: S, sleeve: S, fore: S, hand: '#2a2d34', pants: S, shoe: '#2a2d34', foot: [.13, .09, .27], hair: '#3a2a1a', bag: '#5a6370' });
+    straps(b, Y); b.box('spine', [0, .2, .126], [.24, .03, .01], Y); b.box('spine', [0, .28, .13], [.08, .08, .02], '#c8ccd4');
+    b.box('armL', [.064, -.08, 0], [.01, .07, .06], '#e8282b'); b.ball('shin', [0, 0, .05], [.075, .07, .05], '#c8ccd4'); boots(b, '#2a2d34', .14);
+    b.hemi('neck', [0, .16, 0], [.18, .18, .18], '#f2f2ee', null, 'helm'); b.box('neck', [0, .27, .12], [.2, .08, .06], '#3a6a9a', [-.5, 0, 0], 'helm');
+    for (var s = -1; s <= 1; s += 2) b.cyl('neck', [s * .16, .13, 0], [.05, .05, .05], '#f2f2ee', [0, 0, Math.PI / 2], 'helm');
+    b.cyl('neck', [-.12, .06, .1], [.008, .14, .008], '#2a2d34', [0, -.6, Math.PI / 2], 'helm'); b.ball('neck', [-.06, .05, .155], [.015, .015, .015], '#2a2d34', null, 'helm');
+  };
+  // ---- Pirates (eye patches all round) ----
+  SKIN[42] = function (b) {   // deckhand
+    figure(b, { shirt: '#ffffff', sleeve: '#ffffff', fore: SKT[1], pants: '#c9a46a', shin: SKT[1], shoe: SKT[1], foot: [.11, .05, .24], hair: '#2a1a10', bag: '#8a6a3c', skin: SKT[1] });
+    for (var y = .06; y < .48; y += .085) b.box('spine', [0, y, 0], [.414, .03, .254], '#1f3b73');
+    b.cyl('arm', [0, -.12, 0], [.064, .03, .064], '#1f3b73'); b.cyl('shin', [0, -.06, 0], [.074, .05, .074], '#c9a46a');
+    belt(b, '#8a6a3a', null); bandana(b, '#d9312b', '#ffffff'); eyePatch(b);
+  };
+  SKIN[43] = function (b) {   // first mate: a hook, a parrot and a navy coat
+    figure(b, { shirt: '#2a3f6b', sleeve: '#2a3f6b', fore: '#2a3f6b', pants: '#e8e0cc', shin: '#1d1f24', shoe: '#1d1f24', hair: '#5a3c28', bag: '#5a4a32', skin: SKT[0] });
+    b.box('spine', [0, .3, .122], [.1, .34, .012], '#f2ede0'); for (var s = -1; s <= 1; s += 2) for (var y = .14; y < .44; y += .1) b.ball('spine', [s * .085, y, .126], [.014, .014, .01], '#e0b040');
+    coatTails(b, '#2a3f6b', .28); b.box('hips', [0, .07, 0], [.37, .06, .245], '#c8302e'); boots(b, '#1d1f24', .16);
+    b.box('foreR', [0, -.26, 0], [.05, .03, .05], '#5a3a22'); b.cyl('foreR', [0, -.3, 0], [.012, .06, .012], '#c8ccd4'); b.ring('foreR', [0, -.37, .03], [.04, .04, .04], '#c8ccd4', [0, Math.PI / 2, 0]);
+    b.ball('spine', [.17, .56, -.02], [.045, .065, .045], '#2fb85a'); b.ball('spine', [.17, .64, 0], [.035, .035, .035], '#e8282b'); b.cone('spine', [.17, .63, .04], [.012, .03, .012], '#ffd23f', [Math.PI / 2 + .4, 0, 0]);
+    b.box('spine', [.17, .48, -.07], [.025, .1, .012], '#2e5ad9', [.5, 0, 0]);
+    tricorn(b, '#1d1f24'); eyePatch(b);
+  };
+  SKIN[44] = function (b) {   // ghost pirate: pale and wispy, glowing eyes
+    var P = '#c8f7ea', T = '#7fd6c4';
+    figure(b, { shirt: T, sleeve: T, fore: P, hand: P, pants: P, shoe: '#9ee0d0', hair: '#e8fff9', skin: '#dffbf3', eye: '!#2ef0c0', bag: '#9ee0d0' });
+    b.box('spine', [0, .3, .122], [.1, .34, .012], '#e8fff9');
+    for (var i = 0; i < 7; i++) b.box('hips', [-.18 + i * .06, -.12 - (i % 3) * .05, .1], [.055, .2 + (i % 3) * .1, .07], T);
+    for (i = 0; i < 7; i++) b.box('hips', [-.18 + i * .06, -.12 - ((i + 1) % 3) * .05, -.1], [.055, .2 + ((i + 1) % 3) * .1, .07], T);
+    tricorn(b, '#8fd9c8'); b.box('neck', [.05, .13, .153], [.055, .05, .014], '#2f5d58'); b.ring('neck', [0, .15, 0], [.16, .16, .16], '#2f5d58', [Math.PI / 2, 0, .35]);
+  };
+  // ---- Mobsters and suits ----
+  SKIN[45] = function (b) {   // 1920s pinstripe suit
+    var N = '#2b3550';
+    figure(b, { shirt: N, sleeve: N, fore: N, pants: N, shoe: '#f7f5ee', hair: '#1d1410', bag: '#1d2438' });
+    sevenStripes(b, '#7f8aa8', 7, .121); sevenStripes(b, '#7f8aa8', 7, -.121); suitFront(b, '#ffffff', '#232b42', '#e8282b');
+    b.box('spine', [.12, .4, .126], [.05, .03, .008], '#ffffff'); b.box('shin', [0, -.43, .14], [.12, .07, .07], '#1d1f24');
+    fedora(b, '#4a5163', '#1d1f24');
+  };
+  SKIN[46] = function (b) {   // the boss: long coat, fur collar, fur hat
+    var C = '#b98a52';
+    figure(b, { shirt: C, sleeve: C, fore: C, hand: '#2a2830', pants: '#2a2830', thigh: C, shoe: '#1d1f24', hair: '#3a2a1a', bag: '#7a5a32' });
+    suitFront(b, '#ffffff', '#a3763f', '#3a2f4a'); coatTails(b, C, .42); b.box('hips', [0, .08, 0], [.44, .05, .28], '#8a6438'); b.box('hips', [.12, .08, .141], [.04, .04, .008], '#e8b923');
+    b.tor('spine', [0, .49, 0], [.17, .17, .15], '#7a6250', [Math.PI / 2, 0, 0]); b.box('spine', [-.11, .3, .124], [.05, .3, .01], '#fbfbf8', [0, 0, -.1]);
+    furHat(b, '#7a6250');
+  };
+  SKIN[47] = function (b) {   // tracksuit tough guy
+    var B = '#2e5ad9', W = '#ffffff';
+    figure(b, { shirt: B, sleeve: B, fore: B, pants: B, shoe: W, hair: '#3a2a1a', bag: '#1f3fa8' });
+    b.box('arm', [.06, -.13, 0], [.006, .26, .02], W); b.box('arm', [.06, -.13, .025], [.006, .26, .012], W); b.box('fore', [.052, -.12, 0], [.006, .22, .02], W);
+    b.box('thigh', [.079, -.2, 0], [.006, .4, .02], W); b.box('thigh', [.079, -.2, .025], [.006, .4, .012], W); b.box('shin', [.067, -.19, 0], [.006, .36, .02], W);
+    b.box('spine', [0, .25, .123], [.012, .46, .008], W); b.cyl('spine', [0, .5, 0], [.13, .06, .11], B); chain(b, '#ffcf3d');
+  };
+  SKIN[48] = function (b) {   // bodyguard: dark suit, shades, earpiece
+    var D = '#3a3844', sk = SKT[2];
+    figure(b, { shirt: D, sleeve: D, fore: D, pants: D, shoe: '#1d1f24', hair: '#1d1410', bag: '#2a2830', skin: sk });
+    suitFront(b, '#ffffff', '#2e2c37', '#1d1f24'); shades(b);
+    b.ball('neck', [.15, .12, .02], [.02, .02, .02], '#e8e0d0'); for (var i = 0; i < 4; i++) b.ring('neck', [.15, .06 - i * .03, -.02], [.014, .014, .014], '#e8e0d0', [Math.PI / 2, 0, 0]);
+  };
+  SKIN[49] = function (b) {   // tuxedo: bow tie, top hat and a rose
+    var K = '#2f2d36';
+    figure(b, { shirt: K, sleeve: K, fore: K, hand: '#f6f6f2', pants: K, shoe: '#1d1f24', hair: '#3a2a1a', bag: '#1d1f24' });
+    suitFront(b, '#ffffff', '#4a4756', null); for (var s = -1; s <= 1; s += 2) b.cone3('spine', [s * .035, .46, .13], [.025, .04, .01], '#1d1f24', [0, 0, s * Math.PI / 2]);
+    b.ball('spine', [0, .46, .13], [.012, .012, .01], '#1d1f24'); for (var y = .3; y < .44; y += .05) b.ball('spine', [0, y, .128], [.008, .008, .006], '#1d1f24');
+    b.ball('spine', [-.12, .4, .13], [.022, .022, .015], '#d9312b'); b.box('fore', [0, -.235, 0], [.106, .02, .106], '#ffffff');
+    brimHat(b, { y: .235, brim: K, crown: K, band: '#4a4756', brimR: .22, crownR: .13, crownH: .24 });
+  };
+  SKIN[50] = function (b) {   // detective: trench coat, hat, a magnifying glass
+    var T = '#c9a46a';
+    figure(b, { shirt: T, sleeve: T, fore: T, pants: '#5a4a3a', thigh: T, shoe: '#4a2f1c', hair: '#5a3c28', bag: '#8a6a3c' });
+    coatTails(b, T, .38); b.box('spine', [0, .14, 0], [.42, .05, .26], '#a8864e'); b.box('spine', [0, .14, .132], [.05, .04, .01], '#c8ccd4');
+    for (var s = -1; s <= 1; s += 2) { b.box('spine', [s * .09, .4, .126], [.08, .16, .012], '#b8945a', [0, 0, s * .45]); b.ball('spine', [s * .07, .3, .128], [.012, .012, .008], '#5a3a22'); b.ball('spine', [s * .07, .22, .128], [.012, .012, .008], '#5a3a22'); }
+    b.ring('foreR', [0, -.38, .06], [.05, .05, .05], '#c9a227', [0, Math.PI / 2, 0]); b.cyl('foreR', [0, -.38, .06], [.04, .006, .04], '#cfe9ff', [0, 0, Math.PI / 2]);
+    fedora(b, '#7a5a3a', '#3a2614');
+  };
+  SKIN[51] = function (b) {   // business suit
+    var G = '#6b7280';
+    figure(b, { shirt: G, sleeve: G, fore: G, pants: G, shoe: '#5a3a22', hair: '#8a5a2a', bag: '#4a4f5a', skin: SKT[1] });
+    suitFront(b, '#e9f1ff', '#5d6472', '#2e5ad9'); b.box('spine', [.12, .4, .126], [.05, .03, .008], '#e9f1ff');
+    for (var i = 0; i < 3; i++) b.box('spine', [0, .3 + i * .05, .133], [.04, .01, .004], '#9fc3ff', [0, 0, .4]);
+  };
+  // ---- And more ----
+  SKIN[52] = function (b) {   // wizard: starry robe, pointy hat, long beard
+    var P = '#6a3cc8', G = '#ffd23f';
+    figure(b, { shirt: P, sleeve: P, fore: P, pants: P, thigh: P, shin: P, shoe: '#3b2a7a', hair: '#e8e4dc', bag: '#4a2a98' });
+    b.frust('hips', [0, -.25, 0], [.25, .5, .19], P, null, null, [.82, 1.12]); b.cyl('hips', [0, -.49, 0], [.282, .03, .215], G);
+    [[.1, .1, 1], [-.09, .32, 1], [.06, .4, -1], [-.12, .15, -1], [.14, .36, 1]].forEach(function (f) { b.cone5('spine', [f[0], f[1], .124 * f[2]], [.022, .01, .022], G, [Math.PI / 2 * f[2], 0, 0]); });
+    b.box('hips', [0, .07, 0], [.36, .04, .236], G); b.cyl('fore', [0, -.2, 0], [.075, .08, .075], P);
+    b.cone('neck', [0, .06, .14], [.09, .16, .04], '#f6f2ea', [Math.PI, 0, 0]); b.ball('neck', [0, .09, .13], [.1, .05, .04], '#f6f2ea');
+    b.cyl('neck', [0, .235, 0], [.26, .015, .26], P, null, 'hat'); b.frust('neck', [0, .33, 0], [.15, .18, .15], P, null, 'hat', [.62, 1]);
+    b.cone('neck', [0, .5, -.04], [.095, .2, .095], P, [-.35, 0, 0], 'hat'); b.cyl('neck', [0, .26, 0], [.153, .04, .153], G, null, 'hat'); b.ball('neck', [0, .6, -.09], [.02, .02, .02], G, null, 'hat');
+  };
+  SKIN[53] = function (b) {   // firefighter
+    var T = '#c9a24a';
+    figure(b, { shirt: T, sleeve: T, fore: T, hand: '#5a4a32', pants: T, shoe: '#1d1f24', hair: '#3a2a1a', bag: '#9a7a2a', crownY: .36 });
+    [.08, .32].forEach(function (y) { b.box('spine', [0, y, 0], [.414, .045, .254], '#ffd23f'); b.box('spine', [0, y, 0], [.418, .016, .258], '#e6ecf3'); });
+    cuffs(b, '#ffd23f', 'fore', -.18, .056); cuffs(b, '#ffd23f', 'shin', -.2, .072); b.box('spine', [0, .25, .123], [.02, .46, .01], '#1d1f24'); boots(b, '#1d1f24', .16);
+    b.hemi('neck', [0, .18, 0], [.18, .15, .19], '#e8282b', null, 'hat'); b.cyl('neck', [0, .19, -.03], [.22, .015, .26], '#d9312b', [-.12, 0, 0], 'hat');
+    b.box('neck', [0, .3, .0], [.03, .05, .3], '#d9312b', null, 'hat'); b.box('neck', [0, .26, .17], [.09, .1, .015], '#ffcf3d', [-.4, 0, 0], 'hat');
+  };
+  SKIN[54] = function (b) {   // rock star: leather jacket, star shades, spiky hair, a guitar on the back
+    figure(b, { shirt: '#3a3844', sleeve: '#3a3844', fore: '#3a3844', pants: '#3a6ab8', shoe: '#1d1f24', hair: '#ff4f9a', noPack: true, skin: SKT[0] });
+    b.box('spine', [0, .3, .122], [.12, .34, .012], '#e8282b'); for (var s = -1; s <= 1; s += 2) b.box('spine', [s * .085, .36, .125], [.05, .24, .01], '#2a2830', [0, 0, s * .3]);
+    b.ball('thigh', [0, -.25, .075], [.04, .025, .01], '#bcd0ec'); b.cyl('spine', [-.1, .2, .13], [.02, .1, .02], '#c8ccd4', [0, 0, Math.PI / 2]);
+    for (s = -1; s <= 1; s += 2) b.cone5('neck', [s * .055, .135, .158], [.042, .012, .042], '#ff4f9a', [Math.PI / 2, 0, 0]);
+    for (var i = 0; i < 7; i++) { var a = (i / 6 - .5) * 2.4; b.cone('neck', [Math.sin(a) * .09, .27 + Math.cos(a) * .04, -.02 - Math.cos(a) * .02], [.045, .13, .045], '#ff4f9a', [-.3, 0, -a * .6], 'hat'); }
+    b.hemi('neck', [0, .16, -.005], [.16, .14, .16], '#ff4f9a', null, 'hat');
+    b.ball('spine', [.05, .1, -.18], [.13, .12, .04], '#d9312b', null, 'back'); b.ball('spine', [.03, .24, -.18], [.1, .09, .04], '#d9312b', null, 'back');
+    b.box('spine', [-.02, .48, -.2], [.04, .36, .02], '#5a3a22', [0, 0, .18], 'back'); b.cyl('spine', [.04, .15, -.225], [.035, .006, .035], '#1d1f24', [Math.PI / 2, 0, 0], 'back');
+  };
+  // ---- Wave 2 backpacks ----
+  PACK[7] = function (b) {   // sports bag
+    b.cyl('spine', [0, .3, -.21], [.13, .38, .13], '#2e5ad9', [0, 0, Math.PI / 2]); for (var s = -1; s <= 1; s += 2) b.cyl('spine', [s * .19, .3, -.21], [.132, .012, .132], '#ffffff', [0, 0, Math.PI / 2]);
+    b.box('spine', [0, .3, -.342], [.3, .03, .006], '#ffffff'); b.ring('spine', [0, .42, -.21], [.1, .08, .1], '#1d1f24', [0, Math.PI / 2, 0]);
+    straps(b, '#1d1f24', .126);
+  };
+  PACK[8] = function (b) {   // treasure chest
+    b.box('spine', [0, .24, -.22], [.36, .24, .2], '#8a5a2a'); b.cyl('spine', [0, .36, -.22], [.1, .36, .1], '#9a6a32', [0, 0, Math.PI / 2]);
+    for (var s = -1; s <= 1; s += 2) { b.box('spine', [s * .14, .27, -.22], [.03, .3, .21], '#e8b923'); }
+    b.box('spine', [0, .3, -.325], [.06, .07, .01], '#e8b923'); b.box('spine', [0, .29, -.332], [.016, .025, .006], '#1d1f24');
+    for (var i = 0; i < 5; i++) b.cyl('spine', [-.1 + i * .05, .44 + (i % 2) * .01, -.2 + (i % 3 - 1) * .03], [.025, .008, .025], '#ffcf3d', [.3 * (i % 2), 0, .2]);
+    b.ball('spine', [.08, .45, -.2], [.025, .025, .025], '#e8282b'); straps(b, '#5a3a22', .126);
+  };
+  PACK[9] = function (b) {   // briefcase
+    b.box('spine', [0, .27, -.17], [.36, .28, .07], '#5a3a22'); b.box('spine', [0, .27, -.206], [.364, .012, .002], '#3a2614');
+    b.ring('spine', [0, .43, -.17], [.06, .04, .06], '#3a2614'); for (var s = -1; s <= 1; s += 2) b.box('spine', [s * .1, .37, -.208], [.04, .03, .008], '#e8b923');
+    straps(b, '#3a2614', .126);
+  };
+  PACK[10] = function (b) {   // robot battery pack
+    b.box('spine', [0, .26, -.19], [.34, .36, .12], '#7d8794');
+    for (var s = -1; s <= 1; s += 2) { b.cyl('spine', [s * .09, .27, -.27], [.06, .3, .06], '#c8ccd4'); b.cyl('spine', [s * .09, .43, -.27], [.03, .03, .03], '#e8282b'); for (var k = 0; k < 4; k++) b.box('spine', [s * .09, .16 + k * .06, -.33], [.04, .035, .006], k < 3 ? '#46d37a' : '#2a2d34'); }
+    b.tor('spine', [0, .45, -.2], [.08, .08, .08], '#2a2d34', [0, Math.PI / 2, 0]); b.ball('spine', [0, .38, -.255], [.02, .02, .01], '#ffd23f'); straps(b, '#2a2d34', .126);
+  };
   // ---- Height rewards ----
   var REWARD = [];
   REWARD[1] = function (b, k) {   // the 1,000 m Badge: a gold medal with a star, on a blue and white ribbon
@@ -712,8 +1051,9 @@
       '@media (orientation:portrait),(max-width:640px){#gear .gp{left:calc(10px + env(safe-area-inset-left,0px));right:calc(10px + env(safe-area-inset-right,0px));width:auto;top:auto;height:58%;bottom:calc(10px + env(safe-area-inset-bottom,0px));padding:14px}#gear h2{font-size:24px}#gear .ggrid{grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:6px}#gear .ghint{bottom:auto;top:calc(14px + env(safe-area-inset-top,0px))}}' +
       '@media (orientation:landscape) and (max-height:500px){#gear .gp{top:calc(8px + env(safe-area-inset-top,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));width:min(470px,54vw);padding:10px 12px}#gear h2{font-size:21px}#gear .gh{margin-bottom:6px}#gear .gtabs{margin-bottom:6px}#gear .gtabs button{padding:6px 4px;font-size:13px}#gear .ggrid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px}#gear .gt{font-size:11px}#gear .gdesc{min-height:0;margin-top:6px;font-size:12.5px}#gear .gfoot{margin-top:6px}#gear .gfoot .btn{padding:7px 12px;font-size:15px}}';
     var DESC = {
-      skin: ['The climber as always, in your own colour.', 'Fedora, leather jacket and a satchel for the long way up.', 'A puffy jacket, a bobble hat, goggles and a coil of rope.', 'A parka with a fur-trimmed hood and big mittens.', 'Pith helmet, khaki pockets, binoculars and knee socks.', 'A brass helmet with portholes and lead boots. Not waterproof up here.', 'Leather flying cap, goggles and a long white scarf.', 'A hard hat with a headlamp, orange overalls and a harness.', 'A red bandana, a vest and a map with an X on it.', 'Bucket hat, round glasses, a tool belt and a brush for the dust.', 'A yellow slicker with the hood up, wellies and a wind gauge.', 'A striped jacket, sandbags and a very small balloon for a hat.', 'Bowler hat, monocle, moustache and a walking cane.', 'A three-cornered hat, an eye patch, a red coat and a spyglass.', 'A ranger hat with a pinched top, a badge and a radio.', 'A white suit, a gold visor and a life support pack.', 'Flowery shirt, a camera, sunglasses, and socks with sandals.', 'A red cap and an insulated pizza bag. Thirty minutes or less.', 'Overalls, a harness, a squeegee and a bucket.', 'A bun, pearls, a cardigan, and her trusty walker.', 'A great helm with a plume, armour and a blue tabard.', 'A dark suit, a red headband and a red sash.', 'The whole chicken: comb, beak, wings and orange feet.'],
-      pack: ['The climbing pack and bedroll, in your look\'s colours.', 'A parachute pack with a harness and a red ripcord. Purely for show.', 'A teddy bear hanging on for the climb.', 'A wicker picnic basket with a checked cloth peeking out.', 'Bread, lettuce, tomato, cheese, ham, and a pick with an olive.', 'Two cans and painted cardboard flames. It does not fly.', 'A rolled-up tent, its poles and a bag.'],
+      skin: ['The climber as always, in your own colour.', 'Fedora, leather jacket and a satchel for the long way up.', 'A puffy jacket, a bobble hat, goggles and a coil of rope.', 'A parka with a fur-trimmed hood and big mittens.', 'Pith helmet, khaki pockets, binoculars and knee socks.', 'A brass helmet with portholes and lead boots. Not waterproof up here.', 'Leather flying cap, goggles and a long white scarf.', 'A hard hat with a headlamp, orange overalls and a harness.', 'A red bandana, a vest and a map with an X on it.', 'Bucket hat, round glasses, a tool belt and a brush for the dust.', 'A yellow slicker with the hood up, wellies and a wind gauge.', 'A striped jacket, sandbags and a very small balloon for a hat.', 'Bowler hat, monocle, moustache and a walking cane.', 'A three-cornered hat, an eye patch, a red coat and a spyglass.', 'A ranger hat with a pinched top, a badge and a radio.', 'A white suit, a gold visor and a life support pack.', 'Flowery shirt, a camera, sunglasses, and socks with sandals.', 'A red cap and an insulated pizza bag. Thirty minutes or less.', 'Overalls, a harness, a squeegee and a bucket.', 'A bun, pearls, a cardigan, and her trusty walker.', 'A great helm with a plume, armour and a blue tabard.', 'A dark suit, a red headband and a red sash.', 'The whole chicken: comb, beak, wings and orange feet.',
+        "A blue kit with white trim and a 9 on the back.", "A purple vest, number 7, a headband and high-tops.", "A helmet with a face guard, shoulder pads and number 42.", "Pinstripes, a button front, a navy cap and number 12.", "A teal jersey, padded shorts, a caged helmet and skates.", "Crisp whites, a green visor and wristbands.", "Red trunks, big gloves, headgear and a gold belt.", "A running vest with a race number and bright spikes.", "A swim cap, goggles and racing trunks.", "A race suit, a helmet, orange goggles and big boots.", "An orange race suit with checkers and a full helmet.", "A hoodie, a beanie, knee pads and a board on your back.", "A wetsuit and a surfboard on your back.", "Black and white stripes, a cap and a whistle.", "A fluffy bird mascot with a huge head and a tail.", "A white gi, a black belt and a red headband.", "A box-headed tin robot with dials and a wind-up key.", "A white android with a dark visor and glowing lines.", "A flight suit, a harness and a helmet with a mic.", "A striped shirt, a bandana and an eye patch.", "A navy coat, a hook, an eye patch and a parrot.", "A pale, ragged pirate with glowing eyes.", "A 1920s pinstripe suit, a red tie, spats and a fedora.", "A long camel coat, a fur collar and a tall fur hat.", "A striped tracksuit and a chunky gold chain.", "A dark suit, dark shades and an earpiece.", "A tuxedo, a bow tie, a top hat and a red rose.", "A belted trench coat, a hat and a magnifying glass.", "A grey suit and a striped blue tie.", "A starry robe, a pointy hat and a long white beard.", "A coat with bright bands and a red helmet.", "Spiky pink hair, star shades and a guitar on your back."],
+      pack: ['The climbing pack and bedroll, in your look\'s colours.', 'A parachute pack with a harness and a red ripcord. Purely for show.', 'A teddy bear hanging on for the climb.', 'A wicker picnic basket with a checked cloth peeking out.', 'Bread, lettuce, tomato, cheese, ham, and a pick with an olive.', 'Two cans and painted cardboard flames. It does not fly.', 'A rolled-up tent, its poles and a bag.', "A round sports bag with white stripes.", "A pirate chest with gold bands, coins on top.", "A leather briefcase with gold clasps.", "Two big batteries, nearly full."],
       reward: ['Wear nothing for your height.', 'A gold medal for reaching the old summit, 1,000 m up.', 'A glass bubble helmet with a blinking aerial, for reaching Orbit Yard at 2,200 m, where space starts.', 'A golden crown for finishing the climb: the Crown at 3,000 m.'],
       scream: ['No scream: falls are quiet, apart from the wind.', 'A long, falling "Aaaah!"', 'Yo-de-lay-ee-oo, all the way down.', 'A cartoon slide whistle, high to low.', 'One grand, wobbling high note.', 'A happy "Wheee!" that rises as you drop.'],
       trail: ['No trail.', 'Every colour, streaming out above you.', 'A white-hot tail that cools to blue.', 'A puffy grey smoke trail that spreads out.', 'A ribbon of twinkling gold.']
@@ -779,7 +1119,8 @@
       if (ui.tab === 'skin') {
         g = grid('Classic'); g.appendChild(tile('s', 0, NAMES.skin[0]));
         g = grid('Adventurers'); for (i = 1; i <= ADVENTURERS; i++) g.appendChild(tile('s', i, NAMES.skin[i]));
-        g = grid('Silly'); for (i = ADVENTURERS + 1; i <= MAX.s; i++) g.appendChild(tile('s', i, NAMES.skin[i]));
+        g = grid('Silly'); for (i = ADVENTURERS + 1; i <= 22; i++) g.appendChild(tile('s', i, NAMES.skin[i]));
+        GROUPS2.forEach(function (G2) { g = grid(G2[0]); for (i = G2[1]; i <= Math.min(G2[2], MAX.s); i++) g.appendChild(tile('s', i, NAMES.skin[i])); });
         showDesc('skin', mine.s);
       } else if (ui.tab === 'pack') {
         g = grid(''); for (i = 0; i <= MAX.p; i++) g.appendChild(tile('p', i, NAMES.pack[i]));
