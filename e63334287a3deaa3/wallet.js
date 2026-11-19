@@ -140,17 +140,17 @@
 
   /*
    * EMERALD_PACKS: the only way to get emeralds, with real money: the owner's six packs, named and priced as created in
-   * Stripe. The four smaller ones are 7 emeralds per $0.99, rounded up; the two biggest are far better value on purpose
-   * (the owner's decision: $49.99 gives 1,000 and $99.99 gives 4,000). Each number must match the pack's metadata in Stripe. "Emerald Chest" is a pack of emeralds, not
+   * Stripe. $0.99 gives 7, and every bigger pack is better value on purpose (the owner's numbers: 39, 80, 180, 1,000
+   * and 4,000). Each number must match the pack's metadata in Stripe. "Emerald Chest" is a pack of emeralds, not
    * the loot Chest (cosmetics.js): the shop shows it under "Buy emeralds" with its count. `link` is where the owner pastes that pack's Stripe Payment Link later (like AD_SLOT: left empty here).
    * While a pack's link is empty, or PAYMENTS.enabled is false, the shop shows it as "Not available yet". A pasted link on
    * its own sells nothing safely: read PAYMENTS below first (the emeralds must be added by a server, not by this page).
    */
   var EMERALD_PACKS = [
     { id: 'emeralds-7', name: 'Emerald Handful', emeralds: 7, usd: 0.99, link: '' },       // paste the Stripe Payment Link for $0.99 here
-    { id: 'emeralds-36', name: 'Emerald Pouch', emeralds: 36, usd: 4.99, link: '' },       // paste the Stripe Payment Link for $4.99 here
-    { id: 'emeralds-71', name: 'Emerald Sack', emeralds: 71, usd: 9.99, link: '' },        // paste the Stripe Payment Link for $9.99 here
-    { id: 'emeralds-142', name: 'Emerald Chest', emeralds: 142, usd: 19.99, link: '' },    // paste the Stripe Payment Link for $19.99 here
+    { id: 'emeralds-39', name: 'Emerald Pouch', emeralds: 39, usd: 4.99, link: '' },       // paste the Stripe Payment Link for $4.99 here
+    { id: 'emeralds-80', name: 'Emerald Sack', emeralds: 80, usd: 9.99, link: '' },        // paste the Stripe Payment Link for $9.99 here
+    { id: 'emeralds-180', name: 'Emerald Chest', emeralds: 180, usd: 19.99, link: '' },    // paste the Stripe Payment Link for $19.99 here
     { id: 'emeralds-1000', name: 'Emerald Buttload', emeralds: 1000, usd: 49.99, link: '' }, // the owner's bonus (base rate: 354); paste the Stripe Payment Link for $49.99 here
     { id: 'emeralds-4000', name: 'Emerald Vault', emeralds: 4000, usd: 99.99, link: '' }    // the owner's bonus (base rate: 707); paste the Stripe Payment Link for $99.99 here
   ];
