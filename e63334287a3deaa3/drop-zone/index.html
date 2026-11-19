@@ -405,6 +405,7 @@ body.touch #net{font-size:14px}
 .mode-pick button:disabled:not([aria-checked="true"]){opacity:.4}
 .mode-opts{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
 .mode-opts>span{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+.mode-opts>span.nobots{font-size:13px;letter-spacing:0;text-transform:none;font-weight:600}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .seg button{background:transparent;border:0;border-left:1px solid var(--line);padding:5px 10px;font:700 15px var(--f-hud);color:var(--ink);cursor:pointer;letter-spacing:.03em}
 .seg button:first-child{border-left:0}
@@ -5359,8 +5360,12 @@ function cleanOpts(md,o){o=o&&typeof o==='object'?o:{};const d=OPT_DEF[md]||{},o
   return out}
 function prefOpts(md){let o=null;try{o=JSON.parse(store.get('opts:'+md,'{}'))}catch(e){}return cleanOpts(md,o)}
 const pubRoom=()=>/^dz-pub-/.test(Net.room||'');
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those rooms
+// are for the party's people only: a mode's Bots is Off there and locked, and the host fills no places, whoever hosts.
+const partyRoom=()=>online&&/^dz-p[a-hjkmnp-z2-9]{6}$/.test(Net.room||'');
+const partyOpts=op=>partyRoom()&&'bo' in op?Object.assign({},op,{bo:0}):op;
 // a new lobby as the host makes it: the mode picked in this browser's menu (public rooms are always Classic)
-function freshLobby(){const md=online&&!pubRoom()?modePref:'br';return md==='br'?{id:0,ph:'lobby',ce:0}:{id:0,ph:'lobby',ce:0,md,op:prefOpts(md)}}
+function freshLobby(){const md=online&&!pubRoom()?modePref:'br';return md==='br'?{id:0,ph:'lobby',ce:0}:{id:0,ph:'lobby',ce:0,md,op:partyOpts(prefOpts(md))}}
 const nodeGM=uid=>{const o=Net.others.get(uid);return !!(o&&o.v&&o.v.gm)};
 // the people who can play a mode: live, on this map version, and on a page that knows the modes (gm)
 function lobbyHumansGM(){return lobbyHumans().filter(o=>o.uid===myId()||nodeGM(o.uid))}
@@ -5691,7 +5696,7 @@ function modeTick(dt){
 // Box Fights keeps everyone on their team from round to round; someone new goes to the smaller team if it has room (in
 // place of a bot); a team nobody is left on gets bots (or, without bots, the series ends).
 function modeRoster(prev){
-  const md=modeOf(prev),op=cleanOpts(md,prev.op),bo=op.bo||!online,humans=lobbyHumansGM().map(o=>o.uid);
+  const md=modeOf(prev),op=cleanOpts(md,prev.op),bo=(op.bo||!online)&&!partyRoom(),humans=lobbyHumansGM().map(o=>o.uid);
   if(md==='cr')return humans.length?{ro:humans.slice(0,61).join(','),nh:humans.length}:null;
   if(md==='bf'){
     const ts=op.ts,old=String(prev.ro||'').split(',').filter(Boolean),otm=String(prev.tm||''),T=[[],[]];
@@ -5857,14 +5862,16 @@ function modePicker(el,md,editable,onPick){
   el._pick=editable?onPick:null;
   el._b.forEach((b,i)=>{const on=MODE_IDS[i]===md;if(b.getAttribute('aria-checked')!==String(on))b.setAttribute('aria-checked',String(on));b.disabled=!editable})
 }
-function modeOptsUI(el,md,op,editable,onChange){
-  const key=md+JSON.stringify(op)+editable;if(el._k===key)return;el._k=key;el.innerHTML='';el.hidden=md==='br'||md==='cr';if(el.hidden)return;
+function modeOptsUI(el,md,op,editable,onChange,party){
+  const key=md+JSON.stringify(op)+editable+!!party;if(el._k===key)return;el._k=key;el.innerHTML='';el.hidden=md==='br'||md==='cr';if(el.hidden)return;
   const seg=(label,vals,cur,fn)=>{const w=document.createElement('span');w.textContent=label;const s=document.createElement('span');s.className='seg';
     for(const [v,t] of vals){const b=document.createElement('button');b.type='button';b.textContent=t;b.setAttribute('aria-pressed',String(v===cur));b.disabled=!editable;b.addEventListener('click',()=>{if(editable)fn(v)});s.appendChild(b)}
     w.appendChild(s);el.appendChild(w)};
   if(md==='bf')seg('Teams',[[1,'1v1'],[2,'2v2'],[3,'3v3'],[4,'4v4']],op.ts,v=>onChange(Object.assign({},op,{ts:v})));
   if('fn' in op)seg('First to',[[3,'3'],[5,'5'],[7,'7']],op.fn,v=>onChange(Object.assign({},op,{fn:v})));
-  seg('Bots',[[1,'Fill in'],[0,'Off']],op.bo,v=>onChange(Object.assign({},op,{bo:v})));
+  if(party){seg('Bots',[[1,'Fill in'],[0,'Off']],0,()=>{});el.lastChild.querySelectorAll('button').forEach(b=>{b.disabled=true});
+    const n=document.createElement('span');n.className='nobots';n.textContent='No bots in party games';el.appendChild(n)}
+  else seg('Bots',[[1,'Fill in'],[0,'Off']],op.bo,v=>onChange(Object.assign({},op,{bo:v})));
 }
 function renderMenuMode(){
   modePicker($('modePick'),modePref,true,md=>{modePref=md;store.set('mode',md);renderMenuMode()});
@@ -5877,9 +5884,9 @@ function renderMenuMode(){
 // the host picks the room's mode (and its options) in the lobby; everyone else sees what was picked
 function setRoomMode(md,op){
   if(!online||!Net.amHost||!MS||MS.ph!=='lobby'||pubRoom())return;
-  op=cleanOpts(md,op||(modeOf(MS)===md?MS.op:prefOpts(md)));
+  op=partyOpts(cleanOpts(md,op||(modeOf(MS)===md?MS.op:prefOpts(md))));
   MS=md==='br'?{id:MS.id,ph:'lobby',ce:0}:{id:MS.id,ph:'lobby',ce:0,md,op};
-  modePref=md;store.set('mode',md);if(md!=='br')store.set('opts:'+md,JSON.stringify(op));renderMenuMode();
+  modePref=md;store.set('mode',md);if(md!=='br'&&!partyRoom())store.set('opts:'+md,JSON.stringify(op));renderMenuMode();
   lobbyDirty=true;Net.publishSoon();renderLobby();
 }
 function renderLobbyMode(list){
@@ -5887,10 +5894,10 @@ function renderLobbyMode(list){
   if(tt._h!==th){tt._h=th;tt.innerHTML=th}
   $('lbMode').hidden=pub;
   if(!pub){modePicker($('lbModePick'),md,host,m=>setRoomMode(m));$('lbModeDesc').textContent=T(MODES[md].desc)+T(host?' You’re the host: pick the mode for everyone.':' The host picks the mode.');
-    modeOptsUI($('lbModeOpts'),md,cleanOpts(md,MS&&MS.op),host,o=>setRoomMode(md,o))}
+    modeOptsUI($('lbModeOpts'),md,cleanOpts(md,MS&&MS.op),host,o=>setRoomMode(md,o),partyRoom())}
   $('startMatch').textContent=md==='br'?'Start match':'Start '+MODES[md].name;
   if(md==='br')return;   // Classic: the lobby says what it always said
-  const gmN=lobbyHumansGM().length,old=list.length-gmN,op=cleanOpts(md,MS&&MS.op);
+  const gmN=lobbyHumansGM().length,old=list.length-gmN,op=partyOpts(cleanOpts(md,MS&&MS.op));
   $('lbBots').textContent=(old?T(old===1?'1 person here has an older copy of the game and will sit this out until they reload. ':'{n} people here have an older copy of the game and will sit this out until they reload. ',{n:old}):'')+T(md==='cr'?'Everyone here builds together.':sqOf(md)?(op.bo?'Teams of {n} in the order people joined; bots fill the teams, and make up bot teams if there are few of you.':'Teams of {n} in the order people joined. No bots: people only.'):op.bo?'Bots fill the empty places.':'No bots: people only.',{n:sqOf(md)});
   let st;
   if(Net.stale)st='This match uses a newer version of the game, reload to join.';
@@ -5947,7 +5954,7 @@ let sqEnd=0;
 const sqId=e=>e===player?myId():e.id;
 // the teams: people in the order they joined, bots to fill them (and bot teams up to SQ_FILL players) if the room wants
 function sqRoster(md,op){
-  const n=sqOf(md),bo=op.bo||!online,hs=lobbyHumansGM().map(o=>o.uid).slice(0,MAX_ROOM),T=[];
+  const n=sqOf(md),bo=(op.bo||!online)&&!partyRoom(),hs=lobbyHumansGM().map(o=>o.uid).slice(0,MAX_ROOM),T=[];
   for(let i=0;i<hs.length;i+=n)T.push(hs.slice(i,i+n));
   if(bo){let k=0;for(const t of T)while(t.length<n)t.push('b'+(k++));
     while((T.length<2||(T.length+1)*n<=SQ_FILL)&&(T.length+1)*n<=MAX_ROOM){const t=[];while(t.length<n)t.push('b'+(k++));T.push(t)}}
