@@ -16,7 +16,7 @@
     actor.attach(weapon, 'handR');
     const e = AL.ent = {
       team: 'us', isAlly: true, actor, weapon, pos: new THREE.Vector3(x, W.height(x, z), z), prev: new THREE.Vector3(), bodyYaw: yaw || 0, bodyPrev: yaw || 0,
-      hp: 250, alive: true, stance: 'stand', speed: 0, path: null, pathI: 0, goal: null, repath: 0, shotT: 1, target: null, stanceDelay: 0,
+      hp: 250, alive: true, stance: 'stand', speed: 0, vel: new THREE.Vector3(), path: null, pathI: 0, goal: null, repath: 0, shotT: 1, target: null, stanceDelay: 0,
       stanceKey() { return this.stance; }, chestH() { return this.stance === 'crouch' ? 0.9 : this.stance === 'prone' ? 0.25 : 1.3; },
       hit(zone, dmg) {
         if (!this.alive) return;
@@ -26,6 +26,7 @@
       }
     };
     e.prev.copy(e.pos);
+    actor.onFoot = (side, k) => { if (Math.hypot(e.pos.x - W.camera.position.x, e.pos.z - W.camera.position.z) < 32) IV.footFx(e.pos, e.stance === 'crouch' ? 'crouch' : e.stance === 'prone' ? 'prone' : e.speed > 3 ? 'run' : 'walk', k, false, 0.55); };
     actor.root.position.copy(e.pos); W.dynamic.add(actor.root);
     AL.mode = 'follow'; AL.script = null; AL.held = null; AL.met = true;
     return e;
@@ -51,16 +52,18 @@
     const p = e.path[e.pathI]; if (!p) { e.speed = IV.damp(e.speed, 0, 8, dt); return true; }
     const dx = p.x - e.pos.x, dz = p.z - e.pos.z, d = Math.hypot(dx, dz);
     if (d < 0.4) { e.pathI++; return e.pathI >= e.path.length; }
-    e.speed = IV.damp(e.speed, speed, 7, dt);
+    // turn first when the way on is behind him (no gliding round, no instant 180)
+    const off = Math.abs(IV.wrapA(IV.yawTo(dx, dz) - e.bodyYaw));
+    e.speed = IV.damp(e.speed, off > 1.9 && !e.target ? 0.3 : speed, 7, dt);
+    if (off > 1.9 && !e.target) e.bodyYaw = IV.turnToward(e.bodyYaw, IV.yawTo(dx, dz), 5, dt);
     const st = Math.min(d, e.speed * dt);
     o.x = e.pos.x + dx / d * st; o.z = e.pos.z + dz / d * st;
     // don't walk into the player
     const px = o.x - P.pos.x, pz = o.z - P.pos.z, pd = Math.hypot(px, pz); if (pd < 0.9 && pd > 0.01) { o.x += px / pd * (0.9 - pd); o.z += pz / pd * (0.9 - pd); }
     W.collide(o, 0.3, e.pos.y + 0.45, e.pos.y + 1.6);
+    e.vel.set((o.x - e.pos.x) / dt, 0, (o.z - e.pos.z) / dt);
     e.pos.x = o.x; e.pos.z = o.z; e.pos.y = W.groundAt(o.x, o.z, e.pos.y);
-    e.bodyYaw = IV.dampA(e.bodyYaw, IV.yawTo(dx, dz), 8, dt);
-    e.stepAcc = (e.stepAcc || 0) + st;
-    if (e.stepAcc > 1.2) { e.stepAcc = 0; IV.audio && IV.audio.step(IV.SURF[W.surfAt(e.pos.x, e.pos.z)], e.stance === 'crouch' ? 'crouch' : speed > 3 ? 'run' : 'walk', 0.55, e.pos); }
+    if (!e.target) e.bodyYaw = IV.turnToward(e.bodyYaw, IV.yawTo(dx, dz), T.move.turnRate * 0.8, dt);
     return false;
   }
   function visibleEnemy(e) {
@@ -131,21 +134,18 @@
       if (arrived && sc && sc.yaw != null) e.bodyYaw = IV.dampA(e.bodyYaw, sc.yaw, 6, dt);
       else if (e.speed < 0.3 && !sc) e.bodyYaw = IV.dampA(e.bodyYaw, P.bodyYaw, 2, dt);
     }
-    // animation
-    const s = e.speed, a = e.actor;
-    let clip, sp = 1;
-    if (e.stance === 'prone') { clip = s > 0.2 ? 'proneCrawl' : 'proneAim'; sp = s > 0.2 ? s / 0.7 : 1; }
-    else if (e.stance === 'crouch') { clip = s > 0.3 ? 'crouchWalk' : (q ? 'crouchAim' : 'crouchIdle'); sp = s > 0.3 ? s / 1.9 : 1; }
-    else if (s > 4.8) { clip = 'sprint'; sp = s / 6.4; } else if (s > 2.6) { clip = 'run'; sp = s / 4.4; } else if (s > 0.3) { clip = q ? 'aimWalk' : 'walk'; sp = s / 1.5; } else clip = q ? 'aimIdle' : 'idle';
-    a.play(clip, { speed: sp, fade: 0.2 });
+    if (e.speed < 0.05) e.vel.set(0, 0, 0); else if (arrived) e.vel.multiplyScalar(Math.exp(-12 * dt));
   };
   const frus = new THREE.Frustum(), pm = new THREE.Matrix4();
   function onScreen(p) { const c = W.camera; pm.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); frus.setFromProjectionMatrix(pm); return frus.containsPoint(new THREE.Vector3(p.x, p.y + 1, p.z)); }
+  const DS = {};
   AL.frame = function (alpha, dt) {
     const e = AL.ent; if (!e) return;
     const r = e.actor.root; r.position.lerpVectors(e.prev, e.pos, alpha);
     r.rotation.y = e.bodyPrev + IV.wrapA(e.bodyYaw - e.bodyPrev) * alpha + Math.PI;
-    if (e.target && e.alive) { const t = e.target.pos, d = Math.hypot(t.x - e.pos.x, t.z - e.pos.z); e.actor.setAim(Math.atan2(t.y + 1.2 - e.pos.y - 1.5, d), 0); } else e.actor.setAim(0, 0);
+    const ap = e.target && e.alive ? Math.atan2(e.target.pos.y + 1.2 - e.pos.y - 1.5, Math.hypot(e.target.pos.x - e.pos.x, e.target.pos.z - e.pos.z)) : 0;
+    e.yawRate = dt > 0 ? IV.wrapA(e.bodyYaw - (e.lastYaw == null ? e.bodyYaw : e.lastYaw)) / dt : 0; e.lastYaw = e.bodyYaw;
+    if (e.alive) { IV.driveState(DS, e.vel, e.bodyYaw, { yawRate: e.yawRate, stance: e.stance, aiming: !!e.target || IV.upperOf(e.actor) === 'aimIdle', aimPitch: ap, aimYawOffset: 0, sprinting: e.speed > 4.8, grounded: true, fallSpeed: 0, slopeY: 1, weapon: 'smg', dt }); DS.speed = Math.min(DS.speed, e.speed + 0.01); e.actor.drive(DS); }
     e.actor.update(dt);
   };
 })();

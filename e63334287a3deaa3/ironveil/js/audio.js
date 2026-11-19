@@ -73,8 +73,8 @@
   // ---------------------------------------------------------------- sound table
   const SND = {
     rifle(o) { const d = chain(o, 1.1), t = now(); noise(d, t, 0.09, 'highpass', 2500, 0.7, 1.2); noise(d, t, 0.35, 'lowpass', 1800, 0.7, 1.4, 0, 200); tone(d, t, 0.32, 'sine', 120, 40, 1.2); noise(d, t + 0.02, 0.9, 'lowpass', 500, 0.5, 0.35, 0, 90); },
-    smg(o) { const d = chain(o, 0.45), t = now(); noise(d, t, 0.05, 'highpass', 2000, 0.7, 0.7); noise(d, t, 0.14, 'lowpass', 1500, 0.8, 0.9, 0, 300); tone(d, t, 0.1, 'sine', 140, 60, 0.6); },
-    pistol(o) { const d = chain(o, 0.3), t = now(); noise(d, t, 0.06, 'bandpass', 1800, 0.8, 0.8); noise(d, t, 0.14, 'lowpass', 1200, 0.7, 0.6, 0, 250); },
+    smg(o) { const d = chain(o, 0.45), t = now(); if (!o || o.x == null || o.vol == null) noise(d, t + 0.03, 0.025, 'bandpass', 4200, 6, 0.25); /* the bolt slamming home */ noise(d, t, 0.05, 'highpass', 2000, 0.7, 0.7); noise(d, t, 0.14, 'lowpass', 1500, 0.8, 0.9, 0, 300); tone(d, t, 0.1, 'sine', 140, 60, 0.6); },
+    pistol(o) { const d = chain(o, 0.3), t = now(); noise(d, t + 0.02, 0.02, 'bandpass', 5000, 7, 0.2); noise(d, t, 0.06, 'bandpass', 1800, 0.8, 0.8); noise(d, t, 0.14, 'lowpass', 1200, 0.7, 0.6, 0, 250); },
     erifle(o) { const d = chain(Object.assign({ ref: 20 }, o), 1), t = now(); noise(d, t, 0.08, 'highpass', 2200, 0.7, 0.9); noise(d, t, 0.3, 'lowpass', 1500, 0.7, 1.1, 0, 180); tone(d, t, 0.25, 'sine', 110, 40, 0.8); },
     esmg(o) { const d = chain(Object.assign({ ref: 18 }, o), 0.4), t = now(); noise(d, t, 0.05, 'highpass', 2600, 0.7, 0.6); noise(d, t, 0.12, 'lowpass', 1300, 0.8, 0.8, 0, 300); },
     mg(o) { const d = chain(Object.assign({ ref: 22 }, o), 0.5), t = now(); noise(d, t, 0.04, 'highpass', 2400, 0.7, 0.7); noise(d, t, 0.11, 'lowpass', 1100, 0.8, 0.9, 0, 250); tone(d, t, 0.08, 'square', 90, 50, 0.2); },

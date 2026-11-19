@@ -199,7 +199,7 @@
   function windPatch(amp, freq) {
     return function (sh) {
       // cards: both faces light like the front (no dark backs)
-      sh.fragmentShader = sh.fragmentShader.replace('normal = normal * faceDirection;', '').replace('normal *= faceDirection;', '');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace(/normal\s*=\s*normal\s*\*\s*faceDirection;/g, '').replace(/normal\s*\*=\s*faceDirection;/g, ''));
       sh.uniforms.uTime = W.windU;
       sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING

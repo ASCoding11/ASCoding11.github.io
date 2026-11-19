@@ -220,7 +220,7 @@
     const ux = new THREE.Vector3(dx, dy, dz), ortho1 = new THREE.Vector3().crossVectors(ux, Math.abs(dy) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize(), ortho2 = new THREE.Vector3().crossVectors(ux, ortho1);
     ux.addScaledVector(ortho1, Math.cos(a) * r).addScaledVector(ortho2, Math.sin(a) * r).normalize();
     const v0 = k === 'rifle' ? BL.v0 : k === 'smg' ? BL.smgV0 : BL.pistolV0;
-    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, owner: WP.playerEnt, team: 'us', tracer: !W.day || k !== 'rifle', life: k === 'rifle' ? 2.5 : 1.2 });
+    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2 });   // tracer rounds every third in the SMG magazine
     // effects
     IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle');
     if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
@@ -233,7 +233,7 @@
     IV.camera.shake((k === 'rifle' ? 0.12 : 0.05) * motion);
     if (k === 'rifle') { WP.boltT = WT.rifle.bolt; setTimeout(() => IV.audio && IV.audio.play('bolt'), 330); }
     WP.cool = w.rpm ? 60 / w.rpm : 0.18;
-    P.actor.setUpper(k === 'rifle' ? 'boltCycle' : 'fire');
+    IV.setUpper(P.actor, k === 'rifle' ? 'boltCycle' : 'fire');
     IV.emit('shot', k);
   }
   function startReload() {
@@ -383,7 +383,7 @@
     if (I.pressed('swap') || I.wheel) { const order = ['rifle', 'smg', 'pistol'].filter(k => WP.has[k]); const i = order.indexOf(WP.cur); WP.equip(order[(i + (I.wheel < 0 ? -1 : 1) + order.length) % order.length]); I.wheel = 0; }
     // binoculars (hold)
     const wantBinoc = I.held('binoc') && !WP.busyThrow && WP.reloadT <= 0 && WP.has.binoc !== false;
-    if (wantBinoc !== WP.binoc) { WP.binoc = wantBinoc; equipModels(); P.actor.setUpper(wantBinoc ? 'binoc' : null); if (wantBinoc) IV.audio && IV.audio.play('cloth'); }
+    if (wantBinoc !== WP.binoc) { WP.binoc = wantBinoc; equipModels(); IV.setUpper(P.actor, wantBinoc ? 'binoc' : null); if (wantBinoc) IV.audio && IV.audio.play('cloth'); }
     if (WP.binoc) {
       if (I.pressed('fire')) { const t = IV.camera.findTarget(0.07, 400); if (t && !WP.tagged.has(t.e)) { WP.tagged.add(t.e); t.e.tagged = true; IV.audio && IV.audio.play('tag'); IV.emit('tagged', t.e); } }
       WP.aiming = WP.scoped = false; return;
@@ -409,7 +409,7 @@
     const scopedNow = wantAim && WP.cur === 'rifle';
     if (scopedNow !== WP.scoped) { WP.scoped = scopedNow; IV.audio && IV.audio.play('cloth', { vol: 0.4 }); }
     if (wantAim && WP.boltT <= 0 && WP.reloadT <= 0) P.actor.setUpper('aimIdle');
-    else if (!wantAim && P.actor.upper === 'aimIdle') P.actor.setUpper(null);
+    else if (!wantAim && IV.upperOf(P.actor) === 'aimIdle') P.actor.setUpper(null);
     // reload
     if (I.pressed('reload')) startReload();
     // fire

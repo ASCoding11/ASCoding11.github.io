@@ -110,7 +110,7 @@
 
   // ---------------------------------------------------------------- settings
   const S = () => IV.settings;
-  const binds = [['sSens', 'sens', 'range'], ['sAimSens', 'aimSens', 'range'], ['sInvert', 'invert', 'check'], ['sAssist', 'assist', 'range'], ['sAuto', 'auto', 'check'], ['sSub', 'sub', 'select'], ['sMotion', 'motion', 'check'], ['sBlood', 'blood', 'check'],
+  const binds = [['sSens', 'sens', 'range'], ['sAimSens', 'aimSens', 'range'], ['sInvert', 'invert', 'check'], ['sAssist', 'assist', 'range'], ['sAuto', 'auto', 'check'], ['sSub', 'sub', 'select'], ['sMotion', 'motion', 'check'], ['sBob', 'bob', 'check'], ['sBlood', 'blood', 'check'],
     ['sQual', 'quality', 'select'], ['sFov', 'fov', 'range'], ['sBright', 'bright', 'range'], ['sVol', 'vol', 'range'], ['sSfx', 'sfx', 'range'], ['sMus', 'mus', 'range'], ['sMute', 'mute', 'check']];
   UI.settings = function (from) {
     UI.settingsFrom = from || UI.cur;

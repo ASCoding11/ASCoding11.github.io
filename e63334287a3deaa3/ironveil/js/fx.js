@@ -213,6 +213,7 @@
     tracerMesh.geometry.setDrawRange(0, q * 6);
     tracerMesh.geometry.attributes.position.needsUpdate = true; tracerMesh.geometry.attributes.color.needsUpdate = true;
     // casings
+    for (let i = casings.length - 1; i >= 0; i--) if (casings[i].life <= 0) casings.splice(i, 1);
     for (let i = 0; i < casings.length; i++) {
       const s = casings[i]; s.life -= dt;
       if (!s.rest) {

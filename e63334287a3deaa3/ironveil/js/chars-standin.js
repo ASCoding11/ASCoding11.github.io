@@ -226,6 +226,42 @@
     p[HY] += 0.02 * amp * Math.abs(sin(ph));
   }
   const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+  const mix = (a, b, k) => a + (b - a) * k, cl01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+  // Driven locomotion: one shared phase per character (left foot down at 0, right at 0.5), advanced by ground speed
+  // over stride length, so the feet keep pace with the ground. Direction comes from the local velocity: the swing is
+  // split between forward/back (x) and sideways (z) so strafing and backpedalling step the right way.
+  function locoStand(p, a) {
+    const d = a.dp, s = d.speed, ph = (a.phase + 0.25) * PI * 2;
+    const k0 = cl01(s / 1.5), k1 = cl01((s - 1.5) / 2.3), k2 = cl01((s - 3.8) / 2.6);
+    let amp = mix(mix(0.42, 0.68, k1), 0.88, k2) * mix(0.35, 1, k0), knee = mix(mix(0.75, 1.3, k1), 1.7, k2) * mix(0.4, 1, k0);
+    const bob = mix(mix(0.022, 0.045, k1), 0.06, k2) * k0, lean = mix(mix(0.04, 0.14, k1), 0.28, k2), arm = d.aiming ? 0 : mix(mix(0.3, 0.52, k1), 0.75, k2) * k0;
+    let cf = 1, sf = 0;
+    if (s > 0.15) { const th = Math.atan2(d.vx, d.vz); cf = Math.cos(th); sf = Math.sin(th); }
+    else if (Math.abs(d.yawRate) > 0.5) { amp = 0.2; knee = 0.45; cf = 0.25; sf = -Math.sign(d.yawRate); }   // stepping round on the spot
+    const sw = sin(ph);
+    set(p, 'thighL', -amp * sw * cf, 0, -amp * sw * sf * 0.6); set(p, 'thighR', amp * sw * cf, 0, amp * sw * sf * 0.6);
+    set(p, 'shinL', knee * max(0, sin(ph - 1.3)) + 0.12 + knee * 0.3 * max(0, -sw)); set(p, 'shinR', knee * max(0, sin(ph + PI - 1.3)) + 0.12 + knee * 0.3 * max(0, sw));
+    set(p, 'footL', -0.25 * sin(ph - 0.6) * amp * cf); set(p, 'footR', 0.25 * sin(ph - 0.6) * amp * cf);
+    p[HY] = -bob * Math.abs(cos(ph)) - 0.01;
+    const twist = IV.clamp(sf * (cf >= 0 ? 1 : -1) * 0.35, -0.35, 0.35);    // hips turn into a strafe, the chest stays on the aim
+    set(p, 'hips', 0, twist - 0.08 * sw * amp * cf, 0.03 * cos(ph) * amp);
+    set(p, 'spine', lean * 0.5 * cf, -twist * 0.5 + 0.06 * sw * amp, 0); set(p, 'chest', lean * 0.5 * cf, -twist * 0.5 - 0.1 * sw * amp, 0);
+    set(p, 'upperArmL', arm * sw, 0, 0.1); set(p, 'upperArmR', -arm * sw, 0, -0.1);
+    set(p, 'foreArmL', -0.35 - arm * 0.5 * max(0, -sw)); set(p, 'foreArmR', -0.35 - arm * 0.5 * max(0, sw));
+    set(p, 'head', -lean * 0.6 * cf);
+  }
+  function locoCrouch(p, a) {
+    const d = a.dp, s = d.speed, ph = (a.phase + 0.25) * PI * 2, k0 = cl01(s / 1.3);
+    let cf = 1, sf = 0; if (s > 0.1) { const th = Math.atan2(d.vx, d.vz); cf = Math.cos(th); sf = Math.sin(th); }
+    const amp = mix(0.15, 0.45, k0) * (s > 1.6 ? 1.15 : 1), sw = sin(ph);
+    p[HY] = -0.3 - 0.015 * Math.abs(cos(ph));
+    set(p, 'thighL', -1.0 - amp * sw * cf, 0, -amp * sw * sf * 0.5); set(p, 'thighR', -1.0 + amp * sw * cf, 0, amp * sw * sf * 0.5);
+    set(p, 'shinL', 1.55 + amp * 0.8 * max(0, sin(ph - 1.2))); set(p, 'shinR', 1.55 + amp * 0.8 * max(0, sin(ph + PI - 1.2)));
+    set(p, 'footL', -0.55); set(p, 'footR', -0.55);
+    set(p, 'hips', 0, IV.clamp(sf * 0.3, -0.3, 0.3), 0);
+    set(p, 'spine', 0.3); set(p, 'chest', 0.12); set(p, 'head', -0.38); relaxedArms(p);
+  }
+  function stride(a) { const s = a.dp.speed, st = a.dp.stance; if (st === 'prone') return 0.84; if (st === 'crouch') return 0.95 + 0.3 * s; return s < 1.5 ? mix(1.2, 1.68, s / 1.5) : s < 3.8 ? mix(1.68, 2.74, (s - 1.5) / 2.3) : mix(2.74, 3.97, Math.min(1, (s - 3.8) / 2.6)); }
   function death(p, t, front) {
     const a = ease(t / 0.4), b = ease((t - 0.25) / 0.6);
     // knees buckle, then the body goes over
@@ -238,6 +274,9 @@
   }
   const CLIPS = {
     idle: { len: 4, f: (p, t) => { relaxedArms(p); const b = sin(t * PI * 2); set(p, 'chest', 0.015 * b); set(p, 'head', -0.02 * b, 0.05 * sin(t * PI)); set(p, 'thighL', 0.02, 0, 0.03); set(p, 'thighR', -0.04, 0, -0.04); set(p, 'shinL', 0.05); set(p, 'shinR', 0.08); } },
+    loco: { len: 1, f: (p, t, a) => locoStand(p, a) },
+    crouchLoco: { len: 1, f: (p, t, a) => locoCrouch(p, a) },
+    proneLoco: { len: 1, f: (p, t, a) => proneBase(p, (a.phase + 0.25) * PI * 2, 1) },
     walk: { len: 1.12, f: (p, t) => gait(p, t * PI * 2, 0.42, 0.75, 0.025, 0.04, 0.32) },
     run: { len: 0.72, f: (p, t) => gait(p, t * PI * 2, 0.7, 1.35, 0.05, 0.16, 0.55) },
     sprint: { len: 0.62, f: (p, t) => gait(p, t * PI * 2, 0.88, 1.7, 0.06, 0.3, 0.75) },
@@ -311,6 +350,37 @@
     this.fade = 0; this.fadeLen = o.fade != null ? o.fade : 0.2;
     this.cur = { name, t: 0, speed: o.speed != null ? o.speed : 1, once: !!(o.once || CLIPS[name].once) };
   };
+  // drive(state): the one call per rendered frame (MOVEMENT.md). Picks the stance's driven loop, advances the shared
+  // foot phase by ground speed / stride, fires onFoot(side, strength) at contacts, leans, and sets the aim offsets.
+  // One-shot clips started with play() (vault, takedown, hit, death...) run to their end first.
+  Actor.prototype.drive = function (s) {
+    const c = this.cur;
+    if (c.once && (c.t < 1 || /death|Victim/.test(c.name))) { this.setAim(s.aimPitch || 0, s.aimYawOffset || 0); return; }
+    this.dp = s;
+    const dt = s.dt || 0, moving = s.speed > (s.stance === 'prone' ? 0.1 : 0.15), turning = !moving && Math.abs(s.yawRate || 0) > 0.5 && s.stance === 'stand';
+    let name;
+    if (s.stance === 'prone') name = moving ? 'proneLoco' : s.aiming ? 'proneAim' : 'proneIdle';
+    else if (s.stance === 'crouch') name = moving ? 'crouchLoco' : s.aiming ? 'crouchAim' : 'crouchIdle';
+    else name = moving || turning ? 'loco' : s.aiming ? 'aimIdle' : 'idle';
+    if (name !== c.name) this.play(name, { fade: name === 'loco' || c.name === 'loco' ? 0.2 : 0.28 });
+    // the shared phase
+    const before = this.phase || 0;
+    const rate = moving ? s.speed / stride(this) : turning ? Math.abs(s.yawRate) * 0.28 : 0;
+    this.phase = (before + rate * dt) % 1;
+    if (moving || turning) {
+      const crossed = (a, b, m) => (a < m && b >= m) || (a > b && (m === 0 ? true : a < m || b >= m));
+      if (crossed(before, this.phase, 0)) this.onFoot && this.onFoot('left', Math.min(1, s.speed / 4 + 0.3));
+      if (crossed(before, this.phase, 0.5)) this.onFoot && this.onFoot('right', Math.min(1, s.speed / 4 + 0.3));
+    } else if (this.phase > 0.02 && this.phase < 0.98) {
+      // finish the step so the feet come together instead of freezing mid-stride
+      this.phase = this.phase < 0.5 ? Math.max(0, this.phase - dt * 1.5) : Math.min(1, this.phase + dt * 1.5) % 1;
+    }
+    // lean: roll into turns (up to ~8 deg), pitch into acceleration and braking (up to ~6 deg)
+    const acc = dt > 0 ? ((s.speed - (this.lastSpeed || 0)) / dt) : 0; this.lastSpeed = s.speed;
+    const tr = IV.clamp(-(s.yawRate || 0) * s.speed * 0.025, -0.14, 0.14), tp = IV.clamp(acc * 0.012, -0.1, 0.1);
+    const k = 1 - Math.exp(-dt * 6); this.leanR = (this.leanR || 0) + (tr - (this.leanR || 0)) * k; this.leanP = (this.leanP || 0) + (tp - (this.leanP || 0)) * k;
+    this.setAim(s.aimPitch || 0, s.aimYawOffset || 0);
+  };
   Actor.prototype.setUpper = function (name) { if (name !== this.upper) { this.upper = name; this.upperT = 0; } };
   Actor.prototype.setAim = function (p, y) { this.aimP = p; this.aimY = y || 0; };
   Actor.prototype.bone = function (n) { return BI[n] != null ? this.bones[BI[n]] : null; };
@@ -330,16 +400,16 @@
   Actor.prototype.dispose = function () { if (this.root.parent) this.root.parent.remove(this.root); };
   Actor.prototype.tris = function () { return this.mesh.geometry.attributes.position.count / 3; };
 
-  function evalClip(name, t, out) { zero(out); const c = CLIPS[name]; c.f(out, t); return out; }
+  function evalClip(name, t, out, a) { zero(out); const c = CLIPS[name]; c.f(out, t, a); return out; }
   Actor.prototype.update = function (dt) {
     const c = this.cur, C = CLIPS[c.name];
     c.t += dt * c.speed / C.len; if (c.once) c.t = Math.min(c.t, 1); else c.t %= 1;
-    evalClip(c.name, c.once ? c.t * C.len : c.t, this.pb);
+    evalClip(c.name, c.once ? c.t * C.len : c.t, this.pb, this);
     const pose = this.pose;
     if (this.prev && this.fade < 1) {
       const p = this.prev, PC = CLIPS[p.name];
       p.t += dt * p.speed / PC.len; if (p.once) p.t = Math.min(p.t, 1); else p.t %= 1;
-      evalClip(p.name, p.once ? p.t * PC.len : p.t, this.pa);
+      evalClip(p.name, p.once ? p.t * PC.len : p.t, this.pa, this);
       this.fade = Math.min(1, this.fade + dt / Math.max(0.01, this.fadeLen));
       const w = ease(this.fade);
       for (let i = 0; i < PL; i++) pose[i] = this.pa[i] + (this.pb[i] - this.pa[i]) * w;
@@ -360,6 +430,8 @@
       const ap = this.aimP * (prone ? 0.5 : 1), ay = this.aimY;
       add(pose, 'spine', -ap * 0.25, ay * 0.3, 0); add(pose, 'chest', -ap * 0.3, ay * 0.35, 0); add(pose, 'neck', -ap * 0.2, ay * 0.15, 0); add(pose, 'head', -ap * 0.25, ay * 0.2, 0);
     }
+    // lean into turns (roll) and into acceleration (pitch), eased
+    if (!dead && this.dp) { add(pose, 'spine', this.leanP, 0, this.leanR); add(pose, 'chest', this.leanP * 0.5, 0, this.leanR * 0.6); }
     // apply
     const B = this.bones;
     for (let i = 0; i < NB; i++) { B[i].rotation.set(pose[i * 3], pose[i * 3 + 1], pose[i * 3 + 2]); }

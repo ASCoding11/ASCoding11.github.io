@@ -19,15 +19,22 @@
   // Every number that sets how the game feels, in one place, with units. Tuned by playing (see README).
   IV.TUNING = {
     step: 1 / 60,                       // s, fixed simulation step
-    move: {
-      walk: 2.0, run: 4.4, sprint: 6.4,  // m/s standing (run is the default pace, walk while aiming)
-      crouch: 2.0, crouchRun: 2.9,       // m/s crouched (crouch-walk is quiet)
-      prone: 0.75,                       // m/s crawling
-      aimMul: 0.62,                      // speed multiplier while aiming
-      accel: 11, decel: 14, airAccel: 2, // 1/s exponential approach to the target speed
-      turnRate: 11,                      // 1/s, how fast the body turns toward the move direction (third person)
+    move: {                              // MOVEMENT.md section 2 (a soldier with rifle and kit)
+      walk: 1.5, run: 3.8, sprint: 6.4,  // m/s: walk is also the speed while aiming; run is the default jog
+      crouch: 1.3, crouchRun: 2.0,       // m/s crouched (crouch-walk is quiet; Shift crouched = crouch-run)
+      prone: 0.6,                        // m/s crawling
+      strafeMul: 0.85, backMul: 0.7,     // sideways and backward speed vs forward
+      accel: 12,                         // 1/s exponential approach: about 0.25 s to jog
+      sprintAccel: 5,                    // 1/s from jog up to sprint: about 0.6 s
+      decel: 15, airAccel: 2,            // 1/s: stop in about 0.2 s
+      plantTime: 0.12, plantSpeed: 2.5,  // s the feet plant on a full reversal above this speed (m/s)
+      turnRate: 9.4,                     // rad/s body turn toward the movement (540 deg/s)
+      aimTurnRate: 12.5,                 // rad/s body toward the aim while aiming (720 deg/s)
+      sprintTurnRate: 2.1,               // rad/s the sprint direction can swing (120 deg/s): no turning on the spot
+      turnInPlace: 1.05, turnInPlaceRate: 4.4, // rad past which a standing body turns in place, and how fast
       gravity: 22,                       // m/s^2 (snappier than 9.8 for a character)
-      step: 0.45,                        // m, highest step climbed without vaulting
+      step: 0.35, snap: 0.5,             // m: step-up height; ground snap reach (stays glued going downhill)
+      slopeCos: 0.766, slideAccel: 9,    // cos(40 deg): steeper terrain can't be climbed and slides you back
       radius: 0.32,                      // m, body radius
       vaultMin: 0.45, vaultMax: 1.35,    // m, heights you can vault over
       vaultTime: 0.62,                   // s
@@ -38,7 +45,8 @@
       dist: 3.1, height: 0.42, side: 0.62,     // m, over-the-shoulder arm (from the shoulder pivot)
       aimDist: 1.55, aimSide: 0.55, aimFov: 0.7, // aiming: closer arm, FOV multiplier
       crouchDrop: 0.55, proneDrop: 1.05,       // m the pivot drops by stance
-      follow: 18,                              // 1/s positional damping of the pivot
+      follow: 13,                              // 1/s positional damping of the pivot (MOVEMENT.md: 10-15)
+      bob: 0.012, landDip: 0.09,               // m: step bob (Settings can turn it off), dip on landing
       pullIn: 30, easeOut: 4,                  // 1/s camera collision: snap in, ease back out
       sprintFov: 6,                            // degrees added while sprinting
       pitchMin: -1.25, pitchMax: 1.2,          // rad
@@ -95,7 +103,7 @@
       dmg: [9, 14, 22],         // hp per enemy rifle/smg hit
       sniperDmg: [45, 60, 85],
       searchTime: 38,           // s
-      runSpeed: 3.9, walkSpeed: 1.45, searchSpeed: 2.2,
+      runSpeed: 3.9, walkSpeed: 1.45, searchSpeed: 2.2, turnRate: 6.3, // m/s; rad/s body turn (360 deg/s)
       grenadeCooldown: 24,      // s, shared by all enemies
       alarmDelay: 2.2,          // s ringing before the alarm counts
       truckDelay: 28            // s after the alarm (or 60 when the telephone wire is cut)
@@ -179,7 +187,7 @@
   // localStorage 'ironveil:save' = { v: 1, diff, missions: { id: { done, medal, best, bestMedal } }, settings: {...},
   //   cp: { mission, diff, idx, data } (the last checkpoint, so Continue resumes there), tut: boot camp finished once }
   const KEY = 'ironveil:save';
-  const DEF_SETTINGS = { sens: 1, aimSens: 0.75, invert: false, assist: 1, auto: IV.touch, sub: 1, motion: IV.reducedMotion, blood: true,
+  const DEF_SETTINGS = { sens: 1, aimSens: 0.75, invert: false, assist: 1, auto: IV.touch, sub: 1, motion: IV.reducedMotion, blood: true, bob: true,
     quality: IV.touch ? 0 : 1, fov: 68, bright: 1, vol: 0.8, sfx: 1, mus: 0.55, mute: false };
   function load() {
     let s = null;
@@ -195,6 +203,13 @@
   IV.reloadSave = function () { IV.save = load(); IV.settings = IV.save.settings; };
   IV.DEF_SETTINGS = DEF_SETTINGS;
 
+  // the upper-body clip an actor is playing, for either character set (stand-in: .upper string; chars.js: .curUpper)
+  IV.upperOf = a => a.curUpper ? a.curUpper.name : (typeof a.upper === 'string' ? a.upper : null);
+  // upper-body names the game uses that chars.js may not have: fall back to its nearest clip
+  IV.setUpper = function (a, name) {
+    if (name && window.IVChars && !IVChars.standin && IVChars.clips && IVChars.clips.indexOf(name) < 0) name = name === 'binoc' ? 'aimIdle' : name === 'fire' ? 'aimIdle' : name;
+    a.setUpper(name);
+  };
   IV.$ = id => document.getElementById(id);
   IV.err = function (msg) { const e = IV.$('err'); if (e) { e.hidden = false; e.textContent = msg; } console.error(msg); };
 })();

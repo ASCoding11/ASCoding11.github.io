@@ -26,6 +26,7 @@
   };
   K.GEO = GEO;
 
+  const ALBEDO = { plain: 1, foliage: 1, lit: 1, litDim: 1, dark: 1 };
   K.begin = function () { return { buckets: {}, foliage: [], trunks: [], cards: [] }; };
   function bucket(b, mat) { return b.buckets[mat] || (b.buckets[mat] = { p: [], n: [], u: [], c: [] }); }
 
@@ -36,7 +37,8 @@
     _e.set(rx || 0, ry || 0, rz || 0); _q.setFromEuler(_e); _v.set(px, py, pz); _s.set(sx, sy, sz);
     _m.compose(_v, _q, _s); _n.getNormalMatrix(_m);
     const B = bucket(b, mat), pa = geo.attributes.position.array, na = geo.attributes.normal.array, sc = 1 / (UVS[mat] || 2);
-    _c.set(color == null ? 0xffffff : color).convertSRGBToLinear();
+    // untextured buckets take the colour as albedo (sRGB -> linear); textured ones as a tint over the sRGB texture
+    _c.set(color == null ? 0xffffff : color); if (ALBEDO[mat]) _c.convertSRGBToLinear(); else _c.multiplyScalar(1.25);
     const n = pa.length / 3, e = _m.elements, ne = _n.elements;
     let ymin = 1e9, ymax = -1e9;
     if (ao) for (let i = 0; i < n; i++) { const y = e[1] * pa[i * 3] + e[5] * pa[i * 3 + 1] + e[9] * pa[i * 3 + 2] + e[13]; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }

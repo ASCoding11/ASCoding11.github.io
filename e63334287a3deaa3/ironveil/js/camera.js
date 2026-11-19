@@ -13,7 +13,12 @@
   let inited = false;
   C.reset = function () { inited = false; C.dist = CT.dist; C.aimK = 0; C.scopeK = 0; C.trauma = 0; C.breath = 1; C.kickP = C.kickY = 0; C.assist = null; C.override = null; };
   C.shake = function (a) { if (IV.settings.motion) a *= 0.3; C.trauma = Math.min(1, C.trauma + a); };
-  C.kick = function (p, y) { C.kickP += p; C.kickY += y; };
+  // recoil: the view kicks at once and a spring brings most of it back (a little climb stays, as with a real gun)
+  C.kick = function (p, y) { P.pitch += p; P.yaw += y; C.kickP += p * 0.72; C.kickY += y * 0.6; };
+  // a very small bob on each foot contact (Settings: Camera bob), and a dip on landing
+  C.bobV = 0; C.bobY = 0;
+  C.footBob = function (k) { if (!IV.settings.bob || IV.settings.motion) return; C.bobV -= CT.bob * 9 * (k || 1); };
+  C.landDip = function (k) { if (IV.settings.motion) return; C.bobV -= CT.landDip * 9 * (k || 1); };
 
   // look input (mouse/touch), applied every render frame (raw, no smoothing)
   C.look = function (dx, dy, touch) {
@@ -75,9 +80,11 @@
       P.yaw += a.dy * (k1 - k0); P.pitch += a.dp * (k1 - k0);
       if (a.t >= st) C.assist = null;
     }
-    // recoil returns
-    const rk = Math.min(1, dt * 9);
-    P.pitch += C.kickP * rk; P.yaw += C.kickY * rk; C.kickP -= C.kickP * rk; C.kickY -= C.kickY * rk;
+    // recoil recovery (spring back toward where you were aiming)
+    const rk = 1 - Math.exp(-dt * 11);
+    P.pitch -= C.kickP * rk; P.yaw -= C.kickY * rk; C.kickP -= C.kickP * rk; C.kickY -= C.kickY * rk;
+    // bob spring (critically damped-ish)
+    C.bobV += (-C.bobY * 120 - C.bobV * 18) * dt; C.bobY += C.bobV * dt; if (Math.abs(C.bobY) < 1e-4 && Math.abs(C.bobV) < 1e-3) C.bobY = C.bobV = 0;
     P.pitch = IV.clamp(P.pitch, CT.pitchMin, CT.pitchMax);
     const aiming = W8 && W8.aiming, scoped = W8 && W8.scoped;
     C.aimK = IV.damp(C.aimK, aiming || (W8 && W8.binoc) ? 1 : 0, 14, dt);
@@ -86,10 +93,10 @@
     // pivot: at the shoulder, height by stance
     const pr = P.render;
     const ph = P.stance === 'stand' ? 1.55 : P.stance === 'crouch' ? 1.05 : 0.5;
-    want.set(pr.x, pr.y + ph, pr.z);
+    want.set(pr.x, pr.y + ph + C.bobY, pr.z);
     if (!inited) { C.pivot.copy(want); inited = true; }
-    C.pivot.x = IV.damp(C.pivot.x, want.x, CT.follow * 1.5, dt); C.pivot.z = IV.damp(C.pivot.z, want.z, CT.follow * 1.5, dt);
-    C.pivot.y = IV.damp(C.pivot.y, want.y, 9, dt);
+    C.pivot.x = IV.damp(C.pivot.x, want.x, CT.follow, dt); C.pivot.z = IV.damp(C.pivot.z, want.z, CT.follow, dt);
+    C.pivot.y = IV.damp(C.pivot.y, want.y, 11, dt) + (C.bobY - (C.lastBob || 0)); C.lastBob = C.bobY;
     // shake
     C.trauma = Math.max(0, C.trauma - dt * 1.6);
     const sh = C.trauma * C.trauma, t = IV.time;

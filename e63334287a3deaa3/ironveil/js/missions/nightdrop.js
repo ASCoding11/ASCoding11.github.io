@@ -497,7 +497,7 @@
     M.when(() => ['h1', 'h2', 'of'].every(k => !M.E[k] || !M.E[k].alive) && !IV.ai.list.some(e => e.alive && Math.abs(e.pos.x - HOUSE.x) < 8 && Math.abs(e.pos.z - HOUSE.z) < 4.5), () => {
       M.done('house'); AL.release();
       M.say(t('House clear!'));
-      M.after(1.5, () => { M.fuseEnd = M.time + 60; M.checkpoint(2); beatHold(M, false); });
+      M.after(1.5, () => { M.fuseEnd = M.time + 60; beatHold(M, false); M.checkpoint(2); });
     });
   }
   function beatHold(M, fromCp) {

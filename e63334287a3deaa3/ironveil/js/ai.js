@@ -7,6 +7,7 @@
 (function () {
   'use strict';
   const T = IV.TUNING, A = T.ai, W = IV.world, F = IV.CF;
+  const ZERO = new THREE.Vector3();
   const AI = IV.ai = { list: [], bodies: [], maskUntil: 0, masks: [], loud: false, alarm: null, alarmRung: false, grenadeCool: 0, lastSpotted: -99, spottedCount: 0, perceiveP: null };
   const P = IV.player;
   const diff = () => (IV.mission && IV.mission.diff) || 0;
@@ -29,11 +30,15 @@
   function Enemy(o) {
     this.kind = o.kind || 'rifleman'; this.team = 'them'; this.id = AI.list.length; this.name = o.name || '';
     this.actor = IVChars.spawn(this.kind);
-    this.weapon = IVChars.weapon(o.weapon || (this.kind === 'gunner' ? 'mg' : this.kind === 'officer' ? 'pistol' : this.kind === 'sniper' ? 'rifleScoped' : (o.smg ? 'enemySmg' : 'enemyRifle')));
+    this.wkind = o.weapon || (this.kind === 'gunner' ? 'mg' : this.kind === 'officer' ? 'pistol' : this.kind === 'sniper' ? 'rifleScoped' : (o.smg ? 'enemySmg' : 'enemyRifle'));
+    this.weapon = IVChars.weapon(this.wkind);
     this.actor.attach(this.weapon, 'handR');
+    this.actor.onFoot = (side, k) => { if (Math.hypot(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z) < 32) IV.footFx(this.pos, this.speed > 3 ? 'run' : this.stance === 'crouch' ? 'crouch' : 'walk', k, false, 0.5); };
     // never start inside a hedge or a wall (scripted spawns use rough positions)
     if (o.y == null && IV.nav.grid && !IV.nav.walkable(o.x, o.z)) { const p = IV.nav.nearest(o.x, o.z, 6); if (p) { o.x = p.x; o.z = p.z; } }
     this.pos = new THREE.Vector3(o.x, W.height(o.x, o.z), o.z); this.prev = this.pos.clone(); this.vel = new THREE.Vector3();
+    // footsteps from the animation's foot contacts (only near the camera)
+    this.actor_onFoot = true;
     this.bodyYaw = o.yaw || 0; this.bodyPrev = this.bodyYaw; this.headYaw = 0; this.aimPitch = 0;
     this.hp = o.hp || (this.kind === 'gunner' ? 120 : 100); this.alive = true; this.stance = 'stand';
     this.state = 'unaware'; this.aw = 0; this.alerted = false; this.lkp = null; this.interest = null; this.stateT = 0;
@@ -223,19 +228,20 @@
     const dx = p.x - e.pos.x, dz = p.z - e.pos.z, d = Math.hypot(dx, dz);
     if (d < 0.45) { e.pathI++; if (e.pathI >= e.path.length) { e.speed = 0; return true; } return false; }
     e.speed = IV.damp(e.speed, speed, 6, dt);
+    // no gliding and no instant 180s: turn first (in place) when the way on is well behind, at a capped rate
+    const want = IV.yawTo(dx, dz), off = Math.abs(IV.wrapA(want - e.bodyYaw));
+    e.bodyYaw = IV.turnToward(e.bodyYaw, want, A.turnRate * (off > 1.7 ? 0.8 : 1), dt);
+    if (off > 1.7) e.speed = IV.damp(e.speed, 0, 10, dt);
     const st = Math.min(d, e.speed * dt);
     o.x = e.pos.x + dx / d * st; o.z = e.pos.z + dz / d * st;
     // keep apart from other soldiers
     for (const q of AI.list) { if (q === e || !q.alive) continue; const sx = o.x - q.pos.x, sz = o.z - q.pos.z, sd = Math.hypot(sx, sz); if (sd < 0.75 && sd > 0.001) { o.x += sx / sd * (0.75 - sd) * 0.5; o.z += sz / sd * (0.75 - sd) * 0.5; } }
     W.collide(o, 0.3, e.pos.y + 0.45, e.pos.y + 1.7);
+    e.vel.set((o.x - e.pos.x) / dt, 0, (o.z - e.pos.z) / dt);
     e.pos.x = o.x; e.pos.z = o.z; e.pos.y = W.groundAt(e.pos.x, e.pos.z, e.pos.y);
-    e.bodyYaw = IV.dampA(e.bodyYaw, IV.yawTo(dx, dz), 8, dt);
-    // footsteps the player can hear
-    e.stepAcc = (e.stepAcc || 0) + st;
-    if (e.stepAcc > (speed > 3 ? 1.5 : 0.85)) { e.stepAcc = 0; const dd = Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z); if (dd < 30) IV.audio && IV.audio.step(IV.SURF[W.surfAt(e.pos.x, e.pos.z)], speed > 3 ? 'run' : 'walk', 0.5, e.pos); }
     return false;
   }
-  function faceTo(e, x, z, k, dt) { e.bodyYaw = IV.dampA(e.bodyYaw, IV.yawTo(x - e.pos.x, z - e.pos.z), k || 5, dt); }
+  function faceTo(e, x, z, k, dt) { e.bodyYaw = IV.turnToward(e.bodyYaw, IV.yawTo(x - e.pos.x, z - e.pos.z), Math.min(A.turnRate, (k || 5) * 0.9), dt); }
 
   // ---------------------------------------------------------------- combat helpers
   function pickTarget(e) {
@@ -286,7 +292,7 @@
     const dmg = e.kind === 'sniper' ? A.sniperDmg[diff()] : A.dmg[diff()] * (isP ? 1 : 0.6);
     IV.weapons.spawnBullet({ x: muz.x, y: muz.y, z: muz.z, vx: dx / l * v, vy: dy / l * v + (l / v) * 4.9, vz: dz / l * v, drag: 0, dmg, flat: true, owner: e, team: 'them', tracer: !W.day && (e.kind === 'gunner' || Math.random() < 0.45), enemy: true, life: 1.4 });
     IV.fx.muzzle(muz.x, muz.y, muz.z, dx / l, dy / l, dz / l, e.kind !== 'officer');
-    IV.audio && IV.audio.play(e.kind === 'gunner' ? 'mg' : e.kind === 'officer' ? 'epistol' : e.kind === 'sniper' ? 'erifle' : (e.weapon.userData.kind === 'enemySmg' ? 'esmg' : 'erifle'), { x: muz.x, z: muz.z });
+    IV.audio && IV.audio.play(e.kind === 'gunner' ? 'mg' : e.kind === 'officer' ? 'epistol' : e.kind === 'sniper' ? 'erifle' : (e.wkind === 'enemySmg' ? 'esmg' : 'erifle'), { x: muz.x, z: muz.z });
     AI.noise(e.pos.x, e.pos.z, 120, 'shout', e);
     e.mag--;
   }
@@ -313,8 +319,10 @@
       else if (this.aw >= A.investigate && (this.state === 'unaware' || this.state === 'suspicious' || this.state === 'returning')) { this.interest = this.interest || this.lkp; if (!this.fixed) { this.setState('investigating'); AI.bark(this, 'investigate'); } else this.setState('suspicious'); }
       else if (this.aw >= A.suspicious && (this.state === 'unaware' || this.state === 'returning')) { this.setState('suspicious'); AI.bark(this, 'suspicious'); }
     }
+    const sp0 = this.speed;
     BEH[this.state](this, dt);
-    this.anim();
+    if (this.speed < 0.05 || this.speed === sp0 && this.vel.lengthSq() > 0 && !this.path) this.vel.multiplyScalar(Math.exp(-12 * dt));
+    if (this.speed < 0.05) this.vel.set(0, 0, 0);
   };
   const BEH = {
     unaware(e, dt) {
@@ -438,7 +446,7 @@
       // tall cover (hedge, wall end): side-step out of it to peek
       if (e.cover && !low) { const off = e.peek ? 0.9 : 0; const side = { x: -e.cover.nz, z: e.cover.nx }; e.peekOff = IV.damp(e.peekOff || 0, off, 6, dt); }
       if (e.peek && e.mag > 0 && e.shotT <= 0) {
-        if (canShoot) { shoot(e, tgt, dt); e.shotT = (e.weapon.userData.kind === 'enemySmg' ? 0.12 : 0.9 + Math.random() * 0.8) * (1 + e.suppr); e.burst = (e.burst || 0) + 1; if (e.weapon.userData.kind === 'enemySmg' && e.burst % 5 === 0) e.shotT = 1.2; }
+        if (canShoot) { shoot(e, tgt, dt); e.shotT = (e.wkind === 'enemySmg' ? 0.12 : 0.9 + Math.random() * 0.8) * (1 + e.suppr); e.burst = (e.burst || 0) + 1; if (e.wkind === 'enemySmg' && e.burst % 5 === 0) e.shotT = 1.2; }
         else if (e.lkp && IV.time - e.lkp.t < 5 && Math.random() < 0.3) { suppressFire(e, e.lkp); e.shotT = 1.5; }
       }
       if (e.mag <= 0) { e.mag = 10; e.shotT = 2.4; e.peek = false; e.peekT = 2.4; AI.bark(e, 'reload'); }
@@ -460,7 +468,7 @@
       e.actor.setUpper(null); e.stance = 'stand';
       if (Math.hypot(al.x - e.pos.x, al.z - e.pos.z) > 1.2) { moveTo(e, al.x, al.z, A.runSpeed * 1.05, dt); e.ringT = 0; return; }
       e.speed = 0; faceTo(e, al.bx || al.x, al.bz || al.z, 6, dt);
-      e.ringT += dt; e.actor.play('salute', { fade: 0.15 }); e.ringing = true;
+      e.ringT += dt; e.actor.play('salute', { fade: 0.15 }); e.ringUntil = IV.time + 0.25;
       if (e.ringT > A.alarmDelay && !AI.alarmRung) { AI.ringAlarm(e); }
     },
     dead() {}
@@ -500,18 +508,14 @@
   };
 
   // ---------------------------------------------------------------- animation
-  Enemy.prototype.anim = function () {
-    const a = this.actor; if (this.busy) return;
-    if (this.ringing) { this.ringing = false; return; }
-    const s = this.speed;
-    let clip, sp = 1;
-    if (this.stance === 'crouch') { clip = s > 0.3 ? 'crouchWalk' : (this.actor.upper === 'aimIdle' ? 'crouchAim' : 'crouchIdle'); sp = s > 0.3 ? s / 1.9 : 1; }
-    else if (this.stance === 'prone') clip = 'proneAim';
-    else if (s > 3) { clip = 'run'; sp = s / 4.4; }
-    else if (s > 0.3) { clip = this.actor.upper === 'aimIdle' ? 'aimWalk' : 'walk'; sp = s / 1.5; }
-    else if (this.state === 'suspicious' || (this.state === 'investigating' && s < 0.3) || this.idleLook) clip = 'alert';
-    else clip = this.actor.upper === 'aimIdle' ? 'aimIdle' : 'idle';
-    a.play(clip, { speed: sp, fade: 0.2 });
+  const DS = {};
+  Enemy.prototype.drive = function (dt) {
+    const a = this.actor; if (this.busy || !this.alive) return;
+    if (IV.time < (this.ringUntil || 0)) return;   // ringing the bell: the one-shot plays
+    const v = this.vel.lengthSq() > 0.01 ? this.vel : ZERO;
+    IV.driveState(DS, v, this.bodyYaw, { yawRate: this.yawRate || 0, stance: this.stance === 'prone' ? 'prone' : this.stance, aiming: IV.upperOf(a) === 'aimIdle', aimPitch: this._ap || 0, aimYawOffset: this._ay || 0, sprinting: this.speed > 4.5, grounded: true, fallSpeed: 0, slopeY: 1, weapon: this.wkind, dt });
+    DS.speed = Math.min(DS.speed, this.speed + 0.01);
+    if (a.drive) a.drive(DS);
   };
   Enemy.prototype.frame = function (alpha, dt) {
     const r = this.actor.root;
@@ -522,13 +526,14 @@
       // aim at the target / look about
       let ap = 0, ay = this.headYaw;
       if (this.state === 'combat' && this.target) { const t = this.target.pos, d = Math.hypot(t.x - this.pos.x, t.z - this.pos.z); ap = Math.atan2(t.y + this.target.chestH() - this.eye(), d); ay = IV.clamp(IV.wrapA(IV.yawTo(t.x - this.pos.x, t.z - this.pos.z) - this.bodyYaw), -1, 1); }
-      this.actor.setAim(ap, ay);
+      this.actor.setAim(ap, ay); this._ap = ap; this._ay = ay;
     }
     // cull animation work for far soldiers (update every few frames)
     const d = Math.hypot(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z);
     this.animAcc = (this.animAcc || 0) + dt;
     const every = d > 90 ? 0.15 : d > 50 ? 0.066 : 0;
-    if (this.animAcc >= every) { this.actor.update(this.animAcc); this.animAcc = 0; }
+    this.yawRate = dt > 0 ? IV.wrapA(this.bodyYaw - (this.lastYaw == null ? this.bodyYaw : this.lastYaw)) / Math.max(dt, 1e-3) : 0; this.lastYaw = this.bodyYaw;
+    if (this.animAcc >= every) { if (this.alive) this.drive(this.animAcc); this.actor.update(this.animAcc); this.animAcc = 0; }
     r.visible = d < 260;
     // sniper glint: visible while he is aiming your way
     if (this.glint) {
