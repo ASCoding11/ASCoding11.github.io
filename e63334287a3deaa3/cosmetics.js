@@ -254,6 +254,7 @@
     chromaflage: { name: 'Chromaflage', prefix: 'cf', slots: [['hat', 'Seeker hats'], ['tool', 'Seeker tools'], ['splash', 'Catch splashes'], ['caught', 'Caught animations']] },
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
+    tidewick: { name: 'Tidewick', prefix: 'tw', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1012,6 +1013,40 @@
   I('drop-zone', 'victory', 2, 'Flex', 'uncommon', '#E8742A', '#FFFFFF', 'Show those arms.');
   I('drop-zone', 'victory', 3, 'Take a Bow', 'rare', '#8A5A2B', '#F2EFE8', 'A deep, slow bow to the crowd.');
   I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
+  // ---- Tidewick items ----
+  // Tidewick: outfits, hats, face pieces and trails for Pip, drawn in pixels by tidewick/wardrobe.js by slot and number.
+  // In no pack: captains wear them free in the game's Wardrobe. Outfits repaint only Pip's ordinary form (power-ups keep
+  // their colours) and every outfit stands out from the night sky at least as much as wardrobe.js's MIN_CR says.
+  I('tidewick', 'outfit', 1, 'Striker Kit', 'common', '#2FB65A', '#FFFFFF', 'A green shirt, white shorts and socks pulled up high.');
+  I('tidewick', 'outfit', 2, 'Hoops Jersey', 'common', '#FF8A2A', '#7A4FE0', 'A sleeveless orange jersey with purple trim.');
+  I('tidewick', 'outfit', 3, 'Gridiron Gear', 'uncommon', '#E8453C', '#D9DEE6', 'A red jersey with shoulder stripes and a silver helmet.');
+  I('tidewick', 'outfit', 4, 'Ballpark Pinstripes', 'uncommon', '#F4F1E8', '#3A6AD0', 'Cream with thin blue pinstripes and a blue belt.');
+  I('tidewick', 'outfit', 5, 'Rink Sweater', 'common', '#3A7BE0', '#FFFFFF', 'A thick blue sweater with a white band.');
+  I('tidewick', 'outfit', 6, 'Track Star', 'common', '#38C8E8', '#FFFFFF', 'A sky-blue tracksuit with a stripe down each side.');
+  I('tidewick', 'outfit', 7, 'Referee', 'uncommon', '#F4F6F8', '#2A2C3A', 'Black and white stripes. Fair calls only.');
+  I('tidewick', 'outfit', 8, 'Racing Suit', 'rare', '#F4F6F8', '#E8453C', 'A fireproof suit in white and red, and a red helmet.');
+  I('tidewick', 'outfit', 9, 'Tin Robot', 'rare', '#C8D2DC', '#FF5A5A', 'Riveted tin plates and a face of polished steel.');
+  I('tidewick', 'outfit', 10, 'Pirate Captain', 'legendary', '#D9363E', '#FFD23F', 'A long red coat with gold buttons and gold trim.');
+  I('tidewick', 'outfit', 11, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A striped shirt and rolled-up sailcloth trousers.');
+  I('tidewick', 'outfit', 12, 'Pinstripe Suit', 'rare', '#B8BCC8', '#E8453C', 'A grey pinstripe suit and a red tie, sharp as a tack.');
+  I('tidewick', 'outfit', 13, 'Gold Chain Tracksuit', 'legendary', '#9A6AF0', '#FFD23F', 'A shiny tracksuit, white stripes and a heavy gold chain.');
+  I('tidewick', 'outfit', 14, 'White Tuxedo', 'epic', '#F8F4E8', '#1A1C2A', 'A white dinner jacket, a black bow tie and a red flower.');
+  I('tidewick', 'outfit', 15, 'Astronaut', 'uncommon', '#F4F6F8', '#FF8A2A', 'A puffy white space suit with orange patches.');
+  I('tidewick', 'outfit', 16, 'Starry Wizard Robe', 'epic', '#A57CFF', '#FFE45C', 'A long violet robe scattered with little gold stars.');
+  I('tidewick', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap with the peak out front.');
+  I('tidewick', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E8453C', 'A white band to keep the rain and the sweat out of your eyes.');
+  I('tidewick', 'hat', 3, 'Robot Antenna', 'uncommon', '#C8D2DC', '#FF5A5A', 'A little aerial with a blinking red tip.');
+  I('tidewick', 'hat', 4, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered captain\'s hat with a gold edge.');
+  I('tidewick', 'hat', 5, 'Pirate Bandana', 'uncommon', '#E8453C', '#FFFFFF', 'A spotted red bandana knotted at the back.');
+  I('tidewick', 'hat', 6, 'Fedora', 'rare', '#8A7A6A', '#2A1D3A', 'A pinched felt hat with a dark band, worn low.');
+  I('tidewick', 'hat', 7, 'Top Hat', 'epic', '#3A3A4C', '#E8453C', 'A tall silk hat with a red band.');
+  I('tidewick', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#F8D8A8', 'One eye on the sea, one patch on the other.');
+  I('tidewick', 'face', 2, 'Shades', 'common', '#1A1C2A', '#3A8AE0', 'Dark glasses, even at night. Especially at night.');
+  I('tidewick', 'face', 3, 'Big Moustache', 'common', '#6A4028', '#F8D8A8', 'A bushy moustache with curled ends.');
+  I('tidewick', 'trail', 1, 'Sparkles', 'common', '#FFFFFF', '#FFE680', 'Little twinkles left on the quay behind you.');
+  I('tidewick', 'trail', 2, 'Bubbles', 'common', '#CFE8F0', '#5AA0C8', 'Tiny bubbles that float up into the rain.');
+  I('tidewick', 'trail', 3, 'Confetti', 'uncommon', '#FF5A8A', '#FFD23F', 'Bits of coloured paper that flutter down.');
+  I('tidewick', 'trail', 4, 'Music Notes', 'rare', '#FFE680', '#CFE8F0', 'A little tune follows you along the harbour.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });

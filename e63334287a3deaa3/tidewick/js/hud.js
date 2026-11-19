@@ -1,6 +1,7 @@
 // A 5×7 pixel font drawn in code, and the HUD and the full-screen cards (title, stage card, game over, the ending).
 import { PALETTE, P } from './sprites.js';
 import { SCREEN_W, SCREEN_H } from './constants.js';
+import { pipSprite } from './look.js';
 
 const G = {
   A: '.###.|#...#|#...#|#####|#...#|#...#|#...#', B: '####.|#...#|#...#|####.|#...#|#...#|####.',
@@ -82,9 +83,9 @@ export function drawIntro(ctx, g, S, w = SCREEN_W, h = SCREEN_H) {
   const d = g.stageDef;
   centred(ctx, d.name, 84, P.white, 1, w);
   if (d.title) centred(ctx, T(d.title), 98, P.foamG, 1, w);
-  const fr = S['pipS_idle'];
+  const fr = pipSprite(S, 'pipS_idle');
   const x = Math.floor(w / 2) - 30;
-  ctx.drawImage(fr, x, 122);
+  ctx.drawImage(fr, x, 138 - fr.height);
   text(ctx, 'x  ' + g.lives, x + 26, 128, P.white);
   centred(ctx, T(g.stage === 0 ? 'RAIN ON THE QUAY. REACH THE MAST.' : 'CROSS THE BREAKWATER.'), 168, P.grey, 1, w);
 }
@@ -104,7 +105,8 @@ export function drawEnding(ctx, g, S, w = SCREEN_W, h = SCREEN_H) {
   drawHUD(ctx, g, S, w);
   shadowCentred(ctx, T('YOU CLEARED'), 52, P.lamp, 2, w);
   shadowCentred(ctx, T('THE HARBOR'), 72, P.lamp, 2, w);
-  ctx.drawImage(S['pipB_idle' + (g.player.power === 2 ? 'F' : '')], Math.floor(w / 2) - 8, 104);
+  const pip = pipSprite(S, 'pipB_idle' + (g.player.power === 2 ? 'F' : ''));
+  ctx.drawImage(pip, Math.floor(w / 2) - 8, 136 - pip.height);
   centred(ctx, T('THE LAMPS ARE LIT AND THE'), 146, P.foam, 1, w);
   centred(ctx, T('TOLLKEEPER IS TAKING A BATH.'), 156, P.foam, 1, w);
   centred(ctx, T('SCORE {s}', { s: pad(g.score, 6) }), 178, P.white, 1, w);
