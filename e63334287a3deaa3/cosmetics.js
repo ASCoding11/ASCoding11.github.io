@@ -23,7 +23,8 @@
  *   ACCESSORIES  23 extras, each in one SLOT (hat, glasses, cape, trail, aura, pet): one per slot can be worn with any skin.
  *                Each also has `three`, a small description a 3D game can build it from (see "For 3D games" below).
  *   Prices       By rarity, the same for skins, accessories and game items (PRICE, whole mangos; 17 mangos = 1 emerald):
- *                common 60, uncommon 119 (7 emeralds), rare 238 (14), epic 357 (21), legendary 595 (35). Every item can
+ *                common 60 ($0.50), uncommon 119 (7 emeralds, $0.99), rare 420 ($3.49), epic 600 ($4.99), legendary 1,200
+ *                ($9.99). Every item can
  *                be bought on its own (buy('item:<id>')), and packs cost the sum of their items' prices.
  *   Chests       (the internal names still say draw: pack ids draw-1/5/10, kind 'draws', draw(), got.draws.) A chest costs
  *                CHEST_PRICE mangos (7 emeralds) and gives one skin at the RARITY odds: common 60%, uncommon 20%, rare 12.5%,
@@ -72,8 +73,9 @@
   var HUB = !!(me0 && me0.hasAttribute('data-hub'));
   var KEY = 'cosmetics:v1';
   var MPE = 17;                          // mangos per emerald (wallet.js)
-  // Prices by rarity, in whole mangos, for skins, accessories and game items alike (the owners' table, 19 Nov 2026).
-  var PRICE = { common: 60, uncommon: 119, rare: 238, epic: 357, legendary: 595 };
+  // Prices by rarity, in whole mangos, for skins, accessories and game items alike (the owners' table, 19 Nov 2026):
+  // $0.50, $0.99, $3.49, $4.99, $9.99 at 7 emeralds (119 mangos) for $0.99.
+  var PRICE = { common: 60, uncommon: 119, rare: 420, epic: 600, legendary: 1200 };
   var CHEST_PRICE = 7 * MPE;             // 119 mangos (7 emeralds) for one chest
   var DUP_REFUND = Math.round(CHEST_PRICE * 40 / 100);   // 48 mangos: 40% of a chest, back for a skin (or pack item) already owned
   var SLOTS = ['hat', 'glasses', 'cape', 'trail', 'aura', 'pet'];

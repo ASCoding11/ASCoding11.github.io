@@ -316,7 +316,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     // ---------- Packs ----------
     function packCard(p) {
       var c = el('div', 'pack' + (p.kind === 'emeralds' ? ' money' : ''));
-      if (p.kind === 'emeralds') p = { kind: 'emeralds', name: p.name, desc: p.emeralds + ' emeralds.', usd: p.usd, emeralds: p.emeralds, link: p.link, contents: {} };
+      if (p.kind === 'emeralds') p = { kind: 'emeralds', name: p.name, desc: p.emeralds.toLocaleString('en-US') + ' emeralds, to spend in the shop.', usd: p.usd, emeralds: p.emeralds, link: p.link, contents: {} };
       var faces = '';
       if (p.contents.skins) faces = p.contents.skins.map(function (id) { return C.avatarSvg(uid, 48, { look: { skin: id, accessories: {} } }); }).join('');
       else if (p.contents.acc) faces = p.contents.acc.map(function (id) { var a = C.ACCESSORIES_BY_ID[id], o = {}; o[a.slot] = id; return C.avatarSvg(uid, 48, { look: { skin: null, accessories: o } }); }).join('');
@@ -325,7 +325,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       else faces = '<span style="display:inline-flex;gap:2px">' + EM + EM + EM + '</span>';
       c.innerHTML = '<div class="faces">' + faces + '</div><div class="nm">' + esc(p.name) + '</div><div class="ds">' + esc(p.desc) + '</div>';
       if (p.kind === 'emeralds') {
-        c.innerHTML += '<div class="own">$' + p.usd.toFixed(2) + ' &middot; ' + W.format(p.emeralds * MPE) + '</div>';
+        c.innerHTML += '<div class="own">$' + p.usd.toFixed(2) + '</div>';
         // Only a pack with a Payment Link pasted in wallet.js AND PAYMENTS switched on links anywhere; today none does.
         var live = !!(p.link && W.PAYMENTS && W.PAYMENTS.enabled && /^https:\/\/buy\.stripe\.com\//.test(p.link));
         var mb = live ? el('a', 'btn go', 'Buy for $' + p.usd.toFixed(2)) : el('button', 'btn', 'Not available yet');
@@ -341,7 +341,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     }
     function drawPacks() {
       var t = document.getElementById('t-packs'); t.innerHTML = '';
-      [['skins', 'Skin packs', 'A pack costs the same as its skins bought one by one. Every skin, accessory and game item can also be bought on its own in the Locker.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.']].concat(Object.keys(C.GAMES || {}).map(function (gm) { return ['items', C.GAMES[gm].name + ' packs', 'Things to wear in ' + C.GAMES[gm].name + '. Put them on here in your locker or in the game’s own garage.', gm]; }), [['draws', 'Chests', 'Bought with emeralds only. Odds for every chest: ' + C.RARITY.slice().reverse().map(function (r) { return r.name.toLowerCase() + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%'; }).join(', ') + '.'], ['emeralds', 'Emerald packs', 'Emeralds are bought with real money. Buying them isn’t available yet.']]).forEach(function (g) {
+      [['skins', 'Skin packs', 'A pack costs the same as its skins bought one by one. Every skin, accessory and game item can also be bought on its own in the Locker.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.']].concat(Object.keys(C.GAMES || {}).map(function (gm) { return ['items', C.GAMES[gm].name + ' packs', 'Things to wear in ' + C.GAMES[gm].name + '. Put them on here in your locker or in the game’s own garage.', gm]; }), [['draws', 'Chests', 'Bought with emeralds only. Odds for every chest: ' + C.RARITY.slice().reverse().map(function (r) { return r.name.toLowerCase() + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%'; }).join(', ') + '.'], ['emeralds', 'Buy emeralds', 'Packs of emeralds for real money (not loot chests). Buying them isn’t available yet.']]).forEach(function (g) {
         var h = el('h3', null, esc(g[1])); t.appendChild(h);
         if (g[2]) t.appendChild(el('p', 'note', esc(g[2])));
         var grid = el('div', 'grid'); grid.style.marginTop = '10px';
