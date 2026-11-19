@@ -8,6 +8,11 @@
 import { cors, json, allowedOrigin, googleUser, stripe, ownedItems, SKU_RE } from '../_lib.js';
 import { CATALOG, allowed } from '../_wallet.js';
 
+// Shown on Stripe's page above the Pay button (custom_text.submit, plain text, Stripe allows up to 1,200 characters).
+// All sales are final: the site never offers a refund; a refund the owners make by hand in Stripe, or a chargeback,
+// takes the emeralds back (stripe-webhook.js). Players who need help use Payment help in the shop.
+export const FINAL_TEXT = 'All sales are final. No refunds. Need help with a payment? Use Payment help in the Back Room shop.';
+
 export const onRequestOptions = ({ request, env }) => new Response(null, { status: 204, headers: cors(request, env) });
 
 export async function onRequestPost({ request, env }) {
@@ -40,6 +45,7 @@ export async function onRequestPost({ request, env }) {
         customer_email: user.email || undefined,
         metadata: { uid: user.uid, sku, kind: 'emeralds' },
         payment_intent_data: { metadata: { uid: user.uid, sku, kind: 'emeralds' } },
+        custom_text: { submit: { message: FINAL_TEXT } },
         success_url: ret('success'),
         cancel_url: ret('cancel')
       });
@@ -62,6 +68,7 @@ export async function onRequestPost({ request, env }) {
       customer_email: user.email || undefined,
       metadata: { uid: user.uid, sku },
       payment_intent_data: { metadata: { uid: user.uid, sku } },
+      custom_text: { submit: { message: FINAL_TEXT } },
       success_url: ret('success'),
       cancel_url: ret('cancel')
     });

@@ -111,6 +111,9 @@ test('emerald checkout: consumable, captains only while closed, price checked, s
   assert.equal(b.status, 200, 'a second pack is not "already owned"');
   const p = W.st.sessions[0].params;
   assert.equal(p['metadata[sku]'], 'emeralds_7'); assert.equal(p['metadata[uid]'], CAP); assert.equal(p['metadata[kind]'], 'emeralds');
+  assert.equal(p['custom_text[submit][message]'], checkout.FINAL_TEXT, 'all sales are final, shown on Stripe before paying');
+  assert.match(checkout.FINAL_TEXT, /^All sales are final\. No refunds\./); assert.ok(checkout.FINAL_TEXT.length <= 1200);
+  assert.equal(p['consent_collection[terms_of_service]'], undefined, 'no consent_collection (needs dashboard setup)');
   assert.ok(p.success_url.endsWith('&session={CHECKOUT_SESSION_ID}')); assert.ok(p.success_url.includes('purchase=success'));
   W.st.prices.emeralds_80.unit_amount = 899;
   const c = await call(checkout, 'POST', 'checkout', { as: CAP, body: { sku: 'emeralds_80', back } });
@@ -132,6 +135,7 @@ test('item shop: checkout, webhook grant, owned, already-owned refusal', async (
   assert.equal(a.status, 200);
   const p = W.st.sessions[0].params;
   assert.equal(p['metadata[sku]'], 'boostball_flame'); assert.equal(p['metadata[kind]'], undefined);
+  assert.equal(p['custom_text[submit][message]'], checkout.FINAL_TEXT);
   assert.equal(p.success_url, 'https://ascoding11.com/boostball/?purchase=success&sku=boostball_flame');
   assert.equal((await call(checkout, 'POST', 'checkout', { as: ALICE, body: { sku: 'nope_missing', back } })).status, 404);
   const r = await event(session({ id: 'cs_test_item', amount_total: 299, metadata: { uid: ALICE, sku: 'boostball_flame' } }));
