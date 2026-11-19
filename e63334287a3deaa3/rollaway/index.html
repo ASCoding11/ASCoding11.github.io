@@ -431,7 +431,7 @@ var RA = (function () {
   Ctx.prototype.pend = function (x, uc, th, P_, at) { // swings across; at arrival its angle is at (radians)
     const w = 2 * Math.PI / P_, ta = this.T(x), q = clamp(at / th, -1, 1), base = this.r() < 0.5 ? Math.asin(q) : Math.PI - Math.asin(q);
     this.arches.push({ s: x, u: uc });
-    return this.hz({ type: 'pend', s: x, u: uc, L: 4.5, th, w, ph: base - w * ta, rb: 0.55, h0: 0.78 });
+    return this.hz({ type: 'pend', s: x, u: uc, L: 4.5, th, w, ph: base - w * ta, rb: 0.62, h0: 0.82 });
   };
   Ctx.prototype.stamp = function (x, u, wid, P_, open) { // rises and slams; open: it is down when the ball arrives, else up
     const ta = this.T(x), want = open ? 0.75 : 0.25; // phase (0..1) at arrival: 0..0.5 up, 0.5..1 down
@@ -1161,7 +1161,8 @@ const STONE_H = (() => { const c = document.createElement('canvas'); c.width = c
   g.globalAlpha = 1;
   // slabs: rows 64 px tall (half a texture), staggered joints
   for (let y = 0; y < 256; y += 64) { const off = (y / 64) % 2 ? 48 : 0; g.fillStyle = '#8a8a8a'; g.fillRect(0, y, 256, 3); for (let x = off; x < 256 + 96; x += 96) g.fillRect(x % 256, y, 3, 64); }
-  for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(110,110,110,.18)'; g.beginPath(); g.ellipse(r() * 256, r() * 256, 6 + r() * 20, 3 + r() * 10, r() * 3, 0, 7); g.fill(); }
+  for (let i = 0; i < 26; i++) { g.fillStyle = 'rgba(120,120,120,.1)'; g.beginPath(); g.ellipse(r() * 256, r() * 256, 10 + r() * 26, 6 + r() * 14, r() * 3, 0, 7); g.fill(); }
+  for (let y = 0; y < 256; y += 64) for (let x = 0; x < 256; x += 48) { const v = 200 + r() * 40 | 0; g.fillStyle = `rgba(${v},${v},${v},.25)`; g.fillRect(x + 3, y + 3, 45, 61); } // a slight shade per slab
   return c; })();
 const stoneTex = new THREE.CanvasTexture(STONE_H); stoneTex.encoding = THREE.sRGBEncoding; stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping; stoneTex.anisotropy = 8;
 const stoneNrm = (() => { // a normal map from the same picture: joints sink in
@@ -1374,8 +1375,8 @@ function drumGeo() { // axis along z (the track), radius 0.55, length 1.5
   const stripe = new THREE.BoxGeometry(0.16, 1.16, 1.52); parts.push(stripe); cols.push(C(0xd2522a)); // shows the roll
   return mergeGeos(parts, cols);
 }
-function bobGeo() { const a = new THREE.ConeGeometry(0.5, 0.75, 10); a.translate(0, 0.37, 0); const b = new THREE.ConeGeometry(0.5, 0.75, 10); b.rotateX(Math.PI); b.translate(0, -0.37, 0); const band = new THREE.CylinderGeometry(0.52, 0.52, 0.16, 10); return mergeGeos([a, b, band], [C(0x2c2420), C(0x2c2420), C(0xf0e2c2)]); }
-function chainGeo() { const g = new THREE.CylinderGeometry(0.06, 0.06, 1, 5); g.translate(0, -0.5, 0); return mergeGeos([g], [C(0x4a3e36)]); }
+function bobGeo() { const a = new THREE.ConeGeometry(0.62, 0.8, 12); a.translate(0, 0.4, 0); const b = new THREE.ConeGeometry(0.62, 1.0, 12); b.rotateX(Math.PI); b.translate(0, -0.5, 0); const band = new THREE.CylinderGeometry(0.65, 0.65, 0.2, 12); const ring = new THREE.TorusGeometry(0.16, 0.05, 6, 10); ring.translate(0, 0.86, 0); return mergeGeos([a, b, band, ring], [C(0x2c2420), C(0x2c2420), C(0xf0e2c2), C(0x8a6a4a)]); }
+function chainGeo() { const g = new THREE.CylinderGeometry(0.09, 0.09, 1, 6); g.translate(0, -0.5, 0); return mergeGeos([g], [C(0x4a3e36)]); }
 function pillarGeo() { const l = new THREE.BoxGeometry(0.7, 6.6, 0.7); l.translate(0, 3.3, 0); const c = new THREE.BoxGeometry(0.9, 0.3, 0.9); c.translate(0, 0.15, 0); return mergeGeos([l, c], [C(0xd8b582), C(0xb98a5a)]); }
 function lintelGeo() { const t = new THREE.BoxGeometry(1, 0.6, 0.9); t.translate(0, 0, 0); return mergeGeos([t], [C(0xc66d42)]); }
 function stampGeo() { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, -0.5, 0); const t = new THREE.BoxGeometry(1.02, 0.14, 1.02); t.translate(0, -0.12, 0); return mergeGeos([g, t], [C(0x2c2420), C(0xd2522a)]); }
@@ -1482,6 +1483,8 @@ const gate = new THREE.Group(); scene.add(gate);
   const top = new THREE.Mesh(mergeGeos([new THREE.BoxGeometry(1, 0.9, 1.1)], [C(0xc66d42)]), supportMat); gate.userData.top = top;
   const plaque = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), new THREE.MeshBasicMaterial({ map: gateTex, fog: true })); gate.userData.plaque = plaque;
   gate.add(gate.userData.l, gate.userData.r, top, plaque); gate.visible = false; }
+// the gate stands at its milestone unless a pendulum gantry is there: then a little further on
+function gateSpot(s) { for (let k = 0; k < 6; k++) { const near = G.tr.haz.some(h => h.type === 'pend' && Math.abs(h.s - s) < 22); if (!near) return s; s += 25; } return s; }
 function drawGate(m) { const g = gateCanvas.getContext('2d'); g.fillStyle = '#f3dfb5'; g.fillRect(0, 0, 256, 96); g.strokeStyle = '#8a4a26'; g.lineWidth = 6; g.strokeRect(5, 5, 246, 86); g.fillStyle = '#5a2a14'; g.font = '900 52px Cinzel,Georgia,serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(NUM(m) + ' m', 128, 52); gateTex.needsUpdate = true; }
 
 // ---------- cloud sea, far mesas ----------
@@ -1595,7 +1598,7 @@ function toMenu() { G.mode = 'menu'; AU.stopMusic(); $('hud').hidden = true; sta
 function startDemo() { G.demo = true; newRun(false, (Math.random() * 1e9) >>> 0); G.bot = new RA.Bot(G.tr, { depth: 10, beam: 14 }); }
 // end of a run: score, bests, unlocks, the board
 function endRun() {
-  if (G.over) return; G.over = true; G.deadT = 0;
+  if (G.over) return; G.over = true; G.deadT = 0; if (!G.demo) updateHud();
   const d = Math.max(0, Math.floor(G.st.s - G.startS)), sc = Math.floor(G.score); G.runD = d; G.runScore = sc;
   if (G.demo) return;
   AU.play(G.st.cause === 'fall' ? 'fall' : 'crash');
@@ -1730,8 +1733,8 @@ function draw(alpha, dt, now) {
   const bs = G.best > 50 ? G.startS + G.best : -1;
   bestGroup.visible = bs > 0 && bs > p.s - 20 && bs < p.s + QS.far && !G.demo;
   if (bestGroup.visible) { const pc = deckAt(bs, 0) || deckAt(bs, 1.5) || deckAt(bs, -1.5); let ua = -3, ub = 3; if (pc) { const f = (bs - pc.sa) / (pc.sb - pc.sa); ua = pc.ua0 + (pc.ua1 - pc.ua0) * f; ub = pc.ub0 + (pc.ub1 - pc.ub0) * f; } const um = (ua + ub) / 2; wpos(bs, um, null, bestStrip.position); bestStrip.position.y += 0.03; tr.frame(bs, FR); bestStrip.rotation.set(-Math.PI / 2, 0, -FR.yaw); bestStrip.scale.set(ub - ua + 0.4, 1, 1); wpos(bs, ua - 0.4, null, poles[0].position); wpos(bs, ub + 0.4, null, poles[1].position); poles[0].rotation.y = poles[1].rotation.y = -FR.yaw; }
-  const gs = G.startS + Math.ceil((p.s - G.startS + 25) / 500) * 500; gate.visible = !G.demo && gs < p.s + QS.far && gs - G.startS >= 500;
-  if (gate.visible) { if (gate.userData.m !== gs) { gate.userData.m = gs; drawGate(gs - G.startS); } const pc = deckAt(gs, 0); let ua = -3.5, ub = 3.5; if (pc) { const f = (gs - pc.sa) / (pc.sb - pc.sa); ua = pc.ua0 + (pc.ua1 - pc.ua0) * f - 1.1; ub = pc.ub0 + (pc.ub1 - pc.ub0) * f + 1.1; }
+  let gs = G.startS + Math.ceil((p.s - G.startS + 25) / 500) * 500; if (gate.userData.m0 !== gs) { gate.userData.m0 = gs; gate.userData.at = gateSpot(gs); } const gm = gs; gs = gate.userData.at; gate.visible = !G.demo && gs < p.s + QS.far && gs - G.startS >= 500;
+  if (gate.visible) { if (gate.userData.m !== gm) { gate.userData.m = gm; drawGate(gm - G.startS); } const pc = deckAt(gs, 0); let ua = -3.5, ub = 3.5; if (pc) { const f = (gs - pc.sa) / (pc.sb - pc.sa); ua = pc.ua0 + (pc.ua1 - pc.ua0) * f - 1.1; ub = pc.ub0 + (pc.ub1 - pc.ub0) * f + 1.1; }
     tr.frame(gs, FR); const y0 = FR.y - O.y - 1.0; gate.position.set(0, 0, 0); wpos(gs, ua, y0 + O.y, gate.userData.l.position); wpos(gs, ub, y0 + O.y, gate.userData.r.position); wpos(gs, (ua + ub) / 2, y0 + O.y + 8.4, gate.userData.top.position); gate.userData.top.scale.set(ub - ua + 1.2, 1, 1);
     wpos(gs, (ua + ub) / 2, y0 + O.y + 7.1, gate.userData.plaque.position); for (const m of [gate.userData.l, gate.userData.r, gate.userData.top, gate.userData.plaque]) m.rotation.set(0, -FR.yaw, 0); }
   // sky, sun and clouds follow the camera
@@ -1887,7 +1890,7 @@ canvas.addEventListener('pointerdown', e => {
   if (G.mode !== 'run') return;
   if (G.over) { if (G.deadT > 0.2) restart(); return; }
   if (e.pointerType === 'mouse') return;
-  canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
   if (set.touch === 'halves') { IN.halves.delete(e.pointerId); IN.halves.set(e.pointerId, e.clientX < innerWidth / 2 ? -1 : 1); halvesUi(); }
   else IN.drag = { id: e.pointerId, x0: e.clientX, x: e.clientX };
   if (set.tilt) IN.tilt0 = IN.tilt;
@@ -1912,7 +1915,7 @@ requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
 
 // test hooks (automated browsers only): drive the game without real time, read state and draw counts
 if (TEST) window.__ra = {
-  RA, G, KB, set, get save() { return save; }, set save(v) { save = v; }, renderer, scene, camera, startRun, restart, toMenu, showPause, resume, applyQuality, stepFrame,
+  RA, G, KB, AU, IN, set, steerInput, get save() { return save; }, set save(v) { save = v; }, renderer, scene, camera, startRun, restart, toMenu, showPause, resume, applyQuality, stepFrame,
   steer(v) { G.forceSteer = v; }, bot(on) { G.bot = on ? new RA.Bot(G.tr) : null; },
   state() { const s = G.st; return s && { s: s.s, d: s.s - G.startS, u: s.u, vl: s.vl, y: s.y, air: s.air, t: s.t, dead: s.dead, cause: s.cause, gems: s.gems, near: s.near, score: G.score, mult: G.mult, over: G.over, mode: G.mode, seed: G.seed }; },
   // advance the game by sec seconds of simulated time in frames of 1/hz, drawing each frame (draw=false skips drawing)
