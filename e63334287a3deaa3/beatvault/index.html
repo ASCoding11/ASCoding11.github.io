@@ -209,7 +209,7 @@ body.touch.prac #hint{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}
       <div class="setting"><span>Audio delay</span><input type="range" min="-200" max="200" step="5" id="sLat" aria-label="Audio delay in milliseconds"><b id="sLatN" data-noi18n></b></div>
       <p class="note">If the music sounds behind the picture (common with Bluetooth headphones), find your delay: tap along to the clicks.</p>
       <div class="row"><button class="btn alt sm" type="button" id="calBtn">Find my delay</button></div>
-      <div class="setting"><span>Effects</span><div class="seg" id="sFx"><button type="button" data-v="0">Full</button><button type="button" data-v="1">Reduced</button></div></div>
+      <div class="setting"><span>Visual effects</span><div class="seg" id="sFx"><button type="button" data-v="0">Full</button><button type="button" data-v="1">Reduced</button></div></div>
       <p class="note">Reduced: no screen shake or beat pulses, fewer paper scraps. Nothing in the game ever flashes the whole screen.</p>
       <div class="setting"><span>Hit boxes</span><div class="seg" id="sHb"><button type="button" data-v="0">Hidden</button><button type="button" data-v="1">In practice</button></div></div>
       <div class="row" style="margin-top:16px"><button class="btn" type="button" id="setDone">Done</button></div>
@@ -1481,7 +1481,7 @@ var BV = (function () {
   // Colour script, one stage per level (the player, burrs, keys, pads and gates keep their colours everywhere).
   var THEMES = [
     { sky: ['#fde3c3', '#f4a988'], sun: '#fff4dc', far: '#e2b6a6', mid: '#a7b98c', midS: '#7d9468', block: '#c58d5c', top: '#e8b98a', dark: '#94643c', floor: '#7f5639', floorTop: '#b4825a', sh: 'rgba(84,42,28,.33)', deco: '#f6d6b6', layer: 'hills', ink: '#2a2140' },
-    { sky: ['#d5ecfb', '#8fc3ea'], sun: '#ffffff', far: '#f4f8fb', mid: '#b4cfe6', midS: '#8fb0cf', block: '#5f7898', top: '#86a0c0', dark: '#435a77', floor: '#3e5170', floorTop: '#6a83a6', sh: 'rgba(30,45,80,.3)', deco: '#e6f1fa', layer: 'clouds', ink: '#2a2140' },
+    { sky: ['#d5ecfb', '#8fc3ea'], sun: '#fff7e0', far: '#bcd8ee', mid: '#9dbfdc', midS: '#8fb0cf', block: '#5f7898', top: '#86a0c0', dark: '#435a77', floor: '#3e5170', floorTop: '#6a83a6', sh: 'rgba(30,45,80,.3)', deco: '#e6f1fa', layer: 'clouds', ink: '#2a2140' },
     { sky: ['#c9b3e6', '#7a5aa6'], sun: '#f7e7ff', far: '#9c82c4', mid: '#6f5597', midS: '#563f7a', block: '#d6a94c', top: '#f1cd78', dark: '#a87c2c', floor: '#4a356c', floorTop: '#7a5fa3', sh: 'rgba(30,16,50,.38)', deco: '#b9a1dc', layer: 'mills', ink: '#2a2140' },
     { sky: ['#f6c690', '#3f6fa0'], sun: '#ffe7b5', far: '#6d93bd', mid: '#335d8a', midS: '#244a72', block: '#e0c18b', top: '#f4ddb0', dark: '#a8864f', floor: '#c49f66', floorTop: '#e6cc98', sh: 'rgba(10,20,40,.38)', deco: '#9fbad8', layer: 'waves', ink: '#2a2140' },
     { sky: ['#2d4a3c', '#132a22'], sun: '#e9f3c9', far: '#2f5546', mid: '#24463a', midS: '#18352b', block: '#b4cd78', top: '#dcebaa', dark: '#71893f', floor: '#8aa456', floorTop: '#c3d98c', sh: 'rgba(0,10,5,.4)', deco: '#4d7a5e', layer: 'reeds', ink: '#2a2140' },
@@ -1528,7 +1528,6 @@ var BV = (function () {
       n = which ? 7 : 5;
       for (i = 0; i < n; i++) { var cx = (i + r() * 0.7) * w / n, cy = h * (which ? 0.45 + r() * 0.25 : 0.2 + r() * 0.25), cs = U * (which ? 1.2 : 1.8) * (0.7 + r() * 0.6);
         both(function () { x.beginPath(); x.arc(cx, cy, cs, 0, 7); x.arc(cx + cs * 1.1, cy + cs * 0.25, cs * 0.75, 0, 7); x.arc(cx - cs * 1.05, cy + cs * 0.3, cs * 0.6, 0, 7); x.fill(); x.fillRect(cx - cs * 1.6, cy + cs * 0.3, cs * 3.4, cs * 0.6); }); }
-      if (which) both(function () { x.fillRect(0, h * 0.86, w, h); });
     } else if (k === 'mills') {
       both(function () { x.beginPath(); x.moveTo(0, h); for (var px = 0; px <= w; px += 8) x.lineTo(px, base + Math.sin(px / w * Math.PI * 4) * h * 0.04); x.lineTo(w, h); x.closePath(); x.fill(); });
       if (which) for (i = 0; i < 4; i++) { var mx = (i + 0.3 + r() * 0.4) * w / 4, my = base - U * 0.2, ms = U * 1.3; x.fillStyle = th.far; x.beginPath(); x.moveTo(mx - ms * 0.3, my + U); x.lineTo(mx - ms * 0.18, my - ms * 1.2); x.lineTo(mx + ms * 0.18, my - ms * 1.2); x.lineTo(mx + ms * 0.3, my + U); x.fill(); x.save(); x.translate(mx, my - ms * 1.25); x.rotate(r() * 2); for (var bl = 0; bl < 4; bl++) { x.rotate(Math.PI / 2); x.beginPath(); x.ellipse(ms * 0.5, 0, ms * 0.5, ms * 0.13, 0, 0, 7); x.fill(); } x.restore(); }
@@ -2423,7 +2422,16 @@ var BV = (function () {
     void dummy; void probe;
     return S;
   }
-  $('edPlay').addEventListener('click', function () { var L = ED.L, S = stateAt(L, ED.x); startLevel(editMeta(ED.cur), { mode: 'test', from: S }); });
+  // the first beat from the view's left edge where the player can stand for a moment without hitting anything
+  function safeStart(L, x) {
+    for (var k = 0; k < 16; k++) {
+      var S = stateAt(L, x + k * BV.UPB * BV.SPEEDS[1]); if (!S) return null;
+      var T = BV.clone(S); for (var q = 0; q < HZ / 8 && !T.dead; q++) BV.step(L, T);
+      if (!T.dead) return S;
+    }
+    return stateAt(L, x);
+  }
+  $('edPlay').addEventListener('click', function () { var L = ED.L, S = safeStart(L, ED.x); startLevel(editMeta(ED.cur), { mode: 'test', from: S }); });
   $('edPlay0').addEventListener('click', function () { startLevel(editMeta(ED.cur), { mode: 'test' }); });
   $('edVerify').addEventListener('click', function () {
     if (!ED.cur.o.length) { edMsg(TX('Add something to jump over first.')); return; }

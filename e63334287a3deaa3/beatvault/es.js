@@ -43,7 +43,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'If the music sounds behind the picture (common with Bluetooth headphones), find your delay: tap along to the clicks.': 'Si la música suena atrasada respecto de la imagen (pasa mucho con auriculares Bluetooth), encuentra tu retraso: toca junto con los clics.',
   'Find my delay': 'Encontrar mi retraso', 'Full': 'Completos', 'Reduced': 'Reducidos',
   'Reduced: no screen shake or beat pulses, fewer paper scraps. Nothing in the game ever flashes the whole screen.': 'Reducidos: sin sacudidas ni pulsos al ritmo, menos papelitos. Nada en el juego hace destellar toda la pantalla.',
-  'Hit boxes': 'Cajas de choque', 'Hidden': 'Ocultas', 'In practice': 'En práctica', 'Done': 'Listo',
+  'Visual effects': 'Efectos visuales', 'Hit boxes': 'Cajas de choque', 'Hidden': 'Ocultas', 'In practice': 'En práctica', 'Done': 'Listo',
   "You'll hear 4 clicks to count you in, then tap (or press Space) on each of the next 16 clicks.": 'Vas a oír 4 clics para entrar y después toca (o pulsa Espacio) en cada uno de los 16 clics siguientes.',
   'Start': 'Empezar', 'Use this': 'Usar este', 'Close': 'Cerrar',
   'Listen… then tap on every click.': 'Escucha… y toca en cada clic.', 'Not enough taps. Try again.': 'Faltaron toques. Prueba de nuevo.',
