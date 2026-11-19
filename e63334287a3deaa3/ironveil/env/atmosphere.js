@@ -174,7 +174,7 @@
   E.atmosphere = function (scene, renderer, preset, opts) {
     opts = opts || {};
     installFogChunks();
-    const A = { scene, renderer, sun: null, hemi: null, mistBase: opts.mistBase != null ? opts.mistBase : 0, shadowR: opts.shadowRadius || (E.Q.name === 'low' ? 24 : 40) };
+    const A = { flashes: opts.flashes !== false, scene, renderer, sun: null, hemi: null, mistBase: opts.mistBase != null ? opts.mistBase : 0, shadowR: opts.shadowRadius || (E.Q.name === 'low' ? 24 : 32) };
     const sun = A.sun = new THREE.DirectionalLight(0xffffff, 1);
     const hemi = A.hemi = new THREE.HemisphereLight(0xffffff, 0x000000, 0.3);
     scene.add(sun); scene.add(sun.target); scene.add(hemi);
@@ -211,7 +211,7 @@
       fog.color.copy(L(P.fog)); fog.near = P.fogD * (opts.fogMul || 1); fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;
       renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : 1.45);   // Low has no grade/lift pass
-      E.U.uWet.value = P.wet; E.U.uRain.value = P.rain ? 1 : 0; E.U.uDust.value = P.rain ? 0 : P.grade === 'day' ? 0.5 : 0.35;
+      E.U.uWet.value = P.wet; E.U.uRain.value = P.rain ? 1 : 0; E.U.uDust.value = P.rain ? 0 : P.grade === 'day' ? 0.5 : 0.35; E.U.uNight.value = P.grade === 'night' || P.grade === 'rain' ? 1 : 0;
       E.setWind(E.U.uWind.value.x, E.U.uWind.value.y, P.wind);
       rain.visible = !!P.rain && Q.name !== 'low' || (!!P.rain && opts.rainOnLow);
       // environment map: the sky (no stars, no sun disc glare) scaled by env
@@ -226,6 +226,7 @@
     };
     // brightness setting for players (multiplies exposure)
     A.setBrightness = function (b) { A.brightness = b; renderer.toneMappingExposure = A.P.exposure * b * (E.Q.post ? 1 : 1.45); };
+    A.setFlashes = function (on) { A.flashes = !!on; if (!on) A.flashAge = 99; };   // reduced-effects setting
     A.update = function (dt, camera) {
       sky.uniforms.time.value += dt;
       dome.position.copy(camera.position);
@@ -244,7 +245,7 @@
         for (; k < 4; k++) { const l = ls[k]; if (l) { U.uLamp.value[k].set(l.position.x, l.position.y, l.position.z, Math.min(1.5, l.intensity * 0.5)); U.uLampC.value[k].copy(l.color); } else U.uLamp.value[k].w = 0; }
         // lightning: a double flicker every 12-25 s, cool white, on the hemisphere light and the rain
         A.flashT = (A.flashT == null ? 8 : A.flashT) - dt;
-        if (A.flashT < 0) { A.flashT = 12 + Math.random() * 13; A.flashAge = 0; }
+        if (A.flashT < 0) { A.flashT = 12 + Math.random() * 13; A.flashAge = A.flashes ? 0 : 99; }
         A.flashAge = (A.flashAge == null ? 99 : A.flashAge + dt);
         const f = A.flashAge < 0.07 ? 1 : A.flashAge < 0.16 ? 0 : A.flashAge < 0.24 ? 0.55 : Math.max(0, 0.55 - (A.flashAge - 0.24) * 2.5);
         hemi.intensity = A.P.hemiI * (1 + f * 2.5); U.uFlash.value = f;

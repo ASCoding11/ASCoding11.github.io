@@ -287,16 +287,16 @@
     const stones = []; // per row a list of stones covering the row width exactly
     rows.forEach((r, ri) => {
       const list = []; let x = 0; const wTot = [];
-      while (x < 1.6) { const w = R() < 0.2 ? R.range(0.45, 0.7) : R() < 0.45 ? R.range(0.1, 0.2) : R.range(0.2, 0.45); wTot.push(w); x += w; }
+      while (x < 1.6) { const w = R() < 0.15 ? R.range(0.5, 0.8) : R() < 0.5 ? R.range(0.07, 0.2) : R.range(0.2, 0.45); wTot.push(w); x += w; }
       const sc = 1.6 / x, off = R() * S; let cx = 0;
       for (const w of wTot) {
         const ww = w * sc * px;
-        list.push({ x0: (cx * px + off) % S, w: ww, hk: R.range(0.72, 1.0), dy: R.range(-0.08, 0.08), tilt: R.range(-0.06, 0.06), col: R(), t: R.range(0.86, 1.12), k: 1 + R.int(27), bulge: R.range(0.04, 0.16), rad: R.range(0.06, 0.2) });
+        list.push({ x0: (cx * px + off) % S, w: ww, hk: R.range(0.6, 1.0), dy: R.range(-0.1, 0.1), tilt: R.range(-0.09, 0.09), col: R(), t: R.range(0.86, 1.12), k: 1 + R.int(27), bulge: R.range(0.04, 0.16), rad: R.range(0.06, 0.2) });
         cx += ww / px;
       }
       stones.push(list);
     });
-    const pal = [[138, 132, 120], [146, 136, 116], [128, 124, 116], [150, 144, 130], [124, 116, 104], [140, 128, 108]];
+    const pal = [[118, 113, 103], [126, 117, 100], [108, 104, 97], [128, 122, 110], [104, 97, 87], [120, 110, 94]];
     const joint = 2.2 * S / 1024;
     for (let yy = 0; yy < S; yy++) {
       let ri = 0; while (ri < rows.length - 1 && yy >= rows[ri + 1].y0) ri++;
@@ -329,7 +329,7 @@
         const mc = [176 * mk, 168 * mk, 150 * mk];
         const pc = [130 * t, 124 * t, 112 * t];
         o.r[q] = lerp(lerp(mc[0], pc[0], pack), cr, inside) / 255; o.g[q] = lerp(lerp(mc[1], pc[1], pack), cg, inside) / 255; o.b[q] = lerp(lerp(mc[2], pc[2], pack), cb, inside) / 255;
-        o.ro[q] = lerp(0.93, 0.78 + 0.12 * n1[q] + l * 0.06, Math.max(inside, pack));
+        o.ro[q] = lerp(0.95, 0.86 + 0.1 * n1[q] + l * 0.04, Math.max(inside, pack));
         o.id[q] = inside > 0.5 ? idByte(st.k, 0, 0) : 112;
       }
     }
