@@ -1895,7 +1895,7 @@ const GOALS=[null,
       S.snd((A2,t,v)=>{A2.tone(t,.9,'sawtooth',230,70,.07*v);A2.noise(t,.8,400,.6,.22*v,'lowpass');for(let i=0;i<4;i++)A2.noise(t+.4+i*.45,.18,260,.9,.08*v,'lowpass');A2.tone(t+2.25,.8,'sawtooth',170,50,.08*v);A2.noise(t+2.25,.6,300,.7,.28*v,'lowpass')});
     },
     step(S,t){
-      S.root.updateMatrixWorld();const U=S.d.dr.userData,path=S.d.path,A=area(S),sc=(S.main?2:.75)*(RM()?.8:1),NS=40,NR=10,BL=Math.min(.36,(S.main?34:15)/S.d.len);
+      S.root.updateMatrixWorld();const U=S.d.dr.userData,path=S.d.path,A=area(S),sc=(S.main?2.7:.75)*(RM()?.8:1),NS=40,NR=10,BL=Math.min(.4,(S.main?44:15)/S.d.len);
       const uh=RM()?lerp(.05,1,sm(0,2.4,t)):sm(0,2.3,t),show=uh<.995;
       const bu=U.body.material.uniforms;bu.uA.value=show?1:0;bu.uT.value=t;U.head.visible=U.tail.visible=show;U.wings.forEach(w=>w.visible=show);U.body.visible=show;
       if(show){
