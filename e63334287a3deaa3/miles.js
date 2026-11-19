@@ -92,10 +92,10 @@
       'Every badge': 'Todas las insignias', 'Badges': 'Insignias',
       'The badge next to a name shows that player’s status tier, plus any places and awards they hold. On a computer, hover over any badge on the site to see what it is.':
         'La insignia junto a un nombre muestra el nivel de ese jugador, más los puestos y premios que tenga. En la computadora, pasa el mouse por cualquier insignia del sitio para ver qué es.',
-      'Status tiers': 'Niveles', 'Earned with miles: {n} for every hour you play any game, plus points for wins and personal bests in each one (capped per game, so no single game carries you).':
-        'Se ganan con millas: {n} por cada hora que juegas cualquier juego, más puntos por victorias y récords personales en cada uno (con tope por juego, así que ningún juego solo te lleva).',
-      'Where everyone starts. Under 2,000 miles.': 'Donde empiezan todos. Menos de 2.000 millas.', '2,000 miles. About an hour a day for three weeks.': '2.000 millas. Más o menos una hora por día durante tres semanas.',
-      '10,000 miles. About 100 hours, or 50 with a lot of winning.': '10.000 millas. Unas 100 horas, o 50 ganando mucho.', '40,000 miles. Roughly a year of play.': '40.000 millas. Más o menos un año de juego.',
+      'Status tiers': 'Niveles', 'Earned with miles: miles come from time spent playing any game, plus points for wins and personal bests in each one (capped per game, so no single game carries you).':
+        'Se ganan con millas: las millas salen del tiempo que pasas jugando cualquier juego, más puntos por victorias y récords personales en cada uno (con tope por juego, así que ningún juego solo te lleva).',
+      'Where everyone starts. Under 2,000 miles.': 'Donde empiezan todos. Menos de 2.000 millas.', '2,000 miles. A few weeks of regular play.': '2.000 millas. Unas semanas jugando seguido.',
+      '10,000 miles. A lot of play, or about half as much with a lot of winning.': '10.000 millas. Mucho juego, o más o menos la mitad ganando mucho.', '40,000 miles. Roughly a year of play.': '40.000 millas. Más o menos un año de juego.',
       'Crew': 'Tripulación', 'Given, not earned: these sit above every miles tier, whatever someone’s miles.': 'Se otorgan, no se ganan: están por encima de todos los niveles de millas, tenga las millas que tenga.',
       'The co-pilot. Given by the Captains.': 'El copiloto. Lo otorgan los Captains.', 'Flies the plane: the people who run the site.': 'Pilotea el avión: la gente que maneja el sitio.',
       'The site founder. There is only one.': 'El fundador del sitio. Hay uno solo.', 'Miles board places': 'Puestos en la tabla de millas',
@@ -626,9 +626,9 @@
     x.type = 'button'; x.setAttribute('aria-label', 'Close'); x.addEventListener('click', function () { d.close(); });
     head.appendChild(gEl('h2', '', 'Badges')); head.appendChild(x); box.appendChild(head);
     box.appendChild(gEl('p', 'bra-g-n', 'The badge next to a name shows that player’s status tier, plus any places and awards they hold. On a computer, hover over any badge on the site to see what it is.'));
-    var l = gSec(box, 'Status tiers', 'Earned with miles: ' + HOUR + ' for every hour you play any game, plus points for wins and personal bests in each one (capped per game, so no single game carries you).');
-    var how = { economy: 'Where everyone starts. Under 2,000 miles.', business: '2,000 miles. About an hour a day for three weeks.',
-      first: '10,000 miles. About 100 hours, or 50 with a lot of winning.', jet: '40,000 miles. Roughly a year of play.' };
+    var l = gSec(box, 'Status tiers', 'Earned with miles: miles come from time spent playing any game, plus points for wins and personal bests in each one (capped per game, so no single game carries you).');
+    var how = { economy: 'Where everyone starts. Under 2,000 miles.', business: '2,000 miles. A few weeks of regular play.',
+      first: '10,000 miles. A lot of play, or about half as much with a lot of winning.', jet: '40,000 miles. Roughly a year of play.' };
     TIERS.forEach(function (t) { gRow(l, [pill(t)], t.n, how[t.k]); });
     l = gSec(box, 'Crew', 'Given, not earned: these sit above every miles tier, whatever someone’s miles.');
     gRow(l, [pill(VICE_CAPTAIN)], 'Vice Captain', 'The co-pilot. Given by the Captains.');
