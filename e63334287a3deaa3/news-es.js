@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Private messages show up again": "Los mensajes privados vuelven a aparecer",
+    "Chat": "Chat",
+    "Messages in a private chat weren't appearing for either person since last night. They show up straight away again.": "Desde anoche, los mensajes de un chat privado no aparecían para ninguna de las dos personas. Ya vuelven a aparecer al instante.",
     "Three new games": "Tres juegos nuevos",
     "Dogfights": "Combates aéreos",
     "Tower defense": "Defensa de torres",
