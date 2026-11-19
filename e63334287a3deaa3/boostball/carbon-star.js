@@ -145,7 +145,7 @@ void main(){vec2 c=gl_PointCoord-.5;float r=length(c),core=1.-smoothstep(0.,.5,r
 const VS_UV=`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
 const FS_FLARE=`varying vec2 vUv;uniform float uI,uRay,uRot,uCore;
 void main(){vec2 q=(vUv-.5)*2.;float r=length(q),a=atan(q.y,q.x);
-  float core=exp(-r*r/(uCore*uCore+1e-4)),halo=exp(-r*8.)*.38+exp(-r*3.2)*.05;
+  float core=exp(-r*r/(uCore*uCore+1e-4)),halo=exp(-r*11.)*.32;   // no wide glow: the flare never washes over the screen
   float ray=pow(abs(cos(3.*(a-uRot))),90.)*exp(-r/(.2*uRay+1e-3))+pow(abs(cos(2.*(a+uRot*.6)+.4)),150.)*exp(-r/(.3*uRay+1e-3))*.7;
   float streak=exp(-abs(q.y)*85.)*exp(-abs(q.x)/(.62*uRay+1e-3))*.75;
   vec3 col=vec3(1.,.88,.7)*core+vec3(1.,.48,.2)*(halo+ray*.9+streak);
@@ -322,7 +322,7 @@ function Effect(o){
     const fl=b.flare;
     if(t<.75){
       _f.copy(S.p);_f.z-=S.sg*2.5;_f.y=Math.max(_f.y,2);fl.position.copy(_f);fl.quaternion.copy(cam.quaternion);
-      const dc=cam.position.distanceTo(_f),near=clamp(dc/32,.4,1);
+      const dc=cam.position.distanceTo(_f),near=clamp(dc/40,.35,.85);   // dimmer when the camera is close to it
       if(S.red){U.uI.value=sm(0,.25,t)*(1-sm(.35,.75,t))*.45*near;U.uRay.value=0;U.uCore.value=.12}
       else{
         U.uI.value=(sm(0,.1,t)*(1-sm(.45,.62,t))+Math.max(0,1-Math.abs(t-.5)/.05)*.5)*near;   // up, hold, a last glint as it goes
