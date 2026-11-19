@@ -38,6 +38,21 @@
     'Ticker Tape Parade': 'Desfile de serpentinas', 'Treasure Chest': 'Cofre del tesoro', 'Floodlights': 'Reflectores', 'Soccer Ball': 'Pelota de fútbol', 'Basketball': 'Pelota de básquet',
     'Baseball': 'Pelota de béisbol', 'Anchor': 'Ancla', 'Robot Head': 'Cabeza de robot', 'Parrot': 'Loro', 'Pirate Tricorn': 'Tricornio pirata', 'Fedora': 'Fedora', 'Football Helmet': 'Casco de fútbol americano',
     "Captain's Cap": 'Gorra de capitán', 'Robot Dome': 'Cúpula de robot', 'Ref Cap': 'Gorra de árbitro', 'Black Chrome': 'Cromo negro',
+    // third-wave Kit items (Nov 2026)
+    'Number Eight': 'Número ocho', 'Speed Slashes': 'Rayas de velocidad', 'Baseball Stitches': 'Costuras de béisbol', 'Pitch Lines': 'Líneas de cancha', 'Vintage Racer': 'Carrera clásica',
+    'Pinstriping': 'Filetes', 'Low Poly': 'Facetas', 'Chevrons': 'Galones', 'Leopard Spots': 'Manchas de leopardo', 'Paw Prints': 'Huellas', 'Big Waves': 'Olas grandes', 'Sunburst': 'Rayos de sol',
+    'Treasure Map': 'Mapa del tesoro', 'Eye Patch': 'Parche en el ojo', 'Tracksuit and Chain': 'Chándal y cadena', 'Suit and Tie': 'Traje y corbata', 'Hazard Stripes': 'Franjas de peligro',
+    'Barcode': 'Código de barras', 'Synthwave Sunset': 'Atardecer retro', 'Polka Dots': 'Lunares', 'Music Staff': 'Pentagrama', 'Paisley': 'Cachemira', 'Golf Argyle': 'Rombos de golf', 'Title Belt': 'Cinturón de campeón',
+    'Green Flame': 'Llama verde', 'Violet Flame': 'Llama violeta', 'Afterburner': 'Posquemador', 'Sports Balls': 'Pelotas deportivas', 'Cannon Smoke': 'Humo de cañón', 'Gems': 'Gemas',
+    'Paper Planes': 'Aviones de papel', 'Spare Parts': 'Repuestos', 'Pizza Slices': 'Porciones de pizza', 'Comet Tail': 'Cola de cometa', 'Cherry Blossoms': 'Flores de cerezo', 'Ghosts': 'Fantasmas',
+    'Pixel Fire': 'Fuego de píxeles', 'Ice Shards': 'Esquirlas de hielo', 'Hockey Pucks': 'Discos de hockey', 'Fire and Ice': 'Fuego y hielo',
+    'Giant Trophy': 'Trofeo gigante', 'Stadium Wave': 'Ola en el estadio', 'Robot Salute': 'Saludo del robot', 'Tidal Wave': 'Maremoto', 'Aurora': 'Aurora', 'Light Dragon': 'Dragón de luz',
+    'Disco Floor': 'Pista de baile', 'Piano Keys': 'Teclas de piano', 'Bubble Pop': 'Burbuja reventada', 'Balloon Release': 'Suelta de globos', 'Paint Splash': 'Salpicón de pintura', 'Thunderclap': 'Trueno',
+    'Kraken': 'Kraken', 'Rocket Launch': 'Lanzamiento del cohete', 'Red Carpet': 'Alfombra roja', 'Snow Globe': 'Bola de nieve', 'Slam Dunk': 'Clavada', 'High Striker': 'Martillo de feria',
+    'Foam Finger': 'Mano de espuma', 'Trophy': 'Trofeo', 'Whistle': 'Silbato', 'Tricorn': 'Tricornio', 'Eye Patch Flag': 'Bandera con parche', 'Halo': 'Aureola', 'Pizza Slice': 'Porción de pizza',
+    'Flying Saucer': 'Platillo volador', 'Cactus': 'Cactus', 'Wizard Hat': 'Sombrero de mago', 'Smiley Ball': 'Bola sonriente', 'Racing Helmet': 'Casco de carreras', 'Baseball Cap': 'Gorra de béisbol',
+    'Boxing Glove': 'Guante de boxeo', 'Golf Ball': 'Pelota de golf', 'Mini Fedora': 'Mini fedora', 'Mini Top Hat': 'Mini galera', 'Mini Cone': 'Mini cono', 'Propeller Cap': 'Gorra con hélice',
+    'Little Chef Hat': 'Gorrito de chef', 'Royal Crown': 'Corona real', 'American Football': 'Balón de fútbol americano', 'Bowling Pin': 'Bolo', 'Satellite Dish': 'Antena parabólica',
     'No decal: plain team paint.': 'Sin calcomanía: el color del equipo, liso.', 'No trail: the usual boost flame.': 'Sin estela: la llama de turbo de siempre.',
     'No goal explosion: the usual fireball.': 'Sin explosión de gol: la bola de fuego de siempre.', 'No topper.': 'Sin adorno.', 'No hat.': 'Sin sombrero.',
     'The usual wheels.': 'Las ruedas de siempre.', 'The usual engine sound.': 'El sonido de motor de siempre.', 'is not in your locker yet.': 'todavía no está en tu casillero.', 'Shop': 'Tienda',
@@ -75,6 +90,10 @@
     'Could not reach the game server. Check your connection, or play Practice.': 'No se pudo conectar con el servidor del juego. Revisa tu conexión o juega una práctica.',
     'Signing in to the game server timed out. Check your connection, or play Practice.': 'El inicio de sesión en el servidor tardó demasiado. Revisa tu conexión o juega una práctica.',
     'Still signing in…': 'Todavía iniciando sesión…', 'Sign-in failed: {e}': 'No se pudo iniciar sesión: {e}',
-    "Couldn't read the lobbies ({e}).": 'No se pudieron leer las salas ({e}).'
+    "Couldn't read the lobbies ({e}).": 'No se pudieron leer las salas ({e}).',
+    // Carbon Star, an exclusive gift: its Locker and its label in the Kit (the item's own name stays as it is)
+    'Locker': 'Casillero', 'Goal explosions': 'Explosiones de gol', 'Made for Carbon.': 'Hecho para Carbon.', 'made for Carbon': 'hecho para Carbon',
+    'Carbon Star preview': 'Vista previa de Carbon Star', 'Replay': 'Repetir', 'Done': 'Listo',
+    'When you score, a dying red star flares in the goal and a ripple carries the whole arena out into deep space until the kickoff. Everyone in the match sees it.': 'Cuando haces un gol, una estrella roja moribunda estalla en el arco y una onda lleva todo el estadio al espacio profundo hasta el saque inicial. Todos en el partido lo ven.'
   });
 })();
