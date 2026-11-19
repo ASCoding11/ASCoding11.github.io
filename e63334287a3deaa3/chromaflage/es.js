@@ -54,6 +54,11 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Starting in {n}…': 'Empieza en {n}…', 'Starts by itself once 2 players are here.': 'Empieza sola cuando haya 2 jugadores.',
   'Waiting for at least one more player. Send them the invite link.': 'Falta al menos un jugador. Mándale la invitación.',
   'Press Start when everyone is in.': 'Pulsa Empezar cuando estén todos.', 'Waiting for the host to start.': 'Esperando a que empiece el anfitrión.',
+  // ready up and the lobby timer
+  'Ready': 'Listo', 'Not ready': 'No listo', 'ready': 'listo', 'not ready': 'no listo', '{n} of {m} ready': '{n} de {m} listos', 'Starting in {t}': 'Empieza en {t}',
+  'Press Enter to ready up': 'Pulsa Enter para estar listo',
+  'Starts 5 s after half the room is ready, or when the timer runs out.': 'Empieza 5 s después de que la mitad de la sala esté lista, o cuando se acabe el tiempo.',
+  'Starts 5 s after half the room is ready, or when the timer runs out. Start round starts it now.': 'Empieza 5 s después de que la mitad de la sala esté lista, o cuando se acabe el tiempo. Empezar ronda la empieza ya.',
   'Map: {m} (picked by the host)': 'Mapa: {m} (lo eligió el anfitrión)', 'Map now: {m} · Next map in {t}: {n}': 'Mapa: {m} · Próximo en {t}: {n}',
   'Next round in {n}…': 'Próxima ronda en {n}…', 'Back to the lobby in {n}…': 'Vuelta a la sala en {n}…',
   // paint studio

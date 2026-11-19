@@ -66,6 +66,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Press Start match when everyone is in.': 'Pulsa Empezar partida cuando estén todos.', 'Waiting for the host to start.': 'Esperando a que empiece el anfitrión.',
   // ready up and the lobby timer
   'Ready': 'Listo', 'Not ready': 'No listo', 'ready': 'listo', 'not ready': 'no listo', '{n} of {m} ready': '{n} de {m} listos', 'Starting in {t}': 'Empieza en {t}',
+  'Press Enter to ready up': 'Pulsa Enter para estar listo',
   'Starts 5 s after half the room is ready, or when the timer runs out.': 'Empieza 5 s después de que la mitad de la sala esté lista, o cuando se acabe el tiempo.',
   'Starts 5 s after half the room is ready, or when the timer runs out. Start match starts it now.': 'Empieza 5 s después de que la mitad de la sala esté lista, o cuando se acabe el tiempo. Empezar partida la empieza ya.',
   'Back to the lobby in {n}…': 'Vuelta a la sala en {n}…', 'Next round in {n}…': 'Próxima ronda en {n}…', 'Final scores in {n}…': 'Puntos finales en {n}…',

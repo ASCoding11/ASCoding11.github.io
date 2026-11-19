@@ -333,7 +333,7 @@ body.touch #banner span{font-size:14px}
       <button class="btn sm alt" id="lobbyMin" type="button">Hide</button>
     </div>
     <div class="row rdrow" id="rdRow" hidden>
-      <button class="btn" id="lobbyReady" type="button" aria-pressed="false" aria-keyshortcuts="Enter">Ready</button>
+      <button class="btn" id="lobbyReady" type="button" aria-pressed="false" aria-keyshortcuts="Enter" title="Press Enter to ready up">Ready</button>
       <p id="rdNote" data-noi18n></p>
     </div>
     <div class="lb-body">
@@ -2897,7 +2897,7 @@ function updateHud(){
     if(rs.lr){   // a host with ready up: the count and the timer go in the ready row, which stays put while lobbyMsg shows "Copied"
       lm=n<2?(Net.isPublic?'Starts by itself once 2 players are here.':'Waiting for at least one more player. Send them the invite link.'):G.host&&!Net.isPublic?'Starts 5 s after half the room is ready, or when the timer runs out. Start match starts it now.':'Starts 5 s after half the room is ready, or when the timer runs out.';
       const c=readyCount(rs),go=startAt(rs),s=Math.max(0,Math.ceil((go-now())/1000)),soon=go&&rs.rr&&go===rs.rr;
-      setText('rdNote',LT('{n} of {m} ready',{n:c.r,m:c.n})+(go?' · '+(soon?LT('Starting in {n}…',{n:s}):LT('Starting in {t}',{t:fmtT(s)})):''));setClass('rdNote',soon||go&&s<=5?'go':'');
+      setText('rdNote',LT('{n} of {m} ready',{n:c.r,m:c.n})+(go?' · '+(soon?LT('Starting in {n}…',{n:Math.min(s,5)}):LT('Starting in {t}',{t:fmtT(s)})):''));setClass('rdNote',soon||go&&s<=5?'go':'');
       const on=String(isReady(Net.uid,rs));if(hudCache.rdOn!==on){hudCache.rdOn=on;$('lobbyReady').setAttribute('aria-pressed',on)}}
     else lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':n<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start match when everyone is in.':'Waiting for the host to start.';
     setHidden('rdRow',!rs.lr);setText('lobbyMsg',LT(lm));

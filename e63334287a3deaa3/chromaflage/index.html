@@ -182,6 +182,15 @@ h1 span{display:inline-block}
 .hset .sel{justify-self:start;font-size:12px;padding:4px 6px}
 #rotNote{margin:8px 0 0;font-weight:800}#rotNote b{color:var(--ink)}
 #lobbyMin{display:none}
+/* ready up: the button and the count stay outside the scrolling body, so they show even with the card hidden (Hide) */
+#lobby .rdrow{margin-top:10px;flex-wrap:nowrap}
+#lobbyReady{flex:0 0 auto;min-height:44px;min-width:104px;font-size:17px;padding:8px 14px;background:#fff}
+#lobbyReady[aria-pressed="true"]{background:var(--mint);color:#fff}
+#lobbyReady[aria-pressed="true"]::before{content:'\2713'}
+#rdNote{margin:0;min-width:0;font-weight:900;font-size:13px;line-height:1.3;color:var(--ink-2)}
+#rdNote.go{color:var(--pink)}
+#plist .rd{flex:0 0 auto;width:18px;height:18px;border-radius:50%;border:2px solid var(--ink-3);font-size:11px;font-weight:900;line-height:14px;text-align:center;color:#fff}
+#plist .rd.on{background:var(--mint);border-color:var(--ink)}
 
 /* ---------- paint studio ---------- */
 #studio{position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top,0px));bottom:14px;width:300px;overflow:hidden;pointer-events:auto;padding:0;display:flex;flex-direction:column}
@@ -352,6 +361,10 @@ body.touch #lobby{top:calc(150px + env(safe-area-inset-top,0px));left:12px;right
     <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
       <div style="min-width:0"><h2 id="lobbyTitle">Lobby</h2><p class="code" id="lobbyCode"></p></div>
       <button class="btn sm alt" id="lobbyMin" type="button">Hide</button>
+    </div>
+    <div class="row rdrow" id="rdRow" hidden>
+      <button class="btn" id="lobbyReady" type="button" aria-pressed="false" aria-keyshortcuts="Enter" title="Press Enter to ready up">Ready</button>
+      <p id="rdNote" data-noi18n></p>
     </div>
     <div class="lb-body">
       <ul id="plist"></ul>
@@ -3621,7 +3634,9 @@ function updateFx(dt){
 //  Roles and rounds. The round state (rs) belongs to the host:
 //  {id, ph: lobby|hide|seek|end, t0, dur, map, set:{mode, map, hide, seek, sk, tn},
 //   sk: seekers, pl: everyone in the round, fd: {found uid: [by, seconds into seek]},
-//   sc: running points, tn: times each player has been a seeker, res: last result}
+//   sc: running points, tn: times each player has been a seeker, res: last result,
+//   in the lobby: as (public rooms: when the round starts), and from hosts with ready up lr: 1, al (when the lobby
+//   timer runs out) and rr (when the ready countdown ends); see hostLobby}
 // =====================================================================
 function roleOf(id,rs){
   rs=rs||G.rs;if(!rs||rs.ph==='lobby')return 'free';
@@ -3651,7 +3666,7 @@ function cleanSet(s){
   return{mode:s.mode==='infect'?'infect':'classic',map:n('map',-1,MAPS.length-1),hide:n('hide',5,300),seek:n('seek',30,900),sk:n('sk',0,MAX_ROOM-1),tn:tn&&tn<10?10:tn};
 }
 function defaultSet(){return cleanSet(store.get('hostset',null))}
-function lobbyRS(prev,set){return{id:prev?prev.id:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:0,set:set||(prev&&prev.set)||defaultSet(),sk:[],pl:[],fd:{},sc:prev?prev.sc||{}:{},tn:prev?prev.tn||{}:{},as:0}}
+function lobbyRS(prev,set){return{id:prev?prev.id:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:0,set:set||(prev&&prev.set)||defaultSet(),sk:[],pl:[],fd:{},sc:prev?prev.sc||{}:{},tn:prev?prev.tn||{}:{},as:0,lr:1}}
 function liveIds(){if(G.mode==='practice')return[...ents.keys()];const a=[Net.uid];for(const k of Net.others.keys())if(Net.live(k))a.push(k);return a}
 function newRound(prev){
   const ids=liveIds(),set=prev.set,tn=Object.assign({},prev.tn||{});
@@ -3666,13 +3681,38 @@ function setRS(rs){
   if(G.mode==='online'&&G.host)Net.pubRS(rs);
   applyRS(rs);
 }
+// ---------- ready up and the lobby timer (online lobby only) ----------
+// Each player says it's ready with rd in its own node: the lobby's key (round id + 1), so a ready from an earlier
+// lobby never counts and nobody has to clear it. Once 2 are in, the host runs the lobby timer (al: 60 s in a room,
+// 20 s in a public lobby, not reset by new joiners, cancelled below 2), and when at least half the room is ready
+// (rounded up) a 5 s countdown (rr); the round starts at whichever comes first. Public rooms copy that moment to as,
+// which pages from before ready up read and run; private rooms leave as at 0, so an older host page shows nothing
+// stuck (its Start button still works, nothing starts by itself). lr: 1 says the host does all this.
+const LOBBY_MS=60000,PUB_LOBBY_MS=20000,READY_MS=5000;
+const lobbyKey=rs=>rs&&rs.ph==='lobby'?(rs.id|0)+1:0;
+function isReady(id,rs){const k=lobbyKey(rs);if(!k)return false;if(id===Net.uid)return G.myRd===k;const o=Net.others.get(id);return !!o&&o.rd===k}
+function readyCount(rs){const ids=liveIds();let r=0;for(const u of ids)if(isReady(u,rs))r++;return{r,n:ids.length,need:Math.ceil(ids.length/2)}}
+function startAt(rs){if(!rs||rs.ph!=='lobby')return 0;if(!rs.lr)return rs.as||0;const a=rs.al||0,b=rs.rr||0;return a&&b?Math.min(a,b):a||b}
+function toggleReady(){
+  const rs=G.rs;if(G.mode!=='online'||!Net.refs||!rs||rs.ph!=='lobby'||!rs.lr)return;
+  const k=lobbyKey(rs);G.myRd=G.myRd===k?0:k;Net.upd({rd:G.myRd});sfx('ui');delete hudCache.lobby;delete hudCache.hint;
+}
+function hostLobby(rs,t){
+  const c=readyCount(rs);let al=rs.al||0,rr=rs.rr||0;
+  if(c.n<2){al=0;rr=0}
+  else{if(!al)al=t+(Net.isPublic?PUB_LOBBY_MS:LOBBY_MS);if(c.r>=c.need){if(!rr)rr=t+READY_MS}else rr=0}
+  const go=al&&rr?Math.min(al,rr):al;
+  if(go&&t>=go){setRS(newRound(rs));return}
+  const as=Net.isPublic?go:0;
+  if(al!==(rs.al||0)||rr!==(rs.rr||0)||as!==(rs.as||0)||!rs.lr)setRS(Object.assign({},rs,{al,rr,as,lr:1}));
+}
 // The host's clock: advance phases, check who is left, score the round.
 function hostTick(){
   const rs=G.rs;if(!rs)return;const t=now();
   if(rs.ph==='lobby'){
     // between rounds the lobby shows the map the rotation is on now
     if(G.mode==='online'&&rs.set&&rs.set.map<0){const m=rotMap(t);if(rs.map!==m){setRS(Object.assign({},rs,{map:m}));return}}
-    if(G.mode==='online'&&Net.isPublic){const n=liveIds().length;if(n>=2){if(!rs.as){setRS(Object.assign({},rs,{as:t+20000}))}else if(t>=rs.as)setRS(newRound(rs))}else if(rs.as)setRS(Object.assign({},rs,{as:0}))}
+    if(G.mode==='online')hostLobby(rs,t);
     return;
   }
   if(rs.ph==='hide'){
@@ -4286,6 +4326,7 @@ function sanitizeRS(p){
   return{id:Math.round(clamp(p.id,0,HE_MAX)),ph:p.ph,t0:clamp(p.t0,t-DAY_MS,t+DAY_MS),dur:numIn(p.dur,0,36e5,0),map:Math.round(numIn(p.map,0,MAPS.length-1,0)),set:cleanSet(p.set),
     sk:idList(p.sk),pl:idList(p.pl),fd:idMap(p.fd,v=>Array.isArray(v)&&validId(v[0])?[v[0],Math.round(numIn(v[1],0,3600,0))]:undefined),sc:intMap(p.sc),tn:intMap(p.tn),
     as:finN(p.as)&&p.as>0?clamp(p.as,t-DAY_MS,t+DAY_MS):0,
+    ...(p.ph==='lobby'&&p.lr===1?{lr:1,al:numIn(p.al,0,t+3e5,0),rr:numIn(p.rr,0,t+3e5,0)}:{}),
     res:isObj(res)?{win:res.win==='seekers'?'seekers':'hiders',pts:intMap(res.pts),names:idMap(res.names,v=>cleanName(typeof v==='string'?v:'')||undefined),at:numIn(res.at,0,3600,0)}:null};
 }
 function onNode(uid,v){
@@ -4293,7 +4334,7 @@ function onNode(uid,v){
   const str=(x,n)=>typeof x==='string'&&x.length<=n?x:'',he=+v.he;
   // a heartbeat from the future would keep a vanished player "live" for ever, so it counts as now at most
   const ts=numIn(+v.ts,0,Net.now()+5000,0);
-  const o={n:cleanName(typeof v.n==='string'?v.n:'')||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff4f8b',j:numIn(+v.j,1,1e15,0)||ts,ts,rs:str(v.rs,RS_MAX),he:he>0?Math.round(Math.min(he,HE_MAX)):0,ta:str(v.ta,64),tg:str(v.tg,160)};
+  const o={n:cleanName(typeof v.n==='string'?v.n:'')||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff4f8b',j:numIn(+v.j,1,1e15,0)||ts,ts,rs:str(v.rs,RS_MAX),he:he>0?Math.round(Math.min(he,HE_MAX)):0,ta:str(v.ta,64),tg:str(v.tg,160),rd:finN(v.rd)?v.rd:0};
   Net.others.set(uid,o);G.nm.set(uid,o.n);
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
   let e=ents.get(uid);
@@ -4379,6 +4420,7 @@ function becomeHost(){
   G.host=true;G.he=Math.min(HE_MAX,G.maxHe+1);G.maxHe=G.he;
   const base=G.lastRS?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
   if(!G.lastRS)base.map=base.set.map>=0?base.set.map:rotMap(now());
+  if(base.ph==='lobby'&&!base.lr){base.lr=1;base.al=base.as||0}   // taking over from a host page from before ready up: its public timer carries on
   if(G.lastRS&&G.rs&&G.rs.id===base.id)feed(T('You\'re the host now'));
   setRS(base);
 }
@@ -4405,7 +4447,8 @@ function updateHud(){
   if(!inGame)return;
   const role=G.role,ph=rs?rs.ph:'lobby',left=phaseLeft();
   let pn='Lobby',ck='–';
-  if(ph==='lobby'){pn=G.mode==='online'?'Lobby':'Practice';const n=G.mode==='online'?liveIds().length:1;ck=rs&&rs.as?fmtT((rs.as-now())/1000):n+'/'+MAX_ROOM;if(rs&&rs.as)pn='Starting'}
+  if(ph==='lobby'){pn=G.mode==='online'?'Lobby':'Practice';const n=G.mode==='online'?liveIds().length:1,go=G.mode==='online'?startAt(rs):0;ck=go?fmtT((go-now())/1000):n+'/'+MAX_ROOM;if(go)pn='Starting';
+    if(go){const s=Math.ceil((go-now())/1000);if(s!==G.lastTick){G.lastTick=s;if(s<=5&&s>0)sfx('tick')}}}
   else if(ph==='hide'){pn='Hide time';ck=fmtT(left)}else if(ph==='seek'){pn='Seek time';ck=fmtT(left)}else{pn='Round over';ck=G.mode==='online'?fmtT(left):'–'}
   setText('phaseName',pn);setText('clock',ck);
   const low=(ph==='hide'||ph==='seek')&&left<=10&&left>0;if(hudCache.low!==low){hudCache.low=low;$('phaseBox').classList.toggle('low',low)}
@@ -4425,7 +4468,7 @@ function updateHud(){
   else if(role==='seeker')hint=ph==='seek'?'<span><kbd>Click</kbd> tag (hold to keep firing)</span><span><kbd>Space</kbd> jump</span><span><kbd>Esc</kbd> menu</span>':'';
   else if(role==='hider'||role==='free'){const p=me?me.pose:0,fl=me&&me.flat,wl=me&&me.wall;
     hint='<span><kbd>P</kbd> paint</span>'+(wl?'<span class="on"><kbd>G</kbd> stuck to the wall</span><span><kbd>W A S D</kbd> slide</span><span class="'+(p===2?'on':'')+'"><kbd>Z</kbd> sideways</span><span class="'+(fl&&p===0?'on':'')+'"><kbd>F</kbd> flatten</span><span><kbd>Space</kbd> let go</span>'
-      :'<span class="'+(p===1?'on':'')+'"><kbd>C</kbd> crouch</span><span class="'+(p===2?'on':'')+'"><kbd>Z</kbd> lie</span><span class="'+(fl?'on':'')+'"><kbd>F</kbd> flatten</span><span><kbd>G</kbd> stick to wall</span><span><kbd>Q E</kbd> turn</span>')+(ph==='seek'?'<span><kbd>T</kbd> squeak +1</span>':'')+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m ready</span>':'')}
+      :'<span class="'+(p===1?'on':'')+'"><kbd>C</kbd> crouch</span><span class="'+(p===2?'on':'')+'"><kbd>Z</kbd> lie</span><span class="'+(fl?'on':'')+'"><kbd>F</kbd> flatten</span><span><kbd>G</kbd> stick to wall</span><span><kbd>Q E</kbd> turn</span>')+(ph==='seek'?'<span><kbd>T</kbd> squeak +1</span>':'')+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m ready</span>':'')+(G.mode==='online'&&ph==='lobby'&&rs&&rs.lr?'<span><kbd>Enter</kbd> '+(isReady(Net.uid,rs)?'not ready':'ready')+'</span>':'')}
   else hint='<span><kbd>← →</kbd> or click: watch someone else</span>';
   if(hudCache.hint!==hint){hudCache.hint=hint;$('hint').innerHTML=hint}
   // spectating
@@ -4445,8 +4488,16 @@ function updateHud(){
   setHidden('readyBtn',!(G.mode==='practice'&&ph==='hide'&&role==='hider'&&!G.studio));
   // lobby panel
   setHidden('lobby',!(G.mode==='online'&&rs&&ph==='lobby'&&!G.studio));
-  if(G.mode==='online'&&rs&&ph==='lobby'){const lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':liveIds().length<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start when everyone is in.':'Waiting for the host to start.';setText('lobbyMsg',lm);setText('rotNote',rotText(rs));
-    const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host;if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
+  if(G.mode==='online'&&rs&&ph==='lobby'){const n=liveIds().length;let lm;
+    if(rs.lr){   // a host with ready up: the count and the timer go in the ready row, which stays put while lobbyMsg shows "Copied"
+      lm=n<2?(Net.isPublic?'Starts by itself once 2 players are here.':'Waiting for at least one more player. Send them the invite link.'):G.host&&!Net.isPublic?'Starts 5 s after half the room is ready, or when the timer runs out. Start round starts it now.':'Starts 5 s after half the room is ready, or when the timer runs out.';
+      const c=readyCount(rs),go=startAt(rs),s=Math.max(0,Math.ceil((go-now())/1000)),soon=go&&rs.rr&&go===rs.rr;
+      setText('rdNote',T('{n} of {m} ready',{n:c.r,m:c.n})+(go?' · '+(soon?T('Starting in {n}…',{n:Math.min(s,5)}):T('Starting in {t}',{t:fmtT(s)})):''));
+      const cl=soon||go&&s<=5?'go':'';if(hudCache.rdCl!==cl){hudCache.rdCl=cl;$('rdNote').className=cl}
+      const on=String(isReady(Net.uid,rs));if(hudCache.rdOn!==on){hudCache.rdOn=on;$('lobbyReady').setAttribute('aria-pressed',on)}}
+    else lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':n<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start when everyone is in.':'Waiting for the host to start.';
+    setHidden('rdRow',!rs.lr);setText('lobbyMsg',T(lm));setText('rotNote',rotText(rs));
+    const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host+(rs.lr?liveIds().map(u=>isReady(u,rs)?1:0).join(''):'');if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
   if(G.mode==='online'&&ph==='end'&&!$('end').hidden)setText('endMsg',(liveIds().length>=2?'Next round in ':'Back to the lobby in ')+Math.max(0,Math.ceil(left))+'…');
   // touch buttons
   if(isTouch){setHidden('stick',G.studio);setHidden('tbtns',G.studio);setHidden('tShoot',role!=='seeker');if(role!=='seeker')G.trigT=false;setHidden('tTaunt',!(role==='hider'&&ph==='seek'));setHidden('tPaint',!canPaint());setText('tPaint',G.studio?'Done':'Paint');for(const id of ['tPose1','tPose2','tFlat','tStick'])setHidden(id,!(role==='hider'||role==='free'));if(me){setText('tStick',me.wall?'Let go':'Stick');setText('tPose2',me.wall?'Side':'Lie');setHidden('tPose1',!(role==='hider'||role==='free')||!!me.wall)}}
@@ -4483,7 +4534,9 @@ function renderLobby(){
   const ids=[Net.uid,...[...Net.others.keys()].filter(k=>Net.live(k))];
   for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),t=document.createElement('span');
     const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.setAttribute('data-noi18n','');nm.textContent=id===Net.uid?T('{n} (you)',{n:myName||T('You')}):nameOf(id);t.className='t';
-    t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);ul.appendChild(li)}
+    t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);
+    if(rs.lr){const r=document.createElement('span'),on=isReady(id,rs);r.className='rd'+(on?' on':'');r.textContent=on?'✓':'';r.title=T(on?'Ready':'Not ready');r.setAttribute('role','img');r.setAttribute('aria-label',r.title);li.append(r)}
+    ul.appendChild(li)}
   const set=rs.set||defaultSet();segSet($('setMode'),set.mode);$('setMap').value=String(set.map);$('setMap').disabled=!G.host;segSet($('setHide'),set.hide);segSet($('setSeek'),set.seek);segSet($('setSk'),set.sk);segSet($('setTn'),set.tn);
   $('lobby').classList.toggle('guest',!G.host);$('hostNote').textContent=G.host?'(you\'re the host)':'(host picks)';
   const sb=$('startRound');sb.hidden=Net.isPublic;sb.disabled=!G.host||ids.length<2;sb.textContent=G.host?'Start round':'Host starts';
@@ -4611,7 +4664,7 @@ async function goOnline(room,isPublic){
   if(Net.refs)Net.leave();
   clearEnts();clearFx();loadMap(0);makeMe(Net.uid);
   const sp=MAP.spawns[Math.floor(Math.random()*MAP.spawns.length)];me.pos.set(sp[0],0,sp[1]);
-  Object.assign(G,{mode:'online',pmode:null,rs:null,host:false,hostUid:null,he:0,maxHe:0,lastRS:null,rsSeen:'',rid:-1,ph:'',role:'free',seenFd:{},paused:false,studio:false,joinedAt:performance.now()});
+  Object.assign(G,{mode:'online',pmode:null,rs:null,host:false,hostUid:null,he:0,maxHe:0,lastRS:null,rsSeen:'',rid:-1,ph:'',role:'free',seenFd:{},paused:false,studio:false,joinedAt:performance.now(),myRd:0});
   G.seenTg=new Map();
   try{await Net.join(room,isPublic)}catch(err){G.mode='menu';throw err}
   enterGame();renderLobby();
@@ -4707,7 +4760,7 @@ addEventListener('keydown',ev=>{
   else if(c==='KeyB'&&G.studio){SC.tool='brush';syncStudio()}else if(c==='KeyI'&&G.studio){SC.tool='pick';syncStudio()}
   else if(c==='BracketLeft'&&G.studio){SC.size=Math.max(2,SC.size-2);syncStudio()}else if(c==='BracketRight'&&G.studio){SC.size=Math.min(40,SC.size+2);syncStudio()}
   else if((c==='ArrowLeft'||c==='ArrowRight')&&(G.role==='out'||G.role==='spec'))cycleSpec(c==='ArrowLeft'?-1:1);
-  else if(c==='Enter')practiceReady();
+  else if(c==='Enter'){if(G.mode==='online'){if(!(ev.target&&ev.target.tagName==='BUTTON'))toggleReady()}else practiceReady()}
 });
 addEventListener('keyup',ev=>{keys[ev.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;G.trig=G.trigT=false});
@@ -4823,6 +4876,7 @@ function showRotToday(){const n=dayMaps(Date.now()).map(i=>MAPS[i].name);$('rotT
 showRotToday();setInterval(showRotToday,60000);
 for(const [id,key,num] of [['setMode','mode',false],['setHide','hide',true],['setSeek','seek',true],['setSk','sk',true],['setTn','tn',true]])$(id).onclick=ev=>{const b=ev.target.closest('button');if(b)hostSet(key,num?+b.dataset.v:b.dataset.v)};
 $('startRound').onclick=()=>{if(G.host&&G.rs&&G.rs.ph==='lobby'&&liveIds().length>=2)setRS(newRound(G.rs))};
+$('lobbyReady').onclick=toggleReady;
 $('lobbyMin').onclick=()=>{$('lobby').classList.toggle('min');$('lobbyMin').textContent=$('lobby').classList.contains('min')?'Show':'Hide'};
 const copyInvite=(msgEl)=>{const url=location.origin+'/#'+Net.room,m=$(msgEl);const done=ok=>{m.textContent=ok?'Invite link copied. Your friend opens it and enters the code to join.':url};try{navigator.clipboard.writeText(url).then(()=>done(true),()=>done(false))}catch(e){done(false)}};
 $('lobbyInvite').onclick=()=>copyInvite('lobbyMsg');$('copyInvite').onclick=()=>copyInvite('inviteMsg');
@@ -4858,7 +4912,7 @@ const inv=/^#cf-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room cf-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('pink');$('quick').classList.remove('pink');$('quick').classList.add('alt')}
 
 if(navigator.webdriver)window.__cf={G,P,buildNav,findPath,get me(){return me},ents,Net,MAPS,get MAP(){return MAP},loadMap,startPractice,goOnline,toMenu,setRS,hostTag,shoot,openStudio,closeStudio,perceive,visibility,camoCheck,placeBot,botPaint,PC,SC,setColor,fillAll,eyedrop,
-  get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},renderer,scene,camera,step,keys,tryPose,setPose,toggleFlat,taunt,practiceReady,newRound,lobbyRS,roleOf,showPause,resume,rayMap,strokeTo,hitMe,SIZES,atlasOf,hidersLeft,specTarget,cycleSpec,get MAPIDX(){return mapIdx},
+  get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},renderer,scene,camera,step,keys,tryPose,setPose,toggleFlat,taunt,practiceReady,newRound,lobbyRS,roleOf,toggleReady,readyCount,startAt,showPause,resume,rayMap,strokeTo,hitMe,SIZES,atlasOf,hidersLeft,specTarget,cycleSpec,get MAPIDX(){return mapIdx},
   toggleStick,stickWall,unstick,attachWall,wallMove,bodyBlocked,wallHeld,findWall,jump,heightOf,overlapping,circles,controlMe,aiSeeker,lineClear,navCell,patrolPoints,syncStudio,setMySize,setMyShape,undoPaint,makeEnt,practiceRoundStart,WALL_N,moveEnt,get CK(){return CK},kitOn,kitOf,kitLoad};
 
 // The Seeker kit: kit.js is fetched the first time kitOn() is true (a captain's answer arrives a moment after the page
