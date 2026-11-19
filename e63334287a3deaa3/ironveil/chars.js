@@ -45,7 +45,9 @@
   // clips where the left hand belongs on the weapon's fore-end (left-hand IK on when a long gun is in handR)
   var TWO_HAND = { aimIdle: 1, aimWalk: 1, crouchAim: 1, holdRifle: 1, sprintRifle: 1, fire: 1, fireCrouch: 1, fireCover: 1,
     proneAim: 1, proneIdle: 1, stackUp: 1, boltCycle: 0, aimPistol: 1, firePistol: 1, holdPistol: 0, wallLean: 1, limp: 1, aimCover: 1 };
-  var UPPER_ROOTS = ['spine_01'];
+  // clips that play once and hold their last frame unless {loop:true} is passed
+  var ONESHOT = { reload: 1, boltCycle: 1, throw: 1, melee: 1, takedown: 1, takedownVictim: 1, vault: 1, hit: 1, deathFront: 1, deathBack: 1,
+    deathRun: 1, salute: 1, fire: 1, firePistol: 1, fireCrouch: 1, fireCover: 1, breachKick: 1, signalMoveUp: 1, stagger: 1 };
 
   var IV = window.IVChars = {
     info: { loaded: false, fallback: false, files: {}, bytes: 0, errors: [], version: VERSION },
@@ -191,7 +193,7 @@
       if (onProgress) try { onProgress(Math.min(0.99, a / b)); } catch (e) {}
     }
     IV._loading = needLibs().then(function () {
-      var names = Object.keys(FILES);
+      var names = IV.forceFallback ? [] : Object.keys(FILES);
       return Promise.all(names.map(function (n) {
         return loadGLB(n, prog).then(function (g) { gltf[n] = g; IV.info.files[n] = 'ok'; }, function (e) {
           IV.info.files[n] = 'failed'; IV.info.errors.push(n + ': ' + (e && e.message || e));
@@ -352,7 +354,7 @@
     var c = clipName(name);
     if (!c) { if (!this._warned) { console.warn('IVChars: no clip', name); this._warned = 1; } c = 'idle'; }
     var fade = o.fade == null ? 0.2 : o.fade;
-    var once = o.once || o.loop === false;
+    var once = o.once || o.loop === false || (ONESHOT[name] && o.loop !== true);
     if (this.cur && this.cur.name === name && !once) {
       if (o.speed != null) { this.cur.full.timeScale = this.cur.lower.timeScale = o.speed; }
       return this;
@@ -383,7 +385,7 @@
     if (name) {
       var c = clipName(name);
       if (!c) { console.warn('IVChars: no clip', name); return this; }
-      var a = this._action(UPPER[c], name), once = o.once || o.loop === false;
+      var a = this._action(UPPER[c], name), once = o.once || o.loop === false || (ONESHOT[name] && o.loop !== true);
       a.reset(); a.enabled = true; a.setLoop(once ? T.LoopOnce : T.LoopRepeat, Infinity); a.clampWhenFinished = !!once;
       a.timeScale = o.speed == null ? 1 : o.speed; a.setEffectiveWeight(0); a.play();
       this.upper = this.upper.filter(function (u) { return u.action !== a; });
@@ -610,7 +612,7 @@
     var api = { tris: 0 };
     api.init = function (a, kind) {
       if (!geo) { geo = buildGeo(); api.tris = geo.index.count / 3; }
-      var mat = matCache[kind] || (matCache[kind] = new T.MeshStandardMaterial({ color: COL[kind] || 0x666655, roughness: 0.85 }));
+      var mat = matCache[kind] || (matCache[kind] = new T.MeshStandardMaterial({ color: new T.Color(COL[kind] || 0x666655).convertSRGBToLinear(), roughness: 0.85, skinning: true }));
       var bones = {}, list = [];
       NAMES.forEach(function (n) { var b = new T.Bone(); b.name = n; bones[n] = b; list.push(b); });
       NAMES.forEach(function (n) {
@@ -661,7 +663,7 @@
     api.weapon = function (kind) {
       var L = { rifleScoped: 1.1, smg: 0.75, pistol: 0.2, enemyRifle: 1.1, enemySmg: 0.6, mg: 1.2, knife: 0.3, binoculars: 0.15, grenade: 0.1 }[kind] || 0.5;
       var g = new T.BoxGeometry(0.04, 0.06, L); g.translate(0, 0, L * 0.4);
-      var m = new T.Mesh(g, new T.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.6 }));
+      var m = new T.Mesh(g, new T.MeshStandardMaterial({ color: new T.Color(0x2a2620).convertSRGBToLinear(), roughness: 0.6 }));
       var mz = new T.Object3D(); mz.name = kind + '_muzzle'; mz.position.set(0, 0, L * 0.9); m.add(mz);
       m.userData.muzzle = mz; m.userData.grip = { r: null, l: null }; m.userData.kind = kind;
       return m;
