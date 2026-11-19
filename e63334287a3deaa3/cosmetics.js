@@ -256,6 +256,7 @@
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
     tidewick: { name: 'Tidewick', prefix: 'tw', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
     'patchwork-tower': { name: 'Patchwork Tower', prefix: 'pt', slots: [['paint', 'Paint jobs'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Hop trails']] },
+    flickerwood: { name: 'Flickerwood', prefix: 'fw', slots: [['kit', 'Kits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1081,6 +1082,38 @@
   I('patchwork-tower', 'trail', 2, 'Loose Bolts', 'common', '#C9D0E8', '#9AA3D6', 'Nuts and bolts rattle off with every hop.');
   I('patchwork-tower', 'trail', 3, 'Music Notes', 'uncommon', '#FFF6C9', '#9FF2E6', 'Rivet hums a tune while it works.');
   I('patchwork-tower', 'trail', 4, 'Rainbow', 'epic', '#FF5C5C', '#5CC8FF', 'A short rainbow streak behind every hop.');
+  // ---- Flickerwood items ----
+  // Flickerwood: kits, hats, face pieces and trails for Glim, drawn by flickerwood/wardrobe.js by slot and number on Glim's own
+  // 16 x 16 pixels, seen from above. In no pack: captains wear them free in the game's Wardrobe. No kit recolours the glowing
+  // tail or the halo, and no trail is a small yellow dot that could pass for pollen.
+  I('flickerwood', 'kit', 1, 'Striker Kit', 'common', '#5CC8FF', '#FFFFFF', 'Sky blue and white, with a navy head.');
+  I('flickerwood', 'kit', 2, 'Hoops Jersey', 'common', '#FF8A2A', '#1A1C2A', 'Orange with dark seams, like a ball on wings.');
+  I('flickerwood', 'kit', 3, 'Racing Suit', 'uncommon', '#F4F6F8', '#E8453C', 'White with a red stripe and a red helmet.');
+  I('flickerwood', 'kit', 4, 'Referee', 'uncommon', '#F4F6F8', '#1A1C2A', 'Black and white stripes. The critters are offside.');
+  I('flickerwood', 'kit', 5, 'Hockey Sweater', 'common', '#3A7BE0', '#FFFFFF', 'Blue with a white band and a white helmet.');
+  I('flickerwood', 'kit', 6, 'Tin Firefly', 'rare', '#C8D2DC', '#FF5A5A', 'A wind-up firefly with tin wings and red eyes.');
+  I('flickerwood', 'kit', 7, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A striped sailor shirt and sailcloth wings.');
+  I('flickerwood', 'kit', 8, 'Pinstripe Suit', 'rare', '#B8BCC8', '#E8453C', 'A grey suit with a red tie, out for a night in the glade.');
+  I('flickerwood', 'kit', 9, 'Gold Chain Tracksuit', 'epic', '#2FD6B0', '#FFD23F', 'A teal tracksuit with gold at the collar.');
+  I('flickerwood', 'kit', 10, 'Tuxedo', 'epic', '#2A2A38', '#FFFFFF', 'Black tie, white shirt front, pale wings.');
+  I('flickerwood', 'kit', 11, 'Bumblebee', 'uncommon', '#FFD23F', '#1A1C2A', 'Yellow and black stripes. Still not a bee.');
+  I('flickerwood', 'kit', 12, 'Golden Firefly', 'legendary', '#FFC83A', '#FFF8DC', 'Gold from head to wingtip.');
+  I('flickerwood', 'kit', 13, 'Rainbow Wings', 'epic', '#FF5C5C', '#5CC8FF', 'Every colour on every wing.');
+  I('flickerwood', 'kit', 14, 'Astronaut', 'rare', '#F4F6F8', '#FF8A2A', 'A white suit with an orange pack and a blue visor.');
+  I('flickerwood', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap, peak to the front.');
+  I('flickerwood', 'hat', 2, 'Racing Helmet', 'uncommon', '#F4F6F8', '#E8453C', 'White with a red stripe and a blue visor.');
+  I('flickerwood', 'hat', 3, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered hat trimmed with gold.');
+  I('flickerwood', 'hat', 4, 'Pirate Bandana', 'common', '#E8453C', '#FFFFFF', 'A spotted red bandana with the ends flying.');
+  I('flickerwood', 'hat', 5, 'Top Hat', 'rare', '#3A3A4C', '#E8453C', 'A tall black hat with a red band, seen from above.');
+  I('flickerwood', 'hat', 6, 'Fedora', 'uncommon', '#8A7A6A', '#2A1D3A', 'A wide felt hat with a dark band.');
+  I('flickerwood', 'hat', 7, 'Crown', 'legendary', '#FFD23F', '#E8453C', 'A small gold crown for the queen of the glade.');
+  I('flickerwood', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#FFFFFF', 'A patch over one eye, strapped across the head.');
+  I('flickerwood', 'face', 2, 'Shades', 'common', '#1A1C2A', '#5AA0E8', 'Dark glasses. The moon is very bright tonight.');
+  I('flickerwood', 'trail', 1, 'Hearts', 'common', '#FF6FA8', '#FFC2DD', 'Little pink hearts where you have just been.');
+  I('flickerwood', 'trail', 2, 'Confetti', 'common', '#FF4FA3', '#38C8E8', 'Bright bits of paper, never yellow.');
+  I('flickerwood', 'trail', 3, 'Music Notes', 'uncommon', '#9FD0FF', '#FFFFFF', 'Glim hums along the hedges.');
+  I('flickerwood', 'trail', 4, 'Bubbles', 'rare', '#BFE6FF', '#7FA8DC', 'Tiny bubbles that pop behind you.');
+  I('flickerwood', 'trail', 5, 'Comet Tail', 'epic', '#FFFFFF', '#7FA8DC', 'A thin white streak that fades to blue.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });

@@ -5,6 +5,7 @@
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
 <script src="es.js"></script> <!-- Flickerwood's Spanish words -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the Wardrobe while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Flickerwood</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -916,6 +917,7 @@ function draw(a){
   for(let k=0;k<COLS*ROWS;k++)if(G.pol[k]===2)spr(SP.bloom[bf],(k%COLS)*TILE+6,Math.floor(k/COLS)*TILE+6);
   if(G.find&&(G.find.t>2.5||Math.floor(G.tick*8)%2))spr(SP.find[G.find.kind],M.B[0]*TILE+6,M.B[1]*TILE+6);
   if(st!=='title'){
+    if(WR&&WR.active&&st!=='over'){const p=G.p;WR.trail(g2,lerp(p.ox,p.x,a),lerp(p.oy,p.y,a),G.tick,TOP,p.dir)}   // a captain's trail (wardrobe.js), under the critters and Glim
     if(st!=='clear'&&!(st==='dying'&&G.dieT<1.35))drawCritters(a);
     if(st!=='over')drawGlim(a);
   }
@@ -1119,8 +1121,33 @@ setMute(muted);layout();drain();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);
 requestAnimationFrame(frame);
 
+/* ---------- the Wardrobe (captains only for now; README, "Flickerwood") ----------
+   Kits, hats, face pieces and trails for Glim, drawn by wardrobe.js beside this page. wardrobeOn() says whether this
+   player may open it: FLICKERWOOD_PUBLIC (the one line that opens it to everyone), one of the site's captains
+   (../captains.js), or ?wardrobe=1 on localhost or in an automated browser (remembered for the tab; ?wardrobe=0 forgets
+   it). wardrobe.js (and ../cosmetics.js, for the item names) is fetched only when it is true; until then WR is null and
+   Glim is drawn exactly as before. Looks only: a look swaps SP.glim's pictures (same size). Saved as flickerwood-look. */
+const FLICKERWOOD_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardrobeOn=()=>FLICKERWOOD_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','flickerwood-wardrobe'));
+const GLIM0=SP.glim;   // Glim's own pictures
+let WR=null,wrAsked=false;
+function wrLoad(){
+  if(wrAsked)return;wrAsked=true;
+  const add=src=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=src;e.onload=res;e.onerror=rej;document.head.appendChild(e)});
+  (window.BackRoomCosmetics?Promise.resolve():add('../cosmetics.js')).then(()=>add('wardrobe.js')).then(()=>{
+    if(!window.FlickerwoodWardrobe||!window.BackRoomCosmetics)throw new Error('wardrobe did not load');
+    WR=window.FlickerwoodWardrobe({C:window.BackRoomCosmetics,store,$,GLIM_A,GLIM_B,GLIM_PAL,turnCW,flipH,flipV,get on(){return wardrobeOn()},
+      setGlim(set){SP.glim=set||GLIM0;hudSig=''},defaultGlim:()=>GLIM0,pause(){if(inPlay())setPaused(true)}});
+    wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){if(wardrobeOn())wrLoad();if(WR){WR.access();layout()}}
+wrSync();
+if(CAPTAINS)CAPTAINS.onChange(wrSync);
+
 // for automated tests only
-if(navigator.webdriver)window.__fw={create,step,turn,dash,startGame,setupLevel,target,CORNER,CATCH,DASH_CD,DASH_T,DASH_X,CUT,LATE,tune,compile,mult,MAZES,COLS,ROWS,TILE,STEP,W,H,MH,TOP,DX,DY,SP,
+if(navigator.webdriver)window.__fw={get WR(){return WR},wardrobeOn,create,step,turn,dash,startGame,setupLevel,target,CORNER,CATCH,DASH_CD,DASH_T,DASH_X,CUT,LATE,tune,compile,mult,MAZES,COLS,ROWS,TILE,STEP,W,H,MH,TOP,DX,DY,SP,
   get g(){return G},set g(v){G=v},get paused(){return paused},get best(){return best},get bestGlade(){return bestGlade},get touch(){return touchUI},
   get audio(){return ac?ac.state:'none'},layout,setPaused,draw,
   run(sec){const n=Math.round(sec/STEP);for(let i=0;i<n;i++)step(G,STEP);drain()}};
