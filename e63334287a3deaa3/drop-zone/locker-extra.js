@@ -625,7 +625,7 @@ const GLSL_SKIN='vec4 c4(float f,vec3 a,vec3 b,vec3 c,vec3 d){return vec4(f<.4?a
   +'else if(k<32.5){float s=fract(p.z*4.-uT*.6+.12*sin(p.y*30.+uT*2.));c=s<.45?vec3(.1,.45,.9):s<.8?vec3(.2,.78,.95):vec3(.95,1.,1.);em=c*.12;c*=dk>.5?.8:1.;}\n'
   +'else if(k<33.5){c=hsv(fract(p.z*1.5-uT*.25+p.y*2.),.8,1.);em=c*.35;c*=dk>.5?.8:1.;}\n'
   +'else if(k<34.5){float b=pow(max(0.,sin(uT*5.)),8.)+.6*pow(max(0.,sin(uT*5.-.9)),8.);c=vec3(.85,.12,.2)*(dk>.5?.7:1.);em=vec3(1.,.2,.3)*b*.9;}\n'
-  +'else if(k<35.5){float l=1.-smoothstep(0.,.05,abs(n3(p*7.+vec3(0.,0.,uT*3.))-.5));float fl=step(.4,fract(sin(floor(uT*12.))*43758.5));c=vec3(.08,.12,.3);c=mix(c,vec3(.6,.95,1.),l);em=vec3(.3,.9,1.)*l*(.5+fl);}\n'
+  +'else if(k<35.5){float l=1.-smoothstep(0.,.05,abs(n3(p*7.+vec3(0.,0.,uT*3.))-.5));float fl=step(.4,fract(sin(floor(uT*12.))*43758.5));c=mix(vec3(.12,.22,.55),vec3(.2,.35,.75),n3(p*9.))*(dk>.5?.75:1.);c=mix(c,vec3(.6,.95,1.),l);em=vec3(.3,.9,1.)*l*(.5+fl);}\n'
   +'else if(k<36.5){float f=fb(p*6.+vec3(0.,0.,-uT*.5));c=mix(vec3(.9,.6,.1),vec3(1.,.9,.45),smoothstep(.45,.6,f));em=vec3(1.,.65,.15)*smoothstep(.55,.7,f)*.8;c*=dk>.5?.8:1.;}\n'
   +'else{c=fract((p.z+abs(p.y-.05)*1.5)*5.)<.4?vec3(1.,.78,.15):vec3(.97,.96,.92);c*=dk>.5?.75:1.;c+=vec3(.12)*smoothstep(.5,.9,up);}\n'
   +'return c;}\n';
