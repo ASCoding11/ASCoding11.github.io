@@ -825,7 +825,7 @@ function Stage(parent,spr,R,main,camera){
     flash(a){if(main){const d=G.camera.position.distanceTo(S.world(S.x0,3,3));G.flash(a*clamp(1.2-d/150,.25,1))}},
     snd(fn){const A=G.audio();if(A)try{fn(A,A.actx.currentTime,main?1:.6)}catch(e){}},
     play(no,p,team){
-      const def=GOALS[no];if(!def)return false;
+      const def=GOALS[no];if(!def||def.gift)return false;
       S.stop();
       S.no=no;S.def=def;S.t=0;S.prev=-1;S.team=team;S.T=G.TEAM[team];S.col=S.T.col;S.q=G.low()?.5:1;S.d={};
       if(main){S.sg=p.z>0?-1:1;S.ox=0;S.oz=p.z>0?G.AL:-G.AL;root.position.set(0,0,S.oz);root.rotation.y=S.sg>0?0:Math.PI;S.B.set(clamp(S.sg*p.x,-GW+3,GW-3),clamp(p.y,BR,GH-3),clamp(S.sg*(p.z-S.oz),-5,1.5))}
@@ -1263,11 +1263,15 @@ const GOALS=[null,
         S.snd((A,tt,v)=>{popSnd(A,tt,v,900);for(let i=0;i<9;i++){const f=2200+Math.random()*1500;A.tone(tt+.1+i*.11,.07,'sine',f,f*1.25,.05*v)}})}
       if(S.at(1.5))S.em(c.x+rand(-1,1),c.y+3,c.z,0,-.4,0,1.9,1.3,CELL.feather,0xffffff,O({grav:.8,wob:5,spin:1.5,drag:1}));
     }
-  }
+  },
+  // 22 Carbon Star: an exclusive gift (../captains.js GIFTS). It is drawn by carbon-star.js, never by a Stage here, and
+  // only for a goal by a player who has it (index.html checks the scorer's account); this entry only lets the Kit list
+  // it for those players. An older page has no 22 here and plays the fireball.
+  {gift:'bb-goal-carbon-star',dur:0}
 ];
 let mainStage=null;
 function goal(no,p,team){
-  if(!GOALS[no])return false;
+  if(!GOALS[no]||GOALS[no].gift)return false;
   const spr=sprites();
   if(!mainStage)mainStage=Stage(G.scene,spr,{lo:TRAIL_SLOTS*TRAIL_MAX,hi:spr.n,i:TRAIL_SLOTS*TRAIL_MAX},true,G.camera);
   return mainStage.play(no,p,team);
@@ -1283,17 +1287,20 @@ function clearGoal(){if(mainStage)mainStage.stop()}
 // boostball-kit ({slot: item id}).
 const CAT=()=>window.BackRoomCosmetics&&window.BackRoomCosmetics.gameItems?window.BackRoomCosmetics:null;
 const LISTS=[DECALS,TRAILS,GOALS,TOPPERS,HATS,WHEELS,ENGINES],TABS=['Decal','Boost trail','Goal explosion','Topper','Hat','Wheels','Engine'];
+// an exclusive gift (GOALS[22]) is listed only for a player who has it (G.giftOk: its owner, a captain, or the test switch)
+const giftOf=(slot,no)=>{const d=LISTS[slot]&&LISTS[slot][no];return d&&d.gift||''};
+const shown=(slot,no)=>{const g=giftOf(slot,no);return !g||!!(G.giftOk&&G.giftOk(g))};
 function items(slot){
-  const C=CAT(),L=C?C.gameItems('boostball',SLOTS[slot]).filter(it=>has(slot,it.no)):[];
+  const C=CAT(),L=C?C.gameItems('boostball',SLOTS[slot]).filter(it=>has(slot,it.no)&&shown(slot,it.no)):[];
   if(L.length||!LISTS[slot])return L;
-  return LISTS[slot].map((d,i)=>i?{no:i,id:'bb-'+SLOTS[slot]+'-'+i,name:TABS[slot]+' '+i,desc:'',rarity:'common'}:null).filter(Boolean); // no catalogue: numbers only
+  return LISTS[slot].map((d,i)=>i&&shown(slot,i)?{no:i,id:'bb-'+SLOTS[slot]+'-'+i,name:TABS[slot]+' '+i,desc:'',rarity:'common'}:null).filter(Boolean); // no catalogue: numbers only
 }
-const owns=it=>!G.cosOn()||CAT().owned().items.indexOf(it.id)>=0;
+const owns=it=>!G.cosOn()||!!giftOf(SLOTS.indexOf(it.slot),it.no)||CAT().owned().items.indexOf(it.id)>=0;
 let cur=[0,0,0,0,0,0,0];
 function saved(){let o=null;try{o=JSON.parse(G.store.get('kit','')||'null')}catch(e){}return o&&typeof o==='object'?o:{}}
 function mine(){
   const k=[0,0,0,0,0,0,0];
-  if(G.cosOn()){const e=CAT().gameEquipped('boostball');SLOTS.forEach((s,i)=>{if(e[s]&&has(i,e[s].no))k[i]=e[s].no})}
+  if(G.cosOn()){const e=CAT().gameEquipped('boostball');SLOTS.forEach((s,i)=>{if(e[s]&&has(i,e[s].no)&&shown(i,e[s].no))k[i]=e[s].no})}
   else if(G.garageOn){const o=saved();SLOTS.forEach((s,i)=>{const it=items(i).find(x=>x.id===o[s]);if(it)k[i]=it.no})}
   cur=k;return G.kitOf(k);
 }
@@ -1302,7 +1309,7 @@ function wear(slot,it){
   else{const o=saved();if(it)o[SLOTS[slot]]=it.id;else delete o[SLOTS[slot]];G.store.set('kit',JSON.stringify(o))}
   G.setKit(mine());paintMenu();
 }
-function botKit(){const r=(L,p)=>Math.random()<p?1+Math.floor(Math.random()*(L.length-1)):0;return G.kitOf([r(DECALS,.7),r(TRAILS,.7),r(GOALS,.8),r(TOPPERS,.3),r(HATS,.3),r(WHEELS,.4)])}
+function botKit(){const r=(L,p)=>{if(Math.random()>=p)return 0;let i;do{i=1+Math.floor(Math.random()*(L.length-1))}while(L[i]&&L[i].gift);return i};   /* never a gift */return G.kitOf([r(DECALS,.7),r(TRAILS,.7),r(GOALS,.8),r(TOPPERS,.3),r(HATS,.3),r(WHEELS,.4)])}
 let tab=0,note='',swKey='';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function menu(){
@@ -1343,7 +1350,7 @@ function paintMenu(){
   grid.innerHTML='<button type="button" data-no="0" aria-pressed="'+(!cur[tab])+'">None</button>'+L.map(it=>{
     const lock=!owns(it),r=RC[it.rarity];
     return '<button type="button" data-no="'+it.no+'" aria-pressed="'+(cur[tab]===it.no)+'"'+(lock?' class="locked" aria-disabled="true"':'')+' title="'+esc(it.desc||it.name)+(r?' ('+r.name+')':'')+'">'+
-      (tab===0?'<canvas width="96" height="32" aria-hidden="true"></canvas>':C&&C.itemSvg?C.itemSvg(it.id,26):'')+esc(it.name)+(r?'<i style="background:'+r.color+'" aria-hidden="true"></i>':'')+'</button>'}).join('');
+      (tab===0?'<canvas width="96" height="32" aria-hidden="true"></canvas>':C&&C.itemSvg?C.itemSvg(it.id,26):'')+esc(it.name)+(giftOf(tab,it.no)?'<small style="font-weight:600;opacity:.8">made for Carbon</small>':'')+(r?'<i style="background:'+r.color+'" aria-hidden="true"></i>':'')+'</button>'}).join('');
   swKey='';
   const it=L.find(x=>x.no===cur[tab]);
   document.getElementById('kitNote').innerHTML=note||(it?'<b>'+esc(it.name)+'.</b> '+esc(it.desc||''):['No decal: plain team paint.','No trail: the usual boost flame.','No goal explosion: the usual fireball.','No topper.','No hat.','The usual wheels.','The usual engine sound.'][tab]);
@@ -1367,11 +1374,12 @@ function pvInit(Gr){
   const b=Build();for(const s of[-1,1])b.cyl(.35,.35,GH,0xf4f6ff,s*GW,GH/2,0);b.cyl(.35,.35,GW*2,0xf4f6ff,0,GH,0,0,0,Math.PI/2);b.box(GW*2,GH,.2,0x16202c,0,GH/2,-9);set.add(b.mesh());
   pv={spr,cam,stage,set,R:{lo:0,hi:TRAIL_MAX,i:0},st:{acc:0}};
 }
-function preview(no){const Gr=G.garage;if(!Gr||!GOALS[no])return;if(!pv)pvInit(Gr);pv.stage.play(no,new V3(2.5,3,-1.5),0)}
+function preview(no){const Gr=G.garage;if(!Gr||!GOALS[no])return;if(GOALS[no].gift){if(pv)pv.stage.stop();if(G.giftPreview)G.giftPreview();return}if(!pv)pvInit(Gr);pv.stage.play(no,new V3(2.5,3,-1.5),0)}
 const _z=new V3();
 function garageFrame(Gr,dt){
   paintSwatches();
   if(!Gr.model)return false;
+  if(G.giftFrame&&G.giftFrame(Gr,dt))return true;   // Carbon Star's preview (carbon-star.js) is playing in the garage picture
   if(!pv){if(!(tab===1&&cur[1]))return false;pvInit(Gr)}
   const car=Gr.model.g;
   if(pv.stage.live){
