@@ -245,6 +245,17 @@ def build_cycle(tk, our_leg, ank_rest_z, theta=None, hip_yaw=0.0, crouch=0.0, cr
             for nm in ('toes', 'toes>'):
                 p = frames[j][s + nm]
                 if p.z < 0.01: frames[j][s + nm] = Vector((p.x, p.y, 0.01))
+    # toes: less flex than captured (the captured toe segment is short and noisy) and smoothed over time
+    for s in 'lr':
+        tips = []
+        for F in frames:
+            an, to, tip = F[s + 'foot'], F[s + 'toes'], F[s + 'toes>']
+            ln = (tip - to).length
+            d_ = (tip - to).normalized().lerp((to - an).normalized(), 0.45).normalized()
+            tips.append(d_ * ln)
+        for j, F in enumerate(frames):
+            d_ = (tips[j - 1] + tips[j] * 2 + tips[(j + 1) % n]) / 4
+            F[s + 'toes>'] = F[s + 'toes'] + d_
     # legs never over-stretched: lower the body (not the feet) where an ankle is out of reach, smoothed over time
     reach = our_leg * 0.985
     need = []

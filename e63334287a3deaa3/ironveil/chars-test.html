@@ -409,7 +409,7 @@
       F.forEach(function (f) { if (f.keys !== prevK) { changes.push({ t: f.t, from: prevK, to: f.keys }); prevK = f.keys; } });
       var tr = {};
       slideRaw.forEach(function (c) { changes.forEach(function (ch) { if (ch.from && c.t0 >= ch.t && c.t0 <= ch.t + 0.6) { var k = ch.from + ' -> ' + ch.to; tr[k] = Math.max(tr[k] || 0, c.slideCm); } }); });
-      return { frames: F.filter(function (f, i) { return i % 3 === 0; }).map(function (f) { return [+f.t.toFixed(2), +f.phase.toFixed(3), +f.speed.toFixed(2), JSON.stringify(f.w), f.ball_l.map(function (x) { return +x.toFixed(3); })]; }), transitions: tr, slide: slideTable(), topPops: pops.slice(0, 12), sole: sole, gripMaxCm: grip.length ? +(Math.max.apply(null, grip) * 100).toFixed(1) : null, gripMeanCm: grip.length ? +(grip.reduce(function (a, b) { return a + b; }, 0) / grip.length * 100).toFixed(1) : null };
+      return { frames: F.filter(function (f, i) { return i % 3 === 0; }).map(function (f) { return [+f.t.toFixed(2), +f.phase.toFixed(3), +f.speed.toFixed(2), JSON.stringify(f.w), f.ball_l.map(function (x) { return +x.toFixed(3); })]; }), transitions: tr, slide: slideTable(), topPops: pops.slice(0, 12), topPopsNoToe: pops.filter(function (p) { return !/^ball_/.test(p.bone); }).slice(0, 12), popByChange: (function () { var o = {}; changes.forEach(function (ch) { if (!ch.from) return; var k = ch.from + ' -> ' + ch.to; pops.forEach(function (p) { if (p.t >= ch.t && p.t <= ch.t + 0.6) o[k] = Math.max(o[k] || 0, p.pop); }); }); return o; })(), sole: sole, gripMaxCm: grip.length ? +(Math.max.apply(null, grip) * 100).toFixed(1) : null, gripMeanCm: grip.length ? +(grip.reduce(function (a, b) { return a + b; }, 0) / grip.length * 100).toFixed(1) : null };
     }
   };
 })();
