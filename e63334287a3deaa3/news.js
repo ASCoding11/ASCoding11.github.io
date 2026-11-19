@@ -85,6 +85,59 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.29.25', title: 'An Aisles tab on the Leaderboards', kind: 'feature',
+     tags: ['Leaderboards', 'Aisles'], items: [
+      'The Leaderboards now have two tabs, Players and Aisles.',
+      'Aisles has Aisle Miles (with this week\'s contest) and Aisle Elo side by side, instead of at the bottom of the Board menu.',
+      'Going back to Players reopens the board you were on.'
+    ]},
+    {date: '2026-11-19', version: '1.29.24', title: 'Private messages show up again', kind: 'fix',
+     tags: ['Online', 'Chat'], items: [
+      'Messages in a private chat weren\'t appearing for either person since last night. They show up straight away again.'
+    ]},
+    {date: '2026-11-18', version: '1.29.23', title: 'Three new games', kind: 'game', games: ['Sky Duel', 'Lanternhold', 'Blockstorm'],
+     img: ['m/thumbs/sky-duel.jpg', 'm/thumbs/lanternhold.jpg', 'm/thumbs/blockstorm.jpg'], tags: ['Dogfights', 'Tower defense', 'Shooter'], items: [
+      'Sky Duel: arcade dogfights for up to 8 planes over hills, lakes and red-rock canyons. Play a 1v1 Duel, everyone for themselves, or 2v2, against bots or online.',
+      'Lanternhold: co-op tower defense for 1 to 4 players. Build towers on a floating island to stop the Gloom before it reaches the lantern, across three maps.',
+      'Blockstorm: a blocky shooter on the roofs of five sky towers joined by glass maze bridges. Free-for-all or capture the flag, a shove that can push people off the edge, and better guns as you rack up kills. Made by dessyc9 and brought here with their permission.'
+    ]},
+    {date: '2026-11-18', version: '1.29.22', title: 'The Back Room in Spanish', kind: 'feature',
+     tags: ['Español', 'Every game'], items: [
+      'The whole Back Room can be in Spanish: the page, the panels, What\'s new and almost every game\'s menus, buttons and results.',
+      'Use the EN | ES switch in the header. If your browser is set to Spanish, it starts in Spanish by itself.',
+      'Player names and chat messages are never translated. The word games and Puffer Party still play in English, marked "En inglés".'
+    ]},
+    {date: '2026-11-18', version: '1.29.21', title: 'Aisles: start a team with your friends', kind: 'feature',
+     tags: ['Aisles', 'Online', 'Leaderboards'], items: [
+      'Start an Aisle from the Aisle button in the Online panel: pick a name, a short tag and a colour. Up to 6 people per Aisle.',
+      'Invite people from their card in the Online panel or with an invite link.',
+      'Your Aisle\'s miles and Elo add up on two new boards, Aisle Miles and Aisle Elo, and each week the Aisle that flies the most miles wins.'
+    ]},
+    {date: '2026-11-18', version: '1.29.20', title: 'Shell Crackers: Gun Game and new rules', kind: 'feature',
+     img: 'm/thumbs/shell-crackers.jpg', tags: ['Shell Crackers', 'Gun Game', 'Streaks'], items: [
+      'Gun Game: everyone starts on the same gun and every crack moves you on to the next one. First through all ten guns wins.',
+      'More ways to play: Snipers, Low-Gravity Snipers, Pistols Only and One-Shot. At the end of a match, vote on the next map.',
+      'Streak rewards: crack 3, 5, 7, 10 or 15 eggs in one life to earn the Candler, Quick Hands, Thick Shell, the Yolk Launcher and The Big Fry.',
+      'Top Cracker: whoever has the most Shell Crackers kills of all time wears a cracked-egg medal next to their badge.'
+    ]},
+    {date: '2026-11-18', version: '1.29.19', title: 'Driftfall: five new modes', kind: 'feature',
+     img: 'm/thumbs/drop-zone.jpg', tags: ['Driftfall', 'Duos', 'Box Fights'], items: [
+      'Pick a mode in the menu: Classic, Duos, Trios, Creative, Box Fights or Zone Wars.',
+      'Box Fights: two teams in boxes 8 m apart, from 1v1 up to 4v4, first to 3, 5 or 7 rounds.',
+      'Creative is a place to practise building, with bots to spar against. Practice plays any mode against bots.'
+    ]},
+    {date: '2026-11-18', version: '1.29.18', title: 'Vote on the next game, search, and dark mode', kind: 'feature',
+     tags: ['Party', 'Search', 'Dark mode'], items: [
+      'In a party, everyone can vote on which game to play next.',
+      'A Search games box under the Online panel finds any game by name.',
+      'Auto, Light or Dark: the switch in the top bar picks the site\'s look. Auto follows your device.',
+      'Your school: search for your school, or add it with Add my school if it isn\'t there yet.'
+    ]},
+    {date: '2026-11-18', version: '1.29.17', title: 'Online panel fixes', kind: 'fix',
+     tags: ['Online'], items: [
+      'Clicking on people in the Online panel works again, even with your own layout.',
+      'The list no longer jumps back to the top while you scroll it.'
+    ]},
     {date: '2026-11-27', version: '1.30', title: 'Happy holidays: the cabin is open', kind: 'feature',
      tags: ['Back Room', 'Holidays', 'Retro TV'], items: [
       'The Back Room now opens on a log cabin at Christmas: a fire, a tree, snow at the window, and an old TV in the middle. Click the TV to step through to the games.',

@@ -998,6 +998,9 @@
     get mine() { var A = mine(); return A ? A.K : ''; },
     get ready() { return ready; },
     onChange: function (f) { if (typeof f === 'function') listeners.push(f); },
+    // Last week's contest winners (a tie: every Aisle ranked 1) from the boards' checked rows, for wallet.js's weekly
+    // Aisle reward: [{ K, members: [uid], lw: miles }], or null until the Aisles and the boards have both been read.
+    lastWinners: function () { var d = ready ? boardsData() : null; return d ? lastWinners(d).map(function (x) { return { K: x.A.K, members: x.A.members.slice(), lw: x.lw }; }) : null; },
     akey: akey, parseAll: parseAll, resolve: resolve, statsOf: statsOf, eloOfP: eloOfP, milesOfP: milesOfP, COLS: COLS, MAX: MAX, PATH: PATH, BAN_PATH: BAN_PATH
   };
   if (ADMIN) return;

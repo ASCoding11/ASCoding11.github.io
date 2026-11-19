@@ -135,7 +135,7 @@
     'Pick one to try it on the car.': 'Elige uno para probarlo en el auto.', 'Take off': 'Quitar', 'Wear': 'Usar',
     "Finish {s}'s challenges (Sponsor tab) to unlock it.": 'Completa los desafíos de {s} (pestaña Sponsor) para desbloquearla.',
     'In the {p} pack ({n} items).': 'En el paquete {p} ({n} artículos).',
-    'In the {p} pack ({n} items). You have {b} emeralds; racing earns more.': 'En el paquete {p} ({n} artículos). Tienes {b} esmeraldas; corriendo ganas más.',
+    'In the {p} pack ({n} items). You have {b} emeralds.': 'En el paquete {p} ({n} artículos). Tienes {b} esmeraldas.',
     'Buy pack · {p} emeralds': 'Comprar paquete · {p} esmeraldas',
     'Your old sticker is still on the car.': 'Tu calcomanía anterior sigue en el auto.',
     'Pick at least one place for it to go.': 'Elige al menos un lugar donde ponerla.', 'Saved. "{t}" is on your car.': 'Guardado. "{t}" ya está en tu auto.',

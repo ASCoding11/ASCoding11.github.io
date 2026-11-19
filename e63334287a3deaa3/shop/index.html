@@ -11,7 +11,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
 <script src="/e63334287a3deaa3/avatar.js" defer></script>
-<script src="/e63334287a3deaa3/captains.js" data-switches defer></script>
+<script src="/namefilter.js"></script>
+<script src="/e63334287a3deaa3/captains.js" defer></script>
 <script src="/e63334287a3deaa3/cosmetics.js" defer></script>
 <script src="/e63334287a3deaa3/wallet.js" defer></script>
 <style>
@@ -118,6 +119,9 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
 .item.on{border-color:var(--em);box-shadow:0 0 0 2px rgba(47,191,113,.35)}
 .item .tick{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--em);color:#04210f;font-weight:900;font-size:12px;display:grid;place-items:center}
 .item .lock{font-size:11px;color:var(--ink-3);font-weight:700;line-height:1.1}
+.item .ibuy{min-height:32px;padding:4px 6px;font-size:12.5px;border-radius:9px;width:100%;gap:4px;flex-wrap:wrap}
+.item .ibuy .ico.s{width:12px;height:12px}
+.item.locked .btn svg{filter:none}
 
 .log{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .log li{display:grid;grid-template-columns:1fr auto auto;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:14px;align-items:center}
@@ -129,7 +133,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
 .log .b{color:var(--ink-3);font-size:12.5px;min-width:70px;text-align:right}
 .empty{color:var(--ink-3);font-size:14px;padding:12px 0}
 
-/* The draw reveal */
+/* The chest reveal */
 #reveal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(4,6,18,.86);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:16px;overflow:auto}
 #reveal .box{position:relative;width:min(560px,100%);text-align:center}
 #reveal .gem{width:150px;height:150px;margin:0 auto;display:block;animation:wob .7s ease-in-out 2}
@@ -150,6 +154,19 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
 @keyframes pop{to{opacity:1;transform:scale(1) rotateY(0)}}
 @media (prefers-reduced-motion:reduce){#reveal .gem,#reveal .burst{animation:none}#reveal .card{animation:none;opacity:1;transform:none}}
 
+/* Gifting */
+.gift-b{min-height:34px!important;padding:5px 10px!important;font-size:13px!important;background:transparent!important}
+.item .igift{min-height:26px;padding:2px 6px;font-size:12px;border-radius:8px;width:100%;background:transparent}
+#giftdlg{position:fixed;inset:0;z-index:55;display:grid;place-items:center;background:rgba(4,6,18,.8);padding:16px;overflow:auto}
+#giftdlg .box{width:min(440px,100%);background:var(--panel-2);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
+#giftdlg h2{font-family:var(--f-d);font-weight:600;font-size:20px;margin:0}
+#giftdlg input{font:inherit;color:var(--ink);background:var(--night);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+#giftdlg .who{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}
+#giftdlg .who button{display:flex;justify-content:space-between;gap:8px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:700}
+#giftdlg .who button[aria-pressed="true"]{border-color:var(--em);box-shadow:0 0 0 2px rgba(47,191,113,.35)}
+#giftdlg .who small{color:var(--ink-3);font-weight:700}
+#giftdlg .err{color:var(--bad);font-size:13.5px;min-height:1em;margin:0}
+#giftdlg .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 #toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-weight:700;font-size:14px;max-width:calc(100vw - 32px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
 
 @media (max-width:760px){
@@ -171,8 +188,8 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
   .hero .capsule{width:64px;height:64px;grid-row:auto;align-self:start}
   .hero h2{font-size:22px}
   .hero p{font-size:13.5px}
-  .drawbtns{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-  .drawbtns .btn{padding:8px 4px;font-size:13.5px;white-space:nowrap;gap:4px}
+  .drawbtns{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .drawbtns .btn{padding:6px 4px;font-size:13px;gap:2px 4px;flex-wrap:wrap;line-height:1.15;text-align:center}
   .grid{grid-template-columns:1fr}
   .items{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
   .item{min-height:128px;padding:8px 4px}
@@ -227,11 +244,14 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     '<ellipse cx="60" cy="106" rx="34" ry="7" fill="#000" opacity=".3"/><path d="M60 8 C88 8 104 30 104 56 C104 84 84 102 60 102 C36 102 16 84 16 56 C16 30 32 8 60 8 Z" fill="url(#gg)"/>' +
     '<path d="M18 52 L102 52 L102 60 L18 60 Z" fill="#FFD86B"/><circle cx="60" cy="56" r="11" fill="#FFD86B" stroke="#B88A1E" stroke-width="2"/><path d="M60 50 L61.8 54.2 L66 56 L61.8 57.8 L60 62 L58.2 57.8 L54 56 L58.2 54.2 Z" fill="#fff"/>' +
     '<path d="M34 24 Q44 15 56 14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".55"/></svg>';
-  function price(n) { return '<span class="p">' + EMS + n + '</span>'; }
+  // A price in whole mangos, shown as emeralds and the mangos left over (60 → 3 emeralds 9 mangos).
+  var MPE = 17;
+  function price(n) { var e = Math.floor(n / MPE), m = n % MPE; return '<span class="p" title="' + e + (e === 1 ? ' emerald' : ' emeralds') + (m ? ' ' + m + (m === 1 ? ' mango' : ' mangos') : '') + '">' + (e || !m ? EMS + e : '') + (m ? (e ? ' ' : '') + MANGO + m : '') + '</span>'; }
 
   function build(C, W) {
     document.getElementById('closed').hidden = true;
     var uid = ls('lbs:uid') || 'you';
+    MPE = W.MANGOS_PER_EMERALD || MPE;
     var RC = {}; C.RARITY.forEach(function (r) { RC[r.id] = r; });
 
     // The page's top bar (account.js puts its Google sign-in button here, which the wallet's sync uses).
@@ -244,8 +264,8 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     var main = el('main');
     main.innerHTML =
       '<section class="hero"><div class="capsule">' + GEM + '</div><div>' +
-        '<h2>Skin draw</h2><p>Each draw gives one skin. A skin you already have gives back ' + Math.round(C.DUP_REFUND / 13 * 10) / 10 + ' emeralds (' + C.DUP_REFUND + ' mangos).</p>' +
-        '<ul class="odds" aria-label="Odds">' + C.RARITY.slice().reverse().map(function (r) { return '<li style="color:' + r.color + '">' + r.name + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%</li>'; }).join('') + '</ul>' +
+        '<h2>Chest</h2><p>Each chest costs ' + W.format(C.CHEST_PRICE) + ' and gives one random skin. A skin you already have gives back ' + W.format(C.DUP_REFUND) + '.</p>' +
+        '<ul class="odds" aria-label="Chest odds">' + C.RARITY.slice().reverse().map(function (r) { return '<li style="color:' + r.color + '">' + r.name + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%</li>'; }).join('') + '</ul>' +
         '</div><div class="drawbtns" id="drawbtns"></div></section>' +
       '<nav class="tabs" role="tablist"><button role="tab" data-tab="packs" aria-selected="true">Packs</button><button role="tab" data-tab="locker" aria-selected="false">Locker</button><button role="tab" data-tab="history" aria-selected="false">Wallet</button></nav>' +
       '<section id="t-packs"></section><section id="t-locker" hidden></section><section id="t-history" hidden></section>';
@@ -272,11 +292,11 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       return b;
     }
     function setBuyState(b) {
-      var id = b.getAttribute('data-pack'), p = C.PACKS_BY_ID[id], pv = C.preview(id), have = W.balance(), cost = p.price * W.MANGOS_PER_EMERALD;
+      var id = b.getAttribute('data-pack'), p = C.pack(id), pv = C.preview(id), have = W.balance(), cost = p.price;
       var lab = b.getAttribute('data-label') || 'Buy';
       b.classList.remove('confirm');
       if (pv.all) { b.disabled = true; b.textContent = 'Owned'; return; }
-      if (have < cost) { b.disabled = true; b.innerHTML = 'Need ' + W.format(cost - have, true) + ' more'; return; }
+      if (!W.unlimited() && have < cost) { b.disabled = true; b.innerHTML = 'Need ' + price(cost - have) + ' more'; return; }
       b.disabled = false;
       if (armed === id) { b.classList.add('confirm'); b.innerHTML = 'Tap again: ' + price(p.price); }
       else b.innerHTML = lab + ' ' + price(p.price);
@@ -287,15 +307,16 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       if (armed !== id) { armed = id; clearTimeout(armT); armT = setTimeout(function () { armed = null; draw(); }, 3000); draw(); return; }
       armed = null; clearTimeout(armT);
       var r = C.buy(id);
-      if (!r.ok) { toast(r.reason === 'funds' ? 'Not enough emeralds yet.' : r.reason === 'owned' ? 'You already own everything in this pack.' : 'That didn’t work. Try again.'); draw(); return; }
+      if (!r.ok) { toast(r.reason === 'funds' ? 'Not enough emeralds yet.' : r.reason === 'owned' ? 'You already own ' + (/^item:/.test(id) ? 'this.' : 'everything in this pack.') : 'That didn’t work. Try again.'); draw(); return; }
       if (r.got.draws.length) reveal(r);
-      else { var n = r.got.skins.length + r.got.acc.length + (r.got.items || []).length; toast('Added ' + n + (n === 1 ? ' item' : ' items') + ' to your locker' + (r.refund ? ', and ' + W.format(r.refund) + ' back for ones you had.' : '.')); }
+      else { var n = r.got.skins.length + r.got.acc.length + (r.got.items || []).length; toast('Added ' + n + (n === 1 ? ' item' : ' items') + ' to your locker' + (r.refund ? ', and ' + W.format(r.refund) + ' back for ones you had' : '') + '. You have ' + W.format(r.balance) + ' left.'); }
       draw();
     });
 
     // ---------- Packs ----------
     function packCard(p) {
       var c = el('div', 'pack' + (p.kind === 'emeralds' ? ' money' : ''));
+      if (p.kind === 'emeralds') p = { kind: 'emeralds', name: p.name, desc: p.emeralds.toLocaleString('en-US') + ' emeralds, to spend in the shop.', usd: p.usd, emeralds: p.emeralds, link: p.link, contents: {} };
       var faces = '';
       if (p.contents.skins) faces = p.contents.skins.map(function (id) { return C.avatarSvg(uid, 48, { look: { skin: id, accessories: {} } }); }).join('');
       else if (p.contents.acc) faces = p.contents.acc.map(function (id) { var a = C.ACCESSORIES_BY_ID[id], o = {}; o[a.slot] = id; return C.avatarSvg(uid, 48, { look: { skin: null, accessories: o } }); }).join('');
@@ -304,28 +325,33 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       else faces = '<span style="display:inline-flex;gap:2px">' + EM + EM + EM + '</span>';
       c.innerHTML = '<div class="faces">' + faces + '</div><div class="nm">' + esc(p.name) + '</div><div class="ds">' + esc(p.desc) + '</div>';
       if (p.kind === 'emeralds') {
-        c.innerHTML += '<div class="own">$' + p.usd + ' &middot; ' + W.format(p.contents.mangos) + '</div>';
-        var mb = el('button', 'btn', 'Coming later'); mb.type = 'button'; mb.disabled = true; c.appendChild(mb);
+        c.innerHTML += '<div class="own">$' + p.usd.toFixed(2) + '</div>';
+        // Only a pack with a Payment Link pasted in wallet.js AND PAYMENTS switched on links anywhere; today none does.
+        var live = !!(p.link && W.PAYMENTS && W.PAYMENTS.enabled && /^https:\/\/buy\.stripe\.com\//.test(p.link));
+        var mb = live ? el('a', 'btn go', 'Buy for $' + p.usd.toFixed(2)) : el('button', 'btn', 'Not available yet');
+        if (live) { mb.href = p.link; mb.target = '_blank'; mb.rel = 'noopener'; } else { mb.type = 'button'; mb.disabled = true; }
+        c.appendChild(mb);
         return c;
       }
       var pv = C.preview(p.id);
-      if (pv.items && pv.have && !pv.all) c.innerHTML += '<div class="own">You have ' + pv.have + ' of ' + pv.items + '; each of those gives back ' + Math.round(C.DUP_REFUND / 13 * 10) / 10 + ' emeralds.</div>';
+      if (pv.items && pv.have && !pv.all) c.innerHTML += '<div class="own">You have ' + pv.have + ' of ' + pv.items + '; each of those gives back ' + W.format(C.DUP_REFUND) + '.</div>';
       var b = buyBtn(p); c.appendChild(b); setBuyState(b);
+      c.appendChild(giftBtn(p.id, 'btn gift-b'));
       return c;
     }
     function drawPacks() {
       var t = document.getElementById('t-packs'); t.innerHTML = '';
-      [['skins', 'Skin packs', 'Common and rare skins. Epic and legendary ones only come from draws.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.']].concat(Object.keys(C.GAMES || {}).map(function (gm) { return ['items', C.GAMES[gm].name + ' packs', 'Things to wear in ' + C.GAMES[gm].name + '. Put them on here in your locker or in the game’s own garage.', gm]; }), [['draws', 'Draw packs', ''], ['emeralds', 'Emerald packs', 'Buying emeralds isn’t available yet. Earn them by playing.']]).forEach(function (g) {
+      [['skins', 'Skin packs', 'A pack costs the same as its skins bought one by one. Every skin, accessory and game item can also be bought on its own in the Locker.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.']].concat(Object.keys(C.GAMES || {}).map(function (gm) { return ['items', C.GAMES[gm].name + ' packs', 'Things to wear in ' + C.GAMES[gm].name + '. Put them on here in your locker or in the game’s own garage.', gm]; }), [['draws', 'Chests', 'Bought with emeralds only. Odds for every chest: ' + C.RARITY.slice().reverse().map(function (r) { return r.name.toLowerCase() + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%'; }).join(', ') + '.'], ['emeralds', 'Buy emeralds', 'Packs of emeralds for real money (not loot chests). Buying them isn’t available yet.']]).forEach(function (g) {
         var h = el('h3', null, esc(g[1])); t.appendChild(h);
         if (g[2]) t.appendChild(el('p', 'note', esc(g[2])));
         var grid = el('div', 'grid'); grid.style.marginTop = '10px';
-        C.PACKS.filter(function (p) { return p.kind === g[0] && (!g[3] || p.game === g[3]); }).forEach(function (p) { grid.appendChild(packCard(p)); });
+        (g[0] === 'emeralds' ? (W.EMERALD_PACKS || []).map(function (e) { return Object.assign({ kind: 'emeralds' }, e); }) : C.PACKS).filter(function (p) { return p.kind === g[0] && (!g[3] || p.game === g[3]); }).forEach(function (p) { grid.appendChild(packCard(p)); });
         t.appendChild(grid);
       });
     }
     function drawDrawBtns() {
       var box = document.getElementById('drawbtns'); box.innerHTML = '';
-      [1, 5, 10].forEach(function (n) { var p = C.PACKS_BY_ID['draw-' + n], b = buyBtn(p, n === 1 ? 'Draw 1' : 'Draw ' + n); b.setAttribute('data-label', n === 1 ? 'Draw 1' : 'Draw ' + n); box.appendChild(b); setBuyState(b); });
+      [1, 5, 10].forEach(function (n) { var p = C.PACKS_BY_ID['draw-' + n], lab = n === 1 ? '1 chest' : n + ' chests', b = buyBtn(p, lab); b.setAttribute('data-label', lab); box.appendChild(b); setBuyState(b); });
     }
 
     // ---------- Locker ----------
@@ -334,8 +360,19 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       var p = C.PACKS.filter(function (p) { return (p.contents.skins || []).concat(p.contents.acc || [], p.contents.items || []).indexOf(id) >= 0; })[0];
       var gi = !p && C.GAME_ITEMS_BY_ID && C.GAME_ITEMS_BY_ID[id];   // a game item no pack holds is given by its game (free, or earned there)
       if (gi && gi.give) return C.GAMES[gi.game].name;
-      return p ? p.name : 'Draws';
+      return p ? p.name : '';
     }
+    // A locked item's way in: its pack if it has one, and a button to buy it on its own (at its rarity's price).
+    function lockHtml(id) {
+      var src = sourceOf(id), gi = C.GAME_ITEMS_BY_ID && C.GAME_ITEMS_BY_ID[id];
+      if (gi && gi.give) return '<span class="lock">From ' + esc(src) + '</span>';
+      var one = C.pack('item:' + id);
+      return (src ? '<span class="lock">Or in ' + esc(src) + '</span>' : '') + (one ? '<button type="button" class="btn go ibuy" data-pack="item:' + esc(id) + '"></button>' : '');
+    }
+    // A Gift button for a pack, a chest or one item ('item:<id>'): same price as buying it, for someone else.
+    function giftBtn(id, cls) { var b = el('button', cls || 'btn igift', 'Gift'); b.type = 'button'; b.setAttribute('data-gift', id); return b; }
+    function giftHtml(id) { var gi = C.GAME_ITEMS_BY_ID && C.GAME_ITEMS_BY_ID[id]; return gi && gi.give ? '' : giftBtn('item:' + id).outerHTML; }
+    function shown(it) { return it.give !== 'exclusive'; }   // exclusive gifts (../captains.js) are shown only in their own game
     function drawLocker() {
       var t = document.getElementById('t-locker'), own = C.owned(), eq = C.equipped();
       var sk = eq.skin && C.SKINS_BY_ID[eq.skin];
@@ -344,7 +381,7 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       C.SLOTS.forEach(function (k) { if (eq.accessories[k]) wear.push([k, C.ACCESSORIES_BY_ID[eq.accessories[k]].name]); });
       // game items (worn inside one game, not on the avatar): a chip per game slot, filter keys 'g:<game>:<slot>'
       var games = Object.keys(C.GAMES || {}), gchips = [];
-      games.forEach(function (gm) { var ge = C.gameEquipped(gm); C.GAMES[gm].slots.forEach(function (sl) { var all = C.gameItems(gm, sl[0]); if (!all.length) return; if (ge[sl[0]]) wear.push([gm + ':' + sl[0], C.GAMES[gm].name + ': ' + ge[sl[0]].name]);
+      games.forEach(function (gm) { var ge = C.gameEquipped(gm); C.GAMES[gm].slots.forEach(function (sl) { var all = C.gameItems(gm, sl[0]).filter(shown); if (!all.length) return; if (ge[sl[0]]) wear.push([gm + ':' + sl[0], C.GAMES[gm].name + ': ' + ge[sl[0]].name]);
         gchips.push(['g:' + gm + ':' + sl[0], C.GAMES[gm].name + ' ' + sl[1].toLowerCase() + ' ' + all.filter(function (it) { return own.items.indexOf(it.id) >= 0; }).length + '/' + all.length]); }); });
       var html = '<div class="locker"><div class="stage"><span class="big">' + C.avatarSvg(uid, 180) + '</span><div><div class="sn">' + esc(sk ? sk.name : 'Your own look') + '</div>' +
         '<div class="sd">' + esc(sk ? sk.desc : 'Pick a skin and accessories from your locker.') + '</div><ul class="wearing">' +
@@ -354,29 +391,31 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
         return [k, C.SLOT_NAMES[k] + ' ' + n + '/' + all.length];
       }), gchips).map(function (c) { return '<button type="button" data-filter="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + esc(c[1]) + '</button>'; }).join('') + '</div><div class="items">';
       var gf = /^g:/.test(filter) ? filter.split(':') : null, gworn = gf ? C.gameEquipped(gf[1]) : {};
-      var list = filter === 'skins' ? C.SKINS : gf ? C.gameItems(gf[1], gf[2]) : C.ACCESSORIES.filter(function (a) { return a.slot === filter; });
+      var list = filter === 'skins' ? C.SKINS : gf ? C.gameItems(gf[1], gf[2]).filter(shown) : C.ACCESSORIES.filter(function (a) { return a.slot === filter; });
       list.forEach(function (it) {
         if (gf) {
           var ghas = own.items.indexOf(it.id) >= 0, gon = !!gworn[it.slot] && gworn[it.slot].id === it.id, gr = RC[it.rarity];
-          html += '<div class="item' + (ghas ? '' : ' locked') + (gon ? ' on' : '') + '" role="button" tabindex="' + (ghas ? 0 : -1) + '" data-item="' + it.id + '" aria-pressed="' + gon + '" title="' + esc(it.desc) + '">' +
+          html += '<div class="item' + (ghas ? '' : ' locked') + (gon ? ' on' : '') + '"' + (ghas ? ' role="button" tabindex="0" aria-pressed="' + gon + '"' : '') + ' data-item="' + it.id + '" title="' + esc(it.desc) + '">' +
             C.itemSvg(it.id, 72) + '<span class="in">' + esc(it.name) + '</span><span class="ir" style="color:' + gr.color + '">' + gr.name + '</span>' +
-            (gon ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (ghas ? '' : '<span class="lock">In ' + esc(sourceOf(it.id)) + '</span>') + '</div>';
+            (gon ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (ghas ? '' : lockHtml(it.id)) + giftHtml(it.id) + '</div>';
           return;
         }
         var isSkin = filter === 'skins', has = (isSkin ? own.skins : own.accessories).indexOf(it.id) >= 0;
         var worn = isSkin ? eq.skin === it.id : eq.accessories[it.slot] === it.id, r = RC[it.rarity];
         var look = { skin: isSkin ? it.id : eq.skin, accessories: {} };
         if (!isSkin) look.accessories[it.slot] = it.id;
-        html += '<div class="item' + (has ? '' : ' locked') + (worn ? ' on' : '') + '" role="button" tabindex="' + (has ? 0 : -1) + '" data-item="' + it.id + '" aria-pressed="' + worn + '" title="' + esc(it.desc) + '">' +
+        html += '<div class="item' + (has ? '' : ' locked') + (worn ? ' on' : '') + '"' + (has ? ' role="button" tabindex="0" aria-pressed="' + worn + '"' : '') + ' data-item="' + it.id + '" title="' + esc(it.desc) + '">' +
           C.avatarSvg(uid, 72, { look: look }) + '<span class="in">' + esc(it.name) + '</span><span class="ir" style="color:' + r.color + '">' + r.name + '</span>' +
-          (worn ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (has ? '' : '<span class="lock">' + (sourceOf(it.id) === 'Draws' ? 'From draws' : 'In ' + esc(sourceOf(it.id))) + '</span>') + '</div>';
+          (worn ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (has ? '' : lockHtml(it.id)) + giftHtml(it.id) + '</div>';
       });
       html += '</div></div></div>';
       t.innerHTML = html;
+      t.querySelectorAll('.ibuy').forEach(setBuyState);
     }
     document.addEventListener('click', function (e) {
       var f = e.target.closest('[data-filter]'); if (f) { filter = f.getAttribute('data-filter'); drawLocker(); return; }
       var o = e.target.closest('[data-off]'); if (o) { C.unequip(o.getAttribute('data-off')); draw(); return; }
+      if (e.target.closest('button[data-pack],button[data-gift]')) return;
       var it = e.target.closest('.item[data-item]'); if (!it || it.classList.contains('locked')) return;
       var id = it.getAttribute('data-item');
       if (it.classList.contains('on')) C.unequip(id); else C.equip(id);
@@ -387,7 +426,9 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     // ---------- Wallet history ----------
     function drawHistory() {
       var t = document.getElementById('t-history'), log = W.log().slice().reverse();
-      var html = '<h3>How you earn</h3><p class="note">Playing Back Room games pays mangos: wins, escapes, laps, finished runs and more. 13 mangos make an emerald. Each game pays up to a daily limit, so there’s no need to grind.</p>';
+      var html = W.PLAY_PAYS ? '<h3>How you earn</h3><p class="note">Playing Back Room games pays mangos: wins, escapes, laps, finished runs and more. ' + MPE + ' mangos make an emerald. Each game pays up to a daily limit, so there’s no need to grind.</p>'
+        : '<h3>Getting emeralds</h3><p class="note">Emeralds are bought with real money (7 for $0.99, in the emerald packs); playing doesn’t pay any. Mangos are the small change: ' + MPE + ' make an emerald, and when something costs part of an emerald the rest comes back as mangos.</p>' +
+          '<h3>Prices</h3><p class="note">By rarity, for skins, accessories and game items: ' + C.RARITY.slice().reverse().map(function (r) { return r.name.toLowerCase() + ' ' + W.format(C.PRICE[r.id]); }).join(', ') + '. A chest is ' + W.format(C.CHEST_PRICE) + '.</p>';
       html += '<h3>History <small>last ' + Math.min(200, log.length) + '</small></h3>';
       if (!log.length) html += '<p class="empty">Nothing yet.</p>';
       else html += '<ul class="log">' + log.map(function (e) {
@@ -398,11 +439,56 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     }
 
     function drawWallet() {
-      var e = W.inEmeralds();
-      document.getElementById('wEm').innerHTML = EM + ' ' + e.emeralds.toLocaleString('en-US');
-      document.getElementById('wMa').innerHTML = MANGO + ' ' + e.mangos + '/13';
-      document.getElementById('wallet').title = W.format();
+      var e = W.inEmeralds(), inf = W.unlimited();
+      document.getElementById('wEm').innerHTML = EM + ' ' + (inf ? '∞' : e.emeralds.toLocaleString('en-US'));
+      document.getElementById('wMa').innerHTML = inf ? 'Captain' : MANGO + ' ' + e.mangos + '/' + MPE;
+      document.getElementById('wallet').title = inf ? 'Captains have no limit: everything is free and owned.' : W.format();
     }
+
+    // ---------- Gifting ----------
+    var gdlg = null;
+    function giftDialog(id) {
+      var p = C.pack(id); if (!p) return;
+      if (gdlg) gdlg.remove();
+      gdlg = el('div'); gdlg.id = 'giftdlg'; gdlg.setAttribute('role', 'dialog'); gdlg.setAttribute('aria-modal', 'true'); gdlg.setAttribute('aria-label', 'Send a gift');
+      gdlg.innerHTML = '<div class="box"><h2>Gift: ' + esc(p.name) + '</h2><p class="note">' + (W.unlimited() ? 'Free for captains.' : 'Costs ' + price(p.price) + ', the same as buying it.') + ' They get it the next time they open the Back Room or the shop.</p>' +
+        '<input type="search" id="gq" placeholder="Search people online, your Aisle and party" aria-label="Search for a player" autocomplete="off"><div class="who" id="gwho"><p class="empty">Looking for people…</p></div>' +
+        '<input type="text" id="gnote" maxlength="' + W.NOTE_MAX + '" placeholder="Short note (optional)" aria-label="Note" data-name-filter autocomplete="off">' +
+        '<p class="err" id="gerr"></p><div class="row"><button type="button" class="btn" id="gno">Cancel</button><button type="button" class="btn go" id="gyes" disabled>Send gift</button></div></div>';
+      document.body.appendChild(gdlg);
+      var pick = null, people = [];
+      function list() {
+        var q = gdlg.querySelector('#gq').value.trim().toLowerCase(), box = gdlg.querySelector('#gwho');
+        var l = people.filter(function (x) { return !q || x.n.toLowerCase().indexOf(q) >= 0; }).slice(0, 40);
+        box.innerHTML = l.length ? l.map(function (x) { return '<button type="button" data-to="' + esc(x.uid) + '" aria-pressed="' + (pick && pick.uid === x.uid) + '">' + esc(x.n) + '<small>' + (x.from === 'online' ? 'online' : x.from === 'aisle' ? 'your Aisle' : 'your party') + '</small></button>'; }).join('')
+          : '<p class="empty">' + (people.length ? 'Nobody by that name.' : 'Nobody to send to right now: they need to be online, in your Aisle or your party, and signed in with Google.') + '</p>';
+      }
+      W.giftPeople().then(function (l) { people = l; if (gdlg) list(); });
+      gdlg.querySelector('#gq').addEventListener('input', list);
+      gdlg.querySelector('#gwho').addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-to]'); if (!b) return;
+        pick = people.filter(function (x) { return x.uid === b.getAttribute('data-to'); })[0] || null;
+        gdlg.querySelector('#gyes').disabled = !pick; list();
+      });
+      function close() { if (gdlg) { gdlg.remove(); gdlg = null; } }
+      gdlg.querySelector('#gno').addEventListener('click', close);
+      gdlg.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+      gdlg.querySelector('#gyes').addEventListener('click', function () {
+        if (!pick) return;
+        var yes = gdlg.querySelector('#gyes'); yes.disabled = true;
+        W.gift(id, pick.uid, pick.n, gdlg.querySelector('#gnote').value).then(function (r) {
+          if (!gdlg) return;
+          if (!r.ok) {
+            yes.disabled = false;
+            gdlg.querySelector('#gerr').textContent = { signin: 'Sign in with Google to send gifts.', owned: pick.n + ' already has this.', busy: 'You have ' + W.GIFT_MAX + ' gifts still waiting to be opened. Try again once they are.', funds: 'Not enough emeralds yet.', recipient: pick.n + ' needs to sign in with Google first.', money: 'Emeralds and mangos can’t be gifted.' }[r.reason] || 'That didn’t work. Try again.';
+            return;
+          }
+          close(); toast('Gift sent to ' + pick.n + '.' + (r.spent ? ' You have ' + W.format(r.balance) + ' left.' : '')); draw();
+        });
+      });
+      gdlg.querySelector('#gq').focus();
+    }
+    document.addEventListener('click', function (e) { var b = e.target.closest('button[data-gift]'); if (b) giftDialog(b.getAttribute('data-gift')); });
     function draw() {
       drawWallet(); drawDrawBtns();
       if (tab === 'packs') drawPacks(); else if (tab === 'locker') drawLocker(); else drawHistory();
@@ -412,10 +498,10 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
     var rv = null;
     function reveal(r) {
       if (rv) rv.remove();
-      var draws = r.got.draws, best = 3, order = ['legendary', 'epic', 'rare', 'common'];
+      var draws = r.got.draws, best = 4, order = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
       draws.forEach(function (d) { best = Math.min(best, order.indexOf(d.rarity)); });
       var bc = RC[order[best]].color;
-      rv = el('div', draws.length > 1 ? 'many' : ''); rv.id = 'reveal'; rv.setAttribute('role', 'dialog'); rv.setAttribute('aria-label', 'Your draw');
+      rv = el('div', draws.length > 1 ? 'many' : ''); rv.id = 'reveal'; rv.setAttribute('role', 'dialog'); rv.setAttribute('aria-label', 'Your chest');
       var rays = ''; for (var i = 0; i < 16; i++) { var a0 = i * Math.PI / 8, a1 = a0 + Math.PI / 16; rays += '<path d="M260 260 L' + (260 + 260 * Math.cos(a0)).toFixed(1) + ' ' + (260 + 260 * Math.sin(a0)).toFixed(1) + ' L' + (260 + 260 * Math.cos(a1)).toFixed(1) + ' ' + (260 + 260 * Math.sin(a1)).toFixed(1) + ' Z" fill="' + bc + '" opacity=".35"/>'; }
       rv.innerHTML = '<div class="box"><svg class="burst" viewBox="0 0 520 520" aria-hidden="true">' + rays + '</svg><div class="gem">' + GEM + '</div><div class="cards"></div><div class="tip">Tap to skip</div></div>';
       document.body.appendChild(rv);
@@ -448,9 +534,12 @@ h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3
       document.addEventListener('keydown', function esc1(e) { if (!rv) { document.removeEventListener('keydown', esc1); return; } if (e.key === 'Escape') { if (!shown) showCards(); else close(); } });
       setTimeout(showCards, still ? 0 : 1400);
     }
-    if (navigator.webdriver) window.__shop = { reveal: reveal, draw: draw, toast: toast };
+    if (navigator.webdriver) window.__shop = { reveal: reveal, draw: draw, toast: toast, giftDialog: giftDialog };
 
     document.addEventListener('backroom:wallet', function () { draw(); });
+    document.addEventListener('backroom:captain', function () { draw(); });
+    document.addEventListener('backroom:gift', function (e) { var d = e.detail || {}; if (d.got && d.got.draws && d.got.draws.length) reveal({ got: d.got }); draw(); });
+    if (W.scan) W.scan(true);                         // open any gifts waiting, and claim last week's rewards
     document.addEventListener('backroom:cosmetics', function () { if (tab === 'locker') drawLocker(); });
     addEventListener('storage', function (e) { if (e.key === 'cosmetics:v1') draw(); });
     document.addEventListener('backroom:avatar', function () { draw(); });

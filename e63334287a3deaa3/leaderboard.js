@@ -84,6 +84,7 @@
     if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
     BackRoomLang.add({
       'Most miles flown across the Back Room, and the best in each game.': 'Las millas más voladas en The Back Room, y lo mejor de cada juego.',
+      'Players': 'Jugadores', 'Leaderboard type': 'Tipo de tabla', 'Aisle board': 'Tabla de Aisles',
       'Refresh': 'Actualizar', 'Board': 'Tabla', 'Track': 'Pista', 'Time span': 'Período', 'This week': 'Esta semana', 'All time': 'Histórico',
       'Miles (all games)': 'Millas (todos los juegos)', 'Miles · all games · this week': 'Millas · todos los juegos · esta semana', 'Miles · all games · all time': 'Millas · todos los juegos · histórico',
       'The boards load when you scroll down to them.': 'Las tablas cargan cuando bajas hasta ellas.',
@@ -163,7 +164,7 @@
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
       { k: 'wins', l: 'Online match wins', f: 'n', u: 'win', rate: 1 / 60 }] },
-    { d: 'sky-duel', n: 'Sky Duel', st: [
+    { d: 'sky-duel', n: 'Sky Duel', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 60, le: 'kills' },
       { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
       { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
@@ -936,7 +937,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { rows: rows, tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -980,6 +981,8 @@
     '.lbd-span{display:inline-flex;flex:none;gap:2px;padding:2px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2)}.lbd-span[hidden]{display:none}' +
     '.lbd-span button{font:inherit;font-family:var(--body,var(--f-b,sans-serif));font-size:14px;font-weight:600;color:var(--ink-2);background:transparent;border:0;border-radius:999px;padding:5px 14px;min-height:32px;cursor:pointer;white-space:nowrap}' +
     '.lbd-span button:hover{color:var(--ink)}.lbd-span button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}' +
+    // Players | Aisles: the same pill, a little larger, on its own row.
+    '.lbd-tabs{justify-self:start}.lbd-tabs button{font-size:15px;padding:6px 18px;min-height:36px}' +
     '.lbd-gap{text-align:center;color:var(--ink-2);font-size:14px;line-height:1;padding:2px 0;letter-spacing:.3em}' +
     '.lbd-r.trk{grid-template-columns:minmax(0,1fr) auto;cursor:pointer}.lbd-r.trk:hover{border-color:var(--ink-2)}' +
     '.lbd-r.trk .lbd-nm{font-weight:700}.lbd-r.trk .lbd-ex{text-transform:none;letter-spacing:0;font-size:12px}' +
@@ -1012,10 +1015,15 @@
   var groups = {}, gorder = [];
   GAMES.forEach(function (g) { var k = g.grp || 'Games'; if (!groups[k]) { groups[k] = el('optgroup'); groups[k].label = k; gorder.push(k); } groups[k].append(new Option(g.n, g.d)); });
   gorder.forEach(function (k) { $sel.append(groups[k]); });
-  // The Aisle boards (aisles.js draws them from these same rows), not in a game's own panel.
+  // The Aisle boards (aisles.js draws them from these same rows), not in a game's own panel. They have their own tab,
+  // Players | Aisles, above the controls (the hub only): Players shows the Board menu, Aisles shows Aisle Miles | Aisle Elo.
   var AISLE = GAME ? {} : { 'aisle-miles': 'Aisle Miles', 'aisle-elo': 'Aisle Elo' };
-  if (!GAME) { var ag = el('optgroup'); ag.label = 'Aisles'; Object.keys(AISLE).forEach(function (k) { ag.append(new Option(AISLE[k], k)); }); $sel.append(ag); }
-  lbl.append($sel); ctl.append(lbl);
+  var $tabs = el('div', 'lbd-span lbd-tabs'); $tabs.setAttribute('role', 'group'); $tabs.setAttribute('aria-label', 'Leaderboard type');
+  [['players', 'Players'], ['aisles', 'Aisles']].forEach(function (x) { var b = el('button', '', x[1]); b.type = 'button'; b.setAttribute('data-tab', x[0]); $tabs.append(b); });
+  var $abd = el('div', 'lbd-span'); $abd.setAttribute('role', 'group'); $abd.setAttribute('aria-label', 'Aisle board');
+  Object.keys(AISLE).forEach(function (k) { var b = el('button', '', AISLE[k]); b.type = 'button'; b.setAttribute('data-a', k); $abd.append(b); });
+  $tabs.hidden = $abd.hidden = !!GAME;
+  lbl.append($sel); ctl.append(lbl, $abd);
   // Slipstream only: which track's course records and fastest lap to show.
   var tlbl = el('label'); tlbl.append(el('span', '', 'Track')); tlbl.hidden = true;
   var $trk = el('select'); $trk.setAttribute('aria-label', 'Track');
@@ -1038,7 +1046,7 @@
   // Slipstream's time boards only: who holds the Slipstream ace (see ace) and the rule, or that it is unclaimed. Shell
   // Crackers' Kills (all time) board: the same for Top Cracker (see cracker).
   var $ace = el('p', 'lbd-ace'); $ace.hidden = true;
-  box.append(top, ctl, $chips, $h, $ace, $list, $msg, $rule, $season, $spanNote, $note);
+  box.append(top, $tabs, ctl, $chips, $h, $ace, $list, $msg, $rule, $season, $spanNote, $note);
   sec.append(box);
 
   // Game mode: the panel. Its own colours and type, since a game page has none of the hub's CSS variables.
@@ -1094,11 +1102,14 @@
   // ---------------- State ----------------
   // g: 'all' or a game folder. b: the board (its stat key, 's' for hours, or for Slipstream 'laps' (every track), 'rec3', 'rec5'… or 'lap'),
   // '' for the game's first board that has anyone on it. t: the Slipstream track.
-  var view = { g: 'all', b: 's', t: '' };
+  var view = { g: 'all', b: 's', t: '' }, lastPlayers = { g: 'all', b: 's', t: '' };
   var VIEW_KEY = GAME ? 'lb:view:' + GAME : 'lb:view';
   try {
     var sv = JSON.parse(ls(VIEW_KEY) || 'null');
     if (sv && (sv.g === 'all' || BY[sv.g] || AISLE[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
+    // The player board open before the Aisles tab, so pressing Players goes back to it.
+    var pv = sv && sv.p;
+    if (pv && (pv.g === 'all' || BY[pv.g])) lastPlayers = { g: pv.g, b: typeof pv.b === 'string' ? pv.b.slice(0, 40) : 's', t: typeof pv.t === 'string' && TRACKS[pv.t] ? pv.t : '' };
   } catch (e) {}
   if (GAME && BY[GAME] && view.g !== GAME) view = { g: GAME, b: '', t: '' };
   $sel.value = view.g;
@@ -1242,7 +1253,13 @@
   function draw() {
     $chips.textContent = '';
     $list.classList.remove('ais-lb');
-    if (AISLE[view.g]) {   // an Aisle board: aisles.js fills the heading, list, note and message
+    var onAisles = !!AISLE[view.g];
+    if (!GAME) {
+      lbl.hidden = onAisles; $abd.hidden = !onAisles;
+      Array.prototype.forEach.call($tabs.children, function (b) { b.setAttribute('aria-pressed', String((b.getAttribute('data-tab') === 'aisles') === onAisles)); });
+      Array.prototype.forEach.call($abd.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-a') === view.g)); });
+    }
+    if (onAisles) {   // an Aisle board: aisles.js fills the heading, list, note and message
       tlbl.hidden = $span.hidden = $rule.hidden = $season.hidden = $ace.hidden = true; $list.textContent = ''; $spanNote.hidden = true;
       if (window.BackRoomAisles && BackRoomAisles.board) BackRoomAisles.board({ g: view.g, list: $list, h: $h, chips: $chips, note: $spanNote, say: say });
       else { $h.textContent = AISLE[view.g]; say('Loading the Aisles…'); }
@@ -1309,7 +1326,23 @@
     else if (mine < 0 && myUid) say(list.length + (list.length === 1 ? ' player' : ' players') + '. You’re not on this board yet.');
     else say(list.length + (list.length === 1 ? ' player' : ' players') + (mine >= 0 ? '. You’re #' + list[mine].rank + '.' : '.'));
   }
-  function save() { ls(VIEW_KEY, JSON.stringify({ g: view.g, b: view.b, t: view.t || '' })); }
+  function save() {
+    if (!AISLE[view.g]) lastPlayers = { g: view.g, b: view.b, t: view.t || '' };
+    ls(VIEW_KEY, JSON.stringify({ g: view.g, b: view.b, t: view.t || '', p: lastPlayers }));
+  }
+  // Players | Aisles, and Aisle Miles | Aisle Elo.
+  $tabs.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-tab]'); if (!b) return;
+    var toAisles = b.getAttribute('data-tab') === 'aisles';
+    if (toAisles === !!AISLE[view.g]) return;
+    if (toAisles) { save(); view.g = ls('lb:aisle') === 'aisle-elo' ? 'aisle-elo' : 'aisle-miles'; view.b = ''; view.t = ''; }
+    else { view.g = lastPlayers.g; view.b = lastPlayers.b; view.t = lastPlayers.t; $sel.value = view.g; picked = false; }
+    save(); draw();
+  });
+  $abd.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-a]'); if (!b || !AISLE[b.getAttribute('data-a')]) return;
+    view.g = b.getAttribute('data-a'); ls('lb:aisle', view.g); save(); draw();
+  });
 
   $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] || AISLE[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
   $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; if (view.b === 'laps') view.b = 'lap'; picked = true; save(); draw(); } });

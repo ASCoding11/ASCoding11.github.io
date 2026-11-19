@@ -857,14 +857,14 @@ function renderAct(){
   const a=G.act,id=G.sel,it=BY_ID[id];
   if(G.tab==='sticker'){const s=myLook().st;a.innerHTML='<div></div><button type="button" class="ghost" data-act="st-remove"'+(s?'':' disabled')+'>Remove</button><button type="button" class="cta" data-act="st-save">Save sticker</button>';return}
   if(!it){a.innerHTML=G.tab==='sponsor'?'':'<div>Pick one to try it on the car.</div>';return}
-  const on=worn()[it.slot]===id,has=owns(it),w=wallet(),bal=w?Math.floor(w.balance()/13):0,pk=packOf(it);
+  const on=worn()[it.slot]===id,has=owns(it),w=wallet(),bal=w?w.balance():0,pk=packOf(it),fm=m=>w?w.format(m,true):String(m);   // whole mangos, like pack prices
   let btn='',txt=it.desc;
   if(on)btn='<button type="button" class="ghost" data-act="off">Take off</button>';
   else if(has)btn='<button type="button" class="cta" data-act="wear">Wear</button>';
   else if(it.give)txt='Finish '+it.name.replace(/ livery$/,'')+'\'s challenges (Sponsor tab) to unlock it.';
   else if(pk){ // sold the way the shop sells everything: in a pack
-    txt='In the '+pk.name+' pack ('+pk.contents.items.length+' items). '+(bal<pk.price?'You have '+bal+' emeralds; racing earns more.':'');
-    btn='<button type="button" class="cta" data-act="buy"'+(bal<pk.price?' disabled':'')+'>Buy pack · '+pk.price+' emeralds</button>'}
+    txt='In the '+pk.name+' pack ('+pk.contents.items.length+' items). '+(bal<pk.price?'You have '+fm(bal)+' emeralds.':'');
+    btn='<button type="button" class="cta" data-act="buy"'+(bal<pk.price?' disabled':'')+'>Buy pack · '+fm(pk.price)+' emeralds</button>'}
   a.innerHTML='<div><b>'+esc(it.name)+'</b>'+esc(txt)+'</div>'+btn;
 }
 function onBodyClick(e){

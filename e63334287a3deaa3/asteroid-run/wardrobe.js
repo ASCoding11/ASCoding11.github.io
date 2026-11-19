@@ -671,7 +671,7 @@ const CSS = `
 @media (min-width:640px) and (max-height:560px){#wardrobe .card{width:min(760px,100%)}.wr-body{display:grid;grid-template-columns:200px 1fr;gap:0 16px;align-items:start}.wr-prev{flex-direction:column;align-items:flex-start;margin-top:10px}.wr-prev canvas{width:184px;height:110px}.wr-grid{max-height:calc(100vh - 150px)}}
 @media (max-width:420px){.wr-prev canvas{width:150px;height:96px}.wr-prev{min-height:96px}.wr-grid{grid-template-columns:repeat(auto-fill,minmax(66px,1fr))}}
 `;
-const RC = { common: '#7d82b8', rare: '#3fe0ff', epic: '#c27bff', legendary: '#ffd23f' };
+const RC = { common: '#7d82b8', uncommon: '#5fe08a', rare: '#3fe0ff', epic: '#c27bff', legendary: '#ffd23f' };
 const TABS = [['a', 'Aliens', ALIENS], ['t', 'Trails', TRAILS], ['u', 'Tunnels', TUNNELS]];
 let tab = 'a', built = false, pvRaf = 0, pvT = 0, pvParts = [], pvLast = 0, pvAt = 0;
 function style() { if ($('wr-css')) return; const st = document.createElement('style'); st.id = 'wr-css'; st.textContent = CSS; document.head.append(st); }
