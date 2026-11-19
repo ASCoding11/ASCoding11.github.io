@@ -3283,6 +3283,21 @@ const OUTFITS=(()=>{
       L(B,-.3,1.72,.2,.26,.26,.26,C_RED);L(B,.3,1.72,.2,.26,.26,.26,C_PURPLE)}}
   ];
   const bands=(B,col)=>{L(B,-.27,1.36,-.24,.19,.19,.14,col,-.4);L(B,.3,1.36,-.22,.19,.19,.14,col)};
+  // wave two's helpers: a number made of bars (front: read from the front), an eye patch (pushed up onto the forehead under
+  // a drawn face, so the drawing shows), a shirt front and tie, dark glasses, a fedora, a three-cornered hat
+  const DIG=['abcdef','bc','abged','abgcd','fgbc','afgcd','afgedc','abc','abcdefg','abfgcd'];
+  const num=(B,n,x,y,z,h,col,front)=>{const s=String(n),w=h*.55,t=h*.17,gap=w+h*.22,sx=front?-1:1;
+    for(let k=0;k<s.length;k++){const S=DIG[+s[k]],cx=x+sx*(k-(s.length-1)/2)*gap,bx=(a,b)=>X(B,cx+sx*a,y+b[0],z,b[1],b[2],.03,col);
+      if(S.includes('a'))bx(0,[h/2,w,t]);if(S.includes('g'))bx(0,[0,w,t]);if(S.includes('d'))bx(0,[-h/2,w,t]);
+      if(S.includes('b'))bx(w/2,[h/4,t,h/2]);if(S.includes('c'))bx(w/2,[-h/4,t,h/2]);if(S.includes('f'))bx(-w/2,[h/4,t,h/2]);if(S.includes('e'))bx(-w/2,[-h/4,t,h/2])}};
+  const patch=(B,c,col)=>{col=col||INK;if(c.face)X(B,.1,1.99,-.262,.13,.11,.03,col);else{X(B,.085,1.805,-.292,.14,.13,.03,col);T(B,0,0,1.87,-.276,.5,.03,.02,col,0,0,-.42)}};
+  const tie=(B,shirt,col)=>{L(B,0,1.46,-.2,.24,.3,.14,shirt);X(B,0,1.4,-.28,.07,.26,.03,col);X(B,0,1.55,-.28,.1,.05,.03,col)};
+  const lapels=(B,col)=>{T(B,0,-.13,1.42,-.255,.09,.4,.03,col,0,0,.3);T(B,0,.13,1.42,-.255,.09,.4,.03,col,0,0,-.3)};
+  const shades=(B,c,col)=>{if(c.face)return;col=col||GLASS;X(B,-.1,1.82,-.29,.16,.09,.03,col);X(B,.1,1.82,-.29,.16,.09,.03,col);X(B,0,1.835,-.29,.08,.025,.03,col)};
+  const fedora=(B,col,band)=>{R(B,0,2.03,0,.8,.05,.8,col);R(B,0,2.15,0,.48,.24,.48,col);L(B,0,2.07,0,.51,.06,.51,band);X(B,0,2.28,0,.07,.04,.34,shadeOf(col,.85))};
+  const tricorne=(B,col,trim)=>{R(B,0,2.12,0,.46,.22,.46,col);for(const a of [0,Math.PI*2/3,-Math.PI*2/3]){T(B,0,Math.sin(a)*.23,2.1,Math.cos(a)*.23,.8,.2,.05,col,0,a,0);T(B,0,Math.sin(a)*.235,2.2,Math.cos(a)*.235,.8,.03,.06,trim,0,a,0)}};
+  const gloves=(B,col,s)=>{s=s||1;L(B,-.1,1.355,-.505,.14*s,.16*s,.17*s,col,-.4);L(B,.3,1.355,-.505,.14*s,.16*s,.17*s,col)};
+  const hairUp=(B,c)=>R(B,0,2.0,.04,.53,.3,.5,c.hair);   // a full head of hair, as high as the standard cap
   return[
   {id:'std',name:'Standard'},...NEW,
   {id:'hood',name:'Hooded Jacket',
@@ -3478,7 +3493,277 @@ const OUTFITS=(()=>{
       for(const [x,col] of [[-.2,0xe8453c],[0,0x3fa9f5],[.2,0xffd23f]])X(B,x,1.36,-.255,.12,.12,.02,col);X(B,0,1.12,-.255,.4,.06,.02,c.hex);   // drawn-on dials and a slot
       back(B,c,()=>{X(B,0,1.24,.34,.5,.56,.18,CB);X(B,0,1.24,.435,.06,.58,.02,0xe0d1ab)})},   // another box on the back
     hat(B,c){X(B,0,1.81,0,.64,.6,.62,0xc6955a);X(B,0,2.11,0,.66,.03,.64,0xa77a48);if(!c.face){X(B,-.13,1.86,-.315,.12,.12,.02,0x2a2d34);X(B,.13,1.86,-.315,.12,.12,.02,0x2a2d34);X(B,0,1.68,-.315,.28,.04,.02,0x2a2d34)}
-      T(B,0,.12,2.3,0,.04,.36,.04,0xff6fb5,0,0,-.3);L(B,.19,2.47,0,.08,.08,.08,0x3fa9f5)}}   // box head, drawn face, a bendy-straw aerial
+      T(B,0,.12,2.3,0,.04,.36,.04,0xff6fb5,0,0,-.3);L(B,.19,2.47,0,.08,.08,.08,0x3fa9f5)}},   // box head, drawn face, a bendy-straw aerial
+  // Wave two (19 November 2026, the owner: "many more sports style skins", robots, pirates with eye patches, suits and
+  // more): OUTFITS 41 on. The same rules as the sixteen above: something on the back as deep as the backpack, never
+  // darker than the standard, no grass greens, as tall as the standard cap. Kits are our own, in the player's colour.
+  {id:'goalie',name:'Goalkeeper',legs:(h,sk)=>[0,0xffa726,sk,WHITE,0xffa726,0x2a2d34],
+    body(B,c){const GK=0xffb43a,GD=0xf08a1f;fitBase(B,c,GK,GK,WHITE,GK,{torso:false});
+      bagPaint(B,0,1.22,0,.7,.72,.42,[4,4,3],GK,(f,i,j)=>f[0]==='z'&&(i+j)%2===0?GD:undefined);   // zigzag panels
+      L(B,0,1.6,0,.36,.08,.36,c.hex);bands(B,GD);R(B,0,.88,0,.72,.16,.44,0xffa726);num(B,1,0,1.3,-.255,.22,c.hex,1);   // collar, elbow pads, shorts, the 1
+      gloves(B,WHITE,1.4);                                                                         // big gloves
+      back(B,c,()=>{pack(B,c.hex);L(B,0,1.24,.43,.22,.22,.06,WHITE);X(B,0,1.24,.465,.08,.08,.02,INK);X(B,0,1.24,.462,.2,.025,.02,INK)})},   // a kit bag with a ball on it
+    hat(B,c){R(B,0,2.07,0,.52,.15,.52,c.hex);L(B,0,2.02,-.27,.5,.06,.16,c.lite);L(B,0,2.15,0,.08,.04,.08,WHITE)}},   // cap
+  {id:'hoops',name:'Basketball Player',legs:(h,sk)=>[1,h,WHITE,WHITE,WHITE,WHITE],
+    body(B,c){fitBase(B,c,c.hex,c.skin,c.skin,c.skin,{hair:'top'});
+      L(B,0,1.6,-.02,.38,.06,.38,WHITE);for(const s of [-1,1]){X(B,s*.3,1.42,-.24,.05,.34,.05,WHITE);X(B,s*.3,1.42,.24,.05,.34,.05,WHITE)}   // collar and armhole trim
+      R(B,0,.9,0,.74,.12,.46,WHITE);num(B,12,0,1.24,-.255,.2,WHITE,1);cuffs(B,WHITE);             // waistband, number, wristbands
+      back(B,c,()=>{R(B,0,1.24,.33,.44,.44,.22,0xf08a2a);X(B,0,1.24,.455,.03,.46,.02,INK);X(B,0,1.24,.455,.46,.03,.02,INK)})},   // a basketball on the back
+    hat(B,c){hairUp(B,c);L(B,0,1.96,0,.56,.07,.56,WHITE)}},                                       // hair and a headband
+  {id:'gridiron',name:'Linebacker',hatFace:{y:1.79,cell:.03,flat:-.372},legs:h=>[1,WHITE,h,WHITE,WHITE,INK],
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);tee(B,c.hex);
+      for(const s of [-1,1])L(B,s*.27,1.56,0,.34,.16,.54,c.hex);   // shoulder pads
+      num(B,5,0,1.22,-.255,.22,WHITE,1);R(B,0,.88,0,.72,.14,.44,WHITE);
+      back(B,c,()=>{R(B,0,1.3,.31,.56,.56,.2,c.hex);num(B,5,0,1.28,.43,.22,WHITE)})},              // the pads' back plate with the number
+    hat(B,c){R(B,0,1.84,0,.62,.62,.64,c.hex);X(B,0,2.17,0,.1,.04,.62,WHITE);X(B,0,1.79,-.345,.42,.34,.04,c.skin);if(!c.face)eyes(B,1.83,-.37);   // helmet, stripe, the face opening
+      for(const y of [1.69,1.78])X(B,0,y,-.39,.44,.035,.03,0xdfe4ea);X(B,0,1.735,-.39,.035,.12,.03,0xdfe4ea);for(const s of [-1,1])X(B,s*.34,1.82,-.02,.03,.12,.12,WHITE)}},   // face guard, ear holes
+  {id:'slugger',name:'Baseball Batter',legs:h=>[1,WHITE,h,WHITE,WHITE,INK],
+    body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE,{torso:false});tee(B,c.hex);
+      bagPaint(B,0,1.22,0,.7,.72,.42,[6,4,4],WHITE,(f,i)=>f[0]!=='y'&&i%2?0xc9d1de:undefined);  // pinstripes
+      X(B,0,1.26,-.255,.035,.6,.03,c.hex);for(const y of [1.46,1.3,1.14])X(B,0,y,-.272,.04,.04,.02,c.hex);   // placket and buttons
+      num(B,7,-.18,1.36,-.255,.15,c.hex,1);R(B,0,.9,0,.74,.1,.46,c.hex);
+      back(B,c,()=>{R(B,0,1.2,.31,.36,.56,.2,c.hex);T(B,1,.12,1.42,.33,.07,.8,.07,0xf4e6c8,0,0,-.25);L(B,.22,1.8,.33,.09,.09,.09,0xf4e6c8)})},   // a bat bag with the bat sticking out
+    hat(B,c){R(B,0,2.0,.02,.56,.3,.56,c.hex);L(B,0,1.94,-.29,.5,.05,.18,c.hex);L(B,.3,1.8,.02,.08,.26,.3,c.hex);X(B,0,2.16,0,.07,.03,.07,WHITE)}},   // batting helmet with an ear flap
+  {id:'hockey',name:'Hockey Player',hatFace:{y:1.79,cell:.03,flat:-.358},legs:h=>[1,h,h,WHITE,WHITE,0xb9c2cc],
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.lite,c.hex);
+      L(B,0,.86,0,.8,.24,.5,c.hex);for(const y of [.82,.92])L(B,0,y,0,.82,.035,.52,WHITE);          // the jersey's long hem and its stripes
+      L(B,-.27,1.36,-.24,.19,.19,.08,WHITE,-.4);L(B,.3,1.36,-.22,.19,.19,.08,WHITE);L(B,0,1.6,-.02,.38,.07,.38,WHITE);
+      gloves(B,c.lite,1.45);                                                        // padded gloves
+      back(B,c,()=>{pack(B,c.hex);num(B,9,0,1.26,.43,.22,WHITE)})},
+    hat(B,c){R(B,0,1.88,.02,.6,.52,.6,WHITE);X(B,0,1.79,-.33,.42,.3,.04,c.skin);if(!c.face)eyes(B,1.84,-.355);   // helmet, face opening
+      for(const x of [-.12,0,.12])X(B,x,1.76,-.375,.025,.34,.025,0xb9c2cc);for(const y of [1.66,1.78,1.9])X(B,0,y,-.375,.44,.025,.025,0xb9c2cc);X(B,0,2.17,0,.08,.03,.5,c.hex)}},   // cage, stripe
+  {id:'tennis',name:'Tennis Pro',legs:(h,sk)=>[0,WHITE,sk,WHITE,h,WHITE],
+    body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE);tee(B,WHITE);
+      L(B,-.12,1.57,-.2,.22,.1,.15,c.hex);L(B,.12,1.57,-.2,.22,.1,.15,c.hex);X(B,0,1.47,-.255,.04,.14,.03,c.hex);   // polo collar and placket
+      for(const s of [-1,1])X(B,s*.41,1.2,0,.04,.7,.3,c.hex);cuffs(B,c.hex);L(B,0,.9,0,.74,.08,.46,WHITE);        // side stripes, wristbands
+      back(B,c,()=>{R(B,0,1.18,.31,.4,.64,.2,c.hex);for(const s of [-1,1]){T(B,1,s*.1,1.64,.33,.22,.3,.05,WHITE,0,0,s*.2);T(B,0,s*.1,1.64,.36,.16,.22,.01,0xc9e86a,0,0,s*.2)}})},   // a racket bag, two rackets poking out
+    hat(B,c){R(B,0,2.07,0,.52,.15,.52,WHITE);L(B,0,2.02,-.27,.5,.06,.16,WHITE);L(B,0,1.98,0,.55,.06,.55,c.hex)}},
+  {id:'boxer',name:'Boxer',hatFace:{y:1.79,cell:.028,flat:-.338},legs:(h,sk)=>[0,h,sk,WHITE,WHITE,WHITE],
+    body(B,c){fitBase(B,c,c.hex,c.hex,0xe8453c,c.hex);                                            // a satin robe
+      R(B,0,.82,0,.76,.26,.5,c.hex);L(B,0,.71,0,.78,.05,.52,GOLD);L(B,0,.98,0,.74,.08,.47,c.lite);   // its skirt, gold hem, sash
+      T(B,0,-.1,1.32,-.255,.06,.56,.03,GOLD,0,0,.35);T(B,0,.1,1.32,-.255,.06,.56,.03,GOLD,0,0,-.35);cuffs(B,GOLD);   // gold trim
+      for(const [x,r] of [[-.1,-.4],[.3,0]])L(B,x,1.355,-.505,.22,.24,.26,0xe8453c,r);            // boxing gloves
+      back(B,c,()=>{R(B,0,1.24,.31,.6,.62,.16,c.hex);L(B,0,1.56,.33,.5,.2,.24,c.hex);X(B,0,1.3,.405,.36,.06,.02,GOLD);X(B,0,1.18,.405,.24,.06,.02,GOLD)})},   // the robe's back and its hood, down
+    hat(B,c){R(B,0,1.93,0,.56,.44,.56,0xe8453c);X(B,0,1.79,-.31,.36,.3,.04,c.skin);if(!c.face)eyes(B,1.83,-.335);X(B,0,2.0,-.315,.38,.06,.04,WHITE)}},   // head guard
+  {id:'cyclist',name:'Cyclist',legs:(h,sk)=>[1,h,WHITE,sk,sk,WHITE],
+    body(B,c){fitBase(B,c,c.hex,c.skin,c.skin,c.hex);tee(B,c.hex);
+      L(B,0,1.38,-.005,.72,.14,.44,0xffd23f);X(B,0,1.2,-.255,.035,.5,.03,WHITE);gloves(B,WHITE,1.05);   // chest band, zip, mitts
+      R(B,0,.9,0,.74,.08,.46,c.dark);
+      back(B,c,()=>{R(B,0,1.12,.3,.56,.3,.2,c.hex);for(const s of [-1,1])L(B,s*.14,1.34,.34,.13,.26,.13,s<0?WHITE:0x3fa9f5)})},   // jersey pockets and two bottles
+    hat(B,c){R(B,0,2.03,.06,.56,.26,.66,WHITE);T(B,1,0,1.98,.33,.22,.12,.26,WHITE,-.4,0,0);for(const x of [-.12,0,.12])X(B,x,2.17,.04,.05,.03,.5,c.hex);   // aero helmet, its tail, vents
+      if(!c.face)X(B,0,1.84,-.29,.46,.08,.03,0xff8a1f)}},                                          // orange glasses
+  {id:'swimmer',name:'Swim Team',legs:(h,sk)=>[1,h,sk,sk,sk,0x3fa9f5],
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
+      R(B,0,.8,0,.78,.3,.52,c.hex);X(B,0,1.1,-.27,.04,.9,.03,WHITE);for(const s of [-1,1])X(B,s*.425,1.0,0,.04,.6,.2,WHITE);   // a long parka, zip, side stripes
+      L(B,0,1.6,-.02,.46,.1,.44,WHITE);X(B,-.13,1.42,-.255,.1,.3,.04,WHITE);X(B,.13,1.42,-.255,.1,.3,.04,WHITE);cuffs(B,WHITE);   // a towel round the neck
+      back(B,c,()=>{R(B,0,1.36,.3,.5,.44,.22,c.hex);L(B,0,1.36,.4,.36,.3,.04,c.lite)})},           // the hood, down
+    hat(B,c){R(B,0,2.0,.03,.54,.32,.54,0xffd23f);X(B,0,1.97,-.3,.46,.04,.03,INK);for(const s of [-1,1])L(B,s*.1,1.97,-.31,.13,.08,.06,0x3fa9f5)}},   // swim cap and goggles
+  {id:'golfer',name:'Golfer',legs:h=>[1,WHITE,WHITE,h,h,WHITE],
+    body(B,c){fitBase(B,c,c.hex,WHITE,c.skin,WHITE,{torso:false});
+      bagPaint(B,0,1.22,0,.7,.72,.42,[4,4,3],c.hex,(f,i,j)=>f[0]==='z'&&(i+j)%2?c.lite:undefined);   // a diamond sweater vest
+      L(B,-.12,1.57,-.2,.22,.1,.15,WHITE);L(B,.12,1.57,-.2,.22,.1,.15,WHITE);L(B,-.1,1.355,-.505,.13,.15,.16,WHITE,-.4);R(B,0,.9,0,.74,.08,.46,WHITE);   // polo collar, one glove
+      back(B,c,()=>{R(B,0,1.2,.33,.3,.72,.26,WHITE);L(B,0,1.0,.33,.32,.08,.28,0xe8453c);for(const x of [-.07,0,.07]){T(B,0,x,1.64,.33,.04,.24,.04,0xb9c2cc);L(B,x,1.78,.33,.08,.08,.12,x?0xffd23f:0xe8453c)}})},   // a golf bag, clubs with covers
+    hat(B,c){R(B,0,2.08,0,.56,.15,.58,c.hex);L(B,0,2.02,-.28,.48,.05,.14,c.hex);L(B,0,2.18,0,.13,.1,.13,0xe8453c)}},   // flat cap with a bobble
+  {id:'skater',name:'Skateboarder',legs:0x5a8ad0,
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);tee(B,c.hex);
+      L(B,0,.86,0,.76,.2,.5,c.hex);T(B,0,.03,1.34,-.255,.07,.2,.03,0xffd23f,0,0,.4);T(B,0,-.03,1.22,-.255,.07,.2,.03,0xffd23f,0,0,.4);X(B,0,1.28,-.255,.1,.05,.03,0xffd23f);   // a long tee with a bolt
+      bands(B,0xe8453c);cuffs(B,WHITE);
+      back(B,c,()=>{pack(B,WHITE);T(B,1,0,1.24,.44,.3,.9,.05,0xffd23f,0,0,0);X(B,0,1.24,.47,.04,.8,.02,c.hex);for(const y of [.86,1.62])for(const s of [-1,1])X(B,s*.11,y,.47,.07,.07,.07,0xe8453c)})},   // a skateboard strapped on
+    hat(B,c){R(B,0,2.0,.02,.54,.3,.54,0xe8453c);L(B,0,1.9,.02,.57,.08,.57,0xc8382e)}},           // beanie
+  {id:'surfer',name:'Surfer',legs:(h,sk)=>[1,0x2fb8b0,h,h,h,sk],
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
+      for(const s of [-1,1])X(B,s*.41,1.2,0,.04,.7,.3,WHITE);X(B,0,1.52,-.24,.3,.08,.03,WHITE);R(B,0,.9,0,.74,.12,.46,0x2fb8b0);X(B,.2,.86,-.29,.12,.12,.02,0xffd23f);   // rash guard, board shorts with a flower
+      back(B,c,()=>{T(B,1,0,1.2,.44,.36,1.2,.06,WHITE,0,0,0);X(B,0,1.2,.475,.06,1.2,.02,c.hex);L(B,0,.7,.47,.04,.1,.08,0x2fb8b0)})},   // a surfboard on the back
+    hat(B,c){R(B,0,2.04,0,.7,.06,.7,0xffd23f);R(B,0,2.13,0,.48,.2,.48,0xffd23f);L(B,0,2.07,0,.5,.05,.5,c.hex)}},   // bucket hat
+  {id:'skier',name:'Skier',legs:h=>[1,h,WHITE,h,h,WHITE],
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.lite,c.hex);
+      for(const y of [1.0,1.2,1.4])L(B,0,y,0,.74,.06,.46,c.lite);L(B,0,1.58,0,.5,.14,.46,WHITE);X(B,0,1.24,-.27,.04,.6,.03,WHITE);X(B,-.2,1.3,-.275,.12,.1,.02,WHITE);   // puffy bands, collar, zip, lift pass
+      back(B,c,()=>{pack(B,WHITE);for(const s of [-1,1])T(B,1,0,1.24,.44,.08,1.3,.04,0xffd23f,0,0,s*.35)})},   // crossed skis over a pack
+    hat(B,c){R(B,0,2.0,.02,.6,.32,.6,WHITE);L(B,0,1.98,-.31,.46,.12,.06,0xff8a1f);X(B,0,1.98,-.27,.56,.04,.06,c.hex)}},   // helmet and goggles
+  {id:'pitcrew',name:'Pit Crew',legs:h=>h,
+    body(B,c){fitBase(B,c,c.hex,c.hex,WHITE,WHITE);
+      L(B,0,1.38,-.005,.72,.14,.44,WHITE);R(B,0,.9,0,.73,.1,.45,WHITE);X(B,.2,1.48,-.275,.14,.07,.02,0xffd23f);   // chest band, belt, a name tab
+      gloves(B,WHITE,1.1);
+      back(B,c,()=>{T(B,1,0,1.24,.36,.62,.62,.2,0x3a3e45);L(B,0,1.24,.47,.3,.3,.04,0xdfe4ea);L(B,0,1.24,.47,.5,.03,.03,0xffd23f)})},   // a spare tyre on the back
+    hat(B,c){R(B,0,2.07,0,.52,.15,.52,c.hex);R(B,0,2.02,.27,.5,.06,.16,WHITE);X(B,0,2.17,0,.62,.04,.06,0x3a3e45);for(const s of [-1,1])L(B,s*.3,1.82,0,.1,.22,.22,0x3a3e45);T(B,0,.2,1.7,-.22,.02,.02,.24,0x3a3e45,0,.6,0)}},   // cap backwards, a headset
+  {id:'referee',name:'Referee',
+    body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE,{torso:false});tee(B,WHITE);
+      bagPaint(B,0,1.22,0,.7,.72,.42,[8,4,6],WHITE,(f,i)=>f[0]!=='y'&&i%2?0x5a606b:undefined);   // stripes
+      L(B,0,1.6,-.02,.38,.07,.38,0x50555f);X(B,0,1.5,-.24,.03,.2,.03,0xe8453c);L(B,0,1.38,-.27,.08,.08,.06,0xb9c2cc);X(B,.2,1.4,-.27,.07,.11,.02,0xffd23f);R(B,0,.9,0,.74,.1,.46,0x2b2f36);   // collar, whistle, a yellow card
+      back(B,c,()=>{pack(B,c.hex);X(B,0,1.3,.43,.24,.06,.04,WHITE)})},
+    hat(B,c){R(B,0,2.07,0,.52,.15,.52,WHITE);L(B,0,2.02,-.27,.5,.06,.16,0x2b2f36);X(B,0,2.07,-.27,.1,.06,.02,c.hex)}},
+  {id:'coach',name:'Coach',legs:h=>[1,h,h,h,h,WHITE],
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
+      L(B,0,1.6,0,.44,.1,.4,WHITE);X(B,0,1.24,-.255,.035,.62,.04,WHITE);for(const s of [-1,1])X(B,s*.425,1.2,0,.04,.7,.08,WHITE);cuffs(B,WHITE);L(B,0,.9,0,.74,.1,.46,c.lite);   // tracksuit top
+      X(B,0,1.5,-.24,.03,.2,.03,0xffd23f);L(B,0,1.38,-.27,.08,.08,.06,0xb9c2cc);L(B,.2,1.3,-.27,.12,.12,.04,0xdfe4ea);X(B,.2,1.3,-.295,.06,.02,.01,0xe8453c);   // whistle, stopwatch
+      back(B,c,()=>{R(B,0,1.2,.32,.5,.5,.22,0xf2efe8);for(const [x,y,k] of [[-.12,1.32,0xf08a2a],[.12,1.32,WHITE],[0,1.12,0xffd23f]])L(B,x,y,.42,.18,.18,.1,k)})},   // a bag of balls
+    hat(B,c){R(B,0,2.07,0,.52,.15,.52,WHITE);L(B,0,2.02,-.27,.5,.06,.16,c.hex);X(B,0,2.08,-.27,.12,.06,.02,c.hex)}},
+  {id:'mascot',name:'Team Mascot',hatFace:{y:1.86,cell:.034,box:[1.9,0,.62,.6,.62]},legs:()=>[1,0xffc93c,0xff8a1f,0xffc93c,0xffc93c,0xff8a1f],
+    body(B,c){const Y=0xffc93c;fitBase(B,c,c.hex,Y,Y,c.hex,{hair:false});
+      R(B,0,.88,0,.72,.16,.44,c.hex);num(B,0,-.07,1.26,-.255,.2,WHITE,1);num(B,0,.07,1.26,-.255,.2,WHITE,1);L(B,0,1.6,-.02,.4,.08,.4,WHITE);   // jersey with 00
+      back(B,c,()=>{R(B,0,1.24,.3,.5,.56,.2,c.hex);for(let k=0;k<5;k++){const a=(k-2)*.32;T(B,1,Math.sin(a)*.26,.97+Math.cos(a)*.26,.42,.13,.42,.06,k%2?Y:0xff8a1f,0,0,-a)}})},   // the tail
+    hat(B,c){const Y=0xffc93c;R(B,0,1.9,0,.62,.6,.62,Y);if(!c.face){for(const s of [-1,1]){L(B,s*.13,1.98,-.32,.18,.2,.06,WHITE);X(B,s*.11,1.97,-.355,.07,.09,.02,INK)}}
+      T(B,1,0,1.8,-.36,.24,.13,.24,0xff8a1f,.4,0,0);for(let k=0;k<3;k++)T(B,0,(k-1)*.11,2.27,.02,.07,.26,.14,c.hex,0,0,(k-1)*-.4)}},   // a big bird head, eyes, beak, a crest in your colour
+  {id:'fencer',name:'Fencer',hatFace:{y:1.8,cell:.03,flat:-.39},legs:()=>[1,WHITE,WHITE,WHITE,WHITE,0xdfe4ea],
+    body(B,c){fitBase(B,c,WHITE,WHITE,WHITE,WHITE);
+      T(B,0,.12,1.3,-.255,.04,.6,.03,0xb9c2cc,0,0,.3);bands(B,c.hex);L(B,0,1.58,0,.44,.12,.44,WHITE);R(B,0,.9,0,.74,.08,.46,0xe6e2d8);   // jacket, its fastening, collar
+      back(B,c,()=>{T(B,1,0,1.2,.36,.2,1.1,.2,c.hex,0,0,.5);T(B,0,0,1.2,.47,.03,1.0,.02,WHITE,0,0,.5);X(B,0,1.3,.27,.4,.3,.08,c.hex)})},   // a long kit bag across the back
+    hat(B,c){R(B,0,1.84,-.02,.56,.6,.62,WHITE);X(B,0,1.8,-.36,.42,.42,.04,0x8d96a0);for(const y of [1.66,1.74,1.82,1.9])X(B,0,y,-.385,.42,.012,.01,0xb9c2cc);L(B,0,1.56,-.27,.4,.14,.1,WHITE)}},   // mask, mesh, bib
+  {id:'karate',name:'Karate',legs:()=>[1,WHITE,WHITE,WHITE,WHITE,WHITE],
+    body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE);
+      T(B,0,-.07,1.36,-.252,.1,.5,.04,0xe6e2d8,0,0,-.5);T(B,0,.07,1.36,-.256,.1,.5,.04,0xe6e2d8,0,0,.5);   // the jacket crossing over
+      R(B,0,.92,0,.75,.1,.47,c.hex);L(B,0,.9,-.28,.12,.1,.06,c.hex);for(const s of [-1,1])T(B,0,s*.05,.78,-.28,.05,.22,.03,c.hex,0,0,s*.25);   // belt in your colour, knot and ends
+      back(B,c,()=>{T(B,1,0,1.36,.36,.24,.7,.24,0x3fa9f5,0,0,Math.PI/2);for(const s of [-1,1])X(B,s*.18,1.36,.36,.04,.26,.26,0xffd23f)})},   // a rolled mat
+    hat(B,c){hairUp(B,c);L(B,0,1.96,0,.56,.07,.56,c.hex);for(const s of [-1,1])T(B,1,s*.06,1.86,.32,.06,.24,.04,c.hex,.4,0,s*.3)}},   // a headband and its tails
+  {id:'cheer',name:'Cheer Captain',legs:()=>[1,WHITE,WHITE,WHITE,WHITE,WHITE],
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);
+      R(B,0,.84,0,.78,.24,.52,c.hex);for(const y of [.76,.8])L(B,0,y,0,.8,.02,.54,WHITE);T(B,0,-.1,1.45,-.255,.06,.3,.03,WHITE,0,0,.5);T(B,0,.1,1.45,-.255,.06,.3,.03,WHITE,0,0,-.5);   // pleated skirt, a white V
+      T(B,0,0,1.22,-.26,.1,.1,.02,0xffd23f,0,0,.785);
+      back(B,c,()=>{for(const s of [-1,1])R(B,s*.16,1.24,.34,.3,.3,.24,s<0?0xffd23f:c.lite)})},   // two pom-poms
+    hat(B,c){R(B,0,2.02,.04,.52,.26,.5,c.hair);L(B,0,2.06,.28,.16,.34,.16,c.hair);for(const s of [-1,1])T(B,1,s*.1,2.18,.2,.16,.1,.06,c.hex,0,0,s*.3)}},   // ponytail and a bow
+  {id:'jockey',name:'Jockey',legs:()=>[1,WHITE,0x3a3e45,0x3a3e45,0x3a3e45,0x2a2d34],
+    body(B,c){fitBase(B,c,c.hex,c.hex,WHITE,0xffd23f,{torso:false});
+      bagPaint(B,0,1.22,0,.7,.72,.42,[6,6,3],c.hex,(f,i,j)=>(i+j)%2?0xffd23f:undefined);   // racing silks
+      L(B,0,1.6,0,.38,.08,.38,WHITE);cuffs(B,0xffd23f);R(B,0,.9,0,.74,.08,.46,WHITE);
+      back(B,c,()=>{pack(B,0xe8453c);for(const [x,y] of [[-.1,1.18],[-.12,1.3],[-.06,1.39],[.06,1.39],[.12,1.3],[.1,1.18]])X(B,x,y,.43,.07,.07,.04,GOLD)})},   // a saddle bag with a horseshoe
+    hat(B,c){R(B,0,2.0,.02,.56,.3,.56,c.hex);L(B,0,1.94,-.29,.48,.04,.14,c.hex);L(B,0,2.17,0,.12,.1,.12,0xffd23f);X(B,0,2.0,-.31,.4,.06,.04,0xb9c2cc)}},   // silk cap, peak, bobble, goggles up
+  // pirates (each with an eye patch)
+  {id:'pcaptain',name:'Pirate Captain',legs:()=>[1,CREAM,0xb85a3a,0xb85a3a,0xb85a3a,0x8a3a2a],
+    body(B,c){const RC=0xff6a55;fitBase(B,c,RC,RC,c.skin,RC);c.face||eyes(B);patch(B,c);
+      R(B,0,.8,0,.76,.3,.5,RC);X(B,0,.66,0,.88,.04,.58,GOLD);                                        // the coat's long skirt, gold hem
+      X(B,0,1.38,-.25,.24,.36,.04,WHITE);for(let k=0;k<3;k++)X(B,0,1.5-k*.09,-.275,.16-k*.02,.05,.04,WHITE);   // shirt front and ruffles
+      for(const s of [-1,1])X(B,s*.2,1.24,-.26,.06,.6,.03,GOLD);L(B,0,.98,0,.75,.1,.47,0xb85a3a);X(B,0,.98,-.3,.14,.13,.03,GOLD);   // gold edges, belt and buckle
+      L(B,.4,1.69,.03,.13,.2,.15,0xe8453c);L(B,.4,1.83,0,.12,.12,.12,0xe8453c);X(B,.4,1.81,-.08,.05,.06,.05,0xffd23f);X(B,.47,1.69,.04,.03,.16,.12,0x3a7ad0);T(B,0,.4,1.55,.14,.06,.22,.04,0x3a7ad0,.6,0,0);X(B,.37,1.85,-.06,.025,.025,.02,INK);   // a parrot on the shoulder
+      back(B,c,()=>{L(B,0,1.12,.32,.66,.86,.14,RC);T(B,1,0,1.34,.42,.16,.48,.16,CREAM,0,0,Math.PI/2);for(const s of [-1,1])X(B,s*.25,1.34,.42,.04,.18,.18,0xc9a24a)})},   // the coat's back and a rolled-up map
+    hat(B,c){tricorne(B,0x6a7ac0,GOLD)}},
+  {id:'deckhand',name:'Pirate Deckhand',legs:(h,sk)=>[1,h,sk,h,h,sk],
+    body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE,{torso:false});c.face||eyes(B);patch(B,c);
+      bagPaint(B,0,1.22,0,.7,.72,.42,[4,4,3],WHITE,(f,i,j)=>f[0]!=='y'&&j%2?0x3a7ad0:undefined);   // a striped shirt
+      L(B,0,.94,0,.75,.12,.47,0xe8453c);T(B,0,.3,.82,-.2,.06,.24,.04,0xe8453c,0,0,.3);L(B,.29,1.7,0,.04,.08,.08,GOLD);   // a sash and an earring
+      back(B,c,()=>{R(B,0,1.22,.33,.46,.56,.24,0xd98a4a);for(const y of [1.0,1.44])L(B,0,y,.33,.48,.04,.26,0xb9c2cc)})},   // a barrel
+    hat(B,c){R(B,0,2.0,.03,.54,.3,.54,0xe8453c);for(const [x,y] of [[-.12,2.08],[.1,2.02],[.02,2.12],[-.03,1.98]])X(B,x,y,-.282,.05,.05,.02,WHITE);L(B,0,1.92,.3,.12,.1,.08,0xe8453c);for(const s of [-1,1])T(B,0,s*.04,1.82,.33,.06,.2,.03,0xe8453c,0,0,s*.3)}},   // a spotted bandana and its knot
+  {id:'firstmate',name:'Pirate First Mate',legs:h=>[1,h,WHITE,WHITE,WHITE,0x4a2e1a],
+    body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE);c.face||eyes(B);patch(B,c);
+      L(B,0,1.22,-.2,.5,.66,.12,c.hex);L(B,0,1.22,.2,.5,.66,.12,c.hex);for(const y of [1.36,1.22,1.08])X(B,0,y,-.27,.05,.05,.02,GOLD);L(B,0,.92,0,.75,.12,.47,0xffd23f);   // a waistcoat, buttons, a sash
+      L(B,-.1,1.355,-.505,.16,.18,.18,GOLD,-.4);T(B,0,-.1,1.36,-.505,.035,.035,.46,0xdfe4ea,.55,-.4,0);   // a hook for a hand
+      back(B,c,()=>{R(B,0,1.24,.33,.5,.5,.18,0xf2e6c8);L(B,0,1.24,.42,.36,.36,.04,0xe8dcc0);L(B,0,1.24,.44,.18,.18,.04,0xf2e6c8)})},   // a coil of rope
+    hat(B,c){R(B,0,2.04,0,.84,.05,.84,0x8a5ab0);R(B,0,2.16,0,.46,.22,.46,0x8a5ab0);L(B,0,2.08,0,.49,.06,.49,0xffd23f);T(B,0,-.24,2.28,.08,.1,.42,.12,WHITE,-.3,0,.6)}},   // a wide hat with a white feather
+  {id:'ghostpirate',name:'Ghost Pirate',skin:0xd8f6f0,legs:()=>[1,0xbfeee6,0x9fdcd2,0xbfeee6,0xbfeee6,0x8fc8c0],
+    body(B,c){const G1=0xbfeee6,G2=0x9fdcd2,G3=0x6ab8b0;fitBase(B,c,G1,G1,c.skin,G1,{hair:false});
+      if(!c.face){X(B,-.085,1.8,-.288,.07,.07,.03,0x2a8a8a);X(B,0,1.66,-.288,.16,.04,.03,0x2a8a8a)}patch(B,c,G3);   // one glowing eye, a grin, a patch
+      R(B,0,.8,0,.8,.3,.52,G1);for(let k=0;k<7;k++)for(const z of [-.29,.29])T(B,0,-.36+k*.12,.66,z,.09,.09,.03,G2,0,0,.785);   // a tattered coat
+      X(B,0,1.38,-.25,.24,.36,.04,WHITE);for(const s of [-1,1])X(B,s*.2,1.24,-.26,.06,.6,.03,G3);
+      back(B,c,()=>{L(B,0,1.16,.33,.64,.8,.14,G2);for(let k=0;k<5;k++)T(B,0,-.24+k*.12,.76,.37,.1,.1,.04,G2,0,0,.785);T(B,1,0,1.4,.42,.14,.4,.14,0xe6fffb,0,0,Math.PI/2)})},   // its back, ragged, a ghostly spyglass
+    hat(B,c){tricorne(B,0x6ab8b0,0xe6fffb)}},
+  // suits: costume-party style, light cloth so nobody is harder to see than the standard
+  {id:'pinstripe',name:'Pinstripe Suit',legs:()=>[1,0xb4bac6,WHITE,0xb4bac6,0xb4bac6,0x6a4a3a],
+    body(B,c){const SU=0xb4bac6;fitBase(B,c,SU,SU,c.skin,SU,{torso:false});c.face||eyes(B);
+      bagPaint(B,0,1.22,0,.7,.72,.42,[6,4,4],SU,(f,i)=>f[0]!=='y'&&i%2?0xe8ecf2:undefined);     // pinstripes
+      tie(B,WHITE,c.hex);lapels(B,0x9aa1ae);X(B,.2,1.4,-.27,.08,.05,.02,c.hex);L(B,0,.9,0,.74,.08,.46,0x9aa1ae);cuffs(B,WHITE);   // shirt and tie, lapels, pocket square
+      back(B,c,()=>{R(B,0,1.2,.33,.56,.42,.22,0x3a7ad0);for(const x of [-.16,.16])X(B,x,1.2,.455,.05,.44,.02,GOLD);X(B,-.02,1.28,.455,.12,.1,.02,0xffd23f);X(B,.06,1.12,.455,.1,.1,.02,0xff6fb5)})},   // a travel trunk with stickers
+    hat(B,c){fedora(B,0xc9ced8,c.hex)}},
+  {id:'boss',name:'The Boss',legs:()=>[1,0x8a8f9a,0x8a8f9a,0x8a8f9a,0x8a8f9a,0x4a3a30],
+    body(B,c){const CO=0xa8b4cc,FU=0xf4ece0;fitBase(B,c,CO,CO,c.skin,CO);c.face||eyes(B);shades(B,c);
+      R(B,0,.78,0,.76,.34,.46,CO);X(B,0,1.1,-.29,.04,.9,.03,0x8a96b0);for(const y of [1.3,1.06,.82])for(const s of [-1,1])X(B,s*.1,y,-.295,.05,.05,.02,GOLD);   // a long coat, its edge, gold buttons
+      L(B,0,1.58,0,.66,.16,.5,FU);L(B,0,1.46,-.2,.2,.2,.1,FU);L(B,-.184,1.36,-.443,.22,.22,.14,FU,-.4);L(B,.3,1.36,-.44,.22,.22,.14,FU);   // fur collar and cuffs
+      for(let k=0;k<7;k++){const a=(k/6-.5)*2.2;T(B,0,.2*Math.sin(a)/Math.sin(1.1),1.3+.26*(1-Math.cos(a))/(1-Math.cos(1.1)),-.268,.05,.05,.03,GOLD,0,0,.785)}   // a gold chain
+      back(B,c,()=>{L(B,0,1.14,.32,.6,.84,.16,CO);L(B,0,1.5,.34,.5,.14,.16,FU)})},                   // the coat's long back
+    hat(B,c){R(B,0,2.06,0,.6,.32,.56,0xf4ece0);L(B,0,1.94,0,.62,.08,.6,0xe6dccb)}},             // a tall fur hat
+  {id:'tracksuit',name:'Tracksuit and Chain',legs:h=>[1,h,h,h,h,WHITE],
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);c.face||eyes(B);
+      L(B,0,1.6,0,.44,.1,.4,WHITE);X(B,0,1.24,-.255,.035,.62,.04,WHITE);for(const s of [-1,1])for(const z of [-.04,.04])X(B,s*.425,1.2,z,.04,.7,.03,WHITE);cuffs(B,WHITE);   // collar, zip, two pipings
+      for(let k=0;k<9;k++){const a=(k/8-.5)*2.2;T(B,0,.2*Math.sin(a)/Math.sin(1.1),1.32+.26*(1-Math.cos(a))/(1-Math.cos(1.1)),-.268,.055,.055,.03,GOLD,0,0,.785)}L(B,0,1.26,-.275,.12,.12,.04,GOLD);   // a chunky gold chain and medallion
+      back(B,c,()=>{R(B,0,1.24,.33,.56,.34,.2,0xc9d1da);for(const s of [-1,1])L(B,s*.15,1.22,.44,.16,.16,.04,0x5a606b);X(B,0,1.36,.44,.12,.04,.02,c.hex);X(B,0,1.44,.33,.4,.03,.03,0x8d96a0)})},   // a boombox
+    hat(B,c){R(B,0,2.08,0,.56,.15,.58,0xc9ced8);L(B,0,2.02,-.28,.48,.05,.14,0xc9ced8)}},          // flat cap
+  {id:'bodyguard',name:'Bodyguard',legs:()=>[1,0xb0c4ea,0xb0c4ea,0xb0c4ea,0xb0c4ea,0x2a2d34],
+    body(B,c){const SU=0xb0c4ea;fitBase(B,c,SU,SU,c.skin,SU);c.face||eyes(B);shades(B,c);
+      tie(B,WHITE,0x3a3e45);lapels(B,0xa0b4dc);L(B,0,.9,0,.74,.08,.46,0xa0b4dc);
+      L(B,-.28,1.74,0,.05,.06,.06,0xdfe4ea);T(B,0,-.26,1.6,.04,.02,.26,.02,0xdfe4ea,0,0,.2);       // an earpiece and its cord
+      back(B,c,()=>{R(B,0,1.2,.32,.5,.42,.18,0xb9c2cc);T(B,1,0,1.24,.42,.12,1.1,.12,c.hex,0,0,.4);L(B,-.25,.76,.42,.08,.14,.08,0x3a3e45)})},   // a case and a folded umbrella
+    hat(B,c){hairUp(B,c)}},
+  {id:'tuxedo',name:'White Tuxedo',
+    body(B,c){fitBase(B,c,WHITE,WHITE,c.skin,WHITE);c.face||eyes(B);
+      L(B,0,1.44,-.2,.24,.34,.14,0xffffff);lapels(B,0x3a3e45);for(const s of [-1,1])T(B,0,s*.06,1.56,-.28,.1,.07,.03,c.hex,0,0,s*.3);X(B,0,1.56,-.285,.05,.05,.03,c.hex);   // shirt, dark lapels, bow tie
+      R(B,0,1.0,0,.74,.12,.46,c.hex);X(B,.2,1.42,-.27,.06,.06,.03,0xe8453c);cuffs(B,WHITE);         // sash, a flower
+      back(B,c,()=>{R(B,0,1.04,.3,.56,.7,.14,WHITE);X(B,0,.9,.405,.03,.42,.02,0xd8dce4)})},             // the tails
+    hat(B,c){R(B,0,2.03,0,.7,.05,.7,0x9aa1ae);R(B,0,2.24,0,.44,.42,.44,0x9aa1ae);L(B,0,2.1,0,.47,.07,.47,c.hex)}},   // a grey top hat
+  {id:'business',name:'Business Suit',legs:()=>[1,0xbccce8,0xbccce8,0xbccce8,0xbccce8,0x3a2a22],
+    body(B,c){const SU=0xbccce8;fitBase(B,c,SU,SU,c.skin,SU);c.face||eyes(B);
+      tie(B,WHITE,c.hex);lapels(B,0xacbce0);X(B,-.2,1.3,-.27,.1,.12,.02,WHITE);L(B,0,.9,0,.74,.08,.46,0xacbce0);cuffs(B,WHITE);   // tie, lapels, a name badge
+      back(B,c,()=>{R(B,0,1.2,.33,.56,.42,.2,0xa8384a);X(B,0,1.44,.33,.2,.06,.06,0x8d96a0);X(B,0,1.2,.445,.12,.06,.02,GOLD)})},   // a briefcase
+    hat(B,c){hairUp(B,c);X(B,-.12,2.15,-.1,.03,.03,.4,shadeOf(c.hair,1.3))}},                       // neat hair with a parting
+  {id:'agent',name:'Secret Agent',legs:()=>[1,0xb9c2cc,0xb9c2cc,0xb9c2cc,0xb9c2cc,0x5a606b],
+    body(B,c){const SG=0xb9c2cc;fitBase(B,c,SG,SG,0x8d96a0,SG);c.face||eyes(B);
+      L(B,0,1.58,0,.46,.14,.44,SG);for(const s of [-1,1]){X(B,s*.17,1.3,-.255,.07,.56,.04,c.hex);X(B,s*.17,1.3,.255,.07,.56,.04,c.hex)}X(B,0,1.2,-.26,.4,.07,.04,c.hex);   // turtleneck, a harness
+      L(B,0,.9,0,.74,.1,.46,0x8d96a0);L(B,.3,1.36,-.4,.2,.2,.08,0x5a606b);X(B,.3,1.42,-.4,.08,.02,.06,0x8fe3ff);   // utility belt, a gadget watch
+      back(B,c,()=>{pack(B,0x9aa3ad);L(B,0,1.24,.44,.24,.24,.06,c.hex);X(B,0,1.24,.475,.08,.08,.02,0xdfe4ea)})},   // a winch pack
+    hat(B,c){hairUp(B,c);X(B,0,1.98,-.27,.56,.05,.06,0x5a606b);for(const s of [-1,1]){L(B,s*.1,2.0,-.32,.12,.1,.12,0x8d96a0);X(B,s*.1,2.0,-.385,.07,.05,.02,c.hex)}}},   // goggles pushed up
+  {id:'detective',name:'Detective',legs:()=>[1,0x8a96a8,0x8a96a8,0x8a96a8,0x8a96a8,0x3a2a22],
+    body(B,c){const TC=0xb8c2d0,TD=0x98a4b6;fitBase(B,c,TC,TC,c.skin,TC);c.face||eyes(B);
+      L(B,0,.8,0,.8,.3,.52,TC);L(B,0,1.6,.02,.6,.16,.52,TC);for(const y of [1.36,1.12])for(const s of [-1,1])X(B,s*.12,y,-.27,.05,.05,.02,TD);   // a trench coat, popped collar, buttons
+      L(B,0,.98,0,.75,.1,.47,TD);X(B,0,.98,-.3,.12,.1,.03,0xdfe4ea);cuffs(B,TD);
+      back(B,c,()=>{pack(B,c.hex);L(B,0,1.26,.44,.26,.26,.04,GOLD);X(B,0,1.26,.465,.18,.18,.02,LENS);T(B,0,.16,1.08,.44,.05,.2,.04,0x8a5a2b,0,0,.7)})},   // a satchel with a big magnifying glass
+    hat(B,c){fedora(B,0x8a96a8,c.hex)}},
+  // robots
+  {id:'android',name:'Android',skin:0xeef2f6,hatFace:{y:1.82,cell:.032,flat:-.336},legs:()=>[1,0xeef2f6,0xb9c2cc,0xeef2f6,0xeef2f6,0x9aa3ad],
+    body(B,c){const W=0xeef2f6,S=0xb9c2cc;fitBase(B,c,W,W,S,W,{hair:false});
+      X(B,0,1.22,-.255,.03,.7,.02,c.hex);for(const s of [-1,1]){T(B,0,s*.13,1.44,-.255,.03,.3,.02,c.hex,0,0,s*.7);X(B,s*.425,1.2,0,.02,.7,.04,c.hex)}   // glowing seams
+      L(B,0,1.3,-.21,.2,.2,.06,c.lite);L(B,0,.9,0,.74,.08,.46,S);bands(B,S);
+      back(B,c,()=>{R(B,0,1.26,.31,.46,.56,.2,W);for(const s of [-1,1])T(B,1,s*.2,1.4,.42,.06,.4,.16,S,0,0,s*.4);X(B,0,1.26,.425,.04,.4,.02,c.hex)})},   // a sleek pack with two fins
+    hat(B,c){R(B,0,1.84,0,.56,.6,.56,0xeef2f6);if(!c.face)X(B,0,1.84,-.31,.46,.14,.04,c.hex);X(B,0,2.03,-.3,.04,.12,.04,c.hex);for(const s of [-1,1])L(B,s*.3,1.82,0,.06,.2,.2,0xb9c2cc)}},   // a smooth head, a glowing visor, ear discs
+  {id:'mechpilot',name:'Mech Pilot',hatFace:{y:1.81,cell:.034,flat:-.401},legs:()=>[1,0xf2efe8,0xff8a3a,0xff8a3a,0xff8a3a,0x5a606b],
+    body(B,c){const O=0xff8a3a,W=0xf2efe8;fitBase(B,c,W,O,W,O);
+      L(B,0,1.32,-.2,.56,.44,.16,O);X(B,0,1.36,-.29,.3,.06,.03,c.hex);X(B,0,1.24,-.29,.3,.06,.03,c.hex);   // chest armour with stripes
+      L(B,0,.9,0,.74,.1,.46,0x8d96a0);X(B,0,.9,-.29,.14,.1,.03,c.hex);
+      back(B,c,()=>{R(B,0,1.26,.31,.56,.6,.22,0xdfe4ea);for(const s of [-1,1]){L(B,s*.16,1.32,.44,.14,.3,.04,c.lite);T(B,0,s*.3,1.66,.32,.04,.3,.04,0x8d96a0,0,0,s*.2)}})},   // a power frame with vents
+    hat(B,c){R(B,0,1.83,0,.64,.62,.64,0xf2efe8);if(c.face)X(B,0,1.81,-.365,.46,.37,.06,c.skin);else X(B,0,1.84,-.36,.48,.22,.06,c.hex);X(B,0,2.17,0,.14,.06,.56,0xff8a3a);X(B,.24,2.3,.1,.03,.3,.03,0x8d96a0);L(B,.24,2.46,.1,.06,.06,.06,0xe8453c)}},   // helmet, visor, stripe, aerial
+  {id:'junkbot',name:'Junkyard Bot',skin:0xc9d1da,hatFace:{y:1.8,box:[1.81,0,.62,.58,.6],flat:-.31},legs:()=>[1,0xb9c2cc,0xd0743a,0xb9c2cc,0xb9c2cc,0x8d96a0],
+    body(B,c){const RU=0xd0743a,TL=0x5ab8b0,TN=0xc9d1da;fitBase(B,c,TN,RU,TN,RU,{hair:false});
+      X(B,-.17,1.36,-.255,.2,.22,.03,TL);X(B,.18,1.1,-.255,.18,.14,.03,RU);X(B,.12,1.38,.255,.22,.2,.03,TL);for(const [x,y] of [[-.25,1.46],[-.09,1.46],[-.25,1.26],[-.09,1.26]])X(B,x,y,-.272,.03,.03,.02,0x8d96a0);   // patches and rivets
+      L(B,0,.9,0,.74,.1,.46,0x8d96a0);X(B,0,1.1,-.26,.06,.06,.03,c.hex);
+      back(B,c,()=>{R(B,0,1.24,.31,.46,.52,.2,RU);T(B,1,.16,1.6,.38,.1,.5,.1,0x9aa3ad,0,0,0);L(B,.16,1.86,.38,.14,.06,.14,0x8d96a0);L(B,-.1,1.28,.43,.2,.2,.06,TL);X(B,-.1,1.28,.465,.08,.08,.02,c.hex)})},   // a rusty box, an exhaust pipe, a gear
+    hat(B,c){X(B,0,1.81,0,.62,.58,.6,0xc9d1da);X(B,.2,1.98,-.305,.12,.1,.02,0xd0743a);if(!c.face){L(B,-.13,1.86,-.31,.16,.16,.04,LENS);L(B,.13,1.88,-.31,.1,.1,.04,0xffd23f);X(B,0,1.68,-.305,.3,.05,.02,0x5a606b)}
+      for(let k=0;k<5;k++)T(B,0,-.15+(k%2?.04:-.04),2.14+k*.05,0,.1,.025,.025,0x8d96a0,0,0,k%2?.4:-.4);L(B,-.15,2.4,0,.08,.08,.08,0xe8453c)}},   // tin head, odd eyes, a spring aerial
+  {id:'vacbot',name:'Vacuum Bot',skin:0xdfe4ea,hatFace:{y:1.84,box:[1.88,0,.62,.5,.62]},legs:()=>[1,0x9ab0d0,0xdfe4ea,0x9ab0d0,0x9ab0d0,0x5a606b],
+    body(B,c){const BL=0x9ab0d0;fitBase(B,c,BL,BL,0xdfe4ea,0xdfe4ea,{hair:false});
+      L(B,0,1.3,-.21,.4,.3,.08,0xdfe4ea);for(const x of [-.1,0,.1])X(B,x,1.3,-.26,.06,.2,.02,0x5a606b);L(B,0,.9,0,.74,.1,.46,c.hex);bands(B,c.hex);   // a grille, a bumper belt
+      back(B,c,()=>{R(B,0,1.24,.32,.36,.6,.24,0xc9e6f4);for(const [x,y] of [[-.06,1.0],[.05,1.06],[0,.96]])X(B,x,y,.45,.05,.05,.02,0xb9a8c8);L(B,0,1.62,.32,.3,.08,.26,c.hex);T(B,1,.24,1.5,.18,.08,.08,.4,0x5a606b,.3,0,0)})},   // a clear dust tank and its hose
+    hat(B,c){R(B,0,1.88,0,.62,.5,.62,0xdfe4ea);L(B,0,1.7,0,.66,.08,.66,c.hex);if(!c.face)L(B,0,1.9,-.33,.26,.1,.04,LENS);L(B,0,2.17,0,.12,.06,.12,0xe8453c)}},   // a dome head, bumper, sensor, light
+  // and more
+  {id:'firefighter',name:'Firefighter',legs:()=>[1,0xf2c84a,0xd9e0e8,0xf2c84a,0xf2c84a,0x5a606b],
+    body(B,c){const Y=0xf2c84a;fitBase(B,c,Y,Y,0xb9c2cc,Y);c.face||eyes(B);
+      for(const y of [1.0,1.3])L(B,0,y,0,.74,.05,.46,0xd9e0e8);bands(B,0xd9e0e8);for(const y of [1.42,1.16])X(B,0,y,-.27,.08,.05,.03,0x5a606b);L(B,0,1.58,0,.5,.14,.46,Y);   // reflective bands, clips, collar
+      back(B,c,()=>{R(B,0,1.26,.33,.3,.66,.24,0xdfe4ea);L(B,0,1.64,.33,.1,.1,.1,0x8d96a0);for(const s of [-1,1])X(B,s*.2,1.26,.26,.07,.6,.04,0x5a606b)})},   // an air tank and its straps
+    hat(B,c){R(B,0,2.0,.02,.58,.3,.6,0xe8453c);R(B,0,1.94,.04,.72,.05,.7,0xe8453c);L(B,0,2.02,-.33,.2,.2,.04,GOLD)}},   // a helmet with a long brim and a gold shield
+  {id:'rockstar',name:'Rock Star',legs:0xc4baf8,
+    body(B,c){fitBase(B,c,0xffa090,0xffa090,c.skin,0xffa090);shades(B,c,0xff6fb5);c.face||eyes(B,1.8,-.28);
+      for(const [x,y] of [[-.2,1.46],[-.2,1.32],[-.2,1.18],[.2,1.46],[.2,1.32],[.2,1.18]])X(B,x,y,-.262,.04,.04,.02,0xdfe4ea);lapels(B,0xffb0a4);L(B,0,.9,0,.74,.08,.46,0xdfe4ea);   // studs, a silver belt
+      back(B,c,()=>{pack(B,0xffa090);T(B,1,-.06,1.0,.44,.36,.42,.08,c.hex,0,0,.5);T(B,0,.16,1.42,.44,.07,.7,.04,0xf4e6c8,0,0,.5);T(B,0,.32,1.74,.44,.1,.14,.05,c.hex,0,0,.5)})},   // an electric guitar slung on the back
+    hat(B,c){hairUp(B,c);for(let k=0;k<5;k++)T(B,1,(k-2)*.11,2.2,.02,.1,.26,.1,c.hair,0,0,(k-2)*-.3)}},   // spiky hair
+  {id:'dj',name:'DJ',legs:0x5a8ad0,
+    body(B,c){fitBase(B,c,c.hex,c.hex,c.skin,c.hex);c.face||eyes(B);
+      L(B,0,.9,0,.74,.12,.46,c.lite);L(B,0,1.06,-.2,.46,.2,.14,c.lite);for(const s of [-1,1])X(B,s*.07,1.5,-.25,.025,.2,.05,WHITE);cuffs(B,c.lite);   // a hoodie: hem, pocket, drawstrings
+      back(B,c,()=>{R(B,0,1.22,.33,.52,.46,.22,0xffd23f);for(let k=0;k<5;k++)X(B,-.16+k*.08,1.48,.33,.025,.06,.36,k%2?0x5a606b:0xff6fb5)})},   // a crate of records
+    hat(B,c){R(B,0,2.07,0,.52,.15,.52,WHITE);R(B,0,2.02,.27,.5,.06,.16,c.hex);X(B,0,2.16,0,.64,.05,.08,WHITE);for(const s of [-1,1]){L(B,s*.31,1.84,0,.12,.26,.26,WHITE);X(B,s*.38,1.84,0,.02,.16,.16,c.hex)}}},   // cap backwards and big headphones
+  {id:'hero',name:'Superhero',legs:h=>[1,h,0xffd23f,0xffd23f,0xffd23f,0xffd23f],
+    body(B,c){fitBase(B,c,c.hex,c.hex,0xffd23f,c.hex);if(c.face)X(B,0,1.99,-.262,.3,.06,.03,INK);else{X(B,0,1.83,-.29,.42,.1,.03,INK);eyes(B,1.83,-.296)}   // a mask (pushed up under a drawn face)
+      L(B,0,1.32,-.21,.3,.3,.06,WHITE);T(B,0,.02,1.36,-.255,.05,.14,.02,0xffd23f,0,0,-.4);T(B,0,-.02,1.26,-.255,.05,.14,.02,0xffd23f,0,0,-.4);X(B,0,1.31,-.255,.08,.03,.02,0xffd23f);   // a lightning emblem
+      R(B,0,.9,0,.74,.1,.46,0xffd23f);X(B,0,.9,-.29,.14,.1,.03,c.lite);gloves(B,0xffd23f,1.1);
+      back(B,c,()=>{R(B,0,1.1,.33,.66,.98,.12,c.lite);L(B,0,1.58,.2,.6,.12,.24,c.lite)})},          // a cape
+    hat(B,c){hairUp(B,c)}},
+  {id:'wrestler',name:'Masked Wrestler',hatFace:{y:1.8,cell:.03,box:[1.82,0,.52,.54,.52]},legs:h=>[1,h,WHITE,h,h,WHITE],
+    body(B,c){fitBase(B,c,c.hex,c.skin,c.skin,c.skin);
+      for(const s of [-1,1]){X(B,s*.3,1.42,-.24,.05,.34,.05,c.lite);X(B,s*.3,1.42,.24,.05,.34,.05,c.lite)}cuffs(B,WHITE);   // a singlet, taped wrists
+      R(B,0,.96,0,.76,.18,.48,GOLD);L(B,0,.96,-.27,.3,.22,.06,0xffe98f);X(B,0,.96,-.305,.14,.1,.02,0xe8453c);   // a championship belt
+      back(B,c,()=>{R(B,0,1.18,.32,.62,.82,.14,0xffd23f);L(B,0,1.58,.22,.6,.12,.22,0xffd23f)})},       // a cape
+    hat(B,c){R(B,0,1.82,0,.52,.54,.52,c.hex);L(B,0,2.12,0,.08,.14,.42,WHITE);if(!c.face){for(const s of [-1,1]){L(B,s*.1,1.84,-.28,.16,.12,.04,WHITE);X(B,s*.1,1.84,-.31,.06,.06,.02,INK)}X(B,0,1.68,-.295,.14,.06,.02,c.skin)}
+      for(const s of [-1,1])T(B,0,s*.18,1.98,-.27,.05,.18,.03,0xffd23f,0,0,s*.5)}},                 // a mask with a crest and flames
+  {id:'samurai',name:'Samurai Armour',legs:()=>[1,0x9aa8e8,0x8d96a0,0x9aa8e8,0x9aa8e8,0x8d96a0],
+    body(B,c){const RD=0xff7a68;fitBase(B,c,RD,0x9aa8e8,c.skin,RD);c.face||eyes(B);
+      for(const y of [1.08,1.2,1.32,1.44])X(B,0,y,-.255,.6,.025,.03,GOLD);for(const s of [-1,1])T(B,1,s*.44,1.38,0,.06,.34,.3,RD,0,0,-s*.15);   // laced chest plates, shoulder guards
+      R(B,0,.8,0,.8,.28,.52,RD);X(B,0,.72,0,.92,.02,.6,GOLD);
+      back(B,c,()=>{L(B,0,1.24,.31,.44,.5,.2,RD);T(B,0,0,1.85,.36,.04,1.3,.04,0x8d96a0);X(B,0,2.15,.38,.3,.5,.02,c.hex);T(B,0,0,2.15,.395,.12,.12,.02,GOLD,0,0,.785)})},   // a small banner on a pole
+    hat(B,c){R(B,0,1.98,.02,.6,.32,.6,0xff7a68);L(B,0,1.8,.16,.72,.14,.5,0xff7a68);L(B,0,2.02,-.3,.16,.12,.04,GOLD);for(const s of [-1,1])T(B,0,s*.12,2.2,-.28,.04,.3,.03,GOLD,0,0,-s*.5)}},   // helmet, neck guard, a golden crest
   ];
 })();
 const NOOB=OUTFITS.findIndex(o=>o.id==='noob');   // the look everyone starts with, and the only one for players without the Locker

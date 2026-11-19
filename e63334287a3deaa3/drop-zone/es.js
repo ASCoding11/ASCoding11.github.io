@@ -201,6 +201,17 @@
     'Lumberjack': 'Leñador', 'Park Ranger': 'Guardaparques', 'Scuba Diver': 'Submarinista', 'Head Chef': 'Jefe de cocina', 'Hazmat Suit': 'Traje de protección',
     'Castle Knight': 'Caballero del castillo', 'Astronaut': 'Astronauta', 'Farmer': 'Granjero', 'Mail Carrier': 'Cartero', 'Lifeguard': 'Guardavidas',
     'Ninja': 'Ninja', 'Scarecrow': 'Espantapájaros', 'Skeleton': 'Esqueleto', 'Banana Suit': 'Traje de banana', 'Cardboard Box Robot': 'Robot de caja de cartón',
+    // wave two outfits
+    'Goalkeeper': 'Arquero', 'Basketball Player': 'Basquetbolista', 'Linebacker': 'Apoyador', 'Baseball Batter': 'Bateador', 'Hockey Player': 'Jugador de hockey',
+    'Tennis Pro': 'Tenista', 'Boxer': 'Boxeador', 'Cyclist': 'Ciclista', 'Swim Team': 'Equipo de natación', 'Golfer': 'Golfista',
+    'Skateboarder': 'Skater', 'Surfer': 'Surfista', 'Skier': 'Esquiador', 'Pit Crew': 'Mecánico de boxes', 'Referee': 'Árbitro',
+    'Coach': 'Entrenador', 'Team Mascot': 'Mascota del equipo', 'Fencer': 'Esgrimista', 'Karate': 'Karateca', 'Cheer Captain': 'Capitana de porristas',
+    'Jockey': 'Jockey',
+    'Pirate Captain': 'Capitán pirata', 'Pirate Deckhand': 'Grumete pirata', 'Pirate First Mate': 'Segundo de a bordo', 'Ghost Pirate': 'Pirata fantasma', 'Pinstripe Suit': 'Traje a rayas',
+    'The Boss': 'El Jefe', 'Tracksuit and Chain': 'Chándal y cadena', 'Bodyguard': 'Guardaespaldas', 'White Tuxedo': 'Esmoquin blanco', 'Business Suit': 'Traje de oficina',
+    'Secret Agent': 'Agente secreto', 'Detective': 'Detective', 'Android': 'Androide', 'Mech Pilot': 'Piloto de robot gigante', 'Junkyard Bot': 'Robot de chatarra',
+    'Vacuum Bot': 'Robot aspiradora', 'Firefighter': 'Bombero', 'Rock Star': 'Estrella de rock', 'DJ': 'DJ', 'Superhero': 'Superhéroe',
+    'Masked Wrestler': 'Luchador enmascarado', 'Samurai Armour': 'Armadura de samurái',
     // gliders
     'Umbrella': 'Paraguas', 'Paper Airplane': 'Avión de papel', 'Hang Glider': 'Ala delta', 'Kite': 'Barrilete', 'Bedsheet Parachute': 'Paracaídas de sábana',
     'Trash Bag Parachute': 'Paracaídas de bolsa', 'Cardboard Wings': 'Alas de cartón', 'Dragon Wings': 'Alas de dragón', 'Bat Wings': 'Alas de murciélago',
@@ -222,7 +233,14 @@
     'Treasure Chest': 'Cofre del tesoro', 'Lunchbox': 'Lonchera', 'Guitar Case': 'Estuche de guitarra', 'Fishbowl': 'Pecera',
     // emotes and victory poses
     'Wave': 'Saludo', 'Dance': 'Baile', 'Clap': 'Aplauso', 'Jumping Jacks': 'Saltos de tijera', 'Twirl': 'Giro', 'Champion': 'Campeón', 'Flex': 'Músculos',
-    'Take a Bow': 'Reverencia', 'Jump for Joy': 'Salto de alegría'
+    'Take a Bow': 'Reverencia', 'Jump for Joy': 'Salto de alegría',
+    // wave two extras
+    'Sports Bag': 'Bolso deportivo', 'Briefcase': 'Maletín', 'Robot Power Pack': 'Batería de robot', 'Bag of Balls': 'Bolsa de pelotas',
+    'Spyglass and Map': 'Catalejo y mapa', 'Lucky Mascot': 'Mascota de la suerte', 'Pirate Sail': 'Vela pirata', 'Giant Football': 'Pelota de fútbol americano gigante',
+    'Soccer Goal': 'Arco de fútbol', 'Hockey Stick': 'Palo de hockey', 'Robot Rotor': 'Rotor de robot', 'Briefcase Parachute': 'Paracaídas de maletín',
+    'Team Stripes': 'Rayas de equipo', 'Pinstripe': 'Raya diplomática', 'Treasure Map': 'Mapa del tesoro', 'Circuit Board': 'Placa de circuitos',
+    'Basketball': 'Pelota de básquet', 'Goal Celebration': 'Festejo de gol', 'Tip the Hat': 'Saludo con el sombrero', 'Pirate Arr': '¡Arrr pirata!',
+    'Power Down': 'Apagón'
   };
   for (var k2 in lk) d[k2] = lk[k2];
 

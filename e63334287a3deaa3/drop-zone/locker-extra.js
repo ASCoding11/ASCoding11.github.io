@@ -38,13 +38,16 @@ function rng(seed){let s=(seed>>>0)||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s
 // =====================================================================
 const GLIDER_NAMES=['Umbrella','Paper Airplane','Hang Glider','Kite','Bedsheet Parachute','Trash Bag Parachute','Cardboard Wings','Dragon Wings',
   'Bat Wings','Bunch of Balloons','Lawn Chair with Balloons','Magic Carpet','Picnic Blanket','Surfboard','Pizza Slice','Broomstick','Giant Leaf',
-  'Spinning Maple Seed','Rubber Duck Float','Giant Pigeon','Pterodactyl','Flying Squirrel Suit','UFO Disc','Small Cloud'];
+  'Spinning Maple Seed','Rubber Duck Float','Giant Pigeon','Pterodactyl','Flying Squirrel Suit','UFO Disc','Small Cloud',
+  'Pirate Sail','Giant Football','Soccer Goal','Hockey Stick','Robot Rotor','Briefcase Parachute'];
 const TRAIL_NAMES=['Smoke','Sparkles','Rainbow','Feathers','Leaves','Bubbles'];
 const WRAP_NAMES=['Gold','Chrome','Wood Grain','Forest Camo','Desert Camo','Arctic Camo','Pixel Camo','Neon Outline','Toy Blaster','Cardboard',
-  'Candy Cane','Lava','Ice','Galaxy','Rust','Graffiti','Bubblegum Pink','Hazard Stripes','Plastic Brick'];
+  'Candy Cane','Lava','Ice','Galaxy','Rust','Graffiti','Bubblegum Pink','Hazard Stripes','Plastic Brick',
+  'Team Stripes','Pinstripe','Treasure Map','Circuit Board','Basketball'];
 const BUILD_NAMES=['Cardboard','Frosted Glass','Ice','Candy','Stone','Scrap Metal'];
-const PACK_NAMES=['Rucksack','Jetpack','Teddy Bear','Tortoise Shell','Treasure Chest','Lunchbox','Guitar Case','Fishbowl'];
-const EMOTE_NAMES=['Wave','Dance','Clap','Jumping Jacks','Robot','Twirl'],VICTORY_NAMES=['Champion','Flex','Take a Bow','Jump for Joy'];
+const PACK_NAMES=['Rucksack','Jetpack','Teddy Bear','Tortoise Shell','Treasure Chest','Lunchbox','Guitar Case','Fishbowl',
+  'Sports Bag','Briefcase','Robot Power Pack','Bag of Balls','Spyglass and Map','Lucky Mascot'];
+const EMOTE_NAMES=['Wave','Dance','Clap','Jumping Jacks','Robot','Twirl','Goal Celebration','Tip the Hat','Pirate Arr','Power Down'],VICTORY_NAMES=['Champion','Flex','Take a Bow','Jump for Joy'];
 const SLOT={g:GLIDER_NAMES,t:TRAIL_NAMES,w:WRAP_NAMES,b:BUILD_NAMES,p:PACK_NAMES,e:EMOTE_NAMES,v:VICTORY_NAMES};
 // a worn string ('g12t3') as {g:12,t:3}; numbers this file does not know are left out
 function parse(s){const o={};if(typeof s!=='string')return o;for(const m of s.matchAll(/([a-z])([0-9]+)/g)){const L=SLOT[m[1]],n=+m[2];if(L&&n>=1&&n<=L.length)o[m[1]]=n}return o}
@@ -288,7 +291,45 @@ const GLIDERS=[null,
     anim(1,1.6);const LC=[0xff4f5e,0xffd23f,0x5fd068,0x3ee6ff];for(let k=0;k<16;k++){const a=k/16*TAU;put(B,PR.slo,Math.cos(a)*(R+.06),y-.2,Math.sin(a)*(R+.06),.11,.1,.11,LC[k%4])}anim(0)},
   // 24 Small Cloud: a puffy white cloud you stand in, a little grey underneath, bobbing gently
   B=>{AN=()=>[3,.04,0];NSH=(nx,ny)=>ny<-.3?.82:1;const C=[[0,-.1,0,.55],[-.55,-.05,.1,.42],[.58,-.06,-.05,.44],[-1.0,-.18,0,.32],[1.02,-.16,.08,.33],[-.25,.08,-.3,.36],[.3,.06,.32,.36],[0,-.18,.48,.36],[0,-.16,-.5,.38]];
-    for(const c of C)put(B,PR.sph,c[0],FEET+c[1],c[2],c[3]*2,c[3]*1.5,c[3]*1.9,0xf6f9ff);NSH=null;AN=null}
+    for(const c of C)put(B,PR.sph,c[0],FEET+c[1],c[2],c[3]*2,c[3]*1.5,c[3]*1.9,0xf6f9ff);NSH=null;AN=null},
+  // wave two (19 November 2026)
+  // 25 Pirate Sail: a square sail between two yards on a short mast, billowing forward, a red pennant on top; you hold the struts
+  B=>{const WD=0x7a4a2a,yl=.8,yt=2.1;grips(B,WD);struts(B,.9,yl,0,WD,.025);
+    bar(B,-1.3,yl,0,1.3,yl,0,.04,WD,PR.cyl8);bar(B,-1.05,yt,0,1.05,yt,0,.035,WD,PR.cyl8);bar(B,0,yl-.05,.06,0,yt+.45,.06,.045,WD,PR.cyl8);
+    AN=(x,y,z)=>[4,.05*Math.sin(Math.PI*clamp((y-yl)/(yt-yl),0,1)),0];
+    sheet(B,10,8,(u,v)=>{const w=1.25-.2*v,x=(u-.5)*2*w,y=yl+.04+(yt-yl-.08)*v;return [x,y,-.32*Math.sin(Math.PI*v)*(1-.35*Math.pow(2*u-1,2))]},(u,v,i,j)=>j===3||j===4?0xd23b30:(i===4||i===5)&&j===6?0xffc93c:0xf4ecd8,()=>0xe2d8c0,()=>v3(0,0,-1));
+    AN=(x,y,z)=>[4,.04*clamp(z,0,1),0];tri2(B,v3(0,yt+.42,.06),v3(0,yt+.28,.06),v3(0,yt+.35,.6),0xe8453c);AN=null;
+    put(B,PR.cyl8,0,yt+.1,.06,.3,.08,.3,0x9a6a3c)},
+  // 26 Giant Football: a big inflatable leather ball overhead, white bands and laces, on four cords to your hands
+  B=>{const y=1.55;for(const s of [-1,1])put(B,PR.slo,s*.27,.15,-.04,.08,.08,.08,0xeeeeee);
+    for(const s of [-1,1])for(const z of [-.5,.5])rope(B,s*.27,.17,-.04,s*.35,y-.4,z,0xf4f0e6);
+    put(B,PR.sph,0,y,0,2.0,1.0,1.1,0xa8562c);for(const x of [-.62,.62])put(B,PR.cyl8,x,y,0,.8,.06,.88,WH,0,0,Math.PI/2);
+    put(B,PR.box,0,y+.5,0,.62,.04,.06,WH);for(let k=0;k<6;k++)put(B,PR.box,-.25+k*.1,y+.5,0,.035,.04,.2,WH)},
+  // 27 Soccer Goal: a white goal frame held up by its bar, its net blowing back behind it
+  B=>{const yl=.8,yt=2.0,X0=1.4,zf=-.3,zb=.9;grips(B,WH);struts(B,.9,yl,zf,WH,.03);
+    for(const s of [-1,1])bar(B,s*X0,yl,zf,s*X0,yt,zf,.05,WH,PR.cyl8);bar(B,-X0,yt,zf,X0,yt,zf,.05,WH,PR.cyl8);bar(B,-X0,yl,zf,X0,yl,zf,.045,WH,PR.cyl8);
+    for(const s of [-1,1])bar(B,s*X0,yt,zf,s*X0*.9,yt-.2,zb,.025,0xdfe4ea);
+    const net=(i,j)=>(i+j)%2?0xf6f8fa:0xc9d1da;AN=(x,y,z)=>[4,.05*clamp((z-zf)/(zb-zf),0,1),0];
+    sheet(B,12,6,(u,v)=>[(u-.5)*2*X0*(1-.1*v),yt-.2*v-(yt-yl)*0,zf+(zb-zf)*v+.15*Math.sin(Math.PI*u)*v],(u,v,i,j)=>net(i,j),()=>0xc9d1da);
+    sheet(B,12,6,(u,v)=>[(u-.5)*2*X0*.9,yt-.2-(yt-.2-yl)*v,zb+.15*Math.sin(Math.PI*u)],(u,v,i,j)=>net(i,j),()=>0xc9d1da,()=>v3(0,0,1));
+    for(const s of [-1,1])sheet(B,6,6,(u,v)=>[s*X0*(1-.1*u),yt-(yt-yl)*v-.2*u*(1-v),zf+(zb-zf)*u],(u,v,i,j)=>net(i,j),()=>0xc9d1da,()=>v3(s,0,0));AN=null},
+  // 28 Hockey Stick: a giant stick you sit astride like a broom, taped grip and blade, the blade curving out behind
+  B=>{const F=v3(0,-.76,-1.32),Rr=v3(0,-1.07,.6),N=10;
+    for(let k=0;k<N;k++){const a=F.clone().lerp(Rr,k/N),b=F.clone().lerp(Rr,(k+1)/N);bar(B,a.x,a.y,a.z,b.x,b.y,b.z,.05,k<2?0x2a2d34:k===5?0xe8453c:k===6?0x3a7ad0:0xf2efe8,PR.cyl8)}
+    put(B,PR.slo,F.x,F.y+.02,F.z-.02,.13,.12,.13,0x2a2d34);
+    const d=Rr.clone().sub(F).normalize();put(B,PR.box,0,Rr.y-.1,Rr.z+.36,.1,.3,.62,0xf2efe8,Math.atan2(-d.y,d.z)*.3,0,0);put(B,PR.box,0,Rr.y-.1,Rr.z+.46,.105,.16,.3,0x2a2d34,Math.atan2(-d.y,d.z)*.3,0,0);
+    put(B,PR.cyl8,0,Rr.y-.32,Rr.z+.85,.24,.08,.24,0x3a3e45)},
+  // 29 Robot Rotor: a metal mast with three spinning blades over your head and a blinking hub; you hold the T-bar
+  B=>{bar(B,-.18,.16,-.04,.18,.16,-.04,.035,0x5a606b);bar(B,0,.16,-.04,0,1.0,0,.045,SIL,PR.cyl8);put(B,PR.cyl8,0,.62,0,.16,.22,.16,0x8d96a0);put(B,PR.box,0,.62,-.09,.08,.06,.02,0x3ee6ff);
+    anim(1,9);for(let k=0;k<3;k++){const a=k/3*TAU;put(B,PR.box,Math.cos(a)*.95,1.06,Math.sin(a)*.95,1.8,.06,.28,0xc9d1da,0,-a,0);put(B,PR.box,Math.cos(a)*1.78,1.065,Math.sin(a)*1.78,.18,.07,.29,0xffd23f,0,-a,0)}
+    put(B,PR.sph,0,1.08,0,.3,.2,.3,0xdfe4ea);anim(0);put(B,PR.slo,0,1.2,0,.1,.08,.1,0xe8453c)},
+  // 30 Briefcase Parachute: a striped canopy bursting out of a briefcase just over your head, held by its two straps
+  B=>{const cy=.36,top=2.15;for(const s of [-1,1]){rope(B,s*.33,.14,-.02,s*.3,cy-.06,0,0x5a3a2a);put(B,PR.slo,s*.33,.14,-.02,.07,.07,.07,0x5a3a2a)}
+    put(B,PR.box,0,cy,0,.66,.12,.44,0xa8384a);put(B,PR.box,0,cy,0,.68,.03,.46,0xffc93c);for(const s of [-1,1])put(B,PR.box,s*.2,cy+.065,-.22,.06,.03,.02,0xffc93c);
+    put(B,PR.box,0,cy+.2,.24,.66,.4,.03,0xa8384a,-.5,0,0);
+    AN=(x,y,z)=>[4,.04*clamp((y-1.5)/.7,0,1),0];
+    sheet(B,24,6,polar(v=>.15+1.45*v,v=>top-.6*v*v),(u)=>Math.floor(u*12)%2?0x3a7ad0:0xe8ecf2,(u)=>Math.floor(u*12)%2?0x2f62a8:0xc9d1da,outward(0,1.0,0));AN=null;
+    for(let k=0;k<8;k++){const a=(k+.5)/8*TAU;rope(B,Math.cos(a)*1.6,top-.6,Math.sin(a)*1.6,Math.cos(a)*.3,cy+.06,Math.sin(a)*.2,0xdfe4ea)}}
 ];
 const gliderGeo=[];
 function gliderOf(n){if(!GLIDERS[n])return null;if(!gliderGeo[n]){const B=Kit();AN=null;NSH=null;GLIDERS[n](B);AN=null;NSH=null;gliderGeo[n]=kitGeo(B)}return gliderGeo[n]}
@@ -344,7 +385,15 @@ const HOLDS=[null,
   {pose:ARMS_HANG,hands:[null,null],pit:-.08,legs:'dangle',place:'carry',sway:.04},
   {pose:ARMS_WING,hands:[[-.88,-.4,.02],[.88,-.4,.02]],pit:-1.15,legs:'spread',place:'body'},
   {pose:Object.assign({lean:-.1},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board'},
-  {pose:Object.assign({lean:-.1},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board'}];
+  {pose:Object.assign({lean:-.1},ARMS_OUT),hands:[null,null],pit:-.04,legs:'stand',place:'board'},
+  // wave two: the sail and the goal by their struts, the football on its cords, the hockey stick ridden like the broom,
+  // the rotor's T-bar like the maple seed (no spin of your own), the briefcase by its two straps
+  {pose:ARMS_UP,hands:[[-.44,.1,-.02],[.44,.1,-.02]],pit:-.1,legs:'dangle',place:'unfold',sway:.04},
+  {pose:ARMS_UP,hands:[[-.27,.11,-.04],[.27,.11,-.04]],pit:-.04,legs:'dangle',place:'rise',sway:.05},
+  {pose:ARMS_UP,hands:[[-.44,.1,-.02],[.44,.1,-.02]],pit:-.1,legs:'dangle',place:'billow',sway:.04},
+  {pose:{lean:-.55,L:[-.4,.3,-.1,.6],R:[-.4,-.3,.1,.6]},hands:[[-.1,-.8,-.47],[.1,-.83,-.32]],pit:-.22,legs:'astride',place:'body',sway:.03},
+  {pose:ARMS_UP,hands:[[-.16,.1,-.04],[.16,.1,-.04]],pit:-.04,legs:'dangle',place:'unfold',sway:.03},
+  {pose:ARMS_UP,hands:[[-.33,.12,-.02],[.33,.12,-.02]],pit:-.06,legs:'dangle',place:'pop',sway:.05}];
 const gstyles=[];
 function gstyle(n){if(!HOLDS[n])return null;if(gstyles[n])return gstyles[n];const H=HOLDS[n],L=LEGS[H.legs]||LEGS.trail,pl=PLACE[H.place]||PLACE.unfold;
   return gstyles[n]={pose:G.pose(H.pose),hands:H.hands,pit:H.pit,pole:null,
@@ -477,8 +526,14 @@ const GLSL_SKIN='vec4 c4(float f,vec3 a,vec3 b,vec3 c,vec3 d){return vec4(f<.4?a
   +'else if(k<16.5){float f=fb(p*4.5);c=mix(vec3(.9,.9,.88),hsv(fract(f*2.3+.1),.85,1.),smoothstep(.42,.46,f));c=mix(c,vec3(.06),1.-smoothstep(0.,.015,abs(f-.44)));c*=dk>.5?.7:1.;}\n'
   +'else if(k<17.5){c=mix(vec3(1.,.5,.72),vec3(1.,.75,.87),smoothstep(.4,.7,fb(p*6.)))*(dk>.5?.72:1.);float b=smoothstep(.3,.85,up);c+=vec3(.22)*b;em=vec3(.14,.05,.09)*b;}\n'
   +'else if(k<18.5){c=dk>.5?vec3(.07):fract((p.z-p.y)*5.)<.5?vec3(1.,.8,.08):vec3(.07,.07,.08);}\n'
-  +'else{float bd=floor(p.z*5.),hb=h3(vec3(bd,3.,7.));c=hb<.25?vec3(.86,.12,.1):hb<.5?vec3(.1,.36,.86):hb<.75?vec3(1.,.8,.1):vec3(.15,.6,.2);c*=1.-step(.94,fract(p.z*5.))*.35;'
+  +'else if(k<19.5){float bd=floor(p.z*5.),hb=h3(vec3(bd,3.,7.));c=hb<.25?vec3(.86,.12,.1):hb<.5?vec3(.1,.36,.86):hb<.75?vec3(1.,.8,.1):vec3(.15,.6,.2);c*=1.-step(.94,fract(p.z*5.))*.35;'
   +'if(n.y>.6){vec2 q=fract(vec2(p.x,p.z)*14.)-.5;float d=length(q);c*=1.+.22*(1.-smoothstep(.22,.27,d))-.2*smoothstep(.27,.31,d)*(1.-smoothstep(.31,.36,d));}c+=vec3(.12)*smoothstep(.5,.9,up);}\n'
+  // wave two: team stripes, pinstripe, a treasure map, a circuit board, a basketball
+  +'else if(k<20.5){float s=fract(p.y*6.+.1);c=s<.18?vec3(.96):s<.3?vec3(1.,.55,.1):vec3(.1,.55,.75);c*=dk>.5?.72:1.;c+=vec3(.1)*smoothstep(.5,.9,up);}\n'
+  +'else if(k<21.5){c=vec3(.5,.54,.6)*(dk>.5?.7:1.);c=mix(c,vec3(.92,.93,.95),step(fract(p.y*28.+p.x*2.),.12));}\n'
+  +'else if(k<22.5){c=vec3(.93,.84,.64)*(.82+.18*fb(p*6.));float l=abs(p.y-.06*sin(p.z*9.)-.02);c=mix(c,vec3(.72,.16,.1),(1.-smoothstep(.006,.012,l))*step(.5,fract(p.z*14.)));c=mix(c,vec3(.55,.38,.22),smoothstep(.62,.7,fb(p*3.+2.))*.5);c*=dk>.5?.8:1.;}\n'
+  +'else if(k<23.5){vec3 q=fract(p*18.);vec3 i3=floor(p*18.);float h=h3(i3);float tr=(1.-smoothstep(.06,.1,min(abs(q.y-.5),abs(q.z-.5))))*step(.45,h);c=dk>.5?vec3(.04,.12,.22):vec3(.06,.22,.38);c=mix(c,vec3(1.,.8,.3),tr);em=vec3(.2,.9,1.)*tr*(.4+.4*sin(uT*3.+h*20.));}\n'
+  +'else{c=vec3(.94,.48,.12)*(.9+.1*n3(p*90.));float sm=1.-smoothstep(.01,.02,min(abs(fract(p.z*3.)-.5),abs(p.y-.04*sin(p.z*6.))));c=mix(c,vec3(.08),sm);c*=dk>.5?.75:1.;}\n'
   +'return c;}\n';
 GSK.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float gsk;attribute float gcl;varying float vSk;varying float vCl;varying vec3 vP;varying vec3 vN;varying vec3 vVN;varying vec3 vVD;')
@@ -566,6 +621,13 @@ function pack(B,n,a){const R=(...v)=>G.bagRBox(B,...v),L=(...v)=>G.bagRLo(B,...v
     case 6:X(0,1.2,.36,.5,.44,.26,a);X(0,1.44,.36,.52,.05,.28,dk);T(1,0,1.52,.36,.24,.04,.06,0x5a606b);X(0,1.2,.495,.3,.18,.02,lt);X(0,1.21,.5,.18,.06,.02,0xffd23f);L(.3,1.18,.36,.12,.36,.12,0xf2f2f2);L(.3,1.38,.36,.13,.06,.13,0xe8453c);break;   // lunchbox: box, lid, handle, a sticker, a flask
     case 7:T(2,0,1.25,.36,.42,1.0,.22,0xe8453c,0,0,.25);T(1,.14,1.72,.36,.18,.3,.18,0xe8453c,0,0,.25);for(const y of [1.0,1.25,1.5])T(0,(y-1.25)*.25,y,.48,.44,.04,.02,0xffc93c,0,0,.25);X(0,1.26,.49,.12,.12,.02,a);break;   // guitar case: body, neck end, catches, a sticker
     case 8:R(0,1.22,.38,.52,.52,.32,0x9fdcff);X(0,1.48,.38,.42,.04,.26,0xdff4ff);L(.06,1.18,.5,.16,.1,.06,0xff8a1f);L(-.06,1.18,.5,.06,.1,.03,0xff8a1f);X(.1,1.2,.535,.02,.02,.01,0x15171b);L(-.14,1.02,.42,.06,.06,.04,0xffffff);L(.16,1.3,.44,.05,.05,.04,0xffffff);L(0,.96,.38,.5,.08,.32,a);break;   // fishbowl: glass, rim, a goldfish, bubbles, a base in your colour
+    // wave two (19 November 2026): sports, suits, robots, pirates
+    case 9:T(2,0,1.24,.38,.66,.34,.3,a);for(const s of [-1,1])L(s*.36,1.24,.38,.06,.32,.32,0xf2efe8);X(0,1.25,.548,.62,.05,.02,0xf2efe8);X(0,1.41,.38,.5,.02,.3,dk);T(1,0,1.45,.38,.3,.05,.06,dk);L(.2,1.2,.54,.12,.12,.04,0xf08a2a);break;   // sports bag: a duffel, end caps, a stripe, zip, handle, a ball patch
+    case 10:X(0,1.2,.38,.56,.42,.2,0xa8384a);X(0,1.2,.38,.58,.04,.22,0xffc93c);T(1,0,1.45,.38,.2,.05,.06,0x5a3a2a);for(const s of [-1,1])X(s*.16,1.36,.485,.06,.05,.02,0xffc93c);X(.2,1.06,.49,.1,.08,.02,a);break;   // briefcase: case, gold trim, handle, clasps, a name tag in your colour
+    case 11:R(0,1.24,.36,.5,.6,.24,0xc9d1da);for(const s of [-1,1])L(s*.16,.86,.38,.14,.16,.14,0x5a606b);L(0,1.28,.5,.2,.2,.04,a);X(0,1.28,.525,.08,.08,.02,0xffffff);for(const y of [1.5,1.06])X(0,y,.49,.3,.03,.02,0x5a606b);T(0,.18,1.66,.36,.02,.26,.02,0x8d96a0);L(.18,1.8,.36,.05,.05,.05,0xe8453c);break;   // robot power pack: casing, thrusters, a glowing core, vents, an aerial
+    case 12:R(0,1.18,.36,.46,.6,.18,0xf2efe8);for(const [x,y,c] of [[-.1,1.3,0xf08a2a],[.11,1.32,0x3fa9f5],[0,1.08,0xffd23f]]){L(x,y,.48,.2,.2,.12,c);X(x,y,.55,.2,.02,.01,0x3a3e45)}X(0,1.5,.38,.48,.05,.28,a);break;   // a net bag of balls, its drawstring in your colour
+    case 13:R(0,1.22,.34,.44,.52,.22,0xb85a3a);T(1,-.1,1.3,.46,.16,.6,.16,0xf4e6c8,0,0,.2);T(1,.14,1.32,.46,.1,.66,.1,0xffc93c,0,0,-.25);L(.22,1.62,.46,.12,.06,.12,0x8fe3ff);X(0,1.04,.46,.3,.06,.02,a);break;   // spyglass and map: a leather holder, a rolled map, a brass spyglass, a band in your colour
+    case 14:R(0,1.16,.38,.44,.5,.26,0xffc93c);R(0,1.52,.38,.36,.32,.28,0xffc93c);L(0,1.48,.54,.12,.08,.12,0xff8a1f);for(const s of [-1,1]){L(s*.09,1.58,.52,.08,.08,.03,0xffffff);X(s*.09,1.58,.54,.035,.04,.01,0x15171b);T(1,s*.26,1.24,.36,.08,.28,.14,0xffc93c,0,0,s*.6)}for(let k=0;k<3;k++)T(0,(k-1)*.08,1.72,.38,.05,.16,.08,a,0,0,(k-1)*-.4);X(0,1.14,.52,.22,.16,.02,a);break;   // a mascot plush: body, head, beak, eyes, wings round you, a crest and a shirt in your colour
   }
 }
 
@@ -584,7 +646,17 @@ const EMOTES=[null,
   {dur:3,f:t=>{const c=.25*(1+sn(t*14))/2;return{L:[.3,-.15+c,0,1.0],R:[.3,.15-c,0,1.0],lean:-.05}}},
   {dur:4,f:t=>{const k=(1-cs(t*7))/2;return{L:[-1.42+3.4*k,.2+.9*k,-.14,.25],R:[-1.42+3.4*k,-.2-.9*k,.14,.25],y:.1*sn(t*7)*sn(t*7),legs:[0,-.08-.3*k,.1,0,.08+.3*k,.1]}}},
   {dur:5,f:t=>{const q=Math.floor(t*3)%4,a=[[1.0,-.8],[-.8,1.0],[1.0,1.0],[-.8,-.8]][q];return{L:[a[0],.6,0,1.57],R:[a[1],-.6,0,1.57],turn:[.4,-.4,0,0][q],y:q>1?.03:0,legs:[q===2?.4:0,-.06,q===2?.7:.05,q===3?.4:0,.06,q===3?.7:.05]}}},
-  {dur:2.4,f:t=>({L:[.2,1.5,-.1,.2],R:[.2,-1.5,.1,.2],spin:t*Math.PI*2/1.2,y:.04,legs:[0,-.04,.05,.6,.05,1.4]})}];
+  {dur:2.4,f:t=>({L:[.2,1.5,-.1,.2],R:[.2,-1.5,.1,.2],spin:t*Math.PI*2/1.2,y:.04,legs:[0,-.04,.05,.6,.05,1.4]})},
+  // wave two: run a lap with your arms out like wings, then both fists up
+  {dur:3.6,f:t=>{if(t<2.4){const r=sn(t*9);return{L:[.15,1.5,-.1,.2],R:[.15,-1.5,.1,.2],roll:.25*sn(t*2.6),spin:t*2.618,y:.05*Math.abs(r),legs:[.5*r,-.05,.3+.5*Math.max(0,r),-.5*r,.05,.3+.5*Math.max(0,-r)]}}
+    const k=Math.min(1,(t-2.4)/.2),b=Math.abs(sn((t-2.4)*7));return{L:[2.3*k+.15*(1-k),.5+1*(1-k),-.1,.6*k+.2],R:[2.3*k+.15*(1-k),-.5-1*(1-k),.1,.6*k+.2],spin:2.4*2.618,lean:.1,y:.1*b*k}}},
+  // a hand to the brim of your hat, a little nod, the hand back down
+  {dur:2.6,f:t=>{const k=Math.min(1,t/.4)*Math.min(1,Math.max(0,(2.6-t)/.4)),nod=sn(Math.min(1,Math.max(0,(t-.6)/1.2))*Math.PI);return{L:[.35,.25,-.2,1.3],R:[.35+2.0*k,-.55*k,.2,.3+1.9*k],lean:-.25*nod,legs:[0,-.06,.05,.12*nod,.06,.15*nod]}}},
+  // a fist on the hip, the other arm pointing out to sea, jabbing on each "arr"
+  {dur:3,f:t=>{const j=Math.max(0,sn(t*5));return{L:[-.3,.95,-.3,1.8],R:[1.45+.3*j,-.25,.1,.12],lean:-.12+.06*j,turn:-.18,legs:[.35,-.05,.2,-.1,.08,.1]}}},
+  // the robot runs out of power: it slumps, hangs, then jerks back on with stiff arms
+  {dur:3.4,f:t=>{const d=Math.min(1,t/.7),up=t>1.9?Math.min(1,(t-1.9)/.15):0,sl=d*(1-up),tw=t>2.05?.25*Math.sign(sn(t*14)):0;
+    return{L:[-1.42+.5*sl+up*2.6,.2,-.14,.25+.6*sl+up*1.3],R:[-1.42+.5*sl+up*2.6,-.2,.14,.25+.6*sl+up*1.3],lean:-.55*sl,turn:tw*up,y:-.1*sl,legs:[.15*sl,-.06,.5*sl,.15*sl,.06,.5*sl]}}}];
 const VICTORIES=[null,
   {f:t=>{const b=Math.abs(sn(t*4));return{L:[1.95,.75,-.14,.2+.5*b],R:[1.95,-.75,.14,.2+.5*b],lean:.12,y:.12*b}}},
   {f:t=>({L:[0,1.5,-.05,1.5+.15*sn(t*3)],R:[0,-1.5,.05,1.5+.15*sn(t*3)],lean:-.08,turn:.15*sn(t*1.5),legs:[0,-.12,.05,0,.12,.05]})},
@@ -663,7 +735,7 @@ function bsOf(oid){if(oid==null)return 0;let e=null;if(oid===G.myId()||oid==='me
 function bsk(mesh,i,bs){const a=mesh.geometry.attributes.bsk;if(!a||i<0||i>=a.count)return;const v=bs|0;if(a.array[i]!==v){a.array[i]=v;a.needsUpdate=true}}
 const bsCol=bs=>BS_DEBRIS[bs]||BS_DEBRIS[0];
 const bsMat=bs=>['wood','crate','stone','stone','crate','stone','metal'][bs]||'wood';   // what a skinned piece's crowbar chips and sound are
-const botLx=i=>'g'+(1+(i*7)%24)+'t'+(1+i%6)+'w'+(1+(i*5)%19)+'b'+(1+i%6)+'p'+(1+(i*3)%8)+'v'+(1+i%4);
+const botLx=i=>'g'+(1+(i*7)%GLIDER_NAMES.length)+'t'+(1+i%6)+'w'+(1+(i*5)%WRAP_NAMES.length)+'b'+(1+i%6)+'p'+(1+(i*3)%PACK_NAMES.length)+'v'+(1+i%4);
 
 // =====================================================================
 //  The Locker's tabs
@@ -739,7 +811,7 @@ function pics(){if(drawnPics||tab==='outfits')return;drawnPics=true;
 // emotes and victory poses: your character caught in the middle of each (a model posed by the page's own animModel, its
 // legs as plain meshes for the picture), from the front
 function posePics(kind){
-  const out=[],W=180,H=270,L=kind==='e'?EMOTES:VICTORIES,T=kind==='e'?[0,.32,.36,.5,.48,.1,.3]:[0,.4,.5,1.2,.25];
+  const out=[],W=180,H=270,L=kind==='e'?EMOTES:VICTORIES,T=kind==='e'?[0,.32,.36,.5,.48,.1,.3,1.0,.9,.33,1.2]:[0,.4,.5,1.2,.25];
   const sc=new THREE.Scene();lights(sc);const cam=new THREE.OrthographicCamera(-.95,.95,1.42,-1.42,.1,40);cam.position.set(2.3,2.1,-6);cam.lookAt(0,1.27,0);
   const u0=G.player.model.userData,cp=G.camera.position;
   for(let n=1;n<L.length;n++){const m=G.makeModel(G.player.hex,u0.skinIx,u0.fit,'');
