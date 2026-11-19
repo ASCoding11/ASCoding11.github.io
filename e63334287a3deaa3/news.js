@@ -85,6 +85,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.30.1', title: 'Offline mode fixes', kind: 'fix',
+     tags: ['Offline'], items: [
+      'The page you open first is now always saved for offline, even if you start clicking straight away.',
+      'The "You\'re offline" page now also shows on ascoding11.com.'
+    ]},
     {date: '2026-11-19', version: '1.30', title: 'Offline mode', kind: 'feature',
      tags: ['Offline', 'Every game'], items: [
       'Games you\'ve played on a device now open on it again with no internet, along with the home page, the Back Room and the phone page.',

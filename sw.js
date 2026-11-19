@@ -31,9 +31,19 @@ const CDN = [
 ];
 const FONT_CSS = /^https:\/\/fonts\.googleapis\.com\/css2?\?/;
 
+// ascoding11.com (Cloudflare Pages) redirects /offline.html to /offline, so the core files are stored under the
+// address asked for even when the server redirected them (a redirected answer can't be kept as it is).
+async function precache(c, u) {
+  try {
+    const r = await fetch(u, { cache: 'reload' });
+    if (r.status !== 200) return;
+    await c.put(u, r.redirected ? new Response(await r.blob(), { status: 200, headers: r.headers }) : r);
+  } catch (_) { /* offline: try again next install */ }
+}
+
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE)
-    .then((c) => Promise.all(CORE.map((u) => fetch(u, { cache: 'reload' }).then((r) => keep(c, u, r)).catch(() => {}))))
+    .then((c) => Promise.all(CORE.map((u) => precache(c, u))))
     .then(() => self.skipWaiting()));
 });
 

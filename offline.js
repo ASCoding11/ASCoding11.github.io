@@ -5,8 +5,8 @@
  *
  * - Registers /sw.js for the whole site. From then on, every page and game opened on this device is kept, and opens
  *   again with no internet (see sw.js for what is and isn't kept).
- * - On the first visit, before the worker was running, it sends the worker the list of files this page already
- *   loaded, so the page itself works offline right away.
+ * - On every visit it sends the worker the list of files this page already loaded (the worker skips ones it has),
+ *   so the page itself works offline right away, even on the first visit before the worker was running.
  * - While the device is offline: a small "Offline" note at the bottom of the page, and game cards (the Back Room's
  *   Play buttons and the phone page's tiles, .tile[data-path]) for games not yet kept on this device are faded with
  *   "Not saved offline". Games kept here play as normal; their online modes wait for the connection to come back.
@@ -21,7 +21,9 @@
   navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function () {
     return navigator.serviceWorker.ready;
   }).then(function (reg) {
-    if (navigator.serviceWorker.controller || !reg.active) return;
+    // Sent on every visit (the worker skips files it already has), so nothing is missed if the page loaded while
+    // the worker was still starting up.
+    if (!reg.active) return;
     var urls = [location.href.split('#')[0]];
     try { performance.getEntriesByType('resource').forEach(function (r) { urls.push(r.name); }); } catch (e) {}
     reg.active.postMessage({ cache: urls });

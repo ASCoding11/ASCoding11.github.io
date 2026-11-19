@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Offline mode fixes": "Arreglos del modo sin conexión",
+    "The page you open first is now always saved for offline, even if you start clicking straight away.": "La primera página que abres ahora siempre se guarda para usarla sin conexión, aunque empieces a hacer clic enseguida.",
+    "The \"You're offline\" page now also shows on ascoding11.com.": "La página \"You're offline\" ahora también aparece en ascoding11.com.",
     "Offline mode": "Modo sin conexión",
     "Offline": "Sin conexión",
     "Games you've played on a device now open on it again with no internet, along with the home page, the Back Room and the phone page.": "Los juegos que ya jugaste en un dispositivo ahora vuelven a abrirse en él sin internet, junto con la página principal, The Back Room y la página para teléfonos.",
