@@ -430,6 +430,37 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'uncommon', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // second wave (Nov 2026): more made-up sponsors, sports, pirate, suit and robot liveries and helmets, three boost effects, two podiums.
+  // Liveries 24 to 35 are designs; 36 on are the new sponsors' liveries (8 + 20 + the sponsor's number), earned like the first fifteen.
+  I('slipstream', 'sponsor', 16, "Polly's Crackers", 'common', '#16614F', '#FFE36B', 'A parrot recommends them. Repeatedly.');
+  I('slipstream', 'sponsor', 17, 'Fancy Pants Dry Cleaning', 'common', '#16171D', '#F4F4F4', 'Your race suit, pressed with a crease.');
+  I('slipstream', 'sponsor', 18, 'Dust Bunny Robot Vacuums', 'common', '#E9EDF3', '#34456B', 'Cleans the pit lane while you sleep.');
+  I('slipstream', 'sponsor', 19, 'Foam Finger Sports Drinks', 'common', '#FF3B6B', '#FFFFFF', 'Number one in the stands, number one in the bottle.');
+  I('slipstream', 'livery', 24, 'Home Jersey', 'common', '#2A6BFF', '#FFFFFF', 'Wide hoops in your team colours, like a match-day shirt.');
+  I('slipstream', 'livery', 25, 'Varsity', 'uncommon', '#7A1F3D', '#FFFFFF', 'A letter-jacket stripe and a big star.');
+  I('slipstream', 'livery', 26, 'Courtside', 'common', '#E8742A', '#1E1410', 'Orange with the seams of a basketball.');
+  I('slipstream', 'livery', 27, 'Pitch', 'common', '#3AA64A', '#F4FFF4', 'Mowed stripes and white lines. Kick-off at the nose.');
+  I('slipstream', 'livery', 28, 'Ice Rink', 'uncommon', '#EEF6FB', '#D8262F', 'Fresh ice, red and blue lines, boards in your team colour.');
+  I('slipstream', 'livery', 29, 'Centre Court', 'common', '#D6EC3A', '#FFFFFF', 'Fuzzy tennis-ball yellow with a white seam.');
+  I('slipstream', 'livery', 30, 'Black Sails', 'epic', '#1D1F27', '#C89A3C', 'Black sailcloth, gold rope trim and two crossed oars.');
+  I('slipstream', 'livery', 31, "Ship's Hull", 'rare', '#8A5A2B', '#D9A441', 'Wooden planks, brass portholes and an anchor.');
+  I('slipstream', 'livery', 32, 'Pinstripe Suit', 'rare', '#2A2C38', '#8C90A4', 'Charcoal with chalk stripes and a pocket square.');
+  I('slipstream', 'livery', 33, 'Tuxedo', 'epic', '#15161C', '#F6F6F6', 'Black tie, white shirt, and the bow tie in your team colour.');
+  I('slipstream', 'livery', 34, 'Circuit Board', 'rare', '#0F5A3A', '#E0B54A', 'Gold traces, little chips and blinking lights.');
+  I('slipstream', 'livery', 35, 'Robot Plating', 'uncommon', '#C9CED8', '#3FD2FF', 'Riveted steel panels and a glowing visor line.');
+  gameItems('slipstream', 'sponsor').forEach(function (sp) { if (sp.no > 15) I('slipstream', 'livery', 20 + sp.no, sp.name + ' livery', 'epic', sp.c1, sp.c2, 'The whole car in ' + sp.name + ' colours. Earned by finishing its challenges.'); });
+  I('slipstream', 'helmet', 24, 'Eye Patch helmet', 'rare', '#3D5FB0', '#101216', 'A pirate patch over one side of the visor.');
+  I('slipstream', 'helmet', 25, 'Bandana helmet', 'uncommon', '#D8262F', '#FFFFFF', 'Red with white spots, knotted at the back.');
+  I('slipstream', 'helmet', 26, 'Gridiron helmet', 'common', '#1F4FBF', '#FFD21F', 'A centre stripe and a face cage.');
+  I('slipstream', 'helmet', 27, 'Baseball helmet', 'common', '#F4F2EA', '#D8262F', 'White with red stitches.');
+  I('slipstream', 'helmet', 28, 'Football helmet', 'common', '#F6F6F6', '#17191E', 'Black patches on white.');
+  I('slipstream', 'helmet', 29, 'Pinstripe helmet', 'uncommon', '#2A2C38', '#D9A441', 'Chalk stripes and a hatband.');
+  I('slipstream', 'helmet', 30, 'Robot helmet', 'rare', '#C9CED8', '#3FD2FF', 'Rivets, steel and two glowing eyes.');
+  I('slipstream', 'effect', 9, 'Coin Shower', 'legendary', '#FFC93C', '#FFF0A0', 'Gold coins spill out of the back when you boost.');
+  I('slipstream', 'effect', 10, 'Sea Spray', 'uncommon', '#DFF6FF', '#2A8BFF', 'Spray off the rear tyres, like a speedboat.');
+  I('slipstream', 'effect', 11, 'Data Stream', 'epic', '#18C060', '#B0FFD0', 'Lines of green light left hanging behind you.');
+  I('slipstream', 'podium', 3, 'Ticker Tape Podium', 'common', '#FFFFFF', '#FFD21F', 'Ticker tape over the results when you finish in the top three.');
+  I('slipstream', 'podium', 4, 'Balloons Podium', 'rare', '#FF2A36', '#3FD2FF', 'Balloons float up over the results when you finish in the top three.');
   // ---- Coil items ----
   // Coil: colours, patterns (one pattern at a time from animals, designs and object snakes), heads, a trail and death bursts,
   // drawn by coil/wardrobe.js by slot and number. Captains wear them free in the game's Wardrobe; none is sold yet.
@@ -893,6 +924,29 @@
   I('rampline', 'horn', 9, 'Foghorn', 'rare', '#FFCF33', '#16213A', 'Low and long, like a ship in the mist.');
   I('rampline', 'horn', 10, 'Ice Cream Jingle', 'epic', '#FFCF33', '#16213A', 'A made-up jingle for the ice cream van.');
   I('rampline', 'horn', 11, 'Train Whistle', 'rare', '#FFCF33', '#16213A', 'Three notes at once, like a little steam train.');
+  // second wave (Nov 2026): sports cars and pirates, suits and robots, more paints and two horns
+  I('rampline', 'car', 32, 'Team Bus', 'uncommon', '#1F5FD6', '#FFFFFF', 'The team coach: tinted windows, a stripe and a star.');
+  I('rampline', 'car', 33, 'Ice Resurfacer', 'rare', '#F4F6F8', '#2350C8', 'The ice machine, snow tank and all.');
+  I('rampline', 'car', 34, 'Golf Cart Racer', 'common', '#D8202F', '#FFFFFF', 'A golf cart with stripes, a roll bar and a spoiler.');
+  I('rampline', 'car', 35, 'Football Helmet', 'rare', '#1F5FD6', '#FFFFFF', 'A giant helmet with a stripe and a face cage.');
+  I('rampline', 'car', 36, 'Soccer Ball', 'uncommon', '#F6F7F9', '#1D2333', 'A football on four wheels.');
+  I('rampline', 'car', 37, 'Pirate Ship', 'legendary', '#8A5A2B', '#23252E', 'A wooden hull, a black sail with crossed oars and a ship\'s wheel.');
+  I('rampline', 'car', 38, 'Black Sedan', 'epic', '#1D2130', '#D5DCE6', 'An old-time sedan with round fenders, a tall grille and whitewalls.');
+  I('rampline', 'car', 39, 'VIP Limo', 'epic', '#15161C', '#D9A441', 'Dark tinted windows, gold trim and two little flags.');
+  I('rampline', 'car', 40, 'Armoured Van', 'common', '#6B7468', '#D9A441', 'Rivets, slit windows and a gold stripe.');
+  I('rampline', 'car', 41, 'Robo Walker', 'rare', '#B8BCCF', '#3FD2FF', 'A robot on wheels with its legs folded up.');
+  I('rampline', 'car', 42, 'Lowrider', 'uncommon', '#7339D9', '#D9A441', 'Long, low, wire wheels and a gold chain pinstripe.');
+  I('rampline', 'paint', 17, 'Jersey Blue Paint', 'common', '#1F5FD6', '#1F5FD6', 'Repaints the car\'s own paintwork jersey blue.');
+  I('rampline', 'paint', 18, 'Turf Green Paint', 'common', '#2F9E44', '#2F9E44', 'Repaints the car\'s own paintwork turf green.');
+  I('rampline', 'paint', 19, 'Ice White Paint', 'common', '#EEF4F8', '#EEF4F8', 'Repaints the car\'s own paintwork ice white.');
+  I('rampline', 'paint', 20, 'Varsity Maroon Paint', 'uncommon', '#7A1F3D', '#7A1F3D', 'Repaints the car\'s own paintwork varsity maroon.');
+  I('rampline', 'paint', 21, 'Gunmetal Paint', 'uncommon', '#5A6170', '#5A6170', 'Repaints the car\'s own paintwork gunmetal.');
+  I('rampline', 'paint', 22, 'Tuxedo Black Paint', 'rare', '#1B1D26', '#1B1D26', 'Repaints the car\'s own paintwork tuxedo black.');
+  I('rampline', 'paint', 23, 'Parrot Green Paint', 'common', '#22C35A', '#22C35A', 'Repaints the car\'s own paintwork parrot green.');
+  I('rampline', 'paint', 24, 'Plank Brown Paint', 'common', '#8A5A2B', '#8A5A2B', 'Repaints the car\'s own paintwork plank brown.');
+  I('rampline', 'paint', 25, 'Circuit Green Paint', 'uncommon', '#0F7A4A', '#0F7A4A', 'Repaints the car\'s own paintwork circuit green.');
+  I('rampline', 'horn', 12, "Ship's Bell", 'common', '#FFCF33', '#16213A', 'Ding-ding, like a ship\'s bell.');
+  I('rampline', 'horn', 13, 'Ref Whistle', 'common', '#FFCF33', '#16213A', 'A long trill and a short peep.');
   // ---- Chromaflage items ----
   // Chromaflage: for seekers only (hiders' paint is the whole game, so they never wear any of it). Drawn by
   // chromaflage/kit.js by slot and number; captains wear them free in the game's Seeker kit; none is sold yet.
@@ -1041,7 +1095,7 @@
   I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
-  GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
+  GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8 && / colours\. Earned by finishing its challenges\.$/.test(it.desc)) it.give = 'earned'; });   // only sponsors' liveries are earned
   function gameItems(game, slot) { return GAME_ITEMS.filter(function (it) { return it.game === game && (!slot || it.slot === slot); }); }
   function itemIds(names) { return names.map(function (n) { if (!ITEM_BY_ID[n]) throw new Error('cosmetics: no item ' + n); return n; }); }
   function itemPack(id, game, name, desc, ids) { ids = itemIds(ids); return { id: id, kind: 'items', game: game, name: name, desc: desc, price: sumPrice(ids), contents: { items: ids } }; }
