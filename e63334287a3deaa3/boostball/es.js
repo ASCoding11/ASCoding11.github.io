@@ -69,6 +69,10 @@
     'Could not reach the game server. Check your connection, or play Practice.': 'No se pudo conectar con el servidor del juego. Revisa tu conexión o juega una práctica.',
     'Signing in to the game server timed out. Check your connection, or play Practice.': 'El inicio de sesión en el servidor tardó demasiado. Revisa tu conexión o juega una práctica.',
     'Still signing in…': 'Todavía iniciando sesión…', 'Sign-in failed: {e}': 'No se pudo iniciar sesión: {e}',
-    "Couldn't read the lobbies ({e}).": 'No se pudieron leer las salas ({e}).'
+    "Couldn't read the lobbies ({e}).": 'No se pudieron leer las salas ({e}).',
+    // Carbon Star, an exclusive gift: its Locker and its label in the Kit (the item's own name stays as it is)
+    'Locker': 'Casillero', 'Goal explosions': 'Explosiones de gol', 'Made for Carbon.': 'Hecho para Carbon.', 'made for Carbon': 'hecho para Carbon',
+    'Carbon Star preview': 'Vista previa de Carbon Star', 'Replay': 'Repetir', 'Done': 'Listo',
+    'When you score, a dying red star flares in the goal and a ripple carries the whole arena out into deep space until the kickoff. Everyone in the match sees it.': 'Cuando haces un gol, una estrella roja moribunda estalla en el arco y una onda lleva todo el estadio al espacio profundo hasta el saque inicial. Todos en el partido lo ven.'
   });
 })();
