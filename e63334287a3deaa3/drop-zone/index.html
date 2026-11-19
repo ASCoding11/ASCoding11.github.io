@@ -7114,7 +7114,7 @@ function frame(now){
 }
 
 /* ---------- input ---------- */
-const LOOK='Look, if the mouse can’t be locked';
+const LOOK='Look, if the mouse can’t be locked',EMOTE_KEY0='KeyJ';
 const KB=Keybinds.create({
   game:'drop-zone',mouse:true,
   actions:[
@@ -7147,7 +7147,10 @@ const KB=Keybinds.create({
     {id:'lookLeft',label:'Look left',group:LOOK,keys:['ArrowLeft']},
     {id:'lookRight',label:'Look right',group:LOOK,keys:['ArrowRight']},
     {id:'pause',label:'Pause, menu and invite link',group:'Match',keys:['KeyP'],lock:['Escape']},
-    {id:'watch',label:'When out: watch the next player',group:'Match',text:'Click'}
+    {id:'watch',label:'When out: watch the next player',group:'Match',text:'Click'},
+    // the Locker's emote (locker-extra.js): only in the list while the Locker is on for this player when the page loads, so
+    // the Controls panel of everyone else is as before; without it the emote still plays on J (EMOTE_KEY0)
+    ...(lockerOn()?[{id:'emote',label:'Emote (Locker)',note:'Standing still; moving, jumping or shooting stops it',group:'Match',keys:['KeyJ']}]:[])
   ],
   classes:{button:'ghost-btn',primary:'cta'}
 });
@@ -7567,7 +7570,10 @@ const LXAPI={THREE,scene,camera,renderer,MAT,store,player,gunIM,GUN_GEO,GUN_TIP,
   get ents(){return ents},get state(){return state},get touchUI(){return touchUI},get low(){return touchUI||gfxPref==='fast'},get lookOn(){return lookOn},
   get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},
   setLxNet(v){myLx=lockerOn()?lxOf(v):'';player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},   // the same, not saved (an emote while it plays)
-  get MS(){return MS},canLook:()=>canLook(),kbUsed:c=>KB.actions().some(a=>a.keys.includes(c)),get SPEED(){return SPEED}};
+  get MS(){return MS},canLook:()=>canLook(),kbUsed:c=>KB.actions().some(a=>a.keys.includes(c)),
+  // the emote's key: the Controls panel's Emote when it has one, else J while nothing else is on J (T is party chat's in a party frame, gamechat.js)
+  isEmoteKey:c=>KB.actions().some(a=>a.id==='emote')?KB.is('emote',c):c===EMOTE_KEY0&&!KB.actionsFor(c).length,
+  emoteKeyName:()=>KB.actions().some(a=>a.id==='emote')?(KB.keys('emote').length?KB.short('emote'):''):'J',get SPEED(){return SPEED}};
 lockerSync();
 if(CAPTAINS)CAPTAINS.onChange(lockerSync);
 

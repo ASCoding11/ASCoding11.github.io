@@ -688,11 +688,15 @@ function canEmote(){const p=G.player;return G.lockerOn()&&G.canLook()&&p.alive&&
 function startEmote(){if(!canEmote())return;const n=myEmote(),o=worn();o.e=n;G.setLxNet(str(o));G.player.lxEA=performance.now();G.player.lxEN=n}
 function stopEmote(){const o=worn();if(!o.e)return;delete o.e;G.setLxNet(str(o))}
 const myEmote=()=>{const n=+G.store.get('em','1')|0;return n>=1&&n<=EMOTE_NAMES.length?n:1};
-addEventListener('keydown',e=>{if(e.code!=='KeyT'||e.repeat||e.ctrlKey||e.metaKey||e.altKey||G.kbUsed('KeyT')||!G.lockerOn())return;const a=document.activeElement;if(a&&/INPUT|TEXTAREA/.test(a.tagName))return;if(worn().e)stopEmote();else startEmote()});
+// The emote's key (wave four): J, or what the player set for Emote in Controls (G.isEmoteKey). It was T, but in a party
+// frame gamechat.js takes T for chat first, so it never reached here. (An older page without isEmoteKey keeps T.)
+const isEmoteKey=c=>G.isEmoteKey?G.isEmoteKey(c):c==='KeyT'&&!G.kbUsed('KeyT');
+const emoteKeyName=()=>G.emoteKeyName?G.emoteKeyName():'T';
+addEventListener('keydown',e=>{if(!isEmoteKey(e.code)||e.repeat||e.ctrlKey||e.metaKey||e.altKey||!G.lockerOn())return;const a=document.activeElement;if(a&&/INPUT|TEXTAREA/.test(a.tagName))return;if(worn().e)stopEmote();else startEmote()});
 function emoteTick(){
   const p=G.player,o=parse(G.myLx||'');
   if(o.e){const E=EMOTES[o.e],t=(performance.now()-(p.lxEA||0))/1000;if(!E||t>E.dur||!p.alive||!p.onGround||Math.hypot(p.vel.x,p.vel.z)>1||G.player.cd>0&&t>.3)stopEmote()}
-  if(G.touchUI&&G.lockerOn()){if(!emoteBtn){emoteBtn=document.createElement('button');emoteBtn.className='tb';emoteBtn.id='tEmote';emoteBtn.type='button';emoteBtn.textContent=lxT('EMOTE');
+  if(G.touchUI&&G.lockerOn()){if(!emoteBtn){emoteBtn=document.createElement('button');emoteBtn.className='tb';emoteBtn.id='tEmote';emoteBtn.type='button';emoteBtn.textContent=lxT('EMOTE');emoteBtn.title=lxT('Emote')+(emoteKeyName()?' ('+emoteKeyName()+')':'');
       emoteBtn.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();if(worn().e)stopEmote();else startEmote()});const T=G.$('touch');if(T)T.appendChild(emoteBtn)}
     emoteBtn.hidden=!(canEmote()||o.e)}else if(emoteBtn)emoteBtn.hidden=true;
 }
@@ -744,7 +748,7 @@ const TABS=[['outfits','Outfits','OUT','FITS'],['p','Backpacks','BACK','PACKS'],
 // (the HUD the Emote button sits in is left alone by ../lang.js, so it's put in the player's language here; the Locker's own words
 // are translated by lang.js, from the page's es.js)
 const lxT=s=>window.BackRoomLang?window.BackRoomLang.t(s):s;
-const LEDE={outfits:'Pick what you wear. Every outfit is the same size and just as easy to hit as the standard one.',g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',e:'Pick the emote to play in a match: T on a keyboard, the Emote button on a touch screen. Standing still only; moving stops it.',v:'Pick what you do when you win: everyone watching you sees it.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
+const LEDE={outfits:'Pick what you wear. Every outfit is the same size and just as easy to hit as the standard one.',g:'Pick how you glide down. Every glider is held its own way, but you are the same size and fall at the same speed.',t:'A trail follows you while you skydive and glide. It never hides anyone: it fades out close to the camera.',e:'Pick the emote to play in a match: the Emote key on a keyboard (J unless you change it in Controls), the Emote button on a touch screen. Standing still only; moving stops it.',v:'Pick what you do when you win: everyone watching you sees it.',p:'A backpack goes on over any outfit. It keeps your colour on it, so you can still be told apart.',w:'Your weapons in a pattern. The orange tip, the muzzle flash, the rarity band and the crosshair stay the same.',b:'What your walls, floors and ramps look like to everyone. They are just as strong, and just as hard to see through.'};
 let stageA=0,lede0=null,tab='outfits',built=false,drawnPics=false,stageEnt=null,stageTrail=0,posed=false,disp=null;
 const cards={};
 function worn(){return parse(G.myLx)}
@@ -773,7 +777,7 @@ function buildMenu(){
 function pick(id,n){if(!G.lockerOn())return;if(id==='e'){G.store.set('em',String(n||1));stageA=performance.now();mark();return}const o=worn();delete o.e;if(n)o[id]=n;else delete o[id];if(id==='v')stageA=performance.now();G.setLx(str(o));mark()}
 function nameOf(id){const o=worn();o.e=myEmote();const n=o[id];return n?SLOT[id][n-1]:id==='w'?'No skin':id==='t'?'No trail':id==='b'?'Plywood':id==='p'?'The outfit\'s own':id==='v'?'No victory pose':'Standard glider'}
 function mark(){if(!built)return;const o=worn();o.e=myEmote();for(const id in cards)cards[id].forEach((b,n)=>b.setAttribute('aria-pressed',(o[id]||0)===n?'true':'false'));
-  if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)}
+  if(tab!=='outfits')G.$('lkName').textContent=nameOf(tab)+(tab==='e'&&emoteKeyName()?'  ['+emoteKeyName()+']':'')}
 function setTab(id){tab=id;const sec=G.Locker.sec;
   for(const b of sec.querySelectorAll('.lk-tabs button')){b.setAttribute('aria-pressed',b.dataset.tab===id?'true':'false');if(b.dataset.tab===id&&sec.offsetParent!==null){const bar=b.parentNode;if(b.offsetLeft<bar.scrollLeft||b.offsetLeft+b.offsetWidth>bar.scrollLeft+bar.clientWidth)bar.scrollLeft=b.offsetLeft-12}}
   G.$('lkGrid').hidden=id!=='outfits';for(const k in cards)G.$('lkGrid-'+k).hidden=k!==id;
