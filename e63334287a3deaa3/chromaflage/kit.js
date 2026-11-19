@@ -235,8 +235,13 @@ const HAT_BUILD=[
   // 12 Pirate Hat: a black tricorn with gold trim and a white plume, and an eye patch over one side of the visor
   ()=>{const b=new Bake(),K='#2E2A2A',GD='#E8B830';
     b.add(domeTo(1.05,.3,22,8),K,[0,.1,0],[1,1.1,1]);
-    for(let i=0;i<3;i++){const a=Math.PI/3+i*TAU/3;b.add(Box(),K,[Math.sin(a)*.76,.7,Math.cos(a)*.76],[2.45,.66,.12],[.1,a,0]);b.add(Box(),GD,[Math.sin(a)*.795,1.03,Math.cos(a)*.795],[2.45,.07,.14],[.1,a,0])}
-    for(let i=0;i<3;i++){const a=i*TAU/3;b.add(Sph(8,6),GD,[Math.sin(a)*1.5,1.03,Math.cos(a)*1.5],[.09,.09,.09])}
+    // three turned-up brims, one facing forward: each is tall in the middle and falls away to the corners (the pirate-hat outline),
+    // built from 9 slices with the gold trim following the top edge. Same footprint as a plain triangle of walls.
+    for(let i=0;i<3;i++){const a=i*TAU/3,L=2.45,N=9,r=.76,y0=.36,hE=.26,hM=i?.78:.95,ca=Math.cos(a),sa=Math.sin(a);
+      for(let j=0;j<N;j++){const t=((j+.5)/N-.5)*L,u=Math.PI*t/L,h=hE+(hM-hE)*Math.cos(u)*Math.cos(u),sl=Math.atan(-(hM-hE)*Math.sin(2*u)*Math.PI/L);
+        b.add(Box(),K,[sa*r+ca*t,y0+h/2,ca*r-sa*t],[L/N+.01,h,.12],[.1,a,0]);
+        b.add(Box(),GD,[sa*(r+.01+h*.1)+ca*t,y0+h,ca*(r+.01+h*.1)-sa*t],[L/N/Math.cos(sl)+.02,.075,.15],[.1,a,sl])}}
+    for(let i=0;i<3;i++){const a=Math.PI/3+i*TAU/3;b.add(Sph(8,6),GD,[Math.sin(a)*1.44,.36+.26,Math.cos(a)*1.44],[.09,.09,.09])}
     for(let k=0;k<5;k++)b.add(Sph(8,6),'#FFFFFF',[-.55-k*.07,1.05+k*.1,-.3-k*.05],[.12,.2,.1],[0,0,.6]);
     b.add(Cyl(1,1,18),'#15151A',[.38,.12,1.04],[.26,.06,.24],[Math.PI/2,0,0]);
     b.add(Tor(1.05,.035,5,30),'#15151A',[0,.2,0],[1,1,1],[Math.PI/2-.25,0,-.2]);
