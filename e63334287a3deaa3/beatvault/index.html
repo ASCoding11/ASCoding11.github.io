@@ -137,7 +137,9 @@ body.touch #pauseBtn{width:58px;height:58px}
 .kbonly{}
 body.touch .kbonly{display:none!important}
 .touchonly{display:none!important}
-body.touch .touchonly{display:revert!important}
+body.touch .touchonly:not([hidden]){display:revert!important}
+body.touch #cpBtns:not([hidden]){display:flex!important}
+body.touch.prac #hint{bottom:calc(max(12px,env(safe-area-inset-bottom)) + 70px)}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="beatvault" defer></script>
 </head>
@@ -208,7 +210,7 @@ body.touch .touchonly{display:revert!important}
       <p class="note">If the music sounds behind the picture (common with Bluetooth headphones), find your delay: tap along to the clicks.</p>
       <div class="row"><button class="btn alt sm" type="button" id="calBtn">Find my delay</button></div>
       <div class="setting"><span>Effects</span><div class="seg" id="sFx"><button type="button" data-v="0">Full</button><button type="button" data-v="1">Reduced</button></div></div>
-      <p class="note">Reduced: no screen shake, no beat pulses or camera zoom, fewer paper scraps. Nothing in the game ever flashes the whole screen.</p>
+      <p class="note">Reduced: no screen shake or beat pulses, fewer paper scraps. Nothing in the game ever flashes the whole screen.</p>
       <div class="setting"><span>Hit boxes</span><div class="seg" id="sHb"><button type="button" data-v="0">Hidden</button><button type="button" data-v="1">In practice</button></div></div>
       <div class="row" style="margin-top:16px"><button class="btn" type="button" id="setDone">Done</button></div>
     </div>
@@ -346,7 +348,8 @@ var BV = (function () {
         // drums
         if (ty === 'end') { if (i === 0) { add(b0, 1, 'k', 0, 1); add(b0, 4, 'cr', 0, 0.9); } continue; }
         if (ty === 'intro') {
-          if (i % 2 === 0) add(b0, 1, 'k', 0, 0.55);
+          if (i % 2 === 0) add(b0, 1, 'k', 0, 0.7);
+          add(b0, 4, 'bass', note(c, -2), 0.35);
           if (i >= len / 2) for (var q = 0; q < 4; q++) add(b0 + q + 0.5, 0.25, 'h', 0, 0.25);
         } else if (ty === 'build') {
           for (q = 0; q < 4; q++) if (!(last && q === 3)) add(b0 + q, 1, 'k', 0, 0.85);
@@ -366,7 +369,7 @@ var BV = (function () {
           if (last) for (q = 0; q < 4; q++) add(b0 + 2 + q / 2, 0.5, 't', note(c + 4 - q, -1), 0.45);
         }
         // pad: the chord, held for the bar
-        var pv = ty === 'break' ? 0.5 : ty === 'intro' ? 0.42 : big ? 0.24 : 0.32;
+        var pv = ty === 'break' ? 0.55 : ty === 'intro' ? 0.8 : big ? 0.24 : 0.32;
         add(b0, 4, 'pad', [note(c, 0), note(c + 2, 0), note(c + 4, 0)], pv);
         // bass
         if (ty === 'build' || big) {
@@ -379,7 +382,7 @@ var BV = (function () {
         // arpeggio
         if (ty === 'build' || ty === 'finale' || (ty === 'intro' && i >= 2)) {
           var ar = [0, 2, 4, 7, 4, 2, 0, 2];
-          for (q = 0; q < 16; q++) add(b0 + q / 4, 0.22, 'arp', note(c + ar[q % 8], 1), ty === 'intro' ? 0.18 : ty === 'build' ? 0.16 + 0.12 * i / len : 0.2);
+          for (q = 0; q < 16; q++) add(b0 + q / 4, 0.22, 'arp', note(c + ar[q % 8], 1), ty === 'intro' ? 0.34 : ty === 'build' ? 0.16 + 0.12 * i / len : 0.2);
         }
         // lead
         if (big || ty === 'break') {
@@ -551,7 +554,7 @@ var BV = (function () {
     // ---- triggers: rings take a press, pads fire on touch, keys on touch
     for (bi = b0; bi <= b1; bi++) { list = L.bT[bi]; for (j = 0; j < list.length; j++) { s = list[j];
       if (s.key != null) {
-        if (!(S.keys & (1 << s.key)) && circleHit(S.x, S.y, hs, s.x, s.y, 0.55)) S.keys |= 1 << s.key;
+        if (!(S.keys & (1 << s.key)) && circleHit(S.x, S.y, hs, s.x, s.y, 0.65)) S.keys |= 1 << s.key;
       } else if (s.kind != null && s.up != null) {   // pad
         if (s.id !== S.lastPad && S.f !== 'glide' && S.f !== 'dart' && Math.abs(S.x - s.x) < hs + 0.45 && (s.up > 0 ? (S.y - hs < s.y + 0.32 && S.y - hs > s.y - 0.3) : (S.y + hs > s.y - 0.32 && S.y + hs < s.y + 0.3))) {
           S.lastPad = s.id; S.padT = 0;
@@ -624,7 +627,8 @@ var BV = (function () {
     return S;
   }
   // Breadth-first beam search over hold / let go, deciding every `every` steps. Each layer keeps at most `cap`
-  // states, and states that round to the same one are merged. opt.keys: prefer states holding more keys.
+  // states, and states that round to the same one are merged. opt.keys: prefer states holding more keys;
+  // opt.prune(S) drops a state, opt.accept(S) must be true for a clear to count (tests use these to prove a key can be taken).
   // Returns {ok, inputs: [[step, down]...]} for a clear, or {ok: false, bestX} where every state had died.
   function solve(L, opt) {
     opt = opt || {};
@@ -636,6 +640,8 @@ var BV = (function () {
         var S = clone(layer[i]); input(S, !!c); nodes++;
         for (var q = 0; q < every && !S.dead && !S.won; q++) step(L, S);
         if (S.dead) { if (S.x > bestX) bestX = S.x; continue; }
+        if (opt.prune && opt.prune(S)) continue;
+        if (S.won && opt.accept && !opt.accept(S)) continue;
         if (S.won) {
           var path = [c], li = i;
           for (var h = hist.length - 1; h >= 0; h--) { path.push(hist[h].ch[li]); li = hist[h].par[li]; }
@@ -817,11 +823,13 @@ var BV = (function () {
       for (var x = opt.first != null && bar === 0 ? opt.first : 0; x < W; x += every) {
         c = Math.max(gap / 2 + 0.5, Math.min(H - gap / 2 - 0.5, c + (r() * 2 - 1) * (opt.swing || 2.5)));
         var lo = Math.round(c - gap / 2), hi = Math.round(c + gap / 2), w = opt.w || 1;
+        // a key in the gap of the first obstacle at or after its column (a squeeze, not a detour)
+        if (opt.key && opt.key[2] === 'gap' && bar === opt.key[0] && x >= opt.key[1] && !it.keyed) { it.push([x, 'k', Math.min(hi - 1, Math.max(lo, Math.round(c - 0.5)))]); it.keyed = 1; }
         if (opt.both) { if (lo > 0) it.push([x, 'f', lo, w, opt.caps]); if (H - hi > 0) it.push([x, 'c', H - hi, w, opt.caps]); }
         else if ((x / every + bar) % 2 === 0) { if (lo > 0) it.push([x, 'f', lo, w, opt.caps]); }
         else if (H - hi > 0) it.push([x, 'c', H - hi, w, opt.caps]);
       }
-      if (opt.key && bar === opt.key[0]) it.push([opt.key[1], 'k', opt.key[2]]);
+      if (opt.key && bar === opt.key[0] && opt.key[2] !== 'gap') it.push([opt.key[1], 'k', opt.key[2]]);
       b.g(C(W, H, it));
     }
   }
@@ -836,27 +844,27 @@ var BV = (function () {
     b.g('....^.......^...').g('....^.......^...');
     b.g('.........###....').g('....^.......^^..');
     b.sec('drop');
-    b.g('..^...^...^...^.').g('..^...^...^.....');
+    b.g('..^...^...^...^.').g('..^.......^.....');
     b.g(`
 ...........k....
 ................
 .....#####......`);
     b.g('..^^.......^^...');
-    b.g('..^...^...^...^.');
+    b.g('..^.......^...^.');
     b.g(`
 ................
 .....###.....^..`);
     b.g('..^...^...^^....').g('..^.....__......');
     b.sec('break');
-    b.g('........##......').g('....##....##....');
+    b.g('........###.....').g('................');
     b.g(`
 ................
 ................
-..........##....
-......##..##....
-..##..##..##....`);
+............####
+........########
+....############`);
     b.g(`
-.k..............
+..k.............
 ................
 ................
 ................
@@ -869,13 +877,11 @@ var BV = (function () {
 ...k............
 ................
 ................
-..^^....^^....^.`);
-    b.g(`
-.........^......
-..^^....###.....`);
-    b.g('..^.^...^.^...^.').g('..___...^^^.....');
+..^^.......^^...`);
+    b.g('.........###....');
+    b.g('..^^......^.....').g('..__......^^....');
     b.sec('finale');
-    b.g('..^...^...^...^.').g('..^...^...^...^.');
+    b.g('..^...^...^...^.').g('..^.......^.....');
     b.g('..^...^.....^^..').g('........^.......');
     b.sec('end');
     L.push(b.done({ id: 'first-fold', name: 'First Fold', theme: 0, teach: 'Jump: press to hop over burrs, hold to keep hopping on the beat.' }));
@@ -1026,7 +1032,7 @@ var BV = (function () {
     b.g('......^^..........^^....').g('............___.........');
     b.sec('drop').speed(1).form('dart').ceil(9).cam(4.5);
     b.g(C(16, 9, []));
-    weave(b, 7, 9, 4, 4, 12, { both: 1, swing: 2.2, first: 4, key: [4, 2, 1] });
+    weave(b, 7, 9, 4, 4, 12, { both: 1, swing: 2.2, first: 4, key: [4, 2, 'gap'] });
     b.sec('break').form('glide').size(1);
     b.g(C(16, 9, []));
     weave(b, 7, 9, 6, 3.4, 31, { caps: 1, first: 2 });
@@ -1303,7 +1309,7 @@ var BV = (function () {
     if (A.ctx) { if (A.ctx.state === 'suspended') A.ctx.resume(); return A.ctx; }
     var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
     var ctx = A.ctx = new AC({ latencyHint: 'interactive' });
-    A.comp = ctx.createDynamicsCompressor(); A.comp.threshold.value = -10; A.comp.ratio.value = 4; A.comp.attack.value = 0.003; A.comp.release.value = 0.15;
+    A.comp = makeComp(ctx);
     A.master = ctx.createGain(); A.master.connect(A.comp); A.comp.connect(ctx.destination);
     A.mus = ctx.createGain(); A.mus.connect(A.master);
     A.sfx = ctx.createGain(); A.sfx.connect(A.master);
@@ -1311,11 +1317,13 @@ var BV = (function () {
     setVolumes();
     return ctx;
   }
+  var MUSIC_GAIN = 0.55;   // the music bus at 100% volume (rendered songs are checked at this level for clipping)
+  function makeComp(c) { var k = c.createDynamicsCompressor(); k.threshold.value = -16; k.knee.value = 4; k.ratio.value = 12; k.attack.value = 0.002; k.release.value = 0.12; return k; }
   function makeNoise(ctx) { var n = ctx.sampleRate * 2, b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0), r = BV.rng(99); for (var i = 0; i < n; i++) d[i] = r() * 2 - 1; return b; }
   function setVolumes() {
     if (!A.ctx) return;
     var t = A.ctx.currentTime, m = A.on ? 1 : 0;
-    A.mus.gain.setTargetAtTime(Math.pow(SET.mv / 100, 1.6) * 0.8 * m, t, 0.02);
+    A.mus.gain.setTargetAtTime(Math.pow(SET.mv / 100, 1.6) * MUSIC_GAIN * m, t, 0.02);
     A.sfx.gain.setTargetAtTime(Math.pow(SET.sv / 100, 1.6) * 0.9 * m, t, 0.02);
   }
   function mtof(n) { return 440 * Math.pow(2, (n - 69) / 12); }
@@ -1327,14 +1335,14 @@ var BV = (function () {
     k: function (o, t, e) {
       var c = o.ctx, s = c.createOscillator(), g = c.createGain();
       s.frequency.setValueAtTime(150, t); s.frequency.exponentialRampToValueAtTime(44, t + 0.11);
-      env(g, t, 0.003, 0.95 * e.v, 0.3, t + 0.34); s.connect(g); g.connect(o.out); s.start(t); s.stop(t + 0.36);
+      env(g, t, 0.003, 0.72 * e.v, 0.3, t + 0.34); s.connect(g); g.connect(o.out); s.start(t); s.stop(t + 0.36);
       var n = noiseSrc(o, t, 0.02), f = c.createBiquadFilter(), g2 = c.createGain(); f.type = 'highpass'; f.frequency.value = 3000;
       env(g2, t, 0.001, 0.25 * e.v, 0.01, t + 0.018); n.connect(f); f.connect(g2); g2.connect(o.out);
       if (o.duck && e.v > 0.9) { var d = o.duck.gain; d.cancelScheduledValues(t); d.setValueAtTime(1, t); d.linearRampToValueAtTime(0.45, t + 0.012); d.setTargetAtTime(1, t + 0.03, 0.07); }
     },
     s: function (o, t, e) {
       var c = o.ctx, n = noiseSrc(o, t, 0.2), f = c.createBiquadFilter(), g = c.createGain();
-      f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.7; env(g, t, 0.002, 0.5 * e.v, 0.15, t + 0.18);
+      f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = 0.7; env(g, t, 0.002, 0.42 * e.v, 0.15, t + 0.18);
       n.connect(f); f.connect(g); g.connect(o.out);
       var s = c.createOscillator(), g2 = c.createGain(); s.type = 'triangle'; s.frequency.setValueAtTime(190, t); s.frequency.exponentialRampToValueAtTime(140, t + 0.08);
       env(g2, t, 0.002, 0.35 * e.v, 0.08, t + 0.1); s.connect(g2); g2.connect(o.out); s.start(t); s.stop(t + 0.12);
@@ -1459,8 +1467,8 @@ var BV = (function () {
   function renderSong(id, sr) {
     var sg = BV.song(id), len = sg.beats / sg.bps + 2, OC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     var c = new OC(2, Math.ceil(len * (sr || 22050)), sr || 22050);
-    var comp = c.createDynamicsCompressor(); comp.threshold.value = -10; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.15;
-    var mus = c.createGain(); mus.gain.value = 0.8; mus.connect(comp); comp.connect(c.destination);
+    var comp = makeComp(c);
+    var mus = c.createGain(); mus.gain.value = MUSIC_GAIN; mus.connect(comp); comp.connect(c.destination);
     var duck = c.createGain(); duck.connect(mus);
     var o = { ctx: c, out: mus, duck: duck, noise: makeNoise(c), lead: sg.def.lead, spb: 1 / sg.bps };
     sg.ev.forEach(function (e) { playEvent(o, e, 0.05 + e.b / sg.bps); });
@@ -1823,6 +1831,7 @@ var BV = (function () {
     GAME.showHit = GAME.mode === 'practice' && SET.hb === 1;
     GAME.seenForms = {}; GAME.hintN = (rec(meta.id).a || 0);
     $('prac').hidden = GAME.mode !== 'practice'; $('cpBtns').hidden = GAME.mode !== 'practice';
+    document.body.classList.toggle('prac', GAME.mode === 'practice');
     $('prac').textContent = TX(GAME.mode === 'practice' ? 'Practice' : GAME.mode === 'test' ? 'Test play' : GAME.mode === 'verify' ? 'Verifying' : '');
     if (GAME.mode === 'test' || GAME.mode === 'verify') $('prac').hidden = false;
     beginAttempt(true);
