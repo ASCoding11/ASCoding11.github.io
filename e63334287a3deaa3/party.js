@@ -531,6 +531,7 @@
     var g = byKey(picked);
     if (!g) return say('Pick a game first.', true);
     if (members.length > g.max) return say(g.n + ' rooms hold ' + g.max + ' players, and the party has ' + members.length + '.', true);
+    // The games recognise a party's room by this shape (p + 6 of rand's characters) and add no bots there: keep it.
     var r = 'p' + rand(6);
     goId += 1; lastGo = { id: goId, g: g.k, r: r, t: Math.round(now()) };
     handled[uid + ':' + goId + ':' + lastGo.t] = 1;

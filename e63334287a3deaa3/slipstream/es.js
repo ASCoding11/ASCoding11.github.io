@@ -45,6 +45,8 @@
     'Public lobby': 'Sala pública', 'Room {c}': 'Sala {c}', 'Practice · {t}': 'Práctica · {t}',
     '{n} driver here · bots drive the other {b} cars · {t}': '{n} piloto aquí · los bots manejan los otros {b} autos · {t}',
     '{n} drivers here · bots drive the other {b} cars · {t}': '{n} pilotos aquí · los bots manejan los otros {b} autos · {t}',
+    '{n} driver here · No bots in party games · {t}': '{n} piloto aquí · Sin bots en partidas de grupo · {t}',
+    '{n} drivers here · No bots in party games · {t}': '{n} pilotos aquí · Sin bots en partidas de grupo · {t}', 'No bots in party games': 'Sin bots en partidas de grupo',
     'You and 21 bots · {t} · Easy bots': 'Tú y 21 bots · {t} · bots fáciles', 'You and 21 bots · {t} · Normal bots': 'Tú y 21 bots · {t} · bots normales',
     'You and 21 bots · {t} · Hard bots': 'Tú y 21 bots · {t} · bots difíciles',
     'Pick any seat, then start. The other 21 cars are bots.': 'Elige cualquier lugar y empieza. Los otros 21 autos son bots.',
@@ -73,7 +75,7 @@
     // race
     'You lost connection, so a bot took over your car.': 'Perdiste la conexión, así que un bot tomó tu auto.',
     'A driver left the room.': 'Un piloto salió de la sala.', '{n} left the room.': '{n} salió de la sala.',
-    '{n} left · a bot takes over the {t} car': '{n} se fue · un bot maneja el auto de {t}',
+    '{n} left · a bot takes over the {t} car': '{n} se fue · un bot maneja el auto de {t}', '{n} left the race': '{n} dejó la carrera',
     '+{p} s · you cut the track at Turn {n}': '+{p} s · cortaste la pista en la curva {n}', '+{p} s · you cut the track': '+{p} s · cortaste la pista',
     '+{p} s · {w} cut the track at Turn {n}': '+{p} s · {w} cortó la pista en la curva {n}', '+{p} s · {w} cut the track': '+{p} s · {w} cortó la pista',
     'DRS available: within {g} s · press {k} in the zone': 'DRS disponible: a {g} s · toca {k} en la zona',

@@ -153,7 +153,7 @@ function heard(uid,v){
   if(remote.size>80)remote.clear();
   remote.set(uid,{raw:s,L:readWire(s)});
   const r=X.race;
-  if(r&&r.online&&!r.attract&&r.uidSeat){const seat=r.uidSeat.get(uid);if(seat!=null){const c=r.cars[seat];if(c.mesh&&!c.bot&&c.owner===uid)applyTo(c,c.mesh)}}
+  if(r&&r.online&&!r.attract&&r.uidSeat){const seat=r.uidSeat.get(uid);if(seat!=null){const c=(r.seatCar||r.cars)[seat];if(c&&c.mesh&&!c.bot&&c.owner===uid)applyTo(c,c.mesh)}}
 }
 let pvLook=null;                     // the look on the Garage's turning car
 function lookOf(c){

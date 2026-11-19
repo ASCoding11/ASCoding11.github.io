@@ -79,7 +79,7 @@
     'Room code': 'Código de sala', 'Play in room': 'Jugar en sala', 'Pick a room code, then send friends the invite link from the table.': 'Elige un código de sala y manda la invitación desde la mesa.',
     'Practice vs bots': 'Práctica contra bots', 'Practice': 'Práctica', 'No timer. Rebuy whenever you like.': 'Sin reloj. Recompra cuando quieras.',
     'Table settings': 'Ajustes de mesa', 'Seats': 'Lugares', 'Heads-up': 'Mano a mano', 'Bots': 'Bots', 'Easy': 'Fácil', 'Normal': 'Normal', 'Hard': 'Difícil',
-    'Stack': 'Fichas', 'Timer': 'Reloj', 'Fill seats': 'Llenar lugares', 'With bots': 'Con bots', 'People only': 'Solo personas',
+    'Stack': 'Fichas', 'Timer': 'Reloj', 'Fill seats': 'Llenar lugares', 'With bots': 'Con bots', 'People only': 'Solo personas', 'No bots in party games': 'Sin bots en partidas de grupo',
     'Used for Practice and for rooms you start. Blinds are 10 / 20. Quick match tables are 6-max, 100 BB, 30 s, Normal bots.': 'Para la práctica y las salas que abres. Ciegas 10 / 20. Las mesas de Partida rápida son 6-max, 100 BB, 30 s, bots normales.',
     'How to play': 'Cómo jugar',
     'Everyone gets two cards. Five shared cards come out in three rounds (the flop, the turn and the river), with a round of betting before each and one at the end. Make the best five-card hand from any of your two and the five on the table, or make everyone else fold.': 'Cada uno recibe dos cartas. Salen cinco cartas comunes en tres tandas (flop, turn y river), con una ronda de apuestas antes de cada una y otra al final. Arma la mejor mano de cinco con tus dos y las cinco de la mesa, o haz que todos los demás se retiren.',

@@ -6,7 +6,7 @@
     // menu
     "Rocket-powered car soccer. Drive, jump, flip and fly to knock a giant ball into the other team's net.": 'Fútbol con autos a cohete. Maneja, salta, haz piruetas y vuela para meter una pelota gigante en el arco rival.',
     'Quick match': 'Partida rápida', 'Play in room': 'Jugar en la sala', 'room code': 'código de sala', 'Practice vs bots': 'Práctica contra bots',
-    'Teams': 'Equipos', 'Bots fill in': 'Completar con bots', 'No bots': 'Sin bots', 'Free play': 'Juego libre', 'Rookie': 'Novato', 'Pro': 'Pro', 'All-Star': 'Estrella',
+    'Teams': 'Equipos', 'Bots fill in': 'Completar con bots', 'No bots': 'Sin bots', 'No bots in party games': 'Sin bots en partidas de grupo', 'Free play': 'Juego libre', 'Rookie': 'Novato', 'Pro': 'Pro', 'All-Star': 'Estrella',
     'Your car': 'Tu auto', 'Car body': 'Carrocería', 'Team colours': 'Colores del equipo', 'Accent colour': 'Color de detalle', 'Blue · Orange': 'Azul · Naranja',
     "Your car takes your team's colour in a match. Every body has the same hitbox.": 'En un partido tu auto lleva el color de tu equipo. Todas las carrocerías tienen la misma hitbox.',
     "Online, everyone sees the colours picked by the room's host.": 'En línea, todos ven los colores que eligió el anfitrión de la sala.',

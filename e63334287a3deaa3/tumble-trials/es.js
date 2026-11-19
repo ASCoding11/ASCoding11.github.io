@@ -36,7 +36,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Public lobby': 'Sala pública', 'Room {r}': 'Sala {r}', 'Anyone pressing Quick match can join': 'Cualquiera que toque Partida rápida puede entrar', 'Invite link: {u}': 'Enlace de invitación: {u}',
   'Every show has {f} contestants: {n} bots will fill the empty places.': 'Cada show tiene {f} participantes: {n} bots ocupan los lugares vacíos.',
   'Every show has {f} contestants: {n} bot will fill the empty places.': 'Cada show tiene {f} participantes: {n} bot ocupa el lugar vacío.',
-  'A full house: {f} players, no bots.': 'Casa llena: {f} jugadores, sin bots.', '(you pick)': '(eliges tú)', '(the host picks)': '(elige el anfitrión)',
+  'A full house: {f} players, no bots.': 'Casa llena: {f} jugadores, sin bots.', 'No bots in party games': 'Sin bots en partidas de grupo', '(you pick)': '(eliges tú)', '(the host picks)': '(elige el anfitrión)',
   'Starting in {s}… Anyone who joins before then plays too.': 'Empieza en {s}… Quien entre antes también juega.', 'Starting in {s}…': 'Empieza en {s}…',
   'Starts by itself in a moment.': 'Empieza solo en un momento.', 'Press Start show when everyone is in, or it starts once everyone is ready.': 'Toca Empezar el show cuando estén todos, o empieza cuando todos estén listos.',
   'Waiting for the host. Press Ready when you are.': 'Esperando al anfitrión. Toca Listo cuando lo estés.',
