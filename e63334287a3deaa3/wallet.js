@@ -31,7 +31,10 @@
  *   localStorage 'wallet:v1'  { v: 1, base: mangos the account node had at the last sync, pend: mangos earned (+) or
  *                               spent (-) since then, su: the uid it syncs with, day: 'YYYYMMDD', dc: { <game>: mangos
  *                               earned from it today }, gift: 1 once the welcome gift was given, dv: the browser
- *                               that wrote it ('wallet:dev'; a copy restored from another browser ignores its pend) }
+ *                               that wrote it ('wallet:dev'; a copy restored from another browser ignores its pend),
+ *                               tw / aw: the last week (its Monday, YYYYMMDD) whose titles / Aisle reward were claimed,
+ *                               gc: { sender uid: time of the newest gift claimed from them }, gs: { gift id: gift sent
+ *                               and not opened yet } (see "Rewards and gifts") }
  *   localStorage 'wallet:dev'  this browser's id (12 letters and digits; never put in a cloud save)
  *                               The balance is base + pend.
  *   localStorage 'wallet:log' [[time ms, change in mangos, balance after, why], …] the last 200, newest last. Grants from
@@ -40,8 +43,10 @@
  * Signed in with Google: the wallet is mirrored into the player's own stats node rooms/lb-all/players/<uid>, under one field
  * w (the only node a player may write; same project and rules as stats.js; see that file):
  *   w { v: 1, b: balance in mangos, s: skins owned (hex bitmask by item number), a: accessories owned (hex bitmask),
- *       e: what is worn ('s12,h3,p21': slot letter and item number), lh: hash of the log, t: time ms }
- * A few hundred characters at most, so the node stays under leaderboard.js's 8,000. The sync is a Firebase transaction on
+ *       e: what is worn ('s12,h3,p21': slot letter and item number), lh: hash of the log, t: time ms,
+ *       tw, aw: claimed weeks, gc: { sender uid: time in base 36 }, gs: { gift id: 'to|k|x|time36|from name|note' } }
+ * At most W_MAX (950) characters (the oldest gc entries are dropped first; at most GS_MAX unopened gifts), so the node
+ * stays under leaderboard.js's 8,000 with stats.js's 7,000. The sync is a Firebase transaction on
  * w alone, like stats.js's batches: it ADDS pend to the balance the node holds, so two devices on one account add up and
  * nothing is counted twice; the lockers are joined (owning never goes away). If the node doesn't exist yet (the player has
  * never been on the Leaderboards) nothing is written until stats.js makes it. A browser syncs with one account: the first
@@ -65,6 +70,9 @@
  *   spend(mangos, why)   takes whole mangos if the balance covers them; returns the new balance, or false
  *   log()                a copy of the log
  *   on()                 whether the wallet is switched on
+ *   unlimited()          true for a captain while the cosmetics are on: format() shows '∞' and spend() takes nothing
+ *   gift(what, to, toName, note)   send a pack, chest or 'item:<id>' as a gift (see "Rewards and gifts"); a promise
+ *   giftPeople()         a promise for the people a gift can go to; scan(force) the read that claims gifts and rewards
  *   MANGOS_PER_EMERALD, EMERALD_PACKS, EARN, PAYMENTS
  * Fires 'backroom:wallet' on document ({ detail: { balance, change, why } }) whenever the balance changes, here or in
  * another tab of this browser or from another device through the sync.
@@ -420,6 +428,15 @@
 
 
   // ---------------- Rewards and gifts ----------------
+  // Weekly titles: whoever is ranked 1 (ties all count) on a game's main board (the first board leaderboard.js lists for
+  // it, all time) gets TITLE_PAY mangos for that game for each week, claimed by their own page at its first scan after the
+  // week ends (judged from the boards as they stand then: there is no record of how they stood on Sunday night).
+  // Weekly Aisle reward: the Aisle(s) that won last week's contest (aisles.js) share AISLE_POT, floor(100 / members) each,
+  // leftover mangos unpaid; claimed by each member's own page on the Back Room page (it needs aisles.js).
+  // Gifts: the sender pays, and the gift is written into the sender's own w.gs (players can only write their own node);
+  // the recipient's page finds gifts addressed to it in the scan, claims them through grant('gift') and records the
+  // sender's newest claimed time in its own w.gc; the sender's page then sees that and forgets the gift.
+  // Everything here is client-side; see grant() below before real money is switched on.
   // Captains (captains.js, which asks miles.js's OWNERS; Vice Captains are not captains here) have no limit: their
   // balance shows ∞, spending never charges them, they own everything (cosmetics.js) and gift for free.
   function captain() { try { return !!(window.BackRoomCaptains && window.BackRoomCaptains.captain && window.BackRoomCaptains.captain()); } catch (e) { return false; } }
@@ -500,7 +517,7 @@
       var key = kind === 'title' ? 'tw' : 'aw';
       if (!WEEK_RE.test(d.week) || d.week > lastWeek() || w[key] >= d.week) return false;
       w[key] = d.week; save(w); soon();
-      if (captain()) return { mangos: 0 };                                        // captains have no limit: never paid
+      if (captain() || isCaptainUid(d.me)) return { mangos: 0 };                 // captains have no limit: never paid
       var m = kind === 'title' ? TITLE_PAY * (Array.isArray(d.games) ? d.games.length : 0) : (int(d.each) && d.each > 0 && d.each <= AISLE_POT ? d.each : 0);
       if (m > 0) change(m, kind === 'title' ? (d.games.length === 1 ? 'Top of ' + gameName(d.games[0]) : 'Top of ' + d.games.length + ' boards') + ' (week of ' + d.week.slice(4, 6) + '/' + d.week.slice(6) + ')' : 'Aisle won the week of ' + d.week.slice(4, 6) + '/' + d.week.slice(6));
       return { mangos: m };
@@ -553,7 +570,7 @@
   function claimTitles(tops, me, week) {
     if (!tops || !okUid(me)) return false;
     var games = Object.keys(tops).filter(function (g) { return tops[g].indexOf(me) >= 0; });
-    return grant('title', { week: week || lastWeek(), games: games });
+    return grant('title', { week: week || lastWeek(), games: games, me: me });
   }
   // Claim the weekly Aisle reward: winners as BackRoomAisles.lastWinners() gives them ([{ K, members }]).
   function claimAisle(winners, me, week) {
@@ -561,7 +578,7 @@
     var A = winners.filter(function (x) { return x && Array.isArray(x.members) && x.members.indexOf(me) >= 0; })[0];
     var w = load(); week = week || lastWeek();
     if (!A) { if (w.aw < week) { w.aw = week; save(w); } return { mangos: 0 }; }
-    return grant('aisle', { week: week, K: A.K, each: Math.floor(AISLE_POT / Math.max(1, A.members.length)) });
+    return grant('aisle', { week: week, K: A.K, each: Math.floor(AISLE_POT / Math.max(1, A.members.length)), me: me });
   }
   // Claim gifts addressed to me in the raw nodes, oldest first; and forget my own sent gifts their recipient has opened.
   function claimGifts(val, me) {
@@ -611,12 +628,16 @@
       if (!unlimited() && bal(w) < p.price) return { ok: false, reason: 'funds', need: p.price - bal(w) };
       if (spend(p.price, 'Gift to ' + name + ': ' + p.name) === false) return { ok: false, reason: 'funds' };
       var gid = ''; try { var a = new Uint8Array(8); crypto.getRandomValues(a); for (var i = 0; i < 8; i++) gid += 'abcdefghijklmnopqrstuvwxyz0123456789'.charAt(a[i] % 36); } catch (e) { gid = (Math.random().toString(36) + '00000000').slice(2, 10); }
-      var g = cleanGift({ to: to, k: p.kind === 'one' ? 'i' : 'p', x: p.kind === 'one' ? what.slice(5) : p.id, t: Date.now(), f: myName(), n: note });
-      w = load(); w.gs[gid] = g; save(w);
+      w = load();
+      // Each gift from one sender has a later time than the last (the recipient claims by time, sender by sender).
+      var t = Date.now(); Object.keys(w.gs).forEach(function (k) { if (w.gs[k].t >= t) t = w.gs[k].t + 1; });
+      if (lastT >= t) t = lastT + 1; lastT = t;
+      var g = cleanGift({ to: to, k: p.kind === 'one' ? 'i' : 'p', x: p.kind === 'one' ? what.slice(5) : p.id, t: t, f: myName(), n: note }); w.gs[gid] = g; save(w);
       sync();
       return { ok: true, id: gid, spent: unlimited() ? 0 : p.price, gift: g, balance: balance() };
     });
   }
+  var lastT = 0;
   function myName() { return cleanText(ls('ol:name') || ls('party:name') || '', 14) || 'A player'; }
 
   // The once-in-a-while read: every player's node (rooms/lb-all/players, the same read the Leaderboards make), for

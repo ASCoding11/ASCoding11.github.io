@@ -1270,11 +1270,12 @@
     var pv = preview(packId);
     if (pv.all) return { ok: false, reason: 'owned' };
     var w = W(); if (!w) return { ok: false, reason: 'wallet' };
-    if (w.balance() < p.price) return { ok: false, reason: 'funds', need: p.price - w.balance() };
+    var free = !!(w.unlimited && w.unlimited());     // a captain: never charged (wallet.js spend() takes nothing)
+    if (!free && w.balance() < p.price) return { ok: false, reason: 'funds', need: p.price - w.balance() };
     if (w.spend(p.price, 'Bought ' + p.name) === false) return { ok: false, reason: 'funds' };
     var f = fill(p, opts);
     if (f.refund) w.earn(f.refund, f.dups === 1 ? 'Back for a duplicate' : 'Back for ' + f.dups + ' duplicates');
-    return { ok: true, pack: p.id, spent: p.price, got: f.got, refund: f.refund, balance: w.balance() };
+    return { ok: true, pack: p.id, spent: free ? 0 : p.price, got: f.got, refund: f.refund, balance: w.balance() };
   }
   // Put what a pack (or one item, or chests) holds into the real locker, opening chests here. Pays nothing: the caller
   // pays the refund for duplicates (buy() above, or wallet.js's grant() for a gift). -> { got, dups, refund }
