@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Ironveil characters (dev viewer)</title>
+<style>
+  html,body{margin:0;height:100%;background:#1b1d1f;color:#e8e4d8;font:13px/1.35 system-ui,sans-serif;overflow:hidden}
+  #ui{position:absolute;left:8px;top:8px;width:290px;max-height:calc(100% - 16px);overflow:auto;background:rgba(20,22,24,.86);border:1px solid #444;border-radius:6px;padding:8px;box-sizing:border-box}
+  #ui h1{font-size:14px;margin:0 0 6px}
+  #ui label{display:block;margin:6px 0 2px;color:#bdb6a2}
+  #ui select,#ui input[type=range]{width:100%}
+  .btns{display:flex;flex-wrap:wrap;gap:3px}
+  .btns button{flex:0 0 auto;background:#34362f;color:#eee;border:1px solid #555;border-radius:3px;padding:2px 5px;font-size:11px;cursor:pointer}
+  .btns button.on{background:#6b6a3c;border-color:#aa9}
+  #stats{position:absolute;right:8px;top:8px;background:rgba(0,0,0,.6);padding:6px 8px;border-radius:5px;font:12px monospace;white-space:pre}
+  #load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;pointer-events:none}
+  @media (max-width:640px){#ui{width:auto;right:8px;top:auto;bottom:8px;max-height:45%}}
+</style>
+</head>
+<body>
+<div id="load">Loading characters… <span id="pct">0%</span></div>
+<div id="ui">
+  <h1>Ironveil characters</h1>
+  <label>Character</label><select id="kind"></select>
+  <label>Full-body clip (play)</label><div class="btns" id="clips"></div>
+  <label>Upper-body layer (setUpper)</label><div class="btns" id="uppers"></div>
+  <label>Aim pitch <span id="pv">0</span></label><input type="range" id="pitch" min="-1" max="1" step="0.01" value="0">
+  <label>Aim yaw <span id="yv">0</span></label><input type="range" id="yaw" min="-1" max="1" step="0.01" value="0">
+  <label>Weapon</label><select id="weapon"><option value="">none</option></select>
+  <label>Socket</label><select id="socket"><option>handR</option><option>handL</option><option>back</option><option>hip</option></select>
+  <label>Camera</label><div class="btns" id="cams"></div>
+  <label>Speed <span id="sv">1</span></label><input type="range" id="speed" min="0" max="2" step="0.05" value="1">
+  <label>Drive (WASD, Shift sprint, C crouch, Z prone, Q aim; ground has a 15&deg; slope and 0.2 m steps)</label><div class="btns"><a href="?drive=1&weapon=rifleScoped" style="color:#cfc">open drive mode</a></div>
+  <label>Stress test</label><div class="btns"><button id="stress">16 actors walking</button><button id="stressOff">clear</button><button id="pause">pause</button></div>
+</div>
+<div id="stats"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="assets/lib/GLTFLoader.js"></script>
+<script src="assets/lib/SkeletonUtils.js"></script>
+<script src="chars.js"></script>
+<script>
+(function () {
+  'use strict';
+  var P = new URLSearchParams(location.search);
+  var auto = P.has('shot');                      // screenshot mode: fixed time, no UI
+  var W = innerWidth, H = innerHeight;
+  var r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: auto });
+  r.setPixelRatio(Math.min(devicePixelRatio, 2)); r.setSize(W, H);
+  r.outputEncoding = THREE.sRGBEncoding; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.0;
+  r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
+  document.body.prepend(r.domElement);
+  var sc = new THREE.Scene();
+  sc.background = new THREE.Color(0x9aa6b0); sc.fog = new THREE.Fog(0x9aa6b0, 30, 90);
+  // soft sky environment for reflections (made in code)
+  (function () {
+    var es = new THREE.Scene();
+    var g = new THREE.SphereGeometry(10, 32, 16), c = [], pos = g.attributes.position;
+    for (var i = 0; i < pos.count; i++) { var y = pos.getY(i) / 10; var k = Math.max(0, y); c.push(0.55 + 0.35 * k, 0.6 + 0.3 * k, 0.66 + 0.3 * k); if (y < 0) { c[c.length - 3] = 0.32; c[c.length - 2] = 0.29; c[c.length - 1] = 0.24; } }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3));
+    es.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+    var pm = new THREE.PMREMGenerator(r);
+    sc.environment = pm.fromScene(es, 0.02).texture;
+  })();
+  sc.add(new THREE.HemisphereLight(0xcfd8e2, 0x5b5040, 0.55));
+  var sun = new THREE.DirectionalLight(0xfff0dc, 2.0); sun.position.set(4, 7, 5); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+  var sca = sun.shadow.camera; sca.left = -6; sca.right = 6; sca.top = 6; sca.bottom = -6; sca.far = 30;
+  sc.add(sun);
+  // ground: a code-made dirt/grass texture
+  (function () {
+    var cv = document.createElement('canvas'); cv.width = cv.height = 256; var x = cv.getContext('2d');
+    x.fillStyle = '#6a6248'; x.fillRect(0, 0, 256, 256);
+    for (var i = 0; i < 2500; i++) { var v = Math.random(); x.fillStyle = 'rgba(' + (60 + v * 50 | 0) + ',' + (60 + v * 45 | 0) + ',' + (40 + v * 25 | 0) + ',0.5)'; x.fillRect(Math.random() * 256, Math.random() * 256, 2 + Math.random() * 4, 2 + Math.random() * 4); }
+    var t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 30); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8;
+    var gm = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ map: t, roughness: 1 }));
+    gm.rotation.x = -Math.PI / 2; gm.receiveShadow = true; sc.add(gm);
+  })();
+  if (P.has('night')) {   // cold moonlight over dark grass, to check that characters still read at distance
+    sc.background = new THREE.Color(0x070a10); sc.fog = new THREE.Fog(0x070a10, 25, 110);
+    sc.children.forEach(function (o) {
+      if (o.isHemisphereLight) { o.color.set(0x5a6a88); o.groundColor.set(0x0c0e0a); o.intensity = 0.22; }
+      if (o.isDirectionalLight) { o.color.set(0x9fb4d8); o.intensity = 0.55; o.position.set(-5, 9, 3); }
+      if (o.isMesh && o.material && o.material.map) { o.material.color.set(0x2a3320); }
+    });
+    sc.environment = null;
+  }
+  var cam = new THREE.PerspectiveCamera(35, W / H, 0.05, 200);
+  IVChars.camera = cam;
+  var orbit = { yaw: 0.35, pitch: 0.08, dist: 4.2, ty: 0.95 };
+  var CAMS = {
+    front: { yaw: 0, pitch: 0.05, dist: 4.4, ty: 0.92 }, side: { yaw: Math.PI / 2, pitch: 0.05, dist: 4.4, ty: 0.92 },
+    back: { yaw: Math.PI, pitch: 0.05, dist: 4.4, ty: 0.92 }, threeq: { yaw: 0.6, pitch: 0.1, dist: 4.4, ty: 0.92 },
+    face: { face: true, yaw: 0.35, dist: 0.7 }, ots: { ots: true }, wide: { yaw: 0.5, pitch: 0.35, dist: 14, ty: 0.8 }
+  };
+  function placeCam() {
+    if (orbit.face && actor && actor.bone('Head')) {   // face close-up follows the head bone
+      var h = new THREE.Vector3().setFromMatrixPosition(actor.bone('Head').matrixWorld).add(new THREE.Vector3(0, 0.07, 0));
+      cam.position.set(h.x + Math.sin(orbit.yaw) * orbit.dist, h.y + 0.02, h.z + Math.cos(orbit.yaw) * orbit.dist); cam.lookAt(h); return;
+    }
+    if (orbit.ots) {   // over-the-shoulder game camera: 2.5 m behind, right shoulder
+      var base = actor ? actor.root.position : new THREE.Vector3();
+      cam.position.set(base.x - 0.7, 1.7, base.z - 2.5); cam.lookAt(base.x - 0.35, 1.45, base.z + 4); return;
+    }
+    cam.position.set(Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist, orbit.ty + Math.sin(orbit.pitch) * orbit.dist, Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
+    cam.lookAt(0, orbit.ty, 0);
+  }
+  var drag = null;
+  r.domElement.addEventListener('pointerdown', function (e) { drag = [e.clientX, e.clientY]; orbit.ots = false; });
+  addEventListener('pointerup', function () { drag = null; });
+  addEventListener('pointermove', function (e) { if (!drag) return; orbit.yaw -= (e.clientX - drag[0]) * 0.008; orbit.pitch = Math.max(-0.3, Math.min(1.2, orbit.pitch + (e.clientY - drag[1]) * 0.005)); drag = [e.clientX, e.clientY]; });
+  r.domElement.addEventListener('wheel', function (e) { orbit.dist = Math.max(0.6, Math.min(30, orbit.dist * (1 + e.deltaY * 0.001))); e.preventDefault(); }, { passive: false });
+  addEventListener('resize', function () { W = innerWidth; H = innerHeight; r.setSize(W, H); cam.aspect = W / H; cam.updateProjectionMatrix(); });
+
+  var actor = null, gun = null, crowd = [], paused = false, curClip = 'idle', curUpper = null, speed = 1;
+  var $ = function (id) { return document.getElementById(id); };
+  function spawn(kind) {
+    if (actor) actor.dispose();
+    actor = IVChars.spawn(kind); sc.add(actor.root); window.ACTOR = actor;
+    actor.play(curClip, { fade: 0 }); actor.setUpper(curUpper, { fade: 0 });
+    if (gun) attachGun();
+  }
+  function attachGun() {
+    if (gun) actor.detach(gun);
+    var k = $('weapon').value; gun = null;
+    if (!k) return;
+    gun = IVChars.weapon(k); actor.attach(gun, $('socket').value);
+  }
+  function buttons(el, names, cb, cls) {
+    el.innerHTML = '';
+    names.forEach(function (n) { var b = document.createElement('button'); b.textContent = n; b.onclick = function () { cb(n); mark(el, n); }; el.appendChild(b); });
+  }
+  function mark(el, n) { [].forEach.call(el.children, function (b) { b.classList.toggle('on', b.textContent === n); }); }
+  var UPPERS = ['(none)', 'aimIdle', 'holdRifle', 'fire', 'reload', 'boltCycle', 'throw', 'signalMoveUp', 'aimPistol', 'firePistol', 'holdPistol', 'alert'];
+
+  if (P.has('fallback')) IVChars.forceFallback = true;
+  IVChars.load(function (p) { $('pct').textContent = Math.round(p * 100) + '%'; }).then(function () {
+    $('load').style.display = 'none';
+    ['hero', 'ally', 'rifleman', 'officer', 'sniper', 'gunner'].forEach(function (k) { var o = document.createElement('option'); o.textContent = k; $('kind').appendChild(o); });
+    ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade'].forEach(function (k) { var o = document.createElement('option'); o.textContent = k; $('weapon').appendChild(o); });
+    buttons($('clips'), IVChars.clips.filter(function (n) { return n !== 'fire'; }), function (n) { curClip = n; actor.play(n, { once: /^(death|hit|stagger|throw|melee|takedown|vault|reload|bolt|fire|breach|signal|salute)/.test(n) }); });
+    buttons($('uppers'), UPPERS, function (n) { curUpper = n === '(none)' ? null : n; actor.setUpper(curUpper, { once: /^(fire|reload|bolt|throw|signal)/.test(n || '') }); });
+    buttons($('cams'), Object.keys(CAMS), function (n) { orbit = Object.assign({}, CAMS[n]); });
+    $('kind').onchange = function () { spawn(this.value); };
+    $('weapon').onchange = attachGun; $('socket').onchange = attachGun;
+    $('pitch').oninput = $('yaw').oninput = function () { $('pv').textContent = $('pitch').value; $('yv').textContent = $('yaw').value; actor.setAim(+$('pitch').value, +$('yaw').value); };
+    $('speed').oninput = function () { speed = +this.value; $('sv').textContent = speed; };
+    $('stress').onclick = function () { stress(+(P.get('stress') || 16)); };
+    $('stressOff').onclick = function () { crowd.forEach(function (c) { c.a.dispose(); }); crowd = []; };
+    $('pause').onclick = function () { paused = !paused; };
+    // URL setup (also used by the screenshot script)
+    $('kind').value = P.get('kind') || 'hero';
+    curClip = P.get('anim') || 'idle'; curUpper = P.get('upper') || null;
+    if (P.get('weapon')) { $('weapon').value = P.get('weapon'); }
+    if (P.get('socket')) { $('socket').value = P.get('socket'); }
+    spawn($('kind').value);
+    if (P.get('weapon')) attachGun();
+    if (P.get('cam')) orbit = Object.assign({}, CAMS[P.get('cam')] || CAMS.front);
+    if (P.has('cyaw')) orbit = { yaw: +P.get('cyaw') * Math.PI / 180, pitch: +(P.get('cpitch') || 5) * Math.PI / 180, dist: +(P.get('cdist') || 2), ty: +(P.get('cty') || 1.4) };
+    if (P.has('pitch') || P.has('yaw')) actor.setAim(+(P.get('pitch') || 0), +(P.get('yaw') || 0));
+    if (P.has('lineup')) {   // all six kinds in a row (night check at 40 m uses cdist=40)
+      actor.root.position.x = -5;
+      ['ally', 'rifleman', 'officer', 'sniper', 'gunner'].forEach(function (k, i) {
+        var a = IVChars.spawn(k); a.root.position.set(-3 + i * 2, 0, 0); a.play('idle', { fade: 0 }); a.update(0.3 * i); sc.add(a.root);
+        crowd.push({ a: a, fixed: true });
+      });
+      orbit = { yaw: 0, pitch: 0.03, dist: +(P.get('cdist') || 40), ty: 1.0 };
+    }
+    if (P.get('stress')) stress(+P.get('stress'));
+    if (P.has('pair')) {   // paired takedown: victim 0.42 m in front, same facing
+      var v = IVChars.spawn(P.get('victim') || 'rifleman'); v.root.position.set(0, 0, 0.42); sc.add(v.root);
+      v.play('takedownVictim', { fade: 0 }); actor.play('takedown', { fade: 0 }); curClip = 'takedown';
+      crowd.push({ a: v, ang: 0, rad: 0, fixed: true });
+      $('stress').disabled = true;
+    }
+    if (P.get('wview')) {   // weapon close-up: the gun alone, side-on, at the given distance
+      actor.setVisible(false);
+      var wv = IVChars.weapon(P.get('wview')); wv.position.set(0, 1.3, 0); wv.rotation.y = -Math.PI / 2 + (+(P.get('wyaw') || 0)) * Math.PI / 180; sc.add(wv);
+      orbit = { yaw: 0, pitch: 0.05, dist: +(P.get('cdist') || 1.2), ty: 1.3 };
+    }
+    if (auto) {
+      $('ui').style.display = 'none';
+      var t = +(P.get('t') || 0), steps = Math.round(t * 30) + 12;
+      if (P.get('anim')) { actor.play(curClip, { fade: 0, once: P.has('once') || /death|hit|throw|melee|vault|takedown|breach|signal|salute|stagger/.test(P.get('anim')) }); if (curUpper) actor.setUpper(curUpper, { fade: 0, once: P.has('once') }); steps = Math.round(t * 30); }
+      for (var i = 0; i < steps; i++) { actor.update(1 / 30); crowd.forEach(function (c) { c.a.update(1 / 30); }); }
+      placeCam(); r.render(sc, cam);
+      window.INFO = { calls: r.info.render.calls, tris: r.info.render.triangles, heroTris: IVChars.tris($('kind').value), info: IVChars.info, clips: IVChars.clips.length };
+      if (P.get('fps')) { measure(+P.get('fps')); } else window.READY = true;
+      return;
+    }
+    window.TEST = { sc: sc, cam: cam, r: r, actor: function () { return actor; }, orbit: function (o) { orbit = o; }, placeCam: placeCam, gun: function () { return gun; } };
+    if (P.has('drive')) { $('ui').style.display = auto ? 'none' : ''; window.DRIVE.start(P); return; }
+    loop();
+  });
+  function stress(n) {
+    crowd.forEach(function (c) { c.a.dispose(); }); crowd = [];
+    var kinds = ['rifleman', 'officer', 'sniper', 'gunner'], guns = ['enemyRifle', 'pistol', 'rifleScoped', 'mg'];
+    for (var i = 0; i < n; i++) {
+      var k = kinds[i % 4], a = IVChars.spawn(k), ang = i / n * Math.PI * 2, rad = 3 + (i % 3) * 1.6;
+      a.root.position.set(Math.cos(ang) * rad, 0, Math.sin(ang) * rad);
+      a.root.rotation.y = -ang;   // walking around the circle
+      a.play('walk', { fade: 0 }); a.update(i * 0.13);
+      var g = IVChars.weapon(guns[i % 4]); a.attach(g, 'handR');
+      sc.add(a.root); crowd.push({ a: a, ang: ang, rad: rad });
+    }
+    orbit = Object.assign({}, CAMS.wide);
+  }
+  var last = performance.now(), fpsN = 0, fpsT = 0, fps = 0;
+  function measure(sec) {
+    var t0 = performance.now(), frames = 0, upd = 0;
+    function f() {
+      var now = performance.now(), dt = Math.min(0.05, (now - (f.l || now)) / 1000); f.l = now;
+      var u0 = performance.now();
+      actor.update(dt); crowd.forEach(function (c) { step(c, dt); });
+      upd += performance.now() - u0;
+      placeCam(); r.render(sc, cam); frames++;
+      if (now - t0 < sec * 1000) requestAnimationFrame(f);
+      else { window.INFO.fps = frames / ((now - t0) / 1000); window.INFO.updateMsPerFrame = upd / frames; window.INFO.calls = r.info.render.calls; window.INFO.tris = r.info.render.triangles; window.READY = true; }
+    }
+    requestAnimationFrame(f);
+  }
+  function step(c, dt) {
+    if (c.fixed) { c.a.update(dt); return; }
+    c.ang += dt * 1.3 / c.rad;
+    c.a.root.position.set(Math.cos(c.ang) * c.rad, 0, Math.sin(c.ang) * c.rad);
+    c.a.root.rotation.y = -c.ang;
+    c.a.update(dt);
+  }
+  function loop() {
+    requestAnimationFrame(loop);
+    var now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!paused && actor) { actor.update(dt * speed); crowd.forEach(function (c) { step(c, dt * speed); }); }
+    placeCam(); r.render(sc, cam);
+    fpsN++; fpsT += dt; if (fpsT > 0.5) { fps = fpsN / fpsT; fpsN = 0; fpsT = 0; }
+    $('stats').textContent = 'fps ' + fps.toFixed(0) + '\ncalls ' + r.info.render.calls + '\ntris ' + r.info.render.triangles + '\n' + (actor ? actor.kind + ' ' + IVChars.tris(actor.kind) + ' tris' : '') + (IVChars.info.fallback ? '\nFALLBACK' : '') + '\nactors ' + (crowd.length + 1);
+  }
+})();
+</script>
+
+<script>
+/* Drive mode: a small controller (MOVEMENT.md section 2 numbers) feeding actor.drive(), a slope and steps, side camera,
+   scripted scenarios for deterministic frame capture, and the measurements of section 5. */
+(function () {
+  'use strict';
+  var TUNE = { walk: 1.5, jog: 3.8, sprint: 6.4, crouch: 1.3, prone: 0.6, strafe: 0.85, back: 0.7, accel: 9, stop: 14, turn: 540 * Math.PI / 180, sprintTurn: 200 * Math.PI / 180 };
+  // ground: flat, a 15 degree ramp from x=6 to x=12 (then a plateau), and 0.2 m steps from z=6 upwards
+  var RAMP0 = 6, RAMPL = 6, SLOPE = Math.tan(15 * Math.PI / 180), STEP_Z0 = 6, STEP_D = 0.32, STEP_H = 0.2, STEP_N = 5;
+  function groundAt(x, z) {
+    var y = 0;
+    if (x > RAMP0 && z > -3 && z < 3) y = Math.min(x - RAMP0, RAMPL) * SLOPE;
+    if (z > STEP_Z0 && x > -3 && x < 3) y = Math.min(STEP_N, Math.floor((z - STEP_Z0) / STEP_D) + 1) * STEP_H;
+    return y;
+  }
+  function buildGround(sc) {
+    var m = new THREE.MeshStandardMaterial({ color: 0x6d6a5a, roughness: 0.95 });
+    var rg = new THREE.BoxGeometry(RAMPL / Math.cos(15 * Math.PI / 180), 0.05, 6), ramp = new THREE.Mesh(rg, m);
+    ramp.position.set(RAMP0 + RAMPL / 2, RAMPL * SLOPE / 2 - 0.025, 0); ramp.rotation.z = 15 * Math.PI / 180; ramp.receiveShadow = true; sc.add(ramp);
+    var top = new THREE.Mesh(new THREE.BoxGeometry(6, RAMPL * SLOPE, 6), m); top.position.set(RAMP0 + RAMPL + 3, RAMPL * SLOPE / 2, 0); top.receiveShadow = true; sc.add(top);
+    for (var i = 1; i <= STEP_N; i++) {
+      var h = i * STEP_H, st = new THREE.Mesh(new THREE.BoxGeometry(6, h, STEP_D), m);
+      st.position.set(0, h / 2, STEP_Z0 + (i - 0.5) * STEP_D); st.receiveShadow = true; st.castShadow = true; sc.add(st);
+    }
+    var land = new THREE.Mesh(new THREE.BoxGeometry(6, STEP_N * STEP_H, 4), m); land.position.set(0, STEP_N * STEP_H / 2, STEP_Z0 + STEP_N * STEP_D + 2); sc.add(land);
+  }
+  var keys = {}, ctrl = { pos: new THREE.Vector3(), yaw: 0, vel: new THREE.Vector3(), stance: 'stand', aim: false, camYaw: 0, plant: 0 };
+  function targetVel(k) {
+    var ix = (k.a ? 1 : 0) - (k.d ? 1 : 0), iz = (k.w ? 1 : 0) - (k.s ? 1 : 0);
+    var len = Math.hypot(ix, iz); if (len > 0) { ix /= len; iz /= len; }
+    var base = ctrl.stance === 'prone' ? TUNE.prone : ctrl.stance === 'crouch' ? TUNE.crouch : ctrl.aim ? TUNE.walk : (k.shift && iz > 0.5 ? TUNE.sprint : (k.walk ? TUNE.walk : TUNE.jog));
+    // input is camera-relative
+    var cy = ctrl.camYaw, wx = ix * Math.cos(cy) + iz * Math.sin(cy), wz = -ix * Math.sin(cy) + iz * Math.cos(cy);
+    return new THREE.Vector3(wx, 0, wz).multiplyScalar(base);
+  }
+  var lastYaw = 0;
+  function simulate(a, k, dt) {
+    ctrl.stance = k.prone ? 'prone' : k.crouch ? 'crouch' : 'stand'; ctrl.aim = !!k.aim && ctrl.stance !== 'prone';
+    var tv = targetVel(k);
+    // weight: a full reversal plants for ~0.12 s before the new direction takes over
+    if (ctrl.vel.lengthSq() > 4 && tv.lengthSq() > 1 && ctrl.vel.dot(tv) < -0.5 * ctrl.vel.length() * tv.length() && ctrl.plant <= 0) ctrl.plant = 0.12;
+    if (ctrl.plant > 0) { ctrl.plant -= dt; tv.set(0, 0, 0); }
+    var kk = tv.lengthSq() > ctrl.vel.lengthSq() ? TUNE.accel : TUNE.stop;
+    ctrl.vel.lerp(tv, 1 - Math.exp(-kk * dt));
+    // body facing: aim -> camera yaw; else toward movement at a capped turn rate
+    var want = ctrl.aim ? ctrl.camYaw : (ctrl.vel.lengthSq() > 0.04 ? Math.atan2(ctrl.vel.x, ctrl.vel.z) : ctrl.yaw);
+    var dy = ((want - ctrl.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    var rate = k.shift && !ctrl.aim ? TUNE.sprintTurn : TUNE.turn;
+    ctrl.yaw += Math.max(-rate * dt, Math.min(rate * dt, dy));
+    ctrl.pos.addScaledVector(ctrl.vel, dt);
+    ctrl.pos.y = groundAt(ctrl.pos.x, ctrl.pos.z);
+    a.root.position.copy(ctrl.pos); a.root.rotation.y = ctrl.yaw;
+    var yawRate = (((ctrl.yaw - lastYaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI) / dt; lastYaw = ctrl.yaw;
+    // local velocity: +x left, +z forward
+    var c = Math.cos(-ctrl.yaw), s = Math.sin(-ctrl.yaw);
+    var lvx = ctrl.vel.x * c + ctrl.vel.z * s, lvz = -ctrl.vel.x * s + ctrl.vel.z * c;
+    a.drive({ vx: lvx, vz: lvz, speed: ctrl.vel.length(), yawRate: yawRate, stance: ctrl.stance, aiming: ctrl.aim, aimPitch: 0, aimYawOffset: 0,
+      sprinting: !!k.shift && !ctrl.aim, grounded: true, fallSpeed: 0, slopeY: 1, weapon: TEST.gun() ? TEST.gun().userData.kind : null, dt: dt });
+    a.update(dt);
+  }
+  // ---------- scenarios: lists of [time, keys] (keys stay until the next entry)
+  var SC = {
+    startJogStop: { len: 5, cam: 'side', steps: [[0, {}], [0.6, { w: 1 }], [3.0, {}]] },
+    walkJogSprintStop: { len: 8.5, cam: 'side', steps: [[0, {}], [0.5, { w: 1, walk: 1 }], [2.5, { w: 1 }], [4.5, { w: 1, shift: 1 }], [7.0, {}]] },
+    strafeCircleAim: { len: 8, cam: 'ots', steps: [[0, { aim: 1 }], [0.4, { aim: 1, a: 1 }], [2.0, { aim: 1, s: 1 }], [3.6, { aim: 1, d: 1 }], [5.2, { aim: 1, w: 1 }], [6.8, { aim: 1 }]] },
+    sprintReversal: { len: 6, cam: 'side', steps: [[0, {}], [0.3, { w: 1, shift: 1 }], [2.8, { s: 1 }], [4.6, {}]] },
+    slopeAndSteps: { len: 13, cam: 'side', start: [0, 0], steps: [[0, { camYaw: Math.PI / 2 }], [0.3, { d: 1, walk: 1, camYaw: Math.PI / 2 }], [6.0, { camYaw: 0 }], [6.3, { w: 1, walk: 1, camYaw: 0 }], [11.5, {}]] },
+    stanceChain: { len: 11, cam: 'side', steps: [[0, {}], [1.0, { crouch: 1 }], [2.2, { crouch: 1, w: 1 }], [4.0, { crouch: 1 }], [4.8, { prone: 1 }], [6.3, { prone: 1, w: 1 }], [8.5, { prone: 1 }], [9.3, { crouch: 1 }], [10.2, {}]] },
+    // measurement set: steady loops in every direction and two in-between speeds
+    measure: { len: 30, cam: 'side', steps: [[0, {}], [0.5, { w: 1, walk: 1 }], [3, { w: 1 }], [5.5, { w: 1, shift: 1 }], [8, { aim: 1, s: 1 }], [10.5, { aim: 1, a: 1 }],
+      [13, { aim: 1, d: 1 }], [15.5, { aim: 1, w: 1, a: 1 }], [18, { aim: 1, s: 1, d: 1 }], [20.5, { crouch: 1, w: 1 }], [23, { crouch: 1, a: 1, aim: 1 }], [25.5, { w: 1, half: 1 }], [28, {}]] }
+  };
+  function keysAt(sc, t) { var k = {}; for (var i = 0; i < sc.steps.length; i++) if (sc.steps[i][0] <= t) k = sc.steps[i][1]; return k; }
+  // ---------- measurement
+  var M = null;
+  function mStart() { M = { frames: [], prevQ: null }; }
+  function mFrame(a, t, k) {
+    var b = a.bones, f = {};
+    f.t = t; f.phase = a.phase; f.speed = ctrl.vel.length(); f.keys = JSON.stringify(k);
+    ['ball_l', 'ball_r', 'foot_l', 'foot_r', 'hand_l'].forEach(function (n) { var v = new THREE.Vector3().setFromMatrixPosition(b[n].matrixWorld); f[n] = [v.x, v.y, v.z]; });
+    f.gl = ['l', 'r'].map(function (s) { var v = new THREE.Vector3().setFromMatrixPosition(b['ball_' + s].matrixWorld); return groundAt(v.x, v.z); });
+    var g = TEST.gun();
+    if (g && g.userData.gripL && a._lhW > 0.95) { var gp = new THREE.Vector3().setFromMatrixPosition(g.userData.gripL.matrixWorld); f.grip = gp.distanceTo(new THREE.Vector3().setFromMatrixPosition(b.hand_l.matrixWorld)); }
+    var qs = {}, maxd = 0, maxb = '';
+    for (var n in b) {
+      var q = new THREE.Quaternion(); b[n].getWorldQuaternion(q);
+      // relative to the root so body turning does not count as a pop
+      var rq = new THREE.Quaternion(); a.root.getWorldQuaternion(rq); q.premultiply(rq.invert());
+      qs[n] = q;
+      if (M.prevQ && M.prevQ[n] && !/index|middle|ring|pinky|thumb|leaf/.test(n)) { var d = 2 * Math.acos(Math.min(1, Math.abs(q.dot(M.prevQ[n])))); if (d > maxd) { maxd = d; maxb = n; } }
+    }
+    M.prevQ = qs; f.pop = maxd * 180 / Math.PI; f.popBone = maxb;
+    f.w = {}; for (var gk in a.gr) if (a.gr[gk].w > 0.02) f.w[gk] = +a.gr[gk].w.toFixed(2);
+    M.frames.push(f);
+  }
+  function slideTable() {
+    // contact windows from the shared phase: left [0.06, 0.28], right [0.56, 0.78] (inside stance for walk, jog, sprint)
+    var segs = {}, out = [];
+    M.frames.forEach(function (f, i) {
+      if (f.speed < 0.3) return;
+      ['l', 'r'].forEach(function (s) {
+        var lo = s === 'l' ? 0.10 : 0.60, hi = lo + 0.18, on = f.phase >= lo && f.phase <= hi;
+        var key = s, cur = segs[key];
+        if (on) { if (!cur) segs[key] = cur = { keys: f.keys, pts: [], sp: [] }; cur.pts.push(f['ball_' + s]); cur.sp.push(f.speed); }
+        else if (cur) { out.push(cur); segs[key] = null; }
+      });
+    });
+    return out.filter(function (c) { return c.pts.length > 2; }).map(function (c) {
+      var p0 = c.pts[0], mx = 0;
+      c.pts.forEach(function (p) { mx = Math.max(mx, Math.hypot(p[0] - p0[0], p[2] - p0[2])); });
+      return { keys: c.keys, speed: +(c.sp.reduce(function (a, b) { return a + b; }, 0) / c.sp.length).toFixed(2), slideCm: +(mx * 100).toFixed(1) };
+    });
+  }
+  window.DRIVE = {
+    start: function (P) {
+      buildGround(TEST.sc);
+      var a = TEST.actor(); a.root.position.set(0, 0, 0);
+      a.groundAt = groundAt;
+      DRIVE.a = a;
+      if (P.get('scenario')) return;   // the capture script drives frames itself
+      addEventListener('keydown', function (e) { var k = e.key.toLowerCase(); if (k === 'shift') keys.shift = 1; if ('wasd'.indexOf(k) >= 0) keys[k] = 1; if (k === 'c') keys.crouch = !keys.crouch; if (k === 'z') keys.prone = !keys.prone; if (k === 'q') keys.aim = 1; });
+      addEventListener('keyup', function (e) { var k = e.key.toLowerCase(); if (k === 'shift') keys.shift = 0; if ('wasd'.indexOf(k) >= 0) keys[k] = 0; if (k === 'q') keys.aim = 0; });
+      var last = performance.now();
+      (function loop() {
+        requestAnimationFrame(loop);
+        var now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now;
+        simulate(a, keys, dt); DRIVE.cam('side'); TEST.r.render(TEST.sc, TEST.cam);
+      })();
+    },
+    cam: function (mode) {
+      var c = TEST.cam, p = ctrl.pos;
+      if (mode === 'ots') {
+        var yw = ctrl.camYaw, back = new THREE.Vector3(Math.sin(yw), 0, Math.cos(yw)), right = new THREE.Vector3(-Math.cos(yw), 0, Math.sin(yw));
+        c.position.copy(p).addScaledVector(back, -2.6).addScaledVector(right, 0.7); c.position.y += 1.7;
+        c.lookAt(p.x + back.x * 6, p.y + 1.4, p.z + back.z * 6);
+      } else { c.position.set(p.x - 6.5, p.y + 1.3, p.z + 0.6); c.lookAt(p.x, p.y + 0.9, p.z); }
+    },
+    // deterministic run: returns measurements; frame(i) renders frame i for capture
+    run: function (name, fps, render) {
+      var sc = SC[name], dt = 1 / (fps || 30), n = Math.round(sc.len / dt), a = DRIVE.a;
+      var st = sc.start || [-15, -15]; ctrl.pos.set(st[0], 0, st[1]); ctrl.vel.set(0, 0, 0); ctrl.yaw = 0; ctrl.camYaw = 0; lastYaw = 0;
+      mStart(); var frames = [];
+      DRIVE._sc = sc; DRIVE._i = 0; DRIVE._n = n; DRIVE._dt = dt;
+      return n;
+    },
+    step: function () {
+      var sc = DRIVE._sc, dt = DRIVE._dt, t = DRIVE._i * dt, k = keysAt(sc, t);
+      if (k.camYaw != null) ctrl.camYaw = k.camYaw;
+      var kk = Object.assign({}, k);
+      if (k.half) { kk.walk = 0; }
+      simulate(DRIVE.a, kk, dt);
+      if (k.half && ctrl.vel.length() > 2.6) ctrl.vel.setLength(2.6);   // an in-between speed
+      mFrame(DRIVE.a, t, k);
+      DRIVE.cam(sc.cam); TEST.r.render(TEST.sc, TEST.cam);
+      DRIVE._i++;
+      return DRIVE._i < DRIVE._n;
+    },
+    results: function () {
+      var F = M.frames, pops = [], sole = [], grip = [];
+      F.forEach(function (f, i) { if (i > 2) pops.push({ t: +f.t.toFixed(2), pop: +f.pop.toFixed(1), bone: f.popBone, keys: f.keys }); });
+      pops.sort(function (a, b) { return b.pop - a.pop; });
+      F.forEach(function (f) { if (f.speed > 0.3) ['l', 'r'].forEach(function (s, j) { var lo = s === 'l' ? 0.06 : 0.56; if (f.phase >= lo && f.phase <= lo + 0.22) sole.push(+((f['ball_' + s][1] - f.gl[j]) * 100).toFixed(1)); }); });
+      F.forEach(function (f) { if (f.grip != null) grip.push(f.grip); });
+      return { slide: slideTable(), topPops: pops.slice(0, 12), sole: sole, gripMaxCm: grip.length ? +(Math.max.apply(null, grip) * 100).toFixed(1) : null, gripMeanCm: grip.length ? +(grip.reduce(function (a, b) { return a + b; }, 0) / grip.length * 100).toFixed(1) : null };
+    }
+  };
+})();
+</script>
+</body>
+</html>
