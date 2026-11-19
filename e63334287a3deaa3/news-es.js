@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "An Aisles tab on the Leaderboards": "Una pestaña de Aisles en las Tablas de posiciones",
+    "The Leaderboards now have two tabs, Players and Aisles.": "Las Tablas de posiciones ahora tienen dos pestañas, Jugadores y Aisles.",
+    "Aisles has Aisle Miles (with this week's contest) and Aisle Elo side by side, instead of at the bottom of the Board menu.": "Aisles tiene Aisle Miles (con el concurso de esta semana) y Aisle Elo uno al lado del otro, en vez de al final del menú Tabla.",
+    "Going back to Players reopens the board you were on.": "Al volver a Jugadores se abre la tabla que estabas viendo.",
     "Private messages show up again": "Los mensajes privados vuelven a aparecer",
     "Chat": "Chat",
     "Messages in a private chat weren't appearing for either person since last night. They show up straight away again.": "Desde anoche, los mensajes de un chat privado no aparecían para ninguna de las dos personas. Ya vuelven a aparecer al instante.",

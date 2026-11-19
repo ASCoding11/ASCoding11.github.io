@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.29.25', title: 'An Aisles tab on the Leaderboards', kind: 'feature',
+     tags: ['Leaderboards', 'Aisles'], items: [
+      'The Leaderboards now have two tabs, Players and Aisles.',
+      'Aisles has Aisle Miles (with this week\'s contest) and Aisle Elo side by side, instead of at the bottom of the Board menu.',
+      'Going back to Players reopens the board you were on.'
+    ]},
     {date: '2026-11-19', version: '1.29.24', title: 'Private messages show up again', kind: 'fix',
      tags: ['Online', 'Chat'], items: [
       'Messages in a private chat weren\'t appearing for either person since last night. They show up straight away again.'
