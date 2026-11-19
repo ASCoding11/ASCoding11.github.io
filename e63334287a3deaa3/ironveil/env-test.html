@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Midnight Ops: environment test</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font: 13px/1.35 system-ui, sans-serif; color: #c9ccd0; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  #hud { position: fixed; left: 10px; top: 10px; background: rgba(8,10,12,.72); padding: 8px 10px; border-radius: 6px; max-width: 46vw; }
+  #hud select, #hud button { background: #15181c; color: #d8dade; border: 1px solid #2c3036; border-radius: 4px; padding: 3px 6px; margin: 2px 4px 2px 0; font: inherit; }
+  #stats { font-variant-numeric: tabular-nums; white-space: pre; margin-top: 6px; color: #9aa3ad; }
+  #load { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; background: #050608; }
+  #bar { width: 240px; height: 4px; background: #1a1d21; } #bar i { display: block; height: 100%; width: 0; background: #8a8f96; }
+  #help { color: #6f7780; margin-top: 4px; }
+  body.shot #hud { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="load"><div>Making textures…</div><div id="bar"><i></i></div></div>
+<div id="hud">
+  <select id="preset"></select><select id="quality"><option>low</option><option selected>medium</option><option>high</option></select>
+  <select id="cam"></select>
+  <div id="stats"></div>
+  <div id="help">Drag to look, WASD / arrows to fly, Q/E down/up, Shift fast. Touch: drag to look, two fingers to move.</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="env/texgen.js"></script>
+<script src="env/core.js"></script>
+<script src="env/atmosphere.js"></script>
+<script src="env/grass.js"></script>
+<script src="env/ground.js"></script>
+<script src="env/post.js"></script>
+<script src="env/index.js"></script>
+<script>
+(function () {
+  'use strict';
+  const qs = new URLSearchParams(location.search);
+  const quality = qs.get('q') || 'medium', preset = qs.get('preset') || 'night_moon';
+  if (qs.get('shot')) document.body.classList.add('shot');
+  const E = IVEnv;
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality !== 'low', powerPreference: 'high-performance', preserveDrawingBuffer: !!qs.get('shot') });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, quality === 'high' ? 1.5 : 1));
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(68, 1, 0.05, 900);
+  E.init(renderer, quality);
+
+  // ---------------------------------------------------------------- the farmyard layout (x east, z south)
+  const LANE = [[-120, 70], [-70, 52], [-35, 34], [-10, 14], [8, -6], [22, -30], [30, -60], [34, -110]];
+  const STREAM = [[-120, -20], [-80, -12], [-50, -6], [-30, 8], [-22, 40], [-30, 80], [-24, 130]];
+  const HEDGES = [ // hedge lines (on banks along the lane, and field boundaries)
+    LANE.map(p => [p[0] - 4.2, p[1] - 2.2]), LANE.map(p => [p[0] + 4.2, p[1] + 2.2]),
+    [[40, -10], [90, -14], [120, 20]], [[-60, -60], [-20, -48], [10, -40]]
+  ];
+  const WHEAT = [[40, 0], [100, -6], [104, 50], [44, 56]];
+  const YARD = { x: 58, z: -64, r: 22 };
+  function segDist(px, pz, pts) {
+    let best = 1e9, bt = 0, bi = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const ax = pts[i][0], az = pts[i][1], bx = pts[i + 1][0], bz = pts[i + 1][1], dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz;
+      let t = ((px - ax) * dx + (pz - az) * dz) / l2; t = Math.max(0, Math.min(1, t));
+      const d = Math.hypot(px - ax - dx * t, pz - az - dz * t); if (d < best) { best = d; bt = t; bi = i; }
+    }
+    return best;
+  }
+  function inPoly(x, z, P) { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { if (((P[i][1] > z) !== (P[j][1] > z)) && (x < (P[j][0] - P[i][0]) * (z - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0])) c = !c; } return c; }
+  const sm = (a, b, v) => E.sstep(a, b, v);
+  function base(x, z) { return 3.2 * E.fbm2(x / 90 + 3, z / 90 + 1, 7, 4) + 0.9 * E.fbm2(x / 23, z / 23, 8, 3) - 2.0 + x * 0.006; }
+  function height(x, z) {
+    let h = base(x, z);
+    const dl = segDist(x, z, LANE);
+    // sunken lane: cut 1.3 m with banks; ruts 0.8 m either side of the centre, a crown between them
+    h -= 1.3 * (1 - sm(2.4, 4.4, dl));
+    h += 0.45 * sm(3.4, 4.2, dl) * (1 - sm(4.2, 6.0, dl));      // the hedge bank
+    if (dl < 2.4) { const r = Math.abs(dl - 0.85); h -= 0.09 * (1 - sm(0, 0.3, r)); h += 0.03 * (1 - sm(0, 0.4, dl)); }
+    const ds = segDist(x, z, STREAM);
+    h -= 1.6 * (1 - sm(0.8, 4.0, ds));
+    const dy = Math.hypot(x - YARD.x, z - YARD.z); h = h + (base(YARD.x, YARD.z) + 0.3 - h) * (1 - sm(YARD.r, YARD.r + 14, dy));
+    return h;
+  }
+  const hedgeD = (x, z) => { let d = 1e9; for (const H of HEDGES) d = Math.min(d, segDist(x, z, H)); return d; };
+  function surfaceAt(x, z) {
+    const dl = segDist(x, z, LANE), ds = segDist(x, z, STREAM);
+    if (ds < 1.4) return 'water';
+    if (ds < 3.2) return 'tussock';
+    if (dl < 0.32) return 'lanemid';
+    if (dl < 2.2) return 'lane';
+    if (dl < 2.9) return 'verge';
+    const dy = Math.hypot(x - YARD.x, z - YARD.z);
+    if (dy < YARD.r) return dy > YARD.r - 3 ? 'yardedge' : 'yard';
+    if (inPoly(x, z, WHEAT)) return 'field';
+    const dh = hedgeD(x, z);
+    if (dh < 2.2) return 'tussock';
+    if (x < -10 && z < 30) return 'meadow';
+    return E.fbm2(x / 30, z / 30, 33, 2) > 0.62 ? 'meadow' : 'grass';
+  }
+  const longAt = (x, z) => 1 - sm(1.5, 4.0, hedgeD(x, z));
+
+  // ---------------------------------------------------------------- cameras for screenshots
+  const CAMS = {
+    lane: { p: [-20, 0, 22.5], look: [10, -1.0, -8], eye: 1.65 },
+    farm: { p: [-30, 22, 40], look: [40, 0, -40], eye: 0 },
+    stand: { p: [-60, 0, -25], look: [-40, 0, -15], eye: 1.65 },
+    crouch: { p: [-60, 0, -25], look: [-40, 0, -15], eye: 0.95 },
+    prone: { p: [-60, 0, -25], look: [-40, 0, -15], eye: 0.32 },
+    clump: { p: [-55.5, 0, -22], look: [-55.0, 0, -21.3], eye: 0.35 },
+    edge: { p: [-75, 0, -38], look: [-40, 0, -20], eye: 1.2 },
+    lamp: { p: [-8, 0, 17], look: [0, 0, 2], eye: 1.65 },
+    walk0: { p: [-100, 0, -40], look: [-50, 0, -40], eye: 1.65 },
+    fig10: { p: [-92, 0, 98], look: [-92, 0, 88], eye: 1.65 },
+    fig40: { p: [-92, 0, 128], look: [-92, 0, 88], eye: 1.65 },
+    dent: { p: [-90, 0, 91], look: [-92, -1.4, 88], eye: 1.9 },
+    figlong10: { p: [-70, 0, -30], look: [-60, 0, -30], eye: 1.65 }
+  };
+  const pitchYaw = { yaw: 0, pitch: 0 };
+  function setCam(name) {
+    const c = CAMS[name] || CAMS.lane;
+    const y = c.eye ? height(c.p[0], c.p[2]) + c.eye : c.p[1];
+    camera.position.set(c.p[0], y, c.p[2]);
+    const ly = c.eye ? height(c.look[0], c.look[2]) + c.eye * 0.7 + (c.look[1] || 0) : c.look[1];
+    camera.lookAt(c.look[0], ly, c.look[2]);
+    const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ'); pitchYaw.yaw = e.y; pitchYaw.pitch = e.x;
+  }
+
+  // ---------------------------------------------------------------- UI
+  const selP = document.getElementById('preset'), selQ = document.getElementById('quality'), selC = document.getElementById('cam');
+  Object.keys(E.PRESETS).forEach(n => selP.add(new Option(n, n, n === preset, n === preset)));
+  Object.keys(CAMS).forEach(n => selC.add(new Option(n, n)));
+  selQ.value = quality;
+  selQ.onchange = () => { qs.set('q', selQ.value); location.search = qs.toString(); };
+  selP.onchange = () => { atmo.set(selP.value); };
+  selC.onchange = () => setCam(selC.value);
+  const bar = document.querySelector('#bar i');
+
+  let atmo, grass, ground, lamps = [], figure;
+  E.load((f) => { bar.style.width = (f * 100) + '%'; }).then(() => {
+    document.getElementById('load').style.display = 'none';
+    atmo = E.atmosphere(scene, renderer, preset, { mistBase: -2.2 });
+    ground = E.ground(height, { surfaceAt, x0: -130, z0: -130, x1: 130, z1: 130 });
+    scene.add(ground.group);
+    window.T.post = E.post(renderer, scene, camera, quality); resize();
+    grass = E.grass(surfaceAt, height, { longAt });
+    scene.add(grass.group);
+    // stand-in lamps (the real lamp posts come from IVEnv.prop)
+    [[-6, 12], [14, -18]].forEach(p => {
+      const L = new THREE.PointLight(0xffb060, 2.2, 16, 2); L.position.set(p[0], height(p[0], p[1]) + 3.1, p[1]); scene.add(L); lamps.push(L);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 3.2, 8), new THREE.MeshStandardMaterial({ color: 0x1b1c1e, roughness: 0.6, metalness: 0.6 }));
+      post.position.set(p[0] + 0.3, height(p[0], p[1]) + 1.6, p[1]); post.castShadow = true; scene.add(post);
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffd9a0 })); bulb.position.copy(L.position); scene.add(bulb);
+    });
+    // stand-in person-sized figure (field grey) for readability checks
+    figure = new THREE.Group();
+    const fm = new THREE.MeshStandardMaterial({ color: new THREE.Color(0x5c6152).convertSRGBToLinear(), roughness: 0.85 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 1.1, 10), fm); body.position.y = 1.05; figure.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), fm); head.position.y = 1.72; figure.add(head);
+    const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.6, 8), fm); legs.position.y = 0.3; figure.add(legs);
+    figure.traverse(o => { o.castShadow = true; });
+    figure.position.set(-92, height(-92, 88), 88); scene.add(figure);
+    window.T.ready = true;
+  });
+
+  // ---------------------------------------------------------------- free-fly camera
+  const keys = {}; addEventListener('keydown', e => keys[e.code] = true); addEventListener('keyup', e => keys[e.code] = false);
+  let drag = null;
+  canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => { if (!drag || drag.id !== e.pointerId) return; pitchYaw.yaw -= (e.clientX - drag.x) * 0.004; pitchYaw.pitch = Math.max(-1.5, Math.min(1.5, pitchYaw.pitch - (e.clientY - drag.y) * 0.004)); drag.x = e.clientX; drag.y = e.clientY; });
+  canvas.addEventListener('pointerup', () => drag = null);
+  let touches = 0; canvas.addEventListener('touchstart', e => touches = e.touches.length); canvas.addEventListener('touchend', e => touches = e.touches.length);
+  function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); if (window.T.post) window.T.post.setSize(w, h); }
+  addEventListener('resize', resize);
+
+  window.T = { E, scene, camera, renderer, setCam, height, surfaceAt, CAMS, pitchYaw, get atmo() { return atmo; }, get grass() { return grass; }, get figure() { return figure; }, frameMs: 0 };
+  setCam(qs.get('cam') || 'lane'); resize();
+  let last = performance.now(), acc = 0, frames = 0, statT = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (!window.T.ready) return;
+    if (qs.get('shot')) { if (!(window.T.renderFrames > 0)) return; window.T.renderFrames--; }
+    const sp = (keys.ShiftLeft || keys.ShiftRight ? 14 : 4) * dt, f = new THREE.Vector3(-Math.sin(pitchYaw.yaw), 0, -Math.cos(pitchYaw.yaw)), r = new THREE.Vector3(-f.z, 0, f.x);
+    if (keys.KeyW || keys.ArrowUp || touches >= 2) camera.position.addScaledVector(f, sp);
+    if (keys.KeyS || keys.ArrowDown) camera.position.addScaledVector(f, -sp);
+    if (keys.KeyD || keys.ArrowRight) camera.position.addScaledVector(r, sp);
+    if (keys.KeyA || keys.ArrowLeft) camera.position.addScaledVector(r, -sp);
+    if (keys.KeyE) camera.position.y += sp; if (keys.KeyQ) camera.position.y -= sp;
+    camera.rotation.set(pitchYaw.pitch, pitchYaw.yaw, 0, 'YXZ');
+    const sdt = qs.get('shot') ? (window.T.fixedDt != null ? window.T.fixedDt : 1 / 30) : dt;
+    if (!window.T.frozen) E.update(sdt, camera); else E.update(0, camera);
+    const t0 = performance.now();
+    if (window.T.post) window.T.post.render(dt); else renderer.render(scene, camera);
+    acc += performance.now() - t0; frames++;
+    if (now - statT > 500) {
+      const gi = grass.info();
+      window.T.frameMs = acc / frames;
+      document.getElementById('stats').textContent =
+        `draw calls ${(E.sceneInfo || renderer.info.render).calls}   triangles ${((E.sceneInfo || renderer.info.render).triangles / 1000).toFixed(0)}k\n` +
+        `cpu render ${(acc / frames).toFixed(2)} ms   textures ${E.info.textureMB} MB   made in ${(E.genMs / 1000).toFixed(2)} s\n` +
+        `grass: ${Object.entries(gi.rings).map(([k, v]) => k + ' ' + (v.triangles / 1000).toFixed(0) + 'k').join(', ')}`;
+      acc = 0; frames = 0; statT = now;
+    }
+    window.T.rendered = (window.T.rendered || 0) + 1;
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
