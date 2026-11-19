@@ -255,6 +255,7 @@
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
     tidewick: { name: 'Tidewick', prefix: 'tw', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
+    'patchwork-tower': { name: 'Patchwork Tower', prefix: 'pt', slots: [['paint', 'Paint jobs'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Hop trails']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1047,6 +1048,39 @@
   I('tidewick', 'trail', 2, 'Bubbles', 'common', '#CFE8F0', '#5AA0C8', 'Tiny bubbles that float up into the rain.');
   I('tidewick', 'trail', 3, 'Confetti', 'uncommon', '#FF5A8A', '#FFD23F', 'Bits of coloured paper that flutter down.');
   I('tidewick', 'trail', 4, 'Music Notes', 'rare', '#FFE680', '#CFE8F0', 'A little tune follows you along the harbour.');
+  // ---- Patchwork Tower items ----
+  // Patchwork Tower: paint jobs, hats, face pieces and hop trails for Rivet, drawn by patchwork-tower/wardrobe.js by slot and
+  // number in the bot's own rectangles. In no pack: captains wear them free in the game's Wardrobe. Cocoa still turns Rivet
+  // gold, and every paint stands out from the brick wall at least as much as wardrobe.js's MIN_CR says.
+  I('patchwork-tower', 'paint', 1, 'Striker Kit', 'common', '#5FE07A', '#FFFFFF', 'A green shirt with a number 9 and white shorts.');
+  I('patchwork-tower', 'paint', 2, 'Hoops Jersey', 'common', '#7FD0FF', '#2F4FA0', 'A sky-blue jersey, number 11, navy trim.');
+  I('patchwork-tower', 'paint', 3, 'Gridiron Gear', 'uncommon', '#F4F6F8', '#FFD23F', 'A white jersey and a gold helmet with a face guard.');
+  I('patchwork-tower', 'paint', 4, 'Hockey Sweater', 'common', '#F4F6F8', '#2FB65A', 'A white sweater with green shoulders and a green band.');
+  I('patchwork-tower', 'paint', 5, 'Referee', 'uncommon', '#F4F6F8', '#1A1C2A', 'Stripes, a whistle somewhere, and no favourites.');
+  I('patchwork-tower', 'paint', 6, 'Racing Driver', 'rare', '#F4F6F8', '#E8453C', 'A white race suit, a striped helmet and a blue visor.');
+  I('patchwork-tower', 'paint', 7, 'Ballpark Pinstripes', 'uncommon', '#F4F1E8', '#3A6AD0', 'Cream with blue pinstripes, ready for the ninth inning.');
+  I('patchwork-tower', 'paint', 8, 'Retro Tin Bot', 'rare', '#D9E0EA', '#FFD35A', 'Riveted tin, a dial on the chest and two round yellow eyes.');
+  I('patchwork-tower', 'paint', 9, 'Chrome Bot', 'legendary', '#E8F0FF', '#7FF0FF', 'Polished till it shines, with a cool blue glow.');
+  I('patchwork-tower', 'paint', 10, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A red and white striped sailor shirt.');
+  I('patchwork-tower', 'paint', 11, 'Pirate Captain', 'legendary', '#D9363E', '#FFD23F', 'A red captain\'s coat with gold buttons over a cream shirt.');
+  I('patchwork-tower', 'paint', 12, 'Pinstripe Suit', 'rare', '#C8CCD6', '#E8453C', 'A grey pinstripe suit, a white collar and a red tie.');
+  I('patchwork-tower', 'paint', 13, 'Gold Chain Tracksuit', 'epic', '#7FF0C8', '#FFD23F', 'A mint tracksuit and a chunky gold chain.');
+  I('patchwork-tower', 'paint', 14, 'Secret Agent', 'epic', '#F4F6F8', '#2A2C3A', 'A dark suit, a thin tie, black glasses and an earpiece.');
+  I('patchwork-tower', 'paint', 15, 'Astronaut', 'uncommon', '#F4F6F8', '#FFC83A', 'A white suit, a gold visor and a control box with three lights.');
+  I('patchwork-tower', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap with the peak out front.');
+  I('patchwork-tower', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E8453C', 'Hard work makes even robots sweat.');
+  I('patchwork-tower', 'hat', 3, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered hat with a gold edge.');
+  I('patchwork-tower', 'hat', 4, 'Pirate Bandana', 'uncommon', '#E8453C', '#FFFFFF', 'A spotted red bandana knotted at the back.');
+  I('patchwork-tower', 'hat', 5, 'Fedora', 'rare', '#8A7A6A', '#2A1D3A', 'A felt hat with a dark band, worn low.');
+  I('patchwork-tower', 'hat', 6, 'Top Hat', 'epic', '#3A3A4C', '#E8453C', 'A tall silk hat with a red band.');
+  I('patchwork-tower', 'hat', 7, 'Wizard Hat', 'rare', '#4A6AE8', '#FFE45C', 'A floppy blue cone with little stars.');
+  I('patchwork-tower', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#FFFFFF', 'A patch over one eye. Rivet still sees every crack.');
+  I('patchwork-tower', 'face', 2, 'Shades', 'common', '#05070F', '#FFFFFF', 'Dark glasses for the night shift.');
+  I('patchwork-tower', 'face', 3, 'Big Moustache', 'common', '#6A4028', '#9FF2E6', 'A bushy moustache bolted on under the visor.');
+  I('patchwork-tower', 'trail', 1, 'Confetti', 'common', '#FF5A8A', '#FFD23F', 'Every hop is a little party.');
+  I('patchwork-tower', 'trail', 2, 'Loose Bolts', 'common', '#C9D0E8', '#9AA3D6', 'Nuts and bolts rattle off with every hop.');
+  I('patchwork-tower', 'trail', 3, 'Music Notes', 'uncommon', '#FFF6C9', '#9FF2E6', 'Rivet hums a tune while it works.');
+  I('patchwork-tower', 'trail', 4, 'Rainbow', 'epic', '#FF5C5C', '#5CC8FF', 'A short rainbow streak behind every hop.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });

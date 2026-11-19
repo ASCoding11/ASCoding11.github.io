@@ -234,7 +234,6 @@ export function pipFrame(g) {
 function drawPip(ctx, g, S, camX) {
   const p = g.player;
   if (g.inHut) return;
-  if (look.trail) look.trail(ctx, g, camX);   // a captain's trail (look.js), behind Pip
   if (g.invuln > 0 && Math.floor(g.invuln / 2) % 2 && g.freeze === 0) return;   // blinking after a hit
   let name = pipFrame(g);
   // growing / shrinking / catching fire: flicker between the two forms
@@ -334,6 +333,7 @@ export function drawWorld(ctx, g, S, opts = {}) {
     const k = Math.floor((frame + b.x) / 10) % 4;
     ctx.drawImage(S[k === 0 ? 'button0' : k === 2 ? 'button2' : 'button1'], Math.floor(b.x - 3 - camX), Math.floor(b.y - 1));
   }
+  if (look.trail && g.mode !== 'title') look.trail(ctx, g, camX);   // a captain's trail (look.js): under Pip and everything that moves
   for (const e of scene.enemies) drawEnemy(ctx, e, S, camX, frame);
   drawBoss(ctx, scene.boss, S, camX, frame);
   if (!pipBehind && g.mode !== 'title' && g.mode !== 'intro') drawPip(ctx, g, S, camX);

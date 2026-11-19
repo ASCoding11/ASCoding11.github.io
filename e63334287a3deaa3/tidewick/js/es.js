@@ -44,7 +44,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Eye Patch': 'Parche en el ojo', 'One eye on the sea, one patch on the other.': 'Un ojo en el mar y un parche en el otro.',
   'Shades': 'Lentes oscuros', 'Dark glasses, even at night. Especially at night.': 'Lentes oscuros, aun de noche. Sobre todo de noche.',
   'Big Moustache': 'Bigote grande', 'A bushy moustache with curled ends.': 'Un bigote tupido con las puntas enruladas.',
-  'Sparkles': 'Destellos', 'Little twinkles left on the quay behind you.': 'Brillitos que quedan en el muelle detrás de vos.',
+  'Sparkles': 'Destellos', 'Little twinkles left on the quay behind you.': 'Brillitos que quedan en el muelle detrás de ti.',
   'Bubbles': 'Burbujas', 'Tiny bubbles that float up into the rain.': 'Burbujitas que suben hacia la lluvia.',
   'Confetti': 'Papel picado', 'Bits of coloured paper that flutter down.': 'Papelitos de colores que caen revoloteando.',
   'Music Notes': 'Notas musicales', 'A little tune follows you along the harbour.': 'Una melodía te sigue por el puerto.'

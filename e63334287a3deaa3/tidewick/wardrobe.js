@@ -11,7 +11,7 @@
  *   - hats sit on top of Pip's head, in rows added ABOVE the sprite; the feet stay where they were, and the hit box is
  *     the rules' own (constants.js), which never looks at a picture.
  *   - face pieces are painted over the face pixels (an eye patch, shades, a moustache).
- *   - trails are a few single pixels left behind Pip while moving, drawn behind Pip, gone within half a second.
+ *   - trails are a few single pixels left behind Pip while moving, drawn under Pip and the enemies, gone within half a second.
  * Worn items are saved in this browser only, as tidewick:look = {"o": outfit, "h": hat, "f": face, "t": trail} (item
  * numbers from ../cosmetics.js, 0 for none). The game has no online players, so nothing is sent anywhere.
  */
