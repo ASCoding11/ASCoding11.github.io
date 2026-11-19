@@ -258,6 +258,7 @@
     'patchwork-tower': { name: 'Patchwork Tower', prefix: 'pt', slots: [['paint', 'Paint jobs'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Hop trails']] },
     flickerwood: { name: 'Flickerwood', prefix: 'fw', slots: [['kit', 'Kits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
     stackfall: { name: 'Stackfall', prefix: 'sf', slots: [['blocks', 'Block sets'], ['board', 'Boards'], ['clear', 'Clear effects']] },
+    'melon-merge': { name: 'Melon Merge', prefix: 'mm', slots: [['fruit', 'Fruit sets'], ['wall', 'Walls'], ['pop', 'Merge pops']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1134,6 +1135,22 @@
   I('stackfall', 'clear', 1, 'Confetti', 'common', '#FF4FA3', '#FFD23F', 'Every cleared row is a party.');
   I('stackfall', 'clear', 2, 'Gold Coins', 'rare', '#E0A420', '#FFE27A', 'Cleared rows pay out in spinning coins.');
   I('stackfall', 'clear', 3, 'Star Sparkles', 'common', '#FFFFFF', '#FFD84A', 'Little four-point stars that twinkle out.');
+  // ---- Melon Merge items ----
+  // Melon Merge: fruit sets, walls and merge pops, drawn by melon-merge/styles.js by slot and number. In no pack: captains pick
+  // them free in the game's Styles. Every fruit set keeps each stage's own colours and size, and every wall is as dark as the
+  // game's own, since it shows through the jar.
+  I('melon-merge', 'fruit', 1, 'Sports Balls', 'uncommon', '#FF9A1F', '#FFFFFF', 'From a ping-pong ball up to a beach ball, with a numbered pool ball on the way.');
+  I('melon-merge', 'fruit', 2, 'Robot Bolts', 'uncommon', '#BBE46E', '#C8D2E0', 'Every stage riveted, seamed and fitted with an aerial.');
+  I('melon-merge', 'fruit', 3, 'Treasure Gems', 'rare', '#8A55DC', '#E8B84A', 'Cut like jewels and set in gold.');
+  I('melon-merge', 'fruit', 4, 'Dapper', 'epic', '#2A2A38', '#E8453C', 'Pinstripes, a bow tie, and a hat once they grow up.');
+  I('melon-merge', 'fruit', 5, 'Planets', 'rare', '#31A040', '#FFFFFF', 'Little moons with craters up to a ringed giant.');
+  I('melon-merge', 'wall', 1, 'Stadium', 'common', '#13283A', '#78FFA0', 'A night pitch with mown stripes behind the jar.');
+  I('melon-merge', 'wall', 2, 'Pirate Cabin', 'uncommon', '#2E1E14', '#FFDCAA', 'Dark planks and brass nails below deck.');
+  I('melon-merge', 'wall', 3, 'Robot Workshop', 'common', '#0E2238', '#8CC8FF', 'A blueprint grid on the workshop wall.');
+  I('melon-merge', 'wall', 4, 'Gold Pinstripe', 'legendary', '#1E1A24', '#F0C85A', 'Charcoal with fine gold pinstripes.');
+  I('melon-merge', 'pop', 1, 'Confetti Pop', 'common', '#FF5A6E', '#FFD166', 'Every merge throws a handful of confetti.');
+  I('melon-merge', 'pop', 2, 'Star Shower', 'rare', '#FFD166', '#FFF6D8', 'Gold stars burst out of every merge.');
+  I('melon-merge', 'pop', 3, 'Bubble Rings', 'common', '#CFEAFF', '#FFFFFF', 'Soap rings drift up from every merge.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
