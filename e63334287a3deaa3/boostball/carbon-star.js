@@ -60,10 +60,11 @@ vec3 space(vec3 d){
 #endif
   float band=exp(-pow(dot(r,vec3(.32,.92,.22))*2.4,2.));                       // a galaxy's band across the sky
   vec3 col=vec3(.005,.005,.016)+vec3(.045,.03,.15)*band;
-  col+=vec3(.11,.065,.30)*smoothstep(.42,.86,n)*(.4+band);                      // indigo clouds
+  col+=vec3(.13,.075,.36)*smoothstep(.4,.85,n)*(.5+band);                       // indigo clouds
+  col+=vec3(.03,.10,.14)*smoothstep(.6,.95,n2)*(1.-smoothstep(.5,.8,n))*.8;     // a few cold teal wisps between them
   col+=vec3(.30,.06,.15)*smoothstep(.56,.92,n2)*smoothstep(.45,.75,n)*.5;       // wine-red dust along their edges
   col*=.6+.75*smoothstep(.2,.8,n2);
-  col+=vec3(.86,.9,1.)*stars(r,85.,.86)*1.25;
+  col+=vec3(.86,.9,1.)*stars(r,85.,.84)*1.4+vec3(1.,.8,.62)*stars(r*1.37,60.,.95)*1.6;
 #if !LOW
   col+=vec3(.72,.82,1.)*stars(r,190.,.9)*.85;
 #endif
@@ -71,11 +72,11 @@ vec3 space(vec3 d){
     vec3 sd=normalize(uStar-cameraPosition);
     float k=sqrt(max(0.,2.*(1.-dot(d,sd))))/(.07*uStarK+.0001);
     vec3 t1=normalize(cross(sd,vec3(0.,1.,0.))),t2=cross(t1,sd);float an=atan(dot(d,t2),dot(d,t1));
-    if(k<1.){float l=sqrt(1.-k*k);vec3 disc=mix(vec3(.5,.07,.03),vec3(1.,.52,.2),l)*(.82+.36*vn(d*240.+uTime*.15));col=mix(col,disc,uStarK);}
+    if(k<1.){float l=sqrt(1.-k*k);vec3 disc=mix(vec3(.55,.08,.03),vec3(1.,.55,.22),l*l*(3.-2.*l))*(.9+.18*vn(d*110.+uTime*.12))+vec3(.25,.12,.05)*pow(l,6.);col=mix(col,disc,uStarK);}
     else{
       col*=mix(1.,.45+.55*smoothstep(1.,1.7,k),uStarK);                        // the soot around it hides the stars behind
       float ray=pow(abs(cos(an*2.+uTime*.04)),28.)+pow(abs(cos(an*3.+1.3-uTime*.03)),46.)*.6;
-      col+=(vec3(1.,.3,.1)*exp(-(k-1.)*2.4)*.55+vec3(.55,.12,.05)*exp(-k*.55)*.3+vec3(1.,.48,.2)*ray*exp(-k*.42)*.22)*uStarK;
+      col+=(vec3(1.,.32,.1)*exp(-(k-1.)*2.)*.6+vec3(.6,.13,.05)*exp(-k*.4)*.4+vec3(1.,.5,.22)*ray*exp(-k*.3)*.3)*uStarK;
     }
   }
   return col;
@@ -88,7 +89,7 @@ const VS_W=`varying vec3 vW,vN;uniform float uPull;
 void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vN=normalize(mat3(modelMatrix)*normal);vec4 mv=viewMatrix*w;mv.xyz*=uPull;gl_Position=projectionMatrix*mv;}`;
 // the stand-ins: space seen through them; up-facing parts of the pitch get the lattice
 const FS_VOID=SPACE+MASK+`
-varying vec3 vW,vN;uniform vec2 uPitch;uniform float uFloorY,uCell,uCircle;
+varying vec3 vW,vN;uniform vec2 uPitch;uniform float uFloorY,uCell,uCircle;uniform vec4 uGoal;
 float lattice(vec2 p,out float node){
   vec2 q=p/uCell;const vec2 s=vec2(1.,1.7320508);
   vec4 hc=floor(vec4(q,q-vec2(.5,1.))/s.xyxy)+.5;vec4 h=vec4(q-hc.xy*s,q-(hc.zw+.5)*s);
@@ -108,7 +109,12 @@ void main(){
     col=col*.72+(vec3(.1,.55,.55)*ln*.42+vec3(.55,1.,.92)*node*.55+vec3(.25,.85,.8)*mark*.16+vec3(1.,.5,.2)*pulse*(ln*.6+node))*edge
        +vec3(.04,.11,.13)*pow(1.-abs(dir.y),5.);
   }
-  col+=mix(vec3(1.,.4,.14),vec3(.3,.95,.9),.3)*f*(.5+.7*up);
+#if GHOST
+  float fr=pow(1.-abs(dot(normalize(vN),dir)),1.8);
+  float gg=step(uGoal.y-.5,vW.z*uGoal.x)*step(abs(vW.x),uGoal.z)*step(vW.y,uGoal.w);
+  col=col*.6+mix(vec3(.8,.92,1.),vec3(1.,.62,.3),gg)*(pow(fr,1.6)*(.55+.6*gg)+.025);
+#endif
+  col+=mix(vec3(1.,.5,.18)*f*f*.9,mix(vec3(1.,.45,.16),vec3(.3,.95,.9),.3)*f*1.2,up);   // the ripple's edge: a thin ember line on walls and stands
   gl_FragColor=vec4(col,m*uMix);
 }`;
 // the map's edges: thin lines, cool white, warmer on the scoring goal
@@ -123,8 +129,8 @@ void main(){float d=distance(vW,uP);
 const VS_RIM=`varying vec3 vW,vNv,vV;
 void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vec4 mv=viewMatrix*w;vV=mv.xyz;vNv=normalize(normalMatrix*normal);gl_Position=projectionMatrix*mv;}`;
 const FS_RIM=SPACE+`varying vec3 vW,vNv,vV;
-void main(){vec3 n=normalize(vNv);float fr=1.-abs(dot(n,normalize(-vV)));float rim=pow(fr,2.3);
-  gl_FragColor=vec4(space(normalize(vW-cameraPosition))*.8+vec3(.93,.96,1.)*(rim*1.4+.045),1.);}`;
+void main(){vec3 n=normalize(vNv);float fr=1.-abs(dot(n,normalize(-vV)));float rim=pow(fr,1.9);
+  gl_FragColor=vec4(space(normalize(vW-cameraPosition))*.7+vec3(.93,.96,1.)*(rim*1.7+.02),1.);}`;
 // star dust behind the cars: points that move on their own in the vertex shader (written once, when emitted)
 const VS_DUST=`attribute vec3 aV;attribute vec2 aT,aS;uniform float uTime,uScale;varying float vA,vS;
 void main(){float t=uTime-aT.x,age=t/aT.y;if(age<0.||age>1.){gl_Position=vec4(2.,2.,2.,1.);gl_PointSize=0.;vA=0.;return;}
@@ -139,7 +145,7 @@ void main(){vec2 c=gl_PointCoord-.5;float r=length(c),core=1.-smoothstep(0.,.5,r
 const VS_UV=`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
 const FS_FLARE=`varying vec2 vUv;uniform float uI,uRay,uRot,uCore;
 void main(){vec2 q=(vUv-.5)*2.;float r=length(q),a=atan(q.y,q.x);
-  float core=exp(-r*r/(uCore*uCore+1e-4)),halo=exp(-r*7.)*.42+exp(-r*2.6)*.1;
+  float core=exp(-r*r/(uCore*uCore+1e-4)),halo=exp(-r*8.)*.38+exp(-r*3.2)*.05;
   float ray=pow(abs(cos(3.*(a-uRot))),90.)*exp(-r/(.2*uRay+1e-3))+pow(abs(cos(2.*(a+uRot*.6)+.4)),150.)*exp(-r/(.3*uRay+1e-3))*.7;
   float streak=exp(-abs(q.y)*85.)*exp(-abs(q.x)/(.62*uRay+1e-3))*.75;
   vec3 col=vec3(1.,.88,.7)*core+vec3(1.,.48,.2)*(halo+ray*.9+streak);
@@ -158,14 +164,16 @@ function Effect(o){
     uCell:{value:o.pitch.cell},uCircle:{value:o.pitch.circle},uGoal:{value:new THREE.Vector4(1,o.pitch.AL,o.pitch.goalW+1.5,o.pitch.goalH+1.5)},
     uScale:{value:400},uI:{value:0},uRay:{value:0},uRot:{value:0},uCore:{value:.1}};
   let low=!!o.low();
-  const defs=()=>({OCT:low?3:4,LOW:low?1:0});
+  const defs=()=>({OCT:low?3:4,LOW:low?1:0,GHOST:0});
   const sh=(vs,fs,extra)=>new THREE.ShaderMaterial(Object.assign({vertexShader:vs,fragmentShader:fs,uniforms:U,defines:defs(),extensions:{derivatives:true}},extra));
   const voidMat=sh(VS_W,FS_VOID,{transparent:true,side:THREE.DoubleSide});
+  const ghostMat=sh(VS_W,FS_VOID,{transparent:true,side:THREE.DoubleSide});ghostMat.defines.GHOST=1;   // small solid parts: a glowing rim
   const lineMat=sh(VS_LINE,FS_LINE,{transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
   const rimMat=sh(VS_RIM,FS_RIM,{side:THREE.DoubleSide});
   const dustMat=sh(VS_DUST,FS_DUST,{transparent:true,depthWrite:false,blending:THREE.AdditiveBlending});
   const flareMat=sh(VS_UV,FS_FLARE,{transparent:true,depthTest:false,depthWrite:false,blending:THREE.AdditiveBlending});
-  const MATS=[voidMat,lineMat,rimMat,dustMat,flareMat];
+  const MATS=[voidMat,ghostMat,lineMat,rimMat,dustMat,flareMat];
+  const FAR=o.pitch.far||900;   // anything bigger than this is the sky or the far ground: it turns with uSky
   const group=new THREE.Group();group.name='carbon-star';
   let built=null;
 
@@ -176,7 +184,7 @@ function Effect(o){
     for(const t of tops)t.updateMatrixWorld(true);
     const edges=(x,k)=>{
       const g=x.geometry;if(!g||!g.attributes||!g.attributes.position)return;
-      if(!g.boundingSphere)g.computeBoundingSphere();if(g.boundingSphere.radius>900)return;   // the sky and the far ground have no edges
+      if(!g.boundingSphere)g.computeBoundingSphere();if(g.boundingSphere.radius>FAR)return;   // the sky and the far ground have no edges
       if((g.index?g.index.count:g.attributes.position.count)/3>40000)return;
       const e=new THREE.EdgesGeometry(g,26),p=e.attributes.position;
       for(let i=0;i<p.count;i++){_a.fromBufferAttribute(p,i).applyMatrix4(x.matrixWorld);pos.push(_a.x,_a.y,_a.z);ks.push(k)}
@@ -188,12 +196,13 @@ function Effect(o){
         const g=x.geometry;if(!g.boundingSphere)g.computeBoundingSphere();
         _s.copy(g.boundingSphere).applyMatrix4(x.matrixWorld);
         if(solid){
-          const s=new THREE.Mesh(g,voidMat);s.matrixAutoUpdate=false;s.matrix.copy(x.matrixWorld);s.frustumCulled=x.frustumCulled;
-          if(_s.radius>900)s.renderOrder=1;   // the sky and the far ground last, so nearer things hide them for free
+          const s=new THREE.Mesh(g,_s.radius<8?ghostMat:voidMat);s.matrixAutoUpdate=false;s.matrix.copy(x.matrixWorld);s.frustumCulled=x.frustumCulled;
+          if(_s.radius>FAR)s.renderOrder=1;s.userData.far=_s.radius>FAR;   // the sky and the far ground last, so nearer things hide them for free
           group.add(s);occ.push(s);
         }else thin.push({x,c:_s.center.clone(),r:_s.radius});
         edges(x,solid?1:.8);
-      }else if(x.isLine||x.isPoints||x.isSprite){x.updateMatrixWorld();thin.push({x,c:new V3().setFromMatrixPosition(x.matrixWorld),r:0})}
+      }else if(x.isLine||x.isPoints||x.isSprite){const g=x.geometry;let r=0;if(g&&g.attributes&&g.attributes.position){if(!g.boundingSphere)g.computeBoundingSphere();r=g.boundingSphere.radius}
+        thin.push({x,c:new V3().setFromMatrixPosition(x.matrixWorld),r})}
     });
     const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));lg.setAttribute('aK',new THREE.Float32BufferAttribute(ks,1));
     const lines=new THREE.LineSegments(lg,lineMat);lines.frustumCulled=false;lines.renderOrder=5;group.add(lines);
@@ -251,7 +260,7 @@ function Effect(o){
 
   // ---- playing ----
   const S={live:false,t:0,p:new V3(),sg:1,rmax:300,covered:false,fading:false,fadeT:0,fadeLen:.8,red:false,shadowAuto:null};
-  const DEF_HOLD=3.4,FADE=.8,RIP0=.22,RIP=.7;
+  const DEF_HOLD=o.hold||3.4,FADE=.8,RIP0=.22,RIP=.75;
   function play(p){
     const hl=o.holdLeft();if(hl!==null&&hl<1.2)return false;   // too close to the kickoff to be worth it: the plain fireball
     if(S.live)stop();
@@ -260,7 +269,7 @@ function Effect(o){
     S.live=true;S.t=0;S.p.copy(p);S.sg=p.z>0?1:-1;S.covered=false;S.fading=false;S.red=!!o.reduced();
     U.uP.value.copy(p);U.uR.value=S.red?1e5:0;U.uSky.value=S.red?1:0;U.uMix.value=S.red?0:1;U.uStarK.value=0;U.uI.value=0;
     U.uStar.value.copy(o.star(p));U.uGoal.value.x=S.sg;
-    S.rmax=0;for(const s of b.occ){if(s.renderOrder)continue;const g=s.geometry,c=g.boundingSphere.center.clone().applyMatrix4(s.matrix);S.rmax=Math.max(S.rmax,c.distanceTo(p)+g.boundingSphere.radius*.8)}
+    S.rmax=0;for(const s of b.occ){if(s.userData.far)continue;const g=s.geometry,c=g.boundingSphere.center.clone().applyMatrix4(s.matrix);S.rmax=Math.max(S.rmax,c.distanceTo(p)+g.boundingSphere.radius*.8)}
     S.rmax=Math.max(S.rmax,60);
     voidMat.transparent=true;
     o.scene.add(group);
@@ -285,7 +294,7 @@ function Effect(o){
     // the ripple, or (reduced motion) a plain cross-fade
     if(S.red){U.uMix.value=S.fading?S.mix0*(1-sm(0,1,(t-S.fadeT)/S.fadeLen)):sm(0,1,t/1.1)}
     else{
-      const k=clamp((t-RIP0)/RIP,0,1);U.uR.value=t<RIP0?0:S.rmax*(1-Math.pow(1-k,2.2));
+      const k=clamp((t-RIP0)/RIP,0,1);U.uR.value=t<RIP0?0:S.rmax*(1-Math.pow(1-k,1.5));
       U.uSky.value=sm(RIP0+RIP*.45,RIP0+RIP*1.02,t);
       U.uMix.value=S.fading?1-sm(0,1,(t-S.fadeT)/S.fadeLen):1;
     }
@@ -293,7 +302,7 @@ function Effect(o){
     const R=U.uR.value,sky=U.uSky.value,mix=U.uMix.value;
     // the arena: thin parts go as the ripple passes; once all is space the arena itself is hidden (it costs nothing then)
     if(!S.fading){
-      for(const h of b.thin)if(h.x.visible&&(S.red?mix>.5:(h.r>900?sky>.5:h.c.distanceTo(S.p)<R-2)))hide(h.x);
+      for(const h of b.thin)if(h.x.visible&&(S.red?mix>.5:(h.r>FAR?sky>.5:h.c.distanceTo(S.p)<R-2)))hide(h.x);
       if(!S.covered&&(S.red?mix>=1:t>=RIP0+RIP*1.05)){
         S.covered=true;for(const x of b.tops)hide(x);voidMat.transparent=false;
         if(o.main&&o.renderer.shadowMap.enabled){S.shadowAuto=o.renderer.shadowMap.autoUpdate;o.renderer.shadowMap.autoUpdate=false}   // nothing shows the shadows now
@@ -368,7 +377,7 @@ function Effect(o){
 const main=Effect({scene:G.scene,renderer:G.renderer,camera:()=>G.camera,map:()=>G.MAP,cars:G.carModels,balls:()=>[G.ballMesh],junk:G.junk,
   low:G.low,reduced:G.reduced,holdLeft:G.holdLeft,audio:G.audio,shake:G.shake,main:true,
   pitch:{x:G.AW+.5,z:G.AL+G.GD+.5,floorY:.6,circle:G.CIRCLE||15,cell:3.2,w:8,goalW:G.GW,goalH:G.GH,AL:G.AL,flare:72},
-  star:p=>new V3(0,120,(p.z>0?1:-1)*(G.AL+320))});
+  star:p=>{const s=p.z>0?1:-1;return new V3(-s*95,190,s*(G.AL+330))}});   // high over the scoring goal, a little to one side of it
 
 // ---------------------------------------------------------------------------------------------------------------------
 //  The preview: a little pitch with one goal, the player's car and a ball, drawn by whichever renderer shows it
@@ -387,7 +396,7 @@ function Preview(renderer){
   const goal=new THREE.Group();sc.add(goal);
   const white=keep(new THREE.MeshLambertMaterial({color:0xf2f5ff})),post=keep(new THREE.CylinderGeometry(.3,.3,GHp,14));
   for(const s of[-1,1]){const m=new THREE.Mesh(post,white);m.position.set(s*GWp,GHp/2,Z);goal.add(m)}
-  const bar=new THREE.Mesh(keep(new THREE.CylinderGeometry(.3,.3,GWp*2,14)),white);bar.rotation.z=Math.PI/2;bar.position.set(0,GHp,Z);goal.add(bar);
+  const bar=new THREE.Mesh(keep(new THREE.BoxGeometry(GWp*2+.6,.6,.6)),white);bar.position.set(0,GHp,Z);goal.add(bar);
   const netM=keep(new THREE.MeshBasicMaterial({color:0xbfd4ff,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false}));
   const back=new THREE.Mesh(keep(new THREE.PlaneGeometry(GWp*2,GHp)),netM);back.position.set(0,GHp/2,Z-GDp);goal.add(back);
   for(const s of[-1,1]){const m=new THREE.Mesh(keep(new THREE.PlaneGeometry(GDp,GHp)),netM);m.rotation.y=Math.PI/2;m.position.set(s*GWp,GHp/2,Z-GDp/2);goal.add(m)}
@@ -406,15 +415,15 @@ function Preview(renderer){
   }
   dressCar();
   const fx=Effect({scene:sc,renderer,camera:()=>cam,map:()=>[floor,goal,stands,led,sky],cars:()=>car?[car]:[],balls:()=>[ball],junk:()=>[],
-    low:G.low,reduced:G.reduced,audio:G.audio,shake:null,main:false,holdLeft:()=>null,
-    pitch:{x:32,z:40,floorY:.6,circle:6,cell:1.5,w:3,goalW:GWp,goalH:GHp,AL:-Z,flare:22},
-    star:()=>new V3(-6,60,-180)});
+    low:G.low,reduced:G.reduced,audio:G.audio,shake:null,main:false,holdLeft:()=>null,hold:4,
+    pitch:{x:32,z:40,floorY:.6,circle:6,cell:1.5,w:3,goalW:GWp,goalH:GHp,AL:-Z,flare:22,far:300},
+    star:()=>new V3(-14,34,-200)});
   let t=-1,live=false;
   const B0=new V3(5,1.5,4),B1=new V3(-1,2.8,Z-1.5),_b=new V3();
   return{
     play(){fx.stop();dressCar();t=0;live=true;ball.visible=true},
-    get live(){return live},
-    frame(dt,aspect){
+    get live(){return live},get fx(){return fx},
+    frame(dt,aspect,noDraw){
       if(aspect&&Math.abs(cam.aspect-aspect)>1e-3){cam.aspect=aspect;cam.updateProjectionMatrix()}
       if(live){
         t+=dt;
@@ -425,7 +434,7 @@ function Preview(renderer){
         fx.update(dt);
         if(t>.9&&!fx.live&&t>2)live=false;
       }else{ball.visible=true;ball.position.copy(B0)}
-      renderer.render(sc,cam);
+      if(!noDraw)renderer.render(sc,cam);
       return live;
     },
     stop(){fx.stop();live=false},
