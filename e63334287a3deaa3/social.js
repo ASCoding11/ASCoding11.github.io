@@ -1922,11 +1922,12 @@
     var who = el('span', 'who', (isMine ? 'You' : theirName) + ' · ' + clock(m.t));
     if (m.k === 'm') { var d = el('div', 'onl-m' + (isMine ? ' mine' : '')); d.append(who, said(mask(m.x))); return d; }
     if (m.k === 'q' || m.k === 'a' || m.k === 'n' || m.k === 'e') {
-      var said = m.k === 'q' ? (isMine ? 'You asked to chat.' : theirName + ' asked to chat.')
+      // (not called "said": that would hide the said() helper above for the whole function, and break every message)
+      var note = m.k === 'q' ? (isMine ? 'You asked to chat.' : theirName + ' asked to chat.')
         : m.k === 'a' ? (isMine ? 'You accepted. You can chat now.' : theirName + ' accepted. You can chat now.')
         : m.k === 'n' ? (isMine ? 'You declined.' : theirName + ' declined.')
         : (isMine ? 'You ended the chat.' : theirName + ' ended the chat.');
-      return el('p', 'onl-note', said + ' · ' + clock(m.t));
+      return el('p', 'onl-note', note + ' · ' + clock(m.t));
     }
     if (m.k === 'j') return el('p', 'onl-note', (isMine ? 'You asked to join their party.' : theirName + ' asked to join your party.') + ' · ' + clock(m.t));
     if (m.k === 'x' && isMine) return el('p', 'onl-note', 'You turned down their request to join' + (m.w === 'full' ? ' (the party is full)' : m.w === 'lead' ? ' (you aren’t the leader)' : m.w === 'gone' ? ' (you aren’t in a party)' : '') + '. · ' + clock(m.t));
