@@ -870,7 +870,7 @@ let botTimer=0;
 function wantBots(){
   if(mode==='attract')return 16;
   if(mode==='practice')return DIFFS[diffKey].bots;
-  return Net.amHost?clamp(ROOM_FILL-Net.humans(),0,9):0;
+  return Net.amHost&&!isPartyRoom(Net.room)?clamp(ROOM_FILL-Net.humans(),0,9):0;
 }
 function tendBots(dt){
   botTimer-=dt;if(botTimer>0)return;botTimer=.4;
@@ -1268,6 +1268,9 @@ function handleEvent(e){
   }
 }
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: the host runs no bots there.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^cl-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['noodle','coil','hiss','fang','scale','venom','loop','twist'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
@@ -1519,7 +1522,7 @@ function wrSync(){
 addEventListener('DOMContentLoaded',()=>{wrSync();if(CAPTAINS)CAPTAINS.onChange(wrSync)});
 
 // For automated tests only (Playwright sets navigator.webdriver): a way to reach the arena from outside.
-if(navigator.webdriver)window.__coil={snakes,bots,cam,kill:s=>killLocal(s,null),get player(){return player},
+if(navigator.webdriver)window.__coil={snakes,bots,cam,Net,get mode(){return mode},kill:s=>killLocal(s,null),get player(){return player},
   get WR(){return WR},lookOf,wardrobeOn,get myLook(){return myLook},setLook(v){store.set('look',v);wrSync()},startPractice,get ctx(){return ctx},Net};
 
 // boot
