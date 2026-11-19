@@ -3970,18 +3970,18 @@ function lockerPaint(){
 }
 function lockerOpen(){
   if(!giftLocker())return;
-  $('locker').hidden=false;lockerPaint();sfx('click');$('lockerClose').focus();
+  $('locker').hidden=false;lockerPaint();sfx('click');$('lockerClose').focus({preventScroll:true});$('locker').querySelector('.lockercard').scrollTop=0;
   csReady().then(C=>{
     if(!C||$('locker').hidden||lk)return;
     const cv=$('lockerView');let r;
     try{r=new THREE.WebGLRenderer({canvas:cv,antialias:true})}catch(e){return}
-    lk={r,pv:C.Preview(r),raf:0,last:performance.now()};
+    lk={r,pv:C.Preview(r),raf:0,last:performance.now(),idle:0};
     const loop=t=>{
       if(!lk)return;
       const w=cv.clientWidth,h=cv.clientHeight,pr=Math.min(2,devicePixelRatio||1);
       if(w&&h&&(cv.width!==Math.round(w*pr)||cv.height!==Math.round(h*pr))){lk.r.setPixelRatio(pr);lk.r.setSize(w,h,false)}
       const dt=Math.min(.05,(t-lk.last)/1000);lk.last=t;
-      if(w&&h)lk.pv.frame(dt,w/h);
+      if(w&&h&&!lk.pv.frame(dt,w/h)&&(lk.idle+=dt)>2.5){lk.idle=0;lk.pv.play(true)}   // it plays again by itself every few seconds, quietly
       lk.raf=requestAnimationFrame(loop);
     };
     lk.raf=requestAnimationFrame(loop);

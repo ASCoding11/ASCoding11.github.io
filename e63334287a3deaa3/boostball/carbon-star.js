@@ -408,20 +408,22 @@ function Preview(renderer){
   skyG.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
   const sky=new THREE.Mesh(skyG,keep(new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));sc.add(sky);
   const ball=new THREE.Mesh(keep(new THREE.SphereGeometry(1.5,32,20)),G.ballMesh.material);sc.add(ball);
-  let car=null;
-  function dressCar(){
+  let car=null,quiet=false;
+  let carKey='';
+  function dressCar(){   // the player's own car (built again only when the body or accent colour has changed)
+    const k=G.myBody+':'+G.myAccent;if(car&&k===carKey)return;carKey=k;
     if(car){sc.remove(car.g);G.dropModel(car)}
     car=G.buildCarModel(0,G.myBody,G.myAccent,null);car.g.position.set(6,.3,8);car.g.rotation.y=Math.PI*.82;sc.add(car.g);
   }
   dressCar();
   const fx=Effect({scene:sc,renderer,camera:()=>cam,map:()=>[floor,goal,stands,led,sky],cars:()=>car?[car]:[],balls:()=>[ball],junk:()=>[],
-    low:G.low,reduced:G.reduced,audio:G.audio,shake:null,main:false,holdLeft:()=>null,hold:4,
+    low:G.low,reduced:G.reduced,audio:()=>quiet?null:G.audio(),shake:null,main:false,holdLeft:()=>null,hold:4,
     pitch:{x:32,z:40,floorY:.6,circle:6,cell:1.5,w:3,goalW:GWp,goalH:GHp,AL:-Z,flare:22,far:300},
     star:()=>new V3(-14,34,-200)});
   let t=-1,live=false;
   const B0=new V3(5,1.5,4),B1=new V3(-1,2.8,Z-1.5),_b=new V3();
   return{
-    play(){fx.stop();dressCar();t=0;live=true;ball.visible=true},
+    play(q){fx.stop();dressCar();t=0;live=true;ball.visible=true;quiet=!!q},   // q: without the sound (the Locker's own repeats)
     get live(){return live},get fx(){return fx},
     frame(dt,aspect,noDraw){
       if(aspect&&Math.abs(cam.aspect-aspect)>1e-3){cam.aspect=aspect;cam.updateProjectionMatrix()}
@@ -430,7 +432,7 @@ function Preview(renderer){
         // the ball rolls in, then the goal
         if(t<.8){const k=t/.8;_b.lerpVectors(B0,B1,k*k*(3-2*k));_b.y=B0.y+(B1.y-B0.y)*k+Math.sin(k*Math.PI)*1.2;ball.position.copy(_b);ball.rotation.x-=dt*6}
         else if(ball.visible){ball.visible=false;fx.play(B1)}
-        car.g.position.x=6-Math.min(t,.9)*2.5;car.g.position.z=8-Math.min(t,.9)*6;
+        car.g.position.set(6-Math.min(t,.9)*2.5,.3,8-Math.min(t,.9)*6);
         fx.update(dt);
         if(t>.9&&!fx.live&&t>2)live=false;
       }else{ball.visible=true;ball.position.copy(B0)}
