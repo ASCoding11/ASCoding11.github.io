@@ -118,7 +118,8 @@
       'Rounds stayed hidden': 'Rondas sin ser encontrado', 'Fastest tower': 'Torre más rápida', 'Fastest obby (all 49 stages)': 'Obby más rápido (las 49 etapas)', 'Fastest obby': 'Obby más rápido',
       'Towers climbed': 'Torres escaladas', 'Fastest full run (all 25 levels)': 'Recorrido completo más rápido (los 25 niveles)', 'Fastest full run': 'Recorrido completo más rápido',
       'Most stars': 'Más estrellas', 'Levels cleared (all time)': 'Niveles superados (histórico)', 'Levels cleared': 'Niveles superados', 'Best height': 'Mayor altura',
-      'Fastest to the Crown (3000 m)': 'Más rápido a la Corona (3000 m)', 'The Crown': 'La Corona', 'Fastest to the old summit (1000 m)': 'Más rápido a la vieja cumbre (1000 m)', 'Old summit': 'Vieja cumbre',
+      'Fastest to the Crown (3000 m)': 'Más rápido a la Corona (3000 m)', 'The Crown': 'La Corona',
+      'Fastest from the Crown gate to the Lodestar (6000 m)': 'Más rápido de la puerta de la Corona a la Estrella Guía (6000 m)', 'The Lodestar': 'La Estrella Guía', 'Fastest to the old summit (1000 m)': 'Más rápido a la vieja cumbre (1000 m)', 'Old summit': 'Vieja cumbre',
       'Longest Endless run': 'Carrera infinita más larga', 'Power crystals collected': 'Cristales de poder juntados', 'Runs (all time)': 'Carreras (histórico)',
       'Most props found in a round': 'Más objetos encontrados en una ronda', 'Longest survival as a prop': 'Más tiempo sobreviviendo como objeto', 'Props found (all time)': 'Objetos encontrados (histórico)',
       'Most crowns in a row': 'Más coronas seguidas', 'Shows played': 'Shows jugados', 'Answers given (all time)': 'Respuestas dadas (histórico)', 'Longest answer streak': 'Racha de respuestas más larga',
@@ -221,7 +222,7 @@
       { k: 'total-w5', l: 'Fastest total (World 5)', chip: 'World 5 total', f: 'time', lo: 90, hi: 36000 },
       { k: 'total-w6', l: 'Fastest total (World 6)', chip: 'World 6 total', f: 'time', lo: 90, hi: 36000 },
       { k: 'escapes', l: 'Escapes', f: 'n', u: 'escape', rate: 1 / 8 }] },
-    { d: 'updraft', n: 'Updraft', st: [{ k: 'summit2', l: 'Fastest to the Crown (3000 m)', chip: 'The Crown', f: 'time', lo: 400, hi: 1e7 }, { k: 'summit', l: 'Fastest to the old summit (1000 m)', chip: 'Old summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 3005 }] },
+    { d: 'updraft', n: 'Updraft', st: [{ k: 'summit3', l: 'Fastest from the Crown gate to the Lodestar (6000 m)', chip: 'The Lodestar', f: 'time', lo: 400, hi: 1e7 }, { k: 'summit2', l: 'Fastest to the Crown (3000 m)', chip: 'The Crown', f: 'time', lo: 400, hi: 1e7 }, { k: 'summit', l: 'Fastest to the old summit (1000 m)', chip: 'Old summit', f: 'time', lo: 120, hi: 1e7 }, { k: 'height', l: 'Best height', f: 'm', hi: 6005 }] },
     { d: 'asteroid-run', n: 'Asteroid Run', st: [
       { k: 'distance', l: 'Longest Endless run', chip: 'Endless', f: 'm', hi: 100000 },
       { k: 'dist-pip', l: 'Longest Endless run · Pip', chip: 'Pip', f: 'm', hi: 100000 },

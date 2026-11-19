@@ -92,6 +92,9 @@ details[open] summary::before{content:'− '}
 .logo svg{width:.62em;height:.62em;vertical-align:.04em;margin-left:.08em}
 .tag{margin:10px 0 18px;font-weight:500;color:#e3e8f2;line-height:1.45;font-size:16.5px;text-shadow:0 1px 8px rgba(0,0,0,.6),0 0 2px rgba(0,0,0,.5)}
 .recs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 0}
+.recs.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.recs.four .rec b{font-size:17px}
+@media (max-width:420px){.recs.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .rec{background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between}
 .rec b{display:block;font-size:19px;font-weight:800;font-variant-numeric:tabular-nums}
 .rec small{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
@@ -116,6 +119,12 @@ details[open] summary::before{content:'− '}
 #bar .tick{position:absolute;right:14px;transform:translateY(50%);font-size:10px;font-weight:700;letter-spacing:.06em;color:rgba(255,255,255,.92);text-shadow:0 0 2px rgba(8,14,30,.85),0 1px 4px rgba(8,14,30,.75),0 0 10px rgba(8,14,30,.35);white-space:nowrap;text-transform:uppercase}
 #bar .tick::after{content:'';position:absolute;right:-14px;top:50%;width:10px;height:1px;background:rgba(255,255,255,.55);box-shadow:0 0 2px rgba(8,14,30,.6)}
 #bar .mile{position:absolute;left:-5px;right:-5px;height:3px;margin-bottom:-1px;border-radius:2px;background:#ffd36b;box-shadow:0 0 6px #ffd36b}
+#bar .mile.gate{background:#c9b4ff;box-shadow:0 0 7px #a98bff}
+#bar .tick.gate{color:#e2d6ff}
+.btn.gaterun{border-color:rgba(201,180,255,.55);background:linear-gradient(180deg,rgba(150,120,255,.28),rgba(90,60,200,.22))}
+/* the flash going through the gate, and going under in the river */
+#gateFx{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse 60% 55% at 50% 50%,rgba(240,235,255,.95),rgba(170,140,255,.75) 45%,rgba(60,40,140,.6) 100%)}
+#riverFx{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse 70% 65% at 50% 55%,rgba(10,40,34,.85),rgba(2,10,9,1) 80%)}
 #bar .dot{position:absolute;left:50%;width:12px;height:12px;margin:0 0 -6px -6px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)}
 #bar .dot.me{width:16px;height:16px;margin:0 0 -8px -8px;border-width:3px}
 #board{position:absolute;right:calc(44px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px));min-width:190px;max-width:240px;background:rgba(10,16,32,.6);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:8px 10px;font-size:13px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
@@ -246,6 +255,8 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 <div id="app">
   <canvas id="view" aria-label="Updraft"></canvas>
   <div id="slowFx" aria-hidden="true"></div>
+  <div id="gateFx" aria-hidden="true"></div>
+  <div id="riverFx" aria-hidden="true"></div>
 
   <div id="hud" hidden>
     <div id="altBox" class="sh">
@@ -282,17 +293,19 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
   <section id="menu" class="overlay">
     <div class="menu-wrap">
       <div class="logo"><span>UPDRAFT</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 12h5v10h6V12h5z" fill="#ffb347"/></svg></div>
-      <p class="tag">One way to go, and it's three thousand metres. Climb a junkyard, a pile of giant lost things and the clouds to the edge of space, then past the old summit through the aurora, a storm, a sky town and orbit to the Crown. Miss a jump and you fall, maybe all the way down.</p>
+      <p class="tag">One way to go, and it's six thousand metres. Climb a junkyard, a pile of giant lost things and the clouds to the edge of space, then through the aurora, a storm, a sky town and orbit to the Crown. Its gate opens on another world: out of a pit by a black river, and up through a sky of spells to the Lodestar. Miss a jump and you fall.</p>
       <div class="menu-cols">
         <div class="card">
           <div class="stack">
             <button class="btn go big" id="play" type="button">Start climbing</button>
             <button class="btn" id="newRun" type="button" hidden>New run from the bottom</button>
+            <button class="btn gaterun" id="gateRun" type="button" hidden>Start at the Crown gate · 3,000 m</button>
           </div>
           <div class="recs">
             <div class="rec"><small>Best height</small><b id="recH">0 m</b></div>
             <div class="rec"><small>Old summit</small><b id="recT">–</b></div>
             <div class="rec"><small>The Crown</small><b id="recW">–</b></div>
+            <div class="rec" id="recLBox" hidden><small>Lodestar</small><b id="recL">–</b></div>
           </div>
           <div class="menu-btns">
             <button class="btn" id="keysMenu" type="button">Controls</button>
@@ -322,7 +335,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
               <div><dt data-kb="restart">R</dt><dd>Hold to restart</dd></div>
               <div><dt>Esc</dt><dd>Pause</dd></div>
             </dl>
-            <p class="note">Standing jumps are short, running jumps go farther and sprinting jumps go farthest. Jump just as you run off an edge, or a moment after. Hold slow motion while you're in the air to get more time to steer a landing; the clock keeps running at full speed, so it costs you time. No checkpoints: your run is saved where you are, so you can stop and come back.</p>
+            <p class="note">Standing jumps are short, running jumps go farther and sprinting jumps go farthest. Jump just as you run off an edge, or a moment after. Hold slow motion while you're in the air to get more time to steer a landing; the clock keeps running at full speed, so it costs you time. Your run is saved where you are, so you can stop and come back. There's one checkpoint: once you've reached the Crown, you can start at its gate.</p>
           </details>
           <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
         </div>
@@ -343,6 +356,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
           <button class="btn" id="setPause" type="button">Settings</button>
         </div>
         <button class="btn" id="restartBtn" type="button">Restart from the bottom</button>
+        <button class="btn" id="gatePause" type="button" hidden>Restart from the Crown gate</button>
         <button class="btn" id="leave" type="button">Main menu</button>
       </div>
     </div>
@@ -372,7 +386,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
 
   <section id="win" class="overlay center" hidden>
     <div class="card panel win">
-      <h2>You reached the Crown</h2>
+      <h2 id="winTitle">You reached the Crown</h2>
       <p class="sub" id="winSub">3000 metres, every one of them.</p>
       <div class="wstats">
         <div><small>Time</small><b id="wTime">0:00</b></div>
@@ -383,6 +397,7 @@ body.touch #spec{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
       <div class="stack">
         <button class="btn go big" id="winStay" type="button">Look around up here</button>
         <button class="btn" id="winSpec" type="button" hidden>Watch the others climb</button>
+        <button class="btn" id="winGate" type="button" hidden>Again from the Crown gate</button>
         <button class="btn" id="winNew" type="button">New run from the bottom</button>
         <button class="btn" id="winMenu" type="button">Main menu</button>
       </div>
@@ -425,6 +440,11 @@ function tAir(dh,g){const G=g?C.G*g:C.G,d=C.JUMP*C.JUMP-2*G*dh;return d<0?NaN:(C
 function reach(dh,speed,g){return (speed||C.SPRINT)*tAir(dh,g)}
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const TAU=Math.PI*2;
+// Through the gate on the Crown: the second 3000 m, built straight above the first. Nothing in the first ever gets as high as
+// DIM_Y and nothing in the second is below it, so a height says which side of the gate a climber is on (dimAt). A fall on
+// the far side ends in the black river at RIVER_Y (the page sets you back on the bank). TOP3: the Lodestar, the new top.
+const DIM_Y=3004,RIVER_Y=3005.5,TOP3=6000;
+function dimAt(y){return y>=DIM_Y?1:0}
 function angDiff(a,b){let d=(a-b)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return d}
 function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
@@ -466,10 +486,13 @@ function footHit(c,x,z,rad){
 const CELL=8;
 function cellKey(i,j,k){return((i+600)*1200+(j+40))*1200+(k+600)}
 function World(course){
-  const W={cols:course.cols,stat:[],dyn:[],fans:course.fans,grid:new Map(),t:0,stamp:1,ev:[],course,winds:course.winds||[],blink:[]};
-  for(const c of W.cols){if(c.dyn)W.dyn.push(c);else W.stat.push(c);if(c.kind==='blink')W.blink.push(c)}
+  const W={cols:course.cols,stat:[],dyn:[],fans:course.fans,grid:new Map(),t:0,stamp:1,ev:[],course,winds:course.winds||[],blink:[],
+    dynBy:[[],[]],only:-1,grow:[],rolls:[]};   // dynBy: moving pieces this side of the Crown's gate and the other side; only: just update one side (-1: both)
+  for(const c of W.cols){if(c.dyn){W.dyn.push(c);W.dynBy[c.dim?1:0].push(c)}else W.stat.push(c);if(c.kind==='blink')W.blink.push(c);if(c.kind==='grow')W.grow.push(c);if(c.kind==='boulder')W.rolls.push(c)}
   W.windY0=W.winds.reduce((m,w)=>Math.min(m,w.y0),1e9);
+  W.frag=W.stat.filter(c=>c.kind==='fragile');   // (only these need looking at every step, not every static piece)
   for(const c of W.stat){
+    if(c.kind==='grow')c.r=c.r0;   // (a crystal disc goes in the grid at its full size)
     const b=aabb(c);
     for(let i=Math.floor(b[0]/CELL);i<=Math.floor(b[3]/CELL);i++)for(let j=Math.floor(b[1]/CELL);j<=Math.floor(b[4]/CELL);j++)for(let k=Math.floor(b[2]/CELL);k<=Math.floor(b[5]/CELL);k++){
       const key=cellKey(i,j,k);let a=W.grid.get(key);if(!a)W.grid.set(key,a=[]);a.push(c);
@@ -482,7 +505,8 @@ function World(course){
       const a=W.grid.get(cellKey(i,j,k));if(!a)continue;
       for(const c of a){if(c._s!==s){c._s=s;out.push(c)}}
     }
-    for(const c of W.dyn){if(c.gone)continue;const b=c._bb;if(b[0]>x1||b[3]<x0||b[2]>z1||b[5]<z0||b[1]>y1||b[4]<y0)continue;out.push(c)}
+    // moving pieces: only those on the side of the gate the box is on (nothing on one side ever touches the other)
+    for(let d=y0<DIM_Y?0:1,e=y1<DIM_Y?0:1;d<=e;d++)for(const c of W.dynBy[d]){if(c.gone)continue;const b=c._bb;if(b[0]>x1||b[3]<x0||b[2]>z1||b[5]<z0||b[1]>y1||b[4]<y0)continue;out.push(c)}
     return out;
   };
   setTime(W,0);
@@ -499,19 +523,46 @@ function motion(c,t){
   if(m.type==='spin')return[c.bx,c.by,c.bz,c.byaw+m.w*t];
   if(m.type==='swing'){const th=m.amp*Math.sin(TAU*t/m.T+(m.ph||0));return[m.px+Math.sin(th)*m.L*m.ax,m.py-Math.cos(th)*m.L,m.pz+Math.sin(th)*m.L*m.az,c.byaw]}
   if(m.type==='orbit'||m.type==='ring'){const a=(m.a0||0)+TAU*t/m.T;return[m.cx+Math.sin(a)*m.rad,c.by,m.cz+Math.cos(a)*m.rad,c.byaw]}   // ring: a carousel moon (the bot may jump off it while it moves)
+  // ---- through the gate (all on the shared clock but `sink`, which is this player's own) ----
+  // lane: a ferry on a current, from one end to the other at a steady pace, diving under (`dip` m) at the end and coming up at the start
+  if(m.type==='lane'){const u=((t/m.T+(m.ph||0))%1+1)%1,e=m.e||.08;let d=0;if(u<e){const k=u/e;d=m.dip*(1-k*k*(3-2*k))}else if(u>1-e){const k=(u-1+e)/e;d=m.dip*k*k*(3-2*k)}return[c.bx+m.dx*m.L*u,c.by-d,c.bz+m.dz*m.L*u,c.byaw]}
+  // wheel: a gondola on a great wheel turning in the upright plane along (ax, az); it stays level. a = 0 is the bottom
+  if(m.type==='wheel'){const a=(m.a0||0)+TAU*t/m.T,s=Math.sin(a);return[m.cx+m.ax*m.R*s,m.cy-m.R*Math.cos(a),m.cz+m.az*m.R*s,c.byaw]}
+  // roll: a boulder rolling down its lane from where it starts by (dx, dy, dz), then round again
+  if(m.type==='roll'){const u=((t/m.T+(m.ph||0))%1+1)%1;return[c.bx+m.dx*u,c.by+m.dy*u,c.bz+m.dz*u,c.byaw]}
+  // epi: a moon circling a planet that circles a point (the orrery)
+  if(m.type==='epi'){const a1=(m.a1||0)+TAU*t/m.T1,a2=(m.a2||0)+TAU*t/m.T2;return[m.cx+Math.sin(a1)*m.R1+Math.sin(a2)*m.R2,c.by,m.cz+Math.cos(a1)*m.R1+Math.cos(a2)*m.R2,c.byaw]}
+  // sink: a raft that sinks while you stand on it and comes back up when you leave (see setTime)
+  if(m.type==='sink')return[c.bx,c.by-(c.sinkD||0),c.bz,c.byaw];
   return[c.bx,c.by,c.bz,c.byaw];
 }
 function setTime(W,t){
-  W.t=t;
-  for(const c of W.dyn){
+  const dt0=t-W.t;W.t=t;
+  for(let d=0;d<2;d++){if(W.only>=0&&W.only!==d)continue;for(const c of W.dynBy[d]){
     c.px=c.x;c.pz=c.z;c.py=c.y1;c.pyaw=c.yaw;
+    if(d){const ty=c.dyn.type;if(ty==='sink')sinkStep(c,t,dt0);else if(ty==='lane'){const u=((t/c.dyn.T+(c.dyn.ph||0))%1+1)%1,e=(c.dyn.e||.08)*.55;c.gone=u<e||u>1-e}else if(ty==='roll'){const u=((t/c.dyn.T+(c.dyn.ph||0))%1+1)%1;c.gone=u<.03||u>.97}}
     const m=motion(c,t),th=c.y1-c.y0;c.x=m[0];c.y1=m[1];c.y0=m[1]-th;c.z=m[2];if(m[3]!==c.yaw)setYaw(c,m[3]);
     c._bb=aabb(c);
     if(c.kind==='fragile'&&c.touchT>=0){if(c.gone&&t-c.touchT>4.5){c.gone=false;c.touchT=-1}else if(!c.gone&&t-c.touchT>1.1)c.gone=true}
-  }
-  for(const c of W.stat)if(c.kind==='fragile'&&c.touchT>=0){if(c.gone&&t-c.touchT>4.5){c.gone=false;c.touchT=-1}else if(!c.gone&&t-c.touchT>1.1)c.gone=true}
+  }}
+  // crystal discs that grow and shrink on the shared clock
+  for(const c of W.grow){const s=growS(c,t);c.r=c.r0*Math.max(s,.05);c.gone=s<.25}
+  for(const c of W.frag)if(c.touchT>=0){if(c.gone&&t-c.touchT>4.5){c.gone=false;c.touchT=-1}else if(!c.gone&&t-c.touchT>1.1)c.gone=true}
   for(const c of W.blink)c.gone=!blinkOn(c,t);
 }
+// A sinking raft: while you stand on it (touched in the last 0.1 s) it sinks at `rate` m/s; left alone it comes back up
+// at `rise` m/s. Sunk `max` m it drops away and comes back 3 s later. Only this player's own raft moves (others' don't).
+function sinkStep(c,t,dt){
+  const m=c.dyn;dt=clamp(dt,0,.1);if(c.sinkD==null){c.sinkD=0;c.standT=-9}
+  if(c.gone){if(t-c.goneT>3){c.gone=false;c.sinkD=0;c.standT=-9}return}
+  if(t-c.standT<.1)c.sinkD=Math.min(m.max,c.sinkD+m.rate*dt);else c.sinkD=Math.max(0,c.sinkD-m.rise*dt);
+  if(c.sinkD>=m.max){c.gone=true;c.goneT=t}
+}
+// how big a crystal disc is (0 to 1 of its full size): full for a share `on` of each beat, shrinks away over a share
+// `e`, stays gone, and grows back over `e` before the beat comes round
+function growS(c,t){const g=c.grow,u=((t/g.T+g.ph)%1+1)%1,e=g.e;let k;if(u<g.on)k=1;else if(u<g.on+e){const q=(u-g.on)/e;k=1-q*q*(3-2*q)}else if(u<1-e)k=0;else{const q=(u-1+e)/e;k=q*q*(3-2*q)}return g.lo+(1-g.lo)*k}
+// a heat vent (one of the fans, with a beat): it blows for a share `on` of every T seconds
+function ventOn(f,t){return !f.T||((t/f.T+f.ph)%1+1)%1<f.on}
 // Aurora Drift's pulse platforms are lit for a share `on` of every T seconds, on the shared clock (ph shifts each one's beat)
 function blinkU(c,t){const b=c.blink;return((t/b.T+b.ph)%1+1)%1}
 function blinkOn(c,t){return blinkU(c,t)<c.blink.on}
@@ -600,7 +651,7 @@ function collideH(W,p,stepH,res){
   if(res){res.wall=wall;res.nx=nx;res.nz=nz}
 }
 function inFan(W,p){
-  for(const f of W.fans){const dx=p.x-f.x,dz=p.z-f.z;if(dx*dx+dz*dz<f.r*f.r&&p.y>f.y0-.2&&p.y<f.y1)return f}
+  for(const f of W.fans){const dx=p.x-f.x,dz=p.z-f.z;if(dx*dx+dz*dz<f.r*f.r&&p.y>f.y0-.2&&p.y<f.y1&&(!f.T||ventOn(f,W.t)))return f}
   return null;
 }
 function approach(p,tx,tz,a){const dx=tx-p.vx,dz=tz-p.vz,d=Math.hypot(dx,dz);if(d<=a){p.vx=tx;p.vz=tz}else{p.vx+=dx/d*a;p.vz+=dz/d*a}}
@@ -661,6 +712,8 @@ function step(W,p,inp,dt){
   // move across, then out of walls
   p.x+=p.vx*dt;p.z+=p.vz*dt;
   collideH(W,p,p.gnd?C.STEP:C.AIRSTEP,_res);
+  // a rolling boulder knocks you off your feet, down its lane
+  if(_res.wall&&_res.wall.kind==='boulder'){knock(W,p,_res.wall);return}
   // ledge grab: only right at an edge you nearly made
   if(C.MANTLE&&!p.gnd&&_res.wall&&p.vy<2.5&&mag>.3&&!_res.wall.dyn&&!_res.wall.kind){
     const c=_res.wall,nd=-(ix*_res.nx+iz*_res.nz)/il;
@@ -679,7 +732,7 @@ function step(W,p,inp,dt){
   if(p.gnd){
     const s=support(W,p.x,p.z,p.y-C.STEP,p.y+C.STEP);
     if(s&&!(s[1].sl&&Math.abs(s[1].sl)>C.SLIDE)){
-      if(s[1]!==p.gnd&&(s[1].kind==='bounce'||s[1].kind==='launch'||s[1].kind==='cannon')){landOn(W,p,s[1],s[0],0);return}
+      if(s[1]!==p.gnd&&(s[1].kind==='bounce'||s[1].kind==='launch'||s[1].kind==='cannon'||s[1].kind==='glyph')){landOn(W,p,s[1],s[0],0);return}
       p.y=s[0];p.gnd=s[1];p.vy=0;touch(W,s[1]);
     }else{p.coyC=p.gnd;p.gnd=null;p.vy=Math.min(0,p.vy);p.peakY=p.y;p.fallFrom=p.y;p.airT=0}
   }else{
@@ -696,7 +749,13 @@ function step(W,p,inp,dt){
     if(p.y>p.peakY)p.peakY=p.y;
   }
 }
-function touch(W,c){if(c.kind==='fragile'&&c.touchT<0){c.touchT=W.t;W.ev.push(['crack',c])}}
+function touch(W,c){if(c.kind==='fragile'&&c.touchT<0){c.touchT=W.t;W.ev.push(['crack',c])}else if(c.dyn&&c.dyn.type==='sink')c.standT=W.t}
+// knocked by a boulder: thrown off your feet, away from it and down its lane
+function knock(W,p,c){
+  const m=c.dyn,l=Math.hypot(m.dx,m.dz)||1;
+  p.vx=_res.nx*4+m.dx/l*6.5;p.vz=_res.nz*4+m.dz/l*6.5;p.vy=Math.max(p.vy,5.5);p.gnd=null;p.coy=0;p.buf=0;p.stun=.45;p.mantle=null;p.slide=null;
+  p.airCap=Math.hypot(p.vx,p.vz);p.jumpVel=false;p.cut=true;p.peakY=p.y;p.fallFrom=p.y;p.airT=0;W.ev.push(['knock',c]);
+}
 function landOn(W,p,c,top,impact){
   p.y=top;
   const steep=c.sl&&Math.abs(c.sl)>C.SLIDE;
@@ -709,6 +768,12 @@ function landOn(W,p,c,top,impact){
   p.slide=null;p.slideT=0;
   const fell=p.fallFrom-top;
   p.lastLand=c;p.impact=impact;p.landT=0;
+  if(c.kind==='glyph'&&c.warp){
+    // a warp glyph (the Runestones): it carries you to its twin, standing still
+    const T=c.warp;p.x=T.x;p.z=T.z;p.y=T.y1;p.vx=p.vz=p.vy=0;p.gnd=T;p.lastLand=T;p.landT=0;p.impact=0;touch(W,T);W.ev.push(['warp',c,T]);
+    if(fell>10){p.falls++;W.ev.push(['fall',fell])}
+    p.fallFrom=p.peakY=T.y1;return;
+  }
   if(c.kind==='cannon'){
     // a cannon (Skyport): from the middle of its pad, the same throw every time, onto the platform it points at
     p.x=c.x;p.z=c.z;p.vx=c.shot[0];p.vy=c.shot[1];p.vz=c.shot[2];p.gnd=null;p.jumpVel=false;p.cut=true;p.airCap=Math.hypot(p.vx,p.vz);p.peakY=p.y;p.fallFrom=p.y;p.airT=0;W.ev.push(['cannon',c]);
@@ -745,10 +810,18 @@ const ZONES=[
   {name:'Storm Front',y0:1400,y1:1800,rho:[30,26],intro:'Wind gusts push you in the air. Wait for the calm.'},
   {name:'Skyport',y0:1800,y1:2200,rho:[30,36],intro:'Belts, traffic, cannons and a blimp to catch.'},
   {name:'Orbit Yard',y0:2200,y1:2600,rho:[34,26],g:.55,intro:'Low gravity: jumps go higher and farther.'},
-  {name:'The Crown',y0:2600,y1:3000,rho:[24,14],intro:'The last 400 m. The Crown is waiting at the top.'}
+  {name:'The Crown',y0:2600,y1:3000,rho:[24,14],intro:'The last 400 m. The Crown is waiting at the top.'},
+  // Through the gate: 3000 m more on the other side of the gate on the Crown, built in the same column above it. `at`: the
+  // height its banner shows (the Black River starts just above the gate's side of the line between the two, DIM_Y).
+  {name:'The Black River',y0:DIM_Y,y1:3500,at:3000,rho:[28,34],intro:'Ride the ferries and keep moving: rafts sink under you.'},
+  {name:'The Burning River',y0:3500,y1:4000,rho:[32,26],intro:'Heat vents blow on a beat. Stand on the grate and wait.'},
+  {name:"The Hound's Gate",y0:4000,y1:4500,rho:[26,34],intro:'Ride the great wheel. Cross the slope between boulders.'},
+  {name:'The Runestones',y0:4500,y1:5000,rho:[30,26],intro:'Step on a glowing glyph and it carries you to its twin.'},
+  {name:'The Spellworks',y0:5000,y1:5500,rho:[26,32],intro:'Crystal discs grow and shrink. Cross while they are full.'},
+  {name:'The Orrery',y0:5500,y1:6000,rho:[30,16],intro:'Moons circle planets. Everything at once, up to the Lodestar.'}
 ];
 const SUMMIT=1000;   // the old summit (a milestone now; its `summit` stat is still the time to here)
-const TOP=3000;      // the top of the course: the Crown
+const TOP=3000;      // the Crown: the top of the first 3000 m, and the gate to the rest
 function zoneAt(y){for(let i=ZONES.length-1;i>=0;i--)if(y>=ZONES[i].y0-.01)return i;return 0}
 const CONT=['#c8462f','#2f6fb3','#d68a1c','#3f8f5a','#8a3f8f','#2f9c9c','#b7b0a2','#a33b4c'];
 const BOOKS=['#b8433a','#2f5d9a','#3d7a4a','#c79a2b','#6b3f8a','#1f6f74','#d0643a','#3b3f58'];
@@ -793,8 +866,8 @@ function build(seed){
   const rr=(a,b)=>a+(b-a)*rnd(),pick=a=>a[Math.floor(rnd()*a.length)];
   const cols=[],deco=[],path=[],fans=[],signs=[],secrets={};   // secrets: the staff lift, the service elevator and the hidden updraft (see the page script)
   const K={last:null,h:0,flow:true,maxFrac:.62};   // the first zone teaches: no jump past 62% of a sprint jump (zone 2 on allows 80%)
-  function add(o){const c=mk(o);c.zone=zoneAt(c.y1);if(K.nz)c.nz=1;cols.push(c);return c}
-  function dec(o){if(K.nz)o.nz=1;deco.push(o);return o}
+  function add(o){const c=mk(o);c.zone=zoneAt(c.y1);if(K.nz)c.nz=1;if(K.nw){c.nw=1;c.dim=K.dim}cols.push(c);return c}
+  function dec(o){if(K.nz)o.nz=1;if(K.nw){o.nw=1;o.dim=K.dim}deco.push(o);return o}
   // Every path platform is pulled in toward the one before if the jump would be longer than this
   // zone allows (a safety net under the scripts; the checker and the bot do the real testing).
   function onPath(c){
@@ -1544,7 +1617,324 @@ function build(seed){
     for(const is of ck.issues)if(is[0]==='blocked'||is[0]==='headroom'){const c=cols.find(q=>q.id===is[2]);if(c&&c.deco&&c.path<0)bad.add(c)}
     for(let i=cols.length-1;i>=0;i--)if(bad.has(cols[i]))cols.splice(i,1);
   }
-  return{cols,deco,path,fans,signs,shortcuts,secrets,winds};
+  // =====================================================================================================
+  //  Through the gate (3000 – 6000 m). Added later still, the same way as the 2000 m above the old summit: built
+  //  after everything above, from the same random numbers carrying on, with every new piece marked `nw` (and `dim`:
+  //  0 for the gate on the Crown, 1 for everything on the far side of it), so nothing at or below the Crown moves.
+  //  The far side is built in the same column, straight above the Crown: all of it is above DIM_Y and nothing on this
+  //  side reaches DIM_Y, so the two never touch, and the page draws one side at a time. Six zones in two acts: a pit
+  //  out of the underworld (the Black River, the Burning River, the Hound's Gate) and, over its rim, a realm of
+  //  spellcraft (the Runestones, the Spellworks, the Orrery), each with something nothing below has, up to the
+  //  Lodestar at 6000 m. Jumps here go up to 85% of a perfect sprint jump (80% below).
+  // =====================================================================================================
+  K.nw=1;K.dim=0;K.maxFrac=.85;K.flow=true;K.g=undefined;
+  // The gate on the Crown: two stone posts (solid, so you go in through the opening) and an arch the page draws. It
+  // opens once you've reached the Crown; walk into it and a ride (the page's) takes you through to the bank.
+  const portal={x:0,y:TOP,z:3.4,yaw:0,w:1.15,d:.55};
+  for(const sx of [-1,1])add({t:'cyl',x:sx*1.72,z:portal.z,top:TOP+3.9,h:3.9,r:.4,v:'gatepost',col:'#4a4560',surf:'stone',deco:true});
+  dec({s:'gate',x:0,y:TOP,z:portal.z,yaw:0,side:0});
+  K.dim=1;
+  // ===================== Zone 11: The Black River (3004 – 3500 m) =====================
+  // The bottom of a vast pit: a black river (the floor of this side: fall in anywhere and you're back on the bank),
+  // ferries on currents, rafts that sink under you, stone docks, mooring posts, urns and old ribs of stone.
+  const BANK=RIVER_Y+1.5;
+  const bank=add({t:'box',x:0,z:27,top:BANK,h:1.4,w:12,d:8,v:'bank',col:'#3b3b42',surf:'stone'});
+  bank.arrive=1;bank.rest=1;bank.big=1;onPath(bank);
+  dec({s:'gate',x:0,y:BANK,z:29.4,yaw:0,side:1});
+  portal.out=[0,BANK,26.4];portal.door=[0,BANK,29.4];portal.bank=bank;
+  signs.push({x:-4.6,y:BANK,z:29.6,yaw:0,text:'The Black River',sub:'3,000 m'});
+  K.last=bank;K.h=Math.PI/2;
+  const stone=(r,col)=>({t:'cyl',r:r||rr(1.2,1.6),h:2.4,v:'basalt',col:col||pick(['#2d3436','#353b3e','#283033']),surf:'stone'});
+  function z11(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='basalt')return go(stone(rr(1.1,1.7)),g,dh,tn);
+    if(kind==='slab')return go({t:'box',w:rr(1.8,2.6),d:rr(2.2,3.2),h:.6,yawOff:rr(-.4,.4),v:'slab',col:pick(['#4a4f55','#42474c','#3d4448']),surf:'stone'},g,dh,tn);
+    if(kind==='post')return go({t:'cyl',r:rr(.85,1.05),h:1.6,v:'moor',col:'#4a3b2e',surf:'wood'},g,dh,tn);
+    if(kind==='urn')return go({t:'cyl',r:rr(1.15,1.45),h:1.8,v:'urn',col:pick(['#6b6a5e','#5f6a66','#6a6250']),surf:'stone'},g,dh,tn);
+    if(kind==='rib')return go({t:'box',w:.7,d:rr(4,6),h:.35,v:'rib',col:'#d6cfbb',surf:'stone'},g*.9,Math.min(dh,.9),tn*.5);
+  }
+  const Z11=[[3,'basalt'],[1.6,'slab'],[1,'post'],[1,'urn'],[.9,'rib']];
+  function fill11(until){while(top()<until)z11(pickW(Z11),diff(.5,.7,.58,.8),rr(.5,1.2))}
+  // A ferry current: boats ride it one way along the route at a steady pace, from beside one dock to beside another
+  // most of the way along, then dive under and come round again (n boats, evenly spaced). Board one as it leaves the
+  // first dock and step across to the second before it dives.
+  const dock=()=>({t:'box',w:2.8,d:3.4,h:.6,v:'dock',col:'#4a3a2c',surf:'wood'});
+  function ferry(len,n,T){
+    K.flow=false;
+    const dA=go(dock(),rr(1,1.3),rr(.3,.5),0);
+    const h=K.h,ux=Math.sin(h),uz=Math.cos(h),sd=rnd()<.5?1:-1,px=uz*sd,pz=-ux*sd,off=dA.hx+.85+1.15;
+    const by=dA.y1+.15,sx=dA.x+px*off-ux*1.4,sz=dA.z+pz*off-uz*1.4,boats=[];
+    for(let i=0;i<n;i++){const c=add({t:'box',x:sx,z:sz,top:by,h:.7,w:2.3,d:4.6,yaw:h,v:'ferry',col:'#2b2930',surf:'wood'});
+      setDyn(c,{type:'lane',dx:ux,dz:uz,L:len,T,ph:i/n,dip:3.2,e:.08});c.fixed=1;boats.push(c)}
+    onPath(boats[0]);boats[0].group=boats.slice(1);
+    const ex=sx+ux*len*.8,ez=sz+uz*len*.8;
+    const dB=put(Object.assign(dock(),{x:ex-px*off,z:ez-pz*off,top:by+.35,yaw:h}));
+    dec({s:'mist',a:[sx,by,sz],b:[sx+ux*len,by,sz+uz*len],w:2.6});
+    K.h=h-sd*.7;   // on from the far dock turning away from the current (never over where the boats go)
+    K.flow=true;return dB;
+  }
+  // Rafts that sink while you stand on them (and float back up once you're off): don't stop on one.
+  function rafts(n,rise){let c;for(let i=0;i<n;i++){c=go({t:'cyl',r:rr(1.3,1.55),h:.45,v:'raft',col:'#cfc6ae',surf:'wood'},rr(.42,.56)*reach(rise||.3),rise||rr(0,.3),rr(-.3,.3));setDyn(c,{type:'sink',rate:.3,rise:.9,max:2.4})}return c}
+  // first: low stones over the water, a ferry right by the bank (a slip costs a swim, not a climb), the first rafts
+  for(let i=0;i<3;i++)go(stone(rr(1.3,1.6)),rr(1,1.5),rr(.2,.4),rr(-.2,.2));
+  ferry(22,3,15);
+  go(stone(1.8),1.2,.4,0);
+  rafts(3,.2);go(stone(1.8),1.1,.3,0);
+  fill11(3036);ferry(24,3,16);
+  fill11(3072);rafts(4);go(stone(1.7),1.1,.4,0);
+  fill11(3110);restDeck({v:'bank',col:'#3b3b42',surf:'stone'},'The Black River','3,110 m');
+  fill11(3150);ferry(26,3,17);
+  fill11(3190);switchback(5,()=>stone(rr(1.2,1.45)),'tramp');
+  fill11(3230);rafts(5,.4);go(stone(1.7),1.1,.4,0);
+  fill11(3270);ferry(28,4,18);
+  fill11(3310);restDeck({v:'bank',col:'#3b3b42',surf:'stone'},'The Black River','3,310 m');
+  fill11(3350);rafts(3,.3);ferry(26,3,16);
+  fill11(3400);ferry(30,4,19);
+  fill11(3440);rafts(5,.45);go(stone(1.7),1.1,.4,0);
+  fill11(3494);restDeck({v:'bank',col:'#3b3b42',surf:'stone'},'The Burning River','next stop');
+
+  // ===================== Zone 12: The Burning River (3500 – 4000 m) =====================
+  // A river of fire runs round the pit's wall and pours down it. Obsidian, cinder columns, braziers, iron grates,
+  // and heat vents that blow on a beat: stand on the grate and wait, and it lifts you to the ledge above.
+  function z12(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='obsidian')return go({t:'box',w:rr(1.8,2.6),d:rr(2,3),h:.8,yawOff:rr(-.5,.5),v:'obsidian',col:pick(['#1e1a22','#241d24']),surf:'stone'},g,dh,tn);
+    if(kind==='cinder')return go({t:'cyl',r:rr(1.15,1.7),h:2.4,v:'cinder',col:pick(['#2c201c','#33241e']),surf:'stone'},g,dh,tn);
+    if(kind==='brazier')return go({t:'cyl',r:rr(1.1,1.35),h:1.2,v:'brazier',col:'#8a5a2a',surf:'metal'},g,dh,tn);
+    if(kind==='grate')return go({t:'box',w:rr(1.6,2.2),d:rr(1.8,2.6),h:.3,yawOff:rr(-.4,.4),v:'igrate',col:'#3a3436',surf:'metal'},g,dh,tn);
+  }
+  const Z12=[[2.6,'obsidian'],[2.4,'cinder'],[1,'brazier'],[1.2,'grate']];
+  function fill12(until){while(top()<until)z12(pickW(Z12),diff(.52,.72,.6,.82),rr(.5,1.2))}
+  // A heat vent: a grate on a slab of obsidian. For a share `on` of every T seconds (on the shared clock) it blows like a
+  // fan, lifting you `lift` m; the ledge to step off onto is beside the top of the column.
+  function vent(lift,T,on,wide){
+    const s=go({t:'box',w:wide?4.4:3.4,d:wide?4.4:3.4,h:.8,v:'obsidian',col:'#221c24',surf:'stone'},rr(1.1,1.5),rr(.5,.8),rr(-.3,.3));
+    const fb=put({t:'cyl',x:s.x,z:s.z,top:s.y1+.2,h:.2,r:1.2,v:'vent',col:'#3a2a22',surf:'metal'});fb.fan=1;
+    fans.push({x:fb.x,z:fb.z,r:1.7,y0:fb.y1,y1:fb.y1+lift,T,on,ph:rr(0,1),dim:1,nw:1});
+    K.flow=false;const n=go({t:'box',w:wide?3.4:2.6,d:wide?3.4:2.6,h:.8,v:'obsidian',col:'#221c24',surf:'stone',fixed:1},1.6,lift-3.6,rr(-.5,.5));K.flow=true;return n;
+  }
+  fill12(3520);vent(10,6,.55,true);
+  fill12(3556);vent(12,5.5,.5);
+  fill12(3600);restDeck({v:'obsidian',col:'#221c24',surf:'stone'},'The Burning River','3,600 m');
+  fill12(3636);vent(11,5,.5);vent(11,5,.5);
+  fill12(3690);switchback(5,()=>({t:'cyl',r:rr(1.2,1.45),h:2.4,v:'cinder',col:'#2c201c',surf:'stone'}),'tramp');
+  fill12(3730);vent(14,5.5,.5);
+  fill12(3770);rafts(4,.3);go({t:'cyl',r:1.7,h:2.4,v:'cinder',col:'#2c201c',surf:'stone'},1.1,.4,0);
+  fill12(3810);restDeck({v:'obsidian',col:'#221c24',surf:'stone'},'The Burning River','3,810 m');
+  fill12(3846);vent(12,5,.48);vent(12,5,.48);vent(10,5,.48);
+  fill12(3910);ferry(26,3,15);
+  fill12(3950);vent(13,5,.5);
+  fill12(3994);restDeck({v:'gstone',col:'#5a5668',surf:'stone'},"The Hound's Gate",'next stop');
+
+  // ===================== Zone 13: The Hound's Gate (4000 – 4500 m) =====================
+  // Grey stone and ash. Huge chains hang across the pit; a great wheel turns and carries you up; boulders roll down a
+  // slope you cross between them; and at the top a gate guarded by a three-headed hound in stone, under the pit's rim.
+  function z13(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='block')return go({t:'box',w:rr(1.8,2.6),d:rr(1.8,2.8),h:1.2,yawOff:rr(-.5,.5),v:'gstone',col:pick(['#5a5668','#625e70','#545062']),surf:'stone'},g,dh,tn);
+    if(kind==='drum')return go({t:'cyl',r:rr(1.2,1.6),h:1.6,v:'drum',col:pick(['#6a6678','#5e5a6c']),surf:'stone'},g,dh,tn);
+    if(kind==='link')return go({t:'box',w:.75,d:rr(4,5.5),h:.5,v:'link',col:'#6d6a74',surf:'metal'},g*.9,Math.min(dh,.9),tn*.5);
+    if(kind==='plinth')return go({t:'box',w:rr(2,2.6),d:rr(2,2.6),h:2,v:'plinth',col:'#7a7686',surf:'stone'},g,dh,tn);
+  }
+  const Z13=[[3,'block'],[1.6,'drum'],[1,'link'],[1,'plinth']];
+  function fill13(until){while(top()<until)z13(pickW(Z13),diff(.52,.72,.6,.82),rr(.5,1.2))}
+  // The great wheel: gondolas on a wheel turning in the upright plane along the route. Step aboard one as it passes the
+  // bottom landing, ride it up, and step off at the top landing as it passes (both landings beside the wheel).
+  function wheel(R,n,T){
+    K.flow=false;
+    const dA=go({t:'box',w:3,d:3.2,h:.8,v:'gstone',col:'#5a5668',surf:'stone'},rr(1,1.4),rr(.3,.6),0);
+    const h=K.h,ux=Math.sin(h),uz=Math.cos(h),sd=rnd()<.5?1:-1,px=uz*sd,pz=-ux*sd,off=dA.hx+.85+1.25;
+    const gy=dA.y1+.1,cx=dA.x+px*off,cz=dA.z+pz*off,cy=gy+R,gs=[];
+    for(let i=0;i<n;i++){const c=add({t:'box',x:cx,z:cz,top:gy,h:.35,w:2.5,d:2.5,yaw:h,v:'gondola3',col:'#6a5a3a',surf:'wood'});
+      setDyn(c,{type:'wheel',cx,cy,cz,ax:ux,az:uz,R,T,a0:i/n*TAU});c.fixed=1;c.extra={wheel:sd};gs.push(c)}
+    onPath(gs[0]);gs[0].group=gs.slice(1);
+    const dB=put({t:'box',x:cx-px*off,z:cz-pz*off,top:cy+R+.35,h:.8,w:3,d:3.2,yaw:h,v:'gstone',col:'#5a5668',surf:'stone'});
+    dec({s:'wheel',x:cx,y:cy,z:cz,yaw:h,R,px,pz});
+    K.h=Math.atan2(-px,-pz);   // on from the top landing away from the wheel (never over where its gondolas go)
+    K.flow=true;return dB;
+  }
+  // A boulder slope: lanes across the route, each with two boulders rolling down it in turn. Jump from ledge to ledge
+  // over a lane between boulders (one in the air with you knocks you off and down the slope).
+  function boulders(n){
+    K.flow=false;
+    let L=go({t:'box',w:2.8,d:2.6,h:.8,v:'gstone',col:'#5a5668',surf:'stone'},rr(1,1.4),rr(.3,.5),0);
+    for(let i=0;i<n;i++){
+      const h=K.h,ux=Math.sin(h),uz=Math.cos(h),sd=rnd()<.5?1:-1,px=uz*sd,pz=-ux*sd,gap=3.6;
+      const mx=L.x+ux*(L.hz+gap/2),mz=L.z+uz*(L.hz+gap/2),base=L.y1-.6,HL=13,DY=5;
+      const B=go({t:'box',w:2.8,d:2.4,h:.8,v:'gstone',col:'#5a5668',surf:'stone',fixed:1},gap,rr(.25,.45),0);
+      const T=rr(7,8.5),p0=rr(0,1);
+      for(let k=0;k<2;k++){const c=add({t:'cyl',x:mx-px*HL,z:mz-pz*HL,top:base+DY+2,h:2,r:1,v:'boulder',col:'#6e665c',surf:'stone',kind:'boulder'});
+        setDyn(c,{type:'roll',dx:px*2*HL,dy:-2*DY,dz:pz*2*HL,T,ph:(p0+k/2)%1})}
+      dec({s:'ramp',a:[mx-px*(HL+1),base+DY,mz-pz*(HL+1)],b:[mx+px*(HL+1),base-DY,mz+pz*(HL+1)],w:2.6});
+      L=B;
+    }
+    K.flow=true;return L;
+  }
+  fill13(4024);wheel(9,6,40);
+  fill13(4064);boulders(2);
+  fill13(4100);restDeck({v:'gstone',col:'#5a5668',surf:'stone'},"The Hound's Gate",'4,100 m');
+  fill13(4140);wheel(10,6,42);
+  fill13(4180);switchback(5,()=>({t:'cyl',r:rr(1.2,1.45),h:1.6,v:'drum',col:'#6a6678',surf:'stone'}),'tramp');
+  fill13(4220);boulders(3);
+  fill13(4260);rafts(4,.35);go({t:'cyl',r:1.7,h:1.6,v:'drum',col:'#6a6678',surf:'stone'},1.1,.4,0);
+  fill13(4300);restDeck({v:'gstone',col:'#5a5668',surf:'stone'},"The Hound's Gate",'4,300 m');
+  fill13(4340);vent(12,5,.5);wheel(11,6,44);
+  fill13(4390);boulders(3);
+  fill13(4430);
+  // the gate itself: the route runs straight through its opening, under the hound
+  {
+    K.flow=false;const g0=go({t:'box',w:3.2,d:3.6,h:.8,v:'gstone',col:'#6a6678',surf:'stone'},1.3,.6,0);
+    const h=K.h;let c=g0;for(let i=0;i<3;i++)c=go({t:'box',w:2.8,d:3,h:.8,v:'gstone',col:'#6a6678',surf:'stone'},rr(1.3,1.7),rr(.6,.9),0);
+    // its columns stand clear of every platform near them (pushed out across the route until they are)
+    const mid=path[g0.path+2],cs=Math.cos(h),sn=Math.sin(h);let off=10.5;
+    for(;off<18;off+=.5){let ok=true;for(const q of path){if(Math.abs(q.y1-mid.y1)>36||q===mid)continue;for(const sg of [-1,1]){const cx=mid.x+sg*off*cs,cz=mid.z-sg*off*sn;if(Math.hypot(q.x-cx,q.z-cz)<2.6+Math.max(q.r||0,Math.hypot(q.hx,q.hz))+1)ok=false}}if(ok)break}
+    dec({s:'hgate',x:mid.x,y:mid.y1,z:mid.z,yaw:h,off});
+    K.flow=true;
+  }
+  fill13(4494);restDeck({v:'gstone',col:'#6a6678',surf:'stone'},'The Runestones','next stop');
+  dec({s:'rim',y:4500,r:92});
+
+  // ===================== Zone 14: The Runestones (4500 – 5000 m) =====================
+  // Out of the pit into an open sky of spellcraft: floating rune stones, broken columns and stone rings, and warp
+  // glyphs: land on one and it carries you to its twin, further on and higher up.
+  function z14(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='rune')return go({t:'box',w:rr(1.8,2.5),d:rr(1.8,2.6),h:1.3,yawOff:rr(-.6,.6),v:'runestone',col:pick(['#7a7f8c','#6e7482','#858a96']),surf:'stone'},g,dh,tn);
+    if(kind==='column')return go({t:'cyl',r:rr(1.05,1.4),h:2.2,v:'column',col:'#cfc9bd',surf:'stone'},g,dh,tn);
+    if(kind==='sring')return go({t:'cyl',r:rr(1.5,2),h:.5,v:'sring',col:'#8a8fa0',surf:'stone'},g,dh,tn);
+    if(kind==='shard')return go({t:'box',w:1.3,d:1.3,h:1.6,yawOff:rr(-.7,.7),v:'mshard',col:pick(['#7ff2ff','#c3a6ff','#ffd27a']),surf:'glass'},g,dh,tn);
+  }
+  const Z14=[[3,'rune'],[1.4,'column'],[1.2,'sring'],[1,'shard']];
+  function fill14(until){while(top()<until)z14(pickW(Z14),diff(.52,.74,.6,.83),rr(.5,1.2))}
+  const GLYPH=['#5ff2ff','#ffcf5a','#ff7ad9','#7dff9a'];let gk=0;
+  // a warp glyph and its twin `dist` m further on and `rise` m up (the twin is plain to stand on)
+  function glyph(dist,rise,f){
+    const col=GLYPH[gk++%GLYPH.length];
+    const g=go({t:'cyl',r:1.35,h:.6,v:'glyph',col,surf:'stone',kind:'glyph'},rr(f?f[0]:.45,f?f[1]:.6)*reach(.5),.5,rr(-.3,.3));
+    K.flow=false;const o=go({t:'cyl',r:1.55,h:.6,v:'glyphout',col,surf:'stone',fixed:1},dist,rise,rr(-.5,.5));K.flow=true;
+    g.warp=o;dec({s:'warparc',a:[g.x,g.y1,g.z],b:[o.x,o.y1,o.z],col});return o;
+  }
+  fill14(4520);glyph(8,3);
+  fill14(4556);glyph(12,5);go(stone(1.6,'#6e7482'),1.2,.4,0);
+  fill14(4596);restDeck({v:'runestone',col:'#7a7f8c',surf:'stone'},'The Runestones','4,600 m');
+  fill14(4636);glyph(14,6,[.6,.72]);glyph(12,4,[.6,.72]);
+  fill14(4690);switchback(5,()=>({t:'cyl',r:rr(1.3,1.6),h:.5,v:'sring',col:'#8a8fa0',surf:'stone'}),'mushroom');
+  fill14(4730);ferry(26,3,14);
+  fill14(4770);glyph(16,7,[.62,.76]);
+  fill14(4810);restDeck({v:'runestone',col:'#7a7f8c',surf:'stone'},'The Runestones','4,810 m');
+  fill14(4850);glyph(14,5,[.65,.78]);vent(12,5,.5);
+  fill14(4900);glyph(16,6,[.65,.78]);glyph(12,4,[.65,.78]);
+  fill14(4950);rafts(4,.4);glyph(14,6,[.6,.72]);
+  fill14(4994);restDeck({v:'tome',col:'#4a2a5a',surf:'paper'},'The Spellworks','next stop');
+
+  // ===================== Zone 15: The Spellworks (5000 – 5500 m) =====================
+  // A workshop of spells adrift: lecterns, cauldrons with lids, spell tomes, potion bottles and shelves, and crystal
+  // discs that grow and shrink on a beat, each a little after the one before: cross while they're full.
+  function z15(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='tome')return go({t:'box',w:rr(2,2.4),d:rr(2.6,3.2),h:.6,yawOff:rr(-.5,.5),v:'tome',col:pick(['#4a2a5a','#2a3a5a','#5a2a2e','#2a4a3a']),surf:'paper'},g,dh,tn);
+    if(kind==='cauldron')return go({t:'cyl',r:rr(1.25,1.55),h:1.5,v:'cauldron',col:'#2a2a30',surf:'metal'},g,dh,tn);
+    if(kind==='lectern')return go({t:'box',w:1.7,d:1.5,h:1.2,yawOff:rr(-.4,.4),v:'lectern',col:'#6a4428',surf:'wood'},g,dh,tn);
+    if(kind==='bottle')return go({t:'cyl',r:rr(.95,1.15),h:2.2,v:'bottle',col:pick(['#5fd6a8','#c070ff','#ff8a5c','#6aa8ff']),surf:'glass'},g,dh,tn);
+    if(kind==='shelf')return go({t:'box',w:.8,d:rr(4,5.5),h:.4,v:'shelf',col:'#7a5434',surf:'wood'},g*.9,Math.min(dh,.9),tn*.5);
+  }
+  const Z15=[[3,'tome'],[1.4,'cauldron'],[1,'lectern'],[1.2,'bottle'],[.9,'shelf']];
+  function fill15(until){while(top()<until)z15(pickW(Z15),diff(.52,.74,.6,.83),rr(.5,1.2))}
+  // crystal discs: each full for 60% of a beat of T s, shrinking away and back; the next a third of a beat later
+  function discs(n,T,f){
+    for(let i=0;i<n;i++){const c=go({t:'cyl',r:1.9,h:.4,v:'disc',col:['#9ff4ff','#e2b8ff','#ffe6a0'][i%3],surf:'glass',kind:'grow'},rr(f?f[0]:.42,f?f[1]:.55)*reach(.5),.5,rr(-.3,.3));c.r0=c.r;c.grow={T,on:.6,e:.1,lo:0,ph:((-i/3)%1+1)%1}}
+    return go({t:'box',w:2.6,d:2.8,h:.6,v:'tome',col:'#2a3a5a',surf:'paper'},rr(.42,.52)*reach(.5),.5,0);
+  }
+  fill15(5020);discs(3,6);
+  fill15(5060);discs(4,6);
+  fill15(5100);restDeck({v:'tome',col:'#4a2a5a',surf:'paper'},'The Spellworks','5,100 m');
+  fill15(5140);discs(5,5.6,[.5,.62]);
+  fill15(5180);switchback(5,()=>({t:'cyl',r:rr(1.2,1.4),h:1.5,v:'cauldron',col:'#2a2a30',surf:'metal'}),'tramp');
+  fill15(5220);glyph(14,6,[.6,.72]);discs(4,5.4,[.5,.62]);
+  fill15(5270);vent(12,5,.5);
+  fill15(5310);restDeck({v:'tome',col:'#4a2a5a',surf:'paper'},'The Spellworks','5,310 m');
+  fill15(5350);discs(5,5.2,[.55,.66]);
+  fill15(5400);wheel(10,6,40);
+  fill15(5440);discs(4,5,[.55,.68]);glyph(14,5,[.62,.74]);
+  fill15(5494);restDeck({v:'brass',col:'#b58a3a'},'The Orrery','last stretch');
+
+  // ===================== Zone 16: The Orrery (5500 – 6000 m) =====================
+  // A great brass orrery among the stars: brass plates and gear wheels, planets that circle and moons that circle them
+  // (ride a planet, drop onto its moon, step off when the moon swings out to the far ledge), then everything at once,
+  // and a last spiral of star steps up to the Lodestar.
+  function z16(kind,f,dh){
+    const g=rr(f[0],f[1])*reach(dh),tn=rr(-.4,.4);
+    if(kind==='brass')return go({t:'box',w:rr(1.8,2.4),d:rr(2,2.8),h:.35,yawOff:rr(-.5,.5),v:'brass',col:pick(['#b58a3a','#c99a44','#a87c34']),surf:'metal'},g,dh,tn);
+    if(kind==='gear')return go({t:'cyl',r:rr(1.3,1.8),h:.45,v:'gear',col:'#b58a3a',surf:'metal'},g,dh,tn);
+    if(kind==='star')return go({t:'cyl',r:rr(1.1,1.5),h:.5,v:'starp',col:pick(['#fff1b8','#cfe6ff','#ffd6f0']),surf:'glass'},g,dh,tn);
+    if(kind==='rod')return go({t:'box',w:.6,d:rr(4,5.5),h:.3,v:'brass',col:'#c99a44',surf:'metal'},g*.9,Math.min(dh,.9),tn*.5);
+  }
+  const Z16=[[3,'brass'],[1.6,'gear'],[1.4,'star'],[.9,'rod']];
+  function fill16(until){while(top()<until)z16(pickW(Z16),diff(.55,.75,.62,.84),rr(.5,1.2))}
+  // A planet on an orbit round a pivot ahead (it passes the first ledge once a turn), a moon circling it 3 m lower (drop
+  // onto it as it comes round; low enough to pass under the first ledge with room to spare), and the far ledge just
+  // outside the moon's widest swing, which it passes once a turn.
+  function planets(){
+    K.flow=false;
+    const A=go({t:'cyl',r:1.8,h:.5,v:'gear',col:'#b58a3a',surf:'metal'},rr(1.1,1.4),rr(.3,.5),0);
+    const h=K.h,ux=Math.sin(h),uz=Math.cos(h),R1=5.5,T1=30,pr=2.3,mr=1.35,R2=pr+mr+1.05,T2=10;
+    const d=A.r+1+pr+R1,Px=A.x+ux*d,Pz=A.z+uz*d,a0=rr(0,TAU),th=Math.atan2(ux,uz);
+    const pl=add({t:'cyl',x:Px+Math.sin(a0)*R1,z:Pz+Math.cos(a0)*R1,top:A.y1+.4,h:1.2,r:pr,v:'planet',col:pick(['#c96a3a','#4a8ac9','#6ac98a','#c9a64a']),surf:'stone'});
+    setDyn(pl,{type:'orbit',cx:Px,cz:Pz,rad:R1,T:T1,a0});pl.fixed=1;onPath(pl);
+    // the moon is at its widest (and by the far ledge, at angle th) when it and the planet both point that way
+    const b0=th-3*(((th-a0)%TAU)+TAU)%TAU;
+    const mn=add({t:'cyl',x:pl.x+Math.sin(b0)*R2,z:pl.z+Math.cos(b0)*R2,top:pl.y1-3,h:.5,r:mr,v:'moon2',col:'#dcd6e8',surf:'stone'});
+    setDyn(mn,{type:'epi',cx:Px,cz:Pz,R1,T1,a1:a0,R2,T2,a2:b0});mn.fixed=1;onPath(mn);
+    const rB=1.8,dB=R1+R2+mr+1+rB;
+    const B=put({t:'cyl',x:Px+Math.sin(th)*dB,z:Pz+Math.cos(th)*dB,top:mn.y1+.45,h:.5,r:rB,v:'gear',col:'#b58a3a',surf:'metal'});
+    dec({s:'orrery',x:Px,y:pl.y1-1.2,z:Pz,R:R1});
+    K.flow=true;return B;
+  }
+  fill16(5520);planets();
+  fill16(5556);discs(3,5,[.55,.66]);
+  fill16(5600);restDeck({v:'brass',col:'#b58a3a'},'The Orrery','5,600 m');
+  fill16(5636);planets();
+  fill16(5676);switchback(5,()=>({t:'cyl',r:rr(1.2,1.4),h:.45,v:'gear',col:'#b58a3a',surf:'metal'}),'tramp');
+  fill16(5716);vent(12,5,.48);discs(3,5,[.55,.66]);glyph(14,5,[.62,.74]);
+  fill16(5760);planets();
+  fill16(5800);restDeck({v:'brass',col:'#b58a3a'},'Almost there','5,800 m');
+  // everything at once: rafts into a ferry, discs onto a glyph, a vent, the wheel, and a planet and its moon
+  fill16(5830);rafts(3,.4);ferry(24,3,14);
+  fill16(5850);discs(4,5,[.58,.7]);glyph(14,6,[.65,.78]);vent(12,5,.46);
+  fill16(5880);wheel(9,6,36);planets();
+  fill16(5930);
+  // The Lodestar: a last spiral of star steps round its pillar, then the top.
+  {
+    const cR=13.5;
+    K.flow=false;
+    for(let n=0;n<14;n++){const L=K.last,rho=Math.hypot(L.x,L.z);if(rho<cR+3.6)break;K.h=Math.atan2(-L.x,-L.z)+.5;go({t:'cyl',r:1.4,h:.5,v:'starp',col:'#cfe6ff',surf:'glass'},Math.min(rr(1.6,2.4),rho-cR-2.6),rr(.5,1),0)}
+    let a=Math.atan2(K.last.x,K.last.z)+.35,k=0;
+    const SC=['#9ff4ff','#e2b8ff','#ffe6a0','#a8ffcf'];
+    while(TOP3-K.last.y1>1.2){
+      put({t:'box',x:Math.sin(a)*cR,z:Math.cos(a)*cR,top:TOP3-K.last.y1>2.1?K.last.y1+1.08:TOP3-1,h:.3,w:2.2,d:1.4,yaw:a,v:'starstep',col:SC[k++%4],surf:'glass'});
+      a+=.33;K.h=a+Math.PI/2;
+    }
+    add({t:'cyl',x:0,z:0,top:TOP3-.05,h:70,r:3.6,v:'lodepillar',col:'#d8e2f2',surf:'stone',deco:true});   // (just under the top, so standing over it is standing on the Lodestar)
+    const s=put({t:'cyl',x:0,z:0,top:TOP3,h:1.6,r:9,v:'lodestar',col:'#eef3ff',surf:'stone'});s.summit=3;s.big=1;s.rest=1;
+    signs.push({x:0,y:TOP3,z:-4.5,yaw:0,text:'The Lodestar',sub:'6000 m · the top'});
+    dec({s:'lodestar',x:0,y:TOP3,z:0,r:9});
+  }
+  // far scenery for the far side (its own random numbers): inside the pit (chains from its wall, robed stone statues in
+  // niches, distant ferries and fire falls) and, above the rim, rune stones, crystals, spell tomes and ringed planets
+  {
+    const kinds=[['fchain','fstatue','fchain','fferry'],['fchain','fstatue','fbrazier'],['fchain','fstatue','fchain','fpillar'],['frune','frune','fcrystal','fplanet'],['ftome','ftome','fcrystal','frune'],['fplanet','fstar','fstar','fastro']];
+    const fr=mulberry(291),fp=a=>a[Math.floor(fr()*a.length)],fq=(a,b)=>a+(b-a)*fr();
+    for(let z=10;z<16;z++){const Z=ZONES[z],pit=z<13;for(let i=0;i<(pit?22:28);i++){const a=fr()*TAU,r=pit?fq(58,86):fq(80,200),y=fq(Z.y0+10,Z.y1+(z===15?80:0));const k=fp(kinds[z-10]);
+      dec({s:'far',k,x:Math.sin(a)*r,y:k==='fferry'?RIVER_Y+.2:y,z:Math.cos(a)*r,sc:pit?fq(.8,1.3):fq(.7,1.6)*(r/110),yaw:k==='fstatue'||k==='fchain'?Math.atan2(-Math.sin(a),-Math.cos(a)):fq(0,6.3),tilt:fq(-.4,.4),col:fp(['#ffffff','#ffd36b','#9fd6ff','#ff9fd0'])})}}
+  }
+  // scenery props here that ended up in the way of a jump (or over a platform) are taken out
+  {
+    const NP=path.filter(c=>c.dim),W=World({cols,fans}),ck=check({path:NP,cols,fans,W});const bad=new Set();
+    for(const is of ck.issues)if(is[0]==='blocked'||is[0]==='headroom'){const c=cols.find(q=>q.id===is[2]);if(c&&c.deco&&c.path<0&&c.nw)bad.add(c)}
+    for(let i=cols.length-1;i>=0;i--)if(bad.has(cols[i]))cols.splice(i,1);
+  }
+  K.nw=0;
+  return{cols,deco,path,fans,signs,shortcuts,secrets,winds,portal};
 }
 
 // ---------------------------------------------------------------------
@@ -1573,10 +1963,17 @@ function curve(pts,per){
 function check(course){
   const P=course.path,out={jumps:[],issues:[],maxFrac:0,zoneMax:ZONES.map(()=>0),count:P.length};
   const W=course.W||World(course);
+  // crystal discs are measured at 80% of their full size (the jump has to be on while both are at least that big)
+  const grows=W.grow.map(c=>[c,c.r,c.gone]);for(const g of grows){g[0].r=g[0].r0*GROW_CHK;g[0].gone=false}
+  const moves=c=>c.dyn&&c.dyn.type!=='sink';   // a sinking raft is measured where it floats (and sunk, below)
   for(let i=0;i+1<P.length;i++){
     const A=P[i],B=P[i+1];
     if(A.kind==='cannon'){out.jumps.push({i,dyn:true});const r=cannonCheck(W,A,B);if(r)out.issues.push(['cannon',i,r]);continue}
-    if(A.dyn||B.dyn||A.kind==='bounce'||A.kind==='launch'||A.fan){out.jumps.push({i,dyn:true});continue}
+    // through the gate on the Crown (a ride), and a warp glyph to its twin
+    if(B.arrive){out.jumps.push({i,dyn:true});if(A.summit!==2)out.issues.push(['gate',i]);continue}
+    if(A.kind==='glyph'){out.jumps.push({i,dyn:true});if(A.warp!==B)out.issues.push(['glyph',i,'warps somewhere else']);continue}
+    if(A.fan&&B.dim){const f=ventOf(W,A);if(f){const p=Body(A.x,A.y1,A.z),t0=W.t;p.gnd=A;let top=p.y;for(let k=0;k<f.T*f.on/C.DT;k++){W.t=k*C.DT-f.ph*f.T;W.ev.length=0;step(W,p,{x:0,z:0},C.DT);top=Math.max(top,p.y)}W.t=t0;if(top<B.y1+.8)out.issues.push(['vent too short',i,+(top-B.y1).toFixed(2)])}}
+    if(moves(A)||moves(B)||A.kind==='bounce'||A.kind==='launch'||A.fan){out.jumps.push({i,dyn:true});continue}
     const g=gapBetween(A,B),np=nearPair(A,B,0,0);
     const dh=topAt(B,np[1][0],np[1][1])-topAt(A,np[0][0],np[0][1]);
     // low gravity: measured with the stronger pull of the two ends (a jump into or out of Orbit Yard counts as normal)
@@ -1588,6 +1985,10 @@ function check(course){
     const j={i,g:+g.toFixed(2),dh:+dh.toFixed(2),frac:isNaN(frac)?9:+frac.toFixed(3),z:B.zone};out.jumps.push(j);
     // two pulse platforms in a row: both lit together for long enough
     if(A.kind==='blink'&&B.kind==='blink'){let both=0;for(let k=0;k<200;k++){const t=k/200*A.blink.T*B.blink.T;if(blinkOn(A,t)&&blinkOn(B,t))both++}if(both/200*Math.min(A.blink.T,B.blink.T)<.75)out.issues.push(['blink window',i])}
+    // two crystal discs in a row: both at least 80% grown together for long enough (and the beat the same)
+    if(A.kind==='grow'&&B.kind==='grow'){let both=0;const T=A.grow.T;for(let k=0;k<400;k++){const t=k/400*T;if(growS(A,t)>=GROW_CHK&&growS(B,t)>=GROW_CHK)both++}if(A.grow.T!==B.grow.T||both/400*T<1)out.issues.push(['grow window',i,+(both/400*T).toFixed(2)])}
+    // off a sinking raft after standing on it for SINK_GRACE seconds: still in reach
+    if(A.dyn&&A.dyn.type==='sink'&&dh+A.dyn.rate*SINK_GRACE>C.APEX-.22)out.issues.push(['sunk too far',i,dh.toFixed(2)]);
     if(g<.05&&dh<=C.STEP)continue;   // a step
     // in a gust layer: still makes it with a full gust in your face, steering against it
     if(W.winds.length&&A.y1>=W.windY0-2){const w=W.winds.find(q=>B.y1+1>=q.y0&&B.y1+1<q.y1);if(w&&!isNaN(ta)){const rw=r-.5*Math.max(0,w.acc-C.AIR)*ta*ta;if(g>rw*.95)out.issues.push(['wind',i,g.toFixed(2),rw.toFixed(2)])}}
@@ -1612,17 +2013,27 @@ function check(course){
       for(const c of q){if(c===L||c.dyn||!footHit(c,p[0],p[2],C.R+.15))continue;const tp=topAt(c,p[0],p[2]);if(tp>p[1]+.02&&c.y0<p[1]+C.H){out.issues.push(['secret','updraft path blocked',c.id,c.v,c.path,+p[1].toFixed(1)]);break}}
     }
     if(L.y1>g.y1+130||L.dyn)out.issues.push(['secret','updraft lands too high or on a moving platform'])}
+  // nothing through the gate reaches down to this side of it
+  // (moving ones at their lowest; a ferry is under the river, and out of play, only while it's gone)
+  for(const c of course.cols){if(!c.dim)continue;const m=c.dyn,th=c.y1-c.y0,lo=!m?c.y0:m.type==='wheel'?m.cy-m.R-th:m.type==='sink'?c.by-m.max-th:m.type==='lane'?c.by-th-m.dip*.45:m.type==='roll'?Math.min(c.by,c.by+m.dy)-th:c.by-th;if(lo<DIM_Y+.3)out.issues.push(['below the gate',c.id,c.v])}
+  // moving platforms through the gate: nothing in the way of anyone standing on one, anywhere along where it goes
+  for(const A of P){if(!A.dim||!A.dyn||A.dyn.type==='sink')continue;const m=A.dyn,T=m.type==='epi'?m.T1:m.T,q=[],ra=A.t===1?A.r*.8:Math.min(A.hx,A.hz)*.8;
+    for(let k=0;k<48;k++){const t=k/48*T;if(m.type==='lane'){const u=((t/T+(m.ph||0))%1+1)%1;if(u<m.e||u>1-m.e)continue}const mm=motion(A,t),x=mm[0],y=mm[1],z=mm[2];
+      W.query(x-ra-.5,y,z-ra-.5,x+ra+.5,y+C.H+.3,z+ra+.5,q);
+      for(const c of q){if(c===A||c.dyn||(A.group&&A.group.includes(c)))continue;if(!footHit(c,x,z,ra))continue;if(c.y0<y+C.H+.1&&c.y1>y+.05){out.issues.push(['moving headroom',A.path,c.id,c.v,c.path,+t.toFixed(1)]);k=99;break}}}}
   // headroom over every path platform
   for(const A of P){
-    if(A.dyn||A.big||(A.y1>=SUMMIT-1&&A.y1<SUMMIT+.5)||A.y1>=TOP-1)continue;const q=[];
+    if(A.dyn||A.big||(A.y1>=SUMMIT-1&&A.y1<SUMMIT+.5)||(A.y1>=TOP-1&&A.y1<TOP+1)||A.y1>=TOP3-1)continue;const q=[];
     const pts=A.t===1?[[A.x,A.z],[A.x+A.r*.7,A.z],[A.x-A.r*.7,A.z],[A.x,A.z+A.r*.7],[A.x,A.z-A.r*.7]]:[[A.x,A.z],toWorld(A,A.hx*.85,A.hz*.85),toWorld(A,-A.hx*.85,-A.hz*.85),toWorld(A,A.hx*.85,-A.hz*.85),toWorld(A,-A.hx*.85,A.hz*.85)];
     for(const p of pts){
       const y=topAt(A,p[0],p[1]);W.query(p[0]-.4,y,p[1]-.4,p[0]+.4,y+C.H+.4,p[1]+.4,q);
       for(const c of q){if(c===A||c.dyn)continue;if(!footHit(c,p[0],p[1],.2))continue;if(c.y0<y+C.H+.2&&c.y0>y+.05){if(A.path>=0&&c.path>=0&&Math.abs(c.path-A.path)<=1&&c.y1-y<=C.STEP)continue;out.issues.push(['headroom',A.path,c.id,c.v,c.path]);break}}
     }
   }
+  for(const g of grows){g[0].r=g[1];g[0].gone=g[2]}
   return out;
 }
+const GROW_CHK=.8,SINK_GRACE=2;
 
 // A cannon's throw, played out with no input: it has to come down on the platform after it, and nothing on the way.
 function cannonCheck(W,A,B){
@@ -1631,9 +2042,14 @@ function cannonCheck(W,A,B){
   return 'never lands';
 }
 // The climb bot: plays the course with the same inputs a player has (direction, sprint, jump).
-function idxOf(P,c){if(!c)return -1;if(!P._ix){P._ix=new Map();P.forEach((q,i)=>P._ix.set(q,i))}const v=P._ix.get(c);return v==null?-1:v}
+// (a ferry's or the great wheel's other boats and gondolas count as the one on the path: `group`)
+function idxOf(P,c){if(!c)return -1;if(!P._ix){P._ix=new Map();P.forEach((q,i)=>{P._ix.set(q,i);if(q.group)for(const g of q.group)P._ix.set(g,i)})}const v=P._ix.get(c);return v==null?-1:v}
+// Is a body in the gate on the Crown? (course.portal: its middle, which way it faces, and the opening's half sizes)
+function inPortal(course,p){const g=course.portal;if(!g||Math.abs(p.y-g.y)>.6)return false;const dx=p.x-g.x,dz=p.z-g.z,cs=Math.cos(g.yaw),sn=Math.sin(g.yaw);return Math.abs(dx*cs-dz*sn)<g.w&&Math.abs(dx*sn+dz*cs)<g.d}
 function Bot(course,P){return{P:P||course.path,i:1,ph:'plan',fails:[],t0:0,retry:0,sprint:false,u:[0,0],Tp:null,Lp:null,Rp:null,stuck:0,log:[],lastI:1,lastT:0}}
-function predict(c,t){if(!c.dyn)return c;const m=motion(c,t),o=Object.create(c);o.x=m[0];o.y1=m[1];o.y0=m[1]-(c.y1-c.y0);o.z=m[2];o.yaw=m[3];o.cs=Math.cos(m[3]);o.sn=Math.sin(m[3]);return o}
+function predict(c,t){if(c.kind==='grow'){const o=Object.create(c);o.r=c.r0*Math.max(.05,growS(c,t));return o}if(!c.dyn)return c;const m=motion(c,t),o=Object.create(c);o.x=m[0];o.y1=m[1];o.y0=m[1]-(c.y1-c.y0);o.z=m[2];o.yaw=m[3];o.cs=Math.cos(m[3]);o.sn=Math.sin(m[3]);return o}
+const RIDE_OFF={spin:1,ring:1,lane:1,wheel:1,epi:1,orbit:1};
+function ventOf(W,A){if(!A||!A.fan)return null;if(A._vent===undefined)A._vent=W.fans.find(f=>f.T&&Math.abs(f.x-A.x)<.01&&Math.abs(f.z-A.z)<.01)||null;return A._vent}   // moving platforms the bot may jump off while they move
 function botInput(W,p,b,inp){
   const P=b.P;inp.x=0;inp.z=0;inp.sprint=false;inp.jump=false;
   if(b.i>=P.length)return 'done';
@@ -1641,13 +2057,20 @@ function botInput(W,p,b,inp){
   const B0=P[b.i];
   const gi=idxOf(P,p.gnd),li=p.lastLand&&p.landT<.05?idxOf(P,p.lastLand):-1;
   if(gi>=b.i||li>=b.i){
-    const k=Math.max(gi,li);
+    const k=Math.max(gi,li);b.grp=null;
     if(k>=b.i){b.i=k+1;b.ph="plan";b.retry=0;b.lastT=W.t;b.onA=null;if(b.i>=P.length)return 'done'}
   }
-  const A=P[b.i-1],B=P[b.i];
+  const A=P[b.i-1];let B=P[b.i];
+  // (standing on scenery level with the platform and inside it, like the Crown's pillar under the Crown, is standing on it)
+  const onA=p.gnd===A||!!(p.gnd&&p.gnd.deco&&A.big&&Math.abs(p.gnd.y1-A.y1)<.02&&footHit(A,p.x,p.z,0));
+  // a ferry's boats or the wheel's gondolas: aim for whichever comes by first (the one we're on, once aboard)
+  if(B.group){if(b.grp&&b.grp.i===b.i&&!p.gnd)B=b.grp.c;else{let best=B,bg=1e9;for(const c of [B].concat(B.group)){if(c.gone)continue;const q=predict(c,W.t+.9),g=gapBetween(p.gnd&&p.gnd!==GROUND?p.gnd:{t:1,x:p.x,z:p.z,r:.01},q)+Math.abs(q.y1-p.y)*.5;if(g<bg){bg=g;best=c}}B=best;b.grp={i:b.i,c:B}}}
   if(p.gnd===A&&!A.dyn)b.onA=[p.x,p.y,p.z];
+  // through the gate: in the river is a miss; on the Crown, walk into the gate (runBot, or the page, takes you through)
+  if(B.dim&&!B.arrive&&p.y<RIVER_Y){b.fails.push({i:b.i,river:1,y:+p.y.toFixed(1)});return 'fail'}
+  if(B.arrive&&onA){const g=W.course&&W.course.portal||b.portal;if(g){let ix=g.x-p.x,iz=g.z-p.z;const l=Math.hypot(ix,iz)||1;inp.x=ix/l*Math.min(1,l*2);inp.z=iz/l*Math.min(1,l*2);b.lastT=W.t;return 'walk'}}
   // landed somewhere that isn't on the way: a failed jump
-  if(p.gnd&&p.gnd!==A&&!(idxOf(P,p.gnd)>=b.i)&&b.ph!=='plan0'){
+  if(p.gnd&&!onA&&idxOf(P,p.gnd)!==b.i-1&&!(idxOf(P,p.gnd)>=b.i)&&b.ph!=='plan0'){
     if(!(A.kind==='bounce'||A.kind==='launch'||A.kind==='cannon'||A.fan)||p.gnd!==A){
       b.fails.push({i:b.i,y:+p.y.toFixed(1),on:p.gnd.path,v:p.gnd.v});
       return 'fail';
@@ -1662,6 +2085,8 @@ function botInput(W,p,b,inp){
     const Lp=b.aim&&b.aim.c===B?toWorld(Bt,b.aim.l[0],b.aim.l[1]):clampInto(Bt,p.x,p.z,Bt.t===1?Math.min(1,Bt.r*.6):Math.min(.9,Math.min(Bt.hx,Bt.hz)*.7));
     const yb=topAt(Bt,Lp[0],Lp[1]);
     if(fan&&p.y<yb+1.2){inp.x=(fan.x-p.x);inp.z=(fan.z-p.z);const l=Math.hypot(inp.x,inp.z);if(l>1){inp.x/=l;inp.z/=l}inp.jump=true;return 'fan'}
+    // a heat vent that stopped before we were high enough: stay over its grate and drop back onto it
+    const vf=ventOf(W,A);if(vf&&!fan&&p.y<yb+.6){inp.x=(vf.x-p.x);inp.z=(vf.z-p.z);const l=Math.hypot(inp.x,inp.z);if(l>1){inp.x/=l;inp.z/=l}return 'fan'}
     const Gg=p.y<2000?C.G:C.G*gAt(p.y),disc=p.vy*p.vy+2*Gg*(p.y-yb);
     let tr=disc>=0?(p.vy+Math.sqrt(disc))/Gg:.3;tr=Math.max(tr,.06);b.tr=tr;
     const cap=Math.max(p.airCap,C.WALK*C.AIRMIN);
@@ -1702,7 +2127,15 @@ function botInput(W,p,b,inp){
   const feasible=Bx=>{const g=gapBetween(An===GROUND?{t:1,x:p.x,z:p.z,r:.01}:An,Bx);const L=clampInto(Bx,Tp[0],Tp[1],.5);const h=topAt(Bx,L[0],L[1])-yT;const t=tAir(h,gu);return !isNaN(t)&&h<C.APEX/gg-.25&&g<C.SPRINT*t*(B.dyn&&B.dyn.type!=='spin'?.6:.85)};
   let ok=feasible(Bf)&&(!B.dyn||feasible(predict(B,now+.3)));
   if(An.dyn&&An.dyn.type==='line'&&An.dyn.dy){const a1=predict(An,now+.6);if(Math.abs(a1.y1-An.y1)>.25)ok=false}
-  if(An.dyn&&An.dyn.type!=='spin'&&An.dyn.type!=='ring'){const a1=predict(An,now+.1);if(Math.hypot(a1.x-An.x,a1.z-An.z)>.15)ok=false}
+  if(An.dyn&&!RIDE_OFF[An.dyn.type]){const a1=predict(An,now+.1);if(Math.hypot(a1.x-An.x,a1.z-An.z)>.15)ok=false}
+  // a ferry: only one that's up and won't dive for a while; a crystal disc: only while it's grown and stays so a moment
+  const tl=now+(isNaN(ta)?.8:ta);
+  if(B.dyn&&B.dyn.type==='lane'){const u=((tl/B.dyn.T+(B.dyn.ph||0))%1+1)%1;if(u<B.dyn.e*.7||u>.62)ok=false}
+  if(B.kind==='grow'&&(growS(B,tl)<.85||growS(B,tl+.9)<.85))ok=false;
+  // a boulder lane: nothing rolling through the jump on its way across
+  if(W.rolls.length&&ok)for(const r of W.rolls){if(Math.abs(r.by-p.y)>14&&Math.abs(r.by+r.dyn.dy-p.y)>14)continue;
+    for(let k=0;k<=14&&ok;k++){const q=predict(r,now+k*.1);if(q.gone)continue;const t2=k*.1;const sx=Tp[0]+(Lp[0]-Tp[0])*clamp((t2-.3)/Math.max(.2,ta),0,1),sz=Tp[1]+(Lp[1]-Tp[1])*clamp((t2-.3)/Math.max(.2,ta),0,1);
+      if(Math.hypot(q.x-sx,q.z-sz)<q.r+1.2&&q.y0<p.y+3&&q.y1>p.y-1)ok=false}}
   // a pulse platform has to be lit when we land and for a moment after; no jumping into a gust or its warning
   if(B.kind==='blink'){const tl=now+(isNaN(ta)?.8:ta);if(!blinkOn(B,tl)||!blinkOn(B,tl+1.1))ok=false}
   if(W.winds.length&&p.y>=W.windY0-3){for(let k=0;k<=8;k++)if(windAt(W,p.y+1,now+k*.19)>0){ok=false;break}}
@@ -1748,7 +2181,7 @@ function botInput(W,p,b,inp){
 function runBot(course,opts){
   opts=opts||{};
   const W=course.W||World(course),P=opts.path||course.path;
-  for(const c of W.cols)if(c.kind==='fragile'){c.touchT=-1;c.gone=false}
+  for(const c of W.cols){if(c.kind==='fragile'){c.touchT=-1;c.gone=false}if(c.dyn&&c.dyn.type==='sink'){c.sinkD=0;c.standT=-9;c.gone=false}}
   setTime(W,opts.t0||0);setTime(W,opts.t0||0);   // twice, so moving platforms don't think they just jumped
   const st=P[opts.from||0];const p=Body(st.x,st.y1,st.z);p.gnd=st;
   const b=Bot(course,P);b.i=(opts.from||0)+1;b.lastT=opts.t0||0;
@@ -1770,12 +2203,15 @@ function runBot(course,opts){
       continue;
     }
     t+=C.DT;setTime(W,t);W.ev.length=0;step(W,p,inp,C.DT);steps++;
+    // into the gate on the Crown: out on the bank on the far side (the page plays a ride of PORTAL_T seconds)
+    if(course.portal&&inPortal(course,p)){const g=course.portal,o=g.out;t+=PORTAL_T;setTime(W,t);setTime(W,t);p.x=o[0];p.y=o[1];p.z=o[2];p.vx=p.vy=p.vz=0;p.gnd=P[idxOf(P,g.bank)]||g.bank;p.lastLand=p.gnd;p.landT=0;p.fallFrom=p.peakY=p.y;b.gateT=t}
     if(opts.trace&&steps%opts.trace===0)opts.onTrace&&opts.onTrace(t,p,b,r);
   }
-  return{reached:b.i,total:P.length,time:+t.toFixed(1),fails,retries,falls:p.falls,jumps:p.jumps};
+  return{reached:b.i,total:P.length,time:+t.toFixed(1),gateT:b.gateT?+b.gateT.toFixed(1):null,fails,retries,falls:p.falls,jumps:p.jumps};
 }
 function makeWorld(seed){const course=build(seed);course.W=World(course);return course}
-return{C,ZONES,SUMMIT,TOP,gAt,windAt,blinkOn,blinkU,zoneAt,build,makeWorld,World,setTime,step,Body,check,curve,runBot,Bot,botInput,support,footHit,topAt,toLocal,toWorld,extent,aabb,motion,predict,gapBetween,tAir,reach,GROUND,clampInto,inFan,platVel,mulberry,angDiff,clamp,sq};
+const PORTAL_T=3.6;   // how long the ride through the gate takes (the page's ride is planned to match)
+return{DIM_Y,RIVER_Y,TOP3,PORTAL_T,dimAt,inPortal,ventOn,growS,idxOf,C,ZONES,SUMMIT,TOP,gAt,windAt,blinkOn,blinkU,zoneAt,build,makeWorld,World,setTime,step,Body,check,curve,runBot,Bot,botInput,support,footHit,topAt,toLocal,toWorld,extent,aabb,motion,predict,gapBetween,tAir,reach,GROUND,clampInto,inFan,platVel,mulberry,angDiff,clamp,sq};
 })();
 if(typeof module!=='undefined')module.exports=UpCore;
 
@@ -1807,6 +2243,7 @@ const AD_SLOT='';
 const PREFIX='up';
 const MAX_ROOM=12;
 const U=UpCore,C=U.C,SUMMIT=U.SUMMIT,TOP=U.TOP;   // SUMMIT: the old summit (1000 m, a milestone now); TOP: the Crown (3000 m)
+const TOP3=U.TOP3,DIM_Y=U.DIM_Y,RIVER_Y=U.RIVER_Y;   // through the gate on the Crown: the Lodestar (6000 m), where the far side starts, the black river
 const V3=THREE.Vector3;
 const $=id=>document.getElementById(id);
 // Spanish: es.js holds this game's words; TX() is for text drawn on a canvas or built in code (../lang.js). (T is the textures.)
@@ -1908,6 +2345,11 @@ function sfx(kind,a,b){
   else if(kind==='cannon'){noise(.5,180,.7,.45,'lowpass',0,70);tone(70,.4,.3,'sine',40);noise(.9,1200,.6,.12,'bandpass',.05,3000)}
   else if(kind==='tick'){tone(1760,.06,.04,'sine')}
   else if(kind==='lowjump'){tone(330,.35,.035,'sine',660)}
+  // through the gate: the gate's swirl, coming out the other side (and a warp glyph), the river, a boulder's knock
+  else if(kind==='portal'){noise(2.4,400,.5,.16,'bandpass',0,2400);[294,370,440,587].forEach((f,i)=>tone(f,1.6,.045,'sine',f*1.5,i*.18))}
+  else if(kind==='warp'){[1175,1568,2093].forEach((f,i)=>tone(f,.35,.05,'triangle',null,i*.05));noise(.4,5000,1.5,.06,'highpass')}
+  else if(kind==='splash'){noise(.9,700,.5,.4,'lowpass',0,140);noise(.5,2400,1,.12,'bandpass',.05)}
+  else if(kind==='knock'){noise(.4,160,.7,.5,'lowpass');tone(60,.4,.3,'sine',36)}
 }
 // gentle music: a slow pad and a soft plucked tune, chords and brightness change with altitude
 let musT=0,musStep=0;
@@ -1923,7 +2365,19 @@ CHORDS.push(
   [[0,4,7,12],[-3,4,9,12],[5,9,12,17],[7,11,14,19]]       // The Crown: triumphant
 );
 ROOTS.push(64,52,60,57,60);
-const STYLE=[null,null,null,null,null,['sine',900,'sine',2.6,.5,1],['sawtooth',360,'square',.35,.72,.6],['triangle',1500,'square',.45,.8,.45],['sine',700,'sine',3,.32,1.2],['sawtooth',1700,'triangle',1.2,.82,.6]];
+// through the gate: the Black River (low, hollow), the Burning River (heavy, driving), the Hound's Gate (grave, slow),
+// the Runestones (glassy, open), the Spellworks (curious, twinkling), the Orrery (wide and bright, for the end)
+CHORDS.push(
+  [[0,7,12,15],[-4,3,8,12],[-2,5,10,14],[-5,2,7,10]],
+  [[0,3,7,10],[1,5,8,13],[-2,3,7,10],[-4,0,3,8]],
+  [[0,3,7,12],[-3,0,4,9],[-5,-1,2,7],[-4,0,3,8]],
+  [[0,7,14,16],[2,9,14,18],[-3,4,9,16],[5,12,16,21]],
+  [[0,4,8,11],[2,6,9,14],[-1,4,7,11],[5,9,12,16]],
+  [[0,4,7,14],[5,9,12,19],[-3,4,9,16],[7,11,14,21]]
+);
+ROOTS.push(50,52,48,62,60,57);
+const STYLE=[null,null,null,null,null,['sine',900,'sine',2.6,.5,1],['sawtooth',360,'square',.35,.72,.6],['triangle',1500,'square',.45,.8,.45],['sine',700,'sine',3,.32,1.2],['sawtooth',1700,'triangle',1.2,.82,.6],
+  ['triangle',420,'sine',2.4,.34,1.3],['sawtooth',300,'square',.3,.7,.5],['triangle',380,'triangle',1.8,.4,1.1],['sine',1200,'triangle',2.2,.55,.8],['triangle',1400,'sine',1.4,.75,.5],['sawtooth',1500,'triangle',1.6,.8,.6]];
 function midi(n){return 440*Math.pow(2,(n-69)/12)}
 function startMusic(){musT=ac.currentTime+.5}
 function musicTick(){
@@ -1947,6 +2401,11 @@ renderer.setPixelRatio(Math.min(devicePixelRatio||1,gfx==='high'?2:1.25));
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;
 const scene=new THREE.Scene();
+// Two worlds in one column: this side of the gate on the Crown (DR[0]) and the far side (DR[1], everything above DIM_Y).
+// Only the side the camera's climber is on is drawn (VD, set every frame by setView... see applyDim). DRAW_DIM: which
+// side the piece being built now goes to.
+const DR=[new THREE.Group(),new THREE.Group()];scene.add(DR[0]);scene.add(DR[1]);DR[1].visible=false;
+let DRAW_DIM=0,VD=0;
 const camera=new THREE.PerspectiveCamera(62,1,.1,4200);
 const hemi=new THREE.HemisphereLight(0xdfefff,0x8a7f70,.75);scene.add(hemi);
 const sun=new THREE.DirectionalLight(0xfff2d8,.85);sun.position.set(.5,1,.35);scene.add(sun);
@@ -2052,6 +2511,11 @@ const T={};
   // conveyor belt: dark rubber with ribs and chevrons pointing the way it runs (+v); a second copy scrolls the other way
   c=cnv(64,64);x=c.getContext('2d');x.fillStyle='#d8d8d8';x.fillRect(0,0,64,64);x.fillStyle='rgba(0,0,0,.28)';for(let i=0;i<4;i++)x.fillRect(0,i*16,64,3);
   x.strokeStyle='#ffd23f';x.lineWidth=5;x.beginPath();x.moveTo(14,40);x.lineTo(32,26);x.lineTo(50,40);x.stroke();T.belt=tex(c);T.beltR=T.belt.clone();T.beltR.needsUpdate=true;
+  // dressed stone (through the gate): soft blotches, a fine grain, darker worn edges
+  c=cnv(256,256);x=c.getContext('2d');x.fillStyle='#cfcac2';x.fillRect(0,0,256,256);
+  {const R=rng(61);for(let i=0;i<40;i++){const px=R()*256,py=R()*256,r=20+R()*60,g=x.createRadialGradient(px,py,0,px,py,r),d=R()<.5;g.addColorStop(0,d?'rgba(60,55,50,.12)':'rgba(255,255,255,.1)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(0,0,256,256)}}
+  speckle(x,256,256,2600,.1,2,62);x.fillStyle='rgba(40,36,32,.16)';x.fillRect(0,0,256,8);x.fillRect(0,248,256,8);x.fillRect(0,0,8,256);x.fillRect(248,0,8,256);
+  T.stone=tex(c);
 })();
 function signTex(text,sub,w,h,bg,fg){
   const c=cnv(w||512,h||192),x=c.getContext('2d');x.fillStyle=bg||'#1c2440';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#ffb347';x.lineWidth=10;x.strokeRect(5,5,c.width-10,c.height-10);
@@ -2067,11 +2531,12 @@ function signTex(text,sub,w,h,bg,fg){
 const MATS={};
 function mat(key){
   if(MATS[key])return MATS[key];
-  let m;const map={plain:T.plain,concrete:T.concrete,facade:T.facade,roof:T.roof,crate:T.crate,container:T.container,metal:T.metal,grate:T.grate,wood:T.wood,stripes:T.stripes,pages:T.pages,grass:T.grass,rock:T.rock,panel:T.panel,ruler:T.ruler,dice:T.dice,ac:T.ac,letters:T.letters,street:T.street}[key];
+  let m;const map={stone:T.stone,plain:T.plain,concrete:T.concrete,facade:T.facade,roof:T.roof,crate:T.crate,container:T.container,metal:T.metal,grate:T.grate,wood:T.wood,stripes:T.stripes,pages:T.pages,grass:T.grass,rock:T.rock,panel:T.panel,ruler:T.ruler,dice:T.dice,ac:T.ac,letters:T.letters,street:T.street}[key];
   if(key==='glow')m=new THREE.MeshBasicMaterial({vertexColors:true,map:T.plain});
   else if(key==='belt'||key==='beltR')m=new THREE.MeshLambertMaterial({vertexColors:true,map:T[key]});
   else if(key==='lattice')m=new THREE.MeshLambertMaterial({vertexColors:true,map:T.lattice,alphaTest:.5,side:THREE.DoubleSide});
   else if(key==='chain')m=new THREE.MeshLambertMaterial({vertexColors:true,map:T.chain,alphaTest:.5,side:THREE.DoubleSide});
+  else if(key==='mist')m=new THREE.MeshBasicMaterial({vertexColors:true,map:T.puff,transparent:true,opacity:.32,depthWrite:false});
   else m=new THREE.MeshLambertMaterial({vertexColors:true,map:map||T.plain});
   return MATS[key]=m;
 }
@@ -2117,8 +2582,8 @@ function addBox(get,frame,hx,hz,h,sl,keys,color,tile,topColor,shadeSides){
 const course=U.makeWorld();
 const W=course.W,PATH=course.path;
 const CHUNK=48;
-const chunks=new Map();   // 'mat|chunk' -> bucket
-function sb(key,y){const k=key+'|'+Math.floor(y/CHUNK);let b=chunks.get(k);if(!b)chunks.set(k,b=Bucket());return b}
+const chunks=new Map(),chunks1=new Map();   // 'mat|chunk' -> bucket (chunks1: the far side of the gate)
+function sb(key,y){const k=key+'|'+Math.floor(y/CHUNK),C2=DRAW_DIM?chunks1:chunks;let b=C2.get(k);if(!b)C2.set(k,b=Bucket());return b}
 const GEO={box:new THREE.BoxGeometry(1,1,1),cyl:{},sph:new THREE.IcosahedronGeometry(1,1),sph2:new THREE.IcosahedronGeometry(1,2),cone:{}};
 // A lumpy rock from a ball: each corner is pushed in or out by its own amount. The ball's triangles don't share
 // corners, so the amount is looked up by where the corner is; pushing every triangle's corners separately tore the
@@ -2259,15 +2724,89 @@ function drawCollider(c,get,local){
     case 'crown':{cylinder('plain','#f2c443',48,9,1,'concrete','#fff8e6');for(const f of [.95,.7,.42])addGeo(get('glow'),new THREE.TorusGeometry(1,.1,8,72),M(X,Y+.03,Z,0,R*f,R*f,R*f,Math.PI/2),f===.7?'#7df9ff':'#ffd36b');break}
     case 'summit':{cylinder('concrete',col,40,8,1,'concrete','#f7f3ff');addGeo(get('glow'),new THREE.TorusGeometry(1,.12,8,64),M(X,Y+.03,Z,0,R*.94,R*.94,R*.94,Math.PI/2),'#ffd36b');
       addGeo(get('glow'),new THREE.TorusGeometry(1,.08,8,64),M(X,Y+.03,Z,0,R*.55,R*.55,R*.55,Math.PI/2),'#7df9ff');break}
+    // ---- through the gate (3000 – 6000 m) ----
+    case 'gatepost':{cylinder('stone',col,10,1,2,'stone',shade(col,1.15));if(!local)for(const f of [.25,.62])addGeo(get('glow'),new THREE.TorusGeometry(1,.05,4,20),M(X,Y-h*f,Z,0,R*1.03,R*1.03,R*1.03,Math.PI/2),'#b9a8ff');break}
+    case 'bank':{box({top:'stone',side:'stone'},col,3,shade(col,1.12),.85);if(!local){
+      // a pale stone kerb along the water's edges, and iron mooring rings
+      for(const sg of [-1,1]){const p=toW(c,0,sg*(c.hz-.18));addGeo(get('stone'),GEO.box,M(p[0],Y+.06,p[1],c.yaw,c.hx*2,.12,.36),'#8d8a84')}
+      for(const sg of [-1,1]){const p=toW(c,sg*(c.hx-.18),0);addGeo(get('stone'),GEO.box,M(p[0],Y+.06,p[1],c.yaw,.36,.12,c.hz*2-.7),'#8d8a84')}
+      for(const q of [[-.6,-1],[.6,-1]]){const p=toW(c,q[0]*c.hx,q[1]*(c.hz+.02));addGeo(get('metal'),new THREE.TorusGeometry(1,.06,5,14),M(p[0],Y-.5,p[1],c.yaw,.22,.22,.22),'#5a5f66')}}break}
+    case 'basalt':case 'cinder':{const ember=v==='cinder';cylinder('stone',col,6,2,1.5,'stone',ember?shade(col,1.3):tint(col,'#3f7a6c',.22));
+      if(!local){addGeo(get('glow'),new THREE.TorusGeometry(1,.035,4,6),M(X,Y+.012,Z,c.id*.7,R*.93,R*.93,R*.93,Math.PI/2),ember?'#ff6a1e':'#3fa88c');
+        if(ember)addGeo(get('glow'),new THREE.CircleGeometry(1,6).rotateX(-Math.PI/2),M(X,Y-h+.05,Z,c.id,R*.5,1,R*.5),'#ff8a3a')}break}
+    case 'slab':box({top:'stone',side:'stone'},col,2,shade(col,1.12),.8);break;
+    case 'moor':{cylinder('wood',col,12,1,1,'wood',shade(col,1.2));if(!local){addGeo(get('plain'),new THREE.TorusGeometry(1,.07,5,16),M(X,Y-.45,Z,0,R*1.03,R*1.03,R*1.03,Math.PI/2),'#7a6a50');
+      const a=c.id*1.7,lx=X+Math.sin(a)*(R+.25),lz=Z+Math.cos(a)*(R+.25);addGeo(get('metal'),cylG(5),M(lx,Y-.35,lz,0,.03,.5,.03),'#333');addGeo(get('glow'),GEO.sph,M(lx,Y-.72,lz,0,.13,.18,.13),'#9dffc8')}break}
+    case 'urn':{const pts=[[.62,0],[.9,.08],[1,.35],[.92,.65],[.78,.82],[.84,.92],[1,1]].map(q=>new THREE.Vector2(q[0],q[1]));
+      addGeo(get('stone'),new THREE.LatheGeometry(pts,16),M(X,Y-h,Z,0,R,h,R),col,2,1);addGeo(get('stone'),new THREE.CircleGeometry(1,16).rotateX(-Math.PI/2),M(X,Y,Z,0,R*.98,1,R*.98),shade(col,.8),1.5,1.5);
+      addGeo(get('plain'),new THREE.TorusGeometry(1,.05,4,20),M(X,Y-h*.62,Z,0,R*.93,R*.93,R*.93,Math.PI/2),'#b8a676');break}
+    case 'rib':{box({top:'plain',side:'plain'},col,1.5,tint(col,'#ffffff',.15),.82);if(!local)for(const sg of [-1,1]){const p=toW(c,0,sg*c.hz);addGeo(get('plain'),GEO.sph,M(p[0],Y-h/2,p[1],c.yaw,c.hx*1.25,h*.9,.5),shade(col,.92))}break}
+    case 'dock':{box({top:'wood',side:'wood'},col,1.2,shade(col,1.15),.8);if(!local)for(const q of [[1,1],[1,-1],[-1,1],[-1,-1]]){const p=toW(c,q[0]*(c.hx-.15),q[1]*(c.hz-.15));addGeo(get('wood'),cylG(6),M(p[0],Y-2,p[1],0,.14,4,.14),'#3a2c20')}break}
+    case 'ferry':{// a long low boat: a hull with a pointed bow and stern, a pale rail, and a green lantern on a pole at the stern
+      box({top:'wood',side:'plain'},col,1.2,'#4a3a2e',.7);
+      for(const sg of [-1,1]){addGeo(get('plain'),new THREE.ConeGeometry(1,1,4),M(0,-h/2,sg*(c.hz+.55),0,c.hx*1.02,1.1,h*.75,sg*Math.PI/2,0).multiply(new THREE.Matrix4().makeRotationY(Math.PI/4)),col)}
+      for(const sg of [-1,1])addGeo(get('plain'),GEO.box,M(sg*(c.hx-.04),.12,0,0,.08,.24,c.hz*2),'#8c7f6a');
+      addGeo(get('wood'),cylG(5),M(0,1,-c.hz+.5,0,.05,2,.05),'#3a2c20');addGeo(get('glow'),GEO.sph,M(0,2.05,-c.hz+.5,0,.16,.22,.16),'#9dffc8');break}
+    case 'raft':{cylinder('wood',col,14,R,.5,'wood',tint(col,'#ffffff',.1));for(const f of [.45,.85])addGeo(get('plain'),new THREE.TorusGeometry(1,.045,4,18),M(X,Y-h*.4,Z,0,R*f,R*f,R*f,Math.PI/2),'#6a5a40');break}
+    case 'obsidian':{box({top:'plain',side:'plain'},col,1.6,shade(col,1.4),.85);if(!local)for(const sg of [-1,1]){const p=toW(c,0,sg*(c.hz-.02));addGeo(get('glow'),GEO.box,M(p[0],Y-h+.08,p[1],c.yaw,c.hx*2,.06,.04),'#ff5a1a')}break}
+    case 'brazier':{addGeo(get('metal'),frustG(1,.72,16),M(X,Y-h/2,Z,0,R,h,R),col);addGeo(get('grate'),new THREE.CircleGeometry(1,16).rotateX(-Math.PI/2),M(X,Y,Z,0,R*.97,1,R*.97),'#3a2a22',1,1);
+      addGeo(get('glow'),new THREE.TorusGeometry(1,.07,4,24),M(X,Y-.06,Z,0,R*.86,R*.86,R*.86,Math.PI/2),'#ff8a3a');if(!local)for(let i=0;i<3;i++){const a=i*2.09+c.id;addGeo(get('metal'),cylG(5),M(X+Math.sin(a)*R*.6,Y-h-.6,Z+Math.cos(a)*R*.6,0,.06,1.2,.06),'#4a3a2a')}break}
+    case 'igrate':box({top:'grate',side:'metal'},col,1,'#4a4446',.8);break;
+    case 'vent':{cylinder('grate',col,24,3,1,'grate','#2a2220');addGeo(get('glow'),new THREE.TorusGeometry(1,.08,4,32),M(X,Y+.01,Z,0,R*1.02,R*1.02,R*1.02,Math.PI/2),'#ff6a1e');break}
+    case 'gstone':{box({top:'stone',side:'stone'},col,2,shade(col,1.1),.82);if(!local&&h>.6){addGeo(get('stone'),GEO.box,M(c.x,Y-h*.55,c.z,c.yaw,c.hx*2+.06,.12,c.hz*2+.06),shade(col,.7))}break}
+    case 'drum':{cylinder('stone',col,16,2,1,'stone',shade(col,1.12));addGeo(get('stone'),new THREE.TorusGeometry(1,.09,5,20),M(X,Y-.08,Z,0,R,R,R,Math.PI/2),shade(col,.85));addGeo(get('stone'),new THREE.TorusGeometry(1,.09,5,20),M(X,Y-h+.1,Z,0,R,R,R,Math.PI/2),shade(col,.85));break}
+    case 'link':{box({top:'metal',side:'metal'},col,1,shade(col,1.15),.8);if(!local){for(const sg of [-1,1]){const p=toW(c,0,sg*c.hz);addGeo(get('metal'),cylG(12),M(p[0],Y-h/2,p[1],0,c.hx,h,c.hx),col)}addGeo(get('plain'),GEO.box,M(c.x,Y+.005,c.z,c.yaw,c.hx*.7,.01,c.hz*1.3),'#2b2a30')}break}
+    case 'plinth':{box({top:'stone',side:'stone'},col,2,shade(col,1.15),.85);if(!local){addGeo(get('stone'),GEO.box,M(c.x,Y-.12,c.z,c.yaw,c.hx*2+.2,.24,c.hz*2+.2),shade(col,1.1));addGeo(get('stone'),GEO.box,M(c.x,Y-h+.15,c.z,c.yaw,c.hx*2+.24,.3,c.hz*2+.24),shade(col,.85))}break}
+    case 'gondola3':{box({top:'wood',side:'wood'},col,1.2,shade(col,1.15),.8);
+      // low rails on the two sides along the wheel, and the bracket that holds it to the rim
+      for(const sg of [-1,1])addGeo(get('metal'),GEO.box,M(0,.5,sg*(c.hz-.05),0,c.hx*2,.06,.06),'#3a3a40');
+      for(const q of [[1,1],[1,-1],[-1,1],[-1,-1]])addGeo(get('metal'),cylG(5),M(q[0]*(c.hx-.05),.25,q[1]*(c.hz-.05),0,.035,.5,.035),'#3a3a40');break}
+    case 'boulder':{const g=lumpG(rng(c.id*3+5),.86,.22,(P,i,x,y,z,k)=>P.setXYZ(i,x*k,y*k,z*k));addGeo(get('rock'),g,M(X,Y-1,Z,0,1.08,1.05,1.08),col,1.5,1.5);break}
+    case 'runestone':{box({top:'stone',side:'stone'},col,1.6,shade(col,1.12),.8);if(!local){const R3=rng(c.id*11+3);
+      // marks of our own: a bar, a notch and a dot on each side, glowing
+      for(let s2=0;s2<4;s2++){const a=c.yaw+s2*Math.PI/2,o=(s2%2?c.hx:c.hz)+.012,ux=Math.sin(a),uz=Math.cos(a),tx=Math.cos(a),tz=-Math.sin(a),k=R3()*.6-.3;
+        addGeo(get('glow'),GEO.box,M(c.x+ux*o+tx*k,Y-h*.5,c.z+uz*o+tz*k,a,.07,h*.55,.01),'#7ff2ff');addGeo(get('glow'),GEO.box,M(c.x+ux*o+tx*(k+.22),Y-h*.38,c.z+uz*o+tz*(k+.22),a,.26,.06,.01),'#7ff2ff');addGeo(get('glow'),GEO.box,M(c.x+ux*o+tx*(k-.24),Y-h*.7,c.z+uz*o+tz*(k-.24),a,.09,.09,.01),'#7ff2ff')}}break}
+    case 'column':{cylinder('plain',col,14,2,2,'plain',shade(col,.9));if(!local)addGeo(get('plain'),new THREE.TorusGeometry(1,.08,5,20),M(X,Y-.08,Z,0,R*1.02,R*1.02,R*1.02,Math.PI/2),shade(col,.94));break}
+    case 'sring':{cylinder('stone',col,24,3,1,'stone',shade(col,1.1));addGeo(get('glow'),new THREE.TorusGeometry(1,.05,4,40),M(X,Y+.012,Z,0,R*.7,R*.7,R*.7,Math.PI/2),'#a6e8ff');break}
+    case 'mshard':box({top:'glow',side:'plain'},col,1.4,tint(col,'#ffffff',.45),.75);if(!local)addGeo(get('glowsoft'),new THREE.ConeGeometry(1,1,6),M(c.x,c.y0-1,c.z,c.yaw,c.hx*1.2,2,c.hz*1.2,Math.PI),shade(col,.8));break;
+    case 'glyph':case 'glyphout':{cylinder('stone','#3a3c48',20,2,1,'stone','#2c2e38');const g2=get('glow'),out=v==='glyphout';
+      // a glyph of our own: rings, three spokes and a dot (its twin has the rings only)
+      addGeo(g2,new THREE.TorusGeometry(1,.05,4,40),M(X,Y+.012,Z,0,R*.82,R*.82,R*.82,Math.PI/2),col);addGeo(g2,new THREE.TorusGeometry(1,.04,4,32),M(X,Y+.012,Z,0,R*.48,R*.48,R*.48,Math.PI/2),col);
+      if(!out){for(let i=0;i<3;i++){const a=i*TAU3+c.id;addGeo(g2,GEO.box,M(X+Math.sin(a)*R*.65,Y+.013,Z+Math.cos(a)*R*.65,a,.07,.01,R*.34),col)}addGeo(g2,new THREE.CircleGeometry(1,12).rotateX(-Math.PI/2),M(X,Y+.014,Z,0,.16,1,.16),col)}
+      addGeo(g2,new THREE.TorusGeometry(1,.04,4,32),M(X,Y-h*.5,Z,0,R*1.01,R*1.01,R*1.01,Math.PI/2),col);break}
+    case 'tome':{box({top:'plain',side:'pages'},'#f2ead6',Math.min(c.hz*2,1),col,.95);if(!local){
+      addGeo(get('plain'),GEO.box,M(c.x,Y-h-.01,c.z,c.yaw,c.hx*2+.06,.05,c.hz*2+.06),shade(col,.8));const p=toW(c,-c.hx,0);addGeo(get('plain'),GEO.box,M(p[0],Y-h/2,p[1],c.yaw,.1,h+.06,c.hz*2+.06),shade(col,.9));
+      addGeo(get('glow'),new THREE.TorusGeometry(1,.035,4,28),M(c.x,Y+.01,c.z,c.yaw,.55,.55,.55,Math.PI/2),'#ffd27a');addGeo(get('glow'),GEO.box,M(c.x,Y+.008,c.z,c.yaw,c.hx*2-.12,.01,.05),'#ffd27a')}break}
+    case 'cauldron':{const pts=[[.55,0],[.86,.12],[1,.42],[.96,.8],[.9,.96],[.98,1]].map(q=>new THREE.Vector2(q[0],q[1]));addGeo(get('metal'),new THREE.LatheGeometry(pts,18),M(X,Y-h,Z,0,R,h,R),col,2,1);
+      addGeo(get('metal'),new THREE.CircleGeometry(1,18).rotateX(-Math.PI/2),M(X,Y,Z,0,R*.98,1,R*.98),'#3a3a42',1,1);addGeo(get('glow'),new THREE.TorusGeometry(1,.06,4,28),M(X,Y-.03,Z,0,R*.99,R*.99,R*.99,Math.PI/2),'#7dff9a');
+      if(!local)for(let i=0;i<3;i++){const a=i*TAU3+c.id;addGeo(get('metal'),cylG(5),M(X+Math.sin(a)*R*.62,Y-h-.25,Z+Math.cos(a)*R*.62,0,.08,.5,.08),'#222')}break}
+    case 'lectern':{box({top:'wood',side:'wood'},col,1.2,shade(col,1.15),.8);if(!local){addGeo(get('plain'),GEO.box,M(c.x,Y+.04,c.z,c.yaw,c.hx*1.3,.07,c.hz*1.3),'#f2ead6');addGeo(get('glow'),GEO.box,M(c.x,Y+.08,c.z,c.yaw,.03,.01,c.hz*1.25),'#ffd27a')}break}
+    case 'bottle':{cylinder('glowsoft',col,18,2,1,'wood','#b08a5a');addGeo(get('plain'),new THREE.TorusGeometry(1,.06,4,24),M(X,Y-.12,Z,0,R*1.02,R*1.02,R*1.02,Math.PI/2),'#d8c8a0');addGeo(get('glow'),cylG(14),M(X,Y-h*.62,Z,0,R*.7,h*.5,R*.7),tint(col,'#ffffff',.3));break}
+    case 'shelf':{box({top:'wood',side:'wood'},col,1.2,shade(col,1.15),.8);if(!local){const R3=rng(c.id*7+1),n=Math.floor(c.hz*2/.22);for(let i=0;i<n;i++){const p=toW(c,0,-c.hz+.11+i*.22),hh=.5+R3()*.35;addGeo(get('plain'),GEO.box,M(p[0],Y-h-hh/2,p[1],c.yaw,c.hx*1.6,hh,.18),['#6a2a2a','#2a3a6a','#2a5a3a','#6a5a2a','#4a2a5a'][Math.floor(R3()*5)])}}break}
+    case 'disc':{cylinder('glow',col,24,1,1,'glow',tint(col,'#ffffff',.5));addGeo(get('glowsoft'),new THREE.ConeGeometry(1,1,8),M(X,Y-h-.6,Z,0,R*.85,1.2,R*.85,Math.PI),shade(col,.75));addGeo(get('plain'),new THREE.TorusGeometry(1,.06,4,40),M(X,Y-.02,Z,0,R*.98,R*.98,R*.98,Math.PI/2),'#f6f0ff');break}
+    case 'brass':box({top:'metal',side:'metal'},col,1.3,shade(col,1.15),.82);break;
+    case 'gear':{cylinder('metal',col,28,3,1,'metal',shade(col,1.12));const n=Math.max(12,Math.round(R*9));for(let i=0;i<n;i++){const a=i/n*TAU+(local?0:c.id);addGeo(get('metal'),GEO.box,M(X+Math.sin(a)*(R+.08),Y-h/2,Z+Math.cos(a)*(R+.08),a,.2,h*.9,.2),shade(col,.9))}
+      addGeo(get('metal'),cylG(12),M(X,Y+.03,Z,0,R*.22,.06,R*.22),shade(col,.7));break}
+    case 'planet':{cylinder('rock',col,28,4,1,'rock',tint(col,'#ffffff',.12));addGeo(get('rock'),GEO.sph2,M(X,Y-h,Z,0,R,R*.85,R),shade(col,.8),2,2);addGeo(get('glow'),new THREE.TorusGeometry(1,.05,4,48),M(X,Y-h*.5,Z,0,R*1.5,R*1.5,R*1.5,Math.PI/2+.25),tint(col,'#ffffff',.5));break}
+    case 'moon2':{cylinder('rock',col,22,2,1,'rock',shade(col,1.05));addGeo(get('rock'),GEO.sph,M(X,Y-h,Z,0,R*.95,R*.6,R*.95),shade(col,.85),2,2);break}
+    case 'starstep':box({top:'glow',side:'plain'},col,2,tint(col,'#ffffff',.4),.7);break;
+    case 'lodepillar':{cylinder('plain',col,24,6,10);if(!local)for(let y2=8;y2<h;y2+=9)addGeo(get('glow'),new THREE.TorusGeometry(1,.06,4,40),M(X,Y-y2,Z,0,R*1.01,R*1.01,R*1.01,Math.PI/2),'#a8d8ff');break}
+    case 'lodestar':{cylinder('stone','#8a96b8',48,9,1,'stone','#b8c4e0');for(const f of [.95,.7,.42])addGeo(get('glow'),new THREE.TorusGeometry(1,.1,8,72),M(X,Y+.03,Z,0,R*f,R*f,R*f,Math.PI/2),f===.7?'#ffe08a':'#9fd6ff');
+      for(let i=0;i<4;i++){const a=i*Math.PI/2;addGeo(get('glow'),GEO.box,M(X+Math.sin(a)*R*.2,Y+.025,Z+Math.cos(a)*R*.2,a,.12,.01,R*.38),'#ffe08a')}break}
     default:box({top:'plain',side:'plain'},col,2,null,.88);
   }
 }
 // The moving platforms each get their own mesh, built in their own frame and moved every frame.
 const movers=[];
-function bucketsToMesh(map,group){
+// compact (the far side of the gate): normals and colours as bytes, which is all they need, so its geometry takes a little
+// over half the memory
+function bucketsToMesh(map,group,compact){
   for(const [key,B] of map){
     if(!B.p.length)continue;
-    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(B.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(B.n,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(B.u,2));g.setAttribute('color',new THREE.Float32BufferAttribute(B.c,3));
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(B.p,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(B.u,2));
+    if(compact){const n=new Int8Array(B.n.length),c=new Uint8Array(B.c.length);for(let i=0;i<n.length;i++)n[i]=Math.round(clamp(B.n[i],-1,1)*127);for(let i=0;i<c.length;i++)c[i]=Math.round(clamp(B.c[i],0,1)*255);
+      g.setAttribute('normal',new THREE.BufferAttribute(n,3,true));g.setAttribute('color',new THREE.BufferAttribute(c,3,true))}
+    else{g.setAttribute('normal',new THREE.Float32BufferAttribute(B.n,3));g.setAttribute('color',new THREE.Float32BufferAttribute(B.c,3))}
     g.computeBoundingSphere();const m=new THREE.Mesh(g,matFor(key));group.add(m);
   }
 }
@@ -2279,7 +2818,8 @@ const chunkMeshes=[];
 const liveIds=new Set(course.cols.map(c=>c.id));
 function buildWorld(){
   for(const c of course.cols){
-    if(c.dyn||c.kind==='fragile'||c.kind==='blink'){
+    DRAW_DIM=c.dim|0;
+    if(c.dyn||c.kind==='fragile'||c.kind==='blink'||c.kind==='grow'){
       const map=new Map(),get=k=>{let b=map.get(k);if(!b)map.set(k,b=Bucket());return b};
       drawCollider(c,get,true);
       const g=new THREE.Group();bucketsToMesh(map,g);
@@ -2292,21 +2832,23 @@ function buildWorld(){
       if(c.extra&&c.extra.balloon){const b=new THREE.Mesh(GEO.sph2,new THREE.MeshLambertMaterial({color:c.extra.balloon}));b.scale.set(3.2,3.8,3.2);b.position.set(0,10,0);g.add(b);
         const mm=new THREE.MeshLambertMaterial({color:0x5b4a36});for(const p of [[1,1],[-1,1],[1,-1],[-1,-1]]){const r=new THREE.Mesh(cylG(4),mm);const a=new V3(p[0]*c.hx*.9,0,p[1]*c.hz*.9),bb=new V3(p[0]*1.2,6.6,p[1]*1.2);r.position.copy(a).add(bb).multiplyScalar(.5);r.scale.set(.03,a.distanceTo(bb),.03);r.lookAt(bb);r.rotateX(Math.PI/2);g.add(r)}}
       moverExtras(c,g);
-      scene.add(g);movers.push({c,g});
+      DR[DRAW_DIM].add(g);movers.push({c,g});
       continue;
     }
     drawCollider(c,k=>sb(k,c.y1),false);
     // girders round the tower hang off it on braces
     if(c.strut)drawStrut(c);
   }
-  for(const d of course.deco)drawDeco(d);
-  for(const s of course.signs)drawSign(s);
+  for(const d of course.deco){DRAW_DIM=d.dim|0;drawDeco(d)}
+  for(const s of course.signs){DRAW_DIM=U.dimAt(s.y);drawSign(s)}
   drawLanterns();
-  // merge into meshes per chunk
-  const per=new Map();
-  for(const [k,B] of chunks){const ch=+k.split('|')[1];let m=per.get(ch);if(!m)per.set(ch,m=new Map());m.set(k,B)}
-  for(const [ch,map] of per){const g=new THREE.Group();bucketsToMesh(map,g);scene.add(g);const box=new THREE.Box3().setFromObject(g);chunkMeshes.push({g,box,ch})}
-  chunks.clear();
+  // merge into meshes per chunk (each side of the gate on its own)
+  for(const dim of [0,1]){
+    const per=new Map();
+    for(const [k,B] of dim?chunks1:chunks){const ch=+k.split('|')[1];let m=per.get(ch);if(!m)per.set(ch,m=new Map());m.set(k,B)}
+    for(const [ch,map] of per){const g=new THREE.Group();bucketsToMesh(map,g,dim===1);DR[dim].add(g);const box=new THREE.Box3().setFromObject(g);chunkMeshes.push({g,box,ch,dim})}
+  }
+  chunks.clear();chunks1.clear();DRAW_DIM=0;
 }
 // what rides along with the new moving pieces: a turbine's nacelle or a satellite's body under its arm, a blimp over
 // its gondola, a star at a pendulum's pivot, and a faint outline that stays where a pulse platform is while it's dark
@@ -2321,9 +2863,11 @@ function moverExtras(c,g){
     const fin=L(shade(c.extra.blimp,.7));for(const r of [0,Math.PI/2]){const f=new THREE.Mesh(GEO.box,fin);f.scale.set(.15,3,2);f.position.z=-7.6;f.rotation.z=r;e.add(f)}
     const band=new THREE.Mesh(new THREE.TorusGeometry(1,.06,4,32),L('#2b2f38'));band.scale.set(3.42,3.22,1);e.add(band);
     const rm=L('#5b4a36');for(const p of [[1,1],[-1,1],[1,-1],[-1,-1]]){const r=new THREE.Mesh(cylG(4),rm);r.scale.set(.03,4.4,.03);r.position.set(p[0]*c.hx*.8,2.4,p[1]*c.hz*.8);g.add(r)}}
+  // a great wheel's gondola: the arm out to the rim on the far side (it stays level, the rim turns)
+  if(c.extra&&c.extra.wheel){const sd=c.extra.wheel,a=new THREE.Mesh(GEO.box,L('#4a4652'));a.scale.set(.8,.18,.25);a.position.set(sd*(c.hx+.35),-.1,0);g.add(a);const p=new THREE.Mesh(cylG(8),L('#6a6478'));p.scale.set(.18,.5,.18);p.rotation.z=Math.PI/2;p.position.set(sd*(c.hx+.75),-.1,0);g.add(p)}
   if(c.extra&&c.extra.star){const st=new THREE.Mesh(new THREE.OctahedronGeometry(1,0),new THREE.MeshBasicMaterial({color:0xffe08a}));st.scale.set(.9,1.3,.9);st.position.y=c.dyn.L;g.add(st)}
   if(c.kind==='blink'){const gh=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(c.hx*2,c.y1-c.y0,c.hz*2)),new THREE.LineBasicMaterial({color:new THREE.Color(c.col),transparent:true,opacity:.45}));
-    gh.position.set(c.x,c.y1-(c.y1-c.y0)/2,c.z);gh.rotation.y=c.yaw;scene.add(gh);c._ghost=gh}
+    gh.position.set(c.x,c.y1-(c.y1-c.y0)/2,c.z);gh.rotation.y=c.yaw;DR[0].add(gh);c._ghost=gh}
 }
 function toW(c,lx,lz){return U.toWorld(c,lx,lz)}
 function drawStrut(c){
@@ -2350,7 +2894,7 @@ function drawDeco(d){
   // the old summit's marker: a post with a plaque, where the new climb leaves it
   if(d.s==='milestone'){addGeo(get('metal'),cylG(8),M(d.x,d.y+.7,d.z,0,.07,1.4,.07),'#555');
     const t=signTex(TX('OLD SUMMIT'),TX('1,000 m · the climb goes on'),512,192,'#2a1d4a');const m=new THREE.Mesh(SIGN_GEO,new THREE.MeshBasicMaterial({map:t}));m.scale.set(.5,.5,1);
-    m.position.set(d.x,d.y+1.6,d.z);m.rotation.y=d.yaw;scene.add(m);addGeo(get('glow'),new THREE.TorusGeometry(1,.05,6,32),M(d.x,d.y+.02,d.z,0,.6,.6,.6,Math.PI/2),'#ffd36b');return}
+    m.position.set(d.x,d.y+1.6,d.z);m.rotation.y=d.yaw;DR[0].add(m);addGeo(get('glow'),new THREE.TorusGeometry(1,.05,6,32),M(d.x,d.y+.02,d.z,0,.6,.6,.6,Math.PI/2),'#ffd36b');return}
   if(d.s==='windsock'){addGeo(get('metal'),cylG(6),M(d.x,d.y+1.5,d.z,0,.05,3,.05),'#9aa3ad');addGeo(get('plain'),frustG(.12,.3,10),M(d.x+.6,d.y+2.9,d.z,0,1,1.2,1,0,Math.PI/2),'#ff7a3d');return}
   // the Crown: eight gold spires round the top and jewels on them, all below the rim so they're never in the way
   if(d.s==='crown'){const g2=k=>sb(k,d.y);for(let i=0;i<8;i++){const a=i/8*Math.PI*2+.2,r=d.r+.9,x=d.x+Math.sin(a)*r,z=d.z+Math.cos(a)*r;
@@ -2358,15 +2902,53 @@ function drawDeco(d){
       addGeo(g2('glow'),new THREE.OctahedronGeometry(1,0),M(x,d.y+4.9,z,a,.4,.6,.4),['#ff4d6a','#4d8dff','#3fdf8f','#c86aff'][i%4])}
     addGeo(g2('glow'),new THREE.TorusGeometry(1,.035,8,96),M(d.x,d.y+11,d.z,0,7,7,7,Math.PI/2),'#ffd36b');
     return}
+  // ---- through the gate ----
+  // a gate: two tall stone posts, an arch with a band of glowing marks, and the portal itself (a swirl, drawn and
+  // animated in gateFx; side 0 is the one on the Crown, side 1 the one on the bank you come out of)
+  if(d.s==='gate'){const g=k=>sb(k,d.y),cs=Math.cos(d.yaw),sn=Math.sin(d.yaw),P=(lx,lz)=>[d.x+lx*cs+lz*sn,d.z-lx*sn+lz*cs],stc='#4a4560';
+    for(const sx of [-1,1]){const p=P(sx*1.72,0);addGeo(g('stone'),cylG(10),M(p[0],d.y+2.3,p[1],0,.44,4.6,.44),stc,1,3);addGeo(g('stone'),GEO.box,M(p[0],d.y+.2,p[1],d.yaw,1.3,.4,1.3),shade(stc,.8));addGeo(g('stone'),GEO.box,M(p[0],d.y+4.7,p[1],d.yaw,1.1,.3,1.1),shade(stc,1.1))}
+    addGeo(g('stone'),new THREE.TorusGeometry(1.72,.36,8,24,Math.PI),M(d.x,d.y+4.85,d.z,d.yaw,1,1,1),stc,3,1);
+    addGeo(g('glow'),new THREE.TorusGeometry(1.72,.05,4,32,Math.PI),M(d.x+sn*.37,d.y+4.85,d.z+cs*.37,d.yaw,1,1,1),'#b9a8ff');
+    addGeo(g('glow'),new THREE.TorusGeometry(1.72,.05,4,32,Math.PI),M(d.x-sn*.37,d.y+4.85,d.z-cs*.37,d.yaw,1,1,1),'#b9a8ff');
+    addGeo(g('glow'),new THREE.OctahedronGeometry(1,0),M(d.x,d.y+6.9,d.z,d.yaw,.28,.42,.28),'#e6dcff');
+    gateSpots.push({x:d.x,y:d.y,z:d.z,yaw:d.yaw,side:d.side});return}
+  // the mist a ferry current runs along
+  if(d.s==='mist'){const a=new V3(...d.a),b=new V3(...d.b),L=a.distanceTo(b),yaw=Math.atan2(b.x-a.x,b.z-a.z),n=Math.ceil(L/3.5);
+    for(let i=0;i<=n;i++){const t=i/n,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;addGeo(sb('mist',a.y),new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),M(x,a.y-.35-(i%2)*.12,z,yaw+i,d.w*1.6,1,4.4),'#9fe8d0')}return}
+  // a boulder slope: a long rough ramp the boulders roll down (scenery only)
+  if(d.s==='ramp'){const a=new V3(...d.a),b=new V3(...d.b),L=Math.hypot(b.x-a.x,b.z-a.z),yaw=Math.atan2(b.x-a.x,b.z-a.z),sl=(b.y-a.y)/L,mx=(a.x+b.x)/2,mz=(a.z+b.z)/2,my=(a.y+b.y)/2;
+    addBox(k=>sb(k,my),M(mx,my,mz,yaw),d.w*.75,L/2,.8,sl,{top:'rock',side:'rock'},'#4a4652',2,'#5a5664',.8);
+    for(const sg of [-1,1]){const ox=Math.cos(yaw)*sg*(d.w*.75+.15),oz=-Math.sin(yaw)*sg*(d.w*.75+.15);addBox(k=>sb(k,my),M(mx+ox,my+.25,mz+oz,yaw),.18,L/2,.5,sl,{top:'rock',side:'rock'},'#3a3742',2,null,.8)}return}
+  // the great wheel's hub and axle (the rim and spokes turn: wheelFx)
+  if(d.s==='wheel'){const o=1.25+.55;addGeo(sb('metal',d.y),cylG(12),M(d.x+d.px*o,d.y,d.z+d.pz*o,Math.atan2(d.px,d.pz),.55,1.2,.55,Math.PI/2),'#4a4652');
+    addGeo(sb('rock',d.y-d.R),GEO.box,M(d.x+d.px*(o+1.4),d.y-d.R/2-1,d.z+d.pz*(o+1.4),Math.atan2(d.px,d.pz),1.2,d.R+2,1.2),'#4a4652');
+    wheelSpots.push(d);return}
+  // the gate of the hound: two great columns and a lintel over the route, and on top a three-headed hound in stone
+  if(d.s==='hgate'){drawHoundGate(d);return}
+  // the pit's rim, at 4500 m: a ring of broken rock, the edge of the underworld
+  if(d.s==='rim'){const R3=rng(4500),g=k=>sb(k,d.y);for(let i=0;i<64;i++){const a=i/64*TAU+R3()*.05,r=d.r+R3()*6,s=4+R3()*7;const gg=lumpG(rng(i*13+7),.7,.5,(P,j,x,y,z,k)=>P.setXYZ(j,x*k,y*k*1.6,z*k));
+      addGeo(g('rock'),gg,M(Math.sin(a)*r,d.y-2+R3()*4,Math.cos(a)*r,R3()*6,s,s,s),pick(['#4a4652','#3e3a48','#544f5e']),2,2)}return}
+  // the twin of a warp glyph: a dotted arc of sparks from one to the other
+  if(d.s==='warparc'){const a=d.a,b=d.b,n=16;for(let i=1;i<n;i++){const t=i/n,x=a[0]+(b[0]-a[0])*t,z=a[2]+(b[2]-a[2])*t,y=a[1]+(b[1]-a[1])*t+Math.sin(t*Math.PI)*3.2+.6;addGeo(sb('glow',y),GEO.sph,M(x,y,z,0,.07,.07,.07),d.col)}return}
+  // the orrery: the brass track a planet circles on, and a small sun on a stalk at its pivot
+  if(d.s==='orrery'){addGeo(sb('metal',d.y),new THREE.TorusGeometry(1,.06,6,64),M(d.x,d.y,d.z,0,d.R,d.R,d.R,Math.PI/2),'#c99a44');
+    addGeo(sb('glow',d.y),GEO.sph2,M(d.x,d.y+1.4,d.z,0,.9,.9,.9),'#ffe08a');addGeo(sb('metal',d.y),cylG(8),M(d.x,d.y-3,d.z,0,.12,8,.12),'#b58a3a');
+    for(let i=0;i<4;i++){const a=i*Math.PI/2;addGeo(sb('metal',d.y),GEO.box,M(d.x+Math.sin(a)*d.R/2,d.y,d.z+Math.cos(a)*d.R/2,a,.08,.08,d.R),'#b58a3a')}return}
+  // the Lodestar: eight star spires round the top (below its rim) and a great star above
+  if(d.s==='lodestar'){const g2=k=>sb(k,d.y);for(let i=0;i<8;i++){const a=i/8*TAU+.2,r=d.r+.9,x=d.x+Math.sin(a)*r,z=d.z+Math.cos(a)*r;
+      addGeo(g2('plain'),new THREE.ConeGeometry(1,1,6),M(x,d.y+.5,z,a,.4,6,.4),'#dfe8ff');addGeo(g2('plain'),cylG(6),M(x,d.y-4,z,a,.4,3,.4),'#b8c4dc');
+      addGeo(g2('glow'),new THREE.OctahedronGeometry(1,0),M(x,d.y+3.9,z,a,.35,.55,.35),['#9fd6ff','#ffe08a','#e2b8ff','#a8ffcf'][i%4])}
+    addGeo(g2('glow'),new THREE.OctahedronGeometry(1,0),M(d.x,d.y+16,d.z,0,2.2,3.4,2.2),'#fff4c8');
+    addGeo(g2('glow'),new THREE.TorusGeometry(1,.035,8,96),M(d.x,d.y+16,d.z,0,5,5,5,Math.PI/2),'#ffe08a');return}
   if(d.s==='tree'){if(d.tid!=null&&!liveIds.has(d.tid))return;const R2=rng(Math.floor(d.x*13+d.z*7));for(let i=0;i<4;i++){const s=d.r*(.6+R2()*.4);addGeo(sb('plain',d.y),GEO.sph,M(d.x+(R2()-.5)*d.r*.8,d.y+(R2()-.2)*d.r*.6,d.z+(R2()-.5)*d.r*.8,R2()*3,s,s*.9,s),pick(['#4f9d4a','#5fae55','#3f8a43']))}return}
   if(d.s==='scaffold'){const hw=d.w/2,get2=y=>sb('metal',y);const cs=Math.cos(d.yaw),sn=Math.sin(d.yaw);const P=(lx,lz)=>[d.x+lx*cs+lz*sn,d.z-lx*sn+lz*cs];
     for(const q of [[1,1],[1,-1],[-1,1],[-1,-1]]){const p=P(q[0]*hw,q[1]*hw);addGeo(get2(d.y1/2),cylG(6),M(p[0],(d.y0+d.y1)/2,p[1],0,.06,d.y1-d.y0,.06),'#9aa3ad')}
     for(let y=d.y0+2;y<d.y1;y+=2){for(let s=0;s<4;s++){const a=d.yaw+s*Math.PI/2,c2=P(Math.sin(s*Math.PI/2)*hw,Math.cos(s*Math.PI/2)*hw);addGeo(get2(y),cylG(5),M(c2[0],y,c2[1],a+Math.PI/2,.045,d.w,.045,0,Math.PI/2),'#9aa3ad')}}
     return}
   if(d.s==='poster'){const t=signTex(d.text,'',1024,192,'#e9dfc4','#3b3540');const m=new THREE.Mesh(new THREE.PlaneGeometry(2,.375),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));
-    m.position.set(d.x,1.72,d.z);m.rotation.y=d.yaw;m.rotation.z=.03;scene.add(m);addGeo(sb('metal',0),cylG(6),M(d.x,.76,d.z,0,.035,1.52,.035),'#55595f');return}
+    m.position.set(d.x,1.72,d.z);m.rotation.y=d.yaw;m.rotation.z=.03;DR[0].add(m);addGeo(sb('metal',0),cylG(6),M(d.x,.76,d.z,0,.035,1.52,.035),'#55595f');return}
   if(d.s==='billboard'){const t=signTex(TX(d.text),'',1024,384,'#f7f2e8','#2b2b33');const m=new THREE.Mesh(new THREE.PlaneGeometry(d.w,d.h),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide}));
-    const ux=Math.cos(d.yaw),uz=-Math.sin(d.yaw);m.position.set(d.x-ux*.6,d.y+d.h/2+.6,d.z-uz*.6);m.rotation.y=d.yaw+Math.PI/2;scene.add(m);
+    const ux=Math.cos(d.yaw),uz=-Math.sin(d.yaw);m.position.set(d.x-ux*.6,d.y+d.h/2+.6,d.z-uz*.6);m.rotation.y=d.yaw+Math.PI/2;DR[0].add(m);
     addBox(k=>sb(k,d.y),M(d.x-ux*.65,d.y+d.h/2+.6,d.z-uz*.65,d.yaw),.08,d.w/2+.1,d.h+.2,0,{top:'metal',side:'metal'},'#444',1);return}
   if(d.s==='keyboard'){const m=M(d.x,d.y,d.z,d.yaw,1,1,1,-Math.atan(d.sl));addBox(k=>sb(k,d.y),m,d.w/2,d.len/2,.6,0,{top:'plain',side:'plain'},'#3b3f4a',2,'#2b2e36',.8);return}
   if(d.s==='ropes'){const pts=d.pts;for(let i=0;i+1<pts.length;i++)for(const s of [-1,1]){const ox=Math.cos(d.yaw)*.6*s,oz=-Math.sin(d.yaw)*.6*s;const a=new V3(pts[i][0]+ox,pts[i][1]+.9,pts[i][2]+oz),b=new V3(pts[i+1][0]+ox,pts[i+1][1]+.9,pts[i+1][2]+oz);drawDeco({s:'tube',a:[a.x,a.y,a.z],b:[b.x,b.y,b.z],r:.03,col:'#8a6a45',v:'plain'})}return}
@@ -2393,6 +2975,27 @@ function drawFar(d){
     case 'fstation':addGeo(get('metal'),new THREE.TorusGeometry(1,.12,6,24),M(x,y,z,yw,s*2,s*2,s*2,t,0),'#d9dee6');addGeo(get('metal'),cylG(10),M(x,y,z,yw,s*.35,s*3.6,s*.35,Math.PI/2+t,0),'#e8ecf2');break;
     case 'fstar':addGeo(get('glow'),new THREE.OctahedronGeometry(1,0),M(x,y,z,yw,s*.5,s*.9,s*.5,t,0),pick(['#ffe08a','#ffd6f0','#cfe6ff']));break;
     case 'faurora':break;
+    // ---- through the gate: in the pit (on its floor or against its wall) and, above the rim, out in the open ----
+    case 'fchain':{// a great chain hanging down the pit's wall from an iron ring
+      const L=s*14,pl=new THREE.PlaneGeometry(1,1),uv=pl.attributes.uv;for(let i=0;i<uv.count;i++)uv.setY(i,uv.getY(i)*L/(s*.9));
+      for(const r of [0,Math.PI/2])addGeo(get('chain'),pl,M(x,y-L/2,z,yw+r,s*.45,L,1),'#7a7682');addGeo(get('metal'),new THREE.TorusGeometry(1,.14,6,16),M(x,y+s*.3,z,yw,s*.6,s*.6,s*.6),'#5a5662');break}
+    case 'fstatue':{// a robed stone figure holding up a lantern, in a niche in the pit's wall
+      const st='#7a7684',k=s*1.2;addGeo(get('rock'),GEO.box,M(x,y-k*3.4,z,yw,k*2.6,k*.6,k*1.8),shade(st,.8));
+      addGeo(get('rock'),frustG(.55,1.05,10),M(x,y-k*1.4,z,yw,k,k*3.4,k),st,2,3);addGeo(get('rock'),GEO.sph,M(x,y+k*.55,z,yw,k*.5,k*.6,k*.5),shade(st,.9));
+      addGeo(get('rock'),frustG(.2,.62,10),M(x,y+k*.62,z,yw,k,k*1.1,k),shade(st,.85));
+      const fx=Math.sin(yw),fz=Math.cos(yw);addGeo(get('rock'),cylG(6),M(x+fx*k*.6,y+k*.2,z+fz*k*.6,yw,k*.1,k*1.4,k*.1,.5),st);
+      addGeo(get('glow'),GEO.sph,M(x+fx*k*.95,y+k*.95,z+fz*k*.95,0,k*.22,k*.28,k*.22),'#9dffc8');
+      addGeo(get('rock'),GEO.box,M(x-fx*k*.9,y-k*.4,z-fz*k*.9,yw,k*3.2,k*8,k*.6),shade(st,.55));break}
+    case 'fferry':{// a far ferry on the river, its lantern lit
+      addGeo(get('plain'),GEO.box,M(x,y+.2,z,yw,s*1.4,s*.5,s*4),'#2b2930');addGeo(get('glow'),GEO.sph,M(x,y+s*1.9,z-Math.cos(yw)*s*1.5,0,s*.16,s*.2,s*.16),'#9dffc8');addGeo(get('wood'),cylG(5),M(x,y+s,z-Math.cos(yw)*s*1.5,0,s*.04,s*1.8,s*.04),'#3a2c20');break}
+    case 'fbrazier':{addGeo(get('metal'),frustG(1,.6,12),M(x,y,z,0,s*1.4,s*1.2,s*1.4),'#7a5a2a');addGeo(get('glow'),new THREE.ConeGeometry(1,1,8),M(x,y+s*1.2,z,yw,s*1.1,s*1.8,s*1.1),'#ff8a2a');addGeo(get('metal'),cylG(6),M(x,y-s*3,z,0,s*.2,s*5,s*.2),'#4a3a2a');break}
+    case 'fpillar':{addGeo(get('rock'),cylG(14),M(x,y,z,0,s*1.6,s*14,s*1.6),'#6a6678',2,6);addGeo(get('rock'),GEO.box,M(x,y+s*7.3,z,yw,s*4,s*.6,s*4),'#7a7686');addGeo(get('glow'),new THREE.TorusGeometry(1,.05,4,24),M(x,y+s*5,z,0,s*1.62,s*1.62,s*1.62,Math.PI/2),'#b9a8ff');break}
+    case 'frune':{const g=lumpG(rng(Math.floor(x*7+z*13)),.8,.3,(P,i,x2,y2,z2,k)=>P.setXYZ(i,x2*k,y2*k*1.5,z2*k));addGeo(get('rock'),g,M(x,y,z,yw,s*1.3,s*1.3,s*1.3,t*.3,0),pick(['#7a7f8c','#6e7482']),2,2);
+      addGeo(get('glow'),new THREE.TorusGeometry(1,.06,4,24),M(x,y,z,yw,s*1.45,s*1.45,s*1.45,Math.PI/2+t,0),pick(['#7ff2ff','#c3a6ff','#ffd27a']));break}
+    case 'ftome':{addBox(get,M(x,y,z,yw,1,1,1,t*.4,t*.3),s*1.2,s*1.6,s*.4,0,{top:'plain',side:'pages'},'#f2ead6',1,pick(['#4a2a5a','#2a3a5a','#5a2a2e']));addGeo(get('glow'),new THREE.TorusGeometry(1,.05,4,24),M(x,y+s*.42,z,yw,s*.6,s*.6,s*.6,Math.PI/2+t*.4,t*.3),'#ffd27a');break}
+    case 'fplanet':{const pc=pick(['#c96a3a','#4a8ac9','#6ac98a','#c9a64a','#a86ac9']);addGeo(get('plain'),GEO.sph2,M(x,y,z,yw,s*2.2,s*2.2,s*2.2),pc);addGeo(get('glow'),new THREE.TorusGeometry(1,.04,4,48),M(x,y,z,yw,s*3.4,s*3.4,s*3.4,Math.PI/2+t,0),tint(pc,'#ffffff',.5));break}
+    case 'fastro':{for(let i=0;i<3;i++)addGeo(get('metal'),new THREE.TorusGeometry(1,.04,4,48),M(x,y,z,yw+i*1.05,s*3,s*3,s*3,Math.PI/2+t+i*.6,0),'#c99a44');addGeo(get('glow'),GEO.sph2,M(x,y,z,0,s*.7,s*.7,s*.7),'#ffe08a');break}
+
     case 'frock':{const g=lumpG(rng(Math.floor(x*7+z*13)),.75,.45,(P,i,x,y,z,k)=>P.setXYZ(i,x*k,y*k*.8,z*k));addGeo(get('rock'),g,M(x,y,z,yw,s*1.3,s*1.3,s*1.3,t,0),pick(['#7a7484','#857a72','#6f7180']),2,2);break}
   }
 }
@@ -2404,18 +3007,19 @@ const SIGN_GEO=(()=>{const f=new THREE.PlaneGeometry(3.2,1.2),b=f.clone().rotate
 function drawSign(s){
   // the old summit's sign: it's a milestone now, not the top
   const old=s.text==='The Top'&&s.y===SUMMIT,t=old?signTex(TX('Old summit'),TX('1,000 m · keep climbing')):signTex(TX(s.text),TX(s.sub));const m=new THREE.Mesh(SIGN_GEO,new THREE.MeshBasicMaterial({map:t}));
-  m.position.set(s.x,s.y+2.4,s.z);m.rotation.y=(s.yaw||0)+Math.PI;scene.add(m);
+  m.position.set(s.x,s.y+2.4,s.z);m.rotation.y=(s.yaw||0)+Math.PI;DR[DRAW_DIM].add(m);
   addGeo(sb('metal',s.y),cylG(6),M(s.x,s.y+.9,s.z,0,.06,1.8,.06),'#555');
 }
 // Small lanterns along the route, so the way up shows from a distance (and at night up high).
 function drawLanterns(){
   for(let i=4;i<PATH.length-1;i+=5){
-    const c=PATH[i];if(c.dyn||c.big||c.kind)continue;
+    const c=PATH[i];if(c.dyn||c.big||c.kind)continue;DRAW_DIM=c.dim|0;
     const n=PATH[i+1],dx=n.x-c.x,dz=n.z-c.z,l=Math.hypot(dx,dz)||1,e=U.extent(c,dx/l,dz/l)*.8;
     const x=c.x+dx/l*e+(-dz/l)*.25,z=c.z+dz/l*e+(dx/l)*.25,y=U.topAt(c,x,z);
     addGeo(sb('metal',y),cylG(5),M(x,y+.35,z,0,.03,.7,.03),'#444');
-    addGeo(sb('glow',y),GEO.sph,M(x,y+.75,z,0,.1,.13,.1),'#ffd27a');
+    addGeo(sb('glow',y),GEO.sph,M(x,y+.75,z,0,.1,.13,.1),c.dim?LANTERN[U.zoneAt(y)-10]||'#ffd27a':'#ffd27a');
   }
+  DRAW_DIM=0;
 }
 // ground, far hills and the sea of clouds
 let hills=null;
@@ -2423,13 +3027,13 @@ function buildScenery(){
   // the street is cut into 100 m squares and drawn slightly behind its own depth: one 6 km triangle pair
   // loses depth precision once it's clipped, and then hides the plaza, the start pad and shadows on it
   // (seen with a phone held sideways at its usual pixel ratio)
-  const g=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000,60,60),new THREE.MeshLambertMaterial({map:T.street,color:0xb0b0b0,polygonOffset:true,polygonOffsetFactor:2,polygonOffsetUnits:2}));T.street.repeat.set(60,60);g.rotation.x=-Math.PI/2;scene.add(g);
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(6000,6000,60,60),new THREE.MeshLambertMaterial({map:T.street,color:0xb0b0b0,polygonOffset:true,polygonOffsetFactor:2,polygonOffsetUnits:2}));T.street.repeat.set(60,60);g.rotation.x=-Math.PI/2;DR[0].add(g);
   // a plaza round the tower's base
-  const pz=new THREE.Mesh(new THREE.PlaneGeometry(110,110),new THREE.MeshLambertMaterial({map:T.paving,color:0x9d978e}));T.paving.repeat.set(28,28);pz.rotation.x=-Math.PI/2;pz.position.y=.02;scene.add(pz);
+  const pz=new THREE.Mesh(new THREE.PlaneGeometry(110,110),new THREE.MeshLambertMaterial({map:T.paving,color:0x9d978e}));T.paving.repeat.set(28,28);pz.rotation.x=-Math.PI/2;pz.position.y=.02;DR[0].add(pz);
   // hills on the horizon (no fog on them, they're tinted like the haze instead)
   const hm=new THREE.MeshLambertMaterial({color:0x8fa7c2,fog:false,flatShading:true});hills=hm;const R2=rng(77);
-  for(let i=0;i<46;i++){const a=i/46*Math.PI*2+R2()*.1,r=2300+R2()*700,h=90+R2()*210,w=320+R2()*420;const m=new THREE.Mesh(new THREE.ConeGeometry(1,1,7),hm);m.scale.set(w,h,w*.8);m.position.set(Math.sin(a)*r,h/2-20,Math.cos(a)*r);m.rotation.y=R2()*3;scene.add(m);hillMeshes.push(m)}
-  const sea=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),new THREE.MeshBasicMaterial({map:T.cloudsea,transparent:true,opacity:0,depthWrite:false,fog:false,color:0xffffff,toneMapped:false}));T.cloudsea.repeat.set(14,14);sea.rotation.x=-Math.PI/2;sea.position.y=330;sea.renderOrder=-5;scene.add(sea);
+  for(let i=0;i<46;i++){const a=i/46*Math.PI*2+R2()*.1,r=2300+R2()*700,h=90+R2()*210,w=320+R2()*420;const m=new THREE.Mesh(new THREE.ConeGeometry(1,1,7),hm);m.scale.set(w,h,w*.8);m.position.set(Math.sin(a)*r,h/2-20,Math.cos(a)*r);m.rotation.y=R2()*3;DR[0].add(m);hillMeshes.push(m)}
+  const sea=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),new THREE.MeshBasicMaterial({map:T.cloudsea,transparent:true,opacity:0,depthWrite:false,fog:false,color:0xffffff,toneMapped:false}));T.cloudsea.repeat.set(14,14);sea.rotation.x=-Math.PI/2;sea.position.y=330;sea.renderOrder=-5;DR[0].add(sea);
   // Far out, the sea takes the colour the sky has in that direction (the sky shader's sums for below the horizon,
   // which is all the sea ever covers, without the sun's disc), so its square edge and the far clip can't be told
   // from the sky: from high up they showed as a hard line with corners. Only pixels past 2 km do the extra sums.
@@ -2439,18 +3043,186 @@ function buildScenery(){
       '#include <map_fragment>\n{float f=smoothstep(2000.,4000.,length(vSeaP));if(f>0.){vec3 d=normalize(vSeaD);vec3 c=skyHor*(1.-.18*clamp(-d.y*3.,0.,1.));float s=max(dot(d,skySun),0.),s2=s*s,s4=s2*s2;c+=vec3(1.,.9,.7)*(s4*s4*s*.22*skyGlow);diffuseColor.rgb=mix(diffuseColor.rgb,sRGBToLinear(vec4(min(c,vec3(1.)),1.)).rgb,f);}}')};
   const puffs=new THREE.Group();const pm=new THREE.SpriteMaterial({map:T.puff,transparent:true,opacity:.85,depthWrite:false,fog:true});const R3=rng(99);
   for(let i=0;i<160;i++){const a=R3()*Math.PI*2,r=70+R3()*420,y=R3()<.7?rand(360,640):rand(160,900),s=30+R3()*70;const sp=new THREE.Sprite(pm);sp.position.set(Math.sin(a)*r,y,Math.cos(a)*r);sp.scale.set(s*1.8,s,1);puffs.add(sp)}
-  scene.add(puffs);
+  DR[0].add(puffs);
   // the beacon: a column of light over the summit, seen from everywhere
   const bm=new THREE.MeshBasicMaterial({color:0xffd36b,transparent:true,opacity:.22,blending:THREE.AdditiveBlending,depthWrite:false,fog:false});
-  const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,2400,16,1,true),bm);beam.position.set(0,SUMMIT+1200,0);scene.add(beam);
-  const beam2=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,2400,10,1,true),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));beam2.position.copy(beam.position);scene.add(beam2);
-  const flag=new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.3),new THREE.MeshLambertMaterial({color:0xff7a3d,side:THREE.DoubleSide}));flag.position.set(2.2,SUMMIT+4.6,0);scene.add(flag);
-  const pole=new THREE.Mesh(cylG(8),new THREE.MeshLambertMaterial({color:0xdddddd}));pole.scale.set(.06,5.4,.06);pole.position.set(1.1,SUMMIT+2.7,0);scene.add(pole);
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,2400,16,1,true),bm);beam.position.set(0,SUMMIT+1200,0);DR[0].add(beam);
+  const beam2=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,2400,10,1,true),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.35,blending:THREE.AdditiveBlending,depthWrite:false,fog:false}));beam2.position.copy(beam.position);DR[0].add(beam2);
+  const flag=new THREE.Mesh(new THREE.PlaneGeometry(2.2,1.3),new THREE.MeshLambertMaterial({color:0xff7a3d,side:THREE.DoubleSide}));flag.position.set(2.2,SUMMIT+4.6,0);DR[0].add(flag);
+  const pole=new THREE.Mesh(cylG(8),new THREE.MeshLambertMaterial({color:0xdddddd}));pole.scale.set(.06,5.4,.06);pole.position.set(1.1,SUMMIT+2.7,0);DR[0].add(pole);
   return{sea,puffs,beam,flag,ground:[g,pz]};
+}
+// The Hound's Gate: two great columns either side of the route and a lintel across, and on it a three-headed hound
+// in stone, sitting, its three heads looking three ways, a stone collar round its necks and amber eyes. Scenery only.
+function drawHoundGate(d){
+  const g=k=>sb(k,d.y),cs=Math.cos(d.yaw),sn=Math.sin(d.yaw),st='#77738a',stD=shade(st,.75);
+  const W2=(lx,ly,lz)=>[d.x+lx*cs+lz*sn,d.y+ly,d.z-lx*sn+lz*cs];   // lx across the route, lz along it
+  const B=(lx,ly,lz,w,h,dd,col,rx,rz,yo)=>{const p=W2(lx,ly,lz);addGeo(g('stone'),GEO.box,M(p[0],p[1],p[2],d.yaw+(yo||0),w,h,dd,rx,rz),col||st,2,2)};
+  const S=(lx,ly,lz,sx,sy,sz,col,rx,rz,yo,key)=>{const p=W2(lx,ly,lz);addGeo(g(key||'stone'),GEO.sph2,M(p[0],p[1],p[2],d.yaw+(yo||0),sx,sy,sz,rx,rz),col||st,1.5,1.5)};
+  const o=d.off,base=-16,top=13,cw=3.4;
+  for(const sx of [-1,1]){
+    B(sx*o,(base+top)/2,0,cw,top-base,cw);B(sx*o,top-.4,0,cw+1,.8,cw+1,stD);B(sx*o,base+1,0,cw+1.2,2,cw+1.2,stD);
+    for(let k=0;k<4;k++)B(sx*o,base+5+k*6.5,0,cw+.12,.3,cw+.12,stD);
+    const p=W2(sx*(o-cw/2-.02),4,0);addGeo(g('glow'),GEO.box,M(p[0],p[1],p[2],d.yaw,.02,8,.3),'#b9a8ff');
+  }
+  B(0,top+1.6,0,2*o+cw+2,3.2,cw+1.6);B(0,top+.15,0,2*o+cw+2.4,.3,cw+2,stD);B(0,top+3.35,0,2*o+cw+2.4,.3,cw+2,stD);
+  // the hound: sitting on the lintel, facing down the route the climber comes along (-z), chest out over the gate
+  const H=top+3.5,f=-1,stL=shade(st,1.08);
+  S(0,H+3.3,.2,2.1,3,2.4,st,-.45);                        // chest and shoulders, sitting up
+  S(0,H+1.6,1.5,1.9,1.7,2.6,st,.2);                        // belly and hips
+  for(const sx of [-1,1]){S(sx*1.55,H+1.2,1.9,1,1.5,1.9,stL);S(sx*1.35,H+.3,.5,.55,.35,1.25,stD);   // haunches, back paws
+    const p=W2(sx*.95,H+1.9,f*.95);addGeo(g('stone'),cylG(10),M(p[0],p[1],p[2],0,.42,3.8,.42),st,1,2);S(sx*.95,H+.18,f*1.35,.5,.3,.85,stD)}   // front legs, paws
+  const tl=W2(0,H+1.2,3.4);addGeo(g('stone'),new THREE.TorusGeometry(1.1,.26,6,14,Math.PI*1.2),M(tl[0],tl[1],tl[2],d.yaw+Math.PI/2,1,1,1,0,.4),st);
+  for(const [ang,dy] of [[-.7,-.1],[0,.35],[.7,-.1]]){
+    const sx2=Math.sin(ang),sz2=Math.cos(ang)*f;
+    const nb=[sx2*.7,H+4.4,sz2*.8+.2],hd=[sx2*1.6,H+5.6+dy,sz2*1.9];
+    // neck: a tube from the shoulders up and out to the head
+    {const a3=new V3(...W2(nb[0],nb[1],nb[2])),b3=new V3(...W2(hd[0],hd[1]-.3,hd[2])),m3=new THREE.Object3D();m3.position.copy(a3).add(b3).multiplyScalar(.5);m3.lookAt(b3);m3.rotateX(Math.PI/2);m3.scale.set(.62,a3.distanceTo(b3)+.6,.62);m3.updateMatrix();addGeo(g('stone'),cylG(10),m3.matrix,st,1,2)}
+    S(hd[0],hd[1],hd[2],.62,.62,.8,stL,0,0,ang);                                    // skull
+    S(hd[0]+sx2*.85,hd[1]-.22,hd[2]+sz2*.85,.36,.32,.75,stL,0,0,ang);               // long muzzle
+    S(hd[0]+sx2*.9,hd[1]-.45,hd[2]+sz2*.9,.3,.14,.6,stD,0,0,ang);                   // jaw
+    S(hd[0]+sx2*1.52,hd[1]-.12,hd[2]+sz2*1.52,.13,.11,.1,'#2a2830',0,0,ang);        // nose
+    for(const e of [-1,1]){const cx=Math.cos(ang)*e,cz=-Math.sin(ang)*e*f;
+      const pe=W2(hd[0]+cx*.3+sx2*.5,hd[1]+.14,hd[2]+cz*.3+sz2*.5);addGeo(g('glow'),GEO.sph,M(pe[0],pe[1],pe[2],0,.09,.07,.09),'#ffb84a');
+      const pa=W2(hd[0]+cx*.36-sx2*.15,hd[1]+.75,hd[2]+cz*.36-sz2*.15);addGeo(g('stone'),new THREE.ConeGeometry(1,1,4),M(pa[0],pa[1],pa[2],d.yaw+ang+Math.PI/4,.24,.85,.18,-.15*f,e*.2),stD)}
+    const pc=W2(sx2*1.05,H+4.7+dy*.5,sz2*1.2+.1);addGeo(g('metal'),new THREE.TorusGeometry(1,.1,6,18),M(pc[0],pc[1],pc[2],d.yaw+ang,.55,.55,.55,Math.PI/2-.6*f),'#4a4652');
+  }
+  // chains from the collars down to rings on the columns
+  for(const sx of [-1,1]){const a=new V3(...W2(sx*.9,H+4.4,f*1)),b=new V3(...W2(sx*(o-1),top-.2,f*(cw/2+.2)));
+    const L=a.distanceTo(b),m=new THREE.Object3D();m.position.copy(a).add(b).multiplyScalar(.5);m.lookAt(b);m.rotateX(Math.PI/2);m.updateMatrix();
+    const pl=new THREE.PlaneGeometry(.35,L),uv=pl.attributes.uv;for(let i=0;i<uv.count;i++)uv.setY(i,uv.getY(i)*L/.75);addGeo(g('chain'),pl,m.matrix,'#7a7682');
+    const m2=m.clone();m2.rotateY(Math.PI/2);m2.updateMatrix();addGeo(g('chain'),pl,m2.matrix,'#7a7682')}
+}
+// =====================================================================
+//  Through the gate: the far side's sky, the black river, the pit and its river of fire, the gates, the wheels, the
+//  vents, embers and ash, and the sky of spellcraft above the rim. All drawing only.
+// =====================================================================
+const ATMO1=[
+  // under: no sun (se below the horizon, gl: no glow round it); fog close in the pit
+  {y:3004,top:'#020506',hor:'#0c2420',fog:'#0a1917',near:22,far:210,hs:'#86c9b2',hg:'#0b1012',hi:.66,si:.3,sc:'#a8e0c8',st:0,se:-.9,gl:0},
+  {y:3420,top:'#040709',hor:'#162a28',fog:'#11201f',near:26,far:240,hs:'#86c9b2',hg:'#0b1012',hi:.66,si:.3,sc:'#a8e0c8',st:0,se:-.9,gl:0},
+  {y:3540,top:'#100302',hor:'#5a1806',fog:'#3a1206',near:28,far:250,hs:'#ffb27a',hg:'#2a0a04',hi:.7,si:.55,sc:'#ff9a5a',st:0,se:-.9,gl:0},
+  {y:3940,top:'#100302',hor:'#4a1608',fog:'#30100a',near:28,far:250,hs:'#ffb27a',hg:'#2a0a04',hi:.7,si:.55,sc:'#ff9a5a',st:0,se:-.9,gl:0},
+  {y:4060,top:'#0a0a12',hor:'#3a3650',fog:'#25223a',near:30,far:280,hs:'#d0c8f0',hg:'#1a1622',hi:.68,si:.5,sc:'#d0c8f0',st:.1,se:-.9,gl:0},
+  {y:4440,top:'#0c0a1c',hor:'#3e3866',fog:'#2a2548',near:40,far:340,hs:'#d0c8f0',hg:'#1a1622',hi:.68,si:.55,sc:'#d0c8f0',st:.35,se:-.9,gl:0},
+  // over the rim: the open sky of spellcraft, stars out
+  {y:4580,top:'#04031a',hor:'#262064',fog:'#18143e',near:130,far:720,hs:'#cfd8ff',hg:'#221c48',hi:.7,si:.9,sc:'#d8f4ff',st:1,se:-.9,gl:0},
+  {y:4960,top:'#04031a',hor:'#2a2468',fog:'#1a1642',near:130,far:720,hs:'#cfd8ff',hg:'#221c48',hi:.7,si:.9,sc:'#d8f4ff',st:1,se:-.9,gl:0},
+  {y:5060,top:'#0c0618',hor:'#3e1e48',fog:'#281430',near:130,far:700,hs:'#ffe2c8',hg:'#2a1a2c',hi:.7,si:.95,sc:'#ffd8a8',st:1,se:-.9,gl:0},
+  {y:5460,top:'#0c0618',hor:'#3a1e4a',fog:'#26142e',near:130,far:700,hs:'#ffe2c8',hg:'#2a1a2c',hi:.7,si:.95,sc:'#ffd8a8',st:1,se:-.9,gl:0},
+  {y:5560,top:'#01020a',hor:'#13264e',fog:'#0a1228',near:160,far:760,hs:'#c8d4ff',hg:'#18203e',hi:.66,si:1.05,sc:'#ffe2a0',st:1,se:-.9,gl:0},
+  {y:6100,top:'#01020a',hor:'#1a2c5a',fog:'#0c1430',near:160,far:760,hs:'#c8d4ff',hg:'#18203e',hi:.66,si:1.1,sc:'#ffe2a0',st:1,se:-.9,gl:0}
+];
+const TAU=Math.PI*2;
+const LANTERN=['#8affc8','#ffb060','#c8c0ff','#7ff2ff','#ff9ae6','#ffe08a'],TAU3=Math.PI*2/3,gateSpots=[],wheelSpots=[];   // lanterns along the route in each new zone; where the gates and the great wheels are
+// turn a geometry inside out (for the pit's wall, seen from inside it): reverse each triangle and its normals
+function insideOut(geo){const g=geo.index?geo.toNonIndexed():geo,P=g.attributes.position,N=g.attributes.normal,U2=g.attributes.uv;
+  for(let i=0;i<P.count;i+=3)for(const A of [P,N,U2]){if(!A)continue;const n=A.itemSize;for(let k=0;k<n;k++){const a=A.array[(i+1)*n+k];A.array[(i+1)*n+k]=A.array[(i+2)*n+k];A.array[(i+2)*n+k]=a}}
+  for(let i=0;i<N.array.length;i++)N.array[i]=-N.array[i];return g}
+const UW=(()=>{
+  const R=93,o={};DRAW_DIM=1;
+  // the black river: dark water with pale green currents, turning slowly round the pit (two layers at different speeds)
+  const rc=cnv(512,512),rx=rc.getContext('2d');rx.fillStyle='#050d0c';rx.fillRect(0,0,512,512);{const R2=rng(3005);
+    for(let i=0;i<40;i++){const px=R2()*512,py=R2()*512,r=30+R2()*90;for(const dx of [-512,0,512])for(const dy of [-512,0,512]){const g=rx.createRadialGradient(px+dx,py+dy,0,px+dx,py+dy,r);g.addColorStop(0,'rgba(30,70,60,.25)');g.addColorStop(1,'rgba(30,70,60,0)');rx.fillStyle=g;rx.fillRect(px+dx-r,py+dy-r,r*2,r*2)}}
+    for(let i=0;i<90;i++){const x=R2()*512,y=R2()*512,r=6+R2()*26,a=R2()*6;rx.strokeStyle=`rgba(${110+R2()*60},${210+R2()*40},${180+R2()*40},${.05+R2()*.09})`;rx.lineWidth=1+R2()*1.5;rx.beginPath();rx.ellipse(x,y,r*2.2,r*.6,a*.15,0,Math.PI*(1+R2()));rx.stroke()}}
+  const rt=tex(rc);rt.repeat.set(5,5);
+  const river=new THREE.Mesh(new THREE.CircleGeometry(R+2,96).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:rt,color:0x8aa8a0}));river.position.y=RIVER_Y;DR[1].add(river);
+  const st=rt.clone();st.needsUpdate=true;st.repeat.set(3,3);
+  const sheen=new THREE.Mesh(new THREE.CircleGeometry(R+2,96).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:st,color:0x2a6a5a,transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}));sheen.position.y=RIVER_Y+.05;DR[1].add(sheen);
+  o.river=river;o.sheen=sheen;
+  // the pit's wall, seen from inside: dark stone, cracked with fire round the Burning River, grey under the rim
+  // layers of rock, each its own shade, with streaks running down them and a few cracks
+  const wc=cnv(256,512),wx=wc.getContext('2d');{const R2=rng(31);let y=0;while(y<512){const h=10+R2()*44,v=160+R2()*50;wx.fillStyle=`rgb(${v},${v-3},${v-8})`;wx.fillRect(0,y,256,h);wx.fillStyle='rgba(0,0,0,.1)';wx.fillRect(0,y+h-3,256,3);y+=h}
+    for(let i=0;i<30;i++){const px=R2()*256,py=R2()*512,r=20+R2()*50,g=wx.createRadialGradient(px,py,0,px,py,r);const w=R2()<.5?0:255;g.addColorStop(0,`rgba(${w},${w},${w},.07)`);g.addColorStop(1,'rgba(0,0,0,0)');wx.fillStyle=g;wx.fillRect(px-r,py-r,r*2,r*2)}
+    for(let i=0;i<60;i++){const x=R2()*256,w=2+R2()*10,g=wx.createLinearGradient(0,0,0,512);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(.5,`rgba(20,18,16,${.06+R2()*.12})`);g.addColorStop(1,'rgba(0,0,0,0)');wx.fillStyle=g;wx.fillRect(x,R2()*256,w,200+R2()*300)}
+    speckle(wx,256,512,4000,.12,2,33);wx.strokeStyle='rgba(15,12,10,.5)';wx.lineWidth=1.5;for(let i=0;i<9;i++){wx.beginPath();let px=R2()*256,py=R2()*512;wx.moveTo(px,py);for(let k=0;k<6;k++){px+=R2()*24-12;py+=8+R2()*26;wx.lineTo(px,py)}wx.stroke()}}
+  T.pit=tex(wc);
+  // the Burning River's wall: a few long fissures glowing along the layers
+  const fc=cnv(256,512),fx2=fc.getContext('2d');fx2.fillStyle='#000';fx2.fillRect(0,0,256,512);{const R2=rng(37);for(let i=0;i<7;i++){const y0=R2()*512;fx2.strokeStyle=`rgba(255,${70+R2()*80},10,${.6+R2()*.4})`;fx2.lineWidth=1.5+R2()*2.5;fx2.shadowColor='#ff5a10';fx2.shadowBlur=8;fx2.beginPath();let px=-10,py=y0;fx2.moveTo(px,py);while(px<266){px+=10+R2()*24;py+=R2()*10-5;fx2.lineTo(px,py)}fx2.stroke()}
+    for(let i=0;i<5;i++){fx2.lineWidth=1+R2()*1.5;fx2.beginPath();let px=R2()*256,py=R2()*512;fx2.moveTo(px,py);for(let k=0;k<5;k++){px+=R2()*20-10;py+=10+R2()*24;fx2.lineTo(px,py)}fx2.stroke()}}
+  T.pitFire=tex(fc);
+  const wallM=k=>{const m=new THREE.MeshLambertMaterial({vertexColors:true,map:T.pit});if(k){m.emissiveMap=T.pitFire;m.emissive=new THREE.Color(0xff7a30);m.emissiveIntensity=.9}return m};
+  MATS.pit=wallM(false);MATS.pitFire=wallM(true);
+  for(let y=3000;y<4510;y+=CHUNK){const h2=Math.min(CHUNK,4510-y),key=y+h2/2>3500&&y+h2/2<4000?'pitFire':'pit',col=y<3500?'#3e4a48':y<4000?'#4a2a24':'#55526a';
+    addGeo(sb(key,y+1),insideOut(new THREE.CylinderGeometry(R+1,R+1,h2,72,1,true)),M(0,y+h2/2,0,0,1,1,1),col,14,h2/40);
+    if(y%96===0)addGeo(sb(key,y+1),insideOut(new THREE.CylinderGeometry(R,R,1.6,72,1,true)),M(0,y+20,0,0,1,1,1),shade(col,.55),24,1)}
+  // the river of fire round the wall at 3508 m, and falls of fire pouring from it into the black river
+  const fcv=cnv(64,256),fxx=fcv.getContext('2d');{const gr=fxx.createLinearGradient(0,0,64,0);gr.addColorStop(0,'rgba(255,90,20,0)');gr.addColorStop(.25,'rgba(255,120,30,.8)');gr.addColorStop(.5,'rgba(255,220,120,1)');gr.addColorStop(.75,'rgba(255,120,30,.8)');gr.addColorStop(1,'rgba(255,90,20,0)');fxx.fillStyle=gr;fxx.fillRect(0,0,64,256);
+    const R2=rng(41);for(let i=0;i<70;i++){fxx.fillStyle=`rgba(${R2()<.5?255:120},${40+R2()*60},0,${.3+R2()*.4})`;fxx.fillRect(R2()*64,R2()*256,2+R2()*5,10+R2()*40)}}
+  const ft=tex(fcv);ft.repeat.set(1,6);o.fallTex=ft;
+  const fm=new THREE.MeshBasicMaterial({map:ft,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,color:0xd88850});
+  const R3=rng(3508);
+  for(let i=0;i<5;i++){const a=i/5*TAU+R3()*.4,w=3.5+R3()*4,yT=3508,yB=RIVER_Y,fall=new THREE.Mesh(new THREE.PlaneGeometry(w,yT-yB),fm);fall.position.set(Math.sin(a)*(R-1.5),(yT+yB)/2,Math.cos(a)*(R-1.5));fall.rotation.y=a+Math.PI;DR[1].add(fall);
+    const pool=new THREE.Mesh(new THREE.CircleGeometry(w*.8,24).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xff7a2a,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false}));pool.position.set(Math.sin(a)*(R-4),RIVER_Y+.08,Math.cos(a)*(R-4));DR[1].add(pool)}
+  const rcv=cnv(256,64),rxx=rcv.getContext('2d');{const gr=rxx.createLinearGradient(0,0,0,64);gr.addColorStop(0,'#ff4a10');gr.addColorStop(.5,'#ffc860');gr.addColorStop(1,'#ff4a10');rxx.fillStyle=gr;rxx.fillRect(0,0,256,64);const R2=rng(43);for(let i=0;i<120;i++){rxx.fillStyle=`rgba(${120+R2()*80},${20+R2()*30},0,${.3+R2()*.5})`;rxx.fillRect(R2()*256,R2()*64,8+R2()*30,2+R2()*5)}}
+  const rft=tex(rcv);rft.repeat.set(30,1);o.ringTex=rft;
+  const ring=new THREE.Mesh(new THREE.RingGeometry(R-12,R+1,128,1),new THREE.MeshBasicMaterial({map:rft,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=3508;DR[1].add(ring);
+  {const uv=ring.geometry.attributes.uv,P=ring.geometry.attributes.position;for(let i=0;i<uv.count;i++){const x=P.getX(i),y=P.getY(i);uv.setXY(i,(Math.atan2(y,x)/TAU+.5),(Math.hypot(x,y)-(R-12))/13)}}
+  addGeo(sb('rock',3507),insideOut(new THREE.CylinderGeometry(R-12,R-12,3,96,1,true)),M(0,3507,0,0,1,1,1),'#2a1a16',20,1);
+  // mist over the black river
+  const pm=new THREE.SpriteMaterial({map:T.puff,color:0x4a7a70,transparent:true,opacity:.12,depthWrite:false,fog:true});const R4=rng(7);
+  for(let i=0;i<18;i++){const a=R4()*TAU,r=40+R4()*48,s=16+R4()*20,sp=new THREE.Sprite(pm);sp.position.set(Math.sin(a)*r,RIVER_Y+.8+R4()*2.5,Math.cos(a)*r);sp.scale.set(s*2,s*.35,1);DR[1].add(sp)}
+  // the Lodestar, a great star over the top, seen from the open sky; and far clouds of colour
+  {const c=cnv(128,128),x=c.getContext('2d'),g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,255,250,1)');g.addColorStop(.12,'rgba(220,235,255,.95)');g.addColorStop(.4,'rgba(160,190,255,.25)');g.addColorStop(1,'rgba(120,150,255,0)');x.fillStyle=g;x.fillRect(0,0,128,128);
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending}));s.scale.set(90,90,1);s.position.set(0,TOP3+70,0);DR[1].add(s);o.star=s}
+  o.nebula=[];{const R2=rng(5005);for(let i=0;i<10;i++){const c=cnv(256,256),x=c.getContext('2d'),cc=[[150,90,255],[255,110,190],[90,170,255],[110,255,220],[255,190,110]][i%5];
+    for(let k=0;k<12;k++){const px=50+R2()*156,py=70+R2()*116,r=20+R2()*70,g=x.createRadialGradient(px,py,0,px,py,r);g.addColorStop(0,`rgba(${cc[0]},${cc[1]},${cc[2]},.5)`);g.addColorStop(1,`rgba(${cc[0]},${cc[1]},${cc[2]},0)`);x.fillStyle=g;x.fillRect(0,0,256,256)}
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,opacity:0}));s.renderOrder=-7;const a=i/10*TAU+R2()*.5,e=.05+R2()*.45;s.userData.dir=new V3(Math.sin(a)*Math.cos(e),Math.sin(e),Math.cos(a)*Math.cos(e));s.scale.setScalar(900+R2()*900);DR[1].add(s);o.nebula.push(s)}}
+  // embers rising in the Burning River, ash drifting by the Hound's Gate, sparks of light above the rim (one set of points round the camera)
+  {const n=220,p=new Float32Array(n*3),g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
+    const m=new THREE.Points(g,new THREE.PointsMaterial({color:0xff8a3a,size:.14,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));m.frustumCulled=false;DR[1].add(m);
+    const seeds=[];for(let i=0;i<n;i++)seeds.push([rand(-20,20),rand(-12,16),rand(-20,20),rand(.6,1.4)]);o.motes={m,p,seeds}}
+  DRAW_DIM=0;return o;
+})();
+// the portals in the two gates (one on the Crown, one on the bank), and the great wheels' rims and spokes
+const gateFx=[],wheelFx=[],ventFx=[];
+function buildGates(){
+  const vs='varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
+  const fs='uniform float t;uniform float open;varying vec2 vU;void main(){vec2 p=vec2((vU.x-.5)*2.7,vU.y*6.3);float inside=p.y<4.85?step(abs(p.x),1.28):step(length(p-vec2(0.,4.85)),1.36);'+
+    'vec2 q=p-vec2(0.,2.9);float r=length(q*vec2(1.,.62)),a=atan(q.y,q.x);float sw=.5+.5*sin(a*3.+r*5.-t*2.2)+.35*sin(a*5.-r*3.+t*1.3);'+
+    'vec3 c=mix(vec3(.35,.2,.85),vec3(.35,1.,.85),.5+.5*sin(r*2.-t));c=mix(c,vec3(1.),smoothstep(.85,1.4,sw)*.5);float edge=smoothstep(0.,.25,1.28-abs(p.x));'+
+    'float al=inside*(.18+.62*open)*(.45+.55*sw)*(p.y<4.85?edge:1.);gl_FragColor=vec4(c*al,1.);}';
+  for(const s of gateSpots){const u={t:{value:0},open:{value:s.side?1:0}};
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(2.7,6.3),new THREE.ShaderMaterial({uniforms:u,vertexShader:vs,fragmentShader:fs,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide}));
+    m.position.set(s.x,s.y+3.15,s.z);m.rotation.y=s.yaw;DR[s.side].add(m);
+    gateFx.push({s,m,u,k:s.side?1:0})}
+  // heat vents: a column of shimmering fire and embers while one blows (and a flicker just before)
+  for(const f of course.fans){if(!f.T)continue;const g=new THREE.Group();g.position.set(f.x,f.y0,f.z);
+    const h=f.y1-f.y0,cm=new THREE.MeshBasicMaterial({color:0xff7a2a,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide});
+    const col=new THREE.Mesh(new THREE.CylinderGeometry(f.r*.8,f.r*.95,h,16,1,true),cm);col.position.y=h/2;g.add(col);
+    const pg=new THREE.BufferGeometry(),n=40,pp=new Float32Array(n*3),sd=[];for(let i=0;i<n;i++){const a=Math.random()*7,r=Math.random()*f.r*.8;sd.push([Math.sin(a)*r,Math.random()*h,Math.cos(a)*r])}
+    pg.setAttribute('position',new THREE.BufferAttribute(pp,3));const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0xffc070,size:.18,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));g.add(pts);
+    DR[1].add(g);ventFx.push({f,g,cm,pts,sd,h,k:0})}
+  for(const d of wheelSpots){const o=1.25+.55,g=new THREE.Group(),r=new THREE.Group();g.position.set(d.x+d.px*o,d.y,d.z+d.pz*o);g.rotation.y=Math.atan2(d.px,d.pz);g.add(r);
+    const mm=new THREE.MeshLambertMaterial({color:0x6a6478}),gm=new THREE.MeshBasicMaterial({color:0xb9a8ff});
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(d.R,.22,6,64),mm);r.add(rim);const rim2=new THREE.Mesh(new THREE.TorusGeometry(d.R-.6,.08,4,64),gm);r.add(rim2);
+    for(let i=0;i<12;i++){const a=i/12*TAU,sp=new THREE.Mesh(GEO.box,mm);sp.scale.set(.16,d.R,.16);sp.position.set(Math.cos(a)*d.R/2,Math.sin(a)*d.R/2,0);sp.rotation.z=a-Math.PI/2;r.add(sp)}
+    const hub=new THREE.Mesh(cylG(16),mm);hub.scale.set(1.2,.8,1.2);hub.rotation.x=Math.PI/2;r.add(hub);
+    DR[1].add(g);const gd=course.cols.find(c=>c.dyn&&c.dyn.type==='wheel'&&Math.abs(c.dyn.cx-d.x)<.01&&Math.abs(c.dyn.cz-d.z)<.01);wheelFx.push({g,r,d,T:gd?gd.dyn.T:40,sd:gd&&gd.extra?gd.extra.wheel:1})}
+}
+// the gates (either side): the one on the Crown glows once it's open to you (only near it: they're the only thing here)
+function updateGates(dt){const cp=camera.position;for(const g of gateFx){if(g.s.side!==VD||Math.abs(cp.y-g.s.y)>120)continue;const want=g.s.side?1:gateOpen()?1:0;g.k+=(want-g.k)*(1-Math.exp(-dt*3));g.u.t.value=performance.now()/1000;g.u.open.value=g.k}}
+// the far side's sky and its moving bits, every frame (VD: which side is drawn)
+function farSide(dt,y){
+  const t=W.t,k=UW;
+  k.river.rotation.y=t*.006;k.sheen.rotation.y=-t*.011;k.fallTex.offset.y=-(t*.55)%1;k.ringTex.offset.x=(t*.02)%1;
+  const open=fade(y,4420,9000,140);k.star.visible=open>0;k.star.material.opacity=open;
+  const cp=camera.position;for(const s of k.nebula){s.material.opacity=open*.8;s.position.copy(cp).addScaledVector(s.userData.dir,2600)}
+  // motes: embers (rising, orange), ash (drifting, grey), sparks (twinkling, pale violet)
+  const z=U.zoneAt(y),M2=k.motes,kind=z===11?0:z===12?1:z>=13?2:-1;M2.m.visible=kind>=0;
+  if(kind>=0){const col=[0xff8a3a,0xb8b4c4,0xd8c8ff][kind];if(M2.m.material.color.getHex()!==col)M2.m.material.color.setHex(col);M2.m.material.opacity=[.85,.55,.7][kind];M2.m.material.size=[.16,.12,.1][kind];
+    const p=M2.p,vy=[3.2,-.6,.4][kind];
+    for(let i=0;i<M2.seeds.length;i++){const s=M2.seeds[i];s[1]+=vy*s[3]*dt;s[0]+=Math.sin(t*.7+i)*dt*(kind===1?1.2:.3);if(s[1]>16)s[1]-=28;else if(s[1]<-12)s[1]+=28;if(s[0]>20)s[0]-=40;else if(s[0]<-20)s[0]+=40;
+      p[i*3]=cp.x+s[0];p[i*3+1]=cp.y+s[1];p[i*3+2]=cp.z+s[2]}M2.m.geometry.attributes.position.needsUpdate=true}
+  if(VD===1)for(const v of ventFx){const near=Math.abs(v.f.y0-cp.y)<80;v.g.visible=near;if(!near)continue;const u=((t/v.f.T+v.f.ph)%1+1)%1,on=u<v.f.on,warn=!on&&u>1-.5/v.f.T;
+    v.k+=((on?1:warn?.25:0)-v.k)*(1-Math.exp(-dt*10));v.cm.opacity=v.k*.28;v.pts.material.opacity=v.k;const P=v.pts.geometry.attributes.position;
+    if(v.k>.01){for(let i=0;i<v.sd.length;i++){const s=v.sd[i];s[1]+=dt*(6+i%5);if(s[1]>v.h)s[1]-=v.h;P.setXYZ(i,s[0]*(1+s[1]/v.h*.3),s[1],s[2]*(1+s[1]/v.h*.3))}P.needsUpdate=true}}
+  for(const w of wheelFx){if(VD!==1)break;const a=TAU*t/w.T;w.r.rotation.z=-w.sd*a}
 }
 const hillMeshes=[];
 const scenery=buildScenery();
 buildWorld();
+buildGates();
 // =====================================================================
 //  Beyond the beacon: the skies of the new zones. Curtains of light over Aurora Drift; rain, lightning and
 //  gusts in Storm Front; the curve of the world under Orbit Yard; a star over the Crown. All drawing only.
@@ -2467,21 +3239,21 @@ const auroraFx=(()=>{
     for(let k=0;k<P.count;k++){const u=uv.getX(k),v=uv.getY(k),a=a0+span*u,r=R0+Math.sin(u*9+i)*24;P.setXYZ(k,Math.sin(a)*r,base+v*H+Math.sin(u*5+i*2)*20,Math.cos(a)*r)}
     geo.computeBoundingSphere();const m=new THREE.Mesh(geo,mat);m.frustumCulled=false;m.renderOrder=-7;g.add(m);
   }
-  g.visible=false;scene.add(g);return{g,uni};
+  g.visible=false;DR[0].add(g);return{g,uni};
 })();
 const rainFx=(()=>{const n=260,p=new Float32Array(n*6),g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
-  const m=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xb8c8dc,transparent:true,opacity:0,depthWrite:false}));m.frustumCulled=false;scene.add(m);
+  const m=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xb8c8dc,transparent:true,opacity:0,depthWrite:false}));m.frustumCulled=false;DR[0].add(m);
   const seeds=[];for(let i=0;i<n;i++)seeds.push([rand(-18,18),rand(-14,14),rand(-18,18)]);return{m,p,seeds}})();
 const windFx=(()=>{const n=70,p=new Float32Array(n*6),g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));
-  const m=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false}));m.frustumCulled=false;scene.add(m);
+  const m=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0,depthWrite:false}));m.frustumCulled=false;DR[0].add(m);
   const seeds=[];for(let i=0;i<n;i++)seeds.push([rand(-12,12),rand(-3,6),rand(-12,12),rand(.6,1.8)]);return{m,p,seeds}})();
 const planetFx=(()=>{const c=cnv(512,256),x=c.getContext('2d');x.fillStyle='#2a5fc4';x.fillRect(0,0,512,256);const R=rng(404);
   for(let i=0;i<70;i++){x.fillStyle=R()<.5?'rgba(80,150,90,.55)':'rgba(255,255,255,.5)';x.beginPath();x.ellipse(R()*512,R()*256,10+R()*60,4+R()*16,R()*3,0,7);x.fill()}
-  const m=new THREE.Mesh(new THREE.SphereGeometry(1,64,32),new THREE.MeshBasicMaterial({map:tex(c),fog:false,depthWrite:false,transparent:true,opacity:0}));m.renderOrder=-6;m.frustumCulled=false;m.visible=false;scene.add(m);
-  const halo=new THREE.Mesh(new THREE.SphereGeometry(1,64,32),new THREE.MeshBasicMaterial({color:0x6fa8ff,fog:false,depthWrite:false,transparent:true,opacity:0,side:THREE.BackSide,blending:THREE.AdditiveBlending}));halo.renderOrder=-7;halo.frustumCulled=false;halo.visible=false;scene.add(halo);
+  const m=new THREE.Mesh(new THREE.SphereGeometry(1,64,32),new THREE.MeshBasicMaterial({map:tex(c),fog:false,depthWrite:false,transparent:true,opacity:0}));m.renderOrder=-6;m.frustumCulled=false;m.visible=false;DR[0].add(m);
+  const halo=new THREE.Mesh(new THREE.SphereGeometry(1,64,32),new THREE.MeshBasicMaterial({color:0x6fa8ff,fog:false,depthWrite:false,transparent:true,opacity:0,side:THREE.BackSide,blending:THREE.AdditiveBlending}));halo.renderOrder=-7;halo.frustumCulled=false;halo.visible=false;DR[0].add(halo);
   return{m,halo}})();
 const crownStar=(()=>{const c=cnv(128,128),x=c.getContext('2d'),g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,250,230,1)');g.addColorStop(.15,'rgba(255,224,140,.9)');g.addColorStop(.45,'rgba(255,200,120,.2)');g.addColorStop(1,'rgba(255,180,120,0)');x.fillStyle=g;x.fillRect(0,0,128,128);
-  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending}));s.scale.set(70,70,1);s.position.set(0,U.TOP+46,0);s.visible=false;scene.add(s);return s})();
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending}));s.scale.set(70,70,1);s.position.set(0,U.TOP+46,0);s.visible=false;DR[0].add(s);return s})();
 const fade=(y,a,b,w)=>clamp((y-a)/w,0,1)*clamp((b-y)/w,0,1);
 function beyondSky(y){
   const t=performance.now()/1000;
@@ -2500,7 +3272,7 @@ function beyondSky(y){
     const a=rand(0,Math.PI*2),d=rand(140,320),cp=camera.position,pts=[];let x=cp.x+Math.sin(a)*d,z=cp.z+Math.cos(a)*d,yy=cp.y+rand(90,160);
     while(yy>cp.y-120){const nx=x+rand(-9,9),nz=z+rand(-9,9),ny=yy-rand(12,26);pts.push(x,yy,z,nx,ny,nz);x=nx;z=nz;yy=ny}
     const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
-    BY.bolt=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xe8f0ff,fog:false,transparent:true}));scene.add(BY.bolt);BY.boltT=t;
+    BY.bolt=new THREE.LineSegments(g,new THREE.LineBasicMaterial({color:0xe8f0ff,fog:false,transparent:true}));DR[0].add(BY.bolt);BY.boltT=t;
     if(ac)setTimeout(()=>sfx('thunder',d),d/340*1000);
   }
   if(BY.bolt){const k=1-(t-BY.boltT)/.35;if(k<=0){scene.remove(BY.bolt);BY.bolt.geometry.dispose();BY.bolt=null}else BY.bolt.material.opacity=k}
@@ -2531,10 +3303,10 @@ function updateWindFx(dt){
 function _wdir(){const y=me.y+1;for(const w of W.winds)if(y>=w.y0&&y<w.y1)return[w.dx,w.dz];return[0,1]}
 
 // fans: spinning blades and rising streaks
-const fanFx=course.fans.map(f=>{const g=new THREE.Group();const bm=new THREE.MeshLambertMaterial({color:0xd9dee5});for(let i=0;i<4;i++){const b=new THREE.Mesh(GEO.box,bm);b.scale.set(.32,.04,1.1);b.position.set(Math.sin(i*Math.PI/2)*.55,0,Math.cos(i*Math.PI/2)*.55);b.rotation.y=i*Math.PI/2;b.rotation.z=.35;g.add(b)}
-  g.position.set(f.x,f.y0+.08,f.z);scene.add(g);
+const fanFx=course.fans.filter(f=>!f.T).map(f=>{const g=new THREE.Group();const bm=new THREE.MeshLambertMaterial({color:0xd9dee5});for(let i=0;i<4;i++){const b=new THREE.Mesh(GEO.box,bm);b.scale.set(.32,.04,1.1);b.position.set(Math.sin(i*Math.PI/2)*.55,0,Math.cos(i*Math.PI/2)*.55);b.rotation.y=i*Math.PI/2;b.rotation.z=.35;g.add(b)}
+  g.position.set(f.x,f.y0+.08,f.z);DR[0].add(g);
   const pg=new THREE.BufferGeometry(),n=50,pp=new Float32Array(n*3);for(let i=0;i<n;i++){const a=Math.random()*7,r=Math.random()*f.r;pp[i*3]=f.x+Math.sin(a)*r;pp[i*3+1]=f.y0+Math.random()*(f.y1-f.y0);pp[i*3+2]=f.z+Math.cos(a)*r}
-  pg.setAttribute('position',new THREE.BufferAttribute(pp,3));const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0xffffff,size:.12,transparent:true,opacity:.7,depthWrite:false}));scene.add(pts);
+  pg.setAttribute('position',new THREE.BufferAttribute(pp,3));const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0xffffff,size:.12,transparent:true,opacity:.7,depthWrite:false}));DR[0].add(pts);
   return{f,g,pts}});
 
 
@@ -2612,11 +3384,17 @@ function makeTag(name,color){
 const G={mode:'menu',paused:false,winShown:false,spec:null,hold:0,lastSave:0,shake:0,net:false,bot:null,stepDist:0,lastZone:0,pbShown:false,slow:0,timeScale:1};
 const START=PATH[0];
 let me=U.Body(START.x,START.y1,START.z);me.gnd=START;me.yaw=Math.PI/2;
-// run.mile: the run clock when you passed the old summit (0 until then); run.fin: when you reached the Crown
-const run={t:0,falls:0,jumps:0,maxY:0,fin:0,mile:0,zone:0};
+// run.mile: the run clock when you passed the old summit (0 until then); run.fin: when you reached the Crown.
+// Through the gate: run.u is the far side's own clock (from stepping out of the gate onto the bank, the same for a
+// run from the street and one from the Crown gate), run.top its time at the Lodestar (0 until then), and run.cp is 1
+// for a run started at the Crown gate (it never counts for the old summit or the Crown).
+const run={t:0,falls:0,jumps:0,maxY:0,fin:0,mile:0,zone:0,u:0,top:0,cp:0};
 // best: h best height; time and wins: fastest to the old summit (1000 m) and how many times (the `summit` and `summits`
 // stats, so times from before the course grew still compare); t2 and w2: the same for the Crown (`summit2`)
-const best=(b=>({h:num(b.h,0,0,TOP+5),time:num(b.time,0,0,1e7),wins:num(b.wins,0,0,1e6)|0,t2:num(b.t2,0,0,1e7),w2:num(b.w2,0,0,1e6)|0}))(Object(store.get('best',{})));
+// t3 and w3: the fastest climb from the gate on the Crown to the Lodestar, and how many (the `summit3` stat)
+const best=(b=>({h:num(b.h,0,0,TOP3+5),time:num(b.time,0,0,1e7),wins:num(b.wins,0,0,1e6)|0,t2:num(b.t2,0,0,1e7),w2:num(b.w2,0,0,1e6)|0,t3:num(b.t3,0,0,1e7),w3:num(b.w3,0,0,1e6)|0}))(Object(store.get('best',{})));
+// Has this browser reached the Crown, on any run, before or since the gate was there? Then it may start at the gate.
+const crownReached=()=>best.t2>0||best.w2>0||best.h>=TOP-5||run.fin>0||run.cp>0;
 const myAv=makeAvatar(myColor);scene.add(myAv.root);const myShadow=makeShadow();
 // Is a body standing at (x, y, z) inside something solid (say, a saved spot after the course changed)?
 const _iq=[];
@@ -2637,7 +3415,7 @@ function placeSaved(s,x,y,z){
   if(s.v&&!insideAt(x,y,z)){
     const b=U.Body(x,y,z),v=Array.isArray(s.v)?s.v:[];
     b.vx=num(v[0],0,-40,40);b.vy=num(v[1],0,-C.MAXFALL,30);b.vz=num(v[2],0,-40,40);
-    b.fallFrom=b.peakY=Math.max(y,num(s.ff,y,0,TOP+5));b.airCap=Math.max(Math.hypot(b.vx,b.vz),C.WALK);b.cut=true;
+    b.fallFrom=b.peakY=Math.max(y,num(s.ff,y,0,TOP3+5));b.airCap=Math.max(Math.hypot(b.vx,b.vz),C.WALK);b.cut=true;
     return b;
   }
   if(!s.v){
@@ -2649,15 +3427,17 @@ function placeSaved(s,x,y,z){
     }
   }
   let bestC=START,bd=1e9;
-  for(const c of PATH){if(c.dyn||c.kind||c.y1>y+.5)continue;const d=Math.hypot(c.x-x,c.z-z,(y-c.y1)*1.5);if(d<bd&&!insideAt(c.x,c.y1,c.z)){bd=d;bestC=c}}
+  for(const c of PATH){if(c.dyn||c.kind||c.y1>y+.5||U.dimAt(c.y1)!==U.dimAt(y))continue;const d=Math.hypot(c.x-x,c.z-z,(y-c.y1)*1.5);if(d<bd&&!insideAt(c.x,c.y1,c.z)){bd=d;bestC=c}}
   const b=U.Body(bestC.x,bestC.y1,bestC.z);b.gnd=bestC;b.lastLand=bestC;return b;
 }
 function loadRun(){
   const s=store.get('run',null);
   if(!s||typeof s!=='object'||!isFinite(s.x)||!isFinite(s.y)||!isFinite(s.z))return false;
-  me=placeSaved(s,clamp(+s.x,-400,400),clamp(+s.y,0,TOP+2)+.02,clamp(+s.z,-400,400));
+  me=placeSaved(s,clamp(+s.x,-400,400),clamp(+s.y,0,TOP3+2)+.02,clamp(+s.z,-400,400));
   me.yaw=num(s.yaw,0,-1e4,1e4);me.falls=Math.max(0,s.falls|0);me.jumps=Math.max(0,s.jumps|0);
-  Object.assign(run,{t:num(s.t,0,0,1e7),falls:me.falls,jumps:me.jumps,maxY:Math.max(num(s.maxY,0,0,TOP+5),me.y),fin:num(s.fin,0,0,1e7),mile:num(s.mile,0,0,1e7),zone:U.zoneAt(me.y)});
+  // (ver 3 added u, top and cp: a run saved before them has none, so it's a run from the street that hasn't been through the gate)
+  Object.assign(run,{t:num(s.t,0,0,1e7),falls:me.falls,jumps:me.jumps,maxY:Math.max(num(s.maxY,0,0,TOP3+5),me.y),fin:num(s.fin,0,0,1e7),mile:num(s.mile,0,0,1e7),zone:U.zoneAt(me.y),
+    u:num(s.u,0,0,1e7),top:num(s.top,0,0,1e7),cp:s.cp?1:0});
   // a run saved before the course grew (no ver): reaching the top then was reaching the old summit, so that time is
   // the milestone's, and the run carries on from there with the clock where it stopped
   if(!s.ver&&run.fin){run.mile=run.fin;run.t=Math.max(run.t,run.fin);run.fin=0}
@@ -2666,7 +3446,7 @@ function loadRun(){
 // Saved: where you stand; on a moving platform, which one and where on it; in the air, your speed and
 // where the fall started too (so coming back mid-fall carries on with the same fall).
 function saveRun(){
-  const o={ver:2,x:r2(me.x),y:r2(me.y),z:r2(me.z),yaw:r3(me.yaw),t:Math.round(run.t*10)/10,falls:me.falls,jumps:me.jumps,maxY:Math.round(run.maxY*10)/10,fin:run.fin,mile:run.mile};
+  const o={ver:3,x:r2(me.x),y:r2(me.y),z:r2(me.z),yaw:r3(me.yaw),t:Math.round(run.t*10)/10,falls:me.falls,jumps:me.jumps,maxY:Math.round(run.maxY*10)/10,fin:run.fin,mile:run.mile,u:Math.round(run.u*10)/10,top:run.top,cp:run.cp};
   const m=me.mantle,g=me.gnd;
   if(ride){const e=ride.ph[ride.ph.length-1].b;o.x=r2(e[0]);o.y=r2(e[1]);o.z=r2(e[2])}   // in the lift or on the stairs: where they come out
   else if(m){o.x=r2(m.tx);o.y=r2(m.ty);o.z=r2(m.tz)}   // halfway up a ledge: the top of it
@@ -2675,10 +3455,14 @@ function saveRun(){
   store.set('run',o);
 }
 function saveBest(){store.set('best',best)}
-function newRun(){
-  me=U.Body(START.x,START.y1+.02,START.z);me.gnd=START;me.yaw=Math.PI/2;camYaw=Math.PI/2;camPitch=.3;
+// A new run: from the street, or (where: 'gate', for anyone who has reached the Crown) at the gate on the Crown,
+// standing on the bank on its far side where the ride through it comes out, with the far side's clock at zero.
+function newRun(where){
+  const gate=where==='gate'&&!!course.portal,o=gate?course.portal.out:null;
+  me=gate?U.Body(o[0],o[1]+.02,o[2]):U.Body(START.x,START.y1+.02,START.z);me.gnd=gate?course.portal.bank:START;me.yaw=gate?gateFaceYaw():Math.PI/2;camYaw=me.yaw;camPitch=.3;
   if(ride){ride=null;setHum(false);for(const k in doorWant)doorWant[k]=0;if(myAv.root.parent!==scene)scene.add(myAv.root)}
-  Object.assign(run,{t:0,falls:0,jumps:0,maxY:0,fin:0,mile:0,zone:0});G.winShown=false;G.spec=null;G.pbShown=false;G.lastZone=0;
+  const z=U.zoneAt(me.y);
+  Object.assign(run,{t:0,falls:0,jumps:0,maxY:gate?me.y:0,fin:0,mile:0,zone:z,u:0,top:0,cp:gate?1:0});G.winShown=false;G.spec=null;G.pbShown=false;G.lastZone=z;
   saveRun();for(const k in hudCache)delete hudCache[k];
 }
 let hadRun=loadRun();
@@ -2759,7 +3543,7 @@ function updateFp(dt){
   myAv.root.visible=false;
 }
 // the camera for this frame: first person, or the orbiting one
-function updateView(dt,fdt){if(G.gear&&GEAR){GEAR.cam(dt);return}if(fpOn())updateFp(dt);else if(ride&&ride.kind!=='gust'&&G.mode!=='menu'&&!G.spec)rideCamera(dt);else updateCamera(dt,fdt)}
+function updateView(dt,fdt){if(G.gear&&GEAR){GEAR.cam(dt);return}if(fpOn())updateFp(dt);else if(ride&&(ride.kind==='lift'||ride.kind==='elev')&&G.mode!=='menu'&&!G.spec)rideCamera(dt);else updateCamera(dt,fdt)}
 // fdt: the time step for following the climber (shorter in slow motion, so the framing stays the same)
 function updateCamera(dt,fdt){
   if(fdt==null)fdt=dt;
@@ -2779,6 +3563,7 @@ function updateCamera(dt,fdt){
   const hit=rayHit(camPivot.x,camPivot.y,camPivot.z,dx,dy,dz,camDist+.3);
   let d=Math.min(camDist,hit-.32);if(d<.35)d=.35;
   camera.position.set(camPivot.x+dx*d,camPivot.y+dy*d,camPivot.z+dz*d);
+  if(VD===1&&camera.position.y<RIVER_Y+.4)camera.position.y=RIVER_Y+.4;   // through the gate: never under the river
   // just off a ride: glide from where the ride's camera left off instead of cutting
   if(rideCamEnd){const k=clamp((performance.now()-rideCamEnd.t)/700,0,1);if(k>=1)rideCamEnd=null;else camera.position.lerp(rideCamEnd.p,1-k*k*(3-2*k))}
   if(G.shake>0){G.shake=Math.max(0,G.shake-dt*2.2);const s=G.shake*.12;camera.position.x+=rand(-s,s);camera.position.y+=rand(-s,s);camera.position.z+=rand(-s,s)}
@@ -2825,7 +3610,7 @@ const secretMesh={};
     const dg=new THREE.Group();dg.position.set(L.door[0]+.03,L.y0,L.door[1]);
     dg.add(bx(yelD,.1,.14,1.3,0,2.33,0));dg.add(bx(yelD,.1,2.4,.12,0,1.2,-.59));dg.add(bx(yelD,.1,2.4,.12,0,1.2,.59));
     const l1=bx(yel,.05,2.15,.52,.06,1.075,-.26),l2=bx(yel,.05,2.15,.52,.06,1.075,.26);dg.add(l1);dg.add(l2);
-    scene.add(dg);secretMesh.liftDoor={g:dg,l1,l2};
+    DR[0].add(dg);secretMesh.liftDoor={g:dg,l1,l2};
     // the cab: a cage with a floor, a roof, posts, waist panels and its own gate (two sliding leaves) on the +x side
     const makeCab=()=>{const g=new THREE.Group();const st=new THREE.MeshLambertMaterial({map:T.stripes});
       g.add(bx(st,1.2,.06,1.2,0,.03,0));g.add(bx(yelD,1.2,.05,1.2,0,2.2,0));
@@ -2835,7 +3620,7 @@ const secretMesh={};
       // the gate: two leaves, each a waist panel, a top rail and an edge post (open above, so you can see out on the way up)
       const leaf=z=>{const q=new THREE.Group();q.position.set(.58,0,z);q.add(bx(yel,.04,.95,.56,0,.52,0));q.add(bx(yelD,.05,.06,.56,0,2.06,0));q.add(bx(yelD,.05,2.12,.05,0,1.06,z<0?.255:-.255));g.add(q);return q};
       g.leaves=[leaf(-.28),leaf(.28)];
-      g.position.set(L.mx,cabY,L.mz);scene.add(g);return g};
+      g.position.set(L.mx,cabY,L.mz);DR[0].add(g);return g};
     secretMesh.cab=makeCab();secretMesh.cab2=makeCab();secretMesh.cab2.visible=false;
   }
   const E=SEC.elev;
@@ -2851,12 +3636,12 @@ const secretMesh={};
       const dw=new THREE.Mesh(new THREE.PlaneGeometry(1.24,2.25),hole);dw.position.set(0,1.125,.012);g.add(dw);
       const l1=bx(steel,.62,2.22,.04,-.31,1.11,.045),l2=bx(steel,.62,2.22,.04,.31,1.11,.045);g.add(l1);g.add(l2);
       for(const l of [l1,l2])l.add(bx(steelD,.9,.03,1.3,0,-.42,0));   // a kick strip low across each leaf (sized in the leaf's own scale)
-      scene.add(g);return{g,l1,l2}};
+      DR[0].add(g);return{g,l1,l2}};
     const c=E.cab,B=course.cols.find(q=>q.v==='facade'&&!q.deco&&q.hx===E.half);
     secretMesh.eFront=door(E.door[0],E.y0,E.door[1],yaw,LM(shade(B?B.col:'#94877d',1.12),T.concrete));
     secretMesh.eBack=door(c[0]-E.n[0]*E.D/2,E.y1,c[1]-E.n[1]*E.D/2,yaw+Math.PI);
     // a louvred vent on the lift room's side, so it reads as a machine room
-    {const vg=new THREE.Group();vg.position.set(c[0],E.y1,c[1]);vg.rotation.y=yaw;for(let i=0;i<5;i++)vg.add(bx(steelD,.05,.05,.9,1.53,1.7+i*.16,0));scene.add(vg)}
+    {const vg=new THREE.Group();vg.position.set(c[0],E.y1,c[1]);vg.rotation.y=yaw;for(let i=0;i<5;i++)vg.add(bx(steelD,.05,.05,.9,1.53,1.7+i*.16,0));DR[0].add(vg)}
     // the shaft inside the block, drawn only while the camera is in it (over everything else, see renderAll):
     // concrete walls with a doorway at the foot (out of the face) and one at the top (into the lift room), guide rails, lamps
     const wall=LM('#8f8a83',T.concrete),floorM=LM('#6e6a64',T.concrete),rail=LM('#55595e');
@@ -2909,6 +3694,17 @@ function ridePlan(kind){
     P('ride',clamp((E.y1-E.y0)/8,5.6,12),c0,c1,yin,null,true);
     P('ding',.7,c1,c1,yin);P('out',1,c1,out,yin);
     const nx=PATH[E.roof+1];if(nx)P('face',.45,out,out,yin,Math.atan2(nx.x-out[0],nx.z-out[2]));
+  }else if(kind==='portal'){
+    // through the gate on the Crown: step into it, a swirl of light (you're carried through at the middle of it), and
+    // out of the gate on the bank on the far side, turning to face the way on. PORTAL_T seconds in all, as runBot counts it.
+    const g=course.portal,c0=[g.x,TOP,g.z],D=g.door,O=g.out,lz=(me.z-g.z)*Math.cos(g.yaw)+(me.x-g.x)*Math.sin(g.yaw),yin=g.yaw+(lz<0?0:Math.PI),yout=Math.atan2(O[0]-D[0],O[2]-D[2]);
+    P('in',.4,here,c0,Math.hypot(c0[0]-here[0],c0[2]-here[2])>.05?Math.atan2(c0[0]-here[0],c0[2]-here[2]):yin);
+    ph.push({n:'warp',dur:2.2,a:c0,b:D,ya:ph[0].ya,yb:yout,ease:true});
+    P('out',.6,D,O,yout);P('face',.4,O,O,yout,gateFaceYaw());
+  }else if(kind==='river'){
+    // into the black river: under you go, and the current brings you back to the bank by the gate
+    const O=course.portal.out;
+    P('sink',1.1,here,[here[0],RIVER_Y-1.4,here[2]],me.yaw,null,true);P('back',.05,O,O,gateFaceYaw());P('rise',.9,O,O,gateFaceYaw());
   }else{
     // the updraft: a short dip as it catches you, then along its path (a smooth curve, at an eased pace, so it settles
     // you onto the book at the end), tumbling on the way up
@@ -2947,15 +3743,17 @@ let liftHoldT=0,liftHoldK=null;
 const LIFT_HOLD=1;
 const RIDE_NAME={lift:'the staff lift',elev:'the service elevator',gust:'the hidden updraft'};
 function startRide(kind){
-  if(ride||!SEC[kind])return false;
+  if(ride||!(SEC[kind]||(kind==='portal'||kind==='river')&&course.portal))return false;
   ride={kind,ph:ridePlan(kind),i:-1,t:0,gnd:me.gnd};
   me.vx=me.vy=me.vz=0;me.mantle=null;me.slide=null;me.buf=0;me.coy=0;G.slow=0;G.timeScale=1;   // slow motion lets go at once
   if(kind==='lift'){cabY=cabWant=SEC.lift.y0;cabBackT=0}   // the cab is waiting at the bottom (even if someone just rode it up)
   if(kind==='elev')ecabY=SEC.elev.y0;
   if(kind==='gust'){sfx('gust');puff(me.x,me.y+.6,me.z,22,0xffffff,2.4);G.shake=Math.max(G.shake,.35)}
-  foundSecret(kind,RIDE_NAME[kind]);
+  if(kind==='portal')sfx('portal');
+  if(kind==='river'){sfx('splash');splash(me.x,me.z)}
+  if(RIDE_NAME[kind])foundSecret(kind,RIDE_NAME[kind]);
   enterPhase();
-  if(!fpOn()&&kind!=='gust'){rideCamEnd=null;ride.cam=camera.position.clone()}
+  if(!fpOn()&&(kind==='lift'||kind==='elev')){rideCamEnd=null;ride.cam=camera.position.clone()}
   return true;
 }
 function enterPhase(){
@@ -2971,10 +3769,15 @@ function endRide(){
   let g=null;
   if(r.kind==='lift'){g=PATH.find(c=>c.v==='grate'&&c.hx===1.7&&Math.abs(c.y1-L.y1)<.01)||null;doorWant.cab=0;cabBackT=performance.now()+6000}
   else if(r.kind==='elev'){g=PATH[SEC.elev.roof]||null;doorWant.eb=0}
+  else if(r.kind==='portal'||r.kind==='river'){g=course.portal.bank}
   else{g=PATH[SEC.gust.land]||null;sfx('land',8,g&&g.surf);puff(me.x,me.y,me.z,10)}
   const s=U.support(W,me.x,me.z,me.y-.5,me.y+.5);if(s)me.y=s[0];
   me.gnd=(s&&s[1])||g||r.gnd;me.lastLand=me.gnd;me.vx=me.vy=me.vz=0;me.landT=0;me.impact=r.kind==='gust'?8:0;me.peakY=me.fallFrom=me.y;me.yawWant=me.yaw;
-  if(!fpOn()&&r.kind!=='gust'){camYaw=clearYaw(me.yaw);camPitch=.3;camPivot.set(me.x,me.y+1.45,me.z);rideCamEnd={p:camera.position.clone(),t:performance.now()}}
+  if(!fpOn()&&(r.kind==='lift'||r.kind==='elev')){camYaw=clearYaw(me.yaw);camPitch=.3;camPivot.set(me.x,me.y+1.45,me.z);rideCamEnd={p:camera.position.clone(),t:performance.now()}}
+  else if(!fpOn()&&(r.kind==='portal'||r.kind==='river')){camYaw=me.yaw;camPitch=.28;camPivot.set(me.x,me.y+1.45,me.z)}
+  // through the gate: the far side's clock starts now (the same moment for a run from the Crown gate, see newRun)
+  if(r.kind==='portal'){run.u=0;run.top=0;toast(TX('Through the gate'),TX('The climb to the Lodestar is timed from here.'),3.6);G.toastHold=performance.now()+3600;feed(TX('Fall anywhere on this side and the river brings you back to this bank.'))}
+  if(r.kind==='river')toast(TX('Back on the bank'),TX('The river carried you back to the gate. The clock kept running.'),2.8);
   if(myAv.root.parent!==scene)scene.add(myAv.root);
   saveRun();
 }
@@ -3008,6 +3811,13 @@ function rideStep(dt){
     return;
   }
   const walk=ph.n==='in'||ph.n==='out';
+  if(ph.n==='warp'){
+    // rise a little in the swirl, and come out of the far gate at the middle of it (the other side is drawn from then)
+    const q=k<.5?ph.a:ph.b,up=Math.sin(Math.min(1,k<.5?k*2:(1-k)*2)*Math.PI/2)*.7;me.x=q[0];me.y=q[1]+up;me.z=q[2];me.vx=me.vz=me.vy=0;
+    me.yaw=k<.5?ph.ya+k*2*Math.PI*1.5:ph.yb+(k-1)*2*Math.PI*.5;me.yawWant=me.yaw;
+    if(k>=.5&&!r.warped){r.warped=1;sfx('warp');G.flash=1}
+    if(r.t>=ph.dur)enterPhase();return;
+  }
   me.x=ph.a[0]+(ph.b[0]-ph.a[0])*e;me.y=ph.a[1]+(ph.b[1]-ph.a[1])*e;me.z=ph.a[2]+(ph.b[2]-ph.a[2])*e;
   me.vx=walk?(ph.b[0]-ph.a[0])/ph.dur:0;me.vz=walk?(ph.b[2]-ph.a[2])/ph.dur:0;me.vy=0;
   me.yaw=ph.ya+angDiff(ph.yb,ph.ya)*clamp(k*2.2,0,1);me.yawWant=me.yaw;
@@ -3212,13 +4022,24 @@ let wt=0,acc=0;
 function sharedTime(){return(Net.ready?Net.now():Date.now())/1000-EPOCH}
 wt=Date.now()/1000-EPOCH;U.setTime(W,wt);U.setTime(W,wt);
 const hudCache={};
+// the run clocks: this side of the gate the run clock (until the Crown); the far side its own (until the Lodestar), not
+// counting the ride through the gate
+function runTick(dt){if(G.mode!=='play'||G.paused)return;if(U.dimAt(me.y)){if(!run.top&&!(ride&&ride.kind==='portal'))run.u+=dt}else if(!run.fin)run.t+=dt}
+// Is the gate on the Crown open to you? Once you've reached the Crown on this run.
+function gateOpen(){return run.fin>0&&G.mode==='play'}
+// which way to face coming out of the gate on the far side: toward the next platform after the bank
+function gateFaceYaw(){const g=course.portal;if(!g)return 0;const n=PATH[g.bank.path+1],o=g.out;return n?Math.atan2(n.x-o[0],n.z-o[2]):Math.PI}
 function stepOnce(){
   const i=readInput();
   wt+=C.DT;U.setTime(W,wt);W.ev.length=0;
   const wasGnd=!!me.gnd;
   prevP.x=me.x;prevP.y=me.y;prevP.z=me.z;prevP.b=me;
-  if(ride)rideStep(C.DT);else{U.step(W,me,i,C.DT);if(inGust())startRide('gust')}
-  if(G.mode==='play'&&!run.fin&&!G.paused)run.t+=C.DT;
+  if(ride)rideStep(C.DT);else{U.step(W,me,i,C.DT);if(inGust())startRide('gust')
+    // the gate on the Crown, once you've reached the Crown: walk into it and you're taken through
+    else if(gateOpen()&&!G.spec&&U.inPortal(course,me))startRide('portal');
+    // through the gate, falling into the black river: back to the bank
+    else if(prevP.y>=RIVER_Y&&me.y<RIVER_Y&&course.portal){const fell=Math.round(me.fallFrom-RIVER_Y);if(fell>10)me.falls++;run.falls=me.falls;startRide('river');if(fell>=15)feed(TX('Fell {d} m into the river',{d:fell}))}}
+  runTick(C.DT);
   if(me.y>run.maxY)run.maxY=me.y;
   for(const e of W.ev)onEvent(e);
   // footsteps
@@ -3236,6 +4057,8 @@ function onEvent(e){
   else if(k==='cannon'){sfx('cannon');puff(me.x,me.y,me.z,16,0xd8d0c0,2.2);G.shake=Math.max(G.shake,.5)}
   else if(k==='bounce'){sfx('bounce');if(e[1]&&e[1].kind==='launch')sfx('bounce');puff(me.x,me.y,me.z,8,0xffffff,1.2)}
   else if(k==='crack'){sfx('crack')}
+  else if(k==='warp'){sfx('warp');puff(e[1].x,e[1].y1,e[1].z,12,0xbfffff,1.6);puff(me.x,me.y,me.z,14,0xbfffff,1.8)}
+  else if(k==='knock'){sfx('knock');G.shake=Math.max(G.shake,.8)}
   else if(k==='mantle'){sfx('mantle')}
   else if(k==='bonk'){sfx('bonk')}
 }
@@ -3269,7 +4092,7 @@ function physics(dt){
   // the part of this frame the climber sits out: the world and the run clock still move on by it.
   // (Only ever in the air, so nobody is riding a platform that moves here.)
   const lag=dt*(1-s);
-  if(lag>0){wt+=lag;U.setTime(W,wt);if(G.mode==='play'&&!run.fin&&!G.paused)run.t+=lag}
+  if(lag>0){wt+=lag;U.setTime(W,wt);runTick(lag)}
   acc+=dt*s;let n=0;
   while(acc>=C.DT&&n<10){acc-=C.DT;n++;stepOnce()}
   if(n>=10)acc=0;
@@ -3287,11 +4110,12 @@ function physics(dt){
 function afterSteps(dt){
   // the old summit (a milestone now) and the top
   if(me.gnd&&me.gnd.summit===1&&!run.mile&&!run.fin){run.mile=Math.max(.1,run.t);onMilestone()}
-  if(me.gnd&&me.gnd.summit===2&&!run.fin){run.fin=Math.max(.1,run.t);onSummit()}
+  if(me.gnd&&me.gnd.summit===2&&!run.fin&&!run.cp){run.fin=Math.max(.1,run.t);onSummit()}
+  if(me.gnd&&me.gnd.summit===3&&!run.top){run.top=Math.max(.1,run.u);onTop3()}
   // standing on a pulse platform that's about to go dark: it ticks
   if(me.gnd&&me.gnd.kind==='blink'){const c=me.gnd,left=(c.blink.on-U.blinkU(c,W.t))*c.blink.T,q=Math.floor(left*4);if(left<1.2&&q!==G.tickQ){G.tickQ=q;sfx('tick')}}
   // a new zone (the new ones say what's special about them; not over the old summit's banner: it waits)
-  const z=U.zoneAt(run.maxY);if(z>G.lastZone&&me.gnd&&!(performance.now()<(G.toastHold||0))){G.lastZone=z;if(z>run.zone){run.zone=z;const Z=U.ZONES[z];toast(Z.name,Z.intro?NUM(Math.round(Z.y0))+' m · '+TX(Z.intro):Math.round(Z.y0)+' m',Z.intro?4.5:3);sfx('zone')}}
+  const z=U.zoneAt(run.maxY);if(z>G.lastZone&&me.gnd&&!(performance.now()<(G.toastHold||0))){G.lastZone=z;if(z>run.zone){run.zone=z;const Z=U.ZONES[z];toast(Z.name,Z.intro?NUM(Math.round(Z.at||Z.y0))+' m · '+TX(Z.intro):Math.round(Z.y0)+' m',Z.intro?4.5:3);sfx('zone')}}
   // a new best height
   if(run.maxY>best.h+.5){const was=best.h;best.h=Math.round(run.maxY*10)/10;if(was>25&&!G.pbShown){G.pbShown=true;feed('New best height! You\'re past '+Math.round(was)+' m');sfx('best')}if(performance.now()-(G.bestSaved||0)>3000){G.bestSaved=performance.now();saveBest()}}
   // save where you are (only standing on something that stays put)
@@ -3318,8 +4142,20 @@ function fireworks(x,y,z){
 function onSummit(){
   sfx('fanfare');confetti(me.x,me.y,me.z);fireworks(me.x,me.y,me.z);
   best.w2=(best.w2|0)+1;const pbT=!best.t2||run.fin<best.t2;if(pbT)best.t2=Math.round(run.fin*10)/10;best.h=Math.max(best.h,TOP);saveBest();saveRun();
+  $('winTitle').textContent=TX('You reached the Crown');$('winGate').hidden=true;
   $('wTime').innerHTML=esc(fmtT(run.fin))+(pbT?'<span class="pb">Best!</span>':'');$('wMax').textContent=Math.min(TOP,Math.round(run.maxY))+' m';$('wFalls').textContent=String(me.falls);$('wJumps').textContent=String(me.jumps);
-  $('winSub').textContent=(pbT&&best.w2>1?TX('A new best time.'):best.w2>1?TX('Best time {t}.',{t:fmtT(best.t2)}):TX('Your first time up here. 3000 metres, every one of them.'))+(run.mile?' '+TX('Old summit at {t}.',{t:fmtT(run.mile)}):'');
+  $('winSub').textContent=(pbT&&best.w2>1?TX('A new best time.'):best.w2>1?TX('Best time {t}.',{t:fmtT(best.t2)}):TX('Your first time up here. 3000 metres, every one of them.'))+(run.mile?' '+TX('Old summit at {t}.',{t:fmtT(run.mile)}):'')+' '+TX('A gate has opened on the Crown: 3000 metres more on the other side.');
+  $('winSpec').hidden=!(Net.refs&&[...others.values()].some(o=>o.live()));
+  G.winShown=true;$('win').hidden=false;unlock();showAd('adEnd');
+  if(Net.refs)Net.pub(true);
+}
+// The Lodestar, 6000 m: the top of the far side. Its time is the far side's own clock (from the gate on the Crown).
+function onTop3(){
+  sfx('fanfare');confetti(me.x,me.y,me.z);fireworks(me.x,me.y,me.z);
+  best.w3=(best.w3|0)+1;const pbT=!best.t3||run.top<best.t3;if(pbT)best.t3=Math.round(run.top*10)/10;best.h=Math.max(best.h,TOP3);saveBest();saveRun();
+  $('winTitle').textContent=TX('You reached the Lodestar');$('winGate').hidden=false;
+  $('wTime').innerHTML=esc(fmtT(run.top))+(pbT?'<span class="pb">Best!</span>':'');$('wMax').textContent=Math.min(TOP3,Math.round(run.maxY))+' m';$('wFalls').textContent=String(me.falls);$('wJumps').textContent=String(me.jumps);
+  $('winSub').textContent=(pbT&&best.w3>1?TX('A new best time from the gate.'):best.w3>1?TX('Best time from the gate {t}.',{t:fmtT(best.t3)}):TX('6000 metres. The time is from the gate on the Crown to here.'))+(run.fin&&!run.cp?' '+TX('The Crown at {t}.',{t:fmtT(run.fin)}):'');
   $('winSpec').hidden=!(Net.refs&&[...others.values()].some(o=>o.live()));
   G.winShown=true;$('win').hidden=false;unlock();showAd('adEnd');
   if(Net.refs)Net.pub(true);
@@ -3334,8 +4170,11 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 let toastT=0;function toast(t,s,sec){const b=$('toast');b.querySelector('b').textContent=t;b.querySelector('span').textContent=s||'';b.style.opacity='1';clearTimeout(toastT);toastT=setTimeout(()=>b.style.opacity='0',(sec||2.4)*1000)}
 function feed(t){const box=$('feed'),d=document.createElement('div');d.textContent=t;box.appendChild(d);while(box.children.length>4)box.firstChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},4200)}
 // zone ticks on the height bar
-(function(){const bar=$('bar');for(const z of U.ZONES){if(!z.y0)continue;const t=document.createElement('div');t.className='tick';t.style.bottom=(z.y0/TOP*100)+'%';t.textContent=z.name;bar.appendChild(t)}
-  const m=document.createElement('div');m.className='mile';m.title='Old summit, 1000 m';m.style.bottom=(SUMMIT/TOP*100)+'%';bar.appendChild(m)})();
+// the height bar runs to the Lodestar (6000 m), with a gold mark at the old summit and a violet one at the gate on the Crown
+const BAR=TOP3;
+(function(){const bar=$('bar');for(const z of U.ZONES){if(!z.y0)continue;const t=document.createElement('div');t.className='tick'+(z.at?' gate':'');t.style.bottom=((z.at||z.y0)/BAR*100)+'%';t.textContent=z.name;bar.appendChild(t)}
+  const m=document.createElement('div');m.className='mile';m.title='Old summit, 1000 m';m.style.bottom=(SUMMIT/BAR*100)+'%';bar.appendChild(m);
+  const g=document.createElement('div');g.className='mile gate';g.title='The Crown and its gate, 3000 m';g.style.bottom=(TOP/BAR*100)+'%';bar.appendChild(g)})();
 let hudT=0;
 function updateHud(dt){
   if(G.mode!=='play')return;
@@ -3344,8 +4183,9 @@ function updateHud(dt){
   setText('altN',String(Math.floor(y)));
   setText('zoneName',U.ZONES[U.zoneAt(y)].name);
   setText('runBest',Math.floor(run.maxY)+' m');setText('pbH',Math.floor(Math.max(best.h,run.maxY))+' m');
-  setText('clock',fmtT(run.fin||run.t));
-  $('barFill').style.height=clamp(y/TOP*100,0,100)+'%';$('barBest').style.bottom=clamp(run.maxY/TOP*100,0,100)+'%';
+  // through the gate the clock is the far side's own, from the gate
+  setText('clock',U.dimAt(me.y)?fmtT(run.top||run.u):fmtT(run.fin||run.t));
+  $('barFill').style.height=clamp(y/BAR*100,0,100)+'%';$('barBest').style.bottom=clamp(run.maxY/BAR*100,0,100)+'%';
   // hints
   let h='';
   if(!isTouch){h=G.spec?'<span><kbd>'+esc(KB.short('next'))+'</kbd> or click: next climber</span><span><kbd>Esc</kbd> stop watching</span>':'<span><kbd>'+esc(['forward','left','back','right'].map(a=>KB.short(a)).join(' '))+'</kbd> move</span><span><kbd>'+esc(KB.short('jump'))+'</kbd> jump</span><span><kbd>'+esc(KB.short('sprint'))+'</kbd> sprint</span><span><kbd>'+esc(KB.short('slowmo'))+'</kbd> slow-mo in the air</span><span><kbd>'+esc(KB.short('view'))+'</kbd> '+(view==='fp'?'third':'first')+' person</span><span><kbd>Wheel</kbd> zoom</span><span><kbd>'+esc(KB.short('restart'))+'</kbd> hold to restart</span><span><kbd>Esc</kbd> pause</span>'}
@@ -3361,16 +4201,17 @@ function renderBoard(){
   const on=!!Net.refs||!!G.fakeNet;setHidden('board',!on);
   // the dots on the height bar
   const bar=$('bar');const want=new Set();
-  if(on){for(const [id,o] of others){if(!o.live())continue;want.add(id);let d=o.dot;if(!d){d=o.dot=document.createElement('div');d.className='dot';bar.appendChild(d)}d.style.background=o.c;d.style.bottom=clamp(o.ent.y/TOP*100,0,100)+'%'}}
-  let md=bar.querySelector('.dot.me');if(!md){md=document.createElement('div');md.className='dot me';bar.appendChild(md)}md.style.background=myColor;md.style.bottom=clamp(me.y/TOP*100,0,100)+'%';
+  if(on){for(const [id,o] of others){if(!o.live())continue;want.add(id);let d=o.dot;if(!d){d=o.dot=document.createElement('div');d.className='dot';bar.appendChild(d)}d.style.background=o.c;d.style.bottom=clamp(o.ent.y/BAR*100,0,100)+'%'}}
+  let md=bar.querySelector('.dot.me');if(!md){md=document.createElement('div');md.className='dot me';bar.appendChild(md)}md.style.background=myColor;md.style.bottom=clamp(me.y/BAR*100,0,100)+'%';
   for(const [id,o] of others)if(o.dot&&!want.has(id)){o.dot.remove();o.dot=null}
   if(!on)return;
-  const rows=[{id:Net.uid||'me',n:(myName||TX('You')),c:myColor,y:me.y,f:run.fin,me:1}];
-  for(const [id,o] of others)if(o.live())rows.push({id,n:o.n,c:o.c,y:o.ent.y,f:o.f});
-  rows.sort((a,b)=>(b.f?1e6-b.f:b.y)-(a.f?1e6-a.f:a.y));
-  const key=rows.map(r=>r.id+Math.floor(r.y)+r.f+r.n).join('|');if(hudCache.board===key)return;hudCache.board=key;
+  const rows=[{id:Net.uid||'me',n:(myName||TX('You')),c:myColor,y:me.y,f:run.fin,k:run.top,me:1}];
+  for(const [id,o] of others)if(o.live())rows.push({id,n:o.n,c:o.c,y:o.ent.y,f:o.f,k:o.k||0});
+  // the Lodestar's times first, then everyone through the gate by height, then the Crown's times, then by height
+  const rank=r=>r.k?3e7-r.k:r.y>=DIM_Y?2e7+r.y:r.f?1e7-r.f:r.y;rows.sort((a,b)=>rank(b)-rank(a));
+  const key=rows.map(r=>r.id+Math.floor(r.y)+r.f+r.k+r.n).join('|');if(hudCache.board===key)return;hudCache.board=key;
   setText('boardTitle',Net.isPublic?'Public room':'Room '+(Net.room||'up-test').replace(/^up-/,''));setText('boardN',rows.length+'/'+MAX_ROOM);
-  $('boardList').innerHTML=rows.map((r,i)=>'<li class="'+(r.me?'me':'')+'"><span class="r">'+(i+1)+'</span><span class="d" style="background:'+r.c+'"></span><span class="n">'+esc(r.n)+(r.me?' '+TX('(you)'):'')+'</span><span class="h">'+(r.f?'★ '+fmtT(r.f):Math.floor(Math.max(0,r.y))+' m')+'</span></li>').join('');
+  $('boardList').innerHTML=rows.map((r,i)=>'<li class="'+(r.me?'me':'')+'"><span class="r">'+(i+1)+'</span><span class="d" style="background:'+r.c+'"></span><span class="n">'+esc(r.n)+(r.me?' '+TX('(you)'):'')+'</span><span class="h">'+(r.k?'✦ '+fmtT(r.k):r.f&&r.y<DIM_Y?'★ '+fmtT(r.f):Math.floor(Math.max(0,r.y))+' m')+'</span></li>').join('');
 }
 
 // =====================================================================
@@ -3408,6 +4249,8 @@ const Net={
     this.ready=true;
   },
   node(){const o={n:myName||'Climber',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),a:animCode(),m:Math.floor(run.maxY),t:Math.floor(run.t),f:run.fin?Math.round(run.fin*10)/10:0,b:Math.floor(best.h),j:this.j};
+    // k: time from the gate on the Crown to the Lodestar (only once there; older pages don't read it)
+    if(run.top)o.k=Math.round(run.top*10)/10;
     // o: what a captain wears (gear.js), only while Gear is open to them and something is worn; null clears it again
     const g=gearCode();if(g||this.oSent)o.o=g||null;this.oSent=!!g;return o},
   async count(room){
@@ -3454,7 +4297,7 @@ function onNode(uid,v){
   const n=cleanName(v.n)||'Climber',c=isColor(v.c)?v.c:'#9aa3ad',ts=fin(v.ts,0,9e15);
   if(!o){
     if(Net.now()-ts>LIVE_MS||!isFinite(+v.x)||!isFinite(+v.z))return;
-    const x0=fin(v.x,-3000,3000),y0=fin(v.y,-5,TOP+100),z0=fin(v.z,-3000,3000),h0=fin(v.h,-100,100);
+    const x0=fin(v.x,-3000,3000),y0=fin(v.y,-5,TOP3+100),z0=fin(v.z,-3000,3000),h0=fin(v.h,-100,100);
     o={n,c,ts,ent:{x:x0,y:y0,z:z0,yaw:h0,tx:x0,ty:y0,tz:z0,tyaw:h0,a:0,spd:0,vy:0,landT:9},av:makeAvatar(c),seen:performance.now(),f:0,
       live(){return Net.now()-this.ts<LIVE_MS&&performance.now()-this.seen<LIVE_MS}};
     o.sh=makeShadow();scene.add(o.av.root);o.tag=makeTag(n,c);scene.add(o.tag);others.set(uid,o);
@@ -3462,13 +4305,15 @@ function onNode(uid,v){
   }
   if(o.n!==n||o.c!==c){o.n=n;if(o.c!==c){o.c=c;setAvatarColor(o.av,c)}scene.remove(o.tag);freeMesh(o.tag);o.tag=makeTag(n,c);scene.add(o.tag)}
   o.ts=ts;o.seen=performance.now();
-  const e=o.ent;if(isFinite(+v.x)&&isFinite(+v.z)){e.tx=clamp(+v.x,-3000,3000);e.ty=clamp(+v.y||0,-5,TOP+100);e.tz=clamp(+v.z,-3000,3000)}
+  const e=o.ent;if(isFinite(+v.x)&&isFinite(+v.z)){e.tx=clamp(+v.x,-3000,3000);e.ty=clamp(+v.y||0,-5,TOP3+100);e.tz=clamp(+v.z,-3000,3000)}
   e.tyaw=fin(v.h,-100,100);e.a=v.a|0;
   // keep a short history to draw them from (netsmooth.js); a jump of more than 25 m is a respawn, so start afresh there
   if(!o.lag){o.lag=NetSmooth.lag();o.snaps=[]}
-  if(o.lag.note(ts,Net.now())){const l=o.snaps[o.snaps.length-1];if(l&&Math.hypot(e.tx-l.x,e.ty-l.y,e.tz-l.z)>25)o.snaps.length=0;o.snaps.push({t:ts,x:e.tx,y:e.ty,z:e.tz,h:e.tyaw})}o.m=fin(v.m,0,TOP+5);o.t=fin(v.t,0,1e7);
+  if(o.lag.note(ts,Net.now())){const l=o.snaps[o.snaps.length-1];if(l&&Math.hypot(e.tx-l.x,e.ty-l.y,e.tz-l.z)>25)o.snaps.length=0;o.snaps.push({t:ts,x:e.tx,y:e.ty,z:e.tz,h:e.tyaw})}o.m=fin(v.m,0,TOP3+5);o.t=fin(v.t,0,1e7);
   // f is the time at the top: the Crown. (An older copy of this page still open somewhere sends its time at 1000 m as f; that isn't the top any more.)
-  const f=o.m>=TOP-5?fin(v.f,0,1e7):0;if(f&&!o.f&&performance.now()-(G.joinedAt||0)>2500){feed(n+' reached the top in '+fmtT(f)+'!');sfx('best')}o.f=f;
+  const f=o.m>=TOP-5?fin(v.f,0,1e7):0;if(f&&!o.f&&performance.now()-(G.joinedAt||0)>2500){feed(TX('{n} reached the Crown in {t}!',{n,t:fmtT(f)}));sfx('best')}o.f=f;
+  // k: their time from the gate to the Lodestar (ignored unless their highest this run is up there)
+  const k=o.m>=TOP3-5?fin(v.k,0,1e7):0;if(k&&!o.k&&performance.now()-(G.joinedAt||0)>2500){feed(TX('{n} reached the Lodestar in {t}!',{n,t:fmtT(k)}));sfx('best')}o.k=k;
   // o: a captain's Gear (gear.js, fetched only when someone wears something); a reward is drawn only if their best height `b` reached it
   const oc=typeof v.o==='string'&&v.o.length<=16?v.o:'';
   if(oc!==(o.oc||'')){o.oc=oc;const b=fin(v.b,0,TOP+5);if(oc)gearLoad().then(g=>{if(others.get(uid)===o&&o.oc===oc)g.dress(o.av,g.parse(oc,b))}).catch(()=>{});else if(GEAR)GEAR.dress(o.av,null)}
@@ -3491,6 +4336,8 @@ function updateOthers(dt){
       if(Math.hypot(e.tx-e.x,e.ty-e.y,e.tz-e.z)>25){e.x=e.tx;e.y=e.ty;e.z=e.tz}else{e.x+=(e.tx-e.x)*k;e.y+=(e.ty-e.y)*k;e.z+=(e.tz-e.z)*k}
       e.yaw+=angDiff(e.tyaw,e.yaw)*k;
     }e.spd=lerp(e.spd,Math.hypot(e.x-bx,e.z-bz)/Math.max(dt,1e-3),.2);
+    // only climbers on the side of the gate being drawn (their dot on the height bar stays either way)
+    if(U.dimAt(e.y)!==VD){o.av.root.visible=o.tag.visible=o.sh.visible=false;continue}
     const A=ANIM[e.a]||ANIM[0];const st={spd:A.spd!=null?(A.gnd?Math.max(A.spd*.5,e.spd):0):0,gnd:!!A.gnd||A.stun,vy:A.vy||0,landT:9,impact:0,stun:A.stun||0,mantle:!!A.mantle,slide:!!A.slide,sprint:!!A.sprint,climb:!!A.climb,t};
     o.av.ph+=dt*e.spd*(st.sprint?1.35:1.9);
     poseAvatar(o.av,st,dt);
@@ -3549,6 +4396,7 @@ function showPause(){
   $('pause').hidden=false;$('copyInvite').hidden=!(Net.refs&&!Net.isPublic);$('inviteMsg').textContent='';
   $('pauseSub').textContent=(Net.refs?(Net.isPublic?'Public room':'Room '+Net.room.replace(/^up-/,''))+' · the others keep climbing. ':'The clock is stopped. ')+'Your run is saved where you stand.';
   $('leave').textContent=Net.refs?'Leave the room':'Main menu';
+  $('gatePause').hidden=!crownReached()||!course.portal;
   unlock();saveRun();
 }
 function resume(){if(!G.paused)return;G.paused=false;$('pause').hidden=true;requestLock()}
@@ -3559,11 +4407,15 @@ function toMenu(){
   hadRun=true;refreshMenu();showAd('adMenu');
 }
 function refreshMenu(){
-  const has=run.t>0||me.y>2;
-  $('play').textContent=has?(run.fin?'Back to the top':'Keep climbing · '+Math.floor(Math.max(0,me.y))+' m'):'Start climbing';
+  const has=run.t>0||me.y>2||run.cp>0,far=U.dimAt(me.y);
+  $('play').textContent=has?(run.top?'Back to the Lodestar':run.fin&&!far?'Back to the Crown':'Keep climbing · '+Math.floor(Math.max(0,me.y))+' m'):'Start climbing';
   $('newRun').hidden=!has;
+  // the one checkpoint: anyone whose saved records show they've reached the Crown can start at its gate
+  $('gateRun').hidden=!crownReached()||!course.portal;
   $('recH').textContent=Math.floor(Math.max(best.h,run.maxY))+' m';$('recT').textContent=best.time?fmtT(best.time):'–';$('recW').textContent=best.t2?fmtT(best.t2):'–';
+  const l=best.t3>0||best.h>DIM_Y;$('recLBox').hidden=!l;$('recL').textContent=best.t3?fmtT(best.t3):'–';$('recLBox').parentNode.classList.toggle('four',l);
 }
+function gateStartToast(){const Z=U.ZONES[U.zoneAt(me.y)];toast(TX('The Crown gate'),NUM(3000)+' m · '+TX(Z.intro),4.5);sfx('zone')}
 function openSettings(){$('settings').hidden=false;syncSettings()}
 function closeSettings(){$('settings').hidden=true;if(G.mode==='play'&&!G.paused)requestLock()}
 function syncSettings(){
@@ -3583,6 +4435,8 @@ $('setMenu').onclick=openSettings;$('setPause').onclick=openSettings;$('setDone'
 $('keysMenu').onclick=()=>KB.open();$('keysPause').onclick=()=>KB.open();
 $('play').onclick=playSolo;
 $('newRun').onclick=()=>{newRun();playSolo()};
+$('gateRun').onclick=()=>{newRun('gate');playSolo();gateStartToast()};
+$('gatePause').onclick=()=>{newRun('gate');resume();gateStartToast()};
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;$('room').addEventListener('keydown',e=>{if(e.key==='Enter')joinPrivate()});
 $('name').value=myName;$('name').addEventListener('input',()=>{myName=cleanName($('name').value);store.set('name',myName)});
 $('room').value=store.get('room','');
@@ -3594,6 +4448,7 @@ $('copyInvite').onclick=()=>{const url=location.origin+'/#'+Net.room,m=$('invite
 $('winStay').onclick=()=>{$('win').hidden=true;requestLock()};
 $('winSpec').onclick=()=>{if(!startSpectate())$('winSpec').hidden=true};
 $('winNew').onclick=()=>{$('win').hidden=true;newRun();requestLock()};
+$('winGate').onclick=()=>{$('win').hidden=true;newRun('gate');gateStartToast();requestLock()};
 $('winMenu').onclick=toMenu;
 // Ads
 let adScript=null;
@@ -3616,8 +4471,9 @@ function showAd(id){
 //  Main loop
 // =====================================================================
 function atmosphere(){
-  const y=G.mode==='menu'?me.y:camera.position.y;let i=0;while(i<ATMO.length-2&&y>ATMO[i+1].y)i++;
-  const a=ATMO[i],b=ATMO[i+1],k=clamp((y-a.y)/(b.y-a.y),0,1);
+  // (through the gate: the far side's own skies, ATMO1)
+  const y=G.mode==='menu'?me.y:camera.position.y,A=VD?ATMO1:ATMO;let i=0;while(i<A.length-2&&y>A[i+1].y)i++;
+  const a=A[i],b=A[i+1],k=clamp((y-a.y)/(b.y-a.y),0,1);
   mixCol(a.top,b.top,k,skyU.top.value);mixCol(a.hor,b.hor,k,skyU.hor.value);mixCol(a.fog,b.fog,k,scene.fog.color);
   const q=gfx==='high'?1:.82;scene.fog.near=lerp(a.near,b.near,k);scene.fog.far=lerp(a.far,b.far,k)*q;
   mixCol(a.hs,b.hs,k,hemi.color);mixCol(a.hg,b.hg,k,hemi.groundColor);hemi.intensity=lerp(a.hi,b.hi,k);sun.intensity=lerp(a.si,b.si,k);mixCol(a.sc,b.sc,k,sun.color);
@@ -3626,6 +4482,8 @@ function atmosphere(){
   // the sun sinks to a sunset over Skyport
   const se=lerp(a.se==null?.45:a.se,b.se==null?.45:b.se,k);if(Math.abs(skyU.sunDir.value.y-se)>1e-3)skyU.sunDir.value.set(.5,se,.35).normalize();
   sunSprite.position.copy(camera.position).addScaledVector(skyU.sunDir.value,3000);
+  if(VD){skyU.glow.value=lerp(a.gl,b.gl,k);sunSprite.visible=false;return scene.fog.far}
+  else if(!sunSprite.visible){sunSprite.visible=true;skyU.glow.value=1}
   scenery.sea.material.opacity=clamp((y-345)/70,0,1)*clamp((2150-y)/60,0,1);scenery.sea.visible=scenery.sea.material.opacity>0;
   beyondSky(y);scenery.sea.material.color.copy(scene.fog.color).lerp(_cb.set('#ffffff'),lerp(a.sw==null?.55:a.sw,b.sw==null?.55:b.sw,k));
   if(hills)hills.color.copy(skyU.hor.value).lerp(_cb.set('#5d7391'),.38);
@@ -3634,10 +4492,21 @@ function atmosphere(){
 }
 function updateChunks(far){
   const cp=camera.position;
-  for(const ch of chunkMeshes){const d=ch.box.distanceToPoint(cp);ch.g.visible=d<far+30}
+  for(const ch of chunkMeshes){if(ch.dim!==VD)continue;const d=ch.box.distanceToPoint(cp);ch.g.visible=d<far+30}
+}
+// Which side of the gate on the Crown is drawn: the one the camera's climber is on (you, or whoever you're watching).
+// The other side isn't drawn at all, and its moving pieces aren't even moved (W.only) unless you're watching across.
+function applyDim(){
+  const tg=camTarget(),d=U.dimAt(tg?tg.y:me.y),md=U.dimAt(me.y);
+  W.only=d===md?md:-1;
+  if(d!==VD){VD=d;DR[0].visible=d===0;DR[1].visible=d===1;U.setTime(W,W.t);U.setTime(W,W.t)}
 }
 // moving pieces too far above or below to see (past the fog) aren't drawn
-function updateMovers(far){const cy=camera.position.y,lim=(far||900)+40;for(const m of movers){const c=m.c;m.g.position.set(c.x,c.y1,c.z);m.g.rotation.y=c.yaw;m.g.visible=!c.gone;if(Math.abs(c.y1-cy)>lim){m.g.visible=false;if(c._ghost)c._ghost.visible=false;continue}if(c._ghost)c._ghost.visible=true;
+const _bax=new V3();
+function updateMovers(far){const cy=camera.position.y,lim=(far||900)+40;for(const m of movers){const c=m.c;if((c.dim|0)!==VD)continue;m.g.position.set(c.x,c.y1,c.z);m.g.rotation.y=c.yaw;m.g.visible=!c.gone;if(Math.abs(c.y1-cy)>lim){m.g.visible=false;if(c._ghost)c._ghost.visible=false;continue}if(c._ghost)c._ghost.visible=true;
+  // through the gate: a crystal disc at its size, a boulder rolling, a ferry nosing down as it dives
+  if(c.dim){if(c.kind==='grow'){const k=c.r/c.r0;m.g.scale.set(k,1,k)}else if(c.kind==='boulder'){const d=c.dyn,u=((W.t/d.T+(d.ph||0))%1+1)%1,l=Math.hypot(d.dx,d.dz)||1;_bax.set(d.dz/l,0,-d.dx/l);m.g.quaternion.setFromAxisAngle(_bax,u*Math.hypot(d.dx,d.dy,d.dz))}
+    else if(c.dyn&&c.dyn.type==='lane'){const d=c.dyn,u=((W.t/d.T+(d.ph||0))%1+1)%1;m.g.rotation.x=u>1-d.e?(u-1+d.e)/d.e*.35:u<d.e?-(1-u/d.e)*.25:0}continue}
   // a pulse platform flickers for its last 0.7 s, and its outline brightens as it's about to come back
   if(c.kind==='blink'){const b=c.blink,u=U.blinkU(c,W.t),left=(b.on-u)*b.T;if(!c.gone&&left<.7)m.g.visible=Math.floor(left*14)%2===0;const back=(1-u)*b.T;c._ghost.material.opacity=c.gone?(back<1?.45+.5*(1-back):.3):.12}
   if(c.kind==='fragile'){const cr=c.touchT>=0&&!c.gone?(W.t-c.touchT):0;m.g.position.x+=cr?Math.sin(W.t*60)*.04*cr:0;m.g.scale.setScalar(cr>.7?1-(cr-.7)*.6:1)}}
@@ -3654,6 +4523,17 @@ function slowLook(){
   const idle=!!me.gnd||!!me.mantle;if(idle!==slowIdle){slowIdle=idle;tSlowEl.classList.toggle('idle',idle)}
   const sp=!!G.spec;if(sp!==slowSpec){slowSpec=sp;tSlowEl.hidden=sp;$('tView').hidden=sp;if(sp){tAct.slowmo=false;tSlowEl.classList.remove('on')}}
 }
+// the flash going through the gate (brightest at the moment you cross) and going under in the river
+let gateFxShown=-1,riverFxShown=-1;
+function gateOverlays(dt){
+  let g=0,r=0;const ph=ride&&ride.ph[ride.i];
+  if(ph&&ride.kind==='portal'&&ph.n==='warp'){const k=clamp(ride.t/ph.dur,0,1);g=Math.pow(1-Math.abs(k-.5)*2,1.6)}
+  if(ph&&ride.kind==='river'){const k=clamp(ride.t/ph.dur,0,1);r=ph.n==='sink'?k*k:ph.n==='back'?1:1-k}
+  g=Math.round(g*40)/40;r=Math.round(r*40)/40;
+  if(g!==gateFxShown){gateFxShown=g;$('gateFx').style.opacity=String(g)}if(r!==riverFxShown){riverFxShown=r;$('riverFx').style.opacity=String(r)}
+}
+// a splash in the black river
+function splash(x,z){puff(x,RIVER_Y,z,18,0x9fe8d0,2.6);puff(x,RIVER_Y,z,10,0x2a5a50,1.4)}
 function tick(dt){
   clock+=dt;
   physics(dt);
@@ -3667,13 +4547,14 @@ function tick(dt){
   placeShadow(myShadow,vp.x,vp.y,vp.z);if(ride)myShadow.visible=false;
   updateOthers(dt);if(GEAR)GEAR.frame(dt);netTick(dt);updateSecrets(dt);
   slowLook();
+  applyDim();
   updateView(dt,ds);
-  const far=atmosphere();updateChunks(far);updateMovers(far);
+  const far=atmosphere();updateChunks(far);updateMovers(far);if(VD)farSide(dt,camera.position.y);updateGates(dt);gateOverlays(dt);
   for(const f of fanFx){f.g.rotation.y+=dt*14;const p=f.pts.geometry.attributes.position;for(let i=0;i<p.count;i++){let y=p.getY(i)+dt*7;if(y>f.f.y1)y=f.f.y0;p.setY(i,y)}p.needsUpdate=true}
   scenery.flag.rotation.y=Math.sin(clock*2)*.15;
   updateFx(dt);updateStreaks(ds);updateRain(dt);updateWindFx(dt);updateHud(dt);
   if(ac&&windG){musicTick();const wv=ride&&ride.kind==='gust'?.9:G.mode==='play'&&!me.gnd?clamp((-me.vy-6)/34,0,1):0,sk=slowAmount();windG.g.gain.setTargetAtTime(wv*.35*(1-.45*sk)+(me.y>600?.03:0),ac.currentTime,.12);windG.f.frequency.setTargetAtTime((400+wv*900)*(1-.55*sk),ac.currentTime,.2);
-    let fd=99;for(const f of course.fans)fd=Math.min(fd,Math.hypot(me.x-f.x,me.z-f.z,(me.y-f.y0)*.5));fanG.g.gain.setTargetAtTime(clamp(1-fd/16,0,1)*.12,ac.currentTime,.2)}
+    let fd=99;for(const f of course.fans)if(!f.T||U.ventOn(f,W.t))fd=Math.min(fd,Math.hypot(me.x-f.x,me.z-f.z,(me.y-f.y0)*.5));fanG.g.gain.setTargetAtTime(clamp(1-fd/16,0,1)*.12,ac.currentTime,.2)}
 }
 function frame(t){
   const dt=Math.min(.05,Math.max(0,(t-last)/1000));last=t;
@@ -3727,7 +4608,7 @@ if(TEST)window.__up={U,C,course,W,PATH,G,run,best,keys,tAct,tMove,KB,Net,onNode,
   bot(on,from){G.bot=on?U.Bot(course):null;if(G.bot){G.bot.i=(from==null?0:from)+1;G.bot.lastT=wt}return G.bot},
   setView,toggleView,fpOn,get view(){return view},eyeBase,rayHit,myAv,myShadow,zoom,look,updateView,
   newRun,enterGame,toMenu,showPause,resume2:resume,startSpectate,cycleSpec,stopSpectate,joinPrivate,quickMatch,
-  render(){updateView(.1);atmosphere();updateChunks(scene.fog.far);updateMovers(scene.fog.far);updateSecrets(.1);renderAll()},
+  render(){applyDim();updateView(.1);atmosphere();updateChunks(scene.fog.far);updateMovers(scene.fog.far);if(VD)farSide(.016,camera.position.y);updateGates(.1);updateSecrets(.1);renderAll()},
   // the secrets: start a ride by hand, see which door is near, follow the ride
   SEC,startRide,liftSpot,inGust,get ride(){return ride},get cabY(){return cabY},get ecabY(){return ecabY},secretMesh,doorK,insideShaft,secretsFound,
   stepOnce,afterSteps,saveRun,loadRun,others,onSummit,onNode,physics,set wt(v){wt=v},
@@ -3735,7 +4616,11 @@ if(TEST)window.__up={U,C,course,W,PATH,G,run,best,keys,tAct,tMove,KB,Net,onNode,
   fake(n){G.fakeNet=true;Net.offset=0;for(let i=0;i<n;i++){const c=PATH[Math.min(PATH.length-1,40+i*60)];onNode('fake'+i,{n:['Ava','Bo','Cyrus','Dee','Eli','Fay','Gus','Hana','Ivo','Jun','Kit'][i%11],c:COLORS[(i+3)%COLORS.length],x:c.x,y:c.y1,z:c.z,h:0,ts:Date.now(),a:i%5,m:Math.floor(c.y1),t:100+i,f:i===0?1234:0})}},
   unfake(){G.fakeNet=false;clearOthers()},
   // Gear (gear.js): whether it's open to this player, the loaded module, and loading it
-  gearOn,get GEAR(){return GEAR},gearLoad,gearCode,animCode
+  gearOn,get GEAR(){return GEAR},gearLoad,gearCode,animCode,
+  // through the gate: which side is drawn, the gate, the Crown-gate start, the menu
+  get VD(){return VD},applyDim,gateOpen,crownReached,refreshMenu,UW,gateFx,ventFx,wheelFx,DR,BAR,
+  // a picture from wherever the camera has been put (for far views; k stretches the fog)
+  renderFar(k){applyDim();atmosphere();if(k){scene.fog.near*=k;scene.fog.far*=k}const far=scene.fog.far;updateChunks(far);updateMovers(far);if(VD)farSide(.016,camera.position.y);updateGates(.5);renderAll()}
 };
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();

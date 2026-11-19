@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.30', title: 'Updraft: through the gate, 3,000 m more', kind: 'feature',
+     img: 'm/thumbs/updraft.jpg', tags: ['6,000 m', 'Six new zones', 'One checkpoint', 'New leaderboard'], items: [
+      'Updraft: 3,000 m more. Reach the Crown and a gate opens on it: step through into another world and climb on to the Lodestar at 6,000 m.',
+      'Climb out of a pit by a black river on ferries and sinking rafts, past a river of fire with heat vents that blow on a beat, and through the Hound\'s Gate on a great wheel and across a slope of rolling boulders. Above the pit, a sky of spells: warp glyphs, crystal discs that grow and shrink, and an orrery of planets and moons.',
+      'One checkpoint: once you have reached the Crown, you can start at its gate. Fall anywhere on the far side and the river brings you back to the gate.',
+      'A new Leaderboard for the fastest climb from the gate to the Lodestar. Your times to the old summit and to the Crown count just as before.'
+    ]},
     {date: '2026-11-19', version: '1.29.25', title: 'An Aisles tab on the Leaderboards', kind: 'feature',
      tags: ['Leaderboards', 'Aisles'], items: [
       'The Leaderboards now have two tabs, Players and Aisles.',
