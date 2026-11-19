@@ -52,6 +52,7 @@ function underX(halo, ring, ha) {
 const U = col => G.under(col);
 function ell(g, x, y, rx, ry, a) { g.beginPath(); g.ellipse(x, y, Math.max(.001, rx), Math.max(.001, ry), a || 0, 0, TAU); }
 function rr(g, x, y, w, h, r) { g.beginPath(); r = Math.min(r, w / 2, h / 2); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function penta(g, x, y, r, col) { g.fillStyle = col; g.beginPath(); for (let k = 0; k < 5; k++) { const a = k / 5 * TAU - Math.PI / 2; k ? g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r) : g.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } g.closePath(); g.fill(); }
 function dot(g, x, y, r, col) { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); }
 function line(g, pts, w, col) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); for (let i = 0; i < pts.length; i += 2) i ? g.lineTo(pts[i], pts[i + 1]) : g.moveTo(pts[i], pts[i + 1]); g.stroke(); }
 function star4(g, x, y, r, col) { g.fillStyle = col; g.beginPath(); for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, q = k & 1 ? r * .3 : r; k ? g.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q) : g.moveTo(x + q, y); } g.closePath(); g.fill(); }
@@ -101,7 +102,8 @@ const COLORS = [null,
   ['s', '#ff4d5e'], ['s', '#ff8c2e'], ['s', '#ffe14d'], ['s', '#5fd65a'], ['s', '#3fe0d0'], ['s', '#3f8cff'], ['s', '#9a6bff'], ['s', '#ff7cc8'], ['s', '#eef4ff'], ['s', '#c48452'], ['s', '#ffc531'], ['s', '#9aa8c4'],
   ['n', '#39ff6a'], ['n', '#ff3fd2'], ['n', '#2fd8ff'], ['n', '#ff7a1a'], ['n', '#f4ff3a'],
   ['g', '#ffd84a', '#ff4d6d'], ['g', '#3fe6ff', '#4450e8'], ['g', '#3ff0b6', '#9b5bff'], ['g', '#ffe14d', '#e8281e'], ['g', '#ff9ad5', '#8fd8ff'], ['g', '#c6f04a', '#1f9a5e'],
-  ['r'], ['f']];
+  ['r'], ['f'],
+  ['s', '#1f5fd6'], ['s', '#2f9e44'], ['s', '#c8344e'], ['g', '#ffe27a', '#b8860b']];   // second wave: jersey blue, turf green, varsity red, gold chain
 const RB = []; for (let j = 0; j < 12; j++) RB.push(hsl(j * 30, .9, .62));
 function baseFn(C, skin) {
   if (!C) { const sk = G.SKINS[skin] || G.SKINS[0], p = sk.c; return i => p[(i >> 1) % p.length]; }
@@ -252,7 +254,46 @@ const DES = [null,
     }); } },
   { // 12 Camo: greens and browns in soft patches
     ball: () => '#6f7d3c', under: () => U('#8f9e52'), head: '#6f7d3c', pal: ['#8f9e52', '#b9ad74', '#6f7d3c'],
-    ov: k => { const v = hv(k, 6); return disc('d12:' + v, g => { const cs = ['#3f5228', '#8a6a3a', '#b9ad74']; for (let j = 0; j < 3; j++) { const a = hr(v, j) * TAU, d = hr(j, v) * .45; blob(g, Math.cos(a) * d, Math.sin(a) * d, .2 + hr(v, j + 5) * .14, v * 7 + j, cs[(j + v) % 3]); } }); } }
+    ov: k => { const v = hv(k, 6); return disc('d12:' + v, g => { const cs = ['#3f5228', '#8a6a3a', '#b9ad74']; for (let j = 0; j < 3; j++) { const a = hr(v, j) * TAU, d = hr(j, v) * .45; blob(g, Math.cos(a) * d, Math.sin(a) * d, .2 + hr(v, j + 5) * .14, v * 7 + j, cs[(j + v) % 3]); } }); } },
+  // ---- second wave (Nov 2026): sports, suits and robots
+  { // 13 Tennis ball: fuzzy yellow with a white seam winding along
+    ball: () => '#d6ec3a', under: () => U('#d6ec3a'), rot: true, head: '#d6ec3a', pal: ['#d6ec3a', '#f4ffb0', '#d6ec3a'],
+    ov: k => { const j = k % 4; return slice('d13:' + j, '#d6ec3a', g => {
+      for (let m = 0; m < 10; m++) dot(g, -.45 + hr(j, m) * .9, -.9 + hr(m, j) * 1.8, .035, '#eefc9a');
+      g.strokeStyle = '#ffffff'; g.lineWidth = .15; g.beginPath(); for (let x = -.6; x <= .61; x += .1) { const y = Math.sin((j * .84 - x) * Math.PI / 1.68) * .6; x < -.55 ? g.moveTo(x, y) : g.lineTo(x, y); } g.stroke();
+    }); } },
+  { // 14 Jersey stripes: your colour with two white stripes down the length
+    rot: true, pal: null,
+    ov: (k, i, n, t, B) => { const c = B(i, n, t); return slice('d14:' + c, c, g => { g.fillStyle = lightOn(c); g.fillRect(-.5, -.64, 1, .17); g.fillRect(-.5, .47, 1, .17); }); } },
+  { // 15 Racing checker: black and white flag squares, three across
+    ball: k => k & 1 ? '#f4f4f4' : '#2a2c38', under: () => underX('#ffffff', '#d8dbe6', .35), rot: true, head: '#f4f4f4', pal: ['#f4f4f4', '#2a2c38', '#ff3b3b'],
+    ov: k => slice('d15:' + (k & 1), '#f4f4f4', g => { const q = 2 / 3; g.fillStyle = '#1b1d26'; for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) if ((r + c + (k & 1)) % 2) g.fillRect(-.5 + c * .5, -1 + r * q, .5, q); }) },
+  { // 16 Medal ribbon: striped ribbon down the body and a gold medal at the tail
+    ball: () => '#d8262f', under: () => U('#e8384a'), rot: true, head: '#ffcf3a', pal: ['#ffcf3a', '#d8262f', '#ffffff'],
+    ov: (k, i, n) => { const m = i > n - 3; return slice('d16:' + m, '#d8262f', g => { g.fillStyle = '#ffffff'; g.fillRect(-.5, -.75, 1, .2); g.fillRect(-.5, .55, 1, .2); g.fillStyle = '#2350c8'; g.fillRect(-.5, -.18, 1, .36); },
+      m ? g => { dot(g, 0, 0, .78, '#a8740a'); dot(g, 0, 0, .64, '#ffcf3a'); star4(g, 0, 0, .42, '#fff3b0'); } : null); } },
+  { // 17 Pinstripe suit: charcoal with chalk stripes (a pale ring keeps it easy to see)
+    ball: () => '#2f3140', under: () => underX('#b8bdd8', '#9ca1bc', .4), rot: true, head: '#2f3140', pal: ['#9ca1bc', '#2f3140', '#d9a441'],
+    ov: () => slice('d17:', '#2f3140', g => { g.fillStyle = '#b4b8cc'; for (const y of [-.75, -.45, -.15, .15, .45, .75]) g.fillRect(-.5, y - .028, 1, .056); }) },
+  { // 18 Necktie: navy with diagonal stripes in your colour, like a school tie
+    rot: true, pal: null, ball: (k, i, n, t, B) => k & 1 ? '#22305e' : B(i, n, t), under: (i, n, t, B) => U(B(i, n, t)),
+    ov: (k, i, n, t, B) => { const c = B(i, n, t); return slice('d18:' + c + (k & 1), '#22305e', g => { diag(g, (k & 1) * .84, 1.12, 0, .34, .6, c); diag(g, (k & 1) * .84, 1.12, .44, .06, .6, '#ffffff'); }); } },
+  { // 19 LED strip: lights in your colour running down a dark strip
+    rot: true, pal: null, ball: (k, i, n, t, B) => k % 3 === 0 ? B(i, n, t) : '#1c2030', under: (i, n, t, B) => { const c = B(i, n, t); return underX(c, mixh(c, '#ffffff', .35), .5); }, head: '#2a3048',
+    ov: (k, i, n, t, B) => { const c = B(i, n, t), on = ((k - Math.floor(t / 110)) % 4 + 4) % 4; return slice('d19:' + c + on, '#1c2030', g => {
+      g.fillStyle = '#3a4058'; g.fillRect(-.5, -.66, 1, .08); g.fillRect(-.5, .58, 1, .08);
+      for (const [x, j] of [[.22, 0], [-.22, 2]]) { const lit = (on + j) % 4 === 0; dot(g, x, 0, .2, lit ? c : mixh(c, '#1c2030', .7)); if (lit) dot(g, x - .05, -.05, .08, '#ffffff'); }
+    }); } },
+  { // 20 Basketball: orange with black seams
+    ball: () => '#e8742a', under: () => U('#f08a3a'), rot: true, head: '#e8742a', pal: ['#e8742a', '#ffb070', '#2a1810'],
+    ov: k => { const j = k % 4; return slice('d20:' + j, '#e8742a', g => {
+      for (let m = 0; m < 12; m++) dot(g, -.45 + hr(j, m + 3) * .9, -.9 + hr(m + 3, j) * 1.8, .03, '#c85a1a');
+      line(g, [-.6, 0, .6, 0], .07, '#2a1810');
+      for (const sd of [-1, 1]) { g.strokeStyle = '#2a1810'; g.lineWidth = .07; g.beginPath(); for (let x = -.6; x <= .61; x += .1) { const y = sd * (.35 + .45 * Math.abs(Math.cos((j * .84 - x) * Math.PI / 3.36))); x < -.55 ? g.moveTo(x, y) : g.lineTo(x, y); } g.stroke(); }
+    }); } },
+  { // 21 Football: white with black patches
+    ball: () => '#f6f6f6', under: () => U('#f6f6f6'), head: '#f6f6f6', pal: ['#f6f6f6', '#1d1d26', '#f6f6f6'],
+    ov: k => { const v = hv(k, 3, 17); return disc('d21:' + v, g => { penta(g, [-.2, .25, 0][v], [-.15, .1, .3][v], .36, '#1d1d26'); }); } }
 ];
 
 // Object snakes (slot o)
@@ -383,6 +424,36 @@ const OBJ = [null,
     ov: () => slice('o17:', '#4a4f7a', g => {
       for (const s of [-1, 1]) { g.beginPath(); g.moveTo(.05, s * .2); g.bezierCurveTo(.05, s * .6, -.2, s * .8, -.3, s * .97); g.strokeStyle = '#8a8470'; g.lineWidth = .2; g.stroke(); g.strokeStyle = '#ece5d0'; g.lineWidth = .13; g.stroke(); }
       rr(g, -.3, -.27, .6, .54, .12); g.fillStyle = '#8a8470'; g.fill(); rr(g, -.26, -.23, .52, .46, .1); g.fillStyle = '#f1ead6'; g.fill(); line(g, [-.18, .1, .18, .1], .04, '#c8bfa4');
+    }) },
+  // ---- second wave (Nov 2026)
+  { // 18 Tennis balls: a chain of fuzzy yellow balls
+    ball: () => '#c8dc30', under: () => U('#d6ec3a'), rot: true, head: '#d6ec3a', pal: ['#d6ec3a', '#f4ffb0', '#d6ec3a'],
+    ov: () => slice('o18:', null, null, g => { dot(g, 0, 0, .95, '#b8cc28'); dot(g, 0, 0, .87, '#d6ec3a'); dot(g, -.25, -.3, .3, 'rgba(255,255,255,.25)');
+      g.strokeStyle = '#ffffff'; g.lineWidth = .12; g.beginPath(); g.arc(-1.05, 0, .72, -.85, .85); g.stroke(); g.beginPath(); g.arc(1.05, 0, .72, Math.PI - .85, Math.PI + .85); g.stroke(); }) },
+  { // 19 Rope and anchors: a ship's rope with a steel anchor every so often
+    ball: () => '#c9a46a', under: () => U('#d9b47a'), rot: true, head: '#c9a46a', pal: ['#d9b47a', '#e8cc96', '#5a6170'],
+    ov: k => { const an = k % 8 === 4; return slice('o19:' + an, '#c9a46a', g => { diag(g, 0, .42, 0, .08, .9, '#7d5f34'); diag(g, 0, .42, .2, .07, .9, '#e8cc96'); },
+      an ? g => { const c = '#4a505e'; line(g, [0, -.62, 0, .7], .16, c); line(g, [-.3, -.4, .3, -.4], .13, c); g.strokeStyle = c; g.lineWidth = .15; g.beginPath(); g.arc(0, .18, .58, .35, Math.PI - .35); g.stroke();
+        g.lineWidth = .1; g.beginPath(); g.arc(0, -.8, .16, 0, TAU); g.stroke(); line(g, [-.06, -.58, -.06, .6], .04, '#9aa4b2'); } : null); } },
+  { // 20 Robot segments: riveted steel plates with joints and a little screen now and then
+    ball: () => '#b8bccf', under: () => U('#c9ced8'), rot: true, head: '#c9ced8', pal: ['#c9ced8', '#3fd2ff', '#8d93a6'],
+    ov: k => { const j = k % 3; return slice('o20:' + j, '#b8bccf', g => {
+      g.fillStyle = '#8d93a6'; g.fillRect(.34, -1, .16, 2); g.fillStyle = '#e4e7ef'; g.fillRect(-.5, -.5, .84, .1);
+      for (const x of [-.32, .16]) for (const y of [-.72, .72]) dot(g, x, y, .055, '#6b7280');
+      if (!j) { rr(g, -.28, -.26, .5, .52, .08); g.fillStyle = '#1c2030'; g.fill(); dot(g, -.03, 0, .13, '#3fd2ff'); }
+    }); } },
+  { // 21 Cable: a braided black cable with a red and a yellow wire, and a plug at the tail
+    ball: () => '#2a2d36', under: () => underX('#9aa4b2', '#7c8492', .35), rot: true, head: '#3a3f4a', pal: ['#9aa4b2', '#ff4d5e', '#ffcf3a'],
+    ov: (k, i, n) => { const p = i > n - 3; return slice('o21:' + p + (k & 1), p ? '#c9ced8' : '#2a2d36', g => {
+      if (p) { g.fillStyle = '#8d93a6'; g.fillRect(-.5, -1, .16, 2); return; }
+      diag(g, (k & 1) * .84, .42, 0, .1, .8, '#454a58'); g.fillStyle = '#ff4d5e'; g.fillRect(-.5, -.42, 1, .1); g.fillStyle = '#ffcf3a'; g.fillRect(-.5, .32, 1, .1);
+    }, p ? g => { g.fillStyle = '#d9a441'; g.fillRect(-1, -.5, .52, .18); g.fillRect(-1, .32, .52, .18); } : null); } },
+  { // 22 Gold chain: heavy gold links, one flat and the next on its edge
+    ball: () => '#b8860b', under: () => U('#ffcf3a'), rot: true, head: '#ffcf3a', pal: ['#ffe27a', '#ffcf3a', '#fff6c8'],
+    ov: k => slice('o22:' + (k & 1), '#b8860b', null, g => {
+      if (k & 1) { rr(g, -.68, -.18, 1.36, .36, .18); g.fillStyle = '#7a5606'; g.fill(); rr(g, -.64, -.14, 1.28, .28, .14); g.fillStyle = '#ffcf3a'; g.fill(); line(g, [-.5, -.04, .5, -.04], .05, '#fff6c8'); return; }
+      ell(g, 0, 0, .64, .76); g.strokeStyle = '#7a5606'; g.lineWidth = .3; g.stroke(); g.strokeStyle = '#ffcf3a'; g.lineWidth = .22; g.stroke();
+      ell(g, 0, 0, .58, .7); g.strokeStyle = '#fff6c8'; g.lineWidth = .05; g.stroke();
     }) }
 ];
 const PATS = { a: ANI, d: DES, o: OBJ };
@@ -429,9 +500,10 @@ const pals = new Map();
 function pal(L, skin) { const key = L.str + '|' + skin; let p = pals.get(key); if (p) return p; const S = style(L, skin); p = [headCol(S, 40, 0)].concat(S.pal); if (pals.size > 300) pals.clear(); pals.set(key, p); return p; }
 
 // ---------------- Heads (slot h) ----------------
-// 1 sunglasses, 2 crown, 3 party hat, 4 googly eyes, 5 tongue out, 6 tiny cowboy hat. Hats are seen from above and sit
+// 1 sunglasses, 2 crown, 3 party hat, 4 googly eyes, 5 tongue out, 6 tiny cowboy hat; second wave: 7 eye patch, 8 tricorn,
+// 9 fedora, 10 bandana, 11 sweatband, 12 bow tie, 13 robot visor. Hats are seen from above and sit
 // a little behind the eyes, like the pilgrim hat (which a hat replaces).
-const HATS = { 2: 1, 3: 1, 6: 1 };
+const HATS = { 2: 1, 3: 1, 6: 1, 8: 1, 9: 1, 10: 1, 11: 1 };
 // each hat is painted once into a sprite (pointing along +x) and drawn turned with the head: one drawImage per snake
 const HR = 64;
 function hat(g, H, x, y, c, si, r) {
@@ -457,6 +529,23 @@ function hatPaint(g, H, x, y, c, si, r, h) {
     ell(g, 0, 0, r * .32, r * .38); g.strokeStyle = '#2e1c10'; g.lineWidth = r * .14; g.stroke(); g.fillStyle = '#7a4e24'; g.fill();
     g.strokeStyle = '#5a3618'; g.lineWidth = r * .06; g.beginPath(); g.moveTo(-r * .2, 0); g.lineTo(r * .2, 0); g.stroke();
     g.restore();
+  } else if (H === 8) { // tricorn: a dark three-cornered hat with gold trim, one corner to the front, a red feather
+    const R = r * .74; g.save(); g.translate(hx, hy); g.rotate(h); g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(R * 1.02, 0); g.lineTo(-R * .78, -R * .98); g.lineTo(-R * .78, R * .98); g.closePath(); g.fillStyle = '#2a2440'; g.fill(); g.strokeStyle = '#e0b040'; g.lineWidth = R * .12; g.stroke();
+    dot(g, -R * .1, 0, R * .46, '#3b3458'); ell(g, -R * .35, R * .45, R * .34, R * .1, -.5); g.fillStyle = '#e8384a'; g.fill(); g.restore();
+  } else if (H === 9) { // fedora: a wide brim, a pinched crown and a black band
+    g.save(); g.translate(hx, hy); g.rotate(h); const R = r * .9;
+    ell(g, 0, 0, R, R * .92); g.fillStyle = '#4a4560'; g.fill(); g.strokeStyle = '#2e2a40'; g.lineWidth = R * .06; g.stroke();
+    ell(g, 0, 0, R * .6, R * .5); g.strokeStyle = '#15161c'; g.lineWidth = R * .14; g.stroke(); g.fillStyle = '#3a3550'; g.fill();
+    line(g, [-R * .35, 0, R * .35, 0], R * .07, '#2a2638'); dot(g, -R * .45, R * .38, R * .07, '#d9a441'); g.restore();
+  } else if (H === 10) { // bandana: red with white spots, knotted at the back
+    g.save(); g.translate(hx, hy); g.rotate(h); const R = r * .78;
+    for (const s of [-1, 1]) { ell(g, -R * 1.05, s * R * .28, R * .3, R * .16, s * .5); g.fillStyle = '#b51d25'; g.fill(); }
+    dot(g, -R * .8, 0, R * .2, '#c8262e'); dot(g, 0, 0, R, '#d8262f');
+    for (const [x, y] of [[.3, -.4], [-.2, .5], [-.45, -.15], [.45, .35], [0, 0], [-.1, -.65], [.6, -.05]]) dot(g, x * R, y * R, R * .09, '#ffffff');
+    g.restore();
+  } else if (H === 11) { // sweatband: a white band round the head with a stripe
+    const R = r * .8; g.beginPath(); g.arc(hx, hy, R, 0, TAU); g.strokeStyle = '#f4f6fa'; g.lineWidth = R * .3; g.stroke(); g.strokeStyle = '#3f8cff'; g.lineWidth = R * .1; g.stroke();
   }
 }
 // eye centres, as in the game's paintFace
@@ -493,9 +582,29 @@ function tongue(g, x, y, h, r, now) {
 // The whole face: a hat (or the pilgrim hat during Turkey Week), the eyes, then sunglasses.
 function face(g, o, x, y, h, la, r, now, seed, L, skin, tk) {
   const H = L.h | 0, c = Math.cos(h), si = Math.sin(h);
+  if (H === 12) bowtie(g, x, y, c, si, r);
   if (HATS[H]) hat(g, H, x, y, c, si, r); else if (tk) tk();
   if (H === 4) googly(g, o, x, y, h, la, r, now); else G.paintFace(g, x, y, h, la, r, now, seed, pal(L, skin)[0]);
-  if (H === 1) shades(g, x, y, h, r);
+  if (H === 1) shades(g, x, y, h, r); else if (H === 7) patch(g, x, y, c, si, r); else if (H === 13) visor(g, x, y, c, si, r);
+}
+// eye patch over one eye, its strap across the head
+function patch(g, x, y, c, si, r) {
+  const [ax, ay, bx, by] = eyes(x, y, c, si, r), er = r * .34;
+  line(g, [bx, by, x - c * r * .45 + (bx - x) * .9, y - si * r * .45 + (by - y) * .9], r * .12, '#15161c');
+  line(g, [bx, by, x - c * r * .25, y - si * r * .25, x - c * r * .75 + (ax - x) * .8, y - si * r * .75 + (ay - y) * .8], r * .12, '#15161c');
+  ell(g, bx, by, er * 1.25, er * 1.4, Math.atan2(si, c)); g.fillStyle = '#15161c'; g.fill(); ell(g, bx - c * er * .3, by - si * er * .3, er * .4, er * .25, Math.atan2(si, c)); g.fillStyle = 'rgba(255,255,255,.18)'; g.fill();
+}
+// a bow tie at the neck, across the body
+function bowtie(g, x, y, c, si, r) {
+  const nx = x - c * r * 1.0, ny = y - si * r * 1.0, px = -si * r, py = c * r;
+  for (const s of [-1, 1]) { g.beginPath(); g.moveTo(nx, ny); g.lineTo(nx + s * px * .72 + c * r * .3, ny + s * py * .72 + si * r * .3); g.lineTo(nx + s * px * .72 - c * r * .3, ny + s * py * .72 - si * r * .3); g.closePath(); g.fillStyle = '#d8262f'; g.fill(); g.strokeStyle = '#8a1018'; g.lineWidth = r * .05; g.stroke(); }
+  dot(g, nx, ny, r * .17, '#b51d25');
+}
+// a robot's glowing visor across both eyes, and an antenna
+function visor(g, x, y, c, si, r) {
+  const [ax, ay, bx, by] = eyes(x, y, c, si, r), er = r * .34, ex = (ax - bx) * .25, ey = (ay - by) * .25;
+  g.lineCap = 'round'; line(g, [ax + ex, ay + ey, bx - ex, by - ey], er * 2.1, '#1c2030'); line(g, [ax + ex * .5, ay + ey * .5, bx - ex * .5, by - ey * .5], er * .7, '#3fd2ff');
+  line(g, [ax, ay, bx, by], er * .25, '#e8fbff'); dot(g, x - c * r * .35, y - si * r * .35, r * .16, '#9aa4b2'); dot(g, x - c * r * .35, y - si * r * .35, r * .09, '#ff3b3b');
 }
 
 // ---------------- Extras: sparkle trail (t1), candy (b1) and coin (b2) bursts ----------------
@@ -568,7 +677,7 @@ function clearFx() { sN = 0; bits.length = 0; }
 
 // ---------------- The Wardrobe screen (opened from the menu) ----------------
 const SLOTS = [['c', 'color'], ['a', 'animal'], ['d', 'design'], ['o', 'object'], ['h', 'head'], ['t', 'trail'], ['b', 'burst']];
-const COUNT = { c: COLORS.length - 1, a: ANI.length - 1, d: DES.length - 1, o: OBJ.length - 1, h: 6, t: 1, b: 2 };
+const COUNT = { c: COLORS.length - 1, a: ANI.length - 1, d: DES.length - 1, o: OBJ.length - 1, h: 13, t: 1, b: 2 };
 const lookStr = sel => SLOTS.map(([l]) => sel[l] ? l + sel[l] : '').filter(Boolean).join('.');
 let ui = null, sel = {}, tab = 'c', raf = 0, catAsked = false, menuBtn = null;
 function names(slot) {

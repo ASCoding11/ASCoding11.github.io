@@ -11,6 +11,11 @@
  * gingerbread across the top of the margins, a Christmas tree with presents and a diya with a little rangoli in the
  * bottom left, and a menorah next to the snowman in the bottom right; and on the pages that list the games it loads
  * holiday.js, which adds the cabin you arrive in and the retro TV look (see that file).
+ * Sunset Week (SUNSET_WEEK below, a few set days inside fall) swaps the fall look for a neon sunset: the page tinted
+ * pink and violet (deep indigo when dark), a hot pink or teal accent, a sunset glow low on the page, a big sliced sun
+ * sinking into a strip of sea with a teal horizon and broken reflections, a far skyline of low blocks with lit
+ * windows, and tall palm trees in silhouette in the bottom corners whose fronds sway, with gulls, a small plane and
+ * sparkles on the water. Outside those days fall is untouched.
  * The date (the viewer's own) decides; outside those dates nothing happens. Each page loads this with one
  * <script defer>.
  *
@@ -26,8 +31,8 @@
  * ignores the pointer, pauses when the tab is hidden or a game covers the page, runs at 30 fps on phones, and with
  * prefers-reduced-motion shows the tint and a few still shapes only.
  *
- * A small 🍂 / ❄ button in the footer turns it all off (or back on) for this browser: localStorage "season:off" = "1".
- * Testing: add ?season=fall, ?season=holiday (winter with the holidays), ?season=winter (winter without them) or
+ * A small 🍂 / 🌴 / ❄ button in the footer turns it all off (or back on) for this browser: localStorage "season:off" = "1".
+ * Testing: add ?season=fall, ?season=sunset, ?season=holiday (winter with the holidays), ?season=winter (winter without them) or
  * ?season=none to the address, or call BackRoomSeasons.set('winter')
  * (set() with nothing goes back to the date). BackRoomSeasons.seasonFor(date) is the date rule, and
  * BackRoomSeasons.bench(n) draws n frames at once and returns the milliseconds per frame.
@@ -35,10 +40,19 @@
 (function(){
   if(window.BackRoomSeasons)return;
   var FALL_FROM=[9,22],FALL_TO=[11,26]; // month, day (inclusive); winter runs from the day after FALL_TO to the end of February
+  // SUNSET WEEK: from the first date to the second, both included, [year, month, day] on the viewer's own clock, the
+  // sunset look takes the place of fall (only on days that would be fall). Change the dates to move or extend it;
+  // make it [] to remove it. After the last date this is never used.
+  var SUNSET_WEEK=[[2026,11,19],[2026,11,23]];
 
+  function sunsetWeek(d){
+    if(SUNSET_WEEK.length<2)return false;
+    var n=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate(),a=SUNSET_WEEK[0],b=SUNSET_WEEK[1];
+    return n>=a[0]*10000+a[1]*100+a[2]&&n<=b[0]*10000+b[1]*100+b[2];
+  }
   function seasonFor(d){
     var m=d.getMonth()+1,day=d.getDate(),md=m*100+day;
-    if(md>=FALL_FROM[0]*100+FALL_FROM[1]&&md<=FALL_TO[0]*100+FALL_TO[1])return 'fall';
+    if(md>=FALL_FROM[0]*100+FALL_FROM[1]&&md<=FALL_TO[0]*100+FALL_TO[1])return sunsetWeek(d)?'sunset':'fall';
     if(md>FALL_TO[0]*100+FALL_TO[1]||m<=2)return 'winter';
     return 'none';
   }
@@ -52,14 +66,15 @@
   }
 
   var forced=null;
-  try{var q=new URLSearchParams(location.search).get('season');if(q==='fall'||q==='winter'||q==='holiday'||q==='none')forced=q}catch(e){}
+  try{var q=new URLSearchParams(location.search).get('season');if(q==='fall'||q==='sunset'||q==='winter'||q==='holiday'||q==='none')forced=q}catch(e){}
   var meSrc=document.currentScript&&document.currentScript.src,BASE=(meSrc?new URL(meSrc,location.href).pathname:'/e63334287a3deaa3/seasons.js').replace(/[^/]*$/,'');
   function isOff(){try{return localStorage.getItem('season:off')==='1'}catch(e){return false}}
   // Spanish (lang.js): the footer button's label.
   (function es(n){if(!window.BackRoomLang){if(n<100)setTimeout(function(){es(n+1)},100);return}BackRoomLang.add({
     'Turn off the fall scene (just for this browser)':'Apagar la escena de otoño (solo en este navegador)','Turn on the fall scene (just for this browser)':'Prender la escena de otoño (solo en este navegador)',
     'Turn off the holiday look and snow (just for this browser)':'Apagar el estilo de fiestas y la nieve (solo en este navegador)','Turn on the holiday look and snow (just for this browser)':'Prender el estilo de fiestas y la nieve (solo en este navegador)',
-    'Turn off the snow (just for this browser)':'Apagar la nieve (solo en este navegador)','Turn on the snow (just for this browser)':'Prender la nieve (solo en este navegador)'
+    'Turn off the snow (just for this browser)':'Apagar la nieve (solo en este navegador)','Turn on the snow (just for this browser)':'Prender la nieve (solo en este navegador)',
+    'Turn off the sunset scene (just for this browser)':'Apagar la escena del atardecer (solo en este navegador)','Turn on the sunset scene (just for this browser)':'Prender la escena del atardecer (solo en este navegador)'
   })})(0);
   function setOff(v){try{if(v)localStorage.setItem('season:off','1');else localStorage.removeItem('season:off')}catch(e){}}
 
@@ -103,7 +118,7 @@
   }
   // How far each variable moves towards the season's colour. Backgrounds the most, cards very little.
   var VARS={'--ground':.62,'--bg':.5,'--night':.5,'--panel-2':.45,'--line':.45,'--panel':.25};
-  var TINT={fall:{light:[250,190,120],dark:[110,50,8]},winter:{light:[165,208,246],dark:[20,60,110]}};
+  var TINT={fall:{light:[250,190,120],dark:[110,50,8]},winter:{light:[165,208,246],dark:[20,60,110]},sunset:{light:[255,200,222],dark:[27,16,54]}};
   // Fall gives each variable its own colour to move towards, so cards end up a warm cream (light) or a deep chestnut
   // (dark) that belongs with the background, where one shared tint left dark cards a grey-green on brown.
   // [colour, how far] per variable; a variable not listed here uses TINT and VARS above.
@@ -114,7 +129,17 @@
   // The site's green accent (Play buttons in Cars, the Send button, small labels, links, the What's new glow) looks
   // out of place in a fall scene, so in fall it becomes harvest gold: [--accent, --accent-ink] for light and dark
   // pages. Only a green accent is replaced: the phone page's is already yellow and stays as it is.
-  var ACCENT={fall:{light:['#9C6300','#FFFFFF'],dark:['#F3B94A','#2A1703']},winter:{light:['#2459C8','#FFFFFF'],dark:['#8DB4FF','#0A1A3A']}};
+  var ACCENT={fall:{light:['#9C6300','#FFFFFF'],dark:['#F3B94A','#2A1703']},winter:{light:['#2459C8','#FFFFFF'],dark:['#8DB4FF','#0A1A3A']},
+    // sunset: a deep hot pink on light pages (white text on it 5.8:1) and teal on dark ones (indigo text on it 11:1)
+    sunset:{light:['#C2186E','#FFFFFF'],dark:['#2EE6D6','#1B1036']}};
+  // The sunset look's own colours per variable, like FALL: a blush pink page with rosy cards (light), or a deep
+  // indigo night with violet cards (dark).
+  var SUNSETV={
+    light:{'--ground':[[255,214,228],.6],'--bg':[[255,214,228],.55],'--panel':[[255,246,250],.8],'--panel-2':[[253,228,241],.7],'--line':[[228,158,204],.6]},
+    dark:{'--ground':[[27,16,54],.74],'--bg':[[27,16,54],.62],'--night':[[27,16,54],.6],'--panel':[[38,20,66],.86],'--panel-2':[[52,28,88],.82],'--line':[[116,60,156],.62]}
+  };
+  // the sunset palette: hot pink, violet, sunset orange and gold, teal, indigo night
+  var SS={pink:'#FF4FA3',hot:'#F72585',violet:'#7B2FF7',deep:'#3A0CA3',orange:'#FF9E4A',gold:'#FFC857',teal:'#2EE6D6',night:'#1B1036'};
 
   var styleEl=null;
   function tint(season){
@@ -124,11 +149,11 @@
     ['--ground','--bg','--night'].forEach(function(v){if(!base)base=parse(cs.getPropertyValue(v))});
     var light=base?lum(base)>.5:!mqDark.matches;
     var t=TINT[season][light?'light':'dark'];
-    var own=season==='fall'?FALL[light?'light':'dark']:{};
+    var own=season==='fall'?FALL[light?'light':'dark']:season==='sunset'?SUNSETV[light?'light':'dark']:{};
     for(var v in VARS){var c=parse(cs.getPropertyValue(v));if(c)out.push(v+':'+(own[v]?mix(c,own[v][0],own[v][1]):mix(c,t,VARS[v])))}
     var ac=parse(cs.getPropertyValue('--accent')),A=ACCENT[season]&&ACCENT[season][light?'light':'dark'];
-    // fall only replaces a green accent (the phone page's yellow already fits); winter makes every accent blue
-    if(ac&&A&&(season==='winter'||(ac[1]>ac[0]&&ac[1]>ac[2]))){out.push('--accent:'+A[0]);if(cs.getPropertyValue('--accent-ink').trim())out.push('--accent-ink:'+A[1])}
+    // fall only replaces a green accent (the phone page's yellow already fits); winter makes every accent blue, sunset pink or teal
+    if(ac&&A&&(season==='winter'||season==='sunset'||(ac[1]>ac[0]&&ac[1]>ac[2]))){out.push('--accent:'+A[0]);if(cs.getPropertyValue('--accent-ink').trim())out.push('--accent-ink:'+A[1])}
     styleEl=document.createElement('style');styleEl.id='season-style';
     // html:root:root outranks the dark-mode rules (:root:not([data-theme="light"]), :root[data-theme="dark"]; theme.js)
     styleEl.textContent='html:root:root{'+out.join(';')+'}body{isolation:isolate}'+
@@ -431,6 +456,291 @@
     }else drawSnowman(g,tx,by+4,k*.9);
   }
 
+  /* ---------- the sunset scene: sun, sea, skyline, palm trees, gulls and a plane ---------- */
+  // A small seeded random, so the skyline and the waves come out the same each time the window changes size.
+  function srand(s){s=Math.floor(Math.abs(s))%2147483646+1;return function(){s=s*16807%2147483647;return (s-1)/2147483646}}
+  // The palms' and the dunes' silhouette colour. faint: the palms in the corners of a phone, where the page's own text
+  // can scroll over them, are only a shade off the background so that text stays as easy to read as anywhere else.
+  var faint=false;
+  function sil(){return faint?(light?'#E2C6EA':'#23113E'):light?'#3E1A6E':'#0C0420'}
+  function rgba(hex,a){var c=parse(hex);return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'}
+  // A palm's crown: 7 to 9 arching fronds (v picks how many and their angles), each a curved stem with thin leaflets
+  // hanging off both sides, drawn once into a sprite. Units: a frond is about 100 long; R is that in CSS pixels.
+  // On a dark page a thin pink rim on the sunward side keeps the silhouette from sinking into the night.
+  function crownSprite(R,v){
+    var key='crown:'+Math.round(R)+':'+v+(light?'L':'D')+(faint?'f':'');if(spriteCache[key])return spriteCache[key];
+    var k=dpr*R/100,ox=130,oy=86,c=document.createElement('canvas');c.width=Math.ceil(260*k);c.height=Math.ceil(196*k);
+    var g=c.getContext('2d');g.setTransform(k,0,0,k,ox*k,oy*k);g.lineJoin='round';g.lineCap='round';
+    var r=srand(7+v*131),fr=[],n=5+v,i;
+    for(i=0;i<n;i++){var u=i/(n-1),a=-Math.PI*(.05+.9*u)+(r()-.5)*.16,cs=Math.abs(Math.cos(a));
+      fr.push({a:a,L:(84+r()*18)*(1-.22*(1-cs)),bend:.75+.85*cs+r()*.2})}
+    fr.push({a:.62+r()*.2,L:60+r()*8,bend:.45});fr.push({a:Math.PI-.62-r()*.2,L:56+r()*8,bend:.45});   // two hanging down
+    function frond(p,f){
+      var m=26,x=0,y=0,h=f.a,dir=Math.cos(f.a)>=0?1:-1,pts=[],j;
+      for(j=0;j<=m;j++){pts.push([x,y,h]);x+=Math.cos(h)*f.L/m;y+=Math.sin(h)*f.L/m;h+=dir*f.bend/m*(.3+1.4*j/m)}
+      for(j=2;j<=m;j++){
+        var t=j/m,q=pts[j],ll=f.L*.34*Math.pow(Math.sin(Math.PI*Math.min(1,t*1.12)),.75)*(1-.3*t),ux=Math.cos(q[2])*1.5,uy=Math.sin(q[2])*1.5;
+        for(var s=-1;s<=1;s+=2){
+          var b=q[2]+s*.8,dx=Math.cos(b),dy=Math.sin(b)+.6,dl=Math.sqrt(dx*dx+dy*dy);dx/=dl;dy/=dl;
+          var tx=q[0]+dx*ll,ty=q[1]+dy*ll,cx=q[0]+dx*ll*.5,cy=q[1]+dy*ll*.5+ll*.1;
+          p.moveTo(q[0]-ux,q[1]-uy);p.quadraticCurveTo(cx-ux*.6,cy-uy*.6,tx,ty);p.quadraticCurveTo(cx+ux*.6,cy+uy*.6,q[0]+ux,q[1]+uy);p.closePath();
+        }
+      }
+      return pts;
+    }
+    var leaf=new Path2D(),stems=new Path2D();
+    fr.forEach(function(f){var pts=frond(leaf,f);stems.moveTo(0,0);pts.forEach(function(q){stems.lineTo(q[0],q[1])})});
+    [[-4,8,5],[4.5,9,5],[0,13,4.6]].forEach(function(o){leaf.moveTo(o[0]+o[2],o[1]);leaf.arc(o[0],o[1],o[2],0,6.2832)});   // coconuts
+    leaf.moveTo(8,2);leaf.ellipse(0,2,8,6,0,0,6.2832);
+    function paint(col){g.fillStyle=col;g.fill(leaf);g.strokeStyle=col;g.lineWidth=2.6;g.stroke(stems)}
+    if(!light&&!faint){g.save();g.translate(-1.6,-1.2);paint('rgba(255,79,163,.55)');g.restore()}
+    paint(sil());
+    return spriteCache[key]={cv:c,ox:ox*k,oy:oy*k};
+  }
+  // A curved, tapering trunk from its foot (x, y) up h pixels to its top, leaning sideways by lean. Returns the top and
+  // how far the top tilts, which is where the crown goes. rim: which side catches the sun (-1, 1), for dark pages.
+  function drawTrunk(g,x,y,h,lean,w0,rim){
+    var tx=x+lean,ty=y-h,cx=x+lean*.08,cy=y-h*.55,n=32,L=[],Rt=[],i;
+    for(i=0;i<=n;i++){
+      var t=i/n,u=1-t,px=u*u*x+2*u*t*cx+t*t*tx,py=u*u*y+2*u*t*cy+t*t*ty,dx=2*u*(cx-x)+2*t*(tx-cx),dy=2*u*(cy-y)+2*t*(ty-cy),dl=Math.sqrt(dx*dx+dy*dy)||1;
+      var w=w0*(1-.42*t)*(t<.07?1+(.07-t)*5:1)/2,nx=-dy/dl*w,ny=dx/dl*w;
+      L.push([px+nx,py+ny]);Rt.push([px-nx,py-ny]);
+    }
+    g.beginPath();g.moveTo(L[0][0],L[0][1]);for(i=1;i<=n;i++)g.lineTo(L[i][0],L[i][1]);for(i=n;i>=0;i--)g.lineTo(Rt[i][0],Rt[i][1]);g.closePath();
+    g.fillStyle=sil();g.fill();
+    // the rings of the trunk, faintly
+    g.strokeStyle=light?'rgba(255,214,236,.16)':'rgba(255,79,163,.14)';g.lineWidth=1;g.beginPath();
+    for(i=1;i<n;i+=1){g.moveTo(L[i][0],L[i][1]);g.quadraticCurveTo((L[i][0]+Rt[i][0])/2,(L[i][1]+Rt[i][1])/2+2,Rt[i][0],Rt[i][1])}
+    g.stroke();
+    if(!light&&!faint&&rim){var side=(lean>=0)===(rim>0)?Rt:L;   // which edge faces the sun
+      g.strokeStyle='rgba(255,79,163,.5)';g.lineWidth=1.2;g.beginPath();g.moveTo(side[2][0],side[2][1]);for(i=3;i<=n;i++)g.lineTo(side[i][0],side[i][1]);g.stroke()}
+    var dx2=tx-cx,dy2=ty-cy;
+    return {x:tx,y:ty,tilt:(Math.atan2(dy2,dx2)+Math.PI/2)*.6};
+  }
+  // The sun: a disc going from gold to hot pink with horizontal slices cut out of its lower half, and a glow.
+  function drawSun(g,x,y,r){
+    var gw=g.createRadialGradient(x,y,r*.5,x,y,r*2.8);
+    gw.addColorStop(0,rgba(SS.pink,light?.32:.38));gw.addColorStop(.45,rgba(SS.violet,light?.1:.16));gw.addColorStop(1,rgba(SS.violet,0));
+    g.fillStyle=gw;g.fillRect(x-r*2.8,y-r*2.8,r*5.6,r*5.6);
+    g.save();g.beginPath();g.arc(x,y,r,0,6.2832);g.clip();
+    var gr=g.createLinearGradient(0,y-r,0,y+r);gr.addColorStop(0,SS.gold);gr.addColorStop(.45,SS.orange);gr.addColorStop(.8,SS.pink);gr.addColorStop(1,SS.hot);
+    g.beginPath();g.rect(x-r,y-r,2*r,2*r);
+    for(var j=0,sy=y+r*.06;j<7&&sy<y+r;j++){var th=r*(.022+j*.021);g.rect(x-r,sy,2*r,th);sy+=th+r*(.12-j*.008)}
+    g.fillStyle=gr;g.fill('evenodd');g.restore();
+  }
+  // Long thin clouds in the sunset colours, drawn across part of the sun.
+  function drawStreak(g,x,y,w,h,col){var gr=g.createLinearGradient(x-w/2,0,x+w/2,0);gr.addColorStop(0,rgba(col,0));gr.addColorStop(.3,rgba(col,light?.34:.5));gr.addColorStop(.7,rgba(col,light?.34:.5));gr.addColorStop(1,rgba(col,0));
+    g.fillStyle=gr;g.beginPath();g.ellipse(x,y,w/2,h/2,0,0,6.2832);g.fill()}
+  // A far skyline of low blocks along the horizon, from x0 to x1: some stepped at the top, a few with a rounded crown
+  // or a mast, and a scatter of tiny lit windows.
+  function drawSkyline(g,x0,x1,hy,k,rnd2){
+    var col=light?'rgba(110,62,150,.5)':'#2A1252',x=x0,wins=[];
+    g.save();g.beginPath();g.rect(x0,0,x1-x0,hy+1);g.clip();
+    g.fillStyle=col;g.beginPath();
+    while(x<x1){
+      var bw=(12+rnd2()*28)*k,bh=(7+rnd2()*24)*k*(rnd2()<.14?1.7:1);
+      if(rnd2()<.16){x+=bw*.7;continue}
+      g.rect(x,hy-bh,bw,bh+1);
+      var top=hy-bh,kind=rnd2();
+      if(kind<.4){var sh=bh*.2;g.rect(x+bw*.16,top-sh,bw*.68,sh+1);top-=sh;if(kind<.18){g.rect(x+bw*.32,top-sh*.8,bw*.36,sh*.8+1);top-=sh*.8}}
+      else if(kind<.52){g.moveTo(x+bw*.85,top+1);g.arc(x+bw/2,top+1,bw*.35,0,Math.PI,true)}
+      if(kind<.22&&bh>16*k){g.rect(x+bw/2-.6,top-9*k,1.2,9*k+1)}
+      for(var wy=hy-bh+3*k;wy<hy-3*k;wy+=4.4*k)for(var wx=x+2.5*k;wx<x+bw-3*k;wx+=4*k)if(rnd2()<.16)wins.push([wx,wy,rnd2()]);
+      x+=bw+rnd2()*2*k;
+    }
+    g.fill();
+    var wc=[SS.gold,SS.pink,SS.teal];
+    wins.forEach(function(w){g.fillStyle=rgba(wc[w[2]*3|0],light?.75:.85);g.fillRect(w[0],w[1],1.4*k,1.8*k)});
+    g.restore();
+  }
+  // The sea: a strip from the horizon (hy) to the bottom, a thin teal horizon line, broken reflections of the sun under
+  // it (sx, r) and a scatter of short wave lines.
+  function drawSea(g,x0,x1,hy,yb,sx,r,rnd2){
+    var gr=g.createLinearGradient(0,hy,0,yb);
+    gr.addColorStop(0,light?'rgba(123,47,247,.32)':'rgba(58,12,163,.75)');gr.addColorStop(1,light?'rgba(58,12,163,.48)':'rgba(16,6,36,.96)');
+    g.fillStyle=gr;g.fillRect(x0,hy,x1-x0,yb-hy);
+    var hl=light?'#0FA79A':SS.teal;
+    if(!light){g.fillStyle=rgba(SS.teal,.2);g.fillRect(x0,hy-1.5,x1-x0,4)}
+    g.fillStyle=hl;g.fillRect(x0,hy,x1-x0,1.2);
+    g.fillStyle=rgba(SS.teal,light?.42:.3);
+    for(var i=0;i<(x1-x0)/14;i++){var wx=x0+rnd2()*(x1-x0),wy=hy+4+rnd2()*(yb-hy-6),wl=4+rnd2()*16;g.fillRect(wx,wy,wl,1)}
+    if(sx===null)return;
+    var rows=Math.floor((yb-hy-3)/4);
+    for(i=0;i<rows;i++){
+      var t=i/Math.max(1,rows-1),y=hy+3+i*4,half=r*(1-.55*t)*(.75+.25*rnd2()),c0=sx+(rnd2()-.5)*r*.12;
+      g.fillStyle=rgba(t<.4?SS.gold:t<.7?SS.orange:SS.pink,light?.8:.75);
+      for(var xx=c0-half;xx<c0+half;){var seg=(6+rnd2()*18)*(1-.4*t);g.fillRect(xx,y,Math.min(seg,c0+half-xx),1.6+(1-t));xx+=seg+3+rnd2()*8*(.5+t)}
+    }
+  }
+  // a low dune in silhouette from x0 to x1, its top hgt above the bottom edge yb
+  function drawDune(g,x0,x1,yb,hgt){
+    g.beginPath();g.moveTo(x0,yb+2);g.bezierCurveTo(x0+(x1-x0)*.15,yb-hgt,x0+(x1-x0)*.6,yb-hgt*1.05,x1,yb+2);g.closePath();g.fillStyle=sil();g.fill();
+  }
+  function drawSunsetScene(){
+    var g=bgx,S=scene,i,rnd2=srand(seedA*1e6);g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);faint=!S.roomy;
+    var hy=S.hy;
+    // the sunset glow, low on the page: orange at the horizon rising through pink to violet
+    var top=hy-H*.62,gl=g.createLinearGradient(0,top,0,hy);
+    gl.addColorStop(0,rgba(SS.violet,0));gl.addColorStop(.45,rgba(SS.violet,light?.08:.13));gl.addColorStop(.8,rgba(SS.pink,light?.18:.2));gl.addColorStop(1,rgba(SS.orange,light?.3:.3));
+    g.fillStyle=gl;g.fillRect(0,top,W,hy-top);
+    if(S.roomy){
+      if(!light){g.fillStyle='rgba(255,240,250,.7)';for(i=0;i<46;i++){var sx0=rnd2()<.5?rnd2()*S.gut:W-rnd2()*S.gut,sy0=rnd2()*(hy-H*.42);g.globalAlpha=.2+rnd2()*.6;g.fillRect(sx0,sy0,1.3,1.3)}g.globalAlpha=1}
+      // a warm glow behind the palms on the left, and the sun on the right
+      var lg=g.createRadialGradient(S.gut*.4,hy,0,S.gut*.4,hy,S.gut*1.25);lg.addColorStop(0,rgba(SS.pink,light?.22:.26));lg.addColorStop(1,rgba(SS.pink,0));
+      g.fillStyle=lg;g.fillRect(0,hy-S.gut*1.25,S.gut*1.7,S.gut*1.25);
+    }
+    if(S.sun){
+      drawSun(g,S.sun.x,S.sun.y,S.sun.r);
+      g.save();if(S.roomy){g.beginPath();g.rect(W-S.gut+6,0,S.gut,H);g.clip()}   // the clouds stay in the margin
+      drawStreak(g,S.sun.x-S.sun.r*.3,S.sun.y-S.sun.r*.42,S.sun.r*2.6,S.sun.r*.07,SS.violet);
+      drawStreak(g,S.sun.x+S.sun.r*.4,S.sun.y-S.sun.r*.72,S.sun.r*2.1,S.sun.r*.05,SS.violet);
+      drawStreak(g,S.sun.x-S.sun.r*.9,S.sun.y-S.sun.r*1.25,S.sun.r*1.8,S.sun.r*.05,SS.pink);
+      g.restore();
+    }
+    // the skyline keeps to the sides, so no text on the page ends up over its lit windows
+    var side=S.roomy?S.gut-4:W*.3;
+    drawSkyline(g,-4,side,hy,S.k,rnd2);drawSkyline(g,W-side,W+4,hy,S.k,rnd2);
+    drawSea(g,0,W,hy,H,S.sun?S.sun.x:null,S.sun?S.sun.r:0,rnd2);
+    // dunes and the trunks; the crowns are on the moving canvas so their fronds can sway
+    S.dunes.forEach(function(d){drawDune(g,d[0],d[1],H,d[2])});
+    S.palms.forEach(function(p){var t=drawTrunk(g,p.bx,p.by,p.h,p.lean,p.w,p.rim);p.x=t.x;p.y=t.y;p.tilt=t.tilt});
+    faint=false;
+  }
+  // Where the sunset scene stands. With margins: two tall palms in each, the sun low in the right one; without
+  // (phones, narrow windows): small palms in the bottom corners and the sun tucked behind the right ones.
+  function layoutSunset(S){
+    var gut=S.gut,hy,R,P=[];
+    if(S.roomy){
+      S.hy=hy=H-Math.round(46+S.k*10);R=Math.max(54,Math.min(150,gut*.42,H*.2));
+      var hmax=H-R*.8-16;
+      // keep each crown inside its margin: the fronds reach about 1.05 R either side of the top of the trunk
+      var palm=function(bx,frac,lean,rk,v,flip,rim){
+        var r=R*rk,lo=bx<W/2?r*.2:W-gut+r*1.05,hi=bx<W/2?gut-r*1.05:W-r*.2,tx=Math.max(lo,Math.min(hi,bx+lean));
+        P.push({bx:bx,by:H+6,h:Math.min(hmax,H*frac),lean:tx-bx,R:r,w:r*.13,v:v,flip:flip,rim:rim,ph:Math.random()*6.3,sf:rnd(.45,.7)})};
+      var sr=Math.max(46,Math.min(170,gut*.36,H*.17));
+      S.sun={x:W-gut*.56,y:hy-sr*.42,r:sr};
+      palm(gut*.14,.5,-gut*.06,.8,1,-1,1);
+      palm(gut*.44,.74,gut*.2,1,2,1,1);
+      palm(W-gut*.1,.44,gut*.05,.76,0,1,-1);
+      palm(W-gut*.34,.63,-gut*.22,.94,1,-1,-1);
+      S.dunes=[[-20,gut*1.02,26*S.k],[W-gut*.85,W+20,22*S.k]];
+    }else{
+      var m=Math.min(W,H);S.hy=hy=H-(phone?30:38);R=Math.max(34,Math.min(60,m*.13));
+      var hp=Math.min(H*.3,230);
+      S.sun={x:W-m*.2,y:hy-m*.02,r:Math.max(22,Math.min(48,m*.085))};
+      var sp=function(bx,h,lean,rk,v,flip,rim){P.push({bx:bx,by:H+4,h:h,lean:lean,R:R*rk,w:R*rk*.13,v:v,flip:flip,rim:rim,ph:Math.random()*6.3,sf:rnd(.45,.7)})};
+      sp(m*.04,hp,R*.5,1,2,1,1);
+      sp(m*.2,hp*.6,R*.12,.72,0,-1,1);
+      sp(W-m*.05,hp*.78,-R*.45,.88,1,-1,-1);
+      S.dunes=[[-20,m*.34,16],[W-m*.26,W+20,14]];
+    }
+    S.palms=P;
+  }
+  function sparkSprite(ci){
+    var key='spark'+ci;if(spriteCache[key])return spriteCache[key];
+    var n=Math.ceil(16*dpr),cv=document.createElement('canvas');cv.width=cv.height=n;
+    var g=cv.getContext('2d'),c=[SS.gold,'#FFFFFF',SS.teal][ci],h=n/2;
+    var gr=g.createRadialGradient(h,h,0,h,h,h);gr.addColorStop(0,rgba(c,1));gr.addColorStop(.3,rgba(c,.6));gr.addColorStop(1,rgba(c,0));
+    g.fillStyle=gr;g.fillRect(0,0,n,n);
+    g.fillStyle=rgba(c,.95);g.fillRect(0,h-.5*dpr,n,dpr);g.fillRect(h-.5*dpr,n*.2,dpr,n*.6);
+    return spriteCache[key]=cv;
+  }
+  // a gull with its wings up (flapping squashes it), and a small plane seen from the side; both drawn facing right
+  function gullSprite(){
+    var key='gull'+(light?'L':'D');if(spriteCache[key])return spriteCache[key];
+    var n=Math.ceil(40*dpr),cv=document.createElement('canvas');cv.width=cv.height=n;
+    var g=cv.getContext('2d'),k=n/40;g.setTransform(k,0,0,k,n/2,n/2);g.lineCap='round';g.lineJoin='round';
+    g.strokeStyle=light?'#3E1A6E':'rgba(255,214,236,.9)';g.lineWidth=2.2;
+    g.beginPath();g.moveTo(-17,-1);g.quadraticCurveTo(-11,-9,-5,-4);g.quadraticCurveTo(-2,-1,0,1);g.quadraticCurveTo(2,-1,5,-4);g.quadraticCurveTo(11,-9,17,-1);g.stroke();
+    g.fillStyle=g.strokeStyle;g.beginPath();g.ellipse(.5,1.4,3.2,1.6,0,0,6.2832);g.fill();
+    return spriteCache[key]=cv;
+  }
+  function planeSprite(){
+    var key='plane'+(light?'L':'D');if(spriteCache[key])return spriteCache[key];
+    var n=Math.ceil(48*dpr),cv=document.createElement('canvas');cv.width=cv.height=n;
+    var g=cv.getContext('2d'),k=n/48;g.setTransform(k,0,0,k,n/2,n/2);
+    g.fillStyle=light?'#4A2580':'rgba(255,214,236,.8)';
+    g.beginPath();g.ellipse(0,0,19,2.6,0,0,6.2832);g.fill();
+    g.beginPath();g.moveTo(-15,-1);g.lineTo(-20,-9);g.lineTo(-16.5,-9);g.lineTo(-10,-1);g.closePath();g.fill();
+    g.beginPath();g.moveTo(-3,0);g.lineTo(-9,6);g.lineTo(-5,6);g.lineTo(4,0);g.closePath();g.fill();
+    return spriteCache[key]=cv;
+  }
+  // The moving parts. Gulls and the plane stay in the margins (they fade out before the page's column) and sparkles
+  // stay on the strip of sea at the sides; phones get only the sparkles.
+  function populateSunset(){
+    var S=scene;if(!S)return;
+    var nsp=S.roomy?(still?6:18):(still?3:8),i,gut=S.gut;
+    for(i=0;i<nsp;i++){
+      var side=i%2,near=S.sun&&side&&S.roomy&&i%4===1,x;
+      if(S.roomy)x=near?S.sun.x+rnd(-1,1)*S.sun.r:side?rnd(W-gut+6,W-6):rnd(6,gut-6);
+      else x=near?S.sun.x+rnd(-1,1)*S.sun.r*.8:side?rnd(W*.76,W-4):rnd(4,W*.24);
+      parts.push({kind:'spark',bx:x,x:x,y:rnd(S.hy+4,H-5),size:rnd(7,13),ci:Math.random()*3|0,ph:rnd(0,6.3),fr:rnd(.5,1.3),a:rnd(.6,1)});
+    }
+    if(!S.roomy||still)return;
+    for(i=0;i<4;i++){
+      var left=i<2,x0=left?-20:W-gut-10,x1=left?gut+10:W+20;
+      parts.push({kind:'gull',x0:x0,x1:x1,x:rnd(x0,x1),by:rnd(H*.08,H*.3),y:0,vx:(left?1:-1)*rnd(7,13)*(i%2?1:-1),size:rnd(16,24),ph:rnd(0,6.3),fl:rnd(4.5,6.5),glide:rnd(0,9)});
+    }
+    parts.push({kind:'plane',x0:-30,x1:gut+20,x:rnd(-30,gut),y:H*.07+12,vx:9,size:30,wait:0});
+  }
+  function stepSunset(dt){
+    clock+=dt;
+    for(var i=0;i<parts.length;i++){
+      var p=parts[i];
+      if(p.kind==='spark')p.x=p.bx+3*Math.sin(clock*.3+p.ph);
+      else if(p.kind==='gull'){p.x+=p.vx*dt;if(p.x>p.x1)p.x=p.x0;else if(p.x<p.x0)p.x=p.x1;p.y=p.by+4*Math.sin(clock*.5+p.ph)}
+      else if(p.kind==='plane'){if(p.wait>0)p.wait-=dt;else{p.x+=p.vx*dt;if(p.x>p.x1){p.x=p.x0;p.wait=rnd(20,40)}}}
+    }
+  }
+  function drawSunsetFx(g){
+    var S=scene;if(!S)return;
+    for(var i=0;i<parts.length;i++){
+      var p=parts[i],k,spr,a;
+      if(p.kind==='spark'){
+        a=still?p.a*.7:p.a*Math.pow(Math.max(0,Math.sin(p.ph+clock*p.fr)),3);if(a<.03)continue;
+        spr=sparkSprite(p.ci);k=p.size/16;g.globalAlpha=a;g.setTransform(k,0,0,k,p.x*dpr,p.y*dpr);
+      }else{
+        if(p.kind==='plane'&&p.wait>0)continue;
+        // fade near the ends of the margin so nothing crosses into the page's column
+        a=Math.max(0,Math.min(1,(p.x-p.x0)/36,(p.x1-p.x)/36));if(a<.03)continue;
+        var dir=p.vx<0?-1:1;
+        if(p.kind==='gull'){
+          var c=(clock+p.glide)%9,fl=c<6?.35+.65*Math.abs(Math.cos(clock*p.fl+p.ph)):.8;   // flaps, then glides for a while
+          spr=gullSprite();k=p.size/40;g.globalAlpha=a*.85;g.setTransform(k*dir,0,0,k*fl,p.x*dpr,p.y*dpr);
+        }else{spr=planeSprite();k=p.size/48;g.globalAlpha=a*.8;g.setTransform(k*dir,0,0,k,p.x*dpr,p.y*dpr)}
+      }
+      g.drawImage(spr,-spr.width/2,-spr.height/2);
+      if(p.kind==='plane'&&clock%1.4<.12){g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle=SS.hot;g.fillRect(p.x-1,p.y-1.5,2,2)}
+    }
+    g.globalAlpha=1;
+    // the crowns, swaying a little about the tops of their trunks
+    faint=!S.roomy;
+    for(i=0;i<S.palms.length;i++){
+      var pm=S.palms[i];if(pm.x===undefined)continue;
+      var cr=crownSprite(pm.R,pm.v),an=pm.tilt+(still?0:.028*Math.sin(clock*pm.sf+pm.ph)+.01*Math.sin(clock*1.9+pm.ph*2)),co=Math.cos(an),si=Math.sin(an);
+      g.setTransform(co*pm.flip,si*pm.flip,-si,co,pm.x*dpr,pm.y*dpr);g.drawImage(cr.cv,-cr.ox,-cr.oy);
+    }
+    faint=false;
+  }
+  // the little sunset for the footer on phones: sky, sun, skyline, sea and three palms in a rounded frame
+  function footSunset(g,fw,fh){
+    g.save();
+    g.beginPath();g.moveTo(14,0);g.lineTo(fw-14,0);g.quadraticCurveTo(fw,0,fw,14);g.lineTo(fw,fh);g.lineTo(0,fh);g.lineTo(0,14);g.quadraticCurveTo(0,0,14,0);g.clip();
+    var sk=g.createLinearGradient(0,0,0,fh*.8);
+    sk.addColorStop(0,light?'#E9D7FF':SS.night);sk.addColorStop(.5,light?'#FFC2E0':'#4B1A7A');sk.addColorStop(1,light?'#FFD3A6':'#C23A7E');
+    g.fillStyle=sk;g.fillRect(0,0,fw,fh);
+    var hy=fh-22,r2=srand(77);
+    drawSun(g,fw*.66,hy-9,24);
+    drawSkyline(g,0,fw,hy,.5,r2);
+    drawSea(g,0,fw,hy,fh,fw*.66,24,r2);
+    drawDune(g,-10,fw*.42,fh,10);drawDune(g,fw*.74,fw+10,fh,8);
+    [[20,74,14,30,2,1],[52,46,4,21,0,-1],[fw-16,62,-12,26,1,-1]].forEach(function(q){
+      var t=drawTrunk(g,q[0],fh+2,q[1],q[2],q[3]*.13,q[4]===1?-1:1),cr=crownSprite(q[3],q[4]),c=Math.cos(t.tilt),s=Math.sin(t.tilt);
+      g.setTransform(c*q[5],s*q[5],-s,c,t.x*dpr,t.y*dpr);g.drawImage(cr.cv,-cr.ox,-cr.oy);g.setTransform(dpr,0,0,dpr,0,0);
+    });
+    g.restore();
+  }
+
   /* ---------- the effect ---------- */
   var cv=null,ctx=null,W=0,H=0,parts=[],rest=[],season='none',light=true,raf=0,last=0,t0=0,clock=0,still=false,ground=null,btn=null,covered=false;
   var bg=null,bgx=null,scene=null,seedA=0,seedB=0;   // the still canvas, where things stand, and the shape of the field or the snow
@@ -446,7 +756,7 @@
     var ow=W||w,oh=H||h;W=w;H=h;
     cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);
     if(bg){bg.width=cv.width;bg.height=cv.height}
-    parts.forEach(function(p){p.x=p.x/ow*w;p.bx=p.bx/ow*w;p.y=p.y/oh*h});
+    if(season!=='sunset')parts.forEach(function(p){p.x=p.x/ow*w;p.bx=p.bx/ow*w;p.y=p.y/oh*h});
     makeGround();
     if(bg){layoutScene();drawScene()}
     return true;
@@ -479,8 +789,9 @@
     return p;
   }
   function populate(){
-    parts=[];var c=counts(),i;
-    rest=[];
+    parts=[];rest=[];
+    if(season==='sunset'){populateSunset();return}
+    var c=counts(),i;
     if(season==='fall'){
       for(i=0;i<c.n;i++)parts.push(spawnLeaf({},false));
       for(i=0;i<c.ac;i++)parts.push(spawnAcorn({}));
@@ -516,6 +827,7 @@
     var gut=Math.max(0,(W-ww)/2),roomy=gut>=120&&!phone,k=phone?.56:Math.max(.62,Math.min(1,.5+gut/330)),mh=phone?26:44;
     scene={gut:gut,roomy:roomy,k:k,tk:k*.9,mh:mh,base:H-mh*.42,
       px:Math.max(gut*.5,66*k+6),tx:W-Math.max(gut*.5,78*k+4)};
+    if(season==='sunset'){layoutSunset(scene);if(cv&&parts.length)populate()}
     footScene();
   }
   function drawBranch(g){
@@ -536,6 +848,7 @@
   function drawScene(){
     if(!bg||!scene)return;
     if(season==='winter'){drawWinterScene();return}
+    if(season==='sunset'){drawSunsetScene();return}
     var g=bgx,k=scene.k,i;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
     // a low sun in the top right, and the foot of the page a little deeper
     var gl=g.createRadialGradient(W*.84,-H*.08,0,W*.84,-H*.08,Math.max(W,H)*.95);
@@ -584,8 +897,8 @@
   // the page's footer instead: wheat, two pumpkins and the turkey on a little mound.
   var foot=null;
   function footScene(){
-    var f=document.querySelector('footer, .foot'),win=season==='winter';
-    if((season!=='fall'&&!win)||!scene||scene.roomy||!f){if(foot){foot.remove();foot=null}return}
+    var f=document.querySelector('footer, .foot'),win=season==='winter',sun=season==='sunset';
+    if((season!=='fall'&&!win&&!sun)||!scene||scene.roomy||!f){if(foot){foot.remove();foot=null}return}
     var fw=win&&holiday?300:230;
     if(!foot){
       foot=document.createElement('canvas');foot.className='season-foot';foot.setAttribute('aria-hidden','true');
@@ -594,7 +907,8 @@
     foot.style.cssText='display:block;width:'+fw+'px;max-width:100%;height:auto;aspect-ratio:'+fw+'/108;margin:0 auto 12px;pointer-events:none';
     var d=dpr,g=foot.getContext('2d'),i;foot.width=Math.round(fw*d);foot.height=Math.round(108*d);
     g.setTransform(d,0,0,d,0,0);
-    if(win){
+    if(sun)footSunset(g,fw,108);
+    else if(win){
       g.beginPath();g.ellipse(fw/2,108,fw/2-2,17,0,Math.PI,0);g.fillStyle=light?'#FFFFFF':'rgba(226,238,252,.95)';g.fill();
       if(holiday){drawTree(g,44,100,.5);drawDiya(g,96,101,.62);drawMenorah(g,150,100,.6);drawGingerbread(g,206,98,.8);drawSnowman(g,256,100,.6)}
       else drawSnowman(g,fw/2,100,.68);
@@ -608,6 +922,7 @@
   }
 
   function step(dt){
+    if(season==='sunset'){stepSunset(dt);return}
     clock+=dt;var wind=season==='fall'?10*Math.sin(clock*.07):5*Math.sin(clock*.11);
     for(var i=0;i<parts.length;i++){
       var p=parts[i];
@@ -619,6 +934,7 @@
   }
   function draw(){
     var g=ctx;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,cv.width,cv.height);
+    if(season==='sunset'){drawSunsetFx(g);g.setTransform(1,0,0,1,0,0);g.globalAlpha=1;return}
     var dot=season==='winter'&&dotSprite(light),fl=season==='winter'&&flakeSprite(light);
     for(var i=0;i<parts.length;i++){
       var p=parts[i],c=Math.cos(p.rot),s=Math.sin(p.rot),k=p.size*dpr,spr,half;
@@ -667,7 +983,7 @@
     cv=document.createElement('canvas');cv.id='season-fx';cv.setAttribute('aria-hidden','true');
     document.body.insertBefore(cv,document.body.firstChild);
     ctx=cv.getContext('2d');
-    if(s==='fall'||s==='winter'){   // the still part of the scene goes on its own canvas, under the moving one
+    if(s==='fall'||s==='winter'||s==='sunset'){   // the still part of the scene goes on its own canvas, under the moving one
       bg=document.createElement('canvas');bg.id='season-bg';bg.setAttribute('aria-hidden','true');
       document.body.insertBefore(bg,cv);bgx=bg.getContext('2d');seedA=rnd(0,6.3);seedB=rnd(0,6.3);
     }
@@ -703,8 +1019,8 @@
       if(f)f.appendChild(btn);
       else{btn.style.cssText+=';position:fixed;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:5;margin:0';document.body.appendChild(btn)}
     }
-    var off=isOff(),what=s==='fall'?'fall scene':holiday?'holiday look and snow':'snow';
-    btn.textContent=s==='fall'?'🍂':'❄';
+    var off=isOff(),what=s==='fall'?'fall scene':s==='sunset'?'sunset scene':holiday?'holiday look and snow':'snow';
+    btn.textContent=s==='fall'?'🍂':s==='sunset'?'🌴':'❄';
     btn.style.opacity=off?'.45':'.85';
     btn.title=(off?'Turn on the ':'Turn off the ')+what+' (just for this browser)';
     btn.setAttribute('aria-label',btn.title);btn.setAttribute('aria-pressed',off?'false':'true');
@@ -730,7 +1046,7 @@
     seasonFor:seasonFor,
     get season(){return season},
     get running(){return !!raf},
-    set:function(s){forced=s==='fall'||s==='winter'||s==='holiday'||s==='none'?s:null;start(current());return season},
+    set:function(s){forced=s==='fall'||s==='sunset'||s==='winter'||s==='holiday'||s==='none'?s:null;start(current());return season},
     holidayFor:holidayFor,
     get holiday(){return holiday},
     get off(){return isOff()},

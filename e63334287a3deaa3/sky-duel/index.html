@@ -5,6 +5,7 @@
 <script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
 <script src="es.js"></script> <!-- this game's Spanish words -->
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Paint Shop while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Sky Duel</title>
 <meta name="theme-color" content="#3d8bff">
@@ -68,6 +69,7 @@ h2{font-family:var(--f-d);font-weight:400;font-size:28px;margin:0 0 4px}
 .seg button.on{background:var(--ink);color:#fff}
 .seg button[disabled]{opacity:.4;cursor:default}
 .opts{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;font-size:14.5px}
+.opts>.nobots{grid-column:2;font-size:13px;font-weight:600;opacity:.75;margin-top:-4px}
 .msg{min-height:20px;margin:10px 0 0;font-size:14.5px;color:var(--ink-2)}
 .msg.err{color:#c22a1e}
 .note{font-size:13.5px;color:var(--ink-2);line-height:1.4;margin:8px 0 0}
@@ -343,6 +345,7 @@ body.touch #banner{top:30%}
         <span>Win at</span><span class="seg" id="setKl"><button type="button" data-v="5">5 kills</button><button type="button" data-v="10">10</button><button type="button" data-v="15">15</button><button type="button" data-v="20">20</button></span>
         <span>Time</span><span class="seg" id="setTl"><button type="button" data-v="180">3 min</button><button type="button" data-v="300">5 min</button><button type="button" data-v="480">8 min</button></span>
         <span>Bots</span><span class="seg" id="setFill"><button type="button" data-v="0">Off</button><button type="button" data-v="4">Fill to 4</button><button type="button" data-v="6">6</button><button type="button" data-v="8">8</button></span>
+        <span class="nobots" id="noBotsNote" hidden>No bots in party games</span>
         <span>Bot level</span><span class="seg" id="setLvl"><button type="button" data-v="0">Rookie</button><button type="button" data-v="1">Veteran</button><button type="button" data-v="2">Ace</button></span>
       </div>
       <p class="note" id="lobbyNote"></p>
@@ -465,6 +468,16 @@ const DIFF=[
   {name:'Ace',    aim:.016,react:.13,turn:1,  cone:.055,range:700,msl:.9, flare:.75,evade:.9, thr:1,  boost:1}
 ];
 const MODE_NAME=['Duel','Free-for-all','2v2'];
+// The Paint Shop (not public yet): paints, noses, trails and shoot-down effects, all drawn by hangar.js beside this page.
+// kitOn(): may this player see it and wear things? True for the site's captains (../captains.js: the Google account
+// signed in is one of miles.js's Captains), or with ?paints=1 on localhost or in an automated browser. To make it
+// public for everyone, change SD_PUBLIC to true: that one line is all it takes. hangar.js is fetched the first time
+// kitOn() is true, or when another plane in the room arrives wearing something (its node's ck); for everyone else it is
+// never loaded, KIT stays null and the game is exactly as it was. Everything in it is looks only.
+const SD_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const kitOn=()=>SD_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'paints','skyduel-paints'));
+let KIT=null;
 
 // ---------- settings and profile ----------
 let myName=cleanName(store.get('name',''));
@@ -937,7 +950,7 @@ function handleEvent(ev,mine){
       if(t===G.me){G.hurtFlash=Math.min(1,G.hurtFlash+.25+d/90);sfx('hurt');if(!REDUCED)G.shake=Math.max(G.shake,.25+d/120)}
       if(t.hp<=0)kill(t,t.lastHitBy,ev.w===1?1:0);break}
     case 'k':{const v=G.ents.get(ev.v),by=G.ents.get(ev.by);if(!v)break;
-      boom(v.pos,true);if(!v.local){v.alive=false;v.mesh.visible=false}
+      boom(v.pos,true);if(KIT)KIT.downed(v,by);if(!v.local){v.alive=false;v.mesh.visible=false}
       if(by&&by!==v&&by.local&&G.phase==='play'){by.kills++;if(by===G.me){banner(TX('You shot down {n}',{n:v.name}),ev.w===1?'Missile':ev.w===2?'They hit the ground running from you':'Guns',1800);sfx('kill');stat('add','kills',1);stat('add','kdkills',1)}}
       feedLine(by&&by!==v?by:null,v,ev.w);
       if(v===G.me&&by&&by!==v)G.spec=by;
@@ -1137,21 +1150,24 @@ function drawEnts(dt){
     m.position.copy(e.pos);m.rotation.set(-e.p,e.h,e.r);m.scale.setScalar(e.vscale);m.updateMatrix();
     const u=m.userData,col=entColor(e);if(u.col!==col){u.col=col;u.c3.set(col)}
     const q=PLANE_INST[e.frame],k=q.body.count;
-    if(k<PLANE_MAX){q.body.setMatrixAt(k,m.matrix);q.body.setColorAt(k,u.c3);q.trim.setMatrixAt(k,m.matrix);q.body.count=q.trim.count=k+1}
+    if(k<PLANE_MAX){q.body.setMatrixAt(k,m.matrix);q.body.setColorAt(k,u.c3);q.trim.setMatrixAt(k,m.matrix);q.body.count=q.trim.count=k+1;if(KIT)KIT.inst(e,k)}
     if(e.shield>0&&ns<PLANE_MAX)SHIELD_INST.setMatrixAt(ns++,m.matrix);
     const pg0=PLANE_GEO[e.frame];
-    if(pg0.prop&&np<PLANE_MAX){u.propA+=dt*40;PM2.makeRotationZ(u.propA).scale(T4.set(pg0.propR,pg0.propR,pg0.propR)).setPosition(0,0,pg0.prop);PM.multiplyMatrices(m.matrix,PM2);PROP_INST.setMatrixAt(np++,PM)}
+    if(pg0.prop&&np<PLANE_MAX){if(KIT)KIT.prop(e,np);u.propA+=dt*40;PM2.makeRotationZ(u.propA).scale(T4.set(pg0.propR,pg0.propR,pg0.propR)).setPosition(0,0,pg0.prop);PM.multiplyMatrices(m.matrix,PM2);PROP_INST.setMatrixAt(np++,PM)}
     e.trailT-=dt;if(e.trailT>0||d>2600)continue;e.trailT=FX.low()?.07:.035;
     const pg=PLANE_GEO[e.frame],cr=Math.cos(e.r),sr=Math.sin(e.r),rx=-Math.cos(e.h),rz=Math.sin(e.h);
     if(e.speed>112||e.boosting||Math.abs(e.yr)>.75){
       const al=e.boosting?.42:.24;
-      const near=e===G.me||d<160,hs=near?e.speed*.018:0,sz=near?.8:1.3*e.vscale,lf=(e.boosting?1.5:1)*(near?.85:1.1);
-      for(let s=-1;s<=1;s+=2){const w=pg.tip*s*e.vscale,x=e.pos.x-rx*w*cr-e.fwd.x*3,y=e.pos.y+w*sr-e.fwd.y*3,z=e.pos.z-rz*w*cr-e.fwd.z*3;
-        FX.puff(x,y,z,0,0,0,lf,sz,sz*2.4,1,1,1,al,0,0);if(near)FX.puff(x-e.fwd.x*hs,y-e.fwd.y*hs,z-e.fwd.z*hs,0,0,0,lf,sz,sz*2.4,1,1,1,al,0,0)}
+      const ts=KIT?KIT.trailShape(e):1;   // a Paint Shop trail (hangar.js) may make the puffs bigger or leave gaps
+      const near=e===G.me||d<160,hs=near?e.speed*.018:0,sz=(near?.8:1.3*e.vscale)*ts,lf=(e.boosting?1.5:1)*(near?.85:1.1);
+      if(ts>0)for(let s=-1;s<=1;s+=2){const w=pg.tip*s*e.vscale,x=e.pos.x-rx*w*cr-e.fwd.x*3,y=e.pos.y+w*sr-e.fwd.y*3,z=e.pos.z-rz*w*cr-e.fwd.z*3;
+        const tc=KIT?KIT.trailCol(e,s):null,cr_=tc?tc[0]:1,cg=tc?tc[1]:1,cb=tc?tc[2]:1,ad=tc?tc[3]:0;   // its colour, or the plain white
+        FX.puff(x,y,z,0,0,0,lf,sz,sz*2.4,cr_,cg,cb,al,ad,0);if(near)FX.puff(x-e.fwd.x*hs,y-e.fwd.y*hs,z-e.fwd.z*hs,0,0,0,lf,sz,sz*2.4,cr_,cg,cb,al,ad,0)}
     }
     if(e.boosting)FX.puff(e.pos.x+e.fwd.x*pg.tail,e.pos.y+e.fwd.y*pg.tail,e.pos.z+e.fwd.z*pg.tail,0,0,0,.14,7,3,1,.72,.3,1,1,0);
     if(e.hp<45)FX.puff(e.pos.x+e.fwd.x*pg.tail*.5,e.pos.y,e.pos.z+e.fwd.z*pg.tail*.5,rand(-3,3),rand(2,8),rand(-3,3),e.hp<22?2.2:1.4,4,e.hp<22?16:11,.16,.16,.18,.55,0,0);
   }
+  if(KIT)KIT.end();
   // an instanced mesh with nothing in it is hidden, so it costs no draw call
   for(const q of PLANE_INST){const on=q.body.count>0;q.body.visible=q.trim.visible=on;if(on){q.body.instanceMatrix.needsUpdate=q.body.instanceColor.needsUpdate=q.trim.instanceMatrix.needsUpdate=true}}
   PROP_INST.count=np;PROP_INST.visible=np>0;if(np)PROP_INST.instanceMatrix.needsUpdate=true;SHIELD_INST.count=ns;SHIELD_INST.visible=ns>0;if(ns)SHIELD_INST.instanceMatrix.needsUpdate=true;
@@ -1187,7 +1203,9 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  base(){return {n:myName||'Pilot',c:myColor,x:0,z:0,h:0,ts:Math.round(this.now()),y:500,p:0,r:0,s:0,f:0,hp:100,k:0,d:0,fr:myFrame,j:this.j,v:NETV}},
+  base(){const o={n:myName||'Pilot',c:myColor,x:0,z:0,h:0,ts:Math.round(this.now()),y:500,p:0,r:0,s:0,f:0,hp:100,k:0,d:0,fr:myFrame,j:this.j,v:NETV};
+    if(KIT){const ck=KIT.wire();if(ck)o.ck=ck}   // what this plane wears from the Paint Shop (hangar.js); nothing at all for everyone else
+    return o},
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});return n;
@@ -1252,6 +1270,7 @@ function onNode(uid,v){
   let e=G.ents.get(uid);
   if(!e){e=mkEnt(uid,{name:R.name,color:R.color,frame:v.fr});if(G.rs)syncRoster()}
   if(e.local)return;
+  if(v.ck!=null||e.ck)kitHeard(e,v.ck);   // what it wears from the Paint Shop (hangar.js)
   if(e.name!==R.name)e.name=R.name;if(e.color!==R.color)e.color=R.color;
   applyState(e,[v.x,v.y,v.z,v.h,v.p,v.r,v.s,v.f,v.hp,v.k,v.d],R.ts,now);
   if(uid===host&&isObj(v.bt))for(const id in v.bt){const b=G.ents.get(id),a=v.bt[id];if(b&&b.bot&&!b.local&&Array.isArray(a)&&a.length>=11)applyState(b,a,R.ts,now)}
@@ -1295,24 +1314,26 @@ function humanIds(){
 function hostStart(){
   const c=G.cfg,hs=humanIds();let md=c.md;if(md===0&&hs.length>2)md=1;if(md===2&&hs.length>4)md=1;
   let total=md===1?(c.fill>0?Math.max(c.fill,hs.length):hs.length):(c.fill>0?(md===0?2:4):hs.length);
-  total=clamp(total,2,MAX_ROOM);
+  total=partyRoom()?hs.length:clamp(total,2,MAX_ROOM);
   const tm={},bl=[];for(let s=0;hs.length+bl.length<total&&s<7;s++)bl.push(s);
   if(md!==1)hs.concat(bl.map(s=>'b'+s)).forEach((id,i)=>{tm[id]=i%2});
   const now=netNow();
   rsDirty=true;
-  applyRS({id:Math.round(now),st:1,md,kl:c.kl,tl:c.tl,lvl:c.lvl,fill:c.fill,t0:Math.round(now+3500),sky:Math.floor(Math.random()*SKIES.length),tm,bl,rev:0,et:0,win:''});
+  applyRS({id:Math.round(now),st:1,md,kl:c.kl,tl:c.tl,lvl:c.lvl,fill:partyRoom()?0:c.fill,t0:Math.round(now+3500),sky:Math.floor(Math.random()*SKIES.length),tm,bl,rev:0,et:0,win:''});
 }
 // People come and go mid-match: a newcomer takes a bot's seat, and a bot takes the seat of someone who left.
 function fixRoster(rs){
   const hs=humanIds(),bl=rs.bl.slice(),tm=Object.assign({},rs.tm);let ch=false;
   const freeSlot=()=>{for(let s=0;s<7;s++)if(bl.indexOf(s)<0)return s;return -1};
+  const party=partyRoom();
+  if(party&&bl.length){for(const s of bl)delete tm['b'+s];bl.length=0;ch=true}
   if(rs.md===1){
-    const want=Math.max(rs.fill>0?Math.max(rs.fill,hs.length):hs.length,2);
+    const want=party?hs.length:Math.max(rs.fill>0?Math.max(rs.fill,hs.length):hs.length,2);
     while(hs.length+bl.length>want&&bl.length){bl.pop();ch=true}
     while(hs.length+bl.length<want&&bl.length<7){const s=freeSlot();if(s<0)break;bl.push(s);ch=true}
   }else{
     const cap=rs.md===0?2:4;
-    for(const id of Object.keys(tm))if(!/^b\d$/.test(id)&&hs.indexOf(id)<0){const t=tm[id];delete tm[id];ch=true;const s=freeSlot();if(s>=0&&(rs.fill>0||Object.keys(tm).length<2)){bl.push(s);tm['b'+s]=t}}
+    for(const id of Object.keys(tm))if(!/^b\d$/.test(id)&&hs.indexOf(id)<0){const t=tm[id];delete tm[id];ch=true;const s=freeSlot();if(s>=0&&!party&&(rs.fill>0||Object.keys(tm).length<2)){bl.push(s);tm['b'+s]=t}}
     for(const id of hs){
       if(id in tm)continue;const bots=bl.filter(s=>('b'+s) in tm);
       if(bots.length){const c0=bots.filter(s=>tm['b'+s]===0).length,pick=bots.find(s=>tm['b'+s]===(c0>=bots.length-c0?0:1));tm[id]=tm['b'+pick];delete tm['b'+pick];bl.splice(bl.indexOf(pick),1);ch=true}
@@ -1779,6 +1800,11 @@ function startSolo(){
   G.cfg={md:solo.mode,kl:solo.kl,tl:solo.tl,lvl:solo.lvl,fill:solo.mode===1?6:1};
   hostStart();
 }
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: no bots, not even the one that makes a lone pilot's match two (a party of
+// one flies alone), whoever hosts.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
+function partyRoom(){return !!(G.online&&!Net.isPublic&&Net.room&&isPartyRoom(Net.room))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().trim().replace(/^vq-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){const a='abcdefghjkmnpqrstuvwxyz23456789';let s='';for(let i=0;i<4;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
 let joining=false;
@@ -1817,7 +1843,9 @@ function renderLobby(){
     ul.appendChild(li);
   }
   $('lobbySub').textContent=TX('Room {r} · {n} of {m} pilots',{r:Net.room,n:ids.length,m:MAX_ROOM});
-  for(const b of $('lobbyOpts').querySelectorAll('button'))b.disabled=!mine;
+  const party=partyRoom();
+  for(const b of $('lobbyOpts').querySelectorAll('button'))b.disabled=!mine||party&&!!b.closest('#setFill');
+  $('noBotsNote').hidden=!party;
   $('startMatch').disabled=!mine||Net.isPublic;
   const hn=mine?'':(Net.others.get(host)||{}).name||TX('the host');
   $('lobbyNote').textContent=Net.isPublic?'The match starts by itself in a moment.':G.rs&&G.rs.st===2?(mine?'The last match is over. Take off when everyone is ready.':'The last match is over. Waiting for '+hn+' to start the next one.'):mine?'You are the host. A duel is for two pilots and 2v2 for four; with more in the room it becomes a free-for-all. Bots take the empty seats.':'Waiting for '+hn+' to start the match.';
@@ -1856,7 +1884,7 @@ function syncSettings(){
   seg('setMode',()=>lobbyCfg().md,v=>{onlineCfg.md=+v;store.set('omd',v)});
   seg('setKl',()=>lobbyCfg().kl,v=>{onlineCfg.kl=+v;store.set('okl',v)});
   seg('setTl',()=>lobbyCfg().tl,v=>{onlineCfg.tl=+v;store.set('otl',v)});
-  seg('setFill',()=>lobbyCfg().fill,v=>{onlineCfg.fill=+v;store.set('ofill',v)});
+  seg('setFill',()=>partyRoom()?0:lobbyCfg().fill,v=>{onlineCfg.fill=+v;store.set('ofill',v)});
   seg('setLvl',()=>lobbyCfg().lvl,v=>{onlineCfg.lvl=+v;store.set('olvl',v)});
   const setGfx=v=>{gfx=v==='low'?'low':'high';store.set('gfx',gfx);applyGfx();resize()};
   seg('gfxSeg',()=>gfx,setGfx);seg('gfxSeg2',()=>gfx,setGfx);
@@ -1919,15 +1947,31 @@ function frame(t){
   G.noRender=document.hidden;if(document.hidden)return;
   const sim=!(G.paused&&!G.online);
   if(sim)simStep(dt,t);
-  updateCamera(dt);drawEnts(sim?dt:0);FX.update(sim?dt:0);FX.drawBullets();
+  updateCamera(dt);drawEnts(sim?dt:0);FX.update(sim?dt:0);FX.drawBullets();if(KIT)KIT.update(dt);
   if(!$('hud').hidden)updateHud(dt);
   engineSound(G.me);
   renderer.render(scene,camera);
 }
+// ---------- the Paint Shop (hangar.js; see SD_PUBLIC near the top) ----------
+let kitAsked=false;
+function kitLoad(){
+  if(kitAsked)return;kitAsked=true;
+  (kitOn()&&!window.BackRoomCosmetics?loadScript('../cosmetics.js').catch(()=>{}):Promise.resolve()).then(()=>loadScript('hangar.js')).then(()=>{
+    KIT=window.SkyKit({THREE,store,$,TX,renderer,camera,FX,sfx,entColor,PLANE_GEO,PLANE_INST,PROP_INST,PROP_MAT,PROP_GEO,BODY_MAT,TRIM_MAT,PLANE_MAX,PLANE_SIZE,
+      get on(){return kitOn()},get me(){return G.me},get rs(){return G.rs},get myColor(){return myColor},get myFrame(){return myFrame}});
+    for(const e of G.ents.values())if(!e.local&&e.ck0!=null)KIT.heard(e,e.ck0);
+    KIT.access();
+  }).catch(e=>{kitAsked=false;console.error(e)});
+}
+function kitSync(){if(kitOn())kitLoad();if(KIT)KIT.access()}
+// Another plane's ck: drawn once hangar.js is here (fetched now if this is the first one seen wearing something).
+function kitHeard(e,ck){if(KIT)KIT.heard(e,ck);else{e.ck0=ck;if(typeof ck==='string'&&/^[0-9a-z]{4}$/.test(ck)&&ck!=='0000')kitLoad()}}
+kitSync();if(CAPTAINS)CAPTAINS.onChange(kitSync);
+
 setSky(0);showMenu();requestAnimationFrame(frame);
 addEventListener('pagehide',()=>{if(G.online)Net.leave()});
 // A hook for automated tests only (browsers driven by a test tool say so with navigator.webdriver).
-if(navigator.webdriver)window.__skd={ff(s){for(let i=0;i<s*30;i++)simStep(1/30,performance.now())},G,Net,FX,PICKS,KB,camera,spawn,kill,emit,hostStart,hostTick,groundH,keys,touch,standings,fireMissile,dropFlare,setSky,onlineCfg,solo,DIFF,mkEnt,endMatch,rateMatch,startSolo,renderer,scene,simStep,updateHud,drawEnts,updateCamera,frame,PLANE_GEO};
+if(navigator.webdriver)window.__skd={get KIT(){return KIT},kitOn,kitLoad,ff(s){for(let i=0;i<s*30;i++)simStep(1/30,performance.now())},G,Net,FX,PICKS,KB,camera,spawn,kill,emit,hostStart,hostTick,groundH,keys,touch,standings,fireMissile,dropFlare,setSky,onlineCfg,solo,DIFF,mkEnt,endMatch,rateMatch,startSolo,renderer,scene,simStep,updateHud,drawEnts,updateCamera,frame,PLANE_GEO};
 })();
 </script>
 </body>

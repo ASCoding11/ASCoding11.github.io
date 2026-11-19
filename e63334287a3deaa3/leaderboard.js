@@ -51,7 +51,7 @@
  * 25 or more, from the Kills board's own rows; Shell Crackers' Kills board says who holds it.
  *
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
- * localStorage 'lb:span'; it also switches each game's Hours board). All time ranks by BackRoomMiles.of(node).miles, the
+ * localStorage 'lb:span'; it also switches each game's play-time board, shown in miles). All time ranks by BackRoomMiles.of(node).miles, the
  * number behind the tier badge. This week is miles from play time only (miles.js's HOUR per hour), from the per-day history
  * d that stats.js keeps (seconds per game per local day, YYYYMMDD by the player's own browser): the dates from this week's
  * Monday to today, by the viewer's clock (the week starts on Monday, so the board empties at midnight on Sunday night),
@@ -90,16 +90,19 @@
       'The boards load when you scroll down to them.': 'Las tablas cargan cuando bajas hasta ellas.',
       'Every lap counts, corner cuts included. Clean lap has the times with no cut.': 'Cuenta cada vuelta, incluso con curvas cortadas. Vuelta limpia tiene los tiempos sin cortes.',
       'Race times include any track-cut penalties (+2.5 s each).': 'Los tiempos de carrera incluyen las penalizaciones por cortar pista (+2,5 s cada una).',
-      'This week counts miles from play time since Monday, 100 an hour. Wins and bests count in All time.': 'Esta semana cuenta millas por tiempo de juego desde el lunes, 100 por hora. Las victorias y récords cuentan en Histórico.',
+      'This week counts miles from play time since Monday. Wins and bests count in All time.': 'Esta semana cuenta millas por tiempo de juego desde el lunes. Las victorias y récords cuentan en Histórico.',
+      'All time: miles from time spent playing plus points for wins and bests, the same miles as each player’s status tier.': 'Histórico: millas por el tiempo que pasas jugando más puntos por victorias y récords, las mismas millas que el nivel de cada jugador.',
+      'This week counts miles from play time in this game since Monday.': 'Esta semana cuenta millas por tiempo de juego en este juego desde el lunes.',
+      'All time: miles from time spent playing this game.': 'Histórico: millas por el tiempo que pasas jugando este juego.',
       'Play time counts while a game is open and you’re playing. Scores are reported by each player’s own browser, so they’re for bragging rights, not prizes.':
         'El tiempo de juego cuenta mientras un juego está abierto y estás jugando. Los puntajes los informa el navegador de cada jugador, así que son para presumir, no para premios.',
-      'Season {n}: Slipstream’s lap and race records were reset on {d}, after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and hours played were kept.':
-        'Temporada {n}: los récords de vuelta y carrera de Slipstream se reiniciaron el {d}, después de que arreglos de pista y barreras más suaves hicieran injusto comparar con tiempos viejos. Los tiempos anteriores ya no cuentan. Se mantuvieron el Elo y las horas jugadas.',
+      'Season {n}: Slipstream’s lap and race records were reset on {d}, after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and play time were kept.':
+        'Temporada {n}: los récords de vuelta y carrera de Slipstream se reiniciaron el {d}, después de que arreglos de pista y barreras más suaves hicieran injusto comparar con tiempos viejos. Los tiempos anteriores ya no cuentan. Se mantuvieron el Elo y el tiempo de juego.',
       'Refreshing…': 'Actualizando…', 'Loading the leaderboards…': 'Cargando las tablas…',
       'The leaderboards need the Party panel, which didn’t load. Reload the page to try again.': 'Las tablas necesitan el panel de Grupo, que no cargó. Recarga la página para reintentar.',
       'Couldn’t reach the leaderboards. If you’re on a school or work network it may be blocking the game database.': 'No se pudo llegar a las tablas. Si estás en la red de la escuela o del trabajo, puede que bloquee la base de datos del juego.',
       'Tracks with times': 'Pistas con tiempos', 'No times yet this season': 'Todavía no hay tiempos esta temporada', 'no times yet': 'sin tiempos todavía',
-      '· {n} driver': '· {n} piloto', '· {n} drivers': '· {n} pilotos', 'Hours played': 'Horas jugadas', 'Fastest lap · every track': 'Vuelta más rápida · todas las pistas', 'All tracks': 'Todas las pistas',
+      '· {n} driver': '· {n} piloto', '· {n} drivers': '· {n} pilotos', 'Miles from play time': 'Millas por tiempo de juego', 'Miles': 'Millas', 'Fastest lap · every track': 'Vuelta más rápida · todas las pistas', 'All tracks': 'Todas las pistas',
       'Fastest lap': 'Vuelta más rápida', 'Clean lap': 'Vuelta limpia', 'Fastest clean lap': 'Vuelta limpia más rápida', 'Most: {n}': 'Más: {n}',
       'Clean times: no corner was cut on': 'Tiempos limpios: no se cortó ninguna curva en', 'any lap of the race.': 'ninguna vuelta de la carrera.', 'the lap.': 'la vuelta.',
       // Board names (game names stay in English).
@@ -781,12 +784,13 @@
     var order = TRACK_IDS.slice().sort(function (a, b) { return (c[b] || 0) - (c[a] || 0) || TRACK_IDS.indexOf(a) - TRACK_IDS.indexOf(b); });
     return { order: order, count: c, laps: laps };
   }
-  // The boards a game has: its hours, then its stats. Slipstream: every track's fastest lap at a glance, then the chosen
+  // The boards a game has: its play time (shown in miles), then its stats. Slipstream: every track's fastest lap at a glance, then the chosen
   // track's course records (3, 5 and 10 laps, the lengths the game offers, plus any other length someone has a record for)
   // and its fastest lap.
   function boardsFor(d, people, track) {
     var meta = BY[d]; if (!meta) return [];
-    var out = [{ k: 's', l: 'Hours played', chip: 'Hours', f: 'hours' }];
+    // The play-time board (key 's', seconds played) is shown in miles, never as hours: only the admin page shows hours.
+    var out = [{ k: 's', l: 'Miles from play time', chip: 'Miles', f: 'hours' }];
     if (!meta.laps) return out.concat(meta.st.filter(function (st) { return !st.hide; }));
     var ts = trackStats(people), t = TRACKS[track] ? track : ts.order[0], nm = TRACKS[t][0];
     // Every track at once: the fastest lap on each (and who set it), "no times yet" where nobody has one.
@@ -1028,7 +1032,7 @@
   var tlbl = el('label'); tlbl.append(el('span', '', 'Track')); tlbl.hidden = true;
   var $trk = el('select'); $trk.setAttribute('aria-label', 'Track');
   tlbl.append($trk); ctl.append(tlbl);
-  // The Miles board and each game's Hours board: this week or all time.
+  // The Miles board and each game's play-time board (in miles): this week or all time.
   var $span = el('div', 'lbd-span'); $span.setAttribute('role', 'group'); $span.setAttribute('aria-label', 'Time span');
   [['week', 'This week'], ['all', 'All time']].forEach(function (x) { var b = el('button', '', x[1]); b.type = 'button'; b.setAttribute('data-s', x[0]); $span.append(b); });
   ctl.append($span);
@@ -1040,7 +1044,7 @@
   // Slipstream's course-record boards only: what the time includes.
   var $rule = el('p', 'lbd-note', 'Race times include any track-cut penalties (+2.5 s each).'); $rule.hidden = true;
   // Slipstream's time boards only: the records were reset, and when (SLIP_RESET).
-  var $season = el('p', 'lbd-note', 'Season ' + SLIP_SEASON + ': Slipstream’s lap and race records were reset on ' + SLIP_RESET + ', after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and hours played were kept.'); $season.hidden = true;
+  var $season = el('p', 'lbd-note', 'Season ' + SLIP_SEASON + ': Slipstream’s lap and race records were reset on ' + SLIP_RESET + ', after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and play time were kept.'); $season.hidden = true;
   // What This week / All time counts, on the boards with the toggle.
   var $spanNote = el('p', 'lbd-note'); $spanNote.hidden = true;
   // Slipstream's time boards only: who holds the Slipstream ace (see ace) and the rule, or that it is unclaimed. Shell
@@ -1296,9 +1300,9 @@
     [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
     $spanNote.hidden = !spans;
     $spanNote.textContent = !spans ? '' : miles
-      ? (wk ? 'This week counts miles from play time since Monday, ' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour. Wins and bests count in All time.'
-        : 'All time: miles for every hour played plus points for wins and bests, the same miles as each player’s status tier.')
-      : (wk ? 'This week counts time played since Monday.' : '');
+      ? (wk ? 'This week counts miles from play time since Monday. Wins and bests count in All time.'
+        : 'All time: miles from time spent playing plus points for wins and bests, the same miles as each player’s status tier.')
+      : (wk ? 'This week counts miles from play time in this game since Monday.' : 'All time: miles from time spent playing this game.');
     if (!$spanNote.textContent) $spanNote.hidden = true;
     $h.textContent = (miles ? 'Miles · all games' : BY[view.g].n + ' · ' + st.l) + (spans ? (wk ? ' · this week' : ' · all time') : '');
     $list.textContent = '';
@@ -1312,7 +1316,8 @@
     var list = rows(view, people), hours = !view.st;
     list.forEach(function (r) {
       if (miles) r.fmt = fmtN(r.v) + ' mi';
-      else r.fmt = hours ? fmtHours(r.v) : fmt(view.st, r.v);
+      // A game's play-time board: its seconds as miles (miles.js's HOUR an hour), in the same order. Players never see hours.
+      else r.fmt = hours ? fmtN(Math.floor(r.v / 3600 * ((window.BackRoomMiles && BackRoomMiles.HOUR) || 100))) + ' mi' : fmt(view.st, r.v);
     });
     var mine = -1; for (var j = 0; j < list.length; j++) if (isMe(list[j].p.uid)) { mine = j; break; }
     list.slice(0, TOP).forEach(function (r) { $list.append(row(r)); });

@@ -10,17 +10,26 @@
  * Set it to true to open everything. For testing only, ?cosmetics=1 in the page address turns it on, and only when the
  * page is on localhost or driven by an automated browser (navigator.webdriver): that check is captains.js's, the one
  * file every hidden cosmetic asks (without it on the page the address does nothing).
- * The site's captains are NOT let in here early. captains.js lets them see the games' own screens (Driftfall's Locker,
+ * THE REAL SWITCH is wallet.js's PAYMENTS.enabled: true opens the shop for everyone with the server wallet (server()
+ * below; functions/_wallet.js): balance, locker and every purchase, chest and gift come from and go to the server. The
+ * browser-only locker and wallet (the old local mode) are kept only for the ?cosmetics=1 test switch. ENABLED, if set,
+ * also opens the shop with the server wallet.
+ * CAPTAINS' PREVIEW (CAPTAIN_PREVIEW, below): while PAYMENTS.enabled is false, a captain who opens the shop page gets the
+ * real shop with the server wallet in that browser tab (sessionStorage 'cosmetics:preview', set by shop/ once
+ * captains.js confirms the captain), so the owners can try the whole flow on the live site; everyone else still sees
+ * "not open yet", and the server refuses everyone but captains until PAYMENTS.enabled is true. Turn the preview off
+ * by setting CAPTAIN_PREVIEW to false (?preview=0 on the shop page also ends it for that tab).
+ * Apart from that preview, the site's captains are NOT let in here early. captains.js lets them see the games' own screens (Driftfall's Locker,
  * Boostball's garage and Kit, Slipstream's Garage), where every item is free to wear while this file is off; the
  * shop, the wallet, earning and buying stay shut for them like everyone else, so on() asks captains.js's open(), which
  * leaves captains out, not may().
  *
  * What there is:
- *   SKINS        30 full looks in five rarities. Each has an avatar look (drawn over avatar.js's face: a background pattern,
+ *   SKINS        100 full looks in five rarities (31-100 added 19 Nov 2026: sports, pirates, suits, robots and more). Each has an avatar look (drawn over avatar.js's face: a background pattern,
  *                an outfit, something on the head, maybe a skin tone) and a colour set for 3D games:
  *                colors { body, accent, trim, emissive, pattern } (hex colours; pattern names a texture that texture()
  *                paints, so a game can use it as a THREE.CanvasTexture).
- *   ACCESSORIES  23 extras, each in one SLOT (hat, glasses, cape, trail, aura, pet): one per slot can be worn with any skin.
+ *   ACCESSORIES  59 extras (24-59 added 19 Nov 2026), each in one SLOT (hat, glasses, cape, trail, aura, pet): one per slot can be worn with any skin.
  *                Each also has `three`, a small description a 3D game can build it from (see "For 3D games" below).
  *   Prices       By rarity, the same for skins, accessories and game items (PRICE, whole mangos; 17 mangos = 1 emerald):
  *                common 60 ($0.50), uncommon 119 (7 emeralds, $0.99), rare 420 ($3.49), epic 600 ($4.99), legendary 1,200
@@ -53,7 +62,8 @@
  * needs the look published (w.e in their stats node already says what they wear) and a hook in avatar.js.
  *
  * For 3D games: read equipped().colors for the body, and for each worn accessory ACCESSORIES_BY_ID[id].three:
- *   { attach: 'head' | 'face' | 'back' | 'feet' | 'around' | 'follow', shape, color, color2, size }
+ *   { attach: 'head' | 'face' | 'back' | 'neck' | 'feet' | 'around' | 'follow', shape, color, color2, size }
+ * ('neck': a bow tie or chain, worn in the cape slot; wave 2 items may add trim, num or opts for the 2D drawing.)
  * attach says where it goes (top of the head, in front of the eyes, on the back, a ribbon behind the feet, a ring round
  * the body, a pet that follows a step behind). For example, in a Three.js game:
  *   var eq = BackRoomCosmetics.equipped(), hat = eq.accessories.hat && BackRoomCosmetics.ACCESSORIES_BY_ID[eq.accessories.hat];
@@ -67,7 +77,9 @@
   'use strict';
   if (window.BackRoomCosmetics) return;
 
-  var ENABLED = false;   // THE SWITCH: false keeps every part of the cosmetics hidden; true opens the shop for everyone.
+  var ENABLED = false;   // false keeps every part of the cosmetics hidden (see THE REAL SWITCH above: wallet.js PAYMENTS.enabled)
+  var CAPTAIN_PREVIEW = true;   // the captains' preview of the real shop (see above); false turns it off for everyone
+  var PREVIEW_KEY = 'cosmetics:preview';
 
   var me0 = document.currentScript;
   var HUB = !!(me0 && me0.hasAttribute('data-hub'));
@@ -97,10 +109,26 @@
 
   var SHARED = window.BackRoomCaptains || null;      // captains.js: the test switch lives there, with the others
   var FLAG = !!(SHARED && SHARED.open(false, 'cosmetics'));
-  function on() { return !!(api.ENABLED || FLAG); }
+  function on() { return server() || FLAG; }
+  // The server wallet is in use: PAYMENTS.enabled (wallet.js), ENABLED, or the captains' preview on the shop page.
+  // Otherwise, with the test switch alone, the old browser-only mode.
+  function payments() { try { var w = window.BackRoomWallet; return !!(w && w.PAYMENTS && w.PAYMENTS.enabled); } catch (e) { return false; } }
+  function shopPage() { try { return /^\/e63334287a3deaa3\/shop(\/(index\.html)?)?$/.test(location.pathname); } catch (e) { return false; } }
+  function previewOn() { if (!CAPTAIN_PREVIEW || !shopPage()) return false; try { return sessionStorage.getItem(PREVIEW_KEY) === '1'; } catch (e) { return false; } }
+  function server() { return !!(api.ENABLED || payments() || previewOn()); }
+  // shop/ calls these: start the preview once captains.js has confirmed a captain; stop it when that changes.
+  function previewAllowed() { return CAPTAIN_PREVIEW && shopPage() && !payments() && !api.ENABLED; }
+  function startPreview() {
+    if (!previewAllowed() || !(SHARED && SHARED.captain && SHARED.captain())) return false;
+    try { sessionStorage.setItem(PREVIEW_KEY, '1'); } catch (e) { return false; }
+    return previewOn();
+  }
+  function stopPreview() { try { sessionStorage.removeItem(PREVIEW_KEY); } catch (e) {} }
+  try { if (/[?&]preview=0(&|$)/.test(location.search)) stopPreview(); } catch (e) {}
 
   // ---------------- Skins ----------------
   // look: bg / bg2 background colours, bgp background pattern, outfit, head (piece on the head), tone (skin colour, optional),
+  // (wave 2 looks may also have face, fx, num, h1 / h2, nohat and a few part options: see "Wave 2 parts" below),
   // hair / hairc (avatar.js hair style / colour index, optional). colors: the 3D colour set.
   function S(no, id, name, rarity, theme, desc, look, colors) { return { no: no, id: id, name: name, rarity: rarity, theme: theme, desc: desc, look: look, colors: colors }; }
   var SKINS = [
@@ -197,7 +225,223 @@
       { body: '#D9A62E', accent: '#FFF2C2', trim: '#7A5410', emissive: '#FFE08A', pattern: 'circuit' }),
     S(30, 'four-seasons', 'Four Seasons', 'legendary', 'seasons', 'Spring, summer, autumn and winter, all at the same time.',
       { bg: '#7CCB5A', bg2: '#FFFFFF', bgp: 'quarters', outfit: 'robe', head: 'crownleaf' },
-      { body: '#4E9E6A', accent: '#FFC93C', trim: '#E07A2E', emissive: '#BFE4FF', pattern: 'quarters' })
+      { body: '#4E9E6A', accent: '#FFC93C', trim: '#E07A2E', emissive: '#BFE4FF', pattern: 'quarters' }),
+    // ---- Wave 2 (19 Nov 2026): sports, pirates, suits, robots and more. Numbers 31 onwards. ----
+    // Sports
+    S(31, 'striker', 'Striker', 'common', 'sports', 'Shin pads on, laces tied, aiming for the top corner.',
+      { nohat: true, bg: '#2E9E4F', bg2: '#7BD88F', bgp: 'pitch', outfit: 'kit', num: 9, band: true },
+      { body: '#E5484D', accent: '#FFFFFF', trim: '#9E1F25', emissive: '#FFD23F', pattern: 'stripes' }),
+    S(32, 'point-guard', 'Point Guard', 'common', 'sports', 'Calls the play, dribbles low, passes before anyone sees it.',
+      { bg: '#D9873A', bg2: '#A85A1E', bgp: 'court', outfit: 'tank', num: 3, head: 'band', h1: '#FFFFFF', h2: '#2E5FD9' },
+      { body: '#2E5FD9', accent: '#FFFFFF', trim: '#173A8C', emissive: '#FFD23F', pattern: 'plain' }),
+    S(33, 'lineman', 'Lineman', 'common', 'sports', 'Big pads, bigger heart, never lets anyone through.',
+      { bg: '#2E7D3E', bg2: '#FFFFFF', bgp: 'stripes', outfit: 'pads', num: 72, head: 'fbhelm', h1: '#7A1F2B', h2: '#F5C542', face: 'eyeblack' },
+      { body: '#7A1F2B', accent: '#9E2A38', trim: '#F5C542', emissive: '#DDE3EA', pattern: 'plain' }),
+    S(34, 'slugger', 'Slugger', 'common', 'sports', 'Steps up to the plate and points at the far fence.',
+      { bg: '#4FA8E0', bg2: '#FFFFFF', bgp: 'dots', outfit: 'kit', num: 24, head: 'cap', h1: '#1F3A6E', h2: '#E5484D' },
+      { body: '#F4F1EA', accent: '#1F3A6E', trim: '#E5484D', emissive: '#FFFFFF', pattern: 'pinstripes' }),
+    S(35, 'puck-chaser', 'Puck Chaser', 'common', 'sports', 'Fast skates, a quick stick and ice in the eyebrows.',
+      { bg: '#DDEFFF', bg2: '#9CC8EE', bgp: 'rink', outfit: 'kit', num: 19, band: true, head: 'hockey', h1: '#1B1513', h2: '#F28C28' },
+      { body: '#F28C28', accent: '#1B1513', trim: '#FFFFFF', emissive: '#FFE0B8', pattern: 'stripes' }),
+    S(36, 'baseline-ace', 'Baseline Ace', 'common', 'sports', 'Crisp whites and a serve nobody has returned yet.',
+      { bg: '#4FAE5A', bg2: '#FFFFFF', bgp: 'pitch', outfit: 'polo', head: 'visorcap', h1: '#FFFFFF', h2: '#2EC4B6' },
+      { body: '#FFFFFF', accent: '#2EC4B6', trim: '#D9DEE6', emissive: '#E8FF6B', pattern: 'plain' }),
+    S(37, 'sprinter', 'Sprinter', 'common', 'sports', 'On your marks, get set, already at the finish line.',
+      { bg: '#D9583B', bg2: '#FFFFFF', bgp: 'track', outfit: 'tank', num: 1, head: 'band', h1: '#FFD23F', h2: '#1B1513' },
+      { body: '#FFD23F', accent: '#1B1513', trim: '#E59A0B', emissive: '#FFF6C2', pattern: 'plain' }),
+    S(38, 'lap-swimmer', 'Lap Swimmer', 'common', 'sports', 'Fifty lengths before breakfast, and still smiling.',
+      { bg: '#1E9FD9', bg2: '#BDF0FF', bgp: 'waves', outfit: 'wetsuit', head: 'swim', h1: '#E5484D', h2: '#FFFFFF', face: 'goggles', gl: '#7FE7FF', gc: '#E5484D' },
+      { body: '#14385C', accent: '#1E9FD9', trim: '#0B2238', emissive: '#7FE7FF', pattern: 'waves' }),
+    S(39, 'fairway-pro', 'Fairway Pro', 'common', 'sports', 'A tidy swing, a tidy collar, and a lucky tee behind one ear.',
+      { bg: '#8CCB6E', bg2: '#C9EBAE', bgp: 'pitch', outfit: 'polo', head: 'flatcap', h1: '#C9A46B', h2: '#8A6A3A' },
+      { body: '#F7B2C4', accent: '#3E8A2E', trim: '#D98AA0', emissive: '#FFFFFF', pattern: 'checker' }),
+    S(40, 'skate-rat', 'Skate Rat', 'common', 'sports', 'Scuffed shoes, a backwards cap and one more try at the trick.',
+      { bg: '#6B6F7A', bg2: '#A9ADB8', bgp: 'bricks', outfit: 'hoodie', head: 'capback', h1: '#2EC4B6', h2: '#1B1513' },
+      { body: '#3A3F4B', accent: '#FF7A2E', trim: '#1B1F27', emissive: '#2EC4B6', pattern: 'plain' }),
+    S(41, 'surf-rider', 'Surf Rider', 'common', 'sports', 'Waits all morning for the one perfect wave.',
+      { nohat: true, bg: '#2BB3D9', bg2: '#FFFFFF', bgp: 'waves', outfit: 'wetsuit', hairc: 4 },
+      { body: '#1B1F27', accent: '#2EC4B6', trim: '#0E1116', emissive: '#FFD23F', pattern: 'waves' }),
+    S(42, 'slope-racer', 'Slope Racer', 'common', 'sports', 'Tucked low between the gates, down the mountain in a blur.',
+      { bg: '#BFE4FF', bg2: '#FFFFFF', bgp: 'snow', outfit: 'racesuit', head: 'skihelm', h1: '#E5484D', h2: '#FFFFFF' },
+      { body: '#E5484D', accent: '#FFFFFF', trim: '#1B1513', emissive: '#FFB13D', pattern: 'stripes' }),
+    S(43, 'referee', 'Referee', 'uncommon', 'sports', 'Fair to both sides, and the loudest whistle in the building.',
+      { bg: '#3F8F4F', bg2: '#7BD88F', bgp: 'pitch', outfit: 'vstripes', head: 'cap', h1: '#1B1513', h2: '#1B1513', logo: 'none' },
+      { body: '#FFFFFF', accent: '#1B1513', trim: '#1B1513', emissive: '#FFFFFF', pattern: 'vstripes' }),
+    S(44, 'coach', 'Coach', 'uncommon', 'sports', 'Clipboard, whistle and a speech that wins the second half.',
+      { bg: '#33415C', bg2: '#5A6B8C', bgp: 'grid', outfit: 'polo', whistle: true, head: 'cap', h1: '#1F3A6E', h2: '#FFD23F', face: 'stache' },
+      { body: '#1F3A6E', accent: '#E5484D', trim: '#FFD23F', emissive: '#FFFFFF', pattern: 'plain' }),
+    S(45, 'prizefighter', 'Prizefighter', 'uncommon', 'sports', 'A shiny robe, padded headgear and very quick feet.',
+      { bg: '#2A1E3A', bg2: '#FFFFFF', bgp: 'spot', outfit: 'boxrobe', num: 1, head: 'boxhead', h1: '#D93636', h2: '#FFFFFF' },
+      { body: '#D93636', accent: '#F5C542', trim: '#7A1414', emissive: '#FFE79A', pattern: 'plain' }),
+    S(46, 'black-belt', 'Black Belt', 'uncommon', 'sports', 'Years of practice, a calm mind and a very loud kiai.',
+      { bg: '#F2E6CF', bg2: '#C9A46B', bgp: 'checker', outfit: 'gi', head: 'hachimaki', h1: '#D93636', h2: '#FFFFFF' },
+      { body: '#FFFFFF', accent: '#1B1513', trim: '#D9DEE6', emissive: '#D93636', pattern: 'plain' }),
+    S(47, 'fencer', 'Fencer', 'uncommon', 'sports', 'En garde! A mesh mask, a white jacket and perfect footwork.',
+      { bg: '#2E3A55', bg2: '#8FA3B8', bgp: 'stripes', outfit: 'polo', head: 'fencing', h1: '#FFFFFF' },
+      { body: '#FFFFFF', accent: '#3D8BFF', trim: '#C8D2DC', emissive: '#E8ECF2', pattern: 'plain' }),
+    S(48, 'cheer-captain', 'Cheer Captain', 'uncommon', 'sports', 'Leads every chant, and the bow is not optional.',
+      { bg: '#FF7EB9', bg2: '#FFFFFF', bgp: 'confetti', outfit: 'kit', head: 'bow', h1: '#FFD23F', h2: '#FFFFFF', hair: 10 },
+      { body: '#7A3DB8', accent: '#FFD23F', trim: '#FFFFFF', emissive: '#FFB3E6', pattern: 'stripes' }),
+    S(49, 'pole-position', 'Pole Position', 'rare', 'sports', 'Fastest in qualifying and first into the first corner.',
+      { bg: '#1B1F27', bg2: '#FFFFFF', bgp: 'checker', outfit: 'racesuit', head: 'race', h1: '#E5484D', h2: '#FFFFFF', num: 7 },
+      { body: '#E5484D', accent: '#FFFFFF', trim: '#1B1513', emissive: '#3DE0FF', pattern: 'stripes' }),
+    S(50, 'hawk-mascot', 'Hawk Mascot', 'rare', 'sports', 'The team\'s big feathery friend, flapping on the touchline.',
+      { bg: '#1F3A6E', bg2: '#FFD23F', bgp: 'confetti', outfit: 'feathers', head: 'hood', h1: '#8A5A36', h2: '#FFFFFF', crest: true, eyes2: true, beak: '#F5B82E' },
+      { body: '#8A5A36', accent: '#6B4428', trim: '#4A2E18', emissive: '#C9A07A', pattern: 'scales' }),
+    S(51, 'safe-hands', 'Safe Hands', 'rare', 'sports', 'A goalkeeper who dives the right way every single time.',
+      { bg: '#2E9E4F', bg2: '#7BD88F', bgp: 'pitch', outfit: 'kit', num: 1, stars: true, head: 'cap', h1: '#7CE38B', h2: '#1B1513', logo: 'none' },
+      { body: '#7CE38B', accent: '#1B1513', trim: '#3E8A2E', emissive: '#E6FFB0', pattern: 'grid' }),
+    S(52, 'title-belt', 'Title Belt', 'rare', 'sports', 'A wrestling champ in a glittery cape, belt held high.',
+      { bg: '#3A1450', bg2: '#FF4FB4', bgp: 'spot', outfit: 'hero', emblem: 'star', head: 'band', h1: '#FF4FB4', h2: '#F5C542' },
+      { body: '#7A2BB8', accent: '#F5C542', trim: '#3A1450', emissive: '#FF4FB4', pattern: 'stars' }),
+    S(53, 'gold-medalist', 'Gold Medalist', 'epic', 'sports', 'A personal best on the biggest day, with the medal to prove it.',
+      { bg: '#1F3A6E', bg2: '#FFE79A', bgp: 'rays', outfit: 'kit', medal: true, head: 'laurel', h1: '#7CB342', h2: '#3E6B1F', fx: 'twinkle' },
+      { body: '#FFFFFF', accent: '#1F3A6E', trim: '#3D8BFF', emissive: '#FFE79A', pattern: 'plain' }),
+    S(54, 'all-star', 'All-Star', 'epic', 'sports', 'Voted in by everyone, cameras flashing on every play.',
+      { bg: '#0E1A3A', bg2: '#5CC8FF', bgp: 'flash', outfit: 'kit', num: 23, stars: true, numc: '#FFD23F', head: 'band', h1: '#FFD23F', h2: '#E5484D', fx: 'twinkle' },
+      { body: '#1F3A6E', accent: '#FFD23F', trim: '#E5484D', emissive: '#5CC8FF', pattern: 'stars' }),
+    S(55, 'hall-of-famer', 'Hall of Famer', 'legendary', 'sports', 'A golden kit for a career nobody will ever forget.',
+      { bg: '#2A1A05', bg2: '#FFE08A', bgp: 'spot', outfit: 'kit', num: 99, medal: true, numc: '#2A1A05', head: 'laurel', h1: '#F5C542', h2: '#B8860B', gem: true, fx: 'shine frame twinkle' },
+      { body: '#E8B92E', accent: '#FFF2C2', trim: '#8A6410', emissive: '#FFE08A', pattern: 'stars' }),
+    // Pirates
+    S(56, 'deckhand', 'Deckhand', 'common', 'pirates', 'Swabs the deck, ties the knots, sings the loudest shanty.',
+      { bg: '#C49A6C', bg2: '#8A6A3A', bgp: 'deck', outfit: 'stripes', head: 'bandana', h1: '#D93636', h2: '#FFFFFF' },
+      { body: '#FFFFFF', accent: '#1F3A6E', trim: '#1F3A6E', emissive: '#FFD23F', pattern: 'stripes' }),
+    S(57, 'sea-dog', 'Sea Dog', 'common', 'pirates', 'One eye patch, one big moustache, a hundred sea stories.',
+      { bg: '#2B6E8A', bg2: '#BDF0FF', bgp: 'waves', outfit: 'stripes', head: 'bandana', h1: '#1F3A6E', h2: '#FFFFFF', face: 'patch stache' },
+      { body: '#F4F1EA', accent: '#D93636', trim: '#7A1414', emissive: '#FFD23F', pattern: 'stripes' }),
+    S(58, 'lookout', 'Lookout', 'common', 'pirates', 'Up in the crow\'s nest, first to shout "Land ho!".',
+      { bg: '#7EC8E3', bg2: '#FFFFFF', bgp: 'map', outfit: 'pirate', head: 'bandana', h1: '#2EA36B', h2: '#FFE45C', face: 'patch' },
+      { body: '#5C3A20', accent: '#C9A46B', trim: '#3A2418', emissive: '#FFD23F', pattern: 'plain' }),
+    S(59, 'first-mate', 'First Mate', 'uncommon', 'pirates', 'The captain\'s right hand. The left one is a shiny hook.',
+      { bg: '#1E4E6B', bg2: '#7EC8E3', bgp: 'waves', outfit: 'pirate', hook: true, sash: '#D93636', head: 'bandana', h1: '#1B1513', h2: '#D93636', face: 'patch stache' },
+      { body: '#1F3A6E', accent: '#F5C542', trim: '#0E1E3A', emissive: '#FFD23F', pattern: 'plain' }),
+    S(60, 'buccaneer', 'Buccaneer', 'uncommon', 'pirates', 'A three-cornered hat, an eye patch and a map with an X on it.',
+      { bg: '#E8D5A8', bg2: '#A0522D', bgp: 'map', outfit: 'pirate', head: 'tricorn', h1: '#1B1513', h2: '#F5C542', face: 'patch' },
+      { body: '#7A1F2B', accent: '#F5C542', trim: '#4A0F18', emissive: '#FFD23F', pattern: 'plain' }),
+    S(61, 'pirate-captain', 'Pirate Captain', 'rare', 'pirates', 'Commands the fastest ship on the seven seas, feather first.',
+      { bg: '#123B5A', bg2: '#FFE79A', bgp: 'moon', outfit: 'pirate', sash: '#F5C542', head: 'tricorn', h1: '#1B1513', h2: '#F5C542', feather: '#D93636', face: 'patch stache', sc: '#1B1513' },
+      { body: '#B3261E', accent: '#F5C542', trim: '#5C0F0B', emissive: '#FFE79A', pattern: 'plain' }),
+    S(62, 'ghost-pirate', 'Ghost Pirate', 'epic', 'pirates', 'Sailed off the map long ago and never quite came back.',
+      { bg: '#0B2233', bg2: '#7FFFD4', bgp: 'fog', outfit: 'pirate', head: 'tricorn', h1: '#2A5C66', h2: '#7FFFD4', ragged: true, skullc: '#CFFFF2', face: 'patch', fc: '#1E4450', tone: '#BFF0E6', fx: 'twinkle' },
+      { body: '#2A5C66', accent: '#7FFFD4', trim: '#163840', emissive: '#7FFFD4', pattern: 'waves' }),
+    S(63, 'pirate-king', 'Pirate King', 'legendary', 'pirates', 'Every pirate on every ocean answers to this crown.',
+      { bg: '#2A0A0A', bg2: '#F5C542', bgp: 'map', outfit: 'pirate', sash: '#F5C542', head: 'tricornking', h1: '#3A0F2B', h2: '#F5C542', feather: '#FFFFFF', face: 'patch stache', sc: '#1B1513', fc: '#1B1513', fx: 'shine frame' },
+      { body: '#7A0F2B', accent: '#F5C542', trim: '#3A0612', emissive: '#FFE79A', pattern: 'stars' }),
+    // Suits and mobsters (costume-party style)
+    S(64, 'nine-to-five', 'Nine to Five', 'common', 'suits', 'A sharp suit, a straight tie and a very full inbox.',
+      { nohat: true, bg: '#8FA3B8', bg2: '#C9D3EA', bgp: 'skyline', outfit: 'business' },
+      { body: '#33415C', accent: '#3D8BFF', trim: '#1E2738', emissive: '#FFFFFF', pattern: 'plain' }),
+    S(65, 'tracksuit-tough', 'Tracksuit Tough', 'common', 'suits', 'Shiny tracksuit, flat cap and the chunkiest gold chain in town.',
+      { bg: '#4A4E58', bg2: '#8A8F9C', bgp: 'bricks', outfit: 'track', chain: true, head: 'flatcap', h1: '#3A3F4B', h2: '#1B1F27' },
+      { body: '#1F3A6E', accent: '#FFFFFF', trim: '#0E1E3A', emissive: '#F5C542', pattern: 'stripes' }),
+    S(66, 'banker', 'Banker', 'common', 'suits', 'Counts every coin twice, wears a bowler hat once a day.',
+      { bg: '#2E5E4E', bg2: '#7FBFA0', bgp: 'grid', outfit: 'business', pin: '#C8D2DC', head: 'bowler', h1: '#1B1513', h2: '#3A2E2A' },
+      { body: '#3A3F4B', accent: '#7A1F2B', trim: '#22262E', emissive: '#C8D2DC', pattern: 'pinstripes' }),
+    S(67, 'roaring-twenties', 'Roaring Twenties', 'uncommon', 'suits', 'Pinstripes, a fedora and a jazz band playing somewhere.',
+      { bg: '#3A2A1A', bg2: '#C9A46B', bgp: 'bricks', outfit: 'business', pin: '#D9DEE6', head: 'fedora', h1: '#3A3F4B', h2: '#1B1513' },
+      { body: '#2B2F3A', accent: '#D93636', trim: '#16181E', emissive: '#F5C542', pattern: 'pinstripes' }),
+    S(68, 'gumshoe', 'Gumshoe', 'uncommon', 'suits', 'A private detective in a trench coat, following every clue.',
+      { bg: '#2B2F3A', bg2: '#8FA3B8', bgp: 'skyline', outfit: 'trench', head: 'fedora', h1: '#6B5236', h2: '#2B1B12' },
+      { body: '#C9A46B', accent: '#7A1F2B', trim: '#8A6A3A', emissive: '#FFE79A', pattern: 'plain' }),
+    S(69, 'bodyguard', 'Bodyguard', 'uncommon', 'suits', 'Dark suit, dark shades, and a wire in one ear. Says nothing.',
+      { bg: '#1B1F27', bg2: '#5A6273', bgp: 'grid', outfit: 'business', head: 'slick earpiece', h1: '#17110E', face: 'shades' },
+      { body: '#1B1F27', accent: '#1B1513', trim: '#0E1116', emissive: '#FFFFFF', pattern: 'plain' }),
+    S(70, 'black-tie', 'Black Tie', 'rare', 'suits', 'A perfect tuxedo for the fanciest party of the year.',
+      { bg: '#2A1A40', bg2: '#F5C542', bgp: 'sparkle', outfit: 'tux', head: 'slick', h1: '#17110E', pocket: '#F5C542' },
+      { body: '#16181E', accent: '#16181E', trim: '#0B0C10', emissive: '#3A3F4B', pattern: 'plain' }),
+    S(71, 'secret-agent', 'Secret Agent', 'rare', 'suits', 'Tuxedo, shades and a gadget hidden in the cufflinks.',
+      { bg: '#0B1026', bg2: '#E5484D', bgp: 'spot', outfit: 'tux', head: 'slick earpiece', h1: '#2B1B12', face: 'shades' },
+      { body: '#16181E', accent: '#16181E', trim: '#0B0C10', emissive: '#3A3F4B', pattern: 'plain' }),
+    S(72, 'the-don', 'The Don', 'epic', 'suits', 'Pinstripes, a red rose and an offer you would happily accept.',
+      { bg: '#1A1210', bg2: '#8A6A3A', bgp: 'bricks', outfit: 'business', pin: '#C8D2DC', rose: true, chain: false, head: 'fedora', h1: '#E8E2D4', h2: '#1B1513', face: 'stache', sc: '#3A2A20', fx: 'flicker', gc: '#F5C542' },
+      { body: '#22262E', accent: '#7A1F2B', trim: '#121418', emissive: '#F5C542', pattern: 'pinstripes' }),
+    S(73, 'the-boss', 'The Boss', 'legendary', 'suits', 'Long coat, fur collar, a tall fur hat and gold on everything.',
+      { bg: '#0E0C14', bg2: '#5A4A7A', bgp: 'skyline', outfit: 'longcoat', chain: true, head: 'furhat', h1: '#3A2A20', h2: '#F5C542', gem: true, face: 'stache', sc: '#2B1B12', fx: 'shine frame' },
+      { body: '#1B1513', accent: '#5C4636', trim: '#7A1F2B', emissive: '#F5C542', pattern: 'plain' }),
+    // Robots
+    S(74, 'retro-tin-bot', 'Retro Tin Bot', 'common', 'robot', 'Wind the key on its back and it marches off beeping.',
+      { bg: '#D9583B', bg2: '#FFD23F', bgp: 'rays', outfit: 'tinbody', head: 'dome', h1: '#B8C2CC', h2: '#E5484D', tone: '#C8D2DC' },
+      { body: '#9AA8B6', accent: '#E5484D', trim: '#5A6878', emissive: '#FFD23F', pattern: 'plates' }),
+    S(75, 'vacuum-bot', 'Vacuum Bot', 'common', 'robot', 'Hums round the room, bumps into the sofa, tries again.',
+      { bg: '#E8ECF2', bg2: '#B8C2CC', bgp: 'checker', outfit: 'tinbody', head: 'vacuum', h1: '#3A3F4B', h2: '#2EC4B6', tone: '#D9DEE6' },
+      { body: '#3A3F4B', accent: '#2EC4B6', trim: '#22262E', emissive: '#2EC4B6', pattern: 'circuit' }),
+    S(76, 'junkyard-bot', 'Junkyard Bot', 'uncommon', 'robot', 'Built from bits nobody wanted, and proud of every dent.',
+      { bg: '#6B5236', bg2: '#C9A46B', bgp: 'gears', outfit: 'tinbody', head: 'junk', h1: '#A0522D', h2: '#7A8A6A', tone: '#B9A68A' },
+      { body: '#8A6A4A', accent: '#D9822B', trim: '#4A3828', emissive: '#7CE38B', pattern: 'plates' }),
+    S(77, 'sleek-android', 'Sleek Android', 'rare', 'robot', 'Smooth white panels and a calm blue glow. Very polite.',
+      { bg: '#0E1A2A', bg2: '#5CC8FF', bgp: 'grid', outfit: 'circuit', head: 'android', h1: '#F4F7FA', h2: '#5CC8FF', tone: '#EEF2F6', face: 'visor', vc: '#5CC8FF' },
+      { body: '#E8ECF2', accent: '#5CC8FF', trim: '#9AA8B6', emissive: '#5CC8FF', pattern: 'circuit' }),
+    S(78, 'mech-pilot', 'Mech Pilot', 'epic', 'robot', 'Straps into a robot ten storeys tall, visor up, ready.',
+      { bg: '#1A2230', bg2: '#FF7A2E', bgp: 'gears', outfit: 'mech', head: 'pilot', h1: '#E8ECF2', h2: '#FF7A2E', fx: 'flicker', gc: '#FF7A2E' },
+      { body: '#3A4A5C', accent: '#FF7A2E', trim: '#1B2430', emissive: '#7FE7FF', pattern: 'plates' }),
+    // Variety
+    S(79, 'mission-specialist', 'Mission Specialist', 'common', 'space', 'Orange suit, big helmet, a checklist for every button.',
+      { bg: '#0E1A3A', bg2: '#C9D3EA', bgp: 'stars', outfit: 'suit', head: 'helmet' },
+      { body: '#F28C28', accent: '#FFFFFF', trim: '#C8D2DC', emissive: '#7FD4FF', pattern: 'quilt' }),
+    S(80, 'head-chef', 'Head Chef', 'common', 'jobs', 'Tall hat, clean whites, and the soup is perfect today.',
+      { bg: '#E8ECF2', bg2: '#2E5FD9', bgp: 'kitchen', outfit: 'apron', head: 'toque', face: 'stache', sc: '#2B1B12' },
+      { body: '#FFFFFF', accent: '#E5484D', trim: '#9AA8B6', emissive: '#FFFFFF', pattern: 'checker' }),
+    S(81, 'firefighter', 'Firefighter', 'common', 'jobs', 'First up the ladder, last to leave, always helps the cat down.',
+      { bg: '#B3261E', bg2: '#FF7A2E', bgp: 'flames', outfit: 'fire', head: 'firehelm', h1: '#D93636', h2: '#F5C542' },
+      { body: '#3A3428', accent: '#F5C542', trim: '#1B1513', emissive: '#DDE3EA', pattern: 'stripes' }),
+    S(82, 'panda', 'Panda', 'common', 'animals', 'Black, white and only slightly interested in bamboo.',
+      { bg: '#9BD86F', bg2: '#5CA040', bgp: 'leaves', outfit: 'hoodie', head: 'bear' },
+      { body: '#1B1513', accent: '#FFFFFF', trim: '#1B1513', emissive: '#FFFFFF', pattern: 'spots' }),
+    S(83, 'penguin', 'Penguin', 'common', 'animals', 'Dressed for dinner every day, waddles everywhere.',
+      { bg: '#BFE4FF', bg2: '#FFFFFF', bgp: 'snow', outfit: 'belly', head: 'hood', h1: '#22262E', h2: '#FFFFFF', beak: '#F5A524' },
+      { body: '#22262E', accent: '#F5A524', trim: '#11131A', emissive: '#FFFFFF', pattern: 'plain' }),
+    S(84, 'pizza-slice', 'Pizza Slice', 'common', 'food', 'Extra cheese, extra pepperoni, extra everything.',
+      { bg: '#FFE6B8', bg2: '#D9483B', bgp: 'dots', outfit: 'overalls', head: 'pizza' },
+      { body: '#D9483B', accent: '#FFD45C', trim: '#F4F1EA', emissive: '#FFD45C', pattern: 'spots' }),
+    S(85, 'pumpkin-patch', 'Pumpkin Patch', 'common', 'seasons', 'A round orange hat picked fresh from the field.',
+      { bg: '#4A2E5C', bg2: '#FF9A3D', bgp: 'moon', outfit: 'puffer', head: 'pumpkin', h1: '#F28C28', h2: '#B8481F' },
+      { body: '#5C3A7A', accent: '#F28C28', trim: '#2E1A40', emissive: '#FF9A3D', pattern: 'leaves' }),
+    S(86, 'snow-day', 'Snow Day', 'common', 'seasons', 'School is closed, the sled is waxed, the earmuffs are on.',
+      { bg: '#9FD3FF', bg2: '#FFFFFF', bgp: 'snow', outfit: 'puffer', head: 'earmuffs', h1: '#FF7EB9', h2: '#FFFFFF' },
+      { body: '#4FA8E0', accent: '#FFFFFF', trim: '#2C6FB0', emissive: '#C8F0FF', pattern: 'snow' }),
+    S(87, 'apprentice-wizard', 'Apprentice Wizard', 'uncommon', 'fantasy', 'Still learning the spells. Mostly turns things blue.',
+      { bg: '#2A1F5C', bg2: '#B98BFF', bgp: 'stars', outfit: 'robe', head: 'wizhat', h1: '#3D5FD9', h2: '#FFD86B' },
+      { body: '#3D5FD9', accent: '#FFD86B', trim: '#1E2F7A', emissive: '#B98BFF', pattern: 'stars' }),
+    S(88, 'night-ninja', 'Night Ninja', 'uncommon', 'fantasy', 'Quiet as a cat on a roof. You did not see this one.',
+      { bg: '#1A1530', bg2: '#5A4A8A', bgp: 'moon', outfit: 'gi', head: 'ninja', h1: '#2B2F3A', h2: '#D93636', face: 'mask', mc: '#2B2F3A' },
+      { body: '#2B2F3A', accent: '#D93636', trim: '#16181E', emissive: '#8EA0FF', pattern: 'plain' }),
+    S(89, 'turntable-dj', 'Turntable DJ', 'uncommon', 'music', 'Big headphones, bigger beats, the whole room dancing.',
+      { bg: '#160F2E', bg2: '#FF4FB4', bgp: 'notes', outfit: 'hoodie', head: 'phones', h1: '#1B1F27', h2: '#FF4FB4', face: 'shades', fc: '#1B1F27' },
+      { body: '#3A2A6E', accent: '#FF4FB4', trim: '#1B1530', emissive: '#38F2C8', pattern: 'grid' }),
+    S(90, 'tiger', 'Tiger', 'uncommon', 'animals', 'Big stripes, soft paws and a very proud roar.',
+      { bg: '#2F5D3A', bg2: '#5CA040', bgp: 'leaves', outfit: 'stripes', head: 'hood', h1: '#F28C28', h2: '#FFF3E6', ears: 'round', stripes: true },
+      { body: '#F28C28', accent: '#1B1513', trim: '#1B1513', emissive: '#FFD38A', pattern: 'stripes' }),
+    S(91, 'rock-star', 'Rock Star', 'rare', 'music', 'A leather jacket, a tall mohawk and one very loud guitar.',
+      { bg: '#1B1513', bg2: '#E5484D', bgp: 'spot', outfit: 'leather', head: 'mohawk', h1: '#FF3FA4', h2: '#FFB3E6' },
+      { body: '#22262E', accent: '#E5484D', trim: '#0E1116', emissive: '#FF3FA4', pattern: 'plain' }),
+    S(92, 'bolt-guardian', 'Bolt Guardian', 'rare', 'hero', 'A hero of our own making, faster than a thunderclap.',
+      { nohat: true, bg: '#1F3A6E', bg2: '#FFE45C', bgp: 'rays', outfit: 'hero', emblem: 'bolt', face: 'domino', mc: '#1B1513' },
+      { body: '#2E5FD9', accent: '#FFE45C', trim: '#E5484D', emissive: '#E5484D', pattern: 'rays' }),
+    S(93, 'wrapped-up', 'Wrapped Up', 'rare', 'spooky', 'A friendly mummy who just woke up from a very long nap.',
+      { bg: '#C9A46B', bg2: '#8A6A3A', bgp: 'bricks', outfit: 'wrap', head: 'mummy', h1: '#EDE4CC', h2: '#B5A27A', tone: '#E8DCC0' },
+      { body: '#EDE4CC', accent: '#B5A27A', trim: '#8A7A5A', emissive: '#7CE38B', pattern: 'stripes' }),
+    S(94, 'wise-wizard', 'Wise Wizard', 'rare', 'fantasy', 'A long white beard and a hat full of old, kind spells.',
+      { bg: '#1A2A5C', bg2: '#8FD6FF', bgp: 'swirl', outfit: 'robe', head: 'wizhat', h1: '#6B3DB8', h2: '#FFD86B', face: 'beard' },
+      { body: '#6B3DB8', accent: '#FFD86B', trim: '#3A1F70', emissive: '#8FD6FF', pattern: 'stars' }),
+    S(95, 'vampire-count', 'Vampire Count', 'epic', 'spooky', 'A tall collar, a red-lined cape and very good manners.',
+      { bg: '#1A0A14', bg2: '#E5484D', bgp: 'moon', outfit: 'vamp', head: 'vampslick', h1: '#120C10', face: 'collar fangs', tone: '#E8E0F0', fx: 'twinkle' },
+      { body: '#16121A', accent: '#B3261E', trim: '#0B080C', emissive: '#FF5C5C', pattern: 'plain' }),
+    S(96, 'samurai', 'Samurai', 'epic', 'fantasy', 'Costume armour in red lacquer with a golden crest.',
+      { bg: '#F2E6CF', bg2: '#D93636', bgp: 'rays', outfit: 'samurai', head: 'kabuto', h1: '#2B1B12', h2: '#D93636' },
+      { body: '#B3261E', accent: '#2B1B12', trim: '#1B1513', emissive: '#F5C542', pattern: 'plates' }),
+    S(97, 'royal-knight', 'Royal Knight', 'epic', 'fantasy', 'Polished armour, a crown on the helmet and a tall plume.',
+      { bg: '#1F3A6E', bg2: '#F5C542', bgp: 'checker', outfit: 'tabard', head: 'royalknight', h1: '#C8D2DC', h2: '#8FA3B8' },
+      { body: '#8A95A3', accent: '#1F3A6E', trim: '#5A6878', emissive: '#E5484D', pattern: 'plates' }),
+    S(98, 'cosmic-hero', 'Cosmic Hero', 'epic', 'hero', 'Got super powers from a passing comet. Uses them nicely.',
+      { nohat: true, bg: '#1E1352', bg2: '#FF7AE0', bgp: 'sparkle', outfit: 'hero', emblem: 'star', face: 'domino', mc: '#FF7AE0', fx: 'orbit', oc: '#FF9AF0' },
+      { body: '#3A1F8A', accent: '#FFE45C', trim: '#FF7AE0', emissive: '#FF7AE0', pattern: 'stars' }),
+    S(99, 'archmage', 'Archmage', 'legendary', 'fantasy', 'The oldest wizard of all, with stars that circle the hat.',
+      { bg: '#0A0626', bg2: '#8FD6FF', bgp: 'swirl', outfit: 'robe', head: 'archhat', h1: '#1E1352', h2: '#F5C542', face: 'beard', fx: 'orbit shine frame' },
+      { body: '#1E1352', accent: '#F5C542', trim: '#0A0626', emissive: '#8FD6FF', pattern: 'stars' }),
+    S(100, 'phoenix', 'Phoenix', 'legendary', 'mythic', 'Rises from the sparks with wings of fire and gold.',
+      { bg: '#2A0A05', bg2: '#FF5A1F', bgp: 'wings', outfit: 'feathers', head: 'flame', h1: '#FF5A1F', h2: '#FFD23F', tone: '#FFE2C2', fx: 'flicker shine frame' },
+      { body: '#D9381E', accent: '#FF7A2E', trim: '#7A1414', emissive: '#FFD23F', pattern: 'flames' })
   ];
 
   // ---------------- Accessories ----------------
@@ -225,7 +469,44 @@
     A(20, 'mini-bot', 'Mini Bot', 'pet', 'uncommon', 'A tiny robot helper with one antenna and lots of opinions.', 'bot', { attach: 'follow', shape: 'box', color: '#9AA8B6', color2: '#38F2C8', size: .4 }),
     A(21, 'star-buddy', 'Star Buddy', 'pet', 'common', 'A smiling sea star who came out of a rock pool to see the world.', 'starfish', { attach: 'follow', shape: 'star', color: '#FF8A5C', color2: '#FFD2B8', size: .35 }),
     A(22, 'ghost-pup', 'Ghost Pup', 'pet', 'epic', 'A see-through puppy who is not scary at all.', 'ghost', { attach: 'follow', shape: 'blob', color: '#EEF2FF', color2: '#8EA0FF', size: .4, glow: true }),
-    A(23, 'baby-drake', 'Baby Drake', 'pet', 'legendary', 'A pocket-sized dragon who sneezes little sparks.', 'dragon', { attach: 'follow', shape: 'creature', color: '#8A5CF0', color2: '#FFD23F', size: .45, glow: true })
+    A(23, 'baby-drake', 'Baby Drake', 'pet', 'legendary', 'A pocket-sized dragon who sneezes little sparks.', 'dragon', { attach: 'follow', shape: 'creature', color: '#8A5CF0', color2: '#FFD23F', size: .45, glow: true }),
+    // ---- Wave 2 (19 Nov 2026). Numbers 24 onwards. ----
+    A(24, 'ball-cap', 'Ball Cap', 'hat', 'common', 'A team-style cap with a star on the front.', 'cap', { attach: 'head', shape: 'cap', color: '#2E5FD9', color2: '#FFFFFF', size: 1 }),
+    A(25, 'sweatband', 'Sweatband', 'hat', 'common', 'Keeps the sweat out of your eyes in overtime.', 'band', { attach: 'head', shape: 'band', color: '#FFFFFF', color2: '#E5484D', size: 1 }),
+    A(26, 'hockey-helmet', 'Hockey Helmet', 'hat', 'common', 'Hard shell, chin strap, ready for the rink.', 'hockey', { attach: 'head', shape: 'dome', color: '#1F3A6E', color2: '#FFFFFF', size: 1.05 }),
+    A(27, 'bandana', 'Bandana', 'hat', 'common', 'A spotty pirate bandana, knotted at the side.', 'bandana', { attach: 'head', shape: 'dome', color: '#D93636', color2: '#FFFFFF', size: 1 }),
+    A(28, 'flat-cap', 'Flat Cap', 'hat', 'common', 'A soft tweed cap for the golf course or the street corner.', 'flatcap', { attach: 'head', shape: 'cap', color: '#7A6A58', color2: '#4A3E32', size: 1 }),
+    A(29, 'chef-toque', 'Chef Toque', 'hat', 'common', 'A tall white chef\'s hat. Cooking skills not included.', 'toque', { attach: 'head', shape: 'cylinder', color: '#FFFFFF', color2: '#D3D8E0', size: 1.3 }),
+    A(30, 'fedora', 'Fedora', 'hat', 'uncommon', 'A pinched felt hat with a dark band, very 1920s.', 'fedora', { attach: 'head', shape: 'fedora', color: '#3A3F4B', color2: '#1B1513', size: 1.1 }),
+    A(31, 'tricorn', 'Tricorn', 'hat', 'uncommon', 'A three-cornered pirate hat with gold trim.', 'tricorn', { attach: 'head', shape: 'tricorn', color: '#1B1513', color2: '#F5C542', size: 1.2, opts: { feather: '#D93636' } }),
+    A(32, 'bowler', 'Bowler', 'hat', 'uncommon', 'A round hard hat for bankers and butlers.', 'bowler', { attach: 'head', shape: 'dome', color: '#1B1513', color2: '#3A2E2A', size: 1 }),
+    A(33, 'dj-headphones', 'DJ Headphones', 'hat', 'uncommon', 'Big cushioned headphones with a glow on each side.', 'phones', { attach: 'head', shape: 'band', color: '#1B1F27', color2: '#FF4FB4', size: 1, trim: '#1B1513', glowc: '#38F2C8' }),
+    A(34, 'football-helmet', 'Football Helmet', 'hat', 'rare', 'A shiny helmet with a stripe down the middle and a face mask.', 'fbhelm', { attach: 'head', shape: 'helmet', color: '#7A1F2B', color2: '#F5C542', size: 1.15, glowc: '#DDE3EA' }),
+    A(35, 'racing-helmet', 'Racing Helmet', 'hat', 'rare', 'A full racing helmet with the visor flipped up.', 'race', { attach: 'head', shape: 'helmet', color: '#FFFFFF', color2: '#E5484D', size: 1.2, glowc: '#3DE0FF', opts: { num: 1 } }),
+    A(36, 'fur-hat', 'Fur Hat', 'hat', 'rare', 'A tall, warm fur hat for the coldest boss in town.', 'furhat', { attach: 'head', shape: 'cylinder', color: '#5C4636', color2: '#F5C542', size: 1.2 }),
+    A(37, 'golden-laurel', 'Golden Laurel', 'hat', 'epic', 'A wreath of golden leaves for winners only.', 'laurel', { attach: 'head', shape: 'torus', color: '#F5C542', color2: '#FFF2C2', size: 1, trim: '#B8860B', glow: true }),
+    A(38, 'eye-patch', 'Eye Patch', 'glasses', 'common', 'A pirate\'s patch on a thin strap. Arr.', 'patch', { attach: 'face', shape: 'patch', color: '#1B1513', color2: '#1B1513', size: .5 }),
+    A(39, 'dark-shades', 'Dark Shades', 'glasses', 'common', 'Flat black sunglasses. Bodyguard approved.', 'shades', { attach: 'face', shape: 'band', color: '#16181E', color2: '#FFFFFF', size: 1 }),
+    A(40, 'eye-black', 'Eye Black', 'glasses', 'common', 'Two stripes under the eyes, game-day style.', 'eyeblack', { attach: 'face', shape: 'stripes', color: '#1B1513', color2: '#1B1513', size: .6 }),
+    A(41, 'aviators', 'Aviators', 'glasses', 'uncommon', 'Teardrop lenses in a thin gold frame.', 'aviators', { attach: 'face', shape: 'lens', color: '#3A4A5C', color2: '#F5C542', size: 1 }),
+    A(42, 'cyborg-eye', 'Cyborg Eye', 'glasses', 'rare', 'One glowing robot eye with a little scanner inside.', 'cyborg', { attach: 'face', shape: 'ring', color: '#E5484D', color2: '#FFD2D2', size: .6, glow: true }),
+    A(43, 'bow-tie', 'Bow Tie', 'cape', 'common', 'A neat bow tie for the neck. Worn in the cape spot.', 'bowtie', { attach: 'neck', shape: 'bowtie', color: '#B3261E', color2: '#7A1414', size: .5 }),
+    A(44, 'number-cape', 'Number Cape', 'cape', 'uncommon', 'A team cape with a big number 1 on the back.', 'numcape', { attach: 'back', shape: 'cloth', color: '#1F3A6E', color2: '#FFD23F', size: 1, num: 1 }),
+    A(45, 'gold-chain', 'Gold Chain', 'cape', 'uncommon', 'A chunky gold chain with a star on the end.', 'chain', { attach: 'neck', shape: 'chain', color: '#F5C542', color2: '#FFF2C2', size: .6 }),
+    A(46, 'royal-ermine', 'Royal Ermine', 'cape', 'epic', 'A velvet cape with a fluffy white collar, fit for a ruler.', 'ermine', { attach: 'back', shape: 'cloth', color: '#7A1F8A', color2: '#FFFFFF', size: 1.1 }),
+    A(47, 'soccer-trail', 'Soccer Ball Trail', 'trail', 'common', 'A ball that bounces along behind you.', 'soccer', { attach: 'feet', shape: 'ball', color: '#FFFFFF', color2: '#7BD88F', size: 1 }),
+    A(48, 'football-trail', 'Football Trail', 'trail', 'common', 'A spinning football that follows your every step.', 'football', { attach: 'feet', shape: 'ball', color: '#8A4A22', color2: '#FFFFFF', size: 1 }),
+    A(49, 'doubloon-trail', 'Doubloon Trail', 'trail', 'uncommon', 'Gold pirate coins that spill out behind you.', 'coins', { attach: 'feet', shape: 'particles', color: '#F5C542', color2: '#FFF2C2', size: 1, glow: true }),
+    A(50, 'music-trail', 'Music Trail', 'trail', 'rare', 'Little musical notes float up wherever you go.', 'notes', { attach: 'feet', shape: 'particles', color: '#FF4FB4', color2: '#38F2C8', size: 1, glow: true }),
+    A(51, 'confetti-pop', 'Confetti Pop', 'aura', 'uncommon', 'Party confetti hanging in the air around you.', 'confetti', { attach: 'around', shape: 'particles', color: '#FF5C5C', color2: '#FFD23F', size: 1.2 }),
+    A(52, 'spotlight', 'Spotlight', 'aura', 'rare', 'A bright stage light that follows you everywhere.', 'spot', { attach: 'head', shape: 'cone', color: '#FFE79A', color2: '#FFFFFF', size: 1.4, glow: true }),
+    A(53, 'camera-flash', 'Camera Flash', 'aura', 'epic', 'Flashes go off all around you, like on a red carpet.', 'flash', { attach: 'around', shape: 'particles', color: '#FFFFFF', color2: '#BFE4FF', size: 1.2, glow: true }),
+    A(54, 'champion-glow', 'Champion Glow', 'aura', 'legendary', 'Slowly turning golden rays for a true champion.', 'trophy', { attach: 'around', shape: 'rays', color: '#F5C542', color2: '#FFF2C2', size: 1.4, glow: true }),
+    A(55, 'parrot', 'Parrot', 'pet', 'uncommon', 'A chatty red parrot who repeats everything you say.', 'parrot', { attach: 'follow', shape: 'creature', color: '#E5484D', color2: '#2EA36B', size: .4 }),
+    A(56, 'penguin-chick', 'Penguin Chick', 'pet', 'uncommon', 'A fluffy grey chick who waddles after you.', 'chick', { attach: 'follow', shape: 'creature', color: '#5A6273', color2: '#F5A524', size: .35 }),
+    A(57, 'robo-pup', 'Robo Pup', 'pet', 'rare', 'A metal puppy with glowing eyes and a wagging antenna.', 'robopup', { attach: 'follow', shape: 'box', color: '#9AA8B6', color2: '#38F2C8', size: .4, trim: '#3A4A5C' }),
+    A(58, 'drone-buddy', 'Drone Buddy', 'pet', 'epic', 'A tiny hovering drone that keeps an eye on you.', 'drone', { attach: 'follow', shape: 'box', color: '#3A3F4B', color2: '#5CC8FF', size: .35, trim: '#1B1F27', glow: true }),
+    A(59, 'pocket-kraken', 'Pocket Kraken', 'pet', 'legendary', 'A small purple sea monster with a crown and a big grin.', 'kraken', { attach: 'follow', shape: 'creature', color: '#8A5CF0', color2: '#FFB3E6', size: .45, glow: true })
   ];
   var SKINS_BY_ID = {}, ACC_BY_ID = {}, SKIN_BY_NO = {}, ACC_BY_NO = {};
   SKINS.forEach(function (s) { SKINS_BY_ID[s.id] = s; SKIN_BY_NO[s.no] = s; });
@@ -253,7 +534,23 @@
     rampline: { name: 'Rampline', prefix: 'rl', slots: [['car', 'Cars'], ['paint', 'Paints'], ['wheels', 'Wheels'], ['smoke', 'Tyre smoke'], ['horn', 'Horns']] },
     chromaflage: { name: 'Chromaflage', prefix: 'cf', slots: [['hat', 'Seeker hats'], ['tool', 'Seeker tools'], ['splash', 'Catch splashes'], ['caught', 'Caught animations']] },
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
-    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
+    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },    'backrooms-1v1': { name: 'Backrooms 1v1–4v4', prefix: 'br', slots: [['outfit', 'Outfits'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['elim', 'Elimination effects'], ['celebrate', 'Round-win celebrations']] },
+    'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses'], ['pick', 'Pickaxes']] },
+    'sky-duel': { name: 'Sky Duel', prefix: 'sd', slots: [['paint', 'Paints'], ['nose', 'Noses'], ['trail', 'Trails'], ['boom', 'Shoot-downs']] },
+    blockstorm: { name: 'Blockstorm', prefix: 'bs', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['gun', 'Gun skins']] },
+    tidewick: { name: 'Tidewick', prefix: 'tw', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
+    'patchwork-tower': { name: 'Patchwork Tower', prefix: 'pt', slots: [['paint', 'Paint jobs'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Hop trails']] },
+    flickerwood: { name: 'Flickerwood', prefix: 'fw', slots: [['kit', 'Kits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
+    stackfall: { name: 'Stackfall', prefix: 'sf', slots: [['blocks', 'Block sets'], ['board', 'Boards'], ['clear', 'Clear effects']] },
+    'melon-merge': { name: 'Melon Merge', prefix: 'mm', slots: [['fruit', 'Fruit sets'], ['wall', 'Walls'], ['pop', 'Merge pops']] },
+    '2048': { name: '2048', prefix: 'tf', slots: [['tiles', 'Tile sets'], ['board', 'Boards']] },
+    gridpop: { name: 'Gridpop', prefix: 'gp', slots: [['blocks', 'Block sets'], ['board', 'Boards']] },
+    showdown: { name: 'Showdown', prefix: 'sd', slots: [['seat', 'Seat looks'], ['back', 'Card backs'], ['felt', 'Felts'], ['win', 'Win flourishes']] },
+    'puffer-party': { name: 'Puffer Party', prefix: 'pp', slots: [['hat', 'Puffer hats'], ['trail', 'Answer trails'], ['pop', 'Pops'], ['win', 'Victory effects']] },
+    lanternhold: { name: 'Lanternhold', prefix: 'lh', slots: [['banner', 'Tower banners'], ['lantern', 'Lanterns'], ['flame', 'Flame colours'], ['burst', 'Build bursts']] },
+    spire: { name: 'Spire', prefix: 'sp', slots: [['outfit', 'Outfits'], ['cheer', 'Celebrations']] },
+    'turbo-trail': { name: 'Turbo Trail', prefix: 'tr', slots: [['outfit', 'Outfits'], ['cheer', 'Celebrations']] },
+    escapade: { name: 'Escapade', prefix: 'ec', slots: [['outfit', 'Outfits'], ['cheer', 'Celebrations']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -364,6 +661,119 @@
   I('boostball', 'engine', 3, 'Rumble', 'rare', '#7A5230', '#FF4D6D', 'A big lazy burble.');
   I('boostball', 'engine', 4, 'Whirr', 'epic', '#3EE6FF', '#FFFFFF', 'Electric: it sings as it speeds up.');
   I('boostball', 'goal', 22, 'Carbon Star', 'legendary', '#2A1048', '#FF6A2E', 'Made for Carbon: a red giant flares in the goal and the whole arena drifts into deep space.'); ITEM_BY_ID['bb-goal-carbon-star'].give = 'exclusive';   // an exclusive gift (../captains.js GIFTS): in no pack or chest, never sold or gifted on
+  // second wave (Nov 2026): sports, pirates, suits and robots. (Goal explosion 22 is Carbon Star, an exclusive gift from another branch.)
+  I('boostball', 'decal', 32, 'Team Hoops', 'common', '#3F8CFF', '#FFFFFF', 'Wide bands round the car in your accent colour.');
+  I('boostball', 'decal', 33, 'Varsity', 'uncommon', '#7A1F3D', '#FFFFFF', 'A chunky stripe and a big star, like a letter jacket.');
+  I('boostball', 'decal', 34, 'Pinstripe Suit', 'uncommon', '#2F3140', '#B4B8CC', 'Chalk pinstripes over your paint and a pocket square.');
+  I('boostball', 'decal', 35, 'Tuxedo', 'epic', '#15161C', '#F6F6F6', 'Black lapels, a white shirt front and a bow tie in your accent colour.');
+  I('boostball', 'decal', 36, 'Gold Circuit', 'rare', '#1D8A4E', '#E0B54A', 'Gold traces, pads and little chips.');
+  I('boostball', 'decal', 37, 'Robot Plating', 'rare', '#B8BCCF', '#3FD2FF', 'Panel seams, rivets and a glowing visor line.');
+  I('boostball', 'decal', 38, 'Jolly Oars', 'epic', '#1D1F27', '#E9DCC0', 'Two crossed oars and gold rope trim. A pirate flag with no skull.');
+  I('boostball', 'trail', 28, 'Gold Coins', 'legendary', '#FFD23F', '#C98A12', 'Coins bounce out behind you.');
+  I('boostball', 'trail', 29, 'Sea Spray', 'uncommon', '#5CC8FF', '#FFFFFF', 'Spray off the back like a speedboat.');
+  I('boostball', 'trail', 30, 'Circuit Sparks', 'rare', '#46E39A', '#FFD23F', 'Green and gold bits of light.');
+  I('boostball', 'trail', 31, 'Ticker Tape', 'common', '#FFFFFF', '#FFE9A8', 'A parade behind you.');
+  I('boostball', 'trail', 32, 'Camera Flashes', 'rare', '#FFFFFF', '#FFF6C8', 'Pop, pop, pop, like a crowd taking pictures.');
+  I('boostball', 'goal', 23, 'Ticker Tape Parade', 'rare', '#FFFFFF', '#FFE9A8', 'White and gold paper pours over the goal while the crowd roars.');
+  I('boostball', 'goal', 24, 'Treasure Chest', 'legendary', '#8A5A2B', '#FFD23F', 'A chest rises, opens and spills gold coins and gems.');
+  I('boostball', 'goal', 25, 'Floodlights', 'epic', '#FFF6C8', '#3F8CFF', 'The stadium lights flash on, then stars burst in your team colour.');
+  I('boostball', 'topper', 7, 'Soccer Ball', 'common', '#F6F6F6', '#14161F', 'A tiny football on your aerial.');
+  I('boostball', 'topper', 8, 'Basketball', 'common', '#E8742A', '#2A1810', 'A tiny basketball on your aerial.');
+  I('boostball', 'topper', 9, 'Baseball', 'common', '#F6F4EA', '#D8262F', 'A tiny baseball with red stitches.');
+  I('boostball', 'topper', 10, 'Anchor', 'uncommon', '#5A6170', '#C8D2DC', 'A little steel anchor.');
+  I('boostball', 'topper', 11, 'Robot Head', 'rare', '#B8BCCF', '#3FD2FF', 'A boxy robot with glowing eyes.');
+  I('boostball', 'topper', 12, 'Parrot', 'epic', '#2ECC5A', '#D8262F', 'A pirate\'s parrot riding along.');
+  I('boostball', 'hat', 7, 'Pirate Tricorn', 'epic', '#2A2440', '#E0B040', 'A three-cornered hat with gold trim and a red feather.');
+  I('boostball', 'hat', 8, 'Fedora', 'rare', '#3A3550', '#15161C', 'A wide brim, a pinched crown and a black band.');
+  I('boostball', 'hat', 9, 'Football Helmet', 'uncommon', '#3F8CFF', '#FFFFFF', 'In your accent colour, with a stripe and a face cage.');
+  I('boostball', 'hat', 10, "Captain's Cap", 'uncommon', '#FFFFFF', '#15161C', 'A white sailor\'s cap with a black peak.');
+  I('boostball', 'hat', 11, 'Robot Dome', 'rare', '#B8BCCF', '#3FD2FF', 'A steel dome with a visor and two antennas.');
+  I('boostball', 'hat', 12, 'Ref Cap', 'common', '#14161F', '#F6F6F6', 'Black with white stripes.');
+  I('boostball', 'wheels', 5, 'Black Chrome', 'rare', '#2A2C34', '#C8D2DC', 'Five spokes in dark, shiny chrome.');
+  // third wave (Nov 2026): decals 39 to 62, trails 33 to 49, goal explosions 26 to 43, toppers 13 to 36
+  I('boostball', 'decal', 39, 'Number Eight', 'common', '#FFFFFF', '#3F8CFF', 'A big jersey eight and striped sleeves in your accent colour.');
+  I('boostball', 'decal', 40, 'Speed Slashes', 'common', '#FFFFFF', '#FF8A3D', 'Three slanted bars by the nose.');
+  I('boostball', 'decal', 41, 'Baseball Stitches', 'common', '#F6F4EA', '#D8262F', 'Red stitched seams curving over the car.');
+  I('boostball', 'decal', 42, 'Pitch Lines', 'uncommon', '#FFFFFF', '#2E8A4A', 'Mown stripes, a centre circle on the roof and both boxes.');
+  I('boostball', 'decal', 43, 'Vintage Racer', 'rare', '#F4F1E6', '#14161F', 'A white number disc and a thin pinstripe, like an old race car.');
+  I('boostball', 'decal', 44, 'Pinstriping', 'uncommon', '#FFFFFF', '#FFD23F', 'Thin hand-painted curls over the bonnet.');
+  I('boostball', 'decal', 45, 'Low Poly', 'uncommon', '#8FB8FF', '#2E5FD9', 'Your paint broken into big flat facets.');
+  I('boostball', 'decal', 46, 'Chevrons', 'common', '#FFFFFF', '#FF4FB4', 'Big arrowheads pointing the way.');
+  I('boostball', 'decal', 47, 'Leopard Spots', 'rare', '#1B140E', '#E0A050', 'Broken dark rings, very fast cat.');
+  I('boostball', 'decal', 48, 'Paw Prints', 'common', '#FFFFFF', '#8FA3B8', 'Someone walked all over your car.');
+  I('boostball', 'decal', 49, 'Big Waves', 'rare', '#FFFFFF', '#5CC8FF', 'Rolling waves with curls of foam along the bottom.');
+  I('boostball', 'decal', 50, 'Sunburst', 'uncommon', '#FFE45C', '#FF8A3D', 'Pale rays fanning out from the nose.');
+  I('boostball', 'decal', 51, 'Treasure Map', 'epic', '#ECDCAA', '#B0302A', 'A scrap of old map on each door and a compass rose on the roof.');
+  I('boostball', 'decal', 52, 'Eye Patch', 'rare', '#121318', '#FFFFFF', 'A black patch over one headlight. Arr.');
+  I('boostball', 'decal', 53, 'Tracksuit and Chain', 'common', '#FFFFFF', '#E9B93A', 'Two white stripes a side and a gold chain over the nose.');
+  I('boostball', 'decal', 54, 'Suit and Tie', 'uncommon', '#2F3140', '#F6F6F6', 'Dark lapels, a white shirt and a long tie in your accent colour.');
+  I('boostball', 'decal', 55, 'Hazard Stripes', 'common', '#FFD21F', '#14161F', 'Yellow and black bands round the doors, the nose and the tail.');
+  I('boostball', 'decal', 56, 'Barcode', 'common', '#F4F6FF', '#14161F', 'Scan before use.');
+  I('boostball', 'decal', 57, 'Synthwave Sunset', 'epic', '#FF3FA4', '#FFE45C', 'A striped sun setting behind a glowing pink grid.');
+  I('boostball', 'decal', 58, 'Polka Dots', 'common', '#FFFFFF', '#FF5C9A', 'White dots, evenly spaced.');
+  I('boostball', 'decal', 59, 'Music Staff', 'uncommon', '#FFFFFF', '#B46CFF', 'Five lines and a run of notes along each side.');
+  I('boostball', 'decal', 60, 'Paisley', 'rare', '#FF8A3D', '#FFFFFF', 'Curled teardrops and dots, like a bandana.');
+  I('boostball', 'decal', 61, 'Golf Argyle', 'uncommon', '#3F8CFF', '#FFFFFF', 'Diamonds in two shades with thin crossing lines.');
+  I('boostball', 'decal', 62, 'Title Belt', 'legendary', '#E9B93A', '#17151B', 'A black strap round the car with a big gold plate and gems.');
+  I('boostball', 'trail', 33, 'Green Flame', 'common', '#46E39A', '#D8FF8A', 'Tall green tongues of fire that lick upward, with sparks and embers.');
+  I('boostball', 'trail', 34, 'Violet Flame', 'uncommon', '#B46CFF', '#FFB0F8', 'Flickering purple fire with white sparks.');
+  I('boostball', 'trail', 35, 'Afterburner', 'rare', '#8FD6FF', '#FFFFFF', 'A tight blue-white jet with rings, like a fighter plane.');
+  I('boostball', 'trail', 36, 'Sports Balls', 'epic', '#FFFFFF', '#E8742A', 'Footballs, basketballs and tennis balls bouncing out behind.');
+  I('boostball', 'trail', 37, 'Cannon Smoke', 'uncommon', '#C8CCD6', '#FFA040', 'Grey puffs with a flash of fire, like a ship firing.');
+  I('boostball', 'trail', 38, 'Gems', 'rare', '#FF5C9A', '#5CC8FF', 'Rubies, sapphires and emeralds spilling out.');
+  I('boostball', 'trail', 39, 'Paw Prints', 'common', '#FFFFFF', '#FFF1E0', 'Little white paws hanging in the air behind you.');
+  I('boostball', 'trail', 40, 'Paper Planes', 'uncommon', '#FFFFFF', '#C8D0DC', 'Folded planes gliding off the back.');
+  I('boostball', 'trail', 41, 'Spare Parts', 'rare', '#C8D2DC', '#FFD23F', 'Gears and nuts rattling loose.');
+  I('boostball', 'trail', 42, 'Pizza Slices', 'uncommon', '#FFD25A', '#C0392B', 'Lunch, launched.');
+  I('boostball', 'trail', 43, 'Comet Tail', 'epic', '#FFF2C2', '#8FD6FF', 'A tight bright streak with stars falling out of it.');
+  I('boostball', 'trail', 44, 'Cherry Blossoms', 'common', '#FFC2DD', '#FFFFFF', 'Pink petals drifting behind you.');
+  I('boostball', 'trail', 45, 'Ghosts', 'rare', '#FFFFFF', '#E6F0FF', 'Small friendly ghosts floating away.');
+  I('boostball', 'trail', 46, 'Pixel Fire', 'uncommon', '#FF8A1F', '#FFD23F', 'Fire made of square blocks.');
+  I('boostball', 'trail', 47, 'Ice Shards', 'common', '#BFE4FF', '#FFFFFF', 'Splinters of ice skittering behind.');
+  I('boostball', 'trail', 48, 'Hockey Pucks', 'common', '#1D2027', '#5A6070', 'Pucks sliding out across the floor.');
+  I('boostball', 'trail', 49, 'Fire and Ice', 'legendary', '#FF8A1F', '#8FD6FF', 'An orange and a blue strand twisting round each other.');
+  I('boostball', 'goal', 26, 'Giant Trophy', 'epic', '#FFC83A', '#C98A12', 'A gold cup rises out of the pitch and fires streamers in your colour.');
+  I('boostball', 'goal', 27, 'Stadium Wave', 'legendary', '#FFFFFF', '#3F8CFF', 'Cards in your team colour leap up all round the stands in a wave.');
+  I('boostball', 'goal', 28, 'Robot Salute', 'epic', '#B8BCCF', '#3FD2FF', 'Parts fly in, bolt together into a robot, it salutes and jets off.');
+  I('boostball', 'goal', 29, 'Tidal Wave', 'legendary', '#2E7BFF', '#BFE9FF', 'A wall of water rolls out over half the pitch and crashes down.');
+  I('boostball', 'goal', 30, 'Aurora', 'rare', '#46E39A', '#B46CFF', 'The ball melts into curtains of green and violet light.');
+  I('boostball', 'goal', 31, 'Light Dragon', 'legendary', '#FFB347', '#FF5C6A', 'A dragon made of light loops out over the pitch and dives back in.');
+  I('boostball', 'goal', 32, 'Disco Floor', 'legendary', '#FF3FA4', '#38E6FF', 'The pitch lights up in coloured tiles and pulses to a beat.');
+  I('boostball', 'goal', 33, 'Piano Keys', 'rare', '#F4F4F0', '#17181D', 'A giant keyboard rises and the ball hops along it playing a tune.');
+  I('boostball', 'goal', 34, 'Bubble Pop', 'common', '#BFE9FF', '#FFD9F5', 'A giant soap bubble swallows the ball and pops.');
+  I('boostball', 'goal', 35, 'Balloon Release', 'common', '#FF5C5C', '#FFFFFF', 'A bunch of balloons in your colour floats out of the goal.');
+  I('boostball', 'goal', 36, 'Paint Splash', 'common', '#3F8CFF', '#FFFFFF', 'Your team colour splatted over the net and the floor.');
+  I('boostball', 'goal', 37, 'Thunderclap', 'common', '#DFF3FF', '#D8D2C4', 'A clap of air throws rings and dust along the floor.');
+  I('boostball', 'goal', 38, 'Kraken', 'epic', '#8A2F6A', '#08262E', 'Tentacles rise from a dark pool, grab the ball and drag it under.');
+  I('boostball', 'goal', 39, 'Rocket Launch', 'rare', '#F4F6FF', '#D8262F', 'Countdown, lift-off, and a burst of stars high above.');
+  I('boostball', 'goal', 40, 'Red Carpet', 'rare', '#B3122A', '#E0B040', 'A red carpet unrolls and the ball rolls out to camera flashes.');
+  I('boostball', 'goal', 41, 'Snow Globe', 'epic', '#CFE8FF', '#6B3E1E', 'A glass globe drops over the goal, gets a shake, and it snows.');
+  I('boostball', 'goal', 42, 'Slam Dunk', 'uncommon', '#FF5A1F', '#FFFFFF', 'A hoop swings out and the ball drops through with a swish.');
+  I('boostball', 'goal', 43, 'High Striker', 'uncommon', '#D8262F', '#FFC83A', 'The puck shoots up the tower and rings the bell.');
+  I('boostball', 'topper', 13, 'Foam Finger', 'common', '#3F8CFF', '#FFFFFF', 'Number one, in your accent colour.');
+  I('boostball', 'topper', 14, 'Trophy', 'epic', '#FFC83A', '#3A2A1A', 'A tiny gold cup with two handles.');
+  I('boostball', 'topper', 15, 'Whistle', 'common', '#C8D2DC', '#D8262F', 'A referee\'s whistle on a red loop.');
+  I('boostball', 'topper', 16, 'Tricorn', 'epic', '#2A2440', '#E0B040', 'A little pirate hat with three arched sides and gold trim.');
+  I('boostball', 'topper', 17, 'Eye Patch Flag', 'rare', '#15161C', '#F2EAD0', 'A black flag with an eye patch on it. No skull.');
+  I('boostball', 'topper', 18, 'Halo', 'rare', '#FFE680', '#FFFFFF', 'Floating just above. Innocent, honest.');
+  I('boostball', 'topper', 19, 'Pizza Slice', 'uncommon', '#FFD25A', '#C0392B', 'Extra cheese, two pepperoni a side.');
+  I('boostball', 'topper', 20, 'Flying Saucer', 'epic', '#B8C0CC', '#8FE6FF', 'A tiny saucer with a tiny green pilot.');
+  I('boostball', 'topper', 21, 'Cactus', 'common', '#3E9A4A', '#C0643A', 'In a pot, with a pink flower.');
+  I('boostball', 'topper', 22, 'Wizard Hat', 'rare', '#2A2A7A', '#FFE23F', 'Pointy, bent, with gold stars.');
+  I('boostball', 'topper', 23, 'Smiley Ball', 'common', '#FFE23F', '#14161F', 'The classic happy aerial ball.');
+  I('boostball', 'topper', 24, 'Racing Helmet', 'uncommon', '#3F8CFF', '#15171B', 'In your accent colour, with a dark visor.');
+  I('boostball', 'topper', 25, 'Baseball Cap', 'common', '#3F8CFF', '#FFFFFF', 'A little cap in your accent colour.');
+  I('boostball', 'topper', 26, 'Boxing Glove', 'uncommon', '#D8262F', '#FFFFFF', 'Red leather, white cuff.');
+  I('boostball', 'topper', 27, 'Golf Ball', 'common', '#FFFFFF', '#E8C9A0', 'On a wooden tee.');
+  I('boostball', 'topper', 28, 'Mini Fedora', 'uncommon', '#6B6F7C', '#15161C', 'Grey felt with a black band.');
+  I('boostball', 'topper', 29, 'Mini Top Hat', 'uncommon', '#22232B', '#3F8CFF', 'Black silk with a band in your accent colour.');
+  I('boostball', 'topper', 30, 'Mini Cone', 'common', '#FF7A1F', '#FFFFFF', 'A traffic cone, but tiny.');
+  I('boostball', 'topper', 31, 'Propeller Cap', 'uncommon', '#D93636', '#FFD23F', 'Four colours and a propeller that does not spin you anywhere.');
+  I('boostball', 'topper', 32, 'Little Chef Hat', 'common', '#FFFFFF', '#E6E8EE', 'Puffed up and spotless.');
+  I('boostball', 'topper', 33, 'Royal Crown', 'legendary', '#FFC83A', '#8A1030', 'Gold points, red velvet and a gem of every colour.');
+  I('boostball', 'topper', 34, 'American Football', 'common', '#8A4A22', '#FFFFFF', 'A tiny ball with white laces.');
+  I('boostball', 'topper', 35, 'Bowling Pin', 'common', '#FFFFFF', '#D8262F', 'Still standing.');
+  I('boostball', 'topper', 36, 'Satellite Dish', 'rare', '#E6E9EF', '#D8262F', 'Picks up every match on the planet.');
   // Slipstream sponsors (all made up): signing with one is free, and its sticker goes on the car. c1 and c2 are its colours.
   I('slipstream', 'sponsor', 1, 'Zoomi Cola', 'common', '#12B5A6', '#FFF3D6', 'Fizzy, fast and slightly too sweet.');
   I('slipstream', 'sponsor', 2, 'Burnout Coffee', 'common', '#3B2416', '#FFB347', 'Roasted until the tyres smoke.');
@@ -431,6 +841,37 @@
   I('slipstream', 'smoke', 5, 'Gold tyre smoke', 'common', '#FFCC47', '#FFF0B0', 'Gold smoke from the tyres.');
   I('slipstream', 'podium', 1, 'Confetti Podium', 'common', '#FF4FA3', '#3FD2FF', 'Confetti over the results when you finish in the top three.');
   I('slipstream', 'podium', 2, 'Fireworks Podium', 'uncommon', '#FFD21F', '#B06BFF', 'Fireworks over the results when you finish in the top three.');
+  // second wave (Nov 2026): more made-up sponsors, sports, pirate, suit and robot liveries and helmets, three boost effects, two podiums.
+  // Liveries 24 to 35 are designs; 36 on are the new sponsors' liveries (8 + 20 + the sponsor's number), earned like the first fifteen.
+  I('slipstream', 'sponsor', 16, "Polly's Crackers", 'common', '#16614F', '#FFE36B', 'A parrot recommends them. Repeatedly.');
+  I('slipstream', 'sponsor', 17, 'Fancy Pants Dry Cleaning', 'common', '#16171D', '#F4F4F4', 'Your race suit, pressed with a crease.');
+  I('slipstream', 'sponsor', 18, 'Dust Bunny Robot Vacuums', 'common', '#E9EDF3', '#34456B', 'Cleans the pit lane while you sleep.');
+  I('slipstream', 'sponsor', 19, 'Foam Finger Sports Drinks', 'common', '#FF3B6B', '#FFFFFF', 'Number one in the stands, number one in the bottle.');
+  I('slipstream', 'livery', 24, 'Home Jersey', 'common', '#2A6BFF', '#FFFFFF', 'Wide hoops in your team colours, like a match-day shirt.');
+  I('slipstream', 'livery', 25, 'Varsity', 'uncommon', '#7A1F3D', '#FFFFFF', 'A letter-jacket stripe and a big star.');
+  I('slipstream', 'livery', 26, 'Courtside', 'common', '#E8742A', '#1E1410', 'Orange with the seams of a basketball.');
+  I('slipstream', 'livery', 27, 'Pitch', 'common', '#3AA64A', '#F4FFF4', 'Mowed stripes and white lines. Kick-off at the nose.');
+  I('slipstream', 'livery', 28, 'Ice Rink', 'uncommon', '#EEF6FB', '#D8262F', 'Fresh ice, red and blue lines, boards in your team colour.');
+  I('slipstream', 'livery', 29, 'Centre Court', 'common', '#D6EC3A', '#FFFFFF', 'Fuzzy tennis-ball yellow with a white seam.');
+  I('slipstream', 'livery', 30, 'Black Sails', 'epic', '#1D1F27', '#C89A3C', 'Black sailcloth, gold rope trim and two crossed oars.');
+  I('slipstream', 'livery', 31, "Ship's Hull", 'rare', '#8A5A2B', '#D9A441', 'Wooden planks, brass portholes and an anchor.');
+  I('slipstream', 'livery', 32, 'Pinstripe Suit', 'rare', '#2A2C38', '#8C90A4', 'Charcoal with chalk stripes and a pocket square.');
+  I('slipstream', 'livery', 33, 'Tuxedo', 'epic', '#15161C', '#F6F6F6', 'Black tie, white shirt, and the bow tie in your team colour.');
+  I('slipstream', 'livery', 34, 'Circuit Board', 'rare', '#0F5A3A', '#E0B54A', 'Gold traces, little chips and blinking lights.');
+  I('slipstream', 'livery', 35, 'Robot Plating', 'uncommon', '#C9CED8', '#3FD2FF', 'Riveted steel panels and a glowing visor line.');
+  gameItems('slipstream', 'sponsor').forEach(function (sp) { if (sp.no > 15) I('slipstream', 'livery', 20 + sp.no, sp.name + ' livery', 'epic', sp.c1, sp.c2, 'The whole car in ' + sp.name + ' colours. Earned by finishing its challenges.'); });
+  I('slipstream', 'helmet', 24, 'Eye Patch helmet', 'rare', '#3D5FB0', '#101216', 'A pirate patch over one side of the visor.');
+  I('slipstream', 'helmet', 25, 'Bandana helmet', 'uncommon', '#D8262F', '#FFFFFF', 'Red with white spots, knotted at the back.');
+  I('slipstream', 'helmet', 26, 'Gridiron helmet', 'common', '#1F4FBF', '#FFD21F', 'A centre stripe and a face cage.');
+  I('slipstream', 'helmet', 27, 'Baseball helmet', 'common', '#F4F2EA', '#D8262F', 'White with red stitches.');
+  I('slipstream', 'helmet', 28, 'Football helmet', 'common', '#F6F6F6', '#17191E', 'Black patches on white.');
+  I('slipstream', 'helmet', 29, 'Pinstripe helmet', 'uncommon', '#2A2C38', '#D9A441', 'Chalk stripes and a hatband.');
+  I('slipstream', 'helmet', 30, 'Robot helmet', 'rare', '#C9CED8', '#3FD2FF', 'Rivets, steel and two glowing eyes.');
+  I('slipstream', 'effect', 9, 'Coin Shower', 'legendary', '#FFC93C', '#FFF0A0', 'Gold coins spill out of the back when you boost.');
+  I('slipstream', 'effect', 10, 'Sea Spray', 'uncommon', '#DFF6FF', '#2A8BFF', 'Spray off the rear tyres, like a speedboat.');
+  I('slipstream', 'effect', 11, 'Data Stream', 'epic', '#18C060', '#B0FFD0', 'Lines of green light left hanging behind you.');
+  I('slipstream', 'podium', 3, 'Ticker Tape Podium', 'common', '#FFFFFF', '#FFD21F', 'Ticker tape over the results when you finish in the top three.');
+  I('slipstream', 'podium', 4, 'Balloons Podium', 'rare', '#FF2A36', '#3FD2FF', 'Balloons float up over the results when you finish in the top three.');
   // ---- Coil items ----
   // Coil: colours, patterns (one pattern at a time from animals, designs and object snakes), heads, a trail and death bursts,
   // drawn by coil/wardrobe.js by slot and number. Captains wear them free in the game's Wardrobe; none is sold yet.
@@ -508,6 +949,32 @@
   I('coil', 'trail', 1, 'Sparkle Trail', 'epic', '#FFE27A', '#8FE8FF', 'Stars and sparkles drift off the tail.');
   I('coil', 'burst', 1, 'Candy Burst', 'epic', '#FF5FA2', '#3FF0B6', 'Crash into a shower of wrapped sweets.');
   I('coil', 'burst', 2, 'Coin Burst', 'legendary', '#FFCF3A', '#A8740A', 'Crash into a shower of spinning gold coins.');
+  // second wave (Nov 2026): sports, pirates, suits and robots
+  I('coil', 'color', 26, 'Jersey Blue', 'common', '#1F5FD6', '#1F5FD6', 'A strong team blue.');
+  I('coil', 'color', 27, 'Turf Green', 'common', '#2F9E44', '#2F9E44', 'The green of a freshly cut pitch.');
+  I('coil', 'color', 28, 'Varsity Red', 'common', '#C8344E', '#C8344E', 'A deep letter-jacket red.');
+  I('coil', 'color', 29, 'Gold Chain', 'rare', '#FFE27A', '#B8860B', 'Bright gold at the head, old gold at the tail.');
+  I('coil', 'design', 13, 'Tennis Ball', 'common', '#D6EC3A', '#FFFFFF', 'Fuzzy yellow with a white seam winding along.');
+  I('coil', 'design', 14, 'Jersey Stripes', 'common', '#3F8CFF', '#FFFFFF', 'Your colour with two white stripes down the length.');
+  I('coil', 'design', 15, 'Racing Checker', 'uncommon', '#F4F4F4', '#1B1D26', 'The chequered flag, three squares across.');
+  I('coil', 'design', 16, 'Medal Ribbon', 'rare', '#D8262F', '#FFCF3A', 'A striped ribbon with a gold medal on the tail.');
+  I('coil', 'design', 17, 'Pinstripe', 'uncommon', '#2F3140', '#B4B8CC', 'Charcoal suit cloth with chalk stripes.');
+  I('coil', 'design', 18, 'Necktie', 'uncommon', '#22305E', '#FF4D5E', 'Navy with diagonal stripes in your colour.');
+  I('coil', 'design', 19, 'LED Strip', 'epic', '#1C2030', '#3FD2FF', 'Lights in your colour chasing down a dark strip.');
+  I('coil', 'design', 20, 'Basketball', 'common', '#E8742A', '#2A1810', 'Orange with black seams.');
+  I('coil', 'design', 21, 'Football', 'common', '#F6F6F6', '#1D1D26', 'White with black patches.');
+  I('coil', 'object', 18, 'Tennis Balls', 'uncommon', '#D6EC3A', '#FFFFFF', 'A chain of fuzzy tennis balls.');
+  I('coil', 'object', 19, 'Rope and Anchors', 'rare', '#C9A46A', '#4A505E', 'A ship\'s rope with a steel anchor every so often.');
+  I('coil', 'object', 20, 'Robot Segments', 'rare', '#B8BCCF', '#3FD2FF', 'Riveted steel plates with joints and little screens.');
+  I('coil', 'object', 21, 'Cable', 'common', '#2A2D36', '#FF4D5E', 'A braided cable with a plug on the tail.');
+  I('coil', 'object', 22, 'Gold Chain', 'legendary', '#FFCF3A', '#7A5606', 'Heavy gold links, flat then on edge.');
+  I('coil', 'head', 7, 'Eye Patch', 'uncommon', '#15161C', '#FFFFFF', 'A pirate patch over one eye.');
+  I('coil', 'head', 8, 'Tricorn', 'epic', '#2A2440', '#E0B040', 'A three-cornered captain\'s hat with gold trim and a red feather.');
+  I('coil', 'head', 9, 'Fedora', 'rare', '#4A4560', '#15161C', 'A wide brim, a pinched crown and a black band.');
+  I('coil', 'head', 10, 'Bandana', 'common', '#D8262F', '#FFFFFF', 'Red with white spots, knotted at the back.');
+  I('coil', 'head', 11, 'Sweatband', 'common', '#F4F6FA', '#3F8CFF', 'Ready for the fifth set.');
+  I('coil', 'head', 12, 'Bow Tie', 'uncommon', '#D8262F', '#8A1018', 'A red bow tie at the neck.');
+  I('coil', 'head', 13, 'Robot Visor', 'epic', '#1C2030', '#3FD2FF', 'A glowing visor across both eyes, and an antenna.');
   // ---- Updraft items ----
   // Drawn by updraft/gear.js (by slot and number; 0 there is the climber as before). Captains only for now and nothing is
   // sold: the game's Gear screen lets them wear everything, except the height rewards, which carry give 'earned' and come
@@ -552,6 +1019,42 @@
   I('updraft', 'trail', 2, 'Comet Tail', 'rare', '#FFFFFF', '#3A4AFF', 'A white-hot tail that cools to blue.');
   I('updraft', 'trail', 3, 'Smoke Trail', 'common', '#F2F2F2', '#9AA0A8', 'A puffy grey smoke trail that spreads out.');
   I('updraft', 'trail', 4, 'Gold Sparkles', 'epic', '#FFD23F', '#FFF8D0', 'A ribbon of twinkling gold.');
+  I('updraft', 'skin', 23, 'Soccer Star', 'common', '#2E8BFF', '#FFFFFF', 'A blue kit with white trim and a 9 on the back.');
+  I('updraft', 'skin', 24, 'Basketball Pro', 'common', '#7A3CFF', '#FFD23F', 'A purple vest, number 7, a headband and high-tops.');
+  I('updraft', 'skin', 25, 'Gridiron Gear', 'rare', '#D9312B', '#FFFFFF', 'A helmet with a face guard, shoulder pads and number 42.');
+  I('updraft', 'skin', 26, 'Baseball Slugger', 'common', '#FBFAF5', '#1F3B73', 'Pinstripes, a button front, a navy cap and number 12.');
+  I('updraft', 'skin', 27, 'Hockey Player', 'uncommon', '#19B3A6', '#FFFFFF', 'A teal jersey, padded shorts, a caged helmet and skates.');
+  I('updraft', 'skin', 28, 'Tennis Ace', 'common', '#FFFFFF', '#46D37A', 'Crisp whites, a green visor and wristbands.');
+  I('updraft', 'skin', 29, 'Boxer', 'rare', '#E8282B', '#FFCF3D', 'Red trunks, big gloves, headgear and a gold belt.');
+  I('updraft', 'skin', 30, 'Sprinter', 'common', '#FF3B5C', '#9BE84A', 'A running vest with a race number and bright spikes.');
+  I('updraft', 'skin', 31, 'Swimmer', 'common', '#1F3B73', '#FFD23F', 'A swim cap, goggles and racing trunks.');
+  I('updraft', 'skin', 32, 'Ski Racer', 'uncommon', '#FF3B3B', '#2E5AD9', 'A race suit, a helmet, orange goggles and big boots.');
+  I('updraft', 'skin', 33, 'Racing Driver', 'epic', '#FF6B1A', '#1D1F24', 'An orange race suit with checkers and a full helmet.');
+  I('updraft', 'skin', 34, 'Skateboarder', 'uncommon', '#46D37A', '#FF4F9A', 'A hoodie, a beanie, knee pads and a board on your back.');
+  I('updraft', 'skin', 35, 'Surfer', 'uncommon', '#1D3A5A', '#FFD23F', 'A wetsuit and a surfboard on your back.');
+  I('updraft', 'skin', 36, 'Referee', 'common', '#FFFFFF', '#1D1F24', 'Black and white stripes, a cap and a whistle.');
+  I('updraft', 'skin', 37, 'Team Mascot', 'legendary', '#FFB21F', '#2E5AD9', 'A fluffy bird mascot with a huge head and a tail.');
+  I('updraft', 'skin', 38, 'Karate Champ', 'uncommon', '#FBFBF8', '#1D1F24', 'A white gi, a black belt and a red headband.');
+  I('updraft', 'skin', 39, 'Tin Robot', 'rare', '#AAB3BD', '#E8282B', 'A box-headed tin robot with dials and a wind-up key.');
+  I('updraft', 'skin', 40, 'Sleek Android', 'epic', '#F4F7FB', '#2EC5FF', 'A white android with a dark visor and glowing lines.');
+  I('updraft', 'skin', 41, 'Mech Pilot', 'rare', '#3B4A6B', '#FFD23F', 'A flight suit, a harness and a helmet with a mic.');
+  I('updraft', 'skin', 42, 'Pirate Deckhand', 'common', '#FFFFFF', '#1F3B73', 'A striped shirt, a bandana and an eye patch.');
+  I('updraft', 'skin', 43, 'First Mate', 'rare', '#2A3F6B', '#2FB85A', 'A navy coat, a hook, an eye patch and a parrot.');
+  I('updraft', 'skin', 44, 'Ghost Pirate', 'legendary', '#C8F7EA', '#2EF0C0', 'A pale, ragged pirate with glowing eyes.');
+  I('updraft', 'skin', 45, 'Pinstripe Suit', 'rare', '#2B3550', '#E8282B', 'A 1920s pinstripe suit, a red tie, spats and a fedora.');
+  I('updraft', 'skin', 46, 'The Boss', 'legendary', '#B98A52', '#7A6250', 'A long camel coat, a fur collar and a tall fur hat.');
+  I('updraft', 'skin', 47, 'Tracksuit Tough Guy', 'uncommon', '#2E5AD9', '#FFCF3D', 'A striped tracksuit and a chunky gold chain.');
+  I('updraft', 'skin', 48, 'Bodyguard', 'uncommon', '#3A3844', '#1D1F24', 'A dark suit, dark shades and an earpiece.');
+  I('updraft', 'skin', 49, 'Tuxedo', 'epic', '#2F2D36', '#FFFFFF', 'A tuxedo, a bow tie, a top hat and a red rose.');
+  I('updraft', 'skin', 50, 'Detective', 'uncommon', '#C9A46A', '#7A5A3A', 'A belted trench coat, a hat and a magnifying glass.');
+  I('updraft', 'skin', 51, 'Business Suit', 'common', '#6B7280', '#2E5AD9', 'A grey suit and a striped blue tie.');
+  I('updraft', 'skin', 52, 'Wizard', 'epic', '#6A3CC8', '#FFD23F', 'A starry robe, a pointy hat and a long white beard.');
+  I('updraft', 'skin', 53, 'Firefighter', 'uncommon', '#C9A24A', '#E8282B', 'A coat with bright bands and a red helmet.');
+  I('updraft', 'skin', 54, 'Rock Star', 'rare', '#3A3844', '#FF4F9A', 'Spiky pink hair, star shades and a guitar on your back.');
+  I('updraft', 'pack', 7, 'Sports Bag', 'common', '#2E5AD9', '#FFFFFF', 'A round sports bag with white stripes.');
+  I('updraft', 'pack', 8, 'Treasure Chest', 'epic', '#8A5A2A', '#FFCF3D', 'A pirate chest with gold bands, coins on top.');
+  I('updraft', 'pack', 9, 'Briefcase', 'common', '#5A3A22', '#E8B923', 'A leather briefcase with gold clasps.');
+  I('updraft', 'pack', 10, 'Robot Battery Pack', 'rare', '#7D8794', '#46D37A', 'Two big batteries, nearly full.');
   GAME_ITEMS.forEach(function (it) { if (it.game === 'updraft' && it.slot === 'reward') it.give = 'earned'; });
   // ---- Rumble Karts items ----
   // Rumble Karts: the Garage's drivers, karts, wheels, horns and wreck effects (rumble-karts/garage.js draws them by these numbers; each driver has its own knockout taunt).
@@ -608,6 +1111,33 @@
   I('rumble-karts', 'wreck', 6, 'Fireworks', 'epic', '#FFE45C', '#A66BFF', 'A rocket goes up and bursts.');
   I('rumble-karts', 'wreck', 7, 'Popcorn', 'rare', '#FFFAF0', '#FFE08A', 'Pop, pop, pop.');
   I('rumble-karts', 'wreck', 8, 'Snow Globe', 'epic', '#BFE8FF', '#FFFFFF', 'Snow drifts down where you were.');
+  I('rumble-karts', 'driver', 18, 'Striker', 'common', '#3FB8FF', '#FFFFFF', 'A footballer with a headband and the ball at his side. Taunt: GOOOAL!');
+  I('rumble-karts', 'driver', 19, 'Stretch', 'uncommon', '#F5C45A', '#B06A2A', 'A giraffe who plays basketball. Taunt: Swish!');
+  I('rumble-karts', 'driver', 20, 'Linebacker', 'common', '#2ED19A', '#8D8AA0', 'Shoulder pads, helmet and face cage. Taunt: Touchdown!');
+  I('rumble-karts', 'driver', 21, 'Slugger', 'common', '#FFFFFF', '#8A5A2B', 'Pinstripe shirt, batting helmet and a big mitt. Taunt: Home run!');
+  I('rumble-karts', 'driver', 22, 'Ref Reggie', 'uncommon', '#FFFFFF', '#1B1733', 'A referee in stripes with a whistle. Taunt: FOUL!');
+  I('rumble-karts', 'driver', 23, 'Champ', 'rare', '#C98A52', '#FFC93C', 'A boxing kangaroo with a champion\'s belt. Taunt: Ding ding!');
+  I('rumble-karts', 'driver', 24, 'Rally Bear', 'epic', '#9A6A3C', '#3FB8FF', 'The team mascot, foam finger up. Taunt: Go team!');
+  I('rumble-karts', 'driver', 25, 'Captain Patch', 'legendary', '#2A2440', '#2ECC5A', 'A bearded pirate captain with an eye patch and a parrot. Taunt: Arrr!');
+  I('rumble-karts', 'driver', 26, 'The Boss', 'epic', '#3A3550', '#8C92A8', 'A big cat in a pinstripe suit and fedora. Taunt: Nothing personal.');
+  I('rumble-karts', 'driver', 27, 'Pemberton', 'rare', '#262238', '#D4D8E6', 'A butler in a tailcoat, tray held high. Taunt: Your wreck, sir.');
+  I('rumble-karts', 'driver', 28, 'Clockwork', 'uncommon', '#C8CCD8', '#FFC93C', 'A wind-up tin robot with a key in its back. Taunt: Clank clank!');
+  I('rumble-karts', 'driver', 29, 'Dusty', 'common', '#E8E6F0', '#5EE8FF', 'A robot vacuum with a smiley screen. Taunt: All tidy!');
+  I('rumble-karts', 'driver', 30, 'Agent Shades', 'rare', '#2E2A44', '#1B1733', 'A bodyguard in a black suit, shades and an earpiece. Taunt: Area secure.');
+  I('rumble-karts', 'kart', 16, 'Rowboat', 'rare', '#C08A4A', '#FFC93C', 'A painted rowboat with oars, a ship\'s wheel, a treasure chest and an anchor flag.');
+  I('rumble-karts', 'kart', 17, 'Long Sedan', 'epic', '#2E2A40', '#D4D8E6', 'A long black sedan with a chrome grille and leather seats.');
+  I('rumble-karts', 'kart', 18, 'Soccer Ball', 'uncommon', '#FFFFFF', '#2E2942', 'Ride a giant football.');
+  I('rumble-karts', 'kart', 19, 'Basketball', 'common', '#E8742A', '#2E2942', 'Ride a giant basketball.');
+  I('rumble-karts', 'kart', 20, 'Grandstand', 'legendary', '#4FBF6A', '#FFF3B0', 'A little pitch with a goal, a cheering crowd and floodlights.');
+  I('rumble-karts', 'kart', 21, 'Ice Groomer', 'uncommon', '#FFFFFF', '#8FDCFF', 'The machine that makes the ice smooth between periods.');
+  I('rumble-karts', 'kart', 22, 'Robo Racer', 'rare', '#B8BCCF', '#5EE8FF', 'A robot face with headlamp eyes and a gear on the back.');
+  I('rumble-karts', 'kart', 23, 'Tea Trolley', 'uncommon', '#D9A441', '#FF9FC0', 'Teapot, cups and cakes. Do mind the corners.');
+  I('rumble-karts', 'kart', 24, 'Football Helmet', 'common', '#3FB8FF', '#FFFFFF', 'A giant helmet with a stripe and a face cage.');
+  I('rumble-karts', 'kart', 25, 'Boxing Ring', 'common', '#F3F1FB', '#D8392B', 'Ropes, corner pads and a bell.');
+  I('rumble-karts', 'horn', 6, 'Stadium Horn', 'common', '#8D8AA0', '#FFC93C', 'A deep, long blast like the start of a match.');
+  I('rumble-karts', 'horn', 7, 'Ship\'s Bell', 'uncommon', '#FFC93C', '#A4733D', 'Ding-ding, all hands on deck.');
+  I('rumble-karts', 'horn', 8, 'Ref Whistle', 'common', '#F6F4FF', '#1B1733', 'A long trill and a short peep.');
+  I('rumble-karts', 'horn', 9, 'Rally Organ', 'rare', '#A66BFF', '#FFC93C', 'A rising little tune from the stadium organ.');
   // ---- Tumble Trials items ----
   // Worn on the bean in Tumble Trials (tumble-trials/closet.js draws them, by slot and number). Captains only for now and in no
   // pack: the game's Closet gives captains every one free to wear, and nothing is sold.
@@ -694,6 +1224,49 @@
   I('tumble-trials', 'splash', 3, 'Rainbow Splat', 'rare', '#ff5c5c', '#5cc8ff', 'A ring of rainbow splats.');
   I('tumble-trials', 'splash', 4, 'Star Shower', 'rare', '#ffd23f', '#ffffff', 'A fountain of stars.');
   I('tumble-trials', 'splash', 5, 'Glitter Geyser', 'epic', '#ffcf3d', '#ff7ac3', 'A tall geyser of glitter.');
+  I('tumble-trials', 'face', 7, 'Eye Patch', 'common', '#1e1b24', '#fff8ee', 'A black pirate eye patch on a strap.');
+  I('tumble-trials', 'face', 8, 'Black Shades', 'uncommon', '#1b1a22', '#9aa6b4', 'Dark square shades, very serious.');
+  I('tumble-trials', 'face', 9, 'Eye Black', 'common', '#1e1b24', '#f2f4f7', 'Two black stripes under the eyes, game-day style.');
+  I('tumble-trials', 'hat', 15, 'Baseball Cap', 'common', '#e8282b', '#ffffff', 'A red cap with a curved brim.');
+  I('tumble-trials', 'hat', 16, 'Fedora', 'uncommon', '#6b7280', '#1e1b24', 'A grey felt hat with a black band.');
+  I('tumble-trials', 'hat', 17, 'Pirate Bandana', 'common', '#d9312b', '#ffffff', 'A red spotted bandana knotted at the back.');
+  I('tumble-trials', 'hat', 18, 'Fur Hat', 'rare', '#8a7460', '#b8a48e', 'A tall, fluffy fur hat for cold days.');
+  I('tumble-trials', 'hat', 19, 'Bowler Hat', 'common', '#2f2c38', '#6a6578', 'A round black bowler hat.');
+  I('tumble-trials', 'costume', 13, 'Soccer Kit', 'common', '#2e8bff', '#ffffff', 'A blue shirt with a star badge and a 9 on the back.');
+  I('tumble-trials', 'costume', 14, 'Basketball Kit', 'common', '#7a3cff', '#ffd23f', 'A purple vest and shorts, number 7, and a headband.');
+  I('tumble-trials', 'costume', 15, 'Gridiron Gear', 'rare', '#d9312b', '#ffffff', 'Helmet, face guard, shoulder pads and number 42.');
+  I('tumble-trials', 'costume', 16, 'Baseball Uniform', 'uncommon', '#fbfaf5', '#1f3b73', 'Pinstripes, a button front and a navy cap.');
+  I('tumble-trials', 'costume', 17, 'Hockey Kit', 'uncommon', '#19b3a6', '#ffffff', 'A striped teal jersey and a white helmet.');
+  I('tumble-trials', 'costume', 18, 'Tennis Whites', 'common', '#ffffff', '#46d37a', 'A crisp white polo with a green headband.');
+  I('tumble-trials', 'costume', 19, 'Boxing Champ', 'rare', '#e8282b', '#ffcf3d', 'Red trunks, padded headgear and a gold belt.');
+  I('tumble-trials', 'costume', 20, 'Track Star', 'common', '#ff3b5c', '#ffffff', 'A running vest with a race number pinned on.');
+  I('tumble-trials', 'costume', 21, 'Swim Team', 'uncommon', '#1f3b73', '#ffd23f', 'A swim cap, goggles and racing trunks.');
+  I('tumble-trials', 'costume', 22, 'Ski Racer', 'rare', '#ff3b3b', '#2e5ad9', 'A zigzag race suit, helmet and orange goggles.');
+  I('tumble-trials', 'costume', 23, 'Racing Driver', 'epic', '#ff6b1a', '#1e1b24', 'A race suit with checkers and a helmet, visor up.');
+  I('tumble-trials', 'costume', 24, 'Referee', 'common', '#ffffff', '#1e1b24', 'Black and white stripes and a whistle.');
+  I('tumble-trials', 'costume', 25, 'Team Mascot', 'legendary', '#ffb21f', '#2e5ad9', 'A fluffy bird mascot with a beak, a crest and a scarf.');
+  I('tumble-trials', 'costume', 26, 'Karate Gi', 'uncommon', '#ffffff', '#1e1b24', 'A white gi, a black belt and a red headband.');
+  I('tumble-trials', 'costume', 27, 'Golf Pro', 'common', '#2e5ad9', '#46d37a', 'An argyle vest and a tweed flat cap.');
+  I('tumble-trials', 'costume', 28, 'Cheer Squad', 'common', '#ff4f9a', '#ffffff', 'A cheer top, a pleated skirt and a big bow.');
+  I('tumble-trials', 'costume', 29, 'Pirate Captain', 'epic', '#b3202a', '#e8b923', 'A red coat, a tricorn hat with a plume and an eye patch.');
+  I('tumble-trials', 'costume', 30, 'Deckhand', 'uncommon', '#ffffff', '#1f3b73', 'A striped shirt, a bandana and an eye patch.');
+  I('tumble-trials', 'costume', 31, 'Parrot Pal', 'rare', '#3f6e1d', '#e8282b', 'A pirate vest, an eye patch and a parrot on your shoulder.');
+  I('tumble-trials', 'costume', 32, 'Ghost Pirate', 'legendary', '#bff5e6', '#5fc9b4', 'A pale, wispy pirate in a ragged hat.');
+  I('tumble-trials', 'costume', 33, 'Pinstripe Suit', 'rare', '#2b3550', '#e8282b', 'A 1920s pinstripe suit, red tie and fedora.');
+  I('tumble-trials', 'costume', 34, 'The Boss', 'legendary', '#b98a52', '#7a6250', 'A long camel coat with a fur collar and a fur hat.');
+  I('tumble-trials', 'costume', 35, 'Tracksuit Tough Guy', 'uncommon', '#2e5ad9', '#ffcf3d', 'A blue tracksuit and a big gold chain.');
+  I('tumble-trials', 'costume', 36, 'Bodyguard', 'uncommon', '#34323c', '#1e1b24', 'A dark suit, dark shades and an earpiece.');
+  I('tumble-trials', 'costume', 37, 'Tuxedo', 'epic', '#2a2830', '#ffffff', 'A tuxedo, a bow tie, a top hat and a rose.');
+  I('tumble-trials', 'costume', 38, 'Business Suit', 'common', '#6b7280', '#2e5ad9', 'A grey suit and a striped blue tie.');
+  I('tumble-trials', 'costume', 39, 'Tin Robot', 'rare', '#aab3bd', '#e8282b', 'A wind-up tin robot with dials and an antenna.');
+  I('tumble-trials', 'costume', 40, 'Sleek Android', 'epic', '#f4f7fb', '#2ec5ff', 'A white android with glowing blue lines.');
+  I('tumble-trials', 'costume', 41, 'Junkyard Bot', 'rare', '#b0683a', '#7d8794', 'A rusty robot patched together from spare parts.');
+  I('tumble-trials', 'costume', 42, 'Wizard', 'epic', '#6a3cc8', '#ffd23f', 'A starry robe, a bent pointy hat and a long beard.');
+  I('tumble-trials', 'costume', 43, 'Firefighter', 'uncommon', '#c9a24a', '#ffd23f', 'A coat with bright bands and a red helmet.');
+  I('tumble-trials', 'dance', 7, 'Touchdown Spike', 'uncommon', '#d9312b', '#ffffff', 'Wind up, spike the ball, then jump about.');
+  I('tumble-trials', 'dance', 8, 'Boxer Shuffle', 'uncommon', '#e8282b', '#ffcf3d', 'Bounce on your toes and throw quick jabs.');
+  I('tumble-trials', 'dance', 9, 'Hornpipe Jig', 'rare', '#1f3b73', '#ffffff', 'A sailor\'s hopping jig with folded arms.');
+  I('tumble-trials', 'dance', 10, 'Big Boss Shrug', 'epic', '#b98a52', '#e8b923', 'Lean back, arms wide: no problem here.');
   // ---- Shell Crackers items ----
   // Looks only (shell-crackers/kit.js draws them by number): every egg type is the same size and the same hit box as a
   // plain egg, and a hat or a gun skin never changes what can be hit or how a gun shoots. Crack effects play where an
@@ -741,6 +1314,43 @@
   I('shell-crackers', 'crack', 3, 'Chick Hatches', 'epic', '#FFD84A', '#F4A41C', 'A chick hops out and runs off.');
   I('shell-crackers', 'crack', 4, 'Shell Confetti', 'rare', '#FF5C8A', '#58B4FF', 'The shell bursts into bright confetti.');
   I('shell-crackers', 'crack', 5, 'Stink Puff', 'common', '#A3B85E', '#5A6B2A', 'A green whiff and two very happy flies.');
+  // Wave 2 (19 Nov): sports balls and kits, pirates, suits and robots. Same egg, same size, same hit box.
+  I('shell-crackers', 'egg', 20, 'Soccer Ball Egg', 'common', '#FFFFFF', '#3C3C46', 'Black and white panels, ready for kick-off.');
+  I('shell-crackers', 'egg', 21, 'Basketball Egg', 'common', '#F29A4E', '#3A2216', 'Pebbly orange with dark seams. Nothing but net.');
+  I('shell-crackers', 'egg', 22, 'Baseball Egg', 'common', '#FFFDF6', '#D8343A', 'White leather and red stitches.');
+  I('shell-crackers', 'egg', 23, 'Football Egg', 'uncommon', '#B5703F', '#FFF8EC', 'Already the right shape. Laces at the back.');
+  I('shell-crackers', 'egg', 24, 'Tennis Ball Egg', 'common', '#E2F25A', '#FBFFF0', 'Fuzzy, bright and a little bouncy.');
+  I('shell-crackers', 'egg', 25, 'Eight Ball Egg', 'rare', '#686876', '#FBFBF6', 'Glossy, with the eight right on the forehead.');
+  I('shell-crackers', 'egg', 26, 'Hockey Mask Egg', 'rare', '#FFFFFF', '#D8343A', 'A white goalie mask with stripes over the top.');
+  I('shell-crackers', 'egg', 27, 'Referee Egg', 'uncommon', '#FBFBFB', '#3A3A42', 'Striped shirt, whistle on a cord. Fair calls only.');
+  I('shell-crackers', 'egg', 28, 'Golf Ball Egg', 'common', '#FFFFFF', '#AAB2C0', 'Rows and rows of dimples.');
+  I('shell-crackers', 'egg', 29, 'Pirate Egg', 'epic', '#D8343A', '#2E2E34', 'A spotted bandana, a gold earring and an eye patch.');
+  I('shell-crackers', 'egg', 30, 'Pinstripe Suit Egg', 'rare', '#5E647C', '#C8323A', 'A sharp pinstripe jacket, a red tie and a pocket square.');
+  I('shell-crackers', 'egg', 31, 'Tuxedo Egg', 'uncommon', '#5C5C68', '#FFFFFF', 'Dressed for the gala, bow tie and all.');
+  I('shell-crackers', 'egg', 32, 'Tin Robot Egg', 'epic', '#D6DBE2', '#E2503F', 'Rivets, blinking lights and a wind-up key on the back.');
+  I('shell-crackers', 'egg', 33, 'Android Egg', 'epic', '#FFFFFF', '#3EC8E8', 'Glossy white panels with thin glowing seams.');
+  I('shell-crackers', 'egg', 34, 'Junkyard Bot Egg', 'uncommon', '#B4B0A8', '#B07A4C', 'Patched together from whatever was lying around.');
+  I('shell-crackers', 'hat', 8, 'Fedora', 'uncommon', '#7C8192', '#2E2E36', 'Grey felt with a dark band. Very old-movie.');
+  I('shell-crackers', 'hat', 9, 'Pirate Tricorn', 'rare', '#3E302A', '#E8B830', 'Three turned-up sides, gold trim and a red plume.');
+  I('shell-crackers', 'hat', 10, 'Sweatband', 'common', '#3A7FE0', '#FBFBF6', 'Blue towelling band with white stripes, for the final set.');
+  I('shell-crackers', 'hat', 11, 'Football Helmet', 'epic', '#2F6FD8', '#FFFFFF', 'Glossy blue with a stripe and a face guard under the chin.');
+  I('shell-crackers', 'hat', 12, 'Top Hat', 'uncommon', '#3C3C46', '#A8222E', 'Tall and smart, with a deep red band.');
+  I('shell-crackers', 'hat', 13, 'Referee Cap', 'common', '#FBFBFB', '#34343C', 'Black and white panels. The whistle is extra.');
+  I('shell-crackers', 'hat', 14, 'Ball Cap', 'common', '#D8343A', '#FFD04A', 'Team red with a white peak and a gold star on the front.');
+  I('shell-crackers', 'hat', 15, 'Robot Antenna', 'rare', '#C9CED6', '#FF4A3A', 'A metal cap, a springy aerial and bolts for ears.');
+  I('shell-crackers', 'hat', 16, 'Parrot', 'legendary', '#E2343A', '#2F7AD8', 'A loud friend who sits on your head and watches.');
+  I('shell-crackers', 'hat', 17, 'Bowler Hat', 'common', '#7A5E46', '#3A2C22', 'Round and brown, for detectives and bankers.');
+  I('shell-crackers', 'gun', 13, 'Red Team Kit', 'common', '#D8433A', '#FFFFFF', 'Team red with two white stripes down each side.');
+  I('shell-crackers', 'gun', 14, 'Blue Team Kit', 'common', '#3D7FE0', '#FFD04A', 'Team blue with gold stripes.');
+  I('shell-crackers', 'gun', 15, 'Pirate Brass', 'epic', '#C9A040', '#6A4426', 'Polished brass, ship timber, rope and a flared muzzle.');
+  I('shell-crackers', 'gun', 16, 'Pinstripe', 'common', '#5A6078', '#E8B830', 'Slate grey with thin stripes and a gold band.');
+  I('shell-crackers', 'gun', 17, 'Chrome Briefcase', 'legendary', '#DCE3EA', '#5A3E2A', 'Chrome and leather, gold latches and a handle underneath.');
+  I('shell-crackers', 'gun', 18, 'Robot Plating', 'rare', '#EEF2F6', '#3EC8E8', 'White plates with a cyan light down each side.');
+  I('shell-crackers', 'gun', 19, 'Junkyard', 'common', '#8A8478', '#B07A4C', 'Odd metals bolted together, held with tape.');
+  I('shell-crackers', 'gun', 20, 'Hockey Tape', 'uncommon', '#D9B07A', '#34343C', 'Wood like a stick, black tape at the front, white at the grip.');
+  I('shell-crackers', 'crack', 6, 'Team Confetti', 'uncommon', '#E2503F', '#4F8FE0', 'Confetti in your shell colour, or your team colour in capture the flag.');
+  I('shell-crackers', 'crack', 7, 'Pirate Gold', 'legendary', '#FFC93C', '#FFF3C4', 'A shower of gold coins that land and settle.');
+  I('shell-crackers', 'crack', 8, 'Bolts and Springs', 'rare', '#C9CED6', '#7A828E', 'Nuts, washers and two springs that boing away.');
   // ---- Asteroid Run items ----
   // Asteroid Run: aliens to run as (a new picture on the runner's own plane, same size and hit area), run trails and
   // tunnel colours, drawn by asteroid-run/wardrobe.js by slot and number. In no pack: captains wear them free in the
@@ -764,6 +1374,26 @@
   I('asteroid-run', 'alien', 17, 'Escaped Cow', 'legendary', '#FFFFFF', '#1A1D2E', 'Beamed up, broke out, still running.');
   I('asteroid-run', 'alien', 18, 'Astronaut Hamster', 'epic', '#F2C48D', '#EAF2FF', 'Small paws, big helmet, one giant leap.');
   I('asteroid-run', 'alien', 19, 'Retro Robot', 'rare', '#C8D2DC', '#FF5A5A', 'Wind it up and point it down the tunnel.');
+  I('asteroid-run', 'alien', 20, 'Alien Striker', 'common', '#FF8A2A', '#39C6B0', 'A football kit with hoops and a 10 on the back.');
+  I('asteroid-run', 'alien', 21, 'Alien Hoopster', 'common', '#8A4FFF', '#B6F04A', 'A purple vest, number 3 and a headband.');
+  I('asteroid-run', 'alien', 22, 'Alien Linebacker', 'rare', '#E8282B', '#6FB7FF', 'Helmet, face guard, shoulder pads and number 55.');
+  I('asteroid-run', 'alien', 23, 'Alien Slugger', 'common', '#FBFAF5', '#1F3B73', 'Pinstripes, a navy cap and number 8.');
+  I('asteroid-run', 'alien', 24, 'Alien Puck Chaser', 'uncommon', '#19B3A6', '#C77DFF', 'A hockey jersey, a caged helmet and number 77.');
+  I('asteroid-run', 'alien', 25, 'Alien Boxer', 'uncommon', '#E8282B', '#8BE35A', 'Big red gloves, headgear and a gold buckle.');
+  I('asteroid-run', 'alien', 26, 'Alien Racer', 'epic', '#FF6B1A', '#FFFFFF', 'A race suit with checkers and a full helmet.');
+  I('asteroid-run', 'alien', 27, 'Alien Referee', 'common', '#FFFFFF', '#1A1D2E', 'Stripes, a black cap and a whistle.');
+  I('asteroid-run', 'alien', 28, 'Alien Surfer', 'uncommon', '#1D3A5A', '#FFD23F', 'A wetsuit, spiky hair and a board on the back.');
+  I('asteroid-run', 'alien', 29, 'Robo-Alien', 'rare', '#C8D2DC', '#7DFF6A', 'A boxy robot shell with alien eyes on its screen.');
+  I('asteroid-run', 'alien', 30, 'Chrome Android Alien', 'epic', '#DFE6EE', '#2EC5FF', 'Shiny chrome with a glowing blue visor.');
+  I('asteroid-run', 'alien', 31, 'Space Pirate Captain', 'epic', '#B3202A', '#E8B923', 'Three eyes, one under a patch, and a gold-trimmed hat.');
+  I('asteroid-run', 'alien', 32, 'Space Deckhand', 'common', '#FFFFFF', '#D9312B', 'Stripes, a bandana, an eye patch and a robot parrot.');
+  I('asteroid-run', 'alien', 33, 'Ghost Pirate Alien', 'legendary', '#C8F7EA', '#2EF0C0', 'Pale, see-through and floating on a wisp.');
+  I('asteroid-run', 'alien', 34, 'Alien in a Suit', 'common', '#2B3A66', '#E8282B', 'A navy suit and a red tie. Very professional.');
+  I('asteroid-run', 'alien', 35, 'Alien Mob Boss', 'rare', '#2B3550', '#4A5163', 'A pinstripe suit, a fedora and a flower.');
+  I('asteroid-run', 'alien', 36, 'The Big Boss', 'rare', '#B98A52', '#7A6250', 'A long camel coat, a fur collar and a fur hat.');
+  I('asteroid-run', 'alien', 37, 'Tracksuit Alien', 'uncommon', '#2E5AD9', '#FFCF3D', 'A tracksuit and a gold chain.');
+  I('asteroid-run', 'alien', 38, 'Alien Bodyguard', 'uncommon', '#3A3844', '#1A1D2E', 'A dark suit, dark shades and an earpiece.');
+  I('asteroid-run', 'alien', 39, 'Alien in a Tuxedo', 'common', '#2F2D36', '#B6F04A', 'A tuxedo, a top hat and a monocle.');
   I('asteroid-run', 'trail', 1, 'Stardust', 'common', '#FFE9A0', '#FFFFFF', 'Tiny twinkling stars in your footsteps.');
   I('asteroid-run', 'trail', 2, 'Slime Drips', 'common', '#7CF29A', '#2E9E5A', 'Green drips. Somebody will have to mop that.');
   I('asteroid-run', 'trail', 3, 'Bubbles', 'common', '#BDF4FF', '#FFFFFF', 'Bubbles that drift up and wobble away.');
@@ -867,6 +1497,29 @@
   I('rampline', 'horn', 9, 'Foghorn', 'rare', '#FFCF33', '#16213A', 'Low and long, like a ship in the mist.');
   I('rampline', 'horn', 10, 'Ice Cream Jingle', 'epic', '#FFCF33', '#16213A', 'A made-up jingle for the ice cream van.');
   I('rampline', 'horn', 11, 'Train Whistle', 'rare', '#FFCF33', '#16213A', 'Three notes at once, like a little steam train.');
+  // second wave (Nov 2026): sports cars and pirates, suits and robots, more paints and two horns
+  I('rampline', 'car', 32, 'Team Bus', 'uncommon', '#1F5FD6', '#FFFFFF', 'The team coach: tinted windows, a stripe and a star.');
+  I('rampline', 'car', 33, 'Ice Resurfacer', 'rare', '#F4F6F8', '#2350C8', 'The ice machine, snow tank and all.');
+  I('rampline', 'car', 34, 'Golf Cart Racer', 'common', '#D8202F', '#FFFFFF', 'A golf cart with stripes, a roll bar and a spoiler.');
+  I('rampline', 'car', 35, 'Football Helmet', 'rare', '#1F5FD6', '#FFFFFF', 'A giant helmet with a stripe and a face cage.');
+  I('rampline', 'car', 36, 'Soccer Ball', 'uncommon', '#F6F7F9', '#1D2333', 'A football on four wheels.');
+  I('rampline', 'car', 37, 'Pirate Ship', 'legendary', '#8A5A2B', '#23252E', 'A wooden hull, a black sail with crossed oars and a ship\'s wheel.');
+  I('rampline', 'car', 38, 'Black Sedan', 'epic', '#1D2130', '#D5DCE6', 'An old-time sedan with round fenders, a tall grille and whitewalls.');
+  I('rampline', 'car', 39, 'VIP Limo', 'epic', '#15161C', '#D9A441', 'Dark tinted windows, gold trim and two little flags.');
+  I('rampline', 'car', 40, 'Armoured Van', 'common', '#6B7468', '#D9A441', 'Rivets, slit windows and a gold stripe.');
+  I('rampline', 'car', 41, 'Robo Walker', 'rare', '#B8BCCF', '#3FD2FF', 'A robot on wheels with its legs folded up.');
+  I('rampline', 'car', 42, 'Lowrider', 'uncommon', '#7339D9', '#D9A441', 'Long, low, wire wheels and a gold chain pinstripe.');
+  I('rampline', 'paint', 17, 'Jersey Blue Paint', 'common', '#1F5FD6', '#1F5FD6', 'Repaints the car\'s own paintwork jersey blue.');
+  I('rampline', 'paint', 18, 'Turf Green Paint', 'common', '#2F9E44', '#2F9E44', 'Repaints the car\'s own paintwork turf green.');
+  I('rampline', 'paint', 19, 'Ice White Paint', 'common', '#EEF4F8', '#EEF4F8', 'Repaints the car\'s own paintwork ice white.');
+  I('rampline', 'paint', 20, 'Varsity Maroon Paint', 'uncommon', '#7A1F3D', '#7A1F3D', 'Repaints the car\'s own paintwork varsity maroon.');
+  I('rampline', 'paint', 21, 'Gunmetal Paint', 'uncommon', '#5A6170', '#5A6170', 'Repaints the car\'s own paintwork gunmetal.');
+  I('rampline', 'paint', 22, 'Tuxedo Black Paint', 'rare', '#1B1D26', '#1B1D26', 'Repaints the car\'s own paintwork tuxedo black.');
+  I('rampline', 'paint', 23, 'Parrot Green Paint', 'common', '#22C35A', '#22C35A', 'Repaints the car\'s own paintwork parrot green.');
+  I('rampline', 'paint', 24, 'Plank Brown Paint', 'common', '#8A5A2B', '#8A5A2B', 'Repaints the car\'s own paintwork plank brown.');
+  I('rampline', 'paint', 25, 'Circuit Green Paint', 'uncommon', '#0F7A4A', '#0F7A4A', 'Repaints the car\'s own paintwork circuit green.');
+  I('rampline', 'horn', 12, "Ship's Bell", 'common', '#FFCF33', '#16213A', 'Ding-ding, like a ship\'s bell.');
+  I('rampline', 'horn', 13, 'Ref Whistle', 'common', '#FFCF33', '#16213A', 'A long trill and a short peep.');
   // ---- Chromaflage items ----
   // Chromaflage: for seekers only (hiders' paint is the whole game, so they never wear any of it). Drawn by
   // chromaflage/kit.js by slot and number; captains wear them free in the game's Seeker kit; none is sold yet.
@@ -883,6 +1536,27 @@
   I('chromaflage', 'tool', 4, 'Feather Duster', 'rare', '#A0673C', '#FF4F8B', 'Fluffy rainbow feathers for dusting off whoever is hiding on the shelf.');
   I('chromaflage', 'splash', 1, 'Paint Splash', 'epic', '#FF4F8B', '#FFC83D', 'A ring of paint droplets in every colour, and a little SPLAT! over their head, when you catch someone.');
   I('chromaflage', 'caught', 1, 'Surprise Spin', 'epic', '#FF4F8B', '#3F7CFF', 'The hider you catch jumps in surprise, spins round and pops in a puff of paint.');
+  // Wave 2 (19 Nov): sports, pirate, suit and robot hats and tools. Seekers only, as above.
+  I('chromaflage', 'hat', 8, 'Team Cap', 'common', '#E2433A', '#FFC83D', 'Team red with a white panel and a gold star.');
+  I('chromaflage', 'hat', 9, 'Football Helmet', 'rare', '#2F6FD8', '#FFFFFF', 'A glossy blue helmet with a stripe and a face guard.');
+  I('chromaflage', 'hat', 10, 'Sweatband', 'common', '#3A7FE0', '#FFFFFF', 'Blue towelling with white stripes, for long searches.');
+  I('chromaflage', 'hat', 11, 'Referee Cap', 'common', '#FFFFFF', '#34353E', 'Black and white panels. Fair play only.');
+  I('chromaflage', 'hat', 12, 'Pirate Hat', 'epic', '#2E2A2A', '#E8B830', 'A tricorn with gold trim and a plume, and an eye patch to match.');
+  I('chromaflage', 'hat', 13, 'Fedora', 'uncommon', '#7C8192', '#2E2E36', 'Grey felt with a dark band, like an old detective film.');
+  I('chromaflage', 'hat', 14, 'Top Hat', 'uncommon', '#3C3C46', '#A8222E', 'Tall and smart, with a deep red band.');
+  I('chromaflage', 'hat', 15, 'Robot Antenna', 'rare', '#C9CED6', '#FF4A3A', 'A riveted metal cap and a springy aerial.');
+  I('chromaflage', 'hat', 16, 'Champion Headband', 'common', '#E2433A', '#FFFFFF', 'A red band with long tails that flap as you run.');
+  I('chromaflage', 'hat', 17, 'Hockey Helmet', 'uncommon', '#F4F6F8', '#4A4E5C', 'A white helmet with vents and a chin strap.');
+  I('chromaflage', 'hat', 18, 'Bowler Hat', 'common', '#7A5E46', '#3A2C22', 'Round and brown, for detectives and bankers.');
+  I('chromaflage', 'hat', 19, 'Mascot Ears', 'epic', '#B8834E', '#3A7FE0', 'A fuzzy mascot hood with round bear ears.');
+  I('chromaflage', 'tool', 5, 'Foam Finger', 'common', '#FFD23F', '#2F6FD8', 'A big yellow foam hand. Number one seeker.');
+  I('chromaflage', 'tool', 6, 'Pirate Hook', 'uncommon', '#C9D0D8', '#6A4426', 'A shiny hook on a wooden grip. Arr.');
+  I('chromaflage', 'tool', 7, 'Walking Cane', 'rare', '#2E2E36', '#FFCF3F', 'Black with a gold knob, for a boss on a stroll.');
+  I('chromaflage', 'tool', 8, 'Whistle', 'common', '#C9D0D8', '#E2433A', "The coach's whistle. Time out, you've been found.");
+  I('chromaflage', 'tool', 9, 'Tennis Racket', 'uncommon', '#FFFFFF', '#E8F4A0', 'A white frame and a tight string bed.');
+  I('chromaflage', 'tool', 10, 'Hockey Stick', 'common', '#D9B07A', '#2A2B32', 'Taped at the top and on the blade.');
+  I('chromaflage', 'tool', 11, 'Spyglass', 'uncommon', '#D8B04A', '#8A5A34', 'Three brass tubes for spotting a hider across the room.');
+  I('chromaflage', 'tool', 12, 'Robot Claw', 'epic', '#C9D0D8', '#3EC8E8', 'Three claw fingers and a glowing ring.');
   // ---- Odd One Out items ----
   // Drawn and played by odd-one-out/wardrobe.js (by slot and number). Outfits and tools are worn by hunters only (a prop
   // always looks exactly like the real object); a taunt plays only when a prop presses its key; a poof plays where a prop
@@ -920,6 +1594,36 @@
   I('odd-one-out', 'poof', 3, 'Bubble Poof', 'rare', '#BFE9FF', '#D8C8FF', 'Bubbles that float up and pop.');
   I('odd-one-out', 'poof', 4, 'Star Poof', 'epic', '#FFD23F', '#FFFFFF', 'A ring of spinning gold stars.');
   I('odd-one-out', 'poof', 5, 'Price Tag Poof', 'epic', '#FFE24A', '#FF5A4A', 'Clearance. Everything must go.');
+  // Wave 2 (19 Nov): sports kits, pirates, suits and robots for hunters, and tools to match. Looks only, as above.
+  I('odd-one-out', 'outfit', 15, 'Soccer Striker', 'common', '#E2433A', '#FBFBFB', 'Red shirt, white shorts, socks pulled up.');
+  I('odd-one-out', 'outfit', 16, 'Basketball Star', 'common', '#6A3FD0', '#FFC93C', 'Purple and gold, with a headband for the big game.');
+  I('odd-one-out', 'outfit', 17, 'Gridiron', 'epic', '#2F6FD8', '#FBFBFB', 'Shoulder pads, a glossy helmet and a face guard.');
+  I('odd-one-out', 'outfit', 18, 'Baseball Slugger', 'common', '#F8F6EF', '#26325E', 'Pinstripes, a navy cap and high socks.');
+  I('odd-one-out', 'outfit', 19, 'Hockey Skater', 'rare', '#2FA060', '#FBFBFB', 'A bulky jersey, a helmet and skates.');
+  I('odd-one-out', 'outfit', 20, 'Tennis Ace', 'common', '#FBFBF6', '#2FA060', 'Crisp whites and a green visor.');
+  I('odd-one-out', 'outfit', 21, 'Golfer', 'uncommon', '#9CC8EC', '#F4D06A', 'A diamond sweater, a flat cap and loud trousers.');
+  I('odd-one-out', 'outfit', 22, 'Boxer', 'uncommon', '#D8343A', '#FFC93C', 'A satin robe, a headguard and big red gloves.');
+  I('odd-one-out', 'outfit', 23, 'Referee', 'common', '#FBFBFB', '#34353E', 'Stripes, a whistle and no favourites.');
+  I('odd-one-out', 'outfit', 24, 'Racing Driver', 'rare', '#2A64D8', '#E2433A', 'A race suit and a helmet with a tinted visor.');
+  I('odd-one-out', 'outfit', 25, 'Pirate Deckhand', 'rare', '#D8343A', '#FBF6EA', 'A striped shirt, an eye patch and a parrot on the shoulder.');
+  I('odd-one-out', 'outfit', 26, 'First Mate', 'epic', '#36508A', '#F0C445', 'A navy coat, a knitted cap and a hook for a hand.');
+  I('odd-one-out', 'outfit', 27, 'Ghost Pirate', 'legendary', '#7FD8C8', '#C8FF6A', 'Pale sea green from hat to boots. One eye glows.');
+  I('odd-one-out', 'outfit', 28, 'The Boss', 'legendary', '#B08A5C', '#EFE4D0', 'A long camel coat, a fur collar and a grey fedora.');
+  I('odd-one-out', 'outfit', 29, 'Pinstripe Suit', 'rare', '#5E6680', '#C8323A', 'A 1920s suit, a red tie and a flower in the lapel.');
+  I('odd-one-out', 'outfit', 30, 'Tracksuit', 'common', '#2F58C8', '#FFCF3F', 'Stripes down the sides, a gold chain and a flat cap.');
+  I('odd-one-out', 'outfit', 31, 'Bodyguard', 'uncommon', '#5A5E6E', '#1D1F26', 'A grey suit, sunglasses and an earpiece.');
+  I('odd-one-out', 'outfit', 32, 'Butler', 'rare', '#4E505E', '#FBFBFB', 'A tailcoat, a bow tie and spotless white gloves.');
+  I('odd-one-out', 'outfit', 33, 'Tin Robot', 'epic', '#C9CED6', '#FFE27A', 'Rivets, lamp eyes and a little aerial.');
+  I('odd-one-out', 'outfit', 34, 'Android', 'legendary', '#F2F5F8', '#3EC8E8', 'Glossy white panels and a dark visor.');
+  I('odd-one-out', 'tool', 7, 'Tennis Racket', 'common', '#FBFBFB', '#D6F04A', 'A white frame and a tight string bed.');
+  I('odd-one-out', 'tool', 8, 'Hockey Stick', 'common', '#D9B07A', '#2A2B32', 'Taped at the top and on the blade.');
+  I('odd-one-out', 'tool', 9, 'Foam Finger', 'uncommon', '#FFD23F', '#2F6FD8', 'Big, yellow and pointing the way.');
+  I('odd-one-out', 'tool', 10, 'Golf Club', 'uncommon', '#C9D0D8', '#5A6070', 'A long shaft and a polished driver head.');
+  I('odd-one-out', 'tool', 11, 'Spyglass', 'rare', '#D8B04A', '#8A5A34', 'Three brass tubes for spotting the odd one out.');
+  I('odd-one-out', 'tool', 12, 'Walking Cane', 'rare', '#2E2E36', '#FFCF3F', 'Black with a gold top. For bosses only.');
+  I('odd-one-out', 'tool', 13, 'Serving Tray', 'uncommon', '#DFE5EC', '#FFB43C', 'A covered dish and a glass of juice. Dinner is served.');
+  I('odd-one-out', 'tool', 14, 'Megaphone', 'common', '#FBFBFB', '#E2433A', "The coach's megaphone, for shouting tips.");
+  I('odd-one-out', 'tool', 15, 'Robot Claw', 'epic', '#C9D0D8', '#3EC8E8', 'Three claw fingers and a glowing core.');
   // ---- Driftfall items ----
   // Driftfall (drop-zone/locker-extra.js draws them by number, the outfits are in drop-zone/index.html): outfits, backpacks, gliders, glider trails, gun skins,
   // build skins, emotes and victory poses. Hidden: worn from the game's Locker by captains only.
@@ -1013,9 +1717,703 @@
   I('drop-zone', 'victory', 2, 'Flex', 'uncommon', '#E8742A', '#FFFFFF', 'Show those arms.');
   I('drop-zone', 'victory', 3, 'Take a Bow', 'rare', '#8A5A2B', '#F2EFE8', 'A deep, slow bow to the crowd.');
   I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
+  // ---- Backrooms 1v1 items ----
+  // Backrooms 1v1–4v4's Locker (backrooms-1v1/locker.js draws them, by slot and number). Online every outfit is in the
+  // player's team colour; c1 and c2 here are only the shop picture (and the outfit's colours in practice).
+  I('backrooms-1v1', 'outfit', 1, 'Striker', 'common', '#1F9E5A', '#FFFFFF', 'A football kit with white sleeves, black shorts, lime boots and a big 10.');
+  I('backrooms-1v1', 'outfit', 2, 'Hoops', 'common', '#FF7A1A', '#FFFFFF', 'A basketball vest with a big 31, baggy shorts, a headband and white high-tops.');
+  I('backrooms-1v1', 'outfit', 3, 'Gridiron', 'uncommon', '#6A2BC8', '#E8E6DC', 'A gold helmet with a black face cage, big shoulder pads and a number on each side.');
+  I('backrooms-1v1', 'outfit', 4, 'Slugger', 'common', '#2153B8', '#ECEAE2', 'A black batting helmet, a pinstriped jersey and white baseball trousers.');
+  I('backrooms-1v1', 'outfit', 5, 'Puck', 'common', '#C41F3A', '#FFFFFF', 'A hooped hockey jersey, a white caged helmet, striped socks and skates.');
+  I('backrooms-1v1', 'outfit', 6, 'Ace', 'common', '#18B4A6', '#FFFFFF', 'A tennis polo, white shorts, a white visor and a racket on the back.');
+  I('backrooms-1v1', 'outfit', 7, 'Champ', 'uncommon', '#D62828', '#FFFFFF', 'Head guard, big gloves, white trunks and a gold title belt.');
+  I('backrooms-1v1', 'outfit', 8, 'Sprinter', 'common', '#FF3D7F', '#3EE6D0', 'A running vest with a sash, a race number, sport shades and bright spikes.');
+  I('backrooms-1v1', 'outfit', 9, 'Lap Swimmer', 'common', '#1689E0', '#9FF2FF', 'A white swim cap, goggles, a racing suit and a pink towel round the neck.');
+  I('backrooms-1v1', 'outfit', 10, 'Fairway', 'uncommon', '#2E8C5A', '#CFD3D8', 'A white flat cap, a diamond jumper and bold black-and-white checked trousers.');
+  I('backrooms-1v1', 'outfit', 11, 'Skater', 'common', '#E0402A', '#8A9098', 'A black beanie, a tee with a bolt, purple shorts and a board on the back.');
+  I('backrooms-1v1', 'outfit', 12, 'Downhill', 'uncommon', '#2F6FD8', '#FFB04A', 'A white helmet, big glowing orange goggles and a quilted ski jacket.');
+  I('backrooms-1v1', 'outfit', 13, 'Pit Racer', 'rare', '#E8202A', '#FFFFFF', 'A racing suit with chequered sides and a white full-face helmet.');
+  I('backrooms-1v1', 'outfit', 14, 'Referee', 'common', '#3F8FE0', '#FFFFFF', 'A striped shirt, a whistle and a cap. Still in your team colour.');
+  I('backrooms-1v1', 'outfit', 15, 'Coach', 'uncommon', '#8A2BE2', '#FFFFFF', 'A track jacket, a white cap, a headset and a whistle for the big talk.');
+  I('backrooms-1v1', 'outfit', 16, 'Bear Mascot', 'rare', '#C8641E', '#F0B87A', 'A big friendly bear head, round ears, a gold bow tie and white paws.');
+  I('backrooms-1v1', 'outfit', 17, 'Martial Artist', 'common', '#2A5FD0', '#24242A', 'A coloured training suit with white lapels, a black belt and a headband.');
+  I('backrooms-1v1', 'outfit', 18, 'Cheer Captain', 'uncommon', '#E8327A', '#FFFFFF', 'A chevron top, a pleated skirt and a big bow.');
+  I('backrooms-1v1', 'outfit', 19, 'Tin Bot', 'rare', '#D04A3A', '#C9D0D6', 'A painted tin robot with an antenna, square eyes and a chest of dials.');
+  I('backrooms-1v1', 'outfit', 20, 'Sleek Android', 'epic', '#8A96A8', '#6FF4FF', 'Smooth white panels with glowing seams and one long eye.');
+  I('backrooms-1v1', 'outfit', 21, 'Mech Pilot', 'epic', '#E0A020', '#8FE0FF', 'A white helmet with a big visor, armour plates and twin glowing thrusters.');
+  I('backrooms-1v1', 'outfit', 22, 'Junkyard Bot', 'rare', '#3A9A7A', '#B5522A', 'Patched plates, rusty bits, mismatched eyes and an exhaust pipe.');
+  I('backrooms-1v1', 'outfit', 23, 'Pirate Captain', 'legendary', '#B3263A', '#E8B22E', 'Tricorn hat, long coat with gold buttons, an eye patch and a parrot.');
+  I('backrooms-1v1', 'outfit', 24, 'Deckhand', 'common', '#2A6FD0', '#FFFFFF', 'A striped shirt, a spotty bandana and an eye patch.');
+  I('backrooms-1v1', 'outfit', 25, 'First Mate', 'uncommon', '#2B8A6E', '#C9D0D6', 'A waistcoat and sash, an eye patch and a hook for a hand.');
+  I('backrooms-1v1', 'outfit', 26, 'Ghost Pirate', 'epic', '#3A8A8A', '#7DFFC8', 'A pale sea spook in a ragged coat, with glowing green eyes.');
+  I('backrooms-1v1', 'outfit', 27, 'Pinstripe Suit', 'rare', '#4A5A7A', '#E8E8E8', 'A 1920s pinstripe suit, a white fedora and white spats.');
+  I('backrooms-1v1', 'outfit', 28, 'The Boss', 'legendary', '#5A3A8A', '#ECE6DA', 'A long coat with a white fur collar, a white fur hat, dark glasses and a gold chain.');
+  I('backrooms-1v1', 'outfit', 29, 'Tracksuit and Chain', 'uncommon', '#2A3A8A', '#E8B22E', 'A two-stripe tracksuit, a flat cap and a big gold chain.');
+  I('backrooms-1v1', 'outfit', 30, 'Bodyguard', 'uncommon', '#3A4A5A', '#34465C', 'A sharp suit and tie, dark glasses and an earpiece.');
+  I('backrooms-1v1', 'outfit', 31, 'Tuxedo', 'rare', '#2E3A6A', '#FFFFFF', 'A tuxedo with a bow tie, a top hat and a monocle.');
+  I('backrooms-1v1', 'outfit', 32, 'Detective', 'uncommon', '#6A5A8A', '#24242A', 'A belted trench coat, a checked deerstalker hat and a magnifying glass.');
+  I('backrooms-1v1', 'outfit', 33, 'Astronaut', 'rare', '#3A7AE0', '#FFFFFF', 'A space suit, a big white helmet with a gold visor and a life-support pack.');
+  I('backrooms-1v1', 'outfit', 34, 'Wizard', 'epic', '#5A3AD0', '#FFE27A', 'A starry robe, a tall pointed hat and a long white beard.');
+  I('backrooms-1v1', 'outfit', 35, 'Firefighter', 'uncommon', '#D83A1A', '#C9D0D6', 'A black helmet with a gold badge, a coat with white bands and big boots.');
+  I('backrooms-1v1', 'outfit', 36, 'Knight', 'epic', '#2A5AC8', '#C9D0D6', 'Costume armour, a plumed helmet and a tabard with a diamond.');
+  I('backrooms-1v1', 'wrap', 1, 'Gold', 'legendary', '#FFC928', '#6A3A1A', 'Polished bright gold with walnut grips and a shine that runs along the barrel.');
+  I('backrooms-1v1', 'wrap', 2, 'Chrome', 'epic', '#F2F7FF', '#A8C4EC', 'Mirror chrome with cool blue reflections and a running shine.');
+  I('backrooms-1v1', 'wrap', 3, 'Wood Grain', 'common', '#D08A44', '#9A5A28', 'Warm honey wood with darker grain.');
+  I('backrooms-1v1', 'wrap', 4, 'Forest Camo', 'common', '#4FA040', '#9AE070', 'Bright jungle-green patches.');
+  I('backrooms-1v1', 'wrap', 5, 'Neon Pulse', 'epic', '#FF3FD8', '#3FFCFF', 'Black with magenta and cyan bands that pulse.');
+  I('backrooms-1v1', 'wrap', 6, 'Frostbite', 'rare', '#DFF4FF', '#4FE8FF', 'Pale ice with glowing blue cracks.');
+  I('backrooms-1v1', 'wrap', 7, 'Pixel Camo', 'uncommon', '#3A6AD8', '#8AD0FF', 'Blocky blue, sky and white squares.');
+  I('backrooms-1v1', 'wrap', 8, 'Candy Cane', 'uncommon', '#FFFFFF', '#FF2A3A', 'Bright red and white stripes the whole way along.');
+  I('backrooms-1v1', 'wrap', 9, 'Hazard Stripes', 'common', '#FFD21A', '#18181C', 'Yellow and black warning stripes.');
+  I('backrooms-1v1', 'wrap', 10, 'Lava', 'epic', '#2A1E1A', '#FF6A10', 'Black rock with orange cracks that glow and throb.');
+  I('backrooms-1v1', 'wrap', 11, 'Toy Blaster', 'common', '#2F8AFF', '#FFD23F', 'Bright toy-box plastic in blue, yellow, orange and green.');
+  I('backrooms-1v1', 'wrap', 12, 'Galaxy', 'legendary', '#5A2AB8', '#3FD8FF', 'Purple and cyan space with stars that twinkle.');
+  I('backrooms-1v1', 'wrap', 13, 'Checkered Flag', 'rare', '#FFFFFF', '#18181C', 'Crisp black and white checks.');
+  I('backrooms-1v1', 'wrap', 14, 'Pirate Brass', 'uncommon', '#F0B840', '#7A2A1A', 'Bright brass fittings on dark red ship timber.');
+  I('backrooms-1v1', 'wrap', 15, 'Football Leather', 'uncommon', '#C06A30', '#FFFFFF', 'Tan leather with white lacing along the top.');
+  I('backrooms-1v1', 'wrap', 16, 'Rainbow Flow', 'legendary', '#FF5A8A', '#5AE0FF', 'Every colour of the rainbow, flowing down the barrel.');
+  I('backrooms-1v1', 'wrap', 17, 'Circuit Board', 'epic', '#1A7A4A', '#6FFFB0', 'A green board with gold pads and traces that light up.');
+  I('backrooms-1v1', 'wrap', 18, 'Comic Halftone', 'rare', '#FFE23A', '#FF4A4A', 'Comic-book yellow and red with black ink lines.');
+  I('backrooms-1v1', 'wrap', 19, 'Graffiti', 'uncommon', '#FF4FD0', '#9AFF3A', 'Pink, sky and lime spray paint on white.');
+  I('backrooms-1v1', 'build', 1, 'Concrete', 'common', '#C9C7C0', '#6E6C66', 'Pale grey slabs with little air holes.');
+  I('backrooms-1v1', 'build', 2, 'Ice Block', 'uncommon', '#E4F4FB', '#6E9CB4', 'Frosted ice with cracks. You still cannot see through it.');
+  I('backrooms-1v1', 'build', 3, 'Candy Stripes', 'rare', '#F27AA8', '#FBE8EF', 'Pink and white stripes with sprinkles.');
+  I('backrooms-1v1', 'build', 4, 'Scrap Metal', 'uncommon', '#A4ABB2', '#5A6068', 'Bolted grey plates with a little rust.');
+  I('backrooms-1v1', 'build', 5, 'Bubble Wrap', 'common', '#DFE9EF', '#7F9CB0', 'Rows of little air bubbles. Please do not pop them in a fight.');
+  I('backrooms-1v1', 'build', 6, 'Marble', 'rare', '#EEECE8', '#8A8A94', 'White stone with grey veins.');
+  I('backrooms-1v1', 'elim', 1, 'Confetti Pop', 'common', '#FF5C8A', '#58B4FF', 'A small burst of paper confetti where they fall.');
+  I('backrooms-1v1', 'elim', 2, 'Noclip Glitch', 'epic', '#6FF4FF', '#FF4FD8', 'They flicker into glowing blocks, as if they slipped out of the level.');
+  I('backrooms-1v1', 'elim', 3, 'Ghost Away', 'rare', '#F4F6FF', '#2A2A38', 'A little ghost floats up and fades.');
+  I('backrooms-1v1', 'elim', 4, 'Red Card', 'uncommon', '#E8262E', '#FFFFFF', 'A red card pops up over them. Off you go.');
+  I('backrooms-1v1', 'elim', 5, 'Treasure Coins', 'rare', '#F2C41A', '#FFE27A', 'Gold coins jump out and bounce on the carpet.');
+  I('backrooms-1v1', 'elim', 6, 'Nuts and Bolts', 'uncommon', '#9AA3AB', '#C9D0D6', 'Bolts and washers rattle out across the floor.');
+  I('backrooms-1v1', 'elim', 7, 'Balloon Pop', 'common', '#FF5C5C', '#FFD23F', 'Three balloons float up and pop.');
+  I('backrooms-1v1', 'elim', 8, 'Rubber Ducks', 'legendary', '#FFD23F', '#FF8A1A', 'Five rubber ducks hop out in every direction.');
+  I('backrooms-1v1', 'celebrate', 1, 'Fist Pump', 'common', '#FFD23F', '#E8453C', 'Arms up and pumping when your team takes the round.');
+  I('backrooms-1v1', 'celebrate', 2, 'Victory Hop', 'common', '#5FD068', '#FFFFFF', 'Little jumps on the spot.');
+  I('backrooms-1v1', 'celebrate', 3, 'Spin Move', 'uncommon', '#58B4FF', '#FFFFFF', 'One smooth turn on the spot.');
+  I('backrooms-1v1', 'celebrate', 4, 'Robot Dance', 'rare', '#B9C2CC', '#3A7AD0', 'Stiff arms, sharp turns, beep boop.');
+  I('backrooms-1v1', 'celebrate', 5, 'Pirate Jig', 'uncommon', '#8A5A2B', '#E8B22E', 'A hopping, rocking sea dance.');
+  I('backrooms-1v1', 'celebrate', 6, 'Take a Bow', 'common', '#8A5A2B', '#F2EFE8', 'A slow bow to an empty room.');
+  I('backrooms-1v1', 'celebrate', 7, 'Trophy Lift', 'epic', '#F2C41A', '#6A4A2C', 'A gold cup appears over your head.');
+  I('backrooms-1v1', 'celebrate', 8, 'Fireworks', 'legendary', '#FF5C8A', '#FFD23F', 'Little fireworks pop over your head.');
+  // ---- Sky Duel items ----
+  // Sky Duel (sky-duel/hangar.js draws them by number): paints, noses (spinner and propeller), trails and shoot-down effects.
+  // Looks only: every plane keeps its size and hit sphere, and in 2v2 its plain team colour. Hidden: captains only.
+  I('sky-duel', 'paint', 1, 'Home Kit', 'common', '#4DDC7A', '#E23B2E', 'Your colour with a racing stripe, wing tips and a big 7 on the tail in red or navy, whichever stands out.');
+  I('sky-duel', 'paint', 2, 'Away Kit', 'common', '#FF6A2E', '#FFFFFF', 'Bright orange with a white stripe, white wing tips and the number 12.');
+  I('sky-duel', 'paint', 3, 'Rugby Hoops', 'common', '#4DDC7A', '#E23B2E', 'Hoops of red or yellow round your colour from nose to tail.');
+  I('sky-duel', 'paint', 4, 'Chequered Flag', 'rare', '#E23B2E', '#FFFFFF', 'Race red with chequered wing tips and tail and a number 1.');
+  I('sky-duel', 'paint', 5, 'Basketball', 'uncommon', '#F07A22', '#2A1810', 'Orange with the black seams of a ball.');
+  I('sky-duel', 'paint', 6, 'Soccer Ball', 'uncommon', '#F5F5F1', '#222226', 'White with black patches all over.');
+  I('sky-duel', 'paint', 7, 'Referee', 'uncommon', '#F4F4F2', '#202024', 'Black and white stripes. Fair play only.');
+  I('sky-duel', 'paint', 8, 'Baseball Glove', 'common', '#C98A4A', '#4A2614', 'Tan leather with dark laces and pale stitching.');
+  I('sky-duel', 'paint', 9, 'Ice Hockey', 'uncommon', '#D63A35', '#FFFFFF', 'A red jersey with a white yoke, white bands and a 27.');
+  I('sky-duel', 'paint', 10, 'Pirate Captain', 'epic', '#EFBB36', '#1F1B18', 'Gold wings with crossed oars, a black hull with gold bands.');
+  I('sky-duel', 'paint', 11, 'Pinstripe Suit', 'rare', '#D33B3B', '#FFE6C0', 'A loud red suit with fine pinstripes, a white collar and a black tie.');
+  I('sky-duel', 'paint', 12, 'Chrome Robot', 'epic', '#C9D0D8', '#FF3B30', 'Polished metal plates, rivets and a red sensor band.');
+  I('sky-duel', 'paint', 13, 'Tin Toy Robot', 'rare', '#E2402F', '#FFD23A', 'A wind-up toy in red tin with yellow trim and rivets.');
+  I('sky-duel', 'paint', 14, 'Tracksuit', 'common', '#4DDC7A', '#E23B2E', 'Your colour with two stripes down the sides and a gold chain round the nose.');
+  I('sky-duel', 'paint', 15, 'Tiger Mascot', 'rare', '#F08A24', '#1C1410', 'Orange with black stripes and a cream belly.');
+  I('sky-duel', 'paint', 16, 'Golden Trophy', 'legendary', '#E8B030', '#FFFFFF', 'Polished gold with a white star on each wing.');
+  I('sky-duel', 'paint', 17, 'Dragon Scales', 'legendary', '#D8432F', '#FFB02E', 'Red scales edged in gold, with a golden belly.');
+  I('sky-duel', 'paint', 18, 'Strawberry Sundae', 'uncommon', '#FF6F9F', '#6B3A1E', 'Strawberry pink with chocolate drips and sprinkles.');
+  I('sky-duel', 'paint', 19, 'Tuxedo', 'epic', '#F7F7F4', '#B8283C', 'A red velvet jacket, a white shirt and a black bow tie.');
+  I('sky-duel', 'nose', 1, 'Candy Spiral', 'common', '#E2343F', '#FFFFFF', 'A red and white swirl that spins with the propeller.');
+  I('sky-duel', 'nose', 2, 'Chequered Spinner', 'uncommon', '#1D1D1F', '#FFFFFF', 'Black and white checks, like the finish line.');
+  I('sky-duel', 'nose', 3, 'Gold Spinner', 'rare', '#E8B030', '#FFF3B0', 'A polished gold nose and a golden blur.');
+  I('sky-duel', 'nose', 4, 'Bullseye', 'common', '#E2343F', '#FFFFFF', 'Red and white rings round the nose.');
+  I('sky-duel', 'nose', 5, 'Robot Eye', 'epic', '#C9D0D8', '#FF3B30', 'Silver with a glowing red ring.');
+  I('sky-duel', 'trail', 1, 'Red and White', 'common', '#FF4A4A', '#FFFFFF', 'Red from one wing, white from the other, like a team display.');
+  I('sky-duel', 'trail', 2, 'Rainbow', 'epic', '#FF5A8A', '#4DD2FF', 'Contrails that run through every colour.');
+  I('sky-duel', 'trail', 3, 'Gold Sparkle', 'rare', '#FFC93C', '#FFF6C8', 'Golden contrails with a twinkle.');
+  I('sky-duel', 'trail', 4, 'Your Colour', 'common', '#4DDC7A', '#FFFFFF', 'Contrails tinted with your plane\'s colour.');
+  I('sky-duel', 'trail', 5, 'Confetti', 'uncommon', '#B46CFF', '#FFD23F', 'Little bright puffs in every colour.');
+  I('sky-duel', 'trail', 6, 'Skywriter', 'uncommon', '#FFFFFF', '#CFE8FF', 'Thick white puffs, dot, dot, dot.');
+  I('sky-duel', 'boom', 1, 'Confetti Burst', 'common', '#FF5A8A', '#FFD23F', 'A shower of bright confetti where they went down.');
+  I('sky-duel', 'boom', 2, 'Fireworks', 'rare', '#FFD04A', '#FF8A2A', 'A ring of golden sparks that bursts and falls.');
+  I('sky-duel', 'boom', 3, 'Doubloons', 'epic', '#E8B030', '#8A5A10', 'A pirate\'s fortune of gold coins scattering.');
+  I('sky-duel', 'boom', 4, 'Star Burst', 'uncommon', '#FFFFFF', '#FFE9A0', 'A big white star that flashes and fades.');
+  I('sky-duel', 'boom', 5, 'Smoke Ring', 'legendary', '#F0F2F6', '#9AA4AE', 'A perfect ring of smoke that grows and drifts.');
+  // ---- Blockstorm items ----
+  // Blockstorm (blockstorm/locker.js draws them by number): outfits, hats and gun skins. Looks only: every fighter keeps
+  // its hit box, and a gun skin keeps the gun's rarity colour. Hidden: captains only.
+  I('blockstorm', 'outfit', 1, 'Soccer Kit', 'common', '#E8352E', '#FFFFFF', 'A red jersey with a white 10 on the back, white shorts and red boots.');
+  I('blockstorm', 'outfit', 2, 'Basketball Jersey', 'common', '#FFCF2A', '#FFCF2A', 'A sunny yellow vest with purple trim and a 15.');
+  I('blockstorm', 'outfit', 3, 'Football Pads', 'uncommon', '#20B8B0', '#F2F2F2', 'A teal jersey over shoulder pads, white stripes and a 42.');
+  I('blockstorm', 'outfit', 4, 'Baseball Uniform', 'common', '#F4F2EA', '#F4F2EA', 'A white pinstriped shirt with a red 9 and red socks.');
+  I('blockstorm', 'outfit', 5, 'Hockey Sweater', 'uncommon', '#D83A34', '#F2F2F2', 'A red sweater with white bands and a 31.');
+  I('blockstorm', 'outfit', 6, 'Track Star', 'common', '#4CE06A', '#2F8BFF', 'A bright green vest with a race number pinned on.');
+  I('blockstorm', 'outfit', 7, 'Firefighter', 'rare', '#F2C21F', '#F2C21F', 'A yellow coat with silver bands and red boots.');
+  I('blockstorm', 'outfit', 8, 'Astronaut', 'epic', '#F4F6F8', '#E8ECF0', 'A white space suit with a flag patch and a chest panel.');
+  I('blockstorm', 'outfit', 9, 'Chrome Robot', 'epic', '#C4CCD6', '#AAB4C0', 'Polished plates, a glowing chest light and bolts.');
+  I('blockstorm', 'outfit', 10, 'Tin Toy Robot', 'rare', '#E2402F', '#FFD23A', 'Red tin with yellow trim, a dial and a wind-up look.');
+  I('blockstorm', 'outfit', 11, 'Pirate Captain', 'legendary', '#C8302F', '#F2E6CC', 'A red captain\'s coat with gold buttons, and an eye patch.');
+  I('blockstorm', 'outfit', 12, 'Deckhand', 'uncommon', '#FFFFFF', '#4A8AD8', 'A striped sailor shirt, rolled trousers and an eye patch.');
+  I('blockstorm', 'outfit', 13, 'Pinstripe Suit', 'rare', '#8A4FD0', '#8A4FD0', 'A purple pinstripe suit with a white shirt and a gold tie.');
+  I('blockstorm', 'outfit', 14, 'Tracksuit', 'uncommon', '#2ED36A', '#2ED36A', 'A bright green tracksuit with white stripes and a gold chain.');
+  I('blockstorm', 'outfit', 15, 'White Tuxedo', 'epic', '#F6F4EE', '#2A2C34', 'A white dinner jacket, a black bow tie and a red flower.');
+  I('blockstorm', 'outfit', 16, 'Detective', 'uncommon', '#C9A46A', '#8A6A44', 'A tan trench coat with a belt and big buttons.');
+  I('blockstorm', 'hat', 1, 'Team Cap', 'common', '#E8352E', '#FFFFFF', 'A red cap with a white peak.');
+  I('blockstorm', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E8352E', 'A white band with a red stripe.');
+  I('blockstorm', 'hat', 3, 'Pirate Tricorn', 'epic', '#2A2622', '#E0B040', 'A black three-cornered hat with gold trim.');
+  I('blockstorm', 'hat', 4, 'Fedora', 'rare', '#9AA0AA', '#1D1D1F', 'A grey felt hat with a black band.');
+  I('blockstorm', 'hat', 5, 'Sailor Bandana', 'uncommon', '#E2343F', '#FFFFFF', 'A red bandana with white spots, tied at the back.');
+  I('blockstorm', 'hat', 6, 'Robot Antenna', 'rare', '#B8C2CC', '#FF3B30', 'A metal cap with an antenna and a blinking red bulb.');
+  I('blockstorm', 'hat', 7, 'Party Crown', 'legendary', '#FFCF3A', '#E2343F', 'A gold crown with red and blue jewels.');
+  I('blockstorm', 'gun', 1, 'Racing Stripe', 'common', '#E2343F', '#FFFFFF', 'Red with a white stripe from stock to muzzle.');
+  I('blockstorm', 'gun', 2, 'Chequered', 'uncommon', '#FFFFFF', '#1D1D1F', 'Black and white checks, like the finish line.');
+  I('blockstorm', 'gun', 3, 'Gold Plated', 'legendary', '#FFC93C', '#C8960E', 'Shiny gold all over.');
+  I('blockstorm', 'gun', 4, 'Chrome', 'epic', '#DFE6EE', '#3A3E46', 'Polished chrome with dark grips.');
+  I('blockstorm', 'gun', 5, 'Pirate Brass', 'rare', '#8A5A32', '#D8A838', 'Dark wood with brass fittings, like an old ship\'s gun.');
+  I('blockstorm', 'gun', 6, 'Candy Cane', 'uncommon', '#FFFFFF', '#E2343F', 'Red and white stripes all the way round.');
+  I('blockstorm', 'gun', 7, 'Tiger Stripe', 'rare', '#F08A24', '#1C1410', 'Orange with black stripes.');
+  // ---- Tidewick items ----
+  // Tidewick: outfits, hats, face pieces and trails for Pip, drawn in pixels by tidewick/wardrobe.js by slot and number.
+  // In no pack: captains wear them free in the game's Wardrobe. Outfits repaint only Pip's ordinary form (power-ups keep
+  // their colours) and every outfit stands out from the night sky at least as much as wardrobe.js's MIN_CR says.
+  I('tidewick', 'outfit', 1, 'Striker Kit', 'common', '#2FB65A', '#FFFFFF', 'A green shirt, white shorts and socks pulled up high.');
+  I('tidewick', 'outfit', 2, 'Hoops Jersey', 'common', '#FF8A2A', '#7A4FE0', 'A sleeveless orange jersey with purple trim.');
+  I('tidewick', 'outfit', 3, 'Gridiron Gear', 'uncommon', '#E8453C', '#D9DEE6', 'A red jersey with shoulder stripes and a silver helmet.');
+  I('tidewick', 'outfit', 4, 'Ballpark Pinstripes', 'uncommon', '#F4F1E8', '#3A6AD0', 'Cream with thin blue pinstripes and a blue belt.');
+  I('tidewick', 'outfit', 5, 'Rink Sweater', 'common', '#3A7BE0', '#FFFFFF', 'A thick blue sweater with a white band.');
+  I('tidewick', 'outfit', 6, 'Track Star', 'common', '#38C8E8', '#FFFFFF', 'A sky-blue tracksuit with a stripe down each side.');
+  I('tidewick', 'outfit', 7, 'Referee', 'uncommon', '#F4F6F8', '#2A2C3A', 'Black and white stripes. Fair calls only.');
+  I('tidewick', 'outfit', 8, 'Racing Suit', 'rare', '#F4F6F8', '#E8453C', 'A fireproof suit in white and red, and a red helmet.');
+  I('tidewick', 'outfit', 9, 'Tin Robot', 'rare', '#C8D2DC', '#FF5A5A', 'Riveted tin plates and a face of polished steel.');
+  I('tidewick', 'outfit', 10, 'Pirate Captain', 'legendary', '#D9363E', '#FFD23F', 'A long red coat with gold buttons and gold trim.');
+  I('tidewick', 'outfit', 11, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A striped shirt and rolled-up sailcloth trousers.');
+  I('tidewick', 'outfit', 12, 'Pinstripe Suit', 'rare', '#B8BCC8', '#E8453C', 'A grey pinstripe suit and a red tie, sharp as a tack.');
+  I('tidewick', 'outfit', 13, 'Gold Chain Tracksuit', 'legendary', '#9A6AF0', '#FFD23F', 'A shiny tracksuit, white stripes and a heavy gold chain.');
+  I('tidewick', 'outfit', 14, 'White Tuxedo', 'epic', '#F8F4E8', '#1A1C2A', 'A white dinner jacket, a black bow tie and a red flower.');
+  I('tidewick', 'outfit', 15, 'Astronaut', 'uncommon', '#F4F6F8', '#FF8A2A', 'A puffy white space suit with orange patches.');
+  I('tidewick', 'outfit', 16, 'Starry Wizard Robe', 'epic', '#A57CFF', '#FFE45C', 'A long violet robe scattered with little gold stars.');
+  I('tidewick', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap with the peak out front.');
+  I('tidewick', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E8453C', 'A white band to keep the rain and the sweat out of your eyes.');
+  I('tidewick', 'hat', 3, 'Robot Antenna', 'uncommon', '#C8D2DC', '#FF5A5A', 'A little aerial with a blinking red tip.');
+  I('tidewick', 'hat', 4, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered captain\'s hat with a gold edge.');
+  I('tidewick', 'hat', 5, 'Pirate Bandana', 'uncommon', '#E8453C', '#FFFFFF', 'A spotted red bandana knotted at the back.');
+  I('tidewick', 'hat', 6, 'Fedora', 'rare', '#8A7A6A', '#2A1D3A', 'A pinched felt hat with a dark band, worn low.');
+  I('tidewick', 'hat', 7, 'Top Hat', 'epic', '#3A3A4C', '#E8453C', 'A tall silk hat with a red band.');
+  I('tidewick', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#F8D8A8', 'One eye on the sea, one patch on the other.');
+  I('tidewick', 'face', 2, 'Shades', 'common', '#1A1C2A', '#3A8AE0', 'Dark glasses, even at night. Especially at night.');
+  I('tidewick', 'face', 3, 'Big Moustache', 'common', '#6A4028', '#F8D8A8', 'A bushy moustache with curled ends.');
+  I('tidewick', 'trail', 1, 'Sparkles', 'common', '#FFFFFF', '#FFE680', 'Little twinkles left on the quay behind you.');
+  I('tidewick', 'trail', 2, 'Bubbles', 'common', '#CFE8F0', '#5AA0C8', 'Tiny bubbles that float up into the rain.');
+  I('tidewick', 'trail', 3, 'Confetti', 'uncommon', '#FF5A8A', '#FFD23F', 'Bits of coloured paper that flutter down.');
+  I('tidewick', 'trail', 4, 'Music Notes', 'rare', '#FFE680', '#CFE8F0', 'A little tune follows you along the harbour.');
+  // ---- Patchwork Tower items ----
+  // Patchwork Tower: paint jobs, hats, face pieces and hop trails for Rivet, drawn by patchwork-tower/wardrobe.js by slot and
+  // number in the bot's own rectangles. In no pack: captains wear them free in the game's Wardrobe. Cocoa still turns Rivet
+  // gold, and every paint stands out from the brick wall at least as much as wardrobe.js's MIN_CR says.
+  I('patchwork-tower', 'paint', 1, 'Striker Kit', 'common', '#5FE07A', '#FFFFFF', 'A green shirt with a number 9 and white shorts.');
+  I('patchwork-tower', 'paint', 2, 'Hoops Jersey', 'common', '#7FD0FF', '#2F4FA0', 'A sky-blue jersey, number 11, navy trim.');
+  I('patchwork-tower', 'paint', 3, 'Gridiron Gear', 'uncommon', '#F4F6F8', '#FFD23F', 'A white jersey and a gold helmet with a face guard.');
+  I('patchwork-tower', 'paint', 4, 'Hockey Sweater', 'common', '#F4F6F8', '#2FB65A', 'A white sweater with green shoulders and a green band.');
+  I('patchwork-tower', 'paint', 5, 'Referee', 'uncommon', '#F4F6F8', '#1A1C2A', 'Stripes, a whistle somewhere, and no favourites.');
+  I('patchwork-tower', 'paint', 6, 'Racing Driver', 'rare', '#F4F6F8', '#E8453C', 'A white race suit, a striped helmet and a blue visor.');
+  I('patchwork-tower', 'paint', 7, 'Ballpark Pinstripes', 'uncommon', '#F4F1E8', '#3A6AD0', 'Cream with blue pinstripes, ready for the ninth inning.');
+  I('patchwork-tower', 'paint', 8, 'Retro Tin Bot', 'rare', '#D9E0EA', '#FFD35A', 'Riveted tin, a dial on the chest and two round yellow eyes.');
+  I('patchwork-tower', 'paint', 9, 'Chrome Bot', 'legendary', '#E8F0FF', '#7FF0FF', 'Polished till it shines, with a cool blue glow.');
+  I('patchwork-tower', 'paint', 10, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A red and white striped sailor shirt.');
+  I('patchwork-tower', 'paint', 11, 'Pirate Captain', 'legendary', '#D9363E', '#FFD23F', 'A red captain\'s coat with gold buttons over a cream shirt.');
+  I('patchwork-tower', 'paint', 12, 'Pinstripe Suit', 'rare', '#C8CCD6', '#E8453C', 'A grey pinstripe suit, a white collar and a red tie.');
+  I('patchwork-tower', 'paint', 13, 'Gold Chain Tracksuit', 'epic', '#7FF0C8', '#FFD23F', 'A mint tracksuit and a chunky gold chain.');
+  I('patchwork-tower', 'paint', 14, 'Secret Agent', 'epic', '#F4F6F8', '#2A2C3A', 'A dark suit, a thin tie, black glasses and an earpiece.');
+  I('patchwork-tower', 'paint', 15, 'Astronaut', 'uncommon', '#F4F6F8', '#FFC83A', 'A white suit, a gold visor and a control box with three lights.');
+  I('patchwork-tower', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap with the peak out front.');
+  I('patchwork-tower', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E8453C', 'Hard work makes even robots sweat.');
+  I('patchwork-tower', 'hat', 3, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered hat with a gold edge.');
+  I('patchwork-tower', 'hat', 4, 'Pirate Bandana', 'uncommon', '#E8453C', '#FFFFFF', 'A spotted red bandana knotted at the back.');
+  I('patchwork-tower', 'hat', 5, 'Fedora', 'rare', '#8A7A6A', '#2A1D3A', 'A felt hat with a dark band, worn low.');
+  I('patchwork-tower', 'hat', 6, 'Top Hat', 'epic', '#3A3A4C', '#E8453C', 'A tall silk hat with a red band.');
+  I('patchwork-tower', 'hat', 7, 'Wizard Hat', 'rare', '#4A6AE8', '#FFE45C', 'A floppy blue cone with little stars.');
+  I('patchwork-tower', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#FFFFFF', 'A patch over one eye. Rivet still sees every crack.');
+  I('patchwork-tower', 'face', 2, 'Shades', 'common', '#05070F', '#FFFFFF', 'Dark glasses for the night shift.');
+  I('patchwork-tower', 'face', 3, 'Big Moustache', 'common', '#6A4028', '#9FF2E6', 'A bushy moustache bolted on under the visor.');
+  I('patchwork-tower', 'trail', 1, 'Confetti', 'common', '#FF5A8A', '#FFD23F', 'Every hop is a little party.');
+  I('patchwork-tower', 'trail', 2, 'Loose Bolts', 'common', '#C9D0E8', '#9AA3D6', 'Nuts and bolts rattle off with every hop.');
+  I('patchwork-tower', 'trail', 3, 'Music Notes', 'uncommon', '#FFF6C9', '#9FF2E6', 'Rivet hums a tune while it works.');
+  I('patchwork-tower', 'trail', 4, 'Rainbow', 'epic', '#FF5C5C', '#5CC8FF', 'A short rainbow streak behind every hop.');
+  // ---- Flickerwood items ----
+  // Flickerwood: kits, hats, face pieces and trails for Glim, drawn by flickerwood/wardrobe.js by slot and number on Glim's own
+  // 16 x 16 pixels, seen from above. In no pack: captains wear them free in the game's Wardrobe. No kit recolours the glowing
+  // tail or the halo, and no trail is a small yellow dot that could pass for pollen.
+  I('flickerwood', 'kit', 1, 'Striker Kit', 'common', '#5CC8FF', '#FFFFFF', 'Sky blue and white, with a navy head.');
+  I('flickerwood', 'kit', 2, 'Hoops Jersey', 'common', '#FF8A2A', '#1A1C2A', 'Orange with dark seams, like a ball on wings.');
+  I('flickerwood', 'kit', 3, 'Racing Suit', 'uncommon', '#F4F6F8', '#E8453C', 'White with a red stripe and a red helmet.');
+  I('flickerwood', 'kit', 4, 'Referee', 'uncommon', '#F4F6F8', '#1A1C2A', 'Black and white stripes. The critters are offside.');
+  I('flickerwood', 'kit', 5, 'Hockey Sweater', 'common', '#3A7BE0', '#FFFFFF', 'Blue with a white band and a white helmet.');
+  I('flickerwood', 'kit', 6, 'Tin Firefly', 'rare', '#C8D2DC', '#FF5A5A', 'A wind-up firefly with tin wings and red eyes.');
+  I('flickerwood', 'kit', 7, 'Deckhand', 'common', '#F4F6F8', '#E8453C', 'A striped sailor shirt and sailcloth wings.');
+  I('flickerwood', 'kit', 8, 'Pinstripe Suit', 'rare', '#B8BCC8', '#E8453C', 'A grey suit with a red tie, out for a night in the glade.');
+  I('flickerwood', 'kit', 9, 'Gold Chain Tracksuit', 'epic', '#2FD6B0', '#FFD23F', 'A teal tracksuit with gold at the collar.');
+  I('flickerwood', 'kit', 10, 'Tuxedo', 'epic', '#2A2A38', '#FFFFFF', 'Black tie, white shirt front, pale wings.');
+  I('flickerwood', 'kit', 11, 'Bumblebee', 'uncommon', '#FFD23F', '#1A1C2A', 'Yellow and black stripes. Still not a bee.');
+  I('flickerwood', 'kit', 12, 'Golden Firefly', 'legendary', '#FFC83A', '#FFF8DC', 'Gold from head to wingtip.');
+  I('flickerwood', 'kit', 13, 'Rainbow Wings', 'epic', '#FF5C5C', '#5CC8FF', 'Every colour on every wing.');
+  I('flickerwood', 'kit', 14, 'Astronaut', 'rare', '#F4F6F8', '#FF8A2A', 'A white suit with an orange pack and a blue visor.');
+  I('flickerwood', 'hat', 1, 'Ball Cap', 'common', '#E8453C', '#FFFFFF', 'A red cap, peak to the front.');
+  I('flickerwood', 'hat', 2, 'Racing Helmet', 'uncommon', '#F4F6F8', '#E8453C', 'White with a red stripe and a blue visor.');
+  I('flickerwood', 'hat', 3, 'Pirate Hat', 'rare', '#4A3A50', '#FFD23F', 'A three-cornered hat trimmed with gold.');
+  I('flickerwood', 'hat', 4, 'Pirate Bandana', 'common', '#E8453C', '#FFFFFF', 'A spotted red bandana with the ends flying.');
+  I('flickerwood', 'hat', 5, 'Top Hat', 'rare', '#3A3A4C', '#E8453C', 'A tall black hat with a red band, seen from above.');
+  I('flickerwood', 'hat', 6, 'Fedora', 'uncommon', '#8A7A6A', '#2A1D3A', 'A wide felt hat with a dark band.');
+  I('flickerwood', 'hat', 7, 'Crown', 'legendary', '#FFD23F', '#E8453C', 'A small gold crown for the queen of the glade.');
+  I('flickerwood', 'face', 1, 'Eye Patch', 'uncommon', '#1A1018', '#FFFFFF', 'A patch over one eye, strapped across the head.');
+  I('flickerwood', 'face', 2, 'Shades', 'common', '#1A1C2A', '#5AA0E8', 'Dark glasses. The moon is very bright tonight.');
+  I('flickerwood', 'trail', 1, 'Hearts', 'common', '#FF6FA8', '#FFC2DD', 'Little pink hearts where you have just been.');
+  I('flickerwood', 'trail', 2, 'Confetti', 'common', '#FF4FA3', '#38C8E8', 'Bright bits of paper, never yellow.');
+  I('flickerwood', 'trail', 3, 'Music Notes', 'uncommon', '#9FD0FF', '#FFFFFF', 'Glim hums along the hedges.');
+  I('flickerwood', 'trail', 4, 'Bubbles', 'rare', '#BFE6FF', '#7FA8DC', 'Tiny bubbles that pop behind you.');
+  I('flickerwood', 'trail', 5, 'Comet Tail', 'epic', '#FFFFFF', '#7FA8DC', 'A thin white streak that fades to blue.');
+  // ---- Stackfall items ----
+  // Stackfall: block sets, boards and clear effects, drawn by stackfall/styles.js by slot and number. In no pack: captains
+  // pick them free in the game's Styles. Every block set keeps each piece's own colour (only the art on the face changes),
+  // and every board keeps the inside of the well as dark as the game's own.
+  I('stackfall', 'blocks', 1, 'Sports Balls', 'uncommon', '#FF8A2A', '#FFFFFF', 'A different ball on every piece: football, basketball, baseball and more.');
+  I('stackfall', 'blocks', 2, 'Circuit Board', 'uncommon', '#3EE0C6', '#C8D2E0', 'Traces, pads and four rivets on every block.');
+  I('stackfall', 'blocks', 3, 'Treasure Chest', 'rare', '#B07A40', '#D6A83A', 'Planks and brass corners, like a pirate\'s chest.');
+  I('stackfall', 'blocks', 4, 'Pinstripe and Gold', 'epic', '#2A2A38', '#F0C85A', 'Fine pinstripes and a thin gold edge.');
+  I('stackfall', 'blocks', 5, '8-Bit', 'common', '#6278FF', '#FFC840', 'Flat blocks with a stepped bevel, like an old console.');
+  I('stackfall', 'blocks', 6, 'Gem Cut', 'rare', '#E064D8', '#FFFFFF', 'Every block cut like a jewel.');
+  I('stackfall', 'blocks', 7, 'Jelly Candy', 'common', '#FF625E', '#FFFFFF', 'Round, glossy and probably sticky.');
+  I('stackfall', 'board', 1, 'Stadium Night', 'common', '#EEF3FA', '#0A1C12', 'A floodlit frame and a dark pitch.');
+  I('stackfall', 'board', 2, 'Pirate Deck', 'uncommon', '#B07A40', '#0A1830', 'A wooden frame on a dark sea, with anchors.');
+  I('stackfall', 'board', 3, 'Robot Lab', 'uncommon', '#C8D2E0', '#0C1418', 'A riveted steel frame and gears in the dark.');
+  I('stackfall', 'board', 4, 'Gold Pinstripe', 'legendary', '#FFE08A', '#15131C', 'A gold frame on a pinstripe suit.');
+  I('stackfall', 'board', 5, 'Outer Space', 'epic', '#C8B8FF', '#0A0820', 'Stars and ringed planets around the well.');
+  I('stackfall', 'clear', 1, 'Confetti', 'common', '#FF4FA3', '#FFD23F', 'Every cleared row is a party.');
+  I('stackfall', 'clear', 2, 'Gold Coins', 'rare', '#E0A420', '#FFE27A', 'Cleared rows pay out in spinning coins.');
+  I('stackfall', 'clear', 3, 'Star Sparkles', 'common', '#FFFFFF', '#FFD84A', 'Little four-point stars that twinkle out.');
+  // ---- Melon Merge items ----
+  // Melon Merge: fruit sets, walls and merge pops, drawn by melon-merge/styles.js by slot and number. In no pack: captains pick
+  // them free in the game's Styles. Every fruit set keeps each stage's own colours and size, and every wall is as dark as the
+  // game's own, since it shows through the jar.
+  I('melon-merge', 'fruit', 1, 'Sports Balls', 'uncommon', '#FF9A1F', '#FFFFFF', 'From a ping-pong ball up to a beach ball, with a numbered pool ball on the way.');
+  I('melon-merge', 'fruit', 2, 'Robot Bolts', 'uncommon', '#BBE46E', '#C8D2E0', 'Every stage riveted, seamed and fitted with an aerial.');
+  I('melon-merge', 'fruit', 3, 'Treasure Gems', 'rare', '#8A55DC', '#E8B84A', 'Cut like jewels and set in gold.');
+  I('melon-merge', 'fruit', 4, 'Dapper', 'epic', '#2A2A38', '#E8453C', 'Pinstripes, a bow tie, and a hat once they grow up.');
+  I('melon-merge', 'fruit', 5, 'Planets', 'rare', '#31A040', '#FFFFFF', 'Little moons with craters up to a ringed giant.');
+  I('melon-merge', 'wall', 1, 'Stadium', 'common', '#13283A', '#78FFA0', 'A night pitch with mown stripes behind the jar.');
+  I('melon-merge', 'wall', 2, 'Pirate Cabin', 'uncommon', '#2E1E14', '#FFDCAA', 'Dark planks and brass nails below deck.');
+  I('melon-merge', 'wall', 3, 'Robot Workshop', 'common', '#0E2238', '#8CC8FF', 'A blueprint grid on the workshop wall.');
+  I('melon-merge', 'wall', 4, 'Gold Pinstripe', 'legendary', '#1E1A24', '#F0C85A', 'Charcoal with fine gold pinstripes.');
+  I('melon-merge', 'pop', 1, 'Confetti Pop', 'common', '#FF5A6E', '#FFD166', 'Every merge throws a handful of confetti.');
+  I('melon-merge', 'pop', 2, 'Star Shower', 'rare', '#FFD166', '#FFF6D8', 'Gold stars burst out of every merge.');
+  I('melon-merge', 'pop', 3, 'Bubble Rings', 'common', '#CFEAFF', '#FFFFFF', 'Soap rings drift up from every merge.');
+  // ---- 2048 items ----
+  // 2048: tile sets and boards, drawn by 2048/styles.js by slot and number. In no pack: captains pick them free in the game's
+  // Styles. Tile art stays out of the middle where the number sits; boards keep the walnut tray's brightness step for step.
+  I('2048', 'tiles', 1, 'Baseball Stitches', 'common', '#FDF7EA', '#D9363E', 'A row of stitches down each side of every tile.');
+  I('2048', 'tiles', 2, 'Circuit Rivets', 'uncommon', '#2F86D6', '#C8D2E0', 'Rivets in the corners and traces along the edges.');
+  I('2048', 'tiles', 3, 'Treasure Corners', 'rare', '#F5B921', '#D6A83A', 'Brass corner pieces, like a pirate\'s chest.');
+  I('2048', 'tiles', 4, 'Pinstripe', 'epic', '#4A5FD9', '#E8B84A', 'Faint pinstripes and a thin gold edge.');
+  I('2048', 'board', 1, 'Stadium Turf', 'common', '#94A47F', '#FFFFFF', 'A green tray with mown stripes.');
+  I('2048', 'board', 2, 'Pirate Deck', 'uncommon', '#B89A74', '#7F6650', 'Deck planks with dark seams.');
+  I('2048', 'board', 3, 'Robot Steel', 'rare', '#9CA0A8', '#6A6E78', 'Brushed steel with a row of rivets top and bottom.');
+  I('2048', 'board', 4, 'Velvet and Gold', 'legendary', '#B49AA8', '#E8B84A', 'Plum velvet with a gold rim.');
+  // ---- Gridpop items ----
+  // Gridpop: block sets and boards, drawn by gridpop/styles.js by slot and number. In no pack: captains pick them free in the
+  // game's Styles. Every block keeps its own colour (only white or black art and the same brass on every colour is added),
+  // and every board keeps its wells as dark as the game's own.
+  I('gridpop', 'blocks', 1, 'Sports Balls', 'uncommon', '#FE0047', '#FFFFFF', 'A different ball for every colour.');
+  I('gridpop', 'blocks', 2, 'Circuit Rivets', 'common', '#62BFFF', '#C8D2E0', 'A trace, two pads and four rivets on every block.');
+  I('gridpop', 'blocks', 3, 'Treasure Corners', 'rare', '#F48D00', '#D6A83A', 'Brass corners and a plank seam, like a pirate\'s chest.');
+  I('gridpop', 'blocks', 4, 'Pinstripe', 'epic', '#4E56FF', '#F0C85A', 'Fine pinstripes and a thin gold square.');
+  I('gridpop', 'board', 1, 'Stadium Night', 'common', '#EEF3FA', '#0C1C12', 'A floodlit white frame round a dark pitch.');
+  I('gridpop', 'board', 2, 'Pirate Deck', 'uncommon', '#C89058', '#0C1624', 'A wooden frame over dark water.');
+  I('gridpop', 'board', 3, 'Robot Steel', 'rare', '#D0D8E4', '#0E141C', 'A brushed steel frame.');
+  I('gridpop', 'board', 4, 'Gold Pinstripe', 'legendary', '#FFE08A', '#121018', 'A gold frame round a charcoal board.');
+  // ---- Showdown items ----
+  // Showdown (showdown/wardrobe.js draws them by slot and number): seat looks (a portrait in your seat's circle, on your own
+  // colour), card backs (your face-down cards as the table sees them), felts (your own screen only) and win flourishes.
+  // Hidden: worn from the game's Wardrobe by captains only.
+  I('showdown', 'seat', 1, 'Striker', 'common', '#E2352F', '#FFFFFF', 'A red kit with a white collar and a ball tucked under the arm.');
+  I('showdown', 'seat', 2, 'Point Guard', 'common', '#6B3FC9', '#F0822A', 'A purple vest, a striped headband and a basketball.');
+  I('showdown', 'seat', 3, 'Gridiron', 'uncommon', '#1F4FB8', '#D5DAE2', 'A blue helmet with a white stripe and a face cage.');
+  I('showdown', 'seat', 4, 'Slugger', 'common', '#22315F', '#F4F1E8', 'A navy cap turned to the side and a pinstriped shirt.');
+  I('showdown', 'seat', 5, 'Goalie Mask', 'rare', '#F7F7F2', '#C42D3A', 'A white hockey mask with a cage over the eyes.');
+  I('showdown', 'seat', 6, 'Tennis Ace', 'common', '#26B868', '#D9F23A', 'A green visor, a white collar and a bright yellow ball.');
+  I('showdown', 'seat', 7, 'Boxing Champ', 'uncommon', '#D7262F', '#F2C230', 'Red headgear and a robe with gold trim.');
+  I('showdown', 'seat', 8, 'Racing Driver', 'rare', '#E23B3B', '#20283A', 'A full-face helmet with a dark visor and two white stripes.');
+  I('showdown', 'seat', 9, 'Referee', 'common', '#15151A', '#FFFFFF', 'Black and white stripes, a black cap and a whistle.');
+  I('showdown', 'seat', 10, 'Tin Robot', 'uncommon', '#BCC6D1', '#FFE45C', 'A square tin head, round yellow eyes and an aerial.');
+  I('showdown', 'seat', 11, 'Chrome Android', 'epic', '#F4F7FA', '#38E8FF', 'A smooth white head with a dark visor and glowing eyes.');
+  I('showdown', 'seat', 12, 'Pirate Captain', 'epic', '#1B1820', '#B8282F', 'A three-cornered hat with gold trim, a feather and an eye patch.');
+  I('showdown', 'seat', 13, 'Deckhand', 'rare', '#D7262F', '#2FB84F', 'A red bandana, an eye patch, a striped shirt and a parrot.');
+  I('showdown', 'seat', 14, 'The Boss', 'legendary', '#555A66', '#C21E2A', 'A grey fedora, a pinstriped suit and a red tie.');
+  I('showdown', 'seat', 15, 'Bodyguard', 'uncommon', '#17181E', '#DADDE4', 'Dark glasses, an earpiece and a black suit.');
+  I('showdown', 'seat', 16, 'Secret Agent', 'rare', '#121318', '#FFFFFF', 'Slicked-back hair, a dinner jacket and a bow tie.');
+  I('showdown', 'seat', 17, 'Tracksuit Tough', 'common', '#1F3FA8', '#F2C230', 'A flat cap, a striped tracksuit and a gold chain.');
+  I('showdown', 'seat', 18, 'Wizard', 'epic', '#5A2FA8', '#FFD23F', 'A tall starry hat and a very long white beard.');
+  I('showdown', 'back', 1, 'Pitch', 'common', '#2E9A4A', '#FFFFFF', 'Mown stripes, the halfway line and both boxes.');
+  I('showdown', 'back', 2, 'Hardwood', 'common', '#D9A15E', '#E8742A', 'Court boards, a painted key and the centre circle.');
+  I('showdown', 'back', 3, 'Gridiron', 'uncommon', '#2F8A3E', '#1F4FB8', 'Yard lines, two end zones and a ball on the fifty.');
+  I('showdown', 'back', 4, 'Checkered Flag', 'uncommon', '#15151A', '#E23B3B', 'Black and white checks with a red band across.');
+  I('showdown', 'back', 5, 'Circuit Board', 'rare', '#0F5A3E', '#E6B84A', 'Gold traces running to a glowing chip.');
+  I('showdown', 'back', 6, 'Treasure Map', 'epic', '#E9D3A0', '#C21E2A', 'An island, a dotted trail and a red X.');
+  I('showdown', 'back', 7, 'Pinstripe', 'common', '#2C2F38', '#D9B25C', 'Suit cloth with fine stripes and a small gold diamond.');
+  I('showdown', 'felt', 1, 'Midnight Blue', 'common', '#1F5A96', '#08203C', 'A deep blue cloth for your own table.');
+  I('showdown', 'felt', 2, 'Casino Red', 'common', '#93253A', '#370912', 'A dark red cloth, like the big rooms.');
+  I('showdown', 'felt', 3, 'Striped Pitch', 'uncommon', '#1C8A4C', '#073420', 'Green cloth mown in stripes, like match day.');
+  I('showdown', 'felt', 4, 'Purple Velvet', 'rare', '#6A3A9E', '#240E3C', 'The cloth in the back room where the big hands are played.');
+  I('showdown', 'felt', 5, "Ship's Deck", 'rare', '#8A5A32', '#3A230F', 'Deal on the planks of a pirate ship.');
+  I('showdown', 'win', 1, 'Confetti', 'common', '#FF4F8B', '#3FA9F5', 'Bright paper bursts out from both sides of your seat.');
+  I('showdown', 'win', 2, 'Coin Shower', 'uncommon', '#FFC93C', '#C98A12', 'Gold coins rain down beside your seat.');
+  I('showdown', 'win', 3, 'Trophy', 'rare', '#FFC93C', '#6A3A1A', 'A gold cup rises beside your seat in a sparkle.');
+  I('showdown', 'win', 4, 'Fireworks', 'epic', '#FF4F8B', '#3FD2FF', 'Three little bursts go off round your seat.');
+  I('showdown', 'win', 5, 'Treasure Chest', 'legendary', '#A8662F', '#F2C230', 'A chest pops up and spills gold coins.');
+  // ---- Puffer Party items ----
+  // Puffer Party (puffer-party/wardrobe.js draws them by slot and number): hats the room's pufferfish wears while it's your
+  // turn, trails from the puffer to the next player when your answer counts, extra pieces when it pops on you, and a
+  // victory effect at the sides of the screen when you win. Hidden: worn from the game's Wardrobe by captains only.
+  I('puffer-party', 'hat', 1, 'Baseball Cap', 'common', '#E23B3B', '#B81F2A', 'A red cap with the peak out front.');
+  I('puffer-party', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E23B3B', 'A white band with a red stripe for the big rally.');
+  I('puffer-party', 'hat', 3, 'Football Helmet', 'uncommon', '#1F4FB8', '#D5DAE2', 'A blue shell, a white stripe and a face cage.');
+  I('puffer-party', 'hat', 4, 'Swim Cap and Goggles', 'uncommon', '#3FA9F5', '#FF6A3A', 'A blue cap and orange goggles. The puffer was born for this.');
+  I('puffer-party', 'hat', 5, 'Referee Cap', 'common', '#16161B', '#C9CED6', 'A black cap and a whistle on a red cord.');
+  I('puffer-party', 'hat', 6, 'Ski Beanie', 'common', '#2F7BD6', '#FFFFFF', 'A striped knit hat with a fluffy bobble.');
+  I('puffer-party', 'hat', 7, 'Tennis Visor', 'common', '#26B868', '#FFFFFF', 'A green visor on a white band.');
+  I('puffer-party', 'hat', 8, 'Laurel Wreath', 'rare', '#6CBF4A', '#FFD23F', 'Green leaves for the winner of the big race.');
+  I('puffer-party', 'hat', 9, 'Cheer Bow', 'common', '#FF5FA8', '#FFFFFF', 'A big pink bow with white spots.');
+  I('puffer-party', 'hat', 10, 'Tin Robot Dome', 'uncommon', '#B6C0CC', '#FF4A3A', 'A riveted dome with a blinking aerial.');
+  I('puffer-party', 'hat', 11, 'Android Visor', 'rare', '#38E8FF', '#E8EDF3', 'A see-through cyan visor and a chrome crest.');
+  I('puffer-party', 'hat', 12, 'Pirate Captain', 'epic', '#1B1820', '#F2C230', 'A three-cornered hat, a feather and an eye patch.');
+  I('puffer-party', 'hat', 13, 'Bandana and Patch', 'rare', '#D7262F', '#15110E', 'A spotted red bandana and an eye patch.');
+  I('puffer-party', 'hat', 14, 'The Boss Fedora', 'epic', '#5E6474', '#141418', 'A grey fedora with a black band, worn at an angle.');
+  I('puffer-party', 'hat', 15, 'Top Hat and Monocle', 'rare', '#16161B', '#F2C230', 'A tall black hat and a gold monocle on a chain.');
+  I('puffer-party', 'hat', 16, 'Bodyguard Shades', 'uncommon', '#0E0F14', '#DADDE4', 'Dark glasses and an earpiece. Nobody gets near this puffer.');
+  I('puffer-party', 'hat', 17, 'Wizard Hat', 'epic', '#5A2FA8', '#FFD23F', 'A tall purple hat with twinkling stars.');
+  I('puffer-party', 'hat', 18, 'Crown', 'legendary', '#FFC93C', '#D7262F', 'A gold crown with jewels and a glint.');
+  I('puffer-party', 'trail', 1, 'Stars', 'common', '#FFD23F', '#FFF2B8', 'Gold stars fly to the next player.');
+  I('puffer-party', 'trail', 2, 'Hearts', 'common', '#FF5FA8', '#FF4A6A', 'Pink hearts fly to the next player.');
+  I('puffer-party', 'trail', 3, 'Soccer Balls', 'uncommon', '#FFFFFF', '#1A1A1F', 'A volley of little footballs.');
+  I('puffer-party', 'trail', 4, 'Basketballs', 'uncommon', '#F0822A', '#2A1408', 'Pass it on, chest height.');
+  I('puffer-party', 'trail', 5, 'Gold Doubloons', 'rare', '#FFC93C', '#8A5A10', 'Spinning pirate coins.');
+  I('puffer-party', 'trail', 6, 'Gears', 'uncommon', '#AEB8C4', '#3A424E', 'Little robot gears spin across.');
+  I('puffer-party', 'pop', 1, 'Feathers', 'common', '#F8F8F2', '#9AA6B4', 'White feathers float down after the pop.');
+  I('puffer-party', 'pop', 2, 'Gumballs', 'uncommon', '#FF5FA8', '#3FA9F5', 'A burst of bright gumballs.');
+  I('puffer-party', 'pop', 3, 'Nuts and Bolts', 'uncommon', '#9AA6B4', '#3A424E', 'Bolts everywhere. Was it a robot all along?');
+  I('puffer-party', 'pop', 4, 'Playing Cards', 'rare', '#FFFDF6', '#D7262F', 'A whole deck goes flying.');
+  I('puffer-party', 'pop', 5, 'Fireworks', 'epic', '#FF4F8B', '#3FD2FF', 'Four little bursts round the pop.');
+  I('puffer-party', 'win', 1, 'Ticker Tape', 'common', '#FF4F8B', '#3FA9F5', 'Streamers fall down both sides of the screen.');
+  I('puffer-party', 'win', 2, 'Trophy Lift', 'rare', '#FFC93C', '#6A3A1A', 'Two gold cups rise at the sides in a sparkle.');
+  I('puffer-party', 'win', 3, 'Gold Rain', 'legendary', '#FFC93C', '#C98A12', 'Gold coins rain down both sides of the screen.');
+  // ---- Lanternhold items ----
+  // Lanternhold (lanternhold/wardrobe.js draws them by slot and number): a banner on every tower you build (seen by the team),
+  // the lantern and its flame colour (your own screen only) and the puff when you build. Hidden: worn from the game's
+  // Wardrobe by captains only.
+  I('lanternhold', 'banner', 1, 'Soccer Pennant', 'common', '#FFFFFF', '#2E9A4A', 'A white flag with a ball and a strip of pitch.');
+  I('lanternhold', 'banner', 2, 'Basketball Pennant', 'common', '#F0822A', '#2A1408', 'Orange, with the seams of a ball.');
+  I('lanternhold', 'banner', 3, 'Gridiron Pennant', 'uncommon', '#2F8A3E', '#1F4FB8', 'Yard lines, an end zone and a ball.');
+  I('lanternhold', 'banner', 4, 'Baseball Pennant', 'common', '#22315F', '#D7262F', 'A navy flag with a stitched ball.');
+  I('lanternhold', 'banner', 5, 'Hockey Pennant', 'common', '#F7F7F2', '#C42D3A', 'Red stripes and a blue face-off spot.');
+  I('lanternhold', 'banner', 6, 'Checkered Flag', 'uncommon', '#FFFFFF', '#15151A', 'Black and white checks. Last lap.');
+  I('lanternhold', 'banner', 7, 'Golf Pin', 'rare', '#D7262F', '#2E9A4A', 'A red flag with a ball by the hole.');
+  I('lanternhold', 'banner', 8, 'Gear Banner', 'uncommon', '#5E6874', '#FFD23F', 'A gold gear on steel grey, for robot builders.');
+  I('lanternhold', 'banner', 9, 'Jolly Roger', 'epic', '#15151A', '#F4F4F0', 'A pirate skull with an eye patch over crossed bones.');
+  I('lanternhold', 'banner', 10, "Ship's Wheel", 'rare', '#1F3F8A', '#E6B84A', 'A gold ship\'s wheel on navy.');
+  I('lanternhold', 'banner', 11, "The Boss's Banner", 'rare', '#2C2F38', '#D9B25C', 'Pinstripes and a gold diamond.');
+  I('lanternhold', 'banner', 12, 'Royal Crown', 'legendary', '#5A2FA8', '#FFC93C', 'A jewelled gold crown on purple.');
+  I('lanternhold', 'lantern', 1, 'Soccer Ball Cage', 'common', '#FFFFFF', '#3FA24A', 'The flame inside a ball of white hoops, on a patch of turf.');
+  I('lanternhold', 'lantern', 2, 'City Street Lamp', 'common', '#22242A', '#C9A23A', 'An old iron lamp post with gold trim.');
+  I('lanternhold', 'lantern', 3, 'Stadium Floodlight', 'uncommon', '#5E6874', '#F4F4F0', 'A grey mast and a lamp frame for the big game.');
+  I('lanternhold', 'lantern', 4, 'Robot Lantern', 'uncommon', '#AEB8C4', '#38E8FF', 'A boxy steel stand with two blue eyes and an aerial.');
+  I('lanternhold', 'lantern', 5, 'Trophy Cup', 'rare', '#E8B33A', '#6A3A1A', 'The flame burns in a gold cup on a wooden plinth.');
+  I('lanternhold', 'lantern', 6, "Ship's Lantern", 'rare', '#C98A3A', '#8A5A2E', 'A brass ship\'s lantern on a barrel with a coil of rope.');
+  I('lanternhold', 'lantern', 7, 'Lighthouse', 'epic', '#D7262F', '#FFFFFF', 'A red and white lighthouse with the flame at the top.');
+  I('lanternhold', 'lantern', 8, "Wizard's Crystal", 'epic', '#B48BFF', '#8EE6FF', 'Crystals ring the flame on a stone stand.');
+  I('lanternhold', 'lantern', 9, 'Golden Crown', 'legendary', '#FFC93C', '#5A2FA8', 'A gold crown with jewels holds the flame.');
+  I('lanternhold', 'flame', 1, 'Ice Blue', 'common', '#BFF1FF', '#4FB8FF', 'A cool blue flame. The glow stays the same size.');
+  I('lanternhold', 'flame', 2, 'Emerald', 'uncommon', '#C4FFC8', '#3FDB7A', 'A green flame.');
+  I('lanternhold', 'flame', 3, 'Rose', 'uncommon', '#FFD0E6', '#FF5FA8', 'A pink flame.');
+  I('lanternhold', 'flame', 4, 'Violet', 'rare', '#EAD6FF', '#9A5CFF', 'A purple flame.');
+  I('lanternhold', 'flame', 5, 'Rainbow', 'epic', '#FF5F6A', '#3FA9F5', 'A flame that slowly turns through every colour.');
+  I('lanternhold', 'burst', 1, 'Confetti', 'common', '#FF4F8B', '#FFD23F', 'Four colours of confetti when you build.');
+  I('lanternhold', 'burst', 2, 'Gold Coins', 'uncommon', '#FFC93C', '#FFF2B8', 'A shower of gold when you build.');
+  I('lanternhold', 'burst', 3, 'Circuit Sparks', 'rare', '#38E8FF', '#FF9A3A', 'Quick blue and orange sparks.');
+  I('lanternhold', 'burst', 4, 'Fireworks', 'epic', '#FF4F8B', '#3FD2FF', 'Three little bursts over the new tower.');
+  // ---- Spire items ----
+  // Spire: 33 outfits for the blocky climbers (the same outfits, with the same numbers, as the other two parkour games;
+  // drawn by ../outfits.js) and 4 celebrations, worn from the game's Wardrobe by captains only (in no pack; see spire/wardrobe.js).
+  I('spire', 'outfit', 1, 'Striker', 'common', '#FF5E6C', '#FFFFFF', 'A football kit in your colour: V-neck, number 9 on the back, white shorts.');
+  I('spire', 'outfit', 2, 'Hoops', 'common', '#3B82F6', '#FFFFFF', 'A sleeveless basketball jersey, long shorts, a headband and high socks.');
+  I('spire', 'outfit', 3, 'Gridiron', 'uncommon', '#22C55E', '#FFFFFF', 'Helmet with a face mask, big shoulder pads and a number 7.');
+  I('spire', 'outfit', 4, 'Slugger', 'common', '#F7F5EE', '#F59E0B', 'A pinstriped baseball jersey, a cap, grey trousers and a glove.');
+  I('spire', 'outfit', 5, 'Puck Hound', 'uncommon', '#A855F7', '#20222C', 'A thick striped hockey jersey, a caged helmet and skates.');
+  I('spire', 'outfit', 6, 'Ace', 'common', '#FBFBFD', '#14B8A6', 'A white tennis polo with a coloured collar, headband and wristbands.');
+  I('spire', 'outfit', 7, 'Champ', 'uncommon', '#D6262E', '#F4F4F6', 'Big red boxing gloves, a headguard and shiny shorts.');
+  I('spire', 'outfit', 8, 'Sprinter', 'common', '#FF5E6C', '#FFFFFF', 'A running vest with a race number pinned on, and bright spikes.');
+  I('spire', 'outfit', 9, 'Lap Swimmer', 'common', '#3B82F6', '#4FD0FF', 'A swim cap, goggles and a swimsuit in your colour.');
+  I('spire', 'outfit', 10, 'Fairway', 'uncommon', '#22C55E', '#E9E2CF', 'A flat cap, an argyle jumper, checked trousers and one white glove.');
+  I('spire', 'outfit', 11, 'Kickflip', 'common', '#F59E0B', '#20222C', 'A hoodie, a cap on backwards, baggy jeans and pads for the falls.');
+  I('spire', 'outfit', 12, 'Wave Rider', 'rare', '#20222C', '#14B8A6', 'A wetsuit with a coloured flash and a surfboard on your back.');
+  I('spire', 'outfit', 13, 'Slope Star', 'uncommon', '#FF5E6C', '#F4F4F6', 'A puffy ski jacket with a race bib, a helmet and orange goggles.');
+  I('spire', 'outfit', 14, 'Pole Position', 'rare', '#3B82F6', '#FFFFFF', 'A striped race suit and a full helmet with a dark visor.');
+  I('spire', 'outfit', 15, 'Referee', 'common', '#F7F7F9', '#16161C', 'Black and white stripes, a cap and a whistle on a cord.');
+  I('spire', 'outfit', 16, 'Team Mascot', 'epic', '#B07A4A', '#F59E0B', 'A big friendly bear head on a team jersey. Fuzzy all over.');
+  I('spire', 'outfit', 17, 'Black Belt', 'common', '#FBFBFD', '#16161C', 'A white karate suit, a black belt and a headband in your colour.');
+  I('spire', 'outfit', 18, 'Tin Bot', 'common', '#A7B2BF', '#FFD54A', 'A tin-can robot with lamp eyes, an antenna and claw hands.');
+  I('spire', 'outfit', 19, 'Android', 'epic', '#EEF2F8', '#5CE1FF', 'A sleek white android with glowing blue lines and a visor.');
+  I('spire', 'outfit', 20, 'Mech Pilot', 'rare', '#5F6E52', '#FFB43A', 'A flight suit, a harness and a helmet with a radio aerial.');
+  I('spire', 'outfit', 21, 'Pirate Captain', 'legendary', '#A3202A', '#E2B23A', 'A tricorn hat, a long red coat, an eye patch and a parrot.');
+  I('spire', 'outfit', 22, 'Deckhand', 'common', '#1F3C78', '#D6262E', 'A striped shirt, a spotted bandana, an eye patch and bare feet.');
+  I('spire', 'outfit', 23, 'First Mate', 'uncommon', '#4A2E1E', '#E8EDF4', 'A leather vest, a bandana, an eye patch and a shiny hook.');
+  I('spire', 'outfit', 24, 'Ghost Pirate', 'epic', '#8FE3C0', '#D9FFF0', 'A pale, glowing pirate with an eye patch. Mostly harmless.');
+  I('spire', 'outfit', 25, 'Roaring Twenties', 'rare', '#3A3D48', '#B8202C', 'A pinstripe suit, a fedora and two-tone shoes.');
+  I('spire', 'outfit', 26, 'The Boss', 'legendary', '#20222C', '#5A4636', 'A long dark coat with a fur collar, a tall fur hat and gloves.');
+  I('spire', 'outfit', 27, 'Tracksuit Tough', 'uncommon', '#22C55E', '#F2C230', 'A tracksuit with stripes, a flat cap and a big gold chain.');
+  I('spire', 'outfit', 28, 'Bodyguard', 'uncommon', '#16161C', '#E8E8EE', 'A black suit, dark glasses and an earpiece.');
+  I('spire', 'outfit', 29, 'Tuxedo', 'rare', '#16161C', '#FFFFFF', 'A black jacket, a white shirt front and a bow tie.');
+  I('spire', 'outfit', 30, 'Business Suit', 'common', '#22325A', '#FF5E6C', 'A navy suit with a tie in your colour and a pocket square.');
+  I('spire', 'outfit', 31, 'Star Wizard', 'epic', '#3B2F9E', '#FFD54A', 'A starry robe, a tall pointed hat and a long white beard.');
+  I('spire', 'outfit', 32, 'Astronaut', 'rare', '#EEF0F4', '#FFB43A', 'A white space suit with a gold visor and a life-support pack.');
+  I('spire', 'outfit', 33, 'Knight', 'legendary', '#B7C0CC', '#22C55E', 'Costume armour, a helm with a plume and a tabard in your colour.');
+  I('spire', 'cheer', 1, 'Team Colours', 'common', '#FF5E6C', '#FFFFFF', 'Confetti in your own colour, lighter and darker, with white.');
+  I('spire', 'cheer', 2, 'Treasure', 'uncommon', '#FFD23F', '#E8343C', 'Gold, ruby and emerald confetti and a shower of gold sparks.');
+  I('spire', 'cheer', 3, 'Circuit Sparks', 'rare', '#5CE1FF', '#B6FF5C', 'Rings of cyan and green sparks instead of confetti.');
+  I('spire', 'cheer', 4, 'Fireworks', 'epic', '#FF5E6C', '#4C8DFF', 'Three bursts high overhead, one after another.');
+  // ---- Turbo Trail items ----
+  // Turbo Trail: 33 outfits for the blocky runners (the same outfits, with the same numbers, as the other two parkour games;
+  // drawn by ../outfits.js) and 4 celebrations, worn from the game's Wardrobe by captains only (in no pack; see turbo-trail/wardrobe.js).
+  I('turbo-trail', 'outfit', 1, 'Striker', 'common', '#FF5E6C', '#FFFFFF', 'A football kit in your colour: V-neck, number 9 on the back, white shorts.');
+  I('turbo-trail', 'outfit', 2, 'Hoops', 'common', '#3B82F6', '#FFFFFF', 'A sleeveless basketball jersey, long shorts, a headband and high socks.');
+  I('turbo-trail', 'outfit', 3, 'Gridiron', 'uncommon', '#22C55E', '#FFFFFF', 'Helmet with a face mask, big shoulder pads and a number 7.');
+  I('turbo-trail', 'outfit', 4, 'Slugger', 'common', '#F7F5EE', '#F59E0B', 'A pinstriped baseball jersey, a cap, grey trousers and a glove.');
+  I('turbo-trail', 'outfit', 5, 'Puck Hound', 'uncommon', '#A855F7', '#20222C', 'A thick striped hockey jersey, a caged helmet and skates.');
+  I('turbo-trail', 'outfit', 6, 'Ace', 'common', '#FBFBFD', '#14B8A6', 'A white tennis polo with a coloured collar, headband and wristbands.');
+  I('turbo-trail', 'outfit', 7, 'Champ', 'uncommon', '#D6262E', '#F4F4F6', 'Big red boxing gloves, a headguard and shiny shorts.');
+  I('turbo-trail', 'outfit', 8, 'Sprinter', 'common', '#FF5E6C', '#FFFFFF', 'A running vest with a race number pinned on, and bright spikes.');
+  I('turbo-trail', 'outfit', 9, 'Lap Swimmer', 'common', '#3B82F6', '#4FD0FF', 'A swim cap, goggles and a swimsuit in your colour.');
+  I('turbo-trail', 'outfit', 10, 'Fairway', 'uncommon', '#22C55E', '#E9E2CF', 'A flat cap, an argyle jumper, checked trousers and one white glove.');
+  I('turbo-trail', 'outfit', 11, 'Kickflip', 'common', '#F59E0B', '#20222C', 'A hoodie, a cap on backwards, baggy jeans and pads for the falls.');
+  I('turbo-trail', 'outfit', 12, 'Wave Rider', 'rare', '#20222C', '#14B8A6', 'A wetsuit with a coloured flash and a surfboard on your back.');
+  I('turbo-trail', 'outfit', 13, 'Slope Star', 'uncommon', '#FF5E6C', '#F4F4F6', 'A puffy ski jacket with a race bib, a helmet and orange goggles.');
+  I('turbo-trail', 'outfit', 14, 'Pole Position', 'rare', '#3B82F6', '#FFFFFF', 'A striped race suit and a full helmet with a dark visor.');
+  I('turbo-trail', 'outfit', 15, 'Referee', 'common', '#F7F7F9', '#16161C', 'Black and white stripes, a cap and a whistle on a cord.');
+  I('turbo-trail', 'outfit', 16, 'Team Mascot', 'epic', '#B07A4A', '#F59E0B', 'A big friendly bear head on a team jersey. Fuzzy all over.');
+  I('turbo-trail', 'outfit', 17, 'Black Belt', 'common', '#FBFBFD', '#16161C', 'A white karate suit, a black belt and a headband in your colour.');
+  I('turbo-trail', 'outfit', 18, 'Tin Bot', 'common', '#A7B2BF', '#FFD54A', 'A tin-can robot with lamp eyes, an antenna and claw hands.');
+  I('turbo-trail', 'outfit', 19, 'Android', 'epic', '#EEF2F8', '#5CE1FF', 'A sleek white android with glowing blue lines and a visor.');
+  I('turbo-trail', 'outfit', 20, 'Mech Pilot', 'rare', '#5F6E52', '#FFB43A', 'A flight suit, a harness and a helmet with a radio aerial.');
+  I('turbo-trail', 'outfit', 21, 'Pirate Captain', 'legendary', '#A3202A', '#E2B23A', 'A tricorn hat, a long red coat, an eye patch and a parrot.');
+  I('turbo-trail', 'outfit', 22, 'Deckhand', 'common', '#1F3C78', '#D6262E', 'A striped shirt, a spotted bandana, an eye patch and bare feet.');
+  I('turbo-trail', 'outfit', 23, 'First Mate', 'uncommon', '#4A2E1E', '#E8EDF4', 'A leather vest, a bandana, an eye patch and a shiny hook.');
+  I('turbo-trail', 'outfit', 24, 'Ghost Pirate', 'epic', '#8FE3C0', '#D9FFF0', 'A pale, glowing pirate with an eye patch. Mostly harmless.');
+  I('turbo-trail', 'outfit', 25, 'Roaring Twenties', 'rare', '#3A3D48', '#B8202C', 'A pinstripe suit, a fedora and two-tone shoes.');
+  I('turbo-trail', 'outfit', 26, 'The Boss', 'legendary', '#20222C', '#5A4636', 'A long dark coat with a fur collar, a tall fur hat and gloves.');
+  I('turbo-trail', 'outfit', 27, 'Tracksuit Tough', 'uncommon', '#22C55E', '#F2C230', 'A tracksuit with stripes, a flat cap and a big gold chain.');
+  I('turbo-trail', 'outfit', 28, 'Bodyguard', 'uncommon', '#16161C', '#E8E8EE', 'A black suit, dark glasses and an earpiece.');
+  I('turbo-trail', 'outfit', 29, 'Tuxedo', 'rare', '#16161C', '#FFFFFF', 'A black jacket, a white shirt front and a bow tie.');
+  I('turbo-trail', 'outfit', 30, 'Business Suit', 'common', '#22325A', '#FF5E6C', 'A navy suit with a tie in your colour and a pocket square.');
+  I('turbo-trail', 'outfit', 31, 'Star Wizard', 'epic', '#3B2F9E', '#FFD54A', 'A starry robe, a tall pointed hat and a long white beard.');
+  I('turbo-trail', 'outfit', 32, 'Astronaut', 'rare', '#EEF0F4', '#FFB43A', 'A white space suit with a gold visor and a life-support pack.');
+  I('turbo-trail', 'outfit', 33, 'Knight', 'legendary', '#B7C0CC', '#22C55E', 'Costume armour, a helm with a plume and a tabard in your colour.');
+  I('turbo-trail', 'cheer', 1, 'Team Colours', 'common', '#FF5E6C', '#FFFFFF', 'Confetti in your own colour, lighter and darker, with white.');
+  I('turbo-trail', 'cheer', 2, 'Treasure', 'uncommon', '#FFD23F', '#E8343C', 'Gold, ruby and emerald confetti and a shower of gold sparks.');
+  I('turbo-trail', 'cheer', 3, 'Circuit Sparks', 'rare', '#5CE1FF', '#B6FF5C', 'Rings of cyan and green sparks instead of confetti.');
+  I('turbo-trail', 'cheer', 4, 'Fireworks', 'epic', '#FF5E6C', '#4C8DFF', 'Three bursts high overhead, one after another.');
+  // ---- Escapade items ----
+  // Escapade: 33 outfits for the blocky escapers (the same outfits, with the same numbers, as the other two parkour games;
+  // drawn by ../outfits.js) and 4 celebrations, worn from the game's Wardrobe by captains only (in no pack; see escapade/wardrobe.js).
+  I('escapade', 'outfit', 1, 'Striker', 'common', '#FF5E6C', '#FFFFFF', 'A football kit in your colour: V-neck, number 9 on the back, white shorts.');
+  I('escapade', 'outfit', 2, 'Hoops', 'common', '#3B82F6', '#FFFFFF', 'A sleeveless basketball jersey, long shorts, a headband and high socks.');
+  I('escapade', 'outfit', 3, 'Gridiron', 'uncommon', '#22C55E', '#FFFFFF', 'Helmet with a face mask, big shoulder pads and a number 7.');
+  I('escapade', 'outfit', 4, 'Slugger', 'common', '#F7F5EE', '#F59E0B', 'A pinstriped baseball jersey, a cap, grey trousers and a glove.');
+  I('escapade', 'outfit', 5, 'Puck Hound', 'uncommon', '#A855F7', '#20222C', 'A thick striped hockey jersey, a caged helmet and skates.');
+  I('escapade', 'outfit', 6, 'Ace', 'common', '#FBFBFD', '#14B8A6', 'A white tennis polo with a coloured collar, headband and wristbands.');
+  I('escapade', 'outfit', 7, 'Champ', 'uncommon', '#D6262E', '#F4F4F6', 'Big red boxing gloves, a headguard and shiny shorts.');
+  I('escapade', 'outfit', 8, 'Sprinter', 'common', '#FF5E6C', '#FFFFFF', 'A running vest with a race number pinned on, and bright spikes.');
+  I('escapade', 'outfit', 9, 'Lap Swimmer', 'common', '#3B82F6', '#4FD0FF', 'A swim cap, goggles and a swimsuit in your colour.');
+  I('escapade', 'outfit', 10, 'Fairway', 'uncommon', '#22C55E', '#E9E2CF', 'A flat cap, an argyle jumper, checked trousers and one white glove.');
+  I('escapade', 'outfit', 11, 'Kickflip', 'common', '#F59E0B', '#20222C', 'A hoodie, a cap on backwards, baggy jeans and pads for the falls.');
+  I('escapade', 'outfit', 12, 'Wave Rider', 'rare', '#20222C', '#14B8A6', 'A wetsuit with a coloured flash and a surfboard on your back.');
+  I('escapade', 'outfit', 13, 'Slope Star', 'uncommon', '#FF5E6C', '#F4F4F6', 'A puffy ski jacket with a race bib, a helmet and orange goggles.');
+  I('escapade', 'outfit', 14, 'Pole Position', 'rare', '#3B82F6', '#FFFFFF', 'A striped race suit and a full helmet with a dark visor.');
+  I('escapade', 'outfit', 15, 'Referee', 'common', '#F7F7F9', '#16161C', 'Black and white stripes, a cap and a whistle on a cord.');
+  I('escapade', 'outfit', 16, 'Team Mascot', 'epic', '#B07A4A', '#F59E0B', 'A big friendly bear head on a team jersey. Fuzzy all over.');
+  I('escapade', 'outfit', 17, 'Black Belt', 'common', '#FBFBFD', '#16161C', 'A white karate suit, a black belt and a headband in your colour.');
+  I('escapade', 'outfit', 18, 'Tin Bot', 'common', '#A7B2BF', '#FFD54A', 'A tin-can robot with lamp eyes, an antenna and claw hands.');
+  I('escapade', 'outfit', 19, 'Android', 'epic', '#EEF2F8', '#5CE1FF', 'A sleek white android with glowing blue lines and a visor.');
+  I('escapade', 'outfit', 20, 'Mech Pilot', 'rare', '#5F6E52', '#FFB43A', 'A flight suit, a harness and a helmet with a radio aerial.');
+  I('escapade', 'outfit', 21, 'Pirate Captain', 'legendary', '#A3202A', '#E2B23A', 'A tricorn hat, a long red coat, an eye patch and a parrot.');
+  I('escapade', 'outfit', 22, 'Deckhand', 'common', '#1F3C78', '#D6262E', 'A striped shirt, a spotted bandana, an eye patch and bare feet.');
+  I('escapade', 'outfit', 23, 'First Mate', 'uncommon', '#4A2E1E', '#E8EDF4', 'A leather vest, a bandana, an eye patch and a shiny hook.');
+  I('escapade', 'outfit', 24, 'Ghost Pirate', 'epic', '#8FE3C0', '#D9FFF0', 'A pale, glowing pirate with an eye patch. Mostly harmless.');
+  I('escapade', 'outfit', 25, 'Roaring Twenties', 'rare', '#3A3D48', '#B8202C', 'A pinstripe suit, a fedora and two-tone shoes.');
+  I('escapade', 'outfit', 26, 'The Boss', 'legendary', '#20222C', '#5A4636', 'A long dark coat with a fur collar, a tall fur hat and gloves.');
+  I('escapade', 'outfit', 27, 'Tracksuit Tough', 'uncommon', '#22C55E', '#F2C230', 'A tracksuit with stripes, a flat cap and a big gold chain.');
+  I('escapade', 'outfit', 28, 'Bodyguard', 'uncommon', '#16161C', '#E8E8EE', 'A black suit, dark glasses and an earpiece.');
+  I('escapade', 'outfit', 29, 'Tuxedo', 'rare', '#16161C', '#FFFFFF', 'A black jacket, a white shirt front and a bow tie.');
+  I('escapade', 'outfit', 30, 'Business Suit', 'common', '#22325A', '#FF5E6C', 'A navy suit with a tie in your colour and a pocket square.');
+  I('escapade', 'outfit', 31, 'Star Wizard', 'epic', '#3B2F9E', '#FFD54A', 'A starry robe, a tall pointed hat and a long white beard.');
+  I('escapade', 'outfit', 32, 'Astronaut', 'rare', '#EEF0F4', '#FFB43A', 'A white space suit with a gold visor and a life-support pack.');
+  I('escapade', 'outfit', 33, 'Knight', 'legendary', '#B7C0CC', '#22C55E', 'Costume armour, a helm with a plume and a tabard in your colour.');
+  I('escapade', 'cheer', 1, 'Team Colours', 'common', '#FF5E6C', '#FFFFFF', 'Confetti in your own colour, lighter and darker, with white.');
+  I('escapade', 'cheer', 2, 'Treasure', 'uncommon', '#FFD23F', '#E8343C', 'Gold, ruby and emerald confetti and a shower of gold sparks.');
+  I('escapade', 'cheer', 3, 'Circuit Sparks', 'rare', '#5CE1FF', '#B6FF5C', 'Rings of cyan and green sparks instead of confetti.');
+  I('escapade', 'cheer', 4, 'Fireworks', 'epic', '#FF5E6C', '#4C8DFF', 'Three bursts high overhead, one after another.');
+  I('drop-zone', 'outfit', 41, 'Goalkeeper', 'uncommon', '#FFE14A', '#FF6FB5', 'Neon yellow and pink zigzags, big gloves and a big 1 on the back.');
+  I('drop-zone', 'outfit', 42, 'Basketball Player', 'common', '#3A9BDC', '#FFC93C', 'A vest in your colour with gold panels, a big 12, a tall puff of hair and a red headband.');
+  I('drop-zone', 'outfit', 43, 'Linebacker', 'uncommon', '#3A9BDC', '#FFC93C', 'Huge shoulder pads, a gold face guard, gold pants and 55 on the back.');
+  I('drop-zone', 'outfit', 44, 'Baseball Batter', 'common', '#F2EFE8', '#E8453C', 'Red pinstripes and sleeves, a batting helmet in your colour and a bat over the shoulder.');
+  I('drop-zone', 'outfit', 45, 'Hockey Player', 'uncommon', '#3A9BDC', '#FFD23F', 'A long jersey with a yellow yoke, a caged helmet in your colour and 19 on the back.');
+  I('drop-zone', 'outfit', 46, 'Tennis Pro', 'common', '#F2EFE8', '#FF6FB5', 'Tennis whites with pink trim, big sweatbands, a visor, a ponytail and a pink racket bag.');
+  I('drop-zone', 'outfit', 47, 'Boxer', 'rare', '#3A9BDC', '#E8453C', 'A satin robe with gold trim, gloves and a head guard.');
+  I('drop-zone', 'outfit', 48, 'Cyclist', 'common', '#F2EFE8', '#E8453C', 'A white jersey with red polka dots and an aero helmet in your colour.');
+  I('drop-zone', 'outfit', 49, 'Swim Team', 'common', '#3A9BDC', '#FF8A1F', 'A long team parka with orange stripes, a yellow towel and a cyan swim cap.');
+  I('drop-zone', 'outfit', 50, 'Golfer', 'rare', '#FF9FC7', '#FFD23F', 'A loud diamond vest, pink trousers and a yellow flat cap with a big red bobble.');
+  I('drop-zone', 'outfit', 51, 'Skateboarder', 'common', '#FF8A1F', '#FFD23F', 'A long tee with a big bolt, an orange slouchy beanie and a board strapped on.');
+  I('drop-zone', 'outfit', 52, 'Surfer', 'common', '#3A9BDC', '#FF6FB5', 'A rash guard, a flower garland, pink shades, a bucket hat and a surfboard.');
+  I('drop-zone', 'outfit', 53, 'Skier', 'uncommon', '#3A9BDC', '#E8453C', 'A puffy jacket with yellow bands, a tall red bobble hat and crossed red skis.');
+  I('drop-zone', 'outfit', 54, 'Pit Crew', 'common', '#3A9BDC', '#E8453C', 'Overalls with a chequered band and red panels, a red cap and a spare tyre.');
+  I('drop-zone', 'outfit', 55, 'Referee', 'uncommon', '#F2EFE8', '#3A3E48', 'Black and white stripes, a whistle and a yellow card ready.');
+  I('drop-zone', 'outfit', 56, 'Coach', 'common', '#3A9BDC', '#FFC93C', 'A tracksuit with gold piping, a whistle, a stopwatch and a big clipboard.');
+  I('drop-zone', 'outfit', 57, 'Team Mascot', 'legendary', '#FFC93C', '#FF8A1F', 'A big friendly bird with a crest in your colour.');
+  I('drop-zone', 'outfit', 58, 'Fencer', 'rare', '#F2EFE8', '#8D96A0', 'A white jacket with your colour down the sides, a mesh mask and a long kit bag.');
+  I('drop-zone', 'outfit', 59, 'Karate', 'common', '#F2EFE8', '#E8453C', 'A white suit, a belt in your colour and a red headband with long tails.');
+  I('drop-zone', 'outfit', 60, 'Cheer Captain', 'common', '#3A9BDC', '#FFC93C', 'A pleated skirt with gold trim, a high ponytail, a gold bow and big pom-poms.');
+  I('drop-zone', 'outfit', 61, 'Jockey', 'rare', '#3A9BDC', '#FFD23F', 'Diamond racing silks and a silk cap.');
+  I('drop-zone', 'outfit', 62, 'Pirate Captain', 'legendary', '#FF6A55', '#FFC93C', 'A long red coat, a three-cornered hat, an eye patch and a parrot.');
+  I('drop-zone', 'outfit', 63, 'Pirate Deckhand', 'common', '#F2EFE8', '#3A7AD0', 'A striped shirt, a spotted bandana, an eye patch and a barrel.');
+  I('drop-zone', 'outfit', 64, 'Pirate First Mate', 'rare', '#8A5AB0', '#DFE4EA', 'A feathered hat, an eye patch, a hook and a coil of rope.');
+  I('drop-zone', 'outfit', 65, 'Ghost Pirate', 'epic', '#BFEEE6', '#6AB8B0', 'Pale and ragged, with one glowing eye.');
+  I('drop-zone', 'outfit', 66, 'Pinstripe Suit', 'rare', '#F1E6CF', '#E8453C', 'A cream pinstripe suit, a red tie and carnation, and a cream fedora with a red band.');
+  I('drop-zone', 'outfit', 67, 'The Boss', 'legendary', '#FFC93C', '#FAF6EE', 'A long gold coat, a huge white fur collar, a tall fur hat and dark glasses.');
+  I('drop-zone', 'outfit', 68, 'Tracksuit and Chain', 'uncommon', '#5CE1FF', '#FFC93C', 'An electric-blue tracksuit, a white flat cap, a thick gold chain and a boombox.');
+  I('drop-zone', 'outfit', 69, 'Bodyguard', 'uncommon', '#F2EFE8', '#8FE3FF', 'All white, big mirror shades, a flat-top and an earpiece with a coiled cord.');
+  I('drop-zone', 'outfit', 70, 'White Tuxedo', 'epic', '#F2EFE8', '#E8453C', 'A white dinner jacket with tails, a big red bow tie and a tall white top hat.');
+  I('drop-zone', 'outfit', 71, 'Business Suit', 'common', '#8FD0FF', '#E8453C', 'A sky-blue suit, glasses, a red tie, a lanyard badge and a briefcase.');
+  I('drop-zone', 'outfit', 72, 'Secret Agent', 'rare', '#F2EFE8', '#FF8A1F', 'A white turtleneck, an orange harness, orange gloves and goggles pushed up.');
+  I('drop-zone', 'outfit', 73, 'Detective', 'uncommon', '#F2A65A', '#C8955A', 'A rust-orange trench coat, a fedora and a big magnifying glass.');
+  I('drop-zone', 'outfit', 74, 'Android', 'epic', '#EEF2F6', '#3A9BDC', 'Smooth white panels with glowing seams.');
+  I('drop-zone', 'outfit', 75, 'Mech Pilot', 'epic', '#FF8A3A', '#F2EFE8', 'A padded suit, chest armour and a power frame.');
+  I('drop-zone', 'outfit', 76, 'Junkyard Bot', 'rare', '#D0743A', '#5AB8B0', 'Patched tin, odd eyes and a spring for an aerial.');
+  I('drop-zone', 'outfit', 77, 'Vacuum Bot', 'uncommon', '#9AB0D0', '#C9E6F4', 'A dome head, a bumper and a dust tank.');
+  I('drop-zone', 'outfit', 78, 'Firefighter', 'common', '#F2C84A', '#E8453C', 'A coat with bright bands, a helmet and an air tank.');
+  I('drop-zone', 'outfit', 79, 'Rock Star', 'rare', '#FFA090', '#C4BAF8', 'A studded jacket, spiky hair and a guitar.');
+  I('drop-zone', 'outfit', 80, 'DJ', 'rare', '#3A9BDC', '#FFD23F', 'A hoodie, big headphones and a crate of records.');
+  I('drop-zone', 'outfit', 81, 'Superhero', 'epic', '#3A9BDC', '#FFD23F', 'A mask, a lightning emblem, a cape and yellow boots.');
+  I('drop-zone', 'outfit', 82, 'Masked Wrestler', 'uncommon', '#3A9BDC', '#FFC93C', 'A mask with a crest, a cape and a championship belt.');
+  I('drop-zone', 'outfit', 83, 'Samurai Armour', 'epic', '#FF7A68', '#FFC93C', 'Costume armour with gold lacing and a small banner.');
+  I('drop-zone', 'pack', 9, 'Sports Bag', 'common', '#3A9BDC', '#F2EFE8', 'A duffel in your colour with a ball patch.');
+  I('drop-zone', 'pack', 10, 'Briefcase', 'uncommon', '#A8384A', '#FFC93C', 'Gold trim, two clasps and a name tag.');
+  I('drop-zone', 'pack', 11, 'Robot Power Pack', 'epic', '#C9D1DA', '#3A9BDC', 'Thrusters, vents and a glowing core. For looks only.');
+  I('drop-zone', 'pack', 12, 'Bag of Balls', 'common', '#F2EFE8', '#F08A2A', 'A net bag of three balls.');
+  I('drop-zone', 'pack', 13, 'Spyglass and Map', 'rare', '#B85A3A', '#FFC93C', 'A brass spyglass and a rolled-up map.');
+  I('drop-zone', 'pack', 14, 'Lucky Mascot', 'rare', '#FFC93C', '#FF8A1F', 'A plush bird that hugs you from behind.');
+  I('drop-zone', 'glider', 25, 'Pirate Sail', 'rare', '#F4ECD8', '#D23B30', 'A square sail on a mast, with a red pennant.');
+  I('drop-zone', 'glider', 26, 'Giant Football', 'uncommon', '#A8562C', '#FFFFFF', 'A huge inflatable ball on four cords.');
+  I('drop-zone', 'glider', 27, 'Soccer Goal', 'rare', '#FFFFFF', '#C9D1DA', 'Hold the bar; the net fills with air.');
+  I('drop-zone', 'glider', 28, 'Hockey Stick', 'epic', '#F2EFE8', '#2A2D34', 'Ride a giant stick like a broom.');
+  I('drop-zone', 'glider', 29, 'Robot Rotor', 'epic', '#B8C0C8', '#FFD23F', 'Three spinning blades over your head.');
+  I('drop-zone', 'glider', 30, 'Briefcase Parachute', 'legendary', '#3A7AD0', '#A8384A', 'A striped canopy bursts out of a briefcase.');
+  I('drop-zone', 'wrap', 20, 'Team Stripes', 'common', '#1A8CBF', '#FF8C1A', 'Team-colour bands with a white stripe.');
+  I('drop-zone', 'wrap', 21, 'Pinstripe', 'uncommon', '#808A99', '#EBEDF2', 'Grey with fine light stripes.');
+  I('drop-zone', 'wrap', 22, 'Treasure Map', 'rare', '#EDD6A3', '#B8291A', 'Old paper with a dotted red route.');
+  I('drop-zone', 'wrap', 23, 'Circuit Board', 'epic', '#0F3861', '#FFCC4D', 'Gold traces that pulse with light.');
+  I('drop-zone', 'wrap', 24, 'Basketball', 'common', '#F07A1F', '#141414', 'Orange and pebbly, with black seams.');
+  I('drop-zone', 'emote', 7, 'Goal Celebration', 'uncommon', '#3A9BDC', '#FFD23F', 'A lap with your arms out, then both fists up.');
+  I('drop-zone', 'emote', 8, 'Tip the Hat', 'common', '#B4BAC6', '#3A9BDC', 'A hand to the brim and a polite nod.');
+  I('drop-zone', 'emote', 9, 'Pirate Arr', 'uncommon', '#FF6A55', '#FFC93C', 'A fist on your hip, pointing out to sea.');
+  I('drop-zone', 'emote', 10, 'Power Down', 'rare', '#C9D1DA', '#3EE6FF', 'Slump, hang, then jerk back on like a robot.');
+  I('drop-zone', 'outfit', 84, 'Race Car Driver', 'rare', '#F2EFE8', '#E8453C', 'A full helmet with a gold visor, a chevron suit and a big 8.');
+  I('drop-zone', 'outfit', 85, 'Beach Volleyball', 'common', '#3A9BDC', '#FFD23F', 'A sleeveless top, a sun visor and a big ball on your back.');
+  I('drop-zone', 'outfit', 86, 'Rugby Player', 'common', '#3A9BDC', '#FFD23F', 'Gold hoops, a padded scrum cap and an oval ball.');
+  I('drop-zone', 'outfit', 87, 'Baseball Catcher', 'uncommon', '#FF8A1F', '#F2EFE8', 'A chest protector, a cage mask and a huge mitt.');
+  I('drop-zone', 'outfit', 88, 'Sprinter', 'common', '#3A9BDC', '#FF6FB5', 'A race bib, pink shorts and a headband with little wings.');
+  I('drop-zone', 'outfit', 89, 'Bowler', 'common', '#F1E6CF', '#3A9BDC', 'A two-tone bowling shirt and a ball and pins on your back.');
+  I('drop-zone', 'outfit', 90, 'Snowboarder', 'uncommon', '#FF8A1F', '#FF9FC7', 'A baggy orange jacket, a beanie with ears and big goggles.');
+  I('drop-zone', 'outfit', 91, 'Hockey Goalie', 'rare', '#F2EFE8', '#FFD23F', 'A painted mask, a blocker, a catching glove and a 30.');
+  I('drop-zone', 'outfit', 92, 'Golden Robot', 'epic', '#FFC93C', '#E8453C', 'Shiny gold from head to toe, with a red eye bar.');
+  I('drop-zone', 'outfit', 93, 'Arcade Bot', 'rare', '#FF9FC7', '#5CE1FF', 'A TV-screen head with a smile and buttons on its chest.');
+  I('drop-zone', 'outfit', 94, 'Wind-Up Robot', 'uncommon', '#FF6A55', '#FFD23F', 'A tin toy in red and white with a big key on its back.');
+  I('drop-zone', 'outfit', 95, 'Pirate Queen', 'legendary', '#FF6A55', '#FFC93C', 'A long red coat, an eye patch and a wide hat with a big plume.');
+  I('drop-zone', 'outfit', 96, 'Pirate Lookout', 'common', '#E8453C', '#F2EFE8', 'A striped shirt, an eye patch, a bandana and a brass spyglass.');
+  I('drop-zone', 'outfit', 97, 'Pirate Cook', 'uncommon', '#F2EFE8', '#FFD23F', 'An eye patch, a floppy cook\'s hat and a pot on your back.');
+  I('drop-zone', 'outfit', 98, 'The Don', 'epic', '#C8B4FF', '#FFC93C', 'A lilac double-breasted suit, a red rose and a white fedora.');
+  I('drop-zone', 'outfit', 99, 'Getaway Driver', 'common', '#FFC13A', '#FF8A1F', 'A mustard driving jacket, a flat cap and orange shades.');
+  I('drop-zone', 'outfit', 100, 'Card Dealer', 'uncommon', '#E8453C', '#FFD23F', 'A red waistcoat, armbands, a gold visor and a fan of cards.');
+  I('drop-zone', 'outfit', 101, 'Winter Tracksuit', 'rare', '#F2EFE8', '#FAF6EE', 'A white tracksuit, a gold chain and a fur hat with ear flaps.');
+  I('drop-zone', 'outfit', 102, 'Retro Rocketeer', 'rare', '#DFE6EE', '#FF6A55', 'A glass bubble helmet and a rocket pack with fins.');
+  I('drop-zone', 'outfit', 103, 'Star Hero', 'epic', '#5CE1FF', '#E8453C', 'A cyan suit, a red mask, a gold star and a red cape.');
+  I('drop-zone', 'outfit', 104, 'Golden Knight', 'legendary', '#FFC93C', '#F2EFE8', 'Gold armour, a great helm with a plume and a shield.');
+  I('drop-zone', 'outfit', 105, 'Jester', 'uncommon', '#FFD23F', '#FF6A55', 'Patches of colour, a zigzag collar and a two-horned cap with bells.');
+  I('drop-zone', 'outfit', 106, 'Disco Star', 'rare', '#FFD23F', '#FF6FB5', 'A sparkly gold shirt, a wide collar, a big hairdo and a mirror ball.');
+  I('drop-zone', 'outfit', 107, 'Shark Onesie', 'common', '#7CC8F8', '#F2EFE8', 'A shark hood with teeth and a fin on your back.');
+  I('drop-zone', 'outfit', 108, 'Unicorn Onesie', 'uncommon', '#F2EFE8', '#FF9FC7', 'A golden horn and a rainbow mane.');
+  I('drop-zone', 'outfit', 109, 'Dino Onesie', 'common', '#FF8A1F', '#5CE1FF', 'An orange dino hood, spikes and a tail.');
+  I('drop-zone', 'outfit', 110, 'Burger Mascot', 'common', '#FFD23F', '#F2C27A', 'A bun head with seeds, cheese, tomato and a lettuce frill.');
+  I('drop-zone', 'outfit', 111, 'Hot Dog Mascot', 'common', '#FFE4B0', '#FF6A55', 'A bun hood, a sausage and a mustard zigzag.');
+  I('drop-zone', 'glider', 31, 'Rainbow Umbrella', 'uncommon', '#FF4F5E', '#3FA9F5', 'Eight rainbow panels that pop open over your head.');
+  I('drop-zone', 'glider', 32, 'Polka Dot Umbrella', 'common', '#FFD23F', '#FFFFFF', 'A sunny yellow umbrella with white dots.');
+  I('drop-zone', 'glider', 33, 'Paper Parasol', 'uncommon', '#FFE0EA', '#E8453C', 'A flat paper parasol with sixteen ribs and a red rim.');
+  I('drop-zone', 'glider', 34, 'Bubble Umbrella', 'rare', '#D6F2FF', '#FF6FB5', 'A deep, clear bubble dome with a pink rim.');
+  I('drop-zone', 'glider', 35, 'Team Flag', 'common', '#5CE1FF', '#FF6A55', 'A big cyan and pink flag between two poles, a white sash and a gold star.');
+  I('drop-zone', 'glider', 36, 'Hot-Air Balloon', 'epic', '#E8453C', '#FFD23F', 'A striped balloon on ropes with a glowing burner.');
+  I('drop-zone', 'glider', 37, 'Robot Wings', 'rare', '#DFE4EA', '#5CE1FF', 'Metal feathers with glowing blue edges along your arms.');
+  I('drop-zone', 'glider', 38, 'Star Kite', 'uncommon', '#FFD23F', '#FF6A55', 'A gold star kite with a tail of bows.');
+  I('drop-zone', 'glider', 39, 'Dragon Kite', 'legendary', '#E8453C', '#FFD23F', 'A dragon head on a long rippling body of gold and red.');
+  I('drop-zone', 'glider', 40, 'Hoverboard', 'epic', '#FF6FB5', '#5CE1FF', 'A pink board with glowing jets underneath.');
+  I('drop-zone', 'glider', 41, 'Toy Rocket', 'rare', '#F6F4EE', '#E8453C', 'A red and white rocket you ride, a flame flickering out of it.');
+  I('drop-zone', 'glider', 42, 'Paper Boat', 'common', '#F6F4EE', '#FF6A55', 'A folded boat of blue paper with a little flag, rocking as it flies.');
+  I('drop-zone', 'trail', 7, 'Confetti', 'common', '#FF4F4F', '#3FA9F5', 'Bright confetti tumbling behind you.');
+  I('drop-zone', 'trail', 8, 'Hearts', 'uncommon', '#FF4F7A', '#FFC2D6', 'Pink and red hearts floating up.');
+  I('drop-zone', 'trail', 9, 'Music Notes', 'uncommon', '#FFE14F', '#5CE1FF', 'Little notes bobbing along behind you.');
+  I('drop-zone', 'trail', 10, 'Fire Sparks', 'rare', '#FF9A3C', '#FFE14F', 'Quick orange sparks.');
+  I('drop-zone', 'trail', 11, 'Snowflakes', 'common', '#FFFFFF', '#DFF4FF', 'Snowflakes drifting down behind you.');
+  I('drop-zone', 'trail', 12, 'Gold Glitter', 'epic', '#FFD23F', '#FFFFFF', 'Twinkling gold glitter.');
+  I('drop-zone', 'trail', 13, 'Team Colours', 'common', '#FFD23F', '#5CE1FF', 'A band of gold, white and cyan.');
+  I('drop-zone', 'trail', 14, 'Comet Tail', 'legendary', '#9FE8FF', '#C8B4FF', 'A long glowing tail like a comet.');
+  I('drop-zone', 'wrap', 25, 'Tiger Stripes', 'common', '#FF8C1A', '#121212', 'Orange with black stripes.');
+  I('drop-zone', 'wrap', 26, 'Polka Dots', 'common', '#FF73B3', '#FFFFFF', 'Pink with white dots.');
+  I('drop-zone', 'wrap', 27, 'Race Check', 'uncommon', '#F2F2F2', '#121212', 'A black and white chequered flag.');
+  I('drop-zone', 'wrap', 28, 'Watermelon', 'uncommon', '#F2525C', '#59BF4D', 'Red with seeds and a green grip.');
+  I('drop-zone', 'wrap', 29, 'Denim', 'common', '#4773BF', '#FFA840', 'Blue jeans with orange stitching.');
+  I('drop-zone', 'wrap', 30, 'Comic Pop', 'rare', '#FFD91A', '#FF4D4D', 'Comic-book dots with a bold outline.');
+  I('drop-zone', 'wrap', 31, 'Sunset', 'rare', '#FFD140', '#8C4DE6', 'Gold to pink to purple along the barrel.');
+  I('drop-zone', 'wrap', 32, 'Ocean Waves', 'epic', '#1A73E6', '#33C7F2', 'Waves of blue and white foam flowing down the barrel.');
+  I('drop-zone', 'wrap', 33, 'Rainbow Flow', 'legendary', '#FF4F4F', '#6A7CFF', 'Every colour, flowing and glowing.');
+  I('drop-zone', 'wrap', 34, 'Heartbeat', 'epic', '#D91F33', '#FF3355', 'Deep red that pulses with a heartbeat glow.');
+  I('drop-zone', 'wrap', 35, 'Electric', 'epic', '#141F4D', '#99F2FF', 'Dark blue with cyan lightning crackling over it.');
+  I('drop-zone', 'wrap', 36, 'Molten Gold', 'legendary', '#E69919', '#FFE673', 'Gold with bright veins flowing through it.');
+  I('drop-zone', 'wrap', 37, 'Gold Chevrons', 'uncommon', '#F7F5EB', '#FFC726', 'White with gold V stripes.');
+  I('drop-zone', 'pack', 15, 'Giant Soccer Ball', 'common', '#F6F4EE', '#2A2D34', 'A huge ball on a strap in your colour.');
+  I('drop-zone', 'pack', 16, 'Pirate Barrel', 'uncommon', '#D99A52', '#8D96A0', 'A barrel with iron hoops and your mark.');
+  I('drop-zone', 'pack', 17, 'Boombox', 'uncommon', '#DFE4EA', '#FF6FB5', 'Two big speakers and a light in your colour.');
+  I('drop-zone', 'pack', 18, 'Robot Buddy', 'rare', '#FFD23F', '#5CE1FF', 'A little robot riding piggyback.');
+  I('drop-zone', 'pack', 19, 'Ice Cream Cone', 'common', '#F2C27A', '#FF9FC7', 'Two scoops and a cherry on top.');
+  I('drop-zone', 'pack', 20, 'Trophy Cup', 'epic', '#FFC93C', '#5CE1FF', 'A big gold cup on your back.');
+  I('drop-zone', 'pack', 21, 'Rocket Pack', 'rare', '#F6F4EE', '#E8453C', 'A little rocket with fins and a window.');
+  I('drop-zone', 'pack', 22, 'Penguin Plush', 'common', '#5A8AD0', '#F6F4EE', 'A penguin with a scarf in your colour.');
+  I('drop-zone', 'emote', 11, 'Slam Dunk', 'rare', '#F08A2A', '#FFFFFF', 'Crouch, leap, slam it down.');
+  I('drop-zone', 'emote', 12, 'Touchdown Spike', 'uncommon', '#A8562C', '#FFFFFF', 'Ball up high, spike it, shimmy.');
+  I('drop-zone', 'emote', 13, 'Home Run', 'uncommon', '#F0D8A8', '#E8453C', 'A big swing, then watch it fly.');
+  I('drop-zone', 'emote', 14, 'Chicken Dance', 'common', '#FFD23F', '#FF8A1F', 'Flap those elbows.');
+  I('drop-zone', 'emote', 15, 'Arm Wave', 'common', '#5CE1FF', '#FFFFFF', 'A wave from one hand to the other.');
+  I('drop-zone', 'emote', 16, 'Salute', 'common', '#F2EFE8', '#3A7AD0', 'A crisp salute.');
+  I('drop-zone', 'emote', 17, 'Star Jump', 'uncommon', '#FFD23F', '#FF6FB5', 'Jump out wide like a star.');
+  I('drop-zone', 'emote', 18, 'Pirate Jig', 'rare', '#FF6A55', '#FFC93C', 'Fists on hips, knees up.');
+  I('drop-zone', 'emote', 19, 'Big Shrug', 'common', '#C8B4FF', '#FFFFFF', 'Who, me?');
+  I('drop-zone', 'emote', 20, 'Mic Drop', 'epic', '#2A2D34', '#FFC93C', 'Hold it out, let it go, walk away.');
+  I('drop-zone', 'emote', 21, 'Thinking', 'common', '#8FD0FF', '#FFFFFF', 'Hand on chin, foot tapping.');
+  I('drop-zone', 'emote', 22, 'Air Guitar', 'rare', '#E8453C', '#FFD23F', 'Strum it, then lean back for the big note.');
+  I('drop-zone', 'pick', 1, 'Hockey Stick', 'common', '#3FA9F5', '#FFFFFF', 'A taped hockey stick.');
+  I('drop-zone', 'pick', 2, 'Golf Club', 'common', '#DFE4EA', '#FFC93C', 'A silver club with a gold head.');
+  I('drop-zone', 'pick', 3, 'Baseball Bat', 'common', '#F0D8A8', '#E8453C', 'A big wooden bat with a red grip.');
+  I('drop-zone', 'pick', 4, 'Foam Cutlass', 'uncommon', '#DFE9F2', '#FFC93C', 'A soft foam pirate sword with a gold guard.');
+  I('drop-zone', 'pick', 5, 'Robot Claw', 'rare', '#B9C2CC', '#5CE1FF', 'A grabber arm with gold fingers.');
+  I('drop-zone', 'pick', 6, 'Giant Foam Finger', 'uncommon', '#FFD23F', '#E8453C', 'We are number one.');
+  I('drop-zone', 'pick', 7, 'Trophy', 'epic', '#FFC93C', '#FFE98F', 'Swing the cup you just won.');
+  I('drop-zone', 'pick', 8, 'Guitar', 'rare', '#E8453C', '#FFFFFF', 'A red guitar, held by the neck.');
+  I('drop-zone', 'pick', 9, 'Anchor', 'uncommon', '#5CE1FF', '#FFC93C', 'A toy anchor with a gold ring.');
+  I('drop-zone', 'pick', 10, 'Giant Wrench', 'common', '#DFE4EA', '#E8453C', 'A huge silver wrench.');
+  I('drop-zone', 'pick', 11, 'Closed Umbrella', 'common', '#E8453C', '#FFFFFF', 'A red and white umbrella, folded.');
+  I('drop-zone', 'pick', 12, 'Giant Lollipop', 'legendary', '#FF6FB5', '#FFD23F', 'A swirly lollipop as big as your head.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
-  GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
+  GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8 && / colours\. Earned by finishing its challenges\.$/.test(it.desc)) it.give = 'earned'; });   // only sponsors' liveries are earned
   function gameItems(game, slot) { return GAME_ITEMS.filter(function (it) { return it.game === game && (!slot || it.slot === slot); }); }
   function itemIds(names) { return names.map(function (n) { if (!ITEM_BY_ID[n]) throw new Error('cosmetics: no item ' + n); return n; }); }
   function itemPack(id, game, name, desc, ids) { ids = itemIds(ids); return { id: id, kind: 'items', game: game, name: name, desc: desc, price: sumPrice(ids), contents: { items: ids } }; }
@@ -1028,8 +2426,10 @@
   // game items, see above; game says which game). price: whole mangos; for skin, accessory and item packs it is the sum of
   // the items' PRICE. Emerald packs (real money) are wallet.js's EMERALD_PACKS. One item on its own is offered as
   // 'item:<id>' (pack(), below), kind 'one'.
-  function skinIds(theme, rarities) { return SKINS.filter(function (s) { return s.theme === theme && rarities.indexOf(s.rarity) >= 0; }).map(function (s) { return s.id; }); }
-  function accIds(slot) { return ACCESSORIES.filter(function (a) { return a.slot === slot && a.rarity !== 'legendary'; }).map(function (a) { return a.id; }); }
+  // Both list only the first wave (skins 1-30, accessories 1-23), so the packs from before 19 Nov 2026 keep exactly what they held;
+  // the wave 2 packs below name their items.
+  function skinIds(theme, rarities) { return SKINS.filter(function (s) { return s.no <= 30 && s.theme === theme && rarities.indexOf(s.rarity) >= 0; }).map(function (s) { return s.id; }); }
+  function accIds(slot) { return ACCESSORIES.filter(function (a) { return a.no <= 23 && a.slot === slot && a.rarity !== 'legendary'; }).map(function (a) { return a.id; }); }
   var CR = ['common', 'uncommon', 'rare'];
   var PACKS = [
     { id: 'draw-1', kind: 'draws', name: 'One chest', desc: 'One skin at the chest odds.', price: CHEST_PRICE, contents: { draws: 1 } },
@@ -1076,7 +2476,26 @@
     itemPack('ss-helmets-odd', 'slipstream', 'Odd Lids', 'Six helmets that are really something else.', ['ss-helmet-galaxy-helmet', 'ss-helmet-disco-ball', 'ss-helmet-watermelon-helmet', 'ss-helmet-eight-ball', 'ss-helmet-pumpkin-helmet', 'ss-helmet-pizza-helmet']),
     itemPack('ss-effects-air', 'slipstream', 'Clean Air', 'Four boost effects.', ['ss-effect-white-air-streaks', 'ss-effect-vapor-trail', 'ss-effect-flames', 'ss-effect-sparks']),
     itemPack('ss-effects-show', 'slipstream', 'Light Show', 'Four brighter boost effects.', ['ss-effect-electric-arcs', 'ss-effect-rainbow', 'ss-effect-confetti', 'ss-effect-purple-plasma']),
-    itemPack('ss-extras', 'slipstream', 'Pit Wall Party', 'Five tyre smoke colours and two podium celebrations.', ['ss-smoke-pink-tyre-smoke', 'ss-smoke-blue-tyre-smoke', 'ss-smoke-green-tyre-smoke', 'ss-smoke-purple-tyre-smoke', 'ss-smoke-gold-tyre-smoke', 'ss-podium-confetti-podium', 'ss-podium-fireworks-podium'])
+    itemPack('ss-extras', 'slipstream', 'Pit Wall Party', 'Five tyre smoke colours and two podium celebrations.', ['ss-smoke-pink-tyre-smoke', 'ss-smoke-blue-tyre-smoke', 'ss-smoke-green-tyre-smoke', 'ss-smoke-purple-tyre-smoke', 'ss-smoke-gold-tyre-smoke', 'ss-podium-confetti-podium', 'ss-podium-fireworks-podium']),
+    // Wave 2 packs (19 Nov 2026): skins of the new themes (common to rare; epic and legendary come from chests) and accessories.
+    { id: 'skins-team', kind: 'skins', name: 'Kickoff', desc: 'Six team-sport kits: soccer, hoops, gridiron, baseball, hockey and tennis.', price: 0, contents: { skins: ['striker', 'point-guard', 'lineman', 'slugger', 'puck-chaser', 'baseline-ace'] } },
+    { id: 'skins-solo', kind: 'skins', name: 'Personal Best', desc: 'Six looks for track, pool, golf, skatepark, surf and snow.', price: 0, contents: { skins: ['sprinter', 'lap-swimmer', 'fairway-pro', 'skate-rat', 'surf-rider', 'slope-racer'] } },
+    { id: 'skins-sideline', kind: 'skins', name: 'Sideline', desc: 'The referee, the coach, the cheer captain and the hawk mascot.', price: 0, contents: { skins: ['referee', 'coach', 'cheer-captain', 'hawk-mascot'] } },
+    { id: 'skins-ring', kind: 'skins', name: 'Ring and Mat', desc: 'A boxer, a black belt, a fencer and a wrestling champ.', price: 0, contents: { skins: ['prizefighter', 'black-belt', 'fencer', 'title-belt'] } },
+    { id: 'skins-pros', kind: 'skins', name: 'Pro Tour', desc: 'A racing driver and a goalkeeper.', price: 0, contents: { skins: ['pole-position', 'safe-hands'] } },
+    { id: 'skins-pirates', kind: 'skins', name: 'Jolly Crew', desc: 'Six pirates, from the deckhand to the captain. Eye patches included.', price: 0, contents: { skins: ['deckhand', 'sea-dog', 'lookout', 'first-mate', 'buccaneer', 'pirate-captain'] } },
+    { id: 'skins-office', kind: 'skins', name: 'Corner Office', desc: 'A suit and tie, a banker and a tracksuit tough guy.', price: 0, contents: { skins: ['nine-to-five', 'banker', 'tracksuit-tough'] } },
+    { id: 'skins-speakeasy', kind: 'skins', name: 'Speakeasy', desc: 'Pinstripes, a detective, a bodyguard, a tuxedo and a secret agent.', price: 0, contents: { skins: ['roaring-twenties', 'gumshoe', 'bodyguard', 'black-tie', 'secret-agent'] } },
+    { id: 'skins-scrap', kind: 'skins', name: 'Scrap Heap', desc: 'Four new robots, from tin toy to android.', price: 0, contents: { skins: ['retro-tin-bot', 'vacuum-bot', 'junkyard-bot', 'sleek-android'] } },
+    { id: 'skins-tales', kind: 'skins', name: 'Tall Tales', desc: 'Two wizards, a ninja, a mummy, a hero and a rock star.', price: 0, contents: { skins: ['apprentice-wizard', 'wise-wizard', 'night-ninja', 'wrapped-up', 'bolt-guardian', 'rock-star'] } },
+    { id: 'skins-everyday', kind: 'skins', name: 'Day Job', desc: 'An astronaut, a chef, a firefighter and a DJ.', price: 0, contents: { skins: ['mission-specialist', 'head-chef', 'firefighter', 'turntable-dj'] } },
+    { id: 'skins-critters', kind: 'skins', name: 'Critters and Snacks', desc: 'A panda, a penguin, a tiger, a pizza slice, a pumpkin and a snow day.', price: 0, contents: { skins: ['panda', 'penguin', 'tiger', 'pizza-slice', 'pumpkin-patch', 'snow-day'] } },
+    { id: 'acc-kitbag', kind: 'accessories', name: 'Kit Bag', desc: 'Sports headgear, eye black and two ball trails.', price: 0, contents: { acc: ['ball-cap', 'sweatband', 'hockey-helmet', 'football-helmet', 'racing-helmet', 'eye-black', 'soccer-trail', 'football-trail', 'number-cape'] } },
+    { id: 'acc-pirate', kind: 'accessories', name: 'Pirate Kit', desc: 'Eye patch, bandana, tricorn, a parrot and a trail of gold coins.', price: 0, contents: { acc: ['eye-patch', 'bandana', 'tricorn', 'parrot', 'doubloon-trail'] } },
+    { id: 'acc-sharp', kind: 'accessories', name: 'Sharp Dresser', desc: 'Fedora, bowler, flat cap, fur hat, bow tie, gold chain and shades.', price: 0, contents: { acc: ['fedora', 'bowler', 'flat-cap', 'fur-hat', 'bow-tie', 'gold-chain', 'dark-shades', 'aviators'] } },
+    { id: 'acc-stage', kind: 'accessories', name: 'Showtime', desc: 'Spotlight, confetti, camera flashes, headphones and a music trail.', price: 0, contents: { acc: ['spotlight', 'confetti-pop', 'camera-flash', 'dj-headphones', 'music-trail'] } },
+    { id: 'acc-gadgets', kind: 'accessories', name: 'Gadget Box', desc: 'A cyborg eye, a robot pup, a drone and a penguin chick who came along anyway.', price: 0, contents: { acc: ['cyborg-eye', 'robo-pup', 'drone-buddy', 'penguin-chick'] } },
+    { id: 'acc-kraken', kind: 'accessories', name: 'Message in a Bottle', desc: 'Uncorks the Pocket Kraken. Legendary.', price: 0, contents: { acc: ['pocket-kraken'] } }
   ];
   // Skin and accessory packs cost the sum of their items' prices, like the game item packs.
   PACKS.forEach(function (p) { if (p.kind === 'skins' || p.kind === 'accessories') p.price = sumPrice(p.contents.skins || p.contents.acc); });
@@ -1134,14 +2553,25 @@
   // lists every skin, accessory and game item as owned, and save() writes back only what they really own (L.raw), so
   // nothing they didn't buy is ever saved, mirrored into their account or kept after they sign out. load(true) is the
   // real locker alone (the account mirror and buying use it).
-  function cap() { try { return !!(on() && SHARED && SHARED.captain && SHARED.captain()); } catch (e) { return false; } }
+  function cap() {
+    try { if (on() && server() && window.BackRoomWallet && window.BackRoomWallet.unlimited && window.BackRoomWallet.unlimited()) return true; } catch (e) {}
+    try { return !!(on() && SHARED && SHARED.captain && SHARED.captain()); } catch (e) { return false; }
+  }
   function load(raw) {
     var o = json(ls(KEY)), L = { v: 1, s: [], a: [], g: [], e: { skin: '' }, ge: {} };
     SLOTS.forEach(function (k) { L.e[k] = ''; });
     if (!obj(o) || o.v !== 1) o = {};
+    if (server()) {
+      // The server wallet: what's owned is the server's answer (wallet.js), plus the game items a game hands over
+      // itself (give: free to everyone, so kept in this browser). Only what is worn (e, ge) is read from here.
+      var w = window.BackRoomWallet, mine = w && w._owned ? w._owned() : [];
+      mine.forEach(function (id) { if (SKINS_BY_ID[id]) L.s.push(id); else if (ACC_BY_ID[id]) L.a.push(id); else if (ITEM_BY_ID[id]) L.g.push(id); });
+      if (Array.isArray(o.g)) o.g.forEach(function (id) { var it = ITEM_BY_ID[id]; if (it && it.give && L.g.indexOf(id) < 0) L.g.push(id); });
+    } else {
     if (Array.isArray(o.s)) o.s.forEach(function (id) { if (SKINS_BY_ID[id] && L.s.indexOf(id) < 0) L.s.push(id); });
     if (Array.isArray(o.a)) o.a.forEach(function (id) { if (ACC_BY_ID[id] && L.a.indexOf(id) < 0) L.a.push(id); });
     if (Array.isArray(o.g)) o.g.forEach(function (id) { if (ITEM_BY_ID[id] && L.g.indexOf(id) < 0) L.g.push(id); });
+    }
     if (!raw && cap()) {
       Object.defineProperty(L, 'raw', { value: { s: L.s, a: L.a, g: L.g }, enumerable: false });
       L.s = SKINS.map(function (x) { return x.id; }); L.a = ACCESSORIES.map(function (x) { return x.id; }); L.g = GAME_ITEMS.map(function (x) { return x.id; });
@@ -1155,6 +2585,14 @@
   }
   function save(L) {
     if (L.raw) { var r = L.raw; L = { v: 1, s: r.s, a: r.a, g: r.g, e: L.e, ge: L.ge }; }   // a captain: only what they really own
+    if (server()) {
+      // The server wallet: ownership is never saved here (the server holds it). What was saved before is left as it
+      // was; only what is worn and the game-given items change.
+      var o = json(ls(KEY)); o = obj(o) && o.v === 1 ? o : {};
+      var keep = Array.isArray(o.g) ? o.g.filter(function (id) { return ITEM_BY_ID[id]; }) : [];
+      L.g.forEach(function (id) { if (ITEM_BY_ID[id] && ITEM_BY_ID[id].give && keep.indexOf(id) < 0) keep.push(id); });
+      L = { v: 1, s: Array.isArray(o.s) ? o.s : [], a: Array.isArray(o.a) ? o.a : [], g: keep, e: L.e, ge: L.ge };
+    }
     if (!L.g.length && !Object.keys(L.ge || {}).length) { delete L.g; delete L.ge; }      // no game items: the saved locker is exactly what it was before they existed
     ls(KEY, JSON.stringify(L)); try { document.dispatchEvent(new CustomEvent('backroom:cosmetics', { detail: { equipped: equipped() } })); } catch (e) {} }
   function equip(id) {
@@ -1265,9 +2703,12 @@
   // unknown, money (emerald packs: wallet.js EMERALD_PACKS and PAYMENTS), owned (you already own everything in it),
   // wallet (no wallet.js), funds (not enough mangos).
   function emeraldPack(id) { var w = W(); return w && w.EMERALD_PACKS ? w.EMERALD_PACKS.filter(function (e) { return e.id === id; })[0] : null; }
+  // With the server wallet buy() returns a PROMISE of the same answer (the server buys, rolls and fills the locker;
+  // extra reasons: signin, closed, server, duplicate, with a message). Callers: Promise.resolve(buy(id)).then(...).
   function buy(packId, opts) {
     var p = pack(packId);
     if (!on()) return { ok: false, reason: 'off' };
+    if (server()) return serverBuy(p, packId);
     if (!p && emeraldPack(packId)) return { ok: false, reason: 'money', checkout: W().PAYMENTS.checkout(packId) };
     if (!p) return { ok: false, reason: 'unknown' };
     var pv = preview(packId);
@@ -1279,6 +2720,20 @@
     var f = fill(p, opts);
     if (f.refund) w.earn(f.refund, f.dups === 1 ? 'Back for a duplicate' : 'Back for ' + f.dups + ' duplicates');
     return { ok: true, pack: p.id, spent: free ? 0 : p.price, got: f.got, refund: f.refund, balance: w.balance() };
+  }
+  function serverBuy(p, packId) {
+    if (!p && emeraldPack(packId)) return Promise.resolve({ ok: false, reason: 'money' });
+    if (!p) return Promise.resolve({ ok: false, reason: 'unknown' });
+    if (preview(packId).all) return Promise.resolve({ ok: false, reason: 'owned' });
+    var w = W(); if (!w || !w._buy) return Promise.resolve({ ok: false, reason: 'wallet' });
+    var dm = /^draw-(\d+)$/.exec(p.id);
+    return (dm ? w._chest(+dm[1]) : w._buy(p.id)).then(function (r) {
+      if (!r || !r.ok) return r || { ok: false, reason: 'server' };
+      var got = { skins: (r.got && r.got.skins) || [], acc: (r.got && r.got.acc) || [], items: (r.got && r.got.items) || [], draws: (r.got && r.got.draws) || [] };
+      var L = load(), first = got.skins[0] || (got.draws[0] && got.draws[0].skin);
+      if (!L.e.skin && first && L.s.indexOf(first) >= 0) { L.e.skin = first; save(L); }
+      return { ok: true, pack: p.id, spent: r.spent, got: got, refund: r.refund || 0, balance: r.balance };
+    });
   }
   // Put what a pack (or one item, or chests) holds into the real locker, opening chests here. Pays nothing: the caller
   // pays the refund for duplicates (buy() above, or wallet.js's grant() for a gift). -> { got, dups, refund }
@@ -1297,7 +2752,7 @@
     return { got: got, dups: dups, refund: dups * DUP_REFUND };
   }
   // A gift arriving (wallet.js's grant('gift'), the only caller): fill the locker with what packId holds, free.
-  function receive(packId, opts) { var p = pack(packId); if (!on() || !p) return null; var f = fill(p, opts); f.pack = p; return f; }
+  function receive(packId, opts) { var p = pack(packId); if (!on() || server() || !p) return null; var f = fill(p, opts); f.pack = p; return f; }
 
   // ---------------- Drawing (64 × 64 units, avatar.js's grid) ----------------
   var INK = '#1B1513', WH = '#FFFFFF';
@@ -1334,7 +2789,7 @@
       case 'checker': var c = ''; for (var cy = 0; cy < 64; cy += 8) for (var cx = ((cy / 8) % 2) * 8; cx < 64; cx += 16) c += R(cx, cy, 8, 8, 0, b2, ' opacity=".3"'); return s + c;
       case 'swirl': return s + P('M32 32 m-24 0 a24 24 0 1 1 48 0 a20 20 0 1 1 -40 0 a16 16 0 1 1 32 0 a12 12 0 1 1 -24 0', null, b2, 2.4, ' opacity=".35"') + star(12, 12, 2.6, WH, 4, .3, ' opacity=".8"') + star(52, 16, 2, WH, 4, .3, ' opacity=".7"');
       case 'quarters': return '<g>' + P('M32 32 L32 -4 A36 36 0 0 0 -4 32 Z', '#9BE07A') + P('M32 32 L68 32 A36 36 0 0 0 32 -4 Z', '#FFC93C') + P('M32 32 L32 68 A36 36 0 0 0 68 32 Z', '#E07A2E') + P('M32 32 L-4 32 A36 36 0 0 0 32 68 Z', '#9FD3FF') + '</g>' + star(10, 14, 2, WH, 6, .25, ' opacity=".8"') + E(52, 12, 3, 1.5, '#3E8A2E', ' transform="rotate(30 52 12)"');
-      default: return s;
+      default: return s + bgMore(lk, b2, id);
     }
   }
   function outfit(lk, c, id) {
@@ -1350,7 +2805,7 @@
       case 'puffer': deco = P('M10 59 Q32 56 54 59 M8 63 Q32 60 56 63', null, t, 1.1, ' opacity=".8"') + P('M32 55 L32 66', null, a, 1.8) + P('M24 54.5 Q32 57 40 54.5', null, a, 3); break;
       case 'overalls': base = P(SH, t); deco = R(24, 58, 16, 12, 2, b) + P('M24 59 L17 55 M40 59 L47 55', null, b, 3) + C(26.5, 60.5, 1.1, a) + C(37.5, 60.5, 1.1, a) + R(29, 62, 6, 3, 1, a, ' opacity=".7"'); break;
       case 'circuit': deco = P('M12 60 L20 60 L23 63 L30 63 M52 60 L44 60 L41 63 L34 63 M32 55 L32 61', null, a, 1.1) + C(12, 60, 1.2, em) + C(52, 60, 1.2, em) + C(32, 61.5, 1.5, em) + C(30, 63, .8, em) + C(34, 63, .8, em); break;
-      default: deco = '';
+      default: deco = outfitMore(lk, c, id);
     }
     return base + '<g' + cl + '>' + deco + '</g>';
   }
@@ -1374,7 +2829,7 @@
       case 'fins': return P('M16 33 L6 26 L8 40 Z', a, null, 0, ' opacity=".9"') + P(mirrorX('M16 33 L6 26 L8 40 Z'), a, null, 0, ' opacity=".9"') + P('M28 15 Q32 2 38 6 Q35 10 36 15 Z', a) + C(32, 6, 2, em) + C(32, 6, 4, em, ' opacity=".25"');
       case 'crown': return P('M19 19 L20.5 6 L26.5 12.5 L32 3.5 L37.5 12.5 L43.5 6 L45 19 Z', a, t, .8) + C(32, 9.5, 1.8, em) + C(23, 13.5, 1.2, '#FF7AE0') + C(41, 13.5, 1.2, '#7FD4FF') + star(50, 6, 2.2, WH, 4, .3) + star(13, 9, 1.6, WH, 4, .3);
       case 'crownleaf': var cl = ''; [[20, 16, -40, '#9BE07A'], [26, 11, -15, '#FFC93C'], [32, 9, 0, '#E07A2E'], [38, 11, 15, '#9FD3FF'], [44, 16, 40, '#9BE07A']].forEach(function (p) { cl += E(p[0], p[1], 2.4, 5, p[3], ' transform="rotate(' + p[2] + ' ' + p[0] + ' ' + p[1] + ')" stroke="' + t + '" stroke-width=".6"'); }); return cl + star(32, 3, 2.2, WH, 6, .3);
-      default: return '';
+      default: return headMore(lk, c);
     }
   }
   // Accessory layers: 'back' (behind the face: capes, trails, auras), 'front' (glasses, hats, halos, pets).
@@ -1389,7 +2844,7 @@
       case 'rainbow': var cols = ['#FF5C5C', '#FFA63D', '#FFE45C', '#5CE07A', '#5CC8FF', '#9A7CFF'], r = ''; cols.forEach(function (k, i) { r += P('M-4 ' + (40 + i * 2.6) + ' Q10 ' + (36 + i * 2.6) + ' 18 ' + (46 + i * 2.6), null, k, 2.6); }); return r;
       case 'ember': return '<defs><radialGradient id="' + id + 'em"><stop offset="0" stop-color="' + c + '" stop-opacity=".75"/><stop offset="1" stop-color="' + c + '" stop-opacity="0"/></radialGradient></defs>' + C(32, 34, 28, 'url(#' + id + 'em)') + P('M10 30 Q8 24 11 20 Q12 25 10 30 Z M54 28 Q56 22 53 18 Q52 23 54 28 Z M18 12 Q17 8 19 6 Q20 9 18 12 Z', c2);
       case 'frost': return C(32, 34, 26, 'none', ' stroke="' + c + '" stroke-width="2.2" stroke-dasharray="3 3" opacity=".9"') + star(8, 30, 2.2, c2, 6, .25) + star(56, 30, 2.2, c2, 6, .25) + star(32, 7, 1.8, c2, 6, .25);
-      default: return '';
+      default: return accBackMore(a, id);
     }
   }
   function accFront(a) {
@@ -1413,7 +2868,273 @@
       case 'starfish': return star(52, 54, 8, c, 5, .48) + C(50.5, 53, .9, INK) + C(53.5, 53, .9, INK) + P('M50.5 55.6 Q52 56.8 53.5 55.6', null, INK, .8) + C(52, 54, 2.4, c2, ' opacity=".35"');
       case 'ghost': return P('M45 62 L45 52 Q45 45 52 45 Q59 45 59 52 L59 62 L56.7 60 L54.3 62 L52 60 L49.7 62 L47.3 60 Z', c, null, 0, ' opacity=".92"') + P('M45.5 49 L43.5 45.5 L47.5 47 Z M58.5 49 L60.5 45.5 L56.5 47 Z', c2) + C(49.8, 52, 1.1, INK) + C(54.2, 52, 1.1, INK) + E(52, 55, 1.4, 1, c2);
       case 'dragon': return P('M47 52 L41 46 L45 54 Z M57 52 L63 46 L59 54 Z', c2, null, 0, ' opacity=".9"') + E(52, 56, 7, 6.5, c) + P('M48 50.5 L47 46 L50.5 49.5 Z M56 50.5 L57 46 L53.5 49.5 Z', c2) + C(49.5, 55, 1.1, WH) + C(54.5, 55, 1.1, WH) + C(49.7, 55.2, .55, INK) + C(54.7, 55.2, .55, INK) + C(51, 59, .5, INK) + C(53, 59, .5, INK) + star(58, 60, 1.4, c2, 4, .3);
+      default: return accFrontMore(a);
+    }
+  }
+
+  // ---- Wave 2 parts (19 Nov 2026): sports kits, pirates, suits, robots and more. Only skins and accessories that name
+  // these parts reach this code (the switches above fall through to it), so every older look draws exactly as before.
+  // A look may also have: face (space-separated: patch, shades, stache, beard, mask, domino, eyeblack, goggles, fangs,
+  // visor), fx (space-separated: shine, frame, orbit, twinkle, flicker; animated SVG, for the special ones), num (a
+  // number on a kit), h1 / h2 (the head piece's own colours) and a few options named where they are used.
+  var GOLD = '#F5C542', STEEL = '#C8D2DC', SHIRT = '#F4F1EA';
+  var SEG = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg' };
+  // A number in chunky sporty segments, centred on x, top at y, h tall.
+  function digits(str, x, y, h, col, w) {
+    str = String(str || '').replace(/\D/g, '').slice(0, 2); if (!str) return '';
+    var W = h * .5, gap = h * .32, tot = str.length * W + (str.length - 1) * gap, d = '';
+    str.split('').forEach(function (ch, i) {
+      var x0 = x - tot / 2 + i * (W + gap), m = h / 2, s = SEG[ch];
+      var L = { a: [0, 0, W, 0], b: [W, 0, W, m], c: [W, m, W, h], d: [0, h, W, h], e: [0, m, 0, h], f: [0, 0, 0, m], g: [0, m, W, m] };
+      s.split('').forEach(function (k) { var q = L[k]; d += 'M' + (x0 + q[0]).toFixed(2) + ' ' + (y + q[1]).toFixed(2) + ' L' + (x0 + q[2]).toFixed(2) + ' ' + (y + q[3]).toFixed(2) + ' '; });
+    });
+    return P(d, null, col, w || h * .22);
+  }
+  function skull(cx, cy, s, col) { return C(cx, cy, 2.6 * s, col) + R(cx - 1.7 * s, cy + 1, 3.4 * s, 2.4 * s, .7 * s, col) + C(cx - .95 * s, cy - .1 * s, .7 * s, INK) + C(cx + .95 * s, cy - .1 * s, .7 * s, INK); }
+  function bgMore(lk, b2, id) {
+    var o = ' opacity=".35"', s = '', i, x, y;
+    switch (lk.bgp) {
+      case 'pitch': for (y = 0; y < 64; y += 8) s += R(0, y, 64, 4, 0, b2, ' opacity=".28"'); return s + C(32, 66, 16, 'none', ' stroke="#FFFFFF" stroke-width="1.2" opacity=".55"') + P('M0 50 L64 50', null, WH, 1.2, ' opacity=".55"');
+      case 'court': for (x = 3; x < 64; x += 6) s += P('M' + x + ' 0 L' + x + ' 64', null, b2, .8, o); return s + P('M8 64 Q32 30 56 64', null, WH, 1.4, ' opacity=".6"') + R(0, 10, 64, 1.4, 0, WH, ' opacity=".45"');
+      case 'rink': return R(0, 18, 64, 1.8, 0, '#E5484D', ' opacity=".55"') + R(0, 46, 64, 1.8, 0, '#3D8BFF', ' opacity=".55"') + C(32, 32, 9, 'none', ' stroke="#E5484D" stroke-width="1.1" opacity=".45"') + C(10, 10, 4, b2, o) + C(54, 56, 4, b2, o);
+      case 'track': for (i = 0; i < 4; i++) s += P('M-4 ' + (8 + i * 14) + ' Q32 ' + (-4 + i * 14) + ' 68 ' + (8 + i * 14), null, WH, 1.1, ' opacity=".5"'); return R(0, 0, 64, 64, 0, b2, ' opacity=".2"') + s;
+      case 'bricks': for (y = 0; y < 64; y += 6) for (x = (y / 6) % 2 ? -6 : 0; x < 64; x += 12) s += R(x + .6, y + .6, 10.8, 4.8, .6, b2, ' opacity=".3"'); return s;
+      case 'spot': return P('M24 -2 L40 -2 L62 64 L2 64 Z', b2, null, 0, ' opacity=".28"') + E(32, 60, 26, 6, b2, ' opacity=".35"');
+      case 'skyline': [[0, 40, 8], [8, 32, 7], [15, 44, 6], [44, 36, 7], [51, 28, 6], [57, 42, 8]].forEach(function (q) { s += R(q[0], q[1], q[2], 64 - q[1], 0, b2, ' opacity=".35"'); for (y = q[1] + 3; y < 60; y += 5) s += R(q[0] + 1.6, y, 1.4, 1.6, 0, GOLD, ' opacity=".7"'); }); return C(50, 12, 5, b2, ' opacity=".7"') + s;
+      case 'flash': [[10, 14, 4], [54, 12, 3.2], [56, 36, 2.6], [7, 38, 2.4], [22, 5, 2]].forEach(function (q) { s += star(q[0], q[1], q[2], WH, 4, .25, ' opacity=".85"') + C(q[0], q[1], q[2] * .9, b2, ' opacity=".3"'); }); return s;
+      case 'confetti': var cc = ['#FF5C5C', '#FFD23F', '#5CC8FF', '#7CE38B', '#B98BFF'];
+        [[8, 12, 30], [16, 4, -20], [52, 8, 50], [57, 22, -35], [6, 30, 70], [58, 40, 15], [46, 3, -60], [12, 46, 40]].forEach(function (q, k) { s += R(q[0] - 1.8, q[1] - .8, 3.6, 1.6, .5, cc[k % 5], ' transform="rotate(' + q[2] + ' ' + q[0] + ' ' + q[1] + ')"'); }); return s;
+      case 'wings': return P('M32 40 Q8 34 -2 12 Q8 18 12 14 Q14 22 20 22 Q18 30 32 34 Z', b2, null, 0, ' opacity=".85"') + P(mirrorX('M32 40 Q8 34 -2 12 Q8 18 12 14 Q14 22 20 22 Q18 30 32 34 Z'), b2, null, 0, ' opacity=".85"') + P('M28 36 Q14 30 6 18 M28 38 Q16 36 4 28', null, GOLD, 1, ' opacity=".7"') + P(mirrorX('M28 36 Q14 30 6 18 M28 38 Q16 36 4 28'), null, GOLD, 1, ' opacity=".7"');
+      case 'fog': return E(12, 18, 14, 4, b2, ' opacity=".3"') + E(52, 10, 12, 3.4, b2, ' opacity=".3"') + E(56, 40, 12, 3.6, b2, ' opacity=".25"') + E(6, 44, 10, 3, b2, ' opacity=".25"');
+      case 'notes': [[10, 16], [52, 12], [55, 36], [8, 38]].forEach(function (q) { s += C(q[0], q[1] + 4, 1.9, b2, ' opacity=".55"') + P('M' + (q[0] + 1.7) + ' ' + (q[1] + 4) + ' L' + (q[0] + 1.7) + ' ' + (q[1] - 3) + ' L' + (q[0] + 5) + ' ' + (q[1] - 2), null, b2, 1, ' opacity=".55"'); }); return s;
+      case 'gears': [[10, 14, 7], [54, 12, 6], [56, 40, 5], [6, 40, 5]].forEach(function (q) { s += star(q[0], q[1], q[2], b2, 8, .78, o) + C(q[0], q[1], q[2] * .35, lk.bg); }); return s;
+      case 'deck': for (y = 2; y < 64; y += 7) s += P('M0 ' + y + ' L64 ' + y, null, b2, .9, o); for (y = 2; y < 64; y += 7) s += C(((y * 7) % 50) + 6, y + 3.5, .6, b2, ' opacity=".5"'); return s;
+      case 'map': return R(4, 4, 56, 56, 4, b2, ' opacity=".25"') + P('M8 50 Q16 40 12 30 Q8 20 20 16 Q30 13 30 6', null, '#A0522D', 1.2, ' stroke-dasharray="2 2" opacity=".7"') + P('M50 8 L56 14 M56 8 L50 14', null, '#D9483B', 1.6) + C(54, 44, 3, 'none', ' stroke="' + b2 + '" stroke-width="1" opacity=".6"');
+      case 'moon': return C(50, 13, 6.5, b2, ' opacity=".9"') + C(47.5, 11.5, 5.5, lk.bg) + star(12, 12, 1.8, WH, 4, .3, ' opacity=".8"') + star(56, 34, 1.4, WH, 4, .3, ' opacity=".7"') + star(8, 34, 1.2, WH, 4, .3, ' opacity=".7"');
+      case 'kitchen': for (y = 0; y < 64; y += 8) for (x = 0; x < 64; x += 8) s += R(x + .5, y + .5, 7, 7, 1, b2, ((x + y) / 8) % 2 ? ' opacity=".18"' : ' opacity=".35"'); return s;
+      case 'flames': return P('M-2 64 Q2 46 8 50 Q8 36 16 42 Q18 30 24 40 L24 64 Z', b2, null, 0, ' opacity=".55"') + P(mirrorX('M-2 64 Q2 46 8 50 Q8 36 16 42 Q18 30 24 40 L24 64 Z'), b2, null, 0, ' opacity=".55"');
       default: return '';
+    }
+  }
+  function outfitMore(lk, c, id) {
+    var b = c.body, a = c.accent, t = c.trim, em = c.emissive, d = '', x, y;
+    var num = lk.num != null ? digits(lk.num, 41.5, 56.6, 4.6, lk.numc || a, 1.2) : '';
+    switch (lk.outfit) {
+      case 'kit': d = P('M26 54.5 L32 59.5 L38 54.5', null, a, 2.2) + P('M8 61 L15 56.5 M56 61 L49 56.5', null, a, 2) + C(23, 59, 1.6, t) + num;
+        if (lk.band) d = R(0, 59.6, 64, 2.4, 0, t, ' opacity=".85"') + d;
+        if (lk.stars) d += star(14, 60, 1.8, a, 5, .45) + star(50, 60, 1.8, a, 5, .45) + star(19, 63, 1.4, a, 5, .45);
+        if (lk.medal) d += P('M27 54.8 L32 60 L37 54.8', null, '#3D8BFF', 1.6) + C(32, 61.2, 2.7, GOLD, ' stroke="#B8860B" stroke-width=".5"') + star(32, 61.2, 1.5, '#FFF2C2', 5, .45);
+        return d;
+      case 'tank': return P('M25 54.6 Q32 61 39 54.6', null, a, 2.2) + P('M20.5 55.2 Q19.5 60 14 64.5', null, a, 2) + P(mirrorX('M20.5 55.2 Q19.5 60 14 64.5'), null, a, 2) + (lk.num != null ? digits(lk.num, 32, 59.2, 4.4, lk.numc || a, 1.15) : '');
+      case 'pads': return E(14, 57.5, 9.5, 5, a) + E(50, 57.5, 9.5, 5, a) + P('M7 56 Q14 52 21 55.5', null, WH, 1, ' opacity=".55"') + P(mirrorX('M7 56 Q14 52 21 55.5'), null, WH, 1, ' opacity=".55"') + P('M26 54.6 L32 58.6 L38 54.6', null, t, 2) + (lk.num != null ? digits(lk.num, 32, 59.4, 4.4, lk.numc || WH, 1.15) : '');
+      case 'vstripes': for (x = 8; x < 58; x += 6) d += R(x, 50, 2.8, 18, 0, INK); return d + P('M25 54.6 L32 58.6 L39 54.6', null, INK, 2.4) + P('M27 55.5 Q29.5 60 33 61', null, a, .9) + R(32.5, 59.8, 4.4, 2.4, 1, STEEL, ' stroke="' + INK + '" stroke-width=".4"');
+      case 'polo': d = P('M25.5 54.4 L29.2 59.4 L32 56.4 Z', t) + P(mirrorX('M25.5 54.4 L29.2 59.4 L32 56.4 Z'), t) + R(31.2, 56, 1.6, 6.5, .8, t, ' opacity=".7"') + C(32, 58.3, .55, WH) + C(32, 60.7, .55, WH) + C(42, 60, 1.4, a);
+        if (lk.whistle) d += P('M27 55.5 Q28 61 33.5 62', null, a, .9) + R(33, 61, 4.4, 2.4, 1, STEEL, ' stroke="' + INK + '" stroke-width=".4"');
+        return d;
+      case 'gi': return P('M25 54.6 L35.5 66', null, t, 2.6) + P('M39 54.6 L33.4 60.6', null, t, 2.6) + R(26, 62.6, 12, 3, .8, a) + P('M30 64 L28 67 M34 64 L36 67', null, a, 1.6);
+      case 'boxrobe': return P('M23.5 54.6 Q27 61 30.5 66', null, a, 3.2) + P(mirrorX('M23.5 54.6 Q27 61 30.5 66'), null, a, 3.2) + P('M12 59 Q16 57 20 58', null, WH, 1, ' opacity=".45"') + (lk.num != null ? digits(lk.num, 47, 58.4, 3.6, a, 1) : '');
+      case 'racesuit': return P('M25 54.6 Q32 57.6 39 54.6', null, a, 2.6) + P('M11.5 58 L19 66', null, a, 2.2) + P(mirrorX('M11.5 58 L19 66'), null, a, 2.2) + R(19.5, 59.2, 5.4, 3, 1, WH) + R(39.5, 59.2, 5.4, 3, 1, em) + P('M32 57.6 L32 66', null, t, .8);
+      case 'wetsuit': return P('M8 60 Q32 64 56 60 L56 70 L8 70 Z', a) + P('M24.5 54.8 Q32 57.4 39.5 54.8', null, t, 1.8) + P('M32 56.6 L32 66', null, t, 1) + P('M12 58 L20 56', null, em, 1.2);
+      case 'pirate': d = P('M26 54.4 L32 66 L38 54.4 Z', SHIRT) + P('M27.5 56 Q32 58.4 36.5 56 M28.6 58.6 Q32 61 35.4 58.6', null, '#D9D3C4', .9) + P('M26 54.4 L30 66', null, a, 1.8) + P('M38 54.4 L34 66', null, a, 1.8) + C(24, 60, 1, a) + C(40, 60, 1, a) + C(23.4, 63.4, 1, a) + C(40.6, 63.4, 1, a);
+        if (lk.sash) d += P('M14 57 L50 66', null, lk.sash, 3);
+        if (lk.hook) d += P('M51 67 L51 61 Q51 56.6 47 57 Q44 57.6 45.4 60', null, STEEL, 1.6) + R(48.6, 63, 5, 4, 1, t);
+        return d;
+      case 'business': case 'tux': case 'trench':
+        var tie = lk.tie || (lk.outfit === 'tux' ? 'bow' : 'tie'), shirt = lk.shirt || (lk.outfit === 'tux' ? WH : SHIRT);
+        if (lk.pin) for (x = 9.5; x < 56; x += 3.2) d += P('M' + x + ' 52 L' + x + ' 66', null, lk.pin, .45, ' opacity=".7"');
+        if (lk.outfit === 'trench') d += C(26, 61, .9, t) + C(38, 61, .9, t) + C(26, 64.2, .9, t) + C(38, 64.2, .9, t);
+        d += P('M27 54.5 L32 63.5 L37 54.5 Z', shirt);
+        if (tie === 'tie') d += P('M31.1 56.6 L32.9 56.6 L33.8 62.6 L32 64.8 L30.2 62.6 Z', a) + R(30.6, 55, 2.8, 2, .6, a);
+        if (tie === 'bow') d += P('M32 56.3 L28.4 54.5 L28.4 58.1 Z M32 56.3 L35.6 54.5 L35.6 58.1 Z', a) + C(32, 56.3, .95, a);
+        var lap = lk.outfit === 'tux' ? em : t, lw = lk.outfit === 'trench' ? 'M26.4 54.4 L30.4 62.8 L21.6 59.2 Z' : 'M26.8 54.4 L30.2 62 L25.4 58.6 Z';
+        d += P(lw, lap) + P(mirrorX(lw), lap);
+        if (lk.rose) d += C(41.5, 58.6, 1.5, '#D9483B') + C(41.5, 58.6, .6, '#8E1F1F') + P('M41.5 60 L41 62', null, '#3E8A2E', .7);
+        else if (lk.outfit !== 'trench') d += R(40, 58.4, 3.4, 1.4, .4, lk.pocket || WH);
+        if (lk.chain) d += P('M26.8 55.6 Q32 62 37.2 55.6', null, GOLD, 1.3, ' stroke-dasharray="1.1 .7"');
+        return d;
+      case 'track': d = P('M25 54.6 Q32 57.4 39 54.6', null, t, 2.4) + P('M32 56.4 L32 66', null, t, 1.2) + R(31.3, 57, 1.4, 2.4, .5, STEEL) + P('M8 61.6 L17.4 55.8 M9.4 63.6 L18.8 57.8', null, a, 1.1) + P(mirrorX('M8 61.6 L17.4 55.8 M9.4 63.6 L18.8 57.8'), null, a, 1.1);
+        if (lk.chain) d += P('M26 55.4 Q32 63.4 38 55.4', null, GOLD, 1.9, ' stroke-dasharray="1.3 .7"') + C(32, 61.6, 1.7, GOLD, ' stroke="#B8860B" stroke-width=".4"');
+        return d;
+      case 'longcoat': d = P('M27.5 54.5 L32 63 L36.5 54.5 Z', t) + P('M12 59.5 Q16 52.6 25 54 Q29 58.6 32 59.6 Q35 58.6 39 54 Q48 52.6 52 59.5 Q46 61.4 41 59.6 Q36 63 32 62 Q28 63 23 59.6 Q18 61.4 12 59.5 Z', a) + P('M15 58.6 Q17 56.6 19 57.6 M45 58.6 Q47 56.6 49 57.6 M27 58 Q28 56.8 29.4 57.6 M37 58 Q36 56.8 34.6 57.6', null, INK, .5, ' opacity=".25"') + C(28, 63.4, .9, GOLD) + C(36, 63.4, .9, GOLD);
+        if (lk.chain) d += P('M27.4 57.6 Q32 64.6 36.6 57.6', null, GOLD, 1.9, ' stroke-dasharray="1.3 .7"');
+        return d;
+      case 'apron': return C(27.4, 58.4, .9, t) + C(36.6, 58.4, .9, t) + C(27.4, 61.6, .9, t) + C(36.6, 61.6, .9, t) + P('M26.6 54.4 Q32 58.4 37.4 54.4 L35.6 57.4 Q32 59.2 28.4 57.4 Z', a) + P('M24 55 Q32 52.6 40 55', null, t, .7, ' opacity=".5"');
+      case 'fire': return R(0, 59, 64, 2, 0, a) + R(0, 61, 64, .8, 0, em) + R(0, 58.2, 64, .8, 0, em) + P('M25 54.6 Q32 57.6 39 54.6', null, t, 2.6) + R(30.4, 56.6, 3.2, 9, .8, t, ' opacity=".7"');
+      case 'hero': d = P('M7 61 Q11 54.6 20.4 55.6 L18.4 58.6 Z', em) + P(mirrorX('M7 61 Q11 54.6 20.4 55.6 L18.4 58.6 Z'), em) + C(32, 60.4, 3.9, a, ' stroke="' + t + '" stroke-width=".7"');
+        d += lk.emblem === 'star' ? star(32, 60.4, 2.8, t, 5, .45) : P('M33 57.2 L30.2 60.8 L32.2 60.8 L31 63.6 L34 59.8 L32 59.8 Z', t);
+        return d + P('M25 54.6 Q32 57 39 54.6', null, t, 1.4);
+      case 'vamp': return P('M27 54.5 L32 64 L37 54.5 Z', a) + P('M28.6 55.4 L32 57.4 L35.4 55.4', null, WH, 1.2) + C(32, 60.6, 1.7, GOLD, ' stroke="#8E1F1F" stroke-width=".5"') + P('M26.6 54.4 L29.8 64 M37.4 54.4 L34.2 64', null, em, 1);
+      case 'samurai': for (y = 58; y < 66; y += 3.2) d += P('M8 ' + y + ' L56 ' + y, null, t, 1) + C(20, y + 1.6, .45, GOLD) + C(32, y + 1.6, .45, GOLD) + C(44, y + 1.6, .45, GOLD);
+        return d + E(12.5, 58.6, 8.4, 4.6, a) + E(51.5, 58.6, 8.4, 4.6, a) + P('M6 58 L19 58 M6 60.6 L19 60.6 M45 58 L58 58 M45 60.6 L58 60.6', null, t, .6) + P('M25 54.6 Q32 57.6 39 54.6', null, GOLD, 1.4);
+      case 'tabard': for (y = 56; y < 66; y += 2.2) for (x = 8 + (y % 4.4 ? 1.1 : 0); x < 58; x += 2.2) d += C(x, y, .55, t, ' opacity=".55"');
+        return d + P('M24.4 54.6 L39.6 54.6 L39.6 66 L24.4 66 Z', a) + star(32, 60.6, 2.8, em, 5, .45) + E(13, 58.2, 8.4, 4.2, STEEL) + E(51, 58.2, 8.4, 4.2, STEEL) + P('M7 57 Q13 54 19 56.6', null, WH, .8, ' opacity=".6"') + P(mirrorX('M7 57 Q13 54 19 56.6'), null, WH, .8, ' opacity=".6"');
+      case 'wrap': for (y = 53; y < 68; y += 3) d += P('M4 ' + (y + 2) + ' L60 ' + (y - 1.5), null, t, .7, ' opacity=".55"'); return d + P('M14 56 L30 64', null, t, .6, ' opacity=".45"') + P('M40 55 L52 60', null, t, .6, ' opacity=".45"');
+      case 'leather': return P('M27.6 54.5 L32 59 L36.4 54.5 Z', a) + P('M26.6 54.4 L30 64 L23 59 Z', t) + P(mirrorX('M26.6 54.4 L30 64 L23 59 Z'), t) + C(24.4, 57.2, .5, STEEL) + C(39.6, 57.2, .5, STEEL) + C(25.6, 60, .5, STEEL) + C(38.4, 60, .5, STEEL) + P('M33.4 60 L36.6 66', null, STEEL, .9) + P('M10 58 L18 58', null, STEEL, .6, ' opacity=".6"');
+      case 'mech': return P('M22.6 55 L26.4 66 M41.4 55 L37.6 66', null, t, 2.4) + P('M24 61.4 L40 61.4', null, t, 1.8) + R(29.6, 59.6, 4.8, 3.6, 1, em) + R(10, 58.4, 6, 3, .8, a) + P('M25.4 54.6 Q32 57 38.6 54.6', null, a, 1.6);
+      case 'feathers': for (x = 4; x < 62; x += 5) d += P('M' + (x - 2.6) + ' 56 Q' + x + ' 63 ' + (x + 2.6) + ' 56 Z', (x / 5) % 2 < 1 ? a : em) + P('M' + (x - 2.6) + ' 61 Q' + (x + 2.5) + ' 68 ' + (x + 5) + ' 61 Z', (x / 5) % 2 < 1 ? em : a, null, 0, ' opacity=".9"');
+        return d + P('M25 54.6 Q32 58 39 54.6', null, t, 1.6) + C(32, 60.4, 1.6, WH, ' opacity=".9"');
+      case 'tinbody': return R(22.6, 56, 18.8, 10, 2, t) + C(27.6, 59.6, 1.7, em) + C(36.4, 59.6, 1.7, a) + P('M26 63.4 L38 63.4', null, a, .8) + P('M36.4 59.6 L37.4 58.6', null, INK, .6) + C(12, 60, .8, t) + C(52, 60, .8, t) + C(16, 57.4, .8, t) + C(48, 57.4, .8, t);
+      case 'belly': return E(32, 66, 11, 10, lk.belly || WH) + P('M24.4 54.8 Q32 57 39.6 54.8', null, a, 1.4);
+      default: return '';
+    }
+  }
+  // Head pieces by name, shared by the new skins (look.head, space-separated) and the new hat accessories.
+  // h1: main colour, h2: second colour, t: dark trim, em: glow / light colour.
+  function hatPart(n, h1, h2, t, em, lk) {
+    lk = lk || {};
+    var d = '', i;
+    switch (n) {
+      case 'cap': return P('M15 27 C15 13 23 9 32 9 C41 9 49 13 49 27 Z', h1) + P('M24 10.6 Q22 18 22.4 27 M40 10.6 Q42 18 41.6 27', null, INK, .6, ' opacity=".18"') + C(32, 9.6, 1.6, h2) + (lk.logo === 'none' ? '' : star(32, 18.4, 3.2, h2, 5, .45)) + P('M14 26 Q32 22 50 26 Q52.4 30.6 46 31 Q32 28.6 18 31 Q11.6 30.6 14 26 Z', h2);
+      case 'capback': return P('M43 14 Q50 8 56 10.6 Q53 15 47 17.6 Z', h2) + P('M15 27 C15 13 23 9 32 9 C41 9 49 13 49 27 Z', h1) + R(15, 25, 34, 3.4, 1.7, h2) + R(28, 22.6, 8, 3, 1.4, t, ' opacity=".5"') + C(32, 9.6, 1.6, h2);
+      case 'band': return R(15.6, 21, 32.8, 5, 2.5, h1) + R(15.6, 22.8, 32.8, 1.4, .7, h2);
+      case 'hachimaki': return R(15.6, 21.4, 32.8, 4.4, 2.2, h1) + P('M47 23.6 L56.6 19.4 L55.2 24 Z M47 24.6 L55.6 29.6 L52.8 31.2 Z', h1) + C(48, 23.8, 2.2, h1) + C(32, 23.6, 1.6, h2);
+      case 'fbhelm': return P('M13 34 C12 15 22 8 32 8 C42 8 52 15 51 34 L51 40 Q48.4 42.6 46 40 L46 30 Q32 25 18 30 L18 40 Q15.6 42.6 13 40 Z', h1) + P('M32 8.2 L32 26.4', null, h2, 3) + P('M19 13 Q24 9.6 30 9', null, WH, 1.4, ' opacity=".45"') + C(15.6, 35, 1.5, INK, ' opacity=".35"') + C(48.4, 35, 1.5, INK, ' opacity=".35"') + P('M17 39.4 Q32 46 47 39.4 M18 44.6 Q32 52 46 44.6 M24 41.8 L24 49.4 M40 41.8 L40 49.4', null, lk.mask || em, 1.6);
+      case 'hockey': return P('M14 32 C13 15 22 9 32 9 C42 9 51 15 50 32 L46.6 32 L46.6 28 Q32 23 17.4 28 L17.4 32 Z', h1) + R(25, 11.4, 3, 6, 1.5, INK, ' opacity=".28"') + R(36, 11.4, 3, 6, 1.5, INK, ' opacity=".28"') + P('M17.4 27.4 Q32 22.6 46.6 27.4', null, h2, 1.6) + P('M17.4 32 Q19.6 50 32 52.4 Q44.4 50 46.6 32', null, t, 1, ' opacity=".55"');
+      case 'swim': return P('M15 30 C14 13 23 8.6 32 8.6 C41 8.6 50 13 49 30 Q32 24.6 15 30 Z', h1) + P('M20 20 Q24 13 31 11.6', null, WH, 1.6, ' opacity=".5"') + (lk.logo === 'none' ? '' : star(39, 17, 2.4, h2, 5, .45));
+      case 'flatcap': return P('M15 26 C15 16 24 12.6 34 12.6 C44 12.6 50 16.6 50 23.6 Q52.6 27 49 28 Q32 25 15 28 Z', h1) + P('M18 18 L46 18 M17 22 L48 22', null, h2, .6, ' opacity=".55"') + P('M15 26 Q32 23 49 26 L48 29 Q32 26.6 16 29 Z', h2) + C(33.4, 13.2, 1.2, h2);
+      case 'visorcap': return R(15.6, 21.6, 32.8, 4.2, 2.1, h1) + P('M17 25 Q32 21.6 47 25 Q49.4 30.2 43 29.8 Q32 27.6 21 29.8 Q14.6 30.2 17 25 Z', h2);
+      case 'skihelm': return P('M14 31 C13 14 22 8.6 32 8.6 C42 8.6 51 14 50 31 L46.4 31 Q46 22 32 21 Q18 22 17.6 31 Z', h1) + P('M16 20.6 L48 20.6', null, INK, 2) + R(18, 15.4, 28, 8, 4, em, ' stroke="' + INK + '" stroke-width="1.2"') + P('M21 17.6 L26 17.6', null, WH, 1, ' opacity=".8"');
+      case 'boxhead': return P('M15 31 C14 13 23 8.6 32 8.6 C41 8.6 50 13 49 31 L45 31 Q44.4 18.6 32 18.6 Q19.6 18.6 19 31 Z', h1) + P('M14 30 L19.4 30 L20.4 45 Q17 47.4 14 44 Z', h1) + P(mirrorX('M14 30 L19.4 30 L20.4 45 Q17 47.4 14 44 Z'), h1) + P('M21 13 Q32 9 43 13', null, h2, 1.6) + P('M19 13.6 Q24 10.4 29 10', null, WH, 1.2, ' opacity=".45"');
+      case 'fencing': for (i = 0; i < 5; i++) d += P('M' + (20 + i * 6) + ' 6.6 L' + (20 + i * 6) + ' 21.4', null, INK, .5, ' opacity=".5"'); return E(32, 14, 14.6, 8.4, '#5B6573') + d + P('M18 11 L46 11 M17.6 15 L46.4 15 M19 19 L45 19', null, INK, .5, ' opacity=".5"') + E(32, 14, 14.6, 8.4, 'none', ' stroke="' + h1 + '" stroke-width="1.6"') + R(23, 20.6, 18, 3, 1.4, h1);
+      case 'bow': return P('M32 14 L21.6 7.6 Q18.6 13 21.6 19.4 Z M32 14 L42.4 7.6 Q45.4 13 42.4 19.4 Z', h1) + P('M30 14 L23.4 10.6 M34 14 L40.6 10.6', null, h2, .9) + C(32, 14, 2.6, h1, ' stroke="' + h2 + '" stroke-width=".7"');
+      case 'race': return P('M10 38 C10 16 20 7 32 7 C44 7 54 16 54 38 C54 48 50 54 44 56 L20 56 C14 54 10 48 10 38 Z M18.6 34 C18.6 26 24.4 21.6 32 21.6 C39.6 21.6 45.4 26 45.4 34 L45.4 44 C45.4 50 39.6 53 32 53 C24.4 53 18.6 50 18.6 44 Z', h1, null, 0, ' fill-rule="evenodd"') +
+          P('M13.6 22 Q32 2 50.4 22', null, h2, 2.6) + R(17.6, 16.4, 28.8, 5.6, 2.8, em, ' opacity=".9"') + P('M21 18.4 L27 18.4', null, WH, 1, ' opacity=".8"') + (lk.num != null ? digits(lk.num, 13.6, 40, 5, h2, 1.3) : '');
+      case 'hood': d = P('M7 36 C7 18 18 8 32 8 C46 8 57 18 57 36 C57 50 50 60 32 60 C14 60 7 50 7 36 Z M16.4 36 C16.4 26 23 19.4 32 19.4 C41 19.4 47.6 26 47.6 36 C47.6 46 41 52.6 32 52.6 C23 52.6 16.4 46 16.4 36 Z', h1, null, 0, ' fill-rule="evenodd"');
+        if (lk.ears === 'round') d = C(13, 12, 6.4, h1) + C(51, 12, 6.4, h1) + C(13, 12, 3.2, h2) + C(51, 12, 3.2, h2) + d;
+        if (lk.ears === 'point') d = P('M8 20 L10 0 L24 10 Z', h1) + P(mirrorX('M8 20 L10 0 L24 10 Z'), h1) + P('M10.6 15 L11.6 4.6 L19 10 Z', h2) + P(mirrorX('M10.6 15 L11.6 4.6 L19 10 Z'), h2) + d;
+        if (lk.crest) d = P('M24 10 L26 -2 L30 7 L32 -4 L34 7 L38 -2 L40 10 Z', h2) + d;
+        if (lk.stripes) d += P('M9 28 L14 30 M8.4 36 L14.6 36.4 M9.4 44 L14.8 42 M55 28 L50 30 M55.6 36 L49.4 36.4 M54.6 44 L49.2 42 M28 9.6 L29.4 15 M36 9.6 L34.6 15', null, t, 1.6);
+        if (lk.eyes2) d += C(25.4, 12.6, 3.6, WH) + C(38.6, 12.6, 3.6, WH) + C(26, 13.4, 1.7, INK) + C(38, 13.4, 1.7, INK) + C(26.6, 12.6, .6, WH) + C(38.6, 12.6, .6, WH);
+        if (lk.beak) d += P('M27.4 15.6 L36.6 15.6 Q36 19.6 32 23.4 Q28 19.6 27.4 15.6 Z', lk.beak) + P('M28.4 17.4 Q32 18.8 35.6 17.4', null, INK, .6, ' opacity=".4"');
+        return d;
+      case 'laurel': var lv = [[16.6, 30, -10], [16.8, 25, -30], [18.8, 20.6, -45], [22, 17, -60], [26, 14.4, -75]];
+        lv.forEach(function (p) { d += E(p[0], p[1], 3.4, 1.6, h1, ' transform="rotate(' + p[2] + ' ' + p[0] + ' ' + p[1] + ')" stroke="' + t + '" stroke-width=".5"'); d += E(64 - p[0], p[1], 3.4, 1.6, h1, ' transform="rotate(' + (-p[2]) + ' ' + (64 - p[0]) + ' ' + p[1] + ')" stroke="' + t + '" stroke-width=".5"'); });
+        return P('M17.4 32 Q17 18 28 13.6 M46.6 32 Q47 18 36 13.6', null, t, .8) + d + (lk.gem ? C(32, 13.4, 1.8, em) : '');
+      case 'starcrown': [[18.4, 19, 3.4], [24.6, 13, 3.8], [32, 10.4, 4.4], [39.4, 13, 3.8], [45.6, 19, 3.4]].forEach(function (p) { d += star(p[0], p[1], p[2], h1, 5, .45, ' stroke="' + t + '" stroke-width=".6"'); }); return d + C(32, 10.6, 1, em);
+      case 'bandana': return P('M15 27 C15 13 23 9.4 32 9.4 C41 9.4 49 13 49 27 Q32 22 15 27 Z', h1) + C(22, 17, 1.2, h2) + C(29, 13, 1.2, h2) + C(36, 16, 1.2, h2) + C(43, 19, 1.2, h2) + C(27, 21, 1.2, h2) + C(38, 22, 1.1, h2) + C(33, 10.6, 1, h2) +
+          P('M48 23.6 L56.6 21.4 L54.4 27 Z M48 25 L55.2 31.4 L51 31.6 Z', h1) + C(48.6, 25, 2.2, h1);
+      case 'tricorn': case 'tricornking':
+        d = P('M7 25 Q11 16.6 19.6 19.6 Q23.6 7.6 32 7.6 Q40.4 7.6 44.4 19.6 Q53 16.6 57 25 Q46 27.6 32 30.4 Q18 27.6 7 25 Z', h1) + P('M7 25 Q18 27.6 32 30.4 Q46 27.6 57 25', null, h2, 1.4) + P('M19.6 19.6 Q32 15.6 44.4 19.6', null, INK, .7, ' opacity=".3"');
+        if (lk.feather) d = P('M41 15 Q49 1 60 2.6 Q53 7.6 45.4 17 Z', lk.feather) + P('M44 14 Q51 6 58 3.6', null, WH, .6, ' opacity=".5"') + d;
+        if (lk.ragged) d += P('M12 24 L13.6 26.6 L15 24.6 M50 24.6 L51.4 26.6 L52.6 24', null, INK, .8, ' opacity=".5"');
+        if (n === 'tricornking') d += P('M23.4 10.6 L24.6 2.4 L28.6 6.6 L32 0 L35.4 6.6 L39.4 2.4 L40.6 10.6 Z', GOLD, '#B8860B', .5) + C(32, 6.4, 1.2, '#D9483B') + C(26.4, 8, .8, '#5CC8FF') + C(37.6, 8, .8, '#7CE38B');
+        else if (lk.skull !== false) d += skull(32, 17, 1, lk.skullc || WH);
+        return d;
+      case 'fedora': return P('M9 26 Q32 19.6 55 26 Q51 30.4 32 28.6 Q13 30.4 9 26 Z', h1) + P('M18 25 Q17 11.6 24 10 Q28 13 32 11 Q36 13 40 10 Q47 11.6 46 25 Z', h1) + P('M18 21.4 Q32 19.6 46 21.4 L46 25 Q32 23 18 25 Z', h2) + P('M32 11.4 L32 20', null, INK, .8, ' opacity=".2"') + P('M20 14 Q22 11.6 25 11.4', null, WH, .8, ' opacity=".3"');
+      case 'bowler': return P('M18 25 C18 10.6 46 10.6 46 25 Z', h1) + E(32, 25.4, 17.4, 3, h1) + R(18, 21.4, 28, 3, 0, h2) + P('M22 15 Q25 12.6 29 12.4', null, WH, .9, ' opacity=".35"');
+      case 'furhat': for (i = 16; i <= 48; i += 4) d += C(i, 25, 2.8, h1) + P('M' + (i - 1.4) + ' 24 Q' + i + ' 26.6 ' + (i + 1.4) + ' 24', null, INK, .45, ' opacity=".3"');
+        return R(16, 4.4, 32, 21, 8, h1) + P('M20 9 Q22 7 24 9 M28 7 Q30 5 32 7 M36 8 Q38 6 40 8 M22 15 Q24 13 26 15 M32 13 Q34 11 36 15 M40 16 Q42 14 44 16', null, INK, .5, ' opacity=".28"') + d + (lk.gem ? C(32, 14, 1.8, em, ' stroke="' + GOLD + '" stroke-width=".8"') : '');
+      case 'earpiece': return P('M48.6 37.4 Q51.6 42 49.4 47 Q47.4 52 44 56', null, '#E8ECF2', .7, ' opacity=".85"') + C(48.2, 36.6, 1.3, INK);
+      case 'slick': case 'vampslick': return P('M16 31 C15 16 23 11 32 11 C41 11 49 16 48 31 C45 22.6 39 19.6 32 20 C25 19.6 19 22.6 16 31 Z', h1) + (n === 'vampslick' ? P('M27 19.6 L32 25 L37 19.6 Z', h1) : '') + P('M22 16 Q30 12 40 14 M20 21 Q26 16.6 34 16', null, WH, .8, ' opacity=".3"');
+      case 'mohawk': return P('M26 21 L23.4 1.6 L29 10 L31 -1.4 L34 9 L38.6 0.4 L39 12 L42.6 4 L40.4 21 Z', h1) + P('M29 18 L28 6 M35 17 L37 6', null, h2, .9, ' opacity=".7"');
+      case 'dome': return P('M32 10.6 L32 3', null, t, 1.4) + C(32, 3, 2, em) + C(32, 3, 3.6, em, ' opacity=".3"') + R(17, 10, 30, 12.6, 4, h1) + C(20, 13, .8, t) + C(44, 13, .8, t) + C(20, 19.6, .8, t) + C(44, 19.6, .8, t) + R(26, 13.6, 12, 4, 2, t) + C(29, 15.6, 1, em) + C(35, 15.6, 1, h2) + C(15, 36, 4, t) + C(49, 36, 4, t) + P('M13.4 34.4 L16.6 37.6 M47.4 34.4 L50.6 37.6', null, em, 1.2);
+      case 'vacuum': return E(32, 18, 17, 9.4, h1) + R(14, 20.6, 36, 4.2, 2.1, t) + C(32, 11.4, 2, em) + C(32, 11.4, 3.6, em, ' opacity=".3"') + P('M20 16 Q25 11 31 10', null, WH, 1, ' opacity=".5"') + C(15, 36, 3.4, t) + C(49, 36, 3.4, t);
+      case 'junk': return P('M40 15.6 L42 8 L47 6', null, t, 1.4) + C(47, 6, 1.7, em) + R(18, 14.6, 28, 8.4, 1.4, h1) + R(20, 15.6, 7, 4.6, .6, h2, ' opacity=".85"') + P('M34 16 L36 21 M38 15.6 L36.6 21.6', null, t, .7) + C(21, 21, .7, t) + C(43, 16.6, .7, t) + C(15, 36, 4.2, h2) + R(45.4, 32.6, 7, 7, 1.4, t) + C(15, 36, 1.4, em) + C(49, 36, 1.3, em);
+      case 'android': return P('M15 36 C14 18 22 11 32 11 C42 11 50 18 49 36 L46 36 C46 24 40 19 32 19 C24 19 18 24 18 36 Z', h1) + P('M32 11.4 L32 19', null, em, 1) + C(15.6, 36, 2.6, h1) + C(48.4, 36, 2.6, h1) + C(15.6, 36, 1.2, em) + C(48.4, 36, 1.2, em) + P('M20 16.6 Q25 12.6 31 12', null, WH, 1, ' opacity=".6"');
+      case 'pilot': return P('M14 33 C13 15 22 9 32 9 C42 9 51 15 50 33 L46.6 33 L46.6 28 Q32 23 17.4 28 L17.4 33 Z', h1) + R(18, 17, 28, 6.6, 3.3, em, ' opacity=".85" stroke="' + t + '" stroke-width="1"') + P('M21 19 L27 19', null, WH, 1, ' opacity=".8"') + R(29, 9.4, 6, 3, 1, h2) + P('M47 38 Q47 46.6 39 48', null, INK, 1) + C(38.6, 48, 1.3, INK);
+      case 'toque': return P('M19 26 L19 18 C13 17 12 8 19 7 C21 2 28 1 32 4 C36 1 43 2 45 7 C52 8 51 17 45 18 L45 26 Z', WH, '#D3D8E0', .8) + R(19, 21.4, 26, 5, 1, '#EEF1F5', ' stroke="#D3D8E0" stroke-width=".6"') + P('M25 9 L25.6 18 M32 6 L32 18 M39 9 L38.4 18', null, '#D3D8E0', .7);
+      case 'firehelm': return P('M14 26 C14 12 23 8 32 8 C41 8 50 12 50 26 Z', h1) + P('M7 27 Q32 21 57 27 L55 30.6 Q32 25.4 9 30.6 Z', h1, INK, .6) + P('M32 8 L32 13', null, t, 1.8) + P('M28 13 L36 13 L36 19 Q32 22.4 28 19 Z', h2, t, .6) + C(32, 16.6, 1.2, t) + P('M18 15 Q22 10.6 28 9.6', null, WH, 1.1, ' opacity=".4"');
+      case 'pizza': return P('M15.6 25 Q32 17 48.4 25 L32 -1 Z', '#FFD45C') + P('M14 25 Q32 16.6 50 25 L49 29 Q32 21.4 15 29 Z', '#D9973A') + C(27.6, 15.6, 2.4, '#D9483B') + C(35, 9.4, 1.9, '#D9483B') + C(37, 18, 2.2, '#D9483B') + C(31, 5, 1.2, '#7CB342') + P('M22 20.6 Q22.6 24 21.6 25 M40.4 20.4 L41 24', null, '#FFD45C', 1.4);
+      case 'pumpkin': return R(30.6, 2.6, 3.4, 5.4, 1, '#5C8A2E') + E(37, 4.4, 4, 1.8, '#7CB342', ' transform="rotate(-20 37 4.4)"') + E(32, 15, 15.6, 9, h1) + P('M24 7.6 Q21 15 24 22.4 M32 6.4 L32 23.6 M40 7.6 Q43 15 40 22.4', null, h2, 1, ' opacity=".6"') + P('M19 13 Q21 9.4 25 8.6', null, WH, .9, ' opacity=".4"');
+      case 'earmuffs': return P('M15.4 31 C15 9.6 49 9.6 48.6 31', null, h2, 2.4) + C(15.4, 35, 5.6, h1) + C(48.6, 35, 5.6, h1) + C(14, 33.4, 1.6, WH, ' opacity=".5"') + C(47.2, 33.4, 1.6, WH, ' opacity=".5"');
+      case 'wizhat': case 'archhat':
+        d = P('M14 27 Q31 23 50 27 L46 30 Q31 27 18 30 Z', h1) + P('M18 27 Q24 14 31 3 Q34 -1 40 4 Q36 3 35 7 Q40 16 46 27 Z', h1) + P('M18.6 25.4 Q32 21.6 45.4 25.4', null, h2, 1.6) + star(28, 16, 2, h2, 5, .45) + star(38, 21, 1.5, h2, 5, .45) + C(33, 10, .9, h2);
+        if (n === 'archhat') d += C(37, 6, 3.4, GOLD) + C(38.6, 5, 2.9, h1) + star(40, 4, 1.8, em, 4, .3, ' opacity=".9"') + star(13, 14, 1.6, em, 4, .3);
+        return d;
+      case 'ninja': return P('M15 31 C15 13 23 9 32 9 C41 9 49 13 49 31 Q32 26.6 15 31 Z', h1) + P('M47.4 22 L57.4 28 L55.4 21.4 Z M47.6 24 L54.6 33.6 L50.6 33 Z', h1) + P('M16 28.4 Q32 24 48 28.4', null, h2, 1.2);
+      case 'phones': return P('M15 33 C14 8 50 8 49 33', null, h1, 3) + R(9.6, 29, 8.4, 13, 3.4, h1) + R(46, 29, 8.4, 13, 3.4, h1) + R(15.6, 31, 2.6, 9, 1.3, em) + R(45.8, 31, 2.6, 9, 1.3, em) + C(13.8, 35.4, 1.6, h2) + C(50.2, 35.4, 1.6, h2);
+      case 'mummy': return P('M15.6 26 C15 13 49 13 48.4 26', null, h1, 4.4) + P('M16.6 20 Q32 14 47.6 21', null, h1, 3.4) + P('M18 28.6 Q32 24.6 46 29', null, h1, 3) + P('M16.6 20 Q32 14 47.6 21 M18 28.6 Q32 24.6 46 29', null, t, .5, ' opacity=".55"') + P('M20 11 L44 17', null, h1, 3) + P('M44 26 L47.6 33', null, h1, 2.4);
+      case 'kabuto': return P('M12 26 L9.4 40.6 L18 38.6 L18 28 Z', h1) + P(mirrorX('M12 26 L9.4 40.6 L18 38.6 L18 28 Z'), h1) + P('M10.6 31 L17.6 30.4 M10 35.4 L17.8 34.4', null, h2, .8) + P('M53.4 31 L46.4 30.4 M54 35.4 L46.2 34.4', null, h2, .8) +
+          P('M14 28 C14 12 23 8 32 8 C41 8 50 12 50 28 Z', h1) + P('M14.6 26 Q32 21.6 49.4 26', null, h2, 1.6) + P('M32 13 Q22 7 19 -2.4 Q26 4 32 7.6 Q38 4 45 -2.4 Q42 7 32 13 Z', GOLD, '#B8860B', .5) + C(32, 13.4, 2, em) + P('M20 14 Q24 10.6 29 10', null, WH, .9, ' opacity=".35"');
+      case 'knight': case 'royalknight':
+        d = P('M32 7 Q40 -4 53 1.6 Q45 2 38.6 8.6 Z', em) + P('M11 38 C11 16 20 7 32 7 C44 7 53 16 53 38 L53 50 L46 52 L46 34 C46 26 40 21.6 32 21.6 C24 21.6 18 26 18 34 L18 52 L11 50 Z', h1) + P('M14 22 Q32 6 50 22', null, h2, 1.4) + P('M18 16 Q23 11 29 10', null, WH, 1.2, ' opacity=".55"') + C(14.4, 44, .8, h2) + C(49.6, 44, .8, h2);
+        if (n === 'royalknight') d += P('M22 10.6 L23.4 3 L27.4 7 L32 1 L36.6 7 L40.6 3 L42 10.6 Q32 8 22 10.6 Z', GOLD, '#B8860B', .5) + C(32, 6.4, 1.1, '#D9483B');
+        return d;
+      case 'flame': return '<g>' + P('M19 23 Q12 12 21 3 Q21 11 26.6 13.6 Q25 3 32 -3 Q35.4 7.6 37.4 13.6 Q42 6 44.4 3 Q51 12 45 23 Q32 18 19 23 Z', h1) + P('M24 21 Q21 14 25 9 Q27 15 30.6 16 Q30 9 32.6 4.6 Q35.6 11 36.4 16 Q39 12 40.4 10 Q43 15 40 21 Q32 18.6 24 21 Z', h2) + C(32, 17, 1.8, WH, ' opacity=".8"') +
+          '<animateTransform attributeName="transform" type="scale" values="1 1;1 1.05;1 .97;1 1" dur="1.1s" repeatCount="indefinite" additive="sum"/></g>';
+      default: return '';
+    }
+  }
+  function headMore(lk, c) {
+    if (!lk.head) return '';
+    var h1 = lk.h1 || c.accent, h2 = lk.h2 || c.trim;
+    return String(lk.head).split(' ').map(function (n) { return hatPart(n, h1, h2, c.trim, c.emissive, lk); }).join('');
+  }
+  // Things on the face, over the face and outfit, under the head piece.
+  function facePiece(lk, c) {
+    var out = '';
+    String(lk.face || '').split(' ').forEach(function (n) {
+      var pc = lk.fc || INK;
+      switch (n) {
+        case 'patch': out += P('M16.4 26.6 L35 31.6 M43.4 34.6 L49 37', null, INK, 1.1) + P('M33.6 30 Q39 27.6 44.4 30 Q45.4 36 39 39.6 Q32.6 36 33.6 30 Z', pc) + P('M35.4 30.6 Q38 29.6 40.6 30', null, WH, .6, ' opacity=".35"'); break;
+        case 'shades': out += P('M17.4 31 L30.4 31 L29.6 36.6 Q24 39 18.4 36.6 Z', pc) + P(mirrorX('M17.4 31 L30.4 31 L29.6 36.6 Q24 39 18.4 36.6 Z'), pc) + P('M30.4 31.6 L33.6 31.6 M17.4 31.4 L15 30.6 M46.6 31.4 L49 30.6', null, pc, 1.1) + P('M20 32.6 L24 32.6 M36 32.6 L40 32.6', null, WH, .8, ' opacity=".5"'); break;
+        case 'stache': out += P('M32 40.2 Q28 38.4 24.4 40.6 Q22.6 42 21 41 Q22.4 44.2 26.4 43.2 Q30 42.4 32 41.4 Q34 42.4 37.6 43.2 Q41.6 44.2 43 41 Q41.4 42 39.6 40.6 Q36 38.4 32 40.2 Z', lk.sc || '#2B1B12'); break;
+        case 'beard': out += P('M17 38 Q18 52 32 60 Q46 52 47 38 Q44 46 38 44 Q32 41 26 44 Q20 46 17 38 Z', lk.sc || '#E8ECF2') + P('M24 47 Q26 53 30 56 M40 47 Q38 53 34 56 M32 50 L32 58', null, INK, .5, ' opacity=".2"') + P('M32 40.6 Q27.6 39 24 41 Q22.4 43.6 25.6 43.4 Q30 42.4 32 41.6 Q34 42.4 38.4 43.4 Q41.6 43.6 40 41 Q36.4 39 32 40.6 Z', lk.sc || '#E8ECF2'); break;
+        case 'mask': out += P('M16.4 38 Q32 35.6 47.6 38 L46.6 46 Q43.6 52.6 32 53.4 Q20.4 52.6 17.4 46 Z', lk.mc || c.accent) + P('M19 41 Q32 39 45 41', null, INK, .5, ' opacity=".25"'); break;
+        case 'domino': out += P('M17 30.4 Q24 27.4 32 31 Q40 27.4 47 30.4 L46 37 Q40 39.6 34 36.4 L32 35.4 L30 36.4 Q24 39.6 18 37 Z M21.2 34 a3.8 3 0 1 0 7.6 0 a3.8 3 0 1 0 -7.6 0 Z M35.2 34 a3.8 3 0 1 0 7.6 0 a3.8 3 0 1 0 -7.6 0 Z', lk.mc || c.accent, null, 0, ' fill-rule="evenodd"'); break;
+        case 'eyeblack': out += R(20.4, 38.4, 8.6, 2.2, 1, INK) + R(35, 38.4, 8.6, 2.2, 1, INK); break;
+        case 'goggles': out += P('M16 33.6 L48 33.6', null, lk.gc || c.trim, 1.6) + E(25, 34, 5.4, 4, lk.gl || c.emissive, ' opacity=".8" stroke="' + INK + '" stroke-width="1"') + E(39, 34, 5.4, 4, lk.gl || c.emissive, ' opacity=".8" stroke="' + INK + '" stroke-width="1"') + P('M22 32.6 L25 32 M36 32.6 L39 32', null, WH, .8, ' opacity=".8"'); break;
+        case 'fangs': out += P('M28.6 43.6 L29.6 46.6 L30.6 43.8 Z M33.4 43.8 L34.4 46.6 L35.4 43.6 Z', WH, INK, .3); break;
+        case 'visor': out += R(17, 30.6, 30, 7, 3.5, lk.vc || c.emissive, ' opacity=".55"') + P('M19 32.6 L28 32.6', null, WH, 1, ' opacity=".8"'); break;
+        case 'collar': out += P('M23 55 L12 41 L17 54 Z', c.accent) + P(mirrorX('M23 55 L12 41 L17 54 Z'), c.accent) + P('M22.4 55 L14.4 44.6', null, '#8E1F1F', .8); break;
+      }
+    });
+    return out;
+  }
+  // Animated extras for the special skins (SVG animation: no script, nothing to run).
+  function fxPart(lk, id) {
+    var out = '';
+    String(lk.fx || '').split(' ').forEach(function (n) {
+      switch (n) {
+        case 'shine': out += '<defs><linearGradient id="' + id + 'sh" x1="0" x2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset=".5" stop-color="#FFFFFF" stop-opacity=".75"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient></defs>' +
+          '<rect x="-30" y="-16" width="12" height="96" fill="url(#' + id + 'sh)" transform="rotate(24 32 32)"><animate attributeName="x" values="-30;84;84" keyTimes="0;.42;1" dur="3.4s" repeatCount="indefinite"/></rect>'; break;
+        case 'frame': out += C(32, 32, 30.8, 'none', ' stroke="' + GOLD + '" stroke-width="2.4"') + C(32, 32, 28.8, 'none', ' stroke="#FFF2C2" stroke-width=".6" opacity=".8"') + star(32, 1.6, 2.6, '#FFF2C2', 4, .35) + star(2.4, 32, 2, GOLD, 4, .35) + star(61.6, 32, 2, GOLD, 4, .35); break;
+        case 'orbit': out += '<g>' + star(32, 5, 2.4, lk.oc || '#FFE79A', 5, .45) + star(8.6, 45.6, 1.8, lk.oc || '#FFE79A', 5, .45) + C(55.4, 45.6, 1.3, lk.oc || '#FFE79A') + '<animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="10s" repeatCount="indefinite"/></g>'; break;
+        case 'twinkle': [[9, 12, 0], [55, 16, .7], [54, 42, 1.4], [10, 44, 2.1]].forEach(function (q) { out += star(q[0], q[1], 2.4, '#FFFFFF', 4, .3, ' opacity="0"').replace('/>', '><animate attributeName="opacity" values="0;1;0" dur="2.8s" begin="' + q[2] + 's" repeatCount="indefinite"/></path>'); }); break;
+        case 'flicker': out += C(32, 20, 22, lk.gc || '#FF7A2E', ' opacity=".12"').replace('/>', '><animate attributeName="opacity" values=".08;.22;.1;.18;.08" dur="1.6s" repeatCount="indefinite"/></circle>'); break;
+      }
+    });
+    return out;
+  }
+  // Accessories (wave 2): behind the face, then in front.
+  function accBackMore(a, id) {
+    var c = a.three.color, c2 = a.three.color2, s = '';
+    switch (a.draw) {
+      case 'numcape': return P('M0 68 L5 44 Q32 37 59 44 L64 68 Z', c) + P('M5 44 Q32 37 59 44', null, c2, 1.4) + digits(a.three.num, 6.6, 50, 7, c2, 1.6) + digits(a.three.num, 57.4, 50, 7, c2, 1.6);
+      case 'ermine': return P('M0 68 L5 44 Q32 37 59 44 L64 68 Z', c) + P('M2 62 Q4 54 7 48', null, GOLD, 1, ' opacity=".8"') + P(mirrorX('M2 62 Q4 54 7 48'), null, GOLD, 1, ' opacity=".8"');
+      case 'soccer': return '<g transform="translate(4 -3)">' + P('M14 52 L22 50 M15 46 L22 46.6 M15 57 L21 55', null, c2, 1, ' opacity=".5"') + C(8.4, 52, 4.6, c, ' stroke="' + INK + '" stroke-width=".7"') + star(8.4, 52, 1.9, INK, 5, .9) + P('M8.4 50.1 L8.4 47.4 M10.2 51.4 L12.6 50.4 M9.5 53.6 L11 55.8 M7.3 53.6 L5.8 55.8 M6.6 51.4 L4.2 50.4', null, INK, .5) + C(12.6, 41, 2.6, c, ' stroke="' + INK + '" stroke-width=".5" opacity=".6"') + C(6, 35, 1.7, c, ' opacity=".4"') + '</g>';
+      case 'football': return '<g transform="translate(4 -3)">' + P('M15 52 L22 50.6 M15 47 L21 47 M15 57 L20 55.4', null, c2, 1, ' opacity=".5"') + E(8.6, 52, 5.6, 3.6, c, ' transform="rotate(-30 8.6 52)" stroke="' + INK + '" stroke-width=".5"') + P('M6.6 53.6 L10.6 50.4 M7.2 51.6 L8.2 52.8 M8.4 50.8 L9.4 52 M9.6 49.8 L10.4 51', null, WH, .6) + E(12.8, 41, 3, 2, c, ' transform="rotate(-30 12.8 41)" opacity=".6"') + E(6.4, 35, 2, 1.3, c, ' transform="rotate(-30 6.4 35)" opacity=".4"') + '</g>';
+      case 'coins': [[7, 52, 3.4, 1], [13, 44, 2.6, .8], [5, 38, 2.2, .7], [15, 54, 1.8, .6], [10, 33, 1.5, .5]].forEach(function (q) { s += '<g opacity="' + q[3] + '">' + C(q[0], q[1], q[2], c, ' stroke="#B8860B" stroke-width=".5"') + star(q[0], q[1], q[2] * .5, c2, 5, .45) + '</g>'; }); return s;
+      case 'notes': [[6, 50, 1], [13, 42, .8], [5, 36, .6]].forEach(function (q) { s += '<g opacity="' + q[2] + '">' + E(q[0], q[1] + 4, 2.2, 1.6, c, ' transform="rotate(-20 ' + q[0] + ' ' + (q[1] + 4) + ')"') + P('M' + (q[0] + 2) + ' ' + (q[1] + 3.6) + ' L' + (q[0] + 2) + ' ' + (q[1] - 3) + ' Q' + (q[0] + 5) + ' ' + (q[1] - 1) + ' ' + (q[0] + 5) + ' ' + (q[1] + 1.6), null, c, 1) + '</g>'; }); return s + C(16, 52, .9, c2) + C(9, 30, .8, c2);
+      case 'spot': return '<defs><linearGradient id="' + id + 'sp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + c2 + '" stop-opacity=".85"/><stop offset="1" stop-color="' + c + '" stop-opacity=".25"/></linearGradient></defs>' + P('M24 -4 L40 -4 L62 66 L2 66 Z', 'url(#' + id + 'sp)') + E(32, 62, 26, 6, c2, ' opacity=".45"') + E(32, -2, 10, 4, WH, ' opacity=".9"');
+      case 'confetti': var cc = [c, c2, '#5CC8FF', '#7CE38B', '#B98BFF'];
+        [[7, 18, 30], [14, 9, -20], [50, 7, 50], [57, 20, -35], [5, 32, 70], [59, 34, 15], [44, 3, -60], [10, 44, 40], [55, 47, -15], [22, 3, 20]].forEach(function (q, k) { s += R(q[0] - 1.8, q[1] - .8, 3.6, 1.6, .5, cc[k % 5], ' transform="rotate(' + q[2] + ' ' + q[0] + ' ' + q[1] + ')"'); }); return s;
+      case 'flash': [[9, 14, 3.6, 0], [55, 11, 3, .5], [57, 36, 2.6, 1], [6, 38, 2.4, 1.5], [24, 4, 2.2, 2]].forEach(function (q) { s += '<g opacity=".3">' + star(q[0], q[1], q[2] * 1.6, c, 8, .2) + C(q[0], q[1], q[2] * .6, c2) + '<animate attributeName="opacity" values=".15;1;.15" dur="2.4s" begin="' + q[3] + 's" repeatCount="indefinite"/></g>'; }); return s;
+      case 'trophy': for (var i = 0; i < 12; i++) { var t0 = i * Math.PI / 6, t1 = t0 + Math.PI / 14; s += P('M32 34 L' + (32 + 60 * Math.cos(t0)).toFixed(1) + ' ' + (34 + 60 * Math.sin(t0)).toFixed(1) + ' L' + (32 + 60 * Math.cos(t1)).toFixed(1) + ' ' + (34 + 60 * Math.sin(t1)).toFixed(1) + ' Z', c, null, 0, ' opacity=".4"'); }
+        return '<g>' + s + '<animateTransform attributeName="transform" type="rotate" from="0 32 34" to="360 32 34" dur="24s" repeatCount="indefinite"/></g>' + C(32, 34, 24, c2, ' opacity=".18"') + star(9, 14, 2, WH, 4, .3) + star(55, 14, 1.6, WH, 4, .3);
+      default: return '';
+    }
+  }
+  function accFrontMore(a) {
+    var c = a.three.color, c2 = a.three.color2, T = a.three.trim || INK, E2 = a.three.glowc || c2;
+    switch (a.draw) {
+      case 'patch': return facePiece({ face: 'patch', fc: c }, {});
+      case 'shades': return facePiece({ face: 'shades', fc: c }, {});
+      case 'eyeblack': return facePiece({ face: 'eyeblack' }, {});
+      case 'aviators': return P('M17.6 31 L30 31 Q31 39 25 40 Q18 40 17.6 31 Z', c, c2, .9, ' opacity=".9"') + P(mirrorX('M17.6 31 L30 31 Q31 39 25 40 Q18 40 17.6 31 Z'), c, c2, .9, ' opacity=".9"') + P('M30 31.6 Q32 30.4 34 31.6 M30.6 33.4 L33.4 33.4 M17.6 31.4 L15 30.6 M46.4 31.4 L49 30.6', null, c2, .9) + P('M20 33 L24 33 M36 33 L40 33', null, WH, .8, ' opacity=".6"');
+      case 'cyborg': return P('M44.6 32.6 L48.6 30.4 M44.6 35.6 L48.6 37.8', null, STEEL, 1.2) + C(39, 34, 5.6, '#2E3742') + C(39, 34, 3.6, c) + C(39, 34, 5.8, c, ' opacity=".2"') + C(39, 34, 1.4, c2) + C(37.6, 32.6, .7, WH);
+      case 'bowtie': return P('M32 55.8 L26.6 53.2 L26.6 58.4 Z M32 55.8 L37.4 53.2 L37.4 58.4 Z', c) + C(32, 55.8, 1.3, c2 === WH ? c : c2) + P('M27.6 54.6 L30 55.6 M36.4 54.6 L34 55.6', null, WH, .5, ' opacity=".4"');
+      case 'numcape': return C(43, 56, 2.2, c2) + R(14.4, 56.4, 9.4, 7.6, 2, c, ' stroke="' + c2 + '" stroke-width=".8"') + digits(a.three.num, 19.1, 57.8, 4.6, c2, 1.1);
+      case 'chain': return P('M24.4 54.6 Q32 64.4 39.6 54.6', null, c, 2, ' stroke-dasharray="1.4 .8"') + C(32, 61.4, 2.4, c, ' stroke="#B8860B" stroke-width=".5"') + star(32, 61.4, 1.3, c2, 5, .45);
+      case 'ermine': return P('M8 60 Q12 53 22 53.6 Q32 57 42 53.6 Q52 53 56 60 Q50 59 44 57.6 Q32 61 20 57.6 Q14 59 8 60 Z', c2) + C(14, 57.6, .6, INK) + C(22, 56, .6, INK) + C(42, 56, .6, INK) + C(50, 57.6, .6, INK) + C(32, 58.6, 1.4, GOLD);
+      case 'parrot': return P('M50 60 L48 66 L51 62 L53 66 L52 60 Z', '#3D8BFF') + E(52, 54, 5, 7, c) + P('M48 52 Q44 58 49 61 Q51 57 50 53 Z', c2) + C(53, 48.6, 4, c) + P('M55.6 48 Q59.6 48.6 58 52.6 Q57 50.6 55.4 50.6 Z', '#F5C542', INK, .4) + C(54, 47.6, 1.4, WH) + C(54.2, 47.6, .7, INK) + P('M51 45 Q51 42 53.4 41.6', null, c, 1.2);
+      case 'chick': return E(52, 56, 6, 7, c) + E(52, 57.6, 3.6, 4.6, WH) + C(52, 49, 4.4, c) + E(52, 49.6, 3, 2.6, WH) + C(50.8, 49, .7, INK) + C(53.2, 49, .7, INK) + P('M51 50.6 L53 50.6 L52 52.2 Z', c2) + P('M49 63 L50.6 62 M55 63 L53.4 62', null, c2, 1.2) + P('M46.4 54 Q45.4 58 47 60 M57.6 54 Q58.6 58 57 60', null, c, 1.6);
+      case 'robopup': return P('M47 55 L43.6 52.6', null, T, 1.2) + R(45.6, 53, 12, 7, 2, c) + R(52, 46.6, 9, 7.4, 2, c) + R(52.4, 45, 2, 3, .6, T) + R(58.4, 45, 2, 3, .6, T) + C(55, 50, .9, c2) + C(58.4, 50, .9, c2) + R(55, 52, 4, 1, .4, T) + R(46.6, 60, 2.4, 3, .6, T) + R(54, 60, 2.4, 3, .6, T) + C(49.6, 56.4, 1.1, c2);
+      case 'drone': return '<g>' + R(46, 51.6, 12, 5, 2, c) + P('M46 53 L42 50 M58 53 L62 50', null, T, 1) + E(42, 49.6, 4, 1, c2, ' opacity=".8"') + E(62, 49.6, 4, 1, c2, ' opacity=".8"') + C(52, 54, 1.4, c2) + C(52, 54, 2.6, c2, ' opacity=".3"') + P('M49 56.6 L48 59 M55 56.6 L56 59', null, T, .8) +
+          '<animateTransform attributeName="transform" type="translate" values="0 0;0 -1.4;0 0" dur="1.8s" repeatCount="indefinite"/></g>';
+      case 'kraken': return '<g>' + P('M45.6 56 Q43 62 46 64 Q46 60 48 58 M49 58 Q48 64 51 65 Q50.6 61 51.6 59 M53.6 59 Q55 64 57.4 64 Q55.6 61 55.6 58.6 M57 57 Q61 61 61 64 Q59.4 59.6 58 56', null, c, 2) + E(52, 52, 7.4, 6.6, c) + C(49.4, 51.6, 1.6, WH) + C(54.6, 51.6, 1.6, WH) + C(49.6, 52, .8, INK) + C(54.8, 52, .8, INK) + P('M50.6 55 Q52 56 53.4 55', null, INK, .6) + C(47.4, 49, 1, c2, ' opacity=".7"') + C(56.6, 48.4, .8, c2, ' opacity=".7"') +
+          P('M48.6 45.6 L49.4 42.4 L51 44.4 L52 41.6 L53 44.4 L54.6 42.4 L55.4 45.6 Z', GOLD) + '<animateTransform attributeName="transform" type="rotate" values="0 52 58;4 52 58;0 52 58;-4 52 58;0 52 58" dur="2.6s" repeatCount="indefinite"/></g>';
+      default: return hatPart(a.draw, c, c2, T, E2, a.three.opts);
     }
   }
 
@@ -1425,7 +3146,7 @@
   function avatarSvg(uid, size, opts) {
     size = Math.max(8, Math.min(512, Math.round(Number(size) || 32)));
     var look = opts && opts.look ? opts.look : null, eq = look || (on() ? (function () { var e = equipped(); return { skin: e.skin, accessories: e.accessories }; })() : { skin: null, accessories: {} });
-    var sk = eq.skin && SKINS_BY_ID[eq.skin], ac = {}, id = 'brc' + (++nid).toString(36);
+    var sk = eq.skin && SKINS_BY_ID[eq.skin], ac = {}, id = 'brc' + (++nid).toString(36) + '_';   // the _ keeps 'brc1' + 's' (shoulders) apart from avatar 64's 'brc1s'
     SLOTS.forEach(function (k) { var a = eq.accessories && ACC_BY_ID[eq.accessories[k]]; if (a && a.slot === k) ac[k] = a; });
     var lk = sk ? sk.look : null, col = sk ? sk.colors : DEFAULT_COLORS;
     // The face: avatar.js's drawing for this uid, without its background, its hat or glasses under ours, recoloured.
@@ -1436,6 +3157,9 @@
       if (lk && lk.hairc != null) s.hairc = lk.hairc;
       if (ac.hat || (lk && lk.head)) s.hat = 0;
       if (ac.glasses) s.glasses = 0;
+      if (lk && lk.nohat) s.hat = 0;   // wave 2: a bare-headed look (kits, suits) hides avatar.js's own hat
+      if (lk && lk.face && /patch|shades|domino|goggles|visor/.test(lk.face)) s.glasses = 0;   // wave 2 faces: no avatar.js glasses under them
+      if ((s.hair === 4 || s.hair === 5) && ((lk && lk.head && headMore(lk, col)) || (ac.hat && accFrontMore(ac.hat)))) s.hair = 0;   // wave 2 hats tuck a bun or spikes in
       if (lk && (lk.head === 'cat' || lk.head === 'bear' || lk.head === 'bunny' || lk.head === 'fox' || lk.head === 'horns') && (s.hair === 4 || s.hair === 5)) s.hair = 0;
       var raw = BA.svg(uid, 64, { seed: s });
       bgHex = (BA.PALETTE || [])[s.bg] || '';
@@ -1450,10 +3174,10 @@
     var back = '', front = '';
     ['aura', 'trail', 'cape'].forEach(function (k) { if (ac[k]) back += accBack(ac[k], id); });
     ['cape', 'aura', 'glasses', 'hat', 'pet'].forEach(function (k) { if (ac[k]) front += k === 'pet' ? '<g transform="translate(-5 -4)">' + accFront(ac[k]) + '</g>' : accFront(ac[k]); });
-    var body = lk ? outfit(lk, col, id) + headPiece(lk, col) : '';
+    var body = lk ? outfit(lk, col, id) + (lk.face ? facePiece(lk, col) : '') + headPiece(lk, col) : '';
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="' + size + '" height="' + size + '" aria-hidden="true" focusable="false">' +
       '<defs><clipPath id="' + id + '"><circle cx="32" cy="32" r="32"/></clipPath><clipPath id="' + id + 's"><path d="' + SH + '"/></clipPath></defs>' +
-      '<g clip-path="url(#' + id + ')">' + bg + back + '<g>' + face + '</g>' + body + front + '</g></svg>';
+      '<g clip-path="url(#' + id + ')">' + bg + back + '<g>' + face + '</g>' + body + front + (lk && lk.fx ? fxPart(lk, id) : '') + '</g></svg>';
   }
 
   // A small picture of a game item for the shop and pickers: one simple shape per slot, in the item's two colours.
@@ -1495,6 +3219,8 @@
       case 'leaves': case 'spots': case 'sprinkles': case 'snow': for (i = 0; i < 26; i++) { g.fillStyle = i % 3 === 0 ? c.trim : (i % 3 === 1 ? c.accent : c.emissive); g.beginPath(); g.ellipse(rnd() * size, rnd() * size, u * .9, u * .55, rnd() * 3.2, 0, 7); g.fill(); } break;
       case 'waves': for (j = 2; j < 16; j += 4) { g.beginPath(); for (i = 0; i <= 16; i += .5) g.lineTo(i * u, (j + Math.sin(i) * .7) * u); g.stroke(); } break;
       case 'rays': case 'flames': g.fillStyle = c.pattern === 'flames' ? c.emissive : c.accent; for (i = 0; i < 16; i += 2) { g.beginPath(); g.moveTo(i * u, size); g.lineTo((i + 1) * u, size * .55); g.lineTo((i + 2) * u, size); g.fill(); } break;
+      case 'pinstripes': g.strokeStyle = c.accent; g.lineWidth = u * .18; for (i = 1; i < 16; i += 1.5) { g.beginPath(); g.moveTo(i * u, 0); g.lineTo(i * u, size); g.stroke(); } break;
+      case 'vstripes': g.fillStyle = c.accent; for (i = 0; i < 16; i += 4) g.fillRect(i * u, 0, u * 2, size); break;
       case 'quarters': ['#9BE07A', '#FFC93C', '#E07A2E', '#9FD3FF'].forEach(function (k, n) { g.fillStyle = k; g.fillRect((n % 2) * size / 2, Math.floor(n / 2) * size / 2, size / 2, size / 2); }); break;
       default: break;
     }
@@ -1527,7 +3253,8 @@
   // ---------------- API ----------------
   var api = {
     ENABLED: ENABLED,
-    on: on,
+    on: on, server: server, previewAllowed: previewAllowed, startPreview: startPreview, stopPreview: stopPreview,
+    previewing: function () { return previewOn() && !payments() && !api.ENABLED; },
     SKINS: SKINS, ACCESSORIES: ACCESSORIES, SKINS_BY_ID: SKINS_BY_ID, ACCESSORIES_BY_ID: ACC_BY_ID, SLOTS: SLOTS, SLOT_NAMES: SLOT_NAMES,
     RARITY: RARITY, RARITY_BY_ID: RARITY_BY_ID, RARITY_TOTAL: RARITY_TOTAL, PACKS: PACKS, PACKS_BY_ID: PACKS_BY_ID,
     PRICE: PRICE, CHEST_PRICE: CHEST_PRICE, DUP_REFUND: DUP_REFUND, pack: pack,

@@ -79,7 +79,7 @@
     'Room code': 'Código de sala', 'Play in room': 'Jugar en sala', 'Pick a room code, then send friends the invite link from the table.': 'Elige un código de sala y manda la invitación desde la mesa.',
     'Practice vs bots': 'Práctica contra bots', 'Practice': 'Práctica', 'No timer. Rebuy whenever you like.': 'Sin reloj. Recompra cuando quieras.',
     'Table settings': 'Ajustes de mesa', 'Seats': 'Lugares', 'Heads-up': 'Mano a mano', 'Bots': 'Bots', 'Easy': 'Fácil', 'Normal': 'Normal', 'Hard': 'Difícil',
-    'Stack': 'Fichas', 'Timer': 'Reloj', 'Fill seats': 'Llenar lugares', 'With bots': 'Con bots', 'People only': 'Solo personas',
+    'Stack': 'Fichas', 'Timer': 'Reloj', 'Fill seats': 'Llenar lugares', 'With bots': 'Con bots', 'People only': 'Solo personas', 'No bots in party games': 'Sin bots en partidas de grupo',
     'Used for Practice and for rooms you start. Blinds are 10 / 20. Quick match tables are 6-max, 100 BB, 30 s, Normal bots.': 'Para la práctica y las salas que abres. Ciegas 10 / 20. Las mesas de Partida rápida son 6-max, 100 BB, 30 s, bots normales.',
     'How to play': 'Cómo jugar',
     'Everyone gets two cards. Five shared cards come out in three rounds (the flop, the turn and the river), with a round of betting before each and one at the end. Make the best five-card hand from any of your two and the five on the table, or make everyone else fold.': 'Cada uno recibe dos cartas. Salen cinco cartas comunes en tres tandas (flop, turn y river), con una ronda de apuestas antes de cada una y otra al final. Arma la mejor mano de cinco con tus dos y las cinco de la mesa, o haz que todos los demás se retiren.',
@@ -99,6 +99,24 @@
     'Could not reach the game server. Check your connection, or play Practice.': 'No se pudo llegar al servidor del juego. Revisa tu conexión o juega Práctica.',
     'Signing in to the game server timed out. Check your connection, or play Practice.': 'Se agotó el tiempo para entrar al servidor. Revisa tu conexión o juega Práctica.',
     "This browser can't keep cards secret here (it needs a secure https page). Try another browser, or play Practice.": 'Este navegador no puede ocultar las cartas aquí (necesita una página https segura). Prueba otro navegador o juega Práctica.',
-    'That table is full ({n} people). Try another code.': 'Esa mesa está llena ({n} personas). Prueba otro código.', 'Language': 'Idioma', 'Room {r}': 'Sala {r}', 'You': 'Tú', 'C / SPACE': 'C / ESPACIO', 'Practice · Easy bots': 'Práctica · bots fáciles', 'Practice · Normal bots': 'Práctica · bots normales', 'Practice · Hard bots': 'Práctica · bots difíciles'
+    'That table is full ({n} people). Try another code.': 'Esa mesa está llena ({n} personas). Prueba otro código.', 'Language': 'Idioma', 'Room {r}': 'Sala {r}', 'You': 'Tú', 'C / SPACE': 'C / ESPACIO', 'Practice · Easy bots': 'Práctica · bots fáciles', 'Practice · Normal bots': 'Práctica · bots normales', 'Practice · Hard bots': 'Práctica · bots difíciles',
+    // the Wardrobe (wardrobe.js; captains only for now)
+    'Wardrobe': 'Vestidor', 'Done': 'Listo', 'Wardrobe sections': 'Secciones del vestidor',
+    'Captains only for now. Everything is free to wear, and only changes how your seat looks.': 'Por ahora solo para capitanes. Todo es gratis y solo cambia cómo se ve tu asiento.',
+    'Your seat, as the table sees it': 'Tu asiento, como lo ve la mesa', 'Play flourish': 'Ver festejo',
+    'Seat looks': 'Retratos', 'Card backs': 'Dorsos', 'Felts': 'Paños', 'Win flourishes': 'Festejos',
+    "Shown in your seat's circle for everyone at the table, on your own colour.": 'Se ve en el círculo de tu asiento para toda la mesa, sobre tu color.',
+    'Your face-down cards, as everyone else sees them. Card faces never change.': 'Tus cartas boca abajo, como las ven los demás. Las caras de las cartas no cambian.',
+    'The table on your own screen. Only you see it.': 'La mesa en tu pantalla. Solo la ves vos.',
+    'Plays round your seat when you win a pot, for everyone at the table.': 'Aparece alrededor de tu asiento cuando ganás un pozo, para toda la mesa.',
+    'Your initial': 'Tu inicial', 'Classic back': 'Dorso clásico', 'Classic green': 'Verde clásico', 'No flourish': 'Sin festejo',
+    'Common': 'Común', 'Uncommon': 'Poco común', 'Rare': 'Raro', 'Epic': 'Épico', 'Legendary': 'Legendario',
+    'Striker': 'Delantero', 'Point Guard': 'Base', 'Gridiron': 'Americano', 'Slugger': 'Bateador', 'Goalie Mask': 'Máscara de arquero', 'Tennis Ace': 'As del tenis',
+    'Boxing Champ': 'Campeón de boxeo', 'Racing Driver': 'Piloto de carreras', 'Referee': 'Árbitro', 'Tin Robot': 'Robot de lata', 'Chrome Android': 'Androide cromado',
+    'Pirate Captain': 'Capitán pirata', 'Deckhand': 'Marinero', 'The Boss': 'El Jefe', 'Bodyguard': 'Guardaespaldas', 'Secret Agent': 'Agente secreto',
+    'Tracksuit Tough': 'Duro de jogging', 'Wizard': 'Mago',
+    'Pitch': 'Cancha', 'Hardwood': 'Parqué', 'Checkered Flag': 'Bandera a cuadros', 'Circuit Board': 'Placa de circuitos', 'Treasure Map': 'Mapa del tesoro', 'Pinstripe': 'Raya diplomática',
+    'Midnight Blue': 'Azul medianoche', 'Casino Red': 'Rojo casino', 'Striped Pitch': 'Césped a rayas', 'Purple Velvet': 'Terciopelo violeta', "Ship's Deck": 'Cubierta del barco',
+    'Confetti': 'Papel picado', 'Coin Shower': 'Lluvia de monedas', 'Trophy': 'Trofeo', 'Fireworks': 'Fuegos artificiales', 'Treasure Chest': 'Cofre del tesoro'
   });
 })();

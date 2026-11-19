@@ -32,5 +32,24 @@ window.BackRoomLang && BackRoomLang.add({
   'Cherry': 'Cereza', 'Strawberry': 'Frutilla', 'Grape': 'Uva', 'Tangerine': 'Mandarina', 'Persimmon': 'Caqui', 'Apple': 'Manzana', 'Pear': 'Pera',
   'Peach': 'Durazno', 'Pineapple': 'Ananá', 'Melon': 'Melón', 'Watermelon': 'Sandía',
   'Cranberry': 'Arándano rojo', 'Pecan': 'Nuez pecán', 'Sprout': 'Repollito', 'Dinner roll': 'Pancito', 'Yam': 'Batata', 'Corn': 'Choclo', 'Ham': 'Jamón',
-  'Pumpkin': 'Calabaza', 'Pumpkin pie': 'Pastel de calabaza', 'Turkey': 'Pavo'
+  'Pumpkin': 'Calabaza', 'Pumpkin pie': 'Pastel de calabaza', 'Turkey': 'Pavo',
+  // Styles (captains only for now: styles.js)
+  'Styles': 'Estilos', 'Captains': 'Capitanes', 'Done': 'Listo', 'Fruit': 'Frutas', 'Walls': 'Paredes', 'Merge pops': 'Efectos al fusionar',
+  'Plum Wall': 'Pared ciruela', 'Juice': 'Jugo',
+  "Fruit: The game's own fruit.": 'Frutas: las frutas del juego.', "Plum Wall: The game's own plum wallpaper.": 'Pared ciruela: el empapelado ciruela del juego.', "Juice: The game's own juice and sparkles.": 'Jugo: el jugo y los destellos del juego.',
+  'Sports Balls': 'Pelotas', 'Robot Bolts': 'Tornillos de robot', 'Treasure Gems': 'Gemas del tesoro', 'Dapper': 'Elegantes', 'Planets': 'Planetas',
+  'Stadium': 'Estadio', 'Pirate Cabin': 'Camarote pirata', 'Robot Workshop': 'Taller de robots', 'Gold Pinstripe': 'Rayas de oro',
+  'Confetti Pop': 'Estallido de papel picado', 'Star Shower': 'Lluvia de estrellas', 'Bubble Rings': 'Anillos de burbujas',
+  'Sports Balls: From a ping-pong ball up to a beach ball, with a numbered pool ball on the way.': 'Pelotas: de una pelota de ping-pong a una de playa, con una bola de pool numerada en el camino.',
+  'Robot Bolts: Every stage riveted, seamed and fitted with an aerial.': 'Tornillos de robot: cada etapa remachada, con costuras y una antena.',
+  'Treasure Gems: Cut like jewels and set in gold.': 'Gemas del tesoro: talladas como joyas y engarzadas en oro.',
+  'Dapper: Pinstripes, a bow tie, and a hat once they grow up.': 'Elegantes: rayas finas, moño, y sombrero cuando crecen.',
+  'Planets: Little moons with craters up to a ringed giant.': 'Planetas: de lunitas con cráteres a un gigante con anillos.',
+  'Stadium: A night pitch with mown stripes behind the jar.': 'Estadio: una cancha de noche con franjas de césped detrás del frasco.',
+  'Pirate Cabin: Dark planks and brass nails below deck.': 'Camarote pirata: tablas oscuras y clavos de bronce bajo cubierta.',
+  'Robot Workshop: A blueprint grid on the workshop wall.': 'Taller de robots: una cuadrícula de plano en la pared del taller.',
+  'Gold Pinstripe: Charcoal with fine gold pinstripes.': 'Rayas de oro: gris carbón con finas rayas doradas.',
+  'Confetti Pop: Every merge throws a handful of confetti.': 'Estallido de papel picado: cada fusión tira un puñado de papelitos.',
+  'Star Shower: Gold stars burst out of every merge.': 'Lluvia de estrellas: de cada fusión salen estrellas doradas.',
+  'Bubble Rings: Soap rings drift up from every merge.': 'Anillos de burbujas: de cada fusión suben anillos de jabón.'
 });

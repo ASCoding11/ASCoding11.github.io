@@ -69,5 +69,22 @@ if (window.BackRoomLang) BackRoomLang.add({
   "Couldn't reach the game database. If you're on a school or work network it may be blocking it; try another network, or play solo.": 'No se pudo llegar a la base de datos del juego. Si estás en la red de la escuela o del trabajo, puede estar bloqueada; prueba otra red o juega solo.',
   'Could not reach the game server. Check your connection, or play solo.': 'No se pudo llegar al servidor del juego. Revisa tu conexión o juega solo.',
   'Signing in to the game server timed out. Check your connection, or play solo.': 'Se agotó el tiempo para entrar al servidor. Revisa tu conexión o juega solo.',
-  'That room is full ({n} players). Try another code.': 'Esa sala está llena ({n} jugadores). Prueba otro código.', 'Language': 'Idioma'
+  'That room is full ({n} players). Try another code.': 'Esa sala está llena ({n} jugadores). Prueba otro código.', 'Language': 'Idioma',
+  // the Wardrobe (wardrobe.js; captains only for now)
+  'Wardrobe': 'Vestidor', 'Done': 'Listo', 'Wardrobe sections': 'Secciones del vestidor',
+  'Captains only for now. Everything is free to wear, and only changes how things look.': 'Por ahora solo para capitanes. Todo es gratis y solo cambia cómo se ven las cosas.',
+  'Banners': 'Banderines', 'Lanterns': 'Faroles', 'Flames': 'Llamas', 'Bursts': 'Destellos',
+  'A flag on every tower you build, for the whole team. The tower itself looks the same.': 'Una bandera en cada torre que construyas, para todo el equipo. La torre se ve igual.',
+  'The lantern on your own screen. The flame and its glow stay just the same size.': 'El farol en tu pantalla. La llama y su brillo quedan del mismo tamaño.',
+  "The flame's colour on your own screen. It still flickers when lives run low and flashes red when the Gloom gets through.": 'El color de la llama en tu pantalla. Igual titila cuando quedan pocas vidas y se pone roja cuando pasa el Gloom.',
+  'The puff when you build or upgrade a tower, seen by the whole team.': 'El destello al construir o mejorar una torre, que ve todo el equipo.',
+  'No banner': 'Sin banderín', 'Usual lantern': 'Farol normal', 'Usual flame': 'Llama normal', 'Usual puff': 'Destello normal',
+  'Common': 'Común', 'Uncommon': 'Poco común', 'Rare': 'Raro', 'Epic': 'Épico', 'Legendary': 'Legendario',
+  'Soccer Pennant': 'Banderín de fútbol', 'Basketball Pennant': 'Banderín de básquet', 'Gridiron Pennant': 'Banderín de americano', 'Baseball Pennant': 'Banderín de béisbol',
+  'Hockey Pennant': 'Banderín de hockey', 'Checkered Flag': 'Bandera a cuadros', 'Golf Pin': 'Bandera de golf', 'Gear Banner': 'Banderín del engranaje', 'Jolly Roger': 'Bandera pirata',
+  "Ship's Wheel": 'Timón del barco', "The Boss's Banner": 'Banderín del Jefe', 'Royal Crown': 'Corona real',
+  'Soccer Ball Cage': 'Jaula de pelota', 'City Street Lamp': 'Farola de ciudad', 'Stadium Floodlight': 'Reflector de estadio', 'Robot Lantern': 'Farol robot', 'Trophy Cup': 'Copa trofeo',
+  "Ship's Lantern": 'Farol de barco', 'Lighthouse': 'Faro', "Wizard's Crystal": 'Cristal del mago', 'Golden Crown': 'Corona dorada',
+  'Ice Blue': 'Azul hielo', 'Emerald': 'Esmeralda', 'Rose': 'Rosa', 'Violet': 'Violeta', 'Rainbow': 'Arcoíris',
+  'Confetti': 'Papel picado', 'Gold Coins': 'Monedas de oro', 'Circuit Sparks': 'Chispas de circuito', 'Fireworks': 'Fuegos artificiales'
 });
