@@ -50,6 +50,7 @@ body.touch .kbonly{display:none!important}
 body:not(.touch) .touchonly{display:none!important}
 #levelBar{position:absolute;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(60vw,520px);height:10px;border:3px solid var(--ink);border-radius:999px;background:var(--paper);overflow:hidden}
 #levelBar i{display:block;height:100%;width:0;background:var(--teal)}
+#levelBar:not([hidden])~#hint{bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px))}
 
 /* ---------- overlays: paper cards ---------- */
 .overlay{position:absolute;inset:0;overflow:auto;padding:max(14px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center}
@@ -233,6 +234,7 @@ details.help ul{margin:8px 0 0;padding-left:20px;font-weight:700;font-size:14px;
       </div>
       <div class="shop" id="shop"></div>
       <p class="note" id="garNote">Every vehicle and rider rides exactly the same: same speed, same grip, same flips. They only look different. Coins come from playing; nothing here costs real money.</p>
+      <p class="note">Your place is used in Endless and the editor; levels and the Daily run bring their own.</p>
     </div>
   </section>
 
@@ -465,7 +467,7 @@ const PICK=[
   ['recover',2,0.15,(d,r)=>[R_(r,22,30)]],
   ['roll',5,0,(d,r)=>[2+Math.floor(r()*3),R_(r,0.35,0.5+0.5*d),R_(r,5,7)]],
   ['whoop',3,0.2,(d,r)=>[4+Math.floor(r()*4),R_(r,0.5,0.6+0.5*d),R_(r,3.8,4.8)]],
-  ['hill',4,0,(d,r)=>[R_(r,2.5,3+3*d),R_(r,22,30)]],
+  ['hill',4,0.04,(d,r)=>[R_(r,2.5,3+3*d),R_(r,22,30)]],
   ['valley',3,0,(d,r)=>[R_(r,2,2.5+2.5*d),R_(r,22,30)]],
   ['hump',4,0.03,(d,r)=>[R_(r,1,1.2+0.8*d),R_(r,7,9)]],
   ['kick',7,0.06,(d,r)=>[R_(r,0.9,1.0+0.6*d),R_(r,22,26+8*d),R_(r,14,20)]],
@@ -514,7 +516,8 @@ function rollback(tr,k){
   tr.cx=k.cx;tr.cy=k.cy;tr.run=k.run;tr.runWall=k.rw;tr.low=k.low;
 }
 function endless(seed){
-  const tr=newTrack('endless');tr.seed=seed>>>0;tr.r=rng(seed);startTrack(tr);flush(tr);
+  const tr=newTrack('endless');tr.seed=seed>>>0;tr.r=rng(seed);startTrack(tr);
+  build(tr,'roll',[2,0.3,8]);build(tr,'flat',[10]);flush(tr); // a gentle start: nothing that throws you in the air for the first ~60 m
   tr.vs=[vInit(tr,1),vInit(tr,0.85)];vRun(tr,tr.cx,null);tr.snaps=[{x:tr.cx,vs:vCopy(tr.vs)}];return tr;
 }
 const vCopy=vs=>vs.map(v=>Object.assign({},v,{trig:Object.assign({},v.trig)}));
@@ -1683,7 +1686,7 @@ function overlaysClosed(){return['menu','levels','garage','chal','settings','edi
 addEventListener('keydown',e=>{
   if(KB.busy())return;if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
   const acts=KB.actionsFor(e.code);
-  if(acts.includes('go')){e.preventDefault();if(e.repeat)return;keys.add(e.code);if(!overlaysClosed()&&$('pause').hidden===false)return;if(!overlaysClosed())return;inputChanged(e.timeStamp||performance.now());return}
+  if(acts.includes('go')){if(!overlaysClosed())return;e.preventDefault();if(e.repeat)return;keys.add(e.code);inputChanged(e.timeStamp||performance.now());return}
   if(acts.includes('restart')&&G.mode!=='menu'&&G.mode!=='demo'&&overlaysClosed()){e.preventDefault();AU.resume();if(G.replay){G.replay=null}if(G.s&&(G.s.crash||G.s.done)&&!G.shown)endRun(true);restartSame();return}
   if(acts.includes('pause')||e.code==='Escape'){e.preventDefault();if(!$('pause').hidden)resume();else if(G.mode!=='demo'&&G.mode!=='menu'&&overlaysClosed()&&!G.shown)pause();else if(e.code==='Escape')backFromOverlay();return}
   if(e.code==='Backquote'&&TEST)G.dbg=!G.dbg;
