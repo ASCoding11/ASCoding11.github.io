@@ -607,6 +607,33 @@
   I('rumble-karts', 'wreck', 6, 'Fireworks', 'epic', '#FFE45C', '#A66BFF', 'A rocket goes up and bursts.');
   I('rumble-karts', 'wreck', 7, 'Popcorn', 'rare', '#FFFAF0', '#FFE08A', 'Pop, pop, pop.');
   I('rumble-karts', 'wreck', 8, 'Snow Globe', 'epic', '#BFE8FF', '#FFFFFF', 'Snow drifts down where you were.');
+  I('rumble-karts', 'driver', 18, 'Striker', 'common', '#3FB8FF', '#FFFFFF', 'A footballer with a headband and the ball at his side. Taunt: GOOOAL!');
+  I('rumble-karts', 'driver', 19, 'Stretch', 'uncommon', '#F5C45A', '#B06A2A', 'A giraffe who plays basketball. Taunt: Swish!');
+  I('rumble-karts', 'driver', 20, 'Linebacker', 'common', '#2ED19A', '#8D8AA0', 'Shoulder pads, helmet and face cage. Taunt: Touchdown!');
+  I('rumble-karts', 'driver', 21, 'Slugger', 'common', '#FFFFFF', '#8A5A2B', 'Pinstripe shirt, batting helmet and a big mitt. Taunt: Home run!');
+  I('rumble-karts', 'driver', 22, 'Ref Reggie', 'uncommon', '#FFFFFF', '#1B1733', 'A referee in stripes with a whistle. Taunt: FOUL!');
+  I('rumble-karts', 'driver', 23, 'Champ', 'rare', '#C98A52', '#FFC93C', 'A boxing kangaroo with a champion\'s belt. Taunt: Ding ding!');
+  I('rumble-karts', 'driver', 24, 'Rally Bear', 'epic', '#9A6A3C', '#3FB8FF', 'The team mascot, foam finger up. Taunt: Go team!');
+  I('rumble-karts', 'driver', 25, 'Captain Patch', 'legendary', '#2A2440', '#2ECC5A', 'A bearded pirate captain with an eye patch and a parrot. Taunt: Arrr!');
+  I('rumble-karts', 'driver', 26, 'The Boss', 'epic', '#3A3550', '#8C92A8', 'A big cat in a pinstripe suit and fedora. Taunt: Nothing personal.');
+  I('rumble-karts', 'driver', 27, 'Pemberton', 'rare', '#262238', '#D4D8E6', 'A butler in a tailcoat, tray held high. Taunt: Your wreck, sir.');
+  I('rumble-karts', 'driver', 28, 'Clockwork', 'uncommon', '#C8CCD8', '#FFC93C', 'A wind-up tin robot with a key in its back. Taunt: Clank clank!');
+  I('rumble-karts', 'driver', 29, 'Dusty', 'common', '#E8E6F0', '#5EE8FF', 'A robot vacuum with a smiley screen. Taunt: All tidy!');
+  I('rumble-karts', 'driver', 30, 'Agent Shades', 'rare', '#2E2A44', '#1B1733', 'A bodyguard in a black suit, shades and an earpiece. Taunt: Area secure.');
+  I('rumble-karts', 'kart', 16, 'Rowboat', 'rare', '#C08A4A', '#FFC93C', 'A painted rowboat with oars, a ship\'s wheel, a treasure chest and an anchor flag.');
+  I('rumble-karts', 'kart', 17, 'Long Sedan', 'epic', '#2E2A40', '#D4D8E6', 'A long black sedan with a chrome grille and leather seats.');
+  I('rumble-karts', 'kart', 18, 'Soccer Ball', 'uncommon', '#FFFFFF', '#2E2942', 'Ride a giant football.');
+  I('rumble-karts', 'kart', 19, 'Basketball', 'common', '#E8742A', '#2E2942', 'Ride a giant basketball.');
+  I('rumble-karts', 'kart', 20, 'Grandstand', 'legendary', '#4FBF6A', '#FFF3B0', 'A little pitch with a goal, a cheering crowd and floodlights.');
+  I('rumble-karts', 'kart', 21, 'Ice Groomer', 'uncommon', '#FFFFFF', '#8FDCFF', 'The machine that makes the ice smooth between periods.');
+  I('rumble-karts', 'kart', 22, 'Robo Racer', 'rare', '#B8BCCF', '#5EE8FF', 'A robot face with headlamp eyes and a gear on the back.');
+  I('rumble-karts', 'kart', 23, 'Tea Trolley', 'uncommon', '#D9A441', '#FF9FC0', 'Teapot, cups and cakes. Do mind the corners.');
+  I('rumble-karts', 'kart', 24, 'Football Helmet', 'common', '#3FB8FF', '#FFFFFF', 'A giant helmet with a stripe and a face cage.');
+  I('rumble-karts', 'kart', 25, 'Boxing Ring', 'common', '#F3F1FB', '#D8392B', 'Ropes, corner pads and a bell.');
+  I('rumble-karts', 'horn', 6, 'Stadium Horn', 'common', '#8D8AA0', '#FFC93C', 'A deep, long blast like the start of a match.');
+  I('rumble-karts', 'horn', 7, 'Ship\'s Bell', 'uncommon', '#FFC93C', '#A4733D', 'Ding-ding, all hands on deck.');
+  I('rumble-karts', 'horn', 8, 'Ref Whistle', 'common', '#F6F4FF', '#1B1733', 'A long trill and a short peep.');
+  I('rumble-karts', 'horn', 9, 'Rally Organ', 'rare', '#A66BFF', '#FFC93C', 'A rising little tune from the stadium organ.');
   // ---- Tumble Trials items ----
   // Worn on the bean in Tumble Trials (tumble-trials/closet.js draws them, by slot and number). Captains only for now and in no
   // pack: the game's Closet gives captains every one free to wear, and nothing is sold.
