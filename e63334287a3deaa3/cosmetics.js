@@ -256,6 +256,7 @@
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
     showdown: { name: 'Showdown', prefix: 'sd', slots: [['seat', 'Seat looks'], ['back', 'Card backs'], ['felt', 'Felts'], ['win', 'Win flourishes']] },
     'puffer-party': { name: 'Puffer Party', prefix: 'pp', slots: [['hat', 'Puffer hats'], ['trail', 'Answer trails'], ['pop', 'Pops'], ['win', 'Victory effects']] },
+    lanternhold: { name: 'Lanternhold', prefix: 'lh', slots: [['banner', 'Tower banners'], ['lantern', 'Lanterns'], ['flame', 'Flame colours'], ['burst', 'Build bursts']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1089,6 +1090,40 @@
   I('puffer-party', 'win', 1, 'Ticker Tape', 'common', '#FF4F8B', '#3FA9F5', 'Streamers fall down both sides of the screen.');
   I('puffer-party', 'win', 2, 'Trophy Lift', 'rare', '#FFC93C', '#6A3A1A', 'Two gold cups rise at the sides in a sparkle.');
   I('puffer-party', 'win', 3, 'Gold Rain', 'legendary', '#FFC93C', '#C98A12', 'Gold coins rain down both sides of the screen.');
+  // ---- Lanternhold items ----
+  // Lanternhold (lanternhold/wardrobe.js draws them by slot and number): a banner on every tower you build (seen by the team),
+  // the lantern and its flame colour (your own screen only) and the puff when you build. Hidden: worn from the game's
+  // Wardrobe by captains only.
+  I('lanternhold', 'banner', 1, 'Soccer Pennant', 'common', '#FFFFFF', '#2E9A4A', 'A white flag with a ball and a strip of pitch.');
+  I('lanternhold', 'banner', 2, 'Basketball Pennant', 'common', '#F0822A', '#2A1408', 'Orange, with the seams of a ball.');
+  I('lanternhold', 'banner', 3, 'Gridiron Pennant', 'uncommon', '#2F8A3E', '#1F4FB8', 'Yard lines, an end zone and a ball.');
+  I('lanternhold', 'banner', 4, 'Baseball Pennant', 'common', '#22315F', '#D7262F', 'A navy flag with a stitched ball.');
+  I('lanternhold', 'banner', 5, 'Hockey Pennant', 'common', '#F7F7F2', '#C42D3A', 'Red stripes and a blue face-off spot.');
+  I('lanternhold', 'banner', 6, 'Checkered Flag', 'uncommon', '#FFFFFF', '#15151A', 'Black and white checks. Last lap.');
+  I('lanternhold', 'banner', 7, 'Golf Pin', 'rare', '#D7262F', '#2E9A4A', 'A red flag with a ball by the hole.');
+  I('lanternhold', 'banner', 8, 'Gear Banner', 'uncommon', '#5E6874', '#FFD23F', 'A gold gear on steel grey, for robot builders.');
+  I('lanternhold', 'banner', 9, 'Jolly Roger', 'epic', '#15151A', '#F4F4F0', 'A pirate skull with an eye patch over crossed bones.');
+  I('lanternhold', 'banner', 10, "Ship's Wheel", 'rare', '#1F3F8A', '#E6B84A', 'A gold ship\'s wheel on navy.');
+  I('lanternhold', 'banner', 11, "The Boss's Banner", 'rare', '#2C2F38', '#D9B25C', 'Pinstripes and a gold diamond.');
+  I('lanternhold', 'banner', 12, 'Royal Crown', 'legendary', '#5A2FA8', '#FFC93C', 'A jewelled gold crown on purple.');
+  I('lanternhold', 'lantern', 1, 'Soccer Ball Cage', 'common', '#FFFFFF', '#3FA24A', 'The flame inside a ball of white hoops, on a patch of turf.');
+  I('lanternhold', 'lantern', 2, 'City Street Lamp', 'common', '#22242A', '#C9A23A', 'An old iron lamp post with gold trim.');
+  I('lanternhold', 'lantern', 3, 'Stadium Floodlight', 'uncommon', '#5E6874', '#F4F4F0', 'A grey mast and a lamp frame for the big game.');
+  I('lanternhold', 'lantern', 4, 'Robot Lantern', 'uncommon', '#AEB8C4', '#38E8FF', 'A boxy steel stand with two blue eyes and an aerial.');
+  I('lanternhold', 'lantern', 5, 'Trophy Cup', 'rare', '#E8B33A', '#6A3A1A', 'The flame burns in a gold cup on a wooden plinth.');
+  I('lanternhold', 'lantern', 6, "Ship's Lantern", 'rare', '#C98A3A', '#8A5A2E', 'A brass ship\'s lantern on a barrel with a coil of rope.');
+  I('lanternhold', 'lantern', 7, 'Lighthouse', 'epic', '#D7262F', '#FFFFFF', 'A red and white lighthouse with the flame at the top.');
+  I('lanternhold', 'lantern', 8, "Wizard's Crystal", 'epic', '#B48BFF', '#8EE6FF', 'Crystals ring the flame on a stone stand.');
+  I('lanternhold', 'lantern', 9, 'Golden Crown', 'legendary', '#FFC93C', '#5A2FA8', 'A gold crown with jewels holds the flame.');
+  I('lanternhold', 'flame', 1, 'Ice Blue', 'common', '#BFF1FF', '#4FB8FF', 'A cool blue flame. The glow stays the same size.');
+  I('lanternhold', 'flame', 2, 'Emerald', 'uncommon', '#C4FFC8', '#3FDB7A', 'A green flame.');
+  I('lanternhold', 'flame', 3, 'Rose', 'uncommon', '#FFD0E6', '#FF5FA8', 'A pink flame.');
+  I('lanternhold', 'flame', 4, 'Violet', 'rare', '#EAD6FF', '#9A5CFF', 'A purple flame.');
+  I('lanternhold', 'flame', 5, 'Rainbow', 'epic', '#FF5F6A', '#3FA9F5', 'A flame that slowly turns through every colour.');
+  I('lanternhold', 'burst', 1, 'Confetti', 'common', '#FF4F8B', '#FFD23F', 'Four colours of confetti when you build.');
+  I('lanternhold', 'burst', 2, 'Gold Coins', 'uncommon', '#FFC93C', '#FFF2B8', 'A shower of gold when you build.');
+  I('lanternhold', 'burst', 3, 'Circuit Sparks', 'rare', '#38E8FF', '#FF9A3A', 'Quick blue and orange sparks.');
+  I('lanternhold', 'burst', 4, 'Fireworks', 'epic', '#FF4F8B', '#3FD2FF', 'Three little bursts over the new tower.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
