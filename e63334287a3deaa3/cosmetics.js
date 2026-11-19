@@ -257,6 +257,7 @@
     tidewick: { name: 'Tidewick', prefix: 'tw', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
     'patchwork-tower': { name: 'Patchwork Tower', prefix: 'pt', slots: [['paint', 'Paint jobs'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Hop trails']] },
     flickerwood: { name: 'Flickerwood', prefix: 'fw', slots: [['kit', 'Kits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
+    stackfall: { name: 'Stackfall', prefix: 'sf', slots: [['blocks', 'Block sets'], ['board', 'Boards'], ['clear', 'Clear effects']] },
   };
   var GAME_ITEMS = [], ITEM_BY_ID = {};
   function I(game, slot, no, name, rarity, c1, c2, desc) {
@@ -1114,6 +1115,25 @@
   I('flickerwood', 'trail', 3, 'Music Notes', 'uncommon', '#9FD0FF', '#FFFFFF', 'Glim hums along the hedges.');
   I('flickerwood', 'trail', 4, 'Bubbles', 'rare', '#BFE6FF', '#7FA8DC', 'Tiny bubbles that pop behind you.');
   I('flickerwood', 'trail', 5, 'Comet Tail', 'epic', '#FFFFFF', '#7FA8DC', 'A thin white streak that fades to blue.');
+  // ---- Stackfall items ----
+  // Stackfall: block sets, boards and clear effects, drawn by stackfall/styles.js by slot and number. In no pack: captains
+  // pick them free in the game's Styles. Every block set keeps each piece's own colour (only the art on the face changes),
+  // and every board keeps the inside of the well as dark as the game's own.
+  I('stackfall', 'blocks', 1, 'Sports Balls', 'uncommon', '#FF8A2A', '#FFFFFF', 'A different ball on every piece: football, basketball, baseball and more.');
+  I('stackfall', 'blocks', 2, 'Circuit Board', 'uncommon', '#3EE0C6', '#C8D2E0', 'Traces, pads and four rivets on every block.');
+  I('stackfall', 'blocks', 3, 'Treasure Chest', 'rare', '#B07A40', '#D6A83A', 'Planks and brass corners, like a pirate\'s chest.');
+  I('stackfall', 'blocks', 4, 'Pinstripe and Gold', 'epic', '#2A2A38', '#F0C85A', 'Fine pinstripes and a thin gold edge.');
+  I('stackfall', 'blocks', 5, '8-Bit', 'common', '#6278FF', '#FFC840', 'Flat blocks with a stepped bevel, like an old console.');
+  I('stackfall', 'blocks', 6, 'Gem Cut', 'rare', '#E064D8', '#FFFFFF', 'Every block cut like a jewel.');
+  I('stackfall', 'blocks', 7, 'Jelly Candy', 'common', '#FF625E', '#FFFFFF', 'Round, glossy and probably sticky.');
+  I('stackfall', 'board', 1, 'Stadium Night', 'common', '#EEF3FA', '#0A1C12', 'A floodlit frame and a dark pitch.');
+  I('stackfall', 'board', 2, 'Pirate Deck', 'uncommon', '#B07A40', '#0A1830', 'A wooden frame on a dark sea, with anchors.');
+  I('stackfall', 'board', 3, 'Robot Lab', 'uncommon', '#C8D2E0', '#0C1418', 'A riveted steel frame and gears in the dark.');
+  I('stackfall', 'board', 4, 'Gold Pinstripe', 'legendary', '#FFE08A', '#15131C', 'A gold frame on a pinstripe suit.');
+  I('stackfall', 'board', 5, 'Outer Space', 'epic', '#C8B8FF', '#0A0820', 'Stars and ringed planets around the well.');
+  I('stackfall', 'clear', 1, 'Confetti', 'common', '#FF4FA3', '#FFD23F', 'Every cleared row is a party.');
+  I('stackfall', 'clear', 2, 'Gold Coins', 'rare', '#E0A420', '#FFE27A', 'Cleared rows pay out in spinning coins.');
+  I('stackfall', 'clear', 3, 'Star Sparkles', 'common', '#FFFFFF', '#FFD84A', 'Little four-point stars that twinkle out.');
   // Items a game hands over itself are in no pack: give is 'free' (anyone may wear it; the game grants it the first time it
   // is worn) or 'earned' (the game grants it when it is won). grant(id), below, only adds these.
   GAME_ITEMS.forEach(function (it) { if (it.game !== 'slipstream') return; if (it.slot === 'sponsor' || (it.slot === 'helmet' && it.no <= 8)) it.give = 'free'; else if (it.slot === 'livery' && it.no > 8) it.give = 'earned'; });
