@@ -27,7 +27,7 @@
     };
     e.prev.copy(e.pos);
     actor.root.position.copy(e.pos); W.dynamic.add(actor.root);
-    AL.mode = 'follow'; AL.script = null; AL.held = null;
+    AL.mode = 'follow'; AL.script = null; AL.held = null; AL.met = true;
     return e;
   };
   AL.remove = function () { if (AL.ent) { AL.ent.actor.dispose(); AL.ent = null; } };
@@ -94,7 +94,7 @@
     e.prev.copy(e.pos); e.bodyPrev = e.bodyYaw;
     if (!e.alive) return;
     if (e.hurtT && IV.time - e.hurtT > 6) e.hp = Math.min(250, e.hp + 15 * dt);
-    if (IV.input.pressed('order')) AL.order();
+    if (IV.input.pressed('order') && AL.met) AL.order();
     // combat first: anyone shooting at us?
     const q = visibleEnemy(e);
     e.shotT -= dt;

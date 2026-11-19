@@ -42,7 +42,7 @@
     K.props.sandbags(b, -2.5, RANGE_Z + 1.5, 2.5, RANGE_Z + 1.5, 2);
     M.flags_ = {};
     // the takedown pen: a fenced square with a post for the "guard"
-    K.fence(b, [[22, 8], [40, 8], [40, -12], [22, -12]]);
+    K.fence(b, [[22, 8], [27.5, 8]]); K.fence(b, [[32.5, 8], [40, 8], [40, -12], [22, -12], [22, 8]]);   // a gate gap on the south side
     K.props.crate(b, 26, W.height(26, -2), -2, 0.2, 0.9); K.props.crate(b, 34, W.height(34, 4), 4, 0.6, 0.9);
     K.props.hay(b, 29, W.height(29, -8), -8, 0.3); K.props.hay(b, 36, W.height(36, -5), -5, 1.2);
     // the grenade pit
@@ -184,6 +184,9 @@
       M.when(() => WP.inv.grenades === 0 && WP.throws.length === 0 && !ok, () => { WP.inv.grenades = 2; sarge('Missed. Have another.'); }, { once: false });
       go(() => ok, () => M.done('s11'));
     });
+    // testing aid: ?bcstep=N starts at station N (0-based) next to it
+    const startAt = IV.test ? +(IV.params.get('bcstep') || 0) : 0;
+    if (startAt) { const spots = [[0, 158], [0, 132], [0, 98], [0, 74], [0, 58], [-1, 38], [0, 22], [20, 24], [0, 10], [-8, 4]]; const sp = spots[startAt] || spots[0]; P.spawn(sp[0], sp[1], 0, 'stand'); i = startAt - 1; }
     next();
   }
   function step(M, dt) {

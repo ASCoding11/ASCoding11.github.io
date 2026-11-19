@@ -62,8 +62,9 @@
 
   let add, norm, tracerMesh, tracerPos, tracers = [], casings = [], casingIM, decals = [], decalIM, holes = [], holeIM, flashes = [], flashSprites = [], rings = [], fires = [], flares = [];
   FX.init = function () {
-    add = new PSys(900, true, W.tex.glow());
-    norm = new PSys(1400, false, W.tex.smoke());
+    // capped by quality: soft particles cost fill rate, the first thing a school laptop runs out of
+    add = new PSys([500, 800, 1100][W.quality], true, W.tex.glow());
+    norm = new PSys([350, 700, 1000][W.quality], false, W.tex.smoke());
     W.scene.add(add.pts); W.scene.add(norm.pts);
     // tracers: up to 48 quads in one dynamic mesh
     const g = new THREE.BufferGeometry(); tracerPos = new Float32Array(48 * 6 * 3);
@@ -107,7 +108,7 @@
     s.position.set(x + dx * 0.05, y + dy * 0.05, z + dz * 0.05); const k = big ? 0.7 : 0.45; s.scale.set(k * rr(0.8, 1.2), k * rr(0.8, 1.2), 1); s.material.rotation = R() * 6.28; s.visible = true; s.userData.t = 0.05;
     flashes.push(s);
     for (let i = 0; i < (big ? 6 : 3); i++) add.emit(x + dx * 0.1, y + dy * 0.1, z + dz * 0.1, dx * rr(2, 6) + rr(-0.5, 0.5), dy * rr(2, 6) + rr(-0.5, 0.5), dz * rr(2, 6) + rr(-0.5, 0.5), rr(0.04, 0.08), 0.12, 0.05, 1, 0.75, 0.4, 1, 3, 0);
-    for (let i = 0; i < 3; i++) norm.emit(x + dx * 0.15, y + dy * 0.15, z + dz * 0.15, dx * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.2, 0.6), dz * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.6, 1.2), 0.15, 0.6, 0.55, 0.55, 0.55, big ? 0.35 : 0.2, 1.5, -0.2);
+    for (let i = 0; i < (big ? 2 : 1); i++) norm.emit(x + dx * 0.15, y + dy * 0.15, z + dz * 0.15, dx * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.2, 0.6), dz * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.6, 1.2), 0.15, 0.6, 0.55, 0.55, 0.55, big ? 0.35 : 0.2, 1.5, -0.2);
     W.flashAt(x, y, z, big ? 9 : 6, 1, 0.06);
   };
   FX.tracer = function (b) { tracers.push(b); }; // reads b.x,y,z,vx,vy,vz each frame while b.alive
@@ -117,14 +118,14 @@
   };
   // surface impact. nx,ny,nz: surface normal. dir: bullet direction
   FX.impact = function (x, y, z, nx, ny, nz, surf, dir) {
-    const n = 6;
+    const n = 4;
     if (surf === 'water') { for (let i = 0; i < 10; i++) norm.emit(x, y, z, rr(-0.6, 0.6), rr(2, 4), rr(-0.6, 0.6), rr(0.4, 0.7), 0.1, 0.25, 0.75, 0.8, 0.85, 0.6, 1, 9); return; }
     let col = [0.42, 0.36, 0.27];
     if (surf === 'stone') col = [0.55, 0.53, 0.5]; else if (surf === 'wood') col = [0.45, 0.33, 0.2]; else if (surf === 'foliage') col = [0.18, 0.26, 0.1];
     else if (surf === 'gravel') col = [0.5, 0.48, 0.44]; else if (surf === 'cloth') col = [0.6, 0.55, 0.4];
     for (let i = 0; i < n; i++) norm.emit(x + nx * 0.05, y + ny * 0.05, z + nz * 0.05, nx * rr(0.5, 2) + rr(-0.6, 0.6), ny * rr(0.5, 2) + rr(0.2, 1.2), nz * rr(0.5, 2) + rr(-0.6, 0.6), rr(0.5, 1.1), 0.08, 0.5, col[0], col[1], col[2], 0.55, 2.2, 0.6);
     // chunks with gravity
-    for (let i = 0; i < 4; i++) norm.emit(x, y, z, nx * rr(1, 3) + rr(-1, 1), rr(1.5, 3.5), nz * rr(1, 3) + rr(-1, 1), rr(0.4, 0.8), 0.04, 0.03, col[0] * 0.6, col[1] * 0.6, col[2] * 0.6, 0.9, 0.5, 9.8);
+    for (let i = 0; i < 3; i++) norm.emit(x, y, z, nx * rr(1, 3) + rr(-1, 1), rr(1.5, 3.5), nz * rr(1, 3) + rr(-1, 1), rr(0.4, 0.8), 0.04, 0.03, col[0] * 0.6, col[1] * 0.6, col[2] * 0.6, 0.9, 0.5, 9.8);
     if (surf === 'stone' || surf === 'metal' || surf === 'gravel') for (let i = 0; i < (surf === 'metal' ? 8 : 3); i++) add.emit(x, y, z, nx * rr(2, 6) + rr(-2, 2), ny * rr(2, 6) + rr(-1, 3), nz * rr(2, 6) + rr(-2, 2), rr(0.08, 0.2), 0.05, 0.02, 1, 0.75, 0.4, 1, 1, 9.8);
     if (surf === 'foliage') for (let i = 0; i < 5; i++) norm.emit(x, y, z, rr(-1, 1), rr(0, 1), rr(-1, 1), rr(1.2, 2.2), 0.06, 0.06, 0.22, 0.3, 0.12, 0.9, 2.5, 1.2);
     if (surf !== 'foliage' && surf !== 'cloth') FX.hole(x, y, z, nx, ny, nz, surf === 'wood' ? 0.07 : 0.09);

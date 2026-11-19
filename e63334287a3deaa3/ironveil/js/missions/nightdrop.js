@@ -156,6 +156,8 @@
         { a: [-7.5, 0], b: [-2.5, 0], doors: [{ at: 2.5, w: 0.95 }] }, { a: [2.5, 0], b: [7.5, 0] }],
       roof: { pitch: 0.85, over: 0.45 } });
     const fy = H.fy, L = H.L2W;
+    // lit windows glow softly into the fog
+    for (const w of H.wins) if (w.lit) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: W.tex.glow(), color: 0xff9a40, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); s.position.set(w.x, w.y, w.z); s.scale.set(3.2, 2.4, 1); W.statics.add(s); }
     const prop = (fn, lx, lz, rot, ...a) => { const p = L(lx, lz); K.props[fn](b, p[0], fy, p[1], rot || 0, ...a); };
     prop('table', -5, 2.2, 0, 1.6, 0.9); prop('chair', -5.9, 2.2, Math.PI / 2); prop('chair', -4.1, 2.2, -Math.PI / 2); prop('stove', -7, 3.4, 0); prop('shelf', -3.3, 3.7, Math.PI, 1.0);     // kitchen
     prop('table', -5, -2.2, 0, 1.2, 0.8); prop('chair', -5, -3.2, 0); prop('shelf', -7.2, -2, Math.PI / 2, 1.4); prop('crate', -3.4, -3.4, 0.3, 0.6);                                              // parlour
@@ -266,6 +268,10 @@
     const can = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.7, 16).rotateX(Math.PI / 2), mat); can.castShadow = true; sh.add(can);
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.4, 16), new THREE.MeshBasicMaterial({ color: 0xf4f6ff, toneMapped: false })); lens.position.z = 0.36; sh.add(lens);
     M.group.add(sh); M.spotHead = sh; M.spotLens = lens;
+    // the beam: a faint additive cone from the lamp toward where it points
+    const beamGeo = new THREE.CylinderGeometry(0.35, 6.5, 1, 20, 1, true); beamGeo.translate(0, -0.5, 0); beamGeo.rotateX(-Math.PI / 2);
+    const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: 0xc8d4ff, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
+    beam.position.copy(sh.position); M.group.add(beam); M.spotBeam = beam;
   }
   function truckModel() {
     const g = new THREE.Group();
@@ -339,7 +345,7 @@
     else P.spawn(HOUSE.x + 1, HOUSE.z + 7, Math.PI * 0.4, 'crouch');
     WP.reset({ start: 'smg', rifleRes: 25, smgRes: 120, grenades: 2 });
     // squadmate
-    if (cp === 0) { AL.spawn(LINK.x, LINK.z, 2.4); AL.goTo(LINK.x, LINK.z, { stance: 'crouch', run: false }); }
+    if (cp === 0) { AL.spawn(LINK.x, LINK.z, 2.4); AL.goTo(LINK.x, LINK.z, { stance: 'crouch', run: false }); AL.met = false; }
     else if (cp === 1) { AL.spawn(JPOLE.x - 3.5, JPOLE.z + 4, -1.9); }
     else { AL.spawn(HOUSE.x - 2, HOUSE.z + 7.5, Math.PI * 0.4); }
     enemies(M, M.flags.dead);
@@ -353,7 +359,6 @@
     else beatHold(M, true);
     // things that can happen any time
     M.when(() => IV.ai.alarmRung && !M.flags.alarmTold, () => { M.flags.alarmTold = true; if (M.phase === 'approach' || M.phase === 'overwatch') M.say(IV.t('That\'s the bell. Every soldier on the farm is awake now.')); });
-    IV.on && 0;
   }
   // track kills so a checkpoint restore leaves them dead
   IV.on('enemyDied', e => { const M = IV.mission; if (M.def && M.def.id === 'nightdrop' && e.name && M.flags.dead && !M.flags.dead.includes(e.name)) M.flags.dead.push(e.name); });
@@ -384,7 +389,7 @@
     M.after(2.5, () => { M.say(t('(low whistle from the hedge to the north-east)'), 2.5); IV.hud.hint = { text: t('Crouch to move quietly'), key: IV.touch ? '' : IV.input.label('crouch') }; });
     M.after(9, () => { if (IV.hud.hint) IV.hud.hint = null; });
     M.when(() => Math.hypot(P.pos.x - IV.ally.ent.pos.x, P.pos.z - IV.ally.ent.pos.z) < 5, () => {
-      M.done('link'); IV.hud.hint = null;
+      M.done('link'); IV.hud.hint = null; IV.ally.met = true;
       M.say(t('Easy, it\'s me. Dunning. Thought you were hung up for the night.'));
       M.say(t('Rest of the stick landed past the river. So it\'s you and me for the gun.'));
       M.say(t('Farm\'s north-east. There\'s a lane patrol and a post at the crossroads. We go quiet.'));
@@ -414,7 +419,7 @@
       M.after(16, () => { IV.ai.maskUntil = IV.time + 20; M.flags.bombing = IV.time + 20; IV.hud.toast(t('Bombing run: your noise is masked')); });
     });
     // the wire
-    if (!M.flags.wire) M.interact({ id: 'wire', x: M.jbox.x, z: M.jbox.z, y: M.jbox.y, r: 1.8, text: 'Cut the telephone line', hold: 2.0, done() {
+    if (!M.flags.wire) M.interact({ id: 'wire', x: M.jbox.x, z: M.jbox.z, y: M.jbox.y, r: 2.4, text: 'Cut the telephone line', hold: 2.0, done() {
       M.flags.wire = 1; wireLines(M); IV.audio.play('wire'); M.done('wire');
       M.say(t('Line\'s dead. Now all they\'ve got is the bell.'));
       M.after(2.5, () => M.checkpoint(1));
@@ -535,6 +540,8 @@
     for (const e of AI.list) if (e.alive) { e.suppr = 1; e.stagger = 1.2; e.actor.setUpper('hit'); }
     if (P.alive && Math.hypot(P.pos.x - AA.x, P.pos.z - AA.z) < 10) P.hurt(80, { x: AA.x, z: AA.z });
     M.done('hold'); M.fuseObj = false;
+    // if the gun went while you were still in the house, those objectives are over
+    M.drop('fuse'); if (!M.isDone('house')) M.drop('house'); if (!M.isDone('map')) M.drop('map'); if (!M.isDone('sniper')) M.drop('sniper');
     M.after(1.2, () => M.say(t('Gun\'s gone! Out the gap by the barn and down the lane! Go, go!')));
     M.after(2, () => beatRun(M));
   }
@@ -560,7 +567,7 @@
     // sky tracers and flak while the planes are about (the intro, and the bombing run)
     const sky = M.phase === 'harness' || M.phase === 'link' || (M.flags.bombing && IV.time < M.flags.bombing);
     if (sky && Math.random() < dt * (M.phase === 'harness' ? 7 : 3)) skyFire(M);
-    if (M.flags.bombing && IV.time < M.flags.bombing && Math.random() < dt * 0.9) { IV.audio.distantBoom(0.6); const a = Math.random(); W.flashAt(260 + a * 80, 30, -100 + a * 200, 300, 0.4, 0.4, 0xffa060); }
+    if (M.flags.bombing && IV.time < M.flags.bombing && Math.random() < dt * 0.9) { IV.audio.distantBoom(0.6); const a = Math.random(); W.flashAt(260 + a * 80, 30, -100 + a * 200, 60, 0.4, 0.4, 0xffa060); }
     // searchlight sweep (it lights you up if it finds you)
     if (W.spot && M.spot) {
       const s = M.spot; W.spotOn = s.on;
@@ -613,6 +620,7 @@
       if (hanging) { const c = M.chute.position, p = P.render; for (let i = 0; i < 8; i++) { const ang = i / 8 * 6.283; a[i * 6] = c.x + Math.cos(ang) * 2.4; a[i * 6 + 1] = c.y - 0.6; a[i * 6 + 2] = c.z + Math.sin(ang) * 2.4; a[i * 6 + 3] = p.x + (i % 2 ? 0.18 : -0.18); a[i * 6 + 4] = p.y + 1.5; a[i * 6 + 5] = p.z; } M.chuteLines.geometry.attributes.position.needsUpdate = true; }
     }
     if (M.spotLens) M.spotLens.material.color.setHex(M.spot && M.spot.on ? 0xf4f6ff : 0x222222);
+    if (M.spotBeam && W.spot) { const on = M.spot && M.spot.on; M.spotBeam.visible = on; if (on) { const tg = W.spot.target.position, sp = M.spotBeam.position, d = sp.distanceTo(tg); M.spotBeam.lookAt(tg); M.spotBeam.scale.set(1, 1, d); } }
   }
 
   // ---------------------------------------------------------------- title backdrop: Dunning and you by a hedge at night
@@ -620,19 +628,20 @@
     IV.ai.reset(); IV.ally.remove(); IV.fx.clear();
     if (M.group) W.scene.remove(M.group); M.group = new THREE.Group(); W.scene.add(M.group);
     aaGun(M); M.flags = {}; wireLines(M);
-    const x = 32, z = -63;
-    P.spawn(x, z, -1.9, 'crouch'); P.actor.play('crouchIdle', { fade: 0 });
+    const x = 40, z = -77;
+    P.spawn(x, z, -Math.PI / 2 + 0.2, 'crouch'); P.actor.play('crouchIdle', { fade: 0 });
     IV.weapons.reset({ start: 'rifle' });
-    IV.ally.spawn(x - 1.6, z + 1.8, -2.0); IV.ally.ent.stance = 'crouch'; IV.ally.ent.actor.play('crouchIdle', { fade: 0 });
-    // a couple of guards by the farm, lamplit
-    IV.ai.spawn({ x: 92, z: -57.5, yaw: Math.PI / 2 - 0.2 }); IV.ai.spawn({ x: 104, z: -113, yaw: 2.4 });
+    IV.ally.spawn(x - 1.4, z + 1.9, -Math.PI / 2 + 0.35); IV.ally.ent.stance = 'crouch'; IV.ally.ent.actor.play('crouchIdle', { fade: 0 });
+    // guards by the farm, lamplit
+    IV.ai.spawn({ x: 92, z: -60.5, yaw: Math.PI / 2 - 0.2 }); IV.ai.spawn({ x: 104, z: -113, yaw: 2.4 }); IV.ai.spawn({ x: 86, z: -84, yaw: 1.2, smg: true });
     M.spot = { on: true, a: 0 }; M.phase = 'title';
     let t = 0;
     IV.camera.override = (cam, dt) => {
       t += dt;
-      cam.position.set(x - 4.2 + Math.sin(t * 0.05) * 0.6, W.height(x - 4, z) + 1.25, z + 2.6 + Math.cos(t * 0.04) * 0.3);
-      tmpV.set(x + 14, W.height(x + 14, z - 6) + 2.2, z - 6); cam.lookAt(tmpV);
-      if (cam.fov !== 50) { cam.fov = 50; cam.updateProjectionMatrix(); }
+      const cx = x - 3.6 + Math.sin(t * 0.05) * 0.4, cz = z + 2.4 + Math.cos(t * 0.04) * 0.3;
+      cam.position.set(cx, W.height(cx, cz) + 1.35, cz);
+      tmpV.set(x + 30, W.height(x + 30, z - 6) + 3.2, z - 6); cam.lookAt(tmpV);
+      if (cam.fov !== 52) { cam.fov = 52; cam.updateProjectionMatrix(); }
     };
     M.def.backdropFrame = (M2, dt) => { step(M2, dt * 0); stepSpot(M2, dt); frame(M2, dt); IV.player.actor.update(dt); };
   }
@@ -682,7 +691,7 @@
       'Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook\'s men are waiting.'
     ],
     preview: [{ text: 'Find Cpl. Dunning' }, { text: 'Cut the field-telephone line' }, { text: 'Destroy the flak gun' }, { text: 'Reach the extraction lane' }, { text: 'Take the map from the farm office', opt: true }, { text: 'Take out the sniper in the barn loft', opt: true }],
-    world: { size: 380, day: false, height, surface, groundColor, waterLevel, fog: 0.0165, fogColor: 0x0c131c },
+    world: { size: 380, day: false, height, surface, groundColor, waterLevel, fog: 0.0125, fogColor: 0x0c131c },
     build, setup, step, frame, backdrop, sketch,
     medals: [
       { text: 'Finish in under 15:00', ok: s => s.time < 900 },

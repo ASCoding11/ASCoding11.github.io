@@ -99,6 +99,7 @@
     if (data && data.objs) for (const o of data.objs) { const ob = M.objs.find(x => x.id === o.id); if (ob) { ob.state = o.state; ob.text = o.text; } else M.objs.push(Object.assign({}, o, { isNew: false })); }
     if (data && data.inv) Object.assign(IV.weapons.inv, JSON.parse(JSON.stringify(data.inv)));
     W.linearize(W.scene);
+    try { W.renderer.compile(W.scene, W.camera); } catch (e) {}   // compile shaders now, not on the first shot
     IV.emit('objectives'); IV.emit('missionBegin', cpIdx);
   };
   M.checkpoint = function (idx) {

@@ -59,7 +59,7 @@
       $('wGear').innerHTML = `<span>${IV.t('Grenades')} <b>${WP.inv.grenades}</b></span><span>${IV.t('Rocks')} <b>∞</b></span>`;
     }
     const AL = IV.ally;
-    const sq = AL.ent ? (AL.ent.alive ? AL.mode : 'down') : '';
+    const sq = AL.ent && AL.met ? (AL.ent.alive ? AL.mode : 'down') : '';
     if (sq !== lastSquad) { lastSquad = sq; $('squad').innerHTML = sq ? `${esc(AL.NAME)}: <b>${IV.t(sq === 'follow' ? 'Following' : sq === 'hold' ? 'Holding' : sq === 'fire' ? 'Fire at will' : 'Down')}</b> <span style="opacity:.6">[${esc(IV.input.label('order'))}]</span>` : ''; }
     // prompt: interactable or takedown
     const pr = $('prompt'), M = IV.mission;

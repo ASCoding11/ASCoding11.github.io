@@ -518,6 +518,7 @@
   // lamps: {x,y,z,r,i, los:true, on:true}. flashes: {x,y,z,r,i,until}. roofs: [x0,z0,x1,z1,y] rectangles that shade.
   W.addLamp = function (l) { l.on = l.on !== false; l.los = l.los !== false; W.lamps.push(l); return l; };
   W.flashAt = function (x, y, z, r, i, dur, color) {
+    if (W.flashes.length > 40) W.flashes.splice(0, W.flashes.length - 40);
     W.flashes.push({ x, y, z, r, i, until: IV.time + dur, dur, color: color || 0xffc880 });
   };
   W.underRoof = function (x, z, y) {
@@ -548,8 +549,9 @@
       if (cos > Math.cos(W.spot.angle * 1.25) && bl < 140 && W.clear(sp.x, sp.y, sp.z, x, y, z, F.SIGHT)) add += 1.2;
     }
     for (let i = 0; i < W.flashes.length; i++) {
-      const f = W.flashes[i], d = Math.hypot(x - f.x, y - f.y, z - f.z);
-      if (d < f.r) add += f.i * (1 - d / f.r);
+      const f = W.flashes[i]; if (f.until < IV.time) continue;   // (expired ones are removed at render time)
+      const d = Math.hypot(x - f.x, y - f.y, z - f.z);
+      if (d < f.r) add += f.i * (1 - (IV.time - (f.until - f.dur)) / f.dur) * (1 - d / f.r);
     }
     return IV.clamp(base + add, 0, 1.4);
   };

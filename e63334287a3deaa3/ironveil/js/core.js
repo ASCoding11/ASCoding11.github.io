@@ -69,7 +69,7 @@
       headMul: 2.6, limbMul: 0.65,
       grenade: { fuse: 4.0, radius: 7, dmg: 220, throwV: 16, count: 2 },
       rock: { throwV: 15, noise: 15, count: 99 },
-      takedownRange: 1.7, takedownAngle: 1.9   // m, rad (|angle between enemy facing and you| must be > this behind them)
+      takedownRange: 2.0, takedownAngle: 1.9   // m, rad (|angle between enemy facing and you| must be > this behind them)
     },
     noise: {                       // m, how far a sound carries in quiet night air
       sprint: 16, run: 9.5, walk: 5, crouchRun: 4.5, crouch: 2.4, prone: 1.2, vault: 6, land: 7,

@@ -31,6 +31,8 @@
     this.actor = IVChars.spawn(this.kind);
     this.weapon = IVChars.weapon(o.weapon || (this.kind === 'gunner' ? 'mg' : this.kind === 'officer' ? 'pistol' : this.kind === 'sniper' ? 'rifleScoped' : (o.smg ? 'enemySmg' : 'enemyRifle')));
     this.actor.attach(this.weapon, 'handR');
+    // never start inside a hedge or a wall (scripted spawns use rough positions)
+    if (o.y == null && IV.nav.grid && !IV.nav.walkable(o.x, o.z)) { const p = IV.nav.nearest(o.x, o.z, 6); if (p) { o.x = p.x; o.z = p.z; } }
     this.pos = new THREE.Vector3(o.x, W.height(o.x, o.z), o.z); this.prev = this.pos.clone(); this.vel = new THREE.Vector3();
     this.bodyYaw = o.yaw || 0; this.bodyPrev = this.bodyYaw; this.headYaw = 0; this.aimPitch = 0;
     this.hp = o.hp || (this.kind === 'gunner' ? 120 : 100); this.alive = true; this.stance = 'stand';
@@ -113,7 +115,7 @@
   function inView(e, x, y, z, d) {
     const face = e.bodyYaw + e.headYaw, a = Math.abs(IV.wrapA(IV.yawTo(x - e.pos.x, z - e.pos.z) - face));
     let k = a < A.fovH ? 1 : a < A.fovPeriph ? 0.35 : 0;
-    if (d < 2.2 && k === 0) k = 0.5;      // too close to miss
+    if (d < 0.9 && k === 0) k = 0.3;      // bumping into him (a takedown from behind at 1.7 m still works)
     if (k === 0) return 0;
     const ey = e.eye();
     if (!W.clear(e.pos.x, ey, e.pos.z, x, y, z, F.SIGHT)) return 0;

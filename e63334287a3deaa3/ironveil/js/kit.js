@@ -169,7 +169,9 @@
           const off = R.range(-0.45, 0.45), px = x + (-dz / len) * off, pz = z + (dx / len) * off;
           const s = R.range(1.9, 2.7), hh = topH * R.range(0.75, 1.15);
           b.foliage.push([px, gy + bankH - 0.3, pz, s, hh, s, R() * 6.28, R.pick(leafCols)]);
-          if (R() < 0.45) b.cards.push([px + R.range(-0.6, 0.6), gy + bankH + hh * R.range(0.4, 0.9), pz + R.range(-0.6, 0.6), R.range(1.2, 1.8), R() * 6.28, R.pick(leafCols)]);
+          // leaf cards on the crown and the flanks break up the blob outline
+          b.cards.push([px + R.range(-0.4, 0.4), gy + bankH + hh * R.range(0.55, 0.85), pz + R.range(-0.4, 0.4), R.range(1.3, 1.9), R() * 6.28, R.pick(leafCols)]);
+          if (R() < 0.6) { const sd = R() < 0.5 ? -1 : 1; b.cards.push([px + (-dz / len) * sd * s * 0.42, gy + bankH + hh * R.range(0.15, 0.45), pz + (dx / len) * sd * s * 0.42, R.range(1.1, 1.6), R() * 6.28, R.pick(leafCols)]); }
         }
         if (o.trees !== false && R() < (o.treeChance || 0.07)) K.tree(b, cx + R.range(-0.3, 0.3), cz + R.range(-0.3, 0.3), 'oak', R, gy + bankH - 0.2);
       }
