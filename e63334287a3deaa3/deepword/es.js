@@ -82,7 +82,7 @@
     'You popped! Watching the rest…': '¡Explotaste! Mirando al resto…', 'Watching…': 'Mirando…', 'Sent: {a}. Waiting for the others…': 'Enviada: {a}. Esperando a los demás…',
     '(you)': '(tú)', 'host': 'anfitrión', 'Public room': 'Sala pública', 'Room {r}': 'Sala {r}', 'Starting in {n}…': 'Empieza en {n}…', 'Starting soon…': 'Empieza enseguida…',
     'Waiting for one more player. Bots fill the rest.': 'Falta un jugador más. Los bots completan el resto.', 'Press Start when everyone is in.': 'Toca Empezar cuando estén todos.',
-    'Press Start when everyone is in. Bots fill the room to 4.': 'Toca Empezar cuando estén todos. Los bots completan la sala hasta 4.', 'Waiting for a friend, or tick the bots box.': 'Esperando a un amigo, o marca la casilla de bots.',
+    'Press Start when everyone is in. Bots fill the room to 4.': 'Toca Empezar cuando estén todos. Los bots completan la sala hasta 4.', 'Waiting for a friend, or tick the bots box.': 'Esperando a un amigo, o marca la casilla de bots.', 'Waiting for your party to join.': 'Esperando a que entre tu grupo.', 'No bots in party games': 'Sin bots en partidas de grupo',
     'Waiting for the host to start.': 'Esperando a que el anfitrión empiece.', '{p} wins!': '¡Ganó {p}!', 'Everyone popped!': '¡Explotaron todos!', 'last one swimming': 'el último nadando',
     'popped in round {n}': 'explotó en la ronda {n}', 'Rematch': 'Revancha', 'Ask for a rematch': 'Pedir revancha', 'The next match starts in a moment.': 'La próxima partida empieza en un momento.',
     'Asked the host for a rematch…': 'Le pediste la revancha al anfitrión…', 'Finding a room…': 'Buscando una sala…', 'Joining {r}…': 'Entrando a {r}…',
