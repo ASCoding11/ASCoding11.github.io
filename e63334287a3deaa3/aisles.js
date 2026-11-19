@@ -419,7 +419,7 @@
     c.note.hidden = false;
     c.note.textContent = elo
       ? 'Aisle Elo: each member’s Elo is averaged over the rated games they have played (games they haven’t played don’t count). Total = those member averages added up; Average = Total ÷ members with a rating. Sorted by ' + (eloSort === 'avg' ? 'Average.' : 'Total.')
-      : wkB ? 'Weekly contest: the Aisle whose members fly the most miles this week wins it. Miles from play time since Monday (' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour), and each member’s only count from the day they joined the Aisle. A new week starts at midnight on Sunday night.'
+      : wkB ? 'Weekly contest: the Aisle whose members fly the most miles this week wins it. Miles come from time spent playing since Monday, and each member’s only count from the day they joined the Aisle. A new week starts at midnight on Sunday night.'
       : 'Aisle Miles: every member’s all-time miles (the number behind their tier badge) added up. Average = Total ÷ members.';
     if (!ready) { start().catch(function () {}); c.say('Loading the Aisles…'); return; }
     var d = boardsData();
