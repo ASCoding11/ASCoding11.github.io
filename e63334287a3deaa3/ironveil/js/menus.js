@@ -29,7 +29,7 @@
     const S = IV.save;
     for (const def of IV.missions.list) {
       const rec = S.missions[def.id] || {};
-      const locked = def.num > 1 && !(S.missions[IV.missions.list[def.num - 1] && IV.missions.list[def.num - 1].id] || {}).done && !IV.params.has('unlock');
+      const locked = def.num > 0 && !(S.missions[IV.missions.list[def.num - 1] && IV.missions.list[def.num - 1].id] || {}).done && !IV.params.has('unlock');
       const b = document.createElement('button'); b.className = 'ms'; b.disabled = locked;
       b.innerHTML = `<span class="n">${def.num === 0 ? '0' : def.num}</span><span><span class="t">${IV.t(def.title)}</span><span class="d">${IV.t(def.line)}</span></span><span class="st">${rec.done ? IV.t('Done') + (rec.medal ? `<span class="medal ${rec.medal}" title="${IV.t(rec.medal)}"></span>` : '') + (rec.best ? `<br>${IV.fmtTime(rec.best)}` : '') : locked ? IV.t('Locked') : IV.t('New')}</span>`;
       b.addEventListener('click', () => { IV.audio.play('uiOk'); UI.briefing(def); });

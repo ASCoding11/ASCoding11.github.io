@@ -49,7 +49,7 @@
       const c = a[i]; if (!(c.f & F.VAULT)) continue;
       const top = c.y1 - P.pos.y; if (top < MV.vaultMin || top > MV.vaultMax) continue;
       // ray from the body along dir must hit this box within 1.1 m
-      const hit = W.raycast(P.pos.x, P.pos.y + top - 0.12, P.pos.z, dir.x, 0, dir.z, 1.3, F.VAULT, true);
+      const hit = W.raycast(P.pos.x, P.pos.y + top - 0.12, P.pos.z, dir.x, 0, dir.z, 1.8, F.VAULT, true);
       if (!hit || hit.col !== c) continue;
       if (hit.t < bd) { bd = hit.t; best = { c, t: hit.t, top }; }
     }
@@ -101,9 +101,10 @@
     const W8 = IV.weapons, aiming = W8 && W8.aiming, scoped = W8 && W8.scoped;
     // sprint: standing (or crouched: stands up), moving mostly forward, not aiming
     let sprint = I.held('sprint') && !scoped && I.moveY > 0.3 && !aiming && !(W8 && W8.busyThrow);
-    if (sprint && P.stance === 'crouch') P.setStance('stand');
+    // (sprint while crouched is a crouch-run: faster, louder, still low)
     if (sprint && P.stance === 'prone') sprint = false;
     P.sprinting = sprint && P.stance === 'stand';
+    P.crouchRun = I.held('sprint') && P.stance === 'crouch';
     // target velocity, camera relative
     const f = IV.fwd(P.yaw), rx = -f.z, rz = f.x;   // right vector
     let mx = I.moveX, my = I.moveY;

@@ -22,7 +22,7 @@
       transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
       uniforms: { tex: { value: tex }, uScale: { value: 400 }, fogC: { value: new THREE.Color() }, fogD: { value: 0.01 } },
       vertexShader: 'attribute vec4 pcol; attribute float psize; uniform float uScale; varying vec4 vC; varying float vF;\n' +
-        'void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; gl_PointSize = psize * uScale / max(0.1, -mv.z); vC = pcol; vF = -mv.z; }',
+        'void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; gl_PointSize = min(psize * uScale / max(0.1, -mv.z), 220.0); vC = pcol; vF = -mv.z; }',
       fragmentShader: 'uniform sampler2D tex; uniform vec3 fogC; uniform float fogD; varying vec4 vC; varying float vF;\n' +
         'void main(){ vec4 t = texture2D(tex, gl_PointCoord); float f = exp(-fogD*fogD*vF*vF); ' +
         (additive ? 'gl_FragColor = vec4(vC.rgb * t.rgb * t.a * vC.a * f, 1.0);' : 'gl_FragColor = vec4(mix(fogC, vC.rgb, f), t.a * vC.a);') + ' }'

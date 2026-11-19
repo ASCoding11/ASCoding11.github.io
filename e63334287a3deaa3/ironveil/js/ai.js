@@ -348,7 +348,7 @@
       const arrived = Math.hypot(at.x - e.pos.x, at.z - e.pos.z) < 1.6 || moveTo(e, at.x, at.z, A.searchSpeed * 0.8, dt);
       if (arrived) {
         e.speed = IV.damp(e.speed, 0, 8, dt);
-        e.lookT = (e.lookT || 0) + dt; e.headYaw = Math.sin(e.lookT * 1.6) * 0.9;
+        e.lookT = (e.lookT || 0) + dt; e.headYaw = Math.sin(e.lookT * 1.3) * 0.45;
         if (e.lookT > 5) { e.lookT = 0; AI.bark(e, 'lost'); e.aw = Math.min(e.aw, 0.25); e.interest = null; e.setState('returning'); }
       }
       if (e.stateT > 30) e.setState('returning');
@@ -370,7 +370,7 @@
       if (e.fixed) { faceTo(e, at.x, at.z, 3, dt); e.headYaw = Math.sin(e.stateT) * 0.5; if (e.stateT > A.searchTime) e.setState('returning'); return; }
       const s = e.search, p = s.pts[s.i];
       if (p) {
-        if (moveTo(e, p.x, p.z, A.searchSpeed, dt)) { s.t += dt; e.headYaw = Math.sin(s.t * 2) * 0.8; if (s.t > 2.2) { s.t = 0; s.i++; e.path = null; } }
+        if (moveTo(e, p.x, p.z, A.searchSpeed, dt)) { s.t += dt; e.headYaw = Math.sin(s.t * 2) * 0.6; if (s.t > 2.2) { s.t = 0; s.i++; e.path = null; } }
       } else { e.speed = 0; e.headYaw = Math.sin(e.stateT * 1.5) * 0.8; }
       if (e.stateT > A.searchTime * (AI.alarmRung ? 2 : 1)) { AI.bark(e, 'lost'); e.aw = 0.3; e.setState('returning'); e.search = null; }
     },
@@ -381,6 +381,7 @@
     },
     combat(e, dt) {
       const tgt = e.target = pickTarget(e);
+      if (e.o.noShoot) { e.speed = IV.damp(e.speed, 0, 8, dt); faceTo(e, P.pos.x, P.pos.z, 6, dt); e.actor.setUpper('aimIdle'); return; }
       const tp = e.seeing || (tgt !== WPent() && e.seeAlly) ? tgt.pos : e.lkp ? e.lkp : tgt.pos;
       if (e.seeing) e.lkp = { x: P.pos.x, z: P.pos.z, t: IV.time };
       const canShoot = (e.seeing || e.seeAlly) && IV.time - (e.firstSee || 0) > A.reaction[diff()];

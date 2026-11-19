@@ -34,8 +34,9 @@
     const AI = IV.ai; if (!AI) return null;
     const cam = W.camera, cp = cam.position, fwd = C.lookDir;
     let best = null, bs = cone;
-    for (const e of AI.list) {
-      if (!e.alive) continue;
+    const list = IV.targets && IV.targets.length ? AI.list.concat(IV.targets) : AI.list;
+    for (const e of list) {
+      if (!e.alive || e.noAssist) continue;
       const tx = e.pos.x, ty = e.pos.y + e.chestH(), tz = e.pos.z;
       const dx = tx - cp.x, dy = ty - cp.y, dz = tz - cp.z, d = Math.hypot(dx, dy, dz);
       if (d > maxRange) continue;
@@ -81,6 +82,7 @@
     const aiming = W8 && W8.aiming, scoped = W8 && W8.scoped;
     C.aimK = IV.damp(C.aimK, aiming || (W8 && W8.binoc) ? 1 : 0, 14, dt);
     C.scopeK = scoped ? 1 : 0;
+    W.grassClear.value.set(P.render.x, 0, P.render.z, scoped || (W8 && W8.binoc) ? 3.2 : P.stance === 'prone' ? 1.8 : 0);
     // pivot: at the shoulder, height by stance
     const pr = P.render;
     const ph = P.stance === 'stand' ? 1.55 : P.stance === 'crouch' ? 1.05 : 0.5;

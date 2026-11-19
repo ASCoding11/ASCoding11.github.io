@@ -34,7 +34,7 @@
     _e.set(rx || 0, ry || 0, rz || 0); _q.setFromEuler(_e); _v.set(px, py, pz); _s.set(sx, sy, sz);
     _m.compose(_v, _q, _s); _n.getNormalMatrix(_m);
     const B = bucket(b, mat), pa = geo.attributes.position.array, na = geo.attributes.normal.array, sc = 1 / (UVS[mat] || 2);
-    _c.set(color == null ? 0xffffff : color);
+    _c.set(color == null ? 0xffffff : color).convertSRGBToLinear();
     const n = pa.length / 3, e = _m.elements, ne = _n.elements;
     let ymin = 1e9, ymax = -1e9;
     if (ao) for (let i = 0; i < n; i++) { const y = e[1] * pa[i * 3] + e[5] * pa[i * 3 + 1] + e[9] * pa[i * 3 + 2] + e[13]; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
@@ -86,7 +86,8 @@
   // ---------------------------------------------------------------- vegetation (instanced)
   let clumpGeo = null;
   function makeClump() { // a lumpy, slightly flattened ball of leaves with darker, occluded underside
-    const g = new THREE.IcosahedronGeometry(0.5, 1), p = g.attributes.position, R = IV.rng(5);
+    // High: a subdivided icosahedron (80 tris); Low/Medium: an octahedron (32 tris). Spherical normals hide the facets.
+    const g = W.quality >= 2 ? new THREE.IcosahedronGeometry(0.5, 1) : new THREE.OctahedronGeometry(0.5, 1), p = g.attributes.position, R = IV.rng(5);
     const col = new Float32Array(p.count * 3);
     const seen = new Map();
     for (let i = 0; i < p.count; i++) {
@@ -111,7 +112,7 @@
     im.userData.keepGeo = true;
     for (let i = 0; i < list.length; i++) {
       const f = list[i]; _e.set(0, f[6], 0); _q.setFromEuler(_e); _v.set(f[0], f[1], f[2]); _s.set(f[3], f[4], f[5]);
-      _m.compose(_v, _q, _s); im.setMatrixAt(i, _m); _c.set(f[7]); im.setColorAt(i, _c);
+      _m.compose(_v, _q, _s); im.setMatrixAt(i, _m); _c.set(f[7]).convertSRGBToLinear(); im.setColorAt(i, _c);
     }
     im.castShadow = true; im.receiveShadow = true;
     im.instanceMatrix.needsUpdate = true;
@@ -136,7 +137,7 @@
     im.userData.keepGeo = true;
     for (let i = 0; i < list.length; i++) {
       const f = list[i]; _e.set(0, f[4], 0); _q.setFromEuler(_e); _v.set(f[0], f[1], f[2]); _s.set(f[3], f[3], f[3]);
-      _m.compose(_v, _q, _s); im.setMatrixAt(i, _m); _c.set(f[5]); im.setColorAt(i, _c);
+      _m.compose(_v, _q, _s); im.setMatrixAt(i, _m); _c.set(f[5]).convertSRGBToLinear(); im.setColorAt(i, _c);
     }
     im.castShadow = true; im.receiveShadow = true;
     parent.add(im); return im;
@@ -163,10 +164,10 @@
         K.add(b, 'earth', GEO.box, cx, gy + bankH - 0.05, cz, sl + 0.4, 0.25, 1.5, 0, rot, 0, 0x4d4a30);
         W.addBox(cx, cz, sl / 2 + 0.1, 1.0, gy - 1, gy + bankH + topH, rot, F.SOLID | F.SIGHT | F.BULLET | F.NAV, 'foliage', 'hedge');
         // shrubs along the top: two staggered rows of clumps
-        for (let m = 0; m < Math.max(1, Math.round(sl / 1.4)); m++) {
-          const tt = (m + R()) / Math.max(1, Math.round(sl / 1.4)), x = cx + (dx / len) * (tt - 0.5) * sl, z = cz + (dz / len) * (tt - 0.5) * sl;
+        for (let m = 0; m < Math.max(1, Math.round(sl / 1.8)); m++) {
+          const tt = (m + R()) / Math.max(1, Math.round(sl / 1.8)), x = cx + (dx / len) * (tt - 0.5) * sl, z = cz + (dz / len) * (tt - 0.5) * sl;
           const off = R.range(-0.45, 0.45), px = x + (-dz / len) * off, pz = z + (dx / len) * off;
-          const s = R.range(1.6, 2.4), hh = topH * R.range(0.75, 1.15);
+          const s = R.range(1.9, 2.7), hh = topH * R.range(0.75, 1.15);
           b.foliage.push([px, gy + bankH - 0.3, pz, s, hh, s, R() * 6.28, R.pick(leafCols)]);
           if (R() < 0.45) b.cards.push([px + R.range(-0.6, 0.6), gy + bankH + hh * R.range(0.4, 0.9), pz + R.range(-0.6, 0.6), R.range(1.2, 1.8), R() * 6.28, R.pick(leafCols)]);
         }
@@ -412,8 +413,11 @@
   }
   K.grassSystem = function (count, radius, accept, tint) {
     const mat = new THREE.MeshStandardMaterial({ map: W.tex.grassCard(), alphaTest: 0.45, side: THREE.DoubleSide, vertexColors: true, roughness: 1 });
-    mat.onBeforeCompile = W.windPatch(0.12, 1.7);
+    const wind = W.windPatch(0.12, 1.7);
+    // grass right round you flattens away while you're prone or using a scope, so it never fills the view
+    mat.onBeforeCompile = sh => { wind(sh); sh.uniforms.uClear = W.grassClear; sh.vertexShader = 'uniform vec4 uClear;\n' + sh.vertexShader.replace('#include <project_vertex>', 'if (uClear.w > 0.0) { float dc = distance(ip.xz, uClear.xz); transformed *= mix(1.0, smoothstep(uClear.w * 0.6, uClear.w, dc), 1.0); }\n#include <project_vertex>'); };
     const im = new THREE.InstancedMesh(cardGeo2(0.9, 0.55), mat, count);
+    im.setColorAt(count - 1, new THREE.Color(1, 1, 1));   // allocate the colour buffer at full size first
     im.count = 0; im.frustumCulled = false; im.receiveShadow = true;
     W.statics.add(im);
     let lx = 1e9, lz = 1e9;
@@ -433,7 +437,7 @@
         if (s < 0.05) continue;
         _e.set(0, h1 * 6.28, 0); _q.setFromEuler(_e); _v.set(x, W.height(x, z) - 0.03, z); _s.set(s, s * (0.8 + h2 * 0.6), s);
         _m.compose(_v, _q, _s); im.setMatrixAt(n, _m);
-        tint(x, z, col); col.multiplyScalar(0.85 + h3 * 0.3); im.setColorAt(n, col); n++;
+        tint(x, z, col); col.multiplyScalar(0.85 + h3 * 0.3).convertSRGBToLinear(); im.setColorAt(n, col); n++;
       }
       im.count = n; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
     } };
@@ -456,7 +460,7 @@
     list.forEach((p, i) => {
       const r = IV.hash2(p[0] * 7 | 0, p[1] * 7 | 0);
       _e.set(0, r * 6.28, 0); _q.setFromEuler(_e); _v.set(p[0], W.height(p[0], p[1]) - 0.05, p[1]); _s.set(1, 0.85 + r * 0.3, 1);
-      _m.compose(_v, _q, _s); im.setMatrixAt(i, _m); c.setRGB(0.9 + r * 0.2, 0.9 + r * 0.15, 0.85 + r * 0.1); im.setColorAt(i, c);
+      _m.compose(_v, _q, _s); im.setMatrixAt(i, _m); c.setRGB(0.9 + r * 0.2, 0.9 + r * 0.15, 0.85 + r * 0.1).convertSRGBToLinear(); im.setColorAt(i, c);
     });
     im.receiveShadow = true; im.castShadow = false;
     W.statics.add(im);

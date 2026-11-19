@@ -36,13 +36,14 @@
   // capsule along +Y from 0 to len, radii r0 (bottom) r1 (top)
   function capsule(r0, r1, len, rs, hs) {
     const pts = [];
-    rs = rs || 10; hs = hs || 4;
+    rs = Math.min(rs || 8, 10); hs = Math.min(hs || 3, 3);
     for (let i = 0; i <= hs; i++) { const a = -PI / 2 + (i / hs) * PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r0, Math.sin(a) * r0)); }
     for (let i = 0; i <= hs; i++) { const a = (i / hs) * PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r1, len + Math.sin(a) * r1)); }
     pts[0].x = 0.0001; pts[pts.length - 1].x = 0.0001;
     return new THREE.LatheGeometry(pts, rs);
   }
   // a part: geometry placed with matrix, coloured, skinned to bone b (and optionally blended to bone b2 near y0)
+  const _lin = new THREE.Color();
   function Builder() { this.p = []; this.n = []; this.c = []; this.si = []; this.sw = []; this.uv = []; }
   Builder.prototype.add = function (geo, m, color, b, blend, colorFn) {
     const g = geo.index ? geo.toNonIndexed() : geo;
@@ -51,7 +52,8 @@
       tmpV.fromBufferAttribute(pa, i).applyMatrix4(m); tmpV2.fromBufferAttribute(na, i).applyMatrix3(nm).normalize();
       this.p.push(tmpV.x, tmpV.y, tmpV.z); this.n.push(tmpV2.x, tmpV2.y, tmpV2.z);
       let cc = col; if (colorFn) cc = colorFn(tmpV, col);
-      this.c.push(cc.r, cc.g, cc.b);
+      _lin.copy(cc).convertSRGBToLinear();
+      this.c.push(_lin.r, _lin.g, _lin.b);
       // box-projected UVs for the cloth weave texture
       const ax = Math.abs(tmpV2.x), ay = Math.abs(tmpV2.y);
       if (ay > 0.7) this.uv.push(tmpV.x * 3, tmpV.z * 3); else if (ax > 0.7) this.uv.push(tmpV.z * 3, tmpV.y * 3); else this.uv.push(tmpV.x * 3, tmpV.y * 3);
@@ -72,7 +74,7 @@
 
   function buildBody(kind) {
     const L = LOOK[kind] || LOOK.rifleman, B = new Builder();
-    const sphere = new THREE.SphereGeometry(1, 14, 10), box = new THREE.BoxGeometry(1, 1, 1), cyl = new THREE.CylinderGeometry(1, 1, 1, 14, 1);
+    const sphere = new THREE.SphereGeometry(1, 10, 7), box = new THREE.BoxGeometry(1, 1, 1), cyl = new THREE.CylinderGeometry(1, 1, 1, 10, 1);
     const camo = L.camo ? (p, c) => { const n = IV.noise(p.x * 9 + p.z * 4, p.y * 7); return n > 0.62 ? new THREE.Color(0x3a3d26) : n < 0.3 ? new THREE.Color(0x6a6544) : c; } : null;
     const folds = (p, c) => { const k = 0.93 + 0.1 * IV.noise(p.x * 23, p.y * 31 + p.z * 17); return c.clone().multiplyScalar(k); };
     const cloth = camo || folds;
@@ -435,7 +437,7 @@
       const g = g0.index ? g0.toNonIndexed() : g0, nm = new THREE.Matrix3().getNormalMatrix(m), cc = new THREE.Color(col);
       for (let i = 0; i < g.attributes.position.count; i++) {
         _a.fromBufferAttribute(g.attributes.position, i).applyMatrix4(m); _b.fromBufferAttribute(g.attributes.normal, i).applyMatrix3(nm).normalize();
-        p.push(_a.x, _a.y, _a.z); n.push(_b.x, _b.y, _b.z); c.push(cc.r, cc.g, cc.b);
+        p.push(_a.x, _a.y, _a.z); n.push(_b.x, _b.y, _b.z); _lin.copy(cc).convertSRGBToLinear(); c.push(_lin.r, _lin.g, _lin.b);
       }
     }
     const g = new THREE.BufferGeometry();

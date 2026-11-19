@@ -12,7 +12,7 @@
     { name: 'Regular', taken: 1, aware: 1, acc: 1 },
     { name: 'Veteran', taken: 1.45, aware: 1.25, acc: 1.15 }
   ];
-  const M = IV.mission = { def: null, diff: 0, diffMul: DIFF[0], on: false, time: 0, objs: [], flags: {}, trigs: [], timers: [], inter: [], radioQ: [], cpIdx: 0, group: null, phase: '', failed: false, done: false, noWeapons: false };
+  const M = IV.mission = { def: null, diff: 0, diffMul: DIFF[0], on: false, time: 0, objs: [], flags: {}, trigs: [], timers: [], inter: [], radioQ: [], cpIdx: 0, group: null, phase: '', failed: false, finished: false, noWeapons: false };
   M.DIFF = DIFF;
 
   // ---------------------------------------------------------------- objectives
@@ -75,6 +75,7 @@
     await tick();
     IV.nav.build();
     IV.fx.init();
+    W.linearize(W.scene);
     progress && progress(0.95, 'Briefing the squad…');
     await tick();
     M.worldId = def.id;
@@ -83,7 +84,7 @@
   const tick = () => new Promise(r => setTimeout(r, 16));
   // (re)start the dynamic part from a checkpoint index (0 = mission start). data = saved state for that checkpoint.
   M.begin = function (cpIdx, data) {
-    M.on = true; M.failed = false; M.done = false; M.cpIdx = cpIdx; M.phase = '';
+    M.on = true; M.failed = false; M.finished = false; M.cpIdx = cpIdx; M.phase = '';
     M.objs = []; M.trigs = []; M.timers = []; M.inter = []; M.radioQ = []; radioCur = null; IV.hud && IV.hud.subtitle(null);
     M.flags = data ? JSON.parse(JSON.stringify(data.flags || {})) : {};
     M.time = data ? data.time : 0;
@@ -92,11 +93,12 @@
     M.group = new THREE.Group(); W.scene.add(M.group);
     W.lamps = W.lamps.filter(l => l.static);
     IV.audio && IV.audio.alarm(false);
-    IV.weapons.bullets.length = 0; IV.weapons.throws.length = 0;
+    IV.weapons.bullets.length = 0; IV.weapons.throws.length = 0; IV.targets = [];
     M.def.setup(M, cpIdx, data);
     if (data && data.stats) { IV.weapons.stats = Object.assign({}, data.stats); IV.ai.spottedCount = data.spotted || 0; }
     if (data && data.objs) for (const o of data.objs) { const ob = M.objs.find(x => x.id === o.id); if (ob) { ob.state = o.state; ob.text = o.text; } else M.objs.push(Object.assign({}, o, { isNew: false })); }
     if (data && data.inv) Object.assign(IV.weapons.inv, JSON.parse(JSON.stringify(data.inv)));
+    W.linearize(W.scene);
     IV.emit('objectives'); IV.emit('missionBegin', cpIdx);
   };
   M.checkpoint = function (idx) {
@@ -114,13 +116,13 @@
     if (cp && cp.mission === M.def.id && cp.idx > 0) M.begin(cp.idx, cp.data); else M.begin(0, null);
   };
   M.fail = function (reason) {
-    if (M.failed || M.done) return;
+    if (M.failed || M.finished) return;
     M.failed = true; M.on = false;
     IV.emit('missionFailed', reason);
   };
   M.complete = function () {
-    if (M.done || M.failed) return;
-    M.done = true; M.on = false;
+    if (M.finished || M.failed) return;
+    M.finished = true; M.on = false;
     const st = IV.weapons.stats, def = M.def;
     const s = { time: M.time, shots: st.shots, hits: st.hits, acc: st.shots ? Math.round(st.hits / st.shots * 100) : 0, kills: st.kills, heads: st.heads, takedowns: st.takedowns, spotted: IV.ai.spottedCount,
       optional: M.objs.filter(o => o.optional && o.state === 'done').length, optionalTotal: def.optionalTotal || M.objs.filter(o => o.optional).length, diff: M.diff };
@@ -149,8 +151,8 @@
     // interactables: the nearest usable one in front of you
     const P = IV.player, I = IV.input;
     let best = null, bd = 9;
-    if (P.alive && !P.frozen && !P.cine) for (const o of M.inter) {
-      const on = typeof o.on === 'function' ? o.on() : o.on; if (!on) continue;
+    if (P.alive && !P.frozen) for (const o of M.inter) {
+      const on = typeof o.on === 'function' ? o.on() : o.on; if (!on || (P.cine && !o.cine)) continue;
       const d = Math.hypot(P.pos.x - o.x, P.pos.z - o.z); if (d > (o.r || 1.6) || Math.abs((o.y != null ? o.y : P.pos.y) - P.pos.y - 0.8) > 2) continue;
       if (d < bd) { bd = d; best = o; }
     }

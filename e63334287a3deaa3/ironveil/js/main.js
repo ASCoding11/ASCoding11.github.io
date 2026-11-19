@@ -26,6 +26,7 @@
     const nd = IV.missions.byId.nightdrop;
     await M.loadWorld(nd, (k, t) => progress(0.45 + k * 0.5, t));
     if (nd.backdrop) nd.backdrop(M);
+    W.linearize(W.scene);
     progress(1, '');
     state = 'menu';
     if (UI.needsGate()) UI.show('gate'); else UI.title();
@@ -158,7 +159,7 @@
       teleport(x, z, yaw) { IV.player.pos.set(x, W.groundAt(x, z, 50), z); IV.player.prev.copy(IV.player.pos); if (yaw != null) IV.player.yaw = IV.player.bodyYaw = yaw; },
       info() { const r = W.renderer.info; return { calls: r.render.calls, tris: r.render.triangles, geos: r.memory.geometries, tex: r.memory.textures }; },
       start: (id, cp) => app.start(id, cp || 0),
-      snapshot() { const P = IV.player; return { state, mission: M.def && M.def.id, phase: M.phase, time: M.time, p: { x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2), hp: Math.round(P.hp), stance: P.stance, alive: P.alive }, objs: M.objs.map(o => o.id + ':' + o.state), enemies: IV.ai.list.map(e => ({ k: e.kind, s: e.state, aw: +e.aw.toFixed(2), x: +e.pos.x.toFixed(1), z: +e.pos.z.toFixed(1), alive: e.alive })), flags: M.flags, done: M.done, failed: M.failed }; }
+      snapshot() { const P = IV.player; return { state, mission: M.def && M.def.id, phase: M.phase, time: M.time, p: { x: +P.pos.x.toFixed(2), y: +P.pos.y.toFixed(2), z: +P.pos.z.toFixed(2), hp: Math.round(P.hp), stance: P.stance, alive: P.alive }, objs: M.objs.map(o => o.id + ':' + o.state), enemies: IV.ai.list.map(e => ({ k: e.kind, s: e.state, aw: +e.aw.toFixed(2), x: +e.pos.x.toFixed(1), z: +e.pos.z.toFixed(1), alive: e.alive })), flags: M.flags, done: M.finished, failed: M.failed }; }
     };
   }
   addEventListener('error', e => { if (IV.test) IV.err('Error: ' + e.message + ' ' + (e.filename || '').split('/').pop() + ':' + e.lineno); });

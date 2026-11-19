@@ -166,6 +166,11 @@
   // ---------------------------------------------------------------- materials
   W.mats = {};
   function std(o) { return new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.92, metalness: 0 }, o)); }
+  // r128 has no colour management: hex colours are linear unless converted. Everything here is authored in sRGB.
+  const linDone = new WeakSet();
+  W.linearize = function (root) {
+    root.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) { if (linDone.has(m)) continue; linDone.add(m); if (m.color && !m.userData.linear) m.color.convertSRGBToLinear(); if (m.emissive) m.emissive.convertSRGBToLinear(); } });
+  };
   W.makeMats = function () {
     const t = W.tex, M = W.mats;
     if (M.stone) return M;
@@ -189,8 +194,11 @@
   };
   // Wind sway for instanced vegetation: vertices bend by height above the instance origin.
   W.windU = { value: 0 };
+  W.grassClear = { value: new THREE.Vector4(0, 0, 0, 0) };
   function windPatch(amp, freq) {
     return function (sh) {
+      // cards: both faces light like the front (no dark backs)
+      sh.fragmentShader = sh.fragmentShader.replace('normal = normal * faceDirection;', '').replace('normal *= faceDirection;', '');
       sh.uniforms.uTime = W.windU;
       sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING
@@ -241,9 +249,10 @@
     const sc = W.scene, P = W.P, day = W.day;
     sc.fog = new THREE.FogExp2(cfg.fogColor || (day ? 0xb9c4c8 : 0x0d1520), (cfg.fog || (day ? 0.0036 : 0.0175)) * P.fogMul);
     sc.background = new THREE.Color(cfg.fogColor || (day ? 0xb9c4c8 : 0x0d1520));
-    const hemi = W.hemi = new THREE.HemisphereLight(day ? 0xc8d8f0 : 0x3a4c70, day ? 0x5a5040 : 0x1a1a14, day ? 0.75 : 0.62);
+    sc.fog.color.convertSRGBToLinear();   // fog is added in linear space, then encoded like the materials
+    const hemi = W.hemi = new THREE.HemisphereLight(day ? 0xb8c8e0 : 0x6f86b8, day ? 0x4a4434 : 0x2a2a22, day ? 0.55 : 0.42);
     sc.add(hemi);
-    const sun = W.sun = new THREE.DirectionalLight(day ? 0xfff0d8 : 0x9fb8e8, day ? 2.4 : 0.85);
+    const sun = W.sun = new THREE.DirectionalLight(day ? 0xfff0d8 : 0xa8bce6, day ? 1.7 : 0.75);
     W.moonDir.set(...(cfg.sunDir || (day ? [0.5, 0.75, 0.3] : [-0.45, 0.8, 0.38]))).normalize();
     sun.position.copy(W.moonDir).multiplyScalar(80);
     sc.add(sun); sc.add(sun.target);
@@ -311,14 +320,14 @@
   W.setSurf = function (x, z, v) { const i = Math.round(x + W.half), j = Math.round(z + W.half); if (i >= 0 && j >= 0 && i < W.N && j < W.N) W.surf[j * W.N + i] = v; };
 
   function terrain(cfg) {
-    const step = 2, n = Math.floor(W.size / step) + 1, half = W.half;
+    const step = cfg.terrainStep || (W.quality === 0 ? 3 : 2), n = Math.floor(W.size / step) + 1, half = W.half;
     const pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3), mud = new Float32Array(n * n);
     const v3 = new THREE.Vector3(), c = new THREE.Color();
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
       const k = j * n + i, x = i * step - half, z = j * step - half, y = W.height(x, z);
       pos[k * 3] = x; pos[k * 3 + 1] = y; pos[k * 3 + 2] = z;
       W.normal(x, z, v3); nor[k * 3] = v3.x; nor[k * 3 + 1] = v3.y; nor[k * 3 + 2] = v3.z;
-      const r = cfg.groundColor(x, z, y, v3, c); col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; mud[k] = r || 0;
+      const r = cfg.groundColor(x, z, y, v3, c); c.convertSRGBToLinear(); col[k * 3] = c.r; col[k * 3 + 1] = c.g; col[k * 3 + 2] = c.b; mud[k] = r || 0;
     }
     const idx = new Uint32Array((n - 1) * (n - 1) * 6); let q = 0;
     for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) {

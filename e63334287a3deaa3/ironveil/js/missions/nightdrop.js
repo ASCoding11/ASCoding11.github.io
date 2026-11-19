@@ -371,7 +371,7 @@
     M.after(1.2, () => M.hq(t('Pathfinder Two, Rook. You came down short. The stick is scattered east of the river.')));
     M.after(1.4, () => M.hq(t('The flak gun at the farm is still yours. Find your corporal and get it done.')));
     IV.audio.aircraft(true, 24, 0.5);
-    M.interact({ id: 'harness', x: P.pos.x, z: P.pos.z, y: gy + 0.8, r: 3, text: 'Cut the harness', hold: 1.1, done() {
+    M.interact({ id: 'harness', x: P.pos.x, z: P.pos.z, y: gy + 2.7, r: 3, cine: true, text: 'Cut the harness', hold: 1.1, done() {
       M.done('cut'); IV.audio.play('wire');
       let vy = 0; const top = P.pos.y;
       P.cine = dt => { vy -= 18 * dt; P.pos.y += vy * dt; const g = W.groundAt(P.pos.x, P.pos.z, top); if (P.pos.y <= g) { P.pos.y = g; P.cine = null; P.setStance('crouch'); P.stanceT = 0; IV.audio.play('land', { surf: 'grass' }); IV.camera.shake(0.3); M.noWeapons = false; beatLink(M); } };
