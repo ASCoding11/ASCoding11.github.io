@@ -194,7 +194,8 @@
     K.props.woodpile(b, 92, -80, 0); K.props.cart(b, 116, -60, 2.2); K.props.barrel(b, 117, -82, W.height(117, -82)); K.props.barrel(b, 118, -83, W.height(118, -83));
     for (const q of [[112, -84], [96, -70]]) K.props.crate(b, q[0], W.height(q[0], q[1]), q[1], 0.4, 0.9);
     // the flak pit: a ring of sandbags, ammunition crates; MG nest to the west of it
-    const ring = 8; for (let i = 0; i < ring; i++) { if (i === 2) continue; const a0 = i / ring * 6.283, a1 = (i + 1) / ring * 6.283; K.props.sandbags(b, AA.x + Math.cos(a0) * 4, AA.z + Math.sin(a0) * 4, AA.x + Math.cos(a1) * 4, AA.z + Math.sin(a1) * 4, 4); }
+    // gaps in the ring: the yard side, and the north (the quiet way in)
+    const ring = 8; for (let i = 0; i < ring; i++) { if (i === 2 || i === 6) continue; const a0 = i / ring * 6.283, a1 = (i + 1) / ring * 6.283; K.props.sandbags(b, AA.x + Math.cos(a0) * 4, AA.z + Math.sin(a0) * 4, AA.x + Math.cos(a1) * 4, AA.z + Math.sin(a1) * 4, 4); }
     K.props.crate(b, AA.x + 2.6, W.height(AA.x + 2.6, AA.z - 1), AA.z - 1, 0.2, 0.7); K.props.crate(b, AA.x + 2.4, W.height(AA.x + 2.4, AA.z + 0.2), AA.z + 0.2, 0.5, 0.7);
     K.props.sandbags(b, MG.x - 1.6, MG.z - 1.5, MG.x - 1.6, MG.z + 1.6, 4); K.props.sandbags(b, MG.x - 1.6, MG.z + 1.6, MG.x + 1.2, MG.z + 2.6, 4);
     // telephone poles along the farm road and the main road, the junction box on one of them
@@ -447,9 +448,9 @@
   function beatLoud(M) {
     const t = IV.t, AI = IV.ai;
     M.phase = 'loud'; M.done('charge');
-    M.flags.charge = 1; M.fuseEnd = M.time + 150;
-    M.obj('fuse', 'Charge set: {s}', { quiet: true }); M.fuseObj = true;
-    M.say(t('Charge is set, two and a half minutes. Now let\'s get clear of—'), 2.6);
+    M.flags.charge = 1; M.fuseEnd = 0;
+    M.obj('fuse', 'Charge set on the flak gun', { quiet: true });
+    M.say(t('Charge is set. Pencil fuse, a few minutes. Now let\'s get clear of—'), 2.6);
     // a soldier steps out of the back door with a lamp and sees us
     M.after(1.6, () => {
       const d = M.houseDoorN;
@@ -483,11 +484,12 @@
       const R = M.rooms;
       AL.goTo(R.hall[0], R.hall[1] - 1.5, { run: true, aim: true, done() { AL.goTo(R.hall[0], R.hall[1] + 1, { run: true, aim: true, done() { AL.release(); } }); } });
     } });
+    M.after(150, () => { if (M.phase === 'breach') M.say(t('The house! Clear it, or we\'ll never hold this yard.')); });
     // cleared when everyone inside is down
-    M.when(() => ['h1', 'h2', 'of', 'walker'].every(k => !M.E[k] || !M.E[k].alive) && !IV.ai.list.some(e => e.alive && Math.abs(e.pos.x - HOUSE.x) < 8 && Math.abs(e.pos.z - HOUSE.z) < 4.5), () => {
+    M.when(() => ['h1', 'h2', 'of'].every(k => !M.E[k] || !M.E[k].alive) && !IV.ai.list.some(e => e.alive && Math.abs(e.pos.x - HOUSE.x) < 8 && Math.abs(e.pos.z - HOUSE.z) < 4.5), () => {
       M.done('house'); AL.release();
       M.say(t('House clear!'));
-      M.after(1.5, () => { M.fuseEnd = M.time + IV.clamp(M.fuseEnd - M.time, 45, 75); M.checkpoint(2); beatHold(M, false); });
+      M.after(1.5, () => { M.fuseEnd = M.time + 60; M.checkpoint(2); beatHold(M, false); });
     });
   }
   function beatHold(M, fromCp) {
@@ -582,10 +584,9 @@
     // fuse countdown in the objective text
     if (M.fuseObj && M.fuseEnd) {
       const left = Math.max(0, M.fuseEnd - M.time), s = IV.fmtTime(left);
-      for (const o of M.objs) if ((o.id === 'fuse' || o.id === 'hold') && o.state === 'active') { const txt = IV.t(o.id === 'fuse' ? 'Charge set: {s}' : 'Hold the yard until the charge blows: {s}', { s }); if (o.shown !== txt) { o.shown = txt; o.text = txt; IV.emit('objectives'); } }
+      for (const o of M.objs) if (o.id === 'hold' && o.state === 'active') { const txt = IV.t('Hold the yard until the charge blows: {s}', { s }); if (o.shown !== txt) { o.shown = txt; o.text = txt; IV.emit('objectives'); } }
       if (left <= 0 && !M.flags.blown) blowGun(M);
     }
-    if (M.phase === 'breach' && M.fuseEnd && M.time > M.fuseEnd && !M.flags.blown) blowGun(M);
     truckStep(M, dt);
     // the running fight: flares and mortar rounds that land near, never on, the lane runner
     if (M.flags.mortar) {

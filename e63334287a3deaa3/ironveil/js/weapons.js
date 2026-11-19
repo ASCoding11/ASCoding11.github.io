@@ -175,14 +175,15 @@
   function camRayPoint() { // the world point under the reticle
     const c = W.camera, d = IV.camera.lookDir;
     const h = W.raycast(c.position.x, c.position.y, c.position.z, d.x, d.y, d.z, 600, F.BULLET);
-    let t = h ? h.t : 600;
+    let t = h ? h.t : 600, hs = null;
     // actors too
     for (const e of WP.combatants()) {
       if (!e.alive || e.isPlayer) continue;
       WP.spheres(e, sph);
-      for (const s of sph) { const tt = segSphere(c.position.x, c.position.y, c.position.z, d.x, d.y, d.z, t, s[0], s[1], s[2], s[3]); if (tt >= 0 && tt < t) t = tt; }
+      for (const s of sph) { const tt = segSphere(c.position.x, c.position.y, c.position.z, d.x, d.y, d.z, t, s[0], s[1], s[2], s[3]); if (tt >= 0 && tt < t) { t = tt; hs = s.slice(); } }
     }
-    aimPt.set(c.position.x + d.x * t, c.position.y + d.y * t, c.position.z + d.z * t);
+    // aim at the middle of the part under the reticle, so the shot from the muzzle (a little off the camera's line) still lands
+    if (hs) aimPt.set(hs[0], hs[1], hs[2]); else aimPt.set(c.position.x + d.x * t, c.position.y + d.y * t, c.position.z + d.z * t);
     return t;
   }
   WP.camRayPoint = () => { camRayPoint(); return aimPt; };
@@ -206,8 +207,9 @@
       ox = mz.x; oy = mz.y; oz = mz.z;
       // from the muzzle toward the point under the reticle (if the muzzle is inside a wall, fire from the camera line)
       if (!W.clear(c.position.x, c.position.y, c.position.z, ox, oy, oz, F.BULLET)) { ox = c.position.x + d.x * 0.5; oy = c.position.y + d.y * 0.5; oz = c.position.z + d.z * 0.5; }
+      // point blank (the muzzle is already past the target): fire from the eye instead
+      if (Math.hypot(aimPt.x - ox, aimPt.y - oy, aimPt.z - oz) < 1.6 || Math.hypot(aimPt.x - P.pos.x, aimPt.z - P.pos.z) < 2.2) { const f = IV.fwd(P.yaw); ox = P.pos.x - f.z * 0.15; oy = P.eyeY() - 0.1; oz = P.pos.z + f.x * 0.15; }
       dx = aimPt.x - ox; dy = aimPt.y - oy; dz = aimPt.z - oz; const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l;
-      if (dist < 2) { dx = d.x; dy = d.y; dz = d.z; }
     }
     // spread: tight aimed, loose from the hip, bloom for the SMG, worse while moving
     let sp = (WP.aiming || WP.scoped) ? w.spread : w.hipSpread;

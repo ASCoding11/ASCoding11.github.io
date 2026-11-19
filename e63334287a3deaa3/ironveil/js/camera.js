@@ -136,7 +136,17 @@
     const side = CT.side * (1 - C.aimK) + CT.aimSide * C.aimK, dist = CT.dist * (1 - C.aimK) + CT.aimDist * C.aimK, hgt = CT.height * (1 - C.aimK * 0.5);
     const proneK = P.stance === 'prone' ? 0.8 : 1;
     C.sideS = IV.damp(C.sideS == null ? C.side : C.sideS, C.side, 10, dt);
-    const sx = right.x * side * C.sideS, sz = right.z * side * C.sideS;
+    // lean: aiming with a wall or hedge end right in front of you, the view slides out past the corner (shoulder side)
+    let lean = 0;
+    if (C.aimK > 0.5) {
+      const ay = C.pivot.y + 0.1, fx = dir.x, fz = dir.z, fl = Math.hypot(fx, fz) || 1;
+      if (W.raycast(C.pivot.x, ay, C.pivot.z, fx / fl, 0, fz / fl, 1.1, F.SOLID | F.SIGHT, true)) {
+        const ox = C.pivot.x + right.x * 0.75 * C.side, oz = C.pivot.z + right.z * 0.75 * C.side;
+        if (!W.raycast(C.pivot.x, ay, C.pivot.z, right.x * C.side, 0, right.z * C.side, 0.8, F.SOLID, true) && !W.raycast(ox, ay, oz, fx / fl, 0, fz / fl, 3, F.SOLID | F.SIGHT, true)) lean = 0.7;
+      }
+    }
+    C.lean = IV.damp(C.lean || 0, lean, 8, dt);
+    const sx = right.x * (side + C.lean) * C.sideS, sz = right.z * (side + C.lean) * C.sideS;
     // the camera's own anchor sits beside the pivot (shoulder); keep that inside walls too
     const ax = C.pivot.x + sx, ay = C.pivot.y + hgt, az = C.pivot.z + sz;
     let sideOk = 1;
