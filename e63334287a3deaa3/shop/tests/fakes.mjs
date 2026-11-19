@@ -49,6 +49,10 @@ export function fakeFirestore() {
   function getPath(fields, dotted) { let f = { mapValue: { fields } }; for (const p of dotted.split('.')) { f = f && f.mapValue && f.mapValue.fields && f.mapValue.fields[p]; } return f; }
   const api = {
     docs, writes: 0, commits: 0, aborts: 0,
+    // gate: n > 0 holds transaction commits until n of them have arrived (or 2 s pass), so a test of a race is a real
+    // race every run and not only when the requests happen to overlap. It resets itself to 0 when it opens.
+    gate: 0, held: [],
+    open() { api.gate = 0; const h = api.held; api.held = []; h.forEach(f => f()); },
     async handle(url, opts) {
       await tick();
       const u = new URL(url), method = (opts && opts.method) || 'GET';
@@ -58,6 +62,9 @@ export function fakeFirestore() {
       if (u.pathname.endsWith(':commit')) {
         api.commits++;
         await tick();
+        if (api.gate > 0 && body.transaction) {
+          await new Promise(ok => { api.held.push(ok); if (api.held.length >= api.gate) api.open(); else setTimeout(() => { if (api.held.includes(ok)) api.open(); }, 2000); });
+        }
         if (body.transaction) {
           const reads = txs.get(body.transaction);
           if (!reads) return res(400, { error: { status: 'INVALID_ARGUMENT', message: 'no such transaction' } });
