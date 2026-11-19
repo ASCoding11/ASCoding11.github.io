@@ -84,6 +84,16 @@
     'Everything is free to wear while the Locker is captains only. Looks only: every egg is the same size with the same hit box, and in capture the flag eggs keep their team colour.': 'Todo se puede usar gratis mientras el casillero sea solo para capitanes. Es solo apariencia: todos los huevos tienen el mismo tamaño y la misma zona de impacto, y en captura la bandera mantienen el color de su equipo.',
     'Plain': 'Básico', 'Your own shell colour.': 'El color de tu cáscara.', 'Just the usual crack.': 'El cascado de siempre.', 'The gun as it comes.': 'El arma tal cual.', 'No hat.': 'Sin sombrero.',
     'common': 'común', 'uncommon': 'poco común', 'rare': 'raro', 'epic': 'épico', 'legendary': 'legendario',
+    // Locker items added on 19 Nov (names only; the rest of the catalogue is in English for now)
+    'Soccer Ball Egg': 'Huevo pelota de fútbol', 'Basketball Egg': 'Huevo de básquet', 'Baseball Egg': 'Huevo de béisbol', 'Football Egg': 'Huevo de fútbol americano',
+    'Tennis Ball Egg': 'Huevo pelota de tenis', 'Eight Ball Egg': 'Huevo bola ocho', 'Hockey Mask Egg': 'Huevo con máscara de hockey', 'Referee Egg': 'Huevo árbitro',
+    'Golf Ball Egg': 'Huevo pelota de golf', 'Pirate Egg': 'Huevo pirata', 'Pinstripe Suit Egg': 'Huevo de traje a rayas', 'Tuxedo Egg': 'Huevo de esmoquin',
+    'Tin Robot Egg': 'Huevo robot de hojalata', 'Android Egg': 'Huevo androide', 'Junkyard Bot Egg': 'Huevo robot de chatarra',
+    'Fedora': 'Fedora', 'Pirate Tricorn': 'Tricornio pirata', 'Sweatband': 'Vincha de toalla', 'Football Helmet': 'Casco de fútbol americano', 'Top Hat': 'Galera',
+    'Referee Cap': 'Gorra de árbitro', 'Ball Cap': 'Gorra de equipo', 'Robot Antenna': 'Antena de robot', 'Parrot': 'Loro', 'Bowler Hat': 'Bombín',
+    'Red Team Kit': 'Equipo rojo', 'Blue Team Kit': 'Equipo azul', 'Pirate Brass': 'Bronce pirata', 'Pinstripe': 'Rayas finas', 'Chrome Briefcase': 'Maletín cromado',
+    'Robot Plating': 'Blindaje de robot', 'Junkyard': 'Chatarra', 'Hockey Tape': 'Cinta de hockey',
+    'Team Confetti': 'Confeti del equipo', 'Pirate Gold': 'Oro pirata', 'Bolts and Springs': 'Tuercas y resortes',
     // the Change keys panel (keybinds.js) and its action names
     'Move forward': 'Avanzar', 'Move back': 'Retroceder', 'Move left': 'Ir a la izquierda', 'Move right': 'Ir a la derecha',
     'Fight': 'Pelea', 'Match': 'Partida', 'Hold': 'Mantener', 'Aim / scope': 'Apuntar / mira', 'Main gun': 'Arma principal',
