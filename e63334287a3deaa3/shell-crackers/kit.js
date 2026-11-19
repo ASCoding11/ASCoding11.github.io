@@ -1,5 +1,5 @@
 /*
- * Shell Crackers' Locker: 19 egg types, 7 hats, 12 gun skins and 5 crack effects, all drawn here in code.
+ * Shell Crackers' Locker: 34 egg types, 17 hats, 20 gun skins and 8 crack effects, all drawn here in code.
  *
  * NOT PUBLIC YET. index.html fetches this file only when something needs it:
  *   - this player may see the Locker (X.on: SC_PUBLIC in index.html, or the account signed in is one of the site's
@@ -25,7 +25,8 @@
  * Cost. An egg type is a different picture on the egg's own material (shiny ones use a Phong material in its place), a
  * hat is merged into the egg's face mesh, and a gun skin is a recoloured copy of that gun's one geometry: none of them
  * adds a draw call. The rotten egg's flies are one small extra mesh (one draw call, only on a rotten egg). Crack effects
- * use two instanced pools and two small meshes that are only drawn while an effect is playing.
+ * use three instanced pools and a few small meshes that are only drawn while an effect is playing. The pirate egg's patch,
+ * the tuxedo's bow tie and the tin robot's key are merged into the face mesh like a hat (no draw call).
  *
  * Online. What an egg wears travels in its own room node as `ck`, four base-36 characters: egg type, hat, gun skin and
  * crack effect, each the item's number in ../cosmetics.js (0 = none), e.g. "7300". The field is only sent when
@@ -41,7 +42,7 @@ window.ShellKit=function(X){
 const {THREE,store,$}=X;
 const GAME='shell-crackers';
 const SLOTS=['egg','hat','gun','crack'];
-const N={egg:34,hat:17,gun:12,crack:5};
+const N={egg:34,hat:17,gun:20,crack:8};
 const V3=THREE.Vector3;
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const now=()=>performance.now()/1000;
@@ -563,8 +564,44 @@ const SKINS=[null,
      P(L,'cone',O,0,hy-.004,hz-.04*s,.012*s,.03*s,.008*s,-Math.PI/2);P(L,'sph',R,0,hy-.022*s,hz-.026*s,.007*s,.013*s,.006*s);
      for(const q of [-1,1])P(L,'sph',0x2b1a10,q*.022*s,hy+.008*s,hz-.016*s,.006*s,.007*s,.006*s);
      for(const q of [-1,1]){const x=q*.014*s;P(L,'cyl',O,x,fy-.03*s,fz,.004*s,.06*s,.004*s);for(const r of [-.5,0,.5])P(L,'box',O,x+Math.sin(r)*.01*s,fy-.06*s,fz-Math.cos(r)*.01*s,.004*s,.004*s,.022*s,0,r,0)}
-     for(const r of [-.5,0,.5])P(L,'sph',0xfff2b0,Math.sin(r)*.02*s,ey+eh*.6+.02*s,ez-.01,.012*s,.04*s,.01*s,-.5,0,r)}}
+     for(const r of [-.5,0,.5])P(L,'sph',0xfff2b0,Math.sin(r)*.02*s,ey+eh*.6+.02*s,ez-.01,.012*s,.04*s,.01*s,-.5,0,r)}},
+  // ---- wave 2 (13 to 20) ----
+  // 13 Red Team Kit: team red with two white stripes down each side
+  {pal:{D:0xd8433a,AD:0xa82e26,K:0x8a221c,M:0xf2f2f2,L:0xffffff,A:0xffffff,AL:0xffffff,WD:0xd8433a,WK:0xa82e26,CR:0xffffff,YK:0xffffff,RED:0xffffff},
+   extra(L,a){stripes(L,a,0xffffff,[.2,-.25])}},
+  // 14 Blue Team Kit: team blue with gold stripes
+  {pal:{D:0x3d7fe0,AD:0x2c62b8,K:0x214a8c,M:0xffd04a,L:0xffe68a,A:0xffd04a,AL:0xffe68a,WD:0x3d7fe0,WK:0x2c62b8,CR:0xffffff,YK:0xffd04a,RED:0xffd04a},
+   extra(L,a){stripes(L,a,0xffd04a,[.2,-.25])}},
+  // 15 Pirate Brass: polished brass and dark ship's timber, rope bindings and a flared muzzle
+  {mat:'gold',pal:{D:0xc9a040,AD:0xa8822e,K:0x8a6a24,M:0xd8b456,L:0xf0d890,A:0x6a4426,AL:0x8a5a34,WD:0x6a4426,WK:0x4e301a,CR:0xf0e0b0,YK:0xe8b830,RED:0xe8b830},
+   extra(L,a){const s=a.secs[0];for(const t of [.3,.7]){const z=s[0]+(s[1]-s[0])*t;for(const dz of [-.008,0,.008])ring(L,s,z+dz*a.s,dz?0xb8966a:0xd8bc8c,.007*a.s,dz*8)}
+     const [b0,,by,br]=a.bar;P(L,'cyl',0xe0b84a,0,by,b0+.008,br*1.7,.02*a.s,br*1.7,Math.PI/2);P(L,'tor',0xc9a040,0,by,b0+.004,br*1.75,br*1.75,br*1.75);
+     for(const sec of a.secs)for(const z of [sec[0]+.02,sec[1]-.02])for(const q of [-1,1])P(L,'sph',0xf0d890,q*(sec[3]+.002),sec[2]-sec[4]*.5,z,.006*a.s,.006*a.s,.006*a.s)}},
+  // 16 Pinstripe: slate grey with thin pale stripes, a gold band and gold trim
+  {pal:{D:0x5a6078,AD:0x4a5066,K:0x3e4356,M:0x6a7088,L:0xa4aac0,A:0x5a6078,AL:0x767c96,WD:0x5a6078,WK:0x4a5066,CR:0xe8b830,YK:0xe8b830,RED:0xc8323a},
+   extra(L,a){for(const sec of a.secs){const [z0,z1,yc,hw,hh]=sec;for(let k=-2;k<=2;k++)for(const q of [-1,1])P(L,'box',0xd8dcea,q*(hw+.0015),yc+k*hh*.36,(z0+z1)/2,.002,.0025,(z1-z0)*.96)}
+     const s=a.secs[0];ring(L,s,s[1]-.03*a.s,0xe8b830,.012*a.s)}},
+  // 17 Chrome Briefcase: polished chrome and dark leather, gold latches and a carry handle underneath
+  {mat:'chrome',pal:{D:0xc9d2dc,AD:0x9aa4ae,M:0xe6ecf2,L:0xf6f9fc,K:0x4a3426,A:0x5a3e2a,AL:0x6e4c34,WD:0x4a3426,WK:0x3a281c,CR:0xffffff,YK:0xe8b830,RED:0xe8b830},
+   extra(L,a){const [z0,z1,yc,hw,hh]=a.secs[0],s=a.s;for(const q of [-1,1])for(const t of [.3,.7]){const z=z0+(z1-z0)*t;P(L,'box',0xe8b830,q*(hw+.003),yc+hh*.45,z,.006,.016*s,.022*s);P(L,'box',0xb8902a,q*(hw+.006),yc+hh*.45,z,.003,.006*s,.01*s)}
+     for(const q of [-1,1])P(L,'box',0x9aa4ae,q*(hw+.002),yc,(z0+z1)/2,.003,2*hh*.92,.006);
+     const zm=(z0+z1)/2;for(const dz of [-1,1])P(L,'box',0x3a281c,0,yc-hh-.012*s,zm+dz*.03*s,.012*s,.024*s,.01*s);P(L,'box',0x4a3426,0,yc-hh-.026*s,zm,.014*s,.012*s,.07*s)}},
+  // 18 Robot Plating: white plates, dark seams, a cyan light strip down each side
+  {pal:{D:0xeef2f6,AD:0xc8d0da,K:0x5a6270,M:0xdfe5ec,L:0xffffff,A:0x3ec8e8,AL:0x9eeaff,WD:0xdfe5ec,WK:0x9aa4ae,CR:0xffffff,YK:0x3ec8e8,RED:0x3ec8e8},
+   extra(L,a){for(const sec of a.secs){const [z0,z1,yc,hw,hh]=sec;for(const q of [-1,1]){P(L,'box',0x3ec8e8,q*(hw+.002),yc-hh*.15,(z0+z1)/2,.003,.007*a.s,(z1-z0)*.8);P(L,'box',0xbdf3ff,q*(hw+.003),yc-hh*.15,(z0+z1)/2,.002,.003*a.s,(z1-z0)*.7)}
+     for(let z=z0+.06*a.s;z<z1-.02;z+=.08*a.s)ring(L,sec,z,0x7a8290,.004*a.s)}}},
+  // 19 Junkyard: odd metals bolted together, a rusty patch and a strip of grey tape
+  {pal:{D:0x8a8478,AD:0x6e6a60,K:0x5a554c,M:0xa09a8c,L:0xb8b2a4,A:0xb07a4c,AL:0xc8925e,WD:0x7a8a6e,WK:0x5e6c54,CR:0xd8d0c0,YK:0xc8925e,RED:0xc8925e},
+   extra(L,a){const cols=[0xb07a4c,0x94a496,0xc4b08a];a.secs.forEach((sec,i)=>{const [z0,z1,yc,hw,hh]=sec;for(const q of [-1,1]){const z=z0+(z1-z0)*(q>0?.35:.6),c=cols[(i+(q>0?0:1))%3],w=Math.min(.06*a.s,(z1-z0)*.4);
+       P(L,'box',c,q*(hw+.002),yc+hh*.1,z,.004,hh*1.1,w);for(const dz of [-1,1])for(const dy of [-1,1])P(L,'sph',0x5a554c,q*(hw+.004),yc+hh*.1+dy*hh*.42,z+dz*w*.4,.004*a.s,.004*a.s,.004*a.s)}});
+     const s=a.secs[0];ring(L,s,s[0]+(s[1]-s[0])*.8,0xaab0b8,.02*a.s,.15)}},
+  // 20 Hockey Tape: a pale wooden body like a stick, black tape near the front and white tape at the grip
+  {pal:{D:0xd9b07a,AD:0xb98a56,K:0x9a6a3a,M:0xe3bf8a,L:0xf0d4a8,A:0x3a3a42,AL:0x4a4a54,WD:0xd9b07a,WK:0xb98a56,CR:0xffffff,YK:0xffffff,RED:0x3a3a42},
+   extra(L,a){for(const sec of a.secs){const [z0,z1]=sec;for(let k=0;k<4;k++)ring(L,sec,z0+.015*a.s+k*.011*a.s,0x34343c,.01*a.s,.12)}
+     const s=a.secs[0];for(let k=0;k<4;k++)ring(L,s,s[1]-.015*a.s-k*.011*a.s,0xfbfbfb,.01*a.s,-.12)}}
 ];
+// stripes along both sides of every body piece, at heights given as parts of its half height
+function stripes(L,a,c,ys){for(const sec of a.secs){const [z0,z1,yc,hw,hh]=sec;for(const q of [-1,1])for(const f of ys)P(L,'box',c,q*(hw+.002),yc+f*hh,(z0+z1)/2,.003,.01*a.s,(z1-z0)*.94)}}
 let goldMat=null,chromeMat=null;
 function skinMat(kind){
   if(kind==='gold')return goldMat||(goldMat=new THREE.MeshPhongMaterial({vertexColors:true,specular:0x8a7438,shininess:70}));
@@ -595,7 +632,7 @@ function gunGeo(key,n){
 //  pools (round bits and flat flakes) and two small meshes each for the fried egg and the chick; each is only drawn
 //  while it is in use. Every effect is over in under two seconds and stays low and small.
 // =====================================================================
-let friedGeo=null,chickGeo=null;
+let friedGeo=null,chickGeo=null,springGeo=null;
 function fried(){if(friedGeo)return friedGeo;const L=[];P(L,'cyl',0xfffdf8,0,0,0,.4,.03,.36);
   for(let i=0;i<9;i++){const a=i/9*Math.PI*2+.3,r=.3+(i%3)*.025;P(L,'cyl',0xfffdf8,Math.cos(a)*r,0,Math.sin(a)*r*.92,.13,.03,.12)}
   P(L,'sph',0xffc93c,.03,.035,.02,.15,.08,.15);P(L,'sph',0xffe7a0,-.01,.08,-.02,.04,.02,.035);return friedGeo=X.mergeParts(L)}
@@ -606,23 +643,27 @@ function chick(){if(chickGeo)return chickGeo;const L=[],Y=0xffd84a,O=0xf4a41c,K=
   for(const a of [-.4,0,.4])P(L,'cone',Y,Math.sin(a)*.03,.45,-.08,.018,.06,.018,0,0,-a);
   P(L,'sph',0xfff8e8,0,.1,.05,.17,.09,.17);   // a bit of shell still stuck round its bottom
   return chickGeo=X.mergeParts(L)}
+function spring(){if(springGeo)return springGeo;const L=[],S=0xc9ced6,Sd=0x9aa2ac;   // a coil with a bolt head on top (Bolts and Springs)
+  for(let i=0;i<7;i++)P(L,'tor',i%2?S:Sd,0,.03+i*.04,0,.1,.1,.12,Math.PI/2+(i%2?.12:-.12),0,0);P(L,'cyl',Sd,0,.31,0,.07,.04,.07);P(L,'cyl',S,0,.34,0,.045,.03,.045);return springGeo=X.mergeParts(L)}
+const coinGeo=new THREE.CylinderGeometry(1,1,.22,14);
 const flakeGeo=(()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute([0,.06,0,-.05,-.04,0,.055,-.035,0],3));g.computeVertexNormals();return g})();
 const ZM=new THREE.Matrix4().makeScale(0,0,0),_o=new THREE.Object3D(),_c=new THREE.Color();
 function makeFx(W){
   function pool(geo,n,side){const mat=new THREE.MeshLambertMaterial({color:0xffffff,side:side||THREE.FrontSide});const m=new THREE.InstancedMesh(geo,mat,n);
     m.frustumCulled=false;m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);for(let i=0;i<n;i++){m.setMatrixAt(i,ZM);m.setColorAt(i,_c.setHex(0xffffff))}m.visible=false;W.scene.add(m);
     const ps=[];for(let i=0;i<n;i++)ps.push({on:false,P:new V3(),v:new V3(),r:new V3(),sp:new V3(),t:0,life:1,s:.05,s1:.05,g:0,k:0,cx:0,cz:0,a:0,rad:0,w:0,y0:0,jt:0});return {m,ps,i:0,n}}
-  const blobs=pool(G.ico,140),flakes=pool(flakeGeo,90,THREE.DoubleSide);
+  const blobs=pool(G.ico,140),flakes=pool(flakeGeo,90,THREE.DoubleSide),coins=pool(coinGeo,36);
   const meshes=[];   // fried eggs and chicks in play
-  const spare={fried:[],chick:[]};
-  function getMesh(kind){let o=spare[kind].pop();if(!o){o=new THREE.Mesh(kind==='fried'?fried():chick(),X.gunMat);W.scene.add(o)}o.visible=true;return o}
+  const spare={fried:[],chick:[],spring:[]};
+  function getMesh(kind){let o=spare[kind].pop();if(!o){o=new THREE.Mesh(kind==='fried'?fried():kind==='spring'?spring():chick(),X.gunMat);W.scene.add(o)}o.visible=true;return o}
   // k: 0 falls, 1 floats up and swells, 2 whirls round (then falls), 3 buzzes about
   function add(Pl,col,pos,o){const p=Pl.ps[Pl.i=(Pl.i+1)%Pl.n];Object.assign(p,{on:true,t:0,life:o.life,s:o.s,s1:o.s1==null?o.s:o.s1,g:o.g||0,k:o.k||0,jt:0});
     p.P.copy(pos);p.v.copy(o.v||new V3());p.r.set(Math.random()*6,Math.random()*6,Math.random()*6);p.sp.set(rnd(-9,9),rnd(-9,9),rnd(-9,9));
     if(o.k===2){p.cx=pos.x;p.cz=pos.z;p.a=o.a;p.rad=o.rad;p.w=o.w;p.y0=pos.y}
     Pl.m.setColorAt(Pl.i,_c.set(col));Pl.m.instanceColor.needsUpdate=true;Pl.m.visible=true;return p}
   const at=(p,dx,dy,dz)=>new V3(p.x+dx,p.y+dy,p.z+dz);
-  function play(kind,p,col,dir){
+  // kcol: the colour of the egg that did the cracking (its team's in capture the flag), for Team Confetti
+  function play(kind,p,col,dir,kcol){
     if(kind===1){const o=getMesh('fried');o.position.set(p.x,p.y+.7,p.z);o.rotation.set(0,Math.random()*6,0);o.scale.setScalar(.6);
       meshes.push({o,kind:'fried',t:0,vy:3.4,y:p.y+.7,fl:W.floor(p.x,p.y+.7,p.z)+.03,landed:false})}
     else if(kind===2){const cols=['#ffd84a','#ffe27a','#fff3c4','#f4c430','#ffcf3a'];
@@ -634,6 +675,14 @@ function makeFx(W){
     else if(kind===5){const cols=['#a3b85e','#8fa04a','#c3d27a','#b6c86e'];
       for(let i=0;i<10;i++){const a=i/10*Math.PI*2;add(blobs,cols[i%4],at(p,Math.cos(a)*.3,.3+Math.random()*.5,Math.sin(a)*.3),{k:1,v:new V3(Math.cos(a)*.45,rnd(.7,1.2),Math.sin(a)*.45),life:rnd(.9,1.1),s:.05,s1:rnd(.12,.16)})}
       for(let i=0;i<2;i++)add(blobs,'#262624',at(p,0,.9,0),{k:3,v:new V3(rnd(-2,2),rnd(.5,1.5),rnd(-2,2)),life:1.3,s:.035})}
+    else if(kind===6){const c=new THREE.Color(kcol||X.myColor||'#e2503f'),cl=c.clone().lerp(new THREE.Color(0xffffff),.45),pale=c.r*.3+c.g*.59+c.b*.11>.75,cols=pale?['#e2503f','#4f8fe0','#ffffff','#ffd04a','#e2503f']:['#'+c.getHexString(),'#'+cl.getHexString(),'#ffffff','#ffd04a','#'+c.getHexString()];   // a pale shell gets red and blue
+      for(let i=0;i<60;i++){const a=Math.random()*Math.PI*2,sp=rnd(1,2.8);add(flakes,cols[i%5],at(p,rnd(-.2,.2),.5+Math.random()*.4,rnd(-.2,.2)),{v:new V3(Math.cos(a)*sp,rnd(2.4,4.2),Math.sin(a)*sp),life:rnd(1.1,1.5),s:rnd(1.2,1.7),g:6})}}
+    else if(kind===7){for(let i=0;i<22;i++){const a=Math.random()*Math.PI*2,sp=rnd(.6,1.9);add(coins,i%4?'#ffc93c':'#ffe27a',at(p,0,.55+Math.random()*.3,0),{v:new V3(Math.cos(a)*sp,rnd(2.8,4.4),Math.sin(a)*sp),life:rnd(1.35,1.7),s:.075,g:11})}
+      for(let i=0;i<8;i++)add(blobs,i%2?'#fff3c4':'#ffffff',at(p,rnd(-.3,.3),.5+Math.random()*.5,rnd(-.3,.3)),{k:1,v:new V3(0,rnd(.5,1),0),life:rnd(.6,.9),s:.02,s1:.045})}
+    else if(kind===8){for(const s of [-1,1]){const o=getMesh('spring');o.position.set(p.x+s*.2,p.y+.5,p.z);o.rotation.set(rnd(-.3,.3),Math.random()*6,rnd(-.3,.3));o.scale.setScalar(.6);
+        meshes.push({o,kind:'spring',t:0,vy:rnd(3.2,4),vx:s*rnd(.4,.8),y:p.y+.5,fl:W.floor(p.x,p.y+.7,p.z)+.01,landed:false})}
+      const greys=['#9aa2ac','#c9ced6','#7a828e','#b8c0c8'];for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,sp=rnd(.8,2.2);add(blobs,greys[i%4],at(p,0,.5+Math.random()*.3,0),{v:new V3(Math.cos(a)*sp,rnd(2.4,4),Math.sin(a)*sp),life:rnd(1.1,1.5),s:rnd(.04,.06),g:12})}
+      for(let i=0;i<10;i++){const a=Math.random()*Math.PI*2,sp=rnd(.8,2);add(coins,i%2?'#c9ced6':'#9aa2ac',at(p,0,.55,0),{v:new V3(Math.cos(a)*sp,rnd(2.6,3.8),Math.sin(a)*sp),life:rnd(1.2,1.5),s:.045,g:12})}}
   }
   function stepPool(Pl,dt){if(!Pl.m.visible)return;let any=false;
     for(let i=0;i<Pl.n;i++){const p=Pl.ps[i];if(!p.on)continue;p.t+=dt;if(p.t>=p.life){p.on=false;Pl.m.setMatrixAt(i,ZM);continue}any=true;
@@ -643,18 +692,22 @@ function makeFx(W){
       else if(p.k===1){P_.addScaledVector(p.v,dt);p.v.multiplyScalar(1-dt*.8)}
       else if(p.k===3){p.jt-=dt;if(p.jt<=0){p.jt=.12;p.v.x+=rnd(-2,2);p.v.z+=rnd(-2,2);p.v.y=rnd(-.4,1)}P_.addScaledVector(p.v,dt)}
       else{p.v.y-=p.g*dt;if(Pl===flakes){p.v.x*=1-dt*2.2;p.v.z*=1-dt*2.2;if(p.v.y<-1.4)p.v.y=-1.4}P_.addScaledVector(p.v,dt);
-        const f=W.floor(P_.x,P_.y+.3,P_.z)+p.s*.5;if(P_.y<f){P_.y=f;p.v.set(p.v.x*.3,0,p.v.z*.3);p.sp.multiplyScalar(.6)}}
+        const f=W.floor(P_.x,P_.y+.3,P_.z)+p.s*(Pl===coins?.12:.5);if(P_.y<f){P_.y=f;p.v.set(p.v.x*.3,0,p.v.z*.3);p.sp.multiplyScalar(.6);if(Pl===coins){p.r.x*=.7;p.r.z*=.7}}}
       p.r.x+=p.sp.x*dt;p.r.y+=p.sp.y*dt;p.r.z+=p.sp.z*dt;
       const u=p.t/p.life,s=(p.k===1?p.s+(p.s1-p.s)*Math.min(1,u*1.6):p.s)*(u>.75?(1-u)/.25:1);
       _o.position.copy(P_);_o.rotation.set(p.r.x,p.r.y,p.r.z);_o.scale.setScalar(s);_o.updateMatrix();Pl.m.setMatrixAt(i,_o.matrix)}
     Pl.m.instanceMatrix.needsUpdate=true;if(!any)Pl.m.visible=false}
   function step(dt){
-    stepPool(blobs,dt);stepPool(flakes,dt);
+    stepPool(blobs,dt);stepPool(flakes,dt);stepPool(coins,dt);
     for(let i=meshes.length-1;i>=0;i--){const q=meshes[i],o=q.o;q.t+=dt;let done=false;
       if(q.kind==='fried'){
         if(!q.landed){q.vy-=14*dt;q.y+=q.vy*dt;o.rotation.x=Math.min(1,q.t/.6)*Math.PI*2;o.scale.setScalar(Math.min(1,.6+q.t));if(q.y<=q.fl&&q.vy<0){q.y=q.fl;q.landed=true;q.lt=q.t;o.rotation.x=0;o.scale.setScalar(1);
           for(let k=0;k<6;k++)add(blobs,'#ffffff',new V3(o.position.x+rnd(-.3,.3),q.y+.05,o.position.z+rnd(-.3,.3)),{k:1,v:new V3(0,rnd(.4,.8),0),life:rnd(.4,.6),s:.03,s1:.05})}}
         o.position.y=q.y;if(q.t>1.5)o.scale.setScalar(Math.max(0,1-(q.t-1.5)/.3));done=q.t>1.8}
+      else if(q.kind==='spring'){   // pops up, lands and boings, then shrinks away
+        if(!q.landed){q.vy-=14*dt;q.y+=q.vy*dt;o.position.x+=q.vx*dt;o.scale.setScalar(Math.min(1,.6+q.t*1.5));if(q.y<=q.fl&&q.vy<0){q.y=q.fl;q.landed=true;q.lt=q.t;o.rotation.x=0;o.rotation.z=0}}
+        else{const u=q.t-q.lt;o.scale.set(1,1+.45*Math.sin(u*26)*Math.exp(-u*3.5),1)}
+        o.position.y=q.y;if(q.t>1.45)o.scale.setScalar(Math.max(0,1-(q.t-1.45)/.3));done=q.t>1.75}
       else{   // the chick: pops out, then runs off in hops, turning away from walls, and is gone in a puff
         if(q.t<.25){q.vy-=14*dt;q.y+=q.vy*dt;o.scale.setScalar(.2+q.t*3.2)}
         else{const sp=3.6*dt,nx=o.position.x+Math.sin(q.d)*sp,nz=o.position.z+Math.cos(q.d)*sp;
@@ -664,8 +717,8 @@ function makeFx(W){
         if(q.t>1.35){done=true;for(let k=0;k<8;k++)add(blobs,k%2?'#ffd84a':'#fff3c4',new V3(o.position.x,o.position.y+.2,o.position.z),{v:new V3(rnd(-1.5,1.5),rnd(1,2.5),rnd(-1.5,1.5)),life:.45,s:.05,g:6})}}
       if(done){o.visible=false;spare[q.kind].push(o);meshes.splice(i,1)}}
   }
-  return {play,step,busy:()=>meshes.length>0||blobs.m.visible||flakes.m.visible,clear(){for(const q of meshes){q.o.visible=false;spare[q.kind].push(q.o)}meshes.length=0;
-    for(const Pl of [blobs,flakes]){for(let i=0;i<Pl.n;i++){Pl.ps[i].on=false;Pl.m.setMatrixAt(i,ZM)}Pl.m.instanceMatrix.needsUpdate=true;Pl.m.visible=false}}};
+  return {play,step,busy:()=>meshes.length>0||blobs.m.visible||flakes.m.visible||coins.m.visible,clear(){for(const q of meshes){q.o.visible=false;spare[q.kind].push(q.o)}meshes.length=0;
+    for(const Pl of [blobs,flakes,coins]){for(let i=0;i<Pl.n;i++){Pl.ps[i].on=false;Pl.m.setMatrixAt(i,ZM)}Pl.m.instanceMatrix.needsUpdate=true;Pl.m.visible=false}}};
 }
 let mainFx=null;
 const fxMain=()=>mainFx||(mainFx=makeFx({scene:X.scene,floor:(x,y,z)=>X.floorBelow(x,y,z),solid:(x,y,z)=>X.solidAt(x,y,z)}));
@@ -679,7 +732,7 @@ function cracked(t,k,p){
   if(!p){if(!t._fxP||T-t._fxT>1.2)return;p=t._fxP}
   if(t._fxDone)return;t._fxDone=true;
   const kp=k.pos||null,dir=kp?new V3(p.x-kp.x,0,p.z-kp.z):null;if(dir&&dir.lengthSq()>.01)dir.normalize();
-  fxMain().play(kit.crack,p,shardColor(t),dir&&dir.lengthSq()>.5?dir:null);
+  fxMain().play(kit.crack,p,shardColor(t),dir&&dir.lengthSq()>.5?dir:null,k.color);
 }
 
 // =====================================================================
@@ -744,6 +797,12 @@ function crackStill(n){const L=[];
   else if(n===4){const cols=[0xff5c8a,0x58b4ff,0xffd23f,0x36b37e,0xb46cff,0xff8a3d];for(let i=0;i<40;i++){const a=i*2.4,r=.1+(i%7)*.08;L.push({g:flakeGeo,c:cols[i%6],m:X.partM(Math.cos(a)*r,.2+(i*37%40)/40*1.1,Math.sin(a)*r,1.6,1.6,1.6,i,i*1.7,i*.3)})}}
   else if(n===5){const cols=[0xa3b85e,0x8fa04a,0xc3d27a];for(let i=0;i<8;i++){const a=i*.8;P(L,'ico',cols[i%3],Math.cos(a)*.2,.35+i*.11,Math.sin(a)*.2,.15+i*.02,.15+i*.02,.15+i*.02,i,i,0)}
     for(const [x,y] of [[.35,1.05],[-.3,.85]]){P(L,'sph',0x262624,x,y,0,.035,.03,.045);for(const s of [-1,1])P(L,'sph',0xe8f0f6,x+s*.03,y+.025,0,.035,.01,.02,0,0,s*.5)}}
+  else if(n===6){const cols=[0xe2503f,0xffffff,0xffd04a,0x4f8fe0];for(let i=0;i<40;i++){const a=i*2.4,r=.1+(i%7)*.08;L.push({g:flakeGeo,c:cols[i%4],m:X.partM(Math.cos(a)*r,.2+(i*37%40)/40*1.1,Math.sin(a)*r,1.6,1.6,1.6,i,i*1.7,i*.3)})}}
+  else if(n===7){for(let i=0;i<16;i++){const a=i*2.4,r=.08+(i%5)*.07;L.push({g:coinGeo,c:i%3?0xffc93c:0xffe27a,m:X.partM(Math.cos(a)*r,.12+(i*29%16)/16*.9,Math.sin(a)*r,.11,.11,.11,i*.7,0,i*.4)})}
+    for(let i=0;i<5;i++)L.push({g:coinGeo,c:0xffc93c,m:X.partM(-.25+i*.12,.012+i*.025,.2,.11,.11,.11)})}
+  else if(n===8){L.push({g:spring(),c:null,m:X.partM(-.2,0,0,1,1.2,1,0,0,.15)});L.push({g:spring(),c:null,m:X.partM(.25,.3,-.1,.8,.8,.8,.6,1,.4)});
+    for(let i=0;i<10;i++){const a=i*2.1;P(L,'ico',i%2?0x9aa2ac:0xc9ced6,Math.cos(a)*.35,.1+(i*13%10)/10*.8,Math.sin(a)*.3,.05,.05,.05,i,i,0)}
+    for(let i=0;i<5;i++)L.push({g:coinGeo,c:0xc9ced6,m:X.partM(Math.cos(i*1.3)*.25,.6+i*.08,Math.sin(i*1.3)*.25,.06,.06,.06,i,0,i*.5)})}
   if(!L.length)return new THREE.BufferGeometry();
   // fried() and chick() already carry colours: join them with the rest
   const own=L.filter(q=>q.c==null),rest=L.filter(q=>q.c!=null);let g=rest.length?X.mergeParts(rest):null;
@@ -867,7 +926,7 @@ function update(dt){
   if(mainFx)mainFx.step(dt);
   if(ui&&!ui.sec.hidden&&X.state==='menu'){
     spin+=dt*.5;pvT+=dt;
-    if(playT>=0){if(playT===0){pvInit().fx.play(myKit.crack,new V3(0,0,0),'#fbf6ea',new V3(.6,0,-.8).normalize())}playT+=dt;pv.fx.step(dt);if(playT>1.9){playT=-1;pv.fx.clear()}bigPv();pvT=0}
+    if(playT>=0){if(playT===0){pvInit().fx.play(myKit.crack,new V3(0,0,0),'#fbf6ea',new V3(.6,0,-.8).normalize(),X.myColor)}playT+=dt;pv.fx.step(dt);if(playT>1.9){playT=-1;pv.fx.clear()}bigPv();pvT=0}
     else if(pvT>1/15){pvT=0;bigPv()}   // the preview turns slowly: a new picture 15 times a second is plenty
   }
   if(ui&&!ui.sec.hidden&&X.state!=='menu')close();

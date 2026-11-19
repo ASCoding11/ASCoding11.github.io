@@ -766,6 +766,17 @@
   I('shell-crackers', 'hat', 15, 'Robot Antenna', 'rare', '#C9CED6', '#FF4A3A', 'A metal cap, a springy aerial and bolts for ears.');
   I('shell-crackers', 'hat', 16, 'Parrot', 'legendary', '#E2343A', '#2F7AD8', 'A loud friend who sits on your head and watches.');
   I('shell-crackers', 'hat', 17, 'Bowler Hat', 'common', '#7A5E46', '#3A2C22', 'Round and brown, for detectives and bankers.');
+  I('shell-crackers', 'gun', 13, 'Red Team Kit', 'common', '#D8433A', '#FFFFFF', 'Team red with two white stripes down each side.');
+  I('shell-crackers', 'gun', 14, 'Blue Team Kit', 'common', '#3D7FE0', '#FFD04A', 'Team blue with gold stripes.');
+  I('shell-crackers', 'gun', 15, 'Pirate Brass', 'epic', '#C9A040', '#6A4426', 'Polished brass, ship timber, rope and a flared muzzle.');
+  I('shell-crackers', 'gun', 16, 'Pinstripe', 'uncommon', '#5A6078', '#E8B830', 'Slate grey with thin stripes and a gold band.');
+  I('shell-crackers', 'gun', 17, 'Chrome Briefcase', 'legendary', '#DCE3EA', '#5A3E2A', 'Chrome and leather, gold latches and a handle underneath.');
+  I('shell-crackers', 'gun', 18, 'Robot Plating', 'rare', '#EEF2F6', '#3EC8E8', 'White plates with a cyan light down each side.');
+  I('shell-crackers', 'gun', 19, 'Junkyard', 'common', '#8A8478', '#B07A4C', 'Odd metals bolted together, held with tape.');
+  I('shell-crackers', 'gun', 20, 'Hockey Tape', 'uncommon', '#D9B07A', '#34343C', 'Wood like a stick, black tape at the front, white at the grip.');
+  I('shell-crackers', 'crack', 6, 'Team Confetti', 'uncommon', '#E2503F', '#4F8FE0', 'Confetti in your shell colour, or your team colour in capture the flag.');
+  I('shell-crackers', 'crack', 7, 'Pirate Gold', 'legendary', '#FFC93C', '#FFF3C4', 'A shower of gold coins that land and settle.');
+  I('shell-crackers', 'crack', 8, 'Bolts and Springs', 'rare', '#C9CED6', '#7A828E', 'Nuts, washers and two springs that boing away.');
   // ---- Asteroid Run items ----
   // Asteroid Run: aliens to run as (a new picture on the runner's own plane, same size and hit area), run trails and
   // tunnel colours, drawn by asteroid-run/wardrobe.js by slot and number. In no pack: captains wear them free in the
