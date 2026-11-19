@@ -363,6 +363,35 @@
   I('boostball', 'engine', 2, 'Buzz', 'uncommon', '#FFD23F', '#FF8A1F', 'High and angry, like a go-kart.');
   I('boostball', 'engine', 3, 'Rumble', 'rare', '#7A5230', '#FF4D6D', 'A big lazy burble.');
   I('boostball', 'engine', 4, 'Whirr', 'epic', '#3EE6FF', '#FFFFFF', 'Electric: it sings as it speeds up.');
+  // second wave (Nov 2026): sports, pirates, suits and robots. (Goal explosion 22 is Carbon Star, an exclusive gift from another branch.)
+  I('boostball', 'decal', 32, 'Team Hoops', 'common', '#3F8CFF', '#FFFFFF', 'Wide bands round the car in your accent colour.');
+  I('boostball', 'decal', 33, 'Varsity', 'uncommon', '#7A1F3D', '#FFFFFF', 'A chunky stripe and a big star, like a letter jacket.');
+  I('boostball', 'decal', 34, 'Pinstripe Suit', 'uncommon', '#2F3140', '#B4B8CC', 'Chalk pinstripes over your paint and a pocket square.');
+  I('boostball', 'decal', 35, 'Tuxedo', 'epic', '#15161C', '#F6F6F6', 'Black lapels, a white shirt front and a bow tie in your accent colour.');
+  I('boostball', 'decal', 36, 'Circuit Board', 'rare', '#1D8A4E', '#E0B54A', 'Gold traces, pads and little chips.');
+  I('boostball', 'decal', 37, 'Robot Plating', 'rare', '#B8BCCF', '#3FD2FF', 'Panel seams, rivets and a glowing visor line.');
+  I('boostball', 'decal', 38, 'Jolly Oars', 'epic', '#1D1F27', '#E9DCC0', 'Two crossed oars and gold rope trim. A pirate flag with no skull.');
+  I('boostball', 'trail', 28, 'Gold Coins', 'legendary', '#FFD23F', '#C98A12', 'Coins bounce out behind you.');
+  I('boostball', 'trail', 29, 'Sea Spray', 'uncommon', '#5CC8FF', '#FFFFFF', 'Spray off the back like a speedboat.');
+  I('boostball', 'trail', 30, 'Circuit Sparks', 'rare', '#46E39A', '#FFD23F', 'Green and gold bits of light.');
+  I('boostball', 'trail', 31, 'Ticker Tape', 'common', '#FFFFFF', '#FFE9A8', 'A parade behind you.');
+  I('boostball', 'trail', 32, 'Camera Flashes', 'rare', '#FFFFFF', '#FFF6C8', 'Pop, pop, pop, like a crowd taking pictures.');
+  I('boostball', 'goal', 23, 'Ticker Tape Parade', 'rare', '#FFFFFF', '#FFE9A8', 'White and gold paper pours over the goal while the crowd roars.');
+  I('boostball', 'goal', 24, 'Treasure Chest', 'legendary', '#8A5A2B', '#FFD23F', 'A chest rises, opens and spills gold coins and gems.');
+  I('boostball', 'goal', 25, 'Floodlights', 'epic', '#FFF6C8', '#3F8CFF', 'The stadium lights flash on, then stars burst in your team colour.');
+  I('boostball', 'topper', 7, 'Soccer Ball', 'common', '#F6F6F6', '#14161F', 'A tiny football on your aerial.');
+  I('boostball', 'topper', 8, 'Basketball', 'common', '#E8742A', '#2A1810', 'A tiny basketball on your aerial.');
+  I('boostball', 'topper', 9, 'Baseball', 'common', '#F6F4EA', '#D8262F', 'A tiny baseball with red stitches.');
+  I('boostball', 'topper', 10, 'Anchor', 'uncommon', '#5A6170', '#C8D2DC', 'A little steel anchor.');
+  I('boostball', 'topper', 11, 'Robot Head', 'rare', '#B8BCCF', '#3FD2FF', 'A boxy robot with glowing eyes.');
+  I('boostball', 'topper', 12, 'Parrot', 'epic', '#2ECC5A', '#D8262F', 'A pirate\'s parrot riding along.');
+  I('boostball', 'hat', 7, 'Pirate Tricorn', 'epic', '#2A2440', '#E0B040', 'A three-cornered hat with gold trim and a red feather.');
+  I('boostball', 'hat', 8, 'Fedora', 'rare', '#3A3550', '#15161C', 'A wide brim, a pinched crown and a black band.');
+  I('boostball', 'hat', 9, 'Football Helmet', 'uncommon', '#3F8CFF', '#FFFFFF', 'In your accent colour, with a stripe and a face cage.');
+  I('boostball', 'hat', 10, "Captain's Cap", 'uncommon', '#FFFFFF', '#15161C', 'A white sailor\'s cap with a black peak.');
+  I('boostball', 'hat', 11, 'Robot Dome', 'rare', '#B8BCCF', '#3FD2FF', 'A steel dome with a visor and two antennas.');
+  I('boostball', 'hat', 12, 'Ref Cap', 'common', '#14161F', '#F6F6F6', 'Black with white stripes.');
+  I('boostball', 'wheels', 5, 'Black Chrome', 'rare', '#2A2C34', '#C8D2DC', 'Five spokes in dark, shiny chrome.');
   // Slipstream sponsors (all made up): signing with one is free, and its sticker goes on the car. c1 and c2 are its colours.
   I('slipstream', 'sponsor', 1, 'Zoomi Cola', 'common', '#12B5A6', '#FFF3D6', 'Fizzy, fast and slightly too sweet.');
   I('slipstream', 'sponsor', 2, 'Burnout Coffee', 'common', '#3B2416', '#FFB347', 'Roasted until the tyres smoke.');

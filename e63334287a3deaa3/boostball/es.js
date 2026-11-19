@@ -32,6 +32,12 @@
     'Open buggy': 'Buggy abierto', 'Rally hatch': 'Hatchback de rally', 'Pickup': 'Camioneta', 'Minibus': 'Minibús', 'Open-wheel racer': 'Monoplaza', 'Hot rod': 'Hot rod',
     'Plated truck': 'Camión blindado', 'Kit': 'Accesorios', '· not public yet': '· aún no es público', 'Decal': 'Calcomanía', 'Boost trail': 'Estela de turbo',
     'Goal explosion': 'Explosión de gol', 'Topper': 'Adorno', 'Hat': 'Sombrero', 'Wheels': 'Ruedas', 'Engine': 'Motor', 'Preview': 'Vista previa', 'None': 'Ninguno',
+    // second-wave Kit items (Nov 2026)
+    'Team Hoops': 'Aros del equipo', 'Varsity': 'Universitaria', 'Pinstripe Suit': 'Traje a rayas', 'Tuxedo': 'Esmoquin', 'Circuit Board': 'Placa de circuito', 'Robot Plating': 'Blindaje de robot',
+    'Jolly Oars': 'Remos cruzados', 'Gold Coins': 'Monedas de oro', 'Sea Spray': 'Espuma de mar', 'Circuit Sparks': 'Chispas de circuito', 'Ticker Tape': 'Serpentinas', 'Camera Flashes': 'Flashes de cámara',
+    'Ticker Tape Parade': 'Desfile de serpentinas', 'Treasure Chest': 'Cofre del tesoro', 'Floodlights': 'Reflectores', 'Soccer Ball': 'Pelota de fútbol', 'Basketball': 'Pelota de básquet',
+    'Baseball': 'Pelota de béisbol', 'Anchor': 'Ancla', 'Robot Head': 'Cabeza de robot', 'Parrot': 'Loro', 'Pirate Tricorn': 'Tricornio pirata', 'Fedora': 'Fedora', 'Football Helmet': 'Casco de fútbol americano',
+    "Captain's Cap": 'Gorra de capitán', 'Robot Dome': 'Cúpula de robot', 'Ref Cap': 'Gorra de árbitro', 'Black Chrome': 'Cromo negro',
     'No decal: plain team paint.': 'Sin calcomanía: el color del equipo, liso.', 'No trail: the usual boost flame.': 'Sin estela: la llama de turbo de siempre.',
     'No goal explosion: the usual fireball.': 'Sin explosión de gol: la bola de fuego de siempre.', 'No topper.': 'Sin adorno.', 'No hat.': 'Sin sombrero.',
     'The usual wheels.': 'Las ruedas de siempre.', 'The usual engine sound.': 'El sonido de motor de siempre.', 'is not in your locker yet.': 'todavía no está en tu casillero.', 'Shop': 'Tienda',
