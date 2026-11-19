@@ -254,6 +254,8 @@
     chromaflage: { name: 'Chromaflage', prefix: 'cf', slots: [['hat', 'Seeker hats'], ['tool', 'Seeker tools'], ['splash', 'Catch splashes'], ['caught', 'Caught animations']] },
     'odd-one-out': { name: 'Odd One Out', prefix: 'oo', slots: [['outfit', 'Hunter outfits'], ['tool', 'Hunter tools'], ['taunt', 'Prop taunts'], ['poof', 'Catch poofs']] },
     'drop-zone': { name: 'Driftfall', prefix: 'dz', slots: [['outfit', 'Outfits'], ['pack', 'Backpacks'], ['glider', 'Gliders'], ['trail', 'Glider trails'], ['wrap', 'Gun skins'], ['build', 'Build skins'], ['emote', 'Emotes'], ['victory', 'Victory poses']] },
+    'sky-duel': { name: 'Sky Duel', prefix: 'sd', slots: [['paint', 'Paints'], ['nose', 'Noses'], ['trail', 'Trails'], ['boom', 'Shoot-downs']] },
+    blockstorm: { name: 'Blockstorm', prefix: 'bs', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['gun', 'Gun skins']] },
     tidewick: { name: 'Tidewick', prefix: 'tw', slots: [['outfit', 'Outfits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
     'patchwork-tower': { name: 'Patchwork Tower', prefix: 'pt', slots: [['paint', 'Paint jobs'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Hop trails']] },
     flickerwood: { name: 'Flickerwood', prefix: 'fw', slots: [['kit', 'Kits'], ['hat', 'Hats'], ['face', 'Face pieces'], ['trail', 'Trails']] },
@@ -1348,6 +1350,77 @@
   I('drop-zone', 'victory', 2, 'Flex', 'uncommon', '#E8742A', '#FFFFFF', 'Show those arms.');
   I('drop-zone', 'victory', 3, 'Take a Bow', 'rare', '#8A5A2B', '#F2EFE8', 'A deep, slow bow to the crowd.');
   I('drop-zone', 'victory', 4, 'Jump for Joy', 'epic', '#5FD068', '#FFD23F', 'Jumping up and down with arms wide.');
+  // ---- Sky Duel items ----
+  // Sky Duel (sky-duel/hangar.js draws them by number): paints, noses (spinner and propeller), trails and shoot-down effects.
+  // Looks only: every plane keeps its size and hit sphere, and in 2v2 its plain team colour. Hidden: captains only.
+  I('sky-duel', 'paint', 1, 'Home Kit', 'common', '#4DDC7A', '#E23B2E', 'Your colour with a racing stripe, wing tips and a big 7 on the tail in red or navy, whichever stands out.');
+  I('sky-duel', 'paint', 2, 'Away Kit', 'common', '#FF6A2E', '#FFFFFF', 'Bright orange with a white stripe, white wing tips and the number 12.');
+  I('sky-duel', 'paint', 3, 'Rugby Hoops', 'common', '#4DDC7A', '#E23B2E', 'Hoops of red or yellow round your colour from nose to tail.');
+  I('sky-duel', 'paint', 4, 'Chequered Flag', 'rare', '#E23B2E', '#FFFFFF', 'Race red with chequered wing tips and tail and a number 1.');
+  I('sky-duel', 'paint', 5, 'Basketball', 'uncommon', '#F07A22', '#2A1810', 'Orange with the black seams of a ball.');
+  I('sky-duel', 'paint', 6, 'Soccer Ball', 'uncommon', '#F5F5F1', '#222226', 'White with black patches all over.');
+  I('sky-duel', 'paint', 7, 'Referee', 'uncommon', '#F4F4F2', '#202024', 'Black and white stripes. Fair play only.');
+  I('sky-duel', 'paint', 8, 'Baseball Glove', 'common', '#C98A4A', '#4A2614', 'Tan leather with dark laces and pale stitching.');
+  I('sky-duel', 'paint', 9, 'Ice Hockey', 'uncommon', '#D63A35', '#FFFFFF', 'A red jersey with a white yoke, white bands and a 27.');
+  I('sky-duel', 'paint', 10, 'Pirate Captain', 'epic', '#EFBB36', '#1F1B18', 'Gold wings with crossed oars, a black hull with gold bands.');
+  I('sky-duel', 'paint', 11, 'Pinstripe Suit', 'rare', '#D33B3B', '#FFE6C0', 'A loud red suit with fine pinstripes, a white collar and a black tie.');
+  I('sky-duel', 'paint', 12, 'Chrome Robot', 'epic', '#C9D0D8', '#FF3B30', 'Polished metal plates, rivets and a red sensor band.');
+  I('sky-duel', 'paint', 13, 'Tin Toy Robot', 'rare', '#E2402F', '#FFD23A', 'A wind-up toy in red tin with yellow trim and rivets.');
+  I('sky-duel', 'paint', 14, 'Tracksuit', 'common', '#4DDC7A', '#E23B2E', 'Your colour with two stripes down the sides and a gold chain round the nose.');
+  I('sky-duel', 'paint', 15, 'Tiger Mascot', 'rare', '#F08A24', '#1C1410', 'Orange with black stripes and a cream belly.');
+  I('sky-duel', 'paint', 16, 'Golden Trophy', 'legendary', '#E8B030', '#FFFFFF', 'Polished gold with a white star on each wing.');
+  I('sky-duel', 'paint', 17, 'Dragon Scales', 'legendary', '#D8432F', '#FFB02E', 'Red scales edged in gold, with a golden belly.');
+  I('sky-duel', 'paint', 18, 'Strawberry Sundae', 'uncommon', '#FF6F9F', '#6B3A1E', 'Strawberry pink with chocolate drips and sprinkles.');
+  I('sky-duel', 'paint', 19, 'Tuxedo', 'epic', '#F7F7F4', '#B8283C', 'A red velvet jacket, a white shirt and a black bow tie.');
+  I('sky-duel', 'nose', 1, 'Candy Spiral', 'common', '#E2343F', '#FFFFFF', 'A red and white swirl that spins with the propeller.');
+  I('sky-duel', 'nose', 2, 'Chequered Spinner', 'uncommon', '#1D1D1F', '#FFFFFF', 'Black and white checks, like the finish line.');
+  I('sky-duel', 'nose', 3, 'Gold Spinner', 'rare', '#E8B030', '#FFF3B0', 'A polished gold nose and a golden blur.');
+  I('sky-duel', 'nose', 4, 'Bullseye', 'common', '#E2343F', '#FFFFFF', 'Red and white rings round the nose.');
+  I('sky-duel', 'nose', 5, 'Robot Eye', 'epic', '#C9D0D8', '#FF3B30', 'Silver with a glowing red ring.');
+  I('sky-duel', 'trail', 1, 'Red and White', 'common', '#FF4A4A', '#FFFFFF', 'Red from one wing, white from the other, like a team display.');
+  I('sky-duel', 'trail', 2, 'Rainbow', 'epic', '#FF5A8A', '#4DD2FF', 'Contrails that run through every colour.');
+  I('sky-duel', 'trail', 3, 'Gold Sparkle', 'rare', '#FFC93C', '#FFF6C8', 'Golden contrails with a twinkle.');
+  I('sky-duel', 'trail', 4, 'Your Colour', 'common', '#4DDC7A', '#FFFFFF', 'Contrails tinted with your plane\'s colour.');
+  I('sky-duel', 'trail', 5, 'Confetti', 'uncommon', '#B46CFF', '#FFD23F', 'Little bright puffs in every colour.');
+  I('sky-duel', 'trail', 6, 'Skywriter', 'uncommon', '#FFFFFF', '#CFE8FF', 'Thick white puffs, dot, dot, dot.');
+  I('sky-duel', 'boom', 1, 'Confetti Burst', 'common', '#FF5A8A', '#FFD23F', 'A shower of bright confetti where they went down.');
+  I('sky-duel', 'boom', 2, 'Fireworks', 'rare', '#FFD04A', '#FF8A2A', 'A ring of golden sparks that bursts and falls.');
+  I('sky-duel', 'boom', 3, 'Doubloons', 'epic', '#E8B030', '#8A5A10', 'A pirate\'s fortune of gold coins scattering.');
+  I('sky-duel', 'boom', 4, 'Star Burst', 'uncommon', '#FFFFFF', '#FFE9A0', 'A big white star that flashes and fades.');
+  I('sky-duel', 'boom', 5, 'Smoke Ring', 'legendary', '#F0F2F6', '#9AA4AE', 'A perfect ring of smoke that grows and drifts.');
+  // ---- Blockstorm items ----
+  // Blockstorm (blockstorm/locker.js draws them by number): outfits, hats and gun skins. Looks only: every fighter keeps
+  // its hit box, and a gun skin keeps the gun's rarity colour. Hidden: captains only.
+  I('blockstorm', 'outfit', 1, 'Soccer Kit', 'common', '#E8352E', '#FFFFFF', 'A red jersey with a white 10 on the back, white shorts and red boots.');
+  I('blockstorm', 'outfit', 2, 'Basketball Jersey', 'common', '#FFCF2A', '#FFCF2A', 'A sunny yellow vest with purple trim and a 15.');
+  I('blockstorm', 'outfit', 3, 'Football Pads', 'uncommon', '#20B8B0', '#F2F2F2', 'A teal jersey over shoulder pads, white stripes and a 42.');
+  I('blockstorm', 'outfit', 4, 'Baseball Uniform', 'common', '#F4F2EA', '#F4F2EA', 'A white pinstriped shirt with a red 9 and red socks.');
+  I('blockstorm', 'outfit', 5, 'Hockey Sweater', 'uncommon', '#D83A34', '#F2F2F2', 'A red sweater with white bands and a 31.');
+  I('blockstorm', 'outfit', 6, 'Track Star', 'common', '#4CE06A', '#2F8BFF', 'A bright green vest with a race number pinned on.');
+  I('blockstorm', 'outfit', 7, 'Firefighter', 'rare', '#F2C21F', '#F2C21F', 'A yellow coat with silver bands and red boots.');
+  I('blockstorm', 'outfit', 8, 'Astronaut', 'epic', '#F4F6F8', '#E8ECF0', 'A white space suit with a flag patch and a chest panel.');
+  I('blockstorm', 'outfit', 9, 'Chrome Robot', 'epic', '#C4CCD6', '#AAB4C0', 'Polished plates, a glowing chest light and bolts.');
+  I('blockstorm', 'outfit', 10, 'Tin Toy Robot', 'rare', '#E2402F', '#FFD23A', 'Red tin with yellow trim, a dial and a wind-up look.');
+  I('blockstorm', 'outfit', 11, 'Pirate Captain', 'legendary', '#C8302F', '#F2E6CC', 'A red captain\'s coat with gold buttons, and an eye patch.');
+  I('blockstorm', 'outfit', 12, 'Deckhand', 'uncommon', '#FFFFFF', '#4A8AD8', 'A striped sailor shirt, rolled trousers and an eye patch.');
+  I('blockstorm', 'outfit', 13, 'Pinstripe Suit', 'rare', '#8A4FD0', '#8A4FD0', 'A purple pinstripe suit with a white shirt and a gold tie.');
+  I('blockstorm', 'outfit', 14, 'Tracksuit', 'uncommon', '#2ED36A', '#2ED36A', 'A bright green tracksuit with white stripes and a gold chain.');
+  I('blockstorm', 'outfit', 15, 'White Tuxedo', 'epic', '#F6F4EE', '#2A2C34', 'A white dinner jacket, a black bow tie and a red flower.');
+  I('blockstorm', 'outfit', 16, 'Detective', 'uncommon', '#C9A46A', '#8A6A44', 'A tan trench coat with a belt and big buttons.');
+  I('blockstorm', 'hat', 1, 'Team Cap', 'common', '#E8352E', '#FFFFFF', 'A red cap with a white peak.');
+  I('blockstorm', 'hat', 2, 'Sweatband', 'common', '#FFFFFF', '#E8352E', 'A white band with a red stripe.');
+  I('blockstorm', 'hat', 3, 'Pirate Tricorn', 'epic', '#2A2622', '#E0B040', 'A black three-cornered hat with gold trim.');
+  I('blockstorm', 'hat', 4, 'Fedora', 'rare', '#9AA0AA', '#1D1D1F', 'A grey felt hat with a black band.');
+  I('blockstorm', 'hat', 5, 'Sailor Bandana', 'uncommon', '#E2343F', '#FFFFFF', 'A red bandana with white spots, tied at the back.');
+  I('blockstorm', 'hat', 6, 'Robot Antenna', 'rare', '#B8C2CC', '#FF3B30', 'A metal cap with an antenna and a blinking red bulb.');
+  I('blockstorm', 'hat', 7, 'Party Crown', 'legendary', '#FFCF3A', '#E2343F', 'A gold crown with red and blue jewels.');
+  I('blockstorm', 'gun', 1, 'Racing Stripe', 'common', '#E2343F', '#FFFFFF', 'Red with a white stripe from stock to muzzle.');
+  I('blockstorm', 'gun', 2, 'Chequered', 'uncommon', '#FFFFFF', '#1D1D1F', 'Black and white checks, like the finish line.');
+  I('blockstorm', 'gun', 3, 'Gold Plated', 'legendary', '#FFC93C', '#C8960E', 'Shiny gold all over.');
+  I('blockstorm', 'gun', 4, 'Chrome', 'epic', '#DFE6EE', '#3A3E46', 'Polished chrome with dark grips.');
+  I('blockstorm', 'gun', 5, 'Pirate Brass', 'rare', '#8A5A32', '#D8A838', 'Dark wood with brass fittings, like an old ship\'s gun.');
+  I('blockstorm', 'gun', 6, 'Candy Cane', 'uncommon', '#FFFFFF', '#E2343F', 'Red and white stripes all the way round.');
+  I('blockstorm', 'gun', 7, 'Tiger Stripe', 'rare', '#F08A24', '#1C1410', 'Orange with black stripes.');
   // ---- Tidewick items ----
   // Tidewick: outfits, hats, face pieces and trails for Pip, drawn in pixels by tidewick/wardrobe.js by slot and number.
   // In no pack: captains wear them free in the game's Wardrobe. Outfits repaint only Pip's ordinary form (power-ups keep
