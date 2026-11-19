@@ -719,11 +719,14 @@ function makeCar(seat){
     snap:null,tv:0,mesh:null,spin:0,crashT:0};
 }
 // grid: array of seats in grid order. humans: Map seat -> {name,uid,me}
+// party: a party launch's room (people only): only the people's cars race, lined up from the front of the grid.
+// race.seatCar is the car in each seat (undefined for an empty one); race.cars is every car that races.
 function newRace(o){
   const T=setTrack(o.track);
-  const cars=[];
+  let cars=[];
   for(let s=0;s<SEATS;s++)cars.push(makeCar(s));
-  o.grid.forEach((seat,k)=>{
+  const seatCar=cars.slice();
+  (o.party?o.grid.filter(s=>o.humans.has(s)):o.grid).forEach((seat,k)=>{
     const c=cars[seat],P0=-(GRID_FRONT+GRID_GAP*k),lat=(k%2?1:-1)*3.1,p=posAt(P0,lat);
     c.x=p.x;c.z=p.z;c.h=p.h;c.idx=p.i;c.P=P0;c.s=((P0%T.L)+T.L)%T.L;c.lat=lat;c.gridPos=k+1;
   });
@@ -733,7 +736,8 @@ function newRace(o){
     if(hu){c.bot=false;c.name=hu.name||'Driver';c.code=codeOf(c.name);c.owner=hu.uid||'';c.ctrl=hu.me?'me':'remote'}
     else c.ctrl=o.runBots?'bot':'remote';
   }
-  race={track:o.track,laps:o.laps,go:o.go,cars,me:cars.find(c=>c.ctrl==='me')||null,online:!!o.online,id:o.id||0,
+  if(o.party){cars=cars.filter(c=>o.humans.has(c.seat));for(let s=0;s<SEATS;s++)if(!o.humans.has(s))seatCar[s]=undefined}
+  race={track:o.track,laps:o.laps,go:o.go,cars,seatCar,party:!!o.party,me:cars.find(c=>c.ctrl==='me')||null,online:!!o.online,id:o.id||0,
     anyFin:0,firstFinT:0,ended:false,fr:new Float64Array(Math.ceil(o.laps*T.L/20)+80).fill(NaN),fastest:0,fastSeat:-1,
     attract:!!o.attract,lightsShown:false,goShown:false,finalShown:false};
   buildCars();
@@ -1818,14 +1822,14 @@ function onPlayerNode(uid,v){
   if(!race||!race.online||race.attract||v.rid!==race.id)return;
   const seat=race.uidSeat.get(uid);
   if(seat!=null){
-    const c=race.cars[seat];
-    if(c.ctrl==='remote'&&!c.bot&&c.owner===uid&&typeof v.x==='number')applySnap(c,{t:ts,x:+v.x,z:+v.z,h:+v.h,v:+v.v,P:+v.P,f:+v.f||0,bl:+v.bl||0,b:v.b|0,st:+v.st||0,pn:+v.pn||0});
+    const c=race.seatCar[seat];
+    if(c&&c.ctrl==='remote'&&!c.bot&&c.owner===uid&&typeof v.x==='number')applySnap(c,{t:ts,x:+v.x,z:+v.z,h:+v.h,v:+v.v,P:+v.P,f:+v.f||0,bl:+v.bl||0,b:v.b|0,st:+v.st||0,pn:+v.pn||0});
   }
   if(typeof v.bt==='string'&&v.bt){
     for(const part of v.bt.split('|').slice(0,SEATS)){
       const f=part.split(',');if(f.length<10)continue;
       const s=f[0]|0;if(s<0||s>=SEATS)continue;
-      const c=race.cars[s];
+      const c=race.seatCar[s];if(!c)continue;
       if(c.ctrl==='me'){ // our seat went to a bot while we were away
         race.me=null;c.ctrl='remote';c.bot=true;c.name=DRIVERS[s].n;c.code=DRIVERS[s].c;refreshCarMesh(c);
         toast('You lost connection, so a bot took over your car.');
@@ -1842,7 +1846,10 @@ function onPlayerGone(uid){
   if(state==='lobby'&&o)toast((cleanName(o.v.n)||'A driver')+' left the room.');
   if(race&&race.online&&!race.attract&&!race.ended){
     const seat=race.uidSeat.get(uid);
-    if(seat!=null){const c=race.cars[seat];if(c.ctrl==='remote'&&!c.bot)toast(c.name+' left · a bot takes over the '+TEAMS[c.team].n+' car')}
+    if(seat!=null){const c=race.seatCar[seat];
+      // a party race has no bots: the car of someone who left leaves the race with them
+      if(c&&race.party){if(c.ctrl==='remote'&&!c.bot){toast(c.name+' left the race');dropCar(c)}}
+      else if(c&&c.ctrl==='remote'&&!c.bot)toast(c.name+' left · a bot takes over the '+TEAMS[c.team].n+' car')}
     Net.elect();if(Net.amHost)adoptOrphans();
   }
 }
@@ -1884,9 +1891,15 @@ function predictRemote(c,dt){
   c.s=((c.P%T.L)+T.L)%T.L;
   c.steer=lerp(c.steer,s.st||0,1-Math.exp(-dt*10));
 }
-// The host drives every car nobody live is driving: bots, and anyone who left mid-race.
+function dropCar(c){
+  const i=race.cars.indexOf(c);if(i<0)return;
+  race.cars.splice(i,1);race.seatCar[c.seat]=undefined;
+  if(c.mesh){scene.remove(c.mesh.g);const k=carMeshes.indexOf(c.mesh);if(k>=0)carMeshes.splice(k,1)}
+  if(cam.watch===c.seat)cam.watch=-1;
+}
+// The host drives every car nobody live is driving: bots, and anyone who left mid-race (not in a party race: no bots).
 function adoptOrphans(){
-  if(!race||!race.online||race.attract)return;
+  if(!race||!race.online||race.attract||race.party)return;
   const t=raceT();
   const settled=performance.now()-(Net.hostSince||0)>1500;
   for(const c of race.cars){
@@ -1962,7 +1975,7 @@ function startOnlineRace(r){
     uidSeat.set(uid,seat);
   }
   Net.elect();
-  newRace({track:r.tr|0,laps:clamp(r.laps|0,1,20),go:+r.go,grid,humans,runBots:Net.amHost,online:true,id:r.id,skill:DIFF.hard});
+  newRace({track:r.tr|0,laps:clamp(r.laps|0,1,20),go:+r.go,grid,humans,runBots:Net.amHost,online:true,id:r.id,skill:DIFF.hard,party:partyRoom()});
   race.uidSeat=uidSeat;
   for(const c of race.cars)if(c.ctrl==='remote'&&c.bot)c.owner='';
   beginRaceView();
@@ -2242,7 +2255,7 @@ function camTarget(){
   if(!race)return null;
   if(state==='race'&&race.me&&!race.me.fin)return race.me;
   if(race.me&&(state==='race'||state==='results'))return race.me;
-  if(cam.watch>=0)return race.cars[cam.watch];
+  if(cam.watch>=0&&race.seatCar[cam.watch])return race.seatCar[cam.watch];
   return order()[0];
 }
 function updateCamera(dt){
@@ -2251,7 +2264,7 @@ function updateCamera(dt){
   cam.cutT-=dt;
   if(!driving&&cam.cutT<=0){cam.cut++;cam.cutT=cam.cut%2?9:7;cam.tv=null;
     if(state!=='race'&&cam.watch<0&&race.attract){const o=order();cam.watchAuto=o[Math.floor(Math.random()*Math.min(6,o.length))].seat}}
-  const tgt=(!driving&&state!=='race'&&race.attract&&cam.watchAuto!=null)?race.cars[cam.watchAuto]:c;
+  const tgt=(!driving&&state!=='race'&&race.attract&&cam.watchAuto!=null)?race.seatCar[cam.watchAuto]:c;
   const m=driving?cam.mode:(cam.cut%2?'tv':1);
   const fx=Math.cos(tgt.h),fz=Math.sin(tgt.h);
   if(tgt.mesh)tgt.mesh.hel.visible=!(driving&&cam.mode===3);
@@ -2523,6 +2536,10 @@ function startPractice(){
 }
 // ---------- online ----------
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// races are for the party's people only: just their cars, no bots, whoever hosts.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
+function partyRoom(){return !!(Net.room&&!Net.isPublic&&isPartyRoom(Net.room))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^ss-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){const w=['apex','pitlane','grid','chicane','hairpin','slipstream','paddock','podium'];return w[Math.floor(Math.random()*w.length)]+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
@@ -2576,7 +2593,7 @@ function renderLobby(){
     hs=Net.liveHumans();own=Net.owners();
     if(mySeat>=0&&own.get(mySeat)&&!own.get(mySeat).me){mySeat=-1;$('lbMsg').textContent='Someone else grabbed that seat first. Pick another.';Net.publish(true)}
     $('lbTitle').textContent=Net.isPublic?'Public lobby':'Room '+Net.room.replace(/^ss-/,'');
-    $('lbSub').textContent=hs.length+' driver'+(hs.length>1?'s':'')+' here · bots drive the other '+(SEATS-hs.length)+' cars · '+TRACKS[tr].n;
+    $('lbSub').textContent=hs.length+' driver'+(hs.length>1?'s':'')+' here · '+(partyRoom()?'No bots in party games':'bots drive the other '+(SEATS-hs.length)+' cars')+' · '+TRACKS[tr].n;
     $('lbInvite').hidden=Net.isPublic;
   }else{
     own.set(mySeat,{me:true,n:myName||'You',rd:1});

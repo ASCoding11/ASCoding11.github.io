@@ -88,7 +88,7 @@
     "You're in {h}'s room. Waiting for the host to start…": 'Estás en la sala de {h}. Esperando que el anfitrión empiece…',
     "You're in the host's room. Waiting for the host to start…": 'Estás en la sala del anfitrión. Esperando que empiece…',
     'Free-for-all · Bots: {b}': 'Todos contra todos · Bots: {b}', 'Capture the flag · Bots: {b}': 'Captura la bandera · Bots: {b}',
-    'none, players only': 'ninguno, solo jugadores', 'Medium': 'Medios', 'Hard': 'Difíciles', 'Extreme': 'Extremos',
+    'none, players only': 'ninguno, solo jugadores', 'No bots in party games': 'Sin bots en partidas de grupo', 'Medium': 'Medios', 'Hard': 'Difíciles', 'Extreme': 'Extremos',
     "You're the host now": 'Ahora eres el anfitrión', '{n} is the host now': '{n} ahora es el anfitrión',
     'Finding a lobby…': 'Buscando una sala…', 'Connecting…': 'Conectando…', 'Still signing in…': 'Todavía iniciando sesión…',
     "Couldn't reach the game database. If you're on a school or work network it may be blocking it; try another network, or play Solo vs bots.": 'No se pudo conectar con la base de datos del juego. Si estás en la red del colegio o del trabajo, puede que la bloquee; prueba otra red, o juega Solo contra bots.',
