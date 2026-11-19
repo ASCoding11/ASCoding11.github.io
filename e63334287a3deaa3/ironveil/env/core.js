@@ -10,9 +10,9 @@
   // ------------------------------------------------------------------ quality
   // tex: hero texture size, texLo: everything else. grass*: see grass.js. post / pom / shadows decided here too.
   E.QUALITY = {
-    low: { name: 'low', tex: 512, texLo: 512, texGround: 512, pom: false, post: false, aniso: 4, grassNear: 9, grassMid: 24, grassDens: 50, grassMidDens: 8, bladeSegs: 1, seedHeads: false, treeLod: 26, decals: 64 },
-    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, pom: false, post: true, aniso: 8, grassNear: 12, grassMid: 42, grassDens: 50, grassMidDens: 11, bladeSegs: 3, seedHeads: true, treeLod: 40, decals: 160 },
-    high: { name: 'high', tex: 1024, texLo: 512, texGround: 1024, pom: true, post: true, aniso: 16, grassNear: 15, grassMid: 45, grassDens: 85, grassMidDens: 12, bladeSegs: 3, seedHeads: true, treeLod: 60, decals: 256 }
+    low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 9, grassMid: 24, grassDens: 50, grassMidDens: 8, bladeSegs: 1, seedHeads: false, carpetDens: 110, carpetR: 6, treeLod: 26, decals: 64 },
+    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: true, aniso: 8, grassNear: 12, grassMid: 42, grassDens: 40, grassMidDens: 8, bladeSegs: 3, seedHeads: true, carpetDens: 160, carpetR: 7, treeLod: 40, decals: 160 },
+    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: true, post: true, aniso: 16, grassNear: 15, grassMid: 45, grassDens: 70, grassMidDens: 10, bladeSegs: 3, seedHeads: true, carpetDens: 220, carpetR: 10, treeLod: 60, decals: 256 }
   };
   E.Q = E.QUALITY.medium;
 
@@ -76,32 +76,32 @@
   // ns: normal strength, id: per-element tint amount, pom: parallax depth in metres (High only), metal / mask.
   E.RECIPES = {
     brick_red: { tex: 'brick_red', size: 1.35, hero: 1, ns: 1.0, id: 0.22, pom: 0.012, macro: 0.16 },
-    brick_sooty: { tex: 'brick_sooty', size: 1.35, hero: 1, ns: 1.0, id: 0.18, pom: 0.012, macro: 0.2 },
+    brick_sooty: { tex: 'brick_sooty', size: 1.35, hero: 0, hero2: 1, ns: 1.0, id: 0.18, pom: 0.012, macro: 0.2 },
     fieldstone: { tex: 'fieldstone', size: 2.0, hero: 1, ns: 1.0, id: 0.18, pom: 0.03, macro: 0.18 },
-    ashlar: { tex: 'ashlar', size: 1.2, hero: 0, ns: 1.0, id: 0.1, macro: 0.12 },
-    plaster: { tex: 'plaster', size: 2.5, hero: 1, ns: 1.0, macro: 0.2 },
-    plaster_interior: { tex: 'plaster_interior', size: 2.5, hero: 0, ns: 0.8, macro: 0.14 },
+    ashlar: { tex: 'ashlar', size: 1.2, hero: 0, minor: 1, ns: 1.0, id: 0.1, macro: 0.12 },
+    plaster: { tex: 'plaster', size: 2.5, hero: 0, hero2: 1, ns: 1.0, macro: 0.2 },
+    plaster_interior: { tex: 'plaster_interior', size: 2.5, hero: 0, minor: 1, ns: 0.8, macro: 0.14 },
     planks: { tex: 'planks', size: 1.6, hero: 1, ns: 1.0, id: 0.2, macro: 0.16 },
     floorboards: { tex: 'floorboards', size: 2.0, hero: 0, ns: 1.0, id: 0.16, macro: 0.12 },
-    wood_painted: { tex: 'wood_painted', size: 1.0, hero: 1, ns: 1.0, id: 0.08, macro: 0.14 },
+    wood_painted: { tex: 'wood_painted', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.08, macro: 0.14 },
     timber: { tex: 'timber', size: 1.0, hero: 0, ns: 1.0, macro: 0.16 },
-    roof_tile: { tex: 'roof_tile', size: 1.0, hero: 1, ns: 1.0, id: 0.24, pom: 0.014, macro: 0.2 },
+    roof_tile: { tex: 'roof_tile', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.24, pom: 0.014, macro: 0.2 },
     slate: { tex: 'slate', size: 1.0, hero: 0, ns: 1.0, id: 0.18, macro: 0.16 },
-    cobbles: { tex: 'cobbles', size: 1.5, hero: 1, ns: 1.0, id: 0.2, pom: 0.025, macro: 0.18 },
+    cobbles: { tex: 'cobbles', size: 1.5, hero: 0, hero2: 1, ns: 1.0, id: 0.2, pom: 0.025, macro: 0.18 },
     mud: { tex: 'mud', size: 3.0, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
     grass_ground: { tex: 'grass_ground', size: 2.5, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
     earth: { tex: 'earth', size: 3.0, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
     gravel: { tex: 'gravel', size: 1.5, hero: 0, ground: 1, ns: 1.0, macro: 0.16 },
     leaves: { tex: 'leaves', size: 2.0, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
     bark_oak: { tex: 'bark_oak', size: 1.0, hero: 0, ns: 1.2, macro: 0.12, noFoot: 1 },
-    bark_pine: { tex: 'bark_pine', size: 1.0, hero: 0, ns: 1.2, macro: 0.12, noFoot: 1 },
-    concrete: { tex: 'concrete', size: 2.4, hero: 0, ns: 1.0, macro: 0.18 },
+    bark_pine: { tex: 'bark_pine', size: 1.0, hero: 0, minor: 1, ns: 1.2, macro: 0.12, noFoot: 1 },
+    concrete: { tex: 'concrete', size: 2.4, hero: 0, hero2: 1, ns: 1.0, macro: 0.18 },
     metal_painted: { tex: 'metal_painted', size: 1.0, hero: 0, ns: 1.0, metal: 1, mask: 1, macro: 0.12 },
-    metal_rust: { tex: 'metal_rust', size: 1.0, hero: 0, ns: 1.0, metal: 1, mask: 1, macro: 0.16 },
-    sandbag: { tex: 'sandbag', size: 0.5, hero: 0, ns: 1.0, macro: 0.16 },
-    canvas: { tex: 'canvas', size: 0.8, hero: 0, ns: 1.0, macro: 0.16 },
-    glass: { tex: 'glass', size: 1.0, hero: 0, ns: 0.4, macro: 0.1, glass: 1, noFoot: 1 },
-    straw: { tex: 'straw', size: 1.0, hero: 0, ns: 1.0, macro: 0.14, noFoot: 1 }
+    metal_rust: { tex: 'metal_rust', size: 1.0, hero: 0, minor: 1, ns: 1.0, metal: 1, mask: 1, macro: 0.16 },
+    sandbag: { tex: 'sandbag', size: 0.5, hero: 0, minor: 1, ns: 1.0, macro: 0.16 },
+    canvas: { tex: 'canvas', size: 0.8, hero: 0, minor: 1, ns: 1.0, macro: 0.16 },
+    glass: { tex: 'glass', size: 1.0, hero: 0, minor: 1, ns: 0.4, macro: 0.1, glass: 1, noFoot: 1 },
+    straw: { tex: 'straw', size: 1.0, hero: 0, minor: 1, ns: 1.0, macro: 0.14, noFoot: 1 }
   };
   // Friendly names from the brief map to recipes.
   E.ALIASES = {
@@ -127,8 +127,8 @@
     const Q = E.Q, t0 = performance.now(), jobs = [];
     const want = only || Object.keys(E.RECIPES);
     const seen = {};
-    for (const n of want) { const r = E.RECIPES[n]; if (!r || seen[r.tex]) continue; seen[r.tex] = 1; jobs.push({ name: r.tex, S: r.hero ? Q.tex : r.ground ? Q.texGround : Q.texLo, seed: 1000 + jobs.length * 77 }); }
-    jobs.push({ name: 'decals', S: Q.tex, seed: 4242 }); jobs.push({ name: 'macro', S: 256, seed: 99 });
+    for (const n of want) { const r = E.RECIPES[n]; if (!r || seen[r.tex]) continue; seen[r.tex] = 1; jobs.push({ name: r.tex, S: r.hero || (r.hero2 && Q.name === 'high') ? Q.tex : r.ground ? Q.texGround : r.minor ? Q.texMinor : Q.texLo, seed: 1000 + jobs.length * 77 }); }
+    jobs.push({ name: 'decals', S: Q.texDecal, seed: 4242 }); jobs.push({ name: 'macro', S: 256, seed: 99 });
     // the biggest first so the workers finish together
     jobs.sort((a, b) => b.S - a.S); jobs.forEach((j, i) => j.job = i);
     let done = 0; const total = jobs.length; E.genTimes = {};
@@ -136,26 +136,38 @@
       RAW[r.name] = r; E.genTimes[r.name] = r.ms; done++;
       if (onProgress) try { onProgress(done / total, r.name); } catch (e) { }
     };
-    E._loading = new Promise((resolve) => {
-      let workers = [];
-      const nW = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1));
-      try { if (location.protocol.startsWith('http')) for (let i = 0; i < nW; i++) workers.push(new Worker(BASE + 'texgen.js')); } catch (e) { workers = []; }
-      const finishAll = () => {
-        workers.forEach(w => w.terminate());
-        build(); E.genMs = performance.now() - t0; resolve(E);
+    // Generated maps are kept in IndexedDB (keyed by texgen.js contents), so the second visit skips generation.
+    const idb = () => new Promise((res) => { try { const rq = indexedDB.open('ivenv-textures', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('t'); rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null); } catch (e) { res(null); } });
+    const idbGet = (db, k) => new Promise((res) => { try { const r = db.transaction('t').objectStore('t').get(k); r.onsuccess = () => res(r.result || null); r.onerror = () => res(null); } catch (e) { res(null); } });
+    const idbPut = (db, k, v) => { try { db.transaction('t', 'readwrite').objectStore('t').put(v, k); } catch (e) { } };
+    const version = () => fetch(BASE + 'texgen.js').then(r => r.text()).then(t => { let h = 2166136261; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }).catch(() => '0');
+    E._loading = Promise.all([E.noCache ? null : idb(), version()]).then(([db, ver]) => new Promise((resolve) => {
+      const keyOf = (j) => ver + ':' + j.name + ':' + j.S + ':' + j.seed;
+      E.cacheHits = 0;
+      const store = (j, r) => { if (db) idbPut(db, keyOf(j), { name: r.name, S: r.S, alb: r.alb, nri: r.nri, ms: r.ms }); };
+      const run = (todo) => {
+        if (!todo.length) { build(); E.genMs = performance.now() - t0; return resolve(E); }
+        let workers = [];
+        const nW = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1, todo.length));
+        try { if (location.protocol.startsWith('http')) for (let i = 0; i < nW; i++) workers.push(new Worker(BASE + 'texgen.js')); } catch (e) { workers = []; }
+        let left = todo.length;
+        const doneOne = (j, r) => { store(j, r); finishOne(r); if (--left === 0) { workers.forEach(w => w.terminate()); build(); E.genMs = performance.now() - t0; resolve(E); } };
+        if (!workers.length) { // main thread, yielding between materials so the page can draw a progress bar
+          let i = 0; const step = () => { if (i >= todo.length) return; const j = todo[i++], s = performance.now(), r = IVEnvTexGen.generate(j.name, j.S, j.seed); r.name = j.name; r.ms = performance.now() - s; doneOne(j, r); setTimeout(step, 0); };
+          return step();
+        }
+        let next = 0;
+        const feed = (w) => { if (next < todo.length) { w.postMessage(todo[next++]); } };
+        workers.forEach(w => { w.onmessage = (e) => { doneOne(todo[e.data.job], e.data); feed(w); }; feed(w); });
       };
-      if (!workers.length) { // main thread, yielding between materials so the page can draw a progress bar
-        let i = 0; const step = () => { if (i >= jobs.length) return finishAll(); const j = jobs[i++], s = performance.now(), r = IVEnvTexGen.generate(j.name, j.S, j.seed); r.name = j.name; r.ms = performance.now() - s; finishOne(r); setTimeout(step, 0); };
-        return step();
-      }
-      let next = 0;
-      const feed = (w) => { if (next < jobs.length) w.postMessage(jobs[next++]); };
-      workers.forEach(w => {
-        w.onmessage = (e) => { finishOne(e.data); if (done === total) finishAll(); else feed(w); };
-        w.onerror = () => { workers = []; };
-        feed(w);
+      if (!db) return run(jobs.map((j, i) => Object.assign(j, { job: i })));
+      Promise.all(jobs.map(j => idbGet(db, keyOf(j)))).then(hits => {
+        const todo = [];
+        jobs.forEach((j, i) => { const h = hits[i]; if (h && h.alb) { E.cacheHits++; finishOne(h); } else todo.push(j); });
+        todo.forEach((j, i) => j.job = i);
+        run(todo);
       });
-    });
+    }));
     return E._loading;
   };
   function build() {

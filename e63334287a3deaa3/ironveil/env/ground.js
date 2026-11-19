@@ -77,7 +77,7 @@
           float clumpN = texture2D(uMacro, gp * 0.9 + 0.17).b;
           float midN = texture2D(uMacro, gp * 0.31 + 0.61).g;
           vec3 gcol = vGC.rgb * mix(0.7, 1.25, mB) * clamp(tl / 0.045, 0.35, 2.2) * mix(0.45, 1.45, clumpN * clumpN * 1.4) * mix(0.65, 1.3, midN);
-          galb = mix(galb, gcol, carry) * (1.0 - under * 0.45);
+          galb = mix(galb, gcol, carry) * (1.0 - under * 0.25);
           grough = mix(grough, 0.88, carry);
           // standing water: wet places, low in the texture height and the slow noise
           float wet = vW1.y;

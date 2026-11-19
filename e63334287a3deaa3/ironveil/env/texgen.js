@@ -83,7 +83,23 @@
 
   // Worley / cellular noise over toroidal points. pts: [{x,y,...}] in pixels. Returns F1, F2 (pixels), nearest index,
   // and the wrap offset (-1/0/1) of the nearest point in x and y. metric aspect ay stretches y distances.
-  function worley(S, pts, ay) {
+  // half: compute at half resolution and upsample (F1/F2 bilinear, ids nearest): 4x faster, edges a touch softer
+  function worley(S, pts, ay, half) {
+    if (half && S >= 512) {
+      const h = S >> 1, hp = pts.map(p => Object.assign({}, p, { x: p.x / 2, y: p.y / 2, w: p.w }));
+      const W = worley(h, hp, ay, false), F1 = new Float32Array(S * S), F2 = new Float32Array(S * S), ID = new Int32Array(S * S), WX = new Int8Array(S * S), WY = new Int8Array(S * S);
+      for (let y = 0; y < S; y++) {
+        const fy = (y - 0.5) / 2, j0 = Math.floor(fy), v = fy - j0, ja = ((j0 % h) + h) % h, jb = (ja + 1) % h, jn = (Math.round(fy) % h + h) % h;
+        for (let x = 0; x < S; x++) {
+          const fx = (x - 0.5) / 2, i0 = Math.floor(fx), u = fx - i0, ia = ((i0 % h) + h) % h, ib = (ia + 1) % h, q = y * S + x;
+          const a = ja * h + ia, b = ja * h + ib, c = jb * h + ia, d = jb * h + ib;
+          F1[q] = 2 * ((W.F1[a] * (1 - u) + W.F1[b] * u) * (1 - v) + (W.F1[c] * (1 - u) + W.F1[d] * u) * v);
+          F2[q] = 2 * ((W.F2[a] * (1 - u) + W.F2[b] * u) * (1 - v) + (W.F2[c] * (1 - u) + W.F2[d] * u) * v);
+          const n = jn * h + (Math.round(fx) % h + h) % h; ID[q] = W.ID[n]; WX[q] = W.WX[n]; WY[q] = W.WY[n];
+        }
+      }
+      return { F1, F2, ID, WX, WY };
+    }
     ay = ay || 1;
     const n = pts.length, G = Math.max(1, Math.floor(Math.sqrt(n / 1.5))), cs = S / G;
     const grid = []; for (let i = 0; i < G * G; i++) grid.push([]);
@@ -268,7 +284,7 @@
       y += hgt;
     }
     pts.forEach((p, i) => { p.col = R(); p.k = 1 + R.int(27); p.tint = R.range(0.8, 1.15); p.sz = p.w * 60; });
-    const W = worley(S, pts, 1.35);
+    const W = worley(S, pts, 1.35, true);
     const n1 = fbm(S, 32, 4, seed + 1), n2 = fbm(S, 8, 4, seed + 2), grit = fbm(S, 256, 2, seed + 3), lich = fbm(S, 48, 3, seed + 4);
     const pal = [[132, 128, 118], [148, 132, 100], [112, 100, 84], [92, 90, 86], [140, 136, 126], [122, 110, 92]];
     for (let q = 0; q < S * S; q++) {
@@ -440,7 +456,7 @@
     const R = rng(seed), o = Out(S), pts = []; let y = 0;
     const rows = 12, ch = S / rows;
     for (let r = 0; r < rows; r++) { let x = R.range(0, 30); while (x < S - 10) { const w = R.range(0.09, 0.16) / 1.5 * S; pts.push({ x: (x + w / 2) % S, y: (r + 0.5) * ch + R.range(-3, 3), w: 1, k: 1 + R.int(27), t: R.range(0.75, 1.15), hue: R() }); x += w; } }
-    const W = worley(S, pts, 1.15);
+    const W = worley(S, pts, 1.15, true);
     const n1 = fbm(S, 32, 4, seed + 1), n2 = fbm(S, 8, 3, seed + 2), grit = fbm(S, 256, 2, seed + 3);
     for (let q = 0; q < S * S; q++) {
       const p = pts[W.ID[q]], e = W.F2[q] - W.F1[q] + (n1[q] - 0.5) * 6 * S / 1024;
@@ -463,7 +479,7 @@
     const ck = new Float32Array(S * S);
     for (let i = 0; i < (interior ? 4 : 9); i++) crack(ck, S, R, R() * S, R() * S, R.range(60, 260) * S / 1024, R() * 6.28, R.range(0.7, 1.4) * S / 1024, 1, true);
     const pts = []; for (let i = 0; i < 260; i++) pts.push({ x: R() * S, y: R() * S, w: R.range(0.8, 1.2) });
-    const Wn = worley(S, pts, 1.5);
+    const Wn = worley(S, pts, 1.5, true);
     const base = interior ? [200, 192, 172] : [184, 176, 156];
     for (let q = 0; q < S * S; q++) {
       const fall = interior ? 0 : sstep(0.66, 0.69, patch[q] + n2[q] * 0.08);
@@ -613,7 +629,7 @@
     const R = rng(seed), o = Out(S), nf = 10;
     const n1 = fbm(S, 8, 5, seed + 1), n2 = fbm(S, 40, 3, seed + 2), grit = fbm(S, 256, 2, seed + 3), warp = fbm(S, 4, 3, seed + 4);
     const pts = []; for (let i = 0; i < 900; i++) pts.push({ x: R() * S, y: R() * S, w: R.range(0.7, 1.3) });
-    const Wc = worley(S, pts);
+    const Wc = worley(S, pts, 1, true);
     for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
       const q = y * S + x, f = Math.sin((y / S * nf + warp[q] * 0.6) * Math.PI * 2) * 0.5 + 0.5;
       const clod = sstep(0, 14 * S / 1024, Wc.F2[q] - Wc.F1[q]);
@@ -628,7 +644,7 @@
   G.gravel = function (S, seed) {
     const R = rng(seed), o = Out(S), pts = [];
     for (let i = 0; i < 2600; i++) pts.push({ x: R() * S, y: R() * S, w: R.range(0.6, 1.4), t: R.range(0.6, 1.2), c: R() });
-    const W = worley(S, pts); const n1 = fbm(S, 8, 4, seed + 1), grit = fbm(S, 256, 2, seed + 2);
+    const W = worley(S, pts, 1, true); const n1 = fbm(S, 8, 4, seed + 1), grit = fbm(S, 256, 2, seed + 2);
     for (let q = 0; q < S * S; q++) {
       const p = pts[W.ID[q]], e = W.F2[q] - W.F1[q], ins = sstep(1.5 * S / 1024, 5 * S / 1024, e);
       o.h[q] = lerp(0.2 + 0.1 * n1[q], 0.5 + 0.35 * sstep(0, 10 * S / 1024, e) * p.w * 0.8, ins);
@@ -664,7 +680,7 @@
   G.bark_oak = function (S, seed) {
     const R = rng(seed), o = Out(S), pts = [];
     for (let i = 0; i < 160; i++) pts.push({ x: R() * S, y: R() * S, w: 1 });
-    const W = worley(S, pts, 0.22);
+    const W = worley(S, pts, 0.22, true);
     const n1 = fbm(S, 16, 4, seed + 1, 4), fine = fbm(S, 128, 2, seed + 2, 32), lich = fbm(S, 12, 4, seed + 3);
     for (let q = 0; q < S * S; q++) {
       const e = W.F2[q] - W.F1[q], ridge = sstep(0, 26 * S / 1024, e + (n1[q] - 0.5) * 16 * S / 1024);
