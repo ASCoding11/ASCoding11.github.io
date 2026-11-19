@@ -35,33 +35,33 @@
     for (let k = 0; k < 4; k++) { K.box(b, 'metal', 0, wy + 0.62, 67 + k * 2, 5.4, 0.04, 0.04, 0, 0x55534e); for (const s of [-1, 1]) K.box(b, 'wood', s * 2.7, wy, 67 + k * 2, 0.1, 0.75, 0.1, 0, 0x6e5a44); }
     W.addBox(0, 70, 2.6, 3.2, wy + 0.6, wy + 2.2, 0, F.SOLID, 'metal');
     // the vault wall
-    K.stoneWall(b, [[-3, 55], [3, 55]], 1.0);
+    IV.art.wall(b, [[-3, 55], [3, 55]], 1.0);
     // SMG bay: sandbag counter, pop-up targets off to the west
-    K.props.sandbags(b, -3, 40, -3, 34, 3);
+    IV.art.prop('sandbags', b, -3, 40, -3, 34, 3);
     // rifle firing point: sandbag rest, the wind flags
-    K.props.sandbags(b, -2.5, RANGE_Z + 1.5, 2.5, RANGE_Z + 1.5, 2);
+    IV.art.prop('sandbags', b, -2.5, RANGE_Z + 1.5, 2.5, RANGE_Z + 1.5, 2);
     M.flags_ = {};
     // the takedown pen: a fenced square with a post for the "guard"
-    K.fence(b, [[22, 8], [27.5, 8]]); K.fence(b, [[32.5, 8], [40, 8], [40, -12], [22, -12], [22, 8]]);   // a gate gap on the south side
-    K.props.crate(b, 26, W.height(26, -2), -2, 0.2, 0.9); K.props.crate(b, 34, W.height(34, 4), 4, 0.6, 0.9);
-    K.props.hay(b, 29, W.height(29, -8), -8, 0.3); K.props.hay(b, 36, W.height(36, -5), -5, 1.2);
+    IV.art.fence(b, [[22, 8], [27.5, 8]]); IV.art.fence(b, [[32.5, 8], [40, 8], [40, -12], [22, -12], [22, 8]]);   // a gate gap on the south side
+    IV.art.prop('crate', b, 26, W.height(26, -2), -2, 0.2, 0.9); IV.art.prop('crate', b, 34, W.height(34, 4), 4, 0.6, 0.9);
+    IV.art.prop('hay', b, 29, W.height(29, -8), -8, 0.3); IV.art.prop('hay', b, 36, W.height(36, -5), -5, 1.2);
     // the grenade pit
     const py = W.height(-18, -2);
-    for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283, a1 = (i + 1) / 10 * 6.283; K.props.sandbags(b, -18 + Math.cos(a) * 4.5, -2 + Math.sin(a) * 4.5, -18 + Math.cos(a1) * 4.5, -2 + Math.sin(a1) * 4.5, 2); }
+    for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283, a1 = (i + 1) / 10 * 6.283; IV.art.prop('sandbags', b, -18 + Math.cos(a) * 4.5, -2 + Math.sin(a) * 4.5, -18 + Math.cos(a1) * 4.5, -2 + Math.sin(a1) * 4.5, 2); }
     // huts and a water tower so it reads as a camp
-    K.building(b, { x: 16, z: 140, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } });
-    K.building(b, { x: 16, z: 120, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } });
-    K.building(b, { x: -18, z: 130, w: 14, d: 7, h: 3, floor: 0.2, mat: 'plaster', color: 0xcfc6b0, sides: { e: [{ t: 'door', at: 0, w: 1.2 }], n: [{ t: 'win', at: -3, w: 1.2 }, { t: 'win', at: 3, w: 1.2 }] }, roof: { pitch: 0.6 } });
+    IV.art.building(b, { x: 16, z: 140, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } });
+    IV.art.building(b, { x: 16, z: 120, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } });
+    IV.art.building(b, { x: -18, z: 130, w: 14, d: 7, h: 3, floor: 0.2, mat: 'plaster', color: 0xcfc6b0, sides: { e: [{ t: 'door', at: 0, w: 1.2 }], n: [{ t: 'win', at: -3, w: 1.2 }, { t: 'win', at: 3, w: 1.2 }] }, roof: { pitch: 0.6 } });
     for (const s of [-1, 1]) for (const t of [-1, 1]) K.add(b, 'wood', K.GEO.box, -30 + s * 1.5, W.height(-30, 100) + 4, 100 + t * 1.5, 0.25, 8, 0.25, 0, 0, 0, 0x6e5a44);
     K.add(b, 'wood', K.GEO.cyl12, -30, W.height(-30, 100) + 9.2, 100, 4.2, 2.6, 4.2, 0, 0, 0, 0x7a6450);
     // tree lines either side of the range
     const R = IV.rng(7);
-    for (let z = 170; z > -320; z -= 9) { K.tree(b, -48 + R.range(-3, 3), z, R() < 0.3 ? 'poplar' : 'oak', R); K.tree(b, 48 + R.range(-3, 3), z + 4, R() < 0.3 ? 'poplar' : 'oak', R); }
-    K.hedgerow(b, [[-44, 175], [44, 175]], [[40, 48]]);
+    for (let z = 170; z > -320; z -= 9) { IV.art.tree(b, -48 + R.range(-3, 3), z, R() < 0.3 ? 'poplar' : 'oak', R); IV.art.tree(b, 48 + R.range(-3, 3), z + 4, R() < 0.3 ? 'poplar' : 'oak', R); }
+    IV.art.hedge(b, [[-44, 175], [44, 175]], [[40, 48]]);
     // the backstop berm behind the 300 m target
     K.box(b, 'earth', 0, W.height(0, -300) - 1, -300, 40, 6, 6, 0, 0x7a6a50, F.SOLID | F.BULLET | F.SIGHT, 'mud', 0.3);
     K.finish(b);
-    M.grass = K.grassSystem(W.P.grass, W.P.grassR, (x, z) => { const s = W.surfAt(x, z); if (s !== S.grass) return 0; if (Math.abs(x) < 6 && z < RANGE_Z && z > -300) return 0.3; return 0.6 + IV.noise(x / 5, z / 5) * 0.6; }, (x, z, c) => c.setRGB(0.36 + IV.noise(x / 9, z / 9) * 0.12, 0.5, 0.22));
+    M.grass = IV.art.grass(W.P.grass, W.P.grassR, (x, z) => { const s = W.surfAt(x, z); if (s !== S.grass) return 0; if (Math.abs(x) < 6 && z < RANGE_Z && z > -300) return 0.3; return 0.6 + IV.noise(x / 5, z / 5) * 0.6; }, (x, z, c) => c.setRGB(0.36 + IV.noise(x / 9, z / 9) * 0.12, 0.5, 0.22));
   }
 
   // ---------------------------------------------------------------- dynamic: targets, flags

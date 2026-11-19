@@ -161,7 +161,7 @@
       b.alive = false; return;
     }
     if (wh) {
-      IV.fx.impact(whit.x, whit.y, whit.z, whit.nx, whit.ny, whit.nz, whit.surf, { x: ux, y: uy, z: uz });
+      IV.art.impact(whit.surf, whit, { x: whit.nx, y: whit.ny, z: whit.nz }, { x: ux, y: uy, z: uz });
       IV.audio && IV.audio.play('impact', { surf: whit.surf, x: whit.x, z: whit.z });
       if (b.owner === WP.playerEnt && IV.ai) IV.ai.noise(whit.x, whit.z, 9, 'impact', P);
       if (whit.col && whit.col.onHit) whit.col.onHit(b);
@@ -350,7 +350,8 @@
     WP.stats.takedowns++; WP.stats.kills++;
     P.frozen = true; WP.aiming = WP.scoped = false;
     const f = IV.fwd(e.bodyYaw);
-    const tx = e.pos.x - f.x * 0.75, tz = e.pos.z - f.z * 0.75;
+    const gap = IVChars.takedownGap || (IVChars.standin ? 0.75 : 0.42);   // chars.js clips want 0.42 m
+    const tx = e.pos.x - f.x * gap, tz = e.pos.z - f.z * gap;
     const sx = P.pos.x, sz = P.pos.z; let t = 0;
     P.bodyYaw = e.bodyYaw; P.yaw = e.bodyYaw;
     P.actor.play('takedown', { fade: 0.1, once: true, restart: true }); P.cineClip = true;

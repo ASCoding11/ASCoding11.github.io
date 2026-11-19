@@ -63,9 +63,17 @@
     if (x > -70 && x < -10 && z > 30 && z < 150 && IV.fbm(x / 7 + 4, z / 7, 2) > 0.6) return S.tallgrass;
     return S.grass;
   }
+  // finer ground kinds for the environment art (lanes vs mud, the yard), from the same layout
+  function surfaceKind(x, z) {
+    if (pd(x, z, L1) < 2.3 || pd(x, z, L2) < 2.3) return 'lane';
+    if (x > 88 && x < 132 && z > -86 && z < -55) return 'yard';
+    if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'ploughed';
+    return null;
+  }
   function groundColor(x, z, y, n, c) {
     const v = IV.fbm(x / 23, z / 23, 3), v2 = IV.noise(x / 4.3, z / 4.3);
-    c.setRGB(0.27 + v * 0.1, 0.33 + v * 0.08, 0.16 + v2 * 0.05);
+    // desaturated, muddy greens: this is the darkest game on the site
+    c.setRGB(0.25 + v * 0.09, 0.285 + v * 0.07, 0.17 + v2 * 0.04);
     let mud = 0;
     const s = surface(x, z);
     if (s === S.gravel) { c.setRGB(0.42, 0.4, 0.36); mud = 2; }
@@ -104,7 +112,7 @@
   function build(M) {
     const b = K.begin();
     // hedgerows
-    const hedge = (pts, gaps, o) => K.hedgerow(b, pts, gapsAt(pts, gaps || []), o);
+    const hedge = (pts, gaps, o) => IV.art.hedge(b, pts, gapsAt(pts, gaps || []), o);
     const L1n = offset(L1, -3.5), L1s = offset(L1, 3.5);
     hedge(L1n, [[-120, 31, 5], [-41, 14, 16], [-58, 16, 5], [-14, 9, 5]]);
     hedge(L1s, [[-92, 25, 5], [-41, 22, 16], [-22, 18, 5], [-150, 37, 5]]);
@@ -130,25 +138,25 @@
     hedge([[-170, -150], [-70, -160]], [[-120, -155, 6]]);
     // the oak you land in, with the canopy of the parachute
     const R = IV.rng(42);
-    K.tree(b, OAK.x, OAK.z, 'oak', R);
+    IV.art.tree(b, OAK.x, OAK.z, 'oak', R);
     // orchard
-    for (let x = 42; x <= 76; x += 6.5) for (let z = -104; z <= -66; z += 6.5) if (R() > 0.12) K.tree(b, x + R.range(-0.8, 0.8), z + R.range(-0.8, 0.8), 'apple', R);
+    for (let x = 42; x <= 76; x += 6.5) for (let z = -104; z <= -66; z += 6.5) if (R() > 0.12) IV.art.tree(b, x + R.range(-0.8, 0.8), z + R.range(-0.8, 0.8), 'apple', R);
     // poplars along the road
-    for (let z = 30; z < 180; z += 14) K.tree(b, -4, z + R.range(-2, 2), 'poplar', R);
-    for (let z = -110; z > -180; z -= 16) K.tree(b, 16, z, 'poplar', R);
+    for (let z = 30; z < 180; z += 14) IV.art.tree(b, -4, z + R.range(-2, 2), 'poplar', R);
+    for (let z = -110; z > -180; z -= 16) IV.art.tree(b, 16, z, 'poplar', R);
     // scattered field trees
-    [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => K.tree(b, p[0], p[1], 'oak', R));
+    [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)
-    K.stoneWall(b, [[88, -58], [88, -86]], 1.05, [[3, 7]]);
-    K.stoneWall(b, [[88, -58], [116, -54]], 1.05, [[0.5, 7.5]]);
-    K.stoneWall(b, [[130, -58], [131, -86]], 1.05, [[5, 9]]);
-    K.stoneWall(b, [[-58, 48], [-58, 20]], 0.95);
-    K.stoneWall(b, [[20, -30], [20, 20]], 0.9, [[20, 26]]);
+    IV.art.wall(b, [[88, -58], [88, -86]], 1.05, [[3, 7]]);
+    IV.art.wall(b, [[88, -58], [116, -54]], 1.05, [[0.5, 7.5]]);
+    IV.art.wall(b, [[130, -58], [131, -86]], 1.05, [[5, 9]]);
+    IV.art.wall(b, [[-58, 48], [-58, 20]], 0.95);
+    IV.art.wall(b, [[20, -30], [20, 20]], 0.9, [[20, 26]]);
     // the stream: water ribbon, stone bridge on the lane, footbridge to the north
-    water(); bridge(b); footbridge(b);
+    IV.art.water(ST, waterLevel, 7.2, water); bridge(b); footbridge(b);
     // farmhouse: two storeys of wall but one floor inside, slate roof
     const hy = farmH + 0.05;
-    const H = K.building(b, { x: HOUSE.x, z: HOUSE.z, w: HOUSE.w, d: HOUSE.d, y: hy, h: 3.1, floor: 0.35, mat: 'stone', color: 0xb9b1a0, chimney: [-5, 0],
+    const H = IV.art.building(b, { x: HOUSE.x, z: HOUSE.z, w: HOUSE.w, d: HOUSE.d, y: hy, h: 3.1, floor: 0.35, mat: 'stone', color: 0xb9b1a0, chimney: [-5, 0],
       sides: { s: [{ t: 'door', at: 0, w: 1.15 }, { t: 'win', at: -5.3, w: 1.1, lit: true, shut: true }, { t: 'win', at: 5.2, w: 1.1, lit: true, shut: true }],
         n: [{ t: 'door', at: 0, w: 1.1 }, { t: 'win', at: -5.3, w: 1.0, shut: true }, { t: 'win', at: 5.2, w: 1.0 }],
         w: [{ t: 'win', at: -2, w: 1.0, lit: true }], e: [{ t: 'win', at: 2, w: 1.0 }, { t: 'win', at: -2.2, w: 1.0 }] },
@@ -158,7 +166,7 @@
     const fy = H.fy, L = H.L2W;
     // lit windows glow softly into the fog
     for (const w of H.wins) if (w.lit) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: W.tex.glow(), color: 0xff9a40, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); s.position.set(w.x, w.y, w.z); s.scale.set(3.2, 2.4, 1); W.statics.add(s); }
-    const prop = (fn, lx, lz, rot, ...a) => { const p = L(lx, lz); K.props[fn](b, p[0], fy, p[1], rot || 0, ...a); };
+    const prop = (fn, lx, lz, rot, ...a) => { const p = L(lx, lz); IV.art.prop(fn, b, p[0], fy, p[1], rot || 0, ...a); };
     prop('table', -5, 2.2, 0, 1.6, 0.9); prop('chair', -5.9, 2.2, Math.PI / 2); prop('chair', -4.1, 2.2, -Math.PI / 2); prop('stove', -7, 3.4, 0); prop('shelf', -3.3, 3.7, Math.PI, 1.0);     // kitchen
     prop('table', -5, -2.2, 0, 1.2, 0.8); prop('chair', -5, -3.2, 0); prop('shelf', -7.2, -2, Math.PI / 2, 1.4); prop('crate', -3.4, -3.4, 0.3, 0.6);                                              // parlour
     prop('table', 5.4, 2.0, 0, 1.5, 0.8); prop('chair', 5.4, 2.9, Math.PI); prop('shelf', 7.2, 2.2, -Math.PI / 2, 1.4); prop('crate', 3.3, 3.5, 0, 0.6);                                           // office
@@ -171,7 +179,7 @@
     M.houseDoorN = { x: L(0, -5.3)[0], z: L(0, -5.3)[1] }; M.houseDoorS = { x: L(0, 5.3)[0], z: L(0, 5.3)[1] }; M.houseFy = fy;
     M.rooms = { kitchen: L(-5, 2.6), parlour: L(-5, -2.4), office: L(5, 2.2), bedroom: L(5, -2.2), hall: L(0, 0) };
     // barn: tall wooden walls on a stone base, loft over the north half, hay door high on the west wall
-    const BB = K.building(b, { x: BARN.x, z: BARN.z, w: BARN.w, d: BARN.d, y: farmH - 0.1, h: 6.2, floor: 0.12, mat: 'wood', color: 0x8a7458, floorMat: 'stone', floorCol: 0x6a6258, beams: false,
+    const BB = IV.art.building(b, { x: BARN.x, z: BARN.z, w: BARN.w, d: BARN.d, y: farmH - 0.1, h: 6.2, floor: 0.12, mat: 'wood', color: 0x8a7458, floorMat: 'stone', floorCol: 0x6a6258, beams: false,
       sides: { w: [{ t: 'door', at: 2.5, w: 3.2, h: 3.2 }, { t: 'win', at: -5, w: 1.6, sill: 4.0, oh: 1.3, open: true }], e: [{ t: 'door', at: 4, w: 1.2 }], s: [{ t: 'win', at: 0, w: 1.4, sill: 4.0, oh: 1.0, open: true }] },
       roof: { pitch: 0.95, over: 0.5, ridge: 'z' } });
     const by = BB.fy, BL = BB.L2W, loftY = by + 3.4;
@@ -179,28 +187,28 @@
     // stairs up to the loft along the east wall (local x 3.9), rising toward the north
     for (let i = 0; i < 12; i++) { const p = BL(3.9, 3.8 - i * 0.48); K.box(b, 'wood', p[0], by, p[1], 1.0, (i + 1) * (3.4 / 12), 0.5, 0, 0x6e5a40, F.SOLID, 'wood'); }
     { const p = BL(0.5, -1.15); K.box(b, 'wood', p[0], loftY, p[1], 6.8, 1.0, 0.08, 0, 0x6e5a40, F.SOLID | F.BULLET, 'wood'); } // loft rail
-    for (const q of [[-3, 3], [-1.8, 4.5], [-3.2, 5.6], [2, 6.2]]) { const p = BL(q[0], q[1]); K.props.hay(b, p[0], by, p[1], R() * 0.4); K.props.hay(b, p[0], by + 0.55, p[1] + 0.2, R() * 0.4); }
-    for (const q of [[-3, -6], [-1, -6.5], [2, -6.6]]) { const p = BL(q[0], q[1]); K.props.hay(b, p[0], loftY, p[1], 0.2); }
-    { const p = BL(-1.5, 1.5); K.props.cart(b, p[0], p[1], 0.4); }
+    for (const q of [[-3, 3], [-1.8, 4.5], [-3.2, 5.6], [2, 6.2]]) { const p = BL(q[0], q[1]); IV.art.prop('hay', b, p[0], by, p[1], R() * 0.4); IV.art.prop('hay', b, p[0], by + 0.55, p[1] + 0.2, R() * 0.4); }
+    for (const q of [[-3, -6], [-1, -6.5], [2, -6.6]]) { const p = BL(q[0], q[1]); IV.art.prop('hay', b, p[0], loftY, p[1], 0.2); }
+    { const p = BL(-1.5, 1.5); IV.art.prop('cart', b, p[0], p[1], 0.4); }
     M.loft = { x: BL(-3.8, -5)[0], z: BL(-3.8, -5)[1], y: loftY };
     // crossroads guard hut, sandbags and lamp
-    K.building(b, { x: 13, z: 19, w: 3.2, d: 3.2, h: 2.5, floor: 0.15, mat: 'wood', color: 0x7a6650, sides: { w: [{ t: 'door', at: 0, w: 0.9 }], n: [{ t: 'win', at: 0, w: 0.8, lit: true }] }, roof: { pitch: 0.5, ridge: 'x' }, beams: false });
-    K.props.sandbags(b, 6.5, 2, 6.5, 9, 4); K.props.sandbags(b, 6.5, 2, 10.5, 1.5, 4);
-    K.props.lamp(b, 4.5, 14, 3.4);
-    K.props.cart(b, -12, 6, 1.2);
+    IV.art.building(b, { x: 13, z: 19, w: 3.2, d: 3.2, h: 2.5, floor: 0.15, mat: 'wood', color: 0x7a6650, sides: { w: [{ t: 'door', at: 0, w: 0.9 }], n: [{ t: 'win', at: 0, w: 0.8, lit: true }] }, roof: { pitch: 0.5, ridge: 'x' }, beams: false });
+    IV.art.prop('sandbags', b, 6.5, 2, 6.5, 9, 4); IV.art.prop('sandbags', b, 6.5, 2, 10.5, 1.5, 4);
+    IV.art.prop('lamp', b, 4.5, 14, 3.4);
+    IV.art.prop('cart', b, -12, 6, 1.2);
     // the farm: yard lamp, gate lamp, bell post, woodpile, cart, barrels
-    K.props.lamp(b, 106, -64, 3.4); K.props.lamp(b, 92, -60, 3.2);
+    IV.art.prop('lamp', b, 106, -64, 3.4); IV.art.prop('lamp', b, 92, -60, 3.2);
     { const gy = W.height(BELL.x, BELL.z); K.add(b, 'wood', K.GEO.box, BELL.x, gy + 1.6, BELL.z, 0.18, 3.2, 0.18, 0, 0, 0, 0x5a4a38); K.add(b, 'wood', K.GEO.box, BELL.x, gy + 3.2, BELL.z + 0.3, 0.12, 0.12, 0.8, 0, 0, 0, 0x5a4a38); W.addBox(BELL.x, BELL.z, 0.12, 0.12, gy, gy + 3.2, 0, F.SOLID | F.BULLET | F.NAV, 'wood'); }
-    K.props.woodpile(b, 92, -80, 0); K.props.cart(b, 116, -60, 2.2); K.props.barrel(b, 117, -82, W.height(117, -82)); K.props.barrel(b, 118, -83, W.height(118, -83));
-    for (const q of [[112, -84], [96, -70]]) K.props.crate(b, q[0], W.height(q[0], q[1]), q[1], 0.4, 0.9);
+    IV.art.prop('woodpile', b, 92, -80, 0); IV.art.prop('cart', b, 116, -60, 2.2); IV.art.prop('barrel', b, 117, -82, W.height(117, -82)); IV.art.prop('barrel', b, 118, -83, W.height(118, -83));
+    for (const q of [[112, -84], [96, -70]]) IV.art.prop('crate', b, q[0], W.height(q[0], q[1]), q[1], 0.4, 0.9);
     // the flak pit: a ring of sandbags, ammunition crates; MG nest to the west of it
     // gaps in the ring: the yard side, and the north (the quiet way in)
-    const ring = 8; for (let i = 0; i < ring; i++) { if (i === 2 || i === 6) continue; const a0 = i / ring * 6.283, a1 = (i + 1) / ring * 6.283; K.props.sandbags(b, AA.x + Math.cos(a0) * 4, AA.z + Math.sin(a0) * 4, AA.x + Math.cos(a1) * 4, AA.z + Math.sin(a1) * 4, 4); }
-    K.props.crate(b, AA.x + 2.6, W.height(AA.x + 2.6, AA.z - 1), AA.z - 1, 0.2, 0.7); K.props.crate(b, AA.x + 2.4, W.height(AA.x + 2.4, AA.z + 0.2), AA.z + 0.2, 0.5, 0.7);
-    K.props.sandbags(b, MG.x - 1.6, MG.z - 1.5, MG.x - 1.6, MG.z + 1.6, 4); K.props.sandbags(b, MG.x - 1.6, MG.z + 1.6, MG.x + 1.2, MG.z + 2.6, 4);
+    const ring = 8; for (let i = 0; i < ring; i++) { if (i === 2 || i === 6) continue; const a0 = i / ring * 6.283, a1 = (i + 1) / ring * 6.283; IV.art.prop('sandbags', b, AA.x + Math.cos(a0) * 4, AA.z + Math.sin(a0) * 4, AA.x + Math.cos(a1) * 4, AA.z + Math.sin(a1) * 4, 4); }
+    IV.art.prop('crate', b, AA.x + 2.6, W.height(AA.x + 2.6, AA.z - 1), AA.z - 1, 0.2, 0.7); IV.art.prop('crate', b, AA.x + 2.4, W.height(AA.x + 2.4, AA.z + 0.2), AA.z + 0.2, 0.5, 0.7);
+    IV.art.prop('sandbags', b, MG.x - 1.6, MG.z - 1.5, MG.x - 1.6, MG.z + 1.6, 4); IV.art.prop('sandbags', b, MG.x - 1.6, MG.z + 1.6, MG.x + 1.2, MG.z + 2.6, 4);
     // telephone poles along the farm road and the main road, the junction box on one of them
     const polesPts = [[94, -60.5], [70, -55.5], [JPOLE.x, JPOLE.z], [6, -45], [5, -10], [6, 30], [6, 70], [5, 110], [5, 150]];
-    M.poles = polesPts.map(p => K.pole(b, p[0], p[1], 6.2));
+    M.poles = polesPts.map(p => IV.art.pole(b, p[0], p[1], 6.2));
     { const p = M.poles[2]; K.box(b, 'metal', p.x + 0.2, p.y - 4.6, p.z, 0.25, 0.4, 0.2, 0, 0x3a4034); M.jbox = { x: p.x + 0.4, y: p.y - 4.4, z: p.z }; }
     // searchlight stand
     { const gy = W.height(AA.x + 11, AA.z + 3); K.add(b, 'metal', K.GEO.box, AA.x + 11, gy + 0.6, AA.z + 3, 0.9, 1.2, 0.9, 0, 0, 0, 0x2e3330); M.spotPos = { x: AA.x + 11, y: gy + 1.6, z: AA.z + 3 }; W.addBox(AA.x + 11, AA.z + 3, 0.5, 0.5, gy, gy + 1.2, 0, F.SOLID | F.BULLET | F.NAV, 'metal'); }
@@ -209,9 +217,9 @@
     K.box(b, 'wood', -152, W.height(-152, 125) + 0.6, 125, 16, 0.12, 1.8, 0.62, 0x3a3a32, 0);
     K.finish(b);
     // crops (wheat) and tall grass in the pasture
-    K.crops(WHEAT, 0.95 * W.P.crops, 1.15, 0xb7a56e);
+    IV.art.crops(WHEAT, 0.95 * W.P.crops, 1.15, 0xb7a56e);
     // grass round the camera
-    grass = K.grassSystem(W.P.grass, W.P.grassR, (x, z) => { const s = W.surfAt(x, z); if (s === S.tallgrass) return 1.5; if (s !== S.grass) return 0; return 0.55 + IV.noise(x / 6, z / 6) * 0.6; }, (x, z, c) => c.setRGB(0.42 + IV.noise(x / 9, z / 9) * 0.15, 0.46, 0.25));
+    grass = IV.art.grass(W.P.grass, W.P.grassR, (x, z) => { const s = W.surfAt(x, z); if (s === S.tallgrass) return 1.5; if (s !== S.grass) return 0; return 0.55 + IV.noise(x / 6, z / 6) * 0.6; }, (x, z, c) => c.setRGB(0.42 + IV.noise(x / 9, z / 9) * 0.15, 0.46, 0.25));
     // tall grass also counts as concealment: second pass of taller cards on tallgrass only
     // searchlight light (driven by the script)
     W.addSpot();
@@ -577,7 +585,7 @@
         s.a += dt * 0.22;
         const yaw = 2.2 + Math.sin(s.a) * 1.0, dist = 45 + Math.sin(s.a * 0.7) * 15;
         const sp = M.spotPos, tx = sp.x - Math.sin(yaw) * dist, tz = sp.z - Math.cos(yaw) * dist;
-        W.spot.position.set(sp.x, sp.y + 0.2, sp.z); W.spot.target.position.set(tx, W.height(tx, tz), tz); W.spot.intensity = 9;
+        W.spot.position.set(sp.x, sp.y + 0.2, sp.z); W.spot.target.position.set(tx, W.height(tx, tz), tz); W.spot.intensity = 5.5;
         M.spotHead.lookAt(tx, W.height(tx, tz), tz);
       } else W.spot.intensity = 0;
     }
@@ -650,7 +658,7 @@
     if (!W.spot || !M.spot) return;
     const s = M.spot; s.a += dt * 0.22; W.spotOn = true;
     const yaw = 2.2 + Math.sin(s.a) * 1.0, dist = 45 + Math.sin(s.a * 0.7) * 15, sp = M.spotPos, tx = sp.x - Math.sin(yaw) * dist, tz = sp.z - Math.cos(yaw) * dist;
-    W.spot.position.set(sp.x, sp.y + 0.2, sp.z); W.spot.target.position.set(tx, W.height(tx, tz), tz); W.spot.intensity = 9; M.spotHead.lookAt(tx, W.height(tx, tz), tz);
+    W.spot.position.set(sp.x, sp.y + 0.2, sp.z); W.spot.target.position.set(tx, W.height(tx, tz), tz); W.spot.intensity = 5.5; M.spotHead.lookAt(tx, W.height(tx, tz), tz);
   }
 
   // ---------------------------------------------------------------- the briefing sketch
@@ -692,7 +700,7 @@
       'Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook\'s men are waiting.'
     ],
     preview: [{ text: 'Find Cpl. Dunning' }, { text: 'Cut the field-telephone line' }, { text: 'Destroy the flak gun' }, { text: 'Reach the extraction lane' }, { text: 'Take the map from the farm office', opt: true }, { text: 'Take out the sniper in the barn loft', opt: true }],
-    world: { size: 380, day: false, height, surface, groundColor, waterLevel, fog: 0.0125, fogColor: 0x0c131c },
+    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, fog: 0.0125, fogColor: 0x0a0f15 },
     build, setup, step, frame, backdrop, sketch,
     medals: [
       { text: 'Finish in under 15:00', ok: s => s.time < 900 },

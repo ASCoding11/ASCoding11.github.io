@@ -30,7 +30,9 @@
   function bucket(b, mat) { return b.buckets[mat] || (b.buckets[mat] = { p: [], n: [], u: [], c: [] }); }
 
   // Add a (non-indexed) geometry with a transform. color: hex or THREE.Color. ao: darken toward the bottom (0..1)
+  K.noMesh = false;   // set by art.js when IVEnv draws the piece: only colliders are made
   K.add = function (b, mat, geo, px, py, pz, sx, sy, sz, rx, ry, rz, color, ao) {
+    if (K.noMesh) return;
     _e.set(rx || 0, ry || 0, rz || 0); _q.setFromEuler(_e); _v.set(px, py, pz); _s.set(sx, sy, sz);
     _m.compose(_v, _q, _s); _n.getNormalMatrix(_m);
     const B = bucket(b, mat), pa = geo.attributes.position.array, na = geo.attributes.normal.array, sc = 1 / (UVS[mat] || 2);
@@ -168,10 +170,10 @@
           const tt = (m + R()) / Math.max(1, Math.round(sl / 1.8)), x = cx + (dx / len) * (tt - 0.5) * sl, z = cz + (dz / len) * (tt - 0.5) * sl;
           const off = R.range(-0.45, 0.45), px = x + (-dz / len) * off, pz = z + (dx / len) * off;
           const s = R.range(1.9, 2.7), hh = topH * R.range(0.75, 1.15);
-          b.foliage.push([px, gy + bankH - 0.3, pz, s, hh, s, R() * 6.28, R.pick(leafCols)]);
+          K.noMesh || b.foliage.push([px, gy + bankH - 0.3, pz, s, hh, s, R() * 6.28, R.pick(leafCols)]);
           // leaf cards on the crown and the flanks break up the blob outline
-          b.cards.push([px + R.range(-0.4, 0.4), gy + bankH + hh * R.range(0.55, 0.85), pz + R.range(-0.4, 0.4), R.range(1.3, 1.9), R() * 6.28, R.pick(leafCols)]);
-          if (R() < 0.6) { const sd = R() < 0.5 ? -1 : 1; b.cards.push([px + (-dz / len) * sd * s * 0.42, gy + bankH + hh * R.range(0.15, 0.45), pz + (dx / len) * sd * s * 0.42, R.range(1.1, 1.6), R() * 6.28, R.pick(leafCols)]); }
+          K.noMesh || b.cards.push([px + R.range(-0.4, 0.4), gy + bankH + hh * R.range(0.55, 0.85), pz + R.range(-0.4, 0.4), R.range(1.3, 1.9), R() * 6.28, R.pick(leafCols)]);
+          if (R() < 0.6) { const sd = R() < 0.5 ? -1 : 1; K.noMesh || b.cards.push([px + (-dz / len) * sd * s * 0.42, gy + bankH + hh * R.range(0.15, 0.45), pz + (dx / len) * sd * s * 0.42, R.range(1.1, 1.6), R() * 6.28, R.pick(leafCols)]); }
         }
         if (o.trees !== false && R() < (o.treeChance || 0.07)) K.tree(b, cx + R.range(-0.3, 0.3), cz + R.range(-0.3, 0.3), 'oak', R, gy + bankH - 0.2);
       }
@@ -225,8 +227,8 @@
     for (let i = 0; i < n; i++) {
       const a = R() * 6.28, rr = R() * cr * 0.7, s = R.range(0.8, 1.15) * (big ? 3.2 : apple ? 1.9 : 1.6);
       const yy = poplar ? cy + (i / n) * 7 - 1 : cy + R.range(-0.6, 1.0) * (big ? 1.2 : 0.6);
-      b.foliage.push([x + Math.cos(a) * rr, yy - s * 0.4, z + Math.sin(a) * rr, s, s * (poplar ? 1.3 : 0.9), s, R() * 6.28, R.pick(cols)]);
-      if (R() < 0.7) b.cards.push([x + Math.cos(a) * (rr + s * 0.4), yy + R.range(-0.5, 0.5), z + Math.sin(a) * (rr + s * 0.4), s * 0.9, R() * 6.28, R.pick(cols)]);
+      K.noMesh || b.foliage.push([x + Math.cos(a) * rr, yy - s * 0.4, z + Math.sin(a) * rr, s, s * (poplar ? 1.3 : 0.9), s, R() * 6.28, R.pick(cols)]);
+      if (R() < 0.7) K.noMesh || b.cards.push([x + Math.cos(a) * (rr + s * 0.4), yy + R.range(-0.5, 0.5), z + Math.sin(a) * (rr + s * 0.4), s * 0.9, R() * 6.28, R.pick(cols)]);
     }
     return { x, z, top: cy + 1.5 };
   };
@@ -395,7 +397,7 @@
       K.add(b, 'metal', GEO.cone8, x + 0.55, gy + h - 0.12, z, 0.4, 0.15, 0.4, 0, 0, 0, 0x2a2a2a);
       W.addBox(x, z, 0.1, 0.1, gy, gy + h, 0, F.SOLID | F.BULLET, 'wood');
       const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: W.tex.glow(), color: 0xffb060, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.65, toneMapped: false }));
-      glow.position.set(x + 0.55, gy + h - 0.3, z); glow.scale.set(1.6, 1.6, 1); (parent || W.statics).add(glow);
+      glow.position.set(x + 0.55, gy + h - 0.3, z); glow.scale.set(1.6, 1.6, 1); if (!K.noMesh) (parent || W.statics).add(glow);
       return W.addLamp({ x: x + 0.55, y: gy + h - 0.35, z, r: 13, i: 0.9, power: 2.2, flicker: true });
     }
   };

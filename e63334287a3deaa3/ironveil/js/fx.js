@@ -127,6 +127,7 @@
     // chunks with gravity
     for (let i = 0; i < 3; i++) norm.emit(x, y, z, nx * rr(1, 3) + rr(-1, 1), rr(1.5, 3.5), nz * rr(1, 3) + rr(-1, 1), rr(0.4, 0.8), 0.04, 0.03, col[0] * 0.6, col[1] * 0.6, col[2] * 0.6, 0.9, 0.5, 9.8);
     if (surf === 'stone' || surf === 'metal' || surf === 'gravel') for (let i = 0; i < (surf === 'metal' ? 8 : 3); i++) add.emit(x, y, z, nx * rr(2, 6) + rr(-2, 2), ny * rr(2, 6) + rr(-1, 3), nz * rr(2, 6) + rr(-2, 2), rr(0.08, 0.2), 0.05, 0.02, 1, 0.75, 0.4, 1, 1, 9.8);
+    if (surf === 'mud') for (let i = 0; i < 6; i++) norm.emit(x, y, z, nx * rr(0.5, 2) + rr(-1, 1), rr(2, 4), nz * rr(0.5, 2) + rr(-1, 1), rr(0.4, 0.7), 0.05, 0.04, 0.16, 0.12, 0.08, 1, 0.4, 9.8);   // mud flecks
     if (surf === 'foliage') for (let i = 0; i < 5; i++) norm.emit(x, y, z, rr(-1, 1), rr(0, 1), rr(-1, 1), rr(1.2, 2.2), 0.06, 0.06, 0.22, 0.3, 0.12, 0.9, 2.5, 1.2);
     if (surf !== 'foliage' && surf !== 'cloth') FX.hole(x, y, z, nx, ny, nz, surf === 'wood' ? 0.07 : 0.09);
   };

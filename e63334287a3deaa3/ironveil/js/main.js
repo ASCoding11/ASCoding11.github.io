@@ -20,6 +20,13 @@
     try { await IVChars.load(k => progress(0.05 + k * 0.4, 'Loading soldiers…')); }
     catch (e) { console.warn('chars.js failed, using the stand-in', e); window.IVChars = null; await loadScript('js/chars-standin.js'); await IVChars.load(); }
     W.init($('view'));
+    if (window.IVChars) IVChars.camera = W.camera;          // chars.js uses it for LOD and far-actor throttling
+    // the environment art (ironveil/env/env.js, window.IVEnv) if it is there; the code-made stand-ins otherwise
+    if (!IV.params.has('noenv')) { try { await loadScript('env/env.js'); } catch (e) { /* not there yet */ } }
+    if (window.IVEnv && IVEnv.init) {
+      try { IVEnv.init(W.renderer, W.quality); if (IVEnv.load) await IVEnv.load(k => progress(0.45 + k * 0.1, 'Loading the countryside…')); IVEnv.ready = true; }
+      catch (e) { console.warn('env failed, using stand-ins', e); IVEnv.ready = false; }
+    }
     IV.hud.init();
     UI.applySettings();
     // the title backdrop: Night Drop's farmland at night, a slow drifting camera
@@ -91,8 +98,8 @@
     else if (UI.cur === 'campaign' || UI.cur === 'briefing') UI.show(UI.cur === 'briefing' ? 'campaign' : 'title');
   });
   IV.on('lostlock', () => { if (state === 'play' && !IV.touch) app.pause(); });
-  IV.on('missionComplete', s => { setTimeout(() => { state = 'results'; IV.hud.show(false); IV.input.unlock(); IV.audio.music(false); UI.results(s); }, 1600); });
-  IV.on('missionFailed', r => { setTimeout(() => { state = 'results'; IV.hud.show(false); IV.input.unlock(); UI.failed(r); }, 900); });
+  IV.on('missionComplete', s => { setTimeout(() => { if (!M.finished) return; state = 'results'; IV.hud.show(false); IV.input.unlock(); IV.audio.music(false); UI.results(s); }, 1600); });
+  IV.on('missionFailed', r => { setTimeout(() => { if (!M.failed) return; state = 'results'; IV.hud.show(false); IV.input.unlock(); UI.failed(r); }, 900); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play' && !IV.test) app.pause(); });
 
   // ---------------------------------------------------------------- the loop
@@ -120,6 +127,7 @@
     IV.camera.frame(dt);
     IV.weapons.frame();
     IV.fx.frame(dt);
+    IV.art.frame(dt);
     W.frame(dt, IV.player.render);
     if (M.def && M.def.frame) M.def.frame(M, dt);
     IV.hud.frame(dt);

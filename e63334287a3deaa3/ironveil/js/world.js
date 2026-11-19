@@ -29,7 +29,7 @@
     r.setPixelRatio(Math.min(devicePixelRatio || 1, P.pr));
     r.outputEncoding = THREE.sRGBEncoding;
     r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1;
+    r.toneMappingExposure = 0.92;
     r.shadowMap.enabled = P.shadow > 0;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     r.shadowMap.autoUpdate = true;
@@ -188,7 +188,8 @@
     M.dark = new THREE.MeshBasicMaterial({ color: 0x0b0c0e });                               // unlit window glass
     M.foliage = std({ map: t.foliage(), vertexColors: true, roughness: 1 });
     M.foliage.onBeforeCompile = windPatch(0.07, 1.6);
-    M.leafCard = std({ map: t.leafCard(), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 1 });
+    // leaf cards a little darker than the clumps, so a light raking across them doesn't blow out to white speckle
+    M.leafCard = std({ map: t.leafCard(), alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 1, color: 0x8a8a8a });
     M.leafCard.onBeforeCompile = windPatch(0.1, 1.9);
     return M;
   };
@@ -234,6 +235,7 @@
     W.day = !!cfg.day;
     W.size = cfg.size; W.half = cfg.size / 2; W.N = cfg.size + 1; W.waterY = cfg.waterY != null ? cfg.waterY : -99;
     W.waterLevel = cfg.waterLevel || (() => W.waterY);
+    W.cfg = cfg;
     const N = W.N, h = W.heights = new Float32Array(N * N), sf = W.surf = new Uint8Array(N * N);
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const x = i - W.half, z = j - W.half;
@@ -241,18 +243,22 @@
       sf[j * N + i] = cfg.surface ? cfg.surface(x, z) : 0;
     }
     lights(cfg);
-    sky(cfg);
+    if (!W.atm) sky(cfg);
     terrain(cfg);
   };
 
   function lights(cfg) {
     const sc = W.scene, P = W.P, day = W.day;
+    // IVEnv atmosphere presets replace the moon, sky fill and fog here (see art.js)
+    const atm = W.atm = IV.art && IV.art.atmosphere(cfg);
+    if (atm) { W.sun = atm.sun; W.hemi = atm.hemi; if (!sc.fog) sc.fog = new THREE.FogExp2(0x0c131c, 0.012); }
+    else {
     sc.fog = new THREE.FogExp2(cfg.fogColor || (day ? 0xb9c4c8 : 0x0d1520), (cfg.fog || (day ? 0.0036 : 0.0175)) * P.fogMul);
     sc.background = new THREE.Color(cfg.fogColor || (day ? 0xb9c4c8 : 0x0d1520));
     sc.fog.color.convertSRGBToLinear();   // fog is added in linear space, then encoded like the materials
-    const hemi = W.hemi = new THREE.HemisphereLight(day ? 0xb8c8e0 : 0x6f86b8, day ? 0x4a4434 : 0x2a2a22, day ? 0.55 : 0.42);
+    const hemi = W.hemi = new THREE.HemisphereLight(day ? 0xb0bccc : 0x5b6f9c, day ? 0x403a2e : 0x1e1e1a, day ? 0.5 : 0.34);
     sc.add(hemi);
-    const sun = W.sun = new THREE.DirectionalLight(day ? 0xfff0d8 : 0xa8bce6, day ? 1.7 : 0.75);
+    const sun = W.sun = new THREE.DirectionalLight(day ? 0xf4e8d4 : 0x96b0e6, day ? 1.5 : 0.66);
     W.moonDir.set(...(cfg.sunDir || (day ? [0.5, 0.75, 0.3] : [-0.45, 0.8, 0.38]))).normalize();
     sun.position.copy(W.moonDir).multiplyScalar(80);
     sc.add(sun); sc.add(sun.target);
@@ -265,6 +271,7 @@
       sun.shadow.radius = 2.5;
     }
     // A fixed pool of point lights: the nearest lamps get them each frame (changing the light count recompiles shaders).
+    }
     W.pointPool = [];
     for (let i = 0; i < P.points; i++) { const l = new THREE.PointLight(0xffb060, 0, 14, 2); sc.add(l); W.pointPool.push(l); }
     W.flashLight = new THREE.PointLight(0xffc880, 0, 12, 2); sc.add(W.flashLight);
@@ -317,9 +324,32 @@
     if (i < 0 || j < 0 || i >= W.N || j >= W.N) return 0;
     return W.surf[j * W.N + i];
   };
+  // ---- hooks for the environment art (IVEnv): one terrain height, one ground-kind map, the characters that bend grass
+  W.heightAt = (x, z) => W.height(x, z);     // the same height physics, placement and rendering use
+  const KIND = { grass: 'grass', tallgrass: 'longgrass', mud: 'mud', gravel: 'road', crops: 'crop', water: 'water', stone: 'yard', wood: 'indoors' };
+  // grass | longgrass | lane | mud | yard | road | ploughed | crop | water | indoors. Long grass and crops are also the
+  // stealth cover (ai.js reads the same surface data), so what looks like cover is cover.
+  W.surfaceAt = function (x, z) {
+    if (W.underRoof(x, z)) return 'indoors';
+    if (W.cfg && W.cfg.surfaceKind) { const k = W.cfg.surfaceKind(x, z); if (k) return k; }
+    return KIND[SURF[W.surfAt(x, z)]] || 'grass';
+  };
+  // up to 8 characters near the camera: {x, z, r, crouch, prone}
+  W.pushers = [];
+  W.updatePushers = function () {
+    const out = W.pushers; out.length = 0; const P = IV.player, c = W.camera.position;
+    if (P.actor) out.push({ x: P.render.x, z: P.render.z, r: P.stance === 'prone' ? 0.9 : 0.5, crouch: P.stance === 'crouch', prone: P.stance === 'prone' });
+    const al = IV.ally && IV.ally.ent; if (al) out.push({ x: al.pos.x, z: al.pos.z, r: al.stance === 'prone' ? 0.9 : 0.5, crouch: al.stance === 'crouch', prone: al.stance === 'prone' });
+    const es = (IV.ai ? IV.ai.list : []).filter(e => e.alive || e.landed).map(e => ({ e, d: (e.pos.x - c.x) ** 2 + (e.pos.z - c.z) ** 2 })).sort((a, b) => a.d - b.d);
+    for (const { e } of es) { if (out.length >= 8) break; out.push({ x: e.pos.x, z: e.pos.z, r: e.alive ? 0.5 : 1.0, crouch: e.stance === 'crouch', prone: !e.alive || e.stance === 'prone' }); }
+    return out;
+  };
   W.setSurf = function (x, z, v) { const i = Math.round(x + W.half), j = Math.round(z + W.half); if (i >= 0 && j >= 0 && i < W.N && j < W.N) W.surf[j * W.N + i] = v; };
 
   function terrain(cfg) {
+    // IVEnv draws the ground from the same height function when it is loaded
+    const E = window.IVEnv && window.IVEnv.ready ? window.IVEnv : null;
+    if (E && E.ground) { const g = E.ground(W.heightAt, { size: W.size, surfaceAt: W.surfaceAt, day: W.day }); if (g) { W.terrainMesh = g.group || g; W.statics.add(W.terrainMesh); return; } }
     const step = cfg.terrainStep || (W.quality === 0 ? 3 : 2), n = Math.floor(W.size / step) + 1, half = W.half;
     const pos = new Float32Array(n * n * 3), nor = new Float32Array(n * n * 3), col = new Float32Array(n * n * 3), mud = new Float32Array(n * n);
     const v3 = new THREE.Vector3(), c = new THREE.Color();
@@ -581,7 +611,7 @@
     if (fb) { fl.position.set(fb.x, fb.y, fb.z); fl.distance = fb.r * 1.6; fl.intensity = fv * 5; fl.color.setHex(fb.color); } else fl.intensity = 0;
     // shadow camera follows the focus point, snapped to texels so shadows do not swim
     if (W.sun.castShadow && focus) {
-      const s = W.shadowR, texel = (2 * s) / W.P.shadow;
+      const s = W.shadowR || 40, texel = (2 * s) / (W.sun.shadow.mapSize.x || 1024);
       const fx = Math.round(focus.x / texel) * texel, fz = Math.round(focus.z / texel) * texel;
       W.sun.target.position.set(fx, focus.y, fz);
       W.sun.position.set(fx + W.moonDir.x * 90, focus.y + W.moonDir.y * 90, fz + W.moonDir.z * 90);
