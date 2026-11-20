@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Garage while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -274,13 +276,13 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
   <canvas id="ov"></canvas>
 
   <div id="hud" hidden>
-    <div id="tower"><div class="hd"><span id="towerLap">LAP 1/5</span><span id="towerTrk"></span></div><ol id="towerList"></ol></div>
-    <div id="lapbox">
+    <div id="tower" data-noi18n><div class="hd"><span id="towerLap">LAP 1/5</span><span id="towerTrk"></span></div><ol id="towerList"></ol></div>
+    <div id="lapbox" data-noi18n>
       <div class="row1"><div id="lap">LAP <b id="lapN">1</b>/<span id="lapT">5</span></div><div id="pos">P<span id="posN">1</span><small>/22</small></div></div>
       <div id="times"><span>Lap</span><b id="tCur">0:00.000</b><span>Last</span><b id="tLast">–</b><span>Best</span><b id="tBest">–</b></div>
       <div id="stew"></div>
     </div>
-    <div id="dash">
+    <div id="dash" data-noi18n>
       <div id="leds"></div>
       <div id="spd">0<small>KM/H</small></div>
       <div id="gear">N</div>
@@ -292,7 +294,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
     <div id="lights" hidden><div class="lt"><span></span><span></span></div><div class="lt"><span></span><span></span></div><div class="lt"><span></span><span></span></div><div class="lt"><span></span><span></span></div><div class="lt"><span></span><span></span></div></div>
     <div id="banner"></div>
     <div id="toasts"></div>
-    <div id="spec" hidden></div>
+    <div id="spec" data-noi18n hidden></div>
     <div id="hint" style="opacity:0"></div>
     <button class="hbtn" id="mute" type="button" aria-label="Mute">🔊</button>
     <button class="hbtn" id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
@@ -328,7 +330,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <dt>🎮</dt><dd>Gamepad: left stick steer, RT/LT throttle/brake, A boost, X or RB DRS, Y camera</dd>
         <dt data-kb="cam">C</dt><dd>Change camera</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt>Esc</dt><dd>Pause, invite link</dd>
       </dl>
-      <div class="row"><button class="ghost" id="keysMenu" type="button">Change keys</button></div>
+      <div class="row"><button class="ghost" id="keysMenu" type="button">Change keys</button><div data-lang-toggle></div></div>
       <p class="foot" style="margin-top:10px">Track limits: keep at least one wheel inside the white lines. Running wide costs you nothing but time, so just get back on the track. Cutting a corner to gain time adds 2.5 s to your race time.</p>
       <dl class="keys" hidden>
       </dl>
@@ -361,6 +363,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
       <p class="msg" id="pauseMsg" style="margin-top:0"></p>
       <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="keysPause" type="button">Controls</button><button class="ghost" id="leave" type="button">Leave</button></div>
       <p class="msg" id="inviteMsg"></p>
+      <div class="row"><div data-lang-toggle></div></div>
       <dl class="keys">
         <dt data-kb="up">W / ↑</dt><dd>Throttle</dd><dt data-kb="down">S / ↓</dt><dd>Brake / reverse</dd><dt data-kb="left right">A D / ← →</dt><dd>Steer</dd>
         <dt data-kb="boost" data-kb-short>Space</dt><dd>Boost</dd><dt data-kb="drs">E</dt><dd>DRS</dd><dt data-kb="cam">C</dt><dd>Camera</dd><dt data-kb="reset">R</dt><dd>Back onto the track</dd><dt data-kb="mute">M</dt><dd>Mute</dd>
@@ -386,6 +389,9 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 <script>
 (function(){
 'use strict';
+// Spanish (../lang.js, es.js): T() gives the words in the player's language, for text the page can't leave to lang.js.
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+const LT=T;   // the same, for the places where T is a local name for the track
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/ss-<code>, so the existing rules cover them.
@@ -713,11 +719,14 @@ function makeCar(seat){
     snap:null,tv:0,mesh:null,spin:0,crashT:0};
 }
 // grid: array of seats in grid order. humans: Map seat -> {name,uid,me}
+// party: a party launch's room (people only): only the people's cars race, lined up from the front of the grid.
+// race.seatCar is the car in each seat (undefined for an empty one); race.cars is every car that races.
 function newRace(o){
   const T=setTrack(o.track);
-  const cars=[];
+  let cars=[];
   for(let s=0;s<SEATS;s++)cars.push(makeCar(s));
-  o.grid.forEach((seat,k)=>{
+  const seatCar=cars.slice();
+  (o.party?o.grid.filter(s=>o.humans.has(s)):o.grid).forEach((seat,k)=>{
     const c=cars[seat],P0=-(GRID_FRONT+GRID_GAP*k),lat=(k%2?1:-1)*3.1,p=posAt(P0,lat);
     c.x=p.x;c.z=p.z;c.h=p.h;c.idx=p.i;c.P=P0;c.s=((P0%T.L)+T.L)%T.L;c.lat=lat;c.gridPos=k+1;
   });
@@ -727,7 +736,8 @@ function newRace(o){
     if(hu){c.bot=false;c.name=hu.name||'Driver';c.code=codeOf(c.name);c.owner=hu.uid||'';c.ctrl=hu.me?'me':'remote'}
     else c.ctrl=o.runBots?'bot':'remote';
   }
-  race={track:o.track,laps:o.laps,go:o.go,cars,me:cars.find(c=>c.ctrl==='me')||null,online:!!o.online,id:o.id||0,
+  if(o.party){cars=cars.filter(c=>o.humans.has(c.seat));for(let s=0;s<SEATS;s++)if(!o.humans.has(s))seatCar[s]=undefined}
+  race={track:o.track,laps:o.laps,go:o.go,cars,seatCar,party:!!o.party,me:cars.find(c=>c.ctrl==='me')||null,online:!!o.online,id:o.id||0,
     anyFin:0,firstFinT:0,ended:false,fr:new Float64Array(Math.ceil(o.laps*T.L/20)+80).fill(NaN),fastest:0,fastSeat:-1,
     attract:!!o.attract,lightsShown:false,goShown:false,finalShown:false};
   buildCars();
@@ -1812,14 +1822,14 @@ function onPlayerNode(uid,v){
   if(!race||!race.online||race.attract||v.rid!==race.id)return;
   const seat=race.uidSeat.get(uid);
   if(seat!=null){
-    const c=race.cars[seat];
-    if(c.ctrl==='remote'&&!c.bot&&c.owner===uid&&typeof v.x==='number')applySnap(c,{t:ts,x:+v.x,z:+v.z,h:+v.h,v:+v.v,P:+v.P,f:+v.f||0,bl:+v.bl||0,b:v.b|0,st:+v.st||0,pn:+v.pn||0});
+    const c=race.seatCar[seat];
+    if(c&&c.ctrl==='remote'&&!c.bot&&c.owner===uid&&typeof v.x==='number')applySnap(c,{t:ts,x:+v.x,z:+v.z,h:+v.h,v:+v.v,P:+v.P,f:+v.f||0,bl:+v.bl||0,b:v.b|0,st:+v.st||0,pn:+v.pn||0});
   }
   if(typeof v.bt==='string'&&v.bt){
     for(const part of v.bt.split('|').slice(0,SEATS)){
       const f=part.split(',');if(f.length<10)continue;
       const s=f[0]|0;if(s<0||s>=SEATS)continue;
-      const c=race.cars[s];
+      const c=race.seatCar[s];if(!c)continue;
       if(c.ctrl==='me'){ // our seat went to a bot while we were away
         race.me=null;c.ctrl='remote';c.bot=true;c.name=DRIVERS[s].n;c.code=DRIVERS[s].c;refreshCarMesh(c);
         toast('You lost connection, so a bot took over your car.');
@@ -1836,7 +1846,10 @@ function onPlayerGone(uid){
   if(state==='lobby'&&o)toast((cleanName(o.v.n)||'A driver')+' left the room.');
   if(race&&race.online&&!race.attract&&!race.ended){
     const seat=race.uidSeat.get(uid);
-    if(seat!=null){const c=race.cars[seat];if(c.ctrl==='remote'&&!c.bot)toast(c.name+' left · a bot takes over the '+TEAMS[c.team].n+' car')}
+    if(seat!=null){const c=race.seatCar[seat];
+      // a party race has no bots: the car of someone who left leaves the race with them
+      if(c&&race.party){if(c.ctrl==='remote'&&!c.bot){toast(c.name+' left the race');dropCar(c)}}
+      else if(c&&c.ctrl==='remote'&&!c.bot)toast(c.name+' left · a bot takes over the '+TEAMS[c.team].n+' car')}
     Net.elect();if(Net.amHost)adoptOrphans();
   }
 }
@@ -1878,9 +1891,15 @@ function predictRemote(c,dt){
   c.s=((c.P%T.L)+T.L)%T.L;
   c.steer=lerp(c.steer,s.st||0,1-Math.exp(-dt*10));
 }
-// The host drives every car nobody live is driving: bots, and anyone who left mid-race.
+function dropCar(c){
+  const i=race.cars.indexOf(c);if(i<0)return;
+  race.cars.splice(i,1);race.seatCar[c.seat]=undefined;
+  if(c.mesh){scene.remove(c.mesh.g);const k=carMeshes.indexOf(c.mesh);if(k>=0)carMeshes.splice(k,1)}
+  if(cam.watch===c.seat)cam.watch=-1;
+}
+// The host drives every car nobody live is driving: bots, and anyone who left mid-race (not in a party race: no bots).
 function adoptOrphans(){
-  if(!race||!race.online||race.attract)return;
+  if(!race||!race.online||race.attract||race.party)return;
   const t=raceT();
   const settled=performance.now()-(Net.hostSince||0)>1500;
   for(const c of race.cars){
@@ -1956,7 +1975,7 @@ function startOnlineRace(r){
     uidSeat.set(uid,seat);
   }
   Net.elect();
-  newRace({track:r.tr|0,laps:clamp(r.laps|0,1,20),go:+r.go,grid,humans,runBots:Net.amHost,online:true,id:r.id,skill:DIFF.hard});
+  newRace({track:r.tr|0,laps:clamp(r.laps|0,1,20),go:+r.go,grid,humans,runBots:Net.amHost,online:true,id:r.id,skill:DIFF.hard,party:partyRoom()});
   race.uidSeat=uidSeat;
   for(const c of race.cars)if(c.ctrl==='remote'&&c.bot)c.owner='';
   beginRaceView();
@@ -2236,7 +2255,7 @@ function camTarget(){
   if(!race)return null;
   if(state==='race'&&race.me&&!race.me.fin)return race.me;
   if(race.me&&(state==='race'||state==='results'))return race.me;
-  if(cam.watch>=0)return race.cars[cam.watch];
+  if(cam.watch>=0&&race.seatCar[cam.watch])return race.seatCar[cam.watch];
   return order()[0];
 }
 function updateCamera(dt){
@@ -2245,7 +2264,7 @@ function updateCamera(dt){
   cam.cutT-=dt;
   if(!driving&&cam.cutT<=0){cam.cut++;cam.cutT=cam.cut%2?9:7;cam.tv=null;
     if(state!=='race'&&cam.watch<0&&race.attract){const o=order();cam.watchAuto=o[Math.floor(Math.random()*Math.min(6,o.length))].seat}}
-  const tgt=(!driving&&state!=='race'&&race.attract&&cam.watchAuto!=null)?race.cars[cam.watchAuto]:c;
+  const tgt=(!driving&&state!=='race'&&race.attract&&cam.watchAuto!=null)?race.seatCar[cam.watchAuto]:c;
   const m=driving?cam.mode:(cam.cut%2?'tv':1);
   const fx=Math.cos(tgt.h),fz=Math.sin(tgt.h);
   if(tgt.mesh)tgt.mesh.hel.visible=!(driving&&cam.mode===3);
@@ -2283,13 +2302,23 @@ function updateCamera(dt){
 // =====================================================================
 const ledBox=$('leds');for(let i=0;i<15;i++){const l=document.createElement('i');l.className=i<5?'g':i<10?'r':'b';ledBox.appendChild(l)}
 const leds=[...ledBox.children];
+// The HUD's fixed words, in the player's language (lang.js leaves the HUD alone: it changes every frame)
+const HUD_EN={lap:$('lap').firstChild.nodeValue.trim(),times:[...$('times').querySelectorAll('span')].map(e=>e.textContent),tags:['slipTag','boostTag','drsTag'].map(id=>$(id).textContent)};
+function hudWords(){
+  $('lap').firstChild.nodeValue=T(HUD_EN.lap)+' ';
+  $('times').querySelectorAll('span').forEach((e,i)=>{e.textContent=T(HUD_EN.times[i])});
+  ['slipTag','boostTag','drsTag'].forEach((id,i)=>{$(id).textContent=T(HUD_EN.tags[i])});
+  document.querySelectorAll('optgroup[data-en]').forEach(g=>{g.label=T(g.dataset.en)});
+  if(race&&race.me)race.me.stewSig=null;   // the penalty tag is drawn again in the new language
+}
+hudWords();document.addEventListener('backroom:lang',hudWords);
 let towerT=0,posMap=new Map(),lastLit=-1,goDone=false,wrongT=0,offHintAt=0;
 function gapText(c,o,i){
   const lead=o[0];
-  if(i===0)return lead.fin?'Winner':'Leader';
+  if(i===0)return T(lead.fin?'Winner':'Leader');
   if(c.fin&&lead.fin)return '+'+(raceTime(c)-raceTime(lead)).toFixed(3);
   const lapsDown=Math.floor((lead.P-c.P)/track.L);
-  if(lapsDown>=1&&!c.fin)return '+'+lapsDown+' lap'+(lapsDown>1?'s':'');
+  if(lapsDown>=1&&!c.fin)return T(lapsDown>1?'+{n} laps':'+{n} lap',{n:lapsDown});
   const g=gapOf(c);return g?'+'+g.toFixed(1):'–';
 }
 function updateTower(){
@@ -2303,7 +2332,7 @@ function updateTower(){
   });
   list.innerHTML=h;
   const lead=o[0],ln=clamp(Math.floor(lead.P/track.L)+1,1,race.laps);
-  $('towerLap').textContent=lead.fin?'FINISH':'LAP '+ln+'/'+race.laps;
+  $('towerLap').textContent=lead.fin?T('FINISH'):T('LAP {n}/{m}',{n:ln,m:race.laps});
   $('towerTrk').textContent=TRACKS[race.track].s.toUpperCase();
 }
 function updateHud(dt){
@@ -2327,7 +2356,7 @@ function updateHud(dt){
     $('tCur').textContent=me.fin?'–':fmtTime(Math.max(0,t-me.lastCross)).replace(/^–$/,'0:00.000');
     $('tLast').textContent=fmtTime(me.lastLap);
     const sig=me.pen||0;
-    if(sig!==me.stewSig){me.stewSig=sig;$('stew').innerHTML=me.pen?'<span class="p">+'+me.pen+'s PEN</span>':''}
+    if(sig!==me.stewSig){me.stewSig=sig;$('stew').innerHTML=me.pen?'<span class="p">'+LT('+{n}s PEN',{n:me.pen})+'</span>':''}
     // off the track: a small reminder (not a penalty) that stays up while off and fades once back on
     if(me.offTrack&&!me.fin&&!(me.stuck>2)&&t>=1){const n=performance.now();if(n-offHintAt>400){offHintAt=n;hint('Return to the track',1200)}}
     const tb=$('tBest');tb.textContent=fmtTime(me.best);tb.className=me.best&&race.fastSeat===me.seat?'fl':me.best?'pb':'';
@@ -2352,8 +2381,8 @@ function updateHud(dt){
     if(me){const td=$('tdrs');td.hidden=!(me.drsAvail||me.drsOpen);td.classList.toggle('on',!!me.drsOpen);td.classList.toggle('ready',!!me.drsAvail&&!me.drsOpen)}
   }
   const sp=$('spec');
-  if(!me&&c&&state==='race'){sp.hidden=false;sp.innerHTML='Watching <b>'+esc(c.name)+'</b> · P'+(posMap.get(c)||'–')+' · '+TEAMS[c.team].n+(touchUI?'':'<br><small>← → to switch car</small>')}
-  else if(me&&me.fin&&state==='race'){sp.hidden=false;sp.innerHTML='Finished <b>P'+(posMap.get(me)||'')+'</b> · waiting for the others'}
+  if(!me&&c&&state==='race'){sp.hidden=false;sp.innerHTML=T('Watching <b>{n}</b> · P{p} · {t}',{n:esc(c.name),p:posMap.get(c)||'–',t:TEAMS[c.team].n})+(touchUI?'':T('<br><small>← → to switch car</small>'))}
+  else if(me&&me.fin&&state==='race'){sp.hidden=false;sp.innerHTML=T('Finished <b>P{p}</b> · waiting for the others',{p:posMap.get(me)||''})}
   else sp.hidden=true;
 }
 function esc(s){return String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]))}
@@ -2487,7 +2516,7 @@ function beginRaceView(){
   hideScreens();state='race';showHud(true);keys.clear();
   lastLit=-1;goDone=raceT()>1;towerT=0;cam.watch=-1;cam.ready=false;cam.cut=0;cam.cutT=8;
   $('lights').hidden=true;$('banner').classList.remove('show');
-  if(race.me){const p=race.me.gridPos;hint(touchUI?'Slide your thumb on the steering pad · it accelerates for you · BRAKE to slow':KB.label('up','/')+' throttle · '+KB.label('down','/')+' brake · '+KB.short('left')+' '+KB.short('right')+' steer · '+KB.short('boost')+' boost · '+KB.short('drs')+' DRS · '+KB.short('cam')+' camera',6000);toast('Starting P'+p+' for '+TEAMS[race.me.team].n)}
+  if(race.me){const p=race.me.gridPos;hint(touchUI?'Slide your thumb on the steering pad · it accelerates for you · BRAKE to slow':T('{u} throttle · {d} brake · {l} {r} steer · {b} boost · {e} DRS · {c} camera',{u:KB.label('up','/'),d:KB.label('down','/'),l:KB.short('left'),r:KB.short('right'),b:T(KB.short('boost')),e:T(KB.short('drs')),c:T(KB.short('cam'))}),6000);toast('Starting P'+p+' for '+TEAMS[race.me.team].n)}
 }
 // ---------- practice ----------
 function practiceLobby(){
@@ -2507,6 +2536,10 @@ function startPractice(){
 }
 // ---------- online ----------
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// races are for the party's people only: just their cars, no bots, whoever hosts.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
+function partyRoom(){return !!(Net.room&&!Net.isPublic&&isPartyRoom(Net.room))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^ss-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){const w=['apex','pitlane','grid','chicane','hairpin','slipstream','paddock','podium'];return w[Math.floor(Math.random()*w.length)]+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
@@ -2560,7 +2593,7 @@ function renderLobby(){
     hs=Net.liveHumans();own=Net.owners();
     if(mySeat>=0&&own.get(mySeat)&&!own.get(mySeat).me){mySeat=-1;$('lbMsg').textContent='Someone else grabbed that seat first. Pick another.';Net.publish(true)}
     $('lbTitle').textContent=Net.isPublic?'Public lobby':'Room '+Net.room.replace(/^ss-/,'');
-    $('lbSub').textContent=hs.length+' driver'+(hs.length>1?'s':'')+' here · bots drive the other '+(SEATS-hs.length)+' cars · '+TRACKS[tr].n;
+    $('lbSub').textContent=hs.length+' driver'+(hs.length>1?'s':'')+' here · '+(partyRoom()?'No bots in party games':'bots drive the other '+(SEATS-hs.length)+' cars')+' · '+TRACKS[tr].n;
     $('lbInvite').hidden=Net.isPublic;
   }else{
     own.set(mySeat,{me:true,n:myName||'You',rd:1});
@@ -2574,9 +2607,9 @@ function renderLobby(){
   else if(!r)st='Connecting…';
   else if(r.ph==='lobby'){
     const ready=hs.filter(h=>h.rd).length;
-    if(Net.isPublic&&r.dl){const s=Math.max(0,Math.ceil((r.dl-Net.now())/1000));st='Race starts in <b>'+s+'s</b>, or as soon as everyone is ready ('+ready+'/'+hs.length+').'}
-    else st='The race starts when everyone is ready (<b>'+ready+'/'+hs.length+'</b>).'+(Net.amHost?' You\'re the host: you pick the track and laps.':'');
-    if(mySeat<0)st+=' No seat picked: you\'ll get a free one.';
+    if(Net.isPublic&&r.dl){const s=Math.max(0,Math.ceil((r.dl-Net.now())/1000));st=T('Race starts in <b>{s}s</b>, or as soon as everyone is ready ({r}/{n}).',{s,r:ready,n:hs.length})}
+    else st=T('The race starts when everyone is ready (<b>{r}/{n}</b>).',{r:ready,n:hs.length})+(Net.amHost?' '+T('You\'re the host: you pick the track and laps.'):'');
+    if(mySeat<0)st+=' '+T('No seat picked: you\'ll get a free one.');
   }else if(r.ph==='race')st='A race is on. You\'ll get a seat in the next one.';
   else st='Results are in. Back to the grid in a moment.';
   $('lbStatus').innerHTML=st;
@@ -2593,7 +2626,7 @@ function renderLobby(){
         const o=own.get(s),d=DRIVERS[s];
         let who,cls='seat',dis=false,rd='';
         if(o&&o.me){who='You'+(myName?' ('+esc(myName)+')':'');cls+=' mine';if(online&&myReady)rd='READY'}
-        else if(o){who='<span class="hum">'+esc(o.n)+'</span>';dis=true;if(o.rd)rd='READY'}
+        else if(o){who='<span class="hum" data-noi18n>'+esc(o.n)+'</span>';dis=true;if(o.rd)rd='READY'}
         else who='<span class="bot">Bot · '+esc(d.n)+'</span>';
         h+='<button type="button" class="'+cls+'" data-s="'+s+'"'+(dis?' disabled':'')+'><span class="num">#'+d.num+'</span><span class="who">'+who+'</span><span class="rd">'+rd+'</span></button>';
       }
@@ -2626,7 +2659,7 @@ function lobbyOpt(el,key){
 for(const id of ['trackSel','lbTrackSel']){
   const sel=$(id);
   for(const [label,real] of [['Grand Prix circuits',1],['Original circuits',0]]){
-    const og=document.createElement('optgroup');og.label=label;
+    const og=document.createElement('optgroup');og.label=T(label);og.dataset.en=label;
     TRACKS.forEach((t,i)=>{if(!!t.real!==!!real)return;const o=document.createElement('option');o.value=i;o.textContent=t.real?t.s+' · '+(t.c===t.s?t.n:t.c):t.s+' · '+t.sub;o.title=t.n;og.appendChild(o)});
     sel.appendChild(og);
   }

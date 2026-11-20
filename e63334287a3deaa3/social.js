@@ -90,6 +90,107 @@
   if (document.getElementById('online')) return;
 
   var PATH = 'rooms/ol-lobby/players';
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  // Spanish (lang.js): this script's words.
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      // The Online panel's own words. What people type (messages, names) is kept out of the translation (data-noi18n).
+      'Online': 'En línea', 'Online: people, chats and invites': 'En línea: gente, chats e invitaciones',
+      'Everyone in the Back Room right now. Tap someone to request a chat (people in your party can message you straight away), invite them to your party or send them a room code, or say hi to the whole cabin.':
+        'Todos los que están en The Back Room ahora. Toca a alguien para pedirle un chat (los de tu grupo te pueden escribir directo), invitarlo a tu grupo o mandarle un código de sala, o saluda a toda la cabaña.',
+      'Cabin chat': 'Chat de la cabaña', 'Party chat': 'Chat del grupo', 'Badges': 'Insignias', 'Every badge and how to get it': 'Todas las insignias y cómo conseguirlas',
+      'Your name in the Online list': 'Tu nombre en la lista En línea', 'Your seat: a tag that tells people apart when names match': 'Tu asiento: una etiqueta para distinguir a la gente con el mismo nombre',
+      'Edit avatar': 'Editar avatar', 'Name tile': 'Placa de nombre', 'Your card, as everyone else sees it': 'Tu tarjeta, como la ven los demás', 'You': 'Tú',
+      'Hide me': 'Ocultarme', 'Show me': 'Mostrarme', 'Let people join my games': 'Dejar que se unan a mis juegos',
+      'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)':
+        'Cuando estás en un juego en línea, la gente de aquí lo ve y puede unirse (Jugando ahora, y un botón Unirse junto a tu nombre)',
+      'Find someone online: name, seat or game': 'Busca a alguien: nombre, asiento o juego', 'Find someone in the Online list': 'Buscar a alguien en la lista En línea',
+      'People online': 'Gente en línea', 'Main site': 'Sitio principal', 'Privacy': 'Privacidad', 'Try again': 'Reintentar', 'the leader': 'el líder',
+      'You already chat with them.': 'Ya chateas con esa persona.', 'Waiting for them to accept.': 'Esperando que acepte.', 'You can ask again in {n} min.': 'Puedes volver a pedir en {n} min.',
+      'That request has run out.': 'Esa solicitud venció.', 'Party full': 'Grupo lleno', 'Join party': 'Unirse al grupo',
+      'You’re not in a party.': 'No estás en un grupo.', 'This browser can’t encrypt, so party chat is off here.': 'Este navegador no puede cifrar, así que el chat del grupo está apagado aquí.',
+      'Nobody else is in your party yet.': 'Todavía no hay nadie más en tu grupo.',
+      'Nobody in your party can get messages right now (they may be hidden or still connecting).': 'Nadie de tu grupo puede recibir mensajes ahora (puede que estén ocultos o conectándose).',
+      'They aren’t in a party.': 'No está en un grupo.', 'You’re already in their party.': 'Ya estás en su grupo.', 'Waiting for them to answer.': 'Esperando su respuesta.',
+      'You’re not in a party any more.': 'Ya no estás en un grupo.', 'Only the party leader can let people in.': 'Solo el líder del grupo puede dejar entrar.', 'The party is full.': 'El grupo está lleno.',
+      'Not signed in.': 'No iniciaste sesión.', 'Too long.': 'Demasiado largo.', 'Not connected yet.': 'Todavía no estás conectado.',
+      'You just reported them. We\'ll see it.': 'Acabas de reportarlo. Lo vamos a ver.', 'You can also Block them so you stop seeing their messages.': 'También puedes Bloquearlo para dejar de ver sus mensajes.',
+      'One moment: you can send a message every second and a half.': 'Un momento: puedes mandar un mensaje cada segundo y medio.',
+      'Slow down a little: that’s {n} messages in ten seconds.': 'Más despacio: son {n} mensajes en diez segundos.',
+      'You’re hidden. Turn off Hide me to chat.': 'Estás oculto. Apaga Ocultarme para chatear.', 'You blocked this person.': 'Bloqueaste a esta persona.',
+      'They’ve left the Back Room.': 'Se fue de The Back Room.', 'This browser can’t encrypt private messages.': 'Este navegador no puede cifrar mensajes privados.',
+      'Their browser can’t receive private messages.': 'Su navegador no puede recibir mensajes privados.', 'Accept their request to chat.': 'Acepta su solicitud de chat.',
+      'Request to chat first.': 'Primero pide un chat.', 'The Party panel isn’t loaded.': 'El panel de Grupo no cargó.', 'Creating a party…': 'Creando un grupo…',
+      'Couldn’t create a party. See the Party panel for why.': 'No se pudo crear un grupo. Mira el panel de Grupo para ver por qué.', 'You’re already in that party.': 'Ya estás en ese grupo.',
+      'Couldn’t join that party. The Party panel says why.': 'No se pudo entrar a ese grupo. El panel de Grupo dice por qué.',
+      'In a public party': 'En un grupo público', 'In a party': 'En un grupo', 'Public party of {n}': 'Grupo público de {n}', 'Party of {n}': 'Grupo de {n}',
+      'Show fewer': 'Ver menos', 'Show everyone ({n})': 'Ver a todos ({n})', 'Seat {n}': 'Asiento {n}',
+      'Sign in with Google to edit your avatar': 'Inicia sesión con Google para editar tu avatar', 'Edit avatar (sign in with Google first)': 'Editar avatar (primero inicia sesión con Google)',
+      'You’re hidden, so nobody sees your games anyway': 'Estás oculto, así que nadie ve tus juegos de todos modos',
+      'You’re hidden, so nobody can see you. Nobody else is around right now either.': 'Estás oculto, así que nadie te ve. Y ahora tampoco hay nadie más.',
+      'Nobody else is here right now. Leave this open and you’ll see people as they arrive.': 'Ahora no hay nadie más. Deja esto abierto y verás a la gente a medida que llega.',
+      'Sign in with Google to choose your colour and edit your avatar.': 'Inicia sesión con Google para elegir tu color y editar tu avatar.',
+      'Sign in with Google on the main site to choose your colour and edit your avatar.': 'Inicia sesión con Google en el sitio principal para elegir tu color y editar tu avatar.',
+      'Sign-in is ready now. Tap Sign in with Google again.': 'El inicio de sesión ya está listo. Vuelve a tocar Iniciar sesión con Google.',
+      'Couldn’t load sign-in. Check your connection.': 'No se pudo cargar el inicio de sesión. Revisa tu conexión.',
+      'Back to the list': 'Volver a la lista', 'Let people join: {v}': 'Dejar que se unan: {v}', 'On': 'Sí', 'Off': 'No',
+      'You’re hidden. Others can’t see or message you.': 'Estás oculto. Los demás no pueden verte ni escribirte.', 'Tap someone to request a chat or invite them.': 'Toca a alguien para pedirle un chat o invitarlo.',
+      'One chat for everyone online right now. Shows the last 30 minutes from people who are here. Be kind.': 'Un chat para todos los que están en línea. Muestra los últimos 30 minutos de la gente que está aquí. Sé amable.',
+      'It’s quiet in here. Say hello.': 'Está tranquilo por aquí. Saluda.', 'Message everyone': 'Mensaje para todos', 'Message your party': 'Mensaje para tu grupo',
+      'You’re not in a party. Create or join one in the Party panel, then chat with everyone in it here.': 'No estás en un grupo. Crea uno o únete en el panel de Grupo y chatea aquí con todos.',
+      'Say hi to your party. In a game, press T or tap Chat at the top to talk without leaving it.': 'Saluda a tu grupo. En un juego, presiona T o toca Chat arriba para hablar sin salir.',
+      'Not online': 'No está en línea', 'End chat': 'Terminar chat', 'Request sent': 'Solicitud enviada', 'Request to chat': 'Pedir chat', 'Invite to party': 'Invitar al grupo',
+      'Join request sent': 'Pedido para unirse enviado', 'Let in': 'Dejar entrar', 'Join declined': 'Pedido rechazado', 'Request to join': 'Pedir unirse', 'Send room code': 'Mandar código de sala',
+      'Block for this session': 'Bloquear por esta sesión', 'You blocked this person for this session': 'Bloqueaste a esta persona por esta sesión',
+      'You’re in the same party, so you can message each other without a chat request. Block stops their messages.': 'Están en el mismo grupo, así que pueden escribirse sin pedir chat. Bloquear frena sus mensajes.',
+      'Say hi. Messages are end-to-end encrypted: other people online can see that you sent something, but not what.': 'Saluda. Los mensajes están cifrados de punta a punta: los demás ven que mandaste algo, pero no qué.',
+      'Let them in': 'Dejarlo entrar', 'wants to join your party': 'quiere unirse a tu grupo', 'wants to join your party.': 'quiere unirse a tu grupo.',
+      'wants to chat with you. Accept their request to see their messages.': 'quiere chatear contigo. Acepta su solicitud para ver sus mensajes.', 'wants to chat with you.': 'quiere chatear contigo.',
+      'Waiting for them to accept.': 'Esperando que acepte.', 'They declined your request.': 'Rechazó tu solicitud.', 'declined your request.': 'rechazó tu solicitud.',
+      'You asked to chat. · {t}': 'Pediste chatear. · {t}', '{n} asked to chat. · {t}': '{n} pidió chatear. · {t}',
+      'You accepted. You can chat now. · {t}': 'Aceptaste. Ya pueden chatear. · {t}', '{n} accepted. You can chat now. · {t}': '{n} aceptó. Ya pueden chatear. · {t}',
+      'You declined. · {t}': 'Rechazaste. · {t}', '{n} declined. · {t}': '{n} rechazó. · {t}', 'You ended the chat. · {t}': 'Terminaste el chat. · {t}', '{n} ended the chat. · {t}': '{n} terminó el chat. · {t}',
+      'You asked to join their party. · {t}': 'Pediste unirte a su grupo. · {t}', '{n} asked to join your party. · {t}': '{n} pidió unirse a tu grupo. · {t}',
+      'You’re in this party': 'Estás en este grupo', 'You invited them to your party ({c}).': 'Lo invitaste a tu grupo ({c}).', '{n} invited you to their party.': '{n} te invitó a su grupo.',
+      'You let them into the party ({c}).': 'Lo dejaste entrar al grupo ({c}).', '{n} let you into their party.': '{n} te dejó entrar a su grupo.',
+      'You sent a room: {g}, room {r}.': 'Mandaste una sala: {g}, sala {r}.', '{n} sent you a room: {g}, room {r}.': '{n} te mandó una sala: {g}, sala {r}.',
+      'Open it': 'Abrirla', 'Open chat': 'Abrir chat', 'accepted your chat request.': 'aceptó tu solicitud de chat.', 'declined your chat request.': 'rechazó tu solicitud de chat.',
+      'ended the chat.': 'terminó el chat.', 'let you into their party.': 'te dejó entrar a su grupo.', 'Joining takes you out of your current one.': 'Unirte te saca del grupo actual.',
+      'joined your game.': 'se unió a tu juego.', 'invited you to their party.': 'te invitó a su grupo.', 'No thanks': 'No, gracias', 'sent you a room:': 'te mandó una sala:',
+      'Sent them the party code. They join when they press Join.': 'Le mandaste el código del grupo. Entra cuando toque Unirse.', 'Invite sent.': 'Invitación enviada.',
+      'End this chat? You both stop seeing each other’s messages until one of you requests a chat again.': '¿Terminar este chat? Los dos dejan de ver los mensajes del otro hasta que alguien vuelva a pedir chat.',
+      'Trivium codes are five letters.': 'Los códigos de Trivium tienen cinco letras.', 'Room codes are letters, numbers and dashes (up to 17).': 'Los códigos de sala son letras, números y guiones (hasta 17).',
+      'Reported. Thanks: we\'ll look at it.': 'Reportado. Gracias: lo vamos a revisar.', 'Reports aren’t switched on yet, so nothing was sent. Block them for now.': 'Los reportes todavía no están activados, así que no se envió nada. Por ahora, bloquéalo.',
+      'Couldn’t send the report. Check your connection and try again.': 'No se pudo enviar el reporte. Revisa tu conexión y vuelve a intentarlo.',
+      'You’re hidden. Nobody can see you online, and you can’t chat until you turn this off.': 'Estás oculto. Nadie te ve en línea, y no puedes chatear hasta que lo apagues.',
+      'Online needs the Party panel, which didn’t load. Reload the page to try again.': 'En línea necesita el panel de Grupo, que no cargó. Recarga la página para reintentar.',
+      'Connecting…': 'Conectando…', 'Couldn’t connect.': 'No se pudo conectar.',
+      'This browser can’t encrypt, so private messages and invites are off here. The cabin chat still works.': 'Este navegador no puede cifrar, así que los mensajes privados y las invitaciones están apagados aquí. El chat de la cabaña sigue funcionando.',
+      'People here can see the online game you’re in and join you.': 'La gente de aquí puede ver el juego en línea en el que estás y unirse.',
+      'Your games are private: nobody here sees a Join button for them.': 'Tus juegos son privados: nadie aquí ve un botón Unirse para ellos.', 'Room code': 'Código de sala',
+      // Sentences with a name in them ({n}), put together with T() where the name sits inside the sentence.
+      '{n}’s party is full, so your request to join was turned down.': 'El grupo de {n} está lleno, así que se rechazó tu pedido para unirte.',
+      '{n} isn’t the leader. Only the leader can accept — ask {l}.': '{n} no es el líder. Solo el líder puede aceptar: pregúntale a {l}.',
+      '{n} isn’t in a party any more.': '{n} ya no está en un grupo.', '{n} declined your request to join.': '{n} rechazó tu pedido para unirte.',
+      ' You asked {n}. Waiting for an answer.': ' Le preguntaste a {n}. Esperando respuesta.', ' {n} let you in.': ' {n} te dejó entrar.',
+      'Only the leader can let people in, so requests to join this party go to {n}.': 'Solo el líder puede dejar entrar, así que los pedidos para unirse a este grupo van a {n}.',
+      'Open chat with {n}': 'Abrir chat con {n}', 'Ask {n}': 'Preguntarle a {n}',
+      '{n} wants to chat with you.': '{n} quiere chatear contigo.', '{n} accepted your chat request.': '{n} aceptó tu solicitud de chat.',
+      '{n} declined your chat request.': '{n} rechazó tu solicitud de chat.', '{n} ended the chat.': '{n} terminó el chat.', '{n} wants to join your party.': '{n} quiere unirse a tu grupo.',
+      '{n} joined your game.': '{n} se unió a tu juego.', '{n} to your party:': '{n} a tu grupo:', '{n} wants to join your party ({c}).': '{n} quiere unirse a tu grupo ({c}).',
+      '{n} sent you a room: {g}, room {r}.': '{n} te mandó una sala: {g}, sala {r}.',
+      '{n} wants to chat with you. Accept their request to see their messages.': '{n} quiere chatear contigo. Acepta su solicitud para ver sus mensajes.',
+      'Request sent. Waiting for {n} to accept.': 'Solicitud enviada. Esperando que {n} acepte.',
+      'Request to chat with {n}. They see your messages once they accept.': 'Pídele chatear a {n}. Verá tus mensajes cuando acepte.',
+      'Leave your party and join {n}’s?': '¿Salir de tu grupo y unirte al de {n}?', 'Leave your party and join theirs?': '¿Salir de tu grupo y unirte al suyo?',
+      'Asked {n} to let you into the party.': 'Le pediste a {n} que te deje entrar al grupo.', 'Only the leader can let you in, so your request went to {n}.': 'Solo el líder puede dejarte entrar, así que tu pedido fue a {n}.',
+      'Reply': 'Responder', 'Dismiss': 'Descartar', 'Accept': 'Aceptar', 'Decline': 'Rechazar', 'Later': 'Después', 'Mute': 'Silenciar', 'Block': 'Bloquear', 'Report': 'Reportar',
+      'Joining {n}’s party…': 'Uniéndote al grupo de {n}…', 'You joined {n}’s party. When the leader starts a game, you’ll go too.': 'Te uniste al grupo de {n}. Cuando el líder empiece un juego, irás también.',
+      'You already asked {n} to join that party.': 'Ya le pediste a {n} unirte a ese grupo.',
+      '· {s} · you': '· {s} · tú', '{l}: {n} in {g}': '{l}: {n} en {g}', 'Join {g}': 'Unirse a {g}'
+    });
+  })(0);
   var STALE = 75000, BEAT = 15000, POLL = 2000;
   var NAME_MAX = 14, TEXT_MAX = 200;
   var LOUNGE_KEEP = 20, LOUNGE_TTL = 30 * 60000;
@@ -126,6 +227,7 @@
     { k: 'pf', n: 'Puffer Party', d: 'puffer-party', room: ROOM },
     { k: 'bs', n: 'Blockstorm', d: 'blockstorm', room: ROOM },
     { k: 'lh', n: 'Lanternhold', d: 'lanternhold', room: ROOM },
+    { k: 'hp', n: 'Hush Pools', d: 'hush-pools', room: ROOM },
     { k: 'vq', n: 'Sky Duel', d: 'sky-duel', room: ROOM },
     { k: 'tv', n: 'Trivium', d: 'trivium', room: /^[a-z]{5}$/ },
     { k: 'hm', n: 'Hail Mary', d: 'hail-mary' },
@@ -196,6 +298,8 @@
   }
 
   // Build elements without ever parsing other people's text as HTML.
+  // Text people typed (a message or a name): never translated.
+  function said(text, tag) { var e = el(tag || 'span', '', text); e.setAttribute('data-noi18n', ''); return e; }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function btn(text, cls, act) { var b = el('button', 'onl-b' + (cls ? ' ' + cls : ''), text); b.type = 'button'; if (act) b.setAttribute('data-act', act); return b; }
   // The person's avatar (avatar.js), or a coloured initial when that script isn't here.
@@ -293,7 +397,7 @@
     '.onl-dsub{padding:8px 14px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-2);flex:none;display:grid;gap:8px}' +
     '.onl-acts{display:flex;flex-wrap:wrap;gap:6px}' +
     '.onl-db{flex:1;overflow:auto;overscroll-behavior:contain;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-height:0}' +
-    '.onl-db .onl-list{max-height:none;grid-template-columns:minmax(0,1fr)}' +
+    '.onl-db .onl-list{max-height:none;overflow:visible;flex:none;grid-template-columns:minmax(0,1fr)}' +   // full height: the drawer body scrolls, and keeps its place when redrawn
     '.onl-m{max-width:85%;align-self:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:6px 10px;overflow-wrap:anywhere}' +
     '.onl-m.mine{align-self:flex-end;background:color-mix(in srgb,var(--accent) 16%,var(--panel))}' +
     '.onl-m .who{display:block;font-family:var(--mono,monospace);font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--ink-2)}' +
@@ -934,15 +1038,21 @@
     await sendDm(u, payload, true);
     th.jin = 0; th.jnd = yes ? 0 : now(); saveThreads(); schedule();
   }
-  function joinNoText(m) {
-    return m.w === 'full' ? '’s party is full, so your request to join was turned down.'
-      : m.w === 'lead' ? ' isn’t the leader. Only the leader can accept — ask ' + (m.ln || 'the leader') + '.'
-      : m.w === 'gone' ? ' isn’t in a party any more.' : ' declined your request to join.';
+  // The whole sentence with the name {n} in it (word order differs between languages).
+  function joinNoText(m, name) {
+    return m.w === 'full' ? T('{n}’s party is full, so your request to join was turned down.', { n: name })
+      : m.w === 'lead' ? T('{n} isn’t the leader. Only the leader can accept — ask {l}.', { n: name, l: m.ln || T('the leader') })
+      : m.w === 'gone' ? T('{n} isn’t in a party any more.', { n: name }) : T('{n} declined your request to join.', { n: name });
+  }
+  // Puts a sentence with a name in it on a line, with the name as the given element (bold), in the right place.
+  function nameLine(line, who, tpl, v) {
+    var o = { n: '\u0001' }; for (var k in v) o[k] = v[k];
+    var parts = T(tpl, o).split('\u0001'); line.append(parts[0], who, parts.slice(1).join(''));
   }
   // An "Ask <leader>" button for a 'lead' answer, when that leader is online (and isn't us).
   function askLeaderBtn(m) {
     if (m.w !== 'lead' || !m.l || m.l === uid || !visible(people[m.l]) || !people[m.l].pk) return null;
-    var b = btn('Ask ' + mask(people[m.l].n), 'pri', 'joinreq'); b.setAttribute('data-u', m.l); return b;
+    var b = btn(T('Ask {n}', { n: mask(people[m.l].n) }), 'pri', 'joinreq'); b.setAttribute('data-u', m.l); return b;
   }
 
   // ---------------- Our own node ----------------
@@ -1274,12 +1384,12 @@
   }
   async function report(u) {
     if (!uid) throw new Error('Not connected yet.');
-    if (reported[u] && Date.now() - reported[u] < REPORT_GAP) throw new Error('You just reported them. Arjun will see it.');
+    if (reported[u] && Date.now() - reported[u] < REPORT_GAP) throw new Error('You just reported them. We\'ll see it.');
     var t = threads[u], p = people[u], who = (p ? label(p) : mask(cleanName(t && t.n) || 'Someone') + ' · ' + seatOf(u));
     var tr = transcript(u);
-    var ok = confirm('Report ' + who + ' to Arjun?\n\n' +
-      'This sends Arjun ' + (tr.n ? 'a copy of the last ' + tr.n + ' message' + (tr.n === 1 ? '' : 's') + (tr.party ? ' in this chat and your party chat, as they appear on your screen (yours, theirs and, from the party chat, the other members’)' : ' in this chat, as they appear on your screen (yours and theirs)') : 'a note that you reported them (there are no messages in this chat)') +
-      ', with both your names, seats and account IDs. Nothing else is sent. Only Arjun and the site\u2019s admins can read reports.\n\n' +
+    var ok = confirm('Report ' + who + '?\n\n' +
+      'This sends us ' + (tr.n ? 'a copy of the last ' + tr.n + ' message' + (tr.n === 1 ? '' : 's') + (tr.party ? ' in this chat and your party chat, as they appear on your screen (yours, theirs and, from the party chat, the other members’)' : ' in this chat, as they appear on your screen (yours and theirs)') : 'a note that you reported them (there are no messages in this chat)') +
+      ', with both your names, seats and account IDs. Nothing else is sent. Only the site\u2019s team can read reports.\n\n' +
       'You can also Block them so you stop seeing their messages.');
     if (!ok) return false;
     await logChat('report', { name: myName(), seat: seatOf(uid), about: u, aboutName: cleanName(p ? p.n : t && t.n) || 'Guest', aboutSeat: seatOf(u), text: tr.text });
@@ -1384,7 +1494,19 @@
 
   // ---------------- Drawing ----------------
   var drawT = 0;
-  function schedule() { if (!drawT) drawT = setTimeout(function () { drawT = 0; draw(); }, 60); }
+  function schedule() {
+    if (!drawT) drawT = setTimeout(function () {
+      drawT = 0;
+      if (pressing && now() - pressing < 3000) { held = true; return; }   // a click is under way: draw once it lands
+      draw();
+    }, 60);
+  }
+  // From a mouse button or finger going down in the Online panel or drawer until it comes up, nothing there is redrawn,
+  // so the button being pressed is still there when the click lands. (A press longer than 3 seconds stops holding.)
+  var pressing = 0, held = false;
+  function pressEnd() { if (!pressing) return; pressing = 0; if (held) { held = false; setTimeout(schedule, 0); } }
+  document.addEventListener('pointerdown', function (e) { var t = e.target; if (t && t.closest && t.closest('.onl, .onl-dr')) pressing = now(); }, true);
+  ['pointerup', 'pointercancel', 'dragend', 'blur'].forEach(function (ev) { (ev === 'blur' ? window : document).addEventListener(ev, function () { setTimeout(pressEnd, 0); }, true); });
   function label(p) { return mask(p.n) + ' · ' + p.seat; }
   function statusText(p) {
     var g = p.g && gameOf(p.g), bits = [];
@@ -1424,6 +1546,7 @@
     var av = avatarEl(p.uid, p.n, p.c, 34);
     var who = el('span', 'onl-who'), nm = el('span', 'onl-nm');
     nm.append(mask(p.n) + ' ', el('small', '', '· ' + p.seat + (isMe ? ' · you' : '')));
+    if (p.uid) nm.setAttribute('data-aisle-u', p.uid);   // aisles.js puts the Aisle tag in front of the name
     var badge = tierBadge(p.uid);
     if (badge) { var tl = el('span', 'onl-tl'); tl.append(badge); who.append(nm, tl); } else who.append(nm);
     who.append(el('span', 'onl-st', (isMe && hidden) ? 'Hidden' : (muted[p.uid] ? 'Muted · ' : '') + statusText(p)));
@@ -1445,7 +1568,7 @@
       return;
     }
     var b = btn(s.label, 'onl-jb' + (s.pri ? ' pri' : ''), 'gjoin'); b.setAttribute('data-u', p.uid); b.disabled = !!s.off;
-    b.setAttribute('aria-label', s.label + ': ' + mask(p.n) + ' in ' + s.game);
+    b.setAttribute('aria-label', T('{l}: {n} in {g}', { l: T(s.label), n: mask(p.n), g: s.game }));
     li.className = 'onl-jl'; li.append(b);
     // Games with a spectator mode also get Watch next to Join (playingnow.js opens the game read-only in that room).
     if (s.watch) {
@@ -1465,12 +1588,29 @@
   // On phones the panel's list isn't a scroll box of its own (a finger on it couldn't scroll the page past it), so
   // it shows the first few people and a Show everyone button; Find still searches the whole list.
   var PHONE_FEW = 6, showAll = false, phoneMq = window.matchMedia ? window.matchMedia('(max-width:600px)') : null;
-  function fillList(ul, withMe, all0) {
-    ul.textContent = '';
+  // Put what build() makes into box, but only when it differs from what box got last time: the list is redrawn every time
+  // anyone online changes anything (each person's 15-second heartbeat included), and rebuilding it each time threw away
+  // the button under a mouse that was mid-click (so the click never happened) and the list's scroll position.
+  // Compared with what was built last time, not with box's own HTML, because aisles.js and lang.js change the drawn copy.
+  // avatar.js gives each avatar drawing's clip path a new id ("bra" + a counter) every time one is made: not a change.
+  function sameAs(h) { return h.replace(/(id="|url\(#)bra[0-9a-z]+/g, '$1bra'); }
+  function swapIn(box, build) {
+    var tmp = document.createElement(box.tagName); build(tmp);
+    var h = sameAs(tmp.innerHTML); if (box.__built === h) return false;
+    box.__built = h;
+    var st = box.scrollTop; box.textContent = ''; while (tmp.firstChild) box.appendChild(tmp.firstChild); box.scrollTop = st;
+    return true;
+  }
+  function fillList(ul0, withMe, all0) {
+    var n = 0;
+    swapIn(ul0, function (ul) { n = fillInto(ul, ul0, withMe, all0); });
+    return n;
+  }
+  function fillInto(ul, ul0, withMe, all0) {
     var me = el('li'); me.append(personBtn(meEntry(), true));
     var q = all0 ? [] : findQ(), all = others(), os = all.filter(function (p) { return matches(p, q); });
     if (uid && withMe && !q.length) ul.append(me);
-    var cut = ul === $list && !q.length && phoneMq && phoneMq.matches && os.length > PHONE_FEW + 2;
+    var cut = ul0 === $list && !q.length && phoneMq && phoneMq.matches && os.length > PHONE_FEW + 2;
     (cut && !showAll ? os.slice(0, PHONE_FEW) : os).forEach(function (p) { var li = el('li'); li.append(personBtn(p, false)); joinBtn(li, p); ul.append(li); });
     if (cut) {
       var mli = el('li', 'onl-more'), mb = btn(showAll ? 'Show fewer' : 'Show everyone (' + os.length + ')');
@@ -1482,6 +1622,7 @@
       mli.append(mb); ul.append(mli);
     }
     if (q.length && all.length && !os.length) ul.append(el('li', 'onl-nomatch', 'Nobody online matches \u201c' + $find.value.trim() + '\u201d.'));
+    if (ul0 === $list && uid && !all.length) { var li = el('li'); li.append(el('p', 'onl-empty', hidden ? 'You’re hidden, so nobody can see you. Nobody else is around right now either.' : 'Nobody else is here right now. Leave this open and you’ll see people as they arrive.')); ul.append(li); }
     return all.length;
   }
   $find.addEventListener('input', function () { fillList($list); });
@@ -1512,17 +1653,17 @@
     }
     drawTile();
     var mt = uid ? tierOf(uid) : null;
-    $tier.textContent = '';
-    if (mt) { $tier.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) $tier.append(el('span', '', ml)); }
-    // Avis miles (avismiles.js): claim bonus miles for a car booked through Avis.
-    if (uid && window.BackRoomAvisMiles && BackRoomAvisMiles.button) { try { $tier.append(BackRoomAvisMiles.button()); } catch (e) {} }
+    swapIn($tier, function (tb) {
+      if (mt) { tb.append(BackRoomMiles.badge(mt)); var ml = milesLine(mt); if (ml) tb.append(el('span', '', ml)); }
+      // Avis miles (avismiles.js): claim bonus miles for a car booked through Avis.
+      if (uid && window.BackRoomAvisMiles && BackRoomAvisMiles.button) { try { tb.append(BackRoomAvisMiles.button()); } catch (e) {} }
+    });
     $hide.checked = hidden; $join.checked = joinable; $join.disabled = hidden;
     joinLbl.title = hidden ? 'You’re hidden, so nobody sees your games anyway' : 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
     var lu = loungeUnread(); $loungeBtn.lastChild.textContent = lu ? String(lu) : '';
     findRow.hidden = !uid || !os.length;           // nothing to search with nobody else here
     if (findRow.hidden && $find.value) $find.value = '';
     fillList($list);
-    if (uid && !os.length) { var li = el('li'); li.append(el('p', 'onl-empty', hidden ? 'You’re hidden, so nobody can see you. Nobody else is around right now either.' : 'Nobody else is here right now. Leave this open and you’ll see people as they arrive.')); $list.append(li); }
     var dmTotal = 0; Object.keys(threads).forEach(function (u) { dmTotal += unreadOf(u); });
     document.querySelectorAll('.onl-bar:not(.onl-pbar)').forEach(function (b) { b.firstChild.textContent = 'Online ' + n; b.lastChild.textContent = dmTotal + lu ? String(dmTotal + lu) : ''; });
     // Party chat buttons: the Online panel, the Party panel (party.js) and the open game's top bar.
@@ -1557,8 +1698,8 @@
     }
     Array.prototype.forEach.call($ntSw.querySelectorAll('input'), function (inp, i) { inp.checked = open && i === cur; inp.disabled = !open; });
     if (open) $ntSw.removeAttribute('aria-hidden'); else $ntSw.setAttribute('aria-hidden', 'true');   // a guest's colours are only a picture of what's on offer
-    $ntCard.hidden = !open; $ntCard.textContent = '';
-    if (open) $ntCard.append(personBtn(meEntry(), true, 'div'));
+    $ntCard.hidden = !open;
+    swapIn($ntCard, function (c) { if (open) c.append(personBtn(meEntry(), true, 'div')); });
     $ntLine.hidden = open; $ntGo.hidden = open || !A; $ntLink.hidden = open || !!A;
     var line = A ? 'Sign in with Google to choose your colour and edit your avatar.' : 'Sign in with Google on the main site to choose your colour and edit your avatar.';
     if (!open && $ntLine.getAttribute('data-l') !== line) {
@@ -1615,15 +1756,15 @@
     if (v && v.v === 'party') toasts.querySelectorAll('.onl-t[data-k="g"]').forEach(function (t) { t.remove(); });
     view = v; drawnView = ''; dr.classList.add('open'); drawDrawer(); setTimeout(function () { var i = dr.querySelector('.onl-df input[type=text]'); if (i && matchMedia('(pointer: fine)').matches) i.focus(); }, 220); }
   function closeDrawer() { dr.classList.remove('open'); view = null; drawnView = ''; schedule(); }
+  var drawnSig = '';
   function drawDrawer() {
     if (!view) return;
     var key = view.v + ':' + (view.u || '');
     var stick = true, body = dr.querySelector('.onl-db');
     if (body) stick = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
-    var keep = drawnView === key ? dr.querySelector('.onl-df') : null;
-    var prevScroll = body ? body.scrollTop : 0;
-    if (!keep) dr.textContent = '';
-    else { Array.prototype.slice.call(dr.children).forEach(function (c) { if (c !== keep) c.remove(); }); }
+    if (view.v === 'people') stick = false;   // a list of people, not a chat: opens at the top and stays where it was scrolled
+    var keep = drawnView === key ? dr.querySelector('.onl-df') : null, keep0 = keep, same = drawnView === key;
+    var prevScroll = body && same ? body.scrollTop : 0;
     drawnView = key;
     var head = el('div', 'onl-dh');
     if (view.v !== 'people') { var back = el('button', 'onl-x', '‹'); back.type = 'button'; back.setAttribute('aria-label', 'Back to the list'); back.setAttribute('data-act', 'list'); head.append(back); }
@@ -1662,8 +1803,9 @@
       all.forEach(function (it) {
         var mineMsg = it.u === uid, p = it.p || meEntry();
         var m = el('div', 'onl-m' + (mineMsg ? ' mine' : ''));
-        var who = el('span', 'who'); who.append(avatarEl(it.u, p.n, p.c, 18), el('b', '', mask(p.n)), ' · ' + p.seat + ' · ' + clock(it.m.t));
-        m.append(who, el('span', '', mask(it.m.x)));
+        var who = el('span', 'who'); var cbn = said(mask(p.n), 'b'); cbn.setAttribute('data-aisle-u', it.u);
+        who.append(avatarEl(it.u, p.n, p.c, 18), cbn, ' · ' + p.seat + ' · ' + clock(it.m.t));
+        m.append(who, said(mask(it.m.x)));
         body.append(m);
       });
       parts.push(body);
@@ -1685,9 +1827,9 @@
         var mm = el('div', 'onl-m' + (isMe ? ' mine' : '')), who = el('span', 'who');
         who.append(avatarEl(m.from, pn, isMe ? colorOf(uid) : pp ? pp.c : m.c, 18));
         if (isMe) who.append(el('b', '', 'You'));
-        else { var nb = el('button', 'onl-wn', mask(pn)); nb.type = 'button'; nb.setAttribute('data-act', 'opendm'); nb.setAttribute('data-u', m.from); nb.setAttribute('aria-label', 'Open ' + mask(pn) + '’s card'); who.append(nb); }
+        else { var nb = el('button', 'onl-wn', mask(pn)); nb.type = 'button'; nb.setAttribute('data-act', 'opendm'); nb.setAttribute('data-u', m.from); nb.setAttribute('data-aisle-u', m.from); nb.setAttribute('aria-label', 'Open ' + mask(pn) + '’s card'); who.append(nb); }
         who.append(' · ' + seatOf(m.from) + ' · ' + clock(m.t));
-        mm.append(who, el('span', '', mask(m.x)));
+        mm.append(who, said(mask(m.x)));
         body.append(mm);
       });
       parts.push(body);
@@ -1698,7 +1840,8 @@
     } else if (view.v === 'dm') {
       var u = view.u, p = people[u], t = threads[u];
       var nm = p ? label(p) : (t ? mask(cleanName(t.n)) : 'Someone') + ' · ' + seatOf(u);
-      h.append(avatarEl(u, p ? p.n : t && t.n, p ? p.c : t && t.c, 26), nm);
+      var nms = el('span', '', nm); nms.setAttribute('data-aisle-u', u);   // aisles.js puts the Aisle tag in front
+      h.append(avatarEl(u, p ? p.n : t && t.n, p ? p.c : t && t.c, 26), nms);
       var dsub = el('div', 'onl-dsub'), dline = el('span'), dbadge = tierBadge(u);
       if (dbadge) dline.append(dbadge, ' ');
       dline.append((p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.');
@@ -1711,6 +1854,8 @@
         da.append(rq);
       }
       da.append(btn('Invite to party', 'pri', 'invite'));
+      // Invite to Aisle (aisles.js), for an Aisle's leader.
+      if (window.BackRoomAisles && BackRoomAisles.inviteBtn) { try { var aib = BackRoomAisles.inviteBtn(u); if (aib) da.append(aib); } catch (e) {} }
       // Request to join their party: goes to its leader (them, or their leader when that person is online).
       var jt = p && visible(p) && p.party && !isBlocked(u) && !inMyParty(u, p) ? joinTarget(p) : null;
       // A public party needs no request: Join party goes straight in.
@@ -1739,29 +1884,29 @@
         if (jt && jt.uid !== u) {
           // Their leader is someone else: say where the request goes, and how that is going.
           var jn = el('div', 'onl-m onl-card'), jr = el('div', 'onl-acts'), jtn = mask(jt.n), jth = threads[jt.uid];
-          var jtx = pendingJoinOut(jt.uid) ? ' You asked ' + jtn + '. Waiting for an answer.' : ja === 'y' ? ' ' + jtn + ' let you in.' : ja ? ' ' + jtn + joinNoText({ w: ja, ln: jth && jth.jln }) : '';
-          jn.append(el('span', '', 'Only the leader can let people in, so requests to join this party go to ' + jtn + '.' + jtx));
+          var jtx = pendingJoinOut(jt.uid) ? T(' You asked {n}. Waiting for an answer.', { n: jtn }) : ja === 'y' ? T(' {n} let you in.', { n: jtn }) : ja ? ' ' + joinNoText({ w: ja, ln: jth && jth.jln }, jtn) : '';
+          jn.append(el('span', '', T('Only the leader can let people in, so requests to join this party go to {n}.', { n: jtn }) + jtx));
           if (ja === 'y' && jth && jth.jc && !(P && P.code === jth.jc)) { var jj = btn('Join party', 'pri', 'joinp'); jj.setAttribute('data-c', jth.jc); jj.setAttribute('data-u', jt.uid); jr.append(jj); }
-          var od = btn('Open chat with ' + jtn, '', 'opendm'); od.setAttribute('data-u', jt.uid); jr.append(od);
+          var od = btn(T('Open chat with {n}', { n: jtn }), '', 'opendm'); od.setAttribute('data-u', jt.uid); jr.append(od);
           jn.append(jr); body.append(jn);
         }
         if (pendingJoinIn(u)) {
           var jc = el('div', 'onl-m onl-card'), jca = el('div', 'onl-acts');
-          jc.append(el('span', '', theirs + ' wants to join your party' + (P && P.code ? ' (' + P.code + ')' : '') + '.'));
+          jc.append(el('span', '', P && P.code ? T('{n} wants to join your party ({c}).', { n: theirs, c: P.code }) : T('{n} wants to join your party.', { n: theirs })));
           jca.append(btn('Let them in', 'pri', 'jaccept'), btn('Decline', '', 'jdecline'));
           jc.append(jca); body.append(jc);
         }
         var mwhy = '';
         if (pendingIn(u)) {
           var rc = el('div', 'onl-m onl-card'), ra = el('div', 'onl-acts');
-          rc.append(el('span', '', theirs + ' wants to chat with you. Accept their request to see their messages.'));
+          rc.append(el('span', '', T('{n} wants to chat with you. Accept their request to see their messages.', { n: theirs })));
           ra.append(btn('Accept', 'pri', 'accept'), btn('Decline', '', 'decline'), btn('Block', 'warn', 'block'));
           rc.append(ra); body.append(rc);
           if (!mate) mwhy = 'Accept their request to chat.';
         } else if (!chats[u] && !mate) {
-          if (pendingOut(u)) { body.append(el('p', 'onl-note', 'Request sent. Waiting for ' + theirs + ' to accept.')); mwhy = 'Waiting for them to accept.'; }
+          if (pendingOut(u)) { body.append(el('p', 'onl-note', T('Request sent. Waiting for {n} to accept.', { n: theirs }))); mwhy = 'Waiting for them to accept.'; }
           else if (declined(u)) { body.append(el('p', 'onl-note', theirs + ' declined your request.')); mwhy = 'They declined your request.'; }
-          else { body.append(el('p', 'onl-note', 'Request to chat with ' + theirs + '. They see your messages once they accept.')); mwhy = 'Request to chat first.'; }
+          else { body.append(el('p', 'onl-note', T('Request to chat with {n}. They see your messages once they accept.', { n: theirs }))); mwhy = 'Request to chat first.'; }
         }
         if (!why && mwhy) why = mwhy;
       }
@@ -1771,6 +1916,13 @@
       var sb = keep.querySelector('[data-act=send]'); if (sb) sb.disabled = !!why;
       var lm = msgs.length ? msgs[msgs.length - 1].t : 0; if (lm > (seen[u] || 0)) { seen[u] = lm; saveSeen(); }
     }
+    // Nothing in it changed (most redraws are someone's heartbeat): leave the drawer alone, so its scroll position and a
+    // button mid-click stay put. Compared with what was built last time, since aisles.js and lang.js change the drawn copy.
+    var sig = sameAs(key + '\n' + parts.map(function (c) { return c === keep0 ? '' : c.outerHTML; }).join('\n'));
+    if (same && sig === drawnSig) return;
+    drawnSig = sig;
+    if (!keep0) dr.textContent = '';
+    else { Array.prototype.slice.call(dr.children).forEach(function (c) { if (c !== keep0) c.remove(); }); }
     if (keep && keep.parentNode !== dr) parts.push(keep);
     parts.forEach(function (c) { if (c !== keep || keep.parentNode !== dr) dr.insertBefore(c, keep && keep.parentNode === dr ? keep : null); });
     if (stick) body.scrollTop = body.scrollHeight; else body.scrollTop = prevScroll;
@@ -1779,13 +1931,14 @@
     var isMine = m.from === uid, p = people[u], t = threads[u];
     var theirName = mask(p ? p.n : (t ? cleanName(t.n) : 'They'));
     var who = el('span', 'who', (isMine ? 'You' : theirName) + ' · ' + clock(m.t));
-    if (m.k === 'm') { var d = el('div', 'onl-m' + (isMine ? ' mine' : '')); d.append(who, el('span', '', mask(m.x))); return d; }
+    if (m.k === 'm') { var d = el('div', 'onl-m' + (isMine ? ' mine' : '')); d.append(who, said(mask(m.x))); return d; }
     if (m.k === 'q' || m.k === 'a' || m.k === 'n' || m.k === 'e') {
-      var said = m.k === 'q' ? (isMine ? 'You asked to chat.' : theirName + ' asked to chat.')
+      // (not called "said": that would hide the said() helper above for the whole function, and break every message)
+      var note = m.k === 'q' ? (isMine ? 'You asked to chat.' : theirName + ' asked to chat.')
         : m.k === 'a' ? (isMine ? 'You accepted. You can chat now.' : theirName + ' accepted. You can chat now.')
         : m.k === 'n' ? (isMine ? 'You declined.' : theirName + ' declined.')
         : (isMine ? 'You ended the chat.' : theirName + ' ended the chat.');
-      return el('p', 'onl-note', said + ' · ' + clock(m.t));
+      return el('p', 'onl-note', note + ' · ' + clock(m.t));
     }
     if (m.k === 'j') return el('p', 'onl-note', (isMine ? 'You asked to join their party.' : theirName + ' asked to join your party.') + ' · ' + clock(m.t));
     if (m.k === 'x' && isMine) return el('p', 'onl-note', 'You turned down their request to join' + (m.w === 'full' ? ' (the party is full)' : m.w === 'lead' ? ' (you aren’t the leader)' : m.w === 'gone' ? ' (you aren’t in a party)' : '') + '. · ' + clock(m.t));
@@ -1798,7 +1951,7 @@
         else { var jy = btn('Join party', 'pri', 'joinp'); jy.setAttribute('data-c', m.c); row.append(jy); }
       }
     } else if (m.k === 'x') {
-      card.append(el('span', '', theirName + joinNoText(m)));
+      card.append(el('span', '', joinNoText(m, theirName)));
       var al = askLeaderBtn(m); if (al) row.append(al);
     } else if (m.k === 'p') {
       card.append(el('span', '', isMine ? 'You invited them to your party (' + m.c + ').' : theirName + ' invited you to their party.'));
@@ -1853,45 +2006,45 @@
     var acts = el('div', 'onl-acts'), life = 8000;
     line.append(avatarEl(p.uid, p.n, p.c, 22));
     if (m.k === 'm') {
-      line.append(who, ': ' + mask(m.x).slice(0, 120));
+      line.append(who, ': ', said(mask(m.x).slice(0, 120)));
       acts.append(btn('Reply', 'pri', 'reply'), btn('Dismiss', '', 'dismiss'));
     } else if (m.k === 'q') {
-      line.append(who, ' wants to chat with you.');
+      nameLine(line, who, '{n} wants to chat with you.');
       acts.append(btn('Accept', 'pri', 'accept'), btn('Decline', '', 'decline'), btn('Later', '', 'dismiss')); life = 30000;
     } else if (m.k === 'a') {
-      line.append(who, ' accepted your chat request.');
+      nameLine(line, who, '{n} accepted your chat request.');
       acts.append(btn('Open chat', 'pri', 'reply'), btn('Dismiss', '', 'dismiss')); life = 15000;
     } else if (m.k === 'n') {
-      line.append(who, ' declined your chat request.');
+      nameLine(line, who, '{n} declined your chat request.');
       acts.append(btn('Dismiss', '', 'dismiss'));
     } else if (m.k === 'e') {
-      line.append(who, ' ended the chat.');
+      nameLine(line, who, '{n} ended the chat.');
       acts.append(btn('Dismiss', '', 'dismiss'));
     } else if (m.k === 'j') {
-      line.append(who, ' wants to join your party.');
+      nameLine(line, who, '{n} wants to join your party.');
       acts.append(btn('Let them in', 'pri', 'jaccept'), btn('Decline', '', 'jdecline'), btn('Later', '', 'dismiss')); life = 30000;
     } else if (m.k === 'y') {
-      line.append(who, ' let you into their party.' + (P && P.code && P.code !== m.c ? ' Joining takes you out of your current one.' : ''));
+      nameLine(line, who, '{n} let you into their party.'); if (P && P.code && P.code !== m.c) line.append(' ' + T('Joining takes you out of your current one.'));
       var jy = btn('Join party', 'pri', 'joinp'); jy.setAttribute('data-c', m.c);
       acts.append(jy, btn('Not now', '', 'dismiss')); life = 30000;
     } else if (m.k === 'x') {
-      line.append(who, joinNoText(m));
+      nameLine(line, who, joinNoText(m, '{n}'));
       var al = askLeaderBtn(m); if (al) { acts.append(al); life = 20000; }
       acts.append(btn('Dismiss', '', 'dismiss'));
     } else if (m.k === 'jn') {
-      line.append(who, ' joined your game.');
+      nameLine(line, who, '{n} joined your game.');
       t.classList.add('onl-tj'); life = 5000;
     } else if (m.k === 'g') {
-      line.append(who, ' to your party: ' + mask(m.x).slice(0, 120));
+      nameLine(line, who, '{n} to your party:'); line.append(' ', said(mask(m.x).slice(0, 120)));
       acts.append(btn('Reply', 'pri', 'pchat'), btn('Dismiss', '', 'dismiss'));
       t.setAttribute('data-k', 'g');
     } else if (m.k === 'p') {
-      line.append(who, ' invited you to their party.' + (P && P.code ? ' Joining takes you out of your current one.' : ''));
+      nameLine(line, who, '{n} invited you to their party.'); if (P && P.code) line.append(' ' + T('Joining takes you out of your current one.'));
       var j = btn('Join', 'pri', 'joinp'); j.setAttribute('data-c', m.c);
       acts.append(j, btn('No thanks', '', 'dismiss')); life = 30000;
     } else {
       var g = gameOf(m.g);
-      line.append(who, ' sent you a room: ' + g.n + ', room ' + m.r + '.');
+      nameLine(line, who, '{n} sent you a room: {g}, room {r}.', { g: g.n, r: m.r });
       var a = el('a', 'onl-b pri', 'Join'); a.href = inviteHref(g, m.r); a.setAttribute('data-g', g.k); a.setAttribute('data-r', m.r); a.setAttribute('data-act', 'openroom');
       acts.append(a, btn('Not now', '', 'dismiss')); life = 30000;
     }
@@ -1925,7 +2078,7 @@
     else if (a === 'joinp') {
       e.preventDefault(); if (host) host.remove();
       var from = b.getAttribute('data-u') || (host && host.getAttribute('data-u')) || (view && view.u), pp = from && people[from], open = b.getAttribute('data-pub') === '1';
-      if (open && P && P.code && !confirm('Leave your party and join ' + (pp ? mask(pp.n) + '’s' : 'theirs') + '?')) return;
+      if (open && P && P.code && !confirm(pp ? T('Leave your party and join {n}’s?', { n: mask(pp.n) }) : T('Leave your party and join theirs?'))) return;
       joinParty(b.getAttribute('data-c'), pp ? mask(pp.n) : 'their', open);
     } else if (a === 'openroom') {
       if (e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -1941,7 +2094,7 @@
       if (hu3) answerJoin(hu3, a === 'jaccept', 'no').then(function () { say(a === 'jaccept' ? 'Sent them the party code. They join when they press Join.' : ''); }, function (x) { say(x.message || String(x), true); });
     } else if (host && a === 'joinreq') {
       var hu4 = b.getAttribute('data-u'); host.remove();
-      if (hu4) askJoin(hu4).then(function () { say('Asked ' + (people[hu4] ? mask(people[hu4].n) : 'the leader') + ' to let you into the party.'); }, function (x) { say(x.message || String(x), true); });
+      if (hu4) askJoin(hu4).then(function () { say(T('Asked {n} to let you into the party.', { n: people[hu4] ? mask(people[hu4].n) : T('the leader') })); }, function (x) { say(x.message || String(x), true); });
     } else if (view && view.v === 'dm') {
       var u = view.u, err = dr.querySelector('.onl-df .onl-msg');
       var fail = function (x) { if (err) { err.textContent = x.message || String(x); err.classList.add('err'); } };
@@ -1951,7 +2104,7 @@
       else if (a === 'joinreq') {
         var ju = b.getAttribute('data-u') || u; b.disabled = true;
         askJoin(ju).then(function () {
-          if (err && ju !== u && people[ju]) { err.textContent = 'Only the leader can let you in, so your request went to ' + mask(people[ju].n) + '.'; err.classList.remove('err'); }
+          if (err && ju !== u && people[ju]) { err.textContent = T('Only the leader can let you in, so your request went to {n}.', { n: mask(people[ju].n) }); err.classList.remove('err'); }
           schedule();
         }, fail).finally(function () { b.disabled = false; });
       }
@@ -1972,7 +2125,7 @@
       else if (a === 'report') {
         b.disabled = true;
         report(u).then(function (done) {
-          if (done && err) { err.textContent = 'Reported. Thanks: Arjun will look at it.'; err.classList.remove('err'); }
+          if (done && err) { err.textContent = 'Reported. Thanks: we\'ll look at it.'; err.classList.remove('err'); }
         }, function (x) {
           var why = x && x.status === 403 ? 'Reports aren’t switched on yet, so nothing was sent. Block them for now.'
             : x && /^(You just|Not connected)/.test(x.message || '') ? x.message : 'Couldn’t send the report. Check your connection and try again.';

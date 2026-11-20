@@ -1,0 +1,57 @@
+// Flickerwood in Spanish (see README and /e63334287a3deaa3/lang.js). English → Spanish, our own words.
+// The screen's 5×5 pixel font has no accents, so the canvas words are chosen to need none (arcade capitals).
+// Glade names and the critters' names stay English (they read as names).
+// The moonbloom line starts with a lone "A", too short to be a dictionary key, so that paragraph is swapped whole.
+window.FW_BLOOM_ES = 'Una <b>flor lunar</b> los encandila unos segundos. Toca a uno encandilado para mandarlo a casa: 100, 250, 500, 1000. Parpadean antes de que se pase el efecto.';
+if (window.BackRoomLang) BackRoomLang.add({
+  'A MAZE CHASE BY MOONLIGHT': 'UN LABERINTO A LA LUZ DE LA LUNA', 'BEST SCORE {s}': 'MEJOR PUNTAJE {s}', 'BEST GLADE {n}': 'MEJOR CLARO {n}',
+  'GATHER ALL THE POLLEN': 'JUNTA TODO EL POLEN', 'SWIPE OR USE THE PAD TO TURN': 'DESLIZA O USA LA CRUZ PARA GIRAR', 'TAP THE SCREEN TO DASH': 'TOCA LA PANTALLA PARA ACELERAR',
+  'ARROWS OR WASD TURN': 'FLECHAS O WASD PARA GIRAR', 'SPACE DASHES   P PAUSES': 'ESPACIO ACELERA   P PAUSA', 'A MOONBLOOM DAZZLES THE CRITTERS': 'UNA FLOR LUNAR ENCANDILA A LOS BICHOS',
+  'CATCH THEM WHILE THEY ARE PALE': 'SI SE APAGAN PUEDES ATRAPARLOS', 'TAP TO START': 'TOCA PARA EMPEZAR', 'PRESS SPACE TO START': 'PULSA ESPACIO PARA EMPEZAR',
+  'PAUSED': 'PAUSA', 'TAP TO GO ON': 'TOCA PARA SEGUIR', 'PRESS SPACE TO GO ON': 'PULSA ESPACIO PARA SEGUIR', 'GLADE {n}  {m}': 'CLARO {n}  {m}', 'READY!': 'A JUGAR',
+  'GLADE CLEAR': 'CLARO LISTO', 'BONUS +{n}': 'PREMIO +{n}', 'NOT A SCRATCH +300': 'INTACTO +300', 'GAME OVER': 'FIN DEL JUEGO', 'NEW BEST {s}!': 'NUEVO RECORD {s}',
+  'SCORE {s}': 'PUNTOS {s}', 'TAP TO PLAY AGAIN': 'TOCA PARA JUGAR DE NUEVO', 'PRESS SPACE TO PLAY AGAIN': 'PULSA ESPACIO PARA JUGAR DE NUEVO',
+  'GLADE {n}   BEST {b}': 'CLARO {n}   RECORD {b}', 'GLADE {n}': 'CLARO {n}', 'CHAIN X{m}': 'CADENA X{m}', 'BEST': 'RECORD', 'DASH': 'TURBO',
+  // page
+  'Back to the Back Room': 'Volver al Back Room', 'How to play': 'Cómo jugar', 'Change the keys': 'Cambiar las teclas', 'KEYS': 'TECLAS', 'Sound': 'Sonido', 'Pause': 'Pausa',
+  'Game screen': 'Pantalla del juego', 'Turn': 'Girar', 'Dash': 'Turbo', 'Arrows': 'Flechas', 'turn ·': 'girar ·', 'dash ·': 'turbo ·', 'pause': 'pausa', 'HOW TO PLAY': 'CÓMO JUGAR',
+  'Steer': 'Guía a', 'Glim the firefly': 'Glim, la luciérnaga', 'and gather every speck of pollen in the glade. Press a turn early and Glim takes it at the next gap.': 'y junta cada pizca de polen del claro. Si marcas un giro antes, Glim lo toma en el próximo hueco.',
+  'flies straight at you.': 'vuela directo hacia ti.', 'leaps for the spot just ahead of you.': 'salta al lugar justo delante de ti.',
+  'goes for the far side of you from Swoop.': 'va hacia el lado opuesto a Swoop.', 'comes close, then loses its nerve.': 'se acerca y después se asusta.',
+  'is a short burst of speed, then it has to recharge.': 'es un golpe corto de velocidad; después tiene que recargarse.',
+  'Keep eating without a gap to build a': 'Sigue comiendo sin pausa para armar una', 'chain': 'cadena', ', up to 5 times the points.': ', de hasta 5 veces los puntos.',
+  'Grab the': 'Agarra el', 'find': 'hallazgo', 'under the stump before it goes. Tunnels at the edges slow the critters, not you.': 'bajo el tronco antes de que se vaya. Los túneles de los bordes frenan a los bichos, no a ti.',
+  'CLOSE': 'CERRAR', 'Turn up': 'Girar arriba', 'Turn down': 'Girar abajo', 'Turn left': 'Girar a la izquierda', 'Turn right': 'Girar a la derecha',
+  'Sound on / off': 'Sonido sí / no', 'Pause (always)': 'Pausa (siempre)', 'Language': 'Idioma',
+  // the Wardrobe (captains only for now: wardrobe.js)
+  'Wardrobe': 'Vestuario', 'WARDROBE': 'VESTUARIO', 'CAPTAINS': 'CAPITANES', 'DONE': 'LISTO', 'KITS': 'EQUIPOS', 'HATS': 'SOMBREROS', 'FACE': 'CARA', 'TRAILS': 'ESTELAS',
+  'Firefly Glow': 'Brillo de luciérnaga', 'None': 'Nada', 'Glim as the glade knows it.': 'Glim, tal como lo conoce el claro.',
+  'Striker Kit': 'Equipo de delantero', 'Sky blue and white, with a navy head.': 'Celeste y blanco, con la cabeza azul marino.',
+  'Hoops Jersey': 'Camiseta de básquet', 'Orange with dark seams, like a ball on wings.': 'Naranja con costuras oscuras, como una pelota con alas.',
+  'Racing Suit': 'Traje de piloto', 'White with a red stripe and a red helmet.': 'Blanco con una raya roja y casco rojo.',
+  'Referee': 'Árbitro', 'Black and white stripes. The critters are offside.': 'Rayas blancas y negras. Los bichos están en fuera de juego.',
+  'Hockey Sweater': 'Buzo de hockey', 'Blue with a white band and a white helmet.': 'Azul con una franja blanca y casco blanco.',
+  'Tin Firefly': 'Luciérnaga de lata', 'A wind-up firefly with tin wings and red eyes.': 'Una luciérnaga a cuerda con alas de lata y ojos rojos.',
+  'Deckhand': 'Marinero', 'A striped sailor shirt and sailcloth wings.': 'Una camiseta de marinero a rayas y alas de lona.',
+  'Pinstripe Suit': 'Traje a rayas', 'A grey suit with a red tie, out for a night in the glade.': 'Un traje gris con corbata roja, de paseo por el claro.',
+  'Gold Chain Tracksuit': 'Jogging con cadena de oro', 'A teal tracksuit with gold at the collar.': 'Un jogging turquesa con oro en el cuello.',
+  'Tuxedo': 'Esmoquin', 'Black tie, white shirt front, pale wings.': 'Moño negro, pechera blanca y alas claras.',
+  'Bumblebee': 'Abejorro', 'Yellow and black stripes. Still not a bee.': 'Rayas amarillas y negras. Igual no es una abeja.',
+  'Golden Firefly': 'Luciérnaga dorada', 'Gold from head to wingtip.': 'Dorada de la cabeza a la punta de las alas.',
+  'Rainbow Wings': 'Alas de arcoíris', 'Every colour on every wing.': 'Todos los colores en cada ala.',
+  'Astronaut': 'Astronauta', 'A white suit with an orange pack and a blue visor.': 'Un traje blanco con mochila naranja y visor azul.',
+  'Ball Cap': 'Gorra', 'A red cap, peak to the front.': 'Una gorra roja, con la visera adelante.',
+  'Racing Helmet': 'Casco de carreras', 'White with a red stripe and a blue visor.': 'Blanco con una raya roja y visor azul.',
+  'Pirate Hat': 'Sombrero pirata', 'A three-cornered hat trimmed with gold.': 'Un tricornio con ribete dorado.',
+  'Pirate Bandana': 'Pañuelo pirata', 'A spotted red bandana with the ends flying.': 'Un pañuelo rojo con lunares y las puntas al viento.',
+  'Top Hat': 'Galera', 'A tall black hat with a red band, seen from above.': 'Una galera negra con cinta roja, vista desde arriba.',
+  'Fedora': 'Sombrero de fieltro', 'A wide felt hat with a dark band.': 'Un sombrero de fieltro ancho con cinta oscura.',
+  'Crown': 'Corona', 'A small gold crown for the queen of the glade.': 'Una coronita dorada para la reina del claro.',
+  'Eye Patch': 'Parche en el ojo', 'A patch over one eye, strapped across the head.': 'Un parche en un ojo, atado por encima de la cabeza.',
+  'Shades': 'Lentes oscuros', 'Dark glasses. The moon is very bright tonight.': 'Lentes oscuros. Esta noche la luna brilla mucho.',
+  'Hearts': 'Corazones', 'Little pink hearts where you have just been.': 'Corazoncitos rosas por donde acabas de pasar.',
+  'Confetti': 'Papel picado', 'Bright bits of paper, never yellow.': 'Papelitos de colores, nunca amarillos.',
+  'Music Notes': 'Notas musicales', 'Glim hums along the hedges.': 'Glim tararea entre los setos.',
+  'Bubbles': 'Burbujas', 'Tiny bubbles that pop behind you.': 'Burbujitas que revientan detrás de ti.',
+  'Comet Tail': 'Cola de cometa', 'A thin white streak that fades to blue.': 'Una estela blanca y fina que se vuelve azul.'
+});

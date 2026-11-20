@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Wardrobe while it is not public (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Odd One Out's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Odd One Out</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -194,6 +196,15 @@ h1 .o{color:var(--hunt)}h1 .t{color:var(--prop)}
 .hset .seg{justify-self:start;max-width:100%;overflow-x:auto}
 #lobby.guest .hset .seg{pointer-events:none;opacity:.75}
 #lobbyMin{display:none}
+/* ready up: the button and the count stay outside the scrolling body, so they show even with the card hidden (Hide) */
+#lobby .rdrow{margin-top:10px;flex-wrap:nowrap}
+#lobbyReady{flex:0 0 auto;min-height:44px;min-width:104px;font-size:16px;padding:8px 14px;background:#fff}
+#lobbyReady[aria-pressed="true"]{background:var(--prop);color:#fff}
+#lobbyReady[aria-pressed="true"]::before{content:'\2713'}
+#rdNote{margin:0;min-width:0;font-weight:900;font-size:13px;line-height:1.3;color:var(--ink-2)}
+#rdNote.go{color:var(--hunt-2)}
+#plist .rd{flex:0 0 auto;width:18px;height:18px;border-radius:50%;border:2px solid var(--ink-3);font-size:11px;font-weight:900;line-height:14px;text-align:center;color:#fff}
+#plist .rd.on{background:var(--prop);border-color:var(--ink)}
 
 /* ---------- results ---------- */
 .mini{max-width:680px;width:100%}
@@ -293,14 +304,14 @@ body.touch #banner span{font-size:14px}
     <div id="vig"></div>
     <div id="xh"><i></i><i></i><i></i><i></i></div>
     <div id="hitm"><i></i><i></i><i></i><i></i></div>
-    <div id="pop" class="out"></div>
+    <div id="pop" class="out" data-noi18n></div>
     <div id="tgt" hidden></div>
     <div id="oob" role="status" hidden></div>
     <div class="pill" id="propsBox"><svg class="tico" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 9l10-5 10 5v10l-10 5-10-5z" fill="#14b89a" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M3 9l10 5 10-5M13 14v10" fill="none" stroke="#fff" stroke-width="2"/></svg><div><small id="propsLbl">Props</small><b id="propsN">0</b></div></div>
     <div class="pill" id="clockBox"><b id="clock">0:00</b><small id="phaseName">Lobby</small></div>
     <div class="pill" id="huntBox"><svg class="tico" viewBox="0 0 26 26" aria-hidden="true"><circle cx="13" cy="13" r="9" fill="none" stroke="#ff7a1a" stroke-width="3"/><path d="M13 1v7M13 18v7M1 13h7M18 13h7" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg><div><small>Hunters</small><b id="huntN">0</b></div></div>
     <div id="feed"></div>
-    <div id="banner"><b></b><span class="out"></span></div>
+    <div id="banner" data-noi18n><b></b><span class="out"></span></div>
     <div id="waitRoom" hidden><b>You're a hunter</b><span id="waitTxt">The props are hiding. Doors open in 0:30.</span></div>
     <div id="hint" class="out"></div>
     <div id="status" class="out" hidden>
@@ -311,7 +322,7 @@ body.touch #banner span{font-size:14px}
       <div id="pingRow" hidden><svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="11" fill="rgba(23,26,46,.6)" stroke="rgba(255,255,255,.3)" stroke-width="4"/><circle id="pingArc" cx="14" cy="14" r="11" fill="none" stroke="#ffd23f" stroke-width="4" stroke-dasharray="69.1" stroke-dashoffset="0" transform="rotate(-90 14 14)" stroke-linecap="round"/></svg><span id="pingTxt">Next ping in 15</span></div>
       <span id="lockTag" hidden>Rotation locked</span>
     </div>
-    <div id="spec" hidden></div>
+    <div id="spec" hidden data-noi18n></div>
     <div id="lockHint" class="out" hidden>Click to play</div>
     <section id="board" class="card" hidden><h2 id="boardTitle">Scores</h2><p id="boardSub"></p><table class="standings" id="boardTable"></table></section>
   </div>
@@ -320,6 +331,10 @@ body.touch #banner span{font-size:14px}
     <div class="row" style="justify-content:space-between;align-items:flex-start;flex-wrap:nowrap">
       <div style="min-width:0"><h2 id="lobbyTitle">Lobby</h2><p class="code" id="lobbyCode"></p></div>
       <button class="btn sm alt" id="lobbyMin" type="button">Hide</button>
+    </div>
+    <div class="row rdrow" id="rdRow" hidden>
+      <button class="btn" id="lobbyReady" type="button" aria-pressed="false" aria-keyshortcuts="Enter" title="Press Enter to ready up">Ready</button>
+      <p id="rdNote" data-noi18n></p>
     </div>
     <div class="lb-body">
       <ul id="plist"></ul>
@@ -359,7 +374,7 @@ body.touch #banner span{font-size:14px}
       <div class="card">
         <div class="logo">
           <svg viewBox="0 0 74 64" aria-hidden="true"><path d="M6 24l16-8 16 8v18l-16 8-16-8z" fill="#c9965c" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M6 24l16 8 16-8M22 32v18" fill="none" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M36 26l16-8 16 8v18l-16 8-16-8z" fill="#14b89a" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><path d="M36 26l16 8 16-8M52 34v18" fill="none" stroke="#171a2e" stroke-width="3" stroke-linejoin="round"/><circle cx="45" cy="36" r="2.4" fill="#171a2e"/><circle cx="57" cy="36" r="2.4" fill="#171a2e"/><circle cx="52" cy="13" r="10" fill="none" stroke="#ff7a1a" stroke-width="3.5"/><path d="M52 0v7M52 19v7M39 13h7M58 13h7" stroke="#ff7a1a" stroke-width="3" stroke-linecap="round"/></svg>
-          <h1><span class="o">Odd</span> One <span class="t">Out</span></h1>
+          <h1 data-noi18n><span class="o">Odd</span> One <span class="t">Out</span></h1>
         </div>
         <p class="tag">Props vs Hunters. Props turn into anything in the room (a box, a chair, a potted plant) and blend in. Hunters get a rifle and four minutes to find them.</p>
         <div class="label" style="margin-top:4px">Play with friends</div>
@@ -421,6 +436,7 @@ body.touch #banner span{font-size:14px}
           <label class="setting"><span>Effects</span><input type="range" id="volFx" min="0" max="1" step="0.05"><output id="volFxOut"></output></label>
           <label class="setting"><span>Music</span><input type="range" id="volMu" min="0" max="1" step="0.05"><output id="volMuOut"></output></label>
           <div class="setting"><span>Graphics</span><div class="seg" id="gfxSeg" role="group" aria-label="Graphics quality"><button type="button" data-q="high">High</button><button type="button" data-q="med">Medium</button><button type="button" data-q="fast">Low</button></div></div>
+          <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
         </details>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       </div>
@@ -443,13 +459,14 @@ body.touch #banner span{font-size:14px}
       <label class="setting"><span>Invert look up/down</span><input type="checkbox" id="invY2"></label>
       <label class="setting"><span>Volume</span><input type="range" id="vol2" min="0" max="1" step="0.05"></label>
       <label class="setting"><span>Music</span><input type="range" id="volMu2" min="0" max="1" step="0.05"></label>
+      <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
     </div>
   </section>
 
   <section id="end" class="overlay center" hidden>
     <div class="card mini">
       <h2 id="endTitle">Props win!</h2>
-      <p class="sub" id="endSub"></p>
+      <p class="sub" id="endSub" data-noi18n></p>
       <table class="standings" id="endTable"></table>
       <div class="row" style="margin-top:14px">
         <button class="btn orange" id="again" type="button">Play again</button>
@@ -469,6 +486,7 @@ body.touch #banner span{font-size:14px}
 <script>
 (function(){
 'use strict';
+var LT=window.BackRoomLang?BackRoomLang.t:function(s,v){return s.replace(/\{(\w+)\}/g,function(m,n){return v&&v[n]!=null?v[n]:m})};
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/ph-<code>; every player writes only their
@@ -2050,7 +2068,9 @@ function makeTag(e){
 //  {id, mid (match), rn (round number), ph: lobby|hide|hunt|end|over, t0, dur, map,
 //   set: {map, rounds, hide, hunt, ratio, ping, pen, hps},
 //   hu: hunters, pr: props, hf: {uid: share of health lost, 0-1}, el: {uid: [by, seconds into the hunt]},
-//   k: {uid: eliminations}, sc: match points, hn: times each player has hunted, res: last result}
+//   k: {uid: eliminations}, sc: match points, hn: times each player has hunted, res: last result,
+//   in the lobby: as (public rooms: when the match starts), and from hosts with ready up lr: 1, al (when the lobby
+//   timer runs out) and rr (when the ready countdown ends); see hostLobby}
 // =====================================================================
 const G={
   mode:'menu',pmode:null,rs:null,role:'free',rid:-1,ph:'',paused:false,host:false,diff:clamp(+store.get('diff',2)|0,1,3),pracMap:clamp(+store.get('pmap',0)|0,0,2),
@@ -2078,7 +2098,7 @@ const DEF_SET={map:-1,rounds:5,hide:30,hunt:240,ratio:0,ping:15,pen:0,hps:1};   
 // A saved penalty only counts if the host chose it since wrong shots became free by default (hostpen): the 3 HP saved
 // with older settings was the old default, not a choice.
 function defaultSet(){const s=Object.assign({},DEF_SET,store.get('hostset',{}));if(!store.get('hostpen',0))s.pen=DEF_SET.pen;return cleanSet(s)}
-function lobbyRS(prev,set){return{id:prev?prev.id:0,mid:prev?prev.mid||0:0,rn:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:mapIdx<0?0:mapIdx,set:set||(prev&&prev.set)||defaultSet(),hu:[],pr:[],hf:{},el:{},k:{},sc:prev&&prev.ph!=='over'?prev.sc||{}:{},hn:{},as:0}}
+function lobbyRS(prev,set){return{id:prev?prev.id:0,mid:prev?prev.mid||0:0,rn:0,ph:'lobby',t0:now(),dur:0,map:prev?prev.map:mapIdx<0?0:mapIdx,set:set||(prev&&prev.set)||defaultSet(),hu:[],pr:[],hf:{},el:{},k:{},sc:prev&&prev.ph!=='over'?prev.sc||{}:{},hn:{},as:0,lr:1}}
 function liveIds(){if(G.mode==='practice')return[...ents.keys()];const a=[Net.uid];for(const k of Net.others.keys())if(Net.live(k))a.push(k);return a}
 function huntersFor(n,set){const want=set.ratio|0?set.ratio|0:n<=3?1:n<=6?2:n<=10?3:4;return clamp(want,1,Math.max(1,n-1))}
 function newRound(prev,fresh){
@@ -2089,12 +2109,37 @@ function newRound(prev,fresh){
   return{id:(prev.id|0)+1,mid,rn,ph:'hide',t0:now(),dur:set.hide*1000,map,set,hu,pr:ids.filter(u=>hu.indexOf(u)<0),hf:{},el:{},k:{},sc:fresh?{}:prev.sc||{},hn,res:null,as:0};
 }
 function setRS(rs){G.rs=rs;if(G.mode==='online'&&G.host)G.rsDirty=true;applyRS(rs)}
+// ---------- ready up and the lobby timer (online lobby only) ----------
+// Each player says it's ready with rd in its own node: the lobby's key (round id + 1), so a ready from an earlier
+// lobby never counts and nobody has to clear it. Once 2 are in, the host runs the lobby timer (al: 60 s in a room,
+// 20 s in a public lobby, not reset by new joiners, cancelled below 2), and when at least half the room is ready
+// (rounded up) a 5 s countdown (rr); the match starts at whichever comes first. Public rooms copy that moment to as,
+// which pages from before ready up read and run; private rooms leave as at 0, so an older host page shows nothing
+// stuck (its Start button still works, nothing starts by itself). lr: 1 says the host does all this.
+const LOBBY_MS=60000,PUB_LOBBY_MS=20000,READY_MS=5000;
+const lobbyKey=rs=>rs&&rs.ph==='lobby'?(rs.id|0)+1:0;
+function isReady(id,rs){const k=lobbyKey(rs);if(!k)return false;if(id===Net.uid)return G.myRd===k;const o=Net.others.get(id);return !!o&&o.rd===k}
+function readyCount(rs){const ids=liveIds();let r=0;for(const u of ids)if(isReady(u,rs))r++;return{r,n:ids.length,need:Math.ceil(ids.length/2)}}
+function startAt(rs){if(!rs||rs.ph!=='lobby')return 0;if(!rs.lr)return rs.as||0;const a=rs.al||0,b=rs.rr||0;return a&&b?Math.min(a,b):a||b}
+function toggleReady(){
+  const rs=G.rs;if(G.mode!=='online'||!Net.refs||!rs||rs.ph!=='lobby'||!rs.lr)return;
+  const k=lobbyKey(rs);G.myRd=G.myRd===k?0:k;Net.upd({rd:G.myRd});sfx('ui');delete hudCache.lobby;hudDirty();
+}
+function hostLobby(rs,t){
+  const c=readyCount(rs);let al=rs.al||0,rr=rs.rr||0;
+  if(c.n<2){al=0;rr=0}
+  else{if(!al)al=t+(Net.isPublic?PUB_LOBBY_MS:LOBBY_MS);if(c.r>=c.need){if(!rr)rr=t+READY_MS}else rr=0}
+  const go=al&&rr?Math.min(al,rr):al;
+  if(go&&t>=go){setRS(newRound(rs,true));return}
+  const as=Net.isPublic?go:0;
+  if(al!==(rs.al||0)||rr!==(rs.rr||0)||as!==(rs.as||0)||!rs.lr)setRS(Object.assign({},rs,{al,rr,as,lr:1}));
+}
 // The host's clock: phases, who is left, points.
 function hostTick(){
   const rs=G.rs;if(!rs)return;const t=now();
   if(G.mode==='online'&&G.rsDirty&&Net.rsDue(rs)){G.rsDirty=false;Net.pubRS(rs)}
   if(rs.ph==='lobby'){
-    if(G.mode==='online'&&Net.isPublic){const n=liveIds().length;if(n>=2){if(!rs.as)setRS(Object.assign({},rs,{as:t+20000}));else if(t>=rs.as)setRS(newRound(rs,true))}else if(rs.as)setRS(Object.assign({},rs,{as:0}))}
+    if(G.mode==='online')hostLobby(rs,t);
     return;
   }
   if(rs.ph==='hide'){
@@ -2176,14 +2221,14 @@ function applyRS(rs){
 function onElim(u,by,rs){
   const e=ents.get(u),isH=rs.hu.indexOf(u)>=0;
   if(e){const c=e.pos.clone();c.y+=e.look==='hunter'?1:(e.form?e.form.h/2:.4);const fd=!isH&&WD?ents.get(by):null;if(!(fd&&fd.wear&&WD.poof(c,fd.wear,e.form)))burst(c,e.look==='prop'?e.form:null);sfx('elim',c)}
-  const fn=e&&e.form&&!isH?' <span class="y">('+esc(e.form.name)+')</span>':'';
+  const fn=e&&e.form&&!isH?' <span class="y">('+esc(LT(e.form.name))+')</span>':'';
   const ob=!!(rs.ob&&rs.ob[u]);
-  if(ob)feed('<span class="'+(isH?'h':'p')+'">'+esc(nameOf(u))+'</span> was out of bounds'+fn);
-  else if(isH)feed('<span class="h">'+esc(nameOf(u))+'</span> ran out of health');
-  else feed('<span class="h">'+esc(nameOf(by))+'</span> found <span class="p">'+esc(nameOf(u))+'</span>'+fn);
-  if(u===myId()){if(ob)banner('OUT OF BOUNDS','You stayed off the map too long. Watch your team finish the round.',3,'hunt');else banner(isH?'OUT OF HEALTH':'FOUND!',isH?'Too many wrong shots. Watch your team finish the round.':'By '+nameOf(by)+'. Watch your team finish the round.',3,'hunt');G.specId=null}
+  if(ob)feed(LT('{n} was out of bounds',{n:'<span class="'+(isH?'h':'p')+'">'+esc(nameOf(u))+'</span>'})+fn);
+  else if(isH)feed(LT('{n} ran out of health',{n:'<span class="h">'+esc(nameOf(u))+'</span>'}));
+  else feed(LT('{a} found {b}',{a:'<span class="h">'+esc(nameOf(by))+'</span>',b:'<span class="p">'+esc(nameOf(u))+'</span>'})+fn);
+  if(u===myId()){if(ob)banner('OUT OF BOUNDS','You stayed off the map too long. Watch your team finish the round.',3,'hunt');else banner(isH?'OUT OF HEALTH':'FOUND!',isH?'Too many wrong shots. Watch your team finish the round.':LT('By {n}. Watch your team finish the round.',{n:nameOf(by)}),3,'hunt');G.specId=null}
   if(by===myId()&&window.BackRoomStats)BackRoomStats.add('found',1);
-  if(by===myId()){popup('+100 · FOUND '+nameOf(u).toUpperCase(),'good');hitMark(true)}
+  if(by===myId()){popup(LT('+100 · FOUND {n}',{n:nameOf(u).toUpperCase()}),'good');hitMark(true)}
 }
 function onPhase(rs,newId){
   $('end').hidden=true;
@@ -2351,7 +2396,7 @@ function alignMe(){
       if(h&&h.box&&!h.prop&&h.t>half+.01){const gap=h.t-half-.01;me.pos.addScaledVector(d,gap);if(overlapping(me))me.pos.addScaledVector(d,-gap);else moved=true;break}
     }
   }
-  G.lock=true;sfx('lock');toast(best?'Lined up with the '+best.t.name.toLowerCase()+' nearby':'Squared up');hudDirty();
+  G.lock=true;sfx('lock');toast(best?LT('Lined up with the {p} nearby',{p:LT(best.t.name).toLowerCase()}):'Squared up');hudDirty();
 }
 // ---------- hunters: the rifle ----------
 function canShoot(){return me&&isHunter()&&me.alive&&!G.paused&&G.rs&&G.rs.ph==='hunt'}
@@ -2371,7 +2416,7 @@ function fire(){
   let kind=0;
   if(h){
     if(h.ent&&h.ent.look==='prop'&&teamOf(roleOf(h.ent.id))==='p'&&roleOf(h.ent.id)==='prop'){kind=1;G.hits[h.ent.id]=(G.hits[h.ent.id]||0)+1;hitMark(false);sfx('hit',null,.8);impact(end,h.n,'#ffd23f',false)}
-    else if(h.prop){kind=2;G.wrong++;const pen=G.rs.set.pen|0;impact(end,h.n,'#e0dccf',true);if(pen){popup('−'+pen+' HP · just a '+h.prop.t.name.toLowerCase(),'bad');sfx('wrong',null,.6)}else sfx('impact',end)}
+    else if(h.prop){kind=2;G.wrong++;const pen=G.rs.set.pen|0;impact(end,h.n,'#e0dccf',true);if(pen){popup(LT('−{n} HP · just a {p}',{n:pen,p:LT(h.prop.t.name).toLowerCase()}),'bad');sfx('wrong',null,.6)}else sfx('impact',end)}
     else{impact(end,h.n,null,!h.ent);sfx('impact',end,.6)}
   }
   G.shotSeq++;G.lastShot=[G.shotSeq,r2(muzzle.x),r2(muzzle.y),r2(muzzle.z),r2(end.x),r2(end.y),r2(end.z),kind].join(',');
@@ -2684,11 +2729,12 @@ function sanitizeRS(p){
     set:cleanSet(p.set),hu,pr:idList(p.pr).filter(u=>hu.indexOf(u)<0),hf:idMap(p.hf,v=>finN(v)?clamp(v,0,1):undefined),
     el:idMap(p.el,v=>Array.isArray(v)?[typeof v[0]==='string'&&(v[0]===''||ID_RE.test(v[0]))?v[0]:'',numIn(v[1],0,3600,0)]:undefined),
     k:intMap(p.k),sc:intMap(p.sc),hn:intMap(p.hn),as:numIn(p.as,0,1e15,0),ob:idMap(p.ob,v=>v?1:undefined),
+    ...(p.ph==='lobby'&&p.lr===1?{lr:1,al:numIn(p.al,0,now()+3e5,0),rr:numIn(p.rr,0,now()+3e5,0)}:{}),
     res:isObj(res)?{win:res.win==='hunters'?'hunters':'props',pts:intMap(res.pts),names:idMap(res.names,v=>typeof v==='string'&&cleanName(v)||undefined),surv:intMap(res.surv),forms:idMap(res.forms,v=>ptOf(v)?v:undefined)}:null};
 }
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
-  const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),hd:typeof v.hd==='string'?v.hd:''};
+  const o={n:cleanName(v.n)||'Player',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff7a1a',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:Math.min(Math.max(+v.he||0,0),1e9),hd:typeof v.hd==='string'?v.hd:'',rd:finN(v.rd)?v.rd:0};
   const prev=Net.others.get(uid);
   Net.others.set(uid,o);G.nm.set(uid,o.n);
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
@@ -2698,7 +2744,7 @@ function onNode(uid,v){
     e=makeEnt({id:uid,name:o.n,color:o.c,remote:true});
     const bd=MAP.ext;e.pos.set(clamp(+v.x,bd[0],bd[2]),numIn(+v.y,-1,12,0),clamp(+v.z,bd[1],bd[3]));e.tpos.copy(e.pos);e.yaw=e.tyaw=wrapA(numIn(+v.h,-1e3,1e3,0));e.shSeen=typeof v.sh==='string'?v.sh:'';e.dSeen=v.d;
     const t0=ptOf(v.d);if(t0&&t0.elig)setForm(e,t0);
-    if(performance.now()-G.joinedAt>2500)feed(esc(o.n)+' joined');
+    if(performance.now()-G.joinedAt>2500)feed(LT('{n} joined',{n:esc(o.n)}));
     refreshRoles();
   }
   e.seen=performance.now();e.name=o.n;e.color=o.c;
@@ -2717,7 +2763,7 @@ function onNode(uid,v){
   if(G.host&&o.hd&&(!prev||prev.hd!==o.hd))hostHits(uid,o.hd);
 }
 function onNodeGone(uid){
-  const e=ents.get(uid);if(e){feed(esc(e.name)+' left');removeEnt(e)}
+  const e=ents.get(uid);if(e){feed(LT('{n} left',{n:esc(e.name)}));removeEnt(e)}
   Net.others.delete(uid);if(uid===G.hostUid)G.hostUid=null;renderLobby();
 }
 function remoteShot(e,sh){
@@ -2777,7 +2823,8 @@ function becomeHost(){
   if(G.hdStr){const f=G.hdStr.split('|'),t={};for(const p of (f[1]||'').split(',').filter(Boolean)){const q=p.split(':');t[q[0]]=+q[1]||0}G.hitSeen.set(Net.uid,{rid:+f[0],t,w:+f[2]||0,s:f[3]})}
   const base=validRS(G.lastRS)?Object.assign({},G.lastRS):lobbyRS(null,defaultSet());
   if(!G.lastRS)base.map=mapIdx<0?0:mapIdx;
-  if(G.lastRS&&G.rs&&G.rs.id===base.id)feed('You\'re the host now');
+  if(base.ph==='lobby'&&!base.lr){base.lr=1;base.al=base.as||0}   // taking over from a host page from before ready up: its public timer carries on
+  if(G.lastRS&&G.rs&&G.rs.id===base.id)feed(LT('You\'re the host now'));
   setRS(base);G.rsDirty=true;
 }
 function stopHost(){G.host=false;G.he=0;Net.rsStr='';Net.rsKey='';Net.upd({rs:'',he:0})}
@@ -2785,15 +2832,15 @@ function stopHost(){G.host=false;G.he=0;Net.rsStr='';Net.rsKey='';Net.upd({rs:''
 // =====================================================================
 //  HUD
 // =====================================================================
-const hudCache={};let hudForce=true;
+const hudCache={};document.addEventListener('backroom:lang',()=>{for(const k in hudCache)delete hudCache[k];hudForce=true});let hudForce=true;
 function hudDirty(){hudForce=true}
 function setText(id,t){if(hudCache[id]!==t){hudCache[id]=t;$(id).textContent=t}}
 function setHidden(id,h){const k='h_'+id;if(hudCache[k]!==h){hudCache[k]=h;$(id).hidden=h}}
 function setClass(id,c){const k='c_'+id;if(hudCache[k]!==c){hudCache[k]=c;$(id).className=c}}
-function feed(html){const box=$('feed'),d=document.createElement('div');d.innerHTML=html;box.appendChild(d);while(box.children.length>5)box.firstChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},5000)}
+function feed(html){const box=$('feed'),d=document.createElement('div');d.setAttribute('data-noi18n','');d.innerHTML=html;box.appendChild(d);while(box.children.length>5)box.firstChild.remove();setTimeout(()=>{d.style.opacity='0';setTimeout(()=>d.remove(),700)},5000)}
 const toast=t=>feed(esc(t));
-let bannerT=0;function banner(t,s,sec,cls){const b=$('banner');const bb=b.querySelector('b');bb.textContent=t;bb.className=cls||'';b.querySelector('span').textContent=s||'';b.style.opacity='1';clearTimeout(bannerT);bannerT=setTimeout(()=>b.style.opacity='0',(sec||2.5)*1000)}
-let popT=0;function popup(t,cls){const p=$('pop');p.textContent=t;p.className='out '+(cls||'');p.style.opacity='1';clearTimeout(popT);popT=setTimeout(()=>p.style.opacity='0',1100)}
+let bannerT=0;function banner(t,s,sec,cls){const b=$('banner');const bb=b.querySelector('b');bb.textContent=LT(t);bb.className=cls||'';b.querySelector('span').textContent=s?LT(s):'';b.style.opacity='1';clearTimeout(bannerT);bannerT=setTimeout(()=>b.style.opacity='0',(sec||2.5)*1000)}
+let popT=0;function popup(t,cls){const p=$('pop');p.textContent=LT(t);p.className='out '+(cls||'');p.style.opacity='1';clearTimeout(popT);popT=setTimeout(()=>p.style.opacity='0',1100)}
 let hitT=0;function hitMark(kill){const h=$('hitm');h.classList.toggle('kill',!!kill);h.style.opacity='1';clearTimeout(hitT);hitT=setTimeout(()=>h.style.opacity='0',kill?380:140)}
 function flashVig(){const v=$('vig');v.style.opacity='1';setTimeout(()=>v.style.opacity='0',450)}
 function keyName(id){const k=KB.keys(id)[0];return k?KB.name(k):'?'}
@@ -2801,7 +2848,8 @@ function updateHud(){
   const rs=G.rs,inGame=G.mode==='online'||G.mode==='practice';if(!inGame)return;
   const role=G.role,ph=rs?rs.ph:'lobby',left=phaseLeft();
   let pn='Lobby',ck='–';
-  if(ph==='lobby'){const n=G.mode==='online'?liveIds().length:1;ck=rs&&rs.as?fmtT((rs.as-now())/1000):n+'/'+MAX_ROOM;pn=rs&&rs.as?'Starting':'Lobby'}
+  if(ph==='lobby'){const n=G.mode==='online'?liveIds().length:1,go=G.mode==='online'?startAt(rs):0;ck=go?fmtT((go-now())/1000):n+'/'+MAX_ROOM;pn=go?'Starting':'Lobby';
+    if(go){const s=Math.ceil((go-now())/1000);if(s!==G.lastTick){G.lastTick=s;if(s<=5&&s>0)sfx('tock',null,.7)}}}
   else if(ph==='hide'){pn='Hide · round '+rs.rn+'/'+rs.set.rounds;ck=fmtT(left)}else if(ph==='hunt'){pn='Hunt · round '+rs.rn+'/'+rs.set.rounds;ck=fmtT(left)}else{pn=ph==='over'?'Match over':'Round over';ck=G.mode==='online'?fmtT(left):'–'}
   if(G.mode==='practice'&&ph!=='lobby')pn=pn.replace(/ · round.*/,'')+' · practice';
   setText('phaseName',pn);setText('clock',ck);setClass('clockBox','pill'+(ph==='hunt'&&left<30?' hurry':''));
@@ -2829,24 +2877,31 @@ function updateHud(){
   const showXh=alive&&ph!=='end'&&ph!=='over'&&!G.paused;setHidden('xh',!showXh);
   if(showXh)setClass('xh',role==='hunter'?(G.aim?'':''):('dot'+(G.target?' target':'')));
   const tg=alive&&isProp()&&G.target&&!G.paused;setHidden('tgt',!tg);
-  if(tg){const s=(touchUI?'Become: ':'<kbd>'+esc(keyName('transform'))+'</kbd> become: ')+esc(G.target.t.name.toLowerCase())+(G.tfCd>0?' (in '+Math.ceil(G.tfCd)+'s)':'');if(hudCache.tgt!==s){hudCache.tgt=s;$('tgt').innerHTML=s}}
+  if(tg){const s=(touchUI?'Become: ':'<kbd>'+esc(keyName('transform'))+'</kbd> become: ')+esc(LT(G.target.t.name).toLowerCase())+(G.tfCd>0?' (in '+Math.ceil(G.tfCd)+'s)':'');if(hudCache.tgt!==s){hudCache.tgt=s;$('tgt').innerHTML=s}}
   // hints
   let hint='';const K=id=>'<kbd>'+esc(keyName(id))+'</kbd>';
   if(ph==='end'||ph==='over')hint='';
   else if(role==='hunter')hint=ph==='hunt'?'<span>'+K('fire')+' shoot</span><span>'+K('aim')+' aim</span><span>'+K('reload')+' reload</span><span>'+K('board')+' scores</span>':'<span>Wait for the doors to open</span><span>'+K('board')+' scores</span>';
-  else if(role==='prop'||role==='free')hint='<span>'+K('transform')+' become</span><span class="'+(G.lock?'on':'')+'">'+K('lock')+' lock rotation</span><span>'+K('rotL')+' '+K('rotR')+' turn</span><span>'+K('align')+' line up</span><span>'+K('jump')+' jump</span>'+(WD?WD.hint():'')+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m hidden</span>':'');
+  else if(role==='prop'||role==='free')hint='<span>'+K('transform')+' become</span><span class="'+(G.lock?'on':'')+'">'+K('lock')+' lock rotation</span><span>'+K('rotL')+' '+K('rotR')+' turn</span><span>'+K('align')+' line up</span><span>'+K('jump')+' jump</span>'+(WD?WD.hint():'')+(G.mode==='practice'&&ph==='hide'?'<span><kbd>Enter</kbd> I\'m hidden</span>':'')+(G.mode==='online'&&ph==='lobby'&&rs&&rs.lr?'<span><kbd>Enter</kbd> '+(isReady(Net.uid,rs)?'not ready':'ready')+'</span>':'');
   else hint='<span>'+K('specPrev')+' '+K('specNext')+' watch someone else</span><span>'+K('board')+' scores</span>';
   if(G.mode==='practice'&&ph==='hide'&&role==='hunter')hint+='<span><kbd>Enter</kbd> skip the wait</span>';
   if(hudCache.hint!==hint){hudCache.hint=hint;$('hint').innerHTML=hint}
   // watching
   const watching=(role==='out'||role==='dead'||role==='spec')&&ph!=='end'&&ph!=='over'&&ph!=='lobby';
-  setHidden('spec',!watching);if(watching){const t=specTarget();setText('spec',(role==='spec'?'Round in progress: you\'ll play next round. ':'')+(t?'Watching '+t.name+(touchUI?' · tap Next':' · ← → to switch'):'Nobody left to watch'))}
+  setHidden('spec',!watching);if(watching){const t=specTarget();setText('spec',LT((role==='spec'?'Round in progress: you\'ll play next round. ':'')+(t?'Watching {n}'+(touchUI?' · tap Next':' · ← → to switch'):'Nobody left to watch'),{n:t?t.name:''}))}
   const needLock=!touchUI&&!G.paused&&!document.pointerLockElement&&ph!=='end'&&ph!=='over'&&$('board').hidden&&!KB.busy();
   setHidden('lockHint',!needLock);
   // lobby panel
   setHidden('lobby',!(G.mode==='online'&&rs&&ph==='lobby'));
-  if(G.mode==='online'&&rs&&ph==='lobby'){const lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':liveIds().length<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start match when everyone is in.':'Waiting for the host to start.';setText('lobbyMsg',lm);
-    const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host;if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
+  if(G.mode==='online'&&rs&&ph==='lobby'){const n=liveIds().length;let lm;
+    if(rs.lr){   // a host with ready up: the count and the timer go in the ready row, which stays put while lobbyMsg shows "Copied"
+      lm=n<2?(Net.isPublic?'Starts by itself once 2 players are here.':'Waiting for at least one more player. Send them the invite link.'):G.host&&!Net.isPublic?'Starts 5 s after half the room is ready, or when the timer runs out. Start match starts it now.':'Starts 5 s after half the room is ready, or when the timer runs out.';
+      const c=readyCount(rs),go=startAt(rs),s=Math.max(0,Math.ceil((go-now())/1000)),soon=go&&rs.rr&&go===rs.rr;
+      setText('rdNote',LT('{n} of {m} ready',{n:c.r,m:c.n})+(go?' · '+(soon?LT('Starting in {n}…',{n:Math.min(s,5)}):LT('Starting in {t}',{t:fmtT(s)})):''));setClass('rdNote',soon||go&&s<=5?'go':'');
+      const on=String(isReady(Net.uid,rs));if(hudCache.rdOn!==on){hudCache.rdOn=on;$('lobbyReady').setAttribute('aria-pressed',on)}}
+    else lm=rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-now())/1000))+'…':Net.isPublic?'Starts by itself once 2 players are here.':n<2?'Waiting for at least one more player. Send them the invite link.':G.host?'Press Start match when everyone is in.':'Waiting for the host to start.';
+    setHidden('rdRow',!rs.lr);setText('lobbyMsg',LT(lm));
+    const pk=[...Net.others.keys()].filter(k=>Net.live(k)).join()+G.hostUid+JSON.stringify(rs.set)+G.host+(rs.lr?liveIds().map(u=>isReady(u,rs)?1:0).join(''):'');if(hudCache.lobby!==pk){hudCache.lobby=pk;renderLobby()}}
   if(G.mode==='online'&&(ph==='end'||ph==='over')&&!$('end').hidden)setText('endMsg',ph==='over'?'Back to the lobby in '+Math.max(0,Math.ceil(left))+'…':(rs.rn<rs.set.rounds?'Next round in ':'Final scores in ')+Math.max(0,Math.ceil(left))+'…');
   // scoreboard
   const showBoard=(held('board')||G.boardHeld)&&ph!=='end'&&ph!=='over';setHidden('board',!showBoard);if(showBoard)renderBoard();
@@ -2873,7 +2928,7 @@ function renderBoard(){
   for(const u of ids){const r=roleOf(u,rs),tr=document.createElement('tr');if(u===myId())tr.className='me';
     const col=u===myId()?myColor:(ents.get(u)||{}).color||'#ccc';
     const st=r==='out'||r==='dead'?'<span class="bad">Out</span>':r==='spec'?'Next round':r==='free'?'In lobby':'<span class="ok">'+(r==='prop'?(teamOf(G.role)==='p'||G.role==='spec'&&false?'Hiding':'Hiding'):'Hunting')+'</span>';
-    tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===myId()?' (you)':'')+'</span></td><td class="'+(teamOf(r)==='h'?'rh':'rp')+'">'+(teamOf(r)==='h'?'Hunter':r==='spec'?'–':'Prop')+'</td><td>'+st+'</td><td>'+(+(rs.k||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}
+    tr.innerHTML='<td><span class="nm" data-noi18n><span class="dot" style="background:'+col+'"></span>'+(u===myId()?LT('{n} (you)',{n:esc(nameOf(u))}):esc(nameOf(u)))+'</span></td><td class="'+(teamOf(r)==='h'?'rh':'rp')+'">'+(teamOf(r)==='h'?'Hunter':r==='spec'?'–':'Prop')+'</td><td>'+st+'</td><td>'+(+(rs.k||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}
 }
 // ---------- lobby panel ----------
 function segSet(box,v){for(const b2 of box.children)b2.setAttribute('aria-pressed',String(String(b2.dataset.v)===String(v)))}
@@ -2885,8 +2940,10 @@ function renderLobby(){
   const ul=$('plist');ul.textContent='';
   const ids=[Net.uid,...[...Net.others.keys()].filter(k=>Net.live(k))];
   for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),t=document.createElement('span');
-    const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.textContent=id===Net.uid?(myName||'You')+' (you)':nameOf(id);t.className='t';
-    t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);ul.appendChild(li)}
+    const e=ents.get(id);dot.className='dot';dot.style.background=id===Net.uid?myColor:(e?e.color:'#ccc');nm.className='nm';nm.setAttribute('data-noi18n','');nm.textContent=id===Net.uid?LT('{n} (you)',{n:myName||LT('You')}):nameOf(id);t.className='t';
+    t.textContent=[id===G.hostUid?'host':'',(rs.sc&&rs.sc[id])?rs.sc[id]+' pts':''].filter(Boolean).join(' · ');li.append(dot,nm,t);
+    if(rs.lr){const r=document.createElement('span'),on=isReady(id,rs);r.className='rd'+(on?' on':'');r.textContent=on?'✓':'';r.title=LT(on?'Ready':'Not ready');r.setAttribute('role','img');r.setAttribute('aria-label',r.title);li.append(r)}
+    ul.appendChild(li)}
   const set=rs.set||defaultSet();segSet($('setMap'),set.map);segSet($('setRounds'),set.rounds);segSet($('setHide'),set.hide);segSet($('setHunt'),set.hunt);segSet($('setRatio'),set.ratio);segSet($('setPing'),set.ping);segSet($('setPen'),set.pen);segSet($('setHp'),set.hps);
   $('lobby').classList.toggle('guest',!G.host);$('hostNote').textContent=G.host?'(you\'re the host)':'(host picks)';
   const sb=$('startRound');sb.hidden=Net.isPublic;sb.disabled=!G.host||ids.length<2;sb.textContent=G.host?'Start match':'Host starts';
@@ -2900,21 +2957,21 @@ function showResults(rs){
   const res=rs.res||{win:'props',pts:{}},mine=myId(),over=rs.ph==='over';
   const ids=rs.hu.concat(rs.pr);
   let title,cls,sub;
-  if(over){const best=Object.keys(rs.sc||{}).sort((a,b)=>rs.sc[b]-rs.sc[a])[0];title=best===mine?'YOU WIN THE MATCH!':'MATCH OVER';cls='';sub=(best?nameOf(best)+' wins with '+rs.sc[best]+' points':'')+' · '+rs.set.rounds+' rounds'}
+  if(over){const best=Object.keys(rs.sc||{}).sort((a,b)=>rs.sc[b]-rs.sc[a])[0];title=best===mine?'YOU WIN THE MATCH!':'MATCH OVER';cls='';sub=best?LT('{n} wins with {p} points · {r} rounds',{n:nameOf(best),p:rs.sc[best],r:rs.set.rounds}):LT('· {r} rounds',{r:rs.set.rounds})}
   else{title=res.win==='props'?'PROPS WIN!':'HUNTERS WIN!';cls=res.win==='props'?'prop':'hunt';const nf=Object.keys(rs.el||{}).filter(u=>rs.pr.indexOf(u)>=0).length;
-    sub=(G.mode==='practice'?'Practice':'Round '+rs.rn+' of '+rs.set.rounds)+' · '+MAPS[rs.map].name+' · '+nf+' of '+rs.pr.length+' props found'}
+    sub=LT((G.mode==='practice'?'Practice':'Round {r} of {x}')+' · {m} · {n} of {k} props found',{r:rs.rn,x:rs.set.rounds,m:MAPS[rs.map].name,n:nf,k:rs.pr.length})}
   $('endTitle').textContent=title;$('endTitle').className=cls;$('endSub').textContent=sub;
   const tb=$('endTable');
   if(over){tb.innerHTML='<tr><th>#</th><th>Player</th><th></th><th>Total</th><th></th></tr>';
     const all=[...new Set(ids.concat(Object.keys(rs.sc||{})))].sort((a,b)=>((rs.sc[b]||0)-(rs.sc[a]||0)));
     all.forEach((u,i)=>{const tr=document.createElement('tr');if(u===mine)tr.className='me';const e=ents.get(u),col=u===mine?myColor:e?e.color:'#ccc';
-      tr.innerHTML='<td>'+(i+1)+'</td><td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nameOf(u))+(u===mine?' (you)':'')+'</span></td><td></td><td>'+(+rs.sc[u]||0)+'</td><td></td>';tb.appendChild(tr)})}
+      tr.innerHTML='<td>'+(i+1)+'</td><td><span class="nm" data-noi18n><span class="dot" style="background:'+col+'"></span>'+(u===mine?LT('{n} (you)',{n:esc(nameOf(u))}):esc(nameOf(u)))+'</span></td><td></td><td>'+(+rs.sc[u]||0)+'</td><td></td>';tb.appendChild(tr)})}
   else{tb.innerHTML='<tr><th>Player</th><th>Team</th><th>Result</th><th>Round</th><th>Total</th></tr>';
     ids.sort((a,b)=>((res.pts[b]||0)-(res.pts[a]||0)));
     for(const u of ids){const tr=document.createElement('tr');if(u===mine)tr.className='me';const e=ents.get(u),col=u===mine?myColor:e?e.color:'#ccc',nm=(res.names&&res.names[u])||nameOf(u),isH=rs.hu.indexOf(u)>=0,el=rs.el&&rs.el[u];
       let result;if(isH){const n=+(rs.k||{})[u]||0;result=(n?'Found '+n:'Found none')+(el?' · <span class="bad">out of health</span>':'')}
-      else if(el)result='<span class="bad">Found by '+esc(nameOf(el[0]))+' at '+fmtT(el[1])+'</span>';else{const ft=ptOf((res.forms||{})[u]);result='<span class="ok">Survived as '+esc(ft?ft.name.toLowerCase():'a prop')+'</span>'}
-      tr.innerHTML='<td><span class="nm"><span class="dot" style="background:'+col+'"></span>'+esc(nm)+(u===mine?' (you)':'')+'</span></td><td class="'+(isH?'rh':'rp')+'">'+(isH?'Hunter':'Prop')+'</td><td>'+result+'</td><td>+'+(+(res.pts||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}}
+      else if(el)result='<span class="bad" data-noi18n>'+LT('Found by {n} at {t}',{n:esc(nameOf(el[0])),t:fmtT(el[1])})+'</span>';else{const ft=ptOf((res.forms||{})[u]);result='<span class="ok">Survived as '+esc(ft?LT(ft.name).toLowerCase():LT('a prop'))+'</span>'}
+      tr.innerHTML='<td><span class="nm" data-noi18n><span class="dot" style="background:'+col+'"></span>'+(u===mine?LT('{n} (you)',{n:esc(nm)}):esc(nm))+'</span></td><td class="'+(isH?'rh':'rp')+'">'+(isH?'Hunter':'Prop')+'</td><td>'+result+'</td><td>+'+(+(res.pts||{})[u]||0)+'</td><td>'+(+(rs.sc||{})[u]||0)+'</td>';tb.appendChild(tr)}}
   $('again').hidden=G.mode==='online';$('toMenu').textContent=G.mode==='online'?'Leave room':'Menu';
   hudCache.endMsg=null;$('endMsg').textContent='';$('end').hidden=false;
   const myTeam=rs.hu.indexOf(mine)>=0?'hunters':rs.pr.indexOf(mine)>=0?'props':'';
@@ -2959,7 +3016,7 @@ async function goOnline(room,isPublic){
   if(Net.refs)Net.leave();
   clearEnts();clearFx();loadMap(0);makeMe(Net.uid);
   const sp=MAP.propSpawns[Math.floor(Math.random()*MAP.propSpawns.length)];me.pos.set(sp[0]+rand(-1,1),0,sp[1]+rand(-1,1));
-  Object.assign(G,{mode:'online',pmode:null,rs:null,host:false,hostUid:null,he:0,maxHe:0,lastRS:null,rsSeen:'',rid:-1,ph:'',role:'free',seenEl:{},hfSeen:{},paused:false,joinedAt:performance.now(),rsDirty:false});
+  Object.assign(G,{mode:'online',pmode:null,rs:null,host:false,hostUid:null,he:0,maxHe:0,lastRS:null,rsSeen:'',rid:-1,ph:'',role:'free',seenEl:{},hfSeen:{},paused:false,joinedAt:performance.now(),rsDirty:false,myRd:0});
   G.hitSeen=new Map();
   try{await Net.join(room,isPublic)}catch(err){G.mode='menu';throw err}
   enterGame();renderLobby();
@@ -3086,7 +3143,7 @@ addEventListener('keydown',ev=>{
   if(c==='Escape'){if(G.paused){if(performance.now()-pauseShownAt>350)resume()}else showPause();return}
   if(c==='Tab'||c==='Space'||KB.actionsFor(c).length)ev.preventDefault();
   keys[c]=true;if(ev.repeat)return;
-  if(c==='Enter'){practiceReady();return}
+  if(c==='Enter'){if(G.mode==='online'){if(!(ev.target&&ev.target.tagName==='BUTTON'))toggleReady()}else practiceReady();return}
   pressAction(c);
 });
 addEventListener('keyup',ev=>{keys[ev.code]=false});
@@ -3175,6 +3232,7 @@ segSet($('pracDiff'),G.diff);$('pracDiff').onclick=ev=>{const b2=ev.target.close
 buildSeg($('setMap'),[[-1,'Rotate'],...MAPS.map((m,i)=>[i,m.short])],-1,v=>hostSet('map',+v));
 for(const [id,key] of [['setRounds','rounds'],['setHide','hide'],['setHunt','hunt'],['setRatio','ratio'],['setPing','ping'],['setPen','pen'],['setHp','hps']])$(id).onclick=ev=>{const b2=ev.target.closest('button');if(b2)hostSet(key,+b2.dataset.v)};
 $('startRound').onclick=()=>{if(G.host&&G.rs&&G.rs.ph==='lobby'&&liveIds().length>=2)setRS(newRound(G.rs,true))};
+$('lobbyReady').onclick=toggleReady;
 $('lobbyMin').onclick=()=>{$('lobby').classList.toggle('min');$('lobbyMin').textContent=$('lobby').classList.contains('min')?'Show':'Hide'};
 const copyInvite=msgEl=>{const url=location.origin+'/#'+Net.room,m=$(msgEl);const done=ok=>{m.textContent=ok?'Invite link copied. Your friend opens it and enters the code to join.':url};try{navigator.clipboard.writeText(url).then(()=>done(true),()=>done(false))}catch(e){done(false)}};
 $('lobbyInvite').onclick=()=>copyInvite('lobbyMsg');$('copyInvite').onclick=()=>copyInvite('inviteMsg');
@@ -3276,7 +3334,7 @@ if(inv){$('room').value=inv[1];setMsg('You were invited to room ph-'+inv[1]+'. P
 
 // In automated browsers only: a handle for tests (advance runs the game without drawing).
 if(navigator.webdriver)window.__ph={clearFx,moveEnt,shapeOf,groundAt,pushOut,turnTo,rebuildDyn,dynBoxes,makeEnt,removeEnt,setLook,solidsNear,propAABB,GRAV,JUMP,STEP,tfCheck,oobAt,nearestAllowed,capFor,
-  get lidAt(){return MAP&&MAP.lidAt},setGfx,get gfx(){return gfx},sky,hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,onNode,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,hostHits,roleOf,hpOf,maxHpOf,
+  get lidAt(){return MAP&&MAP.lidAt},setGfx,get gfx(){return gfx},sky,hostSet,setTouchUI,setForm,G,PT,PT_LIST,MAPS,ents,Net,onNode,get me(){return me},get MAP(){return MAP},get mapIdx(){return mapIdx},loadMap,startPractice,practiceReady,goOnline,toMenu,setRS,newRound,lobbyRS,hostTick,toggleReady,readyCount,startAt,hostHits,roleOf,hpOf,maxHpOf,
   doTransform,toggleLock,alignMe,fire,startReload,findTarget,rayWorld,camRay,cycleSpec,specTarget,showPause,resume,overlapping,keys,tAct,KB,renderer,scene,camera,step,
   get camYaw(){return camYaw},set camYaw(v){camYaw=v},get camPitch(){return camPitch},set camPitch(v){camPitch=v},propModel,
   get WD(){return WD},wardOn,wdSync,wdLoad,hunterModel,onElim,wearHeard,

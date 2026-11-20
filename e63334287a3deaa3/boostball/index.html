@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the hidden garage and the Kit while they are not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -76,6 +78,8 @@ h2{font-family:var(--f-d);font-weight:400;font-style:italic;font-size:34px;margi
 .seg button[aria-pressed="true"]{background:var(--blue);color:#fff}
 .opts{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-top:10px}
 .opts .lbl{font-size:14px;color:var(--ink-2);min-width:62px}
+.opts .nobots{font-size:13px;font-weight:600;color:var(--ink-2)}
+.seg button:disabled{cursor:not-allowed;opacity:.6}
 .split{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
 .split .btn{flex:1}
 .msg{min-height:1.3em;margin:12px 0 0;color:var(--ink-2);font-size:16px;line-height:1.35}
@@ -119,6 +123,9 @@ details[open] summary::before{content:"– "}
 .ad-lbl{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
 .adbox ins{display:block;min-height:90px}
 .card.mini{width:min(560px,100%);max-height:100%;overflow:auto}
+#locker{z-index:20}.lockercard h2{margin:0 0 4px}#lockerView{display:block;width:100%;aspect-ratio:16/9;max-height:42vh;border-radius:10px;background:#060a18}
+.giftrow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 0}.giftrow b{font-size:18px}.giftrow .note{margin:2px 0 0}
+.lockercard .row{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
 .sub{color:var(--ink-2);margin:0 0 12px;font-size:17px}
 
 /* ---------- scoreboard tables ---------- */
@@ -272,7 +279,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
       <svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="bgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd34a"/><stop offset="1" stop-color="#ff6a1a"/></linearGradient></defs><circle class="trk" cx="60" cy="60" r="50" stroke-dasharray="235.6 314.2"/><circle id="boostArc" cx="60" cy="60" r="50" stroke-dasharray="235.6 314.2" stroke-dashoffset="0"/></svg>
       <b id="boostNum">33</b><span>BOOST</span>
     </div>
-    <div id="speed">0 KM/H</div>
+    <div id="speed" data-noi18n>0 KM/H</div>
     <div id="camTag">BALL CAM · <span data-kb="ballcam" data-kb-short data-kb-case="upper">Y</span></div>
     <div id="hint"></div>
     <div id="flash"></div>
@@ -314,6 +321,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
           <span class="lbl">Teams</span>
           <div class="seg" id="sizeSeg" role="group" aria-label="Team size"><button type="button" data-s="1">1v1</button><button type="button" data-s="2">2v2</button><button type="button" data-s="3">3v3</button></div>
           <div class="seg" id="botSeg" role="group" aria-label="Fill empty spots with bots"><button type="button" data-b="1">Bots fill in</button><button type="button" data-b="0">No bots</button></div>
+          <span class="nobots" id="noBotsNote" hidden>No bots in party games</span>
         </div>
         <div class="opts">
           <span class="lbl">Bots</span>
@@ -351,6 +359,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
           <div class="setting"><span>Landing marker</span><div class="seg" id="markSeg" role="group" aria-label="Show where the ball will land"><button type="button" data-m="1">On</button><button type="button" data-m="0">Off</button></div></div>
           <div class="setting"><span>Team colours</span><div class="pairs" id="teamSeg" role="group" aria-label="Team colours"></div></div>
           <p class="note" style="margin:0">Online, everyone sees the colours picked by the room's host.</p>
+          <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
         </details>
       </div>
 
@@ -362,6 +371,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <div class="bodies" id="bodies" role="group" aria-label="Car body"></div>
         <div class="label">Accent colour</div>
         <div class="swatches" id="swatches" role="group" aria-label="Accent colour"></div>
+        <button class="btn alt" id="lockerBtn" type="button" hidden style="margin-top:12px">Locker</button>
         <p class="note" style="margin:12px 0 0">Your car takes your team's colour in a match. Every body has the same hitbox.</p>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
       </div>
@@ -380,6 +390,20 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
         <button class="btn red" id="leave" type="button">Leave match</button>
       </div>
       <p class="msg" id="inviteMsg"></p>
+    </div>
+  </section>
+
+  <section id="locker" class="overlay center" hidden role="dialog" aria-modal="true" aria-labelledby="lockerTitle">
+    <div class="card mini lockercard">
+      <h2 id="lockerTitle">Locker</h2>
+      <div class="label">Goal explosions</div>
+      <canvas id="lockerView" aria-label="Carbon Star preview"></canvas>
+      <div class="giftrow">
+        <div><b>Carbon Star</b><p class="note">Made for Carbon.</p></div>
+        <div class="seg" id="giftSeg" role="group" aria-label="Carbon Star"><button type="button" data-g="1">On</button><button type="button" data-g="0">Off</button></div>
+      </div>
+      <p class="note">When you score, a dying red star flares in the goal and a ripple carries the whole arena out into deep space until the kickoff. Everyone in the match sees it.</p>
+      <div class="row"><button class="btn alt" id="giftReplay" type="button">Replay</button><button class="btn" id="lockerClose" type="button">Done</button></div>
     </div>
   </section>
 
@@ -405,6 +429,8 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 <script>
 (function(){
 'use strict';
+// Spanish (../lang.js, es.js): T() gives the words in the player's language, for text the page can't leave to lang.js.
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // Turkey Week (../events.js): the ball is drawn as a pumpkin with a stem and the grass in autumn colours. Only the
 // drawing changes (the ball's size, bounce and everything sent to the room are the same); the Turkey Week switch on
 // the Back Room page turns it off for this browser. It is read once, here, when the game loads.
@@ -501,6 +527,7 @@ const SCHEMES=[
     ink:lum(c)>.42?'#0d1222':'#fff'},o,{hex:css(c),rgb:[0,1,2].map(i=>ch(c,i)).join(',')})});
 })();
 const TEAM=[{dir:1},{dir:-1}];
+const TN=t=>T(TEAM[t].name);   // a team's colour name, in the player's language
 let schemeIdx=0;
 function useScheme(i){schemeIdx=SCHEMES[i]?i:0;for(let t=0;t<2;t++)Object.assign(TEAM[t],SCHEMES[schemeIdx].t[t])}
 useScheme(0);
@@ -547,7 +574,7 @@ const bodyId=v=>{v=v|0;return v>=0&&v<BODIES.length?v:0};
 // free to wear, saved as boostball-kit) or with
 // the cosmetics switch in ../cosmetics.js (then you wear what your locker owns). A kit is looks only.
 const KIT_LEN=6;
-let KIT=null,myKit=null;
+let KIT=null,myKit=null,CS=null;   // CS: Carbon Star (carbon-star.js), null until it is needed
 const cosOn=()=>!!(window.BackRoomCosmetics&&BackRoomCosmetics.on());
 const hiddenOn=()=>garageOn()||cosOn();
 // a kit from the network or storage: '3.0.12' or a list, as six whole numbers 0 to 255, or null when it is all zeros
@@ -557,6 +584,30 @@ const kitOf=v=>{
   return any?k:null;
 };
 const kitStr=k=>k?k.join('.').replace(/(\.0)+$/,''):'';
+// ---- Carbon Star: an exclusive gift (README, "Carbon Star"; ../captains.js GIFTS) ----
+// A goal explosion made for one player, Carbon. He wears it from his Locker (a button under the garage that only he
+// sees; the screen holds that one item); the captains may wear it too, from their Kit. It travels like any goal
+// explosion, as goal number GIFT_NO in the kit (kt), and is drawn by carbon-star.js, fetched only when it can be needed.
+// Whatever a player's data claims, a page draws it only for a goal by an account that has the gift (giftScorer: its own
+// account here, or the scorer's account id in the room); anyone else, and every bot, gets the plain fireball. The test
+// switch ?carbonstar=1 (localhost or an automated browser only) shows the Locker for testing.
+const GIFT_ID='bb-goal-carbon-star',GIFT_NO=22;
+const giftTest=()=>!!(CAPTAINS&&CAPTAINS.test('carbonstar','boostball-carbonstar'));
+const giftOk=id=>id===GIFT_ID&&(giftTest()||!!(CAPTAINS&&CAPTAINS.gift&&CAPTAINS.gift(GIFT_ID)));   // this player has it
+const giftLocker=()=>giftOk(GIFT_ID)&&!hiddenOn();   // the Locker: the gift's owner (with the Kit open, it is listed there instead)
+const giftWorn=()=>store.get('gift','1')!=='0';      // the Locker's on/off (on until he turns it off)
+function giftScorer(c){
+  if(!c||c.isBot)return false;
+  if(!c.remote)return giftOk(GIFT_ID);
+  return !!(CAPTAINS&&CAPTAINS.gift&&CAPTAINS.gift(GIFT_ID,c.id));   // a remote player's car is keyed by their account id
+}
+// the kit to wear: with the Locker, Carbon Star in the goal slot while it is on; never the gift for anyone without it
+function withGift(k){
+  const a=k?k.slice():[0,0,0,0,0,0];
+  if(giftLocker())a[2]=giftWorn()?GIFT_NO:a[2]===GIFT_NO?0:a[2];
+  else if(a[2]===GIFT_NO&&!giftOk(GIFT_ID))a[2]=0;
+  return kitOf(a);
+}
 // Bot names. Each match the bots get names picked at random from this list: no two the same, and never the name of
 // a human player in the room. Online, the host's bots send their name as a position in this list (bh), so other
 // players see the host's names: add new names at the end and don't reorder or remove any.
@@ -1386,6 +1437,9 @@ function recolorGoals(){
   scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xcfdcff,size:1.6,sizeAttenuation:false,transparent:true,opacity:.7,fog:false,depthWrite:false})));
   scene.add(sky);
 })();
+// Everything that makes up the map (the pitch, walls, goals, stands, towers and sky; the boost pads join below), for
+// Carbon Star (carbon-star.js), which draws the whole map as outlines in space while it plays.
+const MAP=scene.children.filter(o=>!o.isLight);
 
 // ---------- bloom (Pretty graphics) ----------
 // Bright things (floodlights, goal frames, neon strips, boost, the goal fireball) bleed a soft glow into the picture
@@ -1583,6 +1637,7 @@ const PADS=[];
     PADS.push({i,x,z,big,t:0,g,orb,dim:dimM,lit:orbM});
   });
 })();
+for(const p of PADS)MAP.push(p.g);
 function padsVisual(now,time){
   for(const p of PADS){
     const up=now>=p.t;
@@ -2170,7 +2225,8 @@ function fxUnit(up){ // a random direction (in _v1), tipped upward by `up`
   _v1.normalize();_v1.y=Math.abs(_v1.y)*(1-up)+up*.7;return _v1.normalize();
 }
 function goalExplosion(p,team,by){
-  if(KIT&&by&&by.kit&&KIT.goal(by.kit[2],p,team))return; // the scorer's own goal explosion (kit.js)
+  if(by&&by.kit&&by.kit[2]===GIFT_NO){if(CS&&giftScorer(by)&&CS.play(p))return} // Carbon Star, only for a scorer who has it; else the fireball
+  else if(KIT&&by&&by.kit&&KIT.goal(by.kit[2],p,team))return; // the scorer's own goal explosion (kit.js)
   fxColours();
   const low=touchIn.active||gfx==='fast',T=TEAM[team];
   const at=boom.at.copy(p),toField=at.z>0?-1:1;
@@ -2476,7 +2532,7 @@ function kickoffSpot(c){
   return c.team===0?[x,z]:[-x,-z];
 }
 function setupKickoff(){
-  clearSkids();for(const c of cars)c.skid=null;if(KIT)KIT.clearGoal();
+  clearSkids();for(const c of cars)c.skid=null;if(KIT)KIT.clearGoal();if(CS)CS.stop();
   ball.pos.set(0,BR,0);ball.vel.set(0,0,0);ball.ang.set(0,0,0);ballVisOff.set(0,0,0);ballHidden=false;ballBack=0;
   touches=[];lastTouchBt=R?R.ko:0;owner=online?Net.hostUid():'local';goalPending=false;
   for(const p of PADS)p.t=0;
@@ -2539,19 +2595,20 @@ function onGoal(v){
   if(sc&&sc===me&&mode!=='attract'&&window.BackRoomStats){BackRoomStats.add('goals',1);BackRoomStats.max('mgoals',me.stats.g)}
   if(as&&!as.remote)as.stats.a++;
   const name=sc?sc.name:'';
-  const sub=(v.bz?'At the buzzer · ':'')+(v.sc?(name||'Someone')+(v.as&&as?' · assist '+as.name:'')+' · '+(v.gs|0)+' km/h':'Own goal');
+  const sub=(v.bz?T('At the buzzer')+' · ':'')+(v.sc?(name||T('Someone'))+(v.as&&as?' · '+T('assist {n}',{n:as.name}):'')+' · '+(v.gs|0)+' km/h':T('Own goal'));
   banner('GOAL!',sub,3,t);
-  addFeed((v.sc?(name||'Someone')+' scored':'Own goal')+' for '+TEAM[t].name,'t'+t);
+  addFeed(v.sc?T('{n} scored for {t}',{n:name||T('Someone'),t:TN(t)}):T('Own goal for {t}',{t:TN(t)}),'t'+t);
 }
 function endMatch(){
+  if(CS)CS.stop();
   state='end';endShown=true;$('hud').hidden=true;$('board').hidden=true;$('pause').hidden=true;paused=false;
   const win=R.sb>R.so?0:1,mine=me?me.team:0;
   if((mode==='online'||mode==='practice')&&me&&win===mine&&window.BackRoomStats)BackRoomStats.add('wins',1);
   // ranked rating (../elo.js): online matches only; opp is everyone on the other team
   if(mode==='online'&&me&&window.BackRoomElo){try{const s=win===mine?1:0;BackRoomElo.report({id:Net.room+':'+R.id,won:!!s,opp:cars.filter(c=>c!==me&&c.team!==mine&&c.active!==false).map(c=>c.isBot?{bot:1,s}:{u:c.id,s})})}catch(e){}}
-  $('endTitle').textContent=(mode==='online'||mode==='practice')&&!WATCH?(win===mine?'Victory!':'Defeat'):TEAM[win].name+' wins';
+  $('endTitle').textContent=(mode==='online'||mode==='practice')&&!WATCH?(win===mine?'Victory!':'Defeat'):T('{t} wins',{t:TN(win)});
   $('endTitle').style.color=TEAM[win].lite;
-  $('endSub').textContent=TEAM[0].name+' '+R.sb+' – '+R.so+' '+TEAM[1].name+(R.rem<=0&&R.g>0&&!R.bz?' · won in overtime':'');
+  $('endSub').textContent=TN(0)+' '+R.sb+' – '+R.so+' '+TN(1)+(R.rem<=0&&R.g>0&&!R.bz?' · '+T('won in overtime'):'');
   renderTeams($('endTeams'),true);
   $('again').hidden=WATCH;$('again').disabled=false;   // a spectator can't start the next match; Menu reads Leave
   $('endMsg').textContent=mode==='online'&&Net.isPublic?'The next match starts in a few seconds.':WATCH?'The next match shows here when the players start it.':'';
@@ -3070,7 +3127,7 @@ async function startWatch(){
   document.body.classList.add('watch');
   clearCars(false);mode='online';state='playing';paused=false;R=null;me=null;
   touches=[];lastTouchBt=0;owner='';goalPending=false;
-  showHud();$('spec').hidden=false;$('scorebar').hidden=false;$('tnames').textContent=TEAM[0].name+' · '+TEAM[1].name;
+  showHud();$('spec').hidden=false;$('scorebar').hidden=false;$('tnames').textContent=TN(0)+' · '+TN(1);
   $('toMenu').textContent='Leave';
   const bk=$('sBoard').querySelector('kbd');bk.textContent=KB.short('board').toUpperCase();
   setHint(touchIn.active?'<b>◀ ▶</b> switch players · <b>FREE</b> flies the camera (stick to move, drag to look)'
@@ -3221,7 +3278,7 @@ function updateHud(dt,now){
       const bip=ballInPlay(now);
       // (and, online, how many spectators are watching: ../watchers.js)
       const wn=online&&!WATCH?Net.watchN:0;
-      if(bip!==hudCache.bip||wn!==hudCache.wn){hudCache.bip=bip;hudCache.wn=wn;$('tnames').classList.toggle('bip',bip);$('tnames').textContent=bip?'0:00 · ball in play':TEAM[0].name+' · '+TEAM[1].name+(wn?' · '+wn+' watching':'')}
+      if(bip!==hudCache.bip||wn!==hudCache.wn){hudCache.bip=bip;hudCache.wn=wn;$('tnames').classList.toggle('bip',bip);$('tnames').textContent=bip?T('0:00 · ball in play'):TN(0)+' · '+TN(1)+(wn?' · '+T('{n} watching',{n:wn}):'')}
     }
   }
   if(me){
@@ -3275,7 +3332,7 @@ function renderTeams(el,end){
   const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
   el.innerHTML=[0,1].map(t=>{
     const rows=statsRows(t);
-    return '<table class="tbl t'+t+'"><caption>'+TEAM[t].name+(R?' · '+(t?R.so:R.sb):'')+'</caption><tr><th>Player</th><th>Score</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Shots</th><th>Touches</th></tr>'+
+    return '<table class="tbl t'+t+'"><caption>'+TN(t)+(R?' · '+(t?R.so:R.sb):'')+'</caption><tr><th>Player</th><th>Score</th><th>Goals</th><th>Assists</th><th>Saves</th><th>Shots</th><th>Touches</th></tr>'+
       (rows.length?rows.map(r=>'<tr class="'+(r.c===me?'me':'')+'"><td>'+esc(r.c.name)+(r.c.isBot?'<span class="bot">BOT</span>':'')+(r.c===mvp?'<span class="mvp">MVP</span>':'')+'</td><td>'+r.p+'</td><td>'+r.c.stats.g+'</td><td>'+r.c.stats.a+'</td><td>'+r.c.stats.sv+'</td><td>'+r.c.stats.sh+'</td><td>'+(r.c.stats.t|0)+'</td></tr>').join(''):'<tr><td colspan="7">No one yet</td></tr>')+'</table>';
   }).join('');
 }
@@ -3511,7 +3568,7 @@ const Net={
   },
   rematch(){
     if(!online||!this.refs||!R||WATCH)return;const id=R.id,sz=R.sz,bo=R.bo;
-    this.refs.round.transaction(cur=>(!cur||cur.id===id)?newRoundObj(cur||R,this.now(),sz,bo):undefined).catch(()=>{});
+    this.refs.round.transaction(cur=>(!cur||cur.id===id)?newRoundObj(cur||R,this.now(),sz,bo&&!isPartyRoom(this.room)):undefined).catch(()=>{});
   },
   leave(){
     this.watchOff();
@@ -3565,10 +3622,11 @@ function onRemoteState(uid,v){
   if(!c){
     if(cars.filter(x=>x.remote&&!x.isBot).length>=MAX_ROOM-(WATCH?0:1))return;   // a spectator has no car of its own
     c=remoteCar(uid,{name:cleanName(v.n)||'Player',team,body:bodyId(v.bd),accent:clamp(v.ac|0,0,ACCENTS.length-1)});
-    if(state==='playing')addFeed(c.name+' joined '+TEAM[team].name,'t'+team);
+    if(state==='playing')addFeed(T('{n} joined {t}',{n:c.name,t:TN(team)}),'t'+team);
   }
   c.name=cleanName(v.n)||c.name;c.team=team;c.body=bodyId(v.bd);c.accent=clamp(v.ac|0,0,ACCENTS.length-1);
   c.kit=kitOf(v.kt);if(c.kit)kitLoad();
+  if(c.kit&&c.kit[2]===GIFT_NO){csLoad();if(CAPTAINS&&CAPTAINS.giftsReady)CAPTAINS.giftsReady()}   // Carbon Star may be needed: get ready to check and draw it
   setRemoteKin(c,+v.x,+v.y||CAR_Y,+v.z,parseVec(v.q,4),parseVec(v.v,3),ts);
   c.netGround=v.g===undefined?(+v.y||CAR_Y)<CAR_Y+.1:!!v.g;
   c.boosting=!!v.bo;c.boost=clamp(+v.bs||0,0,100);c.placed=v.pl!==0;
@@ -3607,7 +3665,7 @@ function remoteDemo(c,dm){
 }
 function onRemoteLeft(uid){
   remoteSeen.delete(uid);
-  const c=carById(uid);if(c){if(state==='playing')addFeed(c.name+' left');removeCar(c)}
+  const c=carById(uid);if(c){if(state==='playing')addFeed(T('{n} left',{n:c.name}));removeCar(c)}
   if(owner===uid)owner=Net.hostUid();
 }
 function handleEvent(ev){
@@ -3640,7 +3698,7 @@ function hostDuties(now){
   // a player who joins with a bot's name: that bot takes another one
   for(const b of cars)if(b.isBot&&!b.remote&&cars.some(h=>!h.isBot&&String(h.name).toLowerCase()===b.name.toLowerCase()))b.name=botName(b);
   // keep each team topped up with bots
-  const want=R.bo?R.sz:0;
+  const want=R.bo&&!isPartyRoom(Net.room)?R.sz:0;
   for(const t of [0,1]){
     const humans=cars.filter(c=>c.team===t&&!c.isBot).length;
     let bots=cars.filter(c=>c.team===t&&c.isBot);
@@ -3689,6 +3747,9 @@ function updateRemotes(dt){
 //  Modes
 // =====================================================================
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: no bots, whatever this browser's Bots fill in says or the round's bo says.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^bb-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['nitro','kickoff','turbo','aerial','flip','boost','bicycle','ceiling'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice','freeplay'])$(id).disabled=on}
@@ -3714,7 +3775,7 @@ function startLocal(m){
   }
   applyRound(newRoundObj(null,nowMs(),m==='free'?1:teamSize,1));
   if(m==='free'){R.ko=nowMs();setupKickoff();placeCar(me,0,-60,0);me.boost=100}
-  showHud();$('tnames').textContent=m==='free'?'Free play':TEAM[0].name+' · '+TEAM[1].name;
+  showHud();$('tnames').textContent=m==='free'?'Free play':TN(0)+' · '+TN(1);
   $('scorebar').hidden=false;$('waitNote').hidden=true;
   document.body.classList.toggle('free',m==='free');
   const tch=touchIn.active;
@@ -3722,7 +3783,7 @@ function startLocal(m){
     :(tch?'Push the stick up to drive · <b>JUMP</b> twice with the stick tilted to flip · hold <b>BOOST</b> · hold <b>DRIFT</b> and steer':'<b>'+KB.short('forward')+'/'+KB.short('back')+'</b> drive · <b>'+KB.short('jump')+'</b> jump, again with a direction to flip · <b>'+KB.short('boost')+'</b> boost · hold <b>'+KB.short('slide')+'</b> and steer to drift · <b>'+KB.short('ballcam')+'</b> ball cam'),7);
 }
 function setupAttract(){
-  document.body.classList.remove('free');Net.leave();clearCars(false);mode='attract';state='menu';paused=false;R=null;me=null;if(KIT)KIT.clearGoal();
+  document.body.classList.remove('free');Net.leave();clearCars(false);mode='attract';state='menu';paused=false;R=null;me=null;if(KIT)KIT.clearGoal();if(CS)CS.stop();
   for(let t=0;t<2;t++)for(let i=0;i<2;i++)addBot(t,'normal');
   applyRound(newRoundObj(null,nowMs(),2,1));R.rem=1e12;
   $('hud').hidden=true;$('menu').hidden=false;$('end').hidden=true;$('pause').hidden=true;
@@ -3735,13 +3796,13 @@ function prepOnline(){
   touches=[];lastTouchBt=0;owner='';goalPending=false;
 }
 function enterOnline(){
-  state='playing';showHud();$('scorebar').hidden=false;$('tnames').textContent=TEAM[0].name+' · '+TEAM[1].name;
-  setHint('You\'re on <b style="color:'+TEAM[me.team].lite+'">'+TEAM[me.team].name+'</b>'+(Net.isPublic?' in a public lobby':' in room '+Net.room.replace(/^bb-/,''))+' · <b>Esc</b> to invite or switch team',6);
+  state='playing';showHud();$('scorebar').hidden=false;$('tnames').textContent=TN(0)+' · '+TN(1);
+  setHint('You\'re on <b style="color:'+TEAM[me.team].lite+'">'+TN(me.team)+'</b>'+(Net.isPublic?' in a public lobby':' in room '+Net.room.replace(/^bb-/,''))+' · <b>Esc</b> to invite or switch team',6);
 }
 async function joinPrivate(){
   const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);
   busy(true);setMsg('Connecting…');
-  try{Net.leave();prepOnline();await Net.joinRoom('bb-'+code,false,teamSize,botsOn);enterOnline();setMsg('')}
+  try{Net.leave();prepOnline();await Net.joinRoom('bb-'+code,false,teamSize,botsOn&&!isPartyRoom(code));enterOnline();setMsg('')}
   catch(err){Net.leave();setupAttract();setMsg(err.message||String(err),true)}
   finally{busy(false)}
 }
@@ -3770,11 +3831,11 @@ function showPause(){
   paused=true;$('pause').hidden=false;
   for(const k in keys)keys[k]=false;
   const on=mode==='online';
-  $('pauseSub').textContent=on?(Net.isPublic?'Public lobby · the match keeps going':'Room '+Net.room.replace(/^bb-/,'')+' · the match keeps going'):mode==='free'?'Free play':'Practice vs '+DIFF[practiceDiff].name+' bots · '+teamSize+'v'+teamSize;
+  $('pauseSub').textContent=on?(Net.isPublic?'Public lobby · the match keeps going':'Room '+Net.room.replace(/^bb-/,'')+' · the match keeps going'):mode==='free'?'Free play':T('Practice vs {d} bots · {n}v{n}',{d:T(DIFF[practiceDiff].name),n:teamSize});
   $('copyInvite').hidden=!on||Net.isPublic;
   const other=me?1-me.team:1;
   $('switchTeam').hidden=!on||!R||cars.filter(c=>c.team===other&&!c.isBot).length>=R.sz;
-  $('switchTeam').textContent='Join '+TEAM[other].name;
+  $('switchTeam').textContent=T('Join {t}',{t:TN(other)});
   $('inviteMsg').textContent='';
 }
 function resumeGame(){
@@ -3787,7 +3848,7 @@ function switchTeam(){
   if(!me||!online)return;
   me.team=1-me.team;me.placed=false;attachCarMesh(me);
   respawnCar(me);resumeGame();
-  addFeed('You joined '+TEAM[me.team].name,'t'+me.team);
+  addFeed(T('You joined {t}',{t:TN(me.team)}),'t'+me.team);
 }
 $('quick').onclick=quickMatch;$('joinRoom').onclick=joinPrivate;
 $('practice').onclick=()=>startLocal('practice');$('freeplay').onclick=()=>startLocal('free');
@@ -3811,7 +3872,14 @@ function segBind(id,attr,get,set){
   el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;set(b.dataset[attr]);paint();sfx('click')});paint();
 }
 segBind('sizeSeg','s',()=>teamSize,v=>{teamSize=+v;store.set('size',teamSize)});
-segBind('botSeg','b',()=>botsOn?1:0,v=>{botsOn=v==='1';store.set('bots',botsOn?1:0)});
+segBind('botSeg','b',()=>botsOn&&!isPartyRoom($('room').value)?1:0,v=>{botsOn=v==='1';store.set('bots',botsOn?1:0)});
+// A party code in the room box: Bots fill in shows off and can't be changed (the saved choice is kept for other rooms).
+function paintBotLock(){
+  const party=isPartyRoom($('room').value);
+  $('botSeg').querySelectorAll('button').forEach(b=>{b.disabled=party;b.setAttribute('aria-pressed',String(b.dataset.b===(botsOn&&!party?'1':'0')))});
+  $('noBotsNote').hidden=!party;
+}
+$('room').addEventListener('input',paintBotLock);
 segBind('diffSeg','d',()=>practiceDiff,v=>{practiceDiff=v;store.set('diff',v)});
 segBind('gfxSeg','q',()=>gfx,v=>{gfx=v;store.set('gfx',v);fxTier=2;resize()});
 segBind('markSeg','m',()=>markerOn?1:0,v=>{markerOn=v==='1';store.set('marker',markerOn?1:0)});
@@ -3997,6 +4065,7 @@ function stepVisuals(dt,now,freeze){
   if(!freeze){updateParts(dt);updateRings(dt);updateFx(dt);if(KIT)KIT.update(dt)}
   updateSkids(clock);
   updateCamera(dt);
+  if(CS&&!freeze)CS.update(dt);   // Carbon Star: after everything else has moved, so it can dress the cars as drawn
   updateHud(dt,now);
   if(WATCH)specHud();
   if(state==='playing'&&online){
@@ -4009,7 +4078,7 @@ function stepVisuals(dt,now,freeze){
 // An invite opens this page with #bb-<code>: fill in the room and point at the join button.
 const inv=/^#bb-([a-z0-9-]{1,17})$/.exec(location.hash);
 $('room').value=inv?inv[1]:store.get('room','')||'';
-$('name').value=myName;
+$('name').value=myName;paintBotLock();
 if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('quick').classList.add('alt')}
 
 // ---- fetching kit.js (see KIT near the top) ----
@@ -4017,7 +4086,7 @@ if(inv){setMsg('You were invited to room bb-'+inv[1]+'. Press Play in room to jo
 const KITAPI={THREE,scene,camera,renderer,TEAM,ACCENTS,BODY_SHAPES,SHARED_G,joinGeoms,loft,stadiumEnv,glossOn,wheelG,hubCapG,spokesG,BR,AW,AL,AH,GW,GH,ballMesh,store,get garageOn(){return garageOn()},cosOn,hiddenOn,KIT_LEN,kitOf,
   low:()=>touchIn.active||gfx==='fast',flash,shake,sfx,audio:()=>actx&&volume>0?{actx,master,tone,noise}:null,reduced:()=>REDUCED_MOTION,
   get garage(){return garage},get state(){return state},get myKit(){return myKit},get myAccent(){return myAccent},
-  setKit(k){myKit=kitOf(k);if(me&&!me.remote)me.kit=myKit}};
+  setKit(k){myKit=withGift(kitOf(k));if(me&&!me.remote)me.kit=myKit},giftOk,giftPreview:()=>giftPreview(),giftFrame:(Gr,dt)=>giftFrame(Gr,dt)};
 let kitAsked=false;
 function kitLoad(){
   if(kitAsked)return;kitAsked=true;
@@ -4027,7 +4096,7 @@ function kitLoad(){
 function kitSync(){
   if(!KIT)return;
   const on=hiddenOn(),had=!!$('kit');
-  myKit=KIT.mine();if(me&&!me.remote)me.kit=myKit;   // mine() is null whenever the hidden things are off for this player
+  myKit=withGift(KIT.mine());if(me&&!me.remote)me.kit=myKit;   // mine() is null whenever the hidden things are off for this player (withGift: Carbon Star)
   if(on)KIT.menu();
   const box=$('kit');if(box)box.hidden=!on;
   if(mode==='attract'&&(on||had))for(const c of cars)if(c.isBot&&!c.remote)c.kit=on?KIT.botKit():null;
@@ -4041,11 +4110,84 @@ function garageSync(){
   renderGarageUI();
   if(hiddenOn())kitLoad();
   kitSync();
+  giftSync();
 }
 if(CAPTAINS)CAPTAINS.onChange(garageSync);
+if(CAPTAINS&&CAPTAINS.onAccount)CAPTAINS.onAccount(()=>giftSync());
 // cosmetics.js is deferred, so its switch can only be read once the page has been parsed
 if(garageOn())kitLoad();else if(document.readyState==='loading')addEventListener('DOMContentLoaded',()=>{if(cosOn())kitLoad()});else if(cosOn())kitLoad();
-if(navigator.webdriver)window.__bb={get KIT(){return KIT},get myKit(){return myKit},kitOf,kitStr,kitLoad,get hiddenOn(){return hiddenOn()},get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,carCar,physStep,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
+
+// ---- Carbon Star (see GIFT_ID near the top) ----
+// What carbon-star.js is lent. Like the kit, it only draws.
+const CSAPI={THREE,scene,camera,renderer,MAP,ballMesh,AW,AL,GW,GH,GD,CIRCLE:15,buildCarModel,dropModel,
+  get myBody(){return myBody},get myAccent(){return myAccent},
+  carModels:()=>cars.map(c=>c.mesh),
+  junk:()=>{const j=[skMesh,ballShadow,pointsObj];if(KIT&&KIT.sprites)j.push(KIT.sprites.pts);return j},
+  low:()=>touchIn.active||gfx==='fast',reduced:()=>REDUCED_MOTION,shake,audio:()=>actx&&volume>0?{actx,master,tone,noise}:null,
+  // seconds until the arena must be back to normal: the countdown (or the final whistle); free play has no kickoff (null)
+  holdLeft(){
+    if(mode==='free'||!R)return null;
+    const now=nowMs(),end=remainingAt(now)<=0&&R.sb!==R.so?R.ko-COUNT_MS-900:R.ko-COUNT_MS;
+    return (end-now)/1000;
+  }};
+let csAsked=false;
+function csLoad(){
+  if(csAsked)return;csAsked=true;
+  loadScript('carbon-star.js').then(()=>{CS=window.BoostballCarbonStar(CSAPI);setTimeout(()=>{try{CS.warm()}catch(e){console.error(e)}},400)}).catch(e=>{csAsked=false;console.error(e)});
+}
+function csReady(){csLoad();return new Promise(res=>{const t0=performance.now();(function w(){if(CS||performance.now()-t0>8000)return res(CS);setTimeout(w,50)})()})}
+// whether this player has it, the Locker button, and what their car wears: again whenever the account may have changed
+function giftSync(){
+  myKit=withGift(KIT?KIT.mine():myKit);if(me&&!me.remote)me.kit=myKit;
+  $('lockerBtn').hidden=!giftLocker();
+  if(giftOk(GIFT_ID)||myKit&&myKit[2]===GIFT_NO)csLoad();
+  if($('locker')&&!$('locker').hidden&&!giftLocker())lockerClose();
+}
+// The Locker: one screen, one item. Its picture is drawn by its own small renderer while the screen is open.
+let lk=null;
+function lockerPaint(){
+  const on=giftWorn();
+  for(const b of document.querySelectorAll('#giftSeg button'))b.setAttribute('aria-pressed',String((b.dataset.g==='1')===on));
+}
+function lockerOpen(){
+  if(!giftLocker())return;
+  $('locker').hidden=false;lockerPaint();sfx('click');$('lockerClose').focus({preventScroll:true});$('locker').querySelector('.lockercard').scrollTop=0;
+  csReady().then(C=>{
+    if(!C||$('locker').hidden||lk)return;
+    const cv=$('lockerView');let r;
+    try{r=new THREE.WebGLRenderer({canvas:cv,antialias:true})}catch(e){return}
+    lk={r,pv:C.Preview(r),raf:0,last:performance.now(),idle:0};
+    const loop=t=>{
+      if(!lk)return;
+      const w=cv.clientWidth,h=cv.clientHeight,pr=Math.min(2,devicePixelRatio||1);
+      if(w&&h&&(cv.width!==Math.round(w*pr)||cv.height!==Math.round(h*pr))){lk.r.setPixelRatio(pr);lk.r.setSize(w,h,false)}
+      const dt=Math.min(.05,(t-lk.last)/1000);lk.last=t;
+      if(w&&h&&!lk.pv.frame(dt,w/h)&&(lk.idle+=dt)>2.5){lk.idle=0;lk.pv.play(true)}   // it plays again by itself every few seconds, quietly
+      lk.raf=requestAnimationFrame(loop);
+    };
+    lk.raf=requestAnimationFrame(loop);
+    initAudio();lk.pv.play();
+  });
+}
+function lockerClose(){
+  $('locker').hidden=true;
+  if(lk){cancelAnimationFrame(lk.raf);lk.pv.dispose();lk.r.dispose();try{lk.r.forceContextLoss()}catch(e){}lk=null}
+}
+$('lockerBtn').addEventListener('click',lockerOpen);
+$('lockerClose').addEventListener('click',()=>{sfx('click');lockerClose()});
+$('giftReplay').addEventListener('click',()=>{initAudio();if(lk)lk.pv.play()});
+$('giftSeg').addEventListener('click',e=>{
+  const b=e.target.closest('[data-g]');if(!b)return;
+  store.set('gift',b.dataset.g);sfx('click');lockerPaint();giftSync();
+  if(b.dataset.g==='1'){initAudio();if(lk)lk.pv.play()}
+});
+$('locker').addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();lockerClose();$('lockerBtn').focus()}});
+// a captain's Kit: Preview plays it in the garage picture
+let gpv=null;
+function giftPreview(){csReady().then(C=>{if(!C||!garage)return;if(!gpv)gpv=C.Preview(garage.r);initAudio();gpv.play()})}
+function giftFrame(Gr,dt){if(!gpv||!gpv.live)return false;gpv.frame(dt,Gr.cam.aspect);return true}
+giftSync();
+if(navigator.webdriver)window.__bb={get KIT(){return KIT},get CS(){return CS},get lk(){return lk},get gpv(){return gpv},giftSync,giftScorer,csReady,lockerOpen,lockerClose,CSAPI,get myKit(){return myKit},kitOf,kitStr,kitLoad,get hiddenOn(){return hiddenOn()},get fxTier(){return fxTier},get state(){return state},get mode(){return mode},get me(){return me},get cars(){return cars},ball,get R(){return R},set R(v){R=v},PADS,Net,stepCar,carCar,physStep,makeCar,newInput,stepBall,carBall,predictGoal,applyRound,onRemoteState,handleEvent,applyBallSnap,startLocal,setupAttract,keys,phaseOf,nowMs,
   get owner(){return owner},fast(sec){for(let i=0;i<sec*60;i++){warp+=1000/60;simulate(1/60,false)}},get lastTouchBt(){return lastTouchBt},setPaused:v=>{paused=v},camera,renderer,scene,toggleBallCam,touches:()=>touches,scoreGoal,remainingAt,demolish,botThink,
   // fixed-step driving for tests: manual(true) stops the real-time loop; advance() runs whole frames (physics, camera,
   // HUD, landing marker) at 60 Hz without drawing; render() draws one frame.

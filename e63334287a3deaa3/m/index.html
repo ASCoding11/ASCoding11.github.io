@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script>/* es.js (the Back Room's Spanish words) only when Spanish is on: at once if it already is, else on the first switch to Spanish */(function(){var L=window.BackRoomLang,u='/e63334287a3deaa3/es.js';if(!L)return;if(L.get()==='es'){window.__brEs=1;document.write('<script src="'+u+'"><\/script>')}document.addEventListener('backroom:lang',function(e){if(e.detail&&e.detail.lang==='es'&&!window.__brEs){window.__brEs=1;var s=document.createElement('script');s.src=u;document.head.appendChild(s)}})})();</script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Games</title>
@@ -22,6 +24,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=IBM+Plex+Sans:wght@400;600&family=IBM+Plex+Mono:wght@600&display=swap">
 <script src="/e63334287a3deaa3/feedback.js" defer></script>
 <script src="/e63334287a3deaa3/news.js" defer></script>
+<script src="/offline.js" defer></script> <!-- Offline mode: keeps opened games for no-internet play (see README) -->
 <script src="/e63334287a3deaa3/account-nudge.js" defer></script>
 <script src="/e63334287a3deaa3/avatar.js" defer></script>
 <script src="/e63334287a3deaa3/captains.js" data-switches defer></script>
@@ -146,6 +149,7 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
       <p class="count" id="count"></p>
     </div>
     <div data-theme-switch></div> <!-- Auto / Light / Dark (theme.js fills it in) -->
+    <div data-lang-toggle></div> <!-- English / Español (lang.js fills it in) -->
     <a class="full" href="/" target="_top">Main site</a>
     <!-- The one Turkey Week switch for every game (events.js fills it in and shows it only during the event; see README). It is inside the header so the panels other scripts add under the header come after it. -->
     <div class="tkrow"><button type="button" data-turkey-switch hidden></button></div>
@@ -180,6 +184,7 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
       ['slipstream','Slipstream','22-car open-wheel races. Draft, brake late, pass.',1],
       ['boostball','Boostball','Rocket-car soccer with a giant ball.',1],
       ['rampline','Rampline','Stunt time trials, online boards and a track builder.',1],
+      ['flipline','Flipline','One-button stunt bike: hold to ride, hold in the air to flip.',1],
       ['rumble-karts','Rumble Karts','Three-minute kart brawls with weapons.',1]
     ],'cars'],
     ['Shoot, build and outlast',[
@@ -195,7 +200,9 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
       ['turbo-trail','Turbo Trail','A speedrun obby: 25 quick levels, medals, splits and online races.',1],
       ['spire','Spire','Race up a random tower. Every landing saves your place, so mind the red.',1],
       ['asteroid-run','Asteroid Run','Run tile tunnels in space. Take a wall and the tunnel turns.',0],
-      ['escapade','Escapade','World after world of escape rooms. Find the key, crack the code.',1]
+      ['rollaway','Rollaway','Steer a heavy marble down an aqueduct above the clouds.',0],
+      ['escapade','Escapade','World after world of escape rooms. Find the key, crack the code.',1],
+      ['hush-pools','Hush Pools','A co-op horror obby for up to 4. Cross the flooded halls quietly: it hears every splash.',1]
     ],'parkour'],
     ['Hide, bluff and shout',[
       ['chromaflage','Chromaflage','Paint yourself to match the room, then hide. Or hunt the painted.',1],
@@ -228,6 +235,7 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
       ['coil','Coil','Grow your snake and cut off the bigger ones.',0],
       ['lunge-line','Lokop','Pixel sword duels. Win, run, and drop into the pit.',1],
       ['tidewick','Tidewick','A rainy-harbour platformer: stomp, jump, and get past the Tollkeeper.',0],
+      ['beatvault','Beatvault','One button, every jump on the beat. Six songs and a level editor.',1],
       ['patchwork-tower','Patchwork Tower','Fix the windows while a gargoyle kicks bricks at you.',0],
       ['flickerwood','Flickerwood','A maze chase by moonlight: gather pollen, outfly four night critters.',0],
       ['lanternhold','Lanternhold','Co-op tower defense for up to 4: build towers and keep the lantern lit.',1],
@@ -239,12 +247,13 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   var $=function(id){return document.getElementById(id)};
 
   function tile(g){
-    var b=document.createElement('button');b.type='button';b.className='tile';
+    var b=document.createElement('button');b.type='button';b.className='tile';if(g.url)b.setAttribute('data-path',g.url);   /* offline.js fades games not saved on this device while offline */
     var img=document.createElement('img');img.src='thumbs/'+g.id+'.jpg';img.alt='';img.loading='lazy';img.width=560;img.height=350;
     var t=document.createElement('div');t.className='t';
     var n=document.createElement('strong');n.textContent=g.plain||g.name;
     var d=document.createElement('span');d.textContent=g.desc;
     t.append(n,d);
+    if(window.BackRoomLang&&/^(deepword|trivium|nearword|fourcast|warmer|hunch|poopdle|mainstream|puffer-party)$/.test(g.id))BackRoomLang.englishOnly(n);   // English by design: an "En inglés" tag while Spanish is on
     if(g.land){var e=document.createElement('em');e.textContent='↻ Best sideways';t.append(e)}
     b.append(img,t);b.addEventListener('click',function(){openGame(g)});
     return b;
@@ -255,8 +264,8 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   function pzAsk(){
     var a=document.createElement('div');a.className='ask ask-sm';
     var p=document.createElement('p'),b=document.createElement('b');b.textContent='Miss a puzzle we took away, or want a new one?';
-    p.append(b,' Tell Arjun which in the suggestion box.');
-    var bt=document.createElement('button');bt.type='button';bt.setAttribute('data-feedback-open','Puzzles: ');bt.textContent='Tell Arjun ↑';
+    p.append(b,' Tell us which in the suggestion box.');
+    var bt=document.createElement('button');bt.type='button';bt.setAttribute('data-feedback-open','Puzzles: ');bt.textContent='Tell us ↑';
     a.append(p,bt);return a;
   }
   GROUPS.forEach(function(gr){
@@ -290,8 +299,8 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   // Under the games: ask for ideas through the feedback bar at the top (feedback.js opens it for data-feedback-open).
   var ask=document.createElement('div');ask.className='ask';
   var at=document.createElement('p');var ab=document.createElement('b');ab.textContent='Want more games, or have an idea?';
-  at.append(ab,' Tell Arjun in the suggestion box at the top of the page.');
-  var abtn=document.createElement('button');abtn.type='button';abtn.setAttribute('data-feedback-open','');abtn.textContent='Tell Arjun ↑';
+  at.append(ab,' Tell us in the suggestion box at the top of the page.');
+  var abtn=document.createElement('button');abtn.type='button';abtn.setAttribute('data-feedback-open','');abtn.textContent='Tell us ↑';
   ask.append(at,abtn);$('lists').append(ask);
 
   function showContinue(){
@@ -340,14 +349,15 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   $('back').onclick=function(){history.back()};
 
   // An invite link (#<room>) opens its game straight away. Room codes start with the game's prefix; any other code is a Rumble Karts room.
-  var PREFIX={tv:'trivium',br:'backrooms-1v1',sc:'shell-crackers',hm:'hail-mary',cl:'coil',ss:'slipstream',bb:'boostball',qy:'quarry',kw:'kartwheel',sd:'showdown',cf:'chromaflage',tw:'spire',up:'updraft',ph:'odd-one-out',ko:'tumble-trials',dw:'deepword',sr:'turbo-trail',er:'escapade',pf:'puffer-party',dz:'drop-zone',gd:'lunge-line',bs:'blockstorm',lh:'lanternhold',vq:'sky-duel'};
-  // Party invites (#pt-<code>) don't open a game: they join the party in the Party panel below.
+  var PREFIX={tv:'trivium',br:'backrooms-1v1',sc:'shell-crackers',hm:'hail-mary',cl:'coil',ss:'slipstream',bb:'boostball',qy:'quarry',kw:'kartwheel',sd:'showdown',cf:'chromaflage',tw:'spire',up:'updraft',ph:'odd-one-out',ko:'tumble-trials',dw:'deepword',sr:'turbo-trail',er:'escapade',pf:'puffer-party',dz:'drop-zone',gd:'lunge-line',bs:'blockstorm',lh:'lanternhold',hp:'hush-pools',vq:'sky-duel'};
+  // Party invites (#pt-<code>) don't open a game: they join the party in the Party panel below. Aisle invites (#xj-) open the Aisle window (aisles.js).
   // ?watch=1 with a Shell Crackers, Backrooms or Boostball room opens that game as a spectator instead (the game reads ?watch=1).
   var inv=/^#([a-z0-9-]{1,20})$/.exec(location.hash),party='',watch=/^\?watch=1$/.test(location.search)&&/^#(sc|br|bb)-/.test(location.hash);
   if(inv){
     history.replaceState(null,'',location.pathname);
     var pre=/^([a-z]{2})-/.exec(inv[1]),g=byId[pre&&PREFIX[pre[1]]||'rumble-karts'];
     if(pre&&pre[1]==='pt')party=inv[1].slice(3);
+    else if(pre&&pre[1]==='xj'){try{sessionStorage.setItem('aisle:inv',inv[1].slice(3))}catch(e){}} // an Aisle invite: aisles.js picks it up
     else if(g)openGame({id:g.id,name:g.name,land:g.land,url:g.url,scope:g.scope,hash:(watch?'?watch=1':'')+'#'+inv[1]});
   }
   addEventListener('popstate',function(){closeGame()});
@@ -365,6 +375,7 @@ body .pty h2{font-family:var(--f-d);font-weight:800;font-size:30px;letter-spacin
   var ps=document.createElement('script');ps.src=B+'party.js';document.body.appendChild(ps);
   // Online (social.js): who else is here, private messages, invites and the cabin chat, under the Party panel.
   var os=document.createElement('script');os.src=B+'social.js';document.body.appendChild(os);
+  var ai=document.createElement('script');ai.src=B+'aisles.js';document.body.appendChild(ai); // Aisles (aisles.js): crews, tags by names, the Aisle boards
   // Avis miles (avismiles.js): the claim dialog, opened from the Online panel or #avis-miles.
   var avm=document.createElement('script');avm.src=B+'avismiles.js';document.body.appendChild(avm);
   var pn=document.createElement('script');pn.src=B+'playingnow.js';document.body.appendChild(pn);

@@ -59,14 +59,36 @@
     // arms reaching forward to the wheel: sleeve colour (or null for the paint) and hand colour
     const arms = (F, P, sleeve, hand, o) => {
       o = o || {}; const sx = o.x || .27, y = o.y || .36, len = o.len || .3, hz = o.hz || .62, hr = o.hr || .085;
-      for (const sd of [-1, 1]) {
+      for (const sd of o.only ? [o.only] : [-1, 1]) {
         const q = [sd * sx, y, .3], s = [o.w || .085, o.w || .085, len], r = [.22, 0, -sd * .1];
         if (sleeve == null) P(sb, q, s, r); else F(sb, sleeve, q, s, r);
         F(sb, hand, [sd * (sx - .04), y - .07, hz], [hr, hr, hr]);
       }
     };
 
-    // ---------------- drivers (no. 1 to 17; 0 is the usual helmeted driver) ----------------
+    // more shared shapes and helpers for the second wave of drivers and karts
+    const arcThin = new THREE.TorusGeometry(1, .08, 4, 12, PI), seam = new THREE.TorusGeometry(1, .022, 4, 32);
+    const cyl3 = new THREE.CylinderGeometry(1, 1, 1, 3), cyl5 = new THREE.CylinderGeometry(1, 1, 1, 5);
+    const WEDGE10 = Array.from({ length: 10 }, (_, i) => wedge(i, 10));
+    const STRIPES = new Map(), STRIPE = a => STRIPES.get(a) || STRIPES.set(a, new THREE.CylinderGeometry(1, 1, 1, 1, 1, true, a, .05)).get(a);   // a thin pinstripe round a cylinder
+    // a face: skin-coloured head with eyes (the mouth is added by each driver)
+    const head = (F, y, c) => { F(ball, c || C.skin, [0, y, .03], [.24, .25, .23]); eyes(F, .085, y + .03, .22, .045); };
+    // pentagon patches over a sphere, like a football (only: which of the 12 directions to draw)
+    const Yup = new THREE.Vector3(0, 1, 0), toward = n => { const e = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(Yup, new THREE.Vector3(n[0], n[1], n[2]))); return [e.x, e.y, e.z]; };
+    const ICO = (() => { const f = 1.618, a = []; for (const s1 of [-1, 1]) for (const s2 of [-1, 1]) a.push([0, s1, s2 * f], [s1, s2 * f, 0], [s2 * f, 0, s1]); return a.map(v => { const l = Math.hypot(v[0], v[1], v[2]); return v.map(x => x / l); }); })();
+    const ballPatches = (F, o, r, only, c) => ICO.forEach(n => { if (!only || only(n)) F(cyl5, c || C.pupil, [o[0] + n[0] * r * .97, o[1] + n[1] * r * .97, o[2] + n[2] * r * .97], [r * .34, r * .08, r * .34], toward(n)); });
+    const stripeArc = new THREE.TorusGeometry(1, .05, 4, 24, PI);
+    // a kart that is one big ball, with a saddle and handlebars on top (deco draws the ball's markings)
+    const ballKart = (F, P, col, deco) => {
+      F(box, C.trim, [0, .5, 0], [1.6, .2, 2.4]);
+      F(ball, col, [0, 1.0, 0], [.95, .95, .95]); deco(F);
+      P(torThin, [0, .5, 0], [.78, .78, 1.5], [H, 0, 0]);                                 // painted bumper ring
+      P(sb, [0, 1.9, -.15], [.5, .12, .6]);                                                // saddle
+      F(cyl8, C.chrome, [0, 2.12, .6], [.05, 1.0, .05], [0, 0, H]); F(cyl8, C.chrome, [0, 1.95, .62], [.05, .36, .05], [.3, 0, 0]);
+      for (const sd of [-1, 1]) P(cyl8, [.55 * sd, 2.12, .6], [.07, .2, .07], [0, 0, H]);
+    };
+
+    // ---------------- drivers (no. 1 to 30; 0 is the usual helmeted driver) ----------------
     const DRIVERS = [
       { name: 'Classic driver', parts: () => parts((F, P) => {
         F(ball, C.skin, [0, .52, .05], [.34, .34, .34]);
@@ -343,10 +365,211 @@
           if (i % 2) F(sb, C.gold, q, s, r); else P(sb, q, s, r);
         }
         for (const sd of [-1, 1]) F(sb, WI, [.27 * sd, .35, .22], [.075, .13, .27], [.3, 0, -sd * .12]);
+      }) },
+      // ---- wave 2 (no. 18 to 30): athletes, a mascot, a pirate, suits and robots ----
+      { name: 'Striker', taunt: 'GOOOAL!', anim: 'juggle', fx: ['#ffffff', '#2ed19a'], parts: () => parts((F, P) => {
+        P(sb, [0, .3, 0], [.3, .33, .25]);                                            // jersey
+        for (const sd of [-1, 1]) F(box, C.white, [.13 * sd, .3, .222], [.05, .34, .03]);   // two white stripes
+        F(torThin, C.white, [0, .57, .03], [.15, .15, .28], [H - .3, 0, 0]);           // collar
+        head(F, .78); smile(F, .68, .24, .055);
+        F(ball, 0x5a3219, [0, .9, -.01], [.255, .16, .235]);                            // hair
+        F(cyl, C.white, [0, .9, .02], [.25, .045, .235]);                              // headband
+        F(ball, C.white, [-.36, .14, .16], [.14, .14, .14]);                           // the ball beside him
+        ballPatches(F, [-.36, .14, .16], .14, n => n[0] < .4);
+        arms(F, P, null, C.skin);
+        F(cyl, C.gold, [-.27, .37, .22], [.095, .05, .095], [H + .22, 0, 0]);         // captain's armband
+      }) },
+      { name: 'Stretch', taunt: 'Swish!', anim: 'hop', fx: ['#ff8a3d', '#ffffff'], parts: () => parts((F, P) => {
+        const GI = 0xf5c45a, SP = 0xb06a2a;
+        P(sb, [0, .28, 0], [.29, .3, .24]);                                            // tank top
+        F(torThin, C.white, [0, .5, .02], [.16, .16, .26], [H - .25, 0, 0]);
+        for (const sd of [-1, 1]) F(sb, GI, [.22 * sd, .48, 0], [.09, .07, .1]);       // bare shoulders
+        F(cyl, GI, [0, .76, .08], [.085, .6, .085], [.15, 0, 0]);                      // the long neck
+        [[.07, .62, .14], [-.06, .78, .14], [.05, .92, .18], [-.07, .55, .1], [.0, .7, .02]].forEach(p => F(sb, SP, p, [.04, .05, .02]));
+        F(ball, GI, [0, 1.1, .14], [.15, .14, .2]);                                    // head
+        F(sb, 0xf0d8a8, [0, 1.04, .3], [.11, .08, .08]);                               // muzzle
+        for (const sd of [-1, 1]) { F(sb, C.pupil, [.04 * sd, 1.05, .37], [.015, .012, .01]); F(cyl8, GI, [.06 * sd, 1.28, .1], [.025, .14, .025]); F(sb, SP, [.06 * sd, 1.36, .1], [.04, .04, .04]); F(sb, GI, [.16 * sd, 1.16, .08], [.08, .03, .04], [0, 0, sd * .4]); }
+        eyes(F, .075, 1.15, .27, .035);
+        P(cyl, [0, 1.17, .13], [.155, .035, .205]);                                    // headband
+        smile(F, 1.0, .33, .04);
+        arms(F, P, GI, C.white, { w: .07 });                                           // wristbands for hands
+      }) },
+      { name: 'Linebacker', taunt: 'Touchdown!', anim: 'stomp', fx: ['#ffffff', '#ffc93c'], parts: () => parts((F, P) => {
+        P(sb, [0, .3, 0], [.32, .33, .26]);                                            // jersey
+        for (const sd of [-1, 1]) { P(sb, [.24 * sd, .53, 0], [.18, .1, .21]); F(box, C.white, [.24 * sd, .6, 0], [.05, .03, .36]); }   // shoulder pads
+        F(cyl, C.skin, [0, .6, .03], [.1, .12, .1]);
+        F(ball, C.skin, [0, .8, .06], [.2, .21, .2]);                                  // face
+        eyes(F, .075, .82, .22, .04);
+        for (const sd of [-1, 1]) F(box, C.pupil, [.075 * sd, .76, .245], [.06, .015, .01]);   // eye black
+        P(helmet, [0, .86, -.03], [.58, .58, .58], [-.7, 0, 0]);                      // helmet, open at the face
+        F(box, C.white, [0, 1.07, -.0], [.05, .03, .5], [-.4, 0, 0]);                  // stripe over the top
+        for (const y of [.73, .81]) F(arcThin, C.steel, [0, y, .06], [.25, .24, .25], [H, 0, 0]);   // face cage
+        F(box, C.steel, [0, .77, .3], [.03, .14, .03]);
+        arms(F, P, null, C.skin, { w: .1 });
+      }) },
+      { name: 'Slugger', taunt: 'Home run!', anim: 'bounce', fx: ['#ffffff', '#d8392b'], parts: () => parts((F, P) => {
+        F(sb, C.white, [0, .3, 0], [.3, .33, .25]);                                    // white shirt with painted pinstripes
+        for (const x of [-.18, -.09, .09, .18]) P(box, [x, .3, .2 - Math.abs(x) * .45], [.018, .36, .03]);
+        P(box, [0, .3, .245], [.03, .36, .02]);                                        // button strip
+        head(F, .78); smile(F, .68, .24, .05);
+        for (const sd of [-1, 1]) F(box, C.pupil, [.085 * sd, .75, .245], [.06, .014, .01]);
+        P(sb, [0, .9, -.0], [.26, .15, .25]);                                          // batting helmet
+        P(box, [0, .88, .29], [.24, .025, .14], [.12, 0, 0]);                          // short brim
+        P(sb, [.21, .78, .02], [.07, .11, .11]);                                       // ear flap
+        F(sb, C.white, [0, 1.02, -.02], [.04, .02, .04]);
+        arms(F, P, C.white, C.skin);
+        F(sb, 0x8a5a2b, [-.26, .3, .62], [.14, .16, .08], [0, .3, 0]);                 // catcher's mitt
+        F(sb, 0xa66b34, [-.26, .3, .66], [.09, .1, .05], [0, .3, 0]);
+      }) },
+      { name: 'Ref Reggie', taunt: 'FOUL!', anim: 'scan', fx: ['#ffffff', '#1b1733'], parts: () => parts((F, P) => {
+        for (let i = 0; i < 10; i++) F(WEDGE10[i], i % 2 ? C.pupil : C.white, [0, .3, 0], [.28, .5, .24]);   // the striped shirt
+        F(sb, C.white, [0, .54, 0], [.28, .08, .24]);
+        F(cyl, C.skin, [0, .6, .03], [.09, .1, .09]);
+        head(F, .8); F(arc, C.pupil, [0, .71, .24], [.05, .03, .05]);                  // a stern little frown
+        for (const sd of [-1, 1]) F(box, 0x8d8aa0, [.085 * sd, .88, .24], [.08, .02, .02], [0, 0, sd * .2]);   // raised brows
+        P(sb, [0, .94, -.01], [.25, .12, .24]);                                        // cap in the paint
+        P(box, [0, .91, .27], [.22, .02, .14], [.1, 0, 0]);
+        F(cyl8, C.chrome, [0, .68, .3], [.025, .09, .025], [H, 0, 0]);                 // whistle on a cord
+        F(torThin, C.red, [0, .58, .06], [.16, .16, .3], [H - .5, 0, 0]);
+        arms(F, P, C.pupil, C.skin);
+      }) },
+      { name: 'Champ', taunt: 'Ding ding!', anim: 'punch', fx: ['#ffc93c', '#ff4d6d'], parts: () => parts((F, P) => {
+        const KG = 0xc98a52, KB = 0xf0d2a8;
+        F(ball, KG, [0, .33, 0], [.28, .33, .25]);                                     // kangaroo
+        F(sb, KB, [0, .32, .12], [.18, .26, .14]);
+        F(cyl, C.gold, [0, .12, 0], [.3, .07, .26]); F(cyl16, C.gold, [0, .13, .25], [.08, .03, .08], [H, 0, 0]);   // champion's belt
+        F(sb, 0xff4d6d, [0, .13, .27], [.04, .04, .02]);
+        F(ball, KG, [0, .8, .04], [.2, .2, .22]);
+        F(sb, KG, [0, .74, .22], [.11, .09, .13]); F(sb, C.pupil, [0, .77, .34], [.04, .03, .03]);   // snout and nose
+        eyes(F, .08, .86, .2, .04);
+        for (const sd of [-1, 1]) { F(sb, KG, [.1 * sd, 1.07, -.02], [.05, .15, .03], [0, 0, -sd * .25]); F(sb, C.pink, [.1 * sd, 1.07, .0], [.03, .1, .015], [0, 0, -sd * .25]); }
+        P(sb, [0, .93, .02], [.2, .08, .22]);                                          // head guard
+        for (const sd of [-1, 1]) P(sb, [.17 * sd, .8, .1], [.06, .1, .11]);
+        smile(F, .68, .27, .04);
+        arms(F, P, KG, KG, { hr: .05 });
+        for (const sd of [-1, 1]) { P(ball, [.23 * sd, .3, .62], [.13, .12, .14]); F(cyl, C.white, [.23 * sd, .3, .5], [.1, .06, .1], [H, 0, 0]); }   // gloves
+        F(cone, KG, [0, .12, -.42], [.1, .5, .1], [-1.9, 0, 0]);                      // tail
+      }) },
+      { name: 'Rally Bear', taunt: 'Go team!', anim: 'groove', fx: ['#ffc93c', '#ffffff'], parts: () => parts((F, P) => {
+        const BR = 0x9a6a3c, MZ = 0xe8c9a0;
+        P(sb, [0, .3, 0], [.32, .34, .26]);                                            // team jersey
+        F(box, C.white, [0, .34, .24], [.42, .08, .05], [-.15, 0, 0]);
+        F(ball, BR, [0, .9, .03], [.33, .3, .3]);                                      // the big mascot head
+        F(sb, MZ, [0, .8, .28], [.15, .11, .08]); F(sb, C.pupil, [0, .85, .35], [.065, .045, .04]);
+        eyes(F, .12, .98, .27, .065);
+        smile(F, .76, .33, .06);
+        for (const sd of [-1, 1]) { F(ball, BR, [.24 * sd, 1.16, 0], [.1, .1, .06]); F(sb, MZ, [.24 * sd, 1.16, .04], [.06, .06, .03]); }
+        P(sb, [0, 1.13, -.06], [.26, .1, .24]);                                        // cap, on backwards
+        P(box, [0, 1.12, -.3], [.2, .02, .12], [-.15, 0, 0]);
+        arms(F, P, null, BR, { only: -1 });
+        P(sb, [.3, .62, .1], [.08, .25, .08], [0, 0, -.25]);                           // the other arm up, with a foam finger
+        P(box, [.36, .95, .12], [.17, .2, .09]);
+        P(box, [.38, 1.17, .12], [.07, .26, .07]);
+        F(box, C.white, [.36, .95, .17], [.12, .04, .01]);
+      }) },
+      { name: 'Captain Patch', taunt: 'Arrr!', anim: 'rock', fx: ['#ffc93c', '#2ecc5a'], parts: () => parts((F, P) => {
+        const BD = 0x6b3a1e, HT = 0x2a2440;
+        P(sb, [0, .3, 0], [.32, .34, .26]);                                            // captain's coat
+        F(sb, C.white, [0, .48, .18], [.1, .12, .07]);                                 // shirt ruffle
+        for (const y of [.36, .26, .16]) for (const sd of [-1, 1]) F(sb, C.gold, [.1 * sd, y, .235], [.025, .025, .015]);
+        F(cyl, HT, [0, .1, 0], [.31, .06, .26]); F(box, C.gold, [0, .1, .26], [.07, .06, .02]);
+        F(ball, C.skin, [0, .8, .03], [.24, .25, .23]);
+        F(ball, BD, [0, .66, .1], [.22, .17, .17]);                                    // big beard
+        F(sb, BD, [.06, .73, .23], [.07, .025, .03], [0, 0, -.25]); F(sb, BD, [-.06, .73, .23], [.07, .025, .03], [0, 0, .25]);
+        F(sb, C.eye, [.085, .83, .22], [.045, .05, .027]); F(sb, C.pupil, [.085, .832, .24], [.025, .028, .014]);
+        F(box, C.pupil, [-.085, .83, .235], [.1, .08, .03]);                           // the eye patch and its strap
+        F(torThin, C.pupil, [0, .85, .03], [.245, .245, .25], [H, 0, -.35]);
+        F(cyl3, HT, [0, 1.0, 0], [.42, .13, .42]);                                     // tricorn
+        F(cyl3, C.gold, [0, .95, 0], [.44, .03, .44]);
+        F(sb, HT, [0, 1.06, 0], [.22, .14, .22]);
+        P(sb, [.2, 1.16, -.12], [.03, .16, .03], [0, 0, -.7]);                          // a feather in the paint
+        arms(F, P, null, C.skin);
+        for (const sd of [-1, 1]) F(cyl, C.white, [.27 * sd, .32, .44], [.08, .05, .08], [H + .22, 0, 0]);   // cuffs
+        const PG = 0x2ecc5a;                                                             // the parrot on his shoulder
+        F(ball, PG, [-.3, .66, -.03], [.08, .12, .08]); F(sb, PG, [-.3, .8, .0], [.07, .07, .07]);
+        F(cone, C.gold, [-.3, .78, .08], [.03, .07, .03], [H + .4, 0, 0]);
+        F(sb, C.red, [-.37, .65, -.03], [.03, .09, .06]); F(cone, 0x3fb8ff, [-.3, .5, -.1], [.04, .16, .03], [PI - .3, 0, 0]);
+        F(sb, C.pupil, [-.35, .82, .03], [.015, .015, .015]); F(sb, C.pupil, [-.25, .82, .03], [.015, .015, .015]);
+      }) },
+      { name: 'The Boss', taunt: 'Nothing personal.', anim: 'tip', fx: ['#ffc93c', '#3a3550'], parts: () => parts((F, P) => {
+        const SU = 0x3a3550, PS = 0x8a85a8, CT = 0x8c92a8, HT = 0x2e2942;
+        F(cyl16, SU, [0, .28, 0], [.31, .5, .26]);                                     // pinstripe suit
+        for (let i = 0; i < 12; i++) if (i !== 0 && i !== 11 && i !== 1) F(STRIPE(i / 12 * TAU), PS, [0, .28, 0], [.315, .5, .265]);
+        F(sb, SU, [0, .53, 0], [.31, .1, .26]);
+        F(box, C.white, [0, .42, .23], [.12, .24, .04]);                               // shirt, tie, pocket square
+        P(box, [0, .38, .255], [.05, .2, .02]); P(sb, [0, .5, .255], [.035, .03, .02]);
+        P(box, [.17, .4, .22], [.06, .03, .03]);
+        F(ball, CT, [0, .8, .03], [.27, .24, .24]);                                    // a big cat
+        F(sb, C.white, [0, .72, .22], [.13, .07, .06]); F(sb, C.pink, [0, .76, .27], [.03, .02, .02]);
+        eyes(F, .09, .84, .22, .045);
+        for (const sd of [-1, 1]) { F(box, CT, [.09 * sd, .875, .24], [.1, .035, .03]); F(cone4, CT, [.16 * sd, 1.0, 0], [.07, .14, .06], [0, 0, -sd * .3]); for (const k of [-1, 1]) F(box, C.white, [.2 * sd, .72 + k * .02, .2], [.14, .006, .006], [0, 0, k * sd * .15]); }
+        F(cyl16, HT, [0, 1.0, 0], [.37, .025, .35]);                                   // fedora
+        F(cyl, HT, [0, 1.09, 0], [.21, .15, .2]); F(box, 0x1b1733, [0, 1.165, 0], [.06, .02, .3]);
+        P(cyl, [0, 1.04, 0], [.215, .045, .205]);
+        F(sb, C.gold, [-.25, .3, .62], [.03, .03, .03]);                               // gold ring
+        arms(F, P, SU, CT);
+      }) },
+      { name: 'Pemberton', taunt: 'Your wreck, sir.', anim: 'bow', fx: ['#ffffff', '#d4d8e6'], parts: () => parts((F, P) => {
+        const TC = 0x262238, HR = 0x3b2a1e;
+        F(sb, TC, [0, .3, 0], [.3, .33, .25]);                                         // tailcoat
+        for (const sd of [-1, 1]) F(box, TC, [.08 * sd, .12, -.25], [.11, .32, .03], [.1, 0, 0]);   // coat tails
+        F(box, C.white, [0, .4, .21], [.15, .3, .05]);
+        P(box, [0, .3, .22], [.2, .2, .04]);                                           // waistcoat and bow tie in the paint
+        for (const sd of [-1, 1]) P(cone, [.055 * sd, .55, .245], [.05, .07, .03], [0, 0, sd * H]);
+        head(F, .8);
+        F(ball, HR, [0, .91, -.01], [.255, .15, .235]); F(box, 0xffffff, [.08, 1.01, .05], [.01, .01, .2], [0, 0, 0]);   // neat hair with a parting
+        F(sb, HR, [.05, .73, .245], [.06, .015, .015], [0, 0, -.15]); F(sb, HR, [-.05, .73, .245], [.06, .015, .015], [0, 0, .15]);
+        F(box, HR, [.085, .9, .235], [.08, .015, .01], [0, 0, -.25]);                  // one eyebrow up
+        arms(F, P, TC, C.white, { only: -1 });
+        F(sb, TC, [.32, .55, .1], [.075, .22, .075], [.2, 0, -.35]); F(sb, C.white, [.4, .74, .14], [.07, .07, .07]);   // the other hand holds up a tray
+        F(cyl16, C.chrome, [.42, .8, .15], [.22, .02, .22]);
+        F(helmet, C.chrome, [.42, .81, .15], [.3, .26, .3]); F(sb, C.chrome, [.42, .96, .15], [.03, .03, .03]);
+      }) },
+      { name: 'Clockwork', taunt: 'Clank clank!', anim: 'robot', fx: ['#ffc93c', '#d4d8e6'], parts: () => parts((F, P) => {
+        const TN = 0xc8ccd8, DK = 0x6d6880;
+        F(cyl16, TN, [0, .3, 0], [.27, .46, .24]);                                     // tin body
+        P(cyl16, [0, .3, 0], [.28, .16, .25]);
+        for (let i = 0; i < 8; i++) { const a = (i - 3.5) * .3; F(sb, C.gold, [Math.sin(a) * .28, .43, Math.cos(a) * .25], [.02, .02, .02]); }
+        F(cyl16, TN, [0, .74, .02], [.22, .26, .2]); F(sb, TN, [0, .87, .02], [.22, .1, .2]);   // dome head
+        for (const sd of [-1, 1]) { F(cyl16, C.lamp, [.08 * sd, .77, .2], [.065, .03, .065], [H, 0, 0]); F(cyl16, C.pupil, [.08 * sd, .77, .216], [.03, .01, .03], [H, 0, 0]); P(cyl16, [.23 * sd, .75, .02], [.06, .05, .06], [0, 0, H]); }
+        for (let i = 0; i < 4; i++) F(box, DK, [-.06 + i * .04, .66, .2], [.02, .05, .02]);   // mouth grille
+        F(cyl8, DK, [0, 1.0, .02], [.02, .12, .02]); F(sb, C.red, [0, 1.07, .02], [.04, .04, .04]);
+        F(cyl8, C.gold, [0, .35, -.3], [.03, .14, .03], [H, 0, 0]);                    // wind-up key
+        for (const sd of [-1, 1]) F(cyl16, C.gold, [.08 * sd, .35, -.39], [.07, .02, .07], [0, 0, H]);
+        arms(F, P, TN, C.steel);
+      }) },
+      { name: 'Dusty', taunt: 'All tidy!', anim: 'spin', fx: ['#5ee8ff', '#ffffff'], parts: () => parts((F, P) => {
+        const WH = 0xe8e6f0;
+        F(cyl16, WH, [0, .12, 0], [.4, .14, .4]);                                      // round vacuum base
+        P(cyl16, [0, .2, 0], [.41, .05, .41]);
+        for (const sd of [-1, 1]) F(cyl8, C.gold, [.25 * sd, .06, .3], [.08, .02, .08]);   // spinning brushes
+        F(cyl8, C.steel, [0, .45, 0], [.05, .5, .05]);                                 // neck
+        F(cyl16, WH, [0, .8, 0], [.3, .12, .3], [H, 0, 0]);                            // round face screen
+        F(cyl16, C.visor, [0, .8, .055], [.25, .02, .25], [H, 0, 0]);
+        P(torThin, [0, .8, 0], [.3, .3, .6]);
+        for (const sd of [-1, 1]) F(sb, 0x5ee8ff, [.08 * sd, .83, .07], [.035, .055, .01]);
+        F(arc, 0x5ee8ff, [0, .74, .07], [.06, .04, .02], [0, 0, PI]);
+        F(cyl8, C.steel, [0, 1.0, -.05], [.015, .15, .015]); F(sb, 0x2ed19a, [0, 1.08, -.05], [.035, .035, .035]);
+        arms(F, P, C.steel, 0x5ee8ff, { w: .04, hr: .05, y: .45 });
+      }) },
+      { name: 'Agent Shades', taunt: 'Area secure.', anim: 'scan', fx: ['#ffffff', '#3a3550'], parts: () => parts((F, P) => {
+        const SU = 0x2e2a44;
+        F(sb, SU, [0, .3, 0], [.31, .33, .25]);                                        // black suit
+        F(box, C.white, [0, .42, .21], [.13, .26, .05]);
+        P(box, [0, .38, .24], [.05, .22, .02]); P(sb, [0, .51, .24], [.035, .03, .02]);   // tie in the paint
+        F(cyl, C.skin, [0, .6, .03], [.1, .1, .1]);
+        F(ball, C.skin, [0, .81, .03], [.24, .26, .23]);
+        F(ball, 0x3b2a1e, [0, .93, .0], [.25, .14, .235]);                          // buzz cut
+        F(box, C.pupil, [0, .84, .245], [.36, .025, .02]);                             // shades
+        for (const sd of [-1, 1]) { F(box, C.pupil, [.085 * sd, .82, .245], [.13, .085, .03]); F(box, 0x8a85a8, [.11 * sd, .835, .262], [.03, .02, .005]); }
+        F(box, 0x8d6a5a, [0, .7, .24], [.08, .012, .01]);
+        F(sb, C.pupil, [.245, .8, .03], [.03, .045, .035]);                            // earpiece and its curly wire
+        F(cyl8, 0xd6d3e2, [.22, .64, -.03], [.008, .26, .008], [.2, 0, .15]);
+        arms(F, P, SU, C.skin);
       }) }
     ];
 
-    // ---------------- kart bodies (no. 1 to 15; 0 is the usual kart) ----------------
+    // ---------------- kart bodies (no. 1 to 25; 0 is the usual kart) ----------------
     const chassis = F => F(box, C.trim, [0, .55, 0], [2.2, .28, 3.3]);
     const stick = (F, y, z, tilt, c) => { F(cyl8, c || C.steel, [0, y - .18, z + .12], [.05, .45, .05], [-.6, 0, 0]); F(wheelRing, C.trim, [0, y, z], [1, 1, 1], [-(tilt || .9), 0, 0]); };
     const KARTS = [
@@ -589,6 +812,161 @@
         for (const sd of [-1, 1]) P(cyl16, [.6 * sd, 1.05, 1.62], [.18, .02, .18], [H, 0, 0]);                       // drawn-on headlights
         F(cyl8, 0xffd23f, [.75, 1.7, -1.45], [.03, 1.1, .03]); P(box, [.95, 2.05, -1.45], [.38, .25, .02]);          // pencil and flag
         F(cyl8, C.chrome, [0, 1.3, .7], [.04, .5, .04], [-.4, 0, 0]); F(cyl16, C.white, [0, 1.6, .5], [.3, .03, .3], [-1.1, 0, 0]); F(torThin, 0xd6d3e2, [0, 1.6, .5], [.3, .3, .3], [-1.1 + H, 0, 0]);   // paper-plate wheel
+      }) },
+      // ---- wave 2 (no. 16 to 25) ----
+      { name: 'Rowboat', seat: { y: 1.12, z: -.35, s: 1 }, parts: () => parts((F, P) => {
+        const WD = C.wood, WL = 0xc08a4a, a = .735;
+        chassis(F);
+        F(box, WD, [0, .74, -.15], [1.7, .12, 2.9]);                                         // bottom boards
+        for (const sd of [-1, 1]) {
+          P(box, [.95 * sd, 1.0, -.25], [.12, .6, 2.7], [0, 0, -sd * .18]);                  // painted planks
+          P(box, [.475 * sd, 1.0, 1.62], [.12, .6, 1.5], [0, -sd * a, 0]);                   // the pointed bow
+          F(box, WD, [1.0 * sd, 1.32, -.25], [.2, .08, 2.75], [0, 0, -sd * .18]);            // wooden gunwales
+          F(box, WD, [.475 * sd, 1.32, 1.62], [.2, .08, 1.5], [0, -sd * a, 0]);
+          F(cyl8, WL, [.82 * sd, 1.42, -.45], [.05, 2.5, .05], [H, 0, 0]);                  // oars, shipped along the sides
+          F(box, WL, [.82 * sd, 1.42, -1.85], [.05, .26, .55]);
+          F(torThin, C.gold, [.98 * sd, 1.42, -.25], [.08, .08, .2], [0, H, 0]);            // oarlocks
+        }
+        P(box, [0, 1.0, -1.62], [1.95, .6, .12]); F(box, WD, [0, 1.32, -1.62], [2.05, .08, .2]);   // stern
+        F(box, WD, [0, 1.06, .75], [1.85, .08, .32]);                                          // a thwart seat
+        F(box, C.darkwood, [0, 1.1, 1.45], [.55, .3, .36]); F(box, C.darkwood, [0, 1.28, 1.45], [.57, .07, .38]);   // treasure chest
+        F(box, C.gold, [0, 1.1, 1.45], [.08, .32, .38]); F(sb, C.gold, [0, 1.2, 1.64], [.04, .05, .02]);
+        F(cyl8, WD, [-.78, 1.85, -1.5], [.04, 1.1, .04]);                                      // flag with an anchor on it
+        P(box, [-.78, 2.2, -1.85], [.03, .42, .66]);
+        F(box, C.white, [-.76, 2.21, -1.85], [.02, .26, .04]); F(box, C.white, [-.76, 2.28, -1.85], [.02, .03, .2]);
+        F(arcThin, C.white, [-.76, 2.17, -1.85], [.12, .1, .12], [0, H, PI]); F(torThin, C.white, [-.76, 2.36, -1.85], [.04, .04, .1], [0, H, 0]);
+        stick(F, 1.6, .4, .9, WD);                                                             // a ship's wheel
+        for (let i = 0; i < 8; i++) { const q = i / 8 * TAU; F(sb, WD, [Math.cos(q) * .4, 1.6 + Math.sin(q) * .4 * Math.cos(.9), .4 - Math.sin(q) * .4 * Math.sin(.9)], [.05, .05, .05]); }
+      }) },
+      { name: 'Long Sedan', seat: { y: 1.12, z: -.25, s: 1 }, parts: () => parts((F, P) => {
+        const BK = 0x2e2a40, CH = C.chrome;
+        F(box, BK, [0, .62, 0], [2.1, .26, 4.1]);
+        F(box, BK, [0, .95, .05], [2.1, .5, 3.9]);                                             // long body
+        F(box, BK, [0, 1.2, 1.35], [1.9, .2, 1.3]); F(box, BK, [0, 1.2, -1.55], [1.9, .2, .9]);   // hood and boot
+        for (const sd of [-1, 1]) {
+          for (const z of [1.3, -1.3]) F(cyl16, BK, [1.0 * sd, .95, z], [.56, .26, .56], [0, 0, H]);   // round fenders
+          F(box, BK, [1.12 * sd, .62, 0], [.24, .06, 1.6]);                                    // running boards
+          F(cyl16, CH, [.72 * sd, 1.22, 1.92], [.17, .14, .17], [H, 0, 0]); F(cyl16, C.lamp, [.72 * sd, 1.22, 2.0], [.13, .02, .13], [H, 0, 0]);
+          P(box, [1.06 * sd, 1.1, .05], [.03, .07, 3.7]);                                      // painted pinstripe down each side
+          P(box, [1.06 * sd, .88, .05], [.03, .2, 1.3]);                                       // and on the doors
+          F(box, C.tail, [.8 * sd, 1.0, -1.98], [.24, .12, .04]);
+          F(box, BK, [.92 * sd, 1.58, -1.15], [.08, .72, .8]);                                 // the roof's back pillars
+        }
+        for (const sd of [-1, 1]) P(box, [.28 * sd, 1.31, 1.35], [.16, .02, 1.28]);           // two stripes on the hood
+        F(box, CH, [0, 1.0, 2.0], [1.0, .42, .06]);                                            // chrome grille
+        for (let i = 0; i < 5; i++) F(box, BK, [-.36 + i * .18, 1.0, 2.03], [.04, .38, .02]);
+        for (const z of [2.1, -2.08]) F(box, CH, [0, .76, z], [2.25, .12, .12]);              // bumpers
+        F(cone, C.gold, [0, 1.38, 1.95], [.05, .16, .05], [-.6, 0, 0]);                       // hood ornament
+        F(box, 0x8fc4e8, [0, 1.52, .55], [1.8, .5, .05], [-.35, 0, 0]); F(box, CH, [0, 1.76, .48], [1.85, .04, .06], [-.35, 0, 0]);   // windscreen
+        F(box, BK, [0, 1.95, -1.15], [1.92, .08, .9]);                                        // roof over the back seat
+        F(box, 0x7a2f3f, [0, 1.0, -.25], [1.6, .15, .8]); F(box, 0x7a2f3f, [0, 1.35, -.62], [1.6, .55, .15]);   // leather seats
+        F(box, 0x7a2f3f, [0, 1.25, -1.2], [1.7, .2, .7]);
+        stick(F, 1.6, .3, .9, CH);
+      }) },
+      { name: 'Soccer Ball', seat: { y: 1.92, z: -.15, s: .95 }, parts: () => parts((F, P) => ballKart(F, P, C.white, F => ballPatches(F, [0, 1.0, 0], .95, null, C.ink))) },
+      { name: 'Basketball', seat: { y: 1.92, z: -.15, s: .95 }, parts: () => parts((F, P) => ballKart(F, P, 0xe8742a, F => {
+        const o = [0, 1.0, 0], r = .965;
+        F(seam, C.ink, o, [r, r, r]); F(seam, C.ink, o, [r, r, r], [0, H, 0]);
+        for (const sd of [-1, 1]) F(seam, C.ink, [sd * .66, 1.0, 0], [.7, .7, .7], [0, H, 0]);
+      })) },
+      { name: 'Grandstand', seat: { y: 1.05, z: -.25, s: 1 }, parts: () => parts((F, P) => {
+        chassis(F);
+        F(box, 0x4fbf6a, [0, .78, 0], [2.3, .18, 3.5]);                                         // a little pitch
+        F(box, C.white, [0, .875, .35], [2.2, .01, .05]); F(torThin, C.white, [0, .875, .35], [.42, .42, .3], [H, 0, 0]);
+        for (const sd of [-1, 1]) F(box, C.white, [1.08 * sd, .875, 0], [.05, .01, 3.3]);
+        for (const sd of [-1, 1]) { F(box, C.white, [.6 * sd, 1.12, 1.6], [.06, .5, .06]); F(box, 0xe4e2ee, [.6 * sd, 1.07, 1.8], [.02, .42, .4]); }   // goal at the front
+        F(box, C.white, [0, 1.36, 1.6], [1.26, .06, .06]); F(box, 0xe4e2ee, [0, 1.07, 2.0], [1.2, .42, .02]); F(box, 0xe4e2ee, [0, 1.32, 1.8], [1.2, .02, .4]);
+        F(box, C.engine, [0, .95, -.25], [1.0, .16, .8]); F(box, C.engine, [0, 1.3, -.62], [1.0, .6, .1]);
+        P(box, [0, 1.05, -1.25], [2.3, .38, .5]); P(box, [0, 1.35, -1.65], [2.3, .7, .4]);     // the stand, in the paint
+        const crowd = [0xff4d6d, 0xffc93c, 0x3fb8ff, 0x2ed19a, 0xa66bff, C.white];
+        for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) {                                // a cheering crowd
+          const x = -.9 + i * .36 + (r ? .18 : 0), y = r ? 1.86 : 1.38, z = r ? -1.66 : -1.26;
+          F(box, crowd[(i + r * 2) % 6], [x, y, z], [.2, .2, .14]); F(sb, i % 3 ? C.skin : 0xc08a5a, [x, y + .18, z], [.08, .08, .08]);
+        }
+        for (const sd of [-1, 1]) {                                                              // floodlights
+          F(cyl8, C.steel, [1.05 * sd, 1.95, -1.82], [.05, 2.3, .05]);
+          F(box, C.steel, [1.05 * sd, 3.1, -1.82], [.55, .4, .08], [.3, 0, 0]); F(box, C.lamp, [1.05 * sd, 3.11, -1.78], [.47, .32, .04], [.3, 0, 0]);
+        }
+        stick(F, 1.5, .35, .9);
+      }) },
+      { name: 'Ice Groomer', seat: { y: 1.12, z: .25, s: 1 }, parts: () => parts((F, P) => {
+        chassis(F);
+        F(box, C.white, [0, 1.2, -.95], [2.1, 1.0, 1.6]);                                      // snow tank
+        P(box, [0, 1.73, -.95], [2.14, .1, 1.64]); P(box, [0, .8, -.95], [2.14, .22, 1.64]);
+        for (const sd of [-1, 1]) P(box, [1.06 * sd, 1.25, -.95], [.02, .14, 1.5]);
+        F(box, 0x8fdcff, [0, 1.79, -.95], [1.8, .04, 1.3]);                                    // shaved ice on top
+        F(box, C.white, [0, .98, 1.42], [2.0, .62, 1.05]); P(box, [0, 1.3, 1.42], [2.04, .06, 1.08]);   // the front
+        for (const sd of [-1, 1]) F(cyl8, C.lamp, [.65 * sd, 1.05, 1.96], [.1, .04, .1], [H, 0, 0]);
+        F(box, C.steel, [0, .62, -1.92], [2.2, .25, .35]); F(box, 0x8fdcff, [0, .52, -2.05], [2.1, .04, .2]);   // the blade and its wet stripe
+        for (const sd of [-1, 1]) F(cyl8, C.chrome, [.95 * sd, 1.9, -.2], [.03, .5, .03]);   // hand rails
+        F(box, C.engine, [0, .95, .25], [1.0, .15, .7]); F(box, C.engine, [0, 1.3, -.1], [1.0, .6, .1]);
+        F(sb, C.gold, [0, 1.92, -1.6], [.09, .06, .09]);                                       // beacon
+        stick(F, 1.55, .85, .9);
+      }) },
+      { name: 'Robo Racer', seat: { y: 1.12, z: -.4, s: 1 }, parts: () => parts((F, P) => {
+        const M = 0xb8bccf, D = 0x6d6880, CY = 0x5ee8ff;
+        F(box, D, [0, .58, 0], [2.2, .25, 3.4]);
+        for (const sd of [-1, 1]) { P(box, [1.02 * sd, .95, -.1], [.25, .52, 2.6]); for (let i = 0; i < 5; i++) F(sb, M, [1.15 * sd, 1.1, -1.1 + i * .5], [.05, .05, .05]); }
+        F(box, M, [0, 1.0, 1.3], [1.8, .72, 1.1]);                                             // the face
+        for (const sd of [-1, 1]) {
+          F(cyl16, D, [.45 * sd, 1.1, 1.86], [.28, .06, .28], [H, 0, 0]); F(cyl16, CY, [.45 * sd, 1.1, 1.9], [.2, .03, .2], [H, 0, 0]); F(cyl16, C.ink, [.45 * sd, 1.1, 1.92], [.08, .02, .08], [H, 0, 0]);
+          F(cyl8, D, [.6 * sd, 1.7, 1.25], [.03, .6, .03]); F(sb, C.red, [.6 * sd, 2.02, 1.25], [.08, .08, .08]);
+          F(cyl8, C.chrome, [.45 * sd, 1.75, -1.55], [.08, .5, .08]);                           // exhausts
+        }
+        F(box, C.ink, [0, .8, 1.86], [.9, .18, .04]); for (let i = 0; i < 5; i++) F(box, M, [-.36 + i * .18, .8, 1.88], [.05, .16, .02]);
+        P(box, [0, 1.38, 1.3], [1.82, .06, 1.12]);
+        F(box, M, [0, 1.12, -1.35], [1.6, .72, .7]);                                           // engine block with a gear on the back
+        F(cyl16, C.gold, [0, 1.15, -1.72], [.3, .06, .3], [H, 0, 0]);
+        for (let i = 0; i < 8; i++) { const q = i / 8 * TAU; F(box, C.gold, [Math.cos(q) * .33, 1.15 + Math.sin(q) * .33, -1.72], [.1, .1, .06], [0, 0, q]); }
+        F(box, D, [0, .95, -.4], [1.1, .2, .8]); F(box, D, [0, 1.3, -.78], [1.1, .6, .12]);
+        stick(F, 1.55, .45, .9, C.chrome);
+      }) },
+      { name: 'Tea Trolley', seat: { y: 1.05, z: -.5, s: 1 }, parts: () => parts((F, P) => {
+        const BR = 0xd9a441, WD = C.darkwood, CHI = 0xf6f4ff;
+        F(box, C.trim, [0, .55, 0], [2.0, .2, 3.2]);
+        F(box, WD, [0, .78, 0], [2.0, .08, 3.2]);                                              // bottom shelf
+        F(box, WD, [0, 1.45, 1.15], [2.0, .08, 1.2]);                                          // top shelf
+        for (const sd of [-1, 1]) { for (const z of [1.7, .6]) F(cyl8, BR, [.95 * sd, 1.12, z], [.05, .7, .05]); F(cyl8, BR, [.95 * sd, 1.15, -1.55], [.05, .75, .05]); }
+        F(cyl8, BR, [0, 1.5, -1.55], [.05, 1.95, .05], [0, 0, H]);                             // push handle
+        P(box, [0, 1.5, 1.15], [2.06, .03, 1.26]);                                             // tablecloth in the paint
+        for (const sd of [-1, 1]) { P(box, [1.03 * sd, 1.36, 1.15], [.02, .28, 1.26]); F(box, C.white, [1.04 * sd, 1.22, 1.15], [.02, .04, 1.26]); }
+        P(box, [0, 1.36, 1.78], [2.06, .28, .02]); F(box, C.white, [0, 1.22, 1.79], [2.06, .04, .02]);
+        F(ball, CHI, [.45, 1.72, 1.2], [.25, .21, .25]); F(sb, CHI, [.45, 1.94, 1.2], [.06, .05, .06]);   // teapot
+        F(cyl8, CHI, [.75, 1.76, 1.2], [.035, .26, .035], [0, 0, -1.0]); F(torThin, CHI, [.18, 1.74, 1.2], [.1, .1, .2]);
+        for (const q of [0, 2.1, 4.2]) P(sb, [.45 + Math.sin(q) * .2, 1.74, 1.2 + Math.cos(q) * .2], [.05, .05, .05]);
+        for (const x of [-.25, -.65]) { F(cyl16, CHI, [x, 1.52, 1.45], [.16, .02, .16]); F(cyl16, CHI, [x, 1.6, 1.45], [.09, .13, .09]); F(cyl16, 0x8a5a2b, [x, 1.66, 1.45], [.075, .01, .075]); }   // cups of tea
+        F(cyl8, BR, [-.45, 1.8, .9], [.02, .6, .02]);                                          // cake stand
+        for (const [y, r] of [[1.6, .3], [1.85, .22]]) { F(cyl16, CHI, [-.45, y, .9], [r, .015, r]); for (let i = 0; i < 3; i++) { const q = i / 3 * TAU; F(cyl16, i % 2 ? 0xff9fc0 : 0xffe08a, [-.45 + Math.sin(q) * r * .55, y + .05, .9 + Math.cos(q) * r * .55], [.07, .07, .07]); } }
+        P(box, [0, .95, -.5], [1.0, .18, .9]);
+        stick(F, 1.5, .25, .9, BR);
+      }) },
+      { name: 'Football Helmet', seat: { y: 1.6, z: -.3, s: 1 }, parts: () => parts((F, P) => {
+        chassis(F);
+        P(helmet, [0, .75, -.1], [2.0, 1.75, 3.1]);                                           // a giant helmet
+        F(stripeArc, C.white, [0, .75, -.1], [1.62, .93, 5], [0, H, 0]);                                 // stripe over the top
+        for (const sd of [-1, 1]) { F(starGeo5, C.white, [1.0 * sd, 1.1, -.2], [.32, .32, .6], [0, sd * H, 0]); F(cyl16, C.ink, [1.0 * sd, .78, .35], [.1, .02, .1], [0, 0, H]); }
+        for (const y of [.75, 1.0]) F(arcThin, C.steel, [0, y, .75], [.62, .98, .6], [H, 0, 0]);   // face cage
+        F(box, C.steel, [0, .9, 1.68], [.06, .42, .06]);
+        F(box, C.white, [0, .52, 1.55], [.9, .1, .12]);                                        // chin strap
+        F(box, C.engine, [0, 1.55, -.3], [.9, .1, .7]);
+        stick(F, 2.0, .5, .9);
+        F(cyl8, C.steel, [0, 1.62, .7], [.05, .5, .05], [-.4, 0, 0]);
+      }) },
+      { name: 'Boxing Ring', seat: { y: 1.12, z: -.25, s: 1 }, parts: () => parts((F, P) => {
+        chassis(F);
+        F(box, 0xf3f1fb, [0, .86, 0], [2.4, .22, 3.4]);                                       // canvas
+        P(box, [0, .72, 0], [2.44, .2, 3.44]);                                                 // apron
+        for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+          F(cyl8, C.steel, [1.1 * sx, 1.35, 1.6 * sz], [.06, 1.0, .06]);
+          F(box, sx * sz > 0 ? 0xd8392b : 0x3f7bff, [1.1 * sx, 1.45, 1.6 * sz], [.17, .6, .17]);   // red and blue corner pads
+        }
+        for (const y of [1.25, 1.5, 1.75]) {                                                    // ropes
+          for (const sd of [-1, 1]) { P(cyl8, [1.1 * sd, y, 0], [.035, 3.2, .035], [H, 0, 0]); P(cyl8, [0, y, 1.6 * sd], [.035, 2.2, .035], [0, 0, H]); }
+        }
+        F(cyl8, 0xb9b4d0, [.8, 1.12, -1.32], [.13, .3, .13]); F(cyl16, C.darkwood, [.8, 1.3, -1.32], [.2, .05, .2]);   // corner stool
+        F(cyl8, C.steel, [-.8, 1.2, -1.36], [.03, .4, .03]); F(helmet, C.gold, [-.8, 1.35, -1.36], [.3, .3, .3]);        // the bell
+        F(box, C.engine, [0, 1.0, -.25], [.95, .15, .75]);
+        stick(F, 1.55, .5, .9);
       }) }
     ];
     // an umbrella panel: one eighth of a low cone
@@ -642,14 +1020,18 @@
       }) }
     ];
 
-    // ---------------- horns (no. 1 to 5) and the usual beep ----------------
+    // ---------------- horns (no. 1 to 9) and the usual beep ----------------
     const HORNS = [
       { name: 'Beep beep', play: (t, v) => { tone(t, 520, .12, 'square', .09 * v); tone(t + .16, 520, .14, 'square', .09 * v); } },
       { name: 'Goose Honk', play: (t, v) => { for (const d of [0, .24]) { voice(t + d, 440, 330, .2, 'sawtooth', .16 * v, 1300, 9); noiseB(t + d, .06, .05 * v, 2600); } } },
       { name: 'Clown Horn', play: (t, v) => { for (const d of [0, .26]) { voice(t + d, 330, 520, .07, 'square', .12 * v, 1800, 0); voice(t + d + .07, 520, 470, .14, 'square', .13 * v, 1800, 0); noiseB(t + d, .08, .04 * v, 3200); } } },
       { name: 'Air Horn', play: (t, v) => { for (const [f, w] of [[233, 1], [235.5, 1], [349, .7], [466, .35]]) voice(t, f * .97, f, .72, 'sawtooth', .07 * v * w, 2200, 0, .03); } },
       { name: 'Kazoo', play: (t, v) => { [[392, .12], [440, .12], [494, .12], [392, .1], [587, .32]].reduce((d, [f, l]) => { voice(t + d, f, f * 1.01, l, 'sawtooth', .1 * v, 1100, 6, .01, 'bandpass'); return d + l + .02; }, 0); } },
-      { name: 'Bike Bell', play: (t, v) => { for (const d of [0, .2]) for (const [f, a, l] of [[2350, .1, .7], [3290, .05, .5], [4700, .035, .35], [6420, .02, .25]]) tone(t + d, f, l, 'sine', a * v); } }
+      { name: 'Bike Bell', play: (t, v) => { for (const d of [0, .2]) for (const [f, a, l] of [[2350, .1, .7], [3290, .05, .5], [4700, .035, .35], [6420, .02, .25]]) tone(t + d, f, l, 'sine', a * v); } },
+      { name: 'Stadium Horn', play: (t, v) => { for (const [f, w] of [[110, 1], [110.7, .9], [165, .55], [220, .3]]) voice(t, f * .98, f, 1.1, 'sawtooth', .1 * v * w, 950, 0, .06); } },
+      { name: "Ship's Bell", play: (t, v) => { for (const d of [0, .34]) for (const [f, a, l] of [[600, .12, 1.3], [300, .05, 1.5], [1430, .05, .8], [1985, .03, .5], [2650, .02, .35]]) tone(t + d, f, l, 'sine', a * v); } },
+      { name: 'Ref Whistle', play: (t, v) => { voice(t, 2650, 2700, .48, 'sine', .11 * v, 6000, 9, .01); noiseB(t, .48, .03 * v, 3000); voice(t + .58, 2700, 2700, .16, 'sine', .11 * v, 6000, 9, .01); } },
+      { name: 'Rally Organ', play: (t, v) => { [[392, .11], [523, .11], [659, .11], [784, .2], [659, .11], [784, .38]].reduce((d, [f, l]) => { voice(t + d, f, f, l, 'square', .06 * v, 2400, 0, .008); tone(t + d, f * 2, l, 'sine', .04 * v); return d + l + .03; }, 0); } }
     ];
     const ac = () => (G.Snd.on && G.Snd.ctx) ? G.Snd.ctx : null;
     function tone(t, f, dur, type, vol) {
@@ -798,7 +1180,10 @@
       float: (D, u) => { const a = Math.sin(u * PI); D.position.y += a * 1.3; D.rotation.y = u * TAU; D.rotation.z = Math.sin(u * PI * 3) * .2; },
       tip: (D, u) => { const a = Math.sin(Math.min(1, u / .6) * PI); D.rotation.x = -a * .35; D.rotation.z = Math.sin(u * PI * 3) * .12; D.position.y += a * .15; },
       bow: (D, u) => { const a = Math.sin(Math.min(1, u / .75) * PI); D.rotation.x = a * .7; D.position.z += a * .12; },
-      puff: (D, u) => { const a = Math.sin(Math.min(1, u / .7) * PI); D.scale.multiplyScalar(1 + a * .35); D.rotation.z = Math.sin(u * PI * 8) * .08 * a; }
+      puff: (D, u) => { const a = Math.sin(Math.min(1, u / .7) * PI); D.scale.multiplyScalar(1 + a * .35); D.rotation.z = Math.sin(u * PI * 8) * .08 * a; },
+      juggle: (D, u) => { D.position.y += Math.abs(Math.sin(u * PI * 5)) * .3 * (1 - u * .4); D.rotation.y = Math.sin(u * PI * 2.5) * .5; },
+      punch: (D, u) => { const j = Math.sin(u * PI * 7); D.rotation.y = j * .45 * (1 - u * .5); D.position.z += Math.abs(j) * .12; D.position.y += Math.abs(Math.sin(u * PI * 3.5)) * .12; },
+      scan: (D, u) => { const s = Math.floor(u * 5); D.rotation.y = [0, .7, .7, -.7, 0][s] || 0; D.rotation.x = s === 4 ? -.15 : 0; }
     };
     function tauntStep(k, dt) {
       const T = k.taunt; if (!T) return;
@@ -861,6 +1246,7 @@
   'use strict';
   window.RumbleGarageUI = function (G, A) {
     const THREE = G.THREE, TAU = Math.PI * 2, $ = G.$, esc = G.esc;
+    const T = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);   // Spanish (../lang.js, es.js)
     const SLOTS = [
       { key: 0, tab: 'Drivers', list: A.DRIVERS, none: 'Classic driver' },
       { key: 1, tab: 'Karts', list: A.KARTS, none: 'Classic kart' },
@@ -983,6 +1369,10 @@
       if (n === 3) { shape(() => { g.rect(-34, -10, 26, 34); }, '#ff4d6d'); shape(() => { g.moveTo(-10, -2); g.lineTo(10, -2); g.lineTo(36, -24); g.lineTo(36, 20); g.lineTo(10, 6); g.lineTo(-10, 6); g.closePath(); }, '#f6f4ff'); shape(() => g.rect(-28, -18, 14, 8), '#d4d8e6'); }
       if (n === 4) { shape(() => { g.moveTo(-34, -4); g.lineTo(26, -10); g.quadraticCurveTo(38, 0, 26, 10); g.lineTo(-34, 4); g.closePath(); }, '#ffc93c'); shape(() => g.ellipse(4, -10, 8, 5, 0, 0, TAU), '#ff8a3d'); }
       if (n === 5) { shape(() => { g.moveTo(-24, 14); g.quadraticCurveTo(-24, -22, 0, -22); g.quadraticCurveTo(24, -22, 24, 14); g.closePath(); }, '#d4d8e6'); shape(() => g.rect(-30, 14, 60, 7), '#8d8aa0'); shape(() => g.arc(0, -25, 4, 0, TAU), '#ffc93c'); shape(() => { g.moveTo(24, 6); g.lineTo(38, -6); }); }
+      if (n === 6) { shape(() => { g.moveTo(-34, -8); g.lineTo(6, -8); g.lineTo(38, -26); g.lineTo(38, 26); g.lineTo(6, 8); g.lineTo(-34, 8); g.closePath(); }, '#8d8aa0'); shape(() => g.rect(-30, 8, 12, 14), '#ffc93c'); shape(() => g.ellipse(38, 0, 5, 26, 0, 0, TAU), '#ffc93c'); }
+      if (n === 7) { shape(() => { g.moveTo(-22, 16); g.quadraticCurveTo(-18, -22, 0, -22); g.quadraticCurveTo(18, -22, 22, 16); g.closePath(); }, '#ffc93c'); shape(() => g.rect(-28, 14, 56, 7), '#e0a92e'); shape(() => g.arc(0, 28, 5, 0, TAU), '#a4733d'); shape(() => g.rect(-4, -32, 8, 10), '#a4733d'); }
+      if (n === 8) { shape(() => { g.moveTo(-34, -12); g.lineTo(6, -12); g.arc(14, 4, 18, -Math.PI * .6, Math.PI * 1.1); g.lineTo(-34, 6); g.closePath(); }, '#f6f4ff'); shape(() => g.arc(14, 4, 7, 0, TAU), '#1b1733'); shape(() => { g.moveTo(-34, 6); g.quadraticCurveTo(-40, 26, -20, 30); }); }
+      if (n === 9) { for (let i = 0; i < 5; i++) shape(() => g.rect(-32 + i * 13, -22 + Math.abs(i - 2) * 6, 10, 44 - Math.abs(i - 2) * 6), i % 2 ? '#ffc93c' : '#a66bff'); shape(() => g.rect(-36, 22, 72, 6), '#6b4423'); }
       g.restore();
     }
 
@@ -993,7 +1383,7 @@
     function style() { if (styled) return; styled = true; const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
     function summary() {
       const c = cur(), D = A.DRIVERS[c[0]];
-      return `<b>${esc(D.name)}</b> in the <b>${esc(A.KARTS[c[1]].name.replace(/^Classic kart$/, 'classic kart'))}</b><br>${esc(A.WHEELS[c[2]].name)} · ${esc(A.HORNS[c[4]].name)} · ${esc(A.WRECKS[c[3]].name)}` + (c[0] ? `<br><span class="g-cap">Knockout taunt</span> “${esc(D.taunt)}”` : '');
+      return `<b>${esc(T(D.name))}</b> ${T('in the')} <b>${esc(T(A.KARTS[c[1]].name.replace(/^Classic kart$/, 'classic kart')))}</b><br>${esc(T(A.WHEELS[c[2]].name))} · ${esc(T(A.HORNS[c[4]].name))} · ${esc(T(A.WRECKS[c[3]].name))}` + (c[0] ? `<br><span class="g-cap">Knockout taunt</span> “${esc(D.taunt)}”` : '');
     }
     function open() {
       style(); G.Snd.init();
@@ -1066,8 +1456,9 @@
     }
     function refreshChip() {
       if (!chip) return; const c = cur();
-      chip.innerHTML = `Garage <span>· ${esc(A.DRIVERS[c[0]].name)}${c[1] ? ' · ' + esc(A.KARTS[c[1]].name) : ''}</span>`;
+      chip.innerHTML = `${T('Garage')} <span>· ${esc(T(A.DRIVERS[c[0]].name))}${c[1] ? ' · ' + esc(T(A.KARTS[c[1]].name)) : ''}</span>`;
     }
+    document.addEventListener('backroom:lang', () => { refreshChip(); if (wrap) paintSum(); });   // the names in them are put together here
     function refreshHonk() { if (honkBtn) honkBtn.hidden = !(G.on && G.isTouch && cur()[4]); }
     // show or hide everything the Garage adds, as garageOn() says now
     function access() {

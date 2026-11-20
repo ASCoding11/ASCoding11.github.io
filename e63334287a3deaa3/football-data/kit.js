@@ -104,7 +104,7 @@
     var how = document.createElement('div'); how.className = 'modal'; how.id = 'fbHow'; how.hidden = true;
     how.setAttribute('role', 'dialog'); how.setAttribute('aria-modal', 'true'); how.setAttribute('aria-labelledby', 'fbHowT');
     how.innerHTML = '<div class="box"><button class="pill ico x" type="button" aria-label="Close" data-close>×</button><h2 id="fbHowT">How to play</h2>' + c.how +
-      '<p class="eg">' + esc(NOTE) + 'Tell Arjun. Everything is checked against this game\'s own list of about ' + Math.round(PL.length / 10) * 10 + ' well-known players.</p>' +
+      '<p class="eg">' + esc(NOTE) + 'Tell us. Everything is checked against this game\'s own list of about ' + Math.round(PL.length / 10) * 10 + ' well-known players.</p>' +
       '<div class="row c" style="margin-top:14px"><button class="cta" type="button" data-close>Let\'s play</button></div></div>';
     document.body.appendChild(how);
     var st = document.createElement('div'); st.className = 'modal'; st.id = 'fbSt'; st.hidden = true;
@@ -124,7 +124,7 @@
     $('fbStats').addEventListener('click', openStats);
     $('fbShare2').addEventListener('click', function () { if (cfg.shareText) share(cfg.shareText(), $('fbStMsg')); });
     var wrap = document.querySelector('.wrap');
-    if (wrap) { var n = document.createElement('p'); n.className = 'note'; n.innerHTML = esc(NOTE) + '<a href="/e63334287a3deaa3/" target="_top">Tell Arjun</a>.'; wrap.appendChild(n); }
+    if (wrap) { var n = document.createElement('p'); n.className = 'note'; n.innerHTML = esc(NOTE) + '<a href="/e63334287a3deaa3/" target="_top">Tell us</a>.'; wrap.appendChild(n); }
     if (!store.get(c.slug + ':seen', false)) { store.set(c.slug + ':seen', true); openModal(how); }
     normaliseDaily(c.slug);
   }

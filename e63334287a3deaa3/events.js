@@ -88,14 +88,34 @@
     '.tk-sw small{display:block;font-size:12px;line-height:1.3;color:var(--ink-2,inherit)}' +
     '@media (prefers-reduced-motion:reduce){.tk-sw i,.tk-sw i::after{transition:none}}';
   var switches = [];
+  // Spanish (lang.js): the switch's words. The switch is drawn with T() and redrawn when the language changes.
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Turkey Week is on': 'Semana del Pavo: activada', 'Turkey Week is off': 'Semana del Pavo: desactivada',
+      'Thanksgiving look in the games until {d}': 'Estilo de Acción de Gracias en los juegos hasta el {d}',
+      'Games look as usual. It runs until {d}': 'Los juegos se ven como siempre. Dura hasta el {d}',
+      'Switch the Thanksgiving look off in every game. A game that is already open changes the next time you open it.':
+        'Apaga el estilo de Acción de Gracias en todos los juegos. Un juego que ya está abierto cambia la próxima vez que lo abras.',
+      'Switch the Thanksgiving look on in every game. A game that is already open changes the next time you open it.':
+        'Activa el estilo de Acción de Gracias en todos los juegos. Un juego que ya está abierto cambia la próxima vez que lo abras.'
+    });
+    if (switches.length) paint();
+  })(0);
+  function untilText() {
+    return window.BackRoomLang && BackRoomLang.get() !== 'en' ? BackRoomLang.date(TURKEY_TO, { month: 'short', day: 'numeric' }) : window.BackRoomEvents.turkey.until;
+  }
+  document.addEventListener('backroom:lang', function () { if (switches.length) paint(); });
   function readOff() { try { off = localStorage.getItem(KEY) === '1'; } catch (e) {} }
   function paint() {
-    var on = !off && live(), until = window.BackRoomEvents.turkey.until;
+    var on = !off && live();
     switches.forEach(function (el) {
       el.hidden = !live(); el.setAttribute('aria-checked', String(on));
-      el.querySelector('b').textContent = 'Turkey Week is ' + (on ? 'on' : 'off');
-      el.querySelector('small').textContent = on ? 'Thanksgiving look in the games until ' + until : 'Games look as usual. It runs until ' + until;
-      el.title = 'Switch the Thanksgiving look ' + (on ? 'off' : 'on') + ' in every game. A game that is already open changes the next time you open it.';
+      el.querySelector('b').textContent = T(on ? 'Turkey Week is on' : 'Turkey Week is off');
+      el.querySelector('small').textContent = T(on ? 'Thanksgiving look in the games until {d}' : 'Games look as usual. It runs until {d}', { d: untilText() });
+      el.title = T(on ? 'Switch the Thanksgiving look off in every game. A game that is already open changes the next time you open it.'
+        : 'Switch the Thanksgiving look on in every game. A game that is already open changes the next time you open it.');
     });
   }
   function wire(el) {

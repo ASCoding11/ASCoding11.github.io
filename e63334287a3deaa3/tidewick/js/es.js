@@ -1,0 +1,51 @@
+// Tidewick in Spanish (see README and /e63334287a3deaa3/lang.js). A plain script, loaded before the game's modules.
+// The words on the game screen are drawn with hud.js's pixel font (upper case; Á É Í Ó Ú Ñ ¡ ¿ were added to it).
+if (window.BackRoomLang) BackRoomLang.add({
+  // canvas
+  'TIME': 'TIEMPO', 'HARBOR': 'PUERTO', 'THE BREAKWATER': 'EL ROMPEOLAS', 'RAIN ON THE QUAY. REACH THE MAST.': 'LLUEVE EN EL MUELLE. LLEGA AL MÁSTIL.',
+  'CROSS THE BREAKWATER.': 'CRUZA EL ROMPEOLAS.', 'GAME OVER': 'FIN DEL JUEGO', 'SCORE {s}': 'PUNTOS {s}', 'BEST  {s}': 'RÉCORD {s}', 'BEST {s}': 'RÉCORD {s}',
+  'YOU CLEARED': 'COMPLETASTE', 'THE HARBOR': 'EL PUERTO', 'THE LAMPS ARE LIT AND THE': 'LOS FAROLES ESTÁN ENCENDIDOS Y', 'TOLLKEEPER IS TAKING A BATH.': 'EL COBRADOR SE ESTÁ BAÑANDO.',
+  'TAP FOR THE TITLE': 'TOCA PARA IR AL INICIO', 'PRESS ENTER': 'PULSA ENTER', 'A RAINY NIGHT ON THE QUAY': 'NOCHE DE LLUVIA EN EL MUELLE',
+  'TAP JUMP TO START': 'TOCA SALTAR PARA EMPEZAR', 'PAUSED': 'PAUSA',
+  // page
+  'Tidewick game screen': 'Pantalla del juego Tidewick', 'move ·': 'moverse ·', 'jump (hold for higher) ·': 'saltar (mantén para más alto) ·', 'run / spark ·': 'correr / chispa ·',
+  'crouch, chimney ·': 'agacharse, chimenea ·', 'pause ·': 'pausa ·', 'sound ·': 'sonido ·', 'full screen': 'pantalla completa', 'Controls': 'Controles', 'Full screen': 'Pantalla completa',
+  'Sound on': 'Sonido encendido', 'Sound off': 'Sonido apagado', 'RUN': 'CORRER', 'JUMP': 'SALTAR', 'Pause': 'Pausa',
+  // keybinds panel
+  'Move left': 'Izquierda', 'Move right': 'Derecha', 'Move': 'Moverse', 'Crouch / go down a chimney': 'Agacharse / bajar por una chimenea', 'Jump': 'Saltar',
+  'Hold for a higher jump': 'Mantén para saltar más alto', 'Run / throw a spark': 'Correr / lanzar una chispa', 'Start / pause': 'Empezar / pausa', 'Game': 'Juego',
+  'Sound on / off': 'Sonido sí / no', 'Language': 'Idioma',
+  // the Wardrobe (captains only for now: ../wardrobe.js)
+  'Wardrobe': 'Vestuario', 'Captains': 'Capitanes', 'Done': 'Listo', 'Outfits': 'Trajes', 'Hats': 'Sombreros', 'Face': 'Cara', 'Trails': 'Estelas',
+  'Raincoat': 'Impermeable', 'None': 'Nada', "Pip's own yellow raincoat.": 'El impermeable amarillo de siempre de Pip.',
+  'Striker Kit': 'Equipo de delantero', 'A green shirt, white shorts and socks pulled up high.': 'Camiseta verde, pantalón corto blanco y medias bien subidas.',
+  'Hoops Jersey': 'Camiseta de básquet', 'A sleeveless orange jersey with purple trim.': 'Una camiseta naranja sin mangas con ribete violeta.',
+  'Gridiron Gear': 'Equipo de fútbol americano', 'A red jersey with shoulder stripes and a silver helmet.': 'Camiseta roja con rayas en los hombros y casco plateado.',
+  'Ballpark Pinstripes': 'Rayas de béisbol', 'Cream with thin blue pinstripes and a blue belt.': 'Color crema con rayas finas azules y cinturón azul.',
+  'Rink Sweater': 'Buzo de hockey', 'A thick blue sweater with a white band.': 'Un buzo azul grueso con una franja blanca.',
+  'Track Star': 'Estrella del atletismo', 'A sky-blue tracksuit with a stripe down each side.': 'Un jogging celeste con una raya a cada lado.',
+  'Referee': 'Árbitro', 'Black and white stripes. Fair calls only.': 'Rayas blancas y negras. Solo cobros justos.',
+  'Racing Suit': 'Traje de piloto', 'A fireproof suit in white and red, and a red helmet.': 'Un traje ignífugo blanco y rojo, y un casco rojo.',
+  'Tin Robot': 'Robot de lata', 'Riveted tin plates and a face of polished steel.': 'Chapas remachadas y una cara de acero pulido.',
+  'Pirate Captain': 'Capitán pirata', 'A long red coat with gold buttons and gold trim.': 'Un abrigo largo rojo con botones y ribete dorados.',
+  'Deckhand': 'Marinero', 'A striped shirt and rolled-up sailcloth trousers.': 'Una camiseta a rayas y pantalones de lona arremangados.',
+  'Pinstripe Suit': 'Traje a rayas', 'A grey pinstripe suit and a red tie, sharp as a tack.': 'Un traje gris a rayas finas y corbata roja, impecable.',
+  'Gold Chain Tracksuit': 'Jogging con cadena de oro', 'A shiny tracksuit, white stripes and a heavy gold chain.': 'Un jogging brillante, rayas blancas y una cadena de oro pesada.',
+  'White Tuxedo': 'Esmoquin blanco', 'A white dinner jacket, a black bow tie and a red flower.': 'Saco de esmoquin blanco, moño negro y una flor roja.',
+  'Astronaut': 'Astronauta', 'A puffy white space suit with orange patches.': 'Un traje espacial blanco y abultado con parches naranjas.',
+  'Starry Wizard Robe': 'Túnica de mago estrellada', 'A long violet robe scattered with little gold stars.': 'Una túnica larga violeta llena de estrellitas doradas.',
+  'Ball Cap': 'Gorra', 'A red cap with the peak out front.': 'Una gorra roja con la visera adelante.',
+  'Sweatband': 'Vincha', 'A white band to keep the rain and the sweat out of your eyes.': 'Una vincha blanca para que no te entre lluvia ni sudor en los ojos.',
+  'Robot Antenna': 'Antena de robot', 'A little aerial with a blinking red tip.': 'Una antenita con la punta roja.',
+  'Pirate Hat': 'Sombrero pirata', "A three-cornered captain's hat with a gold edge.": 'Un tricornio de capitán con borde dorado.',
+  'Pirate Bandana': 'Pañuelo pirata', 'A spotted red bandana knotted at the back.': 'Un pañuelo rojo con lunares atado atrás.',
+  'Fedora': 'Sombrero de fieltro', 'A pinched felt hat with a dark band, worn low.': 'Un sombrero de fieltro con cinta oscura, bien calado.',
+  'Top Hat': 'Galera', 'A tall silk hat with a red band.': 'Una galera alta de seda con cinta roja.',
+  'Eye Patch': 'Parche en el ojo', 'One eye on the sea, one patch on the other.': 'Un ojo en el mar y un parche en el otro.',
+  'Shades': 'Lentes oscuros', 'Dark glasses, even at night. Especially at night.': 'Lentes oscuros, aun de noche. Sobre todo de noche.',
+  'Big Moustache': 'Bigote grande', 'A bushy moustache with curled ends.': 'Un bigote tupido con las puntas enruladas.',
+  'Sparkles': 'Destellos', 'Little twinkles left on the quay behind you.': 'Brillitos que quedan en el muelle detrás de ti.',
+  'Bubbles': 'Burbujas', 'Tiny bubbles that float up into the rain.': 'Burbujitas que suben hacia la lluvia.',
+  'Confetti': 'Papel picado', 'Bits of coloured paper that flutter down.': 'Papelitos de colores que caen revoloteando.',
+  'Music Notes': 'Notas musicales', 'A little tune follows you along the harbour.': 'Una melodía te sigue por el puerto.'
+});
