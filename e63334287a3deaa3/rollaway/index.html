@@ -1550,7 +1550,7 @@ function buildChunk(ch, k) {
   // pylons that hold the skyway up from far below, and light frames over unbroken deck every FRAME_EVERY metres
   ch.piers.length = 0; ch.frames.length = 0; ch.beacons.length = 0; ch.masts.length = 0;
   // masts: plumb towers beside the deck every 44 m, side to side, ringed with level lights: the deck cuts across them at its slope
-  for (let s = Math.ceil(c0 / 44) * 44; s < c1; s += 44) { const p = deckAt(s, 0) || deckAt(s, 1.5) || deckAt(s, -1.5); if (!p) continue; const f = (s - p.sa) / (p.sb - p.sa), side = (s / 44) & 1 ? 1 : -1, u = side > 0 ? p.ub0 + (p.ub1 - p.ub0) * f + 4.5 : p.ua0 + (p.ua1 - p.ua0) * f - 4.5; tr.frame(s, FR); ch.masts.push([FR.x + Math.cos(FR.yaw) * u, FR.y - FR.b * u, FR.z + Math.sin(FR.yaw) * u, FR.yaw]); }
+  for (let s = Math.ceil(c0 / 44) * 44; s < c1; s += 44) { const p = deckAt(s, 0) || deckAt(s, 1.5) || deckAt(s, -1.5); if (!p) continue; const f = (s - p.sa) / (p.sb - p.sa), side = (s / 44) & 1 ? 1 : -1, u = side > 0 ? p.ub0 + (p.ub1 - p.ub0) * f + 6.5 : p.ua0 + (p.ua1 - p.ua0) * f - 6.5; tr.frame(s, FR); ch.masts.push([FR.x + Math.cos(FR.yaw) * u, FR.y - FR.b * u, FR.z + Math.sin(FR.yaw) * u, FR.yaw]); }
   // beacons: short plumb light sticks just outside every drop edge, every 6 m: a row of lights falling away shows the slope
   for (let s = Math.ceil(c0 / 6) * 6; s < c1; s += 6) for (const p of tr.piecesAt(s, _pl)) { if (p.tilt) continue; const f = (s - p.sa) / (p.sb - p.sa), ua = p.ua0 + (p.ua1 - p.ua0) * f, ub = p.ub0 + (p.ub1 - p.ub0) * f; if (ub - ua < 0.8) continue; tr.frame(s, FR); for (const [u, w] of [[ua - 0.12, p.wl], [ub + 0.12, p.wr]]) if (!w) ch.beacons.push([FR.x + Math.cos(FR.yaw) * u, FR.y - FR.b * u, FR.z + Math.sin(FR.yaw) * u, FR.yaw]); }
   const sp = QS.pier;
@@ -1593,7 +1593,7 @@ const supportMat = neonMat({ vertexColors: true, roughness: 0.5, metalness: 0.6,
 const piers = new THREE.InstancedMesh(pierGeo(), supportMat, 160); piers.count = 0; piers.frustumCulled = false; piers.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(piers);
 const frameMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: true });
 function mastGeo() { const parts = [], cols = [], emis = []; const b = new THREE.BoxGeometry(0.6, 130, 0.6); b.translate(0, -75, 0); parts.push(b); cols.push(C(0x161230)); emis.push(E0);
-  for (let y = -70; y <= 52; y += 4) { const r = new THREE.BoxGeometry(1.5, 0.12, 1.5); r.translate(0, y, 0); parts.push(r); cols.push(C(0x0a0a10)); emis.push((y / 4) & 1 ? E(0xff3fb0, 1.1) : E(0x2be4ff, 1.0)); }
+  for (let y = -70; y <= 52; y += 4) { const r = new THREE.BoxGeometry(1.0, 0.09, 1.0); r.translate(0, y, 0); parts.push(r); cols.push(C(0x0a0a10)); emis.push((y / 4) & 1 ? E(0xff3fb0, 1.1) : E(0x2be4ff, 1.0)); }
   const cap = new THREE.ConeGeometry(0.5, 2, 4); cap.translate(0, -9.0 + 0, 0); return mergeGeos(parts, cols, emis); }
 const masts = new THREE.InstancedMesh(mastGeo(), supportMat, 30); masts.count = 0; masts.frustumCulled = false; masts.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(masts);
 const beaconGeo = new THREE.BoxGeometry(0.07, 0.75, 0.07); beaconGeo.translate(0, 0.375, 0);
@@ -1655,8 +1655,9 @@ function lintelGeo() { const t = new THREE.BoxGeometry(1, 0.45, 0.6); const s = 
 function stampGeo() { // a crusher: a heavy block with a hot band round its foot and a white line on top
   const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, -0.5, 0);
   const t = new THREE.BoxGeometry(1.02, 0.12, 1.02); t.translate(0, -0.9, 0);
-  const t2 = new THREE.BoxGeometry(1.02, 0.05, 1.02); t2.translate(0, -0.02, 0);
-  return mergeGeos([g, t, t2], [DK, AMB, WH], [E0, HOT, WHITE]);
+  const t2 = new THREE.BoxGeometry(1.02, 0.05, 0.14); t2.translate(0, -0.02, -0.44); const t3 = t2.clone(); t3.translate(0, 0, 0.88); // white edges front and back
+  const t4 = new THREE.BoxGeometry(1.02, 0.1, 1.02); t4.translate(0, -0.5, 0); // a second hot band halfway up
+  return mergeGeos([g, t, t2, t3, t4], [DK, AMB, WH, WH, AMB], [E0, HOT, WHITE, WHITE, E(0xffa22e, 0.9)]);
 }
 function slabGeo() { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, -0.5, 0); const t = new THREE.BoxGeometry(0.86, 0.02, 0.98); t.translate(0, 0.005, 0); return mergeGeos([g, t], [C(0x342c63), C(0x433c80)], [E0, E(0x2be4ff, 0.3)]); }
 function hubGeo() { const g = new THREE.CylinderGeometry(0.42, 0.48, 1.1, 8); g.translate(0, 0.55, 0); const c = new THREE.ConeGeometry(0.3, 0.4, 8); c.translate(0, 1.3, 0); return mergeGeos([g, c], [DK, WH], [E0, WHITE]); }
@@ -1805,7 +1806,7 @@ const rainMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false,
   fragmentShader: 'varying float vA;void main(){gl_FragColor=vec4(vec3(.45,.75,1.)*vA*.55,1.);}' });
 const rain = new THREE.LineSegments(rainGeo, rainMat); rain.frustumCulled = false; scene.add(rain);
 // the light trail: a ribbon through the ball's last positions, additive, fading to nothing
-const TRN = 30, trPos = new Float32Array(TRN * 2 * 3), trCol = new Float32Array(TRN * 2 * 3), trHist = [];
+const TRN = 16, trPos = new Float32Array(TRN * 2 * 3), trCol = new Float32Array(TRN * 2 * 3), trHist = [];
 const trGeo = new THREE.BufferGeometry(); trGeo.setAttribute('position', new THREE.BufferAttribute(trPos, 3)); trGeo.setAttribute('color', new THREE.BufferAttribute(trCol, 3));
 { const ix = []; for (let i = 0; i < TRN - 1; i++) { const a = i * 2; ix.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } trGeo.setIndex(ix); }
 trGeo.attributes.position.setUsage(THREE.DynamicDrawUsage); trGeo.attributes.color.setUsage(THREE.DynamicDrawUsage);
@@ -1819,7 +1820,7 @@ function stepTrail(p, on) {
   G.tr.frame(p.s, FR); const rx = Math.cos(FR.yaw), rz = Math.sin(FR.yaw);
   _tc1.copy(ballGlow);
   for (let i = 0; i < TRN; i++) {
-    const h = trHist[Math.min(i, n - 1)], q = i / (TRN - 1), w = 0.2 * (1 - q) + 0.02, k = i * 6, f = Math.pow(1 - Math.min(1, i / (n - 1)), 1.6) * 0.35;
+    const h = trHist[Math.min(i, n - 1)], q = i / (TRN - 1), w = 0.14 * (1 - q) + 0.01, k = i * 6, f = Math.pow(1 - Math.min(1, i / (n - 1)), 1.6) * 0.28;
     trPos[k] = h[0] - rx * w; trPos[k + 1] = h[1]; trPos[k + 2] = h[2] - rz * w; trPos[k + 3] = h[0] + rx * w; trPos[k + 4] = h[1]; trPos[k + 5] = h[2] + rz * w;
     const r = _tc1.r + (_tc2.r - _tc1.r) * q, g = _tc1.g + (_tc2.g - _tc1.g) * q, b = _tc1.b + (_tc2.b - _tc1.b) * q;
     trCol[k] = trCol[k + 3] = r * f; trCol[k + 1] = trCol[k + 4] = g * f; trCol[k + 2] = trCol[k + 5] = b * f;
