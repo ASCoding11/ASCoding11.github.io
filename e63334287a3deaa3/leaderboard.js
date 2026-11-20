@@ -127,6 +127,14 @@
       'Most waves held': 'Más oleadas aguantadas', 'Daily puzzles finished': 'Puzles diarios terminados', 'Best daily streak (any puzzle)': 'Mejor racha diaria (cualquier puzle)',
       'Perfect days': 'Días perfectos', 'Perfect days (no mistakes)': 'Días perfectos (sin errores)', 'Clean daily solves': 'Resueltos limpios diarios', 'Daily clues solved': 'Pistas diarias resueltas',
       'No hints': 'Sin pistas', 'Solved with no hints': 'Resuelto sin pistas', 'Daily puzzles solved': 'Puzles diarios resueltos', 'Guesses to spare': 'Intentos de sobra', 'Mistakes to spare': 'Errores de sobra',
+      // A game's main board: who holds its mini badge (miles.js). Names and values are filled in as they are.
+      '{who}, with {v}. Whoever is first on this board holds its badge (at least {m}).': '{who}, con {v}. Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
+      '{who}, with {v} each. Whoever is first on this board holds its badge (at least {m}).': '{who}, con {v} cada uno. Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
+      '{who}, with {v}. Whoever is first on this board holds its badge (at most {m}).': '{who}, con {v}. Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
+      '{who}, with {v} each. Whoever is first on this board holds its badge (at most {m}).': '{who}, con {v} cada uno. Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
+      'unclaimed. Whoever is first on this board holds its badge (at least {m}).': 'sin dueño. Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
+      'unclaimed. Whoever is first on this board holds its badge (at most {m}).': 'sin dueño. Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
+      'Top of {g}:': 'Primero en {g}:',
       'Par days': 'Días en par', 'Par days (no hints)': 'Días en par (sin pistas)', 'Perfect routes': 'Rutas perfectas', 'Most entries found': 'Más respuestas encontradas'
     });
   })(0);
@@ -921,6 +929,82 @@
     var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
     return who + ', with ' + fmtN(a.n) + ' kills' + (names.length > 1 ? ' each' : '') + '.' + rule;
   }
+  // ---- Top of a game: a mini badge for whoever is first on each game's main board ----
+  // Every game in GAMES gets one (miles.js draws it as a small shield after every other badge), held by whoever rows()
+  // ranks 1 on that game's main board: the same checked nodes, merged accounts as one player, removed ones never, and
+  // everyone tied for first. The main board is the game's Elo board where it has one, else its first board that isn't
+  // hidden, unless TOP_PICK names another; TOP_MODES gives a game more than one (Stackfall: Classic and Sand). Shell Crackers
+  // and Slipstream have none: Top Cracker and the Slipstream ace are their badges (TOP_SKIP). A floor (TOP_MIN, or for
+  // times and other lowest-first boards TOP_MAX) keeps it from being handed out for nothing: an Elo leader must be above
+  // the starting rating, 1,000 (a rating is only published after a rated match, so that also means they have played);
+  // anything else needs at least 1 unless listed. A new game in GAMES gets a badge by these defaults with no change here;
+  // its name comes from GAMES's n, so a renamed game carries its badge's name with it.
+  var TOP_SKIP = { 'shell-crackers': 1, slipstream: 1 };
+  var TOP_MODES = { stackfall: ['classic', 'sand'] };
+  // The daily puzzles rank by their best daily streak (winning every day in a row), not by wins (days played) or fewest
+  // guesses (ties at the minimum); the rest pick the board that says "best", not a count that only grows with play.
+  var TOP_PICK = { blockstorm: 'mkills', beatvault: 'keys', 'stat-duel': 'streak' };
+  ['daily', 'hunch', 'fourcast', 'quartets', 'crosslet', 'sleight', 'nearword', 'warmer', 'hotspot', 'outline', 'unfurl', 'overland', 'ninefold', 'poopdle',
+    'deadline-day', 'journeyman', 'scout-report', 'crossbar', 'teamsheet', 'back-four', 'top-bins'].forEach(function (d) { TOP_PICK[d] = 'streak'; });
+  var ELO_START = 1000;
+  var TOP_MIN = { blockstorm: 5, coil: 100, trivium: 500, showdown: 1000, escapade: 10, 'asteroid-run': 500, rollaway: 200,
+    rampline: 5, flipline: 200, tidewick: 1000, beatvault: 3, gridpop: 1000, '2048': 2000, stackfall: 1000, 'stackfall:sand': 1000,
+    'melon-merge': 1000, 'patchwork-tower': 1000, flickerwood: 1000, lanternhold: 5, 'stat-duel': 3 };
+  var TOP_MAX = { spire: 600 };   // lowest first: the fastest tower must be under 10 minutes (where its miles start)
+  var TOP_STREAK = 3;             // a daily streak: 3 days in a row or more
+  var TOP_IDS = 12;               // uids kept per game in the answer (ties and merged accounts), so it stays small
+  // -> [{ id: 'coil' or 'stackfall:sand', d, st, name: 'Stackfall (Sand)', min, max }] in GAMES order.
+  var topB0 = null;   // GAMES never changes on a page, so the list is worked out once
+  function topBoards() {
+    if (topB0) return topB0;
+    var out = topB0 = [];
+    GAMES.forEach(function (g) {
+      if (TOP_SKIP[g.d]) return;
+      var vis = g.st.filter(function (s) { return !s.hide; }), keys = TOP_MODES[g.d];
+      if (!keys) { var k = TOP_PICK[g.d]; keys = [k && vis.some(function (s) { return s.k === k; }) ? k : vis.some(function (s) { return s.k === 'elo'; }) ? 'elo' : vis[0] && vis[0].k]; }
+      keys.forEach(function (k, i) {
+        var st = vis.filter(function (s) { return s.k === k; })[0]; if (!st) return;
+        var id = i ? g.d + ':' + k : g.d;
+        var b = { id: id, d: g.d, st: st, name: g.n + (TOP_MODES[g.d] ? ' (' + (st.chip || st.l) + ')' : ''), min: 1, max: 0 };
+        if (st.f === 'elo') b.min = ELO_START + 1;
+        else if (st.f === 'days') b.min = TOP_STREAK;
+        if (TOP_MIN[id] != null) b.min = TOP_MIN[id];
+        if (low(st)) { b.min = 0; b.max = TOP_MAX[id] || 0; }
+        out.push(b);
+      });
+    });
+    return out;
+  }
+  function topName(id) { var b = topBoards().filter(function (x) { return x.id === id; })[0]; return b ? b.name : ''; }
+  // Who leads each board. people: a collapsed list; all: the list before collapse (merged accounts, as ace() and cracker()).
+  // -> [{ b: the board, n: the leader's value (0 when unclaimed), who: the holders, ids: their uids and merged accounts }]
+  function gameTops(people, all, only) {
+    var list = (people || []).filter(function (p) { return p && !p.hidden && !p.into; });
+    return (only ? [only] : topBoards()).map(function (b) {
+      var out = { b: b, n: 0, who: [], ids: [] };
+      var r = rows({ g: b.d, st: b.st }, list);
+      if (!r.length) return out;
+      var v = r[0].v;
+      if (b.min && !(v >= b.min)) return out;
+      if (b.max && !(v <= b.max)) return out;
+      out.n = v;
+      out.who = r.filter(function (x) { return x.rank === 1; }).map(function (x) { return x.p; }).sort(function (a, c) { return a.n < c.n ? -1 : a.n > c.n ? 1 : a.uid < c.uid ? -1 : 1; });
+      out.ids = out.who.map(function (p) { return p.uid; });
+      (all || []).forEach(function (p) { if (p && p.into && !p.hidden && out.ids.indexOf(p.into) >= 0 && out.ids.indexOf(p.uid) < 0) out.ids.push(p.uid); });
+      out.ids = out.ids.slice(0, TOP_IDS);
+      return out;
+    });
+  }
+  // The line a game's main board carries about its badge. me(uid): whether that is the viewer.
+  function fmtTop(st, v) { return st.f === 'elo' ? fmtN(v) + ' Elo' : fmt(st, v); }
+  function gameTopLine(t, me) {
+    var b = t.b, lim = b.max ? 'at most ' + fmtTop(b.st, b.max) : 'at least ' + fmtTop(b.st, b.min);
+    var rule = ' Whoever is first on this board holds its badge (' + lim + ').';
+    if (!t.n) return 'unclaimed.' + rule;
+    var names = t.who.map(function (p) { return p.n + (me && me(p.uid) ? ' (you)' : ''); });
+    var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+    return who + ', with ' + fmtTop(b.st, t.n) + (names.length > 1 ? ' each' : '') + '.' + rule;
+  }
   // Who is first, second and third on the Miles board, for the "#1 all time" / "#2 this week" … tags miles.js puts by
   // tier badges: the uids rows() ranks 1, 2 and 3 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
   // first: every tied player, and allTie / weekTie say so). people: a collapsed list. all: the list before collapse, to
@@ -944,6 +1028,8 @@
     });
     var a = ace(list, all); out.ace = a.ids; out.aceN = a.n;
     var c = cracker(list, all); out.crack = c.ids; out.crackN = c.n;
+    // mini: [[board id, [uid…]], …] in GAMES order, only the boards someone holds (see gameTops).
+    out.mini = gameTops(list, all).filter(function (t) { return t.n && t.ids.length; }).map(function (t) { return [t.b.id, t.ids]; });
     return out;
   }
   // The same from raw nodes, for the admin page (which also lists removed and merged accounts): read here as the boards
@@ -958,7 +1044,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { rows: rows, tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { rows: rows, tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN, topBoards: topBoards, topName: topName, gameTops: gameTops,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -1306,10 +1392,13 @@
     $season.hidden = !(slip && view.st && (view.st.all || view.st.track));   // the lap and record boards, not Hours or Elo
     // Shell Crackers' Kills (all time) board: the same line for Top Cracker (cracker), which that board decides.
     var crackB = view.g === 'shell-crackers' && view.st && view.st.k === 'kills';
-    $ace.hidden = ($season.hidden && !crackB) || !people;
+    // A game's main board (topBoards): who holds that game's mini badge, the same kind of line.
+    var topB = !crackB && $season.hidden && view.st ? topBoards().filter(function (b) { return b.d === view.g && b.st.k === view.st.k; })[0] : null;
+    $ace.hidden = ($season.hidden && !crackB && !topB) || !people;
     if (!$ace.hidden) {
       $ace.textContent = '';
       if (crackB) $ace.append(el('b', '', 'Top Cracker: '), crackerLine(cracker(people, everyone), isMe));
+      else if (topB) $ace.append(el('b', '', 'Top of ' + topB.name + ':'), ' ', gameTopLine(gameTops(people, everyone, topB)[0], isMe));
       else $ace.append(el('b', '', 'Slipstream ace: '), aceLine(ace(people, everyone), isMe));
     }
     var miles = view.g === 'all', spans = miles || !view.st, wk = spans && view.span === 'week';
@@ -1415,5 +1504,5 @@
 
   // Test hook for the automated checks; harmless in normal play.
   if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, collapse: collapse, rows: rows, milesOf: milesOf, $span: $span, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, setResets: function (r) { RESETS = r || {}; }, PATH: PATH, EPOCH: EPOCH,
-    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, ace: ace, aceLine: aceLine, cracker: cracker, crackerLine: crackerLine, $ace: $ace, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
+    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, ace: ace, aceLine: aceLine, cracker: cracker, crackerLine: crackerLine, gameTops: gameTops, gameTopLine: gameTopLine, topBoards: topBoards, $ace: $ace, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
 })();
