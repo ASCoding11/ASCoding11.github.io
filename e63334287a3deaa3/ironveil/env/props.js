@@ -171,8 +171,8 @@
   KINDS.flagpole = (B, R) => {
     // a bare white mast with a halyard and cleat; no flag is flown on the training ground
     const h = 9;
-    B.geo('wood_painted', cyl(0.045, 0.09, h, 10), M4(0, h / 2, 0), { tint: C(1.1, 1.08, 1.0) });
-    B.geo('wood_painted', new THREE.SphereGeometry(0.1, 8, 6), M4(0, h + 0.05, 0), { noFoot: true, tint: C(1.1, 1.08, 1.0) });
+    B.geo('metal_painted', cyl(0.045, 0.09, h, 10), M4(0, h / 2, 0), { tint: C(1.5, 1.5, 1.45) });
+    B.geo('metal_painted', new THREE.SphereGeometry(0.1, 8, 6), M4(0, h + 0.05, 0), { noFoot: true, tint: C(1.5, 1.5, 1.45) });
     B.geo('canvas', cyl(0.006, 0.006, h - 1.2, 3), M4(0.06, h / 2 + 0.5, 0), { noFoot: true, tint: C(0.8, 0.78, 0.7) });
     B.box('metal_rust', 0.09, 1.2, 0, 0.04, 0.16, 0.04, 0, { noFoot: true });
     // whitewashed kerb stones round the foot

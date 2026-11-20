@@ -82,7 +82,7 @@
     }
     // the lived-in camp: parade mast and notice board by the start, duckboards to the hut doors, tent lines with
     // a wash line, fuel drums and stores by the tower, sandbagged bays by the SMG point, spare frames at the butts
-    dress('flagpole', -7, 150, 0); dress('noticeboard', -4.2, 154, Math.PI / 2 + 0.1);
+    dress('flagpole', -9.5, 145, 0); dress('noticeboard', -4.2, 154, Math.PI / 2 + 0.1);
     dress('duckboards', 7, 140, 0, { length: 7 }, 0); dress('duckboards', 7, 120, 0, { length: 7 }, 0); dress('duckboards', -7.5, 130, 0, { length: 6 }, 0);
     for (let k = 0; k < 4; k++) dress('tent', 30 + (k % 2) * 6, 166 - (k >> 1) * 6.5 + (k % 2) * 0.4, Math.PI / 2 + (k * 0.05 - 0.07));
     dress('washline', 38.5, 158.5, Math.PI / 2 + 0.05, { length: 6 }, F.SOLID);
