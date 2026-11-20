@@ -7,7 +7,13 @@
   'use strict';
   const W = IV.world, K = IV.kit, F = IV.CF, S = IV.S, P = IV.player;
   const RANGE_Z = 20;               // the rifle firing point
-  function height(x, z) { return 0.6 * IV.fbm(x / 60 + 5, z / 60, 3) + (Math.abs(x) > 40 ? (Math.abs(x) - 40) * 0.05 : 0) + (z < -320 ? (-320 - z) * 0.2 : 0); }
+  // gentle downland relief outside the course (|x| > 55 or beyond the ends), the course itself unchanged
+  const smoothEdge = (v, a, b) => { const t = IV.clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  function height(x, z) {
+    const base = 0.6 * IV.fbm(x / 60 + 5, z / 60, 3) + (Math.abs(x) > 40 ? (Math.abs(x) - 40) * 0.05 : 0) + (z < -320 ? (-320 - z) * 0.2 : 0);
+    const out = Math.max(smoothEdge(Math.abs(x), 58, 130), smoothEdge(z, 185, 260));
+    return base + out * (7 * IV.fbm(x / 95 + 11, z / 95 - 4, 4) + 3 * IV.fbm(x / 33, z / 33 + 7, 3) - 2);
+  }
   function surface(x, z) { if (Math.abs(x) < 2.2 && z > 0) return S.gravel; if (Math.abs(x + 18) < 5 && Math.abs(z + 2) < 5) return S.mud; return S.grass; }
   function groundColor(x, z, y, n, c) {
     const v = IV.fbm(x / 20, z / 20, 3); c.setRGB(0.38 + v * 0.1, 0.46 + v * 0.06, 0.24);
@@ -22,6 +28,14 @@
   const moveKeys = () => IV.touch ? IV.t('the left stick') : [IV.input.label('forward'), IV.input.label('left'), IV.input.label('back'), IV.input.label('right')].join(' ');
 
   // ---------------------------------------------------------------- build
+  // huts: the kit makes the colliders (the script and the bots know them), IVEnv draws the building: brick or
+  // timber walls, a roof that sits on them, glazed windows, a door, wear
+  function hut(kitFn, spec, x, z, rot) {
+    if (!IV.art.envOn() || !IVEnv.building) return kitFn();
+    IV.kit.noMesh = true; let r; try { r = kitFn(); } finally { IV.kit.noMesh = false; }
+    try { const bd = IVEnv.building(spec); bd.group.position.set(x, W.height(x, z), z); bd.group.rotation.y = rot; (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(bd.group); } catch (e) { console.warn('hut', e); }
+    return r;
+  }
   function build(M) {
     const b = K.begin();
     // course edging: rope posts along the gravel path
@@ -49,15 +63,25 @@
     const py = W.height(-18, -2);
     for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283, a1 = (i + 1) / 10 * 6.283; IV.art.prop('sandbags', b, -18 + Math.cos(a) * 4.5, -2 + Math.sin(a) * 4.5, -18 + Math.cos(a1) * 4.5, -2 + Math.sin(a1) * 4.5, 2); }
     // huts and a water tower so it reads as a camp
-    IV.art.building(b, { x: 16, z: 140, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } });
-    IV.art.building(b, { x: 16, z: 120, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } });
-    IV.art.building(b, { x: -18, z: 130, w: 14, d: 7, h: 3, floor: 0.2, mat: 'plaster', color: 0xcfc6b0, sides: { e: [{ t: 'door', at: 0, w: 1.2 }], n: [{ t: 'win', at: -3, w: 1.2 }, { t: 'win', at: 3, w: 1.2 }] }, roof: { pitch: 0.6 } });
+    hut(() => IV.art.building(b, { x: 16, z: 140, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'shed', w: 6, d: 10, floors: 1, seed: 156, damage: 0.05, lit: 0 }, 16, 140, -Math.PI / 2);
+    hut(() => IV.art.building(b, { x: 16, z: 120, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'shed', w: 6, d: 10, floors: 1, seed: 136, damage: 0.05, lit: 0 }, 16, 120, -Math.PI / 2);
+    hut(() => IV.art.building(b, { x: -18, z: 130, w: 14, d: 7, h: 3, floor: 0.2, mat: 'plaster', color: 0xcfc6b0, sides: { e: [{ t: 'door', at: 0, w: 1.2 }], n: [{ t: 'win', at: -3, w: 1.2 }, { t: 'win', at: 3, w: 1.2 }] }, roof: { pitch: 0.6 } }), { kind: 'cottage', w: 7, d: 14, floors: 1, seed: 148, damage: 0.05, lit: 0 }, -18, 130, Math.PI / 2);
     for (const s of [-1, 1]) for (const t of [-1, 1]) K.add(b, 'wood', K.GEO.box, -30 + s * 1.5, W.height(-30, 100) + 4, 100 + t * 1.5, 0.25, 8, 0.25, 0, 0, 0, 0x6e5a44);
     K.add(b, 'wood', K.GEO.cyl12, -30, W.height(-30, 100) + 9.2, 100, 4.2, 2.6, 4.2, 0, 0, 0, 0x7a6450);
     // tree lines either side of the range
     const R = IV.rng(7);
     for (let z = 170; z > -320; z -= 9) { IV.art.tree(b, -48 + R.range(-3, 3), z, R() < 0.3 ? 'poplar' : 'oak', R); IV.art.tree(b, 48 + R.range(-3, 3), z + 4, R() < 0.3 ? 'poplar' : 'oak', R); }
     IV.art.hedge(b, [[-44, 175], [44, 175]], [[40, 48]]);
+    // the training ground is enclosed: hedgerows along both sides and across the far end, woods on the downs beyond,
+    // so the horizon is never a ruler line and the edge of the world is never seen
+    IV.art.hedge(b, [[-56, 190], [-56, -330]], [[-56, 60, 6]]);
+    IV.art.hedge(b, [[56, 190], [56, -330]], [[56, -40, 6]]);
+    IV.art.hedge(b, [[-56, -330], [56, -330]], [[0, -330, 8]]);
+    IV.art.fence(b, [[-44, 160], [-44, 60]]); IV.art.fence(b, [[44, 160], [44, 60]]);
+    { const RW = IV.rng(19);
+      for (let i = 0; i < 70; i++) { const side = i % 2 ? 1 : -1, x = side * RW.range(75, 300), z = RW.range(-340, 300); IV.art.tree(b, x, z, RW() < 0.55 ? 'oak' : RW() < 0.6 ? 'ash' : 'poplar', RW); }
+      for (let c = 0; c < 6; c++) { const cx = (c % 2 ? 1 : -1) * RW.range(110, 260), cz = RW.range(-300, 260); for (let i = 0; i < 14; i++) IV.art.tree(b, cx + RW.range(-22, 22), cz + RW.range(-22, 22), RW() < 0.6 ? 'oak' : 'ash', RW); }
+      for (let i = 0; i < 30; i++) IV.art.tree(b, RW.range(-300, 300), RW.range(270, 320), RW() < 0.6 ? 'oak' : 'ash', RW); }
     // the backstop berm behind the 300 m target
     K.box(b, 'earth', 0, W.height(0, -300) - 1, -300, 40, 6, 6, 0, 0x7a6a50, F.SOLID | F.BULLET | F.SIGHT, 'mud', 0.3);
     K.finish(b);

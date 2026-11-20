@@ -406,7 +406,7 @@
         const s = R.range(c0, c1); if (inGap(s)) continue;
         // ragged profile: height and width wander, thinner near gap edges
         const gapD = Math.min(...opts.gaps.map(g => s < g[0] ? g[0] - s : s > g[1] ? s - g[1] : 0), 99);
-        const hk = (0.65 + 0.5 * E.fbm2(s * 0.18, opts.seed, 77, 3)) * Math.min(1, 0.35 + gapD / 2.5), H = opts.h * hk;
+        const hk = (0.82 + 0.3 * E.fbm2(s * 0.18, opts.seed, 77, 3)) * Math.min(1, 0.55 + gapD / 1.5), H = opts.h * hk;
         const [px, pz, dx, dz] = at(s), side = R.range(-1, 1), y0 = hf(px, pz);
         const u = R(), y = y0 + Math.pow(u, 0.8) * H, wk = opts.w * 0.5 * (0.6 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.1))) * (0.8 + 0.4 * E.vnoise(s * 0.5, 3, opts.seed));
         const p = new V3(px - dz * side * wk, y, pz + dx * side * wk), cc = new V3(px, y0 + H * 0.5, pz);

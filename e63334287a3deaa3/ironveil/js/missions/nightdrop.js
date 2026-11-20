@@ -147,6 +147,14 @@
     // poplars along the road
     for (let z = 30; z < 180; z += 14) IV.art.tree(b, -4, z + R.range(-2, 2), 'poplar', R);
     for (let z = -110; z > -180; z -= 16) IV.art.tree(b, 16, z, 'poplar', R);
+    // a treeline all round the edge of the map (two staggered rows, mostly impostors at range) so the world never
+    // ends in a hard line, and tree clumps on the field corners (visual only beyond the playable area)
+    for (let t = -182; t <= 182; t += 11) for (const [x, z] of [[t, -184], [t + 5, 184], [-184, t + 4], [184, t]]) {
+      const k = R() < 0.45 ? 'oak' : R() < 0.7 ? 'ash' : 'poplar';
+      IV.art.tree(b, x + R.range(-2, 2), z + R.range(-2, 2), k, R);
+      if (R() < 0.6) IV.art.tree(b, x * 0.965 + R.range(-3, 3), z * 0.965 + R.range(-3, 3), R() < 0.6 ? 'oak' : 'ash', R);
+    }
+    [[-150, 175], [-90, 172], [40, 176], [120, 172], [176, -150], [176, 60], [-176, 20], [-176, -100]].forEach(([x, z]) => { for (let i = 0; i < 4; i++) IV.art.tree(b, x + R.range(-6, 6), z + R.range(-6, 6), R() < 0.5 ? 'oak' : 'ash', R); });
     // scattered field trees
     [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)
@@ -198,6 +206,7 @@
     IV.art.building(b, { x: 13, z: 19, w: 3.2, d: 3.2, h: 2.5, floor: 0.15, mat: 'wood', color: 0x7a6650, sides: { w: [{ t: 'door', at: 0, w: 0.9 }], n: [{ t: 'win', at: 0, w: 0.8, lit: true }] }, roof: { pitch: 0.5, ridge: 'x' }, beams: false });
     IV.art.prop('sandbags', b, 6.5, 2, 6.5, 9, 4); IV.art.prop('sandbags', b, 6.5, 2, 10.5, 1.5, 4);
     IV.art.prop('lamp', b, 4.5, 14, 3.4);
+    IV.art.prop('lamp', b, -84, 25.5, 3.4); IV.art.prop('lamp', b, -45, 22.5, 3.4);   // lane: a pool of light ahead from the landing pasture, and at the bridge
     IV.art.prop('cart', b, -12, 6, 1.2);
     // the farm: yard lamp, gate lamp, bell post, woodpile, cart, barrels
     IV.art.prop('lamp', b, 106, -64, 3.4); IV.art.prop('lamp', b, 92, -60, 3.2);
@@ -227,6 +236,13 @@
     K.box(b, 'wood', -150, W.height(-150, 125) - 0.2, 125, 2.4, 1.6, 9, 0.6, 0x4a4a40, F.SOLID | F.BULLET | F.NAV | F.SIGHT, 'wood', 0.3);
     K.box(b, 'wood', -152, W.height(-152, 125) + 0.6, 125, 16, 0.12, 1.8, 0.62, 0x3a3a32, 0);
     K.finish(b);
+    // standing water in the ruts of both sunken lanes
+    if (IV.art.envOn() && IVEnv.puddleMesh) { try {
+      const pud = [], RR = IV.rng(77);
+      for (const Ln of [L1, L2]) for (let i = 0; i < Ln.length - 1; i++) { const a = Ln[i], c = Ln[i + 1], len = Math.hypot(c[0] - a[0], c[1] - a[1]), dx = (c[0] - a[0]) / len, dz = (c[1] - a[1]) / len;
+        for (let t = RR.range(2, 8); t < len; t += RR.range(5, 14)) { const sd = RR() < 0.5 ? -0.85 : 0.85, x = a[0] + dx * t - dz * sd, z = a[1] + dz * t + dx * sd; pud.push([x, W.height(x, z), z, RR.range(0.6, 1.8), 0.3, Math.atan2(-dz, dx)]); } }
+      W.scene.add(IVEnv.puddleMesh(pud));
+    } catch (e) { console.warn('puddles', e); } }
     // crops (wheat) and tall grass in the pasture
     IV.art.crops(WHEAT, 0.95 * W.P.crops, 1.15, 0xb7a56e);
     // grass round the camera
