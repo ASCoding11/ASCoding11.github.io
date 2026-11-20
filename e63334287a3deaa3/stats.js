@@ -125,8 +125,10 @@
   var NAME_WAIT = 1500, NAME_GAP = 10000;            // a rename republishes after NAME_WAIT, at most once every NAME_GAP
   var LOWER = { tower: 1, summit: 1, obby: 1 };
   LOWER.summit2 = 1;   // Updraft's fastest climb to the Crown (3000 m); summit stays its time to the old summit (1000 m)
+  LOWER.summit3 = 1;   // Updraft's fastest climb from the gate on the Crown to the Lodestar (6000 m)
   LOWER.total = 1;   // Escapade's fastest total of levels 1–8 (min('total', seconds)) is a time too
   LOWER.place = 1;   // Driftfall's best placing (1 = won)
+  LOWER.card9 = 1;   // Putterby's fewest strokes for all nine holes in one round (min('card9', strokes))
   // Rampline's best time on each built-in track (min('t-<track id>', seconds))
   ['t-first-gear', 't-elbow-room', 't-brake-check', 't-hill-hop', 't-paperclip', 't-kicker', 't-banking-hours', 't-mind-the-gap', 't-two-storey', 't-pinch-point', 't-loop-the-loop', 't-sidewall', 't-big-air', 't-twin-loops', 't-high-wire', 't-needle', 't-corkscrew-hill', 't-gauntlet', 't-skyline', 't-grand-tour'].forEach(function (k) { LOWER[k] = 1; });
   // the same for the longer layouts from the handling pass (layout 2): min('r2-<track id>', seconds)
@@ -302,7 +304,7 @@
   var READ = {
     'coil': function () { return { best: sj('coil:best') }; },
     'shell-crackers': function () { var r = sj('shellcr-rank'); return r && (r.g | 0) > 0 ? { elo: Math.round(num(r.r)) } : {}; },
-    'updraft': function () { var b = sj('updraft:best') || {}; return { height: b.h, summit: b.time, summits: b.wins, summit2: b.t2 }; },   // summit: to the old summit (1000 m); summit2: to the Crown (3000 m)
+    'updraft': function () { var b = sj('updraft:best') || {}; return { height: b.h, summit: b.time, summits: b.wins, summit2: b.t2, summit3: b.t3 }; },   // summit: to the old summit (1000 m); summit2: to the Crown (3000 m); summit3: from the Crown's gate to the Lodestar (6000 m)
     'spire': function () { var p = sj('spire:profile') || {}; return { tower: p.best && p.best.tower, towers: p.towers }; },
     'tumble-trials': function () { var s = sj('tumble-stats') || {}; return { crowns: s.w, shows: s.g }; },
     'showdown': function () { var s = sj('sd:pstats') || {}; return { pot: s.big, hands: s.h }; },
