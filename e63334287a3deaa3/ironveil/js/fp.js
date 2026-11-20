@@ -438,7 +438,7 @@
   }
   FP.vm = () => VM;
   // the arms pass: its own field of view (50-60, never the world's) and a small push of the whole rig away from the eye
-  FP.vmTune = { fov: 55, push: 0 };
+  FP.vmTune = { fov: 55, push: 0.03 };   // 50 was tried: a narrower view only enlarges the arms; 3 cm out sits them a little smaller at the hip
   const KIND = { rifle: 'rifleScoped', smg: 'smg', pistol: 'pistol', binoc: 'binoculars', grenade: 'grenade', knife: 'knife' };
   const vst = { weapon: '', kind: '', oneShot: null, dt: 0 };
   const pose = { p: new THREE.Vector3(), q: new THREE.Quaternion() }, qa = new THREE.Quaternion(), qp = new THREE.Quaternion(), piv = new THREE.Vector3();
