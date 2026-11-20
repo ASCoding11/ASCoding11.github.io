@@ -85,6 +85,14 @@ input,select{font:inherit}
 #vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,20,20,.75) 100%);opacity:0}
 #fade{position:fixed;inset:0;pointer-events:none;background:#000;opacity:0}
 #flash{position:fixed;inset:0;pointer-events:none;background:#fff;opacity:0}
+#flash.red{background:#b0100c;mix-blend-mode:multiply}
+/* it heard you: a red warning under the crosshair */
+#alarm{position:absolute;left:50%;top:58%;transform:translateX(-50%);font:900 26px/1 var(--f-d);letter-spacing:.12em;color:#ff4b3e;text-shadow:0 0 18px rgba(255,40,30,.6),0 2px 4px #000;opacity:0;white-space:nowrap}
+#alarm.on{animation:alarm 1.4s ease-out forwards}
+@keyframes alarm{0%{opacity:1;transform:translateX(-50%) scale(1.35)}12%{transform:translateX(-50%) scale(1)}70%{opacity:1}100%{opacity:0}}
+/* taken: black screen, one red word that won't sit still */
+#taken{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;opacity:0;font:900 clamp(56px,14vw,170px)/1 var(--f-d);letter-spacing:.08em;color:#d21a12;text-shadow:3px 0 0 rgba(0,255,240,.25),-3px 0 0 rgba(255,0,60,.5)}
+#taken.soft{color:#cfd8d6;text-shadow:none;font-size:clamp(34px,8vw,80px)}
 #chatlog{position:absolute;left:calc(14px + env(safe-area-inset-left));bottom:calc(84px + env(safe-area-inset-bottom));display:grid;gap:3px;max-width:min(380px,70vw)}
 #chatlog div{font:600 13px/1.3 var(--f-d);background:rgba(10,36,38,.6);padding:4px 9px;border-radius:6px;transition:opacity .6s}
 #chatlog div b{color:var(--teal)}
@@ -218,7 +226,7 @@ body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
   body.touch #toast{top:24%;font-size:18px}
   .panel{padding:16px}
 }
-@media (prefers-reduced-motion:reduce){#toast,#noise .bar i{transition:none}}
+@media (prefers-reduced-motion:reduce){#toast,#noise .bar i{transition:none}#alarm.on{animation-duration:.01s;opacity:1}}
 </style>
 </head>
 <body>
@@ -238,10 +246,11 @@ body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
   <div id="spec" class="hcard" hidden><b id="specT">You're down</b><small id="specS">A teammate can hold E next to you.</small><div class="rv"><i id="specRv"></i></div></div>
   <div id="banner" class="hcard" hidden><h2 id="bannerH"></h2><p id="bannerP"></p></div>
   <div id="toast"></div>
+  <div id="alarm" aria-live="assertive"></div>
 </div>
 <div id="wheel" hidden><div class="w0">HERE</div><div class="w1">GO</div><div class="w2">HELP</div><div class="w3">DANGER</div></div>
 <div id="chatbox" hidden><input id="chatIn" type="text" maxlength="80" placeholder="Say something (people near you see it)" autocomplete="off" data-no-ad-refresh></div>
-<div id="fade"></div><div id="flash"></div>
+<div id="fade"></div><div id="flash"></div><div id="taken" aria-live="assertive"></div>
 <div id="touch" hidden>
   <div id="stickZone"><div id="stick"><i></i></div></div>
   <button class="tb" id="tJump" type="button" data-no-ad-refresh>JUMP</button>
@@ -356,20 +365,22 @@ body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
 const TUNING = {
   // moving about
   gravity: 22, jumpV: 7.4, walk: 4.0, sprint: 6.2, crouch: 2.0, accel: 38, airAccel: 13, radius: 0.3, height: 1.7, stepUp: 0.36,
-  // in the water: treading takes Space strokes, every stroke is loud, and with your head under for downAfter seconds you go down
-  swim: 1.7, sinkAcc: 3.4, strokeV: 2.5, strokeCd: 0.38, downAfter: 1.5,
+  // in the water (knee deep, the pool floor is FLOOR): slower, and every step you take in it splashes
+  wade: 2.1, wadeRun: 3.0, wadeCreep: 1.15, wadeAccel: 16, mantle: 0.55, wadeStep: 0.8,
   // how loud each thing is; a sound is heard out to loudness × baseRadius × the difficulty's hear
-  loud: { fall: 1.0, clip: 0.7, hard: 0.42, sprint: 0.16, swim: 0.5, struggle: 0.24, pebbleWater: 0.75, skip: 0.5, pebbleTile: 0.3,
-    bottle: 1.25, echo: 0.6, toy: 0.6, valve: 1.05, bump: 0.5, keypad: 0.3 },
+  loud: { fall: 1.0, clip: 0.7, hard: 0.42, sprint: 0.16, wade: 0.45, wadeRun: 0.62, wadeCreep: 0.24, climb: 0.3, struggle: 0.24,
+    pebbleWater: 0.75, skip: 0.5, pebbleTile: 0.3, bottle: 1.25, echo: 0.6, toy: 0.6, valve: 1.05, bump: 0.5, keypad: 0.3 },
   baseRadius: 20,
-  hardLandVy: -9.5, edgeMargin: 0.2, sprintStep: 0.36, swimStep: 0.6, struggleEvery: 2.6,
-  // the monster
-  memory: 8, huntRange: 6.5, grabRange: 1.7, grabHigh: 3.8, warnRange: 3.6, noisyGrab: 1.0,
-  monIdle: 0.9, monInvestigate: 2.3, monHunt: 6.8, grabTime: 1.6, monCooldown: 4, linger: 2.4,
+  hardLandVy: -9.5, edgeMargin: 0.2, sprintStep: 0.36, struggleEvery: 2.6,
+  // the monster (there's one): it freezes for \`react\` seconds when it hears something close, then rushes there at monHunt
+  memory: 8, huntRange: 14, grabRange: 2.0, grabHigh: 3.8, warnRange: 4.5, noisyGrab: 1.0, dashReach: 3,
+  monIdle: 1.3, monInvestigate: 4.2, monHunt: 14, react: 0.6, grabTime: 1.6, monCooldown: 4.5, linger: 2.6,
+  // when nobody's left in its room it goes down the drains (travel s) and comes up where the party is (rise s)
+  followAfter: 1.5, travel: 2.6, rise: 1.3, riseFar: 11,
   // co-op
   reviveTime: 2.6, reviveRange: 2.4, shield: 3, ropeRange: 8, ropeTime: 0.9, wipeTime: 3.5, rejoin: 60,
   // rooms
-  valveTime: 4.5, valveRange: 2.2, valveNoiseEvery: 0.5, sinkAfter: 0.6, sinkDrop: 1.6, sinkBack: 3.2,
+  valveTime: 4.5, valveRange: 2.2, valveNoiseEvery: 0.5, sinkAfter: 0.6, sinkDrop: 0.9, sinkBack: 3.2,
   memStep: 0.75, memCycle: 13, crushPeriod: 3.4,
   // items
   throwSpeed: 13, projGrav: 18, pebbleSkips: 1, toyTime: 8, toyEvery: 1.2, flareStun: 5, flareRadius: 6,
@@ -378,10 +389,11 @@ const TUNING = {
   // the host's checks on what each player's browser reports
   maxSpeed: 14, floatFor: 1.8
 };
+// speed: the monster's speeds; react: how long it freezes before it rushes
 const DIFFS = [
-  { k: 'easy', n: 'Easy', mons: 1, scale: 1.22, hear: 0.8, coin: 0.5 },
-  { k: 'normal', n: 'Normal', mons: 3, scale: 1, hear: 1, coin: 1 },
-  { k: 'hard', n: 'Hard', mons: 5, scale: 0.86, hear: 1.2, coin: 1.6 }
+  { k: 'easy', n: 'Easy', scale: 1.22, hear: 0.8, speed: 0.8, react: 1.4, coin: 0.5 },
+  { k: 'normal', n: 'Normal', scale: 1, hear: 1, speed: 1, react: 1, coin: 1 },
+  { k: 'hard', n: 'Hard', scale: 0.86, hear: 1.2, speed: 1.2, react: 0.75, coin: 1.6 }
 ];
 const ITEMS = ['pebble', 'bottle', 'toy', 'flare', 'rope'];
 const ITEM_NAMES = ['Pebbles', 'Bottle', 'Wind-up toy', 'Flare', 'Rescue rope'];
@@ -450,12 +462,18 @@ function heard(loud, d, df) { const R = hearRadius(loud, df); return d >= R ? 0 
 const memWeight = (p, age) => age >= TUNING.memory ? 0 : p * (1 - age / TUNING.memory);
 
 // ---- The level ----
-const HALF = 13, CEIL = 6, FLOOR = -3, TOP = 0.6, DECK = 4;
-// Each room is built in its own coordinates: x from -13 to 13, z from 0 (the door you come in by) to len.
+// FLOOR is the bottom of the pools: the water (y 0) is knee deep, and you can walk, run and jump in it.
+// HALF is the lobby's half width; the halls are much bigger (RHW), and misty, so you have to go and look for things.
+const HALF = 13, RHW = 28, CEIL = 6, FLOOR = -0.55, TOP = 0.6, DECK = 4;
+// Each hall: the entry deck by the door you came in, open water (PRE), the room's course, more water (POST), and three
+// doors in the far wall, only one of them open. Stepping-stone trails join them up (STEP apart, centre to centre).
+const PRE = 14, POST = 16, STEP = 3.5, DOORS = 3;
+// Each room's course is built in its own coordinates: x from -13 to 13 across its middle, z from 0 (its first landing) to len.
+// The hall around it is much bigger; newRoom places the course somewhere in it and furnish() fills in the rest.
 // tile(x, z, w, d) is a floating pool tile (scaled by difficulty), deck() a full-width ledge, pillar() a column.
 // route() adds a stop on the intended way across, used by the test bot and the gap check.
 const ROOMS = [
-  { name: 'Pillar Hall', len: 40, mons: 1, build(R) {
+  { name: 'Pillar Hall', len: 40, build(R) {
     R.sign(0, 3.2, 4.1, 'DON\'T SPLASH|It can\'t see you. It hears you.', 0);
     R.sign(-7, 2.6, 4.1, 'WASD move · SPACE jump|CTRL creep (silent) · SHIFT run (louder)', 0);
     R.sign(7, 2.6, 4.1, 'Hold E at gray stones for pebbles|Click to throw one far away', 0);
@@ -467,7 +485,7 @@ const ROOMS = [
     R.sign(-3.8, 2.4, 21.6 - 1.4, 'Rings on the water|show how far a sound carries', 0);
     R.route(0, 2); [[0, 6.4], [0, 10.2], [0, 14], [-3.8, 14], [-3.8, 17.8], [-3.8, 21.6], [0, 21.6], [3.8, 21.6], [3.8, 25.4], [3.8, 29.2], [0, 29.2], [0, 33]].forEach(p => R.route(p[0], p[1]));
   } },
-  { name: 'Broken Walkway', len: 38, mons: 4, build(R) {
+  { name: 'Broken Walkway', len: 38, build(R) {
     R.sign(0, 3.0, 4.1, 'TWO WAYS ACROSS|Narrow ledges, short hops · Wide tiles, long jumps (hold SHIFT)', 0);
     for (let i = 0, z = 5.4; z < 33; i++, z += 2.6) R.tile(i % 2 ? -7.2 : -8.2, z, 1.0, 1.6, { k: 'ledge' });
     const wide = [7, 13.4, 19.8, 26.2, 31.6];
@@ -478,7 +496,7 @@ const ROOMS = [
     R.route(-6, 35.5);
     R.alt = wide.map(z => [7, z]);
   } },
-  { name: 'Sinking Tiles', len: 34, mons: 3, build(R) {
+  { name: 'Sinking Tiles', len: 34, build(R) {
     R.sign(0, 3.0, 4.1, 'LIGHT EDGES SINK|Dark edges hold. Don\'t stand on the light ones.', 0);
     const rows = [[0, 1, 0], [1, 0, 0], [1, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 1], [0, 1, 0]];
     const xs = [-4, 0, 4];
@@ -487,16 +505,16 @@ const ROOMS = [
     R.route(0, 9.6, { quick: 1 }); R.route(-4, 9.6); R.route(-4, 13.2); R.route(-4, 16.8, { quick: 1 }); R.route(0, 16.8, { quick: 1 }); R.route(4, 16.8);
     R.route(4, 20.4, { quick: 1 }); R.route(0, 20.4); R.route(0, 24, { quick: 1 }); R.route(-4, 24); R.route(-4, 27.6, { quick: 1 }); R.route(0, 27.6); R.route(0, 31.5);
   } },
-  { name: 'Turning Bridge', len: 40, mons: 4, build(R, W) {
+  { name: 'Turning Bridge', len: 40, build(R, W) {
     R.sign(0, 3.0, 4.1, 'THE PLANKS TURN|Step on when one lines up. Ride it round.', 0);
     const P = [9.9, 17.3, 24.7, 32.1].map(z => R.tile(0, z, 3, 3, { k: 'stable' }));
-    let prevEdge = R.z0 + DECK, dir = 1, ph = 0;
-    for (const b of P) { R.plank(0, (prevEdge + b.z0) / 2 - R.z0, b.z0 - prevEdge + 1.6, dir, ph); prevEdge = b.z1; dir = -dir; ph += 0.37; }
+    let prevEdge = R.cz0 + DECK, dir = 1, ph = 0;
+    for (const b of P) { R.plank(0, (prevEdge + b.z0) / 2 - R.cz0, b.z0 - prevEdge + 1.6, dir, ph); prevEdge = b.z1; dir = -dir; ph += 0.37; }
     R.route(0, 2); R.route(0, 3.4);
-    P.forEach((b, i) => { R.route(0, R.planks[i].cz - R.z0, { pl: W.planks.indexOf(R.planks[i]) }); R.route(0, (b.z0 + b.z1) / 2 - R.z0); });
+    P.forEach((b, i) => { R.route(0, R.planks[i].cz - R.cz0, { pl: W.planks.indexOf(R.planks[i]) }); R.route(0, (b.z0 + b.z1) / 2 - R.cz0); });
     R.route(0, 37);
   } },
-  { name: 'Moving Tiles', len: 40, mons: 4, build(R) {
+  { name: 'Moving Tiles', len: 40, build(R) {
     R.sign(0, 3.0, 4.1, 'THE TILES DRIFT|Time your jump. They carry you.', 0);
     R.mover(0, 7.2, 2.6, 2.6, 4, 0, 6, 0);
     R.mover(0, 11.8, 2.6, 2.6, 4, 0, 6, Math.PI / 2);
@@ -506,26 +524,26 @@ const ROOMS = [
     R.route(0, 2); R.route(0, 3.4); R.route(0, 7.2, { mv: 0 }); R.route(0, 11.8, { mv: 1 }); R.route(0, 16.4); R.route(0, 17.3); R.route(0, 24.25, { mv: 2 });
     R.route(0, 32.6); R.route(0, 37);
   } },
-  { name: 'Currents', len: 34, mons: 3, build(R) {
+  { name: 'Currents', len: 34, build(R) {
     R.sign(0, 3.0, 4.1, 'THE FLOOR PUSHES|Arrows drag you sideways. Keep moving.', 0);
     const P = [[0, 7, 2.2], [-2, 12, -2.2], [2, 17, 2.2], [-2, 22, -2.2], [1, 27, 2.2]];
     P.forEach(p => R.tile(p[0], p[1], 3, 3, { k: 'current', cur: p[2] }));
     R.route(0, 2); P.forEach(p => R.route(p[0] - Math.sign(p[2]) * 0.6, p[1])); R.route(0, 32);
   } },
-  { name: 'Memory Bridge', len: 26, mons: 3, build(R, W) {
+  { name: 'Memory Bridge', len: 26, build(R, W) {
     R.sign(0, 3.0, 4.1, 'WATCH THE TILES|They light the way, then go dark. Only lit tiles hold.', 0);
     const xs = [-2.6, 0, 2.6];
     for (let r = 0; r < 6; r++) for (let c = 0; c < 3; c++) R.tile(xs[c], 6.4 + r * 2.8, 1.8, 1.8, { k: 'mem', row: r, col: c, safe: W.memSafe[r] === c });
     R.route(0, 2, { memWait: 1 }); for (let r = 0; r < 6; r++) R.route(xs[W.memSafe[r]], 6.4 + r * 2.8); R.route(0, 24);
   } },
-  { name: 'Crushing Walls', len: 40, mons: 4, build(R, W) {
+  { name: 'Crushing Walls', len: 40, build(R, W) {
     R.sign(0, 3.0, 4.1, 'THE WALLS PUSH|One lane stays open. Find it.', 0);
     const lanes = [-5, 0, 5];
     lanes.forEach((x, li) => R.tile(x, 20, 2.4, 32, { fixed: 1, k: 'lane', th: 3.6, lane: li }));
     [9, 15, 21, 27, 33].forEach((z, si) => lanes.forEach((x, li) => { if (li !== W.lane) R.crusher(x, z, si * 0.55 + li * 0.3); else R.housing(x, z); }));
     const lx = lanes[W.lane]; R.route(lx, 2); R.route(lx, 5); R.route(lx, 35); R.route(lx, 38);
   } },
-  { name: 'Maintenance Lock', len: 46, mons: 5, build(R, W) {
+  { name: 'Maintenance Lock', len: 46, build(R, W) {
     R.sign(0, 3.0, 4.1, 'OPEN BOTH RED VALVES|Hold E. The machinery is LOUD.', 0);
     const T = (x, z, w, d, o) => R.tile(x, z, w, d, o);
     T(0, 7.2, 2.2, 2.2); T(-3.8, 7.2, 2.2, 2.2); T(3.8, 7.2, 2.2, 2.2); T(-7.6, 9.6, 2.2, 2.2); T(7.6, 9.6, 2.2, 2.2);
@@ -546,62 +564,144 @@ const ROOMS = [
 // Corridor top, the exit beyond the last room's far wall, and the keypad
 const CORR_TOP = 2.6;
 
+const poolFloor = (hw, z0, z1) => ({ k: 'floor', x0: -hw, x1: hw, y0: FLOOR - 1, y1: FLOOR, z0, z1, walk: true, dx: 0, dy: 0, dz: 0, cur: 0 });
 function addBox(W, R, x0, x1, y0, y1, z0, z1, k, o) {
   const b = Object.assign({ id: W.boxes.length, x0, x1, y0, y1, z0, z1, k, room: R ? R.i : -1, walk: true, dx: 0, dy: 0, dz: 0 }, o || {});
   W.boxes.push(b); if (R) R.boxes.push(b); return b;
 }
-function newRoom(W, i, def, z0, D) {
-  const R = { i, name: def.name, len: def.len, z0, z1: z0 + def.len, wy: 0, boxes: [], planks: [], stops: [], mons: def.mons, D };
-  const z = v => z0 + v;
+// A hall. Its course is built in its own coordinates (x across from its middle, z from its start) by ROOMS[i].build,
+// placed cx across the hall and PRE in from the door you came through (inX).
+function newRoom(W, i, def, z0, D, inX, rnd) {
+  const last = i === ROOMS.length - 1, pre = i === 0 ? DECK : PRE, post = last ? 0 : POST, CL = def.len, len = pre + CL + post;
+  const cx = i === 0 ? 0 : Math.round((rnd() * 2 - 1) * (RHW - 13) * 2) / 2;
+  const R = { i, name: def.name, len, z0, z1: z0 + len, hw: RHW, wy: 0, inX, cx, cz0: z0 + pre, cz1: z0 + pre + CL, boxes: [], planks: [], stops: [], D };
+  R.floor = poolFloor(RHW, z0, R.z1);
+  const z = v => R.cz0 + v, X = v => cx + v;
   Object.assign(R, {
     tile(x, zz, w, d, o) { o = o || {}; const s = o.fixed ? 1 : D.scale; w *= s; d *= s; const top = o.top != null ? o.top : TOP, th = o.th || 0.5;
-      const b = addBox(W, R, x - w / 2, x + w / 2, top - th, top, z(zz) - d / 2, z(zz) + d / 2, o.k || 'tile', { top, cur: o.cur || 0, row: o.row, col: o.col, safe: o.safe, lane: o.lane });
+      const b = addBox(W, R, X(x) - w / 2, X(x) + w / 2, top - th, top, z(zz) - d / 2, z(zz) + d / 2, o.k || 'tile', { top, cur: o.cur || 0, row: o.row, col: o.col, safe: o.safe, lane: o.lane });
       if (o.k === 'sink' || o.k === 'mem') W.dyn.push({ type: o.k, b, top, t: 0, down: 0, off: 0, safe: !!o.safe });
       return b; },
-    deck(a, c, top) { return addBox(W, R, -HALF, HALF, FLOOR, top || TOP, z(a), z(c), 'deck'); },
-    pillar(x, zz, s) { s = s || 0.9; return addBox(W, R, x - s / 2, x + s / 2, FLOOR, CEIL, z(zz) - s / 2, z(zz) + s / 2, 'pillar', { walk: false }); },
-    stone(x, zz) { const b = R.boxes.slice().reverse().find(b => x > b.x0 && x < b.x1 && z(zz) > b.z0 && z(zz) < b.z1); W.stones.push({ id: W.stones.length, x: x + 0.5, y: b ? b.y1 : TOP, z: z(zz) - 0.4, room: i }); },
-    sign(x, y, zz, text, ry) { W.signs.push({ x, y, z: z(zz), text, ry: ry || 0, room: i }); },
-    route(x, zz, o) { R.stops.push(Object.assign({ x, z: z(zz) }, o || {})); },
-    plank(x, zz, len, dir, ph) { const p = { type: 'rot', cx: x, cz: z(zz), top: TOP, hl: len / 2, hw: 0.65, dir, ph, ang: 0, dAng: 0, room: i }; R.planks.push(p); W.planks.push(p); return p; },
-    mover(x, zz, w, d, ax, az, per, ph) { w *= D.scale; d *= D.scale; const b = addBox(W, R, x - w / 2, x + w / 2, TOP - 0.5, TOP, z(zz) - d / 2, z(zz) + d / 2, 'mover');
-      W.dyn.push({ type: 'move', b, cx: x, cz: z(zz), hw: w / 2, hd: d / 2, ax, az, per, ph }); b.mi = W.movers.length; W.movers.push(W.dyn[W.dyn.length - 1]); return b; },
-    crusher(x, zz, ph) { const b = addBox(W, R, x - 3.8, x - 1.2, TOP + 0.02, TOP + 2.2, z(zz) - 1.2, z(zz) + 1.2, 'crusher', { walk: false });
-      W.dyn.push({ type: 'push', b, xr: x - 3.8, xo: x - 1.2 + 0.1, w: 2.6, ph }); },
-    housing(x, zz) { W.housings.push({ x: x - 2.5, y: TOP + 1.1, z: z(zz), room: i }); },
-    valve(x, zz) { W.valves.push({ i: W.valves.length, x, y: TOP, z: z(zz), room: i }); },
-    digit(x, zz, n) { addBox(W, R, x - 0.35, x + 0.35, TOP, TOP + 2.6, z(zz) + 0.25, z(zz) + 0.95, 'pillar', { walk: false });
-      W.digits.push({ n, d: +W.code[n], x, y: TOP + 1.7, z: z(zz) + 0.25, room: i }); },
-    stair(x, zz, w, d, top) { const b = addBox(W, R, x - w / 2, x + w / 2, top - 0.5, top, z(zz) - d / 2, z(zz) + d / 2, 'stair'); W.dyn.push({ type: 'stair', b, top, off: -3.6 }); b.y0 -= 3.6; b.y1 -= 3.6; },
+    pillar(x, zz, s) { s = s || 0.9; return addBox(W, R, X(x) - s / 2, X(x) + s / 2, FLOOR, CEIL, z(zz) - s / 2, z(zz) + s / 2, 'pillar', { walk: false }); },
+    stone(x, zz) { const b = R.boxes.slice().reverse().find(b => X(x) > b.x0 && X(x) < b.x1 && z(zz) > b.z0 && z(zz) < b.z1); W.stones.push({ id: W.stones.length, x: X(x) + 0.5, y: b ? b.y1 : TOP, z: z(zz) - 0.4, room: i }); },
+    sign(x, y, zz, text, ry) { W.signs.push({ x: X(x), y, z: z(zz), text, ry: ry || 0, room: i }); },
+    route(x, zz, o) { R.stops.push(Object.assign({ x: X(x), z: z(zz) }, o || {})); },
+    plank(x, zz, len, dir, ph) { const p = { type: 'rot', cx: X(x), cz: z(zz), top: TOP, hl: len / 2, hw: 0.65, dir, ph, ang: 0, dAng: 0, room: i }; R.planks.push(p); W.planks.push(p); return p; },
+    mover(x, zz, w, d, ax, az, per, ph) { w *= D.scale; d *= D.scale; const b = addBox(W, R, X(x) - w / 2, X(x) + w / 2, TOP - 0.5, TOP, z(zz) - d / 2, z(zz) + d / 2, 'mover');
+      W.dyn.push({ type: 'move', b, cx: X(x), cz: z(zz), hw: w / 2, hd: d / 2, ax, az, per, ph }); b.mi = W.movers.length; W.movers.push(W.dyn[W.dyn.length - 1]); return b; },
+    crusher(x, zz, ph) { const b = addBox(W, R, X(x) - 3.8, X(x) - 1.2, TOP + 0.02, TOP + 2.2, z(zz) - 1.2, z(zz) + 1.2, 'crusher', { walk: false });
+      W.dyn.push({ type: 'push', b, xr: X(x) - 3.8, xo: X(x) - 1.2 + 0.1, w: 2.6, ph }); },
+    housing(x, zz) { W.housings.push({ x: X(x) - 2.5, y: TOP + 1.1, z: z(zz), room: i }); },
+    valve(x, zz) { W.valves.push({ i: W.valves.length, x: X(x), y: TOP, z: z(zz), room: i }); },
+    digit(x, zz, n) { addBox(W, R, X(x) - 0.35, X(x) + 0.35, TOP, TOP + 2.6, z(zz) + 0.25, z(zz) + 0.95, 'pillar', { walk: false });
+      W.digits.push({ n, d: +W.code[n], x: X(x), y: TOP + 1.7, z: z(zz) + 0.25, room: i }); },
+    stair(x, zz, w, d, top) { const b = addBox(W, R, X(x) - w / 2, X(x) + w / 2, top - 0.5, top, z(zz) - d / 2, z(zz) + d / 2, 'stair'); W.dyn.push({ type: 'stair', b, top, off: -3.6 }); b.y0 -= 3.6; b.y1 -= 3.6; },
     corridor() {
-      addBox(W, R, -2.6, 2.6, FLOOR, CORR_TOP, z(34.2), z(R.len), 'deck');
-      W.keypad = { x: 1.9, y: CORR_TOP + 1.2, z: z(R.len) - 1.2, room: i };
-      const door = addBox(W, R, -2, 2, CORR_TOP, CORR_TOP + 2.8, z(R.len), z(R.len) + 0.4, 'door', { walk: false });
+      addBox(W, R, X(-2.6), X(2.6), FLOOR, CORR_TOP, z(34.2), z(CL), 'deck');
+      W.keypad = { x: X(1.9), y: CORR_TOP + 1.2, z: z(CL) - 1.2, room: i };
+      const door = addBox(W, R, X(-2), X(2), CORR_TOP, CORR_TOP + 2.8, z(CL), z(CL) + 0.4, 'door', { walk: false });
       W.dyn.push({ type: 'door', b: door, off: 0 });
       // the way out: a short bright room past the door
-      addBox(W, R, -4, 4, FLOOR, CORR_TOP, z(R.len), z(R.len + 7), 'deck');
-      addBox(W, R, -5, -4, FLOOR, CEIL, z(R.len), z(R.len + 7), 'wall', { walk: false }); addBox(W, R, 4, 5, FLOOR, CEIL, z(R.len), z(R.len + 7), 'wall', { walk: false });
-      addBox(W, R, -5, 5, FLOOR, CEIL, z(R.len + 7), z(R.len + 8), 'wall', { walk: false });
-      W.exitZ = z(R.len) + 1.2;
+      addBox(W, R, X(-4), X(4), FLOOR, CORR_TOP, z(CL), z(CL + 7), 'deck');
+      addBox(W, R, X(-5), X(-4), FLOOR, CEIL, z(CL), z(CL + 7), 'wall', { walk: false }); addBox(W, R, X(4), X(5), FLOOR, CEIL, z(CL), z(CL + 7), 'wall', { walk: false });
+      addBox(W, R, X(-5), X(5), FLOOR, CEIL, z(CL + 7), z(CL + 8), 'wall', { walk: false });
+      W.exitZ = z(CL) + 1.2;
     }
   });
   W.rooms.push(R);
-  // shell: entry deck, exit deck (not the last room), side walls, the wall you came in through (with a doorway)
-  R.deck(0, DECK);
-  if (i < ROOMS.length - 1) R.deck(def.len - DECK, def.len);
-  addBox(W, R, -HALF - 1, -HALF, FLOOR, CEIL, z0, z0 + def.len, 'wall', { walk: false });
-  addBox(W, R, HALF, HALF + 1, FLOOR, CEIL, z0, z0 + def.len, 'wall', { walk: false });
-  if (i === 0) addBox(W, R, -HALF, HALF, FLOOR, CEIL, z0 - 0.5, z0, 'wall', { walk: false });
-  else { addBox(W, R, -HALF, -2, FLOOR, CEIL, z0 - 0.25, z0 + 0.25, 'wall', { walk: false }); addBox(W, R, 2, HALF, FLOOR, CEIL, z0 - 0.25, z0 + 0.25, 'wall', { walk: false });
-    addBox(W, R, -2, 2, TOP + 3.2, CEIL, z0 - 0.25, z0 + 0.25, 'wall', { walk: false }); }
-  if (i === ROOMS.length - 1) { addBox(W, R, -HALF, -2, FLOOR, CEIL, R.z1, R.z1 + 0.5, 'wall', { walk: false }); addBox(W, R, 2, HALF, FLOOR, CEIL, R.z1, R.z1 + 0.5, 'wall', { walk: false });
-    addBox(W, R, -2, 2, CORR_TOP + 2.8, CEIL, R.z1, R.z1 + 0.5, 'wall', { walk: false }); addBox(W, R, -2, 2, FLOOR, CORR_TOP, R.z1, R.z1 + 0.5, 'wall', { walk: false }); }
-  for (let a = 8; a < def.len - 4; a += 10) { W.arrows.push({ x: -HALF + 0.05, y: 2.6, z: z(a), side: -1, room: i }); W.arrows.push({ x: HALF - 0.05, y: 2.6, z: z(a), side: 1, room: i }); }
+  // shell: the entry deck by the door you came in, the course's two landings, the walls
+  addBox(W, R, Math.max(-RHW, inX - 6), Math.min(RHW, inX + 6), FLOOR, TOP, z0, z0 + DECK, 'deck');
+  addBox(W, R, X(-9), X(9), FLOOR, TOP, z(0), z(DECK), 'deck', { landing: 1 });
+  if (!last) addBox(W, R, X(-9), X(9), FLOOR, TOP, z(CL - DECK), z(CL), 'deck', { landing: 1 });
+  addBox(W, R, -RHW - 1, -RHW, FLOOR, CEIL, z0, R.z1, 'wall', { walk: false });
+  addBox(W, R, RHW, RHW + 1, FLOOR, CEIL, z0, R.z1, 'wall', { walk: false });
+  if (i === 0) addBox(W, R, -RHW, RHW, FLOOR, CEIL, z0 - 0.5, z0, 'wall', { walk: false });
+  else { addBox(W, R, -RHW, inX - 2, FLOOR, CEIL, z0 - 0.25, z0 + 0.25, 'wall', { walk: false }); addBox(W, R, inX + 2, RHW, FLOOR, CEIL, z0 - 0.25, z0 + 0.25, 'wall', { walk: false });
+    addBox(W, R, inX - 2, inX + 2, TOP + 3.2, CEIL, z0 - 0.25, z0 + 0.25, 'wall', { walk: false }); }
+  if (last) { addBox(W, R, -RHW, X(-2), FLOOR, CEIL, R.z1, R.z1 + 0.5, 'wall', { walk: false }); addBox(W, R, X(2), RHW, FLOOR, CEIL, R.z1, R.z1 + 0.5, 'wall', { walk: false });
+    addBox(W, R, X(-2), X(2), CORR_TOP + 2.8, CEIL, R.z1, R.z1 + 0.5, 'wall', { walk: false }); addBox(W, R, X(-2), X(2), FLOOR, CORR_TOP, R.z1, R.z1 + 0.5, 'wall', { walk: false }); }
+  for (let a = 8; a < len - 4; a += 10) { W.arrows.push({ x: -RHW + 0.05, y: 2.6, z: z0 + a, side: -1, room: i }); W.arrows.push({ x: RHW - 0.05, y: 2.6, z: z0 + a, side: 1, room: i }); }
   return R;
+}
+// ---- Filling a hall: doors, stepping stones, dead ends and pillars (all from the seed, so every browser agrees) ----
+// A stone at (x, z), or the stone/deck already there; null if something else (the course, a pillar) is in the way.
+function stoneAt(W, R, x, z, size) {
+  const h = size * R.D.scale / 2; x = clamp(x, -RHW + h + 0.6, RHW - h - 0.6);
+  if (inCourse(R, x, z, h)) return null;   // planks sweep and tiles drift in there
+  for (const b of R.boxes) {
+    if (b.k === 'wall') continue;
+    if (x + h + 0.2 > b.x0 && x - h - 0.2 < b.x1 && z + h + 0.2 > b.z0 && z - h - 0.2 < b.z1) return b.gen || b.k === 'deck' ? b : null;
+  }
+  return addBox(W, R, x - h, x + h, TOP - 0.5, TOP, z - h, z + h, 'tile', { top: TOP, cur: 0, gen: 1 });
+}
+const midOf = b => [(b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2];
+const inCourse = (R, x, z, r) => Math.abs(x - R.cx) < 13.5 + r && z + r > R.cz0 - 0.5 && z - r < R.cz1 + 0.5;
+// A trail of stones from (ax, az) to (bx, bz), wandering a little; returns the stones (in order, no repeats, no decks).
+function trail(W, R, rnd, ax, az, bx, bz, jit) {
+  const sc = R.D.scale, st = 2.2 * sc + 1.3, d = Math.hypot(bx - ax, bz - az), ux = (bx - ax) / (d || 1), uz = (bz - az) / (d || 1), out = [];
+  // square stones: what matters is the spacing along whichever way the trail mostly runs
+  const L = Math.max(Math.abs(bx - ax), Math.abs(bz - az));
+  if (L < st * 0.6) { ax = bx = (ax + bx) / 2; az = bz = (az + bz) / 2; }   // close enough for one stone between
+  const n = L < st * 0.6 ? 0 : Math.ceil(L / st);
+  for (let k = 0; k <= n; k++) {
+    const f = n ? k / n : 0, j = k > 0 && k < n ? (rnd() * 2 - 1) * jit : 0;
+    // as big as fits: never so big it touches the next one along
+    const size = n ? Math.max(1.4, Math.min(2.0 + rnd() * 0.4, (L / n - 0.7) / sc)) : 2.2;
+    const b = stoneAt(W, R, ax + (bx - ax) * f - uz * j, az + (bz - az) * f + ux * j, size);
+    if (b && b.k !== 'deck' && out[out.length - 1] !== b) out.push(b);
+  }
+  // wherever two stones ended up too far apart (one merged into another trail's), put a small one between
+  for (let i = out.length - 1; i > 0; i--) {
+    const a = out[i - 1], b = out[i], gx = Math.max(0, b.x0 - a.x1, a.x0 - b.x1), gz = Math.max(0, b.z0 - a.z1, a.z0 - b.z1);
+    if (Math.hypot(gx, gz) <= 2.0) continue;
+    const ma = midOf(a), mb = midOf(b), m = stoneAt(W, R, (ma[0] + mb[0]) / 2, (ma[1] + mb[1]) / 2, 1.7);
+    if (m && m.k !== 'deck' && m !== a && m !== b) out.splice(i, 0, m);
+  }
+  return out;
+}
+function furnish(W, R, rnd, before) {
+  const last = R.i === ROOMS.length - 1, cx = R.cx, gap = 2.5;
+  if (before) {
+    if (R.cz0 - R.z0 <= DECK) return;   // the first hall: its course starts right at the door (the signs need reading)
+    // the way from the door you came in to the start of the course
+    const ax = clamp(cx, R.inX - 4.5, R.inX + 4.5), bx = clamp(R.inX, cx - 8, cx + 8);
+    const t = trail(W, R, rnd, ax, R.z0 + DECK + gap, bx, R.cz0 - gap, 0.6);
+    R.stops.push({ x: R.inX, z: R.z0 + 2 }, { x: ax, z: R.z0 + 2.8 }); t.forEach(b => { const c = midOf(b); R.stops.push({ x: c[0], z: c[1] }); });
+    R.stops.push({ x: bx, z: R.cz0 + 1.5 });
+    R.trail1 = t;
+    return;
+  }
+  // the far wall: three doors, far apart; one opens into the next hall
+  const doors = [];
+  if (!last) {
+    for (let tries = 0; doors.length < DOORS && tries < 200; tries++) { const x = Math.round((rnd() * 2 - 1) * (RHW - 5) * 2) / 2; if (doors.every(d => Math.abs(d - x) >= 12)) doors.push(x); }
+    const real = Math.floor(rnd() * doors.length);
+    R.exitX = doors[real];
+    doors.forEach((x, k) => { W.doors.push({ room: R.i, x, z: R.z1, real: k === real }); addBox(W, R, Math.max(-RHW, x - 4), Math.min(RHW, x + 4), FLOOR, TOP, R.z1 - DECK, R.z1, 'deck', { door: 1 }); });
+    // trails from the end of the course to every door (the open one first, so it never gets bent round the others)
+    const order = [real].concat(doors.map((_, k) => k).filter(k => k !== real));
+    for (const k of order) {
+      const x = doors[k], t = trail(W, R, rnd, clamp(x, cx - 8, cx + 8), R.cz1 + gap, x, R.z1 - DECK - gap, 0.6);
+      if (k === real) { R.stops.push({ x: clamp(x, cx - 8, cx + 8), z: R.cz1 - 1.5 }); t.forEach(b => { const c = midOf(b); R.stops.push({ x: c[0], z: c[1] }); }); R.stops.push({ x, z: R.z1 - 2.6 }, { x, z: R.z1 - 1 }); }
+    }
+    if (R.i === 0) W.signs.push({ x: cx, y: 3.0, z: R.cz1 + 0.1, text: 'THREE DOORS AHEAD|Only one is open. Find it in the mist.', ry: 0, room: 0 });
+  } else R.exitX = cx;
+  // dead ends off the trails, lone stones and pillars in the mist
+  const gens = R.boxes.filter(b => b.gen);
+  for (let k = 0; k < 3 && gens.length; k++) {
+    const from = midOf(gens[Math.floor(rnd() * gens.length)]), a = rnd() * Math.PI * 2, n = 2 + Math.floor(rnd() * 3);
+    trail(W, R, rnd, from[0] + Math.cos(a) * STEP, from[1] + Math.sin(a) * STEP, from[0] + Math.cos(a) * STEP * n, from[1] + Math.sin(a) * STEP * n, 0.5);
+  }
+  const free = (x, z, r) => !inCourse(R, x, z, r) && R.boxes.every(b => b.k === 'wall' || x + r < b.x0 || x - r > b.x1 || z + r < b.z0 || z - r > b.z1);
+  for (let k = 0, made = 0; k < 60 && made < 5; k++) { const x = (rnd() * 2 - 1) * (RHW - 3), z = R.z0 + 8 + rnd() * (R.len - 16); if (free(x, z, 2)) { stoneAt(W, R, x, z, 2.4); made++; } }
+  for (let k = 0, made = 0; k < 80 && made < 9; k++) {
+    const x = (rnd() * 2 - 1) * (RHW - 3), z = R.z0 + 7 + rnd() * (R.len - 14), s = 0.9 + rnd() * 0.5;
+    if (free(x, z, 1.6)) { addBox(W, R, x - s / 2, x + s / 2, FLOOR, CEIL, z - s / 2, z + s / 2, 'pillar', { walk: false }); made++; }
+  }
 }
 // The lobby: a dry pool deck behind room 1's back wall, with the two stalls and the start pad.
 function buildLobby(W) {
-  const L = { i: -1, name: 'Lobby', z0: -26, z1: -0.5, len: 25.5, wy: 0, boxes: [], planks: [], stops: [] };
+  const L = { i: -1, name: 'Lobby', z0: -26, z1: -0.5, len: 25.5, hw: HALF, wy: 0, boxes: [], planks: [], stops: [], floor: poolFloor(HALF, -26, -0.5) };
   const B = (x0, x1, y0, y1, z0, z1, k, o) => addBox(W, L, x0, x1, y0, y1, z0, z1, k, o);
   B(-HALF, HALF, FLOOR, TOP, -26, -16, 'deck'); B(-HALF, HALF, FLOOR, TOP, -9, -0.5, 'deck');
   B(-HALF, -5, FLOOR, TOP, -16, -9, 'deck'); B(5, HALF, FLOOR, TOP, -16, -9, 'deck');   // a small pool in the middle (-5..5, -16..-9)
@@ -614,13 +714,19 @@ function buildLobby(W) {
 }
 function buildWorld(df, seed) {
   const D = DIFFS[df];
-  const W = { df, seed, rooms: [], boxes: [], dyn: [], planks: [], movers: [], housings: [], stones: [], signs: [], arrows: [], valves: [], digits: [], keypad: null, exitZ: 0, lobby: null };
+  const W = { df, seed, rooms: [], boxes: [], dyn: [], planks: [], movers: [], housings: [], stones: [], signs: [], arrows: [], valves: [], digits: [], doors: [], keypad: null, exitZ: 0, lobby: null };
   const cr = rngFor(seed, 'code'); W.code = ''; for (let i = 0; i < 4; i++) W.code += String(Math.floor(cr() * 10));
   const mr = rngFor(seed, 'memory'); W.memSafe = []; for (let r = 0; r < 6; r++) W.memSafe.push(Math.floor(mr() * 3));
   W.lane = Math.floor(rngFor(seed, 'lane')() * 3);
   buildLobby(W);
   let z = 0;
-  ROOMS.forEach((def, i) => { const R = newRoom(W, i, def, z, D); def.build(R, W); if (i) R.stops.unshift({ x: 0, z: R.z0 + 0.8 }); z += def.len; });
+  let inX = 0;
+  ROOMS.forEach((def, i) => {
+    const rnd = rngFor(seed, 'hall' + i), R = newRoom(W, i, def, z, D, inX, rnd);
+    if (i) R.stops.push({ x: inX, z: R.z0 + 0.8 });
+    furnish(W, R, rnd, true); def.build(R, W); furnish(W, R, rnd, false);
+    inX = R.exitX; z = R.z1;
+  });
   W.end = z;
   // which boxes and planks a player in each room can touch: that room's and its neighbours'
   const all = [W.lobby].concat(W.rooms);
@@ -640,16 +746,17 @@ const waterY = (W, z) => roomAt(W, z).wy;
 // ---- Monster paths: a grid of 0.5 m cells over each room's water, free where nothing stands in the way ----
 const CELL = 0.5;
 function buildGrid(W, R) {
-  const nx = Math.floor((2 * HALF - 1) / CELL), nz = Math.floor((R.len - 1) / CELL), x0 = -HALF + 0.5, z0 = R.z0 + 0.5;
-  const free = new Uint8Array(nx * nz), list = [];
-  const pad = 0.35;
-  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-    const cx = x0 + (i + 0.5) * CELL, cz = z0 + (j + 0.5) * CELL;
-    let ok = true;
-    for (const b of R.boxes) { if (b.k === 'mover' || b.k === 'door') continue; const y0 = b.k === 'stair' ? -3 : b.y0;
-      if (y0 > 3) continue; if (cx > b.x0 - pad && cx < b.x1 + pad && cz > b.z0 - pad && cz < b.z1 + pad) { ok = false; break; } }
-    if (ok) { free[j * nx + i] = 1; list.push(j * nx + i); }
+  const nx = Math.floor((2 * R.hw - 1) / CELL), nz = Math.floor((R.len - 1) / CELL), x0 = -R.hw + 0.5, z0 = R.z0 + 0.5;
+  const free = new Uint8Array(nx * nz).fill(1), list = [], pad = 0.35;
+  for (const b of R.boxes) {
+    if (b.k === 'mover' || b.k === 'door' || b.k === 'wall') continue;
+    const y0 = b.k === 'stair' ? -3 : b.y0; if (y0 > 3) continue;
+    // cells whose centre is inside the box grown by pad
+    const i0 = Math.max(0, Math.floor((b.x0 - pad - x0) / CELL - 0.5) + 1), i1 = Math.min(nx - 1, Math.ceil((b.x1 + pad - x0) / CELL - 0.5) - 1);
+    const j0 = Math.max(0, Math.floor((b.z0 - pad - z0) / CELL - 0.5) + 1), j1 = Math.min(nz - 1, Math.ceil((b.z1 + pad - z0) / CELL - 0.5) - 1);
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) free[j * nx + i] = 0;
   }
+  for (let k = 0; k < free.length; k++) if (free[k]) list.push(k);
   R.grid = { nx, nz, x0, z0, free, list, prev: new Int32Array(nx * nz), q: new Int32Array(nx * nz), seen: new Uint32Array(nx * nz), mark: 0 };
 }
 function cellOf(G, x, z) { return [clamp(Math.floor((x - G.x0) / CELL), 0, G.nx - 1), clamp(Math.floor((z - G.z0) / CELL), 0, G.nz - 1)]; }
@@ -718,7 +825,7 @@ function updateDyn(W, t, dt, feet, st) {
         if (d.down > 0) { d.down -= dt; d.off = Math.max(d.off - dt * 2.2, -TUNING.sinkDrop); } else d.off = Math.min(0, d.off + dt * 1.2);
       } else if (!d.safe) {
         if (d.down <= 0 && stand) { d.t += dt; if (d.t > 0.12) { d.down = 4; d.t = 0; } }
-        if (d.down > 0) { d.down -= dt; d.off = Math.max(d.off - dt * 7, -4); } else d.off = Math.min(0, d.off + dt * 2);
+        if (d.down > 0) { d.down -= dt; d.off = Math.max(d.off - dt * 7, -TUNING.sinkDrop); } else d.off = Math.min(0, d.off + dt * 2);
       }
       b.y1 = d.top + d.off; b.y0 = b.y1 - 0.5;
     } else if (d.type === 'push') { const x = d.xr + (d.xo - d.xr) * crushOut(d, t); b.x0 = x; b.x1 = x + d.w; }
@@ -733,9 +840,9 @@ function updateDyn(W, t, dt, feet, st) {
 }
 
 // ---- The player's body ----
-// p: { x, y, z, vx, vy, vz, gr (box or plank underfoot), inW (in the water), strokeCd, my (lowest feet height since the
-// last report), li (landings so far), lv (speed of the last landing), ev (what happened this step, for sounds) }
-function newBody(x, y, z) { return { x, y, z, vx: 0, vy: 0, vz: 0, gr: null, inW: false, strokeCd: 0, my: y, li: 0, lv: 0, ev: [] }; }
+// p: { x, y, z, vx, vy, vz, gr (box, plank or pool floor underfoot), inW (feet in the water), my (lowest feet height since
+// the last report), li (landings so far), lv (speed of the last landing; -1 a climb), ev (what happened this step, for sounds) }
+function newBody(x, y, z) { return { x, y, z, vx: 0, vy: 0, vz: 0, gr: null, inW: false, my: y, li: 0, lv: 0, ev: [] }; }
 function overlapXZ(p, b, r) { return p.x + r > b.x0 && p.x - r < b.x1 && p.z + r > b.z0 && p.z - r < b.z1; }
 function plankLocal(pl, x, z) { const dx = x - pl.cx, dz = z - pl.cz, c = Math.cos(-pl.ang), s = Math.sin(-pl.ang); return [dx * c - dz * s, dx * s + dz * c]; }
 function onPlank(pl, x, z, m) { const l = plankLocal(pl, x, z); return Math.abs(l[0]) <= pl.hw + m && Math.abs(l[1]) <= pl.hl + m; }
@@ -755,6 +862,8 @@ function moveAxis(p, boxes, ax, d, r, H) {
     if (p.y >= b.y1 - 1e-3 || p.y + H <= b.y0) continue;
     if (!overlapXZ(p, b, r)) continue;
     if (p.gr && b.walk && b.y1 - p.y <= TUNING.stepUp) { p.y = b.y1; continue; }
+    // in the air at about the height of its top (a jump out of the water): pull yourself up onto it
+    if (!p.gr && b.walk && b.y1 - p.y <= TUNING.mantle && p.vy > -3 && b.y1 - b.y0 > 0.2) { p.y = b.y1; p.vy = 0; p.mant = 1; continue; }
     if (ax === 'x') { if (prev + r <= b.x0 + 1e-3) p.x = b.x0 - r - 1e-4; else if (prev - r >= b.x1 - 1e-3) p.x = b.x1 + r + 1e-4; else { pushOut(p, b, r); } p.vx = 0; }
     else { if (prev + r <= b.z0 + 1e-3) p.z = b.z0 - r - 1e-4; else if (prev - r >= b.z1 - 1e-3) p.z = b.z1 + r + 1e-4; else { pushOut(p, b, r); } p.vz = 0; }
   }
@@ -770,36 +879,15 @@ function stepPlayer(W, p, inp, dt) {
     else { p.x += g.dx; p.z += g.dz; if (g.dy) p.y = Math.max(p.y + g.dy, g.y1 - 0.02); if (g.cur) p.x += g.cur * dt; }
   }
   for (let i = 0; i < boxes.length; i++) { const b = boxes[i]; if ((b.k === 'crusher' || b.k === 'mover') && (b.dx || b.dz) && p.y < b.y1 - 1e-3 && p.y + H > b.y0 && overlapXZ(p, b, r)) pushOut(p, b, r); }
-  const wy = R.wy;
-  if (p.inW) {
-    const sp = T.swim; p.vx += (inp.mx * sp - p.vx) * Math.min(1, dt * 5); p.vz += (inp.mz * sp - p.vz) * Math.min(1, dt * 5);
-    p.strokeCd -= dt;
-    if (inp.jump && p.strokeCd <= 0) {
-      p.strokeCd = T.strokeCd; p.vy = T.strokeV; p.ev.push('stroke');
-      // a stroke next to something low enough pulls you out onto it
-      if (p.y > wy - 1.7) for (let i = 0; i < boxes.length; i++) {
-        const b = boxes[i]; if (!b.walk || b.y1 < wy - 0.2 || b.y1 > wy + 1.2) continue;
-        if (!overlapXZ(p, b, r + 0.45)) continue;
-        p.y = b.y1; p.x = clamp(p.x, b.x0 + 0.35, b.x1 - 0.35); p.z = clamp(p.z, b.z0 + 0.35, b.z1 - 0.35);
-        p.inW = false; p.vy = 0; p.vx *= 0.3; p.vz *= 0.3; p.gr = b; p.li++; p.lv = -1; p.ev.push('climb'); return;
-      }
-    }
-    p.vy = Math.max(p.vy - T.sinkAcc * dt, -2.2); p.y += p.vy * dt;
-    if (p.y > wy - 0.95) { p.y = wy - 0.95; if (p.vy > 0) p.vy = 0; }
-    if (p.y < FLOOR + 0.3) { p.y = FLOOR + 0.3; p.vy = 0; }
-    p.gr = null;
-    moveAxis(p, boxes, 'x', p.vx * dt, r, H); moveAxis(p, boxes, 'z', p.vz * dt, r, H);
-    p.my = Math.min(p.my, p.y);
-    p.x = clamp(p.x, -HALF + r, HALF - r);
-    return;
-  }
-  // on land or in the air
-  const speed = inp.crouch ? T.crouch : inp.sprint ? T.sprint : T.walk;
-  const acc = (p.gr ? T.accel : T.airAccel) * dt;
+  const wy = R.wy, wet = p.y < wy - 0.08;
+  // knee deep: slower in the water, and you get going more slowly
+  const speed = wet ? (inp.crouch ? T.wadeCreep : inp.sprint ? T.wadeRun : T.wade) : inp.crouch ? T.crouch : inp.sprint ? T.sprint : T.walk;
+  const acc = (p.gr ? (wet ? T.wadeAccel : T.accel) : T.airAccel) * dt;
   const wx = inp.mx * speed, wz = inp.mz * speed;
   const dvx = wx - p.vx, dvz = wz - p.vz, dl = Math.hypot(dvx, dvz);
   if (dl > 0) { const k = Math.min(1, acc / dl); if (p.gr || inp.mx || inp.mz) { p.vx += dvx * k; p.vz += dvz * k; } }
   if (p.gr && inp.jump) { p.vy = T.jumpV; p.gr = null; p.ev.push('jump'); }
+  p.mant = 0;
   moveAxis(p, boxes, 'x', p.vx * dt, r, H); moveAxis(p, boxes, 'z', p.vz * dt, r, H);
   const prevY = p.y, wasGr = !!g && !p.ev.includes('jump');
   p.vy -= T.gravity * dt; p.y += p.vy * dt;
@@ -812,19 +900,18 @@ function stepPlayer(W, p, inp, dt) {
   if (p.vy <= 0) for (let i = 0; i < planks.length; i++) {
     const pl = planks[i]; if (prevY >= pl.top - 0.06 && p.y < pl.top && pl.top > top && onPlank(pl, p.x, p.z, r * 0.4)) { top = pl.top; land = pl; }
   }
-  if (land) { p.y = top; if (!wasGr) { p.lv = p.vy; p.li++; p.ev.push('land'); } p.vy = 0; p.gr = land; } else p.gr = null;
-  if (p.gr && p.gr.y1 != null && p.gr.y1 < wy - 0.1) p.gr = null;   // a tile that sank under the surface
+  // nothing else under you: the bottom of the pool
+  if (!land && p.y < FLOOR) { top = FLOOR; land = R.floor; }
+  if (land) {
+    p.y = top;
+    if (!wasGr) { p.li++; if (p.mant) { p.lv = -1; p.ev.push('climb'); } else { p.lv = p.vy; p.ev.push(top < wy - 0.08 ? 'splash' : 'land'); } }
+    p.vy = 0; p.gr = land;
+  } else p.gr = null;
+  p.inW = p.y < wy - 0.08;
+  if (p.inW && !wet && !p.ev.includes('splash')) p.ev.push('splash');   // stepped down into it (off a sinking tile, say)
   p.my = Math.min(p.my, p.y);
-  if (!p.gr && p.y < wy + 0.02) {
-    // feet in the water: if a tile's edge is right there, scramble onto it (loud, but you're not in); else you're in
-    if (p.y > wy - 0.6) for (let i = 0; i < boxes.length; i++) {
-      const b = boxes[i]; if (!b.walk || b.y1 < wy || b.y1 > p.y + 1.0 || !overlapXZ(p, b, r + 0.32)) continue;
-      p.y = b.y1; p.x = clamp(p.x, b.x0 + 0.1, b.x1 - 0.1); p.z = clamp(p.z, b.z0 + 0.1, b.z1 - 0.1); p.vy = 0; p.gr = b; p.li++; p.lv = -1; p.ev.push('clip'); break;
-    }
-    if (!p.gr) { p.inW = true; p.vy = Math.min(p.vy * 0.4, -2.5); p.vx *= 0.4; p.vz *= 0.4; p.ev.push('splash'); }
-  }
   if (p.y + H > CEIL) { p.y = CEIL - H; p.vy = Math.min(0, p.vy); }
-  p.x = clamp(p.x, -HALF + r, HALF - r);
+  p.x = clamp(p.x, -R.hw + r, R.hw - r);
 }
 // What's underfoot at (x, y, z), or null. m widens each tile (the host allows for lag).
 function supportAt(W, x, y, z, m) {
@@ -841,9 +928,9 @@ function stepProj(W, pr, dt) {
   pr.vy -= TUNING.projGrav * dt;
   const px = pr.x, py = pr.y, pz = pr.z;
   pr.x += pr.vx * dt; pr.y += pr.vy * dt; pr.z += pr.vz * dt;
-  if (pr.x < -HALF + 0.1 || pr.x > HALF - 0.1) { pr.x = clamp(pr.x, -HALF + 0.1, HALF - 0.1); pr.vx *= -0.45; }
+  const R = roomAt(W, pr.z), hw = R.hw;
+  if (pr.x < -hw + 0.1 || pr.x > hw - 0.1) { pr.x = clamp(pr.x, -hw + 0.1, hw - 0.1); pr.vx *= -0.45; }
   if (pr.y > CEIL - 0.1) { pr.y = CEIL - 0.1; pr.vy = -Math.abs(pr.vy) * 0.3; }
-  const R = roomAt(W, pr.z);
   for (const b of R.near) {
     if (pr.x <= b.x0 || pr.x >= b.x1 || pr.z <= b.z0 || pr.z >= b.z1 || pr.y <= b.y0 || pr.y >= b.y1) continue;
     if (py >= b.y1 - 0.02 && b.walk) { pr.y = b.y1; return 'tile'; }
@@ -866,28 +953,26 @@ function throwVel(yaw, pitch, speed) { const c = Math.cos(pitch); return [-Math.
 // S is the whole run as the host sees it; it's also what the host publishes (encodeRS outside the core).
 // Player states: 0 up, 1 held by a monster, 2 downed, 3 escaped.
 function newState() { return { ph: 'lobby', g: 0, df: 1, seed: 1, t: 0, cp: 0, valves: [0, 0], vt: [0, 0], vOpen: -1, door: 0, mons: [], noise: [], nid: 0, proj: [], pid: 0, toys: [], flares: [], echoes: [], stoneCd: [], pl: {}, wipeT: 0, count: 0, endT: 0, kpBad: 0, cleared: 0 }; }
-function newPlayerRec(n) { return { n: n || 'Swimmer', st: 0, x: 0, y: TOP, z: 0, has: false, inW: false, sub: 0, swimT: 0, spr: 0, strug: 0, unsup: 0, li: null, safe: null, rv: 0, ropeT: 0, ropeBy: '',
+function newPlayerRec(n) { return { n: n || 'Swimmer', st: 0, x: 0, y: TOP, z: 0, has: false, inW: false, wd: 0, wsp: 0, spr: 0, strug: 0, unsup: 0, li: null, safe: null, rv: 0, ropeT: 0, ropeBy: '',
   sh: 0, inv: [START_PEBBLES, 0, 0, 0, 0], coins: 0, downs: 0, revives: 0, help: 0, tp: [0, 0, 0, 0], tpAt: 0, dx: 0, dy: 0, dz: 0, grabT: 0, lastNoise: -99, gone: 0, up: {}, hold: '', room: 0 }; }
-function spawnAt(W, room, k) { const R = W.rooms[room]; return { x: -3 + (k % 4) * 2, y: TOP, z: R.z0 + 2 }; }
-function teleport(P, x, y, z, t) { P.tp = [P.tp[0] + 1, Math.round(x * 100) / 100, Math.round(y * 100) / 100, Math.round(z * 100) / 100]; P.x = x; P.y = y; P.z = z; P.has = false; P.tpAt = t; P.inW = false; P.sub = 0; P.unsup = 0; }
-function spawnMons(W, S) {
-  const D = DIFFS[S.df], rnd = rngFor(S.seed, 'mons'), out = [];
-  W.rooms.forEach(R => {
-    const n = R.i === 0 ? 1 : Math.max(1, Math.min(D.mons, R.mons));
-    const cands = R.grid.list.filter(k => { const z = R.grid.z0 + (Math.floor(k / R.grid.nx) + 0.5) * CELL; return z > R.z0 + 9 && z < R.z1 - 5; });
-    for (let i = 0; i < n; i++) {
-      const k = cands[Math.floor(rnd() * cands.length)] || R.grid.list[0], ci = k % R.grid.nx, cj = (k - ci) / R.grid.nx;
-      const x = R.grid.x0 + (ci + 0.5) * CELL, z = R.grid.z0 + (cj + 0.5) * CELL;
-      out.push({ id: out.length, room: R.i, x, z, hx: x, hz: z, h: rnd() * 6.28, st: 0, t: 0, cd: 0, mem: [], cur: null, tx: x, tz: z, path: null, pi: 0, pathT: 0, grab: '', bumpT: 0, linger: 0, rnd: rngFor(S.seed, 'mon' + out.length) });
-    }
-  });
-  return out;
+function spawnAt(W, room, k) { const R = W.rooms[room]; return { x: R.inX - 3 + (k % 4) * 2, y: TOP, z: R.z0 + 2 }; }
+function teleport(P, x, y, z, t) { P.tp = [P.tp[0] + 1, Math.round(x * 100) / 100, Math.round(y * 100) / 100, Math.round(z * 100) / 100]; P.x = x; P.y = y; P.z = z; P.has = false; P.tpAt = t; P.inW = false; P.wd = 0; P.unsup = 0; }
+// There is one monster. It starts (and after a wipe, starts again) in the checkpoint room, away from the door.
+function newMon(W, S, room, x, z, h) {
+  return { id: 0, room, x, z, hx: x, hz: z, h, st: 0, t: 0, cd: 0, mem: [], cur: null, tx: x, tz: z, path: null, pi: 0, pathT: 0, grab: '', bumpT: 0, linger: 0, away: 0, to: -1, ret: 0,
+    rnd: rngFor(S.seed, 'mon' + S.g + ':' + room + ':' + Math.round(S.t * 10)) };
+}
+function spawnMons(W, S, room) {
+  const R = W.rooms[room || 0], rnd = rngFor(S.seed, 'mons' + (room || 0));
+  const cands = R.grid.list.filter(k => { const c = freeCell(R, k); return Math.hypot(c[0] - R.inX, c[1] - R.z0) > 22; });
+  const k = cands[Math.floor(rnd() * cands.length)] || R.grid.list[0], ci = k % R.grid.nx, cj = (k - ci) / R.grid.nx;
+  return [newMon(W, S, R.i, R.grid.x0 + (ci + 0.5) * CELL, R.grid.z0 + (cj + 0.5) * CELL, rnd() * 6.28)];
 }
 // A run starts: everyone to room 1, their packed items, fresh monsters.
 function startRun(S, W, df, seed, ids) {
   Object.assign(S, { ph: 'run', g: S.g + 1, df, seed, t: 0, cp: 0, valves: [0, 0], vt: [0, 0], vOpen: -1, door: 0, noise: [], proj: [], toys: [], flares: [], echoes: [], wipeT: 0, endT: 0, kpBad: 0, cleared: 0 });
   S.stoneCd = W.stones.map(() => 0);
-  S.mons = spawnMons(W, S);
+  S.mons = spawnMons(W, S, 0);
   ids.forEach((u, k) => {
     const P = S.pl[u]; if (!P) return; const sp = spawnAt(W, 0, k);
     Object.assign(P, { st: 0, coins: 0, downs: 0, revives: 0, help: 0, rv: 0, ropeT: 0, sh: 0, li: null, lastNoise: -99, inv: P.pack ? P.pack.slice() : [START_PEBBLES, 0, 0, 0, 0] });
@@ -899,7 +984,7 @@ function emit(S, W, x, y, z, loud, src, u) {
   S.noise.push(ev); if (S.noise.length > 40) S.noise.shift();
   if (u && S.pl[u]) S.pl[u].lastNoise = S.t;
   for (const m of S.mons) {
-    if (m.room !== R.i || m.st === 4) continue;
+    if (m.room !== R.i || m.st === 4 || m.st === 5 || m.st === 6) continue;
     const d = Math.hypot(m.x - x, m.z - z), p = heard(loud, d, S.df);
     if (p > 0) { m.mem.push({ x, z, p, t: S.t, near: d <= TUNING.huntRange, id: ev.id }); if (m.mem.length > 10) m.mem.shift(); }
   }
@@ -910,7 +995,7 @@ function downPlayer(S, W, P, x, z) {
   // float in open water near where it happened
   let px = x, pz = z;
   if (G) { const k = nearestFree(G, x, z), ci = k % G.nx, cj = (k - ci) / G.nx; px = G.x0 + (ci + 0.5) * CELL; pz = G.z0 + (cj + 0.5) * CELL; }
-  P.st = 2; P.dx = px; P.dz = pz; P.dy = R.wy - 0.9; P.downs++; P.rv = 0; P.strug = 0; P.inW = false; P.sub = 0; P.hold = '';
+  P.st = 2; P.dx = px; P.dz = pz; P.dy = FLOOR; P.downs++; P.rv = 0; P.strug = 0; P.inW = false; P.wd = 0; P.hold = '';
 }
 function revive(S, P, x, y, z) { P.st = 0; P.sh = S.t + TUNING.shield; P.rv = 0; P.ropeT = 0; teleport(P, x, y, z, S.t); }
 const alivePl = S => Object.keys(S.pl).filter(u => !S.pl[u].gone && S.pl[u].st === 0);
@@ -926,17 +1011,24 @@ function hostSense(S, W, u, rep, dt) {
   if (P.has && dt > 0 && hd > 1.5 && hd / Math.max(dt, 0.05) > TUNING.maxSpeed && !(sup && sup.type === 'rot')) { teleport(P, P.x, P.y, P.z, S.t); return; }
   if (!sup && rep.y > wy + 0.05) { P.unsup += dt; if (P.unsup > TUNING.floatFor && P.safe) { teleport(P, P.safe.x, P.safe.y, P.safe.z, S.t); return; } } else P.unsup = 0;
   if (sup && !sup.type && (sup.k === 'deck' || sup.k === 'stable' || sup.k === 'tile' || sup.k === 'lane')) P.safe = { x: clamp(rep.x, sup.x0 + 0.3, sup.x1 - 0.3), y: sup.y1, z: clamp(rep.z, sup.z0 + 0.3, sup.z1 - 0.3) };
-  const inW = rep.y < wy - 0.3 || (rep.y < wy + 0.02 && !sup), touched = rep.my < wy + 0.02;
+  // feet in the water: going in is a splash; every few steps in it is a splash too, louder the faster you go
+  const inW = rep.y < wy - 0.08, touched = rep.my < wy - 0.08;
   if (inW && !P.inW) emit(S, W, rep.x, wy, rep.z, TUNING.loud.fall, 'fall', u);
-  else if (!inW && !P.inW && touched && sup) emit(S, W, rep.x, wy, rep.z, TUNING.loud.clip, 'clip', u);
-  if (inW) {
-    P.swimT += dt; if (P.swimT >= TUNING.swimStep) { P.swimT = 0; emit(S, W, rep.x, wy, rep.z, TUNING.loud.swim, 'swim', u); }
-    if (rep.y + 1.55 < wy) { P.sub += dt; if (P.sub > TUNING.downAfter) { P.x = rep.x; P.z = rep.z; downPlayer(S, W, P, rep.x, rep.z); return; } } else P.sub = 0;
-  } else { P.sub = 0; P.swimT = 0; }
+  else if (!inW && !P.inW && touched) emit(S, W, rep.x, wy, rep.z, TUNING.loud.clip, 'clip', u);   // in and out between two reports
+  if (inW && P.inW && P.has && dt > 0) {
+    P.wsp += (hd / Math.max(dt, 0.03) - P.wsp) * 0.35; P.wd += hd;
+    if (P.wd >= TUNING.wadeStep) {
+      P.wd = 0; const T = TUNING, k = P.wsp > (T.wade + T.wadeRun) / 2 ? 'wadeRun' : P.wsp < (T.wade + T.wadeCreep) / 2 ? 'wadeCreep' : 'wade';
+      emit(S, W, rep.x, wy, rep.z, T.loud[k], k, u);
+    }
+  } else if (!inW) { P.wd = 0; P.wsp = 0; }
   P.inW = inW;
   if (P.li != null && rep.li !== P.li && !inW && sup) {
-    const hard = rep.lv < TUNING.hardLandVy, edge = edgeDist(sup, rep.x, rep.z) < TUNING.edgeMargin;
-    if (hard || edge) emit(S, W, rep.x, sup.y1 != null ? sup.y1 : TOP, rep.z, TUNING.loud.hard, hard ? 'hard' : 'edge', u);
+    if (rep.lv === -1) emit(S, W, rep.x, sup.y1 != null ? sup.y1 : TOP, rep.z, TUNING.loud.climb, 'climb', u);   // pulled up out of the water
+    else {
+      const hard = rep.lv < TUNING.hardLandVy, edge = edgeDist(sup, rep.x, rep.z) < TUNING.edgeMargin;
+      if (hard || edge) emit(S, W, rep.x, sup.y1 != null ? sup.y1 : TOP, rep.z, TUNING.loud.hard, hard ? 'hard' : 'edge', u);
+    }
   }
   P.li = rep.li;
   if (!inW && sup && !sup.type && !sup.cur && sup.k !== 'mover' && dt > 0 && hd / Math.max(dt, 0.03) > TUNING.walk * 1.2) {
@@ -944,44 +1036,91 @@ function hostSense(S, W, u, rep, dt) {
   }
   P.x = rep.x; P.y = rep.y; P.z = rep.z; P.has = true; P.room = roomAt(W, rep.z).i;
 }
-// The monster's mind. States: 0 drifting, 1 going to look, 2 lunging, 3 holding someone, 4 stunned.
+// The monster's mind. States: 0 drifting, 1 going to look, 2 rushing, 3 holding someone, 4 stunned, 5 under the water
+// (going through the drains to another room), 6 coming up out of the water, 7 heard something close (frozen, about to rush).
+// Which room the monster wants: the one with the most players up in it (the furthest on a tie), -1 if nobody's up.
+function partyRoom(S) {
+  const n = {}; let best = -1, bn = 0;
+  for (const u in S.pl) { const P = S.pl[u]; if (P.gone || P.st !== 0 || !P.has || P.room < 0) continue; n[P.room] = (n[P.room] || 0) + 1; }
+  for (const k in n) if (n[k] > bn || (n[k] === bn && +k > best)) { bn = n[k]; best = +k; }
+  return best;
+}
+function freeCell(R, k) { const G = R.grid, ci = k % G.nx, cj = (k - ci) / G.nx; return [G.x0 + (ci + 0.5) * CELL, G.z0 + (cj + 0.5) * CELL]; }
+// Where it comes up in a room: open water as far as it can get from everyone (out of 40 tries), at least riseFar if it can.
+function riseSpot(S, R, rnd) {
+  const ppl = Object.values(S.pl).filter(P => !P.gone && P.st === 0 && P.room === R.i);
+  let best = null, bs = -1;
+  for (let i = 0; i < 40; i++) {
+    const c = freeCell(R, R.grid.list[Math.floor(rnd() * R.grid.list.length)]);
+    let d = 99; for (const P of ppl) d = Math.min(d, Math.hypot(P.x - c[0], P.z - c[1]));
+    const sc = Math.min(d, TUNING.riseFar + 3) + rnd() * 2; if (sc > bs) { bs = sc; best = c; }
+  }
+  return best;
+}
+function forget(m) { m.mem.length = 0; m.cur = null; m.path = null; }
 function monStep(S, W, m, dt) {
-  const T = TUNING, R = W.rooms[m.room];
-  if (m.st === 4) { m.t -= dt; if (m.t <= 0) { m.st = 0; m.mem.length = 0; m.cur = null; m.path = null; } return; }
+  const T = TUNING, D = DIFFS[S.df];
+  if (m.st === 5) {   // under: comes up in the party's room
+    m.t -= dt; if (m.t > 0) return;
+    const R = W.rooms[m.to] || W.rooms[m.room], c = riseSpot(S, R, m.rnd);
+    Object.assign(m, { room: R.i, x: c[0], z: c[1], hx: c[0], hz: c[1], tx: c[0], tz: c[1], st: 6, t: T.rise, to: -1 }); forget(m); return;
+  }
+  if (m.st === 6) { m.t -= dt; if (m.t <= 0) { m.st = 0; m.path = null; } return; }
+  if (m.st === 4) { m.t -= dt; if (m.t <= 0) { m.st = 0; forget(m); } return; }
   if (m.st === 3) {
     m.t -= dt; const P = S.pl[m.grab];
     if (!P || P.st !== 1) { m.st = 0; m.grab = ''; return; }
-    if (m.t <= 0) { downPlayer(S, W, P, m.x, m.z); m.st = 0; m.cd = T.monCooldown; m.mem.length = 0; m.cur = null; m.grab = ''; m.path = null; }
+    if (m.t <= 0) {
+      downPlayer(S, W, P, m.x, m.z); m.st = 0; m.cd = T.monCooldown; m.grab = ''; forget(m);
+      // done: it backs off into the dark, quickly, before it listens again
+      const R = W.rooms[m.room], c = riseSpot(S, R, m.rnd); m.tx = c[0]; m.tz = c[1]; m.ret = 1;
+    }
     return;
   }
+  const R = W.rooms[m.room];
   if (m.cd > 0) m.cd -= dt;
   if (m.bumpT > 0) m.bumpT -= dt;
+  // nobody up in its room any more: after a moment it goes down the drains to wherever the party is
+  const want = partyRoom(S);
+  if (want >= 0 && want !== m.room && (m.st === 0 || m.st === 1)) {
+    m.away += dt; if (m.away >= T.followAfter) { m.st = 5; m.t = T.travel; m.to = want; m.away = 0; m.ret = 0; forget(m); return; }
+  } else m.away = 0;
   // the loudest thing it remembers
   let best = null, bw = 0;
   for (let i = m.mem.length - 1; i >= 0; i--) { const e = m.mem[i], w = memWeight(e.p, S.t - e.t); if (w <= 0) { m.mem.splice(i, 1); continue; } if (w > bw) { bw = w; best = e; } }
   if (best && m.cd <= 0 && best !== m.cur) {
     const d = Math.hypot(best.x - m.x, best.z - m.z);
-    if (S.t - best.t < 1.2 && d <= T.huntRange) m.st = 2; else if (m.st !== 2) m.st = 1;
-    m.cur = best; m.tx = best.x; m.tz = best.z; m.path = null; m.linger = T.linger;
+    // something fresh and close: it freezes (and shrieks), then rushes; already rushing, it just turns
+    if (S.t - best.t < 1.2 && d <= T.huntRange) { if (m.st !== 2 && m.st !== 7) { m.st = 7; m.t = T.react * D.react; } }
+    else if (m.st !== 2 && m.st !== 7) m.st = 1;
+    m.cur = best; m.tx = best.x; m.tz = best.z; m.path = null; m.linger = T.linger; m.ret = 0;
   }
-  if (m.st === 0 && (m.path === null || m.pi >= m.path.length)) {
-    const k = R.grid.list[Math.floor(m.rnd() * R.grid.list.length)], ci = k % R.grid.nx, cj = (k - ci) / R.grid.nx;
-    let x = R.grid.x0 + (ci + 0.5) * CELL, z = R.grid.z0 + (cj + 0.5) * CELL;
-    if (Math.hypot(x - m.hx, z - m.hz) > 9) { x = m.hx + (x - m.hx) * 0.4; z = m.hz + (z - m.hz) * 0.4; }   // drifts near its own patch
-    m.tx = x; m.tz = z; m.path = null;
+  if (m.st === 7) {
+    let dh = Math.atan2(m.tx - m.x, m.tz - m.z) - m.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); m.h += dh * Math.min(1, dt * 14);
+    m.t -= dt; if (m.t <= 0) { m.st = 2; m.path = null; } return;
   }
-  const sp = m.st === 2 ? T.monHunt : m.st === 1 ? T.monInvestigate : T.monIdle;
+  if (m.st === 0 && !m.ret && (m.path === null || m.pi >= m.path.length)) {
+    // drifting: half the time towards wherever people are in its room, otherwise anywhere
+    const ppl = Object.values(S.pl).filter(P => !P.gone && P.st === 0 && P.room === m.room);
+    let c = freeCell(R, R.grid.list[Math.floor(m.rnd() * R.grid.list.length)]);
+    if (ppl.length && m.rnd() < 0.5) { const P = ppl[Math.floor(m.rnd() * ppl.length)], a = m.rnd() * 6.283, r = 3 + m.rnd() * 6; c = [P.x + Math.cos(a) * r, P.z + Math.sin(a) * r]; }
+    m.tx = clamp(c[0], -R.hw + 1, R.hw - 1); m.tz = clamp(c[1], R.z0 + 1, R.z1 - 1); m.path = null;
+  }
+  const sp = (m.st === 2 ? T.monHunt : m.st === 1 || m.ret ? T.monInvestigate : T.monIdle) * D.speed;
   const arrived = monMove(m, R, sp, dt);
   if (arrived) {
     if (m.st === 2) m.st = 1;
-    else if (m.st === 1) { m.linger -= dt; if (m.linger <= 0) { m.st = 0; m.mem.length = 0; m.cur = null; m.path = null; } }
-    else m.path = null;
+    else if (m.st === 1) { m.linger -= dt; if (m.linger <= 0) { m.st = 0; forget(m); } }
+    else { m.path = null; m.ret = 0; }
   }
-  // reach out: a lunge takes anyone in reach; going to look only takes someone who's making noise right there
-  if (m.st === 1 || m.st === 2) for (const u in S.pl) {
-    const P = S.pl[u]; if (P.gone || P.st !== 0 || S.t < P.sh || P.room !== m.room) continue;
-    const d = Math.hypot(P.x - m.x, P.z - m.z);
-    if (d <= T.grabRange && P.y < T.grabHigh && (m.st === 2 || S.t - P.lastNoise < T.noisyGrab)) { m.st = 3; m.t = T.grabTime; m.grab = u; P.st = 1; P.grabT = T.grabTime; P.hold = ''; return; }
+  // reach out: at the end of a rush it takes anyone in reach; otherwise only someone making noise right there
+  if (m.st === 1 || m.st === 2) {
+    const end = m.st === 2 && Math.hypot(m.tx - m.x, m.tz - m.z) <= T.dashReach;
+    for (const u in S.pl) {
+      const P = S.pl[u]; if (P.gone || P.st !== 0 || S.t < P.sh || P.room !== m.room) continue;
+      const d = Math.hypot(P.x - m.x, P.z - m.z);
+      if (d <= T.grabRange && P.y < T.grabHigh && (end || S.t - P.lastNoise < T.noisyGrab)) { m.st = 3; m.t = T.grabTime; m.grab = u; P.st = 1; P.grabT = T.grabTime; P.hold = ''; return; }
+    }
   }
   if (m.bumpT <= 0) for (const u in S.pl) {
     const P = S.pl[u]; if (P.gone || P.st !== 0 || P.room !== m.room) continue;
@@ -996,7 +1135,7 @@ function monMove(m, R, sp, dt) {
     const wx = m.path[m.pi], wz = m.path[m.pi + 1], dx = wx - m.x, dz = wz - m.z, d = Math.hypot(dx, dz);
     if (d <= left) { m.x = wx; m.z = wz; m.pi += 2; left -= d; continue; }
     m.x += dx / d * left; m.z += dz / d * left; left = 0;
-    const want = Math.atan2(dx, dz); let dh = want - m.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); m.h += dh * Math.min(1, dt * 6);
+    const want = Math.atan2(dx, dz); let dh = want - m.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); m.h += dh * Math.min(1, dt * (sp > 6 ? 14 : 6));
   }
   return m.pi >= m.path.length;
 }
@@ -1043,7 +1182,7 @@ function projLanded(S, W, pr, what) {
   if (pr.k === 2) { S.toys.push({ x: pr.x, y: what === 'water' ? R.wy : pr.y, z: pr.z, until: S.t + toyTimeOf(pr.up), next: S.t + 0.3, room: R.i }); return false; }
   if (pr.k === 3) {
     const r = flareRadiusOf(pr.up); S.flares.push({ x: pr.x, y: pr.y, z: pr.z, until: S.t + TUNING.flareStun, r, room: R.i });
-    for (const m of S.mons) if (m.room === R.i && Math.hypot(m.x - pr.x, m.z - pr.z) <= r) {
+    for (const m of S.mons) if (m.room === R.i && m.st !== 5 && Math.hypot(m.x - pr.x, m.z - pr.z) <= r) {
       if (m.st === 3) { const P = S.pl[m.grab]; if (P && P.st === 1) { P.st = 0; P.sh = S.t + TUNING.shield; } m.grab = ''; }
       m.st = 4; m.t = TUNING.flareStun; m.mem.length = 0; m.cur = null;
     }
@@ -1059,9 +1198,7 @@ function hostStep(S, W, dt) {
   S.t += dt;
   const feet = []; for (const u in S.pl) { const P = S.pl[u]; if (!P.gone && P.st === 0) feet.push(P); }
   updateDyn(W, S.t, dt, feet, S);
-  // monsters only think in rooms someone is in
-  const occ = new Set(); for (const u in S.pl) { const P = S.pl[u]; if (!P.gone) occ.add(P.st === 2 ? roomAt(W, P.dz).i : P.room); }
-  for (const m of S.mons) if (occ.has(m.room)) monStep(S, W, m, dt);
+  for (const m of S.mons) monStep(S, W, m, dt);
   // things in flight
   for (let i = S.proj.length - 1; i >= 0; i--) {
     const pr = S.proj[i]; pr.age += dt; let what = '';
@@ -1122,8 +1259,7 @@ function retryFromCheckpoint(S, W) {
   S.ph = 'run';
   let k = 0;
   for (const u in S.pl) { const P = S.pl[u]; if (P.gone) continue; const sp = spawnAt(W, S.cp, k++); P.st = 0; P.rv = 0; P.ropeT = 0; P.sh = S.t + TUNING.shield; P.hold = ''; teleport(P, sp.x, sp.y, sp.z, S.t); }
-  const fresh = spawnMons(W, S);
-  S.mons = S.mons.map((m, i) => m.room >= S.cp ? fresh[i] : m);
+  S.mons = spawnMons(W, S, S.cp);
   if (S.cp >= W.rooms.length - 1) { S.valves = [0, 0]; S.vOpen = -1; S.door = 0; }
   S.proj.length = 0; S.toys.length = 0; S.echoes.length = 0; S.noise.length = 0;
 }
@@ -1136,13 +1272,14 @@ const runScore = P => P.revives * 10 + P.help * 4 - P.downs * 6;
 //  water shader, the fog and the tiles agree.
 // =====================================================================
 const $ = id => document.getElementById(id);
-const FOG = 0xcfe6e2;
+// The halls are full of mist: you see about 20 m, the far wall and the monster only when you're close.
+const FOG = 0xaec3c0, FOG_NEAR = 1, FOG_FAR = 17;
 let gfx = 2;
 const renderer = new THREE.WebGLRenderer({ canvas: $('view'), antialias: true, powerPreference: 'high-performance' });
 renderer.setClearColor(FOG);
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(FOG, 7, 46);
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 140);
+scene.fog = new THREE.Fog(FOG, FOG_NEAR, FOG_FAR);
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 60);
 scene.add(new THREE.HemisphereLight(0xf4ffff, 0x3a9a93, 0.72));
 const sun = new THREE.DirectionalLight(0xffffff, 0.32); sun.position.set(4, 10, -3); scene.add(sun);
 scene.add(new THREE.AmbientLight(0xbfe6e2, 0.12));
@@ -1201,6 +1338,9 @@ const MAT = {
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; }
 const FRAME_TEX = canvasTex(128, 128, (g, w) => { g.clearRect(0, 0, w, w); g.strokeStyle = '#fff'; g.lineWidth = 12; g.strokeRect(8, 8, w - 16, w - 16); });
+const MIST_TEX = (() => { const t = canvasTex(256, 256, (g, w) => { g.clearRect(0, 0, w, w); let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 46; i++) { const x = r() * w, y = r() * w, rad = 18 + r() * 60; for (const dx of [-w, 0, w]) for (const dy of [-w, 0, w]) { const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad); gr.addColorStop(0, 'rgba(255,255,255,' + (0.18 + r() * 0.25) + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x + dx - rad, y + dy - rad, rad * 2, rad * 2); } } });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
 const BLOB_TEX = canvasTex(64, 64, (g, w) => { const r = g.createRadialGradient(32, 32, 2, 32, 32, 31); r.addColorStop(0, 'rgba(0,30,32,.55)'); r.addColorStop(1, 'rgba(0,30,32,0)'); g.fillStyle = r; g.fillRect(0, 0, w, w); });
 const ARROW_TEX = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#2bb3a8'; for (let i = 0; i < 3; i++) { const x = 24 + i * 70; g.beginPath(); g.moveTo(x, 18); g.lineTo(x + 50, 64); g.lineTo(x, 110); g.lineTo(x + 18, 110); g.lineTo(x + 68, 64); g.lineTo(x + 18, 18); g.closePath(); g.fill(); } });
 const CURRENT_TEX = (() => { const t = canvasTex(128, 128, (g, w) => { g.clearRect(0, 0, w, w); g.fillStyle = 'rgba(29,139,131,.85)'; for (let y = 0; y < 2; y++) { const yy = 16 + y * 64; g.beginPath(); g.moveTo(20, yy); g.lineTo(70, yy + 16); g.lineTo(20, yy + 32); g.lineTo(34, yy + 16); g.closePath(); g.fill(); g.beginPath(); g.moveTo(70, yy); g.lineTo(120, yy + 16); g.lineTo(70, yy + 32); g.lineTo(84, yy + 16); g.closePath(); g.fill(); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
@@ -1238,7 +1378,7 @@ function ownMat(m) { m.userData.own = 1; return m; }
 function buildLevel(W) {
   disposeLevel();
   const G = new THREE.Group(); scene.add(G);
-  LV = { group: G, W, dyn: [], planks: [], waters: [], stones: [], valves: [], lights: [], flick: [], keypadLamp: null };
+  LV = { group: G, W, dyn: [], planks: [], waters: [], stones: [], valves: [], lights: [], flick: [], mist: [], doors: [], keypadLamp: null };
   const stat = { tile: [], pillar: [], wall: [], mem: [], lane: [], crush: [], door: [], dark: [] };
   const dynBoxes = new Set(W.dyn.map(d => d.b));
   for (const b of W.boxes) {
@@ -1251,7 +1391,7 @@ function buildLevel(W) {
     const list = stat[k]; if (!list.length) continue;
     const im = new THREE.InstancedMesh(BOX, MAT[k], list.length);
     list.forEach((b, i) => { const c = boxCenter(b); m4.compose(v.set(c[0], c[1], c[2]), q, s.set(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0)); im.setMatrixAt(i, m4); });
-    im.instanceMatrix.needsUpdate = true; G.add(im);
+    im.instanceMatrix.needsUpdate = true; im.frustumCulled = false; G.add(im);
   }
   // frames on tiles: light edges sink, dark edges hold
   const frameMat = c => ownMat(new THREE.MeshBasicMaterial({ map: FRAME_TEX, color: c, transparent: true, depthWrite: false }));
@@ -1292,12 +1432,19 @@ function buildLevel(W) {
   const rooms = [W.lobby].concat(W.rooms);
   for (const R of rooms) {
     const len = R.z1 - R.z0, cz = (R.z0 + R.z1) / 2;
-    const fl = new THREE.Mesh(BOX, MAT.floor); fl.position.set(0, FLOOR - 0.1, cz); fl.scale.set(2 * HALF, 0.2, len); G.add(fl);
-    const ce = new THREE.Mesh(BOX, MAT.ceil); ce.position.set(0, CEIL + 0.1, cz); ce.scale.set(2 * HALF + 2, 0.2, len + 0.5); G.add(ce);
-    if (R.i >= 0) { const wm = new THREE.Mesh(new THREE.PlaneGeometry(2 * HALF, len, 1, 1).rotateX(-Math.PI / 2), WATER); wm.position.set(0, 0, cz); wm.renderOrder = 2; G.add(wm); LV.waters.push({ R, m: wm }); }
+    const hw = R.hw;
+    const fl = new THREE.Mesh(BOX, MAT.floor); fl.position.set(0, FLOOR - 0.1, cz); fl.scale.set(2 * hw, 0.2, len); G.add(fl);
+    const ce = new THREE.Mesh(BOX, MAT.ceil); ce.position.set(0, CEIL + 0.1, cz); ce.scale.set(2 * hw + 2, 0.2, len + 0.5); G.add(ce);
+    if (R.i >= 0 && gfx > 0) for (const [y, o, sp] of [[0.3, 0.55, 0.012], [1.3, 0.38, -0.008]]) {
+      // low mist lying over the water, drifting
+      const mt = MIST_TEX.clone(); mt.needsUpdate = true; mt.repeat.set(hw / 7, len / 7);
+      const mm = new THREE.Mesh(new THREE.PlaneGeometry(2 * hw, len).rotateX(-Math.PI / 2), ownMat(new THREE.MeshBasicMaterial({ map: mt, color: FOG, transparent: true, opacity: o, depthWrite: false, fog: true })));
+      mm.position.set(0, y, cz); mm.renderOrder = 3; G.add(mm); LV.mist.push({ t: mt, sp });
+    }
+    if (R.i >= 0) { const wm = new THREE.Mesh(new THREE.PlaneGeometry(2 * hw, len, 1, 1).rotateX(-Math.PI / 2), WATER); wm.position.set(0, 0, cz); wm.renderOrder = 2; G.add(wm); LV.waters.push({ R, m: wm }); }
     else { const wm = new THREE.Mesh(new THREE.PlaneGeometry(10, 7).rotateX(-Math.PI / 2), WATER); wm.position.set(0, 0, -12.5); wm.renderOrder = 2; G.add(wm); }
     // light panels in the ceiling, one of them flickering
-    const pts = []; for (let z = R.z0 + 3; z < R.z1 - 1; z += 5) for (const x of [-7, 0, 7]) pts.push([x, z]);
+    const pts = []; for (let z = R.z0 + 3; z < R.z1 - 1; z += 6) for (let x = -hw + 4; x <= hw - 4; x += 8) pts.push([x, z]);
     const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.2, 1.1).rotateX(Math.PI / 2), ownMat(new THREE.MeshBasicMaterial({ color: 0xffffff })), pts.length);
     const c = new THREE.Color(0xffffff);
     pts.forEach((p, i) => { m4.compose(v.set(p[0], CEIL - 0.01, p[1]), q, s.set(1, 1, 1)); im.setMatrixAt(i, m4); im.setColorAt(i, c.setHex(0xfbfffd)); });
@@ -1341,8 +1488,23 @@ function buildLevel(W) {
     LV.keypadLamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), ownMat(new THREE.MeshBasicMaterial({ color: 0xff4b3e }))); LV.keypadLamp.position.set(K.x - 0.07, K.y + 0.38, K.z); G.add(LV.keypadLamp);
     const R9 = W.rooms[W.rooms.length - 1];
     const ex = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.5), ownMat(new THREE.MeshBasicMaterial({ map: signTex('EXIT', { bg: '#0f6b3f', edge: '#7cf0b0', ink: '#eafff2' }) })));
-    ex.position.set(0, CORR_TOP + 3.1, R9.z1 - 0.02); ex.rotation.y = Math.PI; G.add(ex);
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(8, 6), ownMat(new THREE.MeshBasicMaterial({ color: 0xffffff }))); glow.position.set(0, CORR_TOP + 2, R9.z1 + 6.95); glow.rotation.y = Math.PI; G.add(glow);
+    ex.position.set(R9.cx, CORR_TOP + 3.1, R9.z1 - 0.02); ex.rotation.y = Math.PI; G.add(ex);
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(8, 6), ownMat(new THREE.MeshBasicMaterial({ color: 0xffffff }))); glow.position.set(R9.cx, CORR_TOP + 2, R9.z1 + 6.95); glow.rotation.y = Math.PI; G.add(glow);
+  }
+  // the doors in each far wall: a dark frame, a lamp and an EXIT sign on every one; the shut ones are barred
+  const exitTex = signTex('EXIT', { bg: '#0f6b3f', edge: '#7cf0b0', ink: '#eafff2' }), exitMat = ownMat(new THREE.MeshBasicMaterial({ map: exitTex, fog: true }));
+  const lampMat = ownMat(new THREE.MeshBasicMaterial({ color: 0xffd27a, fog: true }));
+  for (const D of W.doors) {
+    const z = D.z - 0.27, g = new THREE.Group(); g.position.set(D.x, TOP, z); G.add(g);
+    for (const sx of [-1, 1]) { const p = new THREE.Mesh(BOX, MAT.dark); p.position.set(sx * 2.1, 1.6, 0); p.scale.set(0.22, 3.2, 0.12); g.add(p); }
+    const lin = new THREE.Mesh(BOX, MAT.dark); lin.position.set(0, 3.25, 0); lin.scale.set(4.42, 0.22, 0.12); g.add(lin);
+    const sg = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.44), exitMat); sg.position.set(0, 3.7, -0.02); sg.rotation.y = Math.PI; g.add(sg);
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), lampMat); lamp.position.set(0, 4.15, -0.08); g.add(lamp);
+    if (!D.real) {
+      for (let i = 0; i < 9; i++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3.1, 6), MAT.door); b.position.set(-1.8 + i * 0.45, 1.55, -0.05); g.add(b); }
+      for (const y of [0.9, 2.3]) { const b = new THREE.Mesh(BOX, MAT.door); b.position.set(0, y, -0.06); b.scale.set(3.9, 0.08, 0.06); g.add(b); }
+    }
+    LV.doors.push({ D, lamp });
   }
   // the lobby: two stalls and the party pad
   const L = W.lobby;
@@ -1368,7 +1530,7 @@ const RINGS = 14;
 const WATER = new THREE.ShaderMaterial({
   transparent: true, depthWrite: false,
   uniforms: { uTime: U.time, uRings: { value: Array.from({ length: RINGS }, () => new THREE.Vector4()) }, uCam: { value: new THREE.Vector3() },
-    uFog: { value: new THREE.Color(FOG) }, uNear: { value: 7 }, uFar: { value: 46 }, uFlare: { value: new THREE.Vector4(0, 0, 0, 0) } },
+    uFog: { value: new THREE.Color(FOG) }, uNear: { value: FOG_NEAR }, uFar: { value: FOG_FAR }, uFlare: { value: new THREE.Vector4(0, 0, 0, 0) } },
   vertexShader: 'varying vec3 vWP; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vWP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
   fragmentShader: `uniform float uTime; uniform vec4 uRings[${RINGS}]; uniform vec3 uCam; uniform vec3 uFog; uniform float uNear; uniform float uFar; uniform vec4 uFlare; varying vec3 vWP;` + GLSL_CAUSTIC + `
   void main(){
@@ -1382,7 +1544,8 @@ const WATER = new THREE.ShaderMaterial({
     vec3 v = normalize(uCam - vWP); float fr = pow(1.0 - max(v.y, 0.0), 3.0);
     col = mix(col, vec3(0.86, 0.97, 0.96), fr * 0.45);
     float fogF = smoothstep(uNear, uFar, length(uCam - vWP));
-    gl_FragColor = vec4(mix(col, uFog, fogF), mix(0.8 + fr * 0.14, 1.0, fogF));
+    // shallow and clear: you can see the floor tiles (and its feet) through it, but not ripples' worth of detail
+    gl_FragColor = vec4(mix(col, uFog, fogF), mix(0.5 + fr * 0.38 + min(ring, 1.0) * 0.25, 1.0, fogF));
   }`
 });
 // ---- People and the monster ----
@@ -1410,48 +1573,139 @@ function poseSwimmer(S, o) {
   const sw = Math.sin(S.ph) * Math.min(1, o.speed / 4) * 0.7;
   S.body.rotation.set(0, 0, 0); S.body.position.y = 0;
   if (o.down) { S.body.rotation.x = -1.45; S.body.position.y = 0.25 + Math.sin(performance.now() / 300) * 0.05; S.aL.rotation.x = -2.6 + Math.sin(performance.now() / 180) * 0.5; S.aR.rotation.x = -2.6 + Math.cos(performance.now() / 180) * 0.5; S.lL.rotation.x = S.lR.rotation.x = 0; }
-  else if (o.inW) { const t = performance.now() / 160; S.aL.rotation.x = -2.2 + Math.sin(t) * 0.8; S.aR.rotation.x = -2.2 - Math.sin(t) * 0.8; S.lL.rotation.x = Math.sin(t) * 0.4; S.lR.rotation.x = -Math.sin(t) * 0.4; }
+  else if (o.inW && !o.air) { S.aL.rotation.set(sw * 0.6 - 0.35, 0, 0.45); S.aR.rotation.set(-sw * 0.6 - 0.35, 0, -0.45); S.lL.rotation.x = -sw * 1.1; S.lR.rotation.x = sw * 1.1; S.body.rotation.x = 0.12; }
   else if (o.air) { S.aL.rotation.x = S.aR.rotation.x = -2.4; S.aL.rotation.z = 0.3; S.aR.rotation.z = -0.3; S.lL.rotation.x = -0.5; S.lR.rotation.x = 0.3; }
   else { S.aL.rotation.set(sw, 0, 0.05); S.aR.rotation.set(-sw, 0, -0.05); S.lL.rotation.x = -sw; S.lR.rotation.x = sw; if (o.crouch) { S.body.position.y = -0.25; S.body.rotation.x = 0.25; } }
-  S.blob.visible = !o.inW && !o.down && o.gy != null;
+  S.blob.visible = !o.inW && !o.down && o.gy != null && o.gy > 0;
   if (S.blob.visible) { S.blob.position.set(o.x, o.gy + 0.012, o.z); const k = clamp(1 - (o.y - o.gy) / 3, 0.3, 1); S.blob.scale.set(0.9 * k, 1, 0.9 * k); }
 }
 function dropSwimmer(S) { scene.remove(S.g); scene.remove(S.blob); S.g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
-const MON_MAT = new THREE.MeshPhongMaterial({ color: 0xd7d3ca, specular: 0x9fb4b4, shininess: 70, emissive: 0x141818 });
+// The monster: very tall, starved and hunched, dark wet skin like something that's been in the water too long, milky
+// blind eyes, long black hair stuck to it, a mouth that splits back to where ears would be, arms long enough to trail
+// in the water, and knees that bend the wrong way.
+const MON_MAT = new THREE.MeshPhongMaterial({ color: 0x4c5650, specular: 0x6c7f7a, shininess: 90, emissive: 0x050706 });
+const MON_EYE = new THREE.MeshPhongMaterial({ color: 0xc9d3cc, specular: 0x9aa6a0, shininess: 40, emissive: 0x3a4440 });
+const MON_HAIR = new THREE.MeshPhongMaterial({ color: 0x070808, specular: 0x5c6a68, shininess: 120, side: THREE.DoubleSide });
+const MON_DARK = new THREE.MeshBasicMaterial({ color: 0x050404 });
+const MON_SOCKET = new THREE.MeshPhongMaterial({ color: 0x101412, specular: 0x3a4a46, shininess: 60 });
+const MON_GUM = new THREE.MeshBasicMaterial({ color: 0x0e0202, side: THREE.DoubleSide });
+const MON_TOOTH = new THREE.MeshPhongMaterial({ color: 0xe9e2c4, specular: 0xffffff, shininess: 60, emissive: 0x1a1810 });
 function makeMonster() {
-  const g = new THREE.Group(), m = MON_MAT;
-  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 3.6, 8), m); legL.position.set(-0.17, -1.3, 0); g.add(legL);
-  const legR = legL.clone(); legR.position.x = 0.17; g.add(legR);
-  const torso = new THREE.Group(); torso.position.y = 0.45; g.add(torso);
-  const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.2, 1.7, 10), m); chest.position.y = 0.85; chest.scale.z = 0.62; torso.add(chest);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.45, 8), m); neck.position.y = 1.85; torso.add(neck);
-  const headP = new THREE.Group(); headP.position.y = 2.05; torso.add(headP);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), m); head.scale.set(0.95, 1.55, 1.05); head.position.y = 0.24; headP.add(head);
-  // where eyes would be: two shallow dark hollows
-  const hol = new THREE.MeshBasicMaterial({ color: 0x5c5f5c });
-  for (const s of [-1, 1]) { const h = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), hol); h.scale.set(1.4, 0.5, 0.4); h.position.set(s * 0.08, 0.32, 0.2); headP.add(h); }
-  const mkArm = s => { const p = new THREE.Group(); p.position.set(s * 0.36, 1.55, 0); const a = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 2.1, 8), m); a.position.y = -1.05; p.add(a);
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), m); hand.scale.set(0.8, 1.8, 0.6); hand.position.y = -2.2; p.add(hand); torso.add(p); return p; };
-  const aL = mkArm(-1), aR = mkArm(1);
+  const g = new THREE.Group(), m = MON_MAT, cyl = (r0, r1, h, mat) => new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, h, 8), mat || m);
+  // a limb part hanging from its pivot (pointing down -y), so rotating the pivot swings it
+  const seg = (parent, r0, r1, len, x, y, z) => { const p = new THREE.Group(); p.position.set(x, y, z); const c = cyl(r0, r1, len); c.position.y = -len / 2; p.add(c); parent.add(p); p.len = len; return p; };
+  const body = new THREE.Group(); g.add(body);
+  // legs: thigh forward, shin back, a long foot
+  const legs = [-1, 1].map(s => {
+    const hip = seg(body, 0.075, 0.06, 0.8, s * 0.15, 1.55, 0); const knee = seg(hip, 0.06, 0.045, 0.85, 0, -0.8, 0);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 6), m); knob.position.y = 0; knee.add(knob);
+    const ank = seg(knee, 0.045, 0.03, 0.42, 0, -0.85, 0); const foot = cyl(0.03, 0.012, 0.32); foot.rotation.x = Math.PI / 2; foot.position.set(0, -0.42, 0.14); ank.add(foot);
+    return { hip, knee, ank, s };
+  });
+  const pelvis = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), m); pelvis.scale.set(1.25, 0.6, 0.8); pelvis.position.y = 1.55; body.add(pelvis);
+  // the torso hinges at the hips
+  const torso = new THREE.Group(); torso.position.y = 1.55; body.add(torso);
+  const waist = cyl(0.1, 0.13, 0.55); waist.position.y = 0.27; waist.scale.z = 0.75; torso.add(waist);
+  const chest = cyl(0.3, 0.15, 0.85); chest.position.y = 0.92; chest.scale.z = 0.58; torso.add(chest);
+  for (let i = 0; i < 5; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(0.21 - i * 0.018, 0.016, 5, 14, Math.PI), m); r.position.set(0, 0.68 + i * 0.12, 0.02); r.rotation.set(Math.PI / 2, 0, 0); r.scale.set(1, 0.95, 1); torso.add(r); }
+  for (let i = 0; i < 9; i++) { const v = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5), m); v.position.set(0, 0.08 + i * 0.15, -0.12 - Math.sin(i / 8 * Math.PI) * 0.06); torso.add(v); }
+  for (const s of [-1, 1]) { const sh = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), m); sh.position.set(s * 0.33, 1.3, -0.02); torso.add(sh); }
+  // neck and head, thrust forward
+  const neck = new THREE.Group(); neck.position.set(0, 1.34, 0.02); torso.add(neck);
+  const nk = cyl(0.05, 0.07, 0.55); nk.position.y = 0.27; neck.add(nk);
+  const headP = new THREE.Group(); headP.position.y = 0.55; neck.add(headP);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.2, 28, 20), m); skull.scale.set(0.88, 1.2, 1.18); skull.position.set(0, 0.16, -0.04); headP.add(skull);
+  // blind: sunken sockets with milky eyes that don't look at anything, and dark streaks running down from them
+  // deep slanted holes with a pale pinprick far back in each; the two aren't quite the same size or height
+  for (const s of [-1, 1]) {
+    const pit = new THREE.Mesh(new THREE.SphereGeometry(0.046, 14, 10), MON_SOCKET); pit.scale.set(1.3, 0.75, 0.7); pit.rotation.z = -s * 0.38; pit.position.set(s * 0.072, 0.195 + (s > 0 ? -0.008 : 0), 0.158); headP.add(pit);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(s > 0 ? 0.015 : 0.012, 12, 10), MON_EYE); eye.scale.z = 0.6; eye.position.set(s * 0.078, 0.19 + (s > 0 ? -0.01 : 0.004), 0.184); headP.add(eye);
+    const st = new THREE.Mesh(new THREE.BoxGeometry(0.007, 0.15, 0.006), MON_DARK); st.position.set(s * 0.076, 0.105, 0.192); st.rotation.z = s * 0.06; headP.add(st);
+  }
+  // long wet hair, parted over the face, hanging past the shoulders
+  const hair = new THREE.Group(); hair.position.set(0, 0.36, -0.02); headP.add(hair); const strands = [];
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2, front = Math.cos(a) > 0.55, len = front ? 0.45 + (i % 3) * 0.12 : 0.7 + ((i * 7) % 5) * 0.11;
+    if (front && Math.abs(Math.sin(a)) < 0.6) continue;   // a wide parting: the face shows through
+    const p = new THREE.Group(); p.position.set(Math.sin(a) * 0.17, 0, Math.cos(a) * 0.19); p.rotation.y = a;
+    const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.075, len), MON_HAIR); sh.position.y = -len / 2; p.add(sh);
+    p.rotation.x = front ? 0.12 : 0.2; p.base = p.rotation.x; hair.add(p); strands.push(p);
+  }
+  // the mouth: a dark wet hole edged with needles; the jaw drops open
+  const mouth = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24), MON_GUM); mouth.scale.set(1.15, 0.08, 1); mouth.position.set(0, -0.005, 0.15); headP.add(mouth);
+  const TOOTH = new THREE.ConeGeometry(0.008, 0.1, 5);
+  const upper = new THREE.Group(); upper.position.set(0, 0.02, 0.168); headP.add(upper);
+  for (let i = 0; i < 23; i++) { const a = (i / 22 - 0.5) * 2.5, t = new THREE.Mesh(TOOTH, MON_TOOTH); t.position.set(Math.sin(a) * 0.17, -0.03, Math.cos(a) * 0.05 - 0.02); t.rotation.x = Math.PI; t.rotation.z = Math.sin(i * 2.7) * 0.25; t.scale.y = 0.6 + ((i * 37) % 9) / 10; upper.add(t); }
+  const jaw = new THREE.Group(); jaw.position.set(0, 0.01, -0.06); headP.add(jaw);
+  const chin = new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), m); chin.scale.set(0.95, 0.75, 1.45); chin.position.set(0, -0.005, 0.07); jaw.add(chin);
+  for (let i = 0; i < 19; i++) { const a = (i / 18 - 0.5) * 2.3, t = new THREE.Mesh(TOOTH, MON_TOOTH); t.position.set(Math.sin(a) * 0.15, 0.01, 0.07 + Math.cos(a) * 0.155); t.rotation.z = Math.sin(i * 1.9) * 0.3; t.scale.y = 0.5 + ((i * 53) % 9) / 10; jaw.add(t); }
+  // arms: shoulder, elbow, a hand with four long fingers
+  const arms = [-1, 1].map(s => {
+    const sh = seg(torso, 0.055, 0.045, 1.0, s * 0.36, 1.28, 0); const el = seg(sh, 0.045, 0.035, 1.05, 0, -1.0, 0);
+    const hand = new THREE.Group(); hand.position.y = -1.05; el.add(hand);
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.13, 0.04), m); palm.position.y = -0.05; hand.add(palm);
+    const fingers = [];
+    for (let i = 0; i < 4; i++) { const f = seg(hand, 0.014, 0.006, 0.36 - Math.abs(i - 1.5) * 0.04, (i - 1.5) * 0.028, -0.1, 0); f.rotation.z = (i - 1.5) * 0.12; fingers.push(f); }
+    return { sh, el, hand, fingers, s };
+  });
+  g.scale.setScalar(1.2);
   scene.add(g);
-  return { g, torso, headP, aL, aR, ph: Math.random() * 6, lean: 0, x: 0, z: 0, h: 0, init: false };
+  return { g, body, torso, neck, headP, jaw, mouth, legs, arms, strands, aL: arms[0].sh, aR: arms[1].sh, ph: Math.random() * 6, walk: 0, lean: 0, open: 0, x: 0, z: 0, h: 0, y: 0, init: false,
+    st: -1, stT: 0, tw: 1.5, twT: 0, twA: 0, spd: 0, wake: 0 };
 }
-function poseMonster(M, x, z, h, st, dt, look) {
+// st: the monster's state (see monStep); scare: 0..1 when it's right in your face
+function poseMonster(M, x, z, h, st, dt, scare) {
   const t = performance.now() / 1000 + M.ph;
-  if (!M.init) { M.x = x; M.z = z; M.h = h; M.init = true; }
-  const k = Math.min(1, dt * 8); M.x += (x - M.x) * k; M.z += (z - M.z) * k;
-  let dh = h - M.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); M.h += dh * Math.min(1, dt * 5);
-  M.g.position.set(M.x, Math.sin(t * 0.9) * 0.05, M.z); M.g.rotation.y = M.h;
-  const leanTo = st === 2 ? 0.55 : st === 1 ? 0.22 : st === 3 ? 0.3 : st === 4 ? -0.15 : 0.06;
-  M.lean += (leanTo - M.lean) * Math.min(1, dt * 4);
-  M.torso.rotation.x = M.lean; M.torso.rotation.z = Math.sin(t * 0.7) * 0.05;
-  const reach = st === 2 ? -1.9 : st === 3 ? -2.6 : st === 1 ? -0.35 : 0;
-  M.aL.rotation.x += (reach + Math.sin(t * 1.3) * 0.08 - M.aL.rotation.x) * Math.min(1, dt * 5);
-  M.aR.rotation.x += (reach + Math.cos(t * 1.1) * 0.08 - M.aR.rotation.x) * Math.min(1, dt * 5);
-  M.aL.rotation.z = 0.08 + (st === 4 ? Math.sin(t * 30) * 0.05 : 0); M.aR.rotation.z = -0.08;
-  // the head cocks toward what it heard
-  M.headP.rotation.z = st === 1 ? Math.sin(t * 1.6) * 0.35 : st === 4 ? 0.6 : Math.sin(t * 0.5) * 0.1;
-  M.headP.rotation.x = st === 4 ? 0.7 : st === 2 ? -0.3 : 0;
+  if (!M.init) { M.x = x; M.z = z; M.h = h; M.init = true; M.y = st === 5 ? -4 : 0; }
+  if (st !== M.st) { M.st = st; M.stT = 0; } M.stT += dt;
+  const ox = M.x, oz = M.z, k = Math.min(1, dt * (st === 2 ? 16 : 9));
+  // a teleport (it came up somewhere else): no sliding there
+  if (Math.hypot(x - M.x, z - M.z) > 6) { M.x = x; M.z = z; } else { M.x += (x - M.x) * k; M.z += (z - M.z) * k; }
+  const sp = Math.hypot(M.x - ox, M.z - oz) / Math.max(dt, 1e-3); M.spd += (sp - M.spd) * Math.min(1, dt * 8);
+  let dh = h - M.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); M.h += dh * Math.min(1, dt * (st === 7 || st === 2 ? 18 : 5));
+  // going under / coming up
+  let wantY = 0; if (st === 5) wantY = -4; if (st === 6) { const u = clamp(M.stT / 1.3, 0, 1); wantY = -3.2 * (1 - u) + (u < 1 ? Math.sin(M.stT * 31) * 0.05 : 0); }
+  M.y += (wantY - M.y) * Math.min(1, dt * (st === 5 ? 2.5 : st === 6 ? 30 : 6));
+  M.g.visible = M.y > -3.9;
+  M.g.position.set(M.x, FLOOR + M.y + Math.sin(t * 0.9) * 0.03, M.z); M.g.rotation.y = M.h;
+  // twitches: every few seconds something jerks for a moment
+  M.twT -= dt; if (M.twT <= 0) { M.twT = 0.6 + Math.random() * (st === 0 ? 3 : 1.2); M.tw = 0.18; M.twA = (Math.random() - 0.5) * 1.4; }
+  if (M.tw > 0) M.tw -= dt;
+  const tw = M.tw > 0 ? M.twA : 0;
+  // walking: the faster it goes the faster the legs, and the further it leans
+  M.walk += M.spd * dt * 2.1;
+  const wk = Math.min(1, M.spd / 2), sw = Math.sin(M.walk);
+  M.legs.forEach((L, i) => { const s2 = i ? -sw : sw; L.hip.rotation.x = -0.35 - s2 * 0.5 * wk; L.knee.rotation.x = 0.95 + Math.max(0, s2) * 0.6 * wk; L.ank.rotation.x = -0.55 - s2 * 0.2 * wk; });
+  const hunch = st === 2 ? 1.05 : st === 1 ? 0.55 : st === 7 ? -0.12 : st === 3 ? 0.35 : st === 4 ? -0.3 : 0.42;
+  M.lean += (hunch - M.lean) * Math.min(1, dt * (st === 7 || st === 2 ? 14 : 4));
+  M.torso.rotation.x = M.lean; M.torso.rotation.z = Math.sin(t * 0.7) * 0.04 + (st === 4 ? Math.sin(t * 40) * 0.04 : 0);
+  M.body.position.y = st === 7 ? Math.min(0.25, M.stT * 2) : 0;
+  M.neck.rotation.x = st === 2 ? 0.5 : st === 7 ? -0.25 : 0.75 - wk * 0.2;
+  // the head: slow listening tilts, snapping round when it hears; shaking when it has you
+  const shake = (st === 3 || st === 7 || scare) ? (Math.random() - 0.5) * (scare ? 0.35 : st === 7 ? 0.22 : 0.12) : 0;
+  M.headP.rotation.z = (st === 1 ? Math.sin(t * 1.6) * 0.45 : st === 4 ? 0.6 : Math.sin(t * 0.5) * 0.18) + tw * 0.6 + shake;
+  M.headP.rotation.x = (st === 4 ? 0.7 : st === 2 ? -0.75 : st === 7 ? -0.35 : -0.2) + shake * 0.6;
+  M.headP.rotation.y = tw * 0.3 + shake * 0.5;
+  if (scare) {
+    // in your face: body leaning in, head level and looking straight at you, hair swept back off the face; a small tremor
+    M.torso.rotation.x = 0.28; M.neck.rotation.x = 0.02;
+    M.headP.rotation.set(-0.08 + shake * 0.12, shake * 0.08, shake * 0.2);
+  }
+  const hb = st === 2 ? 0.9 : st === 7 ? 0.35 : scare ? -0.06 : 0;
+  M.strands.forEach((p, i) => { p.rotation.x += (p.base + hb + Math.sin(t * 1.7 + i) * 0.05 + (st === 7 || scare ? (Math.random() - 0.5) * 0.15 : 0) - p.rotation.x) * Math.min(1, dt * 6); });
+  // the mouth: shut while it drifts, gaping when it hears, rushes or holds
+  const openTo = scare ? 1 : st === 7 || st === 3 ? 0.95 : st === 2 ? 0.75 : st === 1 ? 0.12 : st === 4 ? 0.5 : 0.03;
+  M.open += (openTo - M.open) * Math.min(1, dt * (openTo > M.open ? 22 : 5));
+  M.jaw.rotation.x = M.open * 0.95; M.mouth.scale.y = 0.08 + M.open * 0.72; M.mouth.position.y = -0.005 - M.open * 0.07;
+  // arms: hanging, trailing their fingers in the water; spread wide when it hears; thrown back as it rushes; out to grab
+  const A = st === 2 ? [0.95, 0.1, 0.25] : st === 7 ? [-0.6, 1.0, -0.9] : st === 3 ? [-2.3, 0.25, -0.5] : st === 4 ? [-2.6, 0.5, -1.6] : st === 1 ? [-0.5, 0.15, -0.5] : [-0.25, 0.1, -0.25];
+  M.arms.forEach((R, i) => { const a = Math.min(1, dt * (st === 7 ? 16 : 6)), s = R.s, wob = Math.sin(t * 1.3 + i) * 0.06;
+    R.sh.rotation.x += (A[0] + wob + (st === 0 || st === 1 ? -Math.sin(M.walk + i * Math.PI) * 0.2 * wk : 0) - R.sh.rotation.x) * a;
+    R.sh.rotation.z += (s * A[1] - R.sh.rotation.z) * a;
+    R.el.rotation.x += (A[2] - R.el.rotation.x) * a;
+    const curl = st === 3 ? -1.1 : st === 7 ? 0.4 : -0.35 + Math.sin(t * 3 + i) * 0.08;
+    R.fingers.forEach((f, j) => { f.rotation.x = curl + (M.tw > 0 && j === (i + 1) % 4 ? 0.8 : 0); });
+  });
 }
 // ---- Droplets for splashes (one Points object, fixed size, nothing allocated per frame) ----
 const DROPS = 260;
@@ -1570,7 +1824,10 @@ function sfx(name, x, y, z, k) {
   switch (name) {
     case 'fall': nz(d, t, 1.1, 'bandpass', 1100, 0.8, 0.9 * k, 380); tn(d, t, 95, 38, 0.45, 'sine', 0.7 * k); nz(d, t + 0.15, 0.7, 'highpass', 2500, 0.5, 0.25 * k); break;
     case 'clip': nz(d, t, 0.45, 'bandpass', 1500, 1, 0.55 * k, 700); break;
-    case 'swim': case 'stroke': nz(d, t, 0.3, 'bandpass', 1000, 1.2, 0.35 * k, 600); break;
+    case 'wade': nz(d, t, 0.28, 'bandpass', 950, 1.1, 0.4 * k, 520); nz(d, t + 0.05, 0.18, 'highpass', 2600, 0.6, 0.1 * k); break;
+    case 'wadeRun': nz(d, t, 0.3, 'bandpass', 1100, 0.9, 0.6 * k, 500); nz(d, t + 0.04, 0.25, 'highpass', 2400, 0.6, 0.2 * k); break;
+    case 'wadeCreep': nz(d, t, 0.32, 'bandpass', 800, 1.4, 0.2 * k, 500); break;
+    case 'climb': nz(d, t, 0.35, 'bandpass', 900, 1.2, 0.25 * k, 500); for (let i = 0; i < 3; i++) tn(d, t + 0.1 + i * 0.13, 1700 + Math.random() * 800, 800, 0.08, 'sine', 0.07 * k); break;
     case 'struggle': nz(d, t, 0.35, 'bandpass', 800, 1.5, 0.3 * k, 500); tn(d, t + 0.05, 320, 260, 0.2, 'triangle', 0.05 * k); break;
     case 'hard': case 'edge': tn(d, t, 130, 55, 0.2, 'sine', 0.6 * k); nz(d, t, 0.1, 'lowpass', 700, 1, 0.3 * k); break;
     case 'sprint': nz(d, t, 0.07, 'bandpass', 2600, 2, 0.16 * k); break;
@@ -1588,6 +1845,16 @@ function sfx(name, x, y, z, k) {
     case 'flare': nz(d, t, 1.6, 'highpass', 1800, 0.6, 0.3 * k); tn(d, t, 600, 200, 0.15, 'square', 0.1 * k); break;
     case 'throw': nz(d, t, 0.12, 'bandpass', 700, 1, 0.12, 1400); break;
     case 'screech': tn(d, t, 240, 1500, 0.9, 'sawtooth', 0.42); tn(d, t, 250, 1450, 0.9, 'sawtooth', 0.3); nz(d, t, 1.0, 'bandpass', 2600, 1.2, 0.55, 1200); tn(d, t, 60, 35, 1.2, 'sine', 0.6); break;
+    // it heard something: a short torn shriek from where it stands
+    case 'shriek': { const ds = distort(d); [880, 1175, 1390].forEach((f, i) => tn(ds, t, f, f * 1.45, 0.55, 'sawtooth', 0.16 * k)); nz(ds, t, 0.5, 'bandpass', 3200, 2, 0.4 * k, 1800); tn(d, t, 110, 70, 0.35, 'sine', 0.35 * k); break; }
+    // caught: everything at once, right in your ears
+    case 'scare': { const ds = distort(AU.sfx);
+      [392, 523, 587, 741, 988].forEach((f, i) => { tn(ds, t, f * 0.7, f * 1.6, 0.16, 'sawtooth', 0.3); tn(ds, t + 0.15, f * 1.6, f * 0.55, 1.15, 'sawtooth', 0.22); });
+      nz(ds, t, 1.3, 'bandpass', 2400, 0.6, 0.9, 700); nz(AU.sfx, t, 0.25, 'highpass', 4000, 0.4, 0.8);
+      tn(AU.sfx, t, 70, 28, 1.1, 'sine', 1.0); tn(AU.sfx, t + 0.02, 140, 45, 0.5, 'square', 0.25);
+      duck(1.6); break; }
+    // going under / coming up: a deep gulp and gurgle
+    case 'gurgle': tn(d, t, 90, 40, 0.8, 'sine', 0.5 * k); for (let i = 0; i < 6; i++) tn(d, t + 0.1 + i * 0.09, 300 + Math.random() * 300, 120, 0.1, 'sine', 0.18 * k); nz(d, t, 1.0, 'lowpass', 500, 1, 0.35 * k); break;
     case 'soft': tn(d, t, 180, 90, 1.2, 'sine', 0.3); break;
     case 'heart': tn(d, t, 62, 44, 0.12, 'sine', 0.75 * k); tn(d, t + 0.2, 56, 40, 0.12, 'sine', 0.55 * k); break;
     case 'door': nz(d, t, 2.2, 'lowpass', 220, 1, 0.5); tn(d, t + 2, 300, 180, 0.15, 'square', 0.15); break;
@@ -1596,7 +1863,14 @@ function sfx(name, x, y, z, k) {
     case 'click': tn(d, t, 700, 700, 0.03, 'square', 0.04); break;
   }
 }
-// Each monster in your room hums: two close notes that beat against each other, louder when it's hunting.
+// A harsh edge for the shrieks (one shared shaper), and the rest of the sound dipping under the scare.
+function distort(dest) {
+  const C = AU.ctx;
+  if (!AU.distCurve) { const n = 2048, c = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(x * 6) * 0.8; } AU.distCurve = c; }
+  const w = C.createWaveShaper(), g = C.createGain(); w.curve = AU.distCurve; g.gain.value = 0.7; w.connect(g); g.connect(dest); return w;
+}
+function duck(s) { if (!AU.ctx) return; const t = AU.ctx.currentTime; AU.amb.gain.cancelScheduledValues(t); AU.amb.gain.setValueAtTime(0.0001, t); AU.amb.gain.linearRampToValueAtTime(SET.amb, t + s + 1.2); }
+// The monster hums: two close notes that beat against each other, louder when it's hunting.
 const HUM = [];
 function humFor(i) {
   let h = HUM[i]; if (h || !AU.ctx) return h;
@@ -1605,7 +1879,7 @@ function humFor(i) {
   const g3 = C.createGain(); g3.gain.value = 0.5; [o1, o2].forEach(o => { o.connect(g); o.start(); }); o3.connect(g3); g3.connect(g); o3.start();
   const br = C.createBufferSource(); br.buffer = AU.noise; br.loop = true; const bf = C.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 700; bf.Q.value = 3; const bg = C.createGain(); bg.gain.value = 0;
   br.connect(bf); bf.connect(bg); bg.connect(p); br.start();
-  return HUM[i] = { p, g, bg, o1, o2 };
+  return HUM[i] = { p, g, bg, bf, o1, o2 };
 }
 function setPan(p, x, y, z) { if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; } else p.setPosition(x, y, z); }
 function updateListener() {
@@ -1706,7 +1980,7 @@ function onNode(uid, v) {
   if (!v || typeof v !== 'object' || !Net.refs) return;
   const o = G.others.get(uid) || { snaps: [], lag: NetSmooth.lag(), view: null, acSeen: '', chSeen: 0, pgSeen: 0, tsSeen: 0 };
   o.n = cleanName(v.n) || 'Swimmer'; o.c = /^#[0-9a-f]{6}$/i.test(v.c) ? v.c : '#c9c2b5'; o.j = +v.j || +v.ts || 0; o.ts = Math.min(+v.ts || 0, Net.now() + 5000);
-  o.x = clamp(+v.x || 0, -HALF, HALF); o.y = clamp(+v.y || 0, -4, 8); o.z = clamp(+v.z || 0, -30, 400); o.h = +v.h || 0; o.a = v.a | 0;
+  o.x = clamp(+v.x || 0, -RHW, RHW); o.y = clamp(+v.y || 0, -4, 8); o.z = clamp(+v.z || 0, -30, 800); o.h = +v.h || 0; o.a = v.a | 0;
   o.hd = typeof v.hd === 'string' && v.hd.length < 40 ? v.hd : ''; o.rd = v.rd ? 1 : 0; o.up = typeof v.up === 'string' ? v.up.slice(0, 6) : '000000'; o.pk = parsePack(v.pk);
   o.rs = typeof v.rs === 'string' && v.rs.length <= RS_MAX ? v.rs : ''; o.he = clamp(+v.he || 0, 0, 1e15);
   if (o.rs && o.he > G.maxHe) G.maxHe = o.he;
@@ -1788,8 +2062,8 @@ function stateFromRS(D) {
   const S = newState(); Object.assign(S, { ph: D.ph, g: D.g, df: D.df, seed: D.seed, t: D.t + Math.max(0, (Net.now() - D.ts) / 1000), cp: D.cp, valves: D.valves.slice(), vOpen: D.vOpen, door: D.door, endT: D.endT, cleared: D.cleared, kpBad: D.kpBad, nid: Math.max(0, ...D.noise.map(e => e.id), 0) });
   ensureWorld(S.df, S.seed);
   if (S.ph === 'run' || S.ph === 'wipe') {
-    const fresh = spawnMons(G.W, S);
-    S.mons = fresh.map((m, i) => { const d = D.mons[i]; if (d) { m.x = d.x; m.z = d.z; m.h = d.h; } return m; });
+    const fresh = spawnMons(G.W, S, S.cp);
+    S.mons = fresh.map((m, i) => { const d = D.mons[i]; if (d) { Object.assign(m, { x: d.x, z: d.z, h: d.h, hx: d.x, hz: d.z, tx: d.x, tz: d.z, room: clamp(d.room, 0, G.W.rooms.length - 1) }); if (d.st === 5 || d.st === 6) { m.st = 6; m.t = 0.5; } } return m; });
   }
   S.stoneCd = G.W.stones.map((s, i) => S.t + (D.stoneCd[i] || 0));
   for (const u in D.pl) { const d = D.pl[u], P = newPlayerRec(d.n); Object.assign(P, { st: d.st === 1 ? 2 : d.st, dx: d.dx, dy: d.dy, dz: d.dz, inv: d.inv.length === 5 ? d.inv.slice() : P.inv, coins: d.coins, rv: d.rv, sh: S.t + d.sh, tp: d.tp.slice(), downs: d.downs, revives: d.revives, help: d.help, gone: d.gone });
@@ -1844,6 +2118,7 @@ function toMenu(why) {
   returnItems();
   if (G.online) { Net.leave(); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
   G.mode = 'menu'; G.online = false; G.host = true; G.S = newState(); G.V = G.S; G.others.forEach(o => o.view && dropSwimmer(o.view)); G.others.clear();
+  clearScare(); G.monSt = [];
   closePanels(); $('menu').hidden = false; $('hud').hidden = true; $('touch').hidden = true; $('result').hidden = true; $('pause').hidden = true;
   ensureWorld(1, 0); startAttract();
   if (document.pointerLockElement) document.exitPointerLock();
@@ -1940,7 +2215,7 @@ addEventListener('keyup', e => { if (e.code === 'KeyE') G.eHeld = false; });
 // Holding: a downed teammate, a valve. Pressing: pebbles, a number pillar, the keypad, a stall, the party ring.
 function interactTarget() {
   const V = G.V, W = G.W, p = G.body, me = myRec(), st = me ? me.st : 0;
-  if (G.mode !== 'play' || st !== 0 || p.inW) return null;
+  if (G.mode !== 'play' || st !== 0) return null;
   const d2 = (x, z) => Math.hypot(p.x - x, p.z - z);
   if (V.ph === 'run' && V.pl) {
     for (const u in V.pl) { const P = V.pl[u]; if (u === myUid() || P.st !== 2 || P.gone) continue; if (d2(P.dx, P.dz) <= TUNING.reviveRange) return { k: 'rev', u, hold: 'r' + u, tx: 'Hold <kbd>E</kbd> to pull ' + esc(P.n) + ' out', prog: P.rv }; }
@@ -2044,7 +2319,7 @@ function renderParty() {
   const seg = $('diffSeg'); seg.hidden = inRun;
   const lock = !hardUnlocked(SAVE);
   seg.innerHTML = DIFFS.map((d, i) => '<button type="button" role="radio" aria-checked="' + (V.df === i) + '" data-d="' + i + '" class="' + (V.df === i ? 'on' : '') + '"' + (!G.host || (i === 2 && lock) ? ' disabled' : '') + '>' + d.n +
-    '<small>' + (i === 2 && lock ? 'BEAT NORMAL ' + Math.min(2, SAVE.nw) + '/2' : d.mons + ' monster' + (d.mons > 1 ? 's' : '') + ' · ' + (d.coin * 100) + '% coins') + '</small></button>').join('');
+    '<small>' + (i === 2 && lock ? 'BEAT NORMAL ' + Math.min(2, SAVE.nw) + '/2' : ['Slower, waits longer', 'Fast', 'Faster, hears more'][i] + ' · ' + (d.coin * 100) + '% coins') + '</small></button>').join('');
   [...seg.querySelectorAll('button')].forEach(b => b.onclick = () => { if (!G.host) return; G.S.df = +b.dataset.d; sfx('click'); renderParty(); hostPublish(true); });
   const ppl = partyPeople();
   $('plist').innerHTML = ppl.map(p => { const P = V.pl && V.pl[p.u]; const st = inRun && P ? ['In', 'Held', 'Down', 'Out'][P.st] : !G.online ? 'Solo' : p.rd ? 'Ready' : 'Not ready';
@@ -2089,7 +2364,7 @@ function renderShop() {
   let h = '';
   if (tab === 'equip') {
     h += '<div class="it">' + ICONS[0] + '<div><b>Pebbles</b><small>Free: you start every run with ' + START_PEBBLES + ', and gray stones give ' + STONE_GIVES + ' more. Skip one across the water to lure it away.</small></div></div>';
-    const D = { bottle: 'One loud smash, and an echo after. A bigger decoy than a pebble.', toy: 'Rattles for ' + toyTimeOf(SAVE.up) + ' s where it lands. Keeps it busy.', flare: 'Stuns every monster within ' + flareRadiusOf(SAVE.up) + ' m for 5 s, and frees a teammate it\'s holding.', rope: 'Pulls a downed teammate out from up to ' + ropeRangeOf(SAVE.up) + ' m away.' };
+    const D = { bottle: 'One loud smash, and an echo after. A bigger decoy than a pebble.', toy: 'Rattles for ' + toyTimeOf(SAVE.up) + ' s where it lands. Keeps it busy.', flare: 'Stuns it for 5 s if it\'s within ' + flareRadiusOf(SAVE.up) + ' m, and frees a teammate it\'s holding.', rope: 'Pulls a downed teammate out from up to ' + ropeRangeOf(SAVE.up) + ' m away.' };
     ['bottle', 'toy', 'flare', 'rope'].forEach((k, i) => { h += '<div class="it">' + ICONS[i + 1] + '<div><b>' + ITEM_NAMES[i + 1] + ' <span class="mono" style="font-size:12px;color:#9fbcb9">' + SAVE.own[k] + '/' + CARRY_MAX + '</span></b><small>' + D[k] + '</small></div><button class="btn" type="button" data-buy="' + k + '"' + (SAVE.own[k] >= CARRY_MAX || SAVE.coins < SHOP[k] ? ' disabled' : '') + '>' + SHOP[k] + ' coins</button></div>'; });
   } else {
     UPGRADES.forEach(u => { const open = upgradeOpen(SAVE, u.k), c = upgradeCost(SAVE, u.k), l = SAVE.up[u.k];
@@ -2126,7 +2401,7 @@ function openSettings() {
 }
 $('setBtn').onclick = () => { $('settings').hidden = false; openSettings(); G.panel = G.mode === 'play' ? 'settings' : ''; $('menu').hidden = G.mode !== 'menu' ? true : false; };
 $('setClose').onclick = () => { $('settings').hidden = true; if (G.mode === 'play') closePanels(); else G.panel = ''; };
-function applyGfx() { gfx = SET.gfx; renderer.setPixelRatio(Math.min(devicePixelRatio || 1, gfx >= 2 ? 2 : gfx === 1 ? 1.25 : 0.8)); scene.fog.far = gfx === 0 ? 34 : 46; WATER.uniforms.uFar.value = scene.fog.far; drops.visible = gfx > 0; resize(); }
+function applyGfx() { gfx = SET.gfx; renderer.setPixelRatio(Math.min(devicePixelRatio || 1, gfx >= 2 ? 2 : gfx === 1 ? 1.25 : 0.8)); G.fogK = null; drops.visible = gfx > 0; resize(); }
 // results
 $('again').onclick = () => { if (!G.host) { $('resMsg').textContent = 'Waiting for the host…'; return; } $('result').hidden = true; G.panel = ''; hostStartRun(G.S.df); lockPointer(); };
 $('toLobby').onclick = () => {
@@ -2164,6 +2439,7 @@ function renderMenuExtras() {
 }
 // HUD bits
 function toast(t, s) { const el = $('toast'); el.innerHTML = esc(t); el.classList.add('on'); G.toastT = s || 1.6; }
+function clearScare() { G.scare = null; $('fade').style.opacity = 0; $('taken').style.opacity = 0; $('flash').style.opacity = 0; $('flash').classList.remove('red'); if (camera.fov !== SET.fov) { camera.fov = SET.fov; camera.updateProjectionMatrix(); } }
 function flash(a) { $('flash').style.transition = 'none'; $('flash').style.opacity = a; requestAnimationFrame(() => { $('flash').style.transition = 'opacity .35s'; $('flash').style.opacity = 0; }); }
 function renderHotbar() {
   const me = myRec(), inv = me && me.inv && G.V.ph === 'run' ? me.inv : [START_PEBBLES, SAVE.own.bottle, SAVE.own.toy, SAVE.own.flare, SAVE.own.rope];
@@ -2178,18 +2454,30 @@ function renderTeam() {
   else if (G.online) { for (const p of partyPeople()) h += '<div class="tm hcard"><i style="background:' + p.c + '"></i>' + esc(p.n) + '<small>' + (p.rd ? 'READY' : '') + '</small></div>'; }
   if (G.teamKey !== h) { G.teamKey = h; $('team').innerHTML = h; }
 }
-const NOISE_LBL = { fall: 'SPLASH!', clip: 'Feet in the water', hard: 'Hard landing', edge: 'Landed on the edge', sprint: 'Running steps', swim: 'Splashing', struggle: 'Struggling', bump: 'Bumped it!' };
+const NOISE_LBL = { fall: 'SPLASH!', clip: 'Feet in the water', hard: 'Hard landing', edge: 'Landed on the edge', sprint: 'Running steps', wade: 'Wading', wadeRun: 'Running in water!', wadeCreep: 'Wading slowly', climb: 'Climbed out', struggle: 'Struggling', bump: 'Bumped it!' };
 function objective() {
   const V = G.V, R = roomAt(G.W, G.body.z);
   if (V.ph === 'lobby' || V.ph === 'count') return ['Lobby', V.ph === 'count' ? 'Starting in ' + Math.ceil(V.count) + '…' : 'Stalls for gear and upgrades. Press E in the glowing ring to start a run.'];
   if (V.ph === 'wipe') return [R.name, 'Everyone is down. Back to the checkpoint…'];
   if (V.ph === 'won') return ['Out', 'You escaped.'];
   const last = R.i === G.W.rooms.length - 1, n = V.valves.filter(v => v >= 1).length;
-  const tips = ['Cross quietly to the far door.', 'Pick a way across: short hops on the ledges, or long run-ups on the wide tiles.', 'Dark-edged tiles hold. Light-edged ones sink.', 'Step on a plank when it lines up, then ride it round.', 'Jump when the tiles come close.', 'The arrows push you sideways. Don\'t stand still.', 'Watch which tiles light up, then step only on those.', 'Find the lane with no crushers (a green light).', ''];
+  const tips = ['Cross quietly. Step from tile to tile.', 'Pick a way across: short hops on the ledges, or long run-ups on the wide tiles.', 'Dark-edged tiles hold. Light-edged ones sink.', 'Step on a plank when it lines up, then ride it round.', 'Jump when the tiles come close.', 'The arrows push you sideways. Don\'t stand still.', 'Watch which tiles light up, then step only on those.', 'Find the lane with no crushers (a green light).', ''];
   if (last) { if (n < 2) return [R.name + ' · ' + (R.i + 1) + '/9', 'Open both red valves (' + n + '/2). It will hear the machinery.'];
     if (!V.door) return [R.name + ' · 9/9', 'Stairs are up. Snap the four numbers (' + G.snaps.filter(v => v != null).length + '/4), then the keypad.'];
     return [R.name + ' · 9/9', 'The door is open. Get out!']; }
+  const z = G.body.z;
+  if (z < R.cz0 - 0.5) return [R.name + ' · ' + (R.i + 1) + '/9', 'Follow the stones into the mist.'];
+  if (z > R.cz1 - 1) return [R.name + ' · ' + (R.i + 1) + '/9', 'Three doors in the far wall. Only one is open. Find it.'];
   return [R.name + ' · ' + (R.i + 1) + '/9', tips[R.i]];
+}
+// walking up to a shut door says so (once per door)
+function doorCheck() {
+  const p = G.body, W = G.W; if (!W || G.V.ph !== 'run') return;
+  for (const D of W.doors) {
+    if (D.real || Math.abs(p.z - D.z) > 2.2 || Math.abs(p.x - D.x) > 2.4) continue;
+    const k = W.seed + ':' + D.room + ':' + D.x; G.doorSeen = G.doorSeen || {};
+    if (!G.doorSeen[k]) { G.doorSeen[k] = 1; toast('Barred. Try another door.', 2); sfx('bump'); }
+  }
 }
 
 // ---- The loop ----
@@ -2198,7 +2486,7 @@ const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3();
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize);
 let attract = null;
-function startAttract() { const S = newState(); S.df = 1; S.seed = 1; S.ph = 'run'; S.mons = spawnMons(G.W, S).filter(m => m.room <= 1); attract = { S, t: 0 }; }
+function startAttract() { const S = newState(); S.df = 1; S.seed = 1; S.ph = 'run'; S.mons = spawnMons(G.W, S, 0); attract = { S, t: 0 }; }
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now; frameN++;
@@ -2254,7 +2542,7 @@ function playFrame(dt) {
     saveSave();
   }
   if (V.ph === 'lobby' && G.runG !== -1) {
-    ensureWorld(1, 0); G.runG = -1; returnItems(); G.scare = null; $('fade').style.opacity = 0;
+    ensureWorld(1, 0); G.runG = -1; returnItems(); clearScare();
     const sp = G.W.lobby.spawn; G.body = newBody(sp.x - 3 + Math.random() * 6, sp.y, sp.z); G.yaw = Math.PI;
     if (!$('result').hidden) { $('result').hidden = true; if (G.panel === 'result') G.panel = ''; lockPointer(); }
     renderHotbar(); renderSnaps();
@@ -2306,12 +2594,10 @@ function bodyEvents() {
     if (e === 'jump') sfx('step', p.x, p.y, p.z, 0.8);
     else if (e === 'land') sfx('land', p.x, p.y, p.z);
     else if (e === 'splash') { splash(p.x, waterY(G.W, p.z), p.z, 30, 5); }
-    else if (e === 'clip') splash(p.x, waterY(G.W, p.z), p.z, 10, 3);
-    else if (e === 'stroke') splash(p.x, waterY(G.W, p.z), p.z, 6, 2.5);
-    else if (e === 'climb') sfx('swim', p.x, p.y, p.z, 0.5);
+    else if (e === 'climb') splash(p.x, waterY(G.W, p.z), p.z, 8, 2);
   }
   // footsteps (quiet; the host decides whether running is heard)
-  if (p.gr && Math.hypot(p.vx, p.vz) > 1) { G.stepT = (G.stepT || 0) - 1 / 60; if (G.stepT <= 0) { G.stepT = isSprint() ? 0.3 : G.crouch ? 0.6 : 0.42; if (!G.crouch) sfx('step', p.x, p.y, p.z, isSprint() ? 1 : 0.6); } }
+  if (p.gr && !p.inW && Math.hypot(p.vx, p.vz) > 1) { G.stepT = (G.stepT || 0) - 1 / 60; if (G.stepT <= 0) { G.stepT = isSprint() ? 0.3 : G.crouch ? 0.6 : 0.42; if (!G.crouch) sfx('step', p.x, p.y, p.z, isSprint() ? 1 : 0.6); } }
 }
 function hostFrame(dt) {
   const S = G.S;
@@ -2335,9 +2621,9 @@ function runEvents(dt) {
     const R = hearRadius(e.l, V.df);
     G.rings.push({ x: e.x, z: e.z, R, t: 0, l: e.l }); if (G.rings.length > RINGS) G.rings.shift();
     sfx(e.src === 'toy' ? 'toy' : e.src === 'echo' ? 'echo' : e.src, e.x, e.y, e.z, 1);
-    if (['fall', 'pebble', 'bottle', 'skip', 'struggle', 'swim'].includes(e.src)) splash(e.x, e.y, e.z, e.src === 'fall' ? 26 : e.src === 'bottle' ? 18 : 8, e.src === 'fall' ? 5 : 3);
+    if (['fall', 'pebble', 'bottle', 'skip', 'struggle', 'wade', 'wadeRun', 'wadeCreep'].includes(e.src)) splash(e.x, e.y, e.z, e.src === 'fall' ? 26 : e.src === 'bottle' ? 18 : e.src === 'wadeRun' ? 12 : 6, e.src === 'fall' ? 5 : e.src.startsWith('wade') ? 2 : 3);
     if (e.src === 'bottle') { for (const gh of G.ghosts) if (gh.k === 1) gh.age = 99; }
-    if (e.u === myUid() && e.src !== 'struggle') { G.noiseShow = clamp(e.l / 1.1, 0.08, 1); G.noiseLbl = NOISE_LBL[e.src] || 'Noise'; G.noiseHold = 1.2; }
+    if (e.u === myUid() && e.src !== 'struggle') { G.noiseShow = clamp(e.l / 1.1, 0.08, 1); G.noiseLbl = NOISE_LBL[e.src] || 'Noise'; G.noiseHold = 1.2; G.myNoiseT = performance.now(); }
   }
   if (V.ph !== 'run' && V.ph !== 'wipe' && V.ph !== 'won') return;
   if (!me) return;
@@ -2351,10 +2637,16 @@ function runEvents(dt) {
   const nv = V.valves.filter(v => v >= 1).length; if (nv > G.lastValves) { G.lastValves = nv; toast('Valve opened ' + nv + '/2', 2); if (nv === 2) setTimeout(() => toast('The water is rising. Stairs!', 2.4), 1800); }
   if (V.door && !G.lastDoor) { G.lastDoor = 1; sfx('door', W.keypad.x, W.keypad.y, W.keypad.z); toast('ACCESS GRANTED', 2); if (G.panel === 'keypad') closePanels(); }
   if (G.panel === 'keypad' && V.kpBad > G.lastKb) { G.lastKb = V.kpBad; kpWrong(); }
+  monsterMoods(V, me);
   // caught: the scare
-  if (me.st === 1 && G.prevSt !== 1) { const mi = V.mons.findIndex(m => m.grab === myUid()); G.scare = { t: 0, mi }; if (document.pointerLockElement) {} sfx(SET.soft ? 'soft' : 'screech'); try { navigator.vibrate && navigator.vibrate(300); } catch (e) {} }
+  if (me.st === 1 && G.prevSt !== 1) {
+    const mi = V.mons.findIndex(m => m.grab === myUid()); G.scare = { t: 0, mi, strobe: 0 }; $('alarm').classList.remove('on');
+    sfx(SET.soft ? 'soft' : 'scare');
+    if (!SET.soft) { $('flash').classList.remove('red'); flash(1); }
+    try { navigator.vibrate && navigator.vibrate(SET.soft ? 200 : [90, 40, 90, 40, 420]); } catch (e) {}
+  }
   if (me.st === 2 && G.prevSt !== 2) { G.downT = 0; closePanels(); }
-  if (me.st === 0 && G.prevSt === 2) { toast(G.prevPh === 'wipe' ? 'Back at the checkpoint · shielded for 3 s' : 'Pulled out! Shielded for 3 s', 1.8); G.scare = null; }
+  if (me.st === 0 && G.prevSt === 2) { toast(G.prevPh === 'wipe' ? 'Back at the checkpoint · shielded for 3 s' : 'Pulled out! Shielded for 3 s', 1.8); if (G.scare) clearScare(); }
   G.prevSt = me.st; G.prevPh = V.ph;
   // the end
   if (V.ph === 'won' && G.sawWon !== V.g) {
@@ -2366,6 +2658,19 @@ function runEvents(dt) {
     setTimeout(showResult, 900);
     if (document.pointerLockElement) document.exitPointerLock();
   }
+}
+function monsterMoods(V, me) {
+  const room = myRec() && myRec().st === 2 ? roomAt(G.W, me.dz).i : roomAt(G.W, G.body.z).i;
+  G.monSt = G.monSt || [];
+  V.mons.forEach((m, i) => {
+    const was = G.monSt[i]; G.monSt[i] = m.st; if (was === m.st || was == null) return;
+    if (m.st === 7 && m.room === room) {
+      sfx('shriek', m.x, 2.8, m.z);
+      if (performance.now() - (G.myNoiseT || -1e9) < 1400 && me.st === 0) { const a = $('alarm'); a.textContent = 'IT HEARD YOU'; a.classList.remove('on'); void a.offsetWidth; a.classList.add('on'); }
+    }
+    if (m.st === 5 && m.room === room) { sfx('gurgle', m.x, 0, m.z); toast('It went under. You hear it in the drains…', 2.2); }
+    if (m.st === 6 && m.room === room) { sfx('gurgle', m.x, 0, m.z, 1.4); toast('Something came up out of the water.', 2.2); }
+  });
 }
 // Co-op is rated against your own team: whoever did more for the party (rescues, valves, the keypad; going down
 // costs) "beats" each teammate. Online only, and only with at least one other real player.
@@ -2390,6 +2695,11 @@ function drawWorld(dt, it) {
   }
   for (const p of LV.planks) { p.m.position.set(p.p.cx, p.p.top - 0.11, p.p.cz); p.m.rotation.y = -p.p.ang; }
   for (const w of LV.waters) w.m.position.y = w.R.wy;
+  // mist: the lobby is clear, the halls are thick with it (eased, so walking through the door isn't a jump)
+  const fogT = G.body && G.body.z > 0.5 ? 1 : 0; G.fogK = G.fogK == null ? fogT : G.fogK + (fogT - G.fogK) * Math.min(1, dt * 2.5);
+  scene.fog.near = 7 + (FOG_NEAR - 7) * G.fogK; scene.fog.far = 40 + (FOG_FAR - 40) * G.fogK;
+  WATER.uniforms.uNear.value = scene.fog.near; WATER.uniforms.uFar.value = scene.fog.far;
+  for (const m of LV.mist) { m.t.offset.x += dt * m.sp; m.t.offset.y += dt * m.sp * 0.6; }
   for (const f of LV.flick) {
     if (f.cur) { f.cur.material.map.offset.x -= dt * 0.6 * Math.sign(f.cur.userData.cur); continue; }
     const on = Math.sin(U.time.value * 23 + f.ph) > 0.2 || Math.sin(U.time.value * 1.3 + f.ph) > -0.6; f.im.setColorAt(f.i, tmpColor.setHex(on ? 0xfbfffd : 0x8a9a98)); f.im.instanceColor.needsUpdate = true;
@@ -2406,8 +2716,8 @@ function drawWorld(dt, it) {
     const face = Math.hypot(p.vx, p.vz) > 0.3 ? Math.atan2(p.vx, p.vz) : (ME.face != null ? ME.face : Math.atan2(-Math.sin(G.yaw), Math.cos(G.yaw)));
     let dh = face - (ME.face || 0); dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ME.face = (ME.face || 0) + dh * Math.min(1, dt * 12);
     if (down) poseSwimmer(ME, { x: me.dx, y: me.dy, z: me.dz, h: ME.face, speed: 0, down: true });
-    else if (held) { const m = V.mons.find(m => m.grab === myUid()); poseSwimmer(ME, { x: m ? m.x + Math.sin(m.h) * 0.6 : p.x, y: 1.2, z: m ? m.z + Math.cos(m.h) * 0.6 : p.z, h: m ? m.h + Math.PI : ME.face, speed: 0, air: true }); }
-    else poseSwimmer(ME, { x: p.x, y: p.inW ? p.y + 0.35 : p.y, z: p.z, h: ME.face, speed: Math.hypot(p.vx, p.vz), air: !p.gr && !p.inW, inW: p.inW, crouch: G.crouch, gy });
+    else if (held) { const m = V.mons.find(m => m.grab === myUid()); poseSwimmer(ME, { x: m ? m.x + Math.sin(m.h) * 0.75 : p.x, y: FLOOR + 1.5, z: m ? m.z + Math.cos(m.h) * 0.75 : p.z, h: m ? m.h + Math.PI : ME.face, speed: 0, air: true }); }
+    else poseSwimmer(ME, { x: p.x, y: p.y, z: p.z, h: ME.face, speed: Math.hypot(p.vx, p.vz), air: !p.gr && !p.inW, inW: p.inW, crouch: G.crouch, gy });
     ME.g.visible = !(G.scare && !SET.soft);
     const sh = me && me.sh > 0 && V.ph === 'run'; ME.cm.emissive && ME.cm.emissive.setHex(sh && Math.sin(U.time.value * 12) > 0 ? 0x225555 : 0);
   }
@@ -2422,8 +2732,8 @@ function drawWorld(dt, it) {
     const sp = Math.hypot(vx, vz); if (sp > 0.3) o.face = Math.atan2(vx, vz);
     const inPlay = V.ph === 'run' || V.ph === 'wipe';
     if (inPlay && P && P.st === 2) poseSwimmer(o.view, { x: P.dx, y: P.dy, z: P.dz, h: o.face || 0, speed: 0, down: true });
-    else if (inPlay && P && P.st === 1) { const m = V.mons.find(m => m.grab === u); poseSwimmer(o.view, { x: m ? m.x + Math.sin(m.h) * 0.6 : s.x, y: 1.2, z: m ? m.z + Math.cos(m.h) * 0.6 : s.z, h: m ? m.h + Math.PI : o.face || 0, speed: 0, air: true }); }
-    else { const gy = supportAt(W, s.x, s.y, s.z, 0.1) ? s.y : null; poseSwimmer(o.view, { x: s.x, y: (o.a & 8) ? s.y + 0.35 : s.y, z: s.z, h: o.face || 0, speed: sp, air: !!(o.a & 16) && !(o.a & 8), inW: !!(o.a & 8), crouch: !!(o.a & 4), gy }); }
+    else if (inPlay && P && P.st === 1) { const m = V.mons.find(m => m.grab === u); poseSwimmer(o.view, { x: m ? m.x + Math.sin(m.h) * 0.75 : s.x, y: FLOOR + 1.5, z: m ? m.z + Math.cos(m.h) * 0.75 : s.z, h: m ? m.h + Math.PI : o.face || 0, speed: 0, air: true }); }
+    else { const gy = supportAt(W, s.x, s.y, s.z, 0.1) ? s.y : null; poseSwimmer(o.view, { x: s.x, y: s.y, z: s.z, h: o.face || 0, speed: sp, air: !!(o.a & 16), inW: !!(o.a & 8), crouch: !!(o.a & 4), gy }); }
     o.view.g.visible = !(P && P.st === 3);
   }
   // monsters: only the rooms near you
@@ -2469,8 +2779,13 @@ function drawMonsters(list, dt, room) {
   while (G.monViews.length < list.length) G.monViews.push(makeMonster());
   G.monViews.forEach((M, i) => {
     const m = list[i]; const show = !!m && (room < 0 || Math.abs(m.room - room) <= 1);
-    M.g.visible = show; if (!show) { M.init = false; return; }
-    poseMonster(M, m.x, m.z, m.h, m.st, dt);
+    if (!show) { M.g.visible = false; M.init = false; return; }
+    poseMonster(M, m.x, m.z, m.h, m.st, dt, G.scare && G.scare.mi === i && G.scare.t < 1 ? 1 : 0);
+    // tearing through the water: spray and a wake behind it
+    if (M.spd > 4 && M.g.visible && M.y > -0.5) {
+      M.wake -= dt; if (M.wake <= 0) { M.wake = 0.07; splash(M.x + (Math.random() - 0.5) * 0.6, waterY(G.W, M.z), M.z + (Math.random() - 0.5) * 0.6, 6, 3.5);
+        G.wakeT = (G.wakeT || 0) - 1; if (G.wakeT <= 0) { G.wakeT = 3; G.rings.push({ x: M.x, z: M.z, R: 2.6, t: 0.2, l: 0.5 }); if (G.rings.length > RINGS) G.rings.shift(); } }
+    }
   });
 }
 function updateRings(dt) {
@@ -2492,31 +2807,48 @@ function placeCamera(dt, me) {
     const u = ups.length ? ups[G.specI % ups.length] : null, o = u ? G.others.get(u).view.g.position : null;
     if (o) { tx = o.x; ty = o.y + 1.4; tz = o.z; } else { tx = me.dx; ty = me.dy + 1.2; tz = me.dz; }
     G.specName = u ? V.pl[u].n : '';
-  } else { const p = G.body; tx = p.x; ty = (p.inW ? p.y + 0.6 : p.y) + (G.crouch ? 1.15 : 1.45); tz = p.z; }
+  } else { const p = G.body; tx = p.x; ty = p.y + (G.crouch ? 1.15 : 1.45); tz = p.z; }
   const cp = Math.cos(G.pitch), fx = -Math.sin(G.yaw) * cp, fy = -Math.sin(G.pitch), fz = Math.cos(G.yaw) * cp;
   let dist = (down ? 4.2 : 3.2) * (camera.aspect < 1 ? 1.3 : 1);
   const rx = -Math.cos(G.yaw), rz = -Math.sin(G.yaw), sh = down ? 0 : 0.42;
   let cx = tx - fx * dist + rx * sh, cy = ty - fy * dist + 0.15, cz = tz - fz * dist + rz * sh;
   // keep it inside the hall, and pull it in front of any wall or pillar between it and you
-  cx = clamp(cx, -HALF + 0.3, HALF - 0.3); cy = clamp(cy, FLOOR + 0.5, CEIL - 0.25);
+  const chw = roomAt(G.W, tz).hw; cx = clamp(cx, -chw + 0.3, chw - 0.3); cy = clamp(cy, 0.35, CEIL - 0.25);
   const free = camFree(tx, ty, tz, cx, cy, cz), want = free * 0.97;
   G.camK = want < (G.camK == null ? 1 : G.camK) ? want : Math.min(want, (G.camK == null ? 1 : G.camK) + dt * 2.5);
   cx = tx + (cx - tx) * G.camK; cy = ty + (cy - ty) * G.camK; cz = tz + (cz - tz) * G.camK;
-  // the scare: snap to its face, shake, then black
+  // the scare: a hard cut to its face, inches away, mouth open, lunging at you; strobing red; then black and one word
   const S = G.scare;
   if (S) {
-    S.t += dt; const m = V.mons[S.mi];
-    if (m && !SET.soft) {
-      // face to face: the camera swings round in front of its head, close, and shakes
-      const MV = G.monViews[S.mi], hp = tmpV2, h = MV && MV.g.visible ? MV.h : m.h;
-      if (MV && MV.g.visible) { MV.headP.getWorldPosition(hp); hp.y += 0.24; } else hp.set(m.x, 2.9, m.z);
-      const u = Math.min(1, S.t / 0.16), wx = hp.x + Math.sin(h) * 1.0, wy = hp.y - 0.08, wz = hp.z + Math.cos(h) * 1.0;
-      camera.position.set(cx + (wx - cx) * u, cy + (wy - cy) * u, cz + (wz - cz) * u); camera.lookAt(hp);
-      const k = Math.max(0, 0.9 - S.t) * 0.1; camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k;
+    S.t += dt; const m = V.mons[S.mi], fv = camera.fov;
+    if (!SET.soft && S.t < 0.95) {
+      const MV = G.monViews[S.mi], hp = tmpV2, h = MV && MV.g.visible ? MV.h : m ? m.h : 0;
+      // the middle of its face (between the eyes and the mouth)
+      if (MV && MV.g.visible) { MV.headP.updateWorldMatrix(true, false); hp.set(0, 0.13, 0.19); MV.headP.localToWorld(hp); } else if (m) hp.set(m.x, FLOOR + 3, m.z); else hp.set(cx, cy, cz);
+      // it lunges: from arm's length to filling the screen in a fifth of a second, then holds there, trembling
+      const d = S.t < 0.18 ? 1.25 - (S.t / 0.18) * 0.8 : 0.45 + Math.sin(S.t * 9) * 0.025;
+      camera.position.set(hp.x + Math.sin(h) * d, hp.y + 0.03, hp.z + Math.cos(h) * d); camera.lookAt(hp.x, hp.y + 0.01, hp.z);
+      const k = (S.t < 0.4 ? 0.03 : 0.015); camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k; camera.rotateZ((Math.random() - 0.5) * 0.06);
+      camera.fov = SET.fov + 12 * Math.min(1, S.t / 0.18); camera.updateProjectionMatrix();
+      // red strobe for the first half second
+      S.strobe -= dt; if (S.t > 0.08 && S.t < 0.6 && S.strobe <= 0) { S.strobe = 0.07; const f = $('flash'); f.classList.add('red'); f.style.transition = 'none'; f.style.opacity = f.style.opacity > 0.3 ? 0 : 0.85; }
+      if (S.t >= 0.6) { $('flash').style.opacity = 0; }
+      $('fade').style.opacity = 0; $('vig').style.opacity = 1;
+    } else {
+      if (fv !== SET.fov) { camera.fov = SET.fov; camera.updateProjectionMatrix(); }
+      camera.position.set(cx, cy, cz); camera.lookAt(cx + fx, cy + fy, cz + fz);
+      const f = $('flash'); f.style.opacity = 0; f.classList.remove('red');
+      const tk = $('taken');
+      if (!S.shown) { S.shown = 1; S.t0 = S.t; tk.className = SET.soft ? 'soft' : ''; tk.textContent = 'TAKEN'; }
+      // black (straight away; slowly if gentler scare is on), the word shaking, until you're down and it's been a moment
+      const into = SET.soft ? clamp((S.t - 0.2) / 0.8, 0, 1) : 1;
+      const done = me && me.st !== 1 && S.t > (SET.soft ? 1.6 : 2.1);
+      if (done) S.fadeOut = (S.fadeOut || 0) + dt;
+      const out = clamp((S.fadeOut || 0) / 0.9, 0, 1);
+      $('fade').style.opacity = (into * (1 - out)).toFixed(3); tk.style.opacity = ((SET.soft ? into : 1) * (1 - out)).toFixed(3);
+      if (!SET.soft) tk.style.transform = 'translate(' + ((Math.random() - 0.5) * 10 * (1 - out)).toFixed(1) + 'px,' + ((Math.random() - 0.5) * 6 * (1 - out)).toFixed(1) + 'px)';
+      if (out >= 1) { G.scare = null; tk.style.opacity = 0; }
     }
-    else { camera.position.set(cx, cy, cz); camera.lookAt(cx + fx, cy + fy, cz + fz); }
-    $('fade').style.opacity = clamp((S.t - (SET.soft ? 0.2 : 0.7)) / 0.8, 0, 1);
-    if (me && me.st !== 1 && S.t > 1.2) { S.fadeOut = (S.fadeOut || 0) + dt; $('fade').style.opacity = clamp(1 - S.fadeOut / 0.9, 0, 1); if (S.fadeOut > 0.9) G.scare = null; }
     return;
   }
   $('fade').style.opacity = V.ph === 'wipe' ? 0.55 : 0;
@@ -2539,12 +2871,13 @@ function soundsFrame(dt, me, room) {
   for (let i = 0; i < Math.max(HUM.length, V.mons ? V.mons.length : 0); i++) {
     const m = inRun && V.mons[i]; const h = m && Math.abs(m.room - room) <= 0 ? humFor(i) : HUM[i];
     if (!h) continue;
-    if (!m || m.room !== room) { h.g.gain.value = 0; h.bg.gain.value = 0; continue; }
-    setPan(h.p, m.x, 2.4, m.z);
-    h.g.gain.setTargetAtTime(m.st === 4 ? 0.02 : m.st === 2 ? 0.16 : m.st === 1 ? 0.09 : 0.045, AU.ctx.currentTime, 0.2);
-    h.bg.gain.setTargetAtTime(m.st === 2 || m.st === 3 ? 0.25 : m.st === 1 ? 0.06 : 0, AU.ctx.currentTime, 0.15);
-    h.o1.frequency.setTargetAtTime(m.st === 2 ? 131 : 98, AU.ctx.currentTime, 0.3);
-    if (me && me.st === 0) near = Math.min(near, Math.hypot(m.x - p.x, m.z - p.z));
+    if (!m || m.room !== room || m.st === 5) { h.g.gain.value = 0; h.bg.gain.value = 0; continue; }
+    setPan(h.p, m.x, 2.4, m.z); const T0 = AU.ctx.currentTime;
+    h.g.gain.setTargetAtTime(m.st === 4 ? 0.02 : m.st === 7 ? 0.0 : m.st === 2 ? 0.2 : m.st === 1 ? 0.1 : 0.05, T0, m.st === 7 ? 0.03 : 0.2);
+    h.bg.gain.setTargetAtTime(m.st === 2 ? 0.55 : m.st === 3 ? 0.25 : m.st === 1 ? 0.07 : 0, T0, 0.08);
+    h.bf.frequency.setTargetAtTime(m.st === 2 ? 1300 : 700, T0, 0.1);
+    h.o1.frequency.setTargetAtTime(m.st === 2 ? 131 : 98, T0, 0.3);
+    if (me && me.st === 0 && m.st !== 6) near = Math.min(near, Math.hypot(m.x - p.x, m.z - p.z));
   }
   // too close: red edges and your heart
   const k = near < TUNING.warnRange ? 1 - near / TUNING.warnRange : 0;
@@ -2557,12 +2890,12 @@ function soundsFrame(dt, me, room) {
 const tagEls = new Map();
 function drawHud(dt, it) {
   const V = G.V, me = myRec();
-  const [rm, tx] = objective(); if (G.objKey !== rm + tx) { G.objKey = rm + tx; $('objRoom').textContent = rm; $('objText').textContent = tx; }
+  doorCheck(); const [rm, tx] = objective(); if (G.objKey !== rm + tx) { G.objKey = rm + tx; $('objRoom').textContent = rm; $('objText').textContent = tx; }
   const t = V.ph === 'won' ? V.endT : V.ph === 'run' || V.ph === 'wipe' ? G.clock : 0;
   $('clockT').textContent = V.ph === 'lobby' || V.ph === 'count' ? (G.online ? 'Room ' + G.room.replace(/^hp-/, '') : 'Solo') : fmtT(t);
   $('clockC').textContent = (me && (V.ph === 'run' || V.ph === 'wipe' || V.ph === 'won') ? '+' + me.coins + ' · ' : '') + SAVE.coins + ' coins';
   // noise meter: what you did last
-  if (G.noiseHold > 0) G.noiseHold -= dt; else { G.noiseShow = Math.max(0, G.noiseShow - dt * 0.6); if (G.noiseShow <= 0.02) G.noiseLbl = G.crouch ? 'Creeping (silent)' : isSprint() && G.body.gr ? 'Running' : 'Silent'; }
+  if (G.noiseHold > 0) G.noiseHold -= dt; else { G.noiseShow = Math.max(0, G.noiseShow - dt * 0.6); if (G.noiseShow <= 0.02) G.noiseLbl = G.body.inW ? (Math.hypot(G.body.vx, G.body.vz) > 0.3 ? 'In the water' : 'Still in the water (silent)') : G.crouch ? 'Creeping (silent)' : isSprint() && G.body.gr ? 'Running' : 'Silent'; }
   $('noiseBar').style.width = Math.round(G.noiseShow * 100) + '%'; $('noiseLb').textContent = G.noiseLbl;
   // E prompt with its fill ring
   const pr = $('prompt');
