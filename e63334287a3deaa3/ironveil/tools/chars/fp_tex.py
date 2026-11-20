@@ -433,14 +433,18 @@ heel = np.zeros(len(X))
 for s_ in ('l', 'r'):
     hh_, ht_ = bvec('hand_' + s_); m_ = (side == s_)
     heel[m_] = np.exp(-(np.linalg.norm(X[m_] - (hh_ + (ht_ - hh_) * 0.25), axis=1) / 0.025) ** 2) * smooth01((-dors[m_] - 0.2) / 0.4)
-pol = np.clip(tip * 1.0 + knuck * 0.8 + heel * 0.7, 0, 1) * (0.6 + 0.4 * fbm(X, 0.005, 2, 207))
-alb = alb * (1 - pol[:, None] * 0.55) + lin([0.25, 0.165, 0.10]) * (pol[:, None] * 0.55)
+# a worn ridge along the top of every finger and over the knuckles, lighter and smoother so the form reads by
+# highlight at game size; darker seams between the fingers
+ftop = smooth01((dors - 0.55) / 0.3) * (is4 | np.isin(bname, ['thumb_0%d' % i for i in (1, 2, 3)]))
+pol = np.clip(tip * 1.0 + knuck * 1.1 + heel * 0.9 + ftop * 0.55, 0, 1) * (0.65 + 0.35 * fbm(X, 0.005, 2, 207))
+alb = alb * (1 - pol[:, None] * 0.65) + lin([0.29, 0.195, 0.12]) * (pol[:, None] * 0.65)
+alb = alb * (1 - 0.55 * side_g)[:, None]
 scuff = np.clip((fbm(X, 0.0035, 3, 209) - 0.35) * 3, 0, 1) * (0.4 + 0.6 * smooth01((dors + 0.2) / 0.6))
 alb = alb * (1 - scuff[:, None] * 0.35) + lin([0.30, 0.22, 0.15]) * (scuff[:, None] * 0.35)
 cav = np.clip(-hgt / 0.00018, 0, 1)
 dirt_ = np.clip(cav * 0.8 + 0.25 * np.clip(fbm(X, 0.02, 3, 211), 0, 1), 0, 1)
 alb = alb * (1 - dirt_[:, None] * 0.55) + lin([0.055, 0.042, 0.030]) * (dirt_[:, None] * 0.55)
-rgh = 0.70 + 0.08 * fbm(X, 0.01, 3, 213) - 0.30 * pol + 0.10 * scuff + 0.10 * dirt_
+rgh = 0.64 + 0.08 * fbm(X, 0.01, 3, 213) - 0.14 * pol + 0.08 * scuff + 0.10 * dirt_     # worn areas about 0.5
 ALB[sk] = alb; HGT[sk] = hgt; RGH[sk] = rgh
 log('skin done')
 
@@ -466,8 +470,8 @@ U2 = np.stack([s_al, arcp, np.zeros(len(X))], 1)
 # invented camouflage: soft brush strokes, elongated around the arm, three colours over a sand base
 # dark olive-brown smock: a low-contrast brush pattern several stops darker than the old sand base, so the sleeves
 # sit in a muted scene instead of glowing
-base = lin([0.255, 0.235, 0.165])
-c_brown = lin([0.215, 0.165, 0.110]); c_green = lin([0.185, 0.200, 0.130]); c_dark = lin([0.125, 0.118, 0.090])
+base = lin([0.190, 0.188, 0.150])
+c_brown = lin([0.165, 0.135, 0.100]); c_green = lin([0.140, 0.155, 0.115]); c_dark = lin([0.095, 0.095, 0.080])
 alb = np.tile(base, (len(X), 1))
 for col, seed, thr, sx, sy in ((c_green, 51, 0.12, 0.05, 0.11), (c_brown, 52, 0.18, 0.04, 0.09), (c_dark, 53, 0.42, 0.03, 0.07)):
     Q = np.stack([s_al / sx, arcp / sy * 0.02 / 0.02, np.full(len(X), seed * 0.1)], 1) * 0.02
@@ -525,7 +529,7 @@ log('cloth done')
 
 # ======================================================================= strap, watch case, dial (regions 3, 4, 5)
 # ======================================================================= glove cuff, glove strap, buckle (2, 6, 7)
-for reg_, darker in ((2, 1.0), (6, 0.72)):
+for reg_, darker in ((2, 1.0), (6, 1.45)):
     ix = np.where(R == reg_)[0]
     if not len(ix): continue
     X = P[ix]; Nr = Nn[ix]
@@ -555,7 +559,7 @@ ix = np.where(R == 7)[0]
 if len(ix):   # buckles and buttons: dull blackened steel, bright where worn
     X = P[ix]
     w7 = np.clip((fbm(X, 0.0015, 2, 231) - 0.25) * 3, 0, 1)
-    ALB[ix] = lin([0.16, 0.155, 0.15]) * (1 - w7[:, None]) + lin([0.48, 0.47, 0.45]) * w7[:, None]
+    ALB[ix] = lin([0.30, 0.29, 0.27]) * (1 - w7[:, None]) + lin([0.62, 0.61, 0.58]) * w7[:, None]
     RGH[ix] = 0.55 - 0.2 * w7; MET[ix] = 1.0; HGT[ix] = 0.0
 log('glove cuffs done')
 
