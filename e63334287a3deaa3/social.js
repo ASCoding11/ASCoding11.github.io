@@ -394,6 +394,8 @@
     '.onl-dh h2{font-size:24px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.onl-x{font:inherit;font-size:22px;line-height:1;color:var(--ink-2);background:none;border:1px solid var(--line);border-radius:8px;width:38px;height:38px;cursor:pointer;flex:none}' +
     '.onl-dsub{padding:8px 14px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-2);flex:none;display:grid;gap:8px}' +
+    // One column no wider than the drawer, so a long badge (mini badges) folds to fit instead of widening it.
+    '.onl-dsub{grid-template-columns:minmax(0,1fr)}' +
     '.onl-acts{display:flex;flex-wrap:wrap;gap:6px}' +
     '.onl-db{flex:1;overflow:auto;overscroll-behavior:contain;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-height:0}' +
     '.onl-db .onl-list{max-height:none;overflow:visible;flex:none;grid-template-columns:minmax(0,1fr)}' +   // full height: the drawer body scrolls, and keeps its place when redrawn
