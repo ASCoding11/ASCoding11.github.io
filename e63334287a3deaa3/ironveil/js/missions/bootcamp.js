@@ -210,7 +210,7 @@
     const st = [['start', 0.95], ['run', 0.82], ['crouch', 0.74], ['crawl', 0.66], ['vault', 0.6], ['pop-ups', 0.52], ['rifle', 0.44], ['pen', 0.36], ['binoculars', 0.28], ['pit', 0.2]];
     st.forEach((s, i) => { const y = h * s[1]; sk.circle(g, w / 2, y, 7, '#2f4a7a'); sk.text(g, s[0], w / 2 + (i % 2 ? -150 : 20), y + 6, { size: 22 }); });
     sk.text(g, '100 m', w / 2 + 40, h * 0.12, { size: 16 }); sk.text(g, '300 m →', w / 2 + 40, h * 0.07, { size: 16 });
-    sk.text(g, 'Camp Larkhill, Wiltshire', 30, 44, { size: 24 });
+    sk.text(g, 'Camp Hollowmere', 30, 44, { size: 24 });
   }
   IV.missions.register({
     id: 'bootcamp', num: 0, title: 'Boot Camp', line: 'A morning on the training range: moving, shooting, sneaking. About five minutes.',

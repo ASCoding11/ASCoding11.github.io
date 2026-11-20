@@ -695,10 +695,10 @@
     sk.circle(g, X(MG.x), Z(MG.z), 6); sk.text(g, 'MG', X(MG.x) - 34, Z(MG.z) + 4, { size: 16, c: '#8a2a1c' });
     sk.circle(g, X(0), Z(10), 8); sk.text(g, 'post', X(8), Z(24), { size: 16, c: '#8a2a1c' });
     sk.text(g, 'sniper?', X(BARN.x) + 10, Z(BARN.z) - 14, { size: 15, c: '#8a2a1c' });
-    sk.text(g, 'Brissac Farm', X(HOUSE.x) - 50, Z(HOUSE.z) + 34, { size: 19 });
+    sk.text(g, 'Mauvenant Farm', X(HOUSE.x) - 50, Z(HOUSE.z) + 34, { size: 19 });
     sk.text(g, 'orchard', X(46), Z(-112), { size: 16 });
     sk.text(g, 'wheat', X(40), Z(5), { size: 16 });
-    sk.text(g, 'the Varenne', X(-80), Z(-120), { size: 16, rot: -1.4 });
+    sk.text(g, 'the Lirette', X(-80), Z(-120), { size: 16, rot: -1.4 });
     sk.text(g, 'telephone line', X(14), Z(-58), { size: 13 });
     sk.line(g, M2pts(), { c: 'rgba(30,30,30,.6)', w: 1, dash: [3, 4] });
     function M2pts() { return [[94, -60.5], [70, -55.5], [JPOLE.x, JPOLE.z], [6, -45], [5, -10], [6, 30]].map(p => [X(p[0]), Z(p[1])]); }
@@ -711,10 +711,10 @@
   }
 
   IV.missions.register({
-    id: 'nightdrop', num: 1, title: 'Night Drop', line: 'Behind the lines at night. Find your corporal, then the flak gun at Brissac Farm.',
+    id: 'nightdrop', num: 1, title: 'Night Drop', line: 'Behind the lines at night. Find your corporal, then the flak gun at Mauvenant Farm.',
     needAlly: true, optionalTotal: 2,
     briefing: [
-      'June 1944. Your stick of pathfinders jumps ahead of the main drop. A flak gun at Brissac Farm covers the drop zone, and it has to be gone before the transports come over.',
+      'June 1944. Your stick of pathfinders jumps ahead of the main drop. A flak gun at Mauvenant Farm covers the drop zone, and it has to be gone before the transports come over.',
       'You will land wide. Find Cpl. Dunning, keep off the lanes the patrols walk, and cut the farm\'s field-telephone line on the way.',
       'Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook\'s men are waiting.'
     ],

@@ -51,7 +51,7 @@
     'Man down! Over here!': '¡Hombre caído! ¡Acá!', 'He is dead! Search the area!': '¡Está muerto! ¡Revisen la zona!', 'Grenade!': '¡Granada!', 'Reloading!': '¡Recargando!', 'Go round the side!': '¡Rodéalo por el costado!', 'Falling back!': '¡Me repliego!',
     // ---- campaign list
     'Boot Camp': 'Instrucción', 'A morning on the training range: moving, shooting, sneaking. About five minutes.': 'Una mañana en el campo de prácticas: moverse, disparar, escabullirse. Unos cinco minutos.',
-    'Night Drop': 'Salto nocturno', 'Behind the lines at night. Find your corporal, then the flak gun at Brissac Farm.': 'Detrás de las líneas, de noche. Encuentra a tu cabo y luego el antiaéreo de la granja Brissac.',
+    'Night Drop': 'Salto nocturno', 'Behind the lines at night. Find your corporal, then the flak gun at Mauvenant Farm.': 'Detrás de las líneas, de noche. Encuentra a tu cabo y luego el antiaéreo de la granja Mauvenant.',
     'The Radio Mast': 'La antena', 'A signals compound with three ways in. Silence the transmitter before it calls in the guns.': 'Un recinto de transmisiones con tres entradas. Calla el transmisor antes de que pida artillería.',
     'Bridge at Dawn': 'Puente al amanecer', 'Take the river bridge with the platoon, then hold it through three counter-attacks.': 'Toma el puente con el pelotón y resiste tres contraataques.',
     'The Clocktower': 'El campanario', 'Sniper overwatch over an occupied town while a courier crosses the square.': 'Cubres como francotirador un pueblo ocupado mientras un mensajero cruza la plaza.',
@@ -87,7 +87,7 @@
     'Hold {g} to pull the pin and aim (the line shows where it lands), let go to throw.': 'Mantén {g} para quitar el seguro y apuntar (la línea muestra dónde cae), suelta para tirar.',
     'Finish in under 6:00': 'Terminar en menos de 6:00', 'Three plates in six rifle shots or fewer': 'Las tres placas en seis tiros o menos', 'Accuracy of 50% or better': 'Puntería del 50 % o más',
     // ---- night drop
-    'June 1944. Your stick of pathfinders jumps ahead of the main drop. A flak gun at Brissac Farm covers the drop zone, and it has to be gone before the transports come over.': 'Junio de 1944. Tu grupo de exploradores salta antes que el resto. Un antiaéreo en la granja Brissac cubre la zona de salto y hay que eliminarlo antes de que lleguen los aviones de transporte.',
+    'June 1944. Your stick of pathfinders jumps ahead of the main drop. A flak gun at Mauvenant Farm covers the drop zone, and it has to be gone before the transports come over.': 'Junio de 1944. Tu grupo de exploradores salta antes que el resto. Un antiaéreo en la granja Mauvenant cubre la zona de salto y hay que eliminarlo antes de que lleguen los aviones de transporte.',
     "You will land wide. Find Cpl. Dunning, keep off the lanes the patrols walk, and cut the farm's field-telephone line on the way.": 'Vas a caer lejos. Encuentra al cabo Dunning, evita los caminos de las patrullas y corta la línea de teléfono de campaña de la granja.',
     "Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook's men are waiting.": 'Pon la carga en el cañón. Cuando explote, toda la granja irá por ti: sal y baja por el camino hundido del este, donde esperan los hombres de Rook.',
     'Find Cpl. Dunning': 'Encuentra al cabo Dunning', 'Cut the field-telephone line': 'Corta la línea de teléfono de campaña', 'Destroy the flak gun': 'Destruye el antiaéreo', 'Reach the extraction lane': 'Llega al camino de extracción',
@@ -120,8 +120,8 @@
     "That's the bell. Every soldier on the farm is awake now.": 'Es la campana. Ahora toda la granja está despierta.',
     'Finish in under 15:00': 'Terminar en menos de 15:00', 'Spotted no more than once before the farm': 'Que te vean como mucho una vez antes de la granja',
     // sketch labels
-    'FLAK': 'ANTIAÉREO', 'MG': 'AMETR.', 'post': 'puesto', 'sniper?': '¿francotirador?', 'Brissac Farm': 'Granja Brissac', 'orchard': 'huerto', 'wheat': 'trigo', 'the Varenne': 'el Varenne', 'telephone line': 'línea telefónica',
+    'FLAK': 'ANTIAÉREO', 'MG': 'AMETR.', 'post': 'puesto', 'sniper?': '¿francotirador?', 'Mauvenant Farm': 'Granja Mauvenant', 'orchard': 'huerto', 'wheat': 'trigo', 'the Lirette': 'el Lirette', 'telephone line': 'línea telefónica',
     'you are here (roughly)': 'estás acá (más o menos)', 'out': 'salida', 'start': 'inicio', 'run': 'correr', 'crouch': 'agacharse', 'crawl': 'arrastrarse', 'vault': 'saltar', 'pop-ups': 'blancos', 'rifle': 'fusil', 'pen': 'corral', 'binoculars': 'binoculares', 'pit': 'pozo',
-    'Camp Larkhill, Wiltshire': 'Campamento Larkhill, Wiltshire'
+    'Camp Hollowmere': 'Campamento Hollowmere'
   });
 })();
