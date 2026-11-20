@@ -144,7 +144,25 @@
     IV.ai.step(dt);
     M.step(dt);
   }
+  // First thing to go when frames are slow: the environment's parallax occlusion on brick, stone and tile (it more than
+  // doubled a wall-filling frame in a software test). After about two seconds averaging under 30 fps it is compiled
+  // out of every material for the rest of the visit (one short hitch while shaders rebuild). Low never has it.
+  let pomAvg = 1 / 60, pomSlow = 0;
+  function dropParallax(why) {
+    const E = window.IVEnv; if (!E || !E.Q || !E.Q.pom) return false;
+    E.Q.pom = false; let n = 0;
+    W.scene.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) if (m.defines && 'ENV_POM' in m.defines) { delete m.defines.ENV_POM; delete m.defines.ENV_POM_STEPS; delete m.defines.ENV_POM_FAR; m.needsUpdate = true; n++; } });
+    IV.pomDropped = { why, materials: n, t: IV.time }; return true;
+  }
+  IV.dropParallax = dropParallax;
+  function watchFrames(dt) {
+    if (IV.test || !window.IVEnv || !IVEnv.Q || !IVEnv.Q.pom) return;
+    pomAvg += (dt - pomAvg) * 0.05;
+    pomSlow = pomAvg > 1 / 30 ? pomSlow + dt : 0;
+    if (pomSlow > 2) dropParallax('slow frames');
+  }
   function render(dt) {
+    watchFrames(dt);
     IV.frameNo = (IV.frameNo || 0) + 1;
     IV.player.frame(alpha, dt);
     IV.ai.frame(alpha, dt);
