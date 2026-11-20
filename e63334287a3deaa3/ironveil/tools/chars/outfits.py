@@ -181,7 +181,7 @@ def materials_hero(knee=0.54):
         'skin': None,
         'jacket': WR.cloth('jacket', '#5a5e43', '#4a4e36', fade=0.14),
         'trousers': WR.cloth('trousers', '#58503d', '#463f30', knee_z=knee, mud_amt=0.8),
-        'boot': WR.leather('boot', '#3a2618', '#1e140c', mud_low=0.22, polish=0.5),
+        'boot': WR.leather('boot', '#3a2618', '#1e140c', mud_low=0.22, polish=0.62),
         'glove': WR.leather('glove', '#3e2c1e', '#2a1d14', polish=0.6),
         'web': WR.webbing('web', '#857a5a', '#6e6548'),
         'canvas': WR.webbing('canvas', '#736a4d', '#5e573f'),
@@ -270,7 +270,8 @@ def gear_hero(H, cloth):
     for s in (-1, 1):
         fm = feet & np.array([p[0] * s > 0 for p in P])
         fx = float(np.mean(P[fm][:, 0])); fy = float(np.mean(P[fm][:, 1]))
-        sole = envelope_rings(P, fm, (fx, fy), [0.0, 0.0, 0.022, 0.032], [-0.03, 0.006, 0.007, 0.0], n=20, name='Sole%d' % s)
+        # the welt stands clear of the boot surface (and its folds) so the bake rays see the sole, not the boot
+        sole = envelope_rings(P, fm, (fx, fy), [0.0, 0.0, 0.022, 0.032], [-0.03, 0.012, 0.013, 0.003], n=20, name='Sole%d' % s)
         out.append((sole, 'boot'))
     boot_details(P, bvh, out, laces=True)
     # musette bag on the back
@@ -495,6 +496,6 @@ def gear_enemy(H, cloth, kind):
     for s in (-1, 1):
         fm = feet & np.array([p[0] * s > 0 for p in P])
         fx = float(np.mean(P[fm][:, 0])); fy = float(np.mean(P[fm][:, 1]))
-        sole = envelope_rings(P, fm, (fx, fy), [0.0, 0.0, 0.02, 0.03], [-0.03, 0.006, 0.007, 0.0], n=20, name='Sole%d' % s)
+        sole = envelope_rings(P, fm, (fx, fy), [0.0, 0.0, 0.02, 0.03], [-0.03, 0.012, 0.013, 0.003], n=20, name='Sole%d' % s)
         out.append((sole, 'boot'))
     return out
