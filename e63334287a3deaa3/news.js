@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', title: 'Odd One Out: three new maps', kind: 'feature',
+     img: 'm/thumbs/odd-one-out.jpg', tags: ['Odd One Out', 'New maps'], items: [
+      'Three new places to hide in Odd One Out: Saltwind Harbor, a fishing quay at sunset; Camp Pinecrest, a summer camp with cabins, tents and a lake; and Hollow Hill School, with classrooms, a gym and a science lab.',
+      '14 new things to turn into, like a buoy, a crab pot, a sleeping bag, a school desk and a basketball.',
+      'Hosts can pick the new maps in the lobby, and Rotate now goes through all six. If someone in the room has an older copy of the game, the new maps wait until they reload.'
+    ]},
     {date: '2026-11-19', version: '1.32', title: 'New game: Hush Pools', kind: 'game', games: ['Hush Pools'],
      img: 'm/thumbs/hush-pools.jpg', tags: ['Horror obby', 'Co-op', 'Up to 4'], items: [
       'Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can\'t see you, but it hears every splash.',

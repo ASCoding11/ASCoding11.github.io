@@ -6,6 +6,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Odd One Out: three new maps": "Odd One Out: tres mapas nuevos",
+    "New maps": "Mapas nuevos",
+    "Three new places to hide in Odd One Out: Saltwind Harbor, a fishing quay at sunset; Camp Pinecrest, a summer camp with cabins, tents and a lake; and Hollow Hill School, with classrooms, a gym and a science lab.": "Tres lugares nuevos para esconderte en Odd One Out: Saltwind Harbor, un muelle de pescadores al atardecer; Camp Pinecrest, un campamento de verano con cabañas, tiendas y un lago; y Hollow Hill School, con salones, un gimnasio y un laboratorio de ciencias.",
+    "14 new things to turn into, like a buoy, a crab pot, a sleeping bag, a school desk and a basketball.": "14 cosas nuevas en las que convertirte, como una boya, una trampa para cangrejos, una bolsa de dormir, un pupitre y una pelota de básquet.",
+    "Hosts can pick the new maps in the lobby, and Rotate now goes through all six. If someone in the room has an older copy of the game, the new maps wait until they reload.": "El anfitrión puede elegir los mapas nuevos en la sala, y la rotación de mapas ahora pasa por los seis. Si alguien en la sala tiene una copia vieja del juego, los mapas nuevos esperan hasta que recargue la página.",
     "New game: Hush Pools": "Juego nuevo: Hush Pools",
     "Horror obby": "Obby de terror",
     "Co-op": "Cooperativo",
