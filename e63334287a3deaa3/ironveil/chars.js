@@ -415,9 +415,32 @@
     this.mixer.update(0); this.root.updateMatrixWorld(true);
   }
   var AP = Actor.prototype;
+  // weapon moving parts driven by the clips: the rifle bolt follows the hand through boltCycle (lift, back,
+  // forward, down) and the pistol slide kicks back on each firePistol shot
+  function smooth01(a, b, t) { var x = Math.max(0, Math.min(1, (t - a) / (b - a))); return x * x * (3 - 2 * x); }
+  AP._parts = function (held) {
+    if (!held) return;
+    var kind = held.userData.kind, e = this.curUpper && this.curUpper.w > 0.3 ? this.curUpper : (this.cur && this.cur.w > 0.3 ? this.cur : null);
+    var n = e && (e.name || ''), t = e ? (e.action || e.full).time : 0;
+    var bolt = held.userData._bolt;
+    if (bolt === undefined) { bolt = held.userData._bolt = held.getObjectByName(kind + '_bolt') || null; if (bolt) bolt.userData.p0 = bolt.position.clone(); }
+    if (!bolt) return;
+    var lift = 0, back = 0;
+    if (n === 'boltCycle' && (kind === 'rifleScoped' || kind === 'enemyRifle')) {
+      lift = smooth01(0.18, 0.3, t) * (1 - smooth01(0.62, 0.72, t));
+      back = smooth01(0.3, 0.48, t) * (1 - smooth01(0.48, 0.62, t)) * 0.085;
+    } else if (n === 'firePistol' && kind === 'pistol') {
+      back = t < 0.03 ? t / 0.03 * 0.028 : Math.max(0, 0.028 * (1 - (t - 0.03) / 0.07));
+    }
+    bolt.position.copy(bolt.userData.p0); bolt.position.z -= back;
+    bolt.rotation.set(0, 0, -lift * 1.4);
+  };
   AP._grips = function (dt, held) {
     var cls = held && GRIPCLASS[held.userData.kind], T0 = cls && GRIPF[cls];
-    this._fgW = approach(this._fgW, T0 ? 1 : 0, 5, dt);
+    // clips where the right hand leaves the grip (working the bolt, reloading, throwing...) keep their own hand
+    var cn = (this.curUpper && this.curUpper.w > 0.3 && this.curUpper.name) || (this.cur && this.cur.w > 0.3 && this.cur.name) || '';
+    var free = /^(boltCycle|reload|throw|melee|signal|salute|breach|takedown|vault|death|hit|stagger)/.test(cn);
+    this._fgW = approach(this._fgW, T0 && !free ? 1 : 0, 5, dt);
     if (T0) this._fgT = T0;
     var w = this._fgW, G0 = this._fgT; if (w < 0.01 || !G0) return;
     // right hand: our gloved hand is thicker than the hand the grip frames were fitted to, so the hand is moved
@@ -662,6 +685,7 @@
     if (this.driven) this._post(dt, far); else this._flinch(dt);
     if (!(this.cur && /^death|takedownVictim/.test(this.cur.name))) this._blinkUpdate(dt, far); else this.setMorph('blink', 1);
     this._grips(dt, held);
+    this._parts(held);
     // left hand onto the fore-end
     var want = 0;
     if (held && held.userData.gripL && held.userData.long !== undefined) {
