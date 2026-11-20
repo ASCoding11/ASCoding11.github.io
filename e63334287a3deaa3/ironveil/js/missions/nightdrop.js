@@ -58,7 +58,7 @@
   const bump = (d, a, b) => d <= a ? 1 : d >= b ? 0 : 1 - IV.smooth((d - a) / (b - a));
 
   function base(x, z) { return 4.5 * IV.fbm(x / 130 + 3.1, z / 130 + 1.7, 4) + 1.4 * IV.fbm(x / 38, z / 38, 3) - 3.2 - z * 0.012 + x * 0.004; }
-  const farmH = base(FARM.x, FARM.z) + 1.8;   // the farm stands on a rise: the approach climbs to it
+  const farmH = base(FARM.x, FARM.z) + 0.2;   // (a 1.6 m rise changed the MG's sight lines and the loud route failed: kept as before)
   // ---- relief: rolling hills, a ridge east of the farm, a deeper stream valley, a quarry, higher ground toward the
   // map edge. It is faded to nothing within ~14-40 m of every route the mission, the AI and the bots use (approach,
   // loud route, run, patrols, lanes, roads, farm, orchard, crossroads, hamlet, landing), so paths, thresholds,
@@ -69,7 +69,7 @@
     [[116, -66], [126, -32], [134, 0], [144, 40], [156, 74], [170, 98], [188, 112]],
     L1, R1, R2, R3, [[46, -70], [74, -71], [76, -100], [46, -99], [44, -84], [46, -70]]
   ];
-  const KEEP_AREAS = [[FARM.x, FARM.z, 60], [0, 10, 26], [58, -86, 30], [AA.x, AA.z, 25], [OAK.x, OAK.z, 22], [LINK.x, LINK.z, 18], [EXTRACT.x, EXTRACT.z, 22], [8, 68, 48], [-41, 18, 16]];
+  const KEEP_AREAS = [[FARM.x, FARM.z, 60], [0, 10, 26], [58, -86, 30], [AA.x, AA.z, 25], [MG.x, MG.z, 25], [OAK.x, OAK.z, 22], [LINK.x, LINK.z, 18], [EXTRACT.x, EXTRACT.z, 22], [8, 68, 48], [-41, 18, 16]];
   const CRATERS = [[-40, 62, 3.2], [110, 12, 4.2], [-125, -15, 3.6], [150, -25, 5], [-15, -125, 3.4], [80, 125, 4.5], [-150, 105, 3], [-75, -60, 4], [62, 162, 3.5], [-100, -140, 4.4]];   // shell holes, all off the routes
   const PADS = [[-150, -45, 9], [-131, -61, 10], [-162, -62, 5], [150, 152, 9], [168, 136, 10], [-165, 138, 7], [-152, 150, 5], [166, -164, 8], [140, -166, 9]];
   let MASK = null;
@@ -79,7 +79,8 @@
       const x = -190 + i * 2, z = -190 + j * 2; let d = 1e9;
       for (const P of KEEP) d = Math.min(d, pd(x, z, P));
       for (const A of KEEP_AREAS) d = Math.min(d, Math.hypot(x - A[0], z - A[1]) - A[2]);
-      m[j * N + i] = 1 - bump(d, 14, 40);
+      let dA = 1e9; for (const A of KEEP_AREAS) dA = Math.min(dA, Math.hypot(x - A[0], z - A[1]) - A[2]);
+      m[j * N + i] = dA < 8 ? -1 : 1 - bump(d, 14, 40);   // -1: the combat areas (farm, crossroads, orchard, AA, MG) keep the ground they had
     }
     return m;
   }
@@ -87,7 +88,8 @@
     if (!MASK) MASK = keepMask();
     const fx = IV.clamp((x + 190) / 2, 0, 189.999), fz = IV.clamp((z + 190) / 2, 0, 189.999), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, N = 191;
     const k = (MASK[j * N + i] * (1 - tx) + MASK[j * N + i + 1] * tx) * (1 - tz) + (MASK[(j + 1) * N + i] * (1 - tx) + MASK[(j + 1) * N + i + 1] * tx) * tz;
-    const kk = 0.35 + 0.65 * k;   // routes keep a third of the relief (gentle grades); away from them it is full
+    if (k < -0.5) return 0;
+    const kk = Math.max(0, 0.35 + 0.65 * k);   // routes keep a third of the relief (gentle grades); combat areas none; away from them full
     const edge = IV.smooth(IV.clamp((Math.max(Math.abs(x), Math.abs(z)) - 140) / 48, 0, 1));
     let r = 7 * (IV.fbm(x / 80 + 9, z / 80 - 2, 4) - 0.45) + 2.6 * (IV.fbm(x / 26, z / 26 + 5, 3) - 0.5) + edge * 9 * IV.fbm(x / 60 - 3, z / 60 + 8, 3);
     r += 12 * Math.exp(-(((x - 172) / 15) ** 2)) * bump(Math.abs(z + 115), 45, 75);          // the ridge east of the farm
