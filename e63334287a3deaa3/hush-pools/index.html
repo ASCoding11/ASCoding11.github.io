@@ -78,7 +78,7 @@ input,select{font:inherit}
 #noise .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.12);margin-top:7px;overflow:hidden}
 #noise .bar i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--amber) 60%,var(--warn));transition:width .12s ease-out}
 /* one short lesson at a time, the first time you do the thing */
-#teach{position:absolute;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(440px,86vw);padding:9px 14px 9px 10px;font:600 14px/1.35 var(--f-d);opacity:0;transition:opacity .3s}
+#teach{position:absolute;left:50%;top:25%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(440px,86vw);padding:9px 14px 9px 10px;font:600 14px/1.35 var(--f-d);opacity:0;transition:opacity .3s}
 #teach.on{opacity:1}#teach svg{width:24px;height:24px;flex:0 0 24px}#teach b{color:var(--loud)}#teach i{font-style:normal;color:var(--quiet)}
 #dim{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,0,.55) 100%)}
 #hotbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));display:flex;gap:6px;pointer-events:auto}
@@ -2887,9 +2887,10 @@ const TIPS = {
 function tip(k) { SET.tips = SET.tips || {}; if (SET.tips[k] || G.tipQ.includes(k) || G.tipK === k) return; G.tipQ.push(k); }
 function tipFrame(dt) {
   const el = $('teach');
-  if (G.tipT > 0) { G.tipT -= dt; if (G.tipT <= 0 || G.V.ph !== 'run') { el.classList.remove('on'); G.tipK = ''; G.tipT = 0; G.tipGap = 0.8; } return; }
+  const busy = G.V.ph !== 'run' || (myRec() && myRec().st !== 0) || !!G.scare;   // never over the scare, or while you're down
+  if (G.tipT > 0) { G.tipT -= dt; if (G.tipT <= 0 || busy) { el.classList.remove('on'); G.tipK = ''; G.tipT = 0; G.tipGap = 0.8; } return; }
   if (G.tipGap > 0) { G.tipGap -= dt; return; }
-  if (G.V.ph !== 'run' || G.panel || !G.tipQ.length) return;
+  if (busy || G.panel || !G.tipQ.length) return;
   const k = G.tipQ.shift(); SET.tips = SET.tips || {}; SET.tips[k] = 1; saveSet();
   G.tipK = k; G.tipT = 4.8; el.innerHTML = NIC[TIPS[k][0]] + '<span>' + TIPS[k][1] + '</span>'; el.classList.add('on');
 }
@@ -3009,7 +3010,9 @@ function playFrame(dt) {
   if (!G.host && V.ph === 'run') { const est = V.t + Math.max(0, Net.now() - V.ts) / 1000; G.clock = Math.abs(G.clock + dt - est) > 0.3 ? est : G.clock + dt + (est - G.clock - dt) * 0.1; }
   else if (G.host) G.clock = G.S.t;
   // teleports from the host
-  if (me && me.tp && me.tp[0] > G.tpSeen) { G.tpSeen = me.tp[0]; G.body = newBody(me.tp[1], me.tp[2], me.tp[3]); }
+  // (the landing count carries over: the host compares it with the last one it saw, so restarting it at 0 could hide
+  // the first landing after a teleport)
+  if (me && me.tp && me.tp[0] > G.tpSeen) { G.tpSeen = me.tp[0]; const li = G.body.li; G.body = newBody(me.tp[1], me.tp[2], me.tp[3]); G.body.li = li; }
   if (V.ph === 'lobby' && !G.online && !me) G.S.pl.me = newPlayerRec(myName());
   // look
   const sens = 0.0022 * SET.sens;
@@ -3496,7 +3499,7 @@ camera.fov = SET.fov; applyGfx(); startAttract(); renderMenuExtras();
 requestAnimationFrame(t => { last = t; frame(t); });
 // Test hook (automated browsers only)
 if (navigator.webdriver) window.__hp = { G, Net, SAVE: () => SAVE, get S() { return G.S; }, get V() { return G.V; }, get W() { return G.W; }, hostStartRun, enterPlay, toMenu, keys, TUNING, stepPlayer, newBody, camera, renderer, scene, setYaw(y, p) { G.yaw = y; if (p != null) G.pitch = p; },
-  tp(x, y, z) { G.body = newBody(x, y, z); const P = G.S.pl[myUid()]; if (P) { P.x = x; P.y = y; P.z = z; P.has = false; P.unsup = 0; } }, jump() { jumpQ = true; }, useItem, pressE, sel(i) { G.sel = i; }, openParty, openShop, buildLevel,
+  tp(x, y, z) { const li = G.body.li; G.body = newBody(x, y, z); G.body.li = li; const P = G.S.pl[myUid()]; if (P) { P.x = x; P.y = y; P.z = z; P.has = false; P.unsup = 0; } }, jump() { jumpQ = true; }, useItem, pressE, sel(i) { G.sel = i; }, openParty, openShop, buildLevel,
   hold(on) { G.hold = !!on; }, SET, renderNoiseHelp, predictLanding, landNoise };
 </script>
 <script src="/analytics/tracker.js" data-site="hush-pools" defer></script>
