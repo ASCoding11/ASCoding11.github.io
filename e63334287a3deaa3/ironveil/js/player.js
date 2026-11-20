@@ -150,9 +150,10 @@
     if (cur > MV.plantSpeed && ml > 0.3 && (P.vel.x * tx + P.vel.z * tz) / cur < -0.3 && P.plantT <= 0 && !P.planted) { P.plantT = MV.plantTime; P.planted = true; }
     if ((P.vel.x * tx + P.vel.z * tz) >= 0) P.planted = false;
     let k;
-    if (P.plantT > 0) { P.plantT -= dt; tx = 0; tz = 0; sp = 0; k = MV.decel * 1.4; }
+    const fast = cur > MV.run + 0.5;   // coming down from a sprint: brake over about 0.4 s so the feet can plant
+    if (P.plantT > 0) { P.plantT -= dt; tx = 0; tz = 0; sp = 0; k = fast ? MV.sprintDecel : MV.decel * 1.4; }
     else if (!P.grounded) k = MV.airAccel;
-    else if (sp < 0.05) k = MV.decel;
+    else if (sp < 0.05) k = fast ? MV.sprintDecel : MV.decel;
     else k = sprint && cur > MV.run - 0.3 ? MV.sprintAccel : MV.accel;
     // sprinting can't turn on the spot: the velocity's direction swings at a capped rate
     if (sprint && cur > 2.5 && sp > 0) {

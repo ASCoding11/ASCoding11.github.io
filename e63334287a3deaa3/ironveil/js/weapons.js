@@ -226,7 +226,8 @@
     WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2 });   // tracer rounds every third in the SMG magazine
     // effects
     IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle');
-    if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
+    if (part(model, (PART_KIND[k] || k) + '_ejection')) WP.gunShot(model, PART_KIND[k] || k);   // bolt kick and a case from the ejection port
+    else if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
     IV.audio && IV.audio.play(k, { x: mz.x, z: mz.z });
     IV.ai && IV.ai.noise(P.pos.x, P.pos.z, w.noise, 'shot', P);
     // recoil: rifle a big kick, SMG a climbing pattern with a little sideways wander, pistol a snap
@@ -433,7 +434,73 @@
 
   // grenade arc line (render)
   let arcLine = null;
+  // ---------------------------------------------------------------- moving parts (named empties in weapons.glb)
+  // Each part moves relative to its rest transform: bolts and charging handles kick back on a shot, triggers pull while
+  // the trigger is held, the magazine drops out and comes back during a reload, the MG bipod folds down when the gunner
+  // is set up. chars.js already moves the rifle bolt (boltCycle) and the pistol slide (firePistol).
+  const PART_KIND = { rifle: 'rifleScoped', smg: 'smg', pistol: 'pistol', binoc: 'binoculars', grenade: 'grenade' };
+  function part(model, name) {
+    if (!model) return null;
+    const c = model.userData._parts || (model.userData._parts = {});
+    if (!(name in c)) { const o = model.getObjectByName(name) || null; if (o) { o.userData.p0 = o.position.clone(); o.userData.r0 = o.rotation.clone(); } c[name] = o; }
+    return c[name];
+  }
+  WP.part = part;
+  const kickBack = (o, k, dist) => { if (o) o.position.copy(o.userData.p0).z -= dist * k; };   // barrel is +Z: back is -Z
+  const pullTrig = (o, k) => { if (o) { o.rotation.copy(o.userData.r0); o.rotation.x -= 0.35 * k; } };
+  // a brass case thrown from the ejection port: +Z of the <kind>_ejection empty is the way cases fly
+  const ev = new THREE.Vector3(), eq = new THREE.Quaternion(), ed = new THREE.Vector3();
+  WP.ejectCase = function (model, kind) {
+    const e = part(model, kind + '_ejection');
+    if (!e) return false;
+    e.getWorldPosition(ev); e.getWorldQuaternion(eq); ed.set(0, 0, 1).applyQuaternion(eq);
+    const s = 2.2 + Math.random() * 0.8;
+    IV.fx.casing(ev.x, ev.y, ev.z, ed.x * s + (Math.random() - 0.5) * 0.4, ed.y * s + 1.4 + Math.random() * 0.6, ed.z * s + (Math.random() - 0.5) * 0.4);
+    return true;
+  };
+  // a soldier's (or the player's) gun after a shot: called by the AI too
+  WP.gunShot = function (model, kind) {
+    if (!model) return;
+    model.userData.kickT = 1;
+    if (kind !== 'rifleScoped' && kind !== 'enemyRifle') WP.ejectCase(model, kind);   // bolt-actions eject when the bolt is worked
+    else model.userData.caseT = 0.45;
+  };
+  // per rendered frame: animate the parts of one gun
+  WP.animateGun = function (model, kind, dt, o) {
+    if (!model) return;
+    const u = model.userData;
+    if (u.kickT > 0) u.kickT = Math.max(0, u.kickT - dt / 0.06);
+    if (u.caseT > 0) { u.caseT -= dt; if (u.caseT <= 0) WP.ejectCase(model, kind); }
+    const k = u.kickT > 0.5 ? (1 - u.kickT) * 2 : u.kickT * 2;   // back and home again inside 60 ms
+    if (kind === 'smg' || kind === 'enemySmg') { kickBack(part(model, kind + '_bolt'), k, 0.07); kickBack(part(model, kind + '_charging'), k, 0.07); }
+    if (kind === 'mg') {
+      kickBack(part(model, 'mg_charging'), k, 0.05);
+      const belt = part(model, 'mg_belt'); if (belt) { belt.rotation.copy(belt.userData.r0); belt.rotation.z += Math.sin(IV.time * 40) * 0.06 * (u.kickT > 0 ? 1 : 0); }
+      const bip = part(model, 'mg_bipod'); if (bip) { u.bipodK = IV.damp(u.bipodK || 0, o && o.deployed ? 1 : 0, 6, dt); bip.rotation.copy(bip.userData.r0); bip.rotation.x += (u.bipodSign || 1) * u.bipodK * Math.PI / 2; }
+    }
+    pullTrig(part(model, kind + '_trigger'), o && o.trigger ? 1 : 0);
+    // magazine: out at 20-35% of the reload, gone until 60%, back in by 75%
+    const mag = part(model, kind + '_mag');
+    if (mag) {
+      let d = 0, vis = true; const f = o && o.reload != null ? o.reload : -1;
+      if (f >= 0.2 && f < 0.35) d = (f - 0.2) / 0.15; else if (f >= 0.35 && f < 0.6) { d = 1; vis = false; } else if (f >= 0.6 && f < 0.75) d = 1 - (f - 0.6) / 0.15;
+      mag.position.copy(mag.userData.p0); mag.position.y -= d * 0.22; mag.visible = vis;
+    }
+  };
+  // the MG bipod: pick the fold direction that puts the legs below the gun (the empty's axis sign is not documented)
+  WP.prepMG = function (model) {
+    const bip = part(model, 'mg_bipod'); if (!bip || model.userData.bipodSign) return;
+    const box = new THREE.Box3(), test = s => { bip.rotation.copy(bip.userData.r0); bip.rotation.x += s * Math.PI / 2; model.updateMatrixWorld(true); box.setFromObject(bip); const y = box.min.y; bip.rotation.copy(bip.userData.r0); return y; };
+    model.userData.bipodSign = test(1) < test(-1) ? 1 : -1; model.updateMatrixWorld(true);
+  };
+  function playerParts(dt) {
+    const k = WP.cur, m = WP.models && WP.models[k]; if (!m) return;
+    const kind = PART_KIND[k] || k, I = IV.input;
+    WP.animateGun(m, kind, dt, { trigger: I.held('fire') && !WP.busyThrow, reload: WP.reloadT > 0 ? 1 - WP.reloadT / WT[k].reload : -1 });
+  }
+
   WP.frame = function () {
+    playerParts(1 / 60);
     const pts = WP.busyThrow ? WP.arc() : null;
     if (!arcLine || arcLine.parent !== W.scene) {
       arcLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xf0e6c8, dashSize: 0.3, gapSize: 0.2, transparent: true, opacity: 0.8, depthTest: false }));
@@ -443,8 +510,22 @@
     if (pts) { const a = arcLine.geometry.attributes.position.array; a.set(pts.slice(0, 192)); arcLine.geometry.setDrawRange(0, Math.min(64, pts.length / 3)); arcLine.geometry.attributes.position.needsUpdate = true; arcLine.computeLineDistances(); arcLine.visible = true; }
     else arcLine.visible = false;
     // grenade/rock meshes in flight
-    WP.throwMeshes = WP.throwMeshes || [];
-    while (WP.throwMeshes.length < WP.throws.length) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshStandardMaterial({ color: 0x4a4a3a, roughness: 0.8 })); W.scene.add(m); WP.throwMeshes.push(m); }
-    for (let i = 0; i < WP.throwMeshes.length; i++) { const m = WP.throwMeshes[i], g = WP.throws[i]; if (m.parent !== W.scene) W.scene.add(m); m.visible = !!g; if (g) { m.position.set(g.x, g.y, g.z); m.material.color.setHex(g.kind === 'rock' ? 0x77736a : 0x4a5030); } }
+    // grenades are the real models (the enemy's is the stick grenade), rocks a small stone; each tumbles in flight
+    WP.throwMeshes = WP.throwMeshes || {};
+    const used = {};
+    for (const g of WP.throws) {
+      const key = g.kind === 'rock' ? 'rock' : g.enemy ? 'stickGrenade' : 'grenade';
+      const pool = WP.throwMeshes[key] || (WP.throwMeshes[key] = []), n = used[key] = (used[key] || 0) + 1;
+      while (pool.length < n) {
+        let m = key !== 'rock' && window.IVChars && IVChars.weapon ? IVChars.weapon(key) : null;
+        if (!m) m = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), new THREE.MeshStandardMaterial({ color: key === 'rock' ? 0x77736a : 0x4a5030, roughness: 0.8 }));
+        pool.push(m);
+      }
+      const m = pool[n - 1]; if (m.parent !== W.scene) W.scene.add(m);
+      m.visible = true; m.position.set(g.x, g.y, g.z);
+      if (!g.rest) { g.spin = (g.spin || 0) + Math.hypot(g.vx, g.vz) * 0.016 * 2.5; m.rotation.set(g.spin, Math.atan2(g.vx, g.vz), 0); }
+      else m.rotation.x = Math.PI / 2;   // lying on the ground
+    }
+    for (const key in WP.throwMeshes) WP.throwMeshes[key].forEach((m, i) => { if (i >= (used[key] || 0)) m.visible = false; });
   };
 })();

@@ -33,6 +33,7 @@
     this.wkind = o.weapon || (this.kind === 'gunner' ? 'mg' : this.kind === 'officer' ? 'pistol' : this.kind === 'sniper' ? 'rifleScoped' : (o.smg ? 'enemySmg' : 'enemyRifle'));
     this.weapon = IVChars.weapon(this.wkind);
     this.actor.attach(this.weapon, 'handR');
+    if (this.wkind === 'mg' && IV.weapons.prepMG) IV.weapons.prepMG(this.weapon);
     this.actor.groundAt = (x, z) => W.groundAt(x, z, this.pos.y + 0.4);
     this.actor.onFoot = (side, k) => { if (Math.hypot(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z) < 32) IV.footFx(this.pos, this.speed > 3 ? 'run' : this.stance === 'crouch' ? 'crouch' : 'walk', k, false, 0.5); };
     // never start inside a hedge or a wall (scripted spawns use rough positions)
@@ -310,6 +311,7 @@
     const dmg = e.kind === 'sniper' ? A.sniperDmg[diff()] : A.dmg[diff()] * (isP ? 1 : 0.6);
     IV.weapons.spawnBullet({ x: muz.x, y: muz.y, z: muz.z, vx: dx / l * v, vy: dy / l * v + (l / v) * 4.9, vz: dz / l * v, drag: 0, dmg, flat: true, owner: e, team: 'them', tracer: !W.day && (e.kind === 'gunner' || Math.random() < 0.45), enemy: true, life: 1.4 });
     IV.fx.muzzle(muz.x, muz.y, muz.z, dx / l, dy / l, dz / l, e.kind !== 'officer');
+    if (IV.weapons.gunShot) IV.weapons.gunShot(e.weapon, e.wkind); e.lastShotT = IV.time;
     IV.audio && IV.audio.play(e.kind === 'gunner' ? 'mg' : e.kind === 'officer' ? 'epistol' : e.kind === 'sniper' ? 'erifle' : (e.wkind === 'enemySmg' ? 'esmg' : 'erifle'), { x: muz.x, z: muz.z });
     AI.noise(e.pos.x, e.pos.z, 120, 'shout', e);
     e.mag--;
@@ -509,6 +511,7 @@
     const tp = targetPoint(fake), dx = tp.x - muz.x, dy = tp.y - muz.y, dz = tp.z - muz.z, l = Math.hypot(dx, dy, dz), v = 720;
     IV.weapons.spawnBullet({ x: muz.x, y: muz.y, z: muz.z, vx: dx / l * v, vy: dy / l * v, vz: dz / l * v, drag: 0, dmg: A.dmg[diff()], flat: true, owner: e, team: 'them', tracer: !W.day, enemy: true, life: 1.4 });
     IV.fx.muzzle(muz.x, muz.y, muz.z, dx / l, dy / l, dz / l, true);
+    if (IV.weapons.gunShot) IV.weapons.gunShot(e.weapon, e.wkind); e.lastShotT = IV.time;
     IV.audio && IV.audio.play(e.kind === 'gunner' ? 'mg' : 'erifle', { x: muz.x, z: muz.z });
   }
   AI.ringAlarm = function (by) {
@@ -556,7 +559,12 @@
     this.animAcc = (this.animAcc || 0) + dt;
     const every = d > 90 ? 0.15 : d > 50 ? 0.066 : 0;
     this.yawRate = dt > 0 ? IV.wrapA(this.bodyYaw - (this.lastYaw == null ? this.bodyYaw : this.lastYaw)) / Math.max(dt, 1e-3) : 0; this.lastYaw = this.bodyYaw;
-    if (this.animAcc >= every) { if (this.alive) this.drive(this.animAcc); this.actor.update(this.animAcc); this.animAcc = 0; }
+    if (this.animAcc >= every) {
+      if (this.alive) this.drive(this.animAcc);
+      // gun parts (only close by): bolt kick, trigger, the gunner's bipod down while he is set up
+      if (d < 30 && IV.weapons.animateGun) IV.weapons.animateGun(this.weapon, this.wkind, this.animAcc || dt, { trigger: IV.time - (this.lastShotT || -9) < 0.15, deployed: this.wkind === 'mg' && (this.fixed || (this.state === 'combat' && this.speed < 0.2)) });
+      this.actor.update(this.animAcc); this.animAcc = 0;
+    }
     r.visible = d < 260;
     // sniper glint: visible while he is aiming your way
     if (this.glint) {

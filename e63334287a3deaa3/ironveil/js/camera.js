@@ -131,6 +131,10 @@
       P.actor && P.actor.setVisible(false);
       cam.position.set(pr.x, pr.y + (P.eyeY() - P.pos.y), pr.z);
       const f = IV.fwd(P.yaw); cam.position.x += f.x * 0.15; cam.position.z += f.z * 0.15;
+      // the eye at the real eyepiece of the rifle or binoculars (<kind>_scopeEye) when the model has one and it is
+      // where it should be (within 0.5 m of the body's eye); the direction stays the player's aim, so the drop marks hold
+      const WP = IV.weapons, eye = WP && WP.part && WP.part(WP.models && (W8.binoc ? WP.models.binoc : WP.models.rifle), W8.binoc ? 'binoculars_scopeEye' : 'rifleScoped_scopeEye');
+      if (eye) { eye.getWorldPosition(tmp); if (tmp.distanceTo(cam.position) < 0.5) cam.position.copy(tmp); }
       tmp.copy(cam.position).add(dir); cam.lookAt(tmp);
       cam.near = 0.15; cam.updateProjectionMatrix();
       C.mode = 'scope';

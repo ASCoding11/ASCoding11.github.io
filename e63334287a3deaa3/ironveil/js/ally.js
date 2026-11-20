@@ -87,7 +87,7 @@
     const tp = { x: q.pos.x, y: q.pos.y + q.chestH() + (Math.random() - 0.5) * 0.3, z: q.pos.z };
     if (Math.random() > p) { const a = Math.random() * 6.28, r = 0.6 + Math.random() * 1.6; tp.x += Math.cos(a) * r; tp.y += 0.3 + Math.sin(a) * 0.5; tp.z += Math.sin(a) * r; }
     const dx = tp.x - muz.x, dy = tp.y - muz.y, dz = tp.z - muz.z, l = Math.hypot(dx, dy, dz), v = 300;
-    IV.weapons.spawnBullet({ x: muz.x, y: muz.y, z: muz.z, vx: dx / l * v, vy: dy / l * v, vz: dz / l * v, drag: 0, dmg: 34, owner: e, team: 'us', tracer: !W.day, life: 1.2 });
+    IV.weapons.spawnBullet({ x: muz.x, y: muz.y, z: muz.z, vx: dx / l * v, vy: dy / l * v, vz: dz / l * v, drag: 0, dmg: 34, owner: e, team: 'us', tracer: !W.day, life: 1.2 }); if (IV.weapons.gunShot) IV.weapons.gunShot(e.weapon, 'smg'); e.lastShotT = IV.time;
     IV.fx.muzzle(muz.x, muz.y, muz.z, dx / l, dy / l, dz / l, false);
     IV.audio && IV.audio.play('smg', { x: muz.x, z: muz.z, vol: 0.8 });
     IV.ai.noise(e.pos.x, e.pos.z, 150, 'shot', e);
@@ -147,6 +147,7 @@
     const ap = e.target && e.alive ? Math.atan2(e.target.pos.y + 1.2 - e.pos.y - 1.5, Math.hypot(e.target.pos.x - e.pos.x, e.target.pos.z - e.pos.z)) : 0;
     e.yawRate = dt > 0 ? IV.wrapA(e.bodyYaw - (e.lastYaw == null ? e.bodyYaw : e.lastYaw)) / dt : 0; e.lastYaw = e.bodyYaw;
     if (e.alive) { IV.driveState(DS, e.vel, e.bodyYaw, { yawRate: e.yawRate, stance: e.stance, aiming: !!e.target || IV.upperOf(e.actor) === 'aimIdle', aimPitch: ap, aimYawOffset: 0, sprinting: e.speed > 4.8, grounded: true, fallSpeed: 0, slopeY: 1, weapon: 'smg', dt }); DS.speed = Math.min(DS.speed, e.speed + 0.01); if (!e.cine) IV.releaseLoopPose(e.actor); e.actor.drive(DS); }
+    if (IV.weapons.animateGun) IV.weapons.animateGun(e.weapon, 'smg', dt, { trigger: IV.time - (e.lastShotT || -9) < 0.15 });
     e.actor.update(dt);
   };
 })();
