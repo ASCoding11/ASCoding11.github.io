@@ -38,7 +38,7 @@ for ob, mn in gear:
 log('gear', len(gear))
 mats = O.materials_hero(knee=PP.J(H, 'calf_l').z)
 import wear as WR
-mats['skin'] = WR.skin('skin', H['skin_png'], grime=0.4, beard=1.0 if KIND == 'hero' else 0.45, scars=(KIND == 'hero'))
+mats['skin'] = WR.skin('skin', H['skin_png'], grime=0.4, beard=1.0 if KIND == 'hero' else 0.45, scars=(KIND == 'hero'), tan=0.45)
 PP.assign_mats(cloth, mats)
 for ob, mn in gear:
     ob.data.materials.clear(); ob.data.materials.append(mats[mn])
