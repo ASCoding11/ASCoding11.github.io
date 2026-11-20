@@ -115,7 +115,9 @@ def make_high(cloth, H, labels_by_vertex, fold_amp, subdiv=1, label_fn=None):
     lab = ['skin'] * len(hi.data.vertices)
     for p in hi.data.polygons:
         for v in p.vertices: lab[v] = names[p.material_index]
-    add_folds(hi, H, lab, fold_amp)
+    add_folds(hi, H, lab, {k: v * 0.55 for k, v in fold_amp.items()})   # noise folds kept, but quieter
+    import detail
+    print('tailor', detail.tailor(hi, H, lab))
     return hi
 
 def decimate(ob, ratio, protect=None, protect_ratio=None):

@@ -26,10 +26,10 @@ cloth = PP.cloth_body(H, labels,
 log('cloth body')
 gear = O.gear_hero(H, cloth)
 helmet, hc, hr = O.helmet_m1(H)
-gear += [(helmet, 'helmet')]
+gear += [(helmet, 'helmet')] + [(x, 'canvas') for x in O.scrim_bits(hc, hr)]
 if H.get('hair'): PP.trim_hair(H['hair'], hc, hr)
 for ob, mn in gear:
-    if ob.name.startswith(('Helmet', 'Straps')): continue
+    if ob.name.startswith(('Helmet', 'Straps', 'Scrim')): continue
     G.transfer_weights(ob, cloth)
 log('gear', len(gear))
 mats = O.materials_hero(knee=PP.J(H, 'calf_l').z)
@@ -48,7 +48,7 @@ log('saved geo')
 # ---------- low ----------
 low = cloth.copy(); low.data = cloth.data.copy(); low.name = NAME + 'Low'; G.link(low)
 protect = [i for i, l in enumerate(labels) if l == 'skin']
-PP.decimate(low, 0.32, protect=protect)
+PP.decimate(low, 0.42, protect=protect)
 log('low body tris', G.tris(low))
 gl = []
 for ob, mn in gear:
@@ -72,5 +72,5 @@ if MODE == 'bake':
     rig = bpy.data.objects['Armature']
     for b in rig.data.bones: H['J'][b.name] = (rig.matrix_world @ b.head_local, rig.matrix_world @ b.tail_local)
     TD = L.WORK + '/tex_' + KIND
-    low = PP.finish(H, NAME, cloth, gear, labels, {'jacket': 0.0065, 'trousers': 0.0075, 'boot': 0.002}, size=SIZE, out_dir=TD, log=log, label_fn=O.label_hero)
+    low = PP.finish(H, NAME, cloth, gear, labels, {'jacket': 0.0065, 'trousers': 0.0075, 'boot': 0.002}, size=SIZE, out_dir=TD, log=log, label_fn=O.label_hero, low_ratio=0.42)
     bpy.ops.wm.save_as_mainfile(filepath=L.WORK + '/%s_baked.blend' % KIND)

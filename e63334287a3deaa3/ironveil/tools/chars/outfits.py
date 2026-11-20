@@ -63,7 +63,19 @@ def pouch(bvh, origin, direction, w, h, d, name, flap=True, up=Vector((0, 0, 1))
         f = G.box(name + 'F', (w * 1.03, h * 0.42, 0.005), Mf, bev=0.0015, seg=1)
         f['hi_only'] = True
         obs.append(f)
+        # press stud near the flap's lower edge, and a stitched hem line along it
+        st = G.lathe(name + 'Stud', [(0.0, 0.004), (0.006, 0.0035), (0.0075, 0.0015), (0.0075, 0.0)], n=10, M=Mf @ Matrix.Translation((0, -h * 0.13, 0.0025)))
+        st['hi_only'] = True; obs.append(st)
+        hem = G.box(name + 'Hem', (w * 0.95, 0.0015, 0.0012), Mf @ Matrix.Translation((0, -h * 0.18, 0.0028)), bev=0.0005, seg=1)
+        hem['hi_only'] = True; obs.append(hem)
     return obs
+
+def buckle(M, name, w=0.03, h=0.034, t=0.004, bar=0.004):
+    """A rectangular frame buckle with a centre bar (four sides and a bar, real geometry)."""
+    out = []
+    for i, (x, y, sx, sy) in enumerate(((0, h / 2, w, bar), (0, -h / 2, w, bar), (w / 2, 0, bar, h), (-w / 2, 0, bar, h), (0, 0, bar * 0.8, h))):
+        out.append(G.box(name + str(i), (sx, sy, t), M @ Matrix.Translation((x, y, 0)), bev=0.0008, seg=1))
+    return out
 
 def button(bvh, origin, direction, name, r=0.0075, up=Vector((0, 0, 1))):
     """A flat sewn button (high-poly only: it is baked into the normal and colour maps)."""
@@ -81,8 +93,18 @@ def boot_details(P, bvh, out, laces=True, mat='boot', lace_mat='glove'):
         F = P[fm]
         fx = float(np.mean(F[:, 0])); y0, y1 = float(F[:, 1].min()), float(F[:, 1].max())
         w = float(F[:, 0].max() - F[:, 0].min())
-        # (a separate heel block and tread lugs were tried: overlapping the welt sole they baked into white
-        # patches, so the sole stays one piece and only the laces are added)
+        Fh = F[F[:, 1] > y1 - 0.07]
+        hx = float(np.mean(Fh[:, 0])); hw = float(Fh[:, 0].max() - Fh[:, 0].min())
+        # heel block under the back of the sole (real geometry), tread bars and a toe-cap seam (baked detail)
+        out.append((G.box('Heel%d' % s, (hw + 0.02, 0.07, 0.022), Matrix.Translation((hx, y1 - 0.034, 0.011)), bev=0.004, seg=2), mat))
+        for k in range(8):
+            yy = y0 + 0.025 + k * (y1 - y0 - 0.12) / 7
+            t = G.box('Tread%d%d' % (s, k), (w * 0.8, 0.007, 0.005), Matrix.Translation((fx, yy, -0.0015)), bev=0.0015, seg=1)
+            t['hi_only'] = True; out.append((t, mat))
+        Mt = G.surface_frame(bvh, Vector((fx, y0 + 0.05, 0.3)), Vector((0, 0, -1)), Vector((0, -1, 0)))
+        if Mt:
+            tc = G.box('ToeCap%d' % s, (w * 0.9, 0.003, 0.0018), Mt @ Matrix.Translation((0, 0, 0.001)), bev=0.0008, seg=1)
+            tc['hi_only'] = True; out.append((tc, mat))
         if laces:
             for k in range(7):
                 z = 0.075 + k * 0.014
@@ -92,6 +114,11 @@ def boot_details(P, bvh, out, laces=True, mat='boot', lace_mat='glove'):
                     if M is None: continue
                     l = G.box('Lace%d%d%s' % (s, k, a > 0), (0.034, 0.0035, 0.003), M @ Matrix.Translation((0, 0, 0.0025)) @ Matrix.Rotation(a, 4, 'Z'), bev=0.001, seg=1)
                     l['hi_only'] = True; out.append((l, lace_mat))
+                for sx in (-0.016, 0.016):   # eyelets either side of the lacing
+                    M = G.surface_frame(bvh, Vector((fx + sx, -0.4, z)), Vector((0, 1, 0)))
+                    if M is None: continue
+                    e = G.lathe('Eyelet%d%d%d' % (s, k, sx > 0), [(0.0015, 0.0012), (0.0032, 0.0012), (0.0034, 0.0), (0.0015, 0.0)], n=8, M=M)
+                    e['hi_only'] = True; out.append((e, 'metal'))
 
 def helmet_m1(H, name='Helmet', net=True):
     """US M1-style helmet shell: rounded dome, slight brim flare at the rim."""
@@ -126,6 +153,19 @@ def helmet_m1(H, name='Helmet', net=True):
     ob = G.mesh_obj(name, verts, faces)
     G.rigid_weights(ob, 'Head')
     return ob, c, (rx, ry)
+
+def scrim_bits(c, rr, name='Scrim', n=9, seed=3):
+    """Small strips of hessian tied into a helmet net (real geometry, rigid on the head)."""
+    import random
+    rnd = random.Random(seed); out = []
+    for i in range(n):
+        th = rnd.uniform(0, 2 * math.pi); el = rnd.uniform(0.25, 1.0)
+        p = Vector((c.x + rr[0] * 1.03 * math.sin(th) * math.cos(el * 0.9), c.y + rr[1] * 1.03 * math.cos(th) * math.cos(el * 0.9), c.z + 0.115 * math.sin(el * 1.2) + 0.01))
+        nrm = (p - Vector((c.x, c.y, c.z - 0.02))).normalized()
+        M = Matrix.Translation(p) @ nrm.to_track_quat('Z', 'Y').to_matrix().to_4x4() @ Matrix.Rotation(rnd.uniform(0, 3.1), 4, 'Z')
+        b = G.box(name + str(i), (rnd.uniform(0.018, 0.03), rnd.uniform(0.05, 0.08), 0.003), M, bev=0.001, seg=1)
+        G.rigid_weights(b, 'Head'); out.append(b)
+    return out
 
 def chin_straps(H, c, rr, name='Straps'):
     body = H['body']; P = G.coords(body.data); W = PP.vweights(body)
@@ -274,9 +314,38 @@ def gear_hero(H, cloth):
         sole = envelope_rings(P, fm, (fx, fy), [0.0, 0.0, 0.022, 0.032], [-0.03, 0.012, 0.013, 0.003], n=20, name='Sole%d' % s)
         out.append((sole, 'boot'))
     boot_details(P, bvh, out, laces=True)
-    # musette bag on the back
+    # musette bag on the back: body, flap with two straps and buckles, stitched edge, and a rolled blanket lashed on top
     sp = J(H, 'spine_03')
-    out += [(x, 'canvas') for x in pouch(bvh, Vector((0, 0.5, sp.z + 0.08)), Vector((0, -1, 0)), 0.28, 0.24, 0.09, 'Musette', push=0.012)]
+    pk = pouch(bvh, Vector((0, 0.5, sp.z + 0.08)), Vector((0, -1, 0)), 0.28, 0.24, 0.09, 'Musette', push=0.012)
+    out += [(x, 'canvas') for x in pk]
+    Mp = G.surface_frame(bvh, Vector((0, 0.5, sp.z + 0.08)), Vector((0, -1, 0)), Vector((0, 0, 1)))
+    if Mp:
+        Mo = Mp @ Matrix.Translation((0, 0, 0.012 + 0.09))       # outer face of the pack
+        for sx in (-0.075, 0.075):
+            out.append((G.box('PackStrap%d' % (sx > 0), (0.024, 0.2, 0.004), Mo @ Matrix.Translation((sx, -0.01, 0.003)), bev=0.001, seg=1), 'web'))
+            fr = buckle(Mo @ Matrix.Translation((sx, -0.075, 0.007)), 'PackBuckle%d' % (sx > 0))
+            out += [(x, 'metal') for x in fr]
+        roll = G.lathe('PackRoll', [(0.0, 0.17), (0.045, 0.17), (0.052, 0.15), (0.054, 0.0), (0.052, -0.15), (0.045, -0.17), (0.0, -0.17)], n=12,
+                       M=Mp @ Matrix.Translation((0, 0.135, 0.012 + 0.05)) @ Matrix.Rotation(math.pi / 2, 4, 'Y'))
+        out.append((roll, 'canvas'))
+        for sx in (-0.11, 0.11):
+            out.append((G.lathe('RollTie%d' % (sx > 0), [(0.0565, 0.009), (0.0565, -0.009)], n=12, cap_top=False,
+                                M=Mp @ Matrix.Translation((sx, 0.135, 0.012 + 0.05)) @ Matrix.Rotation(math.pi / 2, 4, 'Y')), 'web'))
+    # buckles where the braces meet the belt, and at the front adjusters
+    for sxx in (-1, 1):
+        out += [(x, 'metal') for x in buckle(Matrix.Translation((sxx * 0.09, cy - 0.155, pz + 0.12)) @ Matrix.Rotation(math.pi / 2, 4, 'X'), 'BraceBuckle%d' % sxx)]
+    # bayonet scabbard hanging from the belt on the left hip
+    a = math.radians(115); d = Vector((math.sin(a), -math.cos(a), 0))
+    hp = Vector((0, cy, pz - 0.02)) + d * 0.2
+    out.append((G.box('Scabbard', (0.035, 0.016, 0.3), Matrix.Translation((hp.x, hp.y, pz - 0.17)) @ Matrix.Rotation(0.12, 4, 'Y'), bev=0.004, seg=2), 'boot'))
+    out.append((G.box('BayoGrip', (0.03, 0.022, 0.1), Matrix.Translation((hp.x - 0.004, hp.y, pz + 0.02)), bev=0.005, seg=2), 'boot'))
+    import os as _os
+    if _os.environ.get('KIND') == 'ally':
+        # canvas leggings over the boot tops, laced up the side with two strap-and-buckle closures
+        for s_ in ('l', 'r'):
+            kn = J(H, 'calf_' + s_); an = J(H, 'foot_' + s_)
+            lg = limb_ring(bvh, kn, an, [0.6, 0.7, 0.8, 0.9, 0.97], [0.008, 0.009, 0.01, 0.012, 0.012], n=16, name='Legging' + s_)
+            out.append((lg, 'canvas'))
     return out
 
 # ---------- enemies (one shared body; four outfits). No national or political insignia: the only marking is an
