@@ -201,6 +201,7 @@
     let ox, oy, oz, dx, dy, dz;
     const model = WP.models[k], muzzle = model.userData.muzzle;
     muzzle.getWorldPosition(mz);
+    if (IV.fp && IV.fp.on() && !WP.scoped) IV.fp.muzzle(mz);   // first person: the flash and tracer start at the visible muzzle
     if (WP.scoped) {
       // from the scope: start one sight-height below the eye, angled up by the zero angle
       const up = new THREE.Vector3(0, 1, 0).applyQuaternion(c.quaternion);
@@ -240,6 +241,7 @@
     if (k === 'smg') { WP.burst++; const pat = Math.sin(WP.burst * 0.9) * 0.5 + (WP.burst > 6 ? 0.4 : 0); IV.camera.kick(w.recoil * (WP.aiming ? 0.7 : 1), -w.recoil * 0.45 * pat); WP.bloom = Math.min(w.bloomMax, WP.bloom + w.bloom); }
     else IV.camera.kick(w.recoil * (P.stance === 'prone' ? 0.6 : 1), (Math.random() - 0.5) * w.recoil * 0.3);
     IV.camera.shake((k === 'rifle' ? 0.12 : 0.05) * motion);
+    IV.fp && IV.fp.recoil(k === 'rifle' ? 1 : k === 'smg' ? 0.35 : 0.6);
     if (k === 'rifle') { WP.boltT = WT.rifle.bolt; setTimeout(() => IV.audio && IV.audio.play('bolt'), 330); }
     WP.cool = w.rpm ? 60 / w.rpm : 0.18;
     IV.setUpper(P.actor, k === 'rifle' ? 'boltCycle' : 'fire');

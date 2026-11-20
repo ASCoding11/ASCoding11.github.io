@@ -110,7 +110,7 @@
 
   // ---------------------------------------------------------------- settings
   const S = () => IV.settings;
-  const binds = [['sSens', 'sens', 'range'], ['sAimSens', 'aimSens', 'range'], ['sInvert', 'invert', 'check'], ['sAssist', 'assist', 'range'], ['sAuto', 'auto', 'check'], ['sSub', 'sub', 'select'], ['sMotion', 'motion', 'check'], ['sBob', 'bob', 'check'], ['sBlood', 'blood', 'check'],
+  const binds = [['sSens', 'sens', 'range'], ['sAimSens', 'aimSens', 'range'], ['sInvert', 'invert', 'check'], ['sAssist', 'assist', 'range'], ['sAuto', 'auto', 'check'], ['sSub', 'sub', 'select'], ['sMotion', 'motion', 'check'], ['sView', 'view', 'select'], ['sBob', 'bob', 'check'], ['sBlood', 'blood', 'check'],
     ['sQual', 'quality', 'select'], ['sFov', 'fov', 'range'], ['sBright', 'bright', 'range'], ['sVol', 'vol', 'range'], ['sSfx', 'sfx', 'range'], ['sMus', 'mus', 'range'], ['sMute', 'mute', 'check']];
   UI.settings = function (from) {
     UI.settingsFrom = from || UI.cur;
@@ -119,7 +119,7 @@
   };
   for (const [id, k, t] of binds) {
     $(id).addEventListener(t === 'range' ? 'input' : 'change', e => {
-      const el = e.target; S()[k] = t === 'check' ? el.checked : t === 'select' ? (k === 'sub' ? parseFloat(el.value) : +el.value) : parseFloat(el.value);
+      const el = e.target; S()[k] = t === 'check' ? el.checked : t === 'select' ? (k === 'sub' ? parseFloat(el.value) : k === 'view' ? el.value : +el.value) : parseFloat(el.value);
       IV.persist(); UI.applySettings();
       if (k === 'quality') IV.hud.toast(IV.t('Quality changes apply when the page reloads'));
     });

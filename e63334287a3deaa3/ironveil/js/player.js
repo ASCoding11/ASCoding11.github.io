@@ -260,5 +260,6 @@
       A.drive(st);
     } else A.setAim(P.pitch, IV.clamp(IV.wrapA(P.yaw - P.bodyYaw), -1.2, 1.2));
     A.update(dt);
+    IV.fp && IV.fp.afterBodyUpdate();
   };
 })();

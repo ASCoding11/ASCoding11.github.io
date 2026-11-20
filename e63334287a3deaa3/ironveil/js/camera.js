@@ -1,4 +1,4 @@
-/* Ironveil camera: over-the-shoulder third person (shoulder swap), a damped pivot that follows the interpolated player,
+/* Ironveil camera: first person by default (js/fp.js); over-the-shoulder third person as a Settings option (shoulder swap), a damped pivot that follows the interpolated player,
    collision that pulls the camera in front of walls and hedges (fast in, slow out), aim zoom, the first-person scope
    with sway and hold-breath, recoil kick, shake, and the aim assist that nudges the view onto enemies. */
 (function () {
@@ -53,6 +53,7 @@
     return best;
   };
   C.onAimStart = function (scoped) {
+    if (IV.fp && IV.fp.on()) return;   // first person: no snap, only slowdown and a mild pull (console style)
     const d = diff(), s = T.assist.snap[d] * assistScale();
     if (s <= 0) return;
     const t = C.findTarget(T.assist.cone[d] * Math.min(1.4, assistScale()), scoped ? T.assist.scopeMaxRange : 120);
@@ -79,6 +80,11 @@
       const a = C.assist, st = T.assist.snapTime, k0 = IV.smooth(Math.min(1, a.t / st)); a.t += dt; const k1 = IV.smooth(Math.min(1, a.t / st));
       P.yaw += a.dy * (k1 - k0); P.pitch += a.dp * (k1 - k0);
       if (a.t >= st) C.assist = null;
+    }
+    // first person, console-style assist: while moving with a target near the centre, the view turns gently with it
+    if (IV.fp && IV.fp.on() && P.speed > 0.5 && assistScale() > 0 && T.assist.friction[diff()] > 0) {
+      const t = C.findTarget(0.1, 60);
+      if (t) { const cp = W.camera.position, wy = IV.yawTo(t.x - cp.x, t.z - cp.z); P.yaw += IV.wrapA(wy - P.yaw) * Math.min(1, 1.2 * assistScale() * dt); }
     }
     // recoil recovery (spring back toward where you were aiming)
     const rk = 1 - Math.exp(-dt * 11);
@@ -126,6 +132,8 @@
     if (scoped) fov = S.fov / T.weapons.rifle.zoom;
     C.fov = IV.damp(C.fov, fov, scoped ? 40 : 12, dt);
     if (Math.abs(cam.fov - C.fov) > 0.01) { cam.fov = C.fov; cam.updateProjectionMatrix(); }
+    if (!scoped && !(W8 && W8.binoc) && IV.fp && IV.fp.on()) { IV.fp.frame(cam, dt, dir, yaw, pitch); return; }   // the default view
+    IV.fp && IV.fp.off();
     if (scoped || (W8 && W8.binoc)) {
       // first person at the eye
       P.actor && P.actor.setVisible(false);
