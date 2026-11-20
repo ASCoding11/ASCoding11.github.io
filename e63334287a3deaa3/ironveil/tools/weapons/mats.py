@@ -230,7 +230,7 @@ def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082)):
         h = nb.add(h, nb.mul(ch, 0.7))
     return nb.finish(c, r, metal, h, bump_dist=0.00035)
 
-def parkerized(name, W, mask, seed=0.0, tint=(0.052, 0.055, 0.049), serr=None):
+def parkerized(name, W, mask, seed=0.0, tint=(0.030, 0.031, 0.029), serr=None):
     """Phosphate finish: matte dark grey-green non-metal coat; bare steel shows on worn edges and scratches."""
     nb = NB(name, mask)
     P = nb.P
@@ -245,8 +245,10 @@ def parkerized(name, W, mask, seed=0.0, tint=(0.052, 0.055, 0.049), serr=None):
     rust = nb.mul(nb.ss(cav, 0.30, 0.80), nb.ss(nb.noise(P, 60, 4, 0.6, w=seed + 9), 0.52, 0.70))
     dust = nb.mul(nb.ss(cav, 0.30, 0.85), nb.ss(nb.noise(P, 90, 3, 0.5, w=seed + 2), 0.30, 0.60))
     oil = nb.ss(nb.noise(P, 22, 3, 0.55, w=seed + 4), 0.50, 0.70)
-    c = nb.mixc(n1, tint, (tint[0] * 1.45, tint[1] * 1.45, tint[2] * 1.4))
-    c = nb.mixc(nb.mul(nb.add(oil, nb.mul(hand, 0.8)), 0.5), c, (tint[0] * 0.70, tint[1] * 0.70, tint[2] * 0.70))   # oiled = darker
+    blot = nb.noise(P, 6, 4, 0.65, w=seed + 12)                                                                     # uneven phosphate
+    c = nb.mixc(n1, tint, (tint[0] * 1.7, tint[1] * 1.72, tint[2] * 1.6))
+    c = nb.mixc(nb.ss(blot, 0.40, 0.70), nb.cmul(c, 0.72), nb.cmul(c, 1.25))
+    c = nb.mixc(nb.mul(nb.add(oil, nb.mul(hand, 0.8)), 0.5), c, (tint[0] * 0.65, tint[1] * 0.65, tint[2] * 0.65))   # oiled = darker
     c = nb.mixc(nb.mul(n3, hand, 0.35), c, (0.10, 0.10, 0.095))                                                     # rubbed thin
     c = nb.mixc(nb.mul(scr, 0.9), c, (0.46, 0.46, 0.45))
     c = nb.mixc(wear, c, (0.60, 0.59, 0.56))
@@ -268,6 +270,7 @@ def parkerized(name, W, mask, seed=0.0, tint=(0.052, 0.055, 0.049), serr=None):
         m = nb.mul(nb.ss(y, y0, y0 + 0.0006), nb.ss(y, y1, y1 - 0.0006), nb.ss(z, z0, z0 + 0.0008))
         g = nb.math('ABSOLUTE', nb.math('SINE', nb.mul(y, 2 * math.pi / 0.00185)))
         h = nb.add(h, nb.mul(nb.ss(g, 0.15, 0.7), m, 1.2))
+        c = nb.mixc(nb.mul(m, nb.ss(g, 0.5, 0.0), 0.5), c, nb.cmul(c, 0.6))
     return nb.finish(c, r, metal, h, bump_dist=0.00035)
 
 def steel(name, W, mask, seed=0.0):
@@ -319,7 +322,7 @@ def wood(name, W, mask, seed=0.0, kind='walnut'):
         early, late, pore = (0.058, 0.031, 0.016), (0.024, 0.0125, 0.0068), (0.014, 0.008, 0.0045)
         ringsPerM, axisOff = 120.0, (0.19, 0.0, -0.33)
     else:   # beech with a redder oil stain, finer grain, rays
-        early, late, pore = (0.085, 0.034, 0.015), (0.050, 0.019, 0.008), (0.028, 0.011, 0.005)
+        early, late, pore = (0.060, 0.027, 0.012), (0.033, 0.0145, 0.0065), (0.020, 0.009, 0.004)
         ringsPerM, axisOff = 150.0, (-0.21, 0.0, -0.28)
     # growth rings around a virtual trunk axis parallel to the stock: long flowing lines, arches where the surface rises,
     # spacing varied by a slow noise so no two rings are alike
@@ -404,7 +407,7 @@ def canvas(name, W, mask, seed=0.0):
     n1 = nb.noise(P, 25, 4, 0.6, w=seed)
     stain = nb.ss(nb.noise(P, 9, 3, 0.6, w=seed + 3), 0.5, 0.75)
     edge = nb.edge()
-    c = nb.cmul((0.155, 0.135, 0.080), nb.add(0.80, nb.mul(n1, 0.4)))
+    c = nb.cmul((0.085, 0.072, 0.042), nb.add(0.80, nb.mul(n1, 0.4)))
     c = nb.mixc(nb.mul(stain, 0.7), c, (0.075, 0.065, 0.040))
     c = nb.mixc(nb.mul(edge, 0.7), c, (0.24, 0.21, 0.14))
     c = nb.mixc(nb.mul(nb.ss(nb.cavity(), 0.2, 0.9), 0.8), c, (0.04, 0.035, 0.025))
@@ -544,7 +547,7 @@ def make(t, name, W, mask, seed=0.0):
     if t == 'wood2': return wood(name, W, mask, seed, 'beech')
     if t == 'leather': return leather(name, W, mask, seed)
     if t == 'canvas': return canvas(name, W, mask, seed)
-    if t == 'bakelite': return bakelite(name, W, mask, seed)
+    if t == 'bakelite': return bakelite(name, W, mask, seed, (0.020, 0.011, 0.007) if W.kind == 'mg' else (0.030, 0.015, 0.008))
     if t == 'checkplastic': return checkplastic(name, W, mask, seed)
     if t == 'leatherstack': return leatherstack(name, W, mask, seed)
     if t == 'leatherette': return leatherette(name, W, mask, seed)

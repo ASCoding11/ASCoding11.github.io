@@ -1,19 +1,23 @@
 // Pack the exported weapons GLB for the web: occlusion from the ORM map, WebP textures, meshopt geometry.
-// usage: GT_MODULES=/path/to/node_modules node pack.mjs in.glb out.glb
+// usage: GT_MODULES=/path/to/node_modules node pack.mjs rifle.glb smg.glb atlas.glb out.glb   (inputs merged into one scene)
 // needs: npm i @gltf-transform/core@4 @gltf-transform/extensions@4 @gltf-transform/functions@4 meshoptimizer sharp
 import path from 'path';
 const M = process.env.GT_MODULES || path.resolve('node_modules');
 const imp = (p) => import(path.join(M, p));
 const { NodeIO } = await imp('@gltf-transform/core/dist/index.js');
 const { ALL_EXTENSIONS } = await imp('@gltf-transform/extensions/dist/index.js');
-const { dedup, meshopt, textureCompress } = await imp('@gltf-transform/functions/dist/index.js');
+const { dedup, meshopt, textureCompress, mergeDocuments, unpartition } = await imp('@gltf-transform/functions/dist/index.js');
 const { MeshoptEncoder } = await imp('meshoptimizer/index.js');
 const sharp = (await imp('sharp/dist/index.mjs')).default;
 
-const [src, dst] = process.argv.slice(2);
+const args = process.argv.slice(2), dst = args.pop();
 await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
-const doc = await io.read(src);
+const doc = await io.read(args[0]);
+for (const more of args.slice(1)) mergeDocuments(doc, await io.read(more));
+const scenes = doc.getRoot().listScenes(), main = scenes[0];
+for (const sc of scenes.slice(1)) { for (const n of sc.listChildren()) main.addChild(n); sc.dispose(); }
+doc.getRoot().setDefaultScene(main);
 for (const m of doc.getRoot().listMaterials()) {
   const orm = m.getMetallicRoughnessTexture();
   if (m.getName().startsWith('wpn_') && orm) {
@@ -24,6 +28,7 @@ for (const m of doc.getRoot().listMaterials()) {
   if (/glass/.test(m.getName())) { m.setAlphaMode('BLEND'); m.setDoubleSided(false); }
 }
 await doc.transform(
+  unpartition(),
   dedup(),
   textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 90, slots: /^(baseColorTexture)$/ }),
   textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 92, slots: /^(normalTexture)$/ }),

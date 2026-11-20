@@ -62,12 +62,13 @@ def assemble(W, meshes):
         M.translation = Vector(loc)
         empty(k + '_' + suf, root, M=M)
     glp = Vector(W.gripL)
+    ro, lo = Matrix.Translation(Vector(W.gripRoff)), Matrix.Translation(Vector(W.gripLoff))
     if base in LONG:
-        empty(k + '_gripR', root, M=GR @ CONV)
-        empty(k + '_gripL', root, M=Matrix.Translation(glp - RIFLE_GL) @ GRL @ CONV)
+        empty(k + '_gripR', root, M=ro @ GR @ CONV)
+        empty(k + '_gripL', root, M=lo @ Matrix.Translation(glp - RIFLE_GL) @ GRL @ CONV)
     elif base == 'pistol':
-        empty(k + '_gripR', root, M=GP @ CONV)
-        empty(k + '_gripL', root, M=GPL @ CONV)
+        empty(k + '_gripR', root, M=ro @ GP @ CONV)
+        empty(k + '_gripL', root, M=lo @ GPL @ CONV)
     else:
         Tm = small_item_frame(base)
         empty(k + '_gripR', root, M=Tm.inverted() @ GP @ CONV)

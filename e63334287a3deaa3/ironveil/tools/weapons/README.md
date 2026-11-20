@@ -12,13 +12,17 @@ models or textures are used. The site has no build step; these files are only fo
 
 ```sh
 cd e63334287a3deaa3/ironveil/tools/weapons
-python build.py /tmp/wpn/weapons_raw.glb 2048          # about an hour on 4 CPU cores (Cycles baking)
-GT_MODULES=/path/to/node_modules node pack.mjs /tmp/wpn/weapons_raw.glb ../../assets/weapons.glb
+BPY=python ./run.sh /tmp/wpn 2048          # rifle, smg and atlas sets; resumable, one Blender process at a time
+GT_MODULES=/path/to/node_modules node pack.mjs /tmp/wpn/rifle.glb /tmp/wpn/smg.glb /tmp/wpn/atlas.glb ../../assets/weapons.glb
 ```
 
-`python build.py out.glb 1024` is a quicker check at half resolution. `python build.py out.glb 1024 rifle` bakes one
-texture set only (`rifle`, `smg` or `atlas`). `python preview.py out.glb rifleScoped,smg` exports flat-coloured
-geometry in seconds for checking shapes. `python checknormals.py rifleScoped` lists parts with flipped or open surfaces.
+`run.sh` calls `build.py` in three steps per texture set: `prep` (model and unwrap, saved to a .blend), `bake` (one
+weapon at a time: edge/cavity mask, colour, metal, roughness, normal) and `finish` (composite the set's maps and export).
+It skips steps whose output already exists, so it can be stopped and restarted. Cycles uses 2 threads (`THREADS=4` for
+more) and each step waits for 5 GB of free memory. Expect about an hour at 2048 on 2 threads.
+`./run.sh /tmp/wpn 512 rifle` is a quick check of one set. `python preview.py out.glb rifleScoped,smg` exports
+flat-coloured geometry in seconds for checking shapes. `python checknormals.py rifleScoped` lists parts with flipped
+or open surfaces.
 
 ## Files
 
@@ -30,12 +34,12 @@ geometry in seconds for checking shapes. `python checknormals.py rifleScoped` li
   leather, canvas, moulded plastic, checkered grips, painted metal and the knife blade. Wear is driven by a baked mask
   (convex edges, cavities, occlusion) plus position: edges and corners go bright, hands polish and darken, sliding parts
   get scratches along the slide, recesses keep dust and a little rust.
-- `build.py`: builds the weapons, unwraps them, bakes the mask, then base colour, roughness, metal and normal for three
-  texture sets: `rifle` (player rifle, 2048), `smg` (player SMG, 2048) and `atlas` (everything else plus the reduced
-  rifle and SMG, 2048). Writes albedo, normal and occlusion-roughness-metal maps and exports one GLB.
+- `build.py`: three texture sets, `rifle` (player rifle, 2048), `smg` (player SMG, 2048) and `atlas` (everything else
+  plus the reduced rifle and SMG, 2048), each with albedo, normal and occlusion-roughness-metal maps.
+- `run.sh`: the resumable driver.
 - `assemble.py`: the node layout the game reads (see below) and the hand frames, which reuse `grips.json` from the
   character clips so the hands land where they did on the first weapons.
-- `pack.mjs`: occlusion from the ORM map, WebP textures, meshopt geometry.
+- `pack.mjs`: merges the three set files into one scene, occlusion from the ORM map, WebP textures, meshopt geometry.
 - `geo.py`: geometry helpers.
 
 ## Node layout in `weapons.glb`

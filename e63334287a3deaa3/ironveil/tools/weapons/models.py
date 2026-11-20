@@ -14,6 +14,8 @@ class Weapon:
         self.gripL = (0, -0.3, 0)
         self.zones = {}          # wear zones for the materials (hand areas, etc.)
         self.uvscale = {}        # part name -> uv island scale factor
+        self.gripRoff = (0, 0, 0)  # hand-frame nudges (m, Blender frame) found by measuring finger penetration
+        self.gripLoff = (0, 0, 0)
     def add(self, ob, mat, part='body'):
         self.parts.setdefault(part, []).append((ob, mat))
         return ob
@@ -213,11 +215,12 @@ def rifle_scoped(hi=True):
     W.empties['muzzle'] = ((0, -0.7305, BORE), (0, -1, 0))
     W.empties['ejection'] = ((-0.012, -0.066, BORE + 0.010), (-1, 0, 0.6))
     W.empties['scopeEye'] = ((0, 0.118 + 0.080, SZ), (0, -1, 0))
-    W.gripL = (0, -0.300, 0.0)
-    W.zones = dict(handR=((0, 0.050, -0.030), (0.030, 0.050, 0.045)), handL=((0, -0.300, 0.000), (0.030, 0.075, 0.040)),
+    W.gripL = (0, -0.265, 0.0)
+    W.zones = dict(handR=((0, 0.050, -0.030), (0.030, 0.050, 0.045)), handL=((0, -0.265, 0.000), (0.030, 0.075, 0.040)),
                    cheek=((0.02, 0.200, 0.025), (0.025, 0.110, 0.020)), butt=((0, 0.352, -0.035), (0.04, 0.012, 0.09)),
                    slide=(0, 1, 0))
     W.uvscale = {'bolt': 1.5, 'trigger': 1.2, 'sling': 0.55}
+    W.gripRoff, W.gripLoff = (0.01, 0, 0), (0.016, 0, -0.016)
     return W
 
 
@@ -342,21 +345,22 @@ def smg(hi=True):
         z = -0.006 + (-0.034 + 0.006) * t - 0.125 * math.sin(math.pi * t) ** 1.2
         x = 0.0275 + 0.004 * math.sin(math.pi * t)
         pts.append((x, y, z))
-    W.add(G.sweep('sling', pts, dict(w=0.0030, h=0.0300, e=6.0), n=N(12, 6), up=Vector((1, 0, 0))), 'canvas', 'sling')
+    W.add(G.sweep('sling', pts, dict(w=0.0030, h=0.0300, e=6.0), n=N(12, 6), up=Vector((0, 0, 1))), 'canvas', 'sling')
     if hi:   # brass adjusting buckle and the doubled strap end near the rear swivel
         i0 = int(K * 0.72); p0 = Vector(pts[i0]); p1 = Vector(pts[i0 + 1]); d = (p1 - p0).normalized()
         bk = G.loft_y('buckle', [dict(y=-0.009, zt=0.0030, zb=-0.0030, w=0.0360, e=10), dict(y=0.009, zt=0.0030, zb=-0.0030, w=0.0360, e=10)], n=16)
         G.boolean(bk, G.box('bkHole', (0, 0, 0), (0.030, 0.012, 0.02), bev=0.0))
-        G.rot(bk, 90, 'Y'); G.rot(bk, math.degrees(math.atan2(d.z, d.y)), 'X'); G.move(bk, p0)
+        G.rot(bk, 90, 'Y'); G.rot(bk, 90, 'Y'); G.rot(bk, 90, 'Z'); G.rot(bk, math.degrees(math.atan2(d.z, d.y)), 'X'); G.move(bk, p0)
         W.add(bk, 'brass', 'sling')
         dbl = [tuple(Vector(q) + Vector((0.0032, 0, 0))) for q in pts[i0:]]
-        W.add(G.sweep('slingD', dbl, dict(w=0.0028, h=0.0295, e=6.0), n=12, up=Vector((1, 0, 0))), 'canvas', 'sling')
+        W.add(G.sweep('slingD', dbl, dict(w=0.0028, h=0.0295, e=6.0), n=12, up=Vector((0, 0, 1))), 'canvas', 'sling')
     W.empties['muzzle'] = ((0, -0.441, B), (0, -1, 0))
     W.empties['ejection'] = ((-0.019, -0.090, 0.030), (-1, 0, 0.5))
     W.gripL = (0, -0.245, 0.0)
     W.zones = dict(handR=((0, 0.045, -0.065), (0.030, 0.035, 0.060)), handL=((0, -0.250, 0.0), (0.030, 0.070, 0.035)),
                    cheek=((0.02, 0.200, 0.030), (0.025, 0.11, 0.02)), butt=((0, 0.36, -0.03), (0.04, 0.012, 0.08)), slide=(0, 1, 0))
     W.uvscale = {'mag': 0.8, 'sling': 0.5, 'charging': 1.5}
+    W.gripRoff, W.gripLoff = (0.012, 0, 0.006), (0.012, 0, -0.024)
     return W
 
 # =====================================================================================================
@@ -429,6 +433,7 @@ def pistol(hi=True):
     W.zones = dict(handR=((0, 0.045, -0.060), (0.03, 0.045, 0.060)), handL=((0, 0.030, -0.070), (0.03, 0.04, 0.05)),
                    cheek=((0, 0, 0), (0.001, 0.001, 0.001)), butt=((0, 0, 0), (0.001, 0.001, 0.001)), slide=(0, 1, 0))
     W.uvscale = {}
+    W.gripRoff, W.gripLoff = (0.006, 0, -0.006), (0.012, 0, 0.0)
     return W
 
 # =====================================================================================================
@@ -507,13 +512,14 @@ def enemy_rifle(hi=True):
         y = -0.416 + (0.230 + 0.416) * t
         z = -0.010 + (-0.074 + 0.010) * t - 0.055 * math.sin(math.pi * t)
         pts.append((0.0235 - 0.005 * t, y, z))
-    W.add(G.sweep('sling', pts, dict(w=0.0030, h=0.0240, e=6), n=6, up=Vector((1, 0, 0))), 'leather', 'sling')
+    W.add(G.sweep('sling', pts, dict(w=0.0030, h=0.0240, e=6), n=6, up=Vector((0, 0, 1))), 'leather', 'sling')
     W.empties['muzzle'] = ((0, -0.745, BORE), (0, -1, 0))
     W.empties['ejection'] = ((-0.012, -0.066, BORE + 0.010), (-1, 0, 0.6))
     W.gripL = (0, -0.290, 0.0)
     W.zones = dict(handR=((0, 0.050, -0.030), (0.030, 0.050, 0.045)), handL=((0, -0.290, 0.000), (0.030, 0.075, 0.040)),
                    cheek=((0.02, 0.200, 0.022), (0.025, 0.110, 0.020)), butt=((0, 0.36, -0.04), (0.04, 0.012, 0.09)), slide=(0, 1, 0))
     W.uvscale = {'sling': 0.5}
+    W.gripRoff, W.gripLoff = (0.012, 0, 0), (0.016, 0, -0.018)
     return W
 
 # =====================================================================================================
@@ -574,6 +580,7 @@ def enemy_smg(hi=True):
     W.zones = dict(handR=((0, 0.045, -0.055), (0.030, 0.035, 0.055)), handL=((0, -0.112, -0.040), (0.030, 0.040, 0.040)),
                    cheek=((0, 0.2, 0.0), (0.001, 0.001, 0.001)), butt=((0, 0.36, -0.03), (0.04, 0.012, 0.05)), slide=(0, 1, 0))
     W.uvscale = {}
+    W.gripRoff, W.gripLoff = (0.012, 0, -0.006), (-0.012, 0, -0.024)
     return W
 
 # =====================================================================================================
@@ -637,19 +644,22 @@ def mg(hi=True):
     for o in bip:
         W.add(o, 'blued', 'bipod')
     W.pivots['bipod'] = (0, -0.556, B - 0.030)
-    # ammunition belt hanging from the left of the feed tray
-    pts = []
-    for i in range(8):
-        t = i / 7
-        pts.append((0.050 + 0.040 * t, -0.080, 0.040 - 0.200 * t * t))
-    for i, p in enumerate(pts):
-        ang = -math.degrees(math.atan2(0.4 * i / 7, 1.0)) * 2
-        rnd = G.lathe('round', [(0.0, 0.040), (0.0018, 0.036), (0.0040, 0.020), (0.0040, 0.000), (0.0060, -0.004), (0.0060, -0.022),
-                                (0.0058, -0.040), (0.0060, -0.040), (0.0, -0.040)], n=8, axis='Y', center=(0, 0, 0))
-        G.rot(rnd, ang, 'Y'); G.move(rnd, (p[0], p[1] + 0.006, p[2]))
+    # ammunition belt: rounds side by side in steel links, entering the feed tray from the left and drooping
+    path = G.bezier([(0.030, -0.080, 0.046), (0.075, -0.080, 0.046), (0.095, -0.080, -0.030), (0.085, -0.080, -0.120)], 40)
+    L_ = [0.0]
+    for i in range(1, len(path)): L_.append(L_[-1] + (Vector(path[i]) - Vector(path[i - 1])).length)
+    pitch, i0 = 0.0127, 0
+    for k in range(11):
+        d0 = 0.012 + k * pitch
+        j = next((q for q in range(1, len(L_)) if L_[q] >= d0), len(L_) - 1)
+        p = Vector(path[j]); t = (Vector(path[j]) - Vector(path[j - 1])).normalized()
+        ang = math.degrees(math.atan2(-t.z, t.x))
+        rnd = G.lathe('round', [(0.0, 0.040), (0.0016, 0.0375), (0.0039, 0.022), (0.0040, 0.012), (0.0058, 0.010), (0.0058, -0.020),
+                                (0.0055, -0.034), (0.0058, -0.040), (0.0, -0.040)], n=8, axis='Y', center=(0, 0, 0), closed=False, cap1=False)
+        G.move(rnd, (0, 0.010, 0)); G.rot(rnd, ang, 'Y'); G.move(rnd, p)
         W.add(rnd, 'brass', 'belt')
-        lk = G.box('link', (p[0], p[1] - 0.004, p[2]), (0.012, 0.022, 0.014), bev=0.003)
-        G.rot(lk, ang, 'Y', p)
+        lk = G.lathe('link', [(0.0064, 0.008), (0.0064, -0.008)], n=8, axis='Y', center=(0, 0, 0), cap0=False, cap1=False)
+        G.rot(lk, ang, 'Y'); G.move(lk, (p.x, p.y + 0.004, p.z))
         W.add(lk, 'blued', 'belt')
     W.empties['muzzle'] = ((0, -0.6935, B), (0, -1, 0))
     W.empties['ejection'] = ((0, -0.060, -0.006), (0, 0, -1))
@@ -657,6 +667,7 @@ def mg(hi=True):
     W.zones = dict(handR=((0, 0.040, -0.065), (0.030, 0.035, 0.060)), handL=((0, 0.300, 0.050), (0.030, 0.090, 0.020)),
                    cheek=((0.02, 0.3, 0.04), (0.02, 0.1, 0.02)), butt=((0, 0.478, -0.02), (0.05, 0.012, 0.08)), slide=(0, 1, 0))
     W.uvscale = {'belt': 1.0}
+    W.gripRoff, W.gripLoff = (0.012, 0, 0.006), (-0.012, 0, -0.024)
     return W
 
 # =====================================================================================================
