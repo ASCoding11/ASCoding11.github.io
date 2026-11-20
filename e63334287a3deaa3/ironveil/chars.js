@@ -342,7 +342,7 @@
                  l: { index: 0.06, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [-0.016, -0.04, 0] } },
     smg: { r: { index: 0.064, middle: 0.333, ring: 0.358, pinky: 0.384, thumb: 0.096, trigger: 0.4, off: [0.04, 0.04, -0.028] },
           l: { index: 0.2, middle: 0.36, ring: 0.4, pinky: 0.44, thumb: 0.06, off: [-0.014, -0.028, 0] } },
-    pistol: { r: { index: 0.094, middle: 0.47, ring: 0.508, pinky: 0.545, thumb: 0.282, trigger: 0.338, off: [0.016, 0.008, -0.01] },
+    pistol: { r: { index: 0.094, middle: 0.47, ring: 0.508, pinky: 0.545, thumb: 0.282, trigger: 0.338, off: [0.022, 0.014, -0.01] },
              l: { index: 0.36, middle: 0.34, ring: 0.26, pinky: 0.22, thumb: 0.145, off: [0, -0.014, 0] } },
     mg: { r: { index: 0.064, middle: 0.32, ring: 0.346, pinky: 0.371, thumb: 0.096, trigger: 0.243, off: [0.041, 0.04, 0.024] },
          l: { index: 0.18, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [0.008, -0.044, -0.036] } }
