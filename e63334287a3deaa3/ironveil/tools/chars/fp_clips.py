@@ -38,7 +38,8 @@ def rest():
 # shoulders: first-person rigs carry the shoulders forward and in (the head is down on the stock); never seen
 SHOULDER = {'r': Vector((0.30, 0.05, -0.50)), 'l': Vector((-0.08, 0.10, -0.45))}
 REACH = 0.93   # a shoulder moves toward its hand when the hand is further than this share of the arm's reach
-POLE = {'r': Vector((1.0, -0.3, -0.6)), 'l': Vector((-0.6, -0.1, -1.0))}
+POLE = {'r': Vector((0.55, -0.3, -1.0)), 'l': Vector((-0.4, -0.1, -1.0))}       # elbows down and a little out
+POLE_K = {'pistol': {'r': Vector((1.0, -0.3, -0.6)), 'l': Vector((-0.6, -0.1, -1.0))}}   # as in g7
 
 # ------------------------------------------------------------------------------------------------ base poses
 # per weapon: hip (weapon pose at the hip), ads (sight on the camera axis), sprint carry, low (lowered)
@@ -92,11 +93,57 @@ if not os.environ.get('NOHIPFIX'):
 SH_PISTOL = {'hip': {'r': Vector((0.22, 0.0, -0.40)), 'l': Vector((-0.07, 0.02, -0.42))},
              'ads': {'r': Vector([float(v) for v in os.environ.get('SH_PADS', '0.15,0.0,-0.24').split(',')]),
                      'l': Vector([-float(v) if i == 0 else float(v) for i, v in enumerate(os.environ.get('SH_PADS', '0.15,0.0,-0.24').split(','))])}}
+# A real upper body behind the camera. Long guns: the butt plate sits in the right shoulder pocket, so the right
+# shoulder joint is just outside, behind and above the butt; the left shoulder is a shoulder-width to the left and
+# bladed forward. Computed from the weapon's hip and ADS poses (the body is carried with the framed gun: the whole
+# assembly is moved, never single joints) and blended between them by how far the gun is toward ADS. Pistol:
+# shoulders where a body puts them, both arms extended forward.
+BUTT = {'rifleScoped': Vector((0.0, 0.35, -0.08)), 'smg': Vector((0.0, 0.37, -0.03))}
+def body_shoulders(k, Ww):
+    b = Ww @ BUTT[k]
+    r = b + Vector((0.045, -0.05, 0.015))
+    return {'r': r, 'l': r + Vector((-0.34, 0.09, 0.0))}
+SH_BODY = {}
+def _sh_init():
+    for k in BUTT:
+        SH_BODY[k] = {'hip': body_shoulders(k, BASE[k]['hip']), 'ads': body_shoulders(k, BASE[k]['ads'])}
+    SH_BODY['pistol'] = {'hip': {'r': Vector((0.17, -0.04, -0.24)), 'l': Vector((-0.17, -0.02, -0.24))},
+                         'ads': {'r': Vector((0.15, 0.02, -0.22)), 'l': Vector((-0.15, 0.03, -0.22))}}
+OLD = bool(os.environ.get('OLDPOSTURE'))     # the posture of 836d9e6, for before/after measurements
 def shoulders_for(k, Ww):
-    if k != 'pistol': return SHOULDER_K.get(k) or SHOULDER
+    if OLD or k == 'pistol':      # pistol: the g7 posture the coordinator accepted (the body-based one put the left
+        if k != 'pistol': return SHOULDER_K.get(k) or SHOULDER      # forearm across the middle of the screen)
+        H = BASE[k]['hip'].translation; A = BASE[k]['ads'].translation
+        a = AL.smooth(max(0.0, min(1.0, 1 - (Ww.translation - A).length / max(1e-6, (H - A).length))))
+        return {s: SH_PISTOL['hip'][s].lerp(SH_PISTOL['ads'][s], a) for s in ('l', 'r')}
+    if not SH_BODY: _sh_init()
     H = BASE[k]['hip'].translation; A = BASE[k]['ads'].translation
     a = AL.smooth(max(0.0, min(1.0, 1 - (Ww.translation - A).length / max(1e-6, (H - A).length))))
-    return {s: SH_PISTOL['hip'][s].lerp(SH_PISTOL['ads'][s], a) for s in ('l', 'r')}
+    return {s: SH_BODY[k]['hip'][s].lerp(SH_BODY[k]['ads'][s], a) for s in ('l', 'r')}
+
+def joint_stats(W, s):
+    """Wrist flexion (+ toward the palm) and deviation, elbow angle, elbow height above the wrist (m) and forearm
+    twist (deg) of side s for the world bone matrices W."""
+    fa = (W['lowerarm_' + s].to_3x3() @ Vector((0, 1, 0))).normalized()
+    ua = (W['upperarm_' + s].to_3x3() @ Vector((0, 1, 0))).normalized()
+    hy = (W['hand_' + s].to_3x3() @ Vector((0, 1, 0))).normalized()
+    pn = F.palm_normal(rig, W, s); pn = (pn - fa * pn.dot(fa)).normalized(); side_ = fa.cross(pn).normalized()
+    flex = math.degrees(math.atan2(hy.dot(pn), hy.dot(fa))); dev = math.degrees(math.atan2(hy.dot(side_), hy.dot(fa)))
+    elbow = 180 - math.degrees(math.acos(max(-1, min(1, ua.dot(fa)))))
+    above = W['lowerarm_' + s].translation.z - W['hand_' + s].translation.z
+    lo = W['lowerarm_' + s]
+    hx = (W['hand_' + s].to_3x3() @ rig.Rr['hand_' + s].inverted() @ rig.Rr['lowerarm_' + s] @ Vector((1, 0, 0)))
+    lx = lo.to_3x3() @ Vector((1, 0, 0))
+    a_ = hx - fa * hx.dot(fa); b_ = lx - fa * lx.dot(fa)
+    tw = math.degrees(math.atan2(b_.normalized().cross(a_.normalized()).dot(fa), b_.normalized().dot(a_.normalized()))) if a_.length > 1e-6 and b_.length > 1e-6 else 0.0
+    return flex, dev, elbow, above, tw
+
+def joint_cost(W, s):
+    if OLD: return 0.0
+    flex, dev, elbow, above, tw = joint_stats(W, s)
+    c = (max(0.0, abs(flex) - 25) / 10) ** 2 + (max(0.0, abs(dev) - 12) / 6) ** 2
+    c += (max(0.0, 35 - elbow) / 10) ** 2 + (max(0.0, elbow - 150) / 10) ** 2 + (max(0.0, above + 0.02) / 0.015) ** 2
+    return c
 
 # ------------------------------------------------------------------------------------------------ grips
 # Hand frames from the weapon's real shape (sections measured on the meshes): where the palm centre sits, which way
@@ -165,7 +212,7 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         L, Wd = rest()
         for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, shoulders_for(k, W)[side])
         R3 = Wf.to_3x3()
-        F.arm_to(rig, L, Wd, s, hand_matrix(s, Wf @ (Vector(g['pc']) + off), R3 @ g['dir'], R3 @ g['palm']), POLE[s])
+        F.arm_to(rig, L, Wd, s, hand_matrix(s, Wf @ (Vector(g['pc']) + off), R3 @ g['dir'], R3 @ g['palm']), POLE_K.get(k, POLE)[s])
         g['dir'], g['palm'] = base_dir, base_palm
         return L, Wd, R
     def cost(x, fingers):
@@ -181,7 +228,8 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         near = np.sort(dp)[: max(4, len(dp) // 5)]
         bnd = g.get('bound', (0.010, 0.020, 0.008))     # per-axis travel limits of the fit (weapon frame, metres)
         over = sum(max(0.0, abs(x[i]) - bnd[i]) ** 2 for i in range(3)) * 1e6 if bnd else 0.0
-        return float((pen ** 2).sum() * 6e5 + ((near.mean() - 0.003) ** 2) * 3e4 + Vector(x[:3]).length ** 2 * 60 + (x[3] ** 2 + x[4] ** 2) * 0.5 + over)
+        return float((pen ** 2).sum() * 6e5 + ((near.mean() - 0.003) ** 2) * 3e4 + Vector(x[:3]).length ** 2 * 60 + (x[3] ** 2 + x[4] ** 2) * 0.5 + over
+                     + joint_cost(Wd, s) * 2.0)
     x = [0.0] * 5
     for rnd in range(3):
         c0 = cost(x, ang); step = [0.006] * 3 + [0.12, 0.12]
@@ -218,7 +266,7 @@ LASTPOLE = {}
 ARM_IDS = {s_: np.array([i for i in skin.verts_of(('lowerarm', 'upperarm')) if skin.dom[i].endswith('_' + s_)], int)[::4] for s_ in ('l', 'r')}
 SHOULDER_K = {'pistol': {'r': Vector((0.17, 0.08, -0.48)), 'l': Vector((-0.02, 0.08, -0.48))}}
 HAND_IDS = {s_: np.array([i for i in skin.verts_of(('hand_', 'index_', 'middle_', 'ring_', 'pinky_', 'thumb_')) if skin.dom[i].endswith('_' + s_)], int)[::5] for s_ in ('l', 'r')}
-POLES = {'l': (0, -25, 25, -50, 50, -80, 80), 'r': (0, -20, 20, -40, 40, -65, 65)}
+POLES = {'l': (0, -25, 25, -50, 50, -80, 80, -110, 110), 'r': (0, -20, 20, -40, 40, -65, 65, -90, 90, -120, 120)}
 LASTNUDGE = {}
 FORCE = {}      # side -> offset Vector: second pass of a clip, the smoothed nudges applied without a search
 def arm_pen(W2, s, bvh, Minv, hand=True):
@@ -252,11 +300,11 @@ def frame(k, Ww, hands, fingers, parts=None, shoulders=None, prop=None, nudge=No
             ax = (H.translation - W['upperarm_' + s].translation).normalized()
             best = None
             for a_ in POLES[s]:
-                pole = Quaternion(ax, math.radians(a_)) @ POLE[s]
+                pole = Quaternion(ax, math.radians(a_)) @ POLE_K.get(k, POLE)[s]
                 L2 = {b: m.copy() for b, m in L.items()}; W2 = {b: m.copy() for b, m in W.items()}
                 F.arm_to(rig, L2, W2, s, H, pole)
                 pen = arm_pen(W2, s, bvh, Minv, hand=bool((nudge or {}).get(s)))
-                c = pen + abs(a_) * 0.00004 + abs(a_ - LASTPOLE.get(s, 0)) * 0.0002
+                c = pen + abs(a_) * 0.00004 + abs(a_ - LASTPOLE.get(s, 0)) * 0.0002 + joint_cost(W2, s) * 0.002
                 if best is None or c < best[0] - 1e-9: best = (c, L2, W2, a_, pen)
             return best
         if FORCE.get(s) is not None:
@@ -519,6 +567,8 @@ def make_clips(k):
     if 'mag' in w.empty:
         mag_down = Vector((0, 0.0 if long_ else 0.012, -1)).normalized()
         RLD = rel(HIP, dx=-0.04, dz=0.055 if long_ else 0.03, dy=0.0, roll=28 if long_ else 15, pitch=10, yaw=-6)
+        if k == 'smg':   # the SMG's hip is close to the eye: push it out and tip it instead of lifting it into view
+            RLD = rel(HIP, dx=-0.025, dy=0.07, dz=-0.01, roll=22, pitch=16, yaw=-8)
         T_ = 2.5 if long_ else 1.9
         def reload_fn(t, empty):
             u_in = ramp(t, 0.0, 0.3); u_out = ramp(t, T_ - 0.45, T_ - 0.05)
@@ -733,7 +783,7 @@ def bake_kind(k, report):
     # trigger finger on the trigger: close the index on the trigger blade
     L, Wd = rest()
     for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, shoulders_for(k, BASE[k]['hip'])[side])
-    W = BASE[k]['hip']; F.arm_to(rig, L, Wd, 'r', grip_r(k, W), POLE['r'])
+    W = BASE[k]['hip']; F.arm_to(rig, L, Wd, 'r', grip_r(k, W), POLE_K.get(k, POLE)['r'])
     ang = F.grasp_fingers(rig, skin, L, Wd, 'r', WPN[k].bvh['trigger'] if 'trigger' in WPN[k].bvh else WPN[k].bvh['body'],
                           (W @ WPN[k].empty['trigger']).inverted() if 'trigger' in WPN[k].empty else W.inverted(), fingers=('index',),
                           start={'index': (0.25, 0.3, 0.15)})
@@ -760,6 +810,7 @@ def bake_kind(k, report):
         nudged = {s: round(max(vlen(o[s]) for o in sm) * 1000, 1) for s in ('l', 'r')}
         LASTPOLE.clear(); LASTNUDGE.clear()
         hw = []
+        js = {'l': [0, 0, 999, 0, -1, 0], 'r': [0, 0, 999, 0, -1, 0]}     # worst |flex|, |dev|, min/max elbow, max above, |twist|
         for i in range(n):
             t = min(dur, i / FPS)
             FORCE.clear(); FORCE.update(sm[i])
@@ -767,6 +818,10 @@ def bake_kind(k, report):
             FORCE.clear()
             frames.append(L)
             hw.append(screen_width(W, 'r'))
+            for s_ in ('l', 'r'):
+                fl_, dv_, el_, ab_, tw_ = joint_stats(W, s_); j_ = js[s_]
+                j_[0] = max(j_[0], abs(fl_)); j_[1] = max(j_[1], abs(dv_)); j_[2] = min(j_[2], el_); j_[3] = max(j_[3], el_)
+                j_[4] = max(j_[4], ab_); j_[5] = max(j_[5], abs(tw_))
             if MODE == 'diag' and i == 0:
                 Ww0 = W['w_root'] @ F.RX90.inverted(); Mi0 = Ww0.inverted()
                 for s_ in ('l', 'r'):
@@ -774,6 +829,10 @@ def bake_kind(k, report):
                     dd = sorted(F.signed_dist(WPN[k].bvh['body'], Mi0 @ Vector(p)) for p in skin.pose(W, pids))
                     hc = Mi0 @ W['hand_' + s_].translation
                     tgt = Mi0 @ (d0 := fn(0.0))[('lh' if s_ == 'l' else 'rh')].translation
+                    if s_ == 'l':
+                        Q = proj(skin.pose(W, np.concatenate([ARM_IDS['l'], ARM_IDS['r'], HAND_IDS['l'], HAND_IDS['r']])))
+                        Q = Q[(Q[:, 1] <= 1) & (Q[:, 1] >= 0)]
+                        log('  span', name, 'arms+hands in-frame x %.3f..%.3f (%.0f%% of width)' % (max(0, Q[:, 0].min()), min(1, Q[:, 0].max()), 100 * (min(1, Q[:, 0].max()) - max(0, Q[:, 0].min()))))
                     log('  contact', name, s_, 'palm nearest mm', [round(v * 1000, 1) for v in dd[:4]], 'wrist got', tuple(round(v, 3) for v in hc), 'wanted', tuple(round(v, 3) for v in tgt))
             if MODE == 'diag' and i % 2 == 0:
                 Ww = W['w_root'] @ F.RX90.inverted(); Mi = Ww.inverted(); row = []
@@ -793,7 +852,9 @@ def bake_kind(k, report):
         if MODE != 'diag':
             act = write_action(name, frames); made.append(act)
         report[name] = {'duration': round(dur, 3), 'loop': loop, 'events': ev, 'pen_max_verts': worst[0], 'pen_max_depth_mm': round(worst[1] * 1000, 1),
-                        'nudge_max_mm': nudged, 'handR_screen_width_max': round(max(hw), 3), 'handR_screen_width_t0': round(hw[0], 3),
+                        'nudge_max_mm': nudged,
+                        'joints': {s_: {'wrist_flex_deg': round(js[s_][0], 1), 'wrist_dev_deg': round(js[s_][1], 1), 'elbow_min_deg': round(js[s_][2], 1),
+                                        'elbow_max_deg': round(js[s_][3], 1), 'elbow_above_wrist_mm': round(js[s_][4] * 1000), 'twist_deg': round(js[s_][5], 1)} for s_ in ('l', 'r')}, 'handR_screen_width_max': round(max(hw), 3), 'handR_screen_width_t0': round(hw[0], 3),
                         'nearest_to_eye_m': round(near, 3), 'prop': 'grenade' if '.grenade' in name else ('binoculars' if '.binoculars' in name else None),
                         'hold': name.endswith(('.binoculars', '.grenadePull'))}
         log(name, report[name])

@@ -178,6 +178,19 @@ def mask_material(name):
     return m
 
 # ======================================================================================== metals
+
+def _machining(nb, W, h, r):
+    """Mill and file marks on machined steel (MACHINING=1, SMG only): fine parallel lines along the receiver, in
+    patches, raised a hair in the normal map and slightly glossier along each cut."""
+    import os
+    if not os.environ.get('MACHINING') or getattr(W, 'kind', '') != 'smg': return h, r
+    x, y, z = nb.xyz()
+    wob = nb.mul(nb.noise(nb.P, 260, 2, 0.5), 2.5)
+    lines = nb.math('ABSOLUTE', nb.math('SINE', nb.add(nb.mul(z, 2 * math.pi / 0.00042), wob)))
+    cross = nb.math('ABSOLUTE', nb.math('SINE', nb.add(nb.mul(y, 2 * math.pi / 0.0011), nb.mul(x, 2 * math.pi / 0.0011))))
+    patch = nb.ss(nb.noise(nb.P, 16, 3, 0.55, w=31), 0.42, 0.62)
+    mm = nb.add(nb.mul(nb.ss(lines, 0.15, 0.95), patch), nb.mul(nb.ss(cross, 0.2, 0.95), nb.inv(patch), 0.5))
+    return nb.add(h, nb.mul(mm, 0.07)), nb.lerp(nb.mul(mm, 0.35), r, nb.sub(r, 0.10))
 def _hand(nb, W, extra=()):
     z = W.zones
     h = nb.add(nb.zone(*z['handR']), nb.zone(*z['handL']))
@@ -230,6 +243,7 @@ def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082)):
         cm = nb.mul(nb.ss(y, y0 - 0.0005, y0 + 0.0008), nb.inv(nb.ss(nb.edge(), 0.1, 0.4)))
         ch = nb.mul(nb.checker('X', 'Z', 0.0020), cm, nb.inv(nb.mul(wear, 0.8)))
         h = nb.add(h, nb.mul(ch, 0.7))
+    h, r = _machining(nb, W, h, r)
     return nb.finish(c, r, metal, h, bump_dist=0.00035)
 
 def parkerized(name, W, mask, seed=0.0, tint=(0.024, 0.025, 0.0235), serr=None):
@@ -273,6 +287,7 @@ def parkerized(name, W, mask, seed=0.0, tint=(0.024, 0.025, 0.0235), serr=None):
         g = nb.math('ABSOLUTE', nb.math('SINE', nb.mul(y, 2 * math.pi / 0.00185)))
         h = nb.add(h, nb.mul(nb.ss(g, 0.15, 0.7), m, 1.2))
         c = nb.mixc(nb.mul(m, nb.ss(g, 0.5, 0.0), 0.5), c, nb.cmul(c, 0.6))
+    h, r = _machining(nb, W, h, r)
     return nb.finish(c, r, metal, h, bump_dist=0.00035)
 
 def steel(name, W, mask, seed=0.0):
