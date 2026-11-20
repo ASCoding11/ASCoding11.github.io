@@ -43,8 +43,8 @@
       waterMul: 0.55                     // speed in the stream
     },
     cam: {
-      dist: 3.1, height: 0.42, side: 0.62,     // m, over-the-shoulder arm (from the shoulder pivot)
-      aimDist: 1.55, aimSide: 0.55, aimFov: 0.7, // aiming: closer arm, FOV multiplier
+      dist: 3.1, height: 0.42, side: 1.0,      // m, over-the-shoulder arm (from the shoulder pivot): far enough right that the rifle and both hands show
+      aimDist: 1.7, aimSide: 0.85, aimFov: 0.7, // aiming: closer arm, FOV multiplier
       crouchDrop: 0.55, proneDrop: 1.05,       // m the pivot drops by stance
       follow: 13,                              // 1/s positional damping of the pivot (MOVEMENT.md: 10-15)
       bob: 0.012, landDip: 0.09,               // m: step bob (Settings can turn it off), dip on landing
