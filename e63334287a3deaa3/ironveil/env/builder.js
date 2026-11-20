@@ -180,8 +180,29 @@
 (function () {
   'use strict';
   const E = window.IVEnv;
+  // Low: small and minor surfaces share ONE plain material (their texture's mean colour goes into the vertex tint),
+  // which cuts a draw call per material per cell. Big surfaces (walls, roofs, ground) keep their textures.
+  const LOW_MINOR = new Set(['metal_rust', 'metal_painted', 'canvas', 'sandbag', 'straw', 'bark_pine', 'ashlar', 'timber', 'wood_painted', 'brick_sooty', 'floorboards', 'concrete', 'cobbles', 'gravel']);
+  const meanCache = {};
+  function meanColour(name) {
+    if (meanCache[name]) return meanCache[name];
+    const R = E.RECIPES[name], T = R && E.tex[R.tex]; const c = new THREE.Color(0.3, 0.3, 0.3);
+    if (T && T.alb.image && T.alb.image.data) { const d = T.alb.image.data; let r = 0, g = 0, b = 0, n = 0; for (let i = 0; i < d.length; i += 64) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; } c.setRGB(r / n / 255, g / n / 255, b / n / 255).convertSRGBToLinear(); }
+    return meanCache[name] = c;
+  }
+  let lowMat = null;
+  E.lowMinorMaterial = function () {
+    if (lowMat) return lowMat;
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0 });
+    m.onBeforeCompile = (sh) => {
+      sh.vertexShader = 'attribute vec4 aEnv;\nvarying vec3 vTint;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vTint = aEnv.rgb;');
+      sh.fragmentShader = 'varying vec3 vTint;\n' + sh.fragmentShader.replace('#include <map_fragment>', 'diffuseColor.rgb = vTint;');
+    };
+    m.customProgramCacheKey = () => 'ivlowminor'; m.userData.linear = true; lowMat = m; return m;
+  };
   E.mergeStatic = function (root, opts) {
     opts = opts || {};
+    const lowMinor = E.Q.name === 'low' && opts.lowMinor !== false;
     root.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
     const groups = new Map(), victims = [];
@@ -191,10 +212,11 @@
       let p = o.parent; while (p && p !== root) { if (p.userData.dynamic) return; p = p.parent; }
       const mat = o.material; if (Array.isArray(mat)) return;
       // merge per material AND per spatial cell (opts.cell metres), so frustum culling still drops what is out of view
-      let k = mat.uuid + (o.userData.detail ? '#d' : '');
+      const minor = lowMinor && mat.userData && LOW_MINOR.has(mat.userData.ivenv) && !o.userData.detail;
+      let k = (minor ? 'lowminor' : mat.uuid) + (o.userData.detail ? '#d' : '');
       const cellSize = o.userData.detail ? Math.min(opts.cell || 32, 32) : opts.cell;
       if (cellSize) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const c = o.geometry.boundingSphere.center.clone().applyMatrix4(o.matrixWorld); k += ':' + Math.floor(c.x / cellSize) + ':' + Math.floor(c.z / cellSize); }
-      if (!groups.has(k)) groups.set(k, { mat, list: [], cast: o.castShadow, order: o.renderOrder, depth: o.customDepthMaterial, detail: o.userData.detail, shadowNear: o.userData.shadowNear });
+      if (!groups.has(k)) groups.set(k, { mat: minor ? E.lowMinorMaterial() : mat, minor, list: [], cast: o.castShadow, order: o.renderOrder, depth: o.customDepthMaterial, detail: o.userData.detail, shadowNear: o.userData.shadowNear });
       groups.get(k).list.push(o); victims.push(o);
     });
     const out = new THREE.Group(); out.name = 'IVEnv.merged';
@@ -212,6 +234,7 @@
           for (let i = 0; i < cnt; i++) {
             if (k === 'position') { v.fromBufferAttribute(A, i).applyMatrix4(m); out[(vo + i) * 3] = v.x; out[(vo + i) * 3 + 1] = v.y; out[(vo + i) * 3 + 2] = v.z; }
             else if (k === 'normal') { v.fromBufferAttribute(A, i).applyMatrix3(nm).normalize(); out[(vo + i) * 3] = v.x; out[(vo + i) * 3 + 1] = v.y; out[(vo + i) * 3 + 2] = v.z; }
+            else if (k === 'aEnv' && G.minor) { const mc = meanColour(o.material.userData.ivenv); for (let c = 0; c < 3; c++) { const t = A.array[i * 4 + c]; out[(vo + i) * 4 + c] = (t > 0 ? t : 1) * (c === 0 ? mc.r : c === 1 ? mc.g : mc.b); } out[(vo + i) * 4 + 3] = A.array[i * 4 + 3]; }
             else for (let c = 0; c < sz; c++) out[(vo + i) * sz + c] = A.array[i * sz + c];
           }
         }

@@ -162,7 +162,7 @@
     ash:     { h: [10, 14], trunkR: 0.24, trunkH: 0.45, limbs: [5, 6], limbAng: [0.45, 0.75], limbLen: 0.45, depth: 3, child: 3, cards: 0.85, cell: 1, bark: 'bark_oak', crown: [0.62, 0.32], spread: 0.8, tint: 0xc8c6c0, droop: 0.05 },
     poplar:  { h: [16, 22], trunkR: 0.26, trunkH: 0.12, limbs: [16, 22], limbAng: [0.18, 0.35], limbLen: 0.16, depth: 2, child: 3, cards: 0.7, cell: 2, bark: 'bark_oak', crown: [0.55, 0.12], spread: 0.3, tint: 0xd0ccc4, droop: 0 },
     apple:   { h: [3.5, 5], trunkR: 0.14, trunkH: 0.32, limbs: [4, 5], limbAng: [0.8, 1.2], limbLen: 0.6, depth: 3, child: 3, cards: 0.6, cell: 1, bark: 'bark_oak', crown: [0.6, 0.55], spread: 1.0, tint: 0x9a9088, droop: 0.25 },
-    pine:    { h: [12, 18], trunkR: 0.25, trunkH: 0.35, limbs: [26, 34], limbAng: [1.45, 1.85], limbLen: 0.24, depth: 2, child: 2, cards: 0.9, cell: 3, bark: 'bark_pine', crown: [0.6, 0.25], spread: 0.5, tint: 0xffffff, droop: 0.2, whorl: true },
+    pine:    { h: [12, 18], trunkR: 0.25, trunkH: 0.35, limbs: [44, 54], limbAng: [1.5, 1.85], limbLen: 0.28, depth: 2, child: 3, cards: 0.9, cell: 3, bark: 'bark_pine', crown: [0.6, 0.25], spread: 0.5, tint: 0xffffff, droop: 0.2, whorl: true },
     dead:    { h: [7, 10], trunkR: 0.3, trunkH: 0.35, limbs: [4, 6], limbAng: [0.7, 1.1], limbLen: 0.5, depth: 3, child: 3, cards: 0, cell: 0, bark: 'bark_oak', crown: [0.5, 0.4], spread: 0.9, tint: 0x8a8580, droop: 0.1, broken: true },
     sapling: { h: [2.2, 3.2], trunkR: 0.04, trunkH: 0.25, limbs: [4, 6], limbAng: [0.5, 0.9], limbLen: 0.35, depth: 2, child: 2, cards: 0.45, cell: 1, bark: 'bark_oak', crown: [0.6, 0.3], spread: 0.6, tint: 0xb0a898, droop: 0.05 }
   };
@@ -194,7 +194,7 @@
       for (const [i, j] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
         const v = c.clone().addScaledVector(ax, i * w / 2).addScaledVector(ay, j * h / 2);
         leaves.p.push(v.x, v.y, v.z); leaves.n.push(cn.x, cn.y, cn.z); leaves.u.push(u0 + (i * 0.5 + 0.5) * du, v0 + (j * 0.5 + 0.5) * dv);
-        leaves.c.push(shade * hue, shade, shade * (2 - hue) * (kind === 'pine' ? 1.08 : 1)); leaves.w.push(phase, 1, 1, v.y);
+        leaves.c.push(shade * hue * (kind === 'pine' ? 0.75 : 1), shade * (kind === 'pine' ? 0.92 : 1), shade * (2 - hue) * (kind === 'pine' ? 1.05 : 1)); leaves.w.push(phase, 1, 1, v.y);
       }
       leaves.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
     }
@@ -219,9 +219,9 @@
     }
     // the trunk: a slightly wandering line with a flared base
     const trunkTop = H * K.trunkH + (K.whorl || kind === 'poplar' ? H * 0.6 : 0);
-    const trunkPts = [], trunkRad = [], tn = lod ? 4 : 7, lean = new V3(R.range(-0.15, 0.15), 0, R.range(-0.15, 0.15));
+    const trunkPts = [], trunkRad = [], tn = lod ? 4 : 7, lean = kind === 'pine' || kind === 'poplar' ? new V3(R.range(-0.03, 0.03), 0, R.range(-0.03, 0.03)) : new V3(R.range(-0.15, 0.15), 0, R.range(-0.15, 0.15));
     const fullH = K.whorl || kind === 'poplar' ? H * 0.95 : trunkTop;
-    for (let k = 0; k <= tn; k++) { const t = k / tn; trunkPts.push(new V3(lean.x * t * t * H * 0.3 + R.range(-0.04, 0.04) * (k > 0), t * fullH, lean.z * t * t * H * 0.3 + R.range(-0.04, 0.04) * (k > 0))); trunkRad.push(K.trunkR * (1 - t * 0.55) * (k === 0 ? 1.45 : k === 1 ? 1.1 : 1)); }
+    for (let k = 0; k <= tn; k++) { const t = k / tn; const wob = kind === 'pine' ? 0.01 : 0.04; trunkPts.push(new V3(lean.x * t * t * H * 0.3 + R.range(-wob, wob) * (k > 0), t * fullH, lean.z * t * t * H * 0.3 + R.range(-wob, wob) * (k > 0))); trunkRad.push(K.trunkR * (1 - t * 0.55) * (k === 0 ? 1.45 : k === 1 ? 1.1 : 1)); }
     trunkPts[0].y = -0.15;
     tube(trunkPts, trunkRad, 0);
     // roots: three or four short flares at the base (full LOD only)
@@ -243,7 +243,7 @@
         for (let k = 0; k < segs; k++) {
           const p0 = pts[k], p1 = pts[k + 1], c = p0.clone().lerp(p1, 0.5), ax = p1.clone().sub(p0); const L = ax.length(); ax.normalize();
           const side = new V3().crossVectors(ax, new V3(0, 1, 0)).normalize(), hang = new V3().crossVectors(side, ax).normalize();
-          const wdt = (0.9 - 0.4 * k / segs) * (lod ? 1.3 : 1), shade = 0.55 + 0.35 * (k / segs);
+          const wdt = (1.25 - 0.45 * k / segs) * (lod ? 1.3 : 1), shade = 0.42 + 0.3 * (k / segs);
           // two fans hanging in a V under the bough (never a flat disc seen edge-on), plus a top fan
           const w2 = wdt * 1.5, cA = Math.cos(0.75), sA = Math.sin(0.75);
           for (const sg of [1, -1]) { const fd = side.clone().multiplyScalar(sg * cA).addScaledVector(hang, -sA).normalize(); quad(c.clone().addScaledVector(fd, w2 * 0.45), ax, fd, L + 0.4, w2, 3, side.clone().multiplyScalar(sg).add(new V3(0, 0.9, 0)).normalize(), shade * (0.8 + 0.2 * sg), phase); }
@@ -260,11 +260,11 @@
     }
     const nl = Math.round(R.range(K.limbs[0], K.limbs[1]) * (lod ? 0.75 : 1));
     for (let l = 0; l < nl; l++) {
-      const t = K.whorl || kind === 'poplar' ? 0.18 + 0.8 * (l + R()) / nl : 0.85 + R() * 0.15;
+      const t = kind === 'pine' ? 0.22 + 0.76 * Math.pow((l + R() * 0.6) / nl, 0.9) : K.whorl || kind === 'poplar' ? 0.18 + 0.8 * (l + R()) / nl : 0.85 + R() * 0.15;
       const sy = (K.whorl || kind === 'poplar') ? fullH * t : trunkTop * t;
       const a = l / nl * TAU * 2.4 + R.range(-0.4, 0.4), el = R.range(K.limbAng[0], K.limbAng[1]);
       const dir = new V3(Math.cos(a) * Math.sin(el), Math.cos(el), Math.sin(a) * Math.sin(el)).normalize();
-      const lenK = (K.whorl ? (1 - t) * 1.2 + 0.15 : 1) * K.limbLen * H * R.range(0.8, 1.15);
+      const lenK = (kind === 'pine' ? Math.pow(1 - t, 0.9) * 1.25 + 0.06 : K.whorl ? (1 - t) * 1.2 + 0.15 : 1) * K.limbLen * H * R.range(0.85, 1.1);
       branch(new V3(lean.x * t * t * H * 0.3, sy, lean.z * t * t * H * 0.3), dir, lenK, K.trunkR * (K.whorl || kind === 'poplar' ? 0.25 : 0.6) * (1 - t * 0.3), 1, R() * 6);
     }
     // ---- crown mass: rounded sub-crowns of overlapping leaf clusters around the branch ends (poplar: a column)
@@ -482,8 +482,7 @@
     opts = Object.assign({ density: 1, seed: 7 }, opts || {});
     const hf = opts.heightFn || (() => 0), Q = E.Q, qi = Q.name === 'low' ? 0 : Q.name === 'medium' ? 1 : 2;
     if (PLANTS[kind]) {
-      // brambles render as black cut-outs (not yet understood): disabled until fixed
-      if (kind === 'brambles' || (Q.plantKinds && Q.plantKinds.indexOf(kind) < 0)) { const g = new THREE.Group(); g.name = 'IVEnv.scatter:' + kind + ' (off on ' + Q.name + ')'; return { group: g, update() { }, info() { return { drawCalls: 0, triangles: 0 }; } }; }
+      if (Q.plantKinds && Q.plantKinds.indexOf(kind) < 0) { const g = new THREE.Group(); g.name = 'IVEnv.scatter:' + kind + ' (off on ' + Q.name + ')'; return { group: g, update() { }, info() { return { drawCalls: 0, triangles: 0 }; } }; }
       return plantField(kind, areaTest, hf, opts, qi);
     }
     return objectField(kind, areaTest, hf, opts);
@@ -493,8 +492,11 @@
     const P = PLANTS[kind], radius = opts.radius || P.r[qi], dens = P.dens * opts.density * (qi === 0 ? 0.5 : qi === 1 ? 0.75 : 1), TS = 8;
     const geo = plantGeo(kind), lm = E.leafMaterial('plant-' + kind, { stiff: P.stiff, trans: 1 });
     const cap = Math.ceil(Math.PI * (radius + 10) ** 2 * dens * 0.9);
-    const mesh = new THREE.InstancedMesh(geo, lm, cap); mesh.count = 0; mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.castShadow = kind === 'wheat' ? false : qi === 2; mesh.customDepthMaterial = lm.userData.depth; mesh.name = 'scatter-' + kind;
-    const tint = new THREE.Color(P.tint).convertSRGBToLinear(); if (kind !== 'wheat') tint.multiplyScalar(0.9 / Math.max(tint.r, tint.g, tint.b));   // a hue shift, not a darkening (the atlas already carries the colour)
+    const mesh = new THREE.InstancedMesh(geo, lm, cap); mesh.count = 0; mesh.frustumCulled = false;
+    // The per-instance tint buffer must be made at full capacity here: InstancedMesh.setColorAt sizes it from the
+    // current count, which is 0 at this point, and every tint then reads as black (the old black cut-out plants).
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); mesh.receiveShadow = true; mesh.castShadow = kind === 'wheat' ? false : qi === 2; mesh.customDepthMaterial = lm.userData.depth; mesh.name = 'scatter-' + kind;
+    const tint = new THREE.Color(P.tint).convertSRGBToLinear(); if (kind !== 'wheat') tint.multiplyScalar(0.6 / Math.max(tint.r, tint.g, tint.b));   // a hue shift, not a darkening (the atlas already carries the colour)
     const tiles = new Map(), group = new THREE.Group(); group.add(mesh); group.name = 'IVEnv.scatter:' + kind;
     const dummy = new THREE.Object3D(), col = new THREE.Color();
     const gen = (tx, tz) => {
