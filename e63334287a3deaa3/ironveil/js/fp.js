@@ -19,6 +19,15 @@
    world.js after the world pass, IV.fp.muzzle(out) the world point the visible muzzle stands in front of. */
 (function () {
   'use strict';
+  // three r128 has no BufferAttribute.getComponent (added in later releases) but chars.js's setFirstPerson uses it;
+  // the same behaviour as the newer method (normalized integer data read back as 0..1), for both attribute kinds
+  function getComponent(i, k) {
+    let v;
+    if (this.isInterleavedBufferAttribute) v = this.data.array[i * this.data.stride + this.offset + k]; else v = this.array[i * this.itemSize + k];
+    if (this.normalized) { const a = this.isInterleavedBufferAttribute ? this.data.array : this.array; v = a instanceof Uint8Array ? v / 255 : a instanceof Uint16Array ? v / 65535 : a instanceof Int8Array ? Math.max(v / 127, -1) : a instanceof Int16Array ? Math.max(v / 32767, -1) : v; }
+    return v;
+  }
+  for (const C of [THREE.BufferAttribute, THREE.InterleavedBufferAttribute]) if (C && !C.prototype.getComponent) C.prototype.getComponent = getComponent;
   const W = IV.world, T = IV.TUNING, F = IV.CF;
   // viewmodel placement (metres in the arms' frame: x is HIS left, so the gun to the right of the screen is -x)
   const TUNE = { camFwd: 0.12, camUp: 0.0, hipX: -0.04, hipY: -0.06, hipZ: -0.02, alwaysShoulder: true };
@@ -160,7 +169,15 @@
       // a full-body shadow from an invisible copy). It treats what is attached at the call, so it is re-applied when
       // the gun in the hands changes (weapons.js calls FP.beforeAttach first so the old gun gets its materials back).
       const key = on ? 'on:' + (A.held ? A.held.uuid : '') : 'off';
-      if (key !== FP._fpKey) { A.setFirstPerson(false); if (on) A.setFirstPerson(true); FP._fpKey = key; }
+      if (key !== FP._fpKey) {
+        A.setFirstPerson(false); if (on) A.setFirstPerson(true); FP._fpKey = key;
+        // the chest kit (pack, webbing on spine_02/03) still fills the view looking down: drop it too, camera only
+        A.root.traverse(o => {
+          if (!o.isSkinnedMesh || !o.userData.fullGeom || /_fpShadow$/.test(o.name)) return; const u = o.userData;
+          if (on) { if (o.material !== u._chestMat) { if (!u._chestMat || u._chestBase !== o.material) { u._chestBase = o.material; u._chestMat = maskedMaterial(o, b => /^spine_0[23]/.test(b.name), { value: 1 }); } o.material = u._chestMat; } }
+          else if (u._chestBase && o.material === u._chestMat) o.material = u._chestBase;
+        });
+      }
     } else {
       maskBody(A);
       fpHide.value = on ? 1 : 0;
@@ -171,6 +188,8 @@
   };
   // weapons.js: before guns are moved between the hands, the sling and the holster
   FP.beforeAttach = function () { const A = P.actor; if (A && A.setFirstPerson && FP._fpKey && FP._fpKey !== 'off') { A.setFirstPerson(false); FP._fpKey = null; } };
+  // tests: advance the arms (clips, layers) by dt without drawing a frame
+  FP.vmTick = function (dt) { if (FP.on()) vmFrame(dt, P.yaw, P.pitch); };
   FP.scopeReady = () => (FP.vmAim || 0) >= 0.9;
   FP.binocReady = () => VM && !VM.rig.standin ? !!FP.atEye : (FP.vmAim || 0) >= 0.9;
   // the old bone-scaling hide is gone: undo it if a previous frame left a bone collapsed
@@ -468,7 +487,10 @@
   function vmLight(vm) {
     const cam = W.camera;
     // lighting copied from the world, scaled by how lit the player is
-    const lit = W.lightAt ? IV.clamp(0.25 + W.lightAt(P.render.x, P.render.y + 1.4, P.render.z) * 1.2, 0.25, 1.4) : 1;
+    // how lit the player is (moon, moon shadow, lamps), never brighter than the world itself; the arms are drawn after the
+    // post stack, so at night they also take a share of its vignette and desaturation as a plain darkening
+    const E = window.IVEnv, grade = E && E.atmo && E.atmo.P && E.atmo.P.grade, night = !grade || grade === 'night' || grade === 'rain';
+    const lit = (W.lightAt ? IV.clamp(0.2 + W.lightAt(P.render.x, P.render.y + 1.4, P.render.z) * 0.9, 0.2, 1) : 1) * (night ? 0.78 : 0.95);
     if (W.hemi) { vm.hemi.color.copy(W.hemi.color); vm.hemi.groundColor.copy(W.hemi.groundColor); vm.hemi.intensity = W.hemi.intensity * lit; }
     if (W.sun) {
       // the sun or moon direction in the viewmodel camera's frame
