@@ -440,7 +440,7 @@
     // clips where the right hand leaves the grip (working the bolt, reloading, throwing...) keep their own hand
     var cn = (this.curUpper && this.curUpper.w > 0.3 && this.curUpper.name) || (this.cur && this.cur.w > 0.3 && this.cur.name) || '';
     var free = /^(boltCycle|reload|throw|melee|signal|salute|breach|takedown|vault|death|hit|stagger)/.test(cn);
-    this._fgW = approach(this._fgW, T0 && !free ? 1 : 0, 5, dt);
+    this._fgW = this._snap ? (T0 && !free ? 1 : 0) : approach(this._fgW, T0 && !free ? 1 : 0, 5, dt);
     if (T0) this._fgT = T0;
     var w = this._fgW, G0 = this._fgT; if (w < 0.01 || !G0) return;
     // right hand: our gloved hand is thicker than the hand the grip frames were fitted to, so the hand is moved
@@ -581,6 +581,9 @@
     }
     this.attached.push({ obj: obj, socket: socket });
     if (socket === 'handR') this.held = obj;
+    // pose at once with the weapon in its grip (hold layer, fingers and left hand at full weight), so an actor that
+    // is spawned and armed in the same frame is never drawn in the bind pose or with the weapon floating
+    if (socket === 'handR' && !this.fb) { this._snap = true; this.update(0); this._snap = false; }
     // reduced weapon model for characters other than the player beyond IV.weaponLodDistance (see update)
     if (socket === 'handR' && !obj.userData.lodTwin && WTEMPLATES[obj.userData.kind + 'Lod'] && WTEMPLATES[obj.userData.kind]) {
       var tw = IV.weapon(obj.userData.kind, { lod: true });
@@ -646,7 +649,7 @@
       if (autoName && !clipName(autoName)) autoName = null;
       // the rifle travels furthest between the sprint carry and the shoulder: give that swap the longest fade
       var swapF = (this.curUpper && this.curUpper.name === 'sprintRifle') || autoName === 'sprintRifle' ? 0.25 : (this._upperFade || 0.2);
-      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: swapF });
+      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: this._snap ? 0 : swapF });
       if (!autoName && this._autoUpper && this.curUpper) this.setUpper(null);
     }
     // weights
@@ -693,7 +696,7 @@
       want = on ? 1 : 0;
       if (this.leftHandIK != null) want = this.leftHandIK;
     }
-    this._lhW = approach(this._lhW, want, 5, dt);
+    this._lhW = this._snap ? want : approach(this._lhW, want, 5, dt);
     if (this._lhW > 0.01 && held) {
       held.userData.gripL.updateMatrixWorld(true);
       var tp = worldPos(held.userData.gripL, new T.Vector3()), tq = worldQuat(held.userData.gripL, new T.Quaternion());
