@@ -74,24 +74,15 @@ def button(bvh, origin, direction, name, r=0.0075, up=Vector((0, 0, 1))):
     return [b]
 
 def boot_details(P, bvh, out, laces=True, mat='boot', lace_mat='glove'):
-    """Heel block (real geometry), tread lugs under the sole and, for lace-up boots, crossed laces up the front
-    (lugs and laces are high-poly only)."""
+    """Crossed laces up the front of lace-up boots (high-poly only, baked into the boot maps)."""
     feet = np.array([p[2] < 0.05 for p in P])
     for s in (-1, 1):
         fm = feet & np.array([p[0] * s > 0 for p in P])
         F = P[fm]
         fx = float(np.mean(F[:, 0])); y0, y1 = float(F[:, 1].min()), float(F[:, 1].max())
         w = float(F[:, 0].max() - F[:, 0].min())
-        Fh = F[F[:, 1] > y1 - 0.07]                     # the heel end only (the toes are wider)
-        hx = float(np.mean(Fh[:, 0])); hw = float(Fh[:, 0].max() - Fh[:, 0].min())
-        # heel: a block just proud of the sole at the back, so the step between heel and sole reads
-        hb = G.box('Heel%d' % s, (hw + 0.004, 0.068, 0.03), Matrix.Translation((hx, y1 - 0.036, 0.015)), bev=0.005, seg=2)
-        out.append((hb, mat))
-        # tread: bars across the sole and the heel
-        for k in range(9):
-            yy = y0 + 0.02 + k * (y1 - y0 - 0.04) / 8
-            t = G.box('Tread%d%d' % (s, k), (w * 0.85, 0.008, 0.006), Matrix.Translation((fx, yy, -0.001)), bev=0.0015, seg=1)
-            t['hi_only'] = True; out.append((t, mat))
+        # (a separate heel block and tread lugs were tried: overlapping the welt sole they baked into white
+        # patches, so the sole stays one piece and only the laces are added)
         if laces:
             for k in range(7):
                 z = 0.075 + k * 0.014
