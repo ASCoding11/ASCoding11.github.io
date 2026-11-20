@@ -136,7 +136,7 @@
       'Whoever is first on this board holds its badge.': 'Quien esté primero en esta tabla tiene su insignia.',
       'Whoever is first on this board holds its badge (at least {m}).': 'Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
       'Whoever is first on this board holds its badge (at most {m}).': 'Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
-      'Whoever is first on {b} holds its badge; while nobody is on it, {l} counts.': 'Quien esté primero en {b} tiene su insignia; mientras nadie esté en esa tabla, cuenta {l}.',
+      'Whoever is first on {b} holds its badge; while nobody is on it, the next of these with anyone on it counts: {l}.': 'Quien esté primero en {b} tiene su insignia; mientras nadie esté en esa tabla, cuenta la primera de estas que tenga a alguien: {l}.',
       'Top player in {g}:': 'Mejor jugador en {g}:',
       'Par days': 'Días en par', 'Par days (no hints)': 'Días en par (sin pistas)', 'Perfect routes': 'Rutas perfectas', 'Most entries found': 'Más respuestas encontradas'
     });
@@ -1038,7 +1038,8 @@
   function gameTopLine(t, me, st) {
     var b = t.b, f = b.boards.filter(function (x) { return x.st === (st || b.st); })[0] || b.boards[0], out = [];
     var lim = f.max ? ' (at most ' + fmtTop(f.st, f.max) + ')' : f.min ? ' (at least ' + fmtTop(f.st, f.min) + ')' : '';
-    function chipOf(x) { return x.chip || x.l; }
+    // A board's name inside a sentence: in Spanish already (lang.js translates whole text nodes, not words inside them).
+    function chipOf(x) { var c = x.chip || x.l; try { return window.BackRoomLang && BackRoomLang.t ? BackRoomLang.t(c) : c; } catch (e) { return c; } }
     if (!t.n) out.push('unclaimed.');
     else {
       var names = t.who.map(function (p) { return p.n + (me && me(p.uid) ? ' (you)' : ''); });
@@ -1046,7 +1047,7 @@
       out.push(who + ', with ' + fmtTop(t.st, t.n) + (names.length > 1 ? ' each' : '') + (t.st !== b.st ? ' on ' + chipOf(t.st) : '') + '.');
       if (t.tie) out.push(t.tie.n + ' players share the top, so ' + t.tie.st.l + ' decides: ' + fmtTop(t.tie.st, t.tie.v) + '.');
     }
-    if (b.boards.length > 1) out.push('Whoever is first on ' + chipOf(b.st) + ' holds its badge; while nobody is on it, ' + b.boards.slice(1).map(function (x) { return chipOf(x.st); }).join(', then ') + ' counts.');
+    if (b.boards.length > 1) out.push('Whoever is first on ' + chipOf(b.st) + ' holds its badge; while nobody is on it, the next of these with anyone on it counts: ' + b.boards.slice(1).map(function (x) { return chipOf(x.st); }).join(', ') + '.');
     else out.push('Whoever is first on this board holds its badge' + lim + '.');
     return out;
   }
@@ -1518,6 +1519,8 @@
   $refresh.addEventListener('click', function () { lastLoad = 0; load(); });
   // avatar.js and miles.js may load after the boards were drawn (the home page loads them alongside this file).
   document.addEventListener('backroom:avatar', function () { if (people) draw(); });
+  // A change of language: the mini-badge line names boards inside a sentence, so it is drawn again in the new language.
+  document.addEventListener('backroom:lang', function () { if (people && !$ace.hidden) draw(); });
   // The same event with detail.tops says who is first changed (the "#1" tags): redraw, unless it is our own answer.
   document.addEventListener('backroom:miles', function (e) {
     if (!people || !e.detail || e.detail.uid || pushing) return;
