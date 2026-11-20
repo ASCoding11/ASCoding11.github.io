@@ -298,6 +298,10 @@
     { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] },
     { d: 'patchwork-tower', n: 'Patchwork Tower', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
     { d: 'flickerwood', n: 'Flickerwood', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
+    { d: 'hush-pools', n: 'Hush Pools', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
+      { k: 'fastest', l: 'Fastest escape (Normal or Hard)', chip: 'Fastest escape', f: 'time', lo: 45, hi: 36000 },
+      { k: 'escapes', l: 'Escapes (all time)', chip: 'Escapes', f: 'n', u: 'escape', rate: 1 / 60 },
+      { k: 'revives', l: 'Teammates pulled out (all time)', chip: 'Rescues', f: 'n', u: 'rescue', rate: 1 / 8 }] },
     { d: 'lanternhold', n: 'Lanternhold', st: [{ k: 'wave', l: 'Most waves held', f: 'n', u: 'wave', hi: 1000 },
       { k: 'bosses', l: 'Gloomwardens beaten (all time)', chip: 'Gloomwardens', f: 'n', u: 'Gloomwarden', rate: 1 / 60 }] },
     // Daily Puzzles: grp puts them in their own group in the Board menu. The hub's `done` (one per puzzle finished, counted
