@@ -464,7 +464,10 @@ const CEIL=900;                       // the air thins out above this and the en
 // 10.08 m, now 11.59 m), so what you see is what you hit. The shooter's own browser decides its bullets' hits, so a page
 // from before this change in the same room still works; its hits just use its own older radius.
 const PLANE_GROW=1.12*1.15,PLANE_SIZE=1.15*PLANE_GROW;
-const BULLET_V=540,BULLET_LIFE=1.25,BULLET_DMG=6,GUN_RATE=.085,HIT_R=9*PLANE_GROW;
+// Guns (November 2026): 9 hull a bullet (was 6) and 600 m/s (was 540), because a kill took 12 to 28 seconds from the
+// first hit. The browser that fires decides the hit and the damage, so in a room with an older page each player's
+// bullets simply do what their own page says.
+const BULLET_V=600,BULLET_LIFE=1.2,BULLET_DMG=9,GUN_RATE=.085,HIT_R=9*PLANE_GROW;
 const HEAT_UP=.024,HEAT_COOL=.3;      // per shot / per second
 const LOCK_T=1.3,LOCK_RANGE=950,LOCK_CONE=.25,MSL_DMG=55,MSL_LIFE=6.5,MSL_TURN=1.9,MSL_MAX=4,FLARE_MAX=4,FLARE_R=520;
 const RESPAWN=3.2,SHIELD=2.5,PICK_R=18,PICK_RESPAWN=20000;
@@ -742,7 +745,7 @@ let CLOUD_Y0=1e9,CLOUD_Y1=-1e9;   // the lowest and highest any cloud reaches
   const ico=new THREE.IcosahedronGeometry(1,gfx==="high"?2:1),ia=ico.attributes.position,pos=[],nrm=[];const v=new V3();   // smooth ellipsoid normals, so clouds are soft, not faceted
   const nC=gfx==='high'?34:20;
   for(let i=0;i<nC;i++){
-    const a=rng()*6.283,rr=300+rng()*2500,cx=Math.cos(a)*rr,cz=Math.sin(a)*rr,cy=430+rng()*420,big=.8+rng()*.9,nb=4+Math.floor(rng()*4);
+    const a=rng()*6.283,rr=300+rng()*2500,cx=Math.cos(a)*rr,cz=Math.sin(a)*rr,cy=720+rng()*380,big=.8+rng()*.9,nb=4+Math.floor(rng()*4);
     for(let b=0;b<nb;b++){
       const bx=cx+(rng()-.5)*230*big,by=cy+(rng()-.5)*36,bz=cz+(rng()-.5)*150*big,rx=(70+rng()*70)*big,ry=rx*(.42+rng()*.2),rz=rx*(.7+rng()*.4);
       for(let t=0;t<ia.count;t++){v.fromBufferAttribute(ia,t);pos.push(bx+v.x*rx,by+v.y*ry,bz+v.z*rz);const nx=v.x/rx,ny=v.y/ry+.6/ry,nz=v.z/rz,l=Math.hypot(nx,ny,nz);nrm.push(nx/l,ny/l,nz/l)}
@@ -837,6 +840,40 @@ const FX=(function(){
 // (the colour buffer is made by the first setColorAt, sized by count, so count only drops to 0 after that)
 const instMesh=(geo,mat,n,col)=>{const m=new THREE.InstancedMesh(geo,mat,n);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;
   if(col){const c=new THREE.Color(1,1,1);for(let i=0;i<n;i++)m.setColorAt(i,c);m.instanceColor.setUsage(THREE.DynamicDrawUsage)}m.count=0;m.visible=false;scene.add(m);return m};
+// Speed streaks: faint lines of air rushing past close to your plane when you are fast (and stronger when boosting),
+// the cheapest strong cue for speed there is. They are fixed points in the air that you fly past, drawn as thin
+// ribbons along your flight path; none with reduced motion, in the cockpit view or while you aren't flying.
+const STREAK=(function(){
+  const N=36,P=new Float32Array(N*12),U=new Float32Array(N*8),I=[],pts=[];
+  for(let i=0;i<N;i++){const o=i*4;I.push(o,o+1,o+2,o,o+2,o+3);U.set([1,0,1,1,0,1,0,0],i*8);pts.push(new V3(0,-1e5,0))}
+  const g=new THREE.BufferGeometry(),A=new THREE.BufferAttribute(P,3);A.setUsage(THREE.DynamicDrawUsage);g.setAttribute('position',A);g.setAttribute('uv',new THREE.BufferAttribute(U,2));g.setIndex(I);
+  const mat=new THREE.ShaderMaterial({uniforms:{op:{value:0}},
+    vertexShader:'varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader:'uniform float op;varying vec2 vU;void main(){float a=op*sin(vU.x*3.1416)*(1.-pow(abs(vU.y*2.-1.),2.));gl_FragColor=vec4(vec3(a),a);}',
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+  const mesh=new THREE.Mesh(g,mat);mesh.frustumCulled=false;mesh.renderOrder=7;mesh.visible=false;scene.add(mesh);
+  const R=new V3(),Q=new V3();let op=0;
+  function seed(p,me,fresh){   // a point somewhere ahead of the camera, off to the side of the flight path
+    const a=rand(0,6.283),r=rand(7,26),f=fresh?rand(-20,150):rand(110,170);
+    R.set(Math.cos(me.h),0,-Math.sin(me.h));Q.crossVectors(me.fwd,R).normalize();
+    p.copy(camera.position).addScaledVector(me.fwd,f).addScaledVector(R,Math.cos(a)*r).addScaledVector(Q,Math.sin(a)*r);
+  }
+  return function(dt){
+    const me=G.me,on=!REDUCED&&!!me&&me.alive&&G.phase==='play'&&!CP.active();
+    const want=on?clamp((me.speed-118)/90,0,1)*.24+(me.boosting?.14:0):0;op+=(want-op)*Math.min(1,dt*3);
+    mesh.visible=op>.004;mat.uniforms.op.value=op;if(!mesh.visible||!me)return;
+    const L=clamp(me.speed*.09,6,22);
+    for(let i=0;i<N;i++){const p=pts[i],j=i*12;
+      T1.copy(p).sub(camera.position);const ahead=T1.dot(me.fwd);
+      if(ahead<-10||T1.lengthSq()>200*200)seed(p,me,p.y<-1e4);
+      const cx=camera.position.x-p.x,cy=camera.position.y-p.y,cz=camera.position.z-p.z,cd=Math.hypot(cx,cy,cz)||1,f=me.fwd;
+      let sx=f.y*cz-f.z*cy,sy=f.z*cx-f.x*cz,sz=f.x*cy-f.y*cx;const sl=Math.hypot(sx,sy,sz)||1,w=(.05+cd*.0016)/sl;sx*=w;sy*=w;sz*=w;
+      const tx=p.x-f.x*L,ty=p.y-f.y*L,tz=p.z-f.z*L;
+      P[j]=p.x+sx;P[j+1]=p.y+sy;P[j+2]=p.z+sz;P[j+3]=p.x-sx;P[j+4]=p.y-sy;P[j+5]=p.z-sz;P[j+6]=tx-sx;P[j+7]=ty-sy;P[j+8]=tz-sz;P[j+9]=tx+sx;P[j+10]=ty+sy;P[j+11]=tz+sz;
+    }
+    A.needsUpdate=true;
+  };
+})();
 // An explosion in layers: a white flash (and a real light on the land and planes for a moment), a fast orange
 // fireball, sparks and burning bits thrown out with gravity, a dark smoke cloud that rises and spreads for a few
 // seconds, and a shock puff. A missile that misses is the small version. Looks only (each browser draws its own).
@@ -1009,7 +1046,7 @@ function spawn(e){
     }
     x=Math.cos(best)*1450;z=Math.sin(best)*1450;h=Math.atan2(-x,-z);
   }
-  const gy=groundH(x,z)+230,fy=foes.length?clamp(cy,gy,700):430;
+  const gy=groundH(x,z)+230,fy=foes.length?clamp(cy,gy,620):430;
   e.pos.set(x,Math.max(gy,fy),z);e.h=e.aimH=h;e.p=e.aimP=0;e.r=e.bank=e.rollA=0;e.yr=e.pr=0;
   e.speed=108;e.thr=.8;e.hp=100;e.heat=0;e.jam=false;e.msl=2;e.flares=2;e.boostM=1;e.shield=SHIELD;e.alive=true;e.stalled=false;e.rollT=0;e.rollCd=0;e.outT=0;e.mslT=e.flT=0;e.lock.t=0;e.lastHitBy='';
   dirOf(e.h,e.p,e.fwd);e.vel.copy(e.fwd).multiplyScalar(e.speed);
@@ -1220,10 +1257,10 @@ function updatePicks(dt){
 //  Bots. They fly the same plane with the same controls: each frame a
 //  bot only decides where to aim, the throttle and which buttons to press.
 // =====================================================================
-function mkAI(){return {tg:null,t:0,nT:0,nx:0,ny:0,onT:0,cool:false,mslCd:rand(2,6),hurtT:-99,breakT:0,breakDir:1,breakP:0,wp:new V3(rand(-1500,1500),rand(350,650),rand(-1500,1500)),seen:new Set(),boost:false}}
+function mkAI(){return {tg:null,t:0,nT:0,nx:0,ny:0,onT:0,cool:false,mslCd:rand(2,6),hurtT:-99,breakT:0,breakDir:1,breakP:0,wp:new V3(rand(-1500,1500),rand(350,650),rand(-1500,1500)),seen:new Set(),boost:false,circT:0,manT:0,manK:0,tailT:0}}
 function pickTarget(e){
   let best=null,bs=1e9;
-  for(const o of G.ents.values()){if(!o.alive||!enemies(e,o))continue;T1.copy(o.pos).sub(e.pos);const d=T1.length(),ang=e.fwd.angleTo(T1);const s=d*(1+ang*.6)*(o.bot?1:.85);if(s<bs){bs=s;best=o}}
+  for(const o of G.ents.values()){if(!o.alive||!enemies(e,o))continue;T1.copy(o.pos).sub(e.pos);const d=T1.length(),ang=e.fwd.angleTo(T1);const s=d*(1+ang*.6)*(o.bot?1:.75);if(s<bs){bs=s;best=o}}
   return best;
 }
 function avoidGround(e,dh,dp,margin){
@@ -1252,6 +1289,20 @@ function botThink(e,dt){
     if(e.heat>.86)a.cool=true;else if(e.heat<.3)a.cool=false;
     fire=fire&&!a.cool&&!(tg.shield>0);
     if(dist<150&&ang<.6)thr=.3;else if(dist>650&&a.boost)boost=true;
+    // A turn fight: a slower plane turns tighter, so Veterans and Aces ease the throttle off while the target is off
+    // the nose. Coming head-on, everyone opens fire a little further out (the gap closes fast).
+    const sk=e.lvl/2;
+    if(ang>.5&&dist<700)thr=lerp(thr,.42,sk*.85);
+    T3.copy(e.pos).sub(tg.pos).divideScalar(Math.max(dist,1));const facing=tg.fwd.dot(T3);
+    if(facing>.93&&ang<D.cone*1.6&&dist<D.range*1.35&&!a.cool&&!(tg.shield>0))fire=true;
+    // Two planes chasing each other's tails in a flat circle is dull and goes nowhere: after a while in one, break
+    // out of it, either a climbing zoom that comes back down on them or a boosted run out and back.
+    if(ang>.7&&ang<2.6&&dist<900)a.circT+=dt;else a.circT=Math.max(0,a.circT-dt*2);
+    if(a.circT>9-2.5*e.lvl&&a.manT<=0){a.circT=0;a.manT=rand(2.2,3.2);a.manK=Math.random()<.55?0:1}
+    // someone sitting on my tail and pointing at me: break before the bullets arrive (Veteran and Ace)
+    T3.copy(e.pos).sub(tg.pos);const behind=dist<450&&e.fwd.dot(T3)>dist*.5&&tg.fwd.dot(T3)>dist*.85;
+    if(behind)a.tailT+=dt;else a.tailT=0;
+    if(a.tailT>.9-.3*e.lvl&&e.lvl>0&&a.breakT<=0&&Math.random()<D.evade*dt*2){a.breakT=rand(.8,1.4);a.breakDir=Math.random()<.5?1:-1;a.breakP=rand(-.2,.4);if(e.rollCd<=0&&Math.random()<.6)c.roll=-a.breakDir}
     // lock and missile
     T2.copy(tg.pos).sub(e.pos);
     if(dist<LOCK_RANGE&&e.fwd.angleTo(T2)<LOCK_CONE){if(e.lock.id!==tg.id){e.lock.id=tg.id;e.lock.t=0}e.lock.t+=dt}else e.lock.t=Math.max(0,e.lock.t-dt*2);
@@ -1260,6 +1311,9 @@ function botThink(e,dt){
     if(e.pos.distanceTo(a.wp)<260)a.wp.set(rand(-1500,1500),rand(350,650),rand(-1500,1500));
     T1.copy(a.wp).sub(e.pos);dh=Math.atan2(T1.x,T1.z);dp=clamp(Math.atan2(T1.y,Math.hypot(T1.x,T1.z)),-.4,.4);thr=.7;
   }
+  if(a.manT>0){a.manT-=dt;fire=fire&&a.manK===0;
+    if(a.manK===0){dp=a.manT>1.2?.85:dp;thr=1;boost=e.boostM>.3}   // zoom up, then back down onto them
+    else{dh=a.manT>1.1?e.h:dh;dp=a.manT>1.1?.05:dp;boost=e.boostM>.2;thr=1}}   // run out, then turn back in
   // being shot at: maybe roll and break away
   if(G.time-a.hurtT<.6&&a.breakT<=0&&Math.random()<D.evade*dt*4){a.breakT=rand(.9,1.6);a.breakDir=Math.random()<.5?1:-1;a.breakP=rand(-.3,.5);c.roll=-a.breakDir}
   if(a.breakT>0){a.breakT-=dt;dh=e.h+a.breakDir*1.1;dp=a.breakP;fire=false;boost=true}
@@ -2410,7 +2464,7 @@ function frame(t){
   G.noRender=document.hidden;if(document.hidden)return;
   const sim=!(G.paused&&!G.online);
   if(sim)simStep(dt,t);
-  if(sim){updateWrecks(dt);WATER_NRM.offset.x+=dt*.0016;WATER_NRM.offset.y+=dt*.0009}updateCamera(dt);drawEnts(sim?dt:0);FX.update(sim?dt:0);FX.drawBullets();if(KIT)KIT.update(dt);
+  if(sim){updateWrecks(dt);WATER_NRM.offset.x+=dt*.0016;WATER_NRM.offset.y+=dt*.0009}updateCamera(dt);STREAK(dt);drawEnts(sim?dt:0);FX.update(sim?dt:0);FX.drawBullets();if(KIT)KIT.update(dt);
   if(!$('hud').hidden)updateHud(dt);
   engineSound(G.me);
   renderer.render(scene,camera);
