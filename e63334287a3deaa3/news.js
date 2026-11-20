@@ -85,6 +85,14 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', title: 'Tournaments', kind: 'feature',
+     tags: ['Tournaments', '1v1', 'Brackets', 'Featured events'], items: [
+      'A new Tournaments panel near the top of the Back Room: knockout brackets of 4, 8 or 16 players in Shell Crackers, Backrooms 1v1 and Lokop.',
+      'A party leader can start one for the party, and anyone can enter or watch with its 5-letter code. Byes are handled, and the bracket updates live for everyone.',
+      'Each match is a private room. The game reports the winner by itself, or press I won or I lost. Not turning up within 3 minutes forfeits the match.',
+      'Captains can schedule featured tournaments: a card with a countdown, a Sign up button and who is in. At the start time everyone signed up is drawn into the bracket.',
+      'Win a tournament run by a Captain and you wear the Tournament Champion ribbon next to your name for a week.'
+    ]},
     {date: '2026-11-19', version: '1.32', title: 'New game: Hush Pools', kind: 'game', games: ['Hush Pools'],
      img: 'm/thumbs/hush-pools.jpg', tags: ['Horror obby', 'Co-op', 'Up to 4'], items: [
       'Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can\'t see you, but it hears every splash.',
@@ -175,14 +183,6 @@
       'Retro TV look: the whole page as if on that old set, with pixel letters, big-pixel game pictures and faint scan lines. The Retro TV switch at the top right turns it off.',
       'With it off you get the winter page: snow, a tree, a snowman, a menorah, a diya, gingerbread and lights. Buttons are blue for the season.',
       'It stays until January 6. The Cabin button shows the cabin again, and the ❄ button in the footer turns all of it off.'
-    ]},
-    {date: '2026-11-17', version: '1.29.17', title: 'Tournaments', kind: 'feature',
-     tags: ['Tournaments', '1v1', 'Brackets', 'Featured events'], items: [
-      'A new Tournaments panel near the top of the Back Room: knockout brackets of 4, 8 or 16 players in Shell Crackers, Backrooms 1v1 and Lokop.',
-      'A party leader can start one for the party, and anyone can enter or watch with its 5-letter code. Byes are handled, and the bracket updates live for everyone.',
-      'Each match is a private room. The game reports the winner by itself, or press I won or I lost. Not turning up within 3 minutes forfeits the match.',
-      'Captains can schedule featured tournaments: a card with a countdown, a Sign up button and who is in. At the start time everyone signed up is drawn into the bracket.',
-      'Win a tournament run by a Captain and you wear the Tournament Champion ribbon next to your name for a week.'
     ]},
     {date: '2026-11-17', version: '1.29.16', title: 'Something is coming', kind: 'soon',
      img: 'news-soon.jpg', tags: ['???', 'Top secret'], items: [
