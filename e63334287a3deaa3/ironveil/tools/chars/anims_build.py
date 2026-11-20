@@ -978,7 +978,8 @@ for nm, spec in ML.TAKES.items():
 
 def check_mocap():
     """Slide of planted feet in the baked pose (world, with the clip's travel added) and leg IK reach error."""
-    for nm, (frames, flags, T, v, th) in MOCAP_CHECK.items():
+    for nm, (frames, flags, T, v, th) in list(MOCAP_CHECK.items()):
+        if nm.endswith('#game'): continue
         fn = CLIPS[nm][0]; n = len(frames)
         d = Vector((math.sin(math.radians(th)), -math.cos(math.radians(th)), 0)) * v
         slide = []; reach = []
@@ -1011,6 +1012,29 @@ def check_mocap():
                 print('  %2d L%d R%d ballL %+.3f %+.3f %.3f tgt %+.3f %+.3f %.3f ankz %.3f' % (i, flags['l'][i % n], flags['r'][i % n],
                       cur['l'][1].x, cur['l'][1].y, W['ball_l'].translation.z, (F['ltoes'] + d * tt).x, (F['ltoes'] + d * tt).y, F['ltoes'].z, F['lfoot'].z))
         slide.sort(); reach.sort()
+        # the game helper's measure on the baked loop (two cycles, 30 fps): contact = lowest 2.5 cm (ankle) / 2 cm
+        # (ball) of the travel, 3+ frames; drift = largest horizontal move from the contact start
+        P = []
+        for i in range(2 * n):
+            L = fn((i % n) / FPS); W = R.W(L); tt = i / FPS
+            P.append({s: (W['foot_' + s].translation + d * tt, W['ball_' + s].translation + d * tt) for s in 'lr'})
+        def wins(hs, tol):
+            m = min(hs); out = []; st = -1
+            for i in range(len(hs) + 1):
+                c = i < len(hs) and hs[i] <= m + tol
+                if c and st < 0: st = i
+                if not c and st >= 0:
+                    if i - st >= 2: out.append((st, i))
+                    st = -1
+            return out
+        gd = []
+        for s in 'lr':
+            for k, tol in ((0, 0.025), (1, 0.02)):
+                for a, b in wins([p[s][k].z for p in P], tol):
+                    gd.append(max(((P[j][s][k] - P[a][s][k]).xy.length for j in range(a, b)), default=0))
+        gd.sort()
+        MOCAP_CHECK[nm + '#game'] = gd
+        print('game-measure %-9s contacts %d median %.1f max %.1f cm' % (nm, len(gd), gd[len(gd) // 2] * 100 if gd else 0, gd[-1] * 100 if gd else 0))
         print('check %-9s planted heel-or-ball speed median %.3f p90 %.3f m/s | ankle reach err median %.1f max %.1f cm | max bone step %.0f deg %s' % (
             nm, slide[len(slide) // 2], slide[int(len(slide) * 0.9)], reach[len(reach) // 2] * 100, reach[-1] * 100, pop[0], pop[1]))
 

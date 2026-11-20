@@ -19,6 +19,9 @@ SIDED = ['hipjoint', 'femur', 'tibia', 'foot', 'toes', 'clavicle', 'humerus', 'r
 RATE60 = {'139', '141', '143'}
 UPPER = ['lowerback', 'upperback', 'thorax', 'lowerneck', 'upperneck', 'head'] + [s + n for s in 'lr' for n in ('clavicle', 'humerus', 'radius', 'wrist', 'hand', 'fingers', 'thumb')]
 
+def smooth01(a, b, t):
+    x = max(0.0, min(1.0, (t - a) / (b - a))); return x * x * (3 - 2 * x)
+
 def V(a): return Vector((float(a[0]), float(a[1]), float(a[2])))
 
 class Take:
@@ -201,6 +204,24 @@ def build_cycle(tk, our_leg, ank_rest_z, theta=None, hip_yaw=0.0, crouch=0.0, cr
                     amt = 1.0 - share(nm) if nm.rstrip('>') in UPPER or nm in TW else 0.0
                     if nm.rstrip('>') in UPPER and nm != 'lowerback': amt = 1.0
                     if amt: F[nm] = piv + Quaternion(LEFT, crouch_lean * amt) @ (F[nm] - piv)
+    # contact flags as the feet actually behave: a foot counts as planted while its ball or heel is within a couple of
+    # centimetres of the floor next to a detected contact (so heel-off to toe-off is pinned too); small gaps closed
+    for s in 'lr':
+        fl = flags[s]; orig = list(fl)
+        bzs = [F[s + 'toes'].z for F in frames]; azs = [F[s + 'foot'].z for F in frames]
+        bmin, amin = min(bzs), min(azs)
+        low = [bzs[j] <= bmin + 0.022 or azs[j] <= amin + 0.02 for j in range(n)]
+        for _ in range(n):
+            ch = False
+            for j in range(n):
+                if not fl[j] and low[j] and (fl[(j - 1) % n] or fl[(j + 1) % n]): fl[j] = True; ch = True
+            if not ch: break
+        for gap in (1, 2, 3, 4):
+            for j in range(n):
+                if fl[j] and not fl[(j + 1) % n] and fl[(j + gap + 1) % n]:
+                    for g in range(1, gap + 1): fl[(j + g) % n] = True
+        if sum(fl) > 0.72 * n or all(fl):   # a shuffling foot that never clears the floor: keep the detected contacts
+            fl[:] = orig
     # foot pinning: each planted foot moves at exactly -vel (in place) on a straight line
     dt = T / n
     for s in 'lr':
@@ -245,6 +266,94 @@ def build_cycle(tk, our_leg, ank_rest_z, theta=None, hip_yaw=0.0, crouch=0.0, cr
             for nm in ('toes', 'toes>'):
                 p = frames[j][s + nm]
                 if p.z < 0.01: frames[j][s + nm] = Vector((p.x, p.y, 0.01))
+    # flat-foot stance: while heel and ball are both down the whole foot is held (ankle pinned, foot direction
+    # frozen), so neither the heel nor the ball creeps; before that the heel is the pivot (heel strike), after it
+    # the ball is (heel off). Every pinned point moves at exactly -vel in place.
+    for s in 'lr':
+        fl = flags[s]
+        runs = []; start = None
+        for j in range(n):
+            if fl[j] and (j == 0 or not fl[j - 1]): start = j
+            if fl[j] and (j == n - 1 or not fl[j + 1]): runs.append((start, j))
+        if len(runs) >= 2 and runs[0][0] == 0 and runs[-1][1] == n - 1:
+            runs = [(runs[-1][0] - n, runs[0][1])] + runs[1:-1]
+        for (j0, j1) in runs:
+            idx = list(range(j0, j1 + 1))
+            az = [frames[j % n][s + 'foot'].z for j in idx]; bz = [frames[j % n][s + 'toes'].z for j in idx]
+            amin, bmin = min(az), min(bz)
+            flat = [a <= amin + 0.012 and b <= bmin + 0.012 for a, b in zip(az, bz)]
+            if not any(flat): continue
+            f0 = flat.index(True); f1 = len(flat) - 1 - flat[::-1].index(True)
+            J0, J1 = idx[f0], idx[f1]
+            A0 = frames[J0 % n][s + 'foot'].copy()
+            fd = frames[J0 % n][s + 'toes'] - A0; fd.z = min(fd.z, 0.0); fd = fd.normalized() * (frames[J0 % n][s + 'toes'] - A0).length
+            for j in idx:
+                F = frames[j % n]
+                tip_off = F[s + 'toes>'] - F[s + 'toes']
+                rel = F[s + 'toes'] - F[s + 'foot']
+                ball_first = (F[s + 'toes'].z - bmin) < (F[s + 'foot'].z - amin)   # which end is on the floor
+                if j < J0:      # landing: the end that touched first is the pivot (heel walking forward, toe backing)
+                    if ball_first:
+                        to = A0 + fd - vel * ((j - J0) * dt); to.z = F[s + 'toes'].z; an = to - rel
+                    else:
+                        an = A0 - vel * ((j - J0) * dt); an.z = F[s + 'foot'].z; to = an + rel
+                elif j <= J1:   # flat
+                    an = A0 - vel * ((j - J0) * dt); to = an + fd
+                else:           # leaving: the end still on the floor is the pivot
+                    if ball_first:
+                        B1 = A0 + fd - vel * ((J1 - J0) * dt)
+                        to = B1 - vel * ((j - J1) * dt); to.z = F[s + 'toes'].z; an = to - rel
+                    else:
+                        an = A0 - vel * ((j - J0) * dt); an.z = F[s + 'foot'].z; to = an + rel
+                F[s + 'foot'] = an; F[s + 'toes'] = to; F[s + 'toes>'] = to + tip_off
+    # swing clearance: a swinging foot lifts at least 5 cm (heel) / 4 cm (ball) at mid-swing, so a shuffled side step
+    # never drags along the ground (and is not mistaken for a sliding contact)
+    for s in 'lr':
+        fl = flags[s]
+        amin = min(F[s + 'foot'].z for F in frames); bmin = min(F[s + 'toes'].z for F in frames)
+        j = 0
+        sw = []
+        for j in range(n):
+            if not fl[j] and fl[(j - 1) % n]:
+                k = j; L_ = 0
+                while not fl[k % n] and L_ < n: k += 1; L_ += 1
+                sw.append((j, L_))
+        for j0, L_ in sw:
+            for i in range(L_):
+                u = (i + 1) / (L_ + 1); env = math.sin(math.pi * u)
+                F = frames[(j0 + i) % n]
+                da = max(0.0, amin + 0.05 * env - F[s + 'foot'].z); db = max(0.0, bmin + 0.04 * env - F[s + 'toes'].z)
+                lift = max(da, db)
+                if lift > 0:
+                    for nm in ('foot', 'toes', 'toes>'):
+                        F[s + nm] = F[s + nm] + Vector((0, 0, lift))
+    # swing ends: the foot travels with the planted line for the first part of the swing (it leaves the floor
+    # before it moves forward) and reaches its landing spot before the last part (it comes down, it does not skid in)
+    for s in 'lr':
+        fl = flags[s]
+        sw = []
+        for j in range(n):
+            if not fl[j] and fl[(j - 1) % n]:
+                k = j; L_ = 0
+                while not fl[k % n] and L_ < n: k += 1; L_ += 1
+                sw.append((j, L_))
+        if vel.length > 4.5: break   # not for the sprint (its swing is short and fast and already lands clean)
+        for j0, L_ in sw:
+            if L_ < 4: continue
+            jl, je = j0 - 1, j0 + L_          # last planted frame before, first planted frame after
+            Fl, Fe = frames[jl % n], frames[je % n]
+            for i in range(L_):
+                j = j0 + i; F = frames[j % n]; u = (i + 1) / (L_ + 1)
+                lift = Fl[s + 'toes'] - vel * ((j - jl) * dt)           # where a still-planted ball would be
+                land = Fe[s + 'foot'] - vel * ((j - je) * dt)           # where the landing heel's line is
+                cur_b, cur_a = F[s + 'toes'], F[s + 'foot']
+                w0 = 1 - smooth01(0.0, 0.3, u)                          # stick to the lift-off line early on
+                w1 = smooth01(0.62, 0.9, u)                             # be over the landing spot late
+                dx = Vector((0, 0, 0))
+                if w0 > 0: dx += (Vector((lift.x, lift.y, 0)) - Vector((cur_b.x, cur_b.y, 0))) * w0
+                if w1 > 0: dx += (Vector((land.x, land.y, 0)) - Vector((cur_a.x, cur_a.y, 0))) * w1
+                for nm in ('foot', 'toes', 'toes>'):
+                    F[s + nm] = F[s + nm] + dx
     # toes: less flex than captured (the captured toe segment is short and noisy) and smoothed over time
     for s in 'lr':
         tips = []

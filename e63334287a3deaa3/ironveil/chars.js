@@ -311,7 +311,7 @@
   }
 
   // sockets for attach(): bone and, for back/hip, a carry pose in the bind-pose character frame
-  var SOCKET = { handR: 'weapon_r', handL: 'hand_l', back: 'spine_03', hip: 'pelvis', head: 'Head' };
+  var SOCKET = { handR: 'weapon_r', handL: 'hand_l', back: 'spine_03', sling: 'spine_03', hip: 'pelvis', head: 'Head' };
   function carryMatrix(socket, obj) {
     var m = new T.Matrix4(), q = new T.Quaternion(), p = new T.Vector3();
     var long = obj.userData.long;
@@ -319,6 +319,13 @@
       // slung across the back, muzzle up over the left shoulder
       var z = new T.Vector3(0.42, 0.9, 0).normalize(), y = new T.Vector3(0, 0, -1), x = new T.Vector3().crossVectors(y, z);
       m.makeBasis(x, y, z); p.set(-0.05, 1.28, -0.2);
+      if (!long) { m.identity(); p.set(0.12, 1.05, -0.17); }
+    } else if (socket === 'sling') {
+      // slung muzzle down across the back, outside the pack: stock up behind the right shoulder blade (its top below
+      // the helmet rim), muzzle toward the left hip, sights facing out
+      var z3 = new T.Vector3(0.33, -0.94, -0.05).normalize(), y3 = new T.Vector3(0, 0.05, -1).normalize(), x3 = new T.Vector3().crossVectors(y3, z3).normalize();
+      y3.crossVectors(z3, x3);
+      m.makeBasis(x3, y3, z3); p.set(-0.07, 1.26, -0.25);
       if (!long) { m.identity(); p.set(0.12, 1.05, -0.17); }
     } else if (socket === 'hip') {
       // holstered on the right hip, muzzle down
@@ -573,7 +580,7 @@
       var inv = GM.invert();
       inv.decompose(obj.position, obj.quaternion, obj.scale);
       obj.userData._ap = obj.position.clone(); obj.userData._aq = obj.quaternion.clone();
-    } else if (socket === 'back' || socket === 'hip') {
+    } else if (socket === 'back' || socket === 'sling' || socket === 'hip') {
       // carry pose defined in the bind-pose character frame, converted into the bone's frame
       var rest = this._restWorld(bn);
       var m = new T.Matrix4().copy(rest).invert().multiply(carryMatrix(socket, obj));
@@ -655,7 +662,7 @@
       if (!autoName) autoName = needs ? (held.userData.long ? 'holdRifle' : (pistol ? 'holdPistol' : null)) : null;
       if (autoName && !clipName(autoName)) autoName = null;
       // the rifle travels furthest between the sprint carry and the shoulder: give that swap the longest fade
-      var swapF = (this.curUpper && this.curUpper.name === 'sprintRifle') || autoName === 'sprintRifle' ? 0.25 : (this._upperFade || 0.2);
+      var swapF = (this.curUpper && this.curUpper.name === 'sprintRifle') || autoName === 'sprintRifle' ? 0.38 : (this._upperFade || 0.2);
       if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: this._snap ? 0 : swapF });
       if (!autoName && this._autoUpper && this.curUpper) this.setUpper(null);
     }
@@ -825,7 +832,7 @@
     add('idle', sStand * idleW * (1 - this._turnW));
     add(this._turnW > 0.01 ? 'crouchTurnStep' : 'crouchIdle', sCrouch * idleW * this._turnW);
     add('crouchIdle', sCrouch * idleW * (1 - this._turnW));
-    add('proneIdle', sProne * idleW);
+    add(st.aiming ? 'proneAim' : 'proneIdle', sProne * idleW);   // prone and aiming: elbows down, rifle level
     add('proneCrawl', sProne * mv);
     var dA = DIRS[ia][0], dB = DIRS[ib][0];
     var walkW = (1 - this._tier) * (1 - this._sprintW), jogW = this._tier * (1 - this._sprintW);
@@ -877,8 +884,9 @@
     var accel = (speed - this._lastSpeed) / Math.max(dt, 1e-3);
     // stopping: from the moment the body is nearly stopped, the feet that are on the ground stay where they are and
     // any that ended up away from the idle stance is brought in by a small lifted settle step (see _stopFeet)
-    if (!this._stop && this._move > 0.15 && speed < 0.45 && speed <= this._lastSpeed && stance !== 'prone') this._stop = { t: 0, init: false };
-    if (this._stop && (speed > 0.5 || stance === 'prone' || (speed > this._lastSpeed + 0.01 && speed > 0.2))) { this._stop = null; this._lock = null; }
+    var decel = (this._lastSpeed - speed) / Math.max(dt, 1e-3);
+    if (!this._stop && this._move > 0.15 && stance !== 'prone' && ((speed < 0.45 && speed <= this._lastSpeed) || (decel > 4 && speed < this._lastSpeed * 0.93))) this._stop = { t: 0, init: false };
+    if (this._stop && (stance === 'prone' || (speed > this._lastSpeed + 0.01 && speed > 0.2))) { this._stop = null; this._lock = null; }
     this._lastSpeed = speed;
     this._lean += (Math.max(-0.14, Math.min(0.14, -(st.yawRate || 0) * speed * 0.035)) - this._lean) * Math.min(1, dt * 6);
     this._pitchLean += (Math.max(-0.06, Math.min(0.06, accel * 0.012)) - this._pitchLean) * Math.min(1, dt * 5);
@@ -1000,24 +1008,29 @@
         S.f[s] = { L: p.clone(), planted: p.y - ry < 0.13, step: -1, done: false };
       }
     }
-    var wIn = Math.min(1, S.t / 0.08);
+    var wIn = 1;   // the pins start where the feet are, so they can take hold at once
     // settle steps once the body has (nearly) reached the idle pose: the foot furthest from its idle spot first
     var idle = this._move < 0.08;
     for (i = 0; i < 2; i++) {
       s = i ? 'r' : 'l';
-      var f = S.f[s], foot = b['foot_' + s]; if (!f.planted || f.done) continue;
-      var A = worldPos(foot, new T.Vector3()), off = Math.hypot(A.x - f.L.x, A.z - f.L.z);
+      var f = S.f[s], foot = b['foot_' + s]; if (f.done) continue;
+      var A = worldPos(foot, new T.Vector3());
+      // a foot that was in the air when the stop began follows its clip until it touches down, then stays there
+      if (!f.planted) { if (A.y - ry < 0.11) { f.planted = true; f.L.copy(A); } else continue; }
+      var off = Math.hypot(A.x - f.L.x, A.z - f.L.z);
       var other = S.f[i ? 'l' : 'r'];
-      if (idle && f.step < 0 && off > 0.045 && !(other.step >= 0 && !other.done)) {
-        var oo = other.planted && !other.done ? Math.hypot(worldPos(b['foot_' + (i ? 'l' : 'r')], new T.Vector3()).x - other.L.x, 0) : 0;
-        f.step = 0;
+      if (idle && f.step < 0 && off > 0.02 && !(other.step >= 0 && !other.done)) f.step = 0;
+      // a pinned foot the body has moved away from (the leg would be at full stretch) steps now instead of dragging
+      if (f.step < 0 && !(other.step >= 0 && !other.done)) {
+        var H0 = worldPos(b['thigh_' + s], new T.Vector3()), legL = H0.distanceTo(worldPos(b['calf_' + s], new T.Vector3())) + worldPos(b['calf_' + s], new T.Vector3()).distanceTo(A);
+        if (H0.distanceTo(new T.Vector3(f.L.x, A.y, f.L.z)) > legL * 0.95) f.step = 0;
       }
       var tgt = f.L.clone(); tgt.y = A.y;
       if (f.step >= 0) {
         f.step += dt; var u = Math.min(1, f.step / 0.28), e = u * u * (3 - 2 * u);
         tgt.set(f.L.x + (A.x - f.L.x) * e, A.y + Math.sin(Math.PI * u) * 0.06, f.L.z + (A.z - f.L.z) * e);
         if (u >= 1) { f.done = true; continue; }
-      } else if (idle && off <= 0.045) { f.done = true; continue; }
+      } else if (idle && off <= 0.02) { f.done = true; continue; }
       var hip = worldPos(b['thigh_' + s], new T.Vector3()), knee = worldPos(b['calf_' + s], new T.Vector3());
       var axis = A.clone().sub(hip).normalize(), kd = knee.clone().sub(hip);
       var pole = kd.addScaledVector(axis, -kd.dot(axis)).addScaledVector(fwd, 0.08);

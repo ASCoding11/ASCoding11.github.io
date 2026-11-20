@@ -29,7 +29,7 @@
   <label>Aim pitch <span id="pv">0</span></label><input type="range" id="pitch" min="-1" max="1" step="0.01" value="0">
   <label>Aim yaw <span id="yv">0</span></label><input type="range" id="yaw" min="-1" max="1" step="0.01" value="0">
   <label>Weapon</label><select id="weapon"><option value="">none</option></select>
-  <label>Socket</label><select id="socket"><option>handR</option><option>handL</option><option>back</option><option>hip</option></select>
+  <label>Socket</label><select id="socket"><option>handR</option><option>handL</option><option>back</option><option>sling</option><option>hip</option></select>
   <label>Camera</label><div class="btns" id="cams"></div>
   <label>Speed <span id="sv">1</span></label><input type="range" id="speed" min="0" max="2" step="0.05" value="1">
   <label>Drive (WASD, Shift sprint, C crouch, Z prone, Q aim; ground has a 15&deg; slope and 0.2 m steps)</label><div class="btns"><a href="?drive=1&weapon=rifleScoped" style="color:#cfc">open drive mode</a></div>
@@ -201,6 +201,7 @@
       var t = +(P.get('t') || 0), steps = Math.round(t * 30) + 12;
       if (P.get('anim')) { actor.play(curClip, { fade: 0, once: P.has('once') || /death|hit|throw|melee|vault|takedown|breach|signal|salute|stagger/.test(P.get('anim')) }); if (curUpper) actor.setUpper(curUpper, { fade: 0, once: P.has('once') }); steps = Math.round(t * 30); }
       if (P.get('face') != null) actor.setFace(+P.get('face'));
+      if (P.get('sling')) actor.attach(IVChars.weapon(P.get('sling')), 'sling');   // a second gun slung on the back
       for (var i = 0; i < steps; i++) { actor.update(1 / 30); crowd.forEach(function (c) { c.a.update(1 / 30); }); }
       if (P.get('blink') != null) { actor._blinkT = 1e9; actor.setMorph('blink', +P.get('blink')); }
       if (P.get('grips')) { var gj = JSON.parse(P.get('grips')); for (var gk in gj) IVChars.grips[gk] = gj[gk]; if (gun) actor.attach(gun, $('socket').value); for (var ii = 0; ii < 3; ii++) actor.update(1 / 30); }
@@ -298,8 +299,9 @@
     return new THREE.Vector3(wx, 0, wz).multiplyScalar(base);
   }
   var lastYaw = 0;
+  window.SIM = function (a, k, dt) { return simulate(a, k, dt); };
   function simulate(a, k, dt) {
-    ctrl.stance = k.prone ? 'prone' : k.crouch ? 'crouch' : 'stand'; ctrl.aim = !!k.aim && ctrl.stance !== 'prone';
+    ctrl.stance = k.prone ? 'prone' : k.crouch ? 'crouch' : 'stand'; ctrl.aim = !!k.aim;
     var tv = targetVel(k);
     // weight: a full reversal plants for ~0.12 s before the new direction takes over
     if (ctrl.vel.lengthSq() > 4 && tv.lengthSq() > 1 && ctrl.vel.dot(tv) < -0.5 * ctrl.vel.length() * tv.length() && ctrl.plant <= 0) ctrl.plant = 0.12;
@@ -469,8 +471,8 @@
     for (var i = 0; i < 60; i++) simulate(a, {}, dt);
     for (i = 0; i < 150; i++) simulate(a, keys, dt);
     var rec = [], still = -1, rest = Object.assign({}, keys); delete rest.w; delete rest.shift;
-    for (i = 0; i < 72; i++) { simulate(a, rest, dt); a.root.updateMatrixWorld(true); rec.push(gFeet(a)); if (still < 0 && ctrl.vel.length() < 0.05) still = i; }
-    var r = gSlide(rec); r.still = still / 60; return r;
+    for (i = 0; i < 72; i++) { simulate(a, rest, dt); a.root.updateMatrixWorld(true); var gf = gFeet(a); gf.l.st = !!a._stop; gf.l.dbg = a._stop && a._stop.f ? ['l', 'r'].map(function (s) { var f = a._stop.f[s]; return (f.planted ? 'P' : '-') + (f.step >= 0 ? 'S' : '') + (f.done ? 'D' : ''); }).join(',') + ' mv' + a._move.toFixed(2) + ' ik' + (a._ikW == null ? '?' : a._ikW.toFixed(1)) : 'mv' + a._move.toFixed(2); rec.push(gf); if (still < 0 && ctrl.vel.length() < 0.05) still = i; }
+    var r = gSlide(rec); r.still = still / 60; if (window.TRACE) r.trace = rec.map(function (f, i) { return [i, f.l.x.toFixed(3), f.l.z.toFixed(3), f.l.hh.toFixed(3), f.r.x.toFixed(3), f.r.z.toFixed(3), f.r.hh.toFixed(3), f.l.st, f.l.dbg].join(' '); }); return r;
   };
   window.DRIVE = {
     start: function (P) {
