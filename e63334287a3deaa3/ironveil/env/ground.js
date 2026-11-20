@@ -20,6 +20,13 @@
   };
   const LAYERS = ['grass_ground', 'mud', 'earth', 'gravel', 'leaves'];
 
+  // average linear luminance (0.3, 0.5, 0.2) of an sRGB DataTexture, sampled sparsely
+  function meanLum(t) {
+    const d = t && t.image && t.image.data; if (!d) return 0.045; let s = 0, n = 0;
+    const L = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    for (let i = 0; i < d.length; i += 4 * 97) { s += 0.3 * L(d[i]) + 0.5 * L(d[i + 1]) + 0.2 * L(d[i + 2]); n++; }
+    return Math.max(0.01, s / n);
+  }
   function groundMaterial() {
     const T = LAYERS.map(n => E.tex[n]);
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, normalMap: T[0].nri, envMapIntensity: 1 });
@@ -30,7 +37,8 @@
       uN0: { value: T[0].nri }, uN1: { value: T[1].nri }, uN2: { value: T[2].nri }, uN3: { value: T[3].nri }, uN4: { value: T[4].nri },
       uSz: { value: LAYERS.map((n, i) => 1 / ((E.RECIPES[n] && E.RECIPES[n].size) || [2.5, 3.0, 3.0, 0.85, 2.0][i])) },   // each layer at its real size
       uMarks: { value: E.marks.tex() }, uMarksRect: { value: E.marks.rect },
-      uCarry: { value: new THREE.Vector2(E.Q.grassNear * 0.45, E.Q.grassMid * 0.95) }
+      uCarry: { value: new THREE.Vector2(E.Q.grassNear * 0.45, E.Q.grassMid * 0.95) },
+      uTl0: { value: meanLum(T[0].alb) }   // the grass layer's own average brightness (scans differ from the generator's)
     };
     m.userData.uniforms = uni;
     const LOW = E.Q.name === 'low';
@@ -40,7 +48,7 @@
         sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vW0 = aW0; vW1 = aW1; vGC = aGC; vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = `
         uniform sampler2D uMarks; uniform vec4 uMarksRect;
-        uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime; uniform vec2 uCarry;
+        uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime, uTl0; uniform vec2 uCarry;
         vec2 ivRipple(vec2 p, float t) { vec2 cell = floor(p), f = fract(p) - 0.5; float r = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453); float ph = fract(t * 1.4 + r * 7.0);
           vec2 d = f - (vec2(fract(r * 13.1), fract(r * 27.7)) - 0.5) * 0.5; float dist = length(d); float ring = sin((dist - ph * 0.45) * 45.0) * smoothstep(0.06, 0.0, abs(dist - ph * 0.45)) * (1.0 - ph); return normalize(d + 1e-5) * ring; }
         varying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;
@@ -80,9 +88,13 @@
           float tl = dot(sRGBToLinear(vec4(a0.rgb, 1.0)).rgb, vec3(0.3, 0.5, 0.2));
           float clumpN = texture2D(uMacro, gp * 0.9 + 0.17).b;
           float midN = texture2D(uMacro, gp * 0.31 + 0.61).g;
-          vec3 gcol = vGC.rgb * mix(0.7, 1.25, mB) * clamp(tl / 0.045, 0.35, 2.2) * mix(0.45, 1.45, clumpN * clumpN * 1.4) * mix(0.65, 1.3, midN);
+          vec3 gcol = vGC.rgb * mix(0.7, 1.25, mB) * clamp(tl / uTl0, 0.35, 2.2) * mix(0.45, 1.45, clumpN * clumpN * 1.4) * mix(0.65, 1.3, midN);
           galb = mix(galb, gcol, carry);
           grough = mix(grough, 0.88, carry);
+          // inside the blade rings the soil between blades is in the blades' shade: dark thatch and roots, never a
+          // bright flat colour (the blades carry the green there)
+          galb = mix(galb, galb * vec3(0.3, 0.28, 0.22), under * 0.9);
+          grough = mix(grough, 1.0, under);
           // standing water: wet places, low in the texture height and the slow noise
           float wet = vW1.y;
           float pud = wet * smoothstep(0.5, 0.36, gh + (mB - 0.5) * 0.45 + (1.0 - wet) * 0.3);
@@ -146,7 +158,7 @@
         w0[k * 4] = wv[0]; w0[k * 4 + 1] = wv[1]; w0[k * 4 + 2] = wv[2]; w0[k * 4 + 3] = wv[3]; w1[k * 4] = wv[4]; w1[k * 4 + 1] = wv[5];
         // grass colour carried far away, weighted by how much grass grows here
         const kind = surfaceAt(x, z), K = E.GRASS_KINDS[kind];
-        if (K) { E.grassField.carry(kind, x, z, c); const dens = K.d * E.sstep(0.18, 0.45, E.grassField.dens(x, z) + 0.12 + (K.fill || 0)); gc[k * 4] = c.r; gc[k * 4 + 1] = c.g; gc[k * 4 + 2] = c.b; gc[k * 4 + 3] = E.clamp(dens * Math.min(1, K.h[1] * 3), 0, 1); }
+        if (K) { E.grassField.carry(kind, x, z, c); const dens = K.d * E.sstep(0.18, 0.45, E.grassField.dens(x, z) + 0.12 + (K.fill || 0)); gc[k * 4] = c.r; gc[k * 4 + 1] = c.g; gc[k * 4 + 2] = c.b; gc[k * 4 + 3] = E.clamp(dens * 1.7 * Math.min(1, 0.45 + K.h[1] * 3), 0, 1); }
       }
       const idx = new Uint32Array((nx - 1) * (nz - 1) * 6); let q = 0;
       for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
