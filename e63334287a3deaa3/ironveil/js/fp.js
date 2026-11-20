@@ -269,7 +269,7 @@
     const tdT = W8.takedownT != null ? IV.time - W8.takedownT : 99, inTakedown = P.cineClip && tdT < 3;
     const harness = P.cine && M && M.phase === 'harness';
     if (FP._throwing && !W8.busyThrow) FP.throwT = IV.time;   // the grenade just left the hand
-    FP._throwing = !!W8.busyThrow;
+    FP._throwing = !!W8.busyThrow; if (W8.busyThrow) FP.throwKind = W8.busyThrow.kind;
     const throwK = FP.throwT != null ? (IV.time - FP.throwT) / 0.42 : 9;
     let k = W8.busyThrow || throwK < 1 ? 'grenade' : W8.binoc ? 'binoc' : W8.cur;
     if (inTakedown || harness) k = 'knife';
@@ -279,6 +279,7 @@
     if (!show) return;
     if (rig.kind !== kind) { if (rig.kind) FP.drawK = 1; rig.setKind(kind); }   // a new thing in the hands comes up from below
     vm.gun = rig.gun;
+    if (rig.gun) rig.gun.visible = !(kind === 'grenade' && FP.throwKind === 'rock');   // a stone: the throwing hand, no model
     if (rig.actor) rig.actor.leftHandIK = kind === 'knife' || kind === 'grenade' ? 0 : null;
     // mirror the world actor's upper-body one-shots (reload, bolt) onto the arms
     const wu = IV.upperOf(P.actor);
@@ -293,7 +294,9 @@
     const lagK = aiming ? 0.35 : 1;
     FP.lagYaw = IV.clamp(IV.damp(FP.lagYaw, dyaw * 5 * lagK, 12, dt), -0.07, 0.07); FP.lagPitch = IV.clamp(IV.damp(FP.lagPitch, dpit * 5 * lagK, 12, dt), -0.06, 0.06);
     const t = IV.time, ph = FP.phase || 0, bobA = (FP.bobAmp || 0) * 1.3;
-    const breath = (aiming ? 0.12 : 1) * motion;
+    // breathing: heavier for a few seconds after a sprint (first-person-body skill)
+    FP.fatigue = IV.clamp((FP.fatigue || 0) + (P.sprinting ? dt / 4 : -dt / 7), 0, 1);
+    const breath = (aiming ? 0.12 : 1) * motion * (1 + FP.fatigue * 2.2);
     FP.kick = IV.damp(FP.kick, 0, 13, dt); FP.kickR = IV.damp(FP.kickR, 0, 9, dt);
     FP.vmAim = IV.damp(FP.vmAim, aiming ? 1 : 0, aiming ? 16 : 12, dt);   // about 0.2 s to the sights, a touch slower down
     // sprint carry: the gun swings across the chest, muzzle low and left
@@ -359,11 +362,11 @@
   const _b3 = new THREE.Box3(), _pc = new THREE.Vector3();
   FP.screenBox = function () {
     if (!VM || !VM.root.visible || !VM.rig.gun) return null;
-    const r = { x0: 1, y0: 1, x1: 0, y1: 0 }, add = v => { if (v.z > -0.02) return; _pc.copy(v).project(VM.cam); const x = (_pc.x + 1) / 2, y = (1 - _pc.y) / 2; r.x0 = Math.min(r.x0, x); r.x1 = Math.max(r.x1, x); r.y0 = Math.min(r.y0, y); r.y1 = Math.max(r.y1, y); };
+    const r = { x0: 1, y0: 1, x1: 0, y1: 0, pts: [] }, add = v => { if (v.z > -0.02) return; _pc.copy(v).project(VM.cam); const x = (_pc.x + 1) / 2, y = (1 - _pc.y) / 2; r.pts.push([+x.toFixed(3), +y.toFixed(3)]); r.x0 = Math.min(r.x0, x); r.x1 = Math.max(r.x1, x); r.y0 = Math.min(r.y0, y); r.y1 = Math.max(r.y1, y); };
     _b3.setFromObject(VM.rig.gun);
     for (let i = 0; i < 8; i++) add(_v.set(i & 1 ? _b3.max.x : _b3.min.x, i & 2 ? _b3.max.y : _b3.min.y, i & 4 ? _b3.max.z : _b3.min.z));
     const A = VM.rig.actor; if (A) for (const n of ['hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r']) { const b = A.bone(n); if (b) add(b.getWorldPosition(_v)); }
-    for (const k in r) r[k] = Math.round(IV.clamp(r[k], 0, 1) * 1000) / 1000;
+    for (const k of ['x0', 'y0', 'x1', 'y1']) r[k] = Math.round(IV.clamp(r[k], 0, 1) * 1000) / 1000;
     return r;
   };
   // a finished interaction: a small nod (a breach is a shoulder into the door: a harder lurch)
@@ -380,9 +383,11 @@
     VM.cam.aspect = W.camera.aspect; VM.cam.updateProjectionMatrix();
     r.autoClear = false; r.setRenderTarget(null); r.clearDepth();
     r.toneMapping = THREE.ACESFilmicToneMapping;   // the post stack tone maps the world itself; the viewmodel is drawn after it
+    { const ri = r.info.render; FP.worldInfo = { calls: ri.calls, tris: ri.triangles }; }   // the world pass just drawn (without the post stack this is all of it)
     const t0 = performance.now();
     r.render(VM.scene, VM.cam);
     FP.passMs = IV.damp(FP.passMs || 0, performance.now() - t0, 4, 0.016);
+    const ri = r.info.render; FP.vmInfo = { calls: ri.calls, tris: ri.triangles };   // this pass alone (info resets per render call)
     r.autoClear = ac; r.toneMapping = tm;
   };
   // the world point in front of which the visible muzzle sits (for muzzle flash and tracers)
