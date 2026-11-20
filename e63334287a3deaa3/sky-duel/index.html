@@ -1066,7 +1066,7 @@ function spawn(e){
   }
   const gy=groundH(x,z)+230,fy=foes.length?clamp(cy,gy,620):430;
   e.pos.set(x,Math.max(gy,fy),z);e.h=e.aimH=h;e.p=e.aimP=0;e.r=e.bank=e.rollA=0;e.yr=e.pr=0;
-  e.speed=108;e.thr=.8;e.hp=100;e.heat=0;e.jam=false;e.msl=2;e.flares=2;e.boostM=1;e.shield=SHIELD;e.grace=MSL_GRACE;e.alive=true;e.stalled=false;e.rollT=0;e.rollCd=0;e.outT=0;e.mslT=e.flT=0;e.lock.t=0;e.lastHitBy='';
+  e.speed=108;e.thr=.8;e.hp=100;e.heat=0;e.jam=false;e.msl=2;e.flares=2;e.boostM=1;e.shield=SHIELD;e.grace=MSL_GRACE;e.spawnT=G.time;e.alive=true;e.stalled=false;e.rollT=0;e.rollCd=0;e.outT=0;e.mslT=e.flT=0;e.lock.t=0;e.lastHitBy='';
   dirOf(e.h,e.p,e.fwd);e.vel.copy(e.fwd).multiplyScalar(e.speed);
   if(e===G.me){G.tgtManual=false;G.spec=null;camSnap=true}
 }
@@ -1278,14 +1278,16 @@ function updatePicks(dt){
 //  bot only decides where to aim, the throttle and which buttons to press.
 // =====================================================================
 function mkAI(){return {tg:null,t:0,nT:0,nx:0,ny:0,onT:0,cool:false,mslCd:rand(2,6),hurtT:-99,breakT:0,breakDir:1,breakP:0,wp:new V3(rand(-1500,1500),rand(350,650),rand(-1500,1500)),seen:new Set(),boost:false,circT:0,manT:0,manK:0,tailT:0}}
-// Fair play for people (the host decides, as for everything bots do): a plane that has just spawned (its missile grace,
-// or its shield) is engaged by one bot at most, and in a solo free-for-all only so many bots may hunt the human at once
-// (1 Rookie, 2 Veteran, 3 Ace), so the bots fight each other too.
-const HUNT_CAP=[1,2,3];
+// Fair play for people (the host decides, as for everything bots do): for FRESH seconds after a person spawns no bot
+// picks them as a target unless they have just shot at that bot, a plane in its missile grace or shield is engaged by
+// one bot at most, and in a solo free-for-all only so many bots may hunt the human at once (1 Rookie, 2 Veteran, 3 Ace),
+// so the bots fight each other too.
+const HUNT_CAP=[1,2,3],FRESH=12;
 function huntersOf(o,e){let n=0;for(const b of G.ents.values())if(b!==e&&b.bot&&b.alive&&b.ai&&b.ai.tg===o)n++;return n}
 function pickTarget(e){
   let best=null,bs=1e9;const solo=!G.online&&G.rs&&G.rs.md===1;
   for(const o of G.ents.values()){if(!o.alive||!enemies(e,o))continue;
+    if(!o.bot&&G.time-(o.spawnT||-99)<FRESH&&!(e.lastHitBy===o.id&&G.time-e.lastHitT<4))continue;
     if(o.grace>0||o.shield>0||(solo&&!o.bot)){const n=huntersOf(o,e);if((o.grace>0||o.shield>0)&&n>=1)continue;if(solo&&!o.bot&&n>=HUNT_CAP[e.lvl])continue}
     T1.copy(o.pos).sub(e.pos);const d=T1.length(),ang=e.fwd.angleTo(T1);const s=d*(1+ang*.6)*(o.bot?1:.85);if(s<bs){bs=s;best=o}}
   return best;
@@ -1494,7 +1496,7 @@ const isHost=()=>!G.online||Net.hostUid()===Net.uid;
 function applyState(e,a,ts,now){
   // a: x y z h p r speed flags hull kills deaths
   if(!finN(a[0])||!finN(a[1])||!finN(a[2]))return;
-  const f=a[7]|0;e.speed=numIn(a[6],0,400,100);e.firing=!!(f&1);e.boosting=!!(f&2);e.rolling=!!(f&4);e.alive=!!(f&8)&&!e.out;e.shield=f&16?.3:0;e.grace=f&64?.3:0;
+  const f=a[7]|0,was=e.alive;e.speed=numIn(a[6],0,400,100);e.firing=!!(f&1);e.boosting=!!(f&2);e.rolling=!!(f&4);e.alive=!!(f&8)&&!e.out;e.shield=f&16?.3:0;e.grace=f&64?.3:0;if(e.alive&&!was)e.spawnT=G.time;
   e.hp=numIn(a[8],0,100,100);e.kills=numIn(a[9],0,999,0)|0;e.deaths=numIn(a[10],0,999,0)|0;
   pushSnap(e,ts,clamp(a[0],-4000,4000),clamp(a[1],-50,3000),clamp(a[2],-4000,4000),numIn(a[3],-7,7,0),numIn(a[4],-2,2,0),numIn(a[5],-7,7,0),now);
 }
