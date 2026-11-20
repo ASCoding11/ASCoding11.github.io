@@ -43,7 +43,7 @@
 
   // ---------- kinds and files
   var FILES = {
-    hero: 'hero.glb', ally: 'ally.glb', enemy: 'enemy.glb', anims: 'anims.glb', weapons: 'weapons.glb'
+    hero: 'hero.glb', ally: 'ally.glb', enemy: 'enemy.glb', anims: 'anims.glb', weapons: 'weapons.glb', fp: 'fp.glb'
   };
   // which meshes of which file make each kind (enemy.glb holds all four enemy outfits + their LODs on one body)
   var KINDS = {
@@ -204,7 +204,7 @@
   // ---------- load
   IV.load = function (onProgress) {
     if (IV._loading) return IV._loading;
-    var seen = {}, totals = { hero: 2.9e6, ally: 2.9e6, enemy: 3.2e6, anims: 1.2e6, weapons: 0.5e6 };
+    var seen = {}, totals = { hero: 2.9e6, ally: 2.9e6, enemy: 3.2e6, anims: 1.2e6, weapons: 8e6, fp: 3e6 };
     function prog(name, loaded, total) {
       seen[name] = loaded; if (total) totals[name] = total;
       var a = 0, b = 0;
@@ -220,7 +220,11 @@
       }));
     }).then(function () {
       if (gltf.anims) prepClips(gltf.anims.animations);
-      return fetch(ASSETS + 'anims.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { META = j; }, function () { META = {}; });
+      if (gltf.fp) prepFP(gltf.fp);
+      return Promise.all([
+        fetch(ASSETS + 'anims.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { META = j; }, function () { META = {}; }),
+        fetch(ASSETS + 'fp.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { FPMETA = j; }, function () { FPMETA = null; })
+      ]);
     }).then(function () {
       if (gltf.weapons) prepWeapons(gltf.weapons);
       Object.keys(KINDS).forEach(function (k) {
@@ -263,6 +267,124 @@
     }
     o.userData.long = !!LONG[kind];
     return o;
+  };
+
+  // ---------- first-person viewmodel (fp.glb + fp.json)
+  // Arms and hands from the hero's body with rolled smock sleeves and a wristwatch, on their own skeleton whose
+  // origin is the eye (looking down -Z, +Y up, +X right: the camera's frame). The weapon is a clone of the normal
+  // weapon model whose moving parts ride on skeleton bones (w_root, w_bolt, w_boltHandle, w_mag, w_trigger,
+  // w_hammer, w_charging) and a w_prop bone carries the grenade or the binoculars. Every clip is per weapon kind.
+  var FPMETA = null, FPCLIPS = {};
+  var FP_PARTS = ['bolt', 'boltHandle', 'mag', 'trigger', 'hammer', 'charging'];
+  var FP_BASE = { idle: 1, ads: 1, sprint: 1 };
+  function prepFP(g) {
+    g.animations.forEach(function (c) {
+      c.tracks.forEach(function (t) { if (/\.scale$/.test(t.name) && !/^w_(mag|prop)\./.test(t.name)) t._drop = true; });
+      c.tracks = c.tracks.filter(function (t) { return !t._drop; });
+      FPCLIPS[c.name] = c;
+    });
+    g.scene.traverse(function (o) { if (o.isMesh) { prepMaterial(o.material); if (o.material.map) o.material.map.anisotropy = 8; } });
+  }
+  IV.fpClips = function (kind) {
+    return Object.keys(FPCLIPS).filter(function (n) { return n.indexOf(kind + '.') === 0; }).map(function (n) { return n.slice(kind.length + 1); });
+  };
+  IV.viewmodel = function (kind) {
+    var g = gltf.fp;
+    if (!g || !WTEMPLATES[kind] || !FPCLIPS[kind + '.idle']) return null;
+    var root = T.SkeletonUtils.clone(g.scene);
+    var group = new T.Group(); group.name = 'viewmodel_' + kind; group.add(root);
+    var bones = {}, meshes = [];
+    root.traverse(function (o) {
+      if (o.isBone) bones[o.name] = o;
+      if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; meshes.push(o); }
+    });
+    var gun = IV.weapon(kind);
+    var parts = {};
+    FP_PARTS.forEach(function (p) { var n = gun.getObjectByName(kind + '_' + p); if (n) parts[p] = n; });
+    bones.w_root.add(gun); gun.position.set(0, 0, 0); gun.quaternion.identity();
+    FP_PARTS.forEach(function (p) {
+      var n = parts[p], b = bones['w_' + p];
+      if (!n || !b) return;
+      b.add(n); n.position.set(0, 0, 0); n.quaternion.identity(); n.scale.set(1, 1, 1);
+    });
+    gun.traverse(function (o) { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } });
+    var props = {};
+    ['grenade', 'binoculars'].forEach(function (k) {
+      if (!WTEMPLATES[k]) return;
+      var o = IV.weapon(k); o.visible = false; bones.w_prop.add(o); props[k] = o;
+      o.traverse(function (m) { if (m.isMesh) m.frustumCulled = false; });
+    });
+    var mixer = new T.AnimationMixer(root);
+    var meta = (FPMETA && FPMETA.clips) || {}, kmeta = (FPMETA && FPMETA.kinds && FPMETA.kinds[kind]) || {};
+    var base = {}, one = null, oneName = null, oneT = 0, fired = {};
+    Object.keys(FP_BASE).forEach(function (n) {
+      var c = FPCLIPS[kind + '.' + n]; if (!c) return;
+      var a = mixer.clipAction(c); a.setLoop(T.LoopRepeat, Infinity); a.play(); a.setEffectiveWeight(n === 'idle' ? 1 : 0); base[n] = a;
+    });
+    var oneW = 0, oneFade = 0.1, oneOut = false, st = { ads: 0, sprint: 0 };
+    function find(o, n) { return o.getObjectByName(kind + '_' + n) || null; }
+    var ao = kmeta.adsOffset;
+    var vm = {
+      kind: kind, group: group, weapon: gun, bones: bones, mixer: mixer,
+      clips: IV.fpClips(kind),
+      muzzle: find(gun, 'muzzle'), ejection: find(gun, 'ejection'), scopeEye: find(gun, 'scopeEye'),
+      sockets: { muzzle: find(gun, 'muzzle'), ejection: find(gun, 'ejection'), scopeEye: find(gun, 'scopeEye'),
+                 sightRear: find(gun, 'sightRear'), sightFront: find(gun, 'sightFront'),
+                 handR: bones.hand_r, handL: bones.hand_l, prop: bones.w_prop, weapon: bones.w_root },
+      adsOffset: ao ? { position: new T.Vector3().fromArray(ao.position), quaternion: new T.Quaternion().fromArray(ao.quaternion) } : null,
+      current: null, onEvent: null,
+      clipLength: function (n) { var c = FPCLIPS[kind + '.' + n]; return c ? c.duration : 0; },
+      events: function (n) { var m = meta[kind + '.' + n]; return m ? m.events : {}; },
+      isPlaying: function (n) { return !!one && oneName === n && !oneOut; },
+      play: function (name, o) {
+        o = o || {};
+        if (name === 'fire' && st.ads > 0.5 && FPCLIPS[kind + '.fireAds']) name = 'fireAds';
+        var c = FPCLIPS[kind + '.' + name];
+        if (!c) return 0;
+        if (one && one.getClip() !== c) one.stop();
+        one = mixer.clipAction(c); oneName = name; oneT = 0; fired = {}; oneOut = false;
+        one.reset(); one.setLoop(o.loop ? T.LoopRepeat : T.LoopOnce, o.loop ? Infinity : 1); one.clampWhenFinished = true;
+        one.timeScale = o.speed || 1; one.play();
+        oneFade = o.fade != null ? o.fade : (/^(fire|fireAds)$/.test(name) ? 0.02 : 0.1);
+        if (oneFade <= 0) oneW = 1;
+        var pm = meta[kind + '.' + name], pr = pm && pm.prop;
+        Object.keys(props).forEach(function (k) { props[k].visible = k === pr; });
+        vm.current = name;
+        return c.duration / (one.timeScale || 1);
+      },
+      stop: function (fade) { if (one) { oneOut = true; oneFade = fade != null ? fade : 0.15; } },
+      drive: function (state, dt) {
+        state = state || {};
+        st.ads = Math.max(0, Math.min(1, state.ads || 0)); st.sprint = Math.max(0, Math.min(1, state.sprint || 0));
+        // one-shot weight: fade in, hold, and fade out to the base layer when finished (binoculars hold until lowered)
+        if (one) {
+          var len = one.getClip().duration, m = meta[kind + '.' + oneName] || {};
+          if (!oneOut && !m.hold && !m.loop && one.time >= len - 1e-4 && oneT > 0) { oneOut = true; oneFade = 0.12; }
+          oneW = oneOut ? Math.max(0, oneW - dt / oneFade) : Math.min(1, oneW + dt / Math.max(1e-3, oneFade));
+          if (oneOut && oneW <= 0) { one.stop(); one = null; oneName = null; vm.current = null; Object.keys(props).forEach(function (k) { props[k].visible = false; }); }
+        }
+        var bw = 1 - (one ? oneW : 0);
+        var wa = st.ads * (1 - st.sprint), ws = st.sprint, wi = Math.max(0, 1 - wa - ws);
+        if (base.idle) base.idle.setEffectiveWeight(wi * bw);
+        if (base.ads) base.ads.setEffectiveWeight(wa * bw);
+        if (base.sprint) base.sprint.setEffectiveWeight(ws * bw);
+        if (one) one.setEffectiveWeight(oneW);
+        var t0 = one ? one.time : 0;
+        mixer.update(dt || 0);
+        var out = [];
+        if (one) {
+          oneT += dt;
+          var ev = (meta[kind + '.' + oneName] || {}).events || {}, t1 = one.time;
+          for (var e in ev) if (!fired[e] && t1 >= ev[e]) { fired[e] = 1; out.push({ clip: oneName, name: e, time: ev[e] }); if (vm.onEvent) try { vm.onEvent(e, oneName); } catch (x) {} }
+        }
+        return out;
+      },
+      setVisible: function (b) { group.visible = b; },
+      tris: function () { var n = 0; group.traverse(function (o) { if (o.isMesh && o.visible) { var gg = o.geometry; n += (gg.index ? gg.index.count : gg.attributes.position.count) / 3; } }); return Math.round(n); },
+      dispose: function () { mixer.stopAllAction(); mixer.uncacheRoot(root); if (group.parent) group.parent.remove(group); }
+    };
+    vm.drive({}, 0);
+    return vm;
   };
 
   // ---------- math helpers

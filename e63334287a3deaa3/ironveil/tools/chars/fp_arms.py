@@ -59,6 +59,9 @@ def main():
             upar[i], fpar[i] = u, f
             side[i] = sg
             if u >= CUT: keep[i] = True
+    # the whole body's surface, for placing the sleeves (their rays must hit skin that is about to be removed)
+    full = body.copy(); full.data = body.data.copy(); G.link(full)
+    bvh_full = G.bvh_of(full)
     # skin faces: drop those wholly covered by the sleeve (upper arm, elbow and forearm up to the roll's lower part)
     covered = (upar >= 0) & (fpar < ROLL[0] + 0.02)
     bm = bmesh.new(); bm.from_mesh(me)
@@ -89,7 +92,7 @@ def main():
     bm.to_mesh(skin.data); bm.free()
     log('skin after forearm subdivision', G.tris(skin))
 
-    bvh = G.bvh_of(skin)
+    bvh = bvh_full
     parts = [skin]
     # ---------------- sleeves and rolls
     for s, sg in (('l', 1.0), ('r', -1.0)):
@@ -166,6 +169,7 @@ def main():
     # ---------------- weights for everything that is not skin
     for o in parts[1:]:
         G.transfer_weights(o, skin)
+    bpy.data.objects.remove(full)
     # forearm twist: move part of each forearm vertex's lowerarm weight to a twist bone, growing toward the wrist
     for o in parts:
         for s, sg in (('l', 1.0), ('r', -1.0)):
