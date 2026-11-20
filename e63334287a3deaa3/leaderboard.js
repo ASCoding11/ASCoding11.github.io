@@ -119,6 +119,7 @@
       'Towers climbed': 'Torres escaladas', 'Fastest full run (all 25 levels)': 'Recorrido completo más rápido (los 25 niveles)', 'Fastest full run': 'Recorrido completo más rápido',
       'Most stars': 'Más estrellas', 'Levels cleared (all time)': 'Niveles superados (histórico)', 'Levels cleared': 'Niveles superados', 'Best height': 'Mayor altura',
       'Fastest to the Crown (3000 m)': 'Más rápido a la Corona (3000 m)', 'The Crown': 'La Corona', 'Fastest to the old summit (1000 m)': 'Más rápido a la vieja cumbre (1000 m)', 'Old summit': 'Vieja cumbre',
+      'Longest run (classic Rollaway)': 'Carrera más larga (Rollaway clásico)', 'Best score (classic Rollaway)': 'Mejor puntaje (Rollaway clásico)', 'Classic score': 'Puntaje clásico',
       'Longest Endless run': 'Carrera infinita más larga', 'Best Endless score': 'Mejor puntaje en Infinito', 'Medals (of 72)': 'Medallas (de 72)', 'Power crystals collected': 'Cristales de poder juntados', 'Runs (all time)': 'Carreras (histórico)',
       'Most props found in a round': 'Más objetos encontrados en una ronda', 'Longest survival as a prop': 'Más tiempo sobreviviendo como objeto', 'Props found (all time)': 'Objetos encontrados (histórico)',
       'Most crowns in a row': 'Más coronas seguidas', 'Shows played': 'Shows jugados', 'Answers given (all time)': 'Respuestas dadas (histórico)', 'Longest answer streak': 'Racha de respuestas más larga',
@@ -235,10 +236,14 @@
       { k: 'levels', l: 'Levels cleared (of 57)', chip: 'Levels', f: 'n', u: 'level', hi: 57 },
       { k: 'crystals', l: 'Power crystals collected', chip: 'Crystals', f: 'n', u: 'crystal', hi: 100000, sum: 1 },
       { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
-    { d: 'rollaway', n: 'Rollaway', st: [
-      { k: 'distance', l: 'Longest run', chip: 'Distance', f: 'm', hi: 100000 },
-      { k: 'score', l: 'Best score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
-      { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 5 }] },
+    // Overdrop (formerly Rollaway; folder and stat names unchanged): od-distance and od-score are the steep, fast track
+    // from November 2026; distance and score stay as the classic Rollaway boards, no longer raised
+    { d: 'rollaway', n: 'Overdrop', st: [
+      { k: 'od-distance', l: 'Longest run', chip: 'Distance', f: 'm', hi: 100000 },
+      { k: 'od-score', l: 'Best score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
+      { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 5 },
+      { k: 'distance', l: 'Longest run (classic Rollaway)', chip: 'Classic', f: 'm', hi: 100000 },
+      { k: 'score', l: 'Best score (classic Rollaway)', chip: 'Classic score', f: 'n', u: 'pt', hi: 1e7 }] },
     { d: 'rampline', n: 'Rampline', st: [
       { k: 'medals', l: 'Medals (of 120)', chip: 'Medals', f: 'n', u: 'medal', hi: 120 },
       { k: 'golds', l: 'Gold medals or better (of 30)', chip: 'Golds', f: 'n', u: 'gold', hi: 30 },
