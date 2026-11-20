@@ -380,6 +380,15 @@ def hair_atlas(parts, out_png, size=1024):
     atl = Image.new('RGBA', (size, size), (40, 30, 22, 0))
     for ob, img, (x, y, w, h) in parts:
         im = Image.open(img).convert('RGBA').resize((int(w * size), int(h * size)), Image.LANCZOS)
+        if 'eyebrow' in img:
+            # the brow card is fine single hairs; under an alpha cut-off they break into dashes. Thicken the hair
+            # mass (grow, soften, re-threshold) so the cut-off keeps a continuous brow, with a ragged edge
+            from PIL import ImageFilter
+            r, g, b, al = im.split()
+            al = al.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(1.6))
+            al = al.point(lambda v: max(0, min(255, int((v - 45) * 1.7))))
+            rgb = Image.merge("RGB", (r, g, b)).filter(ImageFilter.MaxFilter(5)).point(lambda v: min(255, int(v * 1.25 + 12)))
+            im = Image.merge('RGBA', (*rgb.split(), al))
         atl.paste(im, (int(x * size), int(y * size)))
         uv = ob.data.uv_layers['UVMap']
         for d in uv.data:

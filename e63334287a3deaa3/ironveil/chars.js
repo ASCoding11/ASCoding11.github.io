@@ -549,9 +549,30 @@
     if (this._lhW > 0.01 && held) {
       held.userData.gripL.updateMatrixWorld(true);
       var tp = worldPos(held.userData.gripL, new T.Vector3()), tq = worldQuat(held.userData.gripL, new T.Quaternion());
+      this._reachL(tp, this._lhW);
       twoBone(this.bones.upperarm_l, this.bones.lowerarm_l, this.bones.hand_l, tp, tq, this._lhW);
     }
     return this;
+  };
+  // left-arm reach: when the fore-grip is further than the arm can stretch, bring the shoulder forward (clavicle,
+  // so the hand can close on the grip instead of stopping short of it
+  AP._reachL = function (tp, w) {
+    var b = this.bones, cl = b.clavicle_l, ua = b.upperarm_l, la = b.lowerarm_l, h = b.hand_l;
+    if (!cl || !ua || !la || !h) return;
+    var S = worldPos(ua, new T.Vector3()), E = worldPos(la, new T.Vector3()), W = worldPos(h, new T.Vector3());
+    var reach = (S.distanceTo(E) + E.distanceTo(W)) * 0.995, q = new T.Quaternion(), used = 0;
+    for (var it = 0; it < 3; it++) {
+      S = worldPos(ua, S);
+      var d = S.distanceTo(tp) - reach;
+      if (d <= 0.001) break;
+      // clavicle: swing the shoulder joint toward the target, up to about 25 degrees in all
+      var C = worldPos(cl, new T.Vector3()), a0 = S.clone().sub(C), want = tp.clone().sub(C);
+      var ang = Math.min(0.44 - used, d / Math.max(a0.length(), 0.05));
+      var axis = new T.Vector3().crossVectors(a0, want);
+      if (ang <= 0 || axis.lengthSq() < 1e-10) break;
+      used += ang; q.setFromAxisAngle(axis.normalize(), ang * w); rotWorld(cl, q);
+    }
+    this.root.updateMatrixWorld(true);
   };
   // ---------------- driven locomotion graph (actor.drive) ----------------
   var DIRS = [['F', 0], ['FL', 45], ['L', 90], ['BL', 135], ['B', 180], ['BR', -135], ['R', -90], ['FR', -45]];
