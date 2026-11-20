@@ -456,8 +456,8 @@
       for (let f = 1; f < floors; f++) for (const c of [uw * 0.27, uw * 0.73]) front.push({ a0: c - 0.45, a1: c + 0.45, y0: f * storey + 0.9, y1: f * storey + 2.2, lit: R() < (sp.lit || 0) * 0.6, broken: R() < sp.damage * 0.5, shutters: plaster });
       const r = house(Bu, Su, { w: uw, d, T, floors, storey, out: plaster ? 'plaster' : (R() < 0.3 ? 'brick_sooty' : 'brick_red'), in: 'plaster_interior', roof: R() < 0.6 ? 'slate' : 'roof_tile', head: plaster ? 'lintel' : 'arch', doorHead: 'timber', front, back: bays(uw, 2, storey + 0.9, storey + 2.1, { w: 0.8 }), left: [], right: [], pitch: 0.7 + R() * 0.15, quoins: plaster, sag: 0.03 + R() * 0.05, gableOver: 0.02, over: 0.3 });
       // fascia sign with a painted name (invented shop words only)
-      const sign = signMesh(NAMES[(S.seed + i * 3) % NAMES.length], uw - 0.6, 0.45, Su.R);
-      sign.position.set(ox, 2.62, d / 2 + 0.06); S.group.add(sign);
+      const sign = signMesh(NAMES[(S.seed + i * 3) % NAMES.length], uw - 0.5, 0.58, Su.R);
+      sign.position.set(ox, 2.6, d / 2 + 0.06); S.group.add(sign);
       Bu.box('timber', 0, 2.55, d / 2 + 0.02, uw - 0.4, 0.62, 0.06, 0, { grain: 'long', tint: new THREE.Color(0.55, 0.5, 0.45) });
       chimney(Bu, Su, uw / 2 - 0.35, -1, r.wallH - 1, r.ridge + 1.0, true);
       const g = Bu.finish(); g.position.x = ox; S.group.add(g);
@@ -470,11 +470,11 @@
   function signMesh(text, w, h, R) {
     const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w);
     const g = c.getContext('2d'); g.fillStyle = '#2c3a33'; g.fillRect(0, 0, c.width, c.height);
-    g.font = 'bold ' + Math.round(c.height * 0.62) + 'px Georgia, "Times New Roman", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#e8dcb4'; g.fillText(text, c.width / 2, c.height * 0.55, c.width * 0.92); g.strokeStyle = '#bba873'; g.lineWidth = 2; g.strokeRect(6, 6, c.width - 12, c.height - 12);
+    g.font = 'bold ' + Math.round(c.height * 0.72) + 'px Georgia, "Times New Roman", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#e8dcb4'; g.fillText(text, c.width / 2, c.height * 0.55, c.width * 0.92); g.strokeStyle = '#bba873'; g.lineWidth = 2; g.strokeRect(6, 6, c.width - 12, c.height - 12);
     // weathering: flaked paint and grime
     for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(${R() < 0.5 ? '20,18,14' : '90,80,64'},${R() * 0.25})`; g.fillRect(R() * c.width, R() * c.height, R() * 5, R() * 2); }
     const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4;
-    const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.06 }); m.userData.linear = true;
+    const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.12 }); m.userData.linear = true;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); mesh.receiveShadow = true; return mesh;
   }
   KINDS.barn = function (B, S, sp) {
@@ -497,8 +497,8 @@
       if (!along) { W.x0 += sd.dx * T; W.z0 += sd.dz * T; W.L -= 2 * T; }
       wallRun(B, W);
       // boarded upper walls: vertical planks on the outside of a timber frame
-      const bt = 0.04, H2 = eave - base;
-      const W2 = { x0: sd.x0 - nx * bt / 2, z0: sd.z0 - nz * bt / 2, dx: sd.dx, dz: sd.dz, L: sd.len, T: bt, H: H2, y0: base, ops: sd.ops.concat(along && sd.z0 > 0 ? [{ a0: L * 0.2 - 0.6, a1: L * 0.2 + 0.6, y0: 3.0, y1: 4.1 }] : []).map(o => Object.assign({}, o)), mats: { out: 'planks', in: 'planks' }, uStart: u, surf: 'wood', capTop: true };
+      const bt = 0.04, H2 = eave - base, plankMat = sp.lit ? 'planks|gaplit' : 'planks';
+      const W2 = { x0: sd.x0 - nx * bt / 2, z0: sd.z0 - nz * bt / 2, dx: sd.dx, dz: sd.dz, L: sd.len, T: bt, H: H2, y0: base, ops: sd.ops.concat(along && sd.z0 > 0 ? [{ a0: L * 0.2 - 0.6, a1: L * 0.2 + 0.6, y0: 3.0, y1: 4.1 }] : []).map(o => Object.assign({}, o)), mats: { out: plankMat, in: 'planks' }, uStart: u, surf: 'wood', capTop: true };
       wallRun(B, W2);
       // posts of the frame inside, every 2.5 m, and a wall plate
       for (let a = 0; a <= sd.len + 0.01; a += sd.len / Math.round(sd.len / 2.5)) {

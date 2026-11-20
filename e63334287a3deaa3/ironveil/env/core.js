@@ -24,6 +24,7 @@
     uWet: { value: 0 },
     uRain: { value: 0 },
     uDust: { value: 0.35 },
+    uNight: { value: 1 },
     uMacro: { value: null },
     uGrime: { value: 1 }
   };
@@ -205,6 +206,7 @@
     m.map.needsUpdate = true; m.normalMap.needsUpdate = true; // clones share the image; repeat differs per material
     m.map.repeat.set(1 / R.size, 1 / R.size); m.normalMap.repeat.copy(m.map.repeat);
     if (R.glass) { m.transparent = true; m.opacity = 0.62; m.depthWrite = false; }
+    if (variant === 'gaplit') { m.userData.gapLit = true; }
     if (variant === 'lit') { m.emissive = E.lin(0xffb46a); m.emissiveIntensity = 1.6; m.transparent = false; m.opacity = 1; m.depthWrite = true; }
     m.shadowSide = THREE.DoubleSide;   // walls are open shells: both faces must block the moon
     patch(m, R, T.alb.image.width);
@@ -221,7 +223,7 @@
     if (!R.noFoot) defs.ENV_FOOT = '';
     m.defines = Object.assign(m.defines || {}, defs);
     const uni = {
-      uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime, uDust: U.uDust,
+      uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime, uDust: U.uDust, uNight: U.uNight,
       uIdAmt: { value: R.id || 0 }, uMacroAmt: { value: R.macro || 0.15 }, uTexSize: { value: S },
       uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: 0.85 }
     };
@@ -234,7 +236,7 @@
           envWP = instanceMatrix * envWP;
         #endif
         vEnvW = (modelMatrix * envWP).xyz; vEnvA = aEnv;`);
-      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
+      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>', MAP_FRAG)
           .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(envRough, 0.03, 1.0);')
@@ -243,11 +245,12 @@
             vec3 mapN = vec3((envN.xy * 2.0 - 1.0) * uNS * normalScale, 0.0);
             mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
             normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);`)
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (m.userData.gapLit ? '{ float gx = vUv.x * 8.0; float gd = min(fract(gx), 1.0 - fract(gx)); float gw = max(0.035, fwidth(gx) * 0.9); float on = step(0.62, fract(sin(floor(gx + 0.5) * 12.9898) * 43758.5)) * smoothstep(0.35, 0.65, texture2D(uMacro, vec2(gx * 0.13, vUv.y * 0.6)).g); totalEmissiveRadiance += vec3(1.0, 0.5, 0.18) * 0.38 * uNight * on * smoothstep(gw, 0.0, gd) * (0.6 + 0.4 * smoothstep(0.2, 0.07, envH)); }' : ''))
           .replace('#include <aomap_fragment>', `
             float envAO = mix(1.0, 0.3 + 0.7 * smoothstep(0.05, 0.75, envH), uAOAmt);
             reflectedLight.indirectDiffuse *= envAO; reflectedLight.indirectSpecular *= envAO * envAO;`);
     };
-    m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).join(',');
+    m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).join(',') + (m.userData.gapLit ? 'gap' : '');
   }
   const MAP_FRAG = `
     vec2 envUv = vUv;

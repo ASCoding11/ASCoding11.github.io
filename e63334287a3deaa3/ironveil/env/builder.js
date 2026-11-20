@@ -107,7 +107,7 @@
       geo.setIndex(B.p.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(B.i, 1) : new THREE.Uint16BufferAttribute(B.i, 1));
       geo.computeBoundingSphere();
       const det = mat.endsWith('#d'), mn = det ? mat.slice(0, -2) : mat;
-      const m = new THREE.Mesh(geo, mn === 'glass_lit' ? E.mat('glass', 'lit') : E.mat(mn));
+      const mv = mn.split('|'), m = new THREE.Mesh(geo, mn === 'glass_lit' ? E.mat('glass', 'lit') : E.mat(mv[0], mv[1]));
       m.castShadow = o.castShadow !== false && !det && mn !== 'glass' && mn !== 'glass_lit'; m.receiveShadow = true; m.name = mn;
       if (det) E.registerDetail(m);
       g.add(m);
@@ -127,8 +127,10 @@
       const m = list[i]; if (!m.parent) { if (m.userData.dead) list.splice(i, 1); continue; }
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       _c.copy(m.geometry.boundingSphere.center).applyMatrix4(m.matrixWorld);
+      const d2 = _c.distanceToSquared(cam.position);
+      if (m.userData.shadowNear) { const sl = m.userData.shadowNear + m.geometry.boundingSphere.radius; m.castShadow = d2 < sl * sl; if (!m.userData.detail) continue; }
       const lim = (m.userData.detail === true ? D : m.userData.detail) + m.geometry.boundingSphere.radius;
-      m.visible = _c.distanceToSquared(cam.position) < lim * lim;
+      m.visible = d2 < lim * lim;
     }
   });
   E.Builder = Builder;
@@ -192,7 +194,7 @@
       let k = mat.uuid + (o.userData.detail ? '#d' : '');
       const cellSize = o.userData.detail ? Math.min(opts.cell || 32, 32) : opts.cell;
       if (cellSize) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const c = o.geometry.boundingSphere.center.clone().applyMatrix4(o.matrixWorld); k += ':' + Math.floor(c.x / cellSize) + ':' + Math.floor(c.z / cellSize); }
-      if (!groups.has(k)) groups.set(k, { mat, list: [], cast: o.castShadow, order: o.renderOrder, depth: o.customDepthMaterial, detail: o.userData.detail });
+      if (!groups.has(k)) groups.set(k, { mat, list: [], cast: o.castShadow, order: o.renderOrder, depth: o.customDepthMaterial, detail: o.userData.detail, shadowNear: o.userData.shadowNear });
       groups.get(k).list.push(o); victims.push(o);
     });
     const out = new THREE.Group(); out.name = 'IVEnv.merged';
@@ -220,7 +222,7 @@
       for (const k in names) geo.setAttribute(k, new THREE.BufferAttribute(arr[k], names[k]));
       geo.setIndex(new THREE.BufferAttribute(idx, 1));
       geo.computeBoundingSphere();
-      const mesh = new THREE.Mesh(geo, G.mat); mesh.castShadow = G.cast; if (G.depth) mesh.customDepthMaterial = G.depth; if (G.detail) E.registerDetail(mesh, G.detail); mesh.receiveShadow = true; mesh.renderOrder = G.order; mesh.name = 'merged:' + (G.mat.userData.ivenv || G.mat.type);
+      const mesh = new THREE.Mesh(geo, G.mat); mesh.castShadow = G.cast; if (G.depth) mesh.customDepthMaterial = G.depth; if (G.detail) E.registerDetail(mesh, G.detail); if (G.shadowNear && G.cast) { mesh.userData.shadowNear = G.shadowNear; E._detail.push(mesh); } mesh.receiveShadow = true; mesh.renderOrder = G.order; mesh.name = 'merged:' + (G.mat.userData.ivenv || G.mat.type);
       out.add(mesh);
     }
     for (const o of victims) { o.parent.remove(o); o.userData.dead = true; if (opts.dispose !== false) o.geometry.dispose(); }

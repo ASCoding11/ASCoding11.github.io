@@ -127,7 +127,7 @@
       return out;
     };
     const wv = [0, 0, 0, 0, 0, 0];
-    for (let cz = z0; cz < z1 - 1e-6; cz += CH) for (let cx = x0; cx < x1 - 1e-6; cx += CH) {
+    const chunk = (cx, cz, step) => {
       const ex = Math.min(cx + CH, x1), ez = Math.min(cz + CH, z1);
       const nx = Math.round((ex - cx) / step) + 1, nz = Math.round((ez - cz) / step) + 1;
       const N = nx * nz, pos = new Float32Array(N * 3), nor = new Float32Array(N * 3), uv = new Float32Array(N * 2), w0 = new Float32Array(N * 4), w1 = new Float32Array(N * 4), gc = new Float32Array(N * 4);
@@ -154,8 +154,18 @@
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
       g.setAttribute('aW0', new THREE.BufferAttribute(w0, 4)); g.setAttribute('aW1', new THREE.BufferAttribute(w1, 4)); g.setAttribute('aGC', new THREE.BufferAttribute(gc, 4));
       g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeBoundingSphere(); g.computeBoundingBox();
-      const mesh = new THREE.Mesh(g, mat); mesh.receiveShadow = true; mesh.name = 'ground'; group.add(mesh); meshes.push(mesh);
+      return g;
+    };
+    // two levels per chunk: the full mesh near the camera, a 2.5x coarser one beyond (swapped in IVEnv.update)
+    const lods = [];
+    for (let cz = z0; cz < z1 - 1e-6; cz += CH) for (let cx = x0; cx < x1 - 1e-6; cx += CH) {
+      const fine = new THREE.Mesh(chunk(cx, cz, step), mat), coarse = new THREE.Mesh(chunk(cx, cz, step * 2.5), mat);
+      for (const m of [fine, coarse]) { m.receiveShadow = true; m.name = 'ground'; group.add(m); meshes.push(m); }
+      coarse.visible = false; lods.push({ fine, coarse, x: Math.min(cx + CH / 2, (cx + x1) / 2), z: Math.min(cz + CH / 2, (cz + z1) / 2) });
     }
+    const near = opts.lodNear || 70;
+    (E._updaters = E._updaters || []).push((dt, cam) => { for (const L of lods) { const d = Math.hypot(L.x - cam.position.x, L.z - cam.position.z) - CH * 0.71; const f = d < near; L.fine.visible = f; L.coarse.visible = !f; } });
+
     E._ground = { surfaceAt };
     return { group, material: mat, meshes, heightFn, surfaceAt };
   };

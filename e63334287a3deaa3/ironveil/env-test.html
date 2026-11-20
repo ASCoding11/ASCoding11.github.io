@@ -168,7 +168,7 @@
   // ---------------------------------------------------------------- UI
   const selP = document.getElementById('preset'), selQ = document.getElementById('quality'), selC = document.getElementById('cam');
   Object.keys(E.PRESETS).forEach(n => selP.add(new Option(n, n, n === preset, n === preset)));
-  Object.keys(CAMS).forEach(n => selC.add(new Option(n, n)));
+  Object.keys(CAMS).forEach(n => selC.add(new Option(n, n))); window.T && (window.T.CAMS = CAMS);
   selQ.value = quality;
   selQ.onchange = () => { qs.set('q', selQ.value); location.search = qs.toString(); };
   selP.onchange = () => { atmo.set(selP.value); };
@@ -230,6 +230,12 @@
       [[-26, 46], [-27, 56], [-25, 68], [-29, 84], [-34, 100]].forEach(([x, z]) => trees.push({ kind: 'poplar', x, z }));
       [[110, -70], [116, -64], [112, -80], [122, -72]].forEach(([x, z]) => trees.push({ kind: 'pine', x, z }));
       trees.push({ kind: 'dead', x: -80, z: 10 }); [[-40, -20], [-44, -25], [64, -30]].forEach(([x, z]) => trees.push({ kind: 'sapling', x, z }));
+      // a line-up of every kind in open pasture, for silhouette checks (z = 125, 22 m apart)
+      const LK = ['oak', 'ash', 'poplar', 'apple', 'pine', 'dead', 'sapling'];
+      LK.forEach((k, i) => { trees.push({ kind: k, x: -110 + i * 22, z: 125, seed: 1 }); CAMS['sil15_' + k] = { p: [-110 + i * 22, 0, 110], look: [-110 + i * 22, 5, 125], eye: 1.7 }; });
+      CAMS.sil40 = { p: [-44, 0, 85], look: [-44, 6, 125], eye: 1.7 }; CAMS.sil100 = { p: [-44, 0, 25], look: [-44, 6, 125], eye: 3.5 };
+      CAMS.sil150 = { p: [-44, 0, -25], look: [-44, 6, 125], eye: 5 };
+      CAMS.dent_long = { p: [-58, 0, -27], look: [-60, -1.6, -24], eye: 1.8 }; CAMS.dent_top = { p: [-60, 0, -25.6], look: [-60, -2.4, -24.2], eye: 2.6 };
       for (const t of trees) t.y = height(t.x, t.z);
       window.T.trees = E.trees(trees); scene.add(window.T.trees.group);
       // the stream with reeds on its banks
@@ -269,7 +275,7 @@
       [[52, 1.4, -76.24], [52.4, 1.1, -76.24], [51.7, 1.7, -76.24]].forEach((p) => E.impact('stone', p, [0, 0, 1]));
     }
     // one mesh per material for everything static (buildings, walls, fences, props)
-    if (!qs.get('nomerge')) { const statics = new THREE.Group(); for (const o of scene.children.slice()) if (o.name && /^IVEnv\.(building|wall|fence|prop|hedge)/.test(o.name)) { scene.remove(o); statics.add(o); } scene.add(statics); scene.add(E.mergeStatic(statics, { cell: 96 })); }
+    if (!qs.get('nomerge')) { const statics = new THREE.Group(); for (const o of scene.children.slice()) if (o.name && /^IVEnv\.(building|wall|fence|prop|hedge)/.test(o.name)) { scene.remove(o); statics.add(o); } scene.add(statics); scene.add(E.mergeStatic(statics, { cell: quality === 'low' ? 160 : 96 })); }
     window.T.ready = true;
   });
 
