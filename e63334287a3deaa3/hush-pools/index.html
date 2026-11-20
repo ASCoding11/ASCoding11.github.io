@@ -1417,21 +1417,89 @@ function lampPatch(m, rim, key) {
 // instancing), with layers of age on top: stained grout, cracked and missing tiles, grime, green-black mould rising
 // from the water, rust runs under the old pipes, peeling paint on the ceiling. Walkable tops (o.lip) show a dark,
 // chipped rim exactly TUNING.edgeMargin wide (landing with your middle on it is loud) and a worn, cleaner middle.
+// Floating tiles (visual only: collision and the rules never see this). Each frame floatFrame works out up to FLOAT_N
+// tiles that are moving (a landing's dip and rock, someone standing on it) and hands them to the shader; every floating
+// tile also bobs very slightly, out of step with its neighbours.
+const FLOAT_N = 12;
+const FLOATU = { uFl: { value: Array.from({ length: FLOAT_N }, () => new THREE.Vector4()) }, uFlT: { value: Array.from({ length: FLOAT_N }, () => new THREE.Vector2()) }, uBob: { value: REDUCED ? 0 : 1 } };
+const BOB_A = 0.012;
+const bobAt = (cx, cz, t) => BOB_A * Math.sin(t * 1.3 + 6.2832 * (((cx * 0.618 + cz * 0.371) % 1 + 1) % 1));
+// Which tiles float: the stepping tiles (not decks, stairs, lanes or the broken walkway) and the moving, sinking and
+// memory tiles (LV.dynOf). A landing "kicks" its tile: a damped dip and rock sized by the same loudness the noise label
+// uses (landNoise), so a clean landing is a soft dip and a small ring, a rim landing a big tilt, a slosh and a loud ring.
+const FLOATS = new Set(['tile', 'stable', 'ledge', 'current']);
+const FK = [];
+const isFloat = b => !!b && b.x0 != null && (FLOATS.has(b.k) || (LV && LV.dynOf && LV.dynOf.has(b)));
+const FO = { y: 0, tx: 0, tz: 0 };
+// how a floating tile sits right now: y (its drawn offset, the idle bob included) and tx, tz (its slope, metres per metre)
+function floatOf(b) {
+  FO.y = 0; FO.tx = 0; FO.tz = 0; if (!isFloat(b)) return FO;
+  if (!REDUCED) FO.y = bobAt((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2, U.time.value);
+  const f = LV.fl && LV.fl.get(b); if (f) { FO.y -= f.dip; FO.tx = f.tx; FO.tz = f.tz; }
+  return FO;
+}
+// the drawn height change at (x, z) on tile b: what the feet of anyone standing there move by
+function floatAt(b, x, z) { if (!isFloat(b)) return 0; const f = floatOf(b); return f.y + f.tx * (x - (b.x0 + b.x1) / 2) + f.tz * (z - (b.z0 + b.z1) / 2); }
+function landKick(b, x, z, loud, quietSound) {
+  if (!isFloat(b) || !G.W) return;
+  const now = U.time.value, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, hx = (b.x1 - b.x0) / 2, hz = (b.z1 - b.z0) / 2;
+  const ox = clamp((x - cx) / hx, -1, 1), oz = clamp((z - cz) / hz, -1, 1), A = (0.03 + loud * 0.12) * (REDUCED ? 0.5 : 1), S = REDUCED ? 0 : 0.012 + loud * 0.17;
+  let k = FK.find(k => k.b === b && now - k.t0 < 0.4);
+  if (k) { if (loud <= k.loud) return; Object.assign(k, { A, sx: -ox * S / hx, sz: -oz * S / hz, loud }); }
+  else { if (FK.length > 24) FK.shift(); FK.push({ b, t0: now, A, sx: -ox * S / hx, sz: -oz * S / hz, loud }); }
+  // the water answers: a ring from the tile's edge, and on a bad landing spray and a slosh over the side you came down on
+  const wy = waterY(G.W, cz), r0 = Math.max(hx, hz);
+  G.rings.push({ x: cx, z: cz, R: r0 + 0.9 + loud * 4.5, r0, t: 0, l: loud > 0 ? loud : -0.4 }); if (G.rings.length > RINGS) G.rings.shift();
+  if (loud > 0 && gfx > 0) {
+    const side = Math.abs(ox) > Math.abs(oz), px = side ? (ox > 0 ? b.x1 : b.x0) : clamp(x, b.x0, b.x1), pz = side ? clamp(z, b.z0, b.z1) : (oz > 0 ? b.z1 : b.z0);
+    splash(px, wy, pz, Math.round(8 + loud * 26), 1.6 + loud * 5);
+    if (loud >= TUNING.loud.hard && Math.hypot(ox, oz) < 0.6) for (const [qx, qz] of [[b.x0, cz], [b.x1, cz], [cx, b.z0], [cx, b.z1]]) splash(qx, wy, qz, 7, 2.5);
+  }
+  if (quietSound != null) sfx(loud > 0 ? 'slosh' : 'land', x, b.y1 != null ? b.y1 : TOP, z, loud > 0 ? 0.6 + loud : 1);
+}
+// each frame: the kicks, people standing on tiles (a little lower, leaning toward where they stand), and the nearest
+// FLOAT_N moving static tiles handed to the shader (moving, sinking and memory tiles take theirs in drawWorld)
+const flSlots = [];
+function floatFrame(dt) {
+  if (!LV || !LV.fl) return;
+  const now = U.time.value; LV.fl.clear();
+  const add = (b, dip, tx, tz) => { let f = LV.fl.get(b); if (!f) LV.fl.set(b, f = { dip: 0, tx: 0, tz: 0 }); f.dip += dip; f.tx += tx; f.tz += tz; };
+  for (let i = FK.length - 1; i >= 0; i--) { const k = FK[i], t = now - k.t0; if (t > 2.2) { FK.splice(i, 1); continue; }
+    const sp = Math.exp(-3.4 * t) * Math.cos(9.5 * t), rk = Math.exp(-2.8 * t) * Math.cos(7 * t); add(k.b, k.A * sp, k.sx * rk, k.sz * rk); }
+  const want = new Map(), stand = (b, x, z) => { if (isFloat(b)) want.set(b, [x, z]); };
+  if (G.mode === 'play' && G.body.gr && !G.body.inW) stand(G.body.gr, G.body.x, G.body.z);
+  for (const [, o] of G.others) if (o.view && o.smp && !(o.a & 24)) stand(supportAt(G.W, o.smp.x, o.smp.y, o.smp.z, 0.1), o.smp.x, o.smp.z);
+  for (const [b, w] of want) { let st = LV.st.get(b); if (!st) LV.st.set(b, st = { v: 0, x: w[0], z: w[1] }); st.x = w[0]; st.z = w[1]; }
+  for (const [b, st] of LV.st) {
+    st.v += ((want.has(b) ? 1 : 0) - st.v) * Math.min(1, dt * 4); if (!want.has(b) && st.v < 0.01) { LV.st.delete(b); continue; }
+    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, hx = (b.x1 - b.x0) / 2, hz = (b.z1 - b.z0) / 2, L = REDUCED ? 0 : 0.012;
+    add(b, (REDUCED ? 0.01 : 0.018) * st.v, -clamp((st.x - cx) / hx, -1, 1) * L / hx * st.v, -clamp((st.z - cz) / hz, -1, 1) * L / hz * st.v);
+  }
+  flSlots.length = 0; for (const [b, f] of LV.fl) if (FLOATS.has(b.k) && !LV.dynOf.has(b)) { f.b = b; f.d = Math.hypot((b.x0 + b.x1) / 2 - camera.position.x, (b.z0 + b.z1) / 2 - camera.position.z); flSlots.push(f); }
+  flSlots.sort((a, c) => a.d - c.d);
+  const U4 = FLOATU.uFl.value, U2 = FLOATU.uFlT.value;
+  for (let i = 0; i < FLOAT_N; i++) { const f = flSlots[i]; if (!f) { U4[i].w = 0; continue; } U4[i].set((f.b.x0 + f.b.x1) / 2, (f.b.z0 + f.b.z1) / 2, f.dip, 1); U2[i].set(f.tx, f.tz); }
+}
 function tileMat(o) {
   const m = new THREE.MeshLambertMaterial({ color: 0xffffff });
   m.userData.u = Object.assign({ uBase: { value: new THREE.Color(o.base) }, uGrout: { value: new THREE.Color(o.grout) }, uSize: { value: o.size || 0.5 }, uGw: { value: o.gw || 0.06 },
     uBand: { value: new THREE.Color(o.band || o.base) }, uBandY: { value: new THREE.Vector2(o.bandY ? o.bandY[0] : 99, o.bandY ? o.bandY[1] : 99) },
-    uLip: { value: o.lip ? TUNING.edgeMargin : 0 }, uDirt: { value: o.dirt == null ? 1 : o.dirt }, uMiss: { value: o.miss || 0 }, uRustY: { value: o.rust || -99 }, uPeel: { value: o.peel || 0 }, uTime: U.time }, LAMPU);
+    uLip: { value: o.lip ? TUNING.edgeMargin : 0 }, uDirt: { value: o.dirt == null ? 1 : o.dirt }, uMiss: { value: o.miss || 0 }, uRustY: { value: o.rust || -99 }, uPeel: { value: o.peel || 0 }, uTime: U.time }, LAMPU, o.float ? FLOATU : {});
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, m.userData.u);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; varying vec2 vLP; varying vec2 vHS;')
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; varying vec2 vLP; varying vec2 vHS;' + (o.float ? `
+uniform vec4 uFl[${FLOAT_N}]; uniform vec2 uFlT[${FLOAT_N}]; uniform float uBob; uniform float uTime;` : ''))
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vec4 hpW = vec4(transformed, 1.0); vec3 hpN = objectNormal; mat4 hpM = modelMatrix;
         #ifdef USE_INSTANCING
           hpW = instanceMatrix * hpW; hpN = mat3(instanceMatrix) * hpN; hpM = modelMatrix * instanceMatrix;
         #endif
         hpW = modelMatrix * hpW; vWP = hpW.xyz; vWN = normalize(mat3(modelMatrix) * hpN);
-        vec2 hpS = vec2(length(hpM[0].xyz), length(hpM[2].xyz)); vLP = position.xz * hpS; vHS = 0.5 * hpS;`);
+        vec2 hpS = vec2(length(hpM[0].xyz), length(hpM[2].xyz)); vLP = position.xz * hpS; vHS = 0.5 * hpS;` + (o.float ? `
+        vec2 fc = hpM[3].xz, fl = vWP.xz - fc;
+        float fdy = uBob * ${BOB_A} * sin(uTime * 1.3 + 6.2832 * fract(fc.x * 0.618 + fc.y * 0.371));
+        for (int i = 0; i < ${FLOAT_N}; i++) { vec4 f = uFl[i]; if (f.w > 0.0 && distance(f.xy, fc) < 0.05) fdy += -f.z + dot(uFlT[i], fl); }
+        transformed.y += fdy / max(length(hpM[1].xyz), 1e-3); vWP.y += fdy;` : ''));
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; varying vec2 vLP; varying vec2 vHS;\nuniform vec3 uBase; uniform vec3 uGrout; uniform float uSize; uniform float uGw; uniform vec3 uBand; uniform vec2 uBandY; uniform float uLip; uniform float uDirt; uniform float uMiss; uniform float uRustY; uniform float uPeel; uniform float uTime;' + GLSL_LAMPS)
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec3 an = abs(vWN);
@@ -1487,11 +1555,12 @@ function tileMat(o) {
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         totalEmissiveRadiance += diffuseColor.rgb * lampLight(vWP, normalize(vWN));`);
   };
-  m.customProgramCacheKey = () => 'bw-tile';
+  m.customProgramCacheKey = () => o.float ? 'bw-tile-float' : 'bw-tile';
   return m;
 }
 const MAT = {
   tile: tileMat({ base: 0xcfcbb6, grout: 0x58584b, size: 0.5, band: 0x6f8d84, bandY: [0.6, 0.78], lip: 1 }),
+  float: tileMat({ base: 0xcfcbb6, grout: 0x58584b, size: 0.5, band: 0x6f8d84, bandY: [0.6, 0.78], lip: 1, float: 1 }),
   pillar: tileMat({ base: 0xb8bcaf, grout: 0x4c524a, size: 0.22, band: 0x3f6a60, bandY: [1.9, 2.1], miss: 0.07, rust: 5.6 }),
   wall: tileMat({ base: 0x9fa69a, grout: 0x404840, size: 0.3, band: 0x3d6058, bandY: [1.15, 1.35], miss: 0.05, rust: 4.75 }),
   floor: tileMat({ base: 0x2d3d36, grout: 0x18201c, size: 0.5, miss: 0.08 }),
@@ -1559,11 +1628,11 @@ function buildLevel(W) {
   const G = new THREE.Group(); scene.add(G);
   LV = { group: G, W, dyn: [], planks: [], waters: [], stones: [], valves: [], lights: [], flick: [], mist: [], doors: [], lamps: [], keypadLamp: null };
   const rnd = mulberry32(hash32('decor:' + W.df));   // the same dressing in every browser
-  const stat = { tile: [], pillar: [], wall: [], mem: [], lane: [], crush: [], door: [], dark: [] };
+  const stat = { tile: [], float: [], pillar: [], wall: [], mem: [], lane: [], crush: [], door: [], dark: [] };
   const dynBoxes = new Set(W.dyn.map(d => d.b));
   for (const b of W.boxes) {
     if (dynBoxes.has(b)) continue;
-    const k = b.k === 'pillar' ? 'pillar' : b.k === 'wall' ? 'wall' : b.k === 'lane' ? 'lane' : b.k === 'crusher' ? 'crush' : 'tile';
+    const k = b.k === 'pillar' ? 'pillar' : b.k === 'wall' ? 'wall' : b.k === 'lane' ? 'lane' : b.k === 'crusher' ? 'crush' : FLOATS.has(b.k) ? 'float' : 'tile';
     stat[k].push(b);
   }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3();
@@ -1578,11 +1647,12 @@ function buildLevel(W) {
   const FR = { sink: frameMat(0xfff2b8), stable: frameMat(0x173235), mover: frameMat(0x3b8fd1), mem: frameMat(0x6d8583) };
   const PLANE = new THREE.PlaneGeometry(1, 1); PLANE.userData.shared = 1; PLANE.rotateX(-Math.PI / 2);
   const addFrame = (b, mat) => { const f = new THREE.Mesh(PLANE, mat); f.position.set((b.x0 + b.x1) / 2, b.y1 + 0.006, (b.z0 + b.z1) / 2); f.scale.set(b.x1 - b.x0, 1, b.z1 - b.z0); G.add(f); return f; };
-  for (const b of W.boxes) if (b.k === 'stable' && !dynBoxes.has(b)) addFrame(b, FR.stable);
+  LV.fframes = [];
+  for (const b of W.boxes) if (b.k === 'stable' && !dynBoxes.has(b)) LV.fframes.push({ f: addFrame(b, FR.stable), b });
   for (const b of W.boxes) if (b.k === 'current') {
     const t = CURRENT_TEX.clone(); t.needsUpdate = true; t.repeat.set(b.cur > 0 ? 2 : -2, 2);
     const m = ownMat(new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
-    const f = addFrame(b, m); f.userData.cur = b.cur; LV.flick.push({ cur: f });
+    const f = addFrame(b, m); f.userData.cur = b.cur; LV.flick.push({ cur: f }); LV.fframes.push({ f, b });
   }
   for (const d of W.dyn) {
     const b = d.b;
@@ -1595,6 +1665,7 @@ function buildLevel(W) {
     if (d.type === 'push') { e.stripe = new THREE.Mesh(BOX, ownMat(new THREE.MeshBasicMaterial({ color: 0xd8432f }))); G.add(e.stripe); }
     LV.dyn.push(e);
   }
+  LV.dynOf = new Set(W.dyn.filter(d => d.type === 'sink' || d.type === 'mem' || d.type === 'move').map(d => d.b)); LV.fl = new Map(); LV.st = new Map(); FK.length = 0;
   // housings that never push: a green light says this lane is open
   for (const h of W.housings) {
     const m = new THREE.Mesh(BOX, MAT.crush); m.position.set(h.x - 0.3, h.y, h.z); m.scale.set(1.2, 2.2, 2.4); G.add(m);
@@ -2141,7 +2212,8 @@ function sfx(name, x, y, z, k) {
     case 'hard': case 'edge': tn(d, t, 130, 55, 0.2, 'sine', 0.6 * k); nz(d, t, 0.1, 'lowpass', 700, 1, 0.3 * k); break;
     case 'sprint': nz(d, t, 0.07, 'bandpass', 2600, 2, 0.16 * k); break;
     case 'step': nz(d, t, 0.05, 'lowpass', 900, 1, 0.05 * k); break;
-    case 'land': nz(d, t, 0.08, 'lowpass', 600, 1, 0.12 * k); break;
+    case 'land': tn(d, t, 92, 46, 0.3, 'sine', 0.2 * k); nz(d, t, 0.09, 'lowpass', 520, 1, 0.08 * k); nz(d, t + 0.13, 0.4, 'bandpass', 720, 1.3, 0.045 * k, 360); break;   // a soft watery whumph, then the lap
+    case 'slosh': tn(d, t, 120, 50, 0.22, 'sine', 0.25 * k); nz(d, t, 0.06, 'highpass', 1800, 0.8, 0.12 * k); nz(d, t + 0.04, 0.55, 'bandpass', 1300, 1, 0.2 * k, 420); nz(d, t + 0.32, 0.4, 'bandpass', 800, 1.2, 0.08 * k, 400); break;   // a slap and the water slopping back
     case 'pebble': tn(d, t, 1900, 1200, 0.09, 'triangle', 0.25 * k); nz(d, t + 0.01, 0.25, 'bandpass', 1800, 1.5, 0.3 * k, 900); break;
     case 'skip': tn(d, t, 2300, 1700, 0.06, 'triangle', 0.2 * k); nz(d, t, 0.12, 'bandpass', 2200, 2, 0.2 * k); break;
     case 'bottle': case 'echo': { const v = name === 'echo' ? 0.4 : 1; nz(d, t, 0.5, 'highpass', 3000, 0.7, 0.6 * k * v); for (let i = 0; i < 6; i++) tn(d, t + Math.random() * 0.3, 2500 + Math.random() * 2200, 2200, 0.12, 'sine', 0.12 * k * v); break; }
@@ -2890,7 +2962,7 @@ function menuFrame(dt) {
   camera.lookAt(Math.sin(a) * 2, 0.8, camera.position.z + 8);
   drawMonsters(A.S.mons, dt, -1);
   if (ME) { ME.g.visible = false; ME.blob.visible = false; }
-  lampFrame(camera.position.x, camera.position.z + 6);
+  lampFrame(camera.position.x, camera.position.z + 6); floatFrame(dt);
   WATER.uniforms.uCam.value.copy(camera.position);
   updateRings(dt);
   stepDrops(dt);
@@ -2984,11 +3056,12 @@ function bodyEvents() {
   const p = G.body;
   for (const e of p.ev) {
     if (e === 'jump') sfx('step', p.x, p.y, p.z, 0.8);
-    else if (e === 'land') { sfx('land', p.x, p.y, p.z, 0.6);
+    else if (e === 'land' && isFloat(p.gr)) { const k = landNoise(p.gr, p.x, p.z, p.lv); landKick(p.gr, p.x, p.z, k ? TUNING.loud.hard : 0, 1);
       // a clean landing says so, softly, so you learn what's safe (the host decides; this uses the same rule)
       if (G.V.ph === 'run' && p.lv < -3 && p.gr && !landNoise(p.gr, p.x, p.z, p.lv)) noiseTag(p.x, (p.gr.y1 != null ? p.gr.y1 : p.gr.top) + 0.25, p.z, NIC.quiet + '<span>quiet</span>', 'q', 1, 1.1); }
     else if (e === 'splash') { splash(p.x, waterY(G.W, p.z), p.z, 30, 5); }
-    else if (e === 'climb') splash(p.x, waterY(G.W, p.z), p.z, 8, 2);
+    else if (e === 'climb') { splash(p.x, waterY(G.W, p.z), p.z, 8, 2); landKick(p.gr, p.x, p.z, TUNING.loud.climb); }
+    else if (e === 'land') sfx('land', p.x, p.y, p.z, 0.6);
   }
   // footsteps (quiet; the host decides whether running is heard)
   if (p.gr && !p.inW && Math.hypot(p.vx, p.vz) > 1) { G.stepT = (G.stepT || 0) - 1 / 60; if (G.stepT <= 0) { G.stepT = isSprint() ? 0.3 : G.crouch ? 0.6 : 0.42; if (!G.crouch) sfx('step', p.x, p.y, p.z, isSprint() ? 1 : 0.25); } }
@@ -3018,6 +3091,7 @@ function runEvents(dt) {
     if (['fall', 'pebble', 'bottle', 'skip', 'struggle', 'wade', 'wadeRun', 'wadeCreep'].includes(e.src)) splash(e.x, e.y, e.z, e.src === 'fall' ? 26 : e.src === 'bottle' ? 18 : e.src === 'wadeRun' ? 12 : 6, e.src === 'fall' ? 5 : e.src.startsWith('wade') ? 2 : 3);
     if (e.src === 'bottle') { for (const gh of G.ghosts) if (gh.k === 1) gh.age = 99; }
     const info = NOISE_INFO[e.src] || { t: 'Noise', ic: 'burst' }, mine = e.u === myUid();
+    if (e.src === 'edge' || e.src === 'hard' || e.src === 'climb') landKick(supportAt(W, e.x, e.y, e.z, 0.45), e.x, e.z, e.l);
     if (Math.hypot(e.x - camera.position.x, e.z - camera.position.z) < 26 && G.mode === 'play') {
       const who = !mine && e.u && V.pl && V.pl[e.u] ? esc(V.pl[e.u].n) + ' · ' : '';
       noiseTag(e.x, e.y + 0.5, e.z, NIC[info.ic] + '<span>' + who + info.t + '</span>', noiseTier(e.src, e.l), 0.8 + Math.min(1.25, e.l) * 0.45, 1.9);
@@ -3113,16 +3187,20 @@ function lampFrame(px, pz) {
 // ---- Drawing each frame ----
 function drawWorld(dt, it) {
   const W = G.W, V = G.V, me = myRec();
+  floatFrame(dt);
   // moving floors
   for (const e of LV.dyn) {
     const b = e.d.b, c = boxCenter(b), m = e.mesh;
     m.position.set(c[0], c[1], c[2]); m.scale.set(b.x1 - b.x0, Math.max(0.01, b.y1 - b.y0), b.z1 - b.z0);
     m.visible = e.d.type !== 'stair' || b.y1 > FLOOR + 0.2;
-    if (e.frame) { e.frame.position.set(c[0], b.y1 + 0.006, c[2]); e.frame.visible = b.y1 > -0.8; }
-    if (e.glow) { const lit = V.ph === 'run' ? memLit(W, G.clock) : -1; e.glow.position.set(c[0], b.y1 + 0.01, c[2]); e.glow.material.opacity = e.d.safe && lit === b.row ? 0.95 : Math.max(0, e.glow.material.opacity - dt * 2.5); }
+    const fo = e.d.type === 'stair' || e.d.type === 'push' || e.d.type === 'door' ? null : floatOf(b);   // moving, sinking and memory tiles float too, on top of what the rules do
+    if (fo) { m.position.y += fo.y; m.rotation.set(-Math.atan(fo.tz), 0, Math.atan(fo.tx)); } else m.rotation.set(0, 0, 0);
+    if (e.frame) { e.frame.position.set(c[0], b.y1 + 0.006 + (fo ? fo.y : 0), c[2]); e.frame.rotation.set(fo ? -Math.atan(fo.tz) : 0, 0, fo ? Math.atan(fo.tx) : 0); e.frame.visible = b.y1 > -0.8; }
+    if (e.glow) { const lit = V.ph === 'run' ? memLit(W, G.clock) : -1; e.glow.position.set(c[0], b.y1 + 0.01 + (fo ? fo.y : 0), c[2]); e.glow.material.opacity = e.d.safe && lit === b.row ? 0.95 : Math.max(0, e.glow.material.opacity - dt * 2.5); }
     if (e.stripe) { e.stripe.position.set(b.x1 + 0.01, c[1] + 0.5, c[2]); e.stripe.scale.set(0.04, 0.3, b.z1 - b.z0 - 0.2); }
   }
   for (const p of LV.planks) { p.m.position.set(p.p.cx, p.p.top - 0.11, p.p.cz); p.m.rotation.y = -p.p.ang; }
+  for (const ff of LV.fframes) { const fo = floatOf(ff.b), c = boxCenter(ff.b); ff.f.position.set(c[0], ff.b.y1 + 0.006 + fo.y, c[2]); ff.f.rotation.set(-Math.atan(fo.tz), 0, Math.atan(fo.tx)); }
   for (const w of LV.waters) w.m.position.y = w.R.wy;
   // mist: the lobby is clear, the halls are thick with it (eased, so walking through the door isn't a jump)
   const fogT = G.body && G.body.z > 0.5 ? 1 : 0; G.fogK = G.fogK == null ? fogT : G.fogK + (fogT - G.fogK) * Math.min(1, dt * 2.5);
@@ -3146,7 +3224,7 @@ function drawWorld(dt, it) {
     let dh = face - (ME.face || 0); dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ME.face = (ME.face || 0) + dh * Math.min(1, dt * 12);
     if (down) poseSwimmer(ME, { x: me.dx, y: me.dy, z: me.dz, h: ME.face, speed: 0, down: true });
     else if (held) { const m = V.mons.find(m => m.grab === myUid()); poseSwimmer(ME, { x: m ? m.x + Math.sin(m.h) * 0.75 : p.x, y: FLOOR + 1.5, z: m ? m.z + Math.cos(m.h) * 0.75 : p.z, h: m ? m.h + Math.PI : ME.face, speed: 0, air: true }); }
-    else poseSwimmer(ME, { x: p.x, y: p.y, z: p.z, h: ME.face, speed: Math.hypot(p.vx, p.vz), air: !p.gr && !p.inW, inW: p.inW, crouch: G.crouch, gy });
+    else { const fy = p.gr && !p.inW ? floatAt(p.gr, p.x, p.z) : 0; poseSwimmer(ME, { x: p.x, y: p.y + fy, z: p.z, h: ME.face, speed: Math.hypot(p.vx, p.vz), air: !p.gr && !p.inW, inW: p.inW, crouch: G.crouch, gy: gy != null ? gy + fy : null }); }
     ME.g.visible = !(G.scare && !SET.soft);
     const sh = me && me.sh > 0 && V.ph === 'run'; ME.cm.emissive && ME.cm.emissive.setHex(sh && Math.sin(U.time.value * 12) > 0 ? 0x225555 : 0);
   }
@@ -3162,7 +3240,13 @@ function drawWorld(dt, it) {
     const inPlay = V.ph === 'run' || V.ph === 'wipe';
     if (inPlay && P && P.st === 2) poseSwimmer(o.view, { x: P.dx, y: P.dy, z: P.dz, h: o.face || 0, speed: 0, down: true });
     else if (inPlay && P && P.st === 1) { const m = V.mons.find(m => m.grab === u); poseSwimmer(o.view, { x: m ? m.x + Math.sin(m.h) * 0.75 : s.x, y: FLOOR + 1.5, z: m ? m.z + Math.cos(m.h) * 0.75 : s.z, h: m ? m.h + Math.PI : o.face || 0, speed: 0, air: true }); }
-    else { const gy = supportAt(W, s.x, s.y, s.z, 0.1) ? s.y : null; poseSwimmer(o.view, { x: s.x, y: s.y, z: s.z, h: o.face || 0, speed: sp, air: !!(o.a & 16), inW: !!(o.a & 8), crouch: !!(o.a & 4), gy }); }
+    else {
+      const sup = supportAt(W, s.x, s.y, s.z, 0.1), gy = sup ? s.y : null, air = !!(o.a & 16), inW = !!(o.a & 8), fy = sup && !air && !inW ? floatAt(sup, s.x, s.z) : 0;
+      // a teammate coming down on a tile: the same dip and ring you'd see for your own (the host's noise makes it bigger if it was loud)
+      if (o.wasAir && !air && !inW && sup) landKick(sup, s.x, s.z, 0, 1);
+      o.wasAir = air && inPlay;
+      poseSwimmer(o.view, { x: s.x, y: s.y + fy, z: s.z, h: o.face || 0, speed: sp, air, inW, crouch: !!(o.a & 4), gy: gy != null ? gy + fy : null });
+    }
     o.view.g.visible = !(P && P.st === 3);
   }
   // monsters: only the rooms near you
@@ -3225,7 +3309,7 @@ function updateRings(dt) {
     const r = G.rings[i];
     if (!r) { R[i].set(0, 0, 0, 0); continue; }
     const u = Math.min(1, r.t / 1.3), e = 1 - Math.pow(1 - u, 2.2);
-    R[i].set(r.x, r.z, Math.max(0.2, r.R * e), Math.min(1, 0.35 + r.l * 0.6) * (1 - Math.max(0, (r.t - 0.9) / 0.9)));
+    R[i].set(r.x, r.z, r.r0 ? r.r0 + (r.R - r.r0) * e : Math.max(0.2, r.R * e), Math.min(1, 0.35 + r.l * 0.6) * (1 - Math.max(0, (r.t - 0.9) / 0.9)));
   }
 }
 function placeCamera(dt, me) {
