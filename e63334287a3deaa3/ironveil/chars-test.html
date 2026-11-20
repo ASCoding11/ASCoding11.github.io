@@ -289,6 +289,10 @@
     var ix = (k.a ? 1 : 0) - (k.d ? 1 : 0), iz = (k.w ? 1 : 0) - (k.s ? 1 : 0);
     var len = Math.hypot(ix, iz); if (len > 0) { ix /= len; iz /= len; }
     var base = ctrl.stance === 'prone' ? TUNE.prone : ctrl.stance === 'crouch' ? TUNE.crouch : ctrl.aim ? TUNE.walk : (k.shift && iz > 0.5 ? TUNE.sprint : (k.walk ? TUNE.walk : TUNE.jog));
+    // the game's speed rules: strafing 85 % and backing 70 % of the stance speed (mixed by direction), the stick
+    // magnitude scales the speed (k.stick)
+    if (len > 0 && !(k.shift && iz > 0.5)) base *= ix * ix * TUNE.strafe + iz * iz * (iz > 0 ? 1 : TUNE.back);
+    if (k.stick) base *= k.stick;
     // input is camera-relative
     var cy = ctrl.camYaw, wx = ix * Math.cos(cy) + iz * Math.sin(cy), wz = -ix * Math.sin(cy) + iz * Math.cos(cy);
     return new THREE.Vector3(wx, 0, wz).multiplyScalar(base);
@@ -303,7 +307,7 @@
     var kk = tv.lengthSq() > ctrl.vel.lengthSq() ? TUNE.accel : TUNE.stop;
     ctrl.vel.lerp(tv, 1 - Math.exp(-kk * dt));
     // body facing: aim -> camera yaw; else toward movement at a capped turn rate
-    var want = ctrl.aim ? ctrl.camYaw : (ctrl.vel.lengthSq() > 0.04 ? Math.atan2(ctrl.vel.x, ctrl.vel.z) : ctrl.yaw);
+    var want = ctrl.aim || k.faceCam ? ctrl.camYaw : (ctrl.vel.lengthSq() > 0.04 ? Math.atan2(ctrl.vel.x, ctrl.vel.z) : ctrl.yaw);
     var dy = ((want - ctrl.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
     var rate = k.shift && !ctrl.aim ? TUNE.sprintTurn : TUNE.turn;
     ctrl.yaw += Math.max(-rate * dt, Math.min(rate * dt, dy));
@@ -427,6 +431,47 @@
       return { t0: c.t0, keys: c.keys, speed: +(c.sp.reduce(function (a, b) { return a + b; }, 0) / c.sp.length).toFixed(2), slideCm: +(mx * 100).toFixed(1) };
     });
   }
+  // The game helper's foot-slide measure (tests/measure.mjs): 60 fps, a contact is the lowest 2.5 cm (ankle) or
+  // 2 cm (ball) of the foot's travel lasting 3 frames or more; drift = largest horizontal move from where it began;
+  // per contact the larger of the ankle and ball drifts. gaitTest(keys) settles 2 s then records 3 s.
+  function gWindows(hs, tol) { var m = Math.min.apply(null, hs), w = [], st = -1; for (var i = 0; i <= hs.length; i++) { var c = i < hs.length && hs[i] <= m + tol; if (c && st < 0) st = i; if (!c && st >= 0) { if (i - st >= 3) w.push([st, i]); st = -1; } } return w; }
+  function gDrift(rec, s, a, b, kx, kz) { var d = 0; for (var k = a; k < b; k++) d = Math.max(d, Math.hypot(rec[k][s][kx] - rec[a][s][kx], rec[k][s][kz] - rec[a][s][kz])); return d; }
+  function gSlide(rec) {
+    var heel = [], toe = [], out = [];
+    ['l', 'r'].forEach(function (s) {
+      gWindows(rec.map(function (f) { return f[s].hh; }), 0.025).forEach(function (w) { heel.push(gDrift(rec, s, w[0], w[1], 'x', 'z')); });
+      gWindows(rec.map(function (f) { return f[s].hb; }), 0.02).forEach(function (w) { toe.push(gDrift(rec, s, w[0], w[1], 'bx', 'bz')); });
+    });
+    for (var i = 0; i < Math.max(heel.length, toe.length); i++) out.push(Math.max(heel[i] || 0, toe[i] || 0));
+    out.sort(function (a, b) { return a - b; }); heel.sort(function (a, b) { return a - b; }); toe.sort(function (a, b) { return a - b; });
+    var md = function (a) { return a.length ? a[a.length >> 1] : 0; };
+    return { n: out.length, med: md(out), p90: out[Math.floor(out.length * 0.9)] || 0, max: out[out.length - 1] || 0, heel: md(heel), toe: md(toe) };
+  }
+  function gFeet(a) {
+    var r = {}, v = new THREE.Vector3(), v2 = new THREE.Vector3();
+    ['l', 'r'].forEach(function (s) { a.bones['foot_' + s].getWorldPosition(v); a.bones['ball_' + s].getWorldPosition(v2);
+      var g = groundAt((v.x + v2.x) / 2, (v.z + v2.z) / 2); r[s] = { x: v.x, z: v.z, bx: v2.x, bz: v2.z, hh: v.y - g, hb: v2.y - g }; });
+    return r;
+  }
+  window.GAIT = function (keys, opts) {
+    opts = opts || {}; var a = DRIVE.a, dt = 1 / 60;
+    ctrl.pos.set(-15, 0, -15); ctrl.vel.set(0, 0, 0); ctrl.yaw = 0; ctrl.camYaw = 0; lastYaw = 0;
+    var st = Object.assign({}, keys); delete st.w; delete st.a; delete st.s; delete st.d; delete st.shift; delete st.stick;
+    for (var i = 0; i < 60; i++) simulate(a, st, dt);
+    for (i = 0; i < 120; i++) simulate(a, keys, dt);
+    var rec = [], sp = 0;
+    for (i = 0; i < (opts.n || 180); i++) { simulate(a, keys, dt); a.root.updateMatrixWorld(true); rec.push(gFeet(a)); sp += ctrl.vel.length(); }
+    var r = gSlide(rec); r.speed = sp / rec.length; return r;
+  };
+  window.GSTOP = function (keys) {
+    var a = DRIVE.a, dt = 1 / 60;
+    ctrl.pos.set(-15, 0, -15); ctrl.vel.set(0, 0, 0); ctrl.yaw = 0; ctrl.camYaw = 0; lastYaw = 0;
+    for (var i = 0; i < 60; i++) simulate(a, {}, dt);
+    for (i = 0; i < 150; i++) simulate(a, keys, dt);
+    var rec = [], still = -1, rest = Object.assign({}, keys); delete rest.w; delete rest.shift;
+    for (i = 0; i < 72; i++) { simulate(a, rest, dt); a.root.updateMatrixWorld(true); rec.push(gFeet(a)); if (still < 0 && ctrl.vel.length() < 0.05) still = i; }
+    var r = gSlide(rec); r.still = still / 60; return r;
+  };
   window.DRIVE = {
     start: function (P) {
       buildGround(TEST.sc);

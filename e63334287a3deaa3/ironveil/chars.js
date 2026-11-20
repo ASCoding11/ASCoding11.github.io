@@ -412,7 +412,8 @@
     if (!/^(hero|ally)$/.test(kind)) this.setFace(Actor._faceN = ((Actor._faceN || 0) + 1) % 3);
     this.play('idle', { fade: 0 });
     // settle on the idle pose now, so the first frame drawn after spawn is never the bind pose
-    this.mixer.update(0); this.root.updateMatrixWorld(true);
+    // (a full update: play() only sets the weights that update() hands to the mixer)
+    this.update(0); this.root.updateMatrixWorld(true);
   }
   var AP = Actor.prototype;
   // weapon moving parts driven by the clips: the rifle bolt follows the hand through boltCycle (lift, back,
