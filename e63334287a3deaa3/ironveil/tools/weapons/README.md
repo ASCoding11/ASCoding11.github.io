@@ -73,3 +73,44 @@ the mesh child carries a quantisation offset from meshopt and should not be move
 | rifleScopedLod, smgLod | none (reduced models, shared atlas) | muzzle, ejection, scopeEye, gripR, gripL |
 
 `IVChars.weapon(kind, { lod: true })` returns the reduced rifle or SMG for other characters and distance.
+
+## What is in the current file (3.45 MB)
+
+| weapon | triangles | draw calls | materials |
+|---|---|---|---|
+| rifleScoped | 10770 | 6 | wpn_glass, wpn_rifle |
+| smg | 8140 | 6 | wpn_smg |
+| binoculars | 1324 | 2 | wpn_atlas, wpn_glass |
+| enemyRifle | 2998 | 5 | wpn_atlas |
+| enemySmg | 2258 | 5 | wpn_atlas |
+| grenade | 1490 | 3 | wpn_atlas |
+| knife | 1454 | 1 | wpn_atlas |
+| mg | 4060 | 7 | wpn_atlas |
+| pistol | 4734 | 5 | wpn_atlas |
+| rifleScopedLod | 3032 | 2 | wpn_atlas, wpn_glass |
+| smgLod | 2108 | 1 | wpn_atlas |
+| stickGrenade | 738 | 1 | wpn_atlas |
+
+| texture | format | bytes |
+|---|---|---|
+| rifle_normal | image/webp | 226 KB |
+| rifle_albedo | image/webp | 286 KB |
+| rifle_orm | image/webp | 444 KB |
+| smg_normal | image/webp | 196 KB |
+| smg_albedo | image/webp | 245 KB |
+| smg_orm | image/webp | 342 KB |
+| atlas_normal | image/webp | 196 KB |
+| atlas_albedo | image/webp | 442 KB |
+| atlas_orm | image/webp | 657 KB |
+
+
+
+Draw calls count one per mesh primitive; the glass lenses are a second material. 
+prints this table for any build.
+
+## Hand frames
+
+The grip frames reuse the hand poses from the character clips () and are then nudged per weapon
+( /  in ) by measuring how many hand vertices end up inside the weapon in the aim pose.
+The clips close the fingers tighter than a real grip, so some finger penetration on the right hand remains whatever the
+weapon shape; it needs per-weapon finger poses in the character clips.
