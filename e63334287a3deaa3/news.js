@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.31', title: 'Sky Duel: cockpit view', kind: 'feature',
+     tags: ['Sky Duel', 'Cockpit'], img: 'm/thumbs/sky-duel.jpg', items: [
+      'Press V in Sky Duel (or tap Cockpit on a phone) to fly from the pilot\'s seat. Press it again for the chase camera.',
+      'You see out through the canopy frame over your own nose, wings and spinning propeller, with a gunsight lined up with your guns.',
+      'The instrument panel works: speed, altitude, attitude, heading, climb, RPM, gun heat and hull, plus warning lights for lock, incoming missiles and stalls.',
+      'Your head turns a little into turns, and the view shakes when you fire or boost. Your choice is remembered, and it is also under View in the settings.'
+    ]},
     {date: '2026-11-19', version: '1.30.2', title: 'No more "moved" error offline', kind: 'fix',
      tags: ['Offline'], items: [
       'Opening a game that isn\'t saved while you\'re offline no longer shows the browser\'s "may have moved" error page.',

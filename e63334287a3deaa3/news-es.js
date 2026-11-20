@@ -6,6 +6,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Sky Duel: cockpit view": "Sky Duel: vista de cabina",
+    "Cockpit": "Cabina",
+    "Press V in Sky Duel (or tap Cockpit on a phone) to fly from the pilot's seat. Press it again for the chase camera.": "Presiona V en Sky Duel (o toca Cabina en el teléfono) para volar desde el asiento del piloto. Vuelve a presionarla para la cámara de persecución.",
+    "You see out through the canopy frame over your own nose, wings and spinning propeller, with a gunsight lined up with your guns.": "Miras a través del marco de la cabina, por encima de tu propia nariz, tus alas y la hélice girando, con una mira alineada con tus armas.",
+    "The instrument panel works: speed, altitude, attitude, heading, climb, RPM, gun heat and hull, plus warning lights for lock, incoming missiles and stalls.": "El tablero funciona: velocidad, altitud, actitud, rumbo, ascenso, RPM, calor de las armas y casco, además de luces de aviso de fijación, misiles entrantes y pérdidas.",
+    "Your head turns a little into turns, and the view shakes when you fire or boost. Your choice is remembered, and it is also under View in the settings.": "Tu cabeza gira un poco hacia las curvas y la vista tiembla cuando disparas o usas el turbo. Tu elección se recuerda y también está en Vista dentro de la configuración.",
     "No more \"moved\" error offline": "Se acabó el error de \"moved\" sin conexión",
     "Opening a game that isn't saved while you're offline no longer shows the browser's \"may have moved\" error page.": "Abrir un juego que no está guardado mientras estás sin conexión ya no muestra la página de error del navegador que dice que pudo haberse movido.",
     "Tapping a faded game while offline now just tells you to play it once with internet first.": "Tocar un juego atenuado sin conexión ahora solo te avisa que lo juegues una vez con internet primero.",
