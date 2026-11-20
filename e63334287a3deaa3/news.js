@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.37', title: 'Install the site as an app', kind: 'feature',
+     items: [
+      'You can now install the site as an app in Chrome (and Edge, and Chrome on Android): open the home page and click Install app under the intro, or the install icon at the right of the address bar.',
+      'It opens in its own window with its own icon, like any other app on your computer, and you can pin it to the taskbar or dock.',
+      'Everything works the same inside it: sign in, the Back Room code, online games and offline play.'
+    ]},
     {date: '2026-11-20', version: '1.36', title: 'Movi: rank your movies', kind: 'feature',
      tags: ['Movi'], items: [
       'Movi is on the site now (Web Development Projects): rank every movie you\'ve seen by picking which of two you liked more, and each one gets a score out of 10.',

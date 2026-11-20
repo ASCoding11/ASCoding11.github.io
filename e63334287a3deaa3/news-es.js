@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Install the site as an app": "Instala la web como una app",
+    "You can now install the site as an app in Chrome (and Edge, and Chrome on Android): open the home page and click Install app under the intro, or the install icon at the right of the address bar.": "Ahora puedes instalar la web como una app en Chrome (y en Edge, y en Chrome para Android): abre la página principal y haz clic en «Install app» debajo de la presentación, o en el icono de instalar a la derecha de la barra de direcciones.",
+    "It opens in its own window with its own icon, like any other app on your computer, and you can pin it to the taskbar or dock.": "Se abre en su propia ventana con su propio icono, como cualquier otra app de tu ordenador, y puedes anclarla a la barra de tareas o al Dock.",
+    "Everything works the same inside it: sign in, the Back Room code, online games and offline play.": "Dentro funciona todo igual: iniciar sesión, el código del Back Room, los juegos en línea y jugar sin conexión.",
     "Movi: rank your movies": "Movi: clasifica tus películas",
     "Movi is on the site now (Web Development Projects): rank every movie you've seen by picking which of two you liked more, and each one gets a score out of 10.": "Movi ya está en la web (Web Development Projects): clasifica todas las películas que has visto eligiendo cuál de dos te gustó más, y cada una recibe una nota sobre 10.",
     "Type a list of movies you remember and it matches them to the real films for you, then follow friends to see what they're watching.": "Escribe una lista de las películas que recuerdes y Movi las encuentra por ti; luego sigue a tus amigos para ver qué están viendo.",
