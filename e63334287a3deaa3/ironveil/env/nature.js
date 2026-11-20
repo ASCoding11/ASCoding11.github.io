@@ -170,6 +170,7 @@
     apple:   { h: [3.5, 5], trunkR: 0.14, trunkH: 0.32, limbs: [4, 5], limbAng: [0.8, 1.2], limbLen: 0.6, depth: 3, child: 3, cards: 0.6, cell: 1, bark: 'bark_oak', crown: [0.6, 0.55], spread: 1.0, tint: 0x9a9088, droop: 0.25 },
     pine:    { h: [12, 18], trunkR: 0.25, trunkH: 0.35, limbs: [44, 54], limbAng: [1.5, 1.85], limbLen: 0.28, depth: 2, child: 3, cards: 0.9, cell: 3, bark: 'bark_pine', crown: [0.6, 0.25], spread: 0.5, tint: 0xffffff, droop: 0.2, whorl: true },
     dead:    { h: [7, 10], trunkR: 0.3, trunkH: 0.35, limbs: [4, 6], limbAng: [0.7, 1.1], limbLen: 0.5, depth: 3, child: 3, cards: 0, cell: 0, bark: 'bark_oak', crown: [0.5, 0.4], spread: 0.9, tint: 0x8a8580, droop: 0.1, broken: true },
+    burnt:   { h: [5, 8], trunkR: 0.28, trunkH: 0.4, limbs: [2, 4], limbAng: [0.6, 1.0], limbLen: 0.4, depth: 2, child: 2, cards: 0, cell: 0, bark: 'bark_oak', crown: [0.5, 0.4], spread: 0.7, tint: 0x2c2826, droop: 0.05, broken: true },
     sapling: { h: [2.2, 3.2], trunkR: 0.04, trunkH: 0.25, limbs: [4, 6], limbAng: [0.5, 0.9], limbLen: 0.35, depth: 2, child: 2, cards: 0.45, cell: 1, bark: 'bark_oak', crown: [0.6, 0.3], spread: 0.6, tint: 0xb0a898, droop: 0.05 }
   };
   E.TREE_KINDS = KIND;
@@ -278,7 +279,7 @@
       let centres = [];
       if (kind === 'poplar') { for (let y = H * 0.14; y < H * 0.98; y += 0.9) centres.push(new V3(R.range(-0.3, 0.3), y, R.range(-0.3, 0.3))); }
       else { const mergeD = kind === 'sapling' ? 0.4 : 1.3; for (const t of tips) { if (!centres.some(c => c.distanceTo(t) < mergeD)) centres.push(t.clone().add(new V3(0, 0.35, 0))); } }
-      const rs0 = { oak: 1.9, ash: 1.6, apple: 1.2, sapling: 0.55, poplar: 1.55, dead: 0 }[kind] || 1.4;
+      const rs0 = { oak: 1.9, ash: 1.6, apple: 1.2, sapling: 0.55, poplar: 1.55, dead: 0, burnt: 0 }[kind] || 1.4;
       const per = Math.round((lod ? 10 : 30) * (kind === 'poplar' ? 1.4 : K.cards)), size0 = { sapling: 0.55, apple: 0.95, poplar: 1.3 }[kind] || 1.35;
       for (const cc of centres) {
         const rs = rs0 * R.range(0.8, 1.2) * (kind === 'poplar' ? (1 - 0.45 * Math.pow(cc.y / H, 3)) : 1);
@@ -401,7 +402,7 @@
     let total = 0; const segs = [];
     for (let i = 0; i < points.length - 1; i++) { const a = points[i], b = points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, L, s0: total }); total += L; }
     const inGap = (s) => opts.gaps.some(g => s > g[0] && s < g[1]);
-    const CH = 16, perM = E.Q.name === 'low' ? 9 : E.Q.name === 'medium' ? 17 : 30, cardK = E.Q.name === 'medium' ? 1.25 : E.Q.name === 'high' ? 1.06 : 1;   // fewer, larger cards on Medium
+    const CH = 16, perM = E.Q.name === 'low' ? 7 : E.Q.name === 'medium' ? 17 : 30, cardK = E.Q.name === 'medium' ? 1.25 : E.Q.name === 'high' ? 1.06 : 1.12;   // fewer, larger cards on Medium
     const lm = E.leafMaterial('hedge', { stiff: 0.4 }), bm = E.barkMaterial('bark_oak', 0.3);
     for (let c0 = 0; c0 < total; c0 += CH) {
       const L = { p: [], n: [], u: [], c: [], w: [], i: [] }, Bk = E.builder(opts.seed + c0);
@@ -480,7 +481,7 @@
   }
   const PLANTS = {
     wheat: { dens: 7, r: [25, 35, 45], scale: [0.7, 1.15], tint: 0xa09070, cell: 7, stiff: 1.4 },
-    maize: { dens: 2.2, r: [40, 55, 70], scale: [0.85, 1.15], tint: 0x9a9a68, cell: 3, stiff: 1.0 },
+    maize: { dens: 2.2, r: [35, 45, 60], scale: [0.85, 1.15], tint: 0x767c56, cell: 3, stiff: 1.0 },
     reeds: { dens: 3, r: [20, 30, 40], scale: [0.8, 1.2], tint: 0x8a9a5a, stiff: 1.2 },
     ferns: { dens: 1.2, r: [18, 25, 35], scale: [0.7, 1.3], tint: 0x6a8040, stiff: 0.6 },
     brambles: { dens: 0.8, r: [18, 25, 35], scale: [0.8, 1.4], tint: 0x5a6a38, stiff: 0.5 },
@@ -583,6 +584,13 @@
     };
     m.userData.linear = true; pudMat = m; return m;
   };
+  // opaque brown water (shell holes, ruts in clay): the same ripples, a muddy colour, little reflection
+  let pudMatB = null;
+  E.puddleMaterialBrown = function () {
+    if (pudMatB) return pudMatB;
+    const m = E.puddleMaterial().clone(); m.color.setHex(0x2a2012); m.roughness = 0.16; m.envMapIntensity = 0.3; m.onBeforeCompile = E.puddleMaterial().onBeforeCompile; m.customProgramCacheKey = () => 'ivpuddle';
+    m.userData.linear = true; pudMatB = m; return m;
+  };
   E.puddleMesh = function (list, opts) {
     const B = { p: [], n: [], u: [], i: [] };
     for (const [x, y, z, a, b, r] of list) {
@@ -592,7 +600,7 @@
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(B.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(B.n, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(B.u, 2)); g.setIndex(B.i);
     g.computeBoundingSphere();
-    const m = new THREE.Mesh(g, E.puddleMaterial()); m.receiveShadow = true; m.renderOrder = 1; m.name = 'puddles'; return m;
+    const m = new THREE.Mesh(g, opts && opts.brown ? E.puddleMaterialBrown() : E.puddleMaterial()); m.receiveShadow = true; m.renderOrder = 1; m.name = 'puddles'; return m;
   };
 
   // ------------------------------------------------------------------ the stream

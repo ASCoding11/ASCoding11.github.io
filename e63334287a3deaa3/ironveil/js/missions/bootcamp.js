@@ -12,7 +12,9 @@
   function height(x, z) {
     const base = 0.6 * IV.fbm(x / 60 + 5, z / 60, 3) + (Math.abs(x) > 40 ? (Math.abs(x) - 40) * 0.05 : 0) + (z < -320 ? (-320 - z) * 0.2 : 0);
     const out = Math.max(smoothEdge(Math.abs(x), 58, 130), smoothEdge(z, 185, 260));
-    return base + out * (7 * IV.fbm(x / 95 + 11, z / 95 - 4, 4) + 3 * IV.fbm(x / 33, z / 33 + 7, 3) - 2) + campRoll(x, z) * (1 - out);
+    // the range butts are cut into a bank: a 2.6 m earth bank rises behind the target frames (z -300 and beyond)
+    const butts = smoothEdge(-z, 299, 306) * (1 - smoothEdge(Math.abs(x), 30, 44)) * 2.6;
+    return base + butts + out * (7 * IV.fbm(x / 95 + 11, z / 95 - 4, 4) + 3 * IV.fbm(x / 33, z / 33 + 7, 3) - 2) + campRoll(x, z) * (1 - out);
   }
   // gentle rolls inside the camp (up to about a metre), flat where things stand: the course and the ranges, the
   // stations, every building, tent and the parade square keep the ground they had
@@ -22,7 +24,7 @@
     let d = 99;
     for (const r of FLAT) { const dx = Math.max(r[0] - x, 0, x - r[2]), dz = Math.max(r[3] - z, 0, z - r[1]); d = Math.min(d, Math.hypot(dx, dz)); }
     const k = smoothEdge(d, 2, 12);
-    return k * (1.6 * (IV.fbm(x / 34 + 3, z / 34 - 6, 3) - 0.5) + 0.5 * (IV.fbm(x / 9, z / 9 + 2, 2) - 0.5));
+    return k * (2.7 * (IV.fbm(x / 38 + 3, z / 38 - 6, 3) - 0.5) + 0.6 * (IV.fbm(x / 10, z / 10 + 2, 2) - 0.5));   // rolling 1-2 m (grades under ~9 deg)
   }
   function surface(x, z) { if (Math.abs(x) < 2.2 && z > 0) return S.gravel; if (Math.abs(x + 18) < 5 && Math.abs(z + 2) < 5) return S.mud; return S.grass; }
   // what grows where (IVEnv ground and grass; see world.js W.surfaceAt). Long grass at fence feet, hut walls and posts

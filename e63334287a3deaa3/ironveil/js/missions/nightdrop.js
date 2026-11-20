@@ -20,7 +20,8 @@
   const ST = [[-56, -188], [-48, -130], [-42, -80], [-41, -35], [-44, -5], [-41, 18], [-36, 60], [-42, 110], [-35, 188]]; // stream
   const WHEAT = [[18, -36], [82, -44], [88, -14], [92, 22], [20, 24]];
   const MAIZE = [[13.5, -60], [28, -59.5], [28, -113], [15.5, -112]];   // standing maize beside the approach: the route runs up a trampled path at x 24
-  const PAST = [[-170, 60], [-75, 52], [-70, 140], [-165, 150]];      // the landing pasture (tall grass patches)
+  const PAST = [[-170, 60], [-75, 52], [-70, 140], [-165, 150]];
+  const MAIZE2 = [[-172, -162, -130, -117, 43]];   // a west maize block (dressing; clear of the copses and the hay field)      // the landing pasture (tall grass patches)
   const FARM = { x: 108, z: -76 };
   const HOUSE = { x: 98, z: -92, w: 16, d: 9 };
   const BARN = { x: 124, z: -73, w: 10, d: 16 };
@@ -138,6 +139,7 @@
     if (dl < 2.3) return 'lane';
     if (dl < 3.2) return 'verge';
     if (x > 88 && x < 132 && z > -86 && z < -55) return 'yard';
+    for (const m of MAIZE2) if (x > m[0] - 1.2 && x < m[2] + 1.2 && z > m[1] - 1.2 && z < m[3] + 1.2) return x > m[0] + 1.2 && x < m[2] - 1.2 && z > m[1] + 1.2 && z < m[3] - 1.2 ? 'field' : 'worn';
     if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'field';
     // damp hollows (darker, trodden, a little standing water) and shorter-grazed patches break up the open fields
     if (Math.hypot(x - 95, z - 160) < 21) return 'yard';   // the old quarry: stone and spoil
@@ -295,7 +297,7 @@
       // village skylines on the far hills: shells only, no colliders
       const hFar = IVEnv.skirtHeightAt || ((x, z) => W.height(Math.max(-188, Math.min(188, x)), Math.max(-188, Math.min(188, z))));
       const village = (cx, cz, n, sd, church) => { const RV = IV.rng(sd), list = []; if (church) list.push({ kind: 'church', w: 15, d: 8, x: cx, z: cz, rot: RV() * 6.28, shellOnly: true, solid: false });
-        for (let i = 0; i < n; i++) { const a = RV() * 6.28, r = 12 + RV() * 55, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r * 0.6, k = RV(); list.push({ kind: k < 0.55 ? 'cottage' : k < 0.75 ? 'farmhouse' : k < 0.9 ? 'shoprow' : 'barn', w: 7 + RV() * 5, d: 5.5 + RV() * 2, floors: RV() < 0.5 ? 2 : 1, units: 2, x, z, rot: Math.round(RV() * 4) * H2 + RV() * 0.3, lit: RV() < 0.15 ? 0.6 : 0, shellOnly: true, solid: false }); }
+        for (let i = 0; i < n; i++) { const a = RV() * 6.28, r = 12 + RV() * 55, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r * 0.6, k = RV(); list.push({ kind: k < 0.2 ? 'ruin' : k < 0.55 ? 'cottage' : k < 0.75 ? 'farmhouse' : k < 0.9 ? 'shoprow' : 'barn', damage: k < 0.2 ? 0.95 : k < 0.4 ? 0.6 : 0, w: 7 + RV() * 5, d: 5.5 + RV() * 2, floors: RV() < 0.5 ? 2 : 1, units: 2, x, z, rot: Math.round(RV() * 4) * H2 + RV() * 0.3, lit: RV() < 0.15 ? 0.6 : 0, shellOnly: true, solid: false }); }
         return list; };
       if (IV.art.envOn()) IV.art.settle(b, [...village(330, -30, 14, 61, true), ...village(-70, -340, 10, 62, true), ...village(-310, 230, 9, 63, false), ...village(250, 300, 8, 64, false)], { seed: 626, shellOnly: true, heightFn: hFar, lights: false });
     }
@@ -319,6 +321,59 @@
       for (const [x, z] of [[-24, 40], [-25, 77], [22, 58], [24, 30], [-27, 98], [43, 99], [31, 99], [44, 76]]) tree(x, z, RF2() < 0.6 ? 'apple' : 'ash');
       for (const [x, z] of [[-110, 40], [-70, 100], [60, 100], [140, 90], [-120, -60], [90, 0], [-40, 140], [150, -110], [-140, 165], [40, -150]]) tree(x, z, 'oak');
       for (const [x, z] of [[-58, 58], [-62, 152], [-28, 72], [97, 26], [32, -57], [148, -72], [-168, -78], [-72, -88]]) for (let i = 0; i < 3; i++) tree(x + RF2.range(-3, 3), z + RF2.range(-3, 3), 'apple'); } }
+    // ---- the war has passed through here (destruction-and-bullet-damage, mud-and-splashes): every shell hole has a
+    // rim of thrown clods, stones and dried crust, scorched soil and brown water in the bottom; burnt dead trees stand
+    // by the holes and the ruins; a telegraph line on the south road leans, sags and has one wire down; a burnt-out
+    // lorry lies nose-down in the crater west of the lane; rubble mounds with loose bricks and charred beams by the
+    // ruins; sandbag walls at the far ruined farm and the lorry. All off the routes (the same rules as the trees).
+    if (IV.art.envOn() && IVEnv.builder && IVEnv.prop) { try {
+      const root = W.envRoot && W.envRoot.parent ? W.envRoot : W.statics, RW = IV.rng(3131), pud = [];
+      const off = (x, z) => pd(x, z, L1) < 4 || pd(x, z, L2) < 4 || pd(x, z, R1) < 4 || pd(x, z, R2) < 4 || pd(x, z, R3) < 4 || Math.hypot(x - FARM.x, z - FARM.z) < 34 || Math.hypot(x - AA.x, z - AA.z) < 16;
+      const lowQ = IVEnv.Q && IVEnv.Q.name === 'low';
+      for (const C of CRATERS) {
+        const [cx, cz, r] = C, RC = IV.rng((cx * 13 + cz * 7) | 0), by = W.height(cx, cz), WB = IVEnv.builder(cx * 7 + cz | 0);   // one mesh per hole: culled and hidden past 70 m
+        for (let k = 0; k < 18 + r * 3; k++) { const a = RC() * 6.283, d = r * RC.range(0.95, 1.55), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, y = W.height(x, z), s = RC.range(0.08, 0.32) * (RC() < 0.15 ? 2 : 1);
+          if (lowQ) continue; WB.geo(RC() < 0.7 ? 'mud' : 'earth', IVEnv.rockGeo((RC() * 40) | 0, 0), new THREE.Matrix4().compose(new THREE.Vector3(x, y - s * 0.35, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(RC() * 3, RC() * 3, RC() * 3)), new THREE.Vector3(s, s, s)), {}); }
+        for (let k = 0; k < (lowQ ? 0 : 8 + r * 2); k++) { const a = RC() * 6.283, d = r * RC.range(0.3, 1.4), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d; const s = RC.range(0.06, 0.18); WB.geo('fieldstone', IVEnv.rockGeo((RC() * 40) | 0, 0), new THREE.Matrix4().compose(new THREE.Vector3(x, W.height(x, z) - 0.04, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(RC() * 3, RC() * 3, RC() * 3)), new THREE.Vector3(s, s, s)), {}); }
+        for (let k = 0; k < 6; k++) { const a = RC() * 6.283, d = r * RC.range(1.0, 1.5), x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d; WB.box('earth', x, W.height(x, z) - 0.03, z, RC.range(0.3, 0.7), 0.06, RC.range(0.2, 0.5), RC() * 3, { rx: RC.range(-0.2, 0.2), rz: RC.range(-0.2, 0.2), tint: new THREE.Color(0.85, 0.8, 0.72) }); }   // dried crust plates
+        WB.decal('scorch', [cx, by + 0.05, cz], [0, 1, 0], r * 3.2, r * 3.2, RC() * 3);
+        for (let k = 0; k < 3; k++) { const a = RC() * 6.283; WB.decal('scorch', [cx + Math.cos(a) * r * 1.3, W.height(cx + Math.cos(a) * r * 1.3, cz + Math.sin(a) * r * 1.3) + 0.05, cz + Math.sin(a) * r * 1.3], [0, 1, 0], r * 1.4, r * 0.9, a); }
+        pud.push([cx + RC.range(-0.3, 0.3), W.height(cx, cz) + 0.12, cz + RC.range(-0.3, 0.3), r * RC.range(0.38, 0.55), r * RC.range(0.3, 0.45), RC() * 3]);
+        // a burnt, dead tree on the rim of most holes
+        { const g = WB.finish({ castShadow: false }); g.traverse(m => { if (m.isMesh && !m.userData.detail && IVEnv.registerDetail) IVEnv.registerDetail(m, 70); }); root.add(g); }
+        if (RW() < 0.7) { const a = RW() * 6.283, x = cx + Math.cos(a) * (r * 1.9 + 1.5), z = cz + Math.sin(a) * (r * 1.9 + 1.5); if (!off(x, z)) IV.art.tree(b, x, z, RW() < 0.6 ? 'burnt' : 'dead', RW); }
+      }
+      for (const [x, z] of [[8, 112], [17, 98], [168, -158], [160, -170], [-129, -8], [-80, -66], [-20, -131], [148, -32]]) if (!off(x, z)) IV.art.tree(b, x, z, RW() < 0.7 ? 'burnt' : 'dead', RW);
+      if (IVEnv.puddleMesh) W.scene.add(IVEnv.puddleMesh(pud, { brown: true }));
+      // tyre ruts across the open ground from the lorry's last run: two wet tracks (ground marks) with puddles
+      if (IVEnv.marks) { let x = -150, z = -32; const dir = 0.32; for (let t = 0; t < 30; t += 0.9) { const px = x + Math.cos(dir) * t, pz = z + Math.sin(dir) * t; for (const sdd of [-0.85, 0.85]) IVEnv.marks.stamp(px - Math.sin(dir) * sdd, pz + Math.cos(dir) * sdd, 'rut', dir, 0.9); } }
+      let WB = IVEnv.builder(3131);
+      // the burnt-out lorry in the crater west of the lane, nose down, and a sandbag wall beside it
+      try { const tr = IVEnv.prop('truck', 77), tx = -124, tz = -16, ty = W.height(tx, tz); tr.group.position.set(tx, ty - 0.35, tz); tr.group.rotation.set(-0.18, 2.4, 0.12);
+        tr.group.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.aEnv) { m.geometry = m.geometry.clone(); const a = m.geometry.attributes.aEnv; for (let i = 0; i < a.count; i++) a.setXYZ(i, 0.24 + 0.06 * Math.sin(i * 0.37), 0.21, 0.19); a.needsUpdate = true; } });
+        root.add(tr.group); W.addBox(tx, tz, 1.3, 3.2, ty - 0.5, ty + 2.2, 2.4, F.SOLID | F.BULLET | F.NAV | F.SIGHT, 'metal');
+        WB.decal('soot', [tx, ty + 0.08, tz], [0, 1, 0], 7, 5, 0.6); for (let k = 0; k < 4; k++) WB.decal('scorch', [tx + RW.range(-3, 3), W.height(tx, tz) + 0.06, tz + RW.range(-3, 3)], [0, 1, 0], 2.5, 2.5, RW() * 3); } catch (e) { console.warn('wreck', e); }
+      IV.art.prop('sandbags', b, -118, -24, -113, -21, 3);
+      // the far ruined farm: a sandbagged post in its yard, rubble mounds with beams
+      IV.art.prop('sandbags', b, 158, -156, 162, -152, 3); IV.art.prop('sandbags', b, 162, -152, 166, -151, 3);
+      { const g = WB.finish(); g.traverse(m => { if (m.isMesh && IVEnv.registerDetail && !m.userData.detail) IVEnv.registerDetail(m, 80); }); root.add(g); WB = IVEnv.builder(4243); }
+      const RB = IVEnv.rng(4242);
+      for (const [x, z, rr, n] of [[163, -160, 2.6, 34], [170, -170, 2.0, 22], [11, 92, 2.2, 26], [15.8, 99.5, 1.4, 12]]) {
+        const y = W.height(x, z); IVEnv.rubble(WB, x, z, rr, RB, { brick: 'brick_sooty', stone: 'fieldstone' }, n, y);
+        for (let k = 0; k < 3; k++) WB.box('timber', x + RB.range(-rr, rr) * 0.6, y + RB.range(0.1, 0.5), z + RB.range(-rr, rr) * 0.6, 0.16, 0.18, RB.range(1.6, 3.2), RB() * 3, { rx: RB.range(-0.35, 0.35), rz: RB.range(-0.2, 0.2), grain: 'long', tint: new THREE.Color(0.28, 0.25, 0.22) });
+        WB.decal('soot', [x, y + 0.05, z], [0, 1, 0], rr * 2.6, rr * 2.2, RB() * 3);
+        { const g = WB.finish(); g.traverse(m => { if (m.isMesh && IVEnv.registerDetail && !m.userData.detail) IVEnv.registerDetail(m, 70); }); root.add(g); WB = IVEnv.builder(x * 3 | 0); }
+      }
+      // leaning telegraph poles down the south road, wires sagging between them; the third span is down
+      { const wires = [], tops = []; let prev = null;
+        for (let i = 0; i < 6; i++) { const t = i / 5, z = -50 - t * 125, x = 3 + (8 - 3) * ((-z - 42) / 58 > 1 ? 1 : (-z - 42) / 58) + (z < -100 ? (12 - 8) * (-z - 100) / 88 : 0) - 5.5;
+          const p = IVEnv.prop('telegraph', 900 + i), y = W.height(x, z), lean = [0.02, -0.06, 0.16, 0.09, -0.04, 0.22][i]; p.group.position.set(x, y, z); p.group.rotation.set(0, 1.5, lean); root.add(p.group); p.group.updateMatrixWorld(true);
+          const tw = (p.group.userData.wireTop || []).map(v => new THREE.Vector3(v[0], v[1], v[2]).applyMatrix4(p.group.matrixWorld));
+          if (prev) for (let k = 0; k < Math.min(prev.length, tw.length); k++) { if (i === 3 && k < 2) { const a = prev[k]; wires.push([a.x, a.y, a.z, a.x + RW.range(-0.5, 0.5), W.height(a.x, a.z - 5) + 0.05, a.z - 5 - k]); continue; } wires.push([prev[k].x, prev[k].y, prev[k].z, tw[k].x, tw[k].y, tw[k].z]); }
+          prev = tw; }
+        if (IVEnv.wireMesh) root.add(IVEnv.wireMesh(wires, 0.012, 0.9)); }
+      { const g = WB.finish(); g.traverse(m => { if (m.isMesh) m.userData.detail = m.userData.detail || 70; }); root.add(g); }
+    } catch (e) { console.warn('war dressing', e); } }
     // scattered field trees
     [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)
@@ -412,6 +467,9 @@
     // crops (wheat) and tall grass in the pasture
     IV.art.crops(WHEAT, 0.95 * W.P.crops, 1.15, 0xb7a56e);
     if (IV.art.envOn() && IVEnv.scatter) { try { const mz = IVEnv.scatter('maize', (x, z) => { if (!IV.inPoly(x, z, MAIZE) || Math.abs(x - 24) < 0.9) return 0; let e = 1e9; for (let i = 0; i < 4; i++) { const a = MAIZE[i], c = MAIZE[(i + 1) % 4]; e = Math.min(e, IV.segDist(x, z, a[0], a[1], c[0], c[1]).d); } return e < 1.4 ? 0 : 1; }, { heightFn: W.height, density: 1, bounds: [13, -114, 29, -59], seed: 41 }); W.scene.add(mz.group); } catch (e) { console.warn('maize', e); } }
+    // more maize in the west fields (dressing only: the world's own surface stays grass, so stealth and AI rules there
+    // are as before): two blocks with a headland strip of stubble round each, rows following the block
+    if (IV.art.envOn() && IVEnv.scatter) for (const [x0, z0, x1, z1, sd] of MAIZE2) { try { const mz = IVEnv.scatter('maize', (x, z) => { const e = Math.min(x - x0, x1 - x, z - z0, z1 - z); return e < 1.6 ? 0 : 1; }, { heightFn: W.height, density: 1, bounds: [x0, z0, x1, z1], seed: sd }); W.scene.add(mz.group); } catch (e) { console.warn('maize2', e); } }
     // grass round the camera
     grass = IV.art.grass(W.P.grass, W.P.grassR, (x, z) => { const s = W.surfAt(x, z); if (s === S.tallgrass) return 1.5; if (s !== S.grass) return 0; return 0.55 + IV.noise(x / 6, z / 6) * 0.6; }, (x, z, c) => c.setRGB(0.42 + IV.noise(x / 9, z / 9) * 0.15, 0.46, 0.25));
     // tall grass also counts as concealment: second pass of taller cards on tallgrass only
