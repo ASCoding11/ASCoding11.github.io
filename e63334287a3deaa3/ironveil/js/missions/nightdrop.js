@@ -171,6 +171,49 @@
       for (const [x, z, r] of [[-60, 100, Math.PI / 2], [-29, 120, Math.PI / 2], [-120, 161, 0], [70, 64, 0.09], [150, -100, Math.PI / 2], [-120, -155, -0.1], [90, 115, 0.11]]) if (IVEnv.Q.name !== 'low') put('gate', x, z, r, { width: 3.4, open: 0.9 + RF() * 0.5 }, false);
       for (const [x, z] of [[-128, 92], [62, 40], [-96, -128], [160, -128], [-150, 20]]) IV.art.tree(b, x + RF.range(-3, 3), z + RF.range(-3, 3), RF() < 0.6 ? 'oak' : 'ash', RF);
     }
+    // ---- the countryside is lived in: a hamlet strung along the north road above the crossroads (cottages of one and
+    // two storeys, a cafe-shop row, a smithy, barns and sties, a church in its walled yard, a well and a wayside cross),
+    // farms on the outlying slopes, and village skylines beyond the map. Some windows lit, most dark, some damaged.
+    // Every reachable building is one closed collider (no interiors); none sits on a patrol or the approach routes.
+    {
+      const H2 = Math.PI / 2, roadX = (z) => z < 80 ? 0 + z / 80 : 1 + (z - 80) / 108;
+      const E_ = (z, sp) => Object.assign({ x: roadX(z) + 2.6 + 3.2 + ((sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2), z, rot: -H2 }, sp);
+      const W_ = (z, sp) => Object.assign({ x: roadX(z) - 2.6 - 3.2 - ((sp.kind === 'barn' ? sp.w || 10 : sp.d || 6) / 2), z, rot: H2 }, sp);
+      const hamlet = [
+        E_(38, { kind: 'cottage', w: 8, d: 6, floors: 2, lit: 0.5, roof: 'tile' }),
+        E_(51, { kind: 'shoprow', units: 2, d: 8, lit: 0.5 }),
+        E_(63.5, { kind: 'cottage', w: 7, d: 5.5, floors: 1, damage: 0.55 }),
+        E_(78, { kind: 'farmhouse', w: 12, d: 7 }),
+        E_(95, { kind: 'ruin', w: 8, d: 6, damage: 0.9 }),
+        { kind: 'shed', w: 5, d: 4, x: 21, z: 40, rot: 0.08 },
+        W_(34, { kind: 'cottage', w: 7, d: 6, floors: 2, lit: 0.6 }),
+        W_(45.5, { kind: 'shed', w: 6, d: 5 }),
+        W_(57, { kind: 'cottage', w: 9, d: 6, floors: 1, damage: 0.65 }),
+        W_(71, { kind: 'cottage', w: 8, d: 6, floors: 2, lit: 0.4, roof: 'tile' }),
+        W_(90, { kind: 'barn', w: 9, d: 13 }),
+        W_(105, { kind: 'shed', w: 6, d: 4 }),
+        { kind: 'shed', w: 4, d: 3, x: -20, z: 64, rot: H2 },
+        { kind: 'church', w: 16, d: 8, x: 37, z: 88, rot: -H2 }
+      ];
+      IV.art.settle(b, hamlet, { seed: 404 });
+      // the churchyard wall (gap to the road), the well, a wayside cross at the crossroads corner
+      IV.art.wall(b, [[28, 74], [28, 81]], 1.2); IV.art.wall(b, [[28, 87], [28, 104], [47, 104], [47, 72], [28, 72], [28, 74]], 1.2);
+      if (IV.art.envOn() && IVEnv.prop) { try { const wl = IVEnv.prop('well', 61); wl.group.position.set(-5.4, W.height(-5.4, 64), 64); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(wl.group); W.addBox(-5.4, 64, 0.8, 0.8, W.height(-5.4, 64), W.height(-5.4, 64) + 0.9, 0, F.SOLID | F.BULLET | F.NAV, 'stone'); } catch (e) {} }
+      { const cy = W.height(-4.2, 26); K.box(b, 'wood', -4.2, cy, 26, 0.18, 2.6, 0.18, 0.3, 0x5a4a3a, F.SOLID | F.BULLET, 'wood'); K.box(b, 'wood', -4.2, cy + 1.75, 26, 1.2, 0.16, 0.16, 0.3, 0x5a4a3a); K.box(b, 'stone', -4.2, cy - 0.2, 26, 0.9, 0.35, 0.9, 0.3, 0x8a867c); }
+      // outlying farms on the slopes (inside the map, away from the routes)
+      IV.art.settle(b, [
+        { kind: 'farmhouse', w: 11, d: 7, x: -150, z: -45, rot: 0.3, lit: 0.3 }, { kind: 'barn', w: 9, d: 14, x: -131, z: -61, rot: 0.3 + H2 }, { kind: 'shed', w: 6, d: 4, x: -162, z: -62, rot: 0.3 },
+        { kind: 'farmhouse', w: 12, d: 7, x: 150, z: 152, rot: -2.6 }, { kind: 'barn', w: 10, d: 15, x: 168, z: 136, rot: -2.6 + H2 },
+        { kind: 'cottage', w: 8, d: 6, floors: 2, x: -165, z: 138, rot: 1.2, lit: 0.5 }, { kind: 'shed', w: 5, d: 4, x: -152, z: 150, rot: 1.2 },
+        { kind: 'ruin', w: 10, d: 7, x: 166, z: -164, rot: 2.3, damage: 0.95 }, { kind: 'barn', w: 9, d: 13, x: 140, z: -166, rot: 2.3 + H2, damage: 0.4 }
+      ], { seed: 515 });
+      // village skylines on the far hills: shells only, no colliders
+      const hFar = IVEnv.skirtHeightAt || ((x, z) => W.height(Math.max(-188, Math.min(188, x)), Math.max(-188, Math.min(188, z))));
+      const village = (cx, cz, n, sd, church) => { const RV = IV.rng(sd), list = []; if (church) list.push({ kind: 'church', w: 15, d: 8, x: cx, z: cz, rot: RV() * 6.28, shellOnly: true, solid: false });
+        for (let i = 0; i < n; i++) { const a = RV() * 6.28, r = 12 + RV() * 55, x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r * 0.6, k = RV(); list.push({ kind: k < 0.55 ? 'cottage' : k < 0.75 ? 'farmhouse' : k < 0.9 ? 'shoprow' : 'barn', w: 7 + RV() * 5, d: 5.5 + RV() * 2, floors: RV() < 0.5 ? 2 : 1, units: 2, x, z, rot: Math.round(RV() * 4) * H2 + RV() * 0.3, lit: RV() < 0.15 ? 0.6 : 0, shellOnly: true, solid: false }); }
+        return list; };
+      if (IV.art.envOn()) IV.art.settle(b, [...village(330, -30, 14, 61, true), ...village(-70, -340, 10, 62, true), ...village(-310, 230, 9, 63, false), ...village(250, 300, 8, 64, false)], { seed: 626, shellOnly: true, heightFn: hFar, lights: false });
+    }
     // scattered field trees
     [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)

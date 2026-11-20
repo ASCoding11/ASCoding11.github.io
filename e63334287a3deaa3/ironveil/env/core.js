@@ -326,9 +326,9 @@
       float pat = texture2D(uMacro, vec2(wp.x + wp.z, wp.y * 1.3) * 0.19 + 0.13).b;
       float pat2 = texture2D(uMacro, vec2(wp.x - wp.z, wp.y) * 0.07 + 0.41).r;
       float lich = vert * smoothstep(0.6, 0.82, pat) * smoothstep(0.3, 0.7, envH + 0.25) * uGrime;
-      envAlb = mix(envAlb, envAlb * vec3(0.9, 1.02, 0.74), lich * 0.55);
-      envAlb *= 1.0 - vert * smoothstep(0.32, 0.1, pat) * 0.2 * uGrime;
-      envAlb *= mix(0.86, 1.06, pat2 * vert + (1.0 - vert) * 0.7);
+      envAlb = mix(envAlb, envAlb * vec3(0.86, 1.04, 0.66), lich * 0.75);
+      envAlb *= 1.0 - vert * smoothstep(0.34, 0.1, pat) * 0.32 * uGrime;
+      envAlb *= mix(0.8, 1.1, pat2 * vert + (1.0 - vert) * 0.7) * mix(vec3(1.0), vec3(1.05, 1.0, 0.92), smoothstep(0.4, 0.8, pat2) * vert);   // warmer and cooler areas a few metres across
       float lum = dot(envAlb, vec3(0.3, 0.55, 0.15));
       envAlb = mix(envAlb, vec3(lum) * vec3(1.04, 1.0, 0.94), 0.12);
       float dustAmt = smoothstep(0.65, 0.95, wn.y) * smoothstep(0.35, 0.7, m2 * 0.6 + m1 * 0.4 + envH * 0.3) * uDust * (1.0 - uWet);

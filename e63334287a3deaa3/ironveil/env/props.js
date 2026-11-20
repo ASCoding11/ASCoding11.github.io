@@ -4,7 +4,8 @@
    telegraph (pole; wires via IVEnv.wireMesh between poles: group.userData.wireTop gives the insulator positions),
    lamppost (lights[0] is the lamp), gate, ladder, drums (fuel drums), ammo (ammunition boxes), truck (period lorry,
    no markings), logpile, tarp (tarpaulin over a stack), bottles; camp dressing: noticeboard, flagpole (bare mast),
-   duckboards (opts.length), tent (ridge tent), washline (opts.length), watertower, targetframe.
+   duckboards (opts.length), tent (ridge tent), washline (opts.length), watertower, targetframe, car (staff car),
+   guardtower, shelter (firing-point lean-to), aframe (assault-course frame).
    Wear sits where wear happens: scuffed crate corners and bases, rust runs under rivets, chipped paint on drum rims,
    worn handles, mud on wheels and the truck's lower panels. */
 (function () {
@@ -16,7 +17,7 @@
 
   function crate(B, R, x, y, z, rot, s, worn) {
     s = s || 1; const w = 0.8 * s, h = 0.6 * s, d = 0.5 * s;
-    B.box('planks', x, y, z, w, h, d, rot, { tint: E.tintJ(R, 0.12, 0xc8b8a0), uvOff: [R() * 9, R() * 9] });
+    B.box('planks', x, y, z, w, h, d, rot, { tint: E.tintJ(R, 0.06, 0x8a7e6c), uvOff: [R() * 9, R() * 9], grain: 'long' });   // straight weathered boards
     // corner battens and lid boards, slightly proud
     const c = Math.cos(rot), sn = Math.sin(rot);
     for (const [i, k] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) B.box('timber', x + c * i * (w / 2 - 0.03) + sn * k * (d / 2 - 0.01), y, z - sn * i * (w / 2 - 0.03) + c * k * (d / 2 - 0.01), 0.06, h, 0.03, rot, { grain: 'long', tint: new THREE.Color(0.75, 0.68, 0.6) });
@@ -250,6 +251,45 @@
     for (let k = 0; k < 7; k++) B.box('canvas', R.range(-0.45, 0.45), 0.8 + R.range(0, h - 0.4), 0.012, 0.06, 0.06, 0.004, R() * 0.8, { noFoot: true, tint: C(0.55, 0.5, 0.4) });
     B.decal('mud', [0, 0.7, 0.02], [0, 0, 1], w, 0.3, 0);
     B.col(0, 0, w + 0.2, 0.15, 0, h + 0.6, 0, 'wood', 'target');
+  };
+  KINDS.car = (B, R) => {
+    // a plain staff car of the period: long bonnet, upright cab, separate wings and running boards, no markings
+    const paint = new THREE.Color(0.32, 0.34, 0.27);
+    B.box('metal_painted', 0.2, 0.42, 0, 4.1, 0.55, 1.5, 0, { tint: paint });
+    B.box('metal_painted', -0.55, 0.97, 0, 2.0, 0.62, 1.42, 0, { tint: paint });
+    B.box('glass', 0.47, 1.0, 0, 0.04, 0.5, 1.28, 0, { rz: 0.35, noFoot: true });
+    for (const sz of [-1, 1]) { B.box('glass', -0.55, 1.05, sz * 0.715, 1.6, 0.42, 0.02, 0, { noFoot: true }); B.box('metal_painted', 0.15, 0.32, sz * 0.83, 3.4, 0.05, 0.22, 0, { tint: paint, noFoot: true }); }
+    for (const [x, sz] of [[1.45, -1], [1.45, 1], [-1.3, -1], [-1.3, 1]]) { B.geo('metal_rust', new THREE.CylinderGeometry(0.36, 0.36, 0.2, 14).rotateX(Math.PI / 2), M4(x, 0.36, sz * 0.72), { tint: new THREE.Color(0.12, 0.12, 0.12) }); B.box('metal_painted', x, 0.62, sz * 0.72, 0.9, 0.12, 0.34, 0, { tint: paint, noFoot: true }); }
+    for (const sz of [-0.45, 0.45]) B.geo('glass_lit', new THREE.SphereGeometry(0.11, 8, 6), M4(2.22, 0.78, sz), { noFoot: true });
+    B.decal('mud', [0, 0.35, 0.76], [0, 0, 1], 3.6, 0.5, 0); B.decal('mud', [0, 0.35, -0.76], [0, 0, -1], 3.6, 0.5, 0);
+    B.col(0.1, 0, 4.4, 1.7, 0, 1.6, 0, 'metal', 'car');
+  };
+  KINDS.guardtower = (B, R) => {
+    // a timber sentry tower: four braced legs, a boarded box with a roof, a ladder
+    const h = 5.2, s = 1.4;
+    for (const a of [-1, 1]) for (const b of [-1, 1]) B.box('timber', a * s, 0, b * s, 0.2, h + 2.2, 0.2, 0, { grain: 'long', rx: -b * 0.04, rz: a * 0.04 });
+    for (const k of [-1, 1]) { B.box('timber', 0, 2.2, k * s, 2 * s, 0.1, 0.1, 0, { rz: 0.9, noFoot: true }); B.box('timber', k * s, 2.2, 0, 0.1, 0.1, 2 * s, 0, { rx: 0.9, noFoot: true }); }
+    B.box('planks', 0, h, 0, 2 * s + 0.6, 0.12, 2 * s + 0.6, 0, { noFoot: true });
+    for (const k of [-1, 1]) { B.box('planks', 0, h + 0.12, k * (s + 0.3), 2 * s + 0.6, 1.0, 0.05, 0, { noFoot: true }); B.box('planks', k * (s + 0.3), h + 0.12, 0, 0.05, 1.0, 2 * s + 0.6, 0, { noFoot: true }); }
+    B.box('slate', 0, h + 2.2, 0, 2 * s + 1.2, 0.08, 2 * s + 1.2, 0, { noFoot: true, rx: 0.12 });
+    for (let k = 0; k < 17; k++) B.box('timber', 0, 0.3 + k * 0.3, s + 0.55, 0.5, 0.04, 0.05, 0, { noFoot: true });
+    for (const a of [-0.25, 0.25]) B.box('timber', a, 0, s + 0.55, 0.06, h + 0.2, 0.06, 0, { noFoot: true });
+    B.decal('mud', [0, 0.02, 0], [0, 1, 0], 4, 4, 0);
+    for (const a of [-1, 1]) for (const b of [-1, 1]) B.col(a * s, b * s, 0.3, 0.3, 0, h, 0, 'wood', 'tower');
+  };
+  KINDS.shelter = (B, R) => {
+    // an open firing-point shelter: posts and a lean-to roof, a bench and an ammunition table
+    const w = 6, d = 3;
+    for (const a of [-1, 1]) for (const b of [-1, 1]) B.box('timber', a * (w / 2 - 0.1), 0, b * (d / 2 - 0.1), 0.14, b > 0 ? 2.5 : 2.2, 0.14, 0, { grain: 'long' });
+    B.box('slate', 0, 2.3, 0, w + 0.5, 0.06, d + 0.6, 0, { rx: -0.1, noFoot: true });
+    B.box('planks', 0, 0.42, -d / 2 + 0.4, w - 0.6, 0.06, 0.35, 0, {}); B.box('planks', 0, 0.75, 0.4, 2.2, 0.06, 0.8, 0, {});
+    B.col(0, 0, w, d, 0, 2.4, 0, 'wood', 'shelter');
+  };
+  KINDS.aframe = (B, R) => {
+    // an assault-course climbing frame: two A legs, rungs, a scramble net strung on poles
+    for (const a of [-1.6, 1.6]) for (const b of [-1, 1]) B.box('timber', a, 0, b * 0.9, 0.16, 3.6, 0.16, 0, { grain: 'long', rx: -b * 0.26 });
+    for (let k = 0; k < 6; k++) B.box('timber', 0, 0.5 + k * 0.5, 0.75 - k * 0.12, 3.6, 0.08, 0.08, 0, { noFoot: true });
+    B.box('canvas', 0, 1.0, -0.6, 3.2, 2.2, 0.02, 0, { rx: 0.26, noFoot: true, tint: new THREE.Color(0.45, 0.42, 0.34) });
   };
   E.prop = function (kind, seed, opts) {
     opts = opts || {};

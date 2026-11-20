@@ -276,7 +276,7 @@
     // grime at the foot) is drawn with IVEnv materials; every collider, opening, room and the interior stay the kit's.
     const EB = (!K.noMesh && o.envB) || null, wallM = mat === 'wood' ? 'planks' : mat === 'plaster' ? 'plaster' : 'fieldstone';
     const wallT = mat === 'wood' ? new THREE.Color(0.55, 0.45, 0.36) : null;   // weathered brown boards, not bleached grey
-    const vb = (m, lx, y0, lz, sx, sy, sz, op) => { const p = L2W(lx, lz); EB.box(m, p[0], y0, p[1], sx, sy, sz, o.rot || 0, op); };
+    const vb = (m, lx, y0, lz, sx, sy, sz, op) => { const p = L2W(lx, lz); op = Object.assign({ foot: gy }, op); EB.box(m, p[0], y0, p[1], sx, sy, sz, o.rot || 0, op); };   // foot: damp and grime measured from the real ground
     const wn = (nx, nz) => [nx * c + nz * s, -nx * s + nz * c];
     const TT = (r, g, bl) => new THREE.Color(r, g, bl);
     // foundation plinth and floor
@@ -389,9 +389,9 @@
       if (EB) {
         // a roof that has settled: one sheet per slope that sags between the gables and dips mid-slope, slate rows
         // slightly uneven, boarded soffit underneath, barge boards on the gable edges
-        { const L = run + over * 2, S2 = slabLen, nx = 18, nz = 10, gS = new THREE.PlaneGeometry(ridgeX ? L : S2, ridgeX ? S2 : L, ridgeX ? nx : nz, ridgeX ? nz : nx), pa = gS.attributes.position, sd = (o.x * 7 + o.z * 3) | 0;
+        { const L = run + 0.3, S2 = slabLen - Math.max(0, over - 0.35), nx = 8, nz = Math.max(10, Math.ceil(S2 / 0.1)), gS = new THREE.PlaneGeometry(ridgeX ? L : S2, ridgeX ? S2 : L, ridgeX ? nx : nz, ridgeX ? nz : nx), pa = gS.attributes.position, sd = (o.x * 7 + o.z * 3) | 0;
           for (let i = 0; i < pa.count; i++) { const px = pa.getX(i), py = pa.getY(i), ua = ridgeX ? px / L : py / L, ub = ridgeX ? py / S2 : px / S2, row = Math.floor((ub + 0.5) * S2 / 0.3);
-            const sag = 0.09 * Math.cos(Math.PI * ua) * (0.35 + 0.65 * Math.cos(Math.PI * ub * 0.9)) + 0.012 * Math.sin(row * 12.9898 + sd);
+            const rowF = (ub + 0.5) * S2 / 0.3 - row, sag = 0.09 * Math.cos(Math.PI * ua) * (0.35 + 0.65 * Math.cos(Math.PI * ub * 0.9)) + 0.015 * Math.sin(row * 12.9898 + sd) - 0.022 * rowF;   // each course's lower edge stands proud
             pa.setZ(i, -sag); }
           gS.computeVertexNormals(); gS.rotateX(-Math.PI / 2); gS.translate(0, 0.07, 0);
           const p = ridgeX ? L2W(0, off) : L2W(off, 0), q = new THREE.Quaternion().setFromEuler(new THREE.Euler(ridgeX ? -e * ang : 0, o.rot || 0, ridgeX ? 0 : e * ang, 'YXZ'));
@@ -402,7 +402,7 @@
           for (const g2 of [-1, 1]) { if (ridgeX) vb('timber', g2 * (L / 2 - 0.02), yy - 0.12, off, 0.05, 0.22, S2, { rx: -e * ang, noFoot: true, tint: TT(0.6, 0.55, 0.5) }); else vb('timber', off, yy - 0.12, g2 * (L / 2 - 0.02), S2, 0.22, 0.05, { rz: e * ang, noFoot: true, tint: TT(0.6, 0.55, 0.5) }); }
         }
         // eaves: fascia board, a cast-iron gutter, a downpipe at each end of the eave
-        const eY = ry - over * pitch, eo = span / 2 + over, L = run + over * 2;
+        const eY = ry - over * pitch, eo = span / 2 + over - Math.max(0, over - 0.35) / 2, L = run + 0.3;
         if (ridgeX) { vb('timber', 0, eY - 0.2, e * (eo - 0.02), L, 0.2, 0.04, { noFoot: true, grain: 'long' }); vb('metal_painted', 0, eY - 0.24, e * (eo + 0.05), L, 0.1, 0.11, { noFoot: true, tint: TT(0.35, 0.36, 0.35) }); for (const k of [-1, 1]) vb('metal_painted', k * (hw - 0.25), gy, e * (hd + 0.07), 0.08, eY - gy - 0.2, 0.08, { tint: TT(0.35, 0.36, 0.35) }); }
         else { vb('timber', e * (eo - 0.02), eY - 0.2, 0, 0.04, 0.2, L, { noFoot: true, grain: 'long' }); vb('metal_painted', e * (eo + 0.05), eY - 0.24, 0, 0.11, 0.1, L, { noFoot: true, tint: TT(0.35, 0.36, 0.35) }); for (const k of [-1, 1]) vb('metal_painted', e * (hw + 0.07), gy, k * (hd - 0.25), 0.08, eY - gy - 0.2, 0.08, { tint: TT(0.35, 0.36, 0.35) }); }
         continue;

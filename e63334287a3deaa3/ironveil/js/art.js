@@ -56,6 +56,19 @@
     safe(() => { const g = EB.finish(); g.name = 'IVEnv.shell'; root().add(g); }, 'building shell');
     return r;
   };
+  // a settlement (hamlet, camp, far village): IVEnv shells always drawn, full buildings near the camera, one closed
+  // collider box per building; lit windows get visual-only lamps; chimney tops are kept for smoke (A.chimneys)
+  A.chimneys = [];
+  A.settle = function (b, specs, opts) {
+    opts = opts || {}; const E = env(); const F = IV.CF, flags = opts.flags != null ? opts.flags : F.SOLID | F.SIGHT | F.BULLET | F.NAV;
+    if (!E || !E.settle) { for (const sp of specs) if (sp.solid !== false && !opts.shellOnly) K.box(b, 'stone', sp.x, (opts.heightFn || H)(sp.x, sp.z) - 0.5, sp.z, sp.w || 8, 5, sp.d || 6, sp.rot || 0, 0xa09a90, flags, 'stone'); return null; }
+    const r = safe(() => E.settle(specs, Object.assign({ heightFn: H }, opts)), 'settle'); if (!r) return null;
+    W.scene.add(r.group);
+    if (!opts.shellOnly) for (const c of r.colliders) W.addBox(c.x, c.z, c.hx, c.hz, c.y0, c.y1, c.rot, flags, 'stone', 'building');
+    if (opts.lights !== false) for (const l of r.lights.slice(0, opts.maxLights || 6)) W.addLamp({ x: l.x, y: l.y, z: l.z, r: 5, i: 0, power: 1.1, color: 0xff9a48, flicker: true, los: false, visual: true });
+    A.chimneys.push(...r.chimneys);
+    return r;
+  };
   // props: positional args as kit.js takes them; IVEnv draws a matching prop at the same spot
   const PROP = { crate: 'crate', barrel: 'barrel', hay: 'haybale', woodpile: 'logpile', cart: 'cart', sandbags: 'sandbags', lamp: 'lamppost' };
   A.prop = function (kind, b, ...a) {
@@ -111,7 +124,7 @@
     if (pendingTrees.length && E.trees) { const t = safe(() => E.trees(pendingTrees), 'trees'); add(t); pendingTrees = []; }
     if (E.mergeStatic && W.envRoot) { const merged = safe(() => E.mergeStatic(W.envRoot, { cell: 48 }), 'merge'); if (merged && merged !== W.envRoot) { W.statics.remove(W.envRoot); W.statics.add(merged); W.envRoot = merged; } }
   };
-  A.reset = function () { pendingTrees = []; seedN = 1; W.envRoot = null; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
+  A.reset = function () { pendingTrees = []; seedN = 1; W.envRoot = null; A.chimneys = []; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
   // every bullet hit on the world (not on people): effects by surface, and IVEnv's own decal for that material
   A.impact = function (surface, p, n, dir) {
     IV.fx.impact(p.x, p.y, p.z, n.x, n.y, n.z, surface, dir);
