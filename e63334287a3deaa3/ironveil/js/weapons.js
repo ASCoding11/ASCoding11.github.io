@@ -421,7 +421,9 @@
     if (WP.busyThrow) {
       WP.aiming = WP.scoped = false;
       const bt = WP.busyThrow, held = I.held(bt.kind);
-      if (!held || (bt.kind === 'grenade' && IV.time - bt.t0 > WT.grenade.fuse - 0.35)) release();
+      const cookedOut = bt.kind === 'grenade' && IV.time - bt.t0 > WT.grenade.fuse - 0.35;
+      // first person: the throw leaves the hand when the arms' clip reaches its release (js/fp.js holds the cocked pose while the key is held)
+      if (!held || cookedOut) { if (!(bt.kind === 'grenade' && IV.fp && IV.fp.throwSync && IV.fp.throwSync(bt, cookedOut))) release(); }
       return;
     }
     // takedown (F), shown as a prompt by the HUD when available

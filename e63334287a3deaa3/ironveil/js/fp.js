@@ -316,6 +316,7 @@
     if (W8.binoc && FP.binocT != null && IV.time - FP.binocT > rig.len('binoculars') + 0.05) FP.atEye = true;   // no 'atEye' event: the end of the clip
     if (!W8.binoc) FP.binocT = null;
     v.drive({ ads: FP.vmAim, sprint: FP.vmSpr }, dt);
+    holdGrenade(v);
     // small procedural layers: breathing, step bob, look lag, recoil, wall lowering, landing dip, lean roll
     const motion = S.motion ? 0.4 : 1, t = IV.time, ph = FP.phase || 0, bobA = (FP.bobAmp || 0) * 0.9;
     const dyaw = IV.wrapA(yaw - (FP.lastYaw == null ? yaw : FP.lastYaw)), dpit = pitch - (FP.lastPitch == null ? pitch : FP.lastPitch);
@@ -338,6 +339,23 @@
     vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
     vm.root.updateMatrixWorld(true);
     vmLight(vm);
+  }
+  // the grenade: the clip winds up and pulls the pin, then HOLDS the cocked pose (frozen just before its 'release'
+  // event) for as long as the key is held, so cooking still works; on key-up it plays on (quickly if the key went up
+  // during the wind-up) and weapons.js lets the grenade go when the clip reaches 'release'
+  const GREN_HOLD = 0.95;
+  function actionOf(v, name) { const a = v && v.mixer && v.mixer._actions; if (!a) return null; for (const x of a) { const n = x.getClip().name; if (n === v.kind + '.' + name || n.endsWith('.' + name)) if (x.isRunning() || x.enabled) return x; } return null; }
+  FP.throwSync = function (bt, force) {
+    if (force || !VM || VM.rig.standin || !FP.on() || !VM.root.visible) return false;
+    const v = VM.rig.vm; if (!v || v.current !== 'grenade') return false;
+    const a = actionOf(v, 'grenade');
+    if (bt.relT == null) { bt.relT = IV.time; if (a) a.timeScale = a.time < GREN_HOLD ? 3 : 1.4; }
+    if (FP.lastEvent && FP.lastEvent.e === 'release' && FP.lastEvent.t >= bt.relT - 1e-3) return false;
+    return IV.time - bt.relT < 0.6;   // never wait longer than this
+  };
+  function holdGrenade(v) {
+    const bt = IV.weapons.busyThrow; if (!bt || bt.relT != null || v.current !== 'grenade') return;
+    const a = actionOf(v, 'grenade'); if (a && a.time >= GREN_HOLD) { a.time = GREN_HOLD; a.timeScale = 0; }
   }
   // shots, reloads and bolts from weapons.js start the rig's clips; the game's timings follow the clips' lengths
   IV.on('shot', k => { const vm = VM; if (!vm || vm.rig.standin || !FP.on()) return; vm.rig.play('fire'); if (k === 'rifle') FP.boltDue = true; });
