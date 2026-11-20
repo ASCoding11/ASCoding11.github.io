@@ -62,7 +62,7 @@
   var SCRIPT = document.currentScript && document.currentScript.src;
   var BASE = SCRIPT ? SCRIPT.replace(/[^\/]*$/, '') : '';
   var ASSETS = BASE + 'assets/';
-  var VERSION = '7';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
+  var VERSION = '8';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
 
   // ---------- kinds and files
   var FILES = {
@@ -753,14 +753,33 @@
     }
     var idx = g.index ? g.index.array : null, out = [];
     var tri = idx ? idx.length : n;
+    // belt kit (pouches, grenade, rope) is in separate islands skinned to the waist: looking down it would float
+    // where the game masks the waist, so small islands mostly weighted to pelvis / spine_01 / spine_02 go too
+    var waist = bones.map(function (b) { return /^(pelvis|spine_01|spine_02)$/.test(b ? b.name : '') ? 1 : 0; });
+    var pos0 = g.attributes.position, par = new Int32Array(n), wkey = {};
+    for (var i0 = 0; i0 < n; i0++) { var kk0 = pos0.getX(i0) + ',' + pos0.getY(i0) + ',' + pos0.getZ(i0); par[i0] = wkey[kk0] != null ? wkey[kk0] : (wkey[kk0] = i0); }
+    function root(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+    for (var t0 = 0; t0 < tri; t0 += 3) {
+      var a0 = root(idx ? idx[t0] : t0), b0 = root(idx ? idx[t0 + 1] : t0 + 1), c0 = root(idx ? idx[t0 + 2] : t0 + 2);
+      if (a0 !== b0) par[b0] = a0; a0 = root(a0); if (a0 !== c0) par[c0] = a0;
+    }
+    var csize = {}, cwaist = {};
+    for (var i1 = 0; i1 < n; i1++) {
+      var r1 = root(i1), dom = 0, best = -1;
+      for (var k1 = 0; k1 < 4; k1++) { var w1 = attrComp(sw, i1, k1); if (w1 > best) { best = w1; dom = attrComp(si, i1, k1) | 0; } }
+      csize[r1] = (csize[r1] || 0) + 1; cwaist[r1] = (cwaist[r1] || 0) + waist[dom];
+    }
+    for (var i2 = 0; i2 < n; i2++) { var r2 = root(i2); if (csize[r2] < n * 0.1 && cwaist[r2] > 0.5 * csize[r2]) drop[i2] = 1; }
     for (var t = 0; t < tri; t += 3) {
       var a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
       if (!drop[a] && !drop[b] && !drop[c]) out.push(a, b, c);
     }
     var fg = g.clone();
+    var kept = out.length;
     capCut(fg, idx, tri, out);
     fg.setIndex(out);
     fg.boundingSphere = g.boundingSphere; fg.groups = [];
+    if (out.length > kept) { fg.addGroup(0, kept, 0); fg.addGroup(kept, out.length - kept, 1); }   // 1: the dark cap
     g.userData.fpGeom = fg;
     return fg;
   }
@@ -857,12 +876,17 @@
             m.parent.add(c); m.userData.fpShadow = c;
           }
           m.userData.fullGeom = m.geometry; m.geometry = fpGeometry(m); m.castShadow = false;
+          if (m.geometry.groups.length) {   // the cap over the cut reads as the shadowed inside of the collar
+            if (!m.userData.capMat) { var cm = m.material.clone(); cm.color.multiplyScalar(0.18); cm.normalMap = null; m.userData.capMat = cm; }
+            m.userData.bodyMat = m.material; m.material = [m.material, m.userData.capMat];
+          }
           m.userData.fpShadow.visible = true;
         } else {
           m.userData.fullMat = m.material; m.material = shadowOnly(m);
         }
       } else {
         if (m.userData.fullGeom) { m.geometry = m.userData.fullGeom; m.castShadow = true; if (m.userData.fpShadow) m.userData.fpShadow.visible = false; }
+        if (m.userData.bodyMat) { m.material = m.userData.bodyMat; m.userData.bodyMat = null; }
         if (m.userData.fullMat) { m.material = m.userData.fullMat; m.userData.fullMat = null; }
       }
     });

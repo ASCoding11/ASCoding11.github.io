@@ -137,11 +137,11 @@ def place_shoulder(rig, L, W, s, target):
 
 def arm_to(rig, L, W, s, Mhand, pole, twist=0.7, reach=0.93):
     """Two-bone IK of shoulder-elbow-wrist onto the hand bone matrix Mhand, elbow toward pole, forearm twist share.
-    When the wrist is beyond `reach` of the arm's length the shoulder is carried toward it (up to 0.16 m)."""
+    When the wrist is beyond `reach` of the arm's length the shoulder is carried toward it (up to 0.32 m)."""
     S = W['upperarm_' + s].translation; l1 = rig.len['upperarm_' + s]; l2 = rig.len['lowerarm_' + s]
     d = Mhand.translation - S
     if d.length > reach * (l1 + l2):
-        mv = min(0.16, d.length - reach * (l1 + l2))
+        mv = min(0.32, d.length - reach * (l1 + l2))   # first-person shoulders are never seen
         place_shoulder(rig, L, W, s, S + d.normalized() * mv)
     rig.two_bone(L, W, 'upperarm_' + s, 'lowerarm_' + s, 'hand_' + s, Mhand.translation, pole, HINGE[s],
                  end_rot=Mhand.to_3x3())
@@ -277,5 +277,49 @@ def wrap_fingers(rig, skin, L0, W0, s, bvh, Minv, fingers=('index', 'middle', 'r
                     c = cost(b)
                     if c < c0 - 1e-9: a, c0, moved = b, c, True
             if not moved: st *= 0.5
+        out[f] = tuple(a) + ((sp,) if f == 'thumb' else ())
+    return out
+
+def grasp_fingers(rig, skin, L0, W0, s, bvh, Minv, fingers=('index', 'middle', 'ring', 'pinky', 'thumb'), gap=0.0012,
+                  thumb_spread=0.0, start=None, step=0.04):
+    """Grasp like a hand closing on an object: each finger curls with natural joint coupling until any of its
+    segments touches the surface (bvh, in the frame Minv maps first-person space into); then the middle and end
+    joints keep closing, then the end joint alone, each until it touches. Fingers never bend backwards and never
+    stay straight: a finger that reaches nothing ends in a relaxed curl. Returns finger -> angles (thumb + spread)."""
+    COUP = {'thumb': (0.45, 0.6, 0.55)}
+    out = {}
+    for f in fingers:
+        segs = ['%s_0%d_%s' % (f, j + 1, s) for j in range(3)]
+        ids = [skin.verts_of((segs[j],) + (('%s_04_leaf_%s' % (f, s),) if j == 2 else ())) for j in range(3)]
+        ids = [i[::2] if len(i) > 40 else i for i in ids]
+        sp = thumb_spread if f == 'thumb' else 0.0
+        cp = COUP.get(f, (1.0, 1.15, 0.8))
+        def touch(a, from_seg):
+            L = {k: v.copy() for k, v in L0.items()}; W = {k: v.copy() for k, v in W0.items()}
+            set_fingers(rig, L, W, s, {f: tuple(a) + ((sp,) if f == 'thumb' else ())})
+            for j in range(from_seg, 3):
+                for p in skin.pose(W, ids[j]):
+                    if signed_dist(bvh, Minv @ Vector(p)) < gap: return True
+            return False
+        a = list((start or {}).get(f, (0.0, 0.0, 0.0)))[:3]
+        a = [max(0.0, v) for v in a]
+        lim = (1.5, 1.7, 1.25)
+        touched = False
+        # stage 1: all three joints together
+        while a[0] < lim[0] and not touch(a, 0):
+            a = [min(lim[j], a[j] + step * cp[j]) for j in range(3)]
+        else:
+            touched = a[0] < lim[0]
+        if touched: a = [max(0.0, a[j] - 0.5 * step * cp[j]) for j in range(3)]
+        # stage 2: middle and end joints, stage 3: end joint, each until their own segments touch
+        for first in (1, 2):
+            n_ = 0
+            while a[first] < lim[first] and not touch(a, first) and n_ < 60:
+                for j in range(first, 3): a[j] = min(lim[j], a[j] + step * cp[j] * 0.7)
+                n_ += 1
+            if a[first] < lim[first] and n_: 
+                for j in range(first, 3): a[j] = max(0.0, a[j] - 0.5 * step * cp[j] * 0.7)
+        if not touched and f != 'thumb':     # nothing to hold: a relaxed curl, not a straight finger
+            a = [max(a[0], 0.55), max(a[1], 0.65), max(a[2], 0.45)]
         out[f] = tuple(a) + ((sp,) if f == 'thumb' else ())
     return out

@@ -347,6 +347,14 @@ def wood(name, W, mask, seed=0.0, kind='walnut'):
     streak = nb.noise(nb.mapping(q, scale=(60, 1.2, 60)), 1.0, 3, 0.55, w=seed + 14)          # long colour streaks along the grain
     c = nb.cmul(c, nb.add(0.62, nb.mul(tone, 0.45), nb.mul(nb.sub(figure, 0.5), 0.7), nb.mul(nb.sub(streak, 0.5), 0.5)))
     c = nb.mixc(nb.mul(pores, 0.75), c, pore)
+    scan = _wood_scan(nb, q, kind)
+    if scan is not None:
+        # a CC0 scanned walnut (WOOD_SCAN, see CREDITS-weapons.md) replaces the procedural rings: its luminance is
+        # toned to oiled walnut, its roughness and height maps carry the real grain and pores
+        lum, srough, sdisp = scan
+        c = nb.mixc(nb.ss(lum, 0.18, 0.80), (0.022, 0.011, 0.006), (0.115, 0.060, 0.028))
+        c = nb.cmul(c, nb.add(0.85, nb.mul(tone, 0.3)))
+        latew = nb.mul(nb.ss(lum, 0.55, 0.20), 0.6); pores = nb.mul(nb.ss(sdisp, 0.45, 0.25), 0.5)
     if kind != 'walnut':
         rays = nb.ss(nb.noise(nb.mapping(q, scale=(1, 0.25, 1)), 900, 1, 0.5, w=seed + 6), 0.70, 0.75)
         c = nb.mixc(nb.mul(rays, 0.25), c, (0.12, 0.05, 0.022))
@@ -371,6 +379,8 @@ def wood(name, W, mask, seed=0.0, kind='walnut'):
     c = nb.mixc(nb.mul(dent, 0.5), c, nb.cmul(c, 0.7))
     c = nb.mixc(nb.mul(nb.ss(cav, 0.2, 0.9), 0.9), c, (0.020, 0.014, 0.010))
     r = nb.add(0.52, nb.mul(nb.sub(tone, 0.5), 0.16), nb.mul(latew, -0.04), nb.mul(pores, 0.08))
+    if scan is not None:
+        r = nb.add(0.40, nb.mul(scan[1], 0.30))           # oiled: 0.40-0.70 from the scan's own roughness
     r = nb.lerp(hand, r, 0.34)
     r = nb.lerp(nb.mul(worn, 0.8), r, 0.70)
     r = nb.lerp(edgeW, r, 0.68)
@@ -378,7 +388,46 @@ def wood(name, W, mask, seed=0.0, kind='walnut'):
     r = nb.lerp(nb.ss(cav, 0.2, 0.9), r, 0.85)
     h = nb.add(nb.mul(latew, -0.10), nb.mul(pores, -0.25), nb.mul(dent, -1.0), nb.mul(gouge, -0.8), nb.mul(scr, -0.35),
                nb.mul(nb.noise(nb.mapping(q, scale=(1, 0.06, 1)), 2200, 1, 0.5), 0.06))
+    if scan is not None: h = nb.add(h, nb.mul(scan[2], 0.5))
     return nb.finish(c, r, 0.0, h, bump_dist=0.0005)
+
+def _wood_scan(nb, q, kind):
+    """Grain-aligned triplanar sampling of a scanned wood set. WOOD_SCAN = folder holding <name>_diff_2k.jpg,
+    _rough_2k.jpg, _disp_2k.jpg (WOOD_SCAN_NAME, default natural_walnut_veneer). The image grain runs along U, so
+    every projection puts U along the stock line (q's Y): sides use (Y, Z), top and bottom (Y, X), ends (X, Z).
+    One image covers WOOD_SCAN_SIZE metres (the scan is 1 m square). Returns (luminance, roughness, height) sockets."""
+    import os
+    d = os.environ.get('WOOD_SCAN')
+    if not d or kind != 'walnut': return None
+    name = os.environ.get('WOOD_SCAN_NAME', 'natural_walnut_veneer'); size = float(os.environ.get('WOOD_SCAN_SIZE', 0.6))
+    x, y, z = nb.xyz(q)
+    tc = nb.nt.nodes.new('ShaderNodeTexCoord')
+    nx, ny, nz = nb.xyz(tc.outputs['Normal'])
+    w = [nb.math('POWER', nb.math('ABSOLUTE', a), 4.0) for a in (nx, ny, nz)]
+    tot = nb.add(w[0], w[1], w[2], 1e-4)
+    w = [nb.math('DIVIDE', a, tot) for a in w]
+    def uv(u, v):
+        n = nb.nt.nodes.new('ShaderNodeCombineXYZ')
+        nb._in(n.inputs[0], nb.mul(u, 1.0 / size)); nb._in(n.inputs[1], nb.mul(v, 1.0 / size))
+        return n.outputs[0]
+    proj = [uv(y, z), uv(x, z), uv(y, x)]           # X-facing, Y-facing (end grain), Z-facing
+    out = []
+    for m, col in (('diff', False), ('rough', True), ('disp', True)):
+        img = bpy.data.images.load(os.path.join(d, '%s_%s_2k.jpg' % (name, m)), check_existing=True)
+        img.colorspace_settings.name = 'sRGB' if m == 'diff' else 'Non-Color'
+        acc = None
+        for wi, pv in zip(w, proj):
+            t = nb.nt.nodes.new('ShaderNodeTexImage'); t.image = img; t.interpolation = 'Cubic'
+            nb._in(t.inputs[0], pv)
+            val = t.outputs[0]
+            if m == 'diff':
+                g = nb.nt.nodes.new('ShaderNodeRGBToBW'); nb._in(g.inputs[0], val); val = g.outputs[0]
+            else:
+                g = nb.nt.nodes.new('ShaderNodeRGBToBW'); nb._in(g.inputs[0], val); val = g.outputs[0]
+            term = nb.mul(val, wi)
+            acc = term if acc is None else nb.add(acc, term)
+        out.append(acc)
+    return out
 
 # ======================================================================================== soft goods and plastics
 def leather(name, W, mask, seed=0.0, col=(0.040, 0.024, 0.014)):

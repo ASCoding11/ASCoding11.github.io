@@ -54,7 +54,7 @@ def ads_pose(k, extra_back=0.0):
     R3 = (F.RZ180.to_3x3() @ d).rotation_difference(Vector((0, 1, 0))).to_matrix() @ F.RZ180.to_3x3()
     R = R3.to_4x4(); R.translation = Vector((0, REAR[k], 0)) - R3 @ r_
     return R
-REAR = {'smg': 0.20, 'pistol': 0.40}
+REAR = {'smg': 0.20, 'pistol': float(os.environ.get('PREAR', 0.50))}
 
 BASE = {
     'rifleScoped': dict(hip=pose_w(tuple(float(v) for v in os.environ.get('RIFLE_HIP', '0.20,0.58,-0.27').split(',')),
@@ -71,12 +71,27 @@ BASE = {
                    low=pose_w((0.12, 0.22, -0.32), yaw=8, pitch=-45, roll=-10)),
 }
 for k in BASE: BASE[k]['ads'] = ads_pose(k)
+# Hip framing from the composition search (FRAME=1 ... diag): muzzle just below and right of the crosshair, the
+# left glove on the fore-end fully in frame, the right glove's upper half at the bottom right, each hand at most
+# about 12% of the screen width. (target position, yaw, pitch, roll changes about the grip)
+HIPFIX = {'rifleScoped': ((0.26, 0.535, -0.23), 0.4, 8.2, -14.5),
+          'smg': (None, 0.0, 0.0, 0.0),
+          'pistol': ((0.148, 0.46, -0.138), -7.5, 8.2, 4.0)}
+def _hipfix(k):
+    pos, yw, pt, rl = HIPFIX[k]
+    W = BASE[k]['hip']; t = W.translation
+    if pos is None: pos = (t.x, t.y, t.z + 0.015)       # SMG: only lifted so the left hand clears the bottom edge
+    M = rot('Z', yw) @ rot('X', pt) @ rot('Y', rl) @ Matrix(W.to_3x3()).to_4x4(); M.translation = Vector(pos)
+    return M
+if not os.environ.get('NOHIPFIX'):
+    for k in BASE: BASE[k]['hip'] = _hipfix(k)
 
 # Pistol shoulders follow the pose: at the hip they sit low and wide so the right forearm enters from the lower
 # right corner; in ADS they come up toward the sight line (isosceles, head down between the arms) so the arms run
 # along the view axis and the forearms hide behind the hands.
 SH_PISTOL = {'hip': {'r': Vector((0.22, 0.0, -0.40)), 'l': Vector((-0.07, 0.02, -0.42))},
-             'ads': {'r': Vector((0.14, -0.08, -0.20)), 'l': Vector((-0.14, -0.08, -0.20))}}
+             'ads': {'r': Vector([float(v) for v in os.environ.get('SH_PADS', '0.15,0.0,-0.24').split(',')]),
+                     'l': Vector([-float(v) if i == 0 else float(v) for i, v in enumerate(os.environ.get('SH_PADS', '0.15,0.0,-0.24').split(','))])}}
 def shoulders_for(k, Ww):
     if k != 'pistol': return SHOULDER_K.get(k) or SHOULDER
     H = BASE[k]['hip'].translation; A = BASE[k]['ads'].translation
@@ -89,15 +104,20 @@ def shoulders_for(k, Ww):
 # until it touches without sinking in, and the fingers close joint by joint on the surface.
 def nz(*v): return Vector(v).normalized()
 GRIPSPEC = {
-    ('rifleScoped', 'gripR'): dict(pc=(-0.019, 0.076, -0.010), dir=nz(0.25, -0.55, -0.8), palm=nz(0.75, 0.0, -0.66)),
-    ('rifleScoped', 'gripL'): dict(pc=(0.004, -0.255, -0.040), dir=nz(-1, -0.35, 0.05), palm=nz(-0.25, 0, 1)),
+    # rifle (ray-probed scan): stock wrist at y 0.04..0.08 is 26-32 mm wide, z -0.059..-0.010; the fore-end at
+    # y -0.255 is 36 mm wide with its underside at z -0.024
+    ('rifleScoped', 'gripR'): dict(pc=(-0.022, 0.074, -0.026), dir=nz(0.25, -0.55, -0.8), palm=nz(0.75, 0.0, -0.66), bound=(0.005, 0.010, 0.006)),
+    ('rifleScoped', 'gripL'): dict(pc=tuple(float(v) for v in os.environ.get('RGL_PC', '0.020,-0.255,-0.031').split(',')),
+                                   dir=nz(*[float(v) for v in os.environ.get('RGL_DIR', '-1,-0.35,0.05').split(',')]),
+                                   palm=nz(*[float(v) for v in os.environ.get('RGL_PALM', '-0.3,0,1').split(',')]), bound=(0.006, 0.015, 0.004)),
     ('smg', 'gripR'): dict(pc=(-0.022, 0.072, -0.070), dir=nz(0.15, -1, -0.25), palm=nz(1, -0.5, 0)),
     ('smg', 'gripL'): dict(pc=(0.004, -0.20, -0.017), dir=nz(-1, -0.25, 0.05), palm=nz(-0.25, 0, 1)),
     # palm round onto the backstrap with the web high under the slide, so the camera behind the gun sees the hand, not a bare backstrap
-    ('pistol', 'gripR'): dict(pc=tuple(float(v) for v in os.environ.get('PGR_PC', '-0.015,0.068,-0.036').split(',')),
+    ('pistol', 'gripR'): dict(pc=tuple(float(v) for v in os.environ.get('PGR_PC', '-0.019,0.064,-0.024').split(',')),
                               dir=nz(*[float(v) for v in os.environ.get('PGR_DIR', '0.15,-1,-0.25').split(',')]),
                               palm=nz(*[float(v) for v in os.environ.get('PGR_PALM', '1,-1,0').split(',')]),
-                              thumb=tuple(float(v) for v in os.environ.get('PGR_THUMB', '').split(',') if v) or None),
+                              thumb=tuple(float(v) for v in os.environ.get('PGR_THUMB', '').split(',') if v) or None,
+                              bound=(0.008, 0.008, 0.004)),     # keep the web high under the slide
     ('pistol', 'gripL'): dict(pc=tuple(float(v) for v in os.environ.get('PGL_PC', '0.014,0.060,-0.058').split(',')),
                               dir=nz(*[float(v) for v in os.environ.get('PGL_DIR', '-0.35,-1,-0.35').split(',')]), palm=nz(-1, 0.35, 0.15), fixed=True),
 }
@@ -159,7 +179,9 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         Pp = skin.pose(Wd, palm_ids[::2])
         dp = np.array([F.signed_dist(bvh, Minv @ Vector(p)) for p in Pp])
         near = np.sort(dp)[: max(4, len(dp) // 5)]
-        return float((pen ** 2).sum() * 6e5 + ((near.mean() - 0.003) ** 2) * 3e4 + Vector(x[:3]).length ** 2 * 60 + (x[3] ** 2 + x[4] ** 2) * 0.5)
+        bnd = g.get('bound', (0.010, 0.020, 0.008))     # per-axis travel limits of the fit (weapon frame, metres)
+        over = sum(max(0.0, abs(x[i]) - bnd[i]) ** 2 for i in range(3)) * 1e6 if bnd else 0.0
+        return float((pen ** 2).sum() * 6e5 + ((near.mean() - 0.003) ** 2) * 3e4 + Vector(x[:3]).length ** 2 * 60 + (x[3] ** 2 + x[4] ** 2) * 0.5 + over)
     x = [0.0] * 5
     for rnd in range(3):
         c0 = cost(x, ang); step = [0.006] * 3 + [0.12, 0.12]
@@ -174,7 +196,7 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         if g.get('fixed'): break
         L, Wd, R = pose_with(x)
         fingers = ('middle', 'ring', 'pinky', 'thumb') + (('index',) if (trigger or all_fingers) else ())
-        new = F.wrap_fingers(rig, skin, L, Wd, s, bvh, Minv, fingers=fingers, start=ang, thumb_spread=0.35 if s == 'r' else 0.2)
+        new = F.grasp_fingers(rig, skin, L, Wd, s, bvh, Minv, fingers=fingers, thumb_spread=0.35 if s == 'r' else 0.2)
         ang.update(new)
     if g.get('thumb'): ang['thumb'] = g['thumb']        # authored thumb (pistol: along the left of the frame)
     L, Wd, R = pose_with(x)
@@ -182,6 +204,11 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
     F.set_fingers(rig, L, Wd, s, ang)
     pen = F.penetration(skin, Wd, bvh, Minv, idx=hand_ids)
     GRIP[(k, nm)] = {'off': Vector(x[:3]), 'fingers': ang, 'pen': pen}
+    Rw = Wf.to_3x3().inverted()
+    act_palm = Rw @ F.palm_normal(rig, Wd, s)
+    act_dir = Rw @ (Wd['middle_01_' + s].translation - Wd['hand_' + s].translation).normalized()
+    log('  frame', k, nm, 'want dir', tuple(round(v, 2) for v in g['dir']), 'got', tuple(round(v, 2) for v in act_dir),
+        'want palm', tuple(round(v, 2) for v in g['palm']), 'got', tuple(round(v, 2) for v in act_palm))
     log('grip', k, nm, 'offset', tuple(round(v, 4) for v in x), 'pen', pen, 'cost', round(c0, 3),
         {f: tuple(round(v, 2) for v in a) for f, a in ang.items()})
     return GRIP[(k, nm)]
@@ -342,9 +369,10 @@ def add_part_specs(k):
     w = WPN[k]
     if 'mag' in w.bvh:
         lo, hi = part_box(k, 'mag')
-        if hi.z - lo.z < 0.09:   # a short box magazine: cupped from below, fingers round its front
-            GRIPSPEC[(k, 'magL')] = dict(part='mag', pc=((lo.x + hi.x) / 2 + 0.004, (lo.y + hi.y) / 2 + 0.01, lo.z - 0.012),
-                                         dir=nz(-0.15, -1, 0.1), palm=nz(0.1, 0, 1))
+        if hi.z - lo.z < 0.09:   # a short box magazine: gripped from the left and below, fingers wrapped round its
+            # front, thumb behind it on the release (the old cupped, upturned palm read as an open hand)
+            GRIPSPEC[(k, 'magL')] = dict(part='mag', pc=(hi.x + 0.012, (lo.y + hi.y) / 2 + 0.006, lo.z + (hi.z - lo.z) * 0.15),
+                                         dir=nz(0.1, -1, -0.35), palm=nz(-1, 0, 0.35))
         else:                    # a long magazine: palm on its left side, fingers round the front
             GRIPSPEC[(k, 'magL')] = dict(part='mag', pc=(hi.x + 0.011, (lo.y + hi.y) / 2 + 0.004, lo.z + (hi.z - lo.z) * 0.38),
                                          dir=nz(0.05, -1, -0.15), palm=nz(-1, 0, 0.1))
@@ -706,9 +734,9 @@ def bake_kind(k, report):
     L, Wd = rest()
     for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, shoulders_for(k, BASE[k]['hip'])[side])
     W = BASE[k]['hip']; F.arm_to(rig, L, Wd, 'r', grip_r(k, W), POLE['r'])
-    ang = F.wrap_fingers(rig, skin, L, Wd, 'r', WPN[k].bvh['trigger'] if 'trigger' in WPN[k].bvh else WPN[k].bvh['body'],
-                         (W @ WPN[k].empty['trigger']).inverted() if 'trigger' in WPN[k].empty else W.inverted(), fingers=('index',),
-                         start={'index': (0.4, 0.6, 0.3)})
+    ang = F.grasp_fingers(rig, skin, L, Wd, 'r', WPN[k].bvh['trigger'] if 'trigger' in WPN[k].bvh else WPN[k].bvh['body'],
+                          (W @ WPN[k].empty['trigger']).inverted() if 'trigger' in WPN[k].empty else W.inverted(), fingers=('index',),
+                          start={'index': (0.25, 0.3, 0.15)})
     GRIP[(k, 'gripR_trigger')] = {'fingers': ang}
     add_part_specs(k)
     for nm in [n for (kk, n) in GRIPSPEC if kk == k and n not in ('gripR', 'gripL')]:
@@ -739,6 +767,14 @@ def bake_kind(k, report):
             FORCE.clear()
             frames.append(L)
             hw.append(screen_width(W, 'r'))
+            if MODE == 'diag' and i == 0:
+                Ww0 = W['w_root'] @ F.RX90.inverted(); Mi0 = Ww0.inverted()
+                for s_ in ('l', 'r'):
+                    pids = np.array([j for j in HAND_IDS[s_] if skin.dom[j] == 'hand_' + s_ and skin.N[j][2] < -0.3], int)
+                    dd = sorted(F.signed_dist(WPN[k].bvh['body'], Mi0 @ Vector(p)) for p in skin.pose(W, pids))
+                    hc = Mi0 @ W['hand_' + s_].translation
+                    tgt = Mi0 @ (d0 := fn(0.0))[('lh' if s_ == 'l' else 'rh')].translation
+                    log('  contact', name, s_, 'palm nearest mm', [round(v * 1000, 1) for v in dd[:4]], 'wrist got', tuple(round(v, 3) for v in hc), 'wanted', tuple(round(v, 3) for v in tgt))
             if MODE == 'diag' and i % 2 == 0:
                 Ww = W['w_root'] @ F.RX90.inverted(); Mi = Ww.inverted(); row = []
                 for s in ('l', 'r'):
@@ -791,6 +827,68 @@ def screen_width(W, s):
     x = np.clip(xn[m], -1, 1)
     return float((x.max() - x.min()) / 2)
 
+def proj(Pts):
+    """Screen fractions (x from the left, y from the top) of first-person points, 16:9, vertical FOV 55."""
+    Pts = np.atleast_2d(Pts); ty = math.tan(math.radians(27.5)); y = np.maximum(Pts[:, 1], 1e-3)
+    return np.stack([0.5 + 0.5 * Pts[:, 0] / y / (ty * 16 / 9), 0.5 - 0.5 * Pts[:, 2] / y / ty], 1)
+
+def composition(k, W):
+    """Where the weapon and hands land on screen for the hip pose W (solved arms, grips as fitted)."""
+    d = {'W': W, 'rh': grip_r(k, W), 'lh': grip_l(k, W), 'rf': fR(k), 'lf': fL(k), 'parts': {}, 'prop': None}
+    L, Wb = solve_frame(k, d)
+    Ww = Wb['w_root'] @ F.RX90.inverted()
+    mz = proj(np.array((Ww @ WPN[k].empty['muzzle'].translation)[:]))[0]
+    wv = proj((np.array(Ww) @ WVH[k].T).T[:, :3])
+    out = {'muzzle': mz, 'wbox': (wv[:, 0].min(), wv[:, 1].min())}
+    for s in ('l', 'r'):
+        q = proj(skin.pose(Wb, HAND_IDS[s]))
+        inn = q[(q[:, 0] <= 1) & (q[:, 1] <= 1) & (q[:, 0] >= 0)]
+        out['h' + s] = (q[:, 0].min(), q[:, 0].max(), q[:, 1].min(), q[:, 1].max(),
+                        (inn[:, 0].max() - inn[:, 0].min()) if len(inn) else 0.0, len(inn) / max(1, len(q)))
+    return out
+
+def comp_cost(c, k='rifleScoped'):
+    mz = c['muzzle']; hl = c['hl']; hr = c['hr']
+    e = 0.0
+    if k == 'pistol':   # compact, lower right: the gun and both gloves in frame, the right hand's top at about 0.74
+        e += ((mz[0] - 0.64) / 0.03) ** 2 + ((mz[1] - 0.63) / 0.03) ** 2
+        e += (((hr[0] + hr[1]) / 2 - 0.74) / 0.05) ** 2 + ((hr[2] - 0.74) / 0.04) ** 2 + ((1 - hr[5]) / 0.1) ** 2
+        e += (max(0, hl[4] - 0.12) / 0.02) ** 2 + (max(0, hr[4] - 0.12) / 0.02) ** 2
+        return e
+    e += ((mz[0] - 0.585) / 0.03) ** 2 + ((mz[1] - 0.59) / 0.03) ** 2
+    e += (max(0, 0.52 - c['wbox'][0]) / 0.03) ** 2 + ((c['wbox'][1] - 0.56) / 0.05) ** 2
+    e += (((hl[0] + hl[1]) / 2 - 0.615) / 0.05) ** 2 + (((hl[2] + hl[3]) / 2 - 0.75) / 0.05) ** 2 + (max(0, hl[3] - 0.97) / 0.02) ** 2
+    e += (((hr[0] + hr[1]) / 2 - 0.85) / 0.05) ** 2 + ((hr[2] - 0.82) / 0.04) ** 2
+    e += (max(0, hl[4] - 0.12) / 0.02) ** 2 + (max(0, hr[4] - 0.12) / 0.02) ** 2
+    return e
+
+def frame_search(k):
+    """Coordinate search of the hip pose (position, yaw, pitch, roll) for the target composition."""
+    x = list(BASE[k]['hip'].translation) + [0.0, 0.0, 0.0]
+    base = BASE[k]['hip']
+    def pose(x):
+        return rel(base, dx=x[0] - base.translation.x, dy=x[1] - base.translation.y, dz=x[2] - base.translation.z, yaw=x[3], pitch=x[4], roll=x[5])
+    ymax = 0.46 if k == 'pistol' else 0.62
+    def cost(x):
+        LASTPOLE.clear()
+        lim = (max(0, abs(x[3]) - 10) ** 2 + max(0, abs(x[4]) - 8) ** 2 + max(0, -x[5] - 14) ** 2 + max(0, x[5] - 4) ** 2) * 0.5
+        lim += (max(0, x[1] - ymax) / 0.01) ** 2 + (max(0, 0.30 - x[1]) / 0.01) ** 2
+        return comp_cost(composition(k, pose(x)), k) + lim
+    c0 = cost(x); step = [0.02, 0.03, 0.02, 3.0, 3.0, 4.0]
+    for it in range(60):
+        moved = False
+        for i in range(6):
+            for sg in (-1, 1):
+                y = list(x); y[i] += sg * step[i]; c = cost(y)
+                if c < c0: x, c0, moved = y, c, True
+        if not moved:
+            step = [v * 0.5 for v in step]
+            if step[0] < 0.002: break
+    c = composition(k, pose(x)); W = pose(x)
+    e = W.to_euler('XYZ')
+    log('FRAME', k, 'cost %.2f' % c0, 'pos', tuple(round(v, 3) for v in W.translation), 'deltas yaw/pitch/roll', tuple(round(v, 1) for v in x[3:]),
+        {kk: tuple(round(float(v), 3) for v in vv) for kk, vv in c.items()})
+
 PEN_IDX = None; WVH = {}
 if __name__ == '__main__':
     PEN_IDX = skin.verts_of(('hand_', 'index_', 'middle_', 'ring_', 'pinky_', 'thumb_', 'lowerarm'))
@@ -817,7 +915,7 @@ if __name__ == '__main__':
                 render(FPW + '/preview/%s_%s_%s_out.png' % (k, nm, tt), L, W, k, view=(Vector((0.75, -0.45, 0.35)), Vector((0.0, 0.25, -0.2)), 50))
                 render(FPW + '/preview/%s_%s_%s_out2.png' % (k, nm, tt), L, W, k, view=(Vector((-0.2, 0.9, -0.5)), Vector((0.0, 0.2, -0.15)), 50))
             if os.environ.get('GRIPVIEW'):   # close views of the right-hand grip: from the left side and from below-behind
-                g = W['w_root'] @ F.RX90.inverted() @ Vector((0, 0.04, -0.04))
+                g = W['w_root'] @ F.RX90.inverted() @ Vector([float(v) for v in os.environ.get('GRIPPT', '0,0.04,-0.04').split(',')])
                 R3 = (W['w_root'] @ F.RX90.inverted()).to_3x3()
                 render(FPW + '/preview/%s_%s_%s_gl.png' % (k, nm, tt), L, W, k, view=(g + R3 @ Vector((0.28, 0.02, 0.03)), g, 30))
                 render(FPW + '/preview/%s_%s_%s_gr.png' % (k, nm, tt), L, W, k, view=(g + R3 @ Vector((-0.28, 0.02, 0.03)), g, 30))
@@ -825,6 +923,13 @@ if __name__ == '__main__':
             log('rendered', nm, tt)
     else:
         report = {}; made = []
+        if os.environ.get('FRAME'):
+            for k in kinds:
+                solve_grip(k, 'gripR', 'r', trigger=False); solve_grip(k, 'gripL', 'l', trigger=True)
+                GRIP[(k, 'gripR_trigger')] = {'fingers': {'index': (0.55, 0.75, 0.35)}}
+                c = composition(k, BASE[k]['hip']); log('NOW', k, 'cost %.2f' % comp_cost(c, k), {kk: tuple(round(float(v), 3) for v in vv) for kk, vv in c.items()})
+                frame_search(k)
+            sys.exit(0)
         for k in kinds: made += bake_kind(k, report)
         if MODE == 'diag':
             json.dump(report, open(FPW + '/diag.json', 'w'), indent=1); log('diag written'); sys.exit(0)
