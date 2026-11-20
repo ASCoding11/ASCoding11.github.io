@@ -174,6 +174,7 @@ body.touch .dmg i{top:-110px}
 #gvign{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 42%,rgba(0,0,0,.85));opacity:0;pointer-events:none}
 #hud.cockpit #nose,#hud.cockpit #status{display:none}
 #hint{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));font-size:12.5px;text-align:right;line-height:1.55;opacity:.9;max-width:330px}
+#hint{transition:opacity .8s}#hint.gone{opacity:0}
 #hint b{background:rgba(8,22,46,.6);border-radius:5px;padding:1px 6px;font-weight:800}
 #board{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,92vw);background:rgba(8,22,46,.82);border:1.5px solid rgba(255,255,255,.3);border-radius:14px;padding:10px 14px;text-shadow:none}
 #board table{width:100%;border-collapse:collapse;font-size:14.5px}
@@ -470,6 +471,10 @@ const PLANE_GROW=1.12*1.15,PLANE_SIZE=1.15*PLANE_GROW;
 const BULLET_V=600,BULLET_LIFE=1.2,BULLET_DMG=9,GUN_RATE=.085,HIT_R=9*PLANE_GROW;
 const HEAT_UP=.024,HEAT_COOL=.3;      // per shot / per second
 const LOCK_T=1.3,LOCK_RANGE=950,LOCK_CONE=.25,MSL_DMG=55,MSL_LIFE=6.5,MSL_TURN=1.9,MSL_MAX=4,FLARE_MAX=4,FLARE_R=520;
+// MSL_GRACE: for this long after spawning nobody can lock a missile on you, and a missile that reaches you does no
+// damage. Like the shield, the plane's own browser decides it and tells the room (flag 64), so old and new pages agree
+// on the damage (an old page can still lock and fire; the missile just does nothing).
+const MSL_GRACE=6;
 const RESPAWN=3.2,SHIELD=2.5,PICK_R=18,PICK_RESPAWN=20000;
 const ARENA_R=2350,ARENA_OUT=2650;    // warning past the first, eight seconds to turn back; past the second there's no time left
 const COLORS=['#ff5a4d','#ff9a2a','#ffd93d','#4ddc7a','#34d0c8','#4d9dff','#a97bff','#ff7ad1'];
@@ -1006,7 +1011,7 @@ function mkEnt(id,o){
   const e={id,name:o.name||'Pilot',color:o.color||COLORS[0],frame:clamp(o.frame|0,0,3),team:o.team==null?-1:o.team,bot:!!o.bot,local:!!o.local,lvl:clamp(o.lvl|0,0,2),
     pos:new V3(0,500,0),fwd:new V3(0,0,1),vel:new V3(),h:0,p:0,r:0,bank:0,rollA:0,speed:100,thr:.8,yr:0,pr:0,aimH:0,aimP:0,
     hp:100,alive:false,out:false,kills:0,deaths:0,heat:0,jam:false,msl:2,flares:2,boostM:1,boosting:false,firing:false,rolling:false,stalled:false,
-    rollT:0,rollDir:1,rollCd:0,shield:0,respT:0,gunT:0,gunSide:1,lastHitBy:'',lastHitT:-99,outT:0,mslT:0,flT:0,trailT:0,lock:{id:'',t:0},
+    rollT:0,rollDir:1,rollCd:0,shield:0,grace:0,respT:0,gunT:0,gunSide:1,lastHitBy:'',lastHitT:-99,outT:0,mslT:0,flT:0,trailT:0,lock:{id:'',t:0},
     ctl:{boost:false,fire:false,roll:0},ai:null,lag:null,snaps:[],mesh:null,vscale:1,seenT:0};
   e.mesh=makeMesh(e);G.ents.set(id,e);return e;
 }
@@ -1048,7 +1053,7 @@ function spawn(e){
   }
   const gy=groundH(x,z)+230,fy=foes.length?clamp(cy,gy,620):430;
   e.pos.set(x,Math.max(gy,fy),z);e.h=e.aimH=h;e.p=e.aimP=0;e.r=e.bank=e.rollA=0;e.yr=e.pr=0;
-  e.speed=108;e.thr=.8;e.hp=100;e.heat=0;e.jam=false;e.msl=2;e.flares=2;e.boostM=1;e.shield=SHIELD;e.alive=true;e.stalled=false;e.rollT=0;e.rollCd=0;e.outT=0;e.mslT=e.flT=0;e.lock.t=0;e.lastHitBy='';
+  e.speed=108;e.thr=.8;e.hp=100;e.heat=0;e.jam=false;e.msl=2;e.flares=2;e.boostM=1;e.shield=SHIELD;e.grace=MSL_GRACE;e.alive=true;e.stalled=false;e.rollT=0;e.rollCd=0;e.outT=0;e.mslT=e.flT=0;e.lock.t=0;e.lastHitBy='';
   dirOf(e.h,e.p,e.fwd);e.vel.copy(e.fwd).multiplyScalar(e.speed);
   if(e===G.me){G.tgtManual=false;G.spec=null;camSnap=true}
 }
@@ -1083,7 +1088,7 @@ function stepPlane(e,dt){
   if(e.stalled)e.pos.y-=18*dt;
   if(e.rolling){const s=Math.sin((1-e.rollT/ROLL_T)*Math.PI)*46*dt*e.rollDir;e.pos.x-=Math.cos(e.h)*s;e.pos.z+=Math.sin(e.h)*s}
   e.vel.copy(e.fwd).multiplyScalar(e.speed);
-  e.rollCd=Math.max(0,e.rollCd-dt);e.shield=Math.max(0,e.shield-dt);
+  e.rollCd=Math.max(0,e.rollCd-dt);e.shield=Math.max(0,e.shield-dt);e.grace=Math.max(0,e.grace-dt);
   e.mslT+=dt;if(e.mslT>22){e.mslT=0;if(e.msl<MSL_MAX)e.msl++}
   e.flT+=dt;if(e.flT>16){e.flT=0;if(e.flares<FLARE_MAX)e.flares++}
   // guns
@@ -1137,6 +1142,7 @@ function emit(ev){handleEvent(ev,true);if(G.online)Net.pushEv(ev)}
 function handleEvent(ev,mine){
   switch(ev.t){
     case 'h':{const t=G.ents.get(ev.to);if(!t||!t.local||!t.alive||t.shield>0||!simLive())break;
+      if(ev.w===1&&t.grace>0)break;   // spawn grace: missiles do nothing yet
       const d=numIn(ev.d,0,100,0);t.hp-=d;t.lastHitBy=String(ev.by||'');t.lastHitT=G.time;if(t.ai)t.ai.hurtT=G.time;
       if(t===G.me){G.hurtFlash=Math.min(1,G.hurtFlash+.25+d/90);sfx('hurt');dmgFrom(G.ents.get(String(ev.by||'')));if(!REDUCED)G.shake=Math.max(G.shake,.25+d/120)}
       if(t.hp<=0)kill(t,t.lastHitBy,ev.w===1?1:0);break}
@@ -1197,7 +1203,8 @@ function updateMissiles(dt){
       if(ang>1e-4)m.dir.lerp(T1,Math.min(1,st/ang)).normalize();
       if(m.local){
         if((m.decoy&&tp===m.decoy.pos)?d<26:d<17){if(tg&&tp===tg.pos)emit({t:'h',by:m.by,to:tg.id,d:MSL_DMG,w:1});endMissile(m,1);continue}
-        if(tg&&tp===tg.pos){
+        if(tg&&tp===tg.pos&&tg.grace>0){m.to='';emit({t:'c',mid:m.id})}
+        else if(tg&&tp===tg.pos){
           if(tg.rolling&&d<180&&!m.rollChk){m.rollChk=true;if(Math.random()<.75){m.to='';emit({t:'c',mid:m.id})}}
           else if(ang>1.35&&d<320){m.to='';emit({t:'c',mid:m.id})}
         }
@@ -1305,7 +1312,7 @@ function botThink(e,dt){
     if(a.tailT>.9-.3*e.lvl&&e.lvl>0&&a.breakT<=0&&Math.random()<D.evade*dt*2){a.breakT=rand(.8,1.4);a.breakDir=Math.random()<.5?1:-1;a.breakP=rand(-.2,.4);if(e.rollCd<=0&&Math.random()<.6)c.roll=-a.breakDir}
     // lock and missile
     T2.copy(tg.pos).sub(e.pos);
-    if(dist<LOCK_RANGE&&e.fwd.angleTo(T2)<LOCK_CONE){if(e.lock.id!==tg.id){e.lock.id=tg.id;e.lock.t=0}e.lock.t+=dt}else e.lock.t=Math.max(0,e.lock.t-dt*2);
+    if(dist<LOCK_RANGE&&e.fwd.angleTo(T2)<LOCK_CONE&&!(tg.grace>0)){if(e.lock.id!==tg.id){e.lock.id=tg.id;e.lock.t=0}e.lock.t+=dt}else e.lock.t=Math.max(0,e.lock.t-dt*2);
     if(e.lock.t>=LOCK_T&&e.msl>0&&a.mslCd<=0&&dist>170&&Math.random()<D.msl*dt*1.6){fireMissile(e,tg);a.mslCd=rand(5,9)}
   }else{
     if(e.pos.distanceTo(a.wp)<260)a.wp.set(rand(-1500,1500),rand(350,650),rand(-1500,1500));
@@ -1462,12 +1469,12 @@ const Net={
     try{if(/^#vq-/.test(location.hash))history.replaceState(null,'',location.pathname)}catch(e){}
   }
 };
-const flagsOf=e=>(e.firing?1:0)|(e.boosting?2:0)|(e.rolling?4:0)|(e.alive?8:0)|(e.shield>0?16:0)|(e.out?32:0);
+const flagsOf=e=>(e.firing?1:0)|(e.boosting?2:0)|(e.rolling?4:0)|(e.alive?8:0)|(e.shield>0?16:0)|(e.out?32:0)|(e.grace>0?64:0);
 const isHost=()=>!G.online||Net.hostUid()===Net.uid;
 function applyState(e,a,ts,now){
   // a: x y z h p r speed flags hull kills deaths
   if(!finN(a[0])||!finN(a[1])||!finN(a[2]))return;
-  const f=a[7]|0;e.speed=numIn(a[6],0,400,100);e.firing=!!(f&1);e.boosting=!!(f&2);e.rolling=!!(f&4);e.alive=!!(f&8)&&!e.out;e.shield=f&16?.3:0;
+  const f=a[7]|0;e.speed=numIn(a[6],0,400,100);e.firing=!!(f&1);e.boosting=!!(f&2);e.rolling=!!(f&4);e.alive=!!(f&8)&&!e.out;e.shield=f&16?.3:0;e.grace=f&64?.3:0;
   e.hp=numIn(a[8],0,100,100);e.kills=numIn(a[9],0,999,0)|0;e.deaths=numIn(a[10],0,999,0)|0;
   pushSnap(e,ts,clamp(a[0],-4000,4000),clamp(a[1],-50,3000),clamp(a[2],-4000,4000),numIn(a[3],-7,7,0),numIn(a[4],-2,2,0),numIn(a[5],-7,7,0),now);
 }
@@ -1607,7 +1614,7 @@ function beginMatch(){
   for(const p of PICKS)p.until=0;
   G.tgt=null;G.tgtManual=false;G.spec=null;camSnap=true;
   $('feed').textContent='';for(const id of ['menu','lobby','end','pause'])$(id).hidden=true;
-  $('hud').hidden=false;$('touch').hidden=!touchUI;$('clickPlay').hidden=touchUI||!!document.pointerLockElement;
+  $('hud').hidden=false;$('touch').hidden=!touchUI;$('clickPlay').hidden=touchUI||!!document.pointerLockElement||kbFlying;showHint();
   $('rule').textContent=(rs.md===2?'Teams, first to ':'First to ')+rs.kl;
   const me=G.me;
   banner(MODE_NAME[rs.md],me&&me.out?'This match is full: you fly in the next one':rs.md===2&&me?'You are on '+TEAM_NAME[me.team<0?0:me.team]:'Most kills wins',3200);   // (banner() translates them)
@@ -1707,6 +1714,10 @@ const KB=Keybinds.create({game:'sky-duel',mouse:true,classes:{button:'btn alt sm
   {id:'pause',label:'Pause',group:'Other',keys:['Escape'],fixed:true}
 ]});
 const touch={fire:false,boost:false,sx:0,sy:0,stick:false};
+// The key hint (bottom right) fades after 10 seconds of flying, or once each of its keys has been used; the pause
+// menu brings it back for another 10 seconds.
+let kbFlying=false,hintT=10;const hintUsed=new Set(),HINT_KEYS=['fire','missile','flare','boost','roll','thr'];
+function showHint(){hintT=10;hintUsed.clear();const h=$('hint');if(h)h.classList.remove('gone')}
 let tapT={left:0,right:0},kbTurn=0;
 const flying=()=>G.phase==='play'&&!G.paused&&G.mode!=='menu';
 function press(code,e){
@@ -1714,7 +1725,9 @@ function press(code,e){
   const acts=KB.actionsFor(code);if(!acts.length)return;
   if(e&&code.indexOf('Mouse')!==0)e.preventDefault();
   if(keys.has(code))return;keys.add(code);const me=G.me;
+  if(code.indexOf('Mouse')!==0&&!kbFlying){kbFlying=true;$('clickPlay').hidden=true}   // flying on the keys: the controls are taken
   for(const a of acts){
+    hintUsed.add(a==='rollL'||a==='rollR'?'roll':a==='thrUp'||a==='thrDown'?'thr':a);
     if(a==='board')G.board=true;
     if(a==='view')CP.toggle();
     if(!me||!me.alive)continue;
@@ -1745,7 +1758,7 @@ addEventListener('mousemove',e=>{
   const k=.0021*sens;me.aimH-=clamp(e.movementX,-200,200)*k;me.aimP-=clamp(e.movementY,-200,200)*k*(invY?-1:1);
 });
 document.addEventListener('pointerlockchange',()=>{
-  const on=document.pointerLockElement===canvas;$('clickPlay').hidden=on||touchUI||G.phase!=='play';
+  const on=document.pointerLockElement===canvas;$('clickPlay').hidden=on||touchUI||G.phase!=='play'||kbFlying;
   if(!on){keys.clear();if(G.phase==='play'&&!G.paused&&!touchUI&&!navigator.webdriver)openPause()}
 });
 // touch: a stick to steer, a throttle slider, and buttons
@@ -1806,7 +1819,7 @@ function updateTarget(dt){
   }
   if(tg){
     T1.copy(tg.pos).sub(me.pos);
-    if(T1.length()<LOCK_RANGE&&me.fwd.angleTo(T1)<LOCK_CONE&&me.msl>0){
+    if(T1.length()<LOCK_RANGE&&me.fwd.angleTo(T1)<LOCK_CONE&&me.msl>0&&!(tg.grace>0)){
       if(me.lock.id!==tg.id){me.lock.id=tg.id;me.lock.t=0}
       const was=me.lock.t;me.lock.t=Math.min(LOCK_T,me.lock.t+dt);
       if(me.lock.t>=LOCK_T){if(was<LOCK_T)sfx('locked')}else{lockBeep-=dt;if(lockBeep<=0){lockBeep=.22;sfx('lock')}}
@@ -1823,7 +1836,7 @@ function tryMissile(){const me=G.me;if(!me||!me.alive)return;if(me.msl>0&&me.loc
 // =====================================================================
 //  Camera
 // =====================================================================
-let camSnap=true;const camDir=new V3(0,0,1),camPos=new V3();let camFov=64;
+let camSnap=true;const camDir=new V3(0,0,1),camPos=new V3();let camFov=64,camBack=0;
 
 // =====================================================================
 //  Cockpit view (V, or View on a touch screen): sit in the pilot's seat.
@@ -2120,13 +2133,16 @@ function updateCamera(dt){
   }
   if(!e)T2.set(Math.sin(G.time*.08),-.25,Math.cos(G.time*.08)).normalize();
   if(camSnap)camDir.copy(T2);else camDir.lerp(T2,1-Math.exp(-dt*(mine?9:4))).normalize();
-  const c=e?e.pos:T3.set(0,720,0),dist=mine?40:G.mode==='menu'?64:58;
+  // your own plane: the camera drops back a little as you speed up and when boosting, so speed reads as motion
+  if(mine)camBack+=((me.boosting?7:0)+clamp((me.speed-110)/20,0,3)-camBack)*Math.min(1,dt*2.5);
+  const c=e?e.pos:T3.set(0,720,0),dist=mine?42+camBack:G.mode==='menu'?64:58;
   camPos.copy(c).addScaledVector(camDir,-dist);camPos.y+=mine?9.5:15;
   const gh=groundH(camPos.x,camPos.z)+5;if(camPos.y<gh)camPos.y=gh;
   if(camSnap)camera.position.copy(camPos);else camera.position.lerp(camPos,1-Math.exp(-dt*16));
   camSnap=false;
   T4.copy(c).addScaledVector(camDir,170);T4.y+=mine?3:0;camera.up.set(0,1,0);camera.lookAt(T4);
   if(mine&&!REDUCED)camera.rotateZ(-me.bank*.2);
+  if(mine&&!REDUCED&&me.boosting)G.shake=Math.max(G.shake,.05);   // a faint buzz under boost
   if(G.shake>.01){camera.position.x+=rand(-1,1)*G.shake*2;camera.position.y+=rand(-1,1)*G.shake*2;G.shake*=Math.exp(-dt*6)}
   const fv=64+(mine?(me.boosting?11:0)+clamp((me.speed-100)/12,0,4):0);camFov+=(fv-camFov)*Math.min(1,dt*4);
   if(Math.abs(camera.fov-camFov)>.05){camera.fov=camFov;camera.updateProjectionMatrix()}
@@ -2223,6 +2239,7 @@ function updateHud(dt){
   for(let i=mi;i<marks.length;i++)if(!marks[i].el.hidden)marks[i].el.hidden=true;
   // bars every frame, text a few times a second
   if(fly){setBar(HE.hpF,me.hp/100);setBar(HE.boF,me.boostM);setBar(HE.heF,me.heat)}
+  if(G.phase==='play'&&!G.paused&&hintT>0){hintT-=dt;if(hintT<=0||HINT_KEYS.every(k=>hintUsed.has(k))){hintT=0;$('hint').classList.add('gone')}}
   hudT-=dt;if(hudT>0)return;hudT=.12;
   if(touch.fill&&me)css(touch.fill,'height',(me.thr*100).toFixed(0)+'%');
   const now=netNow();
@@ -2244,6 +2261,9 @@ function updateHud(dt){
   const w=[];
   if(fly){
     if(G.incoming)w.push(['MISSILE',0]);
+    // someone behind you, close and pointed at you: say so (their arrow is at the bottom edge)
+    else{for(const o of G.ents.values()){if(o===me||!o.alive||!enemies(me,o))continue;T1.copy(me.pos).sub(o.pos);const d=T1.length();
+      if(d<600&&d>1&&me.fwd.dot(T1)>d*.3&&o.fwd.dot(T1)>d*.9){w.push(['ON YOUR TAIL: break!',0]);break}}}
     if(me.stalled)w.push(['STALL: nose down, throttle up',0]);
     else if(avoidGround(me,me.h,me.p,.55).hit&&me.fwd.y<.15)w.push(['PULL UP',0]);
     if(me.outT>0)w.push(['TURN BACK '+Math.ceil(8-me.outT),0]);
@@ -2368,7 +2388,7 @@ function renderLobby(){
 }
 function lobbyCfg(){return isHost()||!G.rs?onlineCfg:G.rs}
 function openPause(){
-  if(G.phase!=='play'||G.paused)return;G.paused=true;keys.clear();touch.fire=touch.boost=false;
+  if(G.phase!=='play'||G.paused)return;G.paused=true;showHint();keys.clear();touch.fire=touch.boost=false;
   if(document.pointerLockElement)try{document.exitPointerLock()}catch(e){}
   $('pauseSub').textContent=G.online?'The fight goes on without you: your plane holds a safe course on autopilot.':'The match is paused.';
   $('copyInvite').hidden=!G.online||Net.isPublic;$('toLobby').hidden=!G.online||Net.isPublic||!isHost();$('inviteMsg').textContent='';
