@@ -13,6 +13,28 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Halfway there': 'Mitad del camino', '1,600 m · 1,400 to go': '1.600 m · faltan 1.400', 'Almost there': 'Ya casi', '2,870 m': '2.870 m', '1000 m': '1000 m',
   'OLD SUMMIT': 'CIMA VIEJA', '1,000 m · the climb goes on': '1.000 m · la subida sigue', 'Old summit': 'Cima vieja', '1,000 m · keep climbing': '1.000 m · sigue subiendo',
   'FRESH AIR · ALL THE WAY UP': 'AIRE FRESCO · HASTA ARRIBA DEL TODO',
+  // through the gate on the Crown (3000 – 6000 m)
+  'The Black River': 'El Río Negro', 'The Burning River': 'El Río de Fuego', "The Hound's Gate": 'La Puerta del Perro', 'The Runestones': 'Las Piedras Rúnicas',
+  'The Spellworks': 'El Taller de Hechizos', 'The Orrery': 'El Planetario', 'The Lodestar': 'La Estrella Guía', 'Lodestar': 'Estrella Guía',
+  'Ride the ferries and keep moving: rafts sink under you.': 'Sube a los botes y no te quedes quieto: las balsas se hunden bajo tus pies.',
+  'Heat vents blow on a beat. Stand on the grate and wait.': 'Las bocas de calor soplan al ritmo. Párate en la rejilla y espera.',
+  'Ride the great wheel. Cross the slope between boulders.': 'Sube a la gran rueda. Cruza la ladera entre las rocas que ruedan.',
+  'Step on a glowing glyph and it carries you to its twin.': 'Pisa un glifo brillante y te lleva hasta su gemelo.',
+  'Crystal discs grow and shrink. Cross while they are full.': 'Los discos de cristal crecen y se encogen. Cruza mientras están enteros.',
+  'Moons circle planets. Everything at once, up to the Lodestar.': 'Las lunas giran alrededor de los planetas. Todo a la vez, hasta la Estrella Guía.',
+  '3,000 m': '3.000 m', '3,110 m': '3.110 m', '3,310 m': '3.310 m', '3,600 m': '3.600 m', '3,810 m': '3.810 m', '4,100 m': '4.100 m', '4,300 m': '4.300 m',
+  '4,600 m': '4.600 m', '4,810 m': '4.810 m', '5,100 m': '5.100 m', '5,310 m': '5.310 m', '5,600 m': '5.600 m', '5,800 m': '5.800 m', '6000 m · the top': '6000 m · la cima',
+  'Through the gate': 'Al otro lado de la puerta', 'The climb to the Lodestar is timed from here.': 'La subida hasta la Estrella Guía se cronometra desde aquí.',
+  'Fall anywhere on this side and the river brings you back to this bank.': 'Si te caes en cualquier parte de este lado, el río te trae de vuelta a esta orilla.',
+  'Back on the bank': 'De vuelta en la orilla', 'The river carried you back to the gate. The clock kept running.': 'El río te llevó de vuelta a la puerta. El reloj siguió corriendo.',
+  'Fell {d} m into the river': 'Caíste {d} m al río', 'The Crown gate': 'La puerta de la Corona',
+  '{n} reached the Crown in {t}!': '¡{n} llegó a la Corona en {t}!', '{n} reached the Lodestar in {t}!': '¡{n} llegó a la Estrella Guía en {t}!',
+  'You reached the Lodestar': 'Llegaste a la Estrella Guía', 'A new best time from the gate.': 'Un nuevo mejor tiempo desde la puerta.',
+  'Best time from the gate {t}.': 'Mejor tiempo desde la puerta: {t}.', '6000 metres. The time is from the gate on the Crown to here.': '6000 metros. El tiempo cuenta desde la puerta de la Corona hasta aquí.',
+  'The Crown at {t}.': 'La Corona en {t}.', 'A gate has opened on the Crown: 3000 metres more on the other side.': 'Se abrió una puerta en la Corona: 3000 metros más del otro lado.',
+  'Again from the Crown gate': 'Otra vez desde la puerta de la Corona', 'Start at the Crown gate · 3,000 m': 'Empezar en la puerta de la Corona · 3.000 m',
+  'Back to the Lodestar': 'Volver a la Estrella Guía', 'Back to the Crown': 'Volver a la Corona', 'Restart from the Crown gate': 'Empezar de nuevo desde la puerta de la Corona',
+  'The Crown and its gate, 3000 m': 'La Corona y su puerta, 3000 m',
   // HUD
   'Run': 'Partida', 'Best': 'Récord', 'Time': 'Tiempo', 'Room': 'Sala', 'Room {r}': 'Sala {r}', 'Public room': 'Sala pública',
   'Click to look around': 'Haz clic para mirar', 'Hold to restart from the bottom': 'Mantén para empezar desde abajo',
@@ -31,8 +53,8 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Up is the only way. Good luck.': 'El único camino es hacia arriba. ¡Suerte!',
   'Secret found: {n}': 'Secreto encontrado: {n}', 'the staff lift': 'el montacargas del personal', 'the service elevator': 'el ascensor de servicio', 'the hidden updraft': 'la corriente escondida',
   // menu
-  "One way to go, and it's three thousand metres. Climb a junkyard, a pile of giant lost things and the clouds to the edge of space, then past the old summit through the aurora, a storm, a sky town and orbit to the Crown. Miss a jump and you fall, maybe all the way down.":
-    'Hay un solo camino, y mide tres mil metros. Trepa un depósito de chatarra, una montaña de cosas perdidas gigantes y las nubes hasta el borde del espacio; después pasa la cima vieja y sigue por la aurora, una tormenta, un pueblo en el cielo y la órbita hasta la Corona. Si fallas un salto, te caes, quizás hasta abajo del todo.',
+  "One way to go, and it's six thousand metres. Climb a junkyard, a pile of giant lost things and the clouds to the edge of space, then through the aurora, a storm, a sky town and orbit to the Crown. Its gate opens on another world: out of a pit by a black river, and up through a sky of spells to the Lodestar. Miss a jump and you fall.":
+    "Hay un solo camino, y mide seis mil metros. Trepa un depósito de chatarra, una montaña de cosas perdidas gigantes y las nubes hasta el borde del espacio; después sigue por la aurora, una tormenta, un pueblo en el cielo y la órbita hasta la Corona. Su puerta se abre a otro mundo: sal de un pozo junto a un río negro y sube por un cielo de hechizos hasta la Estrella Guía. Si fallas un salto, te caes.",
   'Start climbing': 'Empezar a subir', 'Back to the top': 'Volver arriba', 'Keep climbing · {h} m': 'Seguir subiendo · {h} m', 'New run from the bottom': 'Nueva partida desde abajo',
   'Best height': 'Altura récord',
   "On a phone: left stick to move, drag anywhere else to look. Hold Slow while you're in the air to steer in slow motion. The eye button switches to first person. Turn it sideways for the best view.":
@@ -42,8 +64,8 @@ if (window.BackRoomLang) BackRoomLang.add({
     'Hasta 12 escaladores por sala. Cada uno sube su propia partida; se ven entre todos y hay una tabla en vivo de quién va más alto. Tu partida viene contigo.',
   'Move': 'Moverse', 'Space': 'Espacio', 'Sprint (jumps farther)': 'Correr (saltas más lejos)', 'Hold in the air: slow motion': 'Mantén en el aire: cámara lenta',
   'First / third person': 'Primera / tercera persona', 'Mouse': 'Mouse', 'Look, wheel to zoom': 'Mirar, rueda para el zoom', 'Hold to restart': 'Mantén para reiniciar',
-  "Standing jumps are short, running jumps go farther and sprinting jumps go farthest. Jump just as you run off an edge, or a moment after. Hold slow motion while you're in the air to get more time to steer a landing; the clock keeps running at full speed, so it costs you time. No checkpoints: your run is saved where you are, so you can stop and come back.":
-    'Los saltos sin carrera son cortos, corriendo llegas más lejos y a toda velocidad, todavía más. Salta justo cuando sales de un borde, o un instante después. Mantén la cámara lenta en el aire para tener más tiempo de apuntar el aterrizaje; el reloj sigue a velocidad normal, así que te cuesta tiempo. No hay puntos de control: tu partida se guarda donde estés, así que puedes parar y volver.',
+  "Standing jumps are short, running jumps go farther and sprinting jumps go farthest. Jump just as you run off an edge, or a moment after. Hold slow motion while you're in the air to get more time to steer a landing; the clock keeps running at full speed, so it costs you time. Your run is saved where you are, so you can stop and come back. There's one checkpoint: once you've reached the Crown, you can start at its gate.":
+    "Los saltos sin carrera son cortos, corriendo llegas más lejos y a toda velocidad, todavía más. Salta justo cuando sales de un borde, o un instante después. Mantén la cámara lenta en el aire para tener más tiempo de apuntar el aterrizaje; el reloj sigue a velocidad normal, así que te cuesta tiempo. Tu partida se guarda donde estés, así que puedes parar y volver. Hay un solo punto de control: cuando llegaste a la Corona, puedes empezar en su puerta.",
   'Advertisement': 'Publicidad',
   // pause, settings, win
   'Paused': 'En pausa', 'Your run is saved.': 'Tu partida está guardada.', 'Keep climbing': 'Seguir subiendo', 'Copy invite link': 'Copiar enlace de invitación',
