@@ -1419,7 +1419,7 @@ const PANEL = (() => { const c = document.createElement('canvas'); c.width = c.h
   }
   return c; })();
 const panelTex = new THREE.CanvasTexture(PANEL); panelTex.wrapS = panelTex.wrapT = THREE.RepeatWrapping; panelTex.anisotropy = 8;
-const deckMat = neonMat({ map: panelTex, vertexColors: true, roughness: 0.38, metalness: 0.55, envMapIntensity: 0.9 }, E(0x3a2cff, 0.22));
+const deckMat = neonMat({ map: panelTex, vertexColors: true, roughness: 0.38, metalness: 0.55, envMapIntensity: 0.9 }, E(0x4a3cff, 0.5));
 
 // colours (linear, for vertex colours) and glows
 const COL = {
@@ -1617,8 +1617,9 @@ function updateChunks(s, all) {
   const k0 = Math.floor((s - 30) / CH), k1 = Math.floor((s + QS.far + 20) / CH);
   for (const k of [...chunks.keys()]) if (k < k0 || k > k1) releaseChunk(k);
   let built = 0;
+  if (!chunks.has(Math.max(0, k0 + 3))) all = true; // fell far behind (a jump ahead): build everything now rather than show a short track
   for (let k = Math.max(0, k0); k <= k1; k++) {
-    if (chunks.has(k)) continue; if (!all && built >= 3) break;
+    if (chunks.has(k)) continue; if (!all && built >= 1) break; // one chunk a frame (about 10 ms of work at most) keeps up at top speed
     if ((k + 1) * CH > G.tr.sGen) break;
     const ch = chunkPool.pop() || newChunkMesh(); buildChunk(ch, k); chunks.set(k, ch); built++;
   }
@@ -1818,7 +1819,7 @@ function stepTrail(p, on) {
   G.tr.frame(p.s, FR); const rx = Math.cos(FR.yaw), rz = Math.sin(FR.yaw);
   _tc1.copy(ballGlow);
   for (let i = 0; i < TRN; i++) {
-    const h = trHist[Math.min(i, n - 1)], q = i / (TRN - 1), w = 0.36 * (1 - q) + 0.02, k = i * 6, f = Math.pow(1 - Math.min(1, i / (n - 1)), 1.4) * 0.6;
+    const h = trHist[Math.min(i, n - 1)], q = i / (TRN - 1), w = 0.2 * (1 - q) + 0.02, k = i * 6, f = Math.pow(1 - Math.min(1, i / (n - 1)), 1.6) * 0.35;
     trPos[k] = h[0] - rx * w; trPos[k + 1] = h[1]; trPos[k + 2] = h[2] - rz * w; trPos[k + 3] = h[0] + rx * w; trPos[k + 4] = h[1]; trPos[k + 5] = h[2] + rz * w;
     const r = _tc1.r + (_tc2.r - _tc1.r) * q, g = _tc1.g + (_tc2.g - _tc1.g) * q, b = _tc1.b + (_tc2.b - _tc1.b) * q;
     trCol[k] = trCol[k + 3] = r * f; trCol[k + 1] = trCol[k + 4] = g * f; trCol[k + 2] = trCol[k + 5] = b * f;
@@ -2089,7 +2090,7 @@ const cam = { off: new THREE.Vector3(), pos: new THREE.Vector3(), roll: 0, dip: 
 const _cp = new THREE.Vector3(), _bw = new THREE.Vector3(), _cb = new THREE.Vector3();
 function updateCamera(dt, p) {
   const tr = G.tr, v = tr.vAt(p.s), q = clampN((v - P.VLO) / (P.VHI - P.VLO), 0, 1);
-  const back = P.CAM_BACK + 1.8 * q, hgt = P.CAM_H + 0.7 * q, la = 10 + v * 0.45;
+  const back = P.CAM_BACK + 1.2 * q, hgt = P.CAM_H + 0.5 * q, la = 10 + v * 0.45;
   tr.frame(p.s + 4, FR); const yaw = FR.yaw;
   if (cam.reset) cam.yaw = yaw; cam.yaw += (yaw - cam.yaw) * (1 - Math.exp(-5 * dt));
   const fx = Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = Math.cos(cam.yaw), rz = Math.sin(cam.yaw);
@@ -2105,7 +2106,7 @@ function updateCamera(dt, p) {
   cam.dip *= Math.exp(-8 * dt);
   camera.position.copy(cam.pos).add(cam.off); camera.position.y -= cam.dip;
   // pitch: most of the grade ahead, never all of it
-  const gAhead = (tr.yAt(p.s + la) - tr.yAt(p.s)) / la, want = Math.atan(gAhead) * 0.8 - 0.03 - 0.05 * q;
+  const gAhead = (tr.yAt(p.s + la) - tr.yAt(p.s)) / la, want = Math.atan(gAhead) * 0.8 - 0.03 - 0.02 * q;
   if (cam.reset) cam.pitch = want; cam.pitch += (want - cam.pitch) * (1 - Math.exp(-3 * dt));
   if (falling) { camera.lookAt(_bw); }
   else {
@@ -2115,7 +2116,7 @@ function updateCamera(dt, p) {
   }
   cam.reset = false;
   // widen the view with speed (less with reduced effects)
-  const fov = 64 + (set.fx ? 4 : 12) * q; if (Math.abs(fov - camera.fov) > 0.05) { camera.fov += (fov - camera.fov) * (1 - Math.exp(-3 * dt)); camera.updateProjectionMatrix(); }
+  const fov = 64 + (set.fx ? 3 : 7) * q; if (Math.abs(fov - camera.fov) > 0.05) { camera.fov += (fov - camera.fov) * (1 - Math.exp(-3 * dt)); camera.updateProjectionMatrix(); }
 }
 
 // ---------- drawing one frame ----------
