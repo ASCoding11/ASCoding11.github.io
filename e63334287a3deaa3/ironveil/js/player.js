@@ -28,11 +28,14 @@
     if (!P.actor) {
       P.actor = IVChars.spawn('hero');
       P.actor.root.traverse(o => { o.userData.player = true; });
-      P.actor.groundAt = (x, z) => W.groundAt(x, z, P.render.y + 0.4);   // chars.js foot IK
+      // chars.js foot IK; none during a scripted moment (hanging in the harness the ground is metres below, and the
+      // pelvis drop would pull the body down to it)
+      P.actor.groundAt = (x, z) => P.cine ? null : W.groundAt(x, z, P.render.y + 0.4);
       // footsteps come from the animation's foot contacts
       P.actor.onFoot = (side, strength) => footFx(P.render, P.stance === 'stand' ? (P.sprinting ? 'sprint' : P.speed > 2.6 ? 'run' : 'walk') : P.stance === 'crouch' ? 'crouch' : 'prone', strength, true);
     }
     W.dynamic.add(P.actor.root);
+    P.actor._gOff = null; P.actor._pelDrop = 0;   // a respawn starts the foot IK fresh, not eased from where the body was
     P.actor.play(P.stance === 'prone' ? 'proneIdle' : P.stance === 'crouch' ? 'crouchIdle' : 'idle', { fade: 0 });
   };
   // the ground kind under a point, as the audio and effects know it
