@@ -51,7 +51,7 @@
  * 25 or more, from the Kills board's own rows; Shell Crackers' Kills board says who holds it.
  *
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
- * localStorage 'lb:span'; it also switches each game's Hours board). All time ranks by BackRoomMiles.of(node).miles, the
+ * localStorage 'lb:span'; it also switches each game's play-time board, shown in miles). All time ranks by BackRoomMiles.of(node).miles, the
  * number behind the tier badge. This week is miles from play time only (miles.js's HOUR per hour), from the per-day history
  * d that stats.js keeps (seconds per game per local day, YYYYMMDD by the player's own browser): the dates from this week's
  * Monday to today, by the viewer's clock (the week starts on Monday, so the board empties at midnight on Sunday night),
@@ -60,7 +60,8 @@
  * DAY_GAMES of them, plus d's '_': that day's time in games past stats.js's first eight, all together), each game's week
  * is no more than its all-time hours, and after an hours reset only the days from the reset's date count (and still no
  * more than the hours since the reset, so a reset zeroes the week too). The week is parse's wk ({ <game>: seconds, _ }),
- * week (seconds) and wtop (the game played most this week).
+ * week (seconds) and wtop (the game played most this week). weekOf also keeps dy ({ YYYYMMDD: seconds }, the same checks)
+ * for every day from last week's Monday on, which the weekly Aisle contest uses (aisles.js).
  */
 (function () {
   'use strict';
@@ -78,6 +79,56 @@
   // STALE: an entry nobody has updated for 180 days is skipped before anything else is read from it (entries are never
   // removed from the database, so this is what keeps old ones cheap to parse: a timestamp check, no JSON.stringify or
   // stats; they are still downloaded).
+  // Spanish (lang.js): this script's words.
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Most miles flown across the Back Room, and the best in each game.': 'Las millas más voladas en The Back Room, y lo mejor de cada juego.',
+      'Players': 'Jugadores', 'Leaderboard type': 'Tipo de tabla', 'Aisle board': 'Tabla de Aisles',
+      'Refresh': 'Actualizar', 'Board': 'Tabla', 'Track': 'Pista', 'Time span': 'Período', 'This week': 'Esta semana', 'All time': 'Histórico',
+      'Miles (all games)': 'Millas (todos los juegos)', 'Miles · all games · this week': 'Millas · todos los juegos · esta semana', 'Miles · all games · all time': 'Millas · todos los juegos · histórico',
+      'The boards load when you scroll down to them.': 'Las tablas cargan cuando bajas hasta ellas.',
+      'Every lap counts, corner cuts included. Clean lap has the times with no cut.': 'Cuenta cada vuelta, incluso con curvas cortadas. Vuelta limpia tiene los tiempos sin cortes.',
+      'Race times include any track-cut penalties (+2.5 s each).': 'Los tiempos de carrera incluyen las penalizaciones por cortar pista (+2,5 s cada una).',
+      'This week counts miles from play time since Monday. Wins and bests count in All time.': 'Esta semana cuenta millas por tiempo de juego desde el lunes. Las victorias y récords cuentan en Histórico.',
+      'All time: miles from time spent playing plus points for wins and bests, the same miles as each player’s status tier.': 'Histórico: millas por el tiempo que pasas jugando más puntos por victorias y récords, las mismas millas que el nivel de cada jugador.',
+      'This week counts miles from play time in this game since Monday.': 'Esta semana cuenta millas por tiempo de juego en este juego desde el lunes.',
+      'All time: miles from time spent playing this game.': 'Histórico: millas por el tiempo que pasas jugando este juego.',
+      'Play time counts while a game is open and you’re playing. Scores are reported by each player’s own browser, so they’re for bragging rights, not prizes.':
+        'El tiempo de juego cuenta mientras un juego está abierto y estás jugando. Los puntajes los informa el navegador de cada jugador, así que son para presumir, no para premios.',
+      'Season {n}: Slipstream’s lap and race records were reset on {d}, after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and play time were kept.':
+        'Temporada {n}: los récords de vuelta y carrera de Slipstream se reiniciaron el {d}, después de que arreglos de pista y barreras más suaves hicieran injusto comparar con tiempos viejos. Los tiempos anteriores ya no cuentan. Se mantuvieron el Elo y el tiempo de juego.',
+      'Refreshing…': 'Actualizando…', 'Loading the leaderboards…': 'Cargando las tablas…',
+      'The leaderboards need the Party panel, which didn’t load. Reload the page to try again.': 'Las tablas necesitan el panel de Grupo, que no cargó. Recarga la página para reintentar.',
+      'Couldn’t reach the leaderboards. If you’re on a school or work network it may be blocking the game database.': 'No se pudo llegar a las tablas. Si estás en la red de la escuela o del trabajo, puede que bloquee la base de datos del juego.',
+      'Tracks with times': 'Pistas con tiempos', 'No times yet this season': 'Todavía no hay tiempos esta temporada', 'no times yet': 'sin tiempos todavía',
+      '· {n} driver': '· {n} piloto', '· {n} drivers': '· {n} pilotos', 'Miles from play time': 'Millas por tiempo de juego', 'Miles': 'Millas', 'Fastest lap · every track': 'Vuelta más rápida · todas las pistas', 'All tracks': 'Todas las pistas',
+      'Fastest lap': 'Vuelta más rápida', 'Clean lap': 'Vuelta limpia', 'Fastest clean lap': 'Vuelta limpia más rápida', 'Most: {n}': 'Más: {n}',
+      'Clean times: no corner was cut on': 'Tiempos limpios: no se cortó ninguna curva en', 'any lap of the race.': 'ninguna vuelta de la carrera.', 'the lap.': 'la vuelta.',
+      // Board names (game names stay in English).
+      'Best score': 'Mejor puntaje', 'Best streak': 'Mejor racha', 'Daily wins': 'Victorias diarias', 'Best daily streak': 'Mejor racha diaria', 'Fewest guesses': 'Menos intentos',
+      'Fewest guesses (daily)': 'Menos intentos (diario)', 'Fewest guesses in a daily win': 'Menos intentos en una victoria diaria', 'Match wins': 'Partidas ganadas',
+      'Online match wins': 'Partidas en línea ganadas', 'Online wins': 'Victorias en línea', 'Round wins': 'Rondas ganadas', 'Rounds won': 'Rondas ganadas', 'Races won': 'Carreras ganadas',
+      'Most kills in a match': 'Más bajas en una partida', 'Kills (all time)': 'Bajas (histórico)', 'Kills counted for K/D': 'Bajas para K/D', 'K/D (all time)': 'K/D (histórico)',
+      'Most wrecks in a round': 'Más choques en una ronda', 'Wrecks (all time)': 'Choques (histórico)', 'Wrecks counted for K/D': 'Choques para K/D', 'Times wrecked': 'Veces chocado',
+      'Most knockouts in a match': 'Más derribos en una partida', 'Best placing': 'Mejor puesto', 'Matches played': 'Partidas jugadas', 'Touches (all time)': 'Toques (histórico)',
+      'Longest touch streak': 'Racha de toques más larga', 'Most goals in a match': 'Más goles en una partida', 'Goals (all time)': 'Goles (histórico)', 'Longest snake': 'Serpiente más larga',
+      'Cut-offs (all time)': 'Cortes (histórico)', 'Best Daily score': 'Mejor puntaje diario', 'Best Daily streak': 'Mejor racha diaria', 'Biggest pot (practice)': 'Bote más grande (práctica)',
+      'Hands played (practice)': 'Manos jugadas (práctica)', 'Most hiders found in a round': 'Más escondidos encontrados en una ronda', 'Hiders found (all time)': 'Escondidos encontrados (histórico)',
+      'Rounds stayed hidden': 'Rondas sin ser encontrado', 'Fastest tower': 'Torre más rápida', 'Fastest obby (all 49 stages)': 'Obby más rápido (las 49 etapas)', 'Fastest obby': 'Obby más rápido',
+      'Towers climbed': 'Torres escaladas', 'Fastest full run (all 25 levels)': 'Recorrido completo más rápido (los 25 niveles)', 'Fastest full run': 'Recorrido completo más rápido',
+      'Most stars': 'Más estrellas', 'Levels cleared (all time)': 'Niveles superados (histórico)', 'Levels cleared': 'Niveles superados', 'Best height': 'Mayor altura',
+      'Fastest to the Crown (3000 m)': 'Más rápido a la Corona (3000 m)', 'The Crown': 'La Corona', 'Fastest to the old summit (1000 m)': 'Más rápido a la vieja cumbre (1000 m)', 'Old summit': 'Vieja cumbre',
+      'Longest Endless run': 'Carrera infinita más larga', 'Best Endless score': 'Mejor puntaje en Infinito', 'Medals (of 72)': 'Medallas (de 72)', 'Power crystals collected': 'Cristales de poder juntados', 'Runs (all time)': 'Carreras (histórico)',
+      'Most props found in a round': 'Más objetos encontrados en una ronda', 'Longest survival as a prop': 'Más tiempo sobreviviendo como objeto', 'Props found (all time)': 'Objetos encontrados (histórico)',
+      'Most crowns in a row': 'Más coronas seguidas', 'Shows played': 'Shows jugados', 'Answers given (all time)': 'Respuestas dadas (histórico)', 'Longest answer streak': 'Racha de respuestas más larga',
+      'Lines cleared (all time)': 'Líneas borradas (histórico)', 'Biggest tile': 'Ficha más grande', 'Most lines': 'Más líneas', 'Watermelons grown (all time)': 'Sandías logradas (histórico)',
+      'Most waves held': 'Más oleadas aguantadas', 'Daily puzzles finished': 'Puzles diarios terminados', 'Best daily streak (any puzzle)': 'Mejor racha diaria (cualquier puzle)',
+      'Perfect days': 'Días perfectos', 'Perfect days (no mistakes)': 'Días perfectos (sin errores)', 'Clean daily solves': 'Resueltos limpios diarios', 'Daily clues solved': 'Pistas diarias resueltas',
+      'No hints': 'Sin pistas', 'Solved with no hints': 'Resuelto sin pistas', 'Daily puzzles solved': 'Puzles diarios resueltos', 'Guesses to spare': 'Intentos de sobra', 'Mistakes to spare': 'Errores de sobra',
+      'Par days': 'Días en par', 'Par days (no hints)': 'Días en par (sin pistas)', 'Perfect routes': 'Rutas perfectas', 'Most entries found': 'Más respuestas encontradas'
+    });
+  })(0);
   var TOP = 25, MAX_NODES = 3000, NODE_MAX = 8000, MAX_STATS = 240, STALE = 180 * 86400000;
   var EPOCH = Date.UTC(2026, 9, 21);            // the day stats.js started counting
   var WEEK_DAYS = 7, DAY_GAMES = 12, DAY_REST = '_';   // This week: the most dates (Monday to Sunday); games a day accepted (stats.js keeps 8); d's other-games key
@@ -116,7 +167,7 @@
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
       { k: 'wins', l: 'Online match wins', f: 'n', u: 'win', rate: 1 / 60 }] },
-    { d: 'sky-duel', n: 'Sky Duel', st: [
+    { d: 'sky-duel', n: 'Sky Duel', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 60, le: 'kills' },
       { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
       { k: 'kdkills', l: 'Kills counted for K/D', f: 'n', u: 'kill', rate: 0.5, le: 'kills', hide: true },
@@ -190,6 +241,10 @@
       { k: 'levels', l: 'Levels cleared (of 57)', chip: 'Levels', f: 'n', u: 'level', hi: 57 },
       { k: 'crystals', l: 'Power crystals collected', chip: 'Crystals', f: 'n', u: 'crystal', hi: 100000, sum: 1 },
       { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
+    { d: 'rollaway', n: 'Rollaway', st: [
+      { k: 'distance', l: 'Longest run', chip: 'Distance', f: 'm', hi: 100000 },
+      { k: 'score', l: 'Best score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
+      { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 5 }] },
     { d: 'rampline', n: 'Rampline', st: [
       { k: 'medals', l: 'Medals (of 120)', chip: 'Medals', f: 'n', u: 'medal', hi: 120 },
       { k: 'golds', l: 'Gold medals or better (of 30)', chip: 'Golds', f: 'n', u: 'gold', hi: 30 },
@@ -223,7 +278,15 @@
       { k: 'r2-freefall', l: '28. Freefall', chip: 'Freefall', f: 'time', lo: 38.7, hi: 3600 },
       { k: 'r2-afterburner', l: '29. Afterburner', chip: 'Afterburner', f: 'time', lo: 29.9, hi: 3600 },
       { k: 'r2-final-exam', l: '30. Final Exam', chip: 'Final Exam', f: 'time', lo: 34.8, hi: 3600 }] },
+    { d: 'flipline', n: 'Flipline', st: [
+      { k: 'distance', l: 'Longest Endless run', chip: 'Endless', f: 'm', hi: 100000 },
+      { k: 'score', l: 'Best Endless score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
+      { k: 'medals', l: 'Medals (of 72)', chip: 'Medals', f: 'n', u: 'medal', hi: 72 },
+      { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
     { d: 'tidewick', n: 'Tidewick', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 999999 }] },
+    { d: 'beatvault', n: 'Beatvault', st: [{ k: 'levels', l: 'Levels cleared (of 6)', chip: 'Levels', f: 'n', u: 'level', hi: 6 },
+      { k: 'keys', l: 'Vault keys (of 18)', chip: 'Keys', f: 'n', u: 'key', hi: 18 },
+      { k: 'clears', l: 'Clears (all time)', chip: 'Clears', f: 'n', u: 'clear', rate: 1 / 60 }] },
     { d: 'odd-one-out', n: 'Odd One Out', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'rfound', l: 'Most props found in a round', f: 'n', u: 'prop', hi: 15, le: 'found' },
       { k: 'survive', l: 'Longest survival as a prop', f: 'dur', hi: 900 },
@@ -249,6 +312,10 @@
     { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] },
     { d: 'patchwork-tower', n: 'Patchwork Tower', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
     { d: 'flickerwood', n: 'Flickerwood', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
+    { d: 'hush-pools', n: 'Hush Pools', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
+      { k: 'fastest', l: 'Fastest escape (Normal or Hard)', chip: 'Fastest escape', f: 'time', lo: 45, hi: 36000 },
+      { k: 'escapes', l: 'Escapes (all time)', chip: 'Escapes', f: 'n', u: 'escape', rate: 1 / 60 },
+      { k: 'revives', l: 'Teammates pulled out (all time)', chip: 'Rescues', f: 'n', u: 'rescue', rate: 1 / 8 }] },
     { d: 'lanternhold', n: 'Lanternhold', st: [{ k: 'wave', l: 'Most waves held', f: 'n', u: 'wave', hi: 1000 },
       { k: 'bosses', l: 'Gloomwardens beaten (all time)', chip: 'Gloomwardens', f: 'n', u: 'Gloomwarden', rate: 1 / 60 }] },
     // Daily Puzzles: grp puts them in their own group in the Board menu. The hub's `done` (one per puzzle finished, counted
@@ -412,7 +479,7 @@
     return out;
   }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function fmtN(v) { try { return Math.round(v).toLocaleString('en-US'); } catch (e) { return String(Math.round(v)); } }
+  function fmtN(v) { try { return window.BackRoomLang ? BackRoomLang.num(Math.round(v)) : Math.round(v).toLocaleString('en-US'); } catch (e) { return String(Math.round(v)); } }
   function fmtHours(s) { return s < 3600 ? Math.max(1, Math.round(s / 60)) + ' min' : (s / 3600).toFixed(s < 360000 ? 1 : 0) + ' h'; }
   function fmtTime(s, ms) {
     var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, sec = s - Math.floor(s / 60) * 60;
@@ -448,19 +515,24 @@
   // The week starts on Monday: how many days back this week's Monday is (0 on a Monday, 6 on a Sunday), by the viewer's clock.
   function sinceMonday(now) { return (new Date(now).getDay() + 6) % 7; }
   function realDay(k) { return dayKey(new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8))) === k; }
+  // Also dy: { YYYYMMDD: seconds } for every checked day from LAST week's Monday on (the same checks), for the weekly Aisle
+  // contest (aisles.js), which only counts a member's days from the day they joined.
   function weekOf(p, src, now, since) {
-    var wk = {}, lo = dayAgo(now, Math.min(sinceMonday(now), WEEK_DAYS - 1)), hi = dayAgo(now, -1);
-    if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; }
+    var wk = {}, dy = {}, back = Math.min(sinceMonday(now), WEEK_DAYS - 1), lo = dayAgo(now, back), lo2 = dayAgo(now, back + 7), hi = dayAgo(now, -1);
+    if (since > 0) { var sd = dayKey(new Date(since)); if (sd > lo) lo = sd; if (sd > lo2) lo2 = sd; }
     if (src && typeof src === 'object' && !Array.isArray(src)) Object.keys(src).slice(0, 40).forEach(function (k) {
-      var g = src[k], tot = 0, m = 0;
-      if (!/^\d{8}$/.test(k) || k < lo || k > hi || !realDay(k) || !g || typeof g !== 'object' || Array.isArray(g)) return;
+      var g = src[k], tot = 0, m = 0, cur = k >= lo;
+      if (!/^\d{8}$/.test(k) || k < lo2 || k > hi || !realDay(k) || !g || typeof g !== 'object' || Array.isArray(g)) return;
       Object.keys(g).slice(0, 40).forEach(function (gk) {
         var r = gk === DAY_REST;
         if (tot >= 86400 || (!r && (!p.g[gk] || m >= DAY_GAMES))) return;
         var x = Math.min(Math.floor(num(g[gk])), 86400 - tot); if (!(x > 0)) return;
-        wk[gk] = (wk[gk] || 0) + x; tot += x; if (!r) m++;
+        if (cur) wk[gk] = (wk[gk] || 0) + x;
+        tot += x; if (!r) m++;
       });
+      if (tot > 0) dy[k] = tot;
     });
+    p.dy = dy;
     weekSum(p, wk);
   }
   // The week's caps and totals: a game's week no more than its hours, the whole week no more than all the hours.
@@ -651,6 +723,8 @@
     var wk = t.wk || {};
     Object.keys(p.wk || {}).forEach(function (k) { wk[k] = sum ? (wk[k] || 0) + p.wk[k] : Math.max(wk[k] || 0, p.wk[k]); });
     weekSum(t, wk);
+    var dy = t.dy || (t.dy = {});
+    Object.keys(p.dy || {}).forEach(function (k) { dy[k] = Math.min(86400, sum ? (dy[k] || 0) + p.dy[k] : Math.max(dy[k] || 0, p.dy[k])); });
   }
   function collapse(list) {
     var by = {};
@@ -732,12 +806,13 @@
     var order = TRACK_IDS.slice().sort(function (a, b) { return (c[b] || 0) - (c[a] || 0) || TRACK_IDS.indexOf(a) - TRACK_IDS.indexOf(b); });
     return { order: order, count: c, laps: laps };
   }
-  // The boards a game has: its hours, then its stats. Slipstream: every track's fastest lap at a glance, then the chosen
+  // The boards a game has: its play time (shown in miles), then its stats. Slipstream: every track's fastest lap at a glance, then the chosen
   // track's course records (3, 5 and 10 laps, the lengths the game offers, plus any other length someone has a record for)
   // and its fastest lap.
   function boardsFor(d, people, track) {
     var meta = BY[d]; if (!meta) return [];
-    var out = [{ k: 's', l: 'Hours played', chip: 'Hours', f: 'hours' }];
+    // The play-time board (key 's', seconds played) is shown in miles, never as hours: only the admin page shows hours.
+    var out = [{ k: 's', l: 'Miles from play time', chip: 'Miles', f: 'hours' }];
     if (!meta.laps) return out.concat(meta.st.filter(function (st) { return !st.hide; }));
     var ts = trackStats(people), t = TRACKS[track] ? track : ts.order[0], nm = TRACKS[t][0];
     // Every track at once: the fastest lap on each (and who set it), "no times yet" where nobody has one.
@@ -888,7 +963,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { rows: rows, tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -932,6 +1007,8 @@
     '.lbd-span{display:inline-flex;flex:none;gap:2px;padding:2px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2)}.lbd-span[hidden]{display:none}' +
     '.lbd-span button{font:inherit;font-family:var(--body,var(--f-b,sans-serif));font-size:14px;font-weight:600;color:var(--ink-2);background:transparent;border:0;border-radius:999px;padding:5px 14px;min-height:32px;cursor:pointer;white-space:nowrap}' +
     '.lbd-span button:hover{color:var(--ink)}.lbd-span button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}' +
+    // Players | Aisles: the same pill, a little larger, on its own row.
+    '.lbd-tabs{justify-self:start}.lbd-tabs button{font-size:15px;padding:6px 18px;min-height:36px}' +
     '.lbd-gap{text-align:center;color:var(--ink-2);font-size:14px;line-height:1;padding:2px 0;letter-spacing:.3em}' +
     '.lbd-r.trk{grid-template-columns:minmax(0,1fr) auto;cursor:pointer}.lbd-r.trk:hover{border-color:var(--ink-2)}' +
     '.lbd-r.trk .lbd-nm{font-weight:700}.lbd-r.trk .lbd-ex{text-transform:none;letter-spacing:0;font-size:12px}' +
@@ -964,12 +1041,20 @@
   var groups = {}, gorder = [];
   GAMES.forEach(function (g) { var k = g.grp || 'Games'; if (!groups[k]) { groups[k] = el('optgroup'); groups[k].label = k; gorder.push(k); } groups[k].append(new Option(g.n, g.d)); });
   gorder.forEach(function (k) { $sel.append(groups[k]); });
-  lbl.append($sel); ctl.append(lbl);
+  // The Aisle boards (aisles.js draws them from these same rows), not in a game's own panel. They have their own tab,
+  // Players | Aisles, above the controls (the hub only): Players shows the Board menu, Aisles shows Aisle Miles | Aisle Elo.
+  var AISLE = GAME ? {} : { 'aisle-miles': 'Aisle Miles', 'aisle-elo': 'Aisle Elo' };
+  var $tabs = el('div', 'lbd-span lbd-tabs'); $tabs.setAttribute('role', 'group'); $tabs.setAttribute('aria-label', 'Leaderboard type');
+  [['players', 'Players'], ['aisles', 'Aisles']].forEach(function (x) { var b = el('button', '', x[1]); b.type = 'button'; b.setAttribute('data-tab', x[0]); $tabs.append(b); });
+  var $abd = el('div', 'lbd-span'); $abd.setAttribute('role', 'group'); $abd.setAttribute('aria-label', 'Aisle board');
+  Object.keys(AISLE).forEach(function (k) { var b = el('button', '', AISLE[k]); b.type = 'button'; b.setAttribute('data-a', k); $abd.append(b); });
+  $tabs.hidden = $abd.hidden = !!GAME;
+  lbl.append($sel); ctl.append(lbl, $abd);
   // Slipstream only: which track's course records and fastest lap to show.
   var tlbl = el('label'); tlbl.append(el('span', '', 'Track')); tlbl.hidden = true;
   var $trk = el('select'); $trk.setAttribute('aria-label', 'Track');
   tlbl.append($trk); ctl.append(tlbl);
-  // The Miles board and each game's Hours board: this week or all time.
+  // The Miles board and each game's play-time board (in miles): this week or all time.
   var $span = el('div', 'lbd-span'); $span.setAttribute('role', 'group'); $span.setAttribute('aria-label', 'Time span');
   [['week', 'This week'], ['all', 'All time']].forEach(function (x) { var b = el('button', '', x[1]); b.type = 'button'; b.setAttribute('data-s', x[0]); $span.append(b); });
   ctl.append($span);
@@ -981,13 +1066,13 @@
   // Slipstream's course-record boards only: what the time includes.
   var $rule = el('p', 'lbd-note', 'Race times include any track-cut penalties (+2.5 s each).'); $rule.hidden = true;
   // Slipstream's time boards only: the records were reset, and when (SLIP_RESET).
-  var $season = el('p', 'lbd-note', 'Season ' + SLIP_SEASON + ': Slipstream’s lap and race records were reset on ' + SLIP_RESET + ', after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and hours played were kept.'); $season.hidden = true;
+  var $season = el('p', 'lbd-note', 'Season ' + SLIP_SEASON + ': Slipstream’s lap and race records were reset on ' + SLIP_RESET + ', after track fixes and gentler barriers made older times unfair to compare. Times set before then no longer count. Elo and play time were kept.'); $season.hidden = true;
   // What This week / All time counts, on the boards with the toggle.
   var $spanNote = el('p', 'lbd-note'); $spanNote.hidden = true;
   // Slipstream's time boards only: who holds the Slipstream ace (see ace) and the rule, or that it is unclaimed. Shell
   // Crackers' Kills (all time) board: the same for Top Cracker (see cracker).
   var $ace = el('p', 'lbd-ace'); $ace.hidden = true;
-  box.append(top, ctl, $chips, $h, $ace, $list, $msg, $rule, $season, $spanNote, $note);
+  box.append(top, $tabs, ctl, $chips, $h, $ace, $list, $msg, $rule, $season, $spanNote, $note);
   sec.append(box);
 
   // Game mode: the panel. Its own colours and type, since a game page has none of the hub's CSS variables.
@@ -1043,11 +1128,14 @@
   // ---------------- State ----------------
   // g: 'all' or a game folder. b: the board (its stat key, 's' for hours, or for Slipstream 'laps' (every track), 'rec3', 'rec5'… or 'lap'),
   // '' for the game's first board that has anyone on it. t: the Slipstream track.
-  var view = { g: 'all', b: 's', t: '' };
+  var view = { g: 'all', b: 's', t: '' }, lastPlayers = { g: 'all', b: 's', t: '' };
   var VIEW_KEY = GAME ? 'lb:view:' + GAME : 'lb:view';
   try {
     var sv = JSON.parse(ls(VIEW_KEY) || 'null');
-    if (sv && (sv.g === 'all' || BY[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
+    if (sv && (sv.g === 'all' || BY[sv.g] || AISLE[sv.g])) view = { g: sv.g, b: typeof sv.b === 'string' ? sv.b.slice(0, 40) : 's', t: typeof sv.t === 'string' && TRACKS[sv.t] ? sv.t : '' };
+    // The player board open before the Aisles tab, so pressing Players goes back to it.
+    var pv = sv && sv.p;
+    if (pv && (pv.g === 'all' || BY[pv.g])) lastPlayers = { g: pv.g, b: typeof pv.b === 'string' ? pv.b.slice(0, 40) : 's', t: typeof pv.t === 'string' && TRACKS[pv.t] ? pv.t : '' };
   } catch (e) {}
   if (GAME && BY[GAME] && view.g !== GAME) view = { g: GAME, b: '', t: '' };
   $sel.value = view.g;
@@ -1078,6 +1166,7 @@
     people = collapse(out); everyone = out; lastLoad = Date.now();
     pushTops();
     seasonCheck();
+    try { document.dispatchEvent(new CustomEvent('backroom:boards')); } catch (e) {}   // aisles.js: merged accounts, Aisle boards
   }
 
   function waitParty() {
@@ -1116,6 +1205,9 @@
   function isMe(uid) { return uid === myUid || uid === ls('lbs:uid'); }
   // miles.js, when a tier badge is drawn somewhere on the page and it has no recent answer for who is first: read the
   // boards now (the same read as the section's own), or hand over the answer again if they were read a moment ago.
+  // aisles.js: the checked, merged rows (people) and every entry before merging (all), for the Aisle boards and page.
+  window.BackRoomBoards.data = function () { return people ? { people: people, all: everyone, me: myUid } : null; };
+  document.addEventListener('backroom:aisles', function () { if (AISLE[view.g]) draw(); });
   window.BackRoomBoards.readTops = function () { if (people && Date.now() - lastLoad < FRESH) pushTops(); else load(); };
 
   // ---------------- Drawing ----------------
@@ -1150,7 +1242,7 @@
   function row(r) {
     var li = el('li', 'lbd-r' + (isMe(r.p.uid) ? ' me' : ''));
     var who = el('span', 'lbd-who'), nm = el('span', 'lbd-nm');
-    nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat));
+    nm.append(r.p.n + ' ', el('small', '', '· ' + r.p.seat)); nm.setAttribute('data-aisle-u', r.p.uid);   // aisles.js puts the Aisle tag in front
     if (isMe(r.p.uid)) nm.append(el('b', 'lbd-you', 'You'));
     who.append(nm);
     // The status tier (miles.js) from this same checked node, then "Most: <game>" on the Miles board.
@@ -1186,6 +1278,19 @@
   var picked = false;
   function draw() {
     $chips.textContent = '';
+    $list.classList.remove('ais-lb');
+    var onAisles = !!AISLE[view.g];
+    if (!GAME) {
+      lbl.hidden = onAisles; $abd.hidden = !onAisles;
+      Array.prototype.forEach.call($tabs.children, function (b) { b.setAttribute('aria-pressed', String((b.getAttribute('data-tab') === 'aisles') === onAisles)); });
+      Array.prototype.forEach.call($abd.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-a') === view.g)); });
+    }
+    if (onAisles) {   // an Aisle board: aisles.js fills the heading, list, note and message
+      tlbl.hidden = $span.hidden = $rule.hidden = $season.hidden = $ace.hidden = true; $list.textContent = ''; $spanNote.hidden = true;
+      if (window.BackRoomAisles && BackRoomAisles.board) BackRoomAisles.board({ g: view.g, list: $list, h: $h, chips: $chips, note: $spanNote, say: say });
+      else { $h.textContent = AISLE[view.g]; say('Loading the Aisles…'); }
+      return;
+    }
     var slip = view.g !== 'all' && BY[view.g].laps;
     tlbl.hidden = !slip;
     if (slip) fillTracks();
@@ -1217,9 +1322,9 @@
     [].forEach.call($span.children, function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-s') === view.span)); });
     $spanNote.hidden = !spans;
     $spanNote.textContent = !spans ? '' : miles
-      ? (wk ? 'This week counts miles from play time since Monday, ' + fmtN((window.BackRoomMiles && BackRoomMiles.HOUR) || 100) + ' an hour. Wins and bests count in All time.'
-        : 'All time: miles for every hour played plus points for wins and bests, the same miles as each player’s status tier.')
-      : (wk ? 'This week counts time played since Monday.' : '');
+      ? (wk ? 'This week counts miles from play time since Monday. Wins and bests count in All time.'
+        : 'All time: miles from time spent playing plus points for wins and bests, the same miles as each player’s status tier.')
+      : (wk ? 'This week counts miles from play time in this game since Monday.' : 'All time: miles from time spent playing this game.');
     if (!$spanNote.textContent) $spanNote.hidden = true;
     $h.textContent = (miles ? 'Miles · all games' : BY[view.g].n + ' · ' + st.l) + (spans ? (wk ? ' · this week' : ' · all time') : '');
     $list.textContent = '';
@@ -1233,7 +1338,8 @@
     var list = rows(view, people), hours = !view.st;
     list.forEach(function (r) {
       if (miles) r.fmt = fmtN(r.v) + ' mi';
-      else r.fmt = hours ? fmtHours(r.v) : fmt(view.st, r.v);
+      // A game's play-time board: its seconds as miles (miles.js's HOUR an hour), in the same order. Players never see hours.
+      else r.fmt = hours ? fmtN(Math.floor(r.v / 3600 * ((window.BackRoomMiles && BackRoomMiles.HOUR) || 100))) + ' mi' : fmt(view.st, r.v);
     });
     var mine = -1; for (var j = 0; j < list.length; j++) if (isMe(list[j].p.uid)) { mine = j; break; }
     list.slice(0, TOP).forEach(function (r) { $list.append(row(r)); });
@@ -1247,9 +1353,25 @@
     else if (mine < 0 && myUid) say(list.length + (list.length === 1 ? ' player' : ' players') + '. You’re not on this board yet.');
     else say(list.length + (list.length === 1 ? ' player' : ' players') + (mine >= 0 ? '. You’re #' + list[mine].rank + '.' : '.'));
   }
-  function save() { ls(VIEW_KEY, JSON.stringify({ g: view.g, b: view.b, t: view.t || '' })); }
+  function save() {
+    if (!AISLE[view.g]) lastPlayers = { g: view.g, b: view.b, t: view.t || '' };
+    ls(VIEW_KEY, JSON.stringify({ g: view.g, b: view.b, t: view.t || '', p: lastPlayers }));
+  }
+  // Players | Aisles, and Aisle Miles | Aisle Elo.
+  $tabs.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-tab]'); if (!b) return;
+    var toAisles = b.getAttribute('data-tab') === 'aisles';
+    if (toAisles === !!AISLE[view.g]) return;
+    if (toAisles) { save(); view.g = ls('lb:aisle') === 'aisle-elo' ? 'aisle-elo' : 'aisle-miles'; view.b = ''; view.t = ''; }
+    else { view.g = lastPlayers.g; view.b = lastPlayers.b; view.t = lastPlayers.t; $sel.value = view.g; picked = false; }
+    save(); draw();
+  });
+  $abd.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-a]'); if (!b || !AISLE[b.getAttribute('data-a')]) return;
+    view.g = b.getAttribute('data-a'); ls('lb:aisle', view.g); save(); draw();
+  });
 
-  $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
+  $sel.addEventListener('change', function () { view.g = $sel.value === 'all' || BY[$sel.value] || AISLE[$sel.value] ? $sel.value : 'all'; view.b = view.g === 'all' ? 's' : ''; save(); draw(); if (!people) load(); });
   $trk.addEventListener('change', function () { if (TRACKS[$trk.value]) { view.t = $trk.value; if (view.b === 'laps') view.b = 'lap'; picked = true; save(); draw(); } });
   $span.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-s]'); if (!b) return;

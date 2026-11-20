@@ -93,10 +93,11 @@ const SKIN='#e8b48f';
 function person(P,c,o){
   o=o||{};
   P(rb(.46,.58,.28,.07,0,1.2,0),c.shirt);
-  P(cyl(.07,.08,.08,12,0,1.5,0),c.neck||SKIN);
-  P(sph(.175,0,1.645,0,1,1,1,18,12),SKIN);
-  P(sph(.035,-.172,1.645,0,.6,1,1,8,6),SKIN);P(sph(.035,.172,1.645,0,.6,1,1,8,6),SKIN);
-  P(sph(.03,0,1.63,.17,1,1,1,8,6),'#dda07c');
+  const S=c.skin||SKIN;   // c.skin: a robot's or a ghost's face (later outfits)
+  P(cyl(.07,.08,.08,12,0,1.5,0),c.neck||S);
+  P(sph(.175,0,1.645,0,1,1,1,18,12),S);
+  P(sph(.035,-.172,1.645,0,.6,1,1,8,6),S);P(sph(.035,.172,1.645,0,.6,1,1,8,6),S);
+  P(sph(.03,0,1.63,.17,1,1,1,8,6),c.nose||(c.skin?S:'#dda07c'));
   if(o.eyes!==false){P(sph(.022,-.062,1.668,.155,1,1.25,.7,8,6),'#20212b');if(o.eyes!=='one')P(sph(.022,.062,1.668,.155,1,1.25,.7,8,6),'#20212b')}
   if(c.belt){P(rb(.48,.06,.3,.02,0,.95,0),c.belt);if(c.buckle)P(rb(.07,.05,.02,.008,0,.95,.152),c.buckle)}
 }
@@ -107,6 +108,11 @@ function legOf(c,o){
   if(o.tall)P(rb(.235,.38,.3,.06,0,-.73,.03),c.boot);else P(rb(.225,.16,.34,.055,0,-.84,.05),c.boot);
   if(o.cuff)P(rb(.21,.05,.23,.02,0,-.74,0),o.cuff);
   if(o.knee)P(box(.16,.12,.04,0,-.4,.12),o.knee);
+  // later outfits: shorts over the top of the leg, a bare band at the knee, a stripe down the outside, a skate blade
+  if(o.shorts)P(rb(.218,o.long?.46:.34,.238,.06,0,o.long?-.22:-.16,0),o.shorts);
+  if(o.skin)P(rb(.205,o.long?.08:.16,.225,.05,0,o.long?-.49:-.42,0),o.skin);
+  if(o.stripe)for(const s of [-1,1])P(box(.012,.8,.04,s*.103,-.4,0),o.stripe);
+  if(o.blade){P(box(.03,.06,.36,0,-.95,.05),'#c9d0d8');P(box(.02,.02,.4,0,-.985,.05),'#eef2f6')}
   return P.done();
 }
 // both arms, already bent round the rifle as in index.html (they turn as one about the shoulders to aim): sleeves,
@@ -116,10 +122,12 @@ function armsOf(c,o){
   const put=(g,s)=>s?tf(g,-.26,0,0,-1.25,.8,0,1,1.3,1):tf(g,.27,0,0,-.75,0,0,1,1,1);
   for(const s of [1,0]){
     P(put(rb(.125,.48,.135,.045,0,-.2,0),s),c.sleeve||c.shirt);
-    P(put(rb(.11,.11,.12,.04,0,-.45,0),s),c.hand||SKIN);
+    if(o.hook&&s){P(put(cyl(.05,.04,.06,10,0,-.42,0),s),'#6a4426');P(put(cyl(.012,.012,.08,6,0,-.49,0),s),'#c9d0d8');P(put(tf(new THREE.TorusGeometry(.04,.011,6,14,PI*1.25),0,-.56,0,0,PI/2,PI*.9),s),'#c9d0d8')}   // the first mate's hook
+    else P(put(rb(.11,.11,.12,.04,0,-.45,0),s),c.hand||SKIN);
     if(c.cuffs)P(put(rb(.13,.05,.14,.02,0,-.37,0),s),c.cuffs);
     P(put(rb(.135,.055,.145,.02,0,-.07,0),s),c.band||HUNTER_ORANGE);
     if(o.patch&&s)P(put(box(.02,.07,.06,-.065,-.16,0),s),o.patch);
+    if(c.stripe)P(put(box(.014,.4,.03,s?-.066:.066,-.2,0),s),c.stripe);
   }
   return P.done();
 }
@@ -295,7 +303,182 @@ const OUTFITS=[null,
       P(new THREE.CylinderGeometry(.02,R,H,22).translate(0,y0+H/2,0),'#ff6a1a');
       for(const [a,b] of [[.1,.16],[.24,.29]])P(new THREE.CylinderGeometry(rAt(b),rAt(a),b-a,22).translate(0,y0+(a+b)/2,0),'#f6f6f2');
     },leg:HUNTER_C,legO:{knee:'#1b1d24'},arms:{shirt:'#2d3348',hand:'#1b1d24'},},
+  // ---- wave 2 (19 Nov): sports kits, pirates, suits and robots. Generic kits in our own colours: no real teams. ----
+  { // 15 Soccer Striker: red shirt with a white V collar and badge, white shorts, red socks
+    name:'Soccer Striker',body(P){
+      person(P,{shirt:'#e2433a'});vCollar(P,'#fbfbfb');
+      P(tf(new THREE.CylinderGeometry(.045,.045,.014,16),-.12,1.36,.149,PI/2),'#fbfbfb');P(tf(new THREE.CylinderGeometry(.028,.028,.016,5),-.12,1.36,.152,PI/2),'#e2433a');
+      P(box(.47,.03,.29,0,1.27,0),'#fbfbfb');   // a white band across the chest
+      hair(P,'#4a3020');
+    },leg:{pants:'#e2433a',boot:'#1d1f26'},legO:{shorts:'#fbfbfb',skin:SKIN},arms:{shirt:'#e2433a',hand:SKIN,cuffs:'#fbfbfb'}},
+  { // 16 Basketball Star: a purple tank top with gold trim, bare arms, a gold headband, long shorts and high socks
+    name:'Basketball Star',body(P){
+      person(P,{shirt:'#6a3fd0'});
+      for(const s of [-1,1])P(tf(box(.05,.2,.02),s*.11,1.4,.15,0,0,s*.35),'#ffc93c');   // the tank top's neckline
+      P(box(.16,.16,.012,0,1.22,.147),'#ffc93c');P(box(.12,.12,.014,0,1.22,.149),'#6a3fd0');   // a plain square on the chest
+      P(cyl(.18,.18,.05,20,0,1.74,0),'#ffc93c');hair(P,'#2a1c14',.7);
+    },leg:{pants:'#fbfbfb',boot:'#f4f4f4'},legO:{shorts:'#6a3fd0',long:true,skin:SKIN,stripe:'#ffc93c'},arms:{shirt:'#6a3fd0',sleeve:SKIN,hand:SKIN,cuffs:'#ffc93c'}},
+  { // 17 Gridiron: big shoulder pads under a blue jersey, a glossy helmet with a face guard (the eyes still show)
+    name:'Gridiron',body(P){
+      person(P,{shirt:'#2f6fd8'});
+      P(rb(.66,.14,.38,.06,0,1.43,0),'#2f6fd8');P(rb(.67,.03,.39,.012,0,1.4,0),'#fbfbfb');   // shoulder pads and a stripe
+      P(rb(.2,.14,.012,.02,0,1.2,.147),'#fbfbfb');   // a blank number panel
+      P(dome(.205,0,1.66,0,.95),'#2f6fd8');P(tf(box(.04,.012,.4),0,1.855,0),'#fbfbfb');
+      for(const s of [-1,1])P(tf(new THREE.CylinderGeometry(.06,.06,.03,14),s*.2,1.62,0,0,0,PI/2),'#2558b0');
+      for(const y of [1.6,1.56])P(torus(.2,.008,0,y,0,PI/2,0,PI).rotateY(0),'#c9ced6');
+      P(cyl(.008,.008,.1,5,0,1.58,.2),'#c9ced6');
+    },leg:{pants:'#2f6fd8',boot:'#1d1f26'},legO:{shorts:'#fbfbfb',long:true,stripe:'#2f6fd8'},arms:{shirt:'#2f6fd8',hand:SKIN,stripe:'#fbfbfb'}},
+  { // 18 Baseball Slugger: a white pinstripe jersey, navy cap, belt and high socks
+    name:'Baseball Slugger',body(P){
+      const c={shirt:'#f8f6ef',belt:'#26325e',buckle:'#cfd6de'};person(P,c);
+      for(let x=-.2;x<=.21;x+=.05)P(box(.008,.56,.012,x,1.2,.142),'#7a88b8');
+      P(box(.012,.5,.014,.03,1.22,.145),'#26325e');for(const y of [1.1,1.22,1.34])P(sph(.01,.03,y,.152,1,1,.5,6,4),'#26325e');
+      P(dome(.188,0,1.72,0,.75),'#26325e');P(tf(rb(.2,.016,.15,.008,0,0,0),0,1.73,.18,.06),'#26325e');P(sph(.02,0,1.86,0,1,.5,1,8,4),'#26325e');
+    },leg:{pants:'#f8f6ef',boot:'#1d1f26'},legO:{shorts:'#f8f6ef',long:true,skin:'#26325e'},arms:{shirt:'#f8f6ef',hand:SKIN,cuffs:'#26325e'}},
+  { // 19 Hockey Skater: a bulky green jersey with white and gold stripes, a white helmet, padded shorts and skates
+    name:'Hockey Skater',body(P){
+      person(P,{shirt:'#2fa060'});P(rb(.52,.62,.32,.08,0,1.2,0),'#2fa060');
+      P(rb(.53,.05,.33,.015,0,1.0,0),'#fbfbfb');P(rb(.53,.025,.33,.01,0,1.04,0),'#ffc93c');
+      P(tf(box(.09,.04,.1),-.06,1.48,.1,0,0,-.4),'#fbfbfb');P(tf(box(.09,.04,.1),.06,1.48,.1,0,0,.4),'#fbfbfb');
+      P(dome(.198,0,1.69,-.01,.95),'#fbfbfb');P(rb(.3,.03,.06,.01,0,1.73,.17),'#bfe6ff');   // helmet and a short clear visor above the eyes
+      for(const s of [-1,1])P(rb(.05,.12,.08,.02,s*.18,1.6,0),'#fbfbfb');
+    },leg:{pants:'#2fa060',boot:'#f4f4f4'},legO:{shorts:'#3a4250',long:true,blade:true},arms:{shirt:'#2fa060',hand:'#3a4250',cuffs:'#fbfbfb',stripe:'#ffc93c'}},
+  { // 20 Tennis Ace: a white polo with green trim, a green visor, white shorts and wristbands
+    name:'Tennis Ace',body(P){
+      person(P,{shirt:'#fbfbf6'});vCollar(P,'#2fa060');P(box(.03,.12,.012,0,1.42,.145),'#e8e8e0');
+      P(tf(rb(.06,.04,.012,.01,0,0,0),-.12,1.36,.147),'#2fa060');
+      P(torus(.18,.022,0,1.73,0,PI/2,0),'#2fa060');P(tf(rb(.22,.016,.15,.008,0,0,0),0,1.725,.18,.12),'#2fa060');hair(P,'#c9963c',.75);
+    },leg:{pants:'#fbfbf6',boot:'#f4f4f4'},legO:{shorts:'#fbfbf6',skin:SKIN},arms:{shirt:'#fbfbf6',hand:SKIN,cuffs:'#2fa060'}},
+  { // 21 Golfer: a pale blue sweater with diamonds, a flat cap and checked trousers
+    name:'Golfer',body(P){
+      person(P,{shirt:'#9cc8ec'});P(rb(.47,.56,.29,.065,0,1.21,0),'#9cc8ec');
+      for(let r=0;r<3;r++)for(let i=-1;i<=1;i++)P(tf(box(.09,.09,.012),i*.13+(r%2?.065:0),1.07+r*.12,.147,0,0,PI/4),r%2?'#f4d06a':'#4a7ac8');
+      P(tf(box(.09,.04,.1),-.06,1.48,.1,0,0,-.4),'#fbfbfb');P(tf(box(.09,.04,.1),.06,1.48,.1,0,0,.4),'#fbfbfb');
+      P(dome(.19,0,1.72,0,.55),'#b89a6a');P(tf(rb(.22,.03,.14,.012,0,0,0),0,1.74,.16,.18),'#b89a6a');P(sph(.012,0,1.825,0,1,.6,1,6,4),'#8a7048');
+    },leg:{pants:'#d8b878',boot:'#fbfbfb'},legO:{stripe:'#b8483a'},arms:{shirt:'#9cc8ec',hand:'#fbfbfb'}},
+  { // 22 Boxer: a red satin robe with gold trim, a padded headguard and big red gloves
+    name:'Boxer',body(P){
+      person(P,{shirt:'#d8343a'});P(rb(.5,.6,.32,.08,0,1.2,0),'#d8343a');
+      P(tf(new THREE.CylinderGeometry(.24,.3,.36,18,1,true),0,.76,0),'#d8343a');P(torus(.3,.012,0,.585,0,PI/2),'#ffc93c');
+      for(const s of [-1,1])P(tf(box(.05,.5,.02),s*.07,1.25,.163,0,0,s*.16),'#ffc93c');
+      P(rb(.5,.07,.33,.02,0,1.0,0),'#ffc93c');
+      P(dome(.195,0,1.68,0,.9),'#d8343a');for(const s of [-1,1])P(rb(.06,.15,.12,.03,s*.17,1.62,0),'#d8343a');P(rb(.2,.05,.06,.02,0,1.78,.14),'#d8343a');
+    },leg:{pants:SKIN,boot:'#fbfbfb'},legO:{tall:true,shorts:'#d8343a'},arms:{shirt:'#d8343a',hand:'#e2433a',cuffs:'#ffc93c'}},
+  { // 23 Referee: a black-and-white striped shirt, a whistle on a red cord, a black cap
+    name:'Referee',body(P){
+      const c={shirt:'#fbfbfb',belt:'#2a2b32',buckle:'#cfd6de'};person(P,c);
+      for(let x=-.2;x<=.21;x+=.1)for(const z of [.142,-.142])P(box(.05,.56,.012,x+.025,1.2,z),'#34353e');
+      P(tf(box(.09,.04,.1),-.06,1.48,.1,0,0,-.4),'#34353e');P(tf(box(.09,.04,.1),.06,1.48,.1,0,0,.4),'#34353e');
+      P(cyl(.006,.006,.2,4,-.05,1.4,.152),'#e2433a');P(cyl(.006,.006,.2,4,.05,1.4,.152),'#e2433a');P(cz(.016,.018,.06,8,0,1.29,.17),'#c9d0d8');
+      P(dome(.188,0,1.72,0,.75),'#34353e');P(tf(rb(.2,.016,.15,.008,0,0,0),0,1.73,.18,.06),'#34353e');
+    },leg:{pants:'#4a4c56',boot:'#2a2b32'},arms:{shirt:'#fbfbfb',hand:SKIN,stripe:'#34353e'}},
+  { // 24 Racing Driver: a blue race suit with red and white stripes, a white helmet with a red stripe and a tinted visor
+    name:'Racing Driver',body(P){
+      const c={shirt:'#2a64d8',belt:'#fbfbfb',buckle:'#e2433a'};person(P,c,{eyes:false});
+      for(const x of [-.06,.06])P(box(.04,.58,.012,x,1.2,.142),x<0?'#e2433a':'#fbfbfb');
+      P(rb(.1,.05,.012,.012,.13,1.36,.147),'#ffc93c');P(rb(.1,.05,.012,.012,-.13,1.3,.147),'#fbfbfb');   // two blank sponsor patches
+      P(sph(.205,0,1.66,0,1,1.02,1.04,20,12),'#fbfbfb');P(tf(box(.06,.03,.43),0,1.86,0),'#e2433a');
+      P(rb(.26,.09,.07,.035,0,1.67,.2),'#3a4a6a');P(rb(.22,.02,.06,.01,0,1.705,.222),'#9ab4e0');
+    },leg:{pants:'#2a64d8',boot:'#1d1f26'},legO:{stripe:'#e2433a'},arms:{shirt:'#2a64d8',hand:'#2a2d36',stripe:'#fbfbfb'}},
+  { // 25 Pirate Deckhand: a red-and-white striped shirt, a spotted bandana, an eye patch, an earring and a parrot on the shoulder
+    name:'Pirate Deckhand',body(P){
+      person(P,{shirt:'#fbf6ea'},{eyes:'one'});
+      for(let y=.96;y<1.48;y+=.08)P(rb(.465,.035,.285,.012,0,y,0),'#d8343a');
+      P(rb(.5,.07,.32,.02,0,.97,0),'#2a2b32');
+      P(dome(.182,0,1.69,-.01,.7),'#d8343a');for(let i=0;i<10;i++){const a=i*2.4,e=.3+(i%3)*.25;P(sph(.016,Math.sin(a)*.18*Math.cos(e),1.69+.12*Math.sin(e),Math.cos(a)*.18*Math.cos(e),1,1,.5,6,4),'#fbf6ea')}
+      P(sph(.03,0,1.68,-.19,1,1,1,8,6),'#d8343a');for(const s of [-1,1])P(tf(box(.035,.12,.012),s*.03,1.6,-.19,0,0,s*.3),'#d8343a');
+      P(tf(new THREE.CylinderGeometry(.04,.04,.012,14),.062,1.668,.162,PI/2),'#15151a');P(tf(new THREE.TorusGeometry(.178,.007,6,24),0,1.69,0,PI/2,0,.25),'#15151a');
+      P(torus(.02,.004,-.175,1.6,0,0,PI/2),'#f0c445');
+      parrot(P,-.225,1.5,-.03);
+    },leg:{pants:'#c9b08a',boot:'#5a3b22'},legO:{cuff:'#b89a72'},arms:{shirt:'#fbf6ea',hand:SKIN,stripe:'#d8343a'}},
+  { // 26 First Mate: a navy coat with brass buttons, a knitted cap, a striped scarf and a hook for one hand
+    name:'First Mate',body(P){
+      person(P,{shirt:'#36508a'});P(rb(.5,.6,.32,.08,0,1.2,0),'#36508a');P(box(.12,.46,.02,0,1.24,.162),'#fbf6ea');
+      for(const y of [1.06,1.16,1.26,1.36])for(const x of [-.1,.1])P(sph(.016,x,y,.163,1,1,.5,6,4),'#f0c445');
+      P(torus(.115,.03,0,1.5,0,PI/2),'#d8343a');P(torus(.12,.025,0,1.47,0,PI/2),'#fbfbfb');P(tf(rb(.06,.18,.03,.01,0,0,0),.08,1.38,.15,0,0,.2),'#d8343a');
+      P(dome(.186,0,1.7,0,.85),'#8a8f9a');P(cyl(.188,.188,.06,20,0,1.72,0),'#6a707c');
+      P(sph(.04,0,1.6,.162,1.3,.45,.5,10,6),'#6a4a30');   // moustache
+    },leg:{pants:'#4a5470',boot:'#2a2018'},legO:{tall:true},arms:{shirt:'#36508a',hand:SKIN,cuffs:'#f0c445'},armsO:{hook:true}},
+  { // 27 Ghost Pirate: pale see-through-looking sea green, a tattered coat, a tricorn with glowing trim
+    name:'Ghost Pirate',body(P){
+      const G='#7fd8c8';person(P,{shirt:G,skin:'#c8f4ec',nose:'#b0e8de'},{eyes:'one'});
+      P(rb(.5,.6,.32,.08,0,1.2,0),G);P(box(.13,.46,.02,0,1.24,.162),'#e8fff8');
+      const sk=new THREE.CylinderGeometry(.24,.32,.4,18,1,true),Q=sk.attributes.position;for(let i=0;i<Q.count;i++)if(Q.getY(i)<0){const a=Math.atan2(Q.getX(i),Q.getZ(i));Q.setY(i,Q.getY(i)+(Math.round(a*3)%2?.08:0))}sk.computeVertexNormals();
+      P(tf(sk,0,.74,0),G);for(const y of [1.08,1.2,1.32])for(const x of [-.1,.1])P(sph(.014,x,y,.163,1,1,.5,6,4),'#c8ff6a');
+      P(tf(new THREE.CylinderGeometry(.04,.04,.012,14),.062,1.668,.162,PI/2),'#2e5e58');P(tf(new THREE.TorusGeometry(.178,.007,6,24),0,1.69,0,PI/2,0,.25),'#2e5e58');
+      P(sph(.022,-.062,1.668,.155,1,1.25,.7,8,6),'#c8ff6a');   // the one eye glows a little green
+      P(cyl(.14,.15,.13,18,0,1.85,0),'#3e7a72');P(new THREE.CylinderGeometry(.25,.2,.1,3).translate(0,1.83,0),'#3e7a72');P(new THREE.CylinderGeometry(.256,.256,.016,3).translate(0,1.88,0),'#c8ff6a');
+    },leg:{pants:'#a8e8dc',boot:'#3e7a72'},legO:{tall:true},arms:{shirt:'#7fd8c8',hand:'#c8f4ec',cuffs:'#c8ff6a'}},
+  { // 28 The Boss: a long camel coat with a cream fur collar, a pinstripe suit under it, a grey fedora and a white scarf
+    name:'The Boss',body(P){
+      person(P,{shirt:'#b08a5c'});P(rb(.52,.62,.33,.08,0,1.2,0),'#b08a5c');
+      P(tf(new THREE.CylinderGeometry(.25,.31,.5,18,1,true),0,.68,0),'#b08a5c');
+      P(tf(new THREE.ConeGeometry(.09,.24,3),0,1.38,.16,PI,0,0,1,1,.2),'#5a6078');P(box(.035,.18,.012,0,1.36,.168),'#fbfbfb');
+      P(rb(.5,.13,.36,.06,0,1.47,0),'#efe4d0');P(rb(.08,.32,.03,.02,-.1,1.28,.17),'#efe4d0');P(rb(.08,.32,.03,.02,.1,1.28,.17),'#efe4d0');   // fur collar and lapels
+      for(const y of [1.06,1.18])P(sph(.016,.12,y,.168,1,1,.5,6,4),'#3a2c22');
+      brim(P,.25,1.785,'#7c8192',.92);P(tf(rb(.24,.13,.25,.06,0,0,0),0,1.86,0),'#7c8192');P(box(.04,.025,.18,0,1.925,0),'#666a7a');P(cyl(.128,.13,.035,18,0,1.815,0).scale(1,1,1.04),'#2e2e36');
+    },leg:{pants:'#5a6078',boot:'#3a2c22'},legO:{stripe:'#7a809a'},arms:{shirt:'#b08a5c',hand:'#3a2c22',cuffs:'#efe4d0'}},
+  { // 29 Pinstripe Suit: a 1920s grey-blue pinstripe suit, red tie, a flower in the lapel and a matching fedora
+    name:'Pinstripe Suit',body(P){
+      person(P,{shirt:'#5e6680'});
+      for(let x=-.2;x<=.21;x+=.045)for(const z of [.142,-.142])P(box(.006,.56,.01,x,1.2,z),'#c8cee0');
+      P(tf(new THREE.ConeGeometry(.08,.22,3),0,1.39,.15,PI,0,0,1,1,.2),'#fbfbfb');P(box(.04,.16,.012,0,1.38,.158),'#c8323a');
+      P(tf(box(.06,.22,.02),-.075,1.38,.155,0,0,-.35),'#4e5670');P(tf(box(.06,.22,.02),.075,1.38,.155,0,0,.35),'#4e5670');
+      P(sph(.022,-.13,1.4,.16,1,1,.6,8,6),'#ff6a8a');P(sph(.01,-.13,1.4,.17,1,1,.6,6,4),'#ffd04a');
+      brim(P,.25,1.785,'#5e6680',.92);P(tf(rb(.24,.13,.25,.06,0,0,0),0,1.86,0),'#5e6680');P(box(.04,.025,.18,0,1.925,0),'#4e5670');P(cyl(.128,.13,.035,18,0,1.815,0).scale(1,1,1.04),'#fbfbfb');
+    },leg:{pants:'#5e6680',boot:'#3a3a44'},legO:{stripe:'#c8cee0'},arms:{shirt:'#5e6680',hand:SKIN,cuffs:'#fbfbfb'}},
+  { // 30 Tracksuit: a royal blue tracksuit with white stripes, a chunky gold chain and a grey flat cap
+    name:'Tracksuit',body(P){
+      person(P,{shirt:'#2f58c8'});P(box(.014,.5,.012,0,1.2,.146),'#fbfbfb');
+      P(tf(box(.09,.04,.1),-.06,1.48,.1,0,0,-.4),'#fbfbfb');P(tf(box(.09,.04,.1),.06,1.48,.1,0,0,.4),'#fbfbfb');
+      P(torus(.105,.022,0,1.47,.045,PI/2+.5,0),'#ffcf3f');P(tf(new THREE.CylinderGeometry(.042,.042,.014,12),0,1.42,.165,PI/2-.3),'#ffcf3f');   // a chunky gold chain round the neck, above the arms
+      P(dome(.19,0,1.72,0,.55),'#8a8f9a');P(tf(rb(.22,.03,.14,.012,0,0,0),0,1.74,.16,.18),'#8a8f9a');
+    },leg:{pants:'#2f58c8',boot:'#fbfbfb'},legO:{stripe:'#fbfbfb'},arms:{shirt:'#2f58c8',hand:SKIN,stripe:'#fbfbfb',cuffs:'#fbfbfb'}},
+  { // 31 Bodyguard: a grey suit, white shirt, dark tie, sunglasses and a coiled earpiece
+    name:'Bodyguard',body(P){
+      person(P,{shirt:'#5a5e6e'},{eyes:false});
+      P(tf(new THREE.ConeGeometry(.08,.22,3),0,1.39,.15,PI,0,0,1,1,.2),'#fbfbfb');P(box(.04,.18,.012,0,1.37,.158),'#2a2b32');
+      P(tf(box(.06,.22,.02),-.075,1.38,.155,0,0,-.35),'#4a4e5c');P(tf(box(.06,.22,.02),.075,1.38,.155,0,0,.35),'#4a4e5c');
+      P(rb(.27,.055,.035,.015,0,1.667,.158),'#1d1f26');P(box(.3,.012,.012,0,1.685,.15),'#1d1f26');
+      for(let i=0;i<6;i++)P(torus(.012,.003,.18,1.58-i*.022,-.02,PI/2,0),'#eaeaea');P(sph(.018,.18,1.64,.02,1,1,1,8,6),'#eaeaea');
+      hair(P,'#2a1c14',.6);
+    },leg:{pants:'#5a5e6e',boot:'#2a2b32'},arms:{shirt:'#5a5e6e',hand:SKIN,cuffs:'#fbfbfb'}},
+  { // 32 Butler: a grey tailcoat, a pale waistcoat, a bow tie and white gloves
+    name:'Butler',body(P){
+      person(P,{shirt:'#4e505e'});
+      P(rb(.3,.36,.012,.03,0,1.22,.142),'#c8c4b8');P(tf(new THREE.ConeGeometry(.08,.2,3),0,1.4,.15,PI,0,0,1,1,.2),'#fbfbfb');
+      for(const s of [-1,1])P(tf(new THREE.ConeGeometry(.03,.06,8),s*.032,1.47,.16,0,0,s*PI/2),'#2a2b32');P(sph(.016,0,1.47,.162,1,1,.7,6,4),'#2a2b32');
+      for(const y of [1.12,1.2,1.28])P(sph(.011,0,y,.15,1,1,.5,6,4),'#ffcf3f');
+      for(const s of [-1,1])P(tf(box(.12,.42,.03),s*.12,.86,-.13,.12,0,s*.1),'#4e505e');   // coat tails behind
+      hair(P,'#8a8a8a',.6);
+    },leg:{pants:'#4e505e',boot:'#2a2b32'},legO:{stripe:'#3a3c46'},arms:{shirt:'#4e505e',hand:'#fbfbfb',cuffs:'#fbfbfb'}},
+  { // 33 Tin Robot: riveted silver panels, a boxy head with round lamp eyes and an aerial, claw-grey hands
+    name:'Tin Robot',body(P){
+      const S='#c9ced6',D='#8a929e';person(P,{shirt:S,skin:S,neck:D},{eyes:false});
+      P(rb(.48,.6,.3,.03,0,1.2,0),S);P(rb(.3,.2,.012,.01,0,1.25,.152),D);
+      [['#e2503f',-.08],['#ffd04a',0],['#36b37e',.08]].forEach(([c,x])=>P(sph(.022,x,1.28,.16,1,1,.5,8,6),c));
+      for(const y of [1.0,1.45])for(let x=-.2;x<=.2;x+=.1)P(sph(.01,x,y,.152,1,1,.5,6,4),D);
+      P(rb(.36,.32,.34,.04,0,1.65,0),S);P(rb(.37,.04,.35,.012,0,1.55,0),D);
+      for(const s of [-1,1]){P(tf(new THREE.CylinderGeometry(.045,.045,.02,16),s*.075,1.67,.172,PI/2),'#ffe27a');P(tf(new THREE.TorusGeometry(.048,.008,6,16),s*.075,1.67,.172),D);P(tf(new THREE.CylinderGeometry(.04,.04,.03,12),s*.19,1.66,0,0,0,PI/2),D)}
+      P(rb(.14,.03,.012,.01,0,1.57,.172),D);P(cyl(.008,.008,.12,5,0,1.86,0),D);P(sph(.025,0,1.93,0,1,1,1,8,6),'#e2503f');
+    },leg:{pants:'#c9ced6',boot:'#8a929e'},legO:{knee:'#8a929e'},arms:{shirt:'#c9ced6',hand:'#8a929e',cuffs:'#8a929e'}},
+  { // 34 Android: glossy white panels with thin cyan seams and a dark visor with two cyan eyes
+    name:'Android',body(P){
+      const W='#f2f5f8',C='#3ec8e8';person(P,{shirt:W,skin:W,neck:'#c8d0da'},{eyes:false});
+      P(box(.008,.56,.012,0,1.2,.142),C);P(rb(.47,.012,.29,.004,0,1.32,0),C);P(rb(.47,.012,.29,.004,0,1.08,0),C);
+      P(sph(.19,0,1.65,0,1,1.05,1,20,12),W);P(rb(.3,.08,.06,.03,0,1.665,.165),'#2a3448');
+      for(const s of [-1,1])P(sph(.02,s*.07,1.665,.198,1.3,.7,.5,8,6),C);
+      P(torus(.19,.006,0,1.65,0,0,PI/2),C);
+    },leg:{pants:'#f2f5f8',boot:'#c8d0da'},legO:{stripe:'#3ec8e8'},arms:{shirt:'#f2f5f8',hand:'#c8d0da',stripe:'#3ec8e8'}},
 ];
+// a V collar in a contrast colour
+function vCollar(P,hex){P(tf(box(.09,.04,.1),-.06,1.48,.1,0,0,-.4),hex);P(tf(box(.09,.04,.1),.06,1.48,.1,0,0,.4),hex);for(const s of [-1,1])P(tf(box(.03,.12,.012),s*.04,1.42,.146,0,0,s*.5),hex)}
+// short hair under no hat (k: how far down the back it comes)
+function hair(P,hex,k){P(dome(.183,0,1.66,-.005,k||.82),hex)}
+// a small parrot sitting on the left shoulder (inside the hats' 0.28 m)
+function parrot(P,x,y,z){P(sph(.045,x,y+.06,z,1,1.4,1,10,8),'#e2343a');P(sph(.04,x,y+.15,z+.01,1,1,1,10,8),'#e2343a');P(tf(new THREE.ConeGeometry(.016,.04,6),x,y+.14,z+.05,PI*.6),'#3a3a40');
+  P(sph(.008,x-.025,y+.16,z+.03,1,1,1,6,4),'#15151a');P(sph(.008,x+.025,y+.16,z+.03,1,1,1,6,4),'#15151a');
+  for(const s of [-1,1])P(sph(.02,x+s*.045,y+.05,z-.01,.6,1.6,1.2,8,6),'#2f7ad8');P(tf(box(.03,.012,.12),x,y-.02,z-.08,.8),'#ffd04a')}
 
 // =====================================================================
 //  Tools (hunters only), in place of the rifle. Numbers: cosmetics.js odd-one-out tool 1, 2, 3, ...
@@ -340,6 +523,59 @@ const TOOLS=[null,
       for(const x of [-.03,.03]){P(tf(cyl(.008,.008,.14,5),x,-.1,.17,.5),'#ff8a1a');P(box(.04,.008,.04,x,-.16,.13),'#ff8a1a')}
     },acc:()=>join([paint(sph(.022,0,.135,.55,1,1,1,8,6),'#fff'),paint(sph(.02,0,.13,.585,1,1,1,8,6),'#fff'),paint(sph(.02,0,.125,.52,1,1,1,8,6),'#fff'),paint(sph(.018,0,.03,.615,1,1.3,1,8,6),'#fff')]),
     mat:{color:'#e23b3b',roughness:.5}},
+  // ---- wave 2 (19 Nov) ----
+  { // 7 Tennis Racket: a wrapped grip, a white frame and a pale string bed
+    name:'Tennis Racket',body(P){
+      P(cz(.022,.024,.3,8,0,-.02,-.05),'#3a3a44');P(cz(.026,.026,.02,8,0,-.02,-.21),'#e2433a');
+      for(const s of [-1,1])P(tf(box(.016,.016,.2),0,-.02+s*.035,.18,s*.32),'#fbfbfb');
+      P(tf(new THREE.TorusGeometry(1,.022,6,28).scale(.11,.17,1),0,-.02,.45,0,PI/2,0),'#fbfbfb');
+      for(let i=-3;i<=3;i++){P(box(.006,.004,.3,0,-.02+i*.03,.45),'#e8e4d4');P(box(.006,.2,.004,0,-.02,.45+i*.04),'#e8e4d4')}
+    },acc:()=>tf(new THREE.CylinderGeometry(1,1,.006,24).scale(.1,1,.155),0,-.02,.45,0,0,PI/2),mat:{color:'#d6f04a',transparent:true,opacity:.35,depthWrite:false}},
+  { // 8 Hockey Stick: a wooden shaft, white tape at the top, a blade low at the front with black tape
+    name:'Hockey Stick',body(P){
+      const g=cz(.018,.018,1.0,8);tf(g,0,-.08,.22,.2);P(g,'#d9b07a');
+      P(tf(cz(.022,.022,.1,8),0,.03,-.27,.2),'#fbfbfb');
+      P(tf(box(.024,.075,.2),0,-.2,.725,-.12),'#c9965a');
+    },acc:()=>tf(box(.028,.06,.14),0,-.205,.745,-.12),mat:{color:'#2a2b32',roughness:.8}},
+  { // 9 Foam Finger: a big yellow foam hand with a blue cuff, pointing the way
+    name:'Foam Finger',body(P){
+      P(rb(.2,.2,.24,.08,0,-.04,.24),'#ffd23f');P(tf(rb(.06,.07,.16,.03),0,.06,.32,-.4,0,.6),'#ffd23f');
+      for(let i=0;i<3;i++)P(rb(.05,.05,.07,.02,-.05+i*.05,-.13,.36),'#f4c42a');
+      P(cz(.11,.11,.08,16,0,-.04,.08),'#2f6fd8');P(cz(.112,.112,.02,16,0,-.04,.1),'#fbfbfb');
+    },acc:()=>rb(.07,.07,.34,.035,0,.0,.52),mat:{color:'#ffd23f',roughness:.95}},
+  { // 10 Golf Club: a black grip, a long silver shaft sloping down, a polished driver head
+    name:'Golf Club',body(P){
+      const g=cz(.009,.012,.98,8);tf(g,0,-.08,.27,.2);P(g,'#c9d0d8');
+      P(tf(cz(.02,.02,.24,8),0,.03,-.2,.2),'#2a2b32');P(tf(cz(.012,.008,.06,8),0,-.185,.735,.2),'#2a2b32');
+    },acc:()=>sph(1,0,-.205,.765,.05,.045,.065,14,9),mat:{color:'#5a6070',metalness:.6,roughness:.3}},
+  { // 11 Spyglass: three brass tubes and a leather grip, the glass at the front
+    name:'Spyglass',body(P){
+      P(cz(.04,.042,.26,16,0,0,-.04),'#8a5a34');for(const z of [-.17,.09])P(cz(.046,.046,.025,16,0,0,z),'#e8b830');
+      P(cz(.036,.04,.24,16,0,0,.22),'#d8b04a');P(cz(.042,.042,.02,16,0,0,.34),'#e8b830');
+      P(cz(.032,.034,.24,16,0,0,.46),'#c9a040');P(cz(.044,.036,.06,16,0,0,.6),'#e8b830');
+    },acc:()=>cz(.035,.035,.01,16,0,0,.633),mat:{color:'#bfe6ff',emissive:'#5a8aa0',emissiveIntensity:.4,metalness:.2,roughness:.1}},
+  { // 12 Walking Cane: a black cane with a curved handle at the back and a gold top
+    name:'Walking Cane',body(P){
+      const g=cz(.014,.014,1.0,8);tf(g,0,-.08,.27,.2);P(g,'#2e2e36');
+      P(torus(.06,.014,0,.06,-.24,0,PI/2,PI),'#2e2e36');P(tf(cz(.016,.012,.04,8),0,-.185,.78,.2),'#c9d0d8');
+    },acc:()=>tf(cz(.022,.022,.05,10),0,.0,-.18,.2),mat:{color:'#ffcf3f',metalness:.7,roughness:.25}},
+  { // 13 Serving Tray: a silver tray held out flat, a covered dish and a glass of orange juice
+    name:'Serving Tray',body(P){
+      P(cz(.02,.02,.24,8,0,-.1,.06),'#c9d0d8');P(tf(new THREE.CylinderGeometry(1,1,.012,28).scale(.11,1,.2),0,-.07,.4),'#dfe5ec');
+      P(tf(new THREE.TorusGeometry(1,.06,6,28).scale(.11,.2,.2),0,-.065,.4,PI/2),'#c9d0d8');
+      P(cyl(.024,.02,.08,12,.06,-.02,.52),'#ffb43c');P(cyl(.026,.026,.01,12,.06,.02,.52),'#ffd27a');
+    },acc:()=>tf(dome(.08,0,0,0,.8,18),-.02,-.064,.36),mat:{color:'#e6ecf2',metalness:.7,roughness:.2}},
+  { // 14 Megaphone: a coach's white megaphone with a red band and a handle underneath
+    name:'Megaphone',body(P){
+      P(cz(.105,.045,.42,20,0,0,.4),'#fbfbfb');P(cz(.08,.075,.04,20,0,0,.3),'#e2433a');P(cz(.05,.05,.08,14,0,0,.15),'#3a3a44');
+      P(rb(.04,.14,.05,.015,0,-.11,.16),'#3a3a44');P(box(.02,.04,.02,0,-.05,.2),'#e2433a');
+    },acc:()=>torus(.102,.012,0,0,.61,0,0),mat:{color:'#e2433a',roughness:.5}},
+  { // 15 Robot Claw: a silver arm with joints, three claw fingers and a glowing core
+    name:'Robot Claw',body(P){
+      P(cz(.05,.06,.4,14,0,0,.05),'#c9d0d8');for(const z of [-.12,.25])P(cz(.065,.065,.04,14,0,0,z),'#8a929e');
+      P(cz(.045,.045,.16,14,0,0,.35),'#c9d0d8');P(sph(.06,0,0,.46,1,1,1,12,8),'#8a929e');
+      for(let i=0;i<3;i++){const a=i/3*TAU+PI/2,x=Math.cos(a)*.045,y=Math.sin(a)*.045;P(tf(box(.022,.022,.14),x,y,.55,-y*3,x*3),'#c9d0d8');P(tf(box(.02,.02,.06),x*.6,y*.6,.64,y*6,-x*6),'#8a929e')}
+    },acc:()=>cz(.068,.068,.02,16,0,0,.06),mat:{color:'#3ec8e8',emissive:'#3ec8e8',emissiveIntensity:.8}},
 ];
 
 // =====================================================================

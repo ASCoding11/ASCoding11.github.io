@@ -1,0 +1,11 @@
+/* Nearword: Spanish for this game's own words (the shared ones are in /e63334287a3deaa3/sem-data/es.js). The guesses stay English. */
+window.BackRoomLang && BackRoomLang.add({
+  '<p>Find the <b>secret word</b>. Guess any word to see where it ranks: every word the game knows is lined up by how close its meaning is to the secret word, which is <b>#1</b>.</p>':
+    '<p>Encuentra la <b>palabra secreta</b> (en inglés). Prueba cualquier palabra para ver en qué puesto queda: todas las palabras que conoce el juego están ordenadas por lo cerca que está su significado de la palabra secreta, que es la <b>#1</b>.</p>',
+  "<ul><li>Guess as many times as you like. Your guesses stay sorted, closest first.</li><li><b>Green</b> is the top 300, <b>yellow</b> the top 1,500, <b>red</b> further away. Ranks past 1,000 are rounded (~).</li><li>It's about meaning and how words are used, not spelling: <i>snow</i> is near <i>winter</i>, <i>winner</i> isn't.</li><li>Stuck? <b>Hint</b> shows a word about halfway between your best guess and the secret. You can also give up.</li></ul>":
+    '<ul><li>Prueba todas las veces que quieras. Tus intentos quedan ordenados, los más cercanos primero.</li><li><b>Verde</b> son los 300 primeros, <b>amarillo</b> los 1.500 primeros y <b>rojo</b> más lejos. Los puestos después del 1.000 están redondeados (~).</li><li>Importa el significado y cómo se usan las palabras, no la ortografía: <i>snow</i> (nieve) está cerca de <i>winter</i> (invierno), <i>winner</i> (ganador) no.</li><li>¿Trabado? <b>Pista</b> muestra una palabra más o menos a mitad de camino entre tu mejor intento y la secreta. También puedes rendirte.</li></ul>',
+  'Guess any word. The closer its meaning is to the secret word, the smaller its number. The secret word is <b>#1</b>.': 'Prueba cualquier palabra en inglés. Cuanto más cerca esté su significado de la palabra secreta, más chico es su número. La palabra secreta es la <b>#1</b>.',
+  'Rank {r}': 'Puesto {r}', 'About rank {r} ({lo}–{hi})': 'Puesto aproximado {r} ({lo}–{hi})',
+  'Your closest guess was <b>#{r}</b>. See which words were nearest.': 'Tu intento más cercano fue el <b>#{r}</b>. Mira qué palabras eran las más cercanas.',
+  'The 100 words nearest in meaning (your guesses are highlighted).': 'Las 100 palabras de significado más cercano (tus intentos están resaltados).'
+});

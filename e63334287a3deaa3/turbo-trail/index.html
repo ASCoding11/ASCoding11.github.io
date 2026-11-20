@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the Wardrobe while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Turbo Trail</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -295,7 +298,7 @@ body.touch #banner span{font-size:13px}
 <body>
 <div id="app">
   <canvas id="view" aria-label="Turbo Trail game view"></canvas>
-  <div id="tags"></div>
+  <div id="tags" data-noi18n></div>
   <div id="lines" hidden><i></i></div>
   <div id="flash"></div>
   <div id="hud" hidden>
@@ -305,7 +308,7 @@ body.touch #banner span{font-size:13px}
     </div>
     <div id="split" class="even">+0.00</div>
     <div class="pill" id="targets"></div>
-    <div id="race" hidden></div>
+    <div id="race" hidden data-noi18n></div>
     <div id="feed"></div>
     <div id="banner"><b></b><span></span></div>
     <div id="count" hidden></div>
@@ -370,7 +373,7 @@ body.touch #banner span{font-size:13px}
         <div class="setting"><span>Sound</span><input id="vol" type="range" min="0" max="1" step=".05"><output id="volOut">70</output></div>
         <div class="setting"><span>Music</span><input id="mus" type="range" min="0" max="1" step=".05"><output id="musOut">40</output></div>
         <div class="row" style="margin-top:12px"><span style="font-weight:800;font-size:14px;min-width:92px">Graphics</span><div class="seg" id="gfxSeg"><button type="button" data-q="low">Fast</button><button type="button" data-q="high">Pretty</button></div></div>
-        <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysMenu" type="button">Controls</button></div>
+        <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysMenu" type="button">Controls</button><div data-lang-toggle></div></div>
         <details>
           <summary>How to play</summary>
           <ul class="how">
@@ -415,7 +418,7 @@ body.touch #banner span{font-size:13px}
       <div class="setting"><span>Camera</span><div class="seg" id="followSeg2"><button type="button" data-v="1">Follows you</button><button type="button" data-v="0">Free</button></div></div>
       <div class="setting"><span>Sound</span><input id="vol2" type="range" min="0" max="1" step=".05"></div>
       <div class="setting"><span>Music</span><input id="mus2" type="range" min="0" max="1" step=".05"></div>
-      <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysPause" type="button">Controls</button></div>
+      <div class="row" style="margin-top:12px"><button class="btn sm alt" id="keysPause" type="button">Controls</button><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -442,6 +445,8 @@ body.touch #banner span{font-size:13px}
 <script>
 (function(){
 'use strict';
+// Spanish: es.js holds this game's words; T() is for text drawn on a canvas or built in code (../lang.js).
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // ==CORE==
 // Everything between the CORE markers is plain simulation: no DOM and no Three.js, so a Node test can run it on its
 // own (the checking bot plays every level with it). Units are metres-ish: a runner is 2 tall.
@@ -1605,8 +1610,8 @@ function makePortal(W){
   const ring=new THREE.Mesh(new THREE.TorusGeometry(2.25,.32,10,40),new THREE.MeshLambertMaterial({color:'#ffffff',emissive:new THREE.Color('#5b48d6')}));ring.position.y=2.4;g.add(ring);
   const disc=new THREE.Mesh(new THREE.CircleGeometry(2.1,40),portalDiscMat);disc.position.y=2.4;g.add(disc);
   const base=new THREE.Mesh(boxGeo(5.4,.5,1.4),sharedMat('metal','#d9dcff'));base.position.y=.25;g.add(base);
-  const next=W.index+1<NL&&G.mode!=='online'?'NEXT: '+lvlCode(W.index+1):'FINISH';
-  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:signTex(G.mode==='online'&&G.rs&&G.ci+1<G.rs.cs.length?'NEXT LEVEL':next,'#c6ff3d','#141331'),depthWrite:false}));sp.scale.set(5.2,1.15,1);sp.position.y=5.6;g.add(sp);
+  const next=W.index+1<NL&&G.mode!=='online'?T('NEXT: {c}',{c:lvlCode(W.index+1)}):T('FINISH');
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:signTex(G.mode==='online'&&G.rs&&G.ci+1<G.rs.cs.length?T('NEXT LEVEL'):next,'#c6ff3d','#141331'),depthWrite:false}));sp.scale.set(5.2,1.15,1);sp.position.y=5.6;g.add(sp);
   const beam=new THREE.Mesh(beamGeo,beamMat);beam.position.y=30;g.add(beam);
   const pool=new THREE.Mesh(poolGeo,poolMat);pool.rotation.x=-Math.PI/2;pool.rotation.z=-p.pyaw;pool.position.y=.56;g.add(pool);
   portalFx={g,ring,disc,beam};return g;
@@ -1886,7 +1891,7 @@ function lookBy(dx,dy){if(!isFinite(dx)||!isFinite(dy))return;G.camYaw-=dx;G.cam
 
 function makeMe(){
   if(G.av)G.av.dispose();
-  G.av=makeAvatar(myColor);
+  G.av=makeAvatar(myColor);wrDressMe();
   me=G.me=newPlayer(0,0,0,0);me.px=0;me.py=0;me.pz=0;me.ryaw=0;
   if(!myTrail)myTrail=makeTrail();myTrail.set(prog.trail);
 }
@@ -1939,7 +1944,7 @@ function onPortal(){
   saveProg();
   const st1=totalStars();if(st1!==st0&&window.BackRoomStats){try{BackRoomStats.max('stars',st1)}catch(e){}}
   unlockNotes(st0,st1);
-  const mn=['','Bronze','Silver','Gold'][mNow];
+  const mn=T(['','Bronze','Silver','Gold'][mNow]);
   if(G.mode==='levels'){
     if(prev)showSplit(lt-prev);else hideSplit();
     if(m1>m0)sfx(m1===3?'gold':'medal');else if(pb)sfx('pb');
@@ -1969,10 +1974,10 @@ function medalShower(m,pb){
 function unlockNotes(a,b){
   if(b<=a)return;
   for(const s of SPEEDS)if(s.need>a&&s.need<=b){feed('<span class="hl">Unlocked '+s.n+'</span> · pick it in the Garage');sfx('unlock')}
-  for(const t of TRAILS)if(t.need>a&&t.need<=b){feed('<span class="hl">Unlocked the '+t.n+' trail</span>');sfx('unlock')}
+  for(const t of TRAILS)if(t.need>a&&t.need<=b){feed('<span class="hl">'+T('Unlocked the {n} trail',{n:T(t.n)})+'</span>');sfx('unlock')}
 }
 function finishRun(total){
-  G.finishedRun=true;sfx('finish');confetti(me.x,me.y+2,me.z,120);
+  G.finishedRun=true;sfx('finish');cheerFx(me.x,me.y+2,me.z,120);
   const prev=prog.run,pb=!prev||total<prev.t;prog.runs++;
   if(pb)prog.run={t:r3(total),sp:G.runSplits.slice()};
   saveProg();
@@ -1982,7 +1987,7 @@ function finishRun(total){
   showResults(pb?(prev?'New best run!':'Run complete!'):'Run complete',prev?(pb?'Faster than your old best by '+fmt(prev.t-total):'Your best is '+fmt(prev.t)+' ('+fmtD(total-prev.t)+')'):'Your first full run. Now beat it.',fmt(total),rows,'run');
 }
 function showAllDone(){
-  sfx('finish');confetti(me.x,me.y+2,me.z,100);
+  sfx('finish');cheerFx(me.x,me.y+2,me.z,100);
   showResults('All 25 cleared!',golds()+' gold medals so far. Try a full run: every level on one clock.','★ '+totalStars()+' / 75',[], 'levels');
 }
 // After a fall or a hazard: back to the start of the level a moment later.
@@ -2181,7 +2186,7 @@ const Net={
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
   },
-  base(){return{n:myName||'Runner',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),j:this.j,a:animCode(me),l:G.ci,r:G.rs?G.rs.id:0,f:'',tr:trailDef(prog.trail).id}},
+  base(){const o={n:myName||'Runner',c:myColor,x:r2(me.x),z:r2(me.z),h:r3(me.yaw),ts:Math.round(this.now()),y:r2(me.y),j:this.j,a:animCode(me),l:G.ci,r:G.rs?G.rs.id:0,f:'',tr:trailDef(prog.trail).id};const wk=myKitStr();if(wk){o.wk=wk;this.wkSent=true}return o},
   async count(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;
     s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});
@@ -2247,7 +2252,7 @@ function nameOf(uid){if(uid===Net.uid)return myName||'You';const o=Net.others.ge
 function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const o={n:cleanName(v.n)||'Runner',c:/^#[0-9a-f]{6}$/i.test(v.c)?v.c:'#ff3d7f',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',
-    he:Math.min(Math.max(+v.he||0,0),1e9),f:typeof v.f==='string'?v.f.slice(0,40):'',r:+v.r||0,l:clamp(v.l|0,0,NL),tr:typeof v.tr==='string'?v.tr:'none'};
+    he:Math.min(Math.max(+v.he||0,0),1e9),f:typeof v.f==='string'?v.f.slice(0,40):'',r:+v.r||0,l:clamp(v.l|0,0,NL),tr:typeof v.tr==='string'?v.tr:'none',wk:typeof v.wk==='string'&&/^\d{1,3}(\.\d{1,3}){0,3}$/.test(v.wk)?v.wk:''};
   const was=Net.others.get(uid);Net.others.set(uid,o);
   if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
   let e=ents.get(uid);
@@ -2260,6 +2265,7 @@ function onNode(uid,v){
   }
   e.seen=performance.now();
   if(e.name!==o.n||e.color!==o.c){e.name=o.n;e.color=o.c;e.av.setColor(o.c)}
+  if(e.wk!==o.wk){e.wk=o.wk;if(o.wk&&!WR)wrLoad();else wrDressEnt(e)}   // a Wardrobe kit (wardrobe.js): fetched only when someone wears one
   if(e.trail.id!==o.tr){const d=TRAILS.find(t=>t.id===o.tr)||TRAILS[0];e.trail.def=d;e.trail.id=d.id;e.trail.c0.set(d.cols[0]);e.trail.c1.set(d.cols[1])}
   if(isFinite(+v.x)&&isFinite(+v.z))e.tpos.set(clamp(+v.x,-2000,2000),clamp(+v.y||0,-200,500),clamp(+v.z,-2000,2000));
   e.tyaw=+v.h||0;e.a=clamp(v.a|0,0,5);e.r=o.r;
@@ -2338,11 +2344,11 @@ function onlinePortal(now){
   // finished: claim the time (the host lists it), and keep running the last level for fun
   G.finishedRace=true;const ms=Math.round(now*1000);G.myFinMs=ms;G.finRound=rs.id;G.ci=rs.cs.length;
   Net.upd({f:rs.id+':'+ms,l:G.ci});
-  sfx('finish');confetti(me.x,me.y+2,me.z,90);banner('Finished!',fmt(ms/1000),2.4);
+  sfx('finish');cheerFx(me.x,me.y+2,me.z,90);banner('Finished!',fmt(ms/1000),2.4);
   enterLevel(rs.cs[rs.cs.length-1]);
   if(G.host)hostTick();
 }
-const ordinal=n=>{const s=n%100;return s>10&&s<14?'th':['th','st','nd','rd'][n%10]||'th'};
+const ordinal=n=>{if(window.BackRoomLang&&BackRoomLang.get()==='es')return 'º';const s=n%100;return s>10&&s<14?'th':['th','st','nd','rd'][n%10]||'th'};
 function onlineTick(){
   if(!Net.refs)return;
   if(!Net.loaded||performance.now()-G.joinedAt<1800)return;
@@ -2427,7 +2433,7 @@ function updateHud(){
   if(G.mode==='online'&&G.rs){
     const rs=G.rs,rows=[];
     const add=(uid,n,c,l,fin)=>rows.push({uid,n,c,l,fin});
-    for(const uid of liveIds()){const f=rs.fin.find(q=>q[0]===uid);if(uid===Net.uid)add(uid,myName||'You',myColor,G.ci,f?f[1]:null);else{const o=Net.others.get(uid);if(o)add(uid,o.n,o.c,o.r===rs.id?o.l:0,f?f[1]:null)}}
+    for(const uid of liveIds()){const f=rs.fin.find(q=>q[0]===uid);if(uid===Net.uid)add(uid,myName||T('You'),myColor,G.ci,f?f[1]:null);else{const o=Net.others.get(uid);if(o)add(uid,o.n,o.c,o.r===rs.id?o.l:0,f?f[1]:null)}}
     rows.sort((a,b)=>(a.fin!=null)!==(b.fin!=null)?(a.fin!=null?-1:1):a.fin!=null?a.fin-b.fin:b.l-a.l);
     const key=rows.map(r=>r.uid+r.n+r.c+r.l+r.fin).join('|');
     if(hudCache.race!==key){hudCache.race=key;
@@ -2581,7 +2587,7 @@ function showResults(title,sub,big,rows,kind){
   $('resTime').hidden=!big;if(big)$('resTime').textContent=big;
   const ol=$('resList');ol.innerHTML='';
   rows.forEach((r,i)=>{const li=document.createElement('li');if(r.me)li.className='me';
-    li.innerHTML='<span class="pl">'+(i+1)+'</span><i style="background:'+esc(r.c)+'"></i><span class="nm">'+esc(r.n)+'</span><span class="tm">'+esc(r.t)+'</span>'+(r.d!=null?'<span class="dt '+(r.d<0?'a':'b')+'">'+fmtD(r.d)+'</span>':'');ol.appendChild(li)});
+    li.innerHTML='<span class="pl">'+(i+1)+'</span><i style="background:'+esc(r.c)+'"></i><span class="nm" data-noi18n>'+esc(r.n)+'</span><span class="tm">'+esc(r.t)+'</span>'+(r.d!=null?'<span class="dt '+(r.d<0?'a':'b')+'">'+fmtD(r.d)+'</span>':'');ol.appendChild(li)});
   ol.hidden=!rows.length;
   G.resKind=kind;
   $('resAgain').hidden=kind==='online';$('resAgain').textContent=kind==='run'?'Run again':'Full run';
@@ -2747,16 +2753,51 @@ const inv=/^#sr-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited to room sr-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.remove('alt');$('joinRoom').classList.add('hot');$('quick').classList.remove('hot');$('quick').classList.add('alt')}
 if(touchUI)setTouchUI(true);
 
+// ---------- the Wardrobe (captains only for now; README, "Turbo Trail") ----------
+// Outfits (drawn by ../outfits.js, shared with Spire and Escapade) and celebrations, in wardrobe.js beside this page.
+// wardrobeOn() says whether this player may open it: WARDROBE_PUBLIC (the one line that opens it to everyone), one of
+// the site's captains (../captains.js), or ?wardrobe=1 on localhost or in an automated browser (remembered for the tab;
+// ?wardrobe=0 forgets it). The files are fetched only when it is true, or when a runner in the race wears a kit (then
+// only outfits.js and wardrobe.js, to draw them); until then WR is null and every runner looks as before.
+// Saved as turbotrail:wardrobe; online as `wk` in this runner's node, only while worn.
+const WARDROBE_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardrobeOn=()=>WARDROBE_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','turbotrail-wardrobe'));
+let WR=null,wrAsked=false,cosAsked=false;
+const myKit=()=>WR&&wardrobeOn()?WR.mine():null;
+function myKitStr(){return WR?WR.kitStr(myKit()):''}
+function wrDressMe(){if(WR&&G.av)WR.dress(G.av,myKit(),myColor)}
+function wrDressEnt(e){if(WR&&e.av)WR.dress(e.av,WR.kitOf(e.wk),e.color,.6)}
+function cheerFx(x,y,z,n){const k=myKit();if(!(WR&&k&&WR.cheer(k,x,y,z,n,myColor)))confetti(x,y,z,n)}
+function wrApi(){return{THREE,store,emit,burst,ringFx,cover:()=>dustCover,get color(){return myColor},changed(){wrDressMe();wrSend()}}}
+function wrSend(){if(!WR||!Net.refs)return;const s=myKitStr();if(s||Net.wkSent){Net.wkSent=!!s;Net.upd({wk:s||null})}}
+const wrAdd=src=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=src;e.onload=res;e.onerror=rej;document.head.appendChild(e)});
+function wrLoad(){
+  // the names (../cosmetics.js) only for a player who may open the Wardrobe
+  if(wardrobeOn()&&!window.BackRoomCosmetics&&!cosAsked){cosAsked=true;wrAdd('../cosmetics.js').then(wrSync).catch(e=>{cosAsked=false;console.error(e)})}
+  if(wrAsked)return;wrAsked=true;
+  (window.BlockFits?Promise.resolve():wrAdd('../outfits.js')).then(()=>wrAdd('wardrobe.js')).then(()=>{
+    if(!window.TurboWardrobe||!window.BlockFits)throw new Error('wardrobe did not load');
+    WR=window.TurboWardrobe(wrApi());wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){
+  if(wardrobeOn())wrLoad();
+  if(!WR)return;
+  WR.menu(wardrobeOn());wrDressMe();ents.forEach(wrDressEnt);wrSend();
+}
+if(CAPTAINS)CAPTAINS.onChange(wrSync);
+
 // Test hook (automated browsers only): step the simulation without waiting for frames, check levels, drive the runner.
 if(navigator.webdriver)window.__sr={G,PHYS,LEVELS,WORLDS,MEDALS,prog,get me(){return me},get trail(){return myTrail},ents,Net,onNode,KB,keys,tAct,tMove,
   advance(s){G.noRender=true;try{const n=Math.round(s/PHYS.DT);for(let i=0;i<n;i++){const W=G.W;tick();if(G.respawnAt&&performance.now()>=G.respawnAt)respawnMe();if(G.W!==W&&G.respawnAt)respawnMe()}if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}finally{G.noRender=false}},
   respawnNow(){if(G.respawnAt)respawnMe()},
-  buildLevel,runBot,makeBot,startLevels,startRun,startMode,toMenu,goOnline,setRS,newRace,hostTick,showPause,resume,enterLevel,selfReset,
+  buildLevel,runBot,makeBot,startLevels,startRun,startMode,toMenu,goOnline,setRS,newRace,hostTick,showPause,resume,enterLevel,selfReset,get WR(){return WR},wardrobeOn,wrSync,wrLoad,cheerFx,
   autopilot(on){G.auto=on?makeBot(G.W.route):null},
   camRay,renderer,scene,camera,render(){renderer.render(scene,camera)},
   frame(n,quiet){G.freeze=true;try{n=n||1;for(let i=0;i<n;i++){G.noRender=quiet||i<n-1;update(1/60)}}finally{G.freeze=false;G.noRender=false;if(G.mode!=='online')G.tBase=performance.now()/1000-G.t}},
   // stand-in racers for screenshots: [{x,y,z,yaw,c,n,a}]
-  decoys(list){(G.decoys||[]).forEach(d=>{d.av.dispose();d.tag.remove()});G.decoys=list.map(q=>{const av=makeAvatar(q.c,q.ghost||0);av.root.position.set(q.x,q.y,q.z);av.root.rotation.y=q.yaw||0;for(let i=0;i<30;i++)animate(av,q.a||0,q.a===1?12:0,1/30);const tag=document.createElement('div');tag.innerHTML='<i style="background:'+q.c+'"></i>'+esc(q.n);$('tags').appendChild(tag);return{av,tag,q}})},
+  decoys(list){(G.decoys||[]).forEach(d=>{d.av.dispose();d.tag.remove()});G.decoys=list.map(q=>{const av=makeAvatar(q.c,q.ghost||0);if(WR&&q.wk)WR.dress(av,WR.kitOf(q.wk),q.c,q.ghost||0);av.root.position.set(q.x,q.y,q.z);av.root.rotation.y=q.yaw||0;for(let i=0;i<30;i++)animate(av,q.a||0,q.a===1?12:0,1/30);const tag=document.createElement('div');tag.innerHTML='<i style="background:'+q.c+'"></i>'+esc(q.n);$('tags').appendChild(tag);return{av,tag,q}})},
   placeDecoyTags(){for(const d of G.decoys||[]){const v=_gv.set(d.q.x,d.q.y+2.5,d.q.z).project(camera);d.tag.style.transform='translate('+((v.x+1)/2*innerWidth).toFixed(1)+'px,'+((1-v.y)/2*innerHeight).toFixed(1)+'px) translate(-50%,-100%)'}}};
 
 // A tab in the background gets no animation frames: a timer keeps the node's ts fresh (otherwise the others drop the
@@ -2764,7 +2805,7 @@ if(navigator.webdriver)window.__sr={G,PHYS,LEVELS,WORLDS,MEDALS,prog,get me(){re
 setInterval(()=>{if(!document.hidden||!Net.refs)return;try{onlineTick();if(performance.now()-(Net.hbT||0)>2000)Net.upd({})}catch(err){console.error(err)}},1000);
 makeMe();renderSwatches();renderProfile();renderGfx();applyQuality();
 try{document.fonts.ready.then(()=>{if(G.mode==='menu'&&G.W)loadWorld(G.W)})}catch(e){}
-setupAttract();showAd('adMenu');
+setupAttract();showAd('adMenu');wrSync();
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
 </script>

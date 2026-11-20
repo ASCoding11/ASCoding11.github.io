@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Patchwork Tower's Spanish words -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the Wardrobe while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Patchwork Tower</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -86,6 +89,7 @@ body.touch #pad,body.touch #fix{display:block}
     <p><b>Bats</b> cross the rows: an arrow at the edge shows where one is coming from.</p>
     <p>Grab the <b>cocoa</b> for a few seconds of invincibility and one-tap repairs. <b>Planters</b> block climbing and <b>shutters</b> block side steps.</p>
     <p>Finish a floor quickly for a bigger bonus.</p>
+    <div style="margin:10px 0" data-lang-toggle></div>
     <button class="ghost" id="howClose">CLOSE</button>
   </div>
 </div>
@@ -93,6 +97,7 @@ body.touch #pad,body.touch #fix{display:block}
 <script>
 (function(){
 "use strict";
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 /* =====================================================================
    Patchwork Tower: a one-screen fix-it arcade game.
    ==RULES== ... ==END RULES== is the game itself: it never touches the page, the clock, sound or Math.random, so the
@@ -442,6 +447,7 @@ function drawBot(a){
   if(p.bump>0){x+=p.bd[1]*2;y+=p.bd[0]*2}
   const f=p.face,bodyC=gold?'#ffd35a':'#3fd6c0',head=gold?'#fff0b8':'#9ff2e6';
   if(gold&&Math.floor(G.tick*10)%2){R(x-8,y-27,16,1,'#ffd35a');R(x-9,y-26,1,26,'#ffd35a');R(x+8,y-26,1,26,'#ffd35a')}
+  if(WR&&WR.active)return void WR.bot(g2,x,y,f,gold,p.fix>0?(Math.floor(p.fix*30)%2?-5:1):0);   // a captain's look (wardrobe.js): the same rectangles
   R(x-5,y-3,3,3,'#22305a');R(x+2,y-3,3,3,'#22305a');
   R(x-6,y-12,12,9,bodyC);R(x-6,y-4,12,1,gold?'#b8902a':'#1c8f80');R(x-1,y-9,2,2,'#ff6b6b');
   R(x-5,y-20,10,8,head);R(x-4,y-18,8,3,'#16203f');R(x+(f>0?1:-3),y-18,2,2,'#ffffff');
@@ -484,10 +490,10 @@ function drawThings(a){
 }
 function drawHud(){
   R(0,0,W,22,'#0a0e2a');R(0,22,W,1,'#2c356f');
-  txt('SCORE',6,3,1,'#9aa3d6');txt(String(G.score).padStart(6,'0'),6,10,2,'#eef0ff');
-  txt('FLOOR '+G.level,W/2+18,3,1,'#9aa3d6','center');
+  txt(T('SCORE'),6,3,1,'#9aa3d6');txt(String(G.score).padStart(6,'0'),6,10,2,'#eef0ff');
+  txt(T('FLOOR {n}',{n:G.level}),W/2+18,3,1,'#9aa3d6','center');
   txt('+'+String(Math.floor(G.timeLeft)*10).padStart(3,'0'),W/2+18,10,2,'#ffd35a','center');
-  txt('BOTS',W-6,3,1,'#9aa3d6','right');
+  txt(T('BOTS'),W-6,3,1,'#9aa3d6','right');
   for(let i=0;i<G.lives;i++){R(W-13-i*10,11,7,7,'#3fd6c0');R(W-12-i*10,13,5,2,'#16203f')}
 }
 function banner(a,b,c){
@@ -503,13 +509,14 @@ function draw(a){
   g2.drawImage(back,0,0);
   for(const [x,y,k] of stars)R(x,y,1,1,(Math.floor(G.tick*2)+k)%3?'#cdd3ff':'#6e77b8');
   g2.drawImage(wins,0,0);
+  if(WR&&WR.active){const p=G.p;WR.trail(g2,Math.round(p.ox+(p.x-p.ox)*a),Math.round(p.oy+(p.y-p.oy)*a),G.tick)}   // a captain's hop trail (wardrobe.js), under everything that moves
   drawGargoyle(a);drawThings(a);drawBot(a);
   g2.setTransform(1,0,0,1,0,0);
   drawHud();
-  if(paused)banner('PAUSED','','FIX TO GO ON');
-  else if(G.state==='title')banner('PATCHWORK TOWER','BEST '+String(best).padStart(6,'0'),'PRESS FIX TO START');
-  else if(G.state==='clear')banner('FLOOR CLEAR','BONUS +'+G.bonus);
-  else if(G.state==='over')banner('GAME OVER',(newBest?'NEW BEST ':'SCORE ')+G.score+(newBest?'!':'   BEST '+best),'PRESS FIX TO RETRY');
+  if(paused)banner(T('PAUSED'),'',T('FIX TO GO ON'));
+  else if(G.state==='title')banner('PATCHWORK TOWER',T('BEST {s}',{s:String(best).padStart(6,'0')}),T('PRESS FIX TO START'));
+  else if(G.state==='clear')banner(T('FLOOR CLEAR'),T('BONUS +{n}',{n:G.bonus}));
+  else if(G.state==='over')banner(T('GAME OVER'),newBest?T('NEW BEST {s}!',{s:G.score}):T('SCORE {s}   BEST {b}',{s:G.score,b:best}),T('PRESS FIX TO RETRY'));
   vx.imageSmoothingEnabled=false;vx.drawImage(buf,0,0,cv.width,cv.height);
 }
 
@@ -634,8 +641,31 @@ setMute(muted);layout();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(layout);
 requestAnimationFrame(frame);
 
+/* ---------- the Wardrobe (captains only for now; README, "Patchwork Tower") ----------
+   Paint jobs, hats, face pieces and hop trails for Rivet, drawn by wardrobe.js beside this page. wardrobeOn() says
+   whether this player may open it: PATCHWORK_PUBLIC (the one line that opens it to everyone), one of the site's
+   captains (../captains.js), or ?wardrobe=1 on localhost or in an automated browser (remembered for the tab; ?wardrobe=0
+   forgets it). wardrobe.js (and ../cosmetics.js, for the item names) is fetched only when it is true; until then WR is
+   null and the bot is drawn exactly as before. Looks only. Saved in this browser as patchwork-look. */
+const PATCHWORK_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardrobeOn=()=>PATCHWORK_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','patchwork-wardrobe'));
+let WR=null,wrAsked=false;
+function wrLoad(){
+  if(wrAsked)return;wrAsked=true;
+  const add=src=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=src;e.onload=res;e.onerror=rej;document.head.appendChild(e)});
+  (window.BackRoomCosmetics?Promise.resolve():add('../cosmetics.js')).then(()=>add('wardrobe.js')).then(()=>{
+    if(!window.PatchworkWardrobe||!window.BackRoomCosmetics)throw new Error('wardrobe did not load');
+    WR=window.PatchworkWardrobe({C:window.BackRoomCosmetics,store,$,get on(){return wardrobeOn()},pause(){if(inPlay())setPaused(true)}});
+    wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){if(wardrobeOn())wrLoad();if(WR){WR.access();layout()}}
+wrSync();
+if(CAPTAINS)CAPTAINS.onChange(wrSync);
+
 // for automated tests only
-if(navigator.webdriver)window.__pt={create,step,press,hold,canMove,reachable,startGame,STEP,W,H,COLS,ROWS,TELE,BAT_WARN,cx,fy,
+if(navigator.webdriver)window.__pt={get WR(){return WR},wardrobeOn,create,step,press,hold,canMove,reachable,startGame,STEP,W,H,COLS,ROWS,TELE,BAT_WARN,cx,fy,
   get g(){return G},set g(v){G=v},get paused(){return paused},get best(){return best},get touch(){return touchUI},layout,setPaused,
   run(sec){const n=Math.round(sec/STEP);for(let i=0;i<n;i++)step(G,STEP);drain()}};
 })();

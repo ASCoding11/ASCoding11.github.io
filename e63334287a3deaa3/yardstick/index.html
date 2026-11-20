@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/yardstick/es.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Yardstick</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -205,6 +207,12 @@ function scoreOf(e) {
 const band = s => s >= 90 ? 4 : s >= 70 ? 3 : s >= 45 ? 2 : s >= 20 ? 1 : 0;
 const EMO = ['🟥', '🟧', '🟨', '🟩', '🎯'];
 const WORD = ['Way off', 'Not close', 'In the right area', 'Close', 'Spot on'];
+// Language (lang.js): the page's words are in es.js and text built in code goes through TR(); with Spanish on, each object's
+// name, description, note and fact come from es.js too (OB()), so the whole game is in Spanish. Sources stay as published.
+const TR = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
+const OB = (o, k) => window.YardstickObj ? window.YardstickObj(o, k) : o[k];
+// grade words: 'Close' is also the shared word for a Close button, so its Spanish is given here
+const GW = w => w === 'Close' ? (window.BackRoomLang && BackRoomLang.get() === 'es' ? 'Cerca' : w) : TR(w);
 
 // ------------------------------------------------------------------ sizes as text
 function sig(v, n) { return String(+v.toPrecision(n)); }
@@ -216,31 +224,31 @@ function us(m) {
   const ft = inch / 12; return ft < 5280 * 2 ? Math.round(ft).toLocaleString('en-US') + ' ft' : sig(ft / 5280, 3) + ' mi';
 }
 const both = (m, n) => metric(m, n) + ' (' + us(m) + ')';
-const dimWord = o => o.dim === 'height' ? 'tall' : o.dim === 'diameter' ? 'across' : 'long';
+const dimWord = o => TR(o.dim === 'height' ? 'tall' : o.dim === 'diameter' ? 'across' : 'long');
 const dimNoun = o => o.dim;
-function realText(o) { return o.lo != null ? metric(o.lo, 4).replace(/ \S+$/, '') + ' to ' + metric(o.hi, 4) : both(o.m, 4); }
+function realText(o) { return o.lo != null ? TR('{a} to {b}', { a: metric(o.lo, 4).replace(/ \S+$/, ''), b: metric(o.hi, 4) }) : both(o.m, 4); }
 const realShort = o => o.lo != null ? metric(o.lo, 4).replace(/ \S+$/, '') + '–' + metric(o.hi, 4) : metric(o.m, 4);
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
 // ------------------------------------------------------------------ shell
-const HOW = '<p>Two shapes stand on one ground line, drawn to the <b>same scale</b>. The <b style="color:var(--ref)">blue</b> one is the reference, and you are told its real size. Stretch the <b style="color:var(--tgt)">yellow</b> one until it looks the right real-life size next to it, then <b>lock it in</b>.</p>' +
-  '<ul><li><b>Resize:</b> drag the yellow shape or its round handle, use the slider, tap − and + for small steps, or press the arrow keys (hold Shift for tiny steps).</li>' +
-  '<li><b>Zoom</b> (the buttons, the scroll wheel or a pinch) only changes how big both shapes are drawn. It never changes your answer.</li>' +
-  '<li>You never type a number. After you lock in you see the real size as a green outline, the real measurement and a fact.</li>' +
-  '<li><b>Five rounds</b>, up to <b>100 points</b> each. What counts is how many <i>times</i> too big or too small you were: within 3% is 100, 10% out is about 92, 25% out about 72, half as much again 46, and <b>twice too big scores the same as half the size: 20</b>.</li></ul>' +
-  '<p>Heights are only ever compared with heights, and lengths with lengths. Every size was looked up and its source is shown after each round.</p>';
+const HOW = () => TR('<p>Two shapes stand on one ground line, drawn to the <b>same scale</b>. The <b style="color:var(--ref)">blue</b> one is the reference, and you are told its real size. Stretch the <b style="color:var(--tgt)">yellow</b> one until it looks the right real-life size next to it, then <b>lock it in</b>.</p>') +
+  TR('<ul><li><b>Resize:</b> drag the yellow shape or its round handle, use the slider, tap − and + for small steps, or press the arrow keys (hold Shift for tiny steps).</li>') +
+  TR('<li><b>Zoom</b> (the buttons, the scroll wheel or a pinch) only changes how big both shapes are drawn. It never changes your answer.</li>') +
+  TR('<li>You never type a number. After you lock in you see the real size as a green outline, the real measurement and a fact.</li>') +
+  TR('<li><b>Five rounds</b>, up to <b>100 points</b> each. What counts is how many <i>times</i> too big or too small you were: within 3% is 100, 10% out is about 92, 25% out about 72, half as much again 46, and <b>twice too big scores the same as half the size: 20</b>.</li></ul>') +
+  TR('<p>Heights are only ever compared with heights, and lengths with lengths. Every size was looked up and its source is shown after each round.</p>');
 const DIST = [['5', '450+'], ['4', '400+'], ['3', '350+'], ['2', '300+'], ['1', '200+'], ['0', '<200']];
 const distKey = t => t >= 450 ? '5' : t >= 400 ? '4' : t >= 350 ? '3' : t >= 300 ? '2' : t >= 200 ? '1' : '0';
 let st = null, lastDist = null;
 const S = K.shell({
-  slug: SLUG, name: NAME, how: HOW, dist: DIST, distTitle: 'Daily totals (out of 500)',
-  foot: ' Each size has a source; tell Arjun if you spot one that is wrong.',
+  slug: SLUG, name: NAME, how: { toString: HOW }, dist: DIST, distTitle: 'Daily totals (out of 500)',
+  foot: ' Each size has a source; tell us if you spot one that is wrong.',
   shareText: () => st && st.mode === 'daily' && st.phase === 'done' ? shareText() : null,
   onModal: open => { // the shared Stats window shows "Win %"; a score game has no wins, so show the average instead
     if (!open) return;
     const box = document.querySelector('.modal .st4'); if (!box) return;
     const rec = K.Daily.load(SLUG), sc = Object.keys(rec.days).map(k => rec.days[k].score).filter(v => typeof v === 'number');
-    box.children[1].innerHTML = '<b>' + (sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : '–') + '</b><small>Average score</small>';
+    box.children[1].innerHTML = '<b>' + (sc.length ? Math.round(sc.reduce((a, b) => a + b, 0) / sc.length) : '–') + '</b><small>' + TR('Average score') + '</small>';
   }
 });
 const mb = K.modeBar($('modeSlot'), m => start(m));
@@ -341,10 +349,10 @@ function finishDaily(quiet) {
 // ------------------------------------------------------------------ labels, result, pips
 function fillLabels() {
   const r = st.ref, t = st.tgt, shown = st.phase !== 'play';
-  $('refName').textContent = r.name; $('refSize').textContent = realText(r) + ' ' + dimWord(r); $('refWhat').textContent = cap(r.what);
-  $('tgtName').textContent = t.name; $('tgtWhat').textContent = cap(t.what);
-  $('tgtSize').textContent = shown ? realText(t) + ' ' + dimWord(t) : 'How ' + dimWord(t) + '? Make it look right';
-  $('stage').setAttribute('aria-label', 'Drawing surface. Reference: ' + r.name + ', ' + realText(r) + ' ' + dimWord(r) + '. Target: ' + t.name + '.');
+  $('refName').textContent = OB(r, 'name'); $('refSize').textContent = realText(r) + ' ' + dimWord(r); $('refWhat').textContent = cap(OB(r, 'what'));
+  $('tgtName').textContent = OB(t, 'name'); $('tgtWhat').textContent = cap(OB(t, 'what'));
+  $('tgtSize').textContent = shown ? realText(t) + ' ' + dimWord(t) : TR('How {d}? Make it look right', { d: dimWord(t) });
+  $('stage').setAttribute('aria-label', TR('Drawing surface. Reference: {r}, {s}. Target: {t}.', { r: OB(r, 'name'), s: realText(r) + ' ' + dimWord(r), t: OB(t, 'name') }));
 }
 function drawPips() {
   const daily = st.mode === 'daily';
@@ -357,19 +365,19 @@ function drawPips() {
 }
 function offText(o, g) {
   const a = nearest(o, g), e = Math.max(g / a, a / g);
-  if (e <= TOL) return o.lo != null && g >= o.lo && g <= o.hi ? 'inside the real range' : 'within 3%';
+  if (e <= TOL) return TR(o.lo != null && g >= o.lo && g <= o.hi ? 'inside the real range' : 'within 3%');
   const big = g > a;
-  return e >= 1.95 ? sig(e, 2) + ' times too ' + (big ? 'big' : 'small') : Math.round(big ? (e - 1) * 100 : (1 - 1 / e) * 100) + '% too ' + (big ? 'big' : 'small');
+  return e >= 1.95 ? TR(big ? '{n} times too big' : '{n} times too small', { n: sig(e, 2) }) : TR(big ? '{n}% too big' : '{n}% too small', { n: Math.round(big ? (e - 1) * 100 : (1 - 1 / e) * 100) });
 }
 function showResult() {
   const t = st.tgt, rd = st.rounds[st.i], b = band(rd.s), box = $('result');
   box.innerHTML = '';
   const last = st.mode === 'daily' && st.i === ROUNDS - 1;
   box.append(
-    h('div', { class: 'pts c' + b, html: rd.s + '<small>' + WORD[b] + '</small>' }),
-    h('div', { class: 'cmp', html: 'You made it <b class="g">' + both(rd.g) + '</b>. Really <b class="a">' + realText(t) + '</b> ' + dimWord(t) + ': ' + offText(t, rd.g) + '.' }),
+    h('div', { class: 'pts c' + b, html: rd.s + '<small>' + GW(WORD[b]) + '</small>' }),
+    h('div', { class: 'cmp', html: TR('You made it <b class="g">{g}</b>. Really <b class="a">{a}</b> {d}: {o}.', { g: both(rd.g), a: realText(t), d: dimWord(t), o: offText(t, rd.g) }) }),
     h('button', { type: 'button', class: 'cta', id: 'nextBtn', text: last ? 'See your results' : 'Next round', onclick: next }),
-    h('div', { class: 'fact' }, [t.fact + (t.note ? ' (' + cap(t.note) + '.) ' : ' '), h('a', { href: t.src[1], target: '_blank', rel: 'noopener noreferrer', text: 'Source: ' + t.src[0] })]));
+    h('div', { class: 'fact' }, [OB(t, 'fact') + (OB(t, 'note') ? ' (' + cap(OB(t, 'note')) + '.) ' : ' '), h('a', { href: t.src[1], target: '_blank', rel: 'noopener noreferrer', text: TR('Source: {s}', { s: t.src[0] }), 'data-noi18n': '' })]));
   $('controls').hidden = true; $('hint').hidden = true; box.hidden = false; $('wrap').classList.add('rev');
   resize(false);
   setTimeout(() => { const n = $('nextBtn'); if (n && !S.isOpen()) n.focus({ preventScroll: true }); }, 60);
@@ -377,7 +385,7 @@ function showResult() {
 function shareText() {
   const line = total() + '/500';
   const grid = st.rounds.map(r => EMO[band(r.s)]).join('') + '\n' + st.rounds.map(r => r.s).join(' · ');
-  return K.shareText(NAME, K.dayNum(st.day), line, grid, 'daily');
+  return K.shareText(NAME, K.dayNum(st.day), line, grid, 'daily').replace(' (preview)', ' ' + TR('(preview)'));
 }
 
 // ------------------------------------------------------------------ the drawing surface
@@ -487,12 +495,12 @@ function draw() {
       $('mG').setAttribute('d', 'M' + f1(tx - 6) + ' ' + f1(V.gy - th) + 'H' + f1(xr)); $('mA').setAttribute('d', 'M' + f1(tx - 6) + ' ' + f1(V.gy - ah) + 'H' + f1(xr));
       let yg = V.gy - th + 4, ya = V.gy - ah + 4; if (Math.abs(yg - ya) < 15) { if (yg <= ya) yg = ya - 15; else ya = yg - 15; }
       const xt = Math.min(V.W - 4, xr + 4), anchor = xr + 70 > V.W ? 'end' : 'start', xx = anchor === 'end' ? V.W - 5 : xt;
-      [[tG, yg, 'you ' + metric(g), 'var(--tgt)'], [tA, ya, 'real ' + realShort(t), 'var(--truth)']].forEach(q => { q[0].setAttribute('x', f1(xx)); q[0].setAttribute('y', f1(Math.max(13, q[1] - (anchor === 'end' ? 8 : 0)))); q[0].setAttribute('text-anchor', anchor); q[0].style.fill = q[3]; q[0].textContent = q[2]; });
+      [[tG, yg, TR('you {m}', { m: metric(g) }), 'var(--tgt)'], [tA, ya, TR('real {m}', { m: realShort(t) }), 'var(--truth)']].forEach(q => { q[0].setAttribute('x', f1(xx)); q[0].setAttribute('y', f1(Math.max(13, q[1] - (anchor === 'end' ? 8 : 0)))); q[0].setAttribute('text-anchor', anchor); q[0].style.fill = q[3]; q[0].textContent = q[2]; });
     } else {
       const yt = V.gy - Math.max(th, ah) - 10;
       $('mG').setAttribute('d', 'M' + f1(tx + tw) + ' ' + f1(V.gy + 4) + 'V' + f1(yt)); $('mA').setAttribute('d', 'M' + f1(tx + aw) + ' ' + f1(V.gy + 4) + 'V' + f1(yt));
       const gBig = tw >= aw;
-      [[tG, tx + tw, 'you ' + metric(g), 'var(--tgt)', gBig], [tA, tx + aw, 'real ' + realShort(t), 'var(--truth)', !gBig]].forEach(q => { const an = q[4] ? 'start' : 'end'; let x = q[1] + (q[4] ? 5 : -5); if (q[4] && x + 80 > V.W) x = V.W - 84; q[0].setAttribute('x', f1(Math.max(4, x))); q[0].setAttribute('y', f1(Math.max(13, yt + (q[4] ? 4 : 18)))); q[0].setAttribute('text-anchor', x < 60 && an === 'end' ? 'start' : an); q[0].style.fill = q[3]; q[0].textContent = q[2]; });
+      [[tG, tx + tw, TR('you {m}', { m: metric(g) }), 'var(--tgt)', gBig], [tA, tx + aw, TR('real {m}', { m: realShort(t) }), 'var(--truth)', !gBig]].forEach(q => { const an = q[4] ? 'start' : 'end'; let x = q[1] + (q[4] ? 5 : -5); if (q[4] && x + 80 > V.W) x = V.W - 84; q[0].setAttribute('x', f1(Math.max(4, x))); q[0].setAttribute('y', f1(Math.max(13, yt + (q[4] ? 4 : 18)))); q[0].setAttribute('text-anchor', x < 60 && an === 'end' ? 'start' : an); q[0].style.fill = q[3]; q[0].textContent = q[2]; });
     }
   }
 }
@@ -605,8 +613,8 @@ function showSummary() {
     h('div', { class: 'head' }, [h('div', { class: 'tot c' + b, html: t + ' <em>/ 500</em>' }),
       h('p', { text: ['A tough day for the tape measure. Tomorrow is a new five.', 'Some of these were a long way out. That is how you learn them.', 'A decent eye. A couple of these fooled you.', 'A sharp eye for size.', 'Outstanding: you could measure by looking.'][b] })]),
     h('div', { id: 'rows' }, items.map(it => h('div', { class: 'row5 c' + band(it.rd.s) }, [
-      h('div', { class: 'nm', html: '' }, [it.tgt.name, h('small', { text: 'next to ' + it.ref.name })]),
-      h('div', { class: 'gv', html: 'You <b>' + metric(it.rd.g) + '</b> · real <b>' + realShort(it.tgt) + '</b><br>' + offText(it.tgt, it.rd.g) }),
+      h('div', { class: 'nm', html: '' }, [OB(it.tgt, 'name'), h('small', { text: TR('next to {n}', { n: OB(it.ref, 'name') }) })]),
+      h('div', { class: 'gv', html: TR('You <b>{g}</b> · real <b>{a}</b>', { g: metric(it.rd.g), a: realShort(it.tgt) }) + '<br>' + offText(it.tgt, it.rd.g) }),
       h('div', { class: 'bar' }, [h('i', { style: 'width:' + it.rd.s + '%' })]),
       h('div', { class: 'sc', text: String(it.rd.s) })]))),
     h('div', { class: 'acts' }, [
@@ -616,7 +624,7 @@ function showSummary() {
       h('span', { class: 'next', id: 'nextIn', text: 'Next five in ' + K.countdown() })]),
     h('p', { id: 'galCap', text: 'Today\'s five targets at their real sizes, all to one scale. Tap a name to zoom in on it.' }),
     h('div', { id: 'galChips', role: 'group', 'aria-label': 'Zoom the gallery' }),
-    h('div', { id: 'galBox' }, [(() => { const s = document.createElementNS(NS, 'svg'); s.setAttribute('id', 'gal'); s.setAttribute('role', 'img'); s.setAttribute('aria-label', 'Today\'s five targets drawn at one true scale'); return s; })()]));
+    h('div', { id: 'galBox' }, [(() => { const s = document.createElementNS(NS, 'svg'); s.setAttribute('id', 'gal'); s.setAttribute('role', 'img'); s.setAttribute('aria-label', TR('Today\'s five targets drawn at one true scale')); return s; })()]));
   box.hidden = false; box.scrollTop = 0;
   buildGallery(items.map(it => it.tgt));
 }
@@ -629,7 +637,7 @@ function buildGallery(objs) {
   its.forEach(it => { const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'it'); g.setAttribute('fill-rule', 'evenodd'); it.o.p.forEach(d => { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); g.appendChild(p); }); s.appendChild(g); it.g = g; });
   gal = { its, line, focus: its.length - 1, ppm: 0, ox: 0, raf: 0, snap: true };
   const mk = (label, i) => { const bt = h('button', { type: 'button', text: label, onclick: () => { gal.focus = i; galGo(); } }); chips.appendChild(bt); return bt; };
-  gal.btns = its.map((it, i) => mk(it.o.name, i));
+  gal.btns = its.map((it, i) => mk(OB(it.o, 'name'), i));
   galGo();
 }
 function galGo() {
@@ -661,6 +669,8 @@ setInterval(() => {
   if (st && st.mode === 'daily' && st.day !== K.today() && !drag && !S.isOpen()) start('daily');
 }, 1000);
 start('daily');
+// a language switch redraws the labels, the result card and the day's summary (object names follow the language)
+document.addEventListener('backroom:lang', () => { if (!st) return; if (st.phase === 'done') { showSummary(); return; } fillLabels(); drawPips(); if (st.phase !== 'play') showResult(); else resize(false); });
 if (navigator.webdriver) window.__ys = {
   get st() { return st; }, view, OBJ, PAIRS, DAYS, BY, start, lock, next, setG, scoreOf, errorOf, nearest, scene, total, shareText, metric, us,
   truth: () => st.tgt.m, setZoom,

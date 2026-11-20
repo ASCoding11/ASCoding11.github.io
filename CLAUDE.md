@@ -26,11 +26,13 @@ When adding a game:
 - Don't change Firebase security rules or the Firebase config. If a game needs storage the current rules don't allow, say so in the pull request instead.
 - If the game shows ads, follow the existing `AD_SLOT` pattern and leave `AD_SLOT` empty; Arjun fills it in, and load `/adrefresh.js` in the `<head>`. Mark in-game touch buttons that aren't inside `#touch` with `data-no-ad-refresh`, so tapping them during play never reloads an ad.
 - Add a section for the game to `README.md`, in the same style as the others: what it is, how it stores data, and anything a later editor needs to know.
+- Add a `kind: 'game'` entry for it to What's new (`e63334287a3deaa3/news.js`, with its Spanish in `news-es.js`), with the game in `games` and its phone thumbnail as `img`, so it appears in the "New games!" row.
 - Make it playable on a phone: on-screen touch controls shown only on touch screens (see how Shell Crackers or Kartwheel do it), with nothing overlapping in portrait or with the phone sideways. Then add it to the phone page: a row in `GROUPS` in `e63334287a3deaa3/m/index.html` and a 560 × 350 thumbnail in `e63334287a3deaa3/m/thumbs/`.
 
 ## Rules
 
 - Keep each pull request to one feature or fix, and leave unrelated code alone.
+- Every update and pull request adds an entry to the top of `NEWS` in `e63334287a3deaa3/news.js` (the Back Room's What's new strip and its "New games!" row), following the how-to at the top of that file: the merge date, the next version number, `kind` (`game`, `feature` or `fix`), a short title and bullet points written for players. A new game also lists its name in `games` so it shows as a "New games!" chip for a week. Add the Spanish for each new line to `e63334287a3deaa3/news-es.js` too. The only exception is a change players can't notice at all (a README or comment edit); say so in the pull request.
 - Don't change these without saying so clearly in the pull request: `netlify.toml`, `_redirects`, `ads.txt`, `privacy.html`, `robots.txt`, `sitemap.xml`, `account/`, `analytics/`, AdSense code, or Firebase config.
 - Never commit secrets, API keys, passwords or private files. `rounds.json` for Hype Cycle Exchange is deliberately kept out of the repo.
 - Don't add outside scripts, trackers or ads unless the pull request is specifically about that.

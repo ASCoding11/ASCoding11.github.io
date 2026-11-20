@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the Wardrobe while it is not public (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Coil's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Coil</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -178,7 +180,7 @@ details.how[open] summary::before{content:'– '}
   <div id="hud" hidden>
     <div id="tag" class="card"></div>
     <div id="feed" aria-live="polite"></div>
-    <div id="lb" class="card"><h4>Leaderboard</h4><ol id="lbList"></ol></div>
+    <div id="lb" class="card"><h4>Leaderboard</h4><ol id="lbList" data-noi18n></ol></div>
     <div id="stats" class="card">
       <div><div class="big" id="sLen">10</div><small>Length</small></div>
       <div><div class="mid" id="sRank">1 / 1</div><small>Rank</small></div>
@@ -186,7 +188,7 @@ details.how[open] summary::before{content:'– '}
     </div>
     <canvas id="mini" width="264" height="264" aria-hidden="true"></canvas>
     <div id="hint"></div>
-    <div id="toast"></div>
+    <div id="toast" data-noi18n></div>
     <button id="boostBtn" type="button" hidden>BOOST</button>
   </div>
   <button id="mute" type="button" aria-label="Sound on" title="Sound (M)" hidden>♪</button>
@@ -251,6 +253,7 @@ details.how[open] summary::before{content:'– '}
         </details>
       </div>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
+      <div style="margin-top:14px" data-lang-toggle></div>
       <p class="foot">Best length on this device: <b id="pbMenu">–</b> · <a href="/privacy.html">Privacy</a></p>
     </div>
   </section>
@@ -261,6 +264,7 @@ details.how[open] summary::before{content:'– '}
       <p class="lede" id="pauseMsg"></p>
       <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost" id="keysPause" type="button">Controls</button><button class="ghost" id="leave" type="button">Leave</button></div>
       <p class="msg" id="inviteMsg"></p>
+      <div style="margin-top:12px" data-lang-toggle></div>
     </div>
   </section>
 
@@ -288,6 +292,7 @@ details.how[open] summary::before{content:'– '}
 <script>
 (function(){
 'use strict';
+const LT=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);   // names go in as {values}: never translated
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/cl-<code>, so the existing rules cover them.
@@ -713,14 +718,14 @@ function killLocal(s,killer){
   if(s===player){sfx('die');onPlayerDied(killer)}
   else{if(near)sfx('crash');if(s.bot)setTimeout(()=>{if(bots.includes(s)){removeBot(s);if(wantBots()>bots.length)spawnBot(s.brain)}},rand(1500,4000))}
 }
-function gotKill(name){run.kills++;sfx('kill');toast('You cut off '+name+'!');if(window.BackRoomStats)BackRoomStats.add('kills',1)}
+function gotKill(name){run.kills++;sfx('kill');toast(LT('You cut off {n}!',{n:name}));if(window.BackRoomStats)BackRoomStats.add('kills',1)}
 function onPlayerDied(killer){
   const len=Math.floor(player.score);
   state='dead';$('hint').textContent='';
   run.peak=Math.max(run.peak,player.peak);const peak=Math.floor(run.peak),newPb=peak>pb;if(newPb){pb=peak;store.set('best',pb)}
   setTimeout(()=>{
     if(state!=='dead')return;
-    $('endTitle').innerHTML=killer?'Cut off by <span></span>':'Out of bounds';
+    $('endTitle').innerHTML=killer?esc(LT('Cut off by'))+' <span data-noi18n></span>':esc(LT('Out of bounds'));
     if(killer)$('endTitle').querySelector('span').textContent=killer.name;
     $('endSub').textContent=online?(Net.isPublic?'Public arena':'Room '+Net.room):'Practice · '+diffKey;
     $('eLen').textContent=len;$('ePeak').textContent=peak;$('eKills').textContent=run.kills;
@@ -865,7 +870,7 @@ let botTimer=0;
 function wantBots(){
   if(mode==='attract')return 16;
   if(mode==='practice')return DIFFS[diffKey].bots;
-  return Net.amHost?clamp(ROOM_FILL-Net.humans(),0,9):0;
+  return Net.amHost&&!isPartyRoom(Net.room)?clamp(ROOM_FILL-Net.humans(),0,9):0;
 }
 function tendBots(dt){
   botTimer-=dt;if(botTimer>0)return;botTimer=.4;
@@ -1071,13 +1076,14 @@ function updateHud(dt){
   $('tag').innerHTML=tag;
   drawMini();
 }
-function toast(t){const el=$('toast');el.textContent=t;el.style.opacity=1;toastT=2}
+function toast(t){const el=$('toast');el.textContent=LT(t);el.style.opacity=1;toastT=2}
 function addFeed(killer,victim){
   const el=document.createElement('div');
   const mine=victim===player||killer===player;
   if(mine)el.className='mine';
-  if(killer)el.innerHTML='<b>'+esc(killer.name)+'</b> cut off <b>'+esc(victim.name)+'</b>';
-  else el.innerHTML='<b>'+esc(victim.name)+'</b> hit the edge';
+  el.setAttribute('data-noi18n','');
+  if(killer)el.innerHTML=LT('{a} cut off {b}',{a:'<b>'+esc(killer.name)+'</b>',b:'<b>'+esc(victim.name)+'</b>'});
+  else el.innerHTML=LT('{n} hit the edge',{n:'<b>'+esc(victim.name)+'</b>'});
   const f=$('feed');f.prepend(el);while(f.children.length>4)f.lastChild.remove();
   setTimeout(()=>el.remove(),5000);
 }
@@ -1262,6 +1268,9 @@ function handleEvent(e){
   }
 }
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: the host runs no bots there.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^cl-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['noodle','coil','hiss','fang','scale','venom','loop','twist'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
@@ -1513,7 +1522,7 @@ function wrSync(){
 addEventListener('DOMContentLoaded',()=>{wrSync();if(CAPTAINS)CAPTAINS.onChange(wrSync)});
 
 // For automated tests only (Playwright sets navigator.webdriver): a way to reach the arena from outside.
-if(navigator.webdriver)window.__coil={snakes,bots,cam,kill:s=>killLocal(s,null),get player(){return player},
+if(navigator.webdriver)window.__coil={snakes,bots,cam,Net,get mode(){return mode},kill:s=>killLocal(s,null),get player(){return player},
   get WR(){return WR},lookOf,wardrobeOn,get myLook(){return myLook},setLook(v){store.set('look',v);wrSync()},startPractice,get ctx(){return ctx},Net};
 
 // boot
