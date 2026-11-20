@@ -30,10 +30,10 @@ lows = []
 for kind in KINDS:
     up = UPPER[kind]
     labels = O.label_enemy(H, P, up)
-    disp = {up: 0.009, 'trousers': 0.01, 'boot': 0.004, 'skin': 0.0}
+    disp = {up: 0.009, 'trousers': 0.006, 'boot': 0.004, 'skin': 0.0}
     smooth = {up: 1.0, 'trousers': 0.8, 'boot': 1.0, 'skin': 0.0}
-    alpha = {up: 0.4, 'trousers': 0.55, 'boot': 0.85}
-    slack = {up: 0.008 if kind != 'sniper' else 0.014, 'trousers': 0.016, 'boot': 0.006}
+    alpha = {up: 0.4, 'trousers': 0.35, 'boot': 0.85}
+    slack = {up: 0.008 if kind != 'sniper' else 0.014, 'trousers': 0.007, 'boot': 0.005}
     if kind == 'officer': slack[up] = 0.01
     cloth = PP.cloth_body(H, labels, disp, smooth, alpha=alpha, slack=slack, name='Cloth_' + kind)
     gear = O.gear_enemy(H, cloth, kind)
@@ -54,7 +54,7 @@ for kind in KINDS:
     log(kind, 'geometry, gear', len(gear))
     name = kind.capitalize()
     lf = (lambda up_: (lambda H_, P_: O.label_enemy(H_, P_, up_)))(up)
-    low = PP.finish(H, name, cloth, gear, labels, {up: 0.004, 'trousers': 0.005, 'boot': 0.002}, size=SIZE,
+    low = PP.finish(H, name, cloth, gear, labels, {up: 0.0065, 'trousers': 0.0075, 'boot': 0.002}, size=SIZE,
                     out_dir=L.WORK + '/tex_' + kind, low_ratio=0.24, log=log, label_fn=lf)
     # LOD at ~40%
     lod = low.copy(); lod.data = low.data.copy(); lod.name = name + 'LOD'; G.link(lod)

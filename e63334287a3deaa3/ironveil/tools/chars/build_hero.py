@@ -19,9 +19,9 @@ body = H['body']
 P = G.coords(body.data)
 labels = O.label_hero(H, P)
 cloth = PP.cloth_body(H, labels,
-                      disp={'jacket': 0.008, 'trousers': 0.008, 'boot': 0.004, 'glove': 0.002, 'skin': 0.0},
+                      disp={'jacket': 0.008, 'trousers': 0.005, 'boot': 0.004, 'glove': 0.002, 'skin': 0.0},
                       smooth={'jacket': 1.0, 'trousers': 0.8, 'boot': 1.0, 'glove': 0.3, 'skin': 0.0},
-                      alpha={'jacket': 0.4, 'trousers': 0.55, 'boot': 0.9}, slack={'jacket': 0.003, 'trousers': 0.014, 'boot': 0.01},
+                      alpha={'jacket': 0.4, 'trousers': 0.35, 'boot': 0.9}, slack={'jacket': 0.003, 'trousers': 0.005, 'boot': 0.006},
                       torso_dilate=0.04)
 log('cloth body')
 gear = O.gear_hero(H, cloth)
@@ -72,5 +72,5 @@ if MODE == 'bake':
     rig = bpy.data.objects['Armature']
     for b in rig.data.bones: H['J'][b.name] = (rig.matrix_world @ b.head_local, rig.matrix_world @ b.tail_local)
     TD = L.WORK + '/tex_' + KIND
-    low = PP.finish(H, NAME, cloth, gear, labels, {'jacket': 0.004, 'trousers': 0.005, 'boot': 0.0015}, size=SIZE, out_dir=TD, log=log, label_fn=O.label_hero)
+    low = PP.finish(H, NAME, cloth, gear, labels, {'jacket': 0.0065, 'trousers': 0.0075, 'boot': 0.002}, size=SIZE, out_dir=TD, log=log, label_fn=O.label_hero)
     bpy.ops.wm.save_as_mainfile(filepath=L.WORK + '/%s_baked.blend' % KIND)
