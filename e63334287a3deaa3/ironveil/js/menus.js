@@ -133,6 +133,7 @@
     // one grading path: with the environment kit's post stack on, it does the grain and vignette (the page's own CSS
     // grain and vignette are for Low only); Reduced motion turns its film grain down
     document.body.classList.toggle('envpost', !!IV.world.post);
+    if (IV.world.atm && IV.world.atm.setFlashes) IV.world.atm.setFlashes(!s.motion);   // lightning on rainy skies
     const G = window.IVEnv && IVEnv.GRADES;
     if (G) for (const k in G) { const g = G[k]; if (g._grain == null) g._grain = g.grain; g.grain = g._grain * (s.motion ? 0.35 : 1); }
   };

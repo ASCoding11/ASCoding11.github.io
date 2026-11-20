@@ -21,7 +21,7 @@
     catch (e) { console.warn('chars.js failed, using the stand-in', e); window.IVChars = null; await loadScript('js/chars-standin.js'); await IVChars.load(); }
     W.init($('view'));
     if (window.IVChars) IVChars.camera = W.camera;          // chars.js uses it for LOD and far-actor throttling
-    // Workaround for chars.js (reported to its helper): three r128's mixer only writes a bone when its animated value
+    // Workaround for older chars.js builds (reported to its helper, fixed in its own update() since 0b524c1): three r128's mixer only writes a bone when its animated value
     // changes, so the aim offset and IK that chars.js applies after mixer.update() pile up frame after frame while a
     // pose is still (the body folds forward). Each frame we put the bones back to last frame's mixer result before
     // update() runs, so the post-mixer passes always start from the animation.
@@ -29,6 +29,7 @@
       const spawn0 = IVChars.spawn.bind(IVChars);
       IVChars.spawn = function (kind) {
         const a = spawn0(kind); if (!a || a.fb) return a;
+        if (/_accuIndex/.test(String(a.update))) return a;   // chars.js now fixes this itself (since war-chars 0b524c1)
         const bones = []; a.root.traverse(o => { if (o.isBone) bones.push(o); });
         const snap = bones.map(() => [new THREE.Quaternion(), new THREE.Vector3()]); let have = false, taken = false;
         const take = () => { if (taken) return; taken = true; have = true; for (let i = 0; i < bones.length; i++) { snap[i][0].copy(bones[i].quaternion); snap[i][1].copy(bones[i].position); } };
