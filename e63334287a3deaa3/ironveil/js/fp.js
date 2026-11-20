@@ -307,7 +307,16 @@
     rig.len = (name, kind) => { const v = kind ? rig.get(kind) : rig.vm; return v ? v.clipLength(name) : 0; };
     return rig;
   }
-  const _o = new THREE.Vector3();
+  const _o = new THREE.Vector3(), SHOULDER = new THREE.Vector3();
+  // the arms shadow themselves and the gun (Medium and High): a small shadow map of its own, about 1.2 m across, from
+  // the moon or sun direction in the viewmodel's frame; the meshes are switched to cast and receive once
+  function vmShadows(vm, v) {
+    const want = (IV.settings.quality | 0) >= 1 && W.renderer.shadowMap.enabled;
+    if (want === !!v._sh) return; v._sh = want;
+    v.group.traverse(o => { if (o.isMesh) { o.castShadow = want; o.receiveShadow = want; } });
+    const L = vm.sun; L.castShadow = want;
+    if (want) { L.shadow.mapSize.set(1024, 1024); Object.assign(L.shadow.camera, { left: -0.6, right: 0.6, top: 0.6, bottom: -0.6, near: 0.05, far: 3 }); L.shadow.camera.updateProjectionMatrix(); L.shadow.bias = -0.0006; L.shadow.normalBias = 0.004; L.shadow.radius = 2; }
+  }
   // the clips' events run the gun: rounds go in at 'magIn', the reload ends at 'done', cases leave the port at 'shot'
   // (SMG, pistol) or 'eject' (rifle bolt), and each handling sound plays when the hands make it
   const _ed = new THREE.Vector3(), _ep = new THREE.Vector3();
@@ -382,9 +391,13 @@
     const ox = (Math.sin(t * 1.1) * 0.0022 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.45 - FP.lagYaw * 0.35) * relax;
     const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath + FP.lagPitch * 0.3) * (1 - a * 0.7) - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45;
     const oz = FP.kick * (aiming ? 0.02 : 0.03) + FP.vmLower * 0.05;
-    v.group.position.set(ox, oy, oz);
+    // the turn layers (recoil climb, look lag, wall lowering, lean roll) pivot about the right shoulder, behind and below
+    // the eye, so recoil travels back through the wrists and forearms instead of the gun spinning about the eye
     _e.set(FP.kickR * 0.7 + FP.lagPitch * 0.5 * relax - FP.vmLower * 0.5, FP.lagYaw * 0.7 * relax, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax);
     v.group.quaternion.setFromEuler(_e);
+    SHOULDER.set(0.17, -0.3, 0.12);
+    v.group.position.copy(SHOULDER).negate().applyQuaternion(v.group.quaternion).add(SHOULDER).add(_o.set(ox, oy, oz));
+    vmShadows(vm, v);
     vm.gun = rig.gun;
     vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
     vm.root.updateMatrixWorld(true);
@@ -526,7 +539,10 @@
       // the sun or moon direction in the viewmodel camera's frame
       vm.sun.color.copy(W.sun.color); vm.sun.intensity = W.sun.intensity * lit;
       _v.set(W.moonDir.x, W.moonDir.y, W.moonDir.z).applyQuaternion(_q.copy(cam.quaternion).invert());
-      vm.sun.position.copy(_v); vm.sun.target.position.set(0, 0, 0);
+      vm.sun.target.position.set(0.12, -0.15, -0.4); vm.sun.position.copy(_v).normalize().multiplyScalar(1.5).add(vm.sun.target.position); vm.sun.target.updateMatrixWorld();
+      // a weak cool rim from the sky side, up and behind, so the silhouette holds at night
+      if (!vm.rim) { vm.rim = new THREE.DirectionalLight(0x9fb4d8, 0); vm.scene.add(vm.rim); }
+      vm.rim.position.set(-0.4, 0.8, 0.6); vm.rim.intensity = night ? 0.35 * W.hemi.intensity : 0.12;
     }
     // the nearest lamp pools and the muzzle / explosion flash light the arms from where they really are: each world point
     // light is copied into the viewmodel scene at its position relative to the eye (same colour, power, falloff)
