@@ -401,7 +401,7 @@
     let total = 0; const segs = [];
     for (let i = 0; i < points.length - 1; i++) { const a = points[i], b = points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, L, s0: total }); total += L; }
     const inGap = (s) => opts.gaps.some(g => s > g[0] && s < g[1]);
-    const CH = 16, perM = E.Q.name === 'low' ? 9 : E.Q.name === 'medium' ? 28 : 34;
+    const CH = 16, perM = E.Q.name === 'low' ? 9 : E.Q.name === 'medium' ? 17 : 30, cardK = E.Q.name === 'medium' ? 1.25 : E.Q.name === 'high' ? 1.06 : 1;   // fewer, larger cards on Medium
     const lm = E.leafMaterial('hedge', { stiff: 0.4 }), bm = E.barkMaterial('bark_oak', 0.3);
     for (let c0 = 0; c0 < total; c0 += CH) {
       const L = { p: [], n: [], u: [], c: [], w: [], i: [] }, Bk = E.builder(opts.seed + c0);
@@ -416,7 +416,7 @@
         const [px, pz, dx, dz] = at(s), side = R.range(-1, 1), y0 = hf(px, pz);
         const low = R() < 0.32, u = low ? Math.pow(R(), 1.3) * Math.min(1, 2.0 / Math.max(H, 0.5)) : R(), y = y0 + (low ? u * H : Math.pow(u, 0.8) * H), wk = opts.w * 0.5 * (low ? 0.75 + 0.35 * R() : 0.6 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.1))) * (0.8 + 0.4 * E.vnoise(s * 0.5, 3, opts.seed));
         const p = new V3(px - dz * side * wk, y, pz + dx * side * wk), cc = new V3(px, y0 + H * 0.5, pz);
-        const out = p.clone().sub(cc).normalize(), size = R.range(0.55, 0.95);
+        const out = p.clone().sub(cc).normalize(), size = R.range(0.55, 0.95) * cardK;
         const nrm = new V3(R.range(-1, 1), R.range(-0.5, 1), R.range(-1, 1)).normalize().lerp(out, 0.4).normalize();
         const up = Math.abs(nrm.y) > 0.9 ? new V3(1, 0, 0) : new V3(0, 1, 0), tx = new V3().crossVectors(up, nrm).normalize(), ty = new V3().crossVectors(nrm, tx).normalize();
         const ang = R() * TAU, ca = Math.cos(ang), sa = Math.sin(ang), ax = tx.clone().multiplyScalar(ca).addScaledVector(ty, sa), ay = ty.clone().multiplyScalar(ca).addScaledVector(tx, -sa);
@@ -583,7 +583,7 @@
     };
     m.userData.linear = true; pudMat = m; return m;
   };
-  E.puddleMesh = function (list) {
+  E.puddleMesh = function (list, opts) {
     const B = { p: [], n: [], u: [], i: [] };
     for (const [x, y, z, a, b, r] of list) {
       const base = B.p.length / 3, c = Math.cos(r), s = Math.sin(r);

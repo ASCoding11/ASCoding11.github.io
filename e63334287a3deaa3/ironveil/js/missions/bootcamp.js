@@ -47,6 +47,8 @@
     if (z > 176 && IV.polyDist(x, z, ROADOUT).d < 2.4) return 'road';
     for (const p of POSTS) if (Math.abs(x - p[0]) < p[2] && Math.abs(z - p[1]) < p[2] && Math.hypot(x - p[0], z - p[1]) < p[2]) return 'verge';
     if (ax < 3.5 && z > 0 && z < 166) return ax < 2.6 + 0.9 * n ? 'worn' : 'lawn';  // trodden edge beside the gravel
+    // worn paths from the barrack hut doors to the camp track, and across the grass between the hut rows
+    for (const [x0, x1, zz] of [[-29, -14, 116], [-29, -14, 84], [-28, -17, 100]]) if (x > x0 && x < x1 && Math.abs(z - zz - 0.6 * Math.sin(x * 0.4)) < 0.5 + 0.35 * n) return 'worn';
     for (const h of HUTS) { const dx = Math.abs(x - h[0]) - h[2], dz = Math.abs(z - h[1]) - h[3]; if (dx < 0.9 + 0.5 * n && dz < 0.9 + 0.5 * n && (dx > -0.2 || dz > -0.2)) return 'verge'; }
     if (Math.abs(ax - 44) < 0.8 + 0.6 * n && z > 58 && z < 162) return 'verge';             // fence lines
     if ((Math.abs(ax - 56) < 2.6 + n || Math.abs(z - 175) < 2.2 + n || Math.abs(z + 330) < 2.6 + n) && ax < 60) return 'verge';  // hedge feet
@@ -114,8 +116,8 @@
     const py = W.height(-18, -2);
     for (let i = 0; i < 10; i++) { const a = i / 10 * 6.283, a1 = (i + 1) / 10 * 6.283; IV.art.prop('sandbags', b, -18 + Math.cos(a) * 4.5, -2 + Math.sin(a) * 4.5, -18 + Math.cos(a1) * 4.5, -2 + Math.sin(a1) * 4.5, 2); }
     // huts and a water tower so it reads as a camp
-    hut(() => IV.art.building(b, { x: 16, z: 140, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'shed', w: 6, d: 10, floors: 1, seed: 156, damage: 0.05, lit: 0 }, 16, 140, -Math.PI / 2);
-    hut(() => IV.art.building(b, { x: 16, z: 120, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'shed', w: 6, d: 10, floors: 1, seed: 136, damage: 0.05, lit: 0 }, 16, 120, -Math.PI / 2);
+    hut(() => IV.art.building(b, { x: 16, z: 140, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'hut', w: 10, d: 6, floors: 1, seed: 156, damage: 0.05, lit: 0, num: 3 }, 16, 140, Math.PI);
+    hut(() => IV.art.building(b, { x: 16, z: 120, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'hut', w: 10, d: 6, floors: 1, seed: 136, damage: 0.05, lit: 0, num: 4 }, 16, 120, Math.PI);
     hut(() => IV.art.building(b, { x: -18, z: 130, w: 14, d: 7, h: 3, floor: 0.2, mat: 'plaster', color: 0xcfc6b0, sides: { e: [{ t: 'door', at: 0, w: 1.2 }], n: [{ t: 'win', at: -3, w: 1.2 }, { t: 'win', at: 3, w: 1.2 }] }, roof: { pitch: 0.6 } }), { kind: 'office', w: 14, d: 7, doorEnd: true, seed: 148, damage: 0.05, lit: 0 }, -18, 130, 0);   // a long, low rendered office hut
     if (!dress('watertower', -30, 100, 0.2)) {
       for (const s of [-1, 1]) for (const t of [-1, 1]) K.add(b, 'wood', K.GEO.box, -30 + s * 1.5, W.height(-30, 100) + 4, 100 + t * 1.5, 0.25, 8, 0.25, 0, 0, 0, 0x6e5a44);
@@ -156,8 +158,8 @@
     {
       const H2 = Math.PI / 2;
       IV.art.settle(b, [
-        { kind: 'shed', w: 10, d: 6, x: -34, z: 116, rot: 0 },
-        { kind: 'shed', w: 10, d: 6, x: -34, z: 84, rot: 0.02 },
+        { kind: 'hut', w: 10, d: 6, x: -34, z: 116, rot: 0, num: 1 },
+        { kind: 'hut', w: 10, d: 6, x: -34, z: 84, rot: 0.02, num: 2 },
         { kind: 'office', w: 9, d: 5, x: -33, z: 68, rot: 0, out: 'brick_sooty' },          // ablutions
         { kind: 'office', w: 16, d: 8, x: 32, z: 134, rot: 0 },                             // mess hall
         { kind: 'cottage', w: 8, d: 5, floors: 1, x: 32, z: 120, rot: Math.PI, roof: 'tile' }, // cookhouse

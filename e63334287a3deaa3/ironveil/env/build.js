@@ -19,8 +19,8 @@
   // ------------------------------------------------------------------ rocks / rubble geometry (cached)
   const rockCache = {};
   E.rockGeo = function (seed, detail) {
-    const k = seed + ':' + (detail || 1); if (rockCache[k]) return rockCache[k];
-    const g = new THREE.IcosahedronGeometry(1, detail || 1), p = g.attributes.position, R = E.rng(seed);
+    const k = seed + ':' + (detail == null ? 1 : detail); if (rockCache[k]) return rockCache[k];
+    const g = new THREE.IcosahedronGeometry(1, detail == null ? 1 : detail), p = g.attributes.position, R = E.rng(seed);
     const sx = R.range(0.8, 1.3), sy = R.range(0.45, 0.8), sz = R.range(0.75, 1.2), o = [R() * 9, R() * 9, R() * 9];
     for (let i = 0; i < p.count; i++) {
       const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 0.78 + 0.35 * E.vnoise(x * 1.7 + o[0], z * 1.7 + y * 1.3 + o[1], seed) + 0.12 * E.vnoise(x * 4 + o[2], y * 4, seed + 1);
@@ -151,13 +151,16 @@
         B.geo(mat, g, _M.compose(_P, _Q, _S), { tint: tintJ(R, 0.14) });
       } });
     } else if (o.head === 'lintel') {
-      B.box('ashlar', hp[0] + nx * 0.015, o.y1, hp[1] + nz * 0.015, o.w + 0.36, 0.24, 0.12, rot, { tint: tintJ(R, 0.08) });
+      // some lintels have dropped at one end: tilted, with a crack running up from the low end
+      const drop = S.old && R() < 0.35 ? R.range(0.03, 0.07) * (R() < 0.5 ? -1 : 1) : 0;
+      B.box('ashlar', hp[0] + nx * 0.015, o.y1 - Math.abs(drop) * 0.25, hp[1] + nz * 0.015, o.w + 0.36, 0.24, 0.12, rot, { tint: tintJ(R, 0.08), rz: drop });
+      if (drop) B.decal('crack', [hp[0] + nx * 0.006 - o.dx * Math.sign(drop) * (o.w / 2 + 0.1), o.y1 + 0.5, hp[1] + nz * 0.006 - o.dz * Math.sign(drop) * (o.w / 2 + 0.1)], [nx, 0, nz], 0.45, 0.8, R.range(-0.3, 0.3));
     } else if (o.head === 'timber') {
       B.box('timber', hp[0] + nx * 0.02, o.y1, hp[1] + nz * 0.02, o.w + 0.4, 0.18, 0.16, rot, { grain: 'long' });
     }
     // shutters: open against the wall, one sometimes hanging off a hinge
     if (o.shutters) for (const s of [-1, 1]) {
-      const hang = S.damage > 0.3 && R() < S.damage * 0.5, sw = o.w / 2 + 0.02;
+      const hang = (S.damage > 0.3 && R() < S.damage * 0.5) || (S.old && R() < 0.12), sw = o.w / 2 + 0.02;
       const q = [hp[0] + nx * 0.03 + o.dx * s * (o.w / 2 + sw / 2 + 0.02), hp[1] + nz * 0.03 + o.dz * s * (o.w / 2 + sw / 2 + 0.02)];
       B.box(wood, q[0], o.y0 + (hang ? -0.15 : 0), q[1], sw, o.y1 - o.y0, 0.035, rot, { rz: hang ? s * 0.35 : 0, tint });
       // ledges on the shutter
@@ -207,9 +210,9 @@
     const R = S.R, ov = P.over || 0.35, gov = P.gable || 0.25, w = P.w, d = P.d, eave = P.eave, pitch = P.pitch || 0.72, mat = P.mat, th = 0.07;
     const run = d / 2 + ov, rise = run * Math.tan(pitch), ridge = eave + (d / 2) * Math.tan(pitch);
     const x0 = -w / 2 - gov, x1 = w / 2 + gov, L = x1 - x0, slope = Math.hypot(run, rise);
-    const sag = (x) => -P.sag * Math.sin(Math.PI * (x - x0) / L), eaveW = (x, side) => 0.035 * Math.sin(x * 1.3 + side * 2.1) * Math.sin(x * 0.37 + 1.0);
+    const sag = (x) => -P.sag * Math.sin(Math.PI * (x - x0) / L), eaveW = (x, side) => (P.eaveWander != null ? P.eaveWander : 0.035) * Math.sin(x * 1.3 + side * 2.1) * Math.sin(x * 0.37 + 1.0);
     const holes = new Set();
-    const NX = Math.max(2, Math.round(L / 1.0)), NS = Math.max(2, Math.round(slope / 0.9));
+    const fine = false, NX = Math.max(2, Math.round(L / (fine ? 0.45 : 1.0))), NS = Math.max(2, Math.round(slope / (fine ? 0.42 : 0.9)));
     if (S.damage > 0.25) { const nh = Math.round(S.damage * S.damage * NX * NS * 0.12); for (let k = 0; k < nh; k++) holes.add(((1 + R.int(NX - 2)) + ':' + (R.int(NS - 1)) + ':' + (R() < 0.5 ? 1 : -1))); }
     for (const side of [1, -1]) {
       for (let i = 0; i < NX; i++) for (let j = 0; j < NS; j++) {
@@ -393,10 +396,10 @@
     }
     if (H.quoins) quoins(B, S, w, d, wallH, T);
     // roof and gables
-    const roof = gableRoof(B, S, { w, d, eave: wallH, pitch: H.pitch || 0.75, mat: H.roof, sag: H.sag != null ? H.sag : 0.07 + S.damage * 0.1 + S.R() * 0.04, over: H.over, gable: H.gableOver });
+    const old = !H.trim, roof = gableRoof(B, S, { w, d, eave: wallH, pitch: H.pitch || 0.75, mat: H.roof, sag: H.sag != null ? H.sag : old ? 0.16 + S.damage * 0.18 + S.R() * 0.14 : 0.04 + S.R() * 0.03, over: H.over, gable: H.gableOver, ridgeMat: H.ridgeMat, eaveWander: old ? 0.09 : 0.03 });
     for (const xs of [1, -1]) gableWall(B, S, { w: w - T, d: d - 0.001, T, eave: wallH, ridge: roof.ridge - 0.05, out: H.out, in: H.in, uStart: 0 }, xs);
     B.col(-w / 2 + T / 2, 0, T, d, wallH, roof.ridge, 0, H.surf || 'stone', 'gable'); B.col(w / 2 - T / 2, 0, T, d, wallH, roof.ridge, 0, H.surf || 'stone', 'gable');
-    S.roofTop = roof.ridge;
+    S.roofTop = roof.ridge; S.eaveH = wallH; S.footX = w; S.footZ = d; S.outMat = H.out;
     return { wallH, ridge: roof.ridge };
   }
   // window / door layout along a wall of length L for n bays
@@ -562,11 +565,11 @@
     // straw on the floor
     B.box('earth', 0, -0.04, 0, L - 2 * T, 0.05, Wd - 2 * T, 0, { noFoot: true, tint: new THREE.Color(0.7, 0.65, 0.55) });
     // roof along the barn's length (local X)
-    const roof = gableRoof(B, S, { w: L, d: Wd, eave, pitch: 0.82, mat: sp.roof === 'tile' ? 'roof_tile' : 'slate', sag: 0.1 + S.damage * 0.1, over: 0.4, gable: 0.3 });
+    const roof = gableRoof(B, S, { w: L, d: Wd, eave, pitch: 0.82, mat: sp.roof === 'tile' ? 'roof_tile' : 'slate', sag: 0.22 + S.damage * 0.15 + R() * 0.12, over: 0.4, gable: 0.3, eaveWander: 0.1 });
     // boarded gables
     for (const xs of [1, -1]) gableWall(B, S, { w: L - 0.04, d: Wd, T: 0.04, eave, ridge: roof.ridge - 0.05, out: 'planks', in: 'planks' }, xs);
     S.lights.push({ x: -2.5, y: 2.2, z: 0.8, color: 0xffa050, r: 13, power: sp.lit ? 2.8 : 0, interior: true }); if (sp.lit) lantern(B, -2.5, 1.9, 0.8, true);
-    S.roofTop = roof.ridge;
+    S.roofTop = roof.ridge; S.eaveH = eave; S.footX = L; S.footZ = Wd; S.outMat = 'fieldstone';
   };
   KINDS.shed = function (B, S, sp) {
     const w = sp.w || 4, d = sp.d || 3, R = S.R, h1 = 2.4, h2 = 1.9, bt = 0.04;
@@ -721,7 +724,7 @@
     B.col(x, z, 0.9, 0.48, y, y + 0.4, rot, 'wood', 'hay');
   };
   E.sandbag = function (B, x, y, z, rot, R) {
-    const g = new THREE.SphereGeometry(0.5, 10, 6); const p = g.attributes.position;
+    const g = new THREE.SphereGeometry(0.5, E.Q.name === 'low' ? 6 : 8, E.Q.name === 'low' ? 3 : 4); const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) { const X = p.getX(i), Y = p.getY(i), Z = p.getZ(i); p.setXYZ(i, Math.sign(X) * Math.pow(Math.abs(X) * 2, 0.45) / 2, Y * (Y < 0 ? 0.7 : 1), Math.sign(Z) * Math.pow(Math.abs(Z) * 2, 0.6) / 2); }
     g.computeVertexNormals();
     _Eu.set(R.range(-0.05, 0.05), rot + R.range(-0.08, 0.08), R.range(-0.04, 0.04)); _Q.setFromEuler(_Eu); _P.set(x, y + 0.085, z); _S.set(0.56, 0.17, 0.32);
@@ -745,29 +748,210 @@
   }
 
   // ------------------------------------------------------------------ the public building call
-  E.building = function (spec) {
+  // ------------------------------------------------------------------ rugged, grown-over-time buildings
+  // Old country buildings were added to for a century: a wing at the back (L or T plan) in another material, a lean-to
+  // or outshot with a rusty sheet roof, a porch, outside stone steps to a loft door, a doorway bricked up in odd brick,
+  // patches of repair, render fallen off the foot of the wall, buttresses and tie plates where a wall moved.
+  // spec.rugged (0..1, default 0 = none; IVEnv.settle passes opts.rugged) picks how many. Extra footprints are returned
+  // as building.extraFoot [{ x, z, hx, hz, h }] (local) so a settlement gives them colliders and shells.
+  function mergeB(B, B2, x, z, rot, y) {
+    const c = Math.cos(rot), s = Math.sin(rot); y = y || 0;
+    for (const k in B2.buckets) {
+      const src = B2.buckets[k], dst = B.buckets[k] || (B.buckets[k] = { p: [], n: [], u: [], a: [], i: [] }), base = dst.p.length / 3;
+      for (let i = 0; i < src.p.length; i += 3) { const px = src.p[i], pz = src.p[i + 2], nx = src.n[i], nz = src.n[i + 2]; dst.p.push(x + px * c + pz * s, src.p[i + 1] + y, z - px * s + pz * c); dst.n.push(nx * c + nz * s, src.n[i + 1], -nx * s + nz * c); }
+      for (let i = 0; i < src.u.length; i++) dst.u.push(src.u[i]);
+      for (let i = 0; i < src.a.length; i += 4) dst.a.push(src.a[i], src.a[i + 1], src.a[i + 2], src.a[i + 3] ? src.a[i + 3] + y : 0);
+      for (let i = 0; i < src.i.length; i++) dst.i.push(src.i[i] + base);
+    }
+    for (const d of B2.decals) { const p = d.p, n = d.n; B.decals.push(Object.assign({}, d, { p: [x + p[0] * c + p[2] * s, p[1] + y, z - p[0] * s + p[2] * c], n: [n[0] * c + n[2] * s, n[1], -n[0] * s + n[2] * c] })); }
+    for (const k of B2.colliders) B.colliders.push(Object.assign({}, k, { x: x + k.x * c + k.z * s, z: z - k.x * s + k.z * c, rot: (k.rot || 0) + rot, y0: k.y0 + y, y1: k.y1 + y }));
+  }
+  E._mergeB = mergeB;
+  const OTHER = { fieldstone: ['brick_red', 'planks', 'brick_sooty'], plaster: ['fieldstone', 'brick_red', 'planks'], brick_red: ['fieldstone', 'planks', 'plaster'], brick_sooty: ['fieldstone', 'planks', 'brick_red'], planks: ['fieldstone', 'brick_red'] };
+  // a frame on one side of the footprint: a along the wall, b outward from it; r0 = box rotation, sg = which way box z points
+  function sideFrame(side, X, Z) {
+    if (side === 'back') return { P: (a, b) => [a, -Z / 2 - b], r0: 0, sg: -1, len: X };
+    if (side === 'right') return { P: (a, b) => [X / 2 + b, -a], r0: Math.PI / 2, sg: 1, len: Z };
+    if (side === 'left') return { P: (a, b) => [-X / 2 - b, a], r0: -Math.PI / 2, sg: 1, len: Z };
+    return { P: (a, b) => [a, Z / 2 + b], r0: Math.PI, sg: -1, len: X };
+  }
+  function leanTo(B, S, side, X, Z, eave, mat, foot) {
+    const R = S.R, F = sideFrame(side, X, Z), Lt = Math.min(F.len - 0.6, F.len * R.range(0.38, 0.72)), oa = R.range(-1, 1) * (F.len - Lt) / 2;
+    const Dt = R.range(2.0, 3.0), hi = Math.min(eave - 0.25, R.range(2.7, 3.3)), lo = Math.max(1.85, hi - Dt * R.range(0.32, 0.45)), t = mat === 'planks' ? 0.06 : 0.24;
+    const yAt = (b) => hi + (lo - hi) * b / Dt;
+    // outer wall and two end walls built in vertical strips that follow the slope (planks: boards; masonry: stepped)
+    const P0 = F.P(oa, Dt - t / 2); B.box(mat, P0[0], 0, P0[1], Lt, lo, t, F.r0, { tint: tintJ(R, 0.06) });
+    const open = R() < 0.5 ? 1 : -1;
+    for (const e of [-1, 1]) {
+      const step = mat === 'planks' ? 0.22 : 0.3;
+      for (let b = 0; b < Dt - t; b += step) {
+        if (e === open && b < Dt * 0.55) continue;   // one end open for a door or a woodpile
+        const bb = Math.min(step, Dt - t - b), hh = yAt(b + bb * (mat === 'planks' ? 0.5 : 0)), p = F.P(oa + e * (Lt / 2 - t / 2), b + bb / 2);
+        B.box(mat, p[0], 0, p[1], t, hh + (mat === 'planks' ? R.range(-0.04, 0.03) : 0), bb + 0.002, F.r0, { tint: tintJ(R, 0.05) });
+      }
+    }
+    // the roof: a rusty sheet or old slates on rafters, a little bent
+    const pitch = Math.atan2(hi - lo, Dt), len = Math.hypot(Dt + 0.35, hi - lo), pc = F.P(oa, Dt / 2 + 0.1), roofMat = R() < 0.55 ? 'metal_rust' : 'slate';
+    B.box(roofMat, pc[0], (hi + lo) / 2 + 0.02, pc[1], Lt + 0.3, 0.035, len, F.r0, { rx: F.sg * pitch, rz: R.range(-0.025, 0.025), noFoot: true, tint: roofMat === 'metal_rust' ? tintJ(R, 0.12, 0x9a8a7a) : null });
+    for (let k = 0; k < 3; k++) { const p = F.P(oa - Lt / 2 + 0.15 + k * (Lt - 0.3) / 2, Dt / 2); B.box('timber', p[0], (hi + lo) / 2 - 0.1, p[1], 0.08, 0.1, len - 0.1, F.r0, { rx: F.sg * pitch, noFoot: true }); }
+    // a wall plate on the main wall and the flashing stain where the roof meets it
+    const pw = F.P(oa, 0.06); B.box('timber', pw[0], hi - 0.12, pw[1], Lt + 0.2, 0.12, 0.1, F.r0, { grain: 'long', noFoot: true });
+    const nn = sideFrame(side, X, Z), pn = nn.P(oa, 0.005), dn = nn.P(0, 1), d0 = nn.P(0, 0), N = [dn[0] - d0[0], 0, dn[1] - d0[1]];
+    B.decal('waterstain', [pn[0], hi + 0.25, pn[1]], N, Lt * 0.9, 0.6, 0);
+    const c = F.P(oa, Dt / 2); foot.push({ x: c[0], z: c[1], hx: side === 'back' || side === 'front' ? Lt / 2 : Dt / 2, hz: side === 'back' || side === 'front' ? Dt / 2 : Lt / 2, h: hi });
+  }
+  function porch(B, S, door) {
+    const R = S.R, ang = door.closedY != null ? door.closedY : 0, dx = Math.cos(ang), dz = -Math.sin(ang), nx = -dz, nz = dx;
+    const w = R.range(1.7, 2.3), dp = R.range(1.0, 1.3), y = R.range(2.45, 2.7), rot = Math.atan2(-dz, dx);
+    for (const s of [-1, 1]) { const px = door.x + dx * s * (w / 2 - 0.08) + nx * (dp - 0.08), pz = door.z + dz * s * (w / 2 - 0.08) + nz * (dp - 0.08); B.box('timber', px, 0, pz, 0.12, y - 0.05 + R.range(-0.04, 0), 0.12, rot, { grain: 'long', rz: R.range(-0.03, 0.03) }); }
+    const pc = [door.x + nx * dp / 2, door.z + nz * dp / 2];
+    B.box(R() < 0.5 ? 'roof_tile' : 'slate', pc[0], y + 0.12, pc[1], w + 0.3, 0.05, dp + 0.35, rot, { rx: -0.32, rz: R.range(-0.04, 0.04), noFoot: true });
+    B.box('timber', pc[0] + nx * (dp / 2 - 0.08), y - 0.05, pc[1] + nz * (dp / 2 - 0.08), w, 0.14, 0.12, rot, { grain: 'long', noFoot: true });
+    B.box('ashlar', pc[0], -0.05, pc[1], w - 0.1, 0.12, dp, rot, { tint: tintJ(R, 0.06, 0xa8a090) });
+  }
+  function outsideStairs(B, S, X, Z, eave, foot) {
+    // stone steps up a gable end to a loft door: no rail, worn treads, a dark door at the top
+    const R = S.R, xs = R() < 0.5 ? 1 : -1, rise = Math.min(eave - 0.6, 3.0), n = Math.round(rise / 0.24), run = n * 0.3, wdt = 0.9, z0 = R.range(-Z / 2 + run / 2 + 0.3, Z / 2 - run / 2 - 0.3) - run / 2;
+    for (let k = 0; k < n; k++) B.box('fieldstone', xs * (X / 2 + wdt / 2 + 0.02), 0, z0 + k * 0.3 + 0.15 + R.range(-0.02, 0.02), wdt + R.range(-0.06, 0.06), (k + 1) * 0.24, 0.32, R.range(-0.03, 0.03), { tint: tintJ(R, 0.08) });
+    B.box('fieldstone', xs * (X / 2 + wdt / 2 + 0.02), 0, z0 + run + 0.45, wdt + 0.1, rise, 0.9, 0, { tint: tintJ(R, 0.06) });   // the landing
+    B.box('wood_painted', xs * (X / 2 + 0.03), rise, z0 + run + 0.45, 0.06, 1.85, 0.85, 0, { tint: S.paintTint });
+    B.box('timber', xs * (X / 2 + 0.04), rise + 1.85, z0 + run + 0.45, 0.08, 0.14, 1.15, 0, { grain: 'long' });
+    B.decal('moss', [xs * (X / 2 + wdt + 0.03), 0.3, z0 + run / 2], [xs, 0, 0], 1.6, 0.5, 0);
+    foot.push({ x: xs * (X / 2 + wdt / 2 + 0.02), z: z0 + (run + 0.9) / 2, hx: wdt / 2 + 0.05, hz: (run + 0.9) / 2, h: rise });
+  }
+  // a patch of different brick or stone set into a wall face, with a ragged stepped edge (repairs, a bricked-up door)
+  function patch(B, S, side, X, Z, a, y0, w, h, mat, lintel) {
+    const R = S.R, F = sideFrame(side, X, Z), rows = Math.max(2, Math.round(h / 0.3));
+    for (let r = 0; r < rows; r++) {
+      const jag = lintel ? 0 : R.range(-0.2, 0.2), ww = w + (lintel ? 0 : R.range(-0.25, 0.15)), p = F.P(a + jag * 0.5, 0.012);
+      B.box(mat, p[0], y0 + r * h / rows, p[1], Math.max(0.3, ww), h / rows + 0.004, 0.03, F.r0, { tint: tintJ(R, 0.07), uvOff: [R() * 5, 0] });
+    }
+    if (lintel) { const p = F.P(a, 0.03), dr = R() < 0.5 ? R.range(-0.06, 0.06) : 0; B.box('ashlar', p[0], y0 + h, p[1], w + 0.36, 0.24, 0.1, F.r0, { tint: tintJ(R, 0.08), rz: dr }); B.box('ashlar', p[0], -0.02, p[1], w + 0.2, 0.08, 0.2, F.r0, { tint: tintJ(R, 0.06) }); }
+    const pn = F.P(a, 0.05), q0 = F.P(a, 0), N = [pn[0] - q0[0], 0, pn[1] - q0[1]], l = Math.hypot(N[0], N[2]); N[0] /= l; N[2] /= l;
+    B.decal(R() < 0.5 ? 'grime' : 'damp', [pn[0] - N[0] * 0.03, y0 + h * 0.4, pn[1] - N[2] * 0.03], N, w * 1.3, h * 0.9, 0);
+  }
+  // render fallen off a wall low down: the stone underneath shows through in a soft-edged blotch (overlapping panes,
+  // the outer ones smaller and set back, with a damp stain over the edge so there is no hard outline)
+  function renderLoss(B, S, side, X, Z, a, w, h) {
+    const R = S.R, F = sideFrame(side, X, Z), q0 = F.P(a, 0), q1 = F.P(a, 1), N = [q1[0] - q0[0], 0, q1[1] - q0[1]];
+    for (let k = 0; k < 7; k++) { const ww = w * R.range(0.35, 0.8), hh = h * R.range(0.3, 0.75), aa = a + R.range(-0.5, 0.5) * (w - ww), yy = R.range(0, h - hh) * (k < 3 ? 0.2 : 1), p = F.P(aa, 0.006 + k * 0.0006);
+      B.box('fieldstone', p[0], yy, p[1], ww, hh, 0.012, F.r0, { tint: tintJ(R, 0.05, 0xc8c0b4), uvOff: [aa * 0.37, 0] }); }
+    B.decal('damp', [q0[0] + N[0] * 0.02, h * 0.55, q0[1] + N[2] * 0.02], N, w * 1.25, h * 1.1, 0);
+    B.decal('mud', [q0[0] + N[0] * 0.02, 0.2, q0[1] + N[2] * 0.02], N, w * 1.1, 0.5, 0);
+  }
+  function buttress(B, S, side, X, Z, a, h, mat) {
+    const R = S.R, F = sideFrame(side, X, Z), dep = R.range(0.7, 1.0), p = F.P(a, dep / 2 - 0.05);
+    B.box(mat, p[0], 0, p[1], 0.6, h * 0.55, dep, F.r0, { tint: tintJ(R, 0.05) });
+    const p2 = F.P(a, dep * 0.3); B.box(mat, p2[0], h * 0.5, p2[1], 0.56, h * 0.32, dep * 0.6, F.r0, { tint: tintJ(R, 0.05), rx: -F.sg * 0.22 });
+  }
+  function tiePlates(B, S, side, X, Z, y, n) {
+    const R = S.R, F = sideFrame(side, X, Z);
+    for (let k = 0; k < n; k++) { const a = (k - (n - 1) / 2) * F.len / (n + 0.4) + R.range(-0.2, 0.2), p = F.P(a, 0.025); const g = new THREE.CylinderGeometry(0.13, 0.13, 0.03, 10).rotateX(Math.PI / 2);
+      _Eu.set(0, F.r0, 0); _Q.setFromEuler(_Eu); B.geo('metal_rust', g, _M.compose(_P.set(p[0], y + R.range(-0.08, 0.08), p[1]), _Q, _S.set(1, 1, 1)), { noFoot: true });
+      const q = F.P(a, 0.0); B.decal('rust', [q[0], y - 0.35, q[1]], (() => { const o = F.P(a, 1), z = F.P(a, 0); return [o[0] - z[0], 0, o[1] - z[1]]; })(), 0.3, 0.7, 0); }
+  }
+  function rugged(B, S, sp, kind) {
+    const R = E.rng(sp.seed * 13 + 5), k = sp.rugged, X = S.footX, Z = S.footZ, eave = S.eaveH || 3, out = S.outMat || 'fieldstone', foot = S.extraFoot = [];
+    if (!X || !Z) return;
+    const S2 = Object.assign({}, S, { R });
+    const alt = (OTHER[out] || OTHER.fieldstone)[R.int(3) % (OTHER[out] || OTHER.fieldstone).length];
+    const used = {}, free = sp.free || ['back', 'left', 'right'];   // sides that may grow outward (a street row: only the back)
+    // a wing behind (L or T plan) for houses big enough to have grown
+    if ((kind === 'farmhouse' || kind === 'cottage') && R() < 0.55 * k && !sp.noWing && free.includes('back')) {
+      const Lw = R.range(4.5, sp.wingMax || 7.5), dw = R.range(4.0, Math.min(5.4, X * 0.6)), tee = R() < 0.3, ox = tee ? R.range(-0.6, 0.6) : (R() < 0.5 ? -1 : 1) * (X / 2 - dw / 2 - R.range(0, 0.6));
+      const W2 = buildParts({ kind: 'cottage', w: Lw, d: dw, floors: 1, seed: sp.seed + 101, out: alt === 'planks' ? 'brick_red' : alt, roof: R() < 0.5 ? 'tile' : 'slate', damage: sp.damage * 0.6, lit: 0 });
+      mergeB(B, W2.B, ox, -Z / 2 - Lw / 2 + 0.25, Math.PI / 2, 0);
+      foot.push({ x: ox, z: -Z / 2 - Lw / 2 + 0.25, hx: dw / 2, hz: Lw / 2, h: W2.S.eaveH || 3, roof: W2.S.roofTop, wall: alt === 'planks' ? 'brick_red' : alt, axis: 'z' });
+      used.back = true;
+    }
+    // lean-tos and outshots: at the back, or on a gable end
+    { const opts = free.filter(sd => !used[sd]); if (kind !== 'church' && kind !== 'shoprow' && opts.length && R() < 0.75 * k) { const side = opts.includes('back') && R() < 0.6 ? 'back' : opts[R.int(opts.length)]; leanTo(B, S2, side, X, Z, eave, R() < 0.5 ? 'planks' : alt, foot); used[side] = true; } }
+    // a porch over the front door
+    if ((kind === 'cottage' || kind === 'farmhouse') && S.doors[0] && R() < 0.4 * k) porch(B, S2, S.doors[0]);
+    // outside stairs to a loft door (barns, farmhouses) on a free gable
+    if ((kind === 'barn' || kind === 'farmhouse') && R() < 0.5 * k && free.includes('left') && free.includes('right') && !(used.left || used.right)) outsideStairs(B, S2, X, Z, eave, foot);
+    // a bricked-up doorway on a side or back wall, repairs in odd brick or stone, render fallen off low down
+    const sides = ['back', 'left', 'right'].filter(s => !used[s]);
+    if (sides.length && R() < 0.6 * k) { const sd = sides[R.int(sides.length)], F = sideFrame(sd, X, Z); patch(B, S2, sd, X, Z, R.range(-0.3, 0.3) * F.len, 0, 1.0, 2.05, out === 'brick_red' ? 'brick_sooty' : 'brick_red', true); }
+    for (let n = 0; n < Math.round(R.range(1, 3) * k); n++) { const sd = ['front', 'back', 'left', 'right'][R.int(4)], F = sideFrame(sd, X, Z); if (used[sd]) continue; patch(B, S2, sd, X, Z, R.range(-0.38, 0.38) * F.len, R.range(0.3, Math.max(0.4, eave - 1.6)), R.range(0.7, 1.6), R.range(0.5, 1.1), out === 'brick_red' ? 'brick_sooty' : out === 'fieldstone' ? 'brick_red' : 'brick_red', false); }
+    if (out === 'plaster') for (let n = 0; n < 2 + R.int(3); n++) { const sd = ['front', 'back', 'left', 'right'][R.int(4)], F = sideFrame(sd, X, Z); if (used[sd] && sd !== 'front') continue; renderLoss(B, S2, sd, X, Z, R.range(-0.4, 0.4) * F.len, R.range(1.0, 2.4), R.range(0.6, 1.3)); }
+    // a wall that moved: buttresses and tie plates (barns and long houses)
+    if ((kind === 'barn' || X > 10) && R() < 0.45 * k) { const sd = used.back ? 'front' : 'back', F = sideFrame(sd, X, Z); if (sd !== 'front') for (const a of [-0.3, 0.3]) buttress(B, S2, sd, X, Z, a * F.len + R.range(-0.4, 0.4), Math.min(eave, 3.2), kind === 'barn' ? 'fieldstone' : out === 'plaster' ? 'fieldstone' : out); }
+    if (kind !== 'shed' && R() < 0.5 * k && eave > 3.5) tiePlates(B, S2, R() < 0.5 ? 'left' : 'right', X, Z, eave - 2.6 > 1 ? 2.75 : eave - 0.4, 2);
+  }
+
+  // ------------------------------------------------------------------ the camp hut (Boot Camp barrack hut)
+  // A timber barrack hut on a brick plinth: ridge along local X (sp.w long), the door in the +X gable end with a framed,
+  // set-back doorway, two concrete steps and a number board; a stove pipe through the roof; fire buckets on a board.
+  KINDS.hut = function (B, S, sp) {
+    const w = sp.w || 10, d = sp.d || 6, R = S.R, T = 0.14, storey = 2.5, lift = 0.45;
+    const B2 = E.builder(sp.seed + 3), S2 = Object.assign({}, S, { doors: [], windows: [], lights: [], group: new THREE.Group() });
+    const nf = Math.max(2, Math.round(w / 2.6)), sideW = []; for (let i = 0; i < nf; i++) { const c = w * (i + 0.5) / nf; sideW.push({ a0: c - 0.5, a1: c + 0.5, y0: 0.95, y1: 2.05, lit: R() < (sp.lit || 0) }); }
+    const door = [{ a0: d / 2 - 0.5, a1: d / 2 + 0.5, y0: 0, y1: 2.0, door: true, leaf: false, threshold: false }], end = [{ a0: d / 2 - 0.4, a1: d / 2 + 0.4, y0: 1.0, y1: 1.9 }];
+    house(B2, S2, { w, d, T, floors: 1, storey, out: 'planks', in: 'plaster_interior', roof: 'slate', ridgeMat: 'slate', pitch: 0.42, over: 0.4, gableOver: 0.3, head: 'timber', doorHead: 'timber', shutters: false, quoins: false, front: sideW, back: sideW.map(o => Object.assign({}, o)), right: door, left: end, sill: false, trim: true, sag: 0.03 });
+    mergeB(B, B2, 0, 0, 0, lift);
+    S.windows.push(...S2.windows.map(o => Object.assign({}, o, { y: o.y + lift })));
+    // plinth with air bricks, and the floor
+    B.box('brick_red', 0, -0.25, 0, w + 0.06, lift + 0.25, d + 0.06, 0, { tint: tintJ(R, 0.05) });
+    for (let i = 0; i < 4; i++) for (const s of [-1, 1]) B.box('metal_rust', -w / 2 + (i + 0.5) * w / 4, 0.18, s * (d / 2 + 0.035), 0.22, 0.07, 0.01, 0, { noFoot: true, tint: new THREE.Color(0.4, 0.4, 0.4) });
+    B.box('floorboards', 0, lift - 0.02, 0, w - 2 * T, 0.03, d - 2 * T, 0, { noFoot: true });
+    // the doorway: a deep timber surround proud of the wall, the door set back in it, a little canopy, steps
+    const ex = w / 2, dy = lift;
+    for (const s of [-1, 1]) B.box('timber', ex + 0.09, dy, s * 0.62, 0.2, 2.15, 0.16, 0, { grain: 'long' });
+    B.box('timber', ex + 0.09, dy + 2.1, 0, 0.2, 0.16, 1.4, 0, { grain: 'long' });
+    B.box('wood_painted', ex - 0.12, dy, 0, 0.05, 1.98, 0.98, 0, { tint: S.paintTint });
+    for (const yy of [0.25, 1.0, 1.7]) B.box('wood_painted', ex - 0.09, dy + yy, 0, 0.03, 0.1, 0.9, 0, { tint: S.paintTint });
+    B.box('metal_rust', ex - 0.07, dy + 0.98, -0.36, 0.03, 0.03, 0.14, 0, { noFoot: true });
+    B.box('slate', ex + 0.45, dy + 2.35, 0, 0.9, 0.04, 1.6, 0, { rz: 0.3, noFoot: true });
+    for (const s of [-1, 1]) B.box('timber', ex + 0.55, dy + 1.95, s * 0.6, 0.6, 0.08, 0.08, 0, { rz: -0.6, noFoot: true });
+    B.box('concrete', ex + 0.35, 0, 0, 0.7, 0.3, 1.5, 0, { tint: tintJ(R, 0.05, 0xb8b4ac) });
+    B.box('concrete', ex + 0.85, 0, 0, 0.36, 0.15, 1.4, 0, { tint: tintJ(R, 0.05, 0xb0aca4) });
+    B.decal('mud', [ex + 0.7, 0.31, 0], [0, 1, 0], 0.8, 1.1, 0); B.decal('chipped', [ex + 1.03, 0.08, 0], [1, 0, 0], 1.2, 0.2, 0);
+    // number board beside the door
+    if (sp.num != null) { try { const sg = signMesh(String(sp.num), 0.42, 0.32, R); sg.position.set(ex + 0.2, dy + 1.65, 0.95); sg.rotation.y = Math.PI / 2; S.group.add(sg); B.box('timber', ex + 0.18, dy + 1.47, 0.95, 0.02, 0.38, 0.48, 0, {}); } catch (e) {} }
+    // stove pipe through the roof (with a collar and a cap), soot on the roof round it
+    const rise = d / 2 * Math.tan(0.42), sx = -w / 2 + 2.0 + R() * 1.0, sz = R() < 0.5 ? -0.8 : 0.8;
+    const py = lift + storey + rise * (1 - Math.abs(sz) / (d / 2)) - 0.1;
+    B.geo('metal_rust', new THREE.CylinderGeometry(0.08, 0.08, 1.5, 10), _M.compose(_P.set(sx, py + 0.6, sz), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true });
+    B.geo('metal_rust', new THREE.ConeGeometry(0.2, 0.16, 10), _M.compose(_P.set(sx, py + 1.45, sz), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true });
+    B.geo('metal_rust', new THREE.CylinderGeometry(0.16, 0.2, 0.12, 10), _M.compose(_P.set(sx, py + 0.02, sz), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true });
+    B.decal('soot', [sx, py + 0.08, sz], [0, 1, 0], 0.8, 0.8, 0);
+    // fire buckets on a board on the gable
+    const bz = -d / 2 + 0.9; B.box('timber', ex + 0.04, dy + 0.9, bz, 0.04, 0.5, 1.1, 0, {});
+    for (let i = 0; i < 3; i++) { const z = bz - 0.36 + i * 0.36; B.geo('metal_painted', new THREE.CylinderGeometry(0.13, 0.1, 0.28, 10), _M.compose(_P.set(ex + 0.2, dy + 0.85, z), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true, tint: new THREE.Color(1.6, 0.42, 0.3) }); B.box('metal_rust', ex + 0.08, dy + 1.03, z, 0.06, 0.03, 0.03, 0, { noFoot: true }); }
+    B.geo('metal_painted', new THREE.CylinderGeometry(0.17, 0.15, 0.32, 10), _M.compose(_P.set(ex + 0.35, 0.16, -d / 2 + 0.4), _Q.identity(), _S.set(1, 1, 1)), { tint: new THREE.Color(1.5, 0.45, 0.32) });
+    // rain stains under the eaves, mud splash on the plinth
+    for (const z of [d / 2 + 0.01, -d / 2 - 0.01]) { B.decal('waterstain', [0, lift + 0.4, z + Math.sign(z) * 0.04], [0, 0, Math.sign(z)], w * 0.9, 0.7, 0); B.decal('mud', [R.range(-w / 3, w / 3), 0.25, z + Math.sign(z) * 0.035], [0, 0, Math.sign(z)], 3, 0.4, 0); }
+    S.roofTop = lift + storey + rise; S.eaveH = lift + storey; S.footX = w; S.footZ = d; S.outMat = 'planks';
+  };
+  function buildParts(spec) {
     spec = Object.assign({ kind: 'farmhouse', seed: 1, damage: 0, lit: 0 }, spec || {});
     const kind = spec.kind === 'church with tower' ? 'church' : spec.kind === 'village shop row' || spec.kind === 'shop' ? 'shoprow' : spec.kind === 'ruined shell' || spec.kind === 'ruined' ? 'ruin' : spec.kind;
     const fn = KINDS[kind]; if (!fn) throw new Error('IVEnv.building: unknown kind ' + spec.kind);
     const B = E.builder(spec.seed), group = new THREE.Group();
     const R = E.rng(spec.seed * 7 + 3);
     const paints = [0x5a6b5c, 0x4d5a66, 0x6b4a3e, 0x6a6a5a, 0x3e4a40];
-    const S = { R, seed: spec.seed, damage: spec.damage || 0, group, windows: [], lights: [], doors: [], extraCols: [], paintTint: new THREE.Color(paints[spec.seed % paints.length]).multiplyScalar(1 / 0.36), interior: kind === 'farmhouse' || kind === 'barn' };
+    const S = { R, seed: spec.seed, damage: spec.damage || 0, group, windows: [], lights: [], doors: [], extraCols: [], paintTint: new THREE.Color(paints[spec.seed % paints.length]).multiplyScalar(1 / 0.36), interior: kind === 'farmhouse' || kind === 'barn', old: kind !== 'office' && kind !== 'hut' && kind !== 'bunker' };
     // paint tint is relative to the texture's own paint (about 0.36 of white): keep it near 1
     S.paintTint.r = E.clamp(S.paintTint.r * 0.36 / 0.3, 0.6, 1.5); S.paintTint.g = E.clamp(S.paintTint.g * 0.36 / 0.36, 0.6, 1.5); S.paintTint.b = E.clamp(S.paintTint.b * 0.36 / 0.32, 0.6, 1.5);
     fn(B, S, spec);
-    if (kind !== 'shed' && kind !== 'bunker') E.ageMesh(B, { w: spec.w || 10, d: spec.d || 8, eave: (S.roofTop || 6) * 0.62, seed: spec.seed, amount: spec.age != null ? spec.age : (kind === 'office' ? 0.4 : 1) });
+    if (kind !== 'shed' && kind !== 'bunker' && kind !== 'hut') E.ageMesh(B, { w: S.footX || spec.w || 10, d: S.footZ || spec.d || 8, eave: S.eaveH || (S.roofTop || 6) * 0.62, ridge: S.roofTop, seed: spec.seed, amount: spec.age != null ? spec.age : (kind === 'office' ? 0.4 : 1) });
     // old walls are not true: a slight lean and a bulge at mid height on the long walls (house-like kinds)
     if (kind === 'farmhouse' || kind === 'cottage' || kind === 'church' || kind === 'barn') {
       const lx = R.range(-0.008, 0.008), lz = R.range(-0.006, 0.006), bul = R.range(0.02, 0.045), H = Math.max(2, (S.roofTop || 6) * 0.7), w = spec.w || 10, d = spec.d || 8;
       const D2 = kind === 'barn' ? w / 2 : d / 2, W2 = kind === 'barn' ? d / 2 : w / 2;
       for (const k in B.buckets) { const p = B.buckets[k].p; for (let i = 0; i < p.length; i += 3) { const y = p[i + 1]; if (y <= 0.05) continue; p[i] += lx * y; p[i + 2] += lz * y; if (Math.abs(Math.abs(p[i + 2]) - D2) < 0.8 && y < H) p[i + 2] += Math.sign(p[i + 2]) * bul * Math.sin(Math.PI * y / H) * Math.cos(Math.PI * 0.5 * E.clamp(p[i] / W2, -1, 1)); } }
     }
+    if (spec.rugged && kind !== 'church' && kind !== 'ruin' && kind !== 'bunker' && kind !== 'hut' && kind !== 'office') rugged(B, S, spec, kind);
     if (kind === 'farmhouse' || kind === 'cottage' || kind === 'church') group.add(ivy(spec, R, kind));
+    return { B, S, kind, group, spec, R };
+  }
+  E.building = function (spec0) {
+    const { B, S, kind, group } = buildParts(spec0);
     const g = B.finish(); group.add(g);
     group.name = 'IVEnv.building:' + kind; group.userData.kind = kind;
     const colliders = B.colliders.concat(S.extraCols);
-    return { group, colliders, doors: S.doors, windows: S.windows, lights: S.lights, height: S.roofTop || 0 };
+    return { group, colliders, doors: S.doors, windows: S.windows, lights: S.lights, height: S.roofTop || 0, extraFoot: S.extraFoot || [] };
   };
 
   // ------------------------------------------------------------------ age: nothing old is true
@@ -776,14 +960,15 @@
   // roof that sags between the gables and droops at one end. Coordinates are relative to (cx, cz) (default 0, 0).
   E.ageMesh = function (B, o) {
     const R = E.rng((o.seed || 1) * 31 + 7), a = o.amount == null ? 1 : o.amount, cx = o.cx || 0, cz = o.cz || 0, rot = o.rot || 0, c = Math.cos(rot), s = Math.sin(rot);
-    const lx = R.range(-0.012, 0.012) * a, lz = R.range(-0.01, 0.01) * a, ph = R() * 9, sag = R.range(0.06, 0.16) * a, droop = R.range(-0.12, 0.12) * a, W2 = Math.max(o.w || 8, o.d || 6) / 2, eave = o.eave || 4, base = o.y0 || 0;
+    const lx = R.range(-0.024, 0.024) * a, lz = R.range(-0.018, 0.018) * a, ph = R() * 9, sag = R.range(0.12, 0.3) * a, droop = R.range(-0.24, 0.24) * a, ridge = o.ridge || 1e9, cl = R.range(-0.09, 0.09) * a, cl2 = R.range(-0.07, 0.07) * a, W2 = Math.max(o.w || 8, o.d || 6) / 2, eave = o.eave || 4, base = o.y0 || 0;
     for (const k in B.buckets) {
       const p = B.buckets[k].p;
       for (let i = 0; i < p.length; i += 3) {
         const X = p[i] - cx, Z = p[i + 2] - cz, y = p[i + 1] - base; if (y <= 0.05) continue;
         const u = X * c - Z * s, v = X * s + Z * c;   // building-local: u along the ridge
-        let dx = lx * y + 0.025 * a * Math.sin(y * 0.9 + v * 0.6 + ph) * Math.min(1, y / 2), dz = lz * y + 0.025 * a * Math.sin(y * 0.8 + u * 0.5 + ph * 1.7) * Math.min(1, y / 2);
-        let dy = 0.05 * a * Math.sin(u * 0.45 + ph) * Math.min(1, y / eave);                 // tops wander
+        let dx = lx * y + 0.04 * a * Math.sin(y * 0.9 + v * 0.6 + ph) * Math.min(1, y / 2), dz = lz * y + 0.04 * a * Math.sin(y * 0.8 + u * 0.5 + ph * 1.7) * Math.min(1, y / 2);
+        if (y > ridge - 0.6) { dx += cl * (y - ridge + 0.6); dz += cl2 * (y - ridge + 0.6); }   // stacks lean on their own
+        let dy = 0.08 * a * Math.sin(u * 0.45 + ph) * Math.min(1, y / eave);                 // tops wander
         if (y > eave * 0.9) { const t = IVc(u / W2); dy -= sag * (1 - t * t) * Math.min(1, (y - eave * 0.9) / 1.5 + 0.4) + droop * Math.max(0, t) * 0.5; }   // swayback, one end drooping
         p[i] += dx * c + dz * s; p[i + 1] += dy; p[i + 2] += -dx * s + dz * c;
       }
@@ -804,6 +989,7 @@
     if (k === 'barn') return { X: sp.d || 16, Z: sp.w || 10, eave: 4.6, rise: (sp.w || 10) / 2 * 0.9, wall: 'planks', roof: 'roof_tile', win: 0 };
     if (k === 'church') return { X: sp.w || 16, Z: sp.d || 8, eave: 5.6, rise: (sp.d || 8) / 2 * 1.0, wall: 'fieldstone', roof: 'slate', win: 0.2, tower: true };
     if (k === 'shoprow') { const n = sp.units || 3; return { X: n * (sp.w ? sp.w / n : 5.4), Z: sp.d || 8, eave: 3.0 * 2 + 0.2, rise: (sp.d || 8) / 2 * 0.75, wall: 'plaster', roof: 'slate', win: 1, floors: 2 }; }
+    if (k === 'hut') return { X: sp.w || 10, Z: sp.d || 6, eave: 2.95, rise: (sp.d || 6) / 2 * Math.tan(0.42), wall: 'planks', roof: 'slate', win: 1, floors: 1 };
     if (k === 'shed') return { X: sp.w || 4, Z: sp.d || 3, eave: 2.1, rise: 0.4, wall: 'planks', roof: 'slate', win: 0 };
     if (k === 'ruin') return { X: sp.w || 9, Z: sp.d || 7, eave: 3.2, rise: 0, wall: 'brick_sooty', roof: null, win: 0 };
     if (k === 'office') return { X: sp.w || 14, Z: sp.d || 7, eave: 2.7, rise: (sp.d || 7) / 2 * Math.tan(0.3), wall: sp.out || 'brick_red', roof: 'slate', win: 1, floors: 1 };
@@ -814,7 +1000,7 @@
     g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex([0, 3, 2, 0, 2, 1, 4, 5, 6, 4, 6, 7, 8, 10, 9, 11, 13, 12]); g.computeVertexNormals(); return g; })();
   E.settle = function (specs, opts) {
     opts = opts || {};
-    const Q = E.Q.name, near = opts.near || (Q === 'low' ? 26 : Q === 'high' ? 60 : 40), hf = opts.heightFn || (() => 0);
+    const Q = E.Q.name, near = opts.near || (Q === 'low' ? 26 : Q === 'high' ? 55 : 34), hf = opts.heightFn || (() => 0);
     const SB = E.builder(opts.seed || 77), detailRoot = new THREE.Group(), group = new THREE.Group(); group.name = 'IVEnv.settlement';
     const colliders = [], lights = [], chimneys = [], RR = E.rng((opts.seed || 77) * 3 + 1);
     for (const sp0 of specs) {
@@ -838,15 +1024,20 @@
       // the full building near the player
       if (!opts.shellOnly && !sp.shellOnly) {
         try {
-          const b = E.building(Object.assign({}, sp, { lit: sp.lit || 0 }));
-          for (const d of b.doors) { try { d.open && d.open(0); } catch (e) {} }
+          const b = E.building(Object.assign({ rugged: opts.rugged || 0 }, sp, { lit: sp.lit || 0 }));
+          for (const f of b.extraFoot) {   // wings, lean-tos and stairs: a collider and a shell each
+            const p = W(f.x, f.z);
+            if (sp.solid !== false) colliders.push({ x: p[0], z: p[1], hx: f.hx, hz: f.hz, y0: y - 1, y1: y + f.h, rot, kind: 'building' });
+            if (f.roof) { SB.box(f.wall || 'brick_red', p[0], y - 0.8, p[1], f.hx * 2 - 0.24, f.h + 0.75, f.hz * 2 - 0.24, rot, { tint: E.tintJ(RR, 0.06) }); const m = new THREE.Matrix4().compose(new THREE.Vector3(p[0], y + f.h - 0.3, p[1]), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot + Math.PI / 2, 0)), new THREE.Vector3(f.hz * 2 + 0.1, Math.max(0.3, f.roof - f.h - 0.35), f.hx * 2 + 0.3)); SB.geo('slate', prismGeo, m, { noFoot: true }); }
+          }
+          for (const d of b.doors) { try { if (d.open && !d.hang) d.open(0); } catch (e) {} }
           b.group.traverse(o => { o.userData.dynamic = false; });
           b.group.position.set(sp.x, y, sp.z); b.group.rotation.y = rot; detailRoot.add(b.group);
         } catch (e) { console.warn('IVEnv.settle building', sp.kind, e); }
       }
       if (sp.solid !== false) colliders.push({ x: sp.x, z: sp.z, hx: D.X / 2, hz: D.Z / 2, y0: y - 1, y1: y + eave + 0.3, rot, kind: 'building' });
     }
-    const shells = SB.finish(); shells.name = 'IVEnv.shells'; group.add(shells);
+    const shells = SB.finish({ castShadow: false }); shells.name = 'IVEnv.shells'; group.add(shells);
     if (detailRoot.children.length) {
       const merged = E.mergeStatic ? E.mergeStatic(detailRoot, { cell: 80 }) : detailRoot; merged.name = 'IVEnv.settlement-detail'; group.add(merged);
       if (merged !== detailRoot && detailRoot.children.length) group.add(detailRoot);   // anything that could not merge
@@ -929,10 +1120,18 @@
   };
   // sagging wires (telegraph, barbed): thin tubes, each sagging between its ends
   E.wireMesh = function (list, radius, sag) {
+    // fine wire (barbed, under 1 cm) is drawn as lines: a 6 mm tube is under a pixel past a few metres, and a perimeter
+    // of tubes cost ~75k triangles. Thicker wire (telegraph) stays a tube, 6 segments per span.
+    if ((radius || 0.006) < 0.01) {
+      const P = []; for (const w of list) { let prev = null; for (let i = 0; i <= 8; i++) { const t = i / 8, p = [w[0] + (w[3] - w[0]) * t, w[1] + (w[4] - w[1]) * t - Math.sin(Math.PI * t) * (sag != null ? sag : 0.3), w[2] + (w[5] - w[2]) * t]; if (prev) P.push(...prev, ...p); prev = p; } }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.computeBoundingSphere();
+      const m = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x1a1714, transparent: true, opacity: 0.85 })); m.material.userData.linear = true; m.name = 'wires';
+      const grp = new THREE.Group(); grp.add(m); return grp;
+    }
     const B = E.builder(3);
     for (const w of list) {
       const pts = []; for (let i = 0; i <= 10; i++) { const t = i / 10; pts.push(new THREE.Vector3(w[0] + (w[3] - w[0]) * t, w[1] + (w[4] - w[1]) * t - Math.sin(Math.PI * t) * (sag != null ? sag : 0.3), w[2] + (w[5] - w[2]) * t)); }
-      const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 10, radius || 0.006, 3, false);
+      const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 6, radius || 0.006, 3, false);
       B.geo('metal_rust', g, new THREE.Matrix4(), { noFoot: true });
     }
     return B.finish({ castShadow: false });

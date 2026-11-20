@@ -21,13 +21,13 @@
   // Kinds: d = density multiplier, h = [min, max] height in metres, long = share of long meadow blades, tus = share of
   // tussock, dead = share of dead blades, dry = dryness bias, ground = root colour (sRGB).
   const KINDS = E.GRASS_KINDS = {
-    grass:   { d: 0.8, h: [0.1, 0.24], long: 0.03, tus: 0.04, dead: 0.06, dry: 0.0, ground: 0x38331f, c: 1.0, ch: 1.0 },
+    grass:   { d: 0.95, fill: 0.15, h: [0.1, 0.26], long: 0.03, tus: 0.04, dead: 0.06, dry: 0.0, ground: 0x38331f, c: 1.0, ch: 1.0 },
     pasture: { d: 0.7, h: [0.08, 0.2], long: 0.02, tus: 0.03, dead: 0.06, dry: 0.0, ground: 0x38331f, c: 1.0, ch: 0.9 },
     meadow:  { d: 1.0, h: [0.3, 0.7], long: 0.5, tus: 0.12, dead: 0.08, dry: 0.04, ground: 0x38331f, c: 0.85, ch: 1.2 },
     tussock: { d: 1.05, h: [0.45, 0.95], long: 0.45, tus: 0.4, dead: 0.2, dry: 0.1, ground: 0x34301e, c: 0.8, ch: 1.3 },
     verge:   { d: 1.0, h: [0.25, 0.65], long: 0.35, tus: 0.3, dead: 0.15, dry: 0.06, ground: 0x35301f, c: 0.9, ch: 1.2 },
     lanemid: { d: 0.5, h: [0.08, 0.22], long: 0.03, tus: 0.1, dead: 0.2, dry: 0.1, ground: 0x2a2218, c: 0.7, ch: 0.8 },
-    worn:    { d: 0.3, h: [0.05, 0.12], long: 0.0, tus: 0.0, dead: 0.25, dry: 0.15, ground: 0x30281c, c: 0.55, ch: 0.6 },
+    worn:    { d: 0.6, h: [0.06, 0.16], long: 0.0, tus: 0.04, dead: 0.25, dry: 0.15, ground: 0x30281c, c: 0.9, ch: 0.75 },
     leaves:  { d: 0.15, h: [0.1, 0.25], long: 0.1, tus: 0.0, dead: 0.3, dry: 0.2, ground: 0x2a2016, c: 0.2, ch: 0.8 },
     // lawn: well-kept camp turf, thick and green, a little longer than mown grass (Boot Camp)
     lawn:    { d: 1.0, fill: 0.3, h: [0.16, 0.36], long: 0.07, tus: 0.05, dead: 0.04, dry: 0.0, ground: 0x4f5a2c, c: 1.05, ch: 1.05 },
@@ -105,7 +105,7 @@
       if (type === 1) h *= 1.5; else if (type === 2) h *= 1.25; else if (type === 3) h *= 0.9;
       h *= 1 - 0.25 * E.clamp(distC / 0.6, 0, 1);         // taller in the middle of a clump
       if (H(gi, gj, 22) < (type === 1 ? 0.3 : 0.5)) { h *= 0.22 + 0.3 * H(gi, gj, 23); if (type === 1) type = 0; }   // undergrowth: short blades fill the base
-      const w = (type === 2 ? 0.03 : type === 1 ? 0.022 : type === 3 ? 0.018 : 0.024) * (0.75 + 0.5 * H(gi, gj, 17)) * (H(gi, gj, 24) < 0.15 ? 1.7 : 1);
+      const w = (type === 2 ? 0.04 : type === 1 ? 0.03 : type === 3 ? 0.025 : 0.032) * (0.75 + 0.5 * H(gi, gj, 17)) * (H(gi, gj, 24) < 0.15 ? 1.7 : 1);
       // facing: blades of a clump fan out from its centre, with some randomness
       const fan = Math.atan2(z - _cl.z, x - _cl.x);
       const facing = fan + (H(gi, gj, 18) - 0.5) * 2.2 + _cl.id * 3;
@@ -123,12 +123,12 @@
       for (let j = 0; j < cn; j++) for (let i = 0; i < cn; i++) {
         const gi = tx * cn + i, gj = tz * cn + j;
         let x = x0 + (i + H(gi, gj, 31)) * cc, z = z0 + (j + H(gi, gj, 32)) * cc;
-        { const ti = Math.floor(x / 0.3), tj = Math.floor(z / 0.3), tcx = (ti + 0.2 + 0.6 * H(ti, tj, 41)) * 0.3, tcz = (tj + 0.2 + 0.6 * H(ti, tj, 42)) * 0.3; x += (tcx - x) * 0.45; z += (tcz - z) * 0.45; }
+        { const ti = Math.floor(x / 0.42), tj = Math.floor(z / 0.42), tcx = (ti + 0.05 + 0.9 * H(ti, tj, 41)) * 0.42, tcz = (tj + 0.05 + 0.9 * H(ti, tj, 42)) * 0.42; x += (tcx - x) * 0.3; z += (tcz - z) * 0.3; }
         const kind = TC.kind(x, z), K = KINDS[kind]; if (!K || !K.c) continue;
         if (H(gi, gj, 33) > K.c * E.sstep(0.12, 0.4, F.dens(x, z) + 0.15)) continue;
         const rnd = H(gi, gj, 34), y = TC.h(x, z);
-        const h = (0.035 + 0.075 * Math.pow(H(gi, gj, 35), 0.7)) * K.ch;
-        const w = 0.012 + 0.014 * H(gi, gj, 36);
+        const h = (0.05 + 0.11 * Math.pow(H(gi, gj, 35), 0.7)) * K.ch;
+        const w = 0.014 + 0.014 * H(gi, gj, 36);
         let rc = rootCache[kind]; if (!rc) rc = rootCache[kind] = E.lin(K.ground);
         const dry = E.clamp(F.dry(kind, x, z) * 0.8 + (H(gi, gj, 37) < 0.12 ? 0.5 : 0), 0, 1);
         const rec = [x, y, z, H(gi, gj, 38) * 6.283, h, w, 0.35 + 0.6 * H(gi, gj, 39), 0 + rnd * 0.99, rc.r, rc.g, rc.b, dry];
@@ -341,7 +341,7 @@
     const midCap = Math.ceil(Math.PI * (G.rMid + TS * 1.5) ** 2 * Q.grassMidDens * (E._grassMidMul || 1) * 0.9);
     G.near = Ring(G, 'near', Q.bladeSegs, nearCap, true, false);
     G.rCarpet = Math.min(G.rNear, Q.carpetR * (opts.carpetMul || 1));
-    G.carpet = Ring(G, 'carpet', Q.name === 'low' ? 1 : 2, Math.ceil(Math.PI * (G.rCarpet + 6) ** 2 * Q.carpetDens * 0.75), true, false);
+    G.carpet = Ring(G, 'carpet', Q.carpetSegs || (Q.name === 'low' ? 1 : 2), Math.ceil(Math.PI * (G.rCarpet + 6) ** 2 * Q.carpetDens * 0.75), true, false);
     G.mid = Ring(G, 'mid', 1, midCap, false, false);
     G.rings = [G.carpet, G.near, G.mid];
     if (Q.seedHeads) { G.seedN = Ring(G, 'seedNear', 0, Math.ceil(nearCap * 0.15), true, true); G.rings.push(G.seedN);  }

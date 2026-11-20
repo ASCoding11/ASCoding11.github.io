@@ -34,21 +34,23 @@
   const pd = (x, z, pts) => IV.polyDist(x, z, pts).d;
   const HAMLET = (() => {
       const H2 = Math.PI / 2, roadX = (z) => z < 80 ? 0 + z / 80 : 1 + (z - 80) / 108;
-      const E_ = (z, sp) => Object.assign({ x: roadX(z) + 2.6 + 3.2 + ((sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2), z, rot: -H2 }, sp);
-      const W_ = (z, sp) => Object.assign({ x: roadX(z) - 2.6 - 3.2 - ((sp.kind === 'barn' ? sp.w || 10 : sp.d || 6) / 2), z, rot: H2 }, sp);
+      // neighbours are not alike: each stands at its own distance from the road (sb, metres further back) and a
+      // little off square to it (ra, radians), with its own width, depth and height
+      const E_ = (z, sp) => Object.assign({ x: roadX(z) + 2.6 + 3.2 + (sp.sb || 0) + ((sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2), z, rot: -H2 + (sp.ra || 0) }, sp);
+      const W_ = (z, sp) => Object.assign({ x: roadX(z) - 2.6 - 3.2 - (sp.sb || 0) - ((sp.kind === 'barn' ? sp.w || 10 : sp.d || 6) / 2), z, rot: H2 + (sp.ra || 0) }, sp);
       return [
-        E_(38, { kind: 'cottage', w: 8, d: 6, floors: 2, lit: 0.5, roof: 'tile', out: 'plaster' }),
+        E_(38, { kind: 'cottage', w: 8.6, d: 6.4, floors: 2, lit: 0.5, roof: 'tile', out: 'plaster', sb: 0.2, ra: 0.03 }),
         E_(51, { kind: 'shoprow', units: 2, d: 8, lit: 0.5 }),
-        E_(63.5, { kind: 'cottage', w: 7, d: 5.5, floors: 1, damage: 0.55, out: 'fieldstone' }),
-        E_(78, { kind: 'farmhouse', w: 12, d: 7, out: 'plaster', roof: 'slate' }),
+        E_(63.5, { kind: 'cottage', w: 6.4, d: 5.0, floors: 1, damage: 0.55, out: 'fieldstone', sb: 1.4, ra: -0.06 }),
+        E_(78, { kind: 'farmhouse', w: 12.5, d: 7.4, out: 'plaster', roof: 'slate', sb: 0.6, ra: 0.04 }),
         E_(95, { kind: 'ruin', w: 8, d: 6, damage: 0.9 }),
         { kind: 'shed', w: 5, d: 4, x: 21, z: 40, rot: 0.08 },
-        W_(34, { kind: 'cottage', w: 7, d: 6, floors: 2, lit: 0.6, out: 'fieldstone' }),
-        W_(45.5, { kind: 'shed', w: 6, d: 5 }),
-        W_(57, { kind: 'cottage', w: 9, d: 6, floors: 1, damage: 0.65, out: 'brick_sooty' }),
-        W_(71, { kind: 'cottage', w: 8, d: 6, floors: 2, lit: 0.4, roof: 'tile', out: 'plaster' }),
-        W_(90, { kind: 'barn', w: 9, d: 13 }),
-        W_(105, { kind: 'shed', w: 6, d: 4 }),
+        W_(34, { kind: 'cottage', w: 7.2, d: 5.6, floors: 2, lit: 0.6, out: 'fieldstone', sb: 0.9, ra: -0.05 }),
+        W_(45.5, { kind: 'shed', w: 6, d: 5, sb: 1.8, ra: 0.12 }),
+        W_(57, { kind: 'cottage', w: 9.6, d: 6.6, floors: 1, damage: 0.65, out: 'brick_sooty', ra: 0.06 }),
+        W_(71, { kind: 'cottage', w: 7.6, d: 5.8, floors: 2, lit: 0.4, roof: 'tile', out: 'plaster', sb: 1.2, ra: -0.04 }),
+        W_(90, { kind: 'barn', w: 9, d: 13, sb: 0.4, ra: 0.05 }),
+        W_(105, { kind: 'shed', w: 6, d: 4, sb: 2.2, ra: -0.15 }),
         { kind: 'shed', w: 4, d: 3, x: -20, z: 64, rot: H2 },
         { kind: 'church', w: 16, d: 8, x: 37, z: 88, rot: -H2 }
       ];
@@ -246,7 +248,7 @@
     // Every reachable building is one closed collider (no interiors); none sits on a patrol or the approach routes.
     {
       const H2 = Math.PI / 2, hamlet = HAMLET;
-      IV.art.settle(b, hamlet, { seed: 404 });
+      IV.art.settle(b, hamlet.map(sp => sp.kind === 'church' || sp.kind === 'shed' ? sp : Object.assign({ free: ['back'], wingMax: 5.2 }, sp)), { seed: 404, rugged: 1 });
       // the churchyard wall (gap to the road), the well, a wayside cross at the crossroads corner
       IV.art.wall(b, [[28, 74], [28, 80.5]], 1.2, [], { coping: 'flat' }); IV.art.wall(b, [[28, 87.5], [28, 104], [47, 104], [47, 72], [28, 72], [28, 74]], 1.2, [], { coping: 'flat' });
       if (IV.art.envOn() && IVEnv.prop) { try { const wl = IVEnv.prop('well', 61); wl.group.position.set(-5.4, W.height(-5.4, 64), 64); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(wl.group); W.addBox(-5.4, 64, 0.8, 0.8, W.height(-5.4, 64), W.height(-5.4, 64) + 0.9, 0, F.SOLID | F.BULLET | F.NAV, 'stone'); } catch (e) {} }
@@ -289,7 +291,7 @@
         { kind: 'farmhouse', w: 12, d: 7, x: 150, z: 152, rot: -2.6 }, { kind: 'barn', w: 10, d: 15, x: 168, z: 136, rot: -2.6 + H2 },
         { kind: 'cottage', w: 8, d: 6, floors: 2, x: -165, z: 138, rot: 1.2, lit: 0.5 }, { kind: 'shed', w: 5, d: 4, x: -152, z: 150, rot: 1.2 },
         { kind: 'ruin', w: 10, d: 7, x: 166, z: -164, rot: 2.3, damage: 0.95 }, { kind: 'barn', w: 9, d: 13, x: 140, z: -166, rot: 2.3 + H2, damage: 0.4 }
-      ], { seed: 515, shellOnly: IVEnv.Q && IVEnv.Q.name === 'low' });   // (Low: shells, still with colliders)
+      ], { seed: 515, rugged: 1, shellOnly: IVEnv.Q && IVEnv.Q.name === 'low' });   // (Low: shells, still with colliders)
       // village skylines on the far hills: shells only, no colliders
       const hFar = IVEnv.skirtHeightAt || ((x, z) => W.height(Math.max(-188, Math.min(188, x)), Math.max(-188, Math.min(188, z))));
       const village = (cx, cz, n, sd, church) => { const RV = IV.rng(sd), list = []; if (church) list.push({ kind: 'church', w: 15, d: 8, x: cx, z: cz, rot: RV() * 6.28, shellOnly: true, solid: false });
@@ -900,7 +902,7 @@
       'Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook\'s men are waiting.'
     ],
     preview: [{ text: 'Find Cpl. Dunning' }, { text: 'Cut the field-telephone line' }, { text: 'Destroy the flak gun' }, { text: 'Reach the extraction lane' }, { text: 'Take the map from the farm office', opt: true }, { text: 'Take out the sniper in the barn loft', opt: true }],
-    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8, woods: 0.55 }, fog: 0.0125, fogColor: 0x0a0f15 },
+    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8, woods: 0.55 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 1.6 }, fog: 0.0125, fogColor: 0x0a0f15 },
     build, setup, step, frame, backdrop, sketch,
     medals: [
       { text: 'Finish in under 15:00', ok: s => s.time < 900 },
