@@ -57,6 +57,7 @@
     if (o.y != null) this.pos.y = o.y;
     this.actor.root.position.copy(this.pos); this.actor.root.rotation.y = this.bodyYaw + Math.PI;
     this.actor.play(o.anim || 'idle', { fade: 0 });
+    this.pose = o.anim && o.anim !== 'idle' ? o.anim : null;   // an ambient pose (sitting): held until he reacts or moves
     W.dynamic.add(this.actor.root);
     if (this.kind === 'sniper') { this.glint = new THREE.Sprite(new THREE.SpriteMaterial({ map: W.tex.glow(), color: 0xddeeff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 })); this.glint.scale.set(0.9, 0.9, 1); W.dynamic.add(this.glint); }
   }
@@ -533,10 +534,11 @@
   Enemy.prototype.drive = function (dt) {
     const a = this.actor; if (this.busy || !this.alive) return;
     if (IV.time < (this.ringUntil || 0)) return;   // ringing the bell: the one-shot plays
+    if (this.pose) { if (this.state === 'unaware' && this.speed < 0.1) return; this.pose = null; }
     const v = this.vel.lengthSq() > 0.01 ? this.vel : ZERO;
     IV.driveState(DS, v, this.bodyYaw, { yawRate: this.yawRate || 0, stance: this.stance === 'prone' ? 'prone' : this.stance, aiming: IV.upperOf(a) === 'aimIdle', aimPitch: this._ap || 0, aimYawOffset: this._ay || 0, sprinting: this.speed > 4.5, grounded: true, fallSpeed: 0, slopeY: 1, weapon: this.wkind, dt });
     DS.speed = Math.min(DS.speed, this.speed + 0.01);
-    if (a.drive) a.drive(DS);
+    if (a.drive) { if (!this.cine) IV.releaseLoopPose(a); a.drive(DS); }
   };
   Enemy.prototype.frame = function (alpha, dt) {
     const r = this.actor.root;

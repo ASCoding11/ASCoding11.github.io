@@ -146,7 +146,7 @@
     r.rotation.y = e.bodyPrev + IV.wrapA(e.bodyYaw - e.bodyPrev) * alpha + Math.PI;
     const ap = e.target && e.alive ? Math.atan2(e.target.pos.y + 1.2 - e.pos.y - 1.5, Math.hypot(e.target.pos.x - e.pos.x, e.target.pos.z - e.pos.z)) : 0;
     e.yawRate = dt > 0 ? IV.wrapA(e.bodyYaw - (e.lastYaw == null ? e.bodyYaw : e.lastYaw)) / dt : 0; e.lastYaw = e.bodyYaw;
-    if (e.alive) { IV.driveState(DS, e.vel, e.bodyYaw, { yawRate: e.yawRate, stance: e.stance, aiming: !!e.target || IV.upperOf(e.actor) === 'aimIdle', aimPitch: ap, aimYawOffset: 0, sprinting: e.speed > 4.8, grounded: true, fallSpeed: 0, slopeY: 1, weapon: 'smg', dt }); DS.speed = Math.min(DS.speed, e.speed + 0.01); e.actor.drive(DS); }
+    if (e.alive) { IV.driveState(DS, e.vel, e.bodyYaw, { yawRate: e.yawRate, stance: e.stance, aiming: !!e.target || IV.upperOf(e.actor) === 'aimIdle', aimPitch: ap, aimYawOffset: 0, sprinting: e.speed > 4.8, grounded: true, fallSpeed: 0, slopeY: 1, weapon: 'smg', dt }); DS.speed = Math.min(DS.speed, e.speed + 0.01); if (!e.cine) IV.releaseLoopPose(e.actor); e.actor.drive(DS); }
     e.actor.update(dt);
   };
 })();

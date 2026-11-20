@@ -247,6 +247,7 @@
       W.normal(P.render.x, P.render.z, nrm);
       IV.driveState(st, P.vel, P.bodyYaw, { yawRate: P.yawRate, stance: P.stance, aiming: !!(W8 && (W8.aiming || W8.scoped || W8.binoc)), aimPitch: P.pitch,
         aimYawOffset: IV.clamp(IV.wrapA(P.yaw - P.bodyYaw), -1.2, 1.2), sprinting: P.sprinting, grounded: P.grounded, fallSpeed: P.fallSpeed, slopeY: nrm.y, weapon: W8 ? W8.cur : '', dt });
+      if (!P.cine) IV.releaseLoopPose(A);
       A.drive(st);
     } else A.setAim(P.pitch, IV.clamp(IV.wrapA(P.yaw - P.bodyYaw), -1.2, 1.2));
     A.update(dt);

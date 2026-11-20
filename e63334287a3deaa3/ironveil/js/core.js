@@ -208,6 +208,15 @@
   // the upper-body clip an actor is playing, for either character set (stand-in: .upper string; chars.js: .curUpper)
   IV.upperOf = a => a.curUpper ? a.curUpper.name : (typeof a.upper === 'string' ? a.upper : null);
   // upper-body names the game uses that chars.js may not have: fall back to its nearest clip
+  // A looping clip started with actor.play() (an idle for a cut-scene or a spawn pose) stays at full weight in
+  // chars.js and mutes the drive() graph for good, so the soldier stops showing stance and movement. Call this just
+  // before drive() whenever no scripted pose is wanted: it fades any looping base clip out (one-shots are left to end).
+  IV.releaseLoopPose = function (a) {
+    if (!a || !a.driven || !a.base || !a.cur || !a.cur.full) return;
+    if (a.cur.full.loop === THREE.LoopOnce) return;
+    for (const b of a.base) { b.target = 0; b.rate = 1 / 0.25; }
+    a.cur = null;
+  };
   IV.setUpper = function (a, name) {
     if (name && window.IVChars && !IVChars.standin && IVChars.clips && IVChars.clips.indexOf(name) < 0) name = name === 'binoc' ? 'aimIdle' : name === 'fire' ? 'aimIdle' : name;
     a.setUpper(name);
