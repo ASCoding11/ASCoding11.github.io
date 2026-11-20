@@ -62,7 +62,7 @@
   var SCRIPT = document.currentScript && document.currentScript.src;
   var BASE = SCRIPT ? SCRIPT.replace(/[^\/]*$/, '') : '';
   var ASSETS = BASE + 'assets/';
-  var VERSION = '6';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
+  var VERSION = '7';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
 
   // ---------- kinds and files
   var FILES = {
@@ -345,6 +345,11 @@
       var c = FPCLIPS[kind + '.' + n]; if (!c) return;
       var a = mixer.clipAction(c); a.setLoop(T.LoopRepeat, Infinity); a.play(); a.setEffectiveWeight(n === 'idle' ? 1 : 0); base[n] = a;
     });
+    // the hip-to-sights raise: a solved clip held at time = ads (blending the hip and ADS loops in the mixer swings
+    // the hands off the gun half way)
+    var raise = null, raiseC = FPCLIPS[kind + '.adsRaise'];
+    if (raiseC) { raise = mixer.clipAction(raiseC); raise.setLoop(T.LoopOnce, 1); raise.clampWhenFinished = true; raise.timeScale = 0; raise.play(); raise.setEffectiveWeight(0); }
+    function sstep(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
     var oneW = 0, oneFade = 0.1, oneOut = false, st = { ads: 0, sprint: 0 };
     function find(o, n) { return o.getObjectByName(kind + '_' + n) || null; }
     var ao = kmeta.adsOffset;
@@ -388,7 +393,13 @@
           if (oneOut && oneW <= 0) { one.stop(); one = null; oneName = null; vm.current = null; Object.keys(props).forEach(function (k) { props[k].visible = false; }); }
         }
         var bw = 1 - (one ? oneW : 0);
-        var wa = st.ads * (1 - st.sprint), ws = st.sprint, wi = Math.max(0, 1 - wa - ws);
+        var wa = st.ads * (1 - st.sprint), ws = st.sprint, wi = Math.max(0, 1 - wa - ws), wr = 0;
+        if (raise) {   // near either end blend with the breathing loops, in between hold the solved raise
+          var ns = 1 - ws, lo = 1 - sstep(0, 0.12, st.ads), hi = sstep(0.88, 1, st.ads);
+          wi = ns * lo; wa = ns * hi; wr = ns * Math.max(0, 1 - lo - hi);
+          raise.time = Math.min(raiseC.duration - 1e-4, st.ads * raiseC.duration);
+          raise.setEffectiveWeight(wr * bw);
+        }
         if (base.idle) base.idle.setEffectiveWeight(wi * bw);
         if (base.ads) base.ads.setEffectiveWeight(wa * bw);
         if (base.sprint) base.sprint.setEffectiveWeight(ws * bw);
@@ -746,10 +757,83 @@
       var a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
       if (!drop[a] && !drop[b] && !drop[c]) out.push(a, b, c);
     }
-    var fg = g.clone(); fg.setIndex(out);
+    var fg = g.clone();
+    capCut(fg, idx, tri, out);
+    fg.setIndex(out);
     fg.boundingSphere = g.boundingSphere; fg.groups = [];
     g.userData.fpGeom = fg;
     return fg;
+  }
+  // Close the openings the cut leaves (looking straight down otherwise shows the inside of the torso ring): edges
+  // that bordered two triangles before and one after are chained into loops (welded by position, so UV seams do
+  // not break them) and each loop is fanned to a new centre vertex that copies the attributes of a rim vertex.
+  function capCut(fg, idx, tri, out) {
+    for (var an in fg.attributes) {   // meshopt-decoded attributes can be interleaved: copy them out (raw values)
+      var ia = fg.attributes[an];
+      if (!ia.isInterleavedBufferAttribute) continue;
+      var Ctor = ia.data.array.constructor, da = new Ctor(ia.count * ia.itemSize), gets = ['getX', 'getY', 'getZ', 'getW'];
+      for (var vi = 0; vi < ia.count; vi++) for (var ci_ = 0; ci_ < ia.itemSize; ci_++) da[vi * ia.itemSize + ci_] = ia[gets[ci_]](vi);
+      fg.setAttribute(an, new T.BufferAttribute(da, ia.itemSize, ia.normalized));
+    }
+    var pos = fg.attributes.position, n0 = pos.count, key = {}, wid = new Int32Array(n0);
+    for (var i = 0; i < n0; i++) { var kk = pos.getX(i) + ',' + pos.getY(i) + ',' + pos.getZ(i); if (key[kk] == null) key[kk] = i; wid[i] = key[kk]; }
+    function ek(a, b) { a = wid[a]; b = wid[b]; return a < b ? a + '_' + b : b + '_' + a; }
+    var full = {}, kept = {}, t, e, a, b, c;
+    for (t = 0; t < tri; t += 3) {
+      a = idx ? idx[t] : t; b = idx ? idx[t + 1] : t + 1; c = idx ? idx[t + 2] : t + 2;
+      [[a, b], [b, c], [c, a]].forEach(function (p) { var k = ek(p[0], p[1]); full[k] = (full[k] || 0) + 1; });
+    }
+    for (t = 0; t < out.length; t += 3) {
+      a = out[t]; b = out[t + 1]; c = out[t + 2];
+      [[a, b], [b, c], [c, a]].forEach(function (p) { var k = ek(p[0], p[1]); (kept[k] = kept[k] || []).push(p); });
+    }
+    var next = {};   // rim edge a->b of a kept triangle: the cap runs b->a
+    for (e in kept) if (kept[e].length === 1 && full[e] >= 2) { var p = kept[e][0]; next[wid[p[1]]] = p[0]; }
+    var seen = {}, loops = [];
+    Object.keys(next).forEach(function (s) {
+      if (seen[s]) return;
+      var loop = [], v = +s, guard = 0;
+      while (v != null && !seen[v] && guard++ < 4000) { seen[v] = 1; loop.push(v); var nv = next[v]; v = nv == null ? null : wid[nv]; }
+      if (loop.length >= 3 && v === +s) loops.push(loop);
+    });
+    fg.userData.cap = { rim: Object.keys(next).length, loops: loops.length, sizes: loops.map(function (l) { return l.length; }) };
+    if (!loops.length) return;
+    // the cap gets its own copies of the rim vertices (same skinning) with one flat UV and the cap's normal, so it
+    // reads as plain shadowed cloth instead of the rim's texture smeared to a point
+    var names = Object.keys(fg.attributes), add = 0;
+    loops.forEach(function (l) { add += l.length + 1; });
+    names.forEach(function (nm) {   // grow every attribute
+      var at = fg.attributes[nm], arr = new at.array.constructor((n0 + add) * at.itemSize);
+      arr.set(at.array); fg.setAttribute(nm, new T.BufferAttribute(arr, at.itemSize, at.normalized));
+    });
+    var base = n0;
+    loops.forEach(function (loop) {
+      var P = fg.attributes.position, N = fg.attributes.normal, UV = fg.attributes.uv, m = loop.length, ci = base + m, src = loop[0];
+      var cx = 0, cy = 0, cz = 0, nx = 0, ny = 0, nz = 0, j, k;
+      for (j = 0; j <= m; j++) {
+        var from = j < m ? loop[j] : src, to = base + j;
+        names.forEach(function (nm) { var at = fg.attributes[nm]; for (k = 0; k < at.itemSize; k++) at.array[to * at.itemSize + k] = at.array[from * at.itemSize + k]; });
+        if (UV) UV.setXY(to, UV.getX(src), UV.getY(src));
+      }
+      loop.forEach(function (v) { cx += P.getX(v); cy += P.getY(v); cz += P.getZ(v); });
+      cx /= m; cy /= m; cz /= m;
+      P.setXYZ(ci, cx, cy, cz);
+      for (j = 0; j < m; j++) {   // the loop already runs opposite to the rim: faces A->B->centre
+        var A = base + j, B = base + (j + 1) % m;
+        var ax = P.getX(A) - cx, ay = P.getY(A) - cy, az = P.getZ(A) - cz, bx = P.getX(B) - cx, by = P.getY(B) - cy, bz = P.getZ(B) - cz;
+        nx += ay * bz - az * by; ny += az * bx - ax * bz; nz += ax * by - ay * bx;
+        out.push(A, B, ci);
+      }
+      var l = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+      if (N) {
+        var sc = !N.normalized ? 0 : N.array instanceof Int8Array ? 127 : N.array instanceof Int16Array ? 32767 : 0;
+        for (j = 0; j <= m; j++) {
+          if (sc) N.setXYZ(base + j, Math.round(nx / l * sc), Math.round(ny / l * sc), Math.round(nz / l * sc));
+          else N.setXYZ(base + j, nx / l, ny / l, nz / l);
+        }
+      }
+      base += m + 1;
+    });
   }
   function shadowOnly(m) {
     if (!m.userData.shadowMat) {

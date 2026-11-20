@@ -17,10 +17,13 @@ OUT = os.environ.get('FP_WORK') or (L.WORK + '/fp')
 os.makedirs(OUT, exist_ok=True)
 
 ARM = ('clavicle', 'upperarm', 'lowerarm', 'hand', 'index', 'middle', 'ring', 'pinky', 'thumb')
-ROLL = (0.76, 0.84)      # buttoned cuff band at the end of the full-length sleeve (fractions of the forearm)
-SLEEVE_END = 0.80        # the sleeve tube runs under the cuff to here
+ROLL = (0.80, 0.86)      # (kept for fp_tex) the sleeve's hem band, fractions of the forearm
+SLEEVE_END = 0.86        # the smock sleeve ends here, over the glove's gauntlet cuff
 CUT = 0.42               # keep the upper arm from this fraction of its length (shoulder = 0)
-WATCH = 0.92             # watch strap centre, fraction of the forearm (left arm), just below the cuff
+GLOVE_CUFF = (0.78, 1.04)   # leather gauntlet cuff of the glove, from under the sleeve to the wrist crease
+GLOVE_STRAP = 0.955      # wrist strap of the glove (both hands), buckle on the outer side
+WATCH = 0.885            # wristwatch over the left glove cuff, between the sleeve hem and the strap
+WRIST_RATIO = 0.62       # wrist width / widest forearm width after the taper (real forearms: about 0.6)
 
 # first-person bones that carry the weapon and props; their rest frame equals the glTF identity frame
 WBONES = ['w_root', 'w_bolt', 'w_boltHandle', 'w_mag', 'w_trigger', 'w_hammer', 'w_charging', 'w_prop']
@@ -59,6 +62,30 @@ def main():
             upar[i], fpar[i] = u, f
             side[i] = sg
             if u >= CUT: keep[i] = True
+    # a real wrist: MakeHuman's forearm stays thick to the wrist. Taper the last half of each forearm toward the bone
+    # line until the wrist is WRIST_RATIO of the forearm's widest width (the cross-section flattens: width more than
+    # depth). Done before the sleeves and the glove cuff are fitted, so they follow it.
+    for s, sg in (('l', 1.0), ('r', -1.0)):
+        E_, W2 = J['lowerarm_' + s][0], J['hand_' + s][0]
+        ax_ = np.array((W2 - E_).normalized()[:]); lf_ = (W2 - E_).length; e_ = np.array(E_[:])
+        ids = np.array([i for i in range(n) if top[i].endswith('_' + s) and top[i].startswith(ARM)])
+        Q = P[ids] - e_; f = Q @ ax_ / lf_
+        rad = Q - np.outer(f * lf_, ax_)
+        def width(f0, f1):
+            m = (f > f0) & (f < f1)
+            return rad[m, 1].max() - rad[m, 1].min()
+        wmax = max(width(a, a + 0.08) for a in np.arange(0.05, 0.6, 0.05))
+        ww = width(0.92, 0.98)
+        need = min(1.0, WRIST_RATIO * wmax / ww)
+        rise = np.clip((f - 0.42) / 0.50, 0, 1); rise = rise * rise * (3 - 2 * rise)
+        fall = 1 - np.clip((f - 0.98) / 0.16, 0, 1); fall = fall * fall * (3 - 2 * fall)
+        kw = 1 - (1 - need) * rise * fall; kd = 1 - (1 - need) * 0.55 * rise * fall
+        newP = e_ + np.outer(f * lf_, ax_) + rad * np.stack([np.ones_like(kw), kw, kd], 1)
+        for j, i in enumerate(ids): me.vertices[i].co = Vector(newP[j])
+        P[ids] = newP
+        rad2 = newP - e_ - np.outer(f * lf_, ax_)
+        m2 = (f > 0.92) & (f < 0.98)
+        log('forearm', s, 'widest %.3f wrist %.3f -> %.3f (ratio %.2f -> %.2f)' % (wmax, ww, rad2[m2, 1].max() - rad2[m2, 1].min(), ww / wmax, (rad2[m2, 1].max() - rad2[m2, 1].min()) / wmax))
     # the whole body's surface, for placing the sleeves (their rays must hit skin that is about to be removed)
     full = body.copy(); full.data = body.data.copy(); G.link(full)
     bvh_full = G.bvh_of(full)
@@ -92,35 +119,47 @@ def main():
     bm.to_mesh(skin.data); bm.free()
     log('skin after forearm subdivision', G.tris(skin))
 
-    # a slimmer wrist: pull the last third of each forearm toward the bone line (wrist bones and taper read)
-    for s_, sg in (('l', 1.0), ('r', -1.0)):
-        E_, W2 = J['lowerarm_' + s_][0], J['hand_' + s_][0]
-        ax_ = (W2 - E_).normalized(); lf_ = (W2 - E_).length
-        for v in skin.data.vertices:
-            if np.sign(v.co.x) != sg: continue
-            f = (v.co - E_).dot(ax_) / lf_
-            if 0.6 < f < 1.08:
-                c = E_ + ax_ * (f * lf_)
-                k = 1.0 - 0.13 * math.sin(math.pi * min(1.0, (f - 0.6) / 0.45)) ** 1.5
-                v.co = c + (v.co - c) * k
-    # fingerless knit gloves: the hand and the first finger joints stand 1.2 mm proud (texture in fp_tex.py)
+    # full leather gloves: the whole hand and every finger stand 1.4 mm proud of the skin, with knuckle bulges over
+    # the knuckles and the middle finger joints (leather bunches there), and slightly fuller fingertips
     gnames = {vg.index: vg.name for vg in skin.vertex_groups}
+    heads = {}
+    for s_ in ('l', 'r'):
+        for f_ in ('index', 'middle', 'ring', 'pinky', 'thumb'):
+            for k_ in (1, 2, 3):
+                bn = '%s_0%d_%s' % (f_, k_, s_)
+                if bn in J: heads[bn] = J[bn][0]
     for v in skin.data.vertices:
         g_ = max(v.groups, key=lambda x: x.weight) if v.groups else None
         nm_ = gnames[g_.group] if g_ else ''
-        if nm_.startswith('hand_') or '_01_' in nm_:
-            v.co = v.co + v.normal * 0.0012
+        if not nm_.startswith(('hand_', 'index_', 'middle_', 'ring_', 'pinky_', 'thumb_')): continue
+        s_ = nm_[-1]; d_ = 0.0014
+        dors_ = v.normal.z      # T-pose, palms down: +Z is the back of the hand
+        for f_ in ('index', 'middle', 'ring', 'pinky'):
+            for k_, amp, rr in ((1, 0.0013, 0.0085), (2, 0.0008, 0.0065)):
+                h_ = heads.get('%s_0%d_%s' % (f_, k_, s_))
+                if h_ is None: continue
+                dd = (v.co - h_).length
+                if dd < 2.5 * rr: d_ += amp * math.exp(-(dd / rr) ** 2) * max(0.0, min(1.0, (dors_ + 0.1) / 0.5))
+        if nm_.endswith(('_03_' + s_,)) or '_04_leaf' in nm_: d_ += 0.0004
+        v.co = v.co + v.normal * d_
     bvh = bvh_full
     parts = [skin]
-    # ---------------- sleeves and rolls
+    # ---------------- sleeves, glove cuffs, wrist straps
+    def cuff_off(fr):
+        """Gauntlet cuff stand-off from the skin: snug at the wrist, a little flare toward the sleeve."""
+        u = max(0.0, min(1.0, (0.96 - fr) / (0.96 - GLOVE_CUFF[0])))
+        return 0.0022 + 0.0026 * u * u
+    hits = {}
     for s, sg in (('l', 1.0), ('r', -1.0)):
         S, E, W_ = J['upperarm_' + s][0], J['lowerarm_' + s][0], J['hand_' + s][0]
         lu, lf = (E - S).length, (W_ - E).length
         st = []
-        # the sleeve tube: from the cut to under the roll, ~1 cm stations, slack growing toward the elbow
+        # the sleeve tube: from the cut to the hem over the glove cuff, ~8 mm stations. Heavy cloth: slack that grows
+        # toward the elbow, compression folds that bunch up toward the wrist and change the silhouette (6-7 mm deep),
+        # a few long diagonal twist folds along the forearm, and room at the hem for the glove cuff underneath
         a0 = CUT * lu
         total = lu - a0 + SLEEVE_END * lf
-        ns = max(8, int(total / 0.009))
+        ns = max(8, int(total / 0.010))
         for k in range(ns + 1):
             d = a0 + total * k / ns
             if d <= lu:
@@ -128,32 +167,60 @@ def main():
             else:
                 c = E.lerp(W_, (d - lu) / lf); ax = (W_ - E).normalized()
             fr = (d - lu) / lf   # forearm fraction (negative on the upper arm)
-            slack = 0.010 + 0.006 * math.exp(-((d - lu) / 0.05) ** 2) - 0.003 * max(0.0, fr / SLEEVE_END)
-            def off(th, d=d, slack=slack, fr=fr):
-                # compression folds above the roll: rings that wander around the arm, deeper on the inside of the elbow
-                ph = 2 * math.pi * (d / 0.034) + 1.7 * math.sin(th * 2 + d * 30) + 0.8 * math.sin(th * 3.0 - d * 55)
+            hem = max(0.0, min(1.0, (fr - 0.70) / 0.16))
+            slack = 0.010 + 0.006 * math.exp(-((d - lu) / 0.05) ** 2) - 0.002 * max(0.0, min(1.0, fr / 0.6)) + 0.0045 * hem
+            def off(th, d=d, slack=slack, fr=fr, hem=hem):
+                bunch = max(0.0, min(1.0, (fr - 0.35) / 0.4))       # folds crowd toward the wrist
+                ph = 2 * math.pi * (d / (0.030 - 0.010 * bunch)) + 1.9 * math.sin(th * 2 + d * 30) + 0.9 * math.sin(th * 3.0 - d * 55)
                 env = 0.35 + 0.65 * max(0.0, min(1.0, (fr + 0.35) / 0.6))
                 inner = 0.5 + 0.5 * max(0.0, math.cos(th + math.pi / 2 * sg))
-                return slack + 0.0042 * env * (0.6 + 0.6 * inner) * (0.5 + 0.5 * math.sin(ph))
+                ring = (0.0040 + 0.0028 * bunch) * env * (0.55 + 0.6 * inner) * (0.5 + 0.5 * math.sin(ph)) ** 1.5
+                twist = 0.0018 * max(0.0, math.sin(th * 2 - d * 18 + 0.7)) ** 3 * max(0.0, min(1.0, (fr + 0.1) / 0.4))
+                lip = 0.0015 * math.exp(-((fr - SLEEVE_END) / 0.012) ** 2)     # the turned hem stands a little proud
+                return slack + ring + twist + lip
             st.append((c, ax, off, Vector((0, 0, 1))))
         sl = G.ring_loft(bvh, st, n=24, name='Sleeve_' + s)
-        # the rolled cuff: two visible turns of cloth, tucked to the skin at both ends
-        rs = []
-        nr = 12
-        for k in range(nr + 1):
-            u = k / nr
-            fr = ROLL[0] + (ROLL[1] - ROLL[0]) * u
-            c = E.lerp(W_, fr); ax = (W_ - E).normalized()
-            lobes = math.sin(math.pi * u) ** 0.35 * 0.55
-            def off(th, u=u, lobes=lobes):
-                wob = 0.0016 * math.sin(th * 3 + u * 9) + 0.0010 * math.sin(th * 5 - 2.0)
-                # frayed, uneven edge of the turned-back cloth on the last ring
-                fray = 0.0025 * (math.sin(th * 23 + 1.3) * math.sin(th * 7.0)) if u >= 1.0 else 0.0
-                return 0.0026 + 0.0165 * lobes + wob + fray
-            rs.append((c, ax, off, Vector((0, 0, 1))))
-        roll = G.ring_loft(bvh, rs, n=30, name='Roll_' + s)
-        parts += [sl, roll]
-        log('sleeve', s, G.tris(sl), 'roll', G.tris(roll))
+        # cuff tab with a button on the outer side of the hem (pinky side, +Y in the T-pose)
+        ax = (W_ - E).normalized(); c = E.lerp(W_, SLEEVE_END - 0.035)
+        dvec = Vector((0, 0.75, 0.66)).normalized()
+        hit = bvh.ray_cast(c + dvec * 0.1, -dvec, 0.2)
+        if hit[0] is not None:
+            zt = dvec; xt = ax; yt = zt.cross(xt).normalized(); xt = yt.cross(zt).normalized()
+            Mt = Matrix((xt, yt, zt)).transposed().to_4x4(); Mt.translation = hit[0] + zt * 0.0168
+            tab = G.box('Tab_' + s, (0.040, 0.016, 0.0028), Mt, bev=0.0011, seg=1)
+            btn = G.lathe('Button_' + s, [(0.0, 0.0), (0.0058, 0.0), (0.0062, 0.0012), (0.0055, 0.0024), (0.0, 0.0028)], n=16,
+                          M=Mt @ Matrix.Translation((0.010, 0, 0.0014)))
+            parts += [tab, btn]
+        # leather gauntlet cuff of the glove: from under the sleeve hem to the wrist, small creases round it
+        cs = []
+        nc = 10
+        for k in range(nc + 1):
+            fr = GLOVE_CUFF[0] + (GLOVE_CUFF[1] - GLOVE_CUFF[0]) * k / nc
+            c = E.lerp(W_, fr)
+            def off(th, fr=fr):
+                return cuff_off(fr) + 0.0006 * math.sin(th * 4 + fr * 60) * math.exp(-((fr - 0.92) / 0.05) ** 2)
+            cs.append((c, ax, off, Vector((0, 0, 1))))
+        gc = G.ring_loft(bvh, cs, n=24, name='GloveCuff_' + s)
+        # wrist strap over the cuff, and a buckle on the pinky side
+        ss_ = []
+        for k in range(5):
+            fr = GLOVE_STRAP - 0.026 + 0.052 * k / 4
+            edge = 1.0 if k in (0, 4) else 0.0
+            ss_.append((E.lerp(W_, fr), ax, cuff_off(fr) + 0.0008 + 0.0008 * (1 - edge), Vector((0, 0, 1))))
+        gs = G.ring_loft(bvh, ss_, n=32, name='GloveStrap_' + s)
+        G.solidify(gs, 0.0016, offset=1.0)
+        c = E.lerp(W_, GLOVE_STRAP); dvec = Vector((0, 1.0, 0.25)).normalized()
+        hit = bvh.ray_cast(c + dvec * 0.1, -dvec, 0.2)
+        if hit[0] is not None:
+            zt = dvec; xt = ax; yt = zt.cross(xt).normalized(); xt = yt.cross(zt).normalized()
+            Mb = Matrix((xt, yt, zt)).transposed().to_4x4(); Mb.translation = hit[0] + zt * (cuff_off(GLOVE_STRAP) + 0.0036)
+            fr_ = [G.box('Buckle', (0.0022, 0.017, 0.0022), Mb @ Matrix.Translation((sx * 0.0075, 0, 0)), bev=0.0007, seg=1) for sx in (-1, 1)]
+            fr_ += [G.box('Buckle', (0.017, 0.0022, 0.0022), Mb @ Matrix.Translation((0, sy * 0.0075, 0)), bev=0.0007, seg=1) for sy in (-1, 1)]
+            fr_ += [G.box('Buckle', (0.0016, 0.015, 0.0016), Mb @ Matrix.Translation((0.001, 0, 0.0008)), bev=0.0005, seg=1)]
+            buckle = G.join(fr_, 'Buckle_' + s)
+            parts += [buckle]
+        parts += [sl, gc, gs]
+        log('sleeve', s, G.tris(sl), 'glove cuff', G.tris(gc), 'strap', G.tris(gs))
     # ---------------- wristwatch on the left wrist (dorsal side, +Z in the T-pose with palms down)
     E, W_ = J['lowerarm_l'][0], J['hand_l'][0]
     lf = (W_ - E).length; ax = (W_ - E).normalized()
@@ -162,12 +229,12 @@ def main():
         fr = WATCH - 0.035 + 0.07 * k / 6
         c = E.lerp(W_, fr)
         edge = 1.0 if k in (0, 6) else 0.0
-        ws.append((c, ax, 0.0016 + 0.0012 * (1 - edge), Vector((0, 0, 1))))
+        ws.append((c, ax, cuff_off(fr) + 0.0016 + 0.0012 * (1 - edge), Vector((0, 0, 1))))
     strap = G.ring_loft(bvh, ws, n=28, name='Strap')
     G.solidify(strap, 0.0022, offset=1.0)
     c = E.lerp(W_, WATCH)
     hit = bvh.ray_cast(c + Vector((0, 0, 0.08)), Vector((0, 0, -1)), 0.2)
-    top = hit[0] + Vector((0, 0, 0.0035))
+    top = hit[0] + Vector((0, 0, 0.0035 + cuff_off(WATCH)))
     # case, bezel, domed crystal: one lathe profile (r, z) from the back up, then the crown
     prof = [(0.0, 0.0), (0.0145, 0.0), (0.0158, 0.0012), (0.0162, 0.0040), (0.0160, 0.0062), (0.0150, 0.0074),
             (0.0146, 0.0080), (0.0140, 0.0086), (0.0128, 0.0088), (0.0125, 0.0089), (0.0100, 0.0094), (0.0060, 0.0098), (0.0, 0.0099)]
@@ -205,8 +272,14 @@ def main():
                         t = max(0.0, min(1.0, (f - 0.15) / 0.8)) ** 1.2
                         w = g.weight
                         src.add([v.index], w * (1 - t), 'REPLACE'); dst.add([v.index], w * t, 'REPLACE')
-    # material regions (face attribute 'region'): 0 skin, 1 sleeve, 2 roll, 3 strap, 4 watch case, 5 crystal
-    for o, r in [(parts[0], 0)] + [(o, 1 if o.name.startswith('Sleeve') else 2 if o.name.startswith('Roll') else 3 if o.name == 'Strap' else 4) for o in parts[1:]]:
+    # material regions (face attribute 'region'): 0 glove leather (the hand), 1 sleeve cloth, 2 glove cuff leather,
+    # 3 watch strap, 4 watch case, 5 crystal, 6 glove wrist strap, 7 buckle and button
+    def region_of(nm):
+        for pre, r in (('Sleeve', 1), ('Tab', 1), ('GloveCuff', 2), ('Strap', 3), ('Watch', 4), ('GloveStrap', 6), ('Buckle', 7), ('Button', 7)):
+            if nm.startswith(pre): return r
+        return 0
+    for o in parts:
+        r = 0 if o is parts[0] else region_of(o.name)
         at = o.data.attributes.new('region', 'INT', 'FACE')
         vals = [r] * len(o.data.polygons)
         if o.name == 'Watch':
