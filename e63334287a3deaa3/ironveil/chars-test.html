@@ -76,6 +76,17 @@
     var t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 30); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8;
     var gm = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ map: t, roughness: 1 }));
     gm.rotation.x = -Math.PI / 2; gm.receiveShadow = true; sc.add(gm);
+    if (P.has('gravel')) {   // dark gravel like the game's paths: small rounded grey stones on dark soil
+      var cg = document.createElement('canvas'); cg.width = cg.height = 512; var g2 = cg.getContext('2d');
+      g2.fillStyle = '#2e2c29'; g2.fillRect(0, 0, 512, 512);
+      for (var j = 0; j < 6000; j++) {
+        var gv = 70 + Math.random() * 70 | 0, rr = 1.5 + Math.random() * 4;
+        g2.fillStyle = 'rgb(' + gv + ',' + (gv - 3) + ',' + (gv - 8) + ')';
+        g2.beginPath(); g2.ellipse(Math.random() * 512, Math.random() * 512, rr, rr * (0.6 + Math.random() * 0.4), Math.random() * 3, 0, 6.3); g2.fill();
+      }
+      var tg = new THREE.CanvasTexture(cg); tg.wrapS = tg.wrapT = THREE.RepeatWrapping; tg.repeat.set(60, 60); tg.encoding = THREE.sRGBEncoding; tg.anisotropy = 8;
+      gm.material = new THREE.MeshStandardMaterial({ map: tg, roughness: 0.95 });
+    }
     if (P.has('grey')) {   // neutral mid-grey floor (own plane, so nothing of the sand material carries over)
       gm.visible = false;
       var gg = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: new THREE.Color(0x4a4a4a).convertSRGBToLinear(), roughness: 0.95, metalness: 0 }));

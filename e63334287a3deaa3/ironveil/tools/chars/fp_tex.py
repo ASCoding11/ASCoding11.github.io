@@ -383,33 +383,69 @@ alb = alb * (1 - grime[:, None] * 0.65) + dirt * (grime[:, None] * 0.65)
 rgh = 0.62 + 0.14 * fbm(X, 0.008, 3, 41) + 0.06 * fbm(X, 0.002, 2, 43) - 0.10 * smooth01((dors - 0.2) / 0.5) * (is_hand | is_fore) + 0.12 * knuck + 0.08 * palm_w
 rgh = rgh + grime * 0.15 - scar * 0.12
 rgh = rgh * (1 - nail) + 0.28 * nail
-# fingerless knit gloves over the hand and the first finger joints, ribbed at the wrist; dark olive wool, worn
-glove = (is_hand | np.isin(bname, ['%s_01' % f for f in ('index', 'middle', 'ring', 'pinky', 'thumb')])).astype(float)
-for f in ('index', 'middle', 'ring', 'pinky', 'thumb'):
-    m_ = bname == '%s_01' % f
-    glove[m_] *= smooth01((0.75 - btt[m_]) / 0.08)        # the knit ends partway up the first joint, a rolled edge
-glove = np.maximum(glove, (is_fore & (fore_t > 0.93)).astype(float))
-wrist_rib = (is_fore & (fore_t > 0.93)) | (is_hand & (btt < 0.25))
-knit_u = np.zeros(len(X)); knit_v = np.zeros(len(X))
+# ---------------------------------------------------------------- full leather gloves over the whole hand
+# Worn dark brown despatch-rider leather: pebbled grain, folds across every knuckle that are deeper on the back,
+# fourchette seams along the sides of each finger, a seam round the base of the thumb, three stitched points on the
+# back of the hand; polished and lighter where it rubs (fingertips, knuckles, heel of the palm), scuffs, dirt packed
+# into the seams and creases. Everything below replaces the bare-skin fields computed above (kept for their masks).
+is4 = np.isin(bname, ['%s_0%d' % (f, i) for f in ('index', 'middle', 'ring', 'pinky') for i in (1, 2, 3)])
+lea = lin([0.150, 0.094, 0.058])
+tone = fbm(X, 0.025, 3, 201)
+alb = np.tile(lea, (len(X), 1)) * (1 + 0.20 * tone + 0.06 * fbm(X, 0.004, 2, 202))[:, None]
+hgt = fbm(X, 0.0006, 2, 203) * 0.000045 + fbm(X, 0.0022, 2, 204) * 0.00003          # pebbled grain
+# folds across the knuckles and finger joints (back of the hand), creases on the palm side
+for lam, amp, w in ((0.0030, 0.00030, 0.0070), (0.0018, 0.00012, 0.0045)):
+    ph = joint_d / lam * 2 * math.pi + fbm(X, 0.004, 2, 9) * 2.8
+    hgt -= amp * np.exp(-(joint_d / w) ** 2) * (0.5 + 0.5 * np.cos(ph)) * fin_dors * (joint_dist3 < 0.022)
+hgt -= 0.00026 * np.exp(-(joint_d / 0.0018) ** 2) * palmar * (joint_dist3 < 0.017)
+# fourchettes: a seam groove where the side panels meet, with stitches either side of it
+side_g = np.exp(-(dors / 0.07) ** 2) * is4
+st_line = np.exp(-((np.abs(dors) - 0.13) / 0.035) ** 2) * is4 * (np.sin(joint_d / 0.0027 * 2 * math.pi) > 0.25)
+hgt += -0.00022 * side_g + 0.00007 * st_line
+# seam round the base of the thumb
+thumb_seam = np.zeros(len(X)); thumb_st = np.zeros(len(X))
 for s_ in ('l', 'r'):
-    a, b = bvec('hand_' + s_); m_ = side == s_
-    ax_ = (b - a) / np.linalg.norm(b - a); q = X[m_] - a
-    sl_ = q @ ax_; rad_ = q - np.outer(sl_, ax_); th_ = np.arctan2(rad_[:, 1], rad_[:, 2])
-    knit_u[m_] = th_ * 0.03; knit_v[m_] = sl_
-stitch = np.abs(np.sin(knit_u / 0.0016 * math.pi)) ** 0.6 * (0.6 + 0.4 * np.abs(np.sin(knit_v / 0.0022 * math.pi)))
-rib = np.abs(np.sin(knit_u / 0.0028 * math.pi))
-kh = np.where(wrist_rib, rib * 0.0004, stitch * 0.00028) + fbm(X, 0.002, 2, 97) * 0.00006
-wool = lin([0.26, 0.25, 0.18]) * (0.85 + 0.25 * stitch)[:, None] * (1 + 0.1 * fbm(X, 0.01, 3, 99))[:, None]
-wear_ = smooth01((knuck * 1.2 + 0.4 * fbm(X, 0.006, 2, 101)) - 0.3)
-wool = wool * (1 - wear_[:, None] * 0.3) + lin([0.36, 0.32, 0.24]) * (wear_[:, None] * 0.3)
-alb = alb * (1 - glove[:, None]) + wool * glove[:, None]
-hgt = hgt * (1 - glove) + kh * glove
-rgh = rgh * (1 - glove) + 0.92 * glove
+    a_, b_ = bvec('thumb_01_' + s_); m_ = side == s_
+    d3 = np.linalg.norm(X[m_] - a_, axis=1)
+    ring_ = np.exp(-((d3 - 0.017) / 0.0009) ** 2)
+    ang_ = np.arctan2(*(X[m_] - a_)[:, [1, 2]].T)
+    thumb_seam[m_] = ring_; thumb_st[m_] = np.exp(-((d3 - 0.0185) / 0.0006) ** 2) * (np.sin(ang_ * 0.017 / 0.0027 * 2 * math.pi) > 0.25)
+hgt += -0.00020 * thumb_seam + 0.00006 * thumb_st
+# three stitched points on the back of the hand, from between the knuckles toward the wrist
+points = np.zeros(len(X)); pst = np.zeros(len(X))
+for s_ in ('l', 'r'):
+    m_ = (side == s_) & (is_hand | is4)
+    hh_, _ = bvec('hand_' + s_)
+    ks = [bvec('%s_01_%s' % (f, s_))[0] for f in ('index', 'middle', 'ring', 'pinky')]
+    for k0, k1 in zip(ks, ks[1:]):
+        mid = (k0 + k1) / 2
+        d_, t_ = seg_dist(X[m_], mid - (mid - hh_) * 0.12, mid - (mid - hh_) * 0.55)
+        ridge = np.exp(-(d_ / 0.0010) ** 2) * smooth01((dors[m_] - 0.3) / 0.3)
+        sti = np.exp(-((d_ - 0.0016) / 0.0005) ** 2) * (np.sin(t_ * 0.03 / 0.0026 * 2 * math.pi) > 0.25) * smooth01((dors[m_] - 0.3) / 0.3)
+        idx_ = np.where(m_)[0]
+        points[idx_] = np.maximum(points[idx_], ridge); pst[idx_] = np.maximum(pst[idx_], sti)
+hgt += 0.00010 * points + 0.00006 * pst
+thread = lin([0.30, 0.25, 0.18])
+stitches = np.clip(st_line + thumb_st + pst, 0, 1)
+alb = alb * (1 - stitches[:, None] * 0.45) + thread * (stitches[:, None] * 0.45)
+# wear: polished lighter leather on fingertips, knuckles and the heel of the palm; scuffs; dirt in seams and folds
+heel = np.zeros(len(X))
+for s_ in ('l', 'r'):
+    hh_, ht_ = bvec('hand_' + s_); m_ = (side == s_)
+    heel[m_] = np.exp(-(np.linalg.norm(X[m_] - (hh_ + (ht_ - hh_) * 0.25), axis=1) / 0.025) ** 2) * smooth01((-dors[m_] - 0.2) / 0.4)
+pol = np.clip(tip * 1.0 + knuck * 0.8 + heel * 0.7, 0, 1) * (0.6 + 0.4 * fbm(X, 0.005, 2, 207))
+alb = alb * (1 - pol[:, None] * 0.55) + lin([0.25, 0.165, 0.10]) * (pol[:, None] * 0.55)
+scuff = np.clip((fbm(X, 0.0035, 3, 209) - 0.35) * 3, 0, 1) * (0.4 + 0.6 * smooth01((dors + 0.2) / 0.6))
+alb = alb * (1 - scuff[:, None] * 0.35) + lin([0.30, 0.22, 0.15]) * (scuff[:, None] * 0.35)
+cav = np.clip(-hgt / 0.00018, 0, 1)
+dirt_ = np.clip(cav * 0.8 + 0.25 * np.clip(fbm(X, 0.02, 3, 211), 0, 1), 0, 1)
+alb = alb * (1 - dirt_[:, None] * 0.55) + lin([0.055, 0.042, 0.030]) * (dirt_[:, None] * 0.55)
+rgh = 0.70 + 0.08 * fbm(X, 0.01, 3, 213) - 0.30 * pol + 0.10 * scuff + 0.10 * dirt_
 ALB[sk] = alb; HGT[sk] = hgt; RGH[sk] = rgh
 log('skin done')
 
 # ======================================================================= smock sleeve and roll (regions 1, 2)
-cl = np.where((R == 1) | (R == 2))[0]
+cl = np.where(R == 1)[0]
 X = P[cl]; Nc = Nn[cl]; rc = R[cl]
 side = np.where(X[:, 0] > 0, 'r', 'l')
 # cylinder coordinates along each arm (upper arm + forearm chained)
@@ -428,14 +464,16 @@ for s in ('l', 'r'):
     s_al[m] = sl; arcp[m] = th * 0.045; fore[m] = np.where(on_fore, t2, -1)
 U2 = np.stack([s_al, arcp, np.zeros(len(X))], 1)
 # invented camouflage: soft brush strokes, elongated around the arm, three colours over a sand base
-base = lin([0.55, 0.50, 0.37])
-c_brown = lin([0.36, 0.27, 0.18]); c_green = lin([0.33, 0.36, 0.24]); c_dark = lin([0.20, 0.19, 0.15])
+# dark olive-brown smock: a low-contrast brush pattern several stops darker than the old sand base, so the sleeves
+# sit in a muted scene instead of glowing
+base = lin([0.255, 0.235, 0.165])
+c_brown = lin([0.215, 0.165, 0.110]); c_green = lin([0.185, 0.200, 0.130]); c_dark = lin([0.125, 0.118, 0.090])
 alb = np.tile(base, (len(X), 1))
 for col, seed, thr, sx, sy in ((c_green, 51, 0.12, 0.05, 0.11), (c_brown, 52, 0.18, 0.04, 0.09), (c_dark, 53, 0.42, 0.03, 0.07)):
     Q = np.stack([s_al / sx, arcp / sy * 0.02 / 0.02, np.full(len(X), seed * 0.1)], 1) * 0.02
     nfield = fbm(Q, 0.02, 4, seed) + 0.25 * fbm(U2 * np.array([1, 3, 1]), 0.006, 2, seed + 7)
     edge = smooth01((nfield - thr) / 0.06)
-    alb = alb * (1 - edge[:, None] * 0.85) + col * (edge[:, None] * 0.85)
+    alb = alb * (1 - edge[:, None] * 0.6) + col * (edge[:, None] * 0.6)
 # weave: a heavy twill, diagonal ribs about 1.4 mm apart, with thread-level noise
 tw = (s_al + arcp * 0.9) / 0.0014 * 2 * math.pi
 hgt = 0.00006 * np.sin(tw) + fbm(U2 * np.array([1, 1, 1]), 0.0007, 2, 61) * 0.00003
@@ -443,30 +481,84 @@ hgt = 0.00006 * np.sin(tw) + fbm(U2 * np.array([1, 1, 1]), 0.0007, 2, 61) * 0.00
 fold = np.sin(s_al / 0.016 * 2 * math.pi + 2.0 * np.sin(arcp / 0.03) + 0.6 * fbm(U2, 0.02, 2, 63) * 6)
 hgt += 0.0005 * fold * smooth01((fore + 0.4) / 0.5) * (rc == 1)
 # roll: two turns of cloth with a stitched hem along the lower turn and worn, lighter crests
+ROLL = (0.76, 0.84)   # the cuff band's span on the forearm: keep equal to fp_arms.ROLL
 roll_u = np.zeros(len(X))
 for s in ('l', 'r'):
     m = (side == s) & (rc == 2)
     la, lb = bvec('lowerarm_' + s)
     _, t = seg_dist(X[m], la, lb)
-    roll_u[m] = (t - 0.30) / 0.20
-crest = np.abs(np.sin(roll_u * 2 * math.pi)) * (rc == 2)
-fray = (rc == 2) * smooth01((roll_u - 0.9) / 0.1) * (np.sin(arcp / 0.0011 * 2 * math.pi + 3 * fbm(U2, 0.004, 2, 77)) > 0.1)
-hgt += 0.0004 * crest
-seam = (rc == 2) * np.exp(-((roll_u - 0.08) / 0.012) ** 2)
+    roll_u[m] = (t - ROLL[0]) / (ROLL[1] - ROLL[0])
+# The cuff is the smock's own cloth turned back: same camouflage, darker and dirtier from handling, a soft crest
+# where it folds, a stitched hem and only a thin frayed lower edge. (The old mapping used the 0.30-0.50 span of the
+# rolled sleeve, so on the 0.76-0.84 cuff the fray term was 1 everywhere and half the texels went cream.)
+roll_u = np.clip(roll_u, 0, 1)
+crest = np.abs(np.sin(roll_u * math.pi)) * (rc == 2)
+fray = (rc == 2) * smooth01((roll_u - 0.93) / 0.05) * (np.sin(arcp / 0.0011 * 2 * math.pi + 3 * fbm(U2, 0.004, 2, 77)) > 0.35)
+hgt += 0.0003 * crest
+seam = (rc == 2) * np.exp(-((roll_u - 0.12) / 0.03) ** 2)
 stitch = seam * (np.sin(arcp / 0.0032 * 2 * math.pi) > 0.2)
 hgt -= 0.00012 * seam; hgt += 0.00008 * stitch
-alb = alb * (1 + 0.12 * crest[:, None]) * (1 - 0.15 * seam[:, None])
-alb = alb + (lin([0.66, 0.62, 0.50]) - alb) * (fray[:, None] * 0.55)
-hgt += fray * 0.00015
-alb = alb + (lin([0.62, 0.58, 0.46]) - alb) * (stitch[:, None] * 0.5)
+alb = alb * (1 + 0.06 * crest[:, None]) * (1 - 0.15 * seam[:, None])
+alb = alb + (lin([0.47, 0.43, 0.33]) - alb) * (fray[:, None] * 0.3)
+hgt += fray * 0.00012
+alb = alb + (lin([0.42, 0.38, 0.29]) - alb) * (stitch[:, None] * 0.35)
+# handling grime: the cuff is what touches everything; oil, mud and sweat darken it in blotches
+cg = (rc == 2) * np.clip(0.55 + 0.6 * fbm(X, 0.012, 3, 79), 0, 1)
+alb = alb * (1 - cg[:, None] * 0.38) + lin([0.17, 0.14, 0.10]) * (cg[:, None] * 0.38)
 # wear and grime: darker in creases and the inside of the roll, dust on the crests, sweat at the cuff
 g = np.clip(0.4 * fbm(X, 0.04, 3, 71) + 0.2, 0, 1) * 0.4 + np.clip(-fold, 0, 1) * 0.15 * (rc == 1)
 alb = alb * (1 - g[:, None] * 0.45) + lin([0.25, 0.20, 0.14]) * (g[:, None] * 0.45)
 alb = alb * (1 + 0.05 * fbm(U2, 0.0025, 2, 73))[:, None]
-ALB[cl] = alb; HGT[cl] = hgt; RGH[cl] = 0.86 + 0.06 * fbm(X, 0.02, 2, 75)
+# a felled seam along the outside of the sleeve (back of the forearm), two rows of stitches
+seam_o = np.exp(-(arcp / 0.0016) ** 2)
+seam_st = np.exp(-((np.abs(arcp) - 0.0032) / 0.0006) ** 2) * (np.sin(s_al / 0.0030 * 2 * math.pi) > 0.3)
+hgt += 0.00012 * seam_o - 0.0001 * np.exp(-((np.abs(arcp) - 0.0022) / 0.0006) ** 2) + 0.00005 * seam_st
+alb = alb * (1 - 0.12 * seam_o[:, None]) * (1 - 0.2 * seam_st[:, None])
+# wet, muddy cuffs: the last part of the sleeve is dark with damp and splashed with mud; roughness drops where wet
+wet = smooth01((fore - 0.62) / 0.2) * (fore >= 0)
+mud = wet * smooth01((fbm(X, 0.012, 3, 77) + 0.1) / 0.3)
+alb = alb * (1 - wet[:, None] * 0.38)
+alb = alb * (1 - mud[:, None] * 0.6) + lin([0.115, 0.088, 0.060]) * (mud[:, None] * 0.6)
+hgt += mud * fbm(X, 0.0015, 2, 78) * 0.00008
+ALB[cl] = alb; HGT[cl] = hgt; RGH[cl] = 0.86 + 0.06 * fbm(X, 0.02, 2, 75) - 0.22 * wet * (1 - mud * 0.5)
 log('cloth done')
 
 # ======================================================================= strap, watch case, dial (regions 3, 4, 5)
+# ======================================================================= glove cuff, glove strap, buckle (2, 6, 7)
+for reg_, darker in ((2, 1.0), (6, 0.72)):
+    ix = np.where(R == reg_)[0]
+    if not len(ix): continue
+    X = P[ix]; Nr = Nn[ix]
+    fr_ = np.zeros(len(X)); th_ = np.zeros(len(X))
+    for s_ in ('l', 'r'):
+        m_ = X[:, 0] > 0 if s_ == 'r' else X[:, 0] <= 0
+        la_, lb_ = bvec('lowerarm_' + s_)
+        ax_ = (lb_ - la_) / np.linalg.norm(lb_ - la_)
+        _, t_ = seg_dist(X[m_], la_, lb_ + (lb_ - la_) * 0.1); fr_[m_] = t_ * 1.1
+        q_ = X[m_] - la_; rad_ = q_ - np.outer(q_ @ ax_, ax_); th_[m_] = np.arctan2(rad_[:, 1], rad_[:, 2])
+    alb = np.tile(lea * darker, (len(X), 1)) * (1 + 0.2 * fbm(X, 0.02, 3, 221 + reg_))[:, None]
+    hgt = fbm(X, 0.0006, 2, 223) * 0.00004
+    if reg_ == 2:   # creases round the cuff where the wrist bends, a stitched hem at the open end
+        hgt -= 0.00016 * (0.5 + 0.5 * np.sin(fr_ / 0.012 * 2 * math.pi + 2 * np.sin(th_ * 2))) * smooth01((fr_ - 0.84) / 0.06)
+        hem_ = np.exp(-((fr_ - 0.80) / 0.006) ** 2)
+        hst = hem_ * (np.sin(th_ * 0.028 / 0.0028 * 2 * math.pi) > 0.25)
+        hgt += 0.00006 * hst; alb = alb * (1 - hst[:, None] * 0.4) + thread * (hst[:, None] * 0.4)
+    else:           # strap: stitched edges and a row of punched holes on the free end
+        edg = np.exp(-((np.abs(fr_ - 0.955) - 0.019) / 0.004) ** 2)
+        alb = alb * (1 - edg[:, None] * 0.25) + thread * (edg[:, None] * 0.25)
+    wr = np.clip((fbm(X, 0.004, 3, 225) - 0.2) * 2.5, 0, 1) * 0.6
+    alb = alb * (1 - wr[:, None] * 0.4) + lin([0.25, 0.165, 0.10]) * (wr[:, None] * 0.4)
+    cav = np.clip(-hgt / 0.00015, 0, 1)
+    alb = alb * (1 - cav[:, None] * 0.5)
+    ALB[ix] = alb; HGT[ix] = hgt; RGH[ix] = 0.68 + 0.08 * fbm(X, 0.01, 2, 227) - 0.2 * wr
+ix = np.where(R == 7)[0]
+if len(ix):   # buckles and buttons: dull blackened steel, bright where worn
+    X = P[ix]
+    w7 = np.clip((fbm(X, 0.0015, 2, 231) - 0.25) * 3, 0, 1)
+    ALB[ix] = lin([0.16, 0.155, 0.15]) * (1 - w7[:, None]) + lin([0.48, 0.47, 0.45]) * w7[:, None]
+    RGH[ix] = 0.55 - 0.2 * w7; MET[ix] = 1.0; HGT[ix] = 0.0
+log('glove cuffs done')
+
 wc = Vector(meta['watch_centre']); wcn = np.array(wc[:])
 st = np.where(R == 3)[0]
 X = P[st]
@@ -550,6 +642,10 @@ def save(arr, name, srgb):
     img.filepath_raw = TD + '/' + name + '.png'; img.file_format = 'PNG'; img.save()
     return img
 ao = np.clip(AO.reshape(-1) * 0.7 + 0.3, 0, 1)
+# part of the occlusion also goes into the colour: three.js applies aoMap to ambient light only, and the creases
+# between fingers, under the sleeve hem and round the cuff must stay dark under the sun and the lamp too
+cloth_or_glove = (R == 0) | (R == 1) | (R == 2) | (R == 6)
+ALB = ALB * np.where(cloth_or_glove, 0.45 + 0.55 * np.clip(AO.reshape(-1), 0, 1), 1.0)[:, None]
 ALBi = to_srgb(ALB.reshape(H, Wd, 3))
 ORM = np.stack([ao, np.clip(RGH, 0.04, 1), MET], 1).reshape(H, Wd, 3)
 np.savez_compressed(TD + '/fields.npz', alb=ALBi.astype(np.float32), nor=NOR.astype(np.float32), orm=ORM.astype(np.float32))
