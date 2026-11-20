@@ -15,6 +15,11 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Pillow': 'Almohadón', 'Green pillow': 'Almohadón verde', 'Letter block': 'Cubo con letra', 'Blue letter block': 'Cubo azul', 'Washing machine': 'Lavarropas',
   'Bucket': 'Balde', 'Blue bucket': 'Balde azul', 'Bar stool': 'Banqueta', 'Suitcase': 'Valija', 'Trash bag': 'Bolsa de basura', 'Shopping basket': 'Canasto',
   'Speaker': 'Parlante', 'Watering can': 'Regadera', 'Clothes rack': 'Perchero', 'Laptop': 'Laptop', 'Mini fridge': 'Heladerita', 'Food tray': 'Bandeja',
+  // harbour, camp and school props
+  'Buoy': 'Boya', 'Life ring': 'Salvavidas', 'Coil of rope': 'Rollo de soga', 'Fish crate': 'Cajón de pescado', 'Crab pot': 'Trampa para cangrejos',
+  'Camp lantern': 'Farol de camping', 'Log stump': 'Tocón', 'Sleeping bag': 'Bolsa de dormir', 'Backpack': 'Mochila', 'Camping cooler': 'Conservadora',
+  'School desk': 'Pupitre', 'School chair': 'Silla de escuela', 'Globe': 'Globo terráqueo', 'Basketball': 'Pelota de básquet',
+  'Someone here has an older copy of the game: this map is back once they reload': 'Alguien acá tiene una versión vieja del juego: este mapa vuelve cuando recargue la página',
   'a prop': 'un objeto',
   // HUD
   'Odd One Out game view': 'Vista del juego Odd One Out', 'Props': 'Objetos', 'Lobby': 'Sala', 'Hunters': 'Cazadores', 'Players': 'Jugadores',
