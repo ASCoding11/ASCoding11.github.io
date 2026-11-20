@@ -10,21 +10,27 @@ T0 = time.time()
 def log(*a): print('[%5.1fs]' % (time.time() - T0), *a, flush=True)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-H = L.build_human(height=0.55, muscle=0.7, weight=0.45, prop=0.8, skin='young_caucasian_male2', brows='eyebrow005', hair='short02',
-                  face=[('head/head-oval', 0.4), ('nose/nose-scale-horiz-decr', 0.3), ('nose/nose-point-width-decr', 0.2),
-                        ('chin/chin-width-decr', 0.3), ('mouth/mouth-scale-horiz-incr', 0.15), ('eyebrows/eyebrows-trans-up', 0.2),
-                        ('cheek/l-cheek-volume-decr', 0.3), ('cheek/r-cheek-volume-decr', 0.3)])
+import humans as HU
+H = L.build_human(**HU.ENEMY)
 log('human', max(v.co.z for v in H['body'].data.vertices))
 body = H['body']; P = G.coords(body.data)
 mats = O.materials_enemy(knee=PP.J(H, 'calf_l').z)
 import wear as WR
-mats['skin'] = WR.skin('e_skin', H['skin_png'], grime=0.3)
+import glob
+# a different skin per kind (with the three face morphs that gives twelve combinations)
+SKIN = {'rifleman': 'young_caucasian_male2', 'officer': 'middleage_caucasian_male', 'sniper': 'young_caucasian_male', 'gunner': 'old_caucasian_male'}
+SKINMAT = {k: WR.skin('e_skin_' + k, glob.glob(L.MHA + '/skins/%s/*.png' % v)[0], grime=0.3) for k, v in SKIN.items()}
+# the hair under a helmet or cap crown is never seen: trim it (inside a shell a little smaller than the helmet)
+_hel, _hc, _hr = O.helmet_stahl(H)
+PP.trim_hair(H['hair'], _hc + Vector((0, 0, 0.02)), (_hr[0] - 0.02, _hr[1] - 0.02))
+bpy.data.objects.remove(_hel)
+log('hair tris after trim', G.tris(H['hair']))
 UPPER = {'rifleman': 'tunic', 'gunner': 'tunic', 'officer': 'coat', 'sniper': 'smock'}
 lows = []
 for kind in KINDS:
     up = UPPER[kind]
     labels = O.label_enemy(H, P, up)
-    disp = {up: 0.012, 'trousers': 0.01, 'boot': 0.004, 'skin': 0.0}
+    disp = {up: 0.009, 'trousers': 0.01, 'boot': 0.004, 'skin': 0.0}
     smooth = {up: 1.0, 'trousers': 0.8, 'boot': 1.0, 'skin': 0.0}
     alpha = {up: 0.4, 'trousers': 0.55, 'boot': 0.85}
     slack = {up: 0.008 if kind != 'sniper' else 0.014, 'trousers': 0.016, 'boot': 0.006}
@@ -40,6 +46,7 @@ for kind in KINDS:
     for ob, mn in gear:
         if ob.name.startswith(('Helmet', 'Cap')): continue
         G.transfer_weights(ob, cloth)
+    mats['skin'] = SKINMAT[kind]
     PP.assign_mats(cloth, mats)
     for ob, mn in gear:
         ob.data.materials.clear(); ob.data.materials.append(mats[mn])

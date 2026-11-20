@@ -12,21 +12,17 @@ T0 = time.time()
 def log(*a): print('[%5.1fs]' % (time.time() - T0), *a, flush=True)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-FACES = {'ally': [('head/head-round', 0.3), ('nose/nose-scale-horiz-incr', 0.35), ('nose/nose-trans-down', 0.2), ('chin/chin-width-incr', 0.3),
-                   ('mouth/mouth-scale-horiz-incr', 0.2), ('eyebrows/eyebrows-angle-down', 0.3), ('cheek/l-cheek-volume-incr', 0.25), ('cheek/r-cheek-volume-incr', 0.25)]}
-H = L.build_human(height=0.55 if KIND == 'hero' else 0.45, muscle=0.75 if KIND == 'hero' else 0.65, weight=0.45 if KIND == 'hero' else 0.55, prop=0.85,
-                  skin='young_caucasian_male' if KIND == 'hero' else 'middleage_caucasian_male', brows='eyebrow001' if KIND == 'hero' else 'eyebrow009',
-                  face=FACES.get(KIND) or [('head/head-square', 0.35), ('chin/chin-prominent-incr', 0.3), ('nose/nose-scale-vert-incr', 0.2),
-                        ('mouth/mouth-scale-horiz-decr', 0.1), ('cheek/l-cheek-bones-incr', 0.3), ('cheek/r-cheek-bones-incr', 0.3),
-                        ('eyebrows/eyebrows-trans-down', 0.4), ('neck/neck-scale-horiz-incr', 0.4)])
+import humans as HU
+H = L.build_human(**HU.PARAMS[KIND])
 log('human built', max(v.co.z for v in H['body'].data.vertices))
 body = H['body']
 P = G.coords(body.data)
 labels = O.label_hero(H, P)
 cloth = PP.cloth_body(H, labels,
-                      disp={'jacket': 0.012, 'trousers': 0.008, 'boot': 0.004, 'glove': 0.002, 'skin': 0.0},
+                      disp={'jacket': 0.008, 'trousers': 0.008, 'boot': 0.004, 'glove': 0.002, 'skin': 0.0},
                       smooth={'jacket': 1.0, 'trousers': 0.8, 'boot': 1.0, 'glove': 0.3, 'skin': 0.0},
-                      alpha={'jacket': 0.4, 'trousers': 0.55, 'boot': 0.9}, slack={'jacket': 0.006, 'trousers': 0.014, 'boot': 0.01})
+                      alpha={'jacket': 0.4, 'trousers': 0.55, 'boot': 0.9}, slack={'jacket': 0.003, 'trousers': 0.014, 'boot': 0.01},
+                      torso_dilate=0.04)
 log('cloth body')
 gear = O.gear_hero(H, cloth)
 helmet, hc, hr = O.helmet_m1(H)
