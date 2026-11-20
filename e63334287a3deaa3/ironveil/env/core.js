@@ -11,8 +11,8 @@
   // tex: hero texture size, texLo: everything else. grass*: see grass.js. post / pom / shadows decided here too.
   E.QUALITY = {
     low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 8, grassMid: 22, grassDens: 40, grassMidDens: 5, bladeSegs: 1, seedHeads: false, carpetDens: 110, carpetR: 5, treeLod: 18, plantKinds: ['wheat', 'maize', 'reeds'], detailDist: 18, decals: 64 },
-    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: 8, pomFar: 9, post: true, aniso: 8, grassNear: 10, grassMid: 34, grassDens: 40, grassMidDens: 5, bladeSegs: 2, carpetSegs: 1, seedHeads: false, carpetDens: 210, carpetR: 7, treeLod: 26, detailDist: 21, decals: 160 },
-    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: 14, pomFar: 13, post: true, aniso: 16, carpetSegs: 1, grassNear: 14, grassMid: 45, grassDens: 38, grassMidDens: 8, bladeSegs: 3, seedHeads: true, carpetDens: 160, carpetR: 8, treeLod: 45, detailDist: 35, decals: 256 }
+    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: 6, pomFar: 5.5, pomOnly: /^brick/, post: true, aniso: 8, grassNear: 10, grassMid: 34, grassDens: 40, grassMidDens: 5, bladeSegs: 2, carpetSegs: 1, seedHeads: false, carpetDens: 210, carpetR: 7, treeLod: 26, detailDist: 21, decals: 160 },
+    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: 11, pomFar: 9, pomOnly: /^(brick|fieldstone|ashlar)/, post: true, aniso: 16, carpetSegs: 1, grassNear: 14, grassMid: 45, grassDens: 38, grassMidDens: 8, bladeSegs: 3, seedHeads: true, carpetDens: 160, carpetR: 8, treeLod: 45, detailDist: 35, decals: 256 }
   };
   E.Q = E.QUALITY.medium;
 
@@ -247,7 +247,9 @@
     const defs = {};
     if (R.id) defs.ENV_ID = '';
     if (R.mask) defs.ENV_METALMASK = '';
-    if (R.pom && E.Q.pom && !R.glass) { defs.ENV_POM = ''; defs.ENV_POM_STEPS = E.Q.pom + '.0'; defs.ENV_POM_FAR = (E.Q.pomFar || 8) + '.0'; }
+    // parallax only where it is seen and cheap (owner, 20 Nov): Medium brick walls within ~5 m, High brick and stone
+    // within ~9 m, never roofs; everything else keeps the normal map and joint occlusion
+    if (R.pom && E.Q.pom && !R.glass && (!E.Q.pomOnly || E.Q.pomOnly.test(R.tex || ''))) { defs.ENV_POM = ''; defs.ENV_POM_STEPS = E.Q.pom + '.0'; defs.ENV_POM_FAR = (E.Q.pomFar || 8) + '.0'; }
     if (!R.noFoot) defs.ENV_FOOT = '';
     m.defines = Object.assign(m.defines || {}, defs);
     const uni = {
