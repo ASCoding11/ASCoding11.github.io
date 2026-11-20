@@ -26,6 +26,7 @@
  *    aim/hold/fire clips (actor.leftHandIK = 0..1 forces it).
  *  - Set IVChars.camera = yourCamera for the enemy LOD switch (IVChars.lodDistance, default 22 m) and for updating far
  *    actors (beyond IVChars.throttleDistance, default 45 m) every other frame.
+ *    A full weapon model held by anyone but the hero switches to its reduced model beyond IVChars.weaponLodDistance (6 m).
  *  - Weapons: barrel along +Z, up +Y, origin at the right-hand grip; userData.muzzle (Object3D, use its world position),
  *    userData.gripR / gripL (hand frames). Drop a gun on death with actor.detach(gun) and add it to the scene.
  * Assets and their licences: CREDITS.md. Pipeline notes: README section "Ironveil characters".
@@ -68,7 +69,7 @@
 
   var IV = window.IVChars = {
     info: { loaded: false, fallback: false, files: {}, bytes: 0, errors: [], version: VERSION },
-    clips: [], camera: null, lodDistance: 22, throttleDistance: 45
+    clips: [], camera: null, lodDistance: 22, throttleDistance: 45, weaponLodDistance: 6
   };
   var META = {}, gltf = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {}, WTEMPLATES = {}, TRIS = {}, upperSet = null;
 
@@ -557,6 +558,11 @@
     }
     this.attached.push({ obj: obj, socket: socket });
     if (socket === 'handR') this.held = obj;
+    // reduced weapon model for characters other than the player beyond IV.weaponLodDistance (see update)
+    if (socket === 'handR' && !obj.userData.lodTwin && WTEMPLATES[obj.userData.kind + 'Lod'] && WTEMPLATES[obj.userData.kind]) {
+      var tw = IV.weapon(obj.userData.kind, { lod: true });
+      tw.visible = false; tw.userData.isLodTwin = true; obj.add(tw); obj.userData.lodTwin = tw; obj.userData.lodOn = false;
+    }
     return this;
   };
   AP._restWorld = function (bn) {
@@ -585,6 +591,15 @@
         this.lodLevel = lod;
         this.meshes.forEach(function (m) { m.visible = !lod || /Hair/.test(m.name) ? !lod : false; });
         this.lods.forEach(function (m) { m.visible = !!lod; });
+      }
+    }
+    // weapon in hand: full model for the player, the reduced one for others beyond a few metres
+    var hw = this.held && this.held.userData.lodTwin;
+    if (hw) {
+      var wl = this.kind !== 'hero' && IV.camera && far > (IV.weaponLodDistance || 6);
+      if (wl !== this.held.userData.lodOn) {
+        this.held.userData.lodOn = wl; hw.visible = wl;
+        this.held.children.forEach(function (c) { if (c !== hw && c.isMesh) c.visible = !wl; c !== hw && c.traverse && c.traverse(function (m) { if (m.isMesh && m !== c) m.visible = !wl; }); });
       }
     }
     this._frame++;
