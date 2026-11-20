@@ -466,8 +466,9 @@ const MOD={
     coinArc(tr,x,y,15*Math.cos(rad(22)),15*Math.sin(rad(22)),3,0.16);MOD.loop.f(tr,R,run,0)}},
   // two loops back to back, the second straight off the first
   loop2:{need:1,f(tr,R1=3.4,R2=4,g=12){MOD.loop.f(tr,R1,16,0);MOD.loop.f(tr,R2,g,0)}},
-  // half-pipe: roll down into a U, up the far wall and off a steep lip (ang degrees): too steep to land without a flip
-  hpipe:{need:1,f(tr,d=3,ang=72,h=3.4,drop=9){seg(tr,12,0);ease(tr,2.2*d,-d);seg(tr,3,0);arcUp(tr,rad(ang),h);seg(tr,1.5*Math.cos(rad(ang)),1.5*Math.sin(rad(ang)));lip(tr);const x=tr.cx,y=tr.cy;
+  // half-pipe: roll down into a U (a long roll-in, so a fast bike stays on it), up the far wall and off a steep lip (ang degrees):
+  // too steep to land without a flip
+  hpipe:{need:1,f(tr,d=3,ang=72,h=3.4,drop=9){seg(tr,8,0);ease(tr,Math.max(18,6*d),-d);seg(tr,2,0);arcUp(tr,rad(ang),h);seg(tr,1.5*Math.cos(rad(ang)),1.5*Math.sin(rad(ang)));lip(tr);const x=tr.cx,y=tr.cy;
     gapTo(tr,4.2,-1.8);const s=Math.tan(rad(36)),L=(drop+h-d-1.8-2)/s;seg(tr,L,-s*L);bend(tr,10,-s);coinArc(tr,x,y,4.5,13,6,0.25);seg(tr,12,0)}},
   // launch pad: a boost strip into a kicker, a long gap (w) and a landing ramp dy metres above or below the lip
   launch:{need:1,f(tr,w=18,dy=0,ang=26,bl=6,tok=0){seg(tr,8,0);boostSeg(tr,bl);seg(tr,3,0);arcUp(tr,rad(ang),1.1);lip(tr);const x=tr.cx,y=tr.cy;
@@ -580,7 +581,7 @@ const PICK=[
   ['loop',6,0,(d,r)=>{const R=R_(r,3.4,3.8+1.6*D1(d)+0.4*Math.max(0,d-1));return[R,R_(r,12,16),R>4.2?Math.round(R*2):0,r()<0.15?1:0]}],
   ['jumploop',4,0.2,(d,r)=>[R_(r,0.9,1.2),R_(r,3.6,4.0+0.8*D1(d)),R_(r,5,8)]],
   ['loop2',3,0.35,(d,r)=>[R_(r,3.2,3.8+0.8*D1(d)),R_(r,3.6,4.2+1*D1(d)),R_(r,10,14)]],
-  ['hpipe',5,0.1,(d,r)=>[R_(r,2.8,3.4),R_(r,67,70),R_(r,2.8,3.0),R_(r,8,10)]],
+  ['hpipe',5,0.1,(d,r)=>[R_(r,3.2,3.6),R_(r,66,69),R_(r,2.4,2.6),R_(r,8,10)]],
   ['launch',5,0.05,(d,r)=>[R_(r,14,18+8*d),R_(r,-4,0.5+1.0*D1(d)),R_(r,22,28),6,r()<0.15?1:0]],
   ['boost',2,0.1,(d,r)=>[R_(r,8,12)]],
   ['crumble',4,0.2,(d,r)=>[2+Math.floor(r()*2+0.6*D1(d)),R_(r,4.6,5)-0.8*D1(d),R_(r,1.2,1.5+1.0*d)]],
