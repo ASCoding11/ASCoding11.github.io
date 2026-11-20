@@ -360,11 +360,37 @@
       }
       if (self.onFinished && n) self.onFinished(n);
     });
+    // face morphs: 'faceB'/'faceC' pick one of three enemy faces; 'blink' closes the hero's and ally's lids
+    this._morphMeshes = meshes.filter(function (m) { return m.morphTargetDictionary && m.morphTargetInfluences; });
+    this._blinkT = 1 + Math.random() * 3; this._blink = 0;
+    if (!/^(hero|ally)$/.test(kind)) this.setFace(Actor._faceN = ((Actor._faceN || 0) + 1) % 3);
     this.play('idle', { fade: 0 });
     // settle on the idle pose now, so the first frame drawn after spawn is never the bind pose
     this.mixer.update(0); this.root.updateMatrixWorld(true);
   }
   var AP = Actor.prototype;
+  AP.setMorph = function (name, v) {
+    if (this.fb) return this;
+    for (var i = 0; i < this._morphMeshes.length; i++) {
+      var m = this._morphMeshes[i], k = m.morphTargetDictionary[name];
+      if (k != null) m.morphTargetInfluences[k] = v;
+    }
+    return this;
+  };
+  // one of three faces (0, 1, 2) on the enemy kinds; ignored where a model has no face morphs
+  AP.setFace = function (i) {
+    this.face = ((i | 0) % 3 + 3) % 3;
+    return this.setMorph('faceB', this.face === 1 ? 1 : 0).setMorph('faceC', this.face === 2 ? 1 : 0);
+  };
+  // blinks every 2-6 s (close 0.07 s, open 0.13 s); dead or far actors do not blink
+  AP._blinkUpdate = function (dt, far) {
+    if (!this._morphMeshes.length || far > 15) return;
+    this._blinkT -= dt;
+    if (this._blinkT <= 0) { this._blink += dt; var b = this._blink, w = b < 0.07 ? b / 0.07 : (b < 0.11 ? 1 : Math.max(0, 1 - (b - 0.11) / 0.13));
+      this.setMorph('blink', w * w * (3 - 2 * w));
+      if (b > 0.24) { this._blink = 0; this._blinkT = 2 + Math.random() * 4; this.setMorph('blink', 0); }
+    }
+  };
   AP._action = function (clip, tag) {
     var a = this.mixer.clipAction(clip);
     a._ivName = tag;
@@ -538,6 +564,7 @@
     this.aimP += (this.aimPT - this.aimP) * k; this.aimY += (this.aimYT - this.aimY) * k;
     if (Math.abs(this.aimP) > 1e-4 || Math.abs(this.aimY) > 1e-4) this._applyAim();
     if (this.driven) this._post(dt, far); else this._flinch(dt);
+    if (!(this.cur && /^death|takedownVictim/.test(this.cur.name))) this._blinkUpdate(dt, far); else this.setMorph('blink', 1);
     // left hand onto the fore-end
     var want = 0;
     if (held && held.userData.gripL && held.userData.long !== undefined) {
@@ -859,9 +886,11 @@
     if (this.root.parent) this.root.parent.remove(this.root);
   };
 
-  IV.spawn = function (kind) {
+  IV.spawn = function (kind, opts) {
     if (!(kind in KINDS)) kind = 'rifleman';
-    return new Actor(kind);
+    var a = new Actor(kind);
+    if (opts && opts.face != null && !a.fb) a.setFace(opts.face);
+    return a;
   };
 
   // =====================================================================================

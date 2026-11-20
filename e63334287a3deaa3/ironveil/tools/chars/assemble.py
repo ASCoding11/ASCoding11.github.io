@@ -3,6 +3,19 @@ import bpy, sys, os, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mhlib as L, geo as G, pipe as PP
 
+MORPHS = {'hero': ['blink'], 'ally': ['blink'], 'enemy': ['faceB', 'faceC']}
+def add_morphs(kind, lows, parts):
+    """Face morph targets from morphs.py (work/morph_<kind>.npz), matched to the final meshes by vertex position."""
+    import numpy as np, morphs as MO
+    path = L.WORK + '/morph_%s.npz' % kind
+    if not os.path.exists(path): print('no morph data', path); return
+    npz = dict(np.load(path)); names = MORPHS[kind]
+    for low in (lows if isinstance(lows, list) else [lows]):
+        print('morphs', low.name, MO.apply(low, 'body', npz, names))
+    part_of = {'Hair': 'hair', 'Brows': 'brows', 'Lashes': 'lashes', 'Eyes': 'eyes'}
+    for o, _, _ in parts:
+        print('morphs', o.name, MO.apply(o, part_of.get(o.name, 'body'), npz, names))
+
 def assemble(blend, name, td, out, hair_parts, helmet_trim=True, with_anims=(), extra_meshes=()):
     bpy.ops.wm.open_mainfile(filepath=blend)
     rig = bpy.data.objects['Armature']
@@ -21,6 +34,7 @@ def assemble(blend, name, td, out, hair_parts, helmet_trim=True, with_anims=(), 
         for m in list(o.modifiers): o.modifiers.remove(m)
         objs.append((o, img, rect))
     PP.hair_atlas(objs, td + '/hair.png', 1024)
+    add_morphs(name.lower(), low, objs)
     hair = G.join([o for o, _, _ in objs], name + 'Hair')
     hm = PP.final_material(name + 'HairMat', {'albedo': td + '/hair.png'}, alpha=True, rough=0.5)
     hair.data.materials.clear(); hair.data.materials.append(hm)
@@ -85,6 +99,7 @@ def assemble_enemy(out):
         for m in list(o.modifiers): o.modifiers.remove(m)
         parts.append((o, img, rect))
     PP.hair_atlas(parts, td + '/hair.png', 1024)
+    add_morphs('enemy', [bpy.data.objects[k.capitalize()] for k in ('rifleman', 'officer', 'sniper', 'gunner')], parts)
     hair = G.join([o for o, _, _ in parts], 'EnemyHair')
     hm = PP.final_material('EnemyHairMat', {'albedo': td + '/hair.png'}, alpha=True, rough=0.5)
     hair.data.materials.clear(); hair.data.materials.append(hm)
