@@ -267,4 +267,106 @@
     const v = E.U.uPush.value;
     for (let i = 0; i < 8; i++) { const p = list && list[i]; if (p) v[i].set(p.x, p.z, p.r || 0.8, p.s == null ? 1 : p.s); else v[i].set(0, 0, 0, 0); }
   };
+
+  // ------------------------------------------------------------------ background activity (not gameplay)
+  // IVEnv.backdrop(scene, spec) -> { group, info() }: far-off life that is cheap and never reads as an enemy.
+  //   spec.searchlights: [[x, z]] sites far away, beams sweeping the sky
+  //   spec.flak: [[x, z]] sites: shell bursts high up and slow tracer streams climbing
+  //   spec.planes: true -> dark aircraft crossing high (an 'ambience' event 'drone' while one is overhead)
+  //   spec.chutes: [[x, z]] a few distant parachutes drifting down during the first minute
+  //   spec.bombing: [[x, z]] flashes beyond the hills ('ambience' 'rumble' after the sound delay)
+  //   spec.fires: [[x, z, scale]] a burning place on the horizon: glow and a lit smoke column
+  //   spec.flares: [[x, z]] areas where flares rise, hang and drift down
+  //   spec.smoke: [[x, y, z, dark]] chimney smoke; spec.birds: [[x, z, r, h]] flocks wheeling; spec.bats: [[x, z]]
+  //   spec.squalls: [[x, z]] rain curtains hanging over far hills; spec.truck: { path: [[x, z]], heightAt, speed }
+  //   spec.pennant: { x, y, z } a plain camp pennant flying from a mast (no emblem)
+  //   spec.sounds: [{ kind, every: [a, b], x, z }] 'ambience' events for the game's audio (dog, bell, rifle, owl)
+  // opts.reduced (Reduced motion) slows and thins everything and turns off flashes; Low quality halves the counts.
+  let softTex = null;
+  function soft() { if (softTex) return softTex; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); softTex = new THREE.CanvasTexture(c); return softTex; }
+  E.backdrop = function (scene, spec, opts) {
+    opts = opts || {}; spec = spec || {};
+    const red = !!opts.reduced, low = E.Q.name === 'low', k = (low ? 0.5 : 1) * (red ? 0.5 : 1), R = E.rng(4242), group = new THREE.Group(); group.name = 'IVEnv.backdrop';
+    const parts = [], emit = opts.emit || (() => {});
+    const sprite = (col, add, op) => { const m = new THREE.SpriteMaterial({ map: soft(), color: col, transparent: true, opacity: op == null ? 1 : op, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, fog: !add }); const sp = new THREE.Sprite(m); sp.userData.dynamic = true; group.add(sp); return sp; };
+    // searchlights: long thin additive cones from the ground, sweeping slowly
+    for (const [x, z] of spec.searchlights || []) {
+      const g = new THREE.CylinderGeometry(4, 0.4, 420, 10, 1, true); g.translate(0, 210, 0);
+      const m = new THREE.MeshBasicMaterial({ color: 0x8090a8, transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+      const b = new THREE.Mesh(g, m); b.position.set(x, opts.heightAt ? opts.heightAt(x, z) : 0, z); b.userData.dynamic = true; group.add(b);
+      const ph = R() * 6.28, sp = 0.05 + R() * 0.06; parts.push((t) => { b.rotation.set(0.28 + 0.22 * Math.sin(t * sp * 1.7 + ph), t * sp + ph, 0.18 * Math.sin(t * sp * 1.3 + ph * 2)); });
+    }
+    // flak: bursts and tracer
+    if ((spec.flak || []).length) {
+      const bursts = []; for (let i = 0; i < Math.round(10 * k); i++) { const s = sprite(0xffd8a0, true, 0); s.scale.set(14, 14, 1); bursts.push({ s, t: -R() * 6 }); }
+      const tr = []; for (let i = 0; i < Math.round(8 * k); i++) { const s = sprite(0xffb070, true, 0); s.scale.set(2.2, 2.2, 1); tr.push({ s, t: R() * 4, site: spec.flak[i % spec.flak.length], a: R() * 6.28, sp: 60 + R() * 40 }); }
+      parts.push((t, dt) => {
+        for (const b of bursts) { b.t -= dt; if (b.t < 0) { const st = spec.flak[(R() * spec.flak.length) | 0]; b.s.position.set(st[0] + R.range(-90, 90), 160 + R() * 160, st[1] + R.range(-90, 90)); b.t = (red ? 3 : 1.2) + R() * 4; b.life = 0; }
+          b.life = (b.life || 0) + dt; const f = Math.max(0, 1 - b.life / 0.35); b.s.material.opacity = red ? 0 : f * 0.9; const smk = Math.min(1, b.life / 0.4); b.s.scale.setScalar(10 + smk * 8); }
+        for (const q of tr) { q.t += dt; if (q.t > 4) { q.t = 0; q.a = R() * 6.28; } const h = q.t * q.sp; q.s.position.set(q.site[0] + Math.cos(q.a) * q.t * 6, 20 + h, q.site[1] + Math.sin(q.a) * q.t * 6); q.s.material.opacity = (q.t < 3.5 ? 0.9 : (4 - q.t) * 1.8) * (Math.sin(q.t * 40) > -0.2 ? 1 : 0.2); }
+      });
+    }
+    // aircraft: dark cross shapes crossing high, a drone event while overhead
+    if (spec.planes) {
+      const shape = new THREE.Group(); const mm = new THREE.MeshBasicMaterial({ color: 0x07080b, fog: false });
+      shape.add(new THREE.Mesh(new THREE.BoxGeometry(14, 1.6, 1.8), mm)); const wing = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.35, 26), mm); wing.position.x = 1.5; shape.add(wing); const tail = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 8), mm); tail.position.x = -6.2; shape.add(tail);
+      const planes = []; for (let i = 0; i < Math.round(3 * k + 1); i++) { const p = shape.clone(); p.userData.dynamic = true; group.add(p); planes.push({ p, t: R() * 40, z0: R.range(-500, 500), y: 260 + R() * 160, sp: 55 + R() * 20, dir: R() < 0.5 ? 1 : -1, said: false }); }
+      parts.push((t, dt, cam) => { for (const q of planes) { q.t += dt; const L = 2400, x = -1200 + ((q.t * q.sp) % L); q.p.position.set(x * q.dir, q.y, q.z0 + x * 0.25); q.p.rotation.y = q.dir > 0 ? -0.245 : Math.PI - 0.245; const near = Math.abs(q.p.position.x - cam.position.x) < 300; if (near && !q.said) { q.said = true; emit({ kind: 'drone', x: q.p.position.x, z: q.p.position.z }); } if (!near) q.said = false; } });
+    }
+    // distant parachutes in the first minute
+    for (const [x, z] of spec.chutes || []) for (let i = 0; i < 3; i++) {
+      const c = new THREE.Mesh(new THREE.SphereGeometry(3, 8, 4, 0, 6.28, 0, 1.4), new THREE.MeshBasicMaterial({ color: 0x9a9890, fog: true })); c.userData.dynamic = true; group.add(c);
+      const ox = x + R.range(-40, 40), oz = z + R.range(-40, 40), y0 = 120 + R() * 60, d = R() * 8; parts.push((t) => { const tt = Math.max(0, t - d); c.position.set(ox + tt * 0.8, Math.max(-20, y0 - tt * 4.5), oz + Math.sin(tt * 0.4) * 4); c.visible = t < 70; });
+    }
+    // bombing beyond the hills: an orange flash low on the horizon, rumble after the sound delay
+    if ((spec.bombing || []).length) {
+      const f = sprite(0xff9a50, true, 0); f.scale.set(160, 60, 1); let next = 4, life = 9;
+      parts.push((t, dt, cam) => { next -= dt; life += dt; if (next < 0) { const st = spec.bombing[(R() * spec.bombing.length) | 0]; f.position.set(st[0] + R.range(-60, 60), 25, st[1] + R.range(-60, 60)); life = 0; next = 6 + R() * 14; const dd = Math.hypot(f.position.x - cam.position.x, f.position.z - cam.position.z); emit({ kind: 'rumble', delay: dd / 343, x: f.position.x, z: f.position.z }); }
+        f.material.opacity = red ? 0.12 * Math.max(0, 1 - life / 2) : (life < 0.15 ? 0.6 : life < 0.3 ? 0.25 : life < 0.45 ? 0.5 : Math.max(0, 0.5 - (life - 0.45) * 0.6)); });
+    }
+    // fires on the horizon: a glow and a smoke column lit from below
+    for (const [x, z, sc] of spec.fires || []) {
+      const y = opts.heightAt ? opts.heightAt(x, z) : 0, s0 = sc || 1, glow = sprite(0xff7a30, true, 0.55); glow.position.set(x, y + 6 * s0, z); glow.scale.set(40 * s0, 18 * s0, 1);
+      const puffs = []; for (let i = 0; i < Math.round(14 * k + 4); i++) { const p = sprite(0x1a1714, false, 0.5); puffs.push({ p, t: i / 14 * 30 }); }
+      parts.push((t, dt) => { glow.material.opacity = 0.45 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 3.1); for (const q of puffs) { q.t = (q.t + dt * (red ? 0.5 : 1)) % 30; const u = q.t / 30; q.p.position.set(x + u * 60 * s0, y + 8 * s0 + u * 140 * s0, z + Math.sin(u * 5) * 6); q.p.scale.setScalar((10 + u * 50) * s0); q.p.material.opacity = 0.55 * (1 - u) * Math.min(1, q.t * 2); q.p.material.color.setRGB(0.1 + 0.5 * Math.max(0, 0.25 - u) * 4 * 0.25, 0.09 + 0.15 * Math.max(0, 0.25 - u), 0.08); } });
+    }
+    // flares: rise, hang, drift down burning, a pause, again
+    for (const [x, z] of spec.flares || []) {
+      const f = sprite(0xfff0d0, true, 0); f.scale.set(6, 6, 1); let t0 = R() * 20, ox = x, oz = z;
+      parts.push((t, dt) => { t0 += dt; const T = 26, u = t0 % T; if (u < dt) { ox = x + R.range(-80, 80); oz = z + R.range(-80, 80); } const y = u < 3 ? u * 45 : 135 - (u - 3) * 4; f.position.set(ox + (u > 3 ? (u - 3) * 1.2 : 0), y, oz); f.material.opacity = u < 3 ? 0.4 : u < 18 ? (red ? 0.4 : 0.85 + 0.15 * Math.sin(t * 23)) : 0; });
+    }
+    // chimney smoke
+    for (const [x, y, z, dark] of spec.smoke || []) {
+      const puffs = []; for (let i = 0; i < Math.round(6 * k + 2); i++) puffs.push({ p: sprite(dark ? 0x3a3836 : 0x8a8a88, false, 0), t: i / 6 * 9 });
+      parts.push((t, dt) => { for (const q of puffs) { q.t = (q.t + dt) % 9; const u = q.t / 9; q.p.position.set(x + u * 5, y + u * 9, z + Math.sin(u * 4 + x) * 0.8); q.p.scale.setScalar(0.8 + u * 4.5); q.p.material.opacity = 0.35 * (1 - u) * Math.min(1, q.t * 3); } });
+    }
+    // birds and bats: dark specks wheeling
+    for (const [x, z, r, h, n] of (spec.birds || []).concat((spec.bats || []).map(b => [b[0], b[1], 14, 9, 5]))) {
+      const fl = []; for (let i = 0; i < Math.round((n || 12) * k); i++) { const p = sprite(0x0c0c0c, false, 0.9); p.scale.set(0.9, 0.35, 1); fl.push({ p, a: R() * 6.28, rr: r * (0.6 + R() * 0.5), hh: h + R() * 6, sp: 0.15 + R() * 0.2 }); }
+      parts.push((t) => { for (const q of fl) { const a = q.a + t * q.sp; q.p.position.set(x + Math.cos(a) * q.rr, q.hh + Math.sin(t * 2 + q.a) * 1.5, z + Math.sin(a * 1.3) * q.rr); q.p.scale.y = 0.2 + 0.25 * Math.abs(Math.sin(t * 9 + q.a)); } });
+    }
+    // rain squalls on the far hills: tall soft grey curtains drifting
+    for (const [x, z] of spec.squalls || []) {
+      const m = new THREE.MeshBasicMaterial({ map: soft(), color: 0x5a6068, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, fog: false });
+      const q = new THREE.Mesh(new THREE.PlaneGeometry(220, 140), m); q.position.set(x, 50, z); q.userData.dynamic = true; group.add(q);
+      parts.push((t, dt, cam) => { q.position.x = x + Math.sin(t * 0.01) * 60; q.lookAt(cam.position.x, 50, cam.position.z); });
+    }
+    // a lorry on the far road
+    if (spec.truck && E.prop) {
+      const tr = E.prop('truck', 77).group; tr.userData.dynamic = true; group.add(tr); const P = spec.truck.path, L = []; let tot = 0; for (let i = 0; i < P.length - 1; i++) { const l = Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]); L.push(l); tot += l; }
+      parts.push((t) => { let d = (t * (spec.truck.speed || 6)) % (tot * 2); if (d > tot) d = 2 * tot - d; let i = 0; while (i < L.length - 1 && d > L[i]) { d -= L[i]; i++; } const a = P[i], b = P[i + 1], u = Math.min(1, d / L[i]), x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u; tr.position.set(x, spec.truck.heightAt ? spec.truck.heightAt(x, z) : 0, z); tr.rotation.y = Math.atan2(-(b[1] - a[1]), b[0] - a[0]); });
+    }
+    // a plain pennant on the mast
+    if (spec.pennant) {
+      const g = new THREE.PlaneGeometry(1.8, 0.9, 10, 2); g.translate(0.9, 0, 0); const base = g.attributes.position.array.slice();
+      const fl = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x3c4a34, side: THREE.DoubleSide, roughness: 0.9 })); fl.position.set(spec.pennant.x, spec.pennant.y, spec.pennant.z); fl.userData.dynamic = true; group.add(fl);
+      parts.push((t) => { const a = g.attributes.position.array; for (let i = 0; i < a.length; i += 3) { const u = base[i] / 1.8; a[i + 2] = Math.sin(t * (red ? 2 : 5) - u * 6) * 0.18 * u; a[i + 1] = base[i + 1] - u * 0.1; } g.attributes.position.needsUpdate = true; g.computeVertexNormals(); });
+    }
+    // sound hooks for the game's audio
+    for (const sd of spec.sounds || []) { let next = sd.every[0] + R() * (sd.every[1] - sd.every[0]); parts.push((t, dt) => { next -= dt; if (next < 0) { next = sd.every[0] + R() * (sd.every[1] - sd.every[0]); emit({ kind: sd.kind, x: sd.x, z: sd.z }); } }); }
+    scene.add(group);
+    let T = 0;
+    (E._updaters = E._updaters || []).push((dt, cam) => { if (!group.parent) return; T += dt; for (const f of parts) f(T, dt, cam); });
+    return { group, info: () => ({ parts: parts.length, objects: group.children.length }) };
+  };
 })();

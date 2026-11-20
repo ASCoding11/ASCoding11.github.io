@@ -69,6 +69,11 @@
     A.chimneys.push(...r.chimneys);
     return r;
   };
+  // far-off life in the background (searchlights, flak, aircraft, fires, smoke, birds, a lorry...); visual only.
+  // Sound hooks arrive as IV.emit('ambience', { kind, x, z, delay }) for the game's audio. Follows Reduced motion.
+  A.backdrop = function (spec) { const E = env(); if (!E || !E.backdrop) return null; return safe(() => E.backdrop(W.scene, spec, { reduced: !!IV.settings.motion, heightAt: (x, z) => (Math.abs(x) < W.size / 2 && Math.abs(z) < W.size / 2) ? H(x, z) : (E.skirtHeightAt ? E.skirtHeightAt(x, z) : 0), emit: (a) => IV.emit('ambience', a) }), 'backdrop'); };
+  // paths for distant squads (drilling, running) that the game may fill with far-LOD soldiers: [{ path, loop, n, kind }]
+  A.squads = [];
   // props: positional args as kit.js takes them; IVEnv draws a matching prop at the same spot
   const PROP = { crate: 'crate', barrel: 'barrel', hay: 'haybale', woodpile: 'logpile', cart: 'cart', sandbags: 'sandbags', lamp: 'lamppost' };
   A.prop = function (kind, b, ...a) {
@@ -124,7 +129,7 @@
     if (pendingTrees.length && E.trees) { const t = safe(() => E.trees(pendingTrees), 'trees'); add(t); pendingTrees = []; }
     if (E.mergeStatic && W.envRoot) { const merged = safe(() => E.mergeStatic(W.envRoot, { cell: 48 }), 'merge'); if (merged && merged !== W.envRoot) { W.statics.remove(W.envRoot); W.statics.add(merged); W.envRoot = merged; } }
   };
-  A.reset = function () { pendingTrees = []; seedN = 1; W.envRoot = null; A.chimneys = []; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
+  A.reset = function () { pendingTrees = []; seedN = 1; W.envRoot = null; A.chimneys = []; A.squads = []; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
   // every bullet hit on the world (not on people): effects by surface, and IVEnv's own decal for that material
   A.impact = function (surface, p, n, dir) {
     IV.fx.impact(p.x, p.y, p.z, n.x, n.y, n.z, surface, dir);

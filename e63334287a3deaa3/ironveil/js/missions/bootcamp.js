@@ -164,7 +164,7 @@
         { kind: 'barn', w: 10, d: 16, x: 33, z: 96, rot: 0 },                               // motor pool shed
         { kind: 'office', w: 6, d: 4, x: 33, z: 69, rot: 0, out: 'brick_red' },             // fuel store
         { kind: 'office', w: 6, d: 4.5, x: 50, z: 166, rot: -H2 }                           // guardroom
-      ], { seed: 909, near: 90 });
+      ], { seed: 909 });
       if (IV.art.envOn()) {
         dress('truck', 26.5, 83.5, 0.15); dress('truck', 37, 82.5, -0.1); dress('car', 23.5, 106, 1.45);
         dress('drums', 28.5, 66.5, 0.4); dress('drums', 38.5, 66, 2.1); dress('guardtower', 50, 118, 0.1);
@@ -185,6 +185,13 @@
         if (IVEnv.fence) for (const pts of [[[-64, 192], [38, 192]], [[50, 192], [64, 192], [64, -334]], [[-64, 192], [-64, -334]]]) { try { const f = IVEnv.fence(pts, 'barbed', { heightFn: W.height, seed: 33 }); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(f.group); } catch (e) { console.warn('wire', e); } }
       }
     }
+    // life around the camp: a lorry on the far road, the camp pennant, cookhouse smoke, birds over the woods, rain
+    // squalls hanging on the far downs, rifle fire from the next range (sound hook); squads drilling on the parade
+    // square and a running party on the road out, as paths for the game's far soldiers
+    IV.art.backdrop({ truck: { path: [[44, 176], [46, 215], [36, 262], [12, 330], [-40, 430]], speed: 7 }, pennant: { x: -9.45, y: W.height(-9.5, 145) + 8.4, z: 145 },
+      smoke: [[28.4, W.height(32, 120) + 6.6, 120, false]], birds: [[-140, 80, 45, 28, 14], [120, -60, 55, 32, 12]], squalls: [[-380, -150], [320, 120]],
+      sounds: [{ kind: 'rifle', every: [2, 8], x: -220, z: -150 }, { kind: 'shout', every: [25, 60], x: -27, z: 155 }] });
+    IV.art.squads.push({ kind: 'drill', loop: true, n: 10, path: [[-36, 146], [-18, 146], [-18, 165], [-36, 165]] }, { kind: 'run', loop: true, n: 8, path: [[44, 180], [46, 215], [36, 262], [46, 215]] });
     // the backstop berm behind the 300 m target
     K.box(b, 'earth', 0, W.height(0, -300) - 1, -300, 40, 6, 6, 0, 0x7a6a50, F.SOLID | F.BULLET | F.SIGHT, 'mud', 0.3);
     K.finish(b);

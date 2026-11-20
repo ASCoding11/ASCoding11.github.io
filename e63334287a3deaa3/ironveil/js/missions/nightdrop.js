@@ -288,6 +288,13 @@
         return list; };
       if (IV.art.envOn()) IV.art.settle(b, [...village(330, -30, 14, 61, true), ...village(-70, -340, 10, 62, true), ...village(-310, 230, 9, 63, false), ...village(250, 300, 8, 64, false)], { seed: 626, shellOnly: true, heightFn: hFar, lights: false });
     }
+    // the war going on beyond the hills: searchlights, flak and tracer, aircraft, a burning village and a dump, flares,
+    // a few far parachutes at first, bombing flashes with a late rumble; smoke from the lit chimneys, bats by the church;
+    // a dog, the church bell and an owl as sound hooks. None of it is near the routes or reads as an enemy.
+    IV.art.backdrop({ searchlights: [[330, -120], [-280, -300], [250, 260]], flak: [[330, -120], [260, 230]], planes: true,
+      chutes: [[-260, 160], [-320, -40]], bombing: [[400, -220], [-400, -160]], fires: [[335, -25, 1.4], [-300, -270, 1]], flares: [[250, -160]],
+      smoke: IV.art.chimneys.map(c => [c.x, c.y, c.z, false]), bats: [[37, 88], [-150, -45]],
+      sounds: [{ kind: 'dog', every: [20, 50], x: 6, z: 62 }, { kind: 'bell', every: [70, 140], x: 37, z: 80 }, { kind: 'owl', every: [30, 70], x: -60, z: 110 }] });
     // scattered field trees
     [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)

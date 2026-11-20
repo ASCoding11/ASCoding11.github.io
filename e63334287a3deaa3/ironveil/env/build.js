@@ -792,7 +792,7 @@
     g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex([0, 3, 2, 0, 2, 1, 4, 5, 6, 4, 6, 7, 8, 10, 9, 11, 13, 12]); g.computeVertexNormals(); return g; })();
   E.settle = function (specs, opts) {
     opts = opts || {};
-    const Q = E.Q.name, near = opts.near || (Q === 'low' ? 32 : Q === 'high' ? 80 : 60), hf = opts.heightFn || (() => 0);
+    const Q = E.Q.name, near = opts.near || (Q === 'low' ? 28 : Q === 'high' ? 65 : 48), hf = opts.heightFn || (() => 0);
     const SB = E.builder(opts.seed || 77), detailRoot = new THREE.Group(), group = new THREE.Group(); group.name = 'IVEnv.settlement';
     const colliders = [], lights = [], chimneys = [], RR = E.rng((opts.seed || 77) * 3 + 1);
     for (const sp0 of specs) {
@@ -826,7 +826,7 @@
     }
     const shells = SB.finish(); shells.name = 'IVEnv.shells'; group.add(shells);
     if (detailRoot.children.length) {
-      const merged = E.mergeStatic ? E.mergeStatic(detailRoot, { cell: 40 }) : detailRoot; merged.name = 'IVEnv.settlement-detail'; group.add(merged);
+      const merged = E.mergeStatic ? E.mergeStatic(detailRoot, { cell: 80 }) : detailRoot; merged.name = 'IVEnv.settlement-detail'; group.add(merged);
       if (merged !== detailRoot && detailRoot.children.length) group.add(detailRoot);   // anything that could not merge
       const list = []; merged.traverse(o => { if (o.isMesh) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); list.push(o); } });
       const v = new THREE.Vector3();
