@@ -2890,7 +2890,7 @@ function tipFrame(dt) {
   const busy = G.V.ph !== 'run' || (myRec() && myRec().st !== 0) || !!G.scare;   // never over the scare, or while you're down
   if (G.tipT > 0) { G.tipT -= dt; if (G.tipT <= 0 || busy) { el.classList.remove('on'); G.tipK = ''; G.tipT = 0; G.tipGap = 0.8; } return; }
   if (G.tipGap > 0) { G.tipGap -= dt; return; }
-  if (busy || G.panel || !G.tipQ.length) return;
+  if (busy || G.panel || !G.tipQ.length || G.toastT > 0) return;   // (one message at a time: a toast goes first)
   const k = G.tipQ.shift(); SET.tips = SET.tips || {}; SET.tips[k] = 1; saveSet();
   G.tipK = k; G.tipT = 4.8; el.innerHTML = NIC[TIPS[k][0]] + '<span>' + TIPS[k][1] + '</span>'; el.classList.add('on');
 }
@@ -3422,8 +3422,8 @@ function drawHud(dt, it) {
   // how you're moving, and whether that makes a sound
   { const p = G.body, sp = Math.hypot(p.vx, p.vz); let sn = 'Still', sv = 'silent', loud = false;
     if (!me || me.st !== 0) { sn = me && me.st === 2 ? 'Down' : 'Held'; sv = ''; }
-    else if (p.inW) { sn = G.crouch ? 'Wading slowly' : isSprint() ? 'Running in water' : 'Wading'; sv = Math.hypot(p.vx, p.vz) > 0.3 ? 'noisy' : 'still: quiet'; loud = sv === 'noisy'; }
-    else if (!p.gr) { const k = G.pred ? G.pred.k : ''; sn = 'Jumping'; sv = k === 'quiet' ? 'quiet landing' : k === 'edge' || k === 'hard' ? 'loud landing' : k === 'climb' ? 'pull-up: noisy' : k === 'fall' ? 'into the water' : ''; loud = !!k && k !== 'quiet'; }
+    else if (p.inW) { sn = G.crouch ? 'Wading slow' : isSprint() ? 'Wading fast' : 'Wading'; sv = Math.hypot(p.vx, p.vz) > 0.3 ? 'noisy' : 'quiet'; loud = sv === 'noisy'; }
+    else if (!p.gr) { const k = G.pred ? G.pred.k : ''; sn = 'Jumping'; sv = k === 'quiet' ? 'quiet' : k === 'edge' || k === 'hard' ? 'loud' : k === 'climb' ? 'pull-up' : k === 'fall' ? 'water!' : ''; loud = !!k && k !== 'quiet'; }
     else if (sp > 0.4) { if (G.crouch) sn = 'Creeping'; else if (isSprint() && sp > TUNING.walk * 1.1) { sn = 'Running'; sv = 'noisy'; loud = true; } else sn = 'Walking'; }
     const key = sn + sv; if (G.stanceK !== key) { G.stanceK = key; $('stanceN').textContent = sn; const b = $('stanceV'); b.textContent = sv; b.className = loud ? 'n' : 's'; } }
   // labels where noises happened
