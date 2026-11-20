@@ -32,8 +32,8 @@
     const E = env(); if (E && E.hedge) { collidersOnly(() => K.hedgerow(b, pts, gaps, o)); return add(safe(() => E.hedge(pts, { h: (o && o.h != null ? o.h : 2.4) + (o && o.bank != null ? o.bank : 1.1), gaps: gaps || [], seed: seed(), heightFn: H }), 'hedge')); }
     return K.hedgerow(b, pts, gaps, o);
   };
-  A.wall = function (b, pts, h, gaps) {
-    const E = env(); if (E && E.wall) { collidersOnly(() => K.stoneWall(b, pts, h, gaps)); return add(safe(() => E.wall(pts, { type: 'stone', h: h || 1, gaps: gaps || [], seed: seed(), heightFn: H }), 'wall')); }
+  A.wall = function (b, pts, h, gaps, opts) {
+    const E = env(); if (E && E.wall) { collidersOnly(() => K.stoneWall(b, pts, h, gaps)); return add(safe(() => E.wall(pts, Object.assign({ type: 'stone', h: h || 1, gaps: gaps || [], seed: seed(), heightFn: H }, opts)), 'wall')); }
     return K.stoneWall(b, pts, h, gaps);
   };
   A.fence = function (b, pts, h) {
@@ -53,9 +53,32 @@
     if (!E || !E.builder || K.noMesh || spec.envShell === false) return K.building(b, spec);
     const EB = E.builder(seed()); let r;
     spec.envB = EB; try { r = K.building(b, spec); } finally { delete spec.envB; }
+    if (E.ageMesh && r) safe(() => E.ageMesh(EB, { w: spec.w, d: spec.d, eave: (r.top - r.fy) * 0.62, seed: (spec.x * 7 + spec.z * 3) | 0, amount: spec.age != null ? spec.age : 1, cx: spec.x, cz: spec.z, rot: (spec.rot || 0) + (spec.roof && spec.roof.ridge === 'z' ? Math.PI / 2 : 0), y0: r.fy - 0.3 }), 'age');
     safe(() => { const g = EB.finish(); g.name = 'IVEnv.shell'; root().add(g); }, 'building shell');
     return r;
   };
+  // a settlement (hamlet, camp, far village): IVEnv shells always drawn, full buildings near the camera, one closed
+  // collider box per building; lit windows get visual-only lamps; chimney tops are kept for smoke (A.chimneys)
+  A.chimneys = [];
+  A.settle = function (b, specs, opts) {
+    opts = opts || {}; const E = env(); const F = IV.CF, flags = opts.flags != null ? opts.flags : F.SOLID | F.SIGHT | F.BULLET | F.NAV;
+    if (!E || !E.settle) { for (const sp of specs) if (sp.solid !== false && !opts.shellOnly) K.box(b, 'stone', sp.x, (opts.heightFn || H)(sp.x, sp.z) - 0.5, sp.z, sp.w || 8, 5, sp.d || 6, sp.rot || 0, 0xa09a90, flags, 'stone'); return null; }
+    const r = safe(() => E.settle(specs, Object.assign({ heightFn: H }, opts)), 'settle'); if (!r) return null;
+    W.scene.add(r.group);
+    if (opts.solid !== false) for (const c of r.colliders) W.addBox(c.x, c.z, c.hx, c.hz, c.y0, c.y1, c.rot, flags, 'stone', 'building');
+    if (opts.lights !== false) for (const l of r.lights.slice(0, opts.maxLights || 6)) W.addLamp({ x: l.x, y: l.y, z: l.z, r: 5, i: 0, power: 1.1, color: 0xff9a48, flicker: true, los: false, visual: true });
+    A.chimneys.push(...r.chimneys);
+    return r;
+  };
+  // weather: IV.art.weather('night_moon' | 'night_rain' | 'dusty' | 'day_overcast' | 'dusk_rain' ..., seconds) eases the
+  // whole state (sky, fog, lights, wetness, wind, rain); seconds 0 = at once. Lightning raises IV.emit('ambience', 'thunder')
+  if (window.IVEnv) IVEnv.onAmbience = (a) => IV.emit('ambience', a);
+  A.weather = function (name, secs) { const a = W.atm; if (!a || !a.blendTo) return false; if (!secs) a.set(name); else a.blendTo(name, secs); return true; };
+  // far-off life in the background (searchlights, flak, aircraft, fires, smoke, birds, a lorry...); visual only.
+  // Sound hooks arrive as IV.emit('ambience', { kind, x, z, delay }) for the game's audio. Follows Reduced motion.
+  A.backdrop = function (spec) { const E = env(); if (!E || !E.backdrop) return null; return safe(() => E.backdrop(W.scene, spec, { reduced: !!IV.settings.motion, heightAt: (x, z) => (Math.abs(x) < W.size / 2 && Math.abs(z) < W.size / 2) ? H(x, z) : (E.skirtHeightAt ? E.skirtHeightAt(x, z) : 0), emit: (a) => IV.emit('ambience', a) }), 'backdrop'); };
+  // paths for distant squads (drilling, running) that the game may fill with far-LOD soldiers: [{ path, loop, n, kind }]
+  A.squads = [];
   // props: positional args as kit.js takes them; IVEnv draws a matching prop at the same spot
   const PROP = { crate: 'crate', barrel: 'barrel', hay: 'haybale', woodpile: 'logpile', cart: 'cart', sandbags: 'sandbags', lamp: 'lamppost' };
   A.prop = function (kind, b, ...a) {
@@ -108,10 +131,15 @@
   // after the build: instance the trees, merge the static pieces per 48 m cell
   A.flush = function () {
     const E = env(); if (!E) return;
+    // trees for IVEnv.surfaceAt ('leaves' under them): a 16 m grid of trunk positions
+    if (pendingTrees.length) { const grid = E._treeGrid = E._treeGrid || new Map(); for (const t of pendingTrees) { const k = Math.floor(t.x / 16) + ',' + Math.floor(t.z / 16); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(t.x, t.z); }
+      E._treeNear = (x, z, r) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = grid.get((Math.floor(x / 16) + i) + ',' + (Math.floor(z / 16) + j)); if (a) for (let q = 0; q < a.length; q += 2) if ((a[q] - x) ** 2 + (a[q + 1] - z) ** 2 < r * r) return true; } return false; }; }
+    // leaf litter and twigs under every tree (ground decals), then the trees themselves
+    if (pendingTrees.length && E.builder && E.Q.name !== 'low') safe(() => { const LB = E.builder(515), R = E.rng(515); for (const t of pendingTrees) { const n = t.kind === 'poplar' ? 2 : 4; for (let i = 0; i < n; i++) { const a = R() * 6.28, r = R() * 3.2, x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r; LB.decal(R() < 0.65 ? 'leaves' : 'grime', [x, H(x, z) + 0.025, z], [0, 1, 0], 1.6 + R() * 2.2, 1.4 + R() * 2, R() * 6.28); } } root().add(LB.finish()); }, 'leaf litter');
     if (pendingTrees.length && E.trees) { const t = safe(() => E.trees(pendingTrees), 'trees'); add(t); pendingTrees = []; }
-    if (E.mergeStatic && W.envRoot) { const merged = safe(() => E.mergeStatic(W.envRoot, { cell: 48 }), 'merge'); if (merged && merged !== W.envRoot) { W.statics.remove(W.envRoot); W.statics.add(merged); W.envRoot = merged; } }
+    if (E.mergeStatic && W.envRoot) { const merged = safe(() => E.mergeStatic(W.envRoot, { cell: E.Q.name === 'high' ? 64 : 96 }), 'merge'); if (merged && merged !== W.envRoot) { W.statics.remove(W.envRoot); W.statics.add(merged); W.envRoot = merged; } }
   };
-  A.reset = function () { pendingTrees = []; seedN = 1; W.envRoot = null; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
+  A.reset = function () { pendingTrees = []; seedN = 1; if (window.IVEnv) { IVEnv._treeGrid = null; IVEnv._treeNear = null; } W.envRoot = null; A.chimneys = []; A.squads = []; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
   // every bullet hit on the world (not on people): effects by surface, and IVEnv's own decal for that material
   A.impact = function (surface, p, n, dir) {
     IV.fx.impact(p.x, p.y, p.z, n.x, n.y, n.z, surface, dir);

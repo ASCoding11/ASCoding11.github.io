@@ -199,8 +199,10 @@
   // Wind sway for instanced vegetation: vertices bend by height above the instance origin.
   W.windU = { value: 0 };
   W.grassClear = { value: new THREE.Vector4(0, 0, 0, 0) };
+  // r128 keys a compiled program on onBeforeCompile.toString(): every call of this patch has the same source but bakes
+  // its own amp/freq into the shader, so each patch gets its own toString (and so its own program)
   function windPatch(amp, freq) {
-    return function (sh) {
+    const f = function (sh) {
       // cards: both faces light like the front (no dark backs)
       sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace(/normal\s*=\s*normal\s*\*\s*faceDirection;/g, '').replace(/normal\s*\*=\s*faceDirection;/g, ''));
       sh.uniforms.uTime = W.windU;
@@ -215,6 +217,8 @@
         transformed.x += sin(uTime * ${freq.toFixed(2)} + ph) * ${amp.toFixed(3)} * hgt;
         transformed.z += cos(uTime * ${(freq * 0.83).toFixed(2)} + ph * 1.3) * ${(amp * 0.6).toFixed(3)} * hgt;`);
     };
+    f.toString = () => 'ivwind:' + amp + ':' + freq;
+    return f;
   }
   W.windPatch = windPatch;
 
@@ -381,7 +385,7 @@
     g.setIndex(new THREE.BufferAttribute(idx, 1));
     g.computeBoundingSphere();
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
-    const tg = W.tex.grass(), tm = W.tex.mud(), tgr = W.tex.gravel();
+    const tg = W.tex.grass(), tm = W.tex.mud(), tgr = W.tex.gravel(); m.customProgramCacheKey = () => 'ivkitterrain';
     m.onBeforeCompile = function (sh) {
       sh.uniforms.tGrass = { value: tg }; sh.uniforms.tMud = { value: tm }; sh.uniforms.tGrav = { value: tgr };
       sh.vertexShader = 'attribute float aMud; varying float vMud; varying vec3 vWP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMud = aMud; vWP = (modelMatrix * vec4(position,1.0)).xyz;');

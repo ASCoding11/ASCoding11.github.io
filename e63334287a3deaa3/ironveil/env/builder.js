@@ -143,6 +143,7 @@
     if (decalMat) return decalMat;
     const T = E.tex.decals;
     const m = new THREE.MeshStandardMaterial({ map: T.alb, normalMap: T.nri, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, roughness: 1, metalness: 0, alphaTest: 0.02 });
+    m.customProgramCacheKey = () => 'ivdecalsatlas';
     m.onBeforeCompile = function (sh) {
       sh.fragmentShader = sh.fragmentShader.replace('#include <roughnessmap_fragment>', 'float roughnessFactor = texture2D(normalMap, vUv).b;')
         .replace('#include <normal_fragment_maps>', `vec4 dn = texture2D(normalMap, vUv); vec3 mapN = vec3(dn.xy * 2.0 - 1.0, 0.0); mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));

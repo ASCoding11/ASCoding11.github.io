@@ -15,7 +15,7 @@
   const W = E.GROUND_KINDS = {
     grass: [1, 0.15, 0, 0, 0, 0], lawn: [1, 0.06, 0, 0, 0, 0], pasture: [1, 0.1, 0, 0, 0, 0], meadow: [1, 0.1, 0, 0, 0.05, 0], tussock: [1, 0.2, 0, 0, 0.1, 0.1], verge: [1, 0.25, 0, 0, 0.1, 0.1],
     lanemid: [0.6, 0.6, 0, 0.1, 0, 0.2], worn: [0.45, 0.7, 0, 0.1, 0, 0.2], leaves: [0.2, 0.2, 0, 0, 1, 0.1], yardedge: [0.35, 0.6, 0, 0.4, 0, 0.3],
-    lane: [0, 1, 0, 0.12, 0, 0.85], mud: [0, 1, 0, 0, 0, 0.9], yard: [0, 0.55, 0, 0.75, 0, 0.6], road: [0, 0.25, 0, 1, 0, 0.35], gravel: [0, 0.2, 0, 1, 0, 0.3],
+    lane: [0, 1, 0, 0.12, 0, 0.85], mud: [0, 1, 0, 0, 0, 0.9], yard: [0.06, 0.8, 0.12, 0.55, 0, 0.6], road: [0, 0.25, 0, 1, 0, 0.35], gravel: [0, 0.2, 0, 1, 0, 0.3],
     cobbles: [0, 0.3, 0, 1, 0, 0.4], field: [0, 0.15, 1, 0, 0, 0.1], water: [0, 1, 0, 0.3, 0, 1.0], floor: [0, 0.4, 0, 0.6, 0, 0], none: [0, 0.6, 0, 0.4, 0, 0]
   };
   const LAYERS = ['grass_ground', 'mud', 'earth', 'gravel', 'leaves'];
@@ -28,7 +28,8 @@
       uMacro: E.U.uMacro, uWet: E.U.uWet, uRain: E.U.uRain, uTime: E.U.uTime,
       uA0: { value: T[0].alb }, uA1: { value: T[1].alb }, uA2: { value: T[2].alb }, uA3: { value: T[3].alb }, uA4: { value: T[4].alb },
       uN0: { value: T[0].nri }, uN1: { value: T[1].nri }, uN2: { value: T[2].nri }, uN3: { value: T[3].nri }, uN4: { value: T[4].nri },
-      uSz: { value: [2.5, 3.0, 3.0, 0.85, 2.0].map(s => 1 / s) },
+      uSz: { value: LAYERS.map((n, i) => 1 / ((E.RECIPES[n] && E.RECIPES[n].size) || [2.5, 3.0, 3.0, 0.85, 2.0][i])) },   // each layer at its real size
+      uMarks: { value: E.marks.tex() }, uMarksRect: { value: E.marks.rect },
       uCarry: { value: new THREE.Vector2(E.Q.grassNear * 0.45, E.Q.grassMid * 0.95) }
     };
     m.userData.uniforms = uni;
@@ -38,6 +39,7 @@
       sh.vertexShader = 'attribute vec4 aW0; attribute vec4 aW1; attribute vec4 aGC;\nvarying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;\n' +
         sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vW0 = aW0; vW1 = aW1; vGC = aGC; vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = `
+        uniform sampler2D uMarks; uniform vec4 uMarksRect;
         uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime; uniform vec2 uCarry;
         vec2 ivRipple(vec2 p, float t) { vec2 cell = floor(p), f = fract(p) - 0.5; float r = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453); float ph = fract(t * 1.4 + r * 7.0);
           vec2 d = f - (vec2(fract(r * 13.1), fract(r * 27.7)) - 0.5) * 0.5; float dist = length(d); float ring = sin((dist - ph * 0.45) * 45.0) * smoothstep(0.06, 0.0, abs(dist - ph * 0.45)) * (1.0 - ph); return normalize(d + 1e-5) * ring; }
@@ -90,6 +92,8 @@
           galb = mix(galb, galb * 0.32, pud);
           grough = mix(grough, 0.04, pud);
           float ivPud = pud;
+          { vec2 mu = (vGW.xz - uMarksRect.xy) / uMarksRect.zw; if (mu.x > 0.0 && mu.y > 0.0 && mu.x < 1.0 && mu.y < 1.0) { vec4 mk = texture2D(uMarks, mu);
+            galb *= 1.0 - mk.r * 0.38; galb = mix(galb, vec3(0.06, 0.045, 0.03), mk.b * 0.55); grough = mix(grough, 0.25, mk.g); } }   // stamped marks: prints in mud, tracked mud, wet ruts
           diffuseColor.rgb *= galb;`)
         .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(grough, 0.03, 1.0);')
         .replace('#include <normal_fragment_maps>', `
@@ -108,14 +112,16 @@
 
   // For the game's footsteps and splashes: how wet / muddy the ground is here, 0..1, and its kind.
   E.wetnessAt = function (x, z) { const g = E._ground; if (!g) return E.U.uWet.value; const w = W[g.surfaceAt(x, z)] || W.none; return Math.min(1, w[5] + E.U.uWet.value * 0.5); };
-  E.surfaceAt = function (x, z) { const g = E._ground; return g ? g.surfaceAt(x, z) : 'grass'; };
+  // the ground kind for footsteps, slowdown and cover: the map's kinds, plus 'puddle' where water stands and 'leaves'
+  // under trees (litter). Mud depth, wetness and puddle amount: IVEnv.groundInfo(x, z).
+  E.surfaceAt = function (x, z) { const g = E._ground; if (!g) return 'grass'; const i = E.groundInfo(x, z); if (i.puddle > 0.5) return 'puddle'; if (E.GRASS_KINDS[i.kind] && E._treeNear && E._treeNear(x, z, 3.2)) return 'leaves'; return i.kind; };
   E.ground = function (heightFn, opts) {
     opts = opts || {};
     const surfaceAt = opts.surfaceAt || (() => 'grass');
     const step = opts.step || (E.Q.name === 'low' ? 3.5 : 2);
     const half = (opts.size || 200) / 2;
     const x0 = opts.x0 != null ? opts.x0 : -half, z0 = opts.z0 != null ? opts.z0 : -half, x1 = opts.x1 != null ? opts.x1 : half, z1 = opts.z1 != null ? opts.z1 : half;
-    const CH = opts.chunk || 64;
+    const CH = opts.chunk || (E.Q.name === 'low' ? 128 : 64);
     const mat = groundMaterial();
     const group = new THREE.Group(); group.name = 'IVEnv.ground';
     const meshes = [], c = new THREE.Color(), cs = new THREE.Color();
@@ -170,6 +176,29 @@
     return { group, material: mat, meshes, heightFn, surfaceAt };
   };
 
+  // ------------------------------------------------------------------ ground marks (for the game's code)
+  // IVEnv.marks.area(x0, z0, size, res)  one persistent top-down mark texture over the play area (default the map)
+  // IVEnv.marks.stamp(x, z, kind, rot, strength)  kind 'boot' (a print pressed into mud), 'track' (brown mud carried
+  //   onto hard ground, fades), 'rut' (a wet wheel rut segment, rot = direction); strength 0..1
+  // IVEnv.marks.fade(dt)  'track' marks fade over about two minutes (call each frame or now and then)
+  // channels: R = pressed depth (darkens), G = wetness (glossy), B = tracked mud (brown)
+  E.marks = (function () {
+    let S = 512, data = null, tex = null; const rect = new THREE.Vector4(-190, -190, 380, 380); let dirty = false;
+    const M = { rect, tex() { if (!tex) M.area(rect.x, rect.y, rect.z, S); return tex; },
+      area(x0, z0, size, res) { S = res || S; rect.set(x0, z0, size, size); data = new Uint8Array(S * S * 4); if (!tex) { tex = new THREE.DataTexture(data, S, S, THREE.RGBAFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter; } else { tex.image = { data, width: S, height: S }; } tex.needsUpdate = true; return M; },
+      stamp(x, z, kind, rot, k) { if (!data) M.area(rect.x, rect.y, rect.z, S); k = k == null ? 1 : k; const px = (x - rect.x) / rect.z * S, pz = (z - rect.y) / rect.w * S, m = S / rect.z, c = Math.cos(rot || 0), s = Math.sin(rot || 0);
+        const L = kind === 'rut' ? 1.2 : 0.28, Wd = kind === 'rut' ? 0.14 : 0.11, ch = kind === 'boot' ? 0 : kind === 'rut' ? 1 : 2, r = Math.ceil(Math.max(L, Wd) * m) + 1;
+        for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) { const X = Math.round(px + i), Z = Math.round(pz + j); if (X < 0 || Z < 0 || X >= S || Z >= S) continue; const u = (i * c + j * s) / m, v = (-i * s + j * c) / m; const e = (u / L) ** 2 + (v / Wd) ** 2; if (e > 1) continue; const q = (Z * S + X) * 4 + ch, val = Math.round(255 * k * (1 - e * 0.6)); data[q] = Math.max(data[q], val); if (kind === 'rut') data[(Z * S + X) * 4] = Math.max(data[(Z * S + X) * 4], val >> 1); }
+        dirty = true; },
+      fade(dt) { if (!data) return; const f = Math.max(1, Math.round(dt * 2)); for (let i = 2; i < data.length; i += 4) if (data[i]) data[i] = Math.max(0, data[i] - f); dirty = true; },
+      update() { if (dirty && tex) { tex.needsUpdate = true; dirty = false; } }
+    };
+    (E._updaters = E._updaters || []).push(() => M.update());
+    return M;
+  })();
+  // IVEnv.groundInfo(x, z) -> { kind, mud 0..1 (how deep the mud is), wet 0..1, puddle 0..1 }
+  E.groundInfo = function (x, z) { const g = E._ground; const kind = g ? g.surfaceAt(x, z) : 'grass', w = W[kind] || W.none; const wet = Math.min(1, w[5] + E.U.uWet.value * 0.5); const n = E.fbm2(x / 3.1, z / 3.1, 909, 2); return { kind, mud: Math.min(1, w[1]), wet, puddle: Math.max(0, (wet - 0.55) * 2.2 * (n - 0.45) * 3) }; };
+
   // ------------------------------------------------------------------ the land beyond the map
   // IVEnv.skirt(heightFn, { half, outer, hills, woods, seed, day, fogK, landFogK }) -> group
   // fogK / landFogK (0..1) thin the scene's fog on the woods / the land beyond ~120 m (1 = same fog as the map)
@@ -210,11 +239,12 @@
     for (let j = 0; j < NR; j++) for (let i = 0; i < A; i++) { const a = j * A + i, b = j * A + (i + 1) % A, c = a + A, d = b + A; I.push(a, b, c, b, d, c); }   // wound to face up
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setIndex(I); g.computeVertexNormals();
     const land = new THREE.Mesh(g, thinFog(new THREE.MeshLambertMaterial({ vertexColors: true }), opts.landFogK)); land.name = 'skirt-land'; land.receiveShadow = false; land.frustumCulled = false; group.add(land);
+    const sample = (x, z) => { const r = Math.hypot(x, z), a = Math.atan2(z, x), ca = Math.cos(a), sa = Math.sin(a), ri = half / Math.max(Math.abs(ca), Math.abs(sa)); const tt = E.clamp((r - ri) / (opts.outer - ri), 0, 1); const blend = E.sstep(0, 0.08, tt), y0 = heightFn(E.clamp(x, -half, half), E.clamp(z, -half, half)); return y0 * (1 - blend) + (y0 * 0.3 + hill(x, z, Math.min(1, tt * 3))) * blend - 0.06 - tt * 2; };
+    E.skirtHeightAt = sample;   // the far land's height, for far villages and woods placed by a mission
     if (opts.woods && !LOWQ) {   // Low: no wood masses (fog hides most of them; saves a draw call and ~10k triangles)
       // wood masses: clusters of squashed low-poly blobs on the hills, thicker in a band just outside the map
       const R = E.rng(opts.seed + 11), WP = [], WC = [], WI = [], blob = new THREE.IcosahedronGeometry(1, 0), bp = blob.attributes.position, m = new THREE.Matrix4(), v = new THREE.Vector3();
       const bi = blob.index ? blob.index.array : null, wcol = opts.day ? [0.045, 0.06, 0.04] : [0.0035, 0.0045, 0.004];
-      const sample = (x, z) => { const r = Math.hypot(x, z), a = Math.atan2(z, x), ca = Math.cos(a), sa = Math.sin(a), ri = half / Math.max(Math.abs(ca), Math.abs(sa)); const tt = E.clamp((r - ri) / (opts.outer - ri), 0, 1); const blend = E.sstep(0, 0.08, tt), y0 = heightFn(E.clamp(x, -half, half), E.clamp(z, -half, half)); return y0 * (1 - blend) + (y0 * 0.3 + hill(x, z, Math.min(1, tt * 3))) * blend - 0.06 - tt * 2; };
       const n = Math.round(150 * opts.woods * (LOWQ ? 0.45 : 1));
       for (let k = 0; k < n; k++) {
         const a = R() * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), ri = half / Math.max(Math.abs(ca), Math.abs(sa)), r = ri + 15 + Math.pow(R(), 1.8) * 300;

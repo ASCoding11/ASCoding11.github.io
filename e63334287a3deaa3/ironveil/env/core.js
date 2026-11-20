@@ -10,7 +10,7 @@
   // ------------------------------------------------------------------ quality
   // tex: hero texture size, texLo: everything else. grass*: see grass.js. post / pom / shadows decided here too.
   E.QUALITY = {
-    low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 8, grassMid: 22, grassDens: 40, grassMidDens: 5, bladeSegs: 1, seedHeads: false, carpetDens: 110, carpetR: 5, treeLod: 18, plantKinds: ['wheat', 'reeds'], detailDist: 18, decals: 64 },
+    low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 8, grassMid: 22, grassDens: 40, grassMidDens: 5, bladeSegs: 1, seedHeads: false, carpetDens: 110, carpetR: 5, treeLod: 18, plantKinds: ['wheat', 'maize', 'reeds'], detailDist: 18, decals: 64 },
     medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: true, aniso: 8, grassNear: 12, grassMid: 42, grassDens: 40, grassMidDens: 6, bladeSegs: 3, seedHeads: false, carpetDens: 230, carpetR: 7, treeLod: 32, detailDist: 25, decals: 160 },
     high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: false, post: true, aniso: 16, grassNear: 15, grassMid: 45, grassDens: 38, grassMidDens: 8, bladeSegs: 3, seedHeads: true, carpetDens: 160, carpetR: 8, treeLod: 45, detailDist: 35, decals: 256 }
   };
@@ -78,19 +78,19 @@
   // Material recipes. tex: generator in texgen.js, size: metres per repeat, hero: gets the big texture size,
   // ns: normal strength, id: per-element tint amount, pom: parallax depth in metres (High only), metal / mask.
   E.RECIPES = {
-    brick_red: { tex: 'brick_red', size: 1.35, hero: 1, ns: 1.0, id: 0.22, pom: 0.012, macro: 0.16 },
-    brick_sooty: { tex: 'brick_sooty', size: 1.35, hero: 0, hero2: 1, ns: 1.0, id: 0.18, pom: 0.012, macro: 0.2 },
-    fieldstone: { tex: 'fieldstone', size: 1.6, hero: 1, ns: 1.0, id: 0.08, pom: 0.03, macro: 0.18 },
-    ashlar: { tex: 'ashlar', size: 1.2, hero: 0, minor: 1, ns: 1.0, id: 0.1, macro: 0.12 },
+    brick_red: { tex: 'brick_red', size: 1.35, hero: 1, ns: 1.0, id: 0.04, pom: 0.012, macro: 0.3 },
+    brick_sooty: { tex: 'brick_sooty', size: 1.35, hero: 0, hero2: 1, ns: 1.0, id: 0.04, pom: 0.012, macro: 0.32 },
+    fieldstone: { tex: 'fieldstone', size: 1.6, hero: 1, ns: 0.65, id: 0.03, pom: 0.016, macro: 0.32 },
+    ashlar: { tex: 'ashlar', size: 1.2, hero: 0, minor: 1, ns: 1.0, id: 0.03, macro: 0.26 },
     plaster: { tex: 'plaster', size: 2.5, hero: 0, hero2: 1, ns: 1.0, macro: 0.2 },
     plaster_interior: { tex: 'plaster_interior', size: 2.5, hero: 0, minor: 1, ns: 0.8, macro: 0.14 },
-    planks: { tex: 'planks', size: 1.6, hero: 1, ns: 1.0, id: 0.2, macro: 0.16 },
-    floorboards: { tex: 'floorboards', size: 2.0, hero: 0, ns: 1.0, id: 0.16, macro: 0.12 },
-    wood_painted: { tex: 'wood_painted', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.08, macro: 0.14 },
+    planks: { tex: 'planks', size: 1.6, hero: 1, ns: 1.0, id: 0.04, macro: 0.28 },
+    floorboards: { tex: 'floorboards', size: 2.0, hero: 0, ns: 1.0, id: 0.05, macro: 0.16 },
+    wood_painted: { tex: 'wood_painted', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.03, macro: 0.2 },
     timber: { tex: 'timber', size: 1.0, hero: 0, ns: 1.0, macro: 0.16 },
-    roof_tile: { tex: 'roof_tile', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.24, pom: 0.014, macro: 0.2 },
-    slate: { tex: 'slate', size: 1.0, hero: 0, ns: 1.0, id: 0.18, macro: 0.16 },
-    cobbles: { tex: 'cobbles', size: 1.5, hero: 0, hero2: 1, ns: 1.0, id: 0.2, pom: 0.025, macro: 0.18 },
+    roof_tile: { tex: 'roof_tile', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.06, pom: 0.014, macro: 0.3 },
+    slate: { tex: 'slate', size: 1.0, hero: 0, ns: 1.0, id: 0.05, macro: 0.28 },
+    cobbles: { tex: 'cobbles', size: 1.5, hero: 0, hero2: 1, ns: 1.0, id: 0.04, pom: 0.025, macro: 0.3 },
     mud: { tex: 'mud', size: 3.0, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
     grass_ground: { tex: 'grass_ground', size: 2.5, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
     earth: { tex: 'earth', size: 3.0, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
@@ -106,6 +106,10 @@
     glass: { tex: 'glass', size: 1.0, hero: 0, minor: 1, ns: 0.4, macro: 0.1, glass: 1, noFoot: 1 },
     straw: { tex: 'straw', size: 1.0, hero: 0, minor: 1, ns: 1.0, macro: 0.14, noFoot: 1 }
   };
+  // Scanned sets shipped in env/scans: material -> real size of one repeat in metres (the set's shot size; never smaller)
+  E.SCANS = {};
+  E.useScans = function (table) { Object.assign(E.SCANS, table); for (const k in table) { const r = E.RECIPES[k]; if (r) { r.size = table[k]; r.id = 0; r.scan = 1; r.pom = 0; } } };
+  E.useScans({ brick_red: 1.4, brick_sooty: 2.0, fieldstone: 2.0, ashlar: 1.53, plaster: 2.5, planks: 2.0, wood_painted: 1.6, timber: 0.5, roof_tile: 4.0, slate: 3.0, cobbles: 1.0, concrete: 3.0, mud: 1.3, earth: 2.0, gravel: 2.0, grass_ground: 3.15, floorboards: 3.0 });
   // Friendly names from the brief map to recipes.
   E.ALIASES = {
     'red brick': 'brick_red', brick: 'brick_red', 'sooty brick': 'brick_sooty', 'fieldstone wall': 'fieldstone', stone: 'fieldstone',
@@ -132,6 +136,11 @@
     const seen = {};
     for (const n of want) { const r = E.RECIPES[n]; if (!r || seen[r.tex]) continue; seen[r.tex] = 1; jobs.push({ name: r.tex, S: r.hero || (r.hero2 && Q.name === 'high') ? Q.tex : r.ground ? Q.texGround : r.minor ? Q.texMinor : Q.texLo, seed: 1000 + jobs.length * 77 }); }
     jobs.push({ name: 'decals', S: Q.texDecal, seed: 4242 }); jobs.push({ name: 'macro', S: 256, seed: 99 });
+    // scanned CC0 sets (env/scans, see CREDITS-env.md): fetched as three images (albedo, normal xy + roughness,
+    // height) and packed into the same layout the generator makes, so every shader layer works on them unchanged
+    const scanJobs = [];
+    if (!E.noScans) for (let i = jobs.length - 1; i >= 0; i--) { const j = jobs[i]; if (E.SCANS[j.name]) { scanJobs.push(j); jobs.splice(i, 1); } }
+
     // the biggest first so the workers finish together
     jobs.sort((a, b) => b.S - a.S); jobs.forEach((j, i) => j.job = i);
     let done = 0; const total = jobs.length; E.genTimes = {};
@@ -171,12 +180,28 @@
         run(todo);
       });
     }));
+    if (scanJobs.length) {
+      const img = (url) => fetch(url).then(r => { if (!r.ok) throw new Error(url); return r.blob(); }).then(b => createImageBitmap(b));
+      const px = (bm, S) => { const c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'); g.drawImage(bm, 0, 0, S, S); return g.getImageData(0, 0, S, S).data; };
+      const scanP = Promise.all(scanJobs.map(j => {
+        const sfx = E.Q.name === 'low' || j.S <= 512 ? '.512' : '', S = sfx ? 512 : 1024, b = BASE + 'scans/' + j.name + sfx, t1 = performance.now();
+        return Promise.all([img(b + '.alb.webp'), img(b + '.nr.webp'), img(b + '.h.webp')]).then(([a, n, h]) => {
+          const A = px(a, S), N = px(n, S), Hh = px(h, S), alb = new Uint8ClampedArray(S * S * 4), nri = new Uint8ClampedArray(S * S * 4);
+          for (let i = 0; i < S * S; i++) { const q = i * 4; alb[q] = A[q]; alb[q + 1] = A[q + 1]; alb[q + 2] = A[q + 2]; alb[q + 3] = Hh[q]; nri[q] = N[q]; nri[q + 1] = N[q + 1]; nri[q + 2] = N[q + 2]; nri[q + 3] = 112; }
+          // rows are stored top-down in the image; the generator's row 0 is v = 0 (bottom): flip
+          const flip = (arr) => { const row = S * 4, tmp = new Uint8ClampedArray(row); for (let y = 0; y < S / 2; y++) { const a0 = y * row, b0 = (S - 1 - y) * row; tmp.set(arr.subarray(a0, a0 + row)); arr.copyWithin(a0, b0, b0 + row); arr.set(tmp, b0); } };
+          flip(alb); flip(nri);
+          return { name: j.name, S, alb, nri, ms: performance.now() - t1, scan: true };
+        }).catch(e => { console.warn('IVEnv scan failed, generating instead:', j.name, e); return IVEnvTexGen.generate(j.name, j.S, j.seed); });
+      })).then(list => { for (const r of list) { if (!r.name) continue; RAW[r.name] = r; } });
+      const gen = E._loading; E._loading = Promise.all([gen, scanP]).then(() => { for (const k in RAW) if (RAW[k].scan && !E.tex[k]) { build(); break; } return E; });
+    }
     return E._loading;
   };
   function build() {
     const a = Math.min(E.Q.aniso, E.maxAniso || 1);
     for (const k in RAW) {
-      const r = RAW[k];
+      const r = RAW[k]; if (E.tex[k]) continue;   // (built already: scans arriving after the generated set)
       E.tex[k] = { alb: makeTex(r.alb, r.S, k !== 'macro', a), nri: r.nri ? makeTex(r.nri, r.S, false, a) : null, S: r.S };
     }
     U.uMacro.value = E.tex.macro.alb; E.tex.macro.alb.encoding = THREE.LinearEncoding;
@@ -319,8 +344,16 @@
     {
       vec3 wn = inverseTransformDirection(normalize(vNormal), viewMatrix);
       float vert = 1.0 - abs(wn.y);
-      float streak = texture2D(uMacro, vec2((wp.x + wp.z) * 0.9, wp.y * 0.08)).a;
-      envAlb *= 1.0 - vert * smoothstep(0.55, 0.85, streak) * 0.22 * uGrime;
+      float streak = texture2D(uMacro, vec2((wp.x + wp.z) * 0.33, wp.y * 0.05)).a;
+      envAlb *= 1.0 - vert * smoothstep(0.55, 0.9, streak) * 0.22 * uGrime;
+      // patches that cross many stones or boards (a wall reads as one weathered surface first): lichen and green
+      // on the lower and middle wall, soot and old dirt in others, a slow 1-3 m scale, on vertical faces only
+      float pat = texture2D(uMacro, vec2(wp.x + wp.z, wp.y * 1.3) * 0.19 + 0.13).b;
+      float pat2 = texture2D(uMacro, vec2(wp.x - wp.z, wp.y) * 0.07 + 0.41).r;
+      float lich = vert * smoothstep(0.6, 0.82, pat) * smoothstep(0.3, 0.7, envH + 0.25) * uGrime;
+      envAlb = mix(envAlb, envAlb * vec3(0.86, 1.04, 0.66), lich * 0.75);
+      envAlb *= 1.0 - vert * smoothstep(0.34, 0.1, pat) * 0.32 * uGrime;
+      envAlb *= mix(0.8, 1.1, pat2 * vert + (1.0 - vert) * 0.7) * mix(vec3(1.0), vec3(1.05, 1.0, 0.92), smoothstep(0.4, 0.8, pat2) * vert);   // warmer and cooler areas a few metres across
       float lum = dot(envAlb, vec3(0.3, 0.55, 0.15));
       envAlb = mix(envAlb, vec3(lum) * vec3(1.04, 1.0, 0.94), 0.12);
       float dustAmt = smoothstep(0.65, 0.95, wn.y) * smoothstep(0.35, 0.7, m2 * 0.6 + m1 * 0.4 + envH * 0.3) * uDust * (1.0 - uWet);

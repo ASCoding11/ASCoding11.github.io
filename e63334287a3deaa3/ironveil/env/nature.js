@@ -5,7 +5,7 @@
      (full mesh near, a reduced mesh in the middle distance, crossed-quad impostors far). LODs swap in IVEnv.update.
    IVEnv.hedge(points, { h, w, gaps: [[from, to]], seed, heightFn }) -> { group, colliders }
    IVEnv.scatter(kind, areaTest, { heightFn, density, radius, seed }) -> { group, update(camera), info() }
-     kinds: wheat, reeds, ferns, brambles, nettles, dock, flowers, rocks, logs, stumps, litter, puddles.
+     kinds: wheat, maize (standing crop 2.3 m), reeds, ferns, brambles, nettles, dock, flowers, rocks, logs, stumps, litter, puddles.
      areaTest(x, z) -> 0..1 (density multiplier). Plants stream around the camera in tiles like the grass;
      rocks, logs, stumps, litter and puddles are placed once over opts.bounds [x0, z0, x1, z1].
    IVEnv.stream(points, { width, heightFn, waterY(x, z) | level, flow }) -> { group }
@@ -18,7 +18,7 @@
   const V3 = THREE.Vector3;
 
   // ------------------------------------------------------------------ leaf atlas (made once, in code)
-  // 4 x 2 cells of 256 px: 0 oak, 1 ash/apple leaflets, 2 poplar, 3 pine needles, 4 hawthorn (hedge), 5 fern frond,
+  // 4 x 2 cells of 256 px: 0 oak, 1 ash/apple leaflets, 2 poplar, 3 maize (was pine needles; pines are not used), 4 hawthorn (hedge), 5 fern frond,
   // 6 bramble / nettle / dock (big serrated), 7 reed / wheat blades.
   let atlas = null;
   function leafShape(g, x, y, len, wid, ang, lobed, serr) {
@@ -41,8 +41,14 @@
     cell(1, () => { for (let k = 0; k < 6; k++) { const ax = 128 + R.range(-70, 70), ay = 128 + R.range(-70, 70), a = R() * TAU; twig(ax, ay, ax + Math.cos(a) * 90, ay + Math.sin(a) * 90, 2); for (let i = 0; i < 9; i++) { const t = i / 9; g.fillStyle = col(82 + R() * 18, 30 + R() * 20, 18 + R() * 14); for (const s of [-1, 1]) leafShape(g, ax + Math.cos(a) * 90 * t, ay + Math.sin(a) * 90 * t, R.range(18, 26), R.range(5, 7), a + s * 1.0, false, true); } } });
     // 2 poplar: small rounded leaves, dense
     cell(2, () => { twig(128, 255, 128, 10, 3); for (let i = 0; i < 90; i++) { const y = R.range(15, 245), x = 128 + R.range(-1, 1) * 70 * Math.sin(Math.PI * y / 255); g.fillStyle = col(75 + R() * 25, 28 + R() * 20, 17 + R() * 15); leafShape(g, x, y, R.range(16, 24), R.range(7, 10), R() * TAU, false, false); } });
-    // 3 pine: needle tufts on a twig
-    cell(3, () => { twig(10, 128, 246, 128, 4); g.lineWidth = 3.2; for (let i = 0; i < 1100; i++) { const t = R(), x = 10 + t * 230, y = 128, a = (R() < 0.5 ? -1 : 1) * R.range(0.4, 1.3) + Math.PI * 0.0, l = R.range(30, 60) * (0.6 + 0.4 * Math.sin(Math.PI * t)); g.strokeStyle = col(110 + R() * 30, 22 + R() * 15, 14 + R() * 12); g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l * 0.6, y + Math.sin(a) * l); g.stroke(); } });
+    // 3 maize (late summer): three stalks, broad arching leaves yellowing at the tips, a tassel, a cob or two
+    cell(3, () => { for (let k = 0; k < 3; k++) { const x = 60 + k * 68 + R.range(-12, 12), lean = R.range(-10, 10);
+        g.strokeStyle = col(58 + R() * 8, 30 + R() * 12, 34 + R() * 8); g.lineWidth = 5; g.beginPath(); g.moveTo(x, 256); g.quadraticCurveTo(x + lean * 0.5, 130, x + lean, 22); g.stroke();
+        for (let i = 0; i < 9; i++) { const t = 0.12 + i * 0.09, y = 256 - t * 234, s2 = i % 2 ? 1 : -1, len = R.range(70, 105) * (1 - t * 0.35), a = s2 > 0 ? R.range(-0.6, -0.2) : Math.PI + R.range(0.2, 0.6);
+          g.fillStyle = col(62 + R() * 18 - t * 20, 30 + R() * 14, 22 + R() * 12 + t * 10); g.save(); g.translate(x + lean * t, y); g.rotate(a); g.beginPath(); g.moveTo(0, 0);
+          for (let q = 0; q <= 10; q++) { const u = q / 10; g.lineTo(u * len, -Math.sin(Math.PI * Math.min(1, u * 1.15)) * 9 + u * u * 26); } for (let q = 10; q >= 0; q--) { const u = q / 10; g.lineTo(u * len, Math.sin(Math.PI * Math.min(1, u * 1.15)) * 5 + u * u * 26); } g.fill(); g.restore(); }
+        g.strokeStyle = col(44, 40, 56); g.lineWidth = 1.5; for (let q = 0; q < 7; q++) { g.beginPath(); g.moveTo(x + lean, 24); g.lineTo(x + lean + R.range(-16, 16), R.range(2, 12)); g.stroke(); }
+        if (R() < 0.8) { g.fillStyle = col(48, 30, 52); g.save(); g.translate(x + lean * 0.5 + 7, 140 + R.range(-15, 15)); g.rotate(0.35); g.beginPath(); g.ellipse(0, 0, 6, 20, 0, 0, 6.29); g.fill(); g.restore(); } } });
     // 4 hawthorn / hedge: small lobed leaves, thorny twigs, very dense
     cell(4, () => { for (let k = 0; k < 9; k++) twig(R() * 256, R() * 256, R() * 256, R() * 256, 2); for (let i = 0; i < 140; i++) { const a = R() * TAU, r = Math.sqrt(R()) * 120; g.fillStyle = col(72 + R() * 30, 24 + R() * 20, 13 + R() * 15); leafShape(g, 128 + Math.cos(a) * r, 128 + Math.sin(a) * r, R.range(14, 22), R.range(6, 9), R() * TAU, true, false); } });
     // 5 fern frond
@@ -426,7 +432,7 @@
         const sx = R.range(-0.4, 0.4); Bk.det(1, () => Bk.box('bark_oak', px + sx, y0 - 0.1, pz + R.range(-0.4, 0.4), 0.05, opts.h * R.range(0.4, 0.8), 0.05, R() * TAU, { rx: R.range(-0.35, 0.35), rz: R.range(-0.35, 0.35), noFoot: true, tint: new THREE.Color(0.75, 0.72, 0.68) }));
       }
       // leaf litter and dead leaves at the foot of the hedge
-      for (let k = 0; k < Math.round((c1 - c0) / 2); k++) { const s = R.range(c0, c1), [px, pz, dx, dz] = at(s), sd = R.range(-1, 1) * opts.w * 0.7; Bk.decal('leaves', [px - dz * sd, hf(px - dz * sd, pz + dx * sd) + 0.03, pz + dx * sd], [0, 1, 0], R.range(1, 2), R.range(1, 2), R() * 6); }
+      for (let k = 0; k < Math.round((c1 - c0) / 2); k++) { const s = R.range(c0, c1), [px, pz, dx, dz] = at(s), sd = R.range(-1, 1) * opts.w * 0.7; Bk.decal(R() < 0.8 ? 'grime' : 'leaves', [px - dz * sd, hf(px - dz * sd, pz + dx * sd) + 0.03, pz + dx * sd], [0, 1, 0], R.range(1, 2), R.range(1, 2), R() * 6); }   // mostly brown earth, a little litter
       if (L.i.length) {
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(L.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(L.n, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(L.u, 2));
@@ -455,7 +461,10 @@
       for (let k = 0; k < 3; k++) { const a = base + k * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
       return [x + ca * lean * h, h, z + sa * lean * h];
     };
-    if (kind === 'wheat') {
+    if (kind === 'maize') {
+      // three crossed cards of standing maize, 2.3 m (6 triangles a clump)
+      for (let k = 0; k < 3; k++) card(0, 0, 0, 1.1, 2.3, k / 3 * Math.PI + R() * 0.3, 3, 0, 1.0);
+    } else if (kind === 'wheat') {
       // three crossed cards of ripe stalks (6 triangles): cheap enough for a whole field
       for (let k = 0; k < 3; k++) card(0, 0, 0, 0.55, 1.0, k / 3 * Math.PI + R() * 0.3, 7, 0, 1.0);
     } else if (kind === 'reeds') { for (let k = 0; k < 9; k++) blade(R.range(-0.15, 0.15), R.range(-0.15, 0.15), R.range(1.1, 1.8), 0.02, R.range(0.05, 0.35), R() * TAU, [0.9, 1.0, 0.75]); }
@@ -471,6 +480,7 @@
   }
   const PLANTS = {
     wheat: { dens: 7, r: [25, 35, 45], scale: [0.7, 1.15], tint: 0xa09070, cell: 7, stiff: 1.4 },
+    maize: { dens: 2.2, r: [40, 55, 70], scale: [0.85, 1.15], tint: 0x9a9a68, cell: 3, stiff: 1.0 },
     reeds: { dens: 3, r: [20, 30, 40], scale: [0.8, 1.2], tint: 0x8a9a5a, stiff: 1.2 },
     ferns: { dens: 1.2, r: [18, 25, 35], scale: [0.7, 1.3], tint: 0x6a8040, stiff: 0.6 },
     brambles: { dens: 0.8, r: [18, 25, 35], scale: [0.8, 1.4], tint: 0x5a6a38, stiff: 0.5 },
@@ -495,8 +505,8 @@
     const mesh = new THREE.InstancedMesh(geo, lm, cap); mesh.count = 0; mesh.frustumCulled = false;
     // The per-instance tint buffer must be made at full capacity here: InstancedMesh.setColorAt sizes it from the
     // current count, which is 0 at this point, and every tint then reads as black (the old black cut-out plants).
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); mesh.receiveShadow = true; mesh.castShadow = kind === 'wheat' ? false : qi === 2; mesh.customDepthMaterial = lm.userData.depth; mesh.name = 'scatter-' + kind;
-    const tint = new THREE.Color(P.tint).convertSRGBToLinear(); if (kind !== 'wheat') tint.multiplyScalar(0.6 / Math.max(tint.r, tint.g, tint.b));   // a hue shift, not a darkening (the atlas already carries the colour)
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); mesh.receiveShadow = true; mesh.castShadow = kind === 'wheat' || kind === 'maize' ? false : qi === 2; mesh.customDepthMaterial = lm.userData.depth; mesh.name = 'scatter-' + kind;
+    const tint = new THREE.Color(P.tint).convertSRGBToLinear(); if (kind !== 'wheat' && kind !== 'maize') tint.multiplyScalar(0.6 / Math.max(tint.r, tint.g, tint.b));   // a hue shift, not a darkening (the atlas already carries the colour)
     const tiles = new Map(), group = new THREE.Group(); group.add(mesh); group.name = 'IVEnv.scatter:' + kind;
     const dummy = new THREE.Object3D(), col = new THREE.Color();
     const gen = (tx, tz) => {
@@ -564,7 +574,7 @@
   E.puddleMaterial = function () {
     if (pudMat) return pudMat;
     const m = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.06, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2, envMapIntensity: 0.55 }); m.defines = { USE_UV: '' };
-    const uni = { uTime: E.U.uTime, uWet: E.U.uWet };
+    const uni = { uTime: E.U.uTime, uWet: E.U.uWet }; m.customProgramCacheKey = () => 'ivpuddle';
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uni);
       sh.fragmentShader = 'uniform float uTime, uWet;\n' + E.GLSL.noise + sh.fragmentShader
@@ -610,7 +620,7 @@
     // water: Fresnel reflection of the sky (environment map) and lamps, two ripple normals scrolling along the flow,
     // body colour from depth (clear at the edge, dark peat-brown green in the middle), lapping foam at the banks
     const m = new THREE.MeshStandardMaterial({ color: 0x0b1210, roughness: 0.05, metalness: 0, transparent: true, depthWrite: false, envMapIntensity: 1.2 }); m.defines = { USE_UV: '' };
-    const uni = { uTime: E.U.uTime, uWet: E.U.uWet, uFlow: { value: opts.flow }, uMacro: E.U.uMacro };
+    const uni = { uTime: E.U.uTime, uWet: E.U.uWet, uFlow: { value: opts.flow }, uMacro: E.U.uMacro }; m.customProgramCacheKey = () => 'ivwater';
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uni);
       sh.vertexShader = 'attribute float aDepth; varying float vDepth;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDepth = aDepth;');

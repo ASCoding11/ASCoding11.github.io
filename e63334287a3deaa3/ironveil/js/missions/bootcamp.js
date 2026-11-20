@@ -12,7 +12,17 @@
   function height(x, z) {
     const base = 0.6 * IV.fbm(x / 60 + 5, z / 60, 3) + (Math.abs(x) > 40 ? (Math.abs(x) - 40) * 0.05 : 0) + (z < -320 ? (-320 - z) * 0.2 : 0);
     const out = Math.max(smoothEdge(Math.abs(x), 58, 130), smoothEdge(z, 185, 260));
-    return base + out * (7 * IV.fbm(x / 95 + 11, z / 95 - 4, 4) + 3 * IV.fbm(x / 33, z / 33 + 7, 3) - 2);
+    return base + out * (7 * IV.fbm(x / 95 + 11, z / 95 - 4, 4) + 3 * IV.fbm(x / 33, z / 33 + 7, 3) - 2) + campRoll(x, z) * (1 - out);
+  }
+  // gentle rolls inside the camp (up to about a metre), flat where things stand: the course and the ranges, the
+  // stations, every building, tent and the parade square keep the ground they had
+  const FLAT = [[-6, 170, 6, -310], [-26, 50, -10, 26], [18, 12, 44, -16], [2, 26, 30, 4], [-26, 4, -10, -8], [-41, 170, -13, 140], [-40, 120, -28, 112], [-40, 88, -28, 80], [-38, 73, -28, 64],
+    [10, 145, 22, 115], [-26, 136, -10, 124], [23, 140, 42, 116], [24, 104, 42, 78], [26, 74, 42, 63], [26, 170, 40, 153], [-34, 106, -24, 94], [45, 172, 55, 160], [45, 124, 55, 112], [-15, 28, -7, 22], [36, 180, 52, 170]];
+  function campRoll(x, z) {
+    let d = 99;
+    for (const r of FLAT) { const dx = Math.max(r[0] - x, 0, x - r[2]), dz = Math.max(r[3] - z, 0, z - r[1]); d = Math.min(d, Math.hypot(dx, dz)); }
+    const k = smoothEdge(d, 2, 12);
+    return k * (1.6 * (IV.fbm(x / 34 + 3, z / 34 - 6, 3) - 0.5) + 0.5 * (IV.fbm(x / 9, z / 9 + 2, 2) - 0.5));
   }
   function surface(x, z) { if (Math.abs(x) < 2.2 && z > 0) return S.gravel; if (Math.abs(x + 18) < 5 && Math.abs(z + 2) < 5) return S.mud; return S.grass; }
   // what grows where (IVEnv ground and grass; see world.js W.surfaceAt). Long grass at fence feet, hut walls and posts
@@ -25,12 +35,16 @@
   for (const a of [-1, 1]) for (const b of [-1, 1]) POSTS.push([-30 + a * 1.6 * Math.cos(0.2) + b * 1.6 * Math.sin(0.2), 100 - a * 1.6 * Math.sin(0.2) + b * 1.6 * Math.cos(0.2), 0.7]);
   POSTS.push([-9.5, 145, 1.5], [-4.2, 153.2, 0.5], [-4.2, 154.8, 0.5], [38.5, 155.5, 0.5], [38.5, 161.5, 0.5], [4.2, 22, 0.5], [7, -130, 0.5]);
   for (const x of [-15, -12, 12, 15.5]) POSTS.push([x, -295.5, 1.0]);
+  const TRACK = [[2.4, 163], [18, 170], [32, 172.5], [44, 175.5]], ROADOUT = [[44, 176], [46, 215], [36, 262], [12, 330]];
   const HUTS = [[16, 140, 5, 3], [16, 120, 5, 3], [-18, 130, 7, 3.5]];
   const MUD = [[10.6, 140, 1.8], [10.6, 120, 1.8], [-10.4, 130, 1.8], [0, 88, 3.0], [0, 70, 3.2], [0, 66, 2.6], [0, 53.5, 2.4], [-1, 37, 2.6], [0, 22, 2.8], [30, 8.6, 2.6], [-26.5, 97, 2.2], [3.4, 120, 1.4], [-3.6, 104, 1.3], [3.3, 76, 1.5]];
   function surfaceKind(x, z) {
     const n = IV.noise(x / 1.7 + 3, z / 1.7), ax = Math.abs(x);
     for (const m of MUD) { const d = Math.hypot(x - m[0], z - m[1]); if (d < m[2] * (0.75 + 0.5 * n)) return 'mud'; if (d < m[2] * 1.7) return 'worn'; }
     if (surface(x, z) !== S.grass) return null;                           // gravel course, grenade pit: the world's own kind
+    if (x > -40 && x < -14 && z > 142 && z < 168) return 'gravel';                // the parade square
+    if (IV.polyDist(x, z, TRACK).d < 1.6 + 0.4 * n) return 'lane';                   // the track to the gate and the road out
+    if (z > 176 && IV.polyDist(x, z, ROADOUT).d < 2.4) return 'road';
     for (const p of POSTS) if (Math.abs(x - p[0]) < p[2] && Math.abs(z - p[1]) < p[2] && Math.hypot(x - p[0], z - p[1]) < p[2]) return 'verge';
     if (ax < 3.5 && z > 0 && z < 166) return ax < 2.6 + 0.9 * n ? 'worn' : 'lawn';  // trodden edge beside the gravel
     for (const h of HUTS) { const dx = Math.abs(x - h[0]) - h[2], dz = Math.abs(z - h[1]) - h[3]; if (dx < 0.9 + 0.5 * n && dz < 0.9 + 0.5 * n && (dx > -0.2 || dz > -0.2)) return 'verge'; }
@@ -135,6 +149,49 @@
       for (let i = 0; i < 70; i++) { const side = i % 2 ? 1 : -1, x = side * RW.range(75, 300), z = RW.range(-340, 300); IV.art.tree(b, x, z, RW() < 0.55 ? 'oak' : RW() < 0.6 ? 'ash' : 'poplar', RW); }
       for (let c = 0; c < 6; c++) { const cx = (c % 2 ? 1 : -1) * RW.range(110, 260), cz = RW.range(-300, 260); for (let i = 0; i < 14; i++) IV.art.tree(b, cx + RW.range(-22, 22), cz + RW.range(-22, 22), RW() < 0.6 ? 'oak' : 'ash', RW); }
       for (let i = 0; i < 30; i++) IV.art.tree(b, RW.range(-300, 300), RW.range(270, 320), RW() < 0.6 ? 'oak' : 'ash', RW); }
+    // ---- the rest of the camp: barrack huts in rows, mess hall and cookhouse, the motor pool with parked vehicles, fuel
+    // store, ablution block, guardroom at the gate, a sentry tower, a firing-point shelter, the parade square (ground
+    // kind), a track out to the gate, the road leading away with telegraph poles, a wire perimeter, and an assault
+    // course beyond the west hedge. All clear of the course, the ranges and the takedown pen.
+    {
+      const H2 = Math.PI / 2;
+      IV.art.settle(b, [
+        { kind: 'shed', w: 10, d: 6, x: -34, z: 116, rot: 0 },
+        { kind: 'shed', w: 10, d: 6, x: -34, z: 84, rot: 0.02 },
+        { kind: 'office', w: 9, d: 5, x: -33, z: 68, rot: 0, out: 'brick_sooty' },          // ablutions
+        { kind: 'office', w: 16, d: 8, x: 32, z: 134, rot: 0 },                             // mess hall
+        { kind: 'cottage', w: 8, d: 5, floors: 1, x: 32, z: 120, rot: Math.PI, roof: 'tile' }, // cookhouse
+        { kind: 'barn', w: 10, d: 16, x: 33, z: 96, rot: 0 },                               // motor pool shed
+        { kind: 'office', w: 6, d: 4, x: 33, z: 69, rot: 0, out: 'brick_red' },             // fuel store
+        { kind: 'office', w: 6, d: 4.5, x: 50, z: 166, rot: -H2 }                           // guardroom
+      ], { seed: 909 });
+      if (IV.art.envOn()) {
+        dress('truck', 26.5, 83.5, 0.15); dress('truck', 37, 82.5, -0.1); dress('car', 23.5, 106, 1.45);
+        dress('drums', 28.5, 66.5, 0.4); dress('drums', 38.5, 66, 2.1); dress('guardtower', 50, 118, 0.1);
+        dress('shelter', -11, 25.5, 0); dress('crates', 41, 99, 0.2); dress('tarp', 41.5, 92, 1.5);
+        for (const [x, z, r] of [[-82, 70, 0.1], [-95, 92, -0.2], [-80, 118, 0.3]]) dress('aframe', x, z, r, null, 0);
+        for (const [x, z] of [[-88, 80], [-100, 108], [-86, 132]]) IV.art.wall(b, [[x - 2, z], [x + 2, z]], 1.8);
+        for (const [x, z] of [[-92, 64], [-84, 102]]) dress('logpile', x, z, 0.3, null, 0);
+        // the gate: a striped barrier arm across the track where it leaves through the hedge gap
+        const gy = W.height(41, 175.5); K.box(b, 'wood', 40.6, gy, 175.5, 0.3, 1.1, 0.3, 0, 0x5a4a3a, F.SOLID | F.BULLET, 'wood');
+        for (let k = 0; k < 6; k++) K.box(b, 'wood', 41.4 + k * 1.05, gy + 0.95, 175.5, 1.05, 0.12, 0.12, 0, k % 2 ? 0xc03a2a : 0xe8e4da);
+        W.addBox(44.6, 175.5, 3.4, 0.12, gy + 0.85, gy + 1.1, 0, F.SOLID, 'wood');
+        // the road out and its telegraph line, a wire perimeter outside the hedges
+        const road = [[44, 176], [46, 215], [36, 262], [12, 330]];
+        let prev = null; const wires = [];
+        for (let i = 0; i < road.length - 1; i++) { const [ax, az] = road[i], [bx, bz] = road[i + 1], L = Math.hypot(bx - ax, bz - az);
+          for (let t = 0; t < L; t += 34) { const x = ax + (bx - ax) * t / L + 5, z = az + (bz - az) * t / L; try { const p = IVEnv.prop('telegraph', (x * 7) | 0), y = W.height(x, z); p.group.position.set(x, y, z); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(p.group); const tops = (p.group.userData.wireTop || []).map(q => [x + q[0], y + q[1], z + q[2]]); if (prev) for (let k = 0; k < Math.min(prev.length, tops.length); k++) wires.push([...prev[k], ...tops[k]]); prev = tops; } catch (e) {} } }
+        if (wires.length && IVEnv.wireMesh) W.scene.add(IVEnv.wireMesh(wires, 0.006, 0.35));
+        if (IVEnv.fence && IVEnv.Q.name !== 'low') for (const pts of [[[-64, 192], [38, 192]], [[50, 192], [64, 192], [64, -334]], [[-64, 192], [-64, -334]]]) { try { const f = IVEnv.fence(pts, 'barbed', { heightFn: W.height, seed: 33 }); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(f.group); } catch (e) { console.warn('wire', e); } }
+      }
+    }
+    // life around the camp: a lorry on the far road, the camp pennant, cookhouse smoke, birds over the woods, rain
+    // squalls hanging on the far downs, rifle fire from the next range (sound hook); squads drilling on the parade
+    // square and a running party on the road out, as paths for the game's far soldiers
+    IV.art.backdrop({ truck: { path: [[44, 176], [46, 215], [36, 262], [12, 330], [-40, 430]], speed: 7 }, pennant: { x: -9.45, y: W.height(-9.5, 145) + 8.4, z: 145 },
+      smoke: [[28.4, W.height(32, 120) + 6.6, 120, false]], birds: [[-140, 80, 45, 28, 14], [120, -60, 55, 32, 12]], squalls: [[-380, -150], [320, 120]],
+      leaves: 'day', sounds: [{ kind: 'rifle', every: [2, 8], x: -220, z: -150 }, { kind: 'shout', every: [25, 60], x: -27, z: 155 }] });
+    IV.art.squads.push({ kind: 'drill', loop: true, n: 10, path: [[-36, 146], [-18, 146], [-18, 165], [-36, 165]] }, { kind: 'run', loop: true, n: 8, path: [[44, 180], [46, 215], [36, 262], [46, 215]] });
     // the backstop berm behind the 300 m target
     K.box(b, 'earth', 0, W.height(0, -300) - 1, -300, 40, 6, 6, 0, 0x7a6a50, F.SOLID | F.BULLET | F.SIGHT, 'mud', 0.3);
     K.finish(b);

@@ -15,7 +15,7 @@
     night_moon: {
       skyTop: 0x070a12, skyHor: 0x26303f, ground: 0x0e1014, fog: 0x1d2531, fogD: 0.0105, mist: 0.55, mistTop: 1.8,
       sunDir: [-0.5, 0.74, 0.45], sunCol: 0xb4c6ea, sunI: 3.9, sunShadow: true, moon: 1, stars: 1, cloud: 0.4, cloudCol: 0x2b3442,
-      hemiSky: 0x5f7298, hemiGround: 0x3a3630, hemiI: 0.36, env: 0.6, exposure: 0.9, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
+      hemiSky: 0x5f7298, hemiGround: 0x3a3630, hemiI: 0.72, env: 0.6, exposure: 0.9, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
     },
     night_overcast: {
       skyTop: 0x080a0d, skyHor: 0x1b1f25, ground: 0x0b0c0d, fog: 0x171b20, fogD: 0.0135, mist: 0.7, mistTop: 2.2,
@@ -26,6 +26,16 @@
       skyTop: 0x3c4e66, skyHor: 0xb39a86, ground: 0x2a2a28, fog: 0x8c8e8e, fogD: 0.016, mist: 1.0, mistTop: 3.2,
       sunDir: [0.85, 0.12, 0.3], sunCol: 0xffc690, sunI: 0.9, sunShadow: true, moon: 0, stars: 0, cloud: 0.55, cloudCol: 0x9a8f88,
       hemiSky: 0x8f9cb0, hemiGround: 0x3c3a34, hemiI: 0.5, env: 0.7, exposure: 0.95, wind: 0.2, wet: 0.35, rain: 0, grade: 'dawn'
+    },
+    night_rain: {
+      skyTop: 0x06080b, skyHor: 0x1a1e24, ground: 0x0b0c0d, fog: 0x161a1f, fogD: 0.016, mist: 0.6, mistTop: 2.0,
+      sunDir: [-0.5, 0.74, 0.45], sunCol: 0x8a96aa, sunI: 0.5, sunShadow: false, moon: 0, stars: 0, cloud: 1.0, cloudCol: 0x1a1d22,
+      hemiSky: 0x5a6476, hemiGround: 0x2a2826, hemiI: 1.0, env: 0.5, exposure: 1.1, wind: 1.1, wet: 1.0, rain: 1, grade: 'rain'
+    },
+    dusty: {
+      skyTop: 0x9a9284, skyHor: 0xc8b89c, ground: 0x6a5c48, fog: 0xb8a78a, fogD: 0.012, mist: 0.0, mistTop: 1.0,
+      sunDir: [0.5, 0.55, 0.3], sunCol: 0xf0d8b0, sunI: 1.6, sunShadow: true, moon: 0, stars: 0, cloud: 0.4, cloudCol: 0xb0a490,
+      hemiSky: 0xc8b8a0, hemiGround: 0x6a5a44, hemiI: 0.7, env: 0.9, exposure: 0.9, wind: 0.9, wet: 0.0, rain: 0, grade: 'day'
     },
     dusk_rain: {
       skyTop: 0x1a1f28, skyHor: 0x4a4c50, ground: 0x151617, fog: 0x34383d, fogD: 0.017, mist: 0.6, mistTop: 2.0,
@@ -203,8 +213,14 @@
     const cubeCam = new THREE.CubeCamera(0.1, 200, cubeRT); envScene.add(cubeCam);
     A.dir = new THREE.Vector3();
 
-    A.set = function (name) {
-      const P = E.PRESETS[name] || E.PRESETS.night_moon; A.preset = name; A.P = P;
+    // one weather state: A.set(name) at once, A.blendTo(name, seconds) eased; sky, sun/moon, fill, fog and mist,
+    // exposure, wetness, wind, rain and the environment map all follow the same blended values
+    A.blendTo = function (name, secs) { const to = E.PRESETS[name]; if (!to) return A; A.blend = { from: Object.assign({}, A.P), to, name, t: 0, T: Math.max(0.1, secs || 30), envT: 0 }; return A; };
+    const mixP = (a, b, k) => { const o = {}; for (const key in b) { const x = a[key], y = b[key]; if (typeof y === 'number' && typeof x === 'number') { if (/(sky|Hor|ground|fog$|Col|hemi(Sky|Ground)|cloudCol)/.test(key) && y > 2) { o[key] = new THREE.Color(x).lerp(new THREE.Color(y), k).getHex(); } else o[key] = x + (y - x) * k; } else if (Array.isArray(y) && Array.isArray(x)) o[key] = y.map((v, i) => x[i] + (v - x[i]) * k); else o[key] = k < 0.5 ? x : y; } o.rain = k > 0.35 ? b.rain : a.rain; o.grade = k < 0.5 ? a.grade : b.grade; return o; };
+    A.stepBlend = function (dt) { const B = A.blend; if (!B) return; B.t += dt; const u = Math.min(1, B.t / B.T), k = u * u * (3 - 2 * u); B.envT -= dt; const refresh = B.envT <= 0 || u >= 1; if (refresh) B.envT = 1; A.apply(mixP(B.from, B.to, k), B.name, !refresh); if (u >= 1) { A.blend = null; A.preset = B.name; A.P = B.to; } };
+    A.set = function (name) { A.blend = null; return A.apply(E.PRESETS[name] || E.PRESETS.night_moon, name); };
+    A.apply = function (P, name, skipEnv) {
+      A.preset = name; A.P = P;
       A.dir.set(P.sunDir[0], P.sunDir[1], P.sunDir[2]).normalize();
       const u = sky.uniforms;
       u.top.value.copy(L(P.skyTop)); u.hor.value.copy(L(P.skyHor)); u.gnd.value.copy(L(P.ground)); u.moonDir.value.copy(A.dir);
@@ -219,6 +235,7 @@
       E.setWind(E.U.uWind.value.x, E.U.uWind.value.y, P.wind);
       rain.visible = !!P.rain && Q.name !== 'low' || (!!P.rain && opts.rainOnLow);
       // environment map: the sky (no stars, no sun disc glare) scaled by env
+      if (skipEnv) return A;
       const eu = envDome.material.uniforms; for (const k in u) if (eu[k]) eu[k].value = u[k].value && u[k].value.clone ? u[k].value.clone() : u[k].value;
       eu.starAmt.value = 0; eu.bright.value = P.env; eu.moonAmt.value = P.moon * 0.6;
       const tm = renderer.toneMapping; renderer.toneMapping = THREE.NoToneMapping;
@@ -232,6 +249,7 @@
     A.setBrightness = function (b) { A.brightness = b; renderer.toneMappingExposure = A.P.exposure * b * (E.Q.post ? 1 : 1.45); };
     A.setFlashes = function (on) { A.flashes = !!on; if (!on) A.flashAge = 99; };   // reduced-effects setting
     A.update = function (dt, camera) {
+      if (A.blend) A.stepBlend(dt);
       sky.uniforms.time.value += dt;
       dome.position.copy(camera.position);
       // shadow camera follows the camera, snapped to texels so shadows do not swim
@@ -249,7 +267,7 @@
         for (; k < 4; k++) { const l = ls[k]; if (l) { U.uLamp.value[k].set(l.position.x, l.position.y, l.position.z, Math.min(1.5, l.intensity * 0.5)); U.uLampC.value[k].copy(l.color); } else U.uLamp.value[k].w = 0; }
         // lightning: a double flicker every 12-25 s, cool white, on the hemisphere light and the rain
         A.flashT = (A.flashT == null ? 8 : A.flashT) - dt;
-        if (A.flashT < 0) { A.flashT = 12 + Math.random() * 13; A.flashAge = A.flashes ? 0 : 99; }
+        if (A.flashT < 0) { A.flashT = 12 + Math.random() * 13; A.flashAge = A.flashes ? 0 : 99; const dist = 600 + Math.random() * 2400; if (E.onAmbience) E.onAmbience({ kind: 'thunder', delay: dist / 343, dist }); }   // thunder arrives after the sound delay
         A.flashAge = (A.flashAge == null ? 99 : A.flashAge + dt);
         const f = A.flashAge < 0.07 ? 1 : A.flashAge < 0.16 ? 0 : A.flashAge < 0.24 ? 0.55 : Math.max(0, 0.55 - (A.flashAge - 0.24) * 2.5);
         hemi.intensity = A.P.hemiI * (1 + f * 2.5); U.uFlash.value = f;
@@ -266,5 +284,142 @@
   E.setPushers = function (list) {
     const v = E.U.uPush.value;
     for (let i = 0; i < 8; i++) { const p = list && list[i]; if (p) v[i].set(p.x, p.z, p.r || 0.8, p.s == null ? 1 : p.s); else v[i].set(0, 0, 0, 0); }
+  };
+
+  // ------------------------------------------------------------------ background activity (not gameplay)
+  // IVEnv.backdrop(scene, spec) -> { group, info() }: far-off life that is cheap and never reads as an enemy.
+  //   spec.searchlights: [[x, z]] sites far away, beams sweeping the sky
+  //   spec.flak: [[x, z]] sites: shell bursts high up and slow tracer streams climbing
+  //   spec.planes: true -> dark aircraft crossing high (an 'ambience' event 'drone' while one is overhead)
+  //   spec.chutes: [[x, z]] a few distant parachutes drifting down during the first minute
+  //   spec.bombing: [[x, z]] flashes beyond the hills ('ambience' 'rumble' after the sound delay)
+  //   spec.fires: [[x, z, scale]] a burning place on the horizon: glow and a lit smoke column
+  //   spec.flares: [[x, z]] areas where flares rise, hang and drift down
+  //   spec.smoke: [[x, y, z, dark]] chimney smoke; spec.birds: [[x, z, r, h]] flocks wheeling; spec.bats: [[x, z]]
+  //   spec.squalls: [[x, z]] rain curtains hanging over far hills; spec.truck: { path: [[x, z]], heightAt, speed }
+  //   spec.pennant: { x, y, z } a plain camp pennant flying from a mast (no emblem)
+  //   spec.sounds: [{ kind, every: [a, b], x, z }] 'ambience' events for the game's audio (dog, bell, rifle, owl)
+  // opts.reduced (Reduced motion) slows and thins everything and turns off flashes; Low quality halves the counts.
+  let softTex = null;
+  function soft() { if (softTex) return softTex; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); softTex = new THREE.CanvasTexture(c); return softTex; }
+  E.backdrop = function (scene, spec, opts) {
+    opts = opts || {}; spec = spec || {};
+    const red = !!opts.reduced, low = E.Q.name === 'low', k = (low ? 0.5 : 1) * (red ? 0.5 : 1), R = E.rng(4242), group = new THREE.Group(); group.name = 'IVEnv.backdrop';
+    const parts = [], emit = opts.emit || (() => {});
+    // every soft particle (flak, tracer, smoke, flares, birds, leaves, glows) is one instance of one of two batched
+    // billboard meshes (additive and normal blend): two draw calls in all, however many there are
+    const pools = { add: [], norm: [] };
+    const sprite = (col, add, op) => { const o = { position: new THREE.Vector3(), scale: new THREE.Vector3(1, 1, 1), material: { opacity: op == null ? 1 : op, color: new THREE.Color(col), rotation: 0 }, visible: true }; pools[add ? 'add' : 'norm'].push(o); return o; };
+    const batch = (list, add) => {
+      if (!list.length) return null;
+      const n = list.length, g = new THREE.InstancedBufferGeometry(); g.copy(new THREE.PlaneGeometry(1, 1)); g.instanceCount = n;
+      const P = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3), Sc = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3), C = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4);
+      P.setUsage(THREE.DynamicDrawUsage); Sc.setUsage(THREE.DynamicDrawUsage); C.setUsage(THREE.DynamicDrawUsage); g.setAttribute('iPos', P); g.setAttribute('iScale', Sc); g.setAttribute('iCol', C);
+      const m = new THREE.ShaderMaterial({ uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { map: { value: soft() } }]), transparent: true, depthWrite: false, fog: !add, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending,
+        vertexShader: 'attribute vec3 iPos; attribute vec3 iScale; attribute vec4 iCol; varying vec2 vUv; varying vec4 vCol;\n#include <fog_pars_vertex>\nvoid main(){ vUv = uv; vCol = iCol; vec4 mvPosition = viewMatrix * vec4(iPos, 1.0); float c = cos(iScale.z), s = sin(iScale.z); vec2 q = position.xy * iScale.xy; mvPosition.xy += vec2(c * q.x - s * q.y, s * q.x + c * q.y); gl_Position = projectionMatrix * mvPosition;\n#include <fog_vertex>\n}',
+        fragmentShader: 'uniform sampler2D map; varying vec2 vUv; varying vec4 vCol;\n#include <fog_pars_fragment>\nvoid main(){ float a = texture2D(map, vUv).a * vCol.a; if (a < 0.003) discard; gl_FragColor = vec4(vCol.rgb, a);\n#include <fog_fragment>\n}' });
+      m.customProgramCacheKey = () => 'ivbackdrop' + (add ? 'A' : 'N');
+      const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.userData.dynamic = true; mesh.renderOrder = add ? 3 : 2; group.add(mesh);
+      return () => { for (let i = 0; i < n; i++) { const o = list[i], v = o.visible === false ? 0 : o.material.opacity; P.array[i * 3] = o.position.x; P.array[i * 3 + 1] = o.position.y; P.array[i * 3 + 2] = o.position.z; Sc.array[i * 3] = o.scale.x; Sc.array[i * 3 + 1] = o.scale.y; Sc.array[i * 3 + 2] = o.material.rotation || 0; C.array[i * 4] = o.material.color.r; C.array[i * 4 + 1] = o.material.color.g; C.array[i * 4 + 2] = o.material.color.b; C.array[i * 4 + 3] = v; } P.needsUpdate = Sc.needsUpdate = C.needsUpdate = true; };
+    };
+    // searchlights: long thin additive cones from the ground; each wanders over the sky and lights a soft pool on the
+    // cloud base; now and then two or three cone on the same point and hold it
+    const beams = [], up = new THREE.Vector3(0, 1, 0), dv = new THREE.Vector3(); let cone = { t: 25, hold: 0, x: 0, z: 0 };
+    for (const [x, z] of spec.searchlights || []) {
+      const g = new THREE.CylinderGeometry(4, 0.4, 1, 10, 1, true); g.translate(0, 0.5, 0);
+      const m = new THREE.MeshBasicMaterial({ color: 0x8090a8, transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+      const bm = new THREE.Mesh(g, m), y = opts.heightAt ? opts.heightAt(x, z) : 0; bm.position.set(x, y, z); bm.userData.dynamic = true; group.add(bm);
+      const pool = sprite(0x6a7890, true, 0.12); pool.scale.set(70, 70, 1);
+      beams.push({ bm, pool, x, y, z, ph: R() * 6.28, sp: 0.05 + R() * 0.05 });
+    }
+    if (beams.length) parts.push((t, dt) => {
+      cone.t -= dt; if (cone.t < 0) { cone.hold = 9; cone.t = 35 + R() * 30; cone.x = R.range(-300, 300); cone.z = R.range(-300, 300); }
+      cone.hold = Math.max(0, cone.hold - dt);
+      for (const b of beams) {
+        const wx = b.x + Math.sin(t * b.sp + b.ph) * 380, wz = b.z + Math.cos(t * b.sp * 0.8 + b.ph * 2) * 380, k = cone.hold > 0 ? Math.min(1, cone.hold) : 0;
+        const tx = wx * (1 - k) + cone.x * k, tz = wz * (1 - k) + cone.z * k, ty = 380;
+        dv.set(tx - b.x, ty - b.y, tz - b.z); const L = dv.length(); dv.normalize(); b.bm.quaternion.setFromUnitVectors(up, dv); b.bm.scale.set(1, L, 1);
+        b.pool.position.set(tx, ty, tz);
+      }
+    });
+    // flak: a brief hard flash, then a small dark puff that drifts and thins; tracer as strings of points climbing on an
+    // arc and burning out
+    if ((spec.flak || []).length) {
+      const bursts = []; for (let i = 0; i < Math.round(9 * k); i++) { const f = sprite(0xfff0d0, true, 0), p = sprite(0x2a2826, false, 0); f.scale.set(5, 5, 1); bursts.push({ f, p, t: -R() * 6, life: 99 }); }
+      const streams = []; for (let i = 0; i < Math.round(5 * k); i++) { const dots = []; for (let q = 0; q < 7; q++) { const d = sprite(0xffa860, true, 0); d.scale.set(1.4, 1.4, 1); dots.push(d); } streams.push({ dots, t: R() * 5, site: spec.flak[i % spec.flak.length], a: R() * 6.28, sp: 75 + R() * 30, tilt: 0.3 + R() * 0.4 }); }
+      parts.push((t, dt) => {
+        for (const b of bursts) { b.t -= dt; b.life += dt; if (b.t < 0) { const st = spec.flak[(R() * spec.flak.length) | 0]; const x = st[0] + R.range(-110, 110), y = 170 + R() * 170, z = st[1] + R.range(-110, 110); b.f.position.set(x, y, z); b.p.position.set(x, y, z); b.t = (red ? 4 : 1.4) + R() * 4; b.life = 0; b.dx = R.range(-2, 2); }
+          b.f.material.opacity = red ? 0 : (b.life < 0.07 ? 1 : 0); b.p.material.opacity = b.life < 0.07 ? 0 : Math.max(0, 0.55 * (1 - b.life / 5)); b.p.scale.setScalar(4 + b.life * 3); b.p.position.x += b.dx * dt; b.p.position.y += 0.6 * dt; }
+        for (const q of streams) { q.t += dt; if (q.t > 5.5) { q.t = 0; q.a = R() * 6.28; } for (let n = 0; n < q.dots.length; n++) { const tt = q.t - n * 0.09; const d = q.dots[n]; if (tt < 0 || tt > 4.2) { d.material.opacity = 0; continue; } const h = tt * q.sp - 4 * tt * tt; d.position.set(q.site[0] + Math.cos(q.a) * tt * q.sp * q.tilt, 20 + h, q.site[1] + Math.sin(q.a) * tt * q.sp * q.tilt); d.material.opacity = tt > 3.6 ? (4.2 - tt) * 1.6 : 0.95; } }
+      });
+    }
+    // falling leaves near the camera (a box that wraps the camera), when trees are about
+    if (spec.leaves && !red) {
+      const lv = []; for (let i = 0; i < Math.round(50 * k * 2); i++) { const p = sprite(spec.leaves === 'day' ? 0x6a5a30 : 0x2a2618, false, 0.9); p.scale.set(0.09, 0.06, 1); lv.push({ p, x: R.range(-12, 12), y: R.range(0, 9), z: R.range(-12, 12), ph: R() * 6 }); }
+      parts.push((t, dt, cam) => { const w = E.windDir ? E.windDir : { x: 1, z: 0.3 }; for (const q of lv) { q.y -= dt * (0.6 + 0.3 * Math.sin(t + q.ph)); q.x += dt * (0.5 * w.x + 0.3 * Math.sin(t * 1.7 + q.ph)); q.z += dt * 0.5 * (w.z || 0); if (q.y < -1) { q.y = 9; q.x = R.range(-12, 12); q.z = R.range(-12, 12); } let rx = ((q.x % 24) + 36) % 24 - 12, rz = ((q.z % 24) + 36) % 24 - 12; q.p.position.set(cam.position.x + rx, cam.position.y - 1.6 + q.y, cam.position.z + rz); q.p.material.rotation = t * 3 + q.ph; } });
+    }
+    // aircraft: dark cross shapes crossing high, a drone event while overhead
+    if (spec.planes) {
+      const shape = new THREE.Group(); const mm = new THREE.MeshBasicMaterial({ color: 0x07080b, fog: false });
+      shape.add(new THREE.Mesh(new THREE.BoxGeometry(14, 1.6, 1.8), mm)); const wing = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.35, 26), mm); wing.position.x = 1.5; shape.add(wing); const tail = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.3, 8), mm); tail.position.x = -6.2; shape.add(tail);
+      const planes = []; for (let i = 0; i < Math.round(3 * k + 1); i++) { const p = shape.clone(); p.userData.dynamic = true; group.add(p); planes.push({ p, t: R() * 40, z0: R.range(-500, 500), y: 260 + R() * 160, sp: 55 + R() * 20, dir: R() < 0.5 ? 1 : -1, said: false }); }
+      parts.push((t, dt, cam) => { for (const q of planes) { q.t += dt; const L = 2400, x = -1200 + ((q.t * q.sp) % L); q.p.position.set(x * q.dir, q.y, q.z0 + x * 0.25); q.p.rotation.y = q.dir > 0 ? -0.245 : Math.PI - 0.245; const near = Math.abs(q.p.position.x - cam.position.x) < 300; if (near && !q.said) { q.said = true; emit({ kind: 'drone', x: q.p.position.x, z: q.p.position.z }); } if (!near) q.said = false; } });
+    }
+    // distant parachutes in the first minute
+    for (const [x, z] of spec.chutes || []) for (let i = 0; i < 3; i++) {
+      const c = new THREE.Mesh(new THREE.SphereGeometry(3, 8, 4, 0, 6.28, 0, 1.4), new THREE.MeshBasicMaterial({ color: 0x9a9890, fog: true })); c.userData.dynamic = true; group.add(c);
+      const ox = x + R.range(-40, 40), oz = z + R.range(-40, 40), y0 = 120 + R() * 60, d = R() * 8; parts.push((t) => { const tt = Math.max(0, t - d); c.position.set(ox + tt * 0.8, Math.max(-20, y0 - tt * 4.5), oz + Math.sin(tt * 0.4) * 4); c.visible = t < 70; });
+    }
+    // bombing beyond the hills: an orange flash low on the horizon, rumble after the sound delay
+    if ((spec.bombing || []).length) {
+      const f = sprite(0xff9a50, true, 0); f.scale.set(160, 60, 1); let next = 4, life = 9;
+      parts.push((t, dt, cam) => { next -= dt; life += dt; if (next < 0) { const st = spec.bombing[(R() * spec.bombing.length) | 0]; f.position.set(st[0] + R.range(-60, 60), 25, st[1] + R.range(-60, 60)); life = 0; next = 6 + R() * 14; const dd = Math.hypot(f.position.x - cam.position.x, f.position.z - cam.position.z); emit({ kind: 'rumble', delay: dd / 343, x: f.position.x, z: f.position.z }); }
+        f.material.opacity = red ? 0.12 * Math.max(0, 1 - life / 2) : (life < 0.15 ? 0.6 : life < 0.3 ? 0.25 : life < 0.45 ? 0.5 : Math.max(0, 0.5 - (life - 0.45) * 0.6)); });
+    }
+    // fires on the horizon: a glow and a smoke column lit from below
+    for (const [x, z, sc] of spec.fires || []) {
+      const y = opts.heightAt ? opts.heightAt(x, z) : 0, s0 = sc || 1, glow = sprite(0xff7a30, true, 0.55); glow.position.set(x, y + 6 * s0, z); glow.scale.set(40 * s0, 18 * s0, 1);
+      const puffs = []; for (let i = 0; i < Math.round(14 * k + 4); i++) { const p = sprite(0x1a1714, false, 0.5); puffs.push({ p, t: i / 14 * 30 }); }
+      parts.push((t, dt) => { glow.material.opacity = 0.45 + 0.15 * Math.sin(t * 7.3) * Math.sin(t * 3.1); for (const q of puffs) { q.t = (q.t + dt * (red ? 0.5 : 1)) % 30; const u = q.t / 30; q.p.position.set(x + u * 60 * s0, y + 8 * s0 + u * 140 * s0, z + Math.sin(u * 5) * 6); q.p.scale.setScalar((10 + u * 50) * s0); q.p.material.opacity = 0.55 * (1 - u) * Math.min(1, q.t * 2); q.p.material.color.setRGB(0.1 + 0.5 * Math.max(0, 0.25 - u) * 4 * 0.25, 0.09 + 0.15 * Math.max(0, 0.25 - u), 0.08); } });
+    }
+    // flares: rise, hang, drift down burning, a pause, again
+    for (const [x, z] of spec.flares || []) {
+      const f = sprite(0xfff0d0, true, 0); f.scale.set(6, 6, 1); let t0 = R() * 20, ox = x, oz = z;
+      parts.push((t, dt) => { t0 += dt; const T = 26, u = t0 % T; if (u < dt) { ox = x + R.range(-80, 80); oz = z + R.range(-80, 80); } const y = u < 3 ? u * 45 : 135 - (u - 3) * 4; f.position.set(ox + (u > 3 ? (u - 3) * 1.2 : 0), y, oz); f.material.opacity = u < 3 ? 0.4 : u < 18 ? (red ? 0.4 : 0.85 + 0.15 * Math.sin(t * 23)) : 0; });
+    }
+    // chimney smoke
+    for (const [x, y, z, dark] of spec.smoke || []) {
+      const puffs = []; for (let i = 0; i < Math.round(6 * k + 2); i++) puffs.push({ p: sprite(dark ? 0x3a3836 : 0x8a8a88, false, 0), t: i / 6 * 9 });
+      parts.push((t, dt) => { for (const q of puffs) { q.t = (q.t + dt) % 9; const u = q.t / 9; q.p.position.set(x + u * 5, y + u * 9, z + Math.sin(u * 4 + x) * 0.8); q.p.scale.setScalar(0.8 + u * 4.5); q.p.material.opacity = 0.35 * (1 - u) * Math.min(1, q.t * 3); } });
+    }
+    // birds and bats: dark specks wheeling
+    for (const [x, z, r, h, n] of (spec.birds || []).concat((spec.bats || []).map(b => [b[0], b[1], 14, 9, 5]))) {
+      const fl = []; for (let i = 0; i < Math.round((n || 12) * k); i++) { const p = sprite(0x0c0c0c, false, 0.9); p.scale.set(0.9, 0.35, 1); fl.push({ p, a: R() * 6.28, rr: r * (0.6 + R() * 0.5), hh: h + R() * 6, sp: 0.15 + R() * 0.2 }); }
+      parts.push((t) => { for (const q of fl) { const a = q.a + t * q.sp; q.p.position.set(x + Math.cos(a) * q.rr, q.hh + Math.sin(t * 2 + q.a) * 1.5, z + Math.sin(a * 1.3) * q.rr); q.p.scale.y = 0.2 + 0.25 * Math.abs(Math.sin(t * 9 + q.a)); } });
+    }
+    // rain squalls on the far hills: tall soft grey curtains drifting
+    for (const [x, z] of spec.squalls || []) {
+      const m = new THREE.MeshBasicMaterial({ map: soft(), color: 0x5a6068, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, fog: false });
+      const q = new THREE.Mesh(new THREE.PlaneGeometry(220, 140), m); q.position.set(x, 50, z); q.userData.dynamic = true; group.add(q);
+      parts.push((t, dt, cam) => { q.position.x = x + Math.sin(t * 0.01) * 60; q.lookAt(cam.position.x, 50, cam.position.z); });
+    }
+    // a lorry on the far road
+    if (spec.truck && E.prop) {
+      const tr = E.prop('truck', 77).group; tr.userData.dynamic = true; group.add(tr); const P = spec.truck.path, L = []; let tot = 0; for (let i = 0; i < P.length - 1; i++) { const l = Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]); L.push(l); tot += l; }
+      parts.push((t) => { let d = (t * (spec.truck.speed || 6)) % (tot * 2); if (d > tot) d = 2 * tot - d; let i = 0; while (i < L.length - 1 && d > L[i]) { d -= L[i]; i++; } const a = P[i], b = P[i + 1], u = Math.min(1, d / L[i]), x = a[0] + (b[0] - a[0]) * u, z = a[1] + (b[1] - a[1]) * u; tr.position.set(x, spec.truck.heightAt ? spec.truck.heightAt(x, z) : 0, z); tr.rotation.y = Math.atan2(-(b[1] - a[1]), b[0] - a[0]); });
+    }
+    // a plain pennant on the mast
+    if (spec.pennant) {
+      const g = new THREE.PlaneGeometry(1.8, 0.9, 10, 2); g.translate(0.9, 0, 0); const base = g.attributes.position.array.slice();
+      const fl = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x3c4a34, side: THREE.DoubleSide, roughness: 0.9 })); fl.position.set(spec.pennant.x, spec.pennant.y, spec.pennant.z); fl.userData.dynamic = true; group.add(fl);
+      parts.push((t) => { const a = g.attributes.position.array; for (let i = 0; i < a.length; i += 3) { const u = base[i] / 1.8; a[i + 2] = Math.sin(t * (red ? 2 : 5) - u * 6) * 0.18 * u; a[i + 1] = base[i + 1] - u * 0.1; } g.attributes.position.needsUpdate = true; g.computeVertexNormals(); });
+    }
+    // sound hooks for the game's audio
+    for (const sd of spec.sounds || []) { let next = sd.every[0] + R() * (sd.every[1] - sd.every[0]); parts.push((t, dt) => { next -= dt; if (next < 0) { next = sd.every[0] + R() * (sd.every[1] - sd.every[0]); emit({ kind: sd.kind, x: sd.x, z: sd.z }); } }); }
+    const upA = batch(pools.add, true), upN = batch(pools.norm, false);
+    scene.add(group);
+    let T = 0;
+    (E._updaters = E._updaters || []).push((dt, cam) => { if (!group.parent) return; T += dt; for (const f of parts) f(T, dt, cam); if (upA) upA(); if (upN) upN(); });
+    return { group, info: () => ({ parts: parts.length, objects: group.children.length }) };
   };
 })();

@@ -327,6 +327,7 @@
   }
 
   E.grass = function (surfaceAt, heightFn, opts) {
+    const lowQ = E.Q.name === 'low'; if (lowQ && opts) opts = Object.assign({}, opts, { nearMul: 1, carpetMul: 1, midMul: 1 });   // Low keeps the plain rings
     E._grassMidMul = (opts && opts.midMul) || 1;   // opts.midMul thickens the mid ring (same blades, a larger share kept)
     opts = opts || {};
     const Q = E.Q;
