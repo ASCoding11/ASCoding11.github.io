@@ -232,7 +232,7 @@ def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082)):
         h = nb.add(h, nb.mul(ch, 0.7))
     return nb.finish(c, r, metal, h, bump_dist=0.00035)
 
-def parkerized(name, W, mask, seed=0.0, tint=(0.030, 0.031, 0.029), serr=None):
+def parkerized(name, W, mask, seed=0.0, tint=(0.024, 0.025, 0.0235), serr=None):
     """Phosphate finish: matte dark grey-green non-metal coat; bare steel shows on worn edges and scratches."""
     nb = NB(name, mask)
     P = nb.P
@@ -333,8 +333,8 @@ def wood(name, W, mask, seed=0.0, kind='walnut'):
     rad = nb.add(nb.vmath('LENGTH', rel, out=1), warp)
     rr = nb.mul(rad, ringsPerM)
     # rings wander: lines converge, spread and curve along the length (no two alike, never evenly spaced)
-    rr = nb.add(rr, nb.mul(nb.noise(nb.mapping(q, scale=(6, 0.8, 6)), 1.0, 3, 0.55, w=seed + 9), 14.0),
-                nb.mul(nb.noise(nb.mapping(q, scale=(24, 2.5, 24)), 1.0, 2, 0.5, w=seed + 11), 3.5))
+    rr = nb.add(rr, nb.mul(nb.noise(nb.mapping(q, scale=(6, 1.3, 6)), 1.0, 3, 0.55, w=seed + 9), 17.0),
+                nb.mul(nb.noise(nb.mapping(q, scale=(24, 4.0, 24)), 1.0, 2, 0.5, w=seed + 11), 4.0))
     ring = nb.math('FRACT', rr)
     rw = nb.noise(nb.mapping(q, scale=(25, 0.5, 25)), 1.0, 2, 0.5, w=seed + 10)     # ring sharpness varies
     latew = nb.mul(nb.ss(ring, nb.add(0.50, nb.mul(rw, 0.30)), 0.93), nb.ss(ring, 1.0, 0.965))
