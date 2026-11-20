@@ -396,7 +396,7 @@
     _e.set(FP.kickR * 0.7 + FP.lagPitch * 0.5 * relax - FP.vmLower * 0.5, FP.lagYaw * 0.7 * relax, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax);
     v.group.quaternion.setFromEuler(_e);
     SHOULDER.set(0.17, -0.3, 0.12);
-    v.group.position.copy(SHOULDER).negate().applyQuaternion(v.group.quaternion).add(SHOULDER).add(_o.set(ox, oy, oz));
+    v.group.position.copy(SHOULDER).negate().applyQuaternion(v.group.quaternion).add(SHOULDER).add(_o.set(ox, oy, oz - FP.vmTune.push * (1 - a)));   // the push eases out in ADS so the sights stay exact
     vmShadows(vm, v);
     vm.gun = rig.gun;
     vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
@@ -437,6 +437,8 @@
     return VM;
   }
   FP.vm = () => VM;
+  // the arms pass: its own field of view (50-60, never the world's) and a small push of the whole rig away from the eye
+  FP.vmTune = { fov: 55, push: 0 };
   const KIND = { rifle: 'rifleScoped', smg: 'smg', pistol: 'pistol', binoc: 'binoculars', grenade: 'grenade', knife: 'knife' };
   const vst = { weapon: '', kind: '', oneShot: null, dt: 0 };
   const pose = { p: new THREE.Vector3(), q: new THREE.Quaternion() }, qa = new THREE.Quaternion(), qp = new THREE.Quaternion(), piv = new THREE.Vector3();
@@ -576,7 +578,7 @@
   FP.draw = function () {
     if (!VM || !VM.root.visible || !FP.on()) return;
     const r = W.renderer, ac = r.autoClear, tm = r.toneMapping;
-    VM.cam.aspect = W.camera.aspect; VM.cam.updateProjectionMatrix();
+    VM.cam.aspect = W.camera.aspect; VM.cam.fov = FP.vmTune.fov; VM.cam.updateProjectionMatrix();   // fixed: never follows the world FOV setting
     r.autoClear = false; r.setRenderTarget(null); r.clearDepth();
     r.toneMapping = THREE.ACESFilmicToneMapping;   // the post stack tone maps the world itself; the viewmodel is drawn after it
     { const ri = r.info.render; FP.worldInfo = { calls: ri.calls, tris: ri.triangles }; }   // the world pass just drawn (without the post stack this is all of it)
