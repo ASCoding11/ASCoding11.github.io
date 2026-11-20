@@ -453,11 +453,12 @@ let touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: 
 // ---------- tuning ----------
 const SPD_MIN=62,SPD_MAX=132,BOOST_ADD=75,STALL=46,STALL_OUT=64,TURN=1.2,PITCH_MAX=1.3;
 const CEIL=900;                       // the air thins out above this and the engine fades
-// The planes are drawn PLANE_SIZE times the size they're built at (1.15, then 12% bigger in November 2026), and the
-// bullet hit sphere grew with them (9 m to 10.08 m), so what you see is what you hit. The shooter's own browser decides
-// its bullets' hits, so a page from before this change in the same room still works; its hits use the old 9 m.
-const PLANE_SIZE=1.15*1.12;
-const BULLET_V=540,BULLET_LIFE=1.25,BULLET_DMG=6,GUN_RATE=.085,HIT_R=9*1.12;
+// The planes are drawn PLANE_SIZE times the size they're built at (1.15, then 12% bigger in November 2026 and 15% more
+// a little later: PLANE_GROW), and the bullet hit sphere, the spawn shield and the HUD boxes grew with them (9 m, then
+// 10.08 m, now 11.59 m), so what you see is what you hit. The shooter's own browser decides its bullets' hits, so a page
+// from before this change in the same room still works; its hits just use its own older radius.
+const PLANE_GROW=1.12*1.15,PLANE_SIZE=1.15*PLANE_GROW;
+const BULLET_V=540,BULLET_LIFE=1.25,BULLET_DMG=6,GUN_RATE=.085,HIT_R=9*PLANE_GROW;
 const HEAT_UP=.024,HEAT_COOL=.3;      // per shot / per second
 const LOCK_T=1.3,LOCK_RANGE=950,LOCK_CONE=.25,MSL_DMG=55,MSL_LIFE=6.5,MSL_TURN=1.9,MSL_MAX=4,FLARE_MAX=4,FLARE_R=520;
 const RESPAWN=3.2,SHIELD=2.5,PICK_R=18,PICK_RESPAWN=20000;
@@ -826,7 +827,7 @@ const PLANE_GEO=[];
 const TRIM_MAT=new THREE.MeshLambertMaterial({color:0x23324a,emissive:0x0a1220});
 const PROP_MAT=new THREE.MeshBasicMaterial({color:0xdfe8f2,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
 const SHIELD_MAT=new THREE.MeshBasicMaterial({color:0x9fe3ff,transparent:true,opacity:.13,depthWrite:false});
-const SHIELD_GEO=new THREE.SphereGeometry(9*1.12,14,10),PROP_GEO=new THREE.CircleGeometry(1,14);
+const SHIELD_GEO=new THREE.SphereGeometry(HIT_R,14,10),PROP_GEO=new THREE.CircleGeometry(1,14);
 // Every plane is drawn through instanced meshes: one body and one trim per airframe, one for all the propellers and
 // one for the spawn shields, so 8 planes cost at most 10 draw calls instead of 3 or 4 each. e.mesh only holds where
 // a plane is (position, YXZ rotation, scale); drawEnts copies that into the instances every frame.
@@ -1572,8 +1573,9 @@ function playerInput(dt){
   if(G.paused||G.phase!=='play'){   // online the fight goes on while the menu is open: hold a safe course
     const av=avoidGround(me,me.h,0,1);me.aimH=me.h+clamp(wrapA(av.h-me.h),-1,1);me.aimP=av.p;c.fire=false;c.boost=false;return;
   }
-  me.thr=clamp(me.thr+((KB.held('thrUp',keys)?1:0)-(KB.held('thrDown',keys)?1:0))*dt*.75,0,1);
-  const tx=(KB.held('left',keys)?1:0)-(KB.held('right',keys)?1:0),ty=((KB.held('up',keys)?1:0)-(KB.held('down',keys)?1:0))*(invY?-1:1);
+  const kh=keys.size>0;   // KB.held builds a few small lists per call, so skip it while no key is down
+  me.thr=clamp(me.thr+((kh&&KB.held('thrUp',keys)?1:0)-(kh&&KB.held('thrDown',keys)?1:0))*dt*.75,0,1);
+  const tx=kh?(KB.held('left',keys)?1:0)-(KB.held('right',keys)?1:0):0,ty=kh?((KB.held('up',keys)?1:0)-(KB.held('down',keys)?1:0))*(invY?-1:1):0;
   if(tx)me.aimH=me.h+tx*1.05;else if(kbTurn)me.aimH=me.h+kbTurn*.12;
   kbTurn=tx;
   if(ty)me.aimP+=ty*1.3*dt;
@@ -1881,7 +1883,7 @@ const CP=(function(){
     hemiC.color.copy(hemi.color);hemiC.groundColor.copy(hemi.groundColor);hemiC.intensity=hemi.intensity;hemiC.position.copy(V3_UP).applyQuaternion(PQI);
     sunC.color.copy(sun.color);sunC.intensity=sun.intensity;sunC.position.copy(sun.position).normalize().applyQuaternion(PQI);
     instruments(me,dt);
-    $('gvign').style.opacity=(REDUCED?0:smooth(.55,1,load)*.5).toFixed(2);
+    setOp($('gvign'),(REDUCED?0:smooth(.55,1,load)*.5).toFixed(2));
   }
   function setOn(v,quiet){
     on=!!v;store.set('view',on?'cockpit':'chase');camSnap=true;headY=headP=0;
@@ -1894,7 +1896,7 @@ const CP=(function(){
     toggle(){setOn(!on);sfx('click')},
     set:setOn,
     // called from updateCamera; returns false when the chase camera should be used instead
-    camera(dt){const a=active();if(a!==act){act=a;$('hud').classList.toggle('cockpit',a);if(!a){$('gvign').style.opacity='0';camSnap=true}}if(!a)return false;camera3(dt,G.me);return true},
+    camera(dt){const a=active();if(a!==act){act=a;$('hud').classList.toggle('cockpit',a);if(!a){setOp($('gvign'),'0');camSnap=true}}if(!a)return false;camera3(dt,G.me);return true},
     render(){if(!act)return;renderer.autoClear=false;renderer.clearDepth();renderer.render(scene,cam);renderer.autoClear=true}
   };
 })();
@@ -1942,8 +1944,12 @@ function toScreen(v){
 const put=(el,x,y)=>{x=Math.round(x*2);y=Math.round(y*2);if(el._x===x&&el._y===y)return;el._x=x;el._y=y;el.style.transform='translate('+x/2+'px,'+y/2+'px)'};
 const setOp=(el,v)=>{if(el._o!==v){el._o=v;el.style.opacity=v}};
 const setBar=(el,v)=>{v=Math.round(v*500);if(el._b!==v){el._b=v;el.style.transform='scaleX('+v/500+')'}};
+// Text the same way: only when it changed, and into the element's one text node, so the page doesn't swap nodes (and
+// lang.js's watcher, which looks through the whole page on every swap, isn't woken) eight times a second per number.
+const txt=(el,v)=>{v=String(v);if(el._t===v)return;el._t=v;const n=el.firstChild;if(n&&n.nodeType===3&&!n.nextSibling)n.data=v;else el.textContent=v};
+const css=(el,k,v)=>{const c='_'+k;if(el[c]!==v){el[c]=v;el.style[k]=v}};
 const marks=[];
-(function(){const box=$('marks');for(let i=0;i<8;i++){const d=document.createElement('div');d.className='mark';d.hidden=true;d.innerHTML='<u><i></i></u><span></span>';box.appendChild(d);marks.push({el:d,name:d.querySelector('span'),hp:d.querySelector('i'),txt:'',hpv:-1,cls:''})}})();
+(function(){const box=$('marks');for(let i=0;i<8;i++){const d=document.createElement('div');d.className='mark';d.hidden=true;d.innerHTML='<u><i></i></u><span></span>';box.appendChild(d);marks.push({el:d,name:d.querySelector('span'),hp:d.querySelector('i'),txt:'',hpv:-1,cls:'',dt:-9})}})();
 let hudT=0,bannerT=0,hitT=0;
 const HE={};for(const id of ['vign','white','reticle','nose','lead','lockRing','hpF','boF','heF'])HE[id]=$(id);
 function banner(t,sub,ms){const b=$('banner');b.textContent=TX(t);if(sub){const s=document.createElement('small');s.textContent=TX(sub);b.appendChild(s)}b.classList.add('on');bannerT=(ms||1500)/1000}
@@ -1989,10 +1995,10 @@ function updateHud(dt){
     const on=s.front&&s.x>10&&s.x<VW-10&&s.y>10&&s.y<VH-10;
     if(!on&&!isT&&(!foe||d>1300))continue;
     mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off');
-    if(on){const sz=Math.round(clamp(2600*1.12/d,24,72));if(m.sz!==sz){m.sz=sz;m.el.style.width=m.el.style.height=sz+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px'}put(m.el,s.x,s.y)}
+    if(on){const sz=Math.round(clamp(2600*PLANE_GROW/d,24,72));if(m.sz!==sz){m.sz=sz;m.el.style.width=m.el.style.height=sz+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px'}put(m.el,s.x,s.y)}
     else{let ax=s.cx,ay=-s.cy;if(!s.front&&Math.hypot(ax,ay)<1e-3)ay=1;const a=Math.atan2(ay,ax),deg=Math.round(a*57.2958);if(m.sz!==0){m.sz=0;m.el.style.width=m.el.style.height='';m.el.style.margin=''}if(m.deg!==deg){m.deg=deg;m.el.style.setProperty('--a',deg+'deg')}put(m.el,VW/2+Math.cos(a)*edge,VH/2+Math.sin(a)*edge)}
     if(m.cls!==cls){m.cls=cls;m.el.className=cls}
-    const dm=Math.round(d/10)*10;if(m.e!==e||m.dm!==dm||m.nm!==e.name){m.e=e;m.dm=dm;m.nm=e.name;m.name.textContent=e.name+' '+dm+'m'}
+    const dm=Math.round(d/10)*10;if(m.e!==e||m.nm!==e.name||m.dm!==dm&&G.time-m.dt>.2){m.e=e;m.dm=dm;m.nm=e.name;m.dt=G.time;txt(m.name,e.name+' '+dm+'m')}   // the distance five times a second
     const hv=Math.round(e.hp/5);if(m.hpv!==hv){m.hpv=hv;m.hp.style.width=clamp(e.hp,0,100)+'%'}
     if(m.el.hidden)m.el.hidden=false;
     if(isT){
@@ -2005,21 +2011,21 @@ function updateHud(dt){
   // bars every frame, text a few times a second
   if(fly){setBar(HE.hpF,me.hp/100);setBar(HE.boF,me.boostM);setBar(HE.heF,me.heat)}
   hudT-=dt;if(hudT>0)return;hudT=.12;
-  if(touch.fill&&me)touch.fill.style.height=(me.thr*100).toFixed(0)+'%';
+  if(touch.fill&&me)css(touch.fill,'height',(me.thr*100).toFixed(0)+'%');
   const now=netNow();
   if(rs){
-    const left=now<rs.t0?rs.tl:rs.tl-(now-rs.t0)/1000;$('clock').textContent=fmtClock(left);
+    const left=now<rs.t0?rs.tl:rs.tl-(now-rs.t0)/1000;txt($('clock'),fmtClock(left));
     let a=0,b=0;if(rs.md===1){a=me?me.kills:0;for(const e of G.ents.values())if(e!==me&&!e.out&&e.kills>b)b=e.kills}else{const t=me&&me.team===1?1:0;a=teamScore(t);b=teamScore(1-t)}
-    $('scoreL').textContent=a;$('scoreR').textContent=b;
+    txt($('scoreL'),a);txt($('scoreR'),b);
     if(G.phase==='play'&&now<rs.t0)banner(TX('Take off in {n}',{n:Math.ceil((rs.t0-now)/1000)}),TX(MODE_NAME[rs.md]+', first to {n}',{n:rs.kl}),400);
   }
-  $('status').style.visibility=fly?'visible':'hidden';
+  css($('status'),'visibility',fly?'visible':'hidden');
   if(fly){
-    $('hpN').textContent=Math.max(0,Math.round(me.hp));$('hpF').style.background=me.hp<30?'var(--red)':me.hp<60?'var(--amber)':'';
-    $('heB').classList.toggle('hot',me.jam||me.heat>.8);$('heN').textContent=me.jam?TX('HOT'):'';
-    $('mslN').textContent=me.msl;$('flN').textContent=me.flares;$('tMsN').textContent=me.msl;$('tFlN').textContent=me.flares;
+    txt($('hpN'),Math.max(0,Math.round(me.hp)));css($('hpF'),'background',me.hp<30?'var(--red)':me.hp<60?'var(--amber)':'');
+    $('heB').classList.toggle('hot',me.jam||me.heat>.8);txt($('heN'),me.jam?TX('HOT'):'');
+    txt($('mslN'),me.msl);txt($('flN'),me.flares);txt($('tMsN'),me.msl);txt($('tFlN'),me.flares);
     $('mslS').classList.toggle('out',me.msl===0);$('flS').classList.toggle('out',me.flares===0);
-    $('spd').textContent=Math.round(me.speed*3.6);$('alt').textContent=Math.round(me.pos.y);$('thrN').textContent=Math.round(me.thr*100);
+    txt($('spd'),Math.round(me.speed*3.6));txt($('alt'),Math.round(me.pos.y));txt($('thrN'),Math.round(me.thr*100));
   }
   // warnings
   const w=[];
@@ -2035,7 +2041,7 @@ function updateHud(dt){
   else if(me&&me.out&&G.phase==='play')w.push(['Watching: you fly in the next match',1]);
   const key=w.map(q=>q[0]).join('|');const we=$('warn');
   if(we.dataset.k!==key){we.dataset.k=key;we.textContent='';for(const q of w){const d=document.createElement('div');d.textContent=TX(q[0]);if(q[1])d.className='soft';we.appendChild(d)}}
-  $('board').hidden=!G.board;if(G.board)$('boardT').innerHTML=tableHTML();
+  if($('board').hidden===!!G.board)$('board').hidden=!G.board;if(G.board)$('boardT').innerHTML=tableHTML();
   drawRadar();
   if(G.phase==='end'&&G.online)endButtons();
 }
@@ -2136,7 +2142,9 @@ function renderLobby(){
     li.innerHTML='<i class="dot" style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ink);background:'+esc(o.color)+'"></i>'+esc(o.name)+' <small>'+esc(TX((id===host?'host':'')+(id===Net.uid?(id===host?', you':'you'):'')))+'</small>';
     ul.appendChild(li);
   }
-  $('lobbySub').textContent=TX('Room {r} · {n} of {m} pilots',{r:Net.room,n:ids.length,m:MAX_ROOM});
+  // your ranked rating (../elo.js), so it's in view before a match as well as on the results
+  let er=null;try{er=window.BackRoomElo?BackRoomElo.get():null}catch(e){}
+  $('lobbySub').textContent=TX('Room {r} · {n} of {m} pilots',{r:Net.room,n:ids.length,m:MAX_ROOM})+(er&&isFinite(er.r)?' · '+TX('Your rating {r}',{r:er.r}).replace(/ (\d+)$/,'\u00a0$1'):'');   // the number never wraps alone
   const party=partyRoom();
   for(const b of $('lobbyOpts').querySelectorAll('button'))b.disabled=!mine||party&&!!b.closest('#setFill');
   $('noBotsNote').hidden=!party;
