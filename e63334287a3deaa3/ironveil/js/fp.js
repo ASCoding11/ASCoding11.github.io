@@ -170,7 +170,7 @@
         // the chest kit (pack, webbing on spine_02/03) still fills the view looking down: drop it too, camera only
         A.root.traverse(o => {
           if (!o.isSkinnedMesh || !o.userData.fullGeom || /_fpShadow$/.test(o.name)) return; const u = o.userData;
-          if (on) { if (o.material !== u._chestMat) { if (!u._chestMat || u._chestBase !== o.material) { u._chestBase = o.material; u._chestMat = maskedMaterial(o, b => /^spine_0[123]/.test(b.name), { value: 1 }); } o.material = u._chestMat; } }
+          if (on) { if (o.material !== u._chestMat) { if (!u._chestMat || u._chestBase !== o.material) { u._chestBase = o.material; u._chestMat = maskedMaterial(o, b => /^(spine_0[123]|pelvis)$/.test(b.name), { value: 1 }); } o.material = u._chestMat; } }
           else if (u._chestBase && o.material === u._chestMat) o.material = u._chestBase;
         });
       }
