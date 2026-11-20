@@ -6,6 +6,23 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Sky Duel: bigger planes": "Sky Duel: aviones más grandes",
+    "The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.": "Los aviones de Sky Duel son un poco más grandes (alrededor de un 15%), así que es más fácil verlos y darles. Las balas le dan a lo que ves, tanto en la vista de persecución como en la de cabina.",
+    "The briefing room shows your ranked rating, and every online match against another real pilot (free-for-all, duel or 2v2) still counts for your Elo.": "La sala de reunión muestra tu puntuación de ranking, y cada partida en línea contra otro piloto real (todos contra todos, duelo o 2v2) sigue contando para tu Elo.",
+    "Parties never get bots in Sky Duel, and the HUD does less work every second, so the game runs a little smoother.": "Los grupos nunca tienen bots en Sky Duel, y el HUD hace menos trabajo cada segundo, así que el juego va un poco más fluido.",
+    "Hush Pools: into the mist": "Hush Pools: entre la niebla",
+    "The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.": "Las salas ahora son mucho más grandes y están llenas de niebla. Solo ves un poco hacia delante, así que tienes que explorar para encontrar el camino.",
+    "Each hall has three doors in the far wall, and only one of them is open.": "Cada sala tiene tres puertas en la pared del fondo, y solo una está abierta.",
+    "There is now just one monster, and it is very fast. When it hears you close by, it freezes, shrieks and rushes at you: be far away, or move the moment you hear it.": "Ahora hay un solo monstruo, y es muy rápido. Cuando te oye cerca, se queda quieto, chilla y se lanza hacia ti: aléjate o muévete en cuanto lo oigas.",
+    "The water is only knee deep: you can wade through it and climb back out, but wading is slow and loud. You can't drown any more.": "El agua solo te llega a las rodillas: puedes caminar por ella y volver a subir, pero caminar por el agua es lento y ruidoso. Ya no te puedes ahogar.",
+    "The monster looks creepier, and getting caught is a much bigger scare. If it's too much, turn on Gentler grabs in Settings.": "El monstruo da más miedo, y que te atrape es un susto mucho más grande. Si es demasiado, activa «Gentler grabs» (agarres más suaves) en la configuración del juego.",
+    "New game: Putterby": "Juego nuevo: Putterby",
+    "Mini golf": "Minigolf",
+    "Up to 8": "Hasta 8",
+    "Putterby: mini golf in a little toy-town garden for 1 to 8 players. Drag back from your ball and let go to putt.": "Putterby: minigolf en un jardín de pueblo de juguete para 1 a 8 jugadores. Arrastra hacia atrás desde tu pelota y suelta para golpear.",
+    "Nine holes, par 27, with ramps, loops, sliding gates, a spinning bar, bumpers, sand traps and ponds to jump.": "Nueve hoyos, par 27, con rampas, rizos, compuertas que se deslizan, una barra giratoria, rebotadores, trampas de arena y estanques para saltar.",
+    "Play solo, in a room with friends, or Quick match: everyone plays the same hole at once and sees the other balls rolling.": "Juega solo, en una sala con amigos o en Partida rápida: todos juegan el mismo hoyo a la vez y ven rodar las otras pelotas.",
+    "A new daily hole every day, the same for everyone, and your best nine-hole card goes on the Leaderboards.": "Un hoyo diario nuevo cada día, igual para todos, y tu mejor tarjeta de nueve hoyos va a las Clasificaciones.",
     "Flipline, Beatvault and Rollaway": "Flipline, Beatvault y Rollaway",
     "Stunt bike": "Moto acrobática",
     "Rhythm runner": "Carrera con ritmo",
