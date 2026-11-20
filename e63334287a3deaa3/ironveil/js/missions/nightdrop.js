@@ -110,6 +110,12 @@
     h = h + (farmH - h) * bump(df, 34, 52);
     // crossroads level
     h = h + (base(0, 10) - h) * bump(Math.hypot(x, z - 10), 10, 18);
+    // the hamlet street climbs north from the crossroads (about 3 m over 90 m, under 2 degrees) and the church stands
+    // above it on a knoll (level within 12 m of the church, rising ~7 degrees from the street); the street rise fades
+    // out 24-34 m either side of the road
+    { const rx = z < 80 ? z / 80 : 1 + (z - 80) / 108;
+      const street = 3.0 * IV.smooth(IV.clamp((z - 22) / 92, 0, 1)) * bump(Math.abs(x - rx), 24, 34);   // (the stream, 37 m west, keeps its level)
+      h += Math.max(street, 4.0 * bump(Math.hypot(x - 37, z - 88), 12, 24)); }   // the knoll stands 1.5 m above the street beside it
     // sunken lanes (cancel the cut over the bridge)
     const ds = pd(x, z, ST);
     const lane = Math.max(bump(pd(x, z, L1), 1.9, 3.6), bump(pd(x, z, L2), 1.9, 3.6) * bump(df, 999, 1000) + bump(pd(x, z, L2), 1.9, 3.6) * (1 - bump(df, 20, 30)));
