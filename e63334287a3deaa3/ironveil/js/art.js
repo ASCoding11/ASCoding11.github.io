@@ -53,6 +53,7 @@
     if (!E || !E.builder || K.noMesh || spec.envShell === false) return K.building(b, spec);
     const EB = E.builder(seed()); let r;
     spec.envB = EB; try { r = K.building(b, spec); } finally { delete spec.envB; }
+    if (E.ageMesh && r) safe(() => E.ageMesh(EB, { w: spec.w, d: spec.d, eave: (r.top - r.fy) * 0.62, seed: (spec.x * 7 + spec.z * 3) | 0, amount: spec.age != null ? spec.age : 1, cx: spec.x, cz: spec.z, rot: (spec.rot || 0) + (spec.roof && spec.roof.ridge === 'z' ? Math.PI / 2 : 0), y0: r.fy - 0.3 }), 'age');
     safe(() => { const g = EB.finish(); g.name = 'IVEnv.shell'; root().add(g); }, 'building shell');
     return r;
   };

@@ -756,6 +756,7 @@
     // paint tint is relative to the texture's own paint (about 0.36 of white): keep it near 1
     S.paintTint.r = E.clamp(S.paintTint.r * 0.36 / 0.3, 0.6, 1.5); S.paintTint.g = E.clamp(S.paintTint.g * 0.36 / 0.36, 0.6, 1.5); S.paintTint.b = E.clamp(S.paintTint.b * 0.36 / 0.32, 0.6, 1.5);
     fn(B, S, spec);
+    if (kind !== 'shed' && kind !== 'bunker') E.ageMesh(B, { w: spec.w || 10, d: spec.d || 8, eave: (S.roofTop || 6) * 0.62, seed: spec.seed, amount: spec.age != null ? spec.age : (kind === 'office' ? 0.4 : 1) });
     // old walls are not true: a slight lean and a bulge at mid height on the long walls (house-like kinds)
     if (kind === 'farmhouse' || kind === 'cottage' || kind === 'church' || kind === 'barn') {
       const lx = R.range(-0.008, 0.008), lz = R.range(-0.006, 0.006), bul = R.range(0.02, 0.045), H = Math.max(2, (S.roofTop || 6) * 0.7), w = spec.w || 10, d = spec.d || 8;
@@ -768,6 +769,27 @@
     const colliders = B.colliders.concat(S.extraCols);
     return { group, colliders, doors: S.doors, windows: S.windows, lights: S.lights, height: S.roofTop || 0 };
   };
+
+  // ------------------------------------------------------------------ age: nothing old is true
+  // IVEnv.ageMesh(builder, { w, d, eave, seed, amount, cx, cz }) bends the drawn mesh of one building (colliders are not
+  // touched): walls a little out of plumb with a slow wobble, a bulge mid-height, wall tops that wander, a swaybacked
+  // roof that sags between the gables and droops at one end. Coordinates are relative to (cx, cz) (default 0, 0).
+  E.ageMesh = function (B, o) {
+    const R = E.rng((o.seed || 1) * 31 + 7), a = o.amount == null ? 1 : o.amount, cx = o.cx || 0, cz = o.cz || 0, rot = o.rot || 0, c = Math.cos(rot), s = Math.sin(rot);
+    const lx = R.range(-0.012, 0.012) * a, lz = R.range(-0.01, 0.01) * a, ph = R() * 9, sag = R.range(0.06, 0.16) * a, droop = R.range(-0.12, 0.12) * a, W2 = Math.max(o.w || 8, o.d || 6) / 2, eave = o.eave || 4, base = o.y0 || 0;
+    for (const k in B.buckets) {
+      const p = B.buckets[k].p;
+      for (let i = 0; i < p.length; i += 3) {
+        const X = p[i] - cx, Z = p[i + 2] - cz, y = p[i + 1] - base; if (y <= 0.05) continue;
+        const u = X * c - Z * s, v = X * s + Z * c;   // building-local: u along the ridge
+        let dx = lx * y + 0.025 * a * Math.sin(y * 0.9 + v * 0.6 + ph) * Math.min(1, y / 2), dz = lz * y + 0.025 * a * Math.sin(y * 0.8 + u * 0.5 + ph * 1.7) * Math.min(1, y / 2);
+        let dy = 0.05 * a * Math.sin(u * 0.45 + ph) * Math.min(1, y / eave);                 // tops wander
+        if (y > eave * 0.9) { const t = IVc(u / W2); dy -= sag * (1 - t * t) * Math.min(1, (y - eave * 0.9) / 1.5 + 0.4) + droop * Math.max(0, t) * 0.5; }   // swayback, one end drooping
+        p[i] += dx * c + dz * s; p[i + 1] += dy; p[i + 2] += -dx * s + dz * c;
+      }
+    }
+  };
+  const IVc = (v) => v < -1 ? -1 : v > 1 ? 1 : v;
 
   // ------------------------------------------------------------------ settlements: many buildings, cheap at range
   // IVEnv.settle(specs, { heightFn, near, shellOnly, seed }) -> { group, colliders, lights, chimneys }

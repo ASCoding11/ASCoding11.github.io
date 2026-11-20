@@ -106,6 +106,10 @@
     glass: { tex: 'glass', size: 1.0, hero: 0, minor: 1, ns: 0.4, macro: 0.1, glass: 1, noFoot: 1 },
     straw: { tex: 'straw', size: 1.0, hero: 0, minor: 1, ns: 1.0, macro: 0.14, noFoot: 1 }
   };
+  // Scanned sets shipped in env/scans: material -> real size of one repeat in metres (the set's shot size; never smaller)
+  E.SCANS = {};
+  E.useScans = function (table) { Object.assign(E.SCANS, table); for (const k in table) { const r = E.RECIPES[k]; if (r) { r.size = table[k]; r.id = 0; r.scan = 1; r.pom = 0; } } };
+  E.useScans({ brick_red: 1.4, brick_sooty: 2.0, fieldstone: 2.0, ashlar: 1.53, plaster: 2.5, planks: 2.0, wood_painted: 1.6, timber: 0.5, roof_tile: 4.0, slate: 3.0, cobbles: 1.0, concrete: 3.0, mud: 1.3, earth: 2.0, gravel: 2.0, grass_ground: 3.15, floorboards: 3.0 });
   // Friendly names from the brief map to recipes.
   E.ALIASES = {
     'red brick': 'brick_red', brick: 'brick_red', 'sooty brick': 'brick_sooty', 'fieldstone wall': 'fieldstone', stone: 'fieldstone',
@@ -132,6 +136,11 @@
     const seen = {};
     for (const n of want) { const r = E.RECIPES[n]; if (!r || seen[r.tex]) continue; seen[r.tex] = 1; jobs.push({ name: r.tex, S: r.hero || (r.hero2 && Q.name === 'high') ? Q.tex : r.ground ? Q.texGround : r.minor ? Q.texMinor : Q.texLo, seed: 1000 + jobs.length * 77 }); }
     jobs.push({ name: 'decals', S: Q.texDecal, seed: 4242 }); jobs.push({ name: 'macro', S: 256, seed: 99 });
+    // scanned CC0 sets (env/scans, see CREDITS-env.md): fetched as three images (albedo, normal xy + roughness,
+    // height) and packed into the same layout the generator makes, so every shader layer works on them unchanged
+    const scanJobs = [];
+    if (!E.noScans) for (let i = jobs.length - 1; i >= 0; i--) { const j = jobs[i]; if (E.SCANS[j.name]) { scanJobs.push(j); jobs.splice(i, 1); } }
+
     // the biggest first so the workers finish together
     jobs.sort((a, b) => b.S - a.S); jobs.forEach((j, i) => j.job = i);
     let done = 0; const total = jobs.length; E.genTimes = {};
@@ -171,12 +180,28 @@
         run(todo);
       });
     }));
+    if (scanJobs.length) {
+      const img = (url) => fetch(url).then(r => { if (!r.ok) throw new Error(url); return r.blob(); }).then(b => createImageBitmap(b));
+      const px = (bm, S) => { const c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'); g.drawImage(bm, 0, 0, S, S); return g.getImageData(0, 0, S, S).data; };
+      const scanP = Promise.all(scanJobs.map(j => {
+        const sfx = E.Q.name === 'low' || j.S <= 512 ? '.512' : '', S = sfx ? 512 : 1024, b = BASE + 'scans/' + j.name + sfx, t1 = performance.now();
+        return Promise.all([img(b + '.alb.webp'), img(b + '.nr.webp'), img(b + '.h.webp')]).then(([a, n, h]) => {
+          const A = px(a, S), N = px(n, S), Hh = px(h, S), alb = new Uint8ClampedArray(S * S * 4), nri = new Uint8ClampedArray(S * S * 4);
+          for (let i = 0; i < S * S; i++) { const q = i * 4; alb[q] = A[q]; alb[q + 1] = A[q + 1]; alb[q + 2] = A[q + 2]; alb[q + 3] = Hh[q]; nri[q] = N[q]; nri[q + 1] = N[q + 1]; nri[q + 2] = N[q + 2]; nri[q + 3] = 112; }
+          // rows are stored top-down in the image; the generator's row 0 is v = 0 (bottom): flip
+          const flip = (arr) => { const row = S * 4, tmp = new Uint8ClampedArray(row); for (let y = 0; y < S / 2; y++) { const a0 = y * row, b0 = (S - 1 - y) * row; tmp.set(arr.subarray(a0, a0 + row)); arr.copyWithin(a0, b0, b0 + row); arr.set(tmp, b0); } };
+          flip(alb); flip(nri);
+          return { name: j.name, S, alb, nri, ms: performance.now() - t1, scan: true };
+        }).catch(e => { console.warn('IVEnv scan failed, generating instead:', j.name, e); return IVEnvTexGen.generate(j.name, j.S, j.seed); });
+      })).then(list => { for (const r of list) { if (!r.name) continue; RAW[r.name] = r; } });
+      const gen = E._loading; E._loading = Promise.all([gen, scanP]).then(() => { for (const k in RAW) if (RAW[k].scan && !E.tex[k]) { build(); break; } return E; });
+    }
     return E._loading;
   };
   function build() {
     const a = Math.min(E.Q.aniso, E.maxAniso || 1);
     for (const k in RAW) {
-      const r = RAW[k];
+      const r = RAW[k]; if (E.tex[k]) continue;   // (built already: scans arriving after the generated set)
       E.tex[k] = { alb: makeTex(r.alb, r.S, k !== 'macro', a), nri: r.nri ? makeTex(r.nri, r.S, false, a) : null, S: r.S };
     }
     U.uMacro.value = E.tex.macro.alb; E.tex.macro.alb.encoding = THREE.LinearEncoding;
