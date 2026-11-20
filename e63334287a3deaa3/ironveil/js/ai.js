@@ -543,6 +543,14 @@
     DS.speed = Math.min(DS.speed, this.speed + 0.01);
     if (a.drive) { if (!this.cine) IV.releaseLoopPose(a); a.drive(DS); }
   };
+  // drawing cost: soldiers off screen (a 1.3 m sphere round the body) are not drawn and animate four times a second;
+  // on Low nobody past 140 m is drawn (the frustum is computed once per rendered frame)
+  const FR = new THREE.Frustum(), FM = new THREE.Matrix4(), FS = new THREE.Sphere(new THREE.Vector3(), 1.3); let frAt = -1;
+  function onScreen(p) {
+    if (frAt !== IV.frameNo) { frAt = IV.frameNo; const c = W.camera; c.updateMatrixWorld(); FM.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); FR.setFromProjectionMatrix(FM); }
+    FS.center.set(p.x, p.y + 0.9, p.z); return FR.intersectsSphere(FS);
+  }
+  AI.drawStats = { drawn: 0, total: 0 };
   Enemy.prototype.frame = function (alpha, dt) {
     const r = this.actor.root;
     r.position.lerpVectors(this.prev, this.pos, alpha);
@@ -557,7 +565,8 @@
     // cull animation work for far soldiers (update every few frames)
     const d = Math.hypot(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z);
     this.animAcc = (this.animAcc || 0) + dt;
-    const every = d > 90 ? 0.15 : d > 50 ? 0.066 : 0;
+    const seen = onScreen(this.pos) && d < (W.quality === 0 ? 140 : 260);
+    const every = !seen && d > 6 ? 0.25 : d > 90 ? 0.15 : d > 50 ? 0.066 : 0;
     this.yawRate = dt > 0 ? IV.wrapA(this.bodyYaw - (this.lastYaw == null ? this.bodyYaw : this.lastYaw)) / Math.max(dt, 1e-3) : 0; this.lastYaw = this.bodyYaw;
     if (this.animAcc >= every) {
       if (this.alive) this.drive(this.animAcc);
@@ -565,7 +574,7 @@
       if (d < 30 && IV.weapons.animateGun) IV.weapons.animateGun(this.weapon, this.wkind, this.animAcc || dt, { trigger: IV.time - (this.lastShotT || -9) < 0.15, deployed: this.wkind === 'mg' && (this.fixed || (this.state === 'combat' && this.speed < 0.2)) });
       this.actor.update(this.animAcc); this.animAcc = 0;
     }
-    r.visible = d < 260;
+    r.visible = seen || d <= 6;
     // sniper glint: visible while he is aiming your way
     if (this.glint) {
       const aiming = this.alive && this.state === 'combat' && this.seeing;

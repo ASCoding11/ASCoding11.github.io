@@ -143,6 +143,7 @@
     M.step(dt);
   }
   function render(dt) {
+    IV.frameNo = (IV.frameNo || 0) + 1;
     IV.player.frame(alpha, dt);
     IV.ai.frame(alpha, dt);
     IV.ally.frame(alpha, dt);
