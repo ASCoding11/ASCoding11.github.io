@@ -39,7 +39,8 @@ def rest():
 SHOULDER = {'r': Vector((0.30, 0.05, -0.50)), 'l': Vector((-0.08, 0.10, -0.45))}
 REACH = 0.93   # a shoulder moves toward its hand when the hand is further than this share of the arm's reach
 POLE = {'r': Vector((0.55, -0.3, -1.0)), 'l': Vector((-0.4, -0.1, -1.0))}       # elbows down and a little out
-POLE_K = {'pistol': {'r': Vector((1.0, -0.3, -0.6)), 'l': Vector((-0.6, -0.1, -1.0))}}   # as in g7
+POLE_K = {'pistol': {'r': Vector((1.0, -0.3, -0.6)), 'l': Vector((-0.6, -0.1, -1.0))},   # as in g7
+          'smg': {'r': POLE['r'], 'l': Vector([float(v) for v in os.environ.get('SMG_POLE_L', '-0.15,-0.1,-1.0').split(',')])}}   # support elbow under the gun
 
 # ------------------------------------------------------------------------------------------------ base poses
 # per weapon: hip (weapon pose at the hip), ads (sight on the camera axis), sprint carry, low (lowered)
@@ -60,7 +61,10 @@ REAR = {'smg': 0.20, 'pistol': float(os.environ.get('PREAR', 0.50))}
 BASE = {
     'rifleScoped': dict(hip=pose_w(tuple(float(v) for v in os.environ.get('RIFLE_HIP', '0.20,0.58,-0.27').split(',')),
                                    yaw=float(os.environ.get('RIFLE_YAW', 5.0)), pitch=-1.6, roll=float(os.environ.get('RIFLE_ROLL', -8.0))),
-                        sprint=pose_w((0.06, 0.40, -0.25), yaw=38, pitch=14, roll=-55),
+                        # sprint carry: low across the body, muzzle down and to the left, both hands on (the old carry
+                        # swung the muzzle up across the view)
+                        sprint=pose_w(tuple(float(v) for v in os.environ.get('RSPR', '0.12,0.42,-0.20').split(',')),
+                                      yaw=float(os.environ.get('RSPR_YAW', 55)), pitch=float(os.environ.get('RSPR_PITCH', -12)), roll=float(os.environ.get('RSPR_ROLL', -45))),
                         low=pose_w((0.16, 0.16, -0.32), yaw=10, pitch=-30, roll=-10)),
     'smg': dict(hip=pose_w((0.13, 0.33, -0.098), yaw=0.6, pitch=-1.2, roll=-4.0),
                 sprint=pose_w((0.05, 0.36, -0.23), yaw=38, pitch=12, roll=-55),
@@ -121,6 +125,119 @@ def shoulders_for(k, Ww):
     a = AL.smooth(max(0.0, min(1.0, 1 - (Ww.translation - A).length / max(1e-6, (H - A).length))))
     return {s: SH_BODY[k]['hip'][s].lerp(SH_BODY[k]['ads'][s], a) for s in ('l', 'r')}
 
+def ads_factor(k, Ww):
+    """0 at the hip pose, 1 at the ADS pose, by the weapon's position between them."""
+    H = BASE[k]['hip'].translation; A = BASE[k]['ads'].translation
+    return AL.smooth(max(0.0, min(1.0, 1 - (Ww.translation - A).length / max(1e-6, (H - A).length))))
+
+# Bent elbows, posed by hand. The owner's "weirdly positioned, disabled" arms were nearly straight poles reaching for
+# the gun: a fixed shoulder and a hand far out leave the IK nothing but a straight arm, and the elbow pole search then
+# swung the elbow wherever the wrist was least bent. Here the arm is built from the hand back: the forearm leaves the
+# wrist along the hand's own axis turned at most `bend` degrees toward `to` (a direction in eye space: down and back
+# toward the camera, so the sleeve rises steeply from the bottom edge, foreshortened), the elbow sits a forearm's
+# length down that line, and the upper arm runs from the elbow toward a real shoulder (about 0.18 m to the side of the
+# eye and 0.22 m below it), turned toward the forearm until the elbow has `elbow` degrees (180 = straight). The
+# shoulder joint lands where that upper arm ends; it is never on screen. Per weapon and side, (hip, ads) specs; None
+# keeps the accepted solver arm at the hip and blends into the authored one as the gun rises to the sights.
+DEV_MAX = float(os.environ.get('DEV_MAX', 18))
+SH_NOM = {'l': Vector((-0.18, -0.04, -0.22)), 'r': Vector((0.18, -0.06, -0.22))}
+def A_(elbow, to, bend, drop=0.0): return dict(elbow=elbow, to=Vector(to).normalized(), bend=bend, drop=drop)
+ARMS = {'pistol': {'l': (None, A_(100, (0.2, -0.6, -0.75), 30, 1.5)), 'r': (None, A_(100, (-0.2, -0.6, -0.75), 30, 1.5))}}
+for k_, v_ in list(ARMS.items()):
+    for s_ in v_:
+        e_ = os.environ.get('ARM_%s_%s' % (k_, s_))     # tuning: ARM_smg_l="ads:88:-0.25,-0.55,-0.8:32"
+        if e_:
+            w_, el_, to_, bd_, dr_ = e_.split(':'); h_, d_ = v_[s_]
+            sp_ = A_(float(el_), [float(x) for x in to_.split(',')], float(bd_), float(dr_))
+            v_[s_] = (sp_, d_) if w_ == 'hip' else (h_, sp_)
+# Long guns: the support arm keeps the solver's elbow direction (chosen per frame for the wrist and to stay out of the
+# gun, so reloads and charges follow it too) but the shoulder is drawn in along its line to the hand until the elbow
+# has the wanted angle (hip, ads; None = the accepted hip arm, capped only as the gun rises).
+ELBOW = {'smg': {'l': (100, 88)}, 'rifleScoped': {'l': (None, 88)}}
+def cap_shoulder(L, W, k, Ww, s, H):
+    e = ELBOW.get(k, {}).get(s)
+    if OLD or not e: return
+    a = ads_factor(k, Ww); h, d = e
+    if h is None:
+        if a < 1e-3: return
+        th, wt = d, a
+    else: th, wt = h + (d - h) * a, 1.0
+    l1 = rig.len['upperarm_' + s]; l2 = rig.len['lowerarm_' + s]
+    S = W['upperarm_' + s].translation.copy(); D = H.translation - S
+    d_full = min(D.length, 0.93 * (l1 + l2))
+    d_want = math.sqrt(l1 * l1 + l2 * l2 - 2 * l1 * l2 * math.cos(math.radians(th)))
+    dd = d_full + (min(d_want, d_full) - d_full) * wt
+    # toward a low shoulder: a shoulder drawn in at eye height brings the upper arm right under the lens, where its
+    # top shows as a huge dark sleeve from the bottom-left corner
+    S2 = S.lerp(SH_LOW[s], wt); D2 = H.translation - S2
+    if D2.length > dd: F.place_shoulder(rig, L, W, s, H.translation - D2.normalized() * dd)
+    else: F.place_shoulder(rig, L, W, s, S2)
+POLE_ADS = {'rifleScoped': {'l': Vector([float(v) for v in os.environ.get('RIF_POLE_L', '-0.1,-0.1,-1.0').split(',')])}}
+def pole_for(k, Ww, s):
+    """Elbow pole: per weapon, blended toward its ADS pole (support elbow under the gun) as the gun rises."""
+    p = POLE_K.get(k, POLE)[s]; q = POLE_ADS.get(k, {}).get(s)
+    if q is None or OLD: return p
+    return p.lerp(q, ads_factor(k, Ww)).normalized()
+SH_LOW = {'l': Vector((-0.20, -0.04, -0.32)), 'r': Vector((0.20, -0.04, -0.32))}
+
+def arm_spec(k, Ww, s):
+    """(spec, weight) of the authored arm for this weapon pose, or None."""
+    e = ARMS.get(k, {}).get(s)
+    if OLD or not e: return None
+    a = ads_factor(k, Ww); h, d = e
+    if h is None: return (d, min(1.0, a / 0.35)) if a > 1e-3 else None    # most of the change early in the raise
+    return (dict(elbow=h['elbow'] + (d['elbow'] - h['elbow']) * a, to=h['to'].lerp(d['to'], a).normalized(),
+                 bend=h['bend'] + (d['bend'] - h['bend']) * a, drop=h['drop'] + (d['drop'] - h['drop']) * a), 1.0)
+def rot_toward(v, t, deg):
+    """v turned toward t by at most deg degrees."""
+    ang = v.angle(t, 0.0)
+    if ang < 1e-6: return v.copy()
+    ax = v.cross(t)
+    if ax.length < 1e-9: return v.copy()
+    return Quaternion(ax.normalized(), min(ang, math.radians(deg))) @ v
+def authored_arm(k, Ww, s, H):
+    """Shoulder and elbow points of the authored arm for the hand matrix H, or None."""
+    sp = arm_spec(k, Ww, s)
+    if not sp: return None
+    spec, wt = sp
+    l1 = rig.len['upperarm_' + s]; l2 = rig.len['lowerarm_' + s]
+    Wp = H.translation
+    # forearm: the wrist flexion (toward the palm) and side deviation, within +-bend and +-dev_max, that point the
+    # forearm (wrist -> elbow) closest to `to`
+    hy = (H.to_3x3() @ Vector((0, 1, 0))).normalized()           # wrist -> knuckles
+    pn = (H.to_3x3() @ rig.Rr['hand_' + s].inverted() @ Vector((0, 0, -1))); pn = (pn - hy * pn.dot(hy)).normalized()
+    sd = hy.cross(pn).normalized()
+    best = None
+    for fl in np.linspace(-spec['bend'], spec['bend'], 13):
+        for dv in np.linspace(-DEV_MAX, DEV_MAX, 9):
+            fa = (hy - pn * math.tan(math.radians(fl)) - sd * math.tan(math.radians(dv))).normalized()
+            c = (-fa).angle(spec['to'], 0.0)
+            if best is None or c < best[0]: best = (c, fa)
+    fdir = -best[1]                                              # wrist -> elbow
+    E = Wp + fdir * l2
+    f = -fdir                                                    # elbow -> wrist
+    # the upper arm: of the directions at `elbow` degrees from the forearm, the one nearest the real shoulder
+    # (pulled down by `drop`, so the upper arm leaves the frame downward instead of rising into view)
+    ref = ((SH_NOM[s] - E).normalized() + Vector((0, 0, -spec['drop']))).normalized()
+    ang = math.degrees(ref.angle(f, 0.0))
+    u = rot_toward(ref, f, ang - spec['elbow']) if ang >= spec['elbow'] else rot_toward(ref, -f, spec['elbow'] - ang)
+    return E + u * l1, E, wt
+def ads_factor(k, Ww):
+    """0 at the hip pose, 1 at the ADS pose, by the weapon's position between them."""
+    H = BASE[k]['hip'].translation; A = BASE[k]['ads'].translation
+    return AL.smooth(max(0.0, min(1.0, 1 - (Ww.translation - A).length / max(1e-6, (H - A).length))))
+def arm_place(L, W, k, Ww, s, H, solved=None):
+    """Pose side s onto H with the authored arm (blended with the solver's arm `solved` = (S, E) by its weight).
+    Returns True when it posed the arm."""
+    au = authored_arm(k, Ww, s, H)
+    if not au: return False
+    S, E, wt = au
+    if solved is not None and wt < 1: S = solved[0].lerp(S, wt); E = solved[1].lerp(E, wt)
+    F.place_shoulder(rig, L, W, s, S)
+    dn = (H.translation - S).normalized(); pole = (E - S) - dn * (E - S).dot(dn)
+    F.arm_to(rig, L, W, s, H, pole, reach=1.0)
+    return True
+
 def joint_stats(W, s):
     """Wrist flexion (+ toward the palm) and deviation, elbow angle, elbow height above the wrist (m) and forearm
     twist (deg) of side s for the world bone matrices W."""
@@ -168,6 +285,11 @@ GRIPSPEC = {
     ('pistol', 'gripL'): dict(pc=tuple(float(v) for v in os.environ.get('PGL_PC', '0.014,0.060,-0.058').split(',')),
                               dir=nz(*[float(v) for v in os.environ.get('PGL_DIR', '-0.35,-1,-0.35').split(',')]), palm=nz(-1, 0.35, 0.15), fixed=True),
 }
+# pistol ADS: the support hand turned to point along the gun (forward, a little up) so its forearm can come from below
+# and behind under the gun instead of from the far left; the grips blend from the hip ones by the ADS amount
+GRIPSPEC[('pistol', 'gripLads')] = dict(GRIPSPEC[('pistol', 'gripL')], dir=nz(*[float(v) for v in os.environ.get('PGLA_DIR', '-0.15,-1,0.0').split(',')]),
+                                        palm=nz(*[float(v) for v in os.environ.get('PGLA_PALM', '-1,0.15,0.15').split(',')]))
+GRIPSPEC[('pistol', 'gripRads')] = dict(GRIPSPEC[('pistol', 'gripR')], dir=nz(*[float(v) for v in os.environ.get('PGRA_DIR', '0.15,-1,-0.1').split(',')]))
 PALM = {}
 for s_ in ('l', 'r'):
     ids = [i for i, b in enumerate(skin.dom) if b == 'hand_' + s_ and skin.N[i][2] < -0.5]
@@ -212,7 +334,9 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         L, Wd = rest()
         for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, shoulders_for(k, W)[side])
         R3 = Wf.to_3x3()
-        F.arm_to(rig, L, Wd, s, hand_matrix(s, Wf @ (Vector(g['pc']) + off), R3 @ g['dir'], R3 @ g['palm']), POLE_K.get(k, POLE)[s])
+        Hm = hand_matrix(s, Wf @ (Vector(g['pc']) + off), R3 @ g['dir'], R3 @ g['palm'])
+        if not arm_place(L, Wd, k, W, s, Hm):
+            cap_shoulder(L, Wd, k, W, s, Hm); F.arm_to(rig, L, Wd, s, Hm, pole_for(k, W, s))
         g['dir'], g['palm'] = base_dir, base_palm
         return L, Wd, R
     def cost(x, fingers):
@@ -300,12 +424,20 @@ def frame(k, Ww, hands, fingers, parts=None, shoulders=None, prop=None, nudge=No
             ax = (H.translation - W['upperarm_' + s].translation).normalized()
             best = None
             for a_ in POLES[s]:
-                pole = Quaternion(ax, math.radians(a_)) @ POLE_K.get(k, POLE)[s]
+                pole = Quaternion(ax, math.radians(a_)) @ pole_for(k, Ww, s)
                 L2 = {b: m.copy() for b, m in L.items()}; W2 = {b: m.copy() for b, m in W.items()}
+                cap_shoulder(L2, W2, k, Ww, s, H)
                 F.arm_to(rig, L2, W2, s, H, pole)
                 pen = arm_pen(W2, s, bvh, Minv, hand=bool((nudge or {}).get(s)))
                 c = pen + abs(a_) * 0.00004 + abs(a_ - LASTPOLE.get(s, 0)) * 0.0002 + joint_cost(W2, s) * 0.002
+                if os.environ.get('POLEDBG'): log('    pole', s, a_, 'pen %.4f joint %.2f' % (pen, joint_cost(W2, s)))
                 if best is None or c < best[0] - 1e-9: best = (c, L2, W2, a_, pen)
+            sp = arm_spec(k, Ww, s)
+            if sp:      # the authored arm (see ARMS), blended from the solver's while the gun rises
+                L2 = {b: m.copy() for b, m in L.items()}; W2 = {b: m.copy() for b, m in W.items()}
+                sol = (best[2]['upperarm_' + s].translation.copy(), best[2]['lowerarm_' + s].translation.copy())
+                arm_place(L2, W2, k, Ww, s, H, solved=sol)
+                best = (best[0], L2, W2, best[3], arm_pen(W2, s, bvh, Minv, hand=bool((nudge or {}).get(s))))
             return best
         if FORCE.get(s) is not None:
             H = hands[s].copy(); H.translation = H.translation + FORCE[s]
@@ -472,8 +604,16 @@ def tr(v): return Matrix.Translation(Vector(v))
 def ramp(t, t0, t1): return AL.smooth((t - t0) / max(1e-6, t1 - t0))
 def bump(t, t0, t1, t2): return ramp(t, t0, t1) * (1 - ramp(t, t1, t2))
 
-def grip_r(k, W): return hand_frame(k, 'r', W, 'gripR')
-def grip_l(k, W): return hand_frame(k, 'l', W, 'gripL')
+def grip_r(k, W):
+    if (k, 'gripRads') in GRIP and not OLD:
+        a = ads_factor(k, W)
+        if a > 1e-3: return blend_m(hand_frame(k, 'r', W, 'gripR'), hand_frame(k, 'r', W, 'gripRads'), a)
+    return hand_frame(k, 'r', W, 'gripR')
+def grip_l(k, W):
+    if (k, 'gripLads') in GRIP and not OLD:
+        a = ads_factor(k, W)
+        if a > 1e-3: return blend_m(hand_frame(k, 'l', W, 'gripL'), hand_frame(k, 'l', W, 'gripLads'), a)
+    return hand_frame(k, 'l', W, 'gripL')
 def fR(k, trig=0.0):
     g = GRIP[(k, 'gripR')]['fingers']
     if trig > 0:
@@ -780,6 +920,8 @@ def write_action(name, frames):
 def bake_kind(k, report):
     solve_grip(k, 'gripR', 'r', trigger=False)
     solve_grip(k, 'gripL', 'l', trigger=True)
+    if (k, 'gripLads') in GRIPSPEC: solve_grip(k, 'gripLads', 'l', trigger=True)
+    if (k, 'gripRads') in GRIPSPEC: solve_grip(k, 'gripRads', 'r', trigger=False)
     # trigger finger on the trigger: close the index on the trigger blade
     L, Wd = rest()
     for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, shoulders_for(k, BASE[k]['hip'])[side])
@@ -789,7 +931,7 @@ def bake_kind(k, report):
                           start={'index': (0.25, 0.3, 0.15)})
     GRIP[(k, 'gripR_trigger')] = {'fingers': ang}
     add_part_specs(k)
-    for nm in [n for (kk, n) in GRIPSPEC if kk == k and n not in ('gripR', 'gripL')]:
+    for nm in [n for (kk, n) in GRIPSPEC if kk == k and n not in ('gripR', 'gripL', 'gripLads', 'gripRads')]:
         solve_part_grip(k, nm, 'r' if nm.endswith('R') else 'l')
     make_clips(k)
     made = []
@@ -823,6 +965,21 @@ def bake_kind(k, report):
                 j_[0] = max(j_[0], abs(fl_)); j_[1] = max(j_[1], abs(dv_)); j_[2] = min(j_[2], el_); j_[3] = max(j_[3], el_)
                 j_[4] = max(j_[4], ab_); j_[5] = max(j_[5], abs(tw_))
             if MODE == 'diag' and i == 0:
+                for s_ in ('l', 'r'):
+                    fl_, dv_, el_, ab_, tw_ = joint_stats(W, s_)
+                    E = W['lowerarm_' + s_].translation; Wr = W['hand_' + s_].translation; Sh = W['upperarm_' + s_].translation
+                    # the forearm sleeve on screen: sampled from elbow to wrist, in-frame part, its x run and where it leaves the bottom edge
+                    seg = proj(np.array([(E.lerp(Wr, u))[:] for u in np.linspace(0, 1, 41)]))
+                    m_ = (seg[:, 0] >= 0) & (seg[:, 0] <= 1) & (seg[:, 1] >= 0) & (seg[:, 1] <= 1)
+                    run = (seg[m_, 0].max() - seg[m_, 0].min()) if m_.any() else 0
+                    entry = tuple(np.round(seg[np.argmax(m_)], 3)) if m_.any() else None
+                    if m_.any(): entry = entry + (round(float(E.lerp(Wr, np.linspace(0, 1, 41)[np.argmax(m_)]).y), 3),)   # + eye distance there
+                    UA = proj(skin.pose(W, np.array([j for j in ARM_IDS[s_] if skin.dom[j].startswith('upperarm')], int)))
+                    UA = UA[(UA[:, 0] >= 0) & (UA[:, 0] <= 1) & (UA[:, 1] >= 0) & (UA[:, 1] <= 1)]
+                    log('  UPPERARM', name, s_, 'in-frame verts', len(UA), 'top y %.2f' % (UA[:, 1].min() if len(UA) else 9))
+                    log('  ARM', name, s_, 'elbow %.0f flex %.0f dev %.0f tw %.0f' % (el_, fl_, dv_, tw_), 'shoulder', tuple(round(v, 3) for v in Sh),
+                        'elbow at', tuple(round(v, 3) for v in E), 'wrist', tuple(round(v, 3) for v in Wr), 'forearm x-run %.3f entry' % run, entry,
+                        'elbow scr', tuple(np.round(proj(np.array(E[:]))[0], 2)), 'pole', LASTPOLE.get(s_))
                 Ww0 = W['w_root'] @ F.RX90.inverted(); Mi0 = Ww0.inverted()
                 for s_ in ('l', 'r'):
                     pids = np.array([j for j in HAND_IDS[s_] if skin.dom[j] == 'hand_' + s_ and skin.N[j][2] < -0.3], int)
@@ -962,7 +1119,9 @@ if __name__ == '__main__':
         setup_render(); os.makedirs(FPW + '/preview', exist_ok=True)
         solve_grip(k, 'gripR', 'r'); solve_grip(k, 'gripL', 'l', trigger=True)
         add_part_specs(k)
-        for nm in [n for (kk, n) in GRIPSPEC if kk == k and n not in ('gripR', 'gripL')]:
+        if (k, 'gripLads') in GRIPSPEC: solve_grip(k, 'gripLads', 'l', trigger=True)
+        if (k, 'gripRads') in GRIPSPEC: solve_grip(k, 'gripRads', 'r')
+        for nm in [n for (kk, n) in GRIPSPEC if kk == k and n not in ('gripR', 'gripL', 'gripLads', 'gripRads')]:
             solve_part_grip(k, nm, 'r' if nm.endswith('R') else 'l')
         GRIP[(k, 'gripR_trigger')] = {'fingers': {'index': (0.55, 0.75, 0.35)}}
         make_clips(k)
@@ -972,6 +1131,8 @@ if __name__ == '__main__':
             L, W = solve_frame(k, d_)
             PROPSHOW[0] = d_['prop'][0] if d_['prop'] else None
             render(FPW + '/preview/%s_%s_%s.png' % (k, nm, tt), L, W, k)
+            if os.environ.get('SIDE'):     # from the player's left: the elbows and where the shoulders went
+                render(FPW + '/preview/%s_%s_%s_out.png' % (k, nm, tt), L, W, k, view=(Vector((-1.1, 0.2, -0.15)), Vector((0.0, 0.2, -0.15)), 45))
             if os.environ.get('OUTSIDE'):
                 render(FPW + '/preview/%s_%s_%s_out.png' % (k, nm, tt), L, W, k, view=(Vector((0.75, -0.45, 0.35)), Vector((0.0, 0.25, -0.2)), 50))
                 render(FPW + '/preview/%s_%s_%s_out2.png' % (k, nm, tt), L, W, k, view=(Vector((-0.2, 0.9, -0.5)), Vector((0.0, 0.2, -0.15)), 50))
