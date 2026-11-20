@@ -1836,6 +1836,9 @@
       if (dbadge) dline.append(dbadge, ' ');
       dline.append((p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.');
       dsub.append(dline);
+      // The games they are top player in (miles.js), larger and named, on a line of their own where there is room.
+      var dmn = null, dt = tierOf(u); if (dt && BackRoomMiles.minisList) { try { dmn = BackRoomMiles.minisList(dt); } catch (e) { dmn = null; } }
+      if (dmn) dsub.append(dmn);
       var da = el('div', 'onl-acts'), why = canTalk(u), theirs = mask(p ? p.n : (t ? cleanName(t.n) : '') || 'them'), mate = partyMate(u);
       if (chats[u]) da.append(btn('End chat', '', 'endchat'));
       else if (!mate && !pendingIn(u) && !isBlocked(u)) {

@@ -49,6 +49,8 @@
  * worked out from the same rows; miles.js draws it as an earned award, and Slipstream's time boards say who holds it.
  * And Top Cracker (cracker(), after ace()), the second earned award: whoever has the most all-time Shell Crackers kills,
  * 25 or more, from the Kills board's own rows; Shell Crackers' Kills board says who holds it.
+ * And the mini badges (topBoards() and gameTops(), after cracker()): whoever is first on each game's main board, with a
+ * floor; miles.js draws a small shield per game, and that board says who holds it.
  *
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
  * localStorage 'lb:span'; it also switches each game's play-time board, shown in miles). All time ranks by BackRoomMiles.of(node).miles, the
@@ -128,13 +130,14 @@
       'Perfect days': 'Días perfectos', 'Perfect days (no mistakes)': 'Días perfectos (sin errores)', 'Clean daily solves': 'Resueltos limpios diarios', 'Daily clues solved': 'Pistas diarias resueltas',
       'No hints': 'Sin pistas', 'Solved with no hints': 'Resuelto sin pistas', 'Daily puzzles solved': 'Puzles diarios resueltos', 'Guesses to spare': 'Intentos de sobra', 'Mistakes to spare': 'Errores de sobra',
       // A game's main board: who holds its mini badge (miles.js). Names and values are filled in as they are.
-      '{who}, with {v}. Whoever is first on this board holds its badge (at least {m}).': '{who}, con {v}. Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
-      '{who}, with {v} each. Whoever is first on this board holds its badge (at least {m}).': '{who}, con {v} cada uno. Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
-      '{who}, with {v}. Whoever is first on this board holds its badge (at most {m}).': '{who}, con {v}. Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
-      '{who}, with {v} each. Whoever is first on this board holds its badge (at most {m}).': '{who}, con {v} cada uno. Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
-      'unclaimed. Whoever is first on this board holds its badge (at least {m}).': 'sin dueño. Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
-      'unclaimed. Whoever is first on this board holds its badge (at most {m}).': 'sin dueño. Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
-      'Top of {g}:': 'Primero en {g}:',
+      '{who}, with {v}.': '{who}, con {v}.', '{who}, with {v} each.': '{who}, con {v} cada uno.',
+      '{who}, with {v} on {b}.': '{who}, con {v} en {b}.', '{who}, with {v} each on {b}.': '{who}, con {v} cada uno en {b}.',
+      'unclaimed.': 'sin dueño.', '{n} players share the top, so {b} decides: {v}.': '{n} jugadores comparten el primer puesto, así que decide {b}: {v}.',
+      'Whoever is first on this board holds its badge.': 'Quien esté primero en esta tabla tiene su insignia.',
+      'Whoever is first on this board holds its badge (at least {m}).': 'Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
+      'Whoever is first on this board holds its badge (at most {m}).': 'Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
+      'Whoever is first on {b} holds its badge; while nobody is on it, {l} counts.': 'Quien esté primero en {b} tiene su insignia; mientras nadie esté en esa tabla, cuenta {l}.',
+      'Top player in {g}:': 'Mejor jugador en {g}:',
       'Par days': 'Días en par', 'Par days (no hints)': 'Días en par (sin pistas)', 'Perfect routes': 'Rutas perfectas', 'Most entries found': 'Más respuestas encontradas'
     });
   })(0);
@@ -929,7 +932,7 @@
     var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
     return who + ', with ' + fmtN(a.n) + ' kills' + (names.length > 1 ? ' each' : '') + '.' + rule;
   }
-  // ---- Top of a game: a mini badge for whoever is first on each game's main board ----
+  // ---- Top player in a game: a mini badge for whoever is first on each game's main board ----
   // Every game in GAMES gets one (miles.js draws it as a small shield after every other badge), held by whoever rows()
   // ranks 1 on that game's main board: the same checked nodes, merged accounts as one player, removed ones never, and
   // everyone tied for first. The main board is the game's Elo board where it has one, else its first board that isn't
@@ -947,29 +950,45 @@
   ['daily', 'hunch', 'fourcast', 'quartets', 'crosslet', 'sleight', 'nearword', 'warmer', 'hotspot', 'outline', 'unfurl', 'overland', 'ninefold', 'poopdle',
     'deadline-day', 'journeyman', 'scout-report', 'crossbar', 'teamsheet', 'back-four', 'top-bins'].forEach(function (d) { TOP_PICK[d] = 'streak'; });
   var ELO_START = 1000;
-  var TOP_MIN = { blockstorm: 5, coil: 100, trivium: 500, showdown: 1000, escapade: 10, 'asteroid-run': 500, rollaway: 200,
+  var TOP_MIN = { blockstorm: 5, coil: 300, trivium: 3000, showdown: 1000, escapade: 10, 'asteroid-run': 500, rollaway: 200,
     rampline: 5, flipline: 200, tidewick: 1000, beatvault: 3, gridpop: 1000, '2048': 2000, stackfall: 1000, 'stackfall:sand': 1000,
     'melon-merge': 1000, 'patchwork-tower': 1000, flickerwood: 1000, lanternhold: 5, 'stat-duel': 3 };
   var TOP_MAX = { spire: 600 };   // lowest first: the fastest tower must be under 10 minutes (where its miles start)
   var TOP_STREAK = 3;             // a daily streak: 3 days in a row or more
   var TOP_IDS = 12;               // uids kept per game in the answer (ties and merged accounts), so it stays small
   // -> [{ id: 'coil' or 'stackfall:sand', d, st, name: 'Stackfall (Sand)', min, max }] in GAMES order.
+  // Fallback boards: a game may list boards used, in order, only while the board before has no qualifying holder (Updraft:
+  // the Lodestar time while nobody has one, then the Crown, then the old summit). Used nowhere else for now.
+  var TOP_FALLBACK = { updraft: ['summit2', 'summit'] };
+  // A board with a cap ("of 144") where more than TIE_MANY players are tied at the cap: the game's uncapped best board named
+  // here decides among them (Escapade: the fastest World 1 total). Without one here they all share it, as any tie does.
+  var TOP_TIE = { escapade: 'total' }, TIE_MANY = 5;
   var topB0 = null;   // GAMES never changes on a page, so the list is worked out once
+  function topFloor(id, st) {
+    var f = { st: st, min: 1, max: 0 };
+    if (st.f === 'elo') f.min = ELO_START + 1;
+    else if (st.f === 'days') f.min = TOP_STREAK;
+    var k = id + (TOP_MIN[id + '.' + st.k] != null ? '.' + st.k : '');
+    if (TOP_MIN[k] != null) f.min = TOP_MIN[k];
+    if (low(st)) { f.min = 0; f.max = TOP_MAX[k] || 0; }
+    return f;
+  }
+  // -> [{ id: 'coil' or 'stackfall:sand', d, st, name: 'Stackfall (Sand)', min, max, boards: [{ st, min, max }: the main
+  //      board, then any fallbacks], tie: a tie-break stat or null }] in GAMES order.
   function topBoards() {
     if (topB0) return topB0;
     var out = topB0 = [];
     GAMES.forEach(function (g) {
       if (TOP_SKIP[g.d]) return;
       var vis = g.st.filter(function (s) { return !s.hide; }), keys = TOP_MODES[g.d];
-      if (!keys) { var k = TOP_PICK[g.d]; keys = [k && vis.some(function (s) { return s.k === k; }) ? k : vis.some(function (s) { return s.k === 'elo'; }) ? 'elo' : vis[0] && vis[0].k]; }
+      function stat(k) { return vis.filter(function (s) { return s.k === k; })[0] || null; }
+      if (!keys) { var k = TOP_PICK[g.d]; keys = [k && stat(k) ? k : stat('elo') ? 'elo' : vis[0] && vis[0].k]; }
       keys.forEach(function (k, i) {
-        var st = vis.filter(function (s) { return s.k === k; })[0]; if (!st) return;
-        var id = i ? g.d + ':' + k : g.d;
-        var b = { id: id, d: g.d, st: st, name: g.n + (TOP_MODES[g.d] ? ' (' + (st.chip || st.l) + ')' : ''), min: 1, max: 0 };
-        if (st.f === 'elo') b.min = ELO_START + 1;
-        else if (st.f === 'days') b.min = TOP_STREAK;
-        if (TOP_MIN[id] != null) b.min = TOP_MIN[id];
-        if (low(st)) { b.min = 0; b.max = TOP_MAX[id] || 0; }
+        var st = stat(k); if (!st) return;
+        var id = i ? g.d + ':' + k : g.d, f = topFloor(id, st);
+        var b = { id: id, d: g.d, st: st, name: g.n + (TOP_MODES[g.d] ? ' (' + (st.chip || st.l) + ')' : ''), min: f.min, max: f.max, boards: [f], tie: null };
+        (i ? [] : TOP_FALLBACK[g.d] || []).forEach(function (fk) { var fs = stat(fk); if (fs) b.boards.push(topFloor(id, fs)); });
+        if (!i && TOP_TIE[g.d] && stat(TOP_TIE[g.d])) b.tie = stat(TOP_TIE[g.d]);
         out.push(b);
       });
     });
@@ -977,33 +996,51 @@
   }
   function topName(id) { var b = topBoards().filter(function (x) { return x.id === id; })[0]; return b ? b.name : ''; }
   // Who leads each board. people: a collapsed list; all: the list before collapse (merged accounts, as ace() and cracker()).
-  // -> [{ b: the board, n: the leader's value (0 when unclaimed), who: the holders, ids: their uids and merged accounts }]
+  // -> [{ b: the board, st: the board it went by (b.st, or a fallback), n: the leader's value there (0 when unclaimed),
+  //      who: the holders, ids: their uids and merged accounts, tie: { st, v, n } when a tie-break decided }]
   function gameTops(people, all, only) {
     var list = (people || []).filter(function (p) { return p && !p.hidden && !p.into; });
     return (only ? [only] : topBoards()).map(function (b) {
-      var out = { b: b, n: 0, who: [], ids: [] };
-      var r = rows({ g: b.d, st: b.st }, list);
-      if (!r.length) return out;
-      var v = r[0].v;
-      if (b.min && !(v >= b.min)) return out;
-      if (b.max && !(v <= b.max)) return out;
-      out.n = v;
-      out.who = r.filter(function (x) { return x.rank === 1; }).map(function (x) { return x.p; }).sort(function (a, c) { return a.n < c.n ? -1 : a.n > c.n ? 1 : a.uid < c.uid ? -1 : 1; });
-      out.ids = out.who.map(function (p) { return p.uid; });
-      (all || []).forEach(function (p) { if (p && p.into && !p.hidden && out.ids.indexOf(p.into) >= 0 && out.ids.indexOf(p.uid) < 0) out.ids.push(p.uid); });
-      out.ids = out.ids.slice(0, TOP_IDS);
+      var out = { b: b, st: b.st, n: 0, who: [], ids: [], tie: null };
+      for (var i = 0; i < b.boards.length; i++) {
+        var f = b.boards[i], r = rows({ g: b.d, st: f.st }, list);
+        if (!r.length) continue;
+        var v = r[0].v;
+        if ((f.min && !(v >= f.min)) || (f.max && !(v <= f.max))) continue;
+        var who = r.filter(function (x) { return x.rank === 1; }).map(function (x) { return x.p; });
+        // Too many tied at the board's cap: the tie-break board decides among them (only those with a value there).
+        if (b.tie && i === 0 && who.length > TIE_MANY && f.st.hi && v >= f.st.hi) {
+          var tr = rows({ g: b.d, st: b.tie }, who);
+          if (tr.length) { out.tie = { st: b.tie, v: tr[0].v, n: who.length }; who = tr.filter(function (x) { return x.rank === 1; }).map(function (x) { return x.p; }); }
+        }
+        out.st = f.st; out.n = v;
+        out.who = who.sort(function (a, c) { return a.n < c.n ? -1 : a.n > c.n ? 1 : a.uid < c.uid ? -1 : 1; });
+        out.ids = out.who.map(function (p) { return p.uid; });
+        (all || []).forEach(function (p) { if (p && p.into && !p.hidden && out.ids.indexOf(p.into) >= 0 && out.ids.indexOf(p.uid) < 0) out.ids.push(p.uid); });
+        out.ids = out.ids.slice(0, TOP_IDS);
+        return out;
+      }
       return out;
     });
   }
-  // The line a game's main board carries about its badge. me(uid): whether that is the viewer.
+  // The line a game's main board (and its fallbacks) carries about its badge. me(uid): whether that is the viewer.
+  // st: the board being shown, for its floor.
   function fmtTop(st, v) { return st.f === 'elo' ? fmtN(v) + ' Elo' : fmt(st, v); }
-  function gameTopLine(t, me) {
-    var b = t.b, lim = b.max ? 'at most ' + fmtTop(b.st, b.max) : 'at least ' + fmtTop(b.st, b.min);
-    var rule = ' Whoever is first on this board holds its badge (' + lim + ').';
-    if (!t.n) return 'unclaimed.' + rule;
-    var names = t.who.map(function (p) { return p.n + (me && me(p.uid) ? ' (you)' : ''); });
-    var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
-    return who + ', with ' + fmtTop(b.st, t.n) + (names.length > 1 ? ' each' : '') + '.' + rule;
+  // -> sentences, each its own text node so the Spanish (lang.js) can translate each one.
+  function gameTopLine(t, me, st) {
+    var b = t.b, f = b.boards.filter(function (x) { return x.st === (st || b.st); })[0] || b.boards[0], out = [];
+    var lim = f.max ? ' (at most ' + fmtTop(f.st, f.max) + ')' : f.min ? ' (at least ' + fmtTop(f.st, f.min) + ')' : '';
+    function chipOf(x) { return x.chip || x.l; }
+    if (!t.n) out.push('unclaimed.');
+    else {
+      var names = t.who.map(function (p) { return p.n + (me && me(p.uid) ? ' (you)' : ''); });
+      var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+      out.push(who + ', with ' + fmtTop(t.st, t.n) + (names.length > 1 ? ' each' : '') + (t.st !== b.st ? ' on ' + chipOf(t.st) : '') + '.');
+      if (t.tie) out.push(t.tie.n + ' players share the top, so ' + t.tie.st.l + ' decides: ' + fmtTop(t.tie.st, t.tie.v) + '.');
+    }
+    if (b.boards.length > 1) out.push('Whoever is first on ' + chipOf(b.st) + ' holds its badge; while nobody is on it, ' + b.boards.slice(1).map(function (x) { return chipOf(x.st); }).join(', then ') + ' counts.');
+    else out.push('Whoever is first on this board holds its badge' + lim + '.');
+    return out;
   }
   // Who is first, second and third on the Miles board, for the "#1 all time" / "#2 this week" … tags miles.js puts by
   // tier badges: the uids rows() ranks 1, 2 and 3 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
@@ -1393,12 +1430,12 @@
     // Shell Crackers' Kills (all time) board: the same line for Top Cracker (cracker), which that board decides.
     var crackB = view.g === 'shell-crackers' && view.st && view.st.k === 'kills';
     // A game's main board (topBoards): who holds that game's mini badge, the same kind of line.
-    var topB = !crackB && $season.hidden && view.st ? topBoards().filter(function (b) { return b.d === view.g && b.st.k === view.st.k; })[0] : null;
+    var topB = !crackB && $season.hidden && view.st ? topBoards().filter(function (b) { return b.d === view.g && b.boards.some(function (f) { return f.st.k === view.st.k; }); })[0] : null;
     $ace.hidden = ($season.hidden && !crackB && !topB) || !people;
     if (!$ace.hidden) {
       $ace.textContent = '';
       if (crackB) $ace.append(el('b', '', 'Top Cracker: '), crackerLine(cracker(people, everyone), isMe));
-      else if (topB) $ace.append(el('b', '', 'Top of ' + topB.name + ':'), ' ', gameTopLine(gameTops(people, everyone, topB)[0], isMe));
+      else if (topB) { $ace.append(el('b', '', 'Top player in ' + topB.name + ':')); gameTopLine(gameTops(people, everyone, topB)[0], isMe, view.st).forEach(function (x) { $ace.append(' ', el('span', '', x)); }); }
       else $ace.append(el('b', '', 'Slipstream ace: '), aceLine(ace(people, everyone), isMe));
     }
     var miles = view.g === 'all', spans = miles || !view.st, wk = spans && view.span === 'week';

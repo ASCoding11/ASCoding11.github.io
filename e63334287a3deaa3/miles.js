@@ -29,10 +29,14 @@
  *                       award: see "Earned awards" below), else 0; also takes a uid
  *   crackerOf(result)   a result's player's all-time Shell Crackers kills if they hold Top Cracker (the other earned
  *                       award: most Shell Crackers kills, CRACK_MIN or more), else 0; also takes a uid
+ *   minisOf(result)     the games (leaderboard.js board ids) a result's player is top player in, for the mini badges
+ *                       (see "Top player in a game" below), [] for most people; also takes a uid
+ *   minisList(result)   those games as a larger list, each shield with the game's name (an open chat's header), or null
  *   setTops(tops)       leaderboard.js hands over the top three ({ all, week: [uid…] the firsts, allTie, weekTie, and
  *                       all2, all3, week2, week3: [uid…] the seconds and thirds; topOf's all and week are the place, 1 to 3;
  *                       and ace: [uid…], aceN: the Slipstream ace's holders and how many tracks they lead; crack:
- *                       [uid…], crackN: Top Cracker's holders and their all-time Shell Crackers kills) after each
+ *                       [uid…], crackN: Top Cracker's holders and their all-time Shell Crackers kills; mini:
+ *                       [[board id, [uid…]], …] who is first on each game's main board) after each
  *                       read of the boards; topOf(uid) is { all, week, allTie, weekTie } for a leader, else null;
  *                       needTops() asks the boards again if a badge wanted an answer before leaderboard.js had loaded
  *   guide()             opens a window listing every badge (tiers, crew, places, awards) and how to get each; drawn
@@ -109,8 +113,9 @@
       'Earned: have more Shell Crackers kills of all time than anyone else, {n} or more. It moves to whoever takes the lead.':
         'Se gana: ten más bajas históricas en Shell Crackers que nadie, {n} o más. Pasa a quien tome la delantera.',
       'Leads {n} Slipstream tracks': 'Lidera {n} pistas de Slipstream',
-      // Top of a game (mini badges). Game names stay in English.
-      'Top of {g}': 'Primero en {g}', 'Also top of: {l}': 'También primero en: {l}', 'Top of: {l}': 'Primero en: {l}', 'Top of a game': 'Primero en un juego',
+      // Top player in a game (mini badges). Game names stay in English.
+      'Top player in {g}': 'Mejor jugador en {g}', 'Also top player in: {l}': 'También mejor jugador en: {l}', 'Top player in: {l}': 'Mejor jugador en: {l}',
+      'Top player in a game': 'Mejor jugador de un juego', 'Top player in': 'Mejor jugador en',
       'Small shields, after everything else. One player can hold several.': 'Escudos pequeños, después de todo lo demás. Un jugador puede tener varios.',
       'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead.':
         'Se gana: lidera la tabla principal de un juego (su Elo, o su mejor puntaje, tiempo o racha) para ganar su insignia. Pasa a quien tome la delantera.', 'Most Shell Crackers kills: {n}': 'Más bajas en Shell Crackers: {n}',
@@ -218,12 +223,12 @@
     '6QQvFAzdtMeJdAUSPwHd6v2zaDk1': ['boostball'],   // Nico (Google sign-in, "Negus"): a Boostball badge, asked for by Nico
     'QaJlsT7SVnf85IK1PRHFpR9Zbln2': ['boostball']    // Nico ("nico"): the same person's other account
   };
-  // ---- Top of a game: mini badges ----
+  // ---- Top player in a game: mini badges ----
   // Whoever is first on a game's main board (leaderboard.js topBoards: its Elo board, or its best score, time or streak)
   // holds that game's mini badge: a small shield after every other badge, one per game they lead, so one player can hold
   // several. Nobody is listed here: leaderboard.js works the holders out after every read of the boards and hands them over
   // in the same answer as the #1 tags (setTops: mini). The words come from the game's name in leaderboard.js's GAMES
-  // ("Top of Stackfall (Sand)"), so a renamed game takes its badge with it. This table is only how each one looks: the
+  // ("Top player in Stackfall (Sand)"), so a renamed game takes its badge with it. This table is only how each one looks: the
   // shield's colour (c) and a simple mark that hints at the game (e), SVG in a 16 x 16 box drawn inside the shield, light
   // on the shield's colour. Every shield shares the same frame (a dark outline and a pale inner rim), so they read as one
   // family on light and dark pages and can't be taken for a tier pill, a place tag or an award's round medal. A game with
@@ -427,19 +432,19 @@
     return s;
   }
   // The mini badges: a group of small shields, one per game, and a "+N" chip that fit() shows when some are folded away
-  // (its tooltip names them). Each shield has its own tooltip and label, "Top of Stackfall (Sand)".
+  // (its tooltip names them). Each shield has its own tooltip and label, "Top player in Stackfall (Sand)".
   function miniName(id) {
     var B = LB(), n = '';
     try { n = B && B.topName ? B.topName(id) : ''; } catch (e) { n = ''; }
     // Before leaderboard.js has loaded (it is on every page that draws badges): the folder, readable.
     return n || id.split(':')[0].replace(/-/g, ' ').replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }) + (id.indexOf(':') > 0 ? ' (' + id.split(':')[1] + ')' : '');
   }
-  function miniTip(id) { return 'Top of ' + miniName(id); }
-  function miniTag(id) {
-    var m = MINI[id] || MINI_ANY, s = document.createElement('span');
+  function miniTip(id) { return 'Top player in ' + miniName(id); }
+  function miniTag(id, px) {
+    var m = MINI[id] || MINI_ANY, s = document.createElement('span'), z = px || 16;
     s.className = 'bra-mini'; s.setAttribute('data-mini', id); s.setAttribute('role', 'img');
     s.title = miniTip(id); s.setAttribute('aria-label', s.title);
-    s.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path d="' + MINI_SHIELD + '" fill="' + m.c + '" stroke="#0B0E16" stroke-width="1.5" stroke-linejoin="round"/><path d="' + MINI_SHIELD + '" fill="none" stroke="#EEF3FB" stroke-opacity=".85" stroke-width=".7" stroke-linejoin="round" transform="translate(1.36 1.3) scale(.83)"/>' + m.e + '</svg>';   // fixed markup from the table above, no text from anyone
+    s.innerHTML = '<svg viewBox="0 0 16 16" width="' + z + '" height="' + z + '" aria-hidden="true" focusable="false"><path d="' + MINI_SHIELD + '" fill="' + m.c + '" stroke="#0B0E16" stroke-width="1.5" stroke-linejoin="round"/><path d="' + MINI_SHIELD + '" fill="none" stroke="#EEF3FB" stroke-opacity=".85" stroke-width=".7" stroke-linejoin="round" transform="translate(1.36 1.3) scale(.83)"/>' + m.e + '</svg>';   // fixed markup from the table above, no text from anyone
     return s;
   }
   function miniGroup(ids) {
@@ -452,11 +457,23 @@
   // Show the first n minis and fold the rest into "+N" (n at least 0; all of them: no chip).
   function miniShow(g, n) {
     var k = g.querySelectorAll('.bra-mini'), more = g.lastChild, rest = [];
-    for (var i = 0; i < k.length; i++) { var off = i >= n; k[i].classList.toggle('bra-off', off); if (off) rest.push(k[i].title.replace(/^Top of /, '')); }
+    for (var i = 0; i < k.length; i++) { var off = i >= n; k[i].classList.toggle('bra-off', off); if (off) rest.push(miniName(k[i].getAttribute('data-mini'))); }
     g.classList.toggle('bra-mn-on', rest.length > 0);
     more.textContent = rest.length ? '+' + rest.length : '';
-    if (rest.length) { more.title = (n ? 'Also top of: ' : 'Top of: ') + rest.join(', '); more.setAttribute('role', 'img'); more.setAttribute('aria-label', more.title); }
+    if (rest.length) { more.title = (n ? 'Also top player in: ' : 'Top player in: ') + rest.join(', '); more.setAttribute('role', 'img'); more.setAttribute('aria-label', more.title); }
     else { more.removeAttribute('title'); more.removeAttribute('aria-label'); more.removeAttribute('role'); }
+  }
+  // The larger list for a place with room (an open chat's header in the Online panel): each game's shield at 22 px with its
+  // name beside it, wrapping onto more lines as needed. null when the player leads no game.
+  function minisList(res) {
+    var ids = minisOf(res); if (!ids.length) return null;
+    var box = document.createElement('span'), h = document.createElement('span');
+    box.className = 'bra-mnl'; h.className = 'bra-mnl-h'; h.textContent = 'Top player in'; box.appendChild(h);
+    ids.forEach(function (id) {
+      var it = document.createElement('span'), n = document.createElement('span');
+      it.className = 'bra-mnl-i'; it.appendChild(miniTag(id, 22)); n.textContent = miniName(id); it.appendChild(n); box.appendChild(it);
+    });
+    return box;
   }
   var TOP_TEXT = { all: 'all time', week: 'this week' };
   // place: 1, 2 or 3 (gold, silver, bronze). All time is a solid metal chip; this week is the same metal as an outline
@@ -585,9 +602,13 @@
     // Mini badges (top of a game): 14 px shields, smaller than the medals and tags, after everything else. bra-off: folded
     // into the "+N" chip, which only shows when something is folded (bra-mn-on).
     '.bra-mn{display:inline-flex;align-items:center;gap:2px;flex:none;margin-left:1px}' +
-    '.bra-mini{display:inline-flex;flex:none;width:14px;height:14px}.bra-mini svg{display:block}.bra-mini.bra-off{display:none}' +
-    '.bra-mn-more{display:none;align-items:center;flex:none;box-sizing:border-box;height:14px;padding:0 4px;border-radius:7px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:9px;font-weight:700;letter-spacing:.02em;line-height:1;color:#EEF3FB;background:#2A3142;box-shadow:inset 0 0 0 1px rgba(238,243,251,.55),0 0 0 1px rgba(11,14,22,.55);white-space:nowrap}' +
-    '.bra-mn-on .bra-mn-more{display:inline-flex}';
+    '.bra-mini{display:inline-flex;flex:none}.bra-mini svg{display:block}.bra-mini.bra-off{display:none}' +
+    '.bra-mn-more{display:none;align-items:center;flex:none;box-sizing:border-box;height:16px;padding:0 4px;border-radius:8px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:10px;font-weight:700;letter-spacing:.02em;line-height:1;color:#EEF3FB;background:#2A3142;box-shadow:inset 0 0 0 1px rgba(238,243,251,.55),0 0 0 1px rgba(11,14,22,.55);white-space:nowrap}' +
+    '.bra-mn-on .bra-mn-more{display:inline-flex}' +
+    // The larger list (minisList): shield and game name, wrapping.
+    '.bra-mnl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;min-width:0}' +
+    '.bra-mnl-h{font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}' +
+    '.bra-mnl-i{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:var(--ink,inherit);font-size:13px;font-weight:600}';
   (document.head || document.documentElement).appendChild(css);
 
   // ---------------- #1 on the Miles board ----------------
@@ -791,13 +812,13 @@
       gRow(l, [awardTag(k)], AWARD_KINDS[k].n, k === 'slipstream' ? 'Earned: hold the fastest lap this season on more Slipstream tracks than anyone else, ' + ACE_MIN + ' or more at once. It moves to whoever takes the lead.'
         : k === 'shellcrackers' ? 'Earned: have more Shell Crackers kills of all time than anyone else, ' + CRACK_MIN + ' or more. It moves to whoever takes the lead.' : AWARD_KINDS[k].tip + '.');
     });
-    // Top of a game: one line for the rule, then every game's shield (each with its tooltip), from the boards' own list.
-    l = gSec(box, 'Top of a game', 'Small shields, after everything else. One player can hold several.');
+    // Top player in a game: one line for the rule, then every game's shield (each with its tooltip), from the boards' own list.
+    l = gSec(box, 'Top player in a game', 'Small shields, after everything else. One player can hold several.');
     var B = LB(), ids = [];
     try { ids = B && B.topBoards ? B.topBoards().map(function (b) { return b.id; }) : Object.keys(MINI); } catch (e) { ids = Object.keys(MINI); }
-    gRow(l, [miniTag(ids[0] || 'stackfall')], 'Top of a game', 'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead.');
+    gRow(l, [miniTag(ids[0] || 'stackfall')], 'Top player in a game', 'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead.');
     var all = gEl('li', 'bra-g-r bra-g-mn'), wrap = gEl('div', 'bra-g-b');
-    ids.forEach(function (id) { wrap.appendChild(miniTag(id)); });
+    ids.forEach(function (id) { wrap.appendChild(miniTag(id, 20)); });
     all.appendChild(wrap); l.appendChild(all);
     d.appendChild(box);
     // A click on the dimmed area outside the window closes it.
@@ -826,14 +847,14 @@
     '.bra-g-r+.bra-g-r{border-top:1px solid var(--line,#D3DAD2)}' +
     '.bra-g-b{display:flex;flex-wrap:wrap;gap:4px;align-items:center}' +
     '.bra-g-t{font-size:14px;line-height:1.4}.bra-g-t b{display:block;font-weight:700}.bra-g-t span{color:var(--ink-2,#4A5751)}' +
-    '.bra-g-mn{grid-template-columns:1fr}.bra-g-mn .bra-g-b{gap:5px}.bra-g-mn .bra-mini{width:18px;height:18px}.bra-g-mn .bra-mini svg{width:18px;height:18px}' +
+    '.bra-g-mn{grid-template-columns:1fr}.bra-g-mn .bra-g-b{gap:6px}' +
     '@media (max-width:480px){.bra-g-in{padding:14px}.bra-g-r{grid-template-columns:1fr}}';
   (document.head || document.documentElement).appendChild(gcss);
 
   window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, guide: guide, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
     CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), FOUNDER: FOUNDER, isFounder: isFounder, isVice: isVice, VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; },
     setTops: setTops, topOf: topOf, needTops: needTops,
-    minisOf: minisOf, MINI: JSON.parse(JSON.stringify(MINI)), MINI_ANY: JSON.parse(JSON.stringify(MINI_ANY)), miniTag: miniTag,
+    minisOf: minisOf, minisList: minisList, MINI: JSON.parse(JSON.stringify(MINI)), MINI_ANY: JSON.parse(JSON.stringify(MINI_ANY)), miniTag: miniTag,
     awardsOf: awardsOf, aceOf: aceOf, ACE_MIN: ACE_MIN, crackerOf: crackerOf, CRACK_MIN: CRACK_MIN, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };
   // Test hook for the automated checks; harmless in normal play. put: a result for a uid without a read.
   if (navigator.webdriver) window.__miles = { get tops() { return tops; }, get asked() { return topsAsked; }, get wanted() { return topsWanted; }, TOPS_KEY: TOPS_KEY, TOPS_TTL: TOPS_TTL, TOPS_KEEP: TOPS_KEEP,
