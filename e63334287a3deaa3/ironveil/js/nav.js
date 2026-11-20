@@ -22,8 +22,10 @@
     const pad = 0.3;
     for (const c of W.colliders) {
       if (!(c.f & F.NAV) || !c.on) continue;
-      const gy = W.height(c.x, c.z);
-      if (c.y1 < gy + 0.4 || c.y0 > gy + 1.7) continue;
+      // body height above the lowest ground under the box (on a slope the centre alone would let a wall's
+      // downhill end pass under the body band)
+      const gy = Math.min(W.height(c.x, c.z), W.height(c.x + c.ex, c.z + c.ez), W.height(c.x - c.ex, c.z - c.ez), W.height(c.x + c.ex, c.z - c.ez), W.height(c.x - c.ex, c.z + c.ez));
+      if (c.y1 < gy + 0.4 || c.y0 > gy + 1.7 + (Math.max(W.height(c.x + c.ex, c.z + c.ez), W.height(c.x - c.ex, c.z - c.ez)) - gy)) continue;
       const ex = c.ex + pad, ez = c.ez + pad;
       const i0 = Math.max(0, Math.floor((c.x - ex + half) / cs)), i1 = Math.min(n - 1, Math.floor((c.x + ex + half) / cs));
       const j0 = Math.max(0, Math.floor((c.z - ez + half) / cs)), j1 = Math.min(n - 1, Math.floor((c.z + ez + half) / cs));
@@ -96,6 +98,16 @@
     return out;
   };
 
+  // Regenerate the walk grid and the cover points after the terrain or the colliders change (new buildings, relief):
+  //   IV.nav.rebuild()  ->  { cells, blocked, cover, ms }   (also exposed to tests as __IV__.navRebuild())
+  // Soldiers and the squadmate drop their current paths and find new ones on their next decision.
+  N.rebuild = function () {
+    const t0 = performance.now(); N.build();
+    for (const e of (IV.ai && IV.ai.list) || []) { e.path = null; e.pathI = 0; e.repath = 0; }
+    if (IV.ally && IV.ally.ent) { IV.ally.ent.path = null; IV.ally.ent.repath = 0; }
+    let blocked = 0; for (let i = 0; i < N.grid.length; i++) if (N.grid[i] === BLOCK) blocked++;
+    return N.lastBuild = { cells: N.grid.length, blocked, cover: N.cover.length, ms: Math.round(performance.now() - t0) };
+  };
   // ---------------------------------------------------------------- cover points
   function buildCover() {
     const out = N.cover = [];

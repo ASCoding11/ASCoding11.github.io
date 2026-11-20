@@ -90,7 +90,7 @@
     M.objs = []; M.trigs = []; M.timers = []; M.inter = []; M.radioQ = []; radioCur = null; IV.hud && IV.hud.subtitle(null);
     M.flags = data ? JSON.parse(JSON.stringify(data.flags || {})) : {};
     M.time = data ? data.time : 0;
-    M.noWeapons = false; IV.camera.reset(); IV.ai.reset(); IV.ally.remove(); IV.fx.clear && IV.fx.clear();
+    M.noWeapons = false; IV.camera.reset(); IV.ai.reset(); IV.ally.remove(); IV.ambience && IV.ambience.clear(); IV.fx.clear && IV.fx.clear();
     if (M.group) W.scene.remove(M.group);
     M.group = new THREE.Group(); W.scene.add(M.group);
     W.lamps = W.lamps.filter(l => l.static);

@@ -147,6 +147,7 @@
     IV.player.frame(alpha, dt);
     IV.ai.frame(alpha, dt);
     IV.ally.frame(alpha, dt);
+    IV.ambience && IV.ambience.frame(dt);
     const I = IV.input;
     if (I.dx || I.dy) { IV.camera.look(I.dx, I.dy, false); I.dx = I.dy = 0; }
     IV.camera.frame(dt);
@@ -190,6 +191,8 @@
       render() { render(STEP); },
       press(id, on) { IV.input.sim(id, on); },
       look(yaw, pitch) { IV.player.yaw = yaw; if (pitch != null) IV.player.pitch = pitch; },
+      navRebuild() { return IV.nav.rebuild(); },
+      ambience(kind, pos, o) { return IV.ambience.event(kind, pos, o); },
       teleport(x, z, yaw) { IV.player.pos.set(x, W.groundAt(x, z, 50), z); IV.player.prev.copy(IV.player.pos); if (yaw != null) IV.player.yaw = IV.player.bodyYaw = yaw; },
       info() { const r = W.renderer.info; return { calls: r.render.calls, tris: r.render.triangles, geos: r.memory.geometries, tex: r.memory.textures }; },
       start: (id, cp) => app.start(id, cp || 0),

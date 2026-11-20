@@ -144,6 +144,11 @@
     if (aiming && P.stance !== 'stand') sp = Math.min(sp, MV.crouch * 0.85);
     if (binoc) sp *= 0.5;
     if (P.stanceT > 0) sp *= 0.5;
+    // slopes: slower going up (about 15% at 15 degrees, 30% at 25), a little slower steeply down; across is free
+    if (tl > 1e-4 && P.grounded) {
+      const ahead = W.height(P.pos.x + tx * 0.6, P.pos.z + tz * 0.6) - W.height(P.pos.x - tx * 0.6, P.pos.z - tz * 0.6), grade = ahead / 1.2;
+      sp *= grade > 0 ? Math.max(0.6, 1 - grade * 1.1) : Math.max(0.85, 1 + grade * 0.3);
+    }
     if (P.landT > 0) { P.landT -= dt; sp *= 0.5; }
     P.inWater = W.height(P.pos.x, P.pos.z) < W.waterLevel(P.pos.x, P.pos.z) - 0.25;
     if (P.inWater) sp *= MV.waterMul;
