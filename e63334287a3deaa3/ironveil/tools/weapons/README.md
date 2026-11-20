@@ -105,12 +105,12 @@ the mesh child carries a quantisation offset from meshopt and should not be move
 
 
 
-Draw calls count one per mesh primitive; the glass lenses are a second material. 
+Draw calls count one per mesh primitive; the glass lenses are a second material. `python stats.py weapons.glb`
 prints this table for any build.
 
 ## Hand frames
 
-The grip frames reuse the hand poses from the character clips () and are then nudged per weapon
-( /  in ) by measuring how many hand vertices end up inside the weapon in the aim pose.
+The grip frames reuse the hand poses from the character clips (`grips.json`) and are then nudged per weapon
+(`gripRoff` / `gripLoff` in `models.py`) by measuring how many hand vertices end up inside the weapon in the aim pose.
 The clips close the fingers tighter than a real grip, so some finger penetration on the right hand remains whatever the
 weapon shape; it needs per-weapon finger poses in the character clips.
