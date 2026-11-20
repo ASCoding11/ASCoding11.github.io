@@ -233,7 +233,9 @@
     WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2 });   // tracer rounds every third in the SMG magazine
     // effects
     IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle');
-    if (part(model, (PART_KIND[k] || k) + '_ejection')) WP.gunShot(model, PART_KIND[k] || k);   // bolt kick and a case from the ejection port
+    const fpArms = IV.fp && IV.fp.realActive && IV.fp.realActive();   // first person on the arms rig: its clip events throw the cases
+    if (fpArms) { if (model) model.userData.kickT = 1; }
+    else if (part(model, (PART_KIND[k] || k) + '_ejection')) WP.gunShot(model, PART_KIND[k] || k);   // bolt kick and a case from the ejection port
     else if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
     IV.audio && IV.audio.play(k, { x: mz.x, z: mz.z });
     IV.ai && IV.ai.noise(P.pos.x, P.pos.z, w.noise, 'shot', P);
@@ -244,7 +246,7 @@
     IV.camera.shake((k === 'rifle' ? 0.12 : 0.05) * motion);
     IV.fp && IV.fp.recoil(k === 'rifle' ? 1 : k === 'smg' ? 0.35 : 0.6);
     // the bolt: as long as the arms' fire and bolt clips take in first person, else the tuning value
-    if (k === 'rifle') { const fl = IV.fp && IV.fp.clipLen ? IV.fp.clipLen(WP.aiming || WP.scoped ? 'fireAds' : 'fire', 'rifle') + IV.fp.clipLen('boltCycle', 'rifle') : 0; WP.boltT = fl > 0.3 && IV.fp.on() ? fl : WT.rifle.bolt; setTimeout(() => IV.audio && IV.audio.play('bolt'), 330); }
+    if (k === 'rifle') { const fl = IV.fp && IV.fp.clipLen ? IV.fp.clipLen(WP.aiming || WP.scoped ? 'fireAds' : 'fire', 'rifle') + IV.fp.clipLen('boltCycle', 'rifle') : 0; WP.boltT = fl > 0.3 && IV.fp.on() ? fl : WT.rifle.bolt; if (!fpArms) setTimeout(() => IV.audio && IV.audio.play('bolt'), 330); }
     WP.cool = w.rpm ? 60 / w.rpm : 0.18;
     IV.setUpper(P.actor, k === 'rifle' ? 'boltCycle' : 'fire');
     IV.emit('shot', k);
@@ -261,15 +263,20 @@
     const k = WP.cur, inv = WP.inv[k];
     if (WP.reloadT > 0 || inv.res <= 0 || inv.mag >= WT[k].mag) return;
     WP.reloadT = WT[k].reload; WP.scoped = false;
-    const rl = IV.fp && IV.fp.onReload ? IV.fp.onReload(inv.mag === 0) : 0;   // first person: the arms' reload clip sets the time
-    if (rl > 0.5) WP.reloadT = rl;
+    // first person on the arms rig: rounds go in at the clip's 'magIn' and the reload ends at its 'done' (js/fp.js);
+    // the timer is only a safety net a little past the clip's end
+    const rl = IV.fp && IV.fp.onReload ? IV.fp.onReload(inv.mag === 0) : 0;
+    WP.fpReload = rl > 0.5 ? { magged: false } : null;
+    if (WP.fpReload) WP.reloadT = rl + 0.4;
     P.actor.setUpper('reload');
-    IV.audio && IV.audio.play('reload', { kind: k });
+    if (!WP.fpReload) IV.audio && IV.audio.play('reload', { kind: k });
   }
   function finishReload() {
-    const k = WP.cur, inv = WP.inv[k], need = WT[k].mag - inv.mag, take = Math.min(need, inv.res);
-    inv.mag += take; inv.res -= take; P.actor.setUpper(WP.aiming ? 'aimIdle' : null);
+    if (!(WP.fpReload && WP.fpReload.magged)) { const k = WP.cur, inv = WP.inv[k], need = WT[k].mag - inv.mag, take = Math.min(need, inv.res); inv.mag += take; inv.res -= take; }
+    WP.fpReload = null; P.actor.setUpper(WP.aiming ? 'aimIdle' : null);
   }
+  WP.magIn = function () { if (WP.reloadT > 0 && WP.fpReload && !WP.fpReload.magged) { const k = WP.cur, inv = WP.inv[k], take = Math.min(WT[k].mag - inv.mag, inv.res); inv.mag += take; inv.res -= take; WP.fpReload.magged = true; } };
+  WP.reloadDone = function () { if (WP.reloadT > 0 && WP.fpReload) { WP.reloadT = 0; finishReload(); } };
 
   // grenade / rock throw: hold to aim (arc preview), let go to throw. Grenade fuse runs from the press (cooking).
   function throwVel(kind) {
@@ -394,7 +401,7 @@
     const I = IV.input;
     WP.cool = Math.max(0, WP.cool - dt); WP.throwCool = Math.max(0, (WP.throwCool || 0) - dt);
     if (WP.boltT > 0) { WP.boltT -= dt; if (WP.boltT <= 0) P.actor.setUpper(WP.aiming ? 'aimIdle' : null); }
-    if (WP.reloadT > 0 && P.sprinting) { WP.reloadT = 0; P.actor.setUpper(null); IV.fp && IV.fp.cancelAction && IV.fp.cancelAction(); }   // sprinting cancels a reload (no rounds added)
+    if (WP.reloadT > 0 && P.sprinting) { WP.reloadT = 0; WP.fpReload = null; P.actor.setUpper(null); IV.fp && IV.fp.cancelAction && IV.fp.cancelAction(); }   // sprinting cancels a reload (no rounds added)
     if (WP.reloadT > 0) { WP.reloadT -= dt; if (WP.reloadT <= 0) finishReload(); }
     WP.bloom = Math.max(0, WP.bloom - dt * (I.held('fire') ? 0.01 : 0.12));
     if (!I.held('fire')) WP.burst = 0;

@@ -292,7 +292,7 @@
     const group = new THREE.Group(), vms = {};
     const rig = { standin: false, group, vms, vm: null, kind: null, gun: null, muzzle: null, ejection: null, scopeEye: null, sockets: null, clips: [] };
     rig.get = function (kind) {
-      if (!(kind in vms)) { const v = IVChars.viewmodel(kind); vms[kind] = v; if (v) { v.group.visible = false; group.add(v.group); v.onEvent = (e, c) => { FP.lastEvent = { e, c, t: IV.time }; if (e === 'atEye') FP.atEye = true; }; } }
+      if (!(kind in vms)) { const v = IVChars.viewmodel(kind); vms[kind] = v; if (v) { v.group.visible = false; group.add(v.group); v.onEvent = (e, c) => { FP.lastEvent = { e, c, t: IV.time }; if (e === 'atEye') FP.atEye = true; onRigEvent(e, c, v); }; } }
       return vms[kind];
     };
     rig.setKind = function (kind) {
@@ -308,6 +308,30 @@
     return rig;
   }
   const _o = new THREE.Vector3();
+  // the clips' events run the gun: rounds go in at 'magIn', the reload ends at 'done', cases leave the port at 'shot'
+  // (SMG, pistol) or 'eject' (rifle bolt), and each handling sound plays when the hands make it
+  const _ed = new THREE.Vector3(), _ep = new THREE.Vector3();
+  function caseFrom(v) {
+    const e = v.ejection; if (!e || !VM) return;
+    socketWorld(e, _ep); e.getWorldQuaternion(_q); _ed.set(0, 0, 1).applyQuaternion(_q).applyQuaternion(W.camera.quaternion);   // viewmodel camera frame -> world
+    const sp = 2.2 + Math.random() * 0.8;
+    IV.fx.casing(_ep.x, _ep.y, _ep.z, _ed.x * sp + (Math.random() - 0.5) * 0.4, _ed.y * sp + 1.4 + Math.random() * 0.6, _ed.z * sp + (Math.random() - 0.5) * 0.4);
+  }
+  function onRigEvent(e, c, v) {
+    const A = IV.audio, WP = IV.weapons, rel = /^reload/.test(c);
+    if (e === 'magOut') A && A.play('magOut');
+    else if (e === 'magIn') { A && A.play('magIn'); if (rel) WP.magIn && WP.magIn(); }
+    else if (e === 'done' && rel) WP.reloadDone && WP.reloadDone();
+    else if (e === 'boltUp' || e === 'boltDown') A && A.play('click', { f: 2600, vol: 0.35 });
+    else if (e === 'boltBack' || e === 'boltForward') A && A.play('click', { f: 3300, vol: 0.45 });
+    else if (e === 'eject') caseFrom(v);
+    else if (e === 'shot' && v.kind !== 'rifleScoped') caseFrom(v);
+    else if (e === 'charge' || e === 'slide') A && A.play('click', { f: 2900, vol: 0.45 });
+    else if (e === 'pin') A && A.play('pin');
+  }
+  // a socket of the arms (viewmodel camera frame) as the world point in front of which it is drawn
+  function socketWorld(o, out) { o.getWorldPosition(out); out.applyMatrix4(VM.cam.matrixWorldInverse); out.z *= 0.9; return out.applyMatrix4(W.camera.matrixWorld); }
+  FP.realActive = () => !!(VM && !VM.rig.standin && FP.on() && VM.root.visible);
   function realFrame(vm, dt, yaw, pitch) {
     const W8 = IV.weapons, S = IV.settings, rig = vm.rig, M = IV.mission, I = IV.input, C = IV.camera;
     const gunKind = KIND[W8.cur] || 'smg';

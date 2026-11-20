@@ -83,6 +83,10 @@
     epistol(o) { SND.pistol(o); },
     bolt() { const d = chain({ vol: 0.5 }), t = now(); noise(d, t, 0.05, 'bandpass', 3200, 4, 0.5); noise(d, t + 0.18, 0.05, 'bandpass', 2600, 4, 0.5); noise(d, t + 0.36, 0.06, 'bandpass', 3000, 5, 0.6); noise(d, t + 0.5, 0.04, 'bandpass', 4000, 6, 0.4); },
     reload(o) { const d = chain({ vol: 0.45 }), t = now(); noise(d, t + 0.2, 0.05, 'bandpass', 2500, 5, 0.5); noise(d, t + 0.9, 0.06, 'bandpass', 1800, 5, 0.6); noise(d, t + 1.4, 0.05, 'bandpass', 3000, 6, 0.5); },
+    // first-person handling sounds, started by the arms' clip events (js/fp.js)
+    magOut() { const d = chain({ vol: 0.42 }), t = now(); noise(d, t, 0.05, 'bandpass', 2300, 5, 0.5); noise(d, t + 0.05, 0.08, 'bandpass', 900, 2, 0.3); },
+    magIn() { const d = chain({ vol: 0.5 }), t = now(); noise(d, t, 0.04, 'bandpass', 1700, 4, 0.6); noise(d, t + 0.03, 0.03, 'bandpass', 3400, 7, 0.5); },
+    click(o) { const d = chain({ vol: (o && o.vol) || 0.4 }), t = now(); noise(d, t, 0.035, 'bandpass', (o && o.f) || 3000, 6, 0.5); },
     dry() { const d = chain({ vol: 0.4 }), t = now(); noise(d, t, 0.03, 'bandpass', 3500, 8, 0.5); },
     equip() { const d = chain({ vol: 0.35 }), t = now(); noise(d, t, 0.12, 'bandpass', 900, 2, 0.4); noise(d, t + 0.15, 0.04, 'bandpass', 2800, 6, 0.4); },
     cloth(o) { const d = chain({ vol: (o && o.vol) || 0.35 }), t = now(); noise(d, t, 0.22, 'bandpass', V(700, 1100), 1.2, 0.3); },
