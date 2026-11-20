@@ -52,14 +52,20 @@ def assemble(blend, name, td, out, hair_parts, helmet_trim=True, with_anims=(), 
     PP.hair_atlas(objs, td + '/hair.png', 1024)
     lods = make_lods(low, name)
     add_morphs(name.lower(), low, objs)
-    hair = G.join([o for o, _, _ in objs], name + 'Hair')
+    # eyes keep their own glossy material (a sharp catchlight); the rest of the cards share the alpha atlas
+    eyes = [o for o, _, _ in objs if o.name == 'Eyes'][0]
+    eyes.name = name + 'Eyes'; eyes.data.name = name + 'Eyes'
+    em = PP.final_material(name + 'EyeMat', {'albedo': td + '/hair.png'}, alpha=False, rough=0.08)
+    eyes.data.materials.clear(); eyes.data.materials.append(em)
+    for p in eyes.data.polygons: p.material_index = 0
+    hair = G.join([o for o, _, _ in objs if o is not eyes], name + 'Hair')
     hm = PP.final_material(name + 'HairMat', {'albedo': td + '/hair.png'}, alpha=True, rough=0.5)
     hair.data.materials.clear(); hair.data.materials.append(hm)
     for p in hair.data.polygons: p.material_index = 0
-    keep = {rig.name, low.name, hair.name} | set(extra_meshes) | {o.name for o in lods}
+    keep = {rig.name, low.name, hair.name, eyes.name} | set(extra_meshes) | {o.name for o in lods}
     for o in list(bpy.data.objects):
         if o.name not in keep: bpy.data.objects.remove(o)
-    for o in [low, hair] + lods + [bpy.data.objects[e] for e in extra_meshes]:
+    for o in [low, hair, eyes] + lods + [bpy.data.objects[e] for e in extra_meshes]:
         for m in list(o.modifiers): o.modifiers.remove(m)
         o.parent = rig
         o.modifiers.new('Armature', 'ARMATURE').object = rig
@@ -120,7 +126,12 @@ def assemble_enemy(out):
         parts.append((o, img, rect))
     PP.hair_atlas(parts, td + '/hair.png', 1024)
     add_morphs('enemy', [bpy.data.objects[k.capitalize()] for k in ('rifleman', 'officer', 'sniper', 'gunner')], parts)
-    hair = G.join([o for o, _, _ in parts], 'EnemyHair')
+    eyes = bpy.data.objects['Eyes']; eyes.name = 'EnemyEyes'; eyes.data.name = 'EnemyEyes'
+    em = PP.final_material('EnemyEyeMat', {'albedo': td + '/hair.png'}, alpha=False, rough=0.08)
+    eyes.data.materials.clear(); eyes.data.materials.append(em)
+    for p in eyes.data.polygons: p.material_index = 0
+    keep.append('EnemyEyes')
+    hair = G.join([o for o, _, _ in parts if o is not eyes], 'EnemyHair')
     hm = PP.final_material('EnemyHairMat', {'albedo': td + '/hair.png'}, alpha=True, rough=0.5)
     hair.data.materials.clear(); hair.data.materials.append(hm)
     for p in hair.data.polygons: p.material_index = 0

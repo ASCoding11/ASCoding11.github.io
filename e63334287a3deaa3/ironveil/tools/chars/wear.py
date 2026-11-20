@@ -122,7 +122,35 @@ def cloth(name, base, base2, knee_z=None, mud='#3b3326', fade=0.12, camo=None, m
     B.link(B.obj, wv2.inputs['Vector'])
     weave_h = B.math('MULTIPLY', B.math('ADD', wv.outputs['Fac'], B.math('MULTIPLY', wv2.outputs['Fac'], 0.7)), weave * 0.5)
     wr = B.math('MULTIPLY', B.ramp(B.noise(22.0, 3, 0.6, stretch=(1.0, 1.0, 4.0)), 0.45, 0.6), 0.5)
+    # sewn seams from the garment's seam field (detail.tailor): a pressed groove and two rows of stitches
+    sa = B.n('ShaderNodeAttribute', attribute_name='seam_d'); sb = B.n('ShaderNodeAttribute', attribute_name='seam_s')
+    has = B.math('GREATER_THAN', sa.outputs['Fac'], 0.0001)
+    dist = B.math('SUBTRACT', 0.05, sa.outputs['Fac'])
+    groove = B.math('MULTIPLY', has, B.math('EXPONENT', B.math('MULTIPLY', B.math('POWER', B.math('DIVIDE', dist, 0.0035), 2.0), -1.0)))
+    stitch_row = B.math('EXPONENT', B.math('MULTIPLY', B.math('POWER', B.math('DIVIDE', B.math('SUBTRACT', dist, 0.0042), 0.0009), 2.0), -1.0))
+    stitch_on = B.math('POWER', B.math('ADD', 0.5, B.math('MULTIPLY', 0.5, B.math('COSINE', B.math('MULTIPLY', sb.outputs['Fac'], 6.2832 / 0.0055)))), 4.0)
+    stitches = B.math('MULTIPLY', has, B.math('MULTIPLY', stitch_row, stitch_on))
+    seam_h = B.math('ADD', B.math('MULTIPLY', groove, -0.9), B.math('MULTIPLY', stitches, 0.5))
+    wr = B.math('ADD', wr, seam_h)
+    c = B.mix(c, '#2a2a1e', B.math('MULTIPLY', groove, 0.25))
     rough = B.mixf(0.86, 0.96, B.ramp(mott, 0.3, 0.7))
+    # wear: rubbed shiny and a touch lighter at elbows, knees and seat and on the edges of pockets and seams
+    zc = B.zcoord()
+    ax = B.math('ABSOLUTE', zc.outputs['X'])
+    elbow = B.math('MULTIPLY', B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', ax, 0.46)), 0.07, 0.0), B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', zc.outputs['Z'], 1.47)), 0.08, 0.0))
+    knee = B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', zc.outputs['Z'], knee_z or 0.52)), 0.08, 0.0)
+    seat = B.math('MULTIPLY', B.ramp(zc.outputs['Y'], 0.02, 0.09), B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', zc.outputs['Z'], 0.88)), 0.1, 0.0))
+    worn = B.math('MULTIPLY', B.math('MAXIMUM', B.math('MAXIMUM', elbow, knee), B.math('MAXIMUM', seat, B.math('MULTIPLY', B.edge(0.004), 0.7))), B.ramp(B.noise(18.0, 4, 0.6), 0.3, 0.7))
+    rough = B.mixf(rough, 0.64, B.math('MULTIPLY', worn, 0.85))
+    c = B.mix(c, '#9a9680', B.math('MULTIPLY', worn, 0.18))
+    # dust climbing from the boots to the knees (dry, pale, kills the sheen) under the mud
+    dust = B.math('MULTIPLY', B.ramp(zc.outputs['Z'], 0.62, 0.12), B.ramp(B.noise(6.0, 6, 0.6), 0.25, 0.65))
+    c = B.mix(c, '#8b7e62', B.math('MULTIPLY', dust, 0.42))
+    rough = B.mixf(rough, 0.99, dust)
+    # sweat darkening at the collar line and across the shoulders under the braces
+    sweat = B.math('MULTIPLY', B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', zc.outputs['Z'], 1.47)), 0.07, 0.0), B.ramp(ax, 0.2, 0.05))
+    c = B.mix(c, '#1d1c14', B.math('MULTIPLY', sweat, 0.3))
+    rough = B.mixf(rough, 0.78, B.math('MULTIPLY', sweat, 0.6))
     return B.finish(c, rough, bump_h=B.math('ADD', B.math('ADD', weave_h, wr), B.math('MULTIPLY', B.noise(35.0, 4), 0.35)), bump_s=0.42, bump_dist=0.004)
 
 def leather(name, base, base2='#100c09', mud='#3d3428', mud_low=0.0, polish=0.45):
@@ -200,8 +228,16 @@ def skin(name, image, grime=0.35, uv='UVMap'):
     c = B.mix(c, '#3d3226', B.math('MULTIPLY', smudge, grime))
     stub = B.ramp(B.noise(400.0, 2, 0.5), 0.55, 0.7)
     sweat = B.ramp(B.noise(5.0, 3, 0.5, w=3.0), 0.5, 0.7)
-    rough = B.mixf(0.62, 0.42, sweat)
-    return B.finish(c, rough, bump_h=B.math('ADD', B.math('MULTIPLY', B.noise(250.0, 3, 0.6), 0.5), B.math('MULTIPLY', stub, 0.2)), bump_s=0.15, bump_dist=0.002)
+    # a few days' stubble on the jaw, upper lip and chin (bind pose: face front is -Y, jaw at about 1.55-1.63 m)
+    zc = B.zcoord()
+    jaw = B.math('MULTIPLY', B.math('MULTIPLY', B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', zc.outputs['Z'], 1.585)), 0.045, 0.015),
+                                    B.ramp(zc.outputs['Y'], 0.0, -0.06)), B.ramp(B.math('ABSOLUTE', zc.outputs['X']), 0.075, 0.05))
+    c = B.mix(c, '#2b231d', B.math('MULTIPLY', B.math('MULTIPLY', jaw, B.ramp(B.noise(520.0, 2, 0.5), 0.45, 0.6)), 0.55))
+    # oilier T-zone (forehead, nose), drier cheeks; dirt in the creases already from the AO above
+    tz = B.math('MULTIPLY', B.ramp(zc.outputs['Z'], 1.6, 1.68), B.ramp(B.math('ABSOLUTE', zc.outputs['X']), 0.05, 0.02))
+    rough = B.mixf(B.mixf(0.62, 0.42, sweat), 0.4, B.math('MULTIPLY', tz, 0.7))
+    pores = B.math('MULTIPLY', B.noise(650.0, 2, 0.5), 0.35)
+    return B.finish(c, rough, bump_h=B.math('ADD', B.math('ADD', B.math('MULTIPLY', B.noise(250.0, 3, 0.6), 0.5), pores), B.math('MULTIPLY', stub, 0.35)), bump_s=0.22, bump_dist=0.002)
 
 def flat(name, col, rough=0.5, metal=0.0):
     B = NB(name)
