@@ -604,7 +604,10 @@
     if (this._pivot && (speed < 0.3 || this._move <= 0.1)) { this._dirA = aNow; this._pivot = false; }
     var vRef = this._vRef || 1.5;
     var mvT = wantMove && !this._pivot ? Math.min(1, speed / (0.8 * vRef)) : 0;
-    this._move = approach(this._move, mvT, this._pivot ? 6 : 8, dt);
+    // starting from (nearly) still: re-seat the phase at the nearest foot contact (both feet down), so the first
+    // step starts from double support instead of mid-swing; the pose is idle here, so the jump is not visible
+    if (this._move < 0.04 && mvT > 0) this.phase = (Math.round(this.phase * 2) / 2) % 1;
+    this._move = approach(this._move, mvT, 5, dt);
     var mv = this._move;
     // direction (local: +x left, +z forward) and speed tier
     if (speed > 0.05 && !this._pivot) {
