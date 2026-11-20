@@ -431,7 +431,7 @@
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(L.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(L.n, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(L.u, 2));
         g.setAttribute('color', new THREE.Float32BufferAttribute(L.c, 3)); g.setAttribute('aWind', new THREE.Float32BufferAttribute(L.w, 4)); g.setIndex(L.i); g.computeBoundingSphere();
-        const m = new THREE.Mesh(g, lm); m.castShadow = E.Q.name !== 'low'; m.userData.shadowNear = 35; m.receiveShadow = true; m.customDepthMaterial = lm.userData.depth; m.name = 'hedge-leaves'; group.add(m);
+        const m = new THREE.Mesh(g, lm); m.castShadow = E.Q.name !== 'low'; m.userData.shadowNear = 22; m.receiveShadow = true; m.customDepthMaterial = lm.userData.depth; m.name = 'hedge-leaves'; group.add(m);
       }
       const st = Bk.finish(); st.traverse(o => { if (o.isMesh && o.material === E.mat('bark_oak')) o.material = bm; }); group.add(st);
       // colliders: sight-blocking boxes along the hedge (the game decides flags)
