@@ -166,7 +166,7 @@ body.touch .dmg i{top:-110px}
 #warn div{background:rgba(190,26,16,.85);border-radius:8px;padding:3px 12px;animation:blink .5s steps(2) infinite}
 #warn div.soft{background:rgba(8,22,46,.6);animation:none;font-size:15px}
 @keyframes blink{50%{opacity:.35}}
-#banner{position:absolute;left:50%;top:36%;transform:translateX(-50%);font-family:var(--f-d);font-weight:400;font-size:clamp(20px,4.4vw,34px);text-align:center;white-space:nowrap;opacity:0;transition:opacity .4s}
+#banner{position:absolute;left:50%;top:15%;transform:translateX(-50%);font-family:var(--f-d);font-weight:400;font-size:clamp(20px,4.4vw,34px);text-align:center;white-space:nowrap;opacity:0;transition:opacity .4s}
 #banner.on{opacity:1}
 #banner small{display:block;font-family:var(--f-b);font-weight:700;font-size:15px;letter-spacing:.04em;margin-top:4px}
 #vign{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,40,20,0) 45%,rgba(255,40,20,.55));opacity:0}
@@ -215,7 +215,7 @@ body.touch #banner{top:30%}
   body.touch #top{left:auto;right:calc(8px + env(safe-area-inset-right,0px));transform:none}
   body.touch #feed div:nth-last-child(n+4){display:none}
   body.touch #warn{top:calc(164px + env(safe-area-inset-top,0px));width:max-content;max-width:calc(100vw - 24px)}
-  body.touch #banner{top:42%;white-space:normal;width:max-content;max-width:calc(100vw - 32px)}
+  body.touch #banner{top:26%;white-space:normal;width:max-content;max-width:calc(100vw - 32px)}
 }
 @media (orientation:landscape){
   body.touch #banner{font-size:22px;white-space:normal;width:max-content;max-width:calc(100vw - 400px)}
@@ -696,7 +696,7 @@ let TERRAIN_MAT=null;
       if(h<16&&ny>.8){R=.86;Gc=.74;B=.52}
       else if(ny>.9&&h>215){const sc=vnoise(x/90,z/90);if(sc>.62){R=.56;Gc=.6;B=.34}else{R=.83;Gc=.63;B=.41}}
       else{R=.79;Gc=.44;B=.27}
-      mesa[v]=ny>.9&&h>215?0:1;
+      mesa[v]=1-smooth(.72,.93,ny);   // strata on the slopes and cliffs, not on flat ground
     }else{
       const g=vnoise(x/260+4,z/260+8);
       if(h<7){R=.86;Gc=.79;B=.56}
@@ -818,7 +818,7 @@ const FX=(function(){
   const bg=new THREE.BufferGeometry(),bA=new THREE.BufferAttribute(bp,3);bA.setUsage(THREE.DynamicDrawUsage);bg.setAttribute('position',bA);bg.setAttribute('uv',new THREE.BufferAttribute(bu,2));bg.setIndex(bi);
   const tmat=new THREE.ShaderMaterial({
     vertexShader:'varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader:'varying vec2 vU;void main(){float a=vU.x*vU.x*(1.-pow(abs(vU.y*2.-1.),2.));vec3 c=mix(vec3(1.,.42,.08),vec3(1.,.95,.7),vU.x*vU.x);gl_FragColor=vec4(c*a*1.6,a);}',
+    fragmentShader:'varying vec2 vU;void main(){float a=vU.x*vU.x*(1.-pow(abs(vU.y*2.-1.),2.));vec3 c=mix(vec3(1.,.42,.08),vec3(1.,.95,.7),vU.x*vU.x);gl_FragColor=vec4(c*a*2.2,a);}',
     transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
   const lines=new THREE.Mesh(bg,tmat);lines.frustumCulled=false;lines.renderOrder=6;scene.add(lines);
   const bullets=[];for(let i=0;i<NB;i++)bullets.push({on:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,by:'',local:false,far:false,age:0});
@@ -832,7 +832,7 @@ const FX=(function(){
       const tx=b.x-dx*L,ty=b.y-dy*L,tz=b.z-dz*L;
       // side = dir x (to camera), sized by distance so a tracer is never thinner than about 1.5 pixels
       const cx=cp.x-b.x,cy=cp.y-b.y,cz=cp.z-b.z,cd=Math.hypot(cx,cy,cz)||1;
-      let sx=dy*cz-dz*cy,sy=dz*cx-dx*cz,sz=dx*cy-dy*cx;const sl=Math.hypot(sx,sy,sz)||1,w=(.32+cd*.0021)/sl;sx*=w;sy*=w;sz*=w;
+      let sx=dy*cz-dz*cy,sy=dz*cx-dx*cz,sz=dx*cy-dy*cx;const sl=Math.hypot(sx,sy,sz)||1,w=(.45+cd*.0042)/sl;sx*=w;sy*=w;sz*=w;
       bp[j]=b.x+sx;bp[j+1]=b.y+sy;bp[j+2]=b.z+sz;bp[j+3]=b.x-sx;bp[j+4]=b.y-sy;bp[j+5]=b.z-sz;
       bp[j+6]=tx-sx;bp[j+7]=ty-sy;bp[j+8]=tz-sz;bp[j+9]=tx+sx;bp[j+10]=ty+sy;bp[j+11]=tz+sz;
     }
