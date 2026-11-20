@@ -91,6 +91,20 @@
       '14 new things to turn into, like a buoy, a crab pot, a sleeping bag, a school desk and a basketball.',
       'Hosts can pick the new maps in the lobby, and Rotate now goes through all six. If someone in the room has an older copy of the game, the new maps wait until they reload.'
     ]},
+    {date: '2026-11-20', version: '1.34', title: 'Flipline, Beatvault and Rollaway', kind: 'game', games: ['Flipline', 'Beatvault', 'Rollaway'],
+     img: ['m/thumbs/flipline.jpg', 'm/thumbs/beatvault.jpg', 'm/thumbs/rollaway.jpg'], tags: ['Stunt bike', 'Rhythm runner', 'Marble run', 'Solo'], items: [
+      'Flipline: a one-button stunt bike game in cut paper. Hold to ride, keep holding in the air to tip over backwards, and let go in time to land on your wheels. Chain clean landings into a combo past ramps, gaps, see-saws, saws and crushers.',
+      'Beatvault: a one-button rhythm runner. A little paper lantern runs through six stages, each built on its own song. Hop, fly, flip and dive on the beat, and look for the three vault keys hidden off the safe path.',
+      'Rollaway: steer a heavy marble down a crumbling aqueduct above the clouds. It never stops speeding up, and rolling off the edge or touching the iron ends the run.',
+      'All three are for one player, work on a phone, and put your best runs on the Leaderboards.'
+    ]},
+    {date: '2026-11-20', version: '1.33', title: 'Updraft: through the gate, 3,000 m more', kind: 'feature',
+     img: 'm/thumbs/updraft.jpg', tags: ['6,000 m', 'Six new zones', 'One checkpoint', 'New leaderboard'], items: [
+      'Updraft: 3,000 m more. Reach the Crown and a gate opens on it: step through into another world and climb on to the Lodestar at 6,000 m.',
+      'Climb out of a pit by a black river on ferries and sinking rafts, past a river of fire with heat vents that blow on a beat, and through the Hound\'s Gate on a great wheel and across a slope of rolling boulders. Above the pit, a sky of spells: warp glyphs, crystal discs that grow and shrink, and an orrery of planets and moons.',
+      'One checkpoint: once you have reached the Crown, you can start at its gate. Fall anywhere on the far side and the river brings you back to the gate.',
+      'A new Leaderboard for the fastest climb from the gate to the Lodestar. Your times to the old summit and to the Crown count just as before.'
+    ]},
     {date: '2026-11-19', version: '1.32', title: 'New game: Hush Pools', kind: 'game', games: ['Hush Pools'],
      img: 'm/thumbs/hush-pools.jpg', tags: ['Horror obby', 'Co-op', 'Up to 4'], items: [
       'Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can\'t see you, but it hears every splash.',
