@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.32', title: 'New game: Hush Pools', kind: 'game', games: ['Hush Pools'],
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Horror obby', 'Co-op', 'Up to 4'], items: [
+      'Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can\'t see you, but it hears every splash.',
+      'Every noise sends rings across the water. Creep and stand still and it walks past; throw a pebble, a bottle or a wind-up toy to send it the other way, or a flare to stun it.',
+      'If you go down, a teammate can pull you out or throw you a rope. Clear rooms for coins to spend on gear and upgrades (no real money), and beat Normal twice to open Hard.',
+      'Play solo, in a room with friends, or Quick match. Your Elo, fastest escape, escapes and rescues go on the Leaderboards.'
+    ]},
     {date: '2026-11-19', version: '1.31', title: 'Sky Duel: cockpit view', kind: 'feature',
      tags: ['Sky Duel', 'Cockpit'], img: 'm/thumbs/sky-duel.jpg', items: [
       'Press V in Sky Duel (or tap Cockpit on a phone) to fly from the pilot\'s seat. Press it again for the chase camera.',
