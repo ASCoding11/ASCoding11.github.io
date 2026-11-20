@@ -66,8 +66,9 @@
   };
   // The 'back' socket carries a long gun muzzle-up over the shoulder (about 55 degrees up). Seen from the
   // over-the-shoulder camera that barrel stands above the helmet like a spear and reads as the gun in his hands,
-  // so the slung gun is turned, flat against the back, to hang muzzle-down to the right (stock over the left shoulder,
-  // away from the camera). The turn is found once, about the axis through the back, and kept in the gun's own frame.
+  // so until the characters' slung-carry socket arrives the slung gun is turned, flat against the back, to hang
+  // nearly vertical, muzzle down along the spine, and it is hidden while aiming (playerParts). The turn is found once,
+  // about the axis through the back, and kept in the gun's own frame.
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _ax = new THREE.Vector3();
   function slingDown(m) {
     const A = P.actor; if (!A || !m.parent) return;
@@ -79,13 +80,13 @@
       for (let a = -Math.PI; a < Math.PI; a += Math.PI / 72) {
         _q.setFromAxisAngle(_ax, a); _q2.copy(qm).multiply(_q);
         _v.set(0, 0, 1).applyQuaternion(_q2).applyQuaternion(qai);   // barrel in the body's frame (+x is his left)
-        const sc = Math.abs(_v.y + 0.82) + (_v.x < 0 ? 0 : 1);           // muzzle down about 55 degrees, toward his right
+        const sc = Math.abs(_v.y + 0.97) + Math.abs(_v.x + 0.15);         // nearly vertical, muzzle down, a touch to his right
         if (sc < bs) { bs = sc; best = a; }
       }
       m.userData.slingQ = new THREE.Quaternion().setFromAxisAngle(_ax, best);
     }
     m.quaternion.multiply(m.userData.slingQ);
-    m.translateZ(0.32);   // and slide it down along itself, so the stock sits at the shoulder blade, not above the helmet
+    m.translateZ(0.42);   // and slide it down along itself, so the top of the stock sits below the helmet rim, behind the pack
   }
   function equipModels() {
     const A = P.actor, M = WP.models;
@@ -523,6 +524,7 @@
   };
   function playerParts(dt) {
     const k = WP.cur, m = WP.models && WP.models[k]; if (!m) return;
+    const back = WP.models[k === 'rifle' ? 'smg' : 'rifle']; if (back && back.parent && back !== m) back.visible = !(WP.aiming || WP.scoped);   // the slung gun would cross the head in the aim view
     const kind = PART_KIND[k] || k, I = IV.input;
     WP.animateGun(m, kind, dt, { trigger: I.held('fire') && !WP.busyThrow, reload: WP.reloadT > 0 ? 1 - WP.reloadT / WT[k].reload : -1 });
   }

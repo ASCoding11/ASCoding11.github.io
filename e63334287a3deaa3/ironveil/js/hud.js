@@ -219,7 +219,7 @@
   // scope: black surround, fine crosshair, drop marks for 100/200/300 m, wind arrow, breath meter
   function drawScope(w, h, u) {
     const cx = w / 2, cy = h / 2, r = Math.min(w, h) * 0.46;
-    g.fillStyle = '#000'; g.beginPath(); g.rect(0, 0, w, h); g.arc(cx, cy, r, 0, 6.29, true); g.fill();
+    g.fillStyle = '#000'; g.beginPath(); g.rect(0, 0, w, h); g.moveTo(cx + r, cy); g.arc(cx, cy, r, 0, 6.29, true); g.fill();   // moveTo: without it the arc joins (0,0) with a thin diagonal sliver
     const grd = g.createRadialGradient(cx, cy, r * 0.82, cx, cy, r); grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, 'rgba(0,0,0,.85)'); g.fillStyle = grd; g.beginPath(); g.arc(cx, cy, r, 0, 6.29); g.fill();
     // pixels per radian at the current fov
     const fov = W.camera.fov * Math.PI / 180, ppr = (h / 2) / Math.tan(fov / 2);
