@@ -2568,7 +2568,7 @@ function renderLobby(){
   $('lbWait').hidden=!waiting.length;$('lbWait').textContent=TX('Waiting for the next match: {l}',{l:waiting.map(h=>h.n).join(', ')});
   const nr=hs.filter(h=>h.t==='r').length,nb=hs.length-nr;
   let st;
-  if(WATCH)st=!r?TX('Connecting to the room…'):TX('You\'re spectating: nobody sees you and you take no part.')+' '+(playing?TX('Match in progress: Red {a} – {b} Blue, round {r}, first to {n}.',{a:r.sr|0,b:r.sb|0,r:Math.max(1,r.rn|0),n:matchTarget()})
+  if(WATCH)st=!r?(Net.loaded&&performance.now()-Net.joinedAt>2500?TX('Nobody is playing in this room yet. The match shows here as soon as someone starts one.'):TX('Connecting to the room…')):TX('You\'re spectating: nobody sees you and you take no part.')+' '+(playing?TX('Match in progress: Red {a} – {b} Blue, round {r}, first to {n}.',{a:r.sr|0,b:r.sb|0,r:Math.max(1,r.rn|0),n:matchTarget()})
     :Net.hostUid?TX('Waiting for the next match: {h} (host) starts it.',{h:nameOf(Net.hostUid)}):TX('Nobody is in this room right now. Waiting for players…'));
   else if(!r||!Net.hostUid)st=TX('Connecting to the room…');
   else if(playing)st=TX("Match in progress: Red {a} – {b} Blue, round {r}, first to {n}. You'll play in the next match.",{a:r.sr|0,b:r.sb|0,r:Math.max(1,r.rn|0),n:matchTarget()});
@@ -2765,7 +2765,8 @@ const Net={
     r.players.on('child_added',up);r.players.on('child_changed',up);r.players.on('child_removed',s=>onNodeGone(s.key));
     r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
     r.round.on('value',s=>onRound(s.val()));
-    this.loaded=false;Promise.all([r.players.once('value'),r.round.once('value')]).then(()=>{if(this.refs===r)this.loaded=true},()=>{});
+    // once the room has been read, redraw so an empty room says so instead of 'Connecting…' (nothing else would redraw it)
+    this.loaded=false;Promise.all([r.players.once('value'),r.round.once('value')]).then(()=>{if(this.refs===r){this.loaded=true;setTimeout(()=>{if(this.refs===r){lobbyDirty=true;renderLobby()}},2600)}},()=>{});
     clearInterval(this.tickTimer);this.tickTimer=setInterval(onlineTick,250);
     this.watchOn(room);
   },
