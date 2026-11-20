@@ -85,12 +85,43 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-19', version: '1.30', title: 'Updraft: through the gate, 3,000 m more', kind: 'feature',
+    {date: '2026-11-20', version: '1.33', title: 'Updraft: through the gate, 3,000 m more', kind: 'feature',
      img: 'm/thumbs/updraft.jpg', tags: ['6,000 m', 'Six new zones', 'One checkpoint', 'New leaderboard'], items: [
       'Updraft: 3,000 m more. Reach the Crown and a gate opens on it: step through into another world and climb on to the Lodestar at 6,000 m.',
       'Climb out of a pit by a black river on ferries and sinking rafts, past a river of fire with heat vents that blow on a beat, and through the Hound\'s Gate on a great wheel and across a slope of rolling boulders. Above the pit, a sky of spells: warp glyphs, crystal discs that grow and shrink, and an orrery of planets and moons.',
       'One checkpoint: once you have reached the Crown, you can start at its gate. Fall anywhere on the far side and the river brings you back to the gate.',
       'A new Leaderboard for the fastest climb from the gate to the Lodestar. Your times to the old summit and to the Crown count just as before.'
+    ]},
+    {date: '2026-11-19', version: '1.32', title: 'New game: Hush Pools', kind: 'game', games: ['Hush Pools'],
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Horror obby', 'Co-op', 'Up to 4'], items: [
+      'Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can\'t see you, but it hears every splash.',
+      'Every noise sends rings across the water. Creep and stand still and it walks past; throw a pebble, a bottle or a wind-up toy to send it the other way, or a flare to stun it.',
+      'If you go down, a teammate can pull you out or throw you a rope. Clear rooms for coins to spend on gear and upgrades (no real money), and beat Normal twice to open Hard.',
+      'Play solo, in a room with friends, or Quick match. Your Elo, fastest escape, escapes and rescues go on the Leaderboards.'
+    ]},
+    {date: '2026-11-19', version: '1.31', title: 'Sky Duel: cockpit view', kind: 'feature',
+     tags: ['Sky Duel', 'Cockpit'], img: 'm/thumbs/sky-duel.jpg', items: [
+      'Press V in Sky Duel (or tap Cockpit on a phone) to fly from the pilot\'s seat. Press it again for the chase camera.',
+      'You see out through the canopy frame over your own nose, wings and spinning propeller, with a gunsight lined up with your guns.',
+      'The instrument panel works: speed, altitude, attitude, heading, climb, RPM, gun heat and hull, plus warning lights for lock, incoming missiles and stalls.',
+      'Your head turns a little into turns, and the view shakes when you fire or boost. Your choice is remembered, and it is also under View in the settings.'
+    ]},
+    {date: '2026-11-19', version: '1.30.2', title: 'No more "moved" error offline', kind: 'fix',
+     tags: ['Offline'], items: [
+      'Opening a game that isn\'t saved while you\'re offline no longer shows the browser\'s "may have moved" error page.',
+      'Tapping a faded game while offline now just tells you to play it once with internet first.'
+    ]},
+    {date: '2026-11-19', version: '1.30.1', title: 'Offline mode fixes', kind: 'fix',
+     tags: ['Offline'], items: [
+      'The page you open first is now always saved for offline, even if you start clicking straight away.',
+      'The "You\'re offline" page now also shows on ascoding11.com.'
+    ]},
+    {date: '2026-11-19', version: '1.30', title: 'Offline mode', kind: 'feature',
+     tags: ['Offline', 'Every game'], items: [
+      'Games you\'ve played on a device now open on it again with no internet, along with the home page, the Back Room and the phone page.',
+      'Practice, bots and single-player modes work offline. Online matches, leaderboards, chat and the Marketplace come back when you reconnect.',
+      'While you\'re offline, a note at the bottom says so and games not saved on that device yet are faded, so you can see what you can play.',
+      'On a phone, add the phone page to your home screen to use it like an app, with or without internet.'
     ]},
     {date: '2026-11-19', version: '1.29.25', title: 'An Aisles tab on the Leaderboards', kind: 'feature',
      tags: ['Leaderboards', 'Aisles'], items: [

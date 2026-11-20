@@ -526,7 +526,7 @@
   function googleUser(u, uid) { return u && u.uid === uid && u.isAnonymous === false ? u : null; }
 
   // Ranked ratings from elo.js ('elo:<folder>' in this browser) become the game's 'elo' stat, once a rated match has been played.
-  ['boostball', 'rumble-karts', 'backrooms-1v1', 'drop-zone', 'odd-one-out', 'puffer-party', 'turbo-trail', 'lunge-line', 'deepword', 'tumble-trials', 'slipstream', 'chromaflage', 'sky-duel'].forEach(function (g) {
+  ['boostball', 'rumble-karts', 'backrooms-1v1', 'drop-zone', 'odd-one-out', 'puffer-party', 'turbo-trail', 'lunge-line', 'deepword', 'tumble-trials', 'slipstream', 'chromaflage', 'sky-duel', 'hush-pools'].forEach(function (g) {
     var prev = READ[g];
     READ[g] = function () { var o = (prev && prev()) || {}, r = sj('elo:' + g); if (r && (r.g | 0) > 0) o.elo = Math.round(num(r.r)); return o; };
   });
