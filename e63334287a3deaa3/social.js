@@ -23,6 +23,14 @@
  *      rooms too); single-player games and games not in party.js's GAMES are never advertised. When someone else's node
  *      starts advertising our room after we got there, a small toast says they joined (not our own party, who arrive
  *      together).
+ *   qg, qr, qt  the full room we're queued for in Playing now (playingnow.js's "Queue for next game"): game key, room
+ *      code (as jr) and when the queue started (server time). playingnow.js asks for them through
+ *      window.BackRoomOnline.queue and clears them when the queue ends (joined, left, timed out, the game ended, a game
+ *      opened); closing the tab removes the whole node. Not while hidden. People whose open game is in that room get
+ *      a toast "Ben is queued for your game" (once per queue start, only within a minute of it, at most once per person
+ *      per room every 3 minutes, several at once combined; not from blocked or muted people); everyone sees "Queued for
+ *      Coil" on that person's row, and Playing now counts them on the room's row. Ignored after 31 minutes (the queue's
+ *      own limit is 30) or on a node without a fresh heartbeat, and only for games playingnow.js offers a queue for.
  *   l  lounge: [{ i, t, x }], the last 20 messages, 200 characters each, dropped after 30 minutes
  *   d  { <recipient uid>: [{ i, t, b }] }  private messages, the last 6 to each of the last 6 people
  *   i  { <recipient uid>: { i, t, b } }    the latest party or room invite to each of the last 6 people
@@ -188,7 +196,10 @@
       'Reply': 'Responder', 'Dismiss': 'Descartar', 'Accept': 'Aceptar', 'Decline': 'Rechazar', 'Later': 'Después', 'Mute': 'Silenciar', 'Block': 'Bloquear', 'Report': 'Reportar',
       'Joining {n}’s party…': 'Uniéndote al grupo de {n}…', 'You joined {n}’s party. When the leader starts a game, you’ll go too.': 'Te uniste al grupo de {n}. Cuando el líder empiece un juego, irás también.',
       'You already asked {n} to join that party.': 'Ya le pediste a {n} unirte a ese grupo.',
-      '· {s} · you': '· {s} · tú', '{l}: {n} in {g}': '{l}: {n} en {g}', 'Join {g}': 'Unirse a {g}'
+      '· {s} · you': '· {s} · tú', '{l}: {n} in {g}': '{l}: {n} en {g}', 'Join {g}': 'Unirse a {g}',
+      '{n} is queued for your game.': '{n} está en la fila para tu juego.', '{n} and 1 other are queued for your game.': '{n} y 1 más están en la fila para tu juego.',
+      '{n} and {k} others are queued for your game.': '{n} y {k} más están en la fila para tu juego.',
+      'Queued for {g}': 'En la fila para {g}', 'Queued for your game': 'En la fila para tu juego'
     });
   })(0);
   var STALE = 75000, BEAT = 15000, POLL = 2000;
@@ -200,6 +211,9 @@
   var REPORT_MSGS = 20, REPORT_MAX = 4000, REPORT_BYTES = 8000, REPORT_GAP = 60000;
   var REQ_TTL = 10 * 60000, REQ_BURST = 10, REQ_BURST_MS = 2000, REQ_COOL = 10000, CHATS_MAX = 60;   // only a real flood (10 chat or join requests in 2 s) waits, and only 10 s
   var PC_KEEP = 6, NODE_SOFT = 50000;
+  // Queue notices (qg, qr, qt): a queue lasts at most 30 minutes (playingnow.js), so older fields are stale; a toast only
+  // for a queue that started in the last minute, at most once per person per room every 3 minutes.
+  var QUEUE_MAX = 30 * 60000, Q_FRESH = 60000, Q_GAP = 3 * 60000, Q_BATCH = 1200;
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
   var me0 = document.currentScript && document.currentScript.src;
@@ -514,6 +528,8 @@
   var hidden = store('ol:hidden') === '1';
   var joinable = store('ol:join') !== '0';   // Let people join my games: on unless switched off
   var joinAd = null, joinSent = '', joinSeen = {};   // the room we advertise { g, r, t }; toasts already shown
+  var queueAd = null;                      // the full room we're queued for (playingnow.js) { g, r, t }, as qg / qr / qt
+  var qSeen = {}, qLast = {}, qPend = [], qPT = 0, qToast = null, qRoomSig = '';   // queue toasts: shown, rate limit, batching
   var started = Date.now();
   function now() { return P && P.now ? P.now() : Date.now(); }
 
@@ -615,6 +631,7 @@
       pp: typeof v.pp === 'string' && /^[a-z0-9]{1,8}$/.test(v.pp) ? v.pp : '', pn: Math.max(0, Math.min(99, Math.floor(num(v.pn)) || 0)),
       g: typeof v.g === 'string' && gameOf(v.g) ? v.g : '',
       jg: typeof v.jg === 'string' && gameOf(v.jg) ? v.jg : '', jr: typeof v.jr === 'string' && ROOM.test(v.jr) ? v.jr : '', jt: when(v.jt, t) || 0,
+      q: parseQueue(v, t),
       av: typeof v.av === 'string' && v.av.length <= 47 ? v.av : '',   // their avatar's code; avatar.js checks it before it is ever drawn
       nt: typeof v.nt === 'string' && v.nt.length <= 5 ? v.nt : '',    // their name tile's code, checked the same way
       l: [], dm: [], pc: [], inv: null
@@ -648,6 +665,20 @@
     return p;
   }
   function alive(p) { return p && now() - p.ts < STALE; }
+  // qg / qr / qt: a known game with a queue (playingnow.js says which), a room code like jr's, and a start time that
+  // isn't ahead of us and not older than the queue's own limit. Anything else is no queue.
+  function parseQueue(v, t) {
+    if (typeof v.qg !== 'string' || !gameOf(v.qg) || typeof v.qr !== 'string' || !ROOM.test(v.qr) || /^daily-/.test(v.qr)) return null;
+    var qt = when(v.qt, t);
+    return qt > 0 && t - qt < QUEUE_MAX + 60000 ? { g: v.qg, r: v.qr, t: qt } : null;
+  }
+  // Someone's queue as it stands now: their node still has a heartbeat, the queue isn't past its limit, and Playing now
+  // offers a queue for that game. (Our own: what we publish.)
+  function queueOf(p) {
+    var q = p && (p.uid === uid ? (published && !hidden ? queueAd : null) : p.q), J = window.BackRoomPlaying;
+    if (!q || (p.uid !== uid && !alive(p)) || now() - q.t >= QUEUE_MAX + 60000) return null;
+    return J && J.canQueue && J.canQueue(q.g) ? q : null;
+  }
   function visible(p) { return alive(p) && !isBlocked(p.uid); }
 
   function onNode(s) {
@@ -661,6 +692,7 @@
     remember(p);
     if (keys.pair && p.pk) openAll(p);
     joinedUs(p);
+    queuedUs(p);
     schedule();
   }
   // Someone's node has just started advertising the room we're in, after we got there: they joined our game.
@@ -671,6 +703,38 @@
     joinSeen[key] = 1;
     if (isBlocked(p.uid) || muted[p.uid] || (P && P.members.indexOf(p.uid) >= 0)) return;
     toast(p, { k: 'jn' });
+  }
+  // Someone's node has just started a queue for the room we're in: tell us, by name, once per queue start. Only within
+  // Q_FRESH of the start (a queue we only see later, say after a reload, shows in the lists but not as a toast); at most
+  // one toast per person per room every Q_GAP, so starting and leaving a queue over and over can't flood a room; nothing
+  // from blocked or muted people. Our own party members are told like anyone else: unlike a join (the party arrives
+  // together, so you already know), a party member queued outside a full room is news. Several queues that start
+  // within Q_BATCH of each other, or while the last queue toast is still up, become one toast ("Ben and 2 others").
+  function queuedUs(p) {
+    var q = queueOf(p), r = gameRoom(); if (!q || !r || q.g !== r.g || q.r !== r.r) return;
+    var key = p.uid + '|' + q.g + '|' + q.r + '|' + q.t; if (qSeen[key]) return;
+    qSeen[key] = 1;
+    if (now() - q.t > Q_FRESH || isBlocked(p.uid) || muted[p.uid]) return;
+    var rk = p.uid + '|' + q.g + '|' + q.r; if (now() - (qLast[rk] || 0) < Q_GAP) return;
+    qLast[rk] = now();
+    if (qPend.indexOf(p.uid) < 0) qPend.push(p.uid);
+    clearTimeout(qPT); qPT = setTimeout(queueToast, Q_BATCH);
+  }
+  function queueToast() {
+    var r = gameRoom(), still = function (u) { var p = people[u], q = queueOf(p); return visible(p) && !muted[u] && q && r && q.g === r.g && q.r === r.r; };
+    var us = qToast && qToast.isConnected ? qToast.__uids.filter(still) : [];
+    qPend.forEach(function (u) { if (us.indexOf(u) < 0 && still(u)) us.push(u); });
+    qPend = [];
+    if (!us.length) return;
+    if (qToast) qToast.remove();
+    toast(people[us[0]], { k: 'qd', more: us.length - 1, uids: us });
+  }
+  // The room we're in changed (we just got there): look at everyone's queue again.
+  function queueRoomCheck() {
+    var r = gameRoom(), sig = r ? r.g + '|' + r.r : '';
+    if (sig === qRoomSig) return;
+    qRoomSig = sig;
+    if (r) Object.keys(people).forEach(function (k) { queuedUs(people[k]); });
   }
   function onGone(s) {
     if (s.key === uid) {
@@ -1060,6 +1124,7 @@
     if (status.pl) s.pl = status.pl;
     var q = pubGame(), o = q || openParty(); if (o) { s.pp = o.pp; s.pn = o.pn; } if (q) { s.pg = q.pg; s.pr = q.pr; s.pt = q.pt; }
     if (joinAd) { s.jg = joinAd.g; s.jr = joinAd.r; s.jt = joinAd.t; }
+    if (queueAd) { s.qg = queueAd.g; s.qr = queueAd.r; s.qt = queueAd.t; }
     if (keys.pub) s.pk = keys.pub;
     if (mine.l.length) s.l = mine.l;
     if (Object.keys(mine.d).length) s.d = mine.d;
@@ -1139,6 +1204,8 @@
     var t = now(), patch = {}, l = mine.l.filter(function (m) { return m.t > t - LOUNGE_TTL; });
     if (l.length !== mine.l.length) { mine.l = l; patch.l = l.length ? l : null; }
     Object.keys(mine.i).forEach(function (u) { if (mine.i[u].t < t - INV_TTL) { delete mine.i[u]; patch['i/' + u] = null; } });
+    // A queue past its limit (playingnow.js stops it at 30 minutes; this is only a backstop) is taken off.
+    if (queueAd && t - queueAd.t > QUEUE_MAX) { queueAd = null; patch.qg = patch.qr = patch.qt = null; }
     write(patch).catch(function () {});
     schedule();
   }
@@ -1228,7 +1295,9 @@
   // Keep jg / jr / jt on our node in step with the game we're in and the setting.
   function joinPoll() {
     var want = joinable && !hidden && !(P && P.priv);
-    if (want) scanRoom();
+    // The room is looked for even when it isn't advertised (joining off, hidden, a Private party), so queue toasts
+    // reach everyone in it; only jg / jr / jt depend on the setting.
+    scanRoom(); queueRoomCheck();
     var gr = want ? gameRoom() : null, sig = gr ? gr.g + '|' + gr.r : '';
     if (sig === joinSent) return;
     joinSent = sig;
@@ -1505,8 +1574,10 @@
   ['pointerup', 'pointercancel', 'dragend', 'blur'].forEach(function (ev) { (ev === 'blur' ? window : document).addEventListener(ev, function () { setTimeout(pressEnd, 0); }, true); });
   function label(p) { return mask(p.n) + ' · ' + p.seat; }
   function statusText(p) {
-    var g = p.g && gameOf(p.g), bits = [];
+    var g = p.g && gameOf(p.g), bits = [], q = queueOf(p), r = q && gameRoom();
     if (g) bits.push('In ' + g.n);
+    // Waiting in Playing now's queue for a full room ("Queued for your game" to the people in that room).
+    else if (q) bits.push(r && r.g === q.g && r.r === q.r ? T('Queued for your game') : T('Queued for {g}', { g: gameOf(q.g).n }));
     if (p.party) { var op = openCode(p); bits.push((p.party > 1 ? (op ? 'Public party of ' : 'Party of ') + p.party : op ? 'In a public party' : 'In a party') + (p.pl && p.pl === p.uid ? ' · leader' : '')); }
     return bits.join(' · ') || 'Idle';
   }
@@ -1532,7 +1603,7 @@
     return Object.keys(people).map(function (k) { return people[k]; }).filter(visible)
       .sort(function (a, b) { return a.n.localeCompare(b.n) || (a.uid < b.uid ? -1 : 1); });
   }
-  function meEntry() { return { uid: uid, n: myName(), c: uid ? colorOf(uid) : COLORS[0], seat: uid ? seatOf(uid) : '', party: status.p, pl: status.pl, g: status.g }; }
+  function meEntry() { return { uid: uid, n: myName(), c: uid ? colorOf(uid) : COLORS[0], seat: uid ? seatOf(uid) : '', party: status.p, pl: status.pl, g: status.g, q: queueAd }; }
   // tag: the Name tile row shows your own card as a plain block ('div'); in the lists a card is a button.
   function personBtn(p, isMe, tag) {
     var b = el(tag || 'button', 'onl-p' + (isMe ? ' me' : '')); if (!tag) b.type = 'button';
@@ -2024,6 +2095,10 @@
     } else if (m.k === 'jn') {
       nameLine(line, who, '{n} joined your game.');
       t.classList.add('onl-tj'); life = 5000;
+    } else if (m.k === 'qd') {
+      // Someone (or several people) queued for the full room we're in (queuedUs): like the join toast, 5 s, no buttons.
+      nameLine(line, who, !m.more ? '{n} is queued for your game.' : m.more === 1 ? '{n} and 1 other are queued for your game.' : '{n} and {k} others are queued for your game.', { k: m.more });
+      t.classList.add('onl-tj'); t.setAttribute('data-k', 'q'); t.__uids = m.uids; qToast = t; life = 5000;
     } else if (m.k === 'g') {
       nameLine(line, who, '{n} to your party:'); line.append(' ', said(mask(m.x).slice(0, 120)));
       acts.append(btn('Reply', 'pri', 'pchat'), btn('Dismiss', '', 'dismiss'));
@@ -2234,6 +2309,28 @@
     open: function () { openDrawer({ v: 'party' }); }
   };
 
+  // For Playing now (playingnow.js), which keeps no node of its own: queue(q) puts the full room we're queued for on our
+  // Online node as qg / qr / qt ({ g: game key, r: room code } to start, null when the queue ends) and says whether
+  // anyone can be told: 'told' (it's on our node, or will be as soon as we're connected), 'hidden' (Hide me is on: no
+  // node, nobody can be told) or 'off' (not signed in yet). queued(k, r) lists the other people queued for that room,
+  // checked and with blocked people left out: [{ uid, n (filtered and masked), seat, t }], the earliest first.
+  window.BackRoomOnline = {
+    queue: function (q) {
+      var g = q && typeof q.g === 'string' && gameOf(q.g), r = q && String(q.r || '');
+      var next = g && ROOM.test(r) ? { g: g.k, r: r, t: Math.round(now()) } : null;
+      if (!next && !queueAd) return hidden ? 'hidden' : meRef ? 'told' : 'off';
+      queueAd = next;
+      if (published && !hidden) write(next ? { qg: next.g, qr: next.r, qt: next.t } : { qg: null, qr: null, qt: null }).catch(function () {});
+      schedule();
+      return hidden ? 'hidden' : meRef ? 'told' : 'off';
+    },
+    queued: function (k, r) {
+      return others().filter(function (p) { var q = queueOf(p); return q && q.g === k && q.r === r; })
+        .map(function (p) { return { uid: p.uid, n: mask(p.n), seat: p.seat, t: queueOf(p).t }; })
+        .sort(function (a, b) { return a.t - b.t || (a.uid < b.uid ? -1 : 1); });
+    }
+  };
+
   // Test hook for the automated checks; harmless in normal play.
-  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, get sblocked() { return sblocked; }, get status() { return status; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript, get pchat() { return pchat; }, partyMembers: partyMembers, sendParty: sendParty, get muted() { return muted; }, carryAvatar: carryAvatar, nodeState: nodeState, syncAvatar: syncAvatar, get wantEdit() { return wantEdit; } };
+  if (navigator.webdriver) window.__social = { get uid() { return uid; }, get people() { return people; }, get threads() { return threads; }, get mine() { return mine; }, get published() { return published; }, get pub() { return keys.pub; }, get chats() { return chats; }, get sent() { return sent; }, get sblocked() { return sblocked; }, get status() { return status; }, seatOf: seatOf, mask: mask, loungeAll: loungeAll, PATH: PATH, transcript: transcript, get pchat() { return pchat; }, partyMembers: partyMembers, sendParty: sendParty, get muted() { return muted; }, carryAvatar: carryAvatar, nodeState: nodeState, syncAvatar: syncAvatar, get wantEdit() { return wantEdit; }, get queueAd() { return queueAd; }, get qLast() { return qLast; }, gameRoom: gameRoom };
 })();
