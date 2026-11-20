@@ -238,6 +238,7 @@
     'rumble-karts': { c: '#C63A22', e: '<circle cx="8" cy="7.9" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M4.8 7.4h6.4M8 7.4v3.8" stroke="#fff" stroke-width="1.4"/><circle cx="8" cy="7.6" r="1.1" fill="#fff"/>' },
     'blockstorm': { c: '#45702A', e: '<path d="M8 3.4l3.7 1.9L8 7.2 4.3 5.3z" fill="#C8EC8C"/><path d="M4.3 5.3L8 7.2v4.3L4.3 9.6z" fill="#fff"/><path d="M11.7 5.3v4.3L8 11.5V7.2z" fill="#93C860"/>' },
     'sky-duel': { c: '#2659A6', e: '<path d="M8 2.9l.9 2.7 3.7 2.1v1.1l-3.7-1-.3 2.5 1.3.9v.8L8 11.6l-1.9.4v-.8l1.3-.9-.3-2.5-3.7 1V7.7l3.7-2.1z" fill="#fff"/>' },
+    'putterby': { c: '#2E7D4A', e: '<path d="M6.4 11.6V3.6" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M6.9 3.7l4.6 1.8-4.6 1.8z" fill="#FF5A4E"/><ellipse cx="7.6" cy="11.7" rx="3.4" ry="1" fill="#0F3D22"/><circle cx="10.6" cy="10.6" r="1" fill="#fff"/>' },
     'backrooms-1v1': { c: '#A88A1E', e: '<rect x="5.1" y="3.6" width="5.8" height="8.2" rx=".4" fill="#2A2410"/><circle cx="9.5" cy="8" r=".7" fill="#F6E27A"/>' },
     'drop-zone': { c: '#3354A0', e: '<path d="M3.5 7.4a4.5 4 0 0 1 9 0z" fill="#fff"/><path d="M3.9 7.4L8 10.8l4.1-3.4" fill="none" stroke="#fff" stroke-width=".8"/><circle cx="8" cy="11.3" r="1.1" fill="#FFC24B"/>' },
     'lunge-line': { c: '#64285A', e: '<path d="M4.4 11.6l7.4-7.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 8.8l3 3" stroke="#F7B6E3" stroke-width="1.9" stroke-linecap="round"/>' },

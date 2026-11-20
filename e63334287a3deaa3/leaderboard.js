@@ -186,6 +186,12 @@
       { k: 'deaths', l: 'Deaths', f: 'n', u: 'death', rate: 0.5, hide: true },
       { k: 'kd', l: 'K/D (all time)', chip: 'K/D', f: 'kd', kd: ['kdkills', 'deaths'], min: 20, hi: 100 },
       { k: 'wins', l: 'Online match wins', f: 'n', u: 'win', rate: 1 / 60 }] },
+    { d: 'putterby', n: 'Putterby', st: [
+      { k: 'card9', l: 'Best 9-hole card (fewest strokes)', chip: 'Best card', f: 'n', u: 'stroke', low: 1, lo: 9, hi: 72 },
+      { k: 'aces', l: 'Holes in one', f: 'n', u: 'ace', rate: 0.25 },
+      { k: 'holes', l: 'Holes played', f: 'n', u: 'hole', rate: 0.3 },
+      { k: 'wins', l: 'Online round wins', f: 'n', u: 'win', rate: 1 / 60 },
+      { k: 'dstreak', l: 'Best daily hole streak', f: 'days', hi: 3650 }] },
     { d: 'backrooms-1v1', n: 'Backrooms 1v1–4v4', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'mkills', l: 'Most kills in a match', f: 'n', u: 'kill', hi: 80, le: 'kills' },
       { k: 'kills', l: 'Kills (all time)', f: 'n', u: 'kill', rate: 0.5 },
@@ -953,7 +959,9 @@
   var TOP_MIN = { blockstorm: 5, coil: 300, trivium: 3000, showdown: 1000, escapade: 10, 'asteroid-run': 500, rollaway: 200,
     rampline: 5, flipline: 200, tidewick: 1000, beatvault: 3, gridpop: 1000, '2048': 2000, stackfall: 1000, 'stackfall:sand': 1000,
     'melon-merge': 1000, 'patchwork-tower': 1000, flickerwood: 1000, lanternhold: 5, 'stat-duel': 3 };
-  var TOP_MAX = { spire: 600 };   // lowest first: the fastest tower must be under 10 minutes (where its miles start)
+  // Lowest first: the fastest tower must be under 10 minutes (where its miles start); a Putterby card at most 36 strokes,
+  // par (27) plus one a hole.
+  var TOP_MAX = { spire: 600, putterby: 36 };
   var TOP_STREAK = 3;             // a daily streak: 3 days in a row or more
   var TOP_IDS = 12;               // uids kept per game in the answer (ties and merged accounts), so it stays small
   // -> [{ id: 'coil' or 'stackfall:sand', d, st, name: 'Stackfall (Sand)', min, max }] in GAMES order.
