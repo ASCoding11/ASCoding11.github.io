@@ -235,12 +235,12 @@
   // no line here (a new game) gets MINI_ANY, a star, so it still has a badge. Keys are leaderboard.js's board ids: the
   // game's folder, or folder:stat for a game's second board (Stackfall's Sand).
   var MINI = {
-    'rumble-karts': { c: '#C63A22', e: '<circle cx="8" cy="7.9" r="3.4" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M4.8 7.2h6.4M8 7.9v3.4" stroke="#fff" stroke-width="1.2"/>' },
+    'rumble-karts': { c: '#C63A22', e: '<circle cx="8" cy="7.9" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M4.8 7.4h6.4M8 7.4v3.8" stroke="#fff" stroke-width="1.4"/><circle cx="8" cy="7.6" r="1.1" fill="#fff"/>' },
     'blockstorm': { c: '#45702A', e: '<path d="M8 3.4l3.7 1.9L8 7.2 4.3 5.3z" fill="#C8EC8C"/><path d="M4.3 5.3L8 7.2v4.3L4.3 9.6z" fill="#fff"/><path d="M11.7 5.3v4.3L8 11.5V7.2z" fill="#93C860"/>' },
     'sky-duel': { c: '#2659A6', e: '<path d="M8 2.9l.9 2.7 3.7 2.1v1.1l-3.7-1-.3 2.5 1.3.9v.8L8 11.6l-1.9.4v-.8l1.3-.9-.3-2.5-3.7 1V7.7l3.7-2.1z" fill="#fff"/>' },
     'backrooms-1v1': { c: '#A88A1E', e: '<rect x="5.1" y="3.6" width="5.8" height="8.2" rx=".4" fill="#2A2410"/><circle cx="9.5" cy="8" r=".7" fill="#F6E27A"/>' },
     'drop-zone': { c: '#3354A0', e: '<path d="M3.5 7.4a4.5 4 0 0 1 9 0z" fill="#fff"/><path d="M3.9 7.4L8 10.8l4.1-3.4" fill="none" stroke="#fff" stroke-width=".8"/><circle cx="8" cy="11.3" r="1.1" fill="#FFC24B"/>' },
-    'lunge-line': { c: '#64285A', e: '<path d="M4.4 11.6l7.4-7.4" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/><path d="M4.3 8.9l2.8 2.8" stroke="#F7B6E3" stroke-width="1.6" stroke-linecap="round"/>' },
+    'lunge-line': { c: '#64285A', e: '<path d="M4.4 11.6l7.4-7.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 8.8l3 3" stroke="#F7B6E3" stroke-width="1.9" stroke-linecap="round"/>' },
     'boostball': { c: '#2F68D6', e: '<circle cx="8" cy="7.9" r="3.7" fill="#fff"/><path d="M8 6.3l1.5 1.1-.6 1.8H7.1l-.6-1.8z" fill="#0E1B3A"/>' },
     'coil': { c: '#24804C', e: '<path d="M10.9 4.6C9 3.5 5.9 4 5.9 5.9s5.2 1.6 5.2 3.7-3.3 2.7-5.4 1.6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="10.9" cy="4.6" r="1.2" fill="#C9F7A8"/>' },
     'trivium': { c: '#6A3AB0', e: '<path d="M5.9 5.9a2.1 2.1 0 1 1 3.1 1.8c-.7.4-1 .9-1 1.5v.4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.4" r=".95" fill="#fff"/>' },
@@ -248,18 +248,18 @@
     'chromaflage': { c: '#B82F72', e: '<circle cx="8" cy="7.9" r="3.7" fill="#fff"/><path d="M8 4.2a3.7 3.7 0 0 1 0 7.4z" fill="#FFD34D"/>' },
     'spire': { c: '#54479C', e: '<path d="M8 2.8l2.2 3.4v5.8H5.8V6.2z" fill="#fff"/><rect x="7.2" y="7.2" width="1.6" height="2" fill="#54479C"/>' },
     'turbo-trail': { c: '#D2560E', e: '<path d="M4.4 4.6l3.1 3.3-3.1 3.3M8.5 4.6l3.1 3.3-3.1 3.3" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' },
-    'escapade': { c: '#7E5022', e: '<circle cx="6" cy="6.2" r="2.1" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M7.5 7.7l4 4M10 10.2l1.2-1.2M11.5 11.7l1.1-1.1" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>' },
+    'escapade': { c: '#7E5022', e: '<circle cx="6" cy="6.1" r="2" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M7.4 7.5l4.2 4.2M10.2 10.3l1.3-1.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>' },
     'updraft': { c: '#16264A', e: '<path d="M3.4 11.8l3.4-4.3 1.5 1.7 1.2-1.4 3.1 4z" fill="#A9ECFF"/><path d="M8 2.8l2.3 2.6H8.8v1.8H7.2V5.4H5.7z" fill="#FFB347"/>' },
     'asteroid-run': { c: '#363A62', e: '<path d="M5 5.2l2.5-1.5 2.7.6 1.8 2.1-.4 2.9-2.1 1.8-2.8-.2-1.9-2.2z" fill="#D6CEC0"/><circle cx="7.1" cy="6.4" r=".8" fill="#8C8475"/><circle cx="9.4" cy="8.9" r="1" fill="#8C8475"/>' },
     'rollaway': { c: '#A8722C', e: '<circle cx="8" cy="7.9" r="3.7" fill="#fff"/><path d="M5.2 8.7c1.5-1.7 4-1.9 5.6-.6" fill="none" stroke="#3A7BD5" stroke-width="1.3" stroke-linecap="round"/>' },
-    'rampline': { c: '#23719A', e: '<circle cx="8" cy="6.6" r="2.7" fill="none" stroke="#fff" stroke-width="1.4"/><path d="M3.4 11.7h9.2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>' },
-    'flipline': { c: '#C2452F', e: '<circle cx="5.1" cy="9.8" r="2" fill="none" stroke="#fff" stroke-width="1.2"/><circle cx="10.9" cy="9.8" r="2" fill="none" stroke="#fff" stroke-width="1.2"/><path d="M5.1 9.8l2.3-3.4h2.4l1.1 3.4M7.4 6.4l1.1 3.4" fill="none" stroke="#fff" stroke-width="1" stroke-linejoin="round"/>' },
-    'tidewick': { c: '#177280', e: '<path d="M3.5 10c1.2-1.2 2.4-1.2 3.6 0s2.4 1.2 3.6 0c.6-.6 1.3-.8 1.8-.6" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/><path d="M8 3.3c1.1 1.3 1.3 2.4 0 3.3-1.3-.9-1.1-2 0-3.3z" fill="#FFC94A"/>' },
+    'rampline': { c: '#23719A', e: '<circle cx="8" cy="6.5" r="2.7" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M3.4 11.8h9.2" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>' },
+    'flipline': { c: '#C2452F', e: '<circle cx="5.2" cy="9.6" r="2.1" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="10.8" cy="9.6" r="2.1" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M5.2 9.6L8 5.6l2.8 4" fill="none" stroke="#FFD0C4" stroke-width="1.3" stroke-linejoin="round"/>' },
+    'tidewick': { c: '#177280', e: '<path d="M3.5 10.1c1.2-1.2 2.4-1.2 3.6 0s2.4 1.2 3.6 0c.6-.6 1.3-.8 1.8-.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M8 3.1c1.3 1.4 1.5 2.6 0 3.6-1.5-1-1.3-2.2 0-3.6z" fill="#FFC94A"/>' },
     'beatvault': { c: '#7E2499', e: '<path d="M6.9 10.9V5.1l4.4-1.3v5.8" fill="none" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/><circle cx="5.7" cy="11" r="1.4" fill="#fff"/><circle cx="10.1" cy="9.7" r="1.4" fill="#fff"/>' },
-    'odd-one-out': { c: '#8E6017', e: '<rect x="3.9" y="4.4" width="3" height="3" fill="#fff"/><rect x="9.1" y="4.4" width="3" height="3" fill="#fff"/><circle cx="8" cy="10.3" r="1.8" fill="#FFD54A"/>' },
+    'odd-one-out': { c: '#8E6017', e: '<rect x="3.8" y="4.3" width="3.2" height="3.2" fill="#fff"/><rect x="9" y="4.3" width="3.2" height="3.2" fill="#fff"/><circle cx="8" cy="10.4" r="2" fill="#FFD54A"/>' },
     'tumble-trials': { c: '#C93C86', e: '<path d="M4 11.2h8l.6-6.1-2.6 2L8 3.9 6 7.1 3.4 5.1z" fill="#FFE066"/>' },
     'deepword': { c: '#0F466D', e: '<path d="M3.9 7.9c1.6-2.3 4.7-2.3 6.3 0-1.6 2.3-4.7 2.3-6.3 0z" fill="#fff"/><path d="M10.1 7.9l2.3-1.7v3.4z" fill="#fff"/><circle cx="5.8" cy="7.5" r=".6" fill="#0F466D"/>' },
-    'puffer-party': { c: '#BE6416', e: '<circle cx="8" cy="8" r="3" fill="#FFE7A8"/><path d="M8 3.5v1.3M8 11.2v1.3M3.5 8h1.3M11.2 8h1.3M4.8 4.8l.9.9M10.3 10.3l.9.9M4.8 11.2l.9-.9M10.3 5.7l.9-.9" stroke="#FFE7A8" stroke-width="1" stroke-linecap="round"/><circle cx="9" cy="7.4" r=".6" fill="#3A2208"/>' },
+    'puffer-party': { c: '#BE6416', e: '<circle cx="8" cy="8" r="3.1" fill="#FFE7A8"/><path d="M8 3.3v1.6M8 11.1v1.6M3.3 8h1.6M11.1 8h1.6" stroke="#FFE7A8" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="7.4" r=".75" fill="#3A2208"/>' },
     'gridpop': { c: '#C93556', e: '<rect x="4.3" y="4.2" width="3.3" height="3.3" rx=".5" fill="#fff"/><rect x="8.4" y="4.2" width="3.3" height="3.3" rx=".5" fill="#fff"/><rect x="4.3" y="8.3" width="3.3" height="3.3" rx=".5" fill="#fff"/><rect x="8.4" y="8.3" width="3.3" height="3.3" rx=".5" fill="#FFB8C8"/>' },
     '2048': { c: '#B5761F', e: '<rect x="4" y="4" width="8" height="7.8" rx="1.2" fill="#FFF3D6"/><path d="M6.5 6.6a1.5 1.4 0 1 1 2.6 1L6.5 10.2h3" fill="none" stroke="#6B4410" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' },
     'stackfall': { c: '#3149D6', e: '<path d="M4.2 5h7.6v2.6H9.3v2.6H6.7V7.6H4.2z" fill="#fff"/><path d="M4.2 11.8h7.6" stroke="#9FB2FF" stroke-width="1.2"/>' },
@@ -273,24 +273,24 @@
     'hunch': { c: '#5547C9', e: '<path d="M8 3.4a3 3 0 0 1 1.8 5.4v1.3H6.2V8.8A3 3 0 0 1 8 3.4z" fill="#FFE066"/><rect x="6.4" y="10.6" width="3.2" height="1.3" rx=".4" fill="#fff"/>' },
     'fourcast': { c: '#336396', e: '<path d="M5.3 9.6a2 2 0 0 1 .4-3.9 2.6 2.6 0 0 1 5 .6 1.7 1.7 0 0 1 .2 3.3z" fill="#fff"/><path d="M6.1 11l-.4 1M8.1 11l-.4 1M10.1 11l-.4 1" stroke="#9FD3FF" stroke-width="1" stroke-linecap="round"/>' },
     'quartets': { c: '#5E2F80', e: '<rect x="4.3" y="4.2" width="3.3" height="3.3" fill="#FFD84D"/><rect x="8.4" y="4.2" width="3.3" height="3.3" fill="#5EC2FF"/><rect x="4.3" y="8.3" width="3.3" height="3.3" fill="#7CE38B"/><rect x="8.4" y="8.3" width="3.3" height="3.3" fill="#FF8FB1"/>' },
-    'crosslet': { c: '#3A4658', e: '<rect x="4.2" y="4.1" width="7.6" height="7.6" fill="#fff"/><rect x="6.73" y="4.1" width="2.54" height="2.54" fill="#3A4658"/><rect x="4.2" y="9.16" width="2.54" height="2.54" fill="#3A4658"/><rect x="9.26" y="6.63" width="2.54" height="2.54" fill="#3A4658"/>' },
+    'crosslet': { c: '#3A4658', e: '<rect x="4.2" y="4.1" width="7.6" height="7.6" fill="#fff"/><rect x="8" y="4.1" width="3.8" height="3.8" fill="#3A4658"/><rect x="4.2" y="7.9" width="3.8" height="3.8" fill="#3A4658"/>' },
     'sleight': { c: '#542680', e: '<path d="M4.4 11.8L9.6 6.6" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M11 3l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z" fill="#FFE066"/>' },
-    'nearword': { c: '#287366', e: '<circle cx="8" cy="7.9" r="3.6" fill="none" stroke="#fff" stroke-width="1.2"/><circle cx="8" cy="7.9" r="1.5" fill="#fff"/>' },
+    'nearword': { c: '#287366', e: '<circle cx="8" cy="7.9" r="3.6" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="8" cy="7.9" r="1.5" fill="#fff"/>' },
     'warmer': { c: '#B53E27', e: '<path d="M7 3.6h2v5.5a2.1 2.1 0 1 1-2 0z" fill="#fff"/><circle cx="8" cy="10.8" r="1.1" fill="#FF6B4A"/><path d="M8 6.2v4" stroke="#FF6B4A" stroke-width="1"/>' },
     'hotspot': { c: '#A83232', e: '<path d="M8 12.2S4.6 8.6 4.6 6.5a3.4 3.4 0 0 1 6.8 0c0 2.1-3.4 5.7-3.4 5.7z" fill="#fff"/><circle cx="8" cy="6.5" r="1.2" fill="#A83232"/>' },
-    'outline': { c: '#336E50', e: '<path d="M4.5 6.3l2-2 2.2.8 2.4-.6.7 2.6-1 2 .4 2-2.6.6-2-1.2-2 .2-.6-2.2z" fill="none" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>' },
+    'outline': { c: '#336E50', e: '<path d="M4.4 6.3l2.1-2.1 2.2.8 2.5-.6.7 2.7-1 2 .4 2.1-2.7.6-2-1.2-2.1.2-.6-2.3z" fill="#fff"/>' },
     'unfurl': { c: '#7D5E31', e: '<rect x="5" y="4.4" width="6" height="7" fill="#FFF1CF"/><rect x="4" y="3.6" width="8" height="1.7" rx=".85" fill="#fff"/><rect x="4" y="10.7" width="8" height="1.7" rx=".85" fill="#fff"/>' },
-    'overland': { c: '#476F34', e: '<path d="M4.6 11.4c1.6 0 1.6-3 3.4-3s1.8-3 3.6-3" fill="none" stroke="#fff" stroke-width="1.2" stroke-dasharray="1.3 1.1"/><circle cx="4.6" cy="11.4" r="1" fill="#fff"/><circle cx="11.6" cy="5.4" r="1.2" fill="#FFD84D"/>' },
-    'ninefold': { c: '#36469E', e: '<rect x="4.1" y="4" width="7.8" height="7.8" fill="none" stroke="#fff" stroke-width="1.1"/><path d="M6.7 4v7.8M9.3 4v7.8M4.1 6.6h7.8M4.1 9.2h7.8" stroke="#fff" stroke-width=".7"/>' },
+    'overland': { c: '#476F34', e: '<path d="M4.6 11.3c1.6 0 1.6-3 3.4-3s1.8-3 3.4-3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="11.5" cy="5.3" r="1.5" fill="#FFD84D"/>' },
+    'ninefold': { c: '#36469E', e: '<path d="M4.3 4.2h2v2h-2zM7 4.2h2v2H7zM9.7 4.2h2v2h-2zM4.3 6.9h2v2h-2zM7 6.9h2v2H7zM9.7 6.9h2v2h-2zM4.3 9.6h2v2h-2zM7 9.6h2v2H7zM9.7 9.6h2v2h-2z" fill="#fff"/>' },
     'poopdle': { c: '#6E4224', e: '<ellipse cx="8" cy="10.7" rx="3.7" ry="1.3" fill="#E3B98F"/><ellipse cx="8" cy="8.6" rx="2.7" ry="1.1" fill="#E3B98F"/><ellipse cx="8" cy="6.7" rx="1.7" ry=".95" fill="#E3B98F"/><path d="M8 5.8c.2-.8.7-1.3 1.3-1.6" fill="none" stroke="#E3B98F" stroke-width="1" stroke-linecap="round"/>' },
-    'deadline-day': { c: '#2A3A6A', e: '<circle cx="8" cy="7.9" r="3.8" fill="none" stroke="#fff" stroke-width="1.2"/><path d="M8 5.5v2.4l1.8 1.2" fill="none" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/>' },
+    'deadline-day': { c: '#2A3A6A', e: '<circle cx="8" cy="7.9" r="3.7" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M8 5.6v2.4l1.7 1.1" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>' },
     'journeyman': { c: '#573B33', e: '<path d="M6.6 6V4.8h2.8V6" fill="none" stroke="#fff" stroke-width="1"/><rect x="4" y="6" width="8" height="5.6" rx="1" fill="#fff"/><rect x="4" y="8.2" width="8" height=".8" fill="#573B33"/>' },
     'scout-report': { c: '#36454D', e: '<rect x="5" y="5" width="2" height="4.4" fill="#fff"/><rect x="9" y="5" width="2" height="4.4" fill="#fff"/><circle cx="5.7" cy="9.6" r="2" fill="#fff"/><circle cx="10.3" cy="9.6" r="2" fill="#fff"/><circle cx="5.7" cy="9.6" r=".9" fill="#36454D"/><circle cx="10.3" cy="9.6" r=".9" fill="#36454D"/>' },
-    'crossbar': { c: '#2A7230', e: '<path d="M3.6 11.8V5h8.8v6.8" fill="none" stroke="#fff" stroke-width="1.3"/><path d="M3.6 7.4h8.8M3.6 9.6h8.8M6.5 5v6.8M9.5 5v6.8" stroke="#fff" stroke-width=".5" opacity=".7"/>' },
+    'crossbar': { c: '#2A7230', e: '<path d="M3.8 11.8V5h8.4v6.8" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/><circle cx="8" cy="9.6" r="1.4" fill="#9FE0A6"/>' },
     'teamsheet': { c: '#405493', e: '<rect x="4.6" y="4.4" width="6.8" height="7.8" rx=".8" fill="#fff"/><rect x="6.6" y="3.5" width="2.8" height="1.7" fill="#FFD84D"/><path d="M6 7.2h4M6 9h4M6 10.8h2.6" stroke="#405493" stroke-width=".9"/>' },
-    'back-four': { c: '#1D4874', e: '<circle cx="4.7" cy="9.2" r="1.15" fill="#fff"/><circle cx="6.9" cy="9.2" r="1.15" fill="#fff"/><circle cx="9.1" cy="9.2" r="1.15" fill="#fff"/><circle cx="11.3" cy="9.2" r="1.15" fill="#fff"/><path d="M4.2 6.2h7.6" stroke="#9FC8F0" stroke-width="1" stroke-dasharray="1.2 1"/>' },
+    'back-four': { c: '#1D4874', e: '<circle cx="4.7" cy="8" r="1.3" fill="#fff"/><circle cx="6.9" cy="8" r="1.3" fill="#fff"/><circle cx="9.1" cy="8" r="1.3" fill="#fff"/><circle cx="11.3" cy="8" r="1.3" fill="#fff"/>' },
     'stat-duel': { c: '#614397', e: '<rect x="4.6" y="6.2" width="2.7" height="5.6" fill="#fff"/><rect x="8.7" y="4" width="2.7" height="7.8" fill="#FFD84D"/>' },
-    'top-bins': { c: '#006B5F', e: '<path d="M3.6 11.8V4.6h8.8" fill="none" stroke="#fff" stroke-width="1.3"/><circle cx="10.2" cy="7" r="1.7" fill="#fff"/>' }
+    'top-bins': { c: '#006B5F', e: '<path d="M3.6 11.8V4.6h8.8" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="10" cy="7.2" r="1.9" fill="#fff"/>' }
   };
   var MINI_ANY = { c: '#4A5568', e: '<path d="M8 3.3l1.4 2.9 3.1.4-2.3 2.1.6 3.1L8 10.3l-2.8 1.5.6-3.1-2.3-2.1 3.1-.4z" fill="#fff"/>' };
   // The frame every mini shares: a shield, its dark outline, the game's colour, a pale inner rim.
@@ -444,7 +444,7 @@
     var m = MINI[id] || MINI_ANY, s = document.createElement('span'), z = px || 16;
     s.className = 'bra-mini'; s.setAttribute('data-mini', id); s.setAttribute('role', 'img');
     s.title = miniTip(id); s.setAttribute('aria-label', s.title);
-    s.innerHTML = '<svg viewBox="0 0 16 16" width="' + z + '" height="' + z + '" aria-hidden="true" focusable="false"><path d="' + MINI_SHIELD + '" fill="' + m.c + '" stroke="#0B0E16" stroke-width="1.5" stroke-linejoin="round"/><path d="' + MINI_SHIELD + '" fill="none" stroke="#EEF3FB" stroke-opacity=".85" stroke-width=".7" stroke-linejoin="round" transform="translate(1.36 1.3) scale(.83)"/>' + m.e + '</svg>';   // fixed markup from the table above, no text from anyone
+    s.innerHTML = '<svg viewBox="0 0 16 16" width="' + z + '" height="' + z + '" aria-hidden="true" focusable="false"><path d="' + MINI_SHIELD + '" fill="' + m.c + '" stroke="#0B0E16" stroke-width="1.3" stroke-linejoin="round"/><path d="' + MINI_SHIELD + '" fill="none" stroke="#EEF3FB" stroke-opacity=".75" stroke-width=".55" stroke-linejoin="round" transform="translate(.8 .8) scale(.9)"/><g transform="translate(8 7.9) scale(1.1) translate(-8 -7.9)">' + m.e + '</g></svg>';   // fixed markup from the table above, no text from anyone
     return s;
   }
   function miniGroup(ids) {
