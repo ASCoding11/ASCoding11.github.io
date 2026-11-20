@@ -114,6 +114,8 @@
       const P = (a, y) => [gp[0] + o.dx * a, y, gp[1] + o.dz * a];
       B.quad(o.lit ? 'glass_lit' : 'glass', P(ax, ya), P(bx, ya), P(bx, yb), P(ax, yb), [[ax, ya], [bx, ya], [bx, yb], [ax, yb]], null, null);
     }
+    // boarded up: planks nailed across the frame at odd angles (empty or shot-up houses)
+    if (!o.lit && (o.boarded || (S.damage > 0.3 && R() < 0.35))) { const bp = out(o.T / 2 + 0.03); for (let k = 0; k < 3 + R.int(2); k++) { const yy = o.y0 + (o.y1 - o.y0) * (0.12 + 0.25 * k) + R.range(-0.05, 0.05); B.box('planks', bp[0] + nx * 0.01 * k, yy, bp[1] + nz * 0.01 * k, o.w + R.range(0.15, 0.35), R.range(0.13, 0.2), 0.025, rot, { rz: R.range(-0.25, 0.25), tint: tintJ(R, 0.15, 0xc8bca8) }); } }
     // a dark backing so an unlit window does not show the sky through the building
     if (!o.lit && !S.interior) { const bp = out(o.T / 2 - inset - 0.2), P = (a, y) => [bp[0] + o.dx * a, y, bp[1] + o.dz * a]; B.quad('timber', P(-o.w / 2, o.y0), P(o.w / 2, o.y0), P(o.w / 2, o.y1), P(-o.w / 2, o.y1), [[0, 0], [1, 0], [1, 1], [0, 1]], new THREE.Color(0.08, 0.08, 0.08), null); }
     // sill: dressed stone, proud of the wall and wider than the opening, with a drip and a stain under it
@@ -200,6 +202,7 @@
       pivot.position.set(hx, 0.06, hz); pivot.rotation.y = rot; pivot.add(leaf); pivot.userData.dynamic = true; group.add(pivot);
       const door = { pivot, width: lw, x: o.cx, z: o.cz, closedY: rot, open(a) { pivot.rotation.y = rot - a; } };
       if (o.ajar) door.open(o.ajar);
+      if (S.damage > 0.4 && R() < 0.6) { door.hang = true; door.open(R.range(0.9, 1.5)); leaf.rotation.z = R.range(0.08, 0.16); leaf.position.y = -0.04; }   // torn off the top hinge
       S.doors.push(door);
     }
   }
@@ -212,15 +215,18 @@
     const x0 = -w / 2 - gov, x1 = w / 2 + gov, L = x1 - x0, slope = Math.hypot(run, rise);
     const sag = (x) => -P.sag * Math.sin(Math.PI * (x - x0) / L), eaveW = (x, side) => (P.eaveWander != null ? P.eaveWander : 0.035) * Math.sin(x * 1.3 + side * 2.1) * Math.sin(x * 0.37 + 1.0);
     const holes = new Set();
-    const fine = false, NX = Math.max(2, Math.round(L / (fine ? 0.45 : 1.0))), NS = Math.max(2, Math.round(slope / (fine ? 0.42 : 0.9)));
+    const fine = S.damage >= 0.45 && !P.noShell, NX = Math.max(2, Math.round(L / (fine ? 0.45 : 1.0))), NS = Math.max(2, Math.round(slope / (fine ? 0.42 : 0.9)));
     if (S.damage > 0.25) { const nh = Math.round(S.damage * S.damage * NX * NS * 0.12); for (let k = 0; k < nh; k++) holes.add(((1 + R.int(NX - 2)) + ':' + (R.int(NS - 1)) + ':' + (R() < 0.5 ? 1 : -1))); }
+    // a shell hole: a ragged opening through tiles and boards, rafters snapped and hanging into it (damage >= 0.45)
+    const shell = S.damage >= 0.45 && !P.noShell ? { x: R.range(x0 + 1.6, x1 - 1.6), t: R.range(0.3, 0.65), side: R() < 0.5 ? 1 : -1, r: R.range(1.0, 1.7) } : null;
+    const inShell = (x, t, side) => shell && side === shell.side && Math.hypot(x - shell.x, (t - shell.t) * slope) < shell.r * (0.75 + 0.5 * E.vnoise(x * 2.1, t * 6, 7));
     for (const side of [1, -1]) {
       for (let i = 0; i < NX; i++) for (let j = 0; j < NS; j++) {
         const xa = x0 + L * i / NX, xb = x0 + L * (i + 1) / NX, ta = j / NS, tb = (j + 1) / NS;
         const yE = eave - (ov * Math.tan(pitch));
         const pt = (x, t, off) => { const z = side * (run - t * run), y = yE + t * (ridge - yE) + sag(x) * t + (1 - t) * eaveW(x, side) + off; return [x, y, z]; };
         const nOff = (p, k) => [p[0], p[1] + k * Math.cos(pitch), p[2] + side * k * Math.sin(pitch)];
-        const hole = holes.has(i + ':' + j + ':' + side);
+        const hole = holes.has(i + ':' + j + ':' + side) || inShell((xa + xb) / 2, (ta + tb) / 2, side);
         const a = pt(xa, ta, 0), b = pt(xb, ta, 0), c = pt(xb, tb, 0), dd = pt(xa, tb, 0);
         const sa = slope * ta, sb = slope * tb;
         if (!hole) {
@@ -250,6 +256,24 @@
         const t = R.range(0.1, 0.8), x = R.range(x0 + 0.5, x1 - 0.5), y = eave - ov * Math.tan(pitch) + t * (ridge - eave + ov * Math.tan(pitch)) + th + 0.02, z = side * (run - t * run);
         B.box(mat, x, y, z, 0.17, 0.014, 0.27, R.range(-0.4, 0.4), { rx: side * pitch + R.range(-0.15, 0.15), noFoot: true });
       }
+    }
+    if (shell) {
+      // rafters every 0.45 m under the hole: the ones crossing it are snapped, the stubs splintered and the free ends
+      // hanging down into the room; charred boards round the edge
+      const yE = eave - ov * Math.tan(pitch), side = shell.side, P3 = (x, t) => [x, yE + t * (ridge - yE) + sag(x) * t - 0.08, side * (run - t * run)];
+      for (let x = shell.x - shell.r - 0.2; x <= shell.x + shell.r + 0.2; x += 0.45) {
+        const dx = Math.abs(x - shell.x); if (dx > shell.r) continue;
+        const half = Math.sqrt(shell.r * shell.r - dx * dx) / slope, t0 = shell.t - half, t1 = shell.t + half;
+        for (const [ta, tb, dir] of [[Math.max(0, t0 - 0.25), t0 + R.range(0.02, 0.12), 1], [t1 - R.range(0.02, 0.12), Math.min(1, t1 + 0.25), -1]]) {
+          const a = P3(x, ta), b = P3(x, tb), len = Math.hypot(b[1] - a[1], b[2] - a[2]);
+          B.box('timber', x, (a[1] + b[1]) / 2 - 0.08, (a[2] + b[2]) / 2, 0.07, 0.16, len, 0, { rx: side * pitch, grain: 'long', noFoot: true, tint: new THREE.Color(0.55, 0.5, 0.45) });
+          // splinters at the broken end
+          const e = dir > 0 ? b : a; for (let k = 0; k < 3; k++) B.box('timber', x + R.range(-0.03, 0.03), e[1] - 0.12, e[2], 0.02, 0.03, R.range(0.12, 0.3), R.range(-0.5, 0.5), { rx: side * pitch + R.range(-0.6, 0.6), noFoot: true, tint: new THREE.Color(0.7, 0.62, 0.5) });
+        }
+        if (R() < 0.5) { const m = P3(x, shell.t); B.box('timber', x, m[1] - 1.2, m[2], 0.07, 0.16, R.range(1.2, 2.0), R.range(-0.3, 0.3), { rx: side * pitch + R.range(0.7, 1.1) * -side, grain: 'long', noFoot: true, tint: new THREE.Color(0.5, 0.45, 0.4) }); }
+      }
+      const c = P3(shell.x, shell.t); B.decal('soot', [c[0], c[1] + 0.2, c[2] + side * 0.05], [0, Math.cos(pitch), side * Math.sin(pitch)], shell.r * 3, shell.r * 2.6, R() * 3);
+      S.shellHole = { x: shell.x, y: c[1], z: c[2] };
     }
     // ridge: a row of half-round ridge tiles, each a little out of line
     const rN = Math.ceil(L / 0.42);
@@ -390,6 +414,9 @@
         B.decal(R() < 0.5 ? 'moss' : 'mud', [p[0], R.range(0.1, 0.3), p[1]], [nx, 0, nz], R.range(0.6, 1.4), R.range(0.3, 0.6), 0);
         if (R() < 0.3) B.decal('waterstain', [p[0], R.range(0.5, wallH - 0.5), p[1]], [nx, 0, nz], R.range(0.8, 1.6), R.range(0.8, 1.6), R() * 3);
       }
+      // bursts: a machine-gun burst walks across a wall in a tight cluster; blast chips low down from a grenade
+      if (S.damage > 0.2) for (let k = 0; k < Math.round(S.damage * sd.L / 4); k++) { const ca = R.range(0.8, sd.L - 0.8), cy = R.range(0.6, Math.min(2.4, wallH - 0.3)); for (let q = 0; q < 6 + R.int(9); q++) { const a = ca + R.range(-0.55, 0.55) + q * 0.04, p = [W.x0 + sd.dx * a + nx * (T / 2), W.z0 + sd.dz * a + nz * (T / 2)]; B.decal(R() < 0.6 ? 'bullethole' : 'pocks', [p[0], cy + R.range(-0.3, 0.3), p[1]], [nx, 0, nz], R.range(0.12, 0.3), null, R() * 6); }
+        if (R() < 0.4) { const a = R.range(0.6, sd.L - 0.6), p = [W.x0 + sd.dx * a + nx * (T / 2), W.z0 + sd.dz * a + nz * (T / 2)]; B.decal('chipped', [p[0], 0.5, p[1]], [nx, 0, nz], R.range(1.0, 1.8), 1.0, R() * 6); B.decal('scorch', [p[0], 0.35, p[1]], [nx, 0, nz], 1.6, 0.9, 0); } }
       const pocks = Math.round(S.damage * sd.L * 0.6);
       for (let k = 0; k < pocks; k++) { const a = R.range(0.3, sd.L - 0.3), p = [W.x0 + sd.dx * a + nx * (T / 2), W.z0 + sd.dz * a + nz * (T / 2)]; B.decal(R() < 0.7 ? 'pocks' : 'bullethole', [p[0], R.range(0.4, wallH - 0.3), p[1]], [nx, 0, nz], R.range(0.25, 0.6), null, R() * 6); }
       u += sd.L;
