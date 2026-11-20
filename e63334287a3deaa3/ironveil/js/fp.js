@@ -395,7 +395,7 @@
     // the eye, so recoil travels back through the wrists and forearms instead of the gun spinning about the eye
     // the rifle's sprint clip swings the muzzle up across the view: lower and cant it, about the shoulder
     const rs = gunKind === 'rifleScoped' ? FP.vmSpr || 0 : 0;
-    _e.set(FP.kickR * 0.7 + FP.lagPitch * 0.5 * relax - FP.vmLower * 0.5 - rs * 0.32, FP.lagYaw * 0.7 * relax - rs * 0.12, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax + rs * 0.25);
+    _e.set(FP.kickR * 0.7 + FP.lagPitch * 0.5 * relax - FP.vmLower * 0.5 - rs * 0.12, FP.lagYaw * 0.7 * relax - rs * 0.06, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax + rs * 0.12);
     v.group.quaternion.setFromEuler(_e);
     SHOULDER.set(0.17, -0.3, 0.12);
     v.group.position.copy(SHOULDER).negate().applyQuaternion(v.group.quaternion).add(SHOULDER).add(_o.set(ox, oy, oz - FP.vmTune.push * (1 - a)));   // the push eases out in ADS so the sights stay exact
