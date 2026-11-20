@@ -471,7 +471,7 @@
     const u = model.userData;
     if (u.kickT > 0) u.kickT = Math.max(0, u.kickT - dt / 0.06);
     if (u.caseT > 0) { u.caseT -= dt; if (u.caseT <= 0) WP.ejectCase(model, kind); }
-    const k = u.kickT > 0.5 ? (1 - u.kickT) * 2 : u.kickT * 2;   // back and home again inside 60 ms
+    const kt = u.kickT || 0, k = kt > 0.5 ? (1 - kt) * 2 : kt * 2;   // back and home again inside 60 ms
     if (kind === 'smg' || kind === 'enemySmg') { kickBack(part(model, kind + '_bolt'), k, 0.07); kickBack(part(model, kind + '_charging'), k, 0.07); }
     if (kind === 'mg') {
       kickBack(part(model, 'mg_charging'), k, 0.05);
