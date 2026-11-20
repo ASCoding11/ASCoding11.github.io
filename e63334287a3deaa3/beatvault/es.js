@@ -17,7 +17,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Rotors that turn on the beat, and every form in one run.': 'Rotores que giran al ritmo y todas las formas en una sola corrida.',
   // in play
   'Pause': 'Pausa', 'Place checkpoint': 'Poner punto de control', 'Remove checkpoint': 'Quitar punto de control', 'Save': 'Guardar', 'point': 'punto', 'Undo': 'Quitar',
-  'Attempt {n}': 'Intento {n}', 'Test play': 'Prueba', 'Verifying': 'Verificando',
+  'Attempt {n}': 'Intento {n}', 'Level {n}': 'Nivel {n}', 'Test play': 'Prueba', 'Verifying': 'Verificando',
   'Tap to jump · hold to keep hopping': 'Toca para saltar · mantén para seguir saltando',
   'Space or click to jump · hold to keep hopping': 'Espacio o clic para saltar · mantén para seguir saltando',
   'Practice: checkpoints save themselves; Save point adds one': 'Práctica: los puntos de control se guardan solos; Guardar punto agrega uno',
