@@ -128,10 +128,12 @@
   FP.shadowOnly = shadowOnly;
   // a copy of a skinned mesh's material that drops fragments skinned mostly (over 45 %) to bones `hide(bone)` picks,
   // while the uniform `on` is 1. The shadow pass never sees it (three's own depth material), so shadows stay whole.
-  function maskedMaterial(o, hide, on) {
+  function maskedMaterial(o, hide, on, src) {
+    src = src || o.material;
+    if (Array.isArray(src)) return src.map(m => maskedMaterial(o, hide, on, m));   // multi-material meshes: each one masked
     const bones = o.skeleton.bones, flags = new Float32Array(Math.max(1, bones.length));
     bones.forEach((b, i) => { flags[i] = hide(b) ? 1 : 0; });
-    const m = o.material.clone();
+    const m = src.clone();
     m.onBeforeCompile = function (sh) {
       sh.uniforms.fpHide = on; sh.uniforms.fpBones = { value: flags };
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float fpBones[' + flags.length + '];\nvarying float vFpHide;')
