@@ -366,14 +366,24 @@ def finish(H, name, cloth, gear, labels, fold_amp, size=2048, out_dir=None, low_
     ao = np.asarray(Image.open(td + '/_ao.png').convert('L').resize((size, size), Image.BILINEAR)).astype(np.float32) / 255
     alb = diff * (1 - ao_mix + ao_mix * ao)[..., None]
     Image.fromarray(np.clip(alb * 255 + 0.5, 0, 255).astype(np.uint8)).save(td + '/albedo.jpg', quality=88)
-    nrm = Image.open(td + '/_nrm.png').convert('RGB')
-    nrm.save(td + '/normal.jpg', quality=92)
+    fix_normals(td)
     r = np.asarray(Image.open(td + '/_rough.png').convert('L')).astype(np.uint8)
     mt = np.asarray(Image.open(td + '/_metal.png').convert('L')).astype(np.uint8)
     orm = np.stack([np.full_like(r, 255), r, mt], -1)
     Image.fromarray(orm).save(td + '/orm.jpg', quality=85)
     for h in highs: bpy.data.objects.remove(h)
     return low
+
+def fix_normals(td):
+    """Write normal.jpg from the baked _nrm.png. A tangent-space normal never points into the surface; texels that
+    do (blue well below half: the bake ray hit the wrong surface, e.g. a boot sole tucked against the boot) are
+    replaced by the flat normal so they do not catch the sky as white patches."""
+    from PIL import Image
+    n = np.asarray(Image.open(td + '/_nrm.png').convert('RGB')).astype(np.float32)
+    bad = n[..., 2] < 150
+    n[bad] = (128, 128, 255)
+    Image.fromarray(n.astype(np.uint8)).save(td + '/normal.jpg', quality=92)
+    return float(bad.mean())
 
 def hair_atlas(parts, out_png, size=1024):
     """parts: list of (obj, image_path, rect(x,y,w,h) in 0..1 with y from top). Remaps UVs; writes RGBA atlas."""
