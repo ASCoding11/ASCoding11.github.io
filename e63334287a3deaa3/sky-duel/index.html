@@ -144,7 +144,9 @@ table.standings i.dot{display:inline-block;width:11px;height:11px;border-radius:
 .mark{position:absolute;left:0;top:0;width:36px;height:36px;margin:-18px 0 0 -18px;border:2px solid var(--red);border-radius:4px;will-change:transform}
 .mark.fr{border-color:var(--cyan)}
 .mark.tg{box-shadow:0 0 0 2px rgba(255,255,255,.75)}
-.mark span{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:3px;font-size:11.5px;white-space:nowrap;font-weight:700}
+/* the name sits to the right of the box, out of the middle of the screen; only the nearest two and the target have one */
+.mark span{position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:6px;font-size:11.5px;white-space:nowrap;font-weight:700}
+.mark.nolbl span{display:none}
 .mark u{position:absolute;left:-2px;bottom:100%;margin-bottom:3px;height:4px;width:40px;background:rgba(0,10,30,.55);border-radius:2px;text-decoration:none}
 .mark u i{display:block;height:100%;background:var(--red);border-radius:2px}
 .mark.fr u i{background:var(--cyan)}
@@ -507,7 +509,7 @@ let myColor=COLORS.indexOf(store.get('color',''))>=0?store.get('color',''):COLOR
 let myFrame=clamp(parseInt(store.get('frame','0'),10)||0,0,FRAMES.length-1);
 let sens=clamp(+store.get('sens',1)||1,.3,3),invY=store.get('invY','0')==='1',volume=clamp(+store.get('vol',.7),0,1);
 let gfx=store.get('gfx',touchUI?'low':'high')==='low'?'low':'high';
-const solo={mode:clamp(+store.get('smode',1)|0,0,2),lvl:clamp(+store.get('slvl',1)|0,0,2),kl:+store.get('skl',10)||10,tl:+store.get('stl',300)||300};
+const solo={mode:clamp(+store.get('smode',1)|0,0,2),lvl:clamp(+store.get('slvl',0)|0,0,2),kl:+store.get('skl',10)||10,tl:+store.get('stl',300)||300};
 
 // =====================================================================
 //  Sound (Web Audio, everything synthesised)
@@ -671,6 +673,7 @@ function setSky(i){
   scene.fog.color.setHex(s.fog);scene.fog.near=s.fogN;scene.fog.far=s.fogF;renderer.setClearColor(s.fog);
   hemi.color.setHex(s.hemi);hemi.groundColor.setHex(s.gnd);hemi.intensity=s.hemiI;sun.color.setHex(s.dir);sun.intensity=s.dirI;sun.position.set(s.sun[0],s.sun[1],s.sun[2]).multiplyScalar(1000);
   if(FX.alpha)FX.alpha.mat.uniforms.fogC.value.setHex(s.fog);
+  if(CLOUD_MAT)CLOUD_MAT.emissive.setHex(s.hor);
 }
 
 // ---------- terrain mesh: faceted, coloured per face by height, slope and region ----------
@@ -726,6 +729,7 @@ let TERRAIN_MAT=null;
 })();
 
 // ---------- trees (one instanced mesh) and clouds (one merged mesh you can fly through) ----------
+let CLOUD_MAT=null;   // tinted with the sky's horizon colour by setSky
 const cloudBlobs=[];   // [x, y, z, radius] for the whiteout when the camera is inside one
 let CLOUD_Y0=1e9,CLOUD_Y1=-1e9;   // the lowest and highest any cloud reaches
 (function buildScenery(){
@@ -746,7 +750,8 @@ let CLOUD_Y0=1e9,CLOUD_Y1=-1e9;   // the lowest and highest any cloud reaches
   const ico=new THREE.IcosahedronGeometry(1,gfx==="high"?2:1),ia=ico.attributes.position,pos=[],nrm=[];const v=new V3();   // smooth ellipsoid normals, so clouds are soft, not faceted
   const nC=gfx==='high'?34:20;
   for(let i=0;i<nC;i++){
-    const a=rng()*6.283,rr=300+rng()*2500,cx=Math.cos(a)*rr,cz=Math.sin(a)*rr,cy=720+rng()*380,big=.8+rng()*.9,nb=4+Math.floor(rng()*4);
+    // two layers: big banks above where fights happen (980-1300 m), and a few small puffs lower down (780-920 m)
+    const hi=rng()<.7,a=rng()*6.283,rr=300+rng()*2500,cx=Math.cos(a)*rr,cz=Math.sin(a)*rr,cy=hi?980+rng()*320:780+rng()*140,big=hi?.9+rng()*.9:.4+rng()*.35,nb=(hi?4:2)+Math.floor(rng()*(hi?4:3));
     for(let b=0;b<nb;b++){
       const bx=cx+(rng()-.5)*230*big,by=cy+(rng()-.5)*36,bz=cz+(rng()-.5)*150*big,rx=(70+rng()*70)*big,ry=rx*(.42+rng()*.2),rz=rx*(.7+rng()*.4);
       for(let t=0;t<ia.count;t++){v.fromBufferAttribute(ia,t);pos.push(bx+v.x*rx,by+v.y*ry,bz+v.z*rz);const nx=v.x/rx,ny=v.y/ry+.6/ry,nz=v.z/rz,l=Math.hypot(nx,ny,nz);nrm.push(nx/l,ny/l,nz/l)}
@@ -754,7 +759,14 @@ let CLOUD_Y0=1e9,CLOUD_Y1=-1e9;   // the lowest and highest any cloud reaches
     }
   }
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(nrm,3));
-  const clouds=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0xffffff,emissive:0x8fa3b8,emissiveIntensity:.55}));clouds.frustumCulled=false;scene.add(clouds);
+  // soft edges: each puff fades out where you look across its surface, so clouds are not hard white blobs
+  CLOUD_MAT=new THREE.MeshLambertMaterial({color:0xffffff,emissive:0x8fa3b8,emissiveIntensity:.5,transparent:true,depthWrite:false});
+  CLOUD_MAT.onBeforeCompile=sh=>{
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying float vRim;').replace('#include <project_vertex>','#include <project_vertex>\nvRim=abs(dot(normalize(normalMatrix*objectNormal),normalize(-mvPosition.xyz)));');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vRim;').replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );','gl_FragColor = vec4( outgoingLight, diffuseColor.a*smoothstep(.04,.6,vRim)*.94 );');
+  };
+  CLOUD_MAT.customProgramCacheKey=()=>'sd-cloud';
+  const clouds=new THREE.Mesh(g,CLOUD_MAT);clouds.frustumCulled=false;clouds.renderOrder=2;scene.add(clouds);
 })();
 
 // =====================================================================
@@ -1266,9 +1278,16 @@ function updatePicks(dt){
 //  bot only decides where to aim, the throttle and which buttons to press.
 // =====================================================================
 function mkAI(){return {tg:null,t:0,nT:0,nx:0,ny:0,onT:0,cool:false,mslCd:rand(2,6),hurtT:-99,breakT:0,breakDir:1,breakP:0,wp:new V3(rand(-1500,1500),rand(350,650),rand(-1500,1500)),seen:new Set(),boost:false,circT:0,manT:0,manK:0,tailT:0}}
+// Fair play for people (the host decides, as for everything bots do): a plane that has just spawned (its missile grace,
+// or its shield) is engaged by one bot at most, and in a solo free-for-all only so many bots may hunt the human at once
+// (1 Rookie, 2 Veteran, 3 Ace), so the bots fight each other too.
+const HUNT_CAP=[1,2,3];
+function huntersOf(o,e){let n=0;for(const b of G.ents.values())if(b!==e&&b.bot&&b.alive&&b.ai&&b.ai.tg===o)n++;return n}
 function pickTarget(e){
-  let best=null,bs=1e9;
-  for(const o of G.ents.values()){if(!o.alive||!enemies(e,o))continue;T1.copy(o.pos).sub(e.pos);const d=T1.length(),ang=e.fwd.angleTo(T1);const s=d*(1+ang*.6)*(o.bot?1:.85);if(s<bs){bs=s;best=o}}
+  let best=null,bs=1e9;const solo=!G.online&&G.rs&&G.rs.md===1;
+  for(const o of G.ents.values()){if(!o.alive||!enemies(e,o))continue;
+    if(o.grace>0||o.shield>0||(solo&&!o.bot)){const n=huntersOf(o,e);if((o.grace>0||o.shield>0)&&n>=1)continue;if(solo&&!o.bot&&n>=HUNT_CAP[e.lvl])continue}
+    T1.copy(o.pos).sub(e.pos);const d=T1.length(),ang=e.fwd.angleTo(T1);const s=d*(1+ang*.6)*(o.bot?1:.85);if(s<bs){bs=s;best=o}}
   return best;
 }
 function avoidGround(e,dh,dp,margin){
@@ -2220,12 +2239,13 @@ function updateHud(dt){
   if(lead.hidden===leadOn)lead.hidden=!leadOn;
   // boxes round the other planes, arrows for the ones off screen
   let mi=0;const edge=Math.min(VW,VH)*.4;
+  let n1=null,n2=null,d1=1e9,d2=1e9;if(me&&me.alive)for(const o of G.ents.values()){if(o===me||!o.alive||!enemies(me,o))continue;const d=o.pos.distanceTo(me.pos);if(d<d1){n2=n1;d2=d1;n1=o;d1=d}else if(d<d2){n2=o;d2=d}}
   if(G.phase==='play'&&G.mode!=='menu')for(const e of G.ents.values()){
     if(e===me||!e.alive||mi>=marks.length)continue;
     const m=marks[mi],foe=!me||enemies(me,e),isT=e===tg,ref=me&&me.alive?me.pos:camera.position,d=e.pos.distanceTo(ref),s=toScreen(e.pos);
     const on=s.front&&s.x>10&&s.x<VW-10&&s.y>10&&s.y<VH-10;
     if(!on&&!isT&&(!foe||d>2400))continue;   // every enemy within 2.4 km gets an arrow at the edge (far ones fainter)
-    mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off')+(!on&&!isT&&d>1300?' far':'');
+    mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off')+(!on&&!isT&&d>1300?' far':'')+(on&&!isT&&foe&&e!==n1&&e!==n2?' nolbl':'');
     if(on){const sz=Math.round(clamp(2600*PLANE_GROW/d,24,72));if(m.sz!==sz){m.sz=sz;m.el.style.width=m.el.style.height=sz+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px'}put(m.el,s.x,s.y)}
     else{let ax=s.cx,ay=-s.cy;if(!s.front&&Math.hypot(ax,ay)<1e-3)ay=1;const a=Math.atan2(ay,ax),deg=Math.round(a*57.2958);if(m.sz!==0){m.sz=0;m.el.style.width=m.el.style.height='';m.el.style.margin=''}if(m.deg!==deg){m.deg=deg;m.el.style.setProperty('--a',deg+'deg')}put(m.el,VW/2+Math.cos(a)*edge,VH/2+Math.sin(a)*edge)}
     if(m.cls!==cls){m.cls=cls;m.el.className=cls}
