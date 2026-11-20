@@ -393,8 +393,8 @@
     const oz = FP.kick * (aiming ? 0.02 : 0.03) + FP.vmLower * 0.05;
     // the turn layers (recoil climb, look lag, wall lowering, lean roll) pivot about the right shoulder, behind and below
     // the eye, so recoil travels back through the wrists and forearms instead of the gun spinning about the eye
-    // the rifle's sprint clip swings the muzzle up across the view: lower and cant it, about the shoulder
-    const rs = gunKind === 'rifleScoped' ? FP.vmSpr || 0 : 0;
+    // (a rifle sprint-carry offset lived here; the characters' own sprint clip now carries it low, so it is 0)
+    const rs = 0;
     _e.set(FP.kickR * 0.7 + FP.lagPitch * 0.5 * relax - FP.vmLower * 0.5 - rs * 0.12, FP.lagYaw * 0.7 * relax - rs * 0.06, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax + rs * 0.12);
     v.group.quaternion.setFromEuler(_e);
     SHOULDER.set(0.17, -0.3, 0.12);
