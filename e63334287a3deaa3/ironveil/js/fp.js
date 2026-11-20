@@ -195,9 +195,7 @@
   };
   // tests: advance the arms (clips, layers) by dt without drawing a frame
   FP.vmTick = function (dt) { if (FP.on()) vmFrame(dt, P.yaw, P.pitch); };
-  // the scope view starts half-way through the rifle's raise on the arms rig (the second half of the raise brings the
-  // right hand right up to the eye), at 0.9 on the stand-in
-  FP.scopeReady = () => (FP.vmAim || 0) >= (VM && !VM.rig.standin ? 0.5 : 0.9);
+  FP.scopeReady = () => (FP.vmAim || 0) >= 0.9;   // the arms rig's adsRaise clip keeps the hand out of the eye during the raise
   FP.binocReady = () => VM && !VM.rig.standin ? !!FP.atEye : (FP.vmAim || 0) >= 0.9;
   // the old bone-scaling hide is gone: undo it if a previous frame left a bone collapsed
   FP.HIDE_RE = HIDE_RE;
