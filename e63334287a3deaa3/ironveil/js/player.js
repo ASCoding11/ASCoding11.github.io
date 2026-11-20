@@ -44,9 +44,28 @@
     const kind = W.surfaceAt(p.x, p.z), wet = W.height(p.x, p.z) < W.waterLevel(p.x, p.z) - 0.25;
     let surf = wet ? 'water' : AUDIO_SURF[kind] || 'grass';
     if (kind === 'indoors') { const c = W.near(p.x, p.z, 0.3).find(c => Math.abs(c.y1 - p.y) < 0.06); surf = c ? (c.surf === 'stone' ? 'stone' : 'wood') : 'stone'; }
+    // the environment kit's ground (war-look): standing water, mud, leaf litter. Mud presses a boot print and kicks clods;
+    // boots carry mud onto hard ground as tracked prints that fade; puddles splash; leaves rustle
+    const E = window.IVEnv, near = isPlayer || (W.camera && Math.hypot(p.x - W.camera.position.x, p.z - W.camera.position.z) < 35);
+    if (E && E.groundInfo && kind !== 'indoors' && kind !== 'floor' && near) {
+      let es = null, gi = null; try { es = E.surfaceAt ? E.surfaceAt(p.x, p.z) : null; gi = E.groundInfo(p.x, p.z); } catch (e) {}
+      const yaw = isPlayer ? P.bodyYaw : Math.random() * 6.28, f = IV.fwd(yaw), M = E.marks;
+      if (es === 'puddle' && !wet) { surf = 'water'; IV.fx.splash && IV.fx.splash(p.x, p.y, p.z, gait === 'sprint' || gait === 'run' ? 1.2 : 0.6); }
+      else if (es === 'leaves' && surf === 'grass') surf = 'tallgrass';
+      const muddy = gi && (gi.mud > 0.5 || es === 'mud' || es === 'lane');
+      if (muddy && !wet && gait !== 'prone') {
+        surf = 'mud';
+        M && M.stamp && M.stamp(p.x - f.z * 0.1 * (IV.R && IV.R() < 0.5 ? 1 : -1), p.z + f.x * 0.1, 'boot', yaw, 0.8 + 0.2 * (gi.wet || 0));
+        if (gait !== 'crouch' && IV.fx.clods) IV.fx.clods(p.x, p.y, p.z, gait === 'sprint' ? 6 : 3, f.x, f.z);
+        if (isPlayer) P.mudBoots = 1;
+        if (Math.random() < 0.35) IV.audio && IV.audio.play('squelch');
+      } else if (isPlayer && P.mudBoots > 0.08 && (surf === 'gravel' || surf === 'stone' || surf === 'wood')) {
+        M && M.stamp && M.stamp(p.x, p.z, 'track', yaw, P.mudBoots); P.mudBoots *= 0.78;
+      } else if (isPlayer && P.mudBoots > 0) P.mudBoots *= 0.9;
+    }
     IV.audio && IV.audio.step(surf, gait, (vol || 1) * (0.6 + 0.4 * (strength || 1)), isPlayer ? null : p);
-    if ((surf === 'mud' || surf === 'gravel') && gait !== 'crouch' && gait !== 'prone' && Math.random() < 0.6) IV.fx.dust(p.x, p.y + 0.05, p.z, 2, 0.12);
-    if (surf === 'water' && Math.random() < 0.8) IV.fx.impact(p.x, p.y + 0.1, p.z, 0, 1, 0, 'water');
+    if (surf === 'gravel' && gait !== 'crouch' && gait !== 'prone' && Math.random() < 0.6) IV.fx.dust(p.x, p.y + 0.05, p.z, 2, 0.12);
+    if (surf === 'water' && wet && Math.random() < 0.8) IV.fx.impact(p.x, p.y + 0.1, p.z, 0, 1, 0, 'water');
     if (isPlayer) IV.camera && IV.camera.footBob(strength || 1);
   }
   IV.footFx = footFx;
@@ -152,6 +171,8 @@
     if (P.landT > 0) { P.landT -= dt; sp *= 0.5; }
     P.inWater = W.height(P.pos.x, P.pos.z) < W.waterLevel(P.pos.x, P.pos.z) - 0.25;
     if (P.inWater) sp *= MV.waterMul;
+    // mud drags at the boots (the environment kit's ground: about 10-20 % slower in deep wet mud, nothing on hard ground)
+    if (!P.inWater && P.grounded && window.IVEnv && IVEnv.groundInfo && !W.underRoof(P.pos.x, P.pos.z)) { try { const gi = IVEnv.groundInfo(P.pos.x, P.pos.z); if (gi.mud > 0.4) sp *= 1 - 0.16 * gi.mud * (0.7 + 0.3 * gi.wet); P.mud = gi.mud; } catch (e) {} }
     sp *= ml * (sprint ? 1 : dirMul);
     // reversal plant: a hard change of direction at speed holds the acceleration back for a moment
     const cur = Math.hypot(P.vel.x, P.vel.z);

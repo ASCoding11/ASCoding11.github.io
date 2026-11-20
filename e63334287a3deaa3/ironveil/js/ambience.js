@@ -73,7 +73,7 @@
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const w = AM.walker(Object.assign({}, s, { off: { x: (c - (cols - 1) / 2) * sp, z: -r * sp } })); if (w) out.push(w); }
     return { walkers: out, remove() { out.forEach(w => w.remove()); } };
   };
-  AM.clear = function () { AM.walkers.slice().forEach(w => w.remove()); };
+  AM.clear = function () { AM.walkers.slice().forEach(w => w.remove()); AM.reset && AM.reset(); };
   function at(w, u) {
     let i = 0; while (i < w.seg.length - 1 && u > w.seg[i]) { u -= w.seg[i]; i++; }
     const a = w.pts[i], b = w.pts[i + 1] || a, l = w.seg[i] || 1, k = Math.min(1, u / l);
@@ -82,7 +82,50 @@
     return { x: a.x + dx * k - f.z * w.off.x + f.x * w.off.z, z: a.z + dz * k + f.x * w.off.x + f.z * w.off.z, yaw };
   }
   const FR = new THREE.Frustum(), FM = new THREE.Matrix4(), SPH = new THREE.Sphere(new THREE.Vector3(), 1.3);
+  // ---------------------------------------------------------------- the environment kit's hooks (war-look round three)
+  // sky and village sounds: IVEnv emits IV.emit('ambience', {kind, x, z, delay}) (or just 'thunder' from lightning)
+  IV.on('ambience', a => {
+    if (!a) return; if (typeof a === 'string') a = { kind: a };
+    const pos = a.x != null ? { x: a.x, z: a.z } : null, A = IV.audio;
+    const after = (s, f) => setTimeout(() => { try { f(); } catch (e) {} }, Math.max(0, s || 0) * 1000);
+    switch (a.kind) {
+      case 'drone': AM.event('aircraft', pos, { dur: 16, vol: 0.8 }); break;
+      case 'rumble': after(a.delay, () => A && A.distantBoom && A.distantBoom(0.35)); break;
+      case 'thunder': after(a.delay, () => A && A.distantBoom && A.distantBoom(0.75)); break;
+      case 'dog': AM.event('dog', pos); break;
+      case 'bell': AM.event('bell', pos, { strokes: 2 }); break;
+      case 'rifle': AM.event('rangefire', pos, { vol: 0.6 }); break;
+      case 'owl': after(a.delay, () => A && A.synth && A.synth.owl && A.synth.owl(0.12)); break;
+      default: break;   // 'shout': no voices in this game
+    }
+  });
+  // per frame: far drill squads (Boot Camp), rain arriving part-way through Night Drop, fading tracked prints
+  let squadsFor = null, rainOn = false, fadeAcc = 0;
+  function envFrame(dt) {
+    const M = IV.mission, A = IV.audio, E = window.IVEnv;
+    if (IV.art && IV.art.squads !== squadsFor) {
+      squadsFor = IV.art.squads;
+      const lowQ = IV.settings && IV.settings.quality === 0;
+      for (const q of squadsFor || []) {
+        if (lowQ && q !== squadsFor[0]) continue;   // Low: one squad
+        const n = q.n || 8, cols = q.kind === 'run' ? 2 : Math.min(5, n), rows = Math.ceil(n / cols);
+        AM.squad({ kind: 'ally', weapon: 'smg', path: q.path, loop: q.loop !== false, speed: q.kind === 'run' ? 3.4 : 1.35, rows, cols, spacing: q.kind === 'run' ? 1.3 : 1.7 });
+      }
+    }
+    // Night Drop: the rain comes in once the telephone line is cut (instant when a checkpoint starts past that point)
+    const nd = M && M.def && M.def.id === 'nightdrop';
+    if (nd && !rainOn && M.flags && (M.flags.wire || M.phase === 'hold' || M.phase === 'run' || M.phase === 'breach')) {
+      rainOn = true; const secs = M.time < 3 ? 0 : 90;
+      IV.art && IV.art.weather && IV.art.weather('night_rain', secs);
+      A && A.rain && A.rain(1, secs || 2);
+    }
+    if (!nd && rainOn) { rainOn = false; A && A.rain && A.rain(0, 1); }
+    // tracked mud prints fade (a whole-texture pass, so only every two seconds)
+    fadeAcc += dt; if (fadeAcc > 2) { if (E && E.marks && E.marks.fade) try { E.marks.fade(fadeAcc); } catch (e) {} fadeAcc = 0; }
+  }
+  AM.reset = function () { rainOn = false; squadsFor = null; IV.audio && IV.audio.rain && IV.audio.rain(0, 0.5); };
   AM.frame = function (dt) {
+    envFrame(dt);
     if (!AM.walkers.length || !W.camera) return;
     const c = W.camera; FM.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); FR.setFromProjectionMatrix(FM);
     for (const w of AM.walkers) {

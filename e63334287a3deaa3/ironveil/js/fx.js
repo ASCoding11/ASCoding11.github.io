@@ -131,6 +131,9 @@
     if (surf === 'foliage') for (let i = 0; i < 5; i++) norm.emit(x, y, z, rr(-1, 1), rr(0, 1), rr(-1, 1), rr(1.2, 2.2), 0.06, 0.06, 0.22, 0.3, 0.12, 0.9, 2.5, 1.2);
     if (surf !== 'foliage' && surf !== 'cloth') FX.hole(x, y, z, nx, ny, nz, surf === 'wood' ? 0.07 : 0.09);
   };
+  // footsteps: mud clods kicked up behind the boot, and a small splash from a puddle (no decal, no hole)
+  FX.clods = function (x, y, z, n, dx, dz) { for (let i = 0; i < (n || 4); i++) norm.emit(x, y + 0.03, z, -(dx || 0) * rr(0.3, 1.2) + rr(-0.4, 0.4), rr(0.8, 1.8), -(dz || 0) * rr(0.3, 1.2) + rr(-0.4, 0.4), rr(0.35, 0.6), 0.025, 0.02, 0.17, 0.13, 0.09, 1, 0.5, 9); };
+  FX.splash = function (x, y, z, k) { const n = Math.round(5 + 5 * (k || 1)); for (let i = 0; i < n; i++) norm.emit(x + rr(-0.1, 0.1), y + 0.04, z + rr(-0.1, 0.1), rr(-0.5, 0.5), rr(0.9, 2) * (k || 1), rr(-0.5, 0.5), rr(0.3, 0.5), 0.05, 0.12, 0.6, 0.65, 0.68, 0.5, 0.8, 9); };
   // blood: a hit puff, a short spray along the bullet, and a decal on what's behind (ground or a wall) within 3 m
   FX.blood = function (x, y, z, dx, dy, dz, heavy) {
     if (!IV.settings.blood) { FX.impact(x, y, z, -dx, -dy, -dz, 'cloth'); for (let i = 0; i < 6; i++) norm.emit(x, y, z, dx * rr(0.5, 2) + rr(-0.5, 0.5), rr(0.2, 1), dz * rr(0.5, 2) + rr(-0.5, 0.5), rr(0.5, 1), 0.1, 0.45, 0.5, 0.46, 0.4, 0.5, 2, 0.4); return; }

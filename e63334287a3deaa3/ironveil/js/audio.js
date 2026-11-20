@@ -190,6 +190,24 @@
   AU.stopAmbience = function () { if (ambNodes) ambNodes.forEach(n => { try { n.stop(); } catch (e) {} }); ambNodes = null; AU.aircraft(false); AU.alarm(false); };
   AU.distantBoom = function (v) { if (!ctx) return; const d = chain({ vol: v || 0.3 }, 0.6), t = now(); noise(d, t, 2.2, 'lowpass', 160, 0.7, 0.9, 0, 40); tone(d, t, 1.2, 'sine', 50, 28, 0.6); };
   // aircraft passing over: a droning chord that swells and fades over dur seconds
+  // a rain bed: two noise layers (the hiss of the fall, the patter on leaves and roofs), eased to vol over secs
+  let rainN = null;
+  AU.rain = function (vol, secs) {
+    if (!ctx) return;
+    if (!rainN && vol > 0) {
+      const a = ctx.createBufferSource(); a.buffer = noiseBuf; a.loop = true;
+      const fa = ctx.createBiquadFilter(); fa.type = 'highpass'; fa.frequency.value = 1400;
+      const b = ctx.createBufferSource(); b.buffer = noiseBuf; b.loop = true; b.playbackRate.value = 0.7;
+      const fb = ctx.createBiquadFilter(); fb.type = 'bandpass'; fb.frequency.value = 520; fb.Q.value = 0.8;
+      const g = ctx.createGain(); g.gain.value = 0.0001;
+      a.connect(fa); fa.connect(g); b.connect(fb); fb.connect(g); g.connect(amb); a.start(); b.start();
+      rainN = { a, b, g };
+    }
+    if (!rainN) return;
+    const t = now(); rainN.g.gain.cancelScheduledValues(t); rainN.g.gain.setValueAtTime(Math.max(0.0001, rainN.g.gain.value), t);
+    rainN.g.gain.linearRampToValueAtTime(Math.max(0.0001, vol * 0.22), t + Math.max(0.05, secs || 0));
+  };
+  AU.rainStop = function () { if (rainN) { try { rainN.a.stop(); rainN.b.stop(); } catch (e) {} rainN = null; } };
   AU.aircraft = function (on, dur, vol) {
     if (!ctx) return;
     if (!on) { aircraft.forEach(n => { try { n.stop(); } catch (e) {} }); aircraft = []; return; }
@@ -237,6 +255,7 @@
     pop(v) { if (!ctx) return; const d = chain({ vol: v }, 0.7), t = now(); noise(d, t, 0.5, 'lowpass', 700, 0.7, 0.9, 0, 120); },
     bark(v, n) { if (!ctx) return; for (let i = 0; i < n; i++) { const d = chain({ vol: v }, 0.4), t = now() + i * V(0.32, 0.5); tone(d, t, 0.14, 'sawtooth', V(420, 520), V(260, 320), 0.6); noise(d, t, 0.1, 'bandpass', 900, 2, 0.4, 0, 600); } },
     bell(v, n) { if (!ctx) return; for (let i = 0; i < n; i++) { const d = chain({ vol: v }, 0.8), t = now() + i * 1.6; for (const [f, a] of [[392, 0.4], [784, 0.18], [1175, 0.1], [523, 0.08]]) tone(d, t, 3.2, 'sine', f, f * 0.998, a); } },
+    owl(v) { if (!ctx) return; const d = chain({ vol: v || 0.12 }), t = now(); tone(d, t, 0.32, 'sine', 390, 360, 0.6); tone(d, t + 0.55, 0.5, 'sine', 380, 340, 0.7); },
     gust(v, dur) { if (!ctx) return; const d = chain({ vol: 0.0001 }), t = now(), g = d; const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(300, t); f.frequency.linearRampToValueAtTime(700, t + dur * 0.5); f.frequency.linearRampToValueAtTime(260, t + dur); const gg = ctx.createGain(); gg.gain.setValueAtTime(0.0001, t); gg.gain.exponentialRampToValueAtTime(v, t + dur * 0.4); gg.gain.exponentialRampToValueAtTime(0.0001, t + dur); src.connect(f); f.connect(gg); gg.connect(amb); src.start(t); src.stop(t + dur + 0.1); }
   };
 })();
