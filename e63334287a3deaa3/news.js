@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.36', title: 'New: Where Have You Been?', kind: 'feature',
+     tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
+      'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
+      'Type a list like "London, Kyoto, Machu Picchu" to log a whole trip at once, and keep a striped wishlist of places to go next.',
+      'Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.',
+      'Find it under Web Development Projects on the home page.'
+    ]},
     {date: '2026-11-20', title: 'Sky Duel: bigger planes', kind: 'fix',
      tags: ['Sky Duel'], img: 'm/thumbs/sky-duel.jpg', items: [
       'The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.',

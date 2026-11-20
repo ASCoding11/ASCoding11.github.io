@@ -6,6 +6,15 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "New: Where Have You Been?": "Nuevo: Where Have You Been?",
+    "Travel map": "Mapa de viajes",
+    "Wishlist": "Lista de deseos",
+    "Friends": "Amigos",
+    "Open the map": "Abrir el mapa",
+    "Where Have You Been? is a travel map logbook: colour in every country, state and city you've been to on a globe or a flat map.": "Where Have You Been? es un diario de viajes en un mapa: colorea cada país, estado y ciudad que has visitado en un globo o en un mapa plano.",
+    "Type a list like \"London, Kyoto, Machu Picchu\" to log a whole trip at once, and keep a striped wishlist of places to go next.": "Escribe una lista como «London, Kyoto, Machu Picchu» para apuntar un viaje entero de una vez, y guarda una lista de deseos a rayas con los sitios a los que quieres ir.",
+    "Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.": "Colecciona 469 monumentos, cada uno con su propio dibujo pixelado, y añade amigos para ver quién ha estado en más sitios.",
+    "Find it under Web Development Projects on the home page.": "Lo encontrarás en Web Development Projects, en la página principal.",
     "Sky Duel: bigger planes": "Sky Duel: aviones más grandes",
     "The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.": "Los aviones de Sky Duel son un poco más grandes (alrededor de un 15%), así que es más fácil verlos y darles. Las balas le dan a lo que ves, tanto en la vista de persecución como en la de cabina.",
     "The briefing room shows your ranked rating, and every online match against another real pilot (free-for-all, duel or 2v2) still counts for your Elo.": "La sala de reunión muestra tu puntuación de ranking, y cada partida en línea contra otro piloto real (todos contra todos, duelo o 2v2) sigue contando para tu Elo.",
