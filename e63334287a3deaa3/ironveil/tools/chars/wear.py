@@ -215,13 +215,14 @@ def painted_metal(name, paint, paint2, steel='#34332f', rust='#4d3221', chip=0.5
     h = B.math('ADD', h, B.math('MULTIPLY', B.noise(120.0, 3), 0.15))
     return B.finish(c, rough, bump_h=h, bump_s=0.6, bump_dist=0.006, metal=B.math('MULTIPLY', chipmask, 0.9))
 
-def skin(name, image, grime=0.35, uv='UVMap', beard=0.0, scars=False):
+def skin(name, image, grime=0.35, uv='UVMap', beard=0.0, scars=False, tan=0.0):
     """MakeHuman skin + dirt and sweat: grime in creases and on the cheeks/hands, a slightly sweaty sheen in patches."""
     B = NB(name)
     uvn = B.n('ShaderNodeUVMap'); uvn.uv_map = uv
     tex = B.n('ShaderNodeTexImage'); tex.image = bpy.data.images.load(image, check_existing=True)
     B.link(uvn.outputs[0], tex.inputs[0])
     c = B.mix(tex.outputs[0], '#b8a090', 0.12)          # less saturated, a bit paler: tired, cold
+    if tan > 0: c = B.mix(c, '#8a5d43', tan, mode='MULTIPLY')   # weathered, sun-browned (raiders live outdoors)
     ao = B.ao(0.02)
     c = B.mix(c, '#3a2c22', B.math('MULTIPLY', B.ramp(B.math('SUBTRACT', 1.0, ao), 0.05, 0.5), 0.45))
     smudge = B.ramp(B.noise(7.0, 7, 0.7, dist=0.4), 0.55, 0.78)

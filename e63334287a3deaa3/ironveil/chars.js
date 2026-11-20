@@ -62,7 +62,7 @@
   var SCRIPT = document.currentScript && document.currentScript.src;
   var BASE = SCRIPT ? SCRIPT.replace(/[^\/]*$/, '') : '';
   var ASSETS = BASE + 'assets/';
-  var VERSION = '5';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
+  var VERSION = '6';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
 
   // ---------- kinds and files
   var FILES = {
@@ -717,22 +717,34 @@
   // setFirstPerson(true) draws the full-detail body without the head, neck and arms (the viewmodel draws the arms),
   // hides the eyes, hair and anything held in the hands, and keeps a complete shadow: an invisible copy of each
   // hidden part (no colour, no depth) still casts it. Legs and feet keep following the clips and the drive graph.
-  var FP_DROP = /^(Head|neck_01|clavicle_|upperarm_|lowerarm_|hand_|index_|middle_|ring_|pinky_|thumb_|weapon_r)/;
+  // head, neck, arms and the upper chest kit (pouches, collar, pack top) are dropped: looking down shows the belt,
+  // legs and boots; the viewmodel draws the arms
+  var FP_DROP = /^(Head|neck_01|spine_03|clavicle_|upperarm_|lowerarm_|hand_|index_|middle_|ring_|pinky_|thumb_|weapon_r)/;
+  function attrComp(a, i, k) {   // r128 has no BufferAttribute.getComponent; read the raw value and denormalise
+    var v = k === 0 ? a.getX(i) : k === 1 ? a.getY(i) : k === 2 ? a.getZ(i) : a.getW(i);
+    if (a.normalized) {
+      var arr = a.array;
+      if (arr instanceof Uint8Array) v /= 255; else if (arr instanceof Uint16Array) v /= 65535;
+      else if (arr instanceof Int8Array) v = Math.max(v / 127, -1); else if (arr instanceof Int16Array) v = Math.max(v / 32767, -1);
+    }
+    return v;
+  }
   function fpGeometry(mesh) {
     var g = mesh.geometry;
     if (g.userData.fpGeom) return g.userData.fpGeom;
     var si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = mesh.skeleton.bones;
+    var isDrop = bones.map(function (b) { return FP_DROP.test(b ? b.name : '') ? 1 : 0; });
     var n = si.count, drop = new Uint8Array(n);
     for (var i = 0; i < n; i++) {
-      var best = 0, bi = 0;
-      for (var k = 0; k < 4; k++) { var w = sw.getComponent(i, k); if (w > best) { best = w; bi = si.getComponent(i, k); } }
-      drop[i] = FP_DROP.test(bones[bi] ? bones[bi].name : '') ? 1 : 0;
+      var dw = 0, tot = 0;
+      for (var k = 0; k < 4; k++) { var w = attrComp(sw, i, k); tot += w; if (isDrop[attrComp(si, i, k) | 0]) dw += w; }
+      drop[i] = dw > 0.25 * (tot || 1) ? 1 : 0;   // any real share of a dropped bone hides the vertex
     }
     var idx = g.index ? g.index.array : null, out = [];
     var tri = idx ? idx.length : n;
     for (var t = 0; t < tri; t += 3) {
       var a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
-      if (drop[a] + drop[b] + drop[c] < 2) out.push(a, b, c);
+      if (!drop[a] && !drop[b] && !drop[c]) out.push(a, b, c);
     }
     var fg = g.clone(); fg.setIndex(out);
     fg.boundingSphere = g.boundingSphere; fg.groups = [];
@@ -752,7 +764,7 @@
     this.fpOn = on;
     var self = this;
     this.meshes.forEach(function (m) {
-      var body = /^(Hero|Ally)$/.test(meshName(m)) || (!/Eyes|Hair/.test(meshName(m)) && m.isSkinnedMesh && m.geometry.attributes.skinIndex);
+      var body = /^(Hero|Ally)$/.test(meshName(m));   // eyes, hair, brows, lashes and anything else: shadow only
       if (on) {
         if (body && m.isSkinnedMesh) {
           if (!m.userData.fpShadow) {

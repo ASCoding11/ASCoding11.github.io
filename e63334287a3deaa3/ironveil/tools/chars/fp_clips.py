@@ -56,14 +56,14 @@ def ads_pose(k, extra_back=0.0):
 REAR = {'smg': 0.20, 'pistol': 0.47}
 
 BASE = {
-    'rifleScoped': dict(hip=pose_w((0.15, 0.37, -0.125), yaw=0.6, pitch=-1.2, roll=-4.0),
-                        sprint=pose_w((0.07, 0.17, -0.25), yaw=38, pitch=-22, roll=-35),
+    'rifleScoped': dict(hip=pose_w((0.165, 0.46, -0.19), yaw=0.8, pitch=-1.4, roll=-4.0),
+                        sprint=pose_w((0.06, 0.40, -0.25), yaw=38, pitch=14, roll=-55),
                         low=pose_w((0.16, 0.16, -0.32), yaw=10, pitch=-30, roll=-10)),
     'smg': dict(hip=pose_w((0.13, 0.33, -0.098), yaw=0.6, pitch=-1.2, roll=-4.0),
-                sprint=pose_w((0.06, 0.20, -0.26), yaw=40, pitch=-24, roll=-38),
+                sprint=pose_w((0.05, 0.36, -0.23), yaw=38, pitch=12, roll=-55),
                 low=pose_w((0.16, 0.17, -0.32), yaw=10, pitch=-30, roll=-10)),
     'pistol': dict(hip=pose_w((0.07, 0.37, -0.095), yaw=1.0, pitch=-1.0, roll=-3.0),
-                   sprint=pose_w((0.12, 0.22, -0.30), yaw=15, pitch=-50, roll=-20),
+                   sprint=pose_w((0.10, 0.34, -0.22), yaw=15, pitch=-40, roll=-20),
                    low=pose_w((0.12, 0.22, -0.32), yaw=8, pitch=-45, roll=-10)),
 }
 for k in BASE: BASE[k]['ads'] = ads_pose(k)
@@ -79,7 +79,7 @@ GRIPSPEC = {
     ('smg', 'gripR'): dict(pc=(-0.022, 0.072, -0.070), dir=nz(0.15, -1, -0.25), palm=nz(1, -0.5, 0)),
     ('smg', 'gripL'): dict(pc=(0.004, -0.20, -0.017), dir=nz(-1, -0.25, 0.05), palm=nz(-0.25, 0, 1)),
     ('pistol', 'gripR'): dict(pc=(-0.022, 0.058, -0.048), dir=nz(0.15, -1, -0.25), palm=nz(1, -0.45, 0)),
-    ('pistol', 'gripL'): dict(pc=(0.040, 0.040, -0.062), dir=nz(-0.2, -1, -0.45), palm=nz(-1, 0.25, 0.1), fixed=True),
+    ('pistol', 'gripL'): dict(pc=(0.030, 0.030, -0.070), dir=nz(-0.35, -1, -0.35), palm=nz(-1, 0.35, 0.15), fixed=True),
 }
 PALM = {}
 for s_ in ('l', 'r'):
@@ -112,8 +112,8 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
     hand_ids = np.array([i for i in hand_ids if skin.dom[i].endswith('_' + s)], int)
     palm_ids = np.array([i for i in hand_ids if skin.dom[i] == 'hand_' + s and skin.N[i][2] < -0.3], int)
     if g.get('fixed'):
-        ang = {'index': (0.9, 1.0, 0.6), 'middle': (1.0, 1.1, 0.6), 'ring': (1.05, 1.1, 0.6), 'pinky': (1.1, 1.1, 0.6),
-               'thumb': (0.1, 0.15, 0.1, 0.2)}
+        ang = {'index': (1.15, 1.2, 0.7), 'middle': (1.2, 1.25, 0.7), 'ring': (1.25, 1.25, 0.7), 'pinky': (1.3, 1.25, 0.7),
+               'thumb': (0.05, 0.05, 0.0, 0.1)}   # wrapped over the firing hand, thumb forward along the frame
     else:
         ang = {'index': (0.3, 0.4, 0.2), 'middle': (0.5, 0.5, 0.3), 'ring': (0.5, 0.5, 0.3), 'pinky': (0.5, 0.5, 0.3), 'thumb': (0.1, 0.2, 0.2, 0.3)}
     if not trigger and not all_fingers and not g.get('fixed'): ang['index'] = (0.10, 0.08, 0.05)
@@ -123,7 +123,7 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         R = Matrix.Rotation(x[3], 3, base_palm) @ Matrix.Rotation(x[4], 3, base_dir.cross(base_palm).normalized())
         g['dir'] = R @ base_dir; g['palm'] = R @ base_palm
         L, Wd = rest()
-        for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, SHOULDER[side])
+        for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, SHOULDER_K.get(k, SHOULDER)[side])
         R3 = Wf.to_3x3()
         F.arm_to(rig, L, Wd, s, hand_matrix(s, Wf @ (Vector(g['pc']) + off), R3 @ g['dir'], R3 @ g['palm']), POLE[s])
         g['dir'], g['palm'] = base_dir, base_palm
@@ -168,12 +168,13 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
 # ------------------------------------------------------------------------------------------------ frame solve
 LASTPOLE = {}
 ARM_IDS = {s_: np.array([i for i in skin.verts_of(('lowerarm', 'upperarm')) if skin.dom[i].endswith('_' + s_)], int)[::4] for s_ in ('l', 'r')}
+SHOULDER_K = {'pistol': {'r': Vector((0.17, 0.08, -0.48)), 'l': Vector((-0.02, 0.08, -0.48))}}
 def frame(k, Ww, hands, fingers, parts=None, shoulders=None, prop=None):
     """One pose. Ww: weapon pose; hands: side -> hand bone matrix; fingers: side -> angles;
     parts: part -> delta matrix; prop: (kind, matrix) for the w_prop bone (scale 0 when None)."""
     L, W = rest()
     for s in ('l', 'r'):
-        F.place_shoulder(rig, L, W, s, (shoulders or SHOULDER)[s])
+        F.place_shoulder(rig, L, W, s, (shoulders or SHOULDER_K.get(k) or SHOULDER)[s])
     w = WPN[k]
     Minv = Ww.inverted()
     for s in ('r', 'l'):
@@ -502,7 +503,7 @@ def make_clips(k):
                 return cycle_fn(t, t0=TR - 0.2)
 
     # ---- grenade: weapon low and right, left hand takes a grenade from the belt, pin, throw
-    @clip(k + '.grenade', 1.55, events={'pin': 0.62, 'release': 1.02, 'done': 1.45})
+    @clip(k + '.grenade', 1.55, events={'pin': 0.62, 'release': 1.04, 'done': 1.45})
     def _(t):
         W = M_(HIP, LOW, ramp(t, 0.0, 0.25)) if t < 1.15 else M_(LOW, HIP, ramp(t, 1.15, 1.5))
         gl = grip_l(k, HIP)
@@ -510,17 +511,28 @@ def make_clips(k):
         hold = hand_matrix('l', Vector((-0.05, 0.30, -0.16)), nz(0.35, 0.6, 0.7), nz(0.6, -0.2, -0.2))
         wind = hand_matrix('l', Vector((-0.22, 0.02, 0.05)), nz(0.1, -0.3, 1), nz(0.7, 0.6, 0))
         throw = hand_matrix('l', Vector((-0.02, 0.62, 0.04)), nz(0.1, 1, 0.3), nz(0.0, 0.3, -1))
-        trk = [(0.0, gl), (0.25, belt), (0.42, belt), (0.62, hold), (0.82, wind), (1.02, throw), (1.15, throw), (1.5, grip_l(k, HIP))]
+        trk = [(0.0, gl), (0.25, belt), (0.42, belt), (0.62, hold), (0.82, wind), (1.01, wind), (1.13, throw), (1.22, throw), (1.5, grip_l(k, HIP))]
         lh = trk[0][1]
         for (t0, a), (t1, b) in zip(trk, trk[1:]):
             if t0 <= t <= t1: lh = M_(a, b, (t - t0) / (t1 - t0)); break
         if t > 1.5: lh = grip_l(k, HIP)
         lf = F.mix_fingers(fL(k), F.RELAXED, ramp(t, 0.0, 0.2))
         hold_f = {'index': (0.8, 0.9, 0.5), 'middle': (0.9, 1.0, 0.5), 'ring': (0.95, 1.0, 0.5), 'pinky': (1.0, 1.0, 0.5), 'thumb': (0.3, 0.3, 0.2, 0.5)}
-        if 0.3 < t < 1.02: lf = F.mix_fingers(F.RELAXED, hold_f, ramp(t, 0.3, 0.45))
-        elif t >= 1.02: lf = F.mix_fingers(F.FLAT, fL(k), ramp(t, 1.15, 1.45))
-        prop = ('grenade', pose_prop('l', lh, 'grenade', 0.03)) if 0.33 <= t < 1.02 else None
+        if 0.3 < t < 1.04: lf = F.mix_fingers(F.RELAXED, hold_f, ramp(t, 0.3, 0.45))
+        elif t >= 1.04: lf = F.mix_fingers(F.FLAT, fL(k), ramp(t, 1.15, 1.45))
+        prop = ('grenade', pose_prop('l', lh, 'grenade', 0.03)) if 0.33 <= t < 1.06 else None
         return std(W, lh=lh, lf=lf, prop=prop)
+
+    # the same grenade motion cut in three parts so the game can cook it: pull (ends holding the grenade with the pin
+    # out), cook (a held loop), throw (wind and release, then back to the weapon)
+    G_ = CLIPS[k + '.grenade'][2]
+    @clip(k + '.grenadePull', 0.66, events={'pin': 0.62})
+    def _(t): return G_(t)
+    @clip(k + '.grenadeCook', 1.0, loop=True)
+    def _(t):
+        d = G_(0.66); d['W'] = rel(d['W'], dz=wave(t, 1.0, 0.002)); return d
+    @clip(k + '.grenadeThrow', 0.89, events={'release': 0.38, 'done': 0.8})
+    def _(t): return G_(0.66 + t)
 
     # ---- melee: a butt stroke with the long guns, a downward pistol-butt blow with the pistol
     @clip(k + '.melee', 0.8, events={'hit': 0.32})
@@ -616,7 +628,7 @@ def bake_kind(k, report):
     solve_grip(k, 'gripL', 'l', trigger=True)
     # trigger finger on the trigger: close the index on the trigger blade
     L, Wd = rest()
-    for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, SHOULDER[side])
+    for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, SHOULDER_K.get(k, SHOULDER)[side])
     W = BASE[k]['hip']; F.arm_to(rig, L, Wd, 'r', grip_r(k, W), POLE['r'])
     ang = F.wrap_fingers(rig, skin, L, Wd, 'r', WPN[k].bvh['trigger'] if 'trigger' in WPN[k].bvh else WPN[k].bvh['body'],
                          (W @ WPN[k].empty['trigger']).inverted() if 'trigger' in WPN[k].empty else W.inverted(), fingers=('index',),
@@ -644,8 +656,8 @@ def bake_kind(k, report):
                 near = min(near, float(np.min(np.linalg.norm(P, axis=1))), float(np.min(np.linalg.norm((np.array(Ww) @ WVH[k].T).T[:, :3], axis=1))))
         act = write_action(name, frames); made.append(act)
         report[name] = {'duration': round(dur, 3), 'loop': loop, 'events': ev, 'pen_max_verts': worst[0], 'pen_max_depth_mm': round(worst[1] * 1000, 1),
-                        'nearest_to_eye_m': round(near, 3), 'prop': 'grenade' if name.endswith('.grenade') else ('binoculars' if '.binoculars' in name else None),
-                        'hold': name.endswith('.binoculars')}
+                        'nearest_to_eye_m': round(near, 3), 'prop': 'grenade' if '.grenade' in name else ('binoculars' if '.binoculars' in name else None),
+                        'hold': name.endswith(('.binoculars', '.grenadePull'))}
         log(name, report[name])
     return made
 

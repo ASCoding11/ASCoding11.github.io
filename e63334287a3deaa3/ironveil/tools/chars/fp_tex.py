@@ -198,8 +198,9 @@ for s, sg in (('l', -1.0), ('r', 1.0)):
 log('skin texels', len(X))
 
 # --- base tone: weathered, tanned forearms, paler palms, warm knuckles and fingertips
-tan = lin([0.60, 0.41, 0.30]); pale = lin([0.76, 0.56, 0.45]); red = lin([0.70, 0.40, 0.33])
-palm_w = smooth01((-dors - 0.1) / 0.6) * np.where(np.isin(bid, [0]), 0.35, 1.0)   # inner forearm only a little paler
+tan = lin([0.55, 0.41, 0.32]); pale = lin([0.62, 0.48, 0.39]); red = lin([0.62, 0.38, 0.32])
+handness = np.where(is_fore, smooth01((fore_t - 0.80) / 0.25), 1.0)
+palm_w = smooth01((-dors - 0.1) / 0.6) * (0.35 + 0.65 * handness)
 alb = tan * (1 - palm_w[:, None]) + pale * palm_w[:, None]
 mott = fbm(X, 0.02, 4, 1) * 0.07 + fbm(X, 0.004, 3, 2) * 0.04
 alb *= (1 + mott)[:, None]
@@ -231,8 +232,8 @@ for s in ('l', 'r'):
     elbow[m] = np.exp(-(np.linalg.norm(X[m] - a, axis=1) / 0.05) ** 2)
 rednessmask = np.clip(knuck * 0.8 + tip * 0.55 + elbow * 0.5, 0, 1)
 alb = alb * (1 - rednessmask[:, None] * 0.55) + red * rednessmask[:, None] * 0.55
-# sun: the back of the forearm darker than its inner side
-alb *= (1 - 0.12 * smooth01((dors + 0.2) / 0.8) * is_fore)[:, None]
+# the hand/forearm transition is smooth (no change of tone at the wrist): blend by the distance past the wrist
+alb *= (1 - 0.08 * smooth01((dors + 0.2) / 0.8) * (1 - handness))[:, None]
 hgt = np.zeros(len(X))
 # --- pores / fine skin
 hgt += fbm(X, 0.0011, 2, 5) * 0.00004 + fbm(X, 0.0035, 2, 6) * 0.00003
@@ -243,7 +244,7 @@ for lam, amp, w in ((0.0017, 0.00011, 0.0052), (0.0011, 0.00005, 0.0035)):
     hgt -= amp * np.exp(-(joint_d / w) ** 2) * (0.5 + 0.5 * np.cos(ph)) * fin_dors * (joint_dist3 < 0.02)
 # --- palmar flexion creases at the finger joints, and the three palm lines
 palmar = smooth01((-dors - 0.15) / 0.5)
-hgt -= 0.00028 * np.exp(-(joint_d / 0.0009) ** 2) * palmar * (joint_dist3 < 0.016)
+hgt -= 0.00016 * np.exp(-(joint_d / 0.0011) ** 2) * palmar * (joint_dist3 < 0.016)
 for s in ('l', 'r'):
     m = (side == s) & is_hand
     if not m.any(): continue
@@ -255,11 +256,11 @@ for s in ('l', 'r'):
     u = ((X[m] - hh) @ across) / 0.045                              # -1 pinky side .. +1 index side
     v = ((X[m] - hh) @ ax) / Lh                                     # 0 wrist .. 1 knuckles
     lines = 0
-    for v0, v1, sl, amp in ((0.72, 0.62, 1.0, 0.00032), (0.58, 0.45, 1.0, 0.00028), (0.25, 0.5, -1.0, 0.0003)):
+    for v0, v1, sl, amp in ((0.72, 0.62, 1.0, 0.00016), (0.58, 0.45, 1.0, 0.00014), (0.25, 0.5, -1.0, 0.00015)):
         # each crease is a gentle curve v(u)
         cv = v0 + (v1 - v0) * (u * sl + 1) / 2 + 0.05 * np.sin(u * 2.2)
         d = (v - cv) * Lh
-        lines = lines - amp * np.exp(-(d / 0.0008) ** 2) * (np.abs(u) < 1.0)
+        lines = lines - amp * np.exp(-(d / 0.0011) ** 2) * smooth01((1.0 - np.abs(u)) / 0.3) * (0.6 + 0.4 * fbm(X[m], 0.006, 2, 51))
     hgt[np.where(m)[0]] += lines * palmar[m]
 # --- nails: plate on the back of each distal phalanx, cuticle groove, free edge, dirt beneath
 nail = np.zeros(len(X)); nail_edge = np.zeros(len(X)); lunula = np.zeros(len(X))
@@ -293,8 +294,8 @@ for s in ('l', 'r'):
     for f in ('index', 'middle', 'ring', 'pinky'):
         k0, _ = bvec('%s_01_%s' % (f, s))
         d, t = seg_dist(X[m], hh + (k0 - hh) * 0.08, k0 - (k0 - hh) * 0.06)
-        ten = np.maximum(ten, np.exp(-(d / 0.0028) ** 2) * smooth01(t / 0.2) * smooth01((1 - t) / 0.25))
-    hgt[np.where(m)[0]] += 0.0009 * ten * smooth01((dors[m] - 0.3) / 0.4)
+        ten = np.maximum(ten, np.exp(-(d / 0.0042) ** 2) * smooth01(t / 0.25) * smooth01((1 - t) / 0.3))
+    hgt[np.where(m)[0]] += 0.0006 * ten * smooth01((dors[m] - 0.3) / 0.4)
 # --- veins: wandering raised lines from the back of the hand up the forearm (rest pose, along the arm axis X)
 vein = np.zeros(len(X))
 for s, sg in (('l', -1.0), ('r', 1.0)):
