@@ -64,6 +64,29 @@
     WP.models = { rifle: IVChars.weapon('rifleScoped'), smg: IVChars.weapon('smg'), pistol: IVChars.weapon('pistol'), binoc: IVChars.weapon('binoculars'), grenade: IVChars.weapon('grenade') };
     equipModels();
   };
+  // The 'back' socket carries a long gun muzzle-up over the shoulder (about 55 degrees up). Seen from the
+  // over-the-shoulder camera that barrel stands above the helmet like a spear and reads as the gun in his hands,
+  // so the slung gun is turned, flat against the back, to hang muzzle-down to the right (stock over the left shoulder,
+  // away from the camera). The turn is found once, about the axis through the back, and kept in the gun's own frame.
+  const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _ax = new THREE.Vector3();
+  function slingDown(m) {
+    const A = P.actor; if (!A || !m.parent) return;
+    if (!m.userData.slingQ) {
+      A.root.updateMatrixWorld(true);
+      const qa = A.root.getWorldQuaternion(new THREE.Quaternion()), qai = qa.clone().invert(), qm = m.getWorldQuaternion(new THREE.Quaternion());
+      _ax.set(0, 0, 1).applyQuaternion(qa).applyQuaternion(qm.clone().invert()).normalize();   // the body's forward, in the gun's frame
+      let best = null, bs = 1e9;
+      for (let a = -Math.PI; a < Math.PI; a += Math.PI / 72) {
+        _q.setFromAxisAngle(_ax, a); _q2.copy(qm).multiply(_q);
+        _v.set(0, 0, 1).applyQuaternion(_q2).applyQuaternion(qai);   // barrel in the body's frame (+x is his left)
+        const sc = Math.abs(_v.y + 0.82) + (_v.x < 0 ? 0 : 1);           // muzzle down about 55 degrees, toward his right
+        if (sc < bs) { bs = sc; best = a; }
+      }
+      m.userData.slingQ = new THREE.Quaternion().setFromAxisAngle(_ax, best);
+    }
+    m.quaternion.multiply(m.userData.slingQ);
+    m.translateZ(0.32);   // and slide it down along itself, so the stock sits at the shoulder blade, not above the helmet
+  }
   function equipModels() {
     const A = P.actor, M = WP.models;
     for (const k in M) A.detach(M[k]);
@@ -71,7 +94,7 @@
     else if (WP.busyThrow) A.attach(M.grenade, 'handR');
     else A.attach(M[WP.cur], 'handR');
     const longOther = WP.cur === 'rifle' ? 'smg' : 'rifle';
-    if (WP.has[longOther]) A.attach(M[longOther], 'back');
+    if (WP.has[longOther]) { A.attach(M[longOther], 'back'); slingDown(M[longOther]); }
     if (WP.cur !== 'pistol' && WP.has.pistol) A.attach(M.pistol, 'hip');
   }
   WP.equip = function (k) {
