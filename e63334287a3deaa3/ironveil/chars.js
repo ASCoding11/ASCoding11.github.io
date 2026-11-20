@@ -12,6 +12,29 @@
  *   actor.onFinished = fn(name) for one-shot clips, actor.leftHandIK (0..1 override, default automatic).
  * If any file fails, a code-made skinned human with procedural animation is used instead (info.fallback = true).
  *
+ * First person (fp.glb + fp.json, loaded by load()):
+ *   IVChars.viewmodel(kind) -> vm | null   kind 'rifleScoped' | 'smg' | 'pistol'
+ *     vm.group     THREE.Group: add it to the viewmodel camera. Its origin is the eye; it looks down -Z, +Y up, +X right
+ *                  (the camera's own frame), metres. Drawn with FOV ~55 and near 0.01 (nearest vertex in any clip: fp.json).
+ *     vm.drive(state, dt) -> events[]   call once per frame. state = { ads: 0..1, sprint: 0..1 } blends the looping
+ *                  base clips idle / ads / sprint; a one-shot from play() fades in over them and back out when it ends.
+ *                  Returns the clip events crossed this frame: [{ clip, name, time }] (also vm.onEvent(name, clip)).
+ *     vm.play(name, { fade, speed, loop }) -> seconds   one-shot clips (names in vm.clips):
+ *                  fire (fireAds is picked automatically when state.ads > 0.5), reload, reloadEmpty, boltCycle (rifle),
+ *                  charge (SMG), draw, holster, sprintIn, sprintOut, grenade, melee, interact, binoculars (holds at the
+ *                  eye until binocularsLower). Events: shot; magOut, magIn, done; boltUp, boltBack, eject, boltForward,
+ *                  boltDown; charge; slide; pin, release (throw the grenade from vm.sockets.prop at 'release'); hit;
+ *                  touch; atEye; ready.
+ *     vm.stop(fade), vm.isPlaying(name), vm.current, vm.clipLength(name), vm.events(name)
+ *     vm.sockets   { muzzle, ejection, scopeEye (rifle), sightRear, sightFront, handR, handL, prop, weapon }: Object3Ds,
+ *                  read their world matrices after drive(). vm.muzzle, vm.ejection, vm.scopeEye are the same objects.
+ *     vm.adsOffset { position, quaternion }: the group transform that moves the hip pose onto the sight line, for a
+ *                  game that moves the group itself instead of blending to the ads clip (do one or the other).
+ *     vm.weapon (the weapon model; moving parts ride on bones w_bolt, w_mag ...), vm.bones, vm.mixer, vm.tris(),
+ *     vm.setVisible(b), vm.dispose(). IVChars.fpClips(kind) lists the clip names.
+ *   actor.setFirstPerson(true|false)   the player's body for looking down: no head, neck or arms, eyes/hair and the
+ *                  held weapon hidden, a full shadow kept (an invisible copy casts it); call after attach().
+ *
  * Integration notes for the game:
  *  - Skeleton (all kinds share it): root, pelvis, spine_01..03, neck_01, Head, clavicle_l/r, upperarm_l/r, lowerarm_l/r,
  *    hand_l/r, finger bones, thigh_l/r, calf_l/r, foot_l/r, ball_l/r, plus weapon_r (a prop bone under hand_r that
@@ -308,6 +331,7 @@
       b.add(n); n.position.set(0, 0, 0); n.quaternion.identity(); n.scale.set(1, 1, 1);
     });
     gun.traverse(function (o) { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } });
+    var sling = gun.getObjectByName(kind + '_sling'); if (sling) sling.visible = false;   // a loose sling would hang across the view
     var props = {};
     ['grenade', 'binoculars'].forEach(function (k) {
       if (!WTEMPLATES[k]) return;
@@ -444,11 +468,12 @@
       m.makeBasis(x, y, z); p.set(-0.05, 1.28, -0.2);
       if (!long) { m.identity(); p.set(0.12, 1.05, -0.17); }
     } else if (socket === 'sling') {
-      // slung muzzle down across the back, outside the pack: stock up behind the right shoulder blade (its top below
-      // the helmet rim), muzzle toward the left hip, sights facing out
-      var z3 = new T.Vector3(0.33, -0.94, -0.05).normalize(), y3 = new T.Vector3(0, 0.05, -1).normalize(), x3 = new T.Vector3().crossVectors(y3, z3).normalize();
+      // slung muzzle up across the back: butt low behind the right hip, muzzle above the left shoulder blade, the
+      // sights facing out from the back. Muzzle-down carry put a 1.2 m rifle's barrel beside the left knee (seen when
+      // looking down in first person) and the scope above the helmet when the torso bent to aim.
+      var z3 = new T.Vector3(0.36, 0.93, 0).normalize(), y3 = new T.Vector3(0, -0.05, -1).normalize(), x3 = new T.Vector3().crossVectors(y3, z3).normalize();
       y3.crossVectors(z3, x3);
-      m.makeBasis(x3, y3, z3); p.set(-0.07, 1.26, -0.25);
+      m.makeBasis(x3, y3, z3); p.set(-0.03, 1.02, -0.27);
       if (!long) { m.identity(); p.set(0.12, 1.05, -0.17); }
     } else if (socket === 'hip') {
       // holstered on the right hip, muzzle down
@@ -688,6 +713,77 @@
     return this;
   };
   AP.bone = function (n) { return this.fb ? FB.bone(this, n) : (this.bones[n] || (n === 'handR' ? this.bones.hand_r : null) || null); };
+  // ---------- first-person body: the player's own body seen when looking down (legs, torso, shadow)
+  // setFirstPerson(true) draws the full-detail body without the head, neck and arms (the viewmodel draws the arms),
+  // hides the eyes, hair and anything held in the hands, and keeps a complete shadow: an invisible copy of each
+  // hidden part (no colour, no depth) still casts it. Legs and feet keep following the clips and the drive graph.
+  var FP_DROP = /^(Head|neck_01|clavicle_|upperarm_|lowerarm_|hand_|index_|middle_|ring_|pinky_|thumb_|weapon_r)/;
+  function fpGeometry(mesh) {
+    var g = mesh.geometry;
+    if (g.userData.fpGeom) return g.userData.fpGeom;
+    var si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = mesh.skeleton.bones;
+    var n = si.count, drop = new Uint8Array(n);
+    for (var i = 0; i < n; i++) {
+      var best = 0, bi = 0;
+      for (var k = 0; k < 4; k++) { var w = sw.getComponent(i, k); if (w > best) { best = w; bi = si.getComponent(i, k); } }
+      drop[i] = FP_DROP.test(bones[bi] ? bones[bi].name : '') ? 1 : 0;
+    }
+    var idx = g.index ? g.index.array : null, out = [];
+    var tri = idx ? idx.length : n;
+    for (var t = 0; t < tri; t += 3) {
+      var a = idx ? idx[t] : t, b = idx ? idx[t + 1] : t + 1, c = idx ? idx[t + 2] : t + 2;
+      if (drop[a] + drop[b] + drop[c] < 2) out.push(a, b, c);
+    }
+    var fg = g.clone(); fg.setIndex(out);
+    fg.boundingSphere = g.boundingSphere; fg.groups = [];
+    g.userData.fpGeom = fg;
+    return fg;
+  }
+  function shadowOnly(m) {
+    if (!m.userData.shadowMat) {
+      var sm = m.material.clone(); sm.colorWrite = false; sm.depthWrite = false; sm.transparent = false;
+      m.userData.shadowMat = sm;
+    }
+    return m.userData.shadowMat;
+  }
+  AP.setFirstPerson = function (on) {
+    on = !!on;
+    if (this.fb || on === !!this.fpOn) return this;
+    this.fpOn = on;
+    var self = this;
+    this.meshes.forEach(function (m) {
+      var body = /^(Hero|Ally)$/.test(meshName(m)) || (!/Eyes|Hair/.test(meshName(m)) && m.isSkinnedMesh && m.geometry.attributes.skinIndex);
+      if (on) {
+        if (body && m.isSkinnedMesh) {
+          if (!m.userData.fpShadow) {
+            var c = new T.SkinnedMesh(m.geometry, shadowOnly(m)); c.bind(m.skeleton, m.bindMatrix);
+            c.castShadow = true; c.receiveShadow = false; c.frustumCulled = false; c.name = m.name + '_fpShadow';
+            m.parent.add(c); m.userData.fpShadow = c;
+          }
+          m.userData.fullGeom = m.geometry; m.geometry = fpGeometry(m); m.castShadow = false;
+          m.userData.fpShadow.visible = true;
+        } else {
+          m.userData.fullMat = m.material; m.material = shadowOnly(m);
+        }
+      } else {
+        if (m.userData.fullGeom) { m.geometry = m.userData.fullGeom; m.castShadow = true; if (m.userData.fpShadow) m.userData.fpShadow.visible = false; }
+        if (m.userData.fullMat) { m.material = m.userData.fullMat; m.userData.fullMat = null; }
+      }
+    });
+    // the weapon in the hands: the viewmodel shows it; keep only its shadow
+    this.attached.forEach(function (a) {
+      if (a.socket !== 'handR' && a.socket !== 'handL') return;
+      a.obj.traverse(function (o) {
+        if (!o.isMesh) return;
+        if (on) { o.userData.fullMat = o.material; o.material = shadowOnly(o); }
+        else if (o.userData.fullMat) { o.material = o.userData.fullMat; o.userData.fullMat = null; }
+      });
+    });
+    // full-detail meshes only (no LOD switch on the player's own body)
+    if (on) { this.lodLevel = 0; this.meshes.forEach(function (m) { m.visible = true; }); this.lods.forEach(function (m) { m.visible = false; }); }
+    return this;
+  };
+
   AP.setVisible = function (b) { this.root.visible = !!b; return this; };
   AP.attach = function (obj, socket) {
     socket = socket || 'handR';
@@ -746,7 +842,7 @@
       far = _v1.distanceTo(IV.camera.position);
       // three levels with 10 % hysteresis: full -> mid at IV.lodDistances[0], mid -> far at [1] (the hair goes at mid)
       var D = IV.lodDistances || [IV.lodDistance * 0.55, IV.lodDistance * 1.4], cur = this.lodLevel || 0, lod = cur;
-      if (this.lods.length) {
+      if (this.lods.length && !this.fpOn) {
         if (cur < 2 && far > D[1] * 1.05) lod = 2; else if (cur < 1 && far > D[0] * 1.05) lod = 1;
         else if (cur > 1 && far < D[1] * 0.95) lod = far > D[0] * 0.95 ? 1 : 0; else if (cur > 0 && far < D[0] * 0.95) lod = 0;
       }

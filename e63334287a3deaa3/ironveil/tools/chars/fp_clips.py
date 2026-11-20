@@ -35,27 +35,34 @@ def rest():
     L = rig.rest(); return L, rig.W(L)
 
 # shoulders: first-person rigs carry the shoulders forward and in (the head is down on the stock); never seen
-SHOULDER = {'r': Vector((0.20, -0.04, -0.30)), 'l': Vector((-0.17, 0.0, -0.27))}
+SHOULDER = {'r': Vector((0.30, 0.05, -0.50)), 'l': Vector((-0.08, 0.10, -0.45))}
 REACH = 0.93   # a shoulder moves toward its hand when the hand is further than this share of the arm's reach
-POLE = {'r': Vector((0.7, -0.2, -1.0)), 'l': Vector((-0.5, 0.1, -1.0))}
+POLE = {'r': Vector((1.0, -0.3, -0.6)), 'l': Vector((-0.6, -0.1, -1.0))}
 
 # ------------------------------------------------------------------------------------------------ base poses
 # per weapon: hip (weapon pose at the hip), ads (sight on the camera axis), sprint carry, low (lowered)
 def ads_pose(k, extra_back=0.0):
+    """Sight line on the lens axis: the scope's eye point at the eye (rifle), or the rear and front sights aligned on
+    the axis with the rear sight REAR[k] metres in front of the eye (iron sights)."""
     w = WPN[k]
-    eye = w.E('scopeEye').translation if 'scopeEye' in w.empty else w.E('sightRear').translation + Vector((0, 0.09 if k == 'pistol' else 0.11, 0))
-    R = F.RZ180.copy()
-    R.translation = -(F.RZ180.to_3x3() @ eye) + Vector((0, extra_back, 0))
+    if 'scopeEye' in w.empty:
+        R = F.RZ180.copy(); R.translation = -(F.RZ180.to_3x3() @ w.E('scopeEye').translation) + Vector((0, extra_back, 0))
+        return R
+    r_, f_ = w.E('sightRear').translation, w.E('sightFront').translation
+    d = (f_ - r_).normalized()                       # in the weapon frame, roughly -Y
+    R3 = (F.RZ180.to_3x3() @ d).rotation_difference(Vector((0, 1, 0))).to_matrix() @ F.RZ180.to_3x3()
+    R = R3.to_4x4(); R.translation = Vector((0, REAR[k], 0)) - R3 @ r_
     return R
+REAR = {'smg': 0.20, 'pistol': 0.47}
 
 BASE = {
-    'rifleScoped': dict(hip=pose_w((0.125, 0.39, -0.150), yaw=5.5, pitch=4.5, roll=-9.0),
+    'rifleScoped': dict(hip=pose_w((0.15, 0.37, -0.125), yaw=0.6, pitch=-1.2, roll=-4.0),
                         sprint=pose_w((0.07, 0.17, -0.25), yaw=38, pitch=-22, roll=-35),
                         low=pose_w((0.16, 0.16, -0.32), yaw=10, pitch=-30, roll=-10)),
-    'smg': dict(hip=pose_w((0.125, 0.215, -0.185), yaw=1.5, pitch=1.5, roll=-5.0),
+    'smg': dict(hip=pose_w((0.13, 0.33, -0.098), yaw=0.6, pitch=-1.2, roll=-4.0),
                 sprint=pose_w((0.06, 0.20, -0.26), yaw=40, pitch=-24, roll=-38),
                 low=pose_w((0.16, 0.17, -0.32), yaw=10, pitch=-30, roll=-10)),
-    'pistol': dict(hip=pose_w((0.11, 0.30, -0.17), yaw=2.0, pitch=2.0, roll=-4.0),
+    'pistol': dict(hip=pose_w((0.07, 0.37, -0.095), yaw=1.0, pitch=-1.0, roll=-3.0),
                    sprint=pose_w((0.12, 0.22, -0.30), yaw=15, pitch=-50, roll=-20),
                    low=pose_w((0.12, 0.22, -0.32), yaw=8, pitch=-45, roll=-10)),
 }
@@ -126,6 +133,8 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         F.set_fingers(rig, L, Wd, s, fingers)
         P = skin.pose(Wd, hand_ids[::2])
         d = np.array([F.signed_dist(bvh, Minv @ Vector(p)) for p in P])
+        for i in np.where(d < 0)[0]:          # open scan meshes: a negative reading counts only if really inside
+            if not F.inside(bvh, Minv @ Vector(P[i])): d[i] = -d[i]
         pen = np.clip(0.0008 - d, 0, None)
         Pp = skin.pose(Wd, palm_ids[::2])
         dp = np.array([F.signed_dist(bvh, Minv @ Vector(p)) for p in Pp])
@@ -408,7 +417,7 @@ def make_clips(k):
     # ---- magazine reloads
     if 'mag' in w.empty:
         mag_down = Vector((0, 0.0 if long_ else 0.012, -1)).normalized()
-        RLD = rel(HIP, dx=-0.03, dz=0.03, dy=-0.02, roll=24 if long_ else 15, pitch=8, yaw=-6)
+        RLD = rel(HIP, dx=-0.04, dz=0.055 if long_ else 0.03, dy=0.0, roll=28 if long_ else 15, pitch=10, yaw=-6)
         T_ = 2.5 if long_ else 1.9
         def reload_fn(t, empty):
             u_in = ramp(t, 0.0, 0.3); u_out = ramp(t, T_ - 0.45, T_ - 0.05)
@@ -457,7 +466,7 @@ def make_clips(k):
     part = 'boltHandle' if k == 'rifleScoped' else ('charging' if k == 'smg' else None)
     if part:
         TB = 1.05 if k == 'rifleScoped' else 0.75
-        CYC = rel(HIP, roll=12, dx=-0.01, dz=0.01)
+        CYC = rel(HIP, roll=7, pitch=-3, dz=-0.012)
         def cycle_parts(t):
             if k == 'rifleScoped':
                 up = bump(t, 0.25, 0.36, 0.86) if t < 0.86 else 0.0

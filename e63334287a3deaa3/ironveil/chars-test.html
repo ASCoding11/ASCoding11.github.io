@@ -117,6 +117,14 @@
     face: { face: true, yaw: 0.35, dist: 0.7 }, ots: { ots: true }, ots2: { ots2: 0 }, ots45: { ots2: 45 }, wide: { yaw: 0.5, pitch: 0.35, dist: 14, ty: 0.8 }
   };
   function placeCam() {
+    if (P.has('fpbody') && actor && actor.bone('Head')) {   // first-person body: eye camera looking down (look=-60)
+      actor.setFirstPerson(true);
+      var hd = actor.bone('Head'); hd.updateMatrixWorld(true);
+      var e = new THREE.Vector3(0, 0.09, 0.1).applyMatrix4(hd.matrixWorld);
+      cam.fov = 75; cam.near = 0.05; cam.updateProjectionMatrix();
+      cam.position.copy(e); cam.rotation.set(+(P.get('look') || -60) * Math.PI / 180, Math.PI + actor.root.rotation.y, 0, 'YXZ');
+      return;
+    }
     if (P.get('cbone') && actor && actor.bone(P.get('cbone'))) {   // close-up on a bone (e.g. hand_r)
       var hb = new THREE.Vector3().setFromMatrixPosition(actor.bone(P.get('cbone')).matrixWorld);
       cam.position.set(hb.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist, hb.y + Math.sin(orbit.pitch) * orbit.dist, hb.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);

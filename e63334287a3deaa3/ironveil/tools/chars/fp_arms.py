@@ -128,8 +128,10 @@ def main():
             c = E.lerp(W_, fr); ax = (W_ - E).normalized()
             lobes = 0.55 * math.sin(math.pi * u) ** 0.6 + 0.45 * abs(math.sin(2 * math.pi * u)) ** 0.8
             def off(th, u=u, lobes=lobes):
-                wob = 0.0012 * math.sin(th * 3 + u * 9) + 0.0008 * math.sin(th * 5 - 2.0)
-                return 0.0022 + 0.0105 * lobes + wob
+                wob = 0.0016 * math.sin(th * 3 + u * 9) + 0.0010 * math.sin(th * 5 - 2.0)
+                # frayed, uneven edge of the turned-back cloth on the last ring
+                fray = 0.0025 * (math.sin(th * 23 + 1.3) * math.sin(th * 7.0)) if u >= 1.0 else 0.0
+                return 0.0026 + 0.0165 * lobes + wob + fray
             rs.append((c, ax, off, Vector((0, 0, 1))))
         roll = G.ring_loft(bvh, rs, n=30, name='Roll_' + s)
         parts += [sl, roll]

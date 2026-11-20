@@ -88,6 +88,20 @@ def clean(img, marks, set_name, scale):
         a[Y0:Y1, X0:X1] = crop
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), img.mode)
 
+def walnut(img):
+    """Take the scan's saturated orange birch down to a dark oiled walnut: orange texels lose saturation and value,
+    the grain (local contrast) is kept, and a faint warm red stays in the dark rings."""
+    import colorsys
+    a = np.asarray(img).astype(np.float32) / 255.0
+    r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    mx = a.max(2); mn = a.min(2); sat = (mx - mn) / np.maximum(mx, 1e-4)
+    hue_orange = (r > g) & (g >= b * 0.9) & (r - b > 0.12)
+    w = np.clip((sat - 0.30) / 0.2, 0, 1) * hue_orange
+    lum = 0.30 * r + 0.55 * g + 0.15 * b
+    base = np.stack([lum * 0.78 + 0.035, lum * 0.52 + 0.022, lum * 0.34 + 0.012], 2)   # walnut ramp
+    out = a * (1 - w[..., None]) + base * w[..., None]
+    return Image.fromarray(np.clip(out * 255, 0, 255).astype(np.uint8), 'RGB')
+
 if __name__ == '__main__':
     src, dst = sys.argv[1], sys.argv[2]
     os.makedirs(dst, exist_ok=True)
@@ -99,5 +113,7 @@ if __name__ == '__main__':
         img = Image.open(f).convert('RGB')
         if set_name:
             img = clean(img, MARKS[set_name], set_name, img.size[0] / 2048.0)
+        if b.startswith('bolt_action_rifle_7_62_diff'):
+            img = walnut(img)
         img.save(os.path.join(dst, b.replace('.jpg', '.png')))
         print('cleaned' if set_name else 'copied', b)

@@ -49,9 +49,9 @@ const newTex = doc.getRoot().listTextures().filter(fresh).map((t) => t.getName()
 await doc.transform(prune({ keepLeaves: true }), unpartition(), dedup());
 const pat = new RegExp('^(' + newTex.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')$');
 if (newTex.length) await doc.transform(
-  textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 90, pattern: pat, slots: /^(baseColorTexture)$/ }),
-  textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 92, pattern: pat, slots: /^(normalTexture)$/ }),
-  textureCompress({ encoder: sharp, targetFormat: 'webp', quality: 90, pattern: pat, slots: /^(metallicRoughnessTexture|occlusionTexture)$/ }));
+  textureCompress({ encoder: sharp, targetFormat: 'webp', quality: +(process.env.QB || 90), pattern: pat, slots: /^(baseColorTexture)$/ }),
+  textureCompress({ encoder: sharp, targetFormat: 'webp', quality: +(process.env.QN || 92), pattern: pat, slots: /^(normalTexture)$/ }),
+  textureCompress({ encoder: sharp, targetFormat: 'webp', quality: +(process.env.QO || 90), pattern: pat, slots: /^(metallicRoughnessTexture|occlusionTexture)$/ }));
 await doc.transform(meshopt({ encoder: MeshoptEncoder, level: 'high' }));
 await io.write(dst, doc);
 for (const t of doc.getRoot().listTextures()) console.log('texture', t.getName() || t.getURI(), t.getMimeType(), t.getSize(), (t.getImage().byteLength / 1024).toFixed(0) + ' KB');

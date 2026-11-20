@@ -219,13 +219,28 @@ def close_fingers(rig, skin, L0, W0, s, bvh, Minv, fingers=('index', 'middle', '
         out[f] = tuple(a) + ((sp,) if f == 'thumb' else ())
     return out
 
+def inside(bvh, p, dirs=(Vector((0, 0, 1)), Vector((0, 0, -1)), Vector((1, 0, 0)), Vector((-1, 0, 0)), Vector((0, 1, 0)))):
+    """Ray-parity inside test, majority of five directions: robust where a scanned mesh is open or has inner faces,
+    which fool the nearest-face normal test (an open stock end reads as 'inside' from the face normal alone)."""
+    votes = 0
+    for d in dirs:
+        o = Vector(p); hits = 0
+        for _ in range(40):
+            loc, nor, idx, dist = bvh.ray_cast(o, d, 2.0)
+            if loc is None: break
+            hits += 1; o = loc + d * 1e-5
+        votes += hits & 1
+    return votes >= 3
+
 def penetration(skin, W, bvh, Minv, tol=0.002, idx=None):
-    """Arm vertices inside the surface by more than tol: count and deepest (m)."""
+    """Arm vertices inside the weapon by more than tol: count and deepest (m). A vertex counts only when both the
+    nearest-face test and the ray-parity test agree it is inside."""
     P = skin.pose(W, idx)
     n, deep = 0, 0.0
     for p in P:
-        d = signed_dist(bvh, Minv @ Vector(p))
-        if -0.03 < d < -tol:
+        q = Minv @ Vector(p)
+        d = signed_dist(bvh, q)
+        if d < -tol and inside(bvh, q):
             n += 1; deep = max(deep, -d)
     return n, deep
 
@@ -245,7 +260,10 @@ def wrap_fingers(rig, skin, L0, W0, s, bvh, Minv, fingers=('index', 'middle', 'r
             c = 0.0
             for j in range(3):
                 P = skin.pose(W, ids[j])
-                d = min(signed_dist(bvh, Minv @ Vector(p)) for p in P)
+                ds = [signed_dist(bvh, Minv @ Vector(p)) for p in P]
+                d = min(ds)
+                if d < 0 and not any(inside(bvh, Minv @ Vector(P[i])) for i in range(len(P)) if ds[i] < 0):
+                    d = min(abs(x) for x in ds)
                 pen = max(0.0, -(d - 0.0003))
                 c += pen * pen * 4e6 + (d - gap) ** 2 * 1e3 * (1.0 if d < 0.02 else 0.3)
             return c + sum(x * x for x in a) * 0.02

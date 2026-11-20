@@ -174,7 +174,8 @@ def build_rifle():
     reset()
     obs = import_set('bolt_action_rifle_7_62')
     name = 'bolt_action_rifle_7_62'
-    main = obs[name]; scope = obs[name + '_scope']; wrap = obs[name + '_wrap']
+    main = obs[name]; scope = obs[name + '_scope']
+    bpy.data.objects.remove(obs[name + '_wrap'])          # the cloth wrap on the stock read as a stuck-on decal
     bolt_a = obs[name + '_bolt_a']; bolt_b = obs[name + '_bolt_b']; trig = obs[name + '_trigger']
     bpy.data.objects.remove(obs[name + '_bullet_54mm'])   # display cartridge lying under the gun
     # bore axis from the muzzle ring, trigger blade top, scope tube rear
@@ -189,7 +190,7 @@ def build_rifle():
     mag = split_loose_in_box(main, Vector((tx + 0.06, -0.03, -0.12)), Vector((tx + 0.15, 0.03, bore_z - 0.035)), 'mag')
     log('magazine tris', G.tris(mag), 'bounds x', min(v.co.x for v in mag.data.vertices), max(v.co.x for v in mag.data.vertices))
     origin = (tx, 0.0, bore_z - 0.020)
-    allo = [main, scope, wrap, bolt_a, bolt_b, trig, mag]
+    allo = [main, scope, bolt_a, bolt_b, trig, mag]
     to_frame(allo, origin)
     BORE = 0.020
     # reduce: the scope and bolt carry far more triangles than they show at arm's length
@@ -205,7 +206,7 @@ def build_rifle():
     sl.data.materials.append(mats[1][1])
     # weapon description for assemble.py
     w = W('rifleScoped')
-    body = G.join([main, scope, wrap], 'body')
+    body = G.join([main, scope], 'body')
     w.pivots = {'bolt': (0, 0, BORE), 'boltHandle': (0, 0, BORE), 'trigger': (0, 0.0, tz - origin[2]),
                 'mag': (0, -0.10, -0.045), 'sling': (0, 0, 0)}
     eye_y = -(sx - origin[0]) + 0.078

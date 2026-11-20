@@ -198,7 +198,7 @@ for s, sg in (('l', -1.0), ('r', 1.0)):
 log('skin texels', len(X))
 
 # --- base tone: weathered, tanned forearms, paler palms, warm knuckles and fingertips
-tan = lin([0.70, 0.51, 0.40]); pale = lin([0.84, 0.66, 0.56]); red = lin([0.70, 0.40, 0.33])
+tan = lin([0.60, 0.41, 0.30]); pale = lin([0.76, 0.56, 0.45]); red = lin([0.70, 0.40, 0.33])
 palm_w = smooth01((-dors - 0.1) / 0.6) * np.where(np.isin(bid, [0]), 0.35, 1.0)   # inner forearm only a little paler
 alb = tan * (1 - palm_w[:, None]) + pale * palm_w[:, None]
 mott = fbm(X, 0.02, 4, 1) * 0.07 + fbm(X, 0.004, 3, 2) * 0.04
@@ -218,14 +218,19 @@ for f in ('index', 'middle', 'ring', 'pinky', 'thumb'):
             idx = np.where(m)[0]
             upd = r3 < joint_dist3[idx]
             joint_dist3[idx[upd]] = r3[upd]; joint_d[idx[upd]] = dj[upd]
-knuck = np.exp(-(joint_dist3 / 0.011) ** 2) * smooth01(dors / 0.5 + 0.2)
+knuck = np.exp(-(joint_dist3 / 0.013) ** 2) * smooth01(dors / 0.5 + 0.2)
 tip = np.zeros(len(X))
 for f in ('index', 'middle', 'ring', 'pinky', 'thumb'):
     for s in ('l', 'r'):
         a, b = bvec('%s_03_%s' % (f, s)); m = side == s
         tip[m] = np.maximum(tip[m], np.exp(-(np.linalg.norm(X[m] - b, axis=1) / 0.012) ** 2))
-rednessmask = np.clip(knuck * 0.55 + tip * 0.5, 0, 1)
-alb = alb * (1 - rednessmask[:, None] * 0.35) + red * rednessmask[:, None] * 0.35
+# weathered: redder, rougher knuckles and fingertips, a sun-reddened outer forearm near the elbow
+elbow = np.zeros(len(X))
+for s in ('l', 'r'):
+    a, b = bvec('lowerarm_' + s); m = side == s
+    elbow[m] = np.exp(-(np.linalg.norm(X[m] - a, axis=1) / 0.05) ** 2)
+rednessmask = np.clip(knuck * 0.8 + tip * 0.55 + elbow * 0.5, 0, 1)
+alb = alb * (1 - rednessmask[:, None] * 0.55) + red * rednessmask[:, None] * 0.55
 # sun: the back of the forearm darker than its inner side
 alb *= (1 - 0.12 * smooth01((dors + 0.2) / 0.8) * is_fore)[:, None]
 hgt = np.zeros(len(X))
@@ -289,7 +294,7 @@ for s in ('l', 'r'):
         k0, _ = bvec('%s_01_%s' % (f, s))
         d, t = seg_dist(X[m], hh + (k0 - hh) * 0.08, k0 - (k0 - hh) * 0.06)
         ten = np.maximum(ten, np.exp(-(d / 0.0028) ** 2) * smooth01(t / 0.2) * smooth01((1 - t) / 0.25))
-    hgt[np.where(m)[0]] += 0.00055 * ten * smooth01((dors[m] - 0.3) / 0.4)
+    hgt[np.where(m)[0]] += 0.0009 * ten * smooth01((dors[m] - 0.3) / 0.4)
 # --- veins: wandering raised lines from the back of the hand up the forearm (rest pose, along the arm axis X)
 vein = np.zeros(len(X))
 for s, sg in (('l', -1.0), ('r', 1.0)):
@@ -319,8 +324,8 @@ for s, sg in (('l', -1.0), ('r', 1.0)):
             wv = 0.0018 + 0.0006 * math.sin(i * 0.7 + vi)
             vein[np.where(m)[0]] = np.maximum(vein[np.where(m)[0]], np.exp(-(d / wv) ** 2) * (0.6 + 0.4 * math.sin(i * 0.37 + vi * 2)))
 vein *= np.where(is_fore, 0.75 + 0.25 * smooth01((dors + 0.2) / 0.6), smooth01((dors + 0.2) / 0.6) * is_hand)
-hgt += vein * 0.00045
-alb = alb * (1 - vein[:, None] * 0.10) + lin([0.42, 0.40, 0.45]) * (vein[:, None] * 0.10)
+hgt += vein * 0.0008
+alb = alb * (1 - vein[:, None] * 0.18) + lin([0.38, 0.36, 0.44]) * (vein[:, None] * 0.18)
 # --- forearm hair: fine dark strands along the arm on the back and outer side, thin on the back of the hand
 hair = np.zeros(len(X))
 for s in ('l', 'r'):
@@ -337,14 +342,14 @@ for s in ('l', 'r'):
         iu = np.floor(cu).astype(np.int64); iv = np.floor(cv).astype(np.int64)
         fu = cu - iu; fv = cv - iv
         jit = hash3(iu, iv, np.full_like(iu, layer), 3)
-        on = hash3(iu, iv, np.full_like(iu, layer), 4) < 0.55
+        on = hash3(iu, iv, np.full_like(iu, layer), 4) < 0.7
         # strand: a thin line across the cell, slightly slanted
         dv = np.abs(fv - (0.2 + 0.6 * jit) - (fu - 0.5) * 0.35)
         strand = np.exp(-(dv / 0.12) ** 2) * smooth01(fu / 0.15) * smooth01((1 - fu) / 0.15) * on
         hair[np.where(m)[0]] = np.maximum(hair[np.where(m)[0]], strand)
 hairmask = (0.35 + 0.65 * smooth01((dors + 0.35) / 0.5)) * is_fore * smooth01((fore_t - 0.35) / 0.15) + smooth01((dors + 0.35) / 0.5) * is_hand * 0.35
 hair *= hairmask
-alb = alb * (1 - hair[:, None] * 0.55) + lin([0.16, 0.11, 0.07]) * (hair[:, None] * 0.55)
+alb = alb * (1 - hair[:, None] * 0.75) + lin([0.10, 0.07, 0.05]) * (hair[:, None] * 0.75)
 hgt += hair * 0.00004
 # --- healed scar: a pale raised line across the back of the right forearm, and a small nick on the left hand
 scar = np.zeros(len(X))
@@ -372,8 +377,9 @@ grime += cav * 0.55
 specks = (fbm(X, 0.0016, 2, 33) > 0.62) * smooth01((dors + 0.2) / 0.5) * 0.6
 grime = np.clip(grime + specks, 0, 1)
 dirt = lin([0.20, 0.15, 0.10])
-alb = alb * (1 - grime[:, None] * 0.55) + dirt * (grime[:, None] * 0.55)
-rgh = 0.52 + 0.08 * fbm(X, 0.01, 3, 41) - 0.10 * palm_w * 0 - 0.08 * smooth01((dors - 0.2) / 0.5) * is_hand
+alb = alb * (1 - grime[:, None] * 0.65) + dirt * (grime[:, None] * 0.65)
+# roughness: oily-sheened back of the hand and forearm, drier rough knuckles and palms, dirt flat
+rgh = 0.50 + 0.14 * fbm(X, 0.008, 3, 41) + 0.06 * fbm(X, 0.002, 2, 43) - 0.10 * smooth01((dors - 0.2) / 0.5) * (is_hand | is_fore) + 0.12 * knuck + 0.08 * palm_w
 rgh = rgh + grime * 0.15 - scar * 0.12
 rgh = rgh * (1 - nail) + 0.28 * nail
 ALB[sk] = alb; HGT[sk] = hgt; RGH[sk] = rgh
@@ -421,11 +427,14 @@ for s in ('l', 'r'):
     _, t = seg_dist(X[m], la, lb)
     roll_u[m] = (t - 0.30) / 0.20
 crest = np.abs(np.sin(roll_u * 2 * math.pi)) * (rc == 2)
+fray = (rc == 2) * smooth01((roll_u - 0.9) / 0.1) * (np.sin(arcp / 0.0011 * 2 * math.pi + 3 * fbm(U2, 0.004, 2, 77)) > 0.1)
 hgt += 0.0004 * crest
 seam = (rc == 2) * np.exp(-((roll_u - 0.08) / 0.012) ** 2)
 stitch = seam * (np.sin(arcp / 0.0032 * 2 * math.pi) > 0.2)
 hgt -= 0.00012 * seam; hgt += 0.00008 * stitch
 alb = alb * (1 + 0.12 * crest[:, None]) * (1 - 0.15 * seam[:, None])
+alb = alb + (lin([0.66, 0.62, 0.50]) - alb) * (fray[:, None] * 0.55)
+hgt += fray * 0.00015
 alb = alb + (lin([0.62, 0.58, 0.46]) - alb) * (stitch[:, None] * 0.5)
 # wear and grime: darker in creases and the inside of the roll, dust on the crests, sweat at the cuff
 g = np.clip(0.4 * fbm(X, 0.04, 3, 71) + 0.2, 0, 1) * 0.4 + np.clip(-fold, 0, 1) * 0.15 * (rc == 1)
