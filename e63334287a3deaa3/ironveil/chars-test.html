@@ -95,6 +95,11 @@
     face: { face: true, yaw: 0.35, dist: 0.7 }, ots: { ots: true }, wide: { yaw: 0.5, pitch: 0.35, dist: 14, ty: 0.8 }
   };
   function placeCam() {
+    if (P.get('cbone') && actor && actor.bone(P.get('cbone'))) {   // close-up on a bone (e.g. hand_r)
+      var hb = new THREE.Vector3().setFromMatrixPosition(actor.bone(P.get('cbone')).matrixWorld);
+      cam.position.set(hb.x + Math.sin(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist, hb.y + Math.sin(orbit.pitch) * orbit.dist, hb.z + Math.cos(orbit.yaw) * Math.cos(orbit.pitch) * orbit.dist);
+      cam.lookAt(hb); return;
+    }
     if (orbit.face && actor && actor.bone('Head')) {   // face close-up follows the head bone
       var h = new THREE.Vector3().setFromMatrixPosition(actor.bone('Head').matrixWorld).add(new THREE.Vector3(0, 0.07, 0));
       cam.position.set(h.x + Math.sin(orbit.yaw) * orbit.dist, h.y + 0.02, h.z + Math.cos(orbit.yaw) * orbit.dist); cam.lookAt(h); return;
@@ -186,8 +191,10 @@
       if (P.get('face') != null) actor.setFace(+P.get('face'));
       for (var i = 0; i < steps; i++) { actor.update(1 / 30); crowd.forEach(function (c) { c.a.update(1 / 30); }); }
       if (P.get('blink') != null) { actor._blinkT = 1e9; actor.setMorph('blink', +P.get('blink')); }
+      if (P.get('grips')) { var gj = JSON.parse(P.get('grips')); for (var gk in gj) IVChars.grips[gk] = gj[gk]; if (gun) actor.attach(gun, $('socket').value); for (var ii = 0; ii < 3; ii++) actor.update(1 / 30); }
       placeCam(); r.render(sc, cam);
-      window.INFO = { calls: r.info.render.calls, tris: r.info.render.triangles, heroTris: IVChars.tris($('kind').value), info: IVChars.info, clips: IVChars.clips.length };
+      if (P.get('pen')) window.PEN = window.handPen(actor, gun);
+      window.INFO = { pen: window.PEN, calls: r.info.render.calls, tris: r.info.render.triangles, heroTris: IVChars.tris($('kind').value), info: IVChars.info, clips: IVChars.clips.length };
       if (P.get('fps')) { measure(+P.get('fps')); } else window.READY = true;
       return;
     }
@@ -337,6 +344,58 @@
     M.prevQ = qs; f.pop = maxd * 180 / Math.PI; f.popBone = maxb;
     f.w = {}; for (var gk in a.gr) if (a.gr[gk].w > 0.02) f.w[gk] = +a.gr[gk].w.toFixed(2);
     M.frames.push(f);
+  }
+
+  // hand vertices inside the held weapon: skinned positions of vertices bound mostly to a hand/finger bone, tested
+  // by ray parity (odd hits along +x, +y and +z; inside when at least two of the three agree)
+  window.handPen = function (a, g) {
+    if (!a || !g || a.fb) return null;
+    a.root.updateMatrixWorld(true);
+    // quantized (meshopt) positions are not denormalized by the r128 raycaster: test against float copies
+    var meshes = [], dq = function (at) { if (!at.normalized) return 1; var A = at.array; return A instanceof Int16Array ? 32767 : A instanceof Uint16Array ? 65535 : A instanceof Int8Array ? 127 : A instanceof Uint8Array ? 255 : 1; };
+    g.updateMatrixWorld(true);
+    g.traverse(function (o) {
+      if (!o.isMesh || !o.visible) return;
+      var p = o.geometry.attributes.position, d = dq(p), f = new Float32Array(p.count * 3);
+      for (var i = 0; i < p.count; i++) { f[i * 3] = p.getX(i) / d; f[i * 3 + 1] = p.getY(i) / d; f[i * 3 + 2] = p.getZ(i) / d; }
+      var ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.BufferAttribute(f, 3)); if (o.geometry.index) ge.setIndex(o.geometry.index);
+      var mm = new THREE.Mesh(ge, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })); mm.matrixWorld.copy(o.matrixWorld); mm.matrixAutoUpdate = false;
+      meshes.push(mm);
+    });
+    var rc = new THREE.Raycaster(), dirs = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
+    var out = { r: 0, l: 0, rN: 0, lN: 0 };
+    var bb = new THREE.Box3(); meshes.forEach(function (mm) { mm.geometry.computeBoundingBox(); bb.union(mm.geometry.boundingBox.clone().applyMatrix4(mm.matrixWorld)); }); out.bb = [bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z].map(function (x) { return +x.toFixed(2); }).join(',');
+    var hb = new THREE.Vector3().setFromMatrixPosition(a.bones.hand_r.matrixWorld); out.hr = [hb.x, hb.y, hb.z].map(function (x) { return +x.toFixed(3); }).join(',');
+    a.meshes.forEach(function (m) {
+      if (!m.isSkinnedMesh || /Hair/.test(m.name)) return;
+      var pos = m.geometry.attributes.position, si = m.geometry.attributes.skinIndex, sw = m.geometry.attributes.skinWeight, bones = m.skeleton.bones;
+      var v = new THREE.Vector3();
+      var den = function (at) { if (!at.normalized) return 1; var A = at.array; return A instanceof Int16Array ? 32767 : A instanceof Uint16Array ? 65535 : A instanceof Int8Array ? 127 : A instanceof Uint8Array ? 255 : 1; };
+      var dp = den(pos), dw = den(sw), comp = function (at, i, k) { return [at.getX(i), at.getY(i), at.getZ(i), at.getW(i)][k]; };
+      for (var i = 0; i < pos.count; i++) {
+        var side = null, wsum = { r: 0, l: 0 };
+        for (var k = 0; k < 4; k++) {
+          var b = bones[comp(si, i, k)], w = comp(sw, i, k) / dw; if (!b || !w) continue;
+          var mm = /^(hand|thumb|index|middle|ring|pinky)_.*?([lr])$/.exec(b.name); if (mm) wsum[mm[2]] += w;
+        }
+        side = wsum.r > 0.5 ? 'r' : (wsum.l > 0.5 ? 'l' : null); if (!side) continue;
+        v.set(pos.getX(i) / dp, pos.getY(i) / dp, pos.getZ(i) / dp).applyMatrix4(m.bindMatrix);
+        var acc = new THREE.Vector3(), tmpv = new THREE.Vector3(), M4 = new THREE.Matrix4();
+        for (var k2 = 0; k2 < 4; k2++) { var w2 = comp(sw, i, k2) / dw; if (!w2) continue; var bi = comp(si, i, k2);
+          M4.multiplyMatrices(m.skeleton.bones[bi].matrixWorld, m.skeleton.boneInverses[bi]); acc.addScaledVector(tmpv.copy(v).applyMatrix4(M4), w2); }
+        v.copy(acc).applyMatrix4(m.bindMatrixInverse).applyMatrix4(m.matrixWorld);
+        out[side + 'N']++; if (!out['s' + side]) out['s' + side] = [v.x, v.y, v.z].map(function (x) { return +x.toFixed(3); }).join(',');
+        var votes = 0;
+        dirs.forEach(function (d) { rc.set(v, d); rc.near = 0; rc.far = 5; if (rc.intersectObjects(meshes, false).length % 2) votes++; });
+        if (votes >= 2) { out[side]++; if (side === 'r') { var lv = v.clone().applyMatrix4(new THREE.Matrix4().copy(g.matrixWorld).invert()); out.cr = out.cr || [0, 0, 0, 0]; out.cr[0] += lv.x; out.cr[1] += lv.y; out.cr[2] += lv.z; out.cr[3]++; } var top = null, tw = 0; for (var k3 = 0; k3 < 4; k3++) { var w3 = comp(sw, i, k3) / dw; if (w3 > tw) { tw = w3; top = bones[comp(si, i, k3)].name; } } out.by = out.by || {}; out.by[top] = (out.by[top] || 0) + 1; }
+      }
+    });
+    if (out.cr) out.cr = out.cr.slice(0, 3).map(function (x) { return +(x / out.cr[3]).toFixed(3); });
+    var gi = new THREE.Matrix4().copy(g.matrixWorld).invert(), hw = new THREE.Vector3().setFromMatrixPosition(a.bones.hand_r.matrixWorld).applyMatrix4(gi);
+    out.handInGun = [hw.x, hw.y, hw.z].map(function (x) { return +x.toFixed(3); });
+    var q = new THREE.Quaternion(); a.bones.hand_r.getWorldQuaternion(q); var gq = new THREE.Quaternion(); g.getWorldQuaternion(gq); q.premultiply(gq.invert());
+    var r0 = a._fing && Object.values(a._fing)[0]; out.palmInGun = null;
+    return out;
   }
   function slideTable() {
     // contact windows from the shared phase: left [0.06, 0.28], right [0.56, 0.78] (inside stance for walk, jog, sprint)

@@ -328,6 +328,47 @@
     return m;
   }
 
+  // ---------- hand grips per weapon
+  // Curl of each finger (0 straight .. 1 closed) and thumb, per weapon class and hand, applied after the mixer on
+  // the finger bones whenever a weapon is in the right hand, so the fingers wrap the real-size grips instead of
+  // closing into the clip's fist through them. Right: round the wrist of the stock or the pistol grip with the
+  // index finger laid along the trigger guard (on the trigger while firing). Left: cupping the fore-end from
+  // below with the thumb up the side. Joint split per finger: base, middle, tip.
+  var GRIPF = {   // fitted with tools/chars/gripopt.js: right/left hand offsets (weapon frame) and curl scales
+    rifle: { r: { index: 0.088, middle: 0.44, ring: 0.475, pinky: 0.51, thumb: 0.132, trigger: 0.334, off: [0.041, 0.04, 0] },
+            l: { index: 0.18, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [-0.016, -0.016, 0.01] } },
+    enemyRifle: { r: { index: 0.091, middle: 0.455, ring: 0.491, pinky: 0.528, thumb: 0.137, trigger: 0.346, off: [0.035, 0.044, 0] },
+                 l: { index: 0.06, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [-0.016, -0.04, 0] } },
+    smg: { r: { index: 0.064, middle: 0.333, ring: 0.358, pinky: 0.384, thumb: 0.096, trigger: 0.4, off: [0.04, 0.04, -0.028] },
+          l: { index: 0.2, middle: 0.36, ring: 0.4, pinky: 0.44, thumb: 0.06, off: [-0.014, -0.028, 0] } },
+    pistol: { r: { index: 0.094, middle: 0.47, ring: 0.508, pinky: 0.545, thumb: 0.282, trigger: 0.338, off: [0.02, 0.02, -0.016] },
+             l: { index: 0.36, middle: 0.34, ring: 0.26, pinky: 0.22, thumb: 0.145, off: [0, -0.014, 0] } },
+    mg: { r: { index: 0.064, middle: 0.32, ring: 0.346, pinky: 0.371, thumb: 0.096, trigger: 0.243, off: [0.041, 0.04, 0.024] },
+         l: { index: 0.18, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [0.008, -0.044, -0.036] } }
+  };
+  IV.grips = GRIPF;   // per-weapon finger curls (tunable)
+  var GRIPCLASS = { rifleScoped: 'rifle', rifleScopedLod: 'rifle', enemyRifle: 'enemyRifle', smg: 'smg', smgLod: 'smg', enemySmg: 'smg', pistol: 'pistol', mg: 'mg' };
+  var FSEG = { index: [0.9, 1.1, 0.8], middle: [0.9, 1.1, 0.8], ring: [0.9, 1.1, 0.8], pinky: [0.9, 1.1, 0.8], thumb: [0.5, 0.8, 0.9] };
+  function fingerFrames(bones, root) {
+    root.updateMatrixWorld(true);
+    var out = {}, rq = new T.Quaternion(), p0 = new T.Vector3(), p1 = new T.Vector3();
+    ['l', 'r'].forEach(function (s) {
+      var palm = new T.Vector3(0, -1, 0);   // bind pose palms face down
+      Object.keys(FSEG).forEach(function (f) {
+        for (var j = 1; j <= 3; j++) {
+          var b = bones[f + '_0' + j + '_' + s], c = bones[f + '_0' + (j + 1) + (j === 3 ? '_leaf_' : '_') + s];
+          if (!b) continue;
+          b.getWorldPosition(p0);
+          if (c) c.getWorldPosition(p1); else p1.copy(p0).add(new T.Vector3(s === 'l' ? 1 : -1, 0, 0));
+          var dir = p1.clone().sub(p0).normalize(), ax = new T.Vector3().crossVectors(dir, palm);
+          if (ax.lengthSq() < 1e-6) continue;
+          b.getWorldQuaternion(rq);
+          out[b.name] = { bone: b, rest: b.quaternion.clone(), axis: ax.normalize().applyQuaternion(rq.clone().invert()), f: f, j: j - 1, s: s };
+        }
+      });
+    });
+    return out;
+  }
   // ---------- actor
   function Actor(kind) {
     var t = TEMPLATES[kind];
@@ -361,6 +402,9 @@
       }
       if (self.onFinished && n) self.onFinished(n);
     });
+    // finger rest frames (bind pose) and each joint's curl axis in its own frame, for the per-weapon grips
+    this._fing = fingerFrames(bones, root);
+    this._fgW = 0;
     // face morphs: 'faceB'/'faceC' pick one of three enemy faces; 'blink' closes the hero's and ally's lids
     this._morphMeshes = meshes.filter(function (m) { return m.morphTargetDictionary && m.morphTargetInfluences; });
     this._blinkT = 1 + Math.random() * 3; this._blink = 0;
@@ -370,6 +414,40 @@
     this.mixer.update(0); this.root.updateMatrixWorld(true);
   }
   var AP = Actor.prototype;
+  AP._grips = function (dt, held) {
+    var cls = held && GRIPCLASS[held.userData.kind], T0 = cls && GRIPF[cls];
+    this._fgW = approach(this._fgW, T0 ? 1 : 0, 5, dt);
+    if (T0) this._fgT = T0;
+    var w = this._fgW, G0 = this._fgT; if (w < 0.01 || !G0) return;
+    // right hand: our gloved hand is thicker than the hand the grip frames were fitted to, so the hand is moved
+    // off the weapon by a small per-class offset (weapon frame: x weapon-left, y up, z forward) with arm IK,
+    // while the weapon keeps its place on the sight line
+    var off = T0 && T0.r.off;
+    if (off && held.userData._ap && this.bones.weapon_r) {
+      held.position.copy(held.userData._ap); held.quaternion.copy(held.userData._aq); held.updateMatrixWorld(true);
+      var W0 = held.matrixWorld.clone(), hq = worldQuat(held, new T.Quaternion());
+      var hr = this.bones.hand_r, tp = worldPos(hr, new T.Vector3()).sub(new T.Vector3(off[0], off[1], off[2]).applyQuaternion(hq).multiplyScalar(w));
+      twoBone(this.bones.upperarm_r, this.bones.lowerarm_r, hr, tp, worldQuat(hr, new T.Quaternion()), 1);
+      this.bones.upperarm_r.updateMatrixWorld(true);
+      var Lm = new T.Matrix4().copy(held.parent.matrixWorld).invert().multiply(W0);
+      Lm.decompose(held.position, held.quaternion, new T.Vector3()); held.updateMatrixWorld(true);
+    }
+    var n = (this.curUpper && this.curUpper.name) || (this.cur && this.cur.name) || '';
+    var firing = /^fire/.test(n), q = new T.Quaternion(), tq = new T.Quaternion();
+    // the left hand only grips while it is on the fore-end (its IK weight); otherwise its clip pose stays
+    var wl = Math.min(w, this._lhW || 0);
+    if (cls === 'pistol') wl = w * Math.max(this._lhW || 0, /Pistol/.test(n) ? 1 : 0);
+    for (var k in this._fing) {
+      var e = this._fing[k], g = G0[e.s], ww = e.s === 'r' ? w : wl;
+      if (!g || ww < 0.01) continue;
+      var a = e.f === 'index' && e.s === 'r' && firing ? g.trigger : g[e.f];
+      var ang = a * FSEG[e.f][e.j] * (e.f === 'thumb' ? 1.1 : 1.45);
+      tq.copy(e.rest).multiply(q.setFromAxisAngle(e.axis, ang));
+      if (ww >= 0.999) e.bone.quaternion.copy(tq); else e.bone.quaternion.slerp(tq, ww);
+    }
+    if (this.bones.hand_r) this.bones.hand_r.updateMatrixWorld(true);
+    if (this.bones.hand_l) this.bones.hand_l.updateMatrixWorld(true);
+  };
   AP.setMorph = function (name, v) {
     if (this.fb) return this;
     for (var i = 0; i < this._morphMeshes.length; i++) {
@@ -465,8 +543,10 @@
     if ((socket === 'handR' || socket === 'handL') && grip) {
       // weapon placed so its grip frame coincides with the hand bone
       grip.updateMatrix();
-      var inv = new T.Matrix4().copy(grip.matrix).invert();
+      var GM = grip.matrix.clone();
+      var inv = GM.invert();
       inv.decompose(obj.position, obj.quaternion, obj.scale);
+      obj.userData._ap = obj.position.clone(); obj.userData._aq = obj.quaternion.clone();
     } else if (socket === 'back' || socket === 'hip') {
       // carry pose defined in the bind-pose character frame, converted into the bone's frame
       var rest = this._restWorld(bn);
@@ -566,6 +646,7 @@
     if (Math.abs(this.aimP) > 1e-4 || Math.abs(this.aimY) > 1e-4) this._applyAim();
     if (this.driven) this._post(dt, far); else this._flinch(dt);
     if (!(this.cur && /^death|takedownVictim/.test(this.cur.name))) this._blinkUpdate(dt, far); else this.setMorph('blink', 1);
+    this._grips(dt, held);
     // left hand onto the fore-end
     var want = 0;
     if (held && held.userData.gripL && held.userData.long !== undefined) {
@@ -577,6 +658,9 @@
     if (this._lhW > 0.01 && held) {
       held.userData.gripL.updateMatrixWorld(true);
       var tp = worldPos(held.userData.gripL, new T.Vector3()), tq = worldQuat(held.userData.gripL, new T.Quaternion());
+      // left hand target moved by a per-class offset in the weapon's frame (off the fore-end)
+      var lcls = GRIPF[GRIPCLASS[held.userData.kind]], loff = lcls && lcls.l.off;
+      if (loff) tp.add(new T.Vector3(loff[0], loff[1], loff[2]).applyQuaternion(worldQuat(held, new T.Quaternion())));
       this._reachL(tp, this._lhW);
       twoBone(this.bones.upperarm_l, this.bones.lowerarm_l, this.bones.hand_l, tp, tq, this._lhW);
     }
@@ -595,7 +679,7 @@
       if (d <= 0.001) break;
       // clavicle: swing the shoulder joint toward the target, up to about 25 degrees in all
       var C = worldPos(cl, new T.Vector3()), a0 = S.clone().sub(C), want = tp.clone().sub(C);
-      var ang = Math.min(0.44 - used, d / Math.max(a0.length(), 0.05));
+      var ang = Math.min(0.6 - used, d / Math.max(a0.length(), 0.05));
       var axis = new T.Vector3().crossVectors(a0, want);
       if (ang <= 0 || axis.lengthSq() < 1e-10) break;
       used += ang; q.setFromAxisAngle(axis.normalize(), ang * w); rotWorld(cl, q);
