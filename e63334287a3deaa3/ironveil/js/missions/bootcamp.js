@@ -190,7 +190,7 @@
     // square and a running party on the road out, as paths for the game's far soldiers
     IV.art.backdrop({ truck: { path: [[44, 176], [46, 215], [36, 262], [12, 330], [-40, 430]], speed: 7 }, pennant: { x: -9.45, y: W.height(-9.5, 145) + 8.4, z: 145 },
       smoke: [[28.4, W.height(32, 120) + 6.6, 120, false]], birds: [[-140, 80, 45, 28, 14], [120, -60, 55, 32, 12]], squalls: [[-380, -150], [320, 120]],
-      sounds: [{ kind: 'rifle', every: [2, 8], x: -220, z: -150 }, { kind: 'shout', every: [25, 60], x: -27, z: 155 }] });
+      leaves: 'day', sounds: [{ kind: 'rifle', every: [2, 8], x: -220, z: -150 }, { kind: 'shout', every: [25, 60], x: -27, z: 155 }] });
     IV.art.squads.push({ kind: 'drill', loop: true, n: 10, path: [[-36, 146], [-18, 146], [-18, 165], [-36, 165]] }, { kind: 'run', loop: true, n: 8, path: [[44, 180], [46, 215], [36, 262], [46, 215]] });
     // the backstop berm behind the 300 m target
     K.box(b, 'earth', 0, W.height(0, -300) - 1, -300, 40, 6, 6, 0, 0x7a6a50, F.SOLID | F.BULLET | F.SIGHT, 'mud', 0.3);

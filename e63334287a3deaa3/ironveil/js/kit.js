@@ -319,7 +319,7 @@
             if (!op.open) box(glassMat, pu, bot, inset, op.w - 0.1, top - bot, 0.04, 0xffffff);
             box('wood', pu, bot, sgn * (hd - t * 0.55), 0.06, top - bot, 0.08, 0x5a4a38); box('wood', pu, (bot + top) / 2, sgn * (hd - t * 0.55), op.w, 0.06, 0.08, 0x5a4a38);
             if (EB) {
-              vb('ashlar', pu, bot - 0.08, sgn * (hd + 0.02), op.w + 0.24, 0.09, t * 0.4 + 0.12, { tint: TT(0.82, 0.8, 0.76) }); if (mat !== 'wood') vb(wallM, pu, top, sgn * (hd + 0.008), op.w + 0.36, 0.22, t * 0.3, { tint: TT(1.04, 1.03, 1.0) });
+              vb('ashlar', pu, bot - 0.08, sgn * (hd + 0.02), op.w + 0.24, 0.09, t * 0.4 + 0.12, { tint: TT(0.7, 0.7, 0.7) }); if (mat !== 'wood') vb('ashlar', pu, top, sgn * (hd + 0.012), op.w + 0.4, 0.24, t * 0.32, { tint: TT(0.72, 0.71, 0.7) });
               for (const k of [-1, 1]) vb('timber', pu + k * op.w / 4, bot, sgn * (hd - t * 0.55), 0.035, top - bot, 0.05, { noFoot: true, tint: TT(0.6, 0.58, 0.52) });
               if (op.shut) for (const k of [-1, 1]) vb('wood_painted', pu + k * (op.w / 2 + 0.3), bot, sgn * (hd + 0.04), 0.55, top - bot, 0.05, { noFoot: true, tint: TT(0.75, 0.95, 0.8) });
             } else box('stone', pu, bot - 0.06, sgn * (hd + 0.04), op.w + 0.2, 0.08, 0.2, 0x8a867c);
@@ -328,7 +328,7 @@
             if (!op.open) box(glassMat, insetX, bot, pu, 0.04, top - bot, op.w - 0.1, 0xffffff);
             box('wood', sgn * (hw - t * 0.55), bot, pu, 0.08, top - bot, 0.06, 0x5a4a38); box('wood', sgn * (hw - t * 0.55), (bot + top) / 2, pu, 0.08, 0.06, op.w, 0x5a4a38);
             if (EB) {
-              vb('ashlar', sgn * (hw + 0.02), bot - 0.08, pu, t * 0.4 + 0.12, 0.09, op.w + 0.24, { tint: TT(0.82, 0.8, 0.76) }); if (mat !== 'wood') vb(wallM, sgn * (hw + 0.008), top, pu, t * 0.3, 0.22, op.w + 0.36, { tint: TT(1.04, 1.03, 1.0) });
+              vb('ashlar', sgn * (hw + 0.02), bot - 0.08, pu, t * 0.4 + 0.12, 0.09, op.w + 0.24, { tint: TT(0.7, 0.7, 0.7) }); if (mat !== 'wood') vb('ashlar', sgn * (hw + 0.012), top, pu, t * 0.32, 0.24, op.w + 0.4, { tint: TT(0.72, 0.71, 0.7) });
               for (const k of [-1, 1]) vb('timber', sgn * (hw - t * 0.55), bot, pu + k * op.w / 4, 0.05, top - bot, 0.035, { noFoot: true, tint: TT(0.6, 0.58, 0.52) });
               if (op.shut) for (const k of [-1, 1]) vb('wood_painted', sgn * (hw + 0.04), bot, pu + k * (op.w / 2 + 0.3), 0.05, top - bot, 0.55, { noFoot: true, tint: TT(0.75, 0.95, 0.8) });
             } else box('stone', sgn * (hw + 0.04), bot - 0.06, pu, 0.2, 0.08, op.w + 0.2, 0x8a867c);

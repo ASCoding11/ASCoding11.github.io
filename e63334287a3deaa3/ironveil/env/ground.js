@@ -28,7 +28,8 @@
       uMacro: E.U.uMacro, uWet: E.U.uWet, uRain: E.U.uRain, uTime: E.U.uTime,
       uA0: { value: T[0].alb }, uA1: { value: T[1].alb }, uA2: { value: T[2].alb }, uA3: { value: T[3].alb }, uA4: { value: T[4].alb },
       uN0: { value: T[0].nri }, uN1: { value: T[1].nri }, uN2: { value: T[2].nri }, uN3: { value: T[3].nri }, uN4: { value: T[4].nri },
-      uSz: { value: [2.5, 3.0, 3.0, 0.85, 2.0].map(s => 1 / s) },
+      uSz: { value: LAYERS.map((n, i) => 1 / ((E.RECIPES[n] && E.RECIPES[n].size) || [2.5, 3.0, 3.0, 0.85, 2.0][i])) },   // each layer at its real size
+      uMarks: { value: E.marks.tex() }, uMarksRect: { value: E.marks.rect },
       uCarry: { value: new THREE.Vector2(E.Q.grassNear * 0.45, E.Q.grassMid * 0.95) }
     };
     m.userData.uniforms = uni;
@@ -38,6 +39,7 @@
       sh.vertexShader = 'attribute vec4 aW0; attribute vec4 aW1; attribute vec4 aGC;\nvarying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;\n' +
         sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vW0 = aW0; vW1 = aW1; vGC = aGC; vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = `
+        uniform sampler2D uMarks; uniform vec4 uMarksRect;
         uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime; uniform vec2 uCarry;
         vec2 ivRipple(vec2 p, float t) { vec2 cell = floor(p), f = fract(p) - 0.5; float r = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453); float ph = fract(t * 1.4 + r * 7.0);
           vec2 d = f - (vec2(fract(r * 13.1), fract(r * 27.7)) - 0.5) * 0.5; float dist = length(d); float ring = sin((dist - ph * 0.45) * 45.0) * smoothstep(0.06, 0.0, abs(dist - ph * 0.45)) * (1.0 - ph); return normalize(d + 1e-5) * ring; }
@@ -90,6 +92,8 @@
           galb = mix(galb, galb * 0.32, pud);
           grough = mix(grough, 0.04, pud);
           float ivPud = pud;
+          { vec2 mu = (vGW.xz - uMarksRect.xy) / uMarksRect.zw; if (mu.x > 0.0 && mu.y > 0.0 && mu.x < 1.0 && mu.y < 1.0) { vec4 mk = texture2D(uMarks, mu);
+            galb *= 1.0 - mk.r * 0.38; galb = mix(galb, vec3(0.06, 0.045, 0.03), mk.b * 0.55); grough = mix(grough, 0.25, mk.g); } }   // stamped marks: prints in mud, tracked mud, wet ruts
           diffuseColor.rgb *= galb;`)
         .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(grough, 0.03, 1.0);')
         .replace('#include <normal_fragment_maps>', `
@@ -169,6 +173,29 @@
     E._ground = { surfaceAt };
     return { group, material: mat, meshes, heightFn, surfaceAt };
   };
+
+  // ------------------------------------------------------------------ ground marks (for the game's code)
+  // IVEnv.marks.area(x0, z0, size, res)  one persistent top-down mark texture over the play area (default the map)
+  // IVEnv.marks.stamp(x, z, kind, rot, strength)  kind 'boot' (a print pressed into mud), 'track' (brown mud carried
+  //   onto hard ground, fades), 'rut' (a wet wheel rut segment, rot = direction); strength 0..1
+  // IVEnv.marks.fade(dt)  'track' marks fade over about two minutes (call each frame or now and then)
+  // channels: R = pressed depth (darkens), G = wetness (glossy), B = tracked mud (brown)
+  E.marks = (function () {
+    let S = 512, data = null, tex = null; const rect = new THREE.Vector4(-190, -190, 380, 380); let dirty = false;
+    const M = { rect, tex() { if (!tex) M.area(rect.x, rect.y, rect.z, S); return tex; },
+      area(x0, z0, size, res) { S = res || S; rect.set(x0, z0, size, size); data = new Uint8Array(S * S * 4); if (!tex) { tex = new THREE.DataTexture(data, S, S, THREE.RGBAFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter; } else { tex.image = { data, width: S, height: S }; } tex.needsUpdate = true; return M; },
+      stamp(x, z, kind, rot, k) { if (!data) M.area(rect.x, rect.y, rect.z, S); k = k == null ? 1 : k; const px = (x - rect.x) / rect.z * S, pz = (z - rect.y) / rect.w * S, m = S / rect.z, c = Math.cos(rot || 0), s = Math.sin(rot || 0);
+        const L = kind === 'rut' ? 1.2 : 0.28, Wd = kind === 'rut' ? 0.14 : 0.11, ch = kind === 'boot' ? 0 : kind === 'rut' ? 1 : 2, r = Math.ceil(Math.max(L, Wd) * m) + 1;
+        for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) { const X = Math.round(px + i), Z = Math.round(pz + j); if (X < 0 || Z < 0 || X >= S || Z >= S) continue; const u = (i * c + j * s) / m, v = (-i * s + j * c) / m; const e = (u / L) ** 2 + (v / Wd) ** 2; if (e > 1) continue; const q = (Z * S + X) * 4 + ch, val = Math.round(255 * k * (1 - e * 0.6)); data[q] = Math.max(data[q], val); if (kind === 'rut') data[(Z * S + X) * 4] = Math.max(data[(Z * S + X) * 4], val >> 1); }
+        dirty = true; },
+      fade(dt) { if (!data) return; const f = Math.max(1, Math.round(dt * 2)); for (let i = 2; i < data.length; i += 4) if (data[i]) data[i] = Math.max(0, data[i] - f); dirty = true; },
+      update() { if (dirty && tex) { tex.needsUpdate = true; dirty = false; } }
+    };
+    (E._updaters = E._updaters || []).push(() => M.update());
+    return M;
+  })();
+  // IVEnv.groundInfo(x, z) -> { kind, mud 0..1 (how deep the mud is), wet 0..1, puddle 0..1 }
+  E.groundInfo = function (x, z) { const g = E._ground; const kind = g ? g.surfaceAt(x, z) : 'grass', w = W[kind] || W.none; const wet = Math.min(1, w[5] + E.U.uWet.value * 0.5); const n = E.fbm2(x / 3.1, z / 3.1, 909, 2); return { kind, mud: Math.min(1, w[1]), wet, puddle: Math.max(0, (wet - 0.55) * 2.2 * (n - 0.45) * 3) }; };
 
   // ------------------------------------------------------------------ the land beyond the map
   // IVEnv.skirt(heightFn, { half, outer, hills, woods, seed, day, fogK, landFogK }) -> group

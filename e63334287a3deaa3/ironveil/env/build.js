@@ -880,7 +880,7 @@
         B.box(mat, cx, y + h * 0.45, cz, len, h * 0.45, opts.t * 0.82, rot, { foot: y, uvOff: [sm, 0] });
         B.col(cx, cz, len, opts.t, y - 0.2, y + h * 0.9, rot, 'stone', 'wall');
         if (stone) { // coping: stones set on edge ("cock and hen"), each tilted a little; a plain cap on Low
-          if (opts.coping === 'flat') B.box('ashlar', cx, y + h * 0.9 - 0.02, cz, len + 0.02, 0.14, opts.t * 1.05, rot, { foot: y, tint: tintJ(R, 0.04, 0xa8a49a), rx: 0 });   // a plain dressed coping (churchyards)
+          if (opts.coping !== 'cock') B.box('ashlar', cx, y + h * 0.9 - 0.02, cz, len + 0.02, 0.14, opts.t * 1.05, rot, { foot: y, tint: tintJ(R, 0.04, 0xa8a49a), rx: 0 });   // a plain dressed coping (churchyards)
           else if (E.Q.name === 'low') B.box('fieldstone', cx, y + h * 0.9 - 0.02, cz, len, 0.22, opts.t * 0.8, rot, { foot: y });
           else for (let c = 0; c < Math.round(len / 0.16); c++) {
             const off = -len / 2 + (c + 0.5) * len / Math.round(len / 0.16), px = cx + dx * off, pz = cz + dz * off, tall = R() < 0.35;

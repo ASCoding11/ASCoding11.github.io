@@ -70,6 +70,10 @@
     A.chimneys.push(...r.chimneys);
     return r;
   };
+  // weather: IV.art.weather('night_moon' | 'night_rain' | 'dusty' | 'day_overcast' | 'dusk_rain' ..., seconds) eases the
+  // whole state (sky, fog, lights, wetness, wind, rain); seconds 0 = at once. Lightning raises IV.emit('ambience', 'thunder')
+  if (window.IVEnv) IVEnv.onAmbience = (a) => IV.emit('ambience', a);
+  A.weather = function (name, secs) { const a = W.atm; if (!a || !a.blendTo) return false; if (!secs) a.set(name); else a.blendTo(name, secs); return true; };
   // far-off life in the background (searchlights, flak, aircraft, fires, smoke, birds, a lorry...); visual only.
   // Sound hooks arrive as IV.emit('ambience', { kind, x, z, delay }) for the game's audio. Follows Reduced motion.
   A.backdrop = function (spec) { const E = env(); if (!E || !E.backdrop) return null; return safe(() => E.backdrop(W.scene, spec, { reduced: !!IV.settings.motion, heightAt: (x, z) => (Math.abs(x) < W.size / 2 && Math.abs(z) < W.size / 2) ? H(x, z) : (E.skirtHeightAt ? E.skirtHeightAt(x, z) : 0), emit: (a) => IV.emit('ambience', a) }), 'backdrop'); };
@@ -127,6 +131,8 @@
   // after the build: instance the trees, merge the static pieces per 48 m cell
   A.flush = function () {
     const E = env(); if (!E) return;
+    // leaf litter and twigs under every tree (ground decals), then the trees themselves
+    if (pendingTrees.length && E.builder) safe(() => { const LB = E.builder(515), R = E.rng(515); for (const t of pendingTrees) { const n = t.kind === 'poplar' ? 2 : 4; for (let i = 0; i < n; i++) { const a = R() * 6.28, r = R() * 3.2, x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r; LB.decal(R() < 0.65 ? 'leaves' : 'grime', [x, H(x, z) + 0.025, z], [0, 1, 0], 1.6 + R() * 2.2, 1.4 + R() * 2, R() * 6.28); } } root().add(LB.finish()); }, 'leaf litter');
     if (pendingTrees.length && E.trees) { const t = safe(() => E.trees(pendingTrees), 'trees'); add(t); pendingTrees = []; }
     if (E.mergeStatic && W.envRoot) { const merged = safe(() => E.mergeStatic(W.envRoot, { cell: 48 }), 'merge'); if (merged && merged !== W.envRoot) { W.statics.remove(W.envRoot); W.statics.add(merged); W.envRoot = merged; } }
   };

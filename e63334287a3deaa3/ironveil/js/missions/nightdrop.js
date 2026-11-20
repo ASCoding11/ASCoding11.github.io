@@ -19,6 +19,7 @@
   const L2 = [[116, -54], [126, -32], [134, 0], [144, 40], [156, 74], [170, 98], [188, 112]];                            // extraction lane
   const ST = [[-56, -188], [-48, -130], [-42, -80], [-41, -35], [-44, -5], [-41, 18], [-36, 60], [-42, 110], [-35, 188]]; // stream
   const WHEAT = [[18, -36], [82, -44], [88, -14], [92, 22], [20, 24]];
+  const MAIZE = [[13.5, -60], [28, -59.5], [28, -113], [15.5, -112]];   // standing maize beside the approach: the route runs up a trampled path at x 24
   const PAST = [[-170, 60], [-75, 52], [-70, 140], [-165, 150]];      // the landing pasture (tall grass patches)
   const FARM = { x: 108, z: -76 };
   const HOUSE = { x: 98, z: -92, w: 16, d: 9 };
@@ -57,7 +58,7 @@
   const bump = (d, a, b) => d <= a ? 1 : d >= b ? 0 : 1 - IV.smooth((d - a) / (b - a));
 
   function base(x, z) { return 4.5 * IV.fbm(x / 130 + 3.1, z / 130 + 1.7, 4) + 1.4 * IV.fbm(x / 38, z / 38, 3) - 3.2 - z * 0.012 + x * 0.004; }
-  const farmH = base(FARM.x, FARM.z) + 0.2;
+  const farmH = base(FARM.x, FARM.z) + 1.8;   // the farm stands on a rise: the approach climbs to it
   // ---- relief: rolling hills, a ridge east of the farm, a deeper stream valley, a quarry, higher ground toward the
   // map edge. It is faded to nothing within ~14-40 m of every route the mission, the AI and the bots use (approach,
   // loud route, run, patrols, lanes, roads, farm, orchard, crossroads, hamlet, landing), so paths, thresholds,
@@ -69,6 +70,7 @@
     L1, R1, R2, R3, [[46, -70], [74, -71], [76, -100], [46, -99], [44, -84], [46, -70]]
   ];
   const KEEP_AREAS = [[FARM.x, FARM.z, 60], [0, 10, 26], [58, -86, 30], [AA.x, AA.z, 25], [OAK.x, OAK.z, 22], [LINK.x, LINK.z, 18], [EXTRACT.x, EXTRACT.z, 22], [8, 68, 48], [-41, 18, 16]];
+  const CRATERS = [[-40, 62, 3.2], [110, 12, 4.2], [-125, -15, 3.6], [150, -25, 5], [-15, -125, 3.4], [80, 125, 4.5], [-150, 105, 3], [-75, -60, 4], [62, 162, 3.5], [-100, -140, 4.4]];   // shell holes, all off the routes
   const PADS = [[-150, -45, 9], [-131, -61, 10], [-162, -62, 5], [150, 152, 9], [168, 136, 10], [-165, 138, 7], [-152, 150, 5], [166, -164, 8], [140, -166, 9]];
   let MASK = null;
   function keepMask() {
@@ -85,16 +87,17 @@
     if (!MASK) MASK = keepMask();
     const fx = IV.clamp((x + 190) / 2, 0, 189.999), fz = IV.clamp((z + 190) / 2, 0, 189.999), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, N = 191;
     const k = (MASK[j * N + i] * (1 - tx) + MASK[j * N + i + 1] * tx) * (1 - tz) + (MASK[(j + 1) * N + i] * (1 - tx) + MASK[(j + 1) * N + i + 1] * tx) * tz;
-    if (k <= 0.001) return 0;
+    const kk = 0.35 + 0.65 * k;   // routes keep a third of the relief (gentle grades); away from them it is full
     const edge = IV.smooth(IV.clamp((Math.max(Math.abs(x), Math.abs(z)) - 140) / 48, 0, 1));
     let r = 7 * (IV.fbm(x / 80 + 9, z / 80 - 2, 4) - 0.45) + 2.6 * (IV.fbm(x / 26, z / 26 + 5, 3) - 0.5) + edge * 9 * IV.fbm(x / 60 - 3, z / 60 + 8, 3);
     r += 12 * Math.exp(-(((x - 172) / 15) ** 2)) * bump(Math.abs(z + 115), 45, 75);          // the ridge east of the farm
     r -= 2.6 * bump(pd(x, z, ST), 6, 30);                                                       // the stream valley
     const dq = Math.hypot(x - 95, z - 160); r -= 7 * (1 - IV.smooth(IV.clamp((dq - 15) / 7, 0, 1))); // the old quarry
-    return r * k;
+    return r * kk;
   }
   function height(x, z) {
     let h = base(x, z) + relief(x, z);
+    for (const C of CRATERS) { const dc = Math.hypot(x - C[0], z - C[1]); if (dc < C[2] * 1.8) { const u = dc / C[2]; h += u < 1 ? -1.3 * C[2] / 4 * (1 - u * u) : 0.35 * C[2] / 4 * Math.sin(Math.PI * (u - 1) / 0.8); } }   // bowl and thrown-up rim
     // the outlying farms stand on levelled pads
     for (const P of PADS) { const dp = Math.hypot(x - P[0], z - P[1]); if (dp < P[2] + 8) h = h + (base(P[0], P[1]) + relief(P[0], P[1]) - h) * bump(dp, P[2], P[2] + 8); }
     // the farm sits on a levelled rise
@@ -119,6 +122,7 @@
     if (pd(x, z, L1) < 2.3 || pd(x, z, L2) < 2.3) return S.mud;
     if (x > 88 && x < 132 && z > -86 && z < -55) return S.gravel;
     if (IV.inPoly(x, z, WHEAT)) return S.crops;
+    if (IV.inPoly(x, z, MAIZE) && Math.abs(x - 24) > 0.9) return S.crops;   // (the trampled path is open ground)
     if (IV.inPoly(x, z, PAST) && IV.fbm(x / 9, z / 9, 2) > 0.55) return S.tallgrass;
     if (x > -70 && x < -10 && z > 30 && z < 150 && IV.fbm(x / 7 + 4, z / 7, 2) > 0.6) return S.tallgrass;
     return S.grass;
@@ -133,6 +137,7 @@
     if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'field';
     // damp hollows (darker, trodden, a little standing water) and shorter-grazed patches break up the open fields
     if (Math.hypot(x - 95, z - 160) < 21) return 'yard';   // the old quarry: stone and spoil
+    for (const C of CRATERS) { const dc = Math.hypot(x - C[0], z - C[1]); if (dc < C[2] * 1.15) return 'mud'; if (dc < C[2] * 1.7) return 'worn'; }   // scorched mud and thrown soil
     if (x > -30 && x < 50 && z > 25 && z < 112) for (const r of HRECT) { const dd = Math.max(Math.abs(x - r.x) - r.hx, Math.abs(z - r.z) - r.hz); if (dd < 2.6 && dd > -0.5) return dd < 1.1 ? 'yardedge' : 'verge'; }   // trodden ring and weeds at the walls
     if (surface(x, z) !== S.grass) return null;   // never over the tall grass (stealth cover), crops, mud or water
     const f = IV.fbm(x / 34 + 7, z / 34 - 3, 3);
@@ -257,11 +262,13 @@
           const sx = sp.x - side * ((sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2 + 0.7);
           const pick = RS(); if (pick < 0.3) put('barrels', sx, sp.z + half - 1.6, RS() * 6); else if (pick < 0.55) put('logpile', sx + side * 0.2, sp.z - half + 1.6, H2 + RS() * 0.2); else if (pick < 0.75) put('crates', sx, sp.z + half - 1.4, RS()); else put('ladder', sx + side * 0.4, sp.z - half + 2, sp.rot, null, false); }
         put('cart', 4.6, 44, 0.3); put('cart', -5.2, 98, 2.6); put('trough', 4.4, 58.5, H2 + 0.05); put('bottles', 14.2, 49, 0); put('crates', 14.6, 55.3, 0.4); put('barrels', -15.8, 47.5, 0.7);
-        put('washline', -19, 76, 0.2, { length: 5 }, false); put('tarp', 20.5, 33.5, 1.4); put('logpile', -18.5, 51, 0.1); put('haybale', -21, 88, 0.5); put('haybale', -21.5, 91, 1.9);
+        put('washline', -19, 76, 0.2, { length: 5 }, false);
+        IV.art.prop('sandbags', b, 5.6, 104, 9.5, 108, 3); IV.art.prop('sandbags', b, 9.5, 108, 13, 107, 3);   // a sandbagged corner by the burnt house
+        try { const wc = IVEnv.prop('cart', 515), y = W.height(-6.5, 112); wc.group.position.set(-6.5, y + 0.2, 112); wc.group.rotation.set(0.1, 2.2, 0.45); root.add(wc.group); W.addBox(-6.5, 112, 1.6, 0.8, y, y + 1.2, 2.2, F.SOLID | F.BULLET | F.NAV, 'wood'); } catch (e) {}   // a cart on its side put('tarp', 20.5, 33.5, 1.4); put('logpile', -18.5, 51, 0.1); put('haybale', -21, 88, 0.5); put('haybale', -21.5, 91, 1.9);
         // rubble from the damaged houses spilling to the road
         if (IVEnv.rubble) { try { const RB = IVEnv.builder(919), RR = IVEnv.rng(919); for (const [x, z, n] of [[5.5, 95, 26], [5.3, 63.5, 10], [-5.8, 57, 12]]) IVEnv.rubble(RB, x, z, 1.8, RR, { brick: 'brick_sooty', stone: 'fieldstone' }, n, W.height(x, z)); const g = RB.finish(); root.add(g); } catch (e) { console.warn('rubble', e); } }
         // road: puddles in the wheel tracks and dung
-        try { const pud = [], DB = IVEnv.builder(717); for (let z = 26; z < 110; z += 4 + RS() * 7) { const x = (z < 80 ? z / 80 : 1 + (z - 80) / 108) + (RS() < 0.5 ? -1.1 : 1.1); pud.push([x, W.height(x, z), z, 0.5 + RS() * 0.8]); if (RS() < 0.5) DB.decal('mud', [x + RS() * 1.4 - 0.7, W.height(x, z) + 0.02, z + 1.5], [0, 1, 0], 0.35, 0.3, RS() * 6); }
+        try { const pud = [], DB = IVEnv.builder(717); for (let z = 26; z < 110; z += 4 + RS() * 7) { const x = (z < 80 ? z / 80 : 1 + (z - 80) / 108) + (RS() < 0.5 ? -1.1 : 1.1); pud.push([x, W.height(x, z), z, 0.5 + RS() * 0.8, 0.25 + RS() * 0.2, Math.PI / 2 + RS() * 0.3]); if (RS() < 0.5) DB.decal('mud', [x + RS() * 1.4 - 0.7, W.height(x, z) + 0.02, z + 1.5], [0, 1, 0], 0.35, 0.3, RS() * 6); }
           if (IVEnv.puddleMesh) W.scene.add(IVEnv.puddleMesh(pud)); root.add(DB.finish()); } catch (e) { console.warn('road', e); }
         // churchyard: gravestones (some leaning), a lych gate over the entrance, clipped yews
         try { const GB = IVEnv.builder(71), RG = IV.rng(71);
@@ -294,7 +301,19 @@
     IV.art.backdrop({ searchlights: [[330, -120], [-280, -300], [250, 260]], flak: [[330, -120], [260, 230]], planes: true,
       chutes: [[-260, 160], [-320, -40]], bombing: [[400, -220], [-400, -160]], fires: [[335, -25, 1.4], [-300, -270, 1]], flares: [[250, -160]],
       smoke: IV.art.chimneys.map(c => [c.x, c.y, c.z, false]), bats: [[37, 88], [-150, -45]],
-      sounds: [{ kind: 'dog', every: [20, 50], x: 6, z: 62 }, { kind: 'bell', every: [70, 140], x: 37, z: 80 }, { kind: 'owl', every: [30, 70], x: -60, z: 110 }] });
+      leaves: 'night', sounds: [{ kind: 'dog', every: [20, 50], x: 6, z: 62 }, { kind: 'bell', every: [70, 140], x: 37, z: 80 }, { kind: 'owl', every: [30, 70], x: -60, z: 110 }] });
+    // ---- trees to fill the middle distance (their own random stream): tall hedgerow trees every 20-40 m along the
+    // lanes and field hedges, copses and a shelter belt on the slopes, willow-like ash along the stream, an avenue on
+    // the road into the hamlet, garden and churchyard trees, lone oaks in fields, scrub at field corners
+    { const RF2 = IV.rng(2024), clear = (x, z) => { if (pd(x, z, L1) < 4.2 || pd(x, z, L2) < 4.2 || pd(x, z, R1) < 4.5 || pd(x, z, R2) < 4 || pd(x, z, R3) < 4.5 || pd(x, z, ST) < 5) return false; if (Math.hypot(x - FARM.x, z - FARM.z) < 40 || Math.hypot(x - AA.x, z - AA.z) < 18) return false; if (IV.inPoly(x, z, WHEAT) || IV.inPoly(x, z, MAIZE)) return false; for (const r of HRECT) if (Math.abs(x - r.x) < r.hx + 2.5 && Math.abs(z - r.z) < r.hz + 2.5) return false; if (Math.abs(x) > 186 || Math.abs(z) > 186) return false; for (let q = 0; q < 3; q++) if (pd(x, z, KEEP[q]) < 3.5) return false; return true; };   // never on the approach, loud route or run
+      const tree = (x, z, k) => { if (clear(x, z)) IV.art.tree(b, x, z, k || (RF2() < 0.5 ? 'oak' : RF2() < 0.7 ? 'ash' : 'poplar'), RF2); };
+      for (const Ln of [offset(L1, -6.5), offset(L1, 6.5), offset(L2, -6.5), offset(L2, 6.5)]) for (let i = 0; i < Ln.length - 1; i++) { const a = Ln[i], c = Ln[i + 1], L = Math.hypot(c[0] - a[0], c[1] - a[1]); for (let t = RF2() * 20; t < L; t += 20 + RF2() * 20) tree(a[0] + (c[0] - a[0]) * t / L, a[1] + (c[1] - a[1]) * t / L, RF2() < 0.7 ? 'oak' : 'ash'); }
+      for (const [cx, cz, n] of [[-60, -130, 12], [-160, -100, 10], [70, 150, 10], [-100, 120, 8], [130, -10, 8], [-170, 0, 9], [175, 20, 8], [-20, -160, 9], [100, -170, 8]]) for (let i = 0; i < n; i++) tree(cx + RF2.range(-16, 16), cz + RF2.range(-14, 14));
+      for (let t = 0; t < 1; t += 0.06) { const r = IV.polyDist(0, 0, ST); const i = Math.floor(t * (ST.length - 1)), a = ST[i], c = ST[i + 1], u = t * (ST.length - 1) - i, x = a[0] + (c[0] - a[0]) * u, z = a[1] + (c[1] - a[1]) * u; tree(x + (RF2() < 0.5 ? -7 : 7), z + RF2.range(-3, 3), 'ash'); }
+      for (let z = 112; z < 180; z += 12) { tree(6.5, z + RF2.range(-1, 1), 'poplar'); }
+      for (const [x, z] of [[-24, 40], [-25, 77], [22, 58], [24, 30], [-27, 98], [43, 99], [31, 99], [44, 76]]) tree(x, z, RF2() < 0.6 ? 'apple' : 'ash');
+      for (const [x, z] of [[-110, 40], [-70, 100], [60, 100], [140, 90], [-120, -60], [90, 0], [-40, 140], [150, -110], [-140, 165], [40, -150]]) tree(x, z, 'oak');
+      for (const [x, z] of [[-58, 58], [-62, 152], [-28, 72], [97, 26], [32, -57], [148, -72], [-168, -78], [-72, -88]]) for (let i = 0; i < 3; i++) tree(x + RF2.range(-3, 3), z + RF2.range(-3, 3), 'apple'); }
     // scattered field trees
     [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)
@@ -387,6 +406,7 @@
     } catch (e) { console.warn('puddles', e); } }
     // crops (wheat) and tall grass in the pasture
     IV.art.crops(WHEAT, 0.95 * W.P.crops, 1.15, 0xb7a56e);
+    if (IV.art.envOn() && IVEnv.scatter) { try { const mz = IVEnv.scatter('maize', (x, z) => { if (!IV.inPoly(x, z, MAIZE) || Math.abs(x - 24) < 0.9) return 0; let e = 1e9; for (let i = 0; i < 4; i++) { const a = MAIZE[i], c = MAIZE[(i + 1) % 4]; e = Math.min(e, IV.segDist(x, z, a[0], a[1], c[0], c[1]).d); } return e < 1.4 ? 0 : 1; }, { heightFn: W.height, density: 1, bounds: [13, -114, 29, -59], seed: 41 }); W.scene.add(mz.group); } catch (e) { console.warn('maize', e); } }
     // grass round the camera
     grass = IV.art.grass(W.P.grass, W.P.grassR, (x, z) => { const s = W.surfAt(x, z); if (s === S.tallgrass) return 1.5; if (s !== S.grass) return 0; return 0.55 + IV.noise(x / 6, z / 6) * 0.6; }, (x, z, c) => c.setRGB(0.42 + IV.noise(x / 9, z / 9) * 0.15, 0.46, 0.25));
     // tall grass also counts as concealment: second pass of taller cards on tallgrass only
