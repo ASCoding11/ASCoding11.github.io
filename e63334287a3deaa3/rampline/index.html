@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Rampline</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -343,6 +345,7 @@ body.touch #edHelp{display:none}
         <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Camera</span><div class="seg" id="camSeg"><button type="button" data-c="0">Chase</button><button type="button" data-c="1">Far</button><button type="button" data-c="2">Hood</button></div></div>
         <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Ghost</span><div class="seg" id="ghostSeg"><button type="button" data-g="1">Show my best</button><button type="button" data-g="0">Off</button></div></div>
         <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Speed effects</span><div class="seg" id="fxSeg" title="Speed lines and the view widening at speed"><button type="button" data-fx="1">On</button><button type="button" data-fx="0">Off</button></div></div>
+        <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Language</span><div data-lang-toggle></div></div>
         <div class="row" style="margin-top:12px"><button class="btn sm alt kbonly" id="keysMenu" type="button">Controls</button></div>
         <details>
           <summary>How to play</summary>
@@ -404,7 +407,7 @@ body.touch #edHelp{display:none}
     <canvas id="rvGraph" aria-label="Speed over distance: tap to jump there"></canvas>
     <div class="rvrow"><span id="rvLegend"></span></div>
     <div class="rvrow"><button class="btn sm" id="rvPlay" type="button" aria-label="Pause">❚❚</button><button class="btn sm alt" id="rvBack" type="button" aria-label="Step back">◀︎</button><button class="btn sm alt" id="rvFwd" type="button" aria-label="Step forward">▶︎</button>
-      <input type="range" id="rvSlider" min="0" max="1" value="0" aria-label="Timeline"><span id="rvTime">0:00.000</span></div>
+      <input type="range" id="rvSlider" min="0" max="1" value="0" aria-label="Timeline"><span id="rvTime" data-noi18n>0:00.000</span></div>
     <div class="rvrow"><div class="seg" id="rvSpeed"><button type="button" data-v="0.25">¼×</button><button type="button" data-v="0.5">½×</button><button type="button" data-v="1">1×</button><button type="button" data-v="2">2×</button></div><select id="rvCmp" aria-label="Compare with"></select></div>
   </div>
 
@@ -421,6 +424,7 @@ body.touch #edHelp{display:none}
       <div class="setting"><span>Sound</span><input id="vol2" type="range" min="0" max="1" step=".05" aria-label="Sound volume"></div>
       <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Ghost</span><div class="seg" id="ghostSeg2"><button type="button" data-g="1">On</button><button type="button" data-g="0">Off</button></div></div>
       <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Speed effects</span><div class="seg" id="fxSeg2" title="Speed lines and the view widening at speed"><button type="button" data-fx="1">On</button><button type="button" data-fx="0">Off</button></div></div>
+        <div class="row" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:92px">Language</span><div data-lang-toggle></div></div>
       <div class="row" style="margin-top:12px"><button class="btn sm alt kbonly" id="keysPause" type="button">Controls</button></div>
     </div>
   </section>
@@ -1330,6 +1334,9 @@ return {TRACKS,TIERS,trackOf,THEMES,T,H,RW,DT,PHYS_V,PHYS_NOW,bodyPose,PH,GROUND
 'use strict';
 const $=id=>document.getElementById(id);
 const {T,H,DT,PIECES,BY,TRACKS,TIERS,v:Vm}=RL;
+// Spanish (../lang.js, es.js): _t() gives the words in the player's language, for text the page can't leave to lang.js (T is the tile size here).
+const _t=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+{const ta=$('mCode'),en=ta.getAttribute('aria-label'),f=()=>ta.setAttribute('aria-label',_t(en));f();document.addEventListener('backroom:lang',f)}   // lang.js leaves text boxes alone
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 
 // ---------- saved data (this browser only) ----------
@@ -2262,7 +2269,7 @@ function openMine(){
     const nm=document.createElement('div');nm.className='nm';const b=document.createElement('b');b.textContent=s.name||'Untitled';const sm=document.createElement('small');
     const v=RL.validate(tr);sm.textContent=tr.pieces.length+' pieces · '+(v.ok?(best?'best '+fmt(best.t):'no time yet'):'not finished yet');nm.append(b,sm);
     const mk=(t,c,f)=>{const e=document.createElement('button');e.type='button';e.className='btn sm '+c;e.textContent=t;e.addEventListener('click',f);return e};
-    const play=mk('Play','mint',()=>{if(!v.ok){dialog('Not ready yet',v.errors.join(' '));return}tr.name=s.name;openSheet({track:tr,key,bi:-1,comm:null})});
+    const play=mk('Play','mint',()=>{if(!v.ok){dialog('Not ready yet',v.errors.map(e=>_t(e)).join(' '));return}tr.name=s.name;openSheet({track:tr,key,bi:-1,comm:null})});
     row.append(nm,play,mk('Edit','',()=>openEditor(s.id,tr)),mk('Share','alt',()=>shareDialog(s.code,s.name)),mk('Publish','alt',()=>publishSlot(s)),mk('Delete','alt',()=>{
       dialog('Delete "'+(s.name||'Untitled')+'"?','This removes it from this browser. If you shared its code, that still works.',[{t:'Keep it',c:'alt'},{t:'Delete',c:'coral',f:()=>{slotsSet(slotsGet().filter(x=>x.id!==s.id));openMine()}}])}));
     L.appendChild(row)});
@@ -2387,7 +2394,7 @@ function drawPieceIcon(cv,def){ // top view of the piece's road, plus a side vie
   // arrow for the way in
   const [ax,ay]=P(0,-5);g.fillStyle='#ff7a59';g.beginPath();g.moveTo(ax,ay-10);g.lineTo(ax-8,ay+2);g.lineTo(ax+8,ay+2);g.closePath();g.fill();
   const tag={slope:'↗ +1',steep:'↗ +2',rise:'↗ +3',climbL:'↗ +1',climbR:'↗ +1',ramp:'jump',bigramp:'JUMP',loopL:'loop',loopR:'loop',wallride:'wall',bankM:'bank',bankL:'bank',gap:'gap',bump:'bump',boost:'boost',ring:'ring'}[def.id];
-  if(tag){g.font='900 22px Nunito,sans-serif';g.textAlign='right';g.textBaseline='top';g.lineWidth=5;g.strokeStyle='#fff';g.strokeText(tag,W-4,4);g.fillStyle='#16213a';g.fillText(tag,W-4,4)}
+  if(tag){const tx=_t(tag);g.font='900 22px Nunito,sans-serif';g.textAlign='right';g.textBaseline='top';g.lineWidth=5;g.strokeStyle='#fff';g.strokeText(tx,W-4,4);g.fillStyle='#16213a';g.fillText(tx,W-4,4)}
 }
 function edTools(){$('edDel').classList.toggle('on',ED.del);$('edSelTool').classList.toggle('on',ED.tool==='sel'&&!ED.del);if(ED.del||ED.tool!=='sel'){ED.paste=null;ED.sel=new Set()}edSelChanged();$('edWalls').classList.toggle('on',!!ED.walls);$('edLayer').textContent=ED.layer;$('edWalls').hidden=!BY[ED.cur].walls;markPal();ED.previewKey=null}
 $('edRot').addEventListener('click',()=>{if(ED.paste)ED.paste.rot=(ED.paste.rot+1)&3;else ED.rot=(ED.rot+1)&3;ED.previewKey=null;sfx.click()});
@@ -2759,7 +2766,7 @@ function renderResBoard(){const box=$('resBoard');box.textContent='';if(!(G.buil
 const hidden=()=>{const a=store.get('hidden',[]);return Array.isArray(a)?a:[]};
 function hideTrack(key){const a=hidden();if(!a.includes(key)){a.push(key);store.set('hidden',a.slice(-300))}}
 function reportTrack(spec){hideTrack(spec.key);
-  dialog('Reported','"'+spec.comm.name+'" is hidden for you now. To tell Arjun about it, use Tell Arjun on the Back Room page and mention the track\'s name and author ('+spec.comm.author+').',[{t:'OK',f:()=>openComm()}])}
+  dialog('Reported','"'+spec.comm.name+'" is hidden for you now. To tell us about it, use Tell us on the Back Room page and mention the track\'s name and author ('+spec.comm.author+').',[{t:'OK',f:()=>openComm()}])}
 let commSort='new',commCache=null;
 // the featured track of the week: the most raced in the last 7 days; with no plays this week, one picked by the week number
 function featuredOf(list){
@@ -2792,7 +2799,7 @@ $('commUnhide').addEventListener('click',()=>{store.del('hidden');drawComm()});
 // publish one of your tracks: it must check out, you must have finished it cleanly, and it must be at most 800 pieces
 function publishSlot(s){
   const dec=RL.decodeTrack(s.code);if(!dec.track)return;const tr=dec.track,key=RL.trackKey(tr.pieces),v=RL.validate(tr);
-  if(!v.ok){dialog('Not ready to publish',v.errors.join(' '));return}
+  if(!v.ok){dialog('Not ready to publish',v.errors.map(e=>_t(e)).join(' '));return}
   if(!bestOf(key)){dialog('Finish it first','Drive it to the finish without going back to a checkpoint (Play or Test drive), so everyone knows it can be done. Then publish.');return}
   if(tr.pieces.length>PUB_PIECES){dialog('Too big to publish','Published tracks can have up to '+PUB_PIECES+' pieces (this one has '+tr.pieces.length+').');return}
   const name=nf(s.name).slice(0,40)||'Untitled';

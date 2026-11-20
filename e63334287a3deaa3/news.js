@@ -74,8 +74,9 @@
  *   img   optional: a picture the advertiser has said we may use, saved inside the Back Room folder (say
  *         'ads/<name>.png'): wide rather than tall, about 600 × 200 (twice its largest size on the page), a
  *         transparent .png or a .jpg/.webp, under about 60 KB. Left empty (or if the file is missing), the tile
- *         shows a little drawing made in code instead, chosen by `art` ('candy', a candy bar, 'car', a plain car, or
- *         'video', a screen with a play button; never a company's logo). `alt` says what the picture shows.
+ *         shows a little drawing made in code instead, chosen by `art` ('candy', a candy bar, 'car', a plain car,
+ *         'video', a screen with a play button, or 'youtube', YouTube's own icon, only for a link to a YouTube channel,
+ *         as YouTube's brand guidelines allow; never any other company's logo). `alt` says what the picture shows.
  *   href  an https:// address; anything else switches the tile off.
  *
  * Several entries can share a date (say 1.7 and then 1.7.1 the same day); they're shown
@@ -84,6 +85,90 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-19', version: '1.32', title: 'New game: Hush Pools', kind: 'game', games: ['Hush Pools'],
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Horror obby', 'Co-op', 'Up to 4'], items: [
+      'Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can\'t see you, but it hears every splash.',
+      'Every noise sends rings across the water. Creep and stand still and it walks past; throw a pebble, a bottle or a wind-up toy to send it the other way, or a flare to stun it.',
+      'If you go down, a teammate can pull you out or throw you a rope. Clear rooms for coins to spend on gear and upgrades (no real money), and beat Normal twice to open Hard.',
+      'Play solo, in a room with friends, or Quick match. Your Elo, fastest escape, escapes and rescues go on the Leaderboards.'
+    ]},
+    {date: '2026-11-19', version: '1.31', title: 'Sky Duel: cockpit view', kind: 'feature',
+     tags: ['Sky Duel', 'Cockpit'], img: 'm/thumbs/sky-duel.jpg', items: [
+      'Press V in Sky Duel (or tap Cockpit on a phone) to fly from the pilot\'s seat. Press it again for the chase camera.',
+      'You see out through the canopy frame over your own nose, wings and spinning propeller, with a gunsight lined up with your guns.',
+      'The instrument panel works: speed, altitude, attitude, heading, climb, RPM, gun heat and hull, plus warning lights for lock, incoming missiles and stalls.',
+      'Your head turns a little into turns, and the view shakes when you fire or boost. Your choice is remembered, and it is also under View in the settings.'
+    ]},
+    {date: '2026-11-19', version: '1.30.2', title: 'No more "moved" error offline', kind: 'fix',
+     tags: ['Offline'], items: [
+      'Opening a game that isn\'t saved while you\'re offline no longer shows the browser\'s "may have moved" error page.',
+      'Tapping a faded game while offline now just tells you to play it once with internet first.'
+    ]},
+    {date: '2026-11-19', version: '1.30.1', title: 'Offline mode fixes', kind: 'fix',
+     tags: ['Offline'], items: [
+      'The page you open first is now always saved for offline, even if you start clicking straight away.',
+      'The "You\'re offline" page now also shows on ascoding11.com.'
+    ]},
+    {date: '2026-11-19', version: '1.30', title: 'Offline mode', kind: 'feature',
+     tags: ['Offline', 'Every game'], items: [
+      'Games you\'ve played on a device now open on it again with no internet, along with the home page, the Back Room and the phone page.',
+      'Practice, bots and single-player modes work offline. Online matches, leaderboards, chat and the Marketplace come back when you reconnect.',
+      'While you\'re offline, a note at the bottom says so and games not saved on that device yet are faded, so you can see what you can play.',
+      'On a phone, add the phone page to your home screen to use it like an app, with or without internet.'
+    ]},
+    {date: '2026-11-19', version: '1.29.25', title: 'An Aisles tab on the Leaderboards', kind: 'feature',
+     tags: ['Leaderboards', 'Aisles'], items: [
+      'The Leaderboards now have two tabs, Players and Aisles.',
+      'Aisles has Aisle Miles (with this week\'s contest) and Aisle Elo side by side, instead of at the bottom of the Board menu.',
+      'Going back to Players reopens the board you were on.'
+    ]},
+    {date: '2026-11-19', version: '1.29.24', title: 'Private messages show up again', kind: 'fix',
+     tags: ['Online', 'Chat'], items: [
+      'Messages in a private chat weren\'t appearing for either person since last night. They show up straight away again.'
+    ]},
+    {date: '2026-11-18', version: '1.29.23', title: 'Three new games', kind: 'game', games: ['Sky Duel', 'Lanternhold', 'Blockstorm'],
+     img: ['m/thumbs/sky-duel.jpg', 'm/thumbs/lanternhold.jpg', 'm/thumbs/blockstorm.jpg'], tags: ['Dogfights', 'Tower defense', 'Shooter'], items: [
+      'Sky Duel: arcade dogfights for up to 8 planes over hills, lakes and red-rock canyons. Play a 1v1 Duel, everyone for themselves, or 2v2, against bots or online.',
+      'Lanternhold: co-op tower defense for 1 to 4 players. Build towers on a floating island to stop the Gloom before it reaches the lantern, across three maps.',
+      'Blockstorm: a blocky shooter on the roofs of five sky towers joined by glass maze bridges. Free-for-all or capture the flag, a shove that can push people off the edge, and better guns as you rack up kills. Made by dessyc9 and brought here with their permission.'
+    ]},
+    {date: '2026-11-18', version: '1.29.22', title: 'The Back Room in Spanish', kind: 'feature',
+     tags: ['Español', 'Every game'], items: [
+      'The whole Back Room can be in Spanish: the page, the panels, What\'s new and almost every game\'s menus, buttons and results.',
+      'Use the EN | ES switch in the header. If your browser is set to Spanish, it starts in Spanish by itself.',
+      'Player names and chat messages are never translated. The word games and Puffer Party still play in English, marked "En inglés".'
+    ]},
+    {date: '2026-11-18', version: '1.29.21', title: 'Aisles: start a team with your friends', kind: 'feature',
+     tags: ['Aisles', 'Online', 'Leaderboards'], items: [
+      'Start an Aisle from the Aisle button in the Online panel: pick a name, a short tag and a colour. Up to 6 people per Aisle.',
+      'Invite people from their card in the Online panel or with an invite link.',
+      'Your Aisle\'s miles and Elo add up on two new boards, Aisle Miles and Aisle Elo, and each week the Aisle that flies the most miles wins.'
+    ]},
+    {date: '2026-11-18', version: '1.29.20', title: 'Shell Crackers: Gun Game and new rules', kind: 'feature',
+     img: 'm/thumbs/shell-crackers.jpg', tags: ['Shell Crackers', 'Gun Game', 'Streaks'], items: [
+      'Gun Game: everyone starts on the same gun and every crack moves you on to the next one. First through all ten guns wins.',
+      'More ways to play: Snipers, Low-Gravity Snipers, Pistols Only and One-Shot. At the end of a match, vote on the next map.',
+      'Streak rewards: crack 3, 5, 7, 10 or 15 eggs in one life to earn the Candler, Quick Hands, Thick Shell, the Yolk Launcher and The Big Fry.',
+      'Top Cracker: whoever has the most Shell Crackers kills of all time wears a cracked-egg medal next to their badge.'
+    ]},
+    {date: '2026-11-18', version: '1.29.19', title: 'Driftfall: five new modes', kind: 'feature',
+     img: 'm/thumbs/drop-zone.jpg', tags: ['Driftfall', 'Duos', 'Box Fights'], items: [
+      'Pick a mode in the menu: Classic, Duos, Trios, Creative, Box Fights or Zone Wars.',
+      'Box Fights: two teams in boxes 8 m apart, from 1v1 up to 4v4, first to 3, 5 or 7 rounds.',
+      'Creative is a place to practise building, with bots to spar against. Practice plays any mode against bots.'
+    ]},
+    {date: '2026-11-18', version: '1.29.18', title: 'Vote on the next game, search, and dark mode', kind: 'feature',
+     tags: ['Party', 'Search', 'Dark mode'], items: [
+      'In a party, everyone can vote on which game to play next.',
+      'A Search games box under the Online panel finds any game by name.',
+      'Auto, Light or Dark: the switch in the top bar picks the site\'s look. Auto follows your device.',
+      'Your school: search for your school, or add it with Add my school if it isn\'t there yet.'
+    ]},
+    {date: '2026-11-18', version: '1.29.17', title: 'Online panel fixes', kind: 'fix',
+     tags: ['Online'], items: [
+      'Clicking on people in the Online panel works again, even with your own layout.',
+      'The list no longer jumps back to the top while you scroll it.'
+    ]},
     {date: '2026-11-27', version: '1.30', title: 'Happy holidays: the cabin is open', kind: 'feature',
      tags: ['Back Room', 'Holidays', 'Retro TV'], items: [
       'The Back Room now opens on a log cabin at Christmas: a fire, a tree, snow at the window, and an old TV in the middle. Click the TV to step through to the games.',
@@ -321,7 +406,7 @@
       'Party chat: message your party straight away, with no chat request first, in its own Party chat channel.',
       'Chat inside the games: when you\'re in a party, press T in an online game to send a message, and your party\'s messages show at the side of the screen. On a phone, tap Chat in the top bar.',
       'The Back Room is now in sections, Puzzles, Parkour, Shooter / Action, Multiplayer and Single player, on the computer and on the phone version.',
-      'Leaderboards: hours played no longer go up and down when you play on two devices, and if you played as a guest before signing in with Google, your two entries now merge into one.'
+      'Leaderboards: play time no longer goes up and down when you play on two devices, and if you played as a guest before signing in with Google, your two entries now merge into one.'
     ]},
     {date: '2026-10-29', version: '1.11', title: 'Turbo Trail, Escapade and Spire', kind: 'game', games: ['Turbo Trail', 'Escapade'],
      img: ['m/thumbs/turbo-trail.jpg', 'm/thumbs/escapade.jpg', 'm/thumbs/spire.jpg'], tags: ['Obby', 'Escape rooms', 'Online races'], items: [
@@ -371,7 +456,7 @@
       'A new Online panel under Party shows who else has the Back Room open, and whether they\'re idle, in a party or in a game.',
       'Tap someone to send a private message, invite them to your party, or invite them into the room you\'re playing in.',
       'Cabin chat: one shared chat for everyone online, with Mute and Block if you need them.',
-      'Got an idea or found a bug? The "Tell Arjun" box at the top of the page sends it straight to him.',
+      'Got an idea or found a bug? The "Tell us" box at the top of the page sends it straight to us.',
       'Smoother online movement: other players glide instead of jumping around on slow school Wi-Fi, in Shell Crackers, Backrooms, Chromaflage, Odd One Out, Spire, Updraft and Coil.',
       'This What\'s new list, so you can see what changed since you last played.'
     ]},
@@ -447,12 +532,32 @@
       line: 'Souleymane\u2019s YouTube channel. Go watch and subscribe.',
       button: 'Watch',                                        // short, so the channel name fits beside it
       href: 'https://www.youtube.com/@souls_type',            // his channel page
-      img: '', alt: '',                                       // no picture: a screen with a play button drawn in code (art), not YouTube's logo
-      art: 'video',
-      bg: '#24184A', ink: '#FFFFFF', btn: '#7CF0D0', btnInk: '#1B1338'
+      img: '', alt: '',                                       // no picture: YouTube's own icon, drawn in code (art 'youtube')
+      art: 'youtube',
+      bg: '#0F0F0F', ink: '#FFFFFF', btn: '#FF0000', btnInk: '#FFFFFF'   // YouTube's near-black and red
     }
   ];
 
+  // Spanish (lang.js): this script's words, and T() for the labels put together here; dates follow the language the page opened in.
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'What\'s new': 'Novedades', ' (new)': ' (nuevo)', 'New game': 'Juego nuevo', 'Update': 'Actualización', 'Bug fix': 'Arreglos',
+      'Coming soon': 'Muy pronto', 'Today': 'Hoy', 'Yesterday': 'Ayer', 'New game!': '¡Juego nuevo!', 'New games!': '¡Juegos nuevos!', 'New games': 'Juegos nuevos',
+      'Show older': 'Ver anteriores', 'Show older (1 more day)': 'Ver anteriores (1 día más)', 'Show older ({n} more days)': 'Ver anteriores ({n} días más)',
+      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Open': 'Abrir', 'Sponsored': 'Patrocinado', 'Learn more': 'Más info',
+      'Ad for {n}: {l} {b} (opens in a new tab)': 'Anuncio de {n}: {l} {b} (se abre en una pestaña nueva)',
+      'Ad for {n}. {b} (opens in a new tab)': 'Anuncio de {n}. {b} (se abre en una pestaña nueva)',
+      // The spotlight and the ads' own words (brand names stay as they are).
+      'New battle royale': 'Nuevo battle royale', 'New battle royale: {g}': 'Nuevo battle royale: {g}', 'Up to 30 players': 'Hasta 30 jugadores', 'Drop in · loot · build': 'Cae · saquea · construye',
+      'Last one standing': 'El último en pie', 'Dark chocolate caramel candy bars.': 'Barras de chocolate amargo con caramelo.', 'Find a store': 'Buscar tienda',
+      'Souleymane’s YouTube channel. Go watch and subscribe.': 'El canal de YouTube de Souleymane. Míralo y suscríbete.', 'Watch': 'Ver',
+      // Entry titles and tags shown on the strip (the entries' bullet points stay in English).
+      'Something is coming': 'Algo se viene', 'Top secret': 'Alto secreto', 'Happy holidays: the cabin is open': 'Felices fiestas: la cabaña está abierta',
+      'Three new daily puzzles': 'Tres puzles diarios nuevos'
+    });
+  })(0);
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix', soon: 'Coming soon' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧', soon: '?' };
   var PAGE = 5;      // days shown at first, and added by each "Show older"...
@@ -507,12 +612,32 @@
   }
   function short(d) {
     var x = local(d), s = MON[x.getMonth()] + ' ' + x.getDate();
+    if (window.BackRoomLang && BackRoomLang.get() !== 'en') return BackRoomLang.date(x, x.getFullYear() === new Date().getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
     return x.getFullYear() === new Date().getFullYear() ? s : s + ', ' + x.getFullYear();
   }
+  // The dates follow the language, and are redrawn when it changes (they're kept out of the automatic translation).
+  function drawDate(e) { var d = e.getAttribute('data-nws-d'); e.textContent = T(rel(d)); e.title = short(d); }
+  function drawDay(h) {
+    var d = h.getAttribute('data-nws-day'), n = daysAgo(d), x = local(d);
+    var full = window.BackRoomLang && BackRoomLang.get() !== 'en' ? BackRoomLang.date(x, { weekday: 'short' }) + ', ' + short(d) : DAY[x.getDay()] + ', ' + short(d);
+    h.textContent = '';
+    if (n === 0 || n === 1) h.append(el('b', '', T(n === 0 ? 'Today' : 'Yesterday')), ' · ' + full); else h.textContent = full;
+  }
+  // Spanish for the entries themselves (titles, tags and bullet points) lives in news-es.js, loaded only while Spanish is on.
+  var esLoaded = false;
+  function loadEs() {
+    if (esLoaded || !window.BackRoomLang || BackRoomLang.get() !== 'es') return; esLoaded = true;
+    var sc = document.createElement('script'); sc.src = BASE + 'news-es.js'; document.head.appendChild(sc);
+  }
+  document.addEventListener('backroom:lang', function () {
+    loadEs();
+    document.querySelectorAll('[data-nws-d]').forEach(drawDate);
+    document.querySelectorAll('[data-nws-day]').forEach(drawDay);
+  });
   function rel(d) { var n = daysAgo(d); return n === 0 ? 'Today' : n === 1 ? 'Yesterday' : short(d); }
   function kindOf(e) { return KIND[e.kind] ? e.kind : 'feature'; }
   function shownVer(e) { return kindOf(e) === 'soon' ? '' : e.version || ''; }  // a teaser shows no version: nothing has gone out yet
-  function label(e) { return KIND[kindOf(e)] + (shownVer(e) ? ' ' + shownVer(e) : ''); }
+  function label(e) { return T(KIND[kindOf(e)]) + (shownVer(e) ? ' ' + shownVer(e) : ''); }
   function el(tag, cls, text) { var x = document.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = text; return x; }
 
   // The spotlight, when it's on today: {g: {n, d}, id, kicker, img, tags}, or null. Closed in this browser: hidden.
@@ -534,7 +659,7 @@
     var hex = function (x, d) { return typeof x === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(x) ? x : d; };
     if (!A || A.on !== true || !txt(A.name, 28) || typeof A.href !== 'string' || !/^https:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[\w\-./?=&%#@]*)?$/i.test(A.href)) return null;
     return { name: txt(A.name, 28), line: txt(A.line, 60), button: txt(A.button, 18) || 'Learn more', href: A.href, img: imgsOf(A)[0] || '', alt: txt(A.alt, 120),
-      art: A.art === 'car' || A.art === 'video' ? A.art : 'candy',
+      art: A.art === 'car' || A.art === 'video' || A.art === 'youtube' ? A.art : 'candy',
       bg: hex(A.bg, '#FFD23F'), ink: hex(A.ink, '#2A1608'), btn: hex(A.btn, '#C2185B'), btnInk: hex(A.btnInk, '#FFFFFF') };
   }).filter(Boolean).slice(0, 2);
   window.BackRoomNews.ad = ads[0] ? { name: ads[0].name, href: ads[0].href } : null;
@@ -592,7 +717,7 @@
       opens(c, g);
       var tri = el('span', 'nws-play', '▶'); th.appendChild(tri);
       c.append(th, g.n);
-      c.setAttribute('aria-label', 'Play ' + g.n);
+      c.setAttribute('aria-label', T('Play') + ' ' + g.n);
     } else c.append(th, g.n);
     return c;
   }
@@ -624,7 +749,13 @@
     '<path d="M61 51h78" stroke="var(--ad-ink)" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>' +
     '<path d="M61 51h34" stroke="var(--ad-btn)" stroke-width="3" stroke-linecap="round"/><circle cx="95" cy="51" r="3.5" fill="var(--ad-btn)"/>' +
     '<path d="M28 22l10 6-10 6zM164 30l8 5-8 5z" fill="var(--ad-btn)" fill-opacity=".55"/></svg>';
-  var ARTS = { candy: AD_ART, car: CAR_ART, video: VIDEO_ART };
+  // youtube: YouTube's icon (the red rounded play button), drawn to YouTube's own shape and colours, unaltered, with
+  // clear space round it. YouTube's brand guidelines let a creator's channel link use it; it only ever links to a
+  // YouTube channel, and never with another site's name.
+  var YT_ART = '<svg viewBox="0 0 200 70" aria-hidden="true" focusable="false"><g transform="translate(58 6) scale(3)">' +
+    '<path d="M27.4 3.1A3.5 3.5 0 0 0 24.9.6C22.7 0 14 0 14 0S5.3 0 3.1.6A3.5 3.5 0 0 0 .6 3.1C0 5.3 0 10 0 10s0 4.7.6 6.9a3.5 3.5 0 0 0 2.5 2.5C5.3 20 14 20 14 20s8.7 0 10.9-.6a3.5 3.5 0 0 0 2.5-2.5C28 14.7 28 10 28 10s0-4.7-.6-6.9z" fill="#FF0000"/>' +
+    '<path d="M11.2 14.3 18.5 10l-7.3-4.3z" fill="#FFFFFF"/></g></svg>';
+  var ARTS = { candy: AD_ART, car: CAR_ART, video: VIDEO_ART, youtube: YT_ART };
 
   function start() {
     if (document.getElementById('news')) return;
@@ -774,7 +905,7 @@
     v.append(vi, shownVer(latest) ? 'v' + shownVer(latest) : KIND[kindOf(latest)]);
     v.title = KIND[kindOf(latest)];
     var t = el('span', 'nws-t', latest.title);
-    var d = el('span', 'nws-d', rel(latest.date)); d.title = short(latest.date);
+    var d = el('span', 'nws-d'); d.setAttribute('data-noi18n', ''); d.setAttribute('data-nws-d', latest.date); drawDate(d);
     var chev = el('span', 'nws-chev'); chev.setAttribute('aria-hidden', 'true');
     var chevB = el('b', '', 'Open'), chevI = el('i', '', '▾'); chev.append(chevB, chevI);
     var snap = imgsOf(latest)[0];
@@ -796,7 +927,7 @@
         stx.appendChild(kws);
       }
       var sp = opens(el('a', 'nws-sp'), spot.g), spT = el('span', '', '▶'); spT.setAttribute('aria-hidden', 'true');
-      sp.append(spT, 'Play'); sp.setAttribute('aria-label', 'Play ' + spot.g.n);
+      sp.append(spT, 'Play'); sp.setAttribute('aria-label', T('Play') + ' ' + spot.g.n);
       var sx = el('button', 'nws-sx', '×'); sx.type = 'button'; sx.setAttribute('aria-label', 'Hide this');
       sx.title = 'Hide this';
       sx.addEventListener('click', function () {
@@ -836,7 +967,7 @@
     function tile(ad) {
       var t = el('a', 'nws-ad'); t.href = ad.href; t.target = '_blank'; t.rel = 'noopener sponsored';
       t.referrerPolicy = 'origin';  // the advertiser sees the site's name, never the page's address
-      t.setAttribute('aria-label', 'Ad for ' + ad.name + (ad.line ? ': ' + ad.line : '.') + ' ' + ad.button + ' (opens in a new tab)');
+      t.setAttribute('aria-label', ad.line ? T('Ad for {n}: {l} {b} (opens in a new tab)', { n: ad.name, l: T(ad.line), b: T(ad.button) }) : T('Ad for {n}. {b} (opens in a new tab)', { n: ad.name, b: T(ad.button) }));
       t.style.setProperty('--ad-bg', ad.bg); t.style.setProperty('--ad-ink', ad.ink); t.style.setProperty('--ad-btn', ad.btn); t.style.setProperty('--ad-bi', ad.btnInk);
       var aIn = el('span', 'nws-ad-in'), aPic = el('span', 'nws-ad-pic'), aTx = el('span', 'nws-ad-tx'), aBtn = el('span', 'nws-ad-btn', ad.button), aGo = el('span', '', '\u2192');
       var drawn = function () { aPic.innerHTML = ARTS[ad.art] || AD_ART; };  // no picture (or it's missing): the drawing made in code
@@ -877,8 +1008,7 @@
       for (; shown < end && drawn < CARDS; shown++) {
         var g = groups[shown], day = el('div', 'nws-day'), h = el('h3', 'nws-dh'), n = daysAgo(g.date), x = local(g.date);
         drawn += g.entries.length;
-        var full = DAY[x.getDay()] + ', ' + short(g.date);
-        if (n === 0 || n === 1) { h.append(el('b', '', n === 0 ? 'Today' : 'Yesterday'), ' · ' + full); } else h.textContent = full;
+        h.setAttribute('data-noi18n', ''); h.setAttribute('data-nws-day', g.date); drawDay(h);
         day.appendChild(h);
         g.entries.forEach(function (it) {
           var e = it.e, kd = kindOf(e), art = el('article', 'nws-e k-' + kd), eh = el('p', 'nws-eh');
@@ -919,7 +1049,7 @@
       }
       var left = groups.length - shown;
       more.hidden = left <= 0;
-      more.textContent = 'Show older (' + left + (left === 1 ? ' more day)' : ' more days)');
+      more.textContent = left === 1 ? T('Show older (1 more day)') : T('Show older ({n} more days)', { n: left });
     }
 
     function setOpen(o) {
@@ -952,4 +1082,5 @@
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  (function waitLang(n) { if (window.BackRoomLang) { loadEs(); document.querySelectorAll('[data-nws-d]').forEach(drawDate); } else if (n < 100) setTimeout(function () { waitLang(n + 1); }, 100); })(0);
 })();

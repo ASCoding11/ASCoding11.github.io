@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Lokop's Spanish words -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Lokop</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -220,7 +222,7 @@ details.how[open] summary::before{content:'- '}
 
   <section id="game" hidden>
     <canvas id="cv" aria-label="The duel"></canvas>
-    <div id="wait" hidden></div>
+    <div id="wait" hidden data-noi18n></div>
     <aside id="prac" hidden aria-label="Practice moves">
       <div class="ph"><span>Practice</span><small id="pracCount"></small></div>
       <ul id="pracList"></ul>
@@ -290,6 +292,7 @@ details.how[open] summary::before{content:'- '}
           <div id="howBody"></div>
         </details>
       </div>
+      <div style="margin-top:14px" data-lang-toggle></div>
       <p class="foot">Made for the Back Room: characters, arenas, pixel art and music are all its own. &middot; <a href="/privacy.html">Privacy</a></p>
     </div>
   </section>
@@ -300,10 +303,10 @@ details.how[open] summary::before{content:'- '}
       <div class="kicker"><span><b>&#9670;</b> Lokop</span><span id="lbRoom"></span></div>
       <h2 class="big">Lobby</h2>
       <div class="seats">
-        <div class="seat t"><small>Tide &middot; runs right</small><b id="seat0">Waiting&hellip;</b><em id="seat0s"></em></div>
-        <div class="seat b"><small>Bloom &middot; runs left</small><b id="seat1">Waiting&hellip;</b><em id="seat1s"></em></div>
+        <div class="seat t"><small>Tide &middot; runs right</small><b id="seat0" data-noi18n>Waiting&hellip;</b><em id="seat0s"></em></div>
+        <div class="seat b"><small>Bloom &middot; runs left</small><b id="seat1" data-noi18n>Waiting&hellip;</b><em id="seat1s"></em></div>
       </div>
-      <div class="specs" id="specs"></div>
+      <div class="specs" id="specs" data-noi18n></div>
       <p class="msg" id="lbOpts"></p>
       <div class="row"><button id="ready" class="cta" type="button">Ready</button><button id="copyInv" class="ghost" type="button">Copy invite link</button><button id="lbLeave" class="ghost" type="button">Leave</button></div>
       <p class="msg" id="lbMsg"></p>
@@ -327,9 +330,9 @@ details.how[open] summary::before{content:'- '}
   <section id="brk" class="screen" hidden>
     <div class="card" style="width:min(760px,100%)">
       <div class="kicker"><span><b>&#9670;</b> Tournament</span><span id="brkSub"></span></div>
-      <h2 class="big" id="brkTitle">Bracket</h2>
+      <h2 class="big" id="brkTitle" data-noi18n>Bracket</h2>
       <div id="bracket"></div>
-      <p class="msg" id="brkMsg"></p>
+      <p class="msg" id="brkMsg" data-noi18n></p>
       <div class="row"><button id="brkPlay" class="cta" type="button">Play next match</button><button id="brkQuit" class="ghost" type="button">End tournament</button></div>
     </div>
   </section>
@@ -338,8 +341,8 @@ details.how[open] summary::before{content:'- '}
   <section id="over" hidden>
     <div class="obar" role="dialog" aria-labelledby="oTitle">
       <div class="kicker"><span><b>&#9670;</b> <span id="oKick">Match over</span></span></div>
-      <h2 class="otitle" id="oTitle" aria-live="polite">Winner</h2>
-      <p id="oSub"></p>
+      <h2 class="otitle" id="oTitle" aria-live="polite" data-noi18n>Winner</h2>
+      <p id="oSub" data-noi18n></p>
       <ul class="rlist" id="oList"></ul>
       <div class="row"><button id="again" class="cta" type="button">Next game</button><button id="oMenu" class="ghost" type="button">Menu</button></div>
       <p class="msg" id="oMsg"></p>
@@ -353,6 +356,7 @@ details.how[open] summary::before{content:'- '}
       <div id="pauseKeys"></div>
       <div class="row" style="margin-top:12px"><button id="resume" class="cta" type="button">Resume</button><button id="pKeys" class="ghost" type="button">Change keys</button><button id="pQuit" class="ghost" type="button">Quit match</button></div>
       <p class="msg" id="pauseMsg"></p>
+      <div style="margin-top:12px" data-lang-toggle></div>
     </div>
   </section>
 
@@ -364,7 +368,7 @@ details.how[open] summary::before{content:'- '}
       <div class="row" style="margin-top:14px"><button class="cta" id="helpClose" type="button">Got it</button></div>
     </div>
   </section>
-  <div id="toast" aria-live="polite"></div>
+  <div id="toast" aria-live="polite" data-noi18n></div>
 </div>
 <script src="../keybinds.js"></script>
 <script id="core">
@@ -1703,6 +1707,7 @@ root.LLCore = {W, H, BASE, TICK, K, ST, BAND, PIT, VIEW, HW, HANG_D, REACH, AREN
 <script>
 (function () {
 'use strict';
+const LT = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
 // =====================================================================
 //  Lokop: drawing (one small pixel canvas, scaled up crisp) and sound (Web Audio chip voices, all made here).
 //  The duel is drawn at 2 world units per pixel: a 640 x 360 room is 320 x 180 pixels.
@@ -2811,7 +2816,7 @@ function parseCfg(s) {
 function cfgText(c) {
   const v = [];
   if (!c.thr) v.push('no throwing'); if (c.lowg) v.push('low gravity'); if (c.bounce) v.push('bouncing throws'); if (c.turbo) v.push('turbo');
-  return C.ARENAS[c.arena].name + ' · ' + c.N + ' stages' + (v.length ? ' · ' + v.join(', ') : '');
+  return C.ARENAS[c.arena].name + ' · ' + LT('{n} stages', { n: c.N }) + (v.length ? ' · ' + v.map(x => LT(x)).join(', ') : '');
 }
 
 function begin(cfg, o) {
@@ -3046,7 +3051,7 @@ function onNode(uid, v) {
   const o = {v: +v.v || 1, n: cleanName(v.n) || 'Player', ts: +v.ts || 0, j: +v.j || +v.ts || 0, rd: v.rd ? 1 : 0, op: str(v.op, 40), m: str(v.m, 160), ma: +v.ma || 0,
     i: str(v.i, 2000), tk: +v.tk || 0, ad: +v.ad || 0, hc: str(v.hc, 60), ss: str(v.ss, 8000), fx: str(v.fx, 40), pq: +v.pq || 0, pe: str(v.pe, 80)};
   Net.others.set(uid, o);
-  if (!prev && G.scene === 'lobby') toast(o.n + ' joined');
+  if (!prev && G.scene === 'lobby') toast(LT('{n} joined', {n: o.n}));
   // ping: they echo our counter back
   if (o.pe) { const m = /^([^:]+):(\d+)$/.exec(o.pe); if (m && m[1] === Net.uid && Net.pqAt.has(+m[2])) { Net.rtt.push(performance.now() - Net.pqAt.get(+m[2])); Net.pqAt.delete(+m[2]); if (Net.rtt.length > 9) Net.rtt.shift(); } }
   // echo their ping counter straight back (in a match it rides along with the inputs instead)
@@ -3164,7 +3169,7 @@ function netFrame(now) {
   G.S = n.S;
   const stalled = n.cur < tNow - 1 && n.cur - n.known > MAXR;
   if (stalled) { if (!n.stallAt) n.stallAt = now; n.stallMs += 16; } else n.stallAt = 0;
-  setWait(stalled && now - n.stallAt > 350 ? 'Waiting for ' + (G.names[1 - n.seat] || 'opponent') + '…' : '');
+  setWait(stalled && now - n.stallAt > 350 ? (G.names[1 - n.seat] ? LT('Waiting for {n}…', {n: G.names[1 - n.seat]}) : LT('Waiting for {n}…', {n: LT('opponent')})) : '');
   // ease out the glide offsets
   for (const v of R.vis) { if (v.ox) { v.ox *= 0.72; if (Math.abs(v.ox) < 0.2) v.ox = 0; } if (v.oy) { v.oy *= 0.72; if (Math.abs(v.oy) < 0.2) v.oy = 0; } }
   // how far ahead of the other player we run; the one ahead slows by a tick now and then
@@ -3208,7 +3213,7 @@ function rbFinalize(n) {
 function snapJSON(st) { const o = Object.assign({}, st); delete o.cfg; delete o.ev; delete o.kq; return JSON.stringify(o); }
 function opponentGone() {
   if (!G.running || G.ended) return;
-  G.ended = true; G.endAt = performance.now() - 3000; G.winner = -1; G.leftMsg = (G.names[1 - (G.net ? G.net.seat : 0)] || 'Your opponent') + ' left the match.';
+  G.ended = true; G.endAt = performance.now() - 3000; G.winner = -1; G.leftMsg = G.names[1 - (G.net ? G.net.seat : 0)] ? LT('{n} left the match.', {n: G.names[1 - (G.net ? G.net.seat : 0)]}) : LT('Your opponent left the match.');
 }
 
 // --- watching a match: play both players' inputs, a little behind, from the host's latest snapshot
@@ -3314,13 +3319,13 @@ function renderLobby() {
   const r = roster(), seat = r.findIndex(x => x.uid === Net.uid);
   for (let i = 0; i < 2; i++) {
     const s = r[i], o = s && s.uid !== Net.uid ? Net.others.get(s.uid) : null;
-    $('seat' + i).textContent = s ? nameOf(s.uid) + (s.uid === Net.uid ? ' (you)' : '') : 'Waiting…';
+    $('seat' + i).textContent = s ? (s.uid === Net.uid ? LT('{n} (you)', {n: nameOf(s.uid)}) : nameOf(s.uid)) : LT('Waiting…');
     $('seat' + i + 's').textContent = !s ? '' : (s.uid === Net.uid ? myReady : o && o.rd) ? 'Ready' : 'Not ready';
   }
   const sp = r.slice(2).map(x => nameOf(x.uid));
   const ov = otherVersions();
-  $('specs').textContent = (sp.length ? 'Watching: ' + sp.join(', ') + ' (winner stays on; the loser swaps out). ' : '') +
-    (ov.length ? ov.join(', ') + (ov.length > 1 ? ' have' : ' has') + ' an older copy of Lokop open, so you can’t play each other yet: they need to refresh the page.' : '');
+  $('specs').textContent = (sp.length ? LT('Watching: {n} (winner stays on; the loser swaps out).', {n: sp.join(', ')}) + ' ' : '') +
+    (ov.length ? LT(ov.length > 1 ? '{n} have an older copy of Lokop open, so you can’t play each other yet: they need to refresh the page.' : '{n} has an older copy of Lokop open, so you can’t play each other yet: they need to refresh the page.', {n: ov.join(', ')}) : '');
   const cfg = seat === 0 ? optsFromMenu() : null;
   $('lbOpts').textContent = seat === 0 ? 'You’re the host: ' + cfgText(cfg) + '. Change it in the menu before you join.' : 'The Tide seat picks the arena and rules.';
   $('ready').hidden = seat < 0 || seat > 1 || Net.isPublic;
@@ -3395,15 +3400,15 @@ function showBracket() {
     const h = document.createElement('h4'); h.textContent = ri === T.rounds.length - 1 ? 'Final' : ri === T.rounds.length - 2 ? 'Semi-finals' : names[ri]; col.appendChild(h);
     rd.forEach(m => {
       const b = document.createElement('div'); b.className = 'bm' + (m === nx ? ' next' : '');
-      for (const p of [m.a, m.b]) { const d = document.createElement('div'); d.textContent = p ? p.n + (p.k !== 'human' ? ' (bot)' : '') : (ri === 0 ? 'bye' : '…'); if (m.w && p) d.className = m.w === p ? 'w' : 'l'; b.appendChild(d); }
+      for (const p of [m.a, m.b]) { const d = document.createElement('div'); d.setAttribute('data-noi18n', ''); d.textContent = p ? p.n + (p.k !== 'human' ? ' (bot)' : '') : (ri === 0 ? LT('bye') : '…'); if (m.w && p) d.className = m.w === p ? 'w' : 'l'; b.appendChild(d); }
       col.appendChild(b);
     });
     box.appendChild(col);
   });
-  $('brkTitle').textContent = T.champ ? T.champ.n + ' wins!' : 'Bracket';
-  $('brkSub').textContent = store.get('arena', -1) < 0 ? cfgText(T.cfg).replace(/^[^\u00B7]*/, 'Random arenas ') : cfgText(T.cfg);
+  $('brkTitle').textContent = T.champ ? LT('{n} wins!', {n: T.champ.n}) : LT('Bracket');
+  $('brkSub').textContent = store.get('arena', -1) < 0 ? cfgText(T.cfg).replace(/^[^\u00B7]*/, LT('Random arenas') + ' ') : cfgText(T.cfg);
   $('brkPlay').hidden = !!T.champ;
-  $('brkMsg').textContent = T.champ ? 'Champion of the line. Start another from the menu.' : nx ? 'Next: ' + nx.a.n + ' (Tide, ' + (nx.a.k === 'human' ? keyHint(nx.b.k === 'human' ? 'p1' : 'all') : 'bot') + ') vs ' + nx.b.n + ' (Bloom, ' + (nx.b.k === 'human' ? keyHint(nx.a.k === 'human' ? 'p2' : 'all') : 'bot') + ')' : '';
+  $('brkMsg').textContent = T.champ ? LT('Champion of the line. Start another from the menu.') : nx ? LT('Next: {a} (Tide, {ka}) vs {b} (Bloom, {kb})', {a: nx.a.n, ka: nx.a.k === 'human' ? LT(keyHint(nx.b.k === 'human' ? 'p1' : 'all')) : LT('bot'), b: nx.b.n, kb: nx.b.k === 'human' ? LT(keyHint(nx.a.k === 'human' ? 'p2' : 'all')) : LT('bot')}) : '';
   show('brk');
 }
 function keyHint(src) { return src === 'p1' ? KB.label(['p1up', 'p1left', 'p1down', 'p1right'], '', '', 1) + ' + ' + KB.short('p1jump') + '/' + KB.short('p1atk') : src === 'p2' ? 'arrows + ' + KB.short('p2jump') + '/' + KB.short('p2atk') : 'any keys'; }
@@ -3589,8 +3594,8 @@ function layout() {
 }
 addEventListener('resize', () => { if (G.running) layout(); });
 let toastT = 0;
-function toast(msg, ms) { const el = $('toast'); el.textContent = msg; el.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { el.style.opacity = 0; }, ms || 1800); }
-function setWait(t) { const el = $('wait'); if (el.textContent !== t) el.textContent = t; el.hidden = !t; }
+function toast(msg, ms) { const el = $('toast'); el.textContent = LT(msg); el.style.opacity = 1; clearTimeout(toastT); toastT = setTimeout(() => { el.style.opacity = 0; }, ms || 1800); }
+function setWait(t) { const el = $('wait'); t = t ? LT(t) : ''; if (el.textContent !== t) el.textContent = t; el.hidden = !t; }
 function toggleMute() { Snd.setOn(!Snd.on); $('mute').classList.toggle('off', !Snd.on); $('mute').setAttribute('aria-label', Snd.on ? 'Sound on' : 'Sound off'); }
 function onPauseKey() {
   if (KB.busy()) return;
@@ -3620,15 +3625,15 @@ function showResults() {
   const S = G.S, w = G.winner;
   $('oKick').textContent = G.mode === 'tour' ? 'Tournament' : G.mode === 'online' ? 'Online duel' : G.mode === 'spec' ? 'Watching' : G.mode === 'bot' ? 'Vs bot' : 'Local duel';
   if (w >= 0) {
-    $('oTitle').textContent = (G.names[w] || TEAM[w].name) + ' wins';
+    $('oTitle').textContent = LT('{n} wins', {n: G.names[w] || TEAM[w].name});
     $('oTitle').style.color = TEAM[w].c;
-    $('oSub').textContent = 'Dropped into the pit at the end of the line.';
-  } else { $('oTitle').textContent = 'Match over'; $('oTitle').style.color = ''; $('oSub').textContent = G.leftMsg || ''; }
+    $('oSub').textContent = LT('Dropped into the pit at the end of the line.');
+  } else { $('oTitle').textContent = LT('Match over'); $('oTitle').style.color = ''; $('oSub').textContent = G.leftMsg || ''; }
   $('over').classList.toggle('nobanner', w < 0);
   const ul = $('oList'); ul.innerHTML = '';
   for (let i = 0; i < 2; i++) {
     const li = document.createElement('li'), a = document.createElement('b'), b = document.createElement('span');
-    a.textContent = G.names[i] || TEAM[i].name; a.style.color = TEAM[i].c;
+    a.setAttribute('data-noi18n', ''); a.textContent = G.names[i] || TEAM[i].name; a.style.color = TEAM[i].c;
     b.textContent = ' ' + S.p[i].kills + (S.p[i].kills === 1 ? ' touch' : ' touches') + ', best streak ' + S.p[i].best;
     li.append(a, b); ul.appendChild(li);
   }
@@ -3676,6 +3681,7 @@ function keysTable() {
     '<p class="msg" style="margin-top:0">Playing alone, both sets work at once: move with either hand and jump or attack with the other. Gamepads: stick or d-pad, A jumps, X or B attacks, Start pauses.</p>';
 }
 function howHTML() {
+  if (window.LOKOP_HOW_ES && window.BackRoomLang && BackRoomLang.get() === 'es') return LOKOP_HOW_ES(document.body.classList.contains('touch')) + keysTable();
   return '<ul class="rules">' +
     '<li><b>New here?</b> Press <b>Practice</b> on the menu to try every move on your own first.</li>' +
     '<li><b>One touch wins the duel.</b> A blade kills anything it reaches: thrust, lunge, or just walk or jump into an opponent’s point.</li>' +
@@ -3718,6 +3724,7 @@ function initMenu() {
   for (const k of OPTS) $(k).addEventListener('change', () => { const o = {}; for (const q of OPTS) o[q] = $(q).checked ? 1 : 0; store.set('opts', o); lobbyDirty = true; });
   $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML();
   KB.onChange(() => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); });
+  document.addEventListener('backroom:lang', () => { $('howBody').innerHTML = howHTML(); $('helpBody').innerHTML = howHTML(); });
   $('mBot').onclick = () => { saveName(); const lv = botLevel(); const bn = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
     G.lastStart = () => begin(optsFromMenu(), {mode: 'bot', names: [myName || 'You', bn + ' (bot)'], ctrl: ['all', null], bots: [null, lv], me: 0, statSeat: 0});
     G.lastStart(); };

@@ -1,0 +1,1939 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="es.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rollaway</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#2a2238">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@600;700;800;900&display=swap">
+<style>
+/* Rollaway: a full-bleed WebGL view of a sandstone aqueduct above a sea of cloud at sunset. Menus are warm dark cards over
+   it (a demo ball keeps rolling behind them); in a run the HUD is the distance top left and the multiplier top right. */
+:root{
+  --ink:#1c1626;--panel:rgba(32,25,44,.88);--panel-2:#3a2f4d;--line:rgba(255,236,210,.16);
+  --tx:#fff6ea;--tx-2:#e6d6c2;--tx-3:#b4a28e;
+  --gold:#ffbf4d;--gold-2:#ffd98a;--terra:#d9683c;--gem:#5fe8ff;--lapis:#3d63d6;--red:#ff7a6a;
+  --f-d:'Cinzel','Georgia','Times New Roman',serif;
+  --f-b:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:#2a2238;color:var(--tx);font-family:var(--f-b);-webkit-font-smoothing:antialiased}
+body{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden}
+#view{display:block;width:100%;height:100%;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid var(--gem);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+
+.overlay{position:absolute;inset:0;overflow:auto;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+.overlay.center{display:flex;align-items:center;justify-content:center;background:rgba(28,22,38,.45)}
+.overlay.center>.card{margin:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 20px;box-shadow:0 18px 50px rgba(20,10,30,.35)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:900;font-size:16px;padding:10px 16px;border:0;border-radius:11px;background:var(--panel-2);color:var(--tx);white-space:nowrap}
+.btn:hover:not(:disabled){filter:brightness(1.1)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn.gold{background:linear-gradient(180deg,#ffd27a,#f2a83a);color:#2b1a08}
+.btn.gem{background:linear-gradient(180deg,#8ef0ff,#43c9e6);color:#08262e}
+.btn.big{font-size:20px;padding:12px 18px}
+.btn.sm{font-size:14px;padding:7px 12px;border-radius:9px}
+.btn small{font-weight:800;font-size:12px;opacity:.78}
+.label{font-weight:900;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx-3);margin:14px 0 7px}
+.note{font-size:13.5px;font-weight:700;color:var(--tx-2);line-height:1.45;margin:6px 0 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;border-radius:10px;overflow:hidden;background:var(--panel-2);max-width:100%}
+.seg button{border:0;background:transparent;padding:7px 11px;font-weight:900;font-size:13.5px;white-space:nowrap;color:var(--tx-2)}
+.seg button[aria-pressed="true"]{background:var(--gold);color:#2b1a08}
+.setting{display:flex;align-items:center;gap:12px;margin:10px 0 0;font-weight:800;font-size:14px;flex-wrap:wrap}
+.setting>span:first-child{min-width:96px}
+.setting input[type=range]{flex:1;accent-color:var(--gold);min-width:90px}
+.setting input[type=checkbox]{width:20px;height:20px;accent-color:var(--gold)}
+h2{font-family:var(--f-d);font-weight:900;font-size:26px;margin:0;letter-spacing:.02em}
+:root{--kb-bg:#261e33;--kb-fg:var(--tx);--kb-muted:var(--tx-2);--kb-line:var(--line);--kb-accent:var(--gold);--kb-accent-ink:#2b1a08;--kb-warn:var(--red);
+  --kb-border:1px solid var(--line);--kb-shadow:none;--kb-radius:16px;--kb-key-radius:8px;--kb-key-border:1px solid var(--line);--kb-key-bg:var(--panel-2);--kb-key-shadow:none;
+  --kb-font:var(--f-b);--kb-font-display:var(--f-d);--kb-key-weight:900;--kb-title-size:22px;--kb-title-weight:900;--kb-backdrop:rgba(28,22,38,.6);--kb-blur:0px;--kb-pad:18px;--kb-width:460px}
+
+/* ---------- title ---------- */
+#menu{display:flex;align-items:center;justify-content:center}
+#menu .card{width:min(420px,100%);margin:auto}
+@media (min-width:900px){#menu{justify-content:flex-start;padding-left:max(24px,6vw)}#menu .card{margin:auto 0}}
+@media (min-width:640px) and (max-height:560px){#menu .card{width:min(760px,100%);display:grid;grid-template-columns:1fr 1fr;gap:0 22px;align-items:start}#menu .col2>.label:first-child{margin-top:4px}}
+.wordmark{margin:0;font-family:var(--f-d);font-weight:900;font-size:clamp(38px,8vw,52px);line-height:1;letter-spacing:.06em;
+  background:linear-gradient(180deg,#fff1cf 8%,#ffc35a 52%,#e07a35 96%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 2px 0 #5b2a18) drop-shadow(0 6px 14px rgba(60,20,10,.35))}
+.wordmark .o{display:inline-block;width:.78em;height:.78em;border-radius:50%;vertical-align:-.04em;margin:0 .02em;
+  background:radial-gradient(circle at 34% 30%,#c9d7ff 0 9%,#5b7ff0 22%,#2440a8 58%,#14204f 100%);box-shadow:inset -3px -4px 0 rgba(0,0,0,.25)}
+.tag{margin:8px 0 14px;font-weight:700;color:var(--tx-2);line-height:1.45;font-size:14.5px}
+.play{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.play .btn{flex-direction:column;gap:1px;line-height:1.1;white-space:normal;text-align:center}
+.bests{display:flex;justify-content:space-between;gap:8px;margin:10px 2px 0;font-weight:800;font-size:13px;color:var(--tx-2)}
+.bests b{color:var(--tx);font-weight:900}
+.balls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.balls button{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px 6px;border:1px solid var(--line);border-radius:11px;background:rgba(255,255,255,.04)}
+.balls button[aria-pressed="true"]{border-color:var(--gold);background:rgba(255,191,77,.14)}
+.balls canvas{width:40px;height:40px;border-radius:50%}
+.balls b{font-size:11.5px;font-weight:900;line-height:1.1;text-align:center}
+.balls button.lock canvas{filter:grayscale(.85) brightness(.5)}
+.balls button.lock b{color:var(--tx-3)}
+.balls .need{position:absolute;top:18px;left:0;right:0;text-align:center;font-size:11px;font-weight:900;color:#fff;text-shadow:0 1px 2px #000}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* ---------- HUD ---------- */
+#hud{position:absolute;inset:0;pointer-events:none}
+.pill{position:absolute;display:flex;flex-direction:column;background:rgba(28,22,38,.5);border-radius:12px;padding:6px 12px 7px;backdrop-filter:blur(4px)}
+#dist{top:max(10px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left))}
+#dist b{font-family:var(--f-d);font-weight:900;font-size:30px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+#dist small{font-weight:800;font-size:12px;color:var(--tx-2);margin-top:3px;font-variant-numeric:tabular-nums}
+#multi{top:max(10px,env(safe-area-inset-top));right:max(64px,calc(env(safe-area-inset-right) + 64px));align-items:flex-end}
+#multi b{font-family:var(--f-d);font-weight:900;font-size:26px;line-height:1;color:var(--gold-2);font-variant-numeric:tabular-nums}
+#multi small{font-weight:800;font-size:12px;color:var(--tx-2);margin-top:3px;font-variant-numeric:tabular-nums}
+#multi small i{font-style:normal;color:var(--gem)}
+#multi.pop b{animation:pop .28s ease-out}
+@keyframes pop{0%{transform:scale(1.35)}100%{transform:scale(1)}}
+#tP{position:absolute;top:max(10px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));width:44px;height:44px;border:0;border-radius:12px;background:rgba(28,22,38,.5);font-size:15px;font-weight:900;pointer-events:auto}
+#banner{position:absolute;left:0;right:0;top:max(70px,14%);text-align:center;opacity:0;transition:opacity .25s}
+#banner.on{opacity:1}
+#banner b{display:block;font-family:var(--f-d);font-weight:900;font-size:clamp(30px,6vw,48px);color:#fff3d6;text-shadow:0 2px 0 #6b3016,0 6px 18px rgba(40,10,0,.45)}
+#banner span{display:block;font-weight:900;font-size:15px;color:var(--tx);text-shadow:0 1px 4px rgba(0,0,0,.6)}
+#pops{position:absolute;left:50%;bottom:calc(max(14px,env(safe-area-inset-bottom)) + 34px);transform:translateX(-50%);width:0;height:0}
+#pops div{position:absolute;left:0;bottom:0;transform:translateX(-50%);white-space:nowrap;font-weight:900;font-size:17px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7);animation:rise 1.1s ease-out forwards}
+#pops div.rg{transform:translateX(calc(-100% - 10px))}#pops div.rn{transform:translateX(10px)}
+#pops div.g{color:var(--gem)}
+#pops div.n{color:var(--gold-2)}
+@keyframes rise{0%{opacity:0;margin-bottom:-6px}12%{opacity:1;margin-bottom:0}75%{opacity:1;margin-bottom:4px}100%{opacity:0;margin-bottom:8px}}
+#hint{position:absolute;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:14px;font-weight:800;font-size:13px;color:var(--tx);white-space:nowrap;text-shadow:0 1px 3px rgba(0,0,0,.6);transition:opacity .6s}
+#hint kbd{font:inherit;font-weight:900;background:rgba(28,22,38,.6);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+#hint.gone{opacity:0}
+body.touch #hint .kb,body:not(.touch) #hint .tc{display:none}
+#halves{position:absolute;inset:auto 0 max(12px,env(safe-area-inset-bottom)) 0;display:flex;justify-content:space-between;padding:0 max(14px,env(safe-area-inset-left));pointer-events:none}
+#halves i{width:58px;height:58px;border-radius:50%;background:rgba(28,22,38,.35);border:2px solid rgba(255,246,234,.35);display:grid;place-items:center;font-style:normal;font-weight:900;font-size:22px;color:rgba(255,246,234,.8);transition:background .1s}
+#halves i.on{background:rgba(255,191,77,.45)}
+body:not(.halves) #halves{display:none}
+body.touch .kbonly,body:not(.touch) .tconly{display:none!important}
+#flash{position:absolute;inset:0;background:#fff3e0;opacity:0;pointer-events:none}
+
+/* ---------- cards ---------- */
+#over .card,#pause .card{width:min(380px,100%);text-align:center}
+.cause{margin:4px 0 0;font-weight:800;color:var(--tx-2);font-size:14px}
+.bignum{font-family:var(--f-d);font-weight:900;font-size:54px;line-height:1;margin:12px 0 2px;font-variant-numeric:tabular-nums;color:#fff3d6}
+.bignum small{font-size:22px;color:var(--tx-2)}
+.newbest{display:inline-block;margin:6px 0 0;padding:3px 10px;border-radius:99px;background:var(--gold);color:#2b1a08;font-weight:900;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:14px 0 4px}
+.facts div{background:rgba(255,255,255,.05);border-radius:10px;padding:7px 4px}
+.facts b{display:block;font-weight:900;font-size:18px;font-variant-numeric:tabular-nums}
+.facts small{font-weight:800;font-size:11.5px;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em}
+.unlock{margin:10px 0 0;font-weight:900;color:var(--gold-2);font-size:14px}
+.stack{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.keyhint{margin:10px 0 0;font-size:12.5px;font-weight:800;color:var(--tx-3)}
+#settings .card,#how .card{width:min(440px,100%)}
+#how ol{margin:10px 0 0;padding-left:20px;line-height:1.5;font-weight:700;color:var(--tx-2);font-size:14.5px}
+#how ol b{color:var(--tx)}
+.haz{display:flex;gap:10px;justify-content:center;margin:12px 0 2px;flex-wrap:wrap}
+.haz figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:800;color:var(--tx-2);width:62px}
+.haz svg{width:40px;height:40px}
+@media (max-height:430px){.card{padding:12px 16px}.bignum{font-size:40px;margin-top:6px}.facts{margin-top:8px}.stack{margin-top:8px;flex-direction:row}.stack .btn{flex:1}#over .card{width:min(520px,100%)}}
+@media (max-height:430px){#how .card{width:min(680px,100%)}#how ol{font-size:13px;line-height:1.35;margin-top:6px}#how ol li{margin-bottom:2px}.haz{margin:6px 0 0}.haz figure{width:56px}.haz svg{width:26px;height:26px}#how .stack{margin-top:8px}}
+@media (max-width:420px){.wordmark{font-size:40px}.card{padding:15px 14px}}
+</style>
+<script src="/e63334287a3deaa3/stats.js" data-game="rollaway" defer></script>
+</head>
+<body>
+<div id="app">
+  <canvas id="view" aria-label="Rollaway game view"></canvas>
+  <div id="flash"></div>
+  <div id="hud" hidden>
+    <div class="pill" id="dist" data-noi18n><b id="dNum">0 m</b><small id="dSub"></small></div>
+    <div class="pill" id="multi" data-noi18n><b id="mNum">×1.0</b><small id="mSub"></small></div>
+    <button id="tP" type="button" aria-label="Pause">❚❚</button>
+    <div id="banner"><b></b><span></span></div>
+    <div id="pops" data-noi18n></div>
+    <div id="hint"><span class="kb"><kbd data-kb="left right" data-kb-short data-kb-sep=" ">A D</kbd> steer</span><span class="kb"><kbd>Esc</kbd> pause</span><span class="tc" id="tcHint">Drag left and right to steer</span></div>
+    <div id="halves" aria-hidden="true"><i id="hL">‹</i><i id="hR">›</i></div>
+  </div>
+
+  <section id="menu" class="overlay">
+    <div class="card">
+      <div class="col1">
+        <h1 class="wordmark" data-noi18n>R<span class="o"></span>llaway</h1>
+        <p class="tag">Steer a heavy marble down a crumbling aqueduct above the clouds. It never stops, and it only gets faster.</p>
+        <div class="play">
+          <button class="btn gold big" id="runBtn" type="button">Run<small id="runSub">best –</small></button>
+          <button class="btn gem big" id="dayBtn" type="button">Daily run<small id="daySub">same course for all</small></button>
+        </div>
+        <div class="bests"><span>Score best <b id="bScore">–</b></span><span>Runs <b id="bRuns">0</b></span><span>Gems <b id="bGems">0</b></span></div>
+      </div>
+      <div class="col2">
+        <div class="label">Marble</div>
+        <div class="balls" id="balls" role="group" aria-label="Pick a marble"></div>
+        <p class="note" id="ballNote"></p>
+        <div class="links"><button class="btn sm" id="setBtn" type="button">Settings</button><button class="btn sm" id="howBtn" type="button">How to play</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="overlay center" hidden>
+    <div class="card">
+      <h2>How to play</h2>
+      <ol>
+        <li><b>The marble rolls by itself</b> and keeps speeding up. You only steer: <span class="kbonly">A and D or the arrow keys</span><span class="tconly">drag left and right anywhere</span>.</li>
+        <li><b>It's heavy.</b> Steering pushes it, it doesn't snap. Curves pull it outward unless the deck leans in.</li>
+        <li><b>Stay on the stone.</b> Roll off an edge, or touch anything dark and iron, and the run is over.</li>
+        <li><b>Blue gems and close calls</b> raise your multiplier. Every 500 m is a milestone, and new marbles unlock as you go further.</li>
+      </ol>
+      <div class="haz" aria-hidden="true">
+        <figure><svg viewBox="0 0 40 40"><path d="M14 36V12l6-9 6 9v24z" fill="#2f2622"/><path d="M14 20h12v4H14z" fill="#f2e6c9"/></svg>Post</figure>
+        <figure><svg viewBox="0 0 40 40"><rect x="5" y="13" width="30" height="16" rx="8" fill="#2f2622"/><path d="M12 13v16M28 13v16" stroke="#e0672f" stroke-width="3"/></svg>Rolling drum</figure>
+        <figure><svg viewBox="0 0 40 40"><path d="M20 2v16" stroke="#6b5a50" stroke-width="2"/><path d="M20 16l8 9-8 13-8-13z" fill="#2f2622"/><path d="M13 24h14" stroke="#f2e6c9" stroke-width="3"/></svg>Pendulum</figure>
+        <figure><svg viewBox="0 0 40 40"><rect x="9" y="10" width="22" height="22" fill="#2f2622"/><path d="M9 14h22" stroke="#e0672f" stroke-width="3"/><path d="M4 32h32" stroke="#d8b98a" stroke-width="3"/></svg>Stamper</figure>
+        <figure><svg viewBox="0 0 40 40"><path d="M20 6l10 14-10 14-10-14z" fill="#5fe8ff"/><path d="M20 6l4 14-4 14" fill="#c9f8ff"/></svg>Gem</figure>
+      </div>
+      <div class="stack"><button class="btn gold big" id="howGo" type="button">Got it</button></div>
+    </div>
+  </section>
+
+  <section id="settings" class="overlay center" hidden>
+    <div class="card">
+      <h2>Settings</h2>
+      <div class="row" style="margin-top:12px"><span style="font-weight:800;font-size:14px;min-width:96px">Graphics</span><div class="seg" id="qSeg"><button type="button" data-q="auto">Auto</button><button type="button" data-q="low">Low</button><button type="button" data-q="med">Medium</button><button type="button" data-q="high">High</button></div></div>
+      <div class="setting"><span>Steering</span><input id="sens" type="range" min="0.5" max="1.8" step="0.05" aria-label="Steering sensitivity"></div>
+      <div class="row tconly" style="margin-top:10px"><span style="font-weight:800;font-size:14px;min-width:96px">Touch</span><div class="seg" id="tSeg"><button type="button" data-v="drag">Drag</button><button type="button" data-v="halves">Hold sides</button></div></div>
+      <label class="setting tconly"><span>Tilt to steer</span><input id="tilt" type="checkbox"></label>
+      <label class="setting kbonly"><span>Mouse steering</span><input id="mouse" type="checkbox"></label>
+      <label class="setting"><span>Reduce effects</span><input id="fx" type="checkbox"></label>
+      <div class="label">Sound</div>
+      <div class="setting"><span>Volume</span><input id="vMaster" type="range" min="0" max="1" step="0.05" aria-label="Volume"></div>
+      <div class="setting"><span>Music</span><input id="vMusic" type="range" min="0" max="1" step="0.05" aria-label="Music volume"></div>
+      <div class="setting"><span>Effects</span><input id="vSfx" type="range" min="0" max="1" step="0.05" aria-label="Effects volume"></div>
+      <label class="setting"><span>Mute (M)</span><input id="mute" type="checkbox"></label>
+      <div class="row" style="margin-top:14px"><button class="btn sm kbonly" id="keysBtn" type="button">Controls</button><div data-lang-toggle></div></div>
+      <div class="stack"><button class="btn gold" id="setDone" type="button">Done</button></div>
+    </div>
+  </section>
+
+  <section id="pause" class="overlay center" hidden>
+    <div class="card">
+      <h2>Paused</h2>
+      <p class="cause" id="pauseSub"></p>
+      <div class="stack">
+        <button class="btn gold big" id="resume" type="button">Resume</button>
+        <button class="btn" id="restartBtn" type="button">Restart</button>
+        <button class="btn" id="pSet" type="button">Settings</button>
+        <button class="btn" id="quit" type="button">Quit to title</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="over" class="overlay center" hidden>
+    <div class="card">
+      <h2 id="oTitle">Run over</h2>
+      <p class="cause" id="oCause"></p>
+      <div class="bignum" data-noi18n id="oDist">0<small> m</small></div>
+      <div id="oNew" hidden><span class="newbest">New best</span></div>
+      <div class="facts">
+        <div><b id="oScore" data-noi18n>0</b><small>Score</small></div>
+        <div><b id="oBest" data-noi18n>0 m</b><small>Best</small></div>
+        <div><b id="oGems" data-noi18n>0</b><small>Gems</small></div>
+      </div>
+      <p class="unlock" id="oUnlock" hidden></p>
+      <div class="stack"><button class="btn gold big" id="again" type="button">Again</button><button class="btn" id="oMenu" type="button">Title</button></div>
+      <p class="keyhint" id="oKey"></p>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../autores.js"></script>
+<script src="../keybinds.js"></script>
+<script>
+'use strict';
+// ==CORE==
+// Rollaway's rules, with no DOM or three.js, so a test can run them on their own (see README): tuning (P), speed and
+// difficulty by distance, the seeded track generator with its modules (MODS), the fixed-step physics (step), the
+// look-ahead bot (botSteer) and the passability check (validate).
+var RA = (function () {
+  'use strict';
+  // ---------- tuning: every feel number in one place (metres, seconds) ----------
+  const P = {
+    STEP: 1 / 120,            // physics step (s); the screen draws a blend of the last two steps
+    R: 0.5,                   // ball radius (m)
+    G: 22,                    // gravity (m/s²): heavier than real, so airtime stays short and landings firm
+    V0: 13, V1: 40, VMAX: 46, // forward speed (m/s): at the start, at S_RAMP (about 2.5 minutes in), and the ceiling far beyond
+    S_FLAT: 100, S_RAMP: 3600,
+    B_FIRST: 700, B_EVERY: 800, B_LEN: 170, B_DIP: 0.13, // breathers: every 800 m a plaza where the speed eases by 13 %
+    D_RAMP: 3800,             // metres until difficulty reaches 1
+    A_STEER: 28,              // sideways push from steering (m/s²)
+    A_TURN: 1.5,              // times that, when steering against the way the ball is drifting
+    GRIP: 4.2, GRIP_IDLE: 6.5, // sideways damping on the ground (1/s), stronger with no input: a little drift, never ice
+    AIR_CTRL: 0.35, AIR_DRAG: 0.5, AIR_VMAX: 3, // in the air: 35 % steering, and it can't push the sideways speed past 3 m/s
+    EDGE: 0.1,                // the ball's centre may hang this far past a drop edge before it tips off
+    RAIL: 0.34,               // walls (half-pipes, the wall ride) have a rail at the top: the centre stays this far inside it
+    CATCH: 0.5,               // a falling ball still lands this far below a deck's top; any deeper and it hit the side
+    BOUNCE_MIN: 3.2, REST: 0.28, // landings faster than BOUNCE_MIN (m/s) bounce back at REST of the impact speed
+    NEAR: 0.6,                // clearance (m) that counts as a near miss
+    HIT_SHRINK: 0.08,         // hazards hit a little smaller than they look
+    GEM_R: 0.95,              // gems are collected a little wider than they look
+    STEP_UP: 0.07             // a ledge higher than this (the edge of a tilting slab) pops the ball up instead of rolling it over
+  };
+  const clamp = (x, a, b) => x < a ? a : x > b ? b : x, lerp = (a, b, t) => a + (b - a) * t;
+  const ss = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+  function rng(seed) { let a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+  // ---------- speed and difficulty: pure functions of distance, so a module knows when the ball will reach it ----------
+  function breath(s) {
+    if (s < P.B_FIRST) return 0;
+    const x = (s - P.B_FIRST) % P.B_EVERY;
+    if (x > P.B_LEN) return 0;
+    const q = Math.sin(Math.PI * x / P.B_LEN); return q * q;
+  }
+  function vBase(s) {
+    if (s < P.S_FLAT) return P.V0;
+    if (s < P.S_RAMP) { const q = (s - P.S_FLAT) / (P.S_RAMP - P.S_FLAT); return P.V0 + (P.V1 - P.V0) * q * (1.12 - 0.12 * q); }
+    return P.V1 + (P.VMAX - P.V1) * (1 - Math.exp(-(s - P.S_RAMP) / 5000));
+  }
+  const vAt = s => vBase(s) * (1 - P.B_DIP * breath(s));
+  const diffAt = s => clamp((s - 80) / P.D_RAMP, 0, 1) * (1 - 0.4 * breath(s));
+  // arrival time at distance s (s): a table per metre, grown as needed, shared by every track
+  let TT = new Float64Array(8192), TN = 1;
+  function tAt(s) {
+    if (s <= 0) return s / P.V0;
+    const need = Math.ceil(s) + 2;
+    if (need >= TT.length) { let n = TT.length; while (n <= need) n *= 2; const a = new Float64Array(n); a.set(TT); TT = a; }
+    while (TN <= need) { TT[TN] = TT[TN - 1] + 1 / vAt(TN - 0.5); TN++; }
+    const i = Math.floor(s), f = s - i; return TT[i] + f / vAt(s);
+  }
+  const wStd = D => 6.0 - 2.4 * D;          // the normal deck width (m)
+  const wNarrow = D => 2.6 - 1.0 * D;       // a narrow beam
+  const gapT = D => lerp(1.15, 0.74, D);    // seconds between hazard rows
+
+  // ---------- the track ----------
+  // Distance s runs along the centre line; u is the sideways offset (right is +). Each metre i has a sample: world X, Z, base
+  // height Y, heading YAW, curvature K (1/m, + turns right) and bank B (the deck's sideways slope: surface height -B*u).
+  // Pieces are the deck: each covers [sa, sb] with sides ua..ub that move linearly from start to end, a profile
+  // (walls with a rail at the top, a ramp, humps, a tilt that changes with time) and a look (k).
+  function Track(seed) {
+    this.seed = seed >>> 0; this.r = rng(this.seed); this.cap = 0;
+    this.X = this.Z = this.Y = this.YAW = this.K = this.B = null; this._grow(2048);
+    this.n = 0; this.pieces = []; this.haz = []; this.gems = []; this.mods = []; this.arches = [];
+    this.gx = 0; this.gz = 0; this.gy = 0; this.gyaw = 0; this.gslope = -0.03; this.phase = this.r() * 6.283;
+    this.sGen = 0; this.last = ''; this.lastCat = ''; this.run = 0; this.wPrev = wStd(0); this.maxLen = 1; this.count = {};
+    this.p0 = 0; this.h0 = 0; this.g0 = 0;
+    this._start();
+  }
+  Track.prototype._grow = function (n) {
+    const keys = ['X', 'Z', 'Y', 'YAW', 'K', 'B'];
+    for (const k of keys) { const a = new Float64Array(n); if (this[k]) a.set(this[k]); this[k] = a; }
+    this.cap = n;
+  };
+  Track.prototype.ensure = function (s) { while (this.sGen < s) this._next(); };
+  Track.prototype._idx = function (s) { let i = Math.floor(s); if (i < 0) i = 0; if (i > this.n - 2) i = this.n - 2; return i; };
+  Track.prototype.yAt = function (s) { const i = this._idx(s), f = s - i; return this.Y[i] + (this.Y[i + 1] - this.Y[i]) * f; };
+  Track.prototype.kAt = function (s) { const i = this._idx(s), f = s - i; return this.K[i] + (this.K[i + 1] - this.K[i]) * f; };
+  Track.prototype.bAt = function (s) { const i = this._idx(s), f = s - i; return this.B[i] + (this.B[i + 1] - this.B[i]) * f; };
+  Track.prototype.slopeAt = function (s) { const i = this._idx(s); return this.Y[i + 1] - this.Y[i]; };
+  // world frame at s: o = {x, y, z, yaw, k, b}
+  Track.prototype.frame = function (s, o) {
+    const i = this._idx(s), f = s - i;
+    o.x = this.X[i] + (this.X[i + 1] - this.X[i]) * f; o.z = this.Z[i] + (this.Z[i + 1] - this.Z[i]) * f;
+    o.y = this.Y[i] + (this.Y[i + 1] - this.Y[i]) * f; o.yaw = this.YAW[i] + (this.YAW[i + 1] - this.YAW[i]) * f;
+    o.k = this.K[i] + (this.K[i + 1] - this.K[i]) * f; o.b = this.B[i] + (this.B[i + 1] - this.B[i]) * f; return o;
+  };
+  // first index in arr (sorted by key) whose key >= s
+  function lower(arr, from, s, key) { let lo = from, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m][key] < s) lo = m + 1; else hi = m; } return lo; }
+  // the pieces under distance s (scan back from the last piece starting at or before s)
+  Track.prototype.piecesAt = function (s, out) {
+    out.length = 0; const ps = this.pieces; let i = lower(ps, this.p0, s + 1e-9, 'sa') - 1;
+    for (; i >= this.p0; i--) { const p = ps[i]; if (p.sa < s - this.maxLen) break; if (s >= p.sa && s <= p.sb) out.push(p); }
+    return out;
+  };
+  // a piece's profile at (s, u, t): sets o.h (height above the base line, without bank) and o.d (dh/du)
+  function wallH(w, p, s) { let f = 1; if (w.in > 0) f = Math.min(f, ss((s - p.sa) / w.in)); if (w.out > 0) f = Math.min(f, ss((p.sb - s) / w.out)); return w.h * f; }
+  function profile(p, s, u, t, ua, ub, o) {
+    let h = 0, d = 0;
+    if (p.wl) { const w = p.wl, x = ua + w.w - u; if (x > 0) { const H = wallH(w, p, s), q = Math.min(x, w.w) / w.w; h += H * q * q; d -= 2 * H * q / w.w; } }
+    if (p.wr) { const w = p.wr, x = u - (ub - w.w); if (x > 0) { const H = wallH(w, p, s), q = Math.min(x, w.w) / w.w; h += H * q * q; d += 2 * H * q / w.w; } }
+    if (p.ramp) { const q = (s - p.r0) / (p.r1 - p.r0); h += p.ramp * q * q; }
+    if (p.hump) { const q = (s - p.r0) / (p.r1 - p.r0), sn = Math.sin(Math.PI * q * p.hump.n); h += p.hump.a * sn * sn; }
+    if (p.tilt) { const b = p.tilt.a * Math.sin(p.tilt.w * t + p.tilt.ph), uc = (ua + ub) / 2; h -= b * (u - uc); d -= b; }
+    o.h = h; o.d = d;
+  }
+  Track.prototype.tiltB = function (p, t) { return p.tilt ? p.tilt.a * Math.sin(p.tilt.w * t + p.tilt.ph) : 0; };
+  const _ps = [], _pr = { h: 0, d: 0 };
+  // what is under the ball: sup = {ok, p, h (world surface height), d (sideways slope), ua, ub}
+  Track.prototype.support = function (s, u, t, y, edge, sup) {
+    const list = this.piecesAt(s, _ps); sup.ok = false; let best = -1e9, bestBelow = 1e9;
+    const b = this.bAt(s), base = this.yAt(s);
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i], f = (s - p.sa) / (p.sb - p.sa), ua = p.ua0 + (p.ua1 - p.ua0) * f, ub = p.ub0 + (p.ub1 - p.ub0) * f;
+      const e = edge;
+      if (u < ua - (p.wl ? 1 : e) || u > ub + (p.wr ? 1 : e)) continue;
+      profile(p, s, u, t, ua, ub, _pr);
+      const h = base - b * u + _pr.h;
+      // with two decks under the ball (crossing beams), take the one nearest below it
+      const score = h <= y + 0.6 ? h : -1e6 - h;
+      if (!sup.ok || score > best) { best = score; sup.ok = true; sup.p = p; sup.h = h; sup.d = _pr.d - b; sup.ua = ua; sup.ub = ub; }
+      if (h < bestBelow) bestBelow = h;
+    }
+    return sup;
+  };
+
+  // ---------- the generator ----------
+  function Ctx(tr, type) {
+    this.tr = tr; this.type = type; this.s0 = tr.sGen; this.D = diffAt(this.s0); this.v = vAt(this.s0) * 1.02;
+    this.W = wStd(this.D); this.Win = tr.wPrev; this.r = tr.r;
+    this.knots = [[0, 0, 0]]; this.pieces = []; this.haz = []; this.gems = []; this.drops = []; this.arches = []; this.len = 0; this.flat = false;
+  }
+  Ctx.prototype.rand = function (a, b) { return a + (b - a) * this.r(); };
+  Ctx.prototype.pick = function (arr) { return arr[Math.floor(this.r() * arr.length)]; };
+  Ctx.prototype.sgn = function () { return this.r() < 0.5 ? -1 : 1; };
+  Ctx.prototype.T = function (x) { return tAt(this.s0 + x); };
+  Ctx.prototype.vx = function (x) { return vAt(this.s0 + x); };
+  // which way to turn: away from drifting too far off the course's general heading
+  Ctx.prototype.dir = function () { const y = this.tr.gyaw; return this.r() < clamp(0.5 - y * 0.7, 0.08, 0.92) ? 1 : -1; };
+  Ctx.prototype.deck = function (a, b, ua0, ub0, ua1, ub1, o) {
+    if (b - a < 0.05) return null;
+    if (ua1 === undefined) { ua1 = ua0; ub1 = ub0; }
+    const p = Object.assign({ sa: a, sb: b, ua0, ub0, ua1, ub1, k: 'stone' }, o || {});
+    this.pieces.push(p); return p;
+  };
+  // the normal deck from a to b (widened by extra); the first metres of a module taper from the last module's width
+  Ctx.prototype.run = function (a, b, extra, o) {
+    extra = extra || 0; const TAP = 8, W = this.W + extra;
+    const w = x => x >= TAP ? W : lerp(this.Win, W, x / TAP);
+    if (a < TAP && b > a) { const m = Math.min(b, TAP); this.deck(a, m, -w(a) / 2, w(a) / 2, -w(m) / 2, w(m) / 2, o && Object.assign({}, o)); a = m; }
+    if (b > a) this.deck(a, b, -W / 2, W / 2, -W / 2, W / 2, o);
+  };
+  // an eased turn starting at a, len metres long, curvature k; bank cancels bf of the outward pull at this speed
+  Ctx.prototype.turn = function (a, len, k, bf) {
+    const v = this.vx(a + len / 2), bmax = this.v > 30 ? 0.5 : 0.6;
+    const b = clamp(bf * v * v * k / P.G, -bmax, bmax);
+    const e = Math.min(len * 0.45, Math.max(10, this.v * 0.6));
+    this.knots.push([a, 0, 0], [a + e, k, b], [a + len - e, k, b], [a + len, 0, 0]);
+  };
+  Ctx.prototype.kBank = function () { const v = this.v; return Math.min(1 / 30, 0.5 / (0.9 * v * v / P.G)) * this.rand(0.55, 1); };
+  Ctx.prototype.kFlat = function (frac) { const v = this.v; return Math.min(1 / 45, frac * P.A_STEER / (v * v)) * this.rand(0.7, 1); };
+  Ctx.prototype.gem = function (x, u, dy) { this.gems.push({ s: x, u, dy: dy == null ? 0.55 : dy }); };
+  Ctx.prototype.hz = function (o) { this.haz.push(o); return o; };
+  Ctx.prototype.drop = function (a, b, h) { this.drops.push([a, b, h]); };
+  Ctx.prototype.end = function (L) { this.len = L; };
+  // hazards: arrival time at x is known exactly (speed depends on distance only), so moving ones are phased to leave a way through
+  Ctx.prototype.post = function (x, u, r) { return this.hz({ type: 'post', s: x, u, r: r || 0.42, top: 1.9 }); };
+  Ctx.prototype.drum = function (x, c, A, P_, at) {   // rolls side to side about c; at the ball's arrival it is at c+at
+    const w = 2 * Math.PI / P_, ta = this.T(x), q = clamp(at / A, -1, 1), base = this.r() < 0.5 ? Math.asin(q) : Math.PI - Math.asin(q);
+    return this.hz({ type: 'drum', s: x, c, A, w, ph: base - w * ta, r: 0.55, L: 1.5 });
+  };
+  Ctx.prototype.pend = function (x, uc, th, P_, at) { // swings across; at arrival its angle is at (radians)
+    const w = 2 * Math.PI / P_, ta = this.T(x), q = clamp(at / th, -1, 1), base = this.r() < 0.5 ? Math.asin(q) : Math.PI - Math.asin(q);
+    this.arches.push({ s: x, u: uc });
+    return this.hz({ type: 'pend', s: x, u: uc, L: 4.5, th, w, ph: base - w * ta, rb: 0.62, h0: 0.82 });
+  };
+  Ctx.prototype.stamp = function (x, u, wid, P_, open) { // rises and slams; open: it is down when the ball arrives, else up
+    const ta = this.T(x), want = open ? 0.75 : 0.25; // phase (0..1) at arrival: 0..0.5 up, 0.5..1 down
+    return this.hz({ type: 'stamp', s: x, u, wid, len: 1.6, P: P_, ph: want - ((ta / P_) % 1), hgt: 1.3 });
+  };
+  // a grid of tiles: rows [{len, gap, cells: [bool]}], lanes of width lw centred on 0; contiguous cells make one piece
+  Ctx.prototype.grid = function (x, rows, lw, o) {
+    for (const row of rows) {
+      const n = row.cells.length, left = -n * lw / 2; let i = 0;
+      while (i < n) { if (!row.cells[i]) { i++; continue; } let j = i; while (j + 1 < n && row.cells[j + 1]) j++; this.deck(x, x + row.len, left + i * lw + 0.05, left + (j + 1) * lw - 0.05, undefined, undefined, o); i = j + 1; }
+      x += row.len + row.gap;
+    }
+    return x;
+  };
+  // how far a launch carries: from a lip h above the landing line, rising at slope p, landing deck drop lower, speed v
+  function flight(v, p, h, drop) { const vy = p * v, t = (vy + Math.sqrt(vy * vy + 2 * P.G * (h + drop))) / P.G; return { t, X: v * t, vy }; }
+
+  const MODS = {}, ORDER = [];
+  function M(name, cat, minD, w, build) { MODS[name] = { name, cat, minD, w, build }; ORDER.push(name); }
+  const tailT = c => c.v * lerp(0.6, 0.42, c.D);
+
+  // --- rests ---
+  M('straight', 'rest', 0, D => 1.1 - 0.6 * D, c => {
+    const L = c.v * c.rand(1.3, 2.1); c.run(0, L);
+    if (c.r() < 0.55) { const sd = c.sgn(), n = 4 + (c.r() * 3 | 0); for (let i = 0; i < n; i++) c.gem(L * 0.3 + i * 2.4, sd * (c.W / 2 - 0.5)); }
+    c.end(L);
+  });
+  M('bank', 'rest', 0, () => 1, c => {
+    const lead = c.v * 0.35, k = c.kBank() * c.dir(), len = c.rand(0.6, 1.3) / Math.abs(k), L = lead + len + c.v * 0.45;
+    c.turn(lead, len, k, 0.9); c.run(0, L, 0.6);
+    if (c.r() < 0.5) { const sd = -Math.sign(k); for (let i = 0; i < 5; i++) c.gem(lead + len * (0.3 + i * 0.1), sd * (c.W / 2 - 0.3)); }
+    c.end(L);
+  });
+  M('flatcurve', 'rest', 0.05, () => 0.6, c => {
+    const lead = c.v * 0.35, k = c.kFlat(0.16 + 0.2 * c.D) * c.dir(), len = Math.min(c.rand(0.35, 0.7) / Math.abs(k), c.v * 2.5), L = lead + len + c.v * 0.45;
+    c.turn(lead, len, k, 0); c.run(0, L, 1.0); c.end(L);
+  });
+  M('sbend', 'rest', 0.04, () => 0.9, c => {
+    const lead = c.v * 0.35, d = c.dir(), k1 = c.kBank() * d, l1 = c.rand(0.4, 0.8) / Math.abs(k1), mid = c.v * 0.3, k2 = -c.kBank() * d, l2 = c.rand(0.4, 0.8) / Math.abs(k2);
+    c.turn(lead, l1, k1, 0.85); c.turn(lead + l1 + mid, l2, k2, 0.85);
+    const L = lead + l1 + mid + l2 + c.v * 0.45; c.run(0, L, 0.6); c.end(L);
+  });
+  M('rollers', 'rest', 0.12, () => 0.5, c => {
+    const lead = c.v * 0.4, n = 2 + (c.r() * 2 | 0), hl = c.v * 0.5, a = lerp(0.35, 0.7, c.D), L = lead + n * hl + c.v * 0.8;
+    c.run(0, lead, 0.4); c.deck(lead, lead + n * hl, -(c.W + 0.4) / 2, (c.W + 0.4) / 2, undefined, undefined, { hump: { a, n }, r0: lead, r1: lead + n * hl });
+    c.run(lead + n * hl, L, 0.4);
+    const sd = c.sgn(); for (let i = 0; i < n; i++) c.gem(lead + (i + 0.5) * hl, sd * 1.2, a + 1.0);
+    c.end(L);
+  });
+  // the first decision of every run: one post in the middle of a wide straight, about 140 m in (s = 160)
+  M('opener', 'haz', 0, () => 0, c => {
+    const x = Math.max(c.v * 1.4, 160 - c.s0), L = x + c.v * 1.6, sd = c.sgn();
+    c.run(0, L, 0.6); c.post(x, 0, 0.42); c.gem(x, sd * 1.4); c.gem(x - 3, sd * 1.2); c.gem(x + 3, sd * 1.2);
+    c.end(L);
+  });
+  M('plaza', 'rest', 0, () => 0, c => {
+    const L = c.v * c.rand(3.4, 4.0), Wp = c.W + 3.2, lead = 10;
+    c.run(0, lead); c.deck(lead, lead + 10, -c.W / 2, c.W / 2, -Wp / 2, Wp / 2, { k: 'plaza' });
+    c.deck(lead + 10, L - 18, -Wp / 2, Wp / 2, undefined, undefined, { k: 'plaza' });
+    c.deck(L - 18, L - 8, -Wp / 2, Wp / 2, -c.W / 2, c.W / 2, { k: 'plaza' }); c.run(L - 8, L);
+    const mid = (lead + L - 18) / 2, rad = Math.min(Wp / 2 - 0.8, 3);
+    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; c.gem(mid + Math.cos(a) * rad * 3, Math.sin(a) * rad); }
+    c.end(L);
+  });
+
+  // --- layout challenges ---
+  M('narrow', 'path', 0, () => 1, c => {
+    const lead = c.v * 0.4, tp = c.v * 0.45, hold = c.v * c.rand(0.9, 1.6), Wn = wNarrow(c.D), off = c.rand(-1, 1) * (c.W - Wn) / 2 * 0.8, W = c.W;
+    c.run(0, lead); c.deck(lead, lead + tp, -W / 2, W / 2, off - Wn / 2, off + Wn / 2, { k: 'beam' });
+    c.deck(lead + tp, lead + tp + hold, off - Wn / 2, off + Wn / 2, undefined, undefined, { k: 'beam' });
+    const b = lead + tp + hold; c.deck(b, b + tp, off - Wn / 2, off + Wn / 2, -W / 2, W / 2, { k: 'beam' });
+    const L = b + tp + tailT(c); c.run(b + tp, L);
+    for (let x = lead + tp + 3; x < b - 2; x += 3) c.gem(x, off);
+    c.end(L);
+  });
+  function pipe(c, curve) {
+    const lead = c.v * 0.35, L1 = c.v * c.rand(1.6, 2.4), Wp = c.W + 1.8, ww = 1.6, wh = 1.35, tin = c.v * 0.4;
+    c.run(0, lead);
+    if (curve) { const k = c.kFlat(0.55) * c.dir(); c.turn(lead + tin * 0.5, Math.min(L1 - tin, 0.9 / Math.abs(k)), k, 0); }
+    // the walls grow over the first piece and sink over the last, so the ball never meets a step
+    c.deck(lead, lead + tin, -c.W / 2, c.W / 2, -Wp / 2, Wp / 2, { k: 'pipe', wl: { w: ww, h: wh, in: tin, out: 0 }, wr: { w: ww, h: wh, in: tin, out: 0 } });
+    c.deck(lead + tin, lead + L1 - tin, -Wp / 2, Wp / 2, undefined, undefined, { k: 'pipe', wl: { w: ww, h: wh }, wr: { w: ww, h: wh } });
+    c.deck(lead + L1 - tin, lead + L1, -Wp / 2, Wp / 2, -c.W / 2, c.W / 2, { k: 'pipe', wl: { w: ww, h: wh, in: 0, out: tin }, wr: { w: ww, h: wh, in: 0, out: tin } });
+    const posts = !curve && c.D > 0.22;
+    const sp = c.v * gapT(c.D) * 1.1; let sd = c.sgn();
+    for (let x = lead + tin + sp * 0.5; x < lead + L1 - tin - 2; x += sp) {
+      if (posts) { c.post(x, 0, 0.45); c.gem(x, sd * (Wp / 2 - 0.85), 0.55 + wh * 0.35); sd = -sd; }
+      else c.gem(x, sd * (Wp / 2 - 0.75), 0.55 + wh * 0.45);
+    }
+    const L = lead + L1 + tailT(c); c.run(lead + L1, L); c.end(L);
+  }
+  M('pipe', 'path', 0.08, () => 0.8, c => pipe(c, false));
+  M('pipecurve', 'path', 0.25, () => 0.6, c => pipe(c, true));
+  M('split', 'path', 0.12, () => 0.9, c => {
+    const lead = c.v * 0.5, Lf = c.v * 0.45, Lb = c.v * c.rand(1.2, 1.8), Lm = c.v * 0.45, W = c.W;
+    const gw = 1.4 + 0.6 * c.D, safeW = Math.max(2.6, W * 0.8), riskW = lerp(1.8, 1.35, c.D), tot = safeW + gw + riskW, sd = c.sgn();
+    // edges at full split, measured left to right
+    let sA, sB, rA, rB; if (sd > 0) { sA = -tot / 2; sB = sA + safeW; rB = tot / 2; rA = rB - riskW; } else { rA = -tot / 2; rB = rA + riskW; sB = tot / 2; sA = sB - safeW; }
+    const hc = sd > 0 ? (sB + rA) / 2 : (rB + sA) / 2;  // the hole's centre line
+    c.run(0, lead);
+    const a = lead, b = lead + Lf, e = b + Lb, f = e + Lm;
+    // fork: one deck becomes two, the hole opening from nothing at a
+    const lo = Math.min(sA, rA), hi = Math.max(sB, rB);
+    if (sd > 0) { c.deck(a, b, -W / 2, hc, sA, sB, { k: 'stone' }); c.deck(a, b, hc, W / 2, rA, rB, { k: 'beam' }); }
+    else { c.deck(a, b, -W / 2, hc, rA, rB, { k: 'beam' }); c.deck(a, b, hc, W / 2, sA, sB, { k: 'stone' }); }
+    c.deck(b, e, sA, sB, undefined, undefined, { k: 'stone' }); c.deck(b, e, rA, rB, undefined, undefined, { k: 'beam' });
+    if (sd > 0) { c.deck(e, f, sA, sB, -W / 2, hc, { k: 'stone' }); c.deck(e, f, rA, rB, hc, W / 2, { k: 'beam' }); }
+    else { c.deck(e, f, rA, rB, -W / 2, hc, { k: 'beam' }); c.deck(e, f, sA, sB, hc, W / 2, { k: 'stone' }); }
+    void lo; void hi;
+    for (let x = b + 2.5; x < e - 1.5; x += 2.6) c.gem(x, (rA + rB) / 2);
+    if (c.D > 0.5 && safeW >= 3) c.post((b + e) / 2, (sA + sB) / 2, 0.4);
+    const L = f + tailT(c); c.run(f, L); c.end(L);
+  });
+  M('zigzag', 'path', 0.18, () => 0.8, c => {
+    const lead = c.v * 0.4, Wz = Math.max(2.4, c.W * 0.72), amp = Math.min(1.25, (c.W - Wz) / 2 + 0.7), seg = c.v * lerp(0.95, 0.7, c.D), n = 2 + (c.r() * 3 | 0);
+    c.run(0, lead); let x = lead, o = 0, sd = c.sgn(), w0 = c.W;
+    for (let i = 0; i <= n; i++) {
+      const o2 = i === n ? 0 : sd * amp, w2 = i === n ? c.W : Wz; c.deck(x, x + seg, o - w0 / 2, o + w0 / 2, o2 - w2 / 2, o2 + w2 / 2, { k: 'beam' });
+      if (i < n) c.gem(x + seg, o2 + sd * (Wz / 2 - 0.45));
+      x += seg; o = o2; w0 = w2; sd = -sd;
+    }
+    const L = x + tailT(c); c.run(x, L); c.end(L);
+  });
+  M('eye', 'path', 0.1, () => 0.6, c => {
+    const lead = c.v * 0.45, Lo = c.v * 0.4, Lh = c.v * c.rand(0.9, 1.4), hw = lerp(1.4, 2.2, c.D), side = Math.max(1.8, c.W / 2 + 0.2), We = hw + 2 * side, W = c.W;
+    c.run(0, lead); const a = lead, b = a + Lo, e = b + Lh, f = e + Lo;
+    c.deck(a, b, -W / 2, 0, -We / 2, -hw / 2); c.deck(a, b, 0, W / 2, hw / 2, We / 2);
+    c.deck(b, e, -We / 2, -hw / 2); c.deck(b, e, hw / 2, We / 2);
+    c.deck(e, f, -We / 2, -hw / 2, -W / 2, 0); c.deck(e, f, hw / 2, We / 2, 0, W / 2);
+    const sd = c.sgn(); for (let x = b + 2; x < e - 1; x += 2.6) c.gem(x, sd * (hw / 2 + 0.55));
+    const L = f + tailT(c); c.run(f, L); c.end(L);
+  });
+  M('braid', 'path', 0.35, () => 0.5, c => {
+    const lead = c.v * 0.45, Lo = c.v * 0.4, Lx = c.v * c.rand(1.1, 1.5), wb = lerp(1.9, 1.5, c.D), a0 = Math.max(wb / 2 + 0.6, c.W / 2 - wb / 2 + 0.3), W = c.W;
+    c.run(0, lead); const a = lead, b = a + Lo, e = b + Lx, f = e + Lo;
+    c.deck(a, b, -W / 2, -W / 2 + wb, -a0 - wb / 2, -a0 + wb / 2, { k: 'beam' }); c.deck(a, b, W / 2 - wb, W / 2, a0 - wb / 2, a0 + wb / 2, { k: 'beam' });
+    c.deck(b, e, -a0 - wb / 2, -a0 + wb / 2, a0 - wb / 2, a0 + wb / 2, { k: 'beam' }); c.deck(b, e, a0 - wb / 2, a0 + wb / 2, -a0 - wb / 2, -a0 + wb / 2, { k: 'beam' });
+    c.deck(e, f, -a0 - wb / 2, -a0 + wb / 2, -W / 2, -W / 2 + wb, { k: 'beam' }); c.deck(e, f, a0 - wb / 2, a0 + wb / 2, W / 2 - wb, W / 2, { k: 'beam' });
+    const sd = c.sgn(); for (let i = 1; i < 5; i++) { const q = i / 5, x = b + Lx * q; c.gem(x, sd * lerp(-a0, a0, q)); }
+    const L = f + tailT(c); c.run(f, L); c.end(L);
+  });
+  M('holes', 'path', 0.2, () => 0.7, c => {
+    const lead = c.v * 0.4, lanes = c.W > 4.6 ? 4 : 3, lw = (c.W + 0.6) / lanes, rl = c.v * lerp(0.42, 0.34, c.D), n = 4 + (c.r() * 3 | 0), rows = [];
+    let path = Math.floor(c.r() * lanes);
+    for (let i = 0; i < n; i++) {
+      const cells = []; for (let j = 0; j < lanes; j++) cells.push(c.r() > lerp(0.35, 0.6, c.D));
+      cells[path] = true; rows.push({ len: rl, gap: 0, cells });
+      const np = clamp(path + (c.r() < 0.5 ? -1 : 1) * (c.r() < 0.7 ? 1 : 0), 0, lanes - 1); if (np !== path) cells[np] = true; path = np;
+    }
+    rows[0].cells.fill(true); rows[rows.length - 1].cells.fill(true);
+    c.run(0, lead); const x = c.grid(lead, rows, lw);
+    const L = x + tailT(c); c.run(x, L); c.end(L);
+  });
+  M('pads', 'path', 0.3, () => 0.7, c => {
+    const lead = c.v * 0.45, lanes = 3, lw = Math.max(1.55, (c.W + 0.4) / 3), rl = c.v * lerp(0.5, 0.4, c.D), gap = lerp(1.6, 2.6, c.D), n = 5 + (c.r() * 3 | 0), rows = [];
+    // each row holds the lane the last row ended on and the lane the next one starts on, so there is always a way across
+    let path = 1;
+    for (let i = 0; i < n; i++) {
+      const cells = [false, false, false], np = i < n - 1 ? clamp(path + (c.r() < 0.5 ? -1 : 1), 0, 2) : path; cells[path] = cells[np] = true;
+      rows.push({ len: rl, gap, cells }); if (i < n - 1 && np === path) c.gem(lead + i * (rl + gap) + rl * 0.5, (path - 1) * lw);
+      path = np;
+    }
+    c.run(0, lead); const x = c.grid(lead, rows, lw, { k: 'pad' });
+    rows[rows.length - 1].gap = 0;
+    const L = x - gap + tailT(c); c.run(x - gap, L); c.end(L);
+  });
+  M('tilt', 'path', 0.3, () => 0.7, c => {
+    const lead = c.v * 0.45, n = 3 + (c.r() * 2 | 0), sl = c.v * c.rand(0.7, 0.95), gap = 0.6, ws = Math.max(2.6, c.W * 0.85), a = lerp(0.18, 0.34, c.D), Pt = lerp(2.6, 1.9, c.D);
+    c.run(0, lead); let x = lead;
+    for (let i = 0; i < n; i++) {
+      c.deck(x, x + sl, -ws / 2, ws / 2, undefined, undefined, { k: 'slab', tilt: { a, w: 2 * Math.PI / Pt, ph: c.r() * 6.283 } });
+      c.gem(x + sl * 0.5, (i & 1 ? 1 : -1) * (ws / 2 - 0.5)); x += sl + gap;
+    }
+    const L = x - gap + tailT(c); c.run(x - gap, L); c.end(L);
+  });
+  M('wallride', 'path', 0.3, () => 0.6, c => {
+    const lead = c.v * 0.5, tp = c.v * 0.4, Lw = c.v * c.rand(1.1, 1.5), k = c.kFlat(0.45) * c.dir(), o = k < 0 ? 1 : -1, W = c.W;
+    const fl = 1.4, ww = 2.0, wh = 2.2; // floor strip, wall width and height on the outer side
+    const inner = o > 0 ? W / 2 - fl : -W / 2 + fl;
+    c.run(0, lead); c.turn(lead, tp * 2 + Lw, k, 0);
+    const a = lead, b = a + tp, e = b + Lw, f = e + tp;
+    const wall = { w: ww, h: wh, in: tp, out: 0 }, wall2 = { w: ww, h: wh }, wall3 = { w: ww, h: wh, in: 0, out: tp };
+    if (o > 0) {
+      c.deck(a, b, -W / 2, W / 2, inner, W / 2 + ww - 0.2, { k: 'wall', wr: wall });
+      c.deck(b, e, inner, W / 2 + ww - 0.2, undefined, undefined, { k: 'wall', wr: wall2 });
+      c.deck(e, f, inner, W / 2 + ww - 0.2, -W / 2, W / 2, { k: 'wall', wr: wall3 });
+    } else {
+      c.deck(a, b, -W / 2, W / 2, -W / 2 - ww + 0.2, inner, { k: 'wall', wl: wall });
+      c.deck(b, e, -W / 2 - ww + 0.2, inner, undefined, undefined, { k: 'wall', wl: wall2 });
+      c.deck(e, f, -W / 2 - ww + 0.2, inner, -W / 2, W / 2, { k: 'wall', wl: wall3 });
+    }
+    for (let x = b + 3; x < e - 2; x += 3) c.gem(x, o * (W / 2 + ww * 0.55), 0.55 + wh * 0.42);
+    const L = f + tailT(c); c.run(f, L); c.end(L);
+  });
+
+  // --- air ---
+  function ramp(c, x, p, drop, f) { // a kicker from x, the gap and the landing drop; returns {lip, land, X}
+    const Lr = c.vx(x) * 0.3, Hr = p * Lr / 2, v = c.vx(x + Lr), fl = flight(v, p, Hr, drop), gap = fl.X * f;
+    c.run(x, x + Lr, 0, { k: 'ramp', ramp: Hr, r0: x, r1: x + Lr }); const lip = x + Lr, land = lip + gap; c.drop(lip, land, drop);
+    return { lip, land, X: fl.X, Hr, v, vy: fl.vy, t: fl.t, drop, gap };
+  }
+  function arcGems(c, R, u, n) {
+    for (let i = 0; i < n; i++) {
+      const q = 0.3 + 0.4 * i / Math.max(1, n - 1), x = R.X * q, t = x / R.v, yc = R.Hr + R.vy * t - P.G * t * t / 2 + R.drop * Math.min(x, R.gap) / R.gap;
+      c.gem(R.lip + x, u, yc + P.R + 0.05);
+    }
+  }
+  M('ramp', 'air', 0.03, () => 1, c => {
+    c.flat = true; const lead = c.v * 0.5, D = c.D;
+    const R = ramp(c, lead, lerp(0.27, 0.34, D), c.rand(0.8, 2.2 + 2 * D), lerp(0.5, 0.74, D) * c.rand(0.93, 1));
+    c.run(0, lead); if (c.r() < 0.7) arcGems(c, R, c.sgn() * c.rand(0.6, 1.3), 3);
+    const L = R.land + (R.X - R.gap) + c.v * 0.85; c.run(R.land, L); c.end(L);
+  });
+  M('gap2', 'air', 0.25, () => 0.6, c => {
+    c.flat = true; const lead = c.v * 0.45, D = c.D;
+    const A = ramp(c, lead, 0.22, 0, lerp(0.45, 0.62, D)), mid = A.land + (A.X - A.gap) + c.v * 0.45;
+    c.run(0, lead); c.run(A.land, mid);
+    const B = ramp(c, mid, 0.24, c.rand(0.5, 1.5), lerp(0.45, 0.62, D)); arcGems(c, B, c.sgn() * 1.0, 2);
+    const L = B.land + (B.X - B.gap) + c.v * 0.85; c.run(B.land, L); c.end(L);
+  });
+  M('step', 'air', 0.1, () => 0.6, c => {
+    c.flat = true; const lead = c.v * 0.5, n = 1 + (c.r() < 0.5 ? 1 : 0); let x = lead; c.run(0, lead);
+    for (let i = 0; i < n; i++) {
+      const d = c.rand(1.2, 2.4), t = Math.sqrt(2 * d / P.G), X = c.vx(x) * t, g = X * lerp(0.35, 0.5, c.D);
+      c.drop(x, x + g, d); const nx = x + g + X - g + c.v * 0.55; c.run(x + g, nx, 0, { k: 'step' }); x = nx;
+    }
+    const L = x + c.v * 0.3; c.run(x, L); c.end(L);
+  });
+  M('islands', 'air', 0.4, () => 0.5, c => {
+    c.flat = true; const lead = c.v * 0.55, D = c.D, R = ramp(c, lead, 0.3, c.rand(1, 2.5), lerp(0.55, 0.7, D)), W = c.W;
+    c.run(0, lead); const hw = 1.3, Wi = Math.max(2.2, W / 2 + 0.3), Li = (R.X - R.gap) + c.v * 0.7, a = R.land, b = a + Li, f = b + c.v * 0.4;
+    c.deck(a, b, -hw / 2 - Wi, -hw / 2, undefined, undefined, { k: 'stone' }); c.deck(a, b, hw / 2, hw / 2 + Wi, undefined, undefined, { k: 'stone' });
+    c.deck(b, f, -hw / 2 - Wi, -hw / 2, -W / 2, 0); c.deck(b, f, hw / 2, hw / 2 + Wi, 0, W / 2);
+    const sd = c.sgn(); arcGems(c, R, sd * (hw / 2 + Wi / 2), 3);
+    const L = f + tailT(c); c.run(f, L); c.end(L);
+  });
+
+  // --- hazards ---
+  M('slalom', 'haz', 0.06, () => 1, c => {
+    const lead = c.v * 0.55, n = 3 + Math.round(c.D * 3), sp = c.v * gapT(c.D), off = Math.max(0.35, c.W * 0.1);
+    c.run(0, lead); let sd = c.sgn(), x = lead;
+    // a gem just beside each post, on its narrow side: a close call earns the multiplier too
+    for (let i = 0; i < n; i++) { c.post(x, sd * off, 0.42); c.gem(x, sd * (off + 1.05)); x += sp; sd = -sd; }
+    const L = x - sp + c.v * 0.5 + tailT(c); c.run(lead, L); c.end(L);
+  });
+  M('gate', 'haz', 0.16, () => 0.9, c => {
+    const lead = c.v * 0.6, n = 2 + Math.round(c.D * 2), sp = c.v * gapT(c.D) * 1.1, W = c.W, op = lerp(2.4, 1.6, c.D), maxShift = 6.5 * (gapT(c.D) - 0.3) * 0.75;
+    c.run(0, lead); let x = lead, oc = c.rand(-1, 1) * (W / 2 - op / 2);
+    for (let i = 0; i < n; i++) {
+      for (let u = -W / 2 + 0.25; u <= W / 2 - 0.2; u += 0.9) if (Math.abs(u - oc) > op / 2 + 0.38) c.post(x, u, 0.38);
+      c.gem(x, oc); x += sp;
+      oc = clamp(oc + c.rand(-1, 1) * maxShift, -(W / 2 - op / 2), W / 2 - op / 2);
+    }
+    const L = x - sp + c.v * 0.5 + tailT(c); c.run(lead, L); c.end(L);
+  });
+  M('drums', 'haz', 0.22, () => 0.8, c => {
+    const lead = c.v * 0.6, n = 2 + Math.round(c.D * 2), sp = c.v * gapT(c.D), A = c.W / 2 - 0.65, Pd = lerp(3.0, 2.1, c.D);
+    c.run(0, lead); let x = lead, sd = c.sgn();
+    for (let i = 0; i < n; i++) { c.drum(x, 0, A, Pd, sd * A * c.rand(0.7, 0.95)); c.gem(x + 2.2, -sd * (c.W / 2 - 0.6)); x += sp; if (c.r() < 0.75) sd = -sd; }
+    const L = x - sp + c.v * 0.5 + tailT(c); c.run(lead, L); c.end(L);
+  });
+  function pendRow(c, x, W) { const P_ = lerp(2.8, 2.0, c.D), th = 0.95, at = c.sgn() * c.rand(0.2, 0.32); c.pend(x, 0, th, P_, at); return at; }
+  M('pend', 'haz', 0.28, () => 0.8, c => {
+    const lead = c.v * 0.65, n = 2 + Math.round(c.D * 1.5), sp = c.v * gapT(c.D) * 1.15;
+    c.run(0, lead); let x = lead; for (let i = 0; i < n; i++) { const at = pendRow(c, x, c.W); c.gem(x, -Math.sign(at) * (c.W / 2 - 0.55)); x += sp; }
+    const L = x - sp + c.v * 0.5 + tailT(c); c.run(lead, L); c.end(L);
+  });
+  M('pendbeam', 'haz', 0.5, () => 0.6, c => {
+    const lead = c.v * 0.5, tp = c.v * 0.45, Wn = Math.max(2.2, wNarrow(c.D) + 0.5), n = 1 + (c.r() < 0.5 ? 1 : 0), sp = c.v * gapT(c.D) * 1.2, hold = tp + n * sp, W = c.W;
+    c.run(0, lead); c.deck(lead, lead + tp, -W / 2, W / 2, -Wn / 2, Wn / 2, { k: 'beam' });
+    c.deck(lead + tp, lead + hold + tp, -Wn / 2, Wn / 2, undefined, undefined, { k: 'beam' });
+    const b = lead + hold + tp; c.deck(b, b + tp, -Wn / 2, Wn / 2, -W / 2, W / 2, { k: 'beam' });
+    for (let i = 0; i < n; i++) { const P_ = lerp(2.8, 2.2, c.D), at = c.sgn() * c.rand(0.22, 0.3); c.pend(lead + tp + sp * (i + 0.6), 0, 0.95, P_, at); }
+    const L = b + tp + tailT(c); c.run(b + tp, L); c.end(L);
+  });
+  M('stamp', 'haz', 0.38, () => 0.7, c => {
+    const lead = c.v * 0.6, lanes = c.W > 4.6 ? 4 : 3, lw = c.W / lanes, n = 2 + Math.round(c.D * 1.5), sp = c.v * gapT(c.D) * 1.1, Ps = lerp(2.4, 1.8, c.D);
+    c.run(0, lead); let x = lead, open = Math.floor(c.r() * lanes);
+    for (let i = 0; i < n; i++) {
+      const second = c.D < 0.6 ? clamp(open + c.sgn(), 0, lanes - 1) : -1;
+      for (let j = 0; j < lanes; j++) { const isOpen = j === open || j === second; c.stamp(x, -c.W / 2 + (j + 0.5) * lw, lw - 0.12, Ps, isOpen); }
+      c.gem(x + 2, -c.W / 2 + (open + 0.5) * lw); x += sp; open = clamp(open + (c.r() < 0.5 ? -1 : 1), 0, lanes - 1);
+    }
+    const L = x - sp + c.v * 0.5 + tailT(c); c.run(lead, L); c.end(L);
+  });
+  M('mixed', 'haz', 0.6, () => 0.8, c => {
+    const lead = c.v * 0.6, sp = c.v * gapT(c.D) * 1.1, W = c.W; c.run(0, lead); let x = lead, sd = c.sgn();
+    const kinds = ['post', 'drum', 'pend', 'post', 'drum']; const n = 3 + (c.r() < 0.4 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      const k = c.pick(kinds);
+      if (k === 'post') { c.post(x, sd * W * 0.12, 0.42); c.gem(x, -sd * 1.1); }
+      else if (k === 'drum') c.drum(x, 0, W / 2 - 0.65, lerp(2.8, 2.2, c.D), sd * (W / 2 - 0.65) * 0.85);
+      else { const at = pendRow(c, x, W); sd = Math.sign(at); }
+      x += sp; sd = -sd;
+    }
+    const L = x - sp + c.v * 0.5 + tailT(c); c.run(lead, L); c.end(L);
+  });
+
+  // which module comes next
+  Track.prototype._pick = function (s0, D) {
+    const b = (s0 - P.B_FIRST) % P.B_EVERY;
+    if (s0 >= P.B_FIRST - 60 && (b > P.B_EVERY - 110 || b < 50) && this.last !== 'plaza') return 'plaza';
+    if (!this.count.opener && s0 >= 85) return 'opener';
+    if (s0 < 140) return this.last === 'straight' ? 'bank' : 'straight';
+    const maxRun = D < 0.2 ? 1 : D < 0.6 ? 2 : 3;
+    const mustRest = this.run >= maxRun;
+    let tot = 0; const c = [];
+    for (const name of ORDER) {
+      const m = MODS[name]; if (name === 'plaza' || name === 'opener' || D < m.minD || name === this.last) continue;
+      if (mustRest && m.cat !== 'rest') continue;
+      if (!mustRest && m.cat === 'rest' && this.run === 0) continue;
+      if (m.cat === 'air' && this.lastCat === 'air') continue;
+      const w = m.w(D); if (w <= 0) continue; tot += w; c.push([name, w]);
+    }
+    let x = this.r() * tot; for (const [n, w] of c) { x -= w; if (x <= 0) return n; }
+    return c.length ? c[c.length - 1][0] : 'straight';
+  };
+  Track.prototype._start = function () {
+    // the start: a wide landing with the first 20 m behind the ball
+    const c = new Ctx(this, 'start'); c.Win = c.W + 1; c.run(0, 70, 1, { k: 'plaza' }); c.end(70); this._commit(c);
+  };
+  Track.prototype._next = function () {
+    const D = diffAt(this.sGen), type = this._pick(this.sGen, D), c = new Ctx(this, type);
+    MODS[type].build(c); this._commit(c);
+  };
+  function knotAt(kn, x, j) { // smoothstep between knots, field j
+    if (x <= kn[0][0]) return kn[0][j];
+    for (let i = 1; i < kn.length; i++) { const a = kn[i - 1], b = kn[i]; if (x <= b[0]) { const q = b[0] > a[0] ? (x - a[0]) / (b[0] - a[0]) : 1; return a[j] + (b[j] - a[j]) * ss(q); } }
+    return kn[kn.length - 1][j];
+  }
+  Track.prototype._commit = function (c) {
+    const s0 = this.sGen, L = Math.ceil(c.len), i0 = Math.round(s0);
+    if (i0 + L + 2 >= this.cap) { let n = this.cap; while (n <= i0 + L + 2) n *= 2; this._grow(n); }
+    if (this.n === 0) { this.X[0] = this.gx; this.Z[0] = this.gz; this.Y[0] = this.gy; this.YAW[0] = this.gyaw; this.K[0] = 0; this.B[0] = 0; this.n = 1; }
+    c.knots.sort((a, b) => a[0] - b[0]);
+    for (let j = 0; j < L; j++) {
+      const i = i0 + j, x = j + 0.5, k = knotAt(c.knots, j + 1, 1), b = knotAt(c.knots, j + 1, 2);
+      const km = knotAt(c.knots, x, 1);
+      // slope: eases toward a gentle downhill that waves a little; held steady through a module that launches the ball
+      const D = diffAt(i), target = -(0.035 + 0.05 * D) + 0.03 * Math.sin(i / 120 + this.phase);
+      if (!c.flat) this.gslope += clamp(target - this.gslope, -0.0012, 0.0012);
+      let dy = this.gslope; for (const d of c.drops) if (x >= d[0] && x < d[1]) dy -= d[2] / (d[1] - d[0]);
+      const yaw = this.gyaw + km * 0.5;
+      this.gx += Math.sin(yaw); this.gz -= Math.cos(yaw); this.gy += dy; this.gyaw += km;
+      this.X[i + 1] = this.gx; this.Z[i + 1] = this.gz; this.Y[i + 1] = this.gy; this.YAW[i + 1] = this.gyaw; this.K[i + 1] = k; this.B[i + 1] = b;
+    }
+    this.n = i0 + L + 1;
+    const pieceBase = this.pieces.length;
+    for (const p of c.pieces) { if (p.sb > c.len - 0.01) p.sb = L; p.sa += s0; p.sb += s0; if (p.r0 != null) { p.r0 += s0; p.r1 += s0; } if (p.sb > s0 + L) p.sb = s0 + L; p.mod = this.mods.length; this.pieces.push(p); this.maxLen = Math.max(this.maxLen, p.sb - p.sa); }
+    // keep pieces sorted by start (a module's own pieces may be out of order)
+    const tail = this.pieces.splice(pieceBase); tail.sort((a, b) => a.sa - b.sa); for (const p of tail) this.pieces.push(p);
+    for (const h of c.haz) { h.s += s0; h.y = this.yAt(h.s) - this.bAt(h.s) * (h.u || h.c || 0); h.mod = this.mods.length; }
+    c.haz.sort((a, b) => a.s - b.s); for (const h of c.haz) this.haz.push(h);
+    for (const g of c.gems) { g.s += s0; g.got = false; }
+    c.gems.sort((a, b) => a.s - b.s); for (const g of c.gems) this.gems.push(g);
+    for (const a of c.arches) { a.s += s0; this.arches.push(a); }
+    this.mods.push({ type: c.type, s0, s1: s0 + L, D: c.D, v: c.v });
+    this.count[c.type] = (this.count[c.type] || 0) + 1;
+    const m = MODS[c.type]; const cat = m ? m.cat : 'rest';
+    this.run = cat === 'rest' ? 0 : this.run + 1; this.last = c.type; this.lastCat = cat; this.wPrev = c.W; this.sGen = s0 + L;
+  };
+  Track.prototype.modAt = function (s) { const m = this.mods; let lo = 0, hi = m.length - 1; while (lo < hi) { const k = (lo + hi + 1) >> 1; if (m[k].s0 <= s) lo = k; else hi = k - 1; } return m[lo]; };
+  // forget everything well behind s (keeps memory flat on long runs)
+  Track.prototype.trim = function (s) {
+    const cut = s - 120;
+    while (this.p0 < this.pieces.length && this.pieces[this.p0].sb < cut - this.maxLen) this.p0++;
+    if (this.p0 > 400) { this.pieces.splice(0, this.p0); this.p0 = 0; }
+    let k = 0; while (k < this.haz.length && this.haz[k].s < cut) k++; if (k > 200) this.haz.splice(0, k);
+    k = 0; while (k < this.gems.length && this.gems[k].s < cut) k++; if (k > 200) this.gems.splice(0, k);
+    k = 0; while (k < this.arches.length && this.arches[k].s < cut) k++; if (k > 100) this.arches.splice(0, k);
+  };
+
+  // ---------- hazards ----------
+  function stampF(h, t) { // 0 flush .. 1 fully up
+    let q = ((t / h.P + h.ph) % 1 + 1) % 1;
+    if (q < 0.08) return ss(q / 0.08); if (q < 0.45) return 1; if (q < 0.55) return 1 - ss((q - 0.45) / 0.1); return 0;
+  }
+  // where a moving hazard is at time t: o = {u, y (height of its centre above its deck), a (angle), f (stamp height 0..1)}
+  function hazPos(h, t, o) {
+    if (h.type === 'drum') { o.u = h.c + h.A * Math.sin(h.w * t + h.ph); o.y = h.r; o.a = (o.u - h.c) / h.r; }
+    else if (h.type === 'pend') { const a = h.th * Math.sin(h.w * t + h.ph); o.a = a; o.u = h.u + h.L * Math.sin(a); o.y = h.h0 + h.L * (1 - Math.cos(a)); }
+    else if (h.type === 'stamp') { o.f = stampF(h, t); o.u = h.u; o.y = o.f * h.hgt; }
+    else { o.u = h.u; o.y = h.top / 2; }
+    return o;
+  }
+  const _hp = { u: 0, y: 0, a: 0, f: 0 };
+  // clearance between the ball and a hazard (m); below 0 is a hit. grow: extra size (the checker's safety margin)
+  function clearance(h, st, grow) {
+    const R = P.R, ds = st.s - h.s, yc = st.y + R - h.y; hazPos(h, st.t, _hp);
+    const g = grow - P.HIT_SHRINK;
+    if (h.type === 'post') { if (yc - R > h.top) return 9; return Math.sqrt(ds * ds + (st.u - h.u) * (st.u - h.u)) - (h.r + R + g); }
+    if (h.type === 'drum') { if (yc - R > 2 * h.r) return 9; const ex = Math.abs(ds) - (h.L / 2 + R * 0.6 + g), ey = Math.abs(st.u - _hp.u) - (h.r + R * 0.85 + g); return Math.max(ex, ey); }
+    if (h.type === 'pend') { const du = st.u - _hp.u, dy = yc - _hp.y; return Math.sqrt(ds * ds + du * du + dy * dy) - (h.rb + R + g); }
+    if (h.type === 'stamp') { if (_hp.f < 0.22 || yc - R > _hp.y) return 9; const ex = Math.abs(ds) - (h.len / 2 + R * 0.55 + g), ey = Math.abs(st.u - h.u) - (h.wid / 2 + R * 0.55 + g); return Math.max(ex, ey); }
+    return 9;
+  }
+
+  // ---------- physics: one fixed step ----------
+  // st: {s, u, vl (sideways speed along the surface), y (height of the ball's lowest point), vy, air, t, dead, cause,
+  //      hi, gi (next hazard / gem to check), gems, near, ev (events this step), land (impact speed)}
+  function newState(tr, s) {
+    s = s == null ? 20 : s; const y = tr.yAt(s);
+    return { s, u: 0, vl: 0, y, vy: 0, air: false, t: tAt(s), dead: 0, cause: '', gems: 0, near: 0, ev: 0, land: 0, airT: 0, nearSide: 0 };
+  }
+  const EV_GEM = 1, EV_NEAR = 2, EV_LAND = 4, EV_LAUNCH = 8, EV_DEAD = 16, EV_BOUNCE = 32;
+  const _sup = { ok: false, p: null, h: 0, d: 0, ua: 0, ub: 0 };
+  const DEF = { A: 1, grow: 0, edge: P.EDGE, live: false };
+  function step(tr, st, steer, o) {
+    o = o || DEF; const dt = P.STEP; st.ev = 0; if (st.dead) return st;
+    const s0 = st.s, v = vAt(s0 + 0.5 * vAt(s0) * dt);
+    st.s = s0 + v * dt; st.t += dt; const s = st.s;
+    const k = tr.kAt(s);
+    let sup = tr.support(s, st.u, st.t, st.y + 0.05, o.edge, _sup);
+    // sideways: steering, the outward pull of a curve, and gravity along a sloped deck (bank, walls, tilt)
+    let a = steer * P.A_STEER * o.A; if (steer * st.vl < 0) a *= P.A_TURN;
+    const onGround = !st.air && sup.ok;
+    let inv = 1;
+    if (onGround) { const d = sup.d; inv = 1 / Math.sqrt(1 + d * d); a += -P.G * d * inv - v * v * k * inv; }
+    else { a *= P.AIR_CTRL; if (steer * st.vl > 0 && Math.abs(st.vl) > P.AIR_VMAX) a = 0; a -= v * v * k; } // in the air, steering can only add a little sideways speed
+    st.vl += a * dt;
+    st.vl *= onGround ? (steer === 0 ? DAMP_IDLE : DAMP) : DAMP_AIR;
+    st.u += st.vl * inv * dt;
+    sup = tr.support(s, st.u, st.t, st.y + 0.05, o.edge, _sup);
+    if (sup.ok) { // rails on top of walls
+      const p = sup.p;
+      if (p.wl && st.u < sup.ua + P.RAIL) { st.u = sup.ua + P.RAIL; if (st.vl < 0) st.vl = 0; }
+      if (p.wr && st.u > sup.ub - P.RAIL) { st.u = sup.ub - P.RAIL; if (st.vl > 0) st.vl = 0; }
+      if (p.wl || p.wr) sup = tr.support(s, st.u, st.t, st.y + 0.05, o.edge, _sup);
+    }
+    // up and down
+    const svy = tr.slopeAt(s) * v;
+    if (st.air) {
+      st.vy -= P.G * dt; st.y += st.vy * dt; st.airT += dt;
+      if (sup.ok && st.y <= sup.h && st.y > sup.h - P.CATCH && st.vy <= svy + 2) {
+        const rel = st.vy - svy; st.y = sup.h; st.land = -rel;
+        if (rel < -P.BOUNCE_MIN) { st.vy = svy - rel * P.REST; st.ev |= EV_BOUNCE; }
+        else { st.vy = svy; st.air = false; }
+        st.ev |= EV_LAND; st.airT = 0;
+      }
+      // below the lowest deck that could be here: nothing can catch it any more (the screen still shows the fall)
+      if (st.y < tr.yAt(s) - Math.abs(tr.bAt(s)) * 3.4 - 1.0) { st.dead = 1; st.cause = 'fall'; st.ev |= EV_DEAD; }
+    } else if (!sup.ok) { st.air = true; st.ev |= EV_LAUNCH; st.y += st.vy * dt; }
+    else {
+      const ballistic = st.y + st.vy * dt - 0.5 * P.G * dt * dt;
+      if (sup.h < ballistic - 0.003) { st.air = true; st.ev |= EV_LAUNCH; st.vy -= P.G * dt; st.y = ballistic; }
+      else if (sup.h > st.y + Math.max(0, st.vy * dt) + P.STEP_UP) { const bump = sup.h - st.y; st.y = sup.h; st.vy = svy + Math.min(5, 1.5 + bump * 8); st.air = true; st.ev |= EV_BOUNCE; st.land = bump * 6; }
+      else { st.vy = (sup.h - st.y) / dt; st.y = sup.h; }
+    }
+    // hazards near the ball
+    const H = tr.haz; let i = lower(H, 0, s - 3, 's');
+    for (let j = i; j < H.length && H[j].s < s + 3; j++) {
+      const h = H[j], c = clearance(h, st, o.grow);
+      if (c < 0) { st.dead = 2; st.cause = h.type; st.ev |= EV_DEAD; st.hit = h; break; }
+      if (s0 < h.s && s >= h.s && c < P.NEAR) { st.near++; st.ev |= EV_NEAR; st.nearSide = Math.sign(h.u === undefined ? 0 : (st.u - hazPos(h, st.t, _hp).u)) || 1; }
+    }
+    // gems the ball passes through
+    const Gm = tr.gems; i = lower(Gm, 0, s0 - 1e-9, 's');
+    for (let j = i; j < Gm.length && Gm[j].s <= s; j++) {
+      const g = Gm[j]; if (o.live && g.got) continue;
+      const gy = tr.yAt(g.s) - tr.bAt(g.s) * g.u + g.dy, du = st.u - g.u, dy = st.y + P.R - gy;
+      if (du * du + dy * dy < P.GEM_R * P.GEM_R) { st.gems++; st.ev |= EV_GEM; st.gem = g; if (o.live) g.got = true; }
+    }
+    return st;
+  }
+  const DAMP = Math.exp(-P.GRIP * P.STEP), DAMP_IDLE = Math.exp(-P.GRIP_IDLE * P.STEP), DAMP_AIR = Math.exp(-P.AIR_DRAG * P.STEP);
+  function copy(a, b) { b = b || {}; for (const k in a) b[k] = a[k]; return b; }
+
+  // ---------- the bot: looks about 1.4 s ahead by simulating its choices on the real track, then steers ----------
+  const BOT = { every: 12, depth: 15, beam: 40, acts: [-1, 0, 1] };
+  function botPlan(tr, st, o) {
+    o = o || {}; const depth = o.depth || BOT.depth, beam = o.beam || BOT.beam, every = BOT.every, opt = o.opt || DEF;
+    let layer = [{ s: copy(st), first: null, score: 0 }], alive = null, dead = null;
+    for (let d = 0; d < depth; d++) {
+      const next = [];
+      for (const n of layer) for (const a of BOT.acts) {
+        const c = copy(n.s), first = n.first === null ? a : n.first; let k = 0;
+        for (; k < every; k++) { step(tr, c, a, opt); if (c.dead) break; }
+        if (c.dead) { const sc = d * every + k; if (!dead || sc > dead.sc) dead = { sc, first }; continue; }
+        const mid = c.air ? airAim(tr, c) : centreAt(tr, c);
+        const half = c.air ? 9 : (_cs.ub - _cs.ua) / 2, edge = half - Math.abs(c.u - mid);
+        next.push({ s: c, first, score: n.score + (c.gems - n.s.gems) * 0.4 + (d === 0 && a === o.prev ? 0.8 : 0) + (c.near - n.s.near) * 0.2 - Math.abs(c.u - mid) * 0.3 - (edge < 0.5 ? (0.5 - edge) * 3 : 0) - Math.abs(c.vl) * 0.03 - (a !== n.a ? 0.05 : 0), a });
+      }
+      if (!next.length) break;
+      next.sort((p, q) => q.score - p.score);
+      // keep the beam spread across the deck: the best state in every strip of the deck first, then the best of the rest
+      const keep = [], seen = new Set(), strip = new Set();
+      for (const n of next) { const key = Math.round(n.s.u * 3) + ':' + Math.round(n.s.vl / 1.5) + (n.s.air ? 'a' : 'g'); if (seen.has(key)) { n.dup = 1; continue; } seen.add(key); const sk = Math.round(n.s.u * 3); if (!strip.has(sk)) { strip.add(sk); keep.push(n); n.dup = 2; } }
+      for (const n of next) { if (keep.length >= beam) break; if (!n.dup) keep.push(n); }
+      keep.sort((p, q) => q.score - p.score);
+      layer = alive = keep;
+    }
+    return alive ? alive[0].first : dead ? dead.first : 0;
+  }
+  // the middle of whatever deck is under the ball (the bot's comfort line)
+  const _cs = { ok: false };
+  function centreAt(tr, st) { const sup = tr.support(st.s, st.u, st.t, st.y + 0.05, P.EDGE, _cs); return sup.ok ? (sup.ua + sup.ub) / 2 : st.u; }
+  // in the air: aim for the middle of the nearest deck ahead (or the centre line)
+  function airAim(tr, st) { const v = vAt(st.s); for (const k of [0.5, 0.9, 1.4]) { const sup = tr.support(st.s + v * k, st.u, st.t, -1e9, 3, _cs); if (sup.ok) return (sup.ua + sup.ub) / 2; } return 0; }
+  function Bot(tr, o) { this.tr = tr; this.k = 0; this.a = 0; this.o = o || {}; }
+  Bot.prototype.steer = function (st) { if (this.k-- <= 0) { this.a = botPlan(this.tr, st, { prev: this.a, depth: this.o.depth, beam: this.o.beam }); this.k = BOT.every - 1; } return this.a; };
+
+  // ---------- the passability check: every reachable state, step by step (all states share s and t) ----------
+  // Steering is limited to A of full strength, hazards grow by grow and decks shrink by -edge, so a pass leaves a margin.
+  const VOPT = { A: 0.8, grow: 0.12, edge: -0.06, live: false };
+  function validate(tr, sEnd, o) {
+    o = o || {}; const opt = o.opt || VOPT, every = o.every || 18, K = o.K || 64, fails = [], conn = [];
+    let beam = [newState(tr, 20)]; let lastMod = null;
+    tr.ensure(60);
+    while (beam[0].s < sEnd) {
+      tr.ensure(beam[0].s + 400);
+      const next = [];
+      for (const st of beam) for (const a of [-1, 0, 1]) {
+        const c = copy(st); for (let k = 0; k < every; k++) { step(tr, c, a, opt); if (c.dead) break; }
+        if (!c.dead) next.push(c);
+      }
+      const sNow = (next[0] || beam[0]).s;
+      const m = tr.modAt(sNow);
+      if (!next.length) {
+        // nothing got through: record it, then start again at the next module so the soak carries on
+        const c0 = copy(beam[0]); for (let k = 0; k < every; k++) step(tr, c0, 0, opt);
+        const mm = tr.modAt(c0.s), prev = tr.modAt(mm.s0 - 1);
+        fails.push({ s: Math.round(c0.s), type: mm.type, prev: prev.type, D: +mm.D.toFixed(2), v: +vAt(c0.s).toFixed(1), cause: c0.cause });
+        const nm = tr.mods[tr.mods.indexOf(mm) + 1] || mm; tr.ensure(nm.s1 + 400);
+        const ns = newState(tr, nm.s0 + 2); ns.y = tr.yAt(ns.s); beam = [ns]; lastMod = null; continue;
+      }
+      if (m !== lastMod) { // a module boundary: record what is reachable going in
+        let lo = 1e9, hi = -1e9; for (const c of next) { if (c.u < lo) lo = c.u; if (c.u > hi) hi = c.u; }
+        conn.push({ s: m.s0, type: m.type, lo: +lo.toFixed(2), hi: +hi.toFixed(2), n: next.length }); lastMod = m;
+      }
+      // merge states that are nearly the same, keep at most K spread across the deck
+      const seen = new Map();
+      for (const c of next) { const key = Math.round(c.u * 4) + ':' + Math.round(c.vl * 1.3) + (c.air ? 'a' + Math.round(c.y * 2) : 'g'); if (!seen.has(key)) seen.set(key, c); }
+      let arr = [...seen.values()];
+      if (arr.length > K) { arr.sort((p, q) => p.u - q.u || p.vl - q.vl); const out = []; for (let i = 0; i < K; i++) out.push(arr[Math.floor(i * arr.length / K)]); arr = out; }
+      beam = arr;
+      if (o.trim) tr.trim(beam[0].s - 50);
+    }
+    return { fails, conn };
+  }
+
+  return { P, profile, rng, hashStr, vAt, diffAt, tAt, wStd, Track, MODS, ORDER, newState, step, copy, hazPos, stampF, clearance, Bot, botPlan, validate, flight, VOPT, DEF,
+    EV_GEM, EV_NEAR, EV_LAND, EV_LAUNCH, EV_DEAD, EV_BOUNCE, BOT };
+})();
+// ==/CORE==
+// ==GAME==
+const $ = id => document.getElementById(id);
+// Spanish: es.js holds this game's words; TX() is for text built in code (../lang.js)
+const TX = (s, v) => window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
+const NUM = n => window.BackRoomLang ? BackRoomLang.num(n) : Number(n).toLocaleString('en-US');
+const fmtM = m => NUM(Math.floor(m)) + ' m';
+const P = RA.P;
+
+// ---------- saved data (this browser only) ----------
+const KEY = 'rollaway:';
+const store = { get(k, d) { try { const v = localStorage.getItem(KEY + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(KEY + k, JSON.stringify(v)); } catch (e) {} } };
+// marbles: cosmetic only, each opened by a best distance (metres)
+const BALLS = [
+  { id: 'lapis', name: 'Lapis', at: 0, kind: 'vein', a: '#1d3a9e', b: '#e9eefc', c: '#f0c050' },
+  { id: 'sunstone', name: 'Sunstone', at: 500, kind: 'bands', a: '#c4531c', b: '#ffd08a', c: '#7a2a10' },
+  { id: 'glacier', name: 'Glacier', at: 1000, kind: 'vein', a: '#e8f3fb', b: '#4f8fc0', c: '#ffffff' },
+  { id: 'jade', name: 'Jade', at: 1500, kind: 'swirl', a: '#1f7a55', b: '#9be3b8', c: '#0d3d2a' },
+  { id: 'ember', name: 'Ember', at: 2000, kind: 'crack', a: '#1b1414', b: '#ff7a2a', c: '#ffd36b' },
+  { id: 'tiger', name: 'Tiger Eye', at: 3000, kind: 'bands', a: '#5a3310', b: '#e2a13c', c: '#2a1606' },
+  { id: 'nightfall', name: 'Nightfall', at: 4000, kind: 'stars', a: '#14163d', b: '#7f8cff', c: '#fff4c4' },
+  { id: 'pearl', name: 'Pearl', at: 5000, kind: 'pearl', a: '#f3eee6', b: '#c8b6ef', c: '#9fe0e8' }
+];
+function loadSave() {
+  const s = store.get('save', null), o = { v: 1, best: 0, bestD: 0, runs: 0, gems: 0, ball: 'lapis', daily: null, how: 0 };
+  if (s && typeof s === 'object' && s.v === 1) {
+    for (const k of ['best', 'bestD', 'runs', 'gems']) if (isFinite(s[k]) && s[k] >= 0) o[k] = Math.floor(s[k]);
+    if (BALLS.some(b => b.id === s.ball)) o.ball = s.ball;
+    if (s.daily && typeof s.daily.day === 'string' && isFinite(s.daily.best)) o.daily = { day: s.daily.day, best: Math.floor(s.daily.best) || 0, bestD: Math.floor(s.daily.bestD) || 0 };
+    o.how = s.how ? 1 : 0;
+  }
+  return o;
+}
+let save = loadSave();
+const saveNow = () => store.set('save', save);
+const ballOpen = b => save.bestD >= b.at;
+const todayKey = () => { const d = new Date(); return d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0'); };
+const dailySeed = k => RA.hashStr('rollaway-daily-' + k);
+const dailyBest = () => save.daily && save.daily.day === todayKey() ? save.daily : { day: todayKey(), best: 0, bestD: 0 };
+
+let touchUI = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+const set = Object.assign({ q: 'auto', sens: 1, fx: false, vm: 0.8, vmu: 0.55, vs: 0.85, mute: false, touch: 'drag', tilt: false, mouse: false }, store.get('set', {}));
+if (!['auto', 'low', 'med', 'high'].includes(set.q)) set.q = 'auto';
+const saveSet = () => store.set('set', set);
+const quality = () => set.q === 'auto' ? (touchUI ? 'low' : 'med') : set.q;
+function statsHook(kind, k, v) { if (window.BackRoomStats && !TEST) { try { BackRoomStats[kind](k, v); } catch (e) {} } }
+const TEST = !!navigator.webdriver;
+
+// ---------- audio: Web Audio only, every sound made here ----------
+const AU = (() => {
+  let ac = null, master, music, sfx, comp, noise, roll, wind, lay = {}, nextT = 0, stepI = 0, timer = 0, intensity = 0, playing = false;
+  const BPM = 112, S16 = 60 / BPM / 4;
+  // D minor-ish loop, four bars: Dm, Bb, F, C (as MIDI note numbers)
+  const CH = [[50, 53, 57, 62], [46, 50, 53, 58], [53, 57, 60, 65], [48, 52, 55, 60]];
+  const ARP = [0, 2, 1, 3, 2, 1, 3, 2, 0, 3, 1, 2, 3, 1, 2, 0];
+  const SCALE = [74, 76, 78, 81, 83, 86, 88, 90, 93, 95, 98]; // gem chimes climb a D major pentatonic
+  const mf = m => 440 * Math.pow(2, (m - 69) / 12);
+  function init() {
+    if (ac) { if (ac.state !== 'running') ac.resume(); return; }
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+    comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4; comp.connect(ac.destination);
+    master = ac.createGain(); master.connect(comp); music = ac.createGain(); music.connect(master); sfx = ac.createGain(); sfx.connect(master);
+    const len = ac.sampleRate * 2, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; noise = buf;
+    // rolling rumble: looped noise through a low filter, plus a low hum, both following speed
+    const rs = ac.createBufferSource(); rs.buffer = noise; rs.loop = true; const rf = ac.createBiquadFilter(); rf.type = 'lowpass'; rf.frequency.value = 200; rf.Q.value = 0.8;
+    const rg = ac.createGain(); rg.gain.value = 0; rs.connect(rf); rf.connect(rg); rg.connect(sfx); rs.start();
+    const ho = ac.createOscillator(); ho.type = 'sine'; ho.frequency.value = 45; const hg = ac.createGain(); hg.gain.value = 0; ho.connect(hg); hg.connect(sfx); ho.start();
+    roll = { rf, rg, ho, hg };
+    const ws = ac.createBufferSource(); ws.buffer = noise; ws.loop = true; ws.playbackRate.value = 0.7; const wf = ac.createBiquadFilter(); wf.type = 'bandpass'; wf.Q.value = 0.6; wf.frequency.value = 500;
+    const wg = ac.createGain(); wg.gain.value = 0; ws.connect(wf); wf.connect(wg); wg.connect(sfx); ws.start(); wind = { wf, wg };
+    for (const k of ['pad', 'bass', 'hat', 'kick', 'arp']) { lay[k] = ac.createGain(); lay[k].gain.value = 0; lay[k].connect(music); }
+    vol();
+    document.addEventListener('visibilitychange', () => { if (!ac) return; if (document.hidden) ac.suspend(); else if (!set.mute) ac.resume(); });
+  }
+  function vol() { if (!ac) return; const t = ac.currentTime; master.gain.setTargetAtTime(set.mute ? 0 : set.vm * 0.9, t, 0.03); music.gain.setTargetAtTime(set.vmu * 0.55, t, 0.05); sfx.gain.setTargetAtTime(set.vs, t, 0.03); }
+  function env(g, t, a, peak, dec) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + dec); }
+  function tone(f0, f1, dur, type, peak, dest, t, pan) {
+    if (!ac) return; t = t || ac.currentTime; const o = ac.createOscillator(), g = ac.createGain(); o.type = type || 'sine';
+    o.frequency.setValueAtTime(f0, t); if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    env(g, t, 0.006, peak, dur); let out = g;
+    if (pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = pan; g.connect(p); out = p; }
+    o.connect(g); out.connect(dest || sfx); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function hiss(dur, type, f0, f1, peak, dest, t, pan, q) {
+    if (!ac) return; t = t || ac.currentTime; const s = ac.createBufferSource(); s.buffer = noise; s.playbackRate.value = 0.8 + Math.random() * 0.4;
+    const f = ac.createBiquadFilter(); f.type = type; f.Q.value = q || 0.9; f.frequency.setValueAtTime(f0, t); if (f1) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = ac.createGain(); env(g, t, 0.01, peak, dur); s.connect(f); f.connect(g); let out = g;
+    if (pan && ac.createStereoPanner) { const p = ac.createStereoPanner(); p.pan.value = pan; g.connect(p); out = p; }
+    out.connect(dest || sfx); s.start(t, Math.random()); s.stop(t + dur + 0.05);
+  }
+  let lastGem = 0;
+  const FX = {
+    land(imp) { const k = Math.min(1, imp / 14); tone(150, 48, 0.2 + 0.1 * k, 'sine', 0.25 + 0.5 * k); hiss(0.09, 'lowpass', 900, 200, 0.1 + 0.25 * k); },
+    bump() { tone(240, 110, 0.07, 'triangle', 0.12); },
+    near(side) { hiss(0.32, 'bandpass', 2600, 500, 0.32, null, 0, side * 0.7, 1.4); },
+    gem(n) { const now = ac ? ac.currentTime : 0; if (now - lastGem < 0.03) return; lastGem = now; const m = SCALE[Math.min(n, SCALE.length - 1)]; tone(mf(m), 0, 0.42, 'sine', 0.2); tone(mf(m + 12), 0, 0.22, 'triangle', 0.06); },
+    mile() { const t = ac.currentTime; [62, 66, 69, 74].forEach((m, i) => tone(mf(m), 0, 0.3, 'triangle', 0.16, sfx, t + i * 0.08)); },
+    unlock() { const t = ac.currentTime; [74, 78, 81, 86, 90].forEach((m, i) => tone(mf(m), 0, 0.35, 'sine', 0.14, sfx, t + i * 0.07)); },
+    fall() { tone(900, 110, 1.0, 'sine', 0.12); hiss(0.9, 'lowpass', 1400, 200, 0.18); },
+    crash() { hiss(0.3, 'lowpass', 3000, 300, 0.5); tone(420, 380, 0.5, 'square', 0.06); tone(633, 600, 0.45, 'triangle', 0.1); tone(110, 40, 0.3, 'sine', 0.5); },
+    go() { const t = ac.currentTime; tone(mf(62), 0, 0.18, 'triangle', 0.12, sfx, t); tone(mf(69), 0, 0.25, 'triangle', 0.12, sfx, t + 0.09); },
+    ui() { tone(660, 0, 0.05, 'triangle', 0.06); },
+    best() { const t = ac.currentTime; [69, 74, 78, 81].forEach((m, i) => tone(mf(m), 0, 0.4, 'sine', 0.13, sfx, t + i * 0.06)); }
+  };
+  function play(n, a) { if (!ac || set.mute) return; try { FX[n](a); } catch (e) {} }
+  // the music: a look-ahead sequencer on the audio clock; layers come in as the speed rises
+  function schedule() {
+    if (!ac || !playing) return;
+    while (nextT < ac.currentTime + 0.12) {
+      const t = nextT, i = stepI % 16, bar = Math.floor(stepI / 16) % 4, ch = CH[bar];
+      if (i === 0) for (const m of ch) { // pad: soft chord, one per bar
+        const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter(); o.type = 'sawtooth'; o.frequency.value = mf(m); o.detune.value = (Math.random() - 0.5) * 12;
+        f.type = 'lowpass'; f.frequency.value = 700; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.035, t + 0.4); g.gain.exponentialRampToValueAtTime(0.0001, t + S16 * 16);
+        o.connect(f); f.connect(g); g.connect(lay.pad); o.start(t); o.stop(t + S16 * 16 + 0.05);
+      }
+      if (i % 2 === 0) { const m = ch[0] - 12 + (i % 8 === 6 ? 7 : 0); tone(mf(m), 0, S16 * 1.6, 'triangle', 0.22, lay.bass, t); }
+      if (i % 2 === 1) hiss(0.04, 'highpass', 7000, 0, i % 4 === 3 ? 0.12 : 0.06, lay.hat, t);
+      if (i % 4 === 0) tone(120, 42, 0.16, 'sine', 0.55, lay.kick, t);
+      { const m = ch[ARP[i] % 4] + 12; tone(mf(m), 0, S16 * 0.9, 'square', 0.035, lay.arp, t); }
+      nextT += S16; stepI++;
+    }
+  }
+  function setIntensity(x) {
+    intensity = x; if (!ac) return; const t = ac.currentTime;
+    const lv = { pad: 1, bass: x > 0.12 ? 1 : 0, hat: x > 0.32 ? 1 : 0, kick: x > 0.5 ? 1 : 0, arp: x > 0.72 ? 1 : 0 };
+    for (const k in lv) lay[k].gain.setTargetAtTime(lv[k] * (playing ? 1 : 0), t, 0.6);
+  }
+  function startMusic() { if (!ac || playing) return; playing = true; nextT = ac.currentTime + 0.05; stepI = 0; clearInterval(timer); timer = setInterval(schedule, 25); setIntensity(intensity); }
+  function stopMusic() { playing = false; clearInterval(timer); if (ac) for (const k in lay) lay[k].gain.setTargetAtTime(0, ac.currentTime, 0.2); }
+  // rolling and wind, every frame: v speed (m/s), on the ground or not, the surface kind
+  function motion(v, ground, kind, live) {
+    if (!ac) return; const t = ac.currentTime, q = Math.min(1, v / 46);
+    const rough = kind === 'pad' || kind === 'slab' ? 1.7 : kind === 'ramp' ? 1.3 : 1;
+    roll.rf.frequency.setTargetAtTime((140 + v * 9) * rough, t, 0.05);
+    roll.rg.gain.setTargetAtTime(live && ground ? 0.16 + 0.32 * q : 0, t, ground ? 0.04 : 0.02);
+    roll.ho.frequency.setTargetAtTime(36 + v * 0.9, t, 0.1); roll.hg.gain.setTargetAtTime(live && ground ? 0.05 + 0.06 * q : 0, t, 0.05);
+    wind.wf.frequency.setTargetAtTime(280 + v * 32, t, 0.2); wind.wg.gain.setTargetAtTime(live ? (0.02 + 0.26 * q * q) * (ground ? 1 : 1.4) : 0, t, 0.3);
+  }
+  return { init, vol, play, startMusic, stopMusic, setIntensity, motion, get on() { return !!ac; }, get ctx() { return ac; } };
+})();
+
+// ---------- renderer and scene ----------
+const canvas = $('view');
+const Q0 = quality();
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: Q0 !== 'low', powerPreference: 'high-performance' });
+renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.02;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.autoUpdate = true;
+const scene = new THREE.Scene();
+const HAZE = new THREE.Color(0xf0bf98);
+scene.fog = new THREE.Fog(HAZE, 60, 300);
+const camera = new THREE.PerspectiveCamera(64, 1, 0.1, 2400);
+scene.add(camera);
+const QP = { low: { pr: 0.8, far: 210, shadow: false, nmap: false, clouds2: false, parts: 60, pier: 18 }, med: { pr: 1.15, far: 280, shadow: false, nmap: true, clouds2: true, parts: 120, pier: 13 }, high: { pr: 1.6, far: 330, shadow: true, nmap: true, clouds2: true, parts: 200, pier: 13 } };
+let QS = QP[Q0];
+
+// sky: a gradient dome with the low sun's glow, also used once to light everything (scene.environment)
+const SUN_DIR = new THREE.Vector3(0.75, 0.2, -0.38).normalize();
+function skyMaterial(env) {
+  return new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { sun: { value: SUN_DIR }, top: { value: new THREE.Color(0x2b4f8f) }, mid: { value: new THREE.Color(0x8fa9d8) }, hor: { value: new THREE.Color(0xffc89a) }, glow: { value: new THREE.Color(0xffd27e) }, low: { value: new THREE.Color(0xc89ab0) } },
+    vertexShader: 'varying vec3 vD;void main(){vD=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);'+(env?'':'gl_Position.z=gl_Position.w;')+'}',
+    fragmentShader: 'uniform vec3 sun,top,mid,hor,glow,low;varying vec3 vD;void main(){vec3 d=normalize(vD);float y=d.y;vec3 c=y>0.?mix(hor,mid,smoothstep(0.,.22,y)):mix(hor,low,smoothstep(0.,-.25,y));c=y>.22?mix(mid,top,smoothstep(.22,.85,y)):c;float s=max(dot(d,normalize(sun)),0.);c+=glow*(pow(s,6.)*.55+pow(s,60.)*.8)+vec3(1.,.95,.8)*smoothstep(.9985,.9993,s)*2.;gl_FragColor=vec4(c,1.);}'
+  });
+}
+const sky = new THREE.Mesh(new THREE.SphereGeometry(1000, 32, 16), skyMaterial()); sky.renderOrder = -10; scene.add(sky);
+{ // the same sky painted into a small panorama, blurred into image-based light for every stone and the marble
+  const W = 256, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), img = g.createImageData(W, H);
+  const cs = h => { const x = new THREE.Color(h); return [x.r, x.g, x.b]; }, top = cs(0x2b4f8f), mid = cs(0x8fa9d8), hor = cs(0xffc89a), glow = cs(0xffd27e), low = cs(0xc89ab0);
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t], sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const th = (i / W) * Math.PI * 2, ph = (0.5 - j / H) * Math.PI, y = Math.sin(ph), dx = Math.cos(ph) * Math.cos(th), dz = Math.cos(ph) * Math.sin(th);
+    let col = y > 0 ? mix(hor, mid, sst(0, 0.22, y)) : mix(hor, low, sst(0, -0.25, y)); if (y > 0.22) col = mix(mid, top, sst(0.22, 0.85, y));
+    const sdot = Math.max(0, -dx * SUN_DIR.x + y * SUN_DIR.y + dz * SUN_DIR.z), gl = Math.pow(sdot, 6) * 0.55 + Math.pow(sdot, 60) * 0.8;
+    const k = (j * W + i) * 4; for (let q = 0; q < 3; q++) img.data[k + q] = Math.min(255, (col[q] + glow[q] * gl) * 255); img.data[k + 3] = 255;
+  }
+  g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; t.encoding = THREE.sRGBEncoding;
+  const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromEquirectangular(t).texture; pm.dispose(); t.dispose();
+}
+const sun = new THREE.DirectionalLight(0xffd3a0, 2.3); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 90 }); sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+const hemi = new THREE.HemisphereLight(0xb9cdf5, 0xd99a72, 0.35); scene.add(hemi);
+
+function canvasTex(w, h, draw, srgb) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); if (srgb !== false) t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t; }
+function rngC(seed) { return RA.rng(seed); }
+// stone paving: joints and speckle; colour comes from the vertices (so one texture serves every piece)
+const STONE_H = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), r = rngC(7);
+  g.fillStyle = '#d9d9d9'; g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2600; i++) { const v = 170 + r() * 85 | 0; g.fillStyle = `rgb(${v},${v},${v})`; g.globalAlpha = 0.25; g.fillRect(r() * 256, r() * 256, 1 + r() * 3, 1 + r() * 3); }
+  g.globalAlpha = 1;
+  // slabs: rows 64 px tall (half a texture), staggered joints
+  for (let y = 0; y < 256; y += 64) { const off = (y / 64) % 2 ? 48 : 0; g.fillStyle = '#8a8a8a'; g.fillRect(0, y, 256, 3); for (let x = off; x < 256 + 96; x += 96) g.fillRect(x % 256, y, 3, 64); }
+  for (let i = 0; i < 26; i++) { g.fillStyle = 'rgba(120,120,120,.1)'; g.beginPath(); g.ellipse(r() * 256, r() * 256, 10 + r() * 26, 6 + r() * 14, r() * 3, 0, 7); g.fill(); }
+  for (let y = 0; y < 256; y += 64) for (let x = 0; x < 256; x += 48) { const v = 200 + r() * 40 | 0; g.fillStyle = `rgba(${v},${v},${v},.25)`; g.fillRect(x + 3, y + 3, 45, 61); } // a slight shade per slab
+  return c; })();
+const stoneTex = new THREE.CanvasTexture(STONE_H); stoneTex.encoding = THREE.sRGBEncoding; stoneTex.wrapS = stoneTex.wrapT = THREE.RepeatWrapping; stoneTex.anisotropy = 8;
+const stoneNrm = (() => { // a normal map from the same picture: joints sink in
+  const g = STONE_H.getContext('2d'), src = g.getImageData(0, 0, 256, 256).data, c = document.createElement('canvas'); c.width = c.height = 256; const o = c.getContext('2d'), img = o.createImageData(256, 256);
+  const H = (x, y) => src[(((y + 256) % 256) * 256 + ((x + 256) % 256)) * 4] / 255;
+  for (let y = 0; y < 256; y++) for (let x = 0; x < 256; x++) { const dx = (H(x - 1, y) - H(x + 1, y)) * 2.2, dy = (H(x, y - 1) - H(x, y + 1)) * 2.2, l = Math.hypot(dx, dy, 1), i = (y * 256 + x) * 4; img.data[i] = (dx / l * 0.5 + 0.5) * 255; img.data[i + 1] = (dy / l * 0.5 + 0.5) * 255; img.data[i + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[i + 3] = 255; }
+  o.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
+const deckMat = new THREE.MeshStandardMaterial({ map: stoneTex, vertexColors: true, roughness: 0.88, metalness: 0, envMapIntensity: 0.55 });
+function applyNormalMap() { deckMat.normalMap = QS.nmap ? stoneNrm : null; deckMat.normalScale && deckMat.normalScale.set(0.7, 0.7); deckMat.needsUpdate = true; }
+
+// colours (linear, for vertex colours)
+const C = h => new THREE.Color(h).convertSRGBToLinear();
+const COL = {
+  top: C(0xf0d8a6), topB: C(0xf4e2bf), side: C(0xd9b27c), bot: C(0x9a7552), band: C(0xb8613a), rail: C(0xc26a40), wall: C(0xe6c891),
+  plaza: C(0xf6e8cb), plazaB: C(0xd99a62), ramp: C(0xc9653b), rampB: C(0xf6dfb2), pad: C(0xf3ecdc), padB: C(0x8f7d6c), beam: C(0xeedcb2)
+};
+
+// ---------- the deck: chunks of 16 m, each one mesh from a pool, rebuilt in place when recycled ----------
+const CH = 16, MAXV = 9000, MAXI = 42000;
+const chunkPool = [], chunks = new Map();
+function newChunkMesh() {
+  const g = new THREE.BufferGeometry();
+  const mk = (n, k) => { const a = new THREE.BufferAttribute(new Float32Array(n * k), k); a.setUsage(THREE.DynamicDrawUsage); return a; };
+  g.setAttribute('position', mk(MAXV, 3)); g.setAttribute('normal', mk(MAXV, 3)); g.setAttribute('uv', mk(MAXV, 2)); g.setAttribute('color', mk(MAXV, 3));
+  const ix = new THREE.BufferAttribute(new Uint16Array(MAXI), 1); ix.setUsage(THREE.DynamicDrawUsage); g.setIndex(ix);
+  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 30);
+  const m = new THREE.Mesh(g, deckMat); m.receiveShadow = true; m.matrixAutoUpdate = false; m.visible = false; scene.add(m);
+  return { mesh: m, k: -1, piers: [], arches: [], wx: 0, wy: 0, wz: 0 };
+}
+let O = { x: 0, y: 0, z: 0 }; // floating origin: world positions are drawn relative to this
+const FR = { x: 0, y: 0, z: 0, yaw: 0, k: 0, b: 0 }, FR2 = { x: 0, y: 0, z: 0, yaw: 0, k: 0, b: 0 };
+let B = null; // the chunk being built: { pos, nor, uv, col, idx, nv, ni }
+function sectionOf(p, s, t, ua, ub, mid) { // the cross-section loop as strips of [u, h, colour, ...]; h above the base line, before bank
+  const out = [], T = p.k === 'beam' || p.k === 'pad' ? 0.55 : 0.75, wl = p.wl, wr = p.wr;
+  const pr = { h: 0, d: 0 }, H = u => { RA.profile(p, s, u, t, ua, ub, pr); return pr.h; };
+  const kind = p.k, ring = Math.floor(s) & 1;
+  let topC = kind === 'plaza' ? COL.plaza : kind === 'pad' ? COL.pad : kind === 'beam' ? COL.beam : COL.top, bandC = kind === 'plaza' ? COL.plazaB : kind === 'pad' ? COL.padB : COL.band;
+  if (kind === 'ramp') topC = ring ? COL.ramp : COL.rampB;
+  const top = [];
+  if (wl) { const n = 7; for (let i = 0; i <= n; i++) { const u = ua + wl.w * i / n; top.push([u, H(u), i === 0 ? COL.wall : COL.wall]); } }
+  else { top.push([ua, H(ua), bandC], [ua + 0.2, H(ua + 0.2), bandC], [ua + 0.23, H(ua + 0.23), topC]); }
+  const midA = wl ? ua + wl.w : ua + 0.23, midB = wr ? ub - wr.w : ub - 0.23;
+  if (mid) { const um = (midA + midB) / 2; top.push([um, H(um), kind === 'plaza' ? COL.topB : topC]); }
+  if (wr) { const n = 7; for (let i = 0; i <= n; i++) { const u = ub - wr.w + wr.w * i / n; top.push([u, H(u), COL.wall]); } }
+  else { top.push([ub - 0.23, H(ub - 0.23), topC], [ub - 0.2, H(ub - 0.2), bandC], [ub, H(ub), bandC]); }
+  // walls end in a rail: a raised coping that reads as "this side is safe"
+  const hl = top[0][1], hr = top[top.length - 1][1];
+  out.push(top);
+  if (wr) { out.push([[ub, hr, COL.rail], [ub, hr + 0.22, COL.rail]]); out.push([[ub, hr + 0.22, COL.rail], [ub + 0.3, hr + 0.22, COL.rail]]); out.push([[ub + 0.3, hr + 0.22, COL.side], [ub + 0.3, -T, COL.bot]]); }
+  else out.push([[ub, hr, COL.side], [ub, -T, COL.bot]]);
+  const xb = wr ? ub + 0.3 : ub, xa = wl ? ua - 0.3 : ua;
+  out.push([[xb, -T, COL.bot], [xa, -T, COL.bot]]);
+  if (wl) { out.push([[ua - 0.3, -T, COL.bot], [ua - 0.3, hl + 0.22, COL.side]]); out.push([[ua - 0.3, hl + 0.22, COL.rail], [ua, hl + 0.22, COL.rail]]); out.push([[ua, hl + 0.22, COL.rail], [ua, hl, COL.rail]]); }
+  else out.push([[ua, -T, COL.bot], [ua, hl, COL.side]]);
+  return out;
+}
+function emitPiece(p, a, b, t) {
+  const tr = G.tr; const L = b - a; if (L < 0.02) return;
+  const n = Math.max(1, Math.ceil(L / (p.ramp || p.hump ? 0.7 : 1.0)));
+  let base = -1, stripLens = null; const hasMid = p.k !== 'ramp' && Math.min(p.ub0 - p.ua0, p.ub1 - p.ua1) - (p.wl ? p.wl.w : 0.23) - (p.wr ? p.wr.w : 0.23) > 1.2;
+  for (let j = 0; j <= n; j++) {
+    const s = a + L * j / n; tr.frame(s, FR); const f = (s - p.sa) / (p.sb - p.sa), ua = p.ua0 + (p.ua1 - p.ua0) * f, ub = p.ub0 + (p.ub1 - p.ub0) * f;
+    const strips = sectionOf(p, s, t, ua, ub, hasMid);
+    const cx = Math.cos(FR.yaw), cz = Math.sin(FR.yaw); // right vector
+    if (base < 0) { stripLens = strips.map(st => st.length); base = B.nv; }
+    let vi = B.nv;
+    if (vi + strips.reduce((q, st) => q + st.length, 0) >= MAXV) return;
+    for (const st of strips) {
+      let arc = 0;
+      for (let i = 0; i < st.length; i++) {
+        const [u, h, col] = st[i], y = FR.y - FR.b * u + h;
+        const i0 = Math.max(0, i - 1), i1 = Math.min(st.length - 1, i + 1); let tu = st[i1][0] - st[i0][0], th = (st[i1][1] - FR.b * st[i1][0]) - (st[i0][1] - FR.b * st[i0][0]); const tl = Math.hypot(tu, th) || 1; tu /= tl; th /= tl;
+        const nu = -th, nh = tu;
+        if (i > 0) arc += Math.hypot(st[i][0] - st[i - 1][0], st[i][1] - st[i - 1][1]);
+        const k3 = vi * 3, k2 = vi * 2;
+        B.pos[k3] = FR.x + cx * u - B.wx; B.pos[k3 + 1] = y - B.wy; B.pos[k3 + 2] = FR.z + cz * u - B.wz;
+        B.nor[k3] = cx * nu; B.nor[k3 + 1] = nh; B.nor[k3 + 2] = cz * nu;
+        B.uv[k2] = arc * 0.5; B.uv[k2 + 1] = s * 0.5;
+        B.col[k3] = col.r; B.col[k3 + 1] = col.g; B.col[k3 + 2] = col.b; vi++;
+      }
+    }
+    if (j > 0) {
+      const ringN = stripLens.reduce((q, x) => q + x, 0), r0 = B.nv - ringN, r1 = B.nv;
+      let off = 0;
+      for (const sl of stripLens) {
+        for (let i = 0; i < sl - 1; i++) {
+          if (B.ni + 6 > MAXI) break;
+          const A = r0 + off + i, Bq = r0 + off + i + 1, Cq = r1 + off + i + 1, D = r1 + off + i;
+          B.idx[B.ni++] = A; B.idx[B.ni++] = Bq; B.idx[B.ni++] = Cq; B.idx[B.ni++] = A; B.idx[B.ni++] = Cq; B.idx[B.ni++] = D;
+        }
+        off += sl;
+      }
+    }
+    B.nv = vi;
+  }
+}
+// an end cap where a deck stops at a gap (so the stone looks solid, not hollow)
+function emitCap(p, s, t, back) {
+  const tr = G.tr; tr.frame(s, FR); const f = (s - p.sa) / (p.sb - p.sa), ua = p.ua0 + (p.ua1 - p.ua0) * f, ub = p.ub0 + (p.ub1 - p.ub0) * f;
+  if (ub - ua < 0.1) return;
+  const strips = sectionOf(p, s, t, ua, ub, false), pts = []; for (const st of strips) for (const q of st) pts.push(q);
+  const cx = Math.cos(FR.yaw), cz = Math.sin(FR.yaw), fx = Math.sin(FR.yaw), fz = -Math.cos(FR.yaw), sg = back ? -1 : 1;
+  if (B.nv + pts.length + 1 >= MAXV || B.ni + pts.length * 3 >= MAXI) return;
+  const c0 = B.nv; let mu = 0, mh = 0; for (const q of pts) { mu += q[0]; mh += q[1]; } mu /= pts.length; mh /= pts.length;
+  const put = (u, h) => { const k3 = B.nv * 3; B.pos[k3] = FR.x + cx * u - B.wx; B.pos[k3 + 1] = FR.y - FR.b * u + h - B.wy; B.pos[k3 + 2] = FR.z + cz * u - B.wz; B.nor[k3] = fx * sg; B.nor[k3 + 1] = 0; B.nor[k3 + 2] = fz * sg; B.uv[B.nv * 2] = u * 0.5; B.uv[B.nv * 2 + 1] = h * 0.5; B.col[k3] = COL.side.r * 0.92; B.col[k3 + 1] = COL.side.g * 0.92; B.col[k3 + 2] = COL.side.b * 0.92; B.nv++; };
+  put(mu, mh); for (const q of pts) put(q[0], q[1]);
+  for (let i = 0; i < pts.length; i++) { const a = c0 + 1 + i, b = c0 + 1 + (i + 1) % pts.length; if (back) { B.idx[B.ni++] = c0; B.idx[B.ni++] = a; B.idx[B.ni++] = b; } else { B.idx[B.ni++] = c0; B.idx[B.ni++] = b; B.idx[B.ni++] = a; } }
+}
+const _pl = [];
+function deckAt(s, u) { const list = G.tr.piecesAt(s, _pl); for (const p of list) { if (p.tilt) continue; const f = (s - p.sa) / (p.sb - p.sa), ua = p.ua0 + (p.ua1 - p.ua0) * f, ub = p.ub0 + (p.ub1 - p.ub0) * f; if (u >= ua - 0.3 && u <= ub + 0.3) return p; } return null; }
+function buildChunk(ch, k) {
+  const tr = G.tr, c0 = k * CH, c1 = c0 + CH, g = ch.mesh.geometry;
+  tr.frame(c0, FR); ch.wx = FR.x; ch.wy = FR.y; ch.wz = FR.z; ch.k = k;
+  B = { pos: g.attributes.position.array, nor: g.attributes.normal.array, uv: g.attributes.uv.array, col: g.attributes.color.array, idx: g.index.array, nv: 0, ni: 0, wx: ch.wx, wy: ch.wy, wz: ch.wz };
+  const ps = tr.pieces; let i = ps.length - 1; // the pieces that overlap this chunk
+  const lo = c0 - tr.maxLen;
+  // binary search for the last piece starting before c1
+  let a = tr.p0, bb = ps.length; while (a < bb) { const m = (a + bb) >> 1; if (ps[m].sa < c1) a = m + 1; else bb = m; } i = a - 1;
+  for (; i >= tr.p0 && ps[i].sa >= lo; i--) {
+    const p = ps[i]; if (p.sb <= c0 || p.sa >= c1 || p.tilt) continue;
+    const pa = Math.max(c0, p.sa), pb = Math.min(c1, p.sb);
+    emitPiece(p, pa, pb, 0);
+    const um = (p.ua0 + p.ub0) / 2, um1 = (p.ua1 + p.ub1) / 2;
+    if (p.sa >= c0 && p.sa < c1 && !deckAt(p.sa - 0.4, um)) emitCap(p, p.sa, 0, true);
+    if (p.sb > c0 && p.sb <= c1 && !deckAt(p.sb + 0.4, um1)) emitCap(p, p.sb, 0, false);
+  }
+  g.setDrawRange(0, B.ni);
+  for (const n of ['position', 'normal', 'uv', 'color']) { const at = g.attributes[n]; at.needsUpdate = true; at.updateRange.offset = 0; at.updateRange.count = B.nv * at.itemSize; }
+  g.index.needsUpdate = true; g.index.updateRange.offset = 0; g.index.updateRange.count = B.ni;
+  tr.frame(c0 + CH / 2, FR2); g.boundingSphere.center.set(FR2.x - ch.wx, FR2.y - ch.wy, FR2.z - ch.wz); g.boundingSphere.radius = 22;
+  ch.mesh.position.set(ch.wx - O.x, ch.wy - O.y, ch.wz - O.z); ch.mesh.updateMatrix(); ch.mesh.visible = true;
+  // piers under the deck (and arches between them), placed along the centre of each piece
+  ch.piers.length = 0; ch.arches.length = 0;
+  const sp = QS.pier;
+  for (let s = Math.ceil(c0 / sp) * sp; s < c1; s += sp) {
+    const list = tr.piecesAt(s, _pl);
+    for (const p of list) {
+      if (p.tilt) continue; const f = (s - p.sa) / (p.sb - p.sa), ua = p.ua0 + (p.ua1 - p.ua0) * f, ub = p.ub0 + (p.ub1 - p.ub0) * f, w = ub - ua; if (w < 0.8) continue;
+      const u = (ua + ub) / 2; tr.frame(s, FR);
+      const T = p.k === 'beam' || p.k === 'pad' ? 0.55 : 0.75, y = FR.y - FR.b * u - T;
+      ch.piers.push([FR.x + Math.cos(FR.yaw) * u, y, FR.z + Math.sin(FR.yaw) * u, FR.yaw, clampN(w * 0.4, 0.9, 2.4)]);
+      // an arch back to the previous pier, if the deck is unbroken between them
+      const sb = s - sp; if (sb >= p.sa - 0.01 && w > 2.2 && (p.k === 'stone' || p.k === 'plaza' || p.k === 'pipe' || p.k === 'wall')) {
+        const f2 = (sb - p.sa) / (p.sb - p.sa), u2 = (p.ua0 + (p.ua1 - p.ua0) * f2 + p.ub0 + (p.ub1 - p.ub0) * f2) / 2; tr.frame(sb, FR2);
+        const x2 = FR2.x + Math.cos(FR2.yaw) * u2, z2 = FR2.z + Math.sin(FR2.yaw) * u2, y2 = FR2.y - FR2.b * u2 - T;
+        const x1 = FR.x + Math.cos(FR.yaw) * u, z1 = FR.z + Math.sin(FR.yaw) * u;
+        ch.arches.push([(x1 + x2) / 2, Math.min(y, y2), (z1 + z2) / 2, Math.atan2(x1 - x2, -(z1 - z2)), Math.hypot(x1 - x2, z1 - z2), clampN(w * 0.4, 0.9, 2.4) * 0.95]);
+      }
+    }
+  }
+  piersDirty = true;
+}
+// piers and arches: two instanced meshes for everything on screen
+function pierGeo() {
+  const g = new THREE.CylinderGeometry(0.42, 0.62, 70, 8, 1); g.translate(0, -35, 0);
+  const cap = new THREE.BoxGeometry(1.2, 0.4, 1.2); cap.translate(0, -0.2, 0);
+  return mergeGeos([cap, g], [C(0xd4ad78), C(0xc9a273)]);
+}
+function archGeo() { // a wall with a round-headed opening, 1 m long (z), 1 m wide (x), 1 m tall from the top down
+  const sh = new THREE.Shape(); sh.moveTo(-0.5, 0); sh.lineTo(0.5, 0); sh.lineTo(0.5, -1); sh.lineTo(0.42, -1); sh.absarc(0, -1, 0.42, 0, Math.PI, false); sh.lineTo(-0.5, -1); sh.lineTo(-0.5, 0);
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 1, bevelEnabled: false, curveSegments: 8 }); g.translate(0, 0, -0.5);
+  g.rotateY(Math.PI / 2); // opening across the track: the arch runs along the deck
+  return mergeGeos([g], [C(0xcfa676)]);
+}
+function mergeGeos(list, cols) { // non-indexed merge with a colour per part
+  const pos = [], nor = [], col = [];
+  list.forEach((g0, k) => { const g = g0.index ? g0.toNonIndexed() : g0; g.computeVertexNormals(); const p = g.attributes.position.array, n = g.attributes.normal.array, c = cols[k] || C(0xffffff); for (let i = 0; i < p.length; i += 3) { pos.push(p[i], p[i + 1], p[i + 2]); nor.push(n[i], n[i + 1], n[i + 2]); col.push(c.r, c.g, c.b); } });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); return g;
+}
+const supportMat = new THREE.MeshStandardMaterial({ map: stoneTex, vertexColors: true, roughness: 0.92, envMapIntensity: 0.5 });
+const piers = new THREE.InstancedMesh(pierGeo(), supportMat, 160); piers.count = 0; piers.frustumCulled = false; piers.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(piers);
+const arches = new THREE.InstancedMesh(archGeo(), supportMat, 160); arches.count = 0; arches.frustumCulled = false; arches.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(arches);
+let piersDirty = false;
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler(), _up = new THREE.Vector3(0, 1, 0);
+function rebuildPiers() {
+  let n = 0, na = 0;
+  for (const ch of chunks.values()) {
+    for (const pr of ch.piers) { if (n >= 160) break; _q.setFromAxisAngle(_up, -pr[3]); _v.set(pr[0] - O.x, pr[1] - O.y, pr[2] - O.z); _s.set(pr[4], 1, pr[4]); _m.compose(_v, _q, _s); piers.setMatrixAt(n++, _m); }
+    for (const ar of ch.arches) { if (na >= 160) break; _q.setFromAxisAngle(_up, -ar[3]); _v.set(ar[0] - O.x, ar[1] - O.y, ar[2] - O.z); _s.set(ar[5], Math.min(ar[4] * 0.55, 7), ar[4] + 0.05); _m.compose(_v, _q, _s); arches.setMatrixAt(na++, _m); }
+  }
+  piers.count = n; arches.count = na; piers.instanceMatrix.needsUpdate = true; arches.instanceMatrix.needsUpdate = true; piersDirty = false;
+}
+function releaseChunk(k) { const ch = chunks.get(k); if (!ch) return; ch.mesh.visible = false; ch.k = -1; chunks.delete(k); chunkPool.push(ch); piersDirty = true; }
+function updateChunks(s, all) {
+  const k0 = Math.floor((s - 30) / CH), k1 = Math.floor((s + QS.far + 20) / CH);
+  for (const k of [...chunks.keys()]) if (k < k0 || k > k1) releaseChunk(k);
+  let built = 0;
+  for (let k = Math.max(0, k0); k <= k1; k++) {
+    if (chunks.has(k)) continue; if (!all && built >= 3) break;
+    if ((k + 1) * CH > G.tr.sGen) break;
+    const ch = chunkPool.pop() || newChunkMesh(); buildChunk(ch, k); chunks.set(k, ch); built++;
+  }
+  if (piersDirty) rebuildPiers();
+}
+function clearChunks() { for (const k of [...chunks.keys()]) releaseChunk(k); }
+
+// ---------- hazards, gems, slabs: instanced, rewritten every frame for what is near ----------
+const ironMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.55, envMapIntensity: 0.9 });
+function postGeo() {
+  const shaft = new THREE.CylinderGeometry(0.36, 0.42, 1.45, 8); shaft.translate(0, 0.725, 0);
+  const band = new THREE.CylinderGeometry(0.43, 0.43, 0.22, 8); band.translate(0, 1.05, 0);
+  const tip = new THREE.ConeGeometry(0.36, 0.5, 8); tip.translate(0, 1.7, 0);
+  const foot = new THREE.CylinderGeometry(0.5, 0.52, 0.12, 8); foot.translate(0, 0.06, 0);
+  return mergeGeos([shaft, band, tip, foot], [C(0x2c2420), C(0xf0e2c2), C(0xd2522a), C(0x3a302a)]);
+}
+function drumGeo() { // axis along z (the track), radius 0.55, length 1.5
+  const body = new THREE.CylinderGeometry(0.55, 0.55, 1.5, 14); body.rotateX(Math.PI / 2);
+  const parts = [body], cols = [C(0x2e2622)];
+  for (const z of [-0.5, 0, 0.5]) { const b = new THREE.CylinderGeometry(0.57, 0.57, 0.14, 14); b.rotateX(Math.PI / 2); b.translate(0, 0, z); parts.push(b); cols.push(z === 0 ? C(0xf0e2c2) : C(0xd2522a)); }
+  const stripe = new THREE.BoxGeometry(0.16, 1.16, 1.52); parts.push(stripe); cols.push(C(0xd2522a)); // shows the roll
+  return mergeGeos(parts, cols);
+}
+function bobGeo() { const a = new THREE.ConeGeometry(0.62, 0.8, 12); a.translate(0, 0.4, 0); const b = new THREE.ConeGeometry(0.62, 1.0, 12); b.rotateX(Math.PI); b.translate(0, -0.5, 0); const band = new THREE.CylinderGeometry(0.65, 0.65, 0.2, 12); const ring = new THREE.TorusGeometry(0.16, 0.05, 6, 10); ring.translate(0, 0.86, 0); return mergeGeos([a, b, band, ring], [C(0x2c2420), C(0x2c2420), C(0xf0e2c2), C(0x8a6a4a)]); }
+function chainGeo() { const g = new THREE.CylinderGeometry(0.09, 0.09, 1, 6); g.translate(0, -0.5, 0); return mergeGeos([g], [C(0x4a3e36)]); }
+function pillarGeo() { const l = new THREE.BoxGeometry(0.7, 6.6, 0.7); l.translate(0, 3.3, 0); const c = new THREE.BoxGeometry(0.9, 0.3, 0.9); c.translate(0, 0.15, 0); return mergeGeos([l, c], [C(0xd8b582), C(0xb98a5a)]); }
+function lintelGeo() { const t = new THREE.BoxGeometry(1, 0.6, 0.9); t.translate(0, 0, 0); return mergeGeos([t], [C(0xc66d42)]); }
+function stampGeo() { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, -0.5, 0); const t = new THREE.BoxGeometry(1.02, 0.14, 1.02); t.translate(0, -0.12, 0); return mergeGeos([g, t], [C(0x2c2420), C(0xd2522a)]); }
+function slabGeo() { const g = new THREE.BoxGeometry(1, 1, 1); g.translate(0, -0.5, 0); const t = new THREE.BoxGeometry(0.86, 0.02, 0.98); t.translate(0, 0.005, 0); return mergeGeos([g, t], [C(0x8a95ab), C(0xb2bccd)]); }
+function gemGeo() { const g = new THREE.OctahedronGeometry(0.34, 0); g.scale(0.8, 1.1, 0.8); return g; }
+const MAXH = 90;
+const mkI = (geo, mat, n, shadow) => { const m = new THREE.InstancedMesh(geo, mat, n); m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.castShadow = !!shadow; scene.add(m); return m; };
+const posts = mkI(postGeo(), ironMat, MAXH, true), drums = mkI(drumGeo(), ironMat, 40, true), bobs = mkI(bobGeo(), ironMat, 30, true), chains = mkI(chainGeo(), ironMat, 30), pillars = mkI(pillarGeo(), supportMat, 60, true), lintels = mkI(lintelGeo(), supportMat, 30, true);
+const stamps = mkI(stampGeo(), ironMat, 60, true);
+const slabMat = new THREE.MeshStandardMaterial({ map: stoneTex, vertexColors: true, roughness: 0.8, envMapIntensity: 0.6 });
+const slabs = mkI(slabGeo(), slabMat, 24); slabs.receiveShadow = true;
+const gemMat = new THREE.MeshStandardMaterial({ color: 0x7ff0ff, emissive: 0x1aa8c8, emissiveIntensity: 0.55, roughness: 0.15, metalness: 0.1, envMapIntensity: 1.4 });
+const gems = mkI(gemGeo(), gemMat, 80);
+// soft halos behind the gems so they read against bright cloud
+const glowTex = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(190,250,255,.9)'); gr.addColorStop(0.35, 'rgba(95,232,255,.35)'); gr.addColorStop(1, 'rgba(95,232,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+const haloGeo = new THREE.BufferGeometry(); haloGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(80 * 3), 3)); haloGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
+const halos = new THREE.Points(haloGeo, new THREE.PointsMaterial({ map: glowTex, size: 1.4, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true, fog: true })); halos.frustumCulled = false; scene.add(halos);
+
+// world position of track point (s, u) with height y (absolute), relative to the origin
+function wpos(s, u, y, out) { G.tr.frame(s, FR); out.set(FR.x + Math.cos(FR.yaw) * u - O.x, (y == null ? FR.y - FR.b * u : y) - O.y, FR.z + Math.sin(FR.yaw) * u - O.z); return out; }
+const _rq = new THREE.Quaternion(), _hp = { u: 0, y: 0, a: 0, f: 0 }, _bx = new THREE.Vector3(), _by = new THREE.Vector3(), _bz = new THREE.Vector3();
+function updateObjects(sCam, t) {
+  const tr = G.tr, lo = sCam - 25, hi = sCam + QS.far;
+  let np = 0, nd = 0, nb = 0, ns = 0, nf = 0;
+  const H = tr.haz; let i0 = 0, i1 = H.length; while (i0 < i1) { const m = (i0 + i1) >> 1; if (H[m].s < lo) i0 = m + 1; else i1 = m; }
+  for (let hi_ = i0; hi_ < H.length; hi_++) {
+    const h = H[hi_]; if (h.s > hi) break;
+    RA.hazPos(h, t, _hp); tr.frame(h.s, FR); const yaw = FR.yaw;
+    _q.setFromAxisAngle(_up, -yaw);
+    if (h.type === 'post' && np < MAXH) { wpos(h.s, h.u, h.y, _v); _s.set(1, 1, 1); _m.compose(_v, _q, _s); posts.setMatrixAt(np++, _m); }
+    else if (h.type === 'drum' && nd < 40) { wpos(h.s, _hp.u, h.y + h.r, _v); _e.set(0, -yaw, 0, 'YXZ'); _q.setFromEuler(_e); _rq.setFromAxisAngle(_bz.set(0, 0, 1), -_hp.a); _q.multiply(_rq); _s.set(1, 1, 1); _m.compose(_v, _q, _s); drums.setMatrixAt(nd++, _m); }
+    else if (h.type === 'pend' && nb < 30) {
+      const pivotY = h.y + h.h0 + h.L;
+      wpos(h.s, _hp.u, h.y + _hp.y, _v); _q.setFromAxisAngle(_up, -yaw); _rq.setFromAxisAngle(_bz.set(0, 0, 1), _hp.a); _q.multiply(_rq); _s.set(1, 1, 1); _m.compose(_v, _q, _s); bobs.setMatrixAt(nb, _m);
+      wpos(h.s, h.u, pivotY, _v); _s.set(1, h.L - 0.45, 1); _m.compose(_v, _q, _s); chains.setMatrixAt(nb, _m); nb++;
+      // the gantry, as wide as the deck
+      const p = deckAt(h.s, h.u); let w = 6; if (p) { const f = (h.s - p.sa) / (p.sb - p.sa); w = (p.ub0 + (p.ub1 - p.ub0) * f) - (p.ua0 + (p.ua1 - p.ua0) * f) + 1.6; }
+      if (nf < 30) { _q.setFromAxisAngle(_up, -yaw); _s.set(1, 1, 1); wpos(h.s, h.u - w / 2, h.y - 0.6, _v); _m.compose(_v, _q, _s); pillars.setMatrixAt(nf * 2, _m); wpos(h.s, h.u + w / 2, h.y - 0.6, _v); _m.compose(_v, _q, _s); pillars.setMatrixAt(nf * 2 + 1, _m);
+        wpos(h.s, h.u, pivotY + 0.3, _v); _s.set(w + 0.9, 1, 1); _m.compose(_v, _q, _s); lintels.setMatrixAt(nf++, _m); }
+    } else if (h.type === 'stamp' && ns < 60) { wpos(h.s, h.u, h.y + _hp.y + 0.004, _v); _s.set(h.wid, h.hgt, h.len); _m.compose(_v, _q, _s); stamps.setMatrixAt(ns++, _m); }
+  }
+  posts.count = np; drums.count = nd; bobs.count = nb; chains.count = nb; pillars.count = nf * 2; lintels.count = nf; stamps.count = ns;
+  for (const m of [posts, drums, bobs, chains, pillars, lintels, stamps]) m.instanceMatrix.needsUpdate = true;
+  // tilting slabs (their deck moves, so they're drawn here instead of in the chunks)
+  let nsl = 0; const ps = tr.pieces;
+  for (let i = tr.p0; i < ps.length && nsl < 24; i++) {
+    const p = ps[i]; if (p.sb < lo) continue; if (p.sa > hi) break; if (!p.tilt) continue;
+    const sm = (p.sa + p.sb) / 2, um = (p.ua0 + p.ub0) / 2, w = p.ub0 - p.ua0, b = tr.tiltB(p, t);
+    tr.frame(sm, FR); const yaw = FR.yaw, rx = Math.cos(yaw), rz = Math.sin(yaw), fx = Math.sin(yaw), fz = -Math.cos(yaw);
+    const dy = tr.yAt(p.sb) - tr.yAt(p.sa), L = p.sb - p.sa;
+    _bx.set(rx * w, -b * w, rz * w); _by.set(0, 0.6, 0); _bz.set(-fx * L, -dy, -fz * L);
+    _m.makeBasis(_bx, _by, _bz); wpos(sm, um, FR.y - FR.b * um, _v); _m.setPosition(_v); slabs.setMatrixAt(nsl++, _m);
+  }
+  slabs.count = nsl; slabs.instanceMatrix.needsUpdate = true;
+  // gems: spin and bob
+  let ng = 0; const hp = haloGeo.attributes.position.array;
+  for (const g of tr.gems) {
+    if (g.s < lo) continue; if (g.s > hi || ng >= 80) break; if (g.got) continue;
+    const gy = tr.yAt(g.s) - tr.bAt(g.s) * g.u + g.dy + Math.sin(t * 3 + g.s) * 0.08;
+    wpos(g.s, g.u, gy, _v); _q.setFromAxisAngle(_up, t * 2.2 + g.s); _s.set(1, 1, 1); _m.compose(_v, _q, _s); gems.setMatrixAt(ng, _m);
+    hp[ng * 3] = _v.x; hp[ng * 3 + 1] = _v.y; hp[ng * 3 + 2] = _v.z; ng++;
+  }
+  gems.count = ng; gems.instanceMatrix.needsUpdate = true; haloGeo.setDrawRange(0, ng); haloGeo.attributes.position.needsUpdate = true;
+}
+
+// ---------- the marble ----------
+function ballCanvas(b, w, h) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'), r = RA.rng(RA.hashStr(b.id));
+  g.fillStyle = b.a; g.fillRect(0, 0, w, h);
+  const line = (col, lw, n, amp) => { g.strokeStyle = col; g.lineWidth = lw; g.lineCap = 'round'; for (let k = 0; k < n; k++) { let x = r() * w, y = h * (0.15 + 0.7 * r()), a = r() * 6.28; g.beginPath(); g.moveTo(x, y); for (let i = 0; i < 40; i++) { a += (r() - 0.5) * amp; x += Math.cos(a) * w / 70; y += Math.sin(a) * h / 70; g.lineTo(x, y); } g.stroke(); } };
+  if (b.kind === 'vein') { g.globalAlpha = 0.85; line(b.b, w / 90, 9, 1.2); g.globalAlpha = 0.5; line(b.b, w / 220, 16, 1.6); g.globalAlpha = 1; for (let i = 0; i < 60; i++) { g.fillStyle = b.c; g.fillRect(r() * w, r() * h, 2, 2); } }
+  else if (b.kind === 'bands') { for (let y = 0; y < h; y += 2) { const q = Math.sin(y / h * 22 + Math.sin(y / h * 7) * 2); g.fillStyle = q > 0.3 ? b.b : q < -0.5 ? b.c : b.a; g.globalAlpha = 0.85; g.fillRect(0, y, w, 2); } g.globalAlpha = 1; }
+  else if (b.kind === 'swirl') { g.globalAlpha = 0.7; line(b.b, w / 40, 6, 0.5); line(b.c, w / 60, 6, 0.6); g.globalAlpha = 1; }
+  else if (b.kind === 'crack') { g.shadowColor = b.b; g.shadowBlur = 8; line(b.b, w / 140, 14, 2.2); g.shadowBlur = 0; line(b.c, w / 400, 10, 2.2); }
+  else if (b.kind === 'stars') { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, b.a); gr.addColorStop(0.5, '#2a2f7a'); gr.addColorStop(1, b.a); g.fillStyle = gr; g.fillRect(0, 0, w, h); for (let i = 0; i < 220; i++) { g.fillStyle = r() < 0.2 ? b.b : b.c; const s = r() < 0.1 ? 3 : 1.5; g.fillRect(r() * w, r() * h, s, s); } }
+  else if (b.kind === 'pearl') { const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, b.a); gr.addColorStop(0.35, b.b); gr.addColorStop(0.6, b.a); gr.addColorStop(0.85, b.c); gr.addColorStop(1, b.a); g.fillStyle = gr; g.fillRect(0, 0, w, h); g.globalAlpha = 0.4; line('#ffffff', w / 120, 6, 0.4); g.globalAlpha = 1; }
+  // every marble has a thin seam around it, so the roll always shows
+  g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(0, h * 0.5 - 1.5, w, 3);
+  return c;
+}
+const ballTex = {};
+function texForBall(b) { if (ballTex[b.id]) return ballTex[b.id]; const t = new THREE.CanvasTexture(ballCanvas(b, 512, 256)); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return ballTex[b.id] = t; }
+const ballMat = new THREE.MeshStandardMaterial({ roughness: 0.16, metalness: 0.05, envMapIntensity: 1.1 });
+const ball = new THREE.Mesh(new THREE.SphereGeometry(P.R, 40, 28), ballMat); ball.castShadow = true; scene.add(ball);
+function setBall(id) { const b = BALLS.find(x => x.id === id) || BALLS[0]; ballMat.map = texForBall(b); ballMat.emissive = new THREE.Color(b.kind === 'crack' ? 0x3a1004 : 0); ballMat.needsUpdate = true; }
+// contact shadow (always) and a landing ring while in the air
+const shadowTex = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 1, 32, 32, 31); gr.addColorStop(0, 'rgba(40,20,10,.7)'); gr.addColorStop(0.55, 'rgba(40,20,10,.42)'); gr.addColorStop(1, 'rgba(40,20,10,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+const blob = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, fog: true })); blob.rotation.x = -Math.PI / 2; blob.renderOrder = 2; scene.add(blob);
+const ringTex = canvasTex(128, 128, (g) => { g.strokeStyle = '#fff4dc'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 52, 0, 7); g.stroke(); g.strokeStyle = 'rgba(255,191,77,.9)'; g.lineWidth = 4; g.beginPath(); g.arc(64, 64, 40, 0, 7); g.stroke(); });
+const ring = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, fog: false })); ring.renderOrder = 3; scene.add(ring);
+// the best line: a glowing strip across the deck where the best run ended, and two banner poles
+const bestGroup = new THREE.Group(); scene.add(bestGroup);
+const bestStrip = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.5), new THREE.MeshBasicMaterial({ color: 0xffd46a, transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })); bestStrip.rotation.x = -Math.PI / 2; bestGroup.add(bestStrip);
+const flagTex = canvasTex(128, 64, (g) => { g.fillStyle = '#ffcf5a'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#4a2410'; g.font = '900 34px Georgia,serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('BEST', 64, 34); });
+const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.6, 6); poleGeo.translate(0, 1.3, 0);
+const flagGeo = new THREE.PlaneGeometry(1.1, 0.55); flagGeo.translate(0.55, 2.25, 0);
+const poleMat = new THREE.MeshStandardMaterial({ color: 0x5a4030 }), flagMat = new THREE.MeshBasicMaterial({ map: flagTex, side: THREE.DoubleSide });
+const poles = [0, 1].map(() => { const g = new THREE.Group(); g.add(new THREE.Mesh(poleGeo, poleMat), new THREE.Mesh(flagGeo, flagMat)); bestGroup.add(g); return g; });
+// milestone gates every 500 m: a tall sandstone arch with the distance on a plaque
+const gateCanvas = document.createElement('canvas'); gateCanvas.width = 256; gateCanvas.height = 96; const gateTex = new THREE.CanvasTexture(gateCanvas); gateTex.encoding = THREE.sRGBEncoding;
+const gate = new THREE.Group(); scene.add(gate);
+{ const l = new THREE.BoxGeometry(0.9, 8, 0.9); l.translate(0, 4, 0); const g = mergeGeos([l], [C(0xe2c08c)]);
+  gate.userData.l = new THREE.Mesh(g, supportMat); gate.userData.r = new THREE.Mesh(g, supportMat);
+  const top = new THREE.Mesh(mergeGeos([new THREE.BoxGeometry(1, 0.9, 1.1)], [C(0xc66d42)]), supportMat); gate.userData.top = top;
+  const plaque = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), new THREE.MeshBasicMaterial({ map: gateTex, fog: true })); gate.userData.plaque = plaque;
+  gate.add(gate.userData.l, gate.userData.r, top, plaque); gate.visible = false; }
+// the gate stands at its milestone unless a pendulum gantry is there: then a little further on
+function gateSpot(s) { for (let k = 0; k < 6; k++) { const near = G.tr.haz.some(h => h.type === 'pend' && Math.abs(h.s - s) < 22); if (!near) return s; s += 25; } return s; }
+function drawGate(m) { const g = gateCanvas.getContext('2d'); g.fillStyle = '#f3dfb5'; g.fillRect(0, 0, 256, 96); g.strokeStyle = '#8a4a26'; g.lineWidth = 6; g.strokeRect(5, 5, 246, 86); g.fillStyle = '#5a2a14'; g.font = '900 52px Cinzel,Georgia,serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(NUM(m) + ' m', 128, 52); gateTex.needsUpdate = true; }
+
+// ---------- cloud sea, far mesas ----------
+const cloudTex = (() => {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), img = g.createImageData(S, S), r = RA.rng(11);
+  const oct = []; for (let o = 0; o < 5; o++) { const n = 4 << o, a = []; for (let i = 0; i < n * n; i++) a.push(r()); oct.push({ n, a }); }
+  const val = (o, x, y) => { const n = o.n, fx = x * n, fy = y * n, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0, A = (i, j) => o.a[((j % n + n) % n) * n + ((i % n + n) % n)], sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+    return (A(x0, y0) * (1 - sx) + A(x0 + 1, y0) * sx) * (1 - sy) + (A(x0, y0 + 1) * (1 - sx) + A(x0 + 1, y0 + 1) * sx) * sy; };
+  const lo = [168, 132, 176], mid = [236, 178, 160], hi = [255, 232, 206];
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    let v = 0, amp = 0.55; for (const o of oct) { v += val(o, x / S, y / S) * amp; amp *= 0.5; }
+    v = Math.max(0, Math.min(1, (v - 0.38) * 1.9)); const i = (y * S + x) * 4, a = v < 0.5 ? lo : mid, b = v < 0.5 ? mid : hi, q = v < 0.5 ? v * 2 : (v - 0.5) * 2;
+    img.data[i] = a[0] + (b[0] - a[0]) * q; img.data[i + 1] = a[1] + (b[1] - a[1]) * q; img.data[i + 2] = a[2] + (b[2] - a[2]) * q; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 10); t.anisotropy = 4; return t;
+})();
+const clouds = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshBasicMaterial({ map: cloudTex, fog: true })); clouds.rotation.x = -Math.PI / 2; scene.add(clouds);
+const cloudTex2 = cloudTex.clone(); cloudTex2.needsUpdate = true; cloudTex2.repeat.set(6, 6);
+const clouds2 = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), new THREE.MeshBasicMaterial({ map: cloudTex2, transparent: true, opacity: 0.35, depthWrite: false, fog: true })); clouds2.rotation.x = -Math.PI / 2; scene.add(clouds2);
+const mesas = (() => { // eroded rock towers standing out of the cloud far away: shaded by the low sun, already faded by the haze
+  const parts = [], cols = [], r = RA.rng(5), haze = new THREE.Color(0xf0bf98);
+  for (let i = 0; i < 22; i++) {
+    const a = i / 22 * Math.PI * 2 + r() * 0.2, d = 760 + r() * 380, x = Math.cos(a) * d, z = Math.sin(a) * d, tiers = 2 + (r() * 2 | 0), fade = 0.58 + (d - 760) / 380 * 0.2;
+    let y = -40, w = 40 + r() * 60;
+    for (let k = 0; k < tiers; k++) {
+      const h = (k === tiers - 1 ? 30 + r() * 70 : 25 + r() * 40), w2 = w * (0.5 + r() * 0.2);
+      const g = new THREE.CylinderGeometry(w2, w, h, 9, 1); g.translate(x + (r() - 0.5) * w * 0.3, y + h / 2, z + (r() - 0.5) * w * 0.3); parts.push(g);
+      cols.push(new THREE.Color().lerpColors(new THREE.Color(k === tiers - 1 ? 0xc0806a : 0x8a5f6e), haze, fade).convertSRGBToLinear());
+      y += h; w = w2 * (0.95 + r() * 0.15);
+    }
+  }
+  const m = new THREE.Mesh(mergeGeos(parts, cols), new THREE.MeshLambertMaterial({ vertexColors: true, fog: false, flatShading: true })); scene.add(m); return m;
+})();
+// ---------- particles: dust, sparkles, shards ----------
+const PN = 240, pPos = new Float32Array(PN * 3), pCol = new Float32Array(PN * 3), pVel = new Float32Array(PN * 3), pLife = new Float32Array(PN);
+const pGeo = new THREE.BufferGeometry(); pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+pGeo.attributes.position.setUsage(THREE.DynamicDrawUsage); pGeo.attributes.color.setUsage(THREE.DynamicDrawUsage);
+const dotTex = canvasTex(32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); });
+const parts = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.32, map: dotTex, vertexColors: true, transparent: true, depthWrite: false })); parts.frustumCulled = false; scene.add(parts);
+let pNext = 0;
+function burst(p, n, speed, col, life, up) {
+  n = Math.min(n, Math.round(n * QS.parts / 200) + 1); const cc = _c.set(col);
+  for (let i = 0; i < n; i++) { const k = pNext++ % PN; pPos[k * 3] = p.x; pPos[k * 3 + 1] = p.y; pPos[k * 3 + 2] = p.z; const a = Math.random() * 6.283, z = Math.random() * 2 - 1, q = Math.sqrt(1 - z * z), sp = speed * (0.4 + Math.random() * 0.6);
+    pVel[k * 3] = Math.cos(a) * q * sp; pVel[k * 3 + 1] = Math.abs(z) * sp * (up || 1); pVel[k * 3 + 2] = Math.sin(a) * q * sp; pLife[k] = life * (0.6 + Math.random() * 0.4); pCol[k * 3] = cc.r; pCol[k * 3 + 1] = cc.g; pCol[k * 3 + 2] = cc.b; }
+}
+const _c = new THREE.Color();
+function stepParts(dt) {
+  let any = false;
+  for (let k = 0; k < PN; k++) { if (pLife[k] <= 0) continue; any = true; pLife[k] -= dt; if (pLife[k] <= 0) { pPos[k * 3 + 1] = -1e5; continue; } pVel[k * 3 + 1] -= 9 * dt; pPos[k * 3] += pVel[k * 3] * dt; pPos[k * 3 + 1] += pVel[k * 3 + 1] * dt; pPos[k * 3 + 2] += pVel[k * 3 + 2] * dt; }
+  parts.visible = any; if (any) pGeo.attributes.position.needsUpdate = pGeo.attributes.color.needsUpdate = true;
+}
+// speed streaks near the edges of the view (only when fast, never with reduced effects)
+const SL = 36, slPos = new Float32Array(SL * 6), slGeo = new THREE.BufferGeometry(); slGeo.setAttribute('position', new THREE.BufferAttribute(slPos, 3)); slGeo.attributes.position.setUsage(THREE.DynamicDrawUsage);
+const slMat = new THREE.LineBasicMaterial({ color: 0xfff4e0, transparent: true, opacity: 0, depthWrite: false, fog: false });
+const streaks = new THREE.LineSegments(slGeo, slMat); streaks.frustumCulled = false; camera.add(streaks);
+const slSeed = []; { const r = RA.rng(3); for (let i = 0; i < SL; i++) { const a = r() * 6.283; slSeed.push([Math.cos(a) * (0.55 + r() * 0.5), Math.sin(a) * (0.4 + r() * 0.45), r()]); } }
+function stepStreaks(v, t) {
+  const on = !set.fx && v > 26 && G.mode === 'run' && !G.over; slMat.opacity += ((on ? Math.min(0.32, (v - 26) / 40) : 0) - slMat.opacity) * 0.1; streaks.visible = slMat.opacity > 0.01; if (!streaks.visible) return;
+  for (let i = 0; i < SL; i++) { const [x, y, ph] = slSeed[i], z = -((ph * 30 + t * v * 0.9) % 30) - 2, len = 1.2 + v * 0.06; slPos.set([x * -z * 0.9, y * -z * 0.6, z, x * -(z + len) * 0.9, y * -(z + len) * 0.6, z + len], i * 6); }
+  slGeo.attributes.position.needsUpdate = true;
+}
+
+// ---------- game state ----------
+const G = { mode: 'menu', tr: null, st: null, prev: null, bot: null, demo: false, paused: false, over: false, deadT: 0, seed: 1, daily: false,
+  score: 0, mult: 1, multT: 0, combo: 0, comboT: 0, nextMile: 500, best: 0, passedBest: false, startS: 20, gemsRun: 0, nearRun: 0, unlocked: [], hintT: 0 };
+const LIVE = { A: 1, grow: 0, edge: P.EDGE, live: true };
+const keys = new Set();
+const KB = Keybinds.create({
+  game: 'rollaway',
+  actions: [
+    { id: 'left', label: 'Steer left', group: 'Roll', keys: ['KeyA', 'ArrowLeft'] },
+    { id: 'right', label: 'Steer right', group: 'Roll', keys: ['KeyD', 'ArrowRight'] },
+    { id: 'restart', label: 'Again', note: 'Start a new run straight away', group: 'Roll', keys: ['KeyR', 'Space', 'Enter'] },
+    { id: 'mute', label: 'Mute', group: 'Roll', keys: ['KeyM'] },
+    { id: 'pause', label: 'Pause', group: 'Roll', keys: ['Escape'], fixed: true }
+  ],
+  classes: { button: 'btn sm', primary: 'btn gold sm' }
+});
+// steering input: keys, mouse, touch drag, screen halves or tilt all become one number from -1 to 1
+const IN = { drag: null, halves: new Map(), mouseX: null, mouseT: 0, tilt: null, tilt0: null, tiltOn: false, lastKey: 0 };
+function steerInput() {
+  let x = 0; const kl = KB.held('left', keys), kr = KB.held('right', keys);
+  if (kl || kr) { x = (kr ? 1 : 0) - (kl ? 1 : 0); if (kl && kr) x = IN.lastKey; return x * Math.min(1, set.sens); }
+  if (IN.drag) { const w = Math.min(innerWidth, innerHeight) * 0.17; return clampN((IN.drag.x - IN.drag.x0) / w * set.sens, -1, 1); }
+  if (IN.halves.size) { let last = null; for (const v of IN.halves.values()) last = v; return last * Math.min(1, set.sens); }
+  if (set.tilt && IN.tilt != null && IN.tilt0 != null) return clampN((IN.tilt - IN.tilt0) / 20 * set.sens, -1, 1);
+  if (set.mouse && IN.mouseX != null && !touchUI) return clampN((IN.mouseX - innerWidth / 2) / (innerWidth * 0.22) * set.sens, -1, 1);
+  return 0;
+}
+const clampN = (x, a, b) => x < a ? a : x > b ? b : x;
+
+function newRun(daily, seed) {
+  G.daily = !!daily; G.seed = seed != null ? seed : daily ? dailySeed(todayKey()) : (Math.random() * 4294967296) >>> 0;
+  G.tr = new RA.Track(G.seed); G.tr.ensure(700);
+  G.st = RA.newState(G.tr, G.startS); G.prev = RA.copy(G.st); G.score = 0; G.mult = 1; G.multT = 0; G.combo = 0; G.comboT = 0; G.nextMile = 500; G.gemsRun = 0; G.nearRun = 0;
+  G.steps = 0; G.snap = null;
+  G.over = false; G.deadT = 0; G.passedBest = false; G.unlocked = []; G.fallV = null; G.t0 = performance.now();
+  const b = G.daily ? dailyBest().bestD : save.bestD; G.best = b;
+  O = { x: 0, y: 0, z: 0 }; clearChunks(); updateChunks(G.st.s, true); cam.reset = true; ball.quaternion.identity(); acc = 0; G.lastGem = -1;
+}
+function startRun(daily, seed) {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  AU.init(); AU.play('go'); AU.startMusic();
+  G.mode = 'run'; G.demo = false; G.bot = null; G.paused = false; newRun(daily, seed);
+  showOverlay(null); $('hud').hidden = false; $('hint').classList.remove('gone'); G.hintT = 0; updateHud(true);
+  save.runs++; saveNow();
+  if (!save.how) { save.how = 1; saveNow(); }
+}
+function restart() { if (G.mode !== 'run') return; startRun(G.daily, G.daily ? undefined : G.fixedSeed); }
+function toMenu() { G.mode = 'menu'; AU.stopMusic(); $('hud').hidden = true; startDemo(); showOverlay('menu'); renderMenu(); }
+function startDemo() { G.demo = true; newRun(false, (Math.random() * 1e9) >>> 0); G.bot = new RA.Bot(G.tr, { depth: 10, beam: 14 }); }
+// end of a run: score, bests, unlocks, the board
+function endRun() {
+  if (G.over) return; G.over = true; G.deadT = 0; if (!G.demo) updateHud();
+  const d = Math.max(0, Math.floor(G.st.s - G.startS)), sc = Math.floor(G.score); G.runD = d; G.runScore = sc;
+  if (G.demo) return;
+  AU.play(G.st.cause === 'fall' ? 'fall' : 'crash');
+  const before = save.bestD; let newBest = false;
+  if (G.daily) { const db = dailyBest(); if (d > db.bestD) { db.bestD = d; newBest = true; } if (sc > db.best) db.best = sc; save.daily = db; }
+  else { if (d > save.bestD) { save.bestD = d; newBest = true; } if (sc > save.best) save.best = sc; }
+  if (G.daily && d > save.bestD) save.bestD = d; // a long daily run still opens marbles
+  save.gems += G.gemsRun; saveNow();
+  const opened = BALLS.filter(b => b.at > before && b.at <= save.bestD);
+  statsHook('max', 'distance', d); statsHook('max', 'score', sc); statsHook('add', 'runs', 1);
+  G.newBest = newBest; G.opened = opened;
+  setTimeout(() => { if (G.over && G.mode === 'run') showOver(); }, 520);
+}
+const CAUSE = { fall: 'Rolled off into the clouds', post: 'Hit a post', drum: 'Flattened by a rolling drum', pend: 'Knocked off by a pendulum', stamp: 'Hit a stamper' };
+function showOver() {
+  $('oTitle').textContent = TX(G.daily ? 'Daily run over' : 'Run over'); $('oCause').textContent = TX(CAUSE[G.st.cause] || 'Run over');
+  $('oDist').innerHTML = NUM(G.runD) + '<small> m</small>'; $('oScore').textContent = NUM(G.runScore); $('oGems').textContent = NUM(G.gemsRun);
+  $('oBest').textContent = fmtM(G.daily ? dailyBest().bestD : save.bestD); $('oNew').hidden = !G.newBest;
+  const u = $('oUnlock'); u.hidden = !G.opened.length; if (G.opened.length) { u.textContent = TX('New marble: {n}', { n: G.opened.map(b => b.name).join(', ') }); AU.play('unlock'); }
+  $('oKey').textContent = touchUI ? TX('Tap Again to go straight back in') : TX('Space, Enter or R: again · Esc: title');
+  showOverlay('over'); $('again').focus({ preventScroll: true });
+}
+
+// ---------- the fixed-step loop ----------
+let acc = 0, last = performance.now(), simT = 0;
+function tick() {
+  const st = G.st; if (!st || G.paused) return;
+  G.prev.s = st.s; G.prev.u = st.u; G.prev.y = st.y; G.prev.air = st.air;
+  if (G.over && !G.demo) { // after the end, the marble keeps falling (or is knocked back off the deck) for the camera to watch
+    const f = G.fallV; st.vy -= P.G * P.STEP; st.y += st.vy * P.STEP; st.s += f.vs * P.STEP; st.u += f.vu * P.STEP; f.vs *= 0.995; return;
+  }
+  let a = G.bot ? G.bot.steer(st) : steerInput();
+  if (G.forceSteer != null) a = G.forceSteer;
+  if (G.inputFn) a = G.inputFn(st);
+  G.tr.ensure(st.s + 700);
+  const ds0 = st.s; RA.step(G.tr, st, a, LIVE); simT += P.STEP; G.steps = (G.steps || 0) + 1;
+  if (G.snapAt && G.steps === G.snapAt) G.snap = [st.s, st.u, st.vl, st.y, st.vy, st.gems, st.near, G.score].map(x => x.toFixed(9)).join(' ');
+  if (G.demo && st.dead) { startDemo(); return; }
+  if (G.demo) return;
+  // scoring: distance times the multiplier, which rises with gems and close calls and slowly settles back
+  G.score += (st.s - ds0) * G.mult;
+  G.multT += P.STEP; G.comboT += P.STEP;
+  if (G.multT > 4 && G.mult > 1) G.mult = Math.max(1, G.mult - 0.12 * P.STEP);
+  if (st.ev & RA.EV_GEM) { if (G.comboT > 2.5) G.combo = 0; AU.play('gem', G.combo); G.combo++; G.comboT = 0; G.gemsRun++; bumpMult(0.1); popText('+' + TX('gem') + (G.combo > 2 ? ' ×' + G.combo : ''), 'g'); const gp = wpos(st.gem.s, st.gem.u, G.tr.yAt(st.gem.s) - G.tr.bAt(st.gem.s) * st.gem.u + st.gem.dy, new THREE.Vector3()); burst(gp, 10, 3, 0x9ff6ff, 0.5, 1); }
+  if (st.ev & RA.EV_NEAR) { G.nearRun++; bumpMult(0.25); AU.play('near', st.nearSide); popText(TX('Close!'), 'n'); }
+  if (st.ev & RA.EV_LAND) { const imp = st.land; if (imp > 2) { AU.play('land', imp); const v = ballWorld(new THREE.Vector3()); v.y -= P.R * 0.8; burst(v, Math.min(16, 4 + imp | 0), 1.5 + imp * 0.12, 0xe8cfa2, 0.55, 0.6); if (!set.fx) cam.dip = Math.min(0.35, imp * 0.02); } }
+  else if ((st.ev & RA.EV_BOUNCE) && st.land > 1) AU.play('bump');
+  const d = st.s - G.startS;
+  if (d >= G.nextMile) { banner(TX('{m} m', { m: NUM(G.nextMile) }), mileLine(G.nextMile)); AU.play('mile'); G.nextMile += 500; }
+  if (!G.passedBest && G.best > 50 && d > G.best) { G.passedBest = true; popText(TX('New best!'), 'n'); AU.play('best'); }
+  for (const b of BALLS) if (b.at > save.bestD && d >= b.at && !G.unlocked.includes(b.id)) { G.unlocked.push(b.id); popText(TX('{n} unlocked', { n: b.name }), 'n'); }
+  if (st.dead) {
+    const v0 = RA.vAt(st.s);
+    if (st.cause !== 'fall') { const v = ballWorld(new THREE.Vector3()); burst(v, 24, 5, 0xffe2b8, 0.7, 1); flash(0.35); const h = st.hit, side = h ? Math.sign(st.u - RA.hazPos(h, st.t, {}).u) || 1 : 1; G.fallV = { vs: -v0 * 0.12, vu: side * 5 }; st.vy = 7; }
+    else G.fallV = { vs: v0 * 0.75, vu: st.vl };
+    endRun();
+  }
+}
+function mileLine(m) { const left = BALLS.find(b => b.at > save.bestD); return m === 500 ? TX('Keep it rolling') : TX('Faster now'); }
+function bumpMult(x) { G.mult = Math.min(9.9, Math.round((G.mult + x) * 100) / 100); G.multT = 0; const el = $('multi'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+// pop-ups live in two fixed rows near the bottom (gems, and everything else); a new one replaces the old one in its row,
+// so a gem streak is one counter instead of a pile, and nothing ever sits on the milestone banner at the top
+const popRow = {};
+function popText(t, cls) { const k = cls === 'g' ? 'g' : 'n'; let el = popRow[k]; if (!el) { el = popRow[k] = document.createElement('div'); $('pops').appendChild(el); } el.textContent = t; el.className = (cls || '') + ' r' + k; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
+let bannerT = 0;
+function banner(a, b) { const el = $('banner'); el.querySelector('b').textContent = a; el.querySelector('span').textContent = b || ''; el.classList.add('on'); clearTimeout(bannerT); bannerT = setTimeout(() => el.classList.remove('on'), 1500); }
+function flash(a) { if (set.fx) return; const f = $('flash'); f.style.transition = 'none'; f.style.opacity = a; requestAnimationFrame(() => { f.style.transition = 'opacity .45s'; f.style.opacity = 0; }); }
+
+// interpolated ball position (world, relative to the origin) and its contact normal
+const _bp = { s: 0, u: 0, y: 0 };
+function interp(alpha) { const a = G.prev, b = G.st; _bp.s = a.s + (b.s - a.s) * alpha; _bp.u = a.u + (b.u - a.u) * alpha; _bp.y = a.y + (b.y - a.y) * alpha; return _bp; }
+function ballWorld(out) { const p = interp(G.alpha || 1); wpos(p.s, p.u, p.y + P.R, out); return out; }
+
+// ---------- camera: behind and above, follows the track's direction, eases everything ----------
+const cam = { off: new THREE.Vector3(), lookOff: new THREE.Vector3(), pos: new THREE.Vector3(), roll: 0, dip: 0, reset: true, yaw: 0 };
+const _cp = new THREE.Vector3(), _cl = new THREE.Vector3(), _bw = new THREE.Vector3(), _cb = new THREE.Vector3();
+// The camera sits at an offset from the marble (so it never lags along the track at speed); the offset itself is eased.
+function updateCamera(dt, p) {
+  const tr = G.tr, v = RA.vAt(p.s), q = Math.min(1, (v - P.V0) / (P.V1 - P.V0));
+  const back = 6.2 + 1.6 * q, up = 3.0 + 0.9 * q, ahead = 10 + v * 0.3;
+  tr.frame(p.s + 5, FR); const yaw = FR.yaw;
+  if (cam.reset) cam.yaw = yaw; cam.yaw += (yaw - cam.yaw) * (1 - Math.exp(-5 * dt));
+  const fx = Math.sin(cam.yaw), fz = -Math.cos(cam.yaw), rx = Math.cos(cam.yaw), rz = Math.sin(cam.yaw);
+  const falling = G.over && !G.demo;
+  wpos(p.s, p.u, p.y + P.R, _bw);
+  if (!falling) cam.pos.copy(_bw); else cam.pos.lerp(_bw, 1 - Math.exp(-1.5 * dt));
+  // height: follow the deck line, and only part of an airborne marble's height (so bounces don't shake the view)
+  const base = tr.yAt(p.s), air = Math.max(0, p.y - base);
+  const side = -p.u * 0.6; // the camera only partly follows the marble sideways: the track stays put on screen
+  _cp.set(-fx * back + rx * side, up - air * 0.6, -fz * back + rz * side);
+  _cl.set(fx * ahead - rx * p.u * 0.55, -1.2 - air * 0.75 + (tr.yAt(p.s + ahead) - base) * 0.6, fz * ahead - rz * p.u * 0.55);
+  if (cam.reset) { cam.off.copy(_cp); cam.lookOff.copy(_cl); cam.reset = false; }
+  const kp = 1 - Math.exp(-7 * dt), kv = 1 - Math.exp(-4 * dt);
+  cam.off.x += (_cp.x - cam.off.x) * kp; cam.off.z += (_cp.z - cam.off.z) * kp; cam.off.y += (_cp.y - cam.off.y) * kv; cam.lookOff.lerp(_cl, kp);
+  cam.dip *= Math.exp(-8 * dt);
+  camera.position.copy(cam.pos).add(cam.off); camera.position.y -= cam.dip;
+  _cb.copy(cam.pos).add(cam.lookOff); if (falling) _cb.copy(_bw);
+  camera.lookAt(_cb);
+  // lean a little into turns, and widen the view with speed (both smaller with reduced effects)
+  const lean = set.fx ? 0 : clampN(-tr.kAt(p.s + 6) * v * v / P.G * 0.07, -0.07, 0.07); cam.roll += (lean - cam.roll) * (1 - Math.exp(-3 * dt));
+  camera.rotateZ(cam.roll);
+  const fov = 60 + (set.fx ? 5 : 12) * q; if (Math.abs(fov - camera.fov) > 0.05) { camera.fov += (fov - camera.fov) * (1 - Math.exp(-3 * dt)); camera.updateProjectionMatrix(); }
+}
+
+// ---------- drawing one frame ----------
+const _n = new THREE.Vector3(), _prevBall = new THREE.Vector3(), _sup = { ok: false };
+let lastBallKind = 'stone';
+function draw(alpha, dt, now) {
+  const tr = G.tr; if (!tr) return; G.alpha = alpha;
+  const p = interp(alpha);
+  // floating origin: keep numbers small near the camera
+  tr.frame(p.s, FR);
+  if (Math.abs(FR.x - O.x) > 1500 || Math.abs(FR.z - O.z) > 1500 || Math.abs(FR.y - O.y) > 400) {
+    const nx = Math.round(FR.x), ny = Math.round(FR.y), nz = Math.round(FR.z), dx = nx - O.x, dy = ny - O.y, dz = nz - O.z;
+    O = { x: nx, y: ny, z: nz }; for (const ch of chunks.values()) { ch.mesh.position.set(ch.wx - O.x, ch.wy - O.y, ch.wz - O.z); ch.mesh.updateMatrix(); }
+    rebuildPiers(); cam.pos.x -= dx; cam.pos.y -= dy; cam.pos.z -= dz; _prevBall.x -= dx; _prevBall.y -= dy; _prevBall.z -= dz;
+  }
+  tr.ensure(p.s + QS.far + 200); updateChunks(p.s, false); if (!G.demo && !G.over) tr.trim(p.s);
+  const tt = G.st.t - (1 - alpha) * P.STEP;
+  updateObjects(p.s, tt);
+  // the marble: on the surface (offset along the deck's slope on a wall), rolling by how far it moved
+  let d = 0; const sup = tr.support(p.s, p.u, tt, p.y + 0.05, 0.4, _sup); if (sup.ok && !G.st.air) d = sup.d;
+  const inv = 1 / Math.sqrt(1 + d * d); wpos(p.s, p.u, p.y + P.R * inv, _bw); tr.frame(p.s, FR); _bw.x -= Math.cos(FR.yaw) * d * P.R * inv; _bw.z -= Math.sin(FR.yaw) * d * P.R * inv;
+  if (!cam.reset) { _v.subVectors(_bw, _prevBall); const dist = _v.length(); if (dist > 1e-5 && dist < 5) { _n.crossVectors(_up, _v).normalize(); _q.setFromAxisAngle(_n, dist / P.R); ball.quaternion.premultiply(_q); } }
+  _prevBall.copy(_bw); ball.position.copy(_bw);
+  if (sup.ok) lastBallKind = sup.p.k;
+  // contact shadow on whatever is below; a ring where an airborne marble will come down
+  const below = tr.support(p.s, p.u, tt, p.y + 0.3, 0.2, _sup);
+  if (below.ok && !G.over) { const h = p.y - below.h; wpos(p.s, p.u, below.h + 0.02, blob.position); const sc = Math.max(0.35, 1 - h * 0.12); blob.scale.set(sc, sc, 1); blob.material.opacity = Math.max(0.15, 1 - h * 0.18); blob.visible = true; blob.rotation.set(-Math.PI / 2, 0, -FR.yaw); }
+  else blob.visible = false;
+  ring.visible = false;
+  if (G.st.air && !G.over && !G.demo) { const L = predictLanding(); if (L) { wpos(L.s, L.u, L.h + 0.03, ring.position); tr.frame(L.s, FR); ring.rotation.set(-Math.PI / 2, 0, -FR.yaw); const k = (1 + Math.sin(now / 90) * 0.06) * Math.max(1, camera.position.distanceTo(ring.position) / 14); ring.scale.set(k, k, 1); ring.visible = true; } } // far landings get a bigger ring, so it stays visible
+  // best line and the next milestone gate
+  const bs = G.best > 50 ? G.startS + G.best : -1;
+  bestGroup.visible = bs > 0 && bs > p.s - 20 && bs < p.s + QS.far && !G.demo;
+  if (bestGroup.visible) { const pc = deckAt(bs, 0) || deckAt(bs, 1.5) || deckAt(bs, -1.5); let ua = -3, ub = 3; if (pc) { const f = (bs - pc.sa) / (pc.sb - pc.sa); ua = pc.ua0 + (pc.ua1 - pc.ua0) * f; ub = pc.ub0 + (pc.ub1 - pc.ub0) * f; } const um = (ua + ub) / 2; wpos(bs, um, null, bestStrip.position); bestStrip.position.y += 0.03; tr.frame(bs, FR); bestStrip.rotation.set(-Math.PI / 2, 0, -FR.yaw); bestStrip.scale.set(ub - ua + 0.4, 1, 1); wpos(bs, ua - 0.4, null, poles[0].position); wpos(bs, ub + 0.4, null, poles[1].position); poles[0].rotation.y = poles[1].rotation.y = -FR.yaw; }
+  let gs = G.startS + Math.ceil((p.s - G.startS + 25) / 500) * 500; if (gate.userData.m0 !== gs) { gate.userData.m0 = gs; gate.userData.at = gateSpot(gs); } const gm = gs; gs = gate.userData.at; gate.visible = !G.demo && gs < p.s + QS.far && gs - G.startS >= 500;
+  if (gate.visible) { if (gate.userData.m !== gm) { gate.userData.m = gm; drawGate(gm - G.startS); } const pc = deckAt(gs, 0); let ua = -3.5, ub = 3.5; if (pc) { const f = (gs - pc.sa) / (pc.sb - pc.sa); ua = pc.ua0 + (pc.ua1 - pc.ua0) * f - 1.1; ub = pc.ub0 + (pc.ub1 - pc.ub0) * f + 1.1; }
+    tr.frame(gs, FR); const y0 = FR.y - O.y - 1.0; gate.position.set(0, 0, 0); wpos(gs, ua, y0 + O.y, gate.userData.l.position); wpos(gs, ub, y0 + O.y, gate.userData.r.position); wpos(gs, (ua + ub) / 2, y0 + O.y + 8.4, gate.userData.top.position); gate.userData.top.scale.set(ub - ua + 1.2, 1, 1);
+    wpos(gs, (ua + ub) / 2, y0 + O.y + 7.1, gate.userData.plaque.position); for (const m of [gate.userData.l, gate.userData.r, gate.userData.top, gate.userData.plaque]) m.rotation.set(0, -FR.yaw, 0); }
+  // sky, sun and clouds follow the camera
+  updateCamera(dt, p);
+  sky.position.copy(camera.position); mesas.position.set(camera.position.x, tr.yAt(p.s) - O.y - 40, camera.position.z);
+  const cy = tr.yAt(p.s) - O.y - 42; clouds.position.set(camera.position.x, cy, camera.position.z); clouds2.position.set(camera.position.x, cy + 16, camera.position.z); clouds2.visible = QS.clouds2;
+  cloudTex.offset.set((camera.position.x + O.x) / 300 + now * 0.000004, -(camera.position.z + O.z) / 300); cloudTex2.offset.set((camera.position.x + O.x) / 266 + now * 0.00001, -(camera.position.z + O.z) / 266);
+  sun.position.set(_bw.x + SUN_DIR.x * 50, _bw.y + SUN_DIR.y * 50 + 10, _bw.z + SUN_DIR.z * 50); sun.target.position.copy(_bw);
+  sun.castShadow = QS.shadow; renderer.shadowMap.enabled = QS.shadow;
+  stepParts(dt); stepStreaks(RA.vAt(p.s), now / 1000);
+  renderer.render(scene, camera);
+}
+// where a marble in the air will land (a few dozen steps of the same physics, ignoring steering)
+const _ls = {};
+function predictLanding() {
+  const s0 = G.st, c = RA.copy(s0, _ls); c.ev = 0; const opt = { A: 0, grow: -9, edge: P.EDGE, live: false };
+  for (let i = 0; i < 300; i++) { const saveHi = c.hi; RA.step(G.tr, c, 0, opt); if (c.dead) return null; if (!c.air || (c.ev & RA.EV_LAND)) { const sp = G.tr.support(c.s, c.u, c.t, c.y + 0.05, P.EDGE, {}); return sp.ok ? { s: c.s, u: c.u, h: sp.h } : null; } void saveHi; }
+  return null;
+}
+
+function updateHud(force) {
+  const st = G.st; if (!st) return; const d = Math.max(0, st.s - G.startS);
+  $('dNum').textContent = fmtM(d);
+  const best = G.best; $('dSub').textContent = best > 0 ? (d > best ? TX('New best') : TX('Best {d}', { d: fmtM(best) })) : TX(G.daily ? 'Daily run' : 'First run');
+  $('mNum').textContent = '×' + G.mult.toFixed(1);
+  $('mSub').innerHTML = NUM(Math.floor(G.score)) + ' · <i>◆ ' + G.gemsRun + '</i>';
+}
+let hudT = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (!G.manual) stepFrame(now);
+}
+function stepFrame(now) {
+  let dt = (now - last) / 1000; last = now; if (!(dt > 0)) dt = 0; if (dt > 0.1) dt = 0.1;
+  if (G.st && !G.paused && !G.freeze) {
+    acc += dt; let n = 0;
+    while (acc >= P.STEP && n < 30) { tick(); acc -= P.STEP; n++; }
+    if (n >= 30) acc = 0;
+    if (G.over && !G.demo) G.deadT += dt;
+  }
+  const alpha = G.paused ? 1 : acc / P.STEP;
+  if (G.st) {
+    draw(alpha, G.paused ? 0 : dt, now);
+    const v = RA.vAt(G.st.s), live = G.mode === 'run' && !G.over && !G.paused;
+    AU.motion(v, !G.st.air, lastBallKind, live); AU.setIntensity(G.mode === 'run' && !G.over ? (v - P.V0) / (P.V1 - P.V0) : 0);
+    if (G.mode === 'run' && !G.over && (hudT += dt) > 0.05) { hudT = 0; updateHud(); }
+    if (G.mode === 'run' && !G.over && (G.hintT += dt) > 5) $('hint').classList.add('gone');
+  }
+}
+
+// ---------- overlays and menus ----------
+const OVERLAYS = ['menu', 'how', 'settings', 'pause', 'over'];
+let overlayNow = null, settingsFrom = null;
+function showOverlay(id) { overlayNow = id; for (const o of OVERLAYS) $(o).hidden = o !== id; }
+function renderMenu() {
+  $('runSub').textContent = save.bestD ? TX('best {d}', { d: fmtM(save.bestD) }) : TX('roll as far as you can');
+  const db = dailyBest(); $('daySub').textContent = db.bestD ? TX('today {d}', { d: fmtM(db.bestD) }) : TX('same course for all');
+  $('bScore').textContent = save.best ? NUM(save.best) : '–'; $('bRuns').textContent = NUM(save.runs); $('bGems').textContent = NUM(save.gems);
+  const box = $('balls'); box.innerHTML = '';
+  for (const b of BALLS) {
+    const btn = document.createElement('button'), open = ballOpen(b); btn.type = 'button'; btn.className = open ? '' : 'lock'; btn.setAttribute('aria-pressed', String(save.ball === b.id));
+    btn.setAttribute('aria-label', b.name + (open ? '' : ' ' + TX('(opens at {d})', { d: fmtM(b.at) })));
+    const cv = document.createElement('canvas'); cv.width = cv.height = 80; drawBallIcon(cv, b); btn.appendChild(cv);
+    const nm = document.createElement('b'); nm.textContent = b.name; nm.setAttribute('data-noi18n', ''); btn.appendChild(nm);
+    if (!open) { const n = document.createElement('span'); n.className = 'need'; n.textContent = NUM(b.at) + ' m'; btn.appendChild(n); }
+    btn.addEventListener('click', () => { AU.init(); if (!ballOpen(b)) { AU.play('ui'); $('ballNote').textContent = TX('{n} opens when your best run reaches {d}.', { n: b.name, d: fmtM(b.at) }); return; } save.ball = b.id; saveNow(); setBall(b.id); AU.play('ui'); renderMenu(); });
+    box.appendChild(btn);
+  }
+  const nxt = BALLS.find(b => !ballOpen(b)); $('ballNote').textContent = nxt ? TX('Next marble at {d}.', { d: fmtM(nxt.at) }) : TX('Every marble is yours.');
+}
+function drawBallIcon(cv, b) {
+  const g = cv.getContext('2d'), src = ballCanvas(b, 160, 80), W = cv.width;
+  g.save(); g.beginPath(); g.arc(W / 2, W / 2, W / 2 - 1, 0, 7); g.clip(); g.drawImage(src, 0, 0, 80, 80, 0, 0, W, W);
+  const gr = g.createRadialGradient(W * 0.34, W * 0.3, 2, W / 2, W / 2, W / 2); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(0.25, 'rgba(255,255,255,.05)'); gr.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = gr; g.fillRect(0, 0, W, W); g.restore();
+}
+function showPause() { if (G.mode !== 'run' || G.over) return; G.paused = true; AU.stopMusic(); $('pauseSub').textContent = fmtM(Math.max(0, G.st.s - G.startS)) + ' · ' + TX(G.daily ? 'Daily run' : 'Run'); showOverlay('pause'); $('resume').focus({ preventScroll: true }); }
+function resume() { if (G.mode !== 'run') return; G.paused = false; last = performance.now(); AU.init(); AU.startMusic(); showOverlay(null); }
+function openSettings(from) { settingsFrom = from; renderSettings(); showOverlay('settings'); }
+function closeSettings() { showOverlay(settingsFrom || 'menu'); settingsFrom = null; }
+function renderSettings() {
+  document.querySelectorAll('#qSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.q === set.q)));
+  document.querySelectorAll('#tSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === set.touch)));
+  $('sens').value = set.sens; $('fx').checked = set.fx; $('tilt').checked = set.tilt; $('mouse').checked = set.mouse;
+  $('vMaster').value = set.vm; $('vMusic').value = set.vmu; $('vSfx').value = set.vs; $('mute').checked = set.mute;
+}
+function applyQuality() {
+  QS = QP[quality()];
+  renderer.setPixelRatio(Math.min((devicePixelRatio || 1), QS.pr));
+  scene.fog.near = QS.far * 0.32; scene.fog.far = QS.far; applyNormalMap(); renderer.shadowMap.enabled = QS.shadow;
+  for (const m of [posts, drums, bobs, pillars, lintels, stamps]) m.castShadow = QS.shadow;
+  scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
+  if (G.tr) { clearChunks(); updateChunks(G.st.s, true); }
+  resize();
+}
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize);
+function setTouchUI(on) { touchUI = on; document.body.classList.toggle('touch', on); document.body.classList.toggle('halves', on && set.touch === 'halves'); $('tcHint').textContent = TX(set.touch === 'halves' ? 'Hold the left or right side to steer' : 'Drag left and right to steer'); }
+
+// buttons
+$('runBtn').addEventListener('click', () => startRun(false));
+$('dayBtn').addEventListener('click', () => startRun(true));
+$('setBtn').addEventListener('click', () => { AU.init(); openSettings('menu'); });
+$('howBtn').addEventListener('click', () => { AU.init(); showOverlay('how'); });
+$('howGo').addEventListener('click', () => { save.how = 1; saveNow(); showOverlay(G.mode === 'run' ? null : 'menu'); });
+$('setDone').addEventListener('click', closeSettings);
+$('pSet').addEventListener('click', () => openSettings('pause'));
+$('resume').addEventListener('click', resume);
+$('restartBtn').addEventListener('click', () => { G.paused = false; restart(); });
+$('quit').addEventListener('click', () => { G.paused = false; toMenu(); });
+$('again').addEventListener('click', restart);
+$('oMenu').addEventListener('click', toMenu);
+$('tP').addEventListener('click', showPause);
+$('keysBtn').addEventListener('click', () => KB.open());
+document.querySelectorAll('#qSeg button').forEach(b => b.addEventListener('click', () => { set.q = b.dataset.q; saveSet(); renderSettings(); applyQuality(); }));
+document.querySelectorAll('#tSeg button').forEach(b => b.addEventListener('click', () => { set.touch = b.dataset.v; saveSet(); renderSettings(); setTouchUI(touchUI); }));
+$('sens').addEventListener('input', e => { set.sens = +e.target.value; saveSet(); });
+$('fx').addEventListener('change', e => { set.fx = e.target.checked; saveSet(); });
+$('mouse').addEventListener('change', e => { set.mouse = e.target.checked; saveSet(); });
+$('tilt').addEventListener('change', e => {
+  set.tilt = e.target.checked; saveSet();
+  if (set.tilt && window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') DeviceOrientationEvent.requestPermission().then(r => { if (r !== 'granted') { set.tilt = false; saveSet(); renderSettings(); } }).catch(() => { set.tilt = false; saveSet(); renderSettings(); });
+});
+for (const [id, k] of [['vMaster', 'vm'], ['vMusic', 'vmu'], ['vSfx', 'vs']]) $(id).addEventListener('input', e => { set[k] = +e.target.value; saveSet(); AU.init(); AU.vol(); });
+$('mute').addEventListener('change', e => { set.mute = e.target.checked; saveSet(); AU.vol(); });
+
+// keys
+addEventListener('keydown', e => {
+  if (KB.busy()) return;
+  const c = e.code; if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(c) && G.mode === 'run') e.preventDefault();
+  AU.init();
+  if (KB.is('left', c)) IN.lastKey = -1; if (KB.is('right', c)) IN.lastKey = 1;
+  keys.add(c);
+  if (e.repeat) return;
+  if (KB.is('mute', c)) { set.mute = !set.mute; saveSet(); AU.vol(); renderSettings(); return; }
+  if (c === 'Escape' || c === 'KeyP') {
+    if (overlayNow === 'settings') { closeSettings(); return; }
+    if (overlayNow === 'how') { showOverlay(G.mode === 'run' ? null : 'menu'); if (G.mode === 'run') resume(); return; }
+    if (G.mode === 'run' && !G.over) { G.paused ? resume() : showPause(); return; }
+    if (G.mode === 'run' && G.over) { toMenu(); return; }
+  }
+  if (G.mode === 'run' && G.over && overlayNow === 'over' && KB.is('restart', c)) { e.preventDefault(); restart(); return; }
+  if (G.mode === 'run' && !G.over && !G.paused && c === 'KeyR') { restart(); return; }
+  if (G.mode === 'run' && G.over && G.deadT > 0.15 && KB.is('restart', c)) { e.preventDefault(); restart(); return; }
+  if (G.mode === 'menu' && overlayNow === 'menu' && (c === 'Enter' || c === 'Space') && document.activeElement === document.body) { e.preventDefault(); startRun(false); }
+});
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => { keys.clear(); IN.drag = null; IN.halves.clear(); if (G.mode === 'run' && !G.over) showPause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && G.mode === 'run' && !G.over) showPause(); });
+// mouse and touch on the view
+canvas.addEventListener('pointerdown', e => {
+  AU.init();
+  if (e.pointerType === 'touch' && !touchUI) setTouchUI(true);
+  if (G.mode !== 'run') return;
+  if (G.over) { if (G.deadT > 0.2) restart(); return; }
+  if (e.pointerType === 'mouse') return;
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  if (set.touch === 'halves') { IN.halves.delete(e.pointerId); IN.halves.set(e.pointerId, e.clientX < innerWidth / 2 ? -1 : 1); halvesUi(); }
+  else IN.drag = { id: e.pointerId, x0: e.clientX, x: e.clientX };
+  if (set.tilt) IN.tilt0 = IN.tilt;
+});
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse') { IN.mouseX = e.clientX; return; }
+  if (IN.drag && IN.drag.id === e.pointerId) { IN.drag.x = e.clientX; const w = Math.min(innerWidth, innerHeight) * 0.17 / Math.max(0.5, set.sens); if (IN.drag.x - IN.drag.x0 > w) IN.drag.x0 = IN.drag.x - w; if (IN.drag.x0 - IN.drag.x > w) IN.drag.x0 = IN.drag.x + w; }
+  if (IN.halves.has(e.pointerId)) { IN.halves.set(e.pointerId, e.clientX < innerWidth / 2 ? -1 : 1); halvesUi(); }
+});
+const endPtr = e => { if (IN.drag && IN.drag.id === e.pointerId) IN.drag = null; if (IN.halves.delete(e.pointerId)) halvesUi(); };
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
+function halvesUi() { let v = 0; for (const x of IN.halves.values()) v = x; $('hL').classList.toggle('on', v < 0); $('hR').classList.toggle('on', v > 0); }
+addEventListener('deviceorientation', e => { if (!set.tilt) return; const ang = (screen.orientation && screen.orientation.angle) || window.orientation || 0; let v = Math.abs(ang) === 90 ? (e.beta || 0) * (ang === 90 ? 1 : -1) : (e.gamma || 0); IN.tilt = v; if (IN.tilt0 == null) IN.tilt0 = v; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// language: text built in code is rebuilt on a switch
+document.addEventListener('backroom:lang', () => { try { renderMenu(); setTouchUI(touchUI); if (G.mode === 'run') updateHud(); } catch (e) {} });
+
+// start
+setBall(save.ball); setTouchUI(touchUI); applyQuality(); renderMenu(); startDemo(); showOverlay(save.how ? 'menu' : 'how');
+requestAnimationFrame(t => { last = t; requestAnimationFrame(frame); });
+
+// test hooks (automated browsers only): drive the game without real time, read state and draw counts
+if (TEST) window.__ra = {
+  RA, G, KB, AU, IN, set, steerInput, get save() { return save; }, set save(v) { save = v; }, renderer, scene, camera, startRun, restart, toMenu, showPause, resume, applyQuality, stepFrame,
+  steer(v) { G.forceSteer = v; }, bot(on) { G.bot = on ? new RA.Bot(G.tr) : null; },
+  state() { const s = G.st; return s && { s: s.s, d: s.s - G.startS, u: s.u, vl: s.vl, y: s.y, air: s.air, t: s.t, dead: s.dead, cause: s.cause, gems: s.gems, near: s.near, score: G.score, mult: G.mult, over: G.over, mode: G.mode, seed: G.seed }; },
+  // advance the game by sec seconds of simulated time in frames of 1/hz, drawing each frame (draw=false skips drawing)
+  run(sec, hz, drawIt) { G.manual = true; hz = hz || 60; const n = Math.round(sec * hz); let t = last; for (let i = 0; i < n; i++) { t += 1000 / hz; if (drawIt === false) { let dt = (t - last) / 1000; last = t; acc += dt; while (acc >= P.STEP) { tick(); acc -= P.STEP; } } else stepFrame(t); if (G.over && G.mode === 'run' && !G.demo) break; } last = t; G.manual = false; G.freeze = true; return this.state(); },
+  freeze(on) { G.freeze = on; last = performance.now(); },
+  info() { const i = renderer.info; return { calls: i.render.calls, tris: i.render.triangles, geos: i.memory.geometries, tex: i.memory.textures, chunks: chunks.size }; }
+};
+// ==/GAME==
+</script>
+</body>
+</html>

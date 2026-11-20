@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Hotspot</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -34,6 +35,7 @@
   </section>
 </main>
 <script src="/e63334287a3deaa3/geo-data/countries.js"></script>
+<script src="/e63334287a3deaa3/hotspot/es.js"></script>
 <script src="/e63334287a3deaa3/geo-data/shapes.js"></script>
 <script src="/e63334287a3deaa3/geo-data/geo.js"></script>
 <script>
@@ -54,6 +56,8 @@ function heat(d) {
 }
 function sq(d, win) { return win ? '🟩' : d < 1 ? '🟥' : d < 750 ? '🟧' : d < 2500 ? '🟨' : '⬜'; }
 
+// Language (lang.js): menus and messages follow the Back Room's English / Español setting (Spanish words and country names in es.js).
+const TR = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
 const HOW = '<p>Find the <b>mystery country</b>. Every guess is coloured on the globe by how close it is: the nearer its border is to the mystery country\'s border, the hotter the colour.</p>' +
   '<div class="ex">' +
   '<div class="g"><span class="sw" style="background:' + heat(6500) + '"></span><span class="nm">Far away</span><span class="km">6,500 km</span></div>' +
@@ -66,7 +70,7 @@ const HOW = '<p>Find the <b>mystery country</b>. Every guess is coloured on the 
 
 let st = null;       // {mode, day, answer, guesses: [id], done, win, gaveUp, t0, t1}
 let mode = 'daily';
-const S = G.shell({ slug: SLUG, name: NAME, how: HOW, dist: DIST, shareText: () => st && st.done ? shareText() : null });
+const S = G.shell({ slug: SLUG, name: NAME, how: { toString: () => window.HotspotHow ? window.HotspotHow(HOW) : HOW }, dist: DIST, shareText: () => st && st.done ? shareText() : null });
 const mb = G.modeBar($('panel'), m => start(m));
 $('panel').insertBefore(mb.el, $('list'));
 const box = G.entry({ parent: $('panel'), onGuess: guess, used: id => st && st.guesses.indexOf(id) >= 0, toast: S.toast, placeholder: 'Guess a country…' });
@@ -142,32 +146,32 @@ let confirmGive = 0;
 function render(full, newId) {
   const L = $('list'); L.innerHTML = '';
   const order = st.guesses.slice().sort((a, b) => dist(a) - dist(b) || (a === st.answer ? -1 : 0));
-  if (!order.length) L.appendChild(h('div', { class: 'hint', text: st.mode === 'daily' ? 'Today\'s mystery country is hidden somewhere on the globe. Make a first guess anywhere.' : 'A random mystery country. Make a first guess anywhere.' }));
+  if (!order.length) L.appendChild(h('div', { class: 'hint', text: TR(st.mode === 'daily' ? 'Today\'s mystery country is hidden somewhere on the globe. Make a first guess anywhere.' : 'A random mystery country. Make a first guess anywhere.') }));
   order.forEach((id, i) => {
     const c = G.byId[id], d = dist(id), win = id === st.answer;
-    const row = h('button', { type: 'button', class: 'g' + (win ? ' win' : '') + (id === newId ? ' new' : ''), title: 'Show ' + c.name + ' on the globe' }, [
+    const row = h('button', { type: 'button', class: 'g' + (win ? ' win' : '') + (id === newId ? ' new' : ''), title: TR('Show {c} on the globe', { c: c.name }) }, [
       h('span', { class: 'rank', text: String(st.guesses.indexOf(id) + 1) }),
       h('span', { class: 'sw', style: 'background:' + (win ? '#5ef08f' : heat(d)) }),
       h('span', { class: 'nm', text: c.name }),
-      h('span', { class: 'km', text: win ? 'Found it!' : G.fmtKm(d) })]);
+      h('span', { class: 'km', text: win ? TR('Found it!') : G.fmtKm(d) })]);
     row.onclick = () => { tipId = id; const z = c.area < 30000 ? Math.max(globe.zoom, 5) : globe.zoom; globe.flyTo(c.lon, c.lat, z, 600); };
     L.appendChild(row);
   });
   if (!st.done && st.guesses.length >= 10) {
-    const b = h('button', { type: 'button', class: 'ghost reveal', text: confirmGive ? 'Tap again to give up' : 'Give up and show it' });
+    const b = h('button', { type: 'button', class: 'ghost reveal', text: TR(confirmGive ? 'Tap again to give up' : 'Give up and show it') });
     b.onclick = () => { if (!confirmGive) { confirmGive = 1; render(); setTimeout(() => { confirmGive = 0; if (!st.done) render(); }, 3000); return; } confirmGive = 0; finish(false, true); saveDaily(); render(); const a = G.byId[st.answer]; globe.flyTo(a.lon, a.lat, a.area < 30000 ? 5 : 2, 800); };
     L.appendChild(b);
   }
   const n = st.guesses.length, best = order.length ? dist(order[0]) : null;
-  mb.info.innerHTML = n ? '<b>' + n + '</b> guess' + (n === 1 ? '' : 'es') + (st.done ? '' : ' · nearest <b>' + G.fmtKm(best) + '</b>') : '';
+  mb.info.innerHTML = n ? TR(n === 1 ? '<b>{n}</b> guess' : '<b>{n}</b> guesses', { n: n }) + (st.done ? '' : TR(' · nearest <b>{d}</b>', { d: G.fmtKm(best) })) : '';
   box.enable(!st.done);
   const E = $('endBox'); E.hidden = !st.done; E.innerHTML = '';
   if (st.done) {
     const a = G.byId[st.answer];
     E.className = 'end';
     E.append(
-      h('h2', { class: st.win ? 'win' : 'lose', text: st.win ? 'Found it in ' + n + (n === 1 ? ' guess!' : ' guesses!') : 'It was ' + a.name }),
-      h('p', { html: st.win ? 'The mystery country was <b>' + a.name + '</b> (' + G.CONT_NAME[a.cont] + ').' : 'You made ' + n + ' guesses. The nearest was ' + G.fmtKm(best) + ' away.' }),
+      h('h2', { class: st.win ? 'win' : 'lose', text: st.win ? TR(n === 1 ? 'Found it in {n} guess!' : 'Found it in {n} guesses!', { n: n }) : TR('It was {c}', { c: a.name }) }),
+      h('p', { 'data-noi18n': '', html: st.win ? TR('The mystery country was <b>{c}</b> ({k}).', { c: a.name, k: TR(G.CONT_NAME[a.cont]) }) : TR('You made {n} guesses. The nearest was {d} away.', { n: n, d: G.fmtKm(best) }) }),
       h('div', { class: 'row' }, [
         h('button', { type: 'button', class: 'cta', text: 'Share', onclick: () => S.share() }),
         st.mode === 'daily' ? h('button', { type: 'button', class: 'ghost', text: 'Play unlimited', onclick: () => start('free') }) : h('button', { type: 'button', class: 'ghost', text: 'Next country', onclick: () => start('free') }),
@@ -184,11 +188,12 @@ function shareText() {
   const rows = []; for (let i = 0; i < Math.min(sq2.length, 30); i += 10) rows.push(sq2.slice(i, i + 10).join(''));
   if (sq2.length > 30) rows[rows.length - 1] += '…';
   const best = st.guesses.filter(id => id !== st.answer).reduce((m, id) => Math.min(m, dist(id)), Infinity);
-  const line = st.win ? '🌍 found in ' + n + (n === 1 ? ' guess' : ' guesses') : '🌍 gave up after ' + n + ' (nearest ' + G.fmtKm(best) + ')';
+  const line = st.win ? TR(n === 1 ? '🌍 found in {n} guess' : '🌍 found in {n} guesses', { n: n }) : TR('🌍 gave up after {n} (nearest {d})', { n: n, d: G.fmtKm(best) });
   return G.shareText(NAME, G.dayNum(st.day || G.today()), line, rows.join('\n'), st.mode);
 }
 start('daily');
 box.focus();
+document.addEventListener('backroom:lang', () => { if (st) render(); });
 if (navigator.webdriver) window.__hs = { get st() { return st; }, start, guess: t => box.submitText(t), shareText, globe, heat, dist };
 })();
 </script>

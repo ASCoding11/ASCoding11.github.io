@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Puffer Party's Spanish words (categories and answers stay English) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Wardrobe (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Puffer Party</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -108,6 +111,8 @@ details.how[open] summary::before{content:'– '}
 .ad-lbl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
 .adbox ins{display:block;min-height:90px}
 .chk{display:inline-flex;align-items:center;gap:7px;font:700 14px var(--f-u);color:var(--ink-2);cursor:pointer}
+.chk:has(input:disabled){cursor:default;opacity:.6}
+.nobots{font:700 13px var(--f-u);color:var(--ink-3)}
 .chk input{width:18px;height:18px;accent-color:var(--sun)}
 .big{margin:8px 0 2px;font:700 clamp(32px,7vw,52px)/1.05 var(--f-d);letter-spacing:-.02em}
 .center{text-align:center}
@@ -297,6 +302,7 @@ details.how[open] summary::before{content:'– '}
         </details>
       </div>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
+      <div style="margin-top:14px" data-lang-toggle></div>
       <p class="foot">Answers are checked against Deepword's answer lists, written for these games. · <a href="/privacy.html">Privacy</a></p>
     </div>
   </section>
@@ -311,6 +317,7 @@ details.how[open] summary::before{content:'– '}
       <div class="row">
         <button id="startGame" class="cta" type="button">Start</button>
         <label class="chk" id="botsLbl"><input type="checkbox" id="botsChk" checked> Fill to 4 with bots</label>
+        <span class="nobots" id="noBotsNote" hidden>No bots in party games</span>
       </div>
       <div class="row"><button id="copyInv" class="ghost" type="button">Copy invite link</button><button id="leaveLobby" class="ghost" type="button">Leave</button></div>
       <p class="msg" id="invMsg"></p>
@@ -322,20 +329,20 @@ details.how[open] summary::before{content:'– '}
     <div id="side">
       <div id="catBox">
         <div id="catK">Category</div>
-        <h2 id="catName">…</h2>
-        <div id="catHint"></div>
-        <div id="used" aria-label="Already said"></div>
+        <h2 id="catName" data-noi18n>…</h2>
+        <div id="catHint" data-noi18n></div>
+        <div id="used" aria-label="Already said" data-noi18n></div>
       </div>
       <form id="ansForm" autocomplete="off">
         <input id="ans" class="ans" maxlength="40" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Wait for your turn…" aria-label="Your answer">
         <button id="send" class="cta" type="submit">Send</button>
       </form>
-      <div id="hint" aria-live="polite"></div>
+      <div id="hint" aria-live="polite" data-noi18n></div>
     </div>
     <div id="stage">
       <div id="ring"></div>
-      <div id="say" class="empty"></div>
-      <div id="banner" style="opacity:0"><b id="bnB"></b><small id="bnS"></small></div>
+      <div id="say" class="empty" data-noi18n></div>
+      <div id="banner" style="opacity:0" data-noi18n><b id="bnB"></b><small id="bnS"></small></div>
     </div>
   </section>
 
@@ -343,7 +350,7 @@ details.how[open] summary::before{content:'– '}
   <section id="over" class="screen" hidden>
     <div class="card center">
       <div class="kicker" style="justify-content:center"><span><b>★</b> Puffer Party</span></div>
-      <h2 class="big" id="oTitle">Game over</h2>
+      <h2 class="big" id="oTitle" data-noi18n>Game over</h2>
       <ol class="rlist" id="oList"></ol>
       <div class="row" style="margin-top:16px;justify-content:center"><button id="rematch" class="cta" type="button">Rematch</button><button id="oLeave" class="ghost" type="button">Leave</button></div>
       <p class="msg" id="oMsg"></p>
@@ -366,7 +373,7 @@ details.how[open] summary::before{content:'– '}
     </div>
   </section>
 
-  <div id="toast" aria-live="polite"></div>
+  <div id="toast" aria-live="polite" data-noi18n></div>
   <canvas id="fx" aria-hidden="true"></canvas>
 </div>
 
@@ -375,6 +382,7 @@ details.how[open] summary::before{content:'– '}
 <script>
 (function(){
 'use strict';
+const LT=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);   // names and answers go in as {values}: never translated
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts and Deepword).
 //  Rooms live under rooms/pf-<code>; Quick match uses rooms/pf-pub-1 … pf-pub-4.
@@ -672,7 +680,7 @@ function show(name){
   if(name==='game')requestAnimationFrame(layout);
 }
 let toastT=0;
-function toast(msg,ms){const el=$('toast');el.textContent=msg;el.style.opacity=1;toastT=(ms||1800)/1000}
+function toast(msg,ms){const el=$('toast');el.textContent=LT(msg);el.style.opacity=1;toastT=(ms||1800)/1000}
 let bannerT=0;
 function banner(b,s,ms,cls){$('bnB').textContent=b;$('bnS').textContent=s||'';const el=$('banner');el.className=cls||'';el.style.opacity=1;bannerT=(ms||1600)/1000}
 function refreshMenuStats(){setText('mWins',String(+store.get('wins',0)||0));setText('mAns',String(+store.get('answers',0)||0));setText('mStreak',String(+store.get('streak',0)||0))}
@@ -799,13 +807,15 @@ function onNode(uid,v){
   const o={n:cleanName(v.n)||'Player',c:hexOk(v.c)?v.c:'#888888',j:+v.j||+v.ts||0,ts:+v.ts||0,he:(typeof v.he==='number'&&isFinite(v.he)&&v.he>=0&&v.he<1e6)?v.he|0:0,
     rs:typeof v.rs==='string'&&v.rs.length<20000?v.rs:'',rsOk:false,a:typeof v.a==='string'?v.a.slice(0,90):'',ty:typeof v.ty==='string'?v.ty.slice(0,90):'',rm:(typeof v.rm==='number'&&isFinite(v.rm))?v.rm|0:-1};
   if(o.rs){if(prev&&prev.rs===o.rs){o.rsOk=prev.rsOk;o.parsed=prev.parsed}else{let p=null;try{p=JSON.parse(o.rs)}catch(e){}o.parsed=cleanRS(p);o.rsOk=!!o.parsed}}
+  // cz: what they wear from the Wardrobe (wardrobe.js); older pages never read it
+  o.cz=typeof v.cz==='string'&&v.cz.length<=20?v.cz:'';if(!WD&&/[1-9]/.test(o.cz))wdLoad();
   Net.others.set(uid,o);
   if(o.rsOk&&o.he>B.maxHe)B.maxHe=o.he;
-  if(!prev&&B.on&&performance.now()-B.joinedAt>2500&&Net.now()-o.ts<LIVE_MS)toast(o.n+' joined',1400);
+  if(!prev&&B.on&&performance.now()-B.joinedAt>2500&&Net.now()-o.ts<LIVE_MS)toast(LT('{n} joined',{n:o.n}),1400);
   if(o.rsOk&&!B.host&&(uid===B.hostUid||!B.hostUid)&&o.rs!==B.rsSeen){B.rsSeen=o.rs;B.lastRS=o.parsed;applyRS(o.parsed)}
   B.dirty=true;
 }
-function onNodeGone(uid){const o=Net.others.get(uid);Net.others.delete(uid);if(uid===B.hostUid)B.hostUid=null;if(o&&B.on&&G.scene!=='menu')toast(o.n+' left',1400);B.dirty=true}
+function onNodeGone(uid){const o=Net.others.get(uid);Net.others.delete(uid);if(uid===B.hostUid)B.hostUid=null;if(o&&B.on&&G.scene!=='menu')toast(LT('{n} left',{n:o.n}),1400);B.dirty=true}
 
 const BOT_NAMES=['Bubbles','Spike','Captain Gill','Finn','Pufferoo','Sir Inflates','Gulp','Squish','Prickles','Coral','Blowie','Barnacle'];
 const B={on:false,host:false,hostUid:null,he:0,maxHe:0,rs:null,lastRS:null,rsSeen:'',joinedAt:0,dirty:true,done:new Set(),k:0,pend:null,rid:-1,tn:-1,ph:'',cs:-1,counted:new Set(),overSeen:-1,tySent:'',tyT:0,tyTimer:0,
@@ -921,7 +931,7 @@ function onlineTick(){
 function becomeHost(){
   B.host=true;B.he=B.maxHe+1;B.maxHe=B.he;B.done=new Set();
   const base=B.lastRS?copy(B.lastRS):lobbyRS(null);
-  if(base.ph==='lobby')base.set={bots:$('botsChk').checked?1:0};
+  if(base.ph==='lobby')base.set={bots:$('botsChk').checked&&!partyRoom()?1:0};
   if(B.lastRS&&base.ph!=='lobby'&&base.ph!=='over')toast('You\'re the host now',1600);
   Net.rsStr='';setRS(base);
 }
@@ -961,7 +971,7 @@ function hostTick(){
 function startMatch(){
   const rs=B.rs;if(!B.host||!rs||(rs.ph!=='lobby'&&rs.ph!=='over'))return;
   const humans=liveIds();if(!humans.length)return;
-  const fill=Net.solo?1+G.soloBots:(rs.set.bots?4:0);
+  const fill=Net.solo?1+G.soloBots:(rs.set.bots&&!partyRoom()?4:0);
   if(Math.max(humans.length,fill)<2)return;
   B.done=new Set();setRS(newMatchRS(rs,humans,fill,Net.now()));
 }
@@ -989,7 +999,7 @@ function submit(){
   inp.className='ans ok';hint('✓ '+j.e.raw+' · sending…','ok');
   Net.upd({a:rs.id+'.'+rs.tn+'.'+B.k+'|'+norm(raw).slice(0,40)+'|'+Math.round(t)});
 }
-function hint(t,cls){const h=$('hint');h.textContent=t;h.className=cls||''}
+function hint(t,cls){const h=$('hint');h.textContent=t?LT(t):'';h.className=cls||''}
 // What I'm typing goes to the room (throttled), so everyone sees the hot seat sweat.
 function sendTy(text,state,now){
   if(Net.solo||!Net.refs||!B.rs)return;
@@ -1031,19 +1041,19 @@ function applyRS(rs){
   const inMatch=rs.pl.indexOf(Net.uid)>=0;
   // an answer was accepted
   if(newTurn&&!newMatch&&rs.last&&rs.last.tn===prevTn){
-    flashSeat(rs.last.u,'✓ '+rs.last.a,'ok');Fish.deflate(rs.cur);
+    flashSeat(rs.last.u,'✓ '+rs.last.a,'ok');Fish.deflate(rs.cur,wdTrail(rs.last.u,rs.cur));
     if(rs.last.u===Net.uid){Snd.mine();countAnswer(rs)}else Snd.good();
   }
   if(newPh&&rs.ph==='pop'&&rs.pop){
-    Fish.burst();buzz(rs.pop.u===Net.uid?[80,40,120]:40);
-    const me=rs.pop.u===Net.uid,nm=me?'You':nameOf(rs.pop.u);
-    if(rs.pop.lf)banner(nameOf(rs.pop.u)+' left','',2000);
-    else banner('POP!',rs.pop.out?(me?'You\'re out!':nm+' is out!'):(me?'You lose a life':nm+' loses a life'),2400,'pop');
+    Fish.burst();wdPop(rs.pop.u);buzz(rs.pop.u===Net.uid?[80,40,120]:40);
+    const me=rs.pop.u===Net.uid,nm=nameOf(rs.pop.u);
+    if(rs.pop.lf)banner(LT('{n} left',{n:nameOf(rs.pop.u)}),'',2000);
+    else banner(LT('POP!'),rs.pop.out?(me?LT('You\'re out!'):LT('{n} is out!',{n:nm})):(me?LT('You lose a life'):LT('{n} loses a life',{n:nm})),2400,'pop');
     hitSeat(rs.pop.u);
   }
   if(newPh&&rs.ph==='count'){
-    const c=CATS[rs.ck];banner(c?c.name:'…',rs.rd>1?'Round '+rs.rd+' · '+nameOf(rs.cur)+' starts':nameOf(rs.cur)+' goes first',rs.dur);Snd.cat();
-  }else if(newCat&&rs.ph==='turn'&&!newMatch){const c=CATS[rs.ck];banner('New category!',c?c.name:'',1500);Snd.cat();$('catBox').classList.remove('flash');void $('catBox').offsetWidth;$('catBox').classList.add('flash')}
+    const c=CATS[rs.ck];banner(c?c.name:'…',rs.rd>1?LT('Round {r} · {n} starts',{r:rs.rd,n:nameOf(rs.cur)}):LT('{n} goes first',{n:nameOf(rs.cur)}),rs.dur);Snd.cat();
+  }else if(newCat&&rs.ph==='turn'&&!newMatch){const c=CATS[rs.ck];banner(LT('New category!'),c?c.name:'',1500);Snd.cat();$('catBox').classList.remove('flash');void $('catBox').offsetWidth;$('catBox').classList.add('flash')}
   // my own pending attempt: done when the turn moves on, or turned down by the host
   if(B.pend){if(rs.tn!==B.pend.tn||rs.ph!=='turn')B.pend=null;else if(rs.nk&&rs.nk.u===Net.uid&&rs.nk.tn===B.pend.tn&&rs.nk.k===B.pend.k){
     const w=rs.nk.w;B.pend=null;$('ans').className='ans '+(w==='late'?'bad':w);hint(w==='dup'?'Someone just said that':w==='late'?'Too late!':'That doesn\'t fit','bad');Snd.bad()}}
@@ -1055,11 +1065,11 @@ function applyRS(rs){
 function setupInput(rs,mine){
   const inp=$('ans'),send=$('send'),inMatch=rs.pl.indexOf(Net.uid)>=0,out=rs.out.indexOf(Net.uid)>=0;
   if(mine){
-    inp.value='';inp.className='ans mine';send.disabled=false;inp.placeholder='Your turn! Type an answer…';hint('Your turn!','mine');
+    inp.value='';inp.className='ans mine';send.disabled=false;inp.placeholder=LT('Your turn! Type an answer…');hint('Your turn!','mine');
     Snd.turn();buzz(30);focusInput(inp);sendTy('','');
   }else if(!myTurn()){
     if(!B.pend){inp.value='';inp.className='ans'}send.disabled=true;
-    inp.placeholder=!inMatch?'Watching · you\'ll play next match':out?'You\'re out · watching':rs.ph==='turn'?nameOf(rs.cur)+'\'s turn…':'Get ready…';
+    inp.placeholder=LT(!inMatch?'Watching · you\'ll play next match':out?'You\'re out · watching':rs.ph==='turn'?'{n}\'s turn…':'Get ready…',{n:nameOf(rs.cur)});
     if(rs.ph!=='turn'||!inMatch||out)hint(!inMatch?'You joined mid-game. You\'re in the next match.':out?'Out of lives. Cheer the others on!':'','');
     else hint('','');
   }
@@ -1140,11 +1150,11 @@ function fitSay(){
 function renderSeats(rs){
   const ring=$('ring');let added=false;
   for(const u of rs.pl){let el=seatEls.get(u);
-    if(!el){el=document.createElement('div');el.className='seat';el.innerHTML='<div class="av"><span></span></div><div class="sn"></div><div class="lv"></div>';ring.appendChild(el);seatEls.set(u,el);added=true;if(isBot(u)){const t=document.createElement('span');t.className='bot';t.textContent='BOT';el.firstChild.appendChild(t)}}
+    if(!el){el=document.createElement('div');el.className='seat';el.innerHTML='<div class="av" data-noi18n><span></span></div><div class="sn" data-noi18n></div><div class="lv"></div>';ring.appendChild(el);seatEls.set(u,el);added=true;if(isBot(u)){const t=document.createElement('span');t.className='bot';t.textContent='BOT';el.firstChild.appendChild(t)}}
     const nm=nameOf(u),out=rs.out.indexOf(u)>=0,lv=rs.lv[u]|0;
     el.style.setProperty('--c',colorOf(u));
     el.firstChild.firstChild.textContent=(nm.trim().charAt(0)||'?').toUpperCase();
-    el.children[1].textContent=nm+(u===Net.uid?' (you)':'');
+    el.children[1].textContent=u===Net.uid?LT('{n} (you)',{n:nm}):nm;
     const sig=lv+'/'+out;if(el.dataset.lv!==sig){el.dataset.lv=sig;const h=el.children[2];h.innerHTML='';if(out)h.textContent='out';else for(let i=0;i<LIVES;i++){if(i<lv)h.appendChild(document.createTextNode('♥'));else{const x=document.createElement('i');x.textContent='♥';h.appendChild(x)}}}
     el.classList.toggle('cur',(rs.ph==='turn'||rs.ph==='count')&&rs.cur===u);el.classList.toggle('out',out);el.classList.toggle('me',u===Net.uid);
   }
@@ -1153,7 +1163,7 @@ function renderSeats(rs){
 }
 function flashSeat(u,text,cls){
   const p=seatPos.get(u);if(!p)return;const st=$('stage').getBoundingClientRect(),app=$('app').getBoundingClientRect();
-  const el=document.createElement('div');el.className='fly '+cls;el.textContent=text;el.style.left=(p.x-(st.left-app.left))+'px';el.style.top=(p.y-(st.top-app.top)-ST.sa*.4)+'px';
+  const el=document.createElement('div');el.className='fly '+cls;el.setAttribute('data-noi18n','');el.textContent=text==='Already said'?LT(text):text;el.style.left=(p.x-(st.left-app.left))+'px';el.style.top=(p.y-(st.top-app.top)-ST.sa*.4)+'px';
   $('stage').appendChild(el);setTimeout(()=>el.remove(),1200);
   // park the bubble just clear of its own seat (inwards, beside or above/below it), never on top of another seat
   const se=seatEls.get(u);if(se){
@@ -1207,33 +1217,34 @@ function sayText(rs,now){
 }
 function renderLobby(){
   const ul=$('lbPlayers');ul.innerHTML='';const ids=liveIds();
-  for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),sm=document.createElement('small');dot.className='dot';dot.style.background=colorOf(id);nm.className='nm';nm.textContent=nameOf(id)+(id===Net.uid?' (you)':'');sm.textContent=id===B.hostUid?'host':'';li.append(dot,nm,sm);ul.appendChild(li)}
+  for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),sm=document.createElement('small');dot.className='dot';dot.style.background=colorOf(id);nm.className='nm';nm.setAttribute('data-noi18n','');nm.textContent=id===Net.uid?LT('{n} (you)',{n:nameOf(id)}):nameOf(id);sm.textContent=id===B.hostUid?'host':'';li.append(dot,nm,sm);ul.appendChild(li)}
   const rs=B.rs,n=ids.length;
-  const bots=rs?!!rs.set.bots:true;
-  if(!B.host)$('botsChk').checked=bots;
-  $('botsChk').disabled=!B.host;
+  const party=partyRoom(),bots=!party&&(rs?!!rs.set.bots:true);
+  if(!B.host||party)$('botsChk').checked=bots;$('noBotsNote').hidden=!party;
+  $('botsChk').disabled=!B.host||party;
   const canStart=B.host&&rs&&rs.ph==='lobby'&&(n>=2||bots);
   $('startGame').disabled=!canStart;$('startGame').hidden=Net.isPublic&&n>=2;
   let msg;
   if(Net.isPublic)msg=rs&&rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-Net.now())/1000))+'…':n>=2?'Starting soon…':'Waiting for another player, or press Start to play the bots now.';
-  else if(B.host)msg=n>=2||bots?'Press Start when everyone is in.'+(n<4&&bots?' Bots fill the ring to 4.':''):'Waiting for a friend, or tick the bots box.';
+  else if(B.host)msg=n>=2||bots?'Press Start when everyone is in.'+(n<4&&bots?' Bots fill the ring to 4.':''):party?'Waiting for your party to join.':'Waiting for a friend, or tick the bots box.';
   else msg='Waiting for the host to start.';
   setText('lbMsg',msg);
   $('copyInv').hidden=Net.isPublic;
 }
 function renderOver(rs){
-  const win=rs.win;setText('oTitle',win?(win===Net.uid?'You win!':nameOf(win)+' wins!'):'Game over');
+  const win=rs.win;setText('oTitle',win?(win===Net.uid?LT('You win!'):LT('{n} wins!',{n:nameOf(win)})):LT('Game over'));
   const ol=$('oList');ol.innerHTML='';
   const order=rs.pl.slice().sort((a,b)=>{const ea=a===win?1e9:rs.out.indexOf(a)<0?1e8+(rs.lv[a]|0)*100+(rs.sc[a]|0):(rs.el[a]|0),eb=b===win?1e9:rs.out.indexOf(b)<0?1e8+(rs.lv[b]|0)*100+(rs.sc[b]|0):(rs.el[b]|0);return eb-ea});
   order.forEach((u,i)=>{const li=document.createElement('li');if(u===Net.uid)li.className='me';
     const rk=document.createElement('span'),dot=document.createElement('span'),q=document.createElement('span'),s=document.createElement('span');
-    rk.className='rk'+(u===win?' crown':'');rk.textContent=u===win?'★':String(i+1);dot.className='dot';dot.style.background=colorOf(u);q.className='nm';q.textContent=nameOf(u)+(isBot(u)?' (bot)':'');
+    rk.className='rk'+(u===win?' crown':'');rk.textContent=u===win?'★':String(i+1);dot.className='dot';dot.style.background=colorOf(u);q.className='nm';q.setAttribute('data-noi18n','');q.textContent=nameOf(u)+(isBot(u)?' (bot)':'');
     s.className='st';const a=document.createElement('b');a.textContent=String(rs.sc[u]|0);s.append(a,document.createTextNode(' answers · best run '));const b=document.createElement('b');b.textContent=String(rs.bs[u]|0);s.appendChild(b);
     li.append(rk,dot,q,s);ol.appendChild(li)});
   $('rematch').textContent=B.host?'Play again':'Ask for a rematch';$('oMsg').textContent=Net.isPublic?'The next match starts in a moment.':'';
   const humans=rs.pl.filter(u=>!isBot(u)).length;
   // ranked rating (../elo.js): by finishing place in the list above
   if(!Net.solo&&rs.pl.indexOf(Net.uid)>=0&&window.BackRoomElo){try{const mi=order.indexOf(Net.uid);BackRoomElo.report({id:Net.room+':'+rs.id,won:win===Net.uid,opp:order.filter(u=>u!==Net.uid).map(u=>({u,bot:isBot(u)?1:0,s:order.indexOf(u)>mi?1:0}))})}catch(e){}}
+  if(win)wdWin(win);
   if(win===Net.uid){confetti(W*.5,H*.35,1);Snd.win();
     if(!Net.solo&&humans>=2&&!B.counted.has('w'+rs.id)){B.counted.add('w'+rs.id);store.set('wins',(+store.get('wins',0)||0)+1);if(window.BackRoomStats){try{BackRoomStats.add('wins',1)}catch(e){}}}}
   else Snd.bad();
@@ -1243,6 +1254,10 @@ function renderOver(rs){
 // =====================================================================
 //  Joining, leaving, solo
 // =====================================================================
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: the bots box is off and locked there, whoever hosts.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
+function partyRoom(){return !!Net.room&&isPartyRoom(Net.room)}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^pf-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){const a='abcdefghjkmnpqrstuvwxyz23456789';let s='';for(let i=0;i<4;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.className='msg'+(err?' err':'')}
@@ -1261,7 +1276,7 @@ async function joinRoom(room,isPublic){
     await Net.join(room,isPublic);
   }catch(e){setMsg(e.message||String(e),true);$('quick').disabled=$('joinRoom').disabled=false;return}
   $('quick').disabled=$('joinRoom').disabled=false;setMsg('');
-  B.reset();B.on=true;B.joinedAt=performance.now();G.mode='online';
+  B.reset();B.on=true;B.joinedAt=performance.now();G.mode='online';Net.czSent='';wdPush();
   show('lobby');$('lbRoom').textContent=isPublic?'Public room':'Room '+room;$('invMsg').textContent='';
   renderLobby();
 }
@@ -1283,7 +1298,7 @@ G.soloBots=clamp(+store.get('bots',3)||3,1,7);
 function renderBotSeg(){for(const b of $('botSeg').children)b.setAttribute('aria-pressed',String(+b.dataset.n===G.soloBots))}
 $('botSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;G.soloBots=+b.dataset.n;store.set('bots',G.soloBots);renderBotSeg()});
 $('startGame').addEventListener('click',()=>{if(B.host&&B.rs&&B.rs.ph==='lobby')startMatch()});
-$('botsChk').addEventListener('change',()=>{if(B.host&&B.rs&&B.rs.ph==='lobby')setRS(Object.assign(copy(B.rs),{set:{bots:$('botsChk').checked?1:0}}))});
+$('botsChk').addEventListener('change',()=>{if(B.host&&!partyRoom()&&B.rs&&B.rs.ph==='lobby')setRS(Object.assign(copy(B.rs),{set:{bots:$('botsChk').checked?1:0}}))});
 $('rematch').addEventListener('click',()=>{
   if(!B.rs||B.rs.ph!=='over')return;
   if(B.host)rematch();
@@ -1321,7 +1336,7 @@ function drawSea(g,t,dt){
 }
 const Fish={ang:-Math.PI/2,face:1,tilt:0,p:0,pv:0,popT:-1,flat:0,squash:0,blink:0,
   reset(){this.p=0;this.pv=0;this.popT=-1;this.flat=0;this.squash=0},
-  deflate(to){this.pv=-2.5;this.squash=.25;const s=seatPos.get(to);if(s&&ST.ok)for(let i=0;i<10;i++)spawn({k:'b',x:ST.cx+this.face*Math.cos(this.tilt)*ST.R0,y:ST.fy+Math.sin(this.tilt)*ST.R0,tx:s.x,ty:s.y,t:-i*.04,life:.6+Math.random()*.2,r:rand(3,7)})},
+  deflate(to,skip){this.pv=-2.5;this.squash=.25;const s=seatPos.get(to);if(s&&ST.ok&&!skip)for(let i=0;i<10;i++)spawn({k:'b',x:ST.cx+this.face*Math.cos(this.tilt)*ST.R0,y:ST.fy+Math.sin(this.tilt)*ST.R0,tx:s.x,ty:s.y,t:-i*.04,life:.6+Math.random()*.2,r:rand(3,7)})},
   burst(){this.popT=0;this.p=0;this.pv=0;const R=ST.Rmax||60;for(let i=0;i<26;i++){const a=i/26*TAU+rand(-.1,.1),sp=rand(220,520);spawn({k:'s',x:ST.cx+Math.cos(a)*R*.8,y:ST.fy+Math.sin(a)*R*.8,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,rot:a,vr:rand(-9,9),life:1.1,r:rand(6,12)})}
     spawn({k:'ring',x:ST.cx,y:ST.fy,life:.6,r:R});confetti(ST.cx,ST.fy,.7);Snd.pop()}
 };
@@ -1334,7 +1349,7 @@ function bodyCol(p){ // sunny yellow, then orange, then angry red
   const m=t<.7?a.map((v,i)=>lerp(v,b[i],t/.7)):b.map((v,i)=>lerp(v,c[i],(t-.7)/.3));
   return'rgb('+m.map(Math.round).join(',')+')';
 }
-function drawPuffer(g,x,y,R,p,face,tilt,t,popped){
+function drawPuffer(g,x,y,R,p,face,tilt,t,popped,hat){   // hat: an item number from the Wardrobe (wardrobe.js), drawn on top; nearly always none
   g.save();g.translate(x,y);g.scale(face,1);g.rotate(tilt);
   const sq=Fish.squash;g.scale(1+sq*.3,1-sq*.25);
   if(popped){ // flat, sad and slowly sinking
@@ -1376,6 +1391,7 @@ function drawPuffer(g,x,y,R,p,face,tilt,t,popped){
   const mr=R*(.09-.04*p);g.fillStyle='#5a1a20';g.beginPath();g.ellipse(R*.93,R*.1,mr*.7,mr,0,0,TAU);g.fill();
   // sweat drop
   if(p>.72){const d=((t*1.4)%1);g.fillStyle='rgba(140,210,255,'+(1-d)+')';const sx=R*.05,sy=-R*1.0+d*R*.5;g.beginPath();g.moveTo(sx,sy-R*.12);g.quadraticCurveTo(sx+R*.08,sy,sx,sy+R*.05);g.quadraticCurveTo(sx-R*.08,sy,sx,sy-R*.12);g.fill()}
+  if(hat&&WD)WD.hat(g,R,p,hat,t);
   g.restore();
 }
 function drawParts(g,dt){
@@ -1408,13 +1424,40 @@ function drawGame(g,t,dt,now){
   if(p>.75&&rs.ph==='turn'){const s=(p-.75)/.25*R*.05;x+=Math.sin(t*61)*s;y+=Math.cos(t*47)*s}
   if(rs.ph==='pop'){Fish.popT+=dt;const sink=Math.min(1,Fish.popT/1.5)*ST.R0*.4;if(Fish.popT>.35)drawPuffer(g,x,y+sink,ST.R0*.9,0,Fish.face,0,t,true);return}
   if(rs.ph==='count')R=ST.R0*(1+.05*Math.sin(t*4));
-  drawPuffer(g,x,y,R,p,Fish.face,Fish.tilt,t,false);
+  drawPuffer(g,x,y,R,p,Fish.face,Fish.tilt,t,false,wdHat(rs.cur));
   // the fuse on the hot seat, and the ticking that speeds up with it
   if(rs.ph==='turn'){
     const el=seatEls.get(rs.cur);if(el){const f=1-target;el.style.setProperty('--t',f.toFixed(3));el.classList.toggle('low',f<.3)}
     G.tick=(G.tick||0)+dt/lerp(.55,.11,p);if(G.tick>=1&&now<rs.t0+rs.dur){G.tick=0;Snd.tick(p)}
   }
 }
+
+// ---------- the Wardrobe (not public yet): puffer hats, answer trails, pops and victory effects ----------
+// wardOn(): may this player open the Wardrobe and wear things? True for the site's captains (../captains.js: the Google
+// account signed in is one of miles.js's Captains), or with ?wardrobe=1 on localhost or in an automated browser
+// (remembered for the tab; ?wardrobe=0 forgets it). On the live site the address does nothing. To make it public for
+// everyone, change PF_PUBLIC to true: that one line is all it takes. Everything is drawn by wardrobe.js beside this page,
+// which is fetched the first time wardOn() is true, or when a player in the room wears something (their node's cz, see
+// onNode). For everyone else it is never loaded, WD stays null and the game is exactly as it was.
+// Looks only: the puffer's size, colour, spikes and timing (what everyone reads) never change.
+const PF_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardOn=()=>PF_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','pf-wardrobe'));
+let WD=null,wdAsked=false;
+function wdLoad(){
+  if(wdAsked)return;wdAsked=true;
+  loadScript('wardrobe.js').then(()=>{WD=window.PufferWardrobe({$,store,wardOn,drawPuffer,size:()=>({W,H}),changed:wdPush});wdPush()}).catch(e=>{wdAsked=false;console.error(e)});
+}
+// what a player wears: [hat, trail, pop, victory] item numbers, or null (bots and nearly everyone)
+function wearOf(u){if(!WD||!u||isBot(u))return null;if(u===Net.uid)return WD.mine();const o=Net.others.get(u);return o&&o.cz?WD.parse(o.cz):null}
+function wdHat(u){const w=wearOf(u);return w?w[0]:0}
+function wdTrail(from,to){const w=wearOf(from),s=seatPos.get(to);if(!w||!w[1]||!s||!ST.ok)return false;return WD.trail(w[1],ST.cx+Fish.face*Math.cos(Fish.tilt)*ST.R0,ST.fy+Math.sin(Fish.tilt)*ST.R0,s.x,s.y)}
+function wdPop(u){const w=wearOf(u);if(w&&w[2]&&ST.ok)WD.pop(w[2],ST.cx,ST.fy,ST.Rmax||60)}
+function wdWin(u){const w=wearOf(u);if(w&&w[3])WD.victory(w[3])}
+// this player's cz in their own node: only while something is worn
+function wdPush(){if(!WD)return;WD.sync();if(!Net.refs)return;const cz=WD.wire();if(cz!==(Net.czSent||'')){Net.czSent=cz;Net.upd({cz:cz||null})}}
+if(wardOn())wdLoad();
+if(CAPTAINS)CAPTAINS.onChange(()=>{if(wardOn())wdLoad();wdPush()});
 
 // =====================================================================
 //  Ads
@@ -1451,7 +1494,7 @@ function frame(nowP){
   if(toastT>0){toastT-=dt;if(toastT<=0)$('toast').style.opacity=0}
   if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').style.opacity=0}
   if(G.scene==='lobby'&&Net.isPublic&&B.rs&&B.rs.as)renderLobby();
-  drawConf(dt);
+  drawConf(dt);if(WD)WD.draw(fx,dt);
 }
 // Solo pauses while the tab is hidden; online, the 1 s heartbeat keeps the host's turns moving.
 document.addEventListener('visibilitychange',()=>{
@@ -1496,9 +1539,10 @@ if(!store.get('seenHelp',false)&&!inv){store.set('seenHelp',true);$('howMenu').o
 requestAnimationFrame(frame);
 
 // Test hook: only for automated browsers.
-if(navigator.webdriver)window.__pf={flashSeat,norm,check,nearMiss,oneOff,CATS,CATL,cleanRS,onNode,applyRS,acceptAnswer,popTurn,afterPop,dropLeavers,judgeAttempt,newMatchRS,beginTurn,fuseFor,nextAlive,parseAttempt,aliveOf,setRS,startMatch,startSolo,joinRoom,toMenu,lobbyRS,B,G,Net,get ST(){return ST},Fish,store,seatPos,layout};
+if(navigator.webdriver)window.__pf={get WD(){return WD},wardOn,wdLoad,wearOf,drawPuffer,flashSeat,norm,check,nearMiss,oneOff,CATS,CATL,cleanRS,onNode,applyRS,acceptAnswer,popTurn,afterPop,dropLeavers,judgeAttempt,newMatchRS,beginTurn,fuseFor,nextAlive,parseAttempt,aliveOf,setRS,startMatch,startSolo,joinRoom,toMenu,lobbyRS,B,G,Net,get ST(){return ST},Fish,store,seatPos,layout};
 })();
 </script>
+<script>if(window.BackRoomLang){BackRoomLang.englishOnly(document.querySelector('#menu .title'));BackRoomLang.englishOnly(document.getElementById('catBox'));document.addEventListener('backroom:lang',function(){BackRoomLang.englishOnly(document.querySelector('#menu .title'));BackRoomLang.englishOnly(document.getElementById('catBox'))})}</script>
 <script src="/analytics/tracker.js" data-site="puffer-party" defer></script>
 </body>
 </html>

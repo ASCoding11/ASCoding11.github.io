@@ -119,10 +119,15 @@
   State.prototype.empty = function () { var n = 0; for (var i = 0; i < 81; i++) if (!this.v[i]) n++; return n; };
   State.prototype.broken = function () { for (var i = 0; i < 81; i++) if (!this.v[i] && !this.c[i]) return true; return false; };
 
-  function unitName(u) { return u.kind === 'row' ? 'row ' + (u.n + 1) : u.kind === 'col' ? 'column ' + (u.n + 1) : 'box ' + (u.n + 1); }
-  function cellName(i) { return 'r' + (rowOf(i) + 1) + 'c' + (colOf(i) + 1); }
-  function list(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1]; }
-  function orList(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' or ' + a[a.length - 1]; }
+  // Language: the hint explanations follow the Back Room's English / Español setting (lang.js) when it is loaded in a
+  // browser; in Node (check.js) and without lang.js they are English, exactly as before. Spanish cells are f<row>c<column>.
+  var LANG = typeof window !== 'undefined' && window.BackRoomLang ? window.BackRoomLang : null;
+  function ES() { return !!(LANG && LANG.get() === 'es'); }
+  function TR(en, v) { return LANG ? LANG.t(en, v) : en.replace(/\{(\w+)\}/g, function (m, n) { return v && v[n] != null ? v[n] : m; }); }
+  function unitName(u) { return u.kind === 'row' ? TR('row {n}', { n: u.n + 1 }) : u.kind === 'col' ? TR('column {n}', { n: u.n + 1 }) : TR('box {n}', { n: u.n + 1 }); }
+  function cellName(i) { return (ES() ? 'f' : 'r') + (rowOf(i) + 1) + 'c' + (colOf(i) + 1); }
+  function list(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + (ES() ? ' y ' : ' and ') + a[a.length - 1]; }
+  function orList(a) { return a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + (ES() ? ' o ' : ' or ') + a[a.length - 1]; }
 
   // Each technique returns null or a step: {t: name, tier, place: [cell, digit]} or {t, tier, elim: [[cell, mask], ...]},
   // plus cells (the pattern), unit(s) and why (a sentence) for hints.
@@ -132,7 +137,7 @@
       var d = digits(s.c[i])[0], others = [];
       for (var x = 1; x <= 9; x++) if (x !== d) others.push(x);
       return { t: 'Naked single', tier: 1, place: [i, d], cells: [i], units: UNIT_OF[i],
-        why: 'Every other number (' + list(others) + ') is already in this cell\'s row, column or box, so ' + cellName(i) + ' can only be ' + d + '.' };
+        why: TR('Every other number ({o}) is already in this cell\'s row, column or box, so {c} can only be {d}.', { o: list(others), c: cellName(i), d: d }) };
     }
     return null;
   };
@@ -144,7 +149,7 @@
         var bit = 1 << (d - 1), at = -1, n = 0, placed = false;
         for (var j = 0; j < 9; j++) { var i = u.cells[j]; if (s.v[i] === d) { placed = true; break; } if (!s.v[i] && (s.c[i] & bit)) { n++; at = i; } }
         if (!placed && n === 1) return { t: 'Hidden single', tier: 1, place: [at, d], cells: [at], units: [HS_ORDER[k]],
-          why: 'In ' + unitName(u) + ', ' + cellName(at) + ' is the only cell where a ' + d + ' can go.' };
+          why: TR('In {u}, {c} is the only cell where a {d} can go.', { u: unitName(u), c: cellName(at), d: d }) };
       }
     }
     return null;
@@ -165,7 +170,7 @@
       if (!line) continue;
       var el = elimFrom(s, line.cells, bit, cs);
       if (el.length) return { t: 'Pointing', tier: 2, elim: el, cells: cs, units: [18 + b, sameR ? r : 9 + c], digit: d,
-        why: 'In box ' + (b + 1) + ', every spot left for ' + d + ' is in ' + unitName(line) + ', so the ' + d + ' for that ' + line.kind.replace('col', 'column') + ' must be inside the box. No other cell of ' + unitName(line) + ' can be ' + d + '.' };
+        why: TR(line.kind === 'row' ? 'In box {b}, every spot left for {d} is in {l}, so the {d} for that row must be inside the box. No other cell of {l} can be {d}.' : 'In box {b}, every spot left for {d} is in {l}, so the {d} for that column must be inside the box. No other cell of {l} can be {d}.', { b: b + 1, d: d, l: unitName(line) }) };
     }
     return null;
   };
@@ -180,7 +185,7 @@
         if (!same) continue;
         var el = elimFrom(s, BOX[b], bit, cs);
         if (el.length) return { t: 'Box/line', tier: 2, elim: el, cells: cs, units: [k, 18 + b], digit: d,
-          why: 'In ' + unitName(u) + ', every spot left for ' + d + ' is inside box ' + (b + 1) + ', so that box\'s ' + d + ' must be in ' + unitName(u) + '. No other cell of box ' + (b + 1) + ' can be ' + d + '.' };
+          why: TR('In {u}, every spot left for {d} is inside box {b}, so that box\'s {d} must be in {u}. No other cell of box {b} can be {d}.', { u: unitName(u), d: d, b: b + 1 }) };
       }
     }
     return null;
@@ -209,7 +214,7 @@
           if (!el.length) return false;
           var ds = digits(mk);
           found = { t: 'Naked ' + SETNAME[k], tier: tier, elim: el, cells: cs, units: [ui], digits: ds,
-            why: list(cs.map(cellName)) + ' can only hold ' + orList(ds) + ' between them, so those ' + k + ' numbers belong to those ' + k + ' cells. No other cell of ' + unitName(u) + ' can be ' + orList(ds) + '.' };
+            why: TR('{c} can only hold {o} between them, so those {k} numbers belong to those {k} cells. No other cell of {u} can be {o}.', { c: list(cs.map(cellName)), o: orList(ds), k: k, u: unitName(u) }) };
           return true;
         });
       }
@@ -235,7 +240,7 @@
           cs.forEach(function (i) { var e = s.c[i] & ~mk; if (e) el.push([i, e]); });
           if (!el.length) return false;
           found = { t: 'Hidden ' + SETNAME[k], tier: tier, elim: el, cells: cs, units: [ui], digits: dd,
-            why: 'In ' + unitName(u) + ', ' + list(dd) + ' only fit in ' + list(cs.map(cellName)) + ', so those cells must hold ' + list(dd) + ' and nothing else.' };
+            why: TR('In {u}, {n} only fit in {c}, so those cells must hold {n} and nothing else.', { u: unitName(u), n: list(dd), c: list(cs.map(cellName)) }) };
           return true;
         });
       }
@@ -261,9 +266,9 @@
             var el = [];
             cv.forEach(function (m) { el = el.concat(elimFrom(s, UNITS[(1 - dir) * 9 + m].cells, bit, all)); });
             if (!el.length) return false;
-            var bn = dir ? 'columns' : 'rows', cn = dir ? 'rows' : 'columns';
+            var bn = TR(dir ? 'columns' : 'rows'), cn = TR(dir ? 'rows' : 'columns');
             found = { t: name, tier: tier, elim: el, cells: all, units: ns.map(function (n) { return dir * 9 + n; }), digit: d,
-              why: 'In ' + bn + ' ' + list(ns.map(function (n) { return n + 1; })) + ', the ' + d + 's can only go in ' + cn + ' ' + list(cv.map(function (m) { return m + 1; })) + '. Those ' + bn + ' need ' + size + ' different spots in just ' + size + ' ' + cn + ', so the ' + d + 's of those ' + cn + ' are used up: no other cell in them can be ' + d + '.' };
+              why: TR('In {bn} {bs}, the {d}s can only go in {cn} {cs}. Those {bn} need {k} different spots in just {k} {cn}, so the {d}s of those {cn} are used up: no other cell in them can be {d}.', { bn: bn, bs: list(ns.map(function (n) { return n + 1; })), d: d, cn: cn, cs: list(cv.map(function (m) { return m + 1; })), k: size }) };
             return true;
           });
           if (found) return found;
@@ -286,7 +291,7 @@
           if (el.length) {
             var c = digits(cbit)[0];
             return { t: 'XY-Wing', tier: 3, elim: el, cells: [p, x, y], units: [], digit: c,
-              why: cellName(p) + ' is ' + a + ' or ' + b + '. If it\'s ' + a + ', ' + cellName(x) + ' must be ' + c + '; if it\'s ' + b + ', ' + cellName(y) + ' must be ' + c + '. One of them is ' + c + ' either way, so no cell that shares a row, column or box with both of them can be ' + c + '.' };
+              why: TR('{p} is {a} or {b}. If it\'s {a}, {x} must be {c}; if it\'s {b}, {y} must be {c}. One of them is {c} either way, so no cell that shares a row, column or box with both of them can be {c}.', { p: cellName(p), a: a, b: b, x: cellName(x), y: cellName(y), c: c }) };
           }
         }
       }
@@ -308,7 +313,7 @@
         if (el.length) {
           var c = digits(cbit)[0];
           return { t: 'XYZ-Wing', tier: 3, elim: el, cells: [p, x, y], units: [], digit: c,
-            why: cellName(p) + ' is ' + orList(digits(pm)) + ', ' + cellName(x) + ' is ' + orList(digits(s.c[x])) + ' and ' + cellName(y) + ' is ' + orList(digits(s.c[y])) + '. However you fill them, one of the three is ' + c + ', so no cell that shares a row, column or box with all three can be ' + c + '.' };
+            why: TR('{p} is {pa}, {x} is {xa} and {y} is {ya}. However you fill them, one of the three is {c}, so no cell that shares a row, column or box with all three can be {c}.', { p: cellName(p), pa: orList(digits(pm)), x: cellName(x), xa: orList(digits(s.c[x])), y: cellName(y), ya: orList(digits(s.c[y])), c: c }) };
         }
       }
     }

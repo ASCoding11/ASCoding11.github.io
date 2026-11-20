@@ -3,6 +3,7 @@ import * as C from './constants.js';
 import { TILE, SCREEN_W, SCREEN_H } from './constants.js';
 import { PALETTE, P } from './sprites.js';
 import { text } from './hud.js';
+import { look } from './look.js';
 
 const col = i => PALETTE[i];
 function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
@@ -244,8 +245,9 @@ function drawPip(ctx, g, S, camX) {
     name = (pw > 0 ? 'pipB_' : 'pipS_') + (pw > 0 ? pose : pose.replace('crouch', 'idle').replace('throw', 'idle')) + (pw === 2 ? 'F' : '');
     if (!S[name]) name = (pw > 0 ? 'pipB_idle' : 'pipS_idle') + (pw === 2 ? 'F' : '');
   }
-  const spr = S[name] || S.pipS_idle;
-  const big = spr.height > 16;
+  if (!S[name]) name = 'pipS_idle';
+  const big = name.startsWith('pipB_');
+  const spr = look.pip ? look.pip(name, S[name]) : S[name];   // a captain's look (look.js): same width, same feet
   const box = big ? C.BIG_BOX : C.SMALL_BOX;
   const feet = p.y + p.h;
   const sx = Math.floor(p.x - box.ox - camX), sy = Math.floor(feet - spr.height);
@@ -331,6 +333,7 @@ export function drawWorld(ctx, g, S, opts = {}) {
     const k = Math.floor((frame + b.x) / 10) % 4;
     ctx.drawImage(S[k === 0 ? 'button0' : k === 2 ? 'button2' : 'button1'], Math.floor(b.x - 3 - camX), Math.floor(b.y - 1));
   }
+  if (look.trail && g.mode !== 'title') look.trail(ctx, g, camX);   // a captain's trail (look.js): under Pip and everything that moves
   for (const e of scene.enemies) drawEnemy(ctx, e, S, camX, frame);
   drawBoss(ctx, scene.boss, S, camX, frame);
   if (!pipBehind && g.mode !== 'title' && g.mode !== 'intro') drawPip(ctx, g, S, camX);

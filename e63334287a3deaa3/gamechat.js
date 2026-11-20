@@ -46,6 +46,13 @@
   hostEl.id = 'bk-gamechat';
   hostEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483600;display:none';
   var root = hostEl.attachShadow ? hostEl.attachShadow({ mode: 'open' }) : hostEl;
+  // Spanish for the chat's own words (lang.js); what people type is never translated.
+  if (window.BackRoomLang) BackRoomLang.add({
+    'Party': 'Grupo', 'Send': 'Enviar', 'Message your party': 'Escríbele a tu grupo', 'Party chat': 'Chat del grupo',
+    'Party chat: tap Chat at the top to talk to your party.': 'Chat del grupo: toca Chat arriba para hablar con tu grupo.',
+    'Party chat: press {k} to talk to your party.': 'Chat del grupo: presiona {k} para hablar con tu grupo.',
+    'Not sent: {e} Press {k} to try again.': 'No se envió: {e} Presiona {k} para volver a intentarlo.'
+  });
   root.innerHTML =
     '<style>' +
     ':host{all:initial}' +
@@ -100,6 +107,7 @@
     show.forEach(function (l) {
       var d = document.createElement('div');
       d.className = 'ln' + (l.sys ? ' sys' : '') + (l.err ? ' err' : '') + (now - l.t > FRESH ? ' old' : '');
+      if (!l.sys) d.setAttribute('data-noi18n', '');   // what people typed, and their names, are never translated (lang.js)
       if (l.name) { var b = document.createElement('b'); b.textContent = l.name; b.style.color = lighten(l.color); d.appendChild(b); }
       d.appendChild(document.createTextNode(l.x));
       feed.appendChild(d);
