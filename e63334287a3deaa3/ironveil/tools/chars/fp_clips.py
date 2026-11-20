@@ -56,7 +56,7 @@ def ads_pose(k, extra_back=0.0):
 REAR = {'smg': 0.20, 'pistol': 0.47}
 
 BASE = {
-    'rifleScoped': dict(hip=pose_w((0.165, 0.46, -0.19), yaw=0.8, pitch=-1.4, roll=-4.0),
+    'rifleScoped': dict(hip=pose_w((0.175, 0.52, -0.215), yaw=0.9, pitch=-1.6, roll=-4.0),
                         sprint=pose_w((0.06, 0.40, -0.25), yaw=38, pitch=14, roll=-55),
                         low=pose_w((0.16, 0.16, -0.32), yaw=10, pitch=-30, roll=-10)),
     'smg': dict(hip=pose_w((0.13, 0.33, -0.098), yaw=0.6, pitch=-1.2, roll=-4.0),
@@ -79,7 +79,7 @@ GRIPSPEC = {
     ('smg', 'gripR'): dict(pc=(-0.022, 0.072, -0.070), dir=nz(0.15, -1, -0.25), palm=nz(1, -0.5, 0)),
     ('smg', 'gripL'): dict(pc=(0.004, -0.20, -0.017), dir=nz(-1, -0.25, 0.05), palm=nz(-0.25, 0, 1)),
     ('pistol', 'gripR'): dict(pc=(-0.022, 0.058, -0.048), dir=nz(0.15, -1, -0.25), palm=nz(1, -0.45, 0)),
-    ('pistol', 'gripL'): dict(pc=(0.030, 0.030, -0.070), dir=nz(-0.35, -1, -0.35), palm=nz(-1, 0.35, 0.15), fixed=True),
+    ('pistol', 'gripL'): dict(pc=(0.026, 0.020, -0.072), dir=nz(-0.35, -1, -0.35), palm=nz(-1, 0.35, 0.15), fixed=True),
 }
 PALM = {}
 for s_ in ('l', 'r'):
