@@ -112,7 +112,7 @@
   };
   KINDS.gate = (B, R, o) => {
     const w = o.width || 3.2, open = o.open || 0;
-    for (const s of [-1, 1]) { B.box('timber', s * (w / 2 + 0.1), -0.4, 0, 0.18, 1.8, 0.18, 0, { grain: 'long' }); B.decal('moss', [s * (w / 2 + 0.1), 0.2, 0.091], [0, 0, 1], 0.15, 0.4, 0); }
+    for (const s of [-1, 1]) { B.box('timber', s * (w / 2 + 0.1), -0.4, 0, 0.18, 1.8, 0.18, 0, { grain: 'long' }); B.decal('moss', [s * (w / 2 + 0.1), 0.2, 0.091], [0, 0, 1], 0.15, 0.4, 0); B.col(s * (w / 2 + 0.1), 0, 0.2, 0.2, 0, 1.4, 0, 'wood', 'gatepost'); }
     const G = E.builder(R() * 1e4 | 0);
     for (const yy of [0.15, 0.55, 0.95, 1.3]) G.box('timber', w / 2, yy, 0, w - 0.1, 0.09, 0.05, 0, { grain: 'long', tint: new THREE.Color(0.8, 0.76, 0.7) });
     G.box('timber', 0.06, 0, 0, 0.1, 1.42, 0.07, 0, { grain: 'long' }); G.box('timber', w - 0.12, 0, 0, 0.1, 1.42, 0.07, 0, { grain: 'long' });

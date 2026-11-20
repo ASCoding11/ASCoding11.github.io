@@ -182,7 +182,7 @@
         for (let i = 0; i < road.length - 1; i++) { const [ax, az] = road[i], [bx, bz] = road[i + 1], L = Math.hypot(bx - ax, bz - az);
           for (let t = 0; t < L; t += 34) { const x = ax + (bx - ax) * t / L + 5, z = az + (bz - az) * t / L; try { const p = IVEnv.prop('telegraph', (x * 7) | 0), y = W.height(x, z); p.group.position.set(x, y, z); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(p.group); const tops = (p.group.userData.wireTop || []).map(q => [x + q[0], y + q[1], z + q[2]]); if (prev) for (let k = 0; k < Math.min(prev.length, tops.length); k++) wires.push([...prev[k], ...tops[k]]); prev = tops; } catch (e) {} } }
         if (wires.length && IVEnv.wireMesh) W.scene.add(IVEnv.wireMesh(wires, 0.006, 0.35));
-        if (IVEnv.fence) for (const pts of [[[-64, 192], [38, 192]], [[50, 192], [64, 192], [64, -334]], [[-64, 192], [-64, -334]]]) { try { const f = IVEnv.fence(pts, 'barbed', { heightFn: W.height, seed: 33 }); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(f.group); } catch (e) { console.warn('wire', e); } }
+        if (IVEnv.fence && IVEnv.Q.name !== 'low') for (const pts of [[[-64, 192], [38, 192]], [[50, 192], [64, 192], [64, -334]], [[-64, 192], [-64, -334]]]) { try { const f = IVEnv.fence(pts, 'barbed', { heightFn: W.height, seed: 33 }); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(f.group); } catch (e) { console.warn('wire', e); } }
       }
     }
     // life around the camp: a lorry on the far road, the camp pennant, cookhouse smoke, birds over the woods, rain

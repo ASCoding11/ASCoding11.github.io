@@ -112,14 +112,16 @@
 
   // For the game's footsteps and splashes: how wet / muddy the ground is here, 0..1, and its kind.
   E.wetnessAt = function (x, z) { const g = E._ground; if (!g) return E.U.uWet.value; const w = W[g.surfaceAt(x, z)] || W.none; return Math.min(1, w[5] + E.U.uWet.value * 0.5); };
-  E.surfaceAt = function (x, z) { const g = E._ground; return g ? g.surfaceAt(x, z) : 'grass'; };
+  // the ground kind for footsteps, slowdown and cover: the map's kinds, plus 'puddle' where water stands and 'leaves'
+  // under trees (litter). Mud depth, wetness and puddle amount: IVEnv.groundInfo(x, z).
+  E.surfaceAt = function (x, z) { const g = E._ground; if (!g) return 'grass'; const i = E.groundInfo(x, z); if (i.puddle > 0.5) return 'puddle'; if (E.GRASS_KINDS[i.kind] && E._treeNear && E._treeNear(x, z, 3.2)) return 'leaves'; return i.kind; };
   E.ground = function (heightFn, opts) {
     opts = opts || {};
     const surfaceAt = opts.surfaceAt || (() => 'grass');
     const step = opts.step || (E.Q.name === 'low' ? 3.5 : 2);
     const half = (opts.size || 200) / 2;
     const x0 = opts.x0 != null ? opts.x0 : -half, z0 = opts.z0 != null ? opts.z0 : -half, x1 = opts.x1 != null ? opts.x1 : half, z1 = opts.z1 != null ? opts.z1 : half;
-    const CH = opts.chunk || 64;
+    const CH = opts.chunk || (E.Q.name === 'low' ? 128 : 64);
     const mat = groundMaterial();
     const group = new THREE.Group(); group.name = 'IVEnv.ground';
     const meshes = [], c = new THREE.Color(), cs = new THREE.Color();

@@ -232,10 +232,10 @@
     // empty even planes (its own random stream, and nothing on the routes the patrols or the player's approach use)
     if (IV.art.envOn() && IVEnv.prop) {
       const RF = IV.rng(57), root = W.envRoot && W.envRoot.parent ? W.envRoot : W.statics;
-      const put = (kind, x, z, rot, o, solid) => { try { const p = IVEnv.prop(kind, (x * 31 + z * 17) | 0 || 3, o), y = W.height(x, z), c = Math.cos(rot), s2 = Math.sin(rot); p.group.position.set(x, y, z); p.group.rotation.y = rot; root.add(p.group); if (solid !== false) for (const k of p.colliders) W.addBox(x + k.x * c + k.z * s2, z - k.x * s2 + k.z * c, k.hx, k.hz, y + k.y0, y + k.y1, rot + k.rot, F.SOLID | F.BULLET | F.NAV, 'wood', k.kind); } catch (e) { console.warn('field dressing', kind, e); } };
-      for (const [cx, cz, n] of [[60, 44, 7], [-120, 110, 6], [-110, -125, 6], [165, -110, 4], [-150, 60, 4]]) for (let i = 0; i < n; i++) { const x = cx + RF.range(-16, 16), z = cz + RF.range(-9, 9), lowSkip = IVEnv.Q && IVEnv.Q.name === 'low' && i % 2, kh = RF() < 0.3 ? 'haystack' : 'haybale', rh = RF() * 6.28; if (!lowSkip) put(kh, x, z, rh); }
+      const put = (kind, x, z, rot, o, solid) => { try { const p = IVEnv.prop(kind, (x * 31 + z * 17) | 0 || 3, o), y = W.height(x, z), c = Math.cos(rot), s2 = Math.sin(rot); p.group.position.set(x, y, z); p.group.rotation.y = rot; p.group.traverse(m => { if (m.isMesh) m.userData.detail = 50; }); root.add(p.group); if (solid !== false) for (const k of p.colliders) W.addBox(x + k.x * c + k.z * s2, z - k.x * s2 + k.z * c, k.hx, k.hz, y + k.y0, y + k.y1, rot + k.rot, F.SOLID | F.BULLET | F.NAV, 'wood', k.kind); } catch (e) { console.warn('field dressing', kind, e); } };
+      for (const [cx, cz, n] of [[60, 44, 7], [-120, 110, 6], [-110, -125, 6], [165, -110, 4], [-150, 60, 4]]) for (let i = 0; i < n; i++) { const x = cx + RF.range(-16, 16), z = cz + RF.range(-9, 9), lowSkip = IVEnv.Q && IVEnv.Q.name === 'low', kh = RF() < 0.3 ? 'haystack' : 'haybale', rh = RF() * 6.28; if (!lowSkip) put(kh, x, z, rh); }
       put('trough', -82, 122, 0.4); put('trough', 48, 50, 1.3); put('trough', 166, -92, 0.1);
-      for (const [x, z, r] of [[-60, 100, Math.PI / 2], [-29, 120, Math.PI / 2], [-120, 161, 0], [70, 64, 0.09], [150, -100, Math.PI / 2], [-120, -155, -0.1], [90, 115, 0.11]]) if (IVEnv.Q.name !== 'low') put('gate', x, z, r, { width: 3.4, open: 0.9 + RF() * 0.5 }, false);
+      for (const [x, z, r] of [[-60, 100, Math.PI / 2], [-29, 120, Math.PI / 2], [-120, 161, 0], [70, 64, 0.09], [150, -100, Math.PI / 2], [-120, -155, -0.1], [90, 115, 0.11]]) put('gate', x, z, r, { width: 3.4, open: 0.9 + RF() * 0.5 });   // same on every quality, posts solid
       for (const [x, z] of [[-128, 92], [62, 40], [-96, -128], [160, -128], [-150, 20]]) IV.art.tree(b, x + RF.range(-3, 3), z + RF.range(-3, 3), RF() < 0.6 ? 'oak' : 'ash', RF);
     }
     // ---- the countryside is lived in: a hamlet strung along the north road above the crossroads (cottages of one and
@@ -255,7 +255,7 @@
       // gate and clipped yews in the churchyard
       if (IV.art.envOn() && IVEnv.prop && IVEnv.builder) {
         const root = W.envRoot && W.envRoot.parent ? W.envRoot : W.statics, RS = IV.rng(808);
-        const put = (kind, x, z, rot, o, solid) => { try { const p = IVEnv.prop(kind, (x * 31 + z * 17) | 0 || 5, o), y = W.height(x, z), c = Math.cos(rot), s2 = Math.sin(rot); p.group.position.set(x, y, z); p.group.rotation.y = rot; root.add(p.group); if (solid !== false) for (const k of p.colliders) W.addBox(x + k.x * c + k.z * s2, z - k.x * s2 + k.z * c, k.hx, k.hz, y + k.y0, y + k.y1, rot + k.rot, F.SOLID | F.BULLET | F.NAV, 'wood', k.kind); } catch (e) { console.warn('street', kind, e); } };
+        const put = (kind, x, z, rot, o, solid) => { try { const p = IVEnv.prop(kind, (x * 31 + z * 17) | 0 || 5, o), y = W.height(x, z), c = Math.cos(rot), s2 = Math.sin(rot); p.group.position.set(x, y, z); p.group.rotation.y = rot; p.group.traverse(m => { if (m.isMesh) m.userData.detail = 50; }); root.add(p.group); if (solid !== false) for (const k of p.colliders) W.addBox(x + k.x * c + k.z * s2, z - k.x * s2 + k.z * c, k.hx, k.hz, y + k.y0, y + k.y1, rot + k.rot, F.SOLID | F.BULLET | F.NAV, 'wood', k.kind); } catch (e) { console.warn('street', kind, e); } };
         for (const sp of HAMLET) { if (sp.kind === 'church' || sp.kind === 'shed' || Math.abs(Math.abs(sp.rot) - Math.PI / 2) > 0.1) continue;
           const side = sp.rot < 0 ? 1 : -1, wx = sp.x - side * ((sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2 + 1.9), half = (sp.kind === 'barn' ? sp.d || 13 : sp.kind === 'shoprow' ? 10.8 : sp.w || 8) / 2 + 0.8;
           if (sp.kind !== 'shoprow' && sp.kind !== 'ruin' && sp.kind !== 'barn') IV.art.wall(b, [[wx, sp.z - half], [wx, sp.z + half]], 0.85, [[half - 0.8, half + 0.8]], { coping: 'flat' });
@@ -266,10 +266,10 @@
         IV.art.prop('sandbags', b, 5.6, 104, 9.5, 108, 3); IV.art.prop('sandbags', b, 9.5, 108, 13, 107, 3);   // a sandbagged corner by the burnt house
         try { const wc = IVEnv.prop('cart', 515), y = W.height(-6.5, 112); wc.group.position.set(-6.5, y + 0.2, 112); wc.group.rotation.set(0.1, 2.2, 0.45); root.add(wc.group); W.addBox(-6.5, 112, 1.6, 0.8, y, y + 1.2, 2.2, F.SOLID | F.BULLET | F.NAV, 'wood'); } catch (e) {}   // a cart on its side put('tarp', 20.5, 33.5, 1.4); put('logpile', -18.5, 51, 0.1); put('haybale', -21, 88, 0.5); put('haybale', -21.5, 91, 1.9);
         // rubble from the damaged houses spilling to the road
-        if (IVEnv.rubble) { try { const RB = IVEnv.builder(919), RR = IVEnv.rng(919); for (const [x, z, n] of [[5.5, 95, 26], [5.3, 63.5, 10], [-5.8, 57, 12]]) IVEnv.rubble(RB, x, z, 1.8, RR, { brick: 'brick_sooty', stone: 'fieldstone' }, n, W.height(x, z)); const g = RB.finish(); root.add(g); } catch (e) { console.warn('rubble', e); } }
+        if (IVEnv.rubble && IVEnv.Q.name !== 'low') { try { const RB = IVEnv.builder(919), RR = IVEnv.rng(919); for (const [x, z, n] of [[5.5, 95, 26], [5.3, 63.5, 10], [-5.8, 57, 12]]) IVEnv.rubble(RB, x, z, 1.8, RR, { brick: 'brick_sooty', stone: 'fieldstone' }, n, W.height(x, z)); const g = RB.finish(); g.traverse(m => { if (m.isMesh) m.userData.detail = 50; }); root.add(g); } catch (e) { console.warn('rubble', e); } }
         // road: puddles in the wheel tracks and dung
         try { const pud = [], DB = IVEnv.builder(717); for (let z = 26; z < 110; z += 4 + RS() * 7) { const x = (z < 80 ? z / 80 : 1 + (z - 80) / 108) + (RS() < 0.5 ? -1.1 : 1.1); pud.push([x, W.height(x, z), z, 0.5 + RS() * 0.8, 0.25 + RS() * 0.2, Math.PI / 2 + RS() * 0.3]); if (RS() < 0.5) DB.decal('mud', [x + RS() * 1.4 - 0.7, W.height(x, z) + 0.02, z + 1.5], [0, 1, 0], 0.35, 0.3, RS() * 6); }
-          if (IVEnv.puddleMesh) W.scene.add(IVEnv.puddleMesh(pud)); root.add(DB.finish()); } catch (e) { console.warn('road', e); }
+          if (IVEnv.puddleMesh) W.scene.add(IVEnv.puddleMesh(pud)); { const g = DB.finish(); g.traverse(m => { if (m.isMesh) m.userData.detail = 50; }); root.add(g); } } catch (e) { console.warn('road', e); }
         // churchyard: gravestones (some leaning), a lych gate over the entrance, clipped yews
         try { const GB = IVEnv.builder(71), RG = IV.rng(71);
           const stone = (x, z) => { const y = W.height(x, z), hh = 0.6 + RG() * 0.5; GB.box('ashlar', x, y - 0.25, z, 0.5 + RG() * 0.2, hh + 0.25, 0.1, H2 + RG() * 0.12 - 0.06, { rx: RG() < 0.3 ? RG() * 0.2 - 0.1 : 0, rz: RG() < 0.25 ? RG() * 0.16 - 0.08 : 0, tint: E2t(RG) }); GB.decal('moss', [x, y + 0.02, z + 0.6], [0, 1, 0], 0.6, 1.4, 0); };
@@ -278,7 +278,7 @@
           for (let z = 75; z < 100; z += 2.2) stone(44.5 + RG() * 0.4, z);
           const gy = W.height(28, 84); for (const z of [80.6, 87.4]) { GB.box('timber', 28, gy, z, 0.22, 2.3, 0.22, 0, { grain: 'long' }); W.addBox(28, z, 0.13, 0.13, gy, gy + 2.3, 0, F.SOLID | F.BULLET, 'wood'); }
           GB.geo('roof_tile', new THREE.ConeGeometry(1, 1, 4, 1).rotateY(Math.PI / 4), new THREE.Matrix4().compose(new THREE.Vector3(28, gy + 2.3, 84), new THREE.Quaternion(), new THREE.Vector3(1.6, 1.1, 5.2)), { noFoot: true });
-          root.add(GB.finish()); } catch (e) { console.warn('churchyard', e); }
+          { const g = GB.finish(); g.traverse(m => { if (m.isMesh) m.userData.detail = 60; }); root.add(g); } } catch (e) { console.warn('churchyard', e); }
         IV.art.hedge(b, [[30.5, 74], [31.5, 76.5]], [], { h: 2.4, bank: 0 }); IV.art.hedge(b, [[45, 101], [45.6, 103]], [], { h: 2.2, bank: 0 });   // clipped yews
       }
       // outlying farms on the slopes (inside the map, away from the routes)
@@ -287,7 +287,7 @@
         { kind: 'farmhouse', w: 12, d: 7, x: 150, z: 152, rot: -2.6 }, { kind: 'barn', w: 10, d: 15, x: 168, z: 136, rot: -2.6 + H2 },
         { kind: 'cottage', w: 8, d: 6, floors: 2, x: -165, z: 138, rot: 1.2, lit: 0.5 }, { kind: 'shed', w: 5, d: 4, x: -152, z: 150, rot: 1.2 },
         { kind: 'ruin', w: 10, d: 7, x: 166, z: -164, rot: 2.3, damage: 0.95 }, { kind: 'barn', w: 9, d: 13, x: 140, z: -166, rot: 2.3 + H2, damage: 0.4 }
-      ], { seed: 515 });
+      ], { seed: 515, shellOnly: IVEnv.Q && IVEnv.Q.name === 'low' });   // (Low: shells, still with colliders)
       // village skylines on the far hills: shells only, no colliders
       const hFar = IVEnv.skirtHeightAt || ((x, z) => W.height(Math.max(-188, Math.min(188, x)), Math.max(-188, Math.min(188, z))));
       const village = (cx, cz, n, sd, church) => { const RV = IV.rng(sd), list = []; if (church) list.push({ kind: 'church', w: 15, d: 8, x: cx, z: cz, rot: RV() * 6.28, shellOnly: true, solid: false });
@@ -307,13 +307,14 @@
     // the road into the hamlet, garden and churchyard trees, lone oaks in fields, scrub at field corners
     { const RF2 = IV.rng(2024), clear = (x, z) => { if (pd(x, z, L1) < 4.2 || pd(x, z, L2) < 4.2 || pd(x, z, R1) < 4.5 || pd(x, z, R2) < 4 || pd(x, z, R3) < 4.5 || pd(x, z, ST) < 5) return false; if (Math.hypot(x - FARM.x, z - FARM.z) < 40 || Math.hypot(x - AA.x, z - AA.z) < 18) return false; if (IV.inPoly(x, z, WHEAT) || IV.inPoly(x, z, MAIZE)) return false; for (const r of HRECT) if (Math.abs(x - r.x) < r.hx + 2.5 && Math.abs(z - r.z) < r.hz + 2.5) return false; if (Math.abs(x) > 186 || Math.abs(z) > 186) return false; for (let q = 0; q < 3; q++) if (pd(x, z, KEEP[q]) < 3.5) return false; return true; };   // never on the approach, loud route or run
       const tree = (x, z, k) => { if (clear(x, z)) IV.art.tree(b, x, z, k || (RF2() < 0.5 ? 'oak' : RF2() < 0.7 ? 'ash' : 'poplar'), RF2); };
-      for (const Ln of [offset(L1, -6.5), offset(L1, 6.5), offset(L2, -6.5), offset(L2, 6.5)]) for (let i = 0; i < Ln.length - 1; i++) { const a = Ln[i], c = Ln[i + 1], L = Math.hypot(c[0] - a[0], c[1] - a[1]); for (let t = RF2() * 20; t < L; t += 20 + RF2() * 20) tree(a[0] + (c[0] - a[0]) * t / L, a[1] + (c[1] - a[1]) * t / L, RF2() < 0.7 ? 'oak' : 'ash'); }
+      if (!(IVEnv.Q && IVEnv.Q.name === 'low')) for (const Ln of [offset(L1, -6.5), offset(L1, 6.5), offset(L2, -6.5), offset(L2, 6.5)]) for (let i = 0; i < Ln.length - 1; i++) { const a = Ln[i], c = Ln[i + 1], L = Math.hypot(c[0] - a[0], c[1] - a[1]); for (let t = RF2() * 20; t < L; t += 20 + RF2() * 20) tree(a[0] + (c[0] - a[0]) * t / L, a[1] + (c[1] - a[1]) * t / L, RF2() < 0.7 ? 'oak' : 'ash'); }
+      if (IVEnv.Q && IVEnv.Q.name === 'low') { /* Low: the hedgerow trees only */ } else {
       for (const [cx, cz, n] of [[-60, -130, 12], [-160, -100, 10], [70, 150, 10], [-100, 120, 8], [130, -10, 8], [-170, 0, 9], [175, 20, 8], [-20, -160, 9], [100, -170, 8]]) for (let i = 0; i < n; i++) tree(cx + RF2.range(-16, 16), cz + RF2.range(-14, 14));
       for (let t = 0; t < 1; t += 0.06) { const r = IV.polyDist(0, 0, ST); const i = Math.floor(t * (ST.length - 1)), a = ST[i], c = ST[i + 1], u = t * (ST.length - 1) - i, x = a[0] + (c[0] - a[0]) * u, z = a[1] + (c[1] - a[1]) * u; tree(x + (RF2() < 0.5 ? -7 : 7), z + RF2.range(-3, 3), 'ash'); }
       for (let z = 112; z < 180; z += 12) { tree(6.5, z + RF2.range(-1, 1), 'poplar'); }
       for (const [x, z] of [[-24, 40], [-25, 77], [22, 58], [24, 30], [-27, 98], [43, 99], [31, 99], [44, 76]]) tree(x, z, RF2() < 0.6 ? 'apple' : 'ash');
       for (const [x, z] of [[-110, 40], [-70, 100], [60, 100], [140, 90], [-120, -60], [90, 0], [-40, 140], [150, -110], [-140, 165], [40, -150]]) tree(x, z, 'oak');
-      for (const [x, z] of [[-58, 58], [-62, 152], [-28, 72], [97, 26], [32, -57], [148, -72], [-168, -78], [-72, -88]]) for (let i = 0; i < 3; i++) tree(x + RF2.range(-3, 3), z + RF2.range(-3, 3), 'apple'); }
+      for (const [x, z] of [[-58, 58], [-62, 152], [-28, 72], [97, 26], [32, -57], [148, -72], [-168, -78], [-72, -88]]) for (let i = 0; i < 3; i++) tree(x + RF2.range(-3, 3), z + RF2.range(-3, 3), 'apple'); } }
     // scattered field trees
     [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)

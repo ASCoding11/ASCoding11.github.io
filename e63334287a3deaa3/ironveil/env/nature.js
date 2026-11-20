@@ -574,7 +574,7 @@
   E.puddleMaterial = function () {
     if (pudMat) return pudMat;
     const m = new THREE.MeshStandardMaterial({ color: 0x07080a, roughness: 0.06, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2, envMapIntensity: 0.55 }); m.defines = { USE_UV: '' };
-    const uni = { uTime: E.U.uTime, uWet: E.U.uWet };
+    const uni = { uTime: E.U.uTime, uWet: E.U.uWet }; m.customProgramCacheKey = () => 'ivpuddle';
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uni);
       sh.fragmentShader = 'uniform float uTime, uWet;\n' + E.GLSL.noise + sh.fragmentShader
@@ -620,7 +620,7 @@
     // water: Fresnel reflection of the sky (environment map) and lamps, two ripple normals scrolling along the flow,
     // body colour from depth (clear at the edge, dark peat-brown green in the middle), lapping foam at the banks
     const m = new THREE.MeshStandardMaterial({ color: 0x0b1210, roughness: 0.05, metalness: 0, transparent: true, depthWrite: false, envMapIntensity: 1.2 }); m.defines = { USE_UV: '' };
-    const uni = { uTime: E.U.uTime, uWet: E.U.uWet, uFlow: { value: opts.flow }, uMacro: E.U.uMacro };
+    const uni = { uTime: E.U.uTime, uWet: E.U.uWet, uFlow: { value: opts.flow }, uMacro: E.U.uMacro }; m.customProgramCacheKey = () => 'ivwater';
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uni);
       sh.vertexShader = 'attribute float aDepth; varying float vDepth;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDepth = aDepth;');

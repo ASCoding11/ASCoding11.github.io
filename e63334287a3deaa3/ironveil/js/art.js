@@ -65,7 +65,7 @@
     if (!E || !E.settle) { for (const sp of specs) if (sp.solid !== false && !opts.shellOnly) K.box(b, 'stone', sp.x, (opts.heightFn || H)(sp.x, sp.z) - 0.5, sp.z, sp.w || 8, 5, sp.d || 6, sp.rot || 0, 0xa09a90, flags, 'stone'); return null; }
     const r = safe(() => E.settle(specs, Object.assign({ heightFn: H }, opts)), 'settle'); if (!r) return null;
     W.scene.add(r.group);
-    if (!opts.shellOnly) for (const c of r.colliders) W.addBox(c.x, c.z, c.hx, c.hz, c.y0, c.y1, c.rot, flags, 'stone', 'building');
+    if (opts.solid !== false) for (const c of r.colliders) W.addBox(c.x, c.z, c.hx, c.hz, c.y0, c.y1, c.rot, flags, 'stone', 'building');
     if (opts.lights !== false) for (const l of r.lights.slice(0, opts.maxLights || 6)) W.addLamp({ x: l.x, y: l.y, z: l.z, r: 5, i: 0, power: 1.1, color: 0xff9a48, flicker: true, los: false, visual: true });
     A.chimneys.push(...r.chimneys);
     return r;
@@ -131,12 +131,15 @@
   // after the build: instance the trees, merge the static pieces per 48 m cell
   A.flush = function () {
     const E = env(); if (!E) return;
+    // trees for IVEnv.surfaceAt ('leaves' under them): a 16 m grid of trunk positions
+    if (pendingTrees.length) { const grid = E._treeGrid = E._treeGrid || new Map(); for (const t of pendingTrees) { const k = Math.floor(t.x / 16) + ',' + Math.floor(t.z / 16); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(t.x, t.z); }
+      E._treeNear = (x, z, r) => { for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const a = grid.get((Math.floor(x / 16) + i) + ',' + (Math.floor(z / 16) + j)); if (a) for (let q = 0; q < a.length; q += 2) if ((a[q] - x) ** 2 + (a[q + 1] - z) ** 2 < r * r) return true; } return false; }; }
     // leaf litter and twigs under every tree (ground decals), then the trees themselves
-    if (pendingTrees.length && E.builder) safe(() => { const LB = E.builder(515), R = E.rng(515); for (const t of pendingTrees) { const n = t.kind === 'poplar' ? 2 : 4; for (let i = 0; i < n; i++) { const a = R() * 6.28, r = R() * 3.2, x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r; LB.decal(R() < 0.65 ? 'leaves' : 'grime', [x, H(x, z) + 0.025, z], [0, 1, 0], 1.6 + R() * 2.2, 1.4 + R() * 2, R() * 6.28); } } root().add(LB.finish()); }, 'leaf litter');
+    if (pendingTrees.length && E.builder && E.Q.name !== 'low') safe(() => { const LB = E.builder(515), R = E.rng(515); for (const t of pendingTrees) { const n = t.kind === 'poplar' ? 2 : 4; for (let i = 0; i < n; i++) { const a = R() * 6.28, r = R() * 3.2, x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r; LB.decal(R() < 0.65 ? 'leaves' : 'grime', [x, H(x, z) + 0.025, z], [0, 1, 0], 1.6 + R() * 2.2, 1.4 + R() * 2, R() * 6.28); } } root().add(LB.finish()); }, 'leaf litter');
     if (pendingTrees.length && E.trees) { const t = safe(() => E.trees(pendingTrees), 'trees'); add(t); pendingTrees = []; }
-    if (E.mergeStatic && W.envRoot) { const merged = safe(() => E.mergeStatic(W.envRoot, { cell: 48 }), 'merge'); if (merged && merged !== W.envRoot) { W.statics.remove(W.envRoot); W.statics.add(merged); W.envRoot = merged; } }
+    if (E.mergeStatic && W.envRoot) { const merged = safe(() => E.mergeStatic(W.envRoot, { cell: E.Q.name === 'high' ? 64 : 96 }), 'merge'); if (merged && merged !== W.envRoot) { W.statics.remove(W.envRoot); W.statics.add(merged); W.envRoot = merged; } }
   };
-  A.reset = function () { pendingTrees = []; seedN = 1; W.envRoot = null; A.chimneys = []; A.squads = []; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
+  A.reset = function () { pendingTrees = []; seedN = 1; if (window.IVEnv) { IVEnv._treeGrid = null; IVEnv._treeNear = null; } W.envRoot = null; A.chimneys = []; A.squads = []; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
   // every bullet hit on the world (not on people): effects by surface, and IVEnv's own decal for that material
   A.impact = function (surface, p, n, dir) {
     IV.fx.impact(p.x, p.y, p.z, n.x, n.y, n.z, surface, dir);
