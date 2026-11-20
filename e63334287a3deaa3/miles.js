@@ -29,6 +29,9 @@
  *                       award: see "Earned awards" below), else 0; also takes a uid
  *   crackerOf(result)   a result's player's all-time Shell Crackers kills if they hold Top Cracker (the other earned
  *                       award: most Shell Crackers kills, CRACK_MIN or more), else 0; also takes a uid
+ *   champOf(result)     { u, g, t } a result's player's newest Tournament Champion win in the last 7 days (the third earned
+ *                       award, a Captain-run tournament in tournament.js), else null; also takes a uid. readChamps() reads
+ *                       the hall again; hallCap(uid) says whether a hall node under that uid is believed (a Captain's)
  *   setTops(tops)       leaderboard.js hands over the top three ({ all, week: [uid…] the firsts, allTie, weekTie, and
  *                       all2, all3, week2, week3: [uid…] the seconds and thirds; topOf's all and week are the place, 1 to 3;
  *                       and ace: [uid…], aceN: the Slipstream ace's holders and how many tracks they lead; crack:
@@ -199,6 +202,10 @@
     // the gold tags and the First Class pill).
     shellcrackers: { earned: true, n: 'Top Cracker', tip: 'Most Shell Crackers kills', disc: '#2B1A10', rim: '#FFC93C', band: 'linear-gradient(90deg,#FFF8E8,#FBE6B8)', ink: '#2B1A10', edge: '#8A5A33',
       icon: '<path d="M8 3.1c2.3 0 3.9 3.2 3.9 5.7 0 2.4-1.7 4-3.9 4s-3.9-1.6-3.9-4C4.1 6.3 5.7 3.1 8 3.1z" fill="#FFFDF8"/><path d="M4.3 8.3l1.5.9 1.1-1.2 1.2 1.3 1.2-1.2 1.2 1 1.2-.7" fill="none" stroke="#2B1A10" stroke-width=".85" stroke-linejoin="round" stroke-linecap="round"/><circle cx="8" cy="11" r="1.05" fill="#FFC93C"/>' },
+    // EARNED too, for 7 days: Tournament Champion, the winner of a Back Room tournament run by a Captain (tournament.js;
+    // see champOf below for who is believed). Deep violet and mint, clear of the gold tags and the tier pills: a cup.
+    champion: { earned: true, n: 'Tournament Champion', tip: 'Won a Back Room tournament run by a Captain', disc: '#1E1747', rim: '#7CF2D0', band: 'linear-gradient(90deg,#5B3FD1,#7B5CFF)', ink: '#fff',
+      icon: '<path d="M5 3.4h6v2.4c0 1.9-1.3 3.3-3 3.3S5 7.7 5 5.8z" fill="#7CF2D0"/><path d="M5 4.3H3.6c0 1.5.7 2.4 1.8 2.6M11 4.3h1.4c0 1.5-.7 2.4-1.8 2.6" fill="none" stroke="#7CF2D0" stroke-width=".9"/><path d="M7.3 9h1.4v1.7H7.3zM5.6 10.7h4.8v1.5H5.6z" fill="#E9FFF8"/>' },
     // Boostball's navy, blue and boost orange: the ball with a boost flame behind it.
     boostball: { n: 'Boostball star', tip: 'Awarded for dedication to Boostball', disc: '#0E1B3A', rim: '#FF8A1F', band: 'linear-gradient(90deg,#2F7BFF,#6AA6FF)', ink: '#fff',
       icon: '<path d="M2.4 12.9l3.4-4.6 2.2 2.6z" fill="#FF8A1F"/><path d="M3.9 11.7l2-2.6 1.2 1.5z" fill="#FFD23F"/><circle cx="9.6" cy="6.6" r="3.7" fill="#fff"/><path d="M9.6 4.9l1.55 1.13-.6 1.82H8.65l-.6-1.82z" fill="#0E1B3A"/>' }
@@ -304,15 +311,16 @@
     // First on the Miles board: the pill and its "#1" tags in one wrapper. Everyone else gets the pill alone, as before.
     // An award holder gets the same wrapper, with a ribbon for each award after the tags.
     // The earned awards (the Slipstream ace, then Top Cracker) come last, after any award that was given.
-    var top = null, aw = awardsOf(res), led = 0, cr = 0;
-    if (res && res.uid) { wantTops(); top = topOf(res.uid); led = aceOf(res); cr = crackerOf(res); }
-    if (!top && !aw.length && !led && !cr) return s;
+    var top = null, aw = awardsOf(res), led = 0, cr = 0, ch = null;
+    if (res && res.uid) { wantTops(); top = topOf(res.uid); led = aceOf(res); cr = crackerOf(res); wantChamps(); ch = champOf(res); }
+    if (!top && !aw.length && !led && !cr && !ch) return s;
     var w = document.createElement('span'); w.className = 'bra-tw'; w.appendChild(s);
     if (top && top.all) w.appendChild(topTag('all', top.all, top.allTie));
     if (top && top.week) w.appendChild(topTag('week', top.week, top.weekTie));
     aw.forEach(function (k) { w.appendChild(awardTag(k)); });
     if (led) w.appendChild(awardTag('slipstream', 'Leads ' + led + ' Slipstream tracks'));
     if (cr) w.appendChild(awardTag('shellcrackers', 'Most Shell Crackers kills: ' + fmt(cr)));
+    if (ch) w.appendChild(awardTag('champion', ch.g + ', ' + champDay(ch.t)));
     fitSoon(w);
     return w;
   }
@@ -525,6 +533,77 @@
     var c = liveTops(); if (!c || !c.crackN) return 0;
     return idsOf(res).some(function (u) { return c.crack.indexOf(u) >= 0; }) ? c.crackN : 0;
   }
+  // ---- Tournament Champion (the third earned award, for 7 days) ----
+  // tournament.js runs Back Room tournaments. When one run by a Captain ends, the Captain's own browser writes the result
+  // to rooms/tn-hall/players/<the Captain's uid>, as cw/<tournament code> = { u: winner's uid, n: name, g: game, t: when }.
+  // The shared database rules only let a browser write the node under its own signed-in uid, so a node under a uid in
+  // OWNERS can only have been written by that Captain, signed in with Google. Here only those nodes are believed: anything
+  // under any other uid (a player writing "I won" for themselves) is ignored, as is a win older than 7 days (CHAMP_DAYS) or
+  // dated in the future. One read of rooms/tn-hall/players at most every 5 minutes (CHAMP_TTL) while a badge is drawn,
+  // kept in this browser's localStorage (tn:champs) and shared by every tab; tournament.js asks for a fresh read
+  // (readChamps) right after it writes one. On localhost only, uids listed in localStorage tn:testcaps count as Captains
+  // too, for testing (see tournament.js); the live site never looks at that list.
+  var CHAMP_KEY = 'tn:champs', CHAMP_TTL = 5 * 60000, CHAMP_DAYS = 7, CHAMP_PATH = 'rooms/tn-hall/players';
+  var champs = null, champsAsked = 0;
+  var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  // A Captain as captains.js counts them: OWNERS, plus VICE_CAPTAINS while its VICE_CAPTAINS_TOO switch is on (off now).
+  function hallCap(u) {
+    if (isOwner(u)) return true;
+    try { if (window.BackRoomCaptains && window.BackRoomCaptains.viceToo && isVice(u)) return true; } catch (e) {}
+    if (!LOCAL) return false;
+    try { var l = JSON.parse(localStorage.getItem('tn:testcaps') || '[]'); return Array.isArray(l) && l.indexOf(u) >= 0; } catch (e) { return false; }
+  }
+  function champWin(t, now) { return typeof t === 'number' && isFinite(t) && t <= now + 5 * 60000 && now - t < CHAMP_DAYS * 86400000; }
+  // The hall's nodes (as read) into a list of wins { u, g, t }, believing only the Captains' nodes.
+  function champList(val, now) {
+    var out = [];
+    if (!val || typeof val !== 'object') return out;
+    Object.keys(val).forEach(function (k) {
+      var v = val[k], cw = v && typeof v === 'object' && v.cw;
+      if (!hallCap(k) || !cw || typeof cw !== 'object') return;
+      Object.keys(cw).slice(0, 60).forEach(function (id) {
+        var e = cw[id];
+        if (!e || typeof e !== 'object' || !okUid(e.u) || !champWin(e.t, now)) return;
+        out.push({ u: e.u, g: typeof e.g === 'string' ? e.g.replace(/[<>]/g, '').slice(0, 40) : 'a tournament', t: e.t });
+      });
+    });
+    return out.slice(0, 200);
+  }
+  function storedChamps() {
+    try { var o = JSON.parse(localStorage.getItem(CHAMP_KEY) || 'null'); return o && num(o.t) && Array.isArray(o.list) ? o : null; } catch (e) { return null; }
+  }
+  function champSig(c) { return c ? c.list.map(function (e) { return e.u + e.t; }).join() : ''; }
+  function takeChamps(c) {
+    var was = champSig(champs); champs = c;
+    if (champSig(champs) !== was) try { document.dispatchEvent(new CustomEvent('backroom:miles', { detail: { uid: '', tops: true } })); } catch (e) {}
+  }
+  function readChamps() {
+    champsAsked = Date.now();
+    return waitParty().then(function (P) { return P.boot().then(function (b) {
+      return b.db.ref(CHAMP_PATH).once('value').then(function (s) {
+        var c = { t: Date.now(), list: champList(s.val(), P.now ? P.now() : Date.now()) };
+        try { localStorage.setItem(CHAMP_KEY, JSON.stringify(c)); } catch (e) {}
+        takeChamps(c); return c.list;
+      });
+    }); }).catch(function () { return champs ? champs.list : []; });
+  }
+  function wantChamps() {
+    var now = Date.now();
+    if ((champs && now - champs.t < CHAMP_TTL) || now - champsAsked < 60000 || document.visibilityState === 'hidden') return;
+    champsAsked = now;
+    setTimeout(readChamps, 0);
+  }
+  // The newest win (within 7 days) of anyone a result stands for, or null. Takes a result or a uid.
+  function champOf(res) {
+    if (!champs) return null;
+    var ids = idsOf(res), now = Date.now(), best = null;
+    champs.list.forEach(function (e) { if (ids.indexOf(e.u) >= 0 && champWin(e.t, now) && (!best || e.t > best.t)) best = e; });
+    return best;
+  }
+  function champDay(t) { try { return new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch (e) { return ''; } }
+  champs = storedChamps();
+  window.addEventListener('storage', function (e) { if (e.key === CHAMP_KEY) { var c = storedChamps(); if (c && (!champs || c.t > champs.t)) takeChamps(c); } });
+
   function wantTops() {
     var now = Date.now();
     if ((tops && now - tops.t < TOPS_TTL) || now - topsAsked < TOPS_RETRY) return;
@@ -642,7 +721,8 @@
     Object.keys(AWARD_KINDS).filter(function (k) { return !AWARD_KINDS[k].earned; }).forEach(function (k) { gRow(l, [awardTag(k)], AWARD_KINDS[k].n, AWARD_KINDS[k].tip + '. Given by the Captains.'); });
     Object.keys(AWARD_KINDS).filter(function (k) { return AWARD_KINDS[k].earned; }).forEach(function (k) {
       gRow(l, [awardTag(k)], AWARD_KINDS[k].n, k === 'slipstream' ? 'Earned: hold the fastest lap this season on more Slipstream tracks than anyone else, ' + ACE_MIN + ' or more at once. It moves to whoever takes the lead.'
-        : k === 'shellcrackers' ? 'Earned: have more Shell Crackers kills of all time than anyone else, ' + CRACK_MIN + ' or more. It moves to whoever takes the lead.' : AWARD_KINDS[k].tip + '.');
+        : k === 'shellcrackers' ? 'Earned: have more Shell Crackers kills of all time than anyone else, ' + CRACK_MIN + ' or more. It moves to whoever takes the lead.'
+        : k === 'champion' ? 'Earned: win a Back Room tournament run by a Captain (a featured event, or one a Captain starts from their party). It shows for ' + CHAMP_DAYS + ' days.' : AWARD_KINDS[k].tip + '.');
     });
     d.appendChild(box);
     // A click on the dimmed area outside the window closes it.
@@ -677,7 +757,7 @@
   window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, guide: guide, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
     CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), FOUNDER: FOUNDER, isFounder: isFounder, isVice: isVice, VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; },
     setTops: setTops, topOf: topOf, needTops: needTops,
-    awardsOf: awardsOf, aceOf: aceOf, ACE_MIN: ACE_MIN, crackerOf: crackerOf, CRACK_MIN: CRACK_MIN, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };
+    awardsOf: awardsOf, aceOf: aceOf, ACE_MIN: ACE_MIN, crackerOf: crackerOf, CRACK_MIN: CRACK_MIN, champOf: champOf, readChamps: readChamps, hallCap: hallCap, CHAMP_DAYS: CHAMP_DAYS, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };
   // Test hook for the automated checks; harmless in normal play. put: a result for a uid without a read.
   if (navigator.webdriver) window.__miles = { get tops() { return tops; }, get asked() { return topsAsked; }, get wanted() { return topsWanted; }, TOPS_KEY: TOPS_KEY, TOPS_TTL: TOPS_TTL, TOPS_KEEP: TOPS_KEEP,
     age: function (ms) { if (tops) tops.t -= ms; topsAsked = 0; }, clear: function () { tops = null; topsAsked = 0; topsWanted = false; try { localStorage.removeItem(TOPS_KEY); } catch (e) {} },

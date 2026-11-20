@@ -85,6 +85,14 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', title: 'Tournaments', kind: 'feature',
+     tags: ['Tournaments', '1v1', 'Brackets', 'Featured events'], items: [
+      'A new Tournaments panel near the top of the Back Room: knockout brackets of 4, 8 or 16 players in Shell Crackers, Backrooms 1v1 and Lokop.',
+      'A party leader can start one for the party, and anyone can enter or watch with its 5-letter code. Byes are handled, and the bracket updates live for everyone.',
+      'Each match is a private room. The game reports the winner by itself, or press I won or I lost. Not turning up within 3 minutes forfeits the match.',
+      'Captains can schedule featured tournaments: a card with a countdown, a Sign up button and who is in. At the start time everyone signed up is drawn into the bracket.',
+      'Win a tournament run by a Captain and you wear the Tournament Champion ribbon next to your name for a week.'
+    ]},
     {date: '2026-11-20', version: '1.35', title: 'Hush Pools: into the mist', kind: 'feature',
      tags: ['Hush Pools', 'Horror obby'], img: 'm/thumbs/hush-pools.jpg', items: [
       'The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.',

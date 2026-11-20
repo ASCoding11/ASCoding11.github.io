@@ -6,6 +6,14 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Tournaments": "Torneos",
+    "Brackets": "Llaves",
+    "Featured events": "Eventos destacados",
+    "A new Tournaments panel near the top of the Back Room: knockout brackets of 4, 8 or 16 players in Shell Crackers, Backrooms 1v1 and Lokop.": "Un panel nuevo de Torneos arriba en el Back Room: llaves de eliminación directa de 4, 8 o 16 jugadores en Shell Crackers, Backrooms 1v1 y Lokop.",
+    "A party leader can start one for the party, and anyone can enter or watch with its 5-letter code. Byes are handled, and the bracket updates live for everyone.": "El líder de una fiesta puede empezar uno para la fiesta, y cualquiera puede entrar o mirar con su código de 5 letras. Los pases libres se resuelven solos y la llave se actualiza en vivo para todos.",
+    "Each match is a private room. The game reports the winner by itself, or press I won or I lost. Not turning up within 3 minutes forfeits the match.": "Cada partida es una sala privada. El juego avisa quién ganó por su cuenta, o puedes presionar I won o I lost. Si no apareces en 3 minutos, pierdes la partida.",
+    "Captains can schedule featured tournaments: a card with a countdown, a Sign up button and who is in. At the start time everyone signed up is drawn into the bracket.": "Los Capitanes pueden programar torneos destacados: una tarjeta con cuenta regresiva, un botón para inscribirse y la lista de quién está. A la hora de inicio, todos los inscritos entran en la llave.",
+    "Win a tournament run by a Captain and you wear the Tournament Champion ribbon next to your name for a week.": "Gana un torneo organizado por un Capitán y lucirás la cinta de Tournament Champion junto a tu nombre durante una semana.",
     "Hush Pools: into the mist": "Hush Pools: entre la niebla",
     "The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.": "Las salas ahora son mucho más grandes y están llenas de niebla. Solo ves un poco hacia delante, así que tienes que explorar para encontrar el camino.",
     "Each hall has three doors in the far wall, and only one of them is open.": "Cada sala tiene tres puertas en la pared del fondo, y solo una está abierta.",

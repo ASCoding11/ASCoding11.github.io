@@ -3154,6 +3154,9 @@ function endMatch(){
     if(mapCtf)$('endTitle').textContent=fryTeam===player.team?TX('Your team wins!'):TX('{t} team wins',{t:TX(TEAM[fryTeam].n)});
     $('endSub').textContent=fw===player.id?TX('You called The Big Fry on {map}.',{map:mp}):TX('{w} called The Big Fry on {map}.',{w:fwName||list[0].name,map:mp})}
   fillTable($('endTable'),list);
+  // A tournament match (tournament.js, in the Back Room page around this one) takes its result from here: won when you
+  // finished ahead of every other real egg, nothing on a tie for first. Free-for-all online only.
+  if(online&&!mapCtf&&window.parent!==window)try{const hu=list.filter(x=>x.human||x.me),i=hu.findIndex(x=>x.me);if(hu.length>1&&i>=0&&!(hu[0].k===hu[1].k&&hu[0].d===hu[1].d))window.parent.postMessage({backroomMatch:1,game:'shell-crackers',room:Net.room||'',won:i===0},location.origin)}catch(e){}
   showEndRank(applyRating(list,false));
   $('hud').hidden=true;$('pause').hidden=true;$('end').hidden=false;
   $('again').disabled=false;$('again').textContent=TX(online?'Next match now':'Play again');
