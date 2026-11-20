@@ -85,7 +85,7 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-20', version: '1.32.1', title: 'Sky Duel: bigger planes', kind: 'fix',
+    {date: '2026-11-20', title: 'Sky Duel: bigger planes', kind: 'fix',
      tags: ['Sky Duel'], img: 'm/thumbs/sky-duel.jpg', items: [
       'The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.',
       'The briefing room shows your ranked rating, and every online match against another real pilot (free-for-all, duel or 2v2) still counts for your Elo.',
