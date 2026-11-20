@@ -673,11 +673,9 @@ function setSky(i){
   if(FX.alpha)FX.alpha.mat.uniforms.fogC.value.setHex(s.fog);
 }
 
-// ---------- terrain mesh: smooth-lit, coloured per vertex by height, slope and region ----------
-// The same grid and the same two triangles per square as terrainH (so what you see is still what you hit), drawn
-// indexed with normals from the height grid, so hills are lit smoothly instead of in facets. A world-space detail
-// texture (two scales, generated here) gives the ground grain close up, which is most of the sense of speed when
-// flying low, and the red rock gets its strata from its height in the shader.
+// ---------- terrain mesh: faceted, coloured per face by height, slope and region ----------
+// The low-poly facets are the game's look, so they stay; a world-space detail texture (two scales, generated here)
+// gives every face some grain close up, which is most of the sense of speed when flying low.
 const DETAIL_TEX=(function(){
   const S=256,cv=document.createElement('canvas');cv.width=cv.height=S;const x=cv.getContext('2d'),im=x.createImageData(S,S),d=im.data;
   const tile=(px,pz,f,o)=>{const W=S/f;let s=0,a=.5,ff=1;for(let k=0;k<4;k++){const P=W*ff,X=px/f*ff,Z=pz/f*ff,ix=Math.floor(X),iz=Math.floor(Z),fx=X-ix,fz=Z-iz,ux=fx*fx*(3-2*fx),uz=fz*fz*(3-2*fz);
@@ -687,42 +685,38 @@ const DETAIL_TEX=(function(){
 })();
 let TERRAIN_MAT=null;
 (function buildTerrain(){
-  const pos=new Float32Array(GN*GN*3),col=new Float32Array(GN*GN*3),nor=new Float32Array(GN*GN*3),mesa=new Float32Array(GN*GN);
-  const H=(i,j)=>HG[clamp(j,0,GRID)*GN+clamp(i,0,GRID)];
-  for(let j=0;j<GN;j++)for(let i=0;i<GN;i++){
-    const v=j*GN+i,o=v*3,x=-WORLD+i*CELL,z=-WORLD+j*CELL,h=HG[v];
-    let nx=H(i-1,j)-H(i+1,j),ny=2*CELL,nz=H(i,j-1)-H(i,j+1);const l=Math.hypot(nx,ny,nz);nx/=l;ny/=l;nz/=l;
-    pos[o]=x;pos[o+1]=h;pos[o+2]=z;nor[o]=nx;nor[o+1]=ny;nor[o+2]=nz;
-    const r=Math.hypot(x,z),mm=mesaMask(x)*(1-smooth(2350,2700,r)),j2=.93+hash2(i*7+3,j*13+5)*.14;let R,Gc,B;
+  const n=GRID*GRID*6,pos=new Float32Array(n*3),col=new Float32Array(n*3),nor=new Float32Array(n*3);
+  let o=0;const rng=mulberry(77);
+  const STRATA=[[.80,.44,.27],[.71,.36,.22],[.86,.54,.33],[.76,.40,.26]];
+  function tri(ax,ay,az,bx,by,bz,cx,cy,cz){
+    const ux=bx-ax,uy=by-ay,uz=bz-az,vx=cx-ax,vy=cy-ay,vz=cz-az;let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const l=Math.hypot(nx,ny,nz)||1;nx/=l;ny/=l;nz/=l;
+    const mx=(ax+bx+cx)/3,my=(ay+by+cy)/3,mz=(az+bz+cz)/3,r=Math.hypot(mx,mz);
+    let R,Gc,B;const mm=mesaMask(mx)*(1-smooth(2350,2700,r)),j=.94+rng()*.12;
     if(mm>.5){
-      if(h<16&&ny>.8){R=.86;Gc=.74;B=.52}
-      else if(ny>.9&&h>215){const sc=vnoise(x/90,z/90);if(sc>.62){R=.56;Gc=.6;B=.34}else{R=.83;Gc=.63;B=.41}}
-      else{R=.79;Gc=.44;B=.27}
-      mesa[v]=1-smooth(.72,.93,ny);   // strata on the slopes and cliffs, not on flat ground
+      if(my<16&&ny>.8){R=.86;Gc=.74;B=.52}
+      else if(ny>.9&&my>215){const sc=vnoise(mx/90,mz/90);if(sc>.62){R=.56;Gc=.6;B=.34}else{R=.83;Gc=.63;B=.41}}
+      else{const s=STRATA[Math.floor((my+vnoise(mx/200,mz/200)*24)/26)&3];R=s[0];Gc=s[1];B=s[2]}
     }else{
-      const g=vnoise(x/260+4,z/260+8);
-      if(h<7){R=.86;Gc=.79;B=.56}
-      else if(h>430+g*90&&ny>.55){R=.95;Gc=.96;B=1}
-      else if(ny<.8||h>330+g*60){const k=.42+g*.1;R=k+.05;Gc=k+.02;B=k}
+      const g=vnoise(mx/260+4,mz/260+8);
+      if(my<7){R=.86;Gc=.79;B=.56}
+      else if(my>430+g*90&&ny>.55){R=.95;Gc=.96;B=1}
+      else if(ny<.8||my>330+g*60){const k=.42+g*.1;R=k+.05;Gc=k+.02;B=k}
       else{R=lerp(.30,.42,g);Gc=lerp(.50,.62,g);B=lerp(.22,.28,g)}
     }
-    col[o]=R*j2;col[o+1]=Gc*j2;col[o+2]=B*j2;
+    R*=j;Gc*=j;B*=j;
+    for(const q of [[ax,ay,az],[bx,by,bz],[cx,cy,cz]]){pos[o]=q[0];pos[o+1]=q[1];pos[o+2]=q[2];nor[o]=nx;nor[o+1]=ny;nor[o+2]=nz;col[o]=R;col[o+1]=Gc;col[o+2]=B;o+=3}
   }
-  const idx=new Uint32Array(GRID*GRID*6);let k=0;
-  for(let j=0;j<GRID;j++)for(let i=0;i<GRID;i++){const a=j*GN+i,b=a+1,c=a+GN,d=c+1;idx[k++]=a;idx[k++]=c;idx[k++]=b;idx[k++]=b;idx[k++]=c;idx[k++]=d}
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('normal',new THREE.BufferAttribute(nor,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));g.setAttribute('aMesa',new THREE.BufferAttribute(mesa,1));g.setIndex(new THREE.BufferAttribute(idx,1));
+  for(let j=0;j<GRID;j++)for(let i=0;i<GRID;i++){
+    const x0=-WORLD+i*CELL,z0=-WORLD+j*CELL,x1=x0+CELL,z1=z0+CELL,a=HG[j*GN+i],b=HG[j*GN+i+1],c=HG[(j+1)*GN+i],d=HG[(j+1)*GN+i+1];
+    tri(x0,a,z0,x0,c,z1,x1,b,z0);tri(x1,b,z0,x0,c,z1,x1,d,z1);
+  }
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('normal',new THREE.BufferAttribute(nor,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
   const mat=new THREE.MeshLambertMaterial({vertexColors:true});
   mat.onBeforeCompile=sh=>{
     sh.uniforms.detTex={value:DETAIL_TEX};
-    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float aMesa;varying float vMesa;varying vec3 vWP;')
-      .replace('#include <project_vertex>','#include <project_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;vMesa=aMesa;');
-    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D detTex;varying float vMesa;varying vec3 vWP;')
-      .replace('#include <color_fragment>',`#include <color_fragment>
-        vec3 dA=texture2D(detTex,vWP.xz/180.).rgb,dB=texture2D(detTex,vWP.xz/23.).rgb;
-        float det=dA.b*.5+dB.r*.35+dB.g*.15;
-        diffuseColor.rgb*=.78+.44*det;
-        float band=sin((vWP.y+dA.r*30.)*.26)*.5+.5;
-        diffuseColor.rgb*=mix(1.,.9+.16*band,vMesa);`);
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <project_vertex>','#include <project_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D detTex;varying vec3 vWP;')
+      .replace('#include <color_fragment>','#include <color_fragment>\nvec3 dA=texture2D(detTex,vWP.xz/170.).rgb,dB=texture2D(detTex,vWP.xz/21.).rgb;diffuseColor.rgb*=.86+.28*(dA.b*.45+dB.r*.4+dB.g*.15);');
   };
   mat.customProgramCacheKey=()=>'sd-terrain';TERRAIN_MAT=mat;
   const m=new THREE.Mesh(g,mat);m.frustumCulled=false;scene.add(m);
