@@ -1717,7 +1717,7 @@ function buildLevel(W) {
       if (kind[i] !== 'dead') LV.lamps.push({ x: p[0], y: CEIL - 0.4, z: p[1], w: kind[i] === 'on' ? 2.0 : 1.6, k: kind[i], ph: rnd() * 50, im, i, col: kind[i] === 'on' ? 0xf4dcae : 0xc6e0d2, cur: 1 });
     });
     q.identity();
-    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; G.add(im);
+    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.frustumCulled = false; G.add(im);
     // dressing: old pipes along the top of the walls, pool ladders, a lifebuoy, broken tile on the decks, rubbish on the water
     if (R.i >= 0) {
       for (const sx of [-1, 1]) { deco.pipe.push([sx * (hw - 0.2), 4.85, cz, len, 0.11]); deco.pipe.push([sx * (hw - 0.16), 5.2, cz, len, 0.06]); }
@@ -1736,13 +1736,13 @@ function buildLevel(W) {
   }
   // all the dressing as a handful of instanced meshes (a few draw calls for the whole level)
   const inst = (geo, mat, list, place) => { if (!list.length) return null; const im = new THREE.InstancedMesh(geo, mat, list.length); const c = new THREE.Color();
-    list.forEach((e, i) => { place(e, c); im.setMatrixAt(i, m4); if (c.r + c.g + c.b < 2.99) im.setColorAt(i, c); }); im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; G.add(im); return im; };
+    list.forEach((e, i) => { place(e, c); im.setMatrixAt(i, m4); if (c.r + c.g + c.b < 2.99) im.setColorAt(i, c); }); im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.frustumCulled = false; G.add(im); return im; };   // (instances spread over the whole level: the base shape's bounds would cull them wrongly)
   const PIPE = new THREE.CylinderGeometry(1, 1, 1, 10).rotateX(Math.PI / 2);
   inst(PIPE, MAT.rust, deco.pipe, (e, c) => { m4.compose(v.set(e[0], e[1], e[2]), q.identity(), s.set(e[4], e[4], e[3])); c.setRGB(1, 1, 1); });
   const LADP = []; for (const l of deco.lad) { for (const dx of [-0.28, 0.28]) { LADP.push([l[0] + dx, -0.4, l[1] + 0.06, 0.05, 2.4, 0.05]); LADP.push([l[0] + dx, TOP + 0.85, l[1] - 0.12, 0.05, 0.05, 0.36]); LADP.push([l[0] + dx, TOP + 0.42, l[1] - 0.3, 0.05, 0.86, 0.05]); } for (const y of [-0.3, 0.1, 0.5]) LADP.push([l[0], y, l[1] + 0.06, 0.56, 0.04, 0.04]); }
   inst(BOX, MAT.door, LADP, (e, c) => { m4.compose(v.set(e[0], e[1], e[2]), q.identity(), s.set(e[3], e[4], e[5])); c.setRGB(0.75, 0.62, 0.5); });
   const buoyM = ownMat(lampPatch(new THREE.MeshLambertMaterial({ map: canvasTex(64, 16, (g, w, h) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#c8c0aa' : '#8c3326'; g.fillRect(i * 8, 0, 8, h); } grime(g, w, h, 'buoy', 1); }) }), 0x0c0f0e));
-  inst(new THREE.TorusGeometry(0.32, 0.085, 8, 20), buoyM, deco.buoy, (e, c) => { q.setFromEuler(new THREE.Euler(e[3] ? 0 : Math.PI / 2, e[3] ? Math.PI / 2 : 0, 0.3)); m4.compose(v.set(e[0], e[1], e[2]), q, s.set(1, 1, 1)); c.setRGB(1, 1, 1); });
+  inst(new THREE.TorusGeometry(0.32, 0.085, 6, 14), buoyM, deco.buoy, (e, c) => { q.setFromEuler(new THREE.Euler(e[3] ? 0 : Math.PI / 2, e[3] ? Math.PI / 2 : 0, 0.3)); m4.compose(v.set(e[0], e[1], e[2]), q, s.set(1, 1, 1)); c.setRGB(1, 1, 1); });
   inst(BOX, MAT.debris, deco.rub, (e, c) => { const r = e[3]; q.setFromEuler(new THREE.Euler((r - 0.5) * 0.3, r * 9, (r - 0.5) * 0.3)); const sz = 0.08 + r * r * 0.3;
     m4.compose(v.set(e[0], e[1] + 0.02, e[2]), q, s.set(sz, 0.035 + r * 0.04, sz * (0.6 + r))); const k = r < 0.5 ? 0.55 + r * 0.6 : 0.22 + r * 0.2; c.setRGB(k, k * 0.97, k * 0.86); });
   inst(BOX, MAT.debris, deco.flo, (e, c) => { const r = e[2]; q.setFromEuler(new THREE.Euler(0, r * 17, 0)); m4.compose(v.set(e[0], 0.012, e[1]), q, s.set(0.12 + r * 0.6, 0.02, 0.08 + r * 0.25));
