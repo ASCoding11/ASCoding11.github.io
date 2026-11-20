@@ -89,6 +89,13 @@
     "Match in progress: Red {a} – {b} Blue, round {r}, first to {n}. You'll play in the next match.": 'Partida en curso: Rojo {a} – {b} Azul, ronda {r}, gana con {n}. Juegas en la próxima.',
     "You're the host. When everyone has picked a side, start the match (first to {n}). Uneven teams are fine.": 'Eres el anfitrión. Cuando todos elijan lado, empieza la partida (gana con {n}). Los equipos pueden ser desparejos.',
     'Waiting for {h} (host) to start the match · first to {n}.': 'Esperando que {h} (anfitrión) empiece la partida · gana con {n}.',
+    // ---- maps (Poolrooms, Office, Garage, Mix) ----
+    'Host · map': 'Anfitrión · mapa', 'Practice map': 'Mapa de práctica',
+    'Pools': 'Piscinas', 'Poolrooms': 'Piscinas', 'Office': 'Oficina', 'Garage': 'Garaje', 'Mix': 'Mezcla',
+    "You're the host. When everyone has picked a side, start the match (first to {n}, {m}). Uneven teams are fine.": 'Eres el anfitrión. Cuando todos elijan lado, empieza la partida (gana con {n}, {m}). Los equipos pueden ser desparejos.',
+    'Waiting for {h} (host) to start the match · first to {n} · {m}.': 'Esperando que {h} (anfitrión) empiece la partida · gana con {n} · {m}.',
+    '{l} needs to refresh the page to play {m}; until then the match is in Level 0.': '{l} tiene que recargar la página para jugar en {m}; hasta entonces la partida es en Level 0.',
+    '{l} need to refresh the page to play {m}; until then the match is in Level 0.': '{l} tienen que recargar la página para jugar en {m}; hasta entonces la partida es en Level 0.',
     'Name tags now flash every {n} seconds': 'Ahora los nombres aparecen cada {n} segundos', 'TAGS IN {n}': 'NOMBRES EN {n}', 'TAGS ON': 'NOMBRES',
     'Watching {n}': 'Mirando a {n}', 'tap Next for the next one': 'toca Sigue para el siguiente', 'click for the next one': 'clic para el siguiente',
     'Starting in {n}': 'Empieza en {n}', 'Click to play': 'Haz clic para jugar', 'reload': 'recarga',
