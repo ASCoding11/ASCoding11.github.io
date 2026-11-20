@@ -501,6 +501,11 @@
     var kids = w.firstChild ? w.firstChild.children : [];
     var mg = w.querySelector('.bra-mn'), mn = mg ? mg.querySelectorAll('.bra-mini').length : 0;
     if (mg) miniShow(mg, mn);
+    function regrow() {
+      if (!mg) return;
+      var cur = mg.querySelectorAll('.bra-mini:not(.bra-off)').length;
+      while (cur < mn) { miniShow(mg, cur + 1); if (tight()) { miniShow(mg, cur); break; } cur++; }
+    }
     function tight() {
       var t = w.scrollWidth > w.clientWidth;
       for (var i = 0; i < kids.length && !t; i++) t = kids[i].tagName === 'SPAN' && kids[i].scrollWidth > kids[i].clientWidth;
@@ -527,9 +532,10 @@
     }
     // An award's ribbon folds away first (bra-tw-a: just its medal; with two awards, both), then the tags' words go as
     // well (bra-tw-s; two medals then also overlap like stacked coins, see the styles).
-    if (aw) { w.classList.add('bra-tw-a'); if (!tight()) return; }
+    // Each later step makes room, so as many shields as now fit come back first (regrow).
+    if (aw) { w.classList.add('bra-tw-a'); if (!tight()) { regrow(); return; } }
     w.classList.add('bra-tw-s');
-    if (mg && tight()) miniShow(mg, 0);
+    if (mg) { if (tight()) miniShow(mg, 0); else regrow(); }
     // Still squeezed hard (place tags and two medals in a phone row): a tier name cut to under half ("VI…") says less
     // than none, so the pill keeps just its icon and colours (bra-tw-p); its tooltip still names the tier.
     for (var i = 0; i < kids.length; i++) if (kids[i].tagName === 'SPAN') { if (kids[i].clientWidth < kids[i].scrollWidth / 2) w.classList.add('bra-tw-p'); break; }
