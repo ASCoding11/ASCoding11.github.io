@@ -191,7 +191,12 @@
   const mz = new THREE.Vector3();
   function fire() {
     const k = WP.cur, w = WT[k], inv = WP.inv[k], c = W.camera, d = IV.camera.lookDir;
-    if (inv.mag <= 0) { IV.audio && IV.audio.play('dry'); WP.cool = 0.3; if (inv.res > 0) startReload(); return; }
+    if (inv.mag <= 0) {
+      IV.audio && IV.audio.play('dry'); WP.cool = 0.3;
+      if (inv.res > 0) startReload();
+      else { const alt = ['pistol', 'smg', 'rifle'].find(x => x !== k && WP.has[x] && WP.inv[x] && WP.inv[x].mag + WP.inv[x].res > 0); if (alt) WP.equip(alt); }   // out of rounds: draw the next gun that has any
+      return;
+    }
     inv.mag--; WP.stats.shots++; WP.lastFire = IV.time; WP.firingRecently = true;
     let ox, oy, oz, dx, dy, dz;
     const model = WP.models[k], muzzle = model.userData.muzzle;
