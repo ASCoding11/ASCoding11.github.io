@@ -534,7 +534,7 @@ def gear_enemy(H, cloth, kind):
     # silhouette at a distance: rifleman = rolled blanket across the top of the back, gunner = a big pack under
     # the barrel case, sniper = long smock and a scrim scarf, officer = cap and long coat
     sp3 = J(H, 'spine_03')
-    if kind == 'rifleman':
+    if kind == 'rifleman' and False:   # the roll's skin weights tore it into a flap over the shoulder: removed
         roll = G.lathe('BlanketRoll', [(0.0, 0.2), (0.05, 0.2), (0.058, 0.17), (0.06, 0.0), (0.06, -0.17), (0.052, -0.2), (0.0, -0.2)], n=12,
                        M=Matrix.Translation((0, 0.14, sp3.z + 0.17)) @ Matrix.Rotation(math.pi / 2, 4, 'Y'))
         out.append((roll, 'canvas'))
