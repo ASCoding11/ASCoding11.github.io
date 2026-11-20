@@ -203,7 +203,7 @@
   };
   E.mergeStatic = function (root, opts) {
     opts = opts || {};
-    const lowMinor = E.Q.name === 'low' && opts.lowMinor !== false;
+    const lowMinor = (E.Q.name === 'low' || opts.flat) && opts.lowMinor !== false;   // opts.flat: everything takes the plain material (far shells)
     if (E.Q.name === 'low' && opts.cell) opts = Object.assign({}, opts, { cell: Math.max(opts.cell, 160) });   // Low: bigger cells, fewer draw calls
     root.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
@@ -214,7 +214,7 @@
       let p = o.parent; while (p && p !== root) { if (p.userData.dynamic) return; p = p.parent; }
       const mat = o.material; if (Array.isArray(mat)) return;
       // merge per material AND per spatial cell (opts.cell metres), so frustum culling still drops what is out of view
-      const minor = lowMinor && mat.userData && LOW_MINOR.has(mat.userData.ivenv) && !o.userData.detail;
+      const minor = lowMinor && mat.userData && (opts.flat ? !!mat.userData.ivenv : LOW_MINOR.has(mat.userData.ivenv)) && !o.userData.detail;
       let k = (minor ? 'lowminor' : mat.uuid) + (o.userData.detail ? '#d' : '');
       const cellSize = o.userData.detail ? Math.min(opts.cell || 32, 32) : opts.cell;
       if (cellSize) { if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const c = o.geometry.boundingSphere.center.clone().applyMatrix4(o.matrixWorld); k += ':' + Math.floor(c.x / cellSize) + ':' + Math.floor(c.z / cellSize); }

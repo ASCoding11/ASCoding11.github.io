@@ -31,6 +31,8 @@
     leaves:  { d: 0.15, h: [0.1, 0.25], long: 0.1, tus: 0.0, dead: 0.3, dry: 0.2, ground: 0x2a2016, c: 0.2, ch: 0.8 },
     // lawn: well-kept camp turf, thick and green, a little longer than mown grass (Boot Camp)
     lawn:    { d: 1.0, fill: 0.3, h: [0.16, 0.36], long: 0.07, tus: 0.05, dead: 0.04, dry: 0.0, ground: 0x4f5a2c, c: 1.05, ch: 1.05 },
+    // scorched: round shell holes and burnt ground, short dead stubble flattened outward, dark roots
+    scorched:{ d: 0.75, fill: 0.2, h: [0.03, 0.1], long: 0.0, tus: 0.0, dead: 0.75, dry: 0.6, ground: 0x1c1915, c: 0.7, ch: 0.45 },
     yardedge:{ d: 0.3, h: [0.06, 0.18], long: 0.0, tus: 0.1, dead: 0.25, dry: 0.15, ground: 0x2e2a22, c: 0.45, ch: 0.7 }
   };
   // Blade colours (sRGB) shared by the shader and the ground's far colour

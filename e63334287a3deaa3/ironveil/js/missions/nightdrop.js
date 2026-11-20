@@ -92,7 +92,7 @@
     const fx = IV.clamp((x + 190) / 2, 0, 189.999), fz = IV.clamp((z + 190) / 2, 0, 189.999), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, N = 191;
     const k = (MASK[j * N + i] * (1 - tx) + MASK[j * N + i + 1] * tx) * (1 - tz) + (MASK[(j + 1) * N + i] * (1 - tx) + MASK[(j + 1) * N + i + 1] * tx) * tz;
     if (k < -0.5) return 0;
-    const kk = Math.max(0, 0.35 + 0.65 * k);   // routes keep a third of the relief (gentle grades); combat areas none; away from them full
+    const kk = Math.max(0, 0.55 + 0.45 * k);   // routes keep about half the relief (visible rises and dips, grades under ~7 deg); combat areas none; away from them full
     const edge = IV.smooth(IV.clamp((Math.max(Math.abs(x), Math.abs(z)) - 140) / 48, 0, 1));
     let r = 7 * (IV.fbm(x / 80 + 9, z / 80 - 2, 4) - 0.45) + 2.6 * (IV.fbm(x / 26, z / 26 + 5, 3) - 0.5) + edge * 9 * IV.fbm(x / 60 - 3, z / 60 + 8, 3);
     r += 12 * Math.exp(-(((x - 172) / 15) ** 2)) * bump(Math.abs(z + 115), 45, 75);          // the ridge east of the farm
@@ -110,10 +110,20 @@
     h = h + (farmH - h) * bump(df, 34, 52);
     // crossroads level
     h = h + (base(0, 10) - h) * bump(Math.hypot(x, z - 10), 10, 18);
+    // the hamlet street climbs north from the crossroads (about 3 m over 90 m, under 2 degrees) and the church stands
+    // above it on a knoll (level within 12 m of the church, rising ~7 degrees from the street); the street rise fades
+    // out 24-34 m either side of the road
+    { const rx = z < 80 ? z / 80 : 1 + (z - 80) / 108;
+      const street = 3.0 * IV.smooth(IV.clamp((z - 22) / 92, 0, 1)) * bump(Math.abs(x - rx), 24, 34);   // (the stream, 37 m west, keeps its level)
+      h += Math.max(street, 4.0 * bump(Math.hypot(x - 37, z - 88), 12, 24)); }   // the knoll stands 1.5 m above the street beside it
     // sunken lanes (cancel the cut over the bridge)
     const ds = pd(x, z, ST);
     const lane = Math.max(bump(pd(x, z, L1), 1.9, 3.6), bump(pd(x, z, L2), 1.9, 3.6) * bump(df, 999, 1000) + bump(pd(x, z, L2), 1.9, 3.6) * (1 - bump(df, 20, 30)));
-    h -= 1.25 * lane * (1 - bump(ds, 4, 9));
+    // the cutting deepens along the lane: 1.25 m at its ends (the farm, crossroads and bridge keep their ground), up to
+    // 1.85 m in the middle of each run, so the lane dips into the cutting and rises out (floor grade well under 4 deg)
+    const lc = pd(x, z, L1) < pd(x, z, L2) ? IV.polyDist(x, z, L1) : IV.polyDist(x, z, L2), lt = (lc.i + lc.t) / ((pd(x, z, L1) < pd(x, z, L2) ? L1 : L2).length - 1);
+    const deep = 0.6 * Math.sin(Math.PI * IV.clamp(lt, 0, 1)) ** 0.7 * (1 - bump(df, 34, 50)) * (1 - bump(Math.hypot(x, z - 10), 26, 40)) * (1 - bump(Math.hypot(x + 41, z - 18), 12, 22));   // none at the farm, the crossroads or the bridge
+    h -= (1.25 + deep) * lane * (1 - bump(ds, 4, 9));
     // the stream bed
     h -= 1.9 * bump(ds, 1.2, 5.5);
     // the bridge approach stays at bank height
@@ -143,7 +153,7 @@
     if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'field';
     // damp hollows (darker, trodden, a little standing water) and shorter-grazed patches break up the open fields
     if (Math.hypot(x - 95, z - 160) < 21) return 'yard';   // the old quarry: stone and spoil
-    for (const C of CRATERS) { const dc = Math.hypot(x - C[0], z - C[1]); if (dc < C[2] * 1.15) return 'mud'; if (dc < C[2] * 1.7) return 'worn'; }   // scorched mud and thrown soil
+    for (const C of CRATERS) { const dc = Math.hypot(x - C[0], z - C[1]); if (dc < C[2] * 1.15) return 'mud'; if (dc < C[2] * 2.1) return 'scorched'; }   // scorched mud, thrown soil, burnt stubble
     if (x > -30 && x < 50 && z > 25 && z < 112) for (const r of HRECT) { const dd = Math.max(Math.abs(x - r.x) - r.hx, Math.abs(z - r.z) - r.hz); if (dd < 2.6 && dd > -0.5) return dd < 1.1 ? 'yardedge' : 'verge'; }   // trodden ring and weeds at the walls
     if (surface(x, z) !== S.grass) return null;   // never over the tall grass (stealth cover), crops, mud or water
     const f = IV.fbm(x / 34 + 7, z / 34 - 3, 3);
@@ -349,8 +359,7 @@
       if (IVEnv.marks) { let x = -150, z = -32; const dir = 0.32; for (let t = 0; t < 30; t += 0.9) { const px = x + Math.cos(dir) * t, pz = z + Math.sin(dir) * t; for (const sdd of [-0.85, 0.85]) IVEnv.marks.stamp(px - Math.sin(dir) * sdd, pz + Math.cos(dir) * sdd, 'rut', dir, 0.9); } }
       let WB = IVEnv.builder(3131);
       // the burnt-out lorry in the crater west of the lane, nose down, and a sandbag wall beside it
-      try { const tr = IVEnv.prop('truck', 77), tx = -124, tz = -16, ty = W.height(tx, tz); tr.group.position.set(tx, ty - 0.35, tz); tr.group.rotation.set(-0.18, 2.4, 0.12);
-        tr.group.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.aEnv) { m.geometry = m.geometry.clone(); const a = m.geometry.attributes.aEnv; for (let i = 0; i < a.count; i++) a.setXYZ(i, 0.24 + 0.06 * Math.sin(i * 0.37), 0.21, 0.19); a.needsUpdate = true; } });
+      try { const tr = IVEnv.prop('wreck', 77), tx = -124, tz = -16, ty = W.height(tx, tz); tr.group.position.set(tx, ty - 0.3, tz); tr.group.rotation.set(-0.16, 2.4, 0.09);
         root.add(tr.group); W.addBox(tx, tz, 1.3, 3.2, ty - 0.5, ty + 2.2, 2.4, F.SOLID | F.BULLET | F.NAV | F.SIGHT, 'metal');
         WB.decal('soot', [tx, ty + 0.08, tz], [0, 1, 0], 7, 5, 0.6); for (let k = 0; k < 4; k++) WB.decal('scorch', [tx + RW.range(-3, 3), W.height(tx, tz) + 0.06, tz + RW.range(-3, 3)], [0, 1, 0], 2.5, 2.5, RW() * 3); } catch (e) { console.warn('wreck', e); }
       IV.art.prop('sandbags', b, -118, -24, -113, -21, 3);
