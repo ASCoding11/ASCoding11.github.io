@@ -2530,6 +2530,9 @@ function kitSync(){if(kitOn())kitLoad();if(KIT)KIT.access()}
 function kitHeard(e,ck){if(KIT)KIT.heard(e,ck);else{e.ck0=ck;if(typeof ck==='string'&&/^[0-9a-z]{4}$/.test(ck)&&ck!=='0000')kitLoad()}}
 kitSync();if(CAPTAINS)CAPTAINS.onChange(kitSync);
 
+// Compile every shader now (things that start hidden too: debris, speed streaks, missiles, shields), so the first
+// explosion or the first burst of speed doesn't stall a frame while the GPU compiles it.
+(function warmShaders(){const hid=[];scene.traverse(o=>{if((o.isMesh||o.isPoints||o.isLine)&&!o.visible){hid.push(o);o.visible=true}});try{renderer.compile(scene,camera)}catch(e){}for(const o of hid)o.visible=false})();
 setSky(0);showMenu();requestAnimationFrame(frame);
 addEventListener('pagehide',()=>{if(G.online)Net.leave()});
 // A hook for automated tests only (browsers driven by a test tool say so with navigator.webdriver).
