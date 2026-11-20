@@ -316,7 +316,7 @@
       var ac = action(e), btn = ac.a ? '<button type="button" class="btn sm' + (ac.pri ? ' primary' : '') + '" data-' + ac.a + '="' + esc(e.id) + '">' + ac.label + '</button>'
         : '<button type="button" class="btn sm" disabled>' + ac.label + '</button>';
       var room = e.n < 0 ? 'Checking the room…' : e.n === 0 ? 'Starting the game…' : T('<b>{a} of {b}</b> in the room', { a: e.n, b: e.cap });
-      if (queued && queued.id === e.id) room = 'You’re queued · joining as soon as there’s a spot';
+      if (queued && queued.id === e.id) room = esc(T('You’re queued · joining as soon as there’s a spot'));   // (the row is data-noi18n, so translated here)
       // Who else is waiting for this room (their Online nodes' qg / qr / qt, through social.js), and us.
       var qs = queuers(e), qn = qs.length + (queued && queued.id === e.id ? 1 : 0), qtip = '';
       if (qn) {
