@@ -249,7 +249,7 @@
     if (R.mask) defs.ENV_METALMASK = '';
     // parallax only where it is seen and cheap (owner, 20 Nov): Medium brick walls within ~5 m, High brick and stone
     // within ~9 m, never roofs; everything else keeps the normal map and joint occlusion
-    if (R.pom && E.Q.pom && !R.glass && (!E.Q.pomOnly || E.Q.pomOnly.test(R.tex || ''))) { defs.ENV_POM = ''; defs.ENV_POM_STEPS = E.Q.pom + '.0'; defs.ENV_POM_FAR = (E.Q.pomFar || 8) + '.0'; }
+    if (R.pom && E.Q.pom && !R.glass && (!E.Q.pomOnly || E.Q.pomOnly.test(R.tex || ''))) { defs.ENV_POM = ''; defs.ENV_POM_STEPS = (+E.Q.pom).toFixed(1); defs.ENV_POM_FAR = (+(E.Q.pomFar || 8)).toFixed(1); /* GLSL floats: '5.5', never '5.5.0' */ }
     if (!R.noFoot) defs.ENV_FOOT = '';
     m.defines = Object.assign(m.defines || {}, defs);
     const uni = {
