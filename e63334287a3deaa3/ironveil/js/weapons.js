@@ -66,6 +66,7 @@
   };
   function equipModels() {
     const A = P.actor, M = WP.models;
+    IV.fp && IV.fp.beforeAttach && IV.fp.beforeAttach();
     for (const k in M) A.detach(M[k]);
     if (WP.binoc) A.attach(M.binoc, 'handR');
     else if (WP.busyThrow) A.attach(M.grenade, 'handR');
@@ -242,7 +243,8 @@
     else IV.camera.kick(w.recoil * (P.stance === 'prone' ? 0.6 : 1), (Math.random() - 0.5) * w.recoil * 0.3);
     IV.camera.shake((k === 'rifle' ? 0.12 : 0.05) * motion);
     IV.fp && IV.fp.recoil(k === 'rifle' ? 1 : k === 'smg' ? 0.35 : 0.6);
-    if (k === 'rifle') { WP.boltT = WT.rifle.bolt; setTimeout(() => IV.audio && IV.audio.play('bolt'), 330); }
+    // the bolt: as long as the arms' fire and bolt clips take in first person, else the tuning value
+    if (k === 'rifle') { const fl = IV.fp && IV.fp.clipLen ? IV.fp.clipLen(WP.aiming || WP.scoped ? 'fireAds' : 'fire', 'rifle') + IV.fp.clipLen('boltCycle', 'rifle') : 0; WP.boltT = fl > 0.3 && IV.fp.on() ? fl : WT.rifle.bolt; setTimeout(() => IV.audio && IV.audio.play('bolt'), 330); }
     WP.cool = w.rpm ? 60 / w.rpm : 0.18;
     IV.setUpper(P.actor, k === 'rifle' ? 'boltCycle' : 'fire');
     IV.emit('shot', k);
@@ -259,6 +261,8 @@
     const k = WP.cur, inv = WP.inv[k];
     if (WP.reloadT > 0 || inv.res <= 0 || inv.mag >= WT[k].mag) return;
     WP.reloadT = WT[k].reload; WP.scoped = false;
+    const rl = IV.fp && IV.fp.onReload ? IV.fp.onReload(inv.mag === 0) : 0;   // first person: the arms' reload clip sets the time
+    if (rl > 0.5) WP.reloadT = rl;
     P.actor.setUpper('reload');
     IV.audio && IV.audio.play('reload', { kind: k });
   }
@@ -390,7 +394,7 @@
     const I = IV.input;
     WP.cool = Math.max(0, WP.cool - dt); WP.throwCool = Math.max(0, (WP.throwCool || 0) - dt);
     if (WP.boltT > 0) { WP.boltT -= dt; if (WP.boltT <= 0) P.actor.setUpper(WP.aiming ? 'aimIdle' : null); }
-    if (WP.reloadT > 0 && P.sprinting) { WP.reloadT = 0; P.actor.setUpper(null); }   // sprinting cancels a reload (no rounds added)
+    if (WP.reloadT > 0 && P.sprinting) { WP.reloadT = 0; P.actor.setUpper(null); IV.fp && IV.fp.cancelAction && IV.fp.cancelAction(); }   // sprinting cancels a reload (no rounds added)
     if (WP.reloadT > 0) { WP.reloadT -= dt; if (WP.reloadT <= 0) finishReload(); }
     WP.bloom = Math.max(0, WP.bloom - dt * (I.held('fire') ? 0.01 : 0.12));
     if (!I.held('fire')) WP.burst = 0;

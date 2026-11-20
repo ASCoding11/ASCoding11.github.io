@@ -153,14 +153,26 @@
   // called by player.js after the actor's update
   FP.afterBodyUpdate = function () {
     const A = P.actor; if (!A || !A.bone) return;
-    maskBody(A);
     const on = bodyFP && !IV.weapons.scoped && P.alive;
-    fpHide.value = on ? 1 : 0;
-    A.root.traverse(o => { if (o.userData.fpPart) shadowOnly(o, on); });
-    // the world guns: the one in his hands and the one on his back are shadow-only in first person
     const M = IV.weapons.models || {};
-    for (const k in M) { const g = M[k]; if (g) shadowOnly(g, on && !!g.parent && (g !== M.pistol || IV.weapons.cur === 'pistol' && !IV.weapons.busyThrow && !IV.weapons.binoc)); }
+    if (A.setFirstPerson) {
+      // the characters' own first-person body (no head, neck or arms; eyes, hair and the gun in the hands shadow-only,
+      // a full-body shadow from an invisible copy). It treats what is attached at the call, so it is re-applied when
+      // the gun in the hands changes (weapons.js calls FP.beforeAttach first so the old gun gets its materials back).
+      const key = on ? 'on:' + (A.held ? A.held.uuid : '') : 'off';
+      if (key !== FP._fpKey) { A.setFirstPerson(false); if (on) A.setFirstPerson(true); FP._fpKey = key; }
+    } else {
+      maskBody(A);
+      fpHide.value = on ? 1 : 0;
+      A.root.traverse(o => { if (o.userData.fpPart) shadowOnly(o, on); });
+    }
+    // the long gun slung on his back would cross the view looking down: shadow only in first person
+    for (const k in M) { const g = M[k]; if (!g) continue; const held = g === A.held; if (A.setFirstPerson && held) { shadowOnly(g, false); continue; } shadowOnly(g, on && !!g.parent && (held ? true : g !== M.pistol)); }
   };
+  // weapons.js: before guns are moved between the hands, the sling and the holster
+  FP.beforeAttach = function () { const A = P.actor; if (A && A.setFirstPerson && FP._fpKey && FP._fpKey !== 'off') { A.setFirstPerson(false); FP._fpKey = null; } };
+  FP.scopeReady = () => (FP.vmAim || 0) >= 0.9;
+  FP.binocReady = () => VM && !VM.rig.standin ? !!FP.atEye : (FP.vmAim || 0) >= 0.9;
   // the old bone-scaling hide is gone: undo it if a previous frame left a bone collapsed
   FP.HIDE_RE = HIDE_RE;
 
@@ -245,11 +257,98 @@
     };
     return rig;
   }
+  // ---------------------------------------------------------------- the characters' arms rig (IVChars.viewmodel)
+  // One viewmodel per gun ('rifleScoped', 'smg', 'pistol'), made on first use, all in one group at the eye. Their clips
+  // carry the hip, ADS and sprint poses and every hand action (fire, bolt, reload with the magazine in the left hand,
+  // draw, grenade, melee, interact, binoculars), so this side adds only small procedural layers and starts the clips.
+  function realRig() {
+    if (!IVChars.viewmodel || !IVChars.fpClips || !IVChars.fpClips('smg').length) return null;
+    const group = new THREE.Group(), vms = {};
+    const rig = { standin: false, group, vms, vm: null, kind: null, gun: null, muzzle: null, ejection: null, scopeEye: null, sockets: null, clips: [] };
+    rig.get = function (kind) {
+      if (!(kind in vms)) { const v = IVChars.viewmodel(kind); vms[kind] = v; if (v) { v.group.visible = false; group.add(v.group); v.onEvent = (e, c) => { FP.lastEvent = { e, c, t: IV.time }; if (e === 'atEye') FP.atEye = true; }; } }
+      return vms[kind];
+    };
+    rig.setKind = function (kind) {
+      if (rig.kind === kind) return false;
+      const v = rig.get(kind); if (!v) return false;
+      if (rig.vm) rig.vm.group.visible = false;
+      rig.vm = v; v.group.visible = true; rig.kind = kind; rig.gun = v.weapon;
+      rig.muzzle = v.muzzle; rig.ejection = v.ejection; rig.scopeEye = v.scopeEye; rig.sockets = v.sockets; rig.clips = v.clips;
+      return true;
+    };
+    rig.play = (name, o) => rig.vm ? rig.vm.play(name, o) : 0;
+    rig.len = (name, kind) => { const v = kind ? rig.get(kind) : rig.vm; return v ? v.clipLength(name) : 0; };
+    return rig;
+  }
+  const _o = new THREE.Vector3();
+  function realFrame(vm, dt, yaw, pitch) {
+    const W8 = IV.weapons, S = IV.settings, rig = vm.rig, M = IV.mission, I = IV.input, C = IV.camera;
+    const gunKind = KIND[W8.cur] || 'smg';
+    const tdT = W8.takedownT != null ? IV.time - W8.takedownT : 99, inTakedown = P.cineClip && tdT < 3;
+    const harness = P.cine && M && M.phase === 'harness';
+    const show = P.alive && !(W8.scoped && FP.vmAim > 0.92) && !(W8.binoc && FP.atEye) && (!P.cineClip || inTakedown) && (!P.cine || harness);
+    vm.root.visible = show;
+    if (!show) { if (!W8.binoc) FP.atEye = false; return; }
+    if (rig.setKind(gunKind) && FP.vmShown) { const d = rig.play('draw'); if (d) W8.cool = Math.max(W8.cool, d * 0.7); }   // a new gun comes up with its draw clip
+    FP.vmShown = true;
+    const v = rig.vm; if (!v) return;
+    // beats -> clips (each started once, on the change)
+    const beat = W8.busyThrow ? 'grenade' : W8.binoc ? 'binoculars' : inTakedown ? 'melee' : harness && M.interAt && I.held('use') ? 'cut' : (M && M.interAt && I.held('use') && M.interAt.prog > 0) ? 'interact' : null;
+    if (beat !== FP.beat) {
+      if (beat === 'grenade') rig.play('grenade');
+      else if (beat === 'binoculars') { FP.atEye = false; rig.play('binoculars'); }
+      else if (beat === 'melee') rig.play('melee');
+      else if (beat === 'cut') rig.play('interact', { loop: true });
+      else if (beat === 'interact') rig.play('interact');
+      if (FP.beat === 'binoculars') { FP.atEye = false; rig.play('binocularsLower'); }
+      else if (FP.beat === 'cut') v.stop(0.2);
+      FP.beat = beat;
+    }
+    // the rifle's bolt after the shot's own clip
+    if (FP.boltDue && !v.isPlaying('fire') && !v.isPlaying('fireAds')) { FP.boltDue = false; rig.play('boltCycle'); }
+    // base blend: ADS and sprint carry are the rig's own poses
+    const aiming = !!(W8.aiming || W8.scoped);
+    FP.vmAim = IV.damp(FP.vmAim, aiming ? 1 : 0, aiming ? 14 : 11, dt);
+    FP.vmSpr = IV.damp(FP.vmSpr || 0, P.sprinting ? 1 : 0, P.sprinting ? 7 : 10, dt);
+    if (W8.binoc && FP.lastEvent && FP.lastEvent.e === 'atEye') FP.atEye = true;
+    if (W8.binoc && !FP.atEye && v.current === 'binoculars' && FP.binocT == null) FP.binocT = IV.time;
+    if (W8.binoc && FP.binocT != null && IV.time - FP.binocT > rig.len('binoculars') + 0.05) FP.atEye = true;   // no 'atEye' event: the end of the clip
+    if (!W8.binoc) FP.binocT = null;
+    v.drive({ ads: FP.vmAim, sprint: FP.vmSpr }, dt);
+    // small procedural layers: breathing, step bob, look lag, recoil, wall lowering, landing dip, lean roll
+    const motion = S.motion ? 0.4 : 1, t = IV.time, ph = FP.phase || 0, bobA = (FP.bobAmp || 0) * 0.9;
+    const dyaw = IV.wrapA(yaw - (FP.lastYaw == null ? yaw : FP.lastYaw)), dpit = pitch - (FP.lastPitch == null ? pitch : FP.lastPitch);
+    FP.lastYaw = yaw; FP.lastPitch = pitch;
+    const lagK = aiming ? 0.3 : 1;
+    FP.lagYaw = IV.clamp(IV.damp(FP.lagYaw, dyaw * 4 * lagK, 12, dt), -0.05, 0.05); FP.lagPitch = IV.clamp(IV.damp(FP.lagPitch, dpit * 4 * lagK, 12, dt), -0.04, 0.04);
+    FP.fatigue = IV.clamp((FP.fatigue || 0) + (P.sprinting ? dt / 4 : -dt / 7), 0, 1);
+    const breath = (aiming ? 0.1 : 1) * motion * (1 + FP.fatigue * 2.2);
+    FP.kick = IV.damp(FP.kick, 0, 13, dt); FP.kickR = IV.damp(FP.kickR, 0, 9, dt);
+    const cam = W.camera, look = C.lookDir, wall = W.raycast(cam.position.x, cam.position.y, cam.position.z, look.x, look.y, look.z, 0.9, F.SOLID | F.SIGHT, true);
+    FP.vmLower = IV.damp(FP.vmLower, wall && !aiming ? IV.clamp(1 - (wall.t - 0.3) / 0.6, 0, 1) : 0, 8, dt);
+    const a = IV.smooth(IV.clamp(FP.vmAim, 0, 1)), relax = 1 - a * 0.85;
+    const ox = (Math.sin(t * 1.1) * 0.0022 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.45 - FP.lagYaw * 0.35) * relax;
+    const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath + FP.lagPitch * 0.3) * (1 - a * 0.7) - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45;
+    const oz = FP.kick * (aiming ? 0.02 : 0.03) + FP.vmLower * 0.05;
+    v.group.position.set(ox, oy, oz);
+    _e.set(FP.kickR * 0.7 + FP.lagPitch * 0.5 * relax - FP.vmLower * 0.5, FP.lagYaw * 0.7 * relax, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax);
+    v.group.quaternion.setFromEuler(_e);
+    vm.gun = rig.gun;
+    vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
+    vm.root.updateMatrixWorld(true);
+    vmLight(vm);
+  }
+  // shots, reloads and bolts from weapons.js start the rig's clips; the game's timings follow the clips' lengths
+  IV.on('shot', k => { const vm = VM; if (!vm || vm.rig.standin || !FP.on()) return; vm.rig.play('fire'); if (k === 'rifle') FP.boltDue = true; });
+  FP.clipLen = function (name, cur) { const vm = vmBuild(); if (!vm || vm.rig.standin) return 0; return vm.rig.len(name, KIND[cur] || cur); };
+  FP.onReload = function (empty) { const vm = VM; if (!vm || vm.rig.standin || !FP.on()) return 0; return vm.rig.play(empty && vm.rig.len('reloadEmpty') ? 'reloadEmpty' : 'reload'); };
+  FP.cancelAction = function () { const vm = VM; if (vm && !vm.rig.standin && vm.rig.vm) vm.rig.vm.stop(0.15); };
   let VM = null;
   function vmBuild() {
     if (VM || !window.IVChars || !IVChars.spawn) return VM;
     const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(55, 1, 0.01, 20);
-    const rig = (IVChars.viewmodel && IVChars.viewmodel('hero')) || standinRig(); if (!rig) return null;
+    const rig = realRig() || standinRig(); if (!rig) return null;
     scene.add(rig.group); scene.add(cam);
     const hemi = new THREE.HemisphereLight(0xffffff, 0x404040, 0.6), sun = new THREE.DirectionalLight(0xffffff, 0.8), pt = new THREE.PointLight(0xffc880, 0, 6, 2);
     scene.add(hemi); scene.add(sun); scene.add(sun.target); scene.add(pt);
@@ -263,6 +362,7 @@
   const pose = { p: new THREE.Vector3(), q: new THREE.Quaternion() }, qa = new THREE.Quaternion(), qp = new THREE.Quaternion(), piv = new THREE.Vector3();
   function vmFrame(dt, yaw, pitch) {
     const vm = vmBuild(); if (!vm) return;
+    if (!vm.rig.standin) return realFrame(vm, dt, yaw, pitch);
     const W8 = IV.weapons, S = IV.settings, rig = vm.rig;
     // what the hands hold this frame (scripted beats included; js/fp.js header lists how each beat plays)
     const M = IV.mission, I = IV.input;
@@ -345,6 +445,10 @@
     if (rig.place) rig.place(pose.p, pose.q);
     else { rig.group.position.copy(pose.p); rig.group.quaternion.copy(pose.q); }
     vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
+    vmLight(vm);
+  }
+  function vmLight(vm) {
+    const cam = W.camera;
     // lighting copied from the world, scaled by how lit the player is
     const lit = W.lightAt ? IV.clamp(0.25 + W.lightAt(P.render.x, P.render.y + 1.4, P.render.z) * 1.2, 0.25, 1.4) : 1;
     if (W.hemi) { vm.hemi.color.copy(W.hemi.color); vm.hemi.groundColor.copy(W.hemi.groundColor); vm.hemi.intensity = W.hemi.intensity * lit; }
@@ -366,6 +470,7 @@
     _b3.setFromObject(VM.rig.gun);
     for (let i = 0; i < 8; i++) add(_v.set(i & 1 ? _b3.max.x : _b3.min.x, i & 2 ? _b3.max.y : _b3.min.y, i & 4 ? _b3.max.z : _b3.min.z));
     const A = VM.rig.actor; if (A) for (const n of ['hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r']) { const b = A.bone(n); if (b) add(b.getWorldPosition(_v)); }
+    const bs = VM.rig.vm && VM.rig.vm.bones; if (bs) for (const n of ['hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r']) if (bs[n]) add(bs[n].getWorldPosition(_v));
     for (const k of ['x0', 'y0', 'x1', 'y1']) r[k] = Math.round(IV.clamp(r[k], 0, 1) * 1000) / 1000;
     return r;
   };

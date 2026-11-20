@@ -94,9 +94,9 @@
     P.pitch = IV.clamp(P.pitch, CT.pitchMin, CT.pitchMax);
     const aiming = W8 && W8.aiming;
     // first person: the rifle comes up to the eye first (the viewmodel), and the scope view starts once it is there
-    const scoped = W8 && W8.scoped && !(IV.fp && IV.fp.on() && (IV.fp.vmAim || 0) < 0.9);
+    const scoped = W8 && W8.scoped && !(IV.fp && IV.fp.on() && !IV.fp.scopeReady());
     C.scopeView = !!scoped;
-    const binoc = !!(W8 && W8.binoc) && !(IV.fp && IV.fp.on() && (IV.fp.vmAim || 0) < 0.9);   // binoculars come up to the eyes first too
+    const binoc = !!(W8 && W8.binoc) && !(IV.fp && IV.fp.on() && !IV.fp.binocReady());   // binoculars come up to the eyes first too
     C.aimK = IV.damp(C.aimK, aiming || (W8 && (W8.binoc || W8.scoped)) ? 1 : 0, 14, dt);
     C.scopeK = scoped ? 1 : 0;
     W.grassClear.value.set(P.render.x, 0, P.render.z, scoped || binoc ? 3.2 : P.stance === 'prone' ? 1.8 : 0);
