@@ -22,5 +22,12 @@ const { chromium } = require(process.env.PLAYWRIGHT || 'playwright');
     const r = await p.evaluate(k => window.GSTOP(k), k);
     console.log(n.padEnd(22), 'contacts', r.n, 'max', cm(r.max), 'median', cm(r.med), 'still after', r.still.toFixed(2));
   }
+  const T = [['steady jog (baseline)', { w: 1, faceCam: 1 }, { w: 1, faceCam: 1 }, 120, 60], ['idle -> walk', {}, { w: 1, aim: 1 }, 60, 60],
+    ['walk -> jog', { w: 1, aim: 1 }, { w: 1, faceCam: 1 }, 90, 60], ['jog -> sprint', { w: 1, faceCam: 1 }, { w: 1, shift: 1 }, 90, 60],
+    ['sprint -> stop', { w: 1, shift: 1 }, {}, 120, 60], ['stand -> crouch', {}, { crouch: 1 }, 60, 60], ['crouch -> prone', { crouch: 1 }, { prone: 1 }, 60, 90],
+    ['prone -> stand', { prone: 1 }, {}, 60, 90], ['aim on (still)', {}, { aim: 1 }, 60, 60], ['aim off (still)', { aim: 1 }, {}, 60, 60],
+    ['reversal at sprint', { w: 1, shift: 1 }, { s: 1, faceCam: 1 }, 120, 90], ['reversal at jog', { w: 1, faceCam: 1 }, { s: 1, faceCam: 1 }, 120, 90]];
+  console.log('\npops (deg at 60 fps)');
+  for (const [n, a, c, n1, n2] of T) { const r = await p.evaluate(([a, c, n1, n2]) => window.GPOP(a, c, n1, n2), [a, c, n1, n2]); console.log(n.padEnd(24), r.pop.toFixed(1), '(' + r.bone + ', frame ' + r.frame + ')'); }
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });

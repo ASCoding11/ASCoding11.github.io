@@ -1072,15 +1072,19 @@
     var rq = worldQuat(this.root, new T.Quaternion());
     var left = new T.Vector3(1, 0, 0).applyQuaternion(rq), up = new T.Vector3(0, 1, 0).applyQuaternion(rq);
     var q = new T.Quaternion();
+    // prone: the body lies on its elbows, so the aim can only tilt a little (the clip already holds the rifle level);
+    // a camera looking down must not bend the lying spine and point the gun into the ground
+    var pr = this._stW ? this._stW.prone : 0, aY = this.aimY * (1 - 0.6 * pr);
+    var aP = this.aimP * (1 - pr) + Math.max(-0.2, Math.min(0.25, this.aimP)) * 0.5 * pr;
     for (var i = 0; i < AIM_Y.length; i++) {
       var b = this.bones[AIM_Y[i][0]]; if (!b) continue;
-      q.setFromAxisAngle(up, this.aimY * AIM_Y[i][1]); rotWorld(b, q);
+      q.setFromAxisAngle(up, aY * AIM_Y[i][1]); rotWorld(b, q);
     }
     for (i = 0; i < AIM_P.length; i++) {
       b = this.bones[AIM_P[i][0]]; if (!b) continue;
       // pitch about the character's current left axis (after yaw)
-      var l2 = left.clone().applyAxisAngle(up, this.aimY * 0.7);
-      q.setFromAxisAngle(l2, -this.aimP * AIM_P[i][1]); rotWorld(b, q);
+      var l2 = left.clone().applyAxisAngle(up, aY * 0.7);
+      q.setFromAxisAngle(l2, -aP * AIM_P[i][1]); rotWorld(b, q);
     }
   };
   AP.dispose = function () {

@@ -114,10 +114,16 @@ def cloth(name, base, base2, knee_z=None, mud='#3b3326', fade=0.12, camo=None, m
         km = B.math('MULTIPLY', B.math('MULTIPLY', kb, front), B.ramp(B.noise(14.0, 6, 0.6), 0.3, 0.6))
         c = B.mix(c, mud, B.math('MULTIPLY', km, 0.85))
     # weave + creases (fine bump)
-    wv = B.n('ShaderNodeTexWave', wave_type='BANDS'); wv.inputs['Scale'].default_value = 420.0; wv.inputs['Distortion'].default_value = 1.5
+    # twill weave (two crossing band sets at different scales), fine wrinkles and fuzz: the high-frequency normal detail
+    # that makes the cloth read as woven wool or cotton instead of a smooth shell
+    wv = B.n('ShaderNodeTexWave', wave_type='BANDS'); wv.inputs['Scale'].default_value = 260.0; wv.inputs['Distortion'].default_value = 2.0
     B.link(B.obj, wv.inputs['Vector'])
+    wv2 = B.n('ShaderNodeTexWave', wave_type='BANDS', bands_direction='Y'); wv2.inputs['Scale'].default_value = 300.0; wv2.inputs['Distortion'].default_value = 1.2
+    B.link(B.obj, wv2.inputs['Vector'])
+    weave_h = B.math('MULTIPLY', B.math('ADD', wv.outputs['Fac'], B.math('MULTIPLY', wv2.outputs['Fac'], 0.7)), weave * 0.5)
+    wr = B.math('MULTIPLY', B.ramp(B.noise(22.0, 3, 0.6, stretch=(1.0, 1.0, 4.0)), 0.45, 0.6), 0.5)
     rough = B.mixf(0.86, 0.96, B.ramp(mott, 0.3, 0.7))
-    return B.finish(c, rough, bump_h=B.math('ADD', B.math('MULTIPLY', wv.outputs['Fac'], weave * 0.15), B.math('MULTIPLY', B.noise(35.0, 4), 0.4)), bump_s=0.2, bump_dist=0.004)
+    return B.finish(c, rough, bump_h=B.math('ADD', B.math('ADD', weave_h, wr), B.math('MULTIPLY', B.noise(35.0, 4), 0.35)), bump_s=0.42, bump_dist=0.004)
 
 def leather(name, base, base2='#100c09', mud='#3d3428', mud_low=0.0, polish=0.45):
     B = NB(name)
