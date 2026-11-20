@@ -6,6 +6,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Backrooms: three new places": "Backrooms: tres lugares nuevos",
+    "New maps": "Mapas nuevos",
+    "Backrooms isn't just Level 0 any more. Fight in the Pools, bright tiled halls with shallow water; the Office, rows of grey cubicles under buzzing lights; or the Garage, a dim parking level full of cars to hide behind.": "Backrooms ya no es solo el Level 0. Pelea en las Piscinas, pasillos de azulejos claros con agua poco profunda; en la Oficina, filas de cubículos grises bajo luces que zumban; o en el Garaje, un estacionamiento oscuro lleno de autos para cubrirte.",
+    "Pick Mix to land in a different place each round.": "Elige Mezcla para caer en un lugar distinto cada ronda.",
+    "Choose the place for Practice on the menu. In an online room the host picks it in the lobby, and everyone sees which one it is.": "Elige el lugar para la Práctica en el menú. En una sala en línea lo elige el anfitrión en la sala de espera, y todos ven cuál es.",
     "New game: Hush Pools": "Juego nuevo: Hush Pools",
     "Horror obby": "Obby de terror",
     "Co-op": "Cooperativo",

@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', title: 'Backrooms: three new places', kind: 'feature',
+     img: 'm/thumbs/backrooms-1v1.jpg', tags: ['Backrooms', 'New maps'], items: [
+      'Backrooms isn\'t just Level 0 any more. Fight in the Pools, bright tiled halls with shallow water; the Office, rows of grey cubicles under buzzing lights; or the Garage, a dim parking level full of cars to hide behind.',
+      'Pick Mix to land in a different place each round.',
+      'Choose the place for Practice on the menu. In an online room the host picks it in the lobby, and everyone sees which one it is.'
+    ]},
     {date: '2026-11-19', version: '1.32', title: 'New game: Hush Pools', kind: 'game', games: ['Hush Pools'],
      img: 'm/thumbs/hush-pools.jpg', tags: ['Horror obby', 'Co-op', 'Up to 4'], items: [
       'Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can\'t see you, but it hears every splash.',
