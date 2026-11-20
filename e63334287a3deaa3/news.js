@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', title: 'Sky Duel: bigger planes', kind: 'fix',
+     tags: ['Sky Duel'], img: 'm/thumbs/sky-duel.jpg', items: [
+      'The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.',
+      'The briefing room shows your ranked rating, and every online match against another real pilot (free-for-all, duel or 2v2) still counts for your Elo.',
+      'Parties never get bots in Sky Duel, and the HUD does less work every second, so the game runs a little smoother.'
+    ]},
     {date: '2026-11-20', version: '1.35', title: 'Hush Pools: into the mist', kind: 'feature',
      tags: ['Hush Pools', 'Horror obby'], img: 'm/thumbs/hush-pools.jpg', items: [
       'The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.',

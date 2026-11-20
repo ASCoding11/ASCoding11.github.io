@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Sky Duel: bigger planes": "Sky Duel: aviones más grandes",
+    "The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.": "Los aviones de Sky Duel son un poco más grandes (alrededor de un 15%), así que es más fácil verlos y darles. Las balas le dan a lo que ves, tanto en la vista de persecución como en la de cabina.",
+    "The briefing room shows your ranked rating, and every online match against another real pilot (free-for-all, duel or 2v2) still counts for your Elo.": "La sala de reunión muestra tu puntuación de ranking, y cada partida en línea contra otro piloto real (todos contra todos, duelo o 2v2) sigue contando para tu Elo.",
+    "Parties never get bots in Sky Duel, and the HUD does less work every second, so the game runs a little smoother.": "Los grupos nunca tienen bots en Sky Duel, y el HUD hace menos trabajo cada segundo, así que el juego va un poco más fluido.",
     "Hush Pools: into the mist": "Hush Pools: entre la niebla",
     "The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.": "Las salas ahora son mucho más grandes y están llenas de niebla. Solo ves un poco hacia delante, así que tienes que explorar para encontrar el camino.",
     "Each hall has three doors in the far wall, and only one of them is open.": "Cada sala tiene tres puertas en la pared del fondo, y solo una está abierta.",
