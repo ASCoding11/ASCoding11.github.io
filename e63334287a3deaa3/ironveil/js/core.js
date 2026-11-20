@@ -184,6 +184,9 @@
   IV.touch = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
   IV.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   IV.params = new URLSearchParams(location.search);
+  // the preview gate (index.html, window.IV_PREVIEW): while it is on, only Boot Camp can be played, by any route
+  IV.PREVIEW = !!window.IV_PREVIEW;
+  IV.playable = id => !IV.PREVIEW || id === 'bootcamp';
   IV.test = IV.params.has('test');
 
   // ---------------------------------------------------------------- save

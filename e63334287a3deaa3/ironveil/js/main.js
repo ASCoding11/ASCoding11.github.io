@@ -65,6 +65,7 @@
   const app = IV.app = {};
   app.start = async function (id, cpIdx) {
     const def = IV.missions.byId[id]; if (!def) return;
+    if (!IV.playable(id)) { UI.campaign(); return; }   // preview build: Boot Camp only, whatever asked for this
     state = 'loading'; UI.show('loading'); progress(0, 'Loading…'); IV.hud.show(false);
     M.setDiff(IV.save.diff | 0);
     if (M.worldId !== id) await M.loadWorld(def, progress);
@@ -77,8 +78,8 @@
   };
   app.continueGame = function () {
     const cp = IV.save.cp;
-    if (cp && IV.missions.byId[cp.mission]) { IV.save.diff = cp.diff | 0; app.start(cp.mission, cp.idx); return; }
-    const next = IV.missions.list.find(d => !(IV.save.missions[d.id] || {}).done);
+    if (cp && IV.missions.byId[cp.mission] && IV.playable(cp.mission)) { IV.save.diff = cp.diff | 0; app.start(cp.mission, cp.idx); return; }
+    const next = IV.missions.list.find(d => !(IV.save.missions[d.id] || {}).done && IV.playable(d.id));
     if (next) UI.briefing(next); else UI.campaign();
   };
   app.retry = function (fromCp) {

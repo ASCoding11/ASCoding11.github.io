@@ -29,10 +29,11 @@
     const S = IV.save;
     for (const def of IV.missions.list) {
       const rec = S.missions[def.id] || {};
-      const locked = def.num > 0 && !(S.missions[IV.missions.list[def.num - 1] && IV.missions.list[def.num - 1].id] || {}).done && !IV.params.has('unlock');
+      const preview = !IV.playable(def.id);   // preview build: shown, locked, 'In progress'
+      const locked = preview || def.num > 0 && !(S.missions[IV.missions.list[def.num - 1] && IV.missions.list[def.num - 1].id] || {}).done && !IV.params.has('unlock');
       const b = document.createElement('button'); b.className = 'ms'; b.disabled = locked;
-      b.innerHTML = `<span class="n">${def.num === 0 ? '0' : def.num}</span><span><span class="t">${IV.t(def.title)}</span><span class="d">${IV.t(def.line)}</span></span><span class="st">${rec.done ? IV.t('Done') + (rec.medal ? `<span class="medal ${rec.medal}" title="${IV.t(rec.medal)}"></span>` : '') + (rec.best ? `<br>${IV.fmtTime(rec.best)}` : '') : locked ? IV.t('Locked') : IV.t('New')}</span>`;
-      b.addEventListener('click', () => { IV.audio.play('uiOk'); UI.briefing(def); });
+      b.innerHTML = `<span class="n">${def.num === 0 ? '0' : def.num}</span><span><span class="t">${IV.t(def.title)}</span><span class="d">${IV.t(def.line)}</span></span><span class="st">${rec.done ? IV.t('Done') + (rec.medal ? `<span class="medal ${rec.medal}" title="${IV.t(rec.medal)}"></span>` : '') + (rec.best ? `<br>${IV.fmtTime(rec.best)}` : '') : preview ? IV.t('In progress') : locked ? IV.t('Locked') : IV.t('New')}</span>`;
+      b.addEventListener('click', () => { if (!IV.playable(def.id)) return; IV.audio.play('uiOk'); UI.briefing(def); });
       box.appendChild(b);
     }
     for (const c of UI.COMING) {
@@ -47,6 +48,7 @@
 
   // ---------------------------------------------------------------- briefing
   UI.briefing = function (def) {
+    if (!IV.playable(def.id)) { UI.campaign(); return; }   // preview build
     UI.cur_def = def;
     $('bTitle').textContent = IV.t(def.title);
     $('bStamp').textContent = IV.t(def.num === 0 ? 'Training' : 'Secret');
@@ -88,7 +90,7 @@
     $('rCrit').innerHTML = s.crit.map(c => `<li class="${c.ok ? 'ok' : ''}">${c.text}</li>`).join('');
     const rows = [['Time', IV.fmtTime(s.time)], ['Accuracy', s.shots ? s.acc + '%' : '—'], ['Times spotted', s.spotted], ['Enemies down', s.kills], ['Takedowns', s.takedowns], ['Optional objectives', s.optional + ' / ' + s.optionalTotal]];
     $('rStats').innerHTML = rows.map(r => `<span>${IV.t(r[0])}</span><span>${r[1]}</span>`).join('');
-    const next = IV.missions.list.find(d => d.num === def.num + 1);
+    const next = IV.missions.list.find(d => d.num === def.num + 1 && IV.playable(d.id));
     $('rNext').hidden = false;
     $('rNext').textContent = IV.t(next ? 'Next: {t}' : 'Map table', { t: next ? IV.t(next.title) : '' });
     $('rNext').onclick = () => { IV.audio.play('uiOk'); if (next) UI.briefing(next); else UI.campaign(); };
@@ -162,8 +164,8 @@
     IV.settings.blood = true; IV.persist(); IV.audio.play('uiOk'); UI.title();
   });
   UI.title = function () {
-    const cp = IV.save.cp, def = cp && IV.missions.byId[cp.mission];
-    const next = IV.missions.list.find(d => !(IV.save.missions[d.id] || {}).done);
+    const cp = IV.save.cp, def = cp && IV.playable(cp.mission) && IV.missions.byId[cp.mission];
+    const next = IV.missions.list.find(d => !(IV.save.missions[d.id] || {}).done && IV.playable(d.id));
     $('miContinue').hidden = !(def || (IV.save.tut && next));
     $('contTx').textContent = def ? IV.t(def.title) + ' · ' + IV.t('checkpoint') : next ? IV.t(next.title) : '';
     UI.show('title');

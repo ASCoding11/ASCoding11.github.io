@@ -2,15 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>
+/* PREVIEW GATE. While IV_PREVIEW is true the game is a private preview: it runs only in a browser that holds the
+   preview flag (sessionStorage or localStorage 'ironveil:preview' = '1', set by the "Midnight Ops (preview)" button on
+   the admin page), and only Boot Camp can be played. Without the flag the page shows "Not available yet" and loads
+   none of the game's scripts or assets. Set it to false to open the game to everyone. This is page-only gating, like
+   the site's other hidden features: anyone who reads the source can set the flag. It is not security. */
+window.IV_PREVIEW = true;
+(function () {
+  if (!window.IV_PREVIEW) return;
+  var ok = false;
+  try { ok = sessionStorage.getItem('ironveil:preview') === '1' || localStorage.getItem('ironveil:preview') === '1'; } catch (e) {}
+  if (ok) { try { sessionStorage.setItem('ironveil:preview', '1'); } catch (e) {} return; }
+  window.IV_LOCKED = true;
+})();
+</script>
 <script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
-<script src="es.js"></script> <!-- this game's own Spanish words -->
+<script>if (!window.IV_LOCKED) document.write('<script src="es.js"><\/script>');</script> <!-- this game's own Spanish words (not while the preview gate is closed) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Midnight Ops</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;800&family=Special+Elite&family=Barlow+Condensed:wght@400;500;600;700&display=swap">
+<script>if (!window.IV_LOCKED) document.write('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;800&family=Special+Elite&family=Barlow+Condensed:wght@400;500;600;700&display=swap">');</script>
 <style>
 /* Midnight Ops (folder ironveil/; the display name lives in IV.GAME_NAME in js/core.js). Layout: full-bleed WebGL scene; menus are paper and olive panels over the live world; the HUD keeps to the
    corners (objective top left, compass top centre, weapon bottom right, stance bottom left) so the middle stays clear. */
@@ -428,46 +441,19 @@ body.touch #obj .o{font-size:14px}
   </div>
   <div id="err" hidden></div>
 </div>
+<div id="ivLocked" style="position:fixed;inset:0;z-index:99;display:none;place-items:center;background:#0b0c0a;color:#ece3cc;font:500 18px/1.4 system-ui,sans-serif;text-align:center;padding:24px">
+  <div><p style="font-size:26px;font-weight:700;margin:0 0 10px">Not available yet</p><p style="margin:0 0 18px;opacity:.75">This game is still being made.</p><a href="/e63334287a3deaa3/" style="color:#d0a84c">Back to the Back Room</a></div>
+</div>
 
-<script src="/e63334287a3deaa3/stats.js" data-game="ironveil" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="../autores.js"></script>
-<script src="../keybinds.js"></script>
-<!-- the environment kit (window.IVEnv): ground, grass, nature, walls, props, atmosphere, decals, post -->
-<script src="env/texgen.js"></script>
-<script src="env/core.js"></script>
-<script src="env/atmosphere.js"></script>
-<script src="env/grass.js"></script>
-<script src="env/ground.js"></script>
-<script src="env/builder.js"></script>
-<script src="env/build.js"></script>
-<script src="env/nature.js"></script>
-<script src="env/props.js"></script>
-<script src="env/decals.js"></script>
-<script src="env/post.js"></script>
-<script src="env/index.js"></script>
-<script src="js/core.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/input.js"></script>
-<script src="js/world.js"></script>
-<script src="js/kit.js"></script>
-<script src="js/art.js"></script>
-<script src="js/nav.js"></script>
-<script src="js/fx.js"></script>
-<script src="js/player.js"></script>
-<script src="js/camera.js"></script>
-<script src="js/fp.js"></script>
-<script src="js/weapons.js"></script>
-<script src="js/ai.js"></script>
-<script src="js/ally.js"></script>
-<script src="js/ambience.js"></script>
-<script src="js/mission.js"></script>
-<script src="js/missions/bootcamp.js"></script>
-<script src="js/missions/nightdrop.js"></script>
-<script src="js/hud.js"></script>
-<script src="js/touch.js"></script>
-<script src="js/menus.js"></script>
-<script src="js/main.js"></script>
-<script src="/analytics/tracker.js" data-site="ironveil" defer></script>
+<script>
+/* the game's scripts, in order (dynamic scripts with async=false run in insertion order). Not loaded at all while the
+   preview gate is closed; play-time counting (stats.js) only once the game is public. */
+(function () {
+  if (window.IV_LOCKED) { var l = document.getElementById('ivLocked'); l.style.display = 'grid'; document.getElementById('app') && (document.getElementById('app').hidden = true); return; }
+  var L = ['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', '../autores.js', '../keybinds.js', 'env/texgen.js', 'env/core.js', 'env/atmosphere.js', 'env/grass.js', 'env/ground.js', 'env/builder.js', 'env/build.js', 'env/nature.js', 'env/props.js', 'env/decals.js', 'env/post.js', 'env/index.js', 'js/core.js', 'js/audio.js', 'js/input.js', 'js/world.js', 'js/kit.js', 'js/art.js', 'js/nav.js', 'js/fx.js', 'js/player.js', 'js/camera.js', 'js/fp.js', 'js/weapons.js', 'js/ai.js', 'js/ally.js', 'js/ambience.js', 'js/mission.js', 'js/missions/bootcamp.js', 'js/missions/nightdrop.js', 'js/hud.js', 'js/touch.js', 'js/menus.js', 'js/main.js', '/analytics/tracker.js'];
+  if (!window.IV_PREVIEW) L.unshift('/e63334287a3deaa3/stats.js');
+  L.forEach(function (src) { var s = document.createElement('script'); s.src = src; s.async = false; if (/stats\.js$/.test(src)) s.setAttribute('data-game', 'ironveil'); document.body.appendChild(s); });
+})();
+</script>
 </body>
 </html>
