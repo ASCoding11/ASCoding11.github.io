@@ -11,8 +11,8 @@
   // tex: hero texture size, texLo: everything else. grass*: see grass.js. post / pom / shadows decided here too.
   E.QUALITY = {
     low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 8, grassMid: 22, grassDens: 40, grassMidDens: 5, bladeSegs: 1, seedHeads: false, carpetDens: 110, carpetR: 5, treeLod: 18, plantKinds: ['wheat', 'maize', 'reeds'], detailDist: 18, decals: 64 },
-    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: true, aniso: 8, grassNear: 10, grassMid: 34, grassDens: 40, grassMidDens: 5, bladeSegs: 2, carpetSegs: 1, seedHeads: false, carpetDens: 210, carpetR: 7, treeLod: 26, detailDist: 21, decals: 160 },
-    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: false, post: true, aniso: 16, carpetSegs: 1, grassNear: 14, grassMid: 45, grassDens: 38, grassMidDens: 8, bladeSegs: 3, seedHeads: true, carpetDens: 160, carpetR: 8, treeLod: 45, detailDist: 35, decals: 256 }
+    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: 8, pomFar: 9, post: true, aniso: 8, grassNear: 10, grassMid: 34, grassDens: 40, grassMidDens: 5, bladeSegs: 2, carpetSegs: 1, seedHeads: false, carpetDens: 210, carpetR: 7, treeLod: 26, detailDist: 21, decals: 160 },
+    high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: 14, pomFar: 13, post: true, aniso: 16, carpetSegs: 1, grassNear: 14, grassMid: 45, grassDens: 38, grassMidDens: 8, bladeSegs: 3, seedHeads: true, carpetDens: 160, carpetR: 8, treeLod: 45, detailDist: 35, decals: 256 }
   };
   E.Q = E.QUALITY.medium;
 
@@ -108,8 +108,11 @@
   };
   // Scanned sets shipped in env/scans: material -> real size of one repeat in metres (the set's shot size; never smaller)
   E.SCANS = {};
-  E.useScans = function (table) { Object.assign(E.SCANS, table); for (const k in table) { const r = E.RECIPES[k]; if (r) { r.size = table[k]; r.id = 0; r.scan = 1; r.pom = 0; } } };
-  E.useScans({ brick_red: 1.4, brick_sooty: 2.0, fieldstone: 2.0, ashlar: 1.53, plaster: 2.5, planks: 2.0, wood_painted: 1.6, timber: 0.5, roof_tile: 4.0, slate: 3.0, cobbles: 1.0, concrete: 3.0, mud: 1.3, earth: 2.0, gravel: 2.0, grass_ground: 3.15, floorboards: 3.0 });
+  // bricks are drawn about 1.5x real (courses ~10.5 cm, bricks ~32 cm): at game distances true-size brick reads as noise.
+  // pom: parallax depth in metres for the scans' height maps (mortar recessed ~12 mm, stones up to ~3 cm)
+  const SCAN_POM = { brick_red: 0.022, brick_sooty: 0.022, fieldstone: 0.04, ashlar: 0.016, roof_tile: 0.03, slate: 0.016, cobbles: 0.03, planks: 0.01 };
+  E.useScans = function (table) { Object.assign(E.SCANS, table); for (const k in table) { const r = E.RECIPES[k]; if (r) { r.size = table[k]; r.id = 0; r.scan = 1; r.pom = SCAN_POM[k] || 0; if (/brick|fieldstone|ashlar/.test(k)) r.ns = 1.35; } } };
+  E.useScans({ brick_red: 2.1, brick_sooty: 2.2, fieldstone: 2.6, ashlar: 1.9, plaster: 2.5, planks: 2.0, wood_painted: 1.6, timber: 0.5, roof_tile: 4.6, slate: 3.9, cobbles: 1.0, concrete: 3.0, mud: 1.3, earth: 2.0, gravel: 2.0, grass_ground: 3.15, floorboards: 3.0 });
   // Friendly names from the brief map to recipes.
   E.ALIASES = {
     'red brick': 'brick_red', brick: 'brick_red', 'sooty brick': 'brick_sooty', 'fieldstone wall': 'fieldstone', stone: 'fieldstone',
@@ -244,13 +247,13 @@
     const defs = {};
     if (R.id) defs.ENV_ID = '';
     if (R.mask) defs.ENV_METALMASK = '';
-    if (R.pom && E.Q.pom) defs.ENV_POM = '';
+    if (R.pom && E.Q.pom && !R.glass) { defs.ENV_POM = ''; defs.ENV_POM_STEPS = E.Q.pom + '.0'; defs.ENV_POM_FAR = (E.Q.pomFar || 8) + '.0'; }
     if (!R.noFoot) defs.ENV_FOOT = '';
     m.defines = Object.assign(m.defines || {}, defs);
     const uni = {
       uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime, uDust: U.uDust, uNight: U.uNight,
       uIdAmt: { value: R.id || 0 }, uMacroAmt: { value: R.macro || 0.15 }, uTexSize: { value: S },
-      uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: 0.85 }
+      uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: R.scan && /brick|fieldstone|ashlar|roof_tile|slate/.test(R.tex) ? 1.0 : 0.85 }
     };
     m.userData.uniforms = uni;
     m.onBeforeCompile = function (sh) {
@@ -275,13 +278,13 @@
             float envAO = mix(1.0, 0.3 + 0.7 * smoothstep(0.05, 0.75, envH), uAOAmt);
             reflectedLight.indirectDiffuse *= envAO; reflectedLight.indirectSpecular *= envAO * envAO;`);
     };
-    m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).join(',') + (m.userData.gapLit ? 'gap' : '');
+    m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).map(k => k + defs[k]).join(',') + (m.userData.gapLit ? 'gap' : '');
   }
   const MAP_FRAG = `
     vec2 envUv = vUv;
     #ifdef ENV_POM
     {
-      float fd = 1.0 - smoothstep(3.0, 8.0, length(vViewPosition));
+      float fd = 1.0 - smoothstep(ENV_POM_FAR * 0.45, ENV_POM_FAR, length(vViewPosition));
       if (fd > 0.0) {
         vec3 V = normalize(vViewPosition);
         vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition); vec2 s0 = dFdx(vUv), s1 = dFdy(vUv);
@@ -291,7 +294,7 @@
         float dt = max(dot(Tt, Tt), dot(Bt, Bt)); float sc = dt == 0.0 ? 0.0 : inversesqrt(dt);
         vec3 Vt = vec3(dot(V, Tt * sc), dot(V, Bt * sc), dot(V, Nn));
         vec2 dir = Vt.xy / max(Vt.z, 0.3) * uPomDepth * fd;
-        const float STEPS = 12.0;
+        const float STEPS = ENV_POM_STEPS;
         float layer = 1.0 / STEPS, cur = 1.0, found = 0.0, prevH = 1.0, prevL = 1.0; vec2 uvc = vUv, prevUv = vUv, hitUv = vUv;
         for (float i = 0.0; i < STEPS; i += 1.0) {
           float hgt = texture2D(map, uvc, -1.0).a;

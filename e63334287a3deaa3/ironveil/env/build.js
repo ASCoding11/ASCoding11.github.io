@@ -36,7 +36,7 @@
   // a loose brick (or any small block) lying at a random angle
   function looseBlock(B, mat, x, y, z, R, sx, sy, sz, tint) {
     if (E.Q.name === 'low') { R(); R(); R(); return; }
-    B.det(2, () => B.box(mat, x, y, z, sx || 0.215, sy || 0.065, sz || 0.1025, R() * TAU, { rx: R.range(-0.4, 0.4), rz: R.range(-0.4, 0.4), tint }));
+    B.det(2, () => B.box(mat, x, y, z, sx || 0.32, sy || 0.1, sz || 0.155, R() * TAU, { rx: R.range(-0.4, 0.4), rz: R.range(-0.4, 0.4), tint }));
   }
   E.looseBlock = looseBlock;
   // rubble pile: bricks, stone lumps and dust, a low mound
@@ -129,8 +129,8 @@
     if (o.head === 'arch' || o.head === 'pointed') {
       // a segmental (or pointed) arch of individual bricks / voussoirs, rising over the opening
       const span = o.w + 0.02, rise = o.head === 'pointed' ? span * 0.55 : span * 0.16, mat = o.head === 'pointed' ? 'ashlar' : S.brickMat || 'brick_red';
-      const rad = o.head === 'pointed' ? span * 0.8 : (span * span / 4 + rise * rise) / (2 * rise), depth = o.head === 'pointed' ? 0.3 : 0.215;
-      const n = Math.max(7, Math.round((span + rise) / (o.head === 'pointed' ? 0.22 : 0.075)));
+      const rad = o.head === 'pointed' ? span * 0.8 : (span * span / 4 + rise * rise) / (2 * rise), depth = o.head === 'pointed' ? 0.3 : 0.32;
+      const n = Math.max(7, Math.round((span + rise) / (o.head === 'pointed' ? 0.22 : 0.108)));
       const cy = o.y1 + rise - rad;
       if (E.Q.name === 'low') B.box(mat, hp[0] + nx * 0.02, o.y1, hp[1] + nz * 0.02, span + 0.1, o.head === 'pointed' ? rise * 0.7 : 0.24, 0.06, rot, {});
       B.det(2, () => { for (let i = 0; i < n; i++) {
@@ -145,7 +145,7 @@
         const tang = ang - Math.PI / 2;
         const wx = hp[0] + o.dx * px, wz = hp[1] + o.dz * px;
         // each voussoir is a box turned in the wall plane: rotate about the wall normal
-        const bw = o.head === 'pointed' ? 0.2 : 0.068;
+        const bw = o.head === 'pointed' ? 0.2 : 0.098;
         const g = new THREE.BoxGeometry(bw, depth, 0.1 + (o.head === 'pointed' ? 0.02 : 0));
         _Eu.set(0, rot, 0); _Q.setFromEuler(_Eu);
         const q2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), tang);
@@ -304,6 +304,15 @@
   }
   // corner quoins: alternating long and short dressed stones, slightly proud
   function quoins(B, S, w, d, H, T) { B.det(2, () => quoins0(B, S, w, d, H, T)); }
+  // brick corners: alternate stretchers and headers sit 1-2.5 cm proud, chipped (a little turned), a few missing, so the
+  // outline of a brick corner is stepped, not a ruler line with a picture wrapped round it
+  function brickCorners(B, S, w, d, H, mat) { B.det(2, () => { const R = S.R, C = 0.105; for (let y = 0, k = 0; y < H - 0.05; y += C, k++) for (const [sx, sz] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+    if (R() < 0.07) continue; const o = R.range(0.008, 0.025), la = k % 2 ? 0.32 : 0.16, lb = k % 2 ? 0.16 : 0.32, t = tintJ(R, 0.12);
+    B.box(mat, sx * (w / 2 - la / 2 + o), y + 0.005, sz * (d / 2 + o / 2), la, C - 0.014, o + 0.01, R.range(-0.02, 0.02), { tint: t, uvOff: [R() * 7, y] });
+    B.box(mat, sx * (w / 2 + o / 2), y + 0.005, sz * (d / 2 - lb / 2 + o), o + 0.01, C - 0.014, lb, R.range(-0.02, 0.02), { tint: t, uvOff: [R() * 7, y] }); } }); }
+  // brick jambs at an opening: headers proud by 1-2 cm every other course up both sides
+  function brickJambs(B, S, o, mat) { B.det(2, () => { const R = S.R, C = 0.105, nx = -o.dz, nz = o.dx, rot = Math.atan2(-o.dz, o.dx); for (const sd of [-1, 1]) for (let y = o.y0, k = 0; y < o.y1 - 0.05; y += C, k++) { if (k % 2 || R() < 0.1) continue;
+    const pr = R.range(0.008, 0.02), a = sd * (o.w / 2 + 0.08), px = o.cx + o.dx * a + nx * (o.T / 2 + pr / 2), pz = o.cz + o.dz * a + nz * (o.T / 2 + pr / 2); B.box(mat, px, y + 0.005, pz, 0.16, C - 0.014, pr + 0.01, rot + R.range(-0.03, 0.03), { tint: tintJ(R, 0.12), uvOff: [R() * 7, y] }); } }); }
   function quoins0(B, S, w, d, H, T) {
     const R = S.R; let y = 0, k = 0;
     while (y < H - 0.1) {
@@ -422,6 +431,7 @@
       u += sd.L;
     }
     if (H.quoins) quoins(B, S, w, d, wallH, T);
+    else if (/brick/.test(H.out)) { brickCorners(B, S, w, d, wallH, H.out); for (const sd of sides) { const nx = -sd.dz, nz = sd.dx; for (const o of sd.ops) { const along = sd.name === 'front' || sd.name === 'back', am = (o.a0 + o.a1) / 2 - (along ? 0 : T), wx0 = sd.x0 - nx * T / 2 + (along ? 0 : sd.dx * T), wz0 = sd.z0 - nz * T / 2 + (along ? 0 : sd.dz * T); brickJambs(B, S, { cx: wx0 + sd.dx * am, cz: wz0 + sd.dz * am, dx: sd.dx, dz: sd.dz, T, w: o.a1 - o.a0, y0: o.y0, y1: o.y1 }, H.out); } } }
     // roof and gables
     const old = !H.trim, roof = gableRoof(B, S, { w, d, eave: wallH, pitch: H.pitch || 0.75, mat: H.roof, sag: H.sag != null ? H.sag : old ? 0.09 + S.damage * 0.12 + S.R() * 0.08 : 0.04 + S.R() * 0.03, over: H.over, gable: H.gableOver, ridgeMat: H.ridgeMat, eaveWander: old ? 0.09 : 0.03 });
     for (const xs of [1, -1]) gableWall(B, S, { w: w - T, d: d - 0.001, T, eave: wallH, ridge: roof.ridge - 0.05, out: H.out, in: H.in, uStart: 0 }, xs);
@@ -685,7 +695,7 @@
       { x0: w / 2, z0: -d / 2, dx: -1, dz: 0, L: w, ops: [{ a0: 2.0, a1: 2.9, y0: 0.9, y1: 2.1 }] },
       { x0: -w / 2, z0: -d / 2, dx: 0, dz: 1, L: d, ops: [] }
     ];
-    let u = 0; const course = 0.075, bw = 0.225;
+    let u = 0; const course = 0.105, bw = 0.33;
     for (let si = 0; si < 4; si++) {
       const sd = sides[si], nx = -sd.dz, nz = sd.dx, along = sd.dx !== 0;
       // broken top profile: a smooth random line, quantised to brick courses and half-bricks, with a deep bite
@@ -697,7 +707,7 @@
         const ops = sd.ops.map(o => ({ a0: o.a0 - a, a1: o.a1 - a, y0: o.y0, y1: o.y1 })).filter(o => o.a1 > 0 && o.a0 < a1 - a);
         wallRun(B, { x0: x0 + sd.dx * a, z0: z0 + sd.dz * a, dx: sd.dx, dz: sd.dz, L: a1 - a, T, H: top, ops, mats: { out: 'brick_red', in: 'brick_sooty' }, uStart: u + a, surf: 'stone' });
         // ragged course on top: some bricks of the next course still sitting there, half-bricks proud
-        if (R() < 0.6) B.det(2, () => B.box('brick_red', x0 + sd.dx * (a + bw / 2) + R.range(-0.02, 0.02), top, z0 + sd.dz * (a + bw / 2), along ? 0.215 : T * 0.9, 0.065, along ? T * 0.9 : 0.215, R.range(-0.08, 0.08), { tint: tintJ(R, 0.12), uvOff: [R() * 3, R() * 3] }));
+        if (R() < 0.6) B.det(2, () => B.box('brick_red', x0 + sd.dx * (a + bw / 2) + R.range(-0.02, 0.02), top, z0 + sd.dz * (a + bw / 2), along ? 0.32 : T * 0.9, 0.1, along ? T * 0.9 : 0.32, R.range(-0.08, 0.08), { tint: tintJ(R, 0.12), uvOff: [R() * 3, R() * 3] }));
         if (R() < 0.25) looseBlock(B, 'brick_red', x0 + sd.dx * (a + bw / 2) + nx * R.range(-0.1, 0.1), top + 0.07, z0 + sd.dz * (a + bw / 2) + nz * R.range(-0.1, 0.1), R, null, null, null, tintJ(R, 0.12));
       }
       // soot above the openings, scorch, pocks, a big crack
