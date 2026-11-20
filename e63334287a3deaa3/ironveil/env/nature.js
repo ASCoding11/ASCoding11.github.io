@@ -482,8 +482,7 @@
     opts = Object.assign({ density: 1, seed: 7 }, opts || {});
     const hf = opts.heightFn || (() => 0), Q = E.Q, qi = Q.name === 'low' ? 0 : Q.name === 'medium' ? 1 : 2;
     if (PLANTS[kind]) {
-      // brambles render as black cut-outs (not yet understood): disabled until fixed
-      if (kind === 'brambles' || (Q.plantKinds && Q.plantKinds.indexOf(kind) < 0)) { const g = new THREE.Group(); g.name = 'IVEnv.scatter:' + kind + ' (off on ' + Q.name + ')'; return { group: g, update() { }, info() { return { drawCalls: 0, triangles: 0 }; } }; }
+      if (Q.plantKinds && Q.plantKinds.indexOf(kind) < 0) { const g = new THREE.Group(); g.name = 'IVEnv.scatter:' + kind + ' (off on ' + Q.name + ')'; return { group: g, update() { }, info() { return { drawCalls: 0, triangles: 0 }; } }; }
       return plantField(kind, areaTest, hf, opts, qi);
     }
     return objectField(kind, areaTest, hf, opts);
@@ -493,7 +492,10 @@
     const P = PLANTS[kind], radius = opts.radius || P.r[qi], dens = P.dens * opts.density * (qi === 0 ? 0.5 : qi === 1 ? 0.75 : 1), TS = 8;
     const geo = plantGeo(kind), lm = E.leafMaterial('plant-' + kind, { stiff: P.stiff, trans: 1 });
     const cap = Math.ceil(Math.PI * (radius + 10) ** 2 * dens * 0.9);
-    const mesh = new THREE.InstancedMesh(geo, lm, cap); mesh.count = 0; mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.castShadow = kind === 'wheat' ? false : qi === 2; mesh.customDepthMaterial = lm.userData.depth; mesh.name = 'scatter-' + kind;
+    const mesh = new THREE.InstancedMesh(geo, lm, cap); mesh.count = 0; mesh.frustumCulled = false;
+    // The per-instance tint buffer must be made at full capacity here: InstancedMesh.setColorAt sizes it from the
+    // current count, which is 0 at this point, and every tint then reads as black (the old black cut-out plants).
+    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); mesh.receiveShadow = true; mesh.castShadow = kind === 'wheat' ? false : qi === 2; mesh.customDepthMaterial = lm.userData.depth; mesh.name = 'scatter-' + kind;
     const tint = new THREE.Color(P.tint).convertSRGBToLinear(); if (kind !== 'wheat') tint.multiplyScalar(0.9 / Math.max(tint.r, tint.g, tint.b));   // a hue shift, not a darkening (the atlas already carries the colour)
     const tiles = new Map(), group = new THREE.Group(); group.add(mesh); group.name = 'IVEnv.scatter:' + kind;
     const dummy = new THREE.Object3D(), col = new THREE.Color();
