@@ -69,7 +69,10 @@
     'HULL': 'CASCO', 'BOOST': 'TURBO', 'GUNS': 'ARMAS', 'MISSILES': 'MISILES', 'FLARES': 'BENGALAS', 'SPD': 'VEL', 'ALT': 'ALT', 'THR': 'POT',
     'Click to take the controls': 'Haz clic para tomar los controles', 'Scores ': 'Puntos', 'Roll': 'Tonel', 'Flare': 'Bengala', 'Missile': 'Misil', 'FIRE': 'TIRO',
     'Teams, first to {n}': 'Equipos, meta {n}', 'First to {n}': 'Meta {n}',
-    'aim ·': 'mirar ·', 'guns ·': 'disparar ·', 'flare ·': 'bengala ·', 'boost ·': 'turbo ·', 'roll ·': 'tonel ·', 'throttle': 'potencia',
+    'aim ·': 'mirar ·', 'guns ·': 'disparar ·', 'flare ·': 'bengala ·', 'boost ·': 'turbo ·', 'roll ·': 'tonel ·', 'throttle': 'potencia', 'cockpit view': 'vista de cabina',
+    // cockpit view
+    'Cockpit view': 'Vista de cabina', 'Chase view': 'Vista de persecución', 'Cockpit view / chase view': 'Vista de cabina / de persecución',
+    'View': 'Vista', 'Chase': 'Persecución', 'Cockpit': 'Cabina',
     'missiled': 'derribó con misil a', 'ran down': 'hizo estrellar a', 'shot down': 'derribó a', 'flew off the map': 'se salió del mapa', 'hit the ground': 'se estrelló', 'went down': 'cayó',
     // built in code with BackRoomLang.t
     'Duel': 'Duelo', '2v2': '2v2', 'This match is full: you fly in the next one': 'Esta partida está llena: vuelas en la próxima',
