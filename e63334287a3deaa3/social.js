@@ -243,6 +243,7 @@
     { k: 'lh', n: 'Lanternhold', d: 'lanternhold', room: ROOM },
     { k: 'hp', n: 'Hush Pools', d: 'hush-pools', room: ROOM },
     { k: 'vq', n: 'Sky Duel', d: 'sky-duel', room: ROOM },
+    { k: 'qg', n: 'Putterby', d: 'putterby', room: ROOM },
     { k: 'tv', n: 'Trivium', d: 'trivium', room: /^[a-z]{5}$/ },
     { k: 'hm', n: 'Hail Mary', d: 'hail-mary' },
     { k: 'qy', n: 'Quarry', d: 'quarry' },

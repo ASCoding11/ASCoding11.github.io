@@ -128,6 +128,7 @@
   LOWER.summit3 = 1;   // Updraft's fastest climb from the gate on the Crown to the Lodestar (6000 m)
   LOWER.total = 1;   // Escapade's fastest total of levels 1–8 (min('total', seconds)) is a time too
   LOWER.place = 1;   // Driftfall's best placing (1 = won)
+  LOWER.card9 = 1;   // Putterby's fewest strokes for all nine holes in one round (min('card9', strokes))
   // Rampline's best time on each built-in track (min('t-<track id>', seconds))
   ['t-first-gear', 't-elbow-room', 't-brake-check', 't-hill-hop', 't-paperclip', 't-kicker', 't-banking-hours', 't-mind-the-gap', 't-two-storey', 't-pinch-point', 't-loop-the-loop', 't-sidewall', 't-big-air', 't-twin-loops', 't-high-wire', 't-needle', 't-corkscrew-hill', 't-gauntlet', 't-skyline', 't-grand-tour'].forEach(function (k) { LOWER[k] = 1; });
   // the same for the longer layouts from the handling pass (layout 2): min('r2-<track id>', seconds)
