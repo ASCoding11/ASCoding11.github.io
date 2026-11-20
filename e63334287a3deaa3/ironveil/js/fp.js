@@ -195,7 +195,9 @@
   };
   // tests: advance the arms (clips, layers) by dt without drawing a frame
   FP.vmTick = function (dt) { if (FP.on()) vmFrame(dt, P.yaw, P.pitch); };
-  FP.scopeReady = () => (FP.vmAim || 0) >= 0.9;
+  // the scope view starts half-way through the rifle's raise on the arms rig (the second half of the raise brings the
+  // right hand right up to the eye), at 0.9 on the stand-in
+  FP.scopeReady = () => (FP.vmAim || 0) >= (VM && !VM.rig.standin ? 0.5 : 0.9);
   FP.binocReady = () => VM && !VM.rig.standin ? !!FP.atEye : (FP.vmAim || 0) >= 0.9;
   // the old bone-scaling hide is gone: undo it if a previous frame left a bone collapsed
   FP.HIDE_RE = HIDE_RE;
@@ -311,7 +313,7 @@
     const gunKind = KIND[W8.cur] || 'smg';
     const tdT = W8.takedownT != null ? IV.time - W8.takedownT : 99, inTakedown = P.cineClip && tdT < 3;
     const harness = P.cine && M && M.phase === 'harness';
-    const show = P.alive && !(W8.scoped && FP.vmAim > 0.92) && !(W8.binoc && FP.atEye) && (!P.cineClip || inTakedown) && (!P.cine || harness);
+    const show = P.alive && !(W8.scoped && FP.scopeReady()) && !(W8.binoc && FP.atEye) && (!P.cineClip || inTakedown) && (!P.cine || harness);
     vm.root.visible = show;
     if (!show) { if (!W8.binoc) FP.atEye = false; return; }
     if (rig.setKind(gunKind) && FP.vmShown) { const d = rig.play('draw'); if (d) W8.cool = Math.max(W8.cool, d * 0.7); }   // a new gun comes up with its draw clip
