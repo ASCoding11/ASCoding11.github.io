@@ -48,7 +48,7 @@
     // 5 fern frond
     cell(5, () => { g.strokeStyle = '#3c4a26'; g.lineWidth = 3; g.beginPath(); g.moveTo(128, 252); g.quadraticCurveTo(140, 128, 120, 8); g.stroke(); for (let i = 0; i < 30; i++) { const t = i / 30, y = 250 - t * 240, x = 128 + Math.sin(t * 2) * 8, l = 95 * Math.sin(Math.PI * Math.min(1, (1 - t) * 1.1)) + 6; g.fillStyle = col(85 + R() * 15, 30 + R() * 15, 16 + R() * 10); for (const s of [-1, 1]) for (let j = 0; j < 7; j++) leafShape(g, x + s * l * j / 8, y - j * 1.5, l / 8 + 3, 3.5, s > 0 ? -0.3 : Math.PI + 0.3, false, false); } });
     // 6 big serrated leaves (bramble, nettle, dock)
-    cell(6, () => { for (let i = 0; i < 12; i++) { const a = R() * TAU, r = Math.sqrt(R()) * 80; g.fillStyle = col(88 + R() * 20, 25 + R() * 18, 13 + R() * 12); leafShape(g, 128 + Math.cos(a) * r, 128 + Math.sin(a) * r, R.range(50, 80), R.range(16, 26), R() * TAU, false, true); } });
+    cell(6, () => { for (let i = 0; i < 12; i++) { const a = R() * TAU, r = Math.sqrt(R()) * 80; g.fillStyle = col(85 + R() * 20, 24 + R() * 16, 22 + R() * 14); leafShape(g, 128 + Math.cos(a) * r, 128 + Math.sin(a) * r, R.range(50, 80), R.range(16, 26), R() * TAU, false, true); } });
     // 7 ripe wheat: stalks with ears and awns, a few leaves
     cell(7, () => { for (let i = 0; i < 26; i++) { const x = R.range(16, 240), lean = R.range(-18, 18), top = R.range(8, 60), l = 42 + R() * 10;
       g.strokeStyle = col(44 + R() * 8, 30 + R() * 15, 40 + R() * 14); g.lineWidth = R.range(2, 3); g.beginPath(); g.moveTo(x, 256); g.quadraticCurveTo(x + lean * 0.3, 150, x + lean, top + l); g.stroke();
@@ -107,14 +107,14 @@
     }
   `;
   function foliagePatch(m, opts) {
-    const uni = { uTime: E.U.uTime, uWind: E.U.uWind, uStiff: { value: opts.stiff == null ? 1 : opts.stiff }, uTrans: { value: opts.trans == null ? 1 : opts.trans } };
+    const uni = { uTime: E.U.uTime, uWind: E.U.uWind, uNight: E.U.uNight, uStiff: { value: opts.stiff == null ? 1 : opts.stiff }, uTrans: { value: opts.trans == null ? 1 : opts.trans } };
     m.userData.uniforms = uni;
     const leaf = !!opts.leaf;
     m.onBeforeCompile = function (sh) {
       Object.assign(sh.uniforms, uni);
       sh.vertexShader = 'uniform float uStiff;\n' + FOL_VS + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = ivSway(position);');
       if (leaf) {
-        sh.fragmentShader = 'uniform float uTrans;\nvec3 ivTransCol; float ivTransAmt;\n' + sh.fragmentShader
+        sh.fragmentShader = 'uniform float uTrans, uNight;\nvec3 ivTransCol; float ivTransAmt;\n' + sh.fragmentShader
           .replace('#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment.replace('vec3 irradiance = dotNL * directLight.color;', `vec3 irradiance = dotNL * directLight.color;
             { float back = saturate(dot(-geometry.normal, directLight.direction)); float scat = pow(saturate(dot(-geometry.viewDir, directLight.direction)), 4.0);
               vec3 tr = ivTransCol * directLight.color * (back * 0.2 + scat * 0.25) * ivTransAmt;
@@ -123,7 +123,7 @@
               #endif
               reflectedLight.directDiffuse += tr * RECIPROCAL_PI; }`))
           .replace('#include <normal_fragment_begin>', 'float faceDirection = gl_FrontFacing ? 1.0 : -1.0; vec3 normal = normalize(vNormal); vec3 geometryNormal = normal;')
-          .replace('#include <color_fragment>', '#include <color_fragment>\n { float lm = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)); if (lm > 0.15) diffuseColor.rgb *= 0.15 / lm; } ivTransCol = diffuseColor.rgb * vec3(1.1, 1.2, 0.7); ivTransAmt = uTrans;')
+          .replace('#include <color_fragment>', '#include <color_fragment>\n { float lm = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)), cap = mix(0.3, 0.15, uNight); if (lm > cap) diffuseColor.rgb *= cap / lm; } ivTransCol = diffuseColor.rgb * vec3(1.1, 1.2, 0.7); ivTransAmt = uTrans;')
           .replace('#include <aomap_fragment>', 'reflectedLight.directSpecular = vec3(0.0); reflectedLight.indirectSpecular = vec3(0.0);');
         sh.fragmentShader = sh.fragmentShader.replace('float dotNL = saturate( dot( geometry.normal, directLight.direction ) );', 'float dotNL = saturate( (dot( geometry.normal, directLight.direction ) + 0.45) / 1.45 ) * 0.85;');
       }
@@ -482,7 +482,8 @@
     opts = Object.assign({ density: 1, seed: 7 }, opts || {});
     const hf = opts.heightFn || (() => 0), Q = E.Q, qi = Q.name === 'low' ? 0 : Q.name === 'medium' ? 1 : 2;
     if (PLANTS[kind]) {
-      if (Q.plantKinds && Q.plantKinds.indexOf(kind) < 0) { const g = new THREE.Group(); g.name = 'IVEnv.scatter:' + kind + ' (off on ' + Q.name + ')'; return { group: g, update() { }, info() { return { drawCalls: 0, triangles: 0 }; } }; }
+      // brambles render as black cut-outs (not yet understood): disabled until fixed
+      if (kind === 'brambles' || (Q.plantKinds && Q.plantKinds.indexOf(kind) < 0)) { const g = new THREE.Group(); g.name = 'IVEnv.scatter:' + kind + ' (off on ' + Q.name + ')'; return { group: g, update() { }, info() { return { drawCalls: 0, triangles: 0 }; } }; }
       return plantField(kind, areaTest, hf, opts, qi);
     }
     return objectField(kind, areaTest, hf, opts);
@@ -493,7 +494,7 @@
     const geo = plantGeo(kind), lm = E.leafMaterial('plant-' + kind, { stiff: P.stiff, trans: 1 });
     const cap = Math.ceil(Math.PI * (radius + 10) ** 2 * dens * 0.9);
     const mesh = new THREE.InstancedMesh(geo, lm, cap); mesh.count = 0; mesh.frustumCulled = false; mesh.receiveShadow = true; mesh.castShadow = kind === 'wheat' ? false : qi === 2; mesh.customDepthMaterial = lm.userData.depth; mesh.name = 'scatter-' + kind;
-    const tint = new THREE.Color(P.tint).convertSRGBToLinear();
+    const tint = new THREE.Color(P.tint).convertSRGBToLinear(); if (kind !== 'wheat') tint.multiplyScalar(0.9 / Math.max(tint.r, tint.g, tint.b));   // a hue shift, not a darkening (the atlas already carries the colour)
     const tiles = new Map(), group = new THREE.Group(); group.add(mesh); group.name = 'IVEnv.scatter:' + kind;
     const dummy = new THREE.Object3D(), col = new THREE.Color();
     const gen = (tx, tz) => {
