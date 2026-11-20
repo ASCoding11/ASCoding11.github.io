@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Putterby</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;700;800;900&display=swap">
+<style>
+/* Layout: a full-bleed WebGL scene of the current hole. Menus are cards over it; in play the HUD hugs the edges:
+   the hole and shot count top left (other players under it online), Card / View / Menu buttons top right, the
+   power bar and hints at the bottom. Touch screens get bigger buttons (body.touch). */
+:root{
+  --ink:#1c2a22;
+  --ink-2:#4f6156;
+  --ink-3:#8a9a90;
+  --paper:#fffbf2;
+  --paper-2:#f3ecdc;
+  --line:rgba(28,42,34,.14);
+  --felt:#36b36a;
+  --sun:#ffc93c;
+  --coral:#ff6b57;
+  --sky:#5cb8f0;
+  --plum:#6c4fd8;
+  --f-d:'Lilita One','Arial Rounded MT Bold','Trebuchet MS',system-ui,sans-serif;
+  --f-b:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:#9fd6f0;color:var(--ink);font-family:var(--f-b);-webkit-font-smoothing:antialiased}
+body{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden}
+#view{display:block;width:100%;height:100%;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--plum);outline-offset:2px}
+
+/* name tags over other players' balls */
+#tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tag{position:absolute;left:0;top:0;transform:translate(-50%,-100%);padding:2px 8px;border-radius:999px;background:rgba(255,251,242,.92);font-weight:900;font-size:12px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.tag i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:0}
+
+/* HUD */
+#hud{position:absolute;inset:0;pointer-events:none}
+.pill{background:rgba(255,251,242,.94);border-radius:16px;box-shadow:0 4px 14px rgba(20,40,30,.18);padding:8px 14px}
+#holeBox{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px));max-width:calc(100% - 190px)}
+#holeBox b{display:block;font-family:var(--f-d);font-weight:400;font-size:20px;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#holeBox span{font-weight:800;font-size:13px;color:var(--ink-2)}
+#holeBox span em{font-style:normal;color:var(--ink)}
+#clock{position:absolute;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);font-family:var(--f-d);font-size:18px;padding:6px 14px}
+#clock.low{color:#c2331f}
+#players{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(80px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:4px;max-width:210px}
+#players div{display:flex;align-items:center;gap:6px;background:rgba(255,251,242,.86);border-radius:10px;padding:3px 9px;font-weight:800;font-size:12px;white-space:nowrap;overflow:hidden}
+#players i{flex:none;width:9px;height:9px;border-radius:50%}
+#players u{text-decoration:none;overflow:hidden;text-overflow:ellipsis;flex:1}
+#players s{text-decoration:none;color:var(--ink-2)}
+#players .done s{color:#1f8a4c}
+#tr{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:8px;pointer-events:auto}
+.ib{height:44px;min-width:44px;padding:0 12px;border:0;border-radius:14px;background:rgba(255,251,242,.94);box-shadow:0 4px 14px rgba(20,40,30,.18);font-weight:900;font-size:14px}
+.ib:active{transform:translateY(1px)}
+.ib.on{background:var(--ink);color:#fff}
+#power{position:absolute;left:50%;bottom:calc(26px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(320px,70vw);height:16px;border-radius:999px;background:rgba(255,251,242,.9);box-shadow:0 4px 14px rgba(20,40,30,.2);overflow:hidden}
+#power i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#36b36a,#ffc93c 60%,#ff6b57)}
+#hint{position:absolute;left:50%;bottom:calc(56px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:min(520px,calc(100% - 24px));text-align:center;font-weight:800;font-size:14px;padding:8px 14px;border-radius:12px;background:rgba(28,42,34,.78);color:#fff}
+#banner{position:absolute;left:0;right:0;top:28%;text-align:center;pointer-events:none;opacity:0;transform:scale(.85);transition:opacity .25s,transform .25s}
+#banner.show{opacity:1;transform:none}
+#banner b{display:block;font-family:var(--f-d);font-weight:400;font-size:clamp(34px,7vw,64px);color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.18),0 0 24px rgba(0,0,0,.25)}
+#banner span{display:inline-block;margin-top:4px;font-weight:900;font-size:16px;color:#fff;background:rgba(28,42,34,.6);padding:4px 12px;border-radius:999px}
+#feed{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));top:calc(70px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:flex-end;gap:4px;max-width:46vw}
+#feed div{background:rgba(28,42,34,.72);color:#fff;font-weight:800;font-size:12px;padding:4px 10px;border-radius:10px;animation:fd 5s forwards}
+@keyframes fd{0%,85%{opacity:1}100%{opacity:0}}
+
+/* Cards (menu, lobby, scorecard, results) */
+.screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:calc(14px + env(safe-area-inset-top,0px)) 14px calc(14px + env(safe-area-inset-bottom,0px));overflow:auto;background:linear-gradient(180deg,rgba(18,40,30,.12),rgba(18,40,30,.38))}
+.card{width:min(460px,100%);margin:auto;background:var(--paper);border-radius:24px;box-shadow:0 18px 50px rgba(10,30,20,.35);padding:22px 22px 18px}
+.card.wide{width:min(720px,100%)}
+.kicker{display:flex;justify-content:space-between;font-weight:900;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.kicker b{color:var(--felt)}
+h1.title{font-family:var(--f-d);font-weight:400;font-size:clamp(44px,12vw,62px);line-height:1;margin:8px 0 4px;color:var(--ink)}
+h1.title em{font-style:normal;color:var(--felt)}
+h2{font-family:var(--f-d);font-weight:400;font-size:28px;margin:6px 0 8px}
+.lead{margin:0 0 14px;color:var(--ink-2);font-weight:700;font-size:15px}
+label.f{display:block;font-weight:900;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);margin:10px 0 5px}
+input.t{width:100%;height:44px;border:2px solid var(--line);border-radius:12px;padding:0 12px;font:inherit;font-weight:800;font-size:16px;background:#fff;color:var(--ink)}
+.sw{display:flex;gap:6px;flex-wrap:wrap}
+.sw button{width:32px;height:32px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 2px var(--line)}
+.sw button.on{box-shadow:0 0 0 3px var(--ink)}
+.btns{display:grid;gap:8px;margin-top:14px}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.btn{height:48px;border:0;border-radius:14px;font-weight:900;font-size:16px;background:var(--paper-2);color:var(--ink)}
+.btn.cta{background:var(--felt);color:#fff;box-shadow:0 4px 0 #23804b}
+.btn.alt{background:var(--sun);color:var(--ink);box-shadow:0 4px 0 #d39c12}
+.btn.ghost{background:var(--paper-2)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:active:not(:disabled){transform:translateY(2px);box-shadow:none}
+#netMsg{min-height:20px;margin:10px 0 0;font-weight:800;font-size:13px;color:var(--ink-2)}
+#netMsg.err{color:#c2331f}
+details.how{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+details.how summary{font-weight:900;cursor:pointer;color:var(--ink-2)}
+details.how ul{margin:8px 0 0;padding-left:18px;font-weight:700;font-size:14px;color:var(--ink-2)}
+details.how li{margin:3px 0}
+.chk{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:800;font-size:14px;color:var(--ink-2)}
+.chk input{width:18px;height:18px}
+.daily{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px;font-weight:800;font-size:13px;color:var(--ink-2)}
+#lobbyList{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
+#lobbyList li{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;background:var(--paper-2);font-weight:800}
+#lobbyList i{width:12px;height:12px;border-radius:50%}
+#lobbyList small{margin-left:auto;color:var(--ink-2);font-weight:800}
+.invite{display:flex;gap:8px;align-items:center;margin-top:10px}
+.invite code{flex:1;font-weight:900;font-size:13px;padding:10px;border-radius:10px;background:var(--paper-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:text;-webkit-user-select:text}
+.invite button{height:40px}
+.sc-wrap{overflow:auto;margin-top:6px;border-radius:12px;border:1px solid var(--line);max-height:58vh}
+table.sc{border-collapse:collapse;width:100%;font-weight:800;font-size:14px;background:#fff}
+table.sc th,table.sc td{padding:7px 6px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+table.sc th{background:var(--paper-2);font-size:12px;color:var(--ink-2);position:sticky;top:0}
+table.sc td.nm{text-align:left;max-width:120px;overflow:hidden;text-overflow:ellipsis;position:sticky;left:0;background:#fff}
+table.sc th.nm{text-align:left;position:sticky;left:0;z-index:1}
+table.sc tr.par td{color:var(--ink-2);background:#fbf8f0}
+table.sc tr.par td.nm{background:#fbf8f0}
+table.sc td.cur{background:#fff6d6}
+table.sc .u{color:#1f8a4c}
+table.sc .o{color:#c2331f}
+table.sc .ace{background:#ffe27a;border-radius:8px}
+table.sc td.tot{font-family:var(--f-d);font-weight:400;font-size:16px}
+.sc-note{margin:8px 0 0;font-weight:700;font-size:13px;color:var(--ink-2)}
+
+/* Touch screens: bigger targets, hints moved clear of the power bar */
+body.touch .ib{height:46px;min-width:46px}
+body.touch #hint{font-size:13px}
+@media (max-width:420px){
+  #holeBox{max-width:calc(100% - 198px);padding:7px 11px}
+  #holeBox b{font-size:17px}
+  #tr{gap:6px}
+  .ib{padding:0 10px;font-size:13px}
+  #clock{top:calc(66px + env(safe-area-inset-top,0px))}
+  #players{top:calc(74px + env(safe-area-inset-top,0px));max-width:150px}
+  #feed{top:calc(112px + env(safe-area-inset-top,0px))}
+  table.sc th,table.sc td{padding:6px 3px;font-size:13px}
+  .card{padding:18px 14px 14px}
+}
+@media (orientation:landscape) and (max-height:480px){
+  #holeBox{padding:6px 12px}
+  #holeBox b{font-size:17px}
+  #players{top:calc(64px + env(safe-area-inset-top,0px))}
+  #players div{padding:2px 8px}
+  #feed{top:calc(64px + env(safe-area-inset-top,0px))}
+  #hint{bottom:calc(48px + env(safe-area-inset-bottom,0px))}
+  #power{bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+  .card{padding:16px 18px 14px}
+  h1.title{font-size:40px}
+  .sc-wrap{max-height:52vh}
+}
+</style>
+<script src="/e63334287a3deaa3/stats.js" data-game="putterby" defer></script>
+<script src="/e63334287a3deaa3/gamechat.js" defer></script>
+</head>
+<body>
+<div id="app">
+  <canvas id="view" aria-label="Putterby game view"></canvas>
+  <div id="tags"></div>
+  <div id="hud" hidden>
+    <div class="pill" id="holeBox"><b id="hName">Hole 1</b><span id="hInfo">Par 2 · Shot <em>1</em></span></div>
+    <div class="pill" id="clock" hidden></div>
+    <div id="players"></div>
+    <div id="tr">
+      <button class="ib" id="bCard" type="button" data-no-ad-refresh title="Scorecard (Tab)">Card</button>
+      <button class="ib" id="bView" type="button" data-no-ad-refresh title="Whole hole view (V)">View</button>
+      <button class="ib" id="bMenu" type="button" data-no-ad-refresh title="Menu (Esc)" aria-label="Menu">☰</button>
+    </div>
+    <div id="feed"></div>
+    <div id="hint" hidden></div>
+    <div id="power" hidden><i id="powerFill"></i></div>
+  </div>
+  <div id="banner"><b id="bnBig"></b><span id="bnSmall"></span></div>
+
+  <div class="screen" id="menu">
+    <div class="card">
+      <div class="kicker"><span><b>●</b> Mini golf</span><span>1 to 8 players</span></div>
+      <h1 class="title">Putter<em>by</em></h1>
+      <p class="lead">Nine toy-town holes of ramps, loops, bumpers, sliding gates, sand and ponds. Drag back from your ball and let go to putt.</p>
+      <label class="f" for="name">Your name</label>
+      <input class="t" id="name" maxlength="14" autocomplete="nickname" spellcheck="false" placeholder="Name">
+      <label class="f">Ball colour</label>
+      <div class="sw" id="swatches"></div>
+      <div class="btns">
+        <button class="btn cta" id="solo" type="button">Play 9 holes</button>
+        <div class="row">
+          <button class="btn alt" id="dailyBtn" type="button">Daily hole</button>
+          <button class="btn ghost" id="quick" type="button">Quick match</button>
+        </div>
+        <label class="f" for="room">Room code (friends type the same one)</label>
+        <div class="row">
+          <input class="t" id="room" maxlength="17" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="e.g. tee-412">
+          <button class="btn ghost" id="joinRoom" type="button">Play in room</button>
+        </div>
+      </div>
+      <div class="daily" id="dailyLine"></div>
+      <p id="netMsg" role="status"></p>
+      <label class="chk"><input type="checkbox" id="sound"> Sound</label>
+      <details class="how" id="howMenu">
+        <summary>How to play</summary>
+        <ul>
+          <li><b>Putt:</b> press on or near your ball, drag back the opposite way you want it to go, and let go. The further you drag, the harder the putt. Drag back to the ball to cancel.</li>
+          <li><b>Camera:</b> drag anywhere else to look around; scroll or pinch to zoom. <b>V</b> or View shows the whole hole. Arrow keys turn and zoom too.</li>
+          <li><b>Hazards:</b> water and going out of bounds cost a stroke and put you back where you putted from. Sand slows you right down.</li>
+          <li><b>Loops and ramps</b> need speed: too slow and the ball rolls back down to you.</li>
+          <li>After 7 shots the ball is picked up and you score 8. Lowest total wins.</li>
+          <li><b>Daily hole:</b> a new hole every day, the same for everyone. Your first finish of the day is your score; play it on more days in a row to build a streak.</li>
+          <li><b>Online:</b> up to 8 in a room, everyone plays the same hole at once (balls pass through each other). The room's host starts the round.</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+
+  <div class="screen" id="lobby" hidden>
+    <div class="card">
+      <div class="kicker"><span><b>●</b> Putterby online</span><span id="lbRoom"></span></div>
+      <h2 id="lobbyTitle">Waiting for players</h2>
+      <p class="lead" id="lobbyLead">Everyone here plays the same nine holes at the same time.</p>
+      <ul id="lobbyList"></ul>
+      <div class="invite"><code id="inviteLink"></code><button class="btn ghost" id="copyInvite" type="button">Copy</button></div>
+      <div class="btns">
+        <button class="btn cta" id="startRound" type="button">Start the round</button>
+        <button class="btn ghost" id="leaveLobby" type="button">Leave room</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="cardScreen" hidden>
+    <div class="card wide">
+      <div class="kicker"><span><b>●</b> Scorecard</span><span id="cardSub"></span></div>
+      <h2 id="cardTitle">Scorecard</h2>
+      <div class="sc-wrap"><table class="sc" id="scTable"></table></div>
+      <p class="sc-note" id="cardNote"></p>
+      <div class="btns">
+        <div class="row" id="cardBtns"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../netsmooth.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../autores.js"></script>
+<script>
+(function(){
+'use strict';
+// =====================================================================
+//  Putterby: online mini golf. One file, no build step.
+//  Sections: helpers, the course (holes as data), physics, drawing,
+//  camera and input, game flow (solo, daily, online), network.
+//  The physics (simStep) only reads the hole data and a shared clock for
+//  moving parts, so every browser sees the same gates and spinners.
+// =====================================================================
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const r2=v=>Math.round(v*100)/100;
+const store={
+  get(k,d){try{const v=localStorage.getItem('putterby:'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('putterby:'+k,JSON.stringify(v))}catch(e){}}
+};
+// The name is saved as plain text (not JSON) under putterby:name, the key party.js puts back after a party launch.
+function loadName(){try{return localStorage.getItem('putterby:name')||''}catch(e){return ''}}
+function saveName(n){try{localStorage.setItem('putterby:name',n)}catch(e){}}
+function cleanName(s){s=String(s==null?'':s).replace(/[<>\u0000-\u001f]/g,'').replace(/\s+/g,' ').trim().slice(0,14);try{if(s&&window.NameFilter)s=NameFilter.clean(s)}catch(e){}return s}
+function stat(fn,k,v){try{if(window.BackRoomStats&&BackRoomStats[fn])BackRoomStats[fn](k,v)}catch(e){}}
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function dayKey(d){d=d||new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()}
+function prevDay(k){const d=new Date(Math.floor(k/10000),Math.floor(k/100)%100-1,k%100);d.setDate(d.getDate()-1);return dayKey(d)}
+
+const COLORS=['#ff6b57','#3b82f6','#ffc93c','#a855f7','#22c55e','#ec4899','#14b8a6','#f97316'];
+const touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+if(touchUI)document.body.classList.add('touch');
+
+// =====================================================================
+//  The course. Units are roughly metres; the ball is chunky (R) so it
+//  reads well on a phone. Every hole is built from:
+//   P: floor pieces, axis-aligned boxes [x0,x1]×[z0,z1] whose top is at h,
+//      or a ramp from h to h1 rising toward dir (+z, -z, +x or -x). t is the
+//      surface: g green, s sand (slow), w water (a stroke and back you go).
+//      rails: which edges get a rail, n (+z), s (-z), e (+x), w (-x).
+//      Every piece is a solid block down to the ground, so a higher piece
+//      is a wall to a ball below it.
+//   W: extra walls, segments [ax,az,bx,bz,top height].
+//   B: bumpers [x,z,radius]. M: moving parts (slide gates and spinners,
+//      timed off the shared clock). L: loops (entry point, direction).
+// =====================================================================
+const R=0.1,CUP_R=0.17,GRAV=9.8,DT=1/240,STEP=0.06,VMAX=8.6,MAX_SHOTS=7,PICKUP=8,RAIL_H=0.2,RAIL_T=0.1,GROUND_Y=-0.3,HOLES=9;
+function P(x0,x1,z0,z1,h,rails,o){o=o||{};return{x0,x1,z0,z1,h0:h,h1:o.h1!=null?o.h1:h,dir:o.dir||'+z',t:o.t||'g',rails:rails||'',pri:o.t&&o.t!=='g'?1:0,ov:!!o.ov}}
+const SLIDE=(x,z,w,l,ax,az,amp,per,ph,h)=>({k:'slide',x,z,w,l,ax,az,amp,per,ph:ph||0,y0:h||0,hgt:0.3});
+const SPIN=(x,z,len,per,ph,h)=>({k:'spin',x,z,len,th:0.16,per,ph:ph||0,y0:h||0,hgt:0.26});
+const COURSE=[
+  {n:'Welcome Mat',par:2,tee:[0,0],cup:[0,10.6],
+    P:[P(-0.8,0.8,-1,5,0,'swe'),P(-0.8,0.8,5,8,0,'we',{h1:0.35}),P(-0.8,0.8,8,12,0.35,'wen')]},
+  {n:'Bumper Garden',par:3,tee:[0,0],cup:[0.3,13.9],
+    P:[P(-1,1,-1,4,0,'swe'),P(-2.5,2.5,4,12,0,'we'),P(-1,1,12,15,0,'wen')],
+    W:[[-2.5,4,-1,4,0],[1,4,2.5,4,0],[-2.5,12,-1,12,0],[1,12,2.5,12,0]],
+    B:[[-1,6.5,0.28],[1.2,7.4,0.28],[0,9,0.3],[-1.5,10.4,0.28],[1.6,10.6,0.28]]},
+  {n:'Gatekeepers',par:3,tee:[0,0],cup:[8,7.8],
+    P:[P(-0.8,0.8,-1,7,0,'swe'),P(-0.8,0.8,7,8.6,0,'wn'),P(0.8,9,7,8.6,0,'nse')],
+    M:[SLIDE(0,4,0.55,0.3,1,0,0.55,2.6,0),SLIDE(4.6,7.8,0.3,0.55,0,1,0.55,2.2,1.4)]},
+  {n:'Sandbar Bend',par:3,tee:[-0.6,0],cup:[0.6,10.4],
+    P:[P(-1.2,1.2,-1,11.5,0,'swen'),P(0,1.2,3,6,0,'',{t:'w',ov:1}),P(-1.2,0.2,6.6,8.6,0,'',{t:'s',ov:1})],
+    B:[[-0.45,2.4,0.22]]},
+  {n:'Loop-de-Loop',par:3,tee:[-0.4,0],cup:[0.4,10.8],
+    P:[P(-0.8,0.8,-1,12,0,'swen'),P(-0.8,0.8,8.6,9.3,0,'',{t:'s',ov:1})],
+    W:[[0,2.5,0,5.95,0],[0,2.5,0.8,2.5,0]],
+    L:[{x:-0.4,z:6,dx:0,dz:1,R:0.62,w:0.8,win:0.36}]},
+  {n:'Top Shelf',par:3,tee:[0,0],cup:[0,14],
+    P:[P(-0.8,0.8,-1,4,0.9,'swe'),P(-1.6,1.6,4,10,0,'we'),P(-0.8,0.8,10,12.5,0,'we',{h1:0.5}),P(-0.8,0.8,12.5,15,0.5,'wen')],
+    W:[[-1.6,4,-0.8,4,0],[0.8,4,1.6,4,0],[-1.6,10,-0.8,10,0],[0.8,10,1.6,10,0]],
+    B:[[-0.75,7.3,0.26],[0.75,7.3,0.26]]},
+  {n:'Island Hop',par:3,tee:[-0.9,0],cup:[-0.6,11.2],
+    P:[P(-2.6,0.8,-1,4.5,0,'swe'),P(-0.8,0.8,4.5,7,0,'we',{h1:0.5}),P(-2.6,-1.8,4.5,8.5,0,'we'),
+       P(-1.8,-0.8,4.5,7,-0.12,'',{t:'w'}),P(-1.8,0.8,7,8.5,-0.12,'',{t:'w'}),P(-2.6,0.8,8.5,12.5,0,'wen')]},
+  {n:'Spin Cycle',par:3,tee:[0,0],cup:[0,12.2],
+    P:[P(-0.8,0.8,-1,5,0,'swe'),P(-2.2,2.2,5,9.4,0,'we'),P(-0.8,0.8,9.4,13,0,'wen'),P(-0.8,0.8,10.1,10.7,0,'',{t:'s',ov:1})],
+    W:[[-2.2,5,-0.8,5,0],[0.8,5,2.2,5,0],[-2.2,9.4,-0.8,9.4,0],[0.8,9.4,2.2,9.4,0]],
+    B:[[-1.75,5.5,0.22],[1.75,5.5,0.22],[-1.75,8.9,0.22],[1.75,8.9,0.22]],
+    M:[SPIN(0,7.2,1.85,4.2,0)]},
+  {n:'Grand Tour',par:4,tee:[0,0],cup:[8.9,16.8],
+    P:[P(-0.8,0.8,-1,4,0,'swe'),P(-0.8,0.8,4,7,0,'we',{h1:0.6}),P(-0.8,0.8,7,11,0.6,'we'),P(-1.6,1.6,11,16,0,'we'),
+       P(-1.6,1.6,16,17.6,0,'wn'),P(1.6,10,16,17.6,0,'nse'),P(-1.6,-0.2,12.6,14,0,'',{t:'s',ov:1}),P(5.4,6.6,16.8,17.6,0,'',{t:'w',ov:1})],
+    W:[[-1.6,11,-0.8,11,0],[0.8,11,1.6,11,0],[1.6,16,1.6,16.8,0],[1.6,16.8,4,16.8,0]],
+    B:[[0.8,13.3,0.26]],
+    M:[SLIDE(0,9,0.55,0.3,1,0,0.55,2.4,0.7,0.6)],
+    L:[{x:4.05,z:17.2,dx:1,dz:0,R:0.62,w:0.8,win:0.36}]}
+];
+
+// The daily hole: one straight lane (2 m wide) of a tee section, three modules and a cup section, picked from the
+// local date, so everyone playing on the same day gets the same hole. Modules: ramp up, ramp down, bumpers, a sliding
+// gate, a sand trap, a pond with paths each side, a spinner, a drop.
+function dailyHole(key){
+  const rnd=mulberry(key*2654435761%4294967295),pick=a=>a[Math.floor(rnd()*a.length)];
+  const H={n:'Daily hole',par:2,tee:[0,0],cup:[0,0],P:[],W:[],B:[],M:[],L:[],daily:key};
+  let z=-1,h=0,hard=0;
+  H.P.push(P(-1,1,z,z+3.2,h,'swe'));z+=3.2;
+  const used=[];
+  for(let i=0;i<3;i++){
+    const opts=['bump','gate','sand','pond','spin','up'];if(h>0.2)opts.push('down','drop');
+    let m=pick(opts);for(let k=0;k<4&&used.indexOf(m)>=0;k++)m=pick(opts);used.push(m);
+    const L=m==='up'||m==='down'?3:4;
+    if(m==='up'){H.P.push(P(-1,1,z,z+L,h,'we',{h1:h+0.4}));h+=0.4}
+    else if(m==='down'){H.P.push(P(-1,1,z,z+L,h,'we',{h1:h-0.4}));h-=0.4}
+    else{
+      if(m==='drop'){h=Math.max(0,h-0.4)}
+      H.P.push(P(-1,1,z,z+L,h,'we'));
+      if(m==='bump'){const n=2+Math.floor(rnd()*2);for(let j=0;j<n;j++)H.B.push([(j%2?1:-1)*(0.25+rnd()*0.4),z+0.9+j*(2.2/n)+rnd()*0.4,0.24])}
+      if(m==='gate'){H.M.push(SLIDE(0,z+2,0.6,0.3,1,0,0.6,2+rnd()*1.2,rnd()*6,h));hard++}
+      if(m==='sand'){const left=rnd()<0.5;H.P.push(P(left?-1:-0.15,left?0.15:1,z+0.8,z+3.2,h,'',{t:'s',ov:1}));hard++}
+      if(m==='pond'){H.P.push(P(-0.42,0.42,z+1,z+3,h,'',{t:'w',ov:1}));hard++}
+      if(m==='spin'){H.M.push(SPIN(0,z+2,0.8,3+rnd()*2,rnd()*6,h));hard++}
+    }
+    z+=L;
+  }
+  H.P.push(P(-1,1,z,z+3.6,h,'wen'));
+  H.cup=[r2((rnd()-0.5)*1.1),r2(z+2.4)];
+  H.par=hard>=2?3:hard===1?(z>12?3:2):2;if(z>13)H.par=Math.max(H.par,3);
+  return H;
+}
+
+// Turn hole data into what the physics uses: pieces with gradients, rails as walls, loop frames, bounds.
+function prepHole(src){
+  const H={n:src.n,par:src.par,tee:src.tee,cup:src.cup,daily:src.daily||0,P:[],W:[],B:[],M:[],L:[]};
+  for(const p0 of src.P){
+    const p=Object.assign({},p0);
+    const span=(p.dir==='+z'||p.dir==='-z')?(p.z1-p.z0):(p.x1-p.x0),k=(p.h1-p.h0)/span;
+    p.gx=p.dir==='+x'?k:p.dir==='-x'?-k:0;p.gz=p.dir==='+z'?k:p.dir==='-z'?-k:0;
+    p.base=GROUND_Y;
+    H.P.push(p);
+  }
+  const top=(p,x,z)=>pieceTop(p,x,z);
+  for(const p of H.P){
+    const add=(ax,az,bx,bz)=>H.W.push({ax,az,bx,bz,ya:top(p,ax,az)+RAIL_H,yb:top(p,bx,bz)+RAIL_H,base:p.base,t:RAIL_T,rail:1});
+    if(p.rails.indexOf('s')>=0)add(p.x0,p.z0,p.x1,p.z0);
+    if(p.rails.indexOf('n')>=0)add(p.x0,p.z1,p.x1,p.z1);
+    if(p.rails.indexOf('w')>=0)add(p.x0,p.z0,p.x0,p.z1);
+    if(p.rails.indexOf('e')>=0)add(p.x1,p.z0,p.x1,p.z1);
+  }
+  for(const w of src.W||[])H.W.push({ax:w[0],az:w[1],bx:w[2],bz:w[3],ya:w[4]+RAIL_H,yb:w[4]+RAIL_H,base:GROUND_Y,t:RAIL_T,rail:1});
+  for(const b of src.B||[])H.B.push({x:b[0],z:b[1],r:b[2],y:surfAt(H,b[0],b[1]),flash:0});
+  for(const m of src.M||[])H.M.push(Object.assign({},m));
+  for(const l of src.L||[]){const y=surfAt(H,l.x,l.z);H.L.push(Object.assign({},l,{lx:l.dz,lz:-l.dx,y}))}
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of H.P){x0=Math.min(x0,p.x0);x1=Math.max(x1,p.x1);z0=Math.min(z0,p.z0);z1=Math.max(z1,p.z1)}
+  H.bx0=x0;H.bx1=x1;H.bz0=z0;H.bz1=z1;H.cx=(x0+x1)/2;H.cz=(z0+z1)/2;
+  H.cupY=surfAt(H,H.cup[0],H.cup[1]);H.teeY=surfAt(H,H.tee[0],H.tee[1]);
+  return H;
+}
+function pieceTop(p,x,z){
+  if(p.h1===p.h0)return p.h0;
+  let t;
+  if(p.dir==='+z')t=(z-p.z0)/(p.z1-p.z0);else if(p.dir==='-z')t=(p.z1-z)/(p.z1-p.z0);
+  else if(p.dir==='+x')t=(x-p.x0)/(p.x1-p.x0);else t=(p.x1-x)/(p.x1-p.x0);
+  return p.h0+(p.h1-p.h0)*clamp(t,0,1);
+}
+function surfAt(H,x,z){let best=-1e9;for(const p of H.P){if(x>=p.x0&&x<=p.x1&&z>=p.z0&&z<=p.z1){const t=pieceTop(p,x,z);if(t>best)best=t}}return best<-1e8?0:best}
+
+// =====================================================================
+//  Physics. A ball is {x,y,z,vx,vy,vz,ground,piece,mode}. On the ground it
+//  rolls on the surface (y follows the floor, slopes pull it downhill,
+//  rolling friction and a little drag slow it); off an edge or a ramp lip
+//  it flies until it lands. Walls, rails, bumpers and moving parts push it
+//  out and bounce it (moving parts add their own speed). simStep runs at
+//  240 steps a second, so even a full-power putt moves less than half a
+//  ball per step and can't pass through a rail.
+// =====================================================================
+const MU={g:0.085,s:0.62,w:0.3};
+function newBall(H){return{x:H.tee[0],y:H.teeY+R,z:H.tee[1],vx:0,vy:0,vz:0,ground:true,piece:null,mode:'roll',rest:true,restT:1,lc:0,lip:false,event:''}}
+function moverState(m,t){
+  if(m.k==='slide'){const w=2*Math.PI/m.per,s=Math.sin(w*t+m.ph),c=Math.cos(w*t+m.ph);return{x:m.x+m.ax*m.amp*s,z:m.z+m.az*m.amp*s,vx:m.ax*m.amp*w*c,vz:m.az*m.amp*w*c}}
+  const a=2*Math.PI*t/m.per+m.ph;return{a,ca:Math.cos(a),sa:Math.sin(a),w:2*Math.PI/m.per};
+}
+function bounce(b,nx,nz,e,svx,svz){
+  let rvx=b.vx-svx,rvz=b.vz-svz;const vn=rvx*nx+rvz*nz;
+  if(vn<0){rvx-=(1+e)*vn*nx;rvz-=(1+e)*vn*nz;rvx*=0.98;rvz*=0.98;b.vx=rvx+svx;b.vz=rvz+svz;if(-vn>0.9)b.hit=Math.max(b.hit||0,-vn)}
+  return vn;
+}
+function rectPush(b,x0,x1,z0,z1,svx,svz,e){
+  const cx=clamp(b.x,x0,x1),cz=clamp(b.z,z0,z1),dx=b.x-cx,dz=b.z-cz,d2=dx*dx+dz*dz;
+  if(d2>=R*R)return false;
+  let nx,nz;
+  if(d2>1e-12){const d=Math.sqrt(d2);nx=dx/d;nz=dz/d;b.x+=nx*(R-d);b.z+=nz*(R-d)}
+  else{ // centre inside: out by the nearest side
+    const l=b.x-x0,r=x1-b.x,s=b.z-z0,n=z1-b.z,m=Math.min(l,r,s,n);
+    if(m===l){nx=-1;nz=0;b.x=x0-R}else if(m===r){nx=1;nz=0;b.x=x1+R}else if(m===s){nx=0;nz=-1;b.z=z0-R}else{nx=0;nz=1;b.z=z1+R}
+  }
+  bounce(b,nx,nz,e,svx,svz);return true;
+}
+function floorAt(H,b){
+  let best=-1e9,bp=null;const bot=b.y-R;
+  for(const p of H.P){
+    const cx=clamp(b.x,p.x0,p.x1),cz=clamp(b.z,p.z0,p.z1),dx=b.x-cx,dz=b.z-cz,d2=dx*dx+dz*dz;
+    if(d2>=R*R)continue;
+    const top=pieceTop(p,cx,cz);
+    if(d2===0){
+      if(top<=bot+STEP){if(top>best+1e-4||(Math.abs(top-best)<=1e-4&&p.pri>(bp?bp.pri:-1))){best=top;bp=p}}
+      else if(b.y+R>p.base&&!p.ov)rectPush(b,p.x0,p.x1,p.z0,p.z1,0,0,0.5);
+    }else if(top>bot+STEP&&b.y+R>p.base&&!p.ov){
+      const d=Math.sqrt(d2),nx=dx/d,nz=dz/d;b.x+=nx*(R-d);b.z+=nz*(R-d);bounce(b,nx,nz,0.55,0,0);
+    }
+  }
+  return bp?{top:best,p:bp}:null;
+}
+function collide(H,b,t){
+  for(const w of H.W){
+    const ex=w.bx-w.ax,ez=w.bz-w.az,L2=ex*ex+ez*ez;let u=L2>0?((b.x-w.ax)*ex+(b.z-w.az)*ez)/L2:0;u=clamp(u,0,1);
+    const px=w.ax+ex*u,pz=w.az+ez*u,dx=b.x-px,dz=b.z-pz,d2=dx*dx+dz*dz,rr=R+w.t/2;
+    if(d2>=rr*rr)continue;
+    const top=w.ya+(w.yb-w.ya)*u;if(b.y-R>=top||b.y+R<=w.base)continue;
+    const d=Math.sqrt(d2)||1e-6,nx=d2>0?dx/d:-ez/Math.sqrt(L2),nz=d2>0?dz/d:ex/Math.sqrt(L2);
+    b.x=px+nx*rr;b.z=pz+nz*rr;bounce(b,nx,nz,0.72,0,0);
+  }
+  for(const q of H.B){
+    const dx=b.x-q.x,dz=b.z-q.z,d2=dx*dx+dz*dz,rr=R+q.r;
+    if(d2>=rr*rr||b.y-R>q.y+0.32)continue;
+    const d=Math.sqrt(d2)||1e-6,nx=dx/d,nz=dz/d;b.x=q.x+nx*rr;b.z=q.z+nz*rr;
+    const vn=bounce(b,nx,nz,1.0,0,0);
+    // a bumper kicks: whatever came in leaves at least this fast
+    const out=b.vx*nx+b.vz*nz;if(vn<0&&out<2.4){b.vx+=nx*(2.4-out);b.vz+=nz*(2.4-out)}
+    if(vn<0){q.flash=1;b.bump=1}
+  }
+  for(const m of H.M){
+    if(b.y-R>m.y0+m.hgt||b.y+R<m.y0)continue;
+    const s=moverState(m,t);
+    if(m.k==='slide'){rectPush(b,s.x-m.w/2,s.x+m.w/2,s.z-m.l/2,s.z+m.l/2,s.vx,s.vz,0.6)}
+    else{
+      const ex=s.ca*m.len,ez=s.sa*m.len;
+      let u=((b.x-m.x)*ex+(b.z-m.z)*ez)/(ex*ex+ez*ez);u=clamp(u,-1,1);
+      const px=m.x+ex*u,pz=m.z+ez*u,dx=b.x-px,dz=b.z-pz,d2=dx*dx+dz*dz,rr=R+m.th/2;
+      if(d2<rr*rr){const d=Math.sqrt(d2)||1e-6,nx=d2>0?dx/d:-s.sa,nz=d2>0?dz/d:s.ca;b.x=px+nx*rr;b.z=pz+nz*rr;
+        const ox=px-m.x,oz=pz-m.z;bounce(b,nx,nz,0.6,-s.w*oz,s.w*ox)}
+    }
+  }
+}
+// One physics step. t: the shared clock in seconds (for moving parts). Sets b.event to 'cup', 'water' or 'out'.
+function simStep(H,b,dt,t){
+  if(b.mode==='cup'){b.ct+=dt;const k=Math.min(1,b.ct/0.22);b.x=lerp(b.x,H.cup[0],0.25);b.z=lerp(b.z,H.cup[1],0.25);b.y=H.cupY+R-0.28*k;return}
+  if(b.mode==='loop'){loopStep(b,dt);return}
+  if(b.lc>0)b.lc-=dt;
+  if(b.ground&&b.piece){
+    const p=b.piece,k=1+p.gx*p.gx+p.gz*p.gz;
+    b.vx-=GRAV*p.gx/k*dt;b.vz-=GRAV*p.gz/k*dt;
+    const sp=Math.hypot(b.vx,b.vz);
+    if(sp>0){const dec=(MU[p.t]*GRAV+0.2*sp)*dt,ns=Math.max(0,sp-dec);b.vx*=ns/sp;b.vz*=ns/sp}
+  }else if(!b.ground){b.vy-=GRAV*dt;b.vx*=1-0.05*dt;b.vz*=1-0.05*dt}
+  b.x+=b.vx*dt;b.z+=b.vz*dt;if(!b.ground)b.y+=b.vy*dt;
+  collide(H,b,t);
+  const f=floorAt(H,b);
+  if(b.ground){
+    const p=b.piece;
+    if(!f||f.top<b.y-R-0.045){b.ground=false;b.vy=p?p.gx*b.vx+p.gz*b.vz:0}
+    else{b.y=f.top+R;b.piece=f.p}
+  }else if(f&&b.y-R<=f.top){
+    const slopeV=f.p.gx*b.vx+f.p.gz*b.vz,vn=b.vy-slopeV;
+    b.y=f.top+R;
+    if(vn<-1.6){b.vy=slopeV-vn*0.32;b.hit=Math.max(b.hit||0,-vn*0.6)}else{b.ground=true;b.vy=0;b.piece=f.p}
+  }
+  if(!b.ground&&b.y-R<=GROUND_Y+0.01){b.event='out';return}
+  if(b.y<-4){b.event='out';return}
+  if(b.ground&&b.piece&&b.piece.t==='w'){b.event='water';return}
+  // loops: rolling into the mouth of one takes the ball round it
+  if(b.ground&&b.lc<=0)for(const L of H.L){
+    const rx=b.x-L.x,rz=b.z-L.z,al=rx*L.dx+rz*L.dz,lat=rx*L.lx+rz*L.lz,va=b.vx*L.dx+b.vz*L.dz;
+    if(al>=-0.06&&al<=0.12&&Math.abs(lat)<=L.win&&va>0.3){b.mode='loop';b.L=L;b.ls=0;b.lv=va;b.lat0=lat;return}
+  }
+  // the cup: slow balls drop in; quick ones rattle over the lip and lose some speed
+  const cdx=b.x-H.cup[0],cdz=b.z-H.cup[1],cd=Math.hypot(cdx,cdz),sp=Math.hypot(b.vx,b.vz);
+  if(b.ground&&cd<CUP_R){
+    if(sp<1.9){b.mode='cup';b.ct=0;b.vx=b.vz=b.vy=0;b.event='cup';return}
+    if(!b.lip){b.lip=true;const k=0.8,tw=clamp((cdx*b.vz-cdz*b.vx)/(cd*sp+1e-6),-1,1)*0.35;const c=Math.cos(tw),s=Math.sin(tw),vx=b.vx*c-b.vz*s,vz=b.vx*s+b.vz*c;b.vx=vx*k;b.vz=vz*k;b.rattle=1}
+  }else{b.lip=false;if(b.ground&&cd<CUP_R+0.07&&sp<1.2){b.vx-=cdx/cd*1.4*dt;b.vz-=cdz/cd*1.4*dt}}
+  // at rest when it's slow on ground that can't pull it any further
+  let pull=0;if(b.ground&&b.piece){const p=b.piece;pull=GRAV*Math.hypot(p.gx,p.gz)/(1+p.gx*p.gx+p.gz*p.gz)}
+  if(b.ground&&sp<0.07&&pull<MU[b.piece?b.piece.t:'g']*GRAV){b.restT+=dt;if(b.restT>0.2){b.vx=b.vz=0;b.rest=true}}
+  else{b.restT=0;b.rest=false}
+}
+function loopStep(b,dt){
+  const L=b.L;let th=b.ls/L.R;
+  b.lv+=(-GRAV*Math.sin(th)-Math.sign(b.lv)*0.05*GRAV)*dt;b.ls+=b.lv*dt;th=b.ls/L.R;
+  const N=b.lv*b.lv/L.R+GRAV*Math.cos(th),f=clamp(th/(2*Math.PI),0,1),lat=b.lat0+L.w*f*f*(3-2*f);
+  const al=L.R*Math.sin(th),up=L.R*(1-Math.cos(th));
+  b.x=L.x+L.dx*al+L.lx*lat;b.z=L.z+L.dz*al+L.lz*lat;b.y=L.y+R+up;b.rest=false;b.restT=0;
+  if(b.ls<=0){b.mode='roll';b.ground=true;b.piece=null;b.x=L.x+L.lx*b.lat0-L.dx*0.1;b.z=L.z+L.lz*b.lat0-L.dz*0.1;b.y=L.y+R;b.vx=L.dx*b.lv;b.vz=L.dz*b.lv;b.vy=0;b.lc=0.6;relink(b)}
+  else if(b.ls>=2*Math.PI*L.R){b.mode='roll';b.ground=true;b.piece=null;const la=b.lat0+L.w;b.x=L.x+L.lx*la+L.dx*0.14;b.z=L.z+L.lz*la+L.dz*0.14;b.y=L.y+R;b.vx=L.dx*b.lv;b.vz=L.dz*b.lv;b.vy=0;b.lc=0.6;relink(b)}
+  else if(N<0&&th>Math.PI/2&&th<1.5*Math.PI){ // too slow at the top: it falls off the track
+    b.mode='roll';b.ground=false;b.vx=L.dx*b.lv*Math.cos(th);b.vz=L.dz*b.lv*Math.cos(th);b.vy=b.lv*Math.sin(th);b.lc=1.2;
+  }
+}
+function relink(b){const f=floorAt(hole,b);if(f){b.piece=f.p;b.y=f.top+R}else b.ground=false}
+
+// =====================================================================
+//  Drawing (three.js r128). Each hole is rebuilt when it starts: the
+//  felt tops, sand, water, block sides and rails are each merged into one
+//  mesh, so a hole is a few dozen draw calls at most. Shadows come from
+//  one sun light whose shadow box is fitted to the hole.
+// =====================================================================
+const canvas=$('view');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,touchUI?1.5:2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+const HORIZON=new THREE.Color('#cfe9f2');
+scene.fog=new THREE.Fog(HORIZON,45,150);
+const camera=new THREE.PerspectiveCamera(50,1,0.05,500);
+const hemi=new THREE.HemisphereLight('#e4f3ff','#5a7a3a',0.62);scene.add(hemi);
+const sun=new THREE.DirectionalLight('#fff0d8',0.85);sun.castShadow=true;sun.shadow.mapSize.set(touchUI?1024:2048,touchUI?1024:2048);sun.shadow.bias=-0.0006;sun.shadow.normalBias=0.02;
+scene.add(sun);scene.add(sun.target);
+// sky: a big sphere coloured from deep blue overhead to a warm haze at the horizon
+{const g=new THREE.SphereGeometry(400,24,12),cols=[],pos=g.attributes.position,top=new THREE.Color('#4aa6e6'),c=new THREE.Color();
+  for(let i=0;i<pos.count;i++){const y=pos.getY(i)/400;c.copy(HORIZON).lerp(top,clamp(y*1.6,0,1));if(y<0)c.copy(HORIZON);cols.push(c.r,c.g,c.b)}
+  g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));
+  scene.add(new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false})))}
+function canvasTex(size,draw,rep){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;if(rep)t.repeat.set(rep,rep);return t}
+function noise(ctx,s,base,amt,n){ctx.fillStyle=base;ctx.fillRect(0,0,s,s);for(let i=0;i<n;i++){const v=(Math.random()-0.5)*amt;ctx.fillStyle=v>0?'rgba(255,255,255,'+v+')':'rgba(0,0,0,'+(-v)+')';ctx.fillRect(Math.random()*s,Math.random()*s,2,2)}}
+const TEX={
+  felt:canvasTex(256,(c,s)=>{noise(c,s,'#1f9a4f',0.14,9000);c.fillStyle='rgba(255,255,255,0.05)';for(let i=0;i<4;i++)c.fillRect(0,i*s/4,s,s/8)}),
+  sand:canvasTex(128,(c,s)=>noise(c,s,'#e3c27a',0.3,5000)),
+  water:canvasTex(128,(c,s)=>{const g=c.createLinearGradient(0,0,s,s);g.addColorStop(0,'#2f9fe0');g.addColorStop(1,'#46b9ea');c.fillStyle=g;c.fillRect(0,0,s,s);c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=2;for(let i=0;i<9;i++){const x=Math.random()*s,y=Math.random()*s;c.beginPath();c.arc(x,y,6+Math.random()*10,0.2,1.4);c.stroke()}}),
+  brick:canvasTex(128,(c,s)=>{c.fillStyle='#b9673f';c.fillRect(0,0,s,s);c.fillStyle='#d27c4f';for(let r=0;r<8;r++)for(let k=0;k<4;k++){c.fillRect(k*32+(r%2?16:0)+1,r*16+1,30,14);c.fillRect(k*32+(r%2?16:0)-31,r*16+1,30,14)}}),
+  grass:canvasTex(256,(c,s)=>{noise(c,s,'#4b8a2e',0.2,12000)},90)
+};
+const MAT={
+  g:new THREE.MeshStandardMaterial({map:TEX.felt,roughness:0.95}),
+  s:new THREE.MeshStandardMaterial({map:TEX.sand,roughness:1}),
+  w:new THREE.MeshStandardMaterial({map:TEX.water,roughness:0.15,metalness:0.1,transparent:true,opacity:0.92}),
+  side:new THREE.MeshStandardMaterial({map:TEX.brick,roughness:0.9}),
+  rail:new THREE.MeshStandardMaterial({color:'#f5e9cc',roughness:0.55}),
+  wood:new THREE.MeshStandardMaterial({color:'#8a5a3b',roughness:0.8}),
+  bump:new THREE.MeshStandardMaterial({color:'#ff6b57',roughness:0.35,emissive:'#ff3b1f',emissiveIntensity:0}),
+  bumpTop:new THREE.MeshStandardMaterial({color:'#fff6e0',roughness:0.4}),
+  mover:new THREE.MeshStandardMaterial({color:'#6c4fd8',roughness:0.45}),
+  track:new THREE.MeshStandardMaterial({color:'#ffc93c',roughness:0.5,side:THREE.DoubleSide}),
+  cup:new THREE.MeshBasicMaterial({color:'#15201a'}),
+  blob:new THREE.MeshBasicMaterial({color:'#000',transparent:true,opacity:0.28,depthWrite:false})
+};
+// ground
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshStandardMaterial({map:TEX.grass,roughness:1}));
+ground.rotation.x=-Math.PI/2;ground.position.y=GROUND_Y;ground.receiveShadow=true;scene.add(ground);
+
+// geometry builder: quads into flat arrays, one array set per material
+function Batch(){this.p=[];this.n=[];this.uv=[]}
+Batch.prototype.quad=function(a,b,c,d,uv){ // corners in order around the face, each [x,y,z]; uv: 4 [u,v]
+  const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=d[0]-a[0],vy=d[1]-a[1],vz=d[2]-a[2];
+  let nx=uy*vz-uz*vy,ny=uz*vx-ux*vz,nz=ux*vy-uy*vx;const l=Math.hypot(nx,ny,nz)||1;nx/=l;ny/=l;nz/=l;
+  for(const i of [0,1,2,0,2,3]){const q=[a,b,c,d][i];this.p.push(q[0],q[1],q[2]);this.n.push(nx,ny,nz);this.uv.push(uv[i][0],uv[i][1])}
+};
+Batch.prototype.mesh=function(mat){if(!this.p.length)return null;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(this.p,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(this.n,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(this.uv,2));const m=new THREE.Mesh(g,mat);m.castShadow=m.receiveShadow=true;return m};
+// a box-like prism along a segment from A to B, bottom and top heights at each end, thickness th
+function prism(B,ax,az,abot,atop,bx,bz,bbot,btop,th){
+  const dx=bx-ax,dz=bz-az,L=Math.hypot(dx,dz)||1,nx=-dz/L*th/2,nz=dx/L*th/2,len=L;
+  const A0=[ax-nx,abot,az-nz],A1=[ax+nx,abot,az+nz],A2=[ax+nx,atop,az+nz],A3=[ax-nx,atop,az-nz];
+  const B0=[bx-nx,bbot,bz-nz],B1=[bx+nx,bbot,bz+nz],B2=[bx+nx,btop,bz+nz],B3=[bx-nx,btop,bz-nz];
+  const uv=(w,h)=>[[0,0],[w,0],[w,h],[0,h]];
+  B.quad(A3,A2,B2,B3,uv(1,len));B.quad(A0,A3,B3,B0,uv(1,len));B.quad(A1,B1,B2,A2,uv(len,1));
+  B.quad(A0,A1,A2,A3,uv(1,1));B.quad(B0,B3,B2,B1,uv(1,1));
+}
+let holeGroup=null,movers=[],bumpMeshes=[],cupFlag=null;
+function buildHole(H){
+  if(holeGroup){scene.remove(holeGroup);holeGroup.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
+  holeGroup=new THREE.Group();movers=[];bumpMeshes=[];
+  const tops={g:new Batch(),s:new Batch(),w:new Batch()},side=new Batch(),rail=new Batch();
+  for(const p of H.P){
+    const lift=p.ov?0.004:0,dip=p.t==='w'?-0.03:0;
+    const y=(x,z)=>pieceTop(p,x,z)+lift+dip;
+    const c=[[p.x0,y(p.x0,p.z0),p.z0],[p.x1,y(p.x1,p.z0),p.z0],[p.x1,y(p.x1,p.z1),p.z1],[p.x0,y(p.x0,p.z1),p.z1]];
+    const k=0.62;tops[p.t].quad(c[0],c[3],c[2],c[1],[[p.x0*k,p.z0*k],[p.x0*k,p.z1*k],[p.x1*k,p.z1*k],[p.x1*k,p.z0*k]]);
+    if(p.ov)continue;
+    const b=p.base,sq=(a,bb,ha,hb,flip)=>{const A=[a[0],b,a[1]],Bq=[bb[0],b,bb[1]],C=[bb[0],hb,bb[1]],D=[a[0],ha,a[1]],L=Math.hypot(bb[0]-a[0],bb[1]-a[1]);
+      if(flip)side.quad(A,D,C,Bq,[[0,0],[0,(ha-b)*2],[L*2,(hb-b)*2],[L*2,0]]);else side.quad(A,Bq,C,D,[[0,0],[L*2,0],[L*2,(hb-b)*2],[0,(ha-b)*2]])};
+    sq([p.x0,p.z0],[p.x1,p.z0],c[0][1],c[1][1],true);sq([p.x1,p.z1],[p.x0,p.z1],c[2][1],c[3][1],true);
+    sq([p.x0,p.z1],[p.x0,p.z0],c[3][1],c[0][1],true);sq([p.x1,p.z0],[p.x1,p.z1],c[1][1],c[2][1],true);
+  }
+  for(const w of H.W)prism(rail,w.ax,w.az,w.ya-RAIL_H-0.05,w.ya,w.bx,w.bz,w.yb-RAIL_H-0.05,w.yb,w.t);
+  for(const k of ['g','s','w']){const m=tops[k].mesh(MAT[k]);if(m){m.castShadow=false;holeGroup.add(m)}}
+  const sm=side.mesh(MAT.side);if(sm)holeGroup.add(sm);
+  const rm=rail.mesh(MAT.rail);if(rm)holeGroup.add(rm);
+  // bumpers: a post with a soft cap
+  for(const q of H.B){
+    const g=new THREE.Group();g.position.set(q.x,q.y,q.z);
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(q.r,q.r*1.05,0.3,20),MAT.bump.clone());post.position.y=0.15;post.castShadow=true;
+    const cap=new THREE.Mesh(new THREE.CylinderGeometry(q.r*0.7,q.r*0.95,0.06,20),MAT.bumpTop);cap.position.y=0.33;cap.castShadow=true;
+    g.add(post,cap);holeGroup.add(g);bumpMeshes.push({q,g,post});
+  }
+  for(const m of H.M){
+    let mesh;
+    if(m.k==='slide'){mesh=new THREE.Mesh(new THREE.BoxGeometry(m.w,m.hgt,m.l),MAT.mover);mesh.position.y=m.y0+m.hgt/2}
+    else{mesh=new THREE.Group();const bar=new THREE.Mesh(new THREE.BoxGeometry(m.len*2,m.hgt*0.7,m.th),MAT.mover);bar.position.y=m.y0+m.hgt*0.55;bar.castShadow=true;
+      const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.2,m.hgt+0.12,16),MAT.rail);hub.position.y=m.y0+(m.hgt+0.12)/2;hub.castShadow=true;mesh.add(bar,hub);mesh.position.set(m.x,0,m.z)}
+    mesh.castShadow=true;holeGroup.add(mesh);movers.push({m,mesh});
+  }
+  for(const L of H.L)holeGroup.add(loopMesh(L));
+  // the cup: a dark hole with a white rim, and a flag
+  const cupG=new THREE.Group();cupG.position.set(H.cup[0],H.cupY,H.cup[1]);
+  const hole=new THREE.Mesh(new THREE.CircleGeometry(CUP_R,28),MAT.cup);hole.rotation.x=-Math.PI/2;hole.position.y=0.006;
+  const rim=new THREE.Mesh(new THREE.RingGeometry(CUP_R,CUP_R+0.025,28),MAT.rail);rim.rotation.x=-Math.PI/2;rim.position.y=0.007;
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,1.1,8),MAT.rail);pole.position.y=0.55;pole.castShadow=true;
+  const fs=new THREE.Shape();fs.moveTo(0,0);fs.lineTo(0.42,-0.13);fs.lineTo(0,-0.27);
+  const flag=new THREE.Mesh(new THREE.ShapeGeometry(fs),new THREE.MeshStandardMaterial({color:'#ff6b57',side:THREE.DoubleSide,roughness:0.6}));flag.position.y=1.08;flag.castShadow=true;
+  cupG.add(hole,rim,pole,flag);holeGroup.add(cupG);cupFlag=flag;
+  // tee mat
+  const tee=new THREE.Mesh(new THREE.PlaneGeometry(0.5,0.5),new THREE.MeshStandardMaterial({color:'#2c8a52',roughness:1}));tee.rotation.x=-Math.PI/2;tee.position.set(H.tee[0],H.teeY+0.005,H.tee[1]);tee.receiveShadow=true;holeGroup.add(tee);
+  holeGroup.add(scenery(H));
+  scene.add(holeGroup);
+  // fit the sun's shadow box around the hole
+  const span=Math.max(H.bx1-H.bx0,H.bz1-H.bz0)/2+3;
+  sun.position.set(H.cx+8,14,H.cz-6);sun.target.position.set(H.cx,0,H.cz);
+  const sc=sun.shadow.camera;sc.left=-span;sc.right=span;sc.top=span;sc.bottom=-span;sc.near=1;sc.far=50;sc.updateProjectionMatrix();
+}
+function loopMesh(L){
+  const g=new THREE.Group(),N=72,half=L.win+R+0.06,cy=L.y+L.R+R,rr=L.R+R;
+  const pos=[],idx=[],edgeA=[],edgeB=[];
+  for(let i=0;i<=N;i++){
+    const th=i/N*2*Math.PI,f=i/N,lat=L.w*f*f*(3-2*f),al=rr*Math.sin(th),up=cy-rr*Math.cos(th);
+    for(const s of [-half,half]){const la=lat+s;const x=L.x+L.dx*al+L.lx*la,z=L.z+L.dz*al+L.lz*la;pos.push(x,up,z);(s<0?edgeA:edgeB).push(new THREE.Vector3(x,up+0.03,z))}
+    if(i<N){const a=i*2;idx.push(a,a+1,a+3,a,a+3,a+2)}
+  }
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));geo.setIndex(idx);geo.computeVertexNormals();
+  const track=new THREE.Mesh(geo,MAT.track);track.castShadow=true;g.add(track);
+  for(const e of [edgeA,edgeB]){const t=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(e),N,0.03,6,false),MAT.rail);t.castShadow=true;g.add(t)}
+  // two posts holding the top of the loop
+  const ht=cy+rr+0.05-L.y,ends=[-half-0.07,L.w+half+0.07];
+  for(const la of ends){const x=L.x+L.lx*la,z=L.z+L.lz*la;const post=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,ht,8),MAT.wood);post.position.set(x,L.y+ht/2,z);post.castShadow=true;g.add(post)}
+  const span=ends[1]-ends[0],beam=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.07,span),MAT.wood),mid=(ends[0]+ends[1])/2;
+  beam.position.set(L.x+L.lx*mid,L.y+ht,L.z+L.lz*mid);beam.rotation.y=Math.atan2(L.lx,L.lz);beam.castShadow=true;g.add(beam);
+  return g;
+}
+// trees and flower bushes around the hole, placed from the hole's name so they don't move between visits
+function scenery(H){
+  const g=new THREE.Group(),seed=[...H.n].reduce((a,c)=>a*31+c.charCodeAt(0)|0,7)+(H.daily|0),rnd=mulberry(seed);
+  const pts=[];
+  for(let i=0;i<140&&pts.length<46;i++){
+    const a=rnd()*Math.PI*2,d=6+rnd()*26,x=H.cx+Math.cos(a)*(d+(H.bx1-H.bx0)/2),z=H.cz+Math.sin(a)*(d+(H.bz1-H.bz0)/2);
+    if(x>H.bx0-2.5&&x<H.bx1+2.5&&z>H.bz0-2.5&&z<H.bz1+2.5)continue;pts.push([x,z,0.8+rnd()*0.9,rnd()]);
+  }
+  const trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(0.12,0.16,1,6),MAT.wood,pts.length);
+  const crown=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),new THREE.MeshStandardMaterial({roughness:0.9,flatShading:true}),pts.length);
+  const m=new THREE.Matrix4(),q=new THREE.Quaternion(),c=new THREE.Color();const shades=['#2f7d2c','#47963a','#25683a','#6aa33a','#e0708f'];
+  pts.forEach((p,i)=>{const s=p[2];m.compose(new THREE.Vector3(p[0],GROUND_Y+0.6*s,p[1]),q,new THREE.Vector3(s,1.2*s,s));trunk.setMatrixAt(i,m);
+    m.compose(new THREE.Vector3(p[0],GROUND_Y+1.5*s,p[1]),q.setFromEuler(new THREE.Euler(0,p[3]*6,0)),new THREE.Vector3(s*0.95,s*1.1,s*0.95));crown.setMatrixAt(i,m);q.set(0,0,0,1);
+    crown.setColorAt(i,c.set(shades[Math.floor(p[3]*shades.length)]))});
+  trunk.castShadow=crown.castShadow=true;g.add(trunk,crown);
+  return g;
+}
+
+// balls (mine and the others'), each with a soft blob shadow
+const ballGeo=new THREE.SphereGeometry(R,24,16),blobGeo=new THREE.CircleGeometry(R*1.3,16);
+function makeBallMesh(color){
+  const m=new THREE.Mesh(ballGeo,new THREE.MeshStandardMaterial({color,roughness:0.3,metalness:0.05}));m.castShadow=true;
+  const blob=new THREE.Mesh(blobGeo,MAT.blob);blob.rotation.x=-Math.PI/2;scene.add(m,blob);m.userData.blob=blob;return m;
+}
+function placeBallMesh(mesh,x,y,z,H){mesh.position.set(x,y,z);const b=mesh.userData.blob,f=H?surfAt(H,x,z):0;b.position.set(x,Math.max(f,GROUND_Y)+0.008,z);const h=clamp(1-(y-R-f)*1.2,0.15,1);b.scale.setScalar(0.6+0.4*h);b.material.opacity=0.28*h;b.visible=mesh.visible}
+// aim arrow
+const aimG=new THREE.Group();
+const arrowMat=new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:0.95,depthWrite:false});
+const arrowShaft=new THREE.Mesh(new THREE.PlaneGeometry(0.08,1),arrowMat);arrowShaft.rotation.x=-Math.PI/2;
+const ah=new THREE.Shape();ah.moveTo(-0.13,0);ah.lineTo(0.13,0);ah.lineTo(0,0.22);
+const arrowHead=new THREE.Mesh(new THREE.ShapeGeometry(ah),arrowMat);arrowHead.rotation.x=-Math.PI/2;
+aimG.add(arrowShaft,arrowHead);aimG.visible=false;scene.add(aimG);
+const dots=[];for(let i=0;i<7;i++){const d=new THREE.Mesh(new THREE.CircleGeometry(0.03,10),new THREE.MeshBasicMaterial({color:'#fff',transparent:true,opacity:0.7,depthWrite:false}));d.rotation.x=-Math.PI/2;aimG.add(d);dots.push(d)}
+
+// =====================================================================
+//  Sound: a few tiny synthesised effects (no files). Off until turned on.
+// =====================================================================
+let soundOn=store.get('sound',true)!==false,AC=null;
+function tone(f,dur,type,vol,slide){if(!soundOn)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime;o.type=type||'sine';o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);g.gain.setValueAtTime(vol||0.15,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur)}catch(e){}}
+const SFX={putt:p=>tone(300+p*200,0.08,'triangle',0.2,120),wall:v=>tone(180,0.05,'square',Math.min(0.08,0.02*v)),bump:()=>tone(520,0.12,'sine',0.16,900),
+  cup:()=>{tone(660,0.12,'sine',0.18);setTimeout(()=>tone(880,0.2,'sine',0.16),110)},splash:()=>tone(240,0.35,'sawtooth',0.07,60),out:()=>tone(200,0.25,'triangle',0.12,90)};
+
+// =====================================================================
+//  Game state
+// =====================================================================
+const G={mode:'menu',holeIdx:0,strokes:0,card:Array(HOLES).fill(null),state:'idle',lastShot:null,doneT:0,attract:0,
+  rs:null,rid:0,host:false,he:0,maxHe:0,hostUid:'',lastRS:null,rsSeen:'',hd:-1,holeRid:-1,joinedAt:0,overShown:0};
+let hole=prepHole(COURSE[0]),ball=newBall(hole),ballMesh=makeBallMesh(COLORS[0]);
+let myName=cleanName(loadName()),myColor=store.get('color',COLORS[Math.floor(Math.random()*COLORS.length)]);if(COLORS.indexOf(myColor)<0)myColor=COLORS[0];
+ballMesh.material.color.set(myColor);
+const ents=new Map(); // other players' balls
+function now(){return Net.refs?Net.now():Date.now()}
+function clockT(){return now()/1000}
+
+function loadHole(H){hole=H;buildHole(H);ball=newBall(H);ball.piece=floorAt(H,ball)?floorAt(H,ball).p:null;G.strokes=0;G.lastShot={x:ball.x,y:ball.y,z:ball.z};G.state='aim';
+  cam.yaw=Math.atan2(H.cup[0]-H.tee[0],H.cup[1]-H.tee[1]);cam.tyaw=cam.yaw;cam.cy=cam.yaw;cam.over=false;$('bView').classList.remove('on');cam.target.set(ball.x,ball.y,ball.z);cam.userTurned=false;
+  for(const e of ents.values())e.snaps.length=0;updateHud()}
+function holeLabel(){return G.mode==='daily'?'Daily hole':'Hole '+(G.holeIdx+1)+' of '+HOLES}
+function updateHud(){
+  $('hName').textContent=holeLabel()+' · '+hole.n;
+  $('hInfo').innerHTML='Par '+hole.par+' · Shot <em>'+Math.min(G.strokes+(G.state==='aim'?1:0),MAX_SHOTS+1)+'</em>'+(G.mode!=='daily'?' · '+relTotal():'');
+}
+function relTotal(){let s=0,p=0;G.card.forEach((v,i)=>{if(v!=null){s+=v;p+=COURSE[i].par}});const d=s-p;return p?(d===0?'E':d>0?'+'+d:''+d):'E'}
+function scoreName(st,par){if(st===1)return'Hole in one!';const d=st-par;return d<=-3?'Albatross!':d===-2?'Eagle!':d===-1?'Birdie!':d===0?'Par':d===1?'Bogey':d===2?'Double bogey':(st>=PICKUP?'Picked up':'+'+d)}
+let bannerT=0;
+function banner(big,small,ms){$('bnBig').textContent=big;$('bnSmall').textContent=small||'';$('bnSmall').hidden=!small;$('banner').classList.add('show');clearTimeout(bannerT);bannerT=setTimeout(()=>$('banner').classList.remove('show'),ms||1800)}
+function feed(html){const d=document.createElement('div');d.innerHTML=html;$('feed').appendChild(d);setTimeout(()=>d.remove(),5200);while($('feed').children.length>4)$('feed').firstChild.remove()}
+let hintShown=store.get('hinted',0);
+function showHint(t){$('hint').textContent=t;$('hint').hidden=!t}
+
+function show(id){for(const s of ['menu','lobby','cardScreen'])$(s).hidden=s!==id;$('hud').hidden=!(G.mode==='solo'||G.mode==='daily'||(G.mode==='online'&&G.rs&&G.rs.ph!=='lobby'))||id==='menu'||id==='lobby'}
+
+// ---- shooting ----
+function shoot(dirX,dirZ,p){
+  if(G.state!=='aim'||!ball.rest||ball.mode!=='roll')return false;
+  const l=Math.hypot(dirX,dirZ);if(!l||p<0.03)return false;
+  const v=VMAX*clamp(p,0,1);
+  G.lastShot={x:ball.x,y:ball.y,z:ball.z};
+  ball.vx=dirX/l*v;ball.vz=dirZ/l*v;ball.rest=false;ball.restT=0;ball.lip=false;G.strokes++;G.state='roll';G.rollT=0;
+  SFX.putt(p);if(!hintShown){hintShown=1;store.set('hinted',1)}showHint('');
+  cam.userTurned=false;updateHud();Net.pubBall(true);return true;
+}
+function penalty(kind){
+  G.strokes++;(kind==='water'?SFX.splash:SFX.out)();
+  banner(kind==='water'?'Splash!':'Out of bounds','+1 stroke, back to where you putted',1500);
+  Object.assign(ball,{x:G.lastShot.x,y:G.lastShot.y,z:G.lastShot.z,vx:0,vy:0,vz:0,ground:true,mode:'roll',rest:true,restT:1,lip:false,event:''});
+  relink(ball);
+  if(G.strokes>=MAX_SHOTS)finishHole(false);else{G.state='aim';updateHud()}
+}
+function finishHole(sunk){
+  const st=sunk?G.strokes:PICKUP;G.state='done';G.doneT=performance.now();ball.rest=true;
+  if(sunk){SFX.cup();stat('add','holes',1);if(st===1)stat('add','aces',1)}
+  banner(scoreName(st,hole.par),sunk?st+' shot'+(st>1?'s':'')+' · par '+hole.par:'Picked up after '+MAX_SHOTS+' shots',2200);
+  if(G.mode==='daily'){dailyDone(st);return}
+  G.card[G.holeIdx]=st;
+  if(G.mode==='online'){G.hd=G.holeIdx;Net.pubBall(true);Net.upd({sc:cardStr(),hd:G.hd,s:st})}
+  updateHud();
+}
+function cardStr(){return G.card.map(v=>v==null?'':v).join(',')}
+function parseCard(s){const a=Array(HOLES).fill(null);if(typeof s!=='string'||s.length>60)return a;s.split(',').slice(0,HOLES).forEach((v,i)=>{const n=parseInt(v,10);if(n>=1&&n<=PICKUP)a[i]=n});return a}
+
+// ---- solo ----
+function startSolo(){Net.leave();G.mode='solo';G.card=Array(HOLES).fill(null);G.holeIdx=0;loadHole(prepHole(COURSE[0]));show(null);showHint(hintShown?'':'Drag back from your ball and let go to putt');}
+function nextSolo(){
+  if(G.holeIdx<HOLES-1){G.holeIdx++;loadHole(prepHole(COURSE[G.holeIdx]));return}
+  G.state='over';const tot=G.card.reduce((a,b)=>a+b,0);
+  stat('min','card9',tot);
+  const best=store.get('best',0);if(!best||tot<best)store.set('best',tot);
+  showCard(true);
+}
+
+// ---- daily ----
+function startDaily(){Net.leave();G.mode='daily';G.dkey=dayKey();loadHole(prepHole(dailyHole(G.dkey)));show(null);showHint(hintShown?'':'Drag back from your ball and let go to putt')}
+function dailyState(){const d=store.get('daily',null);return d&&typeof d==='object'?d:{}}
+function dailyDone(st){
+  const d=dailyState(),k=G.dkey;let first=false;
+  if(d.k!==k){first=true;const streak=d.k===prevDay(k)?(d.n|0)+1:1;Object.assign(d,{k,first:st,best:st,n:streak});stat('max','dstreak',streak)}
+  else d.best=Math.min(d.best||99,st);
+  store.set('daily',d);renderDaily();
+  setTimeout(()=>{if(G.mode!=='daily')return;showCard(true,{daily:true,first,st,d})},1600);
+}
+function renderDaily(){const d=dailyState(),k=dayKey();let t;
+  if(d.k===k)t='Today’s hole: <b>'+d.first+'</b> (best '+d.best+') · streak '+(d.n|0)+' day'+((d.n|0)===1?'':'s');
+  else if(d.k===prevDay(k))t='A new daily hole is up. Keep your '+(d.n|0)+'-day streak going.';
+  else t='A new hole every day, the same for everyone.';
+  $('dailyLine').innerHTML=t}
+
+// ---- scorecard ----
+function cardRows(){
+  const mine={n:myName?myName+' (you)':'You',c:myColor,card:G.card,me:1};
+  if(G.mode!=='online')return[mine];
+  const rows=[mine];
+  for(const [uid,o] of Net.others){if(o.r===G.rid&&G.rid&&Net.live(uid))rows.push({n:o.n,c:o.c,card:parseCard(o.sc)})}
+  return rows;
+}
+function totals(card){let s=0,p=0,k=0;card.forEach((v,i)=>{if(v!=null){s+=v;p+=COURSE[i].par;k++}});return{s,p,k,d:s-p}}
+function renderCardTable(){
+  const rows=cardRows().map(r=>Object.assign(r,totals(r.card)));
+  rows.sort((a,b)=>(b.k-a.k)||(a.d-b.d));
+  let h='<tr><th class="nm">Hole</th>';for(let i=0;i<HOLES;i++)h+='<th>'+(i+1)+'</th>';h+='<th>Total</th></tr>';
+  h+='<tr class="par"><td class="nm">Par</td>';let pt=0;for(let i=0;i<HOLES;i++){h+='<td>'+COURSE[i].par+'</td>';pt+=COURSE[i].par}h+='<td>'+pt+'</td></tr>';
+  for(const r of rows){
+    h+='<tr><td class="nm"><span style="color:'+r.c+'">●</span> '+esc(r.n)+'</td>';
+    for(let i=0;i<HOLES;i++){const v=r.card[i],cur=(G.mode!=='menu')&&i===G.holeIdx&&G.state!=='over'?' cur':'';
+      h+='<td class="'+cur+'">'+(v==null?'–':'<span class="'+(v===1?'ace':v<COURSE[i].par?'u':v>COURSE[i].par?'o':'')+'">'+v+'</span>')+'</td>'}
+    h+='<td class="tot">'+(r.k?r.s+' <small class="'+(r.d<0?'u':r.d>0?'o':'')+'">('+(r.d===0?'E':r.d>0?'+'+r.d:r.d)+')</small>':'–')+'</td></tr>';
+  }
+  $('scTable').innerHTML=h;return rows;
+}
+function showCard(final,o){
+  o=o||{};G.cardOpen=true;G.userCard=!!o.user;const btns=$('cardBtns');btns.innerHTML='';
+  const mk=(t,cls,fn)=>{const b=document.createElement('button');b.type='button';b.className='btn '+cls;b.textContent=t;b.onclick=fn;btns.appendChild(b);return b};
+  if(o.daily){
+    $('cardTitle').textContent=scoreName(o.st,hole.par);$('cardSub').textContent='Daily hole';
+    $('scTable').innerHTML='<tr><th class="nm">Daily hole</th><th>Par</th><th>Today</th><th>Best today</th><th>Streak</th></tr><tr><td class="nm">'+esc(hole.n)+'</td><td>'+hole.par+'</td><td class="tot">'+o.d.first+'</td><td>'+o.d.best+'</td><td>'+(o.d.n|0)+' day'+((o.d.n|0)===1?'':'s')+'</td></tr>';
+    $('cardNote').textContent=o.first?'Your first finish today counts. Come back tomorrow for a new hole.':'Only your first finish of the day counts; this one was for practice.';
+    mk('Play it again','ghost',()=>{hideCard();startDaily()});mk('Menu','cta',toMenu);
+  }else{
+    const rows=renderCardTable();$('cardSub').textContent=G.mode==='online'?'Room '+(Net.room||''):'Solo';
+    if(final){
+      const me=totals(G.card);
+      if(G.mode==='online'){
+        const full=rows.filter(r=>r.k===HOLES),win=full.length?Math.min(...full.map(r=>r.s)):0,mine=me.k===HOLES&&me.s===win;
+        $('cardTitle').textContent=mine?'You win!':full.length?'Round over':'Round over';
+        $('cardNote').textContent=full.length?('Lowest total: '+win+'. '+(rows.length>1?'Players who joined part way through aren’t ranked.':'')):'';
+        if(G.host)mk('Play again','cta',()=>{hideCard();startRound()});else mk('Waiting for the host…','ghost',()=>{}).disabled=true;
+        mk('Leave','ghost',toMenu);
+      }else{
+        $('cardTitle').textContent='Round complete: '+me.s+' ('+(me.d===0?'even par':me.d>0?me.d+' over par':(-me.d)+' under par')+')';
+        const best=store.get('best',0);$('cardNote').textContent=best?'Your best card: '+best+'.':'';
+        mk('Play again','cta',()=>{hideCard();startSolo()});mk('Menu','ghost',toMenu);
+      }
+    }else{
+      $('cardTitle').textContent='Scorecard';$('cardNote').textContent=G.mode==='online'?'Totals rank players who’ve played every hole so far first.':'';
+      mk('Back to the hole','cta',hideCard);
+    }
+  }
+  $('cardScreen').hidden=false;
+}
+function hideCard(){G.cardOpen=false;$('cardScreen').hidden=true}
+function toMenu(){hideCard();Net.leave();clearEnts();G.mode='menu';G.rs=null;G.state='idle';$('hud').hidden=true;$('clock').hidden=true;$('players').innerHTML='';show('menu');renderDaily();loadHole(prepHole(COURSE[G.attract%HOLES]));try{if(location.hash)history.replaceState(null,'',location.pathname)}catch(e){}}
+
+// =====================================================================
+//  Camera and input. The camera orbits the ball: yaw (which way it looks),
+//  pitch and distance; View shows the whole hole from above. Pressing on or
+//  near the ball aims (drag back, let go); pressing anywhere else turns the
+//  camera; the wheel or a pinch zooms.
+// =====================================================================
+const cam={yaw:0,tyaw:0,pitch:0.55,dist:4.2,over:false,target:new THREE.Vector3(),userTurned:false};
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),plane=new THREE.Plane(new THREE.Vector3(0,1,0),0),hitV=new THREE.Vector3();
+function groundPoint(cx,cy,y){const r=canvas.getBoundingClientRect();ndc.set((cx-r.left)/r.width*2-1,-(cy-r.top)/r.height*2+1);ray.setFromCamera(ndc,camera);plane.constant=-y;return ray.ray.intersectPlane(plane,hitV)?hitV.clone():null}
+function ballScreen(){const v=new THREE.Vector3(ball.x,ball.y,ball.z).project(camera),r=canvas.getBoundingClientRect();return{x:r.left+(v.x+1)/2*r.width,y:r.top+(1-v.y)/2*r.height,ok:v.z<1}}
+const ptrs=new Map();let drag=null;
+function canAim(){return(G.mode==='solo'||G.mode==='daily'||(G.mode==='online'&&G.rs&&G.rs.ph==='play'))&&G.state==='aim'&&ball.rest&&!G.cardOpen}
+canvas.addEventListener('pointerdown',e=>{
+  canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===2){if(drag&&drag.aim)cancelAim();const a=[...ptrs.values()];drag={pinch:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),dist:cam.dist};return}
+  if(ptrs.size>2)return;
+  const bs=ballScreen(),near=Math.hypot(e.clientX-bs.x,e.clientY-bs.y)<(touchUI?120:90);
+  if(canAim()&&near){drag={aim:true,sx:e.clientX,sy:e.clientY,p:0,dx:0,dz:0};$('power').hidden=false;aimG.visible=true}
+  else drag={cam:true,x:e.clientX,y:e.clientY};
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(!drag)return;
+  if(drag.pinch){const a=[...ptrs.values()];if(a.length<2)return;const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);cam.dist=clamp(drag.dist*drag.pinch/Math.max(20,d),1.6,14);return}
+  if(drag.cam){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;cam.yaw-=dx*0.006;cam.tyaw=cam.yaw;cam.pitch=clamp(cam.pitch+dy*0.004,0.12,1.35);cam.userTurned=true;return}
+  if(drag.aim)updateAim(e.clientX,e.clientY);
+});
+function updateAim(cx,cy){
+  const r=canvas.getBoundingClientRect(),px=Math.hypot(cx-drag.sx,cy-drag.sy),p=clamp(px/(Math.min(r.width,r.height)*0.38),0,1);
+  const a=groundPoint(drag.sx,drag.sy,ball.y),b=groundPoint(cx,cy,ball.y);
+  let dx,dz;if(a&&b){dx=a.x-b.x;dz=a.z-b.z}else{dx=Math.sin(cam.yaw);dz=Math.cos(cam.yaw)}
+  if(Math.hypot(dx,dz)<1e-4){dx=Math.sin(cam.yaw);dz=Math.cos(cam.yaw)}
+  drag.p=p;drag.dx=dx;drag.dz=dz;
+  $('powerFill').style.width=(p*100).toFixed(1)+'%';
+}
+function endPtr(e){
+  ptrs.delete(e.pointerId);
+  if(drag&&drag.pinch){if(ptrs.size<2)drag=null;return}
+  if(drag&&drag.aim){const d=drag;drag=null;$('power').hidden=true;aimG.visible=false;if(d.p>=0.04&&canAim())shoot(d.dx,d.dz,d.p)}
+  else drag=null;
+}
+function cancelAim(){drag=null;$('power').hidden=true;aimG.visible=false}
+canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);cancelAim()});
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.dist=clamp(cam.dist*(1+Math.sign(e.deltaY)*0.1),1.6,14)},{passive:false});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+const keys={};
+addEventListener('keydown',e=>{
+  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
+  keys[e.code]=true;
+  if(e.code==='Escape'){if(drag&&drag.aim)cancelAim();else if(G.cardOpen&&G.state!=='over')hideCard();else if(G.mode!=='menu')toggleMenuConfirm()}
+  else if(e.code==='KeyV'&&G.mode!=='menu')toggleView();
+  else if((e.code==='Tab'||e.code==='KeyC')&&G.mode!=='menu'){e.preventDefault();if(G.cardOpen&&G.state!=='over')hideCard();else if(!G.cardOpen)showCard(false,{user:1})}
+});
+addEventListener('keyup',e=>{keys[e.code]=false});
+addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
+function toggleView(){cam.over=!cam.over;$('bView').classList.toggle('on',cam.over);if(cam.over&&drag&&drag.aim)cancelAim()}
+function toggleMenuConfirm(){if(G.mode==='online'){if(confirm('Leave this room?'))toMenu()}else toMenu()}
+$('bView').onclick=toggleView;$('bCard').onclick=()=>{if(G.cardOpen)hideCard();else showCard(false,{user:1})};$('bMenu').onclick=toggleMenuConfirm;
+
+function updateCamera(dt){
+  if(keys.ArrowLeft||keys.KeyA){cam.yaw+=1.8*dt;cam.tyaw=cam.yaw;cam.userTurned=true}
+  if(keys.ArrowRight||keys.KeyD){cam.yaw-=1.8*dt;cam.tyaw=cam.yaw;cam.userTurned=true}
+  if(keys.ArrowUp||keys.KeyW)cam.dist=clamp(cam.dist-4*dt,1.6,14);
+  if(keys.ArrowDown||keys.KeyS)cam.dist=clamp(cam.dist+4*dt,1.6,14);
+  // once the ball stops, turn to face the cup unless the player has turned the camera themselves
+  if(ball.rest&&G.state==='aim'&&!cam.userTurned){cam.tyaw=Math.atan2(hole.cup[0]-ball.x,hole.cup[1]-ball.z);let d=cam.tyaw-cam.yaw;d=Math.atan2(Math.sin(d),Math.cos(d));cam.yaw+=d*Math.min(1,dt*2.5)}
+  let tx,ty,tz,dist,pitch,yaw=cam.yaw;
+  if(cam.over){ // the whole hole from above, looking from the tee toward the cup, far enough back to fit it all
+    tx=hole.cx;tz=hole.cz;ty=0;yaw=Math.atan2(hole.cup[0]-hole.tee[0],hole.cup[1]-hole.tee[1]);
+    const ca=Math.abs(Math.cos(yaw)),sa=Math.abs(Math.sin(yaw)),w=hole.bx1-hole.bx0,l=hole.bz1-hole.bz0,across=w*ca+l*sa,along=w*sa+l*ca;
+    const vf=THREE.MathUtils.degToRad(camera.fov)/2,hf=Math.atan(Math.tan(vf)*camera.aspect);
+    dist=Math.max(along*0.55/Math.tan(vf),across*0.6/Math.tan(hf))+2;pitch=1.2}
+  else if(G.mode==='menu'||(G.mode==='online'&&(!G.rs||G.rs.ph==='lobby'))){G.attractA=(G.attractA||0)+dt*0.08;tx=hole.cx;tz=hole.cz;ty=0;dist=Math.max(hole.bx1-hole.bx0,hole.bz1-hole.bz0)*0.9+5;pitch=0.62;cam.yaw=G.attractA}
+  else{tx=ball.x;ty=ball.y;tz=ball.z;dist=cam.dist;pitch=cam.pitch}
+  const k=Math.min(1,dt*(cam.over?3:5));cam.target.x=lerp(cam.target.x,tx,k);cam.target.y=lerp(cam.target.y,ty,k);cam.target.z=lerp(cam.target.z,tz,k);
+  cam.cd=lerp(cam.cd||dist,dist,Math.min(1,dt*4));cam.cp=lerp(cam.cp||pitch,pitch,Math.min(1,dt*4));
+  cam.cy=cam.cy==null?yaw:cam.cy+Math.atan2(Math.sin(yaw-cam.cy),Math.cos(yaw-cam.cy))*Math.min(1,dt*(cam.over?4:12));
+  const cy=Math.cos(cam.cp)*cam.cd;
+  camera.position.set(cam.target.x-Math.sin(cam.cy)*cy,cam.target.y+Math.sin(cam.cp)*cam.cd,cam.target.z-Math.cos(cam.cy)*cy);
+  // don't sink below the course
+  camera.position.y=Math.max(camera.position.y,surfAt(hole,camera.position.x,camera.position.z)+0.25);
+  camera.lookAt(cam.target.x,cam.target.y+0.1,cam.target.z);
+}
+function updateAimMesh(){
+  if(!aimG.visible||!drag||!drag.aim)return;
+  const l=Math.hypot(drag.dx,drag.dz)||1,dx=drag.dx/l,dz=drag.dz/l,len=0.35+drag.p*2.4,y=ball.y-R+0.02,a=Math.atan2(dx,dz);
+  aimG.position.set(ball.x,y,ball.z);aimG.rotation.set(0,a,0);
+  arrowShaft.scale.set(1,len,1);arrowShaft.position.set(0,0,R+len/2);arrowHead.position.set(0,0,R+len);
+  arrowMat.color.setHSL(0.33-0.33*drag.p,0.85,0.6);
+  dots.forEach((d,i)=>{const z=R+len+0.3+i*0.28*(0.5+drag.p);d.position.set(0,0,z);d.material.opacity=0.6*(1-i/dots.length)});
+}
+
+// =====================================================================
+//  Network (Firebase Realtime Database, the same project and rules as
+//  Rumble Karts). A room lives under rooms/qg-<code>; Quick match uses
+//  rooms/qg-pub-1 to qg-pub-4. Every player writes only their own node,
+//  rooms/qg-<code>/players/<uid>: n, c, x, z, h (0), ts as the shared rules
+//  require, plus y (ball height), j (join time), r (the round id they're
+//  playing), ho (hole index), s (shots on it), hd (last hole finished),
+//  sc (this round's card, "2,3,,"), and from the host the round state as
+//  JSON in rs with host number he. The host is the player with the newest
+//  host number, else whoever has been in longest.
+// =====================================================================
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM",
+  authDomain:"rumblekarts.firebaseapp.com",
+  databaseURL:"https://rumblekarts-default-rtdb.firebaseio.com",
+  projectId:"rumblekarts",
+  storageBucket:"rumblekarts.firebasestorage.app",
+  messagingSenderId:"910009166464",
+  appId:"1:910009166464:web:cb0f8872c8f06749fc9465"
+};
+const FIREBASE_SDK='https://www.gstatic.com/firebasejs/10.12.2/';
+const PREFIX='qg',MAX_ROOM=8,LIVE_MS=12000,HOLE_MS=180000,INTER_MS=5000,OVER_MS=30000,LOBBY_AUTO_MS=15000;
+const NET_BLOCKED='Couldn\'t reach the game database. If you\'re on a school or work network it may be blocking it; try another network, or play on your own.';
+function withTimeout(p,ms,msg){let t;return Promise.race([p,new Promise((_,rej)=>{t=setTimeout(()=>rej(new Error(msg)),ms)})]).finally(()=>clearTimeout(t))}
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('Could not load '+src));document.head.appendChild(s)})}
+function setMsg(t,err){$('netMsg').textContent=t||'';$('netMsg').classList.toggle('err',!!err)}
+const Net={
+  ready:false,uid:null,db:null,offset:0,room:null,refs:null,isPublic:false,j:0,others:new Map(),hbT:0,lastPos:'',rsStr:'',loaded:false,pubT:0,
+  now(){return Date.now()+this.offset},
+  async init(){
+    if(this.ready)return;
+    if(!window.firebase||!firebase.database){
+      try{await loadScript(FIREBASE_SDK+'firebase-app-compat.js');await loadScript(FIREBASE_SDK+'firebase-auth-compat.js');await loadScript(FIREBASE_SDK+'firebase-database-compat.js')}
+      catch(e){throw new Error('Could not reach the game server. Check your connection, or play on your own.')}
+    }
+    if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+    const slow=setTimeout(()=>setMsg('Still signing in…'),8000);
+    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),25000,'Signing in to the game server timed out. Check your connection, or play on your own.')}
+    catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console.':'Sign-in failed: '+(err.message||c))}
+    finally{clearTimeout(slow)}
+    this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
+    this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
+    this.ready=true;
+  },
+  base(){return{n:myName||'Golfer',c:myColor,x:r2(ball.x),z:r2(ball.z),h:0,y:r2(ball.y),ts:Math.round(this.now()),j:this.j,r:G.rid||0,ho:G.holeIdx,s:G.strokes,hd:G.hd,sc:cardStr()}},
+  async count(room){const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0;s.forEach(c=>{const v=c.val();if(c.key!==this.uid&&v&&this.now()-(+v.ts||0)<LIVE_MS)n++});return n},
+  async join(room,isPublic){
+    this.loaded=false;
+    const others=await withTimeout(this.count(room),10000,NET_BLOCKED);
+    if(others>=MAX_ROOM)throw new Error('That room is full ('+MAX_ROOM+' players). Try another code.');
+    const roomRef=this.db.ref('rooms/'+room);
+    this.room=room;this.isPublic=!!isPublic;this.others.clear();this.lastPos='';this.rsStr='';
+    this.refs={players:roomRef.child('players'),me:roomRef.child('players/'+this.uid)};
+    this.j=Math.round(this.now());
+    try{await withTimeout(this.refs.me.set(this.base()),10000,NET_BLOCKED)}
+    catch(e){this.refs=null;throw new Error(e.message===NET_BLOCKED?NET_BLOCKED:'The database rules blocked the game ('+(e.code||e.message||'permission denied')+'). They need to allow rooms/qg-… the same way they allow the other games\' rooms.')}
+    this.refs.me.onDisconnect().remove();
+    const up=s=>{if(s.key!==this.uid)onNode(s.key,s.val())};
+    this.refs.players.on('child_added',up);this.refs.players.on('child_changed',up);
+    this.refs.players.on('child_removed',s=>{if(s.key!==this.uid)onNodeGone(s.key)});
+    const players=this.refs.players;players.once('value',()=>{if(this.refs&&this.refs.players===players)this.loaded=true});
+    try{history.replaceState(null,'','#'+room)}catch(e){}
+  },
+  upd(o){if(!this.refs)return;o.ts=Math.round(this.now());this.hbT=performance.now();this.refs.me.update(o).catch(()=>{})},
+  pubBall(force){
+    if(!this.refs)return;const t=performance.now();
+    const s=[r2(ball.x),r2(ball.y),r2(ball.z),G.holeIdx,G.strokes].join(',');
+    if(force||(s!==this.lastPos&&t-this.pubT>100)||t-this.hbT>2000){this.lastPos=s;this.pubT=t;this.upd({x:r2(ball.x),y:r2(ball.y),z:r2(ball.z),h:0,ho:G.holeIdx,s:G.strokes,r:G.rid||0,hd:G.hd})}
+  },
+  pubRS(rs){const s=JSON.stringify(rs);if(s===this.rsStr)return;this.rsStr=s;this.upd({rs:s,he:G.he})},
+  live(uid){const o=this.others.get(uid);return !!o&&this.now()-o.ts<LIVE_MS},
+  elect(){let best=this.uid,bh=G.host?G.he:0,bj=this.j;for(const [k,v] of this.others){if(!this.live(k))continue;const he=v.rs?v.he:0;if(he>bh||(he===bh&&(v.j<bj||(v.j===bj&&k<best)))){best=k;bh=he;bj=v.j}}return best},
+  leave(){
+    if(this.refs){const r=this.refs;try{r.players.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
+    this.refs=null;this.room=null;this.others.clear();this.rsStr='';this.loaded=false;G.host=false;G.hostUid='';G.lastRS=null;G.rsSeen='';G.he=0;G.maxHe=0;
+  }
+};
+// The round comes from another player's browser, so only sane values are taken. Returns a clean copy, or null.
+const num=v=>typeof v==='number'&&isFinite(v),DAY_MS=864e5;
+function cleanRS(p){
+  if(!p||typeof p!=='object')return null;const t=Net.now();
+  if(!Number.isInteger(p.id)||p.id<0||p.id>1e9||['lobby','play','inter','over'].indexOf(p.ph)<0)return null;
+  if(!Number.isInteger(p.ho)||p.ho<0||p.ho>=HOLES||!num(p.t0)||Math.abs(p.t0-t)>DAY_MS)return null;
+  return{id:p.id,ph:p.ph,ho:p.ho,t0:p.t0,ne:num(p.ne)&&Math.abs(p.ne-t)<DAY_MS?p.ne:0};
+}
+function onNode(uid,v){
+  if(!v||typeof v!=='object')return;
+  const o={n:cleanName(v.n)||'Golfer',c:COLORS.indexOf(v.c)>=0?v.c:'#888888',j:+v.j||+v.ts||0,ts:Math.min(+v.ts||0,Net.now()+5000),rs:typeof v.rs==='string'?v.rs:'',he:clamp(+v.he||0,0,1e9),
+    r:Number.isInteger(+v.r)?+v.r:0,ho:clamp(v.ho|0,0,HOLES-1),s:clamp(v.s|0,0,20),hd:Number.isInteger(+v.hd)?clamp(+v.hd,-1,HOLES-1):-1,sc:typeof v.sc==='string'?v.sc.slice(0,60):''};
+  const was=Net.others.get(uid);Net.others.set(uid,o);
+  if(o.rs&&o.he>G.maxHe)G.maxHe=o.he;
+  let e=ents.get(uid);
+  if(!e){
+    if(Net.now()-o.ts>LIVE_MS)return;
+    e={id:uid,mesh:makeBallMesh(o.c),tag:document.createElement('div'),lag:NetSmooth.lag(),snaps:[],out:{}};e.tag.className='tag';$('tags').appendChild(e.tag);ents.set(uid,e);
+    if(performance.now()-G.joinedAt>2500)feed(esc(o.n)+' joined');
+  }
+  e.o=o;e.mesh.material.color.set(o.c);e.tag.innerHTML='<i style="background:'+o.c+'"></i>'+esc(o.n);
+  if(isFinite(+v.x)&&isFinite(+v.z)){
+    const x=clamp(+v.x,-200,200),y=clamp(+v.y||0,-10,50),z=clamp(+v.z,-200,200),ls=e.snaps[e.snaps.length-1];
+    const same=ls&&ls.x===x&&ls.y===y&&ls.z===z&&(o.ts-ls.t)<200;
+    if(!same&&e.lag.note(o.ts||Net.now(),Net.now())){if(ls&&Math.hypot(x-ls.x,z-ls.z)>3)e.snaps.length=0;e.snaps.push({t:o.ts||Net.now(),x,y,z});if(e.snaps.length>40)e.snaps.shift()}
+  }
+  if(was&&was.hd!==o.hd&&o.r===G.rid&&o.hd===G.holeIdx&&o.hd>=0){const st=parseCard(o.sc)[o.hd];if(st)feed(esc(o.n)+': '+esc(scoreName(st,hole.par)))}
+  // the round, from the host
+  if(o.rs&&!G.host&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
+    G.rsSeen=o.rs;let p=null;try{if(o.rs.length<=2000)p=cleanRS(JSON.parse(o.rs))}catch(err){}
+    if(p){G.lastRS=p;applyRS(p)}
+  }
+  renderPlayers();
+}
+function onNodeGone(uid){const e=ents.get(uid),o=Net.others.get(uid);if(e){e.mesh.parent&&scene.remove(e.mesh,e.mesh.userData.blob);e.tag.remove();ents.delete(uid)}Net.others.delete(uid);if(o)feed(esc(o.n)+' left');renderPlayers()}
+function clearEnts(){for(const uid of [...ents.keys()]){const e=ents.get(uid);scene.remove(e.mesh,e.mesh.userData.blob);e.tag.remove();ents.delete(uid)}}
+function participants(){const a=[{uid:Net.uid,hd:G.hd,r:G.rid}];for(const [k,o] of Net.others)if(Net.live(k))a.push({uid:k,hd:o.hd,r:o.r});return a}
+function setRS(rs){G.rs=rs;G.lastRS=rs;applyRS(rs);Net.pubRS(rs)}
+function startRound(){if(!G.host)return;setRS({id:1+Math.floor(Math.random()*999999999),ph:'play',ho:0,t0:Math.round(Net.now()),ne:0})}
+function hostTick(){
+  if(!Net.refs||!Net.loaded)return;
+  const h=Net.elect();
+  if(h!==G.hostUid){G.hostUid=h;const was=G.host;G.host=h===Net.uid;
+    if(G.host&&!was){G.he=G.maxHe+1;setRS(G.lastRS||{id:0,ph:'lobby',ho:0,t0:Math.round(Net.now()),ne:0})}
+    renderLobby()}
+  if(!G.host||!G.rs)return;
+  const rs=G.rs,t=Net.now();
+  if(rs.ph==='lobby'&&Net.isPublic){const n=participants().length;if(n>=2&&!rs.ne)setRS(Object.assign({},rs,{ne:Math.round(t+LOBBY_AUTO_MS)}));else if(n<2&&rs.ne)setRS(Object.assign({},rs,{ne:0}));else if(rs.ne&&t>=rs.ne)startRound()}
+  else if(rs.ph==='play'){const ps=participants().filter(p=>p.r===rs.id);if((ps.length&&ps.every(p=>p.hd>=rs.ho))||t-rs.t0>HOLE_MS)setRS(Object.assign({},rs,{ph:'inter',ne:Math.round(t+INTER_MS)}))}
+  else if(rs.ph==='inter'&&t>=rs.ne){if(rs.ho>=HOLES-1)setRS(Object.assign({},rs,{ph:'over',ne:Math.round(t+OVER_MS)}));else setRS(Object.assign({},rs,{ph:'play',ho:rs.ho+1,t0:Math.round(t),ne:0}))}
+  else if(rs.ph==='over'&&Net.isPublic&&t>=rs.ne)startRound();
+}
+function applyRS(rs){
+  G.rs=rs;
+  if(rs.ph==='lobby'){if(G.mode==='online'){G.rid=0;G.card=Array(HOLES).fill(null);G.hd=-1;G.state='idle';hideCard();show('lobby');renderLobby()}return}
+  if(rs.id!==G.rid){G.rid=rs.id;G.card=Array(HOLES).fill(null);G.hd=-1;G.overShown=0;G.holeRid=-1;hideCard()}
+  if(rs.ph==='play'){
+    if(G.holeIdx!==rs.ho||G.holeRid!==rs.id){G.holeIdx=rs.ho;G.holeRid=rs.id;loadHole(prepHole(COURSE[rs.ho]));if(!G.cardOpen)show(null);Net.pubBall(true);Net.upd({sc:cardStr(),hd:G.hd,r:G.rid})}
+  }else{
+    // the hole closed before I finished it (time ran out): picked up
+    if(G.holeRid===rs.id&&G.holeIdx===rs.ho&&G.hd<rs.ho&&(G.state==='aim'||G.state==='roll')){G.card[rs.ho]=PICKUP;G.hd=rs.ho;G.state='done';banner('Time’s up','Picked up: '+PICKUP,1800);Net.upd({sc:cardStr(),hd:G.hd})}
+    if(rs.ph==='over'&&G.overShown!==rs.id){G.overShown=rs.id;G.state='over';
+      const me=totals(G.card);if(me.k===HOLES){stat('min','card9',me.s);const rows=cardRows().map(r=>Object.assign(r,totals(r.card))).filter(r=>r.k===HOLES);if(rows.length>=2&&me.s===Math.min(...rows.map(r=>r.s)))stat('add','wins',1)}
+      setTimeout(()=>{if(G.rs&&G.rs.ph==='over'&&G.mode==='online')showCard(true)},1200)}
+    if(rs.ph==='inter'&&G.holeRid===rs.id)setTimeout(()=>{if(G.rs&&G.rs.ph==='inter'&&G.mode==='online'&&!G.cardOpen)showCard(false)},900);
+  }
+  if(G.mode==='online'&&rs.ph!=='inter'&&rs.ph!=='over'&&G.cardOpen&&!G.userCard)hideCard();
+}
+function renderLobby(){
+  if(G.mode!=='online')return;
+  const list=[{n:myName||'You',c:myColor,me:1,uid:Net.uid}];for(const [k,o] of Net.others)if(Net.live(k))list.push({n:o.n,c:o.c,uid:k});
+  $('lobbyList').innerHTML=list.map(p=>'<li><i style="background:'+p.c+'"></i>'+esc(p.n)+(p.me?' (you)':'')+(p.uid===G.hostUid?'<small>host</small>':'')+'</li>').join('');
+  $('lbRoom').textContent=(Net.room||'').replace(/^qg-/,'Room ');
+  $('inviteLink').textContent=Net.isPublic?'Public room':location.origin+'/#'+(Net.room||'');$('copyInvite').hidden=Net.isPublic;
+  const rs=G.rs,busy=rs&&rs.ph!=='lobby';$('startRound').hidden=!G.host||busy;
+  $('lobbyTitle').textContent=busy?'Round in progress':list.length>1?list.length+' players here':'Waiting for players';
+  if(busy){$('lobbyLead').textContent='You’ll join in at the start of the next hole.';return}
+  $('lobbyLead').textContent=G.host?(Net.isPublic&&rs&&rs.ne?'The round starts by itself in a few seconds, or start it now.':'You’re the host: start the round when everyone’s here.'):'The host starts the round. Everyone plays the same hole at the same time.';
+}
+function renderPlayers(){
+  if(G.mode!=='online'||!G.rs||G.rs.ph==='lobby'){$('players').innerHTML='';if(G.mode==='online')renderLobby();return}
+  const rows=[];for(const [k,o] of Net.others){if(!Net.live(k)||o.r!==G.rid)continue;const done=o.hd>=G.holeIdx&&o.ho===G.holeIdx;const st=parseCard(o.sc)[G.holeIdx];rows.push('<div class="'+(done?'done':'')+'"><i style="background:'+o.c+'"></i><u>'+esc(o.n)+'</u><s>'+(done?'✓ '+(st||''):o.ho===G.holeIdx?'shot '+(o.s+1):'…')+'</s></div>')}
+  $('players').innerHTML=rows.slice(0,7).join('');
+}
+
+// joining: Quick match picks the fullest public room with space; Play in room joins the typed code (or a new one)
+function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^qg-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
+function randomRoom(){const w=['tee','putt','cup','flag','green','loop','birdie','par'];return w[Math.floor(Math.random()*w.length)]+'-'+Math.floor(100+Math.random()*900)}
+async function joinRoom(code,isPublic){
+  myName=cleanName($('name').value)||myName||'Golfer';saveName(myName);
+  $('quick').disabled=$('joinRoom').disabled=true;setMsg(isPublic?'Finding a room…':'Joining '+code+'…');
+  try{
+    await Net.init();
+    let room=PREFIX+'-'+code;
+    if(isPublic&&!code){const rooms=[1,2,3,4].map(i=>PREFIX+'-pub-'+i);const res=await withTimeout(Promise.all(rooms.map(r=>Net.count(r).catch(()=>-1))),10000,NET_BLOCKED);
+      let bi=-1,bn=-1;res.forEach((n,i)=>{if(n>=0&&n<MAX_ROOM&&n>bn){bn=n;bi=i}});if(bi<0)throw new Error('Every public room is full. Try a room code instead.');room=rooms[bi]}
+    G.mode='online';G.rs=null;G.rid=0;G.card=Array(HOLES).fill(null);G.hd=-1;G.holeIdx=0;G.holeRid=-1;G.state='idle';G.joinedAt=performance.now();
+    loadHole(prepHole(COURSE[0]));G.state='idle';
+    await Net.join(room,isPublic);
+    show('lobby');renderLobby();setMsg('');
+  }catch(e){G.mode='menu';setMsg(e.message||String(e),true);show('menu')}
+  $('quick').disabled=$('joinRoom').disabled=false;
+}
+
+// =====================================================================
+//  Main loop
+// =====================================================================
+let last=performance.now(),acc=0;
+function frame(t){
+  requestAnimationFrame(frame);
+  const dt=Math.min(0.05,(t-last)/1000);last=t;
+  if(document.hidden)return;
+  update(dt);
+  if(!G.noRender)renderer.render(scene,camera);
+}
+function update(dt){
+  const ct=clockT();
+  if(G.mode!=='menu'&&!(G.mode==='online'&&(!G.rs||G.rs.ph==='lobby'))){
+    acc+=dt;let n=0;
+    while(acc>=DT&&n<60){acc-=DT;n++;stepBall(ct-acc)}
+    if(n>=60)acc=0;
+  }
+  if(G.mode==='online'){hostTick();Net.pubBall(false);updateClock()}
+  // after a hole: solo moves on by itself, online waits for the host
+  if(G.state==='done'&&G.mode==='solo'&&performance.now()-G.doneT>2300)nextSolo();
+  for(const mv of movers){const s=moverState(mv.m,ct);if(mv.m.k==='slide'){mv.mesh.position.x=s.x;mv.mesh.position.z=s.z}else mv.mesh.rotation.y=-s.a}
+  for(const bm of bumpMeshes){bm.q.flash=Math.max(0,bm.q.flash-dt*4);bm.post.material.emissiveIntensity=bm.q.flash*0.8;bm.g.scale.setScalar(1+bm.q.flash*0.08)}
+  TEX.water.offset.x=(TEX.water.offset.x+dt*0.03)%1;TEX.water.offset.y=(TEX.water.offset.y+dt*0.017)%1;
+  if(cupFlag)cupFlag.rotation.y=Math.sin(performance.now()/600)*0.25;
+  ballMesh.visible=G.mode!=='menu'&&!(G.mode==='online'&&(!G.rs||G.rs.ph==='lobby'));
+  placeBallMesh(ballMesh,ball.x,ball.y,ball.z,hole);
+  updateCamera(dt);updateAimMesh();updateOthers();
+}
+function stepBall(ct){
+  ball.event='';ball.hit=0;ball.bump=0;ball.rattle=0;
+  simStep(hole,ball,DT,ct);
+  if(ball.hit>1.2)SFX.wall(ball.hit);if(ball.bump)SFX.bump();
+  if(G.state==='roll'){
+    G.rollT+=DT;
+    if(ball.event==='cup'){finishHole(true);return}
+    if(ball.event==='water'||ball.event==='out'){penalty(ball.event);return}
+    if(ball.rest||G.rollT>30){if(G.rollT>30){ball.vx=ball.vz=0;ball.rest=true}
+      if(G.strokes>=MAX_SHOTS)finishHole(false);else{G.state='aim';updateHud()}}
+  }else if(ball.event==='water'||ball.event==='out'){ // knocked off by a moving part while waiting
+    if(G.state==='aim')penalty(ball.event);else ball.event='';
+  }else if(G.state==='aim'&&!ball.rest&&ball.mode==='roll'){G.state='roll';G.rollT=0}
+}
+const tmpV=new THREE.Vector3();
+function updateOthers(){
+  const r=canvas.getBoundingClientRect(),t=Net.now();
+  for(const e of ents.values()){
+    const o=e.o,vis=G.mode==='online'&&o&&G.rs&&G.rs.ph!=='lobby'&&o.r===G.rid&&o.ho===G.holeIdx&&Net.live(e.id)&&e.snaps.length>0;
+    e.mesh.visible=!!vis;e.mesh.userData.blob.visible=!!vis;e.tag.style.display=vis?'':'none';if(!vis)continue;
+    NetSmooth.sample(e.snaps,e.lag.time(t),e.out,['x','y','z'],[]);
+    placeBallMesh(e.mesh,e.out.x,e.out.y,e.out.z,hole);
+    tmpV.set(e.out.x,e.out.y+0.28,e.out.z).project(camera);
+    if(tmpV.z>1){e.tag.style.display='none';continue}
+    e.tag.style.transform='translate('+((tmpV.x+1)/2*r.width).toFixed(1)+'px,'+((1-tmpV.y)/2*r.height).toFixed(1)+'px) translate(-50%,-100%)';
+  }
+}
+function updateClock(){
+  const rs=G.rs;if(!rs||rs.ph!=='play'){$('clock').hidden=true;return}
+  const left=Math.max(0,HOLE_MS-(Net.now()-rs.t0))/1000;
+  if(left>60&&!(G.state==='done')){$('clock').hidden=true;return}
+  $('clock').hidden=false;
+  if(G.state==='done'){const w=participants().filter(p=>p.r===rs.id&&p.hd<rs.ho).length;$('clock').textContent=w?'Waiting for '+w+' · '+Math.ceil(left)+'s':'Next hole…';$('clock').classList.remove('low')}
+  else{$('clock').textContent=Math.ceil(left)+'s';$('clock').classList.toggle('low',left<20)}
+}
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?62:50;camera.updateProjectionMatrix()}
+addEventListener('resize',resize);
+// A tab in the background gets no frames: keep the node fresh and, for the host, the round moving.
+setInterval(()=>{if(!document.hidden||!Net.refs)return;try{hostTick();if(performance.now()-Net.hbT>2000)Net.upd({})}catch(err){console.error(err)}},1000);
+
+// ---- menu ----
+function renderSwatches(){$('swatches').innerHTML=COLORS.map(c=>'<button type="button" style="background:'+c+'" data-c="'+c+'" class="'+(c===myColor?'on':'')+'" aria-label="Colour"></button>').join('')}
+$('swatches').addEventListener('click',e=>{const c=e.target.getAttribute&&e.target.getAttribute('data-c');if(!c)return;myColor=c;store.set('color',c);ballMesh.material.color.set(c);renderSwatches()});
+$('name').addEventListener('change',()=>{myName=cleanName($('name').value);saveName(myName)});
+$('solo').onclick=()=>{myName=cleanName($('name').value)||myName;saveName(myName);startSolo()};
+$('dailyBtn').onclick=()=>{myName=cleanName($('name').value)||myName;saveName(myName);startDaily()};
+$('quick').onclick=()=>joinRoom('',true);
+$('joinRoom').onclick=()=>{const code=sanitizeRoom($('room').value)||randomRoom();$('room').value=code;store.set('room',code);joinRoom(code,/^pub-\d$/.test(code))};
+$('room').addEventListener('keydown',e=>{if(e.key==='Enter')$('joinRoom').click()});
+$('startRound').onclick=()=>startRound();
+$('leaveLobby').onclick=toMenu;
+$('copyInvite').onclick=()=>{const t=$('inviteLink').textContent;try{navigator.clipboard.writeText(t).then(()=>{$('copyInvite').textContent='Copied';setTimeout(()=>$('copyInvite').textContent='Copy',1500)})}catch(e){}};
+$('sound').checked=soundOn;$('sound').onchange=()=>{soundOn=$('sound').checked;store.set('sound',soundOn)};
+
+// ---- boot ----
+resize();$('name').value=myName;$('room').value=store.get('room','')||'';renderSwatches();renderDaily();
+G.attract=Math.floor(Math.random()*HOLES);loadHole(prepHole(COURSE[G.attract]));G.state='idle';
+// An invite opens this page with #qg-<code>: fill in the room and point at the join button.
+const inv=/^#qg-([a-z0-9-]{1,17})$/.exec(location.hash);
+if(inv){$('room').value=inv[1];setMsg('You were invited to room '+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost','cta');$('solo').classList.replace('cta','ghost')}
+show('menu');
+requestAnimationFrame(t=>{last=t;frame(t)});
+
+// Test hook (automated browsers only): step the physics without waiting for frames, aim and putt, inspect state.
+if(navigator.webdriver)window.__qg={G,Net,COURSE,cam,camera,renderer,ballScreen,prepHole,dailyHole,simStep,floorAt,newBall,surfAt,startSolo,startDaily,startRound,joinRoom,toMenu,showCard,hideCard,shoot,loadHole,
+  get ball(){return ball},get hole(){return hole},
+  advance(s){G.noRender=true;try{const n=Math.round(s/DT);for(let i=0;i<n;i++){stepBall(clockT());if(G.state==='done'&&G.mode==='solo'&&i===n-1){}}}finally{G.noRender=false}},
+  frame(n){for(let i=0;i<(n||1);i++)update(1/60);renderer.render(scene,camera)},
+  // a ghost putt on a copy of the ball: where would it end up? (for checking holes can be played)
+  trial(H,from,dir,p,secs){const b=newBall(H);Object.assign(b,from||{});const f=floorAt(H,b);if(f){b.piece=f.p;b.y=f.top+R}b.vx=Math.sin(dir)*VMAX*p;b.vz=Math.cos(dir)*VMAX*p;b.rest=false;b.restT=0;let ev='';
+    for(let i=0;i<(secs||25)/DT;i++){b.event='';simStep(H,b,DT,i*DT);if(b.event){ev=b.event;break}if(b.rest&&i>10)break}return{x:b.x,y:b.y,z:b.z,ev,mode:b.mode,rest:b.rest}},
+  autoPutt(){const H=hole,from={x:ball.x,z:ball.z,y:ball.y};let best=null;
+    for(let a=0;a<72;a++)for(let p=0.1;p<=1.001;p+=0.06){const r=this.trial(H,from,a/72*Math.PI*2,p,15);if(r.ev==='water'||r.ev==='out')continue;const d=r.ev==='cup'?-1:Math.hypot(r.x-H.cup[0],r.z-H.cup[1]);if(!best||d<best.d)best={d,a:a/72*Math.PI*2,p};if(d<0)break}
+    return best?shoot(Math.sin(best.a),Math.cos(best.a),best.p):false},
+  decoys(list){(G.decoys||[]).forEach(m=>scene.remove(m,m.userData.blob));G.decoys=list.map(d=>{const m=makeBallMesh(d.c);placeBallMesh(m,d.x,surfAt(hole,d.x,d.z)+R,d.z,hole);return m})}};
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="putterby" defer></script>
+</body>
+</html>
