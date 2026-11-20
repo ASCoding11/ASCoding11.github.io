@@ -65,6 +65,41 @@ def pouch(bvh, origin, direction, w, h, d, name, flap=True, up=Vector((0, 0, 1))
         obs.append(f)
     return obs
 
+def button(bvh, origin, direction, name, r=0.0075, up=Vector((0, 0, 1))):
+    """A flat sewn button (high-poly only: it is baked into the normal and colour maps)."""
+    M = G.surface_frame(bvh, origin, direction, up)
+    if M is None: return []
+    b = G.box(name, (r * 2, r * 2, 0.0035), M @ Matrix.Translation((0, 0, 0.0025)), bev=r * 0.8, seg=3)
+    b['hi_only'] = True
+    return [b]
+
+def boot_details(P, bvh, out, laces=True, mat='boot', lace_mat='glove'):
+    """Heel block (real geometry), tread lugs under the sole and, for lace-up boots, crossed laces up the front
+    (lugs and laces are high-poly only)."""
+    feet = np.array([p[2] < 0.05 for p in P])
+    for s in (-1, 1):
+        fm = feet & np.array([p[0] * s > 0 for p in P])
+        F = P[fm]
+        fx = float(np.mean(F[:, 0])); y0, y1 = float(F[:, 1].min()), float(F[:, 1].max())
+        w = float(F[:, 0].max() - F[:, 0].min())
+        # heel: a block a little proud of the sole at the back, so the step between heel and sole reads
+        hb = G.box('Heel%d' % s, (w + 0.012, 0.072, 0.03), Matrix.Translation((fx, y1 - 0.034, 0.015)), bev=0.004, seg=2)
+        out.append((hb, mat))
+        # tread: bars across the sole and the heel
+        for k in range(9):
+            yy = y0 + 0.02 + k * (y1 - y0 - 0.04) / 8
+            t = G.box('Tread%d%d' % (s, k), (w * 0.85, 0.008, 0.006), Matrix.Translation((fx, yy, -0.001)), bev=0.0015, seg=1)
+            t['hi_only'] = True; out.append((t, mat))
+        if laces:
+            for k in range(7):
+                z = 0.075 + k * 0.014
+                o = Vector((fx, y0 - 0.2 + 0.05, z)); o.y = -0.4
+                for a in (-0.45, 0.45):
+                    M = G.surface_frame(bvh, Vector((fx, -0.4, z)), Vector((0, 1, 0)))
+                    if M is None: continue
+                    l = G.box('Lace%d%d%s' % (s, k, a > 0), (0.034, 0.0035, 0.003), M @ Matrix.Translation((0, 0, 0.0025)) @ Matrix.Rotation(a, 4, 'Z'), bev=0.001, seg=1)
+                    l['hi_only'] = True; out.append((l, lace_mat))
+
 def helmet_m1(H, name='Helmet', net=True):
     """US M1-style helmet shell: rounded dome, slight brim flare at the rim."""
     head = J(H, 'Head'); top = J(H, 'Head', 1)
@@ -151,12 +186,12 @@ def materials_hero(knee=0.54):
     import wear as WR
     return {
         'skin': None,
-        'jacket': WR.cloth('jacket', '#5e5d45', '#4c4b37', fade=0.14),
-        'trousers': WR.cloth('trousers', '#57563f', '#47462f', knee_z=knee, mud_amt=0.7),
+        'jacket': WR.cloth('jacket', '#5a5e43', '#4a4e36', fade=0.14),
+        'trousers': WR.cloth('trousers', '#58503d', '#463f30', knee_z=knee, mud_amt=0.8),
         'boot': WR.leather('boot', '#3a2618', '#1e140c', mud_low=0.22, polish=0.5),
         'glove': WR.leather('glove', '#3e2c1e', '#2a1d14', polish=0.6),
-        'web': WR.webbing('web', '#7a7154', '#655d44'),
-        'canvas': WR.webbing('canvas', '#6c654b', '#5a5440'),
+        'web': WR.webbing('web', '#857a5a', '#6e6548'),
+        'canvas': WR.webbing('canvas', '#736a4d', '#5e573f'),
         'helmet': WR.painted_metal('helmet', '#454634', '#393a2b'),
         'net': WR.webbing('net', '#3d3a28', '#2e2c1e'),
         'metal': WR.blued('metal', '#4a4b45', '#3e3f3a', park=True),
@@ -213,12 +248,19 @@ def gear_hero(H, cloth):
         if M:
             b_ = G.box('ChestPkt%d' % s, (0.14, 0.15, 0.007), M @ Matrix.Translation((0, 0, 0.0)), bev=0.003, seg=2); b_['hi_only'] = True
             out.append((b_, 'jacket'))
+            f_ = G.box('ChestFlap%d' % s, (0.145, 0.05, 0.005), M @ Matrix.Translation((0, 0.055, 0.007)) @ Matrix.Rotation(-0.08, 4, 'X'), bev=0.002, seg=2)
+            f_['hi_only'] = True; out.append((f_, 'jacket'))
+            out += [(x, 'metal') for x in button(bvh, o + Vector((0, 0, 0.04)), Vector((0, 1, 0)), 'ChestBtn%d' % s, up=Vector((-s * 0.35, 0, 1)).normalized())]
+    # front closure: four buttons down the placket
+    for k in range(4):
+        out += [(x, 'metal') for x in button(bvh, Vector((0.0, -0.4, sh.z - 0.12 - k * 0.1)), Vector((0, 1, 0)), 'FrontBtn%d' % k)]
     # lower jacket pockets on the skirt
     bvh3 = G.bvh_of(skirt)
     for s in (-1, 1):
         o = Vector((s * 0.11, -0.4, pz - 0.08))
         for x in pouch(bvh3, o, Vector((0, 1, 0)), 0.15, 0.14, 0.007, 'HipPkt%d' % s, push=0.0):
-            x['hi_only'] = True; out.append((x, 'jacket'))
+            out.append((x, 'jacket'))
+        out += [(x, 'metal') for x in button(bvh3, o + Vector((0, 0, 0.035)), Vector((0, 1, 0)), 'HipBtn%d' % s)]
     # thigh cargo pockets (outer front)
     for s in (-1, 1):
         th = J(H, 'thigh_l' if s > 0 else 'thigh_r'); kn = J(H, 'calf_l' if s > 0 else 'calf_r')
@@ -237,6 +279,7 @@ def gear_hero(H, cloth):
         fx = float(np.mean(P[fm][:, 0])); fy = float(np.mean(P[fm][:, 1]))
         sole = envelope_rings(P, fm, (fx, fy), [0.0, 0.0, 0.022, 0.032], [-0.03, 0.006, 0.007, 0.0], n=20, name='Sole%d' % s)
         out.append((sole, 'boot'))
+    boot_details(P, bvh, out, laces=True)
     # musette bag on the back
     sp = J(H, 'spine_03')
     out += [(x, 'canvas') for x in pouch(bvh, Vector((0, 0.5, sp.z + 0.08)), Vector((0, -1, 0)), 0.28, 0.24, 0.09, 'Musette', push=0.012)]
@@ -425,6 +468,21 @@ def gear_enemy(H, cloth, kind):
         # binocular case and a small pouch
         out += [(x, 'leather') for x in pouch(bvh2, Vector((0, cy, pz + 0.04)) + Vector((-0.5, -0.86, 0)) * 0.4, -Vector((-0.5, -0.86, 0)), 0.08, 0.1, 0.06, 'BinoCase', push=0.004)]
         out += [(x, 'canvas') for x in pouch(bvh2, Vector((0, cy, pz - 0.02)) + Vector((0.77, 0.64, 0)) * 0.4, -Vector((0.77, 0.64, 0)), 0.2, 0.17, 0.06, 'Bread', push=0.004)]
+    # silhouette at a distance: rifleman = rolled blanket across the top of the back, gunner = a big pack under
+    # the barrel case, sniper = long smock and a scrim scarf, officer = cap and long coat
+    sp3 = J(H, 'spine_03')
+    if kind == 'rifleman':
+        roll = G.lathe('BlanketRoll', [(0.0, 0.2), (0.05, 0.2), (0.058, 0.17), (0.06, 0.0), (0.06, -0.17), (0.052, -0.2), (0.0, -0.2)], n=12,
+                       M=Matrix.Translation((0, 0.14, sp3.z + 0.17)) @ Matrix.Rotation(math.pi / 2, 4, 'Y'))
+        out.append((roll, 'canvas'))
+    elif kind == 'gunner':
+        out += [(x, 'canvas') for x in pouch(bvh, Vector((0.03, 0.5, sp3.z - 0.06)), Vector((0, -1, 0)), 0.3, 0.3, 0.13, 'Pack', push=0.02)]
+    elif kind == 'sniper':
+        nk2 = J(H, 'neck_01')
+        sc = envelope_rings(P, np.array([abs(p[0]) < 0.12 for p in P]), (0, nk2.y + 0.01), [nk2.z - 0.07, nk2.z - 0.035, nk2.z - 0.005],
+                            [0.014, 0.022, 0.018], n=20, name='Scarf')
+        G.solidify(sc, 0.008, 1.0); out.append((sc, 'smock'))
+    boot_details(P, bvh, out, laces=False)
     # chevron on the left upper sleeve (the only marking; invented)
     ua = J(H, 'upperarm_l'); el = J(H, 'lowerarm_l')
     mid = ua.lerp(el, 0.45)

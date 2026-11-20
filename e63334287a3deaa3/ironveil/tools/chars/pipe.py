@@ -93,7 +93,7 @@ def add_folds(ob, H, labels, amp, seed=0.0):
         radial = rel - ax * s
         ang = math.atan2(radial[1], radial[0] if abs(ax[2]) > 0.5 else radial[2])
         jd = min(np.linalg.norm(P[i] - j) for j in joints)
-        env = 0.5 + 1.6 * math.exp(-(jd / 0.09) ** 2)
+        env = 0.5 + 2.6 * math.exp(-(jd / 0.075) ** 2)    # creases bunch at the elbows and knees
         v = noise.noise(Vector((s * 30.0, math.cos(ang) * 1.3, math.sin(ang) * 1.3 + seed)))
         v2 = noise.noise(Vector((s * 75.0 + 3.0, math.cos(ang) * 3.0, math.sin(ang) * 3.0 + seed)))
         ridge = (1.0 - abs(v)) ** 3 * 1.0 + 0.25 * v2
@@ -195,6 +195,7 @@ def atlas_uv(ob, big_faces=None, big=2.0, margin=0.004):
 def bake(low, highs, size, kind, path, samples=64, extrusion=0.022, ray=0.05, margin=8, colorspace='sRGB'):
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = samples
+    sc.render.threads_mode = 'FIXED'; sc.render.threads = int(os.environ.get('BAKE_THREADS', '2'))   # shared machine
     sc.render.bake.margin = margin
     img = bpy.data.images.new('bake_' + kind, size, size, alpha=False, float_buffer=(kind == 'NORMAL'))
     img.colorspace_settings.name = 'Non-Color' if kind in ('NORMAL', 'ROUGHNESS', 'AO', 'EMIT') else 'sRGB'
@@ -349,7 +350,7 @@ def finish(H, name, cloth, gear, labels, fold_amp, size=2048, out_dir=None, low_
     log('baked diffuse', __import__('time').time() - t0)
     bake(low, highs, size, 'NORMAL', td + '/_nrm.png', samples=4)
     log('baked normal')
-    bake(low, highs, size // 2, 'AO', td + '/_ao.png', samples=48)
+    bake(low, highs, size // 2, 'AO', td + '/_ao.png', samples=32)
     log('baked ao')
     bake(low, highs, size // 2, 'ROUGHNESS', td + '/_rough.png', samples=1)
     log('baked rough')
