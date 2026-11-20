@@ -848,6 +848,12 @@
       var p = worldPos(f, new T.Vector3());
       var g = this.groundAt(p.x, p.z);
       pos[s] = p; off[s] = (g == null ? ry : g) - ry;
+      // ease each foot's ground height (a step edge would otherwise lift the foot in one frame); faster upward
+      // so a toe never sinks into a step
+      if (!this._gOff) this._gOff = {};
+      var go = this._gOff[s] == null ? off[s] : this._gOff[s];
+      go += (off[s] - go) * Math.min(1, dt * (off[s] > go ? 22 : 12));
+      this._gOff[s] = go; off[s] = go;
     }
     var drop = Math.min(0, Math.min(off.l, off.r));
     this._pelDrop += (drop - this._pelDrop) * Math.min(1, dt * 12);
