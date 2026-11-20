@@ -361,8 +361,9 @@ function pvSet(k,frame,color){
   return q;
 }
 // yaw turns the plane (0: nose toward the camera), elev raises the camera, dist is how far away it is, and tz is the
-// point along the plane the camera looks at (0: the middle; about 6 to 8: the nose)
-function pvShot(q,yaw,elev,dist,tz){const c=pvInit().cam;q.g.rotation.set(0,yaw,0);const d=dist||40,el=elev==null?.42:elev,z=(tz||0)*S/1.288;
+// point along the plane the camera looks at (0: the middle; about 6 to 8: the nose). Both were set for planes drawn at
+// 1.288 and are scaled to PLANE_SIZE, so the pictures frame the plane the same if it grows.
+function pvShot(q,yaw,elev,dist,tz){const c=pvInit().cam;q.g.rotation.set(0,yaw,0);const d=(dist||40)*S/1.288,el=elev==null?.42:elev,z=(tz||0)*S/1.288;
   const tx=Math.sin(yaw)*z,tzz=Math.cos(yaw)*z;c.position.set(tx,Math.sin(el)*d,tzz+Math.cos(el)*d);c.lookAt(tx,0,tzz)}
 function pvRender(w,h,cv,bg){
   const p=pvInit(),R=X.renderer;
