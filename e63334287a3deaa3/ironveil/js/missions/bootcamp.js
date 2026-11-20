@@ -154,7 +154,7 @@
     // rock + takedown on a sparring sergeant
     steps.push(() => {
       WP.equip('smg');
-      const spawnGuard = () => { const e = IV.ai.spawn({ kind: 'ally', weapon: 'smg', x: 31, z: -2, yaw: Math.PI, scan: [0.2, -0.2], noShoot: true, name: 'guard' }); e.hp = 9999; e.sightMul = 0.35; M.guard = e; return e; };
+      const spawnGuard = () => { const e = IV.ai.spawn({ kind: 'ally', weapon: 'smg', x: 31, z: -2, yaw: Math.PI, scan: [0.2, -0.2], noShoot: true, name: 'guard' }); e.hp = 9999; e.sightMul = 0.35; e.lookTime = 9; M.guard = e; return e; };   // a training guard: looks round the stone for 9 s, not 5
       spawnGuard();
       sarge('Corporal Hale is playing the guard in the pen. He\'s watching the gate. Draw him off with a stone, get behind him, and put him down. Gently.');
       M.obj('s8', 'Throw a rock to distract the guard', { marker: { x: 31, z: -2, y: W.height(31, -2) + 2.2 } });

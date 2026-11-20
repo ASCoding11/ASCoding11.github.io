@@ -376,7 +376,7 @@
       if (arrived) {
         e.speed = IV.damp(e.speed, 0, 8, dt);
         e.lookT = (e.lookT || 0) + dt; e.headYaw = Math.sin(e.lookT * 1.3) * 0.45;
-        if (e.lookT > 5) { e.lookT = 0; AI.bark(e, 'lost'); e.aw = Math.min(e.aw, 0.25); e.interest = null; e.setState('returning'); }
+        if (e.lookT > (e.lookTime || 5)) { e.lookT = 0; AI.bark(e, 'lost'); e.aw = Math.min(e.aw, 0.25); e.interest = null; e.setState('returning'); }
       }
       if (e.stateT > 30) e.setState('returning');
     },
