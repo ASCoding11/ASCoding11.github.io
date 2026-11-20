@@ -92,7 +92,7 @@
     const fx = IV.clamp((x + 190) / 2, 0, 189.999), fz = IV.clamp((z + 190) / 2, 0, 189.999), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, N = 191;
     const k = (MASK[j * N + i] * (1 - tx) + MASK[j * N + i + 1] * tx) * (1 - tz) + (MASK[(j + 1) * N + i] * (1 - tx) + MASK[(j + 1) * N + i + 1] * tx) * tz;
     if (k < -0.5) return 0;
-    const kk = Math.max(0, 0.35 + 0.65 * k);   // routes keep a third of the relief (gentle grades); combat areas none; away from them full
+    const kk = Math.max(0, 0.55 + 0.45 * k);   // routes keep about half the relief (visible rises and dips, grades under ~7 deg); combat areas none; away from them full
     const edge = IV.smooth(IV.clamp((Math.max(Math.abs(x), Math.abs(z)) - 140) / 48, 0, 1));
     let r = 7 * (IV.fbm(x / 80 + 9, z / 80 - 2, 4) - 0.45) + 2.6 * (IV.fbm(x / 26, z / 26 + 5, 3) - 0.5) + edge * 9 * IV.fbm(x / 60 - 3, z / 60 + 8, 3);
     r += 12 * Math.exp(-(((x - 172) / 15) ** 2)) * bump(Math.abs(z + 115), 45, 75);          // the ridge east of the farm
@@ -113,7 +113,11 @@
     // sunken lanes (cancel the cut over the bridge)
     const ds = pd(x, z, ST);
     const lane = Math.max(bump(pd(x, z, L1), 1.9, 3.6), bump(pd(x, z, L2), 1.9, 3.6) * bump(df, 999, 1000) + bump(pd(x, z, L2), 1.9, 3.6) * (1 - bump(df, 20, 30)));
-    h -= 1.25 * lane * (1 - bump(ds, 4, 9));
+    // the cutting deepens along the lane: 1.25 m at its ends (the farm, crossroads and bridge keep their ground), up to
+    // 1.85 m in the middle of each run, so the lane dips into the cutting and rises out (floor grade well under 4 deg)
+    const lc = pd(x, z, L1) < pd(x, z, L2) ? IV.polyDist(x, z, L1) : IV.polyDist(x, z, L2), lt = (lc.i + lc.t) / ((pd(x, z, L1) < pd(x, z, L2) ? L1 : L2).length - 1);
+    const deep = 0.6 * Math.sin(Math.PI * IV.clamp(lt, 0, 1)) ** 0.7 * (1 - bump(df, 34, 50)) * (1 - bump(Math.hypot(x, z - 10), 26, 40)) * (1 - bump(Math.hypot(x + 41, z - 18), 12, 22));   // none at the farm, the crossroads or the bridge
+    h -= (1.25 + deep) * lane * (1 - bump(ds, 4, 9));
     // the stream bed
     h -= 1.9 * bump(ds, 1.2, 5.5);
     // the bridge approach stays at bank height
