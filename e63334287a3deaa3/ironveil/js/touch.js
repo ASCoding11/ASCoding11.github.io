@@ -68,7 +68,9 @@
     } else if (TC.autoOn) { TC.autoOn = false; I.sim('fire', false); }
     // portrait: the game is played sideways
     const portrait = innerHeight > innerWidth;
-    $('portrait').hidden = !(portrait && IV.playing());
+    $('portrait').hidden = !(portrait && IV.playing() && !TC.upright);
   };
+  // "Play upright anyway": the controls have an upright layout too (index.html, orientation: portrait)
+  $('portraitGo').addEventListener('click', () => { TC.upright = true; $('portrait').hidden = true; });
   TC.reset = function () { for (const k in toggles) setToggle(k, false); I.stick.x = I.stick.y = 0; knob.style.transform = ''; };
 })();

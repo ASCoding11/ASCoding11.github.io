@@ -108,7 +108,7 @@
   // skinned mostly to the head, neck or arm bones while `fpHide` is on; the shadow pass uses three's own depth material,
   // which knows nothing of that, so the shadow keeps them. Hair, eyes, the held gun and the slung gun get material copies
   // that write neither colour nor depth (shadow only).
-  const HIDE_RE = /^(Head|neck|clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky|eye|jaw|head)/i;
+  const HIDE_RE = /^(Head|neck|spine_0[23]|clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky|eye|jaw|head)/i;   // head, arms and the upper chest (its kit would fill the view looking down)
   const fpHide = { value: 0 };
   let bodyFP = false, maskDone = null;
   function bodyFirstPerson(on) { bodyFP = on; }
@@ -303,7 +303,7 @@
     FP.vmLower = IV.damp(FP.vmLower, wall && !aiming ? IV.clamp(1 - (wall.t - 0.3) / 0.6, 0, 1) : 0, 8, dt);
     // stance: crouched the gun sits a little higher and tighter, prone it is pushed forward and tilted in
     FP.vmPr = IV.damp(FP.vmPr || 0, P.stance === 'prone' ? 1 : 0, 6, dt);
-    const ox = Math.sin(t * 1.1) * 0.0025 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.55 - FP.lagYaw * 0.45 - FP.vmSpr * 0.06;
+    const ox = Math.sin(t * 1.1) * 0.0025 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.55 - FP.lagYaw * 0.45 - FP.vmSpr * 0.02;
     const oy = -Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.9 + Math.sin(t * 1.7) * 0.0018 * breath + FP.lagPitch * 0.35 - FP.vmLower * 0.1 + (C.bobY || 0) * 0.5 - FP.vmSpr * 0.045 + FP.vmPr * 0.02;
     const oz = FP.kick * (aiming ? 0.035 : 0.05) + FP.vmLower * 0.06 - FP.vmPr * 0.03;
     // beats: draw (a new item rises from below), using something (gun lowered), grenade cook and throw, knife stab
@@ -334,7 +334,11 @@
     const relax = 1 - a * 0.85;
     pose.p.x += ox * relax + bx2; pose.p.y += oy * (1 - a * 0.7) + by2; pose.p.z += oz + bz2;
     _e.set(FP.kickR + FP.lagPitch * 0.6 * relax - FP.vmLower * 0.55 - FP.vmSpr * 0.35 + bp, FP.lagYaw * 0.8 * relax + FP.vmSpr * 0.75 + byaw, -FP.roll * 0.6 + FP.vmSpr * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.6 * relax + FP.vmPr * 0.12 + broll);
-    qp.setFromEuler(_e); pose.q.premultiply(qp);
+    // the layers turn the gun about the right hand (its grip), not the sight point half a metre ahead of it
+    qp.setFromEuler(_e);
+    const sp0 = rig._s || [0, 0, 0];
+    piv.set(-sp0[0], -sp0[1], -sp0[2]).applyQuaternion(_q.copy(pose.q).multiply(R0)).add(pose.p);
+    pose.p.sub(piv).applyQuaternion(qp).add(piv); pose.q.premultiply(qp);
     if (rig.place) rig.place(pose.p, pose.q);
     else { rig.group.position.copy(pose.p); rig.group.quaternion.copy(pose.q); }
     vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
@@ -350,6 +354,18 @@
     const fl = W.flashLight; vm.pt.intensity = fl ? fl.intensity * 0.8 : 0; vm.pt.position.set(0.05, -0.05, -0.9);
     vm.scene.environment = W.scene.environment || null;
   }
+  // where the gun and hands are on screen (0..1, top-left origin), for HUD layout checks: the gun's box and the hand
+  // and forearm bones, projected by the viewmodel camera
+  const _b3 = new THREE.Box3(), _pc = new THREE.Vector3();
+  FP.screenBox = function () {
+    if (!VM || !VM.root.visible || !VM.rig.gun) return null;
+    const r = { x0: 1, y0: 1, x1: 0, y1: 0 }, add = v => { if (v.z > -0.02) return; _pc.copy(v).project(VM.cam); const x = (_pc.x + 1) / 2, y = (1 - _pc.y) / 2; r.x0 = Math.min(r.x0, x); r.x1 = Math.max(r.x1, x); r.y0 = Math.min(r.y0, y); r.y1 = Math.max(r.y1, y); };
+    _b3.setFromObject(VM.rig.gun);
+    for (let i = 0; i < 8; i++) add(_v.set(i & 1 ? _b3.max.x : _b3.min.x, i & 2 ? _b3.max.y : _b3.min.y, i & 4 ? _b3.max.z : _b3.min.z));
+    const A = VM.rig.actor; if (A) for (const n of ['hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r']) { const b = A.bone(n); if (b) add(b.getWorldPosition(_v)); }
+    for (const k in r) r[k] = Math.round(IV.clamp(r[k], 0, 1) * 1000) / 1000;
+    return r;
+  };
   // a finished interaction: a small nod (a breach is a shoulder into the door: a harder lurch)
   IV.on('interacted', o => { if (!FP.on()) return; FP.nodV = (FP.nodV || 0) - (o && o.id === 'breach' ? 3.2 : 1.2) * (IV.settings.motion ? 0.35 : 1); });
   // recoil from weapons.js: kick back and up

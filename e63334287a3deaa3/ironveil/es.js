@@ -89,6 +89,7 @@
     'Hold {a} to put your eye to the scope. Hold {b} to steady your breath. Lie down for the steadiest shot.': 'Mantén {a} para llevar el ojo a la mira. Mantén {b} para contener la respiración. Acostado es el tiro más firme.',
     'Behind him and close: {k} for the knife': 'Por detrás y de cerca: {k} para el cuchillo',
     'Move, sprint, crouch, crawl, vault and lean': 'Moverse, correr, agacharse, arrastrarse, saltar y asomarse', 'Pop-up targets down the sights': 'Blancos emergentes con el alza',
+    'Play upright anyway': 'Jugar en vertical igualmente',
     'Press {k} for the rifle': 'Pulsa {k} para el fusil', 'Hold {a} for the scope. Hold {b} to steady your breath. Lie down for the steadiest shot.': 'Mantén {a} para la mira. Mantén {b} para contener la respiración. Acostado es el tiro más firme.',
     'Hold {k} to aim a rock, let go to throw. Land it away from where you want to go.': 'Mantén {k} para apuntar una piedra y suelta para tirarla. Que caiga lejos de donde quieres ir.',
     'Behind him and close: {k}': 'Detrás y cerca: {k}', 'Hold {b} for binoculars, then {f} marks the one in the middle. Marked soldiers stay on your compass.': 'Mantén {b} para los binoculares; {f} marca al del centro. Los marcados quedan en tu brújula.',
