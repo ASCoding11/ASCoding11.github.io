@@ -809,12 +809,13 @@ const FX=(function(){
   // tracers: glowing ribbons that face the camera (a WebGL line is one pixel wide whatever you ask, which made the old
   // tracers all but invisible). Each is a quad from the bullet back along its path, bright at the head, fading to the
   // tail, and a little wider with distance so far-off bursts still read. One draw call for all of them.
-  const NB=320,bp=new Float32Array(NB*12),bu=new Float32Array(NB*8),bi=[];
-  for(let i=0;i<NB;i++){const o=i*4;bi.push(o,o+1,o+2,o,o+2,o+3);bu.set([1,0,1,1,0,1,0,0],i*8)}
+  // plus a soft glow at each bullet's head, so a burst still reads when it flies straight away from the camera
+  const NB=320,bp=new Float32Array(NB*24),bu=new Float32Array(NB*16),bi=[];
+  for(let i=0;i<NB;i++){const o=i*8;bi.push(o,o+1,o+2,o,o+2,o+3,o+4,o+5,o+6,o+4,o+6,o+7);bu.set([1,0,1,1,0,1,0,0,2,0,3,0,3,1,2,1],i*16)}
   const bg=new THREE.BufferGeometry(),bA=new THREE.BufferAttribute(bp,3);bA.setUsage(THREE.DynamicDrawUsage);bg.setAttribute('position',bA);bg.setAttribute('uv',new THREE.BufferAttribute(bu,2));bg.setIndex(bi);
   const tmat=new THREE.ShaderMaterial({
     vertexShader:'varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader:'varying vec2 vU;void main(){float a=vU.x*vU.x*(1.-pow(abs(vU.y*2.-1.),2.));vec3 c=mix(vec3(1.,.42,.08),vec3(1.,.95,.7),vU.x*vU.x);gl_FragColor=vec4(c*a*2.2,a);}',
+    fragmentShader:'varying vec2 vU;void main(){if(vU.x>1.5){vec2 q=vU-vec2(2.5,.5);float g=max(0.,1.-dot(q,q)*4.);g*=g;gl_FragColor=vec4(vec3(1.,.8,.45)*g*1.3,g);return;}float a=vU.x*vU.x*(1.-pow(abs(vU.y*2.-1.),2.));vec3 c=mix(vec3(1.,.42,.08),vec3(1.,.95,.7),vU.x*vU.x);gl_FragColor=vec4(c*a*2.2,a);}',
     transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
   const lines=new THREE.Mesh(bg,tmat);lines.frustumCulled=false;lines.renderOrder=6;scene.add(lines);
   const bullets=[];for(let i=0;i<NB;i++)bullets.push({on:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,by:'',local:false,far:false,age:0});
@@ -822,8 +823,9 @@ const FX=(function(){
   function bullet(x,y,z,vx,vy,vz,by,local){const b=bullets[bn];bn=(bn+1)%NB;b.on=true;b.x=x;b.y=y;b.z=z;b.vx=vx;b.vy=vy;b.vz=vz;b.life=BULLET_LIFE;b.by=by;b.local=local;b.age=0;return b}
   function drawBullets(){
     const cp=camera.position;
-    for(let i=0;i<NB;i++){const b=bullets[i],j=i*12;
-      if(!b.on){for(let k=0;k<12;k++)bp[j+k]=0;continue}
+    const cr=camera.matrixWorld.elements,rx_=cr[0],ry_=cr[1],rz_=cr[2],ux_=cr[4],uy_=cr[5],uz_=cr[6];   // camera right and up
+    for(let i=0;i<NB;i++){const b=bullets[i],j=i*24;
+      if(!b.on){for(let k=0;k<24;k++)bp[j+k]=0;continue}
       const sp=Math.hypot(b.vx,b.vy,b.vz)||1,dx=b.vx/sp,dy=b.vy/sp,dz=b.vz/sp,L=Math.min(34,sp*.06,b.age*sp+3);
       const tx=b.x-dx*L,ty=b.y-dy*L,tz=b.z-dz*L;
       // side = dir x (to camera), sized by distance so a tracer is never thinner than about 1.5 pixels
@@ -831,6 +833,9 @@ const FX=(function(){
       let sx=dy*cz-dz*cy,sy=dz*cx-dx*cz,sz=dx*cy-dy*cx;const sl=Math.hypot(sx,sy,sz)||1,w=(.45+cd*.0042)/sl;sx*=w;sy*=w;sz*=w;
       bp[j]=b.x+sx;bp[j+1]=b.y+sy;bp[j+2]=b.z+sz;bp[j+3]=b.x-sx;bp[j+4]=b.y-sy;bp[j+5]=b.z-sz;
       bp[j+6]=tx-sx;bp[j+7]=ty-sy;bp[j+8]=tz-sz;bp[j+9]=tx+sx;bp[j+10]=ty+sy;bp[j+11]=tz+sz;
+      const g=b.age<.03?0:.6+cd*.006;   // the glow: about 5 pixels across whatever the distance
+      bp[j+12]=b.x-rx_*g+ux_*g;bp[j+13]=b.y-ry_*g+uy_*g;bp[j+14]=b.z-rz_*g+uz_*g;bp[j+15]=b.x+rx_*g+ux_*g;bp[j+16]=b.y+ry_*g+uy_*g;bp[j+17]=b.z+rz_*g+uz_*g;
+      bp[j+18]=b.x+rx_*g-ux_*g;bp[j+19]=b.y+ry_*g-uy_*g;bp[j+20]=b.z+rz_*g-uz_*g;bp[j+21]=b.x-rx_*g-ux_*g;bp[j+22]=b.y-ry_*g-uy_*g;bp[j+23]=b.z-rz_*g-uz_*g;
     }
     bA.needsUpdate=true;
   }
