@@ -271,8 +271,17 @@
     const L2W = (lx, lz) => [o.x + lx * c + lz * s, o.z - lx * s + lz * c];
     const box = (m, lx, y0, lz, sx, sy, sz, col, flags, surf, ao) => { const p = L2W(lx, lz); return K.box(b, m, p[0], y0, p[1], sx, sy, sz, o.rot || 0, col, flags, surf, ao); };
     const hw = o.w / 2, hd = o.d / 2;
+    // IVEnv shell (art.js passes o.envB, an IVEnv builder, when the photo materials are loaded): the outside of the
+    // building (walls, plinth, quoins, sills, lintels, glazing bars, shutters, gables, roof, eaves, gutters, chimney,
+    // grime at the foot) is drawn with IVEnv materials; every collider, opening, room and the interior stay the kit's.
+    const EB = (!K.noMesh && o.envB) || null, wallM = mat === 'wood' ? 'planks' : mat === 'plaster' ? 'plaster' : 'fieldstone';
+    const wallT = mat === 'wood' ? new THREE.Color(0.55, 0.45, 0.36) : null;   // weathered brown boards, not bleached grey
+    const vb = (m, lx, y0, lz, sx, sy, sz, op) => { const p = L2W(lx, lz); EB.box(m, p[0], y0, p[1], sx, sy, sz, o.rot || 0, op); };
+    const wn = (nx, nz) => [nx * c + nz * s, -nx * s + nz * c];
+    const TT = (r, g, bl) => new THREE.Color(r, g, bl);
     // foundation plinth and floor
-    box('stone', 0, gy - 0.6, 0, o.w + 0.25, fy - gy + 0.6, o.d + 0.25, 0x8e8a80, 0, 0, 0.3);
+    if (EB) vb('fieldstone', 0, gy - 0.6, 0, o.w + 0.25, fy - gy + 0.6, o.d + 0.25, { tint: TT(0.62, 0.6, 0.56) });
+    else box('stone', 0, gy - 0.6, 0, o.w + 0.25, fy - gy + 0.6, o.d + 0.25, 0x8e8a80, 0, 0, 0.3);
     box(o.floorMat || 'wood', 0, fy - 0.08, 0, o.w - t * 2 + 0.02, 0.08, o.d - t * 2 + 0.02, o.floorCol || 0x8a7058, F.SOLID, o.floorMat === 'stone' ? 'stone' : 'wood');
     W.addBox(o.x, o.z, hw, hd, gy - 0.6, fy - 0.08, o.rot || 0, F.SOLID, 'stone', 'plinth');
     const wins = [];
@@ -285,6 +294,11 @@
       const piece = (u0, u1, y0, y1, flags, m, col) => {
         if (u1 - u0 < 0.01 || y1 - y0 < 0.01) return;
         const um = (u0 + u1) / 2, len = u1 - u0;
+        if (EB) {
+          if (name === 'n' || name === 's') { if (flags) box(null, um, y0, sgn * (hd - t / 2), len, y1 - y0, t, 0, flags, mat === 'wood' ? 'wood' : 'stone'); vb(wallM, um, y0, sgn * (hd - t / 2), len, y1 - y0, t, { tint: wallT }); }
+          else { if (flags) box(null, sgn * (hw - t / 2), y0, um, t, y1 - y0, len, 0, flags, mat === 'wood' ? 'wood' : 'stone'); vb(wallM, sgn * (hw - t / 2), y0, um, t, y1 - y0, len, { tint: wallT }); }
+          return;
+        }
         if (name === 'n' || name === 's') box(m || mat, um, y0, sgn * (hd - t / 2), len, y1 - y0, t, col || wallCol, flags, mat === 'wood' ? 'wood' : 'stone', 0.25);
         else box(m || mat, sgn * (hw - t / 2), y0, um, t, y1 - y0, len, col || wallCol, flags, mat === 'wood' ? 'wood' : 'stone', 0.25);
       };
@@ -304,13 +318,21 @@
           if (name === 'n' || name === 's') {
             if (!op.open) box(glassMat, pu, bot, inset, op.w - 0.1, top - bot, 0.04, 0xffffff);
             box('wood', pu, bot, sgn * (hd - t * 0.55), 0.06, top - bot, 0.08, 0x5a4a38); box('wood', pu, (bot + top) / 2, sgn * (hd - t * 0.55), op.w, 0.06, 0.08, 0x5a4a38);
-            box('stone', pu, bot - 0.06, sgn * (hd + 0.04), op.w + 0.2, 0.08, 0.2, 0x8a867c);
-            if (op.shut) { box('wood', pu - op.w / 2 - 0.3, bot, sgn * (hd + 0.04), 0.55, top - bot, 0.05, 0x4c5a48); box('wood', pu + op.w / 2 + 0.3, bot, sgn * (hd + 0.04), 0.55, top - bot, 0.05, 0x4c5a48); }
+            if (EB) {
+              vb('ashlar', pu, bot - 0.08, sgn * (hd + 0.02), op.w + 0.24, 0.09, t * 0.4 + 0.12); if (mat !== 'wood') vb('ashlar', pu, top, sgn * (hd + 0.01), op.w + 0.36, 0.22, t * 0.3);
+              for (const k of [-1, 1]) vb('timber', pu + k * op.w / 4, bot, sgn * (hd - t * 0.55), 0.035, top - bot, 0.05, { noFoot: true, tint: TT(0.6, 0.58, 0.52) });
+              if (op.shut) for (const k of [-1, 1]) vb('wood_painted', pu + k * (op.w / 2 + 0.3), bot, sgn * (hd + 0.04), 0.55, top - bot, 0.05, { noFoot: true, tint: TT(0.75, 0.95, 0.8) });
+            } else box('stone', pu, bot - 0.06, sgn * (hd + 0.04), op.w + 0.2, 0.08, 0.2, 0x8a867c);
+            if (op.shut && !EB) { box('wood', pu - op.w / 2 - 0.3, bot, sgn * (hd + 0.04), 0.55, top - bot, 0.05, 0x4c5a48); box('wood', pu + op.w / 2 + 0.3, bot, sgn * (hd + 0.04), 0.55, top - bot, 0.05, 0x4c5a48); }
           } else {
             if (!op.open) box(glassMat, insetX, bot, pu, 0.04, top - bot, op.w - 0.1, 0xffffff);
             box('wood', sgn * (hw - t * 0.55), bot, pu, 0.08, top - bot, 0.06, 0x5a4a38); box('wood', sgn * (hw - t * 0.55), (bot + top) / 2, pu, 0.08, 0.06, op.w, 0x5a4a38);
-            box('stone', sgn * (hw + 0.04), bot - 0.06, pu, 0.2, 0.08, op.w + 0.2, 0x8a867c);
-            if (op.shut) { box('wood', sgn * (hw + 0.04), bot, pu - op.w / 2 - 0.3, 0.05, top - bot, 0.55, 0x4c5a48); box('wood', sgn * (hw + 0.04), bot, pu + op.w / 2 + 0.3, 0.05, top - bot, 0.55, 0x4c5a48); }
+            if (EB) {
+              vb('ashlar', sgn * (hw + 0.02), bot - 0.08, pu, t * 0.4 + 0.12, 0.09, op.w + 0.24); if (mat !== 'wood') vb('ashlar', sgn * (hw + 0.01), top, pu, t * 0.3, 0.22, op.w + 0.36);
+              for (const k of [-1, 1]) vb('timber', sgn * (hw - t * 0.55), bot, pu + k * op.w / 4, 0.05, top - bot, 0.035, { noFoot: true, tint: TT(0.6, 0.58, 0.52) });
+              if (op.shut) for (const k of [-1, 1]) vb('wood_painted', sgn * (hw + 0.04), bot, pu + k * (op.w / 2 + 0.3), 0.05, top - bot, 0.55, { noFoot: true, tint: TT(0.75, 0.95, 0.8) });
+            } else box('stone', sgn * (hw + 0.04), bot - 0.06, pu, 0.2, 0.08, op.w + 0.2, 0x8a867c);
+            if (op.shut && !EB) { box('wood', sgn * (hw + 0.04), bot, pu - op.w / 2 - 0.3, 0.05, top - bot, 0.55, 0x4c5a48); box('wood', sgn * (hw + 0.04), bot, pu + op.w / 2 + 0.3, 0.05, top - bot, 0.55, 0x4c5a48); }
           }
           // blocks movement, not sight or bullets
           if (name === 'n' || name === 's') box(null, pu, bot, sgn * (hd - t / 2), op.w, top - bot, t, 0, F.SOLID | F.NAV, 'glass');
@@ -321,6 +343,7 @@
           // door frame
           if (name === 'n' || name === 's') { box('wood', u0 - 0.06, fy, sgn * (hd - t / 2), 0.12, top - fy, t + 0.06, 0x4a3a2a); box('wood', u1 + 0.06, fy, sgn * (hd - t / 2), 0.12, top - fy, t + 0.06, 0x4a3a2a); }
           else { box('wood', sgn * (hw - t / 2), fy, u0 - 0.06, t + 0.06, top - fy, 0.12, 0x4a3a2a); box('wood', sgn * (hw - t / 2), fy, u1 + 0.06, t + 0.06, top - fy, 0.12, 0x4a3a2a); }
+          if (EB) { if (name === 'n' || name === 's') vb(mat === 'wood' ? 'timber' : 'ashlar', op.at, top, sgn * (hd + 0.01), op.w + 0.5, 0.24, t * 0.35); else vb(mat === 'wood' ? 'timber' : 'ashlar', sgn * (hw + 0.01), top, op.at, t * 0.35, 0.24, op.w + 0.5); }
           // a step outside
           const sp = name === 'n' || name === 's' ? [op.at, sgn * (hd + 0.4)] : [sgn * (hw + 0.4), op.at];
           const sp0 = L2W(sp[0], sp[1]);
@@ -333,7 +356,7 @@
     ['n', 's', 'e', 'w'].forEach(side);
     // corner quoins (dressed stone at the corners breaks the box look)
     if (mat !== 'wood') for (const cx of [-1, 1]) for (const cz of [-1, 1]) for (let k = 0; k < Math.floor(h / 0.5); k++) {
-      const big = k % 2 === 0; box('stone', cx * (hw - (big ? 0.28 : 0.2) + 0.03), fy + k * 0.5 - 0.1, cz * (hd - (big ? 0.2 : 0.28) + 0.03), big ? 0.6 : 0.45, 0.48, big ? 0.45 : 0.6, 0xc4beb0);
+      const big = k % 2 === 0; if (EB) vb('ashlar', cx * (hw - (big ? 0.28 : 0.2) + 0.03), fy + k * 0.5 - 0.1, cz * (hd - (big ? 0.2 : 0.28) + 0.03), big ? 0.6 : 0.45, 0.47, big ? 0.45 : 0.6, { tint: TT(0.95, 0.93, 0.88) }); else box('stone', cx * (hw - (big ? 0.28 : 0.2) + 0.03), fy + k * 0.5 - 0.1, cz * (hd - (big ? 0.2 : 0.28) + 0.03), big ? 0.6 : 0.45, 0.48, big ? 0.45 : 0.6, 0xc4beb0);
     }
     // inner walls
     for (const iw of (o.inner || [])) {
@@ -351,20 +374,43 @@
     const span = ridgeX ? o.d : o.w, run = ridgeX ? o.w : o.d, rise = span / 2 * pitch;
     const ry = fy + h + 0.12;
     // gable ends (wall material triangle), and two roof slabs
-    if (ridgeX) {
+    const gable = (px, pz, sx, ry2) => { const mm = new THREE.Matrix4().compose(new THREE.Vector3(px, ry, pz), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry2, 0)), new THREE.Vector3(sx, rise, t)); EB.geo(wallM, GEO.prism, mm, { tint: wallT }); };
+    if (EB && ridgeX) { for (const e of [-1, 1]) { const p = L2W(e * (hw - t / 2), 0); gable(p[0], p[1], o.d, (o.rot || 0) + Math.PI / 2); } }
+    else if (EB) { for (const e of [-1, 1]) { const p = L2W(0, e * (hd - t / 2)); gable(p[0], p[1], o.w, o.rot || 0); } }
+    else if (ridgeX) {
       for (const e of [-1, 1]) { const p = L2W(e * (hw - t / 2), 0); K.add(b, mat, GEO.prism, p[0], ry, p[1], o.d, rise, t, 0, (o.rot || 0) + Math.PI / 2, 0, wallCol); }
     } else {
       for (const e of [-1, 1]) { const p = L2W(0, e * (hd - t / 2)); K.add(b, mat, GEO.prism, p[0], ry, p[1], o.w, rise, t, 0, o.rot || 0, 0, wallCol); }
     }
     const slabLen = Math.hypot(span / 2 + over, rise + over * pitch), ang = Math.atan(pitch);
+    const roofM = rf.mat === 'metal' ? 'metal_rust' : mat === 'wood' ? 'roof_tile' : 'slate';
     for (const e of [-1, 1]) {
       const off = (span / 4 + over / 2) * e, yy = ry + rise / 2 - over * pitch / 2;
+      if (EB) {
+        if (ridgeX) vb(roofM, 0, yy - 0.05, off, run + over * 2, 0.1, slabLen, { rx: -e * ang, noFoot: true }); else vb(roofM, off, yy - 0.05, 0, slabLen, 0.1, run + over * 2, { rz: e * ang, noFoot: true });
+        // eaves: fascia board, a cast-iron gutter, a downpipe at each end of the eave
+        const eY = ry - over * pitch, eo = span / 2 + over, L = run + over * 2;
+        if (ridgeX) { vb('timber', 0, eY - 0.2, e * (eo - 0.02), L, 0.2, 0.04, { noFoot: true, grain: 'long' }); vb('metal_painted', 0, eY - 0.24, e * (eo + 0.05), L, 0.1, 0.11, { noFoot: true, tint: TT(0.35, 0.36, 0.35) }); for (const k of [-1, 1]) vb('metal_painted', k * (hw - 0.25), gy, e * (hd + 0.07), 0.08, eY - gy - 0.2, 0.08, { tint: TT(0.35, 0.36, 0.35) }); }
+        else { vb('timber', e * (eo - 0.02), eY - 0.2, 0, 0.04, 0.2, L, { noFoot: true, grain: 'long' }); vb('metal_painted', e * (eo + 0.05), eY - 0.24, 0, 0.11, 0.1, L, { noFoot: true, tint: TT(0.35, 0.36, 0.35) }); for (const k of [-1, 1]) vb('metal_painted', e * (hw + 0.07), gy, k * (hd - 0.25), 0.08, eY - gy - 0.2, 0.08, { tint: TT(0.35, 0.36, 0.35) }); }
+        continue;
+      }
       if (ridgeX) { const p = L2W(0, off); K.add(b, rf.mat || 'roof', GEO.box, p[0], yy, p[1], run + over * 2, 0.14, slabLen, -e * ang, o.rot || 0, 0, rf.col || 0xb0a8a4, 0); }
       else { const p = L2W(off, 0); K.add(b, rf.mat || 'roof', GEO.box, p[0], yy, p[1], slabLen, 0.14, run + over * 2, 0, o.rot || 0, e * ang, rf.col || 0xb0a8a4, 0); }
     }
     // ridge cap and a chimney
-    { const p = L2W(0, 0); K.add(b, 'roof', GEO.box, p[0], ry + rise + 0.02, p[1], ridgeX ? run + over * 2 : 0.3, 0.16, ridgeX ? 0.3 : run + over * 2, 0, o.rot || 0, 0, 0x6a6262); }
-    if (o.chimney) { const p = L2W(o.chimney[0], o.chimney[1]); K.box(b, 'stone', p[0], ry, p[1], 0.8, rise + 1.3, 0.7, o.rot || 0, 0x9a948a); }
+    if (EB) vb(mat === 'wood' ? 'roof_tile' : 'roof_tile', 0, ry + rise - 0.06, 0, ridgeX ? run + over * 2 : 0.32, 0.16, ridgeX ? 0.32 : run + over * 2, { noFoot: true, tint: mat === 'wood' ? undefined : TT(0.55, 0.5, 0.48) });
+    else { const p = L2W(0, 0); K.add(b, 'roof', GEO.box, p[0], ry + rise + 0.02, p[1], ridgeX ? run + over * 2 : 0.3, 0.16, ridgeX ? 0.3 : run + over * 2, 0, o.rot || 0, 0, 0x6a6262); }
+    if (o.chimney && EB) {
+      const [cx0, cz0] = o.chimney; vb('brick_sooty', cx0, ry, cz0, 0.8, rise + 1.3, 0.7); vb('ashlar', cx0, ry + rise + 1.3, cz0, 0.92, 0.1, 0.82, { noFoot: true });
+      for (const k of [-0.18, 0.18]) { const p = L2W(cx0 + k, cz0); EB.geo('roof_tile', new THREE.CylinderGeometry(0.1, 0.12, 0.4, 8), new THREE.Matrix4().makeTranslation(p[0], ry + rise + 1.6, p[1]), { noFoot: true }); }
+    } else if (o.chimney) { const p = L2W(o.chimney[0], o.chimney[1]); K.box(b, 'stone', p[0], ry, p[1], 0.8, rise + 1.3, 0.7, o.rot || 0, 0x9a948a); }
+    // weathering where it happens: splash grime and green along the foot of every wall, moss on the north face
+    if (EB) for (const [nx, nz, len] of [[0, -1, o.w], [0, 1, o.w], [-1, 0, o.d], [1, 0, o.d]]) {
+      const p = L2W(nx * (hw + 0.13), nz * (hd + 0.13)), n = wn(nx, nz);
+      EB.decal('grime', [p[0], fy + 0.15, p[1]], [n[0], 0, n[1]], len, 0.9, 0);
+      if (nz < 0 || nx < 0) EB.decal('moss', [p[0], gy + 0.25, p[1]], [n[0], 0, n[1]], len * 0.7, 0.5, 0);
+      EB.decal('waterstain', [p[0], fy + h - 0.4, p[1]], [n[0], 0, n[1]], len * 0.9, 0.8, 0);
+    }
     // a roof as a sight blocker from above and a shade zone for the moon
     W.addBox(o.x, o.z, hw + over, hd + over, ry, ry + rise, o.rot || 0, F.SIGHT | F.BULLET, 'roof', 'roof');
     const ex = Math.abs(hw * c) + Math.abs(hd * s), ez = Math.abs(hw * s) + Math.abs(hd * c);

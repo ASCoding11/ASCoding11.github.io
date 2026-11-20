@@ -570,7 +570,7 @@
     if (W.underRoof(x, z, y) || !W.clear(x, y + 0.1, z, x + md.x * 22, y + md.y * 22, z + md.z * 22, F.SIGHT)) base = T.ai.lightShadow;
     let add = 0;
     for (let i = 0; i < W.lamps.length; i++) {
-      const l = W.lamps[i]; if (!l.on) continue;
+      const l = W.lamps[i]; if (!l.on || l.visual) continue;   // visual-only lamps (window spill) do not light you for the AI
       const dx = x - l.x, dy = y - l.y, dz = z - l.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (d >= l.r) continue;
       const k = 1 - d / l.r, v = l.i * k * k * 1.6;
@@ -606,9 +606,10 @@
     for (let i = 0; i < W.pointPool.length; i++) {
       const pl = W.pointPool[i], l = lampSort[i];
       if (l && l._d < 110 * 110) {
-        pl.position.set(l.x, l.y, l.z); pl.color.setHex(l.color || 0xffb060); pl.distance = l.r * 1.25;
+        // a long, soft falloff (distance well past the lamp's gameplay radius) so pools fade out instead of ending in a ring
+        pl.position.set(l.x, l.y, l.z); pl.color.setHex(l.color || 0xffb060); pl.distance = l.r * 1.8;
         const flick = l.flicker ? 0.86 + 0.14 * IV.noise(IV.time * 7 + i * 10, 0.5) : 1;
-        pl.intensity = (l.power || 1.6) * flick * IV.clamp(1.6 - Math.sqrt(l._d) / 90, 0, 1);
+        pl.intensity = (l.power || 1.6) * 0.85 * flick * IV.clamp(1.6 - Math.sqrt(l._d) / 90, 0, 1);
       } else pl.intensity = 0;
     }
     // brightest live flash gets the flash light

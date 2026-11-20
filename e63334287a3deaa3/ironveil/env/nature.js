@@ -400,15 +400,15 @@
     for (let c0 = 0; c0 < total; c0 += CH) {
       const L = { p: [], n: [], u: [], c: [], w: [], i: [] }, Bk = E.builder(opts.seed + c0);
       const at = (s) => { for (const sg of segs) if (s <= sg.s0 + sg.L + 1e-6) { const t = (s - sg.s0) / sg.L; return [sg.a[0] + (sg.b[0] - sg.a[0]) * t, sg.a[1] + (sg.b[1] - sg.a[1]) * t, (sg.b[0] - sg.a[0]) / sg.L, (sg.b[1] - sg.a[1]) / sg.L]; } const sg = segs[segs.length - 1]; return [sg.b[0], sg.b[1], (sg.b[0] - sg.a[0]) / sg.L, (sg.b[1] - sg.a[1]) / sg.L]; };
-      const c1 = Math.min(total, c0 + CH), n = Math.round((c1 - c0) * perM);
+      const c1 = Math.min(total, c0 + CH), n = Math.round((c1 - c0) * perM * (E.Q.name === 'low' ? 1 : 1.08));   // +8%, and a third of all cards go to the lower 2 m (a dense foot)
       const ctr = at((c0 + c1) / 2);
       for (let k = 0; k < n; k++) {
         const s = R.range(c0, c1); if (inGap(s)) continue;
         // ragged profile: height and width wander, thinner near gap edges
         const gapD = Math.min(...opts.gaps.map(g => s < g[0] ? g[0] - s : s > g[1] ? s - g[1] : 0), 99);
-        const hk = (0.65 + 0.5 * E.fbm2(s * 0.18, opts.seed, 77, 3)) * Math.min(1, 0.35 + gapD / 2.5), H = opts.h * hk;
+        const hk = (0.82 + 0.3 * E.fbm2(s * 0.18, opts.seed, 77, 3)) * Math.min(1, 0.55 + gapD / 1.5), H = opts.h * hk;
         const [px, pz, dx, dz] = at(s), side = R.range(-1, 1), y0 = hf(px, pz);
-        const u = R(), y = y0 + Math.pow(u, 0.8) * H, wk = opts.w * 0.5 * (0.6 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.1))) * (0.8 + 0.4 * E.vnoise(s * 0.5, 3, opts.seed));
+        const low = R() < 0.32, u = low ? Math.pow(R(), 1.3) * Math.min(1, 2.0 / Math.max(H, 0.5)) : R(), y = y0 + (low ? u * H : Math.pow(u, 0.8) * H), wk = opts.w * 0.5 * (low ? 0.75 + 0.35 * R() : 0.6 + 0.6 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.1))) * (0.8 + 0.4 * E.vnoise(s * 0.5, 3, opts.seed));
         const p = new V3(px - dz * side * wk, y, pz + dx * side * wk), cc = new V3(px, y0 + H * 0.5, pz);
         const out = p.clone().sub(cc).normalize(), size = R.range(0.55, 0.95);
         const nrm = new V3(R.range(-1, 1), R.range(-0.5, 1), R.range(-1, 1)).normalize().lerp(out, 0.4).normalize();
@@ -417,7 +417,7 @@
         const cell = R() < 0.75 ? 4 : R() < 0.5 ? 6 : 0, [u0, v0, du, dv] = cellUV(cell);
         const shade = E.clamp(0.3 + 0.75 * Math.abs(side) + 0.25 * u, 0.3, 1.05), hue = R.range(0.88, 1.1), base = L.p.length / 3;
         const cn = out.clone().lerp(nrm, 0.3).normalize();
-        for (const [i, j] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const v = p.clone().addScaledVector(ax, i * size / 2).addScaledVector(ay, j * size / 2); L.p.push(v.x, v.y, v.z); L.n.push(cn.x, cn.y, cn.z); L.u.push(u0 + (i * 0.5 + 0.5) * du, v0 + (j * 0.5 + 0.5) * dv); L.c.push(shade * hue, shade, shade * (2 - hue)); L.w.push(R() * 6, 0.4, 1, v.y - y0); }
+        for (const [i, j] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const v = p.clone().addScaledVector(ax, i * size / 2).addScaledVector(ay, j * size / 2); L.p.push(v.x, v.y, v.z); L.n.push(cn.x, cn.y, cn.z); L.u.push(u0 + (i * 0.5 + 0.5) * du, v0 + (j * 0.5 + 0.5) * dv); L.c.push(shade * hue * (1 + 0.1 * u), shade * (1 - 0.1 * u), shade * (2 - hue) * (1 + 0.08 * u)); L.w.push(R() * 6, 0.4, 1, v.y - y0); }
         L.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
       }
       // stems and a few thicker hazel/hawthorn trunks seen in the gaps and at the foot

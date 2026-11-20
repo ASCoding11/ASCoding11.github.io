@@ -14,8 +14,8 @@
   E.PRESETS = {
     night_moon: {
       skyTop: 0x070a12, skyHor: 0x26303f, ground: 0x0e1014, fog: 0x1d2531, fogD: 0.0105, mist: 0.55, mistTop: 1.8,
-      sunDir: [-0.42, 0.62, 0.48], sunCol: 0xb4c6ea, sunI: 1.2, sunShadow: true, moon: 1, stars: 1, cloud: 0.4, cloudCol: 0x2b3442,
-      hemiSky: 0x5f7298, hemiGround: 0x3a3630, hemiI: 1.1, env: 0.6, exposure: 0.9, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
+      sunDir: [-0.5, 0.74, 0.45], sunCol: 0xb4c6ea, sunI: 3.9, sunShadow: true, moon: 1, stars: 1, cloud: 0.4, cloudCol: 0x2b3442,
+      hemiSky: 0x5f7298, hemiGround: 0x3a3630, hemiI: 0.36, env: 0.6, exposure: 0.9, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
     },
     night_overcast: {
       skyTop: 0x080a0d, skyHor: 0x1b1f25, ground: 0x0b0c0d, fog: 0x171b20, fogD: 0.0135, mist: 0.7, mistTop: 2.2,
@@ -122,6 +122,10 @@
         float cov = smoothstep(1.0 - cloud * 0.85 - 0.12, 1.0 - cloud * 0.85 + 0.25, n + cloud * 0.35);
         float lit = 0.6 + 0.6 * pow(md, 4.0) * moonAmt + 0.25 * fbm3(cp * 1.7 + 3.0);
         vec3 cc = cloudCol * lit;
+        // structure: slow darker bands of heavier cloud base, and (by day) a brighter thin patch toward the hidden sun
+        float band = fbm3(cp * 0.33 + vec2(7.0, 1.3));
+        cc *= mix(0.68, 1.12, smoothstep(0.32, 0.68, band));
+        cc += cloudCol * (1.0 - moonAmt) * (0.45 * pow(max(md, 0.0), 5.0) + 0.12 * smoothstep(0.55, 0.8, band));
         c = mix(c, cc, cov * smoothstep(0.0, 0.12, h));
       }
       c *= bright;

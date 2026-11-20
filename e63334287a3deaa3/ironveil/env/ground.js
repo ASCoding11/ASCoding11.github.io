@@ -2,7 +2,7 @@
    IVEnv.ground(heightFn, opts) -> { group, material, meshes, heightFn }
    opts: { surfaceAt(x,z) -> kind, x0, z0, x1, z1 (or size, centred on 0), step (m, default 1 / 1.5 / 2 by quality),
            chunk (m, default 64) }
-   Kinds: grass, pasture, meadow, tussock, verge, lanemid, worn, leaves, yardedge (grass kinds, see grass.js) and
+   Kinds: grass, lawn, pasture, meadow, tussock, verge, lanemid, worn, leaves, yardedge (grass kinds, see grass.js) and
    lane, mud, yard, road, gravel, cobbles, field, water, floor, none.
    Five height-blended layers (turf, mud, ploughed earth, gravel, leaf litter), each sampled at two unrelated scales and
    mixed by slow noise so nothing tiles; large-scale colour variation; standing water in low wet spots (ruts, puddles)
@@ -13,7 +13,7 @@
   const E = window.IVEnv;
   // weights: [turf, mud, earth, gravel, leaves, wet]
   const W = E.GROUND_KINDS = {
-    grass: [1, 0.15, 0, 0, 0, 0], pasture: [1, 0.1, 0, 0, 0, 0], meadow: [1, 0.1, 0, 0, 0.05, 0], tussock: [1, 0.2, 0, 0, 0.1, 0.1], verge: [1, 0.25, 0, 0, 0.1, 0.1],
+    grass: [1, 0.15, 0, 0, 0, 0], lawn: [1, 0.06, 0, 0, 0, 0], pasture: [1, 0.1, 0, 0, 0, 0], meadow: [1, 0.1, 0, 0, 0.05, 0], tussock: [1, 0.2, 0, 0, 0.1, 0.1], verge: [1, 0.25, 0, 0, 0.1, 0.1],
     lanemid: [0.6, 0.6, 0, 0.1, 0, 0.2], worn: [0.45, 0.7, 0, 0.1, 0, 0.2], leaves: [0.2, 0.2, 0, 0, 1, 0.1], yardedge: [0.35, 0.6, 0, 0.4, 0, 0.3],
     lane: [0, 1, 0, 0.12, 0, 0.85], mud: [0, 1, 0, 0, 0, 0.9], yard: [0, 0.55, 0, 0.75, 0, 0.6], road: [0, 0.25, 0, 1, 0, 0.35], gravel: [0, 0.2, 0, 1, 0, 0.3],
     cobbles: [0, 0.3, 0, 1, 0, 0.4], field: [0, 0.15, 1, 0, 0, 0.1], water: [0, 1, 0, 0.3, 0, 1.0], floor: [0, 0.4, 0, 0.6, 0, 0], none: [0, 0.6, 0, 0.4, 0, 0]
@@ -140,7 +140,7 @@
         w0[k * 4] = wv[0]; w0[k * 4 + 1] = wv[1]; w0[k * 4 + 2] = wv[2]; w0[k * 4 + 3] = wv[3]; w1[k * 4] = wv[4]; w1[k * 4 + 1] = wv[5];
         // grass colour carried far away, weighted by how much grass grows here
         const kind = surfaceAt(x, z), K = E.GRASS_KINDS[kind];
-        if (K) { E.grassField.carry(kind, x, z, c); const dens = K.d * E.sstep(0.18, 0.45, E.grassField.dens(x, z) + 0.12); gc[k * 4] = c.r; gc[k * 4 + 1] = c.g; gc[k * 4 + 2] = c.b; gc[k * 4 + 3] = E.clamp(dens * Math.min(1, K.h[1] * 3), 0, 1); }
+        if (K) { E.grassField.carry(kind, x, z, c); const dens = K.d * E.sstep(0.18, 0.45, E.grassField.dens(x, z) + 0.12 + (K.fill || 0)); gc[k * 4] = c.r; gc[k * 4 + 1] = c.g; gc[k * 4 + 2] = c.b; gc[k * 4 + 3] = E.clamp(dens * Math.min(1, K.h[1] * 3), 0, 1); }
       }
       const idx = new Uint32Array((nx - 1) * (nz - 1) * 6); let q = 0;
       for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
@@ -168,5 +168,69 @@
 
     E._ground = { surfaceAt };
     return { group, material: mat, meshes, heightFn, surfaceAt };
+  };
+
+  // ------------------------------------------------------------------ the land beyond the map
+  // IVEnv.skirt(heightFn, { half, outer, hills, woods, seed, day, fogK, landFogK }) -> group
+  // fogK / landFogK (0..1) thin the scene's fog on the woods / the land beyond ~120 m (1 = same fog as the map)
+  // A cheap ring of land from the square edge of the playable ground (+-half) out to `outer` metres, rising into
+  // rolling hills (`hills` metres), with a ring of dark wood masses on it. One mesh for the land, one for the woods,
+  // no textures, always drawn (not subject to the tree draw range), so from any height the land never stops in a
+  // straight line: it rolls away into hills and woods and then into fog.
+  E.skirt = function (heightFn, opts) {
+    opts = Object.assign({ half: 190, outer: 1400, hills: 30, woods: 1, seed: 5, day: false, fogK: 0.8, landFogK: 1 }, opts || {});
+    // the far land sits in thinner fog than the scene's (fogK scales the exp2 density) so its woods and hills keep a
+    // silhouette against the sky instead of fading to the fog colour
+    const thinFog = (m, k) => {
+      if (k >= 0.999) return m;
+      const k2 = (k * k).toFixed(4);
+      m.onBeforeCompile = (sh) => {
+        const ch = THREE.ShaderChunk.fog_fragment.split('fd * fd').join('fd * fd * mix(1.0, ' + k2 + ', smoothstep(120.0, 520.0, fogDepth))').split('fogDensity * fogDensity').join('fogDensity * fogDensity * mix(1.0, ' + k2 + ', smoothstep(120.0, 520.0, fogDepth))');   // IVEnv's fog chunk names the density fd
+        sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', ch);
+      };
+      m.customProgramCacheKey = () => 'ivskirt' + k2; return m;
+    };
+    const group = new THREE.Group(); group.name = 'IVEnv.skirt';
+    const LOWQ = E.Q && E.Q.name === 'low', A = LOWQ ? 64 : 160, NR = LOWQ ? 10 : 22, half = opts.half, P = [], C = [], I = [], col = new THREE.Color();
+    const base = opts.day ? [0.055, 0.07, 0.035] : [0.035, 0.042, 0.03];
+    const hill = (x, z, t) => opts.hills * t * (0.55 * E.fbm2(x / 420 + 3, z / 420, opts.seed, 4) + 0.45 * E.fbm2(x / 140, z / 140 + 9, opts.seed + 3, 3)) + t * t * opts.hills * 0.25;
+    const ring = [];
+    for (let j = 0; j <= NR; j++) {
+      const t = j / NR, tt = Math.pow(t, 1.8);
+      for (let i = 0; i < A; i++) {
+        const a = i / A * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), k = 1 / Math.max(Math.abs(ca), Math.abs(sa));
+        const ri = half * k - 0.5, r = ri + (opts.outer - ri) * tt, x = ca * r, z = sa * r;
+        const y0 = heightFn(E.clamp(x, -half, half), E.clamp(z, -half, half));
+        const blend = E.sstep(0, 0.08, tt), y = y0 * (1 - blend) + (y0 * 0.3 + hill(x, z, Math.min(1, tt * 3))) * blend - 0.06 - tt * 2;
+        ring.push([x, y, z]); P.push(x, y, z);
+        const v = E.fbm2(x / 90, z / 90, opts.seed + 7, 2);
+        col.setRGB(base[0] * (0.75 + 0.5 * v), base[1] * (0.75 + 0.5 * v), base[2] * (0.8 + 0.4 * v)); C.push(col.r, col.g, col.b);
+      }
+    }
+    for (let j = 0; j < NR; j++) for (let i = 0; i < A; i++) { const a = j * A + i, b = j * A + (i + 1) % A, c = a + A, d = b + A; I.push(a, b, c, b, d, c); }   // wound to face up
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setIndex(I); g.computeVertexNormals();
+    const land = new THREE.Mesh(g, thinFog(new THREE.MeshLambertMaterial({ vertexColors: true }), opts.landFogK)); land.name = 'skirt-land'; land.receiveShadow = false; land.frustumCulled = false; group.add(land);
+    if (opts.woods && !LOWQ) {   // Low: no wood masses (fog hides most of them; saves a draw call and ~10k triangles)
+      // wood masses: clusters of squashed low-poly blobs on the hills, thicker in a band just outside the map
+      const R = E.rng(opts.seed + 11), WP = [], WC = [], WI = [], blob = new THREE.IcosahedronGeometry(1, 0), bp = blob.attributes.position, m = new THREE.Matrix4(), v = new THREE.Vector3();
+      const bi = blob.index ? blob.index.array : null, wcol = opts.day ? [0.045, 0.06, 0.04] : [0.0035, 0.0045, 0.004];
+      const sample = (x, z) => { const r = Math.hypot(x, z), a = Math.atan2(z, x), ca = Math.cos(a), sa = Math.sin(a), ri = half / Math.max(Math.abs(ca), Math.abs(sa)); const tt = E.clamp((r - ri) / (opts.outer - ri), 0, 1); const blend = E.sstep(0, 0.08, tt), y0 = heightFn(E.clamp(x, -half, half), E.clamp(z, -half, half)); return y0 * (1 - blend) + (y0 * 0.3 + hill(x, z, Math.min(1, tt * 3))) * blend - 0.06 - tt * 2; };
+      const n = Math.round(150 * opts.woods * (LOWQ ? 0.45 : 1));
+      for (let k = 0; k < n; k++) {
+        const a = R() * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), ri = half / Math.max(Math.abs(ca), Math.abs(sa)), r = ri + 15 + Math.pow(R(), 1.8) * 300;
+        if (E.fbm2(ca * 6, sa * 6, opts.seed + 21, 2) < 0.38 && r > ri + 60) continue;   // open gaps between the woods
+        const cx = ca * r, cz = sa * r;
+        for (let q = 0; q < 6; q++) {
+          const x = cx + R.range(-16, 16), z = cz + R.range(-16, 16), w = R.range(4, 7), h = R.range(6, 11), y = sample(x, z);
+          m.compose(v.set(x, y + h * 0.75, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), R() * 6.28), new THREE.Vector3(w, h, w * R.range(0.8, 1.2)));
+          const b0 = WP.length / 3, sh = R.range(0.8, 1.2);
+          for (let i = 0; i < bp.count; i++) { v.fromBufferAttribute(bp, i); const top = v.y; v.applyMatrix4(m); WP.push(v.x, v.y, v.z); const s2 = sh * (0.55 + 0.6 * Math.max(0, top)); WC.push(wcol[0] * s2, wcol[1] * s2, wcol[2] * s2); }
+          if (bi) for (let i = 0; i < bi.length; i++) WI.push(b0 + bi[i]); else for (let i = 0; i < bp.count; i++) WI.push(b0 + i);
+        }
+      }
+      const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(WP, 3)); wg.setAttribute('color', new THREE.Float32BufferAttribute(WC, 3)); wg.setIndex(WI); wg.computeVertexNormals();
+      const woods = new THREE.Mesh(wg, thinFog(new THREE.MeshBasicMaterial({ vertexColors: true }), opts.fogK));   // unlit: a dark mass against the sky at any light level woods.name = 'skirt-woods'; woods.frustumCulled = false; group.add(woods);
+    }
+    return group;
   };
 })();

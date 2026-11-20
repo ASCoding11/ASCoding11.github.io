@@ -8,9 +8,10 @@
      IV.art.water(points, levelFn, width, fallback)   IV.art.atmosphere(cfg)   IV.art.ground(cfg)   IV.art.flush()
      IV.art.impact(surface, point, normal, dir) (every bullet hit on the world; decals plug in here)
    When IVEnv draws a piece, kit.js still runs with K.noMesh = true so only its colliders are made.
-   Not swapped yet: the farmhouse, barn and hut stay the kit's own, because the mission script uses their exact door,
-   room and loft positions; IVEnv.building() returns its own doors and colliders, and wiring the house beats to those
-   is the next step. */
+   Buildings: the kit still builds the farmhouse, barn and huts (the mission script uses their exact doors, rooms,
+   loft and windows), but with IVEnv loaded their outside shell (walls, roof, eaves, gutters, sills, lintels, quoins,
+   chimney, grime) is drawn with IVEnv materials around the same openings (kit.js, spec.envB). Boot Camp's huts with
+   no interior in play are whole IVEnv buildings (bootcamp.js hut()). */
 (function () {
   'use strict';
   const K = IV.kit, W = IV.world;
@@ -45,7 +46,16 @@
     const E = env(); if (E && E.trees) { const r = collidersOnly(() => K.tree(b, x, z, kind, R, baseY)); pendingTrees.push({ kind, x, y: baseY != null ? baseY : H(x, z), z, rot: (R ? R() : Math.random()) * 6.28, scale: 0.9 + (R ? R() : Math.random()) * 0.25, seed: seed() }); return r; }
     return K.tree(b, x, z, kind, R, baseY);
   };
-  A.building = function (b, spec) { return K.building(b, spec); };   // see the note at the top
+  // The kit builds the building (colliders, openings, rooms, interior: the mission script relies on them); with IVEnv
+  // loaded the outside shell is drawn with IVEnv materials into one builder (kit.js reads spec.envB)
+  A.building = function (b, spec) {
+    const E = env();
+    if (!E || !E.builder || K.noMesh || spec.envShell === false) return K.building(b, spec);
+    const EB = E.builder(seed()); let r;
+    spec.envB = EB; try { r = K.building(b, spec); } finally { delete spec.envB; }
+    safe(() => { const g = EB.finish(); g.name = 'IVEnv.shell'; root().add(g); }, 'building shell');
+    return r;
+  };
   // props: positional args as kit.js takes them; IVEnv draws a matching prop at the same spot
   const PROP = { crate: 'crate', barrel: 'barrel', hay: 'haybale', woodpile: 'logpile', cart: 'cart', sandbags: 'sandbags', lamp: 'lamppost' };
   A.prop = function (kind, b, ...a) {
@@ -74,12 +84,18 @@
   // IVEnv grass reads the ground kinds and the height itself; long grass is where the stealth cover is
   A.grass = function (count, radius, accept, tint) {
     const E = env();
-    if (E && E.grass) { const g = safe(() => E.grass(W.surfaceAt, H, { longAt: (x, z) => W.surfaceAt(x, z) === 'meadow' ? 1 : 0 }), 'grass'); if (g) { W.scene.add(g.group || g); A.grassObj = g; return { update() {} }; } }
+    if (E && E.grass) { const g = safe(() => E.grass(W.surfaceAt, H, Object.assign({ longAt: (x, z) => W.surfaceAt(x, z) === 'meadow' ? 1 : 0 }, W.cfg && W.cfg.grass)), 'grass'); if (g) { W.scene.add(g.group || g); A.grassObj = g; return { update() {} }; } }
     return K.grassSystem(count, radius, accept, tint);
   };
   A.water = function (pts, levelFn, width, fallback) { const E = env(); if (E && E.stream) { const o = safe(() => E.stream(pts, { width, heightFn: H, waterY: levelFn }), 'stream'); if (o) return add(o); } return fallback && fallback(); };
   // the ground mesh (world.js asks first)
-  A.ground = function (cfg) { const E = env(); if (!E || !E.ground) return null; return E.ground(H, { surfaceAt: W.surfaceAt, size: W.size }); };
+  A.ground = function (cfg) {
+    const E = env(); if (!E || !E.ground) return null;
+    const g = E.ground(H, { surfaceAt: W.surfaceAt, size: W.size });
+    // land, hills and woods beyond the map edge, so the world never ends in a line (cfg.skirt tunes the hills)
+    if (g && g.group && E.skirt) { const sk = safe(() => E.skirt(H, Object.assign({ half: W.size / 2, day: !!(cfg && cfg.day) }, cfg && cfg.skirt)), 'skirt'); if (sk) g.group.add(sk); }
+    return g;
+  };
   // sky, moon or sun, fog and mist (world.js asks first)
   A.atmosphere = function (cfg) {
     const E = env(); if (!E || !E.atmosphere) return null;
