@@ -62,7 +62,7 @@
   var SCRIPT = document.currentScript && document.currentScript.src;
   var BASE = SCRIPT ? SCRIPT.replace(/[^\/]*$/, '') : '';
   var ASSETS = BASE + 'assets/';
-  var VERSION = '8';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
+  var VERSION = '10';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
 
   // ---------- kinds and files
   var FILES = {
@@ -331,6 +331,30 @@
       b.add(n); n.position.set(0, 0, 0); n.quaternion.identity(); n.scale.set(1, 1, 1);
     });
     gun.traverse(function (o) { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } });
+    // contact shading: the gun darkens where the hands sit (palms, knuckle lines, thumbs), so hands and gun read as
+    // touching. Own material copies for this viewmodel; six points in view space, updated in drive().
+    var occPts = []; for (var oi = 0; oi < 6; oi++) occPts.push(new T.Vector3(0, -99, 0));
+    var occBones = ['hand_r', 'middle_01_r', 'thumb_02_r', 'hand_l', 'middle_01_l', 'thumb_02_l'];
+    gun.traverse(function (o) {
+      if (!o.isMesh) return;
+      var mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats = mats.map(function (m0) {
+        var m = m0.clone();
+        m.onBeforeCompile = function (sh) {
+          sh.uniforms.uOccPts = { value: occPts };
+          sh.vertexShader = 'varying vec3 vOccPos;\n' + sh.vertexShader.replace('#include <project_vertex>',
+            '#include <project_vertex>\n  vOccPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+          var f = 'uniform vec3 uOccPts[6];\nvarying vec3 vOccPos;\n' +
+            'float vmOcc() { float o = 0.0; for (int i = 0; i < 6; i++) { vec3 d = vOccPos - uOccPts[i]; o += exp(-dot(d, d) / 0.0009); } return 1.0 - 0.5 * clamp(o, 0.0, 1.0); }\n';
+          var tgt = 'gl_FragColor = vec4( outgoingLight, diffuseColor.a );';
+          sh.fragmentShader = f + (sh.fragmentShader.indexOf(tgt) >= 0 ? sh.fragmentShader.replace(tgt, 'outgoingLight *= vmOcc();\n' + tgt)
+            : sh.fragmentShader.replace('#include <output_fragment>', 'outgoingLight *= vmOcc();\n#include <output_fragment>'));
+        };
+        m.customProgramCacheKey = function () { return 'vmocc'; };
+        return m;
+      });
+      o.material = Array.isArray(o.material) ? mats : mats[0];
+    });
     var sling = gun.getObjectByName(kind + '_sling'); if (sling) sling.visible = false;   // a loose sling would hang across the view
     var props = {};
     ['grenade', 'binoculars'].forEach(function (k) {
@@ -406,6 +430,9 @@
         if (one) one.setEffectiveWeight(oneW);
         var t0 = one ? one.time : 0;
         mixer.update(dt || 0);
+        root.updateMatrixWorld(true);
+        for (var bi = 0; bi < 6; bi++) { var bb = bones[occBones[bi]]; if (bb) occPts[bi].setFromMatrixPosition(bb.matrixWorld); }
+        if (bones.hand_r && bones.middle_01_r) { occPts[0].lerp(occPts[1], 0.5); occPts[3].lerp(occPts[4], 0.5); }   // palm centres
         var out = [];
         if (one) {
           oneT += dt;

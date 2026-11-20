@@ -28,5 +28,18 @@ What was changed (`tools/weapons/demark.py`, `tools/weapons/scanned.py`; downloa
 
 The SMG also got `_sightRear` and `_sightFront` empties (`tools/weapons/swap.mjs --add`).
 
+## Poly Haven texture (CC0)
+
+| In the game | Source | Author | Licence | Link |
+|---|---|---|---|---|
+| Walnut grain of the `smg` stock, pistol grip and fore-end | Natural Walnut Veneer (2k colour, roughness and displacement maps) | Jenelle van Heerden | CC0 1.0 | https://polyhaven.com/a/natural_walnut_veneer |
+
+How it is used (`tools/weapons/mats.py`, `_wood_scan`; the download is not committed): the scan is projected
+three ways on the stock with the grain along the stock line, its brightness is toned to oiled walnut, its roughness
+map gives 0.40-0.70 and its displacement map adds to the height before the bake. The existing handling wear (hand
+polish, worn butt and comb, dents, gouges, dirt in recesses) is layered on top. Rebuild the SMG set with
+`WOOD_SCAN=<folder with natural_walnut_veneer_{diff,rough,disp}_2k.jpg> MACHINING=1` (machining marks on the
+SMG's steel are procedural) and swap it into `weapons.glb` with `swap.mjs`.
+
 Tools used to make them (not shipped with the game): Blender (GPL) as a Python module, gltf-transform (MIT),
 meshoptimizer (MIT), sharp (Apache-2.0).
