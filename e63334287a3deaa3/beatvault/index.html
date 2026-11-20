@@ -115,6 +115,9 @@ body.calm .pix.beat{animation:none}
 #intro{position:absolute;left:0;right:0;top:30%;display:flex;flex-direction:column;align-items:center;gap:10px;padding:0 16px;pointer-events:none;transition:opacity .5s;text-align:center}
 #intro .pix{justify-content:center}
 .lv .n.pix{min-height:24px}
+#resKind.pix,#resName.pix,#introN.pix,#introS.pix{display:flex;justify-content:center}
+#resKind.pix{margin:14px 0 10px}
+#resKeys{display:flex;margin-top:8px}
 
 /* ---------- HUD ---------- */
 #hud{position:absolute;inset:0;pointer-events:none}
@@ -1726,11 +1729,11 @@ var BV = (function () {
     },
     wheel: function (th, HY, scrollX, beat, pulse, still) {   // a big wheel of lights that ticks round one bulb a beat
       var R = Math.min(VW, VH) * 0.18, cx = VW * 0.7, cy = Math.min(HY * 0.42, R + U), n = 16, lit = Math.floor(beat) % n;
-      ctx.strokeStyle = rgba(th.a, 0.28); ctx.lineWidth = Math.max(1, DPR); ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7);
+      ctx.strokeStyle = rgba(th.a, 0.4); ctx.lineWidth = Math.max(1.5, DPR * 1.5); ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7);
       for (var i = 0; i < n; i += 2) { var a0 = i / n * 6.2832; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a0) * R, cy + Math.sin(a0) * R); } ctx.stroke();
       for (i = 0; i < n; i++) {
-        var a = i / n * 6.2832 - 1.5708, d = (lit - i + n) % n, on = still ? 0.4 : d === 0 ? 1 : d === 1 ? 0.55 : d === 2 ? 0.3 : 0.12;
-        ctx.globalAlpha = on; var sp = glowSprite(i % 2 ? th.b : th.a, U * 0.32); ctx.drawImage(sp, cx + Math.cos(a) * R - sp.width / 2, cy + Math.sin(a) * R - sp.height / 2);
+        var a = i / n * 6.2832 - 1.5708, d = (lit - i + n) % n, on = still ? 0.5 : d === 0 ? 1 : d === 1 ? 0.65 : d === 2 ? 0.45 : 0.25;
+        ctx.globalAlpha = on; var sp = glowSprite(i % 2 ? th.b : th.a, U * 0.45); ctx.drawImage(sp, cx + Math.cos(a) * R - sp.width / 2, cy + Math.sin(a) * R - sp.height / 2);
         ctx.fillStyle = th.c; ctx.fillRect(cx + Math.cos(a) * R - U * 0.05, cy + Math.sin(a) * R - U * 0.05, U * 0.1, U * 0.1);
       }
       ctx.globalAlpha = 1;
@@ -1751,9 +1754,13 @@ var BV = (function () {
     x.beginPath();
     for (var i = 0; i < n * 2; i++) { var a = i / (n * 2) * Math.PI * 2, len = i % 2 ? R * (0.42 + rr() * 0.12) : R * (0.86 + rr() * 0.14); x.lineTo(Math.cos(a) * len, Math.sin(a) * len); }
     x.closePath(); x.fillStyle = C.hazD; x.fill();
-    x.lineJoin = 'miter'; x.lineWidth = Math.max(1.5, R * 0.1); x.strokeStyle = C.haz; x.stroke();
-    x.fillStyle = C.haz; x.beginPath(); x.arc(0, 0, R * 0.36, 0, 7); x.fill();
-    x.fillStyle = C.hazHot; x.beginPath(); x.arc(0, 0, R * 0.2, 0, 7); x.fill();
+    // brightness as well as colour: a black halo to separate it from lit edges, the red-orange outline, and a
+    // white-hot line inside it, so a spark is the brightest spiky thing on screen even without colour vision
+    x.lineJoin = 'miter'; x.lineWidth = Math.max(3, R * 0.24); x.strokeStyle = 'rgba(0,0,0,.75)'; x.stroke();
+    x.lineWidth = Math.max(1.5, R * 0.13); x.strokeStyle = C.haz; x.stroke();
+    x.lineWidth = Math.max(1, R * 0.045); x.strokeStyle = C.hazHot; x.stroke();
+    x.fillStyle = C.haz; x.beginPath(); x.arc(0, 0, R * 0.4, 0, 7); x.fill();
+    x.fillStyle = C.hazHot; x.beginPath(); x.arc(0, 0, R * 0.26, 0, 7); x.fill();
     burrCache[key] = c; return c;
   }
   // ---- camera and coordinates
@@ -1789,13 +1796,17 @@ var BV = (function () {
       if (s.floor) {
         ctx.fillStyle = th.floor; ctx.fillRect(X0, Yt, X1 - X0, Yb - Yt);
         if (s.y1 <= yTop) {   // the tiles: one unit square each, lighting in a pattern that changes every beat
-          var tx0 = Math.max(Math.floor(s.x0), Math.floor(x0)), tx1 = Math.min(Math.ceil(s.x1), Math.ceil(x1)), g = Math.max(1, Math.round(U * 0.05)), ty = Math.round(sy(0)), th1 = Math.round(U) - g;
-          for (var tx = tx0; tx < tx1; tx++) {
-            var lx0 = Math.max(X0, Math.round(sx(tx))), lx1 = Math.min(X1, Math.round(sx(tx + 1)));
-            ctx.fillStyle = (tx & 1) ? th.tileA : th.tileB; ctx.fillRect(lx0 + g, ty + g, lx1 - lx0 - g, th1);
-            var hv = hash2(tx, still ? 0 : bi);
-            if (hv < 0.2) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = still ? 0.08 : 0.16 * (1 - bf * 0.6); ctx.fillStyle = hv < 0.1 ? th.a : th.b; ctx.fillRect(lx0 + g, ty + g, lx1 - lx0 - g, th1); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
+          var tx0 = Math.max(Math.floor(s.x0), Math.floor(x0)), tx1 = Math.min(Math.ceil(s.x1), Math.ceil(x1)), g = Math.max(1, Math.round(U * 0.05)), th1 = Math.round(U) - g;
+          for (var row = 0; row < 3; row++) {
+            var ty = Math.round(sy(-row)); if (ty > VH) break; var fade = row ? 0.55 / row : 1;
+            for (var tx = tx0; tx < tx1; tx++) {
+              var lx0 = Math.max(X0, Math.round(sx(tx))), lx1 = Math.min(X1, Math.round(sx(tx + 1)));
+              ctx.globalAlpha = fade; ctx.fillStyle = ((tx + row) & 1) ? th.tileA : th.tileB; ctx.fillRect(lx0 + g, ty + g, lx1 - lx0 - g, th1);
+              var hv = hash2(tx * 3 + row, still ? 0 : bi);
+              if (hv < 0.2) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (still ? 0.08 : 0.16 * (1 - bf * 0.6)) * fade; ctx.fillStyle = hv < 0.1 ? th.a : th.b; ctx.fillRect(lx0 + g, ty + g, lx1 - lx0 - g, th1); ctx.globalCompositeOperation = 'source-over'; }
+            }
           }
+          ctx.globalAlpha = 1;
         }
       } else {
         ctx.fillStyle = th.block; ctx.fillRect(X0, Yt, X1 - X0, Yb - Yt);
@@ -2125,7 +2136,7 @@ var BV = (function () {
     if (GAME.meta.kind === 'main' && GAME.meta.i === 0 && (r.a || 0) + GAME.att <= 3) hint = TX(document.body.classList.contains('touch') ? 'Tap to jump · hold to keep hopping' : 'Space or click to jump · hold to keep hopping');
     else if (first && GAME.mode === 'practice') hint = TX(document.body.classList.contains('touch') ? 'Practice: checkpoints save themselves; Save point adds one' : 'Practice: checkpoints save themselves; Z adds one, X removes it');
     showHint(hint);
-    if (S.n === 0) noteForm(S.f, true);
+    if (S.n === 0) { if (first) { var f0 = S.f; clearTimeout(beginAttempt.tip); beginAttempt.tip = setTimeout(function () { if (GAME.state === 'play') noteForm(f0, true); }, 2100); } else noteForm(S.f, true); }
   }
   // the stage intro: the level's name in big pixel letters in its stage colour, for a moment at the start of a run
   function stageIntro() {
