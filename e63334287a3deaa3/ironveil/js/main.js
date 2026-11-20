@@ -88,6 +88,7 @@
     UI.hideAll(); IV.hud.reset(); IV.hud.show(true); IV.hud.objectives();
     IV.touchUI.reset();
     state = 'play'; IV.input.clear(); acc = 0;
+    IV.fp && IV.fp.warm && IV.fp.warm();   // the first-person arms' shaders compiled now, not on the first shot
     if (!IV.touch) IV.input.requestLock(false);
     IV.audio.ambience(W.day ? 'day' : 'night'); IV.audio.music(true);
     $('fade').style.opacity = 0;

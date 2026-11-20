@@ -104,6 +104,9 @@
     cam.rotateZ(FP.roll + FP.mr);
     cam.rotateX(FP.mp + FP.nod);
     if (cam.near !== 0.05) { cam.near = 0.05; cam.updateProjectionMatrix(); }
+    // guard: in first person nothing of the world body may be drawn near the eye unless its first-person mode is in
+    // force (head, neck and arms gone); if it is not (the first frame, a swap in progress), the body is hidden that frame
+    if (P.actor) { const ready = A && A.setFirstPerson ? FP._fpKey && FP._fpKey !== 'off' : fpHide.value > 0.5; P.actor.setVisible(!!ready); }
     C.mode = 'first';
     bodyFirstPerson(true);
     vmFrame(dt, yaw, pitch);
@@ -162,7 +165,9 @@
   // called by player.js after the actor's update
   FP.afterBodyUpdate = function () {
     const A = P.actor; if (!A || !A.bone) return;
-    const on = bodyFP && !IV.weapons.scoped && P.alive;
+    // (not tied to WP.scoped: the rifle is raised in first person before the scope view starts, and turning the body
+    // back to full there put the camera inside his head. The scope view hides the whole actor itself.)
+    const on = bodyFP && P.alive;
     const M = IV.weapons.models || {};
     if (A.setFirstPerson) {
       // the characters' own first-person body (no head, neck or arms; eyes, hair and the gun in the hands shadow-only,
@@ -188,6 +193,15 @@
   };
   // weapons.js: before guns are moved between the hands, the sling and the holster
   FP.beforeAttach = function () { const A = P.actor; if (A && A.setFirstPerson && FP._fpKey && FP._fpKey !== 'off') { A.setFirstPerson(false); FP._fpKey = null; } };
+  // compile the arms' shaders (every gun, the props) and the body's first-person materials before play starts, so the
+  // first shot, weapon swap or look down does not hitch while the GPU compiles (main.js calls this as a mission starts)
+  FP.warm = function () {
+    const vm = vmBuild(); if (!vm || !FP.on()) return;
+    const r = W.renderer, rig = vm.rig, t0 = performance.now();
+    if (!rig.standin) { const vis = []; for (const k of ['rifleScoped', 'smg', 'pistol']) { const v = rig.get(k); if (v) { vis.push([v.group, v.group.visible]); v.group.visible = true; v.group.traverse(o => { if (o.isMesh) { vis.push([o, o.visible]); o.visible = true; } }); } } vm.root.visible = true; try { r.compile(vm.scene, vm.cam); } catch (e) {} vis.forEach(([o, b]) => { o.visible = b; }); }
+    else { vm.root.visible = true; try { r.compile(vm.scene, vm.cam); } catch (e) {} }
+    FP.warmMs = Math.round(performance.now() - t0);
+  };
   // tests: advance the arms (clips, layers) by dt without drawing a frame
   FP.vmTick = function (dt) { if (FP.on()) vmFrame(dt, P.yaw, P.pitch); };
   FP.scopeReady = () => (FP.vmAim || 0) >= 0.9;
@@ -498,7 +512,12 @@
       _v.set(W.moonDir.x, W.moonDir.y, W.moonDir.z).applyQuaternion(_q.copy(cam.quaternion).invert());
       vm.sun.position.copy(_v); vm.sun.target.position.set(0, 0, 0);
     }
-    const fl = W.flashLight; vm.pt.intensity = fl ? fl.intensity * 0.8 : 0; vm.pt.position.set(0.05, -0.05, -0.9);
+    // the nearest lamp pools and the muzzle / explosion flash light the arms from where they really are: each world point
+    // light is copied into the viewmodel scene at its position relative to the eye (same colour, power, falloff)
+    _q.copy(cam.quaternion).invert();
+    const src = [W.flashLight].concat(W.pointPool ? W.pointPool.slice(0, 2) : []);
+    if (!vm.lamps) { vm.lamps = src.map(() => { const l = new THREE.PointLight(0xffc880, 0, 10, 2); vm.scene.add(l); return l; }); vm.pt.intensity = 0; }
+    src.forEach((w, i) => { const l = vm.lamps[i]; if (!w || !l) return; l.color.copy(w.color); l.distance = w.distance; l.decay = w.decay; l.intensity = w.intensity * (night ? 0.9 : 1); l.position.copy(w.position).sub(cam.position).applyQuaternion(_q); });
     vm.scene.environment = W.scene.environment || null;
   }
   // where the gun and hands are on screen (0..1, top-left origin), for HUD layout checks: the gun's box and the hand
