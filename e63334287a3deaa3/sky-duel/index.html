@@ -151,6 +151,8 @@ table.standings i.dot{display:inline-block;width:11px;height:11px;border-radius:
 .mark.off{border:0;width:0;height:0;margin:0}
 .mark.off::before{content:"";position:absolute;left:-9px;top:-9px;border:9px solid transparent;border-left:15px solid var(--red);border-right:0;transform:rotate(var(--a,0deg));transform-origin:9px 9px}
 .mark.off.fr::before{border-left-color:var(--cyan)}
+.mark.off.far{opacity:.45}
+.mark.off.tg::before{border-left-color:#fff}
 .mark.off span,.mark.off u{display:none}
 #hitm{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px;opacity:0;transition:opacity .25s}
 #hitm.on{opacity:1;transition:none}
@@ -2222,8 +2224,8 @@ function updateHud(dt){
     if(e===me||!e.alive||mi>=marks.length)continue;
     const m=marks[mi],foe=!me||enemies(me,e),isT=e===tg,ref=me&&me.alive?me.pos:camera.position,d=e.pos.distanceTo(ref),s=toScreen(e.pos);
     const on=s.front&&s.x>10&&s.x<VW-10&&s.y>10&&s.y<VH-10;
-    if(!on&&!isT&&(!foe||d>1300))continue;
-    mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off');
+    if(!on&&!isT&&(!foe||d>2400))continue;   // every enemy within 2.4 km gets an arrow at the edge (far ones fainter)
+    mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off')+(!on&&!isT&&d>1300?' far':'');
     if(on){const sz=Math.round(clamp(2600*PLANE_GROW/d,24,72));if(m.sz!==sz){m.sz=sz;m.el.style.width=m.el.style.height=sz+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px'}put(m.el,s.x,s.y)}
     else{let ax=s.cx,ay=-s.cy;if(!s.front&&Math.hypot(ax,ay)<1e-3)ay=1;const a=Math.atan2(ay,ax),deg=Math.round(a*57.2958);if(m.sz!==0){m.sz=0;m.el.style.width=m.el.style.height='';m.el.style.margin=''}if(m.deg!==deg){m.deg=deg;m.el.style.setProperty('--a',deg+'deg')}put(m.el,VW/2+Math.cos(a)*edge,VH/2+Math.sin(a)*edge)}
     if(m.cls!==cls){m.cls=cls;m.el.className=cls}
