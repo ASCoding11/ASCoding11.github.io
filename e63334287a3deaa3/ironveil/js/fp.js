@@ -180,7 +180,7 @@
       A.root.traverse(o => { if (o.userData.fpPart) shadowOnly(o, on); });
     }
     // the long gun slung on his back would cross the view looking down: shadow only in first person
-    for (const k in M) { const g = M[k]; if (!g) continue; const held = g === A.held; if (A.setFirstPerson && held) { shadowOnly(g, false); continue; } shadowOnly(g, on && !!g.parent && (held ? true : g !== M.pistol)); }
+    for (const k in M) { const g = M[k]; if (!g) continue; const held = g === A.held; if (A.setFirstPerson && held) { shadowOnly(g, false); continue; } shadowOnly(g, on && !!g.parent); }   // the holstered pistol too: with the hips masked it would float
   };
   // weapons.js: before guns are moved between the hands, the sling and the holster
   FP.beforeAttach = function () { const A = P.actor; if (A && A.setFirstPerson && FP._fpKey && FP._fpKey !== 'off') { A.setFirstPerson(false); FP._fpKey = null; } };
