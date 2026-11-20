@@ -416,7 +416,7 @@
     }
     const back = []; for (let f = 0; f < floors; f++) for (let i = 0; i < nb - 1; i++) { const c = w * (i + 0.5) / (nb - 1); if (f === 0 && i === 0) back.push({ a0: c - 0.45, a1: c + 0.45, y0: 0, y1: 2.05, door: true }); else back.push({ a0: c - 0.45, a1: c + 0.45, y0: f * storey + 0.95, y1: f * storey + 2.15, lit: litW(), broken: R() < sp.damage * 0.6, shutters: true }); }
     const right = [{ a0: d / 2 - 0.4 - 0.5, a1: d / 2 - 0.4 + 0.5, y0: storey + 0.95, y1: storey + 2.1, lit: litW() }];
-    const H = { w, d, T, floors, storey, out: 'fieldstone', in: 'plaster_interior', roof: sp.roof === 'slate' ? 'slate' : 'roof_tile', head: 'lintel', doorHead: 'lintel', shutters: true, quoins: true, front, back, right, left: [], pitch: 0.78, surf: 'stone' };
+    const H = { w, d, T, floors, storey, out: sp.out || 'fieldstone', in: 'plaster_interior', roof: sp.roof === 'slate' ? 'slate' : 'roof_tile', head: 'lintel', doorHead: 'lintel', shutters: true, quoins: true, front, back, right, left: [], pitch: 0.78, surf: 'stone' };
     const r = house(B, S, H);
     chimney(B, S, -w / 2 + T + 0.31, -0.3, 0, r.ridge + 0.9, true);
     if (w > 10) chimney(B, S, w / 2 - T - 0.31, 0.4, 0, r.ridge + 0.75, false);
@@ -441,7 +441,7 @@
     const w = sp.w || 8, d = sp.d || 6, T = 0.3, storey = 2.6, R = S.R, floors = sp.floors || 1;
     const front = [{ a0: w / 2 - 0.5, a1: w / 2 + 0.5, y0: 0, y1: 2.05, door: true }, ...bays(w, 2, 0.9, 2.05, { w: 0.9 }).map((o, i) => Object.assign(o, { a0: i ? w * 0.8 - 0.45 : w * 0.2 - 0.45, a1: i ? w * 0.8 + 0.45 : w * 0.2 + 0.45, lit: R() < (sp.lit || 0), broken: R() < sp.damage * 0.6 }))];
     const back = bays(w, 2, 0.95, 2.0, { w: 0.8 }).map(o => Object.assign(o, { lit: R() < (sp.lit || 0) }));
-    const r = house(B, S, { w, d, T, floors, storey, knee: floors === 1 ? 0.4 : 0, out: 'brick_red', in: 'plaster_interior', roof: sp.roof === 'tile' ? 'roof_tile' : 'slate', head: 'arch', doorHead: 'timber', shutters: false, quoins: false, front, back, right: [{ a0: d / 2 - 0.4, a1: d / 2 + 0.4, y0: storey * floors - 0.2, y1: storey * floors + 0.8 }], left: [], pitch: 0.8, plinth: 'brick_sooty', sill: true, surf: 'stone' });
+    const r = house(B, S, { w, d, T, floors, storey, knee: floors === 1 ? 0.4 : 0, out: sp.out || 'brick_red', in: 'plaster_interior', roof: sp.roof === 'tile' ? 'roof_tile' : 'slate', head: 'arch', doorHead: 'timber', shutters: false, quoins: false, front, back, right: [{ a0: d / 2 - 0.4, a1: d / 2 + 0.4, y0: storey * floors - 0.2, y1: storey * floors + 0.8 }], left: [], pitch: 0.8, plinth: 'brick_sooty', sill: true, surf: 'stone' });
     chimney(B, S, w / 2 - T - 0.31, 0, 0, r.ridge + 0.8, true);
     B.box('floorboards', 0, -0.03, 0, w - 2 * T, 0.03, d - 2 * T, 0, { noFoot: true });
   };
@@ -597,6 +597,8 @@
     const w = sp.w || 16, d = sp.d || 8, R = S.R, T = 0.7, nave = 5.6;
     const side = []; for (let i = 0; i < 4; i++) { const c = w * (i + 0.5) / 4; side.push({ a0: c - 0.45, a1: c + 0.45, y0: 1.8, y1: 4.4, head: 'pointed', lit: R() < (sp.lit || 0) * 0.5, broken: R() < sp.damage * 0.6 }); }
     const r = house(B, S, { w, d, T, floors: 1, storey: nave, out: 'fieldstone', in: 'plaster_interior', roof: 'slate', head: 'pointed', shutters: false, quoins: true, front: side, back: side.map(o => Object.assign({}, o, { lit: false })), right: [{ a0: d / 2 - 0.9, a1: d / 2 + 0.9, y0: 2.0, y1: 4.8, head: 'pointed' }], left: [], pitch: 0.95, sag: 0.03 + S.damage * 0.1, plinth: 'ashlar', sillMat: 'ashlar' });
+    // stepped buttresses between the nave windows, with sloped weatherings
+    for (let i = 0; i <= 4; i++) { const x = -w / 2 + i * w / 4; for (const sz of [-1, 1]) { const z = sz * (d / 2 + 0.35); B.box('fieldstone', x, 0, z, 0.75, 2.6, 0.7, 0, {}); B.box('fieldstone', x, 2.6, sz * (d / 2 + 0.22), 0.65, 1.6, 0.45, 0, {}); B.box('ashlar', x, 4.1, sz * (d / 2 + 0.2), 0.7, 0.12, 0.5, 0, { rx: -sz * 0.6, noFoot: true }); B.col(x, z, 0.75, 0.7, 0, 3.5, 0, 'stone', 'buttress'); } }
     // the tower at the west end (local -X), with a pointed door, louvred belfry openings and a pyramid spire
     const tw = 4.4, th = 15, tx = -w / 2 - tw / 2 + 0.2, Tt = 0.8;
     const T2 = E.builder(S.seed + 9), S2 = Object.assign({}, S, { R: E.rng(S.seed + 9), windows: S.windows, lights: S.lights, doors: S.doors });
@@ -629,6 +631,16 @@
     const sh = 6.5, cone = new THREE.ConeGeometry((tw + 0.4) * 0.707, sh, 4, 3); cone.rotateY(Math.PI / 4);
     T2.geo('slate', cone, _M.compose(_P.set(0, th + sh / 2, 0), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true });
     T2.box('metal_rust', 0, th + sh - 0.1, 0, 0.05, 1.4, 0.05, 0, { noFoot: true }); T2.box('metal_rust', 0, th + sh + 0.8, 0, 0.5, 0.05, 0.05, 0, { noFoot: true });
+    // a weathervane arrow, a clock face on the tower (plain numerals, no maker's name)
+    T2.box('metal_rust', 0.35, th + sh + 0.86, 0, 0.32, 0.18, 0.015, 0, { noFoot: true, rz: 0.78 });
+    { const cy = th - 4.6, cz = tw / 2 + 0.03; T2.geo('wood_painted', new THREE.CircleGeometry(0.62, 20), _M.compose(_P.set(0, cy, cz), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true, tint: new THREE.Color(1.5, 1.45, 1.35) });
+      T2.geo('metal_rust', new THREE.TorusGeometry(0.64, 0.035, 4, 24), _M.compose(_P.set(0, cy, cz + 0.01), _Q.identity(), _S.set(1, 1, 1)), { noFoot: true });
+      for (let k = 0; k < 12; k++) { const a = k / 12 * TAU; T2.box('metal_painted', Math.cos(a) * 0.5, cy + Math.sin(a) * 0.5 - 0.04, cz + 0.02, 0.03, 0.08, 0.01, 0, { noFoot: true, rz: a, tint: new THREE.Color(0.15, 0.15, 0.15) }); }
+      T2.box('metal_painted', 0.12, cy - 0.02, cz + 0.03, 0.32, 0.04, 0.01, 0, { noFoot: true, rz: 0.5, tint: new THREE.Color(0.1, 0.1, 0.1) }); T2.box('metal_painted', 0, cy - 0.02, cz + 0.035, 0.03, 0.46, 0.01, 0, { noFoot: true, rz: -0.3, tint: new THREE.Color(0.1, 0.1, 0.1) }); }
+    // a gabled porch on the tower door
+    { const pz = tw / 2 + 1.1; for (const sx of [-1, 1]) T2.box('fieldstone', sx * 1.15, 0, pz, 0.35, 2.3, 2.2, 0, {}); T2.box('timber', 0, 2.3, pz + 1.0, 2.7, 0.2, 0.2, 0, { noFoot: true });
+      const pr = new THREE.ConeGeometry(1.0, 1, 4, 1).rotateY(Math.PI / 4); T2.geo('slate', pr, _M.compose(_P.set(0, 2.85, pz), _Q.identity(), _S.set(2.1, 1.1, 1.75)), { noFoot: true });
+      T2.col(-1.15, pz, 0.35, 2.2, 0, 2.3, 0, 'stone', 'porch'); T2.col(1.15, pz, 0.35, 2.2, 0, 2.3, 0, 'stone', 'porch'); }
     const g2 = T2.finish(); g2.position.x = tx; S.group.add(g2);
     for (const c of T2.colliders) S.extraCols.push(Object.assign(c, { x: c.x + tx }));
     for (const dr of S.doors) if (dr.pivot.parent === S.group && !dr._moved && dr.x < 0) { }
@@ -789,7 +801,7 @@
       const c = Math.cos(rot), s = Math.sin(rot), W = (lx, lz) => [sp.x + lx * c + lz * s, sp.z - lx * s + lz * c];
       const eave = sp.eave || D.eave, X = D.X - 0.24, Z = D.Z - 0.24, tint = E.tintJ(RR, 0.06);
       // shell: walls (sunk into the ground on slopes), roof prism, windows
-      SB.box(sp.wall || D.wall, sp.x, y - 0.8, sp.z, X, eave + 0.8 - 0.05, Z, rot, { tint, uvOff: [RR() * 9, 0] });
+      SB.box(sp.out || sp.wall || D.wall, sp.x, y - 0.8, sp.z, X, eave + 0.8 - 0.05, Z, rot, { tint, uvOff: [RR() * 9, 0] });
       if (D.roof && !(sp.damage > 0.85)) { const m = new THREE.Matrix4().compose(new THREE.Vector3(sp.x, y + eave - 0.3, sp.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot, 0)), new THREE.Vector3(X + 0.3, Math.max(0.3, (sp.rise || D.rise) - 0.35), Z + 0.5)); SB.geo(D.roof, prismGeo, m, { noFoot: true, tint: E.tintJ(RR, 0.05) }); }
       if (D.tower) { const p = W(-X / 2 - 2.0, 0); SB.box('fieldstone', p[0], y - 0.5, p[1], 4.2, 15.5, 4.2, rot, { tint }); const m = new THREE.Matrix4().compose(new THREE.Vector3(p[0], y + 15, p[1]), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot + Math.PI / 4, 0)), new THREE.Vector3(3.2, 6.5, 3.2)); SB.geo('slate', new THREE.ConeGeometry(1, 1, 4, 1).translate(0, 0.5, 0), m, { noFoot: true }); }
       if (D.win) {
@@ -846,7 +858,8 @@
         B.box(mat, cx, y + h * 0.45, cz, len, h * 0.45, opts.t * 0.82, rot, { foot: y, uvOff: [sm, 0] });
         B.col(cx, cz, len, opts.t, y - 0.2, y + h * 0.9, rot, 'stone', 'wall');
         if (stone) { // coping: stones set on edge ("cock and hen"), each tilted a little; a plain cap on Low
-          if (E.Q.name === 'low') B.box('fieldstone', cx, y + h * 0.9 - 0.02, cz, len, 0.22, opts.t * 0.8, rot, { foot: y });
+          if (opts.coping === 'flat') B.box('ashlar', cx, y + h * 0.9 - 0.02, cz, len + 0.02, 0.14, opts.t * 1.05, rot, { foot: y, tint: tintJ(R, 0.04, 0xa8a49a), rx: 0 });   // a plain dressed coping (churchyards)
+          else if (E.Q.name === 'low') B.box('fieldstone', cx, y + h * 0.9 - 0.02, cz, len, 0.22, opts.t * 0.8, rot, { foot: y });
           else for (let c = 0; c < Math.round(len / 0.16); c++) {
             const off = -len / 2 + (c + 0.5) * len / Math.round(len / 0.16), px = cx + dx * off, pz = cz + dz * off, tall = R() < 0.35;
             B.box('fieldstone', px, y + h * 0.9 - 0.02, pz, R.range(0.09, 0.15), tall ? R.range(0.26, 0.34) : R.range(0.17, 0.24), opts.t * R.range(0.7, 0.9), rot, { rz: R.range(-0.15, 0.15), tint: tintJ(R, 0.14), foot: y, uvOff: [R() * 9, R() * 9] });

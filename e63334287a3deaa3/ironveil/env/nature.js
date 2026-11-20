@@ -426,7 +426,7 @@
         const sx = R.range(-0.4, 0.4); Bk.det(1, () => Bk.box('bark_oak', px + sx, y0 - 0.1, pz + R.range(-0.4, 0.4), 0.05, opts.h * R.range(0.4, 0.8), 0.05, R() * TAU, { rx: R.range(-0.35, 0.35), rz: R.range(-0.35, 0.35), noFoot: true, tint: new THREE.Color(0.75, 0.72, 0.68) }));
       }
       // leaf litter and dead leaves at the foot of the hedge
-      for (let k = 0; k < Math.round((c1 - c0) / 2); k++) { const s = R.range(c0, c1), [px, pz, dx, dz] = at(s), sd = R.range(-1, 1) * opts.w * 0.7; Bk.decal(R() < 0.75 ? 'mud' : 'leaves', [px - dz * sd, hf(px - dz * sd, pz + dx * sd) + 0.03, pz + dx * sd], [0, 1, 0], R.range(1, 2), R.range(1, 2), R() * 6); }   // mostly brown earth, a little litter
+      for (let k = 0; k < Math.round((c1 - c0) / 2); k++) { const s = R.range(c0, c1), [px, pz, dx, dz] = at(s), sd = R.range(-1, 1) * opts.w * 0.7; Bk.decal(R() < 0.8 ? 'grime' : 'leaves', [px - dz * sd, hf(px - dz * sd, pz + dx * sd) + 0.03, pz + dx * sd], [0, 1, 0], R.range(1, 2), R.range(1, 2), R() * 6); }   // mostly brown earth, a little litter
       if (L.i.length) {
         const g = new THREE.BufferGeometry();
         g.setAttribute('position', new THREE.Float32BufferAttribute(L.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(L.n, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(L.u, 2));

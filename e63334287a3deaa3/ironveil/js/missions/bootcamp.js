@@ -12,7 +12,17 @@
   function height(x, z) {
     const base = 0.6 * IV.fbm(x / 60 + 5, z / 60, 3) + (Math.abs(x) > 40 ? (Math.abs(x) - 40) * 0.05 : 0) + (z < -320 ? (-320 - z) * 0.2 : 0);
     const out = Math.max(smoothEdge(Math.abs(x), 58, 130), smoothEdge(z, 185, 260));
-    return base + out * (7 * IV.fbm(x / 95 + 11, z / 95 - 4, 4) + 3 * IV.fbm(x / 33, z / 33 + 7, 3) - 2);
+    return base + out * (7 * IV.fbm(x / 95 + 11, z / 95 - 4, 4) + 3 * IV.fbm(x / 33, z / 33 + 7, 3) - 2) + campRoll(x, z) * (1 - out);
+  }
+  // gentle rolls inside the camp (up to about a metre), flat where things stand: the course and the ranges, the
+  // stations, every building, tent and the parade square keep the ground they had
+  const FLAT = [[-6, 170, 6, -310], [-26, 50, -10, 26], [18, 12, 44, -16], [2, 26, 30, 4], [-26, 4, -10, -8], [-41, 170, -13, 140], [-40, 120, -28, 112], [-40, 88, -28, 80], [-38, 73, -28, 64],
+    [10, 145, 22, 115], [-26, 136, -10, 124], [23, 140, 42, 116], [24, 104, 42, 78], [26, 74, 42, 63], [26, 170, 40, 153], [-34, 106, -24, 94], [45, 172, 55, 160], [45, 124, 55, 112], [-15, 28, -7, 22], [36, 180, 52, 170]];
+  function campRoll(x, z) {
+    let d = 99;
+    for (const r of FLAT) { const dx = Math.max(r[0] - x, 0, x - r[2]), dz = Math.max(r[3] - z, 0, z - r[1]); d = Math.min(d, Math.hypot(dx, dz)); }
+    const k = smoothEdge(d, 2, 12);
+    return k * (1.6 * (IV.fbm(x / 34 + 3, z / 34 - 6, 3) - 0.5) + 0.5 * (IV.fbm(x / 9, z / 9 + 2, 2) - 0.5));
   }
   function surface(x, z) { if (Math.abs(x) < 2.2 && z > 0) return S.gravel; if (Math.abs(x + 18) < 5 && Math.abs(z + 2) < 5) return S.mud; return S.grass; }
   // what grows where (IVEnv ground and grass; see world.js W.surfaceAt). Long grass at fence feet, hut walls and posts

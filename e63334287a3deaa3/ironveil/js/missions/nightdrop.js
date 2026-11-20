@@ -31,12 +31,72 @@
   const JPOLE = { x: 37, z: -47.4 };
   const EXTRACT = { x: 166, z: 90 };
   const pd = (x, z, pts) => IV.polyDist(x, z, pts).d;
+  const HAMLET = (() => {
+      const H2 = Math.PI / 2, roadX = (z) => z < 80 ? 0 + z / 80 : 1 + (z - 80) / 108;
+      const E_ = (z, sp) => Object.assign({ x: roadX(z) + 2.6 + 3.2 + ((sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2), z, rot: -H2 }, sp);
+      const W_ = (z, sp) => Object.assign({ x: roadX(z) - 2.6 - 3.2 - ((sp.kind === 'barn' ? sp.w || 10 : sp.d || 6) / 2), z, rot: H2 }, sp);
+      return [
+        E_(38, { kind: 'cottage', w: 8, d: 6, floors: 2, lit: 0.5, roof: 'tile', out: 'plaster' }),
+        E_(51, { kind: 'shoprow', units: 2, d: 8, lit: 0.5 }),
+        E_(63.5, { kind: 'cottage', w: 7, d: 5.5, floors: 1, damage: 0.55, out: 'fieldstone' }),
+        E_(78, { kind: 'farmhouse', w: 12, d: 7, out: 'plaster', roof: 'slate' }),
+        E_(95, { kind: 'ruin', w: 8, d: 6, damage: 0.9 }),
+        { kind: 'shed', w: 5, d: 4, x: 21, z: 40, rot: 0.08 },
+        W_(34, { kind: 'cottage', w: 7, d: 6, floors: 2, lit: 0.6, out: 'fieldstone' }),
+        W_(45.5, { kind: 'shed', w: 6, d: 5 }),
+        W_(57, { kind: 'cottage', w: 9, d: 6, floors: 1, damage: 0.65, out: 'brick_sooty' }),
+        W_(71, { kind: 'cottage', w: 8, d: 6, floors: 2, lit: 0.4, roof: 'tile', out: 'plaster' }),
+        W_(90, { kind: 'barn', w: 9, d: 13 }),
+        W_(105, { kind: 'shed', w: 6, d: 4 }),
+        { kind: 'shed', w: 4, d: 3, x: -20, z: 64, rot: H2 },
+        { kind: 'church', w: 16, d: 8, x: 37, z: 88, rot: -H2 }
+      ];
+  })();
+  // footprint rectangles of the hamlet (for the trodden ring and weeds at wall feet)
+  const HRECT = HAMLET.map(sp => { const X = sp.kind === 'barn' ? sp.d || 16 : sp.kind === 'shoprow' ? (sp.units || 3) * 5.4 : sp.kind === 'church' ? sp.w + 4.6 : sp.w || 8, Z = sp.kind === 'barn' ? sp.w || 10 : sp.d || 6, sw = Math.abs(Math.sin(sp.rot || 0)) > 0.7; return { x: sp.x, z: sp.z, hx: (sw ? Z : X) / 2, hz: (sw ? X : Z) / 2 }; });
   const bump = (d, a, b) => d <= a ? 1 : d >= b ? 0 : 1 - IV.smooth((d - a) / (b - a));
 
   function base(x, z) { return 4.5 * IV.fbm(x / 130 + 3.1, z / 130 + 1.7, 4) + 1.4 * IV.fbm(x / 38, z / 38, 3) - 3.2 - z * 0.012 + x * 0.004; }
   const farmH = base(FARM.x, FARM.z) + 0.2;
+  // ---- relief: rolling hills, a ridge east of the farm, a deeper stream valley, a quarry, higher ground toward the
+  // map edge. It is faded to nothing within ~14-40 m of every route the mission, the AI and the bots use (approach,
+  // loud route, run, patrols, lanes, roads, farm, orchard, crossroads, hamlet, landing), so paths, thresholds,
+  // cover and sight lines there are as before. The fade mask is a 2 m grid built once.
+  const KEEP = [
+    [[-117, 88], [-92, 47], [-92, 33], [-95, 12], [-62, -12], [-44, -24], [-41, -35], [-30, -45], [-2, -76], [14, -76], [28, -80], [24, -52], [36.8, -48.3], [24, -52], [24, -118], [60, -124], [80, -142], [120, -141], [120, -133], [107, -125]],
+    [[-92, 47], [-60, 22], [-10, 12], [4, 0], [30, -46], [40, -72], [75, -98], [98, -120], [100.6, -118.6]],
+    [[116, -66], [126, -32], [134, 0], [144, 40], [156, 74], [170, 98], [188, 112]],
+    L1, R1, R2, R3, [[46, -70], [74, -71], [76, -100], [46, -99], [44, -84], [46, -70]]
+  ];
+  const KEEP_AREAS = [[FARM.x, FARM.z, 60], [0, 10, 26], [58, -86, 30], [AA.x, AA.z, 25], [OAK.x, OAK.z, 22], [LINK.x, LINK.z, 18], [EXTRACT.x, EXTRACT.z, 22], [8, 68, 48], [-41, 18, 16]];
+  const PADS = [[-150, -45, 9], [-131, -61, 10], [-162, -62, 5], [150, 152, 9], [168, 136, 10], [-165, 138, 7], [-152, 150, 5], [166, -164, 8], [140, -166, 9]];
+  let MASK = null;
+  function keepMask() {
+    const N = 191, m = new Float32Array(N * N);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = -190 + i * 2, z = -190 + j * 2; let d = 1e9;
+      for (const P of KEEP) d = Math.min(d, pd(x, z, P));
+      for (const A of KEEP_AREAS) d = Math.min(d, Math.hypot(x - A[0], z - A[1]) - A[2]);
+      m[j * N + i] = 1 - bump(d, 14, 40);
+    }
+    return m;
+  }
+  function relief(x, z) {
+    if (!MASK) MASK = keepMask();
+    const fx = IV.clamp((x + 190) / 2, 0, 189.999), fz = IV.clamp((z + 190) / 2, 0, 189.999), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, N = 191;
+    const k = (MASK[j * N + i] * (1 - tx) + MASK[j * N + i + 1] * tx) * (1 - tz) + (MASK[(j + 1) * N + i] * (1 - tx) + MASK[(j + 1) * N + i + 1] * tx) * tz;
+    if (k <= 0.001) return 0;
+    const edge = IV.smooth(IV.clamp((Math.max(Math.abs(x), Math.abs(z)) - 140) / 48, 0, 1));
+    let r = 7 * (IV.fbm(x / 80 + 9, z / 80 - 2, 4) - 0.45) + 2.6 * (IV.fbm(x / 26, z / 26 + 5, 3) - 0.5) + edge * 9 * IV.fbm(x / 60 - 3, z / 60 + 8, 3);
+    r += 12 * Math.exp(-(((x - 172) / 15) ** 2)) * bump(Math.abs(z + 115), 45, 75);          // the ridge east of the farm
+    r -= 2.6 * bump(pd(x, z, ST), 6, 30);                                                       // the stream valley
+    const dq = Math.hypot(x - 95, z - 160); r -= 7 * (1 - IV.smooth(IV.clamp((dq - 15) / 7, 0, 1))); // the old quarry
+    return r * k;
+  }
   function height(x, z) {
-    let h = base(x, z);
+    let h = base(x, z) + relief(x, z);
+    // the outlying farms stand on levelled pads
+    for (const P of PADS) { const dp = Math.hypot(x - P[0], z - P[1]); if (dp < P[2] + 8) h = h + (base(P[0], P[1]) + relief(P[0], P[1]) - h) * bump(dp, P[2], P[2] + 8); }
     // the farm sits on a levelled rise
     const df = Math.hypot((x - FARM.x) / 1.15, z - FARM.z - 4);
     h = h + (farmH - h) * bump(df, 34, 52);
@@ -72,6 +132,8 @@
     if (x > 88 && x < 132 && z > -86 && z < -55) return 'yard';
     if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'field';
     // damp hollows (darker, trodden, a little standing water) and shorter-grazed patches break up the open fields
+    if (Math.hypot(x - 95, z - 160) < 21) return 'yard';   // the old quarry: stone and spoil
+    if (x > -30 && x < 50 && z > 25 && z < 112) for (const r of HRECT) { const dd = Math.max(Math.abs(x - r.x) - r.hx, Math.abs(z - r.z) - r.hz); if (dd < 2.6 && dd > -0.5) return dd < 1.1 ? 'yardedge' : 'verge'; }   // trodden ring and weeds at the walls
     if (surface(x, z) !== S.grass) return null;   // never over the tall grass (stealth cover), crops, mud or water
     const f = IV.fbm(x / 34 + 7, z / 34 - 3, 3);
     if (f < 0.3) return 'worn';
@@ -176,30 +238,42 @@
     // farms on the outlying slopes, and village skylines beyond the map. Some windows lit, most dark, some damaged.
     // Every reachable building is one closed collider (no interiors); none sits on a patrol or the approach routes.
     {
-      const H2 = Math.PI / 2, roadX = (z) => z < 80 ? 0 + z / 80 : 1 + (z - 80) / 108;
-      const E_ = (z, sp) => Object.assign({ x: roadX(z) + 2.6 + 3.2 + ((sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2), z, rot: -H2 }, sp);
-      const W_ = (z, sp) => Object.assign({ x: roadX(z) - 2.6 - 3.2 - ((sp.kind === 'barn' ? sp.w || 10 : sp.d || 6) / 2), z, rot: H2 }, sp);
-      const hamlet = [
-        E_(38, { kind: 'cottage', w: 8, d: 6, floors: 2, lit: 0.5, roof: 'tile' }),
-        E_(51, { kind: 'shoprow', units: 2, d: 8, lit: 0.5 }),
-        E_(63.5, { kind: 'cottage', w: 7, d: 5.5, floors: 1, damage: 0.55 }),
-        E_(78, { kind: 'farmhouse', w: 12, d: 7 }),
-        E_(95, { kind: 'ruin', w: 8, d: 6, damage: 0.9 }),
-        { kind: 'shed', w: 5, d: 4, x: 21, z: 40, rot: 0.08 },
-        W_(34, { kind: 'cottage', w: 7, d: 6, floors: 2, lit: 0.6 }),
-        W_(45.5, { kind: 'shed', w: 6, d: 5 }),
-        W_(57, { kind: 'cottage', w: 9, d: 6, floors: 1, damage: 0.65 }),
-        W_(71, { kind: 'cottage', w: 8, d: 6, floors: 2, lit: 0.4, roof: 'tile' }),
-        W_(90, { kind: 'barn', w: 9, d: 13 }),
-        W_(105, { kind: 'shed', w: 6, d: 4 }),
-        { kind: 'shed', w: 4, d: 3, x: -20, z: 64, rot: H2 },
-        { kind: 'church', w: 16, d: 8, x: 37, z: 88, rot: -H2 }
-      ];
+      const H2 = Math.PI / 2, hamlet = HAMLET;
       IV.art.settle(b, hamlet, { seed: 404 });
       // the churchyard wall (gap to the road), the well, a wayside cross at the crossroads corner
-      IV.art.wall(b, [[28, 74], [28, 81]], 1.2); IV.art.wall(b, [[28, 87], [28, 104], [47, 104], [47, 72], [28, 72], [28, 74]], 1.2);
+      IV.art.wall(b, [[28, 74], [28, 80.5]], 1.2, [], { coping: 'flat' }); IV.art.wall(b, [[28, 87.5], [28, 104], [47, 104], [47, 72], [28, 72], [28, 74]], 1.2, [], { coping: 'flat' });
       if (IV.art.envOn() && IVEnv.prop) { try { const wl = IVEnv.prop('well', 61); wl.group.position.set(-5.4, W.height(-5.4, 64), 64); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(wl.group); W.addBox(-5.4, 64, 0.8, 0.8, W.height(-5.4, 64), W.height(-5.4, 64) + 0.9, 0, F.SOLID | F.BULLET | F.NAV, 'stone'); } catch (e) {} }
       { const cy = W.height(-4.2, 26); K.box(b, 'wood', -4.2, cy, 26, 0.18, 2.6, 0.18, 0.3, 0x5a4a3a, F.SOLID | F.BULLET, 'wood'); K.box(b, 'wood', -4.2, cy + 1.75, 26, 1.2, 0.16, 0.16, 0.3, 0x5a4a3a); K.box(b, 'stone', -4.2, cy - 0.2, 26, 0.9, 0.35, 0.9, 0.3, 0x8a867c); }
+      // dressing the street (interiors-props-and-clutter: large, medium, small; clustered at walls and doors, nothing
+      // aligned, the road and doorways clear): low front-garden walls with gaps at the doors, carts, barrels, firewood,
+      // a trough, ladders, a wash line, bottles and crates by the shop; puddles and dung on the road; gravestones, a lych
+      // gate and clipped yews in the churchyard
+      if (IV.art.envOn() && IVEnv.prop && IVEnv.builder) {
+        const root = W.envRoot && W.envRoot.parent ? W.envRoot : W.statics, RS = IV.rng(808);
+        const put = (kind, x, z, rot, o, solid) => { try { const p = IVEnv.prop(kind, (x * 31 + z * 17) | 0 || 5, o), y = W.height(x, z), c = Math.cos(rot), s2 = Math.sin(rot); p.group.position.set(x, y, z); p.group.rotation.y = rot; root.add(p.group); if (solid !== false) for (const k of p.colliders) W.addBox(x + k.x * c + k.z * s2, z - k.x * s2 + k.z * c, k.hx, k.hz, y + k.y0, y + k.y1, rot + k.rot, F.SOLID | F.BULLET | F.NAV, 'wood', k.kind); } catch (e) { console.warn('street', kind, e); } };
+        for (const sp of HAMLET) { if (sp.kind === 'church' || sp.kind === 'shed' || Math.abs(Math.abs(sp.rot) - Math.PI / 2) > 0.1) continue;
+          const side = sp.rot < 0 ? 1 : -1, wx = sp.x - side * ((sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2 + 1.9), half = (sp.kind === 'barn' ? sp.d || 13 : sp.kind === 'shoprow' ? 10.8 : sp.w || 8) / 2 + 0.8;
+          if (sp.kind !== 'shoprow' && sp.kind !== 'ruin' && sp.kind !== 'barn') IV.art.wall(b, [[wx, sp.z - half], [wx, sp.z + half]], 0.85, [[half - 0.8, half + 0.8]], { coping: 'flat' });
+          const sx = sp.x - side * ((sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2 + 0.7);
+          const pick = RS(); if (pick < 0.3) put('barrels', sx, sp.z + half - 1.6, RS() * 6); else if (pick < 0.55) put('logpile', sx + side * 0.2, sp.z - half + 1.6, H2 + RS() * 0.2); else if (pick < 0.75) put('crates', sx, sp.z + half - 1.4, RS()); else put('ladder', sx + side * 0.4, sp.z - half + 2, sp.rot, null, false); }
+        put('cart', 4.6, 44, 0.3); put('cart', -5.2, 98, 2.6); put('trough', 4.4, 58.5, H2 + 0.05); put('bottles', 14.2, 49, 0); put('crates', 14.6, 55.3, 0.4); put('barrels', -15.8, 47.5, 0.7);
+        put('washline', -19, 76, 0.2, { length: 5 }, false); put('tarp', 20.5, 33.5, 1.4); put('logpile', -18.5, 51, 0.1); put('haybale', -21, 88, 0.5); put('haybale', -21.5, 91, 1.9);
+        // rubble from the damaged houses spilling to the road
+        if (IVEnv.rubble) { try { const RB = IVEnv.builder(919), RR = IVEnv.rng(919); for (const [x, z, n] of [[5.5, 95, 26], [5.3, 63.5, 10], [-5.8, 57, 12]]) IVEnv.rubble(RB, x, z, 1.8, RR, { brick: 'brick_sooty', stone: 'fieldstone' }, n, W.height(x, z)); const g = RB.finish(); root.add(g); } catch (e) { console.warn('rubble', e); } }
+        // road: puddles in the wheel tracks and dung
+        try { const pud = [], DB = IVEnv.builder(717); for (let z = 26; z < 110; z += 4 + RS() * 7) { const x = (z < 80 ? z / 80 : 1 + (z - 80) / 108) + (RS() < 0.5 ? -1.1 : 1.1); pud.push([x, W.height(x, z), z, 0.5 + RS() * 0.8]); if (RS() < 0.5) DB.decal('mud', [x + RS() * 1.4 - 0.7, W.height(x, z) + 0.02, z + 1.5], [0, 1, 0], 0.35, 0.3, RS() * 6); }
+          if (IVEnv.puddleMesh) W.scene.add(IVEnv.puddleMesh(pud)); root.add(DB.finish()); } catch (e) { console.warn('road', e); }
+        // churchyard: gravestones (some leaning), a lych gate over the entrance, clipped yews
+        try { const GB = IVEnv.builder(71), RG = IV.rng(71);
+          const stone = (x, z) => { const y = W.height(x, z), hh = 0.6 + RG() * 0.5; GB.box('ashlar', x, y - 0.25, z, 0.5 + RG() * 0.2, hh + 0.25, 0.1, H2 + RG() * 0.12 - 0.06, { rx: RG() < 0.3 ? RG() * 0.2 - 0.1 : 0, rz: RG() < 0.25 ? RG() * 0.16 - 0.08 : 0, tint: E2t(RG) }); GB.decal('moss', [x, y + 0.02, z + 0.6], [0, 1, 0], 0.6, 1.4, 0); };
+          const E2t = (R3) => new THREE.Color(0.82 + R3() * 0.15, 0.82 + R3() * 0.12, 0.8 + R3() * 0.1);
+          for (let z = 75; z < 102; z += 1.9) { stone(30.3 + RG() * 0.4, z + RG() * 0.4); if (z > 97 || z < 79) for (let x = 33; x < 46; x += 1.8) stone(x + RG() * 0.4, z + 0.3); }
+          for (let z = 75; z < 100; z += 2.2) stone(44.5 + RG() * 0.4, z);
+          const gy = W.height(28, 84); for (const z of [80.6, 87.4]) { GB.box('timber', 28, gy, z, 0.22, 2.3, 0.22, 0, { grain: 'long' }); W.addBox(28, z, 0.13, 0.13, gy, gy + 2.3, 0, F.SOLID | F.BULLET, 'wood'); }
+          GB.geo('roof_tile', new THREE.ConeGeometry(1, 1, 4, 1).rotateY(Math.PI / 4), new THREE.Matrix4().compose(new THREE.Vector3(28, gy + 2.3, 84), new THREE.Quaternion(), new THREE.Vector3(1.6, 1.1, 5.2)), { noFoot: true });
+          root.add(GB.finish()); } catch (e) { console.warn('churchyard', e); }
+        IV.art.hedge(b, [[30.5, 74], [31.5, 76.5]], [], { h: 2.4, bank: 0 }); IV.art.hedge(b, [[45, 101], [45.6, 103]], [], { h: 2.2, bank: 0 });   // clipped yews
+      }
       // outlying farms on the slopes (inside the map, away from the routes)
       IV.art.settle(b, [
         { kind: 'farmhouse', w: 11, d: 7, x: -150, z: -45, rot: 0.3, lit: 0.3 }, { kind: 'barn', w: 9, d: 14, x: -131, z: -61, rot: 0.3 + H2 }, { kind: 'shed', w: 6, d: 4, x: -162, z: -62, rot: 0.3 },

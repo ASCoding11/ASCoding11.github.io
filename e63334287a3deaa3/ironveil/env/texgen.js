@@ -202,7 +202,7 @@
     const R = rng(seed), o = Out(S), cols = 6, rows = 18, bw = S / cols, ch = S / rows, m = S * 0.0105 / 1.35 * 1.1;
     const n1 = fbm(S, 64, 3, seed + 1), n2 = fbm(S, 16, 4, seed + 2), n3 = fbm(S, 128, 2, seed + 3), grit = fbm(S, 256, 2, seed + 4);
     const B = [];
-    const base = opt.palette || [[146, 72, 52], [142, 68, 50], [150, 76, 54], [140, 70, 52], [148, 78, 58]];   // close tones: one wall first, bricks second
+    const base = opt.palette || [[126, 72, 58], [122, 70, 57], [130, 76, 60], [120, 70, 58], [128, 78, 63]];   // weathered, not new red   // close tones: one wall first, bricks second
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const kind = R(), b = {
         dx: R.range(-1, 1) * S / 1024, dy: R.range(-0.8, 0.8) * S / 1024, sw: R.range(0, 2.5) * S / 1024, sh: R.range(0, 1.6) * S / 1024,

@@ -32,8 +32,8 @@
     const E = env(); if (E && E.hedge) { collidersOnly(() => K.hedgerow(b, pts, gaps, o)); return add(safe(() => E.hedge(pts, { h: (o && o.h != null ? o.h : 2.4) + (o && o.bank != null ? o.bank : 1.1), gaps: gaps || [], seed: seed(), heightFn: H }), 'hedge')); }
     return K.hedgerow(b, pts, gaps, o);
   };
-  A.wall = function (b, pts, h, gaps) {
-    const E = env(); if (E && E.wall) { collidersOnly(() => K.stoneWall(b, pts, h, gaps)); return add(safe(() => E.wall(pts, { type: 'stone', h: h || 1, gaps: gaps || [], seed: seed(), heightFn: H }), 'wall')); }
+  A.wall = function (b, pts, h, gaps, opts) {
+    const E = env(); if (E && E.wall) { collidersOnly(() => K.stoneWall(b, pts, h, gaps)); return add(safe(() => E.wall(pts, Object.assign({ type: 'stone', h: h || 1, gaps: gaps || [], seed: seed(), heightFn: H }, opts)), 'wall')); }
     return K.stoneWall(b, pts, h, gaps);
   };
   A.fence = function (b, pts, h) {
