@@ -203,7 +203,7 @@ details.help b{color:var(--txt)}
         <circle cx="356" cy="113" r="13" fill="#36e7ff" opacity=".28"/><circle cx="356" cy="113" r="6" fill="#f4fdff"/>
       </svg>
       <p class="tagline">Hold to ride. Hold in the air to flip. Land it clean.</p>
-      <p class="formerly">formerly Flipline</p>
+      <p class="formerly"><span class="kbonly">Press Space to ride now</span><span class="touchonly">Press and hold the city to ride now</span> · formerly Flipline</p>
       <div class="grid2">
         <button class="btn clay mode" id="mEndless" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 16c3-8 6-8 8 0s5 8 8 0" fill="none" stroke="#2b2230" stroke-width="2.6" stroke-linecap="round"/></svg></span><span><b>Endless</b><span id="mEndlessS" data-noi18n>best 0 m</span></span></button>
         <button class="btn teal mode" id="mDaily" type="button"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="#2b2230" stroke-width="2.4"/><path d="M4 10h16M9 3v4M15 3v4" stroke="#2b2230" stroke-width="2.4" stroke-linecap="round"/></svg></span><span><b>Daily run</b><span id="mDailyS" data-noi18n>same course for everyone</span></span></button>
@@ -428,10 +428,11 @@ function boostSeg(tr,L){flush(tr);const x=tr.cx;tr.boost=1;seg(tr,L,0);flush(tr)
 // keeps a flag per loop (s.lp); only the half that matches it collides, so the floor through the bottom never traps the bike
 // and the bike leaves at the bottom instead of going round again. The flag flips once the bike is past the top.
 const LOOP_CR=P.WR-P.WY; // centre of mass to the riding surface (m)
-// entry speed the checker asks for when it reaches the bottom of a loop. Measured with the real physics, holding the button all the way
-// round, the lowest entry speeds that still go round are about 10.0 (R 3), 10.0 (R 4), 12.6 (R 5) and 11.6 m/s (R 6); this asks for
-// about 1 m/s more. Let go in the loop and you need far more: 13.1 (R 3), 15.4 (R 4), 17.6 m/s (R 5).
-function loopVmin(R){return Math.max(10.5,7.4+1.05*R)}
+// entry speed the checker asks for when it reaches the bottom of a loop. The motor stops helping past vertical, so speed is what
+// takes you over the top. Measured with the real physics, holding all the way round, the lowest entry speeds that still go
+// round are about 10.0 (R 3), 13.1 (R 4) and 16.0 m/s (R 5); this asks for about 0.6 m/s more. Let go in the loop and you need
+// more again: 13.1 (R 3), 15.4 (R 4), 17.6 m/s (R 5).
+function loopVmin(R){return Math.max(10.5,3*R+1.6)}
 function loopRing(tr,R){
   const li=tr.loops.length,ax=tr.cx,ay=tr.cy,cx=ax,cy=ay+R;
   flush(tr);
@@ -455,10 +456,13 @@ const MOD={
   // a loop of radius R after a run-up (metres), the last `boost` metres of it a boost strip; tok 1 puts an x2 token at the top
   loop:{need:1,f(tr,R=4,run=16,boost=0,tok=0){seg(tr,Math.max(3,run-boost),0);if(boost>0)boostSeg(tr,boost);seg(tr,2,0);const x=tr.cx,y=tr.cy;loopRing(tr,R);
     if(tok)token(tr,x,y+2*R-LOOP_CR-0.3);seg(tr,R+7,0)}},
+  // a jump straight into a loop: land it clean and keep holding, or you won't have the speed to get over the top
+  jumploop:{need:1,f(tr,h=1.1,R=4,run=6){seg(tr,RUNUP*0.7,0);arcUp(tr,rad(22),h);lip(tr);const x=tr.cx,y=tr.cy;gapTo(tr,5,-h+0.4);ease(tr,8,-0.4);
+    coinArc(tr,x,y,15*Math.cos(rad(22)),15*Math.sin(rad(22)),3,0.16);MOD.loop.f(tr,R,run,0)}},
   // two loops back to back, the second straight off the first
   loop2:{need:1,f(tr,R1=3.4,R2=4,g=12){MOD.loop.f(tr,R1,16,0);MOD.loop.f(tr,R2,g,0)}},
   // half-pipe: roll down into a U, up the far wall and off a steep lip (ang degrees): too steep to land without a flip
-  hpipe:{need:1,f(tr,d=3,ang=72,h=3.4,drop=9){seg(tr,8,0);ease(tr,2.2*d,-d);seg(tr,3,0);arcUp(tr,rad(ang),h);lip(tr);const x=tr.cx,y=tr.cy;
+  hpipe:{need:1,f(tr,d=3,ang=72,h=3.4,drop=9){seg(tr,8,0);ease(tr,2.2*d,-d);seg(tr,3,0);arcUp(tr,rad(ang),h);seg(tr,1.5*Math.cos(rad(ang)),1.5*Math.sin(rad(ang)));lip(tr);const x=tr.cx,y=tr.cy;
     gapTo(tr,4.2,-1.8);const s=Math.tan(rad(36)),L=(drop+h-d-1.8-2)/s;seg(tr,L,-s*L);bend(tr,10,-s);coinArc(tr,x,y,4.5,13,6,0.25);seg(tr,12,0)}},
   // launch pad: a boost strip into a kicker, a long gap (w) and a landing ramp dy metres above or below the lip
   launch:{need:1,f(tr,w=18,dy=0,ang=26,bl=6,tok=0){seg(tr,8,0);boostSeg(tr,bl);seg(tr,3,0);arcUp(tr,rad(ang),1.1);lip(tr);const x=tr.cx,y=tr.cy;
@@ -508,7 +512,7 @@ const MOD={
     for(let i=0;i<n;i++){y+=dh;solid(tr,x,x+pw,y,'p',y-6);coin(tr,x+pw/2,y+1.2);x+=pw+g}tr.cx=x;tr.cy=y+dh;runStart(tr,true);seg(tr,10,0)}},
   bridge:{f(tr,n=5,pl=3.2){seg(tr,4,0);let x=tr.cx,y=tr.cy;runEnd(tr,true);x+=0.15;
     for(let i=0;i<n;i++){const sag=-0.12*Math.sin(Math.PI*(i+0.5)/n);solid(tr,x,x+pl,y+sag,'b',y+sag-0.45);x+=pl+0.2}tr.cx=x;runStart(tr,true);seg(tr,8,0)}},
-  lpipe:{need:1,f(tr,h=3.4,ang=60,drop=9){seg(tr,RUNUP+4,0);arcUp(tr,rad(ang),h);lip(tr);const x=tr.cx,y=tr.cy;
+  lpipe:{need:1,f(tr,h=3.4,ang=60,drop=9){seg(tr,RUNUP+4,0);arcUp(tr,rad(ang),h);seg(tr,1.5*Math.cos(rad(ang)),1.5*Math.sin(rad(ang)));lip(tr);const x=tr.cx,y=tr.cy;
     gapTo(tr,4.2,-1.8);const s=Math.tan(rad(36)),L=(drop+h-1.8-2)/s;seg(tr,L,-s*L);bend(tr,10,-s);coinArc(tr,x,y,5,8.5,5,0.2);seg(tr,12,0)}},
   dropin:{f(tr,h=7){seg(tr,8,0);arcUp(tr,rad(10),0.25);lip(tr);const x=tr.cx,y=tr.cy;gapTo(tr,3.5,-h*0.3-0.25);
     const s=Math.tan(rad(32)),L=h*0.55/s;seg(tr,L,-s*L);bend(tr,10,-s);coinArc(tr,x,y,13,2,4,0.2);seg(tr,10,0)}},
@@ -556,7 +560,7 @@ const PICK=[
   ['longjump',3,0.3,(d,r)=>[R_(r,8,9+5*d)]],
   ['pillars',2,0.25,(d,r)=>[3+Math.floor(r()*3),R_(r,2.2,3.0),R_(r,0.6,0.7+0.4*d),-R_(r,0.15,0.4)]],
   ['bridge',1,0.2,(d,r)=>[4+Math.floor(r()*3),R_(r,2.6,3.4)]],
-  ['lpipe',4,0.15,(d,r)=>[R_(r,3,3.4),R_(r,56,62),R_(r,7,10)]],
+  ['lpipe',5,0.05,(d,r)=>[R_(r,3.1,3.4),R_(r,62,68),R_(r,7,10)]],
   ['dropin',3,0.1,(d,r)=>[R_(r,6,7+4*D1(d))]],
   ['seesaw',1,0.4,(d,r)=>[R_(r,9,11),R_(r,1.0,1.3)]],
   ['shuttle',2,0.4,(d,r)=>[R_(r,7,8+2.5*D1(d)),r()*TAU]],
@@ -568,9 +572,10 @@ const PICK=[
   ['saw',3,0.35,(d,r)=>[R_(r,4,5.5),R_(r,2.2,2.6),R_(r,-0.1,0.1)]],
   ['spikes',5,0,(d,r)=>[R_(r,3,3.5+3*d)]],
   ['spikeroll',4,0.2,(d,r)=>[2+Math.floor(r()*2)+(d>1&&r()<0.5?1:0),R_(r,2.5,3+1.0*d),R_(r,0.9,1.1)]],
-  ['loop',6,0,(d,r)=>{const R=R_(r,3.2,3.6+1.8*D1(d)+0.6*Math.max(0,d-1));return[R,R_(r,12,16),R>4.6?6:0,r()<0.15?1:0]}],
+  ['loop',6,0,(d,r)=>{const R=R_(r,3.4,3.8+1.6*D1(d)+0.4*Math.max(0,d-1));return[R,R_(r,12,16),R>4.2?Math.round(R*2):0,r()<0.15?1:0]}],
+  ['jumploop',4,0.2,(d,r)=>[R_(r,0.9,1.2),R_(r,3.6,4.0+0.8*D1(d)),R_(r,5,8)]],
   ['loop2',3,0.35,(d,r)=>[R_(r,3.2,3.8+0.8*D1(d)),R_(r,3.6,4.2+1*D1(d)),R_(r,10,14)]],
-  ['hpipe',4,0.2,(d,r)=>[R_(r,2.5,3.5),R_(r,68,76),R_(r,3.2,3.6),R_(r,8,10)]],
+  ['hpipe',5,0.1,(d,r)=>[R_(r,2.8,3.4),R_(r,67,70),R_(r,2.8,3.0),R_(r,8,10)]],
   ['launch',5,0.05,(d,r)=>[R_(r,14,18+8*d),R_(r,-4,0.5+1.0*D1(d)),R_(r,22,28),6,r()<0.15?1:0]],
   ['boost',2,0.1,(d,r)=>[R_(r,8,12)]],
   ['crumble',4,0.2,(d,r)=>[2+Math.floor(r()*2+0.6*D1(d)),R_(r,4.6,5)-0.8*D1(d),R_(r,1.2,1.5+1.0*d)]],
@@ -601,8 +606,9 @@ function endlessD(x){const u=(x-OPEN_X)/ENDLESS_RAMP;return u<=1?clamp(u,0,1):Ma
 function endless(seed){
   const tr=newTrack('endless');tr.seed=seed>>>0;tr.r=rng(seed);startTrack(tr);
   // the opening: a little kick at ~26 m (under 3 s), a big kicker over a drop at ~55 m (hold through it and you over-rotate),
-  // a short spike run at ~95 m, a forgiving loop at ~125 m (about 9 s)
-  build(tr,'kick',[0.9,24,10]);build(tr,'bigkick',[1.8,32,2,10]);build(tr,'spikes',[2.5]);build(tr,'loop',[3.4,10,0,0]);flush(tr);
+  // a short spike run at ~95 m, a forgiving loop at ~125 m (about 9 s), then at ~170 m a steep launch you can only land by
+  // flipping (a quarter-pipe or a half-pipe, by seed): the first thing that a rider who never flips can't get past
+  build(tr,'kick',[0.9,24,10]);build(tr,'bigkick',[1.8,32,2,10]);build(tr,'spikes',[2.5]);build(tr,'loop',[3.4,10,0,0]);build(tr,(seed&1)?'lpipe':'hpipe',(seed&1)?[3.3,64,9]:[3.2,68,2.9,9]);flush(tr);
   tr.vs=[vInit(tr,1),vInit(tr,0.85)];vRun(tr,tr.cx,null);tr.snaps=[{x:tr.cx,vs:vCopy(tr.vs)}];return tr;
 }
 const vCopy=vs=>vs.map(v=>Object.assign({},v,{trig:Object.assign({},v.trig)}));
@@ -784,7 +790,8 @@ function step(tr,s,hold){
     let fn=P.K*d-P.C*vn;if(fn<0)fn=0;
     let ft;
     if(i<2){ft=-P.CRR*fn*clamp(vt/0.4,-1,1);
-      if(i===0&&s.hold){let dr=P.DRIVE*(1-vt/P.VMAX);if(dr<0)dr=0;const cap=P.MU*fn;if(dr>cap)dr=cap;ft+=dr}
+      // the motor stops helping once the ground tips past vertical (the top of a loop), so a loop needs the speed you bring to it
+      if(i===0&&s.hold){let dr=P.DRIVE*(1-vt/P.VMAX)*clamp((ny+0.1)/0.3,0,1);if(dr<0)dr=0;const cap=P.MU*fn;if(dr>cap)dr=cap;ft+=dr}
       if(C_.e>=0&&tr.eb[C_.e]&&vt<P.BOOST_V&&!s.crash){ft+=P.BOOST*0.5*Math.min(1,fn/4);s.boostT=0.25}}
     else ft=-0.6*fn*clamp(vt/0.3,-1,1);
     const Fx=fn*nx+ft*tx,Fy=fn*ny+ft*ty;
@@ -1238,7 +1245,8 @@ function stepParticles(dt){let j=0;for(let i=0;i<pnum;i++){pl[i]-=dt;if(pl[i]<=0
   const k=pk[i];if(k===1){pvx[i]*=1-2.2*dt;pvy[i]=pvy[i]*(1-2.2*dt)-4*dt;pr[i]+=dt*8}else if(k===0){pvx[i]*=1-2.5*dt;pvy[i]=pvy[i]*(1-2.5*dt)+0.6*dt}else if(k===2){pvy[i]-=9*dt}
   px[i]+=pvx[i]*dt;py[i]+=pvy[i]*dt;
   if(j!==i){px[j]=px[i];py[j]=py[i];pvx[j]=pvx[i];pvy[j]=pvy[i];pl[j]=pl[i];pm[j]=pm[i];ps[j]=ps[i];pr[j]=pr[i];pk[j]=pk[i];pc[j]=pc[i]}j++}pnum=j}
-function pop(text,col,big){G.pops.push({t:0,text,col:col||'#fff6e4',big:!!big,x:0,y:0,attach:true});if(G.pops.length>5)G.pops.shift()}
+// one line of event text at a time, near the bike: a new event replaces the old one instead of stacking
+function pop(text,col,big){G.pops.length=0;G.pops.push({t:0,text,col:col||'#f4f7ff',big:!!big,x:0,y:0,attach:true})}
 
 // ======================= CAMERA / TRANSFORMS =======================
 let K=1,OX=0,OY=0; // device px per metre and the screen position of world (0,0)
@@ -1635,7 +1643,7 @@ function newRun(mode,opt){
 const lvCache={};function levelTrack(i){return lvCache[i]||(lvCache[i]=FL.level(LV[i]))}
 function restart(){
   G.s=FL.newState(G.tr);G.prev=snap(G.s,{});G.phase=G.mode==='demo'?'run':'ready';G.toggles=[];G.inQ.length=0;G.endAt=0;G.shown=false;G.pops.length=0;G.runCoins=0;
-  G.replay=null;G.rec.length=0;G.newBest=false;G.simHold=false;pnum=0;scarfPts=null;G.trail.length=0;G.flash=0;G.combo=0;G.lastFin=null;G.crouch=0;G.lean=0;
+  G.replay=null;G.rec.length=0;G.newBest=false;G.simHold=false;pnum=0;scarfPts=null;G.trail.length=0;G.flash=0;G.firsts={};G.combo=0;G.lastFin=null;G.crouch=0;G.lean=0;
   G.gs=G.ghost?FL.newState(G.tr):null;if(G.gs)G.gs.noPick=true;G.gk=0;G.gh=false;
   const s=G.s;G.cam.x=s.x+camLead();G.cam.y=s.y+1.5;G.cam.z=1;G.cam.vx=0;
   hideAll();if(G.mode!=='demo'){$('hud').hidden=false;$('levelBar').hidden=!G.L;}
@@ -1682,17 +1690,18 @@ function handleEvents(s){
     switch(e.k){
       case'touch':{const imp=e.imp||0;const gy=s.y-0.6;dust(s.x,gy,fx()?Math.round(6+imp*3):4,2.5+imp*0.7,theme().acc2);AU.S.land(imp+(e.air||0)*2);AU.S.chirp();G.crouch=Math.min(1,0.4+imp*0.12+e.air*0.3);
         if(fx())G.shake=Math.max(G.shake,Math.min(0.5,imp*0.05+e.air*0.06));G.popT=1;break}
-      case'bank':{if(e.n>0){const nm=e.n===1?TX('Backflip!'):e.n===2?TX('Double flip!'):e.n===3?TX('Triple flip!'):e.n===4?TX('Quadruple flip!'):TX('{n}× flip!',{n:e.n});pop(nm+'  +'+NUM(e.pts),'#fff6e4',true);AU.S.flip(e.n,e.combo)}
-        if(e.clean){pop(TX('Clean landing')+(e.combo>1?'  ×'+e.mult:''),'#bff3e6',!e.n);AU.S.clean(e.combo);confetti(s.x,s.y,e.n?26:12);
-          if(!G.firsts.clean){G.firsts.clean=1;G.flash=1;G.flashC=theme().acc;pop(TX('First clean landing!'),'#7dffcf',true)}}
-        if(e.x2)G.flashC=null;
-        else if(e.air>0.55&&!e.clean&&!e.n){AU.S.sloppy()}
-        if(!e.n&&!e.clean&&e.pts>0)pop(TX('Big air')+'  +'+e.pts,'#fff6e4');
+      case'bank':{let txt='',col='#f4f7ff',big=false;
+        if(e.n>0){txt=e.n===1?TX('Backflip!'):e.n===2?TX('Double flip!'):e.n===3?TX('Triple flip!'):e.n===4?TX('Quadruple flip!'):TX('{n}× flip!',{n:e.n});big=true;AU.S.flip(e.n,e.combo)}
+        if(e.clean){const first=!G.firsts.clean;txt=(txt?txt+'  ':'')+(first?TX('First clean landing!'):TX('Clean'))+(e.mult>1?' ×'+e.mult:'');col=first?'#7dffcf':'#bff8ff';AU.S.clean(e.combo);confetti(s.x,s.y,e.n?26:12);
+          if(first){G.firsts.clean=1;G.flash=1;G.flashC=theme().acc;big=true}}
+        else if(e.air>0.55&&!e.n){AU.S.sloppy()}
+        if(!e.n&&!e.clean&&e.pts>0)txt=TX('Big air');
+        if(txt)pop(txt+(e.pts>0?'  +'+NUM(e.pts):'')+(e.x2?'  ×2':''),e.x2?'#ffc83a':col,big);
         if(e.n>=4){save.feat.quad=1}
         break}
       case'near':pop(TX('Close shave!')+'  +'+e.pts,'#ffd0dc');AU.S.near();break;
-      case'loop':{pop(TX('Loop!')+'  +'+NUM(e.pts)+(e.mult>1?'  ×'+e.mult:''),'#e6fbff',true);AU.S.loop(e.combo);confetti(s.x,s.y,18);
-        if(!G.firsts.loop){G.firsts.loop=1;G.flash=1;G.flashC=theme().acc2}if(fx())G.shake=Math.max(G.shake,0.25);break}
+      case'loop':{const first=!G.firsts.loop;pop((first?TX('First loop!'):TX('Loop!'))+'  +'+NUM(e.pts)+(e.mult>1?'  ×'+e.mult:''),first?'#7dffcf':'#e6fbff',true);AU.S.loop(e.combo);confetti(s.x,s.y,18);
+        if(first){G.firsts.loop=1;G.flash=1;G.flashC=theme().acc2}if(fx())G.shake=Math.max(G.shake,0.25);break}
       case'x2':pop(TX('×2 points for {n} s',{n:P.MUL_T}),'#ffc83a',true);AU.S.token();G.flash=0.7;G.flashC='#ffc83a';break;
       case'coin':G.runCoins++;AU.S.coin();{const c=G.tr.coins[e.i];for(let i=0;i<6;i++){const a=i/6*TAU;emit(c.x,c.y,Math.cos(a)*2.5,Math.sin(a)*2.5,0.35,0.08,'#ffc83a',2)}}break;
       case'crash':AU.S.crash();if(fx())G.shake=0.8;G.flash=0;dust(s.x,s.y-0.4,fx()?18:6,4,'#ff6b85');dust(s.x,s.y-0.4,fx()?10:3,3,'#f4fdff');save.tot.crashes++;G.endAt=performance.now()+1100;setHint(touchUI?TX('Tap to go again'):TX('{k} to go again',{k:keyName('go')}));break;
@@ -1855,8 +1864,8 @@ function render(now,dtReal){
   // trick words rise from the rider
   screen();const fs=Math.round(clamp(PPM*0.6,18,34));
   for(let i=G.pops.length-1;i>=0;i--){const p=G.pops[i];p.t+=dtReal;if(p.t>1.5){G.pops.splice(i,1);continue}
-    if(p.attach){p.x=pose.x;p.y=pose.y+2.2;p.attach=false;p.row=G.pops.length-1-i}
-    const k_=p.t<0.12?0.6+p.t/0.12*0.45:p.t<0.22?1.05-(p.t-0.12)*0.5:1;const sx=clamp((OX+p.x*K)/DPR,fs*4,W-fs*4),sy=(OY-(p.y+p.t*0.9)*K)/DPR-(p.row||0)*fs*1.1;
+    p.x=pose.x;p.y=pose.y+2.3;p.attach=false;
+    const k_=p.t<0.12?0.6+p.t/0.12*0.45:p.t<0.22?1.05-(p.t-0.12)*0.5:1;const tw=cx.measureText?0:0,sx=clamp((OX+p.x*K)/DPR,Math.min(W/2,fs*5),Math.max(W/2,W-fs*5)),sy=clamp((OY-(p.y+p.t*0.6)*K)/DPR,(touchUI?96:76)+fs,H-fs*2.2);
     cx.save();cx.translate(sx,sy);cx.scale(k_,k_);cx.globalAlpha=p.t>1.1?1-(p.t-1.1)/0.4:1;cx.font=(p.big?fs:Math.round(fs*0.72))+'px "Lilita One","Arial Black",Impact,sans-serif';cx.textAlign='center';cx.lineJoin='round';
     cx.lineWidth=5;cx.strokeStyle=INK;cx.strokeText(p.text,0,0);cx.fillStyle=p.col;cx.fillText(p.text,0,0);cx.restore()}
   cx.globalAlpha=1;
@@ -1900,10 +1909,15 @@ function inputChanged(t){const h=computeHeld();if(h===G.held)return;G.held=h;AU.
   if(h&&G.s&&G.s.crash&&!G.shown&&G.s.t-G.s.crashT>0.3){endRun(true);restartSame();return}
   if(h&&G.s&&G.s.done&&!G.shown&&G.s.doneT>0.4){endRun()}
 }
+// one press from the title screen: Space, or pressing anywhere on the scenery outside the menu card, starts Endless and rides
+function onlyMenu(){return['levels','garage','chal','settings','editor','pause','results'].every(id=>$(id).hidden)}
+function quickStart(){AU.resume();hideAll();newRun('endless')}
+$('menu').addEventListener('pointerdown',e=>{if(e.target!==$('menu'))return;e.preventDefault();quickStart();ptrs.add(e.pointerId);try{cv.setPointerCapture(e.pointerId)}catch(_){}inputChanged(e.timeStamp||performance.now())});
 function overlaysClosed(){return['menu','levels','garage','chal','settings','editor','pause'].every(id=>$(id).hidden)}
 addEventListener('keydown',e=>{
   if(KB.busy())return;if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
   const acts=KB.actionsFor(e.code);
+  if(acts.includes('go')&&!$('menu').hidden&&onlyMenu()&&!e.repeat){e.preventDefault();quickStart();keys.add(e.code);inputChanged(e.timeStamp||performance.now());return}
   if(acts.includes('go')){if(!overlaysClosed())return;e.preventDefault();if(e.repeat)return;keys.add(e.code);inputChanged(e.timeStamp||performance.now());return}
   if(acts.includes('restart')&&G.mode!=='menu'&&G.mode!=='demo'&&overlaysClosed()){e.preventDefault();AU.resume();if(G.replay){G.replay=null}if(G.s&&(G.s.crash||G.s.done)&&!G.shown)endRun(true);restartSame();return}
   if(acts.includes('pause')||e.code==='Escape'){e.preventDefault();if(!$('pause').hidden)resume();else if(G.mode!=='demo'&&G.mode!=='menu'&&overlaysClosed()&&!G.shown)pause();else if(e.code==='Escape')backFromOverlay();return}
