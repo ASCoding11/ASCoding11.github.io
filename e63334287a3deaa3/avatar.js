@@ -565,6 +565,38 @@
     hat: ['None', 'Cap', 'Beanie', 'Headband', 'Party hat'],
     hatc: COLOURS, shirt: COLOURS, bg: COLOURS.slice(0, PALETTE.length)
   };
+  // Spanish for the editor (lang.js). The choices' names come from this list, not the page-wide dictionary, so words
+  // like "Red" or "None" don't change anything outside the editor (avatar.js also runs inside some games).
+  var COLOURS_ES = ['Ámbar', 'Rojo', 'Verde', 'Azul', 'Violeta', 'Rosa', 'Turquesa', 'Naranja', 'Lima', 'Celeste', 'Púrpura', 'Amarillo', 'Blanco', 'Carbón'];
+  var NAMES_ES = {
+    skin: ['Muy claro', 'Claro', 'Medio claro', 'Medio', 'Medio oscuro', 'Oscuro'],
+    face: ['Neutro', 'Femenino', 'Masculino'],
+    hair: ['Corto', 'Flequillo de lado', 'Rulos', 'Largo', 'Rodete', 'Puntas', 'Melena', 'Flat top', 'Ninguno', 'Rapado', 'Cola de caballo'],
+    hairc: ['Castaño oscuro', 'Negro', 'Castaño', 'Castaño claro', 'Rubio', 'Pelirrojo', 'Gris', 'Azul', 'Rosa'],
+    eyes: ['Puntos', 'Grandes', 'Sonrientes', 'Guiño', 'Ovalados', 'Dormidos'],
+    eyec: ['Negro', 'Marrón', 'Azul', 'Verde', 'Avellana', 'Gris', 'Violeta'],
+    brows: ['Ninguna', 'Rectas', 'Arqueadas', 'En ángulo', 'Gruesas'],
+    mouth: ['Sonrisa', 'Sonrisa amplia', 'Oh', 'Recta', 'Sonrisa de lado', 'Lengua afuera'],
+    cheeks: ['Lisas', 'Pecas', 'Rubor', 'Pecas y rubor'],
+    glasses: ['Ninguno', 'Redondos', 'Cuadrados'],
+    hat: ['Ninguno', 'Gorra', 'Gorro de lana', 'Vincha', 'Gorro de fiesta'],
+    hatc: COLOURS_ES, shirt: COLOURS_ES, bg: COLOURS_ES.slice(0, PALETTE.length)
+  };
+  function nameOf(k, i) { return (window.BackRoomLang && BackRoomLang.get() === 'es' ? NAMES_ES : NAMES)[k][i]; }
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Edit avatar': 'Editar avatar', 'Close without saving': 'Cerrar sin guardar', 'Your avatar: {d}': 'Tu avatar: {d}',
+      'Skin': 'Piel', 'Gender': 'Género', 'Pick whichever you like. It only changes how the face is drawn.': 'Elige el que quieras. Solo cambia cómo se dibuja la cara.',
+      'Hair style': 'Peinado', 'Hair colour': 'Color de pelo', 'Eyes': 'Ojos', 'Eye colour': 'Color de ojos', 'Eyebrows': 'Cejas', 'Mouth': 'Boca', 'Cheeks': 'Mejillas',
+      'Glasses': 'Anteojos', 'Hat': 'Gorro', 'Hat colour': 'Color del gorro', 'Shirt': 'Remera', 'Background': 'Fondo',
+      'Other players see your avatar too, next to your name.': 'Los demás jugadores también ven tu avatar, junto a tu nombre.',
+      'Back to the avatar drawn from your account': 'Volver al avatar dibujado a partir de tu cuenta',
+      'Sign in with Google to edit your avatar': 'Inicia sesión con Google para editar tu avatar', 'Edit your avatar': 'Editar tu avatar',
+      'Edit your avatar (sign in with Google first)': 'Editar tu avatar (primero inicia sesión con Google)'
+    });
+  })(0);
   // The editor's rows, top to bottom: key, label, then either the colours of a swatch row or null for a row of small
   // pictures (order: the order they are shown in; box: the part of the face a picture shows; bare: drawn without the hat,
   // so a beanie doesn't hide what the row changes). Every feature is in here, so every player has the same choices.
@@ -623,8 +655,8 @@
       rows.forEach(function (w) {
         var r = w.r, at = rowGet(r, pick), off = r.k === 'hatc' && !pick.hat;
         w.fs.hidden = off;                               // no hat, no hat colour to pick
-        w.now.textContent = NAMES[r.k][at];
-        if (!off) say.push(r.label.toLowerCase() + ' ' + NAMES[r.k][at].toLowerCase());
+        w.now.textContent = nameOf(r.k, at);
+        if (!off) say.push(T(r.label).toLowerCase() + ' ' + nameOf(r.k, at).toLowerCase());
         w.inputs.forEach(function (inp, j) {
           var i = w.order[j];
           inp.checked = i === at;
@@ -634,17 +666,17 @@
           w.pics[j].innerHTML = svg(uid, 46, r.box ? { seed: s, box: r.box } : { seed: s });
         });
       });
-      prev.setAttribute('aria-label', 'Your avatar: ' + say.join(', '));
+      prev.setAttribute('aria-label', T('Your avatar: {d}', { d: say.join(', ') }));
     }
     ROWS.forEach(function (r) {
-      var fs = mk('fieldset', 'bra-ed-f'), leg = mk('legend'), now = mk('b'), row = mk('div', r.cols ? 'bra-ed-sw' : 'bra-ed-sw pic');
+      var fs = mk('fieldset', 'bra-ed-f'), leg = mk('legend'), now = mk('b'); now.setAttribute('data-noi18n', ''); var row = mk('div', r.cols ? 'bra-ed-sw' : 'bra-ed-sw pic');
       var count = r.cols ? r.cols.length : NAMES[r.k].length, order = r.order || NAMES[r.k].map(function (_, i) { return i; }).slice(0, count), pics = [];
       leg.append(mk('span', '', r.label), now); fs.append(leg, row);
       if (r.hint) fs.append(mk('p', 'bra-ed-hint', r.hint));
       var inputs = order.map(function (i) {
         var lab = mk('label'), inp = mk('input'), dot = mk('span');
-        inp.type = 'radio'; inp.name = 'bra-ed-' + r.k; inp.value = String(i); inp.setAttribute('aria-label', NAMES[r.k][i]);
-        lab.title = NAMES[r.k][i];
+        inp.type = 'radio'; inp.name = 'bra-ed-' + r.k; inp.value = String(i); inp.setAttribute('aria-label', nameOf(r.k, i));
+        lab.title = nameOf(r.k, i);
         if (r.cols) dot.style.background = r.cols[i];
         inp.addEventListener('change', function () { if (inp.checked) { rowSet(r, pick, i); show(); } });
         lab.append(inp, dot); row.append(lab); pics.push(dot);

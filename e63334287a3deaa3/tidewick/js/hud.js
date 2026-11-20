@@ -1,6 +1,7 @@
 // A 5×7 pixel font drawn in code, and the HUD and the full-screen cards (title, stage card, game over, the ending).
 import { PALETTE, P } from './sprites.js';
 import { SCREEN_W, SCREEN_H } from './constants.js';
+import { pipSprite } from './look.js';
 
 const G = {
   A: '.###.|#...#|#...#|#####|#...#|#...#|#...#', B: '####.|#...#|#...#|####.|#...#|#...#|####.',
@@ -28,8 +29,14 @@ const G = {
   ',': '.....|.....|.....|.....|.##..|..#..|.#...', '/': '....#|....#|...#.|..#..|.#...|#....|#....',
   '+': '.....|..#..|..#..|#####|..#..|..#..|.....', '(': '...#.|..#..|.#...|.#...|.#...|..#..|...#.',
   ')': '.#...|..#..|...#.|...#.|...#.|..#..|.#...', '>': '.#...|..#..|...#.|....#|...#.|..#..|.#...',
-  '<': '...#.|..#..|.#...|#....|.#...|..#..|...#.', '=': '.....|.....|#####|.....|#####|.....|.....'
+  '<': '...#.|..#..|.#...|#....|.#...|..#..|...#.', '=': '.....|.....|#####|.....|#####|.....|.....',
+  // for Spanish (es.js): the accent takes the top row
+  'Á': '...#.|.###.|#...#|#...#|#####|#...#|#...#', 'É': '...#.|#####|#....|####.|#....|#....|#####', 'Í': '...#.|.###.|..#..|..#..|..#..|..#..|.###.',
+  'Ó': '...#.|.###.|#...#|#...#|#...#|#...#|.###.', 'Ú': '...#.|#...#|#...#|#...#|#...#|#...#|.###.', 'Ñ': '.###.|.....|#...#|##..#|#.#.#|#..##|#...#',
+  '¡': '..#..|.....|..#..|..#..|..#..|..#..|..#..', '¿': '..#..|.....|..#..|.##..|#....|#...#|.###.'
 };
+// the language (lang.js): English words in, the player's language out
+const T = (s, v) => window.BackRoomLang ? window.BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
 const GLYPH = {};
 for (const k in G) GLYPH[k] = G[k].split('|');
 
@@ -63,9 +70,9 @@ export function drawHUD(ctx, g, S, w = SCREEN_W) {
   ctx.drawImage(S[blink === 1 ? 'button1' : blink === 3 ? 'button1' : 'button0'], 0, 0, 16, 16, 86, 14, 12, 12);
   shadowText(ctx, 'x' + pad(g.buttons, 2), 100, 17, P.white);
   const [a, b] = (def ? def.name : 'HARBOR 1').split(' ');
-  shadowText(ctx, a, 142, 8, P.foamG);
+  shadowText(ctx, T(a), 142, 8, P.foamG);
   shadowText(ctx, b, 142 + textW(a) / 2 - 2, 17, P.white);
-  shadowText(ctx, 'TIME', w - 48, 8, P.foamG);
+  shadowText(ctx, T('TIME'), w - 48, 8, P.foamG);
   if (g.mode !== 'title' && g.mode !== 'intro') shadowText(ctx, pad(g.time, 3), w - 42, 17, g.time <= 100 && Math.floor(g.frame / 15) % 2 ? P.coral : P.white);
 }
 
@@ -75,20 +82,20 @@ export function drawIntro(ctx, g, S, w = SCREEN_W, h = SCREEN_H) {
   drawHUD(ctx, g, S, w);
   const d = g.stageDef;
   centred(ctx, d.name, 84, P.white, 1, w);
-  if (d.title) centred(ctx, d.title, 98, P.foamG, 1, w);
-  const fr = S['pipS_idle'];
+  if (d.title) centred(ctx, T(d.title), 98, P.foamG, 1, w);
+  const fr = pipSprite(S, 'pipS_idle');
   const x = Math.floor(w / 2) - 30;
-  ctx.drawImage(fr, x, 122);
+  ctx.drawImage(fr, x, 138 - fr.height);
   text(ctx, 'x  ' + g.lives, x + 26, 128, P.white);
-  centred(ctx, g.stage === 0 ? 'RAIN ON THE QUAY. REACH THE MAST.' : 'CROSS THE BREAKWATER.', 168, P.grey, 1, w);
+  centred(ctx, T(g.stage === 0 ? 'RAIN ON THE QUAY. REACH THE MAST.' : 'CROSS THE BREAKWATER.'), 168, P.grey, 1, w);
 }
 
 export function drawGameOver(ctx, g, S, w = SCREEN_W, h = SCREEN_H) {
   ctx.fillStyle = PALETTE[P.black]; ctx.fillRect(0, 0, w, h);
   drawHUD(ctx, g, S, w);
-  centred(ctx, 'GAME OVER', 100, P.coral, 2, w);
-  centred(ctx, 'SCORE ' + pad(g.score, 6), 132, P.white, 1, w);
-  centred(ctx, 'BEST  ' + pad(g.hi, 6), 144, P.lamp, 1, w);
+  centred(ctx, T('GAME OVER'), 100, P.coral, 2, w);
+  centred(ctx, T('SCORE {s}', { s: pad(g.score, 6) }), 132, P.white, 1, w);
+  centred(ctx, T('BEST  {s}', { s: pad(g.hi, 6) }), 144, P.lamp, 1, w);
 }
 
 export function drawEnding(ctx, g, S, w = SCREEN_W, h = SCREEN_H) {
@@ -96,14 +103,15 @@ export function drawEnding(ctx, g, S, w = SCREEN_W, h = SCREEN_H) {
   ctx.fillStyle = PALETTE[P.sky1]; ctx.fillRect(0, 150, w, 90);
   for (let i = 0; i < 40; i++) { ctx.fillStyle = PALETTE[i % 3 ? P.sky3 : P.lamp]; ctx.fillRect((i * 53 + 17) % w, (i * 37 + 11) % 140 + 4, 1, 1); }
   drawHUD(ctx, g, S, w);
-  shadowCentred(ctx, 'YOU CLEARED', 52, P.lamp, 2, w);
-  shadowCentred(ctx, 'THE HARBOR', 72, P.lamp, 2, w);
-  ctx.drawImage(S['pipB_idle' + (g.player.power === 2 ? 'F' : '')], Math.floor(w / 2) - 8, 104);
-  centred(ctx, 'THE LAMPS ARE LIT AND THE', 146, P.foam, 1, w);
-  centred(ctx, 'TOLLKEEPER IS TAKING A BATH.', 156, P.foam, 1, w);
-  centred(ctx, 'SCORE ' + pad(g.score, 6), 178, P.white, 1, w);
-  centred(ctx, 'BEST  ' + pad(g.hi, 6), 190, P.lamp, 1, w);
-  if (g.modeT >= 120 && Math.floor(g.frame / 30) % 2) centred(ctx, g.touch ? 'TAP FOR THE TITLE' : 'PRESS ENTER', 214, P.white, 1, w);
+  shadowCentred(ctx, T('YOU CLEARED'), 52, P.lamp, 2, w);
+  shadowCentred(ctx, T('THE HARBOR'), 72, P.lamp, 2, w);
+  const pip = pipSprite(S, 'pipB_idle' + (g.player.power === 2 ? 'F' : ''));
+  ctx.drawImage(pip, Math.floor(w / 2) - 8, 136 - pip.height);
+  centred(ctx, T('THE LAMPS ARE LIT AND THE'), 146, P.foam, 1, w);
+  centred(ctx, T('TOLLKEEPER IS TAKING A BATH.'), 156, P.foam, 1, w);
+  centred(ctx, T('SCORE {s}', { s: pad(g.score, 6) }), 178, P.white, 1, w);
+  centred(ctx, T('BEST  {s}', { s: pad(g.hi, 6) }), 190, P.lamp, 1, w);
+  if (g.modeT >= 120 && Math.floor(g.frame / 30) % 2) centred(ctx, T(g.touch ? 'TAP FOR THE TITLE' : 'PRESS ENTER'), 214, P.white, 1, w);
 }
 
 export function drawTitle(ctx, g, S, w = SCREEN_W) {
@@ -113,12 +121,12 @@ export function drawTitle(ctx, g, S, w = SCREEN_W) {
   ctx.fillStyle = PALETTE[P.amber]; ctx.fillRect(x0 + 2, 42, 180, 1); ctx.fillRect(x0 + 2, 111, 180, 1);
   ctx.fillRect(x0 + 2, 42, 1, 70); ctx.fillRect(x0 + 181, 42, 1, 70);
   shadowCentred(ctx, 'TIDEWICK', 52, P.lamp, 3, w);
-  centred(ctx, 'A RAINY NIGHT ON THE QUAY', 82, P.foamG, 1, w);
-  centred(ctx, 'BEST ' + pad(g.hi, 6), 98, P.white, 1, w);
-  if (Math.floor(g.frame / 32) % 2 === 0) shadowCentred(ctx, g.touch ? 'TAP JUMP TO START' : 'PRESS ENTER', 128, P.white, 1, w);
+  centred(ctx, T('A RAINY NIGHT ON THE QUAY'), 82, P.foamG, 1, w);
+  centred(ctx, T('BEST {s}', { s: pad(g.hi, 6) }), 98, P.white, 1, w);
+  if (Math.floor(g.frame / 32) % 2 === 0) shadowCentred(ctx, T(g.touch ? 'TAP JUMP TO START' : 'PRESS ENTER'), 128, P.white, 1, w);
 }
 
 export function drawPaused(ctx, w = SCREEN_W) {
   ctx.fillStyle = PALETTE[P.ink]; ctx.fillRect(Math.floor(w / 2) - 36, 100, 72, 22);
-  shadowCentred(ctx, 'PAUSED', 108, P.lamp, 1, w);
+  shadowCentred(ctx, T('PAUSED'), 108, P.lamp, 1, w);
 }

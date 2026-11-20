@@ -7,6 +7,7 @@ import { GameAudio, renderOffline } from './audio.js';
 import { buildSprites, GRIDS, PALETTE } from './sprites.js';
 import { drawWorld, drawDebug } from './render.js';
 import { drawHUD, drawIntro, drawGameOver, drawEnding, drawTitle, drawPaused } from './hud.js';
+import { look } from './look.js';
 
 // ---------- saved settings: localStorage under tidewick:, never required ----------
 const store = {
@@ -197,10 +198,34 @@ function frame(ts) {
 }
 requestAnimationFrame(frame);
 
+// ---------- the Wardrobe (captains only for now; README, "Tidewick") ----------
+// Outfits, hats, face pieces and trails for Pip, drawn by ../wardrobe.js. wardrobeOn() says whether this player may
+// open it: TIDEWICK_PUBLIC (the one line that opens it to everyone), one of the site's captains (../captains.js), or
+// ?wardrobe=1 on localhost or in an automated browser (remembered for the tab; ?wardrobe=0 forgets it). wardrobe.js
+// (and ../cosmetics.js, for the item names) is fetched only when it is true; until then look.js stays empty and Pip is
+// drawn exactly as before. Looks only: the rules never see it. Saved in this browser as tidewick:look.
+const TIDEWICK_PUBLIC = false;
+const CAPTAINS = window.BackRoomCaptains || null;
+const wardrobeOn = () => TIDEWICK_PUBLIC || !!(CAPTAINS && CAPTAINS.may(false, 'wardrobe', 'tidewick-wardrobe'));
+let WR = null, wrAsked = false;
+function wrLoad() {
+  if (wrAsked) return; wrAsked = true;
+  const add = src => new Promise((res, rej) => { const e = document.createElement('script'); e.src = src; e.onload = res; e.onerror = rej; document.head.appendChild(e); });
+  (window.BackRoomCosmetics ? Promise.resolve() : add('../cosmetics.js')).then(() => add('wardrobe.js')).then(() => {
+    if (!window.TidewickWardrobe || !window.BackRoomCosmetics) throw new Error('wardrobe did not load');
+    WR = window.TidewickWardrobe({ C: window.BackRoomCosmetics, GRIDS, PALETTE, S, look, game, audio, store, $,
+      get on() { return wardrobeOn(); }, get touch() { return touchUI; } });
+    wrSync();
+  }).catch(e => { wrAsked = false; console.error(e); });
+}
+function wrSync() { if (wardrobeOn()) wrLoad(); if (WR) WR.access(); }
+wrSync();
+if (CAPTAINS) CAPTAINS.onChange(wrSync);
+
 // ---------- a test hook, only for automated browsers ----------
 if (navigator.webdriver) {
   window.__tw = {
-    game, input, audio, S, GRIDS, PALETTE, C, renderOffline,
+    game, input, audio, S, GRIDS, PALETTE, C, renderOffline, look, get WR() { return WR; }, wardrobeOn, wrSync,
     updates: () => done,
     render, drawWorld, drawHUD, ctx, canvas,
     step(n = 1, inp = {}) { for (let i = 0; i < n; i++) game.update(Object.assign({ left: false, right: false, down: false, jump: false, run: false, jumpPressed: false, runPressed: false, startPressed: false }, inp)); render(); }

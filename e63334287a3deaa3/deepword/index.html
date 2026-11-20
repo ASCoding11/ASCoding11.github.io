@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/deepword/es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Deepword</title>
@@ -107,6 +109,8 @@ details.how b{color:var(--ink)}
 .ad-lbl{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
 .adbox ins{display:block;min-height:90px}
 .chk{display:inline-flex;align-items:center;gap:7px;font:700 14px var(--f-u);color:var(--ink-2);cursor:pointer}
+.chk:has(input:disabled){cursor:default;opacity:.6}
+.nobots{font:700 13px var(--f-u);color:var(--ink-3)}
 .chk input{width:18px;height:18px;accent-color:var(--aqua)}
 
 /* calendar */
@@ -339,7 +343,7 @@ details.how b{color:var(--ink)}
   <section id="menu" class="screen">
     <div class="card">
       <div class="kicker"><span><b>●</b> Daily rare-answer dive</span><span>Rarer answers sink deeper</span></div>
-      <h1 class="title">Deepword</h1>
+      <h1 class="title" id="dwTitle">Deepword</h1>
       <p class="lede">Eight prompts, thousands of right answers. Name the one hardly anyone would think of: the obvious answers barely dent the surface, the deep cuts carry you toward the trench.</p>
       <div class="field">
         <label class="label" for="name">Your name</label>
@@ -372,13 +376,13 @@ details.how b{color:var(--ink)}
         <details class="how" id="howMenu">
           <summary>How to play</summary>
           <ul>
-            <li><b>Daily Dive:</b> the same eight prompts for everyone today. Type any right answer: the less well known it is in the real world, the more points (10 to 100), and every point is 15 m of depth. You have 30 seconds of air per prompt.</li>
-            <li><b>How deep is an answer?</b> Every answer is ranked by how well known it is (how often people read its Wikipedia page, how many languages have one, how familiar the word is). The best-known answer scores 10; the deeper you go down that ranking, the more it scores. What other divers said never changes your points.</li>
-            <li><b>Tiers:</b> Shallows, Reef, Drop-off, Deep water, Abyss and, at the very bottom of a prompt's list, Seafloor.</li>
+            <li data-i18n-html data-noi18n><b>Daily Dive:</b> the same eight prompts for everyone today. Type any right answer: the less well known it is in the real world, the more points (10 to 100), and every point is 15 m of depth. You have 30 seconds of air per prompt.</li>
+            <li data-i18n-html data-noi18n><b>How deep is an answer?</b> Every answer is ranked by how well known it is (how often people read its Wikipedia page, how many languages have one, how familiar the word is). The best-known answer scores 10; the deeper you go down that ranking, the more it scores. What other divers said never changes your points.</li>
+            <li data-i18n-html data-noi18n><b>Tiers:</b> Shallows, Reef, Drop-off, Deep water, Abyss and, at the very bottom of a prompt's list, Seafloor.</li>
             <li>The box turns green when your answer counts. Spelling, accents, "the", plurals and British or American spelling don't matter; a small typo of a well-known answer counts, and a near miss offers a "did you mean" button. After each prompt you can see every answer.</li>
-            <li><b>Zones:</b> Sunlit to 200 m, Twilight to 1,000 m, Midnight to 4,000 m, Abyss to 6,000 m, then the Trench. A perfect dive reaches the deepest point in the ocean.</li>
-            <li><b>Blowfish Brawl:</b> same prompt for everyone in the room, 10 seconds that shrink to 6. An answer nobody else sent first keeps you safe; a blank, an invalid answer or a duplicate puffs you up. Three puffs and you pop. Last one swimming wins.</li>
-            <li><b>Keys:</b> Enter sends, Esc pauses in Practice, M mutes.</li>
+            <li data-i18n-html data-noi18n><b>Zones:</b> Sunlit to 200 m, Twilight to 1,000 m, Midnight to 4,000 m, Abyss to 6,000 m, then the Trench. A perfect dive reaches the deepest point in the ocean.</li>
+            <li data-i18n-html data-noi18n><b>Blowfish Brawl:</b> same prompt for everyone in the room, 10 seconds that shrink to 6. An answer nobody else sent first keeps you safe; a blank, an invalid answer or a duplicate puffs you up. Three puffs and you pop. Last one swimming wins.</li>
+            <li data-i18n-html data-noi18n><b>Keys:</b> Enter sends, Esc pauses in Practice, M mutes.</li>
           </ul>
         </details>
       </div>
@@ -388,6 +392,7 @@ details.how b{color:var(--ink)}
         <div id="cal" aria-labelledby="calLbl"></div>
       </div>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
+      <div class="row" style="margin-top:12px"><div data-lang-toggle></div></div>
       <p class="foot">Prompts are our own. Answers and how well known they are come from our own lists plus Wikidata, Wikipedia pageviews, Linguabase and GeoNames (geonames.org, CC BY 4.0). · <a href="/privacy.html">Privacy</a></p>
     </div>
   </section>
@@ -397,8 +402,8 @@ details.how b{color:var(--ink)}
     <div class="hud"><div class="pill" id="dProg">1 / 8</div><div class="pill"><b id="dPts">0</b> pts</div></div>
     <div class="pwrap">
       <div class="pcard" id="pcard">
-        <span class="pcat" id="pcat">Geography</span>
-        <h2 class="pq" id="pq">Name a country in Africa</h2>
+        <span class="pcat" id="pcat">Geography</span><span id="pEn"></span>
+        <h2 class="pq" id="pq" data-noi18n>Name a country in Africa</h2>
         <div class="pcount" id="pcount"></div>
         <div class="air"><i id="airBar"></i></div>
         <div id="askBox">
@@ -406,15 +411,15 @@ details.how b{color:var(--ink)}
             <input id="ans" class="ans" maxlength="40" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Type your answer…" aria-label="Your answer">
             <button id="submit" class="cta" type="submit">Dive</button>
           </form>
-          <div class="hint" id="ansHint"></div>
+          <div class="hint" id="ansHint" data-noi18n></div>
         </div>
         <div class="reveal" id="reveal" hidden>
-          <div class="rAns" id="rAns"></div>
+          <div class="rAns" id="rAns" data-noi18n></div>
           <div class="rTier" id="rTier" hidden></div>
           <div class="rPct" id="rPct"></div>
           <div class="rPts" id="rPts"></div>
           <div class="rRare" id="rRare"></div>
-          <div class="rMore" id="rMore"></div>
+          <div class="rMore" id="rMore" data-noi18n></div>
           <button class="ghost" id="next" type="button">Next</button>
         </div>
       </div>
@@ -452,6 +457,7 @@ details.how b{color:var(--ink)}
       <div class="row">
         <button id="startBrawl" class="cta coral" type="button">Start</button>
         <label class="chk" id="botsLbl"><input type="checkbox" id="botsChk" checked> Fill to 4 with bots</label>
+        <span class="nobots" id="noBotsNote" hidden>No bots in party games</span>
       </div>
       <div class="row"><button id="copyInv" class="ghost" type="button">Copy invite link</button><button id="leaveLobby" class="ghost" type="button">Leave</button></div>
       <p class="msg" id="invMsg"></p>
@@ -472,17 +478,17 @@ details.how b{color:var(--ink)}
   <section id="brawl" class="screen" hidden>
     <div class="hud"><div class="pill" id="bRound">Round 1</div><div class="pill" id="bAlive"></div></div>
     <div class="pwrap">
-      <div class="fishrow" id="fishrow"></div>
+      <div class="fishrow" id="fishrow" data-noi18n></div>
       <div class="pcard" id="bcard">
-        <span class="pcat" id="bcat">Get ready</span>
-        <h2 class="pq" id="bq">The first prompt is coming…</h2>
+        <span class="pcat" id="bcat">Get ready</span><span id="bEn"></span>
+        <h2 class="pq" id="bq" data-noi18n>The first prompt is coming…</h2>
         <div class="air"><i id="bBar"></i></div>
         <div id="bAsk">
           <form id="bForm" class="ansrow" autocomplete="off">
             <input id="bAns" class="ans" maxlength="40" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Type your answer…" aria-label="Your answer">
             <button id="bSend" class="cta coral" type="submit">Send</button>
           </form>
-          <div class="hint" id="bHint"></div>
+          <div class="hint" id="bHint" data-noi18n></div>
         </div>
         <div id="bReveal" class="brev" hidden></div>
       </div>
@@ -507,6 +513,7 @@ details.how b{color:var(--ink)}
       <div class="kicker" style="justify-content:center"><span><b>❚❚</b> Paused</span></div>
       <p class="lede">Your air is on hold. Take your time.</p>
       <div class="row" style="justify-content:center"><button class="cta" id="resume" type="button">Resume</button><button class="ghost" id="restart" type="button">New set</button><button class="ghost" id="pQuit" type="button">Quit</button></div>
+      <div class="row" style="justify-content:center;margin-top:10px"><div data-lang-toggle></div></div>
     </div>
   </section>
 
@@ -515,11 +522,11 @@ details.how b{color:var(--ink)}
     <div class="card">
       <div class="kicker"><span><b>?</b> How to play</span></div>
       <ul style="margin:12px 0 0;padding-left:18px;font:600 15px/1.5 var(--f-u);color:var(--ink-2)">
-        <li><b style="color:var(--ink)">Dive:</b> read the prompt, type an answer, press Enter or Dive. Right answers turn the box green. The less well known your answer is in the real world, the more it scores (10 to 100 points), and each point is 15 m deeper. Other divers' answers never change your score.</li>
-        <li><b style="color:var(--ink)">Tiers:</b> Shallows, Reef, Drop-off, Deep water, Abyss, and Seafloor for the very bottom of a prompt's list.</li>
-        <li><b style="color:var(--ink)">Air:</b> 30 seconds per prompt. Out of air means no points for that prompt.</li>
-        <li><b style="color:var(--ink)">Brawl:</b> one prompt for the whole room, 10 seconds down to 6. Duplicates go to whoever sent first; blank, invalid or duplicate puffs you. Three puffs and you pop.</li>
-        <li><b style="color:var(--ink)">Keys:</b> Enter sends, Esc pauses in Practice, M toggles sound.</li>
+        <li data-i18n-html data-noi18n><b style="color:var(--ink)">Dive:</b> read the prompt, type an answer, press Enter or Dive. Right answers turn the box green. The less well known your answer is in the real world, the more it scores (10 to 100 points), and each point is 15 m deeper. Other divers' answers never change your score.</li>
+        <li data-i18n-html data-noi18n><b style="color:var(--ink)">Tiers:</b> Shallows, Reef, Drop-off, Deep water, Abyss, and Seafloor for the very bottom of a prompt's list.</li>
+        <li data-i18n-html data-noi18n><b style="color:var(--ink)">Air:</b> 30 seconds per prompt. Out of air means no points for that prompt.</li>
+        <li data-i18n-html data-noi18n><b style="color:var(--ink)">Brawl:</b> one prompt for the whole room, 10 seconds down to 6. Duplicates go to whoever sent first; blank, invalid or duplicate puffs you. Three puffs and you pop.</li>
+        <li data-i18n-html data-noi18n><b style="color:var(--ink)">Keys:</b> Enter sends, Esc pauses in Practice, M toggles sound.</li>
       </ul>
       <div class="row" style="margin-top:16px"><button class="cta" id="helpClose" type="button">Got it</button></div>
     </div>
@@ -529,10 +536,10 @@ details.how b{color:var(--ink)}
   <section id="answers" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="alQ">
     <div class="card">
       <div class="kicker"><span><b>●</b> Every answer</span><button class="ghost tiny" id="alClose" type="button">Close</button></div>
-      <h2 class="alq" id="alQ"></h2>
+      <h2 class="alq" id="alQ" data-noi18n></h2>
       <input class="text" id="alFind" type="search" autocomplete="off" spellcheck="false" placeholder="Search the answers" aria-label="Search the answers">
       <p class="msg" id="alCount"></p>
-      <ol class="rlist alist" id="alList"></ol>
+      <ol class="rlist alist" id="alList" data-noi18n></ol>
       <button class="ghost" id="alMore" type="button" hidden>Show more</button>
     </div>
   </section>
@@ -591,7 +598,11 @@ function cleanName(s){return String(s==null?'':s).replace(/[<>]/g,'').replace(/\
 const hexOk=c=>typeof c==='string'&&/^#[0-9a-f]{6}$/i.test(c);
 const COLORS=['#ff7a59','#ffd166','#4fe3c1','#5aa9ff','#b48bff','#ff5c9a','#5ef08f','#ffa6e0','#f9f871','#67e8f9','#fb923c','#a3e635'];
 const colorFor=name=>COLORS[strHash(name||'x')%COLORS.length];
-const fmtM=m=>Math.round(m).toLocaleString('en-US')+' m';
+// Language (lang.js): Deepword's own words are in es.js; TR() translates text built in code, LOC() is the date locale.
+// Prompts and answers are English by design and stay English (data-noi18n); nothing translated is ever sent to the room.
+const TR=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+const LOC=()=>window.BackRoomLang?BackRoomLang.locale():'en-US';
+const fmtM=m=>Math.round(m).toLocaleString(LOC())+' m';
 function setText(id,t){const el=$(id);if(el&&el.textContent!==t)el.textContent=t}
 
 // =====================================================================
@@ -1351,7 +1362,7 @@ function show(name){
 let toastT=0;
 function toast(msg,ms){const el=$('toast');el.textContent=msg;el.style.opacity=1;toastT=(ms||1800)/1000}
 let zoneT=0;
-function zoneBanner(z){$('zoneName').textContent=z.n+' zone';$('zoneDepth').textContent=z.d?z.d.toLocaleString('en-US')+' m and below':'The surface';$('zone').style.opacity=1;zoneT=2.4;Snd.zone()}
+function zoneBanner(z){$('zoneName').textContent=TR('{z} zone',{z:TR(z.n)});$('zoneDepth').textContent=z.d?TR('{m} m and below',{m:z.d.toLocaleString(LOC())}):TR('The surface');$('zone').style.opacity=1;zoneT=2.4;Snd.zone()}
 const ZCOL=['#7df5dc','#4fe3c1','#5aa9ff','#b48bff','#ffd166'];let zoneCss='';
 function updateDepthPill(){const d=Sea.d,z=d<=0?{n:'Surface'}:zoneOf(d);setText('dpM',fmtM(Math.max(0,d)));setText('dpZ',z.n);
   if(z.n!==zoneCss){zoneCss=z.n;$('app').style.setProperty('--zone',ZCOL[Math.max(0,ZONES.indexOf(z))])} // cards, pills and the banner pick up the zone's colour
@@ -1370,10 +1381,10 @@ function refreshMenuStats(){
 function renderCal(days){
   const el=$('cal');el.innerHTML='';const now=new Date(),y=now.getFullYear(),m=now.getMonth();
   const first=new Date(y,m,1),off=(first.getDay()+6)%7,nd=new Date(y,m+1,0).getDate(),today=dayKey(now);
-  for(const h of ['M','T','W','T','F','S','S']){const s=document.createElement('span');s.className='h';s.textContent=h;el.appendChild(s)}
+  for(const h of (LOC()==='es-AR'?['L','M','M','J','V','S','D']:['M','T','W','T','F','S','S'])){const s=document.createElement('span');s.className='h';s.textContent=h;el.appendChild(s)}
   for(let i=0;i<off;i++){const s=document.createElement('span');s.className='x';el.appendChild(s)}
-  for(let d=1;d<=nd;d++){const k=dayKey(new Date(y,m,d)),s=document.createElement('span');s.textContent=d;const v=+days[k]||0;if(v){s.className='p';const z=ZONES.indexOf(zoneOf(v));s.style.background=['#7df5dc','#4fe3c1','#5aa9ff','#b48bff','#ffd166'][z];s.title=fmtM(v)+' · '+zoneOf(v).n}if(k===today)s.classList.add('today');el.appendChild(s)}
-  $('calLbl').textContent=now.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  for(let d=1;d<=nd;d++){const k=dayKey(new Date(y,m,d)),s=document.createElement('span');s.textContent=d;const v=+days[k]||0;if(v){s.className='p';const z=ZONES.indexOf(zoneOf(v));s.style.background=['#7df5dc','#4fe3c1','#5aa9ff','#b48bff','#ffd166'][z];s.title=fmtM(v)+' · '+TR(zoneOf(v).n)}if(k===today)s.classList.add('today');el.appendChild(s)}
+  $('calLbl').textContent=now.toLocaleDateString(LOC(),{month:'long',year:'numeric'});
 }
 
 // =====================================================================
@@ -1398,7 +1409,7 @@ function startDive(daily,opts){
 function curPrompt(){return P[D.picks[D.i]]}
 // saves from before rarity scores (no rs) keep one slot per answer, so the tiers line up with the prompts
 function padRs(rs,n){const a=Array.isArray(rs)?rs.slice(0,n):[];while(a.length<n)a.unshift(null);return a}
-const fmtN=n=>Math.round(n).toLocaleString('en-US');
+const fmtN=n=>Math.round(n).toLocaleString(LOC());
 // How many answers a prompt accepts (the big file's count before it has loaded, so the card can say it at once).
 function answerCount(p){const x=extIndex()[p.L];if(EXT[p.L]||!x||p.f)return entriesOf(p).length;return Math.max(entriesOf(p).length,x[1])}
 function askPrompt(){
@@ -1408,7 +1419,7 @@ function askPrompt(){
   const inp=$('ans');inp.value='';inp.className='ans';$('ansHint').className='hint';
   // the clock starts once the prompt's answers are in (a few seconds at most; then it goes on with prompts.js alone)
   if(extIndex()[p.L]&&!EXT[p.L]&&!extGaveUp.has(p.L)){
-    D.state='loading';inp.disabled=true;$('submit').disabled=true;$('ansHint').textContent='Loading the answers…';setText('pcount','');
+    D.state='loading';inp.disabled=true;$('submit').disabled=true;$('ansHint').textContent=TR('Loading the answers…');setText('pcount','');
     const i=D.i;loadExt(p.L).then(ok=>{if(!ok)extGaveUp.add(p.L);if(D.state==='loading'&&D.i===i&&D.on)askPrompt()});return;
   }
   D.state='typing';D.resolving=false;D.deadline=performance.now()+AIR_MS;D.left=AIR_MS;
@@ -1421,17 +1432,17 @@ function liveCheck(inp,p,hint){
   const v=inp.value;if(!v.trim()){inp.className='ans';hint.textContent='';hint.className='hint';return}
   const e=check(p,v);
   if(e){inp.className='ans ok';hint.className='hint ok';hint.innerHTML='<span class="tick">✓</span> ';hint.appendChild(document.createTextNode(e.raw))}
-  else{inp.className='ans';hint.className='hint';hint.textContent='Not on the list yet…'}
+  else{inp.className='ans';hint.className='hint';hint.textContent=TR('Not on the list yet…')}
 }
 $('ans').addEventListener('input',()=>{if(D.state==='typing'){liveCheck($('ans'),curPrompt(),$('ansHint'));Snd.type()}});
 $('ansForm').addEventListener('submit',e=>{e.preventDefault();submitDive(false)});
 // "Did you mean ...?": buttons under the box for a near miss; pressing one answers with it.
 function offerSuggestions(p,raw){
   const s=suggest(p,raw),h=$('ansHint');
-  h.className='hint bad';h.textContent='"'+raw.trim().slice(0,30)+'" isn\'t on the list.';
-  if(!s.length){h.append(' Try another.');return}
-  h.append(' Did you mean ');
-  s.forEach((e,i)=>{if(i)h.append(' or ');const b=document.createElement('button');b.type='button';b.className='sugg';b.textContent=e.raw;b.addEventListener('click',()=>{if(D.state==='typing'){$('ans').value=e.raw;submitDive(false,e)}});h.appendChild(b)});
+  h.className='hint bad';h.textContent=TR('"{a}" isn\'t on the list.',{a:raw.trim().slice(0,30)});
+  if(!s.length){h.append(' '+TR('Try another.'));return}
+  h.append(' '+TR('Did you mean')+' ');
+  s.forEach((e,i)=>{if(i)h.append(' '+TR('or')+' ');const b=document.createElement('button');b.type='button';b.className='sugg';b.textContent=e.raw;b.addEventListener('click',()=>{if(D.state==='typing'){$('ans').value=e.raw;submitDive(false,e)}});h.appendChild(b)});
   h.append('?');
 }
 function submitDive(timeout,picked){
@@ -1472,7 +1483,7 @@ function reveal(e,raw,pts,R,k,n,typed){
   D.state='reveal';
   const p=curPrompt();
   $('askBox').hidden=true;$('reveal').hidden=false;
-  const a=$('rAns');a.className='rAns'+(e?'':' miss');a.textContent=e?e.raw:(raw.trim()?raw.trim().slice(0,30):'Out of air');
+  const a=$('rAns');a.className='rAns'+(e?'':' miss');a.textContent=e?e.raw:(raw.trim()?raw.trim().slice(0,30):TR('Out of air'));
   const t=tierOf(R),tb=$('rTier');
   tb.hidden=!e;if(e){tb.textContent=t.n;tb.style.setProperty('--tc',t.c);tb.className='rTier t'+TIERS.indexOf(t)}
   const pc=$('rPct');pc.textContent='';
@@ -1480,11 +1491,11 @@ function reveal(e,raw,pts,R,k,n,typed){
   else{pc.append(t.say);if(typed){const s=document.createElement('small');s.textContent=' (read as '+e.raw+', from "'+typed+'")';pc.append(s)}}
   const pp=$('rPts');pp.className='rPts'+(pts?'':' zero');pp.textContent=pts?'+'+pts+' pts · '+fmtM(pts*M_PER_PT)+' deeper':'+0';
   const info=[];
-  info.push(fmtN(entriesOf(p).length)+' answers counted'+(e&&ranksOf(p).get(e.n)?' · yours is #'+fmtN(ranksOf(p).get(e.n))+' best known':''));
-  if(D.daily&&Daily.ok&&e&&n>1)info.push(k>1?(k-1)+' other diver'+(k===2?'':'s')+' said this today':'No other diver said this today');
+  info.push(TR('{n} answers counted',{n:fmtN(entriesOf(p).length)})+(e&&ranksOf(p).get(e.n)?' · '+TR('yours is #{r} best known',{r:fmtN(ranksOf(p).get(e.n))}):''));
+  if(D.daily&&Daily.ok&&e&&n>1)info.push(k>1?TR(k===2?'{k} other diver said this today':'{k} other divers said this today',{k:k-1}):TR('No other diver said this today'));
   $('rRare').textContent=info.join(' · ');
   const sc=showcase(p,e),ex=$('rMore');ex.textContent='';
-  const line=(label,arr)=>{if(!arr.length)return;const d=document.createElement('div');const b=document.createElement('b');b.textContent=label+' ';d.append(b,arr.map(x=>x.raw).join(', '));ex.appendChild(d)};
+  const line=(label,arr)=>{if(!arr.length)return;const d=document.createElement('div');const b=document.createElement('b');b.textContent=TR(label)+' ';d.append(b,arr.map(x=>x.raw).join(', '));ex.appendChild(d)};
   line('Deeper finds:',sc.deep);line('Most said:',sc.top);
   setText('dPts',String(D.total));
   Sea.target=depthOf(D.total);
@@ -1504,7 +1515,7 @@ function nextPrompt(){
 function fillResults(online){
   const ol=$('rList');ol.innerHTML='';
   D.picks.forEach((pi,i)=>{const p=P[pi],li=document.createElement('li'),q=document.createElement('span'),a=document.createElement('span'),tg=document.createElement('span'),pt=document.createElement('span'),go=document.createElement('button');
-    q.className='q';q.textContent=p.q;const e=D.ans[i]?byN(p).get(D.ans[i]):null;a.className='a'+(e||D.ans[i]?'':' miss');a.textContent=e?e.raw:(D.ans[i]||'—');
+    q.className='q';q.setAttribute('data-noi18n','');q.textContent=p.q;const e=D.ans[i]?byN(p).get(D.ans[i]):null;a.className='a'+(e||D.ans[i]?'':' miss');a.setAttribute('data-noi18n','');a.textContent=e?e.raw:(D.ans[i]||'—');
     const R=D.rs[i]!=null?D.rs[i]:null,t=D.pts[i]>0?tierOf(R!=null?R:D.pts[i]):null;tg.className='tg';tg.textContent=t?t.n:'';if(t)tg.style.color=t.c;
     pt.className='p';pt.textContent='+'+(D.pts[i]||0);
     go.type='button';go.className='ghost tiny all';go.textContent='All answers';go.dataset.pi=pi;go.dataset.ans=D.ans[i]||'';go.setAttribute('aria-label','All answers for: '+p.q);
@@ -1513,11 +1524,11 @@ function fillResults(online){
     li.append(top,bot);ol.appendChild(li)});
 }
 const LANDMARKS=[[332,'the deepest scuba dive'],[1000,'where sunlight ends'],[2992,'the deepest whale dive on record'],[3800,'the wreck of the Titanic'],[6000,'the start of the trenches'],[8848,'the height of Everest, upside down'],[10935,'the bottom of the Challenger Deep']];
-function landmarkFor(d){let t='';for(const [m,s] of LANDMARKS)if(d>=m)t='Deeper than '+s+' ('+fmtM(m)+').';return t}
+function landmarkFor(d){let t='';for(const [m,s] of LANDMARKS)if(d>=m)t=TR('Deeper than {s} ({m}).',{s:TR(s),m:fmtM(m)});return t}
 function shareText(){
   const depth=depthOf(D.total),best=Math.max(0,...D.rs.map((r,i)=>D.pts[i]>0?r:0));
-  const head=D.daily?'Deepword '+D.day.replace(/(\d{4})(\d\d)(\d\d)/,'$1-$2-$3'):D.past?'Deepword '+D.past.replace(/(\d{4})(\d\d)(\d\d)/,'$1-$2-$3')+' (replay)':'Deepword practice';
-  return head+'\n'+D.pts.map((p,i)=>SQ(p,D.rs[i])).join('')+'\n'+fmtM(depth)+' down · '+zoneOf(depth).n+' zone'+(D.pts.some(p=>p>0)?' · deepest find: '+tierOf(best).n:'')+'\n'+location.origin+location.pathname;
+  const head=D.daily?'Deepword '+D.day.replace(/(\d{4})(\d\d)(\d\d)/,'$1-$2-$3'):D.past?'Deepword '+D.past.replace(/(\d{4})(\d\d)(\d\d)/,'$1-$2-$3')+' '+TR('(replay)'):TR('Deepword practice');
+  return head+'\n'+D.pts.map((p,i)=>SQ(p,D.rs[i])).join('')+'\n'+TR('{m} down',{m:fmtM(depth)})+' · '+TR('{z} zone',{z:TR(zoneOf(depth).n)})+(D.pts.some(p=>p>0)?' · '+TR('deepest find: {t}',{t:TR(tierOf(best).n)}):'')+'\n'+location.origin+location.pathname;
 }
 function finishDive(){
   D.state='done';D.on=false;
@@ -1533,8 +1544,8 @@ function finishDive(){
   Sea.target=depth;
   show('results');
   const days=store.get('days',{})||{};
-  setText('rKick',D.daily?'Daily Dive':D.past?'Past dive · '+niceDay(D.past):D.cat?CATS[D.cat]+' practice':'Practice dive');setText('rDate',new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}));
-  setText('rDepth',fmtM(depth));setText('rZone',depth>=FLOOR?'You touched the bottom!':z.n+' zone');setText('rMark',landmarkFor(depth));
+  setText('rKick',D.daily?'Daily Dive':D.past?'Past dive · '+niceDay(D.past):D.cat?TR('{c} practice',{c:TR(CATS[D.cat])}):'Practice dive');setText('rDate',new Date().toLocaleDateString(LOC(),{month:'short',day:'numeric'}));
+  setText('rDepth',fmtM(depth));setText('rZone',depth>=FLOOR?'You touched the bottom!':TR('{z} zone',{z:TR(z.n)}));setText('rMark',landmarkFor(depth));
   setText('rSq',D.pts.map((p,i)=>SQ(p,D.rs[i])).join(''));
   fillResults(online);
   setText('rStreak',String(streakFrom(days)));setText('rBest',best?fmtM(best):fmtM(depth));setText('rDivers',online&&Daily.total?String(Daily.total):'–');
@@ -1561,8 +1572,8 @@ function showResultsOfToday(){
   D.total=Math.round(days[day]/M_PER_PT);
   Sea.menu=false;Sea.build(strHash('reef'+day));Sea.d=Sea.target=days[day];
   show('results');
-  setText('rKick','Daily Dive');setText('rDate',new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'}));
-  setText('rDepth',fmtM(days[day]));setText('rZone',zoneOf(days[day]).n+' zone');setText('rMark',landmarkFor(days[day]));setText('rSq',D.pts.map((p,i)=>SQ(p,D.rs[i])).join(''));
+  setText('rKick','Daily Dive');setText('rDate',new Date().toLocaleDateString(LOC(),{month:'short',day:'numeric'}));
+  setText('rDepth',fmtM(days[day]));setText('rZone',TR('{z} zone',{z:TR(zoneOf(days[day]).n)}));setText('rMark',landmarkFor(days[day]));setText('rSq',D.pts.map((p,i)=>SQ(p,D.rs[i])).join(''));
   fillResults(false);
   setText('rStreak',String(streakFrom(days)));const best=+store.get('best',0)||0;setText('rBest',best?fmtM(best):'–');setText('rDivers','–');$('shareMsg').textContent='';
   return true;
@@ -1581,16 +1592,16 @@ function renderAnswers(){
   const hits=q?ents.filter(e=>e.al.some(a=>a.indexOf(q)>=0)):ents;
   const ol=$('alList');ol.textContent='';
   for(const e of hits.slice(0,AL.shown)){const li=document.createElement('li');const R=rarityOf(p,e),t=tierOf(R);
-    const a=document.createElement('span');a.className='a';a.textContent=e.raw;const tg=document.createElement('span');tg.className='tg';tg.textContent=t.n;tg.style.color=t.c;const pt=document.createElement('span');pt.className='p';pt.textContent=pointsFor(R);
+    const a=document.createElement('span');a.className='a';a.textContent=e.raw;const tg=document.createElement('span');tg.className='tg';tg.textContent=TR(t.n);tg.style.color=t.c;const pt=document.createElement('span');pt.className='p';pt.textContent=pointsFor(R);
     if(e.n===AL.mine)li.className='me';li.append(a,tg,pt);ol.appendChild(li)}
-  $('alCount').textContent=(q?fmtN(hits.length)+' of ':'')+fmtN(ents.length)+' answers'+(hits.length>AL.shown?' · showing '+fmtN(AL.shown):'');
+  $('alCount').textContent=(q?TR('{a} of {b} answers',{a:fmtN(hits.length),b:fmtN(ents.length)}):TR('{b} answers',{b:fmtN(ents.length)}))+(hits.length>AL.shown?' · '+TR('showing {n}',{n:fmtN(AL.shown)}):'');
   $('alMore').hidden=hits.length<=AL.shown;
 }
 $('alFind').addEventListener('input',()=>{AL.shown=100;renderAnswers()});
 $('alMore').addEventListener('click',()=>{AL.shown+=100;renderAnswers()});
 $('alClose').addEventListener('click',()=>{$('answers').hidden=true;AL.p=null});
 // ---- past days: replay any of the last 30 Daily Dives as practice (no streak, nothing sent)
-function niceDay(k){const d=new Date(+k.slice(0,4),+k.slice(4,6)-1,+k.slice(6,8));return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+function niceDay(k){const d=new Date(+k.slice(0,4),+k.slice(4,6)-1,+k.slice(6,8));return d.toLocaleDateString(LOC(),{weekday:'short',month:'short',day:'numeric'})}
 function renderPast(){
   const days=store.get('days',{})||{},ul=$('pastList');ul.textContent='';const d=new Date();
   for(let i=1;i<=30;i++){d.setDate(d.getDate()-1);const k=dayKey(d),li=document.createElement('li'),b=document.createElement('button');
@@ -1758,6 +1769,10 @@ const BOT_NAMES=['Bubbles','Puffy','Spike','Captain Gill','Finnegan','Bloat','Ne
 const B={on:false,host:false,hostUid:null,he:0,maxHe:0,rs:null,lastRS:null,rsSeen:'',joinedAt:0,dirty:true,myAns:'',myAnsRound:'',sent:'',bots:{},judgeAt:0,rid:-1,rn:-1,ph:'',seenRes:'',
   reset(){Object.assign(this,{on:false,host:false,hostUid:null,he:0,maxHe:0,rs:null,lastRS:null,rsSeen:'',dirty:true,myAns:'',myAnsRound:'',sent:'',bots:{},judgeAt:0,rid:-1,rn:-1,ph:'',seenRes:''})}
 };
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: the bots box is off and locked there, whoever hosts.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
+function partyRoom(){return !!Net.room&&isPartyRoom(Net.room)}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^dw-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){const a='abcdefghjkmnpqrstuvwxyz23456789';let s='';for(let i=0;i<4;i++)s+=a[Math.floor(Math.random()*a.length)];return s}
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.className='msg'+(err?' err':'')}
@@ -1807,7 +1822,7 @@ function onlineTick(){
 function becomeHost(){
   B.host=true;B.he=B.maxHe+1;B.maxHe=B.he;
   const base=B.lastRS?Object.assign({},B.lastRS):lobbyRS(null);
-  base.set={bots:$('botsChk').checked?1:0};
+  base.set={bots:$('botsChk').checked&&!partyRoom()?1:0};
   if(B.lastRS&&B.rs&&B.rs.id===base.id&&base.ph!=='lobby')toast('You\'re the host now',1600);
   Net.rsStr='';setRS(base);
 }
@@ -1879,7 +1894,7 @@ function startMatch(){
   const humans=liveIds();if(humans.length<1)return;
   const pl=humans.slice(),bots={},nm={};
   for(const u of humans)nm[u]=nameOf(u);
-  if(rs.set.bots){const names=shuffle(BOT_NAMES.slice());let k=1;while(pl.length<4&&k<=3){const id='b'+k;bots[id]={n:names[k-1],c:COLORS[(k*5+humans.length)%COLORS.length]};nm[id]=names[k-1];pl.push(id);k++}}
+  if(rs.set.bots&&!partyRoom()){const names=shuffle(BOT_NAMES.slice());let k=1;while(pl.length<4&&k<=3){const id='b'+k;bots[id]={n:names[k-1],c:COLORS[(k*5+humans.length)%COLORS.length]};nm[id]=names[k-1];pl.push(id);k++}}
   if(pl.length<2)return;
   const n=Object.assign(lobbyRS(rs),{id:rs.id+1,rn:0,ph:'count',t0:Net.now(),dur:3000,pl,pf:{},out:[],el:{},nm,bots,used:[]});
   B.bots={};setRS(n);
@@ -1943,7 +1958,7 @@ function endMatch(rs,win){
   if(win===Net.uid&&window.BackRoomStats){try{BackRoomStats.add('brawlwins',1)}catch(e){}}
 }
 $('startBrawl').addEventListener('click',()=>{if(B.host&&B.rs&&B.rs.ph==='lobby')startMatch()});
-$('botsChk').addEventListener('change',()=>{if(B.host&&B.rs&&B.rs.ph==='lobby')setRS(Object.assign({},B.rs,{set:{bots:$('botsChk').checked?1:0}}))});
+$('botsChk').addEventListener('change',()=>{if(B.host&&!partyRoom()&&B.rs&&B.rs.ph==='lobby')setRS(Object.assign({},B.rs,{set:{bots:$('botsChk').checked?1:0}}))});
 $('rematch').addEventListener('click',()=>{
   if(!B.rs||B.rs.ph!=='over')return;
   if(B.host)rematch()
@@ -1961,7 +1976,7 @@ function applyRS(rs){
   if(newRound&&rs.ph==='round'){B.myAns='';B.myAnsT=0;B.sent='';const inp=$('bAns');inp.value='';inp.className='ans';inp.disabled=false;$('bSend').disabled=false;$('bHint').textContent='';$('bHint').className='hint';$('bReveal').hidden=true;$('bAsk').hidden=false;
     setText('bcat',rs.pr&&rs.pr.L==='@words'?'Word':'Category');setText('bq',rs.pr?rs.pr.q:'…');
     const me=rs.pl.indexOf(Net.uid)>=0&&rs.out.indexOf(Net.uid)<0;
-    if(me){focusInput(inp);Snd.tick()}else{inp.disabled=true;$('bSend').disabled=true;$('bHint').textContent=rs.pl.indexOf(Net.uid)<0?'You\'ll join the next match. Watching…':'You popped! Watching the rest…';inp.placeholder='Watching…'}
+    if(me){focusInput(inp);Snd.tick()}else{inp.disabled=true;$('bSend').disabled=true;$('bHint').textContent=TR(rs.pl.indexOf(Net.uid)<0?'You\'ll join the next match. Watching…':'You popped! Watching the rest…');inp.placeholder='Watching…'}
   }
   if(rs.ph==='count'&&newPh){setText('bcat',rs.rn?'Next round':'Get ready');setText('bq',rs.rn?'Round '+(rs.rn+1)+' is coming…':'The first prompt is coming…');$('bAsk').hidden=true;$('bReveal').hidden=true;$('bBar').style.transform='scaleX(1)'}
   if(rs.ph==='reveal'&&newPh)renderReveal(rs);
@@ -1974,15 +1989,15 @@ function sendBrawl(){
   const rs=B.rs;if(!rs||rs.ph!=='round'||!rs.pr||B.myAns)return;
   if(rs.pl.indexOf(Net.uid)<0||rs.out.indexOf(Net.uid)>=0)return;
   const inp=$('bAns'),raw=inp.value,e=check(makePrompt(rs.pr),raw);
-  if(!e){if(raw.trim()){$('bcard').classList.remove('shake');void $('bcard').offsetWidth;$('bcard').classList.add('shake');$('bHint').className='hint bad';$('bHint').textContent='"'+raw.trim().slice(0,30)+'" isn\'t on the list.';inp.className='ans bad';Snd.bad()}return}
-  B.myAns=norm(raw).slice(0,40);B.myAnsT=Net.now();inp.disabled=true;$('bSend').disabled=true;$('bHint').className='hint ok';$('bHint').textContent='Sent: '+e.raw+'. Waiting for the others…';Snd.plop();
+  if(!e){if(raw.trim()){$('bcard').classList.remove('shake');void $('bcard').offsetWidth;$('bcard').classList.add('shake');$('bHint').className='hint bad';$('bHint').textContent=TR('"{a}" isn\'t on the list.',{a:raw.trim().slice(0,30)});inp.className='ans bad';Snd.bad()}return}
+  B.myAns=norm(raw).slice(0,40);B.myAnsT=Net.now();inp.disabled=true;$('bSend').disabled=true;$('bHint').className='hint ok';$('bHint').textContent=TR('Sent: {a}. Waiting for the others…',{a:e.raw});Snd.plop();
   Net.upd({a:rs.id+'.'+rs.rn+'|'+B.myAns+'|'+B.myAnsT});
 }
 function renderReveal(rs){
   $('bAsk').hidden=true;const box=$('bReveal');box.hidden=false;box.innerHTML='';
   const alive=rs.pl.filter(u=>rs.out.indexOf(u)<0||rs.el[u]===rs.rn);
   let myW='';
-  for(const u of alive){const r=rs.res[u]||{a:'',w:'none'};const n=document.createElement('span');n.className='n'+(u===Net.uid?' me':'');const b=document.createElement('b');b.textContent=nameOf(u)+': ';n.appendChild(b);n.appendChild(document.createTextNode(r.a||(r.w==='left'?'left the room':'no answer')));
+  for(const u of alive){const r=rs.res[u]||{a:'',w:'none'};const n=document.createElement('span');n.className='n'+(u===Net.uid?' me':'');n.setAttribute('data-noi18n','');const b=document.createElement('b');b.textContent=nameOf(u)+': ';n.appendChild(b);n.appendChild(document.createTextNode(r.a||TR(r.w==='left'?'left the room':'no answer')));
     const v=document.createElement('span');v.className='r '+r.w;v.textContent=r.w==='ok'?'✓ safe':r.w==='dup'?'already said · puff':r.w==='bad'?'not valid · puff':r.w==='left'?'popped':'puff';if(rs.el[u]===rs.rn&&r.w!=='left'){const pop=document.createElement('b');pop.textContent='POP!';v.append(' · ',pop)}n.style.setProperty('--i',box.childElementCount/2);v.style.setProperty('--i',box.childElementCount/2);box.append(n,v);if(u===Net.uid)myW=r.w}
   if(rs.wash){const w=document.createElement('span');w.className='n';w.style.gridColumn='1 / -1';w.style.color='var(--sun)';w.textContent='Everyone missed, so nobody pops this round.';box.appendChild(w)}
   setText('bcat','Round '+rs.rn+' results');
@@ -2031,31 +2046,31 @@ function renderFish(){
     if(rs.el[u]===rs.rn&&rs.ph==='reveal'&&!el.dataset.popAnim){el.dataset.popAnim='1';el.classList.add('pop')}
     if(rs.ph!=='reveal')delete el.dataset.popAnim;
     el.children[1].textContent=nameOf(u);
-    const fa=el.children[2];const r=rs.ph==='reveal'?rs.res[u]:null;fa.className='fa'+(r?' '+r.w:'');fa.textContent=r?(r.a||(r.w==='left'?'left':'—')):(rs.ph==='round'&&(rs.ans[u]||rs.bd[u])?'✓':'');
+    const fa=el.children[2];const r=rs.ph==='reveal'?rs.res[u]:null;fa.className='fa'+(r?' '+r.w:'');fa.textContent=r?(r.a||(r.w==='left'?TR('left'):'—')):(rs.ph==='round'&&(rs.ans[u]||rs.bd[u])?'✓':'');
   });
   for(const [u,el] of fishEls)if(!seen.has(u)){el.remove();fishEls.delete(u)}
 }
 function renderLobby(){
   const ul=$('lbPlayers');ul.innerHTML='';const ids=liveIds();
-  for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),sm=document.createElement('small');dot.className='dot';dot.innerHTML=fishSVG(colorOf(id),0,false).split('<span')[0];nm.className='nm';nm.textContent=nameOf(id)+(id===Net.uid?' (you)':'');sm.textContent=id===B.hostUid?'host':'';li.append(dot,nm,sm);ul.appendChild(li)}
+  for(const id of ids){const li=document.createElement('li'),dot=document.createElement('span'),nm=document.createElement('span'),sm=document.createElement('small');dot.className='dot';dot.innerHTML=fishSVG(colorOf(id),0,false).split('<span')[0];nm.className='nm';nm.setAttribute('data-noi18n','');nm.textContent=nameOf(id)+(id===Net.uid?' '+TR('(you)'):'');sm.textContent=id===B.hostUid?'host':'';li.append(dot,nm,sm);ul.appendChild(li)}
   const rs=B.rs,n=ids.length;
-  const bots=rs?!!rs.set.bots:true;
-  if(!B.host){$('botsChk').checked=bots}
-  $('botsChk').disabled=!B.host;
+  const party=partyRoom(),bots=!party&&(rs?!!rs.set.bots:true);
+  if(!B.host||party){$('botsChk').checked=bots}
+  $('botsChk').disabled=!B.host||party;$('noBotsNote').hidden=!party;
   const canStart=B.host&&rs&&rs.ph==='lobby'&&(n>=2||bots);
   $('startBrawl').disabled=!canStart;$('startBrawl').hidden=Net.isPublic;
   let msg;
   if(Net.isPublic)msg=rs&&rs.as?'Starting in '+Math.max(0,Math.ceil((rs.as-Net.now())/1000))+'…':n>=2?'Starting soon…':'Waiting for one more player. Bots fill the rest.';
-  else if(B.host)msg=n>=2||bots?'Press Start when everyone is in.'+(n<4&&bots?' Bots fill the room to 4.':''):'Waiting for a friend, or tick the bots box.';
+  else if(B.host)msg=n>=2||bots?'Press Start when everyone is in.'+(n<4&&bots?' Bots fill the room to 4.':''):party?'Waiting for your party to join.':'Waiting for a friend, or tick the bots box.';
   else msg='Waiting for the host to start.';
   $('lbMsg').textContent=msg;
   $('copyInv').hidden=Net.isPublic;
 }
 function renderOver(rs){
-  const win=rs.win;setText('oTitle',win?(win===Net.uid?'You win!':nameOf(win)+' wins!'):'Everyone popped!');
+  const win=rs.win;setText('oTitle',win?(win===Net.uid?TR('You win!'):TR('{p} wins!',{p:nameOf(win)})):TR('Everyone popped!'));
   const ol=$('oList');ol.innerHTML='';
   const order=rs.pl.slice().sort((a,b)=>{const ea=a===win?1e9:(rs.el[a]||0),eb=b===win?1e9:(rs.el[b]||0);return eb-ea});
-  order.forEach((u,i)=>{const li=document.createElement('li');if(u===Net.uid)li.className='me';const rk=document.createElement('span'),q=document.createElement('span'),p=document.createElement('span');const fi=document.createElement('span');fi.className='dot';fi.innerHTML=fishSVG(colorOf(u),0,u!==win).split('<span')[0];rk.className='rk'+(u===win?' crown':'');rk.textContent=u===win?'★':String(i+1);q.className='a';q.style.maxWidth='none';q.textContent=nameOf(u);p.className='pc';p.textContent=u===win?'last one swimming':rs.el[u]?'popped in round '+rs.el[u]:'';li.append(rk,fi,q,p);ol.appendChild(li)});
+  order.forEach((u,i)=>{const li=document.createElement('li');if(u===Net.uid)li.className='me';const rk=document.createElement('span'),q=document.createElement('span'),p=document.createElement('span');const fi=document.createElement('span');fi.className='dot';fi.innerHTML=fishSVG(colorOf(u),0,u!==win).split('<span')[0];rk.className='rk'+(u===win?' crown':'');rk.textContent=u===win?'★':String(i+1);q.className='a';q.style.maxWidth='none';q.setAttribute('data-noi18n','');q.textContent=nameOf(u);p.className='pc';p.textContent=u===win?'last one swimming':rs.el[u]?'popped in round '+rs.el[u]:'';li.append(rk,fi,q,p);ol.appendChild(li)});
   $('rematch').textContent=B.host?'Rematch':'Ask for a rematch';$('oMsg').textContent=Net.isPublic?'The next match starts in a moment.':'';
   if(win===Net.uid){confetti();Snd.win()}else Snd.tick();
 }
@@ -2122,6 +2137,9 @@ document.addEventListener('touchmove',e=>{if(!e.target.closest('.card,.pcard,.br
 resize();Sea.build(strHash('reef'+dayKey()));Sea.d=Sea.target=0;
 $('name').value=myName;$('room').value=store.get('room','')||'';
 setMuted(muted);refreshMenuStats();showAd('adMenu');
+if(window.BackRoomLang){BackRoomLang.englishOnly($('pEn'));BackRoomLang.englishOnly($('bEn'));BackRoomLang.englishOnly($('dwTitle'))}
+// a language switch redraws what's built in code (calendar, the answers list); the rest follows lang.js by itself
+document.addEventListener('backroom:lang',()=>{refreshMenuStats();if(AL.p)renderAnswers()});
 if(!P.length){$('dailyMsg').textContent='The prompt bank (prompts.js) didn\'t load.';$('daily').disabled=$('practice').disabled=true}
 // An invite opens this page with #dw-<code>: fill in the room and point at the join button.
 const inv=/^#dw-([a-z0-9-]{1,17})$/.exec(location.hash);
