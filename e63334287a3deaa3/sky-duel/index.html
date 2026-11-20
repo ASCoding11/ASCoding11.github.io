@@ -170,9 +170,12 @@ body.touch .dmg i{top:-110px}
 #warn div{background:rgba(190,26,16,.85);border-radius:8px;padding:3px 12px;animation:blink .5s steps(2) infinite}
 #warn div.soft{background:rgba(8,22,46,.6);animation:none;font-size:15px}
 @keyframes blink{50%{opacity:.35}}
-#banner{position:absolute;left:50%;top:15%;transform:translateX(-50%);font-family:var(--f-d);font-weight:400;font-size:clamp(20px,4.4vw,34px);text-align:center;white-space:nowrap;opacity:0;transition:opacity .4s}
+#reticle,#nose,#lead,#lockRing,#marks{transition:opacity .25s}
+#hud.killfade #reticle,#hud.killfade #nose,#hud.killfade #lead,#hud.killfade #lockRing,#hud.killfade #marks{opacity:.1;transition:opacity .08s}
+/* banners are a short line under the score, never over the fight */
+#banner{position:absolute;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);font-family:var(--f-d);font-weight:400;font-size:clamp(17px,2.4vw,23px);text-align:center;white-space:nowrap;opacity:0;transition:opacity .4s}
 #banner.on{opacity:1}
-#banner small{display:block;font-family:var(--f-b);font-weight:700;font-size:15px;letter-spacing:.04em;margin-top:4px}
+#banner small{display:block;font-family:var(--f-b);font-weight:700;font-size:13px;letter-spacing:.04em;margin-top:2px}
 #vign{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,40,20,0) 45%,rgba(255,40,20,.55));opacity:0}
 #white{position:absolute;inset:0;background:#fff;opacity:0}
 #gvign{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 42%,rgba(0,0,0,.85));opacity:0;pointer-events:none}
@@ -213,19 +216,19 @@ body.touch #top{padding:3px 9px;gap:7px}
 body.touch #top b{font-size:19px}body.touch #top #clock{font-size:15px;min-width:44px}
 body.touch #status{width:300px;max-width:calc(100vw - 420px);bottom:calc(14px + env(safe-area-inset-bottom,0px));padding:5px 8px;gap:3px}
 body.touch #warn{top:19%;font-size:16px}
-body.touch #banner{top:30%}
+body.touch #banner{top:calc(56px + env(safe-area-inset-top,0px))}
 @media (orientation:portrait){
   body.touch #status{max-width:calc(100vw - 20px);bottom:calc(158px + env(safe-area-inset-bottom,0px))}
   body.touch #top{left:auto;right:calc(8px + env(safe-area-inset-right,0px));transform:none}
   body.touch #feed div:nth-last-child(n+4){display:none}
-  body.touch #warn{top:calc(164px + env(safe-area-inset-top,0px));width:max-content;max-width:calc(100vw - 24px)}
-  body.touch #banner{top:26%;white-space:normal;width:max-content;max-width:calc(100vw - 32px)}
+  body.touch #warn{top:calc(212px + env(safe-area-inset-top,0px));width:max-content;max-width:calc(100vw - 24px)}
+  body.touch #banner{top:calc(156px + env(safe-area-inset-top,0px));white-space:normal;width:max-content;max-width:calc(100vw - 32px)}
 }
 @media (orientation:landscape){
-  body.touch #banner{font-size:22px;white-space:normal;width:max-content;max-width:calc(100vw - 400px)}
+  body.touch #banner{font-size:18px;white-space:normal;width:max-content;max-width:calc(100vw - 400px)}
 }
 @media (orientation:landscape) and (max-height:520px){
-  body.touch #warn{top:17%}
+  body.touch #warn{top:28%}
   .card{padding:14px 16px}
 }
 @media (prefers-reduced-motion:reduce){#warn div{animation:none}}
@@ -838,7 +841,7 @@ const FX=(function(){
     const cr=camera.matrixWorld.elements,rx_=cr[0],ry_=cr[1],rz_=cr[2],ux_=cr[4],uy_=cr[5],uz_=cr[6];   // camera right and up
     for(let i=0;i<NB;i++){const b=bullets[i],j=i*24;
       if(!b.on){for(let k=0;k<24;k++)bp[j+k]=0;continue}
-      const sp=Math.hypot(b.vx,b.vy,b.vz)||1,dx=b.vx/sp,dy=b.vy/sp,dz=b.vz/sp,L=Math.min(34,sp*.06,b.age*sp+3);
+      const sp=Math.hypot(b.vx,b.vy,b.vz)||1,dx=b.vx/sp,dy=b.vy/sp,dz=b.vz/sp,L=Math.min(clamp(18+Math.hypot(camera.position.x-b.x,camera.position.y-b.y,camera.position.z-b.z)*.09,18,70),b.age*sp+3);
       const tx=b.x-dx*L,ty=b.y-dy*L,tz=b.z-dz*L;
       // side = dir x (to camera), sized by distance so a tracer is never thinner than about 1.5 pixels
       const cx=cp.x-b.x,cy=cp.y-b.y,cz=cp.z-b.z,cd=Math.hypot(cx,cy,cz)||1;
@@ -936,7 +939,7 @@ const wrecks=[];
 function addWreck(v){
   if(wrecks.length>=8)wrecks.shift();
   wrecks.push({e:v,frame:v.frame,col:new THREE.Color(entColor(v)).multiplyScalar(.35),p:v.pos.clone(),v:v.fwd.clone().multiplyScalar(Math.max(60,v.speed)*.7),
-    h:v.h,pi:v.p,r:v.r,spin:(Math.random()<.5?-1:1)*rand(3,6),t:0,life:rand(3,4.5),smT:0,o:new THREE.Object3D()});
+    h:v.h,pi:v.p,r:v.r,spin:(Math.random()<.5?-1:1)*rand(3,6),t:0,life:rand(4,5.5),smT:0,o:new THREE.Object3D()});
 }
 function updateWrecks(dt){
   FLASH.intensity=flashT>0?FLASH.intensity*Math.exp(-dt*9):0;flashT-=dt;
@@ -944,7 +947,7 @@ function updateWrecks(dt){
     w.v.y-=24*dt;w.v.multiplyScalar(1-dt*.25);w.p.addScaledVector(w.v,dt);w.r+=w.spin*dt;w.pi=Math.max(-1.35,w.pi-dt*.6);
     w.h=Math.atan2(w.v.x,w.v.z);
     w.smT-=dt;if(w.smT<=0){w.smT=FX.low()?.06:.03;const g=rand(.08,.16);
-      FX.puff(w.p.x,w.p.y,w.p.z,rand(-3,3),rand(2,6),rand(-3,3),rand(2.2,3.4),6,30,g,g,g,.7,0,-2);
+      FX.puff(w.p.x,w.p.y,w.p.z,rand(-3,3),rand(2,6),rand(-3,3),rand(3.6,5.2),8,42,g,g,g,.75,0,-2);
       FX.puff(w.p.x,w.p.y,w.p.z,w.v.x*.2,w.v.y*.2,w.v.z*.2,.35,9,4,1,rand(.45,.7),.12,1,1,0)}
     const gh=groundH(w.p.x,w.p.z);
     if(w.p.y<gh+2||w.t>w.life){w.p.y=Math.max(w.p.y,gh+2);boom(w.p,false);if(w.p.y<gh+6)groundBurst(w.p,gh<=0);wrecks.splice(i,1)}
@@ -1162,7 +1165,8 @@ function handleEvent(ev,mine){
     case 'k':{const v=G.ents.get(ev.v),by=G.ents.get(ev.by);if(!v)break;
       if(ev.w===2){boom(v.pos,true);groundBurst(v.pos,v.pos.y<4)}else{boom(v.pos,true,v.vel.x,v.vel.y,v.vel.z);addWreck(v)}
       if(KIT)KIT.downed(v,by);if(!v.local){v.alive=false;v.mesh.visible=false}
-      if(by&&by!==v&&by.local&&G.phase==='play'){by.kills++;if(by===G.me){banner(TX('You shot down {n}',{n:v.name}),ev.w===1?'Missile':ev.w===2?'They hit the ground running from you':'Guns',1800);sfx('kill');hitMark(true);stat('add','kills',1);stat('add','kdkills',1)}}
+      if(by&&by!==v&&by.local&&G.phase==='play'){by.kills++;if(by===G.me){banner(TX('You shot down {n}',{n:v.name}),ev.w===1?'Missile':ev.w===2?'They hit the ground running from you':'Guns',1300);sfx('kill');hitMark(true);killFade();
+          if(!REDUCED)G.shake=Math.max(G.shake,.45);if(ev.w!==2)debris(v.pos,v.vel.x,v.vel.y,v.vel.z,8,entColor(v));stat('add','kills',1);stat('add','kdkills',1)}}
       feedLine(by&&by!==v?by:null,v,ev.w);
       if(v===G.me&&by&&by!==v)G.spec=by;
       break}
@@ -2159,11 +2163,11 @@ function updateCamera(dt){
   if(mine)camBack+=((me.boosting?7:0)+clamp((me.speed-110)/20,0,3)-camBack)*Math.min(1,dt*2.5);
   const c=e?e.pos:T3.set(0,720,0),dist=mine?48+camBack:G.mode==='menu'?64:58;
   // your plane sits well below the middle (about 15 degrees), so what is ahead of you, where you aim, is never behind it
-  camPos.copy(c).addScaledVector(camDir,-dist);camPos.y+=mine?14:15;
+  camPos.copy(c).addScaledVector(camDir,-dist);camPos.y+=mine?17:15;
   const gh=groundH(camPos.x,camPos.z)+5;if(camPos.y<gh)camPos.y=gh;
   if(camSnap)camera.position.copy(camPos);else camera.position.lerp(camPos,1-Math.exp(-dt*16));
   camSnap=false;
-  T4.copy(c).addScaledVector(camDir,170);T4.y+=mine?8:0;camera.up.set(0,1,0);camera.lookAt(T4);
+  T4.copy(c).addScaledVector(camDir,170);T4.y+=mine?13:0;camera.up.set(0,1,0);camera.lookAt(T4);
   if(mine&&!REDUCED)camera.rotateZ(-me.bank*.2);
   if(mine&&!REDUCED&&me.boosting)G.shake=Math.max(G.shake,.05);   // a faint buzz under boost
   if(G.shake>.01){camera.position.x+=rand(-1,1)*G.shake*2;camera.position.y+=rand(-1,1)*G.shake*2;G.shake*=Math.exp(-dt*6)}
@@ -2199,6 +2203,8 @@ const marks=[];
 let hudT=0,bannerT=0,hitT=0;
 const HE={};for(const id of ['vign','white','reticle','nose','lead','lockRing','hpF','boF','heF'])HE[id]=$(id);
 function banner(t,sub,ms){const b=$('banner');b.textContent=TX(t);if(sub){const s=document.createElement('small');s.textContent=TX(sub);b.appendChild(s)}b.classList.add('on');bannerT=(ms||1500)/1000}
+// your kill: the aim ring, gun cross, lead and target boxes fade for a moment so they don't cover the explosion
+let killFadeTimer=0;function killFade(){const h=$('hud');h.classList.add('killfade');clearTimeout(killFadeTimer);killFadeTimer=setTimeout(()=>h.classList.remove('killfade'),700)}
 function hitMark(kill){const h=$('hitm');if(kill){hitT=.45;h.classList.add('kill')}else if(!h.classList.contains('kill')||hitT<=0){hitT=.12;h.classList.remove('kill')}h.classList.add('on')}
 // a hit on you: point an arc at whoever fired (the newest of three arcs, each fading over a second)
 let dmgI=0;const dmgDirs=[];
