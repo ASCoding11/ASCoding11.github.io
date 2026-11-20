@@ -766,7 +766,9 @@
     var vx = st.vx || 0, vz = st.vz || 0, speed = Math.hypot(vx, vz);
     var stance = st.stance || 'stand';
     // stance super-state weights, eased (~0.25 s)
-    for (k in this._stW) this._stW[k] = approach(this._stW[k], k === stance ? 1 : 0, 4, dt);
+    // going down to or up from prone takes longer (about 0.6 s) than stand <-> crouch (0.25 s)
+    var stRate = stance === 'prone' || this._stW.prone > 0.01 ? 1.6 : 4;
+    for (k in this._stW) this._stW[k] = approach(this._stW[k], k === stance ? 1 : 0, stRate, dt);
     var sw = this._stW, swSum = sw.stand + sw.crouch + sw.prone || 1;
     // moving weight follows the speed: the stepping clips are blended with the stance idle at about speed / clip speed
     // while the phase keeps the clips' own cadence (below), so a planted foot moves with the ground during starts,
@@ -902,7 +904,9 @@
       q.setFromAxisAngle(left, -br); rotWorld(b.spine_03, q);
     }
     // foot IK with pelvis drop against actor.groundAt(x, z) (if the game provides it), near the camera only
-    var ikOK = far < (IV.footIKDistance || 25) && this._stW.prone < 0.5;
+    // foot IK fades out (not off in one frame) as the body goes down to prone
+    var ikW = Math.max(0, Math.min(1, 1 - this._stW.prone * 1.6)), ikOK = far < (IV.footIKDistance || 25) && ikW > 0.01;
+    this._ikW = ikW;
     if (this.groundAt && ikOK) this._footIK(dt);
     if (ikOK && IV.footLock !== false && far < (IV.footLockDistance || 12)) this._footLock(dt);   // transitions only (see _lockK)
   };
@@ -982,7 +986,7 @@
       go += (off[s] - go) * Math.min(1, dt * (off[s] > go ? 22 : 12));
       this._gOff[s] = go; off[s] = go;
     }
-    var drop = Math.min(0, Math.min(off.l, off.r));
+    var drop = Math.min(0, Math.min(off.l, off.r)) * (this._ikW == null ? 1 : this._ikW);
     this._pelDrop += (drop - this._pelDrop) * Math.min(1, dt * 12);
     var pel = b.pelvis, wp = worldPos(pel, new T.Vector3());
     wp.y += this._pelDrop;
@@ -993,7 +997,7 @@
       var cur = worldPos(foot, new T.Vector3());
       var target = cur.clone(); target.y = pos[s2].y + off[s2];   // animated height above local ground
       var fq = worldQuat(foot, new T.Quaternion());
-      twoBone(b['thigh_' + s2], b['calf_' + s2], foot, target, fq, 1);
+      twoBone(b['thigh_' + s2], b['calf_' + s2], foot, target, fq, this._ikW == null ? 1 : this._ikW);
     }
   };
   var AIM_P = [['spine_01', 0.15], ['spine_02', 0.2], ['spine_03', 0.35], ['neck_01', 0.12], ['Head', 0.18]];
