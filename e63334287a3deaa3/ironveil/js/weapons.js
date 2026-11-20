@@ -374,6 +374,7 @@
     const sx = P.pos.x, sz = P.pos.z; let t = 0;
     P.bodyYaw = e.bodyYaw; P.yaw = e.bodyYaw;
     P.actor.play('takedown', { fade: 0.1, once: true, restart: true }); P.cineClip = true;
+    WP.takedownT = IV.time;   // first person: the knife viewmodel plays its stab from this time (js/fp.js)
     e.takedown();
     IV.audio && IV.audio.play('takedown');
     IV.ai.noise(P.pos.x, P.pos.z, T.noise.takedown, 'step', P);

@@ -51,7 +51,7 @@
     if (Math.abs(x) < 6 && z < RANGE_Z && z > -300) { c.setRGB(0.4, 0.48, 0.26); }
     return 0;
   }
-  const key = id => IV.touch ? IV.t({ forward: 'the left stick', sprint: 'Run', crouch: 'Crouch', prone: 'Prone', vault: 'Vault', aim: 'Aim', fire: 'Fire', breath: 'Breath', rock: 'Rock', grenade: 'Nade', binoc: 'Bino', knife: 'Use', use: 'Use', rifle: 'Swap', smg: 'Swap', order: 'Order' }[id] || id) : IV.input.label(id);
+  const key = id => IV.touch ? IV.t({ forward: 'the left stick', sprint: 'Run', crouch: 'Crouch', prone: 'Prone', vault: 'Vault', aim: 'Aim', fire: 'Fire', breath: 'Breath', rock: 'Rock', grenade: 'Nade', binoc: 'Bino', knife: 'Use', use: 'Use', rifle: 'Swap', smg: 'Swap', order: 'Order', leanLeft: 'Lean L', leanRight: 'Lean R' }[id] || id) : IV.input.label(id);
   const moveKeys = () => IV.touch ? IV.t('the left stick') : [IV.input.label('forward'), IV.input.label('left'), IV.input.label('back'), IV.input.label('right')].join(' ');
 
   // ---------------------------------------------------------------- build
@@ -203,12 +203,20 @@
     steps.push(() => { sarge('Under the log. Crouch and go through.'); mark('s3', 'Crouch under the log', 0, 84); hint(t('{k} crouches (and stands up again)', { k: key('crouch') })); go(() => P.pos.z < 85.5 && Math.abs(P.pos.x) < 3, () => M.done('s3')); });
     steps.push(() => { sarge('Wire\'s low. On your belly and crawl.'); mark('s4', 'Crawl under the wire', 0, 63); hint(t('{k} goes prone. Crouched or prone, you are quieter and harder to see.', { k: key('prone') })); go(() => P.pos.z < 64.5 && Math.abs(P.pos.x) < 3, () => M.done('s4')); });
     steps.push(() => { let v = false; const off = IV.on('vault', () => { v = true; }); sarge('Wall. Over it, don\'t walk round it.'); mark('s5', 'Vault the wall', 0, 50); hint(t('Run at it and press {k} to vault', { k: key('vault') })); go(() => v && P.pos.z < 53, () => M.done('s5')); });
+    // lean: first person only teaches it properly, but the station accepts the keys in either view
+    steps.push(() => {
+      let l = 0, r = 0;
+      sarge('Good. Now get your head round cover without stepping out. Lean left, then right.');
+      M.obj('s5b', 'Lean out to the left and to the right');
+      hint(t('Hold {l} to lean left and {r} to lean right. You can aim and fire while leaning.', { l: key('leanLeft'), r: key('leanRight') }));
+      go(() => { if (IV.input.held('leanLeft') || P.lean < -0.6) l = 1; if (IV.input.held('leanRight') || P.lean > 0.6) r = 1; return l && r; }, () => M.done('s5b'));
+    });
     // SMG pop-ups with aim assist
     steps.push(() => {
       WP.equip('smg');
       const ts = [[-18, 42, Math.PI / 2], [-22, 36, Math.PI / 2 + 0.2], [-15, 31, Math.PI / 2 - 0.3]].map(p => board(M, p[0], p[1], p[2], 0.55, 1.0));
-      sarge('Pop-ups to your left. Aim, and the sights settle on the nearest one. Then squeeze.');
-      M.obj('s6', 'Hit the three pop-up targets'); hint(t('Hold {a} to aim, {f} to fire. The aim pulls onto targets: that is the aim assist.', { a: key('aim'), f: key('fire') }));
+      sarge('Pop-ups to your left. Bring the gun up, look down the sights, then squeeze.');
+      M.obj('s6', 'Hit the three pop-up targets'); hint(t('Hold {a} to look down the sights, {f} to fire. From the hip the crosshair opens up while you move. Your aim slows over a target: that is the aim assist.', { a: key('aim'), f: key('fire') }));
       go(() => ts.every(x => !x.alive), () => M.done('s6'));
     });
     // rifle at range
@@ -223,7 +231,7 @@
       M.when(at(0, RANGE_Z + 0.5, 3), () => {
         M.done('s7a');
         M.obj('s7', 'Hit the 100, 200 and 300 m plates');
-        hint(t('Hold {a} for the scope. Hold {b} to steady your breath. Lie down for the steadiest shot.', { a: key('aim'), b: key('breath') }));
+        hint(t('Hold {a} to put your eye to the scope. Hold {b} to steady your breath. Lie down for the steadiest shot.', { a: key('aim'), b: key('breath') }));
       });
       M.when(() => ts.every(x => !x.alive), () => { M.flags.rifleShots = WP.stats.shots - M.flags.rifleStart; });
       go(() => ts.every(x => !x.alive), () => M.done('s7'));
@@ -237,7 +245,7 @@
       M.obj('s8', 'Throw a rock to distract the guard', { marker: { x: 31, z: -2, y: W.height(31, -2) + 2.2 } });
       hint(t('Hold {k} to aim a rock, let go to throw. Land it away from where you want to go.', { k: key('rock') }));
       let distracted = false;
-      M.when(() => M.guard && (M.guard.state === 'investigating'), () => { distracted = true; M.done('s8'); M.obj('s9', 'Sneak up behind him and take him down'); hint(t('Behind him and close: {k}', { k: key('knife') })); });
+      M.when(() => M.guard && (M.guard.state === 'investigating'), () => { distracted = true; M.done('s8'); M.obj('s9', 'Sneak up behind him and take him down'); hint(t('Behind him and close: {k} for the knife', { k: key('knife') })); });
       // seen: one reset at a time (the condition stays true until the new guard is in, so guard against queueing a reset every step)
       let resetting = false;
       M.when(() => !resetting && M.guard && M.guard.alive && M.guard.state === 'combat', () => { resetting = true; M.radio('Cpl. Hale', t('Seen you! Back out and try again.')); M.after(2.5, () => { resetting = false; if (M.guard && M.guard.alive) { M.guard.actor.dispose(); IV.ai.list.splice(IV.ai.list.indexOf(M.guard), 1); spawnGuard(); P.pos.set(26, W.height(26, 14), 14); P.prev.copy(P.pos); } }); }, { once: false });
@@ -292,7 +300,7 @@
   IV.missions.register({
     id: 'bootcamp', num: 0, title: 'Boot Camp', line: 'A morning on the training range: moving, shooting, sneaking. About five minutes.',
     briefing: ['Training range, England, the week before the jump. Sergeant Okafor runs the course.', 'One thing at a time. Each station waits until you have done it, and the prompts show your own keys.'],
-    preview: [{ text: 'Move, sprint, crouch, crawl and vault' }, { text: 'Pop-up targets with the aim assist' }, { text: 'The scoped rifle at 100, 200 and 300 m' }, { text: 'Distract a guard and take him down' }, { text: 'Binoculars and grenades' }],
+    preview: [{ text: 'Move, sprint, crouch, crawl, vault and lean' }, { text: 'Pop-up targets down the sights' }, { text: 'The scoped rifle at 100, 200 and 300 m' }, { text: 'Distract a guard and take him down' }, { text: 'Binoculars and grenades' }],
     world: { size: 660, day: true, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 2.2 }, terrainStep: 4, fog: 0.0028, fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
     build, setup, step, frame, sketch,
     medals: [

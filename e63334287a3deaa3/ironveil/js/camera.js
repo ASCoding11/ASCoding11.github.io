@@ -92,10 +92,14 @@
     // bob spring (critically damped-ish)
     C.bobV += (-C.bobY * 120 - C.bobV * 18) * dt; C.bobY += C.bobV * dt; if (Math.abs(C.bobY) < 1e-4 && Math.abs(C.bobV) < 1e-3) C.bobY = C.bobV = 0;
     P.pitch = IV.clamp(P.pitch, CT.pitchMin, CT.pitchMax);
-    const aiming = W8 && W8.aiming, scoped = W8 && W8.scoped;
-    C.aimK = IV.damp(C.aimK, aiming || (W8 && W8.binoc) ? 1 : 0, 14, dt);
+    const aiming = W8 && W8.aiming;
+    // first person: the rifle comes up to the eye first (the viewmodel), and the scope view starts once it is there
+    const scoped = W8 && W8.scoped && !(IV.fp && IV.fp.on() && (IV.fp.vmAim || 0) < 0.9);
+    C.scopeView = !!scoped;
+    const binoc = !!(W8 && W8.binoc) && !(IV.fp && IV.fp.on() && (IV.fp.vmAim || 0) < 0.9);   // binoculars come up to the eyes first too
+    C.aimK = IV.damp(C.aimK, aiming || (W8 && (W8.binoc || W8.scoped)) ? 1 : 0, 14, dt);
     C.scopeK = scoped ? 1 : 0;
-    W.grassClear.value.set(P.render.x, 0, P.render.z, scoped || (W8 && W8.binoc) ? 3.2 : P.stance === 'prone' ? 1.8 : 0);
+    W.grassClear.value.set(P.render.x, 0, P.render.z, scoped || binoc ? 3.2 : P.stance === 'prone' ? 1.8 : 0);
     // pivot: at the shoulder, height by stance
     const pr = P.render;
     const ph = P.stance === 'stand' ? 1.55 : P.stance === 'crouch' ? 1.05 : 0.5;
@@ -128,13 +132,13 @@
     C._spr = IV.damp(C._spr || 0, sprintK, 6, dt);
     let fov = S.fov + C._spr * CT.sprintFov;
     fov = fov * (1 - C.aimK * (1 - CT.aimFov));
-    if (W8 && W8.binoc) fov = S.fov / 4.5;
+    if (binoc) fov = S.fov / 4.5;
     if (scoped) fov = S.fov / T.weapons.rifle.zoom;
     C.fov = IV.damp(C.fov, fov, scoped ? 40 : 12, dt);
     if (Math.abs(cam.fov - C.fov) > 0.01) { cam.fov = C.fov; cam.updateProjectionMatrix(); }
-    if (!scoped && !(W8 && W8.binoc) && IV.fp && IV.fp.on()) { IV.fp.frame(cam, dt, dir, yaw, pitch); return; }   // the default view
+    if (!scoped && !binoc && IV.fp && IV.fp.on()) { IV.fp.frame(cam, dt, dir, yaw, pitch); return; }   // the default view
     IV.fp && IV.fp.off();
-    if (scoped || (W8 && W8.binoc)) {
+    if (scoped || binoc) {
       // first person at the eye
       P.actor && P.actor.setVisible(false);
       cam.position.set(pr.x, pr.y + (P.eyeY() - P.pos.y), pr.z);

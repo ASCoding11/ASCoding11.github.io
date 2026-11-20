@@ -164,7 +164,7 @@
     if (best) {
       if (I.held('use')) {
         best.prog += dt / (best.hold || 0.01);
-        if (best.prog >= 1) { best.prog = 0; best.on = false; best.done && best.done(); }
+        if (best.prog >= 1) { best.prog = 0; best.on = false; IV.emit('interacted', best); best.done && best.done(); }
       } else best.prog = 0;
     }
     if (M.def.step) M.def.step(M, dt);

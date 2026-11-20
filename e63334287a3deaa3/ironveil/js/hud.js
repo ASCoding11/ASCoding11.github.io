@@ -11,7 +11,8 @@
   H.init = function () {
     cv = $('hudc'); g = cv.getContext('2d');
     IV.on('hitmarker', h => { hitT = 0.28; hitKill = h.kill; hitHead = h.head; });
-    IV.on('hurt', h => { dmgT = 1; fleckT = 1.2; makeFlecks(h.dmg); H.dmgDir = { a: P.hurtDir, t: 1.4 }; });
+    IV.on('hurt', h => { dmgT = 1; fleckT = 1.2; makeFlecks(h.dmg); H.dmgDir = { a: P.hurtDir, x: h.from ? h.from.x : null, z: h.from ? h.from.z : null, t: 1.6 }; });
+    IV.on('shot', k => { H.kickK = Math.min(1.6, (H.kickK || 0) + (k === 'rifle' ? 1.2 : k === 'pistol' ? 0.8 : 0.45)); });
     IV.on('suppressed', k => { sup = Math.min(1, sup + k * 0.6); });
     IV.on('objectives', () => H.objectives());
     IV.on('tagged', e => H.toast(IV.t('Soldier marked')));
@@ -97,14 +98,15 @@
     g.clearRect(0, 0, w, h);
     const WP = IV.weapons, C = IV.camera, cx = w / 2, cy = h / 2, u = dpr;
     if (C.mode === 'scope' && WP.scoped) drawScope(w, h, u);
-    else if (WP.binoc) drawBinoc(w, h, u);
-    else if (P.alive && !P.cine && !P.sprinting && !(WP.reloadT > 0)) drawReticle(cx, cy, u);   // no crosshair while sprinting or reloading
+    else if (WP.binoc && C.mode === 'scope') drawBinoc(w, h, u);
+    else if (P.alive && !P.cine && !P.sprinting && !(WP.reloadT > 0) && !(C.mode === 'first' && (WP.aiming || WP.scoped))) drawReticle(cx, cy, u, dt);   // no crosshair while sprinting, reloading or looking down the sights
+    if (C.mode !== 'scope') drawHit(cx, cy, u);
     drawGrenadeWarn(cx, cy, u);
     drawAwareness(cx, cy, u);
     drawCompass(w, u);
     drawMarkers(u);
     drawBarks(u, dt);
-    if (H.dmgDir && H.dmgDir.t > 0) { H.dmgDir.t -= dt; const a = H.dmgDir.a, r = 120 * u; g.save(); g.translate(cx, cy); g.rotate(-a); g.fillStyle = `rgba(200,30,20,${Math.min(0.8, H.dmgDir.t)})`; g.beginPath(); g.moveTo(-26 * u, -r); g.quadraticCurveTo(0, -r - 16 * u, 26 * u, -r); g.lineTo(0, -r + 10 * u); g.closePath(); g.fill(); g.restore(); }
+    if (H.dmgDir && H.dmgDir.t > 0) { H.dmgDir.t -= dt; const a = H.dmgDir.x != null ? IV.wrapA(IV.yawTo(H.dmgDir.x - P.pos.x, H.dmgDir.z - P.pos.z) - P.yaw) : H.dmgDir.a, r = 120 * u; g.save(); g.translate(cx, cy); g.rotate(-a); g.fillStyle = `rgba(200,30,20,${Math.min(0.8, H.dmgDir.t)})`; g.beginPath(); g.moveTo(-26 * u, -r); g.quadraticCurveTo(0, -r - 16 * u, 26 * u, -r); g.lineTo(0, -r + 10 * u); g.closePath(); g.fill(); g.restore(); }
     if (fleckT > 0 && flecks.length) { for (const f of flecks) { g.fillStyle = `rgba(110,8,4,${f.o * Math.min(1, fleckT)})`; g.beginPath(); g.ellipse(f.x * w, f.y * h, f.r * u, f.r * 0.7 * u, f.x, 0, 6.29); g.fill(); } }
   };
   // an enemy grenade within lethal range: an icon by the crosshair with an arrow toward it
@@ -121,22 +123,30 @@
     g.rotate(-a); g.beginPath(); g.moveTo(0, -24 * u); g.lineTo(-6 * u, -16 * u); g.lineTo(6 * u, -16 * u); g.closePath(); g.fill();
     g.restore();
   }
-  function drawReticle(cx, cy, u) {
-    const WP = IV.weapons, aiming = WP.aiming;
-    // the gap is the real spread cone at this field of view, plus a small minimum so the marks never touch
-    const ppr = (cv.height / 2) / Math.tan(W.camera.fov * Math.PI / 360), sp = Math.tan(WP.currentSpread()) * ppr / u + 3;
-    g.strokeStyle = 'rgba(240,232,210,.9)'; g.lineWidth = 2 * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
+  // the crosshair: four marks whose gap is the real spread cone at this field of view (it opens while you move, crouch
+  // and prone tighten it, the SMG blooms as it fires), eased so it breathes instead of jumping, plus a kick on every
+  // shot. In first person it goes away while you look down the sights (the sights are the crosshair then).
+  function drawReticle(cx, cy, u, dt) {
+    const WP = IV.weapons;
+    const ppr = (cv.height / 2) / Math.tan(W.camera.fov * Math.PI / 360), want = Math.tan(WP.currentSpread()) * ppr / u + 3;
+    H.kickK = Math.max(0, (H.kickK || 0) - dt * 5);
+    H.gap = H.gap == null ? want : H.gap + (want - H.gap) * (1 - Math.exp(-dt * 14));
+    const sp = H.gap + H.kickK * 9;
+    g.strokeStyle = 'rgba(240,232,210,.88)'; g.lineWidth = 2 * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
     if (WP.busyThrow) { g.beginPath(); g.arc(cx, cy, 3 * u, 0, 6.29); g.stroke(); }
     else {
-      const s = sp * u, l = 7 * u;
+      const s = sp * u, l = 8 * u;
       g.beginPath(); g.moveTo(cx - s - l, cy); g.lineTo(cx - s, cy); g.moveTo(cx + s, cy); g.lineTo(cx + s + l, cy); g.moveTo(cx, cy + s); g.lineTo(cx, cy + s + l); g.moveTo(cx, cy - s - l); g.lineTo(cx, cy - s); g.stroke();
       g.fillStyle = 'rgba(240,232,210,.9)'; g.fillRect(cx - u, cy - u, 2 * u, 2 * u);
     }
-    if (hitT > 0) {
-      const k = 6 * u + (0.28 - hitT) * 20 * u, c = hitKill ? (hitHead ? '#ff5a3c' : '#f2e2c0') : '#fff';
-      g.strokeStyle = c; g.lineWidth = (hitKill ? 3 : 2) * u;
-      g.beginPath(); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { g.moveTo(cx + a * k, cy + b * k); g.lineTo(cx + a * (k + 8 * u), cy + b * (k + 8 * u)); } g.stroke();
-    }
+    g.shadowBlur = 0;
+  }
+  // hit marker: four ticks round the centre, white on a hit, warm on a kill, red on a head kill; shown in ADS too
+  function drawHit(cx, cy, u) {
+    if (hitT <= 0) return;
+    const k = 6 * u + (0.28 - hitT) * 20 * u, c = hitKill ? (hitHead ? '#ff5a3c' : '#f2e2c0') : '#fff';
+    g.strokeStyle = c; g.lineWidth = (hitKill ? 3 : 2) * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
+    g.beginPath(); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { g.moveTo(cx + a * k, cy + b * k); g.lineTo(cx + a * (k + 8 * u), cy + b * (k + 8 * u)); } g.stroke();
     g.shadowBlur = 0;
   }
   // awareness: one arc per soldier who has noticed something, placed round the reticle in his direction
