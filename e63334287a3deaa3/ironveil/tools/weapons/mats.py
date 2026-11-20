@@ -197,8 +197,8 @@ def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082)):
     n3 = nb.noise(P, 45, 3, 0.5, w=seed + 7)
     hand = _hand(nb, W)
     edge = nb.edge()
-    wear = nb.ss(nb.add(nb.mul(edge, nb.add(0.35, nb.mul(n2, 1.1))), nb.mul(hand, edge, 0.6)), 0.38, 0.70)
-    scr = nb.scratch_set(_axis(W), 1.0, along=1.0, fine=1.0, seed=seed)
+    wear = nb.ss(nb.add(nb.mul(edge, nb.add(0.40, nb.mul(n2, 1.2))), nb.mul(hand, edge, 0.6)), 0.34, 0.66)
+    scr = nb.scratch_set(_axis(W), 1.0, along=1.2, fine=1.1, seed=seed)
     cav = nb.cavity()
     rust = nb.mul(nb.ss(cav, 0.25, 0.75), nb.ss(nb.noise(P, 70, 4, 0.6, w=seed + 9), 0.50, 0.68))
     pits = nb.ss(nb.vor(nb.mapping(P, scale=(1, 1, 1)), 420, 'F1', 1.0), 0.06, 0.0)
@@ -208,6 +208,8 @@ def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082)):
     smudge = nb.ss(nb.noise(P, 26, 3, 0.55, w=seed + 4), 0.52, 0.72)
     # colour: bluing varies; worn-thin bluing goes plum-grey where hands rub; scratches and edges bright
     c = nb.mixc(n1, tint, (tint[0] * 1.5, tint[1] * 1.45, tint[2] * 1.35))
+    rub = nb.mul(nb.ss(nb.noise(nb.mapping(P, scale=(3, 0.25, 3)), 30, 3, 0.6, w=seed + 15), 0.52, 0.75), 0.55)
+    c = nb.mixc(rub, c, (0.13, 0.12, 0.12))
     c = nb.mixc(nb.mul(hand, 0.6, n3), c, (0.21, 0.18, 0.17))
     c = nb.mixc(nb.mul(scr, 0.85), c, (0.42, 0.42, 0.41))
     c = nb.mixc(wear, c, (0.66, 0.65, 0.62))
@@ -280,25 +282,25 @@ def steel(name, W, mask, seed=0.0):
     n1 = nb.noise(P, 20, 4, 0.55, w=seed)
     n2 = nb.noise(P, 180, 4, 0.6, w=seed + 2)
     edge = nb.edge()
-    scr = nb.scratch_set(_axis(W), 1.0, along=2.2, fine=1.3, seed=seed + 31)
+    scr = nb.scratch_set(_axis(W), 1.0, along=1.6, fine=0.6, seed=seed + 31)
     cav = nb.cavity()
     oil = nb.ss(nb.noise(nb.mapping(P, scale=(3, 0.6, 3)), 18, 3, 0.55, w=seed + 4), 0.48, 0.70)
     grime = nb.mul(nb.ss(cav, 0.55, 1.0), nb.ss(nb.noise(P, 60, 3, 0.5, w=seed + 3), 0.4, 0.7), 0.6)
     rust = nb.mul(nb.ss(cav, 0.7, 1.0), nb.ss(nb.noise(P, 80, 4, 0.6, w=seed + 9), 0.62, 0.72))
-    c = nb.mixc(n1, (0.36, 0.36, 0.355), (0.47, 0.47, 0.46))
-    c = nb.mixc(nb.mul(oil, 0.6), c, (0.26, 0.255, 0.24))
-    c = nb.mixc(nb.mul(scr, 0.8), c, (0.62, 0.62, 0.60))
+    c = nb.mixc(n1, (0.30, 0.30, 0.295), (0.40, 0.40, 0.39))
+    c = nb.mixc(nb.mul(oil, 0.7), c, (0.21, 0.20, 0.185))
+    c = nb.mixc(nb.mul(scr, 0.5), c, (0.56, 0.56, 0.54))
     c = nb.mixc(nb.ss(nb.mul(edge, nb.add(0.4, n2)), 0.3, 0.7), c, (0.70, 0.70, 0.68))
     c = nb.mixc(grime, c, (0.07, 0.06, 0.05))
     c = nb.mixc(rust, c, (0.11, 0.045, 0.02))
-    r = nb.add(0.34, nb.mul(nb.sub(n1, 0.5), 0.14))
-    r = nb.lerp(oil, r, 0.20)
-    r = nb.lerp(nb.mul(scr, 0.7), r, 0.45)
+    r = nb.add(0.27, nb.mul(nb.sub(n1, 0.5), 0.10))
+    r = nb.lerp(oil, r, 0.16)
+    r = nb.lerp(nb.mul(scr, 0.6), r, 0.36)
     r = nb.lerp(grime, r, 0.75)
     r = nb.lerp(rust, r, 0.85)
     metal = nb.clamp(nb.sub(1.0, nb.add(rust, nb.mul(grime, 0.8))))
-    h = nb.add(nb.mul(scr, -0.6), nb.mul(nb.noise(nb.mapping(P, scale=(1, 0.05, 1)), 2500, 1, 0.5), 0.12))
-    return nb.finish(c, r, metal, h, bump_dist=0.0003)
+    h = nb.add(nb.mul(scr, -0.22), nb.mul(nb.noise(nb.mapping(P, scale=(1, 0.04, 1)), 1800, 1, 0.5), 0.025))
+    return nb.finish(c, r, metal, h, bump_dist=0.0002)
 
 def brass(name, W, mask, seed=0.0):
     nb = NB(name, mask)
@@ -318,31 +320,33 @@ def wood(name, W, mask, seed=0.0, kind='walnut'):
     nb = NB(name, mask)
     axis = _axis(W)
     q = nb.P if axis == 'Y' else nb.mapping(nb.P, rot=(90, 0, 0))
+    q = nb.mapping(q, rot=(4.5 + (seed % 2.0), 0, 1.5))     # grain runs a few degrees off the stock line
     if kind == 'walnut':
-        early, late, pore = (0.058, 0.031, 0.016), (0.024, 0.0125, 0.0068), (0.014, 0.008, 0.0045)
-        ringsPerM, axisOff = 120.0, (0.19, 0.0, -0.33)
+        early, late, pore = (0.058, 0.031, 0.016), (0.030, 0.0155, 0.0080), (0.016, 0.009, 0.005)
+        ringsPerM, axisOff = 110.0, (0.19, 0.0, -0.33)
     else:   # beech with a redder oil stain, finer grain, rays
-        early, late, pore = (0.060, 0.027, 0.012), (0.033, 0.0145, 0.0065), (0.020, 0.009, 0.004)
-        ringsPerM, axisOff = 150.0, (-0.21, 0.0, -0.28)
-    # growth rings around a virtual trunk axis parallel to the stock: long flowing lines, arches where the surface rises,
-    # spacing varied by a slow noise so no two rings are alike
+        early, late, pore = (0.060, 0.027, 0.012), (0.036, 0.0158, 0.0070), (0.020, 0.009, 0.004)
+        ringsPerM, axisOff = 140.0, (-0.21, 0.0, -0.28)
     warp = nb.add(nb.mul(nb.sub(nb.noise(nb.mapping(q, scale=(9, 0.7, 9)), 1.0, 4, 0.55, dist=0.6, w=seed), 0.5), 0.030),
                   nb.mul(nb.sub(nb.noise(nb.mapping(q, scale=(40, 2.0, 40)), 1.0, 3, 0.5, w=seed + 1), 0.5), 0.006))
     rel = nb.vmath('MULTIPLY', nb.vmath('SUBTRACT', q, axisOff), (1.0, 0.0, 1.0))
     rad = nb.add(nb.vmath('LENGTH', rel, out=1), warp)
     rr = nb.mul(rad, ringsPerM)
-    rr = nb.add(rr, nb.mul(nb.noise(nb.mapping(q, scale=(5, 0.30, 5)), 1.0, 3, 0.55, w=seed + 9), 9.0),
-                nb.mul(nb.noise(nb.mapping(q, scale=(22, 0.9, 22)), 1.0, 2, 0.5, w=seed + 11), 2.2))
+    # rings wander: lines converge, spread and curve along the length (no two alike, never evenly spaced)
+    rr = nb.add(rr, nb.mul(nb.noise(nb.mapping(q, scale=(6, 0.8, 6)), 1.0, 3, 0.55, w=seed + 9), 14.0),
+                nb.mul(nb.noise(nb.mapping(q, scale=(24, 2.5, 24)), 1.0, 2, 0.5, w=seed + 11), 3.5))
     ring = nb.math('FRACT', rr)
     rw = nb.noise(nb.mapping(q, scale=(25, 0.5, 25)), 1.0, 2, 0.5, w=seed + 10)     # ring sharpness varies
-    latew = nb.mul(nb.ss(ring, nb.add(0.58, nb.mul(rw, 0.25)), 0.92), nb.ss(ring, 1.0, 0.955))
-    pores = nb.ss(nb.noise(nb.mapping(q, scale=(1, 0.05, 1)), 1100, 2, 0.5, w=seed + 2), 0.66, 0.74)
-    pores = nb.mul(pores, nb.add(0.3, nb.mul(latew, 0.7)))
+    latew = nb.mul(nb.ss(ring, nb.add(0.50, nb.mul(rw, 0.30)), 0.93), nb.ss(ring, 1.0, 0.965))
+    latew = nb.mul(latew, nb.add(0.35, nb.mul(nb.noise(nb.mapping(q, scale=(30, 3, 30)), 1.0, 2, 0.5, w=seed + 13), 0.9)))
+    pores = nb.ss(nb.noise(nb.mapping(q, scale=(1, 0.06, 1)), 1300, 2, 0.5, w=seed + 2), 0.62, 0.72)
+    pores = nb.mul(pores, nb.add(0.45, nb.mul(latew, 0.55)))
     figure = nb.noise(nb.mapping(q, scale=(1, 0.15, 1)), 7, 4, 0.6, w=seed + 3)
     tone = nb.noise(q, 4, 2, 0.5, w=seed + 5)
-    c = nb.mixc(nb.mul(latew, 0.7), early, late)
-    c = nb.cmul(c, nb.add(0.72, nb.mul(tone, 0.5), nb.mul(nb.sub(figure, 0.5), 0.45)))
-    c = nb.mixc(nb.mul(pores, 0.55), c, pore)
+    c = nb.mixc(nb.mul(latew, 0.6), early, late)
+    streak = nb.noise(nb.mapping(q, scale=(60, 1.2, 60)), 1.0, 3, 0.55, w=seed + 14)          # long colour streaks along the grain
+    c = nb.cmul(c, nb.add(0.62, nb.mul(tone, 0.45), nb.mul(nb.sub(figure, 0.5), 0.7), nb.mul(nb.sub(streak, 0.5), 0.5)))
+    c = nb.mixc(nb.mul(pores, 0.75), c, pore)
     if kind != 'walnut':
         rays = nb.ss(nb.noise(nb.mapping(q, scale=(1, 0.25, 1)), 900, 1, 0.5, w=seed + 6), 0.70, 0.75)
         c = nb.mixc(nb.mul(rays, 0.25), c, (0.12, 0.05, 0.022))
@@ -377,7 +381,7 @@ def wood(name, W, mask, seed=0.0, kind='walnut'):
     return nb.finish(c, r, 0.0, h, bump_dist=0.0005)
 
 # ======================================================================================== soft goods and plastics
-def leather(name, W, mask, seed=0.0, col=(0.075, 0.034, 0.015)):
+def leather(name, W, mask, seed=0.0, col=(0.040, 0.024, 0.014)):
     nb = NB(name, mask)
     P = nb.P
     n1 = nb.noise(P, 30, 4, 0.6, w=seed)
@@ -389,8 +393,8 @@ def leather(name, W, mask, seed=0.0, col=(0.075, 0.034, 0.015)):
     scr = nb.scratches(600, 8, (10, 60, 30), 0.04, 0.2, seed)
     c = nb.cmul(col, nb.add(0.75, nb.mul(n1, 0.5)))
     c = nb.mixc(nb.mul(crease, 0.6), c, nb.cmul(c, 0.55))
-    c = nb.mixc(edgeW, c, (0.16, 0.095, 0.05))
-    c = nb.mixc(nb.mul(scr, 0.6), c, (0.15, 0.09, 0.05))
+    c = nb.mixc(edgeW, c, (0.11, 0.07, 0.04))
+    c = nb.mixc(nb.mul(scr, 0.6), c, (0.10, 0.065, 0.04))
     c = nb.mixc(nb.mul(nb.ss(nb.cavity(), 0.2, 0.9), 0.8), c, (0.03, 0.02, 0.012))
     r = nb.add(0.56, nb.mul(nb.sub(n1, 0.5), 0.2))
     r = nb.lerp(edgeW, r, 0.75)

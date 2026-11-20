@@ -17,6 +17,8 @@ class Weapon:
         self.gripRoff = (0, 0, 0)  # hand-frame nudges (m, Blender frame) found by measuring finger penetration
         self.gripLoff = (0, 0, 0)
     def add(self, ob, mat, part='body'):
+        if not self.hi:   # reduced models: one mesh (two draw calls with the glass), no moving parts
+            part = 'body'
         self.parts.setdefault(part, []).append((ob, mat))
         return ob
     def n(self, hi, lo):
@@ -54,7 +56,7 @@ def rifle_scoped(hi=True):
     ]
     if not hi:
         S = [S[i] for i in (0, 1, 3, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18)]
-    stock = G.loft_y('stock', S, n=N(30, 12))
+    stock = G.loft_y('stock', S, n=N(30, 10))
     W.add(stock, 'wood')
     # butt plate (steel, checkered in the material), slightly proud of the wood
     last = dict(S[-1]); bp = []
@@ -145,7 +147,7 @@ def rifle_scoped(hi=True):
              (0.0153, -0.2125), (0.0132, -0.2135), (0.0127, -0.2085)]
     if not hi:
         sprof = [(0.0122, 0.114), (0.0168, 0.1172), (0.0168, 0.074), (0.0112, 0.050), (0.0112, -0.166), (0.0150, -0.206), (0.0153, -0.2125), (0.0127, -0.209)]
-    W.add(G.lathe('scopeTube', sprof, n=N(36, 10), axis='Y', center=(0, 0, SZ), cap0=True, cap1=True), 'blued')
+    W.add(G.lathe('scopeTube', sprof, n=N(36, 8), axis='Y', center=(0, 0, SZ), cap0=True, cap1=True), 'blued')
     sad = [dict(y=-0.050, zt=SZ + 0.0118, zb=SZ - 0.0118, w=0.0236, e=2.0), dict(y=-0.046, zt=SZ + 0.0132, zb=SZ - 0.0132, w=0.0262, e=2.6),
            dict(y=-0.014, zt=SZ + 0.0132, zb=SZ - 0.0132, w=0.0262, e=2.6), dict(y=-0.010, zt=SZ + 0.0118, zb=SZ - 0.0118, w=0.0236, e=2.0)]
     W.add(G.loft_y('saddle', sad, n=N(24, 8)), 'blued')
@@ -181,14 +183,14 @@ def rifle_scoped(hi=True):
     yF, zF = -0.466, -0.0335
     yR, zR = 0.255, -0.1085
     pts = []
-    K = N(26, 10)
+    K = N(26, 8)
     for i in range(K + 1):
         t = i / K
         y = yF + (yR - yF) * t
         z = zF + (zR - zF) * t - 0.030 * 4 * t * (1 - t) ** 1.3
         pts.append((0.0, y, z))
     sl = [dict(w=0.0030, h=0.0310, e=6.0)] * len(pts)
-    W.add(G.sweep('sling', pts, sl, n=N(10, 6), up=Vector((1, 0, 0))), 'leather', 'sling')
+    W.add(G.sweep('sling', pts, sl, n=N(10, 4), up=Vector((1, 0, 0))), 'leather', 'sling')
     if hi:
         # doubled strap from the front swivel back to the hook
         d = [(0.0, yF + 0.002, zF + 0.0035)]
