@@ -85,6 +85,14 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.35', title: 'Hush Pools: into the mist', kind: 'feature',
+     tags: ['Hush Pools', 'Horror obby'], img: 'm/thumbs/hush-pools.jpg', items: [
+      'The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.',
+      'Each hall has three doors in the far wall, and only one of them is open.',
+      'There is now just one monster, and it is very fast. When it hears you close by, it freezes, shrieks and rushes at you: be far away, or move the moment you hear it.',
+      'The water is only knee deep: you can wade through it and climb back out, but wading is slow and loud. You can\'t drown any more.',
+      'The monster looks creepier, and getting caught is a much bigger scare. If it\'s too much, turn on Gentler grabs in Settings.'
+    ]},
     {date: '2026-11-19', version: '1.32', title: 'New game: Hush Pools', kind: 'game', games: ['Hush Pools'],
      img: 'm/thumbs/hush-pools.jpg', tags: ['Horror obby', 'Co-op', 'Up to 4'], items: [
       'Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can\'t see you, but it hears every splash.',
