@@ -722,7 +722,7 @@ let TERRAIN_MAT=null;
         float det=dA.b*.5+dB.r*.35+dB.g*.15;
         diffuseColor.rgb*=.78+.44*det;
         float band=sin((vWP.y+dA.r*30.)*.26)*.5+.5;
-        diffuseColor.rgb*=mix(1.,.86+.24*band,vMesa);`);
+        diffuseColor.rgb*=mix(1.,.9+.16*band,vMesa);`);
   };
   mat.customProgramCacheKey=()=>'sd-terrain';TERRAIN_MAT=mat;
   const m=new THREE.Mesh(g,mat);m.frustumCulled=false;scene.add(m);
@@ -910,13 +910,13 @@ function boom(p,big,vx,vy,vz){
   if(!REDUCED&&d<600)G.shake=Math.max(G.shake,(1-d/600)*(big?.9:.4));
 }
 // Bits of a plane flung out of a shoot-down: one instanced mesh of small plates that tumble, fall and smoke.
-const DEB_MAX=64,DEB=instMesh(new THREE.BoxGeometry(1.6,.25,1.1),new THREE.MeshLambertMaterial({color:0xffffff}),DEB_MAX,true);
+const DEB_MAX=64,DEB=instMesh(new THREE.BoxGeometry(1.1,.18,.8),new THREE.MeshLambertMaterial({color:0xffffff}),DEB_MAX,true);
 const debs=[];for(let i=0;i<DEB_MAX;i++)debs.push({on:false,p:new V3(),v:new V3(),r:new V3(),w:new V3(),s:1,life:0,smT:0,c:new THREE.Color()});
 let debN=0;const DEB_O=new THREE.Object3D();
 function debris(p,vx,vy,vz,n,col){
   for(let i=0;i<n;i++){const d=debs[debN];debN=(debN+1)%DEB_MAX;d.on=true;d.p.copy(p);
     const a=rand(0,6.283),u=rand(-.3,1),q=Math.sqrt(1-u*u),sp=rand(25,70);d.v.set(Math.cos(a)*q*sp+vx*.5,u*sp+vy*.5+10,Math.sin(a)*q*sp+vz*.5);
-    d.r.set(rand(0,6),rand(0,6),rand(0,6));d.w.set(rand(-9,9),rand(-9,9),rand(-9,9));d.s=rand(.6,1.8)*PLANE_SIZE;d.life=rand(1.8,3.2);d.smT=0;
+    d.r.set(rand(0,6),rand(0,6),rand(0,6));d.w.set(rand(-9,9),rand(-9,9),rand(-9,9));d.s=rand(.4,1.1)*PLANE_SIZE;d.life=rand(1.8,3.2);d.smT=0;
     if(col&&i%3===0)d.c.set(col);else d.c.setRGB(.16,.15,.15)}
 }
 // A plane that is shot down does not just vanish: it falls on fire, spinning and trailing black smoke, and blows up
@@ -2137,12 +2137,13 @@ function updateCamera(dt){
   if(camSnap)camDir.copy(T2);else camDir.lerp(T2,1-Math.exp(-dt*(mine?9:4))).normalize();
   // your own plane: the camera drops back a little as you speed up and when boosting, so speed reads as motion
   if(mine)camBack+=((me.boosting?7:0)+clamp((me.speed-110)/20,0,3)-camBack)*Math.min(1,dt*2.5);
-  const c=e?e.pos:T3.set(0,720,0),dist=mine?42+camBack:G.mode==='menu'?64:58;
-  camPos.copy(c).addScaledVector(camDir,-dist);camPos.y+=mine?9.5:15;
+  const c=e?e.pos:T3.set(0,720,0),dist=mine?48+camBack:G.mode==='menu'?64:58;
+  // your plane sits well below the middle (about 15 degrees), so what is ahead of you, where you aim, is never behind it
+  camPos.copy(c).addScaledVector(camDir,-dist);camPos.y+=mine?14:15;
   const gh=groundH(camPos.x,camPos.z)+5;if(camPos.y<gh)camPos.y=gh;
   if(camSnap)camera.position.copy(camPos);else camera.position.lerp(camPos,1-Math.exp(-dt*16));
   camSnap=false;
-  T4.copy(c).addScaledVector(camDir,170);T4.y+=mine?3:0;camera.up.set(0,1,0);camera.lookAt(T4);
+  T4.copy(c).addScaledVector(camDir,170);T4.y+=mine?8:0;camera.up.set(0,1,0);camera.lookAt(T4);
   if(mine&&!REDUCED)camera.rotateZ(-me.bank*.2);
   if(mine&&!REDUCED&&me.boosting)G.shake=Math.max(G.shake,.05);   // a faint buzz under boost
   if(G.shake>.01){camera.position.x+=rand(-1,1)*G.shake*2;camera.position.y+=rand(-1,1)*G.shake*2;G.shake*=Math.exp(-dt*6)}
