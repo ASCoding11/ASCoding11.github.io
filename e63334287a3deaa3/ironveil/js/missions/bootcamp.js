@@ -15,6 +15,33 @@
     return base + out * (7 * IV.fbm(x / 95 + 11, z / 95 - 4, 4) + 3 * IV.fbm(x / 33, z / 33 + 7, 3) - 2);
   }
   function surface(x, z) { if (Math.abs(x) < 2.2 && z > 0) return S.gravel; if (Math.abs(x + 18) < 5 && Math.abs(z + 2) < 5) return S.mud; return S.grass; }
+  // what grows where (IVEnv ground and grass; see world.js W.surfaceAt). Long grass at fence feet, hut walls and posts
+  // is 'verge', which is NOT stealth cover, so the takedown step plays exactly as before; 'meadow' is not used here.
+  // [x, z, r]: things that stand in the turf and get a collar of long grass (rope posts, beam and wire posts, the
+  // water tower legs, mast, notice board, wash line, wind flags, target frames)
+  const POSTS = [];
+  for (let z = 160; z > 0; z -= 6) for (const sx of [-1, 1]) POSTS.push([sx * 2.6, z, 0.45]);
+  for (const sx of [-1, 1]) { POSTS.push([sx * 2.7, 88, 0.5]); for (let k = 0; k < 4; k++) POSTS.push([sx * 2.7, 67 + k * 2, 0.4]); }
+  for (const a of [-1, 1]) for (const b of [-1, 1]) POSTS.push([-30 + a * 1.6 * Math.cos(0.2) + b * 1.6 * Math.sin(0.2), 100 - a * 1.6 * Math.sin(0.2) + b * 1.6 * Math.cos(0.2), 0.7]);
+  POSTS.push([-9.5, 145, 1.5], [-4.2, 153.2, 0.5], [-4.2, 154.8, 0.5], [38.5, 155.5, 0.5], [38.5, 161.5, 0.5], [4.2, 22, 0.5], [7, -130, 0.5]);
+  for (const x of [-15, -12, 12, 15.5]) POSTS.push([x, -295.5, 1.0]);
+  const HUTS = [[16, 140, 5, 3], [16, 120, 5, 3], [-18, 130, 7, 3.5]];
+  const MUD = [[10.6, 140, 1.8], [10.6, 120, 1.8], [-10.4, 130, 1.8], [0, 88, 3.0], [0, 70, 3.2], [0, 66, 2.6], [0, 53.5, 2.4], [-1, 37, 2.6], [0, 22, 2.8], [30, 8.6, 2.6], [-26.5, 97, 2.2], [3.4, 120, 1.4], [-3.6, 104, 1.3], [3.3, 76, 1.5]];
+  function surfaceKind(x, z) {
+    const n = IV.noise(x / 1.7 + 3, z / 1.7), ax = Math.abs(x);
+    for (const m of MUD) { const d = Math.hypot(x - m[0], z - m[1]); if (d < m[2] * (0.75 + 0.5 * n)) return 'mud'; if (d < m[2] * 1.7) return 'worn'; }
+    if (surface(x, z) !== S.grass) return null;                           // gravel course, grenade pit: the world's own kind
+    for (const p of POSTS) if (Math.abs(x - p[0]) < p[2] && Math.abs(z - p[1]) < p[2] && Math.hypot(x - p[0], z - p[1]) < p[2]) return 'verge';
+    if (ax < 3.5 && z > 0 && z < 166) return ax < 2.6 + 0.9 * n ? 'worn' : 'lawn';  // trodden edge beside the gravel
+    for (const h of HUTS) { const dx = Math.abs(x - h[0]) - h[2], dz = Math.abs(z - h[1]) - h[3]; if (dx < 0.9 + 0.5 * n && dz < 0.9 + 0.5 * n && (dx > -0.2 || dz > -0.2)) return 'verge'; }
+    if (Math.abs(ax - 44) < 0.8 + 0.6 * n && z > 58 && z < 162) return 'verge';             // fence lines
+    if ((Math.abs(ax - 56) < 2.6 + n || Math.abs(z - 175) < 2.2 + n || Math.abs(z + 330) < 2.6 + n) && ax < 60) return 'verge';  // hedge feet
+    if (((ax > 21.5 && ax < 22.5) || (x > 39.5 && x < 40.5)) && z > -12.5 && z < 8.5) return 'verge';   // takedown pen fence
+    if ((x > 21.5 && x < 40.5) && (Math.abs(z - 8) < 0.6 || Math.abs(z + 12) < 0.6)) return 'verge';
+    if (ax < 6 && z < RANGE_Z && z > -300) return 'pasture';             // mown firing lanes
+    if (ax > 46) { const f = IV.fbm(x / 26, z / 26, 2); return f > 0.62 ? 'tussock' : f > 0.5 ? 'verge' : 'lawn'; }   // rough ground beyond the camp
+    return IV.fbm(x / 18 + 4, z / 18, 2) > 0.66 ? 'pasture' : 'lawn';
+  }
   function groundColor(x, z, y, n, c) {
     const v = IV.fbm(x / 20, z / 20, 3); c.setRGB(0.38 + v * 0.1, 0.46 + v * 0.06, 0.24);
     const s = surface(x, z);
@@ -75,7 +102,7 @@
     // huts and a water tower so it reads as a camp
     hut(() => IV.art.building(b, { x: 16, z: 140, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'shed', w: 6, d: 10, floors: 1, seed: 156, damage: 0.05, lit: 0 }, 16, 140, -Math.PI / 2);
     hut(() => IV.art.building(b, { x: 16, z: 120, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'shed', w: 6, d: 10, floors: 1, seed: 136, damage: 0.05, lit: 0 }, 16, 120, -Math.PI / 2);
-    hut(() => IV.art.building(b, { x: -18, z: 130, w: 14, d: 7, h: 3, floor: 0.2, mat: 'plaster', color: 0xcfc6b0, sides: { e: [{ t: 'door', at: 0, w: 1.2 }], n: [{ t: 'win', at: -3, w: 1.2 }, { t: 'win', at: 3, w: 1.2 }] }, roof: { pitch: 0.6 } }), { kind: 'cottage', w: 7, d: 14, floors: 1, seed: 148, damage: 0.05, lit: 0 }, -18, 130, Math.PI / 2);
+    hut(() => IV.art.building(b, { x: -18, z: 130, w: 14, d: 7, h: 3, floor: 0.2, mat: 'plaster', color: 0xcfc6b0, sides: { e: [{ t: 'door', at: 0, w: 1.2 }], n: [{ t: 'win', at: -3, w: 1.2 }, { t: 'win', at: 3, w: 1.2 }] }, roof: { pitch: 0.6 } }), { kind: 'office', w: 14, d: 7, doorEnd: true, seed: 148, damage: 0.05, lit: 0 }, -18, 130, 0);   // a long, low rendered office hut
     if (!dress('watertower', -30, 100, 0.2)) {
       for (const s of [-1, 1]) for (const t of [-1, 1]) K.add(b, 'wood', K.GEO.box, -30 + s * 1.5, W.height(-30, 100) + 4, 100 + t * 1.5, 0.25, 8, 0.25, 0, 0, 0, 0x6e5a44);
       K.add(b, 'wood', K.GEO.cyl12, -30, W.height(-30, 100) + 9.2, 100, 4.2, 2.6, 4.2, 0, 0, 0, 0x7a6450);
@@ -266,7 +293,7 @@
     id: 'bootcamp', num: 0, title: 'Boot Camp', line: 'A morning on the training range: moving, shooting, sneaking. About five minutes.',
     briefing: ['Training range, England, the week before the jump. Sergeant Okafor runs the course.', 'One thing at a time. Each station waits until you have done it, and the prompts show your own keys.'],
     preview: [{ text: 'Move, sprint, crouch, crawl and vault' }, { text: 'Pop-up targets with the aim assist' }, { text: 'The scoped rifle at 100, 200 and 300 m' }, { text: 'Distract a guard and take him down' }, { text: 'Binoculars and grenades' }],
-    world: { size: 660, day: true, height, surface, groundColor, terrainStep: 4, fog: 0.0028, fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
+    world: { size: 660, day: true, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25 }, terrainStep: 4, fog: 0.0028, fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
     build, setup, step, frame, sketch,
     medals: [
       { text: 'Finish in under 6:00', ok: s => s.time < 360 },

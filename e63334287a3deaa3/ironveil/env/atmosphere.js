@@ -122,6 +122,10 @@
         float cov = smoothstep(1.0 - cloud * 0.85 - 0.12, 1.0 - cloud * 0.85 + 0.25, n + cloud * 0.35);
         float lit = 0.6 + 0.6 * pow(md, 4.0) * moonAmt + 0.25 * fbm3(cp * 1.7 + 3.0);
         vec3 cc = cloudCol * lit;
+        // structure: slow darker bands of heavier cloud base, and (by day) a brighter thin patch toward the hidden sun
+        float band = fbm3(cp * 0.33 + vec2(7.0, 1.3));
+        cc *= mix(0.68, 1.12, smoothstep(0.32, 0.68, band));
+        cc += cloudCol * (1.0 - moonAmt) * (0.45 * pow(max(md, 0.0), 5.0) + 0.12 * smoothstep(0.55, 0.8, band));
         c = mix(c, cc, cov * smoothstep(0.0, 0.12, h));
       }
       c *= bright;

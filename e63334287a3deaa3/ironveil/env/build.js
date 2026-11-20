@@ -1,7 +1,7 @@
 /* Midnight Ops environment: buildings, field walls and fences.
    IVEnv.building(spec) -> { group, colliders, doors, windows, lights }
      spec = { kind, w, d, floors, seed, damage (0..1), lit (0..1 share of lit windows), roof ('tile'|'slate') }
-     kinds: farmhouse, barn, shed, cottage, church, shoprow, ruin, bunker (alias pillbox)
+     kinds: farmhouse, barn, shed, cottage, office (long low camp hut), church, shoprow, ruin, bunker (alias pillbox)
      Local space: origin on the ground at the centre of the footprint, front door faces +Z, Y up, metres.
      colliders: [{ x, z, hx, hz, y0, y1, rot, surf, kind }] boxes in local space (rot about Y).
      doors: [{ pivot (Object3D, rotate .rotation.y to open), width, x, z, open(angle) }]
@@ -443,6 +443,22 @@
     const back = bays(w, 2, 0.95, 2.0, { w: 0.8 }).map(o => Object.assign(o, { lit: R() < (sp.lit || 0) }));
     const r = house(B, S, { w, d, T, floors, storey, knee: floors === 1 ? 0.4 : 0, out: 'brick_red', in: 'plaster_interior', roof: sp.roof === 'tile' ? 'roof_tile' : 'slate', head: 'arch', doorHead: 'timber', shutters: false, quoins: false, front, back, right: [{ a0: d / 2 - 0.4, a1: d / 2 + 0.4, y0: storey * floors - 0.2, y1: storey * floors + 0.8 }], left: [], pitch: 0.8, plinth: 'brick_sooty', sill: true, surf: 'stone' });
     chimney(B, S, w / 2 - T - 0.31, 0, 0, r.ridge + 0.8, true);
+    B.box('floorboards', 0, -0.03, 0, w - 2 * T, 0.03, d - 2 * T, 0, { noFoot: true });
+  };
+  // a long, low camp office hut: brick walls (sp.out for another wall material) on a sooty plinth, a shallow slate roof, a row of sash windows, a short stack
+  KINDS.office = function (B, S, sp) {
+    const w = sp.w || 14, d = sp.d || 7, T = 0.25, storey = 2.7, R = S.R;
+    // sp.doorEnd: the door is in the +X gable end (local), not the middle of the front
+    const nf = Math.max(2, Math.round(w / 3.2)), front = sp.doorEnd ? [] : [{ a0: w / 2 - 0.55, a1: w / 2 + 0.55, y0: 0, y1: 2.1, door: true }];
+    for (let i = 0; i < nf; i++) { const c = w * (i + 0.5) / nf; if (sp.doorEnd || Math.abs(c - w / 2) > 1.4) front.push({ a0: c - 0.55, a1: c + 0.55, y0: 0.95, y1: 2.25, lit: R() < (sp.lit || 0) }); }
+    const back = bays(w, nf, 0.95, 2.25, { w: 1.1 }).map(o => Object.assign(o, { lit: R() < (sp.lit || 0) }));
+    const end = [{ a0: d / 2 - 0.5, a1: d / 2 + 0.5, y0: 0.95, y1: 2.25 }], dEnd = [{ a0: d / 2 - 0.6, a1: d / 2 + 0.6, y0: 0, y1: 2.1, door: true }];
+    const r = house(B, S, { w, d, T, floors: 1, storey, out: sp.out || 'brick_red', in: 'plaster_interior', plinth: 'brick_sooty', roof: 'slate', pitch: 0.3, over: 0.45, head: 'lintel', doorHead: 'timber', shutters: false, quoins: false, front, back, right: sp.doorEnd ? dEnd : end, left: end });
+    chimney(B, S, -w / 2 + 2.2, 0, 0, r.ridge + 0.6, true);
+    // door step, a boot scraper, the stains rain makes under the sills and along the plinth
+    if (sp.doorEnd) { B.box('concrete', w / 2 + 0.35, 0, 0, 0.6, 0.16, 1.6, 0, { tint: new THREE.Color(0.85, 0.83, 0.8) }); B.box('metal_rust', w / 2 + 0.5, 0.16, 1.0, 0.05, 0.12, 0.35, 0, { noFoot: true }); }
+    else { B.box('concrete', 0, 0, d / 2 + 0.35, 1.5, 0.16, 0.6, 0, { tint: new THREE.Color(0.85, 0.83, 0.8) }); B.box('metal_rust', 0.95, 0.16, d / 2 + 0.5, 0.35, 0.12, 0.05, 0, { noFoot: true }); }
+    for (const z of [d / 2 + 0.01, -d / 2 - 0.01]) { B.decal('waterstain', [0, 0.45, z], [0, 0, Math.sign(z)], w * 0.95, 0.9, 0); B.decal(R() < 0.5 ? 'moss' : 'grime', [R.range(-w / 3, w / 3), 0.25, z], [0, 0, Math.sign(z)], 2.5, 0.5, 0); }
     B.box('floorboards', 0, -0.03, 0, w - 2 * T, 0.03, d - 2 * T, 0, { noFoot: true });
   };
   KINDS.shoprow = function (B, S, sp) {

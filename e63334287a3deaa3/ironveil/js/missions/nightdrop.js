@@ -71,6 +71,11 @@
     if (dl < 3.2) return 'verge';
     if (x > 88 && x < 132 && z > -86 && z < -55) return 'yard';
     if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'field';
+    // damp hollows (darker, trodden, a little standing water) and shorter-grazed patches break up the open fields
+    if (surface(x, z) !== S.grass) return null;   // never over the tall grass (stealth cover), crops, mud or water
+    const f = IV.fbm(x / 34 + 7, z / 34 - 3, 3);
+    if (f < 0.3) return 'worn';
+    if (f > 0.68) return 'pasture';
     return null;
   }
   function groundColor(x, z, y, n, c) {
@@ -156,6 +161,16 @@
       if (RT() < 0.6) IV.art.tree(b, x * 0.965 + RT.range(-3, 3), z * 0.965 + RT.range(-3, 3), RT() < 0.6 ? 'oak' : 'ash', RT);
     }
     [[-150, 175], [-90, 172], [40, 176], [120, 172], [176, -150], [176, 60], [-176, 20], [-176, -100]].forEach(([x, z]) => { for (let i = 0; i < 4; i++) IV.art.tree(b, x + RT.range(-6, 6), z + RT.range(-6, 6), RT() < 0.5 ? 'oak' : 'ash', RT); });
+    // fields: hay heaps and bales, troughs, field gates in the hedge gaps, a few lone trees, so the big fields are not
+    // empty even planes (its own random stream, and nothing on the routes the patrols or the player's approach use)
+    if (IV.art.envOn() && IVEnv.prop) {
+      const RF = IV.rng(57), root = W.envRoot && W.envRoot.parent ? W.envRoot : W.statics;
+      const put = (kind, x, z, rot, o, solid) => { try { const p = IVEnv.prop(kind, (x * 31 + z * 17) | 0 || 3, o), y = W.height(x, z), c = Math.cos(rot), s2 = Math.sin(rot); p.group.position.set(x, y, z); p.group.rotation.y = rot; root.add(p.group); if (solid !== false) for (const k of p.colliders) W.addBox(x + k.x * c + k.z * s2, z - k.x * s2 + k.z * c, k.hx, k.hz, y + k.y0, y + k.y1, rot + k.rot, F.SOLID | F.BULLET | F.NAV, 'wood', k.kind); } catch (e) { console.warn('field dressing', kind, e); } };
+      for (const [cx, cz, n] of [[60, 44, 7], [-120, 110, 6], [-110, -125, 6], [165, -110, 4], [-150, 60, 4]]) for (let i = 0; i < n; i++) { const x = cx + RF.range(-16, 16), z = cz + RF.range(-9, 9); put(RF() < 0.3 ? 'haystack' : 'haybale', x, z, RF() * 6.28); }
+      put('trough', -82, 122, 0.4); put('trough', 48, 50, 1.3); put('trough', 166, -92, 0.1);
+      for (const [x, z, r] of [[-60, 100, Math.PI / 2], [-29, 120, Math.PI / 2], [-120, 161, 0], [70, 64, 0.09], [150, -100, Math.PI / 2], [-120, -155, -0.1], [90, 115, 0.11]]) put('gate', x, z, r, { width: 3.4, open: 0.9 + RF() * 0.5 }, false);
+      for (const [x, z] of [[-128, 92], [62, 40], [-96, -128], [160, -128], [-150, 20]]) IV.art.tree(b, x + RF.range(-3, 3), z + RF.range(-3, 3), RF() < 0.6 ? 'oak' : 'ash', RF);
+    }
     // scattered field trees
     [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)
@@ -177,6 +192,8 @@
       roof: { pitch: 0.85, over: 0.45 } });
     const fy = H.fy, L = H.L2W;
     // lit windows glow softly into the fog
+    // warm spill from the lit windows onto the yard and the walls outside (visual only: the AI's light test skips these)
+    for (const w of H.wins) if (w.lit) { const dx = w.x - HOUSE.x, dz = w.z - HOUSE.z, ax = Math.abs(dx) / (HOUSE.w / 2), az = Math.abs(dz) / (HOUSE.d / 2), ox = ax > az ? Math.sign(dx) : 0, oz = ax > az ? 0 : Math.sign(dz); W.addLamp({ x: w.x + ox * 1.1, y: w.y - 0.2, z: w.z + oz * 1.1, r: 6, i: 0, power: 1.5, color: 0xff9a48, flicker: true, los: false, visual: true }); }
     for (const w of H.wins) if (w.lit) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: W.tex.glow(), color: 0xff9a40, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); s.position.set(w.x, w.y, w.z); s.scale.set(3.2, 2.4, 1); W.statics.add(s); }
     const prop = (fn, lx, lz, rot, ...a) => { const p = L(lx, lz); IV.art.prop(fn, b, p[0], fy, p[1], rot || 0, ...a); };
     prop('table', -5, 2.2, 0, 1.6, 0.9); prop('chair', -5.9, 2.2, Math.PI / 2); prop('chair', -4.1, 2.2, -Math.PI / 2); prop('stove', -7, 3.4, 0); prop('shelf', -3.3, 3.7, Math.PI, 1.0);     // kitchen
@@ -736,7 +753,7 @@
       'Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook\'s men are waiting.'
     ],
     preview: [{ text: 'Find Cpl. Dunning' }, { text: 'Cut the field-telephone line' }, { text: 'Destroy the flak gun' }, { text: 'Reach the extraction lane' }, { text: 'Take the map from the farm office', opt: true }, { text: 'Take out the sniper in the barn loft', opt: true }],
-    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, fog: 0.0125, fogColor: 0x0a0f15 },
+    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8 }, fog: 0.0125, fogColor: 0x0a0f15 },
     build, setup, step, frame, backdrop, sketch,
     medals: [
       { text: 'Finish in under 15:00', ok: s => s.time < 900 },

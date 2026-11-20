@@ -11,7 +11,8 @@
      the upper blade only, rounded "V" normal blended to up at the tip and with distance. Receives shadows, casts none.
    - One wind field (IVEnv.setWind) with gust fronts; up to 8 pushers (IVEnv.setPushers) bend blades away and down.
    surfaceAt(x, z) returns a kind name; kinds with grass: see KINDS below. opts.longAt(x, z) -> 0..1 adds length
-   (hedge feet, wall bases, fence lines, ditch edges). opts.densityAt(x, z) -> 0..1 multiplies density. */
+   (hedge feet, wall bases, fence lines, ditch edges). opts.densityAt(x, z) -> 0..1 multiplies density.
+   opts.nearMul / opts.carpetMul widen the near ring and the carpet for a world that wants a fuller field (Boot Camp). */
 (function () {
   'use strict';
   const E = window.IVEnv;
@@ -28,6 +29,8 @@
     lanemid: { d: 0.5, h: [0.08, 0.22], long: 0.03, tus: 0.1, dead: 0.2, dry: 0.1, ground: 0x2a2218, c: 0.7, ch: 0.8 },
     worn:    { d: 0.3, h: [0.05, 0.12], long: 0.0, tus: 0.0, dead: 0.25, dry: 0.15, ground: 0x30281c, c: 0.55, ch: 0.6 },
     leaves:  { d: 0.15, h: [0.1, 0.25], long: 0.1, tus: 0.0, dead: 0.3, dry: 0.2, ground: 0x2a2016, c: 0.2, ch: 0.8 },
+    // lawn: well-kept camp turf, thick and green, a little longer than mown grass (Boot Camp)
+    lawn:    { d: 1.0, fill: 0.3, h: [0.16, 0.36], long: 0.07, tus: 0.05, dead: 0.04, dry: 0.0, ground: 0x3d4524, c: 1.05, ch: 1.05 },
     yardedge:{ d: 0.3, h: [0.06, 0.18], long: 0.0, tus: 0.1, dead: 0.25, dry: 0.15, ground: 0x2e2a22, c: 0.45, ch: 0.7 }
   };
   // Blade colours (sRGB) shared by the shader and the ground's far colour
@@ -85,7 +88,7 @@
       if (!wantFull && rnd >= midFrac) continue;
       let x = x0 + (i + H(gi, gj, 12)) * cell, z = z0 + (j + H(gi, gj, 13)) * cell;
       const kind = TC.kind(x, z), K = KINDS[kind]; if (!K) continue;
-      let d = K.d * E.sstep(0.18, 0.45, F.dens(x, z) + 0.12);
+      let d = K.d * E.sstep(0.18, 0.45, F.dens(x, z) + 0.12 + (K.fill || 0));
       if (G.densityAt) d *= G.densityAt(x, z);
       if (H(gi, gj, 14) > d) continue;
       F.clump(x, z, _cl);
@@ -329,13 +332,13 @@
     const G = {
       surfaceAt, heightFn, longAt: opts.longAt, densityAt: opts.densityAt,
       group: new THREE.Group(), tiles: new Map(), pending: [],
-      rNear: opts.near || Q.grassNear, rMid: opts.mid || Q.grassMid
+      rNear: opts.near || Q.grassNear * (opts.nearMul || 1), rMid: opts.mid || Q.grassMid
     };
     G.group.name = 'IVEnv.grass';
     const nearCap = Math.ceil(Math.PI * (G.rNear + TS * 1.5) ** 2 * Q.grassDens * 0.9);
     const midCap = Math.ceil(Math.PI * (G.rMid + TS * 1.5) ** 2 * Q.grassMidDens * 0.9);
     G.near = Ring(G, 'near', Q.bladeSegs, nearCap, true, false);
-    G.rCarpet = Math.min(G.rNear, Q.carpetR);
+    G.rCarpet = Math.min(G.rNear, Q.carpetR * (opts.carpetMul || 1));
     G.carpet = Ring(G, 'carpet', Q.name === 'low' ? 1 : 2, Math.ceil(Math.PI * (G.rCarpet + 6) ** 2 * Q.carpetDens * 0.75), true, false);
     G.mid = Ring(G, 'mid', 1, midCap, false, false);
     G.rings = [G.carpet, G.near, G.mid];
