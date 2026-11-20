@@ -1873,7 +1873,8 @@ function render(now,dtReal){
   screen();const fs=Math.round(clamp(PPM*0.6,20,34));
   for(let i=G.pops.length-1;i>=0;i--){const p=G.pops[i];p.t+=dtReal;if(p.t>1.5){G.pops.splice(i,1);continue}
     p.x=pose.x;p.y=pose.y+2.3;p.attach=false;
-    const k_=p.t<0.12?0.6+p.t/0.12*0.45:p.t<0.22?1.05-(p.t-0.12)*0.5:1;const tw=cx.measureText?0:0,sx=clamp((OX+p.x*K)/DPR,Math.min(W/2,fs*5),Math.max(W/2,W-fs*5)),sy=clamp((OY-(p.y+p.t*0.6)*K)/DPR,(touchUI?96:76)+fs,H-fs*2.2);
+    const k_=p.t<0.12?0.6+p.t/0.12*0.45:p.t<0.22?1.05-(p.t-0.12)*0.5:1;const sx=clamp((OX+p.x*K)/DPR,Math.min(W/2,fs*5),Math.max(W/2,W-fs*5)),top=(touchUI?96:76)+fs;let sy=(OY-(p.y+p.t*0.6)*K)/DPR;if(sy<top)sy=(OY-(pose.y-1.6-p.t*0.6)*K)/DPR+fs; // no room above the bike: show it below
+    sy=clamp(sy,top,H-fs*1.2);
     cx.save();cx.translate(sx,sy);cx.scale(k_,k_);cx.globalAlpha=p.t>1.1?1-(p.t-1.1)/0.4:1;cx.font=(p.big?fs:Math.round(fs*0.72))+'px "Lilita One","Arial Black",Impact,sans-serif';cx.textAlign='center';cx.lineJoin='round';
     cx.lineWidth=5;cx.strokeStyle=INK;cx.strokeText(p.text,0,0);cx.fillStyle=p.col;cx.fillText(p.text,0,0);cx.restore()}
   cx.globalAlpha=1;
