@@ -78,19 +78,19 @@
   // Material recipes. tex: generator in texgen.js, size: metres per repeat, hero: gets the big texture size,
   // ns: normal strength, id: per-element tint amount, pom: parallax depth in metres (High only), metal / mask.
   E.RECIPES = {
-    brick_red: { tex: 'brick_red', size: 1.35, hero: 1, ns: 1.0, id: 0.22, pom: 0.012, macro: 0.16 },
-    brick_sooty: { tex: 'brick_sooty', size: 1.35, hero: 0, hero2: 1, ns: 1.0, id: 0.18, pom: 0.012, macro: 0.2 },
-    fieldstone: { tex: 'fieldstone', size: 1.6, hero: 1, ns: 1.0, id: 0.08, pom: 0.03, macro: 0.18 },
-    ashlar: { tex: 'ashlar', size: 1.2, hero: 0, minor: 1, ns: 1.0, id: 0.1, macro: 0.12 },
+    brick_red: { tex: 'brick_red', size: 1.35, hero: 1, ns: 1.0, id: 0.04, pom: 0.012, macro: 0.3 },
+    brick_sooty: { tex: 'brick_sooty', size: 1.35, hero: 0, hero2: 1, ns: 1.0, id: 0.04, pom: 0.012, macro: 0.32 },
+    fieldstone: { tex: 'fieldstone', size: 1.6, hero: 1, ns: 0.65, id: 0.03, pom: 0.016, macro: 0.32 },
+    ashlar: { tex: 'ashlar', size: 1.2, hero: 0, minor: 1, ns: 1.0, id: 0.03, macro: 0.26 },
     plaster: { tex: 'plaster', size: 2.5, hero: 0, hero2: 1, ns: 1.0, macro: 0.2 },
     plaster_interior: { tex: 'plaster_interior', size: 2.5, hero: 0, minor: 1, ns: 0.8, macro: 0.14 },
-    planks: { tex: 'planks', size: 1.6, hero: 1, ns: 1.0, id: 0.2, macro: 0.16 },
-    floorboards: { tex: 'floorboards', size: 2.0, hero: 0, ns: 1.0, id: 0.16, macro: 0.12 },
-    wood_painted: { tex: 'wood_painted', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.08, macro: 0.14 },
+    planks: { tex: 'planks', size: 1.6, hero: 1, ns: 1.0, id: 0.04, macro: 0.28 },
+    floorboards: { tex: 'floorboards', size: 2.0, hero: 0, ns: 1.0, id: 0.05, macro: 0.16 },
+    wood_painted: { tex: 'wood_painted', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.03, macro: 0.2 },
     timber: { tex: 'timber', size: 1.0, hero: 0, ns: 1.0, macro: 0.16 },
-    roof_tile: { tex: 'roof_tile', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.24, pom: 0.014, macro: 0.2 },
-    slate: { tex: 'slate', size: 1.0, hero: 0, ns: 1.0, id: 0.18, macro: 0.16 },
-    cobbles: { tex: 'cobbles', size: 1.5, hero: 0, hero2: 1, ns: 1.0, id: 0.2, pom: 0.025, macro: 0.18 },
+    roof_tile: { tex: 'roof_tile', size: 1.0, hero: 0, hero2: 1, ns: 1.0, id: 0.06, pom: 0.014, macro: 0.3 },
+    slate: { tex: 'slate', size: 1.0, hero: 0, ns: 1.0, id: 0.05, macro: 0.28 },
+    cobbles: { tex: 'cobbles', size: 1.5, hero: 0, hero2: 1, ns: 1.0, id: 0.04, pom: 0.025, macro: 0.3 },
     mud: { tex: 'mud', size: 3.0, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
     grass_ground: { tex: 'grass_ground', size: 2.5, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
     earth: { tex: 'earth', size: 3.0, hero: 0, ground: 1, ns: 1.0, macro: 0.2 },
@@ -319,8 +319,16 @@
     {
       vec3 wn = inverseTransformDirection(normalize(vNormal), viewMatrix);
       float vert = 1.0 - abs(wn.y);
-      float streak = texture2D(uMacro, vec2((wp.x + wp.z) * 0.9, wp.y * 0.08)).a;
-      envAlb *= 1.0 - vert * smoothstep(0.55, 0.85, streak) * 0.22 * uGrime;
+      float streak = texture2D(uMacro, vec2((wp.x + wp.z) * 0.33, wp.y * 0.05)).a;
+      envAlb *= 1.0 - vert * smoothstep(0.55, 0.9, streak) * 0.22 * uGrime;
+      // patches that cross many stones or boards (a wall reads as one weathered surface first): lichen and green
+      // on the lower and middle wall, soot and old dirt in others, a slow 1-3 m scale, on vertical faces only
+      float pat = texture2D(uMacro, vec2(wp.x + wp.z, wp.y * 1.3) * 0.19 + 0.13).b;
+      float pat2 = texture2D(uMacro, vec2(wp.x - wp.z, wp.y) * 0.07 + 0.41).r;
+      float lich = vert * smoothstep(0.6, 0.82, pat) * smoothstep(0.3, 0.7, envH + 0.25) * uGrime;
+      envAlb = mix(envAlb, envAlb * vec3(0.9, 1.02, 0.74), lich * 0.55);
+      envAlb *= 1.0 - vert * smoothstep(0.32, 0.1, pat) * 0.2 * uGrime;
+      envAlb *= mix(0.86, 1.06, pat2 * vert + (1.0 - vert) * 0.7);
       float lum = dot(envAlb, vec3(0.3, 0.55, 0.15));
       envAlb = mix(envAlb, vec3(lum) * vec3(1.04, 1.0, 0.94), 0.12);
       float dustAmt = smoothstep(0.65, 0.95, wn.y) * smoothstep(0.35, 0.7, m2 * 0.6 + m1 * 0.4 + envH * 0.3) * uDust * (1.0 - uWet);

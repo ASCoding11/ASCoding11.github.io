@@ -579,7 +579,8 @@
     let u = 0;
     for (const sd of sides) { const nx = -sd.dz, nz = sd.dx; wallRun(B, { x0: sd.x0 - nx * bt / 2, z0: sd.z0 - nz * bt / 2, dx: sd.dx, dz: sd.dz, L: sd.len, T: bt, H: sd.h, ops: sd.ops, mats: { out: 'planks', in: 'planks' }, uStart: u, surf: 'wood' }); u += sd.len; }
     // gaps up the sides between front (taller) and back: triangles of boards
-    for (const xs of [-1, 1]) for (const io of [1, -1]) { const x = xs * w / 2 + xs * io * 0.0; const A = [x, h2, -d / 2], Bq = [x, h2, d / 2], C = [x, h1, d / 2]; if ((xs > 0) === (io > 0)) B.tri('planks', A, C, Bq, [[0, h2], [d, h1], [d, h2]], null, 0); else B.tri('planks', A, Bq, C, [[0, h2], [d, h2], [d, h1]], null, 0); }
+    for (const xs of [-1, 1]) for (const io of [1, -1]) { const x = xs * w / 2 + xs * io * 0.0; const A = [x, h2, -d / 2], Bq = [x, h2, d / 2], C = [x, h1, d / 2]; const uz = (z) => xs > 0 ? w + (d / 2 - z) : 2 * w + d + (z + d / 2);   // the same u the wall run below uses, so boards continue
+      if ((xs > 0) === (io > 0)) B.tri('planks', A, C, Bq, [[uz(-d / 2), h2], [uz(d / 2), h1], [uz(d / 2), h2]], null, 0); else B.tri('planks', A, Bq, C, [[uz(-d / 2), h2], [uz(d / 2), h2], [uz(d / 2), h1]], null, 0); }
     // posts in the corners, a mono-pitch roof of slates (corrugated sheets would need a new material)
     for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) B.box('timber', a * (w / 2 - 0.06), 0, b * (d / 2 - 0.06), 0.1, b > 0 ? h1 : h2, 0.1, 0, { grain: 'long' });
     const pitch = Math.atan2(h1 - h2, d), len = Math.hypot(d + 0.5, h1 - h2);

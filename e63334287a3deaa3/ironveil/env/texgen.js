@@ -172,7 +172,7 @@
   function finish(o, depthPx, ao, aoR) {
     const S = o.S, n = S * S, h = o.h, alb = new Uint8ClampedArray(n * 4), nri = new Uint8ClampedArray(n * 4);
     let cav = null;
-    if (ao) { const bl = blur(h, S, aoR || Math.max(2, S / 128)); cav = new Float32Array(n); for (let i = 0; i < n; i++) cav[i] = clamp(1 - (bl[i] - h[i]) * ao, 0.45, 1.05); }
+    if (ao) { const bl = blur(h, S, aoR || Math.max(2, S / 128)); cav = new Float32Array(n); for (let i = 0; i < n; i++) cav[i] = clamp(1 - (bl[i] - h[i]) * ao, 0.62, 1.04); }   // joints read as recessed, not drawn in ink
     for (let y = 0; y < S; y++) {
       const yu = ((y + 1) % S) * S, yd = ((y - 1 + S) % S) * S, row = y * S;
       for (let x = 0; x < S; x++) {
@@ -202,15 +202,15 @@
     const R = rng(seed), o = Out(S), cols = 6, rows = 18, bw = S / cols, ch = S / rows, m = S * 0.0105 / 1.35 * 1.1;
     const n1 = fbm(S, 64, 3, seed + 1), n2 = fbm(S, 16, 4, seed + 2), n3 = fbm(S, 128, 2, seed + 3), grit = fbm(S, 256, 2, seed + 4);
     const B = [];
-    const base = opt.palette || [[148, 70, 50], [136, 62, 46], [160, 82, 58], [124, 58, 44], [152, 88, 64]];
+    const base = opt.palette || [[146, 72, 52], [142, 68, 50], [150, 76, 54], [140, 70, 52], [148, 78, 58]];   // close tones: one wall first, bricks second
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const kind = R(), b = {
         dx: R.range(-1, 1) * S / 1024, dy: R.range(-0.8, 0.8) * S / 1024, sw: R.range(0, 2.5) * S / 1024, sh: R.range(0, 1.6) * S / 1024,
-        col: jitterCol(base[R.int(base.length)], R, 0.12, 0.06), k: 1 + R.int(27), rough: R.range(0.78, 0.92),
-        clinker: kind < 0.1, pale: kind > 0.92, spall: R() < 0.07, crack: R() < 0.06, chips: [], tilt: R.range(-0.04, 0.04)
+        col: jitterCol(base[R.int(base.length)], R, 0.035, 0.015), k: 1 + R.int(27), rough: R.range(0.76, 0.94),
+        clinker: kind < 0.025, pale: kind > 0.975, spall: R() < 0.07, crack: R() < 0.06, chips: [], tilt: R.range(-0.04, 0.04)
       };
-      if (b.clinker) b.col = jitterCol([84, 44, 42], R, 0.12, 0.02);
-      if (b.pale) b.col = jitterCol([170, 112, 82], R, 0.08, 0.02);
+      if (b.clinker) b.col = jitterCol([112, 58, 46], R, 0.05, 0.02);
+      if (b.pale) b.col = jitterCol([158, 92, 66], R, 0.04, 0.02);
       const nc = R() < 0.55 ? R.int(3) + 1 : 0;
       for (let i = 0; i < nc; i++) b.chips.push({ x: R() < 0.5 ? R.range(0, 0.12) : R.range(0.88, 1), y: R() < 0.5 ? 0 : 1, r: R.range(3, 11) * S / 1024 });
       if (R() < 0.08) b.chips.push({ x: R.range(0.2, 0.8), y: R() < 0.5 ? 0 : 1, r: R.range(4, 9) * S / 1024 });
@@ -291,12 +291,12 @@
       const sc = 1.6 / x, off = R() * S; let cx = 0;
       for (const w of wTot) {
         const ww = w * sc * px;
-        list.push({ x0: (cx * px + off) % S, w: ww, hk: R.range(0.6, 1.0), dy: R.range(-0.1, 0.1), tilt: R.range(-0.09, 0.09), col: R(), t: R.range(0.86, 1.12), k: 1 + R.int(27), bulge: R.range(0.04, 0.16), rad: R.range(0.06, 0.2) });
+        list.push({ x0: (cx * px + off) % S, w: ww, hk: R.range(0.6, 1.0), dy: R.range(-0.1, 0.1), tilt: R.range(-0.09, 0.09), col: R(), t: R.range(0.96, 1.04), k: 1 + R.int(27), bulge: R.range(0.04, 0.16), rad: R.range(0.06, 0.2) });
         cx += ww / px;
       }
       stones.push(list);
     });
-    const pal = [[118, 113, 103], [126, 117, 100], [108, 104, 97], [128, 122, 110], [104, 97, 87], [120, 110, 94]];
+    const pal = [[106, 100, 90], [109, 102, 90], [104, 99, 90], [108, 103, 93], [105, 98, 88], [107, 100, 89]];   // one stone, not a patchwork
     const joint = 2.2 * S / 1024;
     for (let yy = 0; yy < S; yy++) {
       let ri = 0; while (ri < rows.length - 1 && yy >= rows[ri + 1].y0) ri++;
@@ -326,14 +326,14 @@
         const l = sstep(0.76, 0.82, lich[q] * 0.8 + grit[q] * 0.2) * inside;
         if (l > 0) { cr = lerp(cr, 160, l * 0.45); cg = lerp(cg, 162, l * 0.45); cb = lerp(cb, 138, l * 0.45); }
         const mk = (0.95 + 0.12 * (grit[q] - 0.5)) * (1 - washed * 0.25);
-        const mc = [176 * mk, 168 * mk, 150 * mk];
+        const mc = [150 * mk, 144 * mk, 130 * mk];   // lime mortar, close to the stone
         const pc = [130 * t, 124 * t, 112 * t];
         o.r[q] = lerp(lerp(mc[0], pc[0], pack), cr, inside) / 255; o.g[q] = lerp(lerp(mc[1], pc[1], pack), cg, inside) / 255; o.b[q] = lerp(lerp(mc[2], pc[2], pack), cb, inside) / 255;
         o.ro[q] = lerp(0.95, 0.86 + 0.1 * n1[q] + l * 0.04, Math.max(inside, pack));
         o.id[q] = inside > 0.5 ? idByte(st.k, 0, 0) : 112;
       }
     }
-    return finish(o, S * 0.05 / 1.6, 2.2, S / 160);
+    return finish(o, S * 0.05 / 1.6, 1.3, S / 160);
   };
 
   // ASHLAR: dressed limestone blocks for quoins, sills, lintels and the church. Tile 1.2 m.
@@ -405,8 +405,8 @@
     }
     return o;
   }
-  G.planks = (S, seed) => finish(planks(S, seed, { boards: 8, gap: 7, jointP: 0.45, col: [146, 138, 124], var: 0.16, rough: 0.86, raise: 0.12, nailRows: [0.18, 0.68], rust: true }), S * 0.008 / 1.6, 1.8);
-  G.floorboards = (S, seed) => finish(planks(S, seed, { boards: 11, gap: 4, jointP: 0.8, col: [112, 82, 56], var: 0.12, rough: 0.68, raise: 0.03, nailRows: [0.05, 0.55], rust: false }), S * 0.004 / 2, 1.6);
+  G.planks = (S, seed) => finish(planks(S, seed, { boards: 8, gap: 7, jointP: 0.45, col: [146, 138, 124], var: 0.04, rough: 0.86, raise: 0.12, nailRows: [0.18, 0.68], rust: true }), S * 0.008 / 1.6, 1.8);
+  G.floorboards = (S, seed) => finish(planks(S, seed, { boards: 11, gap: 4, jointP: 0.8, col: [112, 82, 56], var: 0.05, rough: 0.68, raise: 0.03, nailRows: [0.05, 0.55], rust: false }), S * 0.004 / 2, 1.6);
   // PAINTED BOARDS for doors and shutters: tongue-and-groove boards under flaking old paint, worn to bare wood.
   G.wood_painted = function (S, seed) {
     const o = planks(S, seed, { boards: 8, gap: 5, jointP: 0, col: [104, 92, 78], var: 0.12, rough: 0.85, raise: 0.08, nailRows: [0.12, 0.5, 0.88], rust: true });
@@ -475,14 +475,14 @@
     }
     return o;
   }
-  G.roof_tile = (S, seed) => finish(roofTiles(S, seed, { rows: 10, cols: 6, gap: 4, pal: [[150, 74, 50], [138, 68, 48], [162, 90, 60], [120, 62, 46], [146, 82, 62]], var: 0.12, slip: 0.03, chipP: 0.18, rough: 0.78, moss: 0.9, lay: 0.0 }), S * 0.016 / 1.0, 2.0);
-  G.slate = (S, seed) => finish(roofTiles(S, seed, { rows: 9, cols: 4, gap: 3, pal: [[74, 78, 86], [66, 68, 76], [82, 84, 90], [70, 66, 72], [60, 64, 68]], var: 0.1, slip: 0.02, chipP: 0.3, rough: 0.62, moss: 0.5, lay: 0.05 }), S * 0.009 / 1.0, 1.8);
+  G.roof_tile = (S, seed) => finish(roofTiles(S, seed, { rows: 10, cols: 6, gap: 4, pal: [[146, 76, 52], [140, 72, 50], [150, 80, 56], [138, 72, 52], [144, 78, 56]], var: 0.04, slip: 0.03, chipP: 0.18, rough: 0.78, moss: 0.9, lay: 0.0 }), S * 0.016 / 1.0, 2.0);
+  G.slate = (S, seed) => finish(roofTiles(S, seed, { rows: 9, cols: 4, gap: 3, pal: [[72, 75, 82], [70, 72, 79], [75, 77, 83], [71, 71, 77], [68, 71, 76]], var: 0.035, slip: 0.02, chipP: 0.3, rough: 0.62, moss: 0.5, lay: 0.05 }), S * 0.009 / 1.0, 1.8);
 
   // COBBLES: granite setts in rough rows with dirt and moss in the joints. Tile 1.5 m.
   G.cobbles = function (S, seed) {
     const R = rng(seed), o = Out(S), pts = []; let y = 0;
     const rows = 12, ch = S / rows;
-    for (let r = 0; r < rows; r++) { let x = R.range(0, 30); while (x < S - 10) { const w = R.range(0.09, 0.16) / 1.5 * S; pts.push({ x: (x + w / 2) % S, y: (r + 0.5) * ch + R.range(-3, 3), w: 1, k: 1 + R.int(27), t: R.range(0.75, 1.15), hue: R() }); x += w; } }
+    for (let r = 0; r < rows; r++) { let x = R.range(0, 30); while (x < S - 10) { const w = R.range(0.09, 0.16) / 1.5 * S; pts.push({ x: (x + w / 2) % S, y: (r + 0.5) * ch + R.range(-3, 3), w: 1, k: 1 + R.int(27), t: R.range(0.94, 1.05), hue: R() }); x += w; } }
     const W = worley(S, pts, 1.15, true);
     const n1 = fbm(S, 32, 4, seed + 1), n2 = fbm(S, 8, 3, seed + 2), grit = fbm(S, 256, 2, seed + 3);
     for (let q = 0; q < S * S; q++) {
@@ -490,7 +490,7 @@
       const inside = sstep(4 * S / 1024, 12 * S / 1024, e), dome = sstep(0, 30 * S / 1024, e);
       o.h[q] = lerp(0.1 + 0.1 * n2[q], 0.55 + 0.4 * dome + 0.04 * (grit[q] - 0.5), inside);
       const t = p.t * (0.85 + 0.25 * n1[q]) * (0.9 + 0.2 * grit[q]);
-      const c = p.hue < 0.3 ? [118, 112, 108] : p.hue < 0.7 ? [100, 98, 96] : [124, 114, 100];
+      const c = p.hue < 0.3 ? [108, 104, 98] : p.hue < 0.7 ? [104, 101, 96] : [110, 104, 96];
       const dirt = [56, 48, 38], ms = sstep(0.5, 0.7, n2[q]) * (1 - inside);
       setc(o, q, [lerp(lerp(dirt[0], 52, ms), c[0] * t, inside), lerp(lerp(dirt[1], 62, ms), c[1] * t, inside), lerp(lerp(dirt[2], 34, ms), c[2] * t, inside)]);
       o.ro[q] = lerp(0.95, 0.5 + 0.25 * (1 - dome) + 0.1 * grit[q], inside);
@@ -670,12 +670,12 @@
   // GRAVEL: packed small stones in dust.
   G.gravel = function (S, seed) {
     const R = rng(seed), o = Out(S), pts = [];
-    for (let i = 0; i < 2600; i++) pts.push({ x: R() * S, y: R() * S, w: R.range(0.6, 1.4), t: R.range(0.6, 1.2), c: R() });
+    for (let i = 0; i < 2600; i++) pts.push({ x: R() * S, y: R() * S, w: R.range(0.6, 1.4), t: R.range(0.88, 1.06), c: R() });
     const W = worley(S, pts, 1, true); const n1 = fbm(S, 8, 4, seed + 1), grit = fbm(S, 256, 2, seed + 2);
     for (let q = 0; q < S * S; q++) {
       const p = pts[W.ID[q]], e = W.F2[q] - W.F1[q], ins = sstep(1.5 * S / 1024, 5 * S / 1024, e);
       o.h[q] = lerp(0.2 + 0.1 * n1[q], 0.5 + 0.35 * sstep(0, 10 * S / 1024, e) * p.w * 0.8, ins);
-      const c = p.c < 0.5 ? [120, 116, 108] : p.c < 0.8 ? [134, 120, 96] : [90, 88, 86];
+      const c = p.c < 0.5 ? [112, 106, 96] : p.c < 0.8 ? [116, 106, 90] : [104, 100, 94];
       setc(o, q, c.map((k, i) => lerp([80, 72, 60][i] * (0.8 + 0.3 * n1[q]), k * p.t * (0.9 + 0.15 * grit[q]), ins)));
       o.ro[q] = lerp(0.95, 0.7, ins);
     }
