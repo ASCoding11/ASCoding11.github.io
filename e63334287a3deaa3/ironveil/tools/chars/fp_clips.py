@@ -268,8 +268,12 @@ def add_part_specs(k):
     w = WPN[k]
     if 'mag' in w.bvh:
         lo, hi = part_box(k, 'mag')
-        GRIPSPEC[(k, 'magL')] = dict(part='mag', pc=(hi.x + 0.011, (lo.y + hi.y) / 2 + 0.004, lo.z + (hi.z - lo.z) * 0.38),
-                                     dir=nz(0.05, -1, -0.15), palm=nz(-1, 0, 0.1))
+        if hi.z - lo.z < 0.09:   # a short box magazine: cupped from below, fingers round its front
+            GRIPSPEC[(k, 'magL')] = dict(part='mag', pc=((lo.x + hi.x) / 2 + 0.004, (lo.y + hi.y) / 2 + 0.01, lo.z - 0.012),
+                                         dir=nz(-0.15, -1, 0.1), palm=nz(0.1, 0, 1))
+        else:                    # a long magazine: palm on its left side, fingers round the front
+            GRIPSPEC[(k, 'magL')] = dict(part='mag', pc=(hi.x + 0.011, (lo.y + hi.y) / 2 + 0.004, lo.z + (hi.z - lo.z) * 0.38),
+                                         dir=nz(0.05, -1, -0.15), palm=nz(-1, 0, 0.1))
     for part in ('boltHandle', 'charging'):
         if part in w.bvh:
             V = w.verts[part]
@@ -277,8 +281,8 @@ def add_part_specs(k):
                 i = int(np.argmax(V[:, 0] ** 2 + (V[:, 2]) ** 2)); knob = Vector(V[i])
             else:
                 i = int(np.argmin(V[:, 0])); knob = Vector(V[i])
-            GRIPSPEC[(k, part + 'R')] = dict(part=part, pc=tuple(knob + Vector((-0.022, 0.030, -0.004))),
-                                            dir=nz(0.35, -0.55, -0.75), palm=nz(0.85, -0.45, 0.25), knob=tuple(knob))
+            GRIPSPEC[(k, part + 'R')] = dict(part=part, pc=tuple(knob + Vector((-0.024, 0.032, -0.018))),
+                                            dir=nz(0.25, -0.8, 0.45), palm=nz(0.65, -0.45, 0.55), knob=tuple(knob))
     if k == 'pistol':
         lo, hi = part_box(k, 'bolt')
         GRIPSPEC[(k, 'slideL')] = dict(part='bolt', pc=(0.0, hi.y - 0.022, hi.z + 0.013), dir=nz(-1, 0.15, -0.2), palm=nz(0, 0, -1))

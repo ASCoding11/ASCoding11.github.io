@@ -154,6 +154,37 @@ def helmet_m1(H, name='Helmet', net=True):
     G.rigid_weights(ob, 'Head')
     return ob, c, (rx, ry)
 
+def cap_comforter(H, name='Cap'):
+    """Knitted wool cap comforter: a close dome over the skull, the turned-up double band low on the brow and ears,
+    the crown slouched a little to the back. Returns (obj, centre, radii) for trimming the hair beneath."""
+    body = H['body']; P = G.coords(body.data); W = PP.vweights(body)
+    hv = np.array([P[i] for i in range(len(P)) if W[i].get('Head', 0) > 0.6])
+    mn, mx = hv.min(0), hv.max(0)
+    c = Vector(((mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2 + 0.010, mx[2] - 0.050))
+    rx, ry, hz = (mx[0] - mn[0]) / 2 + 0.006, (mx[1] - mn[1]) / 2 + 0.006, 0.062
+    prof = []
+    for i in range(11):
+        a = (i / 10) * (math.pi / 2)
+        prof.append((math.sin(a), math.cos(a) * hz + 0.004))
+    # the turned-up band: out, a rounded fold, and back in under the edge
+    prof += [(1.015, -0.006), (1.06, -0.012), (1.075, -0.026), (1.06, -0.040), (1.02, -0.044), (0.985, -0.040)]
+    verts, faces = [], []
+    n = 28
+    for k in range(n):
+        th = 2 * math.pi * k / n
+        lowz = -0.012 * (0.5 - 0.5 * math.cos(th))   # th=0 back: the band sits lower over the nape
+        for j, (r, z) in enumerate(prof):
+            slouch = 0.012 * max(0.0, math.cos(th)) * max(0.0, (z - 0.04) / 0.05) if j < 11 else 0.0
+            verts.append(Vector((c.x + r * rx * math.sin(th), c.y + r * ry * math.cos(th) + slouch, c.z + z + (lowz if z < 0.02 else 0.0))))
+    m = len(prof)
+    for k in range(n):
+        k2 = (k + 1) % n
+        for j in range(m - 1):
+            faces.append([k * m + j, k2 * m + j, k2 * m + j + 1, k * m + j + 1])
+    ob = G.mesh_obj(name, verts, faces)
+    G.rigid_weights(ob, 'Head')
+    return ob, c + Vector((0, 0, -0.035)), (rx + 0.012, ry + 0.012)
+
 def scrim_bits(c, rr, name='Scrim', n=9, seed=3):
     """Small strips of hessian tied into a helmet net (real geometry, rigid on the head)."""
     import random
@@ -196,15 +227,17 @@ def chin_straps(H, c, rr, name='Straps'):
 HERO_COL = dict(jacket='#67664a', jacket2='#57573c', trousers='#626145', boot='#3e2618', glove='#4c3624',
                 web='#8c805b', canvas='#7b7354', helmet='#4f4f37', metal='#3a3a36')
 
+ROLL_AT = 0.40   # the raider smock's sleeves are rolled to this fraction of the forearm (elbow 0, wrist 1)
+
 def label_hero(H, P):
-    wx = J(H, 'hand_l').x - 0.012
     boot_top = J(H, 'foot_l').z + 0.15
     waist = J(H, 'pelvis').z + 0.015
+    ex, wx_ = abs(J(H, 'lowerarm_l').x), abs(J(H, 'hand_l').x)
     lab = []
     for p in P:
         x, y, z = p
-        if abs(x) > wx and z > J(H, 'upperarm_l').z - 0.25:
-            lab.append('glove')
+        if abs(x) > ex + (wx_ - ex) * (ROLL_AT - 0.04) and z > J(H, 'upperarm_l').z - 0.25:
+            lab.append('skin')        # bare forearms and hands below the rolled sleeves (no gloves)
         elif z > J(H, 'neck_01').z + 0.03 or (z > PP.neck_threshold(H, p) and abs(x) < 0.085):
             lab.append('skin')
         elif z < boot_top:
@@ -219,13 +252,15 @@ def materials_hero(knee=0.54):
     import wear as WR
     return {
         'skin': None,
-        'jacket': WR.cloth('jacket', '#5a5e43', '#4a4e36', fade=0.14),
+        # the raider smock: an invented brush-stroke camouflage, muted sand, green and brown
+        'jacket': WR.cloth('jacket', '#7a7454', '#6a6448', fade=0.14, camo=('#8a8257', '#545b37', '#634a2e', '#36352a')),
         'trousers': WR.cloth('trousers', '#58503d', '#463f30', knee_z=knee, mud_amt=0.8),
         'boot': WR.leather('boot', '#3a2618', '#1e140c', mud_low=0.22, polish=0.62),
         'glove': WR.leather('glove', '#3e2c1e', '#2a1d14', polish=0.6),
         'web': WR.webbing('web', '#857a5a', '#6e6548'),
         'canvas': WR.webbing('canvas', '#736a4d', '#5e573f'),
         'helmet': WR.painted_metal('helmet', '#454634', '#393a2b'),
+        'wool': WR.cloth('wool', '#38372d', '#2c2b24', fade=0.06, mud_amt=0.0, weave=0.9),
         'net': WR.webbing('net', '#3d3a28', '#2e2c1e'),
         'metal': WR.blued('metal', '#4a4b45', '#3e3f3a', park=True),
     }
@@ -243,11 +278,17 @@ def gear_hero(H, cloth):
     col = envelope_rings(P, np.array([abs(p[0]) < 0.10 for p in P]), (0, nk.y + 0.01), [zc - 0.045, zc - 0.02, zc + 0.005, zc + 0.016],
                          [-0.004, 0.006, 0.008, 0.01], n=24, name='Collar')
     G.solidify(col, 0.006, 1.0); out.append((col, 'jacket'))
-    # jacket skirt below the waist
+    # the smock ends at the belt: a short close hem, bloused a little over the belt (no flared skirt)
     hips = np.array([abs(p[0]) < 0.25 and p[2] < pz + 0.1 for p in P])
-    skirt = envelope_rings(P, hips, (0, J(H, 'pelvis').y + 0.01), [pz + 0.04, pz - 0.03, pz - 0.10, pz - 0.17],
-                           [0.006, 0.012, 0.022, 0.03], n=32, name='Skirt')
+    skirt = envelope_rings(P, hips, (0, J(H, 'pelvis').y + 0.01), [pz + 0.09, pz + 0.05, pz + 0.015, pz - 0.01],
+                           [0.004, 0.008, 0.009, 0.004], n=32, name='Skirt')
     G.solidify(skirt, 0.004, 1.0); out.append((skirt, 'jacket'))
+    # rolled sleeves: two turns of cloth at mid-forearm
+    for s_ in ('l', 'r'):
+        el = J(H, 'lowerarm_' + s_); wr = J(H, 'hand_' + s_)
+        ts = [ROLL_AT - 0.10 + 0.02 * i for i in range(8)]
+        offs = [0.002, 0.008, 0.012, 0.010, 0.011, 0.012, 0.008, 0.002]
+        out.append((limb_ring(bvh, el, wr, ts, offs, n=20, name='Roll' + s_), 'jacket'))
     # cartridge belt
     belt = envelope_rings(P, torso, (0, J(H, 'pelvis').y + 0.01), [pz + 0.075, pz + 0.01], [0.012, 0.014], n=32, name='Belt')
     G.solidify(belt, 0.006, 1.0); out.append((belt, 'web'))
@@ -255,13 +296,13 @@ def gear_hero(H, cloth):
     # pouches on belt (5 a side, front to hip)
     cy = J(H, 'pelvis').y
     for s in (-1, 1):
-        for k, ang in enumerate((22, 40, 58, 76)):
+        for k, ang in enumerate((24, 44)):
             a = math.radians(ang) * s
             d = Vector((math.sin(a), -math.cos(a), 0))
             o = Vector((0, cy, pz + 0.045)) - d * 0.0
             out += [(x, 'canvas') for x in pouch(bvh2, o + d * 0.4, -d, 0.058, 0.07, 0.032, 'Pouch%d%d' % (s, k), push=0.004)]
     # canteen right-back hip, entrenching tool left-back
-    for s, nm, wh in ((-1, 'Canteen', (0.11, 0.15, 0.06)), (1, 'Etool', (0.13, 0.2, 0.04))):
+    for s, nm, wh in ((-1, 'Canteen', (0.11, 0.15, 0.06)), (1, 'Satchel', (0.2, 0.15, 0.075))):
         a = math.radians(140) * s
         d = Vector((math.sin(a), -math.cos(a), 0))
         out += [(x, 'canvas') for x in pouch(bvh2, Vector((0, cy, pz + 0.0)) + d * 0.4, -d, wh[0], wh[1], wh[2], nm, push=0.004)]
@@ -272,28 +313,24 @@ def gear_hero(H, cloth):
                Vector((s * 0.115, -0.25, sh.z + 0.02)), Vector((s * 0.125, sh.y, sh.z + 0.07)),
                Vector((s * 0.12, 0.25, sh.z + 0.0)), Vector((s * 0.08, 0.3, pz + 0.30)), Vector((s * 0.07, 0.3, pz + 0.08))]
         out.append((G.strap(bvh, pts, 0.034, 0.004, name='Susp%d' % s, thick=0.004, steps=22), 'web'))
-    # first-aid pouch on left suspender, chest
-    out += [(x, 'canvas') for x in pouch(bvh, Vector((0.10, -0.4, sh.z - 0.14)), Vector((0, 1, 0)), 0.07, 0.09, 0.03, 'Aid', push=0.006)]
-    # slanted chest pockets
-    for s in (-1, 1):
-        o = Vector((s * 0.11, -0.4, sh.z - 0.20))
-        M = G.surface_frame(bvh, o, Vector((0, 1, 0)), Vector((-s * 0.35, 0, 1)).normalized())
-        if M:
-            b_ = G.box('ChestPkt%d' % s, (0.14, 0.15, 0.007), M @ Matrix.Translation((0, 0, 0.0)), bev=0.003, seg=2); b_['hi_only'] = True
-            out.append((b_, 'jacket'))
-            f_ = G.box('ChestFlap%d' % s, (0.145, 0.05, 0.005), M @ Matrix.Translation((0, 0.055, 0.007)) @ Matrix.Rotation(-0.08, 4, 'X'), bev=0.002, seg=2)
-            f_['hi_only'] = True; out.append((f_, 'jacket'))
-            out += [(x, 'metal') for x in button(bvh, o + Vector((0, 0, 0.04)), Vector((0, 1, 0)), 'ChestBtn%d' % s, up=Vector((-s * 0.35, 0, 1)).normalized())]
+    # three magazine pouches high on the chest, a compass pouch on the belt
+    for k, xx in enumerate((-0.075, 0.0, 0.075)):
+        out += [(x, 'canvas') for x in pouch(bvh, Vector((xx, -0.4, sh.z - 0.16)), Vector((0, 1, 0)), 0.065, 0.12, 0.032, 'MagPouch%d' % k, push=0.006)]
+    out += [(x, 'canvas') for x in pouch(bvh2, Vector((-0.4 * math.sin(math.radians(62)), cy - 0.4 * math.cos(math.radians(62)), pz + 0.045)),
+                                       Vector((math.sin(math.radians(62)), math.cos(math.radians(62)), 0)), 0.06, 0.06, 0.03, 'Compass', push=0.004)]
     # front closure: four buttons down the placket
-    for k in range(4):
-        out += [(x, 'metal') for x in button(bvh, Vector((0.0, -0.4, sh.z - 0.12 - k * 0.1)), Vector((0, 1, 0)), 'FrontBtn%d' % k)]
-    # lower jacket pockets on the skirt
-    bvh3 = G.bvh_of(skirt)
-    for s in (-1, 1):
-        o = Vector((s * 0.11, -0.4, pz - 0.08))
-        for x in pouch(bvh3, o, Vector((0, 1, 0)), 0.15, 0.14, 0.007, 'HipPkt%d' % s, push=0.0):
-            out.append((x, 'jacket'))
-        out += [(x, 'metal') for x in button(bvh3, o + Vector((0, 0, 0.035)), Vector((0, 1, 0)), 'HipBtn%d' % s)]
+    for k in range(2):
+        out += [(x, 'metal') for x in button(bvh, Vector((0.0, -0.4, sh.z - 0.30 - k * 0.1)), Vector((0, 1, 0)), 'FrontBtn%d' % k)]
+    # toggle rope coiled at the left front of the belt
+    a_ = math.radians(-62); d_ = Vector((math.sin(a_), -math.cos(a_), 0))
+    tp = Vector((0, cy, pz - 0.02)) + d_ * 0.0
+    hitp = bvh2.ray_cast(Vector((0, cy, pz - 0.03)) + d_ * 0.4, -d_, 1.0)[0]
+    if hitp is not None:
+        Mt = Matrix.Translation(hitp + d_ * 0.02 + Vector((0, 0, -0.07))) @ Matrix(((0, 0, 1, 0), (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 0, 1))).inverted()
+        for r_ in range(3):
+            ring = G.lathe('Toggle%d' % r_, [(0.042 + 0.006 * r_ + 0.004 * math.cos(t * math.pi / 3), 0.004 * math.sin(t * math.pi / 3) + r_ * 0.006) for t in range(7)],
+                           n=16, M=Matrix.Translation(hitp + d_ * 0.03 + Vector((0, 0, -0.06))) @ Matrix.Rotation(math.pi / 2, 4, 'X') @ Matrix.Rotation(-a_, 4, 'Y'))
+            out.append((ring, 'web'))
     # thigh cargo pockets (outer front)
     for s in (-1, 1):
         th = J(H, 'thigh_l' if s > 0 else 'thigh_r'); kn = J(H, 'calf_l' if s > 0 else 'calf_r')
@@ -334,11 +371,20 @@ def gear_hero(H, cloth):
     # buckles where the braces meet the belt, and at the front adjusters
     for sxx in (-1, 1):
         out += [(x, 'metal') for x in buckle(Matrix.Translation((sxx * 0.09, cy - 0.155, pz + 0.12)) @ Matrix.Rotation(math.pi / 2, 4, 'X'), 'BraceBuckle%d' % sxx)]
-    # bayonet scabbard hanging from the belt on the left hip
-    a = math.radians(115); d = Vector((math.sin(a), -math.cos(a), 0))
-    hp = Vector((0, cy, pz - 0.02)) + d * 0.2
-    out.append((G.box('Scabbard', (0.035, 0.016, 0.3), Matrix.Translation((hp.x, hp.y, pz - 0.17)) @ Matrix.Rotation(0.12, 4, 'Y'), bev=0.004, seg=2), 'boot'))
-    out.append((G.box('BayoGrip', (0.03, 0.022, 0.1), Matrix.Translation((hp.x - 0.004, hp.y, pz + 0.02)), bev=0.005, seg=2), 'boot'))
+    # pistol holster low on the right thigh, a lanyard up to the belt; fighting knife strapped to the left thigh
+    for s_, nm, sz, mat in ((-1, 'Holster', (0.075, 0.19, 0.045), 'boot'), (1, 'Knife', (0.035, 0.27, 0.018), 'boot')):
+        th = J(H, 'thigh_l' if s_ > 0 else 'thigh_r'); kn = J(H, 'calf_l' if s_ > 0 else 'calf_r')
+        mid = th.lerp(kn, 0.45 if s_ < 0 else 0.35)
+        d_ = Vector((s_ * (0.95 if s_ < 0 else 0.55), -0.3 if s_ < 0 else -0.83, 0)).normalized()
+        out += [(x, mat) for x in pouch(bvh, mid + d_ * 0.3, -d_, sz[0], sz[1], sz[2], nm, flap=s_ < 0, push=0.004)]
+        if s_ > 0:
+            out.append((G.box('KnifeGrip', (0.028, 0.024, 0.11), Matrix.Translation(mid + d_ * 0.11 + Vector((0, 0, 0.17))), bev=0.006, seg=2), 'boot'))
+            for zz in (0.05, -0.06):
+                out.append((G.strap(bvh, [mid + Vector((s_ * 0.0, -0.12, zz)), mid + Vector((s_ * 0.09, -0.04, zz)), mid + Vector((s_ * 0.09, 0.06, zz)),
+                                           mid + Vector((s_ * 0.0, 0.11, zz)), mid + Vector((-s_ * 0.08, 0.04, zz))], 0.018, 0.003, name='ThighStrap%d' % (zz > 0), thick=0.003, steps=16), 'web'))
+        else:
+            out.append((G.strap(bvh, [mid + d_ * 0.09 + Vector((0, 0, 0.09)), Vector((d_.x * 0.16, cy - 0.14, pz - 0.02)), Vector((0.05, cy - 0.16, pz + 0.03))],
+                                0.006, 0.002, name='Lanyard', thick=0.003, steps=18), 'web'))
     import os as _os
     if _os.environ.get('KIND') == 'ally':
         # canvas leggings over the boot tops, laced up the side with two strap-and-buckle closures

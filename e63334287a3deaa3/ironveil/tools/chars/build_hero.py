@@ -25,16 +25,20 @@ cloth = PP.cloth_body(H, labels,
                       torso_dilate=0.04)
 log('cloth body')
 gear = O.gear_hero(H, cloth)
-helmet, hc, hr = O.helmet_m1(H)
-gear += [(helmet, 'helmet')] + [(x, 'canvas') for x in O.scrim_bits(hc, hr)]
+if KIND == 'hero':
+    helmet, hc, hr = O.cap_comforter(H)
+    gear += [(helmet, 'wool')]
+else:
+    helmet, hc, hr = O.helmet_m1(H)
+    gear += [(helmet, 'helmet')] + [(x, 'canvas') for x in O.scrim_bits(hc, hr)]
 if H.get('hair'): PP.trim_hair(H['hair'], hc, hr)
 for ob, mn in gear:
-    if ob.name.startswith(('Helmet', 'Straps', 'Scrim')): continue
+    if ob.name.startswith(('Helmet', 'Straps', 'Scrim', 'Cap')): continue
     G.transfer_weights(ob, cloth)
 log('gear', len(gear))
 mats = O.materials_hero(knee=PP.J(H, 'calf_l').z)
 import wear as WR
-mats['skin'] = WR.skin('skin', H['skin_png'], grime=0.4)
+mats['skin'] = WR.skin('skin', H['skin_png'], grime=0.4, beard=1.0 if KIND == 'hero' else 0.45, scars=(KIND == 'hero'))
 PP.assign_mats(cloth, mats)
 for ob, mn in gear:
     ob.data.materials.clear(); ob.data.materials.append(mats[mn])
