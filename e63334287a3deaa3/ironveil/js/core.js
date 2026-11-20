@@ -26,7 +26,7 @@
       strafeMul: 0.85, backMul: 0.7,     // sideways and backward speed vs forward
       accel: 12,                         // 1/s exponential approach: about 0.25 s to jog
       sprintAccel: 5,                    // 1/s from jog up to sprint: about 0.6 s
-      decel: 14, airAccel: 2,            // 1/s: stop in about 0.2 s (14, as the characters' test page: at 15 the trailing foot glides about 20 cm in the stop, at 14 about 8.6)
+      decel: 14, airAccel: 2,            // 1/s: stop in about 0.2 s (14, as the characters' test page; the stop's foot glide depends on the foot phase at release, 5-20 cm, not on this rate)
       sprintDecel: 7,                    // 1/s: stopping or reversing from above a jog takes about 0.4 s (a braking step, not a skid)
       plantTime: 0.12, plantSpeed: 2.5,  // s the feet plant on a full reversal above this speed (m/s)
       turnRate: 9.4,                     // rad/s body turn toward the movement (540 deg/s)
