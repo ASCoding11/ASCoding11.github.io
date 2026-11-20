@@ -163,7 +163,7 @@ def scrim_bits(c, rr, name='Scrim', n=9, seed=3):
         p = Vector((c.x + rr[0] * 1.03 * math.sin(th) * math.cos(el * 0.9), c.y + rr[1] * 1.03 * math.cos(th) * math.cos(el * 0.9), c.z + 0.115 * math.sin(el * 1.2) + 0.01))
         nrm = (p - Vector((c.x, c.y, c.z - 0.02))).normalized()
         M = Matrix.Translation(p) @ nrm.to_track_quat('Z', 'Y').to_matrix().to_4x4() @ Matrix.Rotation(rnd.uniform(0, 3.1), 4, 'Z')
-        b = G.box(name + str(i), (rnd.uniform(0.018, 0.03), rnd.uniform(0.05, 0.08), 0.003), M, bev=0.001, seg=1)
+        b = G.box(name + str(i), (rnd.uniform(0.012, 0.02), rnd.uniform(0.035, 0.055), 0.003), M, bev=0.001, seg=1)
         G.rigid_weights(b, 'Head'); out.append(b)
     return out
 

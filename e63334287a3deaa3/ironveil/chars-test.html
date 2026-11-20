@@ -82,6 +82,23 @@
       gg.rotation.x = -Math.PI / 2; gg.receiveShadow = true; sc.add(gg);
     }
   })();
+  if (P.get('light') === 'overcast') {   // the game's overcast day: soft sky light, weak diffuse sun, grey haze
+    sc.background = new THREE.Color(0x8f969c); sc.fog = new THREE.Fog(0x8f969c, 30, 140);
+    sc.children.forEach(function (o) {
+      if (o.isHemisphereLight) { o.color.set(0xd8dde2); o.groundColor.set(0x4a4740); o.intensity = 0.9; }
+      if (o.isDirectionalLight) { o.color.set(0xeef0f2); o.intensity = 0.7; o.position.set(3, 9, 4); }
+    });
+  }
+  if (P.get('light') === 'night') {   // night_moon with one warm lamp beside the soldier
+    sc.background = new THREE.Color(0x05070c); sc.fog = new THREE.Fog(0x05070c, 20, 90);
+    sc.children.forEach(function (o) {
+      if (o.isHemisphereLight) { o.color.set(0x4c5a78); o.groundColor.set(0x0a0b0a); o.intensity = 0.2; }
+      if (o.isDirectionalLight) { o.color.set(0x9fb4d8); o.intensity = 0.45; o.position.set(-5, 9, 3); }
+    });
+    var lamp = new THREE.PointLight(0xffb066, 6, 9, 2); lamp.position.set(1.4, 2.3, 1.2); lamp.castShadow = true; sc.add(lamp);
+    var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffd8a0 })); bulb.position.copy(lamp.position); sc.add(bulb);
+    sc.environment = null;
+  }
   if (P.has('night')) {   // cold moonlight over dark grass, to check that characters still read at distance
     sc.background = new THREE.Color(0x070a10); sc.fog = new THREE.Fog(0x070a10, 25, 110);
     sc.children.forEach(function (o) {

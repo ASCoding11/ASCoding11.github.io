@@ -228,8 +228,16 @@ def skin(name, image, grime=0.35, uv='UVMap'):
     c = B.mix(c, '#3d3226', B.math('MULTIPLY', smudge, grime))
     stub = B.ramp(B.noise(400.0, 2, 0.5), 0.55, 0.7)
     sweat = B.ramp(B.noise(5.0, 3, 0.5, w=3.0), 0.5, 0.7)
-    rough = B.mixf(0.62, 0.42, sweat)
-    return B.finish(c, rough, bump_h=B.math('ADD', B.math('MULTIPLY', B.noise(250.0, 3, 0.6), 0.5), B.math('MULTIPLY', stub, 0.2)), bump_s=0.15, bump_dist=0.002)
+    # a few days' stubble on the jaw, upper lip and chin (bind pose: face front is -Y, jaw at about 1.55-1.63 m)
+    zc = B.zcoord()
+    jaw = B.math('MULTIPLY', B.math('MULTIPLY', B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', zc.outputs['Z'], 1.585)), 0.045, 0.015),
+                                    B.ramp(zc.outputs['Y'], 0.0, -0.06)), B.ramp(B.math('ABSOLUTE', zc.outputs['X']), 0.075, 0.05))
+    c = B.mix(c, '#2b231d', B.math('MULTIPLY', B.math('MULTIPLY', jaw, B.ramp(B.noise(520.0, 2, 0.5), 0.45, 0.6)), 0.55))
+    # oilier T-zone (forehead, nose), drier cheeks; dirt in the creases already from the AO above
+    tz = B.math('MULTIPLY', B.ramp(zc.outputs['Z'], 1.6, 1.68), B.ramp(B.math('ABSOLUTE', zc.outputs['X']), 0.05, 0.02))
+    rough = B.mixf(B.mixf(0.62, 0.42, sweat), 0.4, B.math('MULTIPLY', tz, 0.7))
+    pores = B.math('MULTIPLY', B.noise(650.0, 2, 0.5), 0.35)
+    return B.finish(c, rough, bump_h=B.math('ADD', B.math('ADD', B.math('MULTIPLY', B.noise(250.0, 3, 0.6), 0.5), pores), B.math('MULTIPLY', stub, 0.35)), bump_s=0.22, bump_dist=0.002)
 
 def flat(name, col, rough=0.5, metal=0.0):
     B = NB(name)

@@ -47,12 +47,12 @@
   };
   // which meshes of which file make each kind (enemy.glb holds all four enemy outfits + their LODs on one body)
   var KINDS = {
-    hero: { file: 'hero', meshes: ['Hero', 'HeroHair'], lod: ['HeroLOD1', 'HeroLOD2'] },
-    ally: { file: 'ally', meshes: ['Ally', 'AllyHair'], lod: ['AllyLOD1', 'AllyLOD2'] },
-    rifleman: { file: 'enemy', meshes: ['Rifleman', 'EnemyHair'], lod: ['RiflemanLOD1', 'RiflemanLOD2'] },
-    officer: { file: 'enemy', meshes: ['Officer', 'EnemyHair'], lod: ['OfficerLOD1', 'OfficerLOD2'] },
-    sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair'], lod: ['SniperLOD1', 'SniperLOD2'] },
-    gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair'], lod: ['GunnerLOD1', 'GunnerLOD2'] }
+    hero: { file: 'hero', meshes: ['Hero', 'HeroHair', 'HeroEyes'], lod: ['HeroLOD1', 'HeroLOD2'] },
+    ally: { file: 'ally', meshes: ['Ally', 'AllyHair', 'AllyEyes'], lod: ['AllyLOD1', 'AllyLOD2'] },
+    rifleman: { file: 'enemy', meshes: ['Rifleman', 'EnemyHair', 'EnemyEyes'], lod: ['RiflemanLOD1', 'RiflemanLOD2'] },
+    officer: { file: 'enemy', meshes: ['Officer', 'EnemyHair', 'EnemyEyes'], lod: ['OfficerLOD1', 'OfficerLOD2'] },
+    sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair', 'EnemyEyes'], lod: ['SniperLOD1', 'SniperLOD2'] },
+    gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair', 'EnemyEyes'], lod: ['GunnerLOD1', 'GunnerLOD2'] }
   };
   var WEAPONS = ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade', 'stickGrenade', 'rifleScopedLod', 'smgLod'];
   var LONG = { rifleScoped: 1, smg: 1, enemyRifle: 1, enemySmg: 1, mg: 1 };
@@ -103,6 +103,7 @@
   // ---------- material tweaks
   function prepMaterial(m) {
     if (!m) return;
+    if (/Eye/.test(m.name)) { m.roughness = 0.08; m.metalness = 0; m.envMapIntensity = 1.4; return; }   // wet eye: sharp catchlight
     if (/Hair/.test(m.name)) {
       m.alphaTest = 0.5; m.transparent = false; m.depthWrite = true; m.side = T.DoubleSide;
       m.roughness = 0.55; m.metalness = 0;
