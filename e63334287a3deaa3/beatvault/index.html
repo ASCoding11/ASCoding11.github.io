@@ -108,6 +108,7 @@ kbd{font:800 12px/1 var(--f-b);padding:2px 5px;border-radius:3px;box-shadow:inse
 .pix{display:inline-flex;flex-wrap:wrap;align-items:flex-end;row-gap:5px;line-height:0;filter:drop-shadow(0 0 3px currentColor)}
 .pix svg{display:block;flex:none}
 .pix .sp{display:block;flex:none;height:1px}
+.pix .nw{display:flex;align-items:flex-end;flex:none}
 .pix.beat{animation:pixbeat var(--spb,.5s) ease-out infinite}
 @keyframes pixbeat{0%{filter:drop-shadow(0 0 7px currentColor)}100%{filter:drop-shadow(0 0 2px currentColor)}}
 @media (prefers-reduced-motion:reduce){.pix.beat{animation:none}}
@@ -2086,7 +2087,9 @@ var BV = (function () {
       var light = col ? mixHex(col, '#ffffff', 0.55) : '#ffffff', shadow = col ? mixHex(col, '#000000', 0.72) : '#05040a';
       el.setAttribute('role', 'img'); el.setAttribute('aria-label', str); el.setAttribute('data-noi18n', ''); el.classList.add('pix');
       if (col) el.style.color = col;
-      el.innerHTML = String(str).split(' ').filter(Boolean).map(function (w) { return svg(w, scale, light, shadow); }).join('<i class="sp" style="width:' + scale * 4 + 'px"></i>');
+      var sp = '<i class="sp" style="width:' + scale * 4 + 'px"></i>', words = String(str).split(' ').filter(Boolean).map(function (w) { return svg(w, scale, light, shadow); });
+      if (words.length > 1 && /^\d+\.$/.test(String(str).split(' ')[0])) words.splice(0, 2, '<span class="nw">' + words[0] + sp + words[1] + '</span>');   // keep "4." with its first word
+      el.innerHTML = words.join(sp);
     }
     function mixHex(a, b, t) { var x = parseInt(a.slice(1), 16), y = parseInt(b.slice(1), 16), r = [16, 8, 0].map(function (s) { var p = x >> s & 255, q = y >> s & 255; return Math.round(p + (q - p) * t); }); return '#' + r.map(function (v) { return (v < 16 ? '0' : '') + v.toString(16); }).join(''); }
     return { set: set, svg: svg, cells: cells };
