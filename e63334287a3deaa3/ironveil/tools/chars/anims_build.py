@@ -94,7 +94,7 @@ def eye_pos(W):
     Dh = R.delta(W, 'Head')
     return W['Head'].translation + Dh @ (EYE_R - R.Mr['Head'].translation)
 
-def head_to(L, W, target, iters=10, chain=('Head', 'neck_01', 'spine_03'), limits=(0.5, 0.45, 0.12)):
+def head_to(L, W, target, iters=10, chain=('neck_01', 'Head', 'spine_03'), limits=(0.4, 0.22, 0.14)):
     """CCD: bring the right eye onto the sight line (cheek weld)."""
     for it in range(iters):
         for b, lim in zip(chain, limits):
@@ -107,7 +107,7 @@ def head_to(L, W, target, iters=10, chain=('Head', 'neck_01', 'spine_03'), limit
             ax = q.axis
             # damp roll about the aim axis so the head tilts but does not lie on its side
             fw = ax.dot(FWD)
-            ax = (ax - FWD * fw * 0.6).normalized()
+            ax = (ax - FWD * fw * 0.85).normalized()
             q = Quaternion(ax, min(ang, lim / iters * 2))
             R.rot_world(L, W, b, q)
     return (eye_pos(W) - target).length
@@ -121,7 +121,8 @@ def stance_aim(L, W, t, pitch=0.0, recoil=0.0, breathe=True, gun='rifle', lean=0
     R.rot_world(L, W, 'clavicle_l', Quaternion(UP, 0.12))
     C3 = chest_delta(W).to_3x3()
     g = GUNS[gun]
-    pocket = W['upperarm_r'].translation + C3 @ Vector((0.085, -0.045, 0.02))
+    # stock high in the shoulder pocket, so the head only has to come forward and down a little onto the comb
+    pocket = W['upperarm_r'].translation + C3 @ Vector((0.08, -0.05, 0.065))
     aim = (Quaternion(LEFT, -pitch + recoil * 0.22) @ FWD).normalized()
     up = (Quaternion(LEFT, -pitch + recoil * 0.22) @ UP)
     Wm = weapon_matrix(Vector(), aim, up)
