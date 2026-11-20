@@ -500,7 +500,9 @@
     w.classList.remove('bra-tw-s', 'bra-tw-a', 'bra-tw-p');
     var kids = w.firstChild ? w.firstChild.children : [];
     var mg = w.querySelector('.bra-mn'), mn = mg ? mg.querySelectorAll('.bra-mini').length : 0;
-    if (mg) miniShow(mg, mn);
+    if (mg) { mg.classList.remove('bra-mn-x'); miniShow(mg, mn); }
+    function taller(a, b) { return a.some(function (h, i) { return h > b[i]; }); }
+    // As many shields as fit now, after a step made room.
     function regrow() {
       if (!mg) return;
       var cur = mg.querySelectorAll('.bra-mini:not(.bra-off)').length;
@@ -512,33 +514,44 @@
       return t;
     }
     var aw = !!w.querySelector('.bra-aw');
-    if (mg && !tight() && mn > 1) {
-      // Room in the row, but a row that wraps (your own Online row) may have taken a second line for the shields: keep
-      // the most shields that don't make the boxes around the badge taller than with one.
-      var all = heights(w); miniShow(mg, 1); var one = heights(w);
-      if (one.some(function (h, i) { return h < all[i]; })) {
-        for (var n = mn - 1; n > 1; n--) { miniShow(mg, n); if (!heights(w).some(function (h, i) { return h > one[i]; })) break; }
-        if (n <= 1) miniShow(mg, 1);
-      } else miniShow(mg, mn);
-    }
-    if (mg && tight()) { for (var m = mn - 1; m >= 1 && tight(); m--) miniShow(mg, m); }
     if (!tight()) {
       // Room for everything, but a row that wraps (your own Online row) may have found it by taking a second line: an
       // award's words must never make a row taller, so they go if the boxes around the badge are shorter without them.
-      if (!aw) return;
-      var was = heights(w); w.classList.add('bra-tw-a'); var now = heights(w);
-      if (!now.some(function (h, i) { return h < was[i]; })) w.classList.remove('bra-tw-a');
+      if (!aw && !mg) return;
+      if (!mg) {
+        var was = heights(w); w.classList.add('bra-tw-a'); var now = heights(w);
+        if (!now.some(function (h, i) { return h < was[i]; })) w.classList.remove('bra-tw-a');
+        return;
+      }
+      // With mini badges, the same for them (and they give way first): the lowest the row can be is with the ribbon
+      // folded and every shield in the "+N" chip. If that is no shorter, everything stays. Else the award's words come
+      // back if they keep that height, then as many shields as keep it.
+      var full = heights(w);
+      if (aw) w.classList.add('bra-tw-a');
+      miniShow(mg, 0);
+      var low = heights(w);
+      if (!low.some(function (h, i) { return h < full[i]; })) { w.classList.remove('bra-tw-a'); miniShow(mg, mn); return; }
+      if (aw) { w.classList.remove('bra-tw-a'); if (taller(heights(w), low)) w.classList.add('bra-tw-a'); }
+      for (var n = 1; n <= mn; n++) { miniShow(mg, n); if (taller(heights(w), low)) { miniShow(mg, n - 1); break; } }
       return;
     }
+    // No room: the mini badges give way first, from the end into the "+N" chip, before anything that was there before them.
+    if (mg) { for (var m = mn - 1; m >= 0 && tight(); m--) miniShow(mg, m); if (!tight()) return; }
     // An award's ribbon folds away first (bra-tw-a: just its medal; with two awards, both), then the tags' words go as
     // well (bra-tw-s; two medals then also overlap like stacked coins, see the styles).
-    // Each later step makes room, so as many shields as now fit come back first (regrow).
+    // Each later step makes room, so as many shields as now fit come back (regrow).
     if (aw) { w.classList.add('bra-tw-a'); if (!tight()) { regrow(); return; } }
     w.classList.add('bra-tw-s');
-    if (mg) { if (tight()) miniShow(mg, 0); else regrow(); }
+    if (mg && !tight()) regrow();
     // Still squeezed hard (place tags and two medals in a phone row): a tier name cut to under half ("VI…") says less
     // than none, so the pill keeps just its icon and colours (bra-tw-p); its tooltip still names the tier.
-    for (var i = 0; i < kids.length; i++) if (kids[i].tagName === 'SPAN') { if (kids[i].clientWidth < kids[i].scrollWidth / 2) w.classList.add('bra-tw-p'); break; }
+    // (If the mini badges' "+N" chip is what squeezes it that far, the chip goes instead: see bra-mn-x below.)
+    function half() { for (var i = 0; i < kids.length; i++) if (kids[i].tagName === 'SPAN') return kids[i].clientWidth < kids[i].scrollWidth / 2; return false; }
+    if (mg && half()) mg.classList.add('bra-mn-x');
+    if (half()) w.classList.add('bra-tw-p');
+    // And no room even for "+N" (your own row on a phone, beside the miles line): the shields are left out of this one
+    // place (bra-mn-x); every other place, and an open chat's header, still shows them.
+    if (mg && tight()) mg.classList.add('bra-mn-x');
   }
   function heights(w) { var out = [], e = w.parentNode; for (var i = 0; i < 4 && e && e.nodeType === 1 && e !== document.body; i++, e = e.parentNode) out.push(e.offsetHeight); return out; }
   function fitRun() { fitT = 0; var q = fitQ; fitQ = []; q.forEach(function (w) { try { fit(w); } catch (e) {} }); }
@@ -611,7 +624,7 @@
     '.bra-mn{display:inline-flex;align-items:center;gap:2px;flex:none;margin-left:1px}' +
     '.bra-mini{display:inline-flex;flex:none}.bra-mini svg{display:block}.bra-mini.bra-off{display:none}' +
     '.bra-mn-more{display:none;align-items:center;flex:none;box-sizing:border-box;height:16px;padding:0 4px;border-radius:8px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:10px;font-weight:700;letter-spacing:.02em;line-height:1;color:#EEF3FB;background:#2A3142;box-shadow:inset 0 0 0 1px rgba(238,243,251,.55),0 0 0 1px rgba(11,14,22,.55);white-space:nowrap}' +
-    '.bra-mn-on .bra-mn-more{display:inline-flex}' +
+    '.bra-mn-on .bra-mn-more{display:inline-flex}.bra-mn.bra-mn-x{display:none}' +
     // The larger list (minisList): shield and game name, wrapping.
     '.bra-mnl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;min-width:0}' +
     '.bra-mnl-h{font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}' +
