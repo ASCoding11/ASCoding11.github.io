@@ -6,6 +6,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Hush Pools: into the mist": "Hush Pools: entre la niebla",
+    "The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.": "Las salas ahora son mucho más grandes y están llenas de niebla. Solo ves un poco hacia delante, así que tienes que explorar para encontrar el camino.",
+    "Each hall has three doors in the far wall, and only one of them is open.": "Cada sala tiene tres puertas en la pared del fondo, y solo una está abierta.",
+    "There is now just one monster, and it is very fast. When it hears you close by, it freezes, shrieks and rushes at you: be far away, or move the moment you hear it.": "Ahora hay un solo monstruo, y es muy rápido. Cuando te oye cerca, se queda quieto, chilla y se lanza hacia ti: aléjate o muévete en cuanto lo oigas.",
+    "The water is only knee deep: you can wade through it and climb back out, but wading is slow and loud. You can't drown any more.": "El agua solo te llega a las rodillas: puedes caminar por ella y volver a subir, pero caminar por el agua es lento y ruidoso. Ya no te puedes ahogar.",
+    "The monster looks creepier, and getting caught is a much bigger scare. If it's too much, turn on Gentler grabs in Settings.": "El monstruo da más miedo, y que te atrape es un susto mucho más grande. Si es demasiado, activa «Gentler grabs» (agarres más suaves) en la configuración del juego.",
     "New game: Putterby": "Juego nuevo: Putterby",
     "Mini golf": "Minigolf",
     "Up to 8": "Hasta 8",
