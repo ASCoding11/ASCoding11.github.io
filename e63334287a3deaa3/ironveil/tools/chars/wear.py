@@ -215,7 +215,7 @@ def painted_metal(name, paint, paint2, steel='#34332f', rust='#4d3221', chip=0.5
     h = B.math('ADD', h, B.math('MULTIPLY', B.noise(120.0, 3), 0.15))
     return B.finish(c, rough, bump_h=h, bump_s=0.6, bump_dist=0.006, metal=B.math('MULTIPLY', chipmask, 0.9))
 
-def skin(name, image, grime=0.35, uv='UVMap'):
+def skin(name, image, grime=0.35, uv='UVMap', beard=0.0, scars=False):
     """MakeHuman skin + dirt and sweat: grime in creases and on the cheeks/hands, a slightly sweaty sheen in patches."""
     B = NB(name)
     uvn = B.n('ShaderNodeUVMap'); uvn.uv_map = uv
@@ -233,11 +233,39 @@ def skin(name, image, grime=0.35, uv='UVMap'):
     jaw = B.math('MULTIPLY', B.math('MULTIPLY', B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', zc.outputs['Z'], 1.585)), 0.045, 0.015),
                                     B.ramp(zc.outputs['Y'], 0.0, -0.06)), B.ramp(B.math('ABSOLUTE', zc.outputs['X']), 0.075, 0.05))
     c = B.mix(c, '#2b231d', B.math('MULTIPLY', B.math('MULTIPLY', jaw, B.ramp(B.noise(520.0, 2, 0.5), 0.45, 0.6)), 0.55))
+    beard_h = None
+    if beard > 0:
+        # a short cropped beard: jaw, chin and moustache, dense strands with a soft, broken edge (no painted block)
+        X_, Y_, Z_ = zc.outputs['X'], zc.outputs['Y'], zc.outputs['Z']
+        edge = B.ramp(B.noise(60.0, 3, 0.6), 0.35, 0.65)
+        jawb = B.math('MULTIPLY', B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', Z_, 1.592)), 0.05 + 0.006 * beard, 0.03),
+                      B.ramp(Y_, -0.02, -0.075))
+        jawb = B.math('MULTIPLY', jawb, B.ramp(B.math('ABSOLUTE', X_), 0.078, 0.06))
+        must = B.math('MULTIPLY', B.math('MULTIPLY', B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', Z_, 1.652)), 0.011, 0.005),
+                                         B.ramp(B.math('ABSOLUTE', X_), 0.03, 0.022)), B.ramp(Y_, -0.2, -0.225))
+        area = B.math('MULTIPLY', B.math('MAXIMUM', jawb, must), B.mixf(0.75, 1.0, edge))
+        strands = B.ramp(B.noise(900.0, 2, 0.5, stretch=(1.0, 1.0, 3.0)), 0.38, 0.62)
+        dens = B.math('MULTIPLY', area, B.mixf(0.55, 1.0, strands))
+        c = B.mix(c, '#231b15', B.math('MULTIPLY', dens, 0.92 * beard))
+        beard_h = B.math('MULTIPLY', B.math('MULTIPLY', area, strands), 0.9 * beard)
+    if scars:
+        # two healed scars: through the left eyebrow and across the right side of the chin; pale, slightly raised
+        X_, Y_, Z_ = zc.outputs['X'], zc.outputs['Y'], zc.outputs['Z']
+        sc_t = None
+        for x0, z0, k, hh in ((0.036, 1.737, 0.25, 0.016), (-0.016, 1.598, -1.6, 0.007)):
+            d = B.math('ABSOLUTE', B.math('SUBTRACT', B.math('SUBTRACT', X_, x0), B.math('MULTIPLY', B.math('SUBTRACT', Z_, z0), k)))
+            m = B.math('MULTIPLY', B.ramp(d, 0.0016, 0.0005), B.ramp(B.math('ABSOLUTE', B.math('SUBTRACT', Z_, z0)), hh, hh * 0.6))
+            m = B.math('MULTIPLY', m, B.ramp(Y_, -0.15, -0.2))
+            sc_t = m if sc_t is None else B.math('MAXIMUM', sc_t, m)
+        c = B.mix(c, '#c79a8a', B.math('MULTIPLY', sc_t, 0.75))
+        beard_h = sc_t if beard_h is None else B.math('MAXIMUM', beard_h, B.math('MULTIPLY', sc_t, 1.2))
     # oilier T-zone (forehead, nose), drier cheeks; dirt in the creases already from the AO above
     tz = B.math('MULTIPLY', B.ramp(zc.outputs['Z'], 1.6, 1.68), B.ramp(B.math('ABSOLUTE', zc.outputs['X']), 0.05, 0.02))
     rough = B.mixf(B.mixf(0.62, 0.42, sweat), 0.4, B.math('MULTIPLY', tz, 0.7))
     pores = B.math('MULTIPLY', B.noise(650.0, 2, 0.5), 0.35)
-    return B.finish(c, rough, bump_h=B.math('ADD', B.math('ADD', B.math('MULTIPLY', B.noise(250.0, 3, 0.6), 0.5), pores), B.math('MULTIPLY', stub, 0.35)), bump_s=0.22, bump_dist=0.002)
+    bh = B.math('ADD', B.math('ADD', B.math('MULTIPLY', B.noise(250.0, 3, 0.6), 0.5), pores), B.math('MULTIPLY', stub, 0.35))
+    if beard_h is not None: bh = B.math('ADD', bh, beard_h)
+    return B.finish(c, rough, bump_h=bh, bump_s=0.22, bump_dist=0.002)
 
 def flat(name, col, rough=0.5, metal=0.0):
     B = NB(name)

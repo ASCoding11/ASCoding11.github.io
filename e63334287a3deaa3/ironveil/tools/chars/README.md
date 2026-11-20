@@ -49,6 +49,35 @@ motion-capture loop (planted-foot speed, leg reach error and the largest per-fra
 | `pack.sh` | meshopt compression (and resampling for clips) into `assets/` |
 | `capture.js`, `videos.sh`, `shot.js`, `sheet.sh` | Drive-mode videos with measurements, and screenshot sheets from `chars-test.html` |
 
+## First-person arms (`fp.glb`, `fp.json`)
+
+Built in four steps from `$CHARS_WORK/fp` (`FP_WORK`), one Blender process at a time:
+
+```
+bvenv/bin/python fp_arms.py                 # fp_geo.blend: forearms and hands cut from the hero body, sleeves, watch, skeleton
+bvenv/bin/python fp_tex.py                  # fp_tex.blend + tex/*.png: UV atlas and the 2048 set (albedo, normal, ORM)
+node fp_unpack.mjs ../../assets/weapons.glb $CHARS_WORK/fp/weapons_plain.glb   # the weapons, readable by Blender
+bvenv/bin/python fp_clips.py preview        # optional: Cycles stills of chosen frames (KINDS, SHOTS=idle@0,reload@0.7)
+bvenv/bin/python fp_clips.py export         # fp.glb + fp.json (clip lengths, events, props, hand-penetration report)
+node fp_pack.mjs $CHARS_WORK/fp/fp.glb ../../assets/fp.glb; cp $CHARS_WORK/fp/fp.json ../../assets/
+```
+
+- `fp_arms.py`: the hero's MakeHuman body (same `humans.HERO` build) cut at mid upper arm, the forearms subdivided
+  once, rolled sleeves and the cuff roll as ring lofts round the arm, a lathed watch case with lugs and crown on a
+  leather strap. The skeleton is the hero's arm chain plus `lowerarm_twist_*` (part of each forearm's weight, so the
+  wrist does not candy-wrap), `fp_root` at the eye and the weapon bones `w_root`, `w_bolt`, `w_boltHandle`, `w_mag`,
+  `w_trigger`, `w_hammer`, `w_charging`, `w_prop` whose rest frames equal the glTF identity, so `chars.js` can hang the
+  normal weapon model and its moving parts on them with identity transforms.
+- `fp_tex.py`: Cycles bakes only the rest-pose position, normal, region and occlusion of each texel; everything else
+  (skin, hair, veins, tendons, wrinkles, creases, nails, scar, grime, camouflage, weave, seam, strap, dial) is computed
+  per texel in numpy from the 3D position, and the heights become a tangent-space normal map from each texel's own
+  position derivatives.
+- `fp_clips.py` / `fp_lib.py`: hand frames are defined on each weapon's measured shape (`GRIPSPEC`), then fitted: a
+  search over the palm offset and a small turn scored by hand vertices inside the weapon (BVH of the real mesh) and
+  palm contact, alternating with closing every finger joint on the surface. Arms are two-bone IK with the elbow pole
+  chosen per frame to keep the arm out of the weapon; skinning is the same linear blend three.js runs, so the
+  penetration numbers in `fp.json` are what the game shows. Clip programs are small keyframe functions per weapon.
+
 ## Notes for later edits
 
 - Bone names, clip names and the `anims.json` fields (`duration`, `stride`, `speed`, `theta`) are part of the API that
