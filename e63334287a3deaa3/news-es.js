@@ -6,6 +6,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Spectate online matches": "Mira partidas online",
+    "Spectate": "Espectador",
+    "You can now watch a Shell Crackers, Backrooms or Boostball match without joining it: press Watch next to the game in Playing now, or on a friend's row in Online.": "Ahora puedes mirar una partida de Shell Crackers, Backrooms o Boostball sin unirte: presiona Mirar junto al juego en Jugando ahora, o en la fila de un amigo en Online.",
+    "Follow any player from behind and switch between them, or fly a free camera around the map. The scoreboard is one key or tap away.": "Sigue a cualquier jugador desde atrás y cambia entre ellos, o vuela con una cámara libre por el mapa. El marcador está a una tecla o un toque.",
+    "Spectators are invisible: they never take a spot in the room, can't be hit, and don't change anyone's score, rating or stats.": "Los espectadores son invisibles: nunca ocupan un lugar en la sala, no se les puede golpear y no cambian la puntuación, el rating ni las estadísticas de nadie.",
+    "Players see how many people are watching their match.": "Los jugadores ven cuántas personas están mirando su partida.",
     "Hush Pools: into the mist": "Hush Pools: entre la niebla",
     "The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.": "Las salas ahora son mucho más grandes y están llenas de niebla. Solo ves un poco hacia delante, así que tienes que explorar para encontrar el camino.",
     "Each hall has three doors in the far wall, and only one of them is open.": "Cada sala tiene tres puertas en la pared del fondo, y solo una está abierta.",

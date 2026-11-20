@@ -34,6 +34,11 @@
  * (rooms/<prefix>-<room>/players, nodes heard from within the game's own live window). Games with rounds offer
  * "Queue for next game" when the room is full: this tab checks every 3 s and launches as soon as there's a spot.
  * Nothing is written by this file.
+ *
+ * Watch: games in WATCH (Shell Crackers, Backrooms, Boostball) also get a Watch button on their row (and, through
+ * BackRoomPlaying.watch, on the person's row in the Online panel). It opens the game in party.js's layer as
+ * <folder>/?watch=1#<prefix><room>, which the game itself turns into its spectator mode: it reads the room and writes
+ * nothing, so a spectator is never a player there (and never counted here). A full room can still be watched.
  */
 (function () {
   'use strict';
@@ -66,6 +71,8 @@
   // Each game's own room limit (its join check), how long a player node counts as live there, and whether it plays
   // in rounds (so a full room is worth queuing for). bb: Boostball's limit is twice the room's team size (round.sz).
   // A game party.js adds later without a row here uses party.js's max, its 10 s window and no queue.
+  // Games with a spectator mode (?watch=1 on the game's address; see the watchers.js entry in README.md).
+  var WATCH = { sc: 1, br: 1, bb: 1 };
   var CAP = {
     sc: { m: 8, q: 1 }, rk: { m: 12, q: 1 }, ss: { m: 22, q: 1 }, bb: { m: 6, q: 1, bb: 1 }, cl: { m: 10, q: 1 },
     sd: { m: 10, l: 12000, q: 1 }, br: { m: 8, l: 8000, q: 1 }, cf: { m: 8, l: 12000, q: 1 }, tw: { m: 12, l: 12000, q: 1 },
@@ -101,9 +108,10 @@
     '.pn-r{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}' +
     '.pn-r b{color:var(--accent);font-weight:600}' +
     '.pty .pn-it .btn{flex:none;min-height:40px;padding:8px 14px;font-size:14px;white-space:nowrap}' +
+    '.pn-bs{display:flex;gap:6px;flex:none}' +
     '.pn-empty{margin:0;font-size:14px;color:var(--ink-2)}' +
     '.pn-empty:empty{display:none}' +
-    '@media (max-width:600px){.pn-it{flex-wrap:wrap}.pn-who{flex:1 1 calc(100% - 90px)}.pty .pn-it .btn{flex:1 1 100%}}';
+    '@media (max-width:600px){.pn-it{flex-wrap:wrap}.pn-who{flex:1 1 calc(100% - 90px)}.pty .pn-it .btn{flex:1 1 100%}.pn-bs{flex:1 1 100%}.pty .pn-bs .btn{flex:1 1 0;justify-content:center;text-align:center}}';
   document.head.appendChild(css);
 
   // ---------------- Panel ----------------
@@ -304,6 +312,7 @@
     var html = list.map(function (e) {
       var ac = action(e), btn = ac.a ? '<button type="button" class="btn sm' + (ac.pri ? ' primary' : '') + '" data-' + ac.a + '="' + esc(e.id) + '">' + ac.label + '</button>'
         : '<button type="button" class="btn sm" disabled>' + ac.label + '</button>';
+      if (WATCH[e.k]) btn = '<span class="pn-bs">' + btn + '<button type="button" class="btn sm" data-w="' + esc(e.id) + '" aria-label="Watch ' + esc(e.g.n) + ' without playing">Watch</button></span>';
       var room = e.n < 0 ? 'Checking the room…' : e.n === 0 ? 'Starting the game…' : T('<b>{a} of {b}</b> in the room', { a: e.n, b: e.cap });
       if (queued && queued.id === e.id) room = 'You’re queued · joining as soon as there’s a spot';
       var avs = e.who.slice(0, 3).map(function (w) { return '<span class="pn-av" style="background:' + esc(w.c) + '" data-u="' + esc(w.uid) + '">' + esc(w.n.charAt(0).toUpperCase()) + '</span>'; }).join('');
@@ -333,6 +342,15 @@
     if (!P.launch(e.k, e.r)) say('Couldn’t open that game. Reload the page to update.', true);
     setTimeout(function () { if ($msg.textContent === joining) say(''); }, 8000);
     draw();
+  }
+  // Watch: open the game read-only in that room (no player node there, so it doesn't take a spot or need one).
+  function watch(id) {
+    var e = find(id); if (!e || !WATCH[e.k]) return false;
+    if (queued) cancelQueue('You left the queue to watch a game.');
+    say('Opening ' + e.g.n + ' to watch (room ' + e.r + ')…');
+    P.open(BASE + e.g.d + '/?watch=1#' + e.g.pre + e.r, e.g.n);
+    setTimeout(function () { if ($msg.textContent.indexOf('Opening') === 0) say(''); }, 8000);
+    return true;
   }
   function join(id) {
     var e = find(id); if (!e) return;
@@ -374,8 +392,9 @@
 
   sec.addEventListener('click', function (ev) {
     var b = ev.target.closest('button'); if (!b || b.disabled) return;
-    var j = b.getAttribute('data-j'), q = b.getAttribute('data-q');
-    if (j) join(j);
+    var j = b.getAttribute('data-j'), q = b.getAttribute('data-q'), w = b.getAttribute('data-w');
+    if (w) watch(w);
+    else if (j) join(j);
     else if (q) { if (queued && queued.id === q) cancelQueue(); else startQueue(q); }
   });
   document.addEventListener('backroom:avatar', function () { $list.removeAttribute('data-h'); soon(); });
@@ -413,7 +432,7 @@
       if (a && look && a.party && now() - a.ts <= STALE) checkParty(a);
       var e = rowOf(u); if (!e) return null;
       var ac = action(e), busy = inGame() && ac.a === 'q';   // the queue only runs with the Back Room page in view
-      return { label: busy ? 'Full' : ac.short || ac.label, game: e.g.n, pri: !!ac.pri, off: !ac.a || busy };
+      return { label: busy ? 'Full' : ac.short || ac.label, game: e.g.n, pri: !!ac.pri, off: !ac.a || busy, watch: !!WATCH[e.k] };
     },
     act: function (u) {
       var e = rowOf(u); if (!e) return false;
@@ -421,7 +440,9 @@
       if (ac.a === 'j') { join(e.id); return true; }
       if (ac.a === 'q' && !inGame()) { if (queued && queued.id === e.id) cancelQueue(); else startQueue(e.id); return false; }
       return false;
-    }
+    },
+    // Watch the game that person is in (games with a spectator mode only); says whether it opened anything.
+    watch: function (u) { var e = rowOf(u); return !!(e && watch(e.id)); }
   };
 
   // Test hook for the automated checks; harmless in normal play.

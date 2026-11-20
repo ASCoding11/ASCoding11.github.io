@@ -209,6 +209,25 @@ body.touch #hint{bottom:auto;top:calc(max(10px,env(safe-area-inset-top)) + 70px)
   #tDrift{right:max(118px,env(safe-area-inset-right));bottom:max(32px,env(safe-area-inset-bottom))}
   #tCam{right:max(121px,env(safe-area-inset-right));bottom:max(112px,env(safe-area-inset-bottom))}
 }
+/* Spectating (?watch=1, see WATCH): the player's own HUD and driving buttons give way to a "Spectating" chip under the
+   score and a row of buttons in the bottom right (two rows on a phone held upright, clear of the free-camera stick). */
+#spec{position:absolute;inset:0;pointer-events:none}
+#specBar{position:absolute;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 70px);transform:translateX(-50%);display:flex;align-items:center;gap:8px;max-width:calc(100vw - 24px);background:rgba(8,12,30,.78);border-radius:6px;padding:4px 10px;font-size:14px;font-weight:700;white-space:nowrap}
+#specBar b{font-family:var(--f-d);font-weight:400;font-size:11px;letter-spacing:.16em;color:#ffd34a}
+#specWho{overflow:hidden;text-overflow:ellipsis}
+#specWho.t0{color:var(--t0-2)} #specWho.t1{color:var(--t1-2)}
+#specBtns{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));display:flex;flex-wrap:wrap-reverse;justify-content:flex-end;gap:8px;max-width:calc(100vw - 200px)}
+#specBtns button{pointer-events:auto;touch-action:manipulation;min-width:52px;height:44px;padding:0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.3);background:rgba(8,12,30,.66);font-family:var(--f-d);font-size:12px;letter-spacing:.06em;color:#fff}
+#specBtns button[aria-pressed="true"]{background:rgba(47,140,255,.6)}
+#specBtns kbd{font:inherit;color:var(--ink-2);margin-left:5px}
+body.touch #specBtns kbd{display:none}
+body.watch #pauseBtn,body.watch #boost,body.watch #speed,body.watch #camTag,body.watch #tJump,body.watch #tBoost,body.watch #tDrift,body.watch #tCam{display:none}
+body.watch:not(.fcam) #stick{display:none}
+body.watch #waitNote{top:calc(max(10px,env(safe-area-inset-top)) + 104px)}
+body.watch #hint{bottom:calc(max(18px,env(safe-area-inset-bottom)) + 56px)}
+body.watch.touch #hint{bottom:auto;top:calc(max(10px,env(safe-area-inset-top)) + 140px)}
+@media (max-width:640px){#specBar{top:calc(max(10px,env(safe-area-inset-top)) + 58px)}}
+@media (max-width:500px){#specBtns{max-width:calc(100vw - 170px)}}
 body.free #scorebar .sc{display:none}
 @media (max-width:640px){#scorebar .sc{font-size:26px;min-width:48px}#clock{font-size:22px;min-width:82px;padding-top:4px}#tnames{top:calc(max(10px,env(safe-area-inset-top)) + 36px)}}
 
@@ -235,8 +254,11 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
   html.rails .rail{display:flex}
 }
 </style>
-<script src="/e63334287a3deaa3/stats.js" data-game="boostball" defer></script>
-<script src="/e63334287a3deaa3/elo.js" data-game="boostball" defer></script>
+<!-- stats.js counts play time from any key or touch and elo.js syncs the rating, so a spectator (?watch=1, see WATCH) loads
+     neither: watching isn't playing. Written by the parser while it reads this line, so for players they are the same
+     deferred scripts as before. -->
+<script>if(new URLSearchParams(location.search).get('watch')!=='1')document.write('<script src="/e63334287a3deaa3/stats.js" data-game="boostball" defer><\/script><script src="/e63334287a3deaa3/elo.js" data-game="boostball" defer><\/script>')</script>
+<script src="/e63334287a3deaa3/watchers.js" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/e63334287a3deaa3/cosmetics.js" defer></script> <!-- the switched-off cosmetics catalogue: Boostball only asks it whether it is on (see KIT) -->
 <script src="/adrefresh.js" defer></script>
@@ -270,6 +292,16 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
       <button class="tb" id="tCam" type="button">CAM</button>
     </div>
     <div id="board" class="card" hidden><div class="teams" id="boardTeams"></div></div>
+    <div id="spec" hidden>
+      <div id="specBar" role="status"><b>SPECTATING</b><span id="specWho">Connecting…</span></div>
+      <div id="specBtns">
+        <button type="button" id="sPrev" data-no-ad-refresh aria-label="Previous player">◀<kbd>Q</kbd></button>
+        <button type="button" id="sNext" data-no-ad-refresh aria-label="Next player">▶<kbd>E</kbd></button>
+        <button type="button" id="sFree" data-no-ad-refresh aria-pressed="false">FREE<kbd>F</kbd></button>
+        <button type="button" id="sBoard" data-no-ad-refresh aria-pressed="false">SCORES<kbd>TAB</kbd></button>
+        <button type="button" id="sLeave" data-no-ad-refresh>LEAVE<kbd>ESC</kbd></button>
+      </div>
+    </div>
   </div>
 
   <section id="menu" class="overlay">
@@ -465,6 +497,12 @@ const AIR_T={p:130*TSCALE,y:95*TSCALE,r:400*TSCALE},AIR_D={p:30*TSCALE,y:20*TSCA
 // Getting back on your wheels
 const AUTOFLIP_IMP=200*UU,AUTOFLIP_TORQUE=50,AUTOFLIP_TIME=.4,AUTOROLL_TORQUE=80,AUTOROLL_FORCE=100*UU;
 const MATCH_MS=4*60*1000,CELEBRATE_MS=3500,COUNT_MS=3000,DEMO_MS=3000,MAX_ROOM=6;
+// Spectating: the page opened as boostball/?watch=1#bb-<code> (the Back Room's Watch buttons) watches that room without
+// playing. It writes nothing at all to the database (no player node, events or round writes; the shared rules only allow
+// a player node inside a room, so there is no "watching" count either), never hosts or runs the ball, has no car of its
+// own, and reports no stats or rating. Without ?watch=1 nothing below changes.
+const WATCH_ROOM=(/^#bb-([a-z0-9-]{1,17})$/.exec(location.hash)||[])[1]||'';
+const WATCH=new URLSearchParams(location.search).get('watch')==='1'&&!!WATCH_ROOM;
 // Team colours: Settings → Team colours picks a pair (saved as boostball-teams); online, everyone uses the room
 // host's pick (round.tc). Every pair was checked with simulated protanopia, deuteranopia and tritanopia (Machado 2009):
 // the two colours stay at least 30 apart (CIEDE2000) and differ clearly in brightness or along blue–yellow. Red/teal
@@ -2568,12 +2606,12 @@ function endMatch(){
   if((mode==='online'||mode==='practice')&&me&&win===mine&&window.BackRoomStats)BackRoomStats.add('wins',1);
   // ranked rating (../elo.js): online matches only; opp is everyone on the other team
   if(mode==='online'&&me&&window.BackRoomElo){try{const s=win===mine?1:0;BackRoomElo.report({id:Net.room+':'+R.id,won:!!s,opp:cars.filter(c=>c!==me&&c.team!==mine&&c.active!==false).map(c=>c.isBot?{bot:1,s}:{u:c.id,s})})}catch(e){}}
-  $('endTitle').textContent=mode==='online'||mode==='practice'?(win===mine?'Victory!':'Defeat'):T('{t} wins',{t:TN(win)});
+  $('endTitle').textContent=(mode==='online'||mode==='practice')&&!WATCH?(win===mine?'Victory!':'Defeat'):T('{t} wins',{t:TN(win)});
   $('endTitle').style.color=TEAM[win].lite;
   $('endSub').textContent=TN(0)+' '+R.sb+' – '+R.so+' '+TN(1)+(R.rem<=0&&R.g>0&&!R.bz?' · '+T('won in overtime'):'');
   renderTeams($('endTeams'),true);
-  $('again').hidden=false;$('again').disabled=false;
-  $('endMsg').textContent=mode==='online'&&Net.isPublic?'The next match starts in a few seconds.':'';
+  $('again').hidden=WATCH;$('again').disabled=false;   // a spectator can't start the next match; Menu reads Leave
+  $('endMsg').textContent=mode==='online'&&Net.isPublic?'The next match starts in a few seconds.':WATCH?'The next match shows here when the players start it.':'';
   $('end').hidden=false;sfx('whistle');showAd('adEnd');
 }
 
@@ -2949,6 +2987,7 @@ function pressAction(c){
 }
 addEventListener('keydown',e=>{
   if(typing(e))return;
+  if(WATCH){watchKey(e);return}
   const c=e.code;
   if(KB.is('board',c)&&state==='playing'){e.preventDefault();boardKey=true;return}
   if(state!=='playing')return;
@@ -2961,7 +3000,7 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>{keys[e.code]=false;if(KB.is('board',e.code))boardKey=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;boardKey=false});
-canvas.addEventListener('mousedown',e=>{if(state!=='playing')return;initAudio();const c='Mouse'+e.button;if(e.button===1)e.preventDefault();keys[c]=true;if(KB.is('board',c))boardKey=true;pressAction(c)});
+canvas.addEventListener('mousedown',e=>{if(state!=='playing'||WATCH)return;initAudio();const c='Mouse'+e.button;if(e.button===1)e.preventDefault();keys[c]=true;if(KB.is('board',c))boardKey=true;pressAction(c)});
 addEventListener('mouseup',e=>{const c='Mouse'+e.button;keys[c]=false;if(KB.is('board',c))boardKey=false});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 $('keysMenu').addEventListener('click',()=>KB.open());
@@ -3009,6 +3048,93 @@ function readInput(inp){
   if(matchMedia('(pointer:coarse)').matches){touchIn.active=true;document.body.classList.add('touch');$('touch').hidden=false}
   addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchIn.active){touchIn.active=true;document.body.classList.add('touch');$('touch').hidden=false}},true);
 })();
+// =====================================================================
+//  Spectating (?watch=1, see WATCH)
+// =====================================================================
+// id: the car being followed ('' = pick one, 'ball' = the overview behind the goal); free: flying the camera (fc: where,
+// and which way it looks); drag: a mouse or finger dragging the view. Keys: Q / E or ← / → previous / next, F free
+// camera (WASD, Space up, Shift down, drag to look), the Scoreboard key (Tab) held for the scores, Y ball cam, Esc leaves.
+// On a touch screen the same as buttons, with the move stick for the free camera.
+const spec={id:'',free:false,fc:{pos:new V3(),yaw:0,pitch:0},drag:null,err:'',hud:''};
+function specList(){return cars.filter(c=>c.active!==false).sort((a,b)=>a.team-b.team||(a.isBot?1:0)-(b.isBot?1:0)||String(a.name).localeCompare(String(b.name))||(a.id<b.id?-1:1))}
+function specCar(){
+  if(spec.id==='ball')return null;
+  let c=spec.id?carById(spec.id):null;
+  // nobody picked yet, or they left: the first player (a bot only if there are no players)
+  if(!c||c.active===false){const l=specList();c=l.find(x=>!x.isBot)||l[0]||null;spec.id=c?c.id:''}
+  return c;
+}
+function specCycle(d){
+  const ids=specList().map(c=>c.id).concat('ball'),c=specCar();
+  let i=ids.indexOf(c?c.id:'ball');if(i<0)i=0;
+  spec.id=ids[(i+d+ids.length)%ids.length];spec.free=false;camSnap=spec.id!=='ball';
+}
+function specFree(on){
+  spec.free=on;document.body.classList.toggle('fcam',on);
+  if(!on){camSnap=true;return}
+  // start from where the camera is now, looking the same way
+  const f=spec.fc,d=_t2.subVectors(camLook,camPos);if(d.lengthSq()<1e-6)d.set(0,0,1);d.normalize();
+  f.pos.copy(camera.position);f.yaw=Math.atan2(d.x,d.z);f.pitch=Math.asin(clamp(d.y,-1,1));
+}
+function freeCam(dt){
+  const f=spec.fc,h=c=>keys[c]?1:0;
+  const cp=Math.cos(f.pitch),dir=_t2.set(Math.sin(f.yaw)*cp,Math.sin(f.pitch),Math.cos(f.yaw)*cp),rt=_t3.set(-Math.cos(f.yaw),0,Math.sin(f.yaw));
+  const fw=h('KeyW')-h('KeyS')+(touchIn.active?touchIn.y:0),sd=h('KeyD')-h('KeyA')+(touchIn.active?touchIn.x:0),up=h('Space')-h('ShiftLeft')-h('ShiftRight');
+  const sp=45*dt;
+  f.pos.addScaledVector(dir,fw*sp).addScaledVector(rt,sd*sp);f.pos.y+=up*sp;
+  f.pos.set(clamp(f.pos.x,-AW-20,AW+20),clamp(f.pos.y,1,AH+25),clamp(f.pos.z,-AL-GD-25,AL+GD+25));
+  camPos.copy(f.pos);camLook.copy(f.pos).add(dir);
+  camera.position.copy(f.pos);camera.up.copy(Y_AXIS);camera.lookAt(camLook);
+  const base=baseFov();if(Math.abs(camera.fov-base)>.05){camera.fov=base;camera.updateProjectionMatrix()}
+}
+function watchKey(e){
+  const c=e.code;
+  if(['Tab','Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c))e.preventDefault();
+  keys[c]=true;if(e.repeat)return;
+  initAudio();
+  if(c==='Escape')watchLeave();
+  else if(c==='KeyQ'||c==='ArrowLeft')specCycle(-1);
+  else if(c==='KeyE'||c==='ArrowRight')specCycle(1);
+  else if(c==='KeyF')specFree(!spec.free);
+  else if(KB.is('board',c))boardKey=true;
+  else if(KB.is('ballcam',c))ballCam=!ballCam;   // not saved: that's the player's own setting
+}
+function specHud(){
+  const c=spec.free||spec.id==='ball'?null:specCar();
+  const t=spec.err?spec.err:spec.free?'Free camera':spec.id==='ball'?'Ball view':c?c.name+(c.isBot?' · bot':''):cars.length?'':'Waiting for players';
+  const wn=Net.watchN>1?' · '+Net.watchN+' watching':'';
+  const k=t+'|'+(c?c.team:'')+'|'+spec.free+'|'+boardKey+wn;
+  if(k===spec.hud)return;spec.hud=k;
+  const w=$('specWho');w.textContent=t+(t?wn:'');w.className=c?'t'+c.team:'';
+  $('sFree').setAttribute('aria-pressed',String(spec.free));$('sBoard').setAttribute('aria-pressed',String(!!boardKey));
+}
+// Leaving: inside the Back Room's game layer, Back closes it (the layer is one history entry); opened on its own, the menu.
+function watchLeave(){
+  Net.leave();
+  if(window.parent!==window){history.back();return}
+  location.href=location.pathname;
+}
+if(WATCH){
+  canvas.addEventListener('pointerdown',e=>{initAudio();if(!spec.free)return;spec.drag={id:e.pointerId,x:e.clientX,y:e.clientY};try{canvas.setPointerCapture(e.pointerId)}catch(er){}});
+  canvas.addEventListener('pointermove',e=>{const d=spec.drag;if(!d||d.id!==e.pointerId)return;
+    const f=spec.fc;f.yaw-=(e.clientX-d.x)*.005;f.pitch=clamp(f.pitch-(e.clientY-d.y)*.005,-1.45,1.45);d.x=e.clientX;d.y=e.clientY});
+  const end=e=>{if(spec.drag&&spec.drag.id===e.pointerId)spec.drag=null};
+  canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);
+  $('sPrev').onclick=()=>{initAudio();specCycle(-1)};$('sNext').onclick=()=>{initAudio();specCycle(1)};
+  $('sFree').onclick=()=>specFree(!spec.free);$('sBoard').onclick=()=>{boardKey=!boardKey};$('sLeave').onclick=watchLeave;
+}
+async function startWatch(){
+  document.body.classList.add('watch');
+  clearCars(false);mode='online';state='playing';paused=false;R=null;me=null;
+  touches=[];lastTouchBt=0;owner='';goalPending=false;
+  showHud();$('spec').hidden=false;$('scorebar').hidden=false;$('tnames').textContent=TN(0)+' · '+TN(1);
+  $('toMenu').textContent='Leave';
+  const bk=$('sBoard').querySelector('kbd');bk.textContent=KB.short('board').toUpperCase();
+  setHint(touchIn.active?'<b>◀ ▶</b> switch players · <b>FREE</b> flies the camera (stick to move, drag to look)'
+    :'<b>Q</b>/<b>E</b> switch players · <b>F</b> free camera (WASD, Space/Shift, drag to look) · hold <b>'+KB.short('board')+'</b> for scores · <b>Esc</b> leaves',8);
+  try{await Net.watchRoom('bb-'+WATCH_ROOM)}
+  catch(err){Net.leave();spec.err=err.message||String(err)}
+}
 function toggleBallCam(){ballCam=!ballCam;store.set('ballcam',ballCam?1:0);sfx('click')}
 let qcT=0;
 function quickChat(i){
@@ -3034,7 +3160,13 @@ let shakeT=0,shakeA=0,orbitA=0,camElev=0,camSnap=false;const camUp=new V3(0,1,0)
 const CAM_DIST=270*UU,CAM_HGT=100*UU;
 function baseFov(){const a=camera.aspect||1.6;return Math.min(100,2*Math.atan(Math.tan(55*Math.PI/180)/a)*180/Math.PI)}
 function shake(a){shakeA=Math.max(shakeA,a*shakeAmt);shakeT=.5}
+// Spectating: the camera follows the car being watched (camCar) with the same chase camera as your own car, or flies
+// free (freeCam). Inside updateCamera "me" is that car, so the chase code is shared; with nobody to follow (Ball view, or
+// the car is demolished) it takes the overview behind the goal that a player gets while waiting to respawn.
+function camCar(){return WATCH?specCar():me}
 function updateCamera(dt){
+  if(WATCH&&spec.free){freeCam(dt);return}
+  const me=camCar();
   const bvis=_t1.copy(ball.pos).add(ballVisOff);
   const kp=1-Math.exp(-dt*9),kl=1-Math.exp(-dt*12);
   if(state==='menu'||mode==='attract'){
@@ -3144,7 +3276,9 @@ function updateHud(dt,now){
       if(rem<=0&&R.sb===R.so){setT('clock','+'+fmtClock(-rem));ck.classList.add('ot')}else{setT('clock',fmtClock(rem));ck.classList.remove('ot')}
       // 0:00 with the ball still in the air: say so under the clock until it lands
       const bip=ballInPlay(now);
-      if(bip!==hudCache.bip){hudCache.bip=bip;$('tnames').classList.toggle('bip',bip);$('tnames').textContent=bip?T('0:00 · ball in play'):TN(0)+' · '+TN(1)}
+      // (and, online, how many spectators are watching: ../watchers.js)
+      const wn=online&&!WATCH?Net.watchN:0;
+      if(bip!==hudCache.bip||wn!==hudCache.wn){hudCache.bip=bip;hudCache.wn=wn;$('tnames').classList.toggle('bip',bip);$('tnames').textContent=bip?T('0:00 · ball in play'):TN(0)+' · '+TN(1)+(wn?' · '+T('{n} watching',{n:wn}):'')}
     }
   }
   if(me){
@@ -3169,7 +3303,7 @@ function updateHud(dt,now){
     const cls='ntag t'+c.team;if(el.className!==cls)el.className=cls;
     const sp=el.firstChild;if(sp.textContent!==c.name)sp.textContent=c.name;
     const u=el.lastChild.firstChild;const w=Math.round(c.boost)+'%';if(u.style.width!==w)u.style.width=w;
-    el.lastChild.style.display=c.team===(me?me.team:0)?'':'none';
+    el.lastChild.style.display=WATCH||c.team===(me?me.team:0)?'':'none';
     el.style.transform='translate('+((_hp.x+1)/2*W).toFixed(1)+'px,'+((1-_hp.y)/2*H).toFixed(1)+'px) translate(-50%,-100%)';
     el.style.display='';seen.add(c.id);
   }
@@ -3355,12 +3489,43 @@ const Net={
     r.players.on('child_removed',s=>onRemoteLeft(s.key));
     r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||e.by===this.uid||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
     r.round.on('value',s=>{const v=s.val();if(v&&typeof v.id==='number'&&typeof v.ko==='number')applyRound(sanitizeRound(v))});
+    this.watchOn(room);
     try{if(!isPublic)history.replaceState(null,'','#'+room)}catch(e){}
   },
+  // Spectating: sign in, then only read. The same listeners as joinRoom, minus everything that writes: no player node, no
+  // round transaction. Net.uid becomes a name no node can have, so nothing in the room is skipped as "mine" (two tabs of
+  // one browser share an account) and every "am I the host / the ball's owner" test is false.
+  async watchRoom(room){
+    await this.init();
+    this.authUid=this.uid;this.uid='~watch';this.j=Infinity;   // (authUid: the real one, for the spectator's own node in ../watchers.js)
+    const roundRef=this.db.ref('rooms/'+room+'/round');
+    const cur=(await withTimeout(roundRef.once('value'),10000,NET_BLOCKED)).val();
+    this.roomTc=cur&&typeof cur.id==='number'?sanitizeRound(cur).tc:-1;if(this.roomTc>=0)setScheme(this.roomTc);
+    const roomRef=this.db.ref('rooms/'+room);
+    this.room=room;this.isPublic=/^bb-pub-/.test(room);this.seen.clear();this.host=null;remoteSeen.clear();
+    this.refs={room:roomRef,players:roomRef.child('players'),events:roomRef.child('events'),round:roundRef};
+    online=true;this.joinT=this.now();
+    const r=this.refs;
+    const up=s=>onRemoteState(s.key,s.val());
+    r.players.on('child_added',up);r.players.on('child_changed',up);
+    r.players.on('child_removed',s=>onRemoteLeft(s.key));
+    r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
+    r.round.on('value',s=>{const v=s.val();if(v&&typeof v.id==='number'&&typeof v.ko==='number')applyRound(sanitizeRound(v))});
+    this.watchOn(room);
+  },
+  // "N watching" (../watchers.js): spectators list themselves in rooms/bb-_watch, never in the room; everyone in the room
+  // (players and spectators) counts the ones watching it.
+  watchN:0,unMe:null,unN:null,
+  watchOn(room){
+    this.watchOff();const W=window.BackRoomWatchers;if(!W||!this.db)return;const code=room.replace(/^bb-/,''),now=()=>this.now();
+    if(WATCH)this.unMe=W.join(this.db,this.authUid,'bb',code,now);
+    this.unN=W.count(this.db,'bb',code,now,n=>{this.watchN=n});
+  },
+  watchOff(){if(this.unMe)this.unMe();if(this.unN)this.unN();this.unMe=this.unN=null;this.watchN=0},
   tick(now){
     if(!online||!this.refs)return;
     const t=performance.now();
-    if(t-this.pubT>=(state==='playing'?55:300)){
+    if(!WATCH&&t-this.pubT>=(state==='playing'?55:300)){
       this.pubT=t;
       // skip the write when nothing has changed (a parked car, the lobby); a heartbeat every 300 ms keeps the node fresh
       const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v);
@@ -3371,42 +3536,43 @@ const Net={
   hostUid(){
     let best=this.uid,bj=this.j;
     for(const [uid,v] of remoteSeen){if(performance.now()-v.seen>8000)continue;if(v.j<bj||v.j===bj&&uid<best){best=uid;bj=v.j}}
-    return best;
+    return WATCH&&best===this.uid?'':best;   // a spectator is never the host, nor the ball's owner (its j is Infinity)
   },
-  isHost(){return online&&this.hostUid()===this.uid},
+  isHost(){return online&&!WATCH&&this.hostUid()===this.uid},
   send(e){
-    if(!online||!this.refs)return;
+    if(!online||!this.refs||WATCH)return;
     const ref=this.refs.events.push();this.seen.add(ref.key);
     const data=JSON.parse(JSON.stringify(e));data.by=this.uid;data.m=R?R.id:-1;data.t=firebase.database.ServerValue.TIMESTAMP;
     ref.set(data).catch(()=>{});
     setTimeout(()=>ref.remove().catch(()=>{}),6000);
   },
   goal(nr){
-    if(!online||!this.refs)return;
+    if(!online||!this.refs||WATCH)return;
     const id=R.id,g=R.g|0;
     this.refs.round.transaction(cur=>(cur&&cur.id===id&&(cur.g|0)===g&&!cur.fin)?nr:undefined).then(res=>{if(!res.committed)goalPending=false}).catch(()=>{goalPending=false});
   },
   // Time ran out with the ball in the air and it has now landed: mark the match finished (unless a goal got in first).
   finT:0,
   finish(){
-    if(!online||!this.refs||!R||performance.now()-this.finT<1000)return;
+    if(!online||!this.refs||!R||WATCH||performance.now()-this.finT<1000)return;
     this.finT=performance.now();
     const id=R.id,g=R.g|0,at=Math.round(this.now());
     this.refs.round.transaction(cur=>(cur&&cur.id===id&&(cur.g|0)===g&&!cur.fin)?Object.assign({},cur,{fin:at}):undefined).catch(()=>{});
   },
   teamsT:0,
   setTeams(tc){
-    if(!online||!this.refs||!R||performance.now()-this.teamsT<1500)return;
+    if(!online||!this.refs||!R||WATCH||performance.now()-this.teamsT<1500)return;
     this.teamsT=performance.now();
     const id=R.id,g=R.g|0;
     this.refs.round.transaction(cur=>(cur&&cur.id===id&&(cur.g|0)===g&&!cur.fin)?Object.assign({},cur,{tc}):undefined).catch(()=>{});
   },
   rematch(){
-    if(!online||!this.refs||!R)return;const id=R.id,sz=R.sz,bo=R.bo;
+    if(!online||!this.refs||!R||WATCH)return;const id=R.id,sz=R.sz,bo=R.bo;
     this.refs.round.transaction(cur=>(!cur||cur.id===id)?newRoundObj(cur||R,this.now(),sz,bo&&!isPartyRoom(this.room)):undefined).catch(()=>{});
   },
   leave(){
-    if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
+    this.watchOff();
+    if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();if(r.me){r.me.onDisconnect().cancel();r.me.remove()}}catch(e){}}
     this.refs=null;this.room=null;online=false;remoteSeen.clear();this.roomTc=-1;
     for(const c of cars.slice())if(c.remote)removeCar(c);
     if(me)me.id='me';
@@ -3454,7 +3620,7 @@ function onRemoteState(uid,v){
   const team=v.tm?1:0;
   let c=carById(uid);
   if(!c){
-    if(cars.filter(x=>x.remote&&!x.isBot).length>=MAX_ROOM-1)return;
+    if(cars.filter(x=>x.remote&&!x.isBot).length>=MAX_ROOM-(WATCH?0:1))return;   // a spectator has no car of its own
     c=remoteCar(uid,{name:cleanName(v.n)||'Player',team,body:bodyId(v.bd),accent:clamp(v.ac|0,0,ACCENTS.length-1)});
     if(state==='playing')addFeed(T('{n} joined {t}',{n:c.name,t:TN(team)}),'t'+team);
   }
@@ -3654,6 +3820,7 @@ async function quickMatch(){
   finally{busy(false)}
 }
 function toMenu(){
+  if(WATCH){watchLeave();return}
   setupAttract();showAd('adMenu');
   try{if(location.hash)history.replaceState(null,'',location.pathname+location.search)}catch(e){}
 }
@@ -3900,9 +4067,10 @@ function stepVisuals(dt,now,freeze){
   updateCamera(dt);
   if(CS&&!freeze)CS.update(dt);   // Carbon Star: after everything else has moved, so it can dress the cars as drawn
   updateHud(dt,now);
+  if(WATCH)specHud();
   if(state==='playing'&&online){
     const wn=$('waitNote');const others=cars.filter(c=>c!==me).length;
-    wn.hidden=others>0;if(others===0)wn.textContent='Waiting for players · share the invite link from the pause menu';
+    wn.hidden=others>0;if(others===0)wn.textContent=WATCH?'Nobody is playing in this room right now':'Waiting for players · share the invite link from the pause menu';
   }
   audioTick(dt);
 }
@@ -4030,7 +4198,7 @@ if(navigator.webdriver)window.__bb={get KIT(){return KIT},get CS(){return CS},ge
   boom,fxMat,fxLight,goalExplosion,TEAM,SCHEMES,buildCarModel,BODY_SHAPES,BODIES,THREE,get garageOn(){return garageOn()},garageSync,get myBody(){return myBody},get garage(){return garage},get schemeIdx(){return schemeIdx},get teamPref(){return teamPref}};
 
 resize();renderGarageUI();initGarage();
-setupAttract();showAd('adMenu');
+if(WATCH)startWatch();else{setupAttract();showAd('adMenu')}
 requestAnimationFrame(t=>{last=t;frame(t)});
 })();
 </script>

@@ -270,10 +270,30 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
   body.touch #hint{top:calc(198px + env(safe-area-inset-top,0px))}
   body.touch #feed{top:calc(232px + env(safe-area-inset-top,0px))}
 }
+/* Spectating (?watch=1): a small "Spectating" chip with who the camera is on, the keys on a computer, and buttons
+   (Prev, Next, Free cam on touch screens only; Scores and Leave everywhere) along the bottom. Outside #hud, so it stays
+   up between matches too; the player HUD and touch controls stay hidden, except the move stick in free camera. */
+#wbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none;max-width:calc(100vw - 24px)}
+#wbar .wtop{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);padding:4px 10px;font-size:14px;font-weight:600;max-width:100%}
+#wbar .wchip{color:var(--rec);font-family:var(--f-osd);font-weight:400;font-size:17px;letter-spacing:.08em;flex:none}
+#wwho{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#wkeys{font-size:12px;letter-spacing:.06em;color:var(--ink-dim);text-shadow:0 1px 2px #000;text-align:center}
+#wbar .wbtns{display:flex;gap:6px;pointer-events:auto}
+#wbar .wb{position:static;width:auto;height:40px;border-radius:20px;padding:0 14px;font-size:12px;white-space:nowrap}
+#wbar .wt{display:none}
+body.touch #wbar .wt{display:inline-block}
+body.touch #wkeys{display:none}
+body.watching #tPause,body.watching #tNext,body.watching #net{display:none!important}
+body.watching.wfree #hud.spec #tStick{display:block}
+@media (orientation:portrait){body.touch.watching #tStick{bottom:calc(100px + env(safe-area-inset-bottom,0px))}#wbar .wb{padding:0 10px}}
 @media (prefers-reduced-motion:reduce){.blink{animation:none}#banner.show{animation:none}#find i{transition:none}}
 </style>
-<script src="/e63334287a3deaa3/stats.js" data-game="backrooms-1v1" defer></script>
-<script src="/e63334287a3deaa3/elo.js" data-game="backrooms-1v1" defer></script>
+<script>
+// A spectator (?watch=1, see WATCH below) gets neither stats.js nor elo.js: watching counts no play time, bests or rating.
+// Players get exactly the two tags they always had.
+if(!/[?&]watch=1(&|$)/.test(location.search))document.write('<script src="/e63334287a3deaa3/stats.js" data-game="backrooms-1v1" defer><\/script><script src="/e63334287a3deaa3/elo.js" data-game="backrooms-1v1" defer><\/script>');
+</script>
+<script src="/e63334287a3deaa3/watchers.js" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
 </head>
@@ -328,6 +348,17 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
   </div>
   <div id="dmg"></div>
   <div id="banner" hidden data-noi18n></div>
+  <div id="wbar" hidden>
+    <div class="wtop"><span class="wchip">● SPECTATING</span><span id="wwho"></span></div>
+    <div class="wbtns">
+      <button class="tb wb wt" id="wPrev" type="button" data-no-ad-refresh>◂ PREV</button>
+      <button class="tb wb wt" id="wNext" type="button" data-no-ad-refresh>NEXT ▸</button>
+      <button class="tb wb wt" id="wFree" type="button" data-no-ad-refresh>FREE CAM</button>
+      <button class="tb wb" id="wScores" type="button" data-no-ad-refresh>SCORES</button>
+      <button class="tb wb" id="wLeave" type="button" data-no-ad-refresh>LEAVE</button>
+    </div>
+    <div id="wkeys">Q / E or ← / → switch player · click next · F free camera (WASD, drag to look, Space / Shift up and down) · Tab scores · Esc leave</div>
+  </div>
 
   <section id="menu" class="overlay menu">
     <div class="menu-inner">
@@ -397,7 +428,7 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
   <section id="lobby" class="overlay menu" hidden>
     <div class="menu-inner">
       <div class="osd-line"><span class="rec">● LOBBY</span><span id="lbRoom"></span><span id="lbCount"></span></div>
-      <h2 class="title" style="font-size:clamp(48px,8vw,84px)">PICK A<br><span>SIDE</span></h2>
+      <h2 class="title" id="lbTitle" style="font-size:clamp(48px,8vw,84px)">PICK A<br><span>SIDE</span></h2>
       <p class="lede" id="lbStatus" data-noi18n>Connecting to the room…</p>
       <div class="teams">
         <div class="team r"><div class="th"><span>Red</span><span id="lbRedN">0</span></div><ul id="lbRed" data-noi18n></ul><button class="ghost-btn" id="joinRed" type="button">Join Red</button></div>
@@ -489,6 +520,11 @@ const lockerOn=()=>BR_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'locker','br1v1-lo
 const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
 const CELL=4,CEIL=12,FIRST_TO=5,MAX_ROOM=8,LIVE_MS=8000;
+// Spectating: the page opened as ?watch=1#br-<code> (the Back Room's Watch buttons) watches that room without playing.
+// A spectator only reads: it writes no node, no round and no events (the shared rules allow nothing else inside a room,
+// so players see no "watching" count), so it is never in the room's count, a roster, a host election or a forfeit.
+const WATCH_ROOM=(()=>{const m=/^#br-([a-z0-9-]{1,17})$/.exec(location.hash);return new URLSearchParams(location.search).get('watch')==='1'&&m?m[1]:''})();
+const WATCH=!!WATCH_ROOM;
 // The maze is N x N cells of 4 m. Practice and small rooms use 12; bigger rooms get a bigger maze (see mapSizeFor).
 let N=12,W=N*CELL;
 const G=26,JUMP=9.4,SPEED=6.6,STEP=0.6,R=0.36,H=1.95;
@@ -1765,7 +1801,7 @@ function endMatch(){
 }
 // "3 kills · 1 death · K/D 3.00"
 function kdLine(k,d){return TX('{k} kill'+(k===1?'':'s')+' · {d} death'+(d===1?'':'s')+' · K/D {r}',{k,d,r:kdStr(k,d)})}
-function pauseGame(){if(state!=='playing'||paused||lobbyShown)return;
+function pauseGame(){if(WATCH||state!=='playing'||paused||lobbyShown)return;
   // online and not playing this match (watching): Esc brings the lobby panel back instead
   if(online&&!activeOnline()){watchMode=false;showLobby();return}
   paused=true;clearInput();
@@ -1774,6 +1810,7 @@ function pauseGame(){if(state!=='playing'||paused||lobbyShown)return;
   $('pause').hidden=false}
 function resumeGame(fromClick){if(!paused)return;$('pause').hidden=true;paused=false;requestLock(fromClick)}
 function toMenu(){
+  if(WATCH){watchLeave();return}
   const was=online;
   Net.leave();online=false;state='menu';$('osd').hidden=true;paused=false;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=true;$('lobby').hidden=true;lobbyShown=false;$('menu').hidden=false;hideGhosts();hud.banner.hidden=true;
   opp.present=true;player.present=true;player.team=undefined;setSuit(player.model,'me');
@@ -2203,7 +2240,7 @@ function parseDd(s){return new Set(typeof s==='string'&&s?s.split(';').filter(Bo
 function nameOf(uid){if(uid===Net.uid)return myName;const o=Net.others.get(uid);return o?cleanName(o.v.n):names.get(uid)||'Someone'}
 // Everyone in the room right now: you plus every player whose node is fresh.
 function liveHumans(){
-  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j,mv:MAP_V,ev:EDIT_V}],now=Net.now();
+  const out=WATCH?[]:[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j,mv:MAP_V,ev:EDIT_V}],now=Net.now();   // (a spectator isn't in the room)
   for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts,mv:+o.v.mv||1,ev:+o.v.ev||0});
   return out;
 }
@@ -2296,7 +2333,7 @@ function onRound(r){
     }
     if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound();
       // came in after this round began (joined late, or came back): ask the host what has been built and how it is shaped
-      pieceAsk=r.ph!=='cd'?{r:curRound,n:0,t:0}:null}
+      pieceAsk=r.ph!=='cd'&&!WATCH?{r:curRound,n:0,t:0}:null}
     applyDead(r);
   }else if(curMatch!=null){
     // back to the lobby: nobody is in a match until the host starts the next one
@@ -2388,8 +2425,8 @@ function handleEvent(e){
     // someone came in after the round began: the host sends them every piece standing, with its health, shape and team
     if(sameRound&&Net.amHost)Net.send({type:'bs',r:curRound,to:String(e.by),p:[...pieces.values()].map(pc=>{const s=pc.spec;return[s.kind[0],s.x,s.z,s.L,s.kind==='wall'?s.o:s.dir|0,Math.ceil(pc.hp),pc.ed,pc.team||'-']})});
   }else if(e.type==='bs'){
-    if(e.to!==Net.uid)return;
-    pieceAsk=null;
+    // a spectator can't ask (it sends nothing), but it takes any late joiner's answer to fill in what it missed
+    if(e.to!==Net.uid){if(!WATCH)return}else pieceAsk=null;
     if(!sameRound||!Array.isArray(e.p))return;   // (nothing standing: the list is left out)
     for(const it of e.p){
       if(!Array.isArray(it))continue;
@@ -2499,7 +2536,7 @@ function syncView(){
   const ph=RD?RD.ph:'lobby';
   if(ph==='end'&&curMatch===RD.id){if(state!=='end')showOnlineEnd();else fillOnlineEnd();return}
   if(state==='end'){$('end').hidden=true;state='playing';$('osd').hidden=false}
-  const want=ph==='lobby'||(!activeOnline()&&!watchMode);
+  const want=WATCH?ph==='lobby'||wScores:ph==='lobby'||(!activeOnline()&&!watchMode);
   if(want&&!lobbyShown)showLobby();else if(!want&&lobbyShown)hideLobby();
   $('hud').hidden=ph==='lobby';
 }
@@ -2514,7 +2551,7 @@ function renderLobby(){
   if(!online||!lobbyShown)return;
   lobbyDirty=false;
   const r=RD,hs=liveHumans(),playing=!!r&&r.ph!=='lobby'&&curMatch===r.id;
-  $('lbRoom').textContent=Net.room||'';$('lbCount').textContent=hs.length+'/'+MAX_ROOM;
+  $('lbRoom').textContent=Net.room||'';$('lbCount').textContent=hs.length+'/'+MAX_ROOM+(Net.watchN?' · '+Net.watchN+' watching':'');
   const lists={r:[],b:[]};
   if(playing){for(const [u,t] of roster){const e=u===Net.uid?player:remotes.get(u);lists[t].push({uid:u,out:!Net.live(u)||!(e&&e.alive)})}}
   else for(const h of hs)lists[h.t].push({uid:h.uid});
@@ -2524,14 +2561,16 @@ function renderLobby(){
     $(t==='r'?'lbRedN':'lbBlueN').textContent=a.length;
   }
   for(const [id,t] of [['joinRed','r'],['joinBlue','b']]){
-    const b=$(id),on=myTeamPref===t;b.hidden=!!Net.quick;b.disabled=on;
+    const b=$(id),on=myTeamPref===t;b.hidden=!!Net.quick||WATCH;b.disabled=on;
     b.textContent=TX(on?(playing?'Next match: {t}':"You're on {t}"):(playing?'Next match: join {t}':'Join {t}'),{t:TX(TEAM_NAME[t])});
   }
   const waiting=playing?hs.filter(h=>!roster.has(h.uid)):[];
   $('lbWait').hidden=!waiting.length;$('lbWait').textContent=TX('Waiting for the next match: {l}',{l:waiting.map(h=>h.n).join(', ')});
   const nr=hs.filter(h=>h.t==='r').length,nb=hs.length-nr;
   let st;
-  if(!r||!Net.hostUid)st=TX('Connecting to the room…');
+  if(WATCH)st=!r?(Net.loaded&&performance.now()-Net.joinedAt>2500?TX('Nobody is playing in this room yet. The match shows here as soon as someone starts one.'):TX('Connecting to the room…')):TX('You\'re spectating: nobody sees you and you take no part.')+' '+(playing?TX('Match in progress: Red {a} – {b} Blue, round {r}, first to {n}.',{a:r.sr|0,b:r.sb|0,r:Math.max(1,r.rn|0),n:matchTarget()})
+    :Net.hostUid?TX('Waiting for the next match: {h} (host) starts it.',{h:nameOf(Net.hostUid)}):TX('Nobody is in this room right now. Waiting for players…'));
+  else if(!r||!Net.hostUid)st=TX('Connecting to the room…');
   else if(playing)st=TX("Match in progress: Red {a} – {b} Blue, round {r}, first to {n}. You'll play in the next match.",{a:r.sr|0,b:r.sb|0,r:Math.max(1,r.rn|0),n:matchTarget()});
   else if(Net.quick)st=TX(hs.length<2?'Waiting for your opponent to load in…':'Opponent found. Starting…');
   else if(Net.amHost)st=nr&&nb?TX("You're the host. When everyone has picked a side, start the match (first to {n}). Uneven teams are fine.",{n:matchTarget()}):TX('You\'re the host. Both teams need at least one player before you can start. Send the invite link to friends.');
@@ -2540,7 +2579,7 @@ function renderLobby(){
   const host=Net.amHost&&!playing&&!Net.quick&&!!r;
   $('lbHost').hidden=!host;
   if(host){for(const b of $('toSeg').querySelectorAll('button'))b.setAttribute('aria-checked',String(+b.dataset.n===matchTarget()));$('startMatch').disabled=!(nr&&nb);$('randTeams').disabled=hs.length<2}
-  $('lbWatch').hidden=!playing;$('lbInvite').hidden=!!Net.quick;
+  $('lbWatch').hidden=!playing;$('lbInvite').hidden=!!Net.quick||WATCH;
 }
 function showOnlineEnd(){
   state='end';lobbyShown=false;$('lobby').hidden=true;$('osd').hidden=false;$('hud').hidden=true;$('pause').hidden=true;paused=false;hideGhosts();
@@ -2563,7 +2602,7 @@ function fillOnlineEnd(){
   const col=t=>{const us=[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort((a,b)=>(kills.get(b)||0)-(kills.get(a)||0));
     return `<div class="team ${t}"><div class="th"><span>${esc(TX(TEAM_NAME[t]))}</span><span>${t==='r'?sr:sb}</span></div><ul>${us.map(u=>`<li><span class="nm">${esc(nameOf(u))}</span>${u===Net.uid?'<span class="tg">'+esc(TX('you'))+'</span>':''}<span class="k">${kills.get(u)||0} KO${u===Net.uid?' · K/D '+kdStr(myKills,myD):''}</span></li>`).join('')}</ul></div>`};
   $('endTeams').innerHTML=col('r')+col('b');$('endTeams').hidden=false;
-  $('again').textContent='Back to lobby';$('again').disabled=!Net.amHost;$('toMenu').textContent='Leave room';
+  $('again').textContent='Back to lobby';$('again').disabled=!Net.amHost;$('again').hidden=WATCH;$('toMenu').textContent='Leave room';
 }
 
 /* spectating: when you're out (or watching a match you're not in), the camera follows a living teammate */
@@ -2577,7 +2616,37 @@ function spectateTarget(){
   let e=c.find(x=>x.uid===specUid);if(!e){e=c[0];specUid=e.uid}
   return e;
 }
-function cycleSpectate(){const c=specCandidates();if(!c.length)return;const i=c.findIndex(x=>x.uid===specUid);specUid=c[(i+1)%c.length].uid}
+function cycleSpectate(d){const c=specCandidates(),n=c.length;if(!n)return;const i=c.findIndex(x=>x.uid===specUid);specUid=c[(((i+(d||1))%n)+n)%n].uid}
+// Spectating (WATCH): follow-cam on any live player of either team (specCandidates, as for anyone not in the match),
+// or a free camera that flies through walls (fc). Prev / Next in free camera go back to following.
+let wFree=false,wScores=false,wWho='';const fc={pos:new V3(),yaw:0,pitch:0};
+function watchCycle(d){if(wFree)setFree(false);else cycleSpectate(d)}
+function setFree(on){
+  wFree=!!on;document.body.classList.toggle('wfree',wFree);$('wFree').textContent=wFree?'FOLLOW':'FREE CAM';
+  if(wFree){fc.pos.copy(camera.position);const d=new V3();camera.getWorldDirection(d);fc.yaw=yawTo(d.x,d.z);fc.pitch=Math.asin(clamp(d.y,-1,1))}
+  else{tMove.on=false;tMove.x=tMove.y=0}
+}
+function toggleScores(){if(!online)return;wScores=!wScores;syncView()}
+// Leave: inside the Back Room's game layer, Back closes it; opened on its own, the game's menu.
+function watchLeave(){Net.leave();if(window.parent!==window)history.back();else location.replace(location.pathname)}
+function freeCam(dt){
+  const f=fwdOf(fc.yaw,fc.pitch),r=rightOf(fc.yaw),k=c=>keys.has(c)?1:0;
+  let mz=k('KeyW')-k('KeyS'),mx=k('KeyD')-k('KeyA');const my=k('Space')-k('ShiftLeft')-k('ShiftRight');
+  if(tMove.on){mx+=tMove.x;mz-=tMove.y}
+  const sp=9*dt;fc.pos.addScaledVector(f,mz*sp).addScaledVector(r,mx*sp);fc.pos.y+=my*sp;
+  fc.pos.set(clamp(fc.pos.x,.3,W-.3),clamp(fc.pos.y,.3,CEIL-.3),clamp(fc.pos.z,.3,W-.3));
+  if(camera.fov!==72){camera.fov=72;camera.updateProjectionMatrix()}
+  camera.position.copy(fc.pos);camera.lookAt(fc.pos.clone().add(f));
+}
+// The bar: who the camera is on, or the state of the room, while no panel is over the view.
+function watchUi(){
+  const show=state==='playing'&&!lobbyShown;$('wbar').hidden=!show;if(!show)return;
+  const tgt=camTarget();
+  const t=!RD?'Connecting…':!inPlay()||curMatch!==RD.id?'Waiting for the next match':wFree?'Free camera'
+    :tgt?'Watching '+tgt.name+' · '+(TEAM_NAME[tgt.team]||''):'Nobody standing · waiting for the next round';
+  const tw=t+(Net.watchN>1?' · '+Net.watchN+' watching':'');
+  if(tw!==wWho){wWho=tw;$('wwho').textContent=tw}
+}
 // who the camera follows: you, someone you're watching, or nobody (the slow drift used by the menu and lobby)
 function camTarget(){
   if(state==='menu')return null;
@@ -2634,6 +2703,9 @@ const Net={
     try{await (a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth())}
     catch(err){const c=err&&err.code||'';throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
     this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    // A spectator's uid is a stand-in no node ever has, so every player's node is read (a player in another tab of the
+    // same browser shares the real uid) and nothing here ever takes it for the spectator's own.
+    this.authUid=this.uid;if(WATCH)this.uid='~watch';   // (authUid: the real one, for the spectator's own node in ../watchers.js)
     await new Promise(res=>this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()}));
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
@@ -2653,6 +2725,7 @@ const Net={
   },
   async joinRoom(room,quick){
     await this.init();
+    if(WATCH)return this.watchRoom(room);
     const info=await this.peek(room);
     if(info.n>=MAX_ROOM)throw new Error('That room is full ('+MAX_ROOM+' players). Pick another code.');
     this.room=room;this.quick=!!quick;this.seen.clear();this.others.clear();this.amHost=false;this.hostUid=null;this.aloneT=0;this.hadMate=false;
@@ -2679,12 +2752,37 @@ const Net={
     this.loaded=false;Promise.all([r.players.once('value'),r.round.once('value')]).then(()=>{if(this.refs===r)this.loaded=true},()=>{});
     clearInterval(this.pubTimer);this.pubTimer=setInterval(()=>this.pubTick(),25);
     clearInterval(this.tickTimer);this.tickTimer=setInterval(onlineTick,250);
+    this.watchOn(room);
     try{if(!quick)history.replaceState(null,'','#'+room)}catch(e){}
   },
+  // Spectating: the same listeners as a player's join (players, round, events) and the same tick, and nothing written.
+  watchRoom(room){
+    this.room=room;this.quick=false;this.seen.clear();this.others.clear();this.amHost=false;this.hostUid=null;
+    const roomRef=this.db.ref('rooms/'+room);
+    this.refs={room:roomRef,players:roomRef.child('players'),events:roomRef.child('events'),round:roomRef.child('round'),me:null};
+    this.joinT=this.now();this.joinedAt=performance.now();online=true;
+    const r=this.refs,up=s=>onNode(s.key,s.val());
+    r.players.on('child_added',up);r.players.on('child_changed',up);r.players.on('child_removed',s=>onNodeGone(s.key));
+    r.events.on('child_added',s=>{const e=s.val();if(!e||typeof e.t!=='number'||e.t<this.joinT-1500||this.seen.has(s.key))return;this.seen.add(s.key);if(this.seen.size>1500)this.seen.delete(this.seen.values().next().value);handleEvent(e)});
+    r.round.on('value',s=>onRound(s.val()));
+    // once the room has been read, redraw so an empty room says so instead of 'Connecting…' (nothing else would redraw it)
+    this.loaded=false;Promise.all([r.players.once('value'),r.round.once('value')]).then(()=>{if(this.refs===r){this.loaded=true;setTimeout(()=>{if(this.refs===r){lobbyDirty=true;renderLobby()}},2600)}},()=>{});
+    clearInterval(this.tickTimer);this.tickTimer=setInterval(onlineTick,250);
+    this.watchOn(room);
+  },
+  // "N watching" (../watchers.js): spectators list themselves in rooms/br-_watch, never in the room; everyone in the room
+  // (players and spectators) counts the ones watching it.
+  watchN:0,unMe:null,unN:null,
+  watchOn(room){
+    this.watchOff();const W=window.BackRoomWatchers;if(!W||!this.db)return;const code=room.replace(/^br-/,''),now=()=>this.now();
+    if(WATCH)this.unMe=W.join(this.db,this.authUid,'br',code,now);
+    this.unN=W.count(this.db,'br',code,now,n=>{this.watchN=n});
+  },
+  watchOff(){if(this.unMe)this.unMe();if(this.unN)this.unN();this.unMe=this.unN=null;this.watchN=0},
   // About 20 updates a second while you're playing a round (15 in rooms of 5+) and something changed (position, aim,
   // health, weapon...), every half second otherwise or while nothing has.
   pubTick(){
-    if(!online||!this.refs)return;
+    if(!online||!this.refs||WATCH)return;
     const t=performance.now(),act=activeOnline()&&(player.alive||player.dieT<1);
     if(!this.soon&&t-this.lastPub<(act?(this.others.size>3?66:50):500))return;
     const force=this.soon;this.soon=false;this.lastPub=t;
@@ -2695,14 +2793,15 @@ const Net={
   },
   publishSoon(){this.soon=true},
   // the host is the live player who has been in the room longest
-  elect(){const now=this.now();let best=this.uid,bj=this.j;for(const [k,o] of this.others){if(now-o.ts>LIVE_MS)continue;const j=+o.v.j||o.ts;if(j<bj||(j===bj&&k<best)){best=k;bj=j}}return best},
+  elect(){const now=this.now();let best=WATCH?'':this.uid,bj=WATCH?Infinity:this.j;   // a spectator never runs the room
+   for(const [k,o] of this.others){if(now-o.ts>LIVE_MS)continue;const j=+o.v.j||o.ts;if(j<bj||(j===bj&&k<best)){best=k;bj=j}}return best},
   tx(fn){
-    if(!this.refs||this.txBusy)return;
+    if(!this.refs||this.txBusy||WATCH)return;
     this.txBusy=true;
     this.refs.round.transaction(fn).then(()=>{this.roundErr=''}).catch(e=>{this.roundErr=e&&(e.code||e.message)||'blocked'}).finally(()=>{this.txBusy=false});
   },
   send(e){
-    if(!online||!this.refs)return;
+    if(!online||!this.refs||WATCH)return;
     const ref=this.refs.events.push();this.seen.add(ref.key);
     const data=JSON.parse(JSON.stringify(e));data.by=this.uid;data.m=curMatch;data.t=firebase.database.ServerValue.TIMESTAMP;
     ref.set(data).catch(()=>{});
@@ -2735,8 +2834,8 @@ const Net={
     if(this.queueRef){try{this.db.ref('rooms/br-queue/players').off();this.queueRef.onDisconnect().cancel();this.queueRef.remove()}catch(e){}this.queueRef=null}
   },
   leave(){
-    clearInterval(this.searchTick);this.leaveQueue();clearInterval(this.pubTimer);clearInterval(this.tickTimer);
-    if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();r.me.onDisconnect().cancel();r.me.remove()}catch(e){}}
+    clearInterval(this.searchTick);this.leaveQueue();clearInterval(this.pubTimer);clearInterval(this.tickTimer);this.watchOff();
+    if(this.refs){const r=this.refs;try{r.players.off();r.events.off();r.round.off();if(r.me){r.me.onDisconnect().cancel();r.me.remove()}}catch(e){}}
     this.refs=null;this.room=null;this.others.clear();this.amHost=false;this.hostUid=null;this.loaded=false;online=false;
     RD=null;curMatch=null;curRound=0;roster=new Map();clearRemotes();
   }
@@ -2807,6 +2906,7 @@ function animModel(e,dt){
 /* ---------- camera ---------- */
 let attractYaw=0;
 function updateCamera(dt){
+  if(WATCH&&wFree&&state!=='menu'){freeCam(dt);return}
   const tgt=camTarget();
   if(!tgt){
     attractYaw+=dt*.06;if(camera.fov!==72){camera.fov=72;camera.updateProjectionMatrix()}
@@ -2889,7 +2989,7 @@ function updateHud(dt){
     if(fsec>=0){hud.find.classList.toggle('on',!fsec);hud.findTxt.textContent=fsec?TX('TAGS IN {n}',{n:fsec}):TX('TAGS ON');hud.findBar.style.transform='scaleX('+(fsec?clamp(1-(fsec-1)/FIND_EVERY,0,1):0)+')'}}
   let ti=0;
   if(online||flash){
-    const my=myTeam(),tgt=camTarget(),env=flash?findEnv(fu):null;
+    const my=myTeam(),tgt=WATCH&&wFree?null:camTarget(),env=flash?findEnv(fu):null;
     for(const e of online?remotes.values():[opp]){
       if(!e.present||!e.alive||e===tgt)continue;
       const top=tagV.copy(e.pos);top.y+=2.35;const s=toScreen(top);
@@ -2907,7 +3007,7 @@ function updateHud(dt){
         tf+=' scale('+env[1].toFixed(2)+')';
       }else{
         if(!s.front)continue;
-        if(e.team!==my){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);if(raycast(arr(camera.position),arr(d),L-.3,null,false).hit)continue}
+        if(e.team!==my&&!WATCH){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);if(raycast(arr(camera.position),arr(d),L-.3,null,false).hit)continue}
       }
       const el=tagEl(ti++);el.hidden=false;
       if(el._t!==txt){el._t=txt;el.textContent=txt}
@@ -2934,6 +3034,7 @@ function updateHud(dt){
     else if(RD.ph==='cd'&&activeOnline())netTxt=TX('Starting in {n}',{n:Math.max(1,Math.ceil((+RD.pt-Net.now())/1000))});
     else if(activeOnline()&&player.alive&&!locked&&!fallback&&!touchUI)netTxt=TX('Click to play');
   }
+  if(online&&Net.watchN&&!WATCH)netTxt=(netTxt?netTxt+' · ':'')+TX('{n} watching',{n:Net.watchN});   // spectators (../watchers.js)
   hud.net.hidden=!netTxt;if(netTxt&&hud.net.textContent!==netTxt)hud.net.textContent=netTxt;
 }
 const tagEls=[],tagV=new V3();let lastPips='';
@@ -3019,6 +3120,7 @@ function frame(now){
   updateCamera(dt);
   if(state==='playing')updateHud(dt);
   if(touchUI)document.body.classList.toggle('inlobby',lobbyShown);
+  if(WATCH)watchUi();
   updateDnums(running?dt:0);
   if(bannerTimer>0){bannerTimer-=dt;if(bannerTimer<=0)hud.banner.hidden=true}
   clockT+=dt;if(clockT>.25){clockT=0;hud.clock.textContent=fmtClock(state==='menu'?now/1000:matchTime)}
@@ -3047,12 +3149,14 @@ document.addEventListener('pointerlockchange',()=>{
   else if(state==='playing')pauseGame();
 });
 document.addEventListener('mousemove',e=>{
+  if(WATCH){if(wFree&&e.buttons&&state==='playing'&&!lobbyShown){const k=.0022*sens;fc.yaw-=e.movementX*k;fc.pitch=clamp(fc.pitch-e.movementY*k,-1.45,1.45)}return}
   if(state!=='playing'||paused||lobbyShown||!player.alive)return;
   if(!locked&&!(fallback&&(keys.has('Mouse0')||keys.has('Mouse2')||e.buttons)))return;
   const k=.0022*sens*(camera.fov/72);
   player.yaw-=e.movementX*k;player.pitch=clamp(player.pitch-e.movementY*k,-1.45,1.45);
 });
 view.addEventListener('mousedown',e=>{
+  if(WATCH){if(e.button===0&&!wFree&&isSpectating())cycleSpectate(1);e.preventDefault();return}   // free camera: drag to look
   if(state!=='playing'||paused)return;
   // out of the round (or watching a match you're not in): a click watches the next living player
   if(isSpectating()){if(e.button===0)cycleSpectate();e.preventDefault();return}
@@ -3082,6 +3186,7 @@ function pressCode(c,key,repeat){
 function releaseCode(c){keys.delete(c);if(KB.is('fire',c)&&!KB.held('fire',keys))lmb=false;if(KB.is('edit',c))editKeyUp(c)}
 addEventListener('keydown',e=>{
   if(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]'))return;
+  if(WATCH){watchKey(e);return}
   if(state!=='playing'||paused||lobbyShown)return;
   const c=e.code;
   keys.add(c);
@@ -3089,6 +3194,17 @@ addEventListener('keydown',e=>{
   pressCode(c,true,e.repeat);
 });
 addEventListener('keyup',e=>releaseCode(e.code));
+// Spectating keys: Q / E or the arrows switch player, F free camera (WASD, Space / Shift), Tab the teams, Esc leaves.
+function watchKey(e){
+  const c=e.code;
+  if(c==='Tab'){e.preventDefault();if(!e.repeat)toggleScores();return}
+  if(c==='Escape'){if(wScores&&lobbyShown)toggleScores();else watchLeave();return}
+  if(state!=='playing'||lobbyShown)return;
+  keys.add(c);
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c))e.preventDefault();
+  if(e.repeat)return;
+  if(c==='KeyQ'||c==='ArrowLeft')watchCycle(-1);else if(c==='KeyE'||c==='ArrowRight')watchCycle(1);else if(c==='KeyF')setFree(!wFree);
+}
 addEventListener('blur',clearInput);
 
 // Touch controls. On a touch screen there's no pointer lock: the stick moves, dragging turns the view
@@ -3100,6 +3216,7 @@ addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touchUI)setTouch
 // online, only while you're in the current match (not in the lobby panel, watching, or out of the round)
 const canAct=()=>state==='playing'&&!paused&&!lobbyShown&&player.alive&&(!online||activeOnline());
 function touchLook(dx,dy){
+  if(WATCH){if(wFree){const k=.0042*sens;fc.yaw-=dx*k;fc.pitch=clamp(fc.pitch-dy*k,-1.45,1.45)}return}
   if(!canAct())return;
   const k=.0042*sens*(camera.fov/72);
   player.yaw-=dx*k;player.pitch=clamp(player.pitch-dy*k,-1.45,1.45);
@@ -3144,7 +3261,7 @@ tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
   const look=$('tLook'),taps=new Map();
   look.addEventListener('pointerdown',e=>taps.set(e.pointerId,[e.clientX,e.clientY,performance.now()]));
   look.addEventListener('pointerup',e=>{const q=taps.get(e.pointerId);taps.delete(e.pointerId);
-    if(q&&Math.hypot(e.clientX-q[0],e.clientY-q[1])<12&&performance.now()-q[2]<400&&isSpectating())cycleSpectate()});
+    if(q&&Math.hypot(e.clientX-q[0],e.clientY-q[1])<12&&performance.now()-q[2]<400&&isSpectating()&&!wFree)cycleSpectate()});
   look.addEventListener('pointercancel',e=>taps.delete(e.pointerId));
 }
 [0,1,2].forEach(i=>tButton($('slot'+i),()=>{if(canAct()){switchWeapon(player,i);mode='combat'}}));
@@ -3182,7 +3299,9 @@ $('joinBlue').addEventListener('click',()=>setMyTeam('b'));
 $('startMatch').addEventListener('click',()=>{initAudio();hostStart()});
 $('randTeams').addEventListener('click',hostRandomize);
 $('toSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)hostSetTarget(+b.dataset.n)});
-$('lbWatch').addEventListener('click',()=>{watchMode=true;hideLobby()});
+$('lbWatch').addEventListener('click',()=>{if(WATCH){wScores=false;syncView();return}watchMode=true;hideLobby()});
+$('wPrev').addEventListener('click',()=>watchCycle(-1));$('wNext').addEventListener('click',()=>watchCycle(1));
+$('wFree').addEventListener('click',()=>setFree(!wFree));$('wScores').addEventListener('click',toggleScores);$('wLeave').addEventListener('click',watchLeave);
 // Controls panel (hidden on touch screens). The menu's two aim lines show the first Aim key, then the rest.
 function aimRows(){const k=KB.keys('aim').map(c=>KB.name(c).toUpperCase());$('kAim1').textContent=k[0]||'UNBOUND';$('kAim2').textContent=k.slice(1).join(' / ');$('kAim2').parentNode.hidden=k.length<2}
 aimRows();KB.onChange(()=>{aimRows();lastHud=''});
@@ -3195,7 +3314,7 @@ addEventListener('pagehide',()=>Net.leave());
 
 // An invite opens this page with #br-<code>: fill in the room and point at the join button.
 const inv=/^#br-([a-z0-9-]{1,17})$/.exec(location.hash);
-if(inv){$('room').value=inv[1];setMsg('You were invited to room br-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost-btn','cta');$('quick').classList.replace('cta','ghost-btn')}
+if(inv&&!WATCH){$('room').value=inv[1];setMsg('You were invited to room br-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost-btn','cta');$('quick').classList.replace('cta','ghost-btn')}
 
 // ---------- the Locker (locker.js; see BR_PUBLIC near the top) ----------
 let lkAsked=false;
@@ -3243,6 +3362,14 @@ practiceMap();
 spawn(player,soloCell(0));spawn(opp,soloCell(1));
 showAd('adMenu');
 requestAnimationFrame(t=>{last=t;frame(t)});
+// Spectating: straight into the room, no menu and no name. The teams panel says how it's going while connecting.
+if(WATCH)(async()=>{
+  document.body.classList.add('watching');$('lbTitle').innerHTML='SPEC-<br><span>TATING</span>';$('lbWatch').textContent='Back to the match';
+  $('menu').hidden=true;$('lobby').hidden=false;lobbyShown=true;$('lbRoom').textContent='br-'+WATCH_ROOM;$('lbCount').textContent='';
+  for(const id of ['joinRed','joinBlue','lbInvite'])$(id).hidden=true;
+  try{prepOnline();await Net.joinRoom('br-'+WATCH_ROOM,false);lobbyShown=false;showRoom()}
+  catch(err){Net.leave();$('lbStatus').textContent=(err&&err.message||String(err)).replace(/,? or play Practice/,'')}
+})();
 })();
 </script>
 <script src="/analytics/tracker.js" data-site="backrooms-1v1" defer></script>

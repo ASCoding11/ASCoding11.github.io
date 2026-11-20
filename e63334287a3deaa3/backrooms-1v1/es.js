@@ -24,7 +24,7 @@
     'Host · rounds to win the match': 'Anfitrión · rondas para ganar', 'Start match': 'Empezar partida', 'Randomize teams': 'Mezclar equipos',
     'Watch the match': 'Mirar la partida', 'Copy invite link': 'Copiar invitación', 'Leave room': 'Salir de la sala',
     'you': 'tú', 'host': 'anfitrión', 'Nobody yet': 'Nadie todavía',
-    'Connecting to the room…': 'Conectando con la sala…', 'Both teams need at least one player.': 'Cada equipo necesita al menos un jugador.',
+    'Connecting to the room…': 'Conectando con la sala…', 'Nobody is playing in this room yet. The match shows here as soon as someone starts one.': 'Todavía nadie juega en esta sala. La partida aparece aquí en cuanto alguien empiece una.', 'Both teams need at least one player.': 'Cada equipo necesita al menos un jugador.',
     'Waiting for your opponent to load in…': 'Esperando a que cargue tu rival…', 'Opponent found. Starting…': 'Rival encontrado. Empezando…',
     "You're the host. Both teams need at least one player before you can start. Send the invite link to friends.": 'Eres el anfitrión. Cada equipo necesita al menos un jugador para empezar. Manda la invitación a tus amigos.',
     'Back in the queue…': 'De vuelta en la fila…', 'Looking for an opponent…': 'Buscando un rival…', 'Looking for an opponent… {n}s': 'Buscando un rival… {n} s',

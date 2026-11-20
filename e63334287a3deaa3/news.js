@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', title: 'Spectate online matches', kind: 'feature',
+     tags: ['Spectate', 'Shell Crackers', 'Backrooms', 'Boostball'], img: 'm/thumbs/shell-crackers.jpg', items: [
+      'You can now watch a Shell Crackers, Backrooms or Boostball match without joining it: press Watch next to the game in Playing now, or on a friend\'s row in Online.',
+      'Follow any player from behind and switch between them, or fly a free camera around the map. The scoreboard is one key or tap away.',
+      'Spectators are invisible: they never take a spot in the room, can\'t be hit, and don\'t change anyone\'s score, rating or stats.',
+      'Players see how many people are watching their match.'
+    ]},
     {date: '2026-11-20', version: '1.35', title: 'Hush Pools: into the mist', kind: 'feature',
      tags: ['Hush Pools', 'Horror obby'], img: 'm/thumbs/hush-pools.jpg', items: [
       'The halls are much bigger now, and full of mist. You can only see a little way ahead, so you have to explore to find the way across.',
