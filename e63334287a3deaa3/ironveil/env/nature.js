@@ -400,7 +400,7 @@
     for (let c0 = 0; c0 < total; c0 += CH) {
       const L = { p: [], n: [], u: [], c: [], w: [], i: [] }, Bk = E.builder(opts.seed + c0);
       const at = (s) => { for (const sg of segs) if (s <= sg.s0 + sg.L + 1e-6) { const t = (s - sg.s0) / sg.L; return [sg.a[0] + (sg.b[0] - sg.a[0]) * t, sg.a[1] + (sg.b[1] - sg.a[1]) * t, (sg.b[0] - sg.a[0]) / sg.L, (sg.b[1] - sg.a[1]) / sg.L]; } const sg = segs[segs.length - 1]; return [sg.b[0], sg.b[1], (sg.b[0] - sg.a[0]) / sg.L, (sg.b[1] - sg.a[1]) / sg.L]; };
-      const c1 = Math.min(total, c0 + CH), n = Math.round((c1 - c0) * perM * 1.15);   // +15%, and a third of all cards go to the lower 2 m (a dense foot)
+      const c1 = Math.min(total, c0 + CH), n = Math.round((c1 - c0) * perM * (E.Q.name === 'low' ? 1 : 1.08));   // +8%, and a third of all cards go to the lower 2 m (a dense foot)
       const ctr = at((c0 + c1) / 2);
       for (let k = 0; k < n; k++) {
         const s = R.range(c0, c1); if (inGap(s)) continue;

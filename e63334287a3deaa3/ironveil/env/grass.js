@@ -30,7 +30,7 @@
     worn:    { d: 0.3, h: [0.05, 0.12], long: 0.0, tus: 0.0, dead: 0.25, dry: 0.15, ground: 0x30281c, c: 0.55, ch: 0.6 },
     leaves:  { d: 0.15, h: [0.1, 0.25], long: 0.1, tus: 0.0, dead: 0.3, dry: 0.2, ground: 0x2a2016, c: 0.2, ch: 0.8 },
     // lawn: well-kept camp turf, thick and green, a little longer than mown grass (Boot Camp)
-    lawn:    { d: 1.0, fill: 0.3, h: [0.16, 0.36], long: 0.07, tus: 0.05, dead: 0.04, dry: 0.0, ground: 0x3d4524, c: 1.05, ch: 1.05 },
+    lawn:    { d: 1.0, fill: 0.3, h: [0.16, 0.36], long: 0.07, tus: 0.05, dead: 0.04, dry: 0.0, ground: 0x4f5a2c, c: 1.05, ch: 1.05 },
     yardedge:{ d: 0.3, h: [0.06, 0.18], long: 0.0, tus: 0.1, dead: 0.25, dry: 0.15, ground: 0x2e2a22, c: 0.45, ch: 0.7 }
   };
   // Blade colours (sRGB) shared by the shader and the ground's far colour
@@ -79,7 +79,7 @@
     };
   }
   function genTile(G, tx, tz, wantFull) {
-    const Q = E.Q, dens = Q.grassDens, n = Math.ceil(Math.sqrt(dens * TS * TS)), cell = TS / n, midFrac = Q.grassMidDens / Q.grassDens;
+    const Q = E.Q, dens = Q.grassDens, n = Math.ceil(Math.sqrt(dens * TS * TS)), cell = TS / n, midFrac = Math.min(1, Q.grassMidDens * (E._grassMidMul || 1) / Q.grassDens);
     const full = wantFull ? [[], [], [], []] : null, mid = [], seed = [], carpet = wantFull ? [[], [], [], []] : null;
     const x0 = tx * TS, z0 = tz * TS, TC = tileCache(G, x0, z0);
     for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
@@ -327,6 +327,7 @@
   }
 
   E.grass = function (surfaceAt, heightFn, opts) {
+    E._grassMidMul = (opts && opts.midMul) || 1;   // opts.midMul thickens the mid ring (same blades, a larger share kept)
     opts = opts || {};
     const Q = E.Q;
     const G = {
@@ -336,14 +337,14 @@
     };
     G.group.name = 'IVEnv.grass';
     const nearCap = Math.ceil(Math.PI * (G.rNear + TS * 1.5) ** 2 * Q.grassDens * 0.9);
-    const midCap = Math.ceil(Math.PI * (G.rMid + TS * 1.5) ** 2 * Q.grassMidDens * 0.9);
+    const midCap = Math.ceil(Math.PI * (G.rMid + TS * 1.5) ** 2 * Q.grassMidDens * (E._grassMidMul || 1) * 0.9);
     G.near = Ring(G, 'near', Q.bladeSegs, nearCap, true, false);
     G.rCarpet = Math.min(G.rNear, Q.carpetR * (opts.carpetMul || 1));
     G.carpet = Ring(G, 'carpet', Q.name === 'low' ? 1 : 2, Math.ceil(Math.PI * (G.rCarpet + 6) ** 2 * Q.carpetDens * 0.75), true, false);
     G.mid = Ring(G, 'mid', 1, midCap, false, false);
     G.rings = [G.carpet, G.near, G.mid];
     if (Q.seedHeads) { G.seedN = Ring(G, 'seedNear', 0, Math.ceil(nearCap * 0.15), true, true); G.rings.push(G.seedN);  }
-    const midFrac = Q.grassMidDens / Q.grassDens, fadeN = Math.min(4, G.rNear * 0.3), fadeM = Math.min(10, G.rMid * 0.3);
+    const midFrac = Math.min(1, Q.grassMidDens * (E._grassMidMul || 1) / Q.grassDens), fadeN = Math.min(4, G.rNear * 0.3), fadeM = Math.min(10, G.rMid * 0.3);
     for (const r of G.rings) {
       const u = r.mat.userData.uniforms.uRing.value;
       if (r.name === 'carpet') { u.set(0, G.rCarpet, Math.min(3, G.rCarpet * 0.4), 0); G.group.add(r.mesh); continue; }

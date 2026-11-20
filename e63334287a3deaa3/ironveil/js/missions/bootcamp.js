@@ -293,7 +293,7 @@
     id: 'bootcamp', num: 0, title: 'Boot Camp', line: 'A morning on the training range: moving, shooting, sneaking. About five minutes.',
     briefing: ['Training range, England, the week before the jump. Sergeant Okafor runs the course.', 'One thing at a time. Each station waits until you have done it, and the prompts show your own keys.'],
     preview: [{ text: 'Move, sprint, crouch, crawl and vault' }, { text: 'Pop-up targets with the aim assist' }, { text: 'The scoped rifle at 100, 200 and 300 m' }, { text: 'Distract a guard and take him down' }, { text: 'Binoculars and grenades' }],
-    world: { size: 660, day: true, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25 }, terrainStep: 4, fog: 0.0028, fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
+    world: { size: 660, day: true, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 2.2 }, terrainStep: 4, fog: 0.0028, fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
     build, setup, step, frame, sketch,
     medals: [
       { text: 'Finish in under 6:00', ok: s => s.time < 360 },

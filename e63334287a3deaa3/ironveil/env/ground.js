@@ -185,13 +185,13 @@
       if (k >= 0.999) return m;
       const k2 = (k * k).toFixed(4);
       m.onBeforeCompile = (sh) => {
-        const ch = THREE.ShaderChunk.fog_fragment.split('fogDensity * fogDensity').join('fogDensity * fogDensity * mix(1.0, ' + k2 + ', smoothstep(120.0, 520.0, fogDepth))');
+        const ch = THREE.ShaderChunk.fog_fragment.split('fd * fd').join('fd * fd * mix(1.0, ' + k2 + ', smoothstep(120.0, 520.0, fogDepth))').split('fogDensity * fogDensity').join('fogDensity * fogDensity * mix(1.0, ' + k2 + ', smoothstep(120.0, 520.0, fogDepth))');   // IVEnv's fog chunk names the density fd
         sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', ch);
       };
       m.customProgramCacheKey = () => 'ivskirt' + k2; return m;
     };
     const group = new THREE.Group(); group.name = 'IVEnv.skirt';
-    const A = 160, NR = 22, half = opts.half, P = [], C = [], I = [], col = new THREE.Color();
+    const LOWQ = E.Q && E.Q.name === 'low', A = LOWQ ? 64 : 160, NR = LOWQ ? 10 : 22, half = opts.half, P = [], C = [], I = [], col = new THREE.Color();
     const base = opts.day ? [0.055, 0.07, 0.035] : [0.035, 0.042, 0.03];
     const hill = (x, z, t) => opts.hills * t * (0.55 * E.fbm2(x / 420 + 3, z / 420, opts.seed, 4) + 0.45 * E.fbm2(x / 140, z / 140 + 9, opts.seed + 3, 3)) + t * t * opts.hills * 0.25;
     const ring = [];
@@ -207,15 +207,15 @@
         col.setRGB(base[0] * (0.75 + 0.5 * v), base[1] * (0.75 + 0.5 * v), base[2] * (0.8 + 0.4 * v)); C.push(col.r, col.g, col.b);
       }
     }
-    for (let j = 0; j < NR; j++) for (let i = 0; i < A; i++) { const a = j * A + i, b = j * A + (i + 1) % A, c = a + A, d = b + A; I.push(a, c, b, b, c, d); }
+    for (let j = 0; j < NR; j++) for (let i = 0; i < A; i++) { const a = j * A + i, b = j * A + (i + 1) % A, c = a + A, d = b + A; I.push(a, b, c, b, d, c); }   // wound to face up
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setIndex(I); g.computeVertexNormals();
     const land = new THREE.Mesh(g, thinFog(new THREE.MeshLambertMaterial({ vertexColors: true }), opts.landFogK)); land.name = 'skirt-land'; land.receiveShadow = false; land.frustumCulled = false; group.add(land);
-    if (opts.woods) {
+    if (opts.woods && !LOWQ) {   // Low: no wood masses (fog hides most of them; saves a draw call and ~10k triangles)
       // wood masses: clusters of squashed low-poly blobs on the hills, thicker in a band just outside the map
       const R = E.rng(opts.seed + 11), WP = [], WC = [], WI = [], blob = new THREE.IcosahedronGeometry(1, 0), bp = blob.attributes.position, m = new THREE.Matrix4(), v = new THREE.Vector3();
       const bi = blob.index ? blob.index.array : null, wcol = opts.day ? [0.045, 0.06, 0.04] : [0.0035, 0.0045, 0.004];
       const sample = (x, z) => { const r = Math.hypot(x, z), a = Math.atan2(z, x), ca = Math.cos(a), sa = Math.sin(a), ri = half / Math.max(Math.abs(ca), Math.abs(sa)); const tt = E.clamp((r - ri) / (opts.outer - ri), 0, 1); const blend = E.sstep(0, 0.08, tt), y0 = heightFn(E.clamp(x, -half, half), E.clamp(z, -half, half)); return y0 * (1 - blend) + (y0 * 0.3 + hill(x, z, Math.min(1, tt * 3))) * blend - 0.06 - tt * 2; };
-      const n = Math.round(150 * opts.woods);
+      const n = Math.round(150 * opts.woods * (LOWQ ? 0.45 : 1));
       for (let k = 0; k < n; k++) {
         const a = R() * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), ri = half / Math.max(Math.abs(ca), Math.abs(sa)), r = ri + 15 + Math.pow(R(), 1.8) * 300;
         if (E.fbm2(ca * 6, sa * 6, opts.seed + 21, 2) < 0.38 && r > ri + 60) continue;   // open gaps between the woods

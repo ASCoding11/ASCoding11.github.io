@@ -166,9 +166,9 @@
     if (IV.art.envOn() && IVEnv.prop) {
       const RF = IV.rng(57), root = W.envRoot && W.envRoot.parent ? W.envRoot : W.statics;
       const put = (kind, x, z, rot, o, solid) => { try { const p = IVEnv.prop(kind, (x * 31 + z * 17) | 0 || 3, o), y = W.height(x, z), c = Math.cos(rot), s2 = Math.sin(rot); p.group.position.set(x, y, z); p.group.rotation.y = rot; root.add(p.group); if (solid !== false) for (const k of p.colliders) W.addBox(x + k.x * c + k.z * s2, z - k.x * s2 + k.z * c, k.hx, k.hz, y + k.y0, y + k.y1, rot + k.rot, F.SOLID | F.BULLET | F.NAV, 'wood', k.kind); } catch (e) { console.warn('field dressing', kind, e); } };
-      for (const [cx, cz, n] of [[60, 44, 7], [-120, 110, 6], [-110, -125, 6], [165, -110, 4], [-150, 60, 4]]) for (let i = 0; i < n; i++) { const x = cx + RF.range(-16, 16), z = cz + RF.range(-9, 9); put(RF() < 0.3 ? 'haystack' : 'haybale', x, z, RF() * 6.28); }
+      for (const [cx, cz, n] of [[60, 44, 7], [-120, 110, 6], [-110, -125, 6], [165, -110, 4], [-150, 60, 4]]) for (let i = 0; i < n; i++) { const x = cx + RF.range(-16, 16), z = cz + RF.range(-9, 9), lowSkip = IVEnv.Q && IVEnv.Q.name === 'low' && i % 2, kh = RF() < 0.3 ? 'haystack' : 'haybale', rh = RF() * 6.28; if (!lowSkip) put(kh, x, z, rh); }
       put('trough', -82, 122, 0.4); put('trough', 48, 50, 1.3); put('trough', 166, -92, 0.1);
-      for (const [x, z, r] of [[-60, 100, Math.PI / 2], [-29, 120, Math.PI / 2], [-120, 161, 0], [70, 64, 0.09], [150, -100, Math.PI / 2], [-120, -155, -0.1], [90, 115, 0.11]]) put('gate', x, z, r, { width: 3.4, open: 0.9 + RF() * 0.5 }, false);
+      for (const [x, z, r] of [[-60, 100, Math.PI / 2], [-29, 120, Math.PI / 2], [-120, 161, 0], [70, 64, 0.09], [150, -100, Math.PI / 2], [-120, -155, -0.1], [90, 115, 0.11]]) if (IVEnv.Q.name !== 'low') put('gate', x, z, r, { width: 3.4, open: 0.9 + RF() * 0.5 }, false);
       for (const [x, z] of [[-128, 92], [62, 40], [-96, -128], [160, -128], [-150, 20]]) IV.art.tree(b, x + RF.range(-3, 3), z + RF.range(-3, 3), RF() < 0.6 ? 'oak' : 'ash', RF);
     }
     // scattered field trees
@@ -356,7 +356,7 @@
   function chute(M) { // the parachute caught in the oak, and its lines to you while you hang
     const gy = W.height(OAK.x, OAK.z);
     const c = new THREE.Mesh(new THREE.SphereGeometry(3.4, 18, 8, 0, Math.PI * 2, 0, Math.PI * 0.42), new THREE.MeshStandardMaterial({ color: 0xc8c4b0, roughness: 0.95, side: THREE.DoubleSide }));
-    c.scale.set(1, 0.45, 1); c.position.set(OAK.x + 1.0, gy + 7.4, OAK.z - 0.6); c.rotation.set(0.35, 0, 0.25); c.castShadow = true; c.receiveShadow = true;
+    c.scale.set(1, 0.45, 1); c.position.set(OAK.x + 1.0, gy + 7.4, OAK.z - 0.6); c.rotation.set(0.35, 0, 0.25); c.castShadow = false; c.receiveShadow = true;   // thin silk: its hard, black moon shadow read as a hole in the ground under the start view
     M.group.add(c); M.chute = c;
     const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(new Array(8 * 6).fill(0), 3));
     M.chuteLines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x9a9888, transparent: true, opacity: 0.8 })); M.group.add(M.chuteLines);
@@ -753,7 +753,7 @@
       'Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook\'s men are waiting.'
     ],
     preview: [{ text: 'Find Cpl. Dunning' }, { text: 'Cut the field-telephone line' }, { text: 'Destroy the flak gun' }, { text: 'Reach the extraction lane' }, { text: 'Take the map from the farm office', opt: true }, { text: 'Take out the sniper in the barn loft', opt: true }],
-    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8 }, fog: 0.0125, fogColor: 0x0a0f15 },
+    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8, woods: 0.55 }, fog: 0.0125, fogColor: 0x0a0f15 },
     build, setup, step, frame, backdrop, sketch,
     medals: [
       { text: 'Finish in under 15:00', ok: s => s.time < 900 },
