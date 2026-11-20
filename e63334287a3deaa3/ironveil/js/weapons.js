@@ -8,7 +8,7 @@
   const P = IV.player;
   const WP = IV.weapons = {
     cur: 'rifle', aiming: false, scoped: false, binoc: false, busyThrow: null, firingRecently: false,
-    inv: null, reloadT: 0, boltT: 0, cool: 0, bloom: 0, burst: 0, lastFire: -9, bullets: [], throws: [], wind: { x: 1.6, z: 0.4 },
+    hideSlungWhenAiming: true, inv: null, reloadT: 0, boltT: 0, cool: 0, bloom: 0, burst: 0, lastFire: -9, bullets: [], throws: [], wind: { x: 1.6, z: 0.4 },
     stats: { shots: 0, hits: 0, kills: 0, heads: 0, takedowns: 0 }, models: {}, tagged: new Set(), takedownTarget: null
   };
   const NAMES = { rifle: 'Scoped rifle', smg: 'Submachine gun', pistol: 'Pistol' };
@@ -64,30 +64,6 @@
     WP.models = { rifle: IVChars.weapon('rifleScoped'), smg: IVChars.weapon('smg'), pistol: IVChars.weapon('pistol'), binoc: IVChars.weapon('binoculars'), grenade: IVChars.weapon('grenade') };
     equipModels();
   };
-  // The 'back' socket carries a long gun muzzle-up over the shoulder (about 55 degrees up). Seen from the
-  // over-the-shoulder camera that barrel stands above the helmet like a spear and reads as the gun in his hands,
-  // so until the characters' slung-carry socket arrives the slung gun is turned, flat against the back, to hang
-  // nearly vertical, muzzle down along the spine, and it is hidden while aiming (playerParts). The turn is found once,
-  // about the axis through the back, and kept in the gun's own frame.
-  const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _ax = new THREE.Vector3();
-  function slingDown(m) {
-    const A = P.actor; if (!A || !m.parent) return;
-    if (!m.userData.slingQ) {
-      A.root.updateMatrixWorld(true);
-      const qa = A.root.getWorldQuaternion(new THREE.Quaternion()), qai = qa.clone().invert(), qm = m.getWorldQuaternion(new THREE.Quaternion());
-      _ax.set(0, 0, 1).applyQuaternion(qa).applyQuaternion(qm.clone().invert()).normalize();   // the body's forward, in the gun's frame
-      let best = null, bs = 1e9;
-      for (let a = -Math.PI; a < Math.PI; a += Math.PI / 72) {
-        _q.setFromAxisAngle(_ax, a); _q2.copy(qm).multiply(_q);
-        _v.set(0, 0, 1).applyQuaternion(_q2).applyQuaternion(qai);   // barrel in the body's frame (+x is his left)
-        const sc = Math.abs(_v.y + 0.97) + Math.abs(_v.x + 0.15);         // nearly vertical, muzzle down, a touch to his right
-        if (sc < bs) { bs = sc; best = a; }
-      }
-      m.userData.slingQ = new THREE.Quaternion().setFromAxisAngle(_ax, best);
-    }
-    m.quaternion.multiply(m.userData.slingQ);
-    m.translateZ(0.42);   // and slide it down along itself, so the top of the stock sits below the helmet rim, behind the pack
-  }
   function equipModels() {
     const A = P.actor, M = WP.models;
     for (const k in M) A.detach(M[k]);
@@ -95,7 +71,7 @@
     else if (WP.busyThrow) A.attach(M.grenade, 'handR');
     else A.attach(M[WP.cur], 'handR');
     const longOther = WP.cur === 'rifle' ? 'smg' : 'rifle';
-    if (WP.has[longOther]) { A.attach(M[longOther], 'back'); slingDown(M[longOther]); }
+    if (WP.has[longOther]) A.attach(M[longOther], 'sling');   // the characters' muzzle-down back carry
     if (WP.cur !== 'pistol' && WP.has.pistol) A.attach(M.pistol, 'hip');
   }
   WP.equip = function (k) {
@@ -524,7 +500,7 @@
   };
   function playerParts(dt) {
     const k = WP.cur, m = WP.models && WP.models[k]; if (!m) return;
-    const back = WP.models[k === 'rifle' ? 'smg' : 'rifle']; if (back && back.parent && back !== m) back.visible = !(WP.aiming || WP.scoped);   // the slung gun would cross the head in the aim view
+    const back = WP.models[k === 'rifle' ? 'smg' : 'rifle']; if (back && back.parent && back !== m) back.visible = !(WP.hideSlungWhenAiming && (WP.aiming || WP.scoped));   // the slung gun would cross the head in the aim view
     const kind = PART_KIND[k] || k, I = IV.input;
     WP.animateGun(m, kind, dt, { trigger: I.held('fire') && !WP.busyThrow, reload: WP.reloadT > 0 ? 1 - WP.reloadT / WT[k].reload : -1 });
   }

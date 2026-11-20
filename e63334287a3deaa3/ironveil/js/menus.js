@@ -134,7 +134,7 @@
     // grain and vignette are for Low only); Reduced motion turns its film grain down
     document.body.classList.toggle('envpost', !!IV.world.post);
     if (IV.world.atm && IV.world.atm.setFlashes) IV.world.atm.setFlashes(!s.motion);   // lightning on rainy skies
-    if (window.IVChars && !IVChars.standin) { IVChars.lodDistance = s.quality === 0 ? 12 : 22; IVChars.weaponLodDistance = s.quality === 0 ? 4 : 6; }   // reduced soldiers sooner on Low
+    if (window.IVChars && !IVChars.standin) { IVChars.lodDistances = [[8, 22], [12, 30], [14, 40]][s.quality] || [12, 30]; IVChars.weaponLodDistance = s.quality === 0 ? 4 : 6; }   // mid and far character LODs, sooner on Low
     const G = window.IVEnv && IVEnv.GRADES;
     if (G) for (const k in G) { const g = G[k]; if (g._grain == null) g._grain = g.grain; g.grain = g._grain * (s.motion ? 0.35 : 1); }
   };
