@@ -975,6 +975,8 @@
   }
   E.building = function (spec0) {
     const { B, S, kind, group } = buildParts(spec0);
+    // a settled building is one closed box (no interior to walk into): drop the inner faces, floors and furniture
+    if (spec0 && spec0.closed) for (const k in B.buckets) if (/^(plaster_interior|floorboards|straw)(#d)?$/.test(k) || (k.endsWith('#d') && /^(wood_painted|timber|planks)#d$/.test(k) && S.interior)) delete B.buckets[k];
     const g = B.finish(); group.add(g);
     group.name = 'IVEnv.building:' + kind; group.userData.kind = kind;
     const colliders = B.colliders.concat(S.extraCols);
@@ -1052,13 +1054,21 @@
       const eave = sp.eave || D.eave, X = D.X - 0.24, Z = D.Z - 0.24, tint = E.tintJ(RR, 0.06);
       // shell: walls (sunk into the ground on slopes), roof prism, windows
       SB.box(sp.out || sp.wall || D.wall, sp.x, y - 0.8, sp.z, X, eave + 0.8 - 0.05, Z, rot, { tint, uvOff: [RR() * 9, 0] });
-      if (D.roof && !(sp.damage > 0.85)) { const m = new THREE.Matrix4().compose(new THREE.Vector3(sp.x, y + eave - 0.3, sp.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot, 0)), new THREE.Vector3(X + 0.3, Math.max(0.3, (sp.rise || D.rise) - 0.35), Z + 0.5)); SB.geo(D.roof, prismGeo, m, { noFoot: true, tint: E.tintJ(RR, 0.05) }); }
+      if (D.roof && !(sp.damage > 0.85)) { const m = new THREE.Matrix4().compose(new THREE.Vector3(sp.x, y + eave - 0.42, sp.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot, 0)), new THREE.Vector3(X + 0.75, Math.max(0.3, (sp.rise || D.rise) - 0.2), Z + 1.1)); SB.geo(D.roof, prismGeo, m, { noFoot: true, tint: E.tintJ(RR, 0.05) });
+        // eaves read as a dark line under the roof edge (fascia and shadow), a plinth band at the foot
+        for (const sd of [-1, 1]) { const p = W(0, sd * (Z / 2 + 0.06)); SB.box('timber', p[0], y + eave - 0.5, p[1], X + 0.3, 0.2, 0.1, rot, { noFoot: true, tint: new THREE.Color(0.25, 0.23, 0.21) }); } }
+      if (D.win || sp.kind === 'barn' || sp.kind === 'shed') {   // a door recess on the front, framed, with a step
+        const dw = sp.kind === 'barn' ? 3.2 : 1.0, dh = sp.kind === 'barn' ? 3.4 : 2.05, p = W(sp.kind === 'barn' ? 0 : X * 0.12, Z / 2 + 0.015);
+        SB.box('timber', p[0], y, p[1], dw, dh, 0.05, rot, { noFoot: true, tint: new THREE.Color(0.1, 0.09, 0.085) });
+        const q = W(sp.kind === 'barn' ? 0 : X * 0.12, Z / 2 + 0.04); SB.box('timber', q[0], y + dh, q[1], dw + 0.3, 0.16, 0.07, rot, { noFoot: true });
+}
       if (D.tower) { const p = W(-X / 2 - 2.0, 0); SB.box('fieldstone', p[0], y - 0.5, p[1], 4.2, 15.5, 4.2, rot, { tint }); const m = new THREE.Matrix4().compose(new THREE.Vector3(p[0], y + 15, p[1]), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rot + Math.PI / 4, 0)), new THREE.Vector3(3.2, 6.5, 3.2)); SB.geo('slate', new THREE.ConeGeometry(1, 1, 4, 1).translate(0, 0.5, 0), m, { noFoot: true }); }
       if (D.win) {
         const fl = D.floors || 1, nW = Math.max(1, Math.floor(X / 2.8));
         for (const side of [-1, 1]) for (let f = 0; f < fl; f++) for (let i = 0; i < nW; i++) {
           const lx = -X / 2 + (i + 0.5) * X / nW, lit = RR() < (sp.lit || 0) * (side > 0 ? 1 : 0.6), p = W(lx, side * (Z / 2 + 0.01));
-          SB.box(lit ? 'glass_lit' : 'timber', p[0], y + 0.95 + f * 2.7, p[1], 0.85, 1.25, 0.03, rot, { noFoot: true, tint: lit ? null : new THREE.Color(0.12, 0.11, 0.1) });
+          SB.box(lit ? 'glass_lit' : 'timber', p[0], y + 0.95 + f * 2.7, p[1], 0.85, 1.25, 0.03, rot, { noFoot: true, tint: lit ? null : new THREE.Color(0.06, 0.06, 0.06) });
+          { const q = W(lx, side * (Z / 2 + 0.04)); SB.box('ashlar', q[0], y + 0.86 + f * 2.7, q[1], 1.05, 0.09, 0.07, rot, { noFoot: true, tint: new THREE.Color(0.75, 0.73, 0.68) }); SB.box('ashlar', q[0], y + 2.2 + f * 2.7, q[1], 1.15, 0.16, 0.08, rot, { noFoot: true, tint: new THREE.Color(0.7, 0.68, 0.64) }); }   // sill and lintel
           if (lit) lights.push({ x: p[0] + s * side * 1.0, y: y + 1.4 + f * 2.7, z: p[1] + c * side * 1.0, wx: p[0], wz: p[1], nx: s * side, nz: c * side, f });
         }
       }
@@ -1066,7 +1076,7 @@
       // the full building near the player
       if (!opts.shellOnly && !sp.shellOnly) {
         try {
-          const b = E.building(Object.assign({ rugged: opts.rugged || 0 }, sp, { lit: sp.lit || 0 }));
+          const b = E.building(Object.assign({ rugged: opts.rugged || 0 }, sp, { lit: sp.lit || 0, closed: true }));
           for (const f of b.extraFoot) {   // wings, lean-tos and stairs: a collider and a shell each
             const p = W(f.x, f.z);
             if (sp.solid !== false) colliders.push({ x: p[0], z: p[1], hx: f.hx, hz: f.hz, y0: y - 1, y1: y + f.h, rot, kind: 'building' });
@@ -1079,7 +1089,10 @@
       }
       if (sp.solid !== false) colliders.push({ x: sp.x, z: sp.z, hx: D.X / 2, hz: D.Z / 2, y0: y - 1, y1: y + eave + 0.3, rot, kind: 'building' });
     }
-    const shells = SB.finish({ castShadow: false }); shells.name = 'IVEnv.shells'; group.add(shells);
+    let shells = SB.finish({ castShadow: false }); shells.name = 'IVEnv.shells';
+    // shell-only settlements (far skylines) in one plain vertex-coloured mesh: one draw call instead of one per material
+    if (opts.shellOnly && E.mergeStatic && E.Q.name !== 'high') { const wrap = new THREE.Group(); wrap.add(shells); const m = E.mergeStatic(wrap, { flat: true }); m.traverse(o => { if (o.isMesh) o.castShadow = false; }); shells = m; shells.name = 'IVEnv.shells'; }
+    group.add(shells);
     if (opts.pools !== false && lights.length) { try { group.add(E.glowPools(lights.filter(l => l.nx != null && l.f === 0).map(l => [l.wx, l.wz, l.nx, l.nz, 3.4, 0.16]), hf)); } catch (e) { console.warn('pools', e); } }
     if (detailRoot.children.length) {
       const merged = E.mergeStatic ? E.mergeStatic(detailRoot, { cell: 80 }) : detailRoot; merged.name = 'IVEnv.settlement-detail'; group.add(merged);

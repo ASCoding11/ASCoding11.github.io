@@ -143,7 +143,7 @@
     if (x > -150 && x < -70 && z > -150 && z < -95 && IV.fbm(x / 30, z / 30, 2) > 0.5) return 'field';
     // damp hollows (darker, trodden, a little standing water) and shorter-grazed patches break up the open fields
     if (Math.hypot(x - 95, z - 160) < 21) return 'yard';   // the old quarry: stone and spoil
-    for (const C of CRATERS) { const dc = Math.hypot(x - C[0], z - C[1]); if (dc < C[2] * 1.15) return 'mud'; if (dc < C[2] * 1.7) return 'worn'; }   // scorched mud and thrown soil
+    for (const C of CRATERS) { const dc = Math.hypot(x - C[0], z - C[1]); if (dc < C[2] * 1.15) return 'mud'; if (dc < C[2] * 2.1) return 'scorched'; }   // scorched mud, thrown soil, burnt stubble
     if (x > -30 && x < 50 && z > 25 && z < 112) for (const r of HRECT) { const dd = Math.max(Math.abs(x - r.x) - r.hx, Math.abs(z - r.z) - r.hz); if (dd < 2.6 && dd > -0.5) return dd < 1.1 ? 'yardedge' : 'verge'; }   // trodden ring and weeds at the walls
     if (surface(x, z) !== S.grass) return null;   // never over the tall grass (stealth cover), crops, mud or water
     const f = IV.fbm(x / 34 + 7, z / 34 - 3, 3);
@@ -349,8 +349,7 @@
       if (IVEnv.marks) { let x = -150, z = -32; const dir = 0.32; for (let t = 0; t < 30; t += 0.9) { const px = x + Math.cos(dir) * t, pz = z + Math.sin(dir) * t; for (const sdd of [-0.85, 0.85]) IVEnv.marks.stamp(px - Math.sin(dir) * sdd, pz + Math.cos(dir) * sdd, 'rut', dir, 0.9); } }
       let WB = IVEnv.builder(3131);
       // the burnt-out lorry in the crater west of the lane, nose down, and a sandbag wall beside it
-      try { const tr = IVEnv.prop('truck', 77), tx = -124, tz = -16, ty = W.height(tx, tz); tr.group.position.set(tx, ty - 0.35, tz); tr.group.rotation.set(-0.18, 2.4, 0.12);
-        tr.group.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.aEnv) { m.geometry = m.geometry.clone(); const a = m.geometry.attributes.aEnv; for (let i = 0; i < a.count; i++) a.setXYZ(i, 0.24 + 0.06 * Math.sin(i * 0.37), 0.21, 0.19); a.needsUpdate = true; } });
+      try { const tr = IVEnv.prop('wreck', 77), tx = -124, tz = -16, ty = W.height(tx, tz); tr.group.position.set(tx, ty - 0.3, tz); tr.group.rotation.set(-0.16, 2.4, 0.09);
         root.add(tr.group); W.addBox(tx, tz, 1.3, 3.2, ty - 0.5, ty + 2.2, 2.4, F.SOLID | F.BULLET | F.NAV | F.SIGHT, 'metal');
         WB.decal('soot', [tx, ty + 0.08, tz], [0, 1, 0], 7, 5, 0.6); for (let k = 0; k < 4; k++) WB.decal('scorch', [tx + RW.range(-3, 3), W.height(tx, tz) + 0.06, tz + RW.range(-3, 3)], [0, 1, 0], 2.5, 2.5, RW() * 3); } catch (e) { console.warn('wreck', e); }
       IV.art.prop('sandbags', b, -118, -24, -113, -21, 3);

@@ -137,6 +137,46 @@
     B.col(0, 0, 1.8, 0.6, 0, 1.2, 0, 'cloth', 'tarp');
   };
   KINDS.bottles = (B, R) => { for (let k = 0; k < 5; k++) { const x = R.range(-0.2, 0.2), z = R.range(-0.15, 0.15), lie = R() < 0.4; B.geo('glass', cyl(0.035, 0.035, 0.24, 10), M4(x, lie ? 0.035 : 0.12, z, lie ? Math.PI / 2 : 0, R() * 3, 0), { noFoot: true }); } };
+  // a burnt-out lorry: what is left after the fire. Chassis rails and cross members, four wheels on bare burnt rims
+  // (tyres gone, one wheel off), the cab as an empty frame with no glass or doors, the bonnet buckled, bare tilt hoops
+  // over a bed with only a few charred boards, the tailgate dropped on its chain; rust, soot and white ash.
+  KINDS.wreck = (B, R) => {
+    const burnt = new THREE.Color(0.32, 0.27, 0.23), rust = new THREE.Color(0.75, 0.55, 0.42), black = new THREE.Color(0.12, 0.11, 0.1);
+    for (const s of [-1, 1]) B.box('metal_rust', 0, 0.5, s * 0.45, 6.2, 0.2, 0.09, 0, { tint: rust });            // chassis rails
+    for (const x of [-2.6, -1.2, 0.4, 1.9]) B.box('metal_rust', x, 0.52, 0, 0.09, 0.14, 0.9, 0, { tint: rust });    // cross members
+    for (const [x, sz] of [[2.4, 1], [2.4, -1], [-1.6, 1], [-1.6, -1]]) {
+      if (x < 0 && sz < 0 && R() < 0.8) { B.geo('metal_rust', new THREE.TorusGeometry(0.36, 0.05, 6, 16), M4(-2.9, 0.12, -1.5, Math.PI / 2 + 0.1, 0, 0.2), { tint: black }); continue; }   // a wheel off, lying in the mud
+      B.geo('metal_rust', new THREE.TorusGeometry(0.36, 0.055, 6, 16), M4(x, 0.42, sz * 0.92, 0, 0, 0), { tint: black });       // bare rim
+      B.geo('metal_rust', cyl(0.24, 0.24, 0.16, 10).rotateX(Math.PI / 2), M4(x, 0.42, sz * 0.9), { tint: burnt });          // hub and disc
+      for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; B.box('metal_rust', x + Math.cos(a) * 0.2, 0.42 + Math.sin(a) * 0.2 - 0.02, sz * 0.92, 0.05, 0.04, 0.04, 0, { noFoot: true, tint: black }); }
+    }
+    for (const s of [-1, 1]) B.box('metal_rust', 0.7, 0.62, s * 0.55, 6.6, 0.06, 0.06, 0, { tint: burnt });            // axle beams' springs
+    // bonnet buckled up in the middle, grille hanging
+    B.box('metal_rust', 2.35, 0.75, 0, 1.4, 0.05, 1.45, 0, { rz: 0.12, rx: 0.06, tint: burnt });
+    for (const s of [-1, 1]) B.box('metal_rust', 2.35, 0.7, s * 0.72, 1.4, 0.55, 0.04, 0, { rz: 0.05 * s, tint: rust });
+    B.box('metal_rust', 3.1, 0.55, 0.05, 0.05, 0.62, 0.95, 0, { rz: -0.35, noFoot: true, tint: black });
+    B.box('metal_rust', 2.3, 0.62, 0, 0.9, 0.45, 0.7, 0, { tint: black });                                              // the engine block
+    // cab: floor, scuttle, four pillars, roof frame, no glass, no doors; a steering column and wheel ring
+    B.box('metal_rust', 1.1, 0.68, 0, 1.25, 0.05, 1.9, 0, { tint: burnt });
+    B.box('metal_rust', 1.7, 0.7, 0, 0.06, 0.75, 1.9, 0, { tint: rust });
+    for (const [x, z] of [[1.7, 0.92], [1.7, -0.92], [0.5, 0.92], [0.5, -0.92]]) B.box('metal_rust', x, 0.7, z, 0.07, 1.5, 0.07, 0, { rz: R.range(-0.06, 0.06), tint: burnt });
+    for (const s of [-1, 1]) B.box('metal_rust', 1.1, 2.18, s * 0.92, 1.3, 0.06, 0.06, 0, { tint: burnt });
+    for (const x of [0.5, 1.7]) B.box('metal_rust', x, 2.18, 0, 0.06, 0.06, 1.9, 0, { tint: burnt });
+    B.box('metal_rust', 1.1, 2.2, 0.2, 1.1, 0.03, 1.2, 0, { rz: 0.15, rx: -0.1, tint: black });                        // a sagging piece of roof skin
+    B.box('metal_rust', 0.55, 0.7, 0, 0.06, 1.0, 1.9, 0, { tint: rust });                                               // cab back
+    B.box('metal_rust', 1.45, 1.1, 0.4, 0.04, 0.5, 0.04, 0, { rz: -0.6, noFoot: true, tint: black });
+    B.geo('metal_rust', new THREE.TorusGeometry(0.2, 0.02, 4, 12), M4(1.32, 1.35, 0.4, 0, Math.PI / 2, 0.6), { noFoot: true, tint: black });
+    // bed: two side rails, a few charred boards left, bare tilt hoops (one bent), the tailgate dropped
+    for (const s of [-1, 1]) B.box('metal_rust', -1.45, 0.72, s * 1.08, 3.9, 0.12, 0.05, 0, { tint: rust });
+    for (let k = 0; k < 7; k++) if (R() < 0.55) B.box('planks', -1.45 + R.range(-0.2, 0.2), 0.7, -0.9 + k * 0.3, R.range(1.2, 3.6), 0.04, 0.18, R.range(-0.05, 0.05), { tint: black });
+    for (let k = 0; k < 4; k++) { const g = new THREE.TorusGeometry(1.08, 0.025, 4, 16, Math.PI); B.geo('metal_rust', g, M4(-3.1 + k * 1.1, 0.8, 0, 0, Math.PI / 2, k === 2 ? 0.25 : 0, k === 2 ? new V3(1, 0.8, 1) : null), { noFoot: true, tint: burnt }); }
+    B.box('metal_rust', -3.55, 0.25, 0, 0.05, 0.55, 2.1, 0, { rz: 1.2, tint: rust });                                   // tailgate down on its chains
+    for (const s of [-1, 1]) B.box('metal_rust', -3.42, 0.5, s * 1.0, 0.02, 0.45, 0.02, 0, { rz: -0.5, noFoot: true, tint: black });
+    // soot, ash, rust runs
+    B.decal('soot', [1.1, 1.2, 0.97], [0, 0, 1], 1.8, 1.6, 0); B.decal('soot', [1.1, 1.2, -0.97], [0, 0, -1], 1.8, 1.6, 0);
+    B.decal('rust', [2.35, 0.6, 0.75], [0, 0, 1], 1.2, 0.5, 0); B.decal('rust', [-1.45, 0.6, 1.11], [0, 0, 1], 3, 0.4, 0);
+    B.col(0, 0, 6.6, 2.3, 0, 2.2, 0, 'metal', 'vehicle');
+  };
   KINDS.truck = (B, R) => {
     // a period 3-ton lorry in plain drab, no markings: cab, bonnet, wheels with mud, a canvas tilt over the bed
     const drab = new THREE.Color(0.75, 0.78, 0.62);
