@@ -36,6 +36,16 @@
     try { const bd = IVEnv.building(spec); bd.group.position.set(x, W.height(x, z), z); bd.group.rotation.y = rot; (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(bd.group); } catch (e) { console.warn('hut', e); }
     return r;
   }
+  // camp dressing drawn by IVEnv, with its colliders handed to the world (the nav grid is built after this)
+  function dress(kind, x, z, rot, opts, flags) {
+    if (!IV.art.envOn() || !IVEnv.prop) return null;
+    try {
+      const o = IVEnv.prop(kind, (x * 73 + z * 31) | 0 || 1, opts), y = W.height(x, z), c = Math.cos(rot || 0), s = Math.sin(rot || 0);
+      o.group.position.set(x, y, z); o.group.rotation.y = rot || 0; (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(o.group);
+      for (const k of o.colliders) W.addBox(x + k.x * c + k.z * s, z - k.x * s + k.z * c, k.hx, k.hz, y + k.y0, y + k.y1, (rot || 0) + k.rot, flags == null ? F.SOLID | F.BULLET | F.NAV : flags, k.surf === 'cloth' ? 'wood' : k.surf, k.kind);
+      return o;
+    } catch (e) { console.warn('dress', kind, e); return null; }
+  }
   function build(M) {
     const b = K.begin();
     // course edging: rope posts along the gravel path
@@ -66,8 +76,24 @@
     hut(() => IV.art.building(b, { x: 16, z: 140, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'shed', w: 6, d: 10, floors: 1, seed: 156, damage: 0.05, lit: 0 }, 16, 140, -Math.PI / 2);
     hut(() => IV.art.building(b, { x: 16, z: 120, w: 10, d: 6, h: 2.8, floor: 0.2, mat: 'wood', color: 0x7e7058, sides: { w: [{ t: 'door', at: 0, w: 1.0 }], s: [{ t: 'win', at: -2.5, w: 1 }, { t: 'win', at: 2.5, w: 1 }] }, roof: { pitch: 0.4, mat: 'metal', col: 0x6a6e66 } }), { kind: 'shed', w: 6, d: 10, floors: 1, seed: 136, damage: 0.05, lit: 0 }, 16, 120, -Math.PI / 2);
     hut(() => IV.art.building(b, { x: -18, z: 130, w: 14, d: 7, h: 3, floor: 0.2, mat: 'plaster', color: 0xcfc6b0, sides: { e: [{ t: 'door', at: 0, w: 1.2 }], n: [{ t: 'win', at: -3, w: 1.2 }, { t: 'win', at: 3, w: 1.2 }] }, roof: { pitch: 0.6 } }), { kind: 'cottage', w: 7, d: 14, floors: 1, seed: 148, damage: 0.05, lit: 0 }, -18, 130, Math.PI / 2);
-    for (const s of [-1, 1]) for (const t of [-1, 1]) K.add(b, 'wood', K.GEO.box, -30 + s * 1.5, W.height(-30, 100) + 4, 100 + t * 1.5, 0.25, 8, 0.25, 0, 0, 0, 0x6e5a44);
-    K.add(b, 'wood', K.GEO.cyl12, -30, W.height(-30, 100) + 9.2, 100, 4.2, 2.6, 4.2, 0, 0, 0, 0x7a6450);
+    if (!dress('watertower', -30, 100, 0.2)) {
+      for (const s of [-1, 1]) for (const t of [-1, 1]) K.add(b, 'wood', K.GEO.box, -30 + s * 1.5, W.height(-30, 100) + 4, 100 + t * 1.5, 0.25, 8, 0.25, 0, 0, 0, 0x6e5a44);
+      K.add(b, 'wood', K.GEO.cyl12, -30, W.height(-30, 100) + 9.2, 100, 4.2, 2.6, 4.2, 0, 0, 0, 0x7a6450);
+    }
+    // the lived-in camp: parade mast and notice board by the start, duckboards to the hut doors, tent lines with
+    // a wash line, fuel drums and stores by the tower, sandbagged bays by the SMG point, spare frames at the butts
+    dress('flagpole', -7, 150, 0); dress('noticeboard', -4.2, 154, Math.PI / 2 + 0.1);
+    dress('duckboards', 7, 140, 0, { length: 7 }, 0); dress('duckboards', 7, 120, 0, { length: 7 }, 0); dress('duckboards', -7.5, 130, 0, { length: 6 }, 0);
+    for (let k = 0; k < 4; k++) dress('tent', 30 + (k % 2) * 6, 166 - (k >> 1) * 6.5 + (k % 2) * 0.4, Math.PI / 2 + (k * 0.05 - 0.07));
+    dress('washline', 38.5, 158.5, Math.PI / 2 + 0.05, { length: 6 }, F.SOLID);
+    if (IV.art.envOn()) {
+      IV.art.prop('barrel', b, -26.5, W.height(-26.5, 96.5), 96.5); IV.art.prop('barrel', b, -25.9, W.height(-25.9, 97.2), 97.2);
+      IV.art.prop('crate', b, 21.5, W.height(21.5, 129), 129, 0.3, 1); IV.art.prop('crate', b, 22.4, W.height(22.4, 130), 130, -0.2, 0.9);
+      dress('drums', -27, 104.5, 0.6); dress('tarp', -35.5, 97, 1.2); dress('ammo', 6.5, RANGE_Z + 2.6, 0.3); dress('crates', 13.8, 33.5, 0.4);
+      IV.art.prop('sandbags', b, 8, 36, 8, 30, 3); IV.art.prop('sandbags', b, 8, 36, 12, 36, 3); IV.art.prop('sandbags', b, 8, 30, 12, 30, 3);
+      for (const x of [-15, -12, 12, 15.5]) dress('targetframe', x, -295.5, Math.PI + (x > 0 ? 0.08 : -0.08));
+      dress('targetframe', 9.5, RANGE_Z + 5, 2.6); dress('targetframe', 9.9, RANGE_Z + 5.6, 2.7);
+    }
     // tree lines either side of the range
     const R = IV.rng(7);
     for (let z = 170; z > -320; z -= 9) { IV.art.tree(b, -48 + R.range(-3, 3), z, R() < 0.3 ? 'poplar' : 'oak', R); IV.art.tree(b, 48 + R.range(-3, 3), z + 4, R() < 0.3 ? 'poplar' : 'oak', R); }

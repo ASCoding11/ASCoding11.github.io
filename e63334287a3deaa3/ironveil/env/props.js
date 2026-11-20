@@ -3,7 +3,8 @@
    kinds: crate, crates (stack), barrel, barrels, sandbags (a wall, opts.length), cart, haybale, haystack, well, trough,
    telegraph (pole; wires via IVEnv.wireMesh between poles: group.userData.wireTop gives the insulator positions),
    lamppost (lights[0] is the lamp), gate, ladder, drums (fuel drums), ammo (ammunition boxes), truck (period lorry,
-   no markings), logpile, tarp (tarpaulin over a stack), bottles.
+   no markings), logpile, tarp (tarpaulin over a stack), bottles; camp dressing: noticeboard, flagpole (bare mast),
+   duckboards (opts.length), tent (ridge tent), washline (opts.length), watertower, targetframe.
    Wear sits where wear happens: scuffed crate corners and bases, rust runs under rivets, chipped paint on drum rims,
    worn handles, mud on wheels and the truck's lower panels. */
 (function () {
@@ -156,6 +157,100 @@
     return { light: { x: 3.2, y: 1.2, z: 0, color: 0xffd8a0, r: 14, power: 0 } };
   };
 
+  // ---- camp dressing: notice board, bare flag mast, duckboards, ridge tent, wash line, water tower, target frame
+  const C = (r, g, b) => new THREE.Color(r, g, b);
+  KINDS.noticeboard = (B, R) => {
+    for (const s of [-1, 1]) B.box('timber', s * 0.8, 0, 0, 0.1, 2.1, 0.1, 0, { grain: 'long' });
+    B.box('planks', 0, 0.9, 0, 1.5, 0.95, 0.04, 0, { tint: C(0.72, 0.7, 0.62) });
+    B.box('timber', 0, 2.0, 0.04, 1.8, 0.04, 0.42, 0, { rx: 0.35, noFoot: true, tint: C(0.6, 0.58, 0.55) });
+    // pinned notices: pale cards, a few curling, one rain-stained
+    for (let k = 0; k < 6; k++) { const w = R.range(0.2, 0.32), h = R.range(0.25, 0.38); B.box('canvas', -0.55 + (k % 3) * 0.48 + R.range(-0.04, 0.04), 0.98 + (k > 2 ? 0 : 0.42) + R.range(-0.03, 0.03), 0.025, w, h, 0.004, R.range(-0.04, 0.04), { noFoot: true, tint: C(1.25, 1.22, 1.08).multiplyScalar(R.range(0.75, 1)) }); }
+    B.decal('waterstain', [0, 1.3, 0.03], [0, 0, 1], 1.4, 0.8, 0); B.decal('moss', [0.8, 0.15, 0.055], [0, 0, 1], 0.12, 0.3, 0);
+    B.col(0, 0, 1.7, 0.2, 0, 2.1, 0, 'wood', 'board');
+  };
+  KINDS.flagpole = (B, R) => {
+    // a bare white mast with a halyard and cleat; no flag is flown on the training ground
+    const h = 9;
+    B.geo('wood_painted', cyl(0.045, 0.09, h, 10), M4(0, h / 2, 0), { tint: C(1.1, 1.08, 1.0) });
+    B.geo('wood_painted', new THREE.SphereGeometry(0.1, 8, 6), M4(0, h + 0.05, 0), { noFoot: true, tint: C(1.1, 1.08, 1.0) });
+    B.geo('canvas', cyl(0.006, 0.006, h - 1.2, 3), M4(0.06, h / 2 + 0.5, 0), { noFoot: true, tint: C(0.8, 0.78, 0.7) });
+    B.box('metal_rust', 0.09, 1.2, 0, 0.04, 0.16, 0.04, 0, { noFoot: true });
+    // whitewashed kerb stones round the foot
+    for (let k = 0; k < 10; k++) { const a = k / 10 * TAU; B.box('ashlar', Math.cos(a) * 1.1, 0, Math.sin(a) * 1.1, 0.34, 0.14, 0.18, -a + Math.PI / 2, { tint: C(1.3, 1.3, 1.25) }); }
+    B.decal('chipped', [0, 0.5, 0.06], [0, 0, 1], 0.12, 0.4, 0);
+    B.col(0, 0, 0.2, 0.2, 0, h, 0, 'wood', 'pole');
+  };
+  KINDS.duckboards = (B, R, o) => {
+    // slatted walkway sections on two bearers, slightly askew, sunk in at the ends
+    const L = o.length || 6, n = Math.max(1, Math.round(L / 2));
+    for (let i = 0; i < n; i++) {
+      const x0 = -L / 2 + (i + 0.5) * (L / n), tw = R.range(-0.04, 0.04), dy = R.range(-0.03, 0.01);
+      for (const s of [-1, 1]) B.box('timber', x0, dy, s * 0.22, L / n - 0.06, 0.07, 0.07, tw, { grain: 'long', tint: C(0.55, 0.52, 0.48) });
+      for (let k = 0; k < Math.round((L / n) / 0.16); k++) B.box('planks', x0 - (L / n) / 2 + 0.08 + k * 0.16, dy + 0.07, 0, 0.1, 0.03, 0.62, tw, { tint: E.tintJ(R, 0.1, 0x8a8070), noFoot: true });
+    }
+    B.decal('mud', [0, 0.11, 0], [0, 1, 0], L * 0.8, 0.5, 0);
+  };
+  KINDS.tent = (B, R) => {
+    // a ridge tent: canvas sheet over a ridge pole, walls guyed out, flaps half tied
+    const L = 3.6, W2 = 1.35, H = 2.0, wall = 0.45;
+    const g = new THREE.BufferGeometry(), P = [], I = [], UV = [];
+    const nx = 10, ny = 6;
+    for (let side of [-1, 1]) {
+      const b0 = P.length / 3;
+      for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
+        const u = i / nx, v = j / ny, x = -L / 2 + u * L, sag = 0.06 * Math.sin(u * Math.PI * 3) ** 2 * Math.sin(v * Math.PI);
+        const z = side * (W2 * (1 - v)), y = wall + (H - wall) * v - sag + (j === 0 ? 0 : 0);
+        P.push(x, y, z + side * sag * 0.5); UV.push(u * L, v * 1.6);
+      }
+      for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const a = b0 + j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1; if (side > 0) I.push(a, b, d, a, d, c); else I.push(a, d, b, a, c, d); }
+      // the short wall
+      const w0 = P.length / 3; for (let i = 0; i <= nx; i++) { const x = -L / 2 + i / nx * L; P.push(x, 0, side * W2, x, wall, side * W2); UV.push(i / nx * L, 0, i / nx * L, 0.45); }
+      for (let i = 0; i < nx; i++) { const a = w0 + i * 2; if (side > 0) I.push(a, a + 2, a + 3, a, a + 3, a + 1); else I.push(a, a + 3, a + 2, a, a + 1, a + 3); }
+    }
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.setIndex(I); g.computeVertexNormals();
+    B.geo('canvas', g, M4(0, 0, 0), { keepUv: true, tint: E.tintJ(R, 0.08, 0xb8b090) });
+    // gable ends: back closed, front a dark opening with a tied flap
+    for (const e of [-1, 1]) { const t = new THREE.BufferGeometry(); t.setAttribute('position', new THREE.Float32BufferAttribute([e * L / 2, 0, -W2, e * L / 2, 0, W2, e * L / 2, H, 0, e * L / 2, wall, -W2, e * L / 2, wall, W2], 3)); t.setIndex(e > 0 ? [0, 2, 1] : [0, 1, 2]); t.computeVertexNormals(); B.geo('canvas', t, M4(0, 0, 0), { tint: e > 0 ? C(0.25, 0.24, 0.2) : E.tintJ(R, 0.08, 0xb0a888) }); }
+    B.box('canvas', L / 2 + 0.02, 0.2, -0.55, 0.05, 1.5, 0.5, 0, { rz: 0.1, tint: C(0.7, 0.68, 0.56) });
+    for (const e of [-1, 1]) { B.box('timber', e * (L / 2 - 0.05), 0, 0, 0.05, H + 0.15, 0.05, 0, { grain: 'long' }); for (const s of [-1, 1]) B.geo('canvas', cyl(0.006, 0.006, 1.5, 3), M4(e * (L / 2 + 0.55), H * 0.5, s * (W2 * 0.6), 0, 0, e * 0.9), { noFoot: true, tint: C(0.7, 0.68, 0.6) }); }
+    B.decal('mud', [0, 0.02, W2 + 0.2], [0, 1, 0], L, 0.6, 0); B.decal('mud', [L / 2 + 0.5, 0.02, 0], [0, 1, 0], 1.2, 1.4, 0);
+    B.col(0, 0, L, W2 * 2, 0, H, 0, 'cloth', 'tent');
+  };
+  KINDS.washline = (B, R, o) => {
+    const L = o.length || 6;
+    for (const s of [-1, 1]) B.box('timber', s * L / 2, 0, 0, 0.09, 2.0, 0.09, 0, { grain: 'long', rz: s * 0.04 });
+    B.geo('canvas', cyl(0.006, 0.006, L, 3).rotateZ(Math.PI / 2), M4(0, 1.88, 0), { noFoot: true, tint: C(0.75, 0.72, 0.65) });
+    // shirts, socks and a towel: greys, khakis, one faded white
+    let x = -L / 2 + 0.5;
+    while (x < L / 2 - 0.5) { const w = R.range(0.25, 0.7), h = R.range(0.3, 0.75), sag = 0.05 * (1 - (2 * x / L) ** 2); B.box('canvas', x + w / 2, 1.88 - sag - h, 0, w, h, 0.01, R.range(-0.08, 0.08), { noFoot: true, tint: [C(0.6, 0.6, 0.5), C(0.75, 0.7, 0.55), C(1.1, 1.08, 1.0), C(0.45, 0.47, 0.42)][(R() * 4) | 0] }); x += w + R.range(0.12, 0.4); }
+  };
+  KINDS.watertower = (B, R) => {
+    // a timber trestle with cross-bracing carrying a riveted steel tank, a ladder up one leg
+    const h = 7.5, s = 1.6;
+    for (const a of [-1, 1]) for (const b of [-1, 1]) B.box('timber', a * s, 0, b * s, 0.26, h, 0.26, 0, { grain: 'long', tint: C(0.65, 0.6, 0.55), rx: -b * 0.03, rz: a * 0.03 });
+    for (const y of [2.4, 5.0]) for (const side of [0, 1]) for (const k of [-1, 1]) {
+      const len = Math.hypot(2 * s, 2.4); if (side) B.box('timber', k * s, y - 2.25, 0, 0.1, 0.12, len, 0, { rx: Math.atan2(2.4, 2 * s) * (y > 3 ? 1 : -1), noFoot: true, grain: 'long' }); else B.box('timber', 0, y - 2.25, k * s, len, 0.12, 0.1, 0, { rz: Math.atan2(2.4, 2 * s) * (y > 3 ? -1 : 1), noFoot: true, grain: 'long' }); }
+    for (const y of [0.4, h - 0.2]) for (const k of [-1, 1]) { B.box('timber', 0, y, k * s, 2 * s + 0.3, 0.16, 0.14, 0, { grain: 'long', noFoot: true }); B.box('timber', k * s, y, 0, 0.14, 0.16, 2 * s + 0.3, 0, { grain: 'long', noFoot: true }); }
+    B.box('planks', 0, h, 0, 2 * s + 0.6, 0.12, 2 * s + 0.6, 0, { noFoot: true });
+    B.geo('metal_painted', cyl(2.0, 2.0, 2.7, 20), M4(0, h + 0.12 + 1.35, 0), { tint: C(0.5, 0.52, 0.48), keepUv: true, uvW: 12.6, uvH: 2.7 });
+    B.geo('metal_painted', new THREE.ConeGeometry(2.1, 0.5, 20), M4(0, h + 0.12 + 2.95, 0), { noFoot: true, tint: C(0.45, 0.46, 0.43) });
+    for (const yy of [0.05, 0.95, 1.85, 2.65]) B.geo('metal_rust', new THREE.TorusGeometry(2.01, 0.025, 4, 28).rotateX(Math.PI / 2), M4(0, h + 0.12 + yy, 0), { noFoot: true });
+    B.geo('metal_rust', cyl(0.09, 0.09, h + 0.2, 8), M4(0.4, (h + 0.2) / 2, 0.3), { noFoot: true });
+    for (let k = 0; k < 24; k++) B.box('metal_rust', s + 0.2, 0.3 + k * 0.3, s + 0.05, 0.4, 0.03, 0.03, 0.785, { noFoot: true });
+    B.decal('rust', [1.42, h + 1.4, 1.42], [0.71, 0, 0.71], 0.6, 2.2, 0); B.decal('rust', [-2.01, h + 1.0, 0], [-1, 0, 0], 1.2, 1.8, 0);
+    B.decal('waterstain', [0, 0.02, 0], [0, 1, 0], 3.6, 3.6, 0);
+    for (const a of [-1, 1]) for (const b of [-1, 1]) B.col(a * s, b * s, 0.3, 0.3, 0, h, 0, 'wood', 'tower');
+  };
+  KINDS.targetframe = (B, R, o) => {
+    // a range target frame: two uprights, a paper-faced board, patched; spare frames lean on the butts
+    const w = 1.2, h = 1.6;
+    for (const s of [-1, 1]) B.box('timber', s * (w / 2 + 0.04), 0, 0, 0.08, h + 0.6, 0.08, 0, { grain: 'long' });
+    B.box('canvas', 0, 0.6, 0, w, h, 0.02, 0, { tint: C(1.05, 1.0, 0.85) });
+    B.box('timber', 0, 0.6, -0.03, w + 0.1, 0.06, 0.04, 0, { noFoot: true }); B.box('timber', 0, 0.6 + h - 0.06, -0.03, w + 0.1, 0.06, 0.04, 0, { noFoot: true });
+    for (let k = 0; k < 7; k++) B.box('canvas', R.range(-0.45, 0.45), 0.8 + R.range(0, h - 0.4), 0.012, 0.06, 0.06, 0.004, R() * 0.8, { noFoot: true, tint: C(0.55, 0.5, 0.4) });
+    B.decal('mud', [0, 0.7, 0.02], [0, 0, 1], w, 0.3, 0);
+    B.col(0, 0, w + 0.2, 0.15, 0, h + 0.6, 0, 'wood', 'target');
+  };
   E.prop = function (kind, seed, opts) {
     opts = opts || {};
     const fn = KINDS[kind] || KINDS[({ 'sandbag wall': 'sandbags', 'hay bale': 'haybale', 'hay stack': 'haystack', 'water trough': 'trough', 'telegraph pole': 'telegraph', 'lamp post': 'lamppost', 'fuel drums': 'drums', 'ammunition boxes': 'ammo', 'log pile': 'logpile', 'tarpaulin stack': 'tarp' })[kind]];

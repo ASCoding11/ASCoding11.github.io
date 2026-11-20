@@ -149,12 +149,13 @@
     for (let z = -110; z > -180; z -= 16) IV.art.tree(b, 16, z, 'poplar', R);
     // a treeline all round the edge of the map (two staggered rows, mostly impostors at range) so the world never
     // ends in a hard line, and tree clumps on the field corners (visual only beyond the playable area)
+    const RT = IV.rng(31);   // its own stream, so the farm's random placements stay exactly as before
     for (let t = -182; t <= 182; t += 11) for (const [x, z] of [[t, -184], [t + 5, 184], [-184, t + 4], [184, t]]) {
-      const k = R() < 0.45 ? 'oak' : R() < 0.7 ? 'ash' : 'poplar';
-      IV.art.tree(b, x + R.range(-2, 2), z + R.range(-2, 2), k, R);
-      if (R() < 0.6) IV.art.tree(b, x * 0.965 + R.range(-3, 3), z * 0.965 + R.range(-3, 3), R() < 0.6 ? 'oak' : 'ash', R);
+      const k = RT() < 0.45 ? 'oak' : RT() < 0.7 ? 'ash' : 'poplar';
+      IV.art.tree(b, x + RT.range(-2, 2), z + RT.range(-2, 2), k, RT);
+      if (RT() < 0.6) IV.art.tree(b, x * 0.965 + RT.range(-3, 3), z * 0.965 + RT.range(-3, 3), RT() < 0.6 ? 'oak' : 'ash', RT);
     }
-    [[-150, 175], [-90, 172], [40, 176], [120, 172], [176, -150], [176, 60], [-176, 20], [-176, -100]].forEach(([x, z]) => { for (let i = 0; i < 4; i++) IV.art.tree(b, x + R.range(-6, 6), z + R.range(-6, 6), R() < 0.5 ? 'oak' : 'ash', R); });
+    [[-150, 175], [-90, 172], [40, 176], [120, 172], [176, -150], [176, 60], [-176, 20], [-176, -100]].forEach(([x, z]) => { for (let i = 0; i < 4; i++) IV.art.tree(b, x + RT.range(-6, 6), z + RT.range(-6, 6), RT() < 0.5 ? 'oak' : 'ash', RT); });
     // scattered field trees
     [[-150, 120], [-100, 140], [-20, 100], [60, 90], [140, 150], [-140, -40], [-90, -120], [40, -150], [110, 30], [-160, -120]].forEach(p => IV.art.tree(b, p[0], p[1], 'oak', R));
     // stone walls round the yard (low, vaultable)
