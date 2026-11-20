@@ -198,7 +198,7 @@ for s, sg in (('l', -1.0), ('r', 1.0)):
 log('skin texels', len(X))
 
 # --- base tone: weathered, tanned forearms, paler palms, warm knuckles and fingertips
-tan = lin([0.55, 0.41, 0.32]); pale = lin([0.62, 0.48, 0.39]); red = lin([0.62, 0.38, 0.32])
+tan = lin([0.47, 0.34, 0.26]); pale = lin([0.55, 0.41, 0.33]); red = lin([0.55, 0.32, 0.27])
 handness = np.where(is_fore, smooth01((fore_t - 0.80) / 0.25), 1.0)
 palm_w = smooth01((-dors - 0.1) / 0.6) * (0.35 + 0.65 * handness)
 alb = tan * (1 - palm_w[:, None]) + pale * palm_w[:, None]
@@ -236,7 +236,7 @@ alb = alb * (1 - rednessmask[:, None] * 0.55) + red * rednessmask[:, None] * 0.5
 alb *= (1 - 0.08 * smooth01((dors + 0.2) / 0.8) * (1 - handness))[:, None]
 hgt = np.zeros(len(X))
 # --- pores / fine skin
-hgt += fbm(X, 0.0011, 2, 5) * 0.00004 + fbm(X, 0.0035, 2, 6) * 0.00003
+hgt += fbm(X, 0.0011, 2, 5) * 0.00006 + fbm(X, 0.0035, 2, 6) * 0.00005
 # --- knuckle wrinkles: bands across the finger on the back of each finger joint
 fin_dors = smooth01((dors - 0.05) / 0.5)
 for lam, amp, w in ((0.0017, 0.00011, 0.0052), (0.0011, 0.00005, 0.0035)):
@@ -380,9 +380,31 @@ grime = np.clip(grime + specks, 0, 1)
 dirt = lin([0.20, 0.15, 0.10])
 alb = alb * (1 - grime[:, None] * 0.65) + dirt * (grime[:, None] * 0.65)
 # roughness: oily-sheened back of the hand and forearm, drier rough knuckles and palms, dirt flat
-rgh = 0.50 + 0.14 * fbm(X, 0.008, 3, 41) + 0.06 * fbm(X, 0.002, 2, 43) - 0.10 * smooth01((dors - 0.2) / 0.5) * (is_hand | is_fore) + 0.12 * knuck + 0.08 * palm_w
+rgh = 0.62 + 0.14 * fbm(X, 0.008, 3, 41) + 0.06 * fbm(X, 0.002, 2, 43) - 0.10 * smooth01((dors - 0.2) / 0.5) * (is_hand | is_fore) + 0.12 * knuck + 0.08 * palm_w
 rgh = rgh + grime * 0.15 - scar * 0.12
 rgh = rgh * (1 - nail) + 0.28 * nail
+# fingerless knit gloves over the hand and the first finger joints, ribbed at the wrist; dark olive wool, worn
+glove = (is_hand | np.isin(bname, ['%s_01' % f for f in ('index', 'middle', 'ring', 'pinky', 'thumb')])).astype(float)
+for f in ('index', 'middle', 'ring', 'pinky', 'thumb'):
+    m_ = bname == '%s_01' % f
+    glove[m_] *= smooth01((0.75 - btt[m_]) / 0.08)        # the knit ends partway up the first joint, a rolled edge
+glove = np.maximum(glove, (is_fore & (fore_t > 0.93)).astype(float))
+wrist_rib = (is_fore & (fore_t > 0.93)) | (is_hand & (btt < 0.25))
+knit_u = np.zeros(len(X)); knit_v = np.zeros(len(X))
+for s_ in ('l', 'r'):
+    a, b = bvec('hand_' + s_); m_ = side == s_
+    ax_ = (b - a) / np.linalg.norm(b - a); q = X[m_] - a
+    sl_ = q @ ax_; rad_ = q - np.outer(sl_, ax_); th_ = np.arctan2(rad_[:, 1], rad_[:, 2])
+    knit_u[m_] = th_ * 0.03; knit_v[m_] = sl_
+stitch = np.abs(np.sin(knit_u / 0.0016 * math.pi)) ** 0.6 * (0.6 + 0.4 * np.abs(np.sin(knit_v / 0.0022 * math.pi)))
+rib = np.abs(np.sin(knit_u / 0.0028 * math.pi))
+kh = np.where(wrist_rib, rib * 0.0004, stitch * 0.00028) + fbm(X, 0.002, 2, 97) * 0.00006
+wool = lin([0.26, 0.25, 0.18]) * (0.85 + 0.25 * stitch)[:, None] * (1 + 0.1 * fbm(X, 0.01, 3, 99))[:, None]
+wear_ = smooth01((knuck * 1.2 + 0.4 * fbm(X, 0.006, 2, 101)) - 0.3)
+wool = wool * (1 - wear_[:, None] * 0.3) + lin([0.36, 0.32, 0.24]) * (wear_[:, None] * 0.3)
+alb = alb * (1 - glove[:, None]) + wool * glove[:, None]
+hgt = hgt * (1 - glove) + kh * glove
+rgh = rgh * (1 - glove) + 0.92 * glove
 ALB[sk] = alb; HGT[sk] = hgt; RGH[sk] = rgh
 log('skin done')
 

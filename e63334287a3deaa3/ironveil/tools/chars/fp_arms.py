@@ -17,10 +17,10 @@ OUT = os.environ.get('FP_WORK') or (L.WORK + '/fp')
 os.makedirs(OUT, exist_ok=True)
 
 ARM = ('clavicle', 'upperarm', 'lowerarm', 'hand', 'index', 'middle', 'ring', 'pinky', 'thumb')
-ROLL = (0.30, 0.50)      # rolled cuff, as fractions of the forearm from the elbow
-SLEEVE_END = 0.40        # the sleeve tube runs under the roll to here
+ROLL = (0.76, 0.84)      # buttoned cuff band at the end of the full-length sleeve (fractions of the forearm)
+SLEEVE_END = 0.80        # the sleeve tube runs under the cuff to here
 CUT = 0.42               # keep the upper arm from this fraction of its length (shoulder = 0)
-WATCH = 0.90             # watch strap centre, fraction of the forearm (left arm)
+WATCH = 0.92             # watch strap centre, fraction of the forearm (left arm), just below the cuff
 
 # first-person bones that carry the weapon and props; their rest frame equals the glTF identity frame
 WBONES = ['w_root', 'w_bolt', 'w_boltHandle', 'w_mag', 'w_trigger', 'w_hammer', 'w_charging', 'w_prop']
@@ -92,6 +92,24 @@ def main():
     bm.to_mesh(skin.data); bm.free()
     log('skin after forearm subdivision', G.tris(skin))
 
+    # a slimmer wrist: pull the last third of each forearm toward the bone line (wrist bones and taper read)
+    for s_, sg in (('l', 1.0), ('r', -1.0)):
+        E_, W2 = J['lowerarm_' + s_][0], J['hand_' + s_][0]
+        ax_ = (W2 - E_).normalized(); lf_ = (W2 - E_).length
+        for v in skin.data.vertices:
+            if np.sign(v.co.x) != sg: continue
+            f = (v.co - E_).dot(ax_) / lf_
+            if 0.6 < f < 1.08:
+                c = E_ + ax_ * (f * lf_)
+                k = 1.0 - 0.13 * math.sin(math.pi * min(1.0, (f - 0.6) / 0.45)) ** 1.5
+                v.co = c + (v.co - c) * k
+    # fingerless knit gloves: the hand and the first finger joints stand 1.2 mm proud (texture in fp_tex.py)
+    gnames = {vg.index: vg.name for vg in skin.vertex_groups}
+    for v in skin.data.vertices:
+        g_ = max(v.groups, key=lambda x: x.weight) if v.groups else None
+        nm_ = gnames[g_.group] if g_ else ''
+        if nm_.startswith('hand_') or '_01_' in nm_:
+            v.co = v.co + v.normal * 0.0012
     bvh = bvh_full
     parts = [skin]
     # ---------------- sleeves and rolls
@@ -126,7 +144,7 @@ def main():
             u = k / nr
             fr = ROLL[0] + (ROLL[1] - ROLL[0]) * u
             c = E.lerp(W_, fr); ax = (W_ - E).normalized()
-            lobes = 0.55 * math.sin(math.pi * u) ** 0.6 + 0.45 * abs(math.sin(2 * math.pi * u)) ** 0.8
+            lobes = math.sin(math.pi * u) ** 0.35 * 0.55
             def off(th, u=u, lobes=lobes):
                 wob = 0.0016 * math.sin(th * 3 + u * 9) + 0.0010 * math.sin(th * 5 - 2.0)
                 # frayed, uneven edge of the turned-back cloth on the last ring
