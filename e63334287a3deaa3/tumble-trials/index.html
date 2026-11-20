@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="es.js"></script>
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Closet (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -179,7 +181,7 @@ h1 .w span:nth-child(odd){transform:rotate(-3deg)}h1 .w span:nth-child(even){tra
 #results h2{font-family:var(--f-d);font-weight:700;font-size:28px;margin:0;line-height:1.05}
 #results .sub{font-weight:800;color:var(--ink-2);margin:3px 0 0;font-size:14px}
 #results:not([hidden]){animation:introIn .4s cubic-bezier(.2,1.4,.4,1) both}
-#results[data-stamp]:not([data-stamp=""])::before{content:attr(data-stamp);position:absolute;right:-10px;top:-16px;rotate:7deg;font-family:var(--f-d);font-weight:700;font-size:17px;letter-spacing:.04em;padding:3px 12px;border:2.5px solid var(--ink);border-radius:12px;box-shadow:0 3px 0 var(--ink);background:var(--lime);color:var(--ink);animation:introIn .45s .35s cubic-bezier(.2,1.9,.4,1) both}
+#results[data-stamp]:not([data-stamp=""])::before{content:attr(data-stamp-label);position:absolute;right:-10px;top:-16px;rotate:7deg;font-family:var(--f-d);font-weight:700;font-size:17px;letter-spacing:.04em;padding:3px 12px;border:2.5px solid var(--ink);border-radius:12px;box-shadow:0 3px 0 var(--ink);background:var(--lime);color:var(--ink);animation:introIn .45s .35s cubic-bezier(.2,1.9,.4,1) both}
 #results[data-stamp="KNOCKED OUT"]::before{background:var(--pink);color:#fff}
 .rlist li{animation:introUp .3s ease-out both;animation-delay:calc(var(--i,0)*45ms + .15s)}
 .rlist{list-style:none;margin:10px -16px 0;padding:0 16px;overflow:auto;min-height:0;font-family:var(--f-b);font-weight:800;font-size:14.5px}
@@ -440,6 +442,7 @@ body.touch #banner{top:30%}
           <label class="setting"><span>Invert camera Y</span><input type="checkbox" id="invY"></label>
           <label class="setting"><span>Music</span><input type="range" id="mus" min="0" max="1" step="0.05"><output id="musOut"></output></label>
           <label class="setting"><span>Sounds</span><input type="range" id="sfxv" min="0" max="1" step="0.05"><output id="sfxOut"></output></label>
+          <div class="setting"><span>Language</span><div data-lang-toggle></div></div>
           <div class="setting"><span>Graphics</span><div class="seg" id="gfxSeg" role="group" aria-label="Graphics quality"><button type="button" data-q="high">Pretty</button><button type="button" data-q="fast">Fast</button></div></div>
         </details>
         <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
@@ -455,6 +458,7 @@ body.touch #banner{top:30%}
         <button class="btn" id="resume" type="button">Resume</button>
         <button class="btn alt" id="copyInvite" type="button" hidden>Copy invite link</button>
         <button class="btn alt sm keysBtn" id="keysPause" type="button">Change keys</button>
+        <div data-lang-toggle></div>
         <button class="btn red" id="leave" type="button">Leave</button>
       </div>
       <p class="msg" id="inviteMsg"></p>
@@ -499,6 +503,8 @@ const FIELD=16; // every show starts with at least this many contestants: bots t
 const FIXED=1/60;
 const V3=THREE.Vector3,QT=THREE.Quaternion;
 const $=id=>document.getElementById(id);
+// Spanish: es.js holds this game's words; TRN() is for text drawn on a canvas or built in code (../lang.js). (TX is the textures.)
+const TRN=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
 const rand=(a,b)=>a+Math.random()*(b-a);
@@ -1262,10 +1268,10 @@ function arch(z,y,w,label,c1,c2){
   sign.position.set(0,y+5.6,z+.57);B.add(sign);const back=sign.clone();back.position.z=z-.57;back.rotation.y=Math.PI;B.add(back);
 }
 function spawnGrid(x,y,z,cols,rows,dx,dz){const a=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)a.push([x+(c-(cols-1)/2)*dx,y+.05,z+r*dz]);return a}
-function startPad(w){pad(0,0,15,-2,w,C.cyan);arch(13.6,0,w-2,'GO!',C.pink,'#ff4f9a');return spawnGrid(0,0,2.8,4,4,2.6,2.6)}
+function startPad(w){pad(0,0,15,-2,w,C.cyan);arch(13.6,0,w-2,TRN('GO!'),C.pink,'#ff4f9a');return spawnGrid(0,0,2.8,4,4,2.6,2.6)}
 function finishPad(z0,z1,y,w){
   B.box({p:[0,y-.6,(z0+z1)/2],s:[w,1.2,Math.abs(z1-z0)],tex:TX.checker('#ffffff','#24163f'),tile:2});
-  const az=z0-3;arch(az,y,w-2,'FINISH',C.yel,'#24163f');
+  const az=z0-3;arch(az,y,w-2,TRN('FINISH'),C.yel,'#24163f');
   B.zone({type:'fin',min:[-w/2-1,y-2,Math.min(z1,az)-4],max:[w/2+1,y+12,az-.2]});
   {const cm=new THREE.MeshBasicMaterial({color:0xffd23f,transparent:true,opacity:.3,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}),cur=new THREE.Mesh(new THREE.PlaneGeometry(w-2,4.9),cm);
     cur.userData.own=true;cur.position.set(0,y+2.45,az);B.add(cur);cur.castShadow=false;cur.receiveShadow=false;
@@ -1903,7 +1909,7 @@ LEVELS.push({id:'colour',name:'Colour Call',kind:'survival',time:80,theme:'disco
     for(const tl of tiles){const want=hid?-1:rd.map[tl.i];if(want!==tl.shown){tl.shown=want;if(tl.col.mesh)tl.col.mesh.material=MATS[want+1]}}
     const called=rd&&t>=rd.call&&t<rd.back?rd.col:-1,left=called>=0?clamp((rd.drop-t)/rd.win,0,1):0;
     for(const s of scr){const m=face(called);if(s.pm.map!==m){s.pm.map=m;s.pm.needsUpdate=true}s.bar.scale.x=Math.max(.001,left);s.bar.position.x=-3.4*(1-left)}
-    if(rd&&t>=rd.call&&t<rd.drop&&said!==rd){said=rd;callBanner(CALL[rd.col][0],rd.k>=6?'Remember where it is!':'Get on a '+CALL[rd.col][0].toLowerCase()+' tile',CALL[rd.col][1],rd.win);sfx('check')}
+    if(rd&&t>=rd.call&&t<rd.drop&&said!==rd){said=rd;callBanner(TRN(CALL[rd.col][0]),rd.k>=6?TRN('Remember where it is!'):TRN('Get on a {c} tile',{c:TRN(CALL[rd.col][0].toLowerCase())}),CALL[rd.col][1],rd.win);sfx('check')}
     if(rd&&t>=rd.drop&&rd.dropSaid!==1&&t<rd.drop+.2){rd.dropSaid=1;sfx('drop',_tmpV.set(0,0,0),.9)}
   };
   const spawns=spawnGrid(0,0,-3.9,4,4,2.6,2.6);
@@ -2572,13 +2578,17 @@ function humansHere(){
   const a=[{id:Net.uid,j:Net.j}];for(const [k,o] of Net.others)if(Net.live(k))a.push({id:k,j:o.j});
   a.sort((x,y)=>x.j-y.j||(x.id<y.id?-1:1));return a.map(x=>x.id);
 }
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// shows are for the party's people only: no bots fill the field (a party of one runs a one-round show on its own), and
+// set.bots is 0 there, which the oldest pages still read.
+function partyRoom(){return G.mode==='online'&&!Net.isPublic&&!!Net.room&&/^p[a-hjkmnp-z2-9]{6}$/.test(String(Net.room).replace(/^ko-/,''))}
 function newShow(prev){
-  const set=prev.set||defaultSet(),r=rng(Math.floor(Math.random()*1e9));
+  const party=partyRoom(),set=party?Object.assign({},prev.set||defaultSet(),{bots:0}):prev.set||defaultSet(),r=rng(Math.floor(Math.random()*1e9));
   let hum=humansHere().slice(0,set.mx);
   const ro=hum.slice(),bm={};
   // every show, online or solo, has a full field: bots take whatever places the players leave (set.bots stays in the
   // show state because pages from before this change read it; it no longer switches anything off)
-  const nb=Math.max(0,FIELD-hum.length);
+  const nb=party?0:Math.max(0,FIELD-hum.length);
   const names=shuffle(BOT_NAMES.slice(),r);
   for(let i=0;i<nb;i++){const id='b'+i,lk=botLook(r);bm[id]=[names[i%names.length],lk.c,lookStr(lk),Math.round((.45+r()*.53)*100)];ro.push(id)}
   const plan=planShow(ro.length,set.len,r,G.lastLv);G.lastLv=plan.map(p=>p.lv);
@@ -2698,7 +2708,7 @@ function enterPhase(rs){
   const myIdNow=myId();
   if(rs.ph==='lobby'){
     clearEnts(false);loadLevel('yard',3);
-    me=makeEnt({id:myIdNow,name:myName||'You',look:myLook,local:true,isMe:true});placeAt(me,G.L.spawns[Math.floor(Math.random()*8)],Math.PI);
+    me=makeEnt({id:myIdNow,name:myName||TRN('You'),look:myLook,local:true,isMe:true});placeAt(me,G.L.spawns[Math.floor(Math.random()*8)],Math.PI);
     if(G.mode==='online')for(const [k] of Net.others)if(Net.live(k))ensureRemote(k);
     $('lobby').hidden=G.mode!=='online';G.ready=false;Net.upd({rd:0,fin:'',out:'',tt:'',gr:''});
     camSnap();return;
@@ -3379,7 +3389,7 @@ function updateHud(dt){
   setHidden('intro',!showIntro);
   if(rs.ph==='round')countdown(rt);
 }
-const ordinal=n=>n+(n%100>10&&n%100<14?'th':['th','st','nd','rd','th','th','th','th','th','th'][n%10]);
+const ordinal=n=>window.BackRoomLang&&BackRoomLang.get()==='es'?n+'º':n+(n%100>10&&n%100<14?'th':['th','st','nd','rd','th','th','th','th','th','th'][n%10]);
 // where you are in a race: behind everyone who has finished and everyone further down the course
 function myPlace(rs,L){
   if(!me||me.out)return 0;const myI=rs.ro.indexOf(myId());if(rs.q.includes(myI))return rs.q.indexOf(myI)+1;
@@ -3393,11 +3403,11 @@ function showResults(rs){
   const L=G.L;if(!L||L.def.kind==='final')return;
   const myI=rs.ro.indexOf(myId()),list=$('resList');list.innerHTML='';
   const row=(i,cls,pos,tag)=>{const re=rosterEntry(rs,idOf(rs,i)),li=document.createElement('li');li.className=cls+(i===myI?' me':'');li.style.setProperty('--i',Math.min(list.children.length,14));
-    li.innerHTML='<span class="pos">'+esc(String(pos))+'</span><span class="dot" style="background:'+(validColor(re.look.c)?re.look.c:'#cccccc')+'"></span><span class="nm">'+esc(re.name)+(i===myI?' (you)':'')+'</span><span class="t">'+esc(tag)+'</span>';list.appendChild(li)};
+    li.innerHTML='<span class="pos">'+esc(String(pos))+'</span><span class="dot" style="background:'+(validColor(re.look.c)?re.look.c:'#cccccc')+'"></span><span class="nm" data-noi18n>'+esc(re.name)+(i===myI?' '+TRN('(you)'):'')+'</span><span class="t">'+esc(tag)+'</span>';list.appendChild(li)};
   rs.q.forEach((i,k)=>row(i,'q',k+1,'Qualified'));
   rs.x.slice().reverse().forEach(i=>row(i,'x','–','Out'));
   setText('resTitle',L.def.name+' is over');setText('resSub',rs.q.length+' of '+rs.pl.length+' go through to the '+(rs.rn+1>=rs.plan.length-1?'final':'next round'));
-  $('results').dataset.stamp=rs.q.includes(myI)?'QUALIFIED':rs.x.includes(myI)?'KNOCKED OUT':'';
+  $('results').dataset.stamp=rs.q.includes(myI)?'QUALIFIED':rs.x.includes(myI)?'KNOCKED OUT':'';$('results').dataset.stampLabel=TRN($('results').dataset.stamp);
   $('results').hidden=false;
   const tick=()=>{if($('results').hidden||G.rs!==rs&&G.lkey!==rsKey(rs))return;const s=Math.max(0,Math.ceil((rs.te-now())/1000));$('resNext').textContent=s>0?'Next round in '+s+'…':'Loading the next round…';setTimeout(tick,300)};tick();
 }
@@ -3419,10 +3429,10 @@ function renderLobby(){
   const ids=humansHere(),pl=$('plist');pl.innerHTML='';
   for(const id of ids){const isMe=id===Net.uid,o=Net.others.get(id),li=document.createElement('li');
     const c=isMe?myLook.c:(o?o.c:'#ccc'),rd=isMe?G.ready:o&&o.rd;
-    li.innerHTML='<span class="dot" style="background:'+(validColor(c)?c:'#cccccc')+'"></span><span class="nm">'+esc(isMe?(myName||'Bean')+' (you)':o?o.n:'Player')+'</span><span class="t'+(rd?' rd':'')+'">'+(id===G.hostUid?'Host · ':'')+(rd?'Ready':'Not ready')+'</span>';pl.appendChild(li)}
+    li.innerHTML='<span class="dot" style="background:'+(validColor(c)?c:'#cccccc')+'"></span><span class="nm" data-noi18n>'+esc(isMe?(myName||TRN('Bean'))+' '+TRN('(you)'):o?o.n:TRN('Player'))+'</span><span class="t'+(rd?' rd':'')+'">'+(id===G.hostUid?'Host · ':'')+(rd?'Ready':'Not ready')+'</span>';pl.appendChild(li)}
   const set=rs.set||defaultSet();
   segSet($('setMx'),set.mx);segSet($('setLen'),set.len);segSet($('setCol'),set.col);
-  {const nb=Math.max(0,FIELD-Math.min(ids.length,set.mx));setText('botNote',nb?'Every show has '+FIELD+' contestants: '+nb+' bot'+(nb>1?'s':'')+' will fill the empty places.':'A full house: '+FIELD+' players, no bots.')}
+  {const nb=Math.max(0,FIELD-Math.min(ids.length,set.mx));setText('botNote',partyRoom()?'No bots in party games':nb?'Every show has '+FIELD+' contestants: '+nb+' bot'+(nb>1?'s':'')+' will fill the empty places.':'A full house: '+FIELD+' players, no bots.')}
   $('hostNote').textContent=G.host?'(you pick)':'(the host picks)';
   const sb=$('startShow');sb.hidden=!G.host;sb.disabled=false;
   $('readyBtn').textContent=G.ready?'Not ready':'Ready';$('readyBtn').className='btn '+(G.ready?'alt':'lime');
@@ -3471,7 +3481,7 @@ async function goOnline(room,isPublic){
   await Net.init();
   if(Net.refs)Net.leave();
   G.mode='online';G.host=false;G.he=0;G.skew=0;G.skewS.length=0;G.skewSet=false;G.rs=null;G.lastRS=null;G.rsSeen='';G.hostUid=null;G.lkey='';G.ready=false;G.joinedAt=performance.now();G.paused=false;
-  clearEnts(false);loadLevel('yard',3);me=makeEnt({id:Net.uid,name:myName||'You',look:myLook,local:true,isMe:true});placeAt(me,G.L.spawns[0],Math.PI);
+  clearEnts(false);loadLevel('yard',3);me=makeEnt({id:Net.uid,name:myName||TRN('You'),look:myLook,local:true,isMe:true});placeAt(me,G.L.spawns[0],Math.PI);
   try{await Net.join(room,isPublic)}catch(err){showMenu();throw err}
   enterGame();collectBlockers();
   G.rs=lobbyRS(null,defaultSet());G.lkey='lobby';$('lobby').hidden=false;renderLobby();

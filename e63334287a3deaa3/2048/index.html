@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/2048/es.js"></script>
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open Styles while they are not public (see README) -->
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>2048</title>
@@ -260,6 +263,7 @@ body.touch .kh{display:none} body.touch .th{display:inline}
     <h3>Settings</h3>
     <button id="classicRow" class="setrow" type="button" role="switch" aria-checked="true"><span class="t">Strict mode<small>The game as it should be played: no Undo. Turn it off for a one-step Undo button. Leaderboard bests only count games where Undo was never used.</small></span><span class="sw"></span></button>
     <button id="soundRow" class="setrow" type="button" role="switch" aria-checked="true"><span class="t">Sound</span><span class="sw"></span></button>
+    <div class="setrow"><span class="t">Language</span><div data-lang-toggle></div></div>
     <button id="keysRow" class="setrow" type="button"><span class="t">Controls<small>Change the keys for moving, Undo, New game and Sound.</small></span><span class="val">Edit ›</span></button>
     <div class="pfoot"><button id="resumeBtn" class="btn primary" type="button">Resume</button></div>
   </div>
@@ -629,7 +633,7 @@ function renderHud(){
   $('muteBtn').setAttribute('aria-label',opts.mute?'Sound off':'Sound on');
   if(G.state==='over')$('ovUndoBtn').hidden=opts.classic||!G.undo;
   document.querySelectorAll('.mode').forEach(b=>b.setAttribute('aria-checked',String(b.dataset.mode===mode.id)));
-  $('hintGoal').innerHTML=mode.hint;      // fixed text from MODES above, never user text
+  $('hintGoal').innerHTML=T(mode.hint);      // fixed text from MODES above, never user text
   $('modeDesc').textContent=mode.desc;
   document.body.dataset.mode=mode.id;
 }
@@ -658,6 +662,7 @@ function setMute(m){
    ===================================================================== */
 const cv=$('cv'),mainCtx=cv.getContext('2d');
 let ctx=mainCtx;                 // swapped for a moment while a tile or the board is painted into its own picture
+let WR=null;                     // a captain's Styles (styles.js, see the end of this script); null for everyone else
 const boardEl=$('board'),app=$('app'),sideEl=$('side');
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const SLIDE_MS=110,POP_MS=150,SPAWN_DELAY=50,SPAWN_MS=140;
@@ -715,6 +720,9 @@ function fitFont(txt,weight,fs,maxW){
   return fs;
 }
 const styles=new Map();
+// Language (lang.js): dessert names are drawn on the tiles, so the cached tile looks are rebuilt on a switch.
+const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+document.addEventListener('backroom:lang',()=>{styles.clear();renderHud();redraw()});
 function styleOf(v){
   let st=styles.get(v);
   if(st)return st;
@@ -722,7 +730,7 @@ function styleOf(v){
   const txt=String(v),d=txt.length;
   if(sk){
     const light=isLight(sk[0]);
-    const label=sk[2],icon=sk[3]?ICONS[sk[3]]:null;
+    const label=T(sk[2]),icon=sk[3]?ICONS[sk[3]]:null;
     const lfs=fitFont(label,'800',CELL*(icon?0.2:0.3),CELL*0.86);
     st={bg:sk[0],hi:tint(sk[0],0.1),edge:shade(sk[0],0.8),rim:null,ink:sk[1],txt,font:'800 '+(CELL*0.17).toFixed(1)+'px '+FONT_FAM,
       label,lfont:'800 '+lfs.toFixed(1)+'px '+FONT_FAM,icon,tsh:light?null:shade(sk[0],0.6),
@@ -764,6 +772,7 @@ function paintTile(v){
     const lw=Math.max(1.5,c*0.028);
     ctx.strokeStyle=st.rim;ctx.lineWidth=lw;rr(-h+lw*0.5,-h+lw*0.5,c-lw,c-lip-lw,Math.max(1,RC-lw*0.5));ctx.stroke();
   }
+  if(WR)WR.tileArt(ctx,st,c,lip);   // a captain's tile set (styles.js): art at the edges, under the number
   if(st.label){
     // Ladder tile: the number small in the top-left corner, an icon (desserts) and the name.
     ctx.font=st.font;ctx.textAlign='left';ctx.textBaseline='top';
@@ -937,14 +946,16 @@ function boardOf(){
   ctx=boardCv.getContext('2d');
   try{
     ctx.setTransform(DPR,0,0,DPR,0,0);
-    const g=ctx.createLinearGradient(0,0,0,S);g.addColorStop(0,COL_BOARD);g.addColorStop(1,COL_BOARD_LO);
+    const B=WR&&WR.board(),K=B?B.c:[COL_BOARD,COL_BOARD_LO,COL_WELL,COL_WELL_SH,COL_WELL_HI];   // a captain's board (styles.js), as bright as the walnut
+    const g=ctx.createLinearGradient(0,0,0,S);g.addColorStop(0,K[0]);g.addColorStop(1,K[1]);
     ctx.fillStyle=g;rr(0,0,S,S,RB);ctx.fill();
+    if(B)WR.boardExtra(ctx,S,RB);
     const d=Math.max(1,c*0.02);
     for(let i=0;i<N;i++){
       const x=posX[i],y=posY[i];
-      ctx.fillStyle=COL_WELL_HI;rr(x,y+d,c,c,RC);ctx.fill();          // a light line under the well
-      ctx.fillStyle=COL_WELL_SH;rr(x,y,c,c,RC);ctx.fill();            // the shaded top of the well
-      ctx.fillStyle=COL_WELL;rr(x,y+c*0.045,c,c*0.955,RC);ctx.fill();
+      ctx.fillStyle=K[4];rr(x,y+d,c,c,RC);ctx.fill();          // a light line under the well
+      ctx.fillStyle=K[3];rr(x,y,c,c,RC);ctx.fill();            // the shaded top of the well
+      ctx.fillStyle=K[2];rr(x,y+c*0.045,c,c*0.955,RC);ctx.fill();
     }
   }finally{ctx=mainCtx}
   return boardCv;
@@ -1283,8 +1294,44 @@ renderHud();
 layout();
 enterMode();
 
+/* ---------- Styles (captains only for now; README, "2048") ----------
+   Tile sets and boards, drawn by styles.js beside this page. stylesOn() says whether this player may open it:
+   G2048_PUBLIC (the one line that opens it to everyone), one of the site's captains (../captains.js), or ?styles=1 on
+   localhost or in an automated browser (remembered for the tab; ?styles=0 forgets it). styles.js (and ../cosmetics.js,
+   for the item names) is fetched only when it is true; until then WR is null and everything is drawn exactly as
+   before. Looks only: numbers, colours and the rules are the game's. Saved in this browser as g48:look. */
+const G2048_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const stylesOn=()=>G2048_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'styles','2048-styles'));
+let wrAsked=false;
+function wrRebuild(){clearStyles();boardCv=null;redraw()}
+// a little 2 x 2 board for the Styles screen, in a look (swap puts the look on and gives back a function that takes it off)
+function wrPreview(cv,look,swap){
+  const undo=swap(look),g=cv.getContext('2d');
+  try{
+    const W=cv.width,S2=2*CELL+3*GAP,sc=W/S2,B=WR.board(),K=B?B.c:[COL_BOARD,COL_BOARD_LO,COL_WELL,COL_WELL_SH,COL_WELL_HI];
+    g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,W,W);g.setTransform(sc,0,0,sc,0,0);
+    const gr=g.createLinearGradient(0,0,0,S2);gr.addColorStop(0,K[0]);gr.addColorStop(1,K[1]);g.fillStyle=gr;g.fillRect(0,0,S2,S2);
+    if(B)WR.boardExtra(g,S2,RB);
+    [2,16,128,2048].forEach((v,i)=>{const x=GAP+(i%2)*(CELL+GAP),y=GAP+(i>>1)*(CELL+GAP);g.fillStyle=K[2];g.fillRect(x,y,CELL,CELL);
+      g.save();g.translate(x+CELL/2,y+CELL/2);ctx=g;try{paintTile(v)}finally{ctx=mainCtx;g.restore()}});
+  }finally{undo()}
+}
+function wrLoad(){
+  if(wrAsked)return;wrAsked=true;
+  const add=src=>new Promise((res,rej)=>{const e=document.createElement('script');e.src=src;e.onload=res;e.onerror=rej;document.head.appendChild(e)});
+  (window.BackRoomCosmetics?Promise.resolve():add('../cosmetics.js')).then(()=>add('styles.js')).then(()=>{
+    if(!window.G2048Styles||!window.BackRoomCosmetics)throw new Error('styles did not load');
+    WR=window.G2048Styles({C:window.BackRoomCosmetics,store,$,RC:()=>RC,preview:wrPreview,get on(){return stylesOn()},rebuild:wrRebuild});
+    wrSync();
+  }).catch(e=>{wrAsked=false;console.error(e)});
+}
+function wrSync(){if(stylesOn())wrLoad();if(WR){WR.access();wrRebuild()}}
+wrSync();
+if(CAPTAINS)CAPTAINS.onChange(wrSync);
+
 // Test hook for the automated rule checks (only under WebDriver/Playwright).
-if(navigator.webdriver)window.__g48={
+if(navigator.webdriver)window.__g48={get WR(){return WR},stylesOn,
   slideLine,moveBoard,spawnTile,isOver,canMove,newBoard,maxTile,validBoard,LINES,linesFor,
   KEY_GAME,KEY_BEST,KEY_OPTS,MODE_IDS,keysFor,statsFor,
   get state(){return G.state},get board(){return G.board.slice()},get score(){return G.score},get best(){return G.best},

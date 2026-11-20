@@ -19,6 +19,8 @@
  */
 (function () {
 'use strict';
+// Spanish: the words are in es.js; TX() for the preview's canvas labels (../lang.js).
+const TX = window.BackRoomLang ? BackRoomLang.t : s => s;
 window.AsteroidWardrobe = function (X) {
 const { THREE, C, G, T, ENDZ, TCOL, canvasTex, OUT, store, sfx, $ } = X;
 const GAME = 'asteroid-run';
@@ -61,6 +63,38 @@ function drawAlien(g, no, f, back) {
   const eye = (x, y, r, pc, look) => { Cc(x, y, r, '#fff'); dot(x + (look || 0), y + r * .18, r * .5, pc || OUT); dot(x + (look || 0) - r * .2, y - r * .1, r * .18, '#fff'); };
   const smile = (x, y, w, col) => { g.save(); g.beginPath(); g.arc(x, y - w * .4, w, .25 * Math.PI, .75 * Math.PI); g.strokeStyle = col || OUT; g.lineWidth = 4; g.stroke(); g.restore(); };
   const legY = air ? -10 : 0;
+  // ---- the November 2026 aliens (20-39) share this body: a round-headed alien in an outfit (front or back). ----
+  // o: skin, top, sleeve, pants, legs, shoes, hand, glove (hand size); noAnt, noFace, noHead; coat (a long coat);
+  // suit {shirt, lap, tie, bow, pin, flower}; body() and head() add details over the torso and over the head.
+  const num = (t, x, y, size, fill) => { g.save(); g.font = '900 ' + size + 'px Arial,Helvetica,sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = Math.max(3, size * .22); g.strokeStyle = OUT; g.strokeText(t, x, y); g.fillStyle = fill; g.fillText(t, x, y); g.restore(); };
+  const kid = o => {
+    const sk = o.skin, top = o.top;
+    feet(15, 133, 12, 8, o.shoes || OUT);
+    for (const s of [-1, 1]) { const k = air ? -10 : s * st; limb([64 + s * 13, 112, 64 + s * 14, 124 + k * .45], o.legs || top, 8); }
+    for (const s of [-1, 1]) { const k = sw * s; limb([64 + s * 22, 80, 64 + s * 34 + k * 3, 102 - k * 2], o.sleeve || top, 8); Cc(64 + s * 35 + k * 3, 105 - k * 2, o.glove || 6, o.hand || sk); }
+    if (o.coat) RR(36, 72, 56, 54, 12, top); else RR(40, 72, 48, 46, 14, top);
+    if (o.pants && !o.coat) { g.save(); g.beginPath(); g.rect(36, 106, 56, 20); g.clip(); RR(40, 72, 48, 46, 14, o.pants); g.restore(); thin([42, 106, 86, 106], 'rgba(0,0,0,.25)', 2); }
+    const S = o.suit;
+    if (S) {
+      if (S.pin) for (let x = 45; x < 86; x += 6) thin([x, 75, x, 116], S.pin, 1.5);
+      if (!back) {
+        P([52, 73, 64, 98, 76, 73], S.shirt, false);
+        if (S.tie) P([61, 74, 67, 74, 66, 80, 69, 94, 64, 99, 59, 94, 62, 80], S.tie, false);
+        if (S.bow) { P([64, 77, 54, 72, 54, 82], S.bow, false); P([64, 77, 74, 72, 74, 82], S.bow, false); dot(64, 77, 3, S.bow); }
+        P([52, 73, 46, 76, 60, 100, 64, 98], S.lap, false); P([76, 73, 82, 76, 68, 100, 64, 98], S.lap, false);
+        thin([52, 73, 64, 98, 76, 73], OUT, 2); dot(64, 106, 2.2, OUT); dot(64, 113, 2.2, OUT);
+        if (S.flower) { dot(80, 84, 4, S.flower); dot(80, 84, 1.5, '#ffe58a'); }
+      } else { thin([64, 96, 64, 118], 'rgba(0,0,0,.25)', 2); P([52, 72, 64, 78, 76, 72], S.shirt, false); }
+    }
+    if (o.body) o.body();
+    if (!o.noHead) {
+      if (!o.noAnt) for (const s of [-1, 1]) { limb([64 + s * 12, 30, 64 + s * 20 + sw, 12], sk, 3); Cc(64 + s * 20 + sw, 11, 4.5, '#ff4fa0'); }
+      E(64, 48, 30, 25, sk);
+      if (back) shine(48, 38, 8, 6);
+      else if (!o.noFace) { eye(52, 50, 8, OUT); eye(76, 50, 8, OUT); smile(64, 64, 6); }
+    }
+    if (o.head) o.head();
+  };
   switch (no) {
     case 1: { // Little Green: big head, huge dark eyes
       const c = '#8be35a', d = '#4f9e33';
@@ -381,6 +415,89 @@ function drawAlien(g, no, f, back) {
       thin([40, 66, 40, 92], 'rgba(255,255,255,.6)', 4);
       break;
     }
+    // ---- November 2026 wave (20-39): one round-headed alien body in different outfits. Same box, same runner size. ----
+    case 20: kid({ skin: '#39c6b0', top: '#ff8a2a', pants: '#1a1d2e', legs: '#ff8a2a', shoes: '#1a1d2e',
+      body: () => { thin([40, 84, 88, 84], '#fff', 4); thin([40, 92, 88, 92], '#fff', 4); if (back) num('10', 64, 90, 22, '#fff'); else { thin([58, 72, 64, 80, 70, 72], '#fff', 3); num('10', 76, 96, 10, '#fff'); } } }); break;
+    case 21: kid({ skin: '#b6f04a', top: '#8a4fff', sleeve: '#b6f04a', pants: '#8a4fff', legs: '#b6f04a', shoes: '#fff',
+      body: () => { thin([46, 72, 64, 84, 82, 72], '#ffd23f', 3); if (back) num('3', 64, 92, 26, '#ffd23f'); else num('3', 64, 96, 18, '#ffd23f'); thin([40, 104, 88, 104], '#ffd23f', 3); },
+      head: () => RR(34, 30, 60, 7, 3, '#fff') }); break;
+    case 22: kid({ skin: '#6fb7ff', top: '#e8282b', pants: '#f2e6c9', legs: '#f2e6c9', shoes: '#1a1d2e', noAnt: true,
+      body: () => { E(40, 76, 14, 9, '#e8282b'); E(88, 76, 14, 9, '#e8282b'); num('55', 64, 96, back ? 22 : 16, '#fff'); },
+      head: () => { g.beginPath(); g.arc(64, 50, 32, Math.PI * .95, Math.PI * 2.05); g.lineTo(96, 62); g.lineTo(32, 62); g.closePath(); path(back ? '#e8282b' : null, back); if (back) thin([64, 20, 64, 60], '#fff', 5); else { g.beginPath(); g.arc(64, 50, 32, Math.PI * .98, Math.PI * 2.02); path('#e8282b'); E(64, 46, 22, 14, '#6fb7ff', 0, false); eye(54, 50, 7, OUT); eye(74, 50, 7, OUT); thin([36, 58, 92, 58], '#c8ccd4', 4); thin([40, 66, 88, 66], '#c8ccd4', 4); thin([64, 56, 64, 70], '#c8ccd4', 4); } }, noFace: true }); break;
+    case 23: kid({ skin: '#ffb04a', top: '#fbfaf5', pants: '#fbfaf5', legs: '#1f3b73', shoes: '#1a1d2e',
+      body: () => { for (let x = 46; x < 88; x += 7) thin([x, 76, x, 116], '#9fb0d8', 2); if (back) num('8', 64, 92, 24, '#1f3b73'); else { thin([64, 74, 64, 116], '#1f3b73', 3); for (const y of [84, 96, 108]) dot(68, y, 2, '#1f3b73'); } },
+      head: () => { g.beginPath(); g.arc(64, 44, 29, Math.PI, 0); g.closePath(); path('#1f3b73'); if (!back) E(64, 44, 32, 6, '#1f3b73'); dot(64, 16, 3, '#1f3b73'); } }); break;
+    case 24: kid({ skin: '#c77dff', top: '#19b3a6', pants: '#2a2a33', legs: '#19b3a6', shoes: '#c8ccd4', glove: 8, hand: '#2a2d34',
+      body: () => { thin([40, 106, 88, 106], '#fff', 5); if (back) num('77', 64, 88, 22, '#fff'); },
+      head: () => { g.beginPath(); g.arc(64, 46, 31, Math.PI * 1.02, -Math.PI * .02); g.closePath(); path('#fff'); if (!back) { thin([42, 50, 86, 50], '#9aa3ad', 2); thin([42, 60, 86, 60], '#9aa3ad', 2); for (const x of [50, 64, 78]) thin([x, 46, x, 66], '#9aa3ad', 2); } } }); break;
+    case 25: kid({ skin: '#8be35a', top: '#8be35a', pants: '#e8282b', legs: '#8be35a', shoes: '#fff', glove: 12, hand: '#e8282b',
+      body: () => { thin([40, 100, 88, 100], '#fff', 5); thin([56, 90, 64, 96, 72, 90], '#4f9e33', 3); if (back) RR(54, 104, 20, 10, 3, '#ffcf3d'); },
+      head: () => { g.beginPath(); g.arc(64, 48, 31, Math.PI * 1.05, -Math.PI * .05); g.stroke(); RR(34, 26, 60, 12, 6, '#e8282b'); if (!back) { RR(30, 42, 10, 20, 5, '#e8282b'); RR(88, 42, 10, 20, 5, '#e8282b'); } else RR(36, 30, 56, 32, 12, '#e8282b'); } }); break;
+    case 26: kid({ skin: '#6fb7ff', top: '#ff6b1a', pants: '#ff6b1a', legs: '#ff6b1a', shoes: '#1a1d2e', hand: '#1a1d2e', noAnt: true, noFace: true,
+      body: () => { for (let i = 0; i < 8; i++) for (let r = 0; r < 2; r++) { g.fillStyle = (i + r) % 2 ? '#fff' : '#1a1d2e'; g.fillRect(41 + i * 5.75, 100 + r * 5, 5.75, 5); } if (back) num('1', 64, 92, 18, '#fff'); else { RR(46, 80, 12, 9, 2, '#fff', false); RR(70, 80, 12, 9, 2, '#1f3b73', false); } },
+      head: () => { Cc(64, 46, 32, '#fff'); thin([64, 15, 64, 77], '#ff6b1a', 8); if (!back) { RR(38, 36, 52, 20, 9, '#2a3a5a'); dot(54, 46, 3.5, '#7dff6a'); dot(74, 46, 3.5, '#7dff6a'); thin([44, 40, 52, 38], 'rgba(255,255,255,.6)', 3); } else shine(46, 30, 8, 6); } }); break;
+    case 27: kid({ skin: '#ff8fc8', top: '#fff', pants: '#1a1d2e', legs: '#1a1d2e', shoes: '#1a1d2e',
+      body: () => { for (let x = 46; x < 88; x += 9) { g.fillStyle = '#1a1d2e'; g.fillRect(x, 74, 4.5, 30); } if (!back) { thin([52, 74, 64, 90, 76, 74], '#1a1d2e', 2); RR(60, 88, 10, 6, 2, '#c8ccd4'); } },
+      head: () => { g.beginPath(); g.arc(64, 44, 29, Math.PI, 0); g.closePath(); path('#1a1d2e'); if (!back) E(64, 44, 32, 6, '#1a1d2e'); } }); break;
+    case 28: kid({ skin: '#ffb04a', top: '#1d3a5a', pants: '#1d3a5a', legs: '#1d3a5a', shoes: '#ffb04a',
+      body: () => { thin([40, 80, 40, 116], '#2ec5c0', 4); thin([88, 80, 88, 116], '#2ec5c0', 4); if (back) { g.save(); g.translate(64, 86); g.rotate(.15); E(0, 0, 14, 44, '#ffd23f'); thin([0, -40, 0, 40], '#ff6b1a', 4); g.restore(); } },
+      head: () => { for (const [x, y] of [[42, 30], [54, 24], [68, 24], [82, 30]]) P([x - 6, y + 8, x, y - 8, x + 6, y + 8], '#ffe58a'); } }); break;
+    case 29: { // Robo-Alien: a boxy robot shell, alien eyes on its screen
+      const m = '#c8d2dc', md = '#7d8a99';
+      kid({ skin: m, top: m, pants: md, legs: md, shoes: '#4a5260', hand: md, noAnt: true, noFace: true, noHead: true,
+        body: () => { if (back) { for (let y = 82; y < 112; y += 7) thin([48, y, 80, y], md, 3); RR(50, 108, 28, 6, 2, '#ff5a5a', false); } else { RR(46, 80, 36, 24, 5, '#4a5260'); dot(54, 88, 3.5, '#ff5a6a'); dot(64, 88, 3.5, '#ffd23f'); dot(74, 88, 3.5, '#7dff6a'); thin([52, 98, 76, 98], '#2ec5ff', 3); } },
+        head: () => { limb([64, 24, 64, 10], md, 3); Cc(64, 8, 5, '#ff5a5a'); RR(32, 24, 64, 48, 9, m); RR(26, 40, 8, 16, 3, md); RR(94, 40, 8, 16, 3, md);
+          if (back) { for (const [x, y] of [[38, 30], [90, 30], [38, 66], [90, 66]]) dot(x, y, 2.5, md); RR(46, 36, 36, 22, 4, md, false); for (let y = 40; y < 56; y += 5) thin([50, y, 78, y], '#5a6370', 2); }
+          else { RR(40, 32, 48, 32, 6, '#1b2333'); E(54, 46, 7, 9, '#7dff6a', 0, false); E(74, 46, 7, 9, '#7dff6a', 0, false); dot(54, 48, 3, '#1b2333'); dot(74, 48, 3, '#1b2333'); thin([56, 58, 72, 58], '#7dff6a', 3); } } });
+      break;
+    }
+    case 30: { // Chrome Android Alien
+      const s = '#dfe6ee', c = '#2ec5ff';
+      kid({ skin: s, top: s, pants: '#b8c2d6', legs: s, shoes: '#9aa6b4', noAnt: true, noFace: true,
+        body: () => { thin([52, 74, 52, 116], c, 3); thin([76, 74, 76, 116], c, 3); Cc(64, back ? 92 : 88, 6, c); thin([42, 78, 86, 78], 'rgba(255,255,255,.7)', 3); },
+        head: () => { thin([30, 46, 98, 46], c, 12); if (!back) { dot(52, 46, 3, '#fff'); dot(76, 46, 3, '#fff'); } RR(28, 38, 8, 16, 4, c); RR(92, 38, 8, 16, 4, c); shine(48, 34, 8, 5); P([60, 24, 64, 14, 68, 24], c); } });
+      break;
+    }
+    case 31: { // Space Pirate Captain: three eyes, one under a patch
+      kid({ skin: '#39c6b0', top: '#b3202a', pants: '#e8e0cc', legs: '#1a1d2e', shoes: '#1a1d2e', noAnt: true, noFace: true,
+        body: () => { thin([40, 104, 88, 104], '#3b2416', 6); RR(58, 100, 12, 9, 2, '#e8b923'); if (!back) { P([56, 74, 64, 90, 72, 74], '#fbf3e0'); for (const y of [80, 90]) { dot(46, y, 3, '#e8b923'); dot(82, y, 3, '#e8b923'); } } else thin([64, 74, 64, 100], '#7a1712', 3); },
+        head: () => { if (back) { thin([34, 46, 94, 52], OUT, 4); shine(48, 40, 7, 5); } else { eye(48, 52, 8, OUT); eye(64, 46, 8, OUT); E(80, 52, 10, 9, '#1a1d2e'); thin([34, 40, 94, 60], OUT, 3); smile(64, 64, 6); }
+          P([18, 32, 64, 4, 110, 32, 64, 38], '#1a1d2e'); thin([22, 31, 64, 6, 106, 31], '#e8b923', 3); g.save(); g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 2.6 : 6; g.lineTo(64 + Math.cos(a) * r, 25 + Math.sin(a) * r); } g.closePath(); g.fillStyle = '#e8b923'; g.fill(); g.restore(); } });
+      break;
+    }
+    case 32: { // Space Deckhand: striped shirt, bandana, eye patch, a little robot parrot
+      kid({ skin: '#8be35a', top: '#fff', pants: '#c9a46a', legs: '#8be35a', shoes: '#8be35a',
+        body: () => { for (let y = 78; y < 102; y += 8) thin([40, y, 88, y], '#1f3b73', 4); },
+        head: () => { g.beginPath(); g.arc(64, 46, 30, Math.PI * 1.02, -Math.PI * .02); g.closePath(); path('#d9312b'); for (const [x, y] of [[50, 32], [64, 26], [78, 32], [56, 40], [72, 40]]) dot(x, y, 2.5, '#fff');
+          if (back) { P([60, 46, 50, 62, 58, 62], '#d9312b'); P([68, 46, 78, 62, 70, 62], '#d9312b'); thin([34, 52, 94, 56], OUT, 3); } else { E(76, 52, 9, 8, '#1a1d2e'); thin([36, 44, 92, 58], OUT, 3); }
+          const px = back ? 26 : 102; RR(px - 8, 62, 16, 16, 5, '#c8d2dc'); P([px + (back ? -8 : 8), 68, px + (back ? -16 : 16), 71, px + (back ? -8 : 8), 74], '#ffd23f'); dot(px + (back ? -3 : 3), 68, 2.5, '#2ec5ff'); limb([px, 62, px, 56], '#7d8a99', 2); } });
+      break;
+    }
+    case 33: { // Ghost Pirate Alien: pale and see-through, a wispy tail for legs
+      const pale = 'rgba(200,247,234,.8)', t = 'rgba(127,214,196,.85)';
+      const w = air ? -6 : st * .5;
+      g.beginPath(); g.moveTo(40, 96); g.bezierCurveTo(36, 120, 50 + w, 124, 56 + w, 138); g.bezierCurveTo(62, 126, 70 - w, 132, 74 - w, 140); g.bezierCurveTo(78, 124, 92, 120, 88, 96); g.closePath(); path(pale);
+      for (const s2 of [-1, 1]) limb([64 + s2 * 24, 82, 64 + s2 * 34 + sw * s2 * 3, 102], t, 8);
+      RR(40, 70, 48, 40, 14, t); P([40, 108, 46, 118, 52, 108, 58, 118, 64, 108, 70, 118, 76, 108, 82, 118, 88, 108], t);
+      if (!back) { P([56, 72, 64, 92, 72, 72], pale); for (const y of [80, 92]) { dot(46, y, 3, '#e8fff9'); dot(82, y, 3, '#e8fff9'); } }
+      E(64, 48, 30, 25, pale);
+      if (back) { thin([34, 46, 94, 52], '#2f5d58', 3); shine(48, 38, 8, 6); }
+      else { E(52, 50, 7, 8, '#2ef0c0'); dot(52, 51, 3, '#e8fff9'); E(76, 50, 9, 8, '#2f5d58'); thin([36, 42, 92, 58], '#2f5d58', 3); g.save(); g.beginPath(); g.arc(64, 64, 6, .1 * Math.PI, .9 * Math.PI); g.strokeStyle = '#2f5d58'; g.lineWidth = 3; g.stroke(); g.restore(); }
+      P([18, 32, 64, 6, 110, 32, 64, 38], '#8fd9c8'); P([30, 30, 34, 38, 40, 31], 'rgba(200,247,234,.9)', false); P([88, 31, 94, 38, 98, 30], 'rgba(200,247,234,.9)', false);
+      break;
+    }
+    case 34: kid({ skin: '#8be35a', top: '#2b3a66', pants: '#2b3a66', legs: '#2b3a66', shoes: '#1a1d2e', suit: { shirt: '#fff', lap: '#1f2b52', tie: '#e8282b' } }); break;
+    case 35: kid({ skin: '#c77dff', top: '#2b3550', pants: '#2b3550', legs: '#2b3550', shoes: '#f7f5ee', noAnt: true, suit: { shirt: '#fff', lap: '#232b42', tie: '#e8282b', pin: 'rgba(220,226,240,.55)', flower: '#ff5a6a' },
+      head: () => { E(64, 30, 38, 7, '#4a5163'); RR(44, 8, 40, 24, 8, '#4a5163'); RR(44, 24, 40, 6, 2, '#1a1d2e', false); thin([60, 10, 64, 16, 68, 10], '#3a4050', 3); } }); break;
+    case 36: kid({ skin: '#39c6b0', top: '#b98a52', pants: '#b98a52', legs: '#2a2830', shoes: '#1a1d2e', hand: '#2a2830', noAnt: true, coat: true, suit: { shirt: '#fff', lap: '#a3763f', tie: '#3a2f4a' },
+      body: () => { E(64, 74, 30, 9, '#8f7663'); if (back) thin([64, 84, 64, 122], '#8a6438', 3); },
+      head: () => { RR(38, 6, 52, 28, 12, '#7a6250'); g.save(); g.strokeStyle = '#a08a76'; g.lineWidth = 2.5; for (let i = 0; i < 12; i++) { const x = 42 + i * 4; g.beginPath(); g.moveTo(x, 10 + (i % 3) * 7); g.lineTo(x + 2, 15 + (i % 3) * 7); g.stroke(); } g.restore(); } }); break;
+    case 37: kid({ skin: '#ffb04a', top: '#2e5ad9', pants: '#2e5ad9', legs: '#2e5ad9', shoes: '#fff',
+      body: () => { thin([42, 78, 42, 116], '#fff', 3); thin([86, 78, 86, 116], '#fff', 3); if (!back) { thin([64, 74, 64, 116], '#fff', 2); g.save(); g.beginPath(); g.arc(64, 72, 16, .15 * Math.PI, .85 * Math.PI); g.strokeStyle = '#ffcf3d'; g.lineWidth = 4; g.stroke(); g.restore(); Cc(64, 90, 5, '#ffcf3d'); } else thin([50, 74, 78, 74], '#ffcf3d', 4); } }); break;
+    case 38: kid({ skin: '#6fb7ff', top: '#4a4858', pants: '#4a4858', legs: '#4a4858', shoes: '#1a1d2e', noFace: true, suit: { shirt: '#fff', lap: '#2e2c37', tie: '#1a1d2e' },
+      head: () => { if (!back) { RR(38, 42, 52, 14, 5, '#1a1d2e'); thin([44, 45, 52, 45], 'rgba(255,255,255,.5)', 2); g.save(); g.beginPath(); g.moveTo(58, 66); g.lineTo(70, 66); g.strokeStyle = OUT; g.lineWidth = 3; g.stroke(); g.restore(); } else thin([34, 48, 94, 48], '#1a1d2e', 3); Cc(back ? 34 : 94, 52, 4, '#e8e0d0'); thin(back ? [34, 56, 36, 76] : [94, 56, 92, 76], '#e8e0d0', 2); } }); break;
+    case 39: kid({ skin: '#b6f04a', top: '#423f4c', pants: '#423f4c', legs: '#423f4c', shoes: '#1a1d2e', hand: '#fff', noAnt: true, suit: { shirt: '#fff', lap: '#4a4756', bow: '#1a1d2e', flower: '#ff5a6a' },
+      head: () => { E(64, 28, 30, 6, '#2f2d36'); RR(46, 2, 36, 26, 4, '#2f2d36'); RR(46, 20, 36, 6, 2, '#4a4756', false); if (!back) { g.save(); g.beginPath(); g.arc(76, 50, 10, 0, 7); g.strokeStyle = '#e8b923'; g.lineWidth = 3; g.stroke(); g.restore(); thin([86, 52, 90, 74], '#e8b923', 2); } } }); break;
     default: break;
   }
 }
@@ -669,7 +786,7 @@ const CSS = `
 @media (min-width:640px) and (max-height:560px){#wardrobe .card{width:min(760px,100%)}.wr-body{display:grid;grid-template-columns:200px 1fr;gap:0 16px;align-items:start}.wr-prev{flex-direction:column;align-items:flex-start;margin-top:10px}.wr-prev canvas{width:184px;height:110px}.wr-grid{max-height:calc(100vh - 150px)}}
 @media (max-width:420px){.wr-prev canvas{width:150px;height:96px}.wr-prev{min-height:96px}.wr-grid{grid-template-columns:repeat(auto-fill,minmax(66px,1fr))}}
 `;
-const RC = { common: '#7d82b8', rare: '#3fe0ff', epic: '#c27bff', legendary: '#ffd23f' };
+const RC = { common: '#7d82b8', uncommon: '#5fe08a', rare: '#3fe0ff', epic: '#c27bff', legendary: '#ffd23f' };
 const TABS = [['a', 'Aliens', ALIENS], ['t', 'Trails', TRAILS], ['u', 'Tunnels', TUNNELS]];
 let tab = 'a', built = false, pvRaf = 0, pvT = 0, pvParts = [], pvLast = 0, pvAt = 0;
 function style() { if ($('wr-css')) return; const st = document.createElement('style'); st.id = 'wr-css'; st.textContent = CSS; document.head.append(st); }
@@ -754,7 +871,7 @@ function drawPreview(t) {
   if (tab === 'a') {
     if (!look.a) { body(W / 2, H - 2, 176, true, fr); return; }
     body(W * .27, H - 2, 176, false, fr); body(W * .73, H - 2, 176, true, fr);
-    g.fillStyle = 'rgba(185,189,234,.85)'; g.font = '900 20px Nunito,sans-serif'; g.textAlign = 'center'; g.fillText('front', W * .27, 24); g.fillText('in the game', W * .73, 24);
+    g.fillStyle = 'rgba(185,189,234,.85)'; g.font = '900 20px Nunito,sans-serif'; g.textAlign = 'center'; g.fillText(TX('front'), W * .27, 24); g.fillText(TX('in the game'), W * .73, 24);
   } else if (tab === 't') {
     g.fillStyle = '#4f68ff'; g.beginPath(); g.moveTo(W * .3, H * .3); g.lineTo(W * .7, H * .3); g.lineTo(W, H); g.lineTo(0, H); g.closePath(); g.fill();
     const fx = TRAIL_FX[look.t];

@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/poopdle/es.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Poopdle</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -276,17 +278,19 @@ function copyText(t) {
   return Promise.resolve(fallback());
 }
 const tilesHtml = (w, cls) => '<div class="tiles">' + Array.from(w).map((c, i) => '<span class="t ' + (typeof cls === 'function' ? cls(i) : cls || '') + '">' + c + '</span>').join('') + '</div>';
-const HOW = '<p>Turn today\'s start word into <b>POOP</b>, one letter at a time. Every step has to be a real four-letter word.</p>' +
+// Language (lang.js): menus and messages follow the Back Room's English / Español setting; the ladder words stay English.
+const TR = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
+const HOW = () => TR('<p>Turn today\'s start word into <b>POOP</b>, one letter at a time. Every step has to be a real four-letter word.</p>') +
   '<div class="ex">' + tilesHtml('COIN', 'start') + tilesHtml('COIL', (i) => i === 3 ? 'ch' : '') + tilesHtml('COOL', (i) => i === 2 ? 'ch hit' : i === 1 ? 'hit' : '') + tilesHtml('COOP', (i) => i === 3 ? 'ch hit' : i === 1 || i === 2 ? 'hit' : '') + tilesHtml('POOP', 'goal') + '</div>' +
-  '<ul><li><b>Par</b> is the fewest steps it can be done in. Match it for a perfect score.</li>' +
+  TR('<ul><li><b>Par</b> is the fewest steps it can be done in. Match it for a perfect score.</li>' +
   '<li>Letters already in the right place for POOP turn <b style="color:var(--green)">green</b>.</li>' +
   '<li><b>Undo</b> takes you back a word, but the move still counts.</li>' +
   '<li><b>Hint</b> first tells you which letter to change, then a word that keeps you on a shortest path. <b>Give up</b> shows you a way there.</li>' +
   '<li>Type on your keyboard and press Enter, or use the keys on screen.</li>' +
-  '<li>Unlimited mode has random start words, and can pick a random goal word too.</li></ul>';
+  '<li>Unlimited mode has random start words, and can pick a random goal word too.</li></ul>');
 function openHelp() {
   store.set(SLUG + ':seen', 1);
-  modal('How to play', h('div', { html: HOW + '<p class="foot">A new start word every day at midnight, your time, the same for everyone. Unlimited games don\'t count towards your stats. · <a href="/privacy.html">Privacy</a></p>' }));
+  modal('How to play', h('div', { html: HOW() + '<p class="foot">' + TR('A new start word every day at midnight, your time, the same for everyone. Unlimited games don\'t count towards your stats.') + ' · <a href="/privacy.html">Privacy</a></p>' }));
 }
 let cdTimer = 0;
 function openStats(meKey) {
@@ -456,8 +460,8 @@ function shareText() {
   let grid = st.log.map((x) => E[x]).join('');
   if (st.win) grid = grid.replace(/🟩$/, '💩');
   else grid += '🏳️';
-  const head = NAME + (st.mode === 'free' ? ' (unlimited)' : dayNum(st.day) >= 1 ? ' #' + dayNum(st.day) : ' (preview)');
-  const line = st.win ? '💩 in ' + st.moves + ' · par ' + st.par : 'gave up · par ' + st.par;
+  const head = NAME + (st.mode === 'free' ? ' ' + TR('(unlimited)') : dayNum(st.day) >= 1 ? ' #' + dayNum(st.day) : ' ' + TR('(preview)'));
+  const line = st.win ? TR('💩 in {m} · par {p}', { m: st.moves, p: st.par }) : TR('gave up · par {p}', { p: st.par });
   return head + ' ' + line + (st.hints ? ' 💡' + st.hints : '') + '\n' + grid + '\nascoding11.github.io';
 }
 function share() { const t = shareText(); if (!t) return; copyText(t).then((ok) => toast(ok ? 'Copied! Paste it anywhere.' : 'Couldn\'t copy, sorry')); }
@@ -515,7 +519,7 @@ function renderActs() {
 }
 function render(animate) {
   if (!st) return;
-  info.innerHTML = 'Moves <b>' + st.moves + '</b> · Par <b>' + st.par + '</b>';
+  info.innerHTML = TR('Moves <b>{m}</b> · Par <b>{p}</b>', { m: st.moves, p: st.par });
   renderLadder(animate);
   renderActs();
   if (st.done) setHintLine('');
@@ -530,8 +534,8 @@ function render(animate) {
     const title = st.win ? (over === 0 ? (st.target === 'poop' ? 'Par! Perfectly pooped 💩' : 'Par! Perfect ladder') : over === 1 ? 'Made it, one over par' : 'Made it, ' + over + ' over par') : 'Better luck tomorrow';
     end.append(
       h('h2', { class: st.win ? 'win' : 'lose', text: st.mode === 'free' && !st.win ? 'Here\'s a way' : title }),
-      h('p', { html: st.win ? 'You reached <b>' + UP(st.target) + '</b> in <b>' + st.moves + '</b> move' + (st.moves === 1 ? '' : 's') + ' (par ' + st.par + ')' + (st.hints ? ' with ' + st.hints + ' hint' + (st.hints > 1 ? 's' : '') : '') + '.' : 'A shortest ladder from ' + UP(st.start) + ' has ' + st.par + ' steps:' }),
-      h('p', { html: (st.win ? 'A shortest ladder: ' : '') + '<b>' + p.map(UP).join(' → ') + '</b>' }),
+      h('p', { 'data-noi18n': '', html: st.win ? TR(st.moves === 1 ? 'You reached <b>{w}</b> in <b>{m}</b> move (par {p})' : 'You reached <b>{w}</b> in <b>{m}</b> moves (par {p})', { w: UP(st.target), m: st.moves, p: st.par }) + (st.hints ? TR(st.hints > 1 ? ' with {n} hints' : ' with {n} hint', { n: st.hints }) : '') + '.' : TR('A shortest ladder from {w} has {p} steps:', { w: UP(st.start), p: st.par }) }),
+      h('p', { 'data-noi18n': '', html: (st.win ? TR('A shortest ladder:') + ' ' : '') + '<b>' + p.map(UP).join(' → ') + '</b>' }),
       h('div', { class: 'row' }, [
         h('button', { type: 'button', class: 'cta', text: 'Share', onclick: share }),
         h('button', { type: 'button', class: 'ghost', text: st.mode === 'daily' ? 'Play unlimited' : 'Next word', onclick: () => start('free', true) }),
@@ -567,6 +571,8 @@ setInterval(() => {
 Daily.load(); // clears a streak that ended before yesterday
 start('daily');
 if (!store.get(SLUG + ':seen', 0)) setTimeout(openHelp, 250);
+document.addEventListener('backroom:lang', () => { if (st) render(); });
+if (window.BackRoomLang) BackRoomLang.englishOnly($('modeRow'));
 if (navigator.webdriver) window.__pd = {
   get st() { return st; }, L: L, key: key, type(w) { typed = ''; Array.from(w).forEach(key); key('Enter'); }, undo: undo, hint: hint,
   giveUp() { giveArmed = Date.now() - 100; giveUp(); }, start: start, shareText: shareText, Daily: Daily,

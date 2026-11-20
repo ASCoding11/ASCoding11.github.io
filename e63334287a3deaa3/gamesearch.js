@@ -20,6 +20,15 @@
  */
 (function () {
   if (window.__gameSearch) return; window.__gameSearch = 1;
+  // Spanish (lang.js): this script's words, and T() for the line under the box.
+  var T = function (s, v) { return window.BackRoomLang ? BackRoomLang.t(s, v) : String(s).replace(/\{(\w+)\}/g, function (m, k) { return v && v[k] != null ? v[k] : m; }); };
+  (function es(n) {
+    if (!window.BackRoomLang) { if (n < 100) setTimeout(function () { es(n + 1); }, 100); return; }
+    BackRoomLang.add({
+      'Search games': 'Buscar juegos', 'Clear search': 'Borrar búsqueda', '1 game matches.': 'Coincide 1 juego.',
+      '{n} games match.': 'Coinciden {n} juegos.', 'No games match “{q}”.': 'Ningún juego coincide con “{q}”.', 'Clear the search': 'Borrar la búsqueda'
+    });
+  })(0);
   var phone = !!document.getElementById('lists');
   function navEl() { return document.querySelector(phone ? '.gnav' : '.br-games .gs-nav'); }
   function norm(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim(); }
@@ -58,9 +67,18 @@
     '<p class="gs-msg" aria-live="polite" hidden></p>';
   var q = wrap.querySelector('input'), x = wrap.querySelector('.gs-x'), kb = wrap.querySelector('kbd'), msg = wrap.querySelector('.gs-msg');
 
+  // Keep the box right in front of the row of game types. Edit layout (layout.js) moves the two as one piece. In case
+  // any other script ever moves the box away each time it's put back, this gives up after a few tries in a row rather
+  // than fight it on every frame (a fight like that once re-inserted the Online panel 50 times a second).
+  var moves = [], gaveUp = false;
   function place() {
     var nav = navEl(); if (!nav || !nav.parentNode) return false;
-    if (wrap.nextElementSibling !== nav) nav.parentNode.insertBefore(wrap, nav);
+    if (wrap.nextElementSibling === nav) return true;
+    if (gaveUp && wrap.isConnected) return true;
+    var t = Date.now(); moves = moves.filter(function (m) { return t - m < 3000; });
+    if (moves.length >= 4 && wrap.isConnected) { gaveUp = true; return true; }
+    moves.push(t);
+    nav.parentNode.insertBefore(wrap, nav);
     return true;
   }
 
@@ -115,10 +133,10 @@
       document.querySelectorAll('.br-games .gs-ask-sm').forEach(hide);   // the puzzle-request note; the general ideas note stays
     }
     msg.hidden = false; msg.textContent = '';
-    if (n) msg.textContent = n === 1 ? '1 game matches.' : n + ' games match.';
+    if (n) msg.textContent = n === 1 ? T('1 game matches.') : T('{n} games match.', { n: n });
     else {
-      msg.append('No games match “' + q.value.trim() + '”. ');
-      var b = document.createElement('button'); b.type = 'button'; b.textContent = 'Clear the search';
+      msg.append(T('No games match “{q}”.', { q: q.value.trim() }) + ' ');
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = T('Clear the search');
       b.addEventListener('click', clear); msg.append(b);
     }
   }
@@ -139,10 +157,19 @@
     if (!place()) { setTimeout(start, 200); return; }
     // Keep the box in front of the row of game types if Edit layout moves it, and re-run a search when the phone
     // page's lists are rebuilt or new cards arrive.
-    var busy = false;
-    new MutationObserver(function () {
-      if (busy) return; busy = true;
-      requestAnimationFrame(function () { busy = false; place(); if (q.value && !wrap.contains(document.activeElement)) run(); });
+    // Only what happens outside the box counts (its own "3 games match" line changing must not start another pass), and
+    // a search is only run again when games were added or taken away, not when some other panel redraws.
+    var busy = false, again = false;
+    function inGames(n) { return !!(n && n.closest && n.closest('.br-games .gc-grid, .br-games .pz-grid, #lists')); }
+    new MutationObserver(function (list) {
+      var any = false;
+      for (var i = 0; i < list.length; i++) {
+        var m = list[i]; if (wrap.contains(m.target)) continue;
+        any = true;
+        if (inGames(m.target) && !(m.target.closest && m.target.closest('.onl, #party, #playingnow'))) again = true;
+      }
+      if (!any || busy) return; busy = true;
+      requestAnimationFrame(function () { busy = false; place(); if (again) { again = false; if (q.value) run(); } });
     }).observe(document.body, { childList: true, subtree: true });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

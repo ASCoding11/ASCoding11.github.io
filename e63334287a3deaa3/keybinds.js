@@ -37,6 +37,45 @@
   'use strict';
   if (window.Keybinds) return;
 
+  // Spanish (Back Room lang.js, when the page loads it): the panel's own words are added here once for every game;
+  // the panel's fixed text is translated on the page by lang.js, and messages and aria-labels are built with tr(),
+  // which also puts each action's name and key names in the page's language (the game's own dictionary has its action
+  // names). Without lang.js, or in English, every string is exactly as before.
+  function tr(s, v) {
+    const L = window.BackRoomLang;
+    return L ? L.t(s, v) : String(s).replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
+  }
+  const lab = a => tr(a.label);   // an action's name as the page shows it
+  if (window.BackRoomLang) BackRoomLang.add({
+    'Controls': 'Controles', 'Close': 'Cerrar', 'Done': 'Listo', 'Reset to defaults': 'Volver a las de fábrica',
+    'Click a key, then press the new one (or a mouse button). Esc cancels, Backspace removes it.': 'Haz clic en una tecla y luego pulsa la nueva (o un botón del mouse). Esc cancela, Retroceso la borra.',
+    'Click a key, then press the new one. Esc cancels, Backspace removes it.': 'Haz clic en una tecla y luego pulsa la nueva. Esc cancela, Retroceso la borra.',
+    'Press a key': 'Pulsa una tecla', 'Add a key': 'Agregar tecla', 'Fixed': 'Fija', 'Add a key for {a}': 'Agregar tecla para {a}',
+    '{a}: {k}. Press to change': '{a}: {k}. Pulsa para cambiar',
+    '{k} always pauses and cancels, so it stays as it is.': '{k} siempre pausa y cancela, así que queda como está.',
+    "is kept for the game and can't be bound.": 'la usa el juego y no se puede asignar.',
+    '{a} needs a key, not a mouse button.': '{a} necesita una tecla, no un botón del mouse.',
+    '{k} is fixed to {a}.': '{k} está fija en {a}.', '{k} is already on {a}.': '{k} ya está en {a}.',
+    'Swapped: {k} is now {a}, {j} is now {b}.': 'Cambiadas: {k} ahora es {a} y {j} ahora es {b}.',
+    '{k} moved from {b} to {a}.': '{k} pasó de {b} a {a}.', '{b} has no key now.': '{b} ya no tiene tecla.',
+    '{k} removed from {a}.': '{k} se quitó de {a}.', 'It has no key now.': 'Ya no tiene tecla.',
+    'Back to the default keys.': 'Volviste a las teclas de fábrica.', 'Cancelled.': 'Cancelado.',
+    'Press a new key for {a}. Esc cancels.': 'Pulsa una tecla nueva para {a}. Esc cancela.',
+    'Press a new key for {a}, or click a mouse button. Esc cancels.': 'Pulsa una tecla nueva para {a}, o un botón del mouse. Esc cancela.',
+    "That key can't be read by the browser. Try another one.": 'El navegador no puede leer esa tecla. Prueba otra.',
+    // key names (as the panel and the data-kb hints show them)
+    'Space': 'Espacio', 'SPACE': 'ESPACIO', 'Backspace': 'Retroceso', 'Caps Lock': 'Bloq Mayús', 'Delete': 'Supr', 'Insert': 'Insert',
+    'Home': 'Inicio', 'End': 'Fin', 'Page Up': 'Re Pág', 'Page Down': 'Av Pág', 'Menu': 'Menú',
+    'Left click': 'Clic izquierdo', 'Middle click': 'Clic del medio', 'Right click': 'Clic derecho',
+    'LEFT CLICK': 'CLIC IZQ.', 'MIDDLE CLICK': 'CLIC MEDIO', 'RIGHT CLICK': 'CLIC DER.', 'unbound': 'sin tecla', 'UNBOUND': 'SIN TECLA',
+    // action and group names many games share (a game's own dictionary adds the rest)
+    'Move': 'Moverse', 'Move forward': 'Avanzar', 'Move back': 'Retroceder', 'Move left': 'Ir a la izquierda', 'Move right': 'Ir a la derecha',
+    'Jump': 'Saltar', 'Shoot': 'Disparar', 'Fire': 'Disparar', 'Reload': 'Recargar', 'Aim': 'Apuntar', 'Boost': 'Turbo', 'Pause': 'Pausa',
+    'Scoreboard': 'Tabla', 'Fight': 'Pelea', 'Match': 'Partida', 'Other': 'Otros', 'Hold': 'Mantener', 'Look up': 'Mirar arriba',
+    'Look down': 'Mirar abajo', 'Look left': 'Mirar a la izquierda', 'Look right': 'Mirar a la derecha', 'Steer left': 'Girar a la izquierda',
+    'Steer right': 'Girar a la derecha', 'Accelerate': 'Acelerar', 'Brake': 'Frenar', 'Turn left': 'Girar a la izquierda', 'Turn right': 'Girar a la derecha'
+  });
+
   const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
   const PAIR = {ShiftRight: 'ShiftLeft', ControlRight: 'ControlLeft', AltRight: 'AltLeft', MetaRight: 'MetaLeft', OSLeft: 'MetaLeft', OSRight: 'MetaLeft', NumpadEnter: 'Enter'};
   const SAME = {ShiftLeft: ['ShiftLeft', 'ShiftRight'], ControlLeft: ['ControlLeft', 'ControlRight'], AltLeft: ['AltLeft', 'AltRight'], MetaLeft: ['MetaLeft', 'MetaRight', 'OSLeft', 'OSRight'], Enter: ['Enter', 'NumpadEnter']};
@@ -233,27 +272,27 @@
     function bind(id, slot, code) {
       const a = byId.get(id); code = norm(code);
       if (!a || a.fixed || !code) return;
-      const name = keyName(code);
-      if (reserved.has(code)) { setMsg(name + (code === 'Escape' ? ' always pauses and cancels, so it stays as it is.' : ' ' + (cfg.reservedWhy || 'is kept for the game and can\'t be bound.')), true); return; }
-      if (/^Mouse/.test(code) && !a.mouse) { setMsg(a.label + ' needs a key, not a mouse button.', true); return; }
+      const name = tr(keyName(code));
+      if (reserved.has(code)) { setMsg(code === 'Escape' ? tr('{k} always pauses and cancels, so it stays as it is.', {k: name}) : name + ' ' + tr(cfg.reservedWhy || 'is kept for the game and can\'t be bound.'), true); return; }
+      if (/^Mouse/.test(code) && !a.mouse) { setMsg(tr('{a} needs a key, not a mouse button.', {a: lab(a)}), true); return; }
       const mine = cur[id], old = mine[slot];
       if (old === code) { setMsg(''); return; }
-      for (const b of acts) if (b !== a && b.ctx === a.ctx && b.lock.includes(code)) { setMsg(name + ' is fixed to ' + b.label + '.', true); return; }
+      for (const b of acts) if (b !== a && b.ctx === a.ctx && b.lock.includes(code)) { setMsg(tr('{k} is fixed to {a}.', {k: name, a: lab(b)}), true); return; }
       let msg = '', warn = false;
       const at = mine.indexOf(code);
       if (at >= 0) {
-        if (old === undefined) { setMsg(name + ' is already on ' + a.label + '.'); return; }
+        if (old === undefined) { setMsg(tr('{k} is already on {a}.', {k: name, a: lab(a)})); return; }
         mine[at] = old; mine[slot] = code;
       } else {
         for (const b of acts) {
           if (b === a || b.ctx !== a.ctx) continue;
           const j = cur[b.id].indexOf(code);
           if (j < 0) continue;
-          if (old !== undefined && !cur[b.id].includes(old)) { cur[b.id][j] = old; msg = 'Swapped: ' + name + ' is now ' + a.label + ', ' + keyName(old) + ' is now ' + b.label + '.'; }
+          if (old !== undefined && !cur[b.id].includes(old)) { cur[b.id][j] = old; msg = tr('Swapped: {k} is now {a}, {j} is now {b}.', {k: name, a: lab(a), j: tr(keyName(old)), b: lab(b)}); }
           else {
             cur[b.id].splice(j, 1);
-            msg = name + ' moved from ' + b.label + ' to ' + a.label + '.';
-            if (!cur[b.id].length) { msg += ' ' + b.label + ' has no key now.'; warn = true; }
+            msg = tr('{k} moved from {b} to {a}.', {k: name, b: lab(b), a: lab(a)});
+            if (!cur[b.id].length) { msg += ' ' + tr('{b} has no key now.', {b: lab(b)}); warn = true; }
           }
         }
         if (old === undefined) mine.push(code); else mine[slot] = code;
@@ -266,11 +305,11 @@
     function clearSlot(id, slot) {
       const a = byId.get(id);
       if (!a || a.fixed || cur[id][slot] === undefined) { cap = null; renderAll(); refocus(id, slot); return; }
-      const name = keyName(cur[id][slot]);
+      const name = tr(keyName(cur[id][slot]));
       cur[id].splice(slot, 1);
       cap = null;
       changed(true);
-      setMsg(name + ' removed from ' + a.label + '.' + (cur[id].length ? '' : ' It has no key now.'), !cur[id].length);
+      setMsg(tr('{k} removed from {a}.', {k: name, a: lab(a)}) + (cur[id].length ? '' : ' ' + tr('It has no key now.')), !cur[id].length);
       refocus(id, Math.min(slot, cur[id].length));
     }
     function set(id, codes) {
@@ -278,7 +317,7 @@
       cur[id] = (codes || []).map(norm).filter((c, i, l) => c && !reserved.has(c) && l.indexOf(c) === i).slice(0, a.max);
       changed(true);
     }
-    function reset() { cap = null; for (const a of acts) cur[a.id] = a.def.slice(); changed(true); setMsg('Back to the default keys.'); }
+    function reset() { cap = null; for (const a of acts) cur[a.id] = a.def.slice(); changed(true); setMsg(tr('Back to the default keys.')); }
     function isDefault() { return acts.every(a => sameList(cur[a.id], a.def)); }
 
     // ---------- the panel ----------
@@ -288,15 +327,15 @@
         if (a.group !== group) { group = a.group; if (group) h += '<div class="kb-group">' + esc(group) + '</div>'; }
         let keys = '';
         if (a.text) keys += '<span class="kb-key kb-lock">' + esc(a.text) + '</span>';
-        a.lock.forEach(c => { keys += '<span class="kb-key kb-lock" title="Fixed">' + keyHtml(c) + '</span>'; });
+        a.lock.forEach(c => { keys += '<span class="kb-key kb-lock" title="' + esc(tr('Fixed')) + '">' + keyHtml(c) + '</span>'; });
         if (!a.fixed && !a.text) {
           cur[a.id].forEach((c, i) => {
             const wait = cap && cap.id === a.id && cap.slot === i;
-            keys += '<button type="button" class="kb-key' + (wait ? ' kb-wait' : '') + '" data-id="' + esc(a.id) + '" data-slot="' + i + '" aria-label="' + esc(a.label + ': ' + keyName(c) + '. Press to change') + '">' + (wait ? 'Press a key' : keyHtml(c)) + '</button>';
+            keys += '<button type="button" class="kb-key' + (wait ? ' kb-wait' : '') + '" data-id="' + esc(a.id) + '" data-slot="' + i + '" aria-label="' + esc(tr('{a}: {k}. Press to change', {a: lab(a), k: tr(keyName(c))})) + '">' + (wait ? esc(tr('Press a key')) : keyHtml(c)) + '</button>';
           });
           if (cur[a.id].length < a.max) {
             const i = cur[a.id].length, wait = cap && cap.id === a.id && cap.slot === i;
-            keys += '<button type="button" class="kb-key kb-add' + (wait ? ' kb-wait' : '') + '" data-id="' + esc(a.id) + '" data-slot="' + i + '" aria-label="' + esc('Add a key for ' + a.label) + '" title="Add a key">' + (wait ? 'Press a key' : '+') + '</button>';
+            keys += '<button type="button" class="kb-key kb-add' + (wait ? ' kb-wait' : '') + '" data-id="' + esc(a.id) + '" data-slot="' + i + '" aria-label="' + esc(tr('Add a key for {a}', {a: lab(a)})) + '" title="' + esc(tr('Add a key')) + '">' + (wait ? esc(tr('Press a key')) : '+') + '</button>';
           }
         }
         const none = !a.fixed && !a.text && !cur[a.id].length && !a.lock.length;
@@ -353,7 +392,7 @@
         cap = {id, slot};
         renderAll();
         const a = byId.get(id);
-        setMsg('Press a new key for ' + a.label + (cfg.mouse && a.mouse ? ', or click a mouse button' : '') + '. Esc cancels.');
+        setMsg(tr(cfg.mouse && a.mouse ? 'Press a new key for {a}, or click a mouse button. Esc cancels.' : 'Press a new key for {a}. Esc cancels.', {a: lab(a)}));
         refocus(id, slot);
       }
     }
@@ -417,9 +456,9 @@
         e.stopImmediatePropagation();
         if (e.repeat) return;
         const c = norm(e.code);
-        if (c === 'Escape') { endCapture('Cancelled.'); return; }
+        if (c === 'Escape') { endCapture(tr('Cancelled.')); return; }
         if (c === 'Backspace' || c === 'Delete') { clearSlot(cap.id, cap.slot); return; }
-        if (!c || c === 'Unidentified') { setMsg('That key can\'t be read by the browser. Try another one.', true); return; }
+        if (!c || c === 'Unidentified') { setMsg(tr('That key can\'t be read by the browser. Try another one.'), true); return; }
         bind(cap.id, cap.slot, c);
         return;
       }
@@ -450,6 +489,8 @@
     }
     addEventListener('storage', e => { if (e.key === storeKey) { load(); changed(false); } });
     layoutWaiters.push(() => { renderAll(); hints(); for (const f of listeners) { try { f(); } catch (err) {} } });
+    // English / Español switched (lang.js): redo the aria-labels built here (the rest of the panel switches by itself)
+    document.addEventListener('backroom:lang', () => { renderAll(); setMsg(''); });
 
     load();
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => hints());

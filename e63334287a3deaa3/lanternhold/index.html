@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Lanternhold's Spanish words -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Wardrobe (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Lanternhold</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -238,7 +241,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
 </head>
 <body>
 <canvas id="view" tabindex="0" aria-label="Game board"></canvas>
-<div id="tags"></div>
+<div id="tags" data-noi18n></div>
 
 <div id="hud" class="hud" hidden>
   <div id="top">
@@ -262,7 +265,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
     <div id="buildRow"></div>
     <div id="selRow" hidden>
       <div id="selIc"></div>
-      <div id="selInfo"><div id="selName"></div><div id="selOwn"></div><div id="selStats"></div></div>
+      <div id="selInfo"><div id="selName"></div><div id="selOwn" data-noi18n></div><div id="selStats"></div></div>
       <div class="sbtns">
         <button class="sb up" id="bUp" type="button">Upgrade<b id="bUpC"></b></button>
         <button class="sb" id="bMode" type="button">Target<b id="bModeT">First</b></button>
@@ -302,6 +305,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
       <div class="row"><span class="small" style="font-weight:900">Graphics</span><div class="seg" id="gfxSeg"><button data-q="high" type="button">Pretty</button><button data-q="low" type="button">Fast</button></div></div>
       <div class="row"><span class="small" style="font-weight:900">Sound</span><div class="seg" id="sndSeg"><button data-s="1" type="button">On</button><button data-s="0" type="button">Off</button></div></div>
     </div>
+    <div class="row" style="margin-top:12px"><div data-lang-toggle></div></div>
     <details class="how">
       <summary>How to play</summary>
       <ul>
@@ -330,7 +334,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
       <h3 style="text-align:left">Difficulty</h3>
       <div class="seg" id="lobDiff"></div>
     </div>
-    <div class="small" id="lobWait" style="margin-top:12px"></div>
+    <div class="small" id="lobWait" style="margin-top:12px" data-noi18n></div>
     <div class="acts"><button class="big ghost" id="lobLeave" type="button">Leave</button><button class="big" id="lobStart" type="button">Start</button></div>
   </div>
 </div>
@@ -346,6 +350,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
       <button class="big ghost" id="pQuit" type="button">Quit to menu</button>
     </div>
     <div class="row" style="justify-content:center;margin-top:14px"><span class="small" style="font-weight:900">Sound</span><div class="seg" id="sndSeg2"><button data-s="1" type="button">On</button><button data-s="0" type="button">Off</button></div></div>
+    <div class="row" style="justify-content:center;margin-top:10px"><div data-lang-toggle></div></div>
   </div>
 </div>
 
@@ -369,6 +374,7 @@ details.how ul{margin:8px 0 0;padding-left:18px;font-size:13px;font-weight:700;c
 <script>
 (()=>{
 'use strict';
+const LT=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // =====================================================================
 //  Helpers
 // =====================================================================
@@ -759,6 +765,13 @@ function rockParts(L,x,z,s,r){
   L.push(P(new THREE.DodecahedronGeometry(.7,0),'#9a96a8',x,.3*s,z,s*1.1,s*.75,s,r*3,r*5,0));
   L.push(P(new THREE.DodecahedronGeometry(.42,0),'#b4b0c2',x+.55*s,.18*s,z+.3*s,s,s*.8,s,0,r*2,0));
 }
+// the lantern's stand and cage, one merged mesh (the flame, halo and light are separate)
+function lanternGeo(){
+  const cl=[P(Cyl(.95,1.05,.3,8),'#bfae8a',0,.15,0),P(Cyl(.7,.8,.3,8),'#a8977a',0,.45,0),P(Cyl(.16,.2,1.5,6),'#4a3d5c',0,1.3,0),
+    P(Cyl(.62,.5,.14,6),'#4a3d5c',0,2.05,0),P(Cone(.68,.55,6),'#4a3d5c',0,3.25,0),P(Sph(.12,6,5),'#ffcf7a',0,3.6,0)];
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2;cl.push(P(Cyl(.04,.04,.95,4),'#4a3d5c',Math.cos(a)*.48,2.55,Math.sin(a)*.48))}
+  return merge(cl);
+}
 function buildWorld(mi){
   if(world){scene.remove(world.g);world.g.traverse(o=>{if(o.geometry)o.geometry.dispose();for(const m of [].concat(o.material||[])){const t=m&&m.map;if(t&&t!==softTex&&typeof t.dispose==='function')t.dispose()}})}
   const W=compileMap(mi);G.W=W;
@@ -821,14 +834,11 @@ function buildWorld(mi){
   }
   // the lantern
   const c=W.core,cg=new THREE.Group();cg.position.set(c.x,0,c.z);
-  const cl=[P(Cyl(.95,1.05,.3,8),'#bfae8a',0,.15,0),P(Cyl(.7,.8,.3,8),'#a8977a',0,.45,0),P(Cyl(.16,.2,1.5,6),'#4a3d5c',0,1.3,0),
-    P(Cyl(.62,.5,.14,6),'#4a3d5c',0,2.05,0),P(Cone(.68,.55,6),'#4a3d5c',0,3.25,0),P(Sph(.12,6,5),'#ffcf7a',0,3.6,0)];
-  for(let i=0;i<6;i++){const a=i/6*Math.PI*2;cl.push(P(Cyl(.04,.04,.95,4),'#4a3d5c',Math.cos(a)*.48,2.55,Math.sin(a)*.48))}
-  const cm=new THREE.Mesh(merge(cl),matLit);cm.castShadow=true;cg.add(cm);
+  const cm=new THREE.Mesh(lanternGeo(),matLit);cm.castShadow=true;cg.add(cm);
   const flame=new THREE.Mesh(Sph(.36,12,10),new THREE.MeshBasicMaterial({color:C('#ffd27a'),toneMapped:false}));flame.position.y=2.55;cg.add(flame);
   const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:C('#ffb14a'),transparent:true,opacity:.75,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));halo.scale.set(5,5,1);halo.position.y=2.55;cg.add(halo);
   const pl=new THREE.PointLight(C('#ffb45a'),1.6,16,1.6);pl.position.y=2.6;cg.add(pl);
-  g.add(cg);world.core={g:cg,flame,halo,pl,hit:0};
+  g.add(cg);world.core={g:cg,flame,halo,pl,hit:0,body:cm,geo0:cm.geometry};if(WD)WD.lantern(world.core);   // body: the Wardrobe's lantern (wardrobe.js) may swap its geometry, on this screen only
   scene.add(g);
   // shadows box fits the island
   return W;
@@ -837,7 +847,7 @@ function buildWorld(mi){
 // =====================================================================
 //  Towers: one group each (plinth with the owner's colour band, a turning head, glowing bits)
 // =====================================================================
-function towerParts(k,lv,owner){
+function towerParts(k,lv,owner,ban){   // ban: a banner from the Wardrobe (wardrobe.js), baked into the base; nearly always none
   const B=[],H=[],GB=[],GH=[];
   B.push(P(Cyl(.82,.94,.34,8),'#cdbfa6',0,.17,0));
   B.push(P(Cyl(.85,.85,.09,8),owner,0,.38,0));
@@ -886,10 +896,11 @@ function towerParts(k,lv,owner){
     GH.push(P(Cyl(.42*s,.42*s,.05,18),'#fff2a0',0,0,0,1,1,1,Math.PI/2));
   }
   for(let i=0;i<lv;i++)GB.push(P(new THREE.OctahedronGeometry(.1),'#ffe08a',(i-(lv-1)/2)*.26,.44,.8));
+  if(ban&&WD)WD.bannerParts(ban,B);
   return{B,H,GB,GH,hy};
 }
-function towerMesh(k,lv,owner,ghost){
-  const p=towerParts(k,lv,owner),g=new THREE.Group(),head=new THREE.Group();head.position.y=p.hy;g.add(head);
+function towerMesh(k,lv,owner,ghost,ban){
+  const p=towerParts(k,lv,owner,ban),g=new THREE.Group(),head=new THREE.Group();head.position.y=p.hy;g.add(head);
   const mat=ghost?matGhost:matLit,gm=ghost?matGhost:matGlow;
   const base=new THREE.Mesh(merge(p.B),mat);g.add(base);
   if(p.GB.length)g.add(new THREE.Mesh(merge(p.GB),gm));
@@ -903,14 +914,14 @@ function ownerColor(uid){if(uid==='me'||uid===Net.uid)return myColor;const o=Net
 function syncTowers(S){
   for(const [id,v] of towerViews){const t=S.towers.get(id);if(!t){scene.remove(v.m.g);disposeG(v.m.g);towerViews.delete(id)}}
   for(const t of S.towers.values()){
-    let v=towerViews.get(t.id);const col=ownerColor(t.own);
-    if(v&&(v.lv!==t.lv||v.col!==col)){const aim=v.aim;scene.remove(v.m.g);disposeG(v.m.g);v=null;towerViews.delete(t.id);v=mkTowerView(t,col);v.aim=aim}
-    if(!v)v=mkTowerView(t,col);
+    let v=towerViews.get(t.id);const col=ownerColor(t.own),ban=wdBan(t.own);
+    if(v&&(v.lv!==t.lv||v.col!==col||v.ban!==ban)){const aim=v.aim;scene.remove(v.m.g);disposeG(v.m.g);v=null;towerViews.delete(t.id);v=mkTowerView(t,col,ban);v.aim=aim}
+    if(!v)v=mkTowerView(t,col,ban);
   }
 }
-function mkTowerView(t,col){
-  const m=towerMesh(t.k,t.lv,col,false);m.g.position.set(wx(t.gx),0,wz(t.gz));scene.add(m.g);
-  const v={m,lv:t.lv,col,aim:Math.PI*.5,kick:0,pop:towerViews.has(t.id)?0:1,id:t.id};towerViews.set(t.id,v);return v;
+function mkTowerView(t,col,ban){
+  const m=towerMesh(t.k,t.lv,col,false,ban);m.g.position.set(wx(t.gx),0,wz(t.gz));scene.add(m.g);
+  const v={m,lv:t.lv,col,ban,aim:Math.PI*.5,kick:0,pop:towerViews.has(t.id)?0:1,id:t.id};towerViews.set(t.id,v);return v;
 }
 function disposeG(g){g.traverse(o=>{if(o.isMesh)o.geometry.dispose()})}
 
@@ -1022,7 +1033,7 @@ function fxLeak(e){
   if(world&&world.core)world.core.hit=1;G.shake=Math.max(G.shake,EN[e.k].boss?.8:.25);sfx('leak');
   const pl=$('pLives');pl.classList.remove('hurt');void pl.offsetWidth;pl.classList.add('hurt');
 }
-function fxBuild(t,up){const x=wx(t.gx),z=wz(t.gz);fxRing(x,.1,z,1.4,up?'#ffe08a':'#ffffff',.45);burst(x,.6,z,up?'#ffe08a':'#e9dcc3',up?16:12,3,.4,.5);sfx(up?'up':'build');const v=towerViews.get(t.id);if(v)v.pop=1}
+function fxBuild(t,up){const x=wx(t.gx),z=wz(t.gz);fxRing(x,.1,z,1.4,up?'#ffe08a':'#ffffff',.45);if(!wdBuild(t,x,z,up))burst(x,.6,z,up?'#ffe08a':'#e9dcc3',up?16:12,3,.4,.5);sfx(up?'up':'build');const v=towerViews.get(t.id);if(v)v.pop=1}
 function fxSell(t){const x=wx(t.gx),z=wz(t.gz);burst(x,.8,z,'#ffc53d',14,4,.35,.6);sfx('sell')}
 function updateFx(dt){
   const S=G.S;let n=0;
@@ -1077,7 +1088,7 @@ const rangeFill=new THREE.Mesh(new THREE.CircleGeometry(1,64).rotateX(-Math.PI/2
 const rangeRing=new THREE.Mesh(new THREE.RingGeometry(.975,1,96).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.7,depthWrite:false}));
 const rangeG=new THREE.Group();rangeG.add(rangeFill,rangeRing);rangeG.position.y=.06;rangeG.renderOrder=4;rangeG.visible=false;scene.add(rangeG);
 let ghost=null;
-function setGhost(k){if(ghost){scene.remove(ghost.g);disposeG(ghost.g);ghost=null}if(k){ghost=towerMesh(k,1,myColor,true);ghost.k=k;ghost.g.visible=false;scene.add(ghost.g)}}
+function setGhost(k){if(ghost){scene.remove(ghost.g);disposeG(ghost.g);ghost=null}if(k){ghost=towerMesh(k,1,myColor,true,wdBan(myUid()));ghost.k=k;ghost.g.visible=false;scene.add(ghost.g)}}
 const cursors=new Map();// remote players' pointers
 function drawEnemies(dt,now){
   const S=G.S;for(const k of EK)EV[k].n=0;
@@ -1133,7 +1144,8 @@ function drawWorld(dt){
     const S=G.S,low=S&&!S.attract&&S.lives<=Math.ceil(DIFFS[S.df].lives*.25);
     c.hit=Math.max(0,c.hit-dt*2.5);const fl=.85+Math.sin(G.t*7.3)*.06+Math.sin(G.t*13.1)*.05-(low?Math.max(0,Math.sin(G.t*11))*.35:0);
     c.flame.scale.setScalar(fl);c.halo.scale.setScalar(5*fl+c.hit*3);c.pl.intensity=1.6*fl+c.hit*2;
-    c.halo.material.color.copy(C('#ffb14a')).lerp(C('#ff3b3b'),c.hit);c.flame.material.color.copy(C('#ffd27a')).lerp(C('#ff6a5a'),c.hit);
+    const wf=WD&&WD.flame(G.t);   // the Wardrobe's flame colour (wardrobe.js), on this screen only; the light it casts is not recoloured
+    c.halo.material.color.copy(wf?wf.h:C('#ffb14a')).lerp(C('#ff3b3b'),c.hit);c.flame.material.color.copy(wf?wf.f:C('#ffd27a')).lerp(C('#ff6a5a'),c.hit);
     if(Math.random()<dt*6*pBudget)parts.length<PCAP&&parts.push({x:c.g.position.x+(Math.random()-.5)*.4,y:2.7,z:c.g.position.z+(Math.random()-.5)*.4,vx:(Math.random()-.5)*.3,vy:.8,vz:(Math.random()-.5)*.3,life:1.2,max:1.2,size:.22,r:1,g:.7,b:.3,grav:-.2});
   }
   // the mender's healing pulse and the boss's call (just for show; the host does the real work)
@@ -1283,6 +1295,8 @@ function onNode(uid,v){
   if(!o.lag){o.lag=NetSmooth.lag();o.snaps=[]}
   const x=clamp(+v.x||0,-40,40),z=clamp(+v.z||0,-30,30),ls=o.snaps[o.snaps.length-1];
   if(!(ls&&ls.x===x&&ls.z===z)&&o.lag.note(o.ts||Net.now(),Net.now())){o.snaps.push({t:o.ts||Net.now(),x,z});if(o.snaps.length>30)o.snaps.shift()}
+  // cz: what they wear from the Wardrobe (wardrobe.js); older pages never read it
+  o.cz=typeof v.cz==='string'&&v.cz.length<=12?v.cz:'';if(!WD&&/[1-9]/.test(o.cz))wdLoad();
   Net.others.set(uid,o);
   if(G.host&&typeof v.ac==='string'&&v.ac!==o.acSeen){o.acSeen=v.ac;takeActs(uid,v.ac)}
   if(!G.host&&o.rs&&(uid===G.hostUid||!G.hostUid)&&o.rs!==G.rsSeen){
@@ -1442,6 +1456,34 @@ function drawCursors(){
   for(const [uid,c] of cursors)if(!seen.has(uid)){scene.remove(c.m);c.tag.remove();cursors.delete(uid)}
 }
 
+// ---------- the Wardrobe (not public yet): tower banners, lanterns, flame colours and build bursts ----------
+// wardOn(): may this player open the Wardrobe and wear things? True for the site's captains (../captains.js: the Google
+// account signed in is one of miles.js's Captains), or with ?wardrobe=1 on localhost or in an automated browser
+// (remembered for the tab; ?wardrobe=0 forgets it). On the live site the address does nothing. To make it public for
+// everyone, change LH_PUBLIC to true: that one line is all it takes. Everything is drawn by wardrobe.js beside this page,
+// which is fetched the first time wardOn() is true, or when a teammate wears something (their node's cz, see onNode).
+// For everyone else it is never loaded, WD stays null and the game is exactly as it was.
+// Looks only: towers keep their shape and draw calls, the lantern's glow keeps its size and its light, the Gloom is untouched.
+const LH_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardOn=()=>LH_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','lh-wardrobe'));
+let WD=null,wdAsked=false;
+function wdLoad(){
+  if(wdAsked)return;wdAsked=true;
+  loadScript('wardrobe.js').then(()=>{WD=window.LanternWardrobe({THREE,$,P,merge,Cyl,Sph,Box,Cone,C,renderer,matLit,towerMesh,lanternGeo,burst,store,wardOn,myColor:()=>myColor,changed:wdPush});wdPush()}).catch(e=>{wdAsked=false;console.error(e)});
+}
+// what a player wears: [banner, lantern, flame, burst] item numbers, or null (nearly everyone)
+function wearOf(u){if(!WD||!u)return null;if(u==='me'||u===Net.uid)return WD.mine();const o=Net.others.get(u);return o&&o.cz?WD.parse(o.cz):null}
+function wdBan(u){const w=wearOf(u);return w?w[0]:0}
+function wdBuild(t,x,z,up){const w=wearOf(t.own);return !!(w&&w[3])&&WD.build(w[3],x,z,up)}
+// after a change: this screen's lantern, the towers (their banners), the build ghost, and this player's cz
+function wdPush(){
+  if(!WD)return;WD.sync();if(world)WD.lantern(world.core);if(G.S)syncTowers(G.S);if(G.placing)setGhost(G.placing);
+  if(!Net.refs)return;const cz=WD.wire();if(cz!==(Net.czSent||'')){Net.czSent=cz;Net.upd({cz:cz||null})}
+}
+if(wardOn())wdLoad();
+if(CAPTAINS)CAPTAINS.onChange(()=>{if(wardOn())wdLoad();wdPush()});
+
 // =====================================================================
 //  HUD
 // =====================================================================
@@ -1518,7 +1560,7 @@ function renderTeam(){
   if(G.mode!=='online'||!S||!S.pl||S.ph==='lobby'){el.hidden=true;return}
   el.hidden=false;
   el.innerHTML=S.pl.map(u=>{const me=u===Net.uid,o=me?{n:myName||'You',c:myColor}:(Net.others.get(u)||{n:'Keeper',c:'#c9c2b5'});
-    return '<div class="tm"><i style="background:'+o.c+'"></i><span class="nm">'+esc(o.n)+(me?' (you)':'')+'</span>'+(u===G.hostUid?'<span class="hs" title="Runs the game">host</span>':'')+'<span class="gd">'+Math.floor(S.money.get(u)||0)+'</span>'+(me?'':'<button type="button" data-give="'+esc(u)+'" title="Give 50 gold">+50</button>')+'</div>'}).join('');
+    return '<div class="tm"><i style="background:'+o.c+'"></i><span class="nm" data-noi18n>'+(me?LT('{n} (you)',{n:esc(o.n)}):esc(o.n))+'</span>'+(u===G.hostUid?'<span class="hs" title="Runs the game">host</span>':'')+'<span class="gd">'+Math.floor(S.money.get(u)||0)+'</span>'+(me?'':'<button type="button" data-give="'+esc(u)+'" title="Give 50 gold">+50</button>')+'</div>'}).join('');
 }
 $('team').addEventListener('click',e=>{const b=e.target.closest('[data-give]');if(!b)return;if(myMoney()<50){toast('Not enough gold');return}sendAct({k:'g',to:b.dataset.give});sfx('coin');toast('Sent 50 gold')});
 let selKey='';
@@ -1528,13 +1570,13 @@ function renderSel(){
   $('selRow').hidden=!t;$('buildRow').hidden=!!t;
   if(!t){rangeG.visible=!!(G.placing&&ghost&&ghost.g.visible);selKey='';return}
   const D=TW[t.k],L=D.lv[t.lv-1],N=D.lv[t.lv],money=myMoney();
-  const own=t.own===myUid()?'Yours':(()=>{const o=Net.others.get(t.own);return o?o.n+'\'s':'Built by a teammate'})();
+  const own=t.own===myUid()?'Yours':(()=>{const o=Net.others.get(t.own);return o?LT('{n}\'s',{n:o.n}):'Built by a teammate'})();
   const key=[t.id,t.lv,t.mode,money,own,t.spent].join('|');
   rangeG.visible=true;rangeG.position.x=wx(t.gx);rangeG.position.z=wz(t.gz);rangeG.scale.set(L.r,1,L.r);rangeFill.material.color.set(0xffffff);rangeRing.material.color.set(0xffffff);
   if(key===selKey)return;selKey=key;
   $('selIc').innerHTML=ICON[t.k];
   $('selName').innerHTML=esc(D.n)+'<span>Lv '+t.lv+'</span>';
-  $('selOwn').textContent=(G.mode==='online'?own+' · ':'')+D.d;
+  $('selOwn').textContent=(G.mode==='online'?LT(own)+' · ':'')+LT(D.d);
   const rate=v=>(1/v).toFixed(1)+'/s';
   const st=[];const add=(l,a,b,f)=>st.push(l+' '+f(a)+(b!=null&&f(b)!==f(a)?' <em>→ '+f(b)+'</em>':''));
   add('Damage',L.dm,N&&N.dm,v=>String(v));add('Range',L.r,N&&N.r,v=>(v/T).toFixed(1)+' tiles');
@@ -1568,7 +1610,7 @@ function tapCell(p,isTouch){
     if(!cellFree(S,gx,gz)){toast('You can\'t build on the road or scenery');sfx('err');return}
     const D=TW[G.placing];
     if(isTouch&&!(G.ghostAt&&G.ghostAt.gx===gx&&G.ghostAt.gz===gz)){G.ghostAt={gx,gz};G.hover={x:wx(gx),z:wz(gz),gx,gz};sfx('click');return}
-    if(myMoney()<D.c){toast('Not enough gold for a '+D.n);sfx('err');return}
+    if(myMoney()<D.c){toast(LT('Not enough gold for a {t}',{t:LT(D.n)}));sfx('err');return}
     const k=G.placing;
     if(sendAct({k:'b',t:k,x:gx,z:gz})){if(!(G.keyShift&&myMoney()-D.c>=D.c))startPlacing(null)}
     return;
@@ -1661,7 +1703,7 @@ function renderMenu(){
   renderDiff($('diffSeg'),menuDiff,i=>{menuDiff=i;store.set('diff',i);renderMenu()});
   $('diffNote').textContent=DIFFS[menuDiff].note;
   const b=+store.get(bestKey(menuMap,menuDiff),0)||0;
-  $('bestLine').textContent=b?'Your best on '+MAPS[menuMap].n+' ('+DIFFS[menuDiff].n+'): wave '+b+(b>=CAMPAIGN?' (won!)':''):'';
+  $('bestLine').textContent=b?LT('Your best on {m} ({d}): wave {b}',{m:MAPS[menuMap].n,d:LT(DIFFS[menuDiff].n),b})+(b>=CAMPAIGN?' '+LT('(won!)'):''):'';
   const sw=$('swatches');sw.innerHTML='';COLORS.forEach(c=>{const b=document.createElement('button');b.type='button';b.style.background=c;b.setAttribute('aria-label','Colour '+c);if(c===myColor)b.className='on';b.onclick=()=>{myColor=c;store.set('color',c);renderMenu();if(Net.refs)Net.upd({c})};sw.appendChild(b)});
   for(const seg of [$('gfxSeg')])for(const b of seg.children)b.classList.toggle('on',b.dataset.q===gfx);
   for(const seg of [$('sndSeg'),$('sndSeg2')])for(const b of seg.children)b.classList.toggle('on',(b.dataset.s==='1')===sound);
@@ -1735,7 +1777,7 @@ function checkEnd(){
     if(G.ended===key)return;G.ended=key;recordBest(S);
     const won=S.ph==='won';
     $('endH').textContent=won?'The lantern held!':'The lantern went out';
-    $('endSub').textContent=won?'You held off all '+CAMPAIGN+' waves on '+MAPS[S.m].n+' ('+DIFFS[S.df].n+').':'On '+MAPS[S.m].n+' ('+DIFFS[S.df].n+').';
+    $('endSub').textContent=won?LT('You held off all {n} waves on {m} ({d}).',{n:CAMPAIGN,m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)}):LT('On {m} ({d}).',{m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)});
     const best=+store.get(bestKey(S.m,S.df),0)||0;
     $('endStats').innerHTML='<div><b>'+S.cw+'</b><span>Waves held</span></div><div><b>'+S.kills+'</b><span>Gloom</span></div><div><b>'+best+'</b><span>Your best</span></div>';
     const online=G.mode==='online';
@@ -1765,7 +1807,7 @@ async function joinRoom(){
   try{
     await Net.init();if(Net.refs)Net.leave();
     G.mode='online';G.host=false;G.he=0;G.hostUid=null;G.maxHe=0;G.lastRS=null;G.rsSeen='';G.S=null;G.myActs=[];G.statW=0;G.statBk=null;G.ended='';clearViews();
-    await Net.join(PREFIX+'-'+code);
+    await Net.join(PREFIX+'-'+code);Net.czSent='';wdPush();
     setMsg('');showOnly('lobby');$('hud').hidden=true;renderLobby();
   }catch(err){if(Net.refs)Net.leave();G.mode='menu';setMsg(err.message||String(err),true);startAttract()}
   finally{for(const id of ['soloBtn','friendsBtn','joinBtn'])$(id).disabled=false}
@@ -1786,10 +1828,10 @@ function renderLobby(){
   const key=[ids.join(),S?S.m+':'+S.df:'',G.host,G.hostUid,myName,myColor,ids.map(u=>u===Net.uid?'':(Net.others.get(u)||{}).n).join()].join('|');
   if(key===lobKey)return;lobKey=key;
   $('lobCode').textContent=(Net.room||'').replace(/^lh-/,'');
-  $('lobList').innerHTML=ids.map(u=>{const me=u===Net.uid,o=me?{n:myName||'You',c:myColor}:Net.others.get(u);return '<li><i style="background:'+o.c+'"></i>'+esc(o.n)+(me?' (you)':'')+(u===G.hostUid?'<span>host</span>':'')+'</li>'}).join('');
+  $('lobList').innerHTML=ids.map(u=>{const me=u===Net.uid,o=me?{n:myName||'You',c:myColor}:Net.others.get(u);return '<li><i style="background:'+o.c+'"></i><span data-noi18n>'+(me?LT('{n} (you)',{n:esc(o.n)}):esc(o.n))+'</span>'+(u===G.hostUid?'<span>host</span>':'')+'</li>'}).join('');
   $('lobHost').hidden=!G.host;$('lobStart').hidden=!G.host;
   if(G.host&&S){renderMaps($('lobMaps'),S.m,i=>{S.m=i;buildWorld(i);lobKey='';hostPublish(true);renderLobby()});renderDiff($('lobDiff'),S.df,i=>{S.df=i;lobKey='';hostPublish(true);renderLobby()})}
-  $('lobWait').textContent=!S?'Connecting to the room…':G.host?'You pick the map. '+(ids.length<2?'Waiting for friends (you can also start on your own).':''):'Waiting for '+((Net.others.get(G.hostUid)||{}).n||'the host')+' to start. Map: '+MAPS[S.m].n+', '+DIFFS[S.df].n+'.';
+  $('lobWait').textContent=!S?LT('Connecting to the room…'):G.host?LT(ids.length<2?'You pick the map. Waiting for friends (you can also start on your own).':'You pick the map.'):LT('Waiting for {n} to start. Map: {m}, {d}.',{n:(Net.others.get(G.hostUid)||{}).n||LT('the host'),m:MAPS[S.m].n,d:LT(DIFFS[S.df].n)});
 }
 $('lobStart').onclick=()=>{if(!G.host||!G.S)return;hostRoster(G.S);hostNewGame(G.S.m,G.S.df);enterGame()};
 $('lobLeave').onclick=()=>toMenu();
@@ -1860,7 +1902,7 @@ buildDock();renderMenu();applyGfx();startAttract();
 requestAnimationFrame(t=>{last=t;frame(t)});
 
 // Test hook (automated browsers only)
-if(navigator.webdriver)window.__lh={G,TW,EN,MAPS,DIFFS,Net,act,sendAct,simStep,waveDef,startSolo,startAttract,toMenu,fitCam,camera,renderer,scene,
+if(navigator.webdriver)window.__lh={get WD(){return WD},wardOn,wdLoad,wearOf,towerViews,towerMesh,wx,wz,get world(){return world},G,TW,EN,MAPS,DIFFS,Net,act,sendAct,simStep,waveDef,startSolo,startAttract,toMenu,fitCam,camera,renderer,scene,
   get S(){return G.S},
   give(n){const S=G.S;S.money.set(myUid(),(S.money.get(myUid())||0)+n)},
   build(k,x,z){return act(G.S,myUid(),{k:'b',t:k,x,z})},

@@ -132,6 +132,7 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
 </div>
 <script src="/analytics/tracker.js" data-site="home" defer></script>
 <script src="/account/account.js" defer></script>
+<script src="/offline.js" defer></script> <!-- Offline mode: keeps opened games for no-internet play (see README) -->
 <script>
 (function(){
   var f=document.querySelector('footer'),c=f&&f.querySelector('span');if(!c)return;
@@ -218,7 +219,7 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
     document.querySelectorAll('.nav a[aria-current]').forEach(function(a){a.removeAttribute('aria-current')});
     shown=true;base=dir;history.pushState({br:1},'',location.href);window.scrollTo(0,0);
     var door=document.querySelector('.br-door');if(door)door.style.display='none';
-    var ly=document.createElement('script');ly.src=dir+'layout.js';document.body.appendChild(ly);var gq=document.createElement('script');gq.src=dir+'gamesearch.js';document.body.appendChild(gq);   /* the game search box (gamesearch.js) */ try{var lw=localStorage.getItem('layout:v1')&&document.querySelector('.br-games');if(lw){lw=lw.parentNode;lw.style.visibility='hidden';setTimeout(function(){lw.style.visibility=''},2500)}}catch(e){} // Edit layout (layout.js): the player's own order of the Back Room's blocks; hidden until a saved order is applied
+    var lg=document.createElement('script');lg.src=dir+'lang.js';lg.onload=function(){function es(){if(window.__brEs)return;window.__brEs=1;var e=document.createElement('script');e.src=dir+'es.js';document.body.appendChild(e)}if(BackRoomLang.get()==='es')es();document.addEventListener('backroom:lang',function(e){if(e.detail&&e.detail.lang==='es')es()})};document.body.appendChild(lg);   /* English / Español (lang.js), then the Back Room page's Spanish words (es.js), only while Spanish is on */ var ly=document.createElement('script');ly.src=dir+'layout.js';document.body.appendChild(ly);var gq=document.createElement('script');gq.src=dir+'gamesearch.js';document.body.appendChild(gq);   /* the game search box (gamesearch.js) */ try{var lw=localStorage.getItem('layout:v1')&&document.querySelector('.br-games');if(lw){lw=lw.parentNode;lw.style.visibility='hidden';setTimeout(function(){lw.style.visibility=''},2500)}}catch(e){} // Edit layout (layout.js): the player's own order of the Back Room's blocks; hidden until a saved order is applied
     var av=document.createElement('script');av.src=dir+'avatar.js';document.body.appendChild(av); // avatars and status tiers by names (avatar.js, miles.js)
     var mi=document.createElement('script');mi.src=dir+'miles.js';document.body.appendChild(mi);
     // The feedback box (a <script> in the Back Room page's <head>, which this page doesn't run) also lives in the Back Room folder.
@@ -233,6 +234,9 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
     var lb=document.createElement('script');lb.src=dir+'leaderboard.js';document.body.appendChild(lb);
     // The Online panel (who else is here, messages, invites) sits under the Party panel and signs in through it.
     var os=document.createElement('script');os.src=dir+'social.js';document.body.appendChild(os);
+    // Aisles (aisles.js): crews of players, their tags by names and the Aisle boards. An Aisle invite (#xj-) waits for it.
+    if(/^xj-[0-9a-z]{16}$/.test(room)){try{sessionStorage.setItem('aisle:inv',room.slice(3))}catch(e){}room=''}
+    var ai=document.createElement('script');ai.src=dir+'aisles.js';document.body.appendChild(ai);
     var pn=document.createElement('script');pn.src=dir+'playingnow.js';document.body.appendChild(pn); // Playing now: public parties' games (playingnow.js)
     // The seasonal look (seasons.js) is only for the Back Room, so the home page loads it once the Back Room is open.
     var se=document.createElement('script');se.src=dir+'seasons.js';document.body.appendChild(se);
@@ -240,7 +244,7 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
     var ev=document.createElement('script');ev.src=dir+'events.js';document.body.appendChild(ev);
     // Your school (school.js) fills in the [data-school] box in the Back Room's header, which was copied in above.
     var sk=document.createElement('script');sk.src=dir+'school.js';document.body.appendChild(sk);
-    var inv=room&&document.querySelector('a[data-invite="'+(/^tv-/.test(room)?'tv':/^br-/.test(room)?'br':/^sc-/.test(room)?'sc':/^hm-/.test(room)?'hm':/^cl-/.test(room)?'cl':/^ss-/.test(room)?'ss':/^bb-/.test(room)?'bb':/^qy-/.test(room)?'qy':/^kw-/.test(room)?'kw':/^sd-/.test(room)?'sd':/^cf-/.test(room)?'cf':/^tw-/.test(room)?'tw':/^up-/.test(room)?'up':/^ph-/.test(room)?'ph':/^ko-/.test(room)?'ko':/^dw-/.test(room)?'dw':/^sr-/.test(room)?'sr':/^er-/.test(room)?'er':/^pf-/.test(room)?'pf':/^dz-/.test(room)?'dz':/^gd-/.test(room)?'gd':/^bs-/.test(room)?'bs':/^lh-/.test(room)?'lh':/^vq-/.test(room)?'vq':'')+'"]');
+    var inv=room&&document.querySelector('a[data-invite="'+(/^tv-/.test(room)?'tv':/^br-/.test(room)?'br':/^sc-/.test(room)?'sc':/^hm-/.test(room)?'hm':/^cl-/.test(room)?'cl':/^ss-/.test(room)?'ss':/^bb-/.test(room)?'bb':/^qy-/.test(room)?'qy':/^kw-/.test(room)?'kw':/^sd-/.test(room)?'sd':/^cf-/.test(room)?'cf':/^tw-/.test(room)?'tw':/^up-/.test(room)?'up':/^ph-/.test(room)?'ph':/^ko-/.test(room)?'ko':/^dw-/.test(room)?'dw':/^sr-/.test(room)?'sr':/^er-/.test(room)?'er':/^pf-/.test(room)?'pf':/^dz-/.test(room)?'dz':/^gd-/.test(room)?'gd':/^bs-/.test(room)?'bs':/^lh-/.test(room)?'lh':/^hp-/.test(room)?'hp':/^vq-/.test(room)?'vq':'')+'"]');
     if(inv){var u=new URL(inv.href,location.href);openGame(u.pathname+'#'+room,'');room=''}
     // The What's new strip (news.js, a <script> in the Back Room page's <head>) sits under the header, above the Party panel.
     var ns=document.createElement('script');ns.src=dir+'news.js';document.body.appendChild(ns);

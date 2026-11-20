@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/fourcast/es.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Fourcast</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -226,7 +228,7 @@ textarea.copy{width:100%;height:120px;margin-top:8px;background:rgba(255,255,255
     <button class="x" type="button" data-close aria-label="Close">×</button>
     <div class="kicker"><b>?</b> How to play</div>
     <h2 id="helpH">Four words, nine tries</h2>
-    <p>Four hidden five-letter words, nine guesses. Every word you guess goes on <b class="w">all four boards</b> at once, so one guess can help with every word.</p><div class="ex" aria-hidden="true"><div class="tile hit">C</div><div class="tile">R</div><div class="tile near">A</div><div class="tile">N</div><div class="tile">E</div></div><p>Green: right letter, right spot. Yellow: in that word, but elsewhere. Dark: not in that word.</p><ul><li>A board stops once you solve it; keep going until all four are done.</li><li>Each key is split into four corners, one per board, in reading order: board 1 top left, 2 top right, 3 bottom left, 4 bottom right.</li><li>Solve all four within nine guesses to win. Repeated letters work as in Hunch: greens first, then yellows for as many as the word has.</li><li>On a computer, just type: Enter checks a word, Backspace deletes.</li></ul>
+    <p data-i18n-html data-noi18n>Four hidden five-letter words, nine guesses. Every word you guess goes on <b class="w">all four boards</b> at once, so one guess can help with every word.</p><div class="ex" aria-hidden="true"><div class="tile hit">C</div><div class="tile">R</div><div class="tile near">A</div><div class="tile">N</div><div class="tile">E</div></div><p>Green: right letter, right spot. Yellow: in that word, but elsewhere. Dark: not in that word.</p><ul><li>A board stops once you solve it; keep going until all four are done.</li><li>Each key is split into four corners, one per board, in reading order: board 1 top left, 2 top right, 3 bottom left, 4 bottom right.</li><li>Solve all four within nine guesses to win. Repeated letters work as in Hunch: greens first, then yellows for as many as the word has.</li><li>On a computer, just type: Enter checks a word, Backspace deletes.</li></ul>
     <div class="btns" style="margin-top:14px"><button class="cta" type="button" data-close>Let's play</button></div>
     <p class="foot">A new puzzle every day at midnight, your time. Unlimited mode is for practice and doesn't change your stats.</p>
   </div>
@@ -264,6 +266,7 @@ textarea.copy{width:100%;height:120px;margin-top:8px;background:rgba(255,255,255
     <h2 id="setH">Settings</h2>
     <div class="set" id="hardRow"><div><b>Hard mode</b><small id="hardNote">Letters you've found must be used in every later guess.</small></div><button class="sw" id="hardSw" type="button" role="switch" aria-checked="false" aria-label="Hard mode"></button></div>
     <div class="set"><div><b>High contrast colours</b><small>Orange and blue instead of green and yellow.</small></div><button class="sw" id="hcSw" type="button" role="switch" aria-checked="false" aria-label="High contrast colours"></button></div>
+    <div class="set"><div><b>Language</b></div><div data-lang-toggle></div></div>
     <p class="foot">The words are checked against the game's own lists, written for this site. · <a href="/privacy.html">Privacy</a></p>
   </div>
 </section>
@@ -608,7 +611,7 @@ function openStats(ending){
     res.hidden=false;res.innerHTML='';
     const n=G.guesses.length;
     if(G.win)res.append((G.mode==='daily'?'Solved today’s '+CFG.name+' in ':'Solved in ')+n+'/'+ROWS+(G.hard?' on hard mode':'')+'.');
-    else{res.append(BOARDS>1?'Out of guesses. The words were ':'Out of guesses. The word was ');G.ans.forEach((a,i)=>{if(i)res.append(i===G.ans.length-1?' and ':', ');const w=document.createElement('span');w.className='word';w.textContent=a;res.append(w)});res.append('.')}
+    else{res.append(BOARDS>1?'Out of guesses. The words were ':'Out of guesses. The word was ');G.ans.forEach((a,i)=>{if(i)res.append(i===G.ans.length-1?' and ':', ');const w=document.createElement('span');w.className='word';w.setAttribute('data-noi18n','');w.textContent=a;res.append(w)});res.append('.')}
   }else res.hidden=true;
   $('share').hidden=!G.done;
   $('playFree').textContent=G.mode==='free'?(G.done?'New word'+(BOARDS>1?'s':''):'Back to Daily'):'Unlimited';
@@ -624,9 +627,11 @@ $('playFree').onclick=()=>{
 $('mDaily').onclick=()=>{if(G.mode!=='daily'&&!G.busy)startDaily()};
 $('mFree').onclick=()=>{if(G.mode!=='free'&&!G.busy)startFree(false)};
 
+// Language (lang.js): menus and messages follow the Back Room's English / Español setting; the words stay English.
+const TR=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 function shareText(){
   const n=G.guesses.length,hard=G.hard?'*':'';
-  const pn=puzzleNo(G.day),head=G.mode==='daily'?(CFG.name+(pn>=1?' #'+pn:' (preview)')):(CFG.name+' Unlimited');
+  const pn=puzzleNo(G.day),head=G.mode==='daily'?(CFG.name+(pn>=1?' #'+pn:' '+TR('(preview)'))):(CFG.name+' '+TR('Unlimited'));
   const sq={hit:S.hc?'🟧':'🟩',near:S.hc?'🟦':'🟨',miss:'⬛'};
   let body='';
   if(BOARDS===1){body=G.guesses.map(g=>score(g,G.ans[0]).map(s=>sq[s]).join('')).join('\n')}
@@ -691,6 +696,7 @@ if(!ls.get(SLUG+':seen',0))openModal('help');
 else if(G.mode==='daily'&&G.done)setTimeout(()=>openStats(false),300);
 
 // Test hooks for the automated checks (webdriver only).
+if(window.BackRoomLang)BackRoomLang.englishOnly(document.getElementById('ttl'));
 if(navigator.webdriver)window.__wg={G,CFG,S,score,hardProblem,answersFor,dayNum,puzzleNo,keyAdd,loadRec,liveStreak,shareText,ANSWERS,VALID,
   setToday(k){TODAY_TEST=/^\d{8}$/.test(k)?k:''},startDaily,startFree,press,
   type(w){for(const c of w)press(c);press('enter')},openStats,fit};
