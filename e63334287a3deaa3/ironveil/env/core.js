@@ -11,7 +11,7 @@
   // tex: hero texture size, texLo: everything else. grass*: see grass.js. post / pom / shadows decided here too.
   E.QUALITY = {
     low: { name: 'low', tex: 512, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: false, aniso: 4, grassNear: 8, grassMid: 22, grassDens: 40, grassMidDens: 5, bladeSegs: 1, seedHeads: false, carpetDens: 110, carpetR: 5, treeLod: 18, plantKinds: ['wheat', 'maize', 'reeds'], detailDist: 18, decals: 64 },
-    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: true, aniso: 8, grassNear: 12, grassMid: 42, grassDens: 40, grassMidDens: 6, bladeSegs: 3, seedHeads: false, carpetDens: 230, carpetR: 7, treeLod: 32, detailDist: 25, decals: 160 },
+    medium: { name: 'medium', tex: 1024, texLo: 512, texGround: 512, texMinor: 256, texDecal: 512, pom: false, post: true, aniso: 8, grassNear: 10, grassMid: 34, grassDens: 40, grassMidDens: 5, bladeSegs: 2, carpetSegs: 1, seedHeads: false, carpetDens: 210, carpetR: 7, treeLod: 26, detailDist: 21, decals: 160 },
     high: { name: 'high', tex: 1024, texLo: 512, texGround: 512, texMinor: 512, texDecal: 1024, pom: false, post: true, aniso: 16, grassNear: 15, grassMid: 45, grassDens: 38, grassMidDens: 8, bladeSegs: 3, seedHeads: true, carpetDens: 160, carpetR: 8, treeLod: 45, detailDist: 35, decals: 256 }
   };
   E.Q = E.QUALITY.medium;

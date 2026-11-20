@@ -76,6 +76,8 @@
           b0 = max(b0 - mx, 0.0) * step(0.01, w0.x); b1 = max(b1 - mx, 0.0) * step(0.01, w0.y); b2 = max(b2 - mx, 0.0) * step(0.01, w0.z);
           b3 = max(b3 - mx, 0.0) * step(0.01, w0.w); b4 = max(b4 - mx, 0.0) * step(0.01, w4);
           float bs = max(1e-4, b0 + b1 + b2 + b3 + b4);
+          // bare soil and mud: dark, cool and less red (the scans are warm; under the moon earth is barely lighter than grass shade)
+          { float l1 = dot(a1.rgb, vec3(0.3, 0.55, 0.15)), l2 = dot(a2.rgb, vec3(0.3, 0.55, 0.15)); a1.rgb = mix(a1.rgb, vec3(l1) * vec3(0.98, 0.96, 0.95), 0.45) * 0.86; a2.rgb = mix(a2.rgb, vec3(l2) * vec3(0.98, 0.96, 0.94), 0.5) * 0.8; }
           vec4 ga = (a0 * b0 + a1 * b1 + a2 * b2 + a3 * b3 + a4 * b4) / bs;
           vec4 gn = (n0 * b0 + n1 * b1 + n2 * b2 + n3 * b3 + n4 * b4) / bs;
           vec3 galb = sRGBToLinear(vec4(ga.rgb, 1.0)).rgb;
@@ -89,6 +91,10 @@
           float clumpN = texture2D(uMacro, gp * 0.9 + 0.17).b;
           float midN = texture2D(uMacro, gp * 0.31 + 0.61).g;
           vec3 gcol = vGC.rgb * mix(0.7, 1.25, mB) * clamp(tl / uTl0, 0.35, 2.2) * mix(0.45, 1.45, clumpN * clumpN * 1.4) * mix(0.65, 1.3, midN);
+          // past the blades: stronger patchiness, darker hollows and long wind-combed streaks so the field is not one tint
+          float farK = carry * smoothstep(uCarry.x, uCarry.x * 2.0 + 6.0, gd);
+          float streak = texture2D(uMacro, vec2(gp.x * 0.09 + gp.y * 0.03, gp.y * 0.9 - gp.x * 0.2)).g;
+          gcol *= mix(1.0, mix(0.5, 1.25, smoothstep(0.2, 0.8, mA * 0.55 + midN * 0.45)) * mix(0.82, 1.12, streak), farK);
           galb = mix(galb, gcol, carry);
           grough = mix(grough, 0.88, carry);
           // inside the blade rings the soil between blades is in the blades' shade: dark thatch and roots, never a
@@ -111,6 +117,7 @@
         .replace('#include <normal_fragment_maps>', `
           vec3 mapN = vec3(gn.xy * 2.0 - 1.0, 0.0);
           mapN.xy *= (1.0 - ivPud * 0.97) * (1.0 - vGC.a * 0.2) * (1.0 - 0.45 * b3 / bs);
+          { float fk = vGC.a * smoothstep(uCarry.x, uCarry.x * 2.0 + 6.0, length(vGW - cameraPosition)); float sn = texture2D(uMacro, vec2(vGW.x * 0.35 + vGW.z * 0.1, vGW.z * 1.6 - vGW.x * 0.35)).b - 0.5; mapN.x += sn * 0.6 * fk; mapN.y += (texture2D(uMacro, vGW.xz * 0.6 + 0.3).r - 0.5) * 0.3 * fk; }
           mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
           normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);
           if (uRain > 0.0 && ivPud > 0.01) { vec2 rp = ivRipple(vGW.xz * 3.0, uTime) + ivRipple(vGW.xz * 5.3 + 7.0, uTime * 1.13) * 0.7; normal = normalize(normal + (viewMatrix * vec4(rp.x, 0.0, rp.y, 0.0)).xyz * 0.35 * ivPud * uRain); }`)
@@ -130,10 +137,10 @@
   E.ground = function (heightFn, opts) {
     opts = opts || {};
     const surfaceAt = opts.surfaceAt || (() => 'grass');
-    const step = opts.step || (E.Q.name === 'low' ? 3.5 : 2);
+    const step = opts.step || (E.Q.name === 'low' ? 3.5 : E.Q.name === 'medium' ? 2.5 : 2);
     const half = (opts.size || 200) / 2;
     const x0 = opts.x0 != null ? opts.x0 : -half, z0 = opts.z0 != null ? opts.z0 : -half, x1 = opts.x1 != null ? opts.x1 : half, z1 = opts.z1 != null ? opts.z1 : half;
-    const CH = opts.chunk || (E.Q.name === 'low' ? 128 : 64);
+    const CH = opts.chunk || (E.Q.name === 'high' ? 64 : E.Q.name === 'medium' ? 96 : 128);
     const mat = groundMaterial();
     const group = new THREE.Group(); group.name = 'IVEnv.ground';
     const meshes = [], c = new THREE.Color(), cs = new THREE.Color();

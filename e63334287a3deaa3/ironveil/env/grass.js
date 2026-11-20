@@ -341,7 +341,7 @@
     const midCap = Math.ceil(Math.PI * (G.rMid + TS * 1.5) ** 2 * Q.grassMidDens * (E._grassMidMul || 1) * 0.9);
     G.near = Ring(G, 'near', Q.bladeSegs, nearCap, true, false);
     G.rCarpet = Math.min(G.rNear, Q.carpetR * (opts.carpetMul || 1));
-    G.carpet = Ring(G, 'carpet', Q.name === 'low' ? 1 : 2, Math.ceil(Math.PI * (G.rCarpet + 6) ** 2 * Q.carpetDens * 0.75), true, false);
+    G.carpet = Ring(G, 'carpet', Q.carpetSegs || (Q.name === 'low' ? 1 : 2), Math.ceil(Math.PI * (G.rCarpet + 6) ** 2 * Q.carpetDens * 0.75), true, false);
     G.mid = Ring(G, 'mid', 1, midCap, false, false);
     G.rings = [G.carpet, G.near, G.mid];
     if (Q.seedHeads) { G.seedN = Ring(G, 'seedNear', 0, Math.ceil(nearCap * 0.15), true, true); G.rings.push(G.seedN);  }
