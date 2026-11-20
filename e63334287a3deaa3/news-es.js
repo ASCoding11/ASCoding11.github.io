@@ -6,6 +6,13 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "New game: Putterby": "Juego nuevo: Putterby",
+    "Mini golf": "Minigolf",
+    "Up to 8": "Hasta 8",
+    "Putterby: mini golf in a little toy-town garden for 1 to 8 players. Drag back from your ball and let go to putt.": "Putterby: minigolf en un jardín de pueblo de juguete para 1 a 8 jugadores. Arrastra hacia atrás desde tu pelota y suelta para golpear.",
+    "Nine holes, par 27, with ramps, loops, sliding gates, a spinning bar, bumpers, sand traps and ponds to jump.": "Nueve hoyos, par 27, con rampas, rizos, compuertas que se deslizan, una barra giratoria, rebotadores, trampas de arena y estanques para saltar.",
+    "Play solo, in a room with friends, or Quick match: everyone plays the same hole at once and sees the other balls rolling.": "Juega solo, en una sala con amigos o en Partida rápida: todos juegan el mismo hoyo a la vez y ven rodar las otras pelotas.",
+    "A new daily hole every day, the same for everyone, and your best nine-hole card goes on the Leaderboards.": "Un hoyo diario nuevo cada día, igual para todos, y tu mejor tarjeta de nueve hoyos va a las Clasificaciones.",
     "Flipline, Beatvault and Rollaway": "Flipline, Beatvault y Rollaway",
     "Stunt bike": "Moto acrobática",
     "Rhythm runner": "Carrera con ritmo",

@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', title: 'New game: Putterby', kind: 'game', games: ['Putterby'],
+     img: 'm/thumbs/putterby.jpg', tags: ['Mini golf', 'Online', 'Up to 8'], items: [
+      'Putterby: mini golf in a little toy-town garden for 1 to 8 players. Drag back from your ball and let go to putt.',
+      'Nine holes, par 27, with ramps, loops, sliding gates, a spinning bar, bumpers, sand traps and ponds to jump.',
+      'Play solo, in a room with friends, or Quick match: everyone plays the same hole at once and sees the other balls rolling.',
+      'A new daily hole every day, the same for everyone, and your best nine-hole card goes on the Leaderboards.'
+    ]},
     {date: '2026-11-20', version: '1.34', title: 'Flipline, Beatvault and Rollaway', kind: 'game', games: ['Flipline', 'Beatvault', 'Rollaway'],
      img: ['m/thumbs/flipline.jpg', 'm/thumbs/beatvault.jpg', 'm/thumbs/rollaway.jpg'], tags: ['Stunt bike', 'Rhythm runner', 'Marble run', 'Solo'], items: [
       'Flipline: a one-button stunt bike game in cut paper. Hold to ride, keep holding in the air to tip over backwards, and let go in time to land on your wheels. Chain clean landings into a combo past ramps, gaps, see-saws, saws and crushers.',
