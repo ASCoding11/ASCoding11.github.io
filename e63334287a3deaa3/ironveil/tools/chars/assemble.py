@@ -3,6 +3,22 @@ import bpy, sys, os, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mhlib as L, geo as G, pipe as PP
 
+
+LOD_TRIS = (('LOD1', 5000), ('LOD2', 1800))   # mid and far LODs (same skeleton, material and UVs)
+def make_lods(low, name):
+    """Decimated copies of the finished low mesh, made before morphs are added (decimation drops shape keys)."""
+    tris = sum(len(p.vertices) - 2 for p in low.data.polygons)
+    out = []
+    for suf, target in LOD_TRIS:
+        c = low.copy(); c.data = low.data.copy(); c.name = name + suf; c.data.name = name + suf
+        bpy.context.scene.collection.objects.link(c)
+        for m in list(c.modifiers): c.modifiers.remove(m)
+        if c.data.shape_keys: c.shape_key_clear()
+        PP.decimate(c, min(1.0, target / tris))
+        print('lod', c.name, sum(len(p.vertices) - 2 for p in c.data.polygons))
+        out.append(c)
+    return out
+
 MORPHS = {'hero': ['blink'], 'ally': ['blink'], 'enemy': ['faceB', 'faceC']}
 def add_morphs(kind, lows, parts):
     """Face morph targets from morphs.py (work/morph_<kind>.npz), matched to the final meshes by vertex position."""
@@ -34,15 +50,16 @@ def assemble(blend, name, td, out, hair_parts, helmet_trim=True, with_anims=(), 
         for m in list(o.modifiers): o.modifiers.remove(m)
         objs.append((o, img, rect))
     PP.hair_atlas(objs, td + '/hair.png', 1024)
+    lods = make_lods(low, name)
     add_morphs(name.lower(), low, objs)
     hair = G.join([o for o, _, _ in objs], name + 'Hair')
     hm = PP.final_material(name + 'HairMat', {'albedo': td + '/hair.png'}, alpha=True, rough=0.5)
     hair.data.materials.clear(); hair.data.materials.append(hm)
     for p in hair.data.polygons: p.material_index = 0
-    keep = {rig.name, low.name, hair.name} | set(extra_meshes)
+    keep = {rig.name, low.name, hair.name} | set(extra_meshes) | {o.name for o in lods}
     for o in list(bpy.data.objects):
         if o.name not in keep: bpy.data.objects.remove(o)
-    for o in [low, hair] + [bpy.data.objects[e] for e in extra_meshes]:
+    for o in [low, hair] + lods + [bpy.data.objects[e] for e in extra_meshes]:
         for m in list(o.modifiers): o.modifiers.remove(m)
         o.parent = rig
         o.modifiers.new('Armature', 'ARMATURE').object = rig
@@ -81,7 +98,9 @@ def assemble_enemy(out):
     for kind in ('rifleman', 'officer', 'sniper', 'gunner'):
         name = kind.capitalize(); td = L.WORK + '/tex_' + kind
         mat = PP.final_material(name + 'Mat', {'albedo': td + '/albedo.jpg', 'normal': td + '/normal.jpg', 'orm': td + '/orm.jpg'})
-        for on in (name, name + 'LOD'):
+        old = bpy.data.objects.get(name + 'LOD')
+        if old: bpy.data.objects.remove(old)
+        for on in (name,):
             o = bpy.data.objects[on]
             o.data.materials.clear(); o.data.materials.append(mat)
             for p in o.data.polygons: p.material_index = 0
@@ -89,6 +108,7 @@ def assemble_enemy(out):
                 if uv.name != 'atlas': o.data.uv_layers.remove(uv)
             o.data.uv_layers['atlas'].name = 'UVMap'
             keep.append(on)
+        keep += [c.name for c in make_lods(bpy.data.objects[name], name)]
     td = L.WORK + '/tex_enemy'; os.makedirs(td, exist_ok=True)
     parts = []
     for objname, img, rect in [('Hair', L.MHA + '/hair/short02/short02_diffuse.png', (0, 0, 0.5, 0.5)),

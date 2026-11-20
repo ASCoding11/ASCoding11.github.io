@@ -24,7 +24,8 @@
  *  - A long gun or pistol in handR automatically layers holdRifle/holdPistol on the upper body unless setUpper() is used
  *    or the full-body clip already carries the weapon. The left hand is pulled onto weapon.userData.gripL by IK in the
  *    aim/hold/fire clips (actor.leftHandIK = 0..1 forces it).
- *  - Set IVChars.camera = yourCamera for the enemy LOD switch (IVChars.lodDistance, default 22 m) and for updating far
+ *  - Set IVChars.camera = yourCamera for the LOD switch (IVChars.lodDistances = [mid, far] metres, default [12, 30];
+ *    every kind has a ~5k mid and a ~1.8k far mesh; set lower distances on low quality) and for updating far
  *    actors (beyond IVChars.throttleDistance, default 45 m) every other frame.
  *    A full weapon model held by anyone but the hero switches to its reduced model beyond IVChars.weaponLodDistance (6 m).
  *  - Weapons: barrel along +Z, up +Y, origin at the right-hand grip; userData.muzzle (Object3D, use its world position),
@@ -46,12 +47,12 @@
   };
   // which meshes of which file make each kind (enemy.glb holds all four enemy outfits + their LODs on one body)
   var KINDS = {
-    hero: { file: 'hero', meshes: ['Hero', 'HeroHair'] },
-    ally: { file: 'ally', meshes: ['Ally', 'AllyHair'] },
-    rifleman: { file: 'enemy', meshes: ['Rifleman', 'EnemyHair'], lod: ['RiflemanLOD'] },
-    officer: { file: 'enemy', meshes: ['Officer', 'EnemyHair'], lod: ['OfficerLOD'] },
-    sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair'], lod: ['SniperLOD'] },
-    gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair'], lod: ['GunnerLOD'] }
+    hero: { file: 'hero', meshes: ['Hero', 'HeroHair'], lod: ['HeroLOD1', 'HeroLOD2'] },
+    ally: { file: 'ally', meshes: ['Ally', 'AllyHair'], lod: ['AllyLOD1', 'AllyLOD2'] },
+    rifleman: { file: 'enemy', meshes: ['Rifleman', 'EnemyHair'], lod: ['RiflemanLOD1', 'RiflemanLOD2'] },
+    officer: { file: 'enemy', meshes: ['Officer', 'EnemyHair'], lod: ['OfficerLOD1', 'OfficerLOD2'] },
+    sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair'], lod: ['SniperLOD1', 'SniperLOD2'] },
+    gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair'], lod: ['GunnerLOD1', 'GunnerLOD2'] }
   };
   var WEAPONS = ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade', 'stickGrenade', 'rifleScopedLod', 'smgLod'];
   var LONG = { rifleScoped: 1, smg: 1, enemyRifle: 1, enemySmg: 1, mg: 1 };
@@ -69,7 +70,7 @@
 
   var IV = window.IVChars = {
     info: { loaded: false, fallback: false, files: {}, bytes: 0, errors: [], version: VERSION },
-    clips: [], camera: null, lodDistance: 22, throttleDistance: 45, weaponLodDistance: 6
+    clips: [], camera: null, lodDistance: 22, lodDistances: [12, 30], throttleDistance: 45, weaponLodDistance: 6
   };
   var META = {}, gltf = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {}, WTEMPLATES = {}, TRIS = {}, upperSet = null;
 
@@ -165,7 +166,7 @@
       }
     });
     drop.forEach(function (o) { o.parent.remove(o); });
-    var tris = 0, lodTris = 0;
+    var tris = 0, lodTris = [0, 0, 0];
     root.traverse(function (o) {
       if (!o.isMesh) return;
       prepMaterial(o.material);
@@ -174,11 +175,11 @@
       // skinned bounds: generous sphere around the body so animated limbs (prone, deaths) never pop out
       g2.boundingSphere = new T.Sphere(new T.Vector3(0, 0.9, 0), 1.45);
       var nm = meshName(o);
-      o.userData.lod = (def.lod || []).indexOf(nm) >= 0;
+      o.userData.lod = (def.lod || []).indexOf(nm) + 1;   // 0 full, 1 mid (~5k), 2 far (~1.8k)
       var c = (g2.index ? g2.index.count : g2.attributes.position.count) / 3;
-      if (o.userData.lod) lodTris += c; else tris += c;
+      if (o.userData.lod) lodTris[o.userData.lod] += c; else tris += c;
     });
-    TRIS[kind] = { tris: Math.round(tris), lod: Math.round(lodTris) };
+    TRIS[kind] = { tris: Math.round(tris), lod: Math.round(lodTris[1]), lod2: Math.round(lodTris[2]) };
     return root;
   }
   function meshName(o) {
@@ -242,7 +243,7 @@
     if (TRIS[kind]) return TRIS[kind].tris;
     return kind in KINDS || WEAPONS.indexOf(kind) >= 0 ? (FB.tris || 0) : 0;
   };
-  IV.lodTris = function (kind) { return TRIS[kind] ? TRIS[kind].lod || 0 : 0; };
+  IV.lodTris = function (kind, level) { return TRIS[kind] ? (level === 2 ? TRIS[kind].lod2 : TRIS[kind].lod) || 0 : 0; };   // mid (1, default) or far (2)
 
   // ---------- weapons
   IV.weapon = function (kind, opts) {
@@ -310,7 +311,7 @@
   }
 
   // sockets for attach(): bone and, for back/hip, a carry pose in the bind-pose character frame
-  var SOCKET = { handR: 'weapon_r', handL: 'hand_l', back: 'spine_03', hip: 'pelvis', head: 'Head' };
+  var SOCKET = { handR: 'weapon_r', handL: 'hand_l', back: 'spine_03', sling: 'spine_03', hip: 'pelvis', head: 'Head' };
   function carryMatrix(socket, obj) {
     var m = new T.Matrix4(), q = new T.Quaternion(), p = new T.Vector3();
     var long = obj.userData.long;
@@ -318,6 +319,13 @@
       // slung across the back, muzzle up over the left shoulder
       var z = new T.Vector3(0.42, 0.9, 0).normalize(), y = new T.Vector3(0, 0, -1), x = new T.Vector3().crossVectors(y, z);
       m.makeBasis(x, y, z); p.set(-0.05, 1.28, -0.2);
+      if (!long) { m.identity(); p.set(0.12, 1.05, -0.17); }
+    } else if (socket === 'sling') {
+      // slung muzzle down across the back, outside the pack: stock up behind the right shoulder blade (its top below
+      // the helmet rim), muzzle toward the left hip, sights facing out
+      var z3 = new T.Vector3(0.33, -0.94, -0.05).normalize(), y3 = new T.Vector3(0, 0.05, -1).normalize(), x3 = new T.Vector3().crossVectors(y3, z3).normalize();
+      y3.crossVectors(z3, x3);
+      m.makeBasis(x3, y3, z3); p.set(-0.07, 1.26, -0.25);
       if (!long) { m.identity(); p.set(0.12, 1.05, -0.17); }
     } else if (socket === 'hip') {
       // holstered on the right hip, muzzle down
@@ -412,7 +420,8 @@
     if (!/^(hero|ally)$/.test(kind)) this.setFace(Actor._faceN = ((Actor._faceN || 0) + 1) % 3);
     this.play('idle', { fade: 0 });
     // settle on the idle pose now, so the first frame drawn after spawn is never the bind pose
-    this.mixer.update(0); this.root.updateMatrixWorld(true);
+    // (a full update: play() only sets the weights that update() hands to the mixer)
+    this.update(0); this.root.updateMatrixWorld(true);
   }
   var AP = Actor.prototype;
   // weapon moving parts driven by the clips: the rifle bolt follows the hand through boltCycle (lift, back,
@@ -571,7 +580,7 @@
       var inv = GM.invert();
       inv.decompose(obj.position, obj.quaternion, obj.scale);
       obj.userData._ap = obj.position.clone(); obj.userData._aq = obj.quaternion.clone();
-    } else if (socket === 'back' || socket === 'hip') {
+    } else if (socket === 'back' || socket === 'sling' || socket === 'hip') {
       // carry pose defined in the bind-pose character frame, converted into the bone's frame
       var rest = this._restWorld(bn);
       var m = new T.Matrix4().copy(rest).invert().multiply(carryMatrix(socket, obj));
@@ -612,11 +621,16 @@
     if (IV.camera && this.root.parent) {
       worldPos(this.root, _v1);
       far = _v1.distanceTo(IV.camera.position);
-      var lod = this.lods.length && far > IV.lodDistance ? 1 : 0;
-      if (lod !== this.lodLevel) {
+      // three levels with 10 % hysteresis: full -> mid at IV.lodDistances[0], mid -> far at [1] (the hair goes at mid)
+      var D = IV.lodDistances || [IV.lodDistance * 0.55, IV.lodDistance * 1.4], cur = this.lodLevel || 0, lod = cur;
+      if (this.lods.length) {
+        if (cur < 2 && far > D[1] * 1.05) lod = 2; else if (cur < 1 && far > D[0] * 1.05) lod = 1;
+        else if (cur > 1 && far < D[1] * 0.95) lod = far > D[0] * 0.95 ? 1 : 0; else if (cur > 0 && far < D[0] * 0.95) lod = 0;
+      }
+      if (lod !== cur) {
         this.lodLevel = lod;
-        this.meshes.forEach(function (m) { m.visible = !lod || /Hair/.test(m.name) ? !lod : false; });
-        this.lods.forEach(function (m) { m.visible = !!lod; });
+        this.meshes.forEach(function (m) { m.visible = !lod; });
+        this.lods.forEach(function (m) { m.visible = m.userData.lod === lod; });
       }
     }
     // weapon in hand: full model for the player, the reduced one for others beyond a few metres
@@ -648,7 +662,7 @@
       if (!autoName) autoName = needs ? (held.userData.long ? 'holdRifle' : (pistol ? 'holdPistol' : null)) : null;
       if (autoName && !clipName(autoName)) autoName = null;
       // the rifle travels furthest between the sprint carry and the shoulder: give that swap the longest fade
-      var swapF = (this.curUpper && this.curUpper.name === 'sprintRifle') || autoName === 'sprintRifle' ? 0.25 : (this._upperFade || 0.2);
+      var swapF = (this.curUpper && this.curUpper.name === 'sprintRifle') || autoName === 'sprintRifle' ? 0.38 : (this._upperFade || 0.2);
       if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: this._snap ? 0 : swapF });
       if (!autoName && this._autoUpper && this.curUpper) this.setUpper(null);
     }
@@ -792,7 +806,12 @@
       this._dirA += da * (1 - Math.exp(-dt / 0.18));
     }
     var dirA = ((this._dirA + 540) % 360) - 180;
-    var tierT = Math.max(0, Math.min(1, (speed - SPEED.walk) / (SPEED.jog - SPEED.walk)));
+    // walk or jog: the game scales speeds by direction (strafe 85 %, back 70 %), so judge the tier against this
+    // direction's own walk speed; a narrow walk->jog band (1.45-1.7x walk) keeps one gait at a time, played a
+    // little faster or slower, instead of mixing two cadences (which skates the planted foot)
+    var d2 = vx * vx + vz * vz, dirF = d2 > 1e-6 ? (vx * vx * 0.85 + vz * vz * (vz > 0 ? 1 : 0.7)) / d2 : 1;
+    var wv = SPEED.walk * dirF;
+    var tierT = Math.max(0, Math.min(1, (speed - wv * 1.45) / (wv * 0.25)));
     this._tier = approach(this._tier, tierT, 4, dt);
     var fwdish = Math.abs(dirA) < 35;
     this._sprintW = approach(this._sprintW, st.sprinting && fwdish && speed > SPEED.jog * 0.9 && stance === 'stand' ? 1 : 0, 4, dt);
@@ -813,7 +832,7 @@
     add('idle', sStand * idleW * (1 - this._turnW));
     add(this._turnW > 0.01 ? 'crouchTurnStep' : 'crouchIdle', sCrouch * idleW * this._turnW);
     add('crouchIdle', sCrouch * idleW * (1 - this._turnW));
-    add('proneIdle', sProne * idleW);
+    add(st.aiming ? 'proneAim' : 'proneIdle', sProne * idleW);   // prone and aiming: elbows down, rifle level
     add('proneCrawl', sProne * mv);
     var dA = DIRS[ia][0], dB = DIRS[ib][0];
     var walkW = (1 - this._tier) * (1 - this._sprintW), jogW = this._tier * (1 - this._sprintW);
@@ -843,7 +862,7 @@
     var prev = this.phase;
     if (strideW > 0.01) {
       var natural = speedSum / strideSum;                 // cycles per second at the clips' own speed
-      this.phase += Math.min(speed / Math.max(strideSum, 1e-3), natural * 1.3) * dt;
+      this.phase += Math.min(speed / Math.max(strideSum, 1e-3), natural * 1.6) * dt;
     } else if (this._turnW > 0.05) this.phase += dt / 0.9;
     if (sProne > 0.5 && speed > 0.05) this.phase += dt * speed / 0.6 * 0.0;   // crawl uses its own clock (below)
     this.phase %= 1;
@@ -863,6 +882,11 @@
     for (k in this.gr) { e = this.gr[k]; if (e.w <= 0 && !tw[k]) { e.full.stop(); e.lower.stop(); delete this.gr[k]; } }
     // lean: roll into turns, pitch into acceleration
     var accel = (speed - this._lastSpeed) / Math.max(dt, 1e-3);
+    // stopping: from the moment the body is nearly stopped, the feet that are on the ground stay where they are and
+    // any that ended up away from the idle stance is brought in by a small lifted settle step (see _stopFeet)
+    var decel = (this._lastSpeed - speed) / Math.max(dt, 1e-3);
+    if (!this._stop && this._move > 0.15 && stance !== 'prone' && ((speed < 0.45 && speed <= this._lastSpeed) || (decel > 4 && speed < this._lastSpeed * 0.93))) this._stop = { t: 0, init: false };
+    if (this._stop && (stance === 'prone' || (speed > this._lastSpeed + 0.01 && speed > 0.2))) { this._stop = null; this._lock = null; }
     this._lastSpeed = speed;
     this._lean += (Math.max(-0.14, Math.min(0.14, -(st.yawRate || 0) * speed * 0.035)) - this._lean) * Math.min(1, dt * 6);
     this._pitchLean += (Math.max(-0.06, Math.min(0.06, accel * 0.012)) - this._pitchLean) * Math.min(1, dt * 5);
@@ -908,7 +932,8 @@
     var ikW = Math.max(0, Math.min(1, 1 - this._stW.prone * 1.6)), ikOK = far < (IV.footIKDistance || 25) && ikW > 0.01;
     this._ikW = ikW;
     if (this.groundAt && ikOK) this._footIK(dt);
-    if (ikOK && IV.footLock !== false && far < (IV.footLockDistance || 12)) this._footLock(dt);   // transitions only (see _lockK)
+    if (ikOK && this._stop) this._stopFeet(dt, fwd);
+    else if (ikOK && IV.footLock !== false && far < (IV.footLockDistance || 12)) this._footLock(dt);   // transitions only (see _lockK)
   };
   // planted-foot lock: while a foot is in its contact window (from the shared phase) it stays where it landed,
   // so direction changes and turns do not skate it; eased in and out at the window edges
@@ -971,6 +996,47 @@
       legIK(b['thigh_' + s], b['calf_' + s], foot, tgt, pole.normalize(), Math.min(1, st.w + (inStance ? 0 : 1)));
     }
   };
+  AP._stopFeet = function (dt, fwd) {
+    var b = this.bones, S = this._stop, ry = worldPos(this.root, new T.Vector3()).y, i, s;
+    S.t += dt;
+    if (!S.init) {
+      S.init = true; S.f = {};
+      for (i = 0; i < 2; i++) {
+        s = i ? 'r' : 'l';
+        var p = worldPos(b['foot_' + s], new T.Vector3());
+        // on the ground = ankle within 4 cm of standing height
+        S.f[s] = { L: p.clone(), planted: p.y - ry < 0.13, step: -1, done: false };
+      }
+    }
+    var wIn = 1;   // the pins start where the feet are, so they can take hold at once
+    // settle steps once the body has (nearly) reached the idle pose: the foot furthest from its idle spot first
+    var idle = this._move < 0.08;
+    for (i = 0; i < 2; i++) {
+      s = i ? 'r' : 'l';
+      var f = S.f[s], foot = b['foot_' + s]; if (f.done) continue;
+      var A = worldPos(foot, new T.Vector3());
+      // a foot that was in the air when the stop began follows its clip until it touches down, then stays there
+      if (!f.planted) { if (A.y - ry < 0.11) { f.planted = true; f.L.copy(A); } else continue; }
+      var off = Math.hypot(A.x - f.L.x, A.z - f.L.z);
+      var other = S.f[i ? 'l' : 'r'];
+      if (idle && f.step < 0 && off > 0.02 && !(other.step >= 0 && !other.done)) f.step = 0;
+      // a pinned foot the body has moved away from (the leg would be at full stretch) steps now instead of dragging
+      if (f.step < 0 && !(other.step >= 0 && !other.done)) {
+        var H0 = worldPos(b['thigh_' + s], new T.Vector3()), legL = H0.distanceTo(worldPos(b['calf_' + s], new T.Vector3())) + worldPos(b['calf_' + s], new T.Vector3()).distanceTo(A);
+        if (H0.distanceTo(new T.Vector3(f.L.x, A.y, f.L.z)) > legL * 0.95) f.step = 0;
+      }
+      var tgt = f.L.clone(); tgt.y = A.y;
+      if (f.step >= 0) {
+        f.step += dt; var u = Math.min(1, f.step / 0.28), e = u * u * (3 - 2 * u);
+        tgt.set(f.L.x + (A.x - f.L.x) * e, A.y + Math.sin(Math.PI * u) * 0.06, f.L.z + (A.z - f.L.z) * e);
+        if (u >= 1) { f.done = true; continue; }
+      } else if (idle && off <= 0.02) { f.done = true; continue; }
+      var hip = worldPos(b['thigh_' + s], new T.Vector3()), knee = worldPos(b['calf_' + s], new T.Vector3());
+      var axis = A.clone().sub(hip).normalize(), kd = knee.clone().sub(hip);
+      var pole = kd.addScaledVector(axis, -kd.dot(axis)).addScaledVector(fwd, 0.08);
+      legIK(b['thigh_' + s], b['calf_' + s], foot, tgt, pole.normalize(), wIn);
+    }
+  };
   AP._footIK = function (dt) {
     var b = this.bones, root = this.root, ry = new T.Vector3().setFromMatrixPosition(root.matrixWorld).y;
     var sides = ['l', 'r'], off = {}, pos = {}, i;
@@ -1006,15 +1072,19 @@
     var rq = worldQuat(this.root, new T.Quaternion());
     var left = new T.Vector3(1, 0, 0).applyQuaternion(rq), up = new T.Vector3(0, 1, 0).applyQuaternion(rq);
     var q = new T.Quaternion();
+    // prone: the body lies on its elbows, so the aim can only tilt a little (the clip already holds the rifle level);
+    // a camera looking down must not bend the lying spine and point the gun into the ground
+    var pr = this._stW ? this._stW.prone : 0, aY = this.aimY * (1 - 0.6 * pr);
+    var aP = this.aimP * (1 - pr) + Math.max(-0.2, Math.min(0.25, this.aimP)) * 0.5 * pr;
     for (var i = 0; i < AIM_Y.length; i++) {
       var b = this.bones[AIM_Y[i][0]]; if (!b) continue;
-      q.setFromAxisAngle(up, this.aimY * AIM_Y[i][1]); rotWorld(b, q);
+      q.setFromAxisAngle(up, aY * AIM_Y[i][1]); rotWorld(b, q);
     }
     for (i = 0; i < AIM_P.length; i++) {
       b = this.bones[AIM_P[i][0]]; if (!b) continue;
       // pitch about the character's current left axis (after yaw)
-      var l2 = left.clone().applyAxisAngle(up, this.aimY * 0.7);
-      q.setFromAxisAngle(l2, -this.aimP * AIM_P[i][1]); rotWorld(b, q);
+      var l2 = left.clone().applyAxisAngle(up, aY * 0.7);
+      q.setFromAxisAngle(l2, -aP * AIM_P[i][1]); rotWorld(b, q);
     }
   };
   AP.dispose = function () {
