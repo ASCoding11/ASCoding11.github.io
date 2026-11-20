@@ -635,7 +635,7 @@ var RA = (function () {
     c.deck(b, e, -We / 2, -hw / 2); c.deck(b, e, hw / 2, We / 2);
     c.deck(e, f, -We / 2, -hw / 2, -W / 2, 0); c.deck(e, f, hw / 2, We / 2, 0, W / 2);
     const sd = c.sgn(); for (let x = b + 2; x < e - 1; x += 2.6) c.gem(x, sd * (hw / 2 + 0.55));
-    if (c.D > 0.3) { const s2 = c.sgn(); c.post(b + (e - b) * 0.35, s2 * (hw / 2 + side / 2), 0.4); c.post(b + (e - b) * 0.75, -s2 * (hw / 2 + side / 2), 0.4); }
+    if (c.D > 0.3) { const s2 = c.sgn(); c.post(b + (e - b) * 0.4, s2 * (hw / 2 + side * 0.8), 0.38); c.post(b + (e - b) * 0.75, -s2 * (hw / 2 + side * 0.8), 0.38); } // on the outer side of each arm: the inner lane stays open
     const L = f + tailT(c); c.run(f, L); c.end(L);
   });
   M('braid', 'path', 0.35, () => 0.5, c => {
@@ -1617,7 +1617,7 @@ function updateChunks(s, all) {
   const k0 = Math.floor((s - 30) / CH), k1 = Math.floor((s + QS.far + 20) / CH);
   for (const k of [...chunks.keys()]) if (k < k0 || k > k1) releaseChunk(k);
   let built = 0;
-  if (!chunks.has(Math.max(0, k0 + 3))) all = true; // fell far behind (a jump ahead): build everything now rather than show a short track
+  { let miss = 0; for (let k = Math.max(0, k0); k <= k1 && (k + 1) * CH <= G.tr.sGen; k++) if (!chunks.has(k)) miss++; if (miss > 4) all = true; } // fell far behind (a jump ahead): build it all now rather than show a short track
   for (let k = Math.max(0, k0); k <= k1; k++) {
     if (chunks.has(k)) continue; if (!all && built >= 1) break; // one chunk a frame (about 10 ms of work at most) keeps up at top speed
     if ((k + 1) * CH > G.tr.sGen) break;
