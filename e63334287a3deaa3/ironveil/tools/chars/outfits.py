@@ -82,8 +82,10 @@ def boot_details(P, bvh, out, laces=True, mat='boot', lace_mat='glove'):
         F = P[fm]
         fx = float(np.mean(F[:, 0])); y0, y1 = float(F[:, 1].min()), float(F[:, 1].max())
         w = float(F[:, 0].max() - F[:, 0].min())
-        # heel: a block a little proud of the sole at the back, so the step between heel and sole reads
-        hb = G.box('Heel%d' % s, (w + 0.012, 0.072, 0.03), Matrix.Translation((fx, y1 - 0.034, 0.015)), bev=0.004, seg=2)
+        Fh = F[F[:, 1] > y1 - 0.07]                     # the heel end only (the toes are wider)
+        hx = float(np.mean(Fh[:, 0])); hw = float(Fh[:, 0].max() - Fh[:, 0].min())
+        # heel: a block just proud of the sole at the back, so the step between heel and sole reads
+        hb = G.box('Heel%d' % s, (hw + 0.004, 0.068, 0.03), Matrix.Translation((hx, y1 - 0.036, 0.015)), bev=0.005, seg=2)
         out.append((hb, mat))
         # tread: bars across the sole and the heel
         for k in range(9):
