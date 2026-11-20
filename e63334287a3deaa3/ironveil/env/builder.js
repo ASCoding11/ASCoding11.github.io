@@ -203,6 +203,7 @@
   E.mergeStatic = function (root, opts) {
     opts = opts || {};
     const lowMinor = E.Q.name === 'low' && opts.lowMinor !== false;
+    if (E.Q.name === 'low' && opts.cell) opts = Object.assign({}, opts, { cell: Math.max(opts.cell, 160) });   // Low: bigger cells, fewer draw calls
     root.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
     const groups = new Map(), victims = [];
