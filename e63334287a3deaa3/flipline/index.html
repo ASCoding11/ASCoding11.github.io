@@ -539,11 +539,11 @@ const R_=(r,a,b)=>a+(b-a)*r();
 const D1=d=>Math.min(1,d);
 const PICK=[
   ['flat',1,0,(d,r)=>[R_(r,6,10)]],
-  ['recover',1,0.3,(d,r)=>[R_(r,16,22)]],
+  ['recover',0.5,0.3,(d,r)=>[R_(r,16,22)]],
   ['roll',2,0,(d,r)=>[2+Math.floor(r()*3),R_(r,0.4,0.6+0.4*D1(d)),R_(r,5,7)]],
   ['whoop',2,0.1,(d,r)=>[4+Math.floor(r()*4),R_(r,0.6,0.7+0.5*D1(d)),R_(r,3.8,4.8)]],
-  ['hill',1,0,(d,r)=>[R_(r,3,3.5+3*D1(d)),R_(r,22,28)]],
-  ['valley',1,0,(d,r)=>[R_(r,2.5,3+2.5*D1(d)),R_(r,22,28)]],
+  ['hill',0.5,0,(d,r)=>[R_(r,3,3.5+3*D1(d)),R_(r,22,28)]],
+  ['valley',0.5,0,(d,r)=>[R_(r,2.5,3+2.5*D1(d)),R_(r,22,28)]],
   ['hump',2,0,(d,r)=>[R_(r,1.2,1.4+0.8*D1(d)),R_(r,7,9)]],
   ['kick',4,0,(d,r)=>[R_(r,1.0,1.1+0.6*D1(d)),R_(r,24,28+8*D1(d)),R_(r,12,18)]],
   ['dkick',3,0.1,(d,r)=>[R_(r,0.9,1.2),R_(r,22,28),R_(r,9,12)]],
@@ -645,34 +645,36 @@ function dailySeed(date){const d=date||new Date();const s=d.getUTCFullYear()+'-'
 
 // ---------- levels: name, theme, flips target, time target (s), then the course as module:arg:arg tokens ----------
 const LEVELS=[
-  // Tier 1: one idea each (ids are the original ones so medals already earned stay attached; courses rebuilt for Chromeline)
-  {id:'first-gear',n:'First Gear',th:0,f:1,t:18,c:'kick:1:24:12 bigkick:1.8:32:2:12 loop:3.4:12 spikes:2.5 flat:6 hump:1.4:8'},
-  {id:'let-go',n:'Let Go',th:0,f:2,t:19,c:'kick:1:26:14 bigkick:2:34:3:14 stepdown:3 gap:5:0:0.7 beams:2:7 loop:3.6:12'},
-  {id:'over-you-go',n:'Over You Go',th:0,f:2,t:17,c:'bigkick:2.2:36:4:14 lpipe:3.2:58:9 bigkick:2.2:36:4:14 hpipe:3.2:68:2.9:9'},
-  {id:'feet-first',n:'Feet First',th:0,f:2,t:20,c:'kick:1.1:26:14 stepdown:3 tabletop:1.6:6 gap:5:0:0.7 pads:3:4.6:4:1 stepup:2:3'},
-  {id:'twice-round',n:'Twice Round',th:0,f:3,t:19,c:'loop:3.4:14 flat:4 loop2:3.6:4.2:12 dropin:7 loop:4.6:12:6'},
-  {id:'swing-time',n:'Swing Time',th:0,f:1,t:15,c:'flat:18 pend:1:2.6:0 kick:1:24:12 pend:2:2.6:0.1 spikes:3 rotor:1:1.3:0 gates:1:2.2:9:0'},
+  // Tier 1: one idea each (ids are the original ones so medals already earned stay attached; courses rebuilt for Chromeline).
+  // f and t were set by the bot on these courses: t = its time + 12% + 1 s, f = what a flip-seeking version of it managed (where that
+  // version crashed, between that and the plain bot's flips).
+  {id:'first-gear',n:'First Gear',th:0,f:3,t:21,c:'kick:1:24:12 bigkick:1.8:32:2:12 loop:3.4:12 spikes:2.5 flat:6 hump:1.4:8'},
+  {id:'let-go',n:'Let Go',th:0,f:5,t:23,c:'kick:1:26:14 bigkick:2:34:3:14 stepdown:3 gap:5:0:0.7 beams:2:7 loop:3.6:12'},
+  {id:'over-you-go',n:'Over You Go',th:0,f:7,t:27,c:'bigkick:2.2:36:4:14 lpipe:3.2:58:9 bigkick:2.2:36:4:14 hpipe:3.2:68:2.9:9'},
+  {id:'feet-first',n:'Feet First',th:0,f:4,t:23,c:'kick:1.1:26:14 stepdown:3 tabletop:1.6:6 gap:5:0:0.7 pads:3:4.6:4:1 stepup:2:3'},
+  {id:'twice-round',n:'Twice Round',th:0,f:2,t:25,c:'loop:3.4:14 flat:4 loop2:3.6:4.2:12 dropin:7 loop:4.6:12:6'},
+  {id:'swing-time',n:'Swing Time',th:0,f:2,t:17,c:'flat:18 pend:1:2.6:0 kick:1:24:12 pend:2:2.6:0.1 spikes:3 rotor:1:1.3:0 gates:1:2.2:9:0'},
   // Tier 2
-  {id:'mesa-hop',n:'Grid Hop',th:1,f:2,t:23,c:'gap:5:0:0.7 launch:16:0:24:6 gapup:3:1.2 crumble:3:4.2:1.3 gapdown:8:-3'},
-  {id:'washboard',n:'Washboard',th:1,f:2,t:25,c:'whoop:6:0.8:4.2 boost:10 loop:4.2:10 roll:4:0.7:6 bigkick:2:34:3:14 whoop:5:0.9:4.4'},
-  {id:'stair-master',n:'Stair Master',th:1,f:2,t:22,c:'stairsup:3:0.6:5 stepup:2:3 stairsdown:4:0.8:4 stepdown:4 pads:3:4.4:4:1 tabletop:1.8:7'},
-  {id:'low-bridge',n:'Low Bridge',th:1,f:2,t:22,c:'beams:3:6 kick:1.1:26:14 gates:2:2.2:9:0 bridge:5:3 bigkick:2:34:3:12 beams:2:6'},
-  {id:'teeter',n:'Teeter',th:1,f:1,t:18,c:'seesaw:10:1.2 kick:1:24:14 seesaw:11:1.3 crumble:3:4.6:1.4 dropin:6 seesaw:9:1.1'},
-  {id:'stepping-stones',n:'Stepping Stones',th:1,f:1,t:19,c:'pillars:4:2.8:0.7:-0.3 pads:3:4.4:4.2:1 bigkick:2:34:3:14 pillars:5:2.6:0.8:-0.35 crumble:3:4.4:1.5'},
+  {id:'mesa-hop',n:'Grid Hop',th:1,f:3,t:22,c:'gap:5:0:0.7 launch:16:0:24:6 gapup:3:1.2 crumble:3:4.2:1.3 gapdown:8:-3'},
+  {id:'washboard',n:'Washboard',th:1,f:4,t:27,c:'whoop:6:0.8:4.2 boost:10 loop:4.2:10 roll:4:0.7:6 bigkick:2:34:3:14 whoop:5:0.9:4.4'},
+  {id:'stair-master',n:'Stair Master',th:1,f:2,t:23,c:'stairsup:3:0.6:5 stepup:2:3 stairsdown:4:0.8:4 stepdown:4 pads:3:4.4:4:1 tabletop:1.8:7'},
+  {id:'low-bridge',n:'Low Bridge',th:1,f:3,t:20,c:'beams:3:6 kick:1.1:26:14 gates:2:2.2:9:0 bridge:5:3 bigkick:2:34:3:12 beams:2:6'},
+  {id:'teeter',n:'Teeter',th:1,f:2,t:20,c:'seesaw:10:1.2 kick:1:24:14 seesaw:11:1.3 crumble:3:4.6:1.4 dropin:6 seesaw:9:1.1'},
+  {id:'stepping-stones',n:'Stepping Stones',th:1,f:2,t:22,c:'pillars:4:2.8:0.7:-0.3 pads:3:4.4:4.2:1 bigkick:2:34:3:14 pillars:5:2.6:0.8:-0.35 crumble:3:4.4:1.5'},
   // Tier 3
   {id:'clockwork',n:'Clockwork',th:2,f:1,t:20,c:'flat:14 rotor:1:1.3:0 crusher:1:2.8:0 kick:1.2:28:14 gates:2:2.2:9:0.05 pend:2:2.6:-0.05 crusher:2:2.8:0.05 rotor:2:1.4:0.05'},
-  {id:'ferry',n:'Ferry',th:2,f:3,t:26,c:'shuttle:8:0 lift:5:1 shuttle:8:2 launch:18:-2:24:6 lift:6:3 loop:4:12'},
-  {id:'sawmill',n:'Sawmill',th:2,f:2,t:22,c:'flat:10 saw:4.5:2.4:0 spikes:3 saw:5:2.3:0.05 spikeroll:3:3:1 saw:5:2.4:-0.05 gates:1:2.2:9:0'},
-  {id:'big-sky',n:'Big Sky',th:3,f:6,t:28,c:'lpipe:3.4:60:10 hpipe:3.2:68:2.9:9 loop:4.8:14:6 lpipe:3.3:58:10 launch:22:-3:26:6'},
-  {id:'long-way-down',n:'Long Way Down',th:3,f:4,t:23,c:'dropin:6 stepdown:4 launch:18:-4:24:6 stairsdown:4:1:4 gapdown:9:-5 hpipe:3.2:68:2.9:10'},
-  {id:'spine',n:'Spine',th:2,f:2,t:26,c:'spikeroll:3:3:1 gap2:5:6:9 loop2:3.4:4:12 spikeroll:2:3.5:1 longjump:9 crumble:3:4.4:1.6'},
+  {id:'ferry',n:'Ferry',th:2,f:4,t:27,c:'shuttle:8:0 lift:5:1 shuttle:8:2 launch:18:-2:24:6 lift:6:3 loop:4:12'},
+  {id:'sawmill',n:'Sawmill',th:2,f:5,t:25,c:'flat:10 saw:4.5:2.4:0 spikes:3 saw:5:2.3:0.05 spikeroll:3:3:1 saw:5:2.4:-0.05 gates:1:2.2:9:0'},
+  {id:'big-sky',n:'Big Sky',th:3,f:4,t:32,c:'lpipe:3.4:60:10 hpipe:3.2:68:2.9:9 loop:4.8:14:6 lpipe:3.3:58:10 launch:22:-3:26:6'},
+  {id:'long-way-down',n:'Long Way Down',th:3,f:3,t:25,c:'dropin:6 stepdown:4 launch:18:-4:24:6 stairsdown:4:1:4 gapdown:9:-5 hpipe:3.2:68:2.9:10'},
+  {id:'spine',n:'Spine',th:2,f:3,t:37,c:'spikeroll:3:3:1 gap2:5:6:9 loop2:3.4:4:12 spikeroll:2:3.5:1 longjump:9 crumble:3:4.4:1.6'},
   // Tier 4
-  {id:'gauntlet',n:'Gauntlet',th:4,f:3,t:28,c:'kick:1.2:28:14 flat:10 pend:1:2.6:-0.1 gap:6:0:0.7 loop:4.4:12 rotor:1:1.4:0 gates:2:2.1:9:0.05 crusher:1:2.7:0 bigkick:2.4:35:4:14 saw:5:2.3:0'},
-  {id:'tightrope',n:'Tightrope',th:4,f:1,t:28,c:'bridge:6:3 pads:4:4.2:4.5:1 crumble:4:4.4:1.4 gap2:6:6.5:8 pillars:4:2.4:0.9:-0.4 seesaw:10:1.3 bigkick:2.4:35:4:14'},
-  {id:'switchback',n:'Switchback',th:3,f:6,t:33,c:'stepup:2.4:3.5 dropin:7 hpipe:3.2:68:2.9:9 gapup:3.5:1.6 lpipe:3.3:60:10 launch:20:1:26:6 gapdown:9:-4'},
-  {id:'mechanical',n:'Mechanical',th:5,f:2,t:27,c:'lift:6:0 seesaw:10:1.2 shuttle:8:1 crusher:2:2.8:0 gates:2:2.2:9:0 rotor:2:1.4:0 crumble:3:4.4:1.5 shuttle:8:2'},
-  {id:'skyline',n:'Skyline',th:4,f:7,t:36,c:'lpipe:3.4:62:10 loop2:4:4.6:12 launch:22:-2:26:6 hpipe:3.2:68:2.9:10 loop:5.2:14:6 dropin:10'},
-  {id:'the-works',n:'The Works',th:5,f:6,t:41,c:'gap:6:0:0.7 pend:2:2.6:0 spikes:5 loop:4.4:12 seesaw:10:1.2 lpipe:3.4:60:10 gates:2:2.2:9:0 crusher:2:2.7:0.05 pads:3:4.2:4.5:1 saw:5.5:2.3:0 hpipe:3.2:68:2.9:9 rotor:2:1.4:0 loop2:3.6:4.4:12 longjump:10'},
+  {id:'gauntlet',n:'Gauntlet',th:4,f:5,t:31,c:'kick:1.2:28:14 flat:10 pend:1:2.6:-0.1 gap:6:0:0.7 loop:4.4:12 rotor:1:1.4:0 gates:2:2.1:9:0.05 crusher:1:2.7:0 bigkick:2.4:35:4:14 saw:5:2.3:0'},
+  {id:'tightrope',n:'Tightrope',th:4,f:3,t:30,c:'bridge:6:3 pads:4:4.2:4.5:1 crumble:4:4.4:1.4 gap2:6:6.5:8 pillars:4:2.4:0.9:-0.4 seesaw:10:1.3 bigkick:2.4:35:4:14'},
+  {id:'switchback',n:'Switchback',th:3,f:9,t:35,c:'stepup:2.4:3.5 dropin:7 hpipe:3.2:68:2.9:9 gapup:3.5:1.6 lpipe:3.3:60:10 launch:20:1:26:6 gapdown:9:-4'},
+  {id:'mechanical',n:'Mechanical',th:5,f:2,t:28,c:'lift:6:0 seesaw:10:1.2 shuttle:8:1 crusher:2:2.8:0 gates:2:2.2:9:0 rotor:2:1.4:0 crumble:3:4.4:1.5 shuttle:8:2'},
+  {id:'skyline',n:'Skyline',th:4,f:4,t:37,c:'lpipe:3.4:62:10 loop2:4:4.6:12 launch:22:-2:26:6 hpipe:3.2:68:2.9:10 loop:5.2:14:6 dropin:10'},
+  {id:'the-works',n:'The Works',th:5,f:9,t:59,c:'gap:6:0:0.7 pend:2:2.6:0 spikes:5 loop:4.4:12 seesaw:10:1.2 lpipe:3.4:60:10 gates:2:2.2:9:0 crusher:2:2.7:0.05 pads:3:4.2:4.5:1 saw:5.5:2.3:0 hpipe:3.2:68:2.9:9 rotor:2:1.4:0 loop2:3.6:4.4:12 longjump:10'},
 ];
 function parseCourse(c){return c.trim().split(/\s+/).map(t=>{const p=t.split(':');return[p[0],p.slice(1).map(Number)]})}
 function level(L){
@@ -1635,7 +1637,7 @@ function newRun(mode,opt){
   if(mode==='endless'){G.seed=opt.seed!=null?opt.seed:((Date.now()^(Math.random()*1e9))>>>0);G.tr=FL.endless(G.seed);FL.extend(G.tr,320);G.themeOverride=null}
   else if(mode==='daily'){G.seed=FL.dailySeed();G.tr=FL.endless(G.seed);FL.extend(G.tr,320);G.themeOverride=THEMES[G.seed%THEMES.length].id}
   else if(mode==='level'){G.lvIndex=opt.i;G.L=LV[opt.i];G.tr=levelTrack(opt.i);G.themeOverride=THEMES[G.L.th].id;
-    const rec=save.lv[G.L.id];if(rec&&rec.g&&save.set.ghost)G.ghost=rec.g}
+    const rec=save.lv[G.L.id];if(rec&&rec.g&&rec.gv&&save.set.ghost)G.ghost=rec.g} // gv: a ghost recorded on the Chromeline courses (older ones were on Flipline's)
   else if(mode==='custom'){G.L={id:'custom',n:TX('Your track'),c:opt.code,f:0,t:0,th:0};G.tr=FL.level(G.L);G.themeOverride=null}
   else if(mode==='demo'){G.tr=FL.endless(opt.seed||4242);FL.extend(G.tr,320)}
   restart();
@@ -1725,7 +1727,8 @@ function endRun(silent){
   let medals=0;
   if(G.mode==='level'&&s.done){const rec=save.lv[L.id]||(save.lv[L.id]={m:0,t:0,f:0});const old=rec.m|0;let m=old|1;
     if(st.flips>=L.f)m|=2;if(s.t<=L.t)m|=4;
-    if(!rec.t||s.t<rec.t){rec.t=+s.t.toFixed(2);rec.g=G.toggles.slice(0,4000);newBest=!!old}
+    // a best time or ghost from Flipline's old course (no gv) is replaced by the first finish on the new one; medals already earned stay
+    if(!rec.t||s.t<rec.t||!rec.gv){rec.t=+s.t.toFixed(2);rec.g=G.toggles.slice(0,4000);rec.gv=2;newBest=!!old&&!!rec.t}
     if(st.flips>rec.f)rec.f=st.flips;rec.m=m;medals=m;
     for(const b of[1,2,4])if((m&b)&&!(old&b)){medalsNew++;earned+=15}
     if(medalsNew)AU.S.medal();statsHook('max','medals',medalCount());
@@ -1884,7 +1887,7 @@ function updateHud(force){
   if(force||hudLast.b!==b){$('hudScoreV').textContent=b;hudLast.b=b}
   if(force||hudLast.lvl!==lvl){$('hudDistL').textContent=lvl?TX('Time'):TX('Distance');$('hudScoreL').textContent=lvl?TX('Flips'):TX('Score');hudLast.lvl=lvl}
   const c=String(G.runCoins);if(force||hudLast.c!==c){$('hudCoins').textContent=c;hudLast.c=c}
-  const cm=s.combo>1&&!s.crash?'×'+Math.min(5,1+0.5*(s.combo-1))+' '+TX('combo'):'';
+  const cm=(s.combo>1&&!s.crash?'×'+FL.comboMult(s.combo)+' '+TX('combo'):'')+(s.mulT>0&&!s.crash?(s.combo>1?' · ':'')+TX('×2 points')+' '+Math.ceil(s.mulT)+' s':'');
   if(force||hudLast.cm!==cm){const el=$('combo');el.hidden=!cm;el.textContent=cm;hudLast.cm=cm}
   if(G.L&&G.tr.finish<Infinity){const f=clamp((s.maxX-G.tr.start)/(G.tr.finish-G.tr.start),0,1);$('levelBar').firstChild.style.width=(f*100).toFixed(1)+'%'}
 }

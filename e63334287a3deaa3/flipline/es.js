@@ -27,7 +27,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'boost strips': 'turbos', '; cracked amber platforms drop away, so don’t stop on them.': '; las plataformas ámbar agrietadas se caen, así que no te pares en ellas.',
   'Moving traps and laser gates are timed for a bike at a good pace: keep your speed up and they open for you.': 'Las trampas que se mueven y las barreras láser están sincronizadas para una moto a buen ritmo: mantén la velocidad y se abren a tu paso.',
   'Press Space to ride now': 'Pulsa Espacio para salir ya', 'Press and hold the city to ride now': 'Mantén pulsada la ciudad para salir ya', '· formerly Flipline': '· antes Flipline',
-  'First clean landing!': '¡Primer aterrizaje limpio!', 'Clean': 'Limpio', 'Loop!': '¡Rizo!', 'First loop!': '¡Primer rizo!', '×2 points for {n} s': '×2 puntos durante {n} s',
+  'First clean landing!': '¡Primer aterrizaje limpio!', 'Clean': 'Limpio', 'Loop!': '¡Rizo!', 'First loop!': '¡Primer rizo!', '×2 points for {n} s': '×2 puntos durante {n} s', '×2 points': '×2 puntos',
   'Moving traps are timed for a bike at a good pace: keep your speed up and they swing out of your way.': 'Las trampas que se mueven están sincronizadas para una moto a buen ritmo: mantén la velocidad y se apartan de tu camino.',
   'restarts,': 'reinicia,', 'pauses.': 'pausa.', 'After a crash, tap to go again.': 'Después de un choque, toca para volver a empezar.',
   // levels
