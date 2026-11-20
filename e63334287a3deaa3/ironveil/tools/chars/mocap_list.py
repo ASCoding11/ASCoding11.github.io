@@ -14,7 +14,7 @@ SIDE_L = dict(trial='143_40', t0=1.0, t1=3.6, speed=1.3, stride=1.3)
 SIDE_R = dict(trial='143_40', t0=4.5, t1=7.3, speed=1.3, stride=1.3)
 SNEAK_L = dict(trial='143_41', t0=5.1, t1=8.9, speed=1.4, stride=1.45)
 SNEAK_R = dict(trial='143_41', t0=0.7, t1=4.2, speed=1.4, stride=1.45)
-CR = dict(crouch=0.27, lean=0.32)
+CR = dict(crouch=0.2, lean=0.0)    # combat crouch: half squat, back fairly straight
 TAKES = {
     'walkF':  dict(WALK, theta=0),
     'walkFL': dict(WALK, theta=45, hip_yaw=0.42),
@@ -33,11 +33,11 @@ TAKES = {
     'crouchF':  dict(WALK, theta=0, **CR),
     'crouchFL': dict(WALK, theta=45, hip_yaw=0.42, **CR),
     'crouchFR': dict(WALK, theta=-45, hip_yaw=-0.42, **CR),
-    'crouchL':  dict(SNEAK_L, theta=90, crouch=0.22, lean=0.3),
-    'crouchR':  dict(SNEAK_R, theta=-90, crouch=0.22, lean=0.3),
-    'crouchB':  dict(BACK, theta=180, crouch=0.27, lean=0.3),
-    'crouchBR': dict(BDIAG, theta=-135, crouch=0.27, lean=0.3),
-    'crouchBL': dict(BDIAG, theta=135, mirror=True, crouch=0.27, lean=0.3),
+    'crouchL':  dict(SNEAK_L, theta=90, crouch=0.18, lean=0.0),
+    'crouchR':  dict(SNEAK_R, theta=-90, crouch=0.18, lean=0.0),
+    'crouchB':  dict(BACK, theta=180, crouch=0.2, lean=0.0),
+    'crouchBR': dict(BDIAG, theta=-135, crouch=0.2, lean=0.0),
+    'crouchBL': dict(BDIAG, theta=135, mirror=True, crouch=0.2, lean=0.0),
 }
 if __name__ == '__main__':
     print(' '.join(sorted({v['trial'] for v in TAKES.values()})))

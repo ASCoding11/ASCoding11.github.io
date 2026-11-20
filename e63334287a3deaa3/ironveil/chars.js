@@ -4,7 +4,7 @@
  * Load after three.min.js. It loads its own GLTFLoader / SkeletonUtils copies from assets/lib/ if the page has not.
  *   IVChars.load(onProgress) -> Promise           fetches hero, ally, enemies, clips and weapons (about 9 MB)
  *   IVChars.spawn(kind) -> actor                    'hero','ally','rifleman','officer','sniper','gunner'
- *   IVChars.weapon(kind) -> THREE.Object3D          'rifleScoped','smg','pistol','enemyRifle','enemySmg','mg','knife','binoculars','grenade'
+ *   IVChars.weapon(kind[, {lod:true}]) -> Object3D  'rifleScoped','smg','pistol','enemyRifle','enemySmg','mg','knife','binoculars','grenade','stickGrenade' (lod: reduced rifle/SMG for others)
  *   IVChars.tris(kind), IVChars.info, IVChars.clips (names), IVChars.camera (set it for LOD + far-actor throttling)
  * Actor (1 unit = 1 m, feet at the origin, facing +Z):
  *   actor.root, play(name,{fade,loop,speed,once}), setUpper(name|null), setAim(pitch,yaw), attach(obj,socket), detach(obj),
@@ -26,6 +26,7 @@
  *    aim/hold/fire clips (actor.leftHandIK = 0..1 forces it).
  *  - Set IVChars.camera = yourCamera for the enemy LOD switch (IVChars.lodDistance, default 22 m) and for updating far
  *    actors (beyond IVChars.throttleDistance, default 45 m) every other frame.
+ *    A full weapon model held by anyone but the hero switches to its reduced model beyond IVChars.weaponLodDistance (6 m).
  *  - Weapons: barrel along +Z, up +Y, origin at the right-hand grip; userData.muzzle (Object3D, use its world position),
  *    userData.gripR / gripL (hand frames). Drop a gun on death with actor.detach(gun) and add it to the scene.
  * Assets and their licences: CREDITS.md. Pipeline notes: README section "Ironveil characters".
@@ -37,7 +38,7 @@
   var SCRIPT = document.currentScript && document.currentScript.src;
   var BASE = SCRIPT ? SCRIPT.replace(/[^\/]*$/, '') : '';
   var ASSETS = BASE + 'assets/';
-  var VERSION = '1';
+  var VERSION = '3';   // bump whenever any file in assets/ changes, so browsers fetch the new copies
 
   // ---------- kinds and files
   var FILES = {
@@ -52,7 +53,7 @@
     sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair'], lod: ['SniperLOD'] },
     gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair'], lod: ['GunnerLOD'] }
   };
-  var WEAPONS = ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade'];
+  var WEAPONS = ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade', 'stickGrenade', 'rifleScopedLod', 'smgLod'];
   var LONG = { rifleScoped: 1, smg: 1, enemyRifle: 1, enemySmg: 1, mg: 1 };
 
   // clip aliases: API names that are served by another clip (documented in README)
@@ -68,7 +69,7 @@
 
   var IV = window.IVChars = {
     info: { loaded: false, fallback: false, files: {}, bytes: 0, errors: [], version: VERSION },
-    clips: [], camera: null, lodDistance: 22, throttleDistance: 45
+    clips: [], camera: null, lodDistance: 22, throttleDistance: 45, weaponLodDistance: 6
   };
   var META = {}, gltf = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {}, WTEMPLATES = {}, TRIS = {}, upperSet = null;
 
@@ -244,14 +245,15 @@
   IV.lodTris = function (kind) { return TRIS[kind] ? TRIS[kind].lod || 0 : 0; };
 
   // ---------- weapons
-  IV.weapon = function (kind) {
-    var t = WTEMPLATES[kind], o;
+  IV.weapon = function (kind, opts) {
+    var src = opts && opts.lod && WTEMPLATES[kind + 'Lod'] ? kind + 'Lod' : kind;   // reduced model (other characters, distance)
+    var t = WTEMPLATES[src], o;
     if (t) {
       o = t.clone(true);
       o.position.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1);
       o.userData.kind = kind;
-      o.userData.muzzle = o.getObjectByName(kind + '_muzzle') || o;
-      var gr = o.getObjectByName(kind + '_gripR'), gl = o.getObjectByName(kind + '_gripL');
+      o.userData.muzzle = o.getObjectByName(src + '_muzzle') || o;
+      var gr = o.getObjectByName(src + '_gripR'), gl = o.getObjectByName(src + '_gripL');
       o.userData.grip = { r: gr || null, l: gl || null };
       o.userData.gripR = gr; o.userData.gripL = gl;
     } else {
@@ -327,6 +329,47 @@
     return m;
   }
 
+  // ---------- hand grips per weapon
+  // Curl of each finger (0 straight .. 1 closed) and thumb, per weapon class and hand, applied after the mixer on
+  // the finger bones whenever a weapon is in the right hand, so the fingers wrap the real-size grips instead of
+  // closing into the clip's fist through them. Right: round the wrist of the stock or the pistol grip with the
+  // index finger laid along the trigger guard (on the trigger while firing). Left: cupping the fore-end from
+  // below with the thumb up the side. Joint split per finger: base, middle, tip.
+  var GRIPF = {   // fitted with tools/chars/gripopt.js: right/left hand offsets (weapon frame) and curl scales
+    rifle: { r: { index: 0.088, middle: 0.44, ring: 0.475, pinky: 0.51, thumb: 0.132, trigger: 0.334, off: [0.041, 0.04, 0] },
+            l: { index: 0.18, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [-0.016, -0.016, 0.01] } },
+    enemyRifle: { r: { index: 0.091, middle: 0.455, ring: 0.491, pinky: 0.528, thumb: 0.137, trigger: 0.346, off: [0.035, 0.044, 0] },
+                 l: { index: 0.06, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [-0.016, -0.04, 0] } },
+    smg: { r: { index: 0.064, middle: 0.333, ring: 0.358, pinky: 0.384, thumb: 0.096, trigger: 0.4, off: [0.04, 0.04, -0.028] },
+          l: { index: 0.2, middle: 0.36, ring: 0.4, pinky: 0.44, thumb: 0.06, off: [-0.014, -0.028, 0] } },
+    pistol: { r: { index: 0.094, middle: 0.47, ring: 0.508, pinky: 0.545, thumb: 0.282, trigger: 0.338, off: [0.022, 0.014, -0.01] },
+             l: { index: 0.36, middle: 0.34, ring: 0.26, pinky: 0.22, thumb: 0.145, off: [0, -0.014, 0] } },
+    mg: { r: { index: 0.064, middle: 0.32, ring: 0.346, pinky: 0.371, thumb: 0.096, trigger: 0.243, off: [0.041, 0.04, 0.024] },
+         l: { index: 0.18, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [0.008, -0.044, -0.036] } }
+  };
+  IV.grips = GRIPF;   // per-weapon finger curls (tunable)
+  var GRIPCLASS = { rifleScoped: 'rifle', rifleScopedLod: 'rifle', enemyRifle: 'enemyRifle', smg: 'smg', smgLod: 'smg', enemySmg: 'smg', pistol: 'pistol', mg: 'mg' };
+  var FSEG = { index: [0.9, 1.1, 0.8], middle: [0.9, 1.1, 0.8], ring: [0.9, 1.1, 0.8], pinky: [0.9, 1.1, 0.8], thumb: [0.5, 0.8, 0.9] };
+  function fingerFrames(bones, root) {
+    root.updateMatrixWorld(true);
+    var out = {}, rq = new T.Quaternion(), p0 = new T.Vector3(), p1 = new T.Vector3();
+    ['l', 'r'].forEach(function (s) {
+      var palm = new T.Vector3(0, -1, 0);   // bind pose palms face down
+      Object.keys(FSEG).forEach(function (f) {
+        for (var j = 1; j <= 3; j++) {
+          var b = bones[f + '_0' + j + '_' + s], c = bones[f + '_0' + (j + 1) + (j === 3 ? '_leaf_' : '_') + s];
+          if (!b) continue;
+          b.getWorldPosition(p0);
+          if (c) c.getWorldPosition(p1); else p1.copy(p0).add(new T.Vector3(s === 'l' ? 1 : -1, 0, 0));
+          var dir = p1.clone().sub(p0).normalize(), ax = new T.Vector3().crossVectors(dir, palm);
+          if (ax.lengthSq() < 1e-6) continue;
+          b.getWorldQuaternion(rq);
+          out[b.name] = { bone: b, rest: b.quaternion.clone(), axis: ax.normalize().applyQuaternion(rq.clone().invert()), f: f, j: j - 1, s: s };
+        }
+      });
+    });
+    return out;
+  }
   // ---------- actor
   function Actor(kind) {
     var t = TEMPLATES[kind];
@@ -360,11 +403,97 @@
       }
       if (self.onFinished && n) self.onFinished(n);
     });
+    // finger rest frames (bind pose) and each joint's curl axis in its own frame, for the per-weapon grips
+    this._fing = fingerFrames(bones, root);
+    this._fgW = 0;
+    // face morphs: 'faceB'/'faceC' pick one of three enemy faces; 'blink' closes the hero's and ally's lids
+    this._morphMeshes = meshes.filter(function (m) { return m.morphTargetDictionary && m.morphTargetInfluences; });
+    this._blinkT = 1 + Math.random() * 3; this._blink = 0;
+    if (!/^(hero|ally)$/.test(kind)) this.setFace(Actor._faceN = ((Actor._faceN || 0) + 1) % 3);
     this.play('idle', { fade: 0 });
     // settle on the idle pose now, so the first frame drawn after spawn is never the bind pose
     this.mixer.update(0); this.root.updateMatrixWorld(true);
   }
   var AP = Actor.prototype;
+  // weapon moving parts driven by the clips: the rifle bolt follows the hand through boltCycle (lift, back,
+  // forward, down) and the pistol slide kicks back on each firePistol shot
+  function smooth01(a, b, t) { var x = Math.max(0, Math.min(1, (t - a) / (b - a))); return x * x * (3 - 2 * x); }
+  AP._parts = function (held) {
+    if (!held) return;
+    var kind = held.userData.kind, e = this.curUpper && this.curUpper.w > 0.3 ? this.curUpper : (this.cur && this.cur.w > 0.3 ? this.cur : null);
+    var n = e && (e.name || ''), t = e ? (e.action || e.full).time : 0;
+    var bolt = held.userData._bolt;
+    if (bolt === undefined) { bolt = held.userData._bolt = held.getObjectByName(kind + '_bolt') || null; if (bolt) bolt.userData.p0 = bolt.position.clone(); }
+    if (!bolt) return;
+    var lift = 0, back = 0;
+    if (n === 'boltCycle' && (kind === 'rifleScoped' || kind === 'enemyRifle')) {
+      lift = smooth01(0.18, 0.3, t) * (1 - smooth01(0.62, 0.72, t));
+      back = smooth01(0.3, 0.48, t) * (1 - smooth01(0.48, 0.62, t)) * 0.085;
+    } else if (n === 'firePistol' && kind === 'pistol') {
+      back = t < 0.03 ? t / 0.03 * 0.028 : Math.max(0, 0.028 * (1 - (t - 0.03) / 0.07));
+    }
+    bolt.position.copy(bolt.userData.p0); bolt.position.z -= back;
+    bolt.rotation.set(0, 0, -lift * 1.4);
+  };
+  AP._grips = function (dt, held) {
+    var cls = held && GRIPCLASS[held.userData.kind], T0 = cls && GRIPF[cls];
+    // clips where the right hand leaves the grip (working the bolt, reloading, throwing...) keep their own hand
+    var cn = (this.curUpper && this.curUpper.w > 0.3 && this.curUpper.name) || (this.cur && this.cur.w > 0.3 && this.cur.name) || '';
+    var free = /^(boltCycle|reload|throw|melee|signal|salute|breach|takedown|vault|death|hit|stagger)/.test(cn);
+    this._fgW = this._snap ? (T0 && !free ? 1 : 0) : approach(this._fgW, T0 && !free ? 1 : 0, 5, dt);
+    if (T0) this._fgT = T0;
+    var w = this._fgW, G0 = this._fgT; if (w < 0.01 || !G0) return;
+    // right hand: our gloved hand is thicker than the hand the grip frames were fitted to, so the hand is moved
+    // off the weapon by a small per-class offset (weapon frame: x weapon-left, y up, z forward) with arm IK,
+    // while the weapon keeps its place on the sight line
+    var off = T0 && T0.r.off;
+    if (off && held.userData._ap && this.bones.weapon_r) {
+      held.position.copy(held.userData._ap); held.quaternion.copy(held.userData._aq); held.updateMatrixWorld(true);
+      var W0 = held.matrixWorld.clone(), hq = worldQuat(held, new T.Quaternion());
+      var hr = this.bones.hand_r, tp = worldPos(hr, new T.Vector3()).sub(new T.Vector3(off[0], off[1], off[2]).applyQuaternion(hq).multiplyScalar(w));
+      twoBone(this.bones.upperarm_r, this.bones.lowerarm_r, hr, tp, worldQuat(hr, new T.Quaternion()), 1);
+      this.bones.upperarm_r.updateMatrixWorld(true);
+      var Lm = new T.Matrix4().copy(held.parent.matrixWorld).invert().multiply(W0);
+      Lm.decompose(held.position, held.quaternion, new T.Vector3()); held.updateMatrixWorld(true);
+    }
+    var n = (this.curUpper && this.curUpper.name) || (this.cur && this.cur.name) || '';
+    var firing = /^fire/.test(n), q = new T.Quaternion(), tq = new T.Quaternion();
+    // the left hand only grips while it is on the fore-end (its IK weight); otherwise its clip pose stays
+    var wl = Math.min(w, this._lhW || 0);
+    if (cls === 'pistol') wl = w * Math.max(this._lhW || 0, /Pistol/.test(n) ? 1 : 0);
+    for (var k in this._fing) {
+      var e = this._fing[k], g = G0[e.s], ww = e.s === 'r' ? w : wl;
+      if (!g || ww < 0.01) continue;
+      var a = e.f === 'index' && e.s === 'r' && firing ? g.trigger : g[e.f];
+      var ang = a * FSEG[e.f][e.j] * (e.f === 'thumb' ? 1.1 : 1.45);
+      tq.copy(e.rest).multiply(q.setFromAxisAngle(e.axis, ang));
+      if (ww >= 0.999) e.bone.quaternion.copy(tq); else e.bone.quaternion.slerp(tq, ww);
+    }
+    if (this.bones.hand_r) this.bones.hand_r.updateMatrixWorld(true);
+    if (this.bones.hand_l) this.bones.hand_l.updateMatrixWorld(true);
+  };
+  AP.setMorph = function (name, v) {
+    if (this.fb) return this;
+    for (var i = 0; i < this._morphMeshes.length; i++) {
+      var m = this._morphMeshes[i], k = m.morphTargetDictionary[name];
+      if (k != null) m.morphTargetInfluences[k] = v;
+    }
+    return this;
+  };
+  // one of three faces (0, 1, 2) on the enemy kinds; ignored where a model has no face morphs
+  AP.setFace = function (i) {
+    this.face = ((i | 0) % 3 + 3) % 3;
+    return this.setMorph('faceB', this.face === 1 ? 1 : 0).setMorph('faceC', this.face === 2 ? 1 : 0);
+  };
+  // blinks every 2-6 s (close 0.07 s, open 0.13 s); dead or far actors do not blink
+  AP._blinkUpdate = function (dt, far) {
+    if (!this._morphMeshes.length || far > 15) return;
+    this._blinkT -= dt;
+    if (this._blinkT <= 0) { this._blink += dt; var b = this._blink, w = b < 0.07 ? b / 0.07 : (b < 0.11 ? 1 : Math.max(0, 1 - (b - 0.11) / 0.13));
+      this.setMorph('blink', w * w * (3 - 2 * w));
+      if (b > 0.24) { this._blink = 0; this._blinkT = 2 + Math.random() * 4; this.setMorph('blink', 0); }
+    }
+  };
   AP._action = function (clip, tag) {
     var a = this.mixer.clipAction(clip);
     a._ivName = tag;
@@ -438,8 +567,10 @@
     if ((socket === 'handR' || socket === 'handL') && grip) {
       // weapon placed so its grip frame coincides with the hand bone
       grip.updateMatrix();
-      var inv = new T.Matrix4().copy(grip.matrix).invert();
+      var GM = grip.matrix.clone();
+      var inv = GM.invert();
       inv.decompose(obj.position, obj.quaternion, obj.scale);
+      obj.userData._ap = obj.position.clone(); obj.userData._aq = obj.quaternion.clone();
     } else if (socket === 'back' || socket === 'hip') {
       // carry pose defined in the bind-pose character frame, converted into the bone's frame
       var rest = this._restWorld(bn);
@@ -450,6 +581,14 @@
     }
     this.attached.push({ obj: obj, socket: socket });
     if (socket === 'handR') this.held = obj;
+    // pose at once with the weapon in its grip (hold layer, fingers and left hand at full weight), so an actor that
+    // is spawned and armed in the same frame is never drawn in the bind pose or with the weapon floating
+    if (socket === 'handR' && !this.fb) { this._snap = true; this.update(0); this._snap = false; }
+    // reduced weapon model for characters other than the player beyond IV.weaponLodDistance (see update)
+    if (socket === 'handR' && !obj.userData.lodTwin && WTEMPLATES[obj.userData.kind + 'Lod'] && WTEMPLATES[obj.userData.kind]) {
+      var tw = IV.weapon(obj.userData.kind, { lod: true });
+      tw.visible = false; tw.userData.isLodTwin = true; obj.add(tw); obj.userData.lodTwin = tw; obj.userData.lodOn = false;
+    }
     return this;
   };
   AP._restWorld = function (bn) {
@@ -480,6 +619,15 @@
         this.lods.forEach(function (m) { m.visible = !!lod; });
       }
     }
+    // weapon in hand: full model for the player, the reduced one for others beyond a few metres
+    var hw = this.held && this.held.userData.lodTwin;
+    if (hw) {
+      var wl = this.kind !== 'hero' && IV.camera && far > (IV.weaponLodDistance || 6);
+      if (wl !== this.held.userData.lodOn) {
+        this.held.userData.lodOn = wl; hw.visible = wl;
+        this.held.children.forEach(function (c) { if (c !== hw && c.isMesh) c.visible = !wl; c !== hw && c.traverse && c.traverse(function (m) { if (m.isMesh && m !== c) m.visible = !wl; }); });
+      }
+    }
     this._frame++;
     this._acc += dt;
     if (far > IV.throttleDistance && (this._frame & 1)) return this;
@@ -501,7 +649,7 @@
       if (autoName && !clipName(autoName)) autoName = null;
       // the rifle travels furthest between the sprint carry and the shoulder: give that swap the longest fade
       var swapF = (this.curUpper && this.curUpper.name === 'sprintRifle') || autoName === 'sprintRifle' ? 0.25 : (this._upperFade || 0.2);
-      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: swapF });
+      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: this._snap ? 0 : swapF });
       if (!autoName && this._autoUpper && this.curUpper) this.setUpper(null);
     }
     // weights
@@ -538,6 +686,9 @@
     this.aimP += (this.aimPT - this.aimP) * k; this.aimY += (this.aimYT - this.aimY) * k;
     if (Math.abs(this.aimP) > 1e-4 || Math.abs(this.aimY) > 1e-4) this._applyAim();
     if (this.driven) this._post(dt, far); else this._flinch(dt);
+    if (!(this.cur && /^death|takedownVictim/.test(this.cur.name))) this._blinkUpdate(dt, far); else this.setMorph('blink', 1);
+    this._grips(dt, held);
+    this._parts(held);
     // left hand onto the fore-end
     var want = 0;
     if (held && held.userData.gripL && held.userData.long !== undefined) {
@@ -545,10 +696,13 @@
       want = on ? 1 : 0;
       if (this.leftHandIK != null) want = this.leftHandIK;
     }
-    this._lhW = approach(this._lhW, want, 5, dt);
+    this._lhW = this._snap ? want : approach(this._lhW, want, 5, dt);
     if (this._lhW > 0.01 && held) {
       held.userData.gripL.updateMatrixWorld(true);
       var tp = worldPos(held.userData.gripL, new T.Vector3()), tq = worldQuat(held.userData.gripL, new T.Quaternion());
+      // left hand target moved by a per-class offset in the weapon's frame (off the fore-end)
+      var lcls = GRIPF[GRIPCLASS[held.userData.kind]], loff = lcls && lcls.l.off;
+      if (loff) tp.add(new T.Vector3(loff[0], loff[1], loff[2]).applyQuaternion(worldQuat(held, new T.Quaternion())));
       this._reachL(tp, this._lhW);
       twoBone(this.bones.upperarm_l, this.bones.lowerarm_l, this.bones.hand_l, tp, tq, this._lhW);
     }
@@ -567,7 +721,7 @@
       if (d <= 0.001) break;
       // clavicle: swing the shoulder joint toward the target, up to about 25 degrees in all
       var C = worldPos(cl, new T.Vector3()), a0 = S.clone().sub(C), want = tp.clone().sub(C);
-      var ang = Math.min(0.44 - used, d / Math.max(a0.length(), 0.05));
+      var ang = Math.min(0.6 - used, d / Math.max(a0.length(), 0.05));
       var axis = new T.Vector3().crossVectors(a0, want);
       if (ang <= 0 || axis.lengthSq() < 1e-10) break;
       used += ang; q.setFromAxisAngle(axis.normalize(), ang * w); rotWorld(cl, q);
@@ -612,7 +766,9 @@
     var vx = st.vx || 0, vz = st.vz || 0, speed = Math.hypot(vx, vz);
     var stance = st.stance || 'stand';
     // stance super-state weights, eased (~0.25 s)
-    for (k in this._stW) this._stW[k] = approach(this._stW[k], k === stance ? 1 : 0, 4, dt);
+    // going down to or up from prone takes longer (about 0.6 s) than stand <-> crouch (0.25 s)
+    var stRate = stance === 'prone' || this._stW.prone > 0.01 ? 1.6 : 4;
+    for (k in this._stW) this._stW[k] = approach(this._stW[k], k === stance ? 1 : 0, stRate, dt);
     var sw = this._stW, swSum = sw.stand + sw.crouch + sw.prone || 1;
     // moving weight follows the speed: the stepping clips are blended with the stance idle at about speed / clip speed
     // while the phase keeps the clips' own cadence (below), so a planted foot moves with the ground during starts,
@@ -748,7 +904,9 @@
       q.setFromAxisAngle(left, -br); rotWorld(b.spine_03, q);
     }
     // foot IK with pelvis drop against actor.groundAt(x, z) (if the game provides it), near the camera only
-    var ikOK = far < (IV.footIKDistance || 25) && this._stW.prone < 0.5;
+    // foot IK fades out (not off in one frame) as the body goes down to prone
+    var ikW = Math.max(0, Math.min(1, 1 - this._stW.prone * 1.6)), ikOK = far < (IV.footIKDistance || 25) && ikW > 0.01;
+    this._ikW = ikW;
     if (this.groundAt && ikOK) this._footIK(dt);
     if (ikOK && IV.footLock !== false && far < (IV.footLockDistance || 12)) this._footLock(dt);   // transitions only (see _lockK)
   };
@@ -821,8 +979,14 @@
       var p = worldPos(f, new T.Vector3());
       var g = this.groundAt(p.x, p.z);
       pos[s] = p; off[s] = (g == null ? ry : g) - ry;
+      // ease each foot's ground height (a step edge would otherwise lift the foot in one frame); faster upward
+      // so a toe never sinks into a step
+      if (!this._gOff) this._gOff = {};
+      var go = this._gOff[s] == null ? off[s] : this._gOff[s];
+      go += (off[s] - go) * Math.min(1, dt * (off[s] > go ? 22 : 12));
+      this._gOff[s] = go; off[s] = go;
     }
-    var drop = Math.min(0, Math.min(off.l, off.r));
+    var drop = Math.min(0, Math.min(off.l, off.r)) * (this._ikW == null ? 1 : this._ikW);
     this._pelDrop += (drop - this._pelDrop) * Math.min(1, dt * 12);
     var pel = b.pelvis, wp = worldPos(pel, new T.Vector3());
     wp.y += this._pelDrop;
@@ -833,7 +997,7 @@
       var cur = worldPos(foot, new T.Vector3());
       var target = cur.clone(); target.y = pos[s2].y + off[s2];   // animated height above local ground
       var fq = worldQuat(foot, new T.Quaternion());
-      twoBone(b['thigh_' + s2], b['calf_' + s2], foot, target, fq, 1);
+      twoBone(b['thigh_' + s2], b['calf_' + s2], foot, target, fq, this._ikW == null ? 1 : this._ikW);
     }
   };
   var AIM_P = [['spine_01', 0.15], ['spine_02', 0.2], ['spine_03', 0.35], ['neck_01', 0.12], ['Head', 0.18]];
@@ -859,9 +1023,11 @@
     if (this.root.parent) this.root.parent.remove(this.root);
   };
 
-  IV.spawn = function (kind) {
+  IV.spawn = function (kind, opts) {
     if (!(kind in KINDS)) kind = 'rifleman';
-    return new Actor(kind);
+    var a = new Actor(kind);
+    if (opts && opts.face != null && !a.fb) a.setFace(opts.face);
+    return a;
   };
 
   // =====================================================================================

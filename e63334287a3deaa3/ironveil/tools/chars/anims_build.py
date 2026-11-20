@@ -61,7 +61,8 @@ def place_hands(L, W, Wm, gun, right=True, left=True, curl=True, lw=1.0, left_ov
         wrist = grip - d * 0.065 - pm * 0.028
         rot = R.hand_rot('r', d, pm)
         LAST['r'] = rot.to_4x4(); LAST['r'].translation = wrist
-        pole = chest_delta(W).to_3x3() @ Vector((-0.9, 0.25, -0.7))
+        # firing elbow down and out (30-45 degrees below horizontal), not up beside the helmet
+        pole = chest_delta(W).to_3x3() @ Vector((-0.55, 0.12, -1.0))
         R.two_bone(L, W, 'upperarm_r', 'lowerarm_r', 'hand_r', wrist, pole, Vector((0, 0, 1)), end_rot=rot)
         if curl: R.curl(L, W, 'r', CURL_R, thumb=0.55)
     if left:
@@ -94,7 +95,7 @@ def eye_pos(W):
     Dh = R.delta(W, 'Head')
     return W['Head'].translation + Dh @ (EYE_R - R.Mr['Head'].translation)
 
-def head_to(L, W, target, iters=10, chain=('neck_01', 'Head', 'spine_03'), limits=(0.4, 0.22, 0.14)):
+def head_to(L, W, target, iters=10, chain=('neck_01', 'Head', 'spine_03'), limits=(0.5, 0.36, 0.14)):
     """CCD: bring the right eye onto the sight line (cheek weld)."""
     for it in range(iters):
         for b, lim in zip(chain, limits):
@@ -107,7 +108,7 @@ def head_to(L, W, target, iters=10, chain=('neck_01', 'Head', 'spine_03'), limit
             ax = q.axis
             # damp roll about the aim axis so the head tilts but does not lie on its side
             fw = ax.dot(FWD)
-            ax = (ax - FWD * fw * 0.85).normalized()
+            ax = (ax - FWD * fw * 0.65).normalized()
             q = Quaternion(ax, min(ang, lim / iters * 2))
             R.rot_world(L, W, b, q)
     return (eye_pos(W) - target).length
@@ -122,7 +123,7 @@ def stance_aim(L, W, t, pitch=0.0, recoil=0.0, breathe=True, gun='rifle', lean=0
     C3 = chest_delta(W).to_3x3()
     g = GUNS[gun]
     # stock high in the shoulder pocket, so the head only has to come forward and down a little onto the comb
-    pocket = W['upperarm_r'].translation + C3 @ Vector((0.08, -0.05, 0.065))
+    pocket = W['upperarm_r'].translation + C3 @ Vector((0.08, -0.05, 0.012))
     aim = (Quaternion(LEFT, -pitch + recoil * 0.22) @ FWD).normalized()
     up = (Quaternion(LEFT, -pitch + recoil * 0.22) @ UP)
     Wm = weapon_matrix(Vector(), aim, up)
@@ -143,8 +144,8 @@ def hold_low(L, W, t, gun='rifle', bob=0.0):
     R.spine(L, W, pitch=0.04, yaw=-0.12, roll=0.0)
     R.look(L, W, yaw=0.10, pitch=0.02)
     C = chest_delta(W)
-    aim = (Quaternion(UP, 0.22) @ Quaternion(LEFT, 0.32) @ FWD).normalized()
-    up = (Quaternion(UP, 0.22) @ Quaternion(LEFT, 0.32) @ Quaternion(FWD, 0.2) @ UP)
+    aim = (Quaternion(UP, 0.22) @ Quaternion(LEFT, 0.2) @ FWD).normalized()
+    up = (Quaternion(UP, 0.22) @ Quaternion(LEFT, 0.2) @ Quaternion(FWD, 0.2) @ UP)
     o = Vector((-0.12, -0.26, 1.2 + bob))
     Wm = C @ weapon_matrix(o, aim, up)
     place_hands(L, W, Wm, gun)
@@ -219,12 +220,18 @@ def pistol_aim(L, W, t, recoil=0.0):
 
 # --- locomotion (full body, unarmed upper; the game layers a weapon pose on top)
 for nm, srcn in [('idle', 'Idle_Loop'), ('walk', 'Walk_Loop'), ('run', 'Jog_Fwd_Loop'), ('sprint', 'Sprint_Loop'),
-                 ('crouchIdle', 'Crouch_Idle_Loop'), ('crouchWalk', 'Crouch_Fwd_Loop'), ('sitIdle', 'Sitting_Idle_Loop')]:
+                 ('crouchWalk', 'Crouch_Fwd_Loop'), ('sitIdle', 'Sitting_Idle_Loop')]:
     def mk(srcn=srcn):
         def f(t):
             L = base(srcn, t); W = R.W(L); return finalize(L, W)
         return f
     CLIPS[nm] = (mk(), dur(srcn), True)
+
+def _crouch_idle(t):
+    L = R.rest(); W = R.W(L); q = combat_crouch(L, W, t)
+    relaxed_arms(L, W, swing=0.0, bend=0.6, curl=0.4)
+    return finalize(L, W)
+CLIPS['crouchIdle'] = (_crouch_idle, 3.2, True)
 
 if os.environ.get('UALTEST'):
     for srcn in ['Death01', 'Hit_Knockback', 'Hit_Chest', 'Hit_Head', 'OverhandThrow', 'Melee_Hook', 'ClimbUp_1m', 'LayToIdle', 'Idle_Rail_Call', 'Punch_Cross', 'Roll', 'Interact', 'PickUp_Table']:
@@ -247,8 +254,8 @@ def c_aimWalk(t):
 
 @clip('crouchAim', 3.2)
 def c_crouchAim(t):
-    L = base('Crouch_Idle_Loop', t); W = R.W(L)
-    Wm = stance_aim(L, W, t, pitch=0.0); return finalize(L, W)
+    L = R.rest(); W = R.W(L); combat_crouch(L, W, t)
+    Wm = stance_aim(L, W, t, pitch=0.0, lean=0.06); return finalize(L, W)
 
 @clip('holdRifle', 2.5)
 def c_hold(t):
@@ -686,9 +693,17 @@ def c_signal(t):
 
 @clip('fireCrouch', 0.3, loop=False)
 def c_fireCrouch(t):
-    L = base('Crouch_Idle_Loop', 0.4); W = R.W(L)
+    L = R.rest(); W = R.W(L); combat_crouch(L, W, 0.4, breathe=False)
     k = math.exp(-t * 18) * (1 - math.exp(-t * 90)) * 1.6
-    stance_aim(L, W, 0.4, recoil=k, breathe=False); return finalize(L, W)
+    stance_aim(L, W, 0.4, recoil=k, breathe=False, lean=0.06); return finalize(L, W)
+
+def combat_crouch(L, W, t=0.0, breathe=True):
+    """Combat crouch: half squat with the left foot forward, back fairly straight, head up."""
+    b = math.sin(t * 2 * math.pi / 3.2) * 0.006 if breathe else 0.0
+    q = crouch_legs(L, W, depth=0.33 + b, lean=0.08, wide=0.19, stagger=0.3)
+    spine_rel(L, W, q, pitch=0.06)
+    look_rel(L, W, q, pitch=-0.04)
+    return q
 
 def cover_pose(L, W, t, recoil=0.0):
     q = crouch_legs(L, W, depth=0.3, lean=0.12, wide=0.2, stagger=0.28)

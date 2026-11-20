@@ -93,7 +93,7 @@ def add_folds(ob, H, labels, amp, seed=0.0):
         radial = rel - ax * s
         ang = math.atan2(radial[1], radial[0] if abs(ax[2]) > 0.5 else radial[2])
         jd = min(np.linalg.norm(P[i] - j) for j in joints)
-        env = 0.5 + 1.6 * math.exp(-(jd / 0.09) ** 2)
+        env = 0.5 + 2.6 * math.exp(-(jd / 0.075) ** 2)    # creases bunch at the elbows and knees
         v = noise.noise(Vector((s * 30.0, math.cos(ang) * 1.3, math.sin(ang) * 1.3 + seed)))
         v2 = noise.noise(Vector((s * 75.0 + 3.0, math.cos(ang) * 3.0, math.sin(ang) * 3.0 + seed)))
         ridge = (1.0 - abs(v)) ** 3 * 1.0 + 0.25 * v2
@@ -195,6 +195,7 @@ def atlas_uv(ob, big_faces=None, big=2.0, margin=0.004):
 def bake(low, highs, size, kind, path, samples=64, extrusion=0.022, ray=0.05, margin=8, colorspace='sRGB'):
     sc = bpy.context.scene
     sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.cycles.samples = samples
+    sc.render.threads_mode = 'FIXED'; sc.render.threads = int(os.environ.get('BAKE_THREADS', '2'))   # shared machine
     sc.render.bake.margin = margin
     img = bpy.data.images.new('bake_' + kind, size, size, alpha=False, float_buffer=(kind == 'NORMAL'))
     img.colorspace_settings.name = 'Non-Color' if kind in ('NORMAL', 'ROUGHNESS', 'AO', 'EMIT') else 'sRGB'
@@ -349,7 +350,7 @@ def finish(H, name, cloth, gear, labels, fold_amp, size=2048, out_dir=None, low_
     log('baked diffuse', __import__('time').time() - t0)
     bake(low, highs, size, 'NORMAL', td + '/_nrm.png', samples=4)
     log('baked normal')
-    bake(low, highs, size // 2, 'AO', td + '/_ao.png', samples=48)
+    bake(low, highs, size // 2, 'AO', td + '/_ao.png', samples=32)
     log('baked ao')
     bake(low, highs, size // 2, 'ROUGHNESS', td + '/_rough.png', samples=1)
     log('baked rough')
@@ -365,14 +366,24 @@ def finish(H, name, cloth, gear, labels, fold_amp, size=2048, out_dir=None, low_
     ao = np.asarray(Image.open(td + '/_ao.png').convert('L').resize((size, size), Image.BILINEAR)).astype(np.float32) / 255
     alb = diff * (1 - ao_mix + ao_mix * ao)[..., None]
     Image.fromarray(np.clip(alb * 255 + 0.5, 0, 255).astype(np.uint8)).save(td + '/albedo.jpg', quality=88)
-    nrm = Image.open(td + '/_nrm.png').convert('RGB')
-    nrm.save(td + '/normal.jpg', quality=92)
+    fix_normals(td)
     r = np.asarray(Image.open(td + '/_rough.png').convert('L')).astype(np.uint8)
     mt = np.asarray(Image.open(td + '/_metal.png').convert('L')).astype(np.uint8)
     orm = np.stack([np.full_like(r, 255), r, mt], -1)
     Image.fromarray(orm).save(td + '/orm.jpg', quality=85)
     for h in highs: bpy.data.objects.remove(h)
     return low
+
+def fix_normals(td):
+    """Write normal.jpg from the baked _nrm.png. A tangent-space normal never points into the surface; texels that
+    do (blue well below half: the bake ray hit the wrong surface, e.g. a boot sole tucked against the boot) are
+    replaced by the flat normal so they do not catch the sky as white patches."""
+    from PIL import Image
+    n = np.asarray(Image.open(td + '/_nrm.png').convert('RGB')).astype(np.float32)
+    bad = n[..., 2] < 150
+    n[bad] = (128, 128, 255)
+    Image.fromarray(n.astype(np.uint8)).save(td + '/normal.jpg', quality=92)
+    return float(bad.mean())
 
 def hair_atlas(parts, out_png, size=1024):
     """parts: list of (obj, image_path, rect(x,y,w,h) in 0..1 with y from top). Remaps UVs; writes RGBA atlas."""
