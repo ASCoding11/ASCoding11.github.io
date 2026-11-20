@@ -130,6 +130,11 @@
     IV.audio.apply();
     if (IV.world.atm && IV.world.atm.setBrightness) IV.world.atm.setBrightness(s.bright);
     else if (IV.world.renderer) IV.world.renderer.toneMappingExposure = 0.92 * s.bright;
+    // one grading path: with the environment kit's post stack on, it does the grain and vignette (the page's own CSS
+    // grain and vignette are for Low only); Reduced motion turns its film grain down
+    document.body.classList.toggle('envpost', !!IV.world.post);
+    const G = window.IVEnv && IVEnv.GRADES;
+    if (G) for (const k in G) { const g = G[k]; if (g._grain == null) g._grain = g.grain; g.grain = g._grain * (s.motion ? 0.35 : 1); }
   };
   document.querySelectorAll('.tabs [data-tab]').forEach(b => b.addEventListener('click', () => {
     document.querySelectorAll('.tabs [data-tab]').forEach(x => x.setAttribute('aria-selected', String(x === b)));

@@ -172,7 +172,7 @@
   // r128 has no colour management: hex colours are linear unless converted. Everything here is authored in sRGB.
   const linDone = new WeakSet();
   W.linearize = function (root) {
-    root.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) { if (linDone.has(m)) continue; linDone.add(m); if (m.color && !m.userData.linear) m.color.convertSRGBToLinear(); if (m.emissive) m.emissive.convertSRGBToLinear(); } });
+    root.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) { if (linDone.has(m)) continue; linDone.add(m); if (m.userData.linear) continue; if (m.color) m.color.convertSRGBToLinear(); if (m.emissive) m.emissive.convertSRGBToLinear(); } });   // IVEnv materials are already linear (colour and emissive): skipped
   };
   W.makeMats = function () {
     const t = W.tex, M = W.mats;

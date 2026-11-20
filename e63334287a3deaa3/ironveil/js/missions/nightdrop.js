@@ -292,6 +292,8 @@
     const beamGeo = new THREE.CylinderGeometry(0.35, 6.5, 1, 20, 1, true); beamGeo.translate(0, -0.5, 0); beamGeo.rotateX(-Math.PI / 2);
     const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: 0xc8d4ff, transparent: true, opacity: IV.art.envOn() ? 0.018 : 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
     beam.position.copy(sh.position); M.group.add(beam); M.spotBeam = beam;
+    // with the environment kit's lighting and mist the flat cone reads as a pale solid shape, so it is left out there (the spot light still sweeps)
+    if (IV.art.envOn()) beam.visible = false;
   }
   function truckModel() {
     const g = new THREE.Group();
@@ -646,7 +648,7 @@
       if (hanging) { const c = M.chute.position, p = P.render; for (let i = 0; i < 8; i++) { const ang = i / 8 * 6.283; a[i * 6] = c.x + Math.cos(ang) * 2.4; a[i * 6 + 1] = c.y - 0.6; a[i * 6 + 2] = c.z + Math.sin(ang) * 2.4; a[i * 6 + 3] = p.x + (i % 2 ? 0.18 : -0.18); a[i * 6 + 4] = p.y + 1.5; a[i * 6 + 5] = p.z; } M.chuteLines.geometry.attributes.position.needsUpdate = true; }
     }
     if (M.spotLens) M.spotLens.material.color.setHex(M.spot && M.spot.on ? 0xf4f6ff : 0x222222);
-    if (M.spotBeam && W.spot) { const on = M.spot && M.spot.on; M.spotBeam.visible = on; if (on) { const tg = W.spot.target.position, sp = M.spotBeam.position, d = sp.distanceTo(tg); M.spotBeam.lookAt(tg); M.spotBeam.scale.set(1, 1, d); } }
+    if (M.spotBeam && W.spot) { const on = M.spot && M.spot.on; M.spotBeam.visible = on && !IV.art.envOn(); if (on) { const tg = W.spot.target.position, sp = M.spotBeam.position, d = sp.distanceTo(tg); M.spotBeam.lookAt(tg); M.spotBeam.scale.set(1, 1, d); } }
   }
 
   // ---------------------------------------------------------------- title backdrop: Dunning and you by a hedge at night
