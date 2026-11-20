@@ -63,7 +63,7 @@
   var TWO_HAND = { aimIdle: 1, aimWalk: 1, crouchAim: 1, holdRifle: 1, sprintRifle: 1, fire: 1, fireCrouch: 1, fireCover: 1,
     proneAim: 1, proneIdle: 1, stackUp: 1, boltCycle: 0, aimPistol: 1, firePistol: 1, holdPistol: 0, wallLean: 1, limp: 1, aimCover: 1 };
   // clips that play once and hold their last frame unless {loop:true} is passed
-  var ONESHOT = { reload: 1, boltCycle: 1, throw: 1, melee: 1, takedown: 1, takedownVictim: 1, vault: 1, hit: 1, deathFront: 1, deathBack: 1,
+  var ONESHOT = { deathLeft: 1, deathRight: 1, deathCover: 1, reload: 1, boltCycle: 1, throw: 1, melee: 1, takedown: 1, takedownVictim: 1, vault: 1, hit: 1, deathFront: 1, deathBack: 1,
     deathRun: 1, salute: 1, fire: 1, firePistol: 1, fireCrouch: 1, fireCover: 1, breachKick: 1, signalMoveUp: 1, stagger: 1 };
 
   var IV = window.IVChars = {
@@ -361,6 +361,8 @@
       if (self.onFinished && n) self.onFinished(n);
     });
     this.play('idle', { fade: 0 });
+    // settle on the idle pose now, so the first frame drawn after spawn is never the bind pose
+    this.mixer.update(0); this.root.updateMatrixWorld(true);
   }
   var AP = Actor.prototype;
   AP._action = function (clip, tag) {
@@ -491,13 +493,15 @@
       if (this.driven && !cn) {
         var st = this.ds;
         needs = st.stance !== 'prone' && this._stW.prone < 0.5;
-        this._upperFade = 0.3;
+        this._upperFade = 0.2;
         if (needs && st.aiming) autoName = pistol ? 'aimPistol' : 'aimIdle';
         else if (needs && !pistol && this._sprintW > 0.5) autoName = 'sprintRifle';
       }
       if (!autoName) autoName = needs ? (held.userData.long ? 'holdRifle' : (pistol ? 'holdPistol' : null)) : null;
       if (autoName && !clipName(autoName)) autoName = null;
-      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: this._upperFade || 0.2 });
+      // the rifle travels furthest between the sprint carry and the shoulder: give that swap the longest fade
+      var swapF = (this.curUpper && this.curUpper.name === 'sprintRifle') || autoName === 'sprintRifle' ? 0.25 : (this._upperFade || 0.2);
+      if (autoName && (!this.curUpper || this.curUpper.name !== autoName)) this.setUpper(autoName, { auto: true, fade: swapF });
       if (!autoName && this._autoUpper && this.curUpper) this.setUpper(null);
     }
     // weights
@@ -520,6 +524,11 @@
     }
     if (this.driven) this._graph(dt, Math.max(0, 1 - baseTot), U);
     this.base = this.base.filter(function (b) { if (b.w <= 0 && b.target === 0) { b.full.stop(); b.lower.stop(); return false; } return true; });
+    // three.js only writes a bone when the mixed value differs from last frame's, so a bone whose clip value is
+    // steady (a held aim pose) would keep last frame's post-process edits (lean, IK, aim offset) and accumulate them.
+    // Marking the previous-frame slot as unknown makes every bound property be written again each update.
+    var bs = this.mixer._bindings, ai = this.mixer._accuIndex;
+    if (bs && ai != null) for (i = 0; i < bs.length; i++) { var pm = bs[i]; if (pm.buffer) pm.buffer[(ai + 1) * pm.valueSize] = NaN; }
     this.mixer.update(dt);
     for (i = 0; i < this.base.length; i++) { e = this.base[i]; e.lower.time = e.full.time; }
     if (this.driven) for (var gk in this.gr) { e = this.gr[gk]; e.lower.time = e.full.time; }
@@ -528,7 +537,7 @@
     var k = 1 - Math.exp(-dt * 14);
     this.aimP += (this.aimPT - this.aimP) * k; this.aimY += (this.aimYT - this.aimY) * k;
     if (Math.abs(this.aimP) > 1e-4 || Math.abs(this.aimY) > 1e-4) this._applyAim();
-    if (this.driven) this._post(dt, far);
+    if (this.driven) this._post(dt, far); else this._flinch(dt);
     // left hand onto the fore-end
     var want = 0;
     if (held && held.userData.gripL && held.userData.long !== undefined) {
@@ -536,7 +545,7 @@
       want = on ? 1 : 0;
       if (this.leftHandIK != null) want = this.leftHandIK;
     }
-    this._lhW = approach(this._lhW, want, 3, dt);
+    this._lhW = approach(this._lhW, want, 5, dt);
     if (this._lhW > 0.01 && held) {
       held.userData.gripL.updateMatrixWorld(true);
       var tp = worldPos(held.userData.gripL, new T.Vector3()), tq = worldQuat(held.userData.gripL, new T.Quaternion());
@@ -563,11 +572,15 @@
     return this;
   };
   AP.undrive = function () { this.driven = false; for (var k in this.gr) { this.gr[k].full.stop(); this.gr[k].lower.stop(); } this.gr = {}; return this; };
+  var GCLIPS = {}, GLOWER = {};
   AP._gEntry = function (name) {
     var e = this.gr[name];
     if (e) return e;
     var c = clipName(name); if (!c) return null;
-    var full = this._action(CLIPS[c], null), lower = this._action(LOWER[c], null);
+    // the graph plays its own copies of the clips: three.js shares one action per clip, so using CLIPS[c] here would
+    // let play()/stop() on the same clip (the spawn idle, a one-shot) stop or reweight a graph entry mid-blend
+    if (!GCLIPS[c]) { GCLIPS[c] = CLIPS[c].clone(); GCLIPS[c].name = c + '#g'; GLOWER[c] = LOWER[c].clone(); GLOWER[c].name = c + '#gl'; }
+    var full = this._action(GCLIPS[c], null), lower = this._action(GLOWER[c], null);
     [full, lower].forEach(function (a) { a.enabled = true; a.setLoop(T.LoopRepeat, Infinity); a.setEffectiveWeight(0); a.play(); });
     var m = META[c] || {};
     e = this.gr[name] = { full: full, lower: lower, w: 0, tw: 0, loco: !!m.stride || /turnStep|proneCrawl/.test(name), meta: m, dur: CLIPS[c].duration };
@@ -580,17 +593,26 @@
     // stance super-state weights, eased (~0.25 s)
     for (k in this._stW) this._stW[k] = approach(this._stW[k], k === stance ? 1 : 0, 4, dt);
     var sw = this._stW, swSum = sw.stand + sw.crouch + sw.prone || 1;
-    // moving weight; when stopping, keep stepping until the next foot contact so the feet come together
-    var wantMove = speed > 0.12 ? 1 : 0;
-    if (!wantMove && this._move > 0.05) {
-      var ph2 = (this.phase * 2) % 1; if (ph2 > 0.12 && ph2 < 0.9) wantMove = this._move;   // finish the step
-    }
-    this._move = approach(this._move, wantMove ? Math.min(1, 0.35 + speed) : 0, 5, dt);
-    var mv = ease01(this._move);
+    // moving weight follows the speed: the stepping clips are blended with the stance idle at about speed / clip speed
+    // while the phase keeps the clips' own cadence (below), so a planted foot moves with the ground during starts,
+    // stops and slow walking instead of skating
+    var wantMove = speed > 0.08 ? 1 : 0;
+    // direction flips (over ~100 degrees): keep the old blend direction while the body slows, plant, and swap the
+    // direction only once nearly still, so opposing directions are never blended at speed
+    var aNow = Math.atan2(vx, vz) * 180 / Math.PI, dFlip = Math.abs(((aNow - this._dirA + 540) % 360) - 180);
+    if (speed > 0.08 && dFlip > 100 && this._move > 0.1) this._pivot = true;
+    if (this._pivot && (speed < 0.3 || this._move <= 0.1)) { this._dirA = aNow; this._pivot = false; }
+    var vRef = this._vRef || 1.5;
+    var mvT = wantMove && !this._pivot ? Math.min(1, speed / (0.8 * vRef)) : 0;
+    // starting from (nearly) still: re-seat the phase at the nearest foot contact (both feet down), so the first
+    // step starts from double support instead of mid-swing; the pose is idle here, so the jump is not visible
+    if (this._move < 0.04 && mvT > 0) this.phase = (Math.round(this.phase * 2) / 2) % 1;
+    this._move = approach(this._move, mvT, 5, dt);
+    var mv = this._move;
     // direction (local: +x left, +z forward) and speed tier
-    if (speed > 0.05) {
+    if (speed > 0.05 && !this._pivot) {
       var a = Math.atan2(vx, vz) * 180 / Math.PI, da = ((a - this._dirA + 540) % 360) - 180;
-      this._dirA += da * Math.min(1, dt * 10);
+      this._dirA += da * (1 - Math.exp(-dt / 0.18));
     }
     var dirA = ((this._dirA + 540) % 360) - 180;
     var tierT = Math.max(0, Math.min(1, (speed - SPEED.walk) / (SPEED.jog - SPEED.walk)));
@@ -625,19 +647,27 @@
     // ease every graph weight toward its target, then renormalise so the total is exactly one (no blend toward the bind pose)
     for (k in tw) this._gEntry(k);
     var tot = 0;
-    for (k in this.gr) { e = this.gr[k]; e.w = approach(e.w, tw[k] || 0, 6, dt); tot += e.w; }
-    var strideW = 0, strideSum = 0;
+    var chg = 0;
+    for (k in this.gr) { e = this.gr[k]; var w0 = e.w; e.w = approach(e.w, tw[k] || 0, 6, dt); chg += Math.abs(e.w - w0); tot += e.w; }
+    // how fast the blend is changing (0 in steady locomotion): the planted-foot lock only works while this is high,
+    // which is when a weight change would otherwise drag a planted foot (sharp stops, direction flips, stance changes)
+    var lockT = this._pivot ? 1 : Math.max(0, Math.min(1, (chg / Math.max(dt, 1e-3) - 0.8) / 2));
+    this._lockK = approach(this._lockK || 0, lockT, lockT > (this._lockK || 0) ? 8 : 4, dt);
+    var strideW = 0, strideSum = 0, speedSum = 0;
     for (k in this.gr) {
       e = this.gr[k];
       var w = tot > 0 ? e.w / tot : 0;
       e.full.setEffectiveWeight(w * scale * (1 - U)); e.lower.setEffectiveWeight(w * scale * U);
-      if (e.loco && e.meta.stride) { strideSum += w * e.meta.stride; strideW += w; }
+      if (e.loco && e.meta.stride) { strideSum += w * e.meta.stride; strideW += w; speedSum += w * (e.meta.speed || 1.5); }
     }
-    // one shared phase: advanced by ground speed over the blended stride (no foot sliding)
+    if (strideW > 0.05) this._vRef = speedSum / strideW;
+    // one shared phase. The blended pose moves a planted foot by sum(w * stride) per cycle (idle adds nothing), so the
+    // phase advances by speed / that; capped at 1.3x the clips' own cadence when the move weight lags behind the speed
     var prev = this.phase;
-    var gs = speed > 0.05 ? speed : (this._move > 0.05 ? Math.max(this._lastSpeed * 0.6, 0.6) : 0);
-    if (strideW > 0.01) this.phase += gs * dt / (strideSum / strideW);
-    else if (this._turnW > 0.05) this.phase += dt / 0.9;
+    if (strideW > 0.01) {
+      var natural = speedSum / strideSum;                 // cycles per second at the clips' own speed
+      this.phase += Math.min(speed / Math.max(strideSum, 1e-3), natural * 1.3) * dt;
+    } else if (this._turnW > 0.05) this.phase += dt / 0.9;
     if (sProne > 0.5 && speed > 0.05) this.phase += dt * speed / 0.6 * 0.0;   // crawl uses its own clock (below)
     this.phase %= 1;
     for (k in this.gr) {
@@ -658,10 +688,33 @@
     var accel = (speed - this._lastSpeed) / Math.max(dt, 1e-3);
     this._lastSpeed = speed;
     this._lean += (Math.max(-0.14, Math.min(0.14, -(st.yawRate || 0) * speed * 0.035)) - this._lean) * Math.min(1, dt * 6);
-    this._pitchLean += (Math.max(-0.1, Math.min(0.1, accel * 0.018)) - this._pitchLean) * Math.min(1, dt * 5);
+    this._pitchLean += (Math.max(-0.06, Math.min(0.06, accel * 0.012)) - this._pitchLean) * Math.min(1, dt * 5);
     this._t += dt;
   };
+  // additive hit flinch (no physics): dir = world direction the bullet travels, part = 'head'|'chest'|'arm_l'|'arm_r'|'leg'
+  AP.flinch = function (dir, part, strength) {
+    var rq = worldQuat(this.root, new T.Quaternion()).invert();
+    var d = (dir ? dir.clone() : new T.Vector3(0, 0, -1)).applyQuaternion(rq); d.y = 0; if (d.lengthSq() < 1e-6) d.set(0, 0, -1); d.normalize();
+    this._fl = { t: 0, d: d, part: part || 'chest', k: strength == null ? 1 : strength };
+    return this;
+  };
+  AP._flinch = function (dt) {
+    var f = this._fl; if (!f) return;
+    f.t += dt; var T1 = 0.45; if (f.t > T1) { this._fl = null; return; }
+    // fast hit, damped spring back
+    var x = f.t / T1, a = Math.sin(Math.min(1, f.t / 0.06) * Math.PI / 2) * Math.exp(-x * 4) * f.k;
+    var rq = worldQuat(this.root, new T.Quaternion());
+    var up = new T.Vector3(0, 1, 0).applyQuaternion(rq);
+    // bend away from the shot: rotate about the axis perpendicular to the shot direction
+    var axis = new T.Vector3().crossVectors(up, f.d.clone().applyQuaternion(rq)).normalize();
+    var q = new T.Quaternion(), b = this.bones;
+    var map = { head: [['neck_01', 0.25], ['Head', 0.45], ['spine_03', 0.08]], chest: [['spine_02', 0.18], ['spine_03', 0.22], ['Head', 0.1]],
+      arm_l: [['clavicle_l', 0.35], ['upperarm_l', 0.3], ['spine_03', 0.08]], arm_r: [['clavicle_r', 0.35], ['upperarm_r', 0.3], ['spine_03', 0.08]],
+      leg: [['pelvis', 0.08], ['spine_01', 0.1], ['thigh_l', 0.1], ['thigh_r', 0.1]] }[f.part] || [['spine_03', 0.2]];
+    for (var i = 0; i < map.length; i++) { var bn = b[map[i][0]]; if (!bn) continue; q.setFromAxisAngle(axis, a * map[i][1]); rotWorld(bn, q); }
+  };
   AP._post = function (dt, far) {
+    this._flinch(dt);
     var b = this.bones, q = new T.Quaternion();
     var rq = worldQuat(this.root, new T.Quaternion());
     var fwd = new T.Vector3(0, 0, 1).applyQuaternion(rq), left = new T.Vector3(1, 0, 0).applyQuaternion(rq);
@@ -676,27 +729,67 @@
     // foot IK with pelvis drop against actor.groundAt(x, z) (if the game provides it), near the camera only
     var ikOK = far < (IV.footIKDistance || 25) && this._stW.prone < 0.5;
     if (this.groundAt && ikOK) this._footIK(dt);
-    if (ikOK && IV.footLock && far < (IV.footLockDistance || 12)) this._footLock(dt);   // experimental, off: knee flips on straight legs
+    if (ikOK && IV.footLock !== false && far < (IV.footLockDistance || 12)) this._footLock(dt);   // transitions only (see _lockK)
   };
   // planted-foot lock: while a foot is in its contact window (from the shared phase) it stays where it landed,
   // so direction changes and turns do not skate it; eased in and out at the window edges
   var LOCKW = { l: [0.0, 0.30], r: [0.5, 0.80] };
+  // analytic two-bone leg IK with an explicit knee pole (the pelvis forward), so the knee can never flip
+  function legIK(thigh, calf, foot, target, pole, w) {
+    var fq = worldQuat(foot, new T.Quaternion());
+    var A = worldPos(thigh, new T.Vector3()), B = worldPos(calf, new T.Vector3()), C = worldPos(foot, new T.Vector3());
+    var l1 = A.distanceTo(B), l2 = B.distanceTo(C);
+    var tgt = C.clone().lerp(target, w);
+    var d = tgt.clone().sub(A), dist = Math.min(d.length(), (l1 + l2) * 0.985); d.normalize();
+    tgt.copy(A).addScaledVector(d, dist);
+    var cosA = Math.max(-1, Math.min(1, (l1 * l1 + dist * dist - l2 * l2) / (2 * l1 * dist))), sinA = Math.sqrt(1 - cosA * cosA);
+    var pv = pole.clone().addScaledVector(d, -pole.dot(d)); if (pv.lengthSq() < 1e-8) return; pv.normalize();
+    var K = A.clone().addScaledVector(d, cosA * l1).addScaledVector(pv, sinA * l1);
+    var q = new T.Quaternion();
+    q.setFromUnitVectors(B.clone().sub(A).normalize(), K.clone().sub(A).normalize()); rotWorld(thigh, q);
+    var C2 = worldPos(foot, new T.Vector3()), K2 = worldPos(calf, new T.Vector3());
+    q.setFromUnitVectors(C2.sub(K2).normalize(), tgt.clone().sub(K2).normalize()); rotWorld(calf, q);
+    setWorldQuat(foot, fq);
+  }
+  // planted-foot lock: while a foot is in its contact window (shared phase) it keeps the ground point where it landed,
+  // so blend direction changes do not skate it; eased in and out at the window edges, reach capped, knee pole fixed
+  var LOCKW = { l: [0.0, 0.30], r: [0.5, 0.80] };
   AP._footLock = function (dt) {
-    var b = this.bones, m = Math.min(1, this._move * 1.5);
-    if (!this._lock) this._lock = { l: null, r: null };
+    // While the blend is changing (this._lockK), a foot in stance keeps the ground point where it landed. When it
+    // lifts off, the offset between the locked and the animated foot is carried into the swing and eased out there,
+    // so the foot never jumps back while it bears weight.
+    var b = this.bones, m = this._lockK || 0;
+    if (!this._lock) this._lock = { l: { L: null, off: new T.Vector3(), w: 0 }, r: { L: null, off: new T.Vector3(), w: 0 } };
+    var rq = worldQuat(this.root, new T.Quaternion()), fwd = new T.Vector3(0, 0, 1).applyQuaternion(rq);
+    var v = this._vRef || 1.5, stance = v < 2 ? 0.58 : (v > 3.5 ? 0.26 : 0.58 - (v - 2) / 1.5 * 0.32);
     for (var i = 0; i < 2; i++) {
-      var s = i ? 'r' : 'l', w0 = LOCKW[s][0], w1 = LOCKW[s][1], ph = this.phase;
-      var inWin = ph >= w0 && ph <= w1, foot = b['foot_' + s];
-      if (!foot || m < 0.05 || !inWin) { this._lock[s] = null; continue; }
-      var cur = worldPos(foot, new T.Vector3());
-      if (!this._lock[s]) this._lock[s] = cur.clone();
-      var u = (ph - w0) / (w1 - w0), edge = Math.min(1, u / 0.15, (1 - u) / 0.15);
-      var w = Math.max(0, edge) * m;
-      if (w < 0.01) continue;
-      var tgt = cur.clone(); tgt.x = this._lock[s].x; tgt.z = this._lock[s].z;
-      if (tgt.distanceTo(cur) > 0.5) { this._lock[s] = cur.clone(); continue; }   // teleported: re-plant
-      var fq = worldQuat(foot, new T.Quaternion());
-      twoBone(b['thigh_' + s], b['calf_' + s], foot, tgt, fq, w);
+      var s = i ? 'r' : 'l', st = this._lock[s], foot = b['foot_' + s], ball = b['ball_' + s];
+      if (!foot || !ball) continue;
+      var u = (this.phase - (i ? 0.5 : 0) + 1) % 1;
+      var bp = worldPos(ball, new T.Vector3()), ap = worldPos(foot, new T.Vector3());
+      var inStance = u < stance && this._stW.prone < 0.5;
+      if (inStance) {
+        if (!st.L) st.L = bp.clone();
+        if (m < 0.02 && st.w < 0.02) { st.L.copy(bp); st.off.set(0, 0, 0); st.w = 0; continue; }
+        st.w = Math.max(st.w, m);
+        var sh = new T.Vector3(st.L.x - bp.x, 0, st.L.z - bp.z), sl = sh.length();
+        // reach cap: past 30 cm the lock point is pulled along with the body instead of letting go in one frame
+        if (sl > 0.3) { sh.multiplyScalar(0.3 / sl); st.L.x = bp.x + sh.x; st.L.z = bp.z + sh.z; }
+        st.off.copy(sh);
+        if (m < 0.02) st.w = approach(st.w, 0, 4, dt);
+      } else {
+        st.L = null;
+        // swing: ease the carried offset out (about 0.2 s)
+        st.off.multiplyScalar(Math.exp(-dt / 0.07));
+        if (st.off.lengthSq() < 1e-6) { st.w = 0; continue; }
+      }
+      if (st.w < 0.01 || st.off.lengthSq() < 1e-6) continue;
+      var tgt = ap.clone().addScaledVector(st.off, inStance ? 1 : 1);
+      var hip = worldPos(b['thigh_' + s], new T.Vector3()), knee = worldPos(b['calf_' + s], new T.Vector3());
+      var axis = ap.clone().sub(hip).normalize(), kd = knee.clone().sub(hip);
+      // knee pole: the animated bend plus the body's forward, so a nearly straight leg cannot pick a flipped plane
+      var pole = kd.addScaledVector(axis, -kd.dot(axis)).addScaledVector(fwd, 0.08);
+      legIK(b['thigh_' + s], b['calf_' + s], foot, tgt, pole.normalize(), Math.min(1, st.w + (inStance ? 0 : 1)));
     }
   };
   AP._footIK = function (dt) {

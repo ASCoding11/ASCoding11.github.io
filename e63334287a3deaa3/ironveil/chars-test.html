@@ -305,6 +305,10 @@
     sprintReversal: { len: 6, cam: 'side', steps: [[0, {}], [0.3, { w: 1, shift: 1 }], [2.8, { s: 1 }], [4.6, {}]] },
     slopeAndSteps: { len: 13, cam: 'side', start: [0, 0], steps: [[0, { camYaw: Math.PI / 2 }], [0.3, { d: 1, walk: 1, camYaw: Math.PI / 2 }], [6.0, { camYaw: 0 }], [6.3, { w: 1, walk: 1, camYaw: 0 }], [11.5, {}]] },
     stanceChain: { len: 11, cam: 'side', steps: [[0, {}], [1.0, { crouch: 1 }], [2.2, { crouch: 1, w: 1 }], [4.0, { crouch: 1 }], [4.8, { prone: 1 }], [6.3, { prone: 1, w: 1 }], [8.5, { prone: 1 }], [9.3, { crouch: 1 }], [10.2, {}]] },
+    enemyPatrol: { len: 9, cam: 'side', steps: [[0, { w: 1, walk: 1 }], [2.5, { a: 1, walk: 1 }], [4.2, { w: 1, walk: 1 }], [5.2, { w: 1, shift: 1 }], [8.0, {}]] },
+    walkJogSprintStopOTS: { len: 8.5, cam: 'ots', steps: [[0, {}], [0.5, { w: 1, walk: 1 }], [2.5, { w: 1 }], [4.5, { w: 1, shift: 1 }], [7.0, {}]] },
+    backOnly: { len: 4, cam: 'side', steps: [[0, { aim: 1, s: 1 }]] },
+    sprintBack: { len: 6, cam: 'side', steps: [[0, { w: 1, shift: 1 }], [2.5, { aim: 1, s: 1 }]] },
     // measurement set: steady loops in every direction and two in-between speeds
     measure: { len: 30, cam: 'side', steps: [[0, {}], [0.5, { w: 1, walk: 1 }], [3, { w: 1 }], [5.5, { w: 1, shift: 1 }], [8, { aim: 1, s: 1 }], [10.5, { aim: 1, a: 1 }],
       [13, { aim: 1, d: 1 }], [15.5, { aim: 1, w: 1, a: 1 }], [18, { aim: 1, s: 1, d: 1 }], [20.5, { crouch: 1, w: 1 }], [23, { crouch: 1, a: 1, aim: 1 }], [25.5, { w: 1, half: 1 }], [28, {}]] }
@@ -340,14 +344,14 @@
       ['l', 'r'].forEach(function (s) {
         var lo = s === 'l' ? 0.10 : 0.60, hi = lo + 0.18, on = f.phase >= lo && f.phase <= hi;
         var key = s, cur = segs[key];
-        if (on) { if (!cur) segs[key] = cur = { keys: f.keys, pts: [], sp: [] }; cur.pts.push(f['ball_' + s]); cur.sp.push(f.speed); }
+        if (on) { if (!cur) segs[key] = cur = { keys: f.keys, pts: [], sp: [], t0: f.t }; cur.pts.push(f['ball_' + s]); cur.sp.push(f.speed); }
         else if (cur) { out.push(cur); segs[key] = null; }
       });
     });
     return out.filter(function (c) { return c.pts.length > 2; }).map(function (c) {
       var p0 = c.pts[0], mx = 0;
       c.pts.forEach(function (p) { mx = Math.max(mx, Math.hypot(p[0] - p0[0], p[2] - p0[2])); });
-      return { keys: c.keys, speed: +(c.sp.reduce(function (a, b) { return a + b; }, 0) / c.sp.length).toFixed(2), slideCm: +(mx * 100).toFixed(1) };
+      return { t0: c.t0, keys: c.keys, speed: +(c.sp.reduce(function (a, b) { return a + b; }, 0) / c.sp.length).toFixed(2), slideCm: +(mx * 100).toFixed(1) };
     });
   }
   window.DRIVE = {
@@ -372,7 +376,7 @@
         var yw = ctrl.camYaw, back = new THREE.Vector3(Math.sin(yw), 0, Math.cos(yw)), right = new THREE.Vector3(-Math.cos(yw), 0, Math.sin(yw));
         c.position.copy(p).addScaledVector(back, -2.6).addScaledVector(right, 0.7); c.position.y += 1.7;
         c.lookAt(p.x + back.x * 6, p.y + 1.4, p.z + back.z * 6);
-      } else { c.position.set(p.x - 6.5, p.y + 1.3, p.z + 0.6); c.lookAt(p.x, p.y + 0.9, p.z); }
+      } else { c.position.set(p.x - 4.2, p.y + 1.15, p.z + 0.4); c.lookAt(p.x, p.y + 0.85, p.z); }
     },
     // deterministic run: returns measurements; frame(i) renders frame i for capture
     run: function (name, fps, render) {
@@ -395,12 +399,17 @@
       return DRIVE._i < DRIVE._n;
     },
     results: function () {
-      var F = M.frames, pops = [], sole = [], grip = [];
+      var F = M.frames, pops = [], sole = [], grip = [], slideRaw = slideTable();
       F.forEach(function (f, i) { if (i > 2) pops.push({ t: +f.t.toFixed(2), pop: +f.pop.toFixed(1), bone: f.popBone, keys: f.keys }); });
       pops.sort(function (a, b) { return b.pop - a.pop; });
       F.forEach(function (f) { if (f.speed > 0.3) ['l', 'r'].forEach(function (s, j) { var lo = s === 'l' ? 0.06 : 0.56; if (f.phase >= lo && f.phase <= lo + 0.22) sole.push(+((f['ball_' + s][1] - f.gl[j]) * 100).toFixed(1)); }); });
       F.forEach(function (f) { if (f.grip != null) grip.push(f.grip); });
-      return { slide: slideTable(), topPops: pops.slice(0, 12), sole: sole, gripMaxCm: grip.length ? +(Math.max.apply(null, grip) * 100).toFixed(1) : null, gripMeanCm: grip.length ? +(grip.reduce(function (a, b) { return a + b; }, 0) / grip.length * 100).toFixed(1) : null };
+      // worst slide per transition: contact windows that start within 0.6 s after a key change
+      var changes = [], prevK = null;
+      F.forEach(function (f) { if (f.keys !== prevK) { changes.push({ t: f.t, from: prevK, to: f.keys }); prevK = f.keys; } });
+      var tr = {};
+      slideRaw.forEach(function (c) { changes.forEach(function (ch) { if (ch.from && c.t0 >= ch.t && c.t0 <= ch.t + 0.6) { var k = ch.from + ' -> ' + ch.to; tr[k] = Math.max(tr[k] || 0, c.slideCm); } }); });
+      return { frames: F.filter(function (f, i) { return i % 3 === 0; }).map(function (f) { return [+f.t.toFixed(2), +f.phase.toFixed(3), +f.speed.toFixed(2), JSON.stringify(f.w), f.ball_l.map(function (x) { return +x.toFixed(3); })]; }), transitions: tr, slide: slideTable(), topPops: pops.slice(0, 12), topPopsNoToe: pops.filter(function (p) { return !/^ball_/.test(p.bone); }).slice(0, 12), popByChange: (function () { var o = {}; changes.forEach(function (ch) { if (!ch.from) return; var k = ch.from + ' -> ' + ch.to; pops.forEach(function (p) { if (p.t >= ch.t && p.t <= ch.t + 0.6) o[k] = Math.max(o[k] || 0, p.pop); }); }); return o; })(), sole: sole, gripMaxCm: grip.length ? +(Math.max.apply(null, grip) * 100).toFixed(1) : null, gripMeanCm: grip.length ? +(grip.reduce(function (a, b) { return a + b; }, 0) / grip.length * 100).toFixed(1) : null };
     }
   };
 })();
