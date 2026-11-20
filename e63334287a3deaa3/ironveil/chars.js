@@ -24,7 +24,8 @@
  *  - A long gun or pistol in handR automatically layers holdRifle/holdPistol on the upper body unless setUpper() is used
  *    or the full-body clip already carries the weapon. The left hand is pulled onto weapon.userData.gripL by IK in the
  *    aim/hold/fire clips (actor.leftHandIK = 0..1 forces it).
- *  - Set IVChars.camera = yourCamera for the enemy LOD switch (IVChars.lodDistance, default 22 m) and for updating far
+ *  - Set IVChars.camera = yourCamera for the LOD switch (IVChars.lodDistances = [mid, far] metres, default [12, 30];
+ *    every kind has a ~5k mid and a ~1.8k far mesh; set lower distances on low quality) and for updating far
  *    actors (beyond IVChars.throttleDistance, default 45 m) every other frame.
  *    A full weapon model held by anyone but the hero switches to its reduced model beyond IVChars.weaponLodDistance (6 m).
  *  - Weapons: barrel along +Z, up +Y, origin at the right-hand grip; userData.muzzle (Object3D, use its world position),
@@ -46,12 +47,12 @@
   };
   // which meshes of which file make each kind (enemy.glb holds all four enemy outfits + their LODs on one body)
   var KINDS = {
-    hero: { file: 'hero', meshes: ['Hero', 'HeroHair'] },
-    ally: { file: 'ally', meshes: ['Ally', 'AllyHair'] },
-    rifleman: { file: 'enemy', meshes: ['Rifleman', 'EnemyHair'], lod: ['RiflemanLOD'] },
-    officer: { file: 'enemy', meshes: ['Officer', 'EnemyHair'], lod: ['OfficerLOD'] },
-    sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair'], lod: ['SniperLOD'] },
-    gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair'], lod: ['GunnerLOD'] }
+    hero: { file: 'hero', meshes: ['Hero', 'HeroHair'], lod: ['HeroLOD1', 'HeroLOD2'] },
+    ally: { file: 'ally', meshes: ['Ally', 'AllyHair'], lod: ['AllyLOD1', 'AllyLOD2'] },
+    rifleman: { file: 'enemy', meshes: ['Rifleman', 'EnemyHair'], lod: ['RiflemanLOD1', 'RiflemanLOD2'] },
+    officer: { file: 'enemy', meshes: ['Officer', 'EnemyHair'], lod: ['OfficerLOD1', 'OfficerLOD2'] },
+    sniper: { file: 'enemy', meshes: ['Sniper', 'EnemyHair'], lod: ['SniperLOD1', 'SniperLOD2'] },
+    gunner: { file: 'enemy', meshes: ['Gunner', 'EnemyHair'], lod: ['GunnerLOD1', 'GunnerLOD2'] }
   };
   var WEAPONS = ['rifleScoped', 'smg', 'pistol', 'enemyRifle', 'enemySmg', 'mg', 'knife', 'binoculars', 'grenade', 'stickGrenade', 'rifleScopedLod', 'smgLod'];
   var LONG = { rifleScoped: 1, smg: 1, enemyRifle: 1, enemySmg: 1, mg: 1 };
@@ -69,7 +70,7 @@
 
   var IV = window.IVChars = {
     info: { loaded: false, fallback: false, files: {}, bytes: 0, errors: [], version: VERSION },
-    clips: [], camera: null, lodDistance: 22, throttleDistance: 45, weaponLodDistance: 6
+    clips: [], camera: null, lodDistance: 22, lodDistances: [12, 30], throttleDistance: 45, weaponLodDistance: 6
   };
   var META = {}, gltf = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {}, WTEMPLATES = {}, TRIS = {}, upperSet = null;
 
@@ -165,7 +166,7 @@
       }
     });
     drop.forEach(function (o) { o.parent.remove(o); });
-    var tris = 0, lodTris = 0;
+    var tris = 0, lodTris = [0, 0, 0];
     root.traverse(function (o) {
       if (!o.isMesh) return;
       prepMaterial(o.material);
@@ -174,11 +175,11 @@
       // skinned bounds: generous sphere around the body so animated limbs (prone, deaths) never pop out
       g2.boundingSphere = new T.Sphere(new T.Vector3(0, 0.9, 0), 1.45);
       var nm = meshName(o);
-      o.userData.lod = (def.lod || []).indexOf(nm) >= 0;
+      o.userData.lod = (def.lod || []).indexOf(nm) + 1;   // 0 full, 1 mid (~5k), 2 far (~1.8k)
       var c = (g2.index ? g2.index.count : g2.attributes.position.count) / 3;
-      if (o.userData.lod) lodTris += c; else tris += c;
+      if (o.userData.lod) lodTris[o.userData.lod] += c; else tris += c;
     });
-    TRIS[kind] = { tris: Math.round(tris), lod: Math.round(lodTris) };
+    TRIS[kind] = { tris: Math.round(tris), lod: Math.round(lodTris[1]), lod2: Math.round(lodTris[2]) };
     return root;
   }
   function meshName(o) {
@@ -242,7 +243,7 @@
     if (TRIS[kind]) return TRIS[kind].tris;
     return kind in KINDS || WEAPONS.indexOf(kind) >= 0 ? (FB.tris || 0) : 0;
   };
-  IV.lodTris = function (kind) { return TRIS[kind] ? TRIS[kind].lod || 0 : 0; };
+  IV.lodTris = function (kind, level) { return TRIS[kind] ? (level === 2 ? TRIS[kind].lod2 : TRIS[kind].lod) || 0 : 0; };   // mid (1, default) or far (2)
 
   // ---------- weapons
   IV.weapon = function (kind, opts) {
@@ -613,11 +614,16 @@
     if (IV.camera && this.root.parent) {
       worldPos(this.root, _v1);
       far = _v1.distanceTo(IV.camera.position);
-      var lod = this.lods.length && far > IV.lodDistance ? 1 : 0;
-      if (lod !== this.lodLevel) {
+      // three levels with 10 % hysteresis: full -> mid at IV.lodDistances[0], mid -> far at [1] (the hair goes at mid)
+      var D = IV.lodDistances || [IV.lodDistance * 0.55, IV.lodDistance * 1.4], cur = this.lodLevel || 0, lod = cur;
+      if (this.lods.length) {
+        if (cur < 2 && far > D[1] * 1.05) lod = 2; else if (cur < 1 && far > D[0] * 1.05) lod = 1;
+        else if (cur > 1 && far < D[1] * 0.95) lod = far > D[0] * 0.95 ? 1 : 0; else if (cur > 0 && far < D[0] * 0.95) lod = 0;
+      }
+      if (lod !== cur) {
         this.lodLevel = lod;
-        this.meshes.forEach(function (m) { m.visible = !lod || /Hair/.test(m.name) ? !lod : false; });
-        this.lods.forEach(function (m) { m.visible = !!lod; });
+        this.meshes.forEach(function (m) { m.visible = !lod; });
+        this.lods.forEach(function (m) { m.visible = m.userData.lod === lod; });
       }
     }
     // weapon in hand: full model for the player, the reduced one for others beyond a few metres
@@ -793,7 +799,12 @@
       this._dirA += da * (1 - Math.exp(-dt / 0.18));
     }
     var dirA = ((this._dirA + 540) % 360) - 180;
-    var tierT = Math.max(0, Math.min(1, (speed - SPEED.walk) / (SPEED.jog - SPEED.walk)));
+    // walk or jog: the game scales speeds by direction (strafe 85 %, back 70 %), so judge the tier against this
+    // direction's own walk speed; a narrow walk->jog band (1.45-1.7x walk) keeps one gait at a time, played a
+    // little faster or slower, instead of mixing two cadences (which skates the planted foot)
+    var d2 = vx * vx + vz * vz, dirF = d2 > 1e-6 ? (vx * vx * 0.85 + vz * vz * (vz > 0 ? 1 : 0.7)) / d2 : 1;
+    var wv = SPEED.walk * dirF;
+    var tierT = Math.max(0, Math.min(1, (speed - wv * 1.45) / (wv * 0.25)));
     this._tier = approach(this._tier, tierT, 4, dt);
     var fwdish = Math.abs(dirA) < 35;
     this._sprintW = approach(this._sprintW, st.sprinting && fwdish && speed > SPEED.jog * 0.9 && stance === 'stand' ? 1 : 0, 4, dt);
@@ -844,7 +855,7 @@
     var prev = this.phase;
     if (strideW > 0.01) {
       var natural = speedSum / strideSum;                 // cycles per second at the clips' own speed
-      this.phase += Math.min(speed / Math.max(strideSum, 1e-3), natural * 1.3) * dt;
+      this.phase += Math.min(speed / Math.max(strideSum, 1e-3), natural * 1.6) * dt;
     } else if (this._turnW > 0.05) this.phase += dt / 0.9;
     if (sProne > 0.5 && speed > 0.05) this.phase += dt * speed / 0.6 * 0.0;   // crawl uses its own clock (below)
     this.phase %= 1;
@@ -864,6 +875,10 @@
     for (k in this.gr) { e = this.gr[k]; if (e.w <= 0 && !tw[k]) { e.full.stop(); e.lower.stop(); delete this.gr[k]; } }
     // lean: roll into turns, pitch into acceleration
     var accel = (speed - this._lastSpeed) / Math.max(dt, 1e-3);
+    // stopping: from the moment the body is nearly stopped, the feet that are on the ground stay where they are and
+    // any that ended up away from the idle stance is brought in by a small lifted settle step (see _stopFeet)
+    if (!this._stop && this._move > 0.15 && speed < 0.45 && speed <= this._lastSpeed && stance !== 'prone') this._stop = { t: 0, init: false };
+    if (this._stop && (speed > 0.5 || stance === 'prone' || (speed > this._lastSpeed + 0.01 && speed > 0.2))) { this._stop = null; this._lock = null; }
     this._lastSpeed = speed;
     this._lean += (Math.max(-0.14, Math.min(0.14, -(st.yawRate || 0) * speed * 0.035)) - this._lean) * Math.min(1, dt * 6);
     this._pitchLean += (Math.max(-0.06, Math.min(0.06, accel * 0.012)) - this._pitchLean) * Math.min(1, dt * 5);
@@ -909,7 +924,8 @@
     var ikW = Math.max(0, Math.min(1, 1 - this._stW.prone * 1.6)), ikOK = far < (IV.footIKDistance || 25) && ikW > 0.01;
     this._ikW = ikW;
     if (this.groundAt && ikOK) this._footIK(dt);
-    if (ikOK && IV.footLock !== false && far < (IV.footLockDistance || 12)) this._footLock(dt);   // transitions only (see _lockK)
+    if (ikOK && this._stop) this._stopFeet(dt, fwd);
+    else if (ikOK && IV.footLock !== false && far < (IV.footLockDistance || 12)) this._footLock(dt);   // transitions only (see _lockK)
   };
   // planted-foot lock: while a foot is in its contact window (from the shared phase) it stays where it landed,
   // so direction changes and turns do not skate it; eased in and out at the window edges
@@ -970,6 +986,42 @@
       // knee pole: the animated bend plus the body's forward, so a nearly straight leg cannot pick a flipped plane
       var pole = kd.addScaledVector(axis, -kd.dot(axis)).addScaledVector(fwd, 0.08);
       legIK(b['thigh_' + s], b['calf_' + s], foot, tgt, pole.normalize(), Math.min(1, st.w + (inStance ? 0 : 1)));
+    }
+  };
+  AP._stopFeet = function (dt, fwd) {
+    var b = this.bones, S = this._stop, ry = worldPos(this.root, new T.Vector3()).y, i, s;
+    S.t += dt;
+    if (!S.init) {
+      S.init = true; S.f = {};
+      for (i = 0; i < 2; i++) {
+        s = i ? 'r' : 'l';
+        var p = worldPos(b['foot_' + s], new T.Vector3());
+        // on the ground = ankle within 4 cm of standing height
+        S.f[s] = { L: p.clone(), planted: p.y - ry < 0.13, step: -1, done: false };
+      }
+    }
+    var wIn = Math.min(1, S.t / 0.08);
+    // settle steps once the body has (nearly) reached the idle pose: the foot furthest from its idle spot first
+    var idle = this._move < 0.08;
+    for (i = 0; i < 2; i++) {
+      s = i ? 'r' : 'l';
+      var f = S.f[s], foot = b['foot_' + s]; if (!f.planted || f.done) continue;
+      var A = worldPos(foot, new T.Vector3()), off = Math.hypot(A.x - f.L.x, A.z - f.L.z);
+      var other = S.f[i ? 'l' : 'r'];
+      if (idle && f.step < 0 && off > 0.045 && !(other.step >= 0 && !other.done)) {
+        var oo = other.planted && !other.done ? Math.hypot(worldPos(b['foot_' + (i ? 'l' : 'r')], new T.Vector3()).x - other.L.x, 0) : 0;
+        f.step = 0;
+      }
+      var tgt = f.L.clone(); tgt.y = A.y;
+      if (f.step >= 0) {
+        f.step += dt; var u = Math.min(1, f.step / 0.28), e = u * u * (3 - 2 * u);
+        tgt.set(f.L.x + (A.x - f.L.x) * e, A.y + Math.sin(Math.PI * u) * 0.06, f.L.z + (A.z - f.L.z) * e);
+        if (u >= 1) { f.done = true; continue; }
+      } else if (idle && off <= 0.045) { f.done = true; continue; }
+      var hip = worldPos(b['thigh_' + s], new T.Vector3()), knee = worldPos(b['calf_' + s], new T.Vector3());
+      var axis = A.clone().sub(hip).normalize(), kd = knee.clone().sub(hip);
+      var pole = kd.addScaledVector(axis, -kd.dot(axis)).addScaledVector(fwd, 0.08);
+      legIK(b['thigh_' + s], b['calf_' + s], foot, tgt, pole.normalize(), wIn);
     }
   };
   AP._footIK = function (dt) {
