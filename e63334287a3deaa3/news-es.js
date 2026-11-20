@@ -6,6 +6,14 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "New game: Hush Pools": "Juego nuevo: Hush Pools",
+    "Horror obby": "Obby de terror",
+    "Co-op": "Cooperativo",
+    "Up to 4": "Hasta 4",
+    "Hush Pools: a co-op horror obby for 1 to 4 players. Hop across nine flooded tile halls while something tall and blind wades the water. It can't see you, but it hears every splash.": "Hush Pools: un obby de terror cooperativo para 1 a 4 jugadores. Salta por nueve pasillos de azulejos inundados mientras algo alto y ciego camina por el agua. No te ve, pero oye cada salpicadura.",
+    "Every noise sends rings across the water. Creep and stand still and it walks past; throw a pebble, a bottle or a wind-up toy to send it the other way, or a flare to stun it.": "Cada ruido manda ondas por el agua. Avanza en silencio y quédate quieto y pasa de largo; tira una piedrita, una botella o un juguete a cuerda para mandarlo hacia el otro lado, o una bengala para aturdirlo.",
+    "If you go down, a teammate can pull you out or throw you a rope. Clear rooms for coins to spend on gear and upgrades (no real money), and beat Normal twice to open Hard.": "Si caes, un compañero puede sacarte o tirarte una cuerda. Supera salas para ganar monedas y gastarlas en equipo y mejoras (sin dinero real), y gana Normal dos veces para abrir Difícil.",
+    "Play solo, in a room with friends, or Quick match. Your Elo, fastest escape, escapes and rescues go on the Leaderboards.": "Juega solo, en una sala con amigos o en Partida rápida. Tu Elo, tu escape más rápido, tus escapes y tus rescates van a las Tablas de posiciones.",
     "Sky Duel: cockpit view": "Sky Duel: vista de cabina",
     "Cockpit": "Cabina",
     "Press V in Sky Duel (or tap Cockpit on a phone) to fly from the pilot's seat. Press it again for the chase camera.": "Presiona V en Sky Duel (o toca Cabina en el teléfono) para volar desde el asiento del piloto. Vuelve a presionarla para la cámara de persecución.",
