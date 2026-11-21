@@ -185,7 +185,7 @@ def arm_spec(k, Ww, s):
     e = ARMS.get(k, {}).get(s)
     if OLD or not e: return None
     a = ads_factor(k, Ww); h, d = e
-    if h is None: return (d, min(1.0, a / 0.35)) if a > 1e-3 else None    # most of the change early in the raise
+    if h is None: return (d, min(1.0, a / 0.12)) if a > 1e-3 else None    # nearly all of it at the start of the raise
     return (dict(elbow=h['elbow'] + (d['elbow'] - h['elbow']) * a, to=h['to'].lerp(d['to'], a).normalized(),
                  bend=h['bend'] + (d['bend'] - h['bend']) * a, drop=h['drop'] + (d['drop'] - h['drop']) * a), 1.0)
 def rot_toward(v, t, deg):
@@ -604,6 +604,8 @@ def tr(v): return Matrix.Translation(Vector(v))
 def ramp(t, t0, t1): return AL.smooth((t - t0) / max(1e-6, t1 - t0))
 def bump(t, t0, t1, t2): return ramp(t, t0, t1) * (1 - ramp(t, t1, t2))
 
+PTHUMBR_ADS = tuple(float(v) for v in os.environ.get('PTHUMBR_ADS', '0.8,0.6,0.3,0.0').split(','))
+PTHUMBL_ADS = tuple(float(v) for v in os.environ.get('PTHUMBL_ADS', '0.05,0.05,0.0,0.1').split(','))
 def grip_r(k, W):
     if (k, 'gripRads') in GRIP and not OLD:
         a = ads_factor(k, W)
@@ -643,6 +645,16 @@ def make_clips(k):
     w = WPN[k]
     long_ = k != 'pistol'
     def std(W, t=0.0, trig=0.0, parts=None, rh=None, lh=None, rf=None, lf=None, prop=None, hold=()):
+        if lf is None and (k, 'gripLads') in GRIP and not OLD:
+            # pistol ADS: the support thumb laid forward along the frame (straight it stood up beside the rear sight)
+            a = ads_factor(k, W)
+            if a > 1e-3:
+                lf = dict(fL(k)); lf['thumb'] = tuple(x + (y - x) * a for x, y in zip(lf['thumb'], PTHUMBL_ADS))
+        if rf is None and (k, 'gripRads') in GRIP and not OLD:
+            # pistol ADS: the firing thumb wrapped down across the grip (straight, it stood up beside the rear sight)
+            a = ads_factor(k, W)
+            if a > 1e-3:
+                rf = dict(fR(k, trig)); rf['thumb'] = tuple(x + (y - x) * a for x, y in zip(rf['thumb'], PTHUMBR_ADS))
         return dict(W=W, rh=rh or grip_r(k, W), lh=lh or grip_l(k, W), rf=rf or fR(k, trig), lf=lf or fL(k), parts=parts or {}, prop=prop, hold=hold)
 
     @clip(k + '.idle', 3.0, loop=True)
@@ -976,6 +988,8 @@ def bake_kind(k, report):
                     if m_.any(): entry = entry + (round(float(E.lerp(Wr, np.linspace(0, 1, 41)[np.argmax(m_)]).y), 3),)   # + eye distance there
                     UA = proj(skin.pose(W, np.array([j for j in ARM_IDS[s_] if skin.dom[j].startswith('upperarm')], int)))
                     UA = UA[(UA[:, 0] >= 0) & (UA[:, 0] <= 1) & (UA[:, 1] >= 0) & (UA[:, 1] <= 1)]
+                    FA = proj(skin.pose(W, ARM_IDS[s_])); FA = FA[(FA[:, 0] >= 0) & (FA[:, 0] <= 1) & (FA[:, 1] >= 0.93) & (FA[:, 1] <= 1)]
+                    log('  BOTTOM', name, s_, 'sleeve at bottom edge x %.3f..%.3f' % ((FA[:, 0].min(), FA[:, 0].max()) if len(FA) else (9, 9)))
                     log('  UPPERARM', name, s_, 'in-frame verts', len(UA), 'top y %.2f' % (UA[:, 1].min() if len(UA) else 9))
                     log('  ARM', name, s_, 'elbow %.0f flex %.0f dev %.0f tw %.0f' % (el_, fl_, dv_, tw_), 'shoulder', tuple(round(v, 3) for v in Sh),
                         'elbow at', tuple(round(v, 3) for v in E), 'wrist', tuple(round(v, 3) for v in Wr), 'forearm x-run %.3f entry' % run, entry,
