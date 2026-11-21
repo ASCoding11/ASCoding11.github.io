@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.41', title: 'Offline mode, rebuilt', kind: 'feature',
+     tags: ['Offline', 'Every game'], items: [
+      'Games load faster again: offline mode now saves files in the background instead of making you wait for them.',
+      'Works with the new game server: online games connect straight to it and are never slowed down by offline mode.',
+      'The installed ascoding11 app and the Projects, Productivity, Engineering and Movi pages now open with no internet too.',
+      'Games you\'ve played on a device still open on it offline; play each one once with internet after this update so it\'s saved again.'
+    ]},
     {date: '2026-11-20', version: '1.40.1', title: 'The app is now called ascoding11', kind: 'fix',
      items: [
       'The installable app is now named ascoding11, under its icon and in its window title. If you already installed it, Chrome updates the name on its own within a day or so.'
