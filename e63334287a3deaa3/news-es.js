@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Movi: rank your movies": "Movi: clasifica tus películas",
+    "Movi is on the site now (Web Development Projects): rank every movie you've seen by picking which of two you liked more, and each one gets a score out of 10.": "Movi ya está en la web (Web Development Projects): clasifica todas las películas que has visto eligiendo cuál de dos te gustó más, y cada una recibe una nota sobre 10.",
+    "Type a list of movies you remember and it matches them to the real films for you, then follow friends to see what they're watching.": "Escribe una lista de las películas que recuerdes y Movi las encuentra por ti; luego sigue a tus amigos para ver qué están viendo.",
+    "Sign in with Google or email. Your Movi account is the same one you use on Movi's own site.": "Inicia sesión con Google o con tu correo. Tu cuenta de Movi es la misma que usas en la web propia de Movi.",
     "Sky Duel: bigger planes": "Sky Duel: aviones más grandes",
     "The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.": "Los aviones de Sky Duel son un poco más grandes (alrededor de un 15%), así que es más fácil verlos y darles. Las balas le dan a lo que ves, tanto en la vista de persecución como en la de cabina.",
     "The briefing room shows your ranked rating, and every online match against another real pilot (free-for-all, duel or 2v2) still counts for your Elo.": "La sala de reunión muestra tu puntuación de ranking, y cada partida en línea contra otro piloto real (todos contra todos, duelo o 2v2) sigue contando para tu Elo.",

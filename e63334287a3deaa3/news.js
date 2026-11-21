@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.36', title: 'Movi: rank your movies', kind: 'feature',
+     tags: ['Movi'], items: [
+      'Movi is on the site now (Web Development Projects): rank every movie you\'ve seen by picking which of two you liked more, and each one gets a score out of 10.',
+      'Type a list of movies you remember and it matches them to the real films for you, then follow friends to see what they\'re watching.',
+      'Sign in with Google or email. Your Movi account is the same one you use on Movi\'s own site.'
+    ]},
     {date: '2026-11-20', title: 'Sky Duel: bigger planes', kind: 'fix',
      tags: ['Sky Duel'], img: 'm/thumbs/sky-duel.jpg', items: [
       'The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.',
