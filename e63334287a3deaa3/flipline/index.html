@@ -624,10 +624,10 @@ function rollback(tr,k){
 function endlessD(x){const u=(x-OPEN_X)/ENDLESS_RAMP;return u<=1?clamp(u,0,1):Math.min(1.5,1+(u-1)*ENDLESS_RAMP/5000)}
 function endless(seed){
   const tr=newTrack('endless');tr.seed=seed>>>0;tr.r=rng(seed);startTrack(tr);
-  // the opening: a little kick at ~26 m (under 3 s), a big kicker over a drop at ~55 m (hold through it and you over-rotate),
-  // a short spike run at ~95 m, a forgiving loop at ~125 m (about 9 s), then at ~170 m a steep launch you can only land by
-  // flipping (a quarter-pipe or a half-pipe, by seed): the first thing that a rider who never flips can't get past
-  build(tr,'kick',[0.9,24,10]);build(tr,'bigkick',[1.8,32,2,10]);build(tr,'spikes',[2.5]);build(tr,'loop',[3.4,10,0,0]);build(tr,(seed&1)?'lpipe':'hpipe',(seed&1)?[3.3,64,9]:[3.2,68,2.9,9]);flush(tr);
+  // the opening: a little kick at ~26 m (under 3 s), a big kicker over a drop at ~45 m (about 4 s; with no arrows the nose drops
+  // and you land on your head), a forgiving loop (in at about 9 s, round by about 10.5 s), a short spike run, then at about 13 s a steep launch
+  // (a quarter-pipe or a half-pipe, by seed) that you have to steer round to land
+  build(tr,'kick',[0.9,24,10]);build(tr,'bigkick',[1.8,32,2,8]);build(tr,'loop',[3.4,6,0,0]);build(tr,'spikes',[2.5]);build(tr,(seed&1)?'lpipe':'hpipe',(seed&1)?[3.3,64,9]:[3.2,68,2.9,9]);flush(tr);
   tr.vs=[vInit(tr,1),vInit(tr,0.85)];vRun(tr,tr.cx,null);tr.snaps=[{x:tr.cx,vs:vCopy(tr.vs)}];return tr;
 }
 const vCopy=vs=>vs.map(v=>Object.assign({},v,{trig:Object.assign({},v.trig)}));
