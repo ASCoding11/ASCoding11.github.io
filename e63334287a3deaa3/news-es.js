@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Coil: our own game server": "Coil: nuestro propio servidor de juego",
+    "Online Coil rooms now run on our own game server in New Jersey, close to New York, instead of the shared database, so other snakes should move more smoothly with less lag.": "Las salas en línea de Coil ahora funcionan en nuestro propio servidor de juego en Nueva Jersey, cerca de Nueva York, en lugar de la base de datos compartida, así que las demás serpientes deberían moverse con más fluidez y menos retraso.",
+    "Nothing changes in how you play: the same room codes, invite links, public arenas, parties and bots.": "Nada cambia en cómo juegas: los mismos códigos de sala, enlaces de invitación, arenas públicas, fiestas y bots.",
+    "More online games will move over once Coil has had a good run.": "Más juegos en línea se pasarán cuando Coil lleve un tiempo funcionando bien.",
     "Flipline: flip with the arrows": "Flipline: gira con las flechas",
     "Flips are on the arrow keys now: hold ← to spin backwards and → to spin forwards, so front flips are a real trick. Space, the up arrow or the mouse is just the gas.": "Ahora los giros van con las flechas: mantén ← para girar hacia atrás y → para girar hacia adelante, así que los mortales hacia adelante son un truco de verdad. Espacio, la flecha arriba o el mouse solo aceleran.",
     "Gravity is on: nobody levels the bike for you in the air any more. A spin keeps going until you stop it and the heavy front end drops the nose, so steer with the arrows to land on your wheels.": "Hay gravedad: ya nadie endereza la moto por ti en el aire. Un giro sigue hasta que lo frenas y el peso de adelante hace caer la trompa, así que corrige con las flechas para aterrizar sobre las ruedas.",

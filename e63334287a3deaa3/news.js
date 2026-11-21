@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.39', title: 'Coil: our own game server', kind: 'feature',
+     tags: ['Coil'], img: 'm/thumbs/coil.jpg', items: [
+      'Online Coil rooms now run on our own game server in New Jersey, close to New York, instead of the shared database, so other snakes should move more smoothly with less lag.',
+      'Nothing changes in how you play: the same room codes, invite links, public arenas, parties and bots.',
+      'More online games will move over once Coil has had a good run.'
+    ]},
     {date: '2026-11-20', version: '1.38', title: 'Flipline: flip with the arrows', kind: 'feature',
      tags: ['Flipline'], img: 'm/thumbs/flipline.jpg', items: [
       'Flips are on the arrow keys now: hold ← to spin backwards and → to spin forwards, so front flips are a real trick. Space, the up arrow or the mouse is just the gas.',
