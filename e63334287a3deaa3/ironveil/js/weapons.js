@@ -349,7 +349,7 @@
           g.bounced++;
           if (g.kind === 'rock' && g.bounced === 1) {
             IV.audio && IV.audio.play('rock', { surf: h.surf, x: g.x, z: g.z });
-            IV.ai && IV.ai.noise(g.x, g.z, T.noise.rockHit, 'rock', P);
+            IV.ai && IV.ai.noise(g.x, g.z, T.noise.rockHit * (0.5 + 0.5 * (T.noise.surface[h.surf] || 1)), 'rock', P);   // a little louder on gravel, wood and stone than in grass
             IV.emit('rockLanded', g);
           } else if (g.kind === 'grenade' && g.bounced < 3) IV.audio && IV.audio.play('clink', { x: g.x, z: g.z });
           if (Math.hypot(g.vx, g.vy, g.vz) < 1.2 && h.ny > 0.5) g.rest = true;

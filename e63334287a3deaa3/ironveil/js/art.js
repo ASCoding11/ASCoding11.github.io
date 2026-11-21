@@ -124,7 +124,7 @@
     const E = env(); if (!E || !E.atmosphere) return null;
     // flashes: lightning on dusk_rain; off when the player has asked for reduced effects (Settings, "Reduced motion")
     const preset = cfg.rain ? 'dusk_rain' : cfg.day ? 'day_overcast' : 'night_moon';
-    const a = E.atmosphere(W.scene, W.renderer, preset, { mistBase: 0, shadows: W.P.shadow > 0, fogMul: W.P.fogMul, flashes: !IV.settings.motion });
+    const a = E.atmosphere(W.scene, W.renderer, preset, { mistBase: 0, shadows: W.P.shadow > 0, fogMul: W.P.fogMul, fogD: cfg.envFog, flashes: !IV.settings.motion });   // cfg.envFog: the map's haze density (exp2), else the preset's
     if (a && a.sun) { W.moonDir.copy(a.sun.position).normalize(); }
     return a;
   };

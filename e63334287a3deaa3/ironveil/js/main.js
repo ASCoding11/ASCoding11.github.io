@@ -55,6 +55,9 @@
     await M.loadWorld(nd, (k, t) => progress(0.45 + k * 0.5, t));
     if (nd.backdrop) nd.backdrop(M);
     W.linearize(W.scene);
+    progress(0.97);
+    await new Promise(r => setTimeout(r, 30));   // let the bar show before the compile
+    W.warmShaders();   // the title's shaders compile under the loading bar, not as a freeze after it reaches 100%
     progress(1, '');
     state = 'menu';
     if (UI.needsGate()) UI.show('gate'); else UI.title();
@@ -89,7 +92,10 @@
     UI.hideAll(); IV.hud.reset(); IV.hud.show(true); IV.hud.objectives();
     IV.touchUI.reset();
     state = 'play'; IV.input.clear(); acc = 0;
-    IV.fp && IV.fp.warm && IV.fp.warm();   // the first-person arms' shaders compiled now, not on the first shot
+    // one frame first (the first-person body switches to its looking-down set), then every shader the mission can
+    // need is built now, before the browser paints again, not as a hitch on the first shot, scope or grenade
+    try { render(1 / 60); } catch (e) {}
+    W.warmShaders();
     if (!IV.touch) IV.input.requestLock(false);
     IV.audio.ambience(W.day ? 'day' : 'night'); IV.audio.music(true);
     $('fade').style.opacity = 0;
