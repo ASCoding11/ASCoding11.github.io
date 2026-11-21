@@ -115,7 +115,7 @@
   const fpHide = { value: 0 };
   let bodyFP = false, maskDone = null;
   function bodyFirstPerson(on) { bodyFP = on; }
-  function hiddenCopy(m) { const c = m.clone(); c.colorWrite = false; c.depthWrite = false; return c; }
+  function hiddenCopy(m) { const c = m.clone(); c.defines = Object.assign({}, m.defines || {}, c.defines || {}); c.colorWrite = false; c.depthWrite = false; return c; }   // defines kept (clone resets them)
   function shadowOnly(obj, on) {
     if (!obj || obj.userData._fpSO === on) return;
     obj.userData._fpSO = on;
@@ -133,8 +133,12 @@
     if (Array.isArray(src)) return src.map(m => maskedMaterial(o, hide, on, m));   // multi-material meshes: each one masked
     const bones = o.skeleton.bones, flags = new Float32Array(Math.max(1, bones.length));
     bones.forEach((b, i) => { flags[i] = hide(b) ? 1 : 0; });
-    const m = src.clone();
-    m.onBeforeCompile = function (sh) {
+    // clone() runs MeshStandardMaterial.copy, which resets defines and does not carry a custom onBeforeCompile (the trap
+    // behind the brown puddle's 'vUv' compile error): keep the source's defines and run its own hook first
+    const m = src.clone(), prevHook = src.hasOwnProperty('onBeforeCompile') ? src.onBeforeCompile : null, prevKey = src.hasOwnProperty('customProgramCacheKey') ? src.customProgramCacheKey : null;
+    m.defines = Object.assign({}, src.defines || {}, m.defines || {});
+    m.onBeforeCompile = function (sh, r) {
+      if (prevHook) prevHook.call(this, sh, r);
       sh.uniforms.fpHide = on; sh.uniforms.fpBones = { value: flags };
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float fpBones[' + flags.length + '];\nvarying float vFpHide;')
         .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  vFpHide = fpBones[int(skinIndex.x)] * skinWeight.x + fpBones[int(skinIndex.y)] * skinWeight.y + fpBones[int(skinIndex.z)] * skinWeight.z + fpBones[int(skinIndex.w)] * skinWeight.w;');
@@ -142,7 +146,7 @@
         .replace('void main() {', 'void main() {\n  if (fpHide > 0.5 && vFpHide > 0.45) discard;');
     };
     let key = 'fpmask'; for (let i = 0; i < flags.length; i++) key += flags[i] ? '1' : '0';
-    m.customProgramCacheKey = () => key;
+    m.customProgramCacheKey = () => key + (prevKey ? '|' + prevKey.call(src) : '');
     return m;
   }
   FP.maskedMaterial = maskedMaterial;
