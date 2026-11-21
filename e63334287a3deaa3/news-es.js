@@ -6,6 +6,8 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "The app is now called ascoding11": "La app ahora se llama ascoding11",
+    "The installable app is now named ascoding11, under its icon and in its window title. If you already installed it, Chrome updates the name on its own within a day or so.": "La app que se puede instalar ahora se llama ascoding11, debajo de su icono y en el título de su ventana. Si ya la habías instalado, Chrome cambia el nombre solo en más o menos un día.",
     "Online games on our own server": "Juegos en línea en nuestro propio servidor",
     "The fast online games now run on our own game server near New York, like Coil: Slipstream, Boostball, Kartwheel, Rumble Karts, Shell Crackers, Backrooms 1v1, Driftfall, Blockstorm, Sky Duel, Hail Mary, Updraft, Spire, Tumble Trials, Turbo Trail, Escapade, Chromaflage, Hush Pools, Putterby, Lokop and Lanternhold.": "Los juegos en línea rápidos ahora funcionan en nuestro propio servidor de juego cerca de Nueva York, como Coil: Slipstream, Boostball, Kartwheel, Rumble Karts, Shell Crackers, Backrooms 1v1, Driftfall, Blockstorm, Sky Duel, Hail Mary, Updraft, Spire, Tumble Trials, Turbo Trail, Escapade, Chromaflage, Hush Pools, Putterby, Lokop y Lanternhold.",
     "Other players should move more smoothly, with less lag and fewer jumps.": "Los demás jugadores deberían moverse con más fluidez, con menos retraso y menos saltos.",

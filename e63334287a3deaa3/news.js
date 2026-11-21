@@ -85,6 +85,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.40.1', title: 'The app is now called ascoding11', kind: 'fix',
+     items: [
+      'The installable app is now named ascoding11, under its icon and in its window title. If you already installed it, Chrome updates the name on its own within a day or so.'
+    ]},
     {date: '2026-11-20', version: '1.40', title: 'Online games on our own server', kind: 'feature',
      items: [
       'The fast online games now run on our own game server near New York, like Coil: Slipstream, Boostball, Kartwheel, Rumble Karts, Shell Crackers, Backrooms 1v1, Driftfall, Blockstorm, Sky Duel, Hail Mary, Updraft, Spire, Tumble Trials, Turbo Trail, Escapade, Chromaflage, Hush Pools, Putterby, Lokop and Lanternhold.',
