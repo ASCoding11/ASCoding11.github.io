@@ -169,6 +169,7 @@
     IV.ally.frame(alpha, dt);
     IV.ambience && IV.ambience.frame(dt);
     const I = IV.input;
+    I.edgeTurn(dt);
     if (I.dx || I.dy) { IV.camera.look(I.dx, I.dy, false); I.dx = I.dy = 0; }
     IV.camera.frame(dt);
     IV.weapons.frame();
