@@ -85,6 +85,20 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.38', title: 'Flipline: flip with the arrows', kind: 'feature',
+     tags: ['Flipline'], img: 'm/thumbs/flipline.jpg', items: [
+      'Flips are on the arrow keys now: hold ← to spin backwards and → to spin forwards, so front flips are a real trick. Space, the up arrow or the mouse is just the gas.',
+      'Gravity is on: nobody levels the bike for you in the air any more. A spin keeps going until you stop it and the heavy front end drops the nose, so steer with the arrows to land on your wheels.',
+      'On the ground the arrows pop a wheelie or lean you over the bars.',
+      'On a phone, two round buttons in the bottom-left corner spin you back and forward; touch anywhere else for gas.',
+      'Every level can still be finished with all three medals. Level ghosts saved before today can\'t replay with the new controls, so your next finish of each level saves a new one (your best times stay).'
+    ]},
+    {date: '2026-11-20', version: '1.37', title: 'Install the site as an app', kind: 'feature',
+     items: [
+      'You can now install the site as an app in Chrome (and Edge, and Chrome on Android): open the home page and click Install app under the intro, or the install icon at the right of the address bar.',
+      'It opens in its own window with its own icon, like any other app on your computer, and you can pin it to the taskbar or dock.',
+      'Everything works the same inside it: sign in, the Back Room code, online games and offline play.'
+    ]},
     {date: '2026-11-20', version: '1.36', title: 'Movi: rank your movies', kind: 'feature',
      tags: ['Movi'], items: [
       'Movi is on the site now (Web Development Projects): rank every movie you\'ve seen by picking which of two you liked more, and each one gets a score out of 10.',
