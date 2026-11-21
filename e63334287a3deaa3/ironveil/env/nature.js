@@ -588,7 +588,7 @@
   let pudMatB = null;
   E.puddleMaterialBrown = function () {
     if (pudMatB) return pudMatB;
-    const m = E.puddleMaterial().clone(); m.color.setHex(0x2a2012); m.roughness = 0.16; m.envMapIntensity = 0.3; m.onBeforeCompile = E.puddleMaterial().onBeforeCompile; m.customProgramCacheKey = () => 'ivpuddle';
+    const m = E.puddleMaterial().clone(); m.defines = { USE_UV: '' }; m.color.setHex(0x2a2012); m.roughness = 0.16; m.envMapIntensity = 0.3; m.onBeforeCompile = E.puddleMaterial().onBeforeCompile; m.customProgramCacheKey = () => 'ivpuddle';
     m.userData.linear = true; pudMatB = m; return m;
   };
   E.puddleMesh = function (list, opts) {

@@ -165,15 +165,20 @@
         let workers = [];
         const nW = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1, todo.length));
         try { if (location.protocol.startsWith('http')) for (let i = 0; i < nW; i++) workers.push(new Worker(BASE + 'texgen.js')); } catch (e) { workers = []; }
-        let left = todo.length;
-        const doneOne = (j, r) => { store(j, r); finishOne(r); if (--left === 0) { workers.forEach(w => w.terminate()); build(); E.genMs = performance.now() - t0; resolve(E); } };
-        if (!workers.length) { // main thread, yielding between materials so the page can draw a progress bar
-          let i = 0; const step = () => { if (i >= todo.length) return; const j = todo[i++], s = performance.now(), r = IVEnvTexGen.generate(j.name, j.S, j.seed); r.name = j.name; r.ms = performance.now() - s; doneOne(j, r); setTimeout(step, 0); };
-          return step();
-        }
+        let left = todo.length; const got = new Set();
+        const doneOne = (j, r) => { if (got.has(j)) return; got.add(j); store(j, r); finishOne(r); if (--left === 0) { workers.forEach(w => w.terminate()); build(); E.genMs = performance.now() - t0; resolve(E); } };
+        // main thread, yielding between materials so the page can draw a progress bar
+        const onMain = () => { const rest = todo.filter(j => !got.has(j)); let i = 0; const step = () => { if (i >= rest.length) return; const j = rest[i++], s = performance.now(), r = IVEnvTexGen.generate(j.name, j.S, j.seed); r.name = j.name; r.ms = performance.now() - s; doneOne(j, r); setTimeout(step, 0); }; step(); };
+        if (!workers.length) return onMain();
+        // A worker that can't start (its script blocked by a school web filter or extension, a network error) used to
+        // leave the loader waiting forever at "Loading soldiers… 45%". If any worker fails, or none has answered
+        // within 15 s, stop the workers and make the remaining maps here on the main thread instead.
+        let fellBack = false, heard = false;
+        const fallBack = (why) => { if (fellBack || !left) return; fellBack = true; console.warn('IVEnv: texture workers failed (' + why + '), generating on the main thread'); workers.forEach(w => w.terminate()); workers = []; onMain(); };
+        setTimeout(() => { if (!heard) fallBack('no answer in 15 s'); }, 15000);
         let next = 0;
         const feed = (w) => { if (next < todo.length) { w.postMessage(todo[next++]); } };
-        workers.forEach(w => { w.onmessage = (e) => { doneOne(todo[e.data.job], e.data); feed(w); }; feed(w); });
+        workers.forEach(w => { w.onmessage = (e) => { heard = true; if (fellBack) return; doneOne(todo[e.data.job], e.data); feed(w); }; w.onerror = (e) => { fallBack((e && e.message) || 'worker error'); }; feed(w); });
       };
       if (!db) return run(jobs.map((j, i) => Object.assign(j, { job: i })));
       Promise.all(jobs.map(j => idbGet(db, keyOf(j)))).then(hits => {
