@@ -6,6 +6,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Online games on our own server": "Juegos en línea en nuestro propio servidor",
+    "The fast online games now run on our own game server near New York, like Coil: Slipstream, Boostball, Kartwheel, Rumble Karts, Shell Crackers, Backrooms 1v1, Driftfall, Blockstorm, Sky Duel, Hail Mary, Updraft, Spire, Tumble Trials, Turbo Trail, Escapade, Chromaflage, Hush Pools, Putterby, Lokop and Lanternhold.": "Los juegos en línea rápidos ahora funcionan en nuestro propio servidor de juego cerca de Nueva York, como Coil: Slipstream, Boostball, Kartwheel, Rumble Karts, Shell Crackers, Backrooms 1v1, Driftfall, Blockstorm, Sky Duel, Hail Mary, Updraft, Spire, Tumble Trials, Turbo Trail, Escapade, Chromaflage, Hush Pools, Putterby, Lokop y Lanternhold.",
+    "Other players should move more smoothly, with less lag and fewer jumps.": "Los demás jugadores deberían moverse con más fluidez, con menos retraso y menos saltos.",
+    "Nothing changes in how you play: the same room codes, invite links, Quick match, parties, bots, ratings and leaderboards.": "Nada cambia en cómo juegas: los mismos códigos de sala, enlaces de invitación, partida rápida, fiestas, bots, puntuaciones y clasificaciones.",
+    "Card, word and puzzle games stay as they were.": "Los juegos de cartas, de palabras y de rompecabezas siguen como estaban.",
     "Coil: our own game server": "Coil: nuestro propio servidor de juego",
     "Online Coil rooms now run on our own game server in New Jersey, close to New York, instead of the shared database, so other snakes should move more smoothly with less lag.": "Las salas en línea de Coil ahora funcionan en nuestro propio servidor de juego en Nueva Jersey, cerca de Nueva York, en lugar de la base de datos compartida, así que las demás serpientes deberían moverse con más fluidez y menos retraso.",
     "Nothing changes in how you play: the same room codes, invite links, public arenas, parties and bots.": "Nada cambia en cómo juegas: los mismos códigos de sala, enlaces de invitación, arenas públicas, fiestas y bots.",

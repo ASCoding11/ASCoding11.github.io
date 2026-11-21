@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-20', version: '1.40', title: 'Online games on our own server', kind: 'feature',
+     items: [
+      'The fast online games now run on our own game server near New York, like Coil: Slipstream, Boostball, Kartwheel, Rumble Karts, Shell Crackers, Backrooms 1v1, Driftfall, Blockstorm, Sky Duel, Hail Mary, Updraft, Spire, Tumble Trials, Turbo Trail, Escapade, Chromaflage, Hush Pools, Putterby, Lokop and Lanternhold.',
+      'Other players should move more smoothly, with less lag and fewer jumps.',
+      'Nothing changes in how you play: the same room codes, invite links, Quick match, parties, bots, ratings and leaderboards.',
+      'Card, word and puzzle games stay as they were.'
+    ]},
     {date: '2026-11-20', version: '1.39', title: 'Coil: our own game server', kind: 'feature',
      tags: ['Coil'], img: 'm/thumbs/coil.jpg', items: [
       'Online Coil rooms now run on our own game server in New Jersey, close to New York, instead of the shared database, so other snakes should move more smoothly with less lag.',
