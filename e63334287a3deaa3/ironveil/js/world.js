@@ -65,7 +65,8 @@
   // 900 ms (single frames over 1.5 s, i.e. loading hitches, are ignored); nothing happens for 3.5 s after a level is
   // ready or for 1 s after any change. Over 36 ms: first the parallax goes (IV.dropParallax, once), then the internal
   // resolution steps down (-0.1; -0.2 over 45 ms; straight to 0.6 over 60 ms) and, at 0.6 and still over 40 ms on two
-  // checks, the grass rings shrink. Under 24 ms (room for the next step's ~20-40 % more pixels) it steps back up by 0.1,
+  // checks, the grass rings shrink. When the next step up is predicted to stay under 33 ms (about 60 % of a frame scales
+  // with the pixel count) it steps back up by 0.1,
   // but each drop doubles the wait before the next rise (4 s, 8 s ... capped at 60 s), so it settles instead of
   // flipping. Only the post stack's internal buffers change size (the canvas stays native, the composite upsamples with
   // a light sharpen); on Low (no post) the renderer's pixel ratio changes, at most every 4 s.
@@ -106,7 +107,9 @@
       return;
     }
     G.slowAtMin = 0;
-    if (G.ms < 24 && G.scale < 1 && t - G.lastDrop > G.upWait && (W.post || t - G.lowAt > 4)) { govApply(Math.min(1, G.scale + 0.1), 'up'); G.wait = t + 2; }
+    // up: only when the next step is predicted to stay under 33 ms (about 60 % of a frame scales with pixels)
+    const ns = Math.min(1, G.scale + 0.1), pred = G.ms * (1 + 0.6 * ((ns / G.scale) ** 2 - 1));
+    if (G.scale < 1 && pred < 33 && t - G.lastDrop > G.upWait && (W.post || t - G.lowAt > 4)) { govApply(ns, 'up'); G.wait = t + 2; }
   };
   W.resize = function () {
     const w = innerWidth, h = innerHeight;
