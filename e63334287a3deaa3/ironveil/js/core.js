@@ -3,6 +3,14 @@
 (function () {
   'use strict';
   const IV = window.IV = { V: 1 };
+  // Always-on health globals for automated checks and bug reports: window.__errors (uncaught errors, rejected
+  // promises and every console.error, newest last, capped), __frames (frames drawn), __ready (boot finished, the
+  // title is up), __fatal (boot failed: { message, stack }).
+  window.__errors = []; window.__frames = 0; window.__ready = false; window.__fatal = null;
+  const pushErr = (kind, msg) => { const l = window.__errors; if (l.length >= 100) l.shift(); l.push({ t: +(performance.now() / 1000).toFixed(2), kind, msg: String(msg).slice(0, 2000) }); };
+  addEventListener('error', e => pushErr('error', (e.message || 'error') + (e.filename ? ' ' + e.filename.split('/').pop() + ':' + e.lineno : '') + (e.error && e.error.stack ? '\n' + e.error.stack : '')));
+  addEventListener('unhandledrejection', e => pushErr('rejection', e.reason && (e.reason.stack || e.reason.message) || e.reason));
+  { const ce = console.error.bind(console); console.error = function () { try { pushErr('console', Array.prototype.map.call(arguments, a => a && a.stack ? a.stack : typeof a === 'object' ? (() => { try { return JSON.stringify(a); } catch (x) { return String(a); } })() : String(a)).join(' ')); } catch (x) {} return ce.apply(console, arguments); }; }
   // The game's display name, in ONE place (the owner may still change it). The folder, the IVChars API and the
   // 'ironveil:*' storage keys keep the working title on purpose.
   IV.GAME_NAME = 'Midnight Ops';
