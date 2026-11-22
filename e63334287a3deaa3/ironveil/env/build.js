@@ -798,6 +798,7 @@
   // spec.rugged (0..1, default 0 = none; IVEnv.settle passes opts.rugged) picks how many. Extra footprints are returned
   // as building.extraFoot [{ x, z, hx, hz, h }] (local) so a settlement gives them colliders and shells.
   function mergeB(B, B2, x, z, rot, y) {
+    if (B2.flushPending) B2.flushPending();   // (wall quads held back for the baked wear)
     const c = Math.cos(rot), s = Math.sin(rot); y = y || 0;
     for (const k in B2.buckets) {
       const src = B2.buckets[k], dst = B.buckets[k] || (B.buckets[k] = { p: [], n: [], u: [], a: [], i: [] }), base = dst.p.length / 3;
@@ -983,6 +984,7 @@
     if (kind === 'farmhouse' || kind === 'cottage' || kind === 'church' || kind === 'barn') {
       const lx = R.range(-0.008, 0.008), lz = R.range(-0.006, 0.006), bul = R.range(0.02, 0.045), H = Math.max(2, (S.roofTop || 6) * 0.7), w = spec.w || 10, d = spec.d || 8;
       const D2 = kind === 'barn' ? w / 2 : d / 2, W2 = kind === 'barn' ? d / 2 : w / 2;
+      if (B.flushPending) B.flushPending();
       for (const k in B.buckets) { const p = B.buckets[k].p; for (let i = 0; i < p.length; i += 3) { const y = p[i + 1]; if (y <= 0.05) continue; p[i] += lx * y; p[i + 2] += lz * y; if (Math.abs(Math.abs(p[i + 2]) - D2) < 0.8 && y < H) p[i + 2] += Math.sign(p[i + 2]) * bul * Math.sin(Math.PI * y / H) * Math.cos(Math.PI * 0.5 * E.clamp(p[i] / W2, -1, 1)); } }
     }
     if (spec.rugged && kind !== 'church' && kind !== 'ruin' && kind !== 'bunker' && kind !== 'hut' && kind !== 'office') rugged(B, S, spec, kind);
@@ -992,6 +994,7 @@
   E.building = function (spec0) {
     const { B, S, kind, group } = buildParts(spec0);
     // a settled building is one closed box (no interior to walk into): drop the inner faces, floors and furniture
+    if (B.flushPending) B.flushPending();
     if (spec0 && spec0.closed) for (const k in B.buckets) if (/^(plaster_interior|floorboards|straw)(#d)?$/.test(k) || (k.endsWith('#d') && /^(wood_painted|timber|planks)#d$/.test(k) && S.interior)) delete B.buckets[k];
     const g = B.finish(); group.add(g);
     group.name = 'IVEnv.building:' + kind; group.userData.kind = kind;
@@ -1004,6 +1007,7 @@
   // touched): walls a little out of plumb with a slow wobble, a bulge mid-height, wall tops that wander, a swaybacked
   // roof that sags between the gables and droops at one end. Coordinates are relative to (cx, cz) (default 0, 0).
   E.ageMesh = function (B, o) {
+    if (B.flushPending) B.flushPending();
     const R = E.rng((o.seed || 1) * 31 + 7), a = o.amount == null ? 1 : o.amount, cx = o.cx || 0, cz = o.cz || 0, rot = o.rot || 0, c = Math.cos(rot), s = Math.sin(rot);
     const lx = R.range(-0.024, 0.024) * a, lz = R.range(-0.018, 0.018) * a, ph = R() * 9, sag = R.range(0.08, 0.18) * a, droop = R.range(-0.14, 0.14) * a, ridge = o.ridge || 1e9, cl = R.range(-0.09, 0.09) * a, cl2 = R.range(-0.07, 0.07) * a, W2 = Math.max(o.w || 8, o.d || 6) / 2, eave = o.eave || 4, base = o.y0 || 0;
     for (const k in B.buckets) {

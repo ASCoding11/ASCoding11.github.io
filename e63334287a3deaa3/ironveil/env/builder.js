@@ -273,6 +273,8 @@
       this.wearTris = (this.wearTris || 0) + (V.length - 1) * (nu - 1) * 2 - 2;
     }
   };
+  // anything that edits or merges the buckets before finish() (mergeB, ageMesh, the lean pass) flushes first
+  P.flushPending = function () { if (this.pend && this.pend.length) this.flushWear(); };
   P.finish = function (o) {
     o = o || {};
     if (this.pend) this.flushWear();
