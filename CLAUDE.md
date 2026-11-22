@@ -31,7 +31,7 @@ When adding a game:
 
 ## Skills
 
-`.claude/skills/` has this repo's own skills (game-graphics, game-performance, war-game-series) and general game-dev skills copied from awesome-gamedev-agent-skills (see `.claude/gamedev-skills/README.md`): game feel, UI/UX, input, physics tuning, save systems, audio, cameras, AI, procedural generation, level design, shaders and genre guides. Use them, but the general ones often show Godot or Unity code: translate the idea to this site's plain JavaScript and three.js r128, and where they disagree with this file or the repo's own skills, this file and the repo's own skills win.
+`.claude/skills/` has this repo's own skills (game-graphics, game-performance, war-game-series) and all the game-dev skills from awesome-gamedev-agent-skills (see `.claude/gamedev-skills/README.md`), including engines and workflows the site doesn't use yet, for later projects. Use them, but the general ones often show Godot or Unity code: translate the idea to this site's plain JavaScript and three.js, and where they disagree with this file or the repo's own skills, this file and the repo's own skills win. The three.js skills target r187 with ES modules; follow them only for pages that have moved to r187.
 
 ## Rules
 
