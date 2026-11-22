@@ -324,6 +324,7 @@
     if (!W.atm) sky(cfg);
     // IVEnv's post stack (sharpening, grading, bloom...) on Medium and High
     W.post = IV.art.envOn() && window.IVEnv.post ? window.IVEnv.post(W.renderer, W.scene, W.camera, ['low', 'medium', 'high'][W.quality]) : null;
+    if (W.post && W.post.setCap) W.post.setCap(true);   // the per-tier pixel cap is this game's choice (the post stack is shared)
     W.govStart();
     terrain(cfg);
   };

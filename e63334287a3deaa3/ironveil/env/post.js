@@ -86,15 +86,17 @@
     };
     let W = 4, H = 4, scale = 1, lastW = innerWidth, lastH = innerHeight;
     // pixel cap per tier (megapixels of the internal buffers): a big high-DPI screen is drawn at the cap and upsampled
-    const CAP = { low: 1.0, medium: 1.5, high: 2.3 }[Q.name] * 1e6;
+    // Off until setCap(true): Midnight Ops turns it on; any other game using this post stack keeps its own resolution.
+    const CAP = ({ low: 1.0, medium: 1.5, high: 2.3 }[Q.name] || 2.3) * 1e6; let capOn = false;
     const api = {
       params: P,
       // the frame-time governor's resolution scale (0.5..1) for the internal buffers only; the canvas stays native
       setScale(s) { scale = Math.max(0.4, Math.min(1, s)); api.setSize(lastW, lastH); return api.scale; },
+      setCap(on) { capOn = !!on; api.setSize(lastW, lastH); },
       get scale() { return W / Math.max(1, Math.floor(lastW * renderer.getPixelRatio())); },
       setSize(w, h) {
         lastW = w; lastH = h;
-        const pr0 = renderer.getPixelRatio(), cap = Math.min(1, Math.sqrt(CAP / Math.max(1, w * pr0 * h * pr0))), pr = pr0 * Math.min(scale, cap);
+        const pr0 = renderer.getPixelRatio(), cap = capOn ? Math.min(1, Math.sqrt(CAP / Math.max(1, w * pr0 * h * pr0))) : 1, pr = pr0 * Math.min(scale, cap);
         W = Math.max(4, Math.floor(w * pr)); H = Math.max(4, Math.floor(h * pr));
         P.uSharp.value = pr < pr0 * 0.97 ? Math.min(0.35, (1 - pr / pr0) * 0.9) : 0;
         rtScene.setSize(W, H); half.setSize(W >> 1, H >> 1); qa.setSize(W >> 2, H >> 2); qb.setSize(W >> 2, H >> 2); ea.setSize(W >> 3, H >> 3); eb.setSize(W >> 3, H >> 3);
