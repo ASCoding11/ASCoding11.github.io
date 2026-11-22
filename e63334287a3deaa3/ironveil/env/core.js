@@ -123,7 +123,7 @@
   // (brick, plaster, stone, raw wood, concrete) soak and darken; sealed ones (paint, metal, glass, slate) barely
   // darken but go glossy, with beads. interior: inside a building, only 12 % of the weather reaches it.
   const WETR = { brick_red: [0.42, 0.55, 0], brick_sooty: [0.4, 0.55, 0], fieldstone: [0.34, 0.5, 0], ashlar: [0.38, 0.5, 0], plaster: [0.4, 0.6, 0],
-    planks: [0.32, 0.55, 0], timber: [0.3, 0.55, 0], floorboards: [0.3, 0.55, 0], roof_tile: [0.36, 0.45, 0], slate: [0.12, 0.3, 0.6], cobbles: [0.3, 0.4, 0.3],
+    planks: [0.32, 0.55, 0], timber: [0.3, 0.55, 0], floorboards: [0.3, 0.55, 0], roof_tile: [0.36, 0.45, 0], slate: [0.12, 0.42, 0.4], cobbles: [0.3, 0.4, 0.3],
     concrete: [0.42, 0.55, 0], sandbag: [0.38, 0.7, 0], canvas: [0.4, 0.7, 0], straw: [0.3, 0.8, 0], metal_painted: [0.06, 0.25, 1], metal_rust: [0.18, 0.4, 0.3],
     wood_painted: [0.08, 0.28, 1], glass: [0.0, 0.3, 1], bark_oak: [0.35, 0.6, 0], bark_pine: [0.35, 0.6, 0] };
   for (const k in WETR) if (E.RECIPES[k]) E.RECIPES[k].wet = WETR[k];

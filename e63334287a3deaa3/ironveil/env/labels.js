@@ -31,8 +31,10 @@
     const c0 = document.createElement('canvas').getContext('2d'); c0.font = font;
     const tw = Math.max(...lines.map(l => c0.measureText(l).width)), lh = S * 1.12;
     const padX = kind === 'enamel' ? S * 0.55 : kind === 'carved' ? S * 0.5 : S * 0.3, padY = kind === 'enamel' ? S * 0.45 : S * 0.3;
-    const W = Math.ceil(Math.min(640, tw + padX * 2)), H = Math.ceil(lh * lines.length + padY * 2);
+    let W = Math.ceil(Math.min(640, tw + padX * 2)), H = Math.ceil(lh * lines.length + padY * 2);
     const sx = Math.min(1, (640 - padX * 2) / tw);
+    // style.aspect: the label must fill a board of that shape (width / height): pad the canvas to it
+    if (st.aspect) { if (W / H < st.aspect) W = Math.min(1024, Math.ceil(H * st.aspect)); else H = Math.ceil(W / st.aspect); }
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
     // ground: enamel plate (rounded, bordered), a painted board, a stone face, or nothing (paint straight on the wall)
     if (st.ground) {
@@ -43,7 +45,8 @@
       if (kind === 'paint' || kind === 'carved') { const id = g.getImageData(0, 0, W, H), d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (R() - 0.5) * (kind === 'carved' ? 34 : 18), gr = kind === 'paint' ? Math.sin((i / 4 % W) * 0.05 + ((i / 4 / W) | 0) * 0.9) * 6 : 0; d[i] += n + gr; d[i + 1] += n + gr; d[i + 2] += n + gr; } g.putImageData(id, 0, 0); }
     }
     // the letters
-    g.save(); g.translate(W / 2, padY + lh / 2); g.scale(sx, 1);
+    const ty = (H - lh * lines.length) / 2;
+    g.save(); g.translate(W / 2, ty + lh / 2); g.scale(sx, 1);
     g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
     lines.forEach((l, i) => {
       const y = i * lh;
@@ -55,7 +58,7 @@
     if (kind === 'stencil') {
       g.save(); g.globalCompositeOperation = 'destination-out'; g.font = font;
       lines.forEach((l, i) => {
-        let x = W / 2 - c0.measureText(l).width * sx / 2; const y = padY + i * lh;
+        let x = W / 2 - c0.measureText(l).width * sx / 2; const y = ty + i * lh;
         for (const ch of l) { const cw = c0.measureText(ch).width * sx; if (ch !== ' ' && !/[.\-]/.test(ch)) { g.fillRect(x + cw * 0.47, y + lh * 0.12, Math.max(2, S * 0.06), lh * 0.76); if (/[BDOPQR0689AE]/.test(ch)) g.fillRect(x, y + lh * 0.48, cw, Math.max(2, S * 0.05)); } x += cw; }
       });
       g.restore();

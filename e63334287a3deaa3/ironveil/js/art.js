@@ -96,7 +96,7 @@
     const E = env(); if (!E || !E.builder) return;
     safe(() => {
       const B = E.builder(seed()), y = H(x, z), c = Math.cos(rot || 0), s = Math.sin(rot || 0);
-      B.box('ashlar', x, y - 0.15, z, 0.42, 0.78, 0.24, rot || 0, { foot: y, tint: new THREE.Color(0.95, 0.93, 0.88), bevel: 0.03 });
+      B.box('ashlar', x, y - 0.15, z, 0.42, 0.78, 0.24, rot || 0, { foot: y, tint: new THREE.Color(1.55, 1.53, 1.46), bevel: 0.03 });   // whitewashed, like the real kind
       B.box('wood_painted', x, y + 0.6, z, 0.44, 0.07, 0.26, rot || 0, { noFoot: true, tint: new THREE.Color(1.6, 0.42, 0.3), bevel: 0.02 });   // the red-painted cap
       B.label(text, { kind: 'carved', color: 'rgba(30,28,26,0.95)', ground: null, distress: 0.4, size: 56 }, [x + s * 0.121, y + 0.36, z + c * 0.121], [s, 0, c], 0.36);
       const g = B.finish(); g.name = 'IVEnv.kmstone'; root().add(g);
@@ -108,8 +108,9 @@
     if (!E.labels || !E.label) { pendSigns.length = 0; return; }
     const v = new THREE.Vector3(), n = new THREE.Vector3(), nm = new THREE.Matrix3();
     // labels carried by builder groups (local space): to world
-    W.envRoot.updateMatrixWorld(true);
-    W.envRoot.traverse(o => { const ls = o.userData && o.userData.labels; if (!ls) return; nm.getNormalMatrix(o.matrixWorld);
+    const roots = [W.envRoot].concat(A._settled || []);
+    for (const rt of roots) rt.updateMatrixWorld(true);
+    for (const rt of roots) rt.traverse(o => { const ls = o.userData && o.userData.labels; if (!ls) return; nm.getNormalMatrix(o.matrixWorld);
       for (const l of ls) { v.fromArray(l.p).applyMatrix4(o.matrixWorld); n.fromArray(l.n).applyMatrix3(nm).normalize(); E.labels.place(E.label(l.text, l.style), [v.x, v.y, v.z], [n.x, n.y, n.z], l.w, l.o); }
       o.userData.labels = null; });
     return v;
@@ -124,7 +125,9 @@
       rc.set(o, d); rc.far = len * 1.6; rc.camera = W.camera;   // (lamp-glow sprites need the camera to be ray-tested)
       const hits = rc.intersectObjects(targets, true).filter(h => h.object.isMesh && h.face && !/ground|glass/.test(h.object.name) && !(h.object.material && h.object.material.transparent));
       if (!hits.length) continue;
-      const h = hits[0]; nm.getNormalMatrix(h.object.matrixWorld); const N = h.face.normal.clone().applyMatrix3(nm).normalize(); if (N.dot(d) > 0) N.negate();
+      let h = null, N = null;
+      for (const c of hits) { nm.getNormalMatrix(c.object.matrixWorld); const n2 = c.face.normal.clone().applyMatrix3(nm).normalize(); if (n2.dot(d) > 0) n2.negate(); if (Math.abs(n2.y) < 0.35) { h = c; N = n2; break; } }   // walls only (not an eave, a sill top or a roof)
+      if (!h) continue;
       E.labels.place(E.label(sg.text, sg.style), [h.point.x, h.point.y, h.point.z], [N.x, N.y, N.z], sg.width, Object.assign({ off: 0.012 }, sg.o)); hit++;
     }
     A.signsPlaced = hit + '/' + pendSigns.length; pendSigns.length = 0;

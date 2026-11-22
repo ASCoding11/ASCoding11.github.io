@@ -517,8 +517,9 @@
       for (let f = 1; f < floors; f++) for (const c of [uw * 0.27, uw * 0.73]) front.push({ a0: c - 0.45, a1: c + 0.45, y0: f * storey + 0.9, y1: f * storey + 2.2, lit: R() < (sp.lit || 0) * 0.6, broken: R() < sp.damage * 0.5, shutters: plaster });
       const r = house(Bu, Su, { w: uw, d, T, floors, storey, out: plaster ? 'plaster' : (R() < 0.3 ? 'brick_sooty' : 'brick_red'), in: 'plaster_interior', roof: R() < 0.6 ? 'slate' : 'roof_tile', head: plaster ? 'lintel' : 'arch', doorHead: 'timber', front, back: bays(uw, 2, storey + 0.9, storey + 2.1, { w: 0.8 }), left: [], right: [], pitch: 0.7 + R() * 0.15, quoins: plaster, sag: 0.03 + R() * 0.05, gableOver: 0.02, over: 0.3 });
       // fascia sign with a painted name (invented shop words only)
-      const sign = signMesh(NAMES[(S.seed + i * 3) % NAMES.length], uw - 0.5, 0.58, Su.R);
-      sign.position.set(ox, 2.6, d / 2 + 0.06); S.group.add(sign);
+      // (one label atlas when env/labels.js is loaded: the board is part of the level's single label draw call)
+      if (E.label) Bu.label(NAMES[(S.seed + i * 3) % NAMES.length], { kind: 'paint', ground: '#2c3a33', color: '#e8dcb4', distress: 0.35, size: 72, aspect: (uw - 0.5) / 0.58 }, [0, 2.6, d / 2 + 0.056], [0, 0, 1], uw - 0.5);
+      else { const sign = signMesh(NAMES[(S.seed + i * 3) % NAMES.length], uw - 0.5, 0.58, Su.R); sign.position.set(ox, 2.6, d / 2 + 0.06); S.group.add(sign); }
       Bu.box('timber', 0, 2.55, d / 2 + 0.02, uw - 0.4, 0.62, 0.06, 0, { grain: 'long', tint: new THREE.Color(0.55, 0.5, 0.45) });
       chimney(Bu, Su, uw / 2 - 0.35, -1, r.wallH - 1, r.ridge + 1.0, true);
       const g = Bu.finish(); g.position.x = ox; S.group.add(g);
@@ -950,7 +951,7 @@
     B.box('concrete', ex + 0.85, 0, 0, 0.36, 0.15, 1.4, 0, { tint: tintJ(R, 0.05, 0xb0aca4) });
     B.decal('mud', [ex + 0.7, 0.31, 0], [0, 1, 0], 0.8, 1.1, 0); B.decal('chipped', [ex + 1.03, 0.08, 0], [1, 0, 0], 1.2, 0.2, 0);
     // number board beside the door
-    if (sp.num != null) { try { const sg = signMesh(String(sp.num), 0.42, 0.32, R); sg.position.set(ex + 0.2, dy + 1.65, 0.95); sg.rotation.y = Math.PI / 2; S.group.add(sg); B.box('timber', ex + 0.18, dy + 1.47, 0.95, 0.02, 0.38, 0.48, 0, {}); } catch (e) {} }
+    if (sp.num != null) { try { if (E.label) B.label(String(sp.num), { kind: 'paint', ground: '#2c3a33', color: '#e8dcb4', distress: 0.3, size: 72, aspect: 0.42 / 0.32 }, [ex + 0.2, dy + 1.65, 0.95], [1, 0, 0], 0.42); else { const sg = signMesh(String(sp.num), 0.42, 0.32, R); sg.position.set(ex + 0.2, dy + 1.65, 0.95); sg.rotation.y = Math.PI / 2; S.group.add(sg); } B.box('timber', ex + 0.18, dy + 1.47, 0.95, 0.02, 0.38, 0.48, 0, {}); } catch (e) {} }
     // stove pipe through the roof (with a collar and a cap), soot on the roof round it
     const rise = d / 2 * Math.tan(0.42), sx = -w / 2 + 2.0 + R() * 1.0, sz = R() < 0.5 ? -0.8 : 0.8;
     const py = lift + storey + rise * (1 - Math.abs(sz) / (d / 2)) - 0.1;

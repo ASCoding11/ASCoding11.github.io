@@ -219,8 +219,8 @@
       const fx = Math.sin(sp.rot), fz = Math.cos(sp.rot), lx = Math.cos(sp.rot), lz = -Math.sin(sp.rot), half = (sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2, y = gy(sp.x, sp.z);
       const from = (lat, up, out) => [sp.x + fx * (half + (out || 3.5)) + lx * lat, y + up, sp.z + fz * (half + (out || 3.5)) + lz * lat], to = (lat, up) => [sp.x + lx * lat, y + up, sp.z + lz * lat];
       if (sp.kind !== 'shed' && sp.kind !== 'barn') { const n = sp.x > 1 ? odd : even; if (sp.x > 1) odd += 2; else even += 2; A.sign(String(n), plate, from(1.1, 2.25), to(1.1, 2.25), 0.17); }
-      if (sp.kind === 'shoprow') { A.sign('CAFÉ DE LA HALTE', { kind: 'paint', ground: '#2a3827', color: '#ddd2ad', distress: 0.45, size: 72 }, from(0, 3.05), to(0, 3.05), 3.1); A.sign('VINS  -  TABAC', { kind: 'paint', ground: null, color: 'rgba(225,215,190,0.82)', distress: 0.55, size: 64 }, from(-2.6, 2.6), to(-2.6, 2.6), 1.6); }
-      if (sp.kind === 'barn' && sp.x < 0) A.sign('AMER PICOREL\nL\'APÉRITIF DU SOIR', { kind: 'gable', ground: null, color: 'rgba(226,214,184,0.78)', distress: 0.62, size: 96 }, from(0, 3.3, 3), to(0, 3.3), 5.2);
+      if (sp.kind === 'shoprow') { A.sign('CAFÉ DE LA HALTE', { kind: 'paint', ground: '#2a3827', color: '#ddd2ad', distress: 0.45, size: 72 }, from(0, 3.05), to(0, 3.05), 3.1); }
+      if (sp.kind === 'barn' && sp.x < 0) A.sign('AMER PICOREL\nL\'APÉRITIF DU SOIR', { kind: 'gable', ground: null, color: 'rgba(232,222,194,0.9)', distress: 0.48, size: 96 }, from(0, 3.3, 3), to(0, 3.3), 5.2);
     }
     // the street name on the first cottage, the village board at the south end, the stones and the fingerpost
     A.sign('RUE DE L\'ÉGLISE', Object.assign({}, plate, { size: 60 }), [-3.2, gy(-1, 34) + 2.85, 38.6], [8, gy(8, 38) + 2.85, 38.6], 0.75);

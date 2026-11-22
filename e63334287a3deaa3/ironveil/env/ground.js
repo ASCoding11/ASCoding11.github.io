@@ -115,7 +115,7 @@
           galb *= 1.0 - damp * 0.26 - soak * 0.18;
           galb = mix(galb, vec3(0.055, 0.045, 0.032), wm.b * 0.45);   // churned mud along ruts and through gateways
           grough = mix(grough, 0.46 + 0.1 * mB, damp); grough = mix(grough, 0.15, soak);
-          galb = mix(galb, galb * 0.32, pud);
+          galb = mix(galb, galb * 0.45, pud);
           grough = mix(grough, 0.055 - 0.02 * smoothstep(0.035, 0.22, wd), pud);
           float ivPud = pud;
           { vec2 mu = (vGW.xz - uMarksRect.xy) / uMarksRect.zw; if (mu.x > 0.0 && mu.y > 0.0 && mu.x < 1.0 && mu.y < 1.0) { vec4 mk = texture2D(uMarks, mu);
