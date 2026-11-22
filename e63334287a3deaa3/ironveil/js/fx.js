@@ -205,7 +205,11 @@
     for (let i = tracers.length - 1; i >= 0; i--) {
       const b = tracers[i]; if (!b.alive || q >= 48) { tracers.splice(i, 1); continue; }
       const sp = Math.hypot(b.vx, b.vy, b.vz) || 1, len = Math.min(b.travelled, b.enemy ? 7 : 9);
-      const ax = b.x, ay = b.y, az = b.z, bx = ax - b.vx / sp * len, by = ay - b.vy / sp * len, bz = az - b.vz / sp * len;
+      let ax = b.x, ay = b.y, az = b.z, bx = ax - b.vx / sp * len, by = ay - b.vy / sp * len, bz = az - b.vz / sp * len;
+      if (b.vis) {   // the player's rounds: drawn from the visible muzzle, merging onto the true path over 12 m
+        const wh = Math.max(0, 1 - b.travelled / 12), wt = Math.max(0, 1 - (b.travelled - len) / 12), o = b.vis;
+        ax += o.x * wh; ay += o.y * wh; az += o.z * wh; bx += o.x * wt; by += o.y * wt; bz += o.z * wt;
+      }
       // side vector: perpendicular to the segment and to the view
       V.set(ax - bx, ay - by, az - bz); V2.set(ax - cp.x, ay - cp.y, az - cp.z); V.cross(V2).normalize().multiplyScalar(0.035 + 0.0012 * V2.length());
       const k = q * 18;

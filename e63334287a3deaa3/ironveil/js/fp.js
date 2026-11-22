@@ -365,7 +365,20 @@
     else if (e === 'pin') A && A.play('pin');
   }
   // a socket of the arms (viewmodel camera frame) as the world point in front of which it is drawn
-  function socketWorld(o, out) { o.getWorldPosition(out); out.applyMatrix4(VM.cam.matrixWorldInverse); out.z *= 0.9; return out.applyMatrix4(W.camera.matrixWorld); }
+  // The arms pass has its own 55 degree camera, the world camera 60-95 (more while sprinting). A point in the arms'
+  // camera space lands on the same pixel in the world camera only if its x and y are scaled by the ratio of the two
+  // views' tan(fov/2) (zoom included); without it tracers, flash and cases started about a third of the way in toward
+  // the screen centre from the drawn muzzle at the default 74. The whole vector is pulled 10 % toward the eye so the
+  // point sits just in front of the world (the projection does not change with that).
+  function vmToWorld(out) {
+    out.applyMatrix4(VM.cam.matrixWorldInverse).multiplyScalar(0.9);
+    const wc = W.camera, vc = VM.cam, vf = FP.vmTune.fov;
+    const k = (Math.tan(wc.fov * Math.PI / 360) / (wc.zoom || 1)) / (Math.tan(vf * Math.PI / 360) / (vc.zoom || 1));
+    out.x *= k; out.y *= k;
+    return out.applyMatrix4(wc.matrixWorld);
+  }
+  FP.vmToWorld = vmToWorld;
+  function socketWorld(o, out) { o.getWorldPosition(out); return vmToWorld(out); }
   FP.realActive = () => !!(VM && !VM.rig.standin && FP.on() && VM.root.visible);
   function realFrame(vm, dt, yaw, pitch) {
     const W8 = IV.weapons, S = IV.settings, rig = vm.rig, M = IV.mission, I = IV.input, C = IV.camera;
@@ -619,9 +632,6 @@
   // the world point in front of which the visible muzzle sits (for muzzle flash and tracers)
   FP.muzzle = function (out) {
     if (!VM || !VM.rig.muzzle || !VM.root.visible) return null;
-    const m = VM.rig.muzzle.getWorldPosition(tmp);
-    m.applyMatrix4(VM.cam.matrixWorldInverse);           // viewmodel camera space
-    m.z *= 0.9;                                         // a touch in front of the world so it is not inside the near geometry
-    return out.copy(m).applyMatrix4(W.camera.matrixWorld);
+    return vmToWorld(out.copy(VM.rig.muzzle.getWorldPosition(tmp)));   // world FOV at the moment of the shot
   };
 })();

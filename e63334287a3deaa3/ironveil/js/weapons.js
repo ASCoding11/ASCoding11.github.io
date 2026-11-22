@@ -230,7 +230,9 @@
     const ux = new THREE.Vector3(dx, dy, dz), ortho1 = new THREE.Vector3().crossVectors(ux, Math.abs(dy) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize(), ortho2 = new THREE.Vector3().crossVectors(ux, ortho1);
     ux.addScaledVector(ortho1, Math.cos(a) * r).addScaledVector(ortho2, Math.sin(a) * r).normalize();
     const v0 = k === 'rifle' ? BL.v0 : k === 'smg' ? BL.smgV0 : BL.pistolV0;
-    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2 });   // tracer rounds every third in the SMG magazine
+    // the round flies along the sight line; its tracer is drawn leaving the visible muzzle and merging onto that line
+    // over the first few metres (vis: muzzle minus origin, faded out by fx.js)
+    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2, vis: WP.scoped ? null : { x: mz.x - ox, y: mz.y - oy, z: mz.z - oz } });   // tracer rounds every third in the SMG magazine
     // effects
     IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle');
     const fpArms = IV.fp && IV.fp.realActive && IV.fp.realActive();   // first person on the arms rig: its clip events throw the cases
