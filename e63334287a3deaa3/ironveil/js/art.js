@@ -119,7 +119,7 @@
     let hit = 0;
     for (const sg of pendSigns) {
       o.fromArray(sg.from); d.fromArray(sg.to).sub(o); const len = d.length(); d.normalize();
-      rc.set(o, d); rc.far = len * 1.6;
+      rc.set(o, d); rc.far = len * 1.6; rc.camera = W.camera;   // (lamp-glow sprites need the camera to be ray-tested)
       const hits = rc.intersectObjects(targets, true).filter(h => h.object.isMesh && h.face && !/ground|glass/.test(h.object.name) && !(h.object.material && h.object.material.transparent));
       if (!hits.length) continue;
       const h = hits[0]; nm.getNormalMatrix(h.object.matrixWorld); const N = h.face.normal.clone().applyMatrix3(nm).normalize(); if (N.dot(d) > 0) N.negate();
