@@ -325,5 +325,6 @@
     for (let i = 0; i < list.length; i++) { const d = list[i], fade = Math.min(1, (d.life - d.t) / (d.fd || 5)), grow = Math.min(1, d.t * 4 + 0.3); M4.compose(d.p, d.q, S4.set(d.s * grow * fade, d.s * grow * fade, 1)); im.setMatrixAt(i, M4); }
     im.count = list.length; im.instanceMatrix.needsUpdate = true;
   }
+  FX.sys = () => ({ add, norm });   // the two particle systems, for checks
   FX.counts = () => ({ add: add.n, norm: norm.n, tracers: tracers.length, decals: decals.length, holes: holes.length, holesFading: holes.filter(d => d.fd < 5).length, casings: casings.length, casingsResting: casings.filter(c => c.rest).length, ripples: ripples.length });
 })();
