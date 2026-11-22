@@ -29,6 +29,10 @@ When adding a game:
 - Add a `kind: 'game'` entry for it to What's new (`e63334287a3deaa3/news.js`, with its Spanish in `news-es.js`), with the game in `games` and its phone thumbnail as `img`, so it appears in the "New games!" row.
 - Make it playable on a phone: on-screen touch controls shown only on touch screens (see how Shell Crackers or Kartwheel do it), with nothing overlapping in portrait or with the phone sideways. Then add it to the phone page: a row in `GROUPS` in `e63334287a3deaa3/m/index.html` and a 560 × 350 thumbnail in `e63334287a3deaa3/m/thumbs/`.
 
+## Skills
+
+`.claude/skills/` has this repo's own skills (game-graphics, game-performance, war-game-series) and general game-dev skills copied from awesome-gamedev-agent-skills (see `.claude/gamedev-skills/README.md`): game feel, UI/UX, input, physics tuning, save systems, audio, cameras, AI, procedural generation, level design, shaders and genre guides. Use them, but the general ones often show Godot or Unity code: translate the idea to this site's plain JavaScript and three.js r128, and where they disagree with this file or the repo's own skills, this file and the repo's own skills win.
+
 ## Rules
 
 - Keep each pull request to one feature or fix, and leave unrelated code alone.
