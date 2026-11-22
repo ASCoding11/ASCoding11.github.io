@@ -335,7 +335,7 @@
     opts = opts || {};
     const fn = KINDS[kind] || KINDS[({ 'sandbag wall': 'sandbags', 'hay bale': 'haybale', 'hay stack': 'haystack', 'water trough': 'trough', 'telegraph pole': 'telegraph', 'lamp post': 'lamppost', 'fuel drums': 'drums', 'ammunition boxes': 'ammo', 'log pile': 'logpile', 'tarpaulin stack': 'tarp' })[kind]];
     if (!fn) throw new Error('IVEnv.prop: unknown kind ' + kind);
-    const B = E.builder(seed || 1), R = E.rng((seed || 1) * 13 + 5); B._extra = [];
+    const B = E.builder(seed || 1), R = E.rng((seed || 1) * 13 + 5); B._extra = []; if (E.Q.name !== 'low') B.bevelAuto = true;   // props are seen close: every box gets a bevel
     const extra = fn(B, R, opts) || {};
     const group = B.finish(); group.name = 'IVEnv.prop:' + kind;
     for (const x of B._extra) group.add(x);

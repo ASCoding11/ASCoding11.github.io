@@ -20,7 +20,10 @@
 
   function Builder(seed) {
     this.R = E.rng(seed || 1); this.buckets = {}; this.colliders = []; this.decals = [];
+    // trim bevels by default (sills, lintels, quoins, coping, frames, posts and rails); props set bevelAuto = true
+    this.bevelAuto = E.Q.name === 'low' ? false : TRIM_BEVEL;
   }
+  const TRIM_BEVEL = /^(ashlar|timber|wood_painted|concrete|metal_painted|metal_rust|planks)$/;
   const P = Builder.prototype;
   // Detail pieces (arch voussoirs, quoins, loose bricks, ridge tiles, glazing bars, furniture...) go into separate
   // meshes that IVEnv.update hides beyond Q.detailDist. detail 2 = also left out entirely on Low.
@@ -45,9 +48,84 @@
     B.i.push(base, base + 1, base + 2);
   };
   // Box: centre x, bottom y0, centre z, sizes, rotation about Y (plus optional rx, rz). UVs in metres per face.
+  // Bevel (o.bevel, metres): the faces are inset and joined by thin edge strips and corner triangles (44 triangles
+  // instead of 12). Every vertex keeps its own face's flat normal, so a strip blends between the two faces it joins and
+  // catches a thin highlight under a lamp: what stops a box reading as a sharp CG block. o.bevel true or the builder's
+  // bevelAuto = auto size: min(1.2 cm, a quarter of the smallest side), 2.5 cm on dressed stone; 0 = sharp (walls that
+  // butt together). Auto skips boxes over 3.5 m (walls, slabs) and paper-thin ones (< 1.5 cm).
+  const STONE_BEVEL = /^(ashlar|fieldstone|concrete)/;
+  P.bevelFor = function (mat, sx, sy, sz, o) {
+    let b = o.bevel;
+    const mn = Math.min(sx, sy, sz), mx = Math.max(sx, sy, sz);
+    if (b === undefined) { const A = this.bevelAuto; if (!A || (A instanceof RegExp && !A.test(mat)) || mx > 3.5 || mn < 0.015) return 0; b = true; }
+    if (b === true) b = Math.min(STONE_BEVEL.test(mat) ? 0.025 : 0.012, mn * 0.25);
+    return Math.max(0, Math.min(+b || 0, mn * 0.45));
+  };
+  const BEV_AX = [[1, 2], [0, 2], [0, 1]];   // in-plane axes of the face on axis a
+  P.boxBevel = function (mat, cx, y0, cz, sx, sy, sz, ry, o, bv) {
+    const B = this.bucket(mat), base = B.p.length / 3;
+    _e.set(o.rx || 0, ry || 0, o.rz || 0, 'YXZ'); _q.setFromEuler(_e); _p.set(cx, y0 + sy / 2, cz); _s.set(1, 1, 1);
+    _m.compose(_p, _q, _s); const e = _m.elements;
+    const tint = o.tint || null, foot = o.noFoot ? null : (o.foot != null ? o.foot : 0);
+    const uo = o.uvOff || [this.R() * 7, this.R() * 7], long = o.grain === 'long', S = [sx, sy, sz], h = [sx / 2, sy / 2, sz / 2];
+    const vis = (a, s) => !(o.sides && o.sides[['px', 'nx', 'top', 'bottom', 'pz', 'nz'][a * 2 + (s > 0 ? 0 : 1)]] === false);
+    const idx = {}, wpos = [], fn = [];
+    // world normals of the six faces
+    for (let a = 0; a < 3; a++) for (const s of [1, -1]) { const n = [0, 0, 0]; n[a] = s; fn[a * 2 + (s > 0 ? 0 : 1)] = [e[0] * n[0] + e[4] * n[1] + e[8] * n[2], e[1] * n[0] + e[5] * n[1] + e[9] * n[2], e[2] * n[0] + e[6] * n[1] + e[10] * n[2]]; }
+    const put = (a, s, si, sj) => {   // the corner (si, sj) of face (a, s), inset by the bevel toward each visible neighbour
+      const [i, j] = BEV_AX[a], L = [0, 0, 0];
+      L[a] = s * h[a]; L[i] = si * (h[i] - (vis(i, si) ? bv : 0)); L[j] = sj * (h[j] - (vis(j, sj) ? bv : 0));
+      const wx = e[0] * L[0] + e[4] * L[1] + e[8] * L[2] + e[12], wy = e[1] * L[0] + e[5] * L[1] + e[9] * L[2] + e[13], wz = e[2] * L[0] + e[6] * L[1] + e[10] * L[2] + e[14];
+      // the same metric UVs the sharp box uses (unit-cube coordinates times size)
+      const x = L[0] / sx, y = L[1] / sy, z = L[2] / sz; let u, v;
+      if (a === 0) { u = (s > 0 ? -z : z) * sz; v = y * sy; if (long && sz > sy) { const t = u; u = v; v = t; } }
+      else if (a === 2) { u = (s > 0 ? x : -x) * sx; v = y * sy; if (long && sx > sy) { const t = u; u = v; v = t; } }
+      else { u = x * sx; v = (s > 0 ? -z : z) * sz; if (long && sx > sz) { const t = u; u = v; v = t; } }
+      const n = fn[a * 2 + (s > 0 ? 0 : 1)];
+      vtx(B, wx, wy, wz, n[0], n[1], n[2], u + uo[0], v + uo[1], tint, foot);
+      wpos.push([wx, wy, wz]);
+      return base + wpos.length - 1;
+    };
+    const key = (a, s, si, sj) => a + ':' + s + ':' + si + ':' + sj;
+    for (let a = 0; a < 3; a++) for (const s of [1, -1]) { if (!vis(a, s)) continue; for (const si of [-1, 1]) for (const sj of [-1, 1]) idx[key(a, s, si, sj)] = put(a, s, si, sj); }
+    // a polygon with the winding that faces 'out' (local direction, rotated)
+    const tri = (A, Bb, C, out) => {
+      const pa = wpos[A - base], pb = wpos[Bb - base], pc = wpos[C - base];
+      const ux = pb[0] - pa[0], uy = pb[1] - pa[1], uz = pb[2] - pa[2], vx = pc[0] - pa[0], vy = pc[1] - pa[1], vz = pc[2] - pa[2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      if (nx * out[0] + ny * out[1] + nz * out[2] >= 0) B.i.push(A, Bb, C); else B.i.push(A, C, Bb);
+    };
+    const outDir = (L) => [e[0] * L[0] + e[4] * L[1] + e[8] * L[2], e[1] * L[0] + e[5] * L[1] + e[9] * L[2], e[2] * L[0] + e[6] * L[1] + e[10] * L[2]];
+    const get = (a, s, ci) => { const [i, j] = BEV_AX[a]; return idx[key(a, s, ci[i], ci[j])]; };   // face (a,s)'s vertex nearest the corner ci
+    // faces
+    for (let a = 0; a < 3; a++) for (const s of [1, -1]) {
+      if (!vis(a, s)) continue; const L = [0, 0, 0]; L[a] = s; const out = outDir(L);
+      const q = [key(a, s, -1, -1), key(a, s, 1, -1), key(a, s, 1, 1), key(a, s, -1, 1)].map(k => idx[k]);
+      tri(q[0], q[1], q[2], out); tri(q[0], q[2], q[3], out);
+    }
+    // edge strips between two visible faces (a, sa) and (b, sb), running along the third axis c
+    for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) {
+      const c = 3 - a - b;
+      for (const sa of [1, -1]) for (const sb of [1, -1]) {
+        if (!vis(a, sa) || !vis(b, sb)) continue;
+        const L = [0, 0, 0]; L[a] = sa; L[b] = sb; const out = outDir(L);
+        const ci0 = [0, 0, 0], ci1 = [0, 0, 0]; ci0[a] = ci1[a] = sa; ci0[b] = ci1[b] = sb; ci0[c] = -1; ci1[c] = 1;
+        const A0 = get(a, sa, ci0), A1 = get(a, sa, ci1), B0 = get(b, sb, ci0), B1 = get(b, sb, ci1);
+        tri(A0, A1, B1, out); tri(A0, B1, B0, out);
+      }
+    }
+    // corner triangles where three visible faces meet
+    for (const sx_ of [1, -1]) for (const sy_ of [1, -1]) for (const sz_ of [1, -1]) {
+      if (!vis(0, sx_) || !vis(1, sy_) || !vis(2, sz_)) continue;
+      const ci = [sx_, sy_, sz_]; tri(get(0, sx_, ci), get(1, sy_, ci), get(2, sz_, ci), outDir(ci));
+    }
+    this.bevelTris = (this.bevelTris || 0) + 32;
+  };
   P.box = function (mat, cx, y0, cz, sx, sy, sz, ry, o) {
     o = o || {};
     if (!mat) return;
+    const bv = this.bevelFor(mat, sx, sy, sz, o);
+    if (bv > 0.0005) return this.boxBevel(mat, cx, y0, cz, sx, sy, sz, ry, o, bv);
     const B = this.bucket(mat);
     _e.set(o.rx || 0, ry || 0, o.rz || 0, 'YXZ'); _q.setFromEuler(_e); _p.set(cx, y0 + sy / 2, cz); _s.set(sx, sy, sz);
     _m.compose(_p, _q, _s); _n.getNormalMatrix(_m);
