@@ -4,7 +4,10 @@
    small bloom (lamps, lit windows, muzzle flashes only: high threshold), tone maps with the same ACES curve as three,
    grades (slight shadow lift so nothing goes pure black, desaturation, cool shadows / warm highlights), adds a vignette
    and fine film grain (low amplitude, no flicker of the whole frame), then dithers. MSAA on High (WebGL2).
-   While post is active renderer.toneMapping is NoToneMapping; exposure still comes from renderer.toneMappingExposure. */
+   While post is active renderer.toneMapping is NoToneMapping; exposure still comes from renderer.toneMappingExposure.
+   render(dt, overlay): overlay(renderer, target) is called with the HDR scene target still bound, after the world and
+   before bloom and the grade (the first-person gun and hands): it gets the same exposure, bloom, grade, vignette and
+   grain as the world. The target's depth is cleared first, so the overlay is never hidden by the world. */
 (function () {
   'use strict';
   const E = window.IVEnv;
@@ -17,7 +20,7 @@
       s += (texture2D(tSrc, vUv + uDir * 1.3846153).rgb + texture2D(tSrc, vUv - uDir * 1.3846153).rgb) * 0.3162162;
       s += (texture2D(tSrc, vUv + uDir * 3.2307692).rgb + texture2D(tSrc, vUv - uDir * 3.2307692).rgb) * 0.0702703;
       gl_FragColor = vec4(s, 1.0); }`;
-  const COMP = `uniform sampler2D tScene, tB1, tB2; uniform float uExp, uBloom, uGrain, uVig, uTime, uSat, uLift; uniform vec3 uShadowTint, uHighTint; uniform vec2 uRes;
+  const COMP = `uniform sampler2D tScene, tB1, tB2; uniform float uExp, uBloom, uGrain, uVig, uTime, uSat, uLift, uSharp; uniform vec3 uShadowTint, uHighTint; uniform vec2 uRes;
     varying vec2 vUv;
     vec3 RRTAndODTFit(vec3 v){ vec3 a = v * (v + 0.0245786) - 0.000090537; vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081; return a / b; }
     vec3 aces(vec3 color){
@@ -28,6 +31,9 @@
     vec3 toSRGB(vec3 c){ return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
     void main(){
       vec3 c = texture2D(tScene, vUv).rgb;
+      if (uSharp > 0.0) {   // the scene was drawn below the canvas resolution (frame-time governor): a light sharpen on the upsample
+        vec2 px = 1.0 / uRes; vec3 nb = texture2D(tScene, vUv + vec2(px.x, 0.0)).rgb + texture2D(tScene, vUv - vec2(px.x, 0.0)).rgb + texture2D(tScene, vUv + vec2(0.0, px.y)).rgb + texture2D(tScene, vUv - vec2(0.0, px.y)).rgb;
+        c = max(c + (c - nb * 0.25) * uSharp, vec3(0.0)); }
       vec3 b = texture2D(tB1, vUv).rgb * 0.6 + texture2D(tB2, vUv).rgb * 0.4;
       c += b * uBloom;
       c = aces(c);
@@ -66,7 +72,7 @@
     const mBlur = mk(BLUR, { tSrc: { value: null }, uDir: { value: new THREE.Vector2() } });
     const P = {
       tScene: { value: null }, tB1: { value: qa.texture }, tB2: { value: ea.texture }, uExp: { value: 1 }, uBloom: { value: 0.5 }, uGrain: { value: 0.03 }, uVig: { value: 0.8 },
-      uTime: { value: 0 }, uSat: { value: 0.75 }, uLift: { value: 0.01 }, uShadowTint: { value: new THREE.Vector3(1, 1, 1) }, uHighTint: { value: new THREE.Vector3(1, 1, 1) }, uRes: { value: new THREE.Vector2() }
+      uTime: { value: 0 }, uSat: { value: 0.75 }, uLift: { value: 0.01 }, uSharp: { value: 0 }, uShadowTint: { value: new THREE.Vector3(1, 1, 1) }, uHighTint: { value: new THREE.Vector3(1, 1, 1) }, uRes: { value: new THREE.Vector2() }
     };
     const mComp = mk(COMP, P);
     renderer.toneMapping = THREE.NoToneMapping;
@@ -75,15 +81,23 @@
       mBlur.uniforms.tSrc.value = src.texture; mBlur.uniforms.uDir.value.set(1 / w, 0); pass(mBlur, tmp);
       mBlur.uniforms.tSrc.value = tmp.texture; mBlur.uniforms.uDir.value.set(0, 1 / h); pass(mBlur, dst);
     };
-    let W = 4, H = 4;
+    let W = 4, H = 4, scale = 1, lastW = innerWidth, lastH = innerHeight;
+    // pixel cap per tier (megapixels of the internal buffers): a big high-DPI screen is drawn at the cap and upsampled
+    const CAP = { low: 1.0, medium: 1.5, high: 2.3 }[Q.name] * 1e6;
     const api = {
       params: P,
+      // the frame-time governor's resolution scale (0.5..1) for the internal buffers only; the canvas stays native
+      setScale(s) { scale = Math.max(0.4, Math.min(1, s)); api.setSize(lastW, lastH); return api.scale; },
+      get scale() { return W / Math.max(1, Math.floor(lastW * renderer.getPixelRatio())); },
       setSize(w, h) {
-        const pr = renderer.getPixelRatio(); W = Math.max(4, Math.floor(w * pr)); H = Math.max(4, Math.floor(h * pr));
+        lastW = w; lastH = h;
+        const pr0 = renderer.getPixelRatio(), cap = Math.min(1, Math.sqrt(CAP / Math.max(1, w * pr0 * h * pr0))), pr = pr0 * Math.min(scale, cap);
+        W = Math.max(4, Math.floor(w * pr)); H = Math.max(4, Math.floor(h * pr));
+        P.uSharp.value = pr < pr0 * 0.97 ? Math.min(0.35, (1 - pr / pr0) * 0.9) : 0;
         rtScene.setSize(W, H); half.setSize(W >> 1, H >> 1); qa.setSize(W >> 2, H >> 2); qb.setSize(W >> 2, H >> 2); ea.setSize(W >> 3, H >> 3); eb.setSize(W >> 3, H >> 3);
         P.uRes.value.set(W, H);
       },
-      render(dt) {
+      render(dt, overlay) {
         const g = E.GRADES[(E.atmo && E.atmo.P && E.atmo.P.grade) || 'night'];
         P.uSat.value = g.sat; P.uShadowTint.value.fromArray(g.shadow); P.uHighTint.value.fromArray(g.high); P.uLift.value = g.lift; P.uVig.value = g.vig;
         P.uGrain.value = g.grain; P.uBloom.value = g.bloom; mBright.uniforms.uThr.value = g.thr;
@@ -92,6 +106,7 @@
         renderer.setRenderTarget(rtScene); renderer.render(scene, camera);
         E.sceneInfo = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
         renderer.info.autoReset = ar;
+        if (overlay) { const ac = renderer.autoClear; renderer.autoClear = false; renderer.setRenderTarget(rtScene); renderer.clearDepth(); try { overlay(renderer, rtScene); } finally { renderer.autoClear = ac; renderer.setRenderTarget(rtScene); } }
         mBright.uniforms.tSrc.value = rtScene.texture; pass(mBright, half);
         mBlur.uniforms.tSrc.value = half.texture; mBlur.uniforms.uDir.value.set(1 / (W >> 1), 0); pass(mBlur, qb);   // half -> quarter
         mBlur.uniforms.tSrc.value = qb.texture; mBlur.uniforms.uDir.value.set(0, 1 / (H >> 2)); pass(mBlur, qa);

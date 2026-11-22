@@ -15,8 +15,8 @@
    Body: the world hero is drawn without his head and arms (a fragment mask on his own material copy), so looking down
    shows legs, feet and torso that match the stance and steps, while his shadow is still the whole man and his gun.
 
-   API: IV.fp.on() (first person in use this frame), IV.fp.frame(cam, dt, dir) from camera.js, IV.fp.draw() from
-   world.js after the world pass, IV.fp.muzzle(out) the world point the visible muzzle stands in front of. */
+   API: IV.fp.on() (first person in use this frame), IV.fp.frame(cam, dt, dir) from camera.js, IV.fp.draw(target) through
+   W.overlay (world.js: inside the post stack's HDR target, or after the world on Low), IV.fp.muzzle(out) the world point the visible muzzle stands in front of. */
 (function () {
   'use strict';
   const W = IV.world, T = IV.TUNING, F = IV.CF;
@@ -575,10 +575,10 @@
   function vmLight(vm) {
     const cam = W.camera;
     // lighting copied from the world, scaled by how lit the player is
-    // how lit the player is (moon, moon shadow, lamps), never brighter than the world itself; the arms are drawn after the
-    // post stack, so at night they also take a share of its vignette and desaturation as a plain darkening
+    // how lit the player is (moon, moon shadow, lamps), never brighter than the world itself; the arms are drawn inside
+    // the post stack's HDR target (see FP.draw), so the grade, vignette and grain reach them the same way as the world
     const E = window.IVEnv, grade = E && E.atmo && E.atmo.P && E.atmo.P.grade, night = !grade || grade === 'night' || grade === 'rain';
-    const lit = (W.lightAt ? IV.clamp(0.2 + W.lightAt(P.render.x, P.render.y + 1.4, P.render.z) * 0.9, 0.2, 1) : 1) * (night ? 0.78 : 0.95);
+    const lit = (W.lightAt ? IV.clamp(0.2 + W.lightAt(P.render.x, P.render.y + 1.4, P.render.z) * 0.9, 0.2, 1) : 1) ;
     if (W.hemi) { vm.hemi.color.copy(W.hemi.color); vm.hemi.groundColor.copy(W.hemi.groundColor); vm.hemi.intensity = W.hemi.intensity * lit; }
     if (W.sun) {
       // the sun or moon direction in the viewmodel camera's frame
@@ -616,14 +616,15 @@
   FP.recoil = function (k) { FP.kick = Math.min(1.5, FP.kick + k); FP.kickR = Math.min(0.25, FP.kickR + k * 0.06); };
 
   // ---------------------------------------------------------------- the second pass
-  // world.js draws the world; the viewmodel goes on top of whatever it drew
-  const draw0 = W.draw; W.draw = function (dt) { draw0.call(W, dt); FP.draw(); };
-  FP.draw = function () {
+  // world.js draws the world and then calls W.overlay: with the post stack that is inside its HDR target (depth already
+  // cleared, tone mapping left to the post stack); on Low (no post stack, target null) it is straight to the screen
+  W.overlay = function (r, target) { FP.draw(target); };
+  FP.draw = function (target) {
     if (!VM || !VM.root.visible || !FP.on()) return;
     const r = W.renderer, ac = r.autoClear, tm = r.toneMapping;
     VM.cam.aspect = W.camera.aspect; VM.cam.fov = FP.vmTune.fov; VM.cam.updateProjectionMatrix();   // fixed: never follows the world FOV setting
-    r.autoClear = false; r.setRenderTarget(null); r.clearDepth();
-    r.toneMapping = THREE.ACESFilmicToneMapping;   // the post stack tone maps the world itself; the viewmodel is drawn after it
+    r.autoClear = false; if (!target) { r.setRenderTarget(null); r.clearDepth(); }
+    if (!target) r.toneMapping = THREE.ACESFilmicToneMapping;   // inside the HDR target the post stack tone maps world and gun together
     { const ri = r.info.render; FP.worldInfo = { calls: ri.calls, tris: ri.triangles }; }   // the world pass just drawn (without the post stack this is all of it)
     const t0 = performance.now();
     r.render(VM.scene, VM.cam);
