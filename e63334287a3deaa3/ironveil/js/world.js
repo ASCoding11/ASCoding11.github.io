@@ -60,6 +60,54 @@
     if (W.post) W.post.render(dt, W.overlay);
     else { W.renderer.render(W.scene, W.camera); if (W.overlay) W.overlay(W.renderer, null); }
   };
+  // ---------------------------------------------------------------- frame-time governor
+  // Keeps a 30 fps floor on weak machines without oscillating. Frame times are averaged over at least 45 frames or
+  // 900 ms (single frames over 1.5 s, i.e. loading hitches, are ignored); nothing happens for 3.5 s after a level is
+  // ready or for 1 s after any change. Over 36 ms: first the parallax goes (IV.dropParallax, once), then the internal
+  // resolution steps down (-0.1; -0.2 over 45 ms; straight to 0.6 over 60 ms) and, at 0.6 and still over 40 ms on two
+  // checks, the grass rings shrink. Under 24 ms (room for the next step's ~20-40 % more pixels) it steps back up by 0.1,
+  // but each drop doubles the wait before the next rise (4 s, 8 s ... capped at 60 s), so it settles instead of
+  // flipping. Only the post stack's internal buffers change size (the canvas stays native, the composite upsamples with
+  // a light sharpen); on Low (no post) the renderer's pixel ratio changes, at most every 4 s.
+  // The site-wide autores.js is turned off for this game (it only resized the canvas, not the HDR buffers).
+  // ?gov=1 shows a readout and runs it under ?test too; W.gov.log keeps [seconds, avg ms, scale, event].
+  const G = W.gov = { on: false, scale: 1, min: 0.6, ms: 0, log: [], acc: 0, n: 0, wait: 0, upWait: 4, lastDrop: -1e9, slowAtMin: 0, grass: 1, el: null };
+  const govNow = () => performance.now() / 1000;
+  W.govStart = function () {
+    const dbg = /[?&]gov=1/.test(location.search);
+    G.on = !IV.test || dbg; G.dbg = dbg; G.armed = false; G.scale = 1; G.acc = G.n = 0; G.wait = govNow() + 3.5; G.upWait = 4; G.lastDrop = -1e9; G.slowAtMin = 0; G.grass = 1; G.lowAt = 0;
+    G.basePr = W.renderer.getPixelRatio();
+    if (window.AutoRes && G.on) try { window.AutoRes.off(); } catch (e) {}
+    if (W.post && W.post.setScale) W.post.setScale(1);
+    if (dbg && !G.el) { G.el = document.createElement('div'); G.el.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99999;font:12px monospace;color:#cfe;background:rgba(0,0,0,.55);padding:3px 6px;pointer-events:none;white-space:pre'; document.body.appendChild(G.el); }
+  };
+  function govApply(s, ev) {
+    G.scale = Math.round(s * 100) / 100;
+    if (W.post && W.post.setScale) W.post.setScale(G.scale);
+    else { G.lowAt = govNow(); W.renderer.setPixelRatio(G.basePr * G.scale); W.resize(); }
+    G.log.push([+(govNow()).toFixed(1), +G.ms.toFixed(1), G.scale, ev]);
+  }
+  W.govFrame = function (dt) {
+    if (!G.on) return;
+    if (!G.armed) { G.armed = true; G.wait = govNow() + 3.5; G.acc = G.n = 0; return; }   // the level's first frame: wait 3.5 s
+    const ms = dt * 1000; if (ms > 1500 || ms <= 0) return;
+    G.acc += ms; G.n++;
+    if (G.n < 45 && G.acc < 900) return;
+    G.ms = G.acc / G.n; G.acc = G.n = 0;
+    const t = govNow();
+    if (G.el) G.el.textContent = 'gov ' + G.scale.toFixed(2) + 'x  ' + G.ms.toFixed(1) + ' ms  pom ' + (window.IVEnv && IVEnv.Q && IVEnv.Q.pom ? 'on' : 'off') + '  grass ' + G.grass + (W.post && W.post.scale ? '  buf ' + W.post.scale.toFixed(2) : '');
+    if (t < G.wait) return;
+    if (G.ms > 36) {
+      if (window.IVEnv && IVEnv.Q && IVEnv.Q.pom && IV.dropParallax) { IV.dropParallax('governor'); G.log.push([+t.toFixed(1), +G.ms.toFixed(1), G.scale, 'parallax off']); G.wait = t + 2; return; }
+      if (!W.post && t - G.lowAt < 4) return;
+      const ns = G.ms > 60 ? G.min : Math.max(G.min, G.scale - (G.ms > 45 ? 0.2 : 0.1));
+      if (ns < G.scale - 0.001) { if (t - G.lastDrop < 30) G.upWait = Math.min(60, G.upWait * 2); G.lastDrop = t; govApply(ns, 'down'); G.wait = t + 1; G.slowAtMin = 0; return; }
+      if (G.ms > 40 && ++G.slowAtMin >= 2 && G.grass > 0.6 && IV.art && IV.art.grassObj && IV.art.grassObj.setScale) { G.grass = 0.6; IV.art.grassObj.setScale(0.6); G.log.push([+t.toFixed(1), +G.ms.toFixed(1), G.scale, 'grass 0.6']); G.wait = t + 2; }
+      return;
+    }
+    G.slowAtMin = 0;
+    if (G.ms < 24 && G.scale < 1 && t - G.lastDrop > G.upWait && (W.post || t - G.lowAt > 4)) { govApply(Math.min(1, G.scale + 0.1), 'up'); G.wait = t + 2; }
+  };
   W.resize = function () {
     const w = innerWidth, h = innerHeight;
     W.renderer.setSize(w, h, false);
@@ -273,6 +321,7 @@
     if (!W.atm) sky(cfg);
     // IVEnv's post stack (sharpening, grading, bloom...) on Medium and High
     W.post = IV.art.envOn() && window.IVEnv.post ? window.IVEnv.post(W.renderer, W.scene, W.camera, ['low', 'medium', 'high'][W.quality]) : null;
+    W.govStart();
     terrain(cfg);
   };
 
@@ -619,6 +668,7 @@
   // Each frame: give the pooled point lights to the lamps nearest the camera, drive the flash light, follow the shadow.
   const lampSort = [], cullM = new THREE.Matrix4(), cullF = new THREE.Frustum();
   W.frame = function (dt, focus) {
+    W.govFrame(dt);
     W.windU.value += dt;
     const cam = W.camera.position;
     // expire flashes
