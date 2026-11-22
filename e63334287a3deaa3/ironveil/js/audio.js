@@ -120,6 +120,10 @@
     wire() { const d = chain({ vol: 0.6 }), t = now(); noise(d, t, 0.06, 'bandpass', 3500, 6, 0.7); tone(d, t, 0.4, 'triangle', 900, 300, 0.2); },
     charge() { const d = chain({ vol: 0.5 }), t = now(); for (let i = 0; i < 3; i++) noise(d, t + i * 0.25, 0.05, 'bandpass', 2000 + i * 300, 5, 0.4); },
     door() { const d = chain({ vol: 0.7 }), t = now(); noise(d, t, 0.18, 'lowpass', 400, 1, 1.0); noise(d, t + 0.05, 0.4, 'bandpass', 700, 2, 0.3); },
+    // an enemy's telegraph: the rifle coming up to the shoulder (sling and cloth, the butt against the webbing, a click)
+    ready(o) { const d = chain(Object.assign({ ref: 9, vol: 0.9 }, o)), t = now(); noise(d, t, 0.16, 'bandpass', V(800, 1100), 1.4, 0.5); noise(d, t + 0.13, 0.05, 'lowpass', 500, 1, 0.6); noise(d, t + 0.2, 0.02, 'bandpass', 3300, 7, 0.5); },
+    // an MG gunner racking the charging handle back and letting it slam home
+    mgRack(o) { const d = chain(Object.assign({ ref: 12 }, o)), t = now(); noise(d, t, 0.05, 'bandpass', 2200, 4, 0.8); tone(d, t, 0.06, 'triangle', 1500, 900, 0.25); noise(d, t + 0.22, 0.04, 'bandpass', 1700, 3, 1.0); tone(d, t + 0.22, 0.09, 'triangle', 1100, 700, 0.3); },
     truck(o) { const d = chain(Object.assign({ ref: 30 }, o)), t = now(); tone(d, t, 2.5, 'sawtooth', 55, 50, 0.25); noise(d, t, 2.5, 'lowpass', 200, 1, 0.3); }
   };
   AU.play = function (name, o) {

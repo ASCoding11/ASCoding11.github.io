@@ -122,6 +122,12 @@
       runSpeed: 3.9, walkSpeed: 1.45, searchSpeed: 2.2, turnRate: 6.3, // m/s; rad/s body turn (360 deg/s)
       grenadeCooldown: 24,      // s, shared by all enemies
       tokens: [2, 3, 4],        // how many soldiers may shoot at you at once (difficulty)
+      tokenGap: [1.6, 1.25, 0.9], // s, at least this long between two soldiers being allowed to open fire on you
+      tele: [0.7, 0.5, 0.35],   // s, the 'ready' telegraph (weapon raised, a call, a glint at night) before each burst at you
+      burst: { rifle: 2, smg: 5, pistol: 3, sniper: 1 }, // rounds per token: the token goes back when the burst ends
+      expoUp: [0.18, 0.25, 0.35], expoDown: 0.45, // accuracy exposure gained per second of continuous sight, lost per second out of it
+      expoFloor: 0.3,           // share of full accuracy at zero exposure (full at exposure 1)
+      rackTime: 0.6,            // s, an MG gunner racks his gun before each new burst at you
       alarmDelay: 2.2,          // s ringing before the alarm counts
       truckDelay: 28            // s after the alarm (or 60 when the telephone wire is cut)
     },
