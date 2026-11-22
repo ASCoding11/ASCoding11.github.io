@@ -114,6 +114,8 @@
   // the ground mesh (world.js asks first)
   A.ground = function (cfg) {
     const E = env(); if (!E || !E.ground) return null;
+    // the shared wet map first (the ground shader and the footstep queries both read it)
+    if (E.wetMap) safe(() => E.wetMap.build(Object.assign({ heightFn: H, kindAt: W.surfaceAt, x0: -W.size / 2, z0: -W.size / 2, size: W.size }, cfg && cfg.wet)), 'wet map');
     const g = E.ground(H, { surfaceAt: W.surfaceAt, size: W.size });
     // land, hills and woods beyond the map edge, so the world never ends in a line (cfg.skirt tunes the hills)
     if (g && g.group && E.skirt) { const sk = safe(() => E.skirt(H, Object.assign({ half: W.size / 2, day: !!(cfg && cfg.day) }, cfg && cfg.skirt)), 'skirt'); if (sk) g.group.add(sk); }

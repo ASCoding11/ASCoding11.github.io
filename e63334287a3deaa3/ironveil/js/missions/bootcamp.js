@@ -40,6 +40,11 @@
   const TRACK = [[2.4, 163], [18, 170], [32, 172.5], [44, 175.5]], ROADOUT = [[44, 176], [46, 215], [36, 262], [12, 330]];
   const HUTS = [[16, 140, 5, 3], [16, 120, 5, 3], [-18, 130, 7, 3.5]];
   const MUD = [[10.6, 140, 1.8], [10.6, 120, 1.8], [-10.4, 130, 1.8], [0, 88, 3.0], [0, 70, 3.2], [0, 66, 2.6], [0, 53.5, 2.4], [-1, 37, 2.6], [0, 22, 2.8], [30, 8.6, 2.6], [-26.5, 97, 2.2], [3.4, 120, 1.4], [-3.6, 104, 1.3], [3.3, 76, 1.5]];
+  // the shared wet map: lorry ruts on the track and the road out, the trodden mud patches as churned spots, and the
+  // puddles they hold (the ground, footsteps and splashes all read it)
+  const WET = { seed: 17, ruts: [{ pts: TRACK }, { pts: ROADOUT, k: 0.7, gauge: 1.6 }], gates: [[44, 175.5, 3.0], [2.4, 163, 2.6]],
+    puddles: [[10.6, 140, 0.9, 0.6, 0.3, 0.16], [-10.4, 130, 0.8, 0.5, 0, 0.14], [0, 70, 1.4, 0.8, 0.1, 0.18], [0, 22, 1.2, 0.8, -0.3, 0.16], [30, 8.6, 1.0, 0.7, 0.5, 0.14], [20, 170.5, 1.3, 0.6, 0.35, 0.18], [45, 196, 1.1, 0.6, 1.5, 0.16]] };
+  for (const m of MUD) WET.gates.push([m[0], m[1], m[2] * 1.1]);
   function surfaceKind(x, z) {
     const n = IV.noise(x / 1.7 + 3, z / 1.7), ax = Math.abs(x);
     for (const m of MUD) { const d = Math.hypot(x - m[0], z - m[1]); if (d < m[2] * (0.75 + 0.5 * n)) return 'mud'; if (d < m[2] * 1.7) return 'worn'; }
@@ -362,7 +367,7 @@
     id: 'bootcamp', num: 0, title: 'Boot Camp', line: 'A morning on the training range: moving, shooting, sneaking. About five minutes.',
     briefing: ['Training range, England, the week before the jump. Sergeant Okafor runs the course.', 'One thing at a time. Each station waits until you have done it, and the prompts show your own keys.'],
     preview: [{ text: 'Move, sprint, crouch, crawl, vault and lean' }, { text: 'Pop-up targets down the sights' }, { text: 'The scoped rifle at 100, 200 and 300 m' }, { text: 'Distract a guard and take him down' }, { text: 'Binoculars and grenades' }],
-    world: { size: 660, day: true, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 2.2 }, terrainStep: 4, fog: 0.0028, envFog: 0.0024,   // envFog: lighter than the overcast preset's 0.0042 so the 300 m plate shows through the scope (40% haze at 300 m instead of 80%)
+    world: { size: 660, day: true, wet: WET, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 2.2 }, terrainStep: 4, fog: 0.0028, envFog: 0.0024,   // envFog: lighter than the overcast preset's 0.0042 so the 300 m plate shows through the scope (40% haze at 300 m instead of 80%)
        fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
     build, setup, step, frame, sketch,
     medals: [

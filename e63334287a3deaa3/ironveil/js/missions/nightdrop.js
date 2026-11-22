@@ -33,6 +33,13 @@
   const JPOLE = { x: 37, z: -47.4 };
   const EXTRACT = { x: 166, z: 90 };
   const pd = (x, z, pts) => IV.polyDist(x, z, pts).d;
+  // the shared wet map (env/ground.js IVEnv.wetMap): cart ruts down the lanes and roads, churned gateways, and puddles
+  // in the farmyard, at the crossroads and in the lane's dips (the ground, footsteps and splashes all read it)
+  const WET = { seed: 41, ruts: [{ pts: L1 }, { pts: L2 }, { pts: R1, k: 0.55, gauge: 1.6 }, { pts: R2, k: 0.7, gauge: 1.6 }, { pts: R3, k: 0.55, gauge: 1.6 }],
+    gates: [[96, -64, 3.2], [126, -60, 2.6], [1, 10, 3.5], [3, -42, 3.0], [-44, 18, 2.6], [116, -54, 2.8], [-41, 18, 2.2]],
+    puddles: [[104, -70, 1.7, 1.0, 0.3, 0.22], [118, -62, 1.3, 0.8, 1.1, 0.18], [97, -79, 2.1, 1.1, -0.2, 0.24], [127, -80, 1.1, 0.7, 0.5, 0.16], [110, -84, 0.9, 0.6, 0, 0.14],
+      [-1, 13, 1.5, 0.9, 0.4, 0.2], [4, -45, 1.2, 0.8, 0.1, 0.18], [-80, 22.4, 1.6, 0.7, -0.2, 0.2], [-58, 19.2, 1.2, 0.6, -0.1, 0.16], [-26, 15.2, 1.4, 0.7, -0.25, 0.2],
+      [130, -16, 1.3, 0.7, 1.2, 0.2], [146, 44, 1.5, 0.7, 1.2, 0.22], [158, 77, 1.1, 0.6, 1.0, 0.16]] };
   const HAMLET = (() => {
       const H2 = Math.PI / 2, roadX = (z) => z < 80 ? 0 + z / 80 : 1 + (z - 80) / 108;
       // neighbours are not alike: each stands at its own distance from the road (sb, metres further back) and a
@@ -969,7 +976,7 @@
       'Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook\'s men are waiting.'
     ],
     preview: [{ text: 'Find Cpl. Dunning' }, { text: 'Cut the field-telephone line' }, { text: 'Destroy the flak gun' }, { text: 'Reach the extraction lane' }, { text: 'Take the map from the farm office', opt: true }, { text: 'Take out the sniper in the barn loft', opt: true }],
-    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8, woods: 0.55 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 1.6 }, fog: 0.0125, fogColor: 0x0a0f15 },
+    world: { size: 380, day: false, wet: WET, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8, woods: 0.55 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 1.6 }, fog: 0.0125, fogColor: 0x0a0f15 },
     build, setup, step, frame, backdrop, sketch,
     medals: [
       { text: 'Finish in under 15:00', ok: s => s.time < 900 },
