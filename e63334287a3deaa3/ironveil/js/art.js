@@ -168,7 +168,9 @@
   // IV.art.vantage(b, x, z, rot, n, R): n steps of stacked bales, each 0.33 m higher (under the 0.35 m step-up), so
   //   the player walks up onto a 1.3-1.7 m platform to see over hedges and walls.
   A.dressed = 0;
+  A.noDress = /[?&]nodress\b/.test(location.search);   // ?nodress: for measuring what the dressing costs
   A.dress = function (b, kind, x, z, rot, R) {
+    if (A.noDress) return;
     R = R || IV.rng((x * 31 + z * 17) | 0); rot = rot || 0;
     const tw = () => (R() - 0.5) * 0.045, jo = (k) => (R() - 0.5) * 2 * k, c = Math.cos(rot), s = Math.sin(rot);
     const at = (u, v) => [x + c * u + s * v + jo(0.05), z - s * u + c * v + jo(0.04)];
@@ -193,6 +195,7 @@
     return n;
   };
   A.vantage = function (b, x, z, rot, n, R) {
+    if (A.noDress) return;
     R = R || IV.rng((x * 7 + z * 11) | 0); n = n || 5; const c = Math.cos(rot), s = Math.sin(rot), gy = H(x, z), E = env();
     const B = E && E.builder ? E.builder(seed()) : null;
     for (let k = 0; k < n; k++) {

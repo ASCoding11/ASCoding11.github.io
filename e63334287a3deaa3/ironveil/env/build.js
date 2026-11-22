@@ -1131,7 +1131,7 @@
   E.wall = function (points, opts) {
     opts = Object.assign({ type: 'stone', h: 1.2, t: 0.55, gaps: [], seed: 11 }, opts || {});
     const B = E.builder(opts.seed), R = E.rng(opts.seed * 3 + 1), hf = opts.heightFn || (() => 0), stone = opts.type !== 'brick';
-    B.wear = false;   // field walls: the shader's damp foot is enough (baked wear would subdivide kilometres of wall)
+    B.wear = false; B.bevelAuto = false;   // field walls: the shader's damp foot is enough, and kilometres of bevelled coping cost too much
     const mat = stone ? 'fieldstone' : 'brick_red';
     let total = 0; const segs = [];
     for (let i = 0; i < points.length - 1; i++) { const a = points[i], b = points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, L, s0: total }); total += L; }
@@ -1177,6 +1177,7 @@
   E.fence = function (points, kind, opts) {
     opts = Object.assign({ seed: 5 }, opts || {}); kind = kind || 'rail';
     const B = E.builder(opts.seed), R = E.rng(opts.seed * 5 + 2), hf = opts.heightFn || (() => 0);
+    B.bevelAuto = false;   // fences run for kilometres: sharp rails and posts
     const wires = [];
     for (let i = 0; i < points.length - 1; i++) {
       const a = points[i], b = points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), dx = (b[0] - a[0]) / L, dz = (b[1] - a[1]) / L, rot = Math.atan2(-dz, dx);

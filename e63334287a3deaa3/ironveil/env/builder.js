@@ -24,8 +24,10 @@
     // +-8 % per copy (each builder is one building, wall run or prop) and a slight warm/cool shift, baked into the tint
     const r = E.rng((seed || 1) * 7 + 3); this.copyK = [1 + (r() - 0.5) * 0.16, 0, 0]; const h = (r() - 0.5) * 0.04; this.copyK[1] = this.copyK[0] * (1 + h * 0.3); this.copyK[2] = this.copyK[0] * (1 - h);
     // trim bevels by default (sills, lintels, quoins, coping, frames, posts and rails); props set bevelAuto = true
-    this.bevelAuto = E.Q.name === 'low' ? false : TRIM_BEVEL;
+    this.bevelAuto = E.Q.name === 'low' || E.noBevel ? false : TRIM_BEVEL;
   }
+  E.noBevel = typeof location !== 'undefined' && /[?&]nobevel\b/.test(location.search);   // ?nobevel / ?nowear: for measuring what they cost
+  E.noWear = typeof location !== 'undefined' && /[?&]nowear\b/.test(location.search);
   const TRIM_BEVEL = /^(ashlar|timber|wood_painted|concrete|metal_painted|metal_rust|planks)$/;
   const P = Builder.prototype;
   const WEAR_MATS = /^(brick_red|brick_sooty|fieldstone|ashlar|plaster|planks|concrete)$/;
@@ -48,7 +50,7 @@
   }
   // A quad from 4 world points (counter-clockwise), uv per corner, normal computed.
   P.quad = function (mat, a, b, c, d, uv, tint, foot) {
-    if (this.wear !== false && foot != null && !this.detail && WEAR_MATS.test(mat) && E.Q.name !== 'low') {
+    if (this.wear !== false && !E.noWear && foot != null && !this.detail && WEAR_MATS.test(mat) && E.Q.name !== 'low') {
       _v.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]); _w.set(d[0] - a[0], d[1] - a[1], d[2] - a[2]);
       const n = _v.clone().cross(_w), area = n.length(); n.normalize();
       if (Math.abs(n.y) < 0.35 && area > 0.5) { (this.pend || (this.pend = [])).push({ mat, a, b, c, d, uv, tint, foot, n: [n.x, n.y, n.z] }); return; }
@@ -74,7 +76,7 @@
   P.bevelFor = function (mat, sx, sy, sz, o) {
     let b = o.bevel;
     const mn = Math.min(sx, sy, sz), mx = Math.max(sx, sy, sz);
-    if (b === undefined) { const A = this.bevelAuto; if (!A || (A instanceof RegExp && !A.test(mat)) || mx > 3.5 || mn < 0.015) return 0; b = true; }
+    if (b === undefined) { const A = this.bevelAuto; if (!A || (A instanceof RegExp && !A.test(mat)) || mx > 3.5 || mn < 0.03) return 0; b = true; }   // (under 3 cm the bevel would be under 7.5 mm: not worth 32 triangles)
     if (b === true) b = Math.min(STONE_BEVEL.test(mat) ? 0.025 : 0.012, mn * 0.25);
     return Math.max(0, Math.min(+b || 0, mn * 0.45));
   };
@@ -149,7 +151,7 @@
     const e = _m.elements, ne = _n.elements, tint = o.tint || null, foot = o.noFoot ? null : (o.foot != null ? o.foot : 0);
     const uo = o.uvOff || [this.R() * 7, this.R() * 7], long = o.grain === 'long';
     // big vertical faces of wall materials go through P.quad, which holds them back for the baked wear (grime, drips)
-    const wearBox = this.wear !== false && !this.detail && foot != null && WEAR_MATS.test(mat) && E.Q.name !== 'low' && Math.max(sx, sz) * sy > 0.5;
+    const wearBox = this.wear !== false && !E.noWear && !this.detail && foot != null && WEAR_MATS.test(mat) && E.Q.name !== 'low' && Math.max(sx, sz) * sy > 0.5;
     for (const F of FACES) {
       if (o.sides && o.sides[F.k] === false) continue;
       if (wearBox && F.k !== 'top' && F.k !== 'bottom') {
