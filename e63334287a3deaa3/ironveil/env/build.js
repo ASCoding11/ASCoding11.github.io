@@ -52,6 +52,7 @@
   }
   const tintJ = (R, v, base) => { const k = 1 + R.range(-v, v); const c = new THREE.Color(base || 0xffffff); return new THREE.Color(c.r * k, c.g * k * (1 + R.range(-0.03, 0.03)), c.b * k); };
 
+  const recessTint = (t) => new THREE.Color(t ? t.r * 0.8 : 0.8, t ? t.g * 0.8 : 0.8, t ? t.b * 0.78 : 0.78);
   // ------------------------------------------------------------------ walls with openings
   // A straight wall: from local point (x0, z0) along unit dir (dx, dz) for length L; outward normal (nx, nz) = right of dir.
   // ops: openings [{ a0, a1, y0, y1 }]; mats: { out, in }; uStart: perimeter u for the outer face (bricks wrap corners).
@@ -71,10 +72,11 @@
       B.quad(mats.out, P(a0, ya, 1), P(a1, ya, 1), P(a1, yb, 1), P(a0, yb, 1), [[uStart + a0, ya], [uStart + a1, ya], [uStart + a1, yb], [uStart + a0, yb]], W.tint, 0);
       if (mats.in) B.quad(mats.in, P(a1, ya, -1), P(a0, ya, -1), P(a0, yb, -1), P(a1, yb, -1), [[L - a1, ya], [L - a0, ya], [L - a0, yb], [L - a1, yb]], null, W.inFoot != null ? W.inFoot : 0);
       // reveals next to openings (and wall ends)
-      const rev = (aa, flip) => B.quad(mats.out, flip ? P(aa, ya, -1) : P(aa, ya, 1), flip ? P(aa, ya, 1) : P(aa, ya, -1), flip ? P(aa, yb, 1) : P(aa, yb, -1), flip ? P(aa, yb, -1) : P(aa, yb, 1), [[0, ya], [T, ya], [T, yb], [0, yb]], W.tint, 0);
+      const rt = recessTint(W.tint);   // reveals and soffits sit in shadow and gather dirt: darker
+      const rev = (aa, flip) => B.quad(mats.out, flip ? P(aa, ya, -1) : P(aa, ya, 1), flip ? P(aa, ya, 1) : P(aa, ya, -1), flip ? P(aa, yb, 1) : P(aa, yb, -1), flip ? P(aa, yb, -1) : P(aa, yb, 1), [[0, ya], [T, ya], [T, yb], [0, yb]], rt, 0);
       if ((i > 0 && isOpen(a0 - 1e-3, ym)) || (i === 0 && W.capStart)) rev(a0, true);
       if ((i < X.length - 2 && isOpen(a1 + 1e-3, ym)) || (i === X.length - 2 && W.capEnd)) rev(a1, false);
-      const hz = (yy, down) => { const p0 = P(a0, yy, 1), p1 = P(a1, yy, 1), p2 = P(a1, yy, -1), p3 = P(a0, yy, -1); if (down) B.quad(mats.out, p3, p2, p1, p0, [[a0, 0], [a1, 0], [a1, T], [a0, T]], W.tint, 0); else B.quad(mats.out, p0, p1, p2, p3, [[a0, 0], [a1, 0], [a1, T], [a0, T]], W.tint, 0); };
+      const hz = (yy, down) => { const p0 = P(a0, yy, 1), p1 = P(a1, yy, 1), p2 = P(a1, yy, -1), p3 = P(a0, yy, -1); if (down) B.quad(mats.out, p3, p2, p1, p0, [[a0, 0], [a1, 0], [a1, T], [a0, T]], rt, 0); else B.quad(mats.out, p0, p1, p2, p3, [[a0, 0], [a1, 0], [a1, T], [a0, T]], W.tint, 0); };
       if (j < Y.length - 2 && isOpen(am, yb + 1e-3)) hz(yb, true);   // soffit over an opening
       if (j > 0 && isOpen(am, ya - 1e-3)) hz(ya, false);             // sill bed under a window
       if (j === Y.length - 2 && W.capTop !== false) hz(yb, false);
@@ -123,7 +125,9 @@
     if (o.sill !== false) {
       B.box(o.sillMat || 'ashlar', sp[0] - nx * 0.06, o.y0 - 0.07, sp[1] - nz * 0.06, o.w + 0.16, 0.07, 0.2, rot, { tint: tintJ(R, 0.08) });
       B.decal('waterstain', [sp[0] + nx * 0.0, o.y0 - 0.32, sp[1] + nz * 0.0], [nx, 0, nz], o.w * 0.9, 0.45, 0);
+      if (B.drip) B.drip(sp[0], o.y0 - 0.07, sp[1], nx, nz, o.w + 0.1, 1.3, 0.26);   // streaks run down from the sill ends and its drip
     }
+    if (B.drip) { const hp0 = out(o.T / 2); B.drip(hp0[0], o.y1 + 0.32, hp0[1], nx, nz, o.w + 0.5, 0.55, 0.16); }   // off the head, down past the frame
     // head
     const hp = out(o.T / 2);
     if (o.head === 'arch' || o.head === 'pointed') {
@@ -251,6 +255,7 @@
       }
       // a fascia board under the tiles along the eave
       B.box('timber', 0, eave - ov * Math.tan(pitch) - 0.16, side * (run - 0.03), L, 0.18, 0.04, 0, { grain: 'long', noFoot: true });
+      if (B.drip) B.drip((x0 + x1) / 2, eave, side * d / 2, 0, side, L, 1.6, 0.2);   // run-off from the eave down the wall
       // slipped tiles lying on the roof
       for (let k = 0; k < Math.round(1 + S.damage * 6); k++) {
         const t = R.range(0.1, 0.8), x = R.range(x0 + 0.5, x1 - 0.5), y = eave - ov * Math.tan(pitch) + t * (ridge - eave + ov * Math.tan(pitch)) + th + 0.02, z = side * (run - t * run);
@@ -1055,7 +1060,7 @@
   E.settle = function (specs, opts) {
     opts = opts || {};
     const Q = E.Q.name, near = opts.near || (Q === 'low' ? 26 : Q === 'high' ? 55 : 34), hf = opts.heightFn || (() => 0);
-    const SB = E.builder(opts.seed || 77), detailRoot = new THREE.Group(), group = new THREE.Group(); group.name = 'IVEnv.settlement';
+    const SB = E.builder(opts.seed || 77), detailRoot = new THREE.Group(), group = new THREE.Group(); group.name = 'IVEnv.settlement'; SB.wear = false;   // far shells: no baked wear
     const colliders = [], lights = [], chimneys = [], RR = E.rng((opts.seed || 77) * 3 + 1);
     for (const sp0 of specs) {
       const sp = Object.assign({ seed: 1 + ((sp0.x * 13 + sp0.z * 7) | 0) % 997, rot: 0 }, sp0), D = shellDims(sp), rot = sp.rot;
@@ -1121,6 +1126,7 @@
   E.wall = function (points, opts) {
     opts = Object.assign({ type: 'stone', h: 1.2, t: 0.55, gaps: [], seed: 11 }, opts || {});
     const B = E.builder(opts.seed), R = E.rng(opts.seed * 3 + 1), hf = opts.heightFn || (() => 0), stone = opts.type !== 'brick';
+    B.wear = false;   // field walls: the shader's damp foot is enough (baked wear would subdivide kilometres of wall)
     const mat = stone ? 'fieldstone' : 'brick_red';
     let total = 0; const segs = [];
     for (let i = 0; i < points.length - 1; i++) { const a = points[i], b = points[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); segs.push({ a, b, L, s0: total }); total += L; }

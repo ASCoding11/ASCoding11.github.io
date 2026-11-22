@@ -20,11 +20,23 @@
 
   function Builder(seed) {
     this.R = E.rng(seed || 1); this.buckets = {}; this.colliders = []; this.decals = [];
+    this.seed = seed || 1; this.drips = [];
+    // +-8 % per copy (each builder is one building, wall run or prop) and a slight warm/cool shift, baked into the tint
+    const r = E.rng((seed || 1) * 7 + 3); this.copyK = [1 + (r() - 0.5) * 0.16, 0, 0]; const h = (r() - 0.5) * 0.04; this.copyK[1] = this.copyK[0] * (1 + h * 0.3); this.copyK[2] = this.copyK[0] * (1 - h);
     // trim bevels by default (sills, lintels, quoins, coping, frames, posts and rails); props set bevelAuto = true
     this.bevelAuto = E.Q.name === 'low' ? false : TRIM_BEVEL;
   }
   const TRIM_BEVEL = /^(ashlar|timber|wood_painted|concrete|metal_painted|metal_rust|planks)$/;
   const P = Builder.prototype;
+  const WEAR_MATS = /^(brick_red|brick_sooty|fieldstone|ashlar|plaster|planks|concrete)$/;
+  // A drip source: rain runs off a sill, eave or window head at (x, y, z) on a wall facing (nx, nz) and stains the
+  // wall below it in 1-4 streaks across `width` (5-15 cm wide each), up to `len` metres long, darkness k (0..1).
+  P.drip = function (x, y, z, nx, nz, width, len, k) {
+    const r = E.rng(((x * 73.1 + z * 41.7 + y * 13.3) * 100) | 0), L = Math.hypot(nx, nz) || 1;
+    const d = { x, y, z, nx: nx / L, nz: nz / L, s: [] }, n = Math.max(1, Math.min(width > 2.5 ? 99 : 4, Math.round(width / 0.9 + r() * 2.5)));
+    for (let i = 0; i < n; i++) d.s.push({ c: (r() - 0.5) * width * 0.92, hw: 0.025 + r() * 0.05, len: (len || 1) * (0.35 + r() * 0.65), k: (k || 0.22) * (0.6 + r() * 0.5), top: r() * 0.04 });
+    this.drips.push(d);
+  };
   // Detail pieces (arch voussoirs, quoins, loose bricks, ridge tiles, glazing bars, furniture...) go into separate
   // meshes that IVEnv.update hides beyond Q.detailDist. detail 2 = also left out entirely on Low.
   P.bucket = function (mat) { if (this.detail) mat += '#d'; return this.buckets[mat] || (this.buckets[mat] = { p: [], n: [], u: [], a: [], i: [] }); };
@@ -36,6 +48,11 @@
   }
   // A quad from 4 world points (counter-clockwise), uv per corner, normal computed.
   P.quad = function (mat, a, b, c, d, uv, tint, foot) {
+    if (this.wear !== false && foot != null && !this.detail && WEAR_MATS.test(mat) && E.Q.name !== 'low') {
+      _v.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]); _w.set(d[0] - a[0], d[1] - a[1], d[2] - a[2]);
+      const n = _v.clone().cross(_w), area = n.length(); n.normalize();
+      if (Math.abs(n.y) < 0.35 && area > 0.5) { (this.pend || (this.pend = [])).push({ mat, a, b, c, d, uv, tint, foot, n: [n.x, n.y, n.z] }); return; }
+    }
     const B = this.bucket(mat), base = B.p.length / 3;
     _v.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]); _w.set(d[0] - a[0], d[1] - a[1], d[2] - a[2]); const n = _v.clone().cross(_w).normalize();
     [a, b, c, d].forEach((p, k) => vtx(B, p[0], p[1], p[2], n.x, n.y, n.z, uv[k][0], uv[k][1], tint, foot));
@@ -131,8 +148,23 @@
     _m.compose(_p, _q, _s); _n.getNormalMatrix(_m);
     const e = _m.elements, ne = _n.elements, tint = o.tint || null, foot = o.noFoot ? null : (o.foot != null ? o.foot : 0);
     const uo = o.uvOff || [this.R() * 7, this.R() * 7], long = o.grain === 'long';
+    // big vertical faces of wall materials go through P.quad, which holds them back for the baked wear (grime, drips)
+    const wearBox = this.wear !== false && !this.detail && foot != null && WEAR_MATS.test(mat) && E.Q.name !== 'low' && Math.max(sx, sz) * sy > 0.5;
     for (const F of FACES) {
       if (o.sides && o.sides[F.k] === false) continue;
+      if (wearBox && F.k !== 'top' && F.k !== 'bottom') {
+        const pts = [], uvs = [];
+        for (const c of F.c) {
+          const x = c[0], y = c[1], z = c[2];
+          pts.push([e[0] * x + e[4] * y + e[8] * z + e[12], e[1] * x + e[5] * y + e[9] * z + e[13], e[2] * x + e[6] * y + e[10] * z + e[14]]);
+          let u, v; if (F.k === 'px' || F.k === 'nx') { u = (F.k === 'px' ? -z : z) * sz; v = y * sy; } else { u = (F.k === 'pz' ? x : -x) * sx; v = y * sy; }
+          if (long && ((F.k === 'px' || F.k === 'nx') ? sz > sy : sx > sy)) { const t = u; u = v; v = t; }
+          uvs.push([u + uo[0], v + uo[1]]);
+        }
+        const before = this.pend ? this.pend.length : 0; this.quad(mat, pts[0], pts[1], pts[2], pts[3], uvs, tint, foot);
+        if ((this.pend ? this.pend.length : 0) > before) continue;   // held back; otherwise P.quad already wrote it
+        continue;
+      }
       const base = B.p.length / 3;
       const nx = ne[0] * F.n[0] + ne[3] * F.n[1] + ne[6] * F.n[2], ny = ne[1] * F.n[0] + ne[4] * F.n[1] + ne[7] * F.n[2], nz = ne[2] * F.n[0] + ne[5] * F.n[1] + ne[8] * F.n[2];
       const nl = Math.hypot(nx, ny, nz) || 1;
@@ -174,8 +206,74 @@
   P.decal = function (type, p, n, w, h, rot) { this.decals.push({ type, p, n, w, h: h || w, rot: rot || 0 }); };
 
   // Merge into meshes. Decals go into one extra mesh with the atlas material.
+  // the wear multiplier at local point p (y = height of the point, hf = height above the foot) on a face with normal n
+  P.wearAt = function (p, n, hf, out) {
+    let k = 1, gk = 1;
+    if (hf != null) {   // grime band: 0-0.55 m, darkest at the bottom, a ragged top edge that wanders along the wall
+      const al = p[0] * n[2] - p[2] * n[0], top = 0.4 + 0.3 * E.vnoise(al * 1.3, 0.5, this.seed) + 0.12 * E.vnoise(al * 5.1, 1.5, this.seed + 1);
+      const g = 1 - E.sstep(0.02, top, hf); k *= 1 - 0.24 * g; gk *= 1 - 0.05 * g;
+    }
+    for (const d of this.drips) {
+      if (n[0] * d.nx + n[2] * d.nz < 0.8) continue;
+      const off = (p[0] - d.x) * d.nx + (p[2] - d.z) * d.nz; if (Math.abs(off) > 0.4) continue;
+      const t = (p[0] - d.x) * -d.nz + (p[2] - d.z) * d.nx, below = d.y - p[1];
+      if (below < -0.02) continue;
+      for (const st of d.s) {
+        const across = 1 - Math.abs(t - st.c) / st.hw; if (across <= 0) continue;
+        const down = below / st.len; if (down > 1) continue;
+        const dk = st.k * across * Math.pow(1 - down, 1.4) * E.sstep(-0.02, 0.03 + st.top, below);
+        k *= 1 - dk; gk *= 1 + dk * 0.15;   // a faint green-brown cast in the streak
+      }
+    }
+    out[0] = k; out[1] = k * gk; out[2] = k / gk; return out;
+  };
+  // write the held-back wall quads: a grid of about 0.75 x 1.5 m whose lines also fall on the drip streaks (centre and
+  // both edges) and on the grime band, so the vertex tint can draw them
+  P.flushWear = function () {
+    const list = this.pend || []; this.pend = null; const wk = [1, 1, 1], dv = [0, 0, 0];
+    for (const q of list) {
+      const { a, b, d, uv, n } = q, du = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], dvv = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
+      const Lu = Math.hypot(du[0], du[1], du[2]), Lv = Math.hypot(dvv[0], dvv[1], dvv[2]);
+      const us = new Set([0, 1]), vs = new Set([0, 1]);
+      for (let i = 1; i < Math.ceil(Lu / 0.75); i++) us.add(i / Math.ceil(Lu / 0.75));
+      for (let i = 1; i < Math.ceil(Lv / 1.5); i++) vs.add(i / Math.ceil(Lv / 1.5));   // rows only where wear needs them (grime band, drips)
+      // u runs along the wall (horizontal), v up it: true for every wall quad the kit makes (wallRun, gables use tri)
+      const vy = dvv[1] / (Lv || 1);
+      if (Math.abs(vy) > 0.9) {
+        for (const h of [0.08, 0.25, 0.45, 0.7]) { const t = (q.foot + h - a[1]) / dvv[1]; if (t > 0.01 && t < 0.99) vs.add(t); }
+        let used = false;
+        for (const dr of this.drips) {
+          if (n[0] * dr.nx + n[2] * dr.nz < 0.8) continue;
+          const off = (a[0] - dr.x) * dr.nx + (a[2] - dr.z) * dr.nz; if (Math.abs(off) > 0.4) continue;
+          // along-wall coordinate of the quad's corner a, and the direction of u in that coordinate
+          const ta = (a[0] - dr.x) * -dr.nz + (a[2] - dr.z) * dr.nx, tu = (du[0] * -dr.nz + du[2] * dr.nx) / (Lu || 1);
+          if (Math.abs(tu) < 0.5) continue;
+          for (const st of dr.s) for (const e of [-1, 0, 1]) { const t = (st.c + e * st.hw - ta) / (tu * Lu); if (t > 0.002 && t < 0.998) { us.add(t); used = true; } }
+          if (used) for (const st of dr.s) for (const h of [0, 0.3, 0.65]) { const t = (dr.y - h * st.len - a[1]) / dvv[1]; if (t > 0.01 && t < 0.99) vs.add(t); }
+        }
+      }
+      let U = [...us].sort((x, y) => x - y), V = [...vs].sort((x, y) => x - y);
+      if (U.length > 40) U = U.filter((x, i) => i % 2 === 0 || i === U.length - 1);
+      if (V.length > 24) V = V.filter((x, i) => i % 2 === 0 || i === V.length - 1);
+      const B = this.bucket(q.mat), base = B.p.length / 3, nu = U.length;
+      for (const tv of V) for (const tu of U) {
+        const x = a[0] + du[0] * tu + dvv[0] * tv, y = a[1] + du[1] * tu + dvv[1] * tv, z = a[2] + du[2] * tu + dvv[2] * tv;
+        // bilinear uv between the four corner uvs (a, b, c, d)
+        const u0 = uv[0][0] + (uv[1][0] - uv[0][0]) * tu, u1 = uv[3][0] + (uv[2][0] - uv[3][0]) * tu, v0 = uv[0][1] + (uv[1][1] - uv[0][1]) * tu, v1 = uv[3][1] + (uv[2][1] - uv[3][1]) * tu;
+        this.wearAt([x, y, z], n, Math.max(0, y - q.foot), wk);
+        const t = q.tint; dv[0] = (t ? t.r : 1) * wk[0]; dv[1] = (t ? t.g : 1) * wk[1]; dv[2] = (t ? t.b : 1) * wk[2];
+        B.p.push(x, y, z); B.n.push(n[0], n[1], n[2]); B.u.push(u0 + (u1 - u0) * tv, v0 + (v1 - v0) * tv);
+        B.a.push(Math.max(dv[0], 1e-3), Math.max(dv[1], 1e-3), Math.max(dv[2], 1e-3), 1 + Math.max(0, y - q.foot));
+      }
+      for (let j = 0; j < V.length - 1; j++) for (let i = 0; i < nu - 1; i++) { const k0 = base + j * nu + i; B.i.push(k0, k0 + 1, k0 + nu + 1, k0, k0 + nu + 1, k0 + nu); }
+      this.wearTris = (this.wearTris || 0) + (V.length - 1) * (nu - 1) * 2 - 2;
+    }
+  };
   P.finish = function (o) {
     o = o || {};
+    if (this.pend) this.flushWear();
+    // the per-copy shift on every vertex of this builder (tint 0 = 'none' becomes the shift itself)
+    if (E.Q.name !== 'low') for (const mat in this.buckets) { if (/^glass/.test(mat)) continue; const A = this.buckets[mat].a; for (let i = 0; i < A.length; i += 4) { const none = A[i] + A[i + 1] + A[i + 2] <= 0; for (let c = 0; c < 3; c++) A[i + c] = (none ? 1 : A[i + c]) * this.copyK[c]; } }
     const g = new THREE.Group();
     for (const mat in this.buckets) {
       const B = this.buckets[mat]; if (!B.i.length) continue;
