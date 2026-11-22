@@ -329,6 +329,9 @@
     IV.emit('telegraph', { e, delay, kind });
   }
   AI.telegraph = telegraph;
+  // the wait after a shoot() call: while his telegraph runs, exactly until it ends (so the first round follows the
+  // warning at once instead of a whole firing interval later); otherwise the weapon's own interval
+  function teleWait(e, gap) { return IV.time < (e.teleUntil || 0) ? e.teleUntil - IV.time + 0.03 : gap; }
   function noteShot(e) { if (e.teleShot) return; e.teleShot = true; for (let i = AI.teleLog.length - 1; i >= 0; i--) { const l = AI.teleLog[i]; if (l.id === e.id) { if (l.first == null) l.first = IV.time; break; } } }
   function shoot(e, tgt, dt) {
     const d = Math.hypot(tgt.pos.x - e.pos.x, tgt.pos.z - e.pos.z);
@@ -488,7 +491,7 @@
             e.burst--; e.shotT = e.burst > 0 ? 0.075 : 1.4 + Math.random();
             if (e.burst <= 0) e.racked = false;
           }
-        } else if (e.shotT <= 0 && canShoot) { shoot(e, tgt, dt); e.shotT = e.kind === 'sniper' ? 3.6 + Math.random() : 1.8; }
+        } else if (e.shotT <= 0 && canShoot) { shoot(e, tgt, dt); e.shotT = teleWait(e, e.kind === 'sniper' ? 3.6 + Math.random() : 1.8); }
         if (!e.seeing && IV.time - (e.lkp ? e.lkp.t : 0) > 30) { e.aw = 0.8; e.setState('searching'); }
         return;
       }
@@ -508,13 +511,14 @@
         // run to cover; snap-shoot only if very close
         moveTo(e, e.cover.x, e.cover.z, A.runSpeed * (e.stagger > 0 ? 0.4 : 1), dt);
         e.stance = 'stand'; e.peek = false; e.actor.setUpper(canShoot && dT < 15 ? 'aimIdle' : null);
-        if (canShoot && dT < 12 && e.shotT <= 0 && e.mag > 0) { shoot(e, tgt, dt); e.shotT = 1.1 + Math.random(); }
+        if (canShoot && dT < 12 && e.shotT <= 0 && e.mag > 0) { shoot(e, tgt, dt); e.shotT = teleWait(e, 1.1 + Math.random()); }
         return;
       }
       e.speed = IV.damp(e.speed, 0, 10, dt);
       faceTo(e, tp.x, tp.z, 7, dt);
       // peek cycle: hidden, then exposed and firing
       e.peekT = (e.peekT || 0) - dt;
+      if (e.peek && AI.tokens.has(e) && e.peekT < 0.3) e.peekT = 0.3;   // his turn (telegraph, then the burst): he stays up until it is over
       if (e.peekT <= 0) { e.peek = !e.peek; e.peekT = e.peek ? 1.6 + Math.random() * 1.2 : (1.1 + Math.random() * 1.6) * (1 + e.suppr * 1.8); }
       const low = e.cover ? e.cover.low : false;
       e.stance = e.peek ? 'stand' : (low ? 'crouch' : 'stand');
@@ -525,7 +529,11 @@
       // tall cover (hedge, wall end): side-step out of it to peek
       if (e.cover && !low) { const off = e.peek ? 0.9 : 0; const side = { x: -e.cover.nz, z: e.cover.nx }; e.peekOff = IV.damp(e.peekOff || 0, off, 6, dt); }
       if (e.peek && e.mag > 0 && e.shotT <= 0) {
-        if (canShoot) { shoot(e, tgt, dt); e.shotT = (e.wkind === 'enemySmg' ? 0.12 : 0.9 + Math.random() * 0.8) * (1 + e.suppr); e.burst = (e.burst || 0) + 1; if (e.wkind === 'enemySmg' && e.burst % 5 === 0) e.shotT = 1.2; }
+        if (canShoot) {
+          shoot(e, tgt, dt);
+          if (IV.time < (e.teleUntil || 0)) e.shotT = teleWait(e, 0);   // his turn was just granted: the first round leaves as the telegraph ends
+          else { e.shotT = (e.wkind === 'enemySmg' ? 0.12 : AI.tokens.has(e) ? 0.7 + Math.random() * 0.35 : 0.9 + Math.random() * 0.8) * (1 + e.suppr); e.burst = (e.burst || 0) + 1; if (e.wkind === 'enemySmg' && e.burst % 5 === 0) e.shotT = 1.2; }
+        }
         else if (e.lkp && IV.time - e.lkp.t < 5 && Math.random() < 0.3) { suppressFire(e, e.lkp); e.shotT = 1.5; }
       }
       if (e.mag <= 0) { e.mag = 10; e.shotT = 2.4; e.peek = false; e.peekT = 2.4; AI.bark(e, 'reload'); }
