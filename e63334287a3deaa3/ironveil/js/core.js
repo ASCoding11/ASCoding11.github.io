@@ -76,6 +76,20 @@
       rifle:  { dmg: 140, rpm: 0, mag: 5, reserve: 30, reload: 2.6, bolt: 1.05, spread: 0.0004, hipSpread: 0.03, recoil: 0.065, noise: 260, zoom: 4 },
       smg:    { dmg: 30, fall: [20, 45, 0.6], rpm: 600, mag: 30, reserve: 120, reload: 2.2, spread: 0.008, hipSpread: 0.03, bloom: 0.0025, bloomMax: 0.04, recoil: 0.012, noise: 180 },
       pistol: { dmg: 45, fall: [15, 35, 0.5], rpm: 300, mag: 8, reserve: 32, reload: 1.6, spread: 0.006, hipSpread: 0.018, recoil: 0.03, noise: 42 },
+      // Recoil (rad). Each shot's kick splits in two: `keep` of it stays in the aim (you pull it back down yourself),
+      // the rest is a transient offset on the view that snaps in at `snap` 1/s, holds for `hold` s after the last
+      // shot, then eases away at `decay` 1/s. The offset is part of the aim: bullets go where the view points.
+      // pitch/yaw = per-shot kick from the hip; ads, crouch, prone multiply it; jitter = +- fraction per shot.
+      // A full-power bolt-action round: one heavy kick that is mostly gone after half a second. A pistol-calibre
+      // open-bolt SMG: small kicks on a schedule (sched: [until shot n, multiplier], ...), a slow sideways wander
+      // (wander amplitude, rate per shot) whose phase is re-rolled after a `pause` s break. A service pistol: a sharp
+      // snap that settles fast.
+      recoil: {
+        rifle:  { pitch: 0.062, yaw: 0.010, keep: 0.30, snap: 30, hold: 0.11, decay: 5.5, ads: 0.62, crouch: 0.85, prone: 0.55, jitter: 0.12, clampP: 0.3, clampY: 0.12 },
+        smg:    { pitch: 0.0072, yaw: 0.0014, keep: 0.36, snap: 34, hold: 0.09, decay: 6.5, ads: 0.6, crouch: 0.85, prone: 0.55, jitter: 0.15, clampP: 0.22, clampY: 0.1,
+                  sched: [[2, 1.25], [10, 1], [30, 0.45]], wander: 0.0036, wanderRate: 0.55, pause: 0.25 },
+        pistol: { pitch: 0.026, yaw: 0.006, keep: 0.24, snap: 38, hold: 0.06, decay: 8, ads: 0.7, crouch: 0.9, prone: 0.7, jitter: 0.15, clampP: 0.2, clampY: 0.1 }
+      },
       headMul: 2.6, limbMul: 0.65,
       grenade: { fuse: 4.0, radius: 7, dmg: 220, throwV: 16, count: 2 },
       rock: { throwV: 15, noise: 15, count: 99 },

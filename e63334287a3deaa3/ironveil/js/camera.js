@@ -11,10 +11,19 @@
   };
   const P = IV.player;
   let inited = false;
-  C.reset = function () { inited = false; C.dist = CT.dist; C.aimK = 0; C.scopeK = 0; C.trauma = 0; C.breath = 1; C.kickP = C.kickY = 0; C.assist = null; C.override = null; };
+  C.reset = function () { inited = false; C.dist = CT.dist; C.aimK = 0; C.scopeK = 0; C.trauma = 0; C.breath = 1; C.kickP = C.kickY = 0; C.recP = C.recY = C.recTP = C.recTY = C.recHold = 0; C.assist = null; C.override = null; };
   C.shake = function (a) { if (IV.settings.motion) a *= 0.3; C.trauma = Math.min(1, C.trauma + a); };
-  // recoil: the view kicks at once and a spring brings most of it back (a little climb stays, as with a real gun)
-  C.kick = function (p, y) { P.pitch += p; P.yaw += y; C.kickP += p * 0.72; C.kickY += y * 0.6; };
+  // recoil (TUNING.weapons.recoil): a kept part goes straight into the aim, the transient part into an offset that
+  // snaps in, holds while the gun keeps firing, then eases back. The offset is added to the view direction, so the
+  // next round still goes where the view points.
+  C.recP = 0; C.recY = 0; C.recTP = 0; C.recTY = 0; C.recHold = 0; C.recSpec = null;
+  C.kick = function (p, y, spec) {
+    spec = spec || { keep: 0.3, snap: 30, hold: 0.08, decay: 7, clampP: 0.3, clampY: 0.15 };
+    P.pitch += p * spec.keep; P.yaw += y * spec.keep;
+    C.recTP = IV.clamp(C.recTP + p * (1 - spec.keep), -spec.clampP, spec.clampP);
+    C.recTY = IV.clamp(C.recTY + y * (1 - spec.keep), -spec.clampY, spec.clampY);
+    C.recHold = spec.hold; C.recSpec = spec;
+  };
   // a very small bob on each foot contact (Settings: Camera bob), and a dip on landing
   C.bobV = 0; C.bobY = 0;
   C.footBob = function (k) { if (!IV.settings.bob || IV.settings.motion || (IV.weapons && (IV.weapons.aiming || IV.weapons.scoped))) return; C.bobV -= CT.bob * 9 * (k || 1); };
@@ -86,9 +95,13 @@
       const t = C.findTarget(0.1, 60);
       if (t) { const cp = W.camera.position, wy = IV.yawTo(t.x - cp.x, t.z - cp.z); P.yaw += IV.wrapA(wy - P.yaw) * Math.min(1, 1.2 * assistScale() * dt); }
     }
-    // recoil recovery (spring back toward where you were aiming)
-    const rk = 1 - Math.exp(-dt * 11);
-    P.pitch -= C.kickP * rk; P.yaw -= C.kickY * rk; C.kickP -= C.kickP * rk; C.kickY -= C.kickY * rk;
+    // recoil transient: hold, then ease the target home; the offset follows the target fast (about 30 ms)
+    if (C.recSpec) {
+      const rs = C.recSpec;
+      if (C.recHold > 0) C.recHold -= dt; else { const dk = Math.exp(-rs.decay * dt); C.recTP *= dk; C.recTY *= dk; }
+      const sk = 1 - Math.exp(-rs.snap * dt); C.recP += (C.recTP - C.recP) * sk; C.recY += (C.recTY - C.recY) * sk;
+      if (C.recHold <= 0 && Math.abs(C.recP) < 1e-5 && Math.abs(C.recY) < 1e-5 && Math.abs(C.recTP) < 1e-5) { C.recP = C.recY = C.recTP = C.recTY = 0; C.recSpec = null; }
+    }
     // bob spring (critically damped-ish)
     C.bobV += (-C.bobY * 120 - C.bobV * 18) * dt; C.bobY += C.bobV * dt; if (Math.abs(C.bobY) < 1e-4 && Math.abs(C.bobV) < 1e-3) C.bobY = C.bobV = 0;
     P.pitch = IV.clamp(P.pitch, CT.pitchMin, CT.pitchMax);
@@ -123,7 +136,7 @@
       C.swayX = Math.sin(t * 0.9) * sw + Math.sin(t * 2.3 + 1) * sw * 0.35;
       C.swayY = Math.sin(t * 1.8) * sw * 0.6 + Math.cos(t * 1.1) * sw * 0.3;
     } else { C.swayX = C.swayY = 0; C.holding = false; C.breath = Math.min(1, C.breath + dt / 4); }
-    const yaw = P.yaw + shY + C.swayX, pitch = P.pitch + shP + C.swayY;
+    const yaw = P.yaw + shY + C.swayX + C.recY, pitch = IV.clamp(P.pitch + shP + C.swayY + C.recP, CT.pitchMin, CT.pitchMax);
     dir.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
     C.lookDir.copy(dir);
     right.set(Math.cos(yaw), 0, -Math.sin(yaw));
