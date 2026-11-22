@@ -227,7 +227,7 @@
     A.signpost(-3.6, 5.2, -Math.PI / 2, 'ST-ODRAN  6 km', { kind: 'paint', ground: '#e8e2d2', color: '#262420', distress: 0.4, size: 64 }, { h: 2.2, w: 1.3 });
     A.stone(4.8, 3.6, -Math.PI / 2, 'VERCHANNES\n1,2');
     A.stone(5.8, -52, -Math.PI / 2 + 0.1, 'ST-ODRAN\n5,7');
-    A.stone(-58.5, 22.6, Math.PI, 'LE GUÉ\n0,4');
+    // (no stone on the sunken lane: it is the stealth route, and a collider there changes the approach)
     // the farm: its name painted on the farmhouse's yard wall, a no-smoking plate on the barn, the office door
     A.sign('FERME DU GRAND CLOS', { kind: 'paint', ground: null, color: 'rgba(232,224,202,0.8)', distress: 0.55, size: 80 }, [HOUSE.x + 2.5, gy(HOUSE.x, HOUSE.z) + 3.0, HOUSE.z + 12], [HOUSE.x + 2.5, gy(HOUSE.x, HOUSE.z) + 3.0, HOUSE.z], 2.8);
     A.sign('DÉFENSE\nDE FUMER', { kind: 'enamel', ground: '#f2efe6', color: '#a3241c', distress: 0.4, size: 64 }, [BARN.x - 12, gy(BARN.x, BARN.z) + 1.75, BARN.z + 3.2], [BARN.x, gy(BARN.x, BARN.z) + 1.75, BARN.z + 3.2], 0.5);
