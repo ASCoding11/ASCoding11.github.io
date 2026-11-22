@@ -96,7 +96,25 @@
       return o;
     } catch (e) { console.warn('dress', kind, e); return null; }
   }
+  // ---- painted text (env/labels.js, one atlas): an invented camp (Brackenwold), hut and building names, the range's
+  // danger board, firing-point and distance boards. All names are made up; no real units.
+  function signs() {
+    if (!IV.art.envOn()) return;
+    const A = IV.art, gy = (x, z) => W.height(x, z);
+    const paint = (c) => ({ kind: 'paint', ground: null, color: c || 'rgba(24,22,20,0.92)', distress: 0.35, size: 72 });
+    const onWall = (t, x0, z0, x1, z1, up, w, st) => A.sign(t, st || paint(), [x0, gy(x0, z0) + up, z0], [x1, gy(x1, z1) + up, z1], w);
+    A.signpost(48.2, 178.5, 0, 'BRACKENWOLD CAMP\nTRAINING WING', { kind: 'paint', ground: '#2b3324', color: '#e6dec6', distress: 0.3, size: 72 }, { h: 2.3, w: 2.0, posts: 2 });
+    onWall('HUT 1', -34, 126, -34, 116, 2.2, 0.9); onWall('HUT 2', -34, 94, -34, 84, 2.2, 0.9);
+    onWall('HUT 3', 6, 140, 16, 140, 2.0, 0.9); onWall('HUT 4', 6, 120, 16, 120, 2.0, 0.9);
+    onWall('ORDERLY ROOM', -6, 130, -18, 130, 2.2, 1.4);
+    onWall('MESS HALL', 20, 134, 32, 134, 2.6, 1.6); onWall('COOKHOUSE', 22, 120, 32, 120, 2.3, 1.3); onWall('MOTOR POOL', 20, 96, 33, 96, 3.6, 2.2);
+    onWall('FUEL STORE\nNO SMOKING', 24, 69, 33, 69, 1.9, 1.0, paint('rgba(150,30,22,0.92)')); onWall('GUARD ROOM', 50, 160, 50, 166, 2.2, 1.3);
+    A.signpost(8.2, RANGE_Z + 4, 0, 'DANGER\nLIVE FIRING\nKEEP CLEAR WHEN\nTHE RED FLAG FLIES', { kind: 'paint', ground: '#ece8dc', color: '#a8261d', distress: 0.3, size: 64 }, { h: 2.0, w: 1.05, posts: 2 });
+    A.signpost(-6.4, RANGE_Z + 1.2, 0, 'No 2 RANGE\nFIRING POINT', { kind: 'paint', ground: '#1e1d1b', color: '#eeeadf', distress: 0.3, size: 64 }, { h: 1.5, w: 0.95 });
+    for (const [yd, z] of [['100', RANGE_Z - 91.4], ['200', RANGE_Z - 182.9], ['300', RANGE_Z - 274.3]]) A.signpost(-7.2, z, 0, yd + '\nYARDS', { kind: 'paint', ground: '#ece8dc', color: '#1c1b19', distress: 0.35, size: 72 }, { h: 1.2, w: 0.55 });
+  }
   function build(M) {
+    window.IVEnv && (IVEnv.labelLang = 'en');
     const b = K.begin();
     // course edging: rope posts along the gravel path
     for (let z = 160; z > 0; z -= 6) for (const s of [-1, 1]) K.add(b, 'wood', K.GEO.box, s * 2.6, W.height(s * 2.6, z) + 0.4, z, 0.1, 0.8, 0.1, 0, 0, 0, 0x8a7458);
@@ -174,6 +192,7 @@
         { kind: 'office', w: 6, d: 4, x: 33, z: 69, rot: 0, out: 'brick_red' },             // fuel store
         { kind: 'office', w: 6, d: 4.5, x: 50, z: 166, rot: -H2 }                           // guardroom
       ], { seed: 909 });
+      signs();
       if (IV.art.envOn()) {
         dress('truck', 26.5, 83.5, 0.15); dress('truck', 37, 82.5, -0.1); dress('car', 23.5, 106, 1.45);
         dress('drums', 28.5, 66.5, 0.4); dress('drums', 38.5, 66, 2.1); dress('guardtower', 50, 118, 0.1);

@@ -204,6 +204,9 @@
   P.col = function (x, z, sx, sz, y0, y1, rot, surf, kind) { this.colliders.push({ x, z, hx: sx / 2, hz: sz / 2, y0, y1, rot: rot || 0, surf: surf || 'stone', kind: kind || '' }); };
   // A wear decal from the atlas, laid flat on a surface: centre p, outward normal n, size w x h, rotation in plane.
   P.decal = function (type, p, n, w, h, rot) { this.decals.push({ type, p, n, w, h: h || w, rot: rot || 0 }); };
+  // painted text (env/labels.js): text, style, centre p, outward normal n, width w (m), in the builder's space. The
+  // finished group carries them (userData.labels); IV.art.flush puts them into the one label atlas in world space.
+  P.label = function (text, style, p, n, w, o) { (this.labels || (this.labels = [])).push({ text, style, p, n, w, o: o || {} }); };
 
   // Merge into meshes. Decals go into one extra mesh with the atlas material.
   // the wear multiplier at local point p (y = height of the point, hf = height above the foot) on a face with normal n
@@ -289,6 +292,7 @@
       g.add(m);
     }
     if (this.decals.length) { const dm = E.decalMesh(this.decals); E.registerDetail(dm, 40); g.add(dm); }
+    if (this.labels) g.userData.labels = this.labels;
     return g;
   };
   E.builder = (seed) => new Builder(seed);

@@ -207,7 +207,34 @@
 
   // ---------------------------------------------------------------- build (static world)
   let grass = null;
+  // ---- painted text (env/labels.js, one atlas): an invented village (Verchannes) and farm (the Grand Clos), house
+  // numbers, a cafe board, a faded gable advert, kilometre stones, a fingerpost. All names are made up.
+  function signs(hamlet) {
+    if (!IV.art.envOn()) return;
+    const A = IV.art, gy = (x, z) => W.height(x, z);
+    const plate = { kind: 'enamel', ground: '#1d3466', color: '#efece2', distress: 0.35, size: 72 };
+    let odd = 1, even = 2;
+    for (const sp of hamlet) {
+      if (sp.kind === 'church' || sp.kind === 'ruin' || (sp.damage || 0) > 0.5) continue;
+      const fx = Math.sin(sp.rot), fz = Math.cos(sp.rot), lx = Math.cos(sp.rot), lz = -Math.sin(sp.rot), half = (sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2, y = gy(sp.x, sp.z);
+      const from = (lat, up, out) => [sp.x + fx * (half + (out || 3.5)) + lx * lat, y + up, sp.z + fz * (half + (out || 3.5)) + lz * lat], to = (lat, up) => [sp.x + lx * lat, y + up, sp.z + lz * lat];
+      if (sp.kind !== 'shed' && sp.kind !== 'barn') { const n = sp.x > 1 ? odd : even; if (sp.x > 1) odd += 2; else even += 2; A.sign(String(n), plate, from(1.1, 2.25), to(1.1, 2.25), 0.17); }
+      if (sp.kind === 'shoprow') { A.sign('CAFÉ DE LA HALTE', { kind: 'paint', ground: '#2a3827', color: '#ddd2ad', distress: 0.45, size: 72 }, from(0, 3.05), to(0, 3.05), 3.1); A.sign('VINS  -  TABAC', { kind: 'paint', ground: null, color: 'rgba(225,215,190,0.82)', distress: 0.55, size: 64 }, from(-2.6, 2.6), to(-2.6, 2.6), 1.6); }
+      if (sp.kind === 'barn' && sp.x < 0) A.sign('AMER PICOREL\nL\'APÉRITIF DU SOIR', { kind: 'gable', ground: null, color: 'rgba(226,214,184,0.78)', distress: 0.62, size: 96 }, from(0, 3.3, 3), to(0, 3.3), 5.2);
+    }
+    // the street name on the first cottage, the village board at the south end, the stones and the fingerpost
+    A.sign('RUE DE L\'ÉGLISE', Object.assign({}, plate, { size: 60 }), [-3.2, gy(-1, 34) + 2.85, 38.6], [8, gy(8, 38) + 2.85, 38.6], 0.75);
+    A.signpost(4.4, 22.5, Math.PI, 'VERCHANNES', { kind: 'enamel', ground: '#f0ede4', color: '#1b1a18', distress: 0.25, size: 80 }, { h: 2.0, w: 1.15, plate: true, boardTint: new THREE.Color(1.3, 1.3, 1.25) });
+    A.signpost(-3.6, 5.2, -Math.PI / 2, 'ST-ODRAN  6 km', { kind: 'paint', ground: '#e8e2d2', color: '#262420', distress: 0.4, size: 64 }, { h: 2.2, w: 1.3 });
+    A.stone(4.8, 3.6, -Math.PI / 2, 'VERCHANNES\n1,2');
+    A.stone(5.8, -52, -Math.PI / 2 + 0.1, 'ST-ODRAN\n5,7');
+    A.stone(-58.5, 22.6, Math.PI, 'LE GUÉ\n0,4');
+    // the farm: its name painted on the farmhouse's yard wall, a no-smoking plate on the barn, the office door
+    A.sign('FERME DU GRAND CLOS', { kind: 'paint', ground: null, color: 'rgba(232,224,202,0.8)', distress: 0.55, size: 80 }, [HOUSE.x + 2.5, gy(HOUSE.x, HOUSE.z) + 3.0, HOUSE.z + 12], [HOUSE.x + 2.5, gy(HOUSE.x, HOUSE.z) + 3.0, HOUSE.z], 2.8);
+    A.sign('DÉFENSE\nDE FUMER', { kind: 'enamel', ground: '#f2efe6', color: '#a3241c', distress: 0.4, size: 64 }, [BARN.x - 12, gy(BARN.x, BARN.z) + 1.75, BARN.z + 3.2], [BARN.x, gy(BARN.x, BARN.z) + 1.75, BARN.z + 3.2], 0.5);
+  }
   function build(M) {
+    window.IVEnv && (IVEnv.labelLang = 'fr');
     const b = K.begin();
     // hedgerows
     const hedge = (pts, gaps, o) => IV.art.hedge(b, pts, gapsAt(pts, gaps || []), o);
@@ -268,6 +295,7 @@
     {
       const H2 = Math.PI / 2, hamlet = HAMLET;
       IV.art.settle(b, hamlet.map(sp => sp.kind === 'church' || sp.kind === 'shed' ? sp : Object.assign({ free: ['back'], wingMax: 5.2 }, sp)), { seed: 404, rugged: 1 });
+      signs(hamlet);
       // the churchyard wall (gap to the road), the well, a wayside cross at the crossroads corner
       IV.art.wall(b, [[28, 74], [28, 80.5]], 1.2, [], { coping: 'flat' }); IV.art.wall(b, [[28, 87.5], [28, 104], [47, 104], [47, 72], [28, 72], [28, 74]], 1.2, [], { coping: 'flat' });
       if (IV.art.envOn() && IVEnv.prop) { try { const wl = IVEnv.prop('well', 61); wl.group.position.set(-5.4, W.height(-5.4, 64), 64); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(wl.group); W.addBox(-5.4, 64, 0.8, 0.8, W.height(-5.4, 64), W.height(-5.4, 64) + 0.9, 0, F.SOLID | F.BULLET | F.NAV, 'stone'); } catch (e) {} }

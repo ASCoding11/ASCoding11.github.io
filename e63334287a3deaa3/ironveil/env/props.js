@@ -14,6 +14,17 @@
   const TAU = Math.PI * 2, V3 = THREE.Vector3;
   const M4 = (x, y, z, rx, ry, rz, s) => new THREE.Matrix4().compose(new V3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx || 0, ry || 0, rz || 0)), s ? (s.isVector3 ? s : new V3(s, s, s)) : new V3(1, 1, 1));
   const cyl = (rt, rb, h, seg, open) => new THREE.CylinderGeometry(rt, rb, h, seg || 12, 1, !!open);
+  // stencilled text on crates, drums and ammunition boxes (env/labels.js atlas). The words follow IVEnv.labelLang
+  // ('en' Boot Camp, 'fr' Night Drop), set by the mission. Own random stream, so the props' layout is unchanged.
+  const STEN = {
+    en: { crate: ['RATIONS\nLOT 14', 'FRAGILE', 'TINNED STORES', 'THIS SIDE UP', 'No 7', 'KEEP DRY', 'SPARES\nBOX 3', 'MESS TINS'], drum: ['PETROL', 'OIL', 'WATER\nONLY', 'PETROL 40 GAL'], ammo: ['AMMUNITION\nLOT 22', 'SMALL ARMS', 'LOT 9'] },
+    fr: { crate: ['VIVRES\nLOT 14', 'FRAGILE', 'CONSERVES', 'HAUT', 'No 7', 'CRAINT L\'HUMIDITE', 'PIECES\nCAISSE 3', 'GAMELLES'], drum: ['ESSENCE', 'HUILE', 'EAU', 'ESSENCE 200 L'], ammo: ['MUNITIONS\nLOT 22', 'CARTOUCHES', 'LOT 9'] }
+  };
+  const stencil = (B, kind, x, y, z, nx, nz, w, col, curve) => {
+    if (!B.label) return; const L = STEN[E.labelLang] || STEN.en, list = L[kind], r = E.rng(((x * 97 + z * 61 + y * 13) * 100 + (B.seed || 1) * 7) | 0);
+    if (r() < 0.15) return;   // the odd one blank
+    B.label(list[(r() * list.length) | 0], { kind: 'stencil', color: col || 'rgba(28,24,18,0.9)', distress: 0.35 + r() * 0.35, size: 64 }, [x, y, z], [nx, 0, nz], w, { rot: curve ? 0 : (r() - 0.5) * 0.06, curve });
+  };
 
   function crate(B, R, x, y, z, rot, s, worn) {
     s = s || 1; const w = 0.8 * s, h = 0.6 * s, d = 0.5 * s;
@@ -25,6 +36,7 @@
     B.decal('scratches', [x + sn * (d / 2 + 0.02), y + h * 0.3, z + c * (d / 2 + 0.02)], [sn, 0, c], w * 0.9, h * 0.6, R() * 3);
     B.decal(worn ? 'mud' : 'grime', [x + sn * (d / 2 + 0.02), y + 0.1, z + c * (d / 2 + 0.02)], [sn, 0, c], w, 0.25, 0);
     if (R() < 0.5) B.decal('chalk', [x - sn * (d / 2 + 0.02), y + h * 0.55, z - c * (d / 2 + 0.02)], [-sn, 0, -c], 0.3, 0.25, 0);
+    stencil(B, 'crate', x + sn * (d / 2 + 0.006), y + h * 0.62, z + c * (d / 2 + 0.006), sn, c, w * 0.62);
     B.col(x, z, w, d, y, y + h, rot, 'wood', 'crate');
     return h;
   }
@@ -36,6 +48,7 @@
       B.geo('metal_painted', new THREE.CircleGeometry(r, 16).rotateX(-Math.PI / 2), M4(x, y + h - 0.01, z), { noFoot: true, tint: E.tintJ(R, 0.1, metal === 2 ? 0x8a5a4a : 0x9aa090) });
       B.decal('rust', [x + r * 0.71 + 0.005, y + h * 0.75, z + r * 0.71 + 0.005], [0.71, 0, 0.71], 0.2, 0.45, 0);
       B.decal('chipped', [x - r * 0.71 - 0.005, y + h * 0.93, z + r * 0.71], [-0.71, 0, 0.71], 0.3, 0.15, 0);
+      stencil(B, 'drum', x, y + h * 0.5, z + r + 0.004, 0, 1, r * 1.6, 'rgba(226,218,196,0.92)', r + 0.004);
     } else {
       const g = cyl(r, r, h, 14), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const yy = p.getY(i) / (h / 2), k = 1 + 0.12 * (1 - yy * yy); p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k); } g.computeVertexNormals();
       B.geo('planks', g, M4(x, y + h / 2, z, 0, R() * TAU, 0), { keepUv: true, uvW: TAU * r * 1.1, uvH: h, tint: E.tintJ(R, 0.1, 0xd0b8a0) });
@@ -124,7 +137,7 @@
   };
   KINDS.ladder = (B, R) => { for (const s of [-0.22, 0.22]) B.box('timber', s, 0, 0.5, 0.06, 3.2, 0.06, 0, { rx: -0.3, grain: 'long' }); for (let k = 1; k < 11; k++) B.box('timber', 0, k * 0.28, 0.5 - Math.sin(0.3) * k * 0.29, 0.5, 0.035, 0.05, 0, { noFoot: true }); };
   KINDS.ammo = (B, R) => {
-    const box = (x, y, z, rot) => { B.box('metal_painted', x, y, z, 0.3, 0.19, 0.11, rot, { tint: new THREE.Color(0.8, 0.85, 0.7) }); B.box('metal_painted', x, y + 0.19, z, 0.31, 0.03, 0.12, rot, { noFoot: true, tint: new THREE.Color(0.75, 0.8, 0.65) }); B.box('metal_rust', x, y + 0.22, z, 0.12, 0.02, 0.025, rot, { noFoot: true }); B.decal('scratches', [x + Math.sin(rot) * 0.058, y + 0.1, z + Math.cos(rot) * 0.058], [Math.sin(rot), 0, Math.cos(rot)], 0.28, 0.16, R() * 3); };
+    const box = (x, y, z, rot) => { B.box('metal_painted', x, y, z, 0.3, 0.19, 0.11, rot, { tint: new THREE.Color(0.8, 0.85, 0.7) }); B.box('metal_painted', x, y + 0.19, z, 0.31, 0.03, 0.12, rot, { noFoot: true, tint: new THREE.Color(0.75, 0.8, 0.65) }); B.box('metal_rust', x, y + 0.22, z, 0.12, 0.02, 0.025, rot, { noFoot: true }); B.decal('scratches', [x + Math.sin(rot) * 0.058, y + 0.1, z + Math.cos(rot) * 0.058], [Math.sin(rot), 0, Math.cos(rot)], 0.28, 0.16, R() * 3); stencil(B, 'ammo', x + Math.sin(rot) * 0.059, y + 0.1, z + Math.cos(rot) * 0.059, Math.sin(rot), Math.cos(rot), 0.22, 'rgba(236,228,200,0.9)'); };
     box(0, 0, 0, 0); box(0.04, 0.22, 0.02, 0.1); box(0.35, 0, 0.05, -0.05); box(-0.05, 0, 0.3, 1.57); B.col(0.15, 0.1, 0.7, 0.5, 0, 0.45, 0, 'metal', 'ammo');
   };
   KINDS.logpile = (B, R) => { for (let l = 0; l < 4; l++) for (let i = 0; i < 6 - l; i++) { const r = R.range(0.09, 0.14), x = -0.7 + i * 0.27 + l * 0.135, y = 0.12 + l * 0.22; B.geo('bark_oak', cyl(r, r, 1.6, 8).rotateX(Math.PI / 2), M4(x, y, R.range(-0.08, 0.08)), { tint: new THREE.Color(0.75, 0.7, 0.62) }); for (const s of [-1, 1]) B.geo('timber', new THREE.CircleGeometry(r * 0.95, 8), M4(x, y, s * 0.801 + R.range(-0.08, 0.08) * 0, 0, s > 0 ? 0 : Math.PI, 0), { noFoot: true, tint: new THREE.Color(1.0, 0.85, 0.65) }); } B.col(0, 0, 1.7, 1.7, 0, 0.9, 0, 'wood', 'logs'); };
