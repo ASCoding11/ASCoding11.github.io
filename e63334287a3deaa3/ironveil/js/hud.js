@@ -11,12 +11,46 @@
   H.init = function () {
     cv = $('hudc'); g = cv.getContext('2d');
     IV.on('hitmarker', h => { hitT = 0.28; hitKill = h.kill; hitHead = h.head; });
-    IV.on('hurt', h => { dmgT = 1; fleckT = 1.2; makeFlecks(h.dmg); H.dmgDir = { a: P.hurtDir, x: h.from ? h.from.x : null, z: h.from ? h.from.z : null, t: 1.6 }; });
+    IV.on('hurt', h => { dmgT = 1; fleckT = 1.2; makeFlecks(h.dmg); H.dmgDir = { a: P.hurtDir, x: h.from ? h.from.x : null, z: h.from ? h.from.z : null, t: 1.6 }; addArc(h); });
     IV.on('shot', k => { H.kickK = Math.min(1.6, (H.kickK || 0) + (k === 'rifle' ? 1.2 : k === 'pistol' ? 0.8 : 0.45)); });
     IV.on('suppressed', k => { sup = Math.min(1, sup + k * 0.6); });
     IV.on('objectives', () => H.objectives());
     IV.on('tagged', e => H.toast(IV.t('Soldier marked')));
   };
+  // damage direction: up to four arcs at once, one per shooter. Each keeps the shooter's live position (the bullet's
+  // owner.pos, a reference that moves with him), so the arc swings round as you turn or he moves; 1.5 s life, fading
+  // over the last 0.6 s; a new hit from the same shooter refreshes his arc, a fifth shooter replaces the oldest.
+  const arcs = H.dmgArcs = [];
+  function addArc(h) {
+    const src = h.from || null;
+    let a = src ? arcs.find(x => x.src === src || (Math.abs(x.src.x - src.x) < 0.5 && Math.abs(x.src.z - src.z) < 0.5)) : null;
+    if (!a) { if (arcs.length >= 4) arcs.shift(); a = { src: src || { x: P.pos.x - Math.sin(P.yaw + P.hurtDir), z: P.pos.z - Math.cos(P.yaw + P.hurtDir) }, t: 0, dmg: 0 }; arcs.push(a); }
+    a.t = 1.5; a.dmg = Math.min(60, a.dmg * 0.5 + (h.dmg || 10));
+  }
+  function drawArcs(cx, cy, u, dt) {
+    for (let i = arcs.length - 1; i >= 0; i--) {
+      const d = arcs[i]; d.t -= dt; if (d.t <= 0) { arcs.splice(i, 1); continue; }
+      const a = IV.wrapA(IV.yawTo(d.src.x - P.pos.x, d.src.z - P.pos.z) - P.yaw), r = 120 * u, al = Math.min(1, d.t / 0.6) * 0.85, w = (22 + d.dmg * 0.5) * u;
+      g.save(); g.translate(cx, cy); g.rotate(-a);
+      g.fillStyle = `rgba(200,30,20,${al.toFixed(3)})`; g.beginPath(); g.moveTo(-w, -r); g.quadraticCurveTo(0, -r - 16 * u, w, -r); g.lineTo(0, -r + 10 * u); g.closePath(); g.fill();
+      g.restore();
+    }
+  }
+  // the ammo cue under the count (desktop; on touch screens the Reload prompt and the count's colour do this)
+  let cueEl = null, lastCue = null;
+  function ammoCue(WP, inv) {
+    if (!cueEl) { const box = $('wpn'); if (!box) return; cueEl = document.createElement('div'); cueEl.id = 'wCue'; cueEl.style.cssText = 'font-size:14px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;line-height:1.1'; box.insertBefore(cueEl, $('wGear')); }
+    let cue = '', col = 'var(--ink-dim)';
+    if (!IV.touch && inv && !WP.binoc && !WP.busyThrow) {
+      const cap = T.weapons[WP.cur].mag;
+      if (WP.reloadT > 0) cue = '';   // the count already reads 'Reloading'
+      else if (inv.mag === 0 && inv.res > 0) { cue = IV.t('{k} Reload', { k: IV.input.label('reload') }); col = 'var(--warn)'; }
+      else if (inv.mag === 0) { cue = IV.t('Empty'); col = '#cf4630'; }
+      else if (inv.mag <= Math.max(1, Math.floor(cap * 0.27)) && cap > 1) { cue = inv.res > 0 ? IV.t('Low ammo · {k} Reload', { k: IV.input.label('reload') }) : IV.t('Low ammo'); col = 'var(--warn)'; }
+    }
+    const key = cue + col; if (key === lastCue) return; lastCue = key;
+    cueEl.textContent = cue; cueEl.style.color = col; cueEl.style.display = cue ? '' : 'none';
+  }
   H.show = function (on) { $('hud').hidden = !on; if (!on) { g && g.clearRect(0, 0, cv.width, cv.height); $('dmg').style.opacity = 0; } };
 
   // ---------------------------------------------------------------- DOM parts
@@ -59,6 +93,7 @@
       else { $('wName').textContent = WP.name(WP.cur); const low = inv.mag <= Math.ceil(T.weapons[WP.cur].mag * 0.25); $('wAmmo').innerHTML = WP.reloadT > 0 ? `<small>${IV.t('Reloading')}</small>` : `<span style="color:${low ? 'var(--warn)' : 'inherit'}">${inv.mag}</span><small> / ${inv.res}</small>`; }
       $('wGear').innerHTML = `<span>${IV.t('Grenades')} <b>${WP.inv.grenades}</b></span><span>${IV.t('Rocks')} <b>∞</b></span>`;
     }
+    ammoCue(WP, inv);
     const AL = IV.ally;
     const sq = AL.ent && AL.met ? (AL.ent.alive ? AL.mode : 'down') : '';
     if (sq !== lastSquad) { lastSquad = sq; $('squad').innerHTML = sq ? `${esc(AL.NAME)}: <b>${IV.t(sq === 'follow' ? 'Following' : sq === 'hold' ? 'Holding' : sq === 'fire' ? 'Fire at will' : 'Down')}</b> <span style="opacity:.6">[${esc(IV.input.label('order'))}]</span>` : ''; }
@@ -106,7 +141,8 @@
     drawCompass(w, u);
     drawMarkers(u);
     drawBarks(u, dt);
-    if (H.dmgDir && H.dmgDir.t > 0) { H.dmgDir.t -= dt; const a = H.dmgDir.x != null ? IV.wrapA(IV.yawTo(H.dmgDir.x - P.pos.x, H.dmgDir.z - P.pos.z) - P.yaw) : H.dmgDir.a, r = 120 * u; g.save(); g.translate(cx, cy); g.rotate(-a); g.fillStyle = `rgba(200,30,20,${Math.min(0.8, H.dmgDir.t)})`; g.beginPath(); g.moveTo(-26 * u, -r); g.quadraticCurveTo(0, -r - 16 * u, 26 * u, -r); g.lineTo(0, -r + 10 * u); g.closePath(); g.fill(); g.restore(); }
+    if (H.dmgDir && H.dmgDir.t > 0) H.dmgDir.t -= dt;   // kept for older checks; the arcs below draw the directions
+    drawArcs(cx, cy, u, dt);
     if (fleckT > 0 && flecks.length) { for (const f of flecks) { g.fillStyle = `rgba(110,8,4,${f.o * Math.min(1, fleckT)})`; g.beginPath(); g.ellipse(f.x * w, f.y * h, f.r * u, f.r * 0.7 * u, f.x, 0, 6.29); g.fill(); } }
   };
   // an enemy grenade within lethal range: an icon by the crosshair with an arrow toward it
@@ -269,5 +305,5 @@
     g.font = `500 ${14 * u}px "Barlow Condensed", sans-serif`; g.fillStyle = 'rgba(236,227,204,.7)';
     g.fillText(IV.touch ? IV.t('Tap Fire to mark the soldier in the middle') : IV.t('{k} marks the soldier in the middle', { k: IV.input.label('fire') }), cx, cy + r * 0.8);
   }
-  H.reset = function () { barks = []; flecks = []; fleckT = 0; dmgT = 0; sup = 0; lastStance = lastW = lastSquad = ''; lastNoise = -1; H.hint = null; };
+  H.reset = function () { barks = []; flecks = []; fleckT = 0; dmgT = 0; sup = 0; lastStance = lastW = lastSquad = ''; lastNoise = -1; H.hint = null; arcs.length = 0; lastCue = null; };
 })();
