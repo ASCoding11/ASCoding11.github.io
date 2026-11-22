@@ -28,7 +28,7 @@
   }
   E.noBevel = typeof location !== 'undefined' && /[?&]nobevel\b/.test(location.search);   // ?nobevel / ?nowear: for measuring what they cost
   E.noWear = typeof location !== 'undefined' && /[?&]nowear\b/.test(location.search);
-  const TRIM_BEVEL = /^(ashlar|timber|wood_painted|concrete|metal_painted|metal_rust|planks)$/;
+  const TRIM_BEVEL = /^(ashlar|wood_painted|concrete|metal_painted|metal_rust|planks)$/;   // (not timber: beams and heads by the hundred put it over the 15 % triangle budget)
   const P = Builder.prototype;
   const WEAR_MATS = /^(brick_red|brick_sooty|fieldstone|ashlar|plaster|planks|concrete)$/;
   // A drip source: rain runs off a sill, eave or window head at (x, y, z) on a wall facing (nx, nz) and stains the
