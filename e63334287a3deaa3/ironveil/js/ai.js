@@ -337,6 +337,7 @@
     }
     if (isP && e.kind === 'gunner' && IV.time < (e.teleUntil || 0)) return;
     if (isP) noteShot(e);
+    IV.emit('enemyFire', { e, atPlayer: isP });
     // the accuracy ramp: exposure grows with continuous sight of you and drains fast once you break it; suppression
     // and your movement loosen it
     const ramp = isP ? (A.expoFloor + (1 - A.expoFloor) * e.expo) * (e.kind === 'sniper' ? 0.85 : 1) : 1;
@@ -560,6 +561,7 @@
     const a = Math.random() * 6.283, r = 1.8 + Math.random() * 2.2;
     const fake = { pos: { x: at.x + Math.cos(a) * r, y: W.height(at.x, at.z), z: at.z + Math.sin(a) * r }, chestH: () => 0.4 + Math.random() * 1.4, isPlayer: false };
     e.supUpT = IV.time + 1.2;
+    IV.emit('enemyFire', { e, atPlayer: false, suppress: true });
     shootAt(e, fake);
   }
   function shootAt(e, fake) { // fire at a point (no hit decision: the bullet just flies)
