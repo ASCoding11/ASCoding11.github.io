@@ -442,4 +442,187 @@
     }
     palmG = b.build(); return palmG;
   };
+
+  // ================================================================ the real models (assets/*.glb, built in Blender by tools/vehicles/)
+  // Same factories, same parts: the code-made versions above stay as stand-ins (?standin, or if a file fails to load).
+  const SA = {}; ['plane', 'ship', 'structure', 'bombMesh', 'rocketMesh', 'torpedoMesh'].forEach(k => { SA[k] = A[k]; });
+  A.standin = SA; A.T = {}; A.ready = false;
+  const PROP_R = { fighter: 1.6, raider: 1.5, bomber: 1.85, torpedo: 1.75, dive: 1.65 };
+  const SHIP = { carrier: { deckY: 17.1, len: 232, beam: 34, island: { x: -15.5, z: 16, hx: 3.4, hz: 17, top: 41 } }, destroyer: { deckY: 7, len: 112, beam: 11.5 }, cruiser: { deckY: 9, len: 172, beam: 18 } };
+  const ratio = (a, b) => { const x = lin(a), y = lin(b); return new THREE.Color(x.r / y.r, x.g / y.g, x.b / y.b); };   // our side's and their side's grey, over the neutral grey the ships are painted in
+  const TINT = { blue: ratio('#8693a0', '#9aa2a9'), red: ratio('#6d7566', '#9aa2a9') };
+  const GROUND_TINT = { blue: new THREE.Color(0.95, 1.0, 1.05), red: new THREE.Color(1.03, 1.0, 0.92) };
+  let lightTex = null;
+  function light() {   // a near-white grime texture: detail for concrete, canvas, bark and wood without darkening their paint
+    if (lightTex) return lightTex;
+    lightTex = canvasTex(256, (g, S) => { const rnd = IW.rng(21); g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, S, S); for (let i = 0; i < 1400; i++) { const v = 200 + rnd() * 55; g.fillStyle = `rgba(${v},${v},${v},${0.25 + rnd() * 0.4})`; g.fillRect(rnd() * S, rnd() * S, 1 + rnd() * 5, 1 + rnd() * 5); } });
+    return lightTex;
+  }
+  function rep(tex, r) { const t = tex.clone(); t.needsUpdate = true; t.repeat.set(r, r); return t; }
+  const GM = {};
+  function gm(name, group) {
+    const key = name + ':' + group; if (GM[key]) return GM[key];
+    let m;
+    const V = { vertexColors: true };
+    switch (name) {
+      case 'paint': m = new THREE.MeshStandardMaterial(Object.assign({ map: rep(panels(), group === 'ship' ? 0.22 : group === 'air' ? 0.4 : 0.3), roughness: group === 'air' ? 0.5 : 0.66, metalness: group === 'air' ? 0.28 : 0.2, envMapIntensity: 0.75 }, V)); break;
+      case 'dark': m = new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.45, metalness: 0.55, envMapIntensity: 0.7 }, V)); break;
+      case 'glass': return (GM[key] = mat('glass'));
+      case 'deck': return (GM[key] = deckMat());
+      case 'corrugated': m = new THREE.MeshStandardMaterial(Object.assign({ map: corrugated(), roughness: 0.6, metalness: 0.4 }, V)); break;
+      case 'leaf': m = new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.85, side: THREE.DoubleSide }, V)); break;
+      default: m = new THREE.MeshStandardMaterial(Object.assign({ map: rep(light(), 0.5), roughness: name === 'wood' ? 0.8 : 0.93 }, V));
+    }
+    m.name = name; m.userData.linear = true; return (GM[key] = m);
+  }
+  function tinted(m, team, table) {
+    if (!team || !m.color || m.name === 'glass' || m.name === 'deck') return m;
+    const key = m.uuid + team; if (GM[key]) return GM[key];
+    const c = m.clone(); c.color.copy(table[team] || table.blue); c.userData.linear = true; return (GM[key] = c);
+  }
+  function prep(root, group) {
+    root.traverse(o => {
+      if (!o.isMesh) return;
+      const name = (o.material && o.material.name || 'paint').replace(/\.\d+$/, '');
+      o.material = gm(name, group); o.geometry.userData.shared = true;
+      o.castShadow = group !== 'ground' || !/_dead$/.test(o.name); o.receiveShadow = group !== 'air';
+    });
+  }
+  A.load = function (onProgress) {
+    if (IW.params.has('standin') || !THREE.GLTFLoader) return Promise.resolve(false);
+    const L = new THREE.GLTFLoader(); if (window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+    const files = [['aircraft', 'air'], ['ships', 'ship'], ['ground', 'ground']]; let done = 0;
+    return Promise.all(files.map(([f, group]) => new Promise((res, rej) => L.load('assets/' + f + '.glb', g => {
+      for (const o of g.scene.children.slice()) { if (A.T[o.name]) console.warn('Ironwing: two models are named ' + o.name + '; root names must be unique across the files'); prep(o, group); A.T[o.name] = o; }
+      if (onProgress) onProgress(++done / files.length); res();
+    }, undefined, rej)))).then(() => { A.ready = true; return true; }).catch(e => { console.warn('Ironwing models did not load; using the code-made stand-ins', e); A.T = {}; A.ready = false; return false; });
+  };
+  const clone = name => (A.ready && A.T[name] ? A.T[name].clone(true) : null);
+
+  A.plane = function (kind, team, hero) {
+    const root = clone(kind); if (!root) return SA.plane(kind, team, hero);
+    const get = n => root.getObjectByName(kind + n);
+    const parts = { prop: [], guns: [], body: get('_body'), legs: [] };
+    for (let i = 0; ; i++) {
+      const p = get('_prop' + i); if (!p) break;
+      const blades = p.children[0], disc = new THREE.Mesh(discGeo || (discGeo = (() => { const g = new THREE.CircleGeometry(1, 28); g.userData.shared = true; return g; })()), mat('disc'));
+      disc.scale.setScalar(PROP_R[kind] || 1.6); disc.visible = false; disc.userData.warm = true; p.add(disc);
+      p.userData = { blades, disc }; parts.prop.push(p);
+    }
+    root.children.filter(o => /_gun[LR]\d+$/.test(o.name)).sort((a, b) => +a.name.match(/\d+$/)[0] - +b.name.match(/\d+$/)[0]).forEach(g => parts.guns.push(g));
+    parts.cockpitEye = get('_cockpitEye');
+    for (const side of ['L', 'R']) { const g = get('_gear' + side); if (g) parts.legs.push({ piv: g, side: Math.sign(g.position.x) || 1 }); }
+    if (hero) {
+      parts.aileronL = get('_aileronL'); parts.aileronR = get('_aileronR'); parts.rudder = get('_rudder');
+      parts.elevators = [get('_elevatorL'), get('_elevatorR')].filter(Boolean); parts.flaps = [get('_flapsL'), get('_flapsR')].filter(Boolean);
+    }
+    const lod = get('_lod1'), hi = root.children.filter(o => o !== lod);
+    if (lod) lod.visible = false;
+    root.userData.kind = kind;
+    root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    let spin = 0, far = false;
+    return {
+      root, parts,
+      animate(dt, rpm, ctl) {
+        // the reduced copy far away (never for your own aircraft)
+        const isFar = !!(!hero && lod && root.position.distanceToSquared(IW.world.camera.position) > 450 * 450);
+        if (isFar !== far) { far = isFar; lod.visible = far; for (const o of hi) o.visible = !far; }
+        if (far) return;
+        spin += dt * (4 + rpm * 70); const fast = rpm > 0.35;
+        for (const p of parts.prop) { p.rotation.z = -spin; p.userData.blades.visible = !fast; p.userData.disc.visible = fast; }
+        if (ctl && parts.aileronL) {
+          parts.aileronL.rotation.x = ctl.roll * 0.35; parts.aileronR.rotation.x = -ctl.roll * 0.35;
+          for (const e of parts.elevators) e.rotation.x = -ctl.pitch * 0.4;
+          if (parts.rudder) parts.rudder.rotation.y = ctl.yaw * 0.4;
+          for (const f of parts.flaps) f.rotation.x = ctl.flaps * 0.6;
+        }
+        const k = ctl ? ctl.gear : 0;
+        for (const L of parts.legs) { L.piv.visible = k > 0.02; L.piv.rotation.z = (1 - k) * L.side * Math.PI / 2 * 0.98; }
+      }
+    };
+  };
+  A.ship = function (kind, team) {
+    const root = clone(kind); if (!root) return SA.ship(kind, team);
+    root.traverse(o => { if (o.isMesh) o.material = tinted(o.material, team === 'blue' ? 'blue' : 'red', TINT); });
+    const get = n => root.getObjectByName(kind + n), C = SHIP[kind];
+    const out = { root, aa: [], funnels: [], deckY: C.deckY, len: C.len, beam: C.beam, stern: get('_wakeStern') };
+    if (C.island) out.island = C.island;
+    for (const o of root.children) {
+      const m = o.name.match(/_aa([LH])\d+$/); if (m) out.aa.push({ x: o.position.x, y: o.position.y, z: o.position.z, heavy: m[1] === 'H' });
+      if (/_funnel\d+$/.test(o.name)) out.funnels.push(o.position.clone());
+    }
+    const lod = get('_lod1'), hi = root.children.filter(o => o !== lod && (o.isMesh || o.type === 'Group'));
+    if (lod) { lod.visible = false; root.onBeforeRender = null; out.lod = { lod, hi, far: false }; }
+    return out;
+  };
+  A.shipLod = function (art, dist) {   // called by the ship each frame
+    const L = art.lod; if (!L) return; const far = dist > 2600;
+    if (far !== L.far) { L.far = far; L.lod.visible = far; for (const o of L.hi) o.visible = !far; }
+  };
+  A.structure = function (kind, team) {
+    const root = clone(kind); if (!root) return SA.structure(kind, team);
+    root.traverse(o => { if (o.isMesh) o.material = tinted(o.material, team === 'blue' ? 'blue' : 'red', GROUND_TINT); });
+    const get = n => root.getObjectByName(kind + n);
+    const live = get('_live'), dead = get('_dead'); dead.visible = false; dead.userData.warm = true;
+    const yaw = get('_turret0'), pitch = get('_gun0');
+    const H = { hangar: 13, fuel: 10, aa: 2.4, flak: 2.6, radar: 30, tower: 13, barracks: 7, bunker: 4, depot: 2.5, raft: 2 };
+    const antenna = get('_antenna') || null, gun = yaw ? { yaw, pitch } : null;
+    // far version: every part merged into one vertex-coloured mesh (one draw instead of four or five)
+    // (built from the decimated `_lod1` copies when the file has them; those copies are never drawn themselves)
+    const l1 = get('_lod1'), d1 = get('_deadlod1');
+    const fk = kind + ':' + team, F = FAR[fk] || (FAR[fk] = { live: merged(root, l1 ? [l1] : [live, yaw, antenna]), dead: merged(root, d1 ? [d1] : [dead]) });
+    if (l1) root.remove(l1); if (d1) root.remove(d1);
+    const far = { live: new THREE.Mesh(F.live, farMat()), dead: new THREE.Mesh(F.dead, farMat()), on: null };
+    far.live.visible = far.dead.visible = false; far.live.receiveShadow = far.dead.receiveShadow = true; root.add(far.live, far.dead);
+    return { root, live, dead, gun, antenna, far, h: H[kind] || 6 };
+  };
+  // called by the structure each step: picks near or far and live or wrecked
+  A.structLod = function (art, dist, alive) {
+    const F = art.far; if (!F) return; const far = dist > 700, near = !far;
+    art.live.visible = alive && near; art.dead.visible = !alive && near;
+    if (art.gun) art.gun.yaw.visible = alive && near; if (art.antenna) art.antenna.visible = alive && near;
+    F.live.visible = alive && far; F.dead.visible = !alive && far;
+  };
+  const FAR = {}; let farM = null;
+  const farMat = () => farM || (farM = (() => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 }); m.userData.linear = true; return m; })());
+  const DEN = { Int8Array: 127, Uint8Array: 255, Int16Array: 32767, Uint16Array: 65535 };
+  function rd(a, i, c) {   // one component, undoing meshopt's normalized quantisation (r128's getX doesn't)
+    const v = c === 0 ? a.getX(i) : c === 1 ? a.getY(i) : c === 2 ? a.getZ(i) : a.getW(i);
+    if (!a.normalized) return v; const arr = a.isInterleavedBufferAttribute ? a.data.array : a.array, d = DEN[arr.constructor.name];
+    return d ? Math.max(v / d, -1) : v;
+  }
+  function merged(root, parts) {
+    root.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), M = new THREE.Matrix4(), N = new THREE.Matrix3(), v = new THREE.Vector3();
+    const P = [], Nn = [], C = [], col = new THREE.Color();
+    for (const part of parts) if (part) part.traverse(o => {
+      if (!o.isMesh) return; const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, ca = g.attributes.color;
+      M.multiplyMatrices(inv, o.matrixWorld); N.getNormalMatrix(M);
+      const m = o.material, base = m.color || col.setRGB(1, 1, 1), lum = m.map ? 0.86 : 1;   // detail maps average a little darker
+      const idx = g.index, n = idx ? idx.count : pa.count;
+      for (let k = 0; k < n; k++) {
+        const i = idx ? idx.getX(k) : k;
+        v.set(rd(pa, i, 0), rd(pa, i, 1), rd(pa, i, 2)).applyMatrix4(M); P.push(v.x, v.y, v.z);
+        if (na) { v.set(rd(na, i, 0), rd(na, i, 1), rd(na, i, 2)).applyMatrix3(N).normalize(); Nn.push(v.x, v.y, v.z); }
+        const r = ca ? rd(ca, i, 0) : 1, gg = ca ? rd(ca, i, 1) : 1, b = ca ? rd(ca, i, 2) : 1;
+        C.push(r * base.r * lum, gg * base.g * lum, b * base.b * lum);
+      }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+    if (Nn.length === P.length) g.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); else g.computeVertexNormals();
+    g.computeBoundingSphere(); g.userData.shared = true; return g;
+  }
+  const mun = (name, fb) => function () { const r = clone(name); if (!r) return SA[fb](); r.traverse(o => { if (o.isMesh) o.castShadow = true; }); return r; };
+  A.bombMesh = mun('mun_bomb', 'bombMesh'); A.rocketMesh = mun('mun_rocket', 'rocketMesh'); A.torpedoMesh = mun('mun_torpedo', 'torpedoMesh');
+  // vegetation for the islands: [{ geometry, material, kind }] per variant, or null for the stand-ins
+  A.veg = function () {
+    if (!A.ready) return null;
+    const out = [];
+    for (const [name, kind] of [['palm0', 'palm'], ['palm1', 'palm'], ['tree0', 'tree'], ['tree1', 'tree'], ['tree2', 'tree'], ['bush0', 'bush']]) {
+      const r = A.T[name]; if (!r) return null;
+      r.traverse(o => { if (o.isMesh) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) out.push({ geometry: o.geometry, material: m, kind, name }); });
+    }
+    return out;
+  };
 })();

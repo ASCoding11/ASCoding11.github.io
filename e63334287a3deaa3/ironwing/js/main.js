@@ -34,6 +34,8 @@
     IW.applyName();
     progress(0.1, 'Fuelling the aircraft…');
     W.init($('view'));
+    progress(0.15, 'Rolling the aircraft out…');
+    await IW.art.load(k => progress(0.15 + k * 0.3, 'Rolling the aircraft out…'));
     IW.fx.init(); IW.hud.init(); P.create(); UI.applySettings();
     progress(0.4, 'Putting the fleet to sea…'); await frameWait();
     backdrop();

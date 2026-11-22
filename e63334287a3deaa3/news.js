@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-22', version: '1.41.2', title: 'It has a shape now', kind: 'soon',
+     img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
+      'Whatever was warming up has a real shape now, down to the rivets.',
+      'Still not ready, and still loud.',
+      'Keep watching the sky. And the sea.'
+    ]},
     {date: '2026-11-22', version: '1.41.1', title: 'Something is warming up', kind: 'soon',
      img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
       'Somewhere past the Back Room, something is warming up.',

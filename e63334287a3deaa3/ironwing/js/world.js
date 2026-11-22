@@ -10,8 +10,8 @@
   const lin = IW.lin = hex => new THREE.Color(hex).convertSRGBToLinear();
   W.QUALITY = [
     { name: 'low', pr: 0.85, aa: false, shadow: 0, lights: 3, post: false, clouds: 300, rings: 56, seg: 96, island: 80, veg: 0.4, vegShadow: false },
-    { name: 'medium', pr: 1, aa: true, shadow: 1024, lights: 5, post: true, clouds: 520, rings: 72, seg: 128, island: 112, veg: 0.7, vegShadow: false },
-    { name: 'high', pr: 1.5, aa: true, shadow: 2048, lights: 6, post: true, clouds: 760, rings: 88, seg: 160, island: 128, veg: 1, vegShadow: true }
+    { name: 'medium', pr: 1, aa: true, shadow: 1024, lights: 5, post: true, clouds: 520, rings: 72, seg: 128, island: 112, veg: 0.6, vegShadow: false },
+    { name: 'high', pr: 1.5, aa: true, shadow: 2048, lights: 6, post: true, clouds: 760, rings: 88, seg: 160, island: 128, veg: 0.8, vegShadow: true }
   ];
   W.time = 0;
   W.U = { uTime: { value: 0 }, uWaveK: { value: 0.6 }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color(1, 1, 1) },
@@ -384,6 +384,8 @@
     return I;
   };
   function vegetate(I) {
+    const V = IW.art.veg && IW.art.veg();
+    if (V) return vegetateModels(I, V);
     const spec = I.spec, rnd = IW.rng(spec.seed * 7 + 3), q = W.Q.veg, r = I.r;
     const palm = IW.art.palmGeo(), blob = new THREE.SphereGeometry(1, 7, 5);
     const pm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: THREE.DoubleSide }), bm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });
@@ -412,12 +414,63 @@
     }
   };
 
+  // the real trees: palms near the shore and on the flats' edges, broadleaf trees and bushes inland. Instances are
+  // grouped in 900 m chunks, each with one variant per kind (so a chunk is at most six instanced draws), and a chunk
+  // is hidden past the quality's draw distance, where a 10 m tree would be a couple of pixels.
+  W.vegChunks = [];
+  function vegetateModels(I, V) {
+    const spec = I.spec, rnd = IW.rng(spec.seed * 7 + 3), q = W.Q.veg, r = I.r, k = r / 1200, flats = spec.flats || [];
+    const inFlat = (x, z) => flats.some(f => { const c = Math.cos(f.rot || 0), s = Math.sin(f.rot || 0), lx = (x - f.x) * c - (z - f.z) * s, lz = (x - f.x) * s + (z - f.z) * c; return Math.abs(lx) < f.hx + 25 && Math.abs(lz) < f.hz + 25; });
+    const want = { palm: Math.round(220 * q * k), tree: Math.round(200 * q * k), bush: Math.round(150 * q * k) };
+    const variants = {}; for (const v of V) (variants[v.kind] = variants[v.kind] || []).includes(v.name) || variants[v.kind].push(v.name);
+    const C = 900, chunks = new Map(), o = new THREE.Object3D();
+    for (const kind of ['palm', 'tree', 'bush']) {
+      const names = variants[kind]; let n = 0;
+      for (let t = 0; t < want[kind] * 6 && n < want[kind]; t++) {
+        const x = I.x + (rnd() * 2 - 1) * r, z = I.z + (rnd() * 2 - 1) * r, h = I.height(x, z);
+        if (inFlat(x, z)) continue;
+        if (kind === 'palm' && (h < 2.5 || h > 40)) continue;
+        if (kind !== 'palm' && (h < 8 || IW.noise(x / 150, z / 150, spec.seed) < 0.35)) continue;
+        const cx = Math.floor(x / C), cz = Math.floor(z / C), key = kind + ':' + cx + ':' + cz;
+        // the chunk's variant comes from its cell, so neighbouring chunks differ but each chunk is one draw per material
+        if (!chunks.has(key)) chunks.set(key, { name: names[Math.abs(cx * 7 + cz * 13 + spec.seed) % names.length], list: [] });
+        chunks.get(key).list.push([x, h - 0.2, z, (kind === 'bush' ? 0.8 : 0.85) + rnd() * 0.45, rnd() * 6.28]); n++;
+      }
+    }
+    for (const { name, list } of chunks.values()) {
+      let cx = 0, cz = 0, cy = 0; for (const p of list) { cx += p[0]; cz += p[2]; cy += p[1]; } cx /= list.length; cz /= list.length; cy /= list.length;
+      const grp = new THREE.Group(); grp.position.set(cx, cy, cz);
+      for (const v of V) {
+        if (v.name !== name) continue;
+        // a geometry that shares the template's buffers but has bounds covering this chunk's instances
+        const g = new THREE.BufferGeometry(); g.setIndex(v.geometry.index); for (const a in v.geometry.attributes) g.setAttribute(a, v.geometry.attributes[a]);
+        g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 10, 0), 680); g.userData.shared = true;
+        const im = new THREE.InstancedMesh(g, v.material, list.length);
+        list.forEach((p, i) => { o.position.set(p[0] - cx, p[1] - cy, p[2] - cz); o.rotation.set(0, p[4], 0); o.scale.setScalar(p[3]); o.updateMatrix(); im.setMatrixAt(i, o.matrix); });
+        im.castShadow = !!W.Q.vegShadow; im.receiveShadow = false; im.userData.n = list.length; grp.add(im);
+      }
+      W.world.add(grp); W.vegChunks.push(grp);
+    }
+  }
+  const VEG_FAR = [2200, 3000, 3600];
+  // instances are in random order, so drawing only the first part of the list thins a far chunk evenly
+  function cullVeg(cam) {
+    const far = VEG_FAR[W.QUALITY.indexOf(W.Q)] || 3400, f2 = (far + 450) * (far + 450), sh = !!W.Q.vegShadow;
+    for (const g of W.vegChunks) {
+      const dx = g.position.x - cam.x, dz = g.position.z - cam.z, d2 = dx * dx + dz * dz;
+      g.visible = d2 < f2; if (!g.visible) continue;
+      const frac = d2 < 1100 * 1100 ? 1 : d2 < 2000 * 2000 ? 0.4 : 0.15;
+      if (g.userData.frac === frac) continue; g.userData.frac = frac;
+      for (const im of g.children) { im.count = Math.max(1, Math.ceil(im.userData.n * frac)); im.castShadow = sh && frac === 1; }
+    }
+  }
+
   // ---------------------------------------------------------------- per-mission world root
   W.world = new THREE.Group();
   W.reset = function () {
     if (W.world.parent) W.scene.remove(W.world);
     W.world.traverse(o => { if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose(); });
-    W.world = new THREE.Group(); W.scene.add(W.world); W.islands = [];
+    W.world = new THREE.Group(); W.scene.add(W.world); W.islands = []; W.vegChunks = [];
     const Ui = W.ocean.material.uniforms.uIsl.value; Ui.forEach(v => v.set(0, 0, 0, 0));
     for (const L of W.lights) { L.t = L.T; L.l.intensity = 0; }
   };
@@ -442,6 +495,7 @@
       const f = focus.clone(); f.x = Math.round(f.x / px) * px; f.z = Math.round(f.z / px) * px;
       W.sun.target.position.copy(f); W.sun.position.copy(f).addScaledVector(W.sunDir, 400);
     }
+    cullVeg(cam);
     sortT -= dt; if (sortT <= 0) { sortT = 0.25; W.sortClouds(); }
     if (W._pr !== W.renderer.getPixelRatio()) { W._pr = W.renderer.getPixelRatio(); if (W.post) W.post.setSize(innerWidth, innerHeight); }
   };

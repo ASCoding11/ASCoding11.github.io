@@ -1,14 +1,17 @@
 # Ironwing credits
 
-Ironwing uses no downloaded art, models, textures or sounds. Every aircraft, ship, building, island, cloud, wave and
-effect is built in code at load time (`js/art.js`, `js/world.js`, `js/fx.js`), and every sound is synthesised with
-Web Audio (`js/audio.js`).
+Ironwing uses no downloaded art, models, textures or sounds. Every aircraft, ship, building, tree and munition was
+modelled for this game in Blender by the scripts in `tools/vehicles/` and ships as `assets/*.glb`; the islands, sea,
+sky, clouds and effects are built in code at load time (`js/world.js`, `js/fx.js`), and every sound is synthesised
+with Web Audio (`js/audio.js`).
 
 ## Code
 
 | What | Source | Licence |
 |---|---|---|
 | three.js r128 (`three.min.js`) | Loaded from cdnjs, as every 3D game on the site does | MIT (three.js authors) |
+| `GLTFLoader.js` and `meshopt_decoder.js` | three.js r128 examples and meshoptimizer, loaded from Midnight Ops' `../ironveil/assets/lib/`, not copied | MIT (three.js authors; Arseny Kapoulkine) |
+| Shape helpers for the model scripts (`geo.py`) | Midnight Ops' weapon pipeline, imported from `../ironveil/tools/weapons/` | This site's own code |
 | The post stack (bloom, grade, vignette, grain) and its quality table | Midnight Ops' own environment kit, loaded from `../ironveil/env/` (`texgen.js`, `core.js`, `post.js`), not copied. Ironwing added the `sea` and `sunset` grades to `IVEnv.GRADES`. | This site's own code |
 
 ## Fonts

@@ -353,6 +353,7 @@
       const k = this.kind === 'carrier' ? 0.25 : 0.6;
       let pitch = Math.atan2(hs - hb, 2 * L) * k, roll = Math.atan2(hp - hsb, 2 * B) * k;
       if (this.sinking) { pitch += Math.min(0.3, this.sinkT * 0.006); roll += this.rollDir * Math.min(0.9, this.sinkT * 0.012); }
+      if (IW.art.shipLod) IW.art.shipLod(this.art, this.model.position.distanceTo(IW.world.camera.position));
       this.model.position.set(p.x, p.y + (hb + hs + hp + hsb) * 0.25 * k, p.z);
       this.model.rotation.set(pitch, h, roll, 'YXZ');
       this.wake.update(dt, this.art.stern.getWorldPosition(tA), this.dir, this.speed);
@@ -393,6 +394,7 @@
       }
     }
     step(dt) {
+      if (IW.art.structLod) IW.art.structLod(this.art, this.model.position.distanceTo(IW.world.camera.position), this.alive);
       if (!this.alive) {
         if (this.burnT > 0) { this.burnT -= dt; if ((this.fT = (this.fT || 0) - dt) <= 0) { this.fT = 0.4; const p = this.pos.clone(); p.x += (Math.random() - 0.5) * this.hx; p.z += (Math.random() - 0.5) * this.hz; p.y += 2; IW.fx.firePuff(p, null, this.kind === 'fuel' ? 3.2 : 2.4); IW.fx.smokePuff(p, null, 6, true, 10); } }
         return;

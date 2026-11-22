@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "It has a shape now": "Ya tiene forma",
+    "Whatever was warming up has a real shape now, down to the rivets.": "Lo que se estaba calentando ya tiene una forma de verdad, hasta los remaches.",
+    "Still not ready, and still loud.": "Todavía no está listo, y sigue haciendo ruido.",
+    "Keep watching the sky. And the sea.": "No le quites los ojos al cielo. Ni al mar.",
     "Something is warming up": "Algo se está calentando",
     "Somewhere past the Back Room, something is warming up.": "En algún lugar más allá del Back Room, algo se está calentando.",
     "It is loud, it is fast, and it is not ready yet.": "Hace ruido, es rápido y todavía no está listo.",
