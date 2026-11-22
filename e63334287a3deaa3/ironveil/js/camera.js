@@ -29,6 +29,15 @@
   C.footBob = function (k) { if (!IV.settings.bob || IV.settings.motion || (IV.weapons && (IV.weapons.aiming || IV.weapons.scoped))) return; C.bobV -= CT.bob * 9 * (k || 1); };
   C.landDip = function (k) { if (IV.settings.motion) return; C.bobV -= CT.landDip * 9 * (k || 1); };
 
+  // recoil transient, stepped with the simulation (weapons.js calls it every fixed step, so it recovers in game time
+  // whatever the frame rate): hold, then ease the target home; the offset follows the target fast (about 30 ms)
+  C.stepRecoil = function (dt) {
+    if (!C.recSpec) return;
+    const rs = C.recSpec;
+    if (C.recHold > 0) C.recHold -= dt; else { const dk = Math.exp(-rs.decay * dt); C.recTP *= dk; C.recTY *= dk; }
+    const sk = 1 - Math.exp(-rs.snap * dt); C.recP += (C.recTP - C.recP) * sk; C.recY += (C.recTY - C.recY) * sk;
+    if (C.recHold <= 0 && Math.abs(C.recP) < 1e-5 && Math.abs(C.recY) < 1e-5 && Math.abs(C.recTP) < 1e-5) { C.recP = C.recY = C.recTP = C.recTY = 0; C.recSpec = null; }
+  };
   // look input (mouse/touch), applied every render frame (raw, no smoothing)
   C.look = function (dx, dy, touch) {
     const S = IV.settings, W8 = IV.weapons, aimed = W8 && (W8.aiming || W8.scoped);
@@ -94,13 +103,6 @@
     if (IV.fp && IV.fp.on() && P.speed > 0.5 && assistScale() > 0 && T.assist.friction[diff()] > 0) {
       const t = C.findTarget(0.1, 60);
       if (t) { const cp = W.camera.position, wy = IV.yawTo(t.x - cp.x, t.z - cp.z); P.yaw += IV.wrapA(wy - P.yaw) * Math.min(1, 1.2 * assistScale() * dt); }
-    }
-    // recoil transient: hold, then ease the target home; the offset follows the target fast (about 30 ms)
-    if (C.recSpec) {
-      const rs = C.recSpec;
-      if (C.recHold > 0) C.recHold -= dt; else { const dk = Math.exp(-rs.decay * dt); C.recTP *= dk; C.recTY *= dk; }
-      const sk = 1 - Math.exp(-rs.snap * dt); C.recP += (C.recTP - C.recP) * sk; C.recY += (C.recTY - C.recY) * sk;
-      if (C.recHold <= 0 && Math.abs(C.recP) < 1e-5 && Math.abs(C.recY) < 1e-5 && Math.abs(C.recTP) < 1e-5) { C.recP = C.recY = C.recTP = C.recTY = 0; C.recSpec = null; }
     }
     // bob spring (critically damped-ish)
     C.bobV += (-C.bobY * 120 - C.bobV * 18) * dt; C.bobY += C.bobV * dt; if (Math.abs(C.bobY) < 1e-4 && Math.abs(C.bobV) < 1e-3) C.bobY = C.bobV = 0;

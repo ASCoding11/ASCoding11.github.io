@@ -427,6 +427,7 @@
 
   WP.step = function (dt) {
     const I = IV.input;
+    IV.camera.stepRecoil && IV.camera.stepRecoil(dt);
     WP.cool = Math.max(0, WP.cool - dt); WP.throwCool = Math.max(0, (WP.throwCool || 0) - dt);
     if (WP.boltT > 0) { WP.boltT -= dt; if (WP.boltT <= 0) P.actor.setUpper(WP.aiming ? 'aimIdle' : null); }
     if (WP.reloadT > 0 && P.sprinting) { WP.reloadT = 0; WP.fpReload = null; P.actor.setUpper(null); IV.fp && IV.fp.cancelAction && IV.fp.cancelAction(); }   // sprinting cancels a reload (no rounds added)
