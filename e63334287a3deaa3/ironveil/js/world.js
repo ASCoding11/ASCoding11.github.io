@@ -51,8 +51,15 @@
     finally { for (const o of hidden) o.visible = false; for (const o of culled) o.frustumCulled = true; }
     return (r.info.programs ? r.info.programs.length : 0) - n0;
   };
-  // one place that draws a frame: IVEnv's post stack when there is one (not on Low), else the plain renderer
-  W.draw = function (dt) { if (W.post) W.post.render(dt); else W.renderer.render(W.scene, W.camera); };
+  // one place that draws a frame: IVEnv's post stack when there is one (not on Low), else the plain renderer.
+  // W.overlay(renderer, target), when set (fp.js: the first-person gun and hands), is drawn INTO the world's HDR target
+  // before bloom and the grade, so it takes the same exposure, bloom, grade, vignette and grain; on Low (no post) it is
+  // drawn after the world straight to the screen (target null).
+  W.overlay = null;
+  W.draw = function (dt) {
+    if (W.post) W.post.render(dt, W.overlay);
+    else { W.renderer.render(W.scene, W.camera); if (W.overlay) W.overlay(W.renderer, null); }
+  };
   W.resize = function () {
     const w = innerWidth, h = innerHeight;
     W.renderer.setSize(w, h, false);

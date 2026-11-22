@@ -4,7 +4,10 @@
    small bloom (lamps, lit windows, muzzle flashes only: high threshold), tone maps with the same ACES curve as three,
    grades (slight shadow lift so nothing goes pure black, desaturation, cool shadows / warm highlights), adds a vignette
    and fine film grain (low amplitude, no flicker of the whole frame), then dithers. MSAA on High (WebGL2).
-   While post is active renderer.toneMapping is NoToneMapping; exposure still comes from renderer.toneMappingExposure. */
+   While post is active renderer.toneMapping is NoToneMapping; exposure still comes from renderer.toneMappingExposure.
+   render(dt, overlay): overlay(renderer, target) is called with the HDR scene target still bound, after the world and
+   before bloom and the grade (the first-person gun and hands): it gets the same exposure, bloom, grade, vignette and
+   grain as the world. The target's depth is cleared first, so the overlay is never hidden by the world. */
 (function () {
   'use strict';
   const E = window.IVEnv;
@@ -83,7 +86,7 @@
         rtScene.setSize(W, H); half.setSize(W >> 1, H >> 1); qa.setSize(W >> 2, H >> 2); qb.setSize(W >> 2, H >> 2); ea.setSize(W >> 3, H >> 3); eb.setSize(W >> 3, H >> 3);
         P.uRes.value.set(W, H);
       },
-      render(dt) {
+      render(dt, overlay) {
         const g = E.GRADES[(E.atmo && E.atmo.P && E.atmo.P.grade) || 'night'];
         P.uSat.value = g.sat; P.uShadowTint.value.fromArray(g.shadow); P.uHighTint.value.fromArray(g.high); P.uLift.value = g.lift; P.uVig.value = g.vig;
         P.uGrain.value = g.grain; P.uBloom.value = g.bloom; mBright.uniforms.uThr.value = g.thr;
@@ -92,6 +95,7 @@
         renderer.setRenderTarget(rtScene); renderer.render(scene, camera);
         E.sceneInfo = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
         renderer.info.autoReset = ar;
+        if (overlay) { const ac = renderer.autoClear; renderer.autoClear = false; renderer.setRenderTarget(rtScene); renderer.clearDepth(); try { overlay(renderer, rtScene); } finally { renderer.autoClear = ac; renderer.setRenderTarget(rtScene); } }
         mBright.uniforms.tSrc.value = rtScene.texture; pass(mBright, half);
         mBlur.uniforms.tSrc.value = half.texture; mBlur.uniforms.uDir.value.set(1 / (W >> 1), 0); pass(mBlur, qb);   // half -> quarter
         mBlur.uniforms.tSrc.value = qb.texture; mBlur.uniforms.uDir.value.set(0, 1 / (H >> 2)); pass(mBlur, qa);
