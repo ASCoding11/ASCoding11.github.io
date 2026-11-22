@@ -72,7 +72,8 @@
         const i = (y * W + x) * 4; if (!d[i + 3]) continue;
         const n = vn(x / 22 + ox, y / 22 + oy) * 0.6 + vn(x / 6 + oy, y / 6 + ox) * 0.3 + vn(x / 2, y / 2) * 0.1;
         const wear = n + (R() - 0.5) * 0.08;
-        if (kind === 'enamel' || kind === 'carved') { if (wear > 1 - dst * 0.35) { d[i] = 38; d[i + 1] = 30; d[i + 2] = 24; } }   // chips to the iron (or a stone flake)
+        if (kind === 'enamel') { if (wear > 1 - dst * 0.35) { d[i] = 38; d[i + 1] = 30; d[i + 2] = 24; } }   // chips to the iron
+        else if (kind === 'carved') { if (wear > 1 - dst * 0.5) d[i + 3] *= 0.55; }   // weathered, shallower letters
         else if (wear > 1 - dst * 0.55) d[i + 3] = 0;
         else if (wear > 1 - dst * 0.8) d[i + 3] *= 0.45;
         // grime toward the bottom edge
