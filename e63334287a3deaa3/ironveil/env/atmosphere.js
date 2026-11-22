@@ -228,7 +228,7 @@
       if (!P.moon) u.moonCol.value.copy(L(P.sunCol)); else u.moonCol.value.set(0xdde6ff).convertSRGBToLinear();
       sun.color.copy(L(P.sunCol)); sun.intensity = P.sunI; sun.castShadow = opts.shadows !== false && P.sunShadow;
       hemi.color.copy(L(P.hemiSky)); hemi.groundColor.copy(L(P.hemiGround)); hemi.intensity = P.hemiI;
-      fog.color.copy(L(P.fog)); fog.near = P.fogD * (opts.fogMul || 1); fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
+      fog.color.copy(L(P.fog)); fog.near = (opts.fogD || P.fogD) * (opts.fogMul || 1);   // opts.fogD: a map's own haze in place of the preset's fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;
       renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : 1.45);   // Low has no grade/lift pass
       E.U.uWet.value = P.wet; E.U.uRain.value = P.rain ? 1 : 0; E.U.uDust.value = P.rain ? 0 : P.grade === 'day' ? 0.5 : 0.35; E.U.uNight.value = P.grade === 'night' || P.grade === 'rain' ? 1 : 0;

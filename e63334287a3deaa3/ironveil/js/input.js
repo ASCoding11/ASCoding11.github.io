@@ -80,11 +80,27 @@
   addEventListener('mouseup', e => { const c = 'Mouse' + e.button; if (keys.has(c)) { keys.delete(c); edgesUp.add(c); } });
   view.addEventListener('contextmenu', e => e.preventDefault());
   addEventListener('wheel', e => { if (IV.playing()) I.wheel += Math.sign(e.deltaY); }, { passive: true });
+  // Mouse look. With the pointer locked (click the game) the mouse turns you freely. Without the lock (not clicked yet,
+  // the lock refused, or a school browser that blocks it) just moving the mouse or trackpad over the game still turns
+  // you, no button held: the cursor is hidden, and once it reaches the left or right edge of the window you keep
+  // turning that way (I.edgeTurn, called every rendered frame) so you can still spin all the way round.
+  I.cx = -1; I.cy = -1;
   document.addEventListener('mousemove', e => {
+    I.cx = e.clientX; I.cy = e.clientY;
     if (!IV.playing()) return;
-    if (!I.locked && !(I.fallback && e.buttons)) return;
+    if (!I.locked && IV.touch) return;
     I.dx += e.movementX || 0; I.dy += e.movementY || 0;
   });
+  document.addEventListener('mouseout', e => { if (!e.relatedTarget) I.cx = I.cy = -1; });   // left the window
+  const EDGE = 0.1, EDGE_SPEED = 900;   // edge band (share of the width) and turn rate at the very edge (pixels of mouse movement per second)
+  I.edgeTurn = function (dt) {
+    const free = IV.playing() && !I.locked && !IV.touch;
+    view.style.cursor = free ? 'none' : '';
+    if (!free || I.cx < 0) return;
+    const w = view.clientWidth || innerWidth, band = w * EDGE;
+    const k = I.cx < band ? -(1 - I.cx / band) : I.cx > w - band ? (I.cx - (w - band)) / band : 0;
+    if (k) I.dx += Math.sign(k) * Math.min(1, Math.abs(k)) * EDGE_SPEED * Math.min(dt, 0.1);
+  };
   I.requestLock = function (fromClick) {
     if (I.fallback || I.locked || IV.touch || IV.test) return;
     I._fromClick = !!fromClick;

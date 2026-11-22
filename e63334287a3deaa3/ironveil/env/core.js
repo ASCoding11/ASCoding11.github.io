@@ -142,6 +142,9 @@
     // scanned CC0 sets (env/scans, see CREDITS-env.md): fetched as three images (albedo, normal xy + roughness,
     // height) and packed into the same layout the generator makes, so every shader layer works on them unchanged
     const scanJobs = [];
+    // a generated stand-in for a scan that didn't download, named like the scan (generate() alone leaves name unset,
+    // and an unnamed result was skipped, so that texture never existed)
+    const genNamed = (j) => { try { const t = performance.now(), r = IVEnvTexGen.generate(j.name, j.S, j.seed); r.name = j.name; r.ms = performance.now() - t; return r; } catch (e) { console.warn('IVEnv could not generate', j.name, e); return null; } };
     if (!E.noScans) for (let i = jobs.length - 1; i >= 0; i--) { const j = jobs[i]; if (E.SCANS[j.name]) { scanJobs.push(j); jobs.splice(i, 1); } }
 
     // the biggest first so the workers finish together
@@ -200,8 +203,12 @@
           const flip = (arr) => { const row = S * 4, tmp = new Uint8ClampedArray(row); for (let y = 0; y < S / 2; y++) { const a0 = y * row, b0 = (S - 1 - y) * row; tmp.set(arr.subarray(a0, a0 + row)); arr.copyWithin(a0, b0, b0 + row); arr.set(tmp, b0); } };
           flip(alb); flip(nri);
           return { name: j.name, S, alb, nri, ms: performance.now() - t1, scan: true };
-        }).catch(e => { console.warn('IVEnv scan failed, generating instead:', j.name, e); return IVEnvTexGen.generate(j.name, j.S, j.seed); });
-      })).then(list => { for (const r of list) { if (!r.name) continue; RAW[r.name] = r; } });
+        }).catch(e => { console.warn('IVEnv scan failed, generating instead:', j.name, e); return genNamed(j); });
+      })).then(list => { for (const r of list) { if (r && r.name) RAW[r.name] = r; }
+        // any scan still missing (its download failed and so did generating it) is generated once more here: a missing
+        // texture used to stop the game at "Laying out the country…" with "Cannot read properties of undefined (reading 'nri')"
+        for (const j of scanJobs) if (!RAW[j.name]) { const r = genNamed(j); if (r) RAW[j.name] = r; }
+      });
       const gen = E._loading; E._loading = Promise.all([gen, scanP]).then(() => { for (const k in RAW) if (RAW[k].scan && !E.tex[k]) { build(); break; } return E; });
     }
     return E._loading;

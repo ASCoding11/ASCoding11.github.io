@@ -191,8 +191,24 @@
     const near = opts.lodNear || 70;
     (E._updaters = E._updaters || []).push((dt, cam) => { for (const L of lods) { const d = Math.hypot(L.x - cam.position.x, L.z - cam.position.z) - CH * 0.71; const f = d < near; L.fine.visible = f; L.coarse.visible = !f; } });
 
-    E._ground = { surfaceAt };
-    return { group, material: mat, meshes, heightFn, surfaceAt };
+    // the height of the DRAWN ground (the fine level) at x, z: the mesh's flat triangles sit above the true height in
+    // dips (by up to ~0.3 m with a 2.5 m step), so anything that must stay above what the player sees (the
+    // first-person eye) asks this. Same grid, same diagonal choice as chunk().
+    const heightAt = (x, z) => {
+      if (x < x0 || z < z0 || x > x1 || z > z1) return heightFn(x, z);
+      const cx = Math.min(x0 + Math.floor((x - x0) / CH) * CH, x1 - 1e-6), cz = Math.min(z0 + Math.floor((z - z0) / CH) * CH, z1 - 1e-6);
+      const ex = Math.min(cx + CH, x1), ez = Math.min(cz + CH, z1), nx = Math.round((ex - cx) / step) + 1, nz = Math.round((ez - cz) / step) + 1;
+      const sx = (ex - cx) / (nx - 1), sz = (ez - cz) / (nz - 1);
+      const i = Math.min(nx - 2, Math.max(0, Math.floor((x - cx) / sx))), j = Math.min(nz - 2, Math.max(0, Math.floor((z - cz) / sz)));
+      const ax = cx + (ex - cx) * i / (nx - 1), az = cz + (ez - cz) * j / (nz - 1), bx = cx + (ex - cx) * (i + 1) / (nx - 1), cz2 = cz + (ez - cz) * (j + 1) / (nz - 1);
+      const fx = (x - ax) / (bx - ax), fz = (z - az) / (cz2 - az);
+      const ya = heightFn(ax, az), yb = heightFn(bx, az), yc = heightFn(ax, cz2), yd = heightFn(bx, cz2);
+      if (Math.abs(ya - yd) < Math.abs(yb - yc)) return fz >= fx ? ya + fz * (yc - ya) + fx * (yd - yc) : ya + fx * (yb - ya) + fz * (yd - yb);
+      return fx + fz <= 1 ? ya + fx * (yb - ya) + fz * (yc - ya) : yd + (1 - fx) * (yc - yd) + (1 - fz) * (yb - yd);
+    };
+    group.userData.heightAt = heightAt;
+    E._ground = { surfaceAt, heightAt };
+    return { group, material: mat, meshes, heightFn, surfaceAt, heightAt };
   };
 
   // ------------------------------------------------------------------ ground marks (for the game's code)

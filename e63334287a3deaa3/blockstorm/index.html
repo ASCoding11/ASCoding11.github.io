@@ -448,6 +448,9 @@ window.THREE = Object.assign({}, T);
 </script>
 <script src="../autores.js" defer></script>
 <script src="../netsmooth.js" defer></script>
+<script src="../colyseus.js"></script> <!-- the game relay: online rooms go through it (see README) -->
+<script src="../netrelay.js"></script>
+<script src="../netrelay-config.js"></script>
 <script type="module">
 const THREE = window.THREE;
 // Spanish (lang.js + es.js): almost all text is translated by lang.js on the page itself; TX is for the few lines put
@@ -1807,7 +1810,7 @@ async function netInit() {
   try { await withTimeout((a => new Promise(r => { const s = a.onAuthStateChanged(() => { s(); r(); }); }).then(() => a.currentUser || a.signInAnonymously()))(firebase.auth()), 25000, 'Signing in to the game server timed out. Check your connection, or play Solo vs bots.'); }
   catch (err) { const c = err && err.code || ''; if (/timed out/.test(err && err.message || '')) throw err; throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c) ? 'Anonymous sign-in is off for the game server.' : 'Sign-in failed: ' + (err.message || c)); }
   finally { clearTimeout(slow); if (m && m.textContent === 'Still signing in…') setNetMsg(m0); }
-  NET.uid = firebase.auth().currentUser.uid; NET.db = firebase.database();
+  NET.uid = firebase.auth().currentUser.uid; NET.db = (window.NetRelay?NetRelay.database(firebase.database(),window.RELAY_ROOMS):firebase.database());
   await new Promise(res => { setTimeout(res, 3000); NET.db.ref('.info/serverTimeOffset').once('value', s => { NET.offset = s.val() || 0; res(); }); });
   NET.db.ref('.info/serverTimeOffset').on('value', s => { NET.offset = s.val() || 0; });
   NET.ready = true;

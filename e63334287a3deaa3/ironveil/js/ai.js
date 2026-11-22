@@ -194,6 +194,10 @@
       for (const mk of AI.masks) if (mk.on && Math.hypot(e.pos.x - mk.x, e.pos.z - mk.z) < mk.r) r *= mk.mul;
       if (e.alerted) r *= 1.2;
       const d = Math.hypot(e.pos.x - x, e.pos.z - z);
+      // a stone just out of earshot still makes a calm guard turn and listen (suspicious, no walk)
+      if (type === 'rock' && d > r && d < r * T.noise.rockFaint && (e.state === 'unaware' || e.state === 'returning')) {
+        e.aw = Math.max(e.aw, A.suspicious + 0.05); e.interest = { x, z }; e.setState('suspicious'); AI.bark(e, 'suspicious'); IV.emit('heard', { e, type: 'rockFaint' }); continue;
+      }
       if (d > r) continue;
       const k = 1 - d / r;
       if (type === 'step') {
@@ -206,6 +210,10 @@
         if (e.state === 'combat') continue;
         e.aw = Math.max(e.aw, type === 'rock' ? 0.66 : 0.72); e.interest = { x, z };
         if (e.state === 'unaware' || e.state === 'suspicious' || e.state === 'returning') { e.setState('investigating'); AI.bark(e, 'investigate'); }
+        // already looking into something: a new stone sends him to the new spot with his patience reset;
+        // a searching guard moves his search there (searching works round lkp)
+        else if (e.state === 'investigating') { e.lookT = 0; e.stateT = 0; }
+        else if (e.state === 'searching' && type === 'rock') { e.lkp = { x, z, t: IV.time }; }
         IV.emit('heard', { e, type });
       } else if (type === 'shot' || type === 'explosion' || type === 'shout') {
         if (type === 'shout' && src === e) continue;

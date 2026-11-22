@@ -206,7 +206,7 @@
   // A target board on a post. It falls back when hit. Counts as a target for aim assist while standing.
   function board(M, x, z, rot, w, h, steel) {
     const gy = W.height(x, z), g = new THREE.Group();
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), new THREE.MeshStandardMaterial({ color: steel ? 0x8a8e90 : 0xc8b890, roughness: steel ? 0.4 : 0.9, metalness: steel ? 0.6 : 0 }));
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), new THREE.MeshStandardMaterial({ color: steel ? 0xe2ded2 : 0xc8b890, roughness: steel ? 0.55 : 0.9, metalness: steel ? 0.1 : 0 }));   // steel plates painted white, as ranges do, so they read against the earth bank at 300 m
     // a plain silhouette mark: dark circle + rings painted on
     const face = new THREE.Mesh(new THREE.CircleGeometry(Math.min(w, h) * 0.32, 20), new THREE.MeshBasicMaterial({ color: 0x2a2620 }));
     face.position.z = 0.03; plate.add(face);
@@ -362,7 +362,8 @@
     id: 'bootcamp', num: 0, title: 'Boot Camp', line: 'A morning on the training range: moving, shooting, sneaking. About five minutes.',
     briefing: ['Training range, England, the week before the jump. Sergeant Okafor runs the course.', 'One thing at a time. Each station waits until you have done it, and the prompts show your own keys.'],
     preview: [{ text: 'Move, sprint, crouch, crawl, vault and lean' }, { text: 'Pop-up targets down the sights' }, { text: 'The scoped rifle at 100, 200 and 300 m' }, { text: 'Distract a guard and take him down' }, { text: 'Binoculars and grenades' }],
-    world: { size: 660, day: true, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 2.2 }, terrainStep: 4, fog: 0.0028, fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
+    world: { size: 660, day: true, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 2.2 }, terrainStep: 4, fog: 0.0028, envFog: 0.0024,   // envFog: lighter than the overcast preset's 0.0042 so the 300 m plate shows through the scope (40% haze at 300 m instead of 80%)
+       fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
     build, setup, step, frame, sketch,
     medals: [
       { text: 'Finish in under 6:00', ok: s => s.time < 360 },

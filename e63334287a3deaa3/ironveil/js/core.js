@@ -84,7 +84,7 @@
     noise: {                       // m, how far a sound carries in quiet night air
       sprint: 16, run: 9.5, walk: 5, crouchRun: 4.5, crouch: 2.4, prone: 1.2, vault: 6, land: 7,
       surface: { grass: 0.85, mud: 1.0, gravel: 1.35, wood: 1.25, stone: 1.1, water: 1.5, crops: 1.0 },
-      bodyFall: 9, rockHit: 15, takedown: 3.5, maskedMul: 0.3
+      bodyFall: 9, rockHit: 20, rockFaint: 1.35, takedown: 3.5, maskedMul: 0.3   // rockHit is scaled by half the surface's loudness (surface above): grass 18.5 m, gravel 23.5 m; out to rockHit x rockFaint a calm guard only turns to listen
     },
     ai: {
       fovH: 1.15,               // rad half-angle of clear vision
