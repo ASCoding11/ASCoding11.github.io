@@ -233,6 +233,26 @@
     A.sign('FERME DU GRAND CLOS', { kind: 'paint', ground: null, color: 'rgba(232,224,202,0.8)', distress: 0.55, size: 80 }, [HOUSE.x + 2.5, gy(HOUSE.x, HOUSE.z) + 3.0, HOUSE.z + 12], [HOUSE.x + 2.5, gy(HOUSE.x, HOUSE.z) + 3.0, HOUSE.z], 2.8);
     A.sign('DÉFENSE\nDE FUMER', { kind: 'enamel', ground: '#f2efe6', color: '#a3241c', distress: 0.4, size: 64 }, [BARN.x - 12, gy(BARN.x, BARN.z) + 1.75, BARN.z + 3.2], [BARN.x, gy(BARN.x, BARN.z) + 1.75, BARN.z + 3.2], 0.5);
   }
+  // ---- dense dressing (level-design pass): something at cover height every 6-8 m along the extraction lane's verges,
+  // the hamlet street and the farmyard's barn wall, with small random offsets and turns; garden fences with gaps
+  // behind the hamlet; one climbable bale stack in the hamlet. Kept off the stealth route (the sunken lane L1, the
+  // crossroads, the road south and the maize path) and off the lane's hedge gaps, where the ambush stands.
+  function dressing(b) {
+    const A = IV.art, R = IV.rng(733), mix = ['crates', 'barrels', 'woodpile', 'crate', 'sandbags', 'barrel'];
+    const gaps = [[133, 0, 6], [150, 74, 6], [150, 40, 6], [165, 90, 6], [126.4, -26, 4], [138.5, 18, 4], [147, 50.6, 4], [EXTRACT.x, EXTRACT.z, 9], [140, 16, 3], [148, 45, 3], [152, 30, 3], [116, -54, 6]];
+    let n = 0;
+    for (let i = 0; i < L2.length - 1; i++) n += A.row(b, mix, L2[i], L2[i + 1], { every: 7, side: (k) => (k % 2 ? 2.8 : -2.8), avoid: gaps, skip: 0.1, R });
+    // the hamlet street: in front of the houses, both sides, clear of doors, the well, the cross and the signs
+    const roadX = (z) => z < 80 ? z / 80 : 1 + (z - 80) / 108, doors = HAMLET.map(sp => [sp.x + (sp.x > roadX(sp.z) ? -1 : 1) * ((sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2), sp.z, 1.6]);   // the middle of each front
+    const keep = doors.concat([[-5.4, 64, 2.2], [-4.2, 26, 2], [4.4, 22.5, 2], [37, 88, 10], [-3.6, 82, 3.5]]);
+    for (const sd of [1, -1]) n += A.row(b, ['barrels', 'crate', 'woodpile', 'barrel', 'cart', 'crates'], [roadX(30) + sd * 4.7, 30], [roadX(104) + sd * 4.7, 104], { every: 7.5, side: 0, avoid: keep, skip: 0.15, R });
+    A.vantage(b, -3.6, 84, Math.PI / 2, 5, R);   // bales by the barn: up 1.65 m to see over the hedges to the farm
+    // the farmyard: along the barn's west wall, clear of its door and the lamp
+    n += A.row(b, ['barrels', 'woodpile', 'crates'], [117.6, -81], [117.6, -66], { every: 6, avoid: [[118, -70, 2.6], [117, -82.5, 2]], R });
+    // back-garden fences behind the west and east houses, broken into runs with gaps
+    for (const [x, z0, z1] of [[-17.5, 30, 60], [-17.5, 64, 98], [19.5, 46, 74]]) for (let z = z0; z < z1 - 3; ) { const L = 4 + R() * 6; A.fence(b, [[x + (R() - 0.5) * 0.4, z], [x + (R() - 0.5) * 0.4, Math.min(z1, z + L)]], 1.2); z += L + 1.6 + R() * 1.5; }
+    IV.art.dressedND = n;
+  }
   function build(M) {
     window.IVEnv && (IVEnv.labelLang = 'fr');
     const b = K.begin();
@@ -486,6 +506,7 @@
     { const gy = W.height(126.4, -26); K.box(b, 'bark', 126.4, gy, -26, 2.2, 0.75, 0.75, 0.4, 0x7a6a58, F.SOLID | F.BULLET | F.NAV | F.LOW | F.VAULT, 'wood', 0.3); }
     IV.art.prop('cart', b, 138.5, 18, 0.25);
     IV.art.prop('crate', b, 147.5, W.height(147.5, 50), 50, 0.3, 1.0); IV.art.prop('crate', b, 146.6, W.height(146.6, 51.2), 51.2, 1.0, 0.9);
+    dressing(b);
     // the flak pit: a ring of sandbags, ammunition crates; MG nest to the west of it
     // gaps in the ring: the yard side, and the north (the quiet way in)
     const ring = 8; for (let i = 0; i < ring; i++) { if (i === 2 || i === 6) continue; const a0 = i / ring * 6.283, a1 = (i + 1) / ring * 6.283; IV.art.prop('sandbags', b, AA.x + Math.cos(a0) * 4, AA.z + Math.sin(a0) * 4, AA.x + Math.cos(a1) * 4, AA.z + Math.sin(a1) * 4, 4); }

@@ -113,6 +113,18 @@
     A.signpost(-6.4, RANGE_Z + 1.2, 0, 'No 2 RANGE\nFIRING POINT', { kind: 'paint', ground: '#1e1d1b', color: '#eeeadf', distress: 0.3, size: 64 }, { h: 1.5, w: 0.95 });
     for (const [yd, z] of [['100', RANGE_Z - 91.4], ['200', RANGE_Z - 182.9], ['300', RANGE_Z - 274.3]]) A.signpost(-7.2, z, 0, yd + '\nYARDS', { kind: 'paint', ground: '#ece8dc', color: '#1c1b19', distress: 0.35, size: 72 }, { h: 1.2, w: 0.55 });
   }
+  // ---- dense dressing: kit at cover height along both sides of the course (every ~8 m, clear of the stations, gates
+  // and posts), and stores round the motor pool; small random offsets and turns
+  function dressing(b) {
+    const A = IV.art, R = IV.rng(911);
+    const keep = [[0, 158, 7], [0, 132, 7], [0, 98, 7], [0, 74, 9], [0, 58, 7], [0, 38, 7], [0, 22, 7], [-9.5, 145, 3], [-4.2, 154, 3], [4.2, 22, 3], [-6.4, RANGE_Z + 1.2, 3], [8.2, RANGE_Z + 4, 3]];
+    for (const p of POSTS) keep.push([p[0], p[1], p[2] + 1.2]);
+    for (const m of MUD) keep.push([m[0], m[1], m[2] + 1]);
+    let n = 0;
+    for (const sd of [1, -1]) n += A.row(b, ['crates', 'barrels', 'sandbags', 'crate', 'woodpile'], [sd * 5.4, 150], [sd * 5.4, 28], { every: 8, side: 0, avoid: keep, skip: 0.15, R });
+    n += A.row(b, ['barrels', 'crates', 'barrel', 'crate'], [25.5, 89], [25.5, 102], { every: 4.5, avoid: [[23.5, 106, 3], [26.5, 83.5, 4]], R });
+    IV.art.dressedBC = n;
+  }
   function build(M) {
     window.IVEnv && (IVEnv.labelLang = 'en');
     const b = K.begin();
@@ -193,6 +205,7 @@
         { kind: 'office', w: 6, d: 4.5, x: 50, z: 166, rot: -H2 }                           // guardroom
       ], { seed: 909 });
       signs();
+      dressing(b);
       if (IV.art.envOn()) {
         dress('truck', 26.5, 83.5, 0.15); dress('truck', 37, 82.5, -0.1); dress('car', 23.5, 106, 1.45);
         dress('drums', 28.5, 66.5, 0.4); dress('drums', 38.5, 66, 2.1); dress('guardtower', 50, 118, 0.1);

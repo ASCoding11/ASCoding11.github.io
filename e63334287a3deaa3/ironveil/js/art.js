@@ -152,6 +152,58 @@
     } catch (e) { console.warn('IVEnv prop', kind, e); }
     return r;
   };
+  // ---------------------------------------------------------------- dense dressing (rows, clusters, vantage)
+  // Small random offsets and turns everywhere (nothing stacked or lined up like a CAD model): +-5 cm sideways, +-4 cm
+  // along, +-1.3 deg, as real stacks and rows sit. Every piece goes through IV.art.prop, so its colliders are the kit's.
+  // IV.art.dress(b, kind, x, z, rot, R): one set piece: crate (sometimes a second on top), crates (a cluster of 2-3),
+  //   barrel, barrels (2-3 in a knot), woodpile, cart, sandbags (a short run along rot), hay.
+  // IV.art.row(b, kinds, a[x,z], c[x,z], { every, side, jit, skip, avoid: [[x, z, r]], R }): pieces every ~`every` m
+  //   (jittered by `jit`) along a->c, `side` metres to the left (negative: right), skipping the `avoid` circles and a
+  //   share `skip` of the slots (gaps). Returns how many pieces it placed.
+  // IV.art.vantage(b, x, z, rot, n, R): n steps of stacked bales, each 0.33 m higher (under the 0.35 m step-up), so
+  //   the player walks up onto a 1.3-1.7 m platform to see over hedges and walls.
+  A.dressed = 0;
+  A.dress = function (b, kind, x, z, rot, R) {
+    R = R || IV.rng((x * 31 + z * 17) | 0); rot = rot || 0;
+    const tw = () => (R() - 0.5) * 0.045, jo = (k) => (R() - 0.5) * 2 * k, c = Math.cos(rot), s = Math.sin(rot);
+    const at = (u, v) => [x + c * u + s * v + jo(0.05), z - s * u + c * v + jo(0.04)];
+    if (kind === 'crate') { const sz = 0.8 + R() * 0.2; A.prop('crate', b, x, H(x, z), z, rot + tw(), sz); A.dressed++; if (R() < 0.45) { A.prop('crate', b, x + jo(0.06), H(x, z) + sz, z + jo(0.06), rot + tw() + (R() - 0.5) * 0.5, sz * 0.8); A.dressed++; } }
+    else if (kind === 'crates') { const n = 2 + (R() < 0.5 ? 1 : 0); for (let i = 0; i < n; i++) { const p = at((i - (n - 1) / 2) * 0.86, i === 1 ? 0.12 : 0); A.prop('crate', b, p[0], H(p[0], p[1]), p[1], rot + tw(), 0.85); A.dressed++; } }
+    else if (kind === 'barrel') { A.prop('barrel', b, x, H(x, z), z); A.dressed++; }
+    else if (kind === 'barrels') { const n = 2 + (R() < 0.6 ? 1 : 0); for (let i = 0; i < n; i++) { const p = at(i === 2 ? 0.33 : (i - 0.5) * 0.68, i === 2 ? 0.58 : 0); A.prop('barrel', b, p[0], H(p[0], p[1]), p[1]); A.dressed++; } }
+    else if (kind === 'woodpile') { A.prop('woodpile', b, x, z, rot + tw()); A.dressed++; }
+    else if (kind === 'cart') { A.prop('cart', b, x, z, rot + (R() - 0.5) * 0.3); A.dressed++; }
+    else if (kind === 'sandbags') { const L = 1.1 + R() * 0.8; A.prop('sandbags', b, x - c * L, z + s * L, x + c * L, z - s * L, 3); A.dressed++; }
+    else if (kind === 'hay') { A.prop('hay', b, x, H(x, z), z, rot + tw() * 4); A.dressed++; }
+  };
+  A.row = function (b, kinds, a, c, o) {
+    o = o || {}; const R = o.R || IV.rng(((a[0] + c[0]) * 13 + (a[1] + c[1]) * 7) | 0), every = o.every || 7, L = Math.hypot(c[0] - a[0], c[1] - a[1]); if (L < 0.5) return 0;
+    const dx = (c[0] - a[0]) / L, dz = (c[1] - a[1]) / L, nx = -dz, nz = dx, rot = Math.atan2(-dz, dx); let n = 0;
+    for (let t = every * 0.5; t < L - 0.5; t += every + (R() - 0.5) * (o.jit != null ? o.jit : 1.2) * 2) {
+      if (R() < (o.skip || 0)) continue;
+      const side = typeof o.side === 'function' ? o.side(n) : (o.side || 0), x = a[0] + dx * t + nx * side, z = a[1] + dz * t + nz * side;
+      if ((o.avoid || []).some(q => Math.hypot(x - q[0], z - q[1]) < q[2])) continue;
+      A.dress(b, kinds[(R() * kinds.length) | 0], x, z, rot + (R() < 0.5 ? 0 : Math.PI), R); n++;
+    }
+    return n;
+  };
+  A.vantage = function (b, x, z, rot, n, R) {
+    R = R || IV.rng((x * 7 + z * 11) | 0); n = n || 5; const c = Math.cos(rot), s = Math.sin(rot), gy = H(x, z), E = env();
+    const B = E && E.builder ? E.builder(seed()) : null;
+    for (let k = 0; k < n; k++) {
+      const u = k * 0.62, px = x + c * u, pz = z - s * u, top = gy + 0.33 * (k + 1), deep = k === n - 1 ? 1.6 : 0.62;
+      const cx = px + c * (deep - 0.62) / 2, cz = pz - s * (deep - 0.62) / 2;
+      collidersOnly(() => K.box(b, 'cloth', cx, gy - 0.2, cz, deep, top - gy + 0.2, 1.3, rot, 0xc8b070, IV.CF.SOLID | IV.CF.BULLET | IV.CF.NAV | IV.CF.LOW, 'cloth'));
+      if (!B) { K.box(b, 'cloth', cx, gy - 0.2, cz, deep, top - gy + 0.2, 1.3, rot, 0xc8b070); continue; }
+      // bales: each layer of the step a row of two bales, a little askew
+      for (let l = 0; l <= k; l++) for (const w of [-0.33, 0.33]) for (let d = 0; d < Math.round(deep / 0.62); d++) {
+        const bx = px + c * d * 0.62 - s * w + (R() - 0.5) * 0.04, bz = pz - s * d * 0.62 - c * w + (R() - 0.5) * 0.04;
+        B.box('straw', bx, gy + l * 0.33, bz, 0.6, 0.33, 0.62, rot + Math.PI / 2 + (R() - 0.5) * 0.06, { foot: gy, tint: new THREE.Color(0.95 + R() * 0.1, 0.9 + R() * 0.1, 0.8) });
+      }
+    }
+    if (B) { const g = B.finish(); g.name = 'IVEnv.vantage'; root().add(g); }
+    A.dressed++;
+  };
   A.pole = function (b, x, z, h) {
     const E = env(); if (E && E.prop) { const r = collidersOnly(() => K.pole(b, x, z, h)); try { place(E.prop('telegraph', seed()), x, H(x, z), z, 0); } catch (e) {} return r; }
     return K.pole(b, x, z, h);
