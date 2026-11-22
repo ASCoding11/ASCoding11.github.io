@@ -83,8 +83,10 @@
     const E = env(); if (!E || !E.builder) return; o = o || {};
     safe(() => {
       const B = E.builder(seed()), y = H(x, z), ph = o.h || 2.1, bw = o.w || 1.3, c = Math.cos(rot || 0), s = Math.sin(rot || 0), L = E.label ? E.label(text, style) : null, bh = L ? bw / L.aspect : 0.3;
-      for (const k of o.posts === 2 ? [-1, 1] : [0]) B.box('timber', x + c * k * bw * 0.42, y - 0.3, z - s * k * bw * 0.42, 0.09, ph + 0.3, 0.09, rot || 0, { grain: 'long', foot: y, tint: new THREE.Color(0.62, 0.56, 0.48) });
-      const by = y + ph - bh - 0.05; B.box(o.plate ? 'metal_painted' : 'planks', x - s * 0.06, by, z - c * 0.06, bw + 0.04, bh + 0.04, 0.03, rot || 0, { noFoot: true, tint: o.boardTint || new THREE.Color(0.7, 0.68, 0.62) });
+      const by = y + ph - bh - 0.05;
+      // two posts stand just outside the board's ends; a single post stops under the board (it would cross the text)
+      for (const k of o.posts === 2 ? [-1, 1] : [0]) { const off = k * (bw / 2 + 0.08); B.box('timber', x + c * off, y - 0.3, z - s * off, 0.09, (k ? ph : by - y + 0.04) + 0.3, 0.09, rot || 0, { grain: 'long', foot: y, tint: new THREE.Color(0.62, 0.56, 0.48) }); }
+      if (o.posts === 2) for (const k of [-1, 1]) { const off = k * (bw / 2 + 0.04); B.box('timber', x + c * off - s * 0.06, by + bh * 0.5 - 0.03, z - s * off - c * 0.06, 0.1, 0.06, 0.04, rot || 0, { noFoot: true }); }   // the cleats the board is nailed to B.box(o.plate ? 'metal_painted' : 'planks', x - s * 0.06, by, z - c * 0.06, bw + 0.04, bh + 0.04, 0.03, rot || 0, { noFoot: true, tint: o.boardTint || new THREE.Color(0.7, 0.68, 0.62) });
       if (L) for (const side of [1, -1]) B.label(text, style, [x - s * (0.06 - side * 0.016), by + (bh + 0.04) / 2, z - c * (0.06 - side * 0.016)], [side * s, 0, side * c], bw);
       const g = B.finish(); g.name = 'IVEnv.signpost'; root().add(g);
       W.addBox(x, z, 0.08, 0.08, y, y + ph, rot || 0, IV.CF.SOLID | IV.CF.BULLET, 'wood', 'post');
