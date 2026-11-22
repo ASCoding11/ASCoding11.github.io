@@ -26,9 +26,22 @@
     uDust: { value: 0.35 },
     uNight: { value: 1 },
     uMacro: { value: null },
-    uGrime: { value: 1 }
+    uGrime: { value: 1 },
+    // roofed boxes (x0, z0, x1, z1) and their roof heights: inside them rain does not reach (IVEnv.setRoofs)
+    uRoof: { value: [] }, uRoofY: { value: [] }, uRoofN: { value: 0 }
   };
   for (let i = 0; i < 8; i++) U.uPush.value.push(new THREE.Vector4(0, 0, 0, 0));
+  const ROOFS = 16; for (let i = 0; i < ROOFS; i++) { U.uRoof.value.push(new THREE.Vector4(0, 0, 0, 0)); U.uRoofY.value.push(-1e4); }
+  // IVEnv.setRoofs([[x0, z0, x1, z1, yTop]...]): the nearest 16 to the camera are kept up to date by IVEnv.update
+  let roofList = [], roofT = 0;
+  E.setRoofs = function (list) { roofList = (list || []).slice(); roofT = 1e9; };
+  (E._updaters = E._updaters || []).push(function (dt, cam) {
+    roofT += dt; if (roofT < 0.5 || !cam) return; roofT = 0;
+    const px = cam.position.x, pz = cam.position.z, d = (r) => Math.max(0, Math.abs(px - (r[0] + r[2]) / 2) - (r[2] - r[0]) / 2) + Math.max(0, Math.abs(pz - (r[1] + r[3]) / 2) - (r[3] - r[1]) / 2);
+    const l = roofList.length > ROOFS ? roofList.slice().sort((a, b) => d(a) - d(b)) : roofList;
+    const n = Math.min(ROOFS, l.length); U.uRoofN.value = n;
+    for (let i = 0; i < ROOFS; i++) { const r = l[i]; if (r && i < n) { U.uRoof.value[i].set(r[0], r[1], r[2], r[3]); U.uRoofY.value[i] = r[4]; } else U.uRoofY.value[i] = -1e4; }
+  });
 
   // ------------------------------------------------------------------ helpers
   E.rng = function (seed) { return IVEnvTexGen.rng((seed | 0) * 2654435761 + 12345); };
@@ -106,6 +119,15 @@
     glass: { tex: 'glass', size: 1.0, hero: 0, minor: 1, ns: 0.4, macro: 0.1, glass: 1, noFoot: 1 },
     straw: { tex: 'straw', size: 1.0, hero: 0, minor: 1, ns: 1.0, macro: 0.14, noFoot: 1 }
   };
+  // How each material takes rain: [darken, roughness multiplier when soaked, beads (sealed surfaces)]. Porous ones
+  // (brick, plaster, stone, raw wood, concrete) soak and darken; sealed ones (paint, metal, glass, slate) barely
+  // darken but go glossy, with beads. interior: inside a building, only 12 % of the weather reaches it.
+  const WETR = { brick_red: [0.42, 0.55, 0], brick_sooty: [0.4, 0.55, 0], fieldstone: [0.34, 0.5, 0], ashlar: [0.38, 0.5, 0], plaster: [0.4, 0.6, 0],
+    planks: [0.32, 0.55, 0], timber: [0.3, 0.55, 0], floorboards: [0.3, 0.55, 0], roof_tile: [0.36, 0.45, 0], slate: [0.12, 0.3, 0.6], cobbles: [0.3, 0.4, 0.3],
+    concrete: [0.42, 0.55, 0], sandbag: [0.38, 0.7, 0], canvas: [0.4, 0.7, 0], straw: [0.3, 0.8, 0], metal_painted: [0.06, 0.25, 1], metal_rust: [0.18, 0.4, 0.3],
+    wood_painted: [0.08, 0.28, 1], glass: [0.0, 0.3, 1], bark_oak: [0.35, 0.6, 0], bark_pine: [0.35, 0.6, 0] };
+  for (const k in WETR) if (E.RECIPES[k]) E.RECIPES[k].wet = WETR[k];
+  E.RECIPES.plaster_interior.interior = 1; E.RECIPES.floorboards.interior = 1;
   // Scanned sets shipped in env/scans: material -> real size of one repeat in metres (the set's shot size; never smaller)
   E.SCANS = {};
   // bricks are drawn about 1.5x real (courses ~10.5 cm, bricks ~32 cm): at game distances true-size brick reads as noise.
@@ -263,10 +285,13 @@
     // within ~9 m, never roofs; everything else keeps the normal map and joint occlusion
     if (R.pom && E.Q.pom && !R.glass && (!E.Q.pomOnly || E.Q.pomOnly.test(R.tex || ''))) { defs.ENV_POM = ''; defs.ENV_POM_STEPS = (+E.Q.pom).toFixed(1); defs.ENV_POM_FAR = (+(E.Q.pomFar || 8)).toFixed(1); /* GLSL floats: '5.5', never '5.5.0' */ }
     if (!R.noFoot) defs.ENV_FOOT = '';
+    if (R.interior) defs.ENV_INTERIOR = '';
+    if (R.wet && R.wet[2] > 0) defs.ENV_BEADS = '';
     m.defines = Object.assign(m.defines || {}, defs);
     const uni = {
       uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime, uDust: U.uDust, uNight: U.uNight,
       uIdAmt: { value: R.id || 0 }, uMacroAmt: { value: R.macro || 0.15 }, uTexSize: { value: S },
+      uRoof: U.uRoof, uRoofY: U.uRoofY, uRoofN: U.uRoofN, uWetK: { value: new THREE.Vector3().fromArray(R.wet || [0.38, 0.45, 0]) },
       uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: R.scan && /brick|fieldstone|ashlar|roof_tile|slate/.test(R.tex) ? 1.0 : 0.85 }
     };
     m.userData.uniforms = uni;
@@ -278,15 +303,20 @@
           envWP = instanceMatrix * envWP;
         #endif
         vEnvW = (modelMatrix * envWP).xyz; vEnvA = aEnv;`);
-      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
+      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN; uniform vec3 uWetK;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
         sh.fragmentShader
           .replace('#include <map_fragment>', MAP_FRAG)
           .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(envRough, 0.03, 1.0);')
           .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = metalness;\n#ifdef ENV_METALMASK\nmetalnessFactor *= envN.a;\n#endif')
           .replace('#include <normal_fragment_maps>', `
             vec3 mapN = vec3((envN.xy * 2.0 - 1.0) * uNS * normalScale, 0.0);
+            mapN.xy *= 1.0 - 0.45 * envWetUp;   // water fills the relief of wet upward faces
             mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
-            normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);`)
+            normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);
+            // specular anti-aliasing: where the shading normal changes a lot across a pixel (fine relief far away, wet
+            // and glossy) widen the highlight instead of letting it sparkle
+            { vec3 dnx = dFdx(normal), dny = dFdy(normal); float nv = 0.5 * (dot(dnx, dnx) + dot(dny, dny));
+              roughnessFactor = sqrt(roughnessFactor * roughnessFactor + min(2.0 * nv, 0.2)); roughnessFactor = max(roughnessFactor, 0.045); }`)
           .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (m.userData.gapLit ? '{ float gx = vUv.x * 8.0; float gd = min(fract(gx), 1.0 - fract(gx)); float gw = max(0.035, fwidth(gx) * 0.9); float on = step(0.62, fract(sin(floor(gx + 0.5) * 12.9898) * 43758.5)) * smoothstep(0.35, 0.65, texture2D(uMacro, vec2(gx * 0.13, vUv.y * 0.6)).g); totalEmissiveRadiance += vec3(1.0, 0.5, 0.18) * 0.38 * uNight * on * smoothstep(gw, 0.0, gd) * (0.6 + 0.4 * smoothstep(0.2, 0.07, envH)); }' : ''))
           .replace('#include <aomap_fragment>', `
             float envAO = mix(1.0, 0.3 + 0.7 * smoothstep(0.05, 0.75, envH), uAOAmt);
@@ -377,8 +407,33 @@
       envAlb = mix(envAlb, vec3(0.30, 0.235, 0.155) * (0.8 + 0.4 * m1), dustAmt * 0.7);
       envRough = mix(envRough, 1.0, dustAmt);
     }
-    envAlb *= 1.0 - uWet * 0.38 * (0.6 + 0.4 * envH);
-    envRough = mix(envRough, envRough * 0.4, uWet);
+    // rain by exposure and material: upward faces soak; vertical faces wet in streaks plus a splash band at the foot;
+    // undersides (soffits, eave bottoms, sill undersides) stay dry; nothing inside a roofed box gets more than a trace
+    float envWetUp = 0.0;
+    if (uWet > 0.001) {
+      vec3 wn2 = inverseTransformDirection(normalize(vNormal), viewMatrix);
+      float up = smoothstep(0.15, 0.85, wn2.y), exposed = smoothstep(-0.4, -0.05, wn2.y), vv = 1.0 - abs(wn2.y);
+      float stk = texture2D(uMacro, vec2((wp.x + wp.z) * 1.9, wp.y * 0.09)).r * 0.65 + texture2D(uMacro, vec2((wp.x - wp.z) * 4.3, wp.y * 0.05 + 0.3)).g * 0.35;
+      float wv = vv * (0.25 + 0.75 * smoothstep(0.42, 0.68, stk));
+      #ifdef ENV_FOOT
+      { float ft = vEnvA.w > 0.5 ? vEnvA.w - 1.0 : 99.0; wv = max(wv, vv * (1.0 - smoothstep(0.2, 0.5 + 0.2 * m1, ft))); }
+      #endif
+      float dry = 1.0;
+      for (int i = 0; i < 16; i++) { if (i >= uRoofN) break; vec4 r = uRoof[i];
+        vec2 inb = smoothstep(vec2(-0.05), vec2(0.35), min(wp.xz - r.xy, r.zw - wp.xz));
+        dry *= 1.0 - inb.x * inb.y * step(wp.y, uRoofY[i] - 0.15); }
+      #ifdef ENV_INTERIOR
+      dry = min(dry, 0.12);
+      #endif
+      float wetA = uWet * exposed * clamp(max(up, wv), 0.0, 1.0) * mix(0.12, 1.0, dry);
+      envWetUp = wetA * up;
+      envAlb *= 1.0 - wetA * uWetK.x * (0.6 + 0.4 * envH);
+      envRough = mix(envRough, envRough * uWetK.y, wetA);
+      #ifdef ENV_BEADS
+      { float bd = smoothstep(0.6, 0.68, texture2D(uMacro, wp.xz * 1.7 + wp.y * 0.9).b * 0.6 + texture2D(uMacro, (wp.xy + wp.zz) * 4.1).r * 0.4);
+        float bf = 1.0 - smoothstep(4.0, 12.0, length(vViewPosition)); envRough = mix(envRough, 0.05, bd * bf * wetA * uWetK.z); }
+      #endif
+    }
     diffuseColor.rgb *= envAlb;
   `;
 
