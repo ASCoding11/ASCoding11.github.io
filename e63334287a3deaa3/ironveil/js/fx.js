@@ -78,9 +78,9 @@
     casingIM.count = 0; casingIM.frustumCulled = false; W.scene.add(casingIM);
     // decals: blood (soft red splat) and bullet marks (dark), each one instanced mesh
     const splat = makeSplatTex();
-    decalIM = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: splat, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, roughness: 0.4, color: 0x7a0c08 }), IV.TUNING.blood.decals);
+    decalIM = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: splat, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, roughness: 0.4, color: 0x7a0c08 }), IV.TUNING.blood.decals + DECAL_SPARE);
     decalIM.count = 0; decalIM.frustumCulled = false; decalIM.renderOrder = 2; W.scene.add(decalIM);
-    holeIM = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: W.tex.glow(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, color: 0x000000, opacity: 0.8 }), 60);
+    holeIM = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: W.tex.glow(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, color: 0x000000, opacity: 0.8 }), HOLES + DECAL_SPARE);
     holeIM.count = 0; holeIM.frustumCulled = false; holeIM.renderOrder = 2; W.scene.add(holeIM);
     // muzzle flash sprites (pool of 8)
     const ft = makeFlashTex();
@@ -114,23 +114,70 @@
   FX.tracer = function (b) { tracers.push(b); }; // reads b.x,y,z,vx,vy,vz each frame while b.alive
   FX.casing = function (x, y, z, vx, vy, vz) {
     if (casings.length >= 40) casings.shift();
-    casings.push({ x, y, z, vx, vy, vz, rx: R() * 6, ry: R() * 6, life: 6, rest: false });
+    casings.push({ x, y, z, vx, vy, vz, rx: R() * 6, ry: R() * 6, sx: rr(10, 22), sy: rr(6, 14), life: 6, rest: false, b: 0 });
   };
-  // surface impact. nx,ny,nz: surface normal. dir: bullet direction
+  // what a case lands on: a floor or something standing (wood), a puddle or the stream, or the ground's own kind
+  const CASE_KIND = { road: 'stone', yard: 'stone', cobbles: 'stone', floor: 'wood', water: 'water', mud: 'mud', field: 'crops', meadow: 'tallgrass' };
+  function caseSurface(x, z, y) {
+    if (W.underRoof(x, z)) return 'wood';
+    if (y > W.height(x, z) + 0.05) return 'wood';   // on a crate, a step, a cart
+    if (puddleAt(x, z, 1)) return 'water';
+    return CASE_KIND[W.surfaceAt ? W.surfaceAt(x, z) : 'grass'] || 'grass';
+  }
+  // surface impact. nx,ny,nz: surface normal. dir: bullet direction. The spray leaves along the bullet's reflection
+  // off the surface blended with the normal (a grazing hit throws its dirt on along the way, a square hit straight
+  // back); a puddle throws a crown splash; metal gives sparks and a short flash of light (at most one per 0.09 s);
+  // past 55 m from the camera every count is halved (too small to see, still costs).
+  let lastMetalFlash = -1;
+  const RF = new THREE.Vector3();
+  function puddleAt(x, z, ny) {
+    const E = window.IVEnv; if (ny < 0.7 || !E || !E.ready || !E.groundInfo || W.underRoof(x, z)) return false;
+    try { return E.groundInfo(x, z).puddle > 0.5; } catch (e) { return false; }
+  }
   FX.impact = function (x, y, z, nx, ny, nz, surf, dir) {
-    const n = 4;
-    if (surf === 'water') { for (let i = 0; i < 10; i++) norm.emit(x, y, z, rr(-0.6, 0.6), rr(2, 4), rr(-0.6, 0.6), rr(0.4, 0.7), 0.1, 0.25, 0.75, 0.8, 0.85, 0.6, 1, 9); return; }
+    const c = cam(), far = Math.hypot(x - c.position.x, y - c.position.y, z - c.position.z) > 55, h = far ? 0.5 : 1, N = k => Math.max(1, Math.round(k * h));
+    // spray direction: reflect(dir, n) blended 60/40 with the normal
+    if (dir) { const dn = dir.x * nx + dir.y * ny + dir.z * nz; RF.set(dir.x - 2 * dn * nx, dir.y - 2 * dn * ny, dir.z - 2 * dn * nz).multiplyScalar(0.6).add(V2.set(nx, ny, nz).multiplyScalar(0.4)).normalize(); }
+    else RF.set(nx, ny, nz);
+    const rx = RF.x, ry = RF.y, rz = RF.z;
+    if (surf === 'water' || puddleAt(x, z, ny)) { FX.crown(x, y, z, h, surf === 'water' ? 1 : 0.7); if (surf !== 'water') FX.hole(x, y, z, nx, ny, nz, 0.06); return; }
     let col = [0.42, 0.36, 0.27];
     if (surf === 'stone') col = [0.55, 0.53, 0.5]; else if (surf === 'wood') col = [0.45, 0.33, 0.2]; else if (surf === 'foliage') col = [0.18, 0.26, 0.1];
-    else if (surf === 'gravel') col = [0.5, 0.48, 0.44]; else if (surf === 'cloth') col = [0.6, 0.55, 0.4];
-    for (let i = 0; i < n; i++) norm.emit(x + nx * 0.05, y + ny * 0.05, z + nz * 0.05, nx * rr(0.5, 2) + rr(-0.6, 0.6), ny * rr(0.5, 2) + rr(0.2, 1.2), nz * rr(0.5, 2) + rr(-0.6, 0.6), rr(0.5, 1.1), 0.08, 0.5, col[0], col[1], col[2], 0.55, 2.2, 0.6);
-    // chunks with gravity
-    for (let i = 0; i < 3; i++) norm.emit(x, y, z, nx * rr(1, 3) + rr(-1, 1), rr(1.5, 3.5), nz * rr(1, 3) + rr(-1, 1), rr(0.4, 0.8), 0.04, 0.03, col[0] * 0.6, col[1] * 0.6, col[2] * 0.6, 0.9, 0.5, 9.8);
-    if (surf === 'stone' || surf === 'metal' || surf === 'gravel') for (let i = 0; i < (surf === 'metal' ? 8 : 3); i++) add.emit(x, y, z, nx * rr(2, 6) + rr(-2, 2), ny * rr(2, 6) + rr(-1, 3), nz * rr(2, 6) + rr(-2, 2), rr(0.08, 0.2), 0.05, 0.02, 1, 0.75, 0.4, 1, 1, 9.8);
-    if (surf === 'mud') for (let i = 0; i < 6; i++) norm.emit(x, y, z, nx * rr(0.5, 2) + rr(-1, 1), rr(2, 4), nz * rr(0.5, 2) + rr(-1, 1), rr(0.4, 0.7), 0.05, 0.04, 0.16, 0.12, 0.08, 1, 0.4, 9.8);   // mud flecks
-    if (surf === 'foliage') for (let i = 0; i < 5; i++) norm.emit(x, y, z, rr(-1, 1), rr(0, 1), rr(-1, 1), rr(1.2, 2.2), 0.06, 0.06, 0.22, 0.3, 0.12, 0.9, 2.5, 1.2);
+    else if (surf === 'gravel') col = [0.5, 0.48, 0.44]; else if (surf === 'cloth') col = [0.6, 0.55, 0.4]; else if (surf === 'metal') col = [0.4, 0.4, 0.42];
+    // the puff of dust and fibres, along the spray
+    for (let i = 0; i < N(4); i++) { const s = rr(0.6, 2.4); norm.emit(x + nx * 0.05, y + ny * 0.05, z + nz * 0.05, rx * s + rr(-0.5, 0.5), ry * s + rr(0.1, 0.8), rz * s + rr(-0.5, 0.5), rr(0.5, 1.1), 0.08, 0.5, col[0], col[1], col[2], 0.55, 2.2, 0.6); }
+    // chunks with gravity, thrown along the spray
+    for (let i = 0; i < N(3); i++) { const s = rr(1.5, 4); norm.emit(x, y, z, rx * s + rr(-0.8, 0.8), ry * s + rr(0.8, 2.5), rz * s + rr(-0.8, 0.8), rr(0.4, 0.8), 0.04, 0.03, col[0] * 0.6, col[1] * 0.6, col[2] * 0.6, 0.9, 0.5, 9.8); }
+    if (surf === 'stone' || surf === 'metal' || surf === 'gravel') {
+      const n = surf === 'metal' ? 14 : 3;
+      for (let i = 0; i < N(n); i++) { const s = rr(3, 8); add.emit(x, y, z, rx * s + rr(-1.5, 1.5), ry * s + rr(-0.5, 2), rz * s + rr(-1.5, 1.5), rr(0.06, 0.22), 0.05, 0.02, 1, 0.75, 0.4, 1, 1, 9.8); }
+      if (surf === 'metal') {
+        for (let i = 0; i < N(2); i++) add.emit(x, y, z, rx * 2 + rr(-1, 1), rr(1, 3), rz * 2 + rr(-1, 1), rr(0.5, 0.9), 0.07, 0.03, 1, 0.8, 0.45, 1, 0.2, 9.8);   // bouncers that glow a little longer
+        if (IV.time - lastMetalFlash > 0.09) { lastMetalFlash = IV.time; W.flashAt(x + nx * 0.2, y + ny * 0.2, z + nz * 0.2, 3, 0.6, 0.045, 0xffd8a0); }
+      }
+    }
+    if (surf === 'mud') for (let i = 0; i < N(6); i++) { const s = rr(1, 3); norm.emit(x, y, z, rx * s + rr(-1, 1), ry * s + rr(1.5, 3), rz * s + rr(-1, 1), rr(0.4, 0.7), 0.05, 0.04, 0.16, 0.12, 0.08, 1, 0.4, 9.8); }   // mud flecks
+    if (surf === 'foliage') for (let i = 0; i < N(5); i++) norm.emit(x, y, z, rx + rr(-1, 1), rr(0, 1), rz + rr(-1, 1), rr(1.2, 2.2), 0.06, 0.06, 0.22, 0.3, 0.12, 0.9, 2.5, 1.2);
     if (surf !== 'foliage' && surf !== 'cloth') FX.hole(x, y, z, nx, ny, nz, surf === 'wood' ? 0.07 : 0.09);
   };
+  // a crown splash on water or in a puddle: thin upright sheets round the hole, droplets thrown up and out in a ring,
+  // a central column, and two rings spreading on the surface. k scales the size (a puddle is shallower than the stream)
+  FX.crown = function (x, y, z, h, k) {
+    h = h || 1; k = k || 1;
+    const nd = Math.max(4, Math.round(14 * h)), ns = Math.max(2, Math.round(5 * h));
+    for (let i = 0; i < ns; i++) { const a = i / ns * 6.283 + rr(-0.3, 0.3); norm.emit(x + Math.cos(a) * 0.04, y + 0.02, z + Math.sin(a) * 0.04, Math.cos(a) * 0.6 * k, rr(1.6, 2.4) * k, Math.sin(a) * 0.6 * k, rr(0.18, 0.26), 0.05 * k, 0.16 * k, 0.72, 0.76, 0.8, 0.55, 1.5, 9); }
+    for (let i = 0; i < nd; i++) { const a = rr(0, 6.283), o = rr(0.8, 1.8) * k; norm.emit(x, y + 0.03, z, Math.cos(a) * o, rr(2.2, 3.8) * k, Math.sin(a) * o, rr(0.35, 0.6), 0.02, 0.015, 0.7, 0.74, 0.78, 0.8, 0.4, 9.8); }
+    for (let i = 0; i < Math.max(2, Math.round(4 * h)); i++) norm.emit(x + rr(-0.02, 0.02), y + 0.02, z + rr(-0.02, 0.02), rr(-0.15, 0.15), rr(2.8, 4.2) * k, rr(-0.15, 0.15), rr(0.3, 0.45), 0.035, 0.02, 0.75, 0.78, 0.82, 0.85, 0.3, 9.8);
+    for (let i = 0; i < 2; i++) ripple(x, y + 0.015, z, 0.5 + i * 0.35, 0.18 * k, i * 0.07);
+  };
+  const ripples = [];
+  let ringGeo = null, ringMat = null;
+  function ripple(x, y, z, life, size, delay) {
+    if (ripples.length >= 12) { const o = ripples.shift(); W.scene.remove(o.m); }
+    if (!ringGeo) { ringGeo = new THREE.RingGeometry(0.82, 1, 28).rotateX(-Math.PI / 2); ringMat = new THREE.MeshBasicMaterial({ color: 0xd8e2ea, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }); }
+    const m = new THREE.Mesh(ringGeo, ringMat.clone()); m.position.set(x, y, z); m.scale.setScalar(0.001); m.renderOrder = 3; W.scene.add(m);
+    ripples.push({ m, t: -delay, life, size });
+  }
   // footsteps: mud clods kicked up behind the boot, and a small splash from a puddle (no decal, no hole)
   FX.clods = function (x, y, z, n, dx, dz) { for (let i = 0; i < (n || 4); i++) norm.emit(x, y + 0.03, z, -(dx || 0) * rr(0.3, 1.2) + rr(-0.4, 0.4), rr(0.8, 1.8), -(dz || 0) * rr(0.3, 1.2) + rr(-0.4, 0.4), rr(0.35, 0.6), 0.025, 0.02, 0.17, 0.13, 0.09, 1, 0.5, 9); };
   FX.splash = function (x, y, z, k) { const n = Math.round(5 + 5 * (k || 1)); for (let i = 0; i < n; i++) norm.emit(x + rr(-0.1, 0.1), y + 0.04, z + rr(-0.1, 0.1), rr(-0.5, 0.5), rr(0.9, 2) * (k || 1), rr(-0.5, 0.5), rr(0.3, 0.5), 0.05, 0.12, 0.6, 0.65, 0.68, 0.5, 0.8, 9); };
@@ -149,14 +196,19 @@
     FX.decal(x, W.height(x, z), z, 0, 1, 0, rr(0.6, 0.9));
   };
   const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), S4 = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1);
+  // At the cap the oldest few start a short fade (0.4 s) instead of vanishing on the spot; the instanced meshes have
+  // room for the fading ones on top of the cap (DECAL_SPARE), and only past that is the oldest dropped at once.
+  const DECAL_SPARE = 16;
   function placeDecal(im, list, cap, x, y, z, nx, ny, nz, s, life) {
-    if (list.length >= cap) list.shift();
+    if (list.length >= cap + DECAL_SPARE - 1) list.shift();
+    if (list.length >= cap) { let k = 0; for (let i = 0; i < list.length && k < 8; i++) { const d = list[i]; if (d.fd === 5) { d.fd = 0.4; d.life = Math.min(d.life, d.t + 0.4); } k++; } }
     V.set(nx, ny, nz).normalize();
     Q4.setFromUnitVectors(Z, V); Q4.multiply(new THREE.Quaternion().setFromAxisAngle(Z, Math.random() * 6.28));
-    list.push({ p: new THREE.Vector3(x + nx * 0.015, y + ny * 0.015, z + nz * 0.015), q: Q4.clone(), s, t: 0, life });
+    list.push({ p: new THREE.Vector3(x + nx * 0.015, y + ny * 0.015, z + nz * 0.015), q: Q4.clone(), s, t: 0, life, fd: 5 });
   }
   FX.decal = (x, y, z, nx, ny, nz, s) => placeDecal(decalIM, decals, IV.TUNING.blood.decals, x, y, z, nx, ny, nz, s, IV.TUNING.blood.decalLife);
-  FX.hole = (x, y, z, nx, ny, nz, s) => placeDecal(holeIM, holes, 60, x, y, z, nx, ny, nz, s, 60);
+  FX.hole = (x, y, z, nx, ny, nz, s) => placeDecal(holeIM, holes, HOLES, x, y, z, nx, ny, nz, s, 60);
+  const HOLES = 60;
   FX.dust = function (x, y, z, n, s) { for (let i = 0; i < (n || 10); i++) norm.emit(x + rr(-0.4, 0.4), y + rr(0, 0.2), z + rr(-0.4, 0.4), rr(-0.8, 0.8), rr(0.1, 0.6), rr(-0.8, 0.8), rr(1, 2), (s || 0.4) * 0.6, (s || 0.4) * 2, 0.4, 0.37, 0.32, 0.4, 1.5, -0.05); };
   FX.smoke = function (x, y, z, n, s, dark) { for (let i = 0; i < n; i++) norm.emit(x + rr(-0.5, 0.5), y, z + rr(-0.5, 0.5), rr(-0.3, 0.3), rr(0.8, 2), rr(-0.3, 0.3), rr(3, 6), s, s * 4, dark ? 0.12 : 0.4, dark ? 0.11 : 0.39, dark ? 0.1 : 0.37, 0.5, 0.4, -0.15); };
   // big explosion: flash light, fireball, sparks, debris, smoke column, ground dust ring and a shockwave ring
@@ -191,6 +243,7 @@
     add.n = 0; norm.n = 0; tracers.length = 0; casings.length = 0; decals.length = 0; holes.length = 0;
     for (const r of rings) W.scene.remove(r.m); rings.length = 0;
     for (const f of flares) W.scene.remove(f.s); flares.length = 0; fires.length = 0;
+    for (const r of ripples) W.scene.remove(r.m); ripples.length = 0;
   };
 
   // ---------------------------------------------------------------- per frame
@@ -227,15 +280,31 @@
     for (let i = 0; i < casings.length; i++) {
       const s = casings[i]; s.life -= dt;
       if (!s.rest) {
-        s.vy -= 9.8 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.rx += dt * 18; s.ry += dt * 11;
+        s.vy -= 9.8 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.rx += dt * s.sx; s.ry += dt * s.sy;
         const g = W.groundAt(s.x, s.z, s.y + 0.1, 0.2);
-        if (s.y < g + 0.006) { s.y = g + 0.006; if (Math.abs(s.vy) > 1.2) { s.vy *= -0.35; s.vx *= 0.5; s.vz *= 0.5; IV.audio && IV.audio.play('casing', { x: s.x, z: s.z }); } else { s.rest = true; s.rx = Math.PI / 2; } }
+        if (s.y < g + 0.006) {
+          // bounce off the real surface: the terrain's normal (flat on floors and objects), restitution 0.32-0.48,
+          // friction along it, at most 4 bounces, then it lies on its side; the first two make their own sound
+          s.y = g + 0.006;
+          const onObj = g > W.height(s.x, s.z) + 0.05, n = onObj ? V2.set(0, 1, 0) : W.normal(s.x, s.z, V2), vn = s.vx * n.x + s.vy * n.y + s.vz * n.z;
+          const surf = s.b < 2 ? caseSurface(s.x, s.z, g) : null;
+          if (vn < -0.6 && s.b < 4 && surf !== 'mud' && surf !== 'water') {
+            const e = rr(0.32, 0.48), f = 0.55;
+            s.vx = (s.vx - vn * n.x) * f - vn * n.x * e; s.vy = (s.vy - vn * n.y) * f - vn * n.y * e; s.vz = (s.vz - vn * n.z) * f - vn * n.z * e;
+            s.sx *= -0.7; s.sy *= 0.7; s.b++;
+            if (surf) IV.audio && IV.audio.play('casing', { x: s.x, z: s.z, surf });
+          } else {
+            if (surf === 'water' && s.b < 2) { IV.audio && IV.audio.play('casing', { x: s.x, z: s.z, surf }); FX.splash(s.x, g, s.z, 0.15); }
+            s.rest = true; s.rx = Math.PI / 2; s.ry = Math.atan2(s.vx, s.vz) + rr(-0.5, 0.5); if (surf === 'water' || surf === 'mud') s.y = g - 0.004;
+          }
+        }
       }
       Q4.setFromEuler(new THREE.Euler(s.rx, s.ry, 0)); M4.compose(V.set(s.x, s.y, s.z), Q4, S4.set(1, 1, 1)); casingIM.setMatrixAt(i, M4);
     }
     casingIM.count = casings.length; casingIM.instanceMatrix.needsUpdate = true;
     // decals fade at the end of their life
     updDecals(decalIM, decals, dt); updDecals(holeIM, holes, dt);
+    for (let i = ripples.length - 1; i >= 0; i--) { const r = ripples[i]; r.t += dt; const k = IV.clamp(r.t / r.life, 0, 1); r.m.visible = r.t > 0; r.m.scale.setScalar(Math.max(0.001, r.size * (0.3 + 2.2 * Math.sqrt(k)))); r.m.material.opacity = 0.35 * (1 - k); if (r.t >= r.life) { W.scene.remove(r.m); r.m.material.dispose(); ripples.splice(i, 1); } }
     for (let i = rings.length - 1; i >= 0; i--) { const r = rings[i]; r.t += dt; const s = 1 + r.t * 40 * r.k; r.m.scale.set(s, s, 1); r.m.material.opacity = Math.max(0, 0.5 * (1 - r.t / 0.55)); if (r.t > 0.55) { W.scene.remove(r.m); rings.splice(i, 1); } }
     for (let i = fires.length - 1; i >= 0; i--) {
       const f = fires[i]; f.t -= dt; f.acc += dt;
@@ -253,8 +322,8 @@
   };
   function updDecals(im, list, dt) {
     for (let i = list.length - 1; i >= 0; i--) { const d = list[i]; d.t += dt; if (d.t > d.life) list.splice(i, 1); }
-    for (let i = 0; i < list.length; i++) { const d = list[i], fade = Math.min(1, (d.life - d.t) / 5), grow = Math.min(1, d.t * 4 + 0.3); M4.compose(d.p, d.q, S4.set(d.s * grow * fade, d.s * grow * fade, 1)); im.setMatrixAt(i, M4); }
+    for (let i = 0; i < list.length; i++) { const d = list[i], fade = Math.min(1, (d.life - d.t) / (d.fd || 5)), grow = Math.min(1, d.t * 4 + 0.3); M4.compose(d.p, d.q, S4.set(d.s * grow * fade, d.s * grow * fade, 1)); im.setMatrixAt(i, M4); }
     im.count = list.length; im.instanceMatrix.needsUpdate = true;
   }
-  FX.counts = () => ({ add: add.n, norm: norm.n, tracers: tracers.length, decals: decals.length });
+  FX.counts = () => ({ add: add.n, norm: norm.n, tracers: tracers.length, decals: decals.length, holes: holes.length, holesFading: holes.filter(d => d.fd < 5).length, casings: casings.length, casingsResting: casings.filter(c => c.rest).length, ripples: ripples.length });
 })();
