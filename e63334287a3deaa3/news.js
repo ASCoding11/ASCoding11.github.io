@@ -85,6 +85,18 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-22', version: '1.41.2', title: 'It has a shape now', kind: 'soon',
+     img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
+      'Whatever was warming up has a real shape now, down to the rivets.',
+      'Still not ready, and still loud.',
+      'Keep watching the sky. And the sea.'
+    ]},
+    {date: '2026-11-22', version: '1.41.1', title: 'Something is warming up', kind: 'soon',
+     img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
+      'Somewhere past the Back Room, something is warming up.',
+      'It is loud, it is fast, and it is not ready yet.',
+      'No names, no dates. Keep your eyes on the sky.'
+    ]},
     {date: '2026-11-20', version: '1.41', title: 'Offline mode, rebuilt', kind: 'feature',
      tags: ['Offline', 'Every game'], items: [
       'Games load faster again: offline mode now saves files in the background instead of making you wait for them.',

@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Ironwing vehicles: a model viewer for checking the GLBs (serve the repo, open tools/vehicles/view.html?f=../../assets/aircraft.glb&n=fighter).
+     Not part of the game; materials here are simple stand-ins for the game's own. -->
+<html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow,noarchive"><title>Ironwing models</title>
+<style>html,body{margin:0;height:100%;background:#7d93a6;overflow:hidden}canvas{display:block}#i{position:fixed;left:8px;top:6px;font:13px monospace;color:#fff;text-shadow:0 1px 2px #000}</style></head>
+<body><div id="i"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../../ironveil/assets/lib/GLTFLoader.js"></script>
+<script src="../../../ironveil/assets/lib/meshopt_decoder.js"></script>
+<script>
+const q = new URLSearchParams(location.search), r = new THREE.WebGLRenderer({ antialias: true });
+r.outputEncoding = THREE.sRGBEncoding; r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 0.95; r.shadowMap.enabled = true;
+r.setSize(innerWidth, innerHeight); document.body.appendChild(r.domElement);
+const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 5000);
+sc.background = new THREE.Color(0x8fa6b8).convertSRGBToLinear();
+const sun = new THREE.DirectionalLight(0xfff2e0, 2.6); sun.position.set(-40, 60, 30); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+const S = 120; Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 1, far: 400 }); sc.add(sun);
+sc.add(new THREE.HemisphereLight(0xbfd6ee, 0x3a4652, 0.8));
+const pm = new THREE.PMREMGenerator(r); const es = new THREE.Scene(); es.background = new THREE.Color(0x9fb6c8); sc.environment = pm.fromScene(es).texture;
+const M = { paint: { roughness: 0.55, metalness: 0.25 }, dark: { roughness: 0.5, metalness: 0.5 }, glass: { roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.8 }, wood: { roughness: 0.85 }, concrete: { roughness: 0.92 }, corrugated: { roughness: 0.6, metalness: 0.4 }, leaf: { roughness: 0.9, side: THREE.DoubleSide }, bark: { roughness: 0.95 }, canvas: { roughness: 0.95 } };
+const L = new THREE.GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder);
+L.load(q.get('f'), g => {
+  const want = (q.get('n') || '').split(',').filter(Boolean), roots = g.scene.children.filter(o => !want.length || want.includes(o.name));
+  let x = 0; const gap = +(q.get('gap') || 4);
+  const lod = q.has('lod');
+  for (const o of roots) {
+    o.traverse(m => { if (!m.isMesh) return; if (/_dead$/.test(m.name) && !q.has('dead')) { m.visible = false; return; } const k = (m.material.name || '').replace(/\.\d+$/, ''); m.material = new THREE.MeshStandardMaterial(Object.assign({ vertexColors: true }, M[k] || {})); m.castShadow = m.receiveShadow = true; if (/_lod1$/.test(m.name)) m.visible = lod; else if (lod) m.visible = false; });
+    const b = new THREE.Box3().setFromObject(o), s = b.getSize(new THREE.Vector3());
+    o.position.x = x + s.x / 2 - (b.min.x + s.x / 2) + 0; x += s.x + gap; sc.add(o);
+  }
+  const all = new THREE.Box3(); roots.forEach(o => all.expandByObject(o)); const c = all.getCenter(new THREE.Vector3()), sz = all.getSize(new THREE.Vector3()).length();
+  const gnd = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: 0x6c7a72, roughness: 1 })); gnd.rotation.x = -Math.PI / 2; gnd.position.y = all.min.y - 0.02; gnd.receiveShadow = true; if (!q.has('nognd')) sc.add(gnd);
+  let tris = 0; sc.traverse(m => { if (m.isMesh && m.visible && m.geometry.index) tris += m.geometry.index.count / 3; });
+  document.getElementById('i').textContent = roots.map(o => o.name).join(' ') + '  ' + Math.round(tris) + ' tris';
+  const az = +(q.get('az') || 35) * Math.PI / 180, el = +(q.get('el') || 18) * Math.PI / 180, d = sz * +(q.get('d') || 0.95);
+  cam.position.set(c.x + Math.sin(az) * Math.cos(el) * d, c.y + Math.sin(el) * d, c.z + Math.cos(az) * Math.cos(el) * d); cam.lookAt(c);
+  sun.target.position.copy(c); sun.position.copy(c).add(new THREE.Vector3(-40, 60, 30)); sc.add(sun.target);
+  r.render(sc, cam); window.READY = true;
+}, undefined, e => { document.getElementById('i').textContent = 'error ' + e; window.READY = true; });
+</script></body></html>
