@@ -80,11 +80,14 @@
         return (hs[k] * (1 - u) + hs[k + 1] * u) * (1 - v) + (hs[k + HN] * (1 - u) + hs[k + HN + 1] * u) * v; }
     };
   }
-  function genTile(G, tx, tz, wantFull) {
+  // genTileIter yields after every few rows, so the update can build a tile over several frames (no hitch);
+  // genTile runs one to the end in one go
+  function genTile(G, tx, tz, wantFull) { const it = genTileIter(G, tx, tz, wantFull); let r; while (!(r = it.next()).done); return r.value; }
+  function* genTileIter(G, tx, tz, wantFull) {
     const Q = E.Q, dens = Q.grassDens, n = Math.ceil(Math.sqrt(dens * TS * TS)), cell = TS / n, midFrac = Math.min(1, Q.grassMidDens * (E._grassMidMul || 1) / Q.grassDens);
     const full = wantFull ? [[], [], [], []] : null, mid = [], seed = [], carpet = wantFull ? [[], [], [], []] : null;
     const x0 = tx * TS, z0 = tz * TS, TC = tileCache(G, x0, z0);
-    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) { if (j % 4 === 3) yield; for (let i = 0; i < n; i++) {
       const gi = tx * n + i, gj = tz * n + j;
       const rnd = H(gi, gj, 11);
       if (!wantFull && rnd >= midFrac) continue;
@@ -118,11 +121,11 @@
       if (full) { const qd = (x - x0 >= TS / 2 ? 1 : 0) + (z - z0 >= TS / 2 ? 2 : 0); for (let k = 0; k < 12; k++) full[qd].push(rec[k]); }
       if (rnd < midFrac) for (let k = 0; k < 12; k++) mid.push(rec[k]);
       if (type === 1 && h > 0.35 && H(gi, gj, 20) < 0.09) for (let k = 0; k < 12; k++) seed.push(rec[k]);
-    }
+    } }
     // the low carpet: many short broad-ish blades so no bare soil shows near the camera (3 vertices each)
     if (carpet) {
       const cn = Math.ceil(Math.sqrt(Q.carpetDens * TS * TS)), cc = TS / cn;
-      for (let j = 0; j < cn; j++) for (let i = 0; i < cn; i++) {
+      for (let j = 0; j < cn; j++) { if (j % 6 === 5) yield; for (let i = 0; i < cn; i++) {
         const gi = tx * cn + i, gj = tz * cn + j;
         let x = x0 + (i + H(gi, gj, 31)) * cc, z = z0 + (j + H(gi, gj, 32)) * cc;
         { const ti = Math.floor(x / 0.42), tj = Math.floor(z / 0.42), tcx = (ti + 0.05 + 0.9 * H(ti, tj, 41)) * 0.42, tcz = (tj + 0.05 + 0.9 * H(ti, tj, 42)) * 0.42; x += (tcx - x) * 0.3; z += (tcz - z) * 0.3; }
@@ -135,11 +138,16 @@
         const dry = E.clamp(F.dry(kind, x, z) * 0.8 + (H(gi, gj, 37) < 0.12 ? 0.5 : 0), 0, 1);
         const rec = [x, y, z, H(gi, gj, 38) * 6.283, h, w, 0.35 + 0.6 * H(gi, gj, 39), 0 + rnd * 0.99, rc.r, rc.g, rc.b, dry];
         const qd = (x - x0 >= TS / 2 ? 1 : 0) + (z - z0 >= TS / 2 ? 2 : 0); for (let k = 0; k < 12; k++) carpet[qd].push(rec[k]);
-      }
+      } }
     }
+    yield;
     // carpet blades sorted by their random value: far quadrants upload only the first 55% (the shader keeps the same ones)
     const sortRec = (a) => { const n = a.length / 12, idx = []; for (let i = 0; i < n; i++) idx.push(i); idx.sort((p, q) => (a[p * 12 + 7] % 1) - (a[q * 12 + 7] % 1)); const o = new Float32Array(a.length); idx.forEach((k, i) => { for (let c = 0; c < 12; c++) o[i * 12 + c] = a[k * 12 + c]; }); return o; };
-    return { full: full ? full.map(a => new Float32Array(a)) : null, carpet: carpet ? carpet.map(sortRec) : null, mid: new Float32Array(mid), seed: new Float32Array(seed), ymin: 0, ymax: 0 };
+    // packed a quadrant at a time, with a pause between, so the tail of a tile is no longer one long step
+    const fullF = full ? [] : null, carpetF = carpet ? [] : null;
+    if (full) for (const a of full) { fullF.push(new Float32Array(a)); yield; }
+    if (carpet) for (const a of carpet) { carpetF.push(sortRec(a)); yield; }
+    return { full: fullF, carpet: carpetF, mid: new Float32Array(mid), seed: new Float32Array(seed), ymin: 0, ymax: 0 };
   }
 
   // ------------------------------------------------------------------ blade geometry (per ring)
@@ -364,29 +372,66 @@
       if (t && (!wantFull || t.full)) return t;
       return null;
     }
-    function makeTile(tx, tz, wantFull) {
-      const k = tileKey(tx, tz), t = genTile(G, tx, tz, wantFull);
+    function keepTile(tx, tz, t) {
       // vertical bounds for culling
       let y0 = 1e9, y1 = -1e9; for (let i = 0; i < 9; i++) { const y = heightFn(tx * TS + (i % 3) * TS / 2, tz * TS + Math.floor(i / 3) * TS / 2); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
       t.ymin = y0 - 0.5; t.ymax = y1 + 1.5; t.tx = tx; t.tz = tz;
-      G.tiles.set(k, t); return t;
+      G.tiles.set(tileKey(tx, tz), t); return t;
     }
-    G.genMs = 0;
+    function makeTile(tx, tz, wantFull) { return keepTile(tx, tz, genTile(G, tx, tz, wantFull)); }
+    // Tiles are built ahead of the camera, a few rows at a time within a small budget per frame (G.jobs), so walking
+    // or sprinting into new ground never builds several whole tiles in one frame (that was a 20-140 ms hitch each
+    // time you crossed a tile edge). Full (near) tiles are made out to half a tile beyond the near ring, so they are
+    // ready before you reach them; only a tile right under the camera with nothing at all (a teleport, a respawn)
+    // is still made at once.
+    G.jobs = new Map();
+    const JOB_MS = 1.5, PREFETCH = TS / 2;
+    function request(tx, tz, full, pri) {
+      const k = tileKey(tx, tz) + (full ? 'f' : 'm'); let j = G.jobs.get(k);
+      if (!j) { j = { tx, tz, full, it: null, pri }; G.jobs.set(k, j); }
+      j.pri = Math.min(j.pri, pri); j.seen = G.frameNo;
+    }
+    function pumpJobs(budget) {
+      if (!G.jobs.size) return;
+      const list = [...G.jobs.values()].filter(j => j.seen === G.frameNo || j.it);   // drop requests we no longer need (unless started)
+      for (const [k, j] of G.jobs) if (j.seen !== G.frameNo && !j.it) G.jobs.delete(k);
+      list.sort((a, b) => a.pri - b.pri);
+      const t0 = performance.now();
+      for (const j of list) {
+        const have = G.tiles.get(tileKey(j.tx, j.tz));
+        if (have && (have.full || !j.full)) { G.jobs.delete(tileKey(j.tx, j.tz) + (j.full ? 'f' : 'm')); continue; }
+        if (!j.it) j.it = genTileIter(G, j.tx, j.tz, j.full);
+        let r;
+        while (!(r = j.it.next()).done) if (performance.now() - t0 > budget) return;
+        keepTile(j.tx, j.tz, r.value); G.jobs.delete(tileKey(j.tx, j.tz) + (j.full ? 'f' : 'm')); G.built = (G.built || 0) + 1;
+        if (performance.now() - t0 > budget) return;
+      }
+    }
+    G.genMs = 0; G.frameNo = 0;
+    G._genIter = (tx, tz, full) => genTileIter(G, tx, tz, full);   // tests: time one tile's steps
     G.update = function (camera, budgetMs) {
       const t0 = performance.now(); budgetMs = budgetMs == null ? 6 : budgetMs;
       camera.updateMatrixWorld(); pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(pm);
       const cx = camera.position.x, cz = camera.position.z;
       const lists = { near: [], mid: [] };
+      G.frameNo++; let nearMissing = 0;
       const R = G.rMid + TS, i0 = Math.floor((cx - R) / TS), i1 = Math.floor((cx + R) / TS), j0 = Math.floor((cz - R) / TS), j1 = Math.floor((cz + R) / TS);
       for (let tz = j0; tz <= j1; tz++) for (let tx = i0; tx <= i1; tx++) {
         // distance from the camera to the tile rectangle
         const dx = Math.max(tx * TS - cx, 0, cx - (tx + 1) * TS), dz = Math.max(tz * TS - cz, 0, cz - (tz + 1) * TS), d = Math.hypot(dx, dz);
         if (d > G.rMid) continue;
         const inNear = d <= G.rNear;
+        // build ahead: full detail out to half a tile past the near ring
+        if (d <= G.rNear + PREFETCH && !getTile(tx, tz, true)) request(tx, tz, true, d - (inNear ? 100 : 0));
         let t = getTile(tx, tz, inNear);
         if (!t) {
-          if (!inNear && performance.now() - t0 > budgetMs && G.warm) { G.pending++; continue; }
-          t = makeTile(tx, tz, inNear);
+          if (!G.warm || (inNear && d < 2.5 && !G.tiles.get(tileKey(tx, tz)))) t = makeTile(tx, tz, inNear);   // loading, or nothing at all under the camera
+          else {
+            t = G.tiles.get(tileKey(tx, tz));   // a mid tile still works for the mid ring while its full version is built
+            if (!inNear) request(tx, tz, false, d + 50);
+            if (!t) { if (inNear) nearMissing++; G.pending++; continue; }
+            if (inNear && !t.full) { nearMissing++; if (d + TS * 1.5 > G.rNear) lists.mid.push(t); continue; }
+          }
         }
         box.min.set(tx * TS - 1.5, t.ymin, tz * TS - 1.5); box.max.set((tx + 1) * TS + 1.5, t.ymax, (tz + 1) * TS + 1.5);
         if (d > 3 && !frustum.intersectsBox(box)) continue;
@@ -400,11 +445,14 @@
         }
         if (d + TS * 1.5 > G.rNear) lists.mid.push(t);
       }
+      const tJ = performance.now(); pumpJobs(nearMissing ? JOB_MS * 2 : JOB_MS);   // (the first update builds what it draws itself, above; the ring ahead follows over the next frames)   // catch up faster when near grass is missing (after a teleport)
+      G.tJobs = performance.now() - tJ; const tF = performance.now();
       fill(G.near, lists.near, 'full');
       fill(G.carpet, lists.near.filter(e => e.dq <= G.rCarpet), 'carpet');
       lists.nearT = []; { const seen = new Set(); for (const e of lists.near) if (!seen.has(e.t)) { seen.add(e.t); lists.nearT.push(e.t); } }
       fill(G.mid, lists.mid, 'mid');
       if (G.seedN) fill(G.seedN, lists.nearT, 'seed'); if (G.seedM) fill(G.seedM, lists.mid, 'seed', 'mid');
+      G.tFill = performance.now() - tF;
       // forget tiles far away
       if (G.tiles.size > 600) for (const [k, t] of G.tiles) { if (Math.hypot((t.tx + 0.5) * TS - cx, (t.tz + 0.5) * TS - cz) > G.rMid + 40) G.tiles.delete(k); }
       G.warm = true; G.genMs = performance.now() - t0;

@@ -126,6 +126,8 @@
 
   // ---------------- State ----------------
   var P = null, db = null, uid = '', games = {};
+  var rdb = null;     // db, but with the rooms of games on the game relay (RELAY_ROOMS in netrelay-config.js) read there
+  function loadJs(src) { return new Promise(function (res) { var e = document.createElement('script'); e.src = src; e.onload = e.onerror = function () { res(); }; document.head.appendChild(e); }); }
   var ads = {};       // uid -> what their Online node advertises { uid, n, c, ts, party: { pp, pg, pr, pn, pt } | null, solo: { g, r, t } | null }
   var parties = {};   // party code -> { at, ok, L: { uid, n, c }, size, go } from rooms/pt-<code>/players
   var rooms = {};     // db room -> { at, n, cap, live: { uid: 1 } }
@@ -196,8 +198,8 @@
     if (c && (c.busy || (!force && t - c.at < ROOM_TTL))) return Promise.resolve(c);
     rooms[key] = c = c || { at: 0, n: -1, cap: cap.m, live: {} };
     c.busy = true;
-    var reads = [db.ref('rooms/' + key + '/players').once('value')];
-    if (cap.bb) reads.push(db.ref('rooms/' + key + '/round').once('value'));
+    var reads = [(rdb || db).ref('rooms/' + key + '/players').once('value')];
+    if (cap.bb) reads.push((rdb || db).ref('rooms/' + key + '/round').once('value'));
     return Promise.all(reads).then(function (res) {
       var val = res[0].val() || {}, n = 0, tt = now(), live = {};
       Object.keys(val).forEach(function (u) { var v = val[u]; if (v && typeof v === 'object' && tt - (+v.ts || 0) < cap.l) { n++; live[u] = 1; } });
@@ -390,6 +392,16 @@
     (P.games || []).forEach(function (g) { games[g.k] = g; });
     try { var b = await P.boot(); db = b.db; uid = b.uid; }
     catch (e) { $empty.textContent = ''; say((e && e.message) || 'Couldn’t connect.', true); return; }
+    rdb = db;
+    try {
+      if (!window.NetRelay) await loadJs('/e63334287a3deaa3/netrelay.js');
+      if (window.NetRelay && !window.RELAY_ROOMS) await loadJs('/e63334287a3deaa3/netrelay-config.js');
+      if (window.NetRelay && NetRelay.enabled && window.RELAY_ROOMS) {
+        // Sign-in tokens for the relay come from the party's Firebase app, which may not be the default one.
+        NetRelay.config({ getToken: function () { var u = b.app.auth().currentUser; return u ? u.getIdToken() : Promise.reject(new Error('Sign in first')); } });
+        rdb = NetRelay.database(db, window.RELAY_ROOMS);
+      }
+    } catch (e) { rdb = db; }
     $empty.textContent = '';
     var ref = db.ref(PATH);
     ref.on('child_added', onAd); ref.on('child_changed', onAd); ref.on('child_removed', onGone);

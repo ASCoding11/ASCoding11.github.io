@@ -39,6 +39,18 @@
     W.resize();
     addEventListener('resize', W.resize);
   };
+  // Compile every shader the scene can need now, behind the loading screen, instead of on the frame something first
+  // appears (the first shot's flash, the scope, the grenade arc): each of those was a hitch mid-play. It draws one
+  // real frame through the normal path (the post stack's offscreen target and the arms pass, so each shader is built
+  // in the exact variant play will use; renderer.compile() alone builds the on-screen variant and misses them) with
+  // every hidden object shown and nothing culled, then puts everything back. Returns how many programs it added.
+  W.warmShaders = function () {
+    const r = W.renderer, n0 = r.info.programs ? r.info.programs.length : 0, hidden = [], culled = [];
+    W.scene.traverse(o => { if (!o.visible) { hidden.push(o); o.visible = true; } if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; } });
+    try { if (IV.fp && IV.fp.warm) IV.fp.warm(); W.draw(0); } catch (e) { console.warn('warmShaders', e); }
+    finally { for (const o of hidden) o.visible = false; for (const o of culled) o.frustumCulled = true; }
+    return (r.info.programs ? r.info.programs.length : 0) - n0;
+  };
   // one place that draws a frame: IVEnv's post stack when there is one (not on Low), else the plain renderer
   W.draw = function (dt) { if (W.post) W.post.render(dt); else W.renderer.render(W.scene, W.camera); };
   W.resize = function () {

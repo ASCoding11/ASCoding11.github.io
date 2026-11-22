@@ -1,7 +1,9 @@
 /*
  * Offline mode: turns on the site's service worker (/sw.js) and shows what works without internet.
  *
- *   <script src="/offline.js" defer></script>      on the home page, the Back Room page and the phone page
+ *   <script src="/offline.js" defer></script>      on the home, projects/, productivity/, engineering/ and movi/ pages,
+ *                                                    the Back Room page and the phone page (any one of them turns it on
+ *                                                    for the whole site, installed app included)
  *
  * - Registers /sw.js for the whole site. From then on, every page and game opened on this device is kept, and opens
  *   again with no internet (see sw.js for what is and isn't kept).

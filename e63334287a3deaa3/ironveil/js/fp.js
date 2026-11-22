@@ -89,8 +89,30 @@
     FP.roll = IV.damp(FP.roll, -FP.lean * 0.21 - IV.clamp(sv / 6.4, -1, 1) * 0.017 * motion, 10, dt);
     // position: eye, bob, landing dip (camera.js bobY spring), lean
     const C = IV.camera, f = IV.fwd(yaw), bk = FP.bodyK || 0;
-    const exo = f.x * 0.08 * (1 - bk) + (FP.hx || 0) * bk, ezo = f.z * 0.08 * (1 - bk) + (FP.hz || 0) * bk, eyo = (ey - pr.y) * (1 - bk) + (FP.hy != null ? FP.hy : ey - pr.y) * bk;
+    // crouched, the body leans forward and its head is about 0.5 m ahead of the feet: the eye goes there too (same
+    // height), or it sits between the shoulder blades and looking down shows the thighs from inside the back.
+    // Stopped short of walls in front, like the lean.
+    FP.crK = IV.damp(FP.crK || 0, P.stance === 'crouch' && hb ? 1 : 0, 9, dt);
+    let cx = 0, cz = 0;
+    if (FP.crK > 0.001 && hb) {
+      cx = (FP.hx || 0) - fb.x * 0.08 - f.x * 0.08; cz = (FP.hz || 0) - fb.z * 0.08 - f.z * 0.08;   // head + 2 cm, less the standing offset
+      const cl = Math.hypot(cx, cz);
+      if (cl > 1e-3) { const h = W.raycast(pr.x + f.x * 0.08, ey, pr.z + f.z * 0.08, cx / cl, 0, cz / cl, cl + 0.15, F.SOLID | F.SIGHT, true); if (h) { const k = Math.max(0, h.t - 0.15) / cl; cx *= k; cz *= k; } }
+      cx *= FP.crK * (1 - bk); cz *= FP.crK * (1 - bk);
+    }
+    const exo = f.x * 0.08 * (1 - bk) + (FP.hx || 0) * bk + cx, ezo = f.z * 0.08 * (1 - bk) + (FP.hz || 0) * bk + cz, eyo = (ey - pr.y) * (1 - bk) + (FP.hy != null ? FP.hy : ey - pr.y) * bk;
     cam.position.set(pr.x + right.x * (FP.lean * 0.3 + bx) + exo, pr.y + eyo + by + (C.bobY || 0) - Math.abs(FP.lean) * 0.04, pr.z + right.z * (FP.lean * 0.3 + bx) + ezo);
+    // never into the ground: the drawn ground's flat triangles sit above the true height in dips (up to ~0.3 m), so
+    // prone, with the eye about 0.3 m up, the near plane could cut into it and show the underside. Keep the eye 15 cm
+    // above the drawn ground under it and a little ahead of it, eased up so it doesn't jump.
+    {
+      const p = cam.position, hx2 = dir.x, hz2 = dir.z, hl = Math.hypot(hx2, hz2) || 1;
+      const tm = W.terrainMesh, gm = tm && tm.userData && tm.userData.heightAt;   // the drawn ground (IVEnv), which sits above the true height in dips
+      const gAt = (x, z) => gm ? Math.max(gm(x, z), W.height(x, z)) : W.height(x, z);
+      const g = Math.max(gAt(p.x, p.z), gAt(p.x + hx2 / hl * 0.25, p.z + hz2 / hl * 0.25)) + 0.15;
+      FP.lift = IV.damp(FP.lift || 0, Math.max(0, g - p.y), g - p.y > (FP.lift || 0) ? 30 : 6, dt);
+      p.y = Math.max(p.y + FP.lift, g - 0.03);
+    }
     tmp.copy(cam.position).add(dir); cam.up.copy(up); cam.lookAt(tmp);
     cam.rotateZ(FP.roll + FP.mr);
     cam.rotateX(FP.mp + FP.nod);
