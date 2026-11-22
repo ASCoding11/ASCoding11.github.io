@@ -77,7 +77,7 @@
   }
   WP.equip = function (k) {
     if (!WP.has[k] || k === WP.cur || WP.busyThrow) return;
-    WP.cur = k; WP.reloadT = 0; WP.boltT = 0; WP.cool = 0.35; WP.bloom = 0;
+    WP.cur = k; WP.reloadT = 0; WP.boltT = 0; WP.cool = 0.35; WP.bloom = 0; WP.spread = null;
     equipModels(); P.actor.setUpper(null);
     IV.audio && IV.audio.play('equip');
     IV.emit('weapon', k);
@@ -271,14 +271,22 @@
     IV.camera.kick(R.pitch * m * j, yaw * m, R);
   }
   WP.recoilShot = recoil;
-  // the current spread cone (rad): the HUD crosshair draws exactly this
-  WP.currentSpread = function () {
-    const k = WP.cur, w = WT[k]; let sp = (WP.aiming || WP.scoped) ? w.spread : w.hipSpread;
-    if (k === 'smg') sp += WP.bloom;
-    if (P.speed > 1) sp *= 1.6;
+  // the spread cone (rad). spreadTarget is where the cone wants to be right now (aimed or hip, stance, how fast you
+  // move, airborne, SMG bloom); the live cone eases toward it at 18/s every step (about 0.17 s, the same as raising
+  // the sights), so it opens smoothly as you start to move instead of jumping by 60 % at 1 m/s. The HUD crosshair
+  // draws exactly the live cone. The first aimed shot standing still stays dead on (fire()).
+  WP.spreadTarget = function () {
+    const k = WP.cur, w = WT[k], ads = WP.aiming || WP.scoped;
+    let sp = ads ? w.spread : w.hipSpread;
+    sp *= 1 + (ads ? 0.9 : 0.7) * IV.clamp((P.speed - 0.3) / 3.5, 0, 1);   // walking adds a little, a jog about 70 % more
     if (P.stance === 'crouch') sp *= 0.8; else if (P.stance === 'prone') sp *= 0.6;
+    if (k === 'smg') sp += WP.bloom * (ads ? 0.7 : 1);
+    if (P.grounded === false && !P.vault) sp += 0.02;
     return sp;
   };
+  WP.spread = null;
+  WP.currentSpread = function () { return WP.spread == null ? WP.spreadTarget() : WP.spread; };
+  function stepSpread(dt) { const t = WP.spreadTarget(); WP.spread = WP.spread == null ? t : WP.spread + (t - WP.spread) * (1 - Math.exp(-18 * dt)); }
   function startReload() {
     const k = WP.cur, inv = WP.inv[k];
     if (WP.reloadT > 0 || inv.res <= 0 || inv.mag >= WT[k].mag) return;
@@ -426,6 +434,7 @@
     WP.bloom = Math.max(0, WP.bloom - dt * (I.held('fire') ? 0.01 : 0.12));
     if (!I.held('fire')) WP.burst = 0;
     WP.firingRecently = IV.time - WP.lastFire < 0.6;
+    stepSpread(dt);
     // bullets and thrown things always move (also while the player is dead or in a cutscene)
     for (let i = WP.bullets.length - 1; i >= 0; i--) { const b = WP.bullets[i]; if (b.alive) stepBullet(b, dt); if (!b.alive) WP.bullets.splice(i, 1); }
     stepThrows(dt);

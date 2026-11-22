@@ -124,13 +124,12 @@
     g.restore();
   }
   // the crosshair: four marks whose gap is the real spread cone at this field of view (it opens while you move, crouch
-  // and prone tighten it, the SMG blooms as it fires), eased so it breathes instead of jumping, plus a kick on every
-  // shot. In first person it goes away while you look down the sights (the sights are the crosshair then).
+  // and prone tighten it, the SMG blooms as it fires; weapons.js eases the cone itself), plus a kick on every shot. In first person it goes away while you look down the sights (the sights are the crosshair then).
   function drawReticle(cx, cy, u, dt) {
     const WP = IV.weapons;
     const ppr = (cv.height / 2) / Math.tan(W.camera.fov * Math.PI / 360), want = Math.tan(WP.currentSpread()) * ppr / u + 3;
     H.kickK = Math.max(0, (H.kickK || 0) - dt * 5);
-    H.gap = H.gap == null ? want : H.gap + (want - H.gap) * (1 - Math.exp(-dt * 14));
+    H.gap = want;   // weapons.js already eases the cone; the marks sit exactly on it
     const sp = H.gap + H.kickK * 9;
     g.strokeStyle = 'rgba(240,232,210,.88)'; g.lineWidth = 2 * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
     if (WP.busyThrow) { g.beginPath(); g.arc(cx, cy, 3 * u, 0, 6.29); g.stroke(); }
