@@ -27,6 +27,9 @@
     for (let i = 0; i < d.length; i += 4 * 97) { s += 0.3 * L(d[i]) + 0.5 * L(d[i + 1]) + 0.2 * L(d[i + 2]); n++; }
     return Math.max(0.01, s / n);
   }
+  // water depth at a point, metres (negative = below the water line): level from the wet map + three octaves of the
+  // macro noise texture (about 40, 15 and 5 cm features) + rain. E_WD_GLSL and E.wetMap.depth do the same sums.
+  const E_WD_GLSL = '(wm.r - 0.55) + (texture2D(uMacro, gp * 0.31).r - 0.5) * 0.12 + (texture2D(uMacro, gp * 0.83 + 0.21).g - 0.5) * 0.06 + (texture2D(uMacro, gp * 2.6 + 0.57).b - 0.5) * 0.03 + uWet * 0.04';
   function groundMaterial() {
     const T = LAYERS.map(n => E.tex[n]);
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, normalMap: T[0].nri, envMapIntensity: 1 });
@@ -37,6 +40,7 @@
       uN0: { value: T[0].nri }, uN1: { value: T[1].nri }, uN2: { value: T[2].nri }, uN3: { value: T[3].nri }, uN4: { value: T[4].nri },
       uSz: { value: LAYERS.map((n, i) => 1 / ((E.RECIPES[n] && E.RECIPES[n].size) || [2.5, 3.0, 3.0, 0.85, 2.0][i])) },   // each layer at its real size
       uMarks: { value: E.marks.tex() }, uMarksRect: { value: E.marks.rect },
+      uWetMap: { value: E.wetMap.tex() }, uWetRect: { value: E.wetMap.rect },
       uCarry: { value: new THREE.Vector2(E.Q.grassNear * 0.45, E.Q.grassMid * 0.95) },
       uTl0: { value: meanLum(T[0].alb) }   // the grass layer's own average brightness (scans differ from the generator's)
     };
@@ -47,7 +51,7 @@
       sh.vertexShader = 'attribute vec4 aW0; attribute vec4 aW1; attribute vec4 aGC;\nvarying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;\n' +
         sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vW0 = aW0; vW1 = aW1; vGC = aGC; vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = `
-        uniform sampler2D uMarks; uniform vec4 uMarksRect;
+        uniform sampler2D uMarks; uniform vec4 uMarksRect; uniform sampler2D uWetMap; uniform vec4 uWetRect;
         uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime, uTl0; uniform vec2 uCarry;
         vec2 ivRipple(vec2 p, float t) { vec2 cell = floor(p), f = fract(p) - 0.5; float r = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453); float ph = fract(t * 1.4 + r * 7.0);
           vec2 d = f - (vec2(fract(r * 13.1), fract(r * 27.7)) - 0.5) * 0.5; float dist = length(d); float ring = sin((dist - ph * 0.45) * 45.0) * smoothstep(0.06, 0.0, abs(dist - ph * 0.45)) * (1.0 - ph); return normalize(d + 1e-5) * ring; }
@@ -101,14 +105,18 @@
           // bright flat colour (the blades carry the green there)
           galb = mix(galb, galb * vec3(0.3, 0.28, 0.22), under * 0.9);
           grough = mix(grough, 1.0, under);
-          // standing water: wet places, low in the texture height and the slow noise
-          float wet = vW1.y;
-          float pud = wet * smoothstep(0.5, 0.36, gh + (mB - 0.5) * 0.45 + (1.0 - wet) * 0.3);
-          float damp = clamp(wet * 0.8 + uWet * 0.6, 0.0, 1.0);
-          galb *= 1.0 - damp * 0.3;
-          grough = mix(grough, grough * 0.55, damp);
-          galb = mix(galb, galb * 0.32, pud);
-          grough = mix(grough, 0.04, pud);
+          // standing water from the shared wet map (IVEnv.wetMap: the same texture footsteps and splashes read):
+          // water depth wd in metres = map level + small noise + rain; one continuous gradient from dry through a
+          // damp ring and a soaked band to standing water that ramps in over 3.5 cm
+          vec4 wm = texture2D(uWetMap, (vGW.xz - uWetRect.xy) / uWetRect.zw);
+          float wd = ${E_WD_GLSL};
+          float pud = smoothstep(0.0, 0.035, wd), soak = smoothstep(-0.1, 0.0, wd);
+          float damp = max(max(wm.g, smoothstep(-0.32, -0.1, wd)), clamp(vW1.y * 0.5 + uWet * 0.55, 0.0, 1.0));
+          galb *= 1.0 - damp * 0.26 - soak * 0.18;
+          galb = mix(galb, vec3(0.055, 0.045, 0.032), wm.b * 0.45);   // churned mud along ruts and through gateways
+          grough = mix(grough, 0.46 + 0.1 * mB, damp); grough = mix(grough, 0.15, soak);
+          galb = mix(galb, galb * 0.45, pud);
+          grough = mix(grough, 0.055 - 0.02 * smoothstep(0.035, 0.22, wd), pud);
           float ivPud = pud;
           { vec2 mu = (vGW.xz - uMarksRect.xy) / uMarksRect.zw; if (mu.x > 0.0 && mu.y > 0.0 && mu.x < 1.0 && mu.y < 1.0) { vec4 mk = texture2D(uMarks, mu);
             galb *= 1.0 - mk.r * 0.38; galb = mix(galb, vec3(0.06, 0.045, 0.03), mk.b * 0.55); grough = mix(grough, 0.25, mk.g); } }   // stamped marks: prints in mud, tracked mud, wet ruts
@@ -129,8 +137,8 @@
     return m;
   }
 
-  // For the game's footsteps and splashes: how wet / muddy the ground is here, 0..1, and its kind.
-  E.wetnessAt = function (x, z) { const g = E._ground; if (!g) return E.U.uWet.value; const w = W[g.surfaceAt(x, z)] || W.none; return Math.min(1, w[5] + E.U.uWet.value * 0.5); };
+  // For the game's footsteps and splashes: how wet / muddy the ground is here, 0..1, and its kind (from the wet map).
+  E.wetnessAt = function (x, z) { const g = E._ground; if (!g) return E.U.uWet.value; return E.groundInfo(x, z).wet; };
   // the ground kind for footsteps, slowdown and cover: the map's kinds, plus 'puddle' where water stands and 'leaves'
   // under trees (litter). Mud depth, wetness and puddle amount: IVEnv.groundInfo(x, z).
   E.surfaceAt = function (x, z) { const g = E._ground; if (!g) return 'grass'; const i = E.groundInfo(x, z); if (i.puddle > 0.5) return 'puddle'; if (E.GRASS_KINDS[i.kind] && E._treeNear && E._treeNear(x, z, 3.2)) return 'leaves'; return i.kind; };
@@ -232,7 +240,110 @@
     return M;
   })();
   // IVEnv.groundInfo(x, z) -> { kind, mud 0..1 (how deep the mud is), wet 0..1, puddle 0..1 }
-  E.groundInfo = function (x, z) { const g = E._ground; const kind = g ? g.surfaceAt(x, z) : 'grass', w = W[kind] || W.none; const wet = Math.min(1, w[5] + E.U.uWet.value * 0.5); const n = E.fbm2(x / 3.1, z / 3.1, 909, 2); return { kind, mud: Math.min(1, w[1]), wet, puddle: Math.max(0, (wet - 0.55) * 2.2 * (n - 0.45) * 3) }; };
+  E.groundInfo = function (x, z) {
+    const g = E._ground; const kind = g ? g.surfaceAt(x, z) : 'grass', w = W[kind] || W.none;
+    const s = E.wetMap.sample(x, z);
+    if (!s) { const wet = Math.min(1, w[5] + E.U.uWet.value * 0.5); return { kind, mud: Math.min(1, w[1]), wet, puddle: 0, depth: -1 }; }
+    // mud stays the ground kind's own (it slows the player: the map's churned ruts and gateways must not change timing
+    // on the stealth routes); the map's churn is given separately as churn, for effects
+    return { kind, mud: Math.min(1, w[1]), churn: s.mud, wet: Math.min(1, Math.max(s.damp, s.soak, w[5] * 0.5 + E.U.uWet.value * 0.5)), puddle: s.water, depth: s.depth };
+  };
+
+  // ------------------------------------------------------------------ the shared wet map (puddles and ruts)
+  // IVEnv.wetMap.build({ heightFn, kindAt, x0, z0, size, puddles: [[x, z, rx, rz, rot, depth]], ruts: [{ pts: [[x, z]...],
+  //   gauge, w, k }], gates: [[x, z, r]] }) makes ONE data texture over the playable area (about 0.22 m a pixel):
+  //   R = water level (0.55 = the water line), G = damp, B = churned mud, A = trodden. The ground shader draws water
+  //   from it and IVEnv.groundInfo / surfaceAt / wetnessAt (footsteps, splashes, slowdown) read the same bytes with the
+  //   same noise, so where the picture shows water the game hears and splashes water, and nowhere else.
+  //   Puddles collect in cart ruts, trampled gateways, the hand-placed hollows, and low spots (ground minus the
+  //   blurred ground) on wet kinds of ground.
+  E.wetMap = (function () {
+    let S = 4, data = new Uint8Array(4 * 4 * 4), tex = null; const rect = new THREE.Vector4(-1e5, -1e5, 2e5, 2e5);
+    const mk = () => { if (!tex) { tex = new THREE.DataTexture(data, S, S, THREE.RGBAFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.flipY = false; } else tex.image = { data, width: S, height: S }; tex.needsUpdate = true; };
+    for (let i = 0; i < 16; i++) { data[i * 4] = 0; data[i * 4 + 1] = 0; }
+    const M = { rect, built: false, tex() { if (!tex) mk(); return tex; } };
+    // the macro noise texture, sampled like the GPU does (bilinear, repeat, level 0)
+    function mac(u, v, ch) {
+      const T = E.tex.macro && E.tex.macro.alb, d = T && T.image && T.image.data; if (!d) return 0.5; const N = T.image.width;
+      const x = u * N - 0.5, y = v * N - 0.5, x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+      const at = (i, j) => d[((((j % N) + N) % N) * N + (((i % N) + N) % N)) * 4 + ch] / 255;
+      return (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy;
+    }
+    function tap(x, z) {   // bilinear over the map's own bytes, like the GPU's linear filter
+      const u = (x - rect.x) / rect.z * S - 0.5, v = (z - rect.y) / rect.w * S - 0.5, i0 = Math.floor(u), j0 = Math.floor(v), fx = u - i0, fy = v - j0, o = [0, 0, 0, 0];
+      for (let c = 0; c < 4; c++) { const at = (i, j) => data[(Math.min(S - 1, Math.max(0, j)) * S + Math.min(S - 1, Math.max(0, i))) * 4 + c] / 255; o[c] = (at(i0, j0) * (1 - fx) + at(i0 + 1, j0) * fx) * (1 - fy) + (at(i0, j0 + 1) * (1 - fx) + at(i0 + 1, j0 + 1) * fx) * fy; }
+      return o;
+    }
+    M.depth = function (x, z) {   // the GLSL E_WD_GLSL, in JS
+      const w = tap(x, z);
+      return (w[0] - 0.55) + (mac(x * 0.31, z * 0.31, 0) - 0.5) * 0.12 + (mac(x * 0.83 + 0.21, z * 0.83 + 0.21, 1) - 0.5) * 0.06 + (mac(x * 2.6 + 0.57, z * 2.6 + 0.57, 2) - 0.5) * 0.03 + E.U.uWet.value * 0.04;
+    };
+    M.sample = function (x, z) {
+      if (!M.built || x < rect.x || z < rect.y || x > rect.x + rect.z || z > rect.y + rect.w) return null;
+      const w = tap(x, z), d = M.depth(x, z), ss = E.sstep;
+      return { depth: d, water: ss(0, 0.035, d), soak: ss(-0.1, 0, d), damp: Math.max(w[1], ss(-0.32, -0.1, d)), mud: w[2], trod: w[3] };
+    };
+    M.build = function (o) {
+      const size = o.size, x0 = o.x0, z0 = o.z0, cap = E.Q.name === 'high' ? 2048 : E.Q.name === 'medium' ? 1536 : 768;
+      S = Math.min(cap, Math.ceil(size / 0.22)); const px = size / S;
+      rect.set(x0, z0, size, size);
+      const L = new Float32Array(S * S), G = new Float32Array(S * S), B = new Float32Array(S * S), A = new Float32Array(S * S);
+      const kindAt = o.kindAt || (() => 'grass'), hf = o.heightFn || (() => 0);
+      // base level by ground kind (a kind's wet weight: lanes and mud sit near the water line, grass well above it);
+      // sampled on a 1 m grid and spread (kind lookups are the slow part)
+      const C = Math.max(1, Math.round(1 / px)), cw = Math.ceil(S / C);
+      const kb = new Float32Array(cw * cw), hh = new Float32Array(cw * cw);
+      for (let j = 0; j < cw; j++) for (let i = 0; i < cw; i++) { const x = x0 + (i + 0.5) * C * px, z = z0 + (j + 0.5) * C * px, k = W[kindAt(x, z)] || W.none; kb[j * cw + i] = k[5]; hh[j * cw + i] = hf(x, z); }
+      // low spots: the ground minus the ground blurred over ~7 m (box blur, two passes)
+      const blur = (src, r) => { const t = new Float32Array(src.length), out = new Float32Array(src.length); for (let pass = 0; pass < 2; pass++) { const a = pass ? t : src, b = pass ? out : t; for (let j = 0; j < cw; j++) for (let i = 0; i < cw; i++) { let s = 0, n = 0; for (let q = -r; q <= r; q++) { const ii = pass ? i : Math.min(cw - 1, Math.max(0, i + q)), jj = pass ? Math.min(cw - 1, Math.max(0, j + q)) : j; s += a[jj * cw + ii]; n++; } b[j * cw + i] = s / n; } } return out; };
+      const hb = blur(hh, Math.max(2, Math.round(3.5 / (C * px))));
+      // the 1 m grid interpolated (bilinear between cell centres): sampled nearest, the water's edges followed the grid
+      const bil = (A, fi, fj) => { const i0 = Math.max(0, Math.min(cw - 2, Math.floor(fi))), j0 = Math.max(0, Math.min(cw - 2, Math.floor(fj))), fx = E.clamp(fi - i0, 0, 1), fy = E.clamp(fj - j0, 0, 1);
+        return (A[j0 * cw + i0] * (1 - fx) + A[j0 * cw + i0 + 1] * fx) * (1 - fy) + (A[(j0 + 1) * cw + i0] * (1 - fx) + A[(j0 + 1) * cw + i0 + 1] * fx) * fy; };
+      for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+        const fi = (i + 0.5) / C - 0.5, fj = (j + 0.5) / C - 0.5, kw = bil(kb, fi, fj);
+        const low = Math.max(0, bil(hb, fi, fj) - bil(hh, fi, fj));
+        // base level well below the water line even on lanes (-0.23 m on a lane): water stands only where ruts, hollows,
+        // gateways and the hand-placed puddles add to it
+        L[j * S + i] = 0.55 - 0.42 + kw * 0.22 + Math.min(0.16, low * 0.5) * (0.3 + kw);
+        G[j * S + i] = kw * 0.35;
+      }
+      const R = E.rng(o.seed || 31);
+      // paint helper: f(dx, dz) over the pixels within r metres of (x, z)
+      const paint = (x, z, r, f) => { const i0 = Math.max(0, Math.floor((x - r - x0) / px)), i1 = Math.min(S - 1, Math.ceil((x + r - x0) / px)), j0 = Math.max(0, Math.floor((z - r - z0) / px)), j1 = Math.min(S - 1, Math.ceil((z + r - z0) / px)); for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) f(j * S + i, x0 + (i + 0.5) * px - x, z0 + (j + 0.5) * px - z); };
+      // cart ruts: two wheel tracks either side of the line, broken up along their length
+      for (const rt of o.ruts || []) {
+        const gauge = rt.gauge || 1.45, w = rt.w || 0.42, k = rt.k == null ? 1 : rt.k;
+        for (let s = 0; s < rt.pts.length - 1; s++) {
+          const a = rt.pts[s], b = rt.pts[s + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]), dx = (b[0] - a[0]) / len, dz = (b[1] - a[1]) / len, n = Math.ceil(len / (px * 2));
+          for (let t = 0; t <= n; t++) {
+            const al = len * t / n, cx = a[0] + dx * al, cz = a[1] + dz * al, wander = (E.vnoise(cx * 0.21, cz * 0.21, 77) - 0.5) * 0.5;
+            for (const sd of [-1, 1]) {
+              const ox = cx - dz * (sd * gauge / 2 + wander), oz = cz + dx * (sd * gauge / 2 + wander), brk = E.sstep(0.28, 0.6, E.vnoise(ox * 0.35, oz * 0.35, 5 + sd));
+              paint(ox, oz, w, (q, ex, ez) => { const across = Math.abs(-ex * dz + ez * dx) / (w / 2); if (across > 1.6) return; const prof = Math.max(0, 1 - across * across);
+                L[q] += prof * 0.17 * k * brk; B[q] = Math.max(B[q], prof * k * 0.9); G[q] = Math.max(G[q], Math.min(1, (1.6 - across) * 0.7) * k); A[q] = Math.max(A[q], 0.6 * k); });
+            }
+          }
+        }
+      }
+      // gateways and trampled spots: churned, lower, puddled in the middle
+      for (const g of o.gates || []) paint(g[0], g[1], g[2], (q, ex, ez) => { const d = Math.hypot(ex, ez) / g[2]; if (d > 1) return; const f = 1 - d * d; L[q] += f * 0.09 * E.sstep(0.35, 0.75, E.vnoise((g[0] + ex) * 0.9, (g[1] + ez) * 0.9, 61)); /* churned in patches, not a flooded disc */ B[q] = Math.max(B[q], f * 0.8); A[q] = Math.max(A[q], f); G[q] = Math.max(G[q], f); });
+      // hand-placed puddles: ellipses with their own depth
+      for (const p of o.puddles || []) { const [px0, pz0, rx, rz, rot, dep] = p, c = Math.cos(rot || 0), sn = Math.sin(rot || 0);
+        paint(px0, pz0, Math.max(rx, rz) * 1.3, (q, ex, ez) => { const u = (ex * c + ez * sn) / rx, v = (-ex * sn + ez * c) / rz, e = u * u + v * v; if (e > 1.7) return; L[q] = Math.max(L[q], 0.55 - 0.1 + ((dep || 0.2) + 0.1) * (1 - e)); G[q] = Math.max(G[q], Math.min(1, (1.7 - e) * 1.2)); }); }
+      // the damp ring: about a metre round anything near the water line
+      { const r = Math.max(1, Math.round(1 / px)), T = new Float32Array(S * S);
+        for (let j = 0; j < S; j++) { let run = 0; for (let i = 0; i < S; i++) { run = Math.max(L[j * S + i] - 0.45, run - 1 / r); T[j * S + i] = run; } run = 0; for (let i = S - 1; i >= 0; i--) { run = Math.max(L[j * S + i] - 0.45, run - 1 / r); T[j * S + i] = Math.max(T[j * S + i], run); } }
+        for (let i = 0; i < S; i++) { let run = 0; for (let j = 0; j < S; j++) { run = Math.max(T[j * S + i], run - 1 / r); G[j * S + i] = Math.max(G[j * S + i], Math.min(1, run * 4)); } run = 0; for (let j = S - 1; j >= 0; j--) { run = Math.max(T[j * S + i], run - 1 / r); G[j * S + i] = Math.max(G[j * S + i], Math.min(1, run * 4)); } } }
+      data = new Uint8Array(S * S * 4);
+      for (let q = 0; q < S * S; q++) { data[q * 4] = Math.round(E.clamp(L[q], 0, 1) * 255); data[q * 4 + 1] = Math.round(E.clamp(G[q], 0, 1) * 255); data[q * 4 + 2] = Math.round(E.clamp(B[q], 0, 1) * 255); data[q * 4 + 3] = Math.round(E.clamp(A[q], 0, 1) * 255); }
+      mk(); M.built = true; M.res = S; M.mPerPx = px;
+      E.extraTexBytes = (E.extraTexBytes || 0) - (M.bytes || 0) + S * S * 4; M.bytes = S * S * 4;
+      return M;
+    };
+    M.reset = function () { M.built = false; };
+    return M;
+  })();
 
   // ------------------------------------------------------------------ the land beyond the map
   // IVEnv.skirt(heightFn, { half, outer, hills, woods, seed, day, fogK, landFogK }) -> group

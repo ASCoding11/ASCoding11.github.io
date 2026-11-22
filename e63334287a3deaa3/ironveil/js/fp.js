@@ -15,8 +15,8 @@
    Body: the world hero is drawn without his head and arms (a fragment mask on his own material copy), so looking down
    shows legs, feet and torso that match the stance and steps, while his shadow is still the whole man and his gun.
 
-   API: IV.fp.on() (first person in use this frame), IV.fp.frame(cam, dt, dir) from camera.js, IV.fp.draw() from
-   world.js after the world pass, IV.fp.muzzle(out) the world point the visible muzzle stands in front of. */
+   API: IV.fp.on() (first person in use this frame), IV.fp.frame(cam, dt, dir) from camera.js, IV.fp.draw(target) through
+   W.overlay (world.js: inside the post stack's HDR target, or after the world on Low), IV.fp.muzzle(out) the world point the visible muzzle stands in front of. */
 (function () {
   'use strict';
   const W = IV.world, T = IV.TUNING, F = IV.CF;
@@ -137,7 +137,7 @@
   const fpHide = { value: 0 };
   let bodyFP = false, maskDone = null;
   function bodyFirstPerson(on) { bodyFP = on; }
-  function hiddenCopy(m) { const c = m.clone(); c.colorWrite = false; c.depthWrite = false; return c; }
+  function hiddenCopy(m) { const c = m.clone(); c.defines = Object.assign({}, m.defines || {}, c.defines || {}); c.colorWrite = false; c.depthWrite = false; return c; }   // defines kept (clone resets them)
   function shadowOnly(obj, on) {
     if (!obj || obj.userData._fpSO === on) return;
     obj.userData._fpSO = on;
@@ -155,8 +155,12 @@
     if (Array.isArray(src)) return src.map(m => maskedMaterial(o, hide, on, m));   // multi-material meshes: each one masked
     const bones = o.skeleton.bones, flags = new Float32Array(Math.max(1, bones.length));
     bones.forEach((b, i) => { flags[i] = hide(b) ? 1 : 0; });
-    const m = src.clone();
-    m.onBeforeCompile = function (sh) {
+    // clone() runs MeshStandardMaterial.copy, which resets defines and does not carry a custom onBeforeCompile (the trap
+    // behind the brown puddle's 'vUv' compile error): keep the source's defines and run its own hook first
+    const m = src.clone(), prevHook = src.hasOwnProperty('onBeforeCompile') ? src.onBeforeCompile : null, prevKey = src.hasOwnProperty('customProgramCacheKey') ? src.customProgramCacheKey : null;
+    m.defines = Object.assign({}, src.defines || {}, m.defines || {});
+    m.onBeforeCompile = function (sh, r) {
+      if (prevHook) prevHook.call(this, sh, r);
       sh.uniforms.fpHide = on; sh.uniforms.fpBones = { value: flags };
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float fpBones[' + flags.length + '];\nvarying float vFpHide;')
         .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  vFpHide = fpBones[int(skinIndex.x)] * skinWeight.x + fpBones[int(skinIndex.y)] * skinWeight.y + fpBones[int(skinIndex.z)] * skinWeight.z + fpBones[int(skinIndex.w)] * skinWeight.w;');
@@ -164,7 +168,7 @@
         .replace('void main() {', 'void main() {\n  if (fpHide > 0.5 && vFpHide > 0.45) discard;');
     };
     let key = 'fpmask'; for (let i = 0; i < flags.length; i++) key += flags[i] ? '1' : '0';
-    m.customProgramCacheKey = () => key;
+    m.customProgramCacheKey = () => key + (prevKey ? '|' + prevKey.call(src) : '');
     return m;
   }
   FP.maskedMaterial = maskedMaterial;
@@ -353,15 +357,30 @@
     if (e === 'magOut') A && A.play('magOut');
     else if (e === 'magIn') { A && A.play('magIn'); if (rel) WP.magIn && WP.magIn(); }
     else if (e === 'done' && rel) WP.reloadDone && WP.reloadDone();
-    else if (e === 'boltUp' || e === 'boltDown') A && A.play('click', { f: 2600, vol: 0.35 });
-    else if (e === 'boltBack' || e === 'boltForward') A && A.play('click', { f: 3300, vol: 0.45 });
+    else if (e === 'boltUp') A && A.play('boltUp');
+    else if (e === 'boltBack') A && A.play('boltBack');
+    else if (e === 'boltForward') A && A.play('boltFwd');
+    else if (e === 'boltDown') A && A.play('boltDown');
     else if (e === 'eject') caseFrom(v);
     else if (e === 'shot' && v.kind !== 'rifleScoped') caseFrom(v);
     else if (e === 'charge' || e === 'slide') A && A.play('click', { f: 2900, vol: 0.45 });
     else if (e === 'pin') A && A.play('pin');
   }
   // a socket of the arms (viewmodel camera frame) as the world point in front of which it is drawn
-  function socketWorld(o, out) { o.getWorldPosition(out); out.applyMatrix4(VM.cam.matrixWorldInverse); out.z *= 0.9; return out.applyMatrix4(W.camera.matrixWorld); }
+  // The arms pass has its own 55 degree camera, the world camera 60-95 (more while sprinting). A point in the arms'
+  // camera space lands on the same pixel in the world camera only if its x and y are scaled by the ratio of the two
+  // views' tan(fov/2) (zoom included); without it tracers, flash and cases started about a third of the way in toward
+  // the screen centre from the drawn muzzle at the default 74. The whole vector is pulled 10 % toward the eye so the
+  // point sits just in front of the world (the projection does not change with that).
+  function vmToWorld(out) {
+    out.applyMatrix4(VM.cam.matrixWorldInverse).multiplyScalar(0.9);
+    const wc = W.camera, vc = VM.cam, vf = FP.vmTune.fov;
+    const k = (Math.tan(wc.fov * Math.PI / 360) / (wc.zoom || 1)) / (Math.tan(vf * Math.PI / 360) / (vc.zoom || 1));
+    out.x *= k; out.y *= k;
+    return out.applyMatrix4(wc.matrixWorld);
+  }
+  FP.vmToWorld = vmToWorld;
+  function socketWorld(o, out) { o.getWorldPosition(out); return vmToWorld(out); }
   FP.realActive = () => !!(VM && !VM.rig.standin && FP.on() && VM.root.visible);
   function realFrame(vm, dt, yaw, pitch) {
     const W8 = IV.weapons, S = IV.settings, rig = vm.rig, M = IV.mission, I = IV.input, C = IV.camera;
@@ -415,8 +434,8 @@
     const oz = FP.kick * (aiming ? 0.02 : 0.03) + FP.vmLower * 0.05;
     // the turn layers (recoil climb, look lag, wall lowering, lean roll) pivot about the right shoulder, behind and below
     // the eye, so recoil travels back through the wrists and forearms instead of the gun spinning about the eye
-    // the rifle's sprint clip swings the muzzle up across the view: lower and cant it, about the shoulder
-    const rs = gunKind === 'rifleScoped' ? FP.vmSpr || 0 : 0;
+    // (a rifle sprint-carry offset lived here; the characters' own sprint clip now carries it low, so it is 0)
+    const rs = 0;
     _e.set(FP.kickR * 0.7 + FP.lagPitch * 0.5 * relax - FP.vmLower * 0.5 - rs * 0.12, FP.lagYaw * 0.7 * relax - rs * 0.06, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax + rs * 0.12);
     v.group.quaternion.setFromEuler(_e);
     SHOULDER.set(0.17, -0.3, 0.12);
@@ -556,10 +575,10 @@
   function vmLight(vm) {
     const cam = W.camera;
     // lighting copied from the world, scaled by how lit the player is
-    // how lit the player is (moon, moon shadow, lamps), never brighter than the world itself; the arms are drawn after the
-    // post stack, so at night they also take a share of its vignette and desaturation as a plain darkening
+    // how lit the player is (moon, moon shadow, lamps), never brighter than the world itself; the arms are drawn inside
+    // the post stack's HDR target (see FP.draw), so the grade, vignette and grain reach them the same way as the world
     const E = window.IVEnv, grade = E && E.atmo && E.atmo.P && E.atmo.P.grade, night = !grade || grade === 'night' || grade === 'rain';
-    const lit = (W.lightAt ? IV.clamp(0.2 + W.lightAt(P.render.x, P.render.y + 1.4, P.render.z) * 0.9, 0.2, 1) : 1) * (night ? 0.78 : 0.95);
+    const lit = (W.lightAt ? IV.clamp(0.2 + W.lightAt(P.render.x, P.render.y + 1.4, P.render.z) * 0.9, 0.2, 1) : 1) ;
     if (W.hemi) { vm.hemi.color.copy(W.hemi.color); vm.hemi.groundColor.copy(W.hemi.groundColor); vm.hemi.intensity = W.hemi.intensity * lit; }
     if (W.sun) {
       // the sun or moon direction in the viewmodel camera's frame
@@ -597,14 +616,15 @@
   FP.recoil = function (k) { FP.kick = Math.min(1.5, FP.kick + k); FP.kickR = Math.min(0.25, FP.kickR + k * 0.06); };
 
   // ---------------------------------------------------------------- the second pass
-  // world.js draws the world; the viewmodel goes on top of whatever it drew
-  const draw0 = W.draw; W.draw = function (dt) { draw0.call(W, dt); FP.draw(); };
-  FP.draw = function () {
+  // world.js draws the world and then calls W.overlay: with the post stack that is inside its HDR target (depth already
+  // cleared, tone mapping left to the post stack); on Low (no post stack, target null) it is straight to the screen
+  W.overlay = function (r, target) { FP.draw(target); };
+  FP.draw = function (target) {
     if (!VM || !VM.root.visible || !FP.on()) return;
     const r = W.renderer, ac = r.autoClear, tm = r.toneMapping;
     VM.cam.aspect = W.camera.aspect; VM.cam.fov = FP.vmTune.fov; VM.cam.updateProjectionMatrix();   // fixed: never follows the world FOV setting
-    r.autoClear = false; r.setRenderTarget(null); r.clearDepth();
-    r.toneMapping = THREE.ACESFilmicToneMapping;   // the post stack tone maps the world itself; the viewmodel is drawn after it
+    r.autoClear = false; if (!target) { r.setRenderTarget(null); r.clearDepth(); }
+    if (!target) r.toneMapping = THREE.ACESFilmicToneMapping;   // inside the HDR target the post stack tone maps world and gun together
     { const ri = r.info.render; FP.worldInfo = { calls: ri.calls, tris: ri.triangles }; }   // the world pass just drawn (without the post stack this is all of it)
     const t0 = performance.now();
     r.render(VM.scene, VM.cam);
@@ -615,9 +635,6 @@
   // the world point in front of which the visible muzzle sits (for muzzle flash and tracers)
   FP.muzzle = function (out) {
     if (!VM || !VM.rig.muzzle || !VM.root.visible) return null;
-    const m = VM.rig.muzzle.getWorldPosition(tmp);
-    m.applyMatrix4(VM.cam.matrixWorldInverse);           // viewmodel camera space
-    m.z *= 0.9;                                         // a touch in front of the world so it is not inside the near geometry
-    return out.copy(m).applyMatrix4(W.camera.matrixWorld);
+    return vmToWorld(out.copy(VM.rig.muzzle.getWorldPosition(tmp)));   // world FOV at the moment of the shot
   };
 })();

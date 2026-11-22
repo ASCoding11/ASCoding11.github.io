@@ -40,6 +40,11 @@
   const TRACK = [[2.4, 163], [18, 170], [32, 172.5], [44, 175.5]], ROADOUT = [[44, 176], [46, 215], [36, 262], [12, 330]];
   const HUTS = [[16, 140, 5, 3], [16, 120, 5, 3], [-18, 130, 7, 3.5]];
   const MUD = [[10.6, 140, 1.8], [10.6, 120, 1.8], [-10.4, 130, 1.8], [0, 88, 3.0], [0, 70, 3.2], [0, 66, 2.6], [0, 53.5, 2.4], [-1, 37, 2.6], [0, 22, 2.8], [30, 8.6, 2.6], [-26.5, 97, 2.2], [3.4, 120, 1.4], [-3.6, 104, 1.3], [3.3, 76, 1.5]];
+  // the shared wet map: lorry ruts on the track and the road out, the trodden mud patches as churned spots, and the
+  // puddles they hold (the ground, footsteps and splashes all read it)
+  const WET = { seed: 17, ruts: [{ pts: TRACK }, { pts: ROADOUT, k: 0.7, gauge: 1.6 }], gates: [[44, 175.5, 3.0], [2.4, 163, 2.6]],
+    puddles: [[10.6, 140, 0.9, 0.6, 0.3, 0.16], [-10.4, 130, 0.8, 0.5, 0, 0.14], [0, 70, 1.4, 0.8, 0.1, 0.18], [0, 22, 1.2, 0.8, -0.3, 0.16], [30, 8.6, 1.0, 0.7, 0.5, 0.14], [20, 170.5, 1.3, 0.6, 0.35, 0.18], [45, 196, 1.1, 0.6, 1.5, 0.16]] };
+  for (const m of MUD) WET.gates.push([m[0], m[1], m[2] * 1.1]);
   function surfaceKind(x, z) {
     const n = IV.noise(x / 1.7 + 3, z / 1.7), ax = Math.abs(x);
     for (const m of MUD) { const d = Math.hypot(x - m[0], z - m[1]); if (d < m[2] * (0.75 + 0.5 * n)) return 'mud'; if (d < m[2] * 1.7) return 'worn'; }
@@ -91,7 +96,37 @@
       return o;
     } catch (e) { console.warn('dress', kind, e); return null; }
   }
+  // ---- painted text (env/labels.js, one atlas): an invented camp (Brackenwold), hut and building names, the range's
+  // danger board, firing-point and distance boards. All names are made up; no real units.
+  function signs() {
+    if (!IV.art.envOn()) return;
+    const A = IV.art, gy = (x, z) => W.height(x, z);
+    const paint = (c) => ({ kind: 'paint', ground: null, color: c || 'rgba(24,22,20,0.92)', distress: 0.35, size: 72 });
+    const onWall = (t, x0, z0, x1, z1, up, w, st) => A.sign(t, st || paint(), [x0, gy(x0, z0) + up, z0], [x1, gy(x1, z1) + up, z1], w);
+    A.signpost(48.2, 178.5, 0, 'BRACKENWOLD CAMP\nTRAINING WING', { kind: 'paint', ground: '#2b3324', color: '#e6dec6', distress: 0.3, size: 72 }, { h: 2.3, w: 2.0, posts: 2 });
+    onWall('HUT 1', -34, 126, -34, 116, 2.2, 0.9); onWall('HUT 2', -34, 94, -34, 84, 2.2, 0.9);
+    onWall('HUT 3', 6, 140, 16, 140, 2.0, 0.9); onWall('HUT 4', 6, 120, 16, 120, 2.0, 0.9);
+    onWall('ORDERLY ROOM', -6, 130, -18, 130, 2.2, 1.4);
+    onWall('MESS HALL', 20, 134, 32, 134, 2.6, 1.6); onWall('COOKHOUSE', 22, 120, 32, 120, 2.3, 1.3); onWall('MOTOR POOL', 20, 96, 33, 96, 3.6, 2.2);
+    onWall('FUEL STORE\nNO SMOKING', 24, 69, 33, 69, 1.9, 1.0, paint('rgba(150,30,22,0.92)')); onWall('GUARD ROOM', 50, 160, 50, 166, 2.2, 1.3);
+    A.signpost(8.2, RANGE_Z + 4, 0, 'DANGER\nLIVE FIRING\nKEEP CLEAR WHEN\nTHE RED FLAG FLIES', { kind: 'paint', ground: '#ece8dc', color: '#a8261d', distress: 0.3, size: 64 }, { h: 2.0, w: 1.05, posts: 2 });
+    A.signpost(-6.4, RANGE_Z + 1.2, 0, 'No 2 RANGE\nFIRING POINT', { kind: 'paint', ground: '#1e1d1b', color: '#eeeadf', distress: 0.3, size: 64 }, { h: 1.5, w: 0.95 });
+    for (const [yd, z] of [['100', RANGE_Z - 91.4], ['200', RANGE_Z - 182.9], ['300', RANGE_Z - 274.3]]) A.signpost(-7.2, z, 0, yd + '\nYARDS', { kind: 'paint', ground: '#ece8dc', color: '#1c1b19', distress: 0.35, size: 72 }, { h: 1.2, w: 0.55 });
+  }
+  // ---- dense dressing: kit at cover height along both sides of the course (every ~8 m, clear of the stations, gates
+  // and posts), and stores round the motor pool; small random offsets and turns
+  function dressing(b) {
+    const A = IV.art, R = IV.rng(911);
+    const keep = [[0, 158, 7], [0, 132, 7], [0, 98, 7], [0, 74, 9], [0, 58, 7], [0, 38, 7], [0, 22, 7], [-9.5, 145, 3], [-4.2, 154, 3], [4.2, 22, 3], [-6.4, RANGE_Z + 1.2, 3], [8.2, RANGE_Z + 4, 3]];
+    for (const p of POSTS) keep.push([p[0], p[1], p[2] + 1.2]);
+    for (const m of MUD) keep.push([m[0], m[1], m[2] + 1]);
+    let n = 0;
+    for (const sd of [1, -1]) n += A.row(b, ['crates', 'barrels', 'sandbags', 'crate', 'woodpile'], [sd * 5.4, 150], [sd * 5.4, 28], { every: 8, side: 0, avoid: keep, skip: 0.15, R });
+    n += A.row(b, ['barrels', 'crates', 'barrel', 'crate'], [25.5, 89], [25.5, 102], { every: 4.5, avoid: [[23.5, 106, 3], [26.5, 83.5, 4]], R });
+    IV.art.dressedBC = n;
+  }
   function build(M) {
+    window.IVEnv && (IVEnv.labelLang = 'en');
     const b = K.begin();
     // course edging: rope posts along the gravel path
     for (let z = 160; z > 0; z -= 6) for (const s of [-1, 1]) K.add(b, 'wood', K.GEO.box, s * 2.6, W.height(s * 2.6, z) + 0.4, z, 0.1, 0.8, 0.1, 0, 0, 0, 0x8a7458);
@@ -169,6 +204,8 @@
         { kind: 'office', w: 6, d: 4, x: 33, z: 69, rot: 0, out: 'brick_red' },             // fuel store
         { kind: 'office', w: 6, d: 4.5, x: 50, z: 166, rot: -H2 }                           // guardroom
       ], { seed: 909 });
+      signs();
+      dressing(b);
       if (IV.art.envOn()) {
         dress('truck', 26.5, 83.5, 0.15); dress('truck', 37, 82.5, -0.1); dress('car', 23.5, 106, 1.45);
         dress('drums', 28.5, 66.5, 0.4); dress('drums', 38.5, 66, 2.1); dress('guardtower', 50, 118, 0.1);
@@ -362,7 +399,7 @@
     id: 'bootcamp', num: 0, title: 'Boot Camp', line: 'A morning on the training range: moving, shooting, sneaking. About five minutes.',
     briefing: ['Training range, England, the week before the jump. Sergeant Okafor runs the course.', 'One thing at a time. Each station waits until you have done it, and the prompts show your own keys.'],
     preview: [{ text: 'Move, sprint, crouch, crawl, vault and lean' }, { text: 'Pop-up targets down the sights' }, { text: 'The scoped rifle at 100, 200 and 300 m' }, { text: 'Distract a guard and take him down' }, { text: 'Binoculars and grenades' }],
-    world: { size: 660, day: true, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 2.2 }, terrainStep: 4, fog: 0.0028, envFog: 0.0024,   // envFog: lighter than the overcast preset's 0.0042 so the 300 m plate shows through the scope (40% haze at 300 m instead of 80%)
+    world: { size: 660, day: true, wet: WET, height, surface, groundColor, surfaceKind, skirt: { hills: 60, woods: 1.2, seed: 9, fogK: 0.45, landFogK: 0.6 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 2.2 }, terrainStep: 4, fog: 0.0028, envFog: 0.0024,   // envFog: lighter than the overcast preset's 0.0042 so the 300 m plate shows through the scope (40% haze at 300 m instead of 80%)
        fogColor: 0xb9c4c8, sunDir: [0.45, 0.8, 0.35] },
     build, setup, step, frame, sketch,
     medals: [
