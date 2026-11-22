@@ -77,7 +77,7 @@
   }
   WP.equip = function (k) {
     if (!WP.has[k] || k === WP.cur || WP.busyThrow) return;
-    WP.cur = k; WP.reloadT = 0; WP.boltT = 0; WP.cool = 0.35; WP.bloom = 0;
+    WP.cur = k; WP.reloadT = 0; WP.boltT = 0; WP.cool = 0.35; WP.bloom = 0; WP.spread = null;
     equipModels(); P.actor.setUpper(null);
     IV.audio && IV.audio.play('equip');
     IV.emit('weapon', k);
@@ -230,19 +230,22 @@
     const ux = new THREE.Vector3(dx, dy, dz), ortho1 = new THREE.Vector3().crossVectors(ux, Math.abs(dy) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize(), ortho2 = new THREE.Vector3().crossVectors(ux, ortho1);
     ux.addScaledVector(ortho1, Math.cos(a) * r).addScaledVector(ortho2, Math.sin(a) * r).normalize();
     const v0 = k === 'rifle' ? BL.v0 : k === 'smg' ? BL.smgV0 : BL.pistolV0;
-    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2 });   // tracer rounds every third in the SMG magazine
+    // the round flies along the sight line; its tracer is drawn leaving the visible muzzle and merging onto that line
+    // over the first few metres (vis: muzzle minus origin, faded out by fx.js)
+    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2, vis: WP.scoped ? null : { x: mz.x - ox, y: mz.y - oy, z: mz.z - oz } });   // tracer rounds every third in the SMG magazine
     // effects
     IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle');
     const fpArms = IV.fp && IV.fp.realActive && IV.fp.realActive();   // first person on the arms rig: its clip events throw the cases
     if (fpArms) { if (model) model.userData.kickT = 1; }
     else if (part(model, (PART_KIND[k] || k) + '_ejection')) WP.gunShot(model, PART_KIND[k] || k);   // bolt kick and a case from the ejection port
     else if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
-    IV.audio && IV.audio.play(k, { x: mz.x, z: mz.z });
+    IV.audio && IV.audio.play(k, { x: mz.x, z: mz.z, own: true });
     IV.ai && IV.ai.noise(P.pos.x, P.pos.z, w.noise, 'shot', P);
-    // recoil: rifle a big kick, SMG a climbing pattern with a little sideways wander, pistol a snap
+    // recoil (TUNING.weapons.recoil): rifle one heavy kick, SMG a per-shot climb schedule with a slow sideways
+    // wander, pistol a sharp snap; a kept part stays in the aim, the rest springs back after the trigger is let go
     const motion = IV.settings.motion ? 0.6 : 1;
-    if (k === 'smg') { WP.burst++; const pat = Math.sin(WP.burst * 0.9) * 0.5 + (WP.burst > 6 ? 0.4 : 0); IV.camera.kick(w.recoil * (WP.aiming ? 0.7 : 1), -w.recoil * 0.45 * pat); WP.bloom = Math.min(w.bloomMax, WP.bloom + w.bloom); }
-    else IV.camera.kick(w.recoil * (P.stance === 'prone' ? 0.6 : 1), (Math.random() - 0.5) * w.recoil * 0.3);
+    recoil(k);
+    if (k === 'smg') WP.bloom = Math.min(w.bloomMax, WP.bloom + w.bloom);
     IV.camera.shake((k === 'rifle' ? 0.12 : 0.05) * motion);
     IV.fp && IV.fp.recoil(k === 'rifle' ? 1 : k === 'smg' ? 0.35 : 0.6);
     // the bolt: as long as the arms' fire and bolt clips take in first person, else the tuning value
@@ -251,14 +254,39 @@
     IV.setUpper(P.actor, k === 'rifle' ? 'boltCycle' : 'fire');
     IV.emit('shot', k);
   }
-  // the current spread cone (rad): the HUD crosshair draws exactly this
-  WP.currentSpread = function () {
-    const k = WP.cur, w = WT[k]; let sp = (WP.aiming || WP.scoped) ? w.spread : w.hipSpread;
-    if (k === 'smg') sp += WP.bloom;
-    if (P.speed > 1) sp *= 1.6;
+  // one shot's kick. WP.recN counts rounds in the current string: it and the SMG's wander phase start again only once
+  // the gun has rested for spec.pause (quick taps continue the same path; a real pause starts from a fresh side)
+  WP.recPhase = 0; WP.lastShotAt = -9; WP.recN = 0;
+  function recoil(k) {
+    const R = WT.recoil[k]; if (!R) return;
+    const rest = IV.time - WP.lastShotAt; WP.lastShotAt = IV.time;
+    if (rest > (R.pause || 0.25) || WP.recKind !== k) { WP.recN = 0; WP.recPhase = Math.random() * 6.283; WP.recKind = k; }
+    const n = ++WP.recN; WP.burst++;
+    let m = (WP.aiming || WP.scoped ? R.ads : 1) * (P.stance === 'prone' ? R.prone : P.stance === 'crouch' ? R.crouch : 1);
+    if (R.sched) { for (const s of R.sched) if (n <= s[0]) { m *= s[1]; break; } if (n > R.sched[R.sched.length - 1][0]) m *= R.sched[R.sched.length - 1][1]; }
+    const j = 1 + (Math.random() * 2 - 1) * R.jitter;
+    let yaw;
+    if (R.wander && n > 3) yaw = Math.sin(n * R.wanderRate + WP.recPhase) * R.wander + (Math.random() - 0.5) * R.yaw;
+    else yaw = (Math.random() - 0.5) * 2 * R.yaw;
+    IV.camera.kick(R.pitch * m * j, yaw * m, R);
+  }
+  WP.recoilShot = recoil;
+  // the spread cone (rad). spreadTarget is where the cone wants to be right now (aimed or hip, stance, how fast you
+  // move, airborne, SMG bloom); the live cone eases toward it at 18/s every step (about 0.17 s, the same as raising
+  // the sights), so it opens smoothly as you start to move instead of jumping by 60 % at 1 m/s. The HUD crosshair
+  // draws exactly the live cone. The first aimed shot standing still stays dead on (fire()).
+  WP.spreadTarget = function () {
+    const k = WP.cur, w = WT[k], ads = WP.aiming || WP.scoped;
+    let sp = ads ? w.spread : w.hipSpread;
+    sp *= 1 + (ads ? 0.9 : 0.7) * IV.clamp((P.speed - 0.3) / 3.5, 0, 1);   // walking adds a little, a jog about 70 % more
     if (P.stance === 'crouch') sp *= 0.8; else if (P.stance === 'prone') sp *= 0.6;
+    if (k === 'smg') sp += WP.bloom * (ads ? 0.7 : 1);
+    if (P.grounded === false && !P.vault) sp += 0.02;
     return sp;
   };
+  WP.spread = null;
+  WP.currentSpread = function () { return WP.spread == null ? WP.spreadTarget() : WP.spread; };
+  function stepSpread(dt) { const t = WP.spreadTarget(); WP.spread = WP.spread == null ? t : WP.spread + (t - WP.spread) * (1 - Math.exp(-18 * dt)); }
   function startReload() {
     const k = WP.cur, inv = WP.inv[k];
     if (WP.reloadT > 0 || inv.res <= 0 || inv.mag >= WT[k].mag) return;
@@ -399,6 +427,7 @@
 
   WP.step = function (dt) {
     const I = IV.input;
+    IV.camera.stepRecoil && IV.camera.stepRecoil(dt);
     WP.cool = Math.max(0, WP.cool - dt); WP.throwCool = Math.max(0, (WP.throwCool || 0) - dt);
     if (WP.boltT > 0) { WP.boltT -= dt; if (WP.boltT <= 0) P.actor.setUpper(WP.aiming ? 'aimIdle' : null); }
     if (WP.reloadT > 0 && P.sprinting) { WP.reloadT = 0; WP.fpReload = null; P.actor.setUpper(null); IV.fp && IV.fp.cancelAction && IV.fp.cancelAction(); }   // sprinting cancels a reload (no rounds added)
@@ -406,6 +435,7 @@
     WP.bloom = Math.max(0, WP.bloom - dt * (I.held('fire') ? 0.01 : 0.12));
     if (!I.held('fire')) WP.burst = 0;
     WP.firingRecently = IV.time - WP.lastFire < 0.6;
+    stepSpread(dt);
     // bullets and thrown things always move (also while the player is dead or in a cutscene)
     for (let i = WP.bullets.length - 1; i >= 0; i--) { const b = WP.bullets[i]; if (b.alive) stepBullet(b, dt); if (!b.alive) WP.bullets.splice(i, 1); }
     stepThrows(dt);

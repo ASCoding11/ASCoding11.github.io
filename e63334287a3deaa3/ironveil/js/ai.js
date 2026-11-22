@@ -17,7 +17,8 @@
     lost: ['Nothing. Just the wind.', 'Probably a fox.', 'Back to it.'],
     spotted: ['There! Enemy!', 'Alarm! Over there!', 'Contact!'],
     body: ['Man down! Over here!', 'He is dead! Search the area!'],
-    grenade: ['Grenade!'], reload: ['Reloading!'], flank: ['Go round the side!'], fallback: ['Falling back!']
+    grenade: ['Grenade!'], reload: ['Reloading!'], flank: ['Go round the side!'], fallback: ['Falling back!'],
+    ready: ['I have him!', 'Steady... now!', 'In my sights!', 'Take him!'], rack: ['Gun up!', 'Feeding a belt!']
   };
   AI.bark = function (e, kind) {
     if (IV.time < (e.barkT || 0) || !BARK[kind]) return;
@@ -158,6 +159,7 @@
       if (da < 45 && inView(e, al.pos.x, al.pos.y + 1.2, al.pos.z, da)) { e.seeAlly = true; } else e.seeAlly = false;
     } else e.seeAlly = false;
     if (e.seeing) e.seeT += dt; else e.seeT = Math.max(0, e.seeT - dt * 2);
+    e.expo = IV.clamp((e.expo || 0) + (e.seeing ? A.expoUp[diff()] : -A.expoDown) * dt, 0, 1);
     if (!e.seeing && e.state !== 'combat') e.aw = Math.max(0, e.aw - A.decay * dt * (e.state === 'unaware' ? 1.6 : 1));
     // bodies
     if (e.state !== 'combat') for (const b of AI.bodies) {
@@ -282,28 +284,67 @@
       let s = facing * 4 - dS * 0.35 - Math.abs(dT - (e.kind === 'officer' ? 20 : 16)) * 0.12 + (c.low ? 0.5 : 0);
       if (back) s += (dT - Math.hypot(e.pos.x - tx, e.pos.z - tz)) * 0.6;
       if (flank) { const a0 = IV.yawTo(e.pos.x - tx, e.pos.z - tz), a1 = IV.yawTo(c.x - tx, c.z - tz); s += Math.min(1.4, Math.abs(IV.wrapA(a1 - a0))) * 6; }
-      // other soldiers' cover: spread out
-      for (const q of AI.list) if (q !== e && q.alive && q.cover && Math.hypot(q.cover.x - c.x, q.cover.z - c.z) < 3) s -= 3;
+      // other soldiers' cover: spread out, both on the ground and by bearing round the target (two men on the same
+      // line from you are one target; men on different bearings make you turn your head)
+      const bc = IV.yawTo(c.x - tx, c.z - tz);
+      for (const q of AI.list) {
+        if (q === e || !q.alive || !q.cover) continue;
+        if (Math.hypot(q.cover.x - c.x, q.cover.z - c.z) < 3) s -= 3;
+        if (q.state === 'combat') { const db = Math.abs(IV.wrapA(IV.yawTo(q.cover.x - tx, q.cover.z - tz) - bc)); if (db < 0.52) s -= 2.5 * (1 - db / 0.52); }
+      }
       if (s > bs) { bs = s; best = c; }
     }
     return best;
   }
-  // attack tokens: only a few soldiers shoot at you at once (the rest move, hide or suppress), so fights stay readable
-  AI.tokens = new Map();
+  // attack tokens: only a few soldiers shoot at you at once (the rest move, hide or suppress), so fights stay readable.
+  // A token is one burst: granted no sooner than tokenGap after the last grant (so four men spotting you on one frame
+  // open fire one after another, not together), then a 'ready' telegraph of tele[diff] seconds (weapon raised, a
+  // call, a faint glint at night, IV.emit('telegraph')) before the first round, and handed back when the burst ends.
+  AI.tokens = new Map(); AI.lastGrant = -99; AI.teleLog = [];
+  function burstSize(e) { const B = A.burst; return e.kind === 'sniper' ? B.sniper : e.wkind === 'enemySmg' ? B.smg : e.wkind === 'pistol' ? B.pistol : B.rifle; }
+  function releaseToken(e) { if (AI.tokens.delete(e)) { e.teleUntil = 0; e.burstLeft = 0; } }
+  AI.releaseToken = releaseToken;
   function haveToken(e) {
-    const now = IV.time; for (const [k, t] of AI.tokens) if (t < now || !k.alive) AI.tokens.delete(k);
+    const now = IV.time;
+    // safety nets: the holder died or left combat, or was granted a burst he could not start (ran for cover, ducked
+    // back) within 1.5 s of his telegraph ending - the turn passes on, and he telegraphs again next time
+    for (const [k, t] of AI.tokens) if (!k.alive || k.state !== 'combat' || now - t.at > 9 || (!k.teleShot && now - t.at > A.tele[diff()] + 1.5)) releaseToken(k);
     if (AI.tokens.has(e)) return true;
-    if (AI.tokens.size >= A.tokens[diff()]) return false;
-    AI.tokens.set(e, now + 2.5 + Math.random()); return true;
+    if (AI.tokens.size >= A.tokens[diff()] || now - AI.lastGrant < A.tokenGap[diff()]) return false;
+    AI.tokens.set(e, { at: now }); AI.lastGrant = now;
+    e.burstLeft = burstSize(e);
+    telegraph(e, A.tele[diff()], 'ready');
+    return true;
   }
+  // the warning before a burst: he brings the gun up, calls out, a glint shows at night; the first round may not
+  // leave before `delay` has passed (ai.js keeps that; tests read AI.teleLog)
+  function telegraph(e, delay, kind) {
+    e.teleUntil = IV.time + delay; e.teleAt = IV.time; e.teleShot = false;
+    e.actor.setUpper('aimIdle', { fade: Math.min(0.3, delay * 0.6) });
+    AI.bark(e, kind);
+    IV.audio && IV.audio.play(kind === 'rack' ? 'mgRack' : 'ready', { x: e.pos.x, z: e.pos.z });
+    if (!W.day) e.glintT = delay + 0.15;
+    if (AI.teleLog.length > 200) AI.teleLog.shift();
+    AI.teleLog.push({ id: e.id, kind, at: IV.time, delay, first: null });
+    IV.emit('telegraph', { e, delay, kind });
+  }
+  AI.telegraph = telegraph;
+  function noteShot(e) { if (e.teleShot) return; e.teleShot = true; for (let i = AI.teleLog.length - 1; i >= 0; i--) { const l = AI.teleLog[i]; if (l.id === e.id) { if (l.first == null) l.first = IV.time; break; } } }
   function shoot(e, tgt, dt) {
     const d = Math.hypot(tgt.pos.x - e.pos.x, tgt.pos.z - e.pos.z);
     const isP = !!tgt.isPlayer;
-    if (isP && e.kind !== 'gunner' && !haveToken(e)) { if (e.lkp && Math.random() < 0.35) suppressFire(e, e.lkp); return; }
-    // the accuracy ramp: grows with continuous exposure, shrinks when suppressed
-    const exp = isP ? e.seeT : 1.5;
-    const ramp = IV.clamp(exp / (A.accRamp * (e.kind === 'sniper' ? 2.3 : 1)), 0.05, 1);
+    if (isP && e.kind !== 'gunner') {
+      if (!haveToken(e)) { if (e.lkp && Math.random() < 0.35) suppressFire(e, e.lkp); return; }
+      if (IV.time < e.teleUntil) return;   // still coming up into the aim: no round before the telegraph is over
+    }
+    if (isP && e.kind === 'gunner' && IV.time < (e.teleUntil || 0)) return;
+    if (isP) noteShot(e);
+    IV.emit('enemyFire', { e, atPlayer: isP });
+    // the accuracy ramp: exposure grows with continuous sight of you and drains fast once you break it; suppression
+    // and your movement loosen it
+    const ramp = isP ? (A.expoFloor + (1 - A.expoFloor) * e.expo) * (e.kind === 'sniper' ? 0.85 : 1) : 1;
     let p = A.acc[diff()] * ramp * IV.clamp(15 / Math.max(5, d), 0.25, 1.3) * (1 - e.suppr * 0.6);
+    if (isP) p /= 1 + 0.06 * Math.max(0, P.speed - 1);
     if (isP) { p *= P.stance === 'prone' ? 0.5 : P.stance === 'crouch' ? 0.75 : 1; if (P.sprinting) p *= 0.6; if (P.crops) p *= 0.7; }
     if (e.kind === 'sniper') p = Math.min(0.9, p * 2.4);
     if (e.kind === 'gunner') p *= 0.55;
@@ -323,6 +364,7 @@
     IV.audio && IV.audio.play(e.kind === 'gunner' ? 'mg' : e.kind === 'officer' ? 'epistol' : e.kind === 'sniper' ? 'erifle' : (e.wkind === 'enemySmg' ? 'esmg' : 'erifle'), { x: muz.x, z: muz.z });
     AI.noise(e.pos.x, e.pos.z, 120, 'shout', e);
     e.mag--;
+    if (isP && e.kind !== 'gunner' && AI.tokens.has(e) && --e.burstLeft <= 0) releaseToken(e);   // burst over: the token goes back
   }
 
   // ---------------------------------------------------------------- the brain (fixed step)
@@ -439,9 +481,12 @@
         if (e.kind === 'gunner') {
           // long bursts, also at your last known spot (suppression)
           if (e.shotT <= 0 && (canShoot || (IV.time - (e.lkp ? e.lkp.t : 0) < 6))) {
+            // a new burst at you starts with the gunner racking his gun (the telegraph); suppression needs none
+            if (e.burst <= 0 && canShoot && tgt.isPlayer && !(IV.time < (e.teleUntil || 0)) && e.racked !== true) { telegraph(e, A.rackTime, 'rack'); e.racked = true; e.shotT = A.rackTime; return; }
             if (e.burst <= 0) e.burst = 8 + (Math.random() * 10 | 0);
             if (canShoot) shoot(e, tgt, dt); else suppressFire(e, e.lkp);
             e.burst--; e.shotT = e.burst > 0 ? 0.075 : 1.4 + Math.random();
+            if (e.burst <= 0) e.racked = false;
           }
         } else if (e.shotT <= 0 && canShoot) { shoot(e, tgt, dt); e.shotT = e.kind === 'sniper' ? 3.6 + Math.random() : 1.8; }
         if (!e.seeing && IV.time - (e.lkp ? e.lkp.t : 0) > 30) { e.aw = 0.8; e.setState('searching'); }
@@ -474,7 +519,9 @@
       const low = e.cover ? e.cover.low : false;
       e.stance = e.peek ? 'stand' : (low ? 'crouch' : 'stand');
       if (!e.cover) { e.stance = 'crouch'; e.peek = true; }
-      e.actor.setUpper(e.peek ? 'aimIdle' : null);
+      // the rifle comes up to the shoulder only for his own burst (the telegraph) or suppressing fire; peeking while
+      // he waits for his turn he looks over the gun, so who is about to fire at you reads from across the field
+      e.actor.setUpper(e.peek && (AI.tokens.has(e) || IV.time < (e.supUpT || 0) || !tgt.isPlayer) ? 'aimIdle' : null);
       // tall cover (hedge, wall end): side-step out of it to peek
       if (e.cover && !low) { const off = e.peek ? 0.9 : 0; const side = { x: -e.cover.nz, z: e.cover.nx }; e.peekOff = IV.damp(e.peekOff || 0, off, 6, dt); }
       if (e.peek && e.mag > 0 && e.shotT <= 0) {
@@ -510,9 +557,14 @@
     const dx = tp.x - c.x, dz = tp.z - c.z, d = Math.hypot(dx, dz);
     return -(c.nx * dx / d + c.nz * dz / d) < 0.2;
   }
+  // suppressing fire at a remembered spot: rounds land 1.8-4 m round it, so it pins you without being an unannounced
+  // hit (only a token burst, after its telegraph, aims at you)
   function suppressFire(e, at) {
-    const fake = { pos: { x: at.x + (Math.random() - 0.5) * 3, y: W.height(at.x, at.z), z: at.z + (Math.random() - 0.5) * 3 }, chestH: () => 0.6 + Math.random(), isPlayer: false };
-    const save = Math.random; shootAt(e, fake);
+    const a = Math.random() * 6.283, r = 1.8 + Math.random() * 2.2;
+    const fake = { pos: { x: at.x + Math.cos(a) * r, y: W.height(at.x, at.z), z: at.z + Math.sin(a) * r }, chestH: () => 0.4 + Math.random() * 1.4, isPlayer: false };
+    e.supUpT = IV.time + 1.2;
+    IV.emit('enemyFire', { e, atPlayer: false, suppress: true });
+    shootAt(e, fake);
   }
   function shootAt(e, fake) { // fire at a point (no hit decision: the bullet just flies)
     const muz = e.weapon.userData.muzzle.getWorldPosition(new THREE.Vector3());
@@ -553,6 +605,7 @@
   };
   // drawing cost: soldiers off screen (a 1.3 m sphere round the body) are not drawn and animate four times a second;
   // on Low nobody past 140 m is drawn (the frustum is computed once per rendered frame)
+  const _gv = new THREE.Vector3();
   const FR = new THREE.Frustum(), FM = new THREE.Matrix4(), FS = new THREE.Sphere(new THREE.Vector3(), 1.3); let frAt = -1;
   function onScreen(p) {
     if (frAt !== IV.frameNo) { frAt = IV.frameNo; const c = W.camera; c.updateMatrixWorld(); FM.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse); FR.setFromProjectionMatrix(FM); }
@@ -583,6 +636,16 @@
       this.actor.update(this.animAcc); this.animAcc = 0;
     }
     r.visible = seen || d <= 6;
+    // the telegraph's glint at night: a faint spark of light off the raised gun, brightest at the start
+    if (this.glintT > 0 || this.tglint) {
+      this.glintT = Math.max(0, (this.glintT || 0) - dt);
+      if (!this.tglint) { this.tglint = new THREE.Sprite(new THREE.SpriteMaterial({ map: W.tex.glow(), color: 0xfff2d8, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, toneMapped: false, opacity: 0 })); W.dynamic.add(this.tglint); }
+      const m = this.weapon && this.weapon.userData.muzzle, gp = m ? m.getWorldPosition(_gv) : _gv.set(this.pos.x, this.eye(), this.pos.z);
+      this.tglint.position.copy(gp);
+      const k = this.alive && this.glintT > 0 && this.kind !== 'sniper' ? Math.min(1, this.glintT * 3) : 0;
+      this.tglint.material.opacity = 0.32 * k * (0.75 + 0.25 * Math.sin(IV.time * 23 + this.id));
+      const gs = 0.25 + d * 0.008; this.tglint.scale.set(gs, gs, 1); this.tglint.visible = k > 0;
+    }
     // sniper glint: visible while he is aiming your way
     if (this.glint) {
       const aiming = this.alive && this.state === 'combat' && this.seeing;
@@ -595,7 +658,8 @@
 
   // ---------------------------------------------------------------- the manager
   AI.reset = function () {
-    for (const e of AI.list) { e.actor.dispose(); if (e.glint && e.glint.parent) e.glint.parent.remove(e.glint); }
+    for (const e of AI.list) { e.actor.dispose(); if (e.glint && e.glint.parent) e.glint.parent.remove(e.glint); if (e.tglint && e.tglint.parent) e.tglint.parent.remove(e.tglint); }
+    AI.tokens.clear(); AI.lastGrant = -99; AI.teleLog = [];
     AI.list = []; AI.bodies = []; AI.masks = []; AI.maskUntil = 0; AI.loud = false; AI.alarm = null; AI.alarmRung = false; AI.grenadeCool = 0; AI.lastSpotted = -99; AI.spottedCount = 0; AI.ignorePlayer = false;
   };
   AI.spawn = function (o) { const e = new Enemy(o); AI.list.push(e); return e; };
