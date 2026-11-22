@@ -60,6 +60,7 @@
     W.warmShaders();   // the title's shaders compile under the loading bar, not as a freeze after it reaches 100%
     progress(1, '');
     state = 'menu';
+    if (IV.params.has('bench')) { requestAnimationFrame(frame); await loadScript('js/bench.js'); IV.bench.run(IV.params.get('bench')); return; }   // no menus: straight into the bench flight (js/bench.js)
     if (UI.needsGate()) UI.show('gate'); else UI.title();
     requestAnimationFrame(frame);
   }

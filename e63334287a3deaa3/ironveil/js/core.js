@@ -233,8 +233,39 @@
   }
   IV.save = load();
   IV.settings = IV.save.settings;
-  IV.persist = function () { try { localStorage.setItem(KEY, JSON.stringify(IV.save)); } catch (e) {} };
-  IV.reloadSave = function () { IV.save = load(); IV.settings = IV.save.settings; };
+  // Quality for this visit only, never saved: ?q=0|1|2 (Low, Medium, High) wins; otherwise a software renderer
+  // (SwiftShader, llvmpipe, anything 'Software' in the unmasked renderer string) starts on Low unless this browser
+  // already has a saved quality. Not in ?test runs, which choose their quality through the save. If the player picks
+  // a quality in Settings, that choice is saved as usual and the session override ends.
+  IV.qualityOverride = null; IV.qualityWhy = '';
+  {
+    const q = IV.params.get('q');
+    if (q != null && /^[012]$/.test(q)) { IV.qualityOverride = +q; IV.qualityWhy = '?q=' + q; }
+    else {
+      let saved = false; try { const raw = JSON.parse(localStorage.getItem(KEY) || 'null'); saved = !!(raw && raw.settings && raw.settings.quality != null); } catch (e) {}
+      if (!saved && !IV.test) {
+        try {
+          const gl = document.createElement('canvas').getContext('webgl'), ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+          const r = gl ? String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : '';
+          IV.gpuName = r;
+          if (/swiftshader|llvmpipe|softpipe|software/i.test(r)) { IV.qualityOverride = 0; IV.qualityWhy = 'software renderer'; }
+          const lose = gl && gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();
+        } catch (e) {}
+      }
+    }
+    if (IV.qualityOverride != null) { IV.savedQuality = IV.settings.quality; IV.settings.quality = IV.qualityOverride; }
+  }
+  IV.persist = function () {
+    try {
+      let s = IV.save;
+      if (IV.qualityOverride != null) {
+        if (IV.settings.quality !== IV.qualityOverride) IV.qualityOverride = null;   // chosen in Settings: save it
+        else s = Object.assign({}, IV.save, { settings: Object.assign({}, IV.settings, { quality: IV.savedQuality }) });
+      }
+      localStorage.setItem(KEY, JSON.stringify(s));
+    } catch (e) {}
+  };
+  IV.reloadSave = function () { IV.save = load(); IV.settings = IV.save.settings; if (IV.qualityOverride != null) { IV.savedQuality = IV.settings.quality; IV.settings.quality = IV.qualityOverride; } };
   IV.DEF_SETTINGS = DEF_SETTINGS;
 
   // the upper-body clip an actor is playing, for either character set (stand-in: .upper string; chars.js: .curUpper)
