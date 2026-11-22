@@ -143,9 +143,10 @@
         // lightning inside the deck: a glow centred on this strike's direction, strongest where the cloud is thick,
         // with the cloud relief toward it picking out the billows
         if (flash > 0.0) {
-          float fd = max(dot(d, flashDir), 0.0), dens = cov * n;
+          float fd = max(dot(d, flashDir), 0.0), dens = cov * smoothstep(0.3, 0.75, n);
           vec2 fl = normalize(flashDir.xz + 1e-4) * 0.07; float frel = clamp((n - fbm3((cp + fl) * 0.8)) * 4.0, -1.0, 1.0);
-          cc += vec3(0.62, 0.68, 0.86) * flash * (pow(fd, 6.0) * (0.35 + 2.4 * dens * dens) * (1.0 + 0.6 * frel) + 0.06 * dens);
+          float core = pow(fd, 14.0) * (0.15 + 1.6 * dens * dens) * (1.0 + 0.8 * frel), halo = pow(fd, 4.0) * 0.1 * dens;
+          cc += vec3(0.5, 0.56, 0.74) * flash * (core + halo) * 0.55;
         }
         // structure: slow darker bands of heavier cloud base, and (by day) a brighter thin patch toward the hidden sun
         float band = fbm3(cp * 0.33 + vec2(7.0, 1.3));
@@ -287,7 +288,7 @@
           { const az = Math.random() * Math.PI * 2, el = 0.12 + Math.random() * 0.4; sky.uniforms.flashDir.value.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)); }   /* each strike somewhere else in the deck */ const dist = 600 + Math.random() * 2400; if (E.onAmbience) E.onAmbience({ kind: 'thunder', delay: dist / 343, dist }); }   // thunder arrives after the sound delay
         A.flashAge = (A.flashAge == null ? 99 : A.flashAge + dt);
         const f = A.flashAge < 0.07 ? 1 : A.flashAge < 0.16 ? 0 : A.flashAge < 0.24 ? 0.55 : Math.max(0, 0.55 - (A.flashAge - 0.24) * 2.5);
-        hemi.intensity = A.P.hemiI * (1 + f * 2.5); U.uFlash.value = f; sky.uniforms.flash.value = f;
+        hemi.intensity = A.P.hemiI * (1 + f * 1.4); U.uFlash.value = f; sky.uniforms.flash.value = f;
       }
     };
     A.set(preset || 'night_moon');
