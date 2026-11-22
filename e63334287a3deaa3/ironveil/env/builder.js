@@ -33,7 +33,7 @@
   // wall below it in 1-4 streaks across `width` (5-15 cm wide each), up to `len` metres long, darkness k (0..1).
   P.drip = function (x, y, z, nx, nz, width, len, k) {
     const r = E.rng(((x * 73.1 + z * 41.7 + y * 13.3) * 100) | 0), L = Math.hypot(nx, nz) || 1;
-    const d = { x, y, z, nx: nx / L, nz: nz / L, s: [] }, n = Math.max(1, Math.min(width > 2.5 ? 99 : 4, Math.round(width / 0.9 + r() * 2.5)));
+    const d = { x, y, z, nx: nx / L, nz: nz / L, s: [], len: len || 1 }, n = Math.max(1, Math.min(width > 2.5 ? 6 : 3, Math.round(width / 1.6 + r() * 1.5)));   // (each streak adds grid lines: few, well chosen)
     for (let i = 0; i < n; i++) d.s.push({ c: (r() - 0.5) * width * 0.92, hw: 0.025 + r() * 0.05, len: (len || 1) * (0.35 + r() * 0.65), k: (k || 0.22) * (0.6 + r() * 0.5), top: r() * 0.04 });
     this.drips.push(d);
   };
@@ -238,12 +238,12 @@
       const { a, b, d, uv, n } = q, du = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], dvv = [d[0] - a[0], d[1] - a[1], d[2] - a[2]];
       const Lu = Math.hypot(du[0], du[1], du[2]), Lv = Math.hypot(dvv[0], dvv[1], dvv[2]);
       const us = new Set([0, 1]), vs = new Set([0, 1]);
-      for (let i = 1; i < Math.ceil(Lu / 0.75); i++) us.add(i / Math.ceil(Lu / 0.75));
+      for (let i = 1; i < Math.ceil(Lu / 1.1); i++) us.add(i / Math.ceil(Lu / 1.1));
       for (let i = 1; i < Math.ceil(Lv / 1.5); i++) vs.add(i / Math.ceil(Lv / 1.5));   // rows only where wear needs them (grime band, drips)
       // u runs along the wall (horizontal), v up it: true for every wall quad the kit makes (wallRun, gables use tri)
       const vy = dvv[1] / (Lv || 1);
       if (Math.abs(vy) > 0.9) {
-        for (const h of [0.08, 0.25, 0.45, 0.7]) { const t = (q.foot + h - a[1]) / dvv[1]; if (t > 0.01 && t < 0.99) vs.add(t); }
+        for (const h of [0.2, 0.62]) { const t = (q.foot + h - a[1]) / dvv[1]; if (t > 0.01 && t < 0.99) vs.add(t); }
         let used = false;
         for (const dr of this.drips) {
           if (n[0] * dr.nx + n[2] * dr.nz < 0.8) continue;
@@ -252,12 +252,13 @@
           const ta = (a[0] - dr.x) * -dr.nz + (a[2] - dr.z) * dr.nx, tu = (du[0] * -dr.nz + du[2] * dr.nx) / (Lu || 1);
           if (Math.abs(tu) < 0.5) continue;
           for (const st of dr.s) for (const e of [-1, 0, 1]) { const t = (st.c + e * st.hw - ta) / (tu * Lu); if (t > 0.002 && t < 0.998) { us.add(t); used = true; } }
-          if (used) for (const st of dr.s) for (const h of [0, 0.3, 0.65]) { const t = (dr.y - h * st.len - a[1]) / dvv[1]; if (t > 0.01 && t < 0.99) vs.add(t); }
+          if (used) for (const h of [0.02, 0.4, 0.95]) { const t = (dr.y - h * dr.len - a[1]) / dvv[1]; if (t > 0.01 && t < 0.99) vs.add(t); }   // rows per drip, not per streak
         }
       }
       let U = [...us].sort((x, y) => x - y), V = [...vs].sort((x, y) => x - y);
-      if (U.length > 40) U = U.filter((x, i) => i % 2 === 0 || i === U.length - 1);
-      if (V.length > 24) V = V.filter((x, i) => i % 2 === 0 || i === V.length - 1);
+      // hard caps per quad (a wall face between openings): at most 26 columns and 9 rows
+      const thin = (A, n) => { while (A.length > n) A = A.filter((x, i) => i === 0 || i === A.length - 1 || i % 2 === 1); return A; };
+      U = thin(U, 26); V = thin(V, 9);
       const B = this.bucket(q.mat), base = B.p.length / 3, nu = U.length;
       for (const tv of V) for (const tu of U) {
         const x = a[0] + du[0] * tu + dvv[0] * tv, y = a[1] + du[1] * tu + dvv[1] * tv, z = a[2] + du[2] * tu + dvv[2] * tv;
