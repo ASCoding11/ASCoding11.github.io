@@ -239,7 +239,7 @@
     if (fpArms) { if (model) model.userData.kickT = 1; }
     else if (part(model, (PART_KIND[k] || k) + '_ejection')) WP.gunShot(model, PART_KIND[k] || k);   // bolt kick and a case from the ejection port
     else if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
-    IV.audio && IV.audio.play(k, { x: mz.x, z: mz.z });
+    IV.audio && IV.audio.play(k, { x: mz.x, z: mz.z, own: true });
     IV.ai && IV.ai.noise(P.pos.x, P.pos.z, w.noise, 'shot', P);
     // recoil (TUNING.weapons.recoil): rifle one heavy kick, SMG a per-shot climb schedule with a slow sideways
     // wander, pistol a sharp snap; a kept part stays in the aim, the rest springs back after the trigger is let go

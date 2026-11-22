@@ -357,8 +357,10 @@
     if (e === 'magOut') A && A.play('magOut');
     else if (e === 'magIn') { A && A.play('magIn'); if (rel) WP.magIn && WP.magIn(); }
     else if (e === 'done' && rel) WP.reloadDone && WP.reloadDone();
-    else if (e === 'boltUp' || e === 'boltDown') A && A.play('click', { f: 2600, vol: 0.35 });
-    else if (e === 'boltBack' || e === 'boltForward') A && A.play('click', { f: 3300, vol: 0.45 });
+    else if (e === 'boltUp') A && A.play('boltUp');
+    else if (e === 'boltBack') A && A.play('boltBack');
+    else if (e === 'boltForward') A && A.play('boltFwd');
+    else if (e === 'boltDown') A && A.play('boltDown');
     else if (e === 'eject') caseFrom(v);
     else if (e === 'shot' && v.kind !== 'rifleScoped') caseFrom(v);
     else if (e === 'charge' || e === 'slide') A && A.play('click', { f: 2900, vol: 0.45 });

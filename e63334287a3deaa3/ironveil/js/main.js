@@ -193,6 +193,7 @@
     guard('world.frame', W.frame, dt, IV.player.render);
     if (M.def && M.def.frame) guard('mission.frame', M.def.frame, M, dt);
     guard('hud.frame', IV.hud.frame, dt);
+    guard('audio.frame', IV.audio.frame, dt);
     guard('touch.frame', IV.touchUI.frame);
     guard('draw', W.draw, dt);
   }
