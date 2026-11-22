@@ -153,8 +153,12 @@ from the new path, and check Midnight Ops still plays. Don't copy and diverge.
 
 - **Allowed:** CC0 and public domain, used freely. **CC BY 4.0** is allowed with a CREDITS row (title, author,
   link, licence, what was changed). MIT for code.
-- **Not allowed:** any NonCommercial licence (NC). The site runs ads on ascoding11.com, so it counts as commercial.
-  Also not allowed: "editorial use only", models labelled as ripped or extracted from another game (for example
+- **NonCommercial (CC BY-NC) is allowed too.** The site is ad-free and just for fun (November 2026: ads removed after
+  the AdSense rejection). Mark every NC asset as "NC" in its CREDITS row. If the site ever shows ads or earns money
+  again, those rows are the list of assets to replace first. Prefer CC0 or CC BY when an equally good option exists.
+- **Skip models tagged "NoAI"** on Sketchfab. Their terms forbid using them as input to AI programs, and the
+  processing here (demarking, cutting, packing) is done by an AI.
+- **Not allowed:** "editorial use only", models labelled as ripped or extracted from another game (for example
   World of Warships, War Thunder, Steel Armor or Strike Fighters assets re-uploaded by fans), paid marketplace models
   unless Arjun buys them, and anything whose licence you can't see on the page.
 - Every game keeps `CREDITS.md` (plus `CREDITS-*.md` per area) with one row per outside asset, as Midnight Ops does.
