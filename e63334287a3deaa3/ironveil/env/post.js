@@ -46,7 +46,10 @@
     night: { sat: 0.72, shadow: [0.92, 1.0, 1.12], high: [1.05, 1.0, 0.93], lift: 0.012, vig: 0.9, grain: 0.035, bloom: 0.55, thr: 0.9 },
     dawn: { sat: 0.82, shadow: [0.95, 1.0, 1.06], high: [1.05, 1.0, 0.94], lift: 0.01, vig: 0.75, grain: 0.03, bloom: 0.4, thr: 1.4 },
     rain: { sat: 0.66, shadow: [0.94, 1.0, 1.08], high: [1.0, 1.0, 0.98], lift: 0.012, vig: 0.85, grain: 0.035, bloom: 0.5, thr: 1.0 },
-    day: { sat: 0.78, shadow: [0.97, 1.0, 1.04], high: [1.03, 1.0, 0.96], lift: 0.008, vig: 0.65, grain: 0.025, bloom: 0.25, thr: 2.5 }
+    day: { sat: 0.78, shadow: [0.97, 1.0, 1.04], high: [1.03, 1.0, 0.96], lift: 0.008, vig: 0.65, grain: 0.025, bloom: 0.25, thr: 2.5 },
+    // Ironwing (the air game): open sea haze, cooler and lower contrast; sunset over water, warm highs and blue shadows
+    sea: { sat: 0.86, shadow: [0.95, 1.0, 1.07], high: [1.03, 1.0, 0.97], lift: 0.012, vig: 0.55, grain: 0.02, bloom: 0.3, thr: 2.2 },
+    sunset: { sat: 0.88, shadow: [0.9, 0.97, 1.12], high: [1.08, 0.99, 0.9], lift: 0.014, vig: 0.7, grain: 0.025, bloom: 0.45, thr: 1.5 }
   };
 
   E.post = function (renderer, scene, camera, quality) {

@@ -227,6 +227,15 @@ gravity and wind, and stealth light from game data. Missions 2 to 8 are already 
 - The flight model runs in the fixed step: lift, drag, thrust and control surfaces with numbers in `TUNING`.
 - Aim assist stays on the series' difficulty scale.
 
+**Ironwing (`ironwing/`) is the aircraft entry** and the reference for the next vehicle game: the flight model and
+mouse-aim instructor (`js/flight.js`), decks and runways as moving frames you land on (`IW.units.decks()`), AI aircraft
+on a kinematic model with roles (`js/units.js`), one wave function shared by the ocean shader and ship buoyancy
+(`js/world.js`), projectile combat against gameplay volumes (`js/combat.js`), and missions as data with checkpoints
+that remember what was destroyed (`js/mission.js`). It loads only `texgen.js`, `core.js` and `post.js` from
+`ironveil/env/` (for the post stack and its quality table) and added the `sea` and `sunset` grades there. The kit has
+not moved to a shared folder yet: do that, in its own commit, when a game needs more of it than the post stack. A
+chase camera did fine with a 3 m near plane and a 36 km far plane, no logarithmic depth buffer.
+
 **Naval.**
 - Ocean from `Water.js` (r128) plus a sea HDRI or `Sky.js`.
 - Buoyancy samples the **same** wave function the water shader uses at the hull's `buoyancy` points, so ships never

@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>
+/* PREVIEW GATE. While IW_PREVIEW is true the game is a private preview: it runs only in a browser that holds the
+   preview flag (sessionStorage or localStorage 'ironwing:preview' = '1', set by the "Ironwing (preview)" button on the
+   admin page). Without the flag the page shows "Not available yet" and loads none of the game's scripts. Set it to
+   false to open the game to everyone (then add its card, phone row and What's new entry). This is page-only gating,
+   like Midnight Ops': anyone who reads the source can set the flag. It is not security. */
+window.IW_PREVIEW = true;
+(function () {
+  if (!window.IW_PREVIEW) return;
+  var ok = false;
+  try { ok = sessionStorage.getItem('ironwing:preview') === '1' || localStorage.getItem('ironwing:preview') === '1'; } catch (e) {}
+  if (ok) { try { sessionStorage.setItem('ironwing:preview', '1'); } catch (e) {} return; }
+  window.IW_LOCKED = true;
+})();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ironwing</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<script>if (!window.IW_LOCKED) document.write('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;800&family=Special+Elite&family=Barlow+Condensed:wght@400;500;600;700&display=swap">');</script>
+<style>
+/* Ironwing (folder ironwing/; the display name lives in IW.GAME_NAME in js/core.js). The air entry in the Midnight Ops
+   war series: the same type, brass accent and panel style, moved from olive to a naval slate. Full-bleed WebGL; the
+   HUD is a canvas (instruments, reticles, markers) plus a few DOM lines (objectives, radio, prompts). */
+:root{
+  --ink:#e4e0d2; --ink-dim:rgba(228,224,210,.6);
+  --slate:#1c2731; --slate-d:#0e151b;
+  --khaki:#c9b993; --brass:#d8ac4e; --warn:#e8c547; --danger:#d4503a; --ally:#7fc4ff; --foe:#ff8a5c;
+  --panel:rgba(9,14,19,.86); --line:rgba(228,224,210,.18);
+  --f-stencil:'Big Shoulders Stencil Display','Impact',sans-serif;
+  --f-type:'Special Elite','Courier New',monospace;
+  --f-ui:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:#0b1117;color:var(--ink)}
+body{font-family:var(--f-ui);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden}
+#view{display:block;position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#hudc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+#cloudfog{position:absolute;inset:0;pointer-events:none;background:#dfe6ea;opacity:0}
+#dmg{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(140,20,0,.5) 85%,rgba(90,0,0,.75) 100%)}
+#fade{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;transition:opacity .6s}
+
+/* ---------------- HUD (DOM parts) ---------------- */
+#hud{position:absolute;inset:0;pointer-events:none;font-variant-numeric:tabular-nums}
+#hud .pad{position:absolute;inset:calc(14px + env(safe-area-inset-top,0px)) calc(18px + env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) calc(18px + env(safe-area-inset-left,0px))}
+#obj{position:absolute;left:0;top:0;max-width:min(380px,40vw);display:flex;flex-direction:column;gap:6px}
+#obj .head{font-family:var(--f-stencil);font-weight:800;letter-spacing:.14em;font-size:13px;color:var(--brass);text-transform:uppercase}
+#obj .o{display:flex;gap:8px;align-items:flex-start;font-size:17px;line-height:1.15;text-shadow:0 1px 2px #000,0 0 8px rgba(0,0,0,.6)}
+#obj .o i{flex:0 0 12px;height:12px;margin-top:3px;border:1.5px solid var(--ink);transform:rotate(45deg) scale(.8)}
+#obj .o.done{opacity:.55;text-decoration:line-through}
+#obj .o.done i{background:var(--ink)}
+#obj .o.failed{opacity:.55;color:var(--danger)}
+#obj .o.opt{color:var(--khaki)}
+#obj .o.opt i{border-style:dashed}
+#obj .o.new{animation:objin .9s ease-out}
+@keyframes objin{0%{transform:translateX(-12px);opacity:0;color:var(--brass)}60%{color:var(--brass)}100%{transform:none;opacity:1}}
+#sub{position:absolute;left:50%;top:calc(76px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:min(560px,46vw);text-align:left;
+  font-family:var(--f-type);font-size:18px;line-height:1.35;background:rgba(8,12,16,.66);padding:8px 16px;border-left:3px solid var(--brass);color:#f1ecdc}
+#sub .who{color:var(--brass);margin-right:.5em}
+#prompt{position:absolute;left:50%;bottom:calc(140px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:10px;font-size:19px;letter-spacing:.04em;text-shadow:0 1px 3px #000;white-space:nowrap}
+#prompt kbd{font:600 15px var(--f-ui);border:1.5px solid var(--ink);padding:2px 8px;border-radius:3px;background:rgba(0,0,0,.35);min-width:28px;text-align:center;text-transform:uppercase}
+#prompt .bar{width:120px;height:4px;background:rgba(228,224,210,.25)}
+#prompt .bar i{display:block;height:100%;width:0;background:var(--brass)}
+#toast{position:absolute;left:50%;top:24%;transform:translateX(-50%);font-family:var(--f-stencil);font-weight:800;letter-spacing:.18em;font-size:22px;color:var(--khaki);text-transform:uppercase;text-shadow:0 1px 3px #000;opacity:0;transition:opacity .3s;white-space:nowrap}
+#toast.on{opacity:1}
+#feed{position:absolute;right:0;top:190px;display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:15px;letter-spacing:.05em;text-shadow:0 1px 2px #000}
+#feed div{background:rgba(8,12,16,.5);padding:2px 10px;border-right:3px solid var(--foe);animation:objin .5s ease-out}
+#feed div.ally{border-right-color:var(--ally)}
+
+/* ---------------- Screens ---------------- */
+.screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow:auto}
+.dim{background:linear-gradient(90deg,rgba(6,10,14,.9) 0%,rgba(6,10,14,.62) 46%,rgba(6,10,14,.1) 100%)}
+.dimc{background:rgba(6,10,14,.72)}
+.logo{font-family:var(--f-stencil);font-weight:800;font-size:clamp(56px,11vw,128px);line-height:.85;letter-spacing:.06em;color:var(--khaki);text-shadow:0 2px 0 #2b3138,0 6px 24px rgba(0,0,0,.6);margin:0}
+.tag{font-family:var(--f-type);font-size:clamp(15px,2vw,19px);color:var(--ink-dim);margin:10px 0 0;letter-spacing:.04em}
+#title{justify-content:flex-start}
+#title .col{width:min(440px,100%);margin-left:clamp(0px,6vw,90px);display:flex;flex-direction:column;gap:22px}
+.menu{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.mi{display:flex;align-items:baseline;gap:12px;background:none;border:0;border-left:3px solid transparent;text-align:left;padding:9px 14px;font-size:24px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.mi small{font-size:15px;font-weight:400;letter-spacing:.02em;text-transform:none;color:var(--ink-dim)}
+.mi:hover,.mi:focus-visible{background:linear-gradient(90deg,rgba(216,172,78,.18),transparent);border-left-color:var(--brass);padding-left:20px;outline:none}
+.mi:disabled{opacity:.42;cursor:default}
+.foot{font-size:13px;color:var(--ink-dim);letter-spacing:.04em;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.foot a{color:var(--ink-dim)}
+.panel{background:var(--panel);border:1px solid var(--line);padding:22px 24px;width:min(780px,100%);max-height:100%;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.panel h2{font-family:var(--f-stencil);font-weight:800;font-size:30px;letter-spacing:.12em;margin:0 0 4px;color:var(--khaki);text-transform:uppercase}
+.panel .sub{color:var(--ink-dim);margin:0 0 16px;font-size:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{background:transparent;border:1.5px solid var(--ink-dim);color:var(--ink);padding:9px 18px;font-size:18px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.btn:hover{border-color:var(--ink);background:rgba(228,224,210,.06)}
+.btn.cta{background:var(--brass);border-color:var(--brass);color:#16130b}
+.btn.cta:hover{background:#e6bc5f}
+.btn.ghost{border-color:transparent;color:var(--ink-dim)}
+.btn.sel{border-color:var(--brass);color:var(--brass)}
+.missions{display:flex;flex-direction:column;gap:6px;margin:6px 0 16px}
+.ms{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;text-align:left;background:rgba(228,224,210,.03);border:1px solid var(--line);padding:10px 14px;color:var(--ink)}
+.ms:not(:disabled):hover{border-color:var(--brass);background:rgba(216,172,78,.09)}
+.ms:disabled{opacity:.45;cursor:default}
+.ms .n{font-family:var(--f-stencil);font-size:26px;font-weight:800;color:var(--khaki);text-align:center}
+.ms .t{font-size:20px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.ms .l{font-size:15px;color:var(--ink-dim)}
+.ms .kind{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--brass);margin-left:8px}
+.medal{width:26px;height:26px;border-radius:50%;border:2px solid rgba(228,224,210,.25)}
+.medal.gold{background:radial-gradient(circle at 35% 30%,#ffe9a0,#c89a2c 60%,#7b5a12);border-color:#e7c56a}
+.medal.silver{background:radial-gradient(circle at 35% 30%,#fff,#b8bec4 60%,#666c72);border-color:#d6dade}
+.medal.bronze{background:radial-gradient(circle at 35% 30%,#f2c39a,#a8642e 60%,#5e3414);border-color:#c98a56}
+.brief{font-family:var(--f-type);font-size:17px;line-height:1.5;background:#e8ddc3;color:#26231a;padding:18px 22px;margin:0 0 16px;box-shadow:inset 0 0 40px rgba(120,90,40,.25)}
+.brief p{margin:0 0 10px}
+.brief .stamp{display:inline-block;border:2px solid #8f2b1d;color:#8f2b1d;padding:2px 10px;font-family:var(--f-stencil);font-weight:800;letter-spacing:.2em;transform:rotate(-3deg);margin-bottom:10px}
+.crit{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:6px}
+.crit li{display:flex;gap:10px;align-items:center;font-size:17px}
+.crit li i{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink-dim);flex:0 0 14px}
+.crit li.ok i{background:var(--brass);border-color:var(--brass)}
+.crit li.no{color:var(--ink-dim)}
+.set{display:grid;grid-template-columns:minmax(140px,1fr) 2fr;gap:12px 16px;align-items:center;margin:0 0 18px;font-size:18px}
+.set select,.set input[type=range]{width:100%;font:inherit;font-size:17px;background:#111a22;color:var(--ink);border:1px solid var(--line);padding:4px 8px}
+.set input[type=checkbox]{width:22px;height:22px;justify-self:start;accent-color:var(--brass)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:16px;margin:0 0 16px}
+.keys kbd{font:600 14px var(--f-ui);border:1.5px solid var(--ink-dim);padding:1px 7px;border-radius:3px;margin-right:4px;white-space:nowrap}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:0 0 16px}
+.res div{background:rgba(228,224,210,.04);border:1px solid var(--line);padding:8px 12px}
+.res b{display:block;font-size:24px}
+.res span{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim)}
+.big-medal{display:flex;gap:16px;align-items:center;margin:8px 0 16px}
+.big-medal .m{width:64px;height:64px;border-radius:50%;border:3px solid rgba(228,224,210,.25)}
+.big-medal .m.gold{background:radial-gradient(circle at 35% 30%,#ffe9a0,#c89a2c 60%,#7b5a12);border-color:#e7c56a}
+.big-medal .m.silver{background:radial-gradient(circle at 35% 30%,#fff,#b8bec4 60%,#666c72);border-color:#d6dade}
+.big-medal .m.bronze{background:radial-gradient(circle at 35% 30%,#f2c39a,#a8642e 60%,#5e3414);border-color:#c98a56}
+#loading .bar{width:min(420px,80vw);height:4px;background:rgba(228,224,210,.18);margin:14px 0 8px}
+#loading .bar i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
+#loading p{font-family:var(--f-type);color:var(--ink-dim);margin:0}
+#gate .panel{width:min(560px,100%)}
+#err{position:absolute;left:12px;right:12px;bottom:12px;background:#3a0f0a;color:#ffd9cf;padding:10px 14px;font:14px/1.4 monospace;white-space:pre-wrap;z-index:50}
+
+/* ---------------- Touch ---------------- */
+#touch{position:absolute;inset:0;pointer-events:none;display:none}
+body.touch.playing #touch{display:block}
+#touch .b{position:absolute;pointer-events:auto;border-radius:50%;border:2px solid rgba(228,224,210,.55);background:rgba(10,15,20,.38);color:var(--ink);font:700 14px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;display:grid;place-items:center;touch-action:none}
+#touch .b.on{background:rgba(216,172,78,.45);border-color:var(--brass)}
+#tLook{position:absolute;left:40%;right:0;top:0;bottom:0;pointer-events:auto;touch-action:none}
+#tStick{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:150px;height:150px;border-radius:50%;border:2px solid rgba(228,224,210,.4);background:rgba(10,15,20,.25);pointer-events:auto;touch-action:none}
+#tStick i{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;background:rgba(228,224,210,.55)}
+#tThr{position:absolute;left:calc(190px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:46px;height:150px;border-radius:23px;border:2px solid rgba(228,224,210,.4);background:rgba(10,15,20,.3);pointer-events:auto;touch-action:none}
+#tThr i{position:absolute;left:4px;right:4px;bottom:4px;height:30%;border-radius:18px;background:rgba(216,172,78,.6)}
+#tThr span{position:absolute;left:0;right:0;top:-20px;text-align:center;font:700 12px var(--f-ui);letter-spacing:.1em}
+#tFire{right:calc(26px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:96px;height:96px;font-size:17px}
+#tBomb{right:calc(136px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));width:64px;height:64px}
+#tRkt{right:calc(40px + env(safe-area-inset-right,0px));bottom:calc(140px + env(safe-area-inset-bottom,0px));width:64px;height:64px}
+#tGear{right:calc(126px + env(safe-area-inset-right,0px));bottom:calc(112px + env(safe-area-inset-bottom,0px));width:52px;height:52px;font-size:12px}
+#tLand{right:calc(190px + env(safe-area-inset-right,0px));bottom:calc(112px + env(safe-area-inset-bottom,0px));width:52px;height:52px;font-size:12px}
+#tPause{right:calc(12px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));width:44px;height:44px;font-size:18px}
+body.touch #obj{max-width:min(300px,44vw)}
+body.touch #obj .o{font-size:14px}
+body.touch #sub{top:calc(58px + env(safe-area-inset-top,0px));font-size:14px;max-width:44vw}
+body.touch #feed{top:60px;font-size:12px}
+body.touch #prompt{bottom:auto;top:30%;font-size:16px}
+#portrait{flex-direction:column;gap:14px;background:rgba(6,10,14,.94);text-align:center;z-index:40}
+#portrait svg{width:64px;height:64px;animation:rot 2.4s ease-in-out infinite}
+@keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+@media (prefers-reduced-motion:reduce){#portrait svg{animation:none}#obj .o.new{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+  <div id="cloudfog"></div>
+  <canvas id="hudc"></canvas>
+  <div id="dmg"></div>
+  <div id="hud" hidden>
+    <div class="pad">
+      <div id="obj"><div class="head" id="objHead">Objectives</div><div id="objList"></div></div>
+      <div id="feed"></div>
+      <div id="toast"></div>
+    </div>
+    <div id="sub" hidden><span class="who" id="subWho"></span><span id="subTx"></span></div>
+    <div id="prompt" hidden><kbd id="promptKey"></kbd><span id="promptTx"></span><span class="bar" id="promptBar" hidden><i></i></span></div>
+  </div>
+  <div id="touch">
+    <div id="tLook"></div>
+    <div id="tStick"><i></i></div>
+    <div id="tThr"><span>THR</span><i></i></div>
+    <button class="b" id="tFire" data-no-ad-refresh>Fire</button>
+    <button class="b" id="tBomb" data-no-ad-refresh>Bomb</button>
+    <button class="b" id="tRkt" data-no-ad-refresh>Rkt</button>
+    <button class="b" id="tGear" data-no-ad-refresh>Gear</button>
+    <button class="b" id="tLand" data-no-ad-refresh>Land</button>
+    <button class="b" id="tPause" data-no-ad-refresh aria-label="Pause">II</button>
+  </div>
+  <div id="fade"></div>
+
+  <!-- Content note, shown before the title until accepted (localStorage ironwing:terms) -->
+  <div id="gate" class="screen dimc" hidden>
+    <div class="panel">
+      <h2>Before you fly</h2>
+      <p class="sub" id="gateTx"></p>
+      <p class="sub">There is no blood in this game. Aircraft and ships are shot down and sunk; their crews are never shown. Every unit marking is invented and no real nation, insignia or person appears.</p>
+      <div class="row"><button class="btn cta" id="gateOk">I understand, continue</button><a class="btn ghost" href="/e63334287a3deaa3/">Back</a></div>
+    </div>
+  </div>
+
+  <div id="loading" class="screen" hidden>
+    <div><h1 class="logo" id="loadLogo" style="font-size:clamp(44px,8vw,86px)"></h1><div class="bar"><i id="loadBar"></i></div><p id="loadTx">Loading…</p></div>
+  </div>
+
+  <div id="title" class="screen dim" hidden>
+    <div class="col">
+      <div><h1 class="logo" id="logo"></h1><p class="tag">Carrier fighters, the open sea and the islands. A Midnight Ops story.</p></div>
+      <div class="menu">
+        <button class="mi" id="mContinue">Continue <small id="mContinueTx"></small></button>
+        <button class="mi" data-go="campaign">Missions</button>
+        <button class="mi" data-go="settings">Settings</button>
+        <button class="mi" data-go="controls">Controls</button>
+      </div>
+      <div class="foot"><a href="/e63334287a3deaa3/">← Back Room</a><span id="previewTag"></span></div>
+    </div>
+  </div>
+
+  <div id="campaign" class="screen dimc" hidden>
+    <div class="panel">
+      <h2>Flight plan</h2>
+      <p class="sub">Each mission unlocks the next. Medals: meet all three goals for gold, two for silver, one for bronze.</p>
+      <div class="missions" id="missionList"></div>
+      <div class="row"><span style="font-size:16px;color:var(--ink-dim)">Difficulty</span>
+        <button class="btn" data-diff="0">Recruit</button><button class="btn" data-diff="1">Regular</button><button class="btn" data-diff="2">Veteran</button>
+        <span style="flex:1"></span><button class="btn ghost" data-go="title">Back</button></div>
+    </div>
+  </div>
+
+  <div id="briefing" class="screen dimc" hidden>
+    <div class="panel">
+      <h2 id="bTitle"></h2>
+      <p class="sub" id="bLine"></p>
+      <div class="brief" id="bText"></div>
+      <ul class="crit" id="bCrit"></ul>
+      <div class="row"><button class="btn cta" id="bGo">Launch</button><button class="btn" id="bCp" hidden>From checkpoint</button><button class="btn ghost" data-go="campaign">Back</button></div>
+    </div>
+  </div>
+
+  <div id="pause" class="screen dimc" hidden>
+    <div class="panel" style="width:min(520px,100%)">
+      <h2>Paused</h2>
+      <p class="sub" id="pauseObj"></p>
+      <div class="menu">
+        <button class="mi" id="pResume">Resume</button>
+        <button class="mi" id="pCp">Restart from checkpoint</button>
+        <button class="mi" id="pRestart">Restart mission</button>
+        <button class="mi" data-go="settings">Settings</button>
+        <button class="mi" data-go="controls">Controls</button>
+        <button class="mi" id="pQuit">Quit to flight plan</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings" class="screen dimc" hidden>
+    <div class="panel" style="width:min(620px,100%)">
+      <h2>Settings</h2>
+      <div class="set">
+        <label for="sQ">Graphics</label><select id="sQ"><option value="0">Low (fast)</option><option value="1">Medium</option><option value="2">High</option></select>
+        <label for="sCtl">Mouse flying</label><select id="sCtl"><option value="aim">Mouse aim (plane follows the camera)</option><option value="direct">Direct (mouse moves the stick)</option></select>
+        <label for="sSens">Mouse speed</label><input id="sSens" type="range" min="0.3" max="2.5" step="0.05">
+        <label for="sInv">Invert pitch (direct)</label><input id="sInv" type="checkbox">
+        <label for="sAssist">Aim assist</label><input id="sAssist" type="range" min="0" max="1" step="0.05">
+        <label for="sBright">Brightness</label><input id="sBright" type="range" min="0.7" max="1.4" step="0.02">
+        <label for="sVol">Volume</label><input id="sVol" type="range" min="0" max="1" step="0.02">
+        <label for="sMotion">Reduced motion</label><input id="sMotion" type="checkbox">
+        <label for="sMute">Mute (M)</label><input id="sMute" type="checkbox">
+      </div>
+      <div class="row"><button class="btn cta" data-go="back">Done</button></div>
+    </div>
+  </div>
+
+  <div id="controls" class="screen dimc" hidden>
+    <div class="panel" style="width:min(640px,100%)">
+      <h2>Controls</h2>
+      <div class="keys">
+        <span>Mouse</span><span>Aim: the plane turns to follow your aim (Settings can switch to direct)</span>
+        <span><kbd>Click</kbd><kbd>Space</kbd></span><span>Guns</span>
+        <span><kbd>Right click</kbd><kbd>B</kbd></span><span>Drop a bomb (the ring shows where it will land)</span>
+        <span><kbd>R</kbd></span><span>Fire a rocket</span>
+        <span><kbd>W</kbd> <kbd>S</kbd></span><span>Throttle up / down (S at zero on a deck brakes)</span>
+        <span><kbd>A</kbd> <kbd>D</kbd></span><span>Roll</span>
+        <span><kbd>Q</kbd> <kbd>E</kbd></span><span>Rudder (steers on the deck)</span>
+        <span><kbd>↑</kbd> <kbd>↓</kbd></span><span>Nose down / up by hand</span>
+        <span><kbd>G</kbd> <kbd>F</kbd></span><span>Landing gear (and hook) / flaps</span>
+        <span><kbd>L</kbd> hold</span><span>Auto-land on the nearest friendly deck or runway</span>
+        <span><kbd>C</kbd> hold</span><span>Look around freely</span>
+        <span><kbd>T</kbd></span><span>Next target marker</span>
+        <span><kbd>Esc</kbd> <kbd>M</kbd></span><span>Pause / mute</span>
+      </div>
+      <p class="sub">On a phone: stick on the left to fly, throttle bar above it, drag on the right to look. Land and Gear are in the lower right.</p>
+      <div class="row"><button class="btn cta" data-go="back">Done</button></div>
+    </div>
+  </div>
+
+  <div id="results" class="screen dimc" hidden>
+    <div class="panel">
+      <h2 id="rTitle">Mission complete</h2>
+      <div class="big-medal"><div class="m" id="rMedal"></div><div><div id="rMedalTx" style="font-size:22px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"></div><div id="rDiff" style="color:var(--ink-dim)"></div></div></div>
+      <ul class="crit" id="rCrit"></ul>
+      <div class="res" id="rStats"></div>
+      <div class="row"><button class="btn cta" id="rNext">Continue</button><button class="btn" id="rRetry">Replay</button><button class="btn ghost" data-go="campaign">Flight plan</button></div>
+    </div>
+  </div>
+
+  <div id="failed" class="screen dimc" hidden>
+    <div class="panel" style="width:min(560px,100%)">
+      <h2>Mission failed</h2>
+      <p class="sub" id="fWhy"></p>
+      <div class="row"><button class="btn cta" id="fCp">From checkpoint</button><button class="btn" id="fRestart">Restart</button><button class="btn ghost" data-go="campaign">Flight plan</button></div>
+    </div>
+  </div>
+
+  <div id="portrait" class="screen" hidden>
+    <svg viewBox="0 0 48 48" fill="none" stroke="#e4e0d2" stroke-width="2.5" stroke-linecap="round"><rect x="15" y="6" width="18" height="36" rx="3"/><path d="M22 37h4"/></svg>
+    <p id="portraitTx"></p>
+    <button class="btn" id="portraitGo" style="pointer-events:auto">Play upright anyway</button>
+  </div>
+  <div id="err" hidden></div>
+</div>
+<div id="iwLocked" style="position:fixed;inset:0;z-index:99;display:none;place-items:center;background:#0b1117;color:#e4e0d2;font:500 18px/1.4 system-ui,sans-serif;text-align:center;padding:24px">
+  <div><p style="font-size:26px;font-weight:700;margin:0 0 10px">Not available yet</p><p style="margin:0 0 18px;opacity:.75">This game is still being made.</p><a href="/e63334287a3deaa3/" style="color:#d8ac4e">Back to the Back Room</a></div>
+</div>
+
+<script>
+/* the game's scripts, in order (dynamic scripts with async=false run in insertion order). Not loaded at all while the
+   preview gate is closed; play-time counting (stats.js) only once the game is public. The post stack is Midnight Ops'
+   own (../ironveil/env/, shared, not copied): texgen.js and core.js give it the quality table it reads. */
+(function () {
+  if (window.IW_LOCKED) { document.getElementById('iwLocked').style.display = 'grid'; document.getElementById('app').hidden = true; return; }
+  var L = ['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', '../autores.js', '../ironveil/env/texgen.js', '../ironveil/env/core.js', '../ironveil/env/post.js',
+    'js/core.js', 'js/audio.js', 'js/input.js', 'js/world.js', 'js/art.js', 'js/fx.js', 'js/flight.js', 'js/combat.js', 'js/units.js', 'js/mission.js',
+    'js/missions/school.js', 'js/missions/dawnstrike.js', 'js/missions/atoll.js', 'js/missions/fleetshield.js', 'js/missions/reefraid.js',
+    'js/hud.js', 'js/touch.js', 'js/menus.js', 'js/main.js', '/analytics/tracker.js'];
+  if (!window.IW_PREVIEW) L.unshift('/e63334287a3deaa3/stats.js');
+  L.forEach(function (src) { var s = document.createElement('script'); s.src = src; s.async = false; if (/stats\.js$/.test(src)) s.setAttribute('data-game', 'ironwing'); document.body.appendChild(s); });
+})();
+</script>
+</body>
+</html>
