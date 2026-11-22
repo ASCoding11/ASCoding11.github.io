@@ -297,10 +297,15 @@
       // low spots: the ground minus the ground blurred over ~7 m (box blur, two passes)
       const blur = (src, r) => { const t = new Float32Array(src.length), out = new Float32Array(src.length); for (let pass = 0; pass < 2; pass++) { const a = pass ? t : src, b = pass ? out : t; for (let j = 0; j < cw; j++) for (let i = 0; i < cw; i++) { let s = 0, n = 0; for (let q = -r; q <= r; q++) { const ii = pass ? i : Math.min(cw - 1, Math.max(0, i + q)), jj = pass ? Math.min(cw - 1, Math.max(0, j + q)) : j; s += a[jj * cw + ii]; n++; } b[j * cw + i] = s / n; } } return out; };
       const hb = blur(hh, Math.max(2, Math.round(3.5 / (C * px))));
+      // the 1 m grid interpolated (bilinear between cell centres): sampled nearest, the water's edges followed the grid
+      const bil = (A, fi, fj) => { const i0 = Math.max(0, Math.min(cw - 2, Math.floor(fi))), j0 = Math.max(0, Math.min(cw - 2, Math.floor(fj))), fx = E.clamp(fi - i0, 0, 1), fy = E.clamp(fj - j0, 0, 1);
+        return (A[j0 * cw + i0] * (1 - fx) + A[j0 * cw + i0 + 1] * fx) * (1 - fy) + (A[(j0 + 1) * cw + i0] * (1 - fx) + A[(j0 + 1) * cw + i0 + 1] * fx) * fy; };
       for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
-        const ci = Math.min(cw - 1, (i / C) | 0), cj = Math.min(cw - 1, (j / C) | 0), q = cj * cw + ci, kw = kb[q];
-        const low = Math.max(0, hb[q] - hh[q]);
-        L[j * S + i] = 0.55 - 0.42 + kw * 0.27 + Math.min(0.16, low * 0.5) * (0.3 + kw);
+        const fi = (i + 0.5) / C - 0.5, fj = (j + 0.5) / C - 0.5, kw = bil(kb, fi, fj);
+        const low = Math.max(0, bil(hb, fi, fj) - bil(hh, fi, fj));
+        // base level well below the water line even on lanes (-0.23 m on a lane): water stands only where ruts, hollows,
+        // gateways and the hand-placed puddles add to it
+        L[j * S + i] = 0.55 - 0.42 + kw * 0.22 + Math.min(0.16, low * 0.5) * (0.3 + kw);
         G[j * S + i] = kw * 0.35;
       }
       const R = E.rng(o.seed || 31);
@@ -322,7 +327,7 @@
         }
       }
       // gateways and trampled spots: churned, lower, puddled in the middle
-      for (const g of o.gates || []) paint(g[0], g[1], g[2], (q, ex, ez) => { const d = Math.hypot(ex, ez) / g[2]; if (d > 1) return; const f = 1 - d * d; L[q] += f * 0.12; B[q] = Math.max(B[q], f * 0.8); A[q] = Math.max(A[q], f); G[q] = Math.max(G[q], f); });
+      for (const g of o.gates || []) paint(g[0], g[1], g[2], (q, ex, ez) => { const d = Math.hypot(ex, ez) / g[2]; if (d > 1) return; const f = 1 - d * d; L[q] += f * 0.09 * E.sstep(0.35, 0.75, E.vnoise((g[0] + ex) * 0.9, (g[1] + ez) * 0.9, 61)); /* churned in patches, not a flooded disc */ B[q] = Math.max(B[q], f * 0.8); A[q] = Math.max(A[q], f); G[q] = Math.max(G[q], f); });
       // hand-placed puddles: ellipses with their own depth
       for (const p of o.puddles || []) { const [px0, pz0, rx, rz, rot, dep] = p, c = Math.cos(rot || 0), sn = Math.sin(rot || 0);
         paint(px0, pz0, Math.max(rx, rz) * 1.3, (q, ex, ez) => { const u = (ex * c + ez * sn) / rx, v = (-ex * sn + ez * c) / rz, e = u * u + v * v; if (e > 1.7) return; L[q] = Math.max(L[q], 0.55 - 0.1 + ((dep || 0.2) + 0.1) * (1 - e)); G[q] = Math.max(G[q], Math.min(1, (1.7 - e) * 1.2)); }); }
