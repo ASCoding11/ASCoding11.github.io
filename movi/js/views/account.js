@@ -62,6 +62,7 @@ export function renderWelcome(view) {
         </form>`}
         ${demo ? `<div class="demo-note">${ICON.lock}<span><b>Demo mode.</b> Accounts and rankings are saved only in this browser, alongside a sample community. Connect Supabase in <code>config.js</code> to go live.</span></div>` : ""}
         <a class="linkish center-t" href="#/discover">Browse without an account</a>
+        <p class="legal">By continuing, you agree to Movi's <a href="terms.html">Terms of service</a> and <a href="privacy.html">Privacy policy</a>.</p>
       </div>
     </div>`;
   view.querySelectorAll("[data-atab]").forEach((b) => b.addEventListener("click", () => { authTab = b.dataset.atab; renderWelcome(view); }));
@@ -190,6 +191,7 @@ export function renderSettings(view) {
       <h3>Your data</h3>
       <p class="muted">Download everything you've ranked, noted and saved.</p>
       <div class="settings"><button class="btn sm" data-act="export">Export my data</button></div>
+      <p class="legal left">Read the <a href="privacy.html">Privacy policy</a> and <a href="terms.html">Terms of service</a>.</p>
     </div>
     <div class="panel-card form">
       <h3>Account</h3>
