@@ -244,7 +244,9 @@
     const g = E._ground; const kind = g ? g.surfaceAt(x, z) : 'grass', w = W[kind] || W.none;
     const s = E.wetMap.sample(x, z);
     if (!s) { const wet = Math.min(1, w[5] + E.U.uWet.value * 0.5); return { kind, mud: Math.min(1, w[1]), wet, puddle: 0, depth: -1 }; }
-    return { kind, mud: Math.min(1, Math.max(w[1], s.mud)), wet: Math.min(1, Math.max(s.damp, s.soak, w[5] * 0.5 + E.U.uWet.value * 0.5)), puddle: s.water, depth: s.depth };
+    // mud stays the ground kind's own (it slows the player: the map's churned ruts and gateways must not change timing
+    // on the stealth routes); the map's churn is given separately as churn, for effects
+    return { kind, mud: Math.min(1, w[1]), churn: s.mud, wet: Math.min(1, Math.max(s.damp, s.soak, w[5] * 0.5 + E.U.uWet.value * 0.5)), puddle: s.water, depth: s.depth };
   };
 
   // ------------------------------------------------------------------ the shared wet map (puddles and ruts)
