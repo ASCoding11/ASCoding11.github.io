@@ -306,7 +306,9 @@
   AI.releaseToken = releaseToken;
   function haveToken(e) {
     const now = IV.time;
-    for (const [k, t] of AI.tokens) if (!k.alive || k.state !== 'combat' || now - t.at > 9) releaseToken(k);   // safety net
+    // safety nets: the holder died or left combat, or was granted a burst he could not start (ran for cover, ducked
+    // back) within 1.5 s of his telegraph ending - the turn passes on, and he telegraphs again next time
+    for (const [k, t] of AI.tokens) if (!k.alive || k.state !== 'combat' || now - t.at > 9 || (!k.teleShot && now - t.at > A.tele[diff()] + 1.5)) releaseToken(k);
     if (AI.tokens.has(e)) return true;
     if (AI.tokens.size >= A.tokens[diff()] || now - AI.lastGrant < A.tokenGap[diff()]) return false;
     AI.tokens.set(e, { at: now }); AI.lastGrant = now;
