@@ -346,6 +346,7 @@
     P.render.lerpVectors(P.prev, P.pos, alpha); P.renderQ.copy(P.prevQ).slerp(P.q, alpha);
     if (!P.model) return;
     P.model.root.position.copy(P.render); P.model.root.quaternion.copy(P.renderQ);
+    P.ctl.canopy = P.alive && (P.state === 'rearm' || (P.grounded && P.throttle < 0.5)) ? 1 : 0;   // the hood opens on the deck
     P.model.animate(dt, P.rpm, P.ctl);
     IW.audio.engine(P.rpm, P.throttle, P.speed, P.alive && IW.playing());
     IW.audio.stallHorn(P.alive && (P.stalled || (P.aoa > (F.aoaLimit + 1) * deg && P.speed > 20)) && !P.grounded);

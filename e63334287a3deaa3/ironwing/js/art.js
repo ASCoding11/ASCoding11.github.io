@@ -521,6 +521,9 @@
     root.children.filter(o => /_gun[LR]\d+$/.test(o.name)).sort((a, b) => +a.name.match(/\d+$/)[0] - +b.name.match(/\d+$/)[0]).forEach(g => parts.guns.push(g));
     parts.cockpitEye = get('_cockpitEye');
     for (const side of ['L', 'R']) { const g = get('_gear' + side); if (g) parts.legs.push({ piv: g, side: Math.sign(g.position.x) || 1 }); }
+    // moving parts that only some types have: the sliding hood (the player's type) and the bomb-bay doors
+    parts.canopy = get('_canopy'); parts.bays = [get('_bayL'), get('_bayR')].filter(Boolean);
+    const cz0 = parts.canopy ? parts.canopy.position.z : 0, cy0 = parts.canopy ? parts.canopy.position.y : 0;
     if (hero) {
       parts.aileronL = get('_aileronL'); parts.aileronR = get('_aileronR'); parts.rudder = get('_rudder');
       parts.elevators = [get('_elevatorL'), get('_elevatorR')].filter(Boolean); parts.flaps = [get('_flapsL'), get('_flapsR')].filter(Boolean);
@@ -533,7 +536,8 @@
     const wo = parts.wingOut = get('_wingOut'); parts.hi = hi;
     const home = o => o && { o, p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() };
     parts.home = [home(wo), home(parts.aileronL)].filter(Boolean);
-    let spin = 0, far = false;
+    let spin = 0, far = false, gearK = -1, hoodK = 0, bayK = 0;
+    const ease = k => k * k * (3 - 2 * k);
     return {
       root, parts,
       // put back a torn-off wing (the player's aircraft is reused after a crash)
@@ -555,8 +559,16 @@
           if (parts.rudder) parts.rudder.rotation.y = ctl.yaw * 0.4;
           for (const f of parts.flaps) f.rotation.x = ctl.flaps * 0.6;
         }
-        const k = ctl ? ctl.gear : 0;
-        for (const L of parts.legs) { L.piv.visible = k > 0.02; L.piv.rotation.z = (1 - k) * L.side * Math.PI / 2 * 0.98; }
+        // the gear folds inward into the wing roots, easing in and out of each end of its travel; the legs vanish
+        // only once they are inside the wing
+        // (the player's ctl.gear already moves over the gear time; an AI aircraft gives only where it wants the gear)
+        const want = ctl ? ctl.gear : 0; if (gearK < 0) gearK = want;
+        gearK = ctl && ctl.ai ? IW.clamp(gearK + Math.sign(want - gearK) * dt / 2.4, 0, 1) : want;
+        const e = ease(IW.clamp(gearK, 0, 1));
+        for (const L of parts.legs) { L.piv.visible = e > 0.015; L.piv.rotation.z = -(1 - e) * L.side * Math.PI / 2 * 0.97; }
+        // the hood slides back on the deck and closes for flight; the bay doors swing open for a bombing run
+        if (parts.canopy) { hoodK = IW.clamp(hoodK + Math.sign((ctl && ctl.canopy ? 1 : 0) - hoodK) * dt / 1.4, 0, 1); const h = ease(hoodK); parts.canopy.position.z = cz0 - h * 0.62; parts.canopy.position.y = cy0 + h * 0.03; }
+        if (parts.bays.length) { bayK = IW.clamp(bayK + Math.sign((ctl && ctl.bay ? 1 : 0) - bayK) * dt / 1.6, 0, 1); const b = ease(bayK) * 1.45; parts.bays[0].rotation.z = b; if (parts.bays[1]) parts.bays[1].rotation.z = -b; }
       }
     };
   };
@@ -587,6 +599,7 @@
     }
     const lod = get('_lod1'), hi = root.children.filter(o => o !== lod && (o.isMesh || o.type === 'Group'));
     if (lod) { lod.visible = false; root.onBeforeRender = null; out.lod = { lod, hi, far: false }; }
+    out.radars = root.children.filter(o => /_radar\d+$/.test(o.name));   // turned by the ship (units.js)
     return out;
   };
   A.shipLod = function (art, dist) {   // called by the ship each frame

@@ -265,7 +265,12 @@
       r.visible = d2 < 14000 * 14000;
       if (!r.visible) return;
       r.position.lerpVectors(this.prev, this.pos, alpha); r.quaternion.copy(this.prevQ).slerp(this.q, alpha);
-      this.model.animate(dt, this.falling ? 0.2 : 0.85, null);
+      // what the moving parts should do (art.js eases them there): gear down only when low and slow (a scramble from a
+      // runway), bomb-bay doors open for a level bomber's run
+      const c = this.ctlA || (this.ctlA = { ai: true, gear: 0, bay: 0 });
+      c.gear = !this.falling && this.speed < 95 && this.pos.y - IW.world.groundAt(this.pos.x, this.pos.z) < 60 ? 1 : 0;
+      c.bay = this.role === 'bomber' && !this.falling && (this.st === 'run' || (this.st === 'egress' && this.stT < 3)) ? 1 : 0;
+      this.model.animate(dt, this.falling ? 0.2 : 0.85, c);
     }
     remove() { this.model.root.parent && this.model.root.parent.remove(this.model.root); }
   }
@@ -382,6 +387,7 @@
       if (IW.art.shipLod) IW.art.shipLod(this.art, this.model.position.distanceTo(IW.world.camera.position));
       this.model.position.set(p.x, p.y + (hb + hs + hp + hsb) * 0.25 * k, p.z);
       this.model.rotation.set(pitch, h, roll, 'YXZ');
+      if (this.art.radars && !this.sinking) for (const r of this.art.radars) r.rotation.y += dt * 1.1;
       this.wake.update(dt, this.art.stern.getWorldPosition(tA), this.dir, this.speed);
       if (!this.sinking && this.art.funnels.length && (this.smokeF = (this.smokeF || 0) - dt) <= 0) { this.smokeF = 0.4; for (const f of this.art.funnels) { const w = this.toWorld(f.x, f.y + this.pos.y, f.z); IW.fx.smokePuff(w, this.vel, 3, false, 6); } }
     }
