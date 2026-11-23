@@ -6,6 +6,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Driftfall looks brighter": "Driftfall se ve más vivo",
+    "On the Pretty setting, Driftfall has a deeper sky with soft drifting clouds and a sea that ripples, shines in the sun and fades into the horizon.": "Con los gráficos Bonitos, Driftfall tiene un cielo más profundo con nubes suaves que se mueven y un mar que se ondula, brilla al sol y se funde con el horizonte.",
+    "The island looks clearer from the sky, with less haze over it.": "La isla se ve más nítida desde el cielo, con menos bruma encima.",
+    "Cliffs are warm layered stone, grass and dirt have more colour, and colours are a little richer overall.": "Los acantilados son de piedra cálida en capas, la hierba y la tierra tienen más color, y en general los colores son un poco más intensos.",
+    "Play, controls and your Locker items are unchanged.": "El juego, los controles y tus objetos del Locker no cambian.",
     "Rollaway is now Overdrop": "Rollaway ahora se llama Overdrop",
     "Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.": "Rollaway tiene nombre y aspecto nuevos: Overdrop, una pista más empinada y más rápida por una ciudad de neón.",
     "There are new hazards, and each kind has its own shape so you can tell them apart at speed.": "Hay peligros nuevos, y cada tipo tiene su propia forma para que los distingas a toda velocidad.",

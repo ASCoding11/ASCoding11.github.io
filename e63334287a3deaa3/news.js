@@ -85,6 +85,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: 'X.XX', title: 'Driftfall looks brighter', kind: 'feature', tags: ['Driftfall'],
+     items: ['On the Pretty setting, Driftfall has a deeper sky with soft drifting clouds and a sea that ripples, shines in the sun and fades into the horizon.',
+       'The island looks clearer from the sky, with less haze over it.',
+       'Cliffs are warm layered stone, grass and dirt have more colour, and colours are a little richer overall.',
+       'Play, controls and your Locker items are unchanged.']},
     {date: '2026-11-23', version: '1.42', title: 'Rollaway is now Overdrop', kind: 'feature',
      img: 'm/thumbs/rollaway.jpg', tags: ['Overdrop'], items: [
       'Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.',
