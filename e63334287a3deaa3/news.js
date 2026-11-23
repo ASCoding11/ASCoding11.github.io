@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.44', title: 'Beatvault is now Pulsebox', kind: 'feature',
+     img: 'm/thumbs/beatvault.jpg', tags: ['Pulsebox'], items: [
+      'Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.',
+      'Every song is about 6% faster.',
+      'Your progress, keys, settings and the levels you made carry over.'
+    ]},
     {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
      items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
              'Only the site\'s team can read what you send.']},

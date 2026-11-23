@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Beatvault is now Pulsebox": "Beatvault ahora se llama Pulsebox",
+    "Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.": "Beatvault tiene nombre y aspecto nuevos: Pulsebox, una discoteca de neón con focos sobre cada escenario.",
+    "Every song is about 6% faster.": "Todas las canciones van un 6% más rápido, más o menos.",
+    "Your progress, keys, settings and the levels you made carry over.": "Tu progreso, tus llaves, tus ajustes y los niveles que hiciste se conservan.",
     "A contact page": "Una página de contacto",
     "The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.": "La web ya tiene una página de Contacto, enlazada al final de cada página: manda un error, una idea o una pregunta, con un correo si quieres respuesta.",
     "Only the site's team can read what you send.": "Solo el equipo de la web puede leer lo que mandes.",
