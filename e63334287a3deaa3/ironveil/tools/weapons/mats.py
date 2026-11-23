@@ -227,7 +227,7 @@ def _dirty(nb, W, c, r, metal, h, surf='metal'):
     # dust: faces that look up, patchy, not where hands rub
     up = nb.ss(nz, 0.15, 0.85)
     dust = nb.mul(up, nb.ss(nb.noise(P, 32, 5, 0.65, w=47), 0.40, 0.72), nb.inv(nb.mul(hand, 0.9)), 0.70 * z.get('dustk', 1.0))
-    dust = nb.add(dust, nb.mul(nb.ss(cav, 0.3, 0.8), 0.25))
+    dust = nb.add(dust, nb.mul(nb.ss(cav, 0.3, 0.8), 0.25 * z.get('cavdust', 1.0)))   # scans: their cavity mask is unreliable
     dust = nb.clamp(nb.mul(dust, nb.ss(nb.noise(P, 300, 2, 0.5, w=48), 0.25, 0.55)))
     c = nb.mixc(dust, c, (0.205, 0.185, 0.150))
     r = nb.lerp(dust, r, 0.90)
