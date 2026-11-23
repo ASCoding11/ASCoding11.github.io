@@ -1,0 +1,72 @@
+# Preview links for pull requests from forks (step 2 of 2).
+# Runs after fork-preview.yml, from this repo's own copy of this file, with the CLOUDFLARE_API_TOKEN secret. It never
+# runs the fork's code: it only uploads the packaged files as a static site to the Cloudflare Pages project
+# "ascoding11-previews" (made on the first run, separate from the live site's project so it has none of the live
+# site's secrets), at https://pr-<number>.ascoding11-previews.pages.dev, and comments that link on the pull request.
+# Cloudflare marks these preview addresses noindex. Google sign-in doesn't work on them (not an authorised domain).
+# Setup: a Cloudflare API token with "Cloudflare Pages: Edit", saved as the repo secret CLOUDFLARE_API_TOKEN.
+# Without it this job does nothing.
+name: Fork preview (deploy)
+on:
+  workflow_run:
+    workflows: ["Fork preview (package)"]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+  issues: write
+  pull-requests: write
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: 0d949397838926fe5833f6c5d8c217ab
+      PROJECT: ascoding11-previews
+      REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check the Cloudflare token is set up
+        id: tok
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "No CLOUDFLARE_API_TOKEN secret yet: no preview."; echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/download-artifact@v4
+        if: steps.tok.outputs.skip != '1'
+        with:
+          name: fork-preview
+          path: ${{ runner.temp }}/out
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Check which pull request this is
+        id: pr
+        if: steps.tok.outputs.skip != '1'
+        run: |
+          # the artifact came from the fork, so trust nothing in it: the number must be a pull request at this commit
+          n="$(head -c 12 "$RUNNER_TEMP/out/pr.txt" | tr -dc 0-9)"
+          [ -n "$n" ] || { echo "No pull request number."; exit 1; }
+          sha="$(gh api "repos/$REPO/pulls/$n" --jq .head.sha)"
+          if [ "$sha" != "$HEAD_SHA" ]; then echo "Pull request $n has moved on from $HEAD_SHA: its newer run will deploy."; echo "skip=1" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "n=$n" >> "$GITHUB_OUTPUT"
+      - name: Upload to Cloudflare Pages
+        id: cf
+        if: steps.tok.outputs.skip != '1' && steps.pr.outputs.skip != '1'
+        env:
+          N: ${{ steps.pr.outputs.n }}
+        run: |
+          site="$RUNNER_TEMP/out/site"
+          rm -rf "$site/functions" "$site/_routes.json" "$site/_worker.js"   # static files only, whatever the fork sent
+          cd "$RUNNER_TEMP"   # no wrangler config or functions folder here
+          npx --yes wrangler@3 pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
+          npx --yes wrangler@3 pages deploy "$site" --project-name "$PROJECT" --branch "pr-$N" --commit-hash "$HEAD_SHA" --commit-dirty=true | tee deploy.log
+          echo "url=https://pr-$N.$PROJECT.pages.dev" >> "$GITHUB_OUTPUT"
+      - name: Comment the link on the pull request
+        if: steps.cf.outcome == 'success'
+        env:
+          N: ${{ steps.pr.outputs.n }}
+          URL: ${{ steps.cf.outputs.url }}
+        run: |
+          body="$(printf '<!-- fork-preview -->\n**Preview:** %s\n\nUpdated for %s. Plain files only: sign-in, the shop and the Marketplace need the live site.' "$URL" "${HEAD_SHA:0:7}")"
+          id="$(gh api --paginate "repos/$REPO/issues/$N/comments" --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- fork-preview -->"))) | .id' | head -1)"
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body="$body" >/dev/null; else gh api "repos/$REPO/issues/$N/comments" -f body="$body" >/dev/null; fi
