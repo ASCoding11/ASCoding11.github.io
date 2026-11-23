@@ -487,6 +487,9 @@
     const key = m.name; if (TEXM[key]) return TEXM[key];
     m.envMapIntensity = key === 'tex_deck' ? 0.35 : group === 'air' ? 0.8 : 0.6; m.vertexColors = false;
     if (m.map) m.map.anisotropy = 4;
+    // Low keeps only the colour map: the normal and ORM lookups over a screen full of deck doubled the frame time in
+    // the software renderer, and Low is for the slowest machines
+    if (IW.world.Q && IW.world.Q.name === 'low') { m.normalMap = m.roughnessMap = m.metalnessMap = m.aoMap = null; m.roughness = key === 'tex_deck' ? 0.85 : 0.55; m.metalness = key === 'tex_deck' ? 0.05 : 0.2; }
     m.userData.linear = true; return (TEXM[key] = m);
   }
   function prep(root, group) {
