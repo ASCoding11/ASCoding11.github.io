@@ -2,8 +2,11 @@
    speed and surface, shots, rocks, impacts; masked by aircraft and engines), and moves through six states:
    unaware -> suspicious -> investigating -> searching -> combat -> returning. Searches go in pairs, bodies raise the
    alarm, officers run for the bell, and in combat they take cover, peek, suppress, flank in pairs, lob the odd grenade
-   and fall back when alone and hurt. Accuracy ramps up over about a second of seeing you, so being spotted is not
-   instant death. Kinds: rifleman, officer, sniper (scope glint), gunner (MG). */
+   and fall back when hurt or nearly alone. Only a few fire at you at once (attack tokens), each after a tell (gun up,
+   a call, a glint at night). Accuracy grows with seconds of unbroken sight of you and falls with range, your movement
+   across their sights, darkness, smoke and their own suppression, so cover and moving between bursts beat standing in
+   the open. Hold one spot and they flank you, keep your head down, and shout before a grenade. Kinds: rifleman,
+   officer, sniper (scope glint, long tell), gunner (MG). */
 (function () {
   'use strict';
   const T = IV.TUNING, A = T.ai, W = IV.world, F = IV.CF;
@@ -734,7 +737,6 @@
   Enemy.prototype.frame = function (alpha, dt) {
     const r = this.actor.root;
     r.position.lerpVectors(this.prev, this.pos, alpha);
-    if (this.peekOff && this.cover && !this.cover.low) { r.position.x += -this.cover.nz * this.peekOff * 0; }
     r.rotation.y = this.bodyPrev + IV.wrapA(this.bodyYaw - this.bodyPrev) * alpha + Math.PI;
     if (this.alive) {
       // aim at the target / look about

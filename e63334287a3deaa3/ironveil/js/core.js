@@ -128,13 +128,13 @@
       reaction: [0.55, 0.47, 0.4], // s of continuous sight before he may act on seeing you (open fire, call it in)
       // accuracy: hit chance per shot = acc * exposure ramp * range * your stance/movement * light * his own state.
       // Exposure is seconds of continuous sight of you: the ramp is 1 - exp(-t / expoTau), from expoFloor at first sight
-      // to full after about 3 * expoTau s (9, 8, 7 s); out of sight it drains expoDrain times as fast as it builds.
-      acc: [0.48, 0.75, 0.82],  // hit chance per shot at full exposure, 20 m, you standing still and lit (difficulty)
-      expoTau: [3, 2.7, 2.3], expoDrain: 3, expoFloor: 0.25,
+      // to full after about 3 * expoTau s (11, 8, 7 s); out of sight it drains expoDrain times as fast as it builds.
+      acc: [0.36, 0.75, 0.82],  // hit chance per shot at full exposure, 20 m, you standing still and lit (difficulty)
+      expoTau: [3.6, 2.7, 2.3], expoDrain: 3, expoFloor: 0.25,
       rangeRef: 20,             // m: the range factor is rangeRef / d (capped 1.3 close, 0.22 far: 0.4 at 50 m); SMG men lose more past 25 m
       warnShots: [2, 1, 1],     // the first rounds of each new sight of you miss close by on purpose (a crack, a direction)
       dark: { moon: 0.85, shadow: 0.62, lit: 1, flash: 0.92 }, // accuracy by the light on you (your own muzzle flash lights you)
-      dmg: [26, 34, 36],        // hp per enemy rifle hit before the difficulty's damage-taken multiplier (x0.6, x1, x1.45): 16, 34, 52
+      dmg: [18, 34, 36],        // hp per enemy rifle hit before the difficulty's damage-taken multiplier (x0.6, x1, x1.45): 11, 34, 52
       smgDmg: 0.75,             // an SMG round does this share of a rifle round
       sniperDmg: [45, 60, 85],
       sniperTele: [2.4, 2, 1.6], // s: the sniper's glint and call before his shot (the long, obvious tell)
