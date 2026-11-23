@@ -450,6 +450,9 @@ body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;
 <script src="../keybinds.js"></script>
 <script src="../netsmooth.js"></script>
 <script src="../events.js"></script>
+<script src="../colyseus.js"></script> <!-- the game relay: online rooms go through it (see README) -->
+<script src="../netrelay.js"></script>
+<script src="../netrelay-config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -2633,7 +2636,7 @@ const Net={
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
     try{await (a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth())}
     catch(err){const c=err&&err.code||'';throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
-    this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    this.uid=firebase.auth().currentUser.uid;this.db=(window.NetRelay?NetRelay.database(firebase.database(),window.RELAY_ROOMS):firebase.database());
     await new Promise(res=>this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()}));
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
