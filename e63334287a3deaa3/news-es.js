@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Flipline is now Chromeline": "Flipline ahora se llama Chromeline",
+    "Flipline has a new name and a new look: Chromeline, a stunt bike ride through a neon city at night.": "Flipline tiene nombre y aspecto nuevos: Chromeline, una moto de acrobacias por una ciudad de neón de noche.",
+    "All 24 levels and their medal targets were run again on the arrow-key controls, and two big loops got a boost strip.": "Los 24 niveles y sus tiempos de medalla se volvieron a probar con los controles de flechas, y dos rizos grandes tienen ahora una franja de impulso.",
+    "The mace and the saw have a dark outline, so they stand out against the lit towers.": "La maza y la sierra tienen un contorno oscuro para que destaquen contra las torres iluminadas.",
     "A contact page": "Una página de contacto",
     "The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.": "La web ya tiene una página de Contacto, enlazada al final de cada página: manda un error, una idea o una pregunta, con un correo si quieres respuesta.",
     "Only the site's team can read what you send.": "Solo el equipo de la web puede leer lo que mandes.",
