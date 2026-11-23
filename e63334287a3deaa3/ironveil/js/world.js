@@ -725,9 +725,10 @@
       const pl = W.pointPool[i], l = lampSort[i];
       if (l && l._d < 110 * 110) {
         // a long, soft falloff (distance well past the lamp's gameplay radius) so pools fade out instead of ending in a ring
+        // (night: stronger, so the pools are the warm light in a dark scene; the AI's light test does not read this)
         pl.position.set(l.x, l.y, l.z); pl.color.setHex(l.color || 0xffb060); pl.distance = l.r * 1.8;
         const flick = l.flicker ? 0.86 + 0.14 * IV.noise(IV.time * 7 + i * 10, 0.5) : 1;
-        pl.intensity = (l.power || 1.6) * 0.85 * flick * IV.clamp(1.6 - Math.sqrt(l._d) / 90, 0, 1);
+        pl.intensity = (l.power || 1.6) * (W.day ? 0.85 : 1.5) * flick * IV.clamp(1.6 - Math.sqrt(l._d) / 90, 0, 1);
       } else pl.intensity = 0;
     }
     // brightest live flash gets the flash light

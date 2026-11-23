@@ -53,8 +53,8 @@
     // the hedge line and the hills.
     day_overcast: {
       skyTop: 0x6f7d8c, skyHor: 0xb6b8b3, ground: 0x4b4a44, fog: 0xa7aaa8, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
-      sunDir: [0.55, 0.6, -0.58], sunCol: 0xf1e2c8, sunI: 1.75, sunShadow: true, soft: 5, moon: 0, stars: 0, cloud: 0.8, cloudCol: 0x8f9396, glow: 0.7, cscale: 0.75,
-      hemiSky: 0x9aa7b6, hemiGround: 0x635a4a, hemiI: 0.62, env: 0.75, exposure: 0.92, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
+      sunDir: [0.6, 0.47, -0.62], sunCol: 0xf1e2c8, sunI: 1.75, sunShadow: true, soft: 5, moon: 0, stars: 0, cloud: 0.8, cloudCol: 0x8f9396, glow: 1.2, cscale: 0.75,
+      hemiSky: 0x9aa7b6, hemiGround: 0x635a4a, hemiI: 0.7, env: 0.75, exposure: 0.92, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
     }
   };
 
@@ -293,7 +293,7 @@
       E.U.uWinC.value.copy(L(P.hemiSky)).multiplyScalar(P.hemiI).add(L(P.sunCol).multiplyScalar(P.sunI * 0.12));   // the light coming in at windows and doors
       fog.color.copy(L(P.fog)); fog.near = (opts.fogD || P.fogD) * (opts.fogMul || 1);   // opts.fogD: a map's own haze in place of the preset's fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;
-      renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : P.grade === 'day' ? 1.35 : 1.2);   // Low has no grade/lift pass
+      renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : P.grade === 'day' ? 1.2 : 1.0);   // Low has no grade/lift pass
       E.U.uWet.value = P.wet; E.U.uRain.value = P.rain ? 1 : 0; E.U.uDust.value = P.rain ? 0 : P.grade === 'day' ? 0.5 : 0.35; E.U.uNight.value = P.grade === 'night' || P.grade === 'rain' ? 1 : 0;
       E.setWind(E.U.uWind.value.x, E.U.uWind.value.y, P.wind);
       rain.visible = !!P.rain && Q.name !== 'low' || (!!P.rain && opts.rainOnLow);
@@ -309,7 +309,7 @@
       return A;
     };
     // brightness setting for players (multiplies exposure)
-    A.setBrightness = function (b) { A.brightness = b; renderer.toneMappingExposure = A.P.exposure * b * (E.Q.post ? 1 : A.P.grade === 'day' ? 1.35 : 1.2); };
+    A.setBrightness = function (b) { A.brightness = b; renderer.toneMappingExposure = A.P.exposure * b * (E.Q.post ? 1 : A.P.grade === 'day' ? 1.2 : 1.0); };
     A.setFlashes = function (on) { A.flashes = !!on; if (!on) A.flashAge = 99; };   // reduced-effects setting
     A.update = function (dt, camera) {
       if (A.blend) A.stepBlend(dt);
