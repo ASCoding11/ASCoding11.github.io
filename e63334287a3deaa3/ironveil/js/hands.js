@@ -322,11 +322,13 @@
     const total = acc, rings = [];
     // parallel-transported frame, starting with X = -x, t = -y, Z = +z (X x t = Z)
     let f = { X: V(-1, 0, 0), t: V(0, -1, 0), Z: V(0, 0, 1) };
+    // stations [arc length, half-width, dorsal, palmar]: a slim glove gauntlet, then a wool sleeve with an oval section
+    // that widens from the wrist up the forearm, and a turned-back cuff with a real edge (a step in and out)
     const st = part === 'glove'
-      ? [[0, 0.0255, 0.0150, 0.0170], [0.010, 0.0280, 0.0185, 0.0195], [0.022, 0.0300, 0.0225, 0.0225], [0.038, 0.0320, 0.0250, 0.0250], [0.052, 0.0335, 0.0265, 0.0265], [0.060, 0.0350, 0.0280, 0.0280], [0.064, 0.0345, 0.0275, 0.0275]]
-      : [[0.050, 0.0330, 0.0290, 0.0290], [0.056, 0.0400, 0.0350, 0.0350], [0.064, 0.0420, 0.0370, 0.0370], [0.086, 0.0425, 0.0375, 0.0375], [0.092, 0.0400, 0.0355, 0.0355], [0.100, 0.0405, 0.0360, 0.0360]];
+      ? [[0, 0.0255, 0.0150, 0.0170], [0.010, 0.0270, 0.0180, 0.0190], [0.022, 0.0280, 0.0205, 0.0205], [0.038, 0.0288, 0.0220, 0.0220], [0.052, 0.0292, 0.0225, 0.0225], [0.060, 0.0295, 0.0228, 0.0228], [0.064, 0.0290, 0.0224, 0.0224]]
+      : [[0.046, 0.0272, 0.0218, 0.0218], [0.050, 0.0318, 0.0255, 0.0255], [0.054, 0.0322, 0.0260, 0.0260], [0.080, 0.0322, 0.0260, 0.0260], [0.084, 0.0302, 0.0244, 0.0244], [0.090, 0.0300, 0.0242, 0.0242]];
     // the sleeve's length varies by build, its ring count does not (every build of a hand shares one topology)
-    if (part !== 'glove') { const end = Math.min(total, len + 0.05); for (let i = 1; i <= 4; i++) st.push([0.10 + (end - 0.10) * i / 4, 0.0415 + (i === 4 ? 0.0005 : 0), 0.0370 + (i === 4 ? 0.0005 : 0), 0.0370 + (i === 4 ? 0.0005 : 0)]); }
+    if (part !== 'glove') { const end = Math.min(total, len + 0.05); for (let i = 1; i <= 4; i++) { const k = i / 4; st.push([0.09 + (end - 0.09) * k, 0.0300 + 0.0035 * Math.min(1, k * 1.6), 0.0242 + 0.0028 * Math.min(1, k * 1.6), 0.0242 + 0.0028 * Math.min(1, k * 1.6)]); } }
     let lastP = at(0);
     for (const s of st) {
       const p = at(s[0]), p2 = at(s[0] + 0.004), t = p2.clone().sub(p).normalize();
@@ -487,14 +489,14 @@
     const gloveR = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const v = (0.55 + (mott[i] - 0.55) * 0.2 + (grain[i] - 0.5) * 0.08) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } });
     const glove = new T.MeshStandardMaterial({ name: 'vmGlove', color: 0xffffff, map: gloveC, normalMap: gloveN, roughnessMap: gloveR, roughness: 1.0, metalness: 0, envMapIntensity: 0.8 });
     glove.normalScale.set(0.9, 0.9);
-    // wool: a fine twill weave
-    const wn = noise2(W, W, 31, 2, 2), wm = noise2(W, W, 43, 32, 3), hw = new Float32Array(W * W);
-    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) { const tw = ((x + y) % 6) < 3 ? 0.6 : 0, wf = (y % 3 === 0 ? -0.25 : 0) + (x % 4 === 0 ? -0.2 : 0); hw[y * W + x] = tw + wf + wn[y * W + x] * 0.5; }
-    const sleeveN = normalFromHeight(hw, W, W, 1.3);
-    const sleeveC = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const k = 0.85 + wm[i] * 0.25 + (wn[i] - 0.5) * 0.12; d[i * 4] = 60 * k; d[i * 4 + 1] = 60 * k; d[i * 4 + 2] = 43 * k; d[i * 4 + 3] = 255; } });
+    // wool serge: field drab, darker than grass; a fine diagonal weave and fibre noise only (no ribs)
+    const wn = noise2(W, W, 31, 1, 2), wm = noise2(W, W, 43, 40, 3), hw = new Float32Array(W * W);
+    for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) { const d = ((x + y) % 3) === 0 ? 0.12 : 0; hw[y * W + x] = d + wn[y * W + x] * 0.35 + wm[y * W + x] * 0.1; }
+    const sleeveN = normalFromHeight(hw, W, W, 0.9);
+    const sleeveC = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const k = 0.86 + wm[i] * 0.22 + (wn[i] - 0.5) * 0.06; d[i * 4] = 50 * k; d[i * 4 + 1] = 47 * k; d[i * 4 + 2] = 37 * k; d[i * 4 + 3] = 255; } });
     sleeveC.encoding = T.sRGBEncoding;
-    const sleeve = new T.MeshStandardMaterial({ name: 'vmSleeve', side: T.DoubleSide, map: sleeveC, normalMap: sleeveN, roughness: 0.92, metalness: 0, envMapIntensity: 0.5 });
-    sleeve.normalScale.set(0.7, 0.7);
+    const sleeve = new T.MeshStandardMaterial({ name: 'vmSleeve', side: T.DoubleSide, map: sleeveC, normalMap: sleeveN, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
+    sleeve.normalScale.set(0.5, 0.5);
     MATS = { glove, sleeve };
     return MATS;
   };

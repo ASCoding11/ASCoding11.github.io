@@ -86,18 +86,20 @@
 
   // ---------------------------------------------------------------- gun triangles and distances (gun frame)
   const TRIS = {};
-  VMT.gunTris = function (k) {
-    if (TRIS[k]) return TRIS[k];
+  VMT.gunTris = function (k, only) {
+    const key = k + (only || '');
+    if (TRIS[key]) return TRIS[key];
     const g = VMT.weapon(k); g.updateMatrixWorld(true); const out = [], v = new THREE.Vector3();
     g.traverse(o => {
       if (!o.isMesh || /sling/.test(o.name)) return;
+      if (only && o.name.indexOf(k + '_' + only) !== 0) return;
       const p = o.geometry.attributes.position, a = p.array, st = p.isInterleavedBufferAttribute ? p.data.stride : 3, of = p.offset || 0;
       const d = p.normalized ? (a instanceof Int16Array ? 32767 : a instanceof Uint16Array ? 65535 : a instanceof Int8Array ? 127 : a instanceof Uint8Array ? 255 : 1) : 1;
       const P = []; for (let i = 0; i < p.count; i++) { v.set(a[i * st + of] / d, a[i * st + of + 1] / d, a[i * st + of + 2] / d).applyMatrix4(o.matrixWorld); P.push(v.x, v.y, v.z); }
       const ix = o.geometry.index ? o.geometry.index.array : null, n = ix ? ix.length : p.count;
       for (let i = 0; i < n; i++) { const j = ix ? ix[i] : i; out.push(P[j * 3], P[j * 3 + 1], P[j * 3 + 2]); }
     });
-    return (TRIS[k] = new Float32Array(out));
+    return (TRIS[key] = new Float32Array(out));
   };
   // closest point on triangle (Ericson); returns squared distance, fills c and the face normal n
   function closestTri(px, py, pz, t, i, c) {
@@ -131,8 +133,8 @@
     return (px - rx) * (px - rx) + (py - ry) * (py - ry) + (pz - rz) * (pz - rz);
   }
   // triangles of a gun near a point (for the solver and the checks)
-  VMT.near = function (k, cx, cy, cz, rad) {
-    const t = VMT.gunTris(k), out = [];
+  VMT.near = function (k, cx, cy, cz, rad, only) {
+    const t = VMT.gunTris(k, only), out = [];
     for (let i = 0; i < t.length; i += 9) {
       const mx = (t[i] + t[i + 3] + t[i + 6]) / 3, my = (t[i + 1] + t[i + 4] + t[i + 7]) / 3, mz = (t[i + 2] + t[i + 5] + t[i + 8]) / 3;
       const r2 = Math.max((t[i] - mx) ** 2 + (t[i + 1] - my) ** 2 + (t[i + 2] - mz) ** 2, (t[i + 3] - mx) ** 2 + (t[i + 4] - my) ** 2 + (t[i + 5] - mz) ** 2, (t[i + 6] - mx) ** 2 + (t[i + 7] - my) ** 2 + (t[i + 8] - mz) ** 2);
@@ -183,7 +185,7 @@
   // orbit camera about point c (eye frame): view name -> direction from c to the camera
   const ODIR = { left: [-1, 0.15, 0.1], right: [1, 0.15, 0.1], top: [0.05, 1, 0.25], under: [0.05, -1, 0.2], front: [0.1, 0.2, -1], back: [0.15, 0.35, 1] };
   VMT.camera = function (view, c, dist, aspect) {
-    if (view === 'eye') { const cam = new THREE.PerspectiveCamera(55, aspect, 0.01, 20); cam.updateMatrixWorld(true); return cam; }
+    if (view === 'eye') { const cam = new THREE.PerspectiveCamera(IVVM.FOV || 55, aspect, 0.01, 20); cam.updateMatrixWorld(true); return cam; }
     const d = new THREE.Vector3().fromArray(ODIR[view]).normalize(), cam = new THREE.PerspectiveCamera(30, aspect, 0.01, 20);
     cam.position.copy(c).addScaledVector(d, dist); cam.up.set(0, 1, 0); if (view === 'top' || view === 'under') cam.up.set(0, 0, -1);
     cam.lookAt(c); cam.updateMatrixWorld(true);
@@ -331,7 +333,7 @@
       const g = src[n]; if (typeof g !== "object" || g.like) continue;
       const obj = kind === 'props' ? g.object : kind; if (!obj) continue;
       const M0 = IVVM.gripMatrix(g), c = new THREE.Vector3(0, 0.06, 0).applyMatrix4(M0);
-      let tris = VMT.near(obj, c.x, c.y, c.z, 0.13);
+      let tris = VMT.near(obj, c.x, c.y, c.z, 0.13, g.solveObj);
       for (const w of g.solveWith || []) {   // another hand already on the gun (the firing hand under a pistol's support hand)
         const b2 = built[w]; if (!b2) continue;
         const m = IVVM.gripMatrix(src[w]), P = b2.geometry.attributes.position, I = b2.geometry.index.array, v = new THREE.Vector3(), add = [];

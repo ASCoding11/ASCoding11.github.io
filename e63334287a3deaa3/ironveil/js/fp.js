@@ -419,7 +419,7 @@
   let VM = null;
   function vmBuild() {
     if (VM || !window.IVVM) return VM;
-    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(55, 1, 0.01, 20);
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(FP.vmTune.fov, 1, 0.01, 20);
     const rig = realRig(); if (!rig) return null;
     scene.add(rig.group); scene.add(cam);
     const hemi = new THREE.HemisphereLight(0xffffff, 0x404040, 0.6), sun = new THREE.DirectionalLight(0xffffff, 0.8), pt = new THREE.PointLight(0xffc880, 0, 6, 2);
@@ -430,7 +430,7 @@
   }
   FP.vm = () => VM;
   // the arms pass: its own field of view (50-60, never the world's) and a small push of the whole rig away from the eye
-  FP.vmTune = { fov: 55, push: 0.03 };   // 50 was tried: a narrower view only enlarges the arms; 3 cm out sits them a little smaller at the hip
+  FP.vmTune = { fov: window.IVVM && IVVM.FOV || 45, push: 0.03 };   // 45 (js/vm.js IVVM.FOV): the narrower view draws the gun big and close like the reference; the hip poses are fitted for it
   const KIND = { rifle: 'rifleScoped', smg: 'smg', pistol: 'pistol', binoc: 'binoculars', grenade: 'grenade', knife: 'knife' };
   const vst = { ads: 0, sprint: 0, crouch: 0, prone: 0 };
   function vmFrame(dt, yaw, pitch) {
