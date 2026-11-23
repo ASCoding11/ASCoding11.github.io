@@ -126,8 +126,8 @@ GT_MODULES=... node swap.mjs /tmp/w0.glb ../../assets/weapons.glb /tmp/wsmg/smg.
   --add '{"smg_sightRear":["smg",[0,0.0585,-0.053]],"smg_sightFront":["smg",[0,0.0435,0.426]]}'
 ```
 
-Then rebuild the first-person clips (`tools/chars`, `fp_unpack.mjs` then `fp_clips.py export`), because the hand fits
-read the weapon's shape. The reduced `smgLod` in the atlas set was NOT rebuilt: it keeps the old wooden stock and phosphate finish until the atlas set is baked again (about an hour).
+Then re-close the first-person gloves on the new shape (`vm-test.html`: the `bake` step writes the finger curls into
+`js/vm.js`), because the hands are closed onto the weapon's real mesh. The reduced `smgLod` in the atlas set was NOT rebuilt: it keeps the old wooden stock and phosphate finish until the atlas set is baked again (about an hour).
 
 ## Hand frames
 

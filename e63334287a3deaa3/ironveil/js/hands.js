@@ -407,7 +407,8 @@
     let sEnd = null;
     if (!pose.noSleeve) { const sr = armRings(fa, pose.sleeve || 0.12, 'sleeve'); B.tube(sr, { radial: R + 4, mat: 1, capEnd: false, capStart: true, vScale: 12 }); sEnd = sr[sr.length - 1]; }
     const g = B.geometry(pose.side === 'l');
-    if (sEnd) {   // the sleeve's open end (tests check it never shows on screen)
+    if (sEnd) {   // the sleeve's open end (tests check it never shows on screen): its centre and frame, and its vertices
+      info.sleeveEndVerts = [g.attributes.position.count - (R + 6), R + 5];   // the last ring (the start cap's centre vertex comes after it)
       const mx = pose.side === 'l' ? -1 : 1;
       info.sleeveEnd = { o: V(sEnd.o.x * mx, sEnd.o.y, sEnd.o.z), X: V(sEnd.f.X.x * mx, sEnd.f.X.y, sEnd.f.X.z), Z: V(sEnd.f.Z.x * mx, sEnd.f.Z.y, sEnd.f.Z.z), hw: sEnd.hw, hd: sEnd.hd };
     }

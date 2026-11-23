@@ -326,16 +326,44 @@
   };
   // bake: close every grip of a gun (and the prop grips) onto the real meshes; returns the BAKED table entries
   VMT.bake = function (kind) {
-    const out = {}, src = kind === 'props' ? IVVM.PROPGRIPS : IVVM.GRIPS[kind];
+    const out = {}, src = kind === 'props' ? IVVM.PROPGRIPS : IVVM.GRIPS[kind], built = {};
     for (const n in src) {
-      const g = src[n]; if (g.like) continue;
+      const g = src[n]; if (typeof g !== "object" || g.like) continue;
       const obj = kind === 'props' ? g.object : kind; if (!obj) continue;
       const M0 = IVVM.gripMatrix(g), c = new THREE.Vector3(0, 0.06, 0).applyMatrix4(M0);
-      const sdf = VMT.sdfOf(VMT.near(obj, c.x, c.y, c.z, 0.13));
-      const b = IVHands.build(IVVM.gripPose(g, kind, n, sdf));
+      let tris = VMT.near(obj, c.x, c.y, c.z, 0.13);
+      for (const w of g.solveWith || []) {   // another hand already on the gun (the firing hand under a pistol's support hand)
+        const b2 = built[w]; if (!b2) continue;
+        const m = IVVM.gripMatrix(src[w]), P = b2.geometry.attributes.position, I = b2.geometry.index.array, v = new THREE.Vector3(), add = [];
+        for (let i = 0; i < I.length; i++) { v.fromBufferAttribute(P, I[i]).applyMatrix4(m); add.push(v.x, v.y, v.z); }
+        const all = new Float32Array(tris.length + add.length); all.set(tris); all.set(add, tris.length); tris = all;
+      }
+      const sdf = VMT.sdfOf(tris);
+      const b = IVHands.build(IVVM.gripPose(g, kind, n, sdf)); built[n] = b;
       const curls = {}; for (const f in b.curls) if (!(g.pose.fingers && g.pose.fingers[f] && g.pose.fingers[f].fixed)) curls[f] = b.curls[f];
       out[n] = { curls }; if (g.pose.thumb && g.pose.thumb.close) out[n].thumb = b.thumbDirs;
     }
+    return out;
+  };
+
+  // sweep every clip of a gun at 30 Hz (hip, and aimed for fire / fireAds and the raise): sleeve ends on screen, the
+  // highest hand vertex aimed (px from the top of a 1280x720 frame; must be below the 360 sight line), events seen
+  VMT.sweep = function (kind) {
+    const V = VMT.vm(kind), vm = V.vm, out = {}, cam = VMT.camera('eye', null, 0, 16 / 9), v = new THREE.Vector3();
+    const handTop = () => { let top = 1e9; for (const m of [vm.hands.handL, vm.hands.handR, vm.hands.handP]) { if (!m || !m.visible) continue; const P = m.geometry.attributes.position; for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); if (v.z > -0.01) continue; v.project(cam); if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1) top = Math.min(top, (1 - v.y) / 2 * 720); } } return top; };
+    const ends = () => { let n = 0; for (const e of vm.sleeveEnds([])) { if (e.z > -0.01) continue; const q = e.clone().project(cam); if (Math.abs(q.x) < 1 && Math.abs(q.y) < 1) n++; } return n; };
+    const clips = vm.clips.filter(n => !/^(idle|ads|sprint|adsRaise)$/.test(n));
+    for (const c of clips) for (const ads of (/^fire/.test(c) ? [0, 1] : [0])) {
+      const st = { ads }; vm.stop(0); for (let i = 0; i < 40; i++) vm.drive(st, 1 / 60);
+      vm.play(c); const L = vm.clipLength(c), evs = []; let worstEnds = 0, top = 1e9, frames = 0; const badT = [];
+      for (let t = 0; t < L + 0.2; t += 1 / 30) { evs.push(...vm.drive(st, 1 / 30).map(e => e.name)); { const e = ends(); if (e) badT.push(+t.toFixed(2)); worstEnds = Math.max(worstEnds, e); } if (ads) top = Math.min(top, handTop()); frames++; }
+      out[c + (ads ? '@ads' : '')] = { len: L, events: evs.join(','), sleeveEndsMax: worstEnds, at: badT.length ? badT.join(' ') : undefined, handTopAds: ads ? +top.toFixed(1) : undefined, frames };
+    }
+    // the raise and aimed idle: every 1/30 s of the 0.19 s smootherstep, plus aimed idle
+    vm.stop(0); let top = 1e9, worst = 0;
+    for (let i = 0; i <= 12; i++) { const k = i / 12, a = k * k * k * (k * (k * 6 - 15) + 10); vm.drive({ ads: a }, 1 / 60); if (a > 0.97) top = Math.min(top, handTop()); worst = Math.max(worst, ends()); }
+    out.raise = { handTopAds: +top.toFixed(1), sleeveEndsMax: worst };
+    for (const sp of [1]) { vm.stop(0); for (let i = 0; i < 30; i++) vm.drive({ sprint: sp }, 1 / 60); out.sprint = { sleeveEndsMax: ends() }; }
     return out;
   };
   // ---------------------------------------------------------------- hand study (step 1): one grip on a gun

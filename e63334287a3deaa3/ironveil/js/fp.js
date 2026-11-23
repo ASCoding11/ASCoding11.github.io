@@ -4,10 +4,9 @@
    (the characters' own foot phase, so feet, sound and bob agree) driving head bob, a landing dip, a little strafe roll,
    lean on Q and E (12 degrees of roll and 0.3 m sideways, stopped short of walls), sprint widening the FOV.
 
-   Viewmodel: arms and the weapon in their own pass with their own camera (55 degree FOV, near 0.01) drawn after the
-   world with the depth cleared, so they never go into a wall. Until the characters' arms rig arrives it is a second
-   hero actor posed by the same clips (hold, aim, reload, bolt) with its legs and head collapsed, seen from its own eye.
-   Procedural layers on its root: idle breathing sway, step bob from the step phase, look sway and lag, recoil kick and
+   Viewmodel: the gun and gloved hands (js/vm.js, js/hands.js) in their own pass with their own camera (55 degree FOV,
+   near 0.01) drawn after the world with the depth cleared, so they never go into a wall. Procedural layers on top:
+   idle breathing sway, step bob from the step phase, look sway and lag, recoil kick and
    recovery, aim-down-sights that brings the sight line to the screen centre over about 0.2 s, sprint carry, lowering
    near walls, landing dip, stance offsets. It is lit from the scene: the same environment map, a hemisphere and sun
    copied from the world's, scaled by how lit the player is, and the muzzle and lamp light near him.
@@ -234,96 +233,21 @@
   FP.HIDE_RE = HIDE_RE;
 
   // ---------------------------------------------------------------- viewmodel
-  // One shape for whichever rig draws the arms, so swapping the stand-in for the characters' rig is small:
-  //   { group, drive(state, dt), play(name), clips, sockets, adsOffset, muzzle, ejection, scopeEye, gun }
-  // group sits in the viewmodel camera's frame (camera at the origin looking down -Z, x right, y up); at rest it shows
-  // the hip pose, and adsOffset ({p: Vector3, q: Quaternion}) is what moves it onto the sight line.
-  // The real rig: IVChars.viewmodel(kind). Until it exists: the stand-in below.
-  //
-  // Stand-in: a second hero actor driven in the aim pose (both hands on the gun, the left by the characters' IK),
-  // head, neck and legs collapsed. It is placed by the GUN, not by the head: each weapon has a sight point (rear sight
-  // or scope eye, metres in the gun's frame) and a hip pose (where that sight point sits in front of the eye, and how
-  // the gun is turned), and the body hangs off the gun. The gun's place in the body is taken once the pose has settled
-  // and then kept, so a reload or a bolt cycle moves the gun and the arms together instead of the body round the gun.
-  const SIGHT = {   // per weapon kind: s = sight point in the gun's frame; hip = [x, y, z] of that point; rot = hip turn [pitch, yaw, roll] (rad); ads = eye relief (m)
-    rifleScoped: { s: [0, 0.075, -0.198], hip: [0.115, -0.125, -0.33], rot: [0.03, 0.06, -0.06], ads: 0.0 },
-    smg:         { s: [0, 0.062, -0.02],  hip: [0.115, -0.118, -0.42], rot: [0.03, 0.07, -0.07], ads: 0.17 },
-    pistol:      { s: [0, 0.034, -0.045], hip: [0.1, -0.11, -0.42], rot: [0.02, 0.06, -0.05], ads: 0.36 },
-    grenade:     { s: [0, 0.07, 0],       hip: [0.15, -0.16, -0.36], rot: [0.25, 0.25, -0.2], ads: 0.3 },
-    binoculars:  { s: [0, 0.012, -0.075], hip: [0.02, -0.16, -0.22], rot: [0.3, 0, 0], ads: 0.0 },
-    knife:       { s: [0, 0, 0],          hip: [0.13, -0.17, -0.34], rot: [0.5, 0.3, -0.6], ads: 0.3 }
-  };
-  FP.SIGHT = SIGHT;
-  const R0 = new THREE.Quaternion().setFromAxisAngle(up, Math.PI);   // the gun's +Z (barrel) to the camera's -Z
-  const _m = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s1 = new THREE.Vector3(1, 1, 1);
-  function standinRig() {
-    const actor = IVChars.spawn('hero'); if (!actor) return null;
-    const group = new THREE.Group(); group.add(actor.root);
-    // only the forearms, hands and fingers are drawn (sleeves above the elbow and the body would fill the screen
-    // this close to the eye); everything else of the second actor is dropped in the shader
-    const KEEP = /^(lowerarm|hand|thumb|index|middle|ring|pinky)/i, vmOn = { value: 1 };
-    actor.root.traverse(o => {
-      if (!o.isMesh) return;
-      o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false;
-      if (o.isSkinnedMesh) { if (/Hair|Eyes|LOD/i.test(o.name)) o.visible = false; else o.material = maskedMaterial(o, b => !KEEP.test(b.name), vmOn); }
-    });
-    const models = {}, ref = {};
-    const ds = { vx: 0, vz: 0, speed: 0, yawRate: 0, stance: 'stand', aiming: true, aimPitch: 0, aimYawOffset: 0, sprinting: false, grounded: true, fallSpeed: 0, slopeY: 1, weapon: '', dt: 0 };
-    const HIDEB = ['Head', 'neck_01', 'thigh_l', 'thigh_r'];
-    const rig = { standin: true, group, actor, clips: IVChars.clips || [], sockets: {}, gun: null, kind: null, muzzle: null, ejection: null, scopeEye: null,
-      adsOffset: { p: new THREE.Vector3(), q: new THREE.Quaternion() }, hip: { p: new THREE.Vector3(), q: new THREE.Quaternion() }, settle: 0 };
-    rig.setKind = function (kind) {
-      if (rig.kind === kind) return;
-      if (rig.gun) actor.detach(rig.gun);
-      rig.gun = models[kind] || (models[kind] = IVChars.weapon(kind));
-      if (rig.gun) { actor.attach(rig.gun, 'handR'); rig.gun.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } }); }
-      rig.kind = kind; rig.settle = 0;
-      rig.muzzle = rig.gun && rig.gun.userData.muzzle; rig.ejection = rig.gun && rig.gun.getObjectByName(kind + '_ejection'); rig.scopeEye = rig.gun && rig.gun.getObjectByName(kind + '_scopeEye');
-    };
-    rig.play = function (name) { IV.setUpper(actor, name); };
-    // state: { weapon kind, oneShot (upper clip to mirror), dt }
-    rig.drive = function (st, dt) {
-      ds.dt = dt; ds.weapon = st.weapon; ds.aiming = st.kind !== 'grenade';
-      if (actor.drive) { IV.releaseLoopPose && IV.releaseLoopPose(actor); actor.drive(ds); }
-      const vu = IV.upperOf(actor);
-      if (st.oneShot && st.oneShot !== vu) IV.setUpper(actor, st.oneShot);
-      group.position.set(0, 0, 0); group.quaternion.identity(); group.updateMatrixWorld(true);
-      // chars.js picks the level of detail and its update rate by the distance to IVChars.camera: measure from the
-      // viewmodel's own camera (at the origin of this scene), or the arms drop to the far LOD
-      const c0 = IVChars.camera; IVChars.camera = rig.cam || c0; actor.update(dt); IVChars.camera = c0;
-      for (const n of HIDEB) { const b = actor.bone(n); if (b) b.scale.setScalar(0.001); }
-      group.updateMatrixWorld(true);
-      if (!rig.gun) return;
-      // the gun in the body's frame: kept from the settled aim pose (one-shots move the gun, not the body)
-      const busy = !!st.oneShot || (vu && /reload|bolt|throw|fire/i.test(vu));
-      rig.settle += dt;
-      if (!ref[rig.kind] || (!busy && rig.settle < 0.6)) ref[rig.kind] = rig.gun.matrixWorld.clone();
-      const T = SIGHT[rig.kind] || SIGHT.smg;
-      // hip pose and the ADS offset for this kind: gun = T(p) R(q) R0 T(-s)
-      rig.hip.p.fromArray(T.hip); rig.hip.q.setFromEuler(_e.set(T.rot[0], T.rot[1], T.rot[2]));
-      rig.adsOffset.p.set(-T.hip[0], -T.hip[1], -T.ads - T.hip[2]); rig.adsOffset.q.copy(rig.hip.q).invert();
-      rig._ref = ref[rig.kind]; rig._s = T.s;
-    };
-    // place the group so the gun sits at pose (p, q): group = T(p) R(q) R0 T(-s) * ref^-1
-    rig.place = function (p, q) {
-      _m.makeTranslation(-rig._s[0], -rig._s[1], -rig._s[2]);
-      _q.copy(q).multiply(R0); _m2.compose(p, _q, _s1).multiply(_m);
-      _m.copy(rig._ref).invert(); _m2.multiply(_m);
-      _m2.decompose(group.position, group.quaternion, group.scale);
-      group.updateMatrixWorld(true);
-    };
-    return rig;
-  }
-  // ---------------------------------------------------------------- the characters' arms rig (IVChars.viewmodel)
-  // One viewmodel per gun ('rifleScoped', 'smg', 'pistol'), made on first use, all in one group at the eye. Their clips
-  // carry the hip, ADS and sprint poses and every hand action (fire, bolt, reload with the magazine in the left hand,
-  // draw, grenade, melee, interact, binoculars), so this side adds only small procedural layers and starts the clips.
+  // The gun and hands the player sees: js/vm.js (IVVM.create) with gloves from js/hands.js. One vm per gun, made on
+  // first use, all in one group at the eye (camera at the origin looking down -Z, x right, y up). The vm frames the gun
+  // itself (hip, aimed with the sight exactly on the axis, sprint carry, stance) from { ads, sprint, crouch, prone };
+  // this file adds the small procedural layers (breathing, bob, sway and recoil springs, wall lowering, lean roll).
+  const _q = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3(), _s1 = new THREE.Vector3(1, 1, 1);
   function realRig() {
-    if (!IVChars.viewmodel || !IVChars.fpClips || !IVChars.fpClips('smg').length) return null;
+    if (!window.IVVM || !IVVM.create) return null;
     const group = new THREE.Group(), vms = {};
     const rig = { standin: false, group, vms, vm: null, kind: null, gun: null, muzzle: null, ejection: null, scopeEye: null, sockets: null, clips: [] };
     rig.get = function (kind) {
-      if (!(kind in vms)) { const v = IVChars.viewmodel(kind); vms[kind] = v; if (v) { v.group.visible = false; group.add(v.group); v.onEvent = (e, c) => { FP.lastEvent = { e, c, t: IV.time }; if (e === 'atEye') FP.atEye = true; onRigEvent(e, c, v); }; } }
+      if (!(kind in vms)) {
+        let v = null; try { v = IVVM.create(kind); } catch (e) { console.warn('IVVM.create', kind, e); }
+        vms[kind] = v;
+        if (v) { v.group.visible = false; group.add(v.group); v.onEvent = (e, c) => { FP.lastEvent = { e, c, t: IV.time }; if (e === 'atEye') FP.atEye = true; onRigEvent(e, c, v); }; }
+      }
       return vms[kind];
     };
     rig.setKind = function (kind) {
@@ -396,60 +320,7 @@
     for (let i = 0; i < n; i++) { s.v += ((to - s.x) * s.k - s.v * s.c) * h; s.x += s.v * h; }
     return s.x;
   }
-  const _mH = new THREE.Matrix4(), _mF = new THREE.Matrix4(), _mL = new THREE.Matrix4(), _qL = new THREE.Quaternion(), _pL = new THREE.Vector3();
-  const _r = new THREE.Vector3(), _d = new THREE.Vector3(), _u = new THREE.Vector3(), _q2 = new THREE.Quaternion(), _qz = new THREE.Quaternion(), _qi = new THREE.Quaternion();
-  const ZN = new THREE.Vector3(0, 0, -1), ZP = new THREE.Vector3(0, 0, 1);
-  // Hip framing on top of the arms' clips (metres and radians in the eye's frame, x right, y up, z back): the whole
-  // gun-and-arms assembly lower, further right and a little further out, turned so the barrel points in at the
-  // crosshair, like the reference's low, small hip carry. Turned about the right hand so the grip stays the pivot.
-  const HIP = FP.hipTune = {
-    rifleScoped: { p: [0.01, -0.02, -0.02], r: [0.0, 0.0, -0.25] },
-    smg:         { p: [0.015, -0.035, -0.03], r: [0.0, 0.02, 0.0] },
-    pistol:      { p: [0.015, -0.03, -0.02], r: [0.0, 0.02, 0.0] }
-  };
-  // aimed: how far in front of the eye the rear sight sits (m). The SMG's clip put it at 20 cm, so its receiver filled
-  // the lower middle of the screen under the target; further out the gun is smaller and the target clearer.
-  const ADS_REAR = FP.adsRear = { smg: 0.29 };
-  // elbow drop per gun: [hip, aimed] share of the way to pointing down (and `out` to the side), per arm
-  const ELBOW = FP.elbowTune = {
-    rifleScoped: { l: [0.85, 0.2], r: [0, 0], out: 0.2 },
-    smg:         { l: [0.25, 0.25], r: [0, 0], out: 0.35 },
-    pistol:      { l: [0.3, 0.75], r: [0.3, 0.75], out: 0.45 }
-  };
-  function hipFrame(v, kind, w, out) {
-    const h = HIP[kind]; if (!h || w <= 0) return out.identity();
-    v.group.position.set(0, 0, 0); v.group.quaternion.identity(); v.group.updateMatrixWorld(true);
-    const g = v.bones.hand_r ? v.bones.hand_r.getWorldPosition(_r) : _r.set(0, 0, 0);
-    _qL.setFromEuler(_e.set(h.r[0] * w, h.r[1] * w, h.r[2] * w));
-    _pL.copy(g).negate().applyQuaternion(_qL).add(g).add(_u.set(h.p[0] * w, h.p[1] * w, h.p[2] * w));
-    return out.compose(_pL, _qL, _s1);
-  }
-  // Exact sights: with the group at rest, the rear sight (scope eye on the rifle) and the sight line are read from the
-  // clip's pose, and the turn that puts that line on the view axis (and levels the gun about it) is blended in by the
-  // ADS progress, so the sight picture sits on the screen centre whatever the clip's own ADS pose drifts to. While a
-  // one-shot (a shot, a bolt) plays, the last base-pose correction is kept, so the shot's own kick still shows.
-  const FIX = {};
-  function sightFix(v, w, out) {
-    if (w <= 1e-4) return out.identity();
-    let f = FIX[v.kind];
-    if (!f || !v.current) {
-      v.group.position.set(0, 0, 0); v.group.quaternion.identity(); v.group.updateMatrixWorld(true);
-      const s = v.sockets, wr = v.bones.w_root; if (!wr) return out.identity();
-      wr.getWorldQuaternion(_q2);
-      if (s.sightRear && s.sightFront) { s.sightRear.getWorldPosition(_r); s.sightFront.getWorldPosition(_d).sub(_r).normalize(); }
-      else if (s.scopeEye) { s.scopeEye.getWorldPosition(_r); _d.copy(ZP).applyQuaternion(_q2); }
-      else return out.identity();
-      f = FIX[v.kind] = f || { q: new THREE.Quaternion(), r: new THREE.Vector3(), t: new THREE.Vector3() };
-      f.q.setFromUnitVectors(_d, ZN);
-      _u.set(0, 1, 0).applyQuaternion(_q2).applyQuaternion(f.q);        // the gun's up after the turn: level it
-      f.q.premultiply(_qz.setFromAxisAngle(ZP, Math.atan2(_u.x, _u.y)));
-      f.r.copy(_r); f.t.set(0, 0, ADS_REAR[v.kind] ? -ADS_REAR[v.kind] : Math.min(_r.z, -0.12));   // the rear sight on the axis, at least 12 cm out
-    }
-    _q2.copy(_qi).slerp(f.q, w);
-    _pL.copy(f.r).applyQuaternion(_q2).negate().add(f.r).addScaledVector(_u.copy(f.t).sub(f.r), w);
-    return out.compose(_pL, _q2, _s1);
-  }
-  FP.sightFix = FIX;
+  const _mL = new THREE.Matrix4(), _qL = new THREE.Quaternion(), _pL = new THREE.Vector3();
   function realFrame(vm, dt, yaw, pitch) {
     const W8 = IV.weapons, S = IV.settings, rig = vm.rig, M = IV.mission, I = IV.input, C = IV.camera;
     const gunKind = KIND[W8.cur] || 'smg';
@@ -464,7 +335,7 @@
     // beats -> clips (each started once, on the change)
     const beat = W8.busyThrow ? 'grenade' : W8.binoc ? 'binoculars' : inTakedown ? 'melee' : harness && M.interAt && I.held('use') ? 'cut' : (M && M.interAt && I.held('use') && M.interAt.prog > 0) ? 'interact' : null;
     if (beat !== FP.beat) {
-      if (beat === 'grenade') { if (split(v)) { FP.pullT = IV.time; rig.play('grenadePull'); } else rig.play('grenade'); }
+      if (beat === 'grenade') { v.setProp && v.setProp(W8.busyThrow && W8.busyThrow.kind); if (split(v)) { FP.pullT = IV.time; rig.play('grenadePull'); } else rig.play('grenade'); }
       else if (beat === 'binoculars') { FP.atEye = false; rig.play('binoculars'); }
       else if (beat === 'melee') rig.play('melee');
       else if (beat === 'cut') rig.play('interact', { loop: true });
@@ -485,14 +356,10 @@
     if (W8.binoc && !FP.atEye && v.current === 'binoculars' && FP.binocT == null) FP.binocT = IV.time;
     if (W8.binoc && FP.binocT != null && IV.time - FP.binocT > rig.len('binoculars') + 0.05) FP.atEye = true;   // no 'atEye' event: the end of the clip
     if (!W8.binoc) FP.binocT = null;
-    // elbows (chars.js vm.elbows): the pistol's forearms fall away out of the bottom of the frame when it is up at
-    // the eye, and the rifle's support forearm drops instead of lying across the bottom of the screen; eased off while
-    // a one-shot (reload, bolt, draw) moves the hands about
-    const ek = ELBOW[v.kind] || ELBOW.smg, busyK = v.current && !/^fire/.test(v.current) ? 0 : 1;
-    FP.elbowK = IV.damp(FP.elbowK == null ? busyK : FP.elbowK, busyK, 8, dt);
-    v.elbows = v.elbows || {}; v.elbows.l = (ek.l[0] + (ek.l[1] - ek.l[0]) * a) * FP.elbowK; v.elbows.r = (ek.r[0] + (ek.r[1] - ek.r[0]) * a) * FP.elbowK; v.elbows.out = ek.out;
-    v.thumbL = v.kind === 'pistol' ? 0.8 * a * FP.elbowK : 0;
-    v.drive({ ads: a, sprint: FP.vmSpr }, dt);
+    // stance for the vm's small crouch / prone offsets
+    FP.vmCr = IV.damp(FP.vmCr || 0, P.stance === 'crouch' ? 1 : 0, 8, dt); FP.vmPr = IV.damp(FP.vmPr || 0, P.stance === 'prone' ? 1 : 0, 6, dt);
+    vst.ads = a; vst.sprint = FP.vmSpr; vst.crouch = FP.vmCr; vst.prone = FP.vmPr;
+    v.drive(vst, dt);
     holdGrenade(v);
     // small procedural layers: breathing, step bob, look sway and recoil on springs, wall lowering, landing dip, lean roll
     const motion = S.motion ? 0.4 : 1, t = IV.time, ph = FP.phase || 0, bobA = (FP.bobAmp || 0) * 0.9;
@@ -514,16 +381,13 @@
     const ox = (Math.sin(t * 1.1) * 0.0022 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.45) * relax - swY * 0.06;
     const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath) * relax + swP * 0.05 - FP.vmSpr * (v.kind === 'rifleScoped' ? 0.06 : 0.02) - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45 * relax;
     const oz = SP.kZ.x * 0.55 + FP.vmLower * 0.05;
-    // hip framing (fades out aimed), then the sight line put exactly on the view axis (fades in aimed), then the turn
-    // layers (recoil, sway, wall lowering, lean roll) about the right shoulder, behind and below the eye, so recoil
-    // travels back through the wrists and forearms instead of the gun spinning about the eye
-    hipFrame(v, v.kind, 1 - a, _mH);
-    sightFix(v, a, _mF);
+    // the vm frames hip and aimed itself; on top: the turn layers (recoil, sway, wall lowering, lean roll) about the
+    // right shoulder, behind and below the eye, so recoil travels back through the wrists instead of spinning the gun
     _e.set(SP.kP.x + swP - FP.vmLower * 0.5, SP.kY.x + swY, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax + SP.kR.x + swY * 0.7);
     _qL.setFromEuler(_e);
     SHOULDER.set(0.17, -0.3, 0.12);
     _pL.copy(SHOULDER).negate().applyQuaternion(_qL).add(SHOULDER).add(_o.set(ox, oy, oz));
-    _mL.compose(_pL, _qL, _s1).multiply(_mF).multiply(_mH);
+    _mL.compose(_pL, _qL, _s1);
     _mL.decompose(v.group.position, v.group.quaternion, v.group.scale);
     vmShadows(vm, v);
     vm.gun = rig.gun;
@@ -554,9 +418,9 @@
   FP.cancelAction = function () { const vm = VM; if (vm && !vm.rig.standin && vm.rig.vm) vm.rig.vm.stop(0.15); };
   let VM = null;
   function vmBuild() {
-    if (VM || !window.IVChars || !IVChars.spawn) return VM;
+    if (VM || !window.IVVM) return VM;
     const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(55, 1, 0.01, 20);
-    const rig = realRig() || standinRig(); if (!rig) return null;
+    const rig = realRig(); if (!rig) return null;
     scene.add(rig.group); scene.add(cam);
     const hemi = new THREE.HemisphereLight(0xffffff, 0x404040, 0.6), sun = new THREE.DirectionalLight(0xffffff, 0.8), pt = new THREE.PointLight(0xffc880, 0, 6, 2);
     scene.add(hemi); scene.add(sun); scene.add(sun.target); scene.add(pt);
@@ -568,94 +432,10 @@
   // the arms pass: its own field of view (50-60, never the world's) and a small push of the whole rig away from the eye
   FP.vmTune = { fov: 55, push: 0.03 };   // 50 was tried: a narrower view only enlarges the arms; 3 cm out sits them a little smaller at the hip
   const KIND = { rifle: 'rifleScoped', smg: 'smg', pistol: 'pistol', binoc: 'binoculars', grenade: 'grenade', knife: 'knife' };
-  const vst = { weapon: '', kind: '', oneShot: null, dt: 0 };
-  const pose = { p: new THREE.Vector3(), q: new THREE.Quaternion() }, qa = new THREE.Quaternion(), qp = new THREE.Quaternion(), piv = new THREE.Vector3();
+  const vst = { ads: 0, sprint: 0, crouch: 0, prone: 0 };
   function vmFrame(dt, yaw, pitch) {
     const vm = vmBuild(); if (!vm) return;
-    if (!vm.rig.standin) return realFrame(vm, dt, yaw, pitch);
-    const W8 = IV.weapons, S = IV.settings, rig = vm.rig;
-    // what the hands hold this frame (scripted beats included; js/fp.js header lists how each beat plays)
-    const M = IV.mission, I = IV.input;
-    const tdT = W8.takedownT != null ? IV.time - W8.takedownT : 99, inTakedown = P.cineClip && tdT < 3;
-    const harness = P.cine && M && M.phase === 'harness';
-    if (FP._throwing && !W8.busyThrow) FP.throwT = IV.time;   // the grenade just left the hand
-    FP._throwing = !!W8.busyThrow; if (W8.busyThrow) FP.throwKind = W8.busyThrow.kind;
-    const throwK = FP.throwT != null ? (IV.time - FP.throwT) / 0.42 : 9;
-    let k = W8.busyThrow || throwK < 1 ? 'grenade' : W8.binoc ? 'binoc' : W8.cur;
-    if (inTakedown || harness) k = 'knife';
-    const kind = KIND[k] || k;
-    const show = P.alive && !(W8.scoped && FP.vmAim > 0.92) && !(W8.binoc && FP.vmAim > 0.92) && (!P.cineClip || inTakedown) && (!P.cine || harness || inTakedown);
-    vm.root.visible = show;
-    if (!show) return;
-    if (rig.kind !== kind) { if (rig.kind) FP.drawK = 1; rig.setKind(kind); }   // a new thing in the hands comes up from below
-    vm.gun = rig.gun;
-    if (rig.gun) rig.gun.visible = !(kind === 'grenade' && FP.throwKind === 'rock');   // a stone: the throwing hand, no model
-    if (rig.actor) rig.actor.leftHandIK = kind === 'knife' || kind === 'grenade' ? 0 : null;
-    // mirror the world actor's upper-body one-shots (reload, bolt) onto the arms
-    const wu = IV.upperOf(P.actor);
-    vst.weapon = k; vst.kind = kind; vst.dt = dt; vst.oneShot = /reload|bolt/i.test(wu || '') && kind !== 'knife' && kind !== 'grenade' ? wu : null;
-    rig.drive(vst, dt);
-    // procedural layers (viewmodel camera frame: x right, y up, z toward the camera)
-    const C = IV.camera, motion = S.motion ? 0.4 : 1;
-    const aiming = !!(W8.aiming || W8.scoped || (W8.binoc && k === 'binoc'));
-    // look lag: the gun trails the view a little and catches up
-    const dyaw = IV.wrapA(yaw - (FP.lastYaw == null ? yaw : FP.lastYaw)), dpit = pitch - (FP.lastPitch == null ? pitch : FP.lastPitch);
-    FP.lastYaw = yaw; FP.lastPitch = pitch;
-    const lagK = aiming ? 0.35 : 1;
-    FP.lagYaw = IV.clamp(IV.damp(FP.lagYaw, dyaw * 5 * lagK, 12, dt), -0.07, 0.07); FP.lagPitch = IV.clamp(IV.damp(FP.lagPitch, dpit * 5 * lagK, 12, dt), -0.06, 0.06);
-    const t = IV.time, ph = FP.phase || 0, bobA = (FP.bobAmp || 0) * 1.3;
-    // breathing: heavier for a few seconds after a sprint (first-person-body skill)
-    FP.fatigue = IV.clamp((FP.fatigue || 0) + (P.sprinting ? dt / 4 : -dt / 7), 0, 1);
-    const breath = (aiming ? 0.12 : 1) * motion * (1 + FP.fatigue * 2.2);
-    FP.kick = IV.damp(FP.kick, 0, 13, dt); FP.kickR = IV.damp(FP.kickR, 0, 9, dt);
-    FP.vmAim = IV.damp(FP.vmAim, aiming ? 1 : 0, aiming ? 16 : 12, dt);   // about 0.2 s to the sights, a touch slower down
-    // sprint carry: the gun swings across the chest, muzzle low and left
-    FP.vmSpr = IV.damp(FP.vmSpr || 0, P.sprinting && k !== 'grenade' ? 1 : 0, P.sprinting ? 7 : 10, dt);
-    // lowering near walls: a short ray along the view
-    const cam = W.camera, look = IV.camera.lookDir, wall = W.raycast(cam.position.x, cam.position.y, cam.position.z, look.x, look.y, look.z, 0.9, F.SOLID | F.SIGHT, true);
-    FP.vmLower = IV.damp(FP.vmLower, wall && !aiming ? IV.clamp(1 - (wall.t - 0.3) / 0.6, 0, 1) : 0, 8, dt);
-    // stance: crouched the gun sits a little higher and tighter, prone it is pushed forward and tilted in
-    FP.vmPr = IV.damp(FP.vmPr || 0, P.stance === 'prone' ? 1 : 0, 6, dt);
-    const ox = Math.sin(t * 1.1) * 0.0025 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.55 - FP.lagYaw * 0.45 - FP.vmSpr * 0.02;
-    const oy = -Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.9 + Math.sin(t * 1.7) * 0.0018 * breath + FP.lagPitch * 0.35 - FP.vmLower * 0.1 + (C.bobY || 0) * 0.5 - FP.vmSpr * 0.045 + FP.vmPr * 0.02;
-    const oz = FP.kick * (aiming ? 0.035 : 0.05) + FP.vmLower * 0.06 - FP.vmPr * 0.03;
-    // beats: draw (a new item rises from below), using something (gun lowered), grenade cook and throw, knife stab
-    // (takedown) and the harness cut (knife up at the riser, sawing while Use is held)
-    FP.drawK = IV.damp(FP.drawK || 0, 0, 7, dt);
-    const using = !!(M && M.interAt && I.held('use') && M.interAt.prog > 0 && !harness);
-    FP.vmUse = IV.damp(FP.vmUse || 0, using ? 1 : 0, 8, dt);
-    let bx2 = 0, by2 = -FP.drawK * 0.22 - FP.vmUse * 0.14, bz2 = 0, bp = -FP.drawK * 0.6 - FP.vmUse * 0.6, byaw = FP.vmUse * 0.35, broll = 0;
-    if (kind === 'grenade') {
-      if (W8.busyThrow) { const c = Math.min(1, (IV.time - W8.busyThrow.t0) / 0.35); by2 += 0.06 * c; bp += 0.25 * c; bz2 += 0.05 * c; }   // wound back by the shoulder
-      else { const e = IV.clamp(throwK, 0, 1); bz2 -= Math.sin(e * Math.PI * 0.8) * 0.35; by2 += Math.sin(e * Math.PI) * 0.08 - e * e * 0.35; bx2 -= e * 0.1; bp -= e * 1.1; }
-    }
-    if (kind === 'knife' && inTakedown) {
-      // grab and strike: up and back (0-0.35 s), thrust forward and down (0.35-0.6), hold, then lower away (2.0-2.6)
-      const a1 = IV.smooth(IV.clamp(tdT / 0.35, 0, 1)), a2 = IV.smooth(IV.clamp((tdT - 0.35) / 0.25, 0, 1)), a3 = IV.smooth(IV.clamp((tdT - 2.0) / 0.6, 0, 1));
-      bx2 += -0.06 * a1; by2 += 0.12 * a1 - 0.08 * a2 - 0.3 * a3; bz2 += 0.08 * a1 - 0.3 * a2 + 0.1 * a3; bp += 0.5 * a1 - 1.2 * a2 - 0.4 * a3; broll += 0.4 * a1;
-    }
-    if (kind === 'knife' && harness) {
-      const cutting = !!(M.interAt && I.held('use'));
-      FP.saw = IV.damp(FP.saw || 0, cutting ? 1 : 0, 6, dt);
-      const sw = Math.sin(IV.time * 13) * FP.saw;
-      bx2 += -0.14 * FP.saw; by2 += 0.3 * FP.saw + sw * 0.03; bz2 += -0.05 * FP.saw + sw * 0.02; bp += 0.9 * FP.saw; broll += 0.5 * FP.saw;
-    }
-    // pose: hip blended to the sights, then the layers
-    const hip = rig.hip, ads = rig.adsOffset, a = IV.smooth(IV.clamp(FP.vmAim, 0, 1));
-    pose.p.copy(hip.p).addScaledVector(ads.p, a);
-    qa.copy(hip.q).multiply(ads.q); pose.q.copy(hip.q).slerp(qa, a);
-    const relax = 1 - a * 0.85;
-    pose.p.x += ox * relax + bx2; pose.p.y += oy * (1 - a * 0.7) + by2; pose.p.z += oz + bz2;
-    _e.set(FP.kickR + FP.lagPitch * 0.6 * relax - FP.vmLower * 0.55 - FP.vmSpr * 0.35 + bp, FP.lagYaw * 0.8 * relax + FP.vmSpr * 0.75 + byaw, -FP.roll * 0.6 + FP.vmSpr * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.6 * relax + FP.vmPr * 0.12 + broll);
-    // the layers turn the gun about the right hand (its grip), not the sight point half a metre ahead of it
-    qp.setFromEuler(_e);
-    const sp0 = rig._s || [0, 0, 0];
-    piv.set(-sp0[0], -sp0[1], -sp0[2]).applyQuaternion(_q.copy(pose.q).multiply(R0)).add(pose.p);
-    pose.p.sub(piv).applyQuaternion(qp).add(piv); pose.q.premultiply(qp);
-    if (rig.place) rig.place(pose.p, pose.q);
-    else { rig.group.position.copy(pose.p); rig.group.quaternion.copy(pose.q); }
-    vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
-    vmLight(vm);
+    realFrame(vm, dt, yaw, pitch);
   }
   // The arms' reflection cube: a 32 px cube of a sky built from the world's own light (hemisphere sky and ground
   // colours, the horizon between them, the sun or moon as a bright soft spot where it really is relative to the
@@ -732,12 +512,6 @@
     // as a soft bright spot, so steel shows a highlight and oiled wood a sheen that move as you turn; Low keeps the
     // world's sky cube (no extra renders there)
     vm.scene.environment = (IV.settings.quality | 0) >= 1 && W.sun ? vmEnv(lit, night) : (W.scene.environment || null);
-    // wet gloves in the rain: the world's wetness, eased down to 0.3 of it under a roof
-    const gw = window.IVChars && IVChars.fpGloveWet;
-    if (gw) {
-      const U = E && E.U, wet = U && U.uWet ? U.uWet.value : 0, roof = W.underRoof && W.underRoof(P.render.x, P.render.z, P.render.y + 1.5);
-      gw.value = IV.damp(gw.value, IV.clamp(wet * (roof ? 0.3 : 1), 0, 1), 0.5, 1 / 60);
-    }
   }
   // where the gun and hands are on screen (0..1, top-left origin), for HUD layout checks: the gun's box and the hand
   // and forearm bones, projected by the viewmodel camera
@@ -747,8 +521,7 @@
     const r = { x0: 1, y0: 1, x1: 0, y1: 0, pts: [] }, add = v => { if (v.z > -0.02) return; _pc.copy(v).project(VM.cam); const x = (_pc.x + 1) / 2, y = (1 - _pc.y) / 2; r.pts.push([+x.toFixed(3), +y.toFixed(3)]); r.x0 = Math.min(r.x0, x); r.x1 = Math.max(r.x1, x); r.y0 = Math.min(r.y0, y); r.y1 = Math.max(r.y1, y); };
     _b3.setFromObject(VM.rig.gun);
     for (let i = 0; i < 8; i++) add(_v.set(i & 1 ? _b3.max.x : _b3.min.x, i & 2 ? _b3.max.y : _b3.min.y, i & 4 ? _b3.max.z : _b3.min.z));
-    const A = VM.rig.actor; if (A) for (const n of ['hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r']) { const b = A.bone(n); if (b) add(b.getWorldPosition(_v)); }
-    const bs = VM.rig.vm && VM.rig.vm.bones; if (bs) for (const n of ['hand_l', 'hand_r', 'lowerarm_l', 'lowerarm_r']) if (bs[n]) add(bs[n].getWorldPosition(_v));
+    const hs = VM.rig.vm && VM.rig.vm.hands; if (hs) for (const n of ['handL', 'handR', 'handP']) { const h = hs[n]; if (h && h.visible) { add(_v.set(0, 0.05, 0).applyMatrix4(h.matrixWorld)); add(_v.set(0, -0.08, 0).applyMatrix4(h.matrixWorld)); } }
     for (const k of ['x0', 'y0', 'x1', 'y1']) r[k] = Math.round(IV.clamp(r[k], 0, 1) * 1000) / 1000;
     return r;
   };
