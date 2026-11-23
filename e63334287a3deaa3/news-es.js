@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Rollaway is now Overdrop": "Rollaway ahora se llama Overdrop",
+    "Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.": "Rollaway tiene nombre y aspecto nuevos: Overdrop, una pista más empinada y más rápida por una ciudad de neón.",
+    "There are new hazards, and each kind has its own shape so you can tell them apart at speed.": "Hay peligros nuevos, y cada tipo tiene su propia forma para que los distingas a toda velocidad.",
+    "Your best run, gems and settings carry over.": "Tu mejor carrera, tus gemas y tus ajustes se conservan.",
     "A contact page": "Una página de contacto",
     "The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.": "La web ya tiene una página de Contacto, enlazada al final de cada página: manda un error, una idea o una pregunta, con un correo si quieres respuesta.",
     "Only the site's team can read what you send.": "Solo el equipo de la web puede leer lo que mandes.",
