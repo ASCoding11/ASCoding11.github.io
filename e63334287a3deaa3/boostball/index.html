@@ -1222,10 +1222,11 @@ function fineFloor(){
     im.data[o]=(nx/l*.5+.5)*255;im.data[o+1]=(ny/l*.5+.5)*255;im.data[o+2]=(1/l*.5+.5)*255;im.data[o+3]=255;
   }
   g.putImageData(im,0,0);
-  // r128 placed every map of a material by the colour map's settings, so this grain was always drawn stretched once over the
-  // pitch (its old repeat of 56 x 70 was ignored); r187 honours each map's own repeat, so it is left at one to keep the look
-  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
-  return floorFine=new THREE.MeshStandardMaterial({map:fieldTex,normalMap:t,normalScale:new THREE.Vector2(.32,.32),roughness:.86,metalness:0});
+  // r128 placed every map of a material by the colour map's settings, so this grain was drawn stretched once over the whole
+  // pitch and never showed; r187 honours each map's own repeat, so it is tiled 24 x 30 times (a tile is about 7 units, a
+  // blade a few tenths): fine enough not to show a pattern, coarse enough to read as turf around the cars
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(24,30);t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  return floorFine=new THREE.MeshStandardMaterial({map:fieldTex,normalMap:t,normalScale:new THREE.Vector2(.42,.42),roughness:.86,metalness:0});
 }
 
 const netTex=canvasTex(128,128,(g,w,h)=>{g.clearRect(0,0,w,h);g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=3;for(let i=0;i<=w;i+=16){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke()}},[1,1]);
@@ -1352,19 +1353,28 @@ function recolorGoals(){
   // The stadium bowl: two tiers of crowd, LED boards along the front of each, and a roof with a strip of lights under its
   // edge, all swept around a rounded rectangle outside the arena (ring()). It is a few hundred triangles and three small
   // drawn textures; the made-up sponsor names on the boards are ours.
+  // The crowd is drawn in blocks: each block between two aisles (and each tier) has fans mostly in one colour, every
+  // fan a little different, and rows further back are a little darker. From the pitch a fan is a pixel or two, so
+  // fans picked at random from a bright palette read as TV static that shimmered as the camera moved; close colours in
+  // a block read as a crowd and stay calm. Same texture size and cost as before, on every graphics setting.
   const crowd=canvasTex(1024,512,(g,w,h)=>{
-    const r=rng(4242);g.fillStyle='#0a0f22';g.fillRect(0,0,w,h);
-    const shirts=['#e8ecf8','#c9d2ea','#8b95b8','#ffd34a','#46e39a','#ff6b81','#7fb2ff','#ffb066','#b592ff','#3b4466'],skin=['#f1c9a5','#d9a47a','#b07d56','#8a5a3c','#6b4226'];
+    const r=rng(4242);g.fillStyle='#0d1330';g.fillRect(0,0,w,h);
+    const pal=[[232,236,248],[201,210,234],[139,149,184],[255,211,74],[70,227,154],[255,107,129],[127,178,255],[255,176,102],[181,146,255],[59,68,102]];
+    const skin=[[241,201,165],[217,164,122],[176,125,86],[138,90,60],[107,66,38]],mixc=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+    const block=[];for(let s=0;s<16;s++)block.push(pal[r()*pal.length|0]);
     for(let y=0;y<h;y+=16){
-      g.fillStyle='#070b1a';g.fillRect(0,y,w,5);g.fillStyle='#151c3a';g.fillRect(0,y+5,w,2);
+      const lit=.45+.55*y/h;   // y = 0 is the back row
+      g.fillStyle='rgba(4,6,16,.3)';g.fillRect(0,y,w,5);
       for(let x=(y/16)%2?4:0;x<w;x+=9){
         if(r()<.14)continue;const j=r()*2-1;
-        g.fillStyle=shirts[r()*shirts.length|0];g.globalAlpha=.55+r()*.35;g.fillRect(x+j,y+8,6,8);
-        g.fillStyle=skin[r()*skin.length|0];g.globalAlpha=.8;g.beginPath();g.arc(x+j+3,y+6,2.4,0,7);g.fill();
-        if(r()<.012){g.globalAlpha=1;g.fillStyle='#fff';g.fillRect(x+j+2,y+3,2,2)}   // a phone light
+        const col=mixc(block[((x/128|0)+(y>=h/2?8:0))%16],pal[r()*pal.length|0],.3),grey=(col[0]+col[1]+col[2])/3,b=lit*(.925+.15*r())*.75;
+        const c=col.map(v=>Math.round((grey+(v-grey)*.6)*b));
+        g.fillStyle='rgb('+c+')';g.fillRect(x+j,y+8,6,8);
+        g.fillStyle='rgb('+mixc(skin[r()*skin.length|0],c,.5).map(v=>Math.round(v*b*.8))+')';g.beginPath();g.arc(x+j+3,y+6,2.4,0,7);g.fill();
+        if(r()<.012){g.fillStyle='#fff';g.fillRect(x+j+2,y+3,2,2)}   // a phone light
       }
     }
-    g.globalAlpha=1;g.fillStyle='#070b1a';for(let x=0;x<w;x+=128)g.fillRect(x,0,7,h);   // aisles
+    g.fillStyle='rgba(4,6,16,.8)';for(let x=0;x<w;x+=128)g.fillRect(x,0,7,h);   // aisles
   },[1,1]);
   const ads=canvasTex(2048,64,(g,w,h)=>{
     g.fillStyle='#050816';g.fillRect(0,0,w,h);
@@ -1645,20 +1655,31 @@ let envTex=null;
 function stadiumEnv(){
   if(envTex)return envTex;
   const S=128,face=draw=>{const c=document.createElement('canvas');c.width=c.height=S;draw(c.getContext('2d'));return c};
+  // the sides: dark roof with banks of floodlights and the strip light under its edge, the crowd (a mottled band with the
+  // LED ribbon across it), the lit rim of the wall, then the pitch. three.js blurs this for rough surfaces itself, so
+  // the paint's clear coat shows the floodlights sharp and the paint under it a soft glow of the same picture.
   const side=g=>{
-    const gr=g.createLinearGradient(0,0,0,S);
-    gr.addColorStop(0,'#0a1230');gr.addColorStop(.3,'#101a3c');gr.addColorStop(.5,'#1c2a52');gr.addColorStop(.56,'#24583a');gr.addColorStop(1,'#1e6e38');
+    const r=rng(31),gr=g.createLinearGradient(0,0,0,S);
+    gr.addColorStop(0,'#04070f');gr.addColorStop(.22,'#0a1024');gr.addColorStop(.3,'#1a2246');gr.addColorStop(.52,'#28325e');gr.addColorStop(.555,'#3a4a7a');
+    gr.addColorStop(.565,'#2f8f55');gr.addColorStop(.7,'#24783f');gr.addColorStop(1,'#1c6a36');
     g.fillStyle=gr;g.fillRect(0,0,S,S);
-    g.fillStyle='#f4f8ff';for(let x=10;x<S;x+=28)g.fillRect(x,24,16,7);   // a row of floodlights
-    g.fillStyle='rgba(190,215,255,.45)';g.fillRect(0,56,S,4);             // the lit rim of the wall
+    const dots=['rgba(255,255,255,.18)','rgba(255,210,90,.16)','rgba(120,170,255,.16)','rgba(255,110,130,.14)','rgba(0,0,0,.25)'];
+    for(let i=0;i<420;i++){g.fillStyle=dots[r()*5|0];g.fillRect(r()*S,S*(.3+r()*.22),2,1)}
+    g.fillStyle='rgba(10,14,30,.9)';g.fillRect(0,S*.41,S,3);
+    g.fillStyle='rgba(255,246,226,.5)';for(let x=6;x<S;x+=32)g.fillRect(x-3,S*.16-3,26,12);
+    g.fillStyle='#fff6e2';for(let x=6;x<S;x+=32)g.fillRect(x,S*.16,20,6);
+    g.fillStyle='rgba(255,241,210,.9)';g.fillRect(0,S*.255,S,2);
+    g.fillStyle='rgba(200,225,255,.7)';g.fillRect(0,S*.548,S,3);
   };
-  const top=g=>{g.fillStyle='#070c20';g.fillRect(0,0,S,S);g.fillStyle='#eef4ff';for(const y of [28,88])for(let x=16;x<S;x+=32)g.fillRect(x,y,18,10)};
-  const bottom=g=>{g.fillStyle='#1e6e38';g.fillRect(0,0,S,S)};
+  const top=g=>{g.fillStyle='#060a1a';g.fillRect(0,0,S,S);g.strokeStyle='rgba(255,241,210,.85)';g.lineWidth=3;g.strokeRect(10,10,S-20,S-20);
+    g.fillStyle='#fffaf0';for(const [x,y] of [[14,14],[S-34,14],[14,S-24],[S-34,S-24]])g.fillRect(x,y,20,10)};
+  const bottom=g=>{g.fillStyle='#1e6e38';g.fillRect(0,0,S,S);g.fillStyle='#237c40';for(let i=0;i<8;i+=2)g.fillRect(0,i*S/8,S,S/8);
+    g.strokeStyle='rgba(255,255,255,.6)';g.lineWidth=2;g.beginPath();g.arc(S/2,S/2,S/4,0,7);g.stroke()};
   envTex=new THREE.CubeTexture([face(side),face(side),face(top),face(bottom),face(side),face(side)]);
   envTex.needsUpdate=true;return envTex;
 }
 // Car paint: a coloured base under a clear glossy coat, like real car paint.
-function paint(hex){return matCache['p'+hex]||(matCache['p'+hex]=new THREE.MeshPhysicalMaterial({color:hex,roughness:.5,metalness:.45,clearcoat:1,clearcoatRoughness:.08,envMap:stadiumEnv(),envMapIntensity:1}))}
+function paint(hex){return matCache['p'+hex]||(matCache['p'+hex]=new THREE.MeshPhysicalMaterial({color:hex,roughness:.35,metalness:.55,clearcoat:1,clearcoatRoughness:.05,envMap:stadiumEnv(),envMapIntensity:1}))}
 function std(hex,rough,metal,extra){
   const k='s'+hex+':'+rough+':'+metal;
   return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:hex,roughness:rough,metalness:metal,envMap:stadiumEnv(),envMapIntensity:1},extra||{})));
