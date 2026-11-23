@@ -5,17 +5,23 @@
 (function () {
   'use strict';
   const F = IW.fx = { shakeAmt: 0 }, lin = IW.lin;
-  // ---------------------------------------------------------------- atlas: 0 smoke puff, 1 fire puff, 2 glow dot, 3 ring
+  // ---------------------------------------------------------------- atlas (4 x 2): 0 smoke puff, 1 fire puff, 2 glow dot, 3 ring,
+  // 4 spray (clumps of droplets), 5 billow (dense smoke with a firm edge, for flak and blasts), 6 sheet (a falling
+  // curtain of water), 7 mist (very soft)
   function atlas() {
-    const S = 128, c = document.createElement('canvas'); c.width = c.height = S * 2; const g = c.getContext('2d');
-    for (let t = 0; t < 4; t++) {
-      const ox = (t % 2) * S, oy = (t >> 1) * S, img = g.createImageData(S, S);
+    const S = 128, c = document.createElement('canvas'); c.width = S * 4; c.height = S * 2; const g = c.getContext('2d');
+    for (let t = 0; t < 8; t++) {
+      const ox = (t % 4) * S, oy = (t >> 2) * S, img = g.createImageData(S, S);
       for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
         const u = x / S - 0.5, v = y / S - 0.5, d = Math.hypot(u, v) * 2; let a = 0, l = 1;
         if (t === 0) { const n = IW.fbm(x / 14, y / 14, 3, 4); a = IW.clamp((1 - d) * 1.6 * (0.55 + n * 0.8) - 0.15, 0, 1); l = 0.7 + n * 0.5 - v * 0.4; }
         else if (t === 1) { const n = IW.fbm(x / 10, y / 10, 7, 4); a = IW.clamp((1 - d * 1.05) * (0.7 + n * 0.9), 0, 1) ** 1.2; l = 0.6 + n * 0.6; }
         else if (t === 2) { a = Math.exp(-d * d * 9) + Math.exp(-d * 3.5) * 0.25; }
-        else { a = Math.exp(-((d - 0.75) ** 2) * 90) * (1 - d * 0.3); }
+        else if (t === 3) { a = Math.exp(-((d - 0.75) ** 2) * 90) * (1 - d * 0.3); }
+        else if (t === 4) { const n = IW.fbm(x / 6, y / 6, 41, 4), m = IW.fbm(x / 2.5, y / 2.5, 43, 2); a = IW.clamp((1 - d) * 2.2 * IW.sstep(0.42, 0.6, n) * (0.5 + m), 0, 1); l = 0.85 + m * 0.3 - v * 0.25; }
+        else if (t === 5) { const n = IW.fbm(x / 16, y / 16, 47, 5); a = IW.sstep(0.02, 0.2, (1 - d * (1.15 - n * 0.5)) * 1.2); l = 0.55 + n * 0.7 - v * 0.6; }
+        else if (t === 6) { const n = IW.fbm(x / 3, y / 18, 53, 4); a = IW.clamp((1 - Math.abs(u) * 2.2) * IW.sstep(0.38, 0.62, n) * (1 - IW.sstep(0.3, 0.5, Math.abs(v))) * 1.6, 0, 1); l = 0.9 + (n - 0.5) * 0.3; }
+        else { a = Math.exp(-d * d * 3.2) * (1 - d * 0.4); l = 1; }
         const i = (y * S + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = IW.clamp(l, 0, 1) * 255; img.data[i + 3] = IW.clamp(a, 0, 1) * 255;
       }
       g.putImageData(img, ox, oy);
@@ -25,7 +31,8 @@
   class PS {
     constructor(N, additive, tex) {
       this.N = N; this.n = 0; this.add = additive;
-      const k = ['px', 'py', 'pz', 'vx', 'vy', 'vz', 'life', 'max', 's0', 's1', 'r', 'g', 'b', 'a', 'drag', 'grav', 'tile', 'rot', 'rv', 'fade'];
+      const k = ['px', 'py', 'pz', 'vx', 'vy', 'vz', 'life', 'max', 's0', 's1', 'r', 'g', 'b', 'a', 'drag', 'grav', 'tile', 'rot', 'rv', 'fade', 'r1', 'g1', 'b1', 'hold', 'wk'];
+      this.K = k;
       for (const f of k) this[f] = new Float32Array(N);
       const base = new THREE.PlaneGeometry(1, 1), g = new THREE.InstancedBufferGeometry(); g.index = base.index; g.setAttribute('position', base.attributes.position); g.setAttribute('uv', base.attributes.uv);
       this.aP = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4); this.aC = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4); this.aM = new THREE.InstancedBufferAttribute(new Float32Array(N * 2), 2);
@@ -40,7 +47,7 @@
             float r = aM.y; vec2 p = position.xy; p = vec2(p.x * cos(r) - p.y * sin(r), p.x * sin(r) + p.y * cos(r));
             vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]), up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
             vec3 w = aP.xyz + (right * p.x + up * p.y) * aP.w;
-            vUv = (uv + vec2(mod(aM.x, 2.0), 1.0 - floor(aM.x / 2.0))) * 0.5; vC = aC;   // canvas row 0 is the top (v = 1)
+            vUv = (uv + vec2(mod(aM.x, 4.0), 1.0 - floor(aM.x / 4.0))) * vec2(0.25, 0.5); vC = aC;   // canvas row 0 is the top (v = 1)
             float d = distance(cameraPosition, aP.xyz); vC.a *= smoothstep(aP.w * 0.3, aP.w * 1.2, d);
             vec4 mvPosition = viewMatrix * vec4(w, 1.0); gl_Position = projectionMatrix * mvPosition;
             #include <fog_vertex>
@@ -63,8 +70,9 @@
     spawn(o) {
       let i = this.n; if (i >= this.N) { i = (Math.random() * this.N) | 0; } else this.n++;
       this.px[i] = o.x; this.py[i] = o.y; this.pz[i] = o.z; this.vx[i] = o.vx || 0; this.vy[i] = o.vy || 0; this.vz[i] = o.vz || 0;
-      this.life[i] = 0; this.max[i] = o.life || 1; this.s0[i] = o.s0 || 1; this.s1[i] = o.s1 == null ? this.s0[i] : o.s1;
-      const c = o.c || [1, 1, 1]; this.r[i] = c[0]; this.g[i] = c[1]; this.b[i] = c[2]; this.a[i] = o.a == null ? 1 : o.a;
+      this.life[i] = -(o.delay || 0); this.max[i] = o.life || 1; this.s0[i] = o.s0 || 1; this.s1[i] = o.s1 == null ? this.s0[i] : o.s1;
+      const c = o.c || [1, 1, 1], c1 = o.c1 || c; this.r[i] = c[0]; this.g[i] = c[1]; this.b[i] = c[2]; this.r1[i] = c1[0]; this.g1[i] = c1[1]; this.b1[i] = c1[2]; this.a[i] = o.a == null ? 1 : o.a;
+      this.hold[i] = o.hold || 0; this.wk[i] = o.wind || 0;
       this.drag[i] = o.drag || 0; this.grav[i] = o.grav || 0; this.tile[i] = o.tile || 0; this.rot[i] = o.rot == null ? Math.random() * 6.28 : o.rot; this.rv[i] = o.rv || 0; this.fade[i] = o.fade || 0.1;
     }
     update(dt) {
@@ -72,19 +80,22 @@
       for (let i = 0; i < this.n; i++) {
         this.life[i] += dt;
         if (this.life[i] >= this.max[i]) { this.n--; this.copy(this.n, i); i--; continue; }
+        if (this.life[i] < 0) continue;
         const k = Math.exp(-this.drag[i] * dt);
         this.vx[i] *= k; this.vy[i] = this.vy[i] * k - this.grav[i] * dt; this.vz[i] *= k;
-        this.px[i] += this.vx[i] * dt; this.py[i] += this.vy[i] * dt; this.pz[i] += this.vz[i] * dt; this.rot[i] += this.rv[i] * dt;
+        const wk = this.wk[i] * dt; this.px[i] += this.vx[i] * dt + F.wind.x * wk; this.py[i] += this.vy[i] * dt; this.pz[i] += this.vz[i] * dt + F.wind.z * wk; this.rot[i] += this.rv[i] * dt;
         const u = this.life[i] / this.max[i], fi = Math.min(1, this.life[i] / Math.max(0.001, this.fade[i] * this.max[i]));
         const s = this.s0[i] + (this.s1[i] - this.s0[i]) * Math.sqrt(u);
         P[w * 4] = this.px[i]; P[w * 4 + 1] = this.py[i]; P[w * 4 + 2] = this.pz[i]; P[w * 4 + 3] = s;
-        C[w * 4] = this.r[i]; C[w * 4 + 1] = this.g[i]; C[w * 4 + 2] = this.b[i]; C[w * 4 + 3] = this.a[i] * fi * (1 - u) * (1 - u * 0.3);
+        const cu = Math.min(1, u * 2.2), h = this.hold[i];
+        C[w * 4] = this.r[i] + (this.r1[i] - this.r[i]) * cu; C[w * 4 + 1] = this.g[i] + (this.g1[i] - this.g[i]) * cu; C[w * 4 + 2] = this.b[i] + (this.b1[i] - this.b[i]) * cu;
+        C[w * 4 + 3] = this.a[i] * fi * (h > 0 ? 1 - Math.pow(u, h) : (1 - u) * (1 - u * 0.3));
         M[w * 2] = this.tile[i]; M[w * 2 + 1] = this.rot[i]; w++;
       }
       this.geo.instanceCount = w;
       if (w) { this.aP.needsUpdate = this.aC.needsUpdate = this.aM.needsUpdate = true; this.aP.updateRange.count = w * 4; this.aC.updateRange.count = w * 4; this.aM.updateRange.count = w * 2; }
     }
-    copy(from, to) { for (const f of ['px', 'py', 'pz', 'vx', 'vy', 'vz', 'life', 'max', 's0', 's1', 'r', 'g', 'b', 'a', 'drag', 'grav', 'tile', 'rot', 'rv', 'fade']) this[f][to] = this[f][from]; }
+    copy(from, to) { for (const f of this.K) this[f][to] = this[f][from]; }
     clear() { this.n = 0; this.geo.instanceCount = 0; }
   }
 
@@ -129,22 +140,23 @@
     }
   }
 
-  // ---------------------------------------------------------------- wakes: a foam ribbon behind each ship
+  // ---------------------------------------------------------------- wakes: a foam ribbon behind each ship, and its bow waves
+  // The ribbon follows the ship's track (so it bends when she turns). The bow waves are two arms in the ship's own frame:
+  // a bright, piled-up wave hugging each side of the bow that spreads into the long diverging lines of the wave
+  // pattern behind a moving ship (about 19 degrees each side), longer and stronger the faster she goes. Both ride the
+  // same wave function as the sea. Spray is thrown up at the bow at speed.
   let foamTex = null;
   function foam() {
     if (foamTex) return foamTex;
     const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), img = g.createImageData(S, S);
     for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-      const u = x / S, edge = Math.min(u, 1 - u) * 2; const n = IW.fbm(x / 9, y / 9, 11, 4);
-      const a = IW.clamp((n - 0.35) * 2.4, 0, 1) * IW.sstep(0, 0.5, edge) * (0.55 + 0.45 * (1 - Math.abs(u - 0.5) * 2));
+      const u = x / S, edge = Math.min(u, 1 - u) * 2; const n = IW.fbm(x / 9, y / 9, 11, 4), st = IW.fbm(x / 3, y / 26, 13, 3);
+      const a = IW.clamp((n - 0.33) * 2.4 + (st - 0.5) * 0.9, 0, 1) * IW.sstep(0, 0.5, edge) * (0.55 + 0.45 * (1 - Math.abs(u - 0.5) * 2));
       const i = (y * S + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 240; img.data[i + 3] = a * 255;
     }
     g.putImageData(img, 0, 0); foamTex = new THREE.CanvasTexture(c); foamTex.wrapT = THREE.RepeatWrapping; return foamTex;
   }
-  F.wake = function (ship, beam) {
-    const N = 70, pos = new Float32Array(N * 2 * 3), uv = new Float32Array(N * 2 * 2), al = new Float32Array(N * 2), idx = [];
-    for (let i = 0; i < N - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('alpha', new THREE.BufferAttribute(al, 1)); g.setIndex(idx);
+  function ribbonMat(order) {
     const m = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tF: { value: foam() }, uSun: { value: 1 } }]), fog: true,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
@@ -155,31 +167,72 @@
         }`,
       fragmentShader: `uniform sampler2D tF; uniform float uSun; varying vec2 vUv; varying float vA;
         #include <fog_pars_fragment>
-        void main(){ vec4 t = texture2D(tF, vUv); gl_FragColor = vec4(vec3(0.82, 0.88, 0.9) * uSun, t.a * vA);
+        void main(){ float a = texture2D(tF, vUv).a, b = texture2D(tF, vUv * vec2(0.6, 0.31) + vec2(0.37, 0.11)).a;
+          a = clamp(a * 0.95 + b * 0.7, 0.0, 1.0) * vA; if (a < 0.004) discard;
+          gl_FragColor = vec4(vec3(0.84, 0.89, 0.91) * uSun, a);
         #include <tonemapping_fragment>
         #include <encodings_fragment>
         #include <fog_fragment>
         }`
     });
-    m.userData.linear = true;
-    const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = -4;
-    const pts = []; let t = 0;
+    m.userData.linear = true; const mesh = new THREE.Mesh(new THREE.BufferGeometry(), m); mesh.frustumCulled = false; mesh.renderOrder = order; return mesh;
+  }
+  function ribbon(mesh, N) {
+    const pos = new Float32Array(N * 2 * 3), uv = new Float32Array(N * 2 * 2), al = new Float32Array(N * 2), idx = [];
+    for (let i = 0; i < N - 1; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const g = mesh.geometry; g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setAttribute('alpha', new THREE.BufferAttribute(al, 1)); g.setIndex(idx);
+    return { pos, uv, al, g };
+  }
+  F.wake = function (ship, beam) {
+    const N = 70, group = new THREE.Group(), trail = ribbonMat(-4), bow = ribbonMat(-3);
+    group.add(trail, bow);
+    const T = ribbon(trail, N), M = 26, B = ribbon(bow, M * 2);
+    const pts = []; let t = 0, sprayT = 0;
+    const tan = Math.tan(19.5 * IW.deg);
     return {
-      mesh,
+      mesh: group,
       update(dt, p, dir, speed) {
         t += dt;
+        // the track behind the stern: churned and narrow at first, spreading and fading over half a minute
         if (!pts.length || t - pts[0].t > 0.45) { pts.unshift({ x: p.x, z: p.z, t, dx: dir.x, dz: dir.z, s: speed }); if (pts.length > N) pts.pop(); }
         else { pts[0].x = p.x; pts[0].z = p.z; }
         const n = pts.length; let v = 0;
         for (let i = 0; i < N; i++) {
-          const q = pts[Math.min(i, n - 1)], age = t - q.t, w = beam * 0.45 + age * 1.6, sx = -q.dz, sz = q.dx;
-          const y = W.waveAt(q.x, q.z) + 0.25;
+          const q = pts[Math.min(i, n - 1)], age = t - q.t, w = beam * 0.36 + age * 1.5 + Math.sqrt(age) * 1.2, sx = -q.dz, sz = q.dx;
+          const y = W.waveAt(q.x, q.z) + 0.25, pos = T.pos;
           pos[i * 6] = q.x + sx * w; pos[i * 6 + 1] = y; pos[i * 6 + 2] = q.z + sz * w; pos[i * 6 + 3] = q.x - sx * w; pos[i * 6 + 4] = y; pos[i * 6 + 5] = q.z - sz * w;
-          uv[i * 4] = 0; uv[i * 4 + 2] = 1; uv[i * 4 + 1] = uv[i * 4 + 3] = v; v += 0.08;
-          const a = i >= n ? 0 : IW.clamp(1 - age / 30, 0, 1) * IW.clamp(q.s / 8, 0, 1) * 0.9; al[i * 2] = al[i * 2 + 1] = a;
+          T.uv[i * 4] = 0; T.uv[i * 4 + 2] = 1; T.uv[i * 4 + 1] = T.uv[i * 4 + 3] = v; v += 0.08;
+          const a = i >= n ? 0 : IW.clamp(1 - age / 32, 0, 1) ** 1.2 * IW.clamp(q.s / 8, 0, 1) * (0.75 + 0.25 * IW.clamp(1 - age / 4, 0, 1)) * IW.clamp((n - 1 - i) / 6, 0, 1); T.al[i * 2] = T.al[i * 2 + 1] = a;
         }
-        g.attributes.position.needsUpdate = g.attributes.uv.needsUpdate = g.attributes.alpha.needsUpdate = true;
-        m.uniforms.uSun.value = 0.55 + 0.45 * Math.max(0, W.sunDir.y * 1.5);
+        T.g.attributes.position.needsUpdate = T.g.attributes.uv.needsUpdate = T.g.attributes.alpha.needsUpdate = true;
+        // the bow waves, in the ship's frame (x across, z along, the bow at +len/2), placed from the drawn ship
+        const sk = IW.clamp((speed - 1) / 9, 0, 1), L = ship.len, hb = beam / 2, root = ship.model, h = root.rotation.y, c = Math.cos(h), s = Math.sin(h);
+        const ox = root.position.x, oz = root.position.z, arm = L * (0.55 + 0.9 * sk), hug = L * 0.2;
+        let k = 0;
+        for (const side of [1, -1]) {
+          for (let i = 0; i < M; i++, k++) {
+            const u = i / (M - 1), d = u * arm, wd = 1.6 + d * 0.03 + (d < hug ? 1.6 * (1 - d / hug) + 0.8 : 0);
+            const x = side * (hb * Math.sqrt(Math.min(1, d / hug + 0.04)) + 0.6 + Math.max(0, d - hug) * tan), z = L / 2 - d;
+            const ax = side * (d < hug ? hb / hug * 0.5 : tan), az = -1, al = Math.hypot(ax, az), nx = -az / al * side, nz = ax / al * side;   // across the arm
+            const x0 = x - nx * wd * 0.35, z0 = z - nz * wd * 0.35, x1 = x + nx * wd, z1 = z + nz * wd;
+            const w0x = ox + x0 * c + z0 * s, w0z = oz - x0 * s + z0 * c, w1x = ox + x1 * c + z1 * s, w1z = oz - x1 * s + z1 * c;
+            const lift = d < hug ? 0.55 * (1 - d / hug) * sk : 0;
+            B.pos[k * 6] = w0x; B.pos[k * 6 + 1] = W.waveAt(w0x, w0z) + 0.3 + lift; B.pos[k * 6 + 2] = w0z;
+            B.pos[k * 6 + 3] = w1x; B.pos[k * 6 + 4] = W.waveAt(w1x, w1z) + 0.3; B.pos[k * 6 + 5] = w1z;
+            B.uv[k * 4] = 0; B.uv[k * 4 + 2] = 1; B.uv[k * 4 + 1] = B.uv[k * 4 + 3] = d / 18 - t * 0.04 * sk;
+            const a = (i === 0 || i === M - 1) ? 0 : sk * (d < hug ? 0.95 : 0.8 * (1 - (d - hug) / (arm - hug)) ** 1.4); B.al[k * 2] = B.al[k * 2 + 1] = ship.sinking ? 0 : a;
+          }
+        }
+        B.g.attributes.position.needsUpdate = B.g.attributes.uv.needsUpdate = B.g.attributes.alpha.needsUpdate = true;
+        // spray thrown up at the stem
+        if (sk > 0.3 && !ship.sinking && (sprayT -= dt) <= 0) {
+          sprayT = lowQ ? 0.35 : 0.14;
+          for (const side of [1, -1]) {
+            const x = side * (1 + Math.random() * hb * 0.5), z = L / 2 - Math.random() * L * 0.06, wx = ox + x * c + z * s, wz = oz - x * s + z * c;
+            smoke.spawn({ x: wx, y: W.waveAt(wx, wz) + 0.8, z: wz, vx: speed * dir.x + side * c * 2.5, vy: 1.5 + Math.random() * 2.5 * sk, vz: speed * dir.z - side * s * 2.5, life: 0.9, s0: 1 + beam * 0.04, s1: 3 + beam * 0.12, c: [0.92, 0.94, 0.96], a: 0.4 * sk, grav: 5, tile: 7, rv: R() });
+          }
+        }
+        trail.material.uniforms.uSun.value = bow.material.uniforms.uSun.value = 0.55 + 0.45 * Math.max(0, W.sunDir.y * 1.5);
       }
     };
   };
@@ -360,27 +413,53 @@
   F.firePuff = function (p, v, size) { fire.spawn({ x: p.x, y: p.y, z: p.z, vx: v ? v.x * 0.3 : 0, vy: v ? v.y * 0.3 + 2 : 2, vz: v ? v.z * 0.3 : 0, life: 0.35 + Math.random() * 0.2, s0: size, s1: size * 0.4, c: [2.2, 0.95, 0.28], tile: 1, rv: R() * 2 }); };
   F.contrail = function (p) { smoke.spawn({ x: p.x, y: p.y, z: p.z, life: 1.6, s0: 0.5, s1: 2.2, c: smokeCol(0.95), a: 0.28, tile: 0 }); };
   F.rocketTrail = function (p) { smoke.spawn({ x: p.x, y: p.y, z: p.z, vx: R(), vy: R(), vz: R(), life: 2.2, s0: 0.8, s1: 4, c: smokeCol(0.8), a: 0.45, tile: 0, drag: 1 }); fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.06, s0: 1.2, s1: 0.6, c: [3, 1.8, 0.7], tile: 2 }); };
+  // wind for drifting smoke, m/s (flak bursts, blasts, the base surge of a splash drift with it)
+  F.wind = new THREE.Vector3(2.4, 0, 1.2);
+  // heavy flak: a flash, a short fireball, fragments, and a black burst that holds its shape and drifts downwind, so a
+  // barrage leaves a field of smudges hanging in the sky; a faint grey veil round each lasts longer still
   F.flak = function (p) {
-    fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.12, s0: 8, s1: 14, c: [5, 3, 1.4], tile: 2 });
-    for (let i = 0; i < 5; i++) smoke.spawn({ x: p.x + R() * 3, y: p.y + R() * 3, z: p.z + R() * 3, vx: R() * 4, vy: R() * 4, vz: R() * 4, life: 5 + Math.random() * 3, s0: 7, s1: 16, c: smokeCol(0.1), a: 0.85, drag: 1.2, tile: 0, rv: R() * 0.3 });
+    fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.1, s0: 9, s1: 16, c: [6, 4, 2], tile: 2, fade: 0.01 });
+    fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.3, s0: 4.5, s1: 8.5, c: [3.4, 1.8, 0.6], c1: [1.3, 0.35, 0.06], tile: 1, rv: R() * 3, fade: 0.02 });
+    for (let i = 0; i < (lowQ ? 4 : 8); i++) fire.spawn({ x: p.x, y: p.y, z: p.z, vx: R() * 70, vy: R() * 70, vz: R() * 70, life: 0.22 + Math.random() * 0.15, s0: 0.9, s1: 0.3, c: [5, 3, 1.4], tile: 2, drag: 3 });
+    const n = lowQ ? 4 : 7, life = lowQ ? 10 : 16;
+    for (let i = 0; i < n; i++) smoke.spawn({ x: p.x + R() * 3, y: p.y + R() * 3, z: p.z + R() * 3, vx: R() * 7, vy: R() * 7, vz: R() * 7, life: life * (0.7 + Math.random() * 0.5), s0: 4 + Math.random() * 2, s1: 10 + Math.random() * 6, c: [0.3, 0.17, 0.09], c1: smokeCol(0.05 + Math.random() * 0.04), a: 0.93, drag: 2.4, tile: 5, rv: R() * 0.12, fade: 0.01, hold: 2.4, wind: 1 });
+    smoke.spawn({ x: p.x, y: p.y, z: p.z, life: life * 1.4, s0: 10, s1: 28, c: smokeCol(0.3), a: 0.22, drag: 1, tile: 7, hold: 1.6, wind: 1, fade: 0.05 });
     W.flash(p, new THREE.Color(1, 0.6, 0.3), 9, 0.15, 260);
   };
-  F.waterHit = function (p) { smoke.spawn({ x: p.x, y: p.y + 0.5, z: p.z, vy: 6 + Math.random() * 4, life: 0.8, s0: 0.8, s1: 2.2, c: [0.85, 0.9, 0.92], a: 0.7, grav: 12, tile: 0 }); };
-  F.splash = function (p, size) {
-    size = size || 1;
-    for (let i = 0; i < 14 * size; i++) smoke.spawn({ x: p.x + R() * 3 * size, y: p.y + 1, z: p.z + R() * 3 * size, vx: R() * 5 * size, vy: 14 + Math.random() * 18 * Math.sqrt(size), vz: R() * 5 * size, life: 2 + Math.random(), s0: 3 * size, s1: 9 * size, c: [0.86, 0.9, 0.93], a: 0.85, grav: 9.8, drag: 0.4, tile: 0 });
-    for (let i = 0; i < 8; i++) smoke.spawn({ x: p.x + R() * 6 * size, y: p.y + 0.5, z: p.z + R() * 6 * size, vx: R() * 6, vz: R() * 6, life: 4, s0: 4 * size, s1: 14 * size, c: [0.8, 0.85, 0.88], a: 0.5, drag: 0.8, tile: 0 });
-    IW.audio.splash(p);
+  // rounds hitting the sea: a small spout of spray
+  F.waterHit = function (p) {
+    smoke.spawn({ x: p.x, y: p.y + 0.5, z: p.z, vy: 7 + Math.random() * 5, life: 0.9, s0: 0.7, s1: 2.4, c: [0.9, 0.93, 0.95], a: 0.85, grav: 12, tile: 4, rot: R() * 0.3 });
+    if (!lowQ) smoke.spawn({ x: p.x, y: p.y + 0.3, z: p.z, vx: R() * 2, vy: 3, vz: R() * 2, life: 1.2, s0: 1, s1: 3, c: [0.85, 0.89, 0.9], a: 0.4, grav: 4, tile: 7 });
   };
+  // a bomb, a crash or a torpedo hit in the sea: a tall column of spray that hangs and falls back as a curtain, a crown
+  // thrown out sideways, a low surge of mist rolling outward, and a patch of foam left on the water
+  F.splash = function (p, size, quiet) {
+    size = size || 1; const y0 = W.waveAt(p.x, p.z), q = lowQ ? 0.55 : 1, sq = Math.sqrt(size);
+    for (let i = 0, n = Math.round((12 + 10 * size) * q); i < n; i++) { const up = (0.5 + 0.5 * Math.random()) * (18 + 17 * sq), sheet = i % 3 === 0;
+      smoke.spawn({ x: p.x + R() * 1.6 * sq, y: y0 + 1, z: p.z + R() * 1.6 * sq, vx: R() * 2.2 * sq, vy: up, vz: R() * 2.2 * sq, life: 2.3 + Math.random() * 1.5, s0: 2.4 * sq, s1: (sheet ? 9 : 6.5) * sq, c: [0.93, 0.95, 0.97], a: 0.95, grav: 9.8, drag: 0.15, tile: sheet ? 6 : 4, rot: sheet ? R() * 0.15 : undefined, rv: sheet ? 0 : R() * 0.3, fade: 0.02, hold: 1.7 }); }
+    for (let i = 0, n = Math.round((10 + 6 * size) * q); i < n; i++) { const a = Math.random() * 6.28, sp = (7 + Math.random() * 7) * sq;
+      smoke.spawn({ x: p.x, y: y0 + 1.5, z: p.z, vx: Math.cos(a) * sp, vy: 7 + Math.random() * 9 * sq, vz: Math.sin(a) * sp, life: 1.6 + Math.random(), s0: 1.6 * sq, s1: 4.5 * sq, c: [0.9, 0.93, 0.95], a: 0.85, grav: 9.8, drag: 0.4, tile: 4, rv: R() }); }
+    for (let i = 0, n = Math.round(8 * q); i < n; i++) { const a = i / n * 6.28 + Math.random();
+      smoke.spawn({ x: p.x + Math.cos(a) * 2 * size, y: y0 + 1.5, z: p.z + Math.sin(a) * 2 * size, vx: Math.cos(a) * 6 * size, vy: 0.6, vz: Math.sin(a) * 6 * size, life: 5 + Math.random() * 3, s0: 4 * size, s1: 15 * size, c: [0.82, 0.86, 0.88], a: 0.45, drag: 0.7, tile: 7, rv: R() * 0.2, wind: 1, delay: 0.1 }); }
+    F.foam(p, 2 * size, 11 * size, 22 + 8 * size, 0.9);
+    if (!quiet) IW.audio.splash(p);
+  };
+  // an explosion in layers: a flash; a fireball of hot cores cooling from yellow-white to deep orange; smoke billows lit
+  // orange from inside at first, then dark, drifting downwind; burning fragments arcing out; on the ground or a ship a
+  // shock ring, a tall column of smoke and, for big blasts, a few late secondary bursts
   F.explode = function (p, size, kind) {
-    size = size || 1; kind = kind || 'air';
-    const n = Math.round(8 * size);
-    for (let i = 0; i < n; i++) fire.spawn({ x: p.x + R() * 2 * size, y: p.y + R() * 2 * size, z: p.z + R() * 2 * size, vx: R() * 9 * size, vy: R() * 9 * size + 2, vz: R() * 9 * size, life: 0.5 + Math.random() * 0.5, s0: 4 * size, s1: 9 * size, c: [3.5, 1.6, 0.45], tile: 1, drag: 2, rv: R() * 2, fade: 0.05 });
-    fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.18, s0: 12 * size, s1: 30 * size, c: [5, 3.4, 1.8], tile: 2, fade: 0.01 });
-    for (let i = 0; i < n + 4; i++) smoke.spawn({ x: p.x + R() * 3 * size, y: p.y + R() * 3 * size, z: p.z + R() * 3 * size, vx: R() * 6 * size, vy: R() * 4 + 3, vz: R() * 6 * size, life: 4 + Math.random() * 4, s0: 5 * size, s1: 18 * size, c: smokeCol(0.1 + Math.random() * 0.1), a: 0.85, drag: 1.1, tile: 0, rv: R() * 0.3, fade: 0.08 });
-    for (let i = 0; i < 12 * size; i++) fire.spawn({ x: p.x, y: p.y, z: p.z, vx: R() * 40, vy: R() * 30 + 12, vz: R() * 40, life: 0.8 + Math.random(), s0: 0.7, s1: 0.3, c: [4, 2.2, 0.8], tile: 2, grav: 9.8, drag: 0.6 });
-    if (kind === 'ground' || kind === 'ship') for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + R() * 4, y: p.y + 2, z: p.z + R() * 4, vx: R() * 2, vy: 6 + Math.random() * 6, vz: R() * 2, life: 9 + Math.random() * 6, s0: 8 * size, s1: 30 * size, c: smokeCol(0.08), a: 0.8, drag: 0.4, tile: 0, rv: R() * 0.2 });
-    if (kind === 'ground') smoke.spawn({ x: p.x, y: p.y + 1, z: p.z, life: 1.2, s0: 6 * size, s1: 60 * size, c: [0.55, 0.5, 0.42], a: 0.5, tile: 3, rot: 0 });
+    size = size || 1; kind = kind || 'air'; const q = lowQ ? 0.6 : 1;
+    const n = Math.max(3, Math.round(8 * size * q));
+    fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.16, s0: 13 * size, s1: 32 * size, c: [6, 4.4, 2.4], tile: 2, fade: 0.01 });
+    for (let i = 0; i < n; i++) fire.spawn({ x: p.x + R() * 2 * size, y: p.y + R() * 2 * size, z: p.z + R() * 2 * size, vx: R() * 9 * size, vy: R() * 9 * size + 3, vz: R() * 9 * size, life: 0.55 + Math.random() * 0.55, s0: 4 * size, s1: 10 * size, c: [4.4, 2.8, 1.1], c1: [1.7, 0.45, 0.08], tile: 1, drag: 2.2, rv: R() * 2, fade: 0.04, delay: Math.random() * 0.06 });
+    for (let i = 0; i < n + 4; i++) smoke.spawn({ x: p.x + R() * 3 * size, y: p.y + R() * 3 * size, z: p.z + R() * 3 * size, vx: R() * 6 * size, vy: R() * 4 + 3, vz: R() * 6 * size, life: 5 + Math.random() * 4, s0: 5 * size, s1: 19 * size, c: [0.6, 0.32, 0.14], c1: smokeCol(0.07 + Math.random() * 0.08), a: 0.88, drag: 1.1, tile: i % 2 ? 5 : 0, rv: R() * 0.3, fade: 0.06, hold: 1.5, wind: 1, delay: 0.05 + Math.random() * 0.15 });
+    for (let i = 0, m = Math.round(14 * size * q); i < m; i++) fire.spawn({ x: p.x, y: p.y, z: p.z, vx: R() * 42, vy: R() * 30 + 14, vz: R() * 42, life: 0.9 + Math.random() * 1.1, s0: 0.8, s1: 0.25, c: [4, 2.2, 0.8], c1: [2, 0.6, 0.1], tile: 2, grav: 9.8, drag: 0.5 });
+    if (kind === 'ground' || kind === 'ship') {
+      for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + R() * 4, y: p.y + 2, z: p.z + R() * 4, vx: R() * 2, vy: 6 + Math.random() * 6, vz: R() * 2, life: 10 + Math.random() * 6, s0: 8 * size, s1: 30 * size, c: smokeCol(0.08), a: 0.8, drag: 0.4, tile: i % 2 ? 5 : 0, rv: R() * 0.2, hold: 1.3, wind: 1 });
+      if (kind === 'ground') smoke.spawn({ x: p.x, y: p.y + 1, z: p.z, life: 1.0, s0: 6 * size, s1: 50 * size, c: [0.55, 0.5, 0.42], a: 0.3, tile: 3, rot: 0 });
+      else F.foam(p, 3 * size, 16 * size, 20, 0.7);
+    }
+    if (size >= 2) for (let i = 0; i < 3; i++) fire.spawn({ x: p.x + R() * 4 * size, y: p.y + Math.random() * 4 * size, z: p.z + R() * 4 * size, life: 0.45, s0: 3 * size, s1: 6 * size, c: [3.6, 1.8, 0.5], c1: [1.2, 0.3, 0.05], tile: 1, rv: R() * 2, delay: 0.35 + i * 0.3 + Math.random() * 0.2 });
     W.flash(p, new THREE.Color(1, 0.55, 0.25), 30 * size, 0.6 + size * 0.2, 200 + size * 120);
     IW.audio.boom(p, size);
     const d = W.camera.position.distanceTo(p); F.shake(IW.clamp(size * 60 / (d + 20), 0, 1.2));
