@@ -136,7 +136,9 @@
           if (uRain > 0.0 && ivPud > 0.01) { vec2 rp = ivRipple(vGW.xz * 3.0, uTime) + ivRipple(vGW.xz * 5.3 + 7.0, uTime * 1.13) * 0.7; normal = normalize(normal + (viewMatrix * vec4(rp.x, 0.0, rp.y, 0.0)).xyz * 0.35 * ivPud * uRain); }`);
       P('fragment', '#include <aomap_fragment>', `
           float gao = 0.45 + 0.55 * smoothstep(0.05, 0.6, gh);
-          reflectedLight.indirectDiffuse *= gao; reflectedLight.indirectSpecular *= mix(gao, 1.0, ivPud);
+          reflectedLight.indirectDiffuse *= gao; reflectedLight.indirectSpecular *= mix(gao, 2.2, ivPud);   // (the sky cube is stored dimmed; standing water shows the sky at its own brightness)
+          // at night the moon's sheen on damp (not flooded) ground is held down: a broad pale sheen read as frost or snow
+          reflectedLight.directSpecular *= mix(1.0, mix(0.4, 0.7, ivPud), uNight);
           // standing water mirrors the lamps: a soft reflected image of each pooled light (the GGX highlight alone is a
           // pin-prick at this roughness), so a puddle shows the lamp instead of going black
           #if NUM_POINT_LIGHTS > 0

@@ -293,7 +293,7 @@
       E.U.uWinC.value.copy(L(P.hemiSky)).multiplyScalar(P.hemiI).add(L(P.sunCol).multiplyScalar(P.sunI * 0.12));   // the light coming in at windows and doors
       fog.color.copy(L(P.fog)); fog.near = (opts.fogD || P.fogD) * (opts.fogMul || 1);   // opts.fogD: a map's own haze in place of the preset's fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;
-      renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : 1.45);   // Low has no grade/lift pass
+      renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : P.grade === 'day' ? 1.35 : 1.2);   // Low has no grade/lift pass
       E.U.uWet.value = P.wet; E.U.uRain.value = P.rain ? 1 : 0; E.U.uDust.value = P.rain ? 0 : P.grade === 'day' ? 0.5 : 0.35; E.U.uNight.value = P.grade === 'night' || P.grade === 'rain' ? 1 : 0;
       E.setWind(E.U.uWind.value.x, E.U.uWind.value.y, P.wind);
       rain.visible = !!P.rain && Q.name !== 'low' || (!!P.rain && opts.rainOnLow);
@@ -309,7 +309,7 @@
       return A;
     };
     // brightness setting for players (multiplies exposure)
-    A.setBrightness = function (b) { A.brightness = b; renderer.toneMappingExposure = A.P.exposure * b * (E.Q.post ? 1 : 1.45); };
+    A.setBrightness = function (b) { A.brightness = b; renderer.toneMappingExposure = A.P.exposure * b * (E.Q.post ? 1 : A.P.grade === 'day' ? 1.35 : 1.2); };
     A.setFlashes = function (on) { A.flashes = !!on; if (!on) A.flashAge = 99; };   // reduced-effects setting
     A.update = function (dt, camera) {
       if (A.blend) A.stepBlend(dt);
