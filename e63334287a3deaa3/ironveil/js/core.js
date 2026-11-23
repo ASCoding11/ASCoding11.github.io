@@ -125,20 +125,34 @@
       decay: 0.12,              // awareness lost per second when nothing is seen
       suspicious: 0.3, investigate: 0.62, spotted: 1.0,
       hearGain: 0.45,           // awareness from one footstep heard at the edge
-      reaction: [0.9, 0.6, 0.35], // s before the first shot once spotted
-      accRamp: 1.1,             // s of exposure to reach full accuracy
-      acc: [0.22, 0.38, 0.55],  // hit chance per shot at full ramp, 15 m, standing (difficulty)
-      dmg: [9, 14, 22],         // hp per enemy rifle/smg hit
+      reaction: [0.55, 0.47, 0.4], // s of continuous sight before he may act on seeing you (open fire, call it in)
+      // accuracy: hit chance per shot = acc * exposure ramp * range * your stance/movement * light * his own state.
+      // Exposure is seconds of continuous sight of you: the ramp is 1 - exp(-t / expoTau), from expoFloor at first sight
+      // to full after about 3 * expoTau s (9, 8, 7 s); out of sight it drains expoDrain times as fast as it builds.
+      acc: [0.5, 0.76, 0.85],  // hit chance per shot at full exposure, 20 m, you standing still and lit (difficulty)
+      expoTau: [3, 2.7, 2.3], expoDrain: 3, expoFloor: 0.3,
+      rangeRef: 20,             // m: the range factor is rangeRef / d (capped 1.3 close, 0.22 far: 0.4 at 50 m); SMG men lose more past 25 m
+      warnShots: [2, 1, 1],     // the first rounds of each new sight of you miss close by on purpose (a crack, a direction)
+      dark: { moon: 0.85, shadow: 0.62, lit: 1, flash: 0.92 }, // accuracy by the light on you (your own muzzle flash lights you)
+      dmg: [26, 34, 36],        // hp per enemy rifle hit before the difficulty's damage-taken multiplier (x0.6, x1, x1.45): 16, 34, 52
+      smgDmg: 0.75,             // an SMG round does this share of a rifle round
       sniperDmg: [45, 60, 85],
+      sniperTele: [2.4, 2, 1.6], // s: the sniper's glint and call before his shot (the long, obvious tell)
+      prefRange: { smg: [8, 18], rifle: [16, 30], pistol: [10, 22] }, // m: firing spots chosen in this band from you
+      openHold: 3,              // s: on first contact he answers from where he stands (if a turn to fire is free) before moving
+      snapRange: { smg: 22, rifle: 34, pistol: 16 }, // m: caught in the open he stops and fires (his turn) instead of running first
+      campFlank: [16, 11, 8],   // s you stay on one spot they know (within 3.5 m) before one of them is sent round your flank
+      campGrenade: [13, 8, 6],  // s on one known spot before a grenade (one man shouts first, then throws)
+      grenadeWarn: 0.9,         // s from his shout to the throw
+      pushLost: [14, 10, 8],    // s out of sight before two of them move up on your last known position (the rest cover it)
+      searchLost: [30, 22, 18], // s out of sight before the whole group goes to a proper search
       searchTime: 38,           // s
       runSpeed: 3.9, walkSpeed: 1.45, searchSpeed: 2.2, turnRate: 6.3, // m/s; rad/s body turn (360 deg/s)
-      grenadeCooldown: 24,      // s, shared by all enemies
+      grenadeCooldown: [30, 22, 16], // s between enemy grenades, shared by all enemies (difficulty)
       tokens: [2, 3, 4],        // how many soldiers may shoot at you at once (difficulty)
       tokenGap: [1.6, 1.25, 0.9], // s, at least this long between two soldiers being allowed to open fire on you
       tele: [0.7, 0.5, 0.35],   // s, the 'ready' telegraph (weapon raised, a call, a glint at night) before each burst at you
-      burst: { rifle: 2, smg: 5, pistol: 3, sniper: 1 }, // rounds per token: the token goes back when the burst ends
-      expoUp: [0.18, 0.25, 0.35], expoDown: 0.45, // accuracy exposure gained per second of continuous sight, lost per second out of it
-      expoFloor: 0.3,           // share of full accuracy at zero exposure (full at exposure 1)
+      burst: { rifle: 3, smg: 6, pistol: 3, sniper: 1 }, // rounds per token: the token goes back when the burst ends
       rackTime: 0.6,            // s, an MG gunner racks his gun before each new burst at you
       alarmDelay: 2.2,          // s ringing before the alarm counts
       truckDelay: 28            // s after the alarm (or 60 when the telephone wire is cut)
