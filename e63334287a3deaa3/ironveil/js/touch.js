@@ -55,7 +55,9 @@
     const up = e => { if (id in toggles || id === 'pause' || id === 'order' || id === 'swap') return; I.sim(id, false); if (id === 'use') I.sim('knife', false); b.classList.remove('on'); };
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
   });
-  dragLook(document.querySelector('[data-t="fire"]'));
+  // Fire, Nade and Rock also look while you drag them (hold Nade, drag to aim the arc, lift to throw); the finger is
+  // captured, so sliding off the button does not let go of it
+  ['fire', 'grenade', 'rock'].forEach(id => dragLook(document.querySelector(`[data-t="${id}"]`)));
   // per frame: auto-fire, hold-breath button only while scoped, aim off when the weapon can't aim
   TC.frame = function () {
     if (!TC.on) return;

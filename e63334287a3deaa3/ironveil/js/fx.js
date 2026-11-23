@@ -93,19 +93,28 @@
     for (let i = 0; i < 14; i++) { const a = R() * 6.28, r = R() * 18, x = 32 + Math.cos(a) * r, y = 32 + Math.sin(a) * r, s = R.range(4, 12); const gr = g.createRadialGradient(x, y, 0, x, y, s); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(0.7, 'rgba(255,255,255,.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
     const t = new THREE.CanvasTexture(c); return t;
   }
+  // The flash is a hot core with a few soft, uneven tongues of flame (fat at the root, tapering out), not a star of thin
+  // straight spokes: each tongue is a stretched radial gradient, so nothing in it has a hard edge.
   function makeFlashTex() {
-    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
-    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(0.3, 'rgba(255,200,120,.8)'); gr.addColorStop(1, 'rgba(255,120,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-    g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(255,220,160,.8)'; g.lineWidth = 3;
-    for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28 + 0.3; g.beginPath(); g.moveTo(32, 32); g.lineTo(32 + Math.cos(a) * 31, 32 + Math.sin(a) * 31); g.stroke(); }
+    const N = 128, H = N / 2, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), R = IV.rng(11);
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 7; i++) {
+      const a = i / 7 * 6.283 + R.range(-0.3, 0.3), len = H * R.range(0.45, 0.95), wid = H * R.range(0.1, 0.2);
+      g.save(); g.translate(H, H); g.rotate(a); g.translate(len * 0.45, 0); g.scale(len * 0.55, wid);
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, 'rgba(255,214,150,.75)'); gr.addColorStop(0.5, 'rgba(255,160,70,.32)'); gr.addColorStop(1, 'rgba(255,110,30,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, 6.283); g.fill(); g.restore();
+    }
+    const gr = g.createRadialGradient(H, H, 0, H, H, H * 0.5); gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(0.35, 'rgba(255,214,140,.7)'); gr.addColorStop(1, 'rgba(255,130,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, N, N);
     return new THREE.CanvasTexture(c);
   }
 
   // ---------------------------------------------------------------- emitters
   const R = () => Math.random(), rr = (a, b) => a + Math.random() * (b - a);
-  FX.muzzle = function (x, y, z, dx, dy, dz, big) {
+  // near: the player's own gun in first person. The sprite is then about half a metre from the eye, where the size that
+  // reads on a soldier 30 m away would cover a third of the screen, so it is drawn much smaller and for a shorter time.
+  FX.muzzle = function (x, y, z, dx, dy, dz, big, near) {
     const s = flashSprites.find(s => !s.visible) || flashSprites[0];
-    s.position.set(x + dx * 0.05, y + dy * 0.05, z + dz * 0.05); const k = big ? 0.7 : 0.45; s.scale.set(k * rr(0.8, 1.2), k * rr(0.8, 1.2), 1); s.material.rotation = R() * 6.28; s.visible = true; s.userData.t = 0.05;
+    s.position.set(x + dx * 0.05, y + dy * 0.05, z + dz * 0.05); const k = (big ? 0.7 : 0.45) * (near ? 0.36 : 1); s.scale.set(k * rr(0.8, 1.2), k * rr(0.8, 1.2), 1); s.material.rotation = R() * 6.28; s.material.opacity = 1; s.visible = true; s.userData.t = s.userData.t0 = near ? 0.035 : 0.05;
     flashes.push(s);
     for (let i = 0; i < (big ? 6 : 3); i++) add.emit(x + dx * 0.1, y + dy * 0.1, z + dz * 0.1, dx * rr(2, 6) + rr(-0.5, 0.5), dy * rr(2, 6) + rr(-0.5, 0.5), dz * rr(2, 6) + rr(-0.5, 0.5), rr(0.04, 0.08), 0.12, 0.05, 1, 0.75, 0.4, 1, 3, 0);
     for (let i = 0; i < (big ? 2 : 1); i++) norm.emit(x + dx * 0.15, y + dy * 0.15, z + dz * 0.15, dx * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.2, 0.6), dz * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.6, 1.2), 0.15, 0.6, 0.55, 0.55, 0.55, big ? 0.35 : 0.2, 1.5, -0.2);
@@ -252,7 +261,7 @@
     const c = cam();
     const scale = W.renderer.domElement.height / (2 * Math.tan(c.fov * Math.PI / 360));
     for (const s of [add, norm]) { s.mat.uniforms.uScale.value = scale; if (W.scene.fog) { s.mat.uniforms.fogC.value.copy(W.scene.fog.color); s.mat.uniforms.fogD.value = W.scene.fog.density || 0.01; } s.update(dt); }
-    for (let i = flashes.length - 1; i >= 0; i--) { const s = flashes[i]; s.userData.t -= dt; if (s.userData.t <= 0) { s.visible = false; flashes.splice(i, 1); } }
+    for (let i = flashes.length - 1; i >= 0; i--) { const s = flashes[i]; s.userData.t -= dt; s.material.opacity = Math.max(0, s.userData.t / s.userData.t0) * 0.6 + 0.4; if (s.userData.t <= 0) { s.visible = false; flashes.splice(i, 1); } }
     // tracers
     let q = 0; const cp = c.position, tp = tracerPos, tcol = tracerMesh.geometry.attributes.color.array;
     for (let i = tracers.length - 1; i >= 0; i--) {
