@@ -57,6 +57,32 @@
   E.sstep = (a, b, v) => { const t = E.clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   E.lin = (hex) => new THREE.Color(hex).convertSRGBToLinear();
 
+  // ------------------------------------------------------------------ editing three's built-in shaders (r187)
+  // Every edit of a built-in three.js shader (in an onBeforeCompile) goes through here: it replaces `search` (a string
+  // or a RegExp) in sh.vertexShader or sh.fragmentShader (stage 'vertex' / 'fragment'). When the text is not there
+  // (three renamed a chunk or a varying, as r128 -> r187 did) it logs a console error naming the site, instead of
+  // silently leaving the shader unedited. Returns true when it replaced.
+  E.patch = function (sh, stage, search, replace, tag) {
+    const k = stage === 'vertex' ? 'vertexShader' : 'fragmentShader', src = sh[k];
+    if (typeof search === 'string' ? src.indexOf(search) < 0 : src.search(search) < 0) {
+      console.error('IVEnv.patch: shader text not found (' + (tag || 'unnamed') + ', ' + stage + '): ' + String(search).slice(0, 90));
+      return false;
+    }
+    sh[k] = src.replace(search, replace); return true;
+  };
+  // The tangent-space normal map maths three r128 used (perturbNormal2Arb, gone in r187), with the UV passed in:
+  // the env shaders bend `normal` by their own map, so they keep r128's exact frame. E.withPerturb adds it once.
+  E.GLSL_PERTURB = `
+    vec3 ivPerturbNormal2Arb(vec3 eye_pos, vec3 surf_norm, vec3 mapN, float faceDirection, vec2 uv) {
+      vec3 q0 = dFdx(eye_pos), q1 = dFdy(eye_pos); vec2 st0 = dFdx(uv), st1 = dFdy(uv);
+      vec3 N = surf_norm, q1perp = cross(q1, N), q0perp = cross(N, q0);
+      vec3 T = q1perp * st0.x + q0perp * st1.x, B = q1perp * st0.y + q0perp * st1.y;
+      float det = max(dot(T, T), dot(B, B)), scale = (det == 0.0) ? 0.0 : faceDirection * inversesqrt(det);
+      return normalize(T * (mapN.x * scale) + B * (mapN.y * scale) + N * mapN.z);
+    }
+  `;
+  E.withPerturb = function (fs) { return fs.indexOf('vec3 ivPerturbNormal2Arb(') >= 0 ? fs : E.GLSL_PERTURB + fs; };
+
   // ------------------------------------------------------------------ GLSL shared by every env shader
   E.GLSL = {};
   E.GLSL.noise = `
@@ -297,41 +323,44 @@
     m.userData.uniforms = uni;
     m.onBeforeCompile = function (sh) {
       Object.assign(sh.uniforms, uni);
-      sh.vertexShader = 'attribute vec4 aEnv;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' + sh.vertexShader.replace('#include <project_vertex>', `#include <project_vertex>
+      const P = (stage, a, b) => E.patch(sh, stage, a, b, 'env/core material ' + (R.tex || ''));
+      P('vertex', '#include <project_vertex>', `#include <project_vertex>
         vec4 envWP = vec4(transformed, 1.0);
         #ifdef USE_INSTANCING
           envWP = instanceMatrix * envWP;
         #endif
         vEnvW = (modelMatrix * envWP).xyz; vEnvA = aEnv;`);
-      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN; uniform vec3 uWetK;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
-        sh.fragmentShader
-          .replace('#include <map_fragment>', MAP_FRAG)
-          .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(envRough, 0.03, 1.0);')
-          .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = metalness;\n#ifdef ENV_METALMASK\nmetalnessFactor *= envN.a;\n#endif')
-          .replace('#include <normal_fragment_maps>', `
+      sh.vertexShader = 'attribute vec4 aEnv;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' + sh.vertexShader;
+      // r187: the map's UV is vMapUv (r128's vUv), and three decodes the sRGB albedo itself (r128: mapTexelToLinear)
+      P('fragment', '#include <map_fragment>', MAP_FRAG);
+      P('fragment', '#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(envRough, 0.03, 1.0);');
+      P('fragment', '#include <metalnessmap_fragment>', 'float metalnessFactor = metalness;\n#ifdef ENV_METALMASK\nmetalnessFactor *= envN.a;\n#endif');
+      P('fragment', '#include <normal_fragment_maps>', `
             vec3 mapN = vec3((envN.xy * 2.0 - 1.0) * uNS * normalScale, 0.0);
             mapN.xy *= 1.0 - 0.45 * envWetUp;   // water fills the relief of wet upward faces
             mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
-            normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);
+            normal = ivPerturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection, vMapUv);
             // specular anti-aliasing: where the shading normal changes a lot across a pixel (fine relief far away, wet
             // and glossy) widen the highlight instead of letting it sparkle
             { vec3 dnx = dFdx(normal), dny = dFdy(normal); float nv = 0.5 * (dot(dnx, dnx) + dot(dny, dny));
-              roughnessFactor = sqrt(roughnessFactor * roughnessFactor + min(2.0 * nv, 0.2)); roughnessFactor = max(roughnessFactor, 0.045); }`)
-          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (m.userData.gapLit ? '{ float gx = vUv.x * 8.0; float gd = min(fract(gx), 1.0 - fract(gx)); float gw = max(0.035, fwidth(gx) * 0.9); float on = step(0.62, fract(sin(floor(gx + 0.5) * 12.9898) * 43758.5)) * smoothstep(0.35, 0.65, texture2D(uMacro, vec2(gx * 0.13, vUv.y * 0.6)).g); totalEmissiveRadiance += vec3(1.0, 0.5, 0.18) * 0.38 * uNight * on * smoothstep(gw, 0.0, gd) * (0.6 + 0.4 * smoothstep(0.2, 0.07, envH)); }' : ''))
-          .replace('#include <aomap_fragment>', `
+              roughnessFactor = sqrt(roughnessFactor * roughnessFactor + min(2.0 * nv, 0.2)); roughnessFactor = max(roughnessFactor, 0.045); }`);
+      P('fragment', '#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (m.userData.gapLit ? '{ float gx = vMapUv.x * 8.0; float gd = min(fract(gx), 1.0 - fract(gx)); float gw = max(0.035, fwidth(gx) * 0.9); float on = step(0.62, fract(sin(floor(gx + 0.5) * 12.9898) * 43758.5)) * smoothstep(0.35, 0.65, texture2D(uMacro, vec2(gx * 0.13, vMapUv.y * 0.6)).g); totalEmissiveRadiance += vec3(1.0, 0.5, 0.18) * 0.38 * uNight * on * smoothstep(gw, 0.0, gd) * (0.6 + 0.4 * smoothstep(0.2, 0.07, envH)); }' : ''));
+      P('fragment', '#include <aomap_fragment>', `
             float envAO = mix(1.0, 0.3 + 0.7 * smoothstep(0.05, 0.75, envH), uAOAmt);
             reflectedLight.indirectDiffuse *= envAO; reflectedLight.indirectSpecular *= envAO * envAO;`);
+      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN; uniform vec3 uWetK;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
+        E.withPerturb(sh.fragmentShader);
     };
     m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).map(k => k + defs[k]).join(',') + (m.userData.gapLit ? 'gap' : '');
   }
   const MAP_FRAG = `
-    vec2 envUv = vUv;
+    vec2 envUv = vMapUv;
     #ifdef ENV_POM
     {
       float fd = 1.0 - smoothstep(ENV_POM_FAR * 0.45, ENV_POM_FAR, length(vViewPosition));
       if (fd > 0.0) {
         vec3 V = normalize(vViewPosition);
-        vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition); vec2 s0 = dFdx(vUv), s1 = dFdy(vUv);
+        vec3 q0 = dFdx(-vViewPosition), q1 = dFdy(-vViewPosition); vec2 s0 = dFdx(vMapUv), s1 = dFdy(vMapUv);
         vec3 Nn = normalize(vNormal) * (gl_FrontFacing ? 1.0 : -1.0);
         vec3 q1p = cross(q1, Nn), q0p = cross(Nn, q0);
         vec3 Tt = q1p * s0.x + q0p * s1.x, Bt = q1p * s0.y + q0p * s1.y;
@@ -339,7 +368,7 @@
         vec3 Vt = vec3(dot(V, Tt * sc), dot(V, Bt * sc), dot(V, Nn));
         vec2 dir = Vt.xy / max(Vt.z, 0.3) * uPomDepth * fd;
         const float STEPS = ENV_POM_STEPS;
-        float layer = 1.0 / STEPS, cur = 1.0, found = 0.0, prevH = 1.0, prevL = 1.0; vec2 uvc = vUv, prevUv = vUv, hitUv = vUv;
+        float layer = 1.0 / STEPS, cur = 1.0, found = 0.0, prevH = 1.0, prevL = 1.0; vec2 uvc = vMapUv, prevUv = vMapUv, hitUv = vMapUv;
         for (float i = 0.0; i < STEPS; i += 1.0) {
           float hgt = texture2D(map, uvc, -1.0).a;
           float isHit = step(cur, hgt) * (1.0 - found);
@@ -354,7 +383,7 @@
     }
     #endif
     vec4 envT = texture2D(map, envUv); vec4 envN = texture2D(normalMap, envUv);
-    vec3 envAlb = mapTexelToLinear(vec4(envT.rgb, 1.0)).rgb; float envH = envT.a; float envRough = envN.b;
+    vec3 envAlb = envT.rgb; float envH = envT.a; float envRough = envN.b;
     vec3 wp = vEnvW;
     float m1 = texture2D(uMacro, (wp.xz + wp.y * vec2(0.71, 0.37)) * 0.035).r;
     float m2 = texture2D(uMacro, (wp.xy + wp.zz * vec2(0.83, -0.4)) * 0.11 + 0.37).g;

@@ -16,7 +16,9 @@
     const base = E.decalMaterial(), m = base.clone();
     m.onBeforeCompile = function (sh) {
       base.onBeforeCompile.call(this, sh);
-      sh.vertexShader = 'attribute vec2 aCell;\n' + sh.vertexShader.replace('#include <uv_vertex>', 'vUv = (uv * (0.25 - 0.008) + 0.004) + aCell;');
+      // r187: the atlas cell goes into the map's and the normal map's UVs (r128 had the one vUv)
+      E.patch(sh, 'vertex', '#include <uv_vertex>', 'vMapUv = (uv * (0.25 - 0.008) + 0.004) + aCell; vNormalMapUv = vMapUv;', 'env/decals pool');
+      sh.vertexShader = 'attribute vec2 aCell;\n' + sh.vertexShader;
     };
     m.customProgramCacheKey = () => 'ivdecalpool';
     const mesh = new THREE.InstancedMesh(g, m, n); mesh.count = 0; mesh.frustumCulled = false; mesh.renderOrder = 3; mesh.receiveShadow = true; mesh.name = 'IVEnv.decals';

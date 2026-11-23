@@ -118,20 +118,22 @@
     const leaf = !!opts.leaf;
     m.onBeforeCompile = function (sh) {
       Object.assign(sh.uniforms, uni);
-      sh.vertexShader = 'uniform float uStiff;\n' + FOL_VS + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = ivSway(position);');
+      const P = (stage, a, b) => E.patch(sh, stage, a, b, 'env/nature ' + (leaf ? 'leaves ' : 'foliage ') + (opts.key || ''));
+      P('vertex', '#include <begin_vertex>', 'vec3 transformed = ivSway(position);');
+      sh.vertexShader = 'uniform float uStiff;\n' + FOL_VS + sh.vertexShader;
       if (leaf) {
-        sh.fragmentShader = 'uniform float uTrans, uNight;\nvec3 ivTransCol; float ivTransAmt;\n' + sh.fragmentShader
-          .replace('#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment.replace('vec3 irradiance = dotNL * directLight.color;', `vec3 irradiance = dotNL * directLight.color;
-            { float back = saturate(dot(-geometry.normal, directLight.direction)); float scat = pow(saturate(dot(-geometry.viewDir, directLight.direction)), 4.0);
+        // r187: the light's colour already carries r128's factor PI (lib/three's compat layer), so the light through
+        // the leaf is not multiplied by PI again here; geometry.normal / geometry.viewDir are geometryNormal / ...ViewDir
+        P('fragment', '#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment);
+        P('fragment', 'vec3 irradiance = dotNL * directLight.color;', `vec3 irradiance = dotNL * directLight.color;
+            { float back = saturate(dot(-geometryNormal, directLight.direction)); float scat = pow(saturate(dot(-geometryViewDir, directLight.direction)), 4.0);
               vec3 tr = ivTransCol * directLight.color * (back * 0.2 + scat * 0.25) * ivTransAmt;
-              #ifndef PHYSICALLY_CORRECT_LIGHTS
-                tr *= PI;
-              #endif
-              reflectedLight.directDiffuse += tr * RECIPROCAL_PI; }`))
-          .replace('#include <normal_fragment_begin>', 'float faceDirection = gl_FrontFacing ? 1.0 : -1.0; vec3 normal = normalize(vNormal); vec3 geometryNormal = normal;')
-          .replace('#include <color_fragment>', '#include <color_fragment>\n { float lm = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)), cap = mix(0.3, 0.15, uNight); if (lm > cap) diffuseColor.rgb *= cap / lm; } ivTransCol = diffuseColor.rgb * vec3(1.1, 1.2, 0.7); ivTransAmt = uTrans;')
-          .replace('#include <aomap_fragment>', 'reflectedLight.directSpecular = vec3(0.0); reflectedLight.indirectSpecular = vec3(0.0);');
-        sh.fragmentShader = sh.fragmentShader.replace('float dotNL = saturate( dot( geometry.normal, directLight.direction ) );', 'float dotNL = saturate( (dot( geometry.normal, directLight.direction ) + 0.45) / 1.45 ) * 0.85;');
+              reflectedLight.directDiffuse += tr * RECIPROCAL_PI; }`);
+        P('fragment', '#include <normal_fragment_begin>', 'float faceDirection = gl_FrontFacing ? 1.0 : -1.0; vec3 normal = normalize(vNormal); vec3 nonPerturbedNormal = normal;');
+        P('fragment', '#include <color_fragment>', '#include <color_fragment>\n { float lm = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)), cap = mix(0.3, 0.15, uNight); if (lm > cap) diffuseColor.rgb *= cap / lm; } ivTransCol = diffuseColor.rgb * vec3(1.1, 1.2, 0.7); ivTransAmt = uTrans;');
+        P('fragment', '#include <aomap_fragment>', 'reflectedLight.directSpecular = vec3(0.0); reflectedLight.indirectSpecular = vec3(0.0);');
+        P('fragment', 'float dotNL = saturate( dot( geometryNormal, directLight.direction ) );', 'float dotNL = saturate( (dot( geometryNormal, directLight.direction ) + 0.45) / 1.45 ) * 0.85;');
+        sh.fragmentShader = 'uniform float uTrans, uNight;\nvec3 ivTransCol; float ivTransAmt;\n' + sh.fragmentShader;
       }
     };
     m.customProgramCacheKey = () => 'ivfol' + (leaf ? 'L' : 'B') + (opts.key || '');
@@ -156,7 +158,8 @@
     const uni = { uTime: E.U.uTime, uWind: E.U.uWind, uStiff: { value: stiff || 1 } };
     m.onBeforeCompile = function (sh) {
       prev.call(this, sh); Object.assign(sh.uniforms, uni);
-      sh.vertexShader = 'uniform float uStiff;\n' + FOL_VS + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = ivSway(position);');
+      E.patch(sh, 'vertex', '#include <begin_vertex>', 'vec3 transformed = ivSway(position);', 'env/nature bark ' + name);
+      sh.vertexShader = 'uniform float uStiff;\n' + FOL_VS + sh.vertexShader;
     };
     m.customProgramCacheKey = () => 'ivbark' + name;
     barkMats[key] = m; return m;
@@ -578,9 +581,9 @@
     const uni = { uTime: E.U.uTime, uWet: E.U.uWet }; m.customProgramCacheKey = () => 'ivpuddle';
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uni);
-      sh.fragmentShader = 'uniform float uTime, uWet;\n' + E.GLSL.noise + sh.fragmentShader
-        .replace('#include <normal_fragment_maps>', `{ vec2 p = vUv * 6.0; float rn = uWet; vec2 g = vec2(ivN(p * 3.0 + uTime * 0.7) - ivN(p * 3.0 + vec2(0.37, 0.0) + uTime * 0.7), ivN(p * 3.0 + vec2(0.0, 0.37) - uTime * 0.5) - ivN(p * 3.0 - uTime * 0.5)); normal = normalize(normal + (vec3(g.x, g.y, 0.0)) * (0.05 + 0.3 * rn)); }`)
-        .replace('#include <alphamap_fragment>', '{ float r = length(vUv - 0.5) * 2.0; diffuseColor.a = smoothstep(1.0, 0.55, r + (ivN(vUv * 9.0) - 0.5) * 0.4); }');
+      E.patch(sh, 'fragment', '#include <normal_fragment_maps>', `{ vec2 p = vUv * 6.0; float rn = uWet; vec2 g = vec2(ivN(p * 3.0 + uTime * 0.7) - ivN(p * 3.0 + vec2(0.37, 0.0) + uTime * 0.7), ivN(p * 3.0 + vec2(0.0, 0.37) - uTime * 0.5) - ivN(p * 3.0 - uTime * 0.5)); normal = normalize(normal + (vec3(g.x, g.y, 0.0)) * (0.05 + 0.3 * rn)); }`, 'env/nature puddle');
+      E.patch(sh, 'fragment', '#include <alphamap_fragment>', '{ float r = length(vUv - 0.5) * 2.0; diffuseColor.a = smoothstep(1.0, 0.55, r + (ivN(vUv * 9.0) - 0.5) * 0.4); }', 'env/nature puddle');
+      sh.fragmentShader = 'uniform float uTime, uWet;\n' + E.GLSL.noise + sh.fragmentShader;
     };
     m.userData.linear = true; pudMat = m; return m;
   };
@@ -631,9 +634,10 @@
     const uni = { uTime: E.U.uTime, uWet: E.U.uWet, uFlow: { value: opts.flow }, uMacro: E.U.uMacro }; m.customProgramCacheKey = () => 'ivwater';
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, uni);
-      sh.vertexShader = 'attribute float aDepth; varying float vDepth;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vDepth = aDepth;');
-      sh.fragmentShader = 'uniform float uTime, uWet, uFlow; uniform sampler2D uMacro; varying float vDepth;\n' + sh.fragmentShader
-        .replace('#include <map_fragment>', `
+      const P = (stage, a, b) => E.patch(sh, stage, a, b, 'env/nature stream');
+      P('vertex', '#include <begin_vertex>', '#include <begin_vertex>\n vDepth = aDepth;');
+      sh.vertexShader = 'attribute float aDepth; varying float vDepth;\n' + sh.vertexShader;
+      P('fragment', '#include <map_fragment>', `
           float dep = vDepth;
           vec3 shallow = vec3(0.045, 0.05, 0.035), deep = vec3(0.006, 0.012, 0.011);
           diffuseColor.rgb = mix(deep, shallow, exp(-dep * 3.0));
@@ -641,15 +645,16 @@
           float f1 = texture2D(uMacro, fuv1).b, f2 = texture2D(uMacro, fuv2).g;
           float foam = smoothstep(0.12, 0.0, dep + (f1 - 0.5) * 0.12 + sin(uTime * 0.8 + vUv.y * 0.7) * 0.02) * smoothstep(0.35, 0.7, f2);
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.38, 0.38, 0.34), foam * 0.7);
-          diffuseColor.a = smoothstep(0.0, 0.12, dep) * (0.86 + 0.14 * foam);`)
-        .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = mix(0.04, 0.6, foam);')
-        .replace('#include <normal_fragment_maps>', `{
+          diffuseColor.a = smoothstep(0.0, 0.12, dep) * (0.86 + 0.14 * foam);`);
+      P('fragment', '#include <roughnessmap_fragment>', 'float roughnessFactor = mix(0.04, 0.6, foam);');
+      P('fragment', '#include <normal_fragment_maps>', `{
             float e = 0.02;
             float a1 = texture2D(uMacro, fuv1).b, b1 = texture2D(uMacro, fuv1 + vec2(e, 0.0)).b, c1 = texture2D(uMacro, fuv1 + vec2(0.0, e)).b;
             float a2 = texture2D(uMacro, fuv2).g, b2 = texture2D(uMacro, fuv2 + vec2(e, 0.0)).g, c2 = texture2D(uMacro, fuv2 + vec2(0.0, e)).g;
             vec2 g = vec2(a1 - b1, a1 - c1) * 1.2 + vec2(a2 - b2, a2 - c2) * 0.7;
             normal = normalize(normal + (viewMatrix * vec4(g.x, 0.0, g.y, 0.0)).xyz * (0.6 + uWet * 0.6));
           }`);
+      sh.fragmentShader = 'uniform float uTime, uWet, uFlow; uniform sampler2D uMacro; varying float vDepth;\n' + sh.fragmentShader;
     };
     m.userData.linear = true;
     const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; mesh.renderOrder = 1; mesh.name = 'stream';

@@ -163,10 +163,11 @@
     m.onBeforeCompile = function (sh, r) {
       if (prevHook) prevHook.call(this, sh, r);
       sh.uniforms.fpHide = on; sh.uniforms.fpBones = { value: flags };
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float fpBones[' + flags.length + '];\nvarying float vFpHide;')
-        .replace('#include <skinning_vertex>', '#include <skinning_vertex>\n  vFpHide = fpBones[int(skinIndex.x)] * skinWeight.x + fpBones[int(skinIndex.y)] * skinWeight.y + fpBones[int(skinIndex.z)] * skinWeight.z + fpBones[int(skinIndex.w)] * skinWeight.w;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float fpHide;\nvarying float vFpHide;')
-        .replace('void main() {', 'void main() {\n  if (fpHide > 0.5 && vFpHide > 0.45) discard;');
+      const P = (stage, a, b) => IVEnv.patch(sh, stage, a, b, 'js/fp body mask');
+      P('vertex', '#include <common>', '#include <common>\nuniform float fpBones[' + flags.length + '];\nvarying float vFpHide;');
+      P('vertex', '#include <skinning_vertex>', '#include <skinning_vertex>\n  vFpHide = fpBones[int(skinIndex.x)] * skinWeight.x + fpBones[int(skinIndex.y)] * skinWeight.y + fpBones[int(skinIndex.z)] * skinWeight.z + fpBones[int(skinIndex.w)] * skinWeight.w;');
+      P('fragment', '#include <common>', '#include <common>\nuniform float fpHide;\nvarying float vFpHide;');
+      P('fragment', 'void main() {', 'void main() {\n  if (fpHide > 0.5 && vFpHide > 0.45) discard;');
     };
     let key = 'fpmask'; for (let i = 0; i < flags.length; i++) key += flags[i] ? '1' : '0';
     m.customProgramCacheKey = () => key + (prevKey ? '|' + prevKey.call(src) : '');

@@ -17,7 +17,8 @@ game by the build scripts described in the README section, on top of the sources
 
 | What | Source | Licence |
 |---|---|---|
-| `assets/lib/GLTFLoader.js`, `assets/lib/SkeletonUtils.js`, `assets/lib/meshopt_decoder.js` | three.js r128 `examples/js` (https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/), unchanged copies so the game loads no new outside scripts | MIT (three.js authors); meshopt decoder MIT (Arseny Kapoulkine) |
+| three.js r187 with `GLTFLoader` and `SkeletonUtils` | the site's own build in `/lib/three/r187/` (see `/lib/three/README.md`) | MIT (three.js authors) |
+| `assets/lib/meshopt_decoder.js` | three.js r128 `examples/js` (https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/), an unchanged copy (it does not depend on three's version) | MIT (Arseny Kapoulkine) |
 
 No real people are modelled. No national, political or hate symbols appear anywhere, including inside textures: the
 enemy uniforms carry only an invented plain white chevron on the left sleeve.

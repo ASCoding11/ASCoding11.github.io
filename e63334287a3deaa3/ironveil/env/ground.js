@@ -48,9 +48,12 @@
     const LOW = E.Q.name === 'low';
     m.onBeforeCompile = function (sh) {
       Object.assign(sh.uniforms, uni);
-      sh.vertexShader = 'attribute vec4 aW0; attribute vec4 aW1; attribute vec4 aGC;\nvarying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;\n' +
-        sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n vW0 = aW0; vW1 = aW1; vGC = aGC; vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-      sh.fragmentShader = `
+      const P = (stage, a, b) => E.patch(sh, stage, a, b, 'env/ground');
+      P('vertex', '#include <project_vertex>', '#include <project_vertex>\n vW0 = aW0; vW1 = aW1; vGC = aGC; vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.vertexShader = 'attribute vec4 aW0; attribute vec4 aW1; attribute vec4 aGC;\nvarying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;\n' + sh.vertexShader;
+      // r187: three decodes the sRGB layer textures itself (r128 sampled them raw and decoded with sRGBToLinear here);
+      // the ground's normal map UV is vNormalMapUv (r128's vUv)
+      const HEAD = `
         uniform sampler2D uMarks; uniform vec4 uMarksRect; uniform sampler2D uWetMap; uniform vec4 uWetRect;
         uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime, uTl0; uniform vec2 uCarry;
         vec2 ivRipple(vec2 p, float t) { vec2 cell = floor(p), f = fract(p) - 0.5; float r = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453); float ph = fract(t * 1.4 + r * 7.0);
@@ -64,8 +67,8 @@
           vec4 a2 = texture2D(A, uv2), n2 = texture2D(N, uv2); float t = smoothstep(0.3, 0.7, m);
           a = mix(a, a2, t); n = mix(n, n2, t);`}
         }
-      ` + sh.fragmentShader
-        .replace('#include <map_fragment>', `
+      `;
+      P('fragment', '#include <map_fragment>', `
           vec2 gp = vGW.xz;
           float mA = texture2D(uMacro, gp * 0.012).r, mB = texture2D(uMacro, gp * 0.047 + 0.4).g, mC = texture2D(uMacro, gp * 0.21).b;
           vec4 a0, a1, a2, a3, a4, n0, n1, n2, n3, n4;
@@ -84,14 +87,14 @@
           { float l1 = dot(a1.rgb, vec3(0.3, 0.55, 0.15)), l2 = dot(a2.rgb, vec3(0.3, 0.55, 0.15)); a1.rgb = mix(a1.rgb, vec3(l1) * vec3(0.98, 0.96, 0.95), 0.45) * 0.86; a2.rgb = mix(a2.rgb, vec3(l2) * vec3(0.98, 0.96, 0.94), 0.5) * 0.8; }
           vec4 ga = (a0 * b0 + a1 * b1 + a2 * b2 + a3 * b3 + a4 * b4) / bs;
           vec4 gn = (n0 * b0 + n1 * b1 + n2 * b2 + n3 * b3 + n4 * b4) / bs;
-          vec3 galb = sRGBToLinear(vec4(ga.rgb, 1.0)).rgb;
+          vec3 galb = ga.rgb;
           float gh = ga.a, grough = gn.b;
           galb *= mix(0.72, 1.18, mA) * mix(0.9, 1.08, mC);
           // far grass colour carried by the ground (blades end, colour does not)
           float gd = length(vGW - cameraPosition);
           float carry = vGC.a * 0.95;
           float under = vGC.a * (1.0 - smoothstep(uCarry.x, uCarry.y, gd));
-          float tl = dot(sRGBToLinear(vec4(a0.rgb, 1.0)).rgb, vec3(0.3, 0.5, 0.2));
+          float tl = dot(a0.rgb, vec3(0.3, 0.5, 0.2));
           float clumpN = texture2D(uMacro, gp * 0.9 + 0.17).b;
           float midN = texture2D(uMacro, gp * 0.31 + 0.61).g;
           vec3 gcol = vGC.rgb * mix(0.7, 1.25, mB) * clamp(tl / uTl0, 0.35, 2.2) * mix(0.45, 1.45, clumpN * clumpN * 1.4) * mix(0.65, 1.3, midN);
@@ -120,18 +123,19 @@
           float ivPud = pud;
           { vec2 mu = (vGW.xz - uMarksRect.xy) / uMarksRect.zw; if (mu.x > 0.0 && mu.y > 0.0 && mu.x < 1.0 && mu.y < 1.0) { vec4 mk = texture2D(uMarks, mu);
             galb *= 1.0 - mk.r * 0.38; galb = mix(galb, vec3(0.06, 0.045, 0.03), mk.b * 0.55); grough = mix(grough, 0.25, mk.g); } }   // stamped marks: prints in mud, tracked mud, wet ruts
-          diffuseColor.rgb *= galb;`)
-        .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(grough, 0.03, 1.0);')
-        .replace('#include <normal_fragment_maps>', `
+          diffuseColor.rgb *= galb;`);
+      P('fragment', '#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(grough, 0.03, 1.0);');
+      P('fragment', '#include <normal_fragment_maps>', `
           vec3 mapN = vec3(gn.xy * 2.0 - 1.0, 0.0);
           mapN.xy *= (1.0 - ivPud * 0.97) * (1.0 - vGC.a * 0.2) * (1.0 - 0.45 * b3 / bs);
           { float fk = vGC.a * smoothstep(uCarry.x, uCarry.x * 2.0 + 6.0, length(vGW - cameraPosition)); float sn = texture2D(uMacro, vec2(vGW.x * 0.35 + vGW.z * 0.1, vGW.z * 1.6 - vGW.x * 0.35)).b - 0.5; mapN.x += sn * 0.6 * fk; mapN.y += (texture2D(uMacro, vGW.xz * 0.6 + 0.3).r - 0.5) * 0.3 * fk; }
           mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
-          normal = perturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection);
-          if (uRain > 0.0 && ivPud > 0.01) { vec2 rp = ivRipple(vGW.xz * 3.0, uTime) + ivRipple(vGW.xz * 5.3 + 7.0, uTime * 1.13) * 0.7; normal = normalize(normal + (viewMatrix * vec4(rp.x, 0.0, rp.y, 0.0)).xyz * 0.35 * ivPud * uRain); }`)
-        .replace('#include <aomap_fragment>', `
+          normal = ivPerturbNormal2Arb(-vViewPosition, normal, normalize(mapN), faceDirection, vNormalMapUv);
+          if (uRain > 0.0 && ivPud > 0.01) { vec2 rp = ivRipple(vGW.xz * 3.0, uTime) + ivRipple(vGW.xz * 5.3 + 7.0, uTime * 1.13) * 0.7; normal = normalize(normal + (viewMatrix * vec4(rp.x, 0.0, rp.y, 0.0)).xyz * 0.35 * ivPud * uRain); }`);
+      P('fragment', '#include <aomap_fragment>', `
           float gao = 0.45 + 0.55 * smoothstep(0.05, 0.6, gh);
           reflectedLight.indirectDiffuse *= gao; reflectedLight.indirectSpecular *= mix(gao, 1.0, ivPud);`);
+      sh.fragmentShader = E.withPerturb(HEAD + sh.fragmentShader);
     };
     m.customProgramCacheKey = () => 'ivground' + (LOW ? 'L' : '');
     return m;
@@ -361,7 +365,7 @@
       const k2 = (k * k).toFixed(4);
       m.onBeforeCompile = (sh) => {
         const ch = THREE.ShaderChunk.fog_fragment.split('fd * fd').join('fd * fd * mix(1.0, ' + k2 + ', smoothstep(120.0, 520.0, fogDepth))').split('fogDensity * fogDensity').join('fogDensity * fogDensity * mix(1.0, ' + k2 + ', smoothstep(120.0, 520.0, fogDepth))');   // IVEnv's fog chunk names the density fd
-        sh.fragmentShader = sh.fragmentShader.replace('#include <fog_fragment>', ch);
+        E.patch(sh, 'fragment', '#include <fog_fragment>', ch, 'env/ground skirt fog');
       };
       m.customProgramCacheKey = () => 'ivskirt' + k2; return m;
     };

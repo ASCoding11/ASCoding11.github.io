@@ -1,5 +1,6 @@
 /* Midnight Ops environment kit: window.IVEnv. Everything the player looks at that is not a person.
-   Units: metres, Y up. three.js r128 global build. No modules, no build step, no downloads: every texture is made in
+   Units: metres, Y up. three.js r187 global build (/lib/three/r187/, with its r128 compatibility layer). Every edit of a built-in
+   three shader goes through IVEnv.patch (env/core.js), which logs an error when the text it looks for is missing. No modules, no build step, no downloads: every texture is made in
    code at load time (env/texgen.js, in Web Workers when the page is served over http).
 
    Load order (plain script tags, after three.min.js):

@@ -255,8 +255,8 @@
     m.defines = { IV_GRASS: '' }; if (near) m.defines.IV_NEAR = ''; if (carpet) m.defines.IV_CARPET = ''; if (seedHeads) m.defines.IV_SEED = '';
     m.onBeforeCompile = function (sh) {
       Object.assign(sh.uniforms, uni);
-      sh.vertexShader = BLADE_VS + sh.vertexShader
-        .replace('#include <beginnormal_vertex>', `
+      const P = (stage, a, b) => E.patch(sh, stage, a, b, 'env/grass ' + (near ? 'near' : 'mid') + (carpet ? ' carpet' : '') + (seedHeads ? ' seeds' : ''));
+      P('vertex', '#include <beginnormal_vertex>', `
           vec3 ivN; float ivKeep;
           #ifdef IV_SEED
             vec3 ivTip = ivBlade(1.0, 0.0, ivN, ivKeep);
@@ -267,35 +267,35 @@
           #else
             vec3 ivP = ivBlade(aT, aS, ivN, ivKeep);
           #endif
-          vec3 objectNormal = ivN;`)
-        .replace('#include <begin_vertex>', 'vec3 transformed = ivP;');
-      sh.fragmentShader = `
+          vec3 objectNormal = ivN;`);
+      P('vertex', '#include <begin_vertex>', 'vec3 transformed = ivP;');
+      sh.vertexShader = BLADE_VS + sh.vertexShader;
+      // r187: the light's colour already carries r128's factor PI (lib/three's compat layer), so the light through
+      // the blade is not multiplied by PI again; geometry.normal / .viewDir are geometryNormal / geometryViewDir, and
+      // normal_fragment_begin declares nonPerturbedNormal (r128: geometryNormal)
+      P('fragment', '#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment);
+      P('fragment', 'vec3 irradiance = dotNL * directLight.color;', `vec3 irradiance = dotNL * directLight.color;
+          {
+            // light coming through the blade from behind (relative to the viewer): warmer, more saturated
+            float back = saturate(dot(-geometryNormal, directLight.direction));
+            float scat = pow(saturate(dot(-geometryViewDir, directLight.direction)), 3.0);
+            vec3 tr = ivTransCol * directLight.color * (back * 0.55 + scat * 0.9) * ivTransAmt;
+            reflectedLight.directDiffuse += tr * RECIPROCAL_PI;
+          }`);
+      const HEAD = `
         uniform vec3 cYoung, cGreen, cOlive, cDry, cDead; uniform float uWet, uTrans;
         varying float vT; varying float vDry; varying float vType; varying vec3 vRoot; varying float vRnd; varying float vDist; varying float vEdge; varying vec3 vSideW;
         vec3 ivTransCol; float ivTransAmt;
-      ` + sh.fragmentShader
-        .replace('#include <lights_physical_pars_fragment>', THREE.ShaderChunk.lights_physical_pars_fragment.replace(
-          'vec3 irradiance = dotNL * directLight.color;',
-          `vec3 irradiance = dotNL * directLight.color;
-          {
-            // light coming through the blade from behind (relative to the viewer): warmer, more saturated
-            float back = saturate(dot(-geometry.normal, directLight.direction));
-            float scat = pow(saturate(dot(-geometry.viewDir, directLight.direction)), 3.0);
-            vec3 tr = ivTransCol * directLight.color * (back * 0.55 + scat * 0.9) * ivTransAmt;
-            #ifndef PHYSICALLY_CORRECT_LIGHTS
-              tr *= PI;
-            #endif
-            reflectedLight.directDiffuse += tr * RECIPROCAL_PI;
-          }`))
-        .replace('#include <normal_fragment_begin>', `
+      `;
+      P('fragment', '#include <normal_fragment_begin>', `
           float faceDirection = gl_FrontFacing ? 1.0 : -1.0;
           vec3 normal = normalize(vNormal);
           // folded leaf: each half of the blade tilts away from the midrib, so the highlight shows the crease
           vec3 sideV = normalize((viewMatrix * vec4(vSideW, 0.0)).xyz);
           float crease = 0.55 * (1.0 - smoothstep(4.0, 14.0, vDist));
           normal = normalize(normal + sideV * clamp(vEdge * 4.0, -1.0, 1.0) * crease);
-          vec3 geometryNormal = normal;`)
-        .replace('#include <map_fragment>', `
+          vec3 nonPerturbedNormal = normal;`);
+      P('fragment', '#include <map_fragment>', `
           vec3 tip = mix(cGreen, cYoung, smoothstep(0.55, 0.95, vRnd));
           tip = mix(tip, cOlive, smoothstep(0.3, 0.7, fract(vRnd * 7.3)) * 0.6);
           tip = mix(tip, cDry, vDry * 0.9);
@@ -309,13 +309,14 @@
           diffuseColor.rgb = col;
           ivTransCol = tip * vec3(1.25, 1.4, 0.55) * smoothstep(0.1, 0.7, vT) * (1.0 - vDry * 0.4);
           ivTransAmt = uTrans;
-        `)
-        .replace('#include <roughnessmap_fragment>', `
+        `);
+      P('fragment', '#include <roughnessmap_fragment>', `
           float roughnessFactor = mix(0.95, 0.5, smoothstep(0.35, 0.85, vT));
           roughnessFactor = mix(roughnessFactor, 0.9, smoothstep(8.0, 30.0, vDist));
           roughnessFactor = mix(roughnessFactor, 0.85, smoothstep(2.0, 0.6, vDist));   // no glare right at the lens
-          roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.55, uWet);`)
-        .replace('#include <aomap_fragment>', 'reflectedLight.indirectDiffuse *= ao; reflectedLight.indirectSpecular *= ao;');
+          roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.55, uWet);`);
+      P('fragment', '#include <aomap_fragment>', 'reflectedLight.indirectDiffuse *= ao; reflectedLight.indirectSpecular *= ao;');
+      sh.fragmentShader = HEAD + sh.fragmentShader;
     };
     m.customProgramCacheKey = () => 'ivgrass' + (near ? 'n' : 'm') + (seedHeads ? 's' : '') + (carpet ? 'c' : '');
     return m;
