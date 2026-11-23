@@ -34,7 +34,7 @@
     // ---- HUD
     'Standing': 'De pie', 'Crouched': 'Agachado', 'Prone': 'Cuerpo a tierra', 'Following': 'Te sigue', 'Holding': 'Espera', 'Fire at will': 'Fuego a discreción', 'Down': 'Caído',
     'Scoped rifle': 'Fusil con mira', 'Submachine gun': 'Subfusil', 'Pistol': 'Pistola', 'Binoculars': 'Binoculares', 'Grenade': 'Granada', 'Rock': 'Piedra', 's fuse': ' s de mecha',
-    'Grenades': 'Granadas', 'Rocks': 'Piedras', 'Reloading': 'Recargando', 'Reload': 'Recargar', 'Takedown': 'Derribar', 'Use': 'Usar', 'Range': 'Distancia', 'Wind {s} m/s': 'Viento {s} m/s',
+    'Grenades': 'Granadas', 'Rocks': 'Piedras', 'Reloading': 'Recargando', '{k} Reload': '{k} Recargar', 'Empty': 'Vacío', 'Low ammo': 'Poca munición', 'Low ammo · {k} Reload': 'Poca munición · {k} Recargar', 'Reload': 'Recargar', 'Takedown': 'Derribar', 'Use': 'Usar', 'Range': 'Distancia', 'Wind {s} m/s': 'Viento {s} m/s',
     'Checkpoint reached': 'Punto de control', 'Soldier marked': 'Soldado marcado', 'Bombing run: your noise is masked': 'Bombardeo: tapa tu ruido',
     'Tap Fire to mark the soldier in the middle': 'Toca Disparar para marcar al soldado del centro', '{k} marks the soldier in the middle': '{k} marca al soldado del centro',
     'N': 'N', 'NW': 'NO', 'W': 'O', 'SW': 'SO', 'S': 'S', 'SE': 'SE', 'E': 'E', 'NE': 'NE',
@@ -48,7 +48,7 @@
     // ---- enemy barks
     'Hm? Who is there?': '¿Mm? ¿Quién anda ahí?', 'Did you hear that?': '¿Oíste eso?', 'Something moved.': 'Algo se movió.', 'I will take a look.': 'Voy a mirar.', 'Stay here. I am checking it.': 'Quédate acá. Voy a revisar.',
     'Nothing. Just the wind.': 'Nada. Solo el viento.', 'Probably a fox.': 'Seguro era un zorro.', 'Back to it.': 'A lo nuestro.', 'There! Enemy!': '¡Ahí! ¡Enemigo!', 'Alarm! Over there!': '¡Alarma! ¡Por allá!', 'Contact!': '¡Contacto!',
-    'Man down! Over here!': '¡Hombre caído! ¡Acá!', 'He is dead! Search the area!': '¡Está muerto! ¡Revisen la zona!', 'Grenade!': '¡Granada!', 'Reloading!': '¡Recargando!', 'Go round the side!': '¡Rodéalo por el costado!', 'Falling back!': '¡Me repliego!',
+    'Man down! Over here!': '¡Hombre caído! ¡Acá!', 'He is dead! Search the area!': '¡Está muerto! ¡Revisen la zona!', 'Grenade!': '¡Granada!', 'Reloading!': '¡Recargando!', 'I have him!': '¡Lo tengo!', 'Steady... now!': 'Quieto... ¡ahora!', 'In my sights!': '¡En la mira!', 'Take him!': '¡A él!', 'Gun up!': '¡Arma lista!', 'Feeding a belt!': '¡Cargando cinta!', 'Go round the side!': '¡Rodéalo por el costado!', 'Falling back!': '¡Me repliego!',
     // ---- campaign list
     'Boot Camp': 'Instrucción', 'A morning on the training range: moving, shooting, sneaking. About five minutes.': 'Una mañana en el campo de prácticas: moverse, disparar, escabullirse. Unos cinco minutos.',
     'Night Drop': 'Salto nocturno', 'Behind the lines at night. Find your corporal, then the flak gun at Mauvenant Farm.': 'Detrás de las líneas, de noche. Encuentra a tu cabo y luego el antiaéreo de la granja Mauvenant.',

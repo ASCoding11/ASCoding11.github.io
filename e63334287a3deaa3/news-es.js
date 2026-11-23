@@ -6,6 +6,20 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A contact page": "Una página de contacto",
+    "The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.": "La web ya tiene una página de Contacto, enlazada al final de cada página: manda un error, una idea o una pregunta, con un correo si quieres respuesta.",
+    "Only the site's team can read what you send.": "Solo el equipo de la web puede leer lo que mandes.",
+    "Movi is away for a rebuild": "Movi se va un tiempo para rehacerse",
+    "Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.": "Movi, la app para clasificar películas, se ha quitado de la web por ahora mientras se rehace.",
+    "It will come back to Web Development Projects when the new version is ready.": "Volverá a Web Development Projects cuando la nueva versión esté lista.",
+    "It has a shape now": "Ya tiene forma",
+    "Whatever was warming up has a real shape now, down to the rivets.": "Lo que se estaba calentando ya tiene una forma de verdad, hasta los remaches.",
+    "Still not ready, and still loud.": "Todavía no está listo, y sigue haciendo ruido.",
+    "Keep watching the sky. And the sea.": "No le quites los ojos al cielo. Ni al mar.",
+    "Something is warming up": "Algo se está calentando",
+    "Somewhere past the Back Room, something is warming up.": "En algún lugar más allá del Back Room, algo se está calentando.",
+    "It is loud, it is fast, and it is not ready yet.": "Hace ruido, es rápido y todavía no está listo.",
+    "No names, no dates. Keep your eyes on the sky.": "Sin nombres ni fechas. No le quites los ojos al cielo.",
     "The app is now called ascoding11": "La app ahora se llama ascoding11",
     "The installable app is now named ascoding11, under its icon and in its window title. If you already installed it, Chrome updates the name on its own within a day or so.": "La app que se puede instalar ahora se llama ascoding11, debajo de su icono y en el título de su ventana. Si ya la habías instalado, Chrome cambia el nombre solo en más o menos un día.",
     "Online games on our own server": "Juegos en línea en nuestro propio servidor",

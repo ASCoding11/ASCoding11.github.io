@@ -3,6 +3,14 @@
 (function () {
   'use strict';
   const IV = window.IV = { V: 1 };
+  // Always-on health globals for automated checks and bug reports: window.__errors (uncaught errors, rejected
+  // promises and every console.error, newest last, capped), __frames (frames drawn), __ready (boot finished, the
+  // title is up), __fatal (boot failed: { message, stack }).
+  window.__errors = []; window.__frames = 0; window.__ready = false; window.__fatal = null;
+  const pushErr = (kind, msg) => { const l = window.__errors; if (l.length >= 100) l.shift(); l.push({ t: +(performance.now() / 1000).toFixed(2), kind, msg: String(msg).slice(0, 2000) }); };
+  addEventListener('error', e => pushErr('error', (e.message || 'error') + (e.filename ? ' ' + e.filename.split('/').pop() + ':' + e.lineno : '') + (e.error && e.error.stack ? '\n' + e.error.stack : '')));
+  addEventListener('unhandledrejection', e => pushErr('rejection', e.reason && (e.reason.stack || e.reason.message) || e.reason));
+  { const ce = console.error.bind(console); console.error = function () { try { pushErr('console', Array.prototype.map.call(arguments, a => a && a.stack ? a.stack : typeof a === 'object' ? (() => { try { return JSON.stringify(a); } catch (x) { return String(a); } })() : String(a)).join(' ')); } catch (x) {} return ce.apply(console, arguments); }; }
   // The game's display name, in ONE place (the owner may still change it). The folder, the IVChars API and the
   // 'ironveil:*' storage keys keep the working title on purpose.
   IV.GAME_NAME = 'Midnight Ops';
@@ -76,6 +84,20 @@
       rifle:  { dmg: 140, rpm: 0, mag: 5, reserve: 30, reload: 2.6, bolt: 1.05, spread: 0.0004, hipSpread: 0.03, recoil: 0.065, noise: 260, zoom: 4 },
       smg:    { dmg: 30, fall: [20, 45, 0.6], rpm: 600, mag: 30, reserve: 120, reload: 2.2, spread: 0.008, hipSpread: 0.03, bloom: 0.0025, bloomMax: 0.04, recoil: 0.012, noise: 180 },
       pistol: { dmg: 45, fall: [15, 35, 0.5], rpm: 300, mag: 8, reserve: 32, reload: 1.6, spread: 0.006, hipSpread: 0.018, recoil: 0.03, noise: 42 },
+      // Recoil (rad). Each shot's kick splits in two: `keep` of it stays in the aim (you pull it back down yourself),
+      // the rest is a transient offset on the view that snaps in at `snap` 1/s (90/s: 95 % in about 35 ms), holds for `hold` s after the last
+      // shot, then eases away at `decay` 1/s. The offset is part of the aim: bullets go where the view points.
+      // pitch/yaw = per-shot kick from the hip; ads, crouch, prone multiply it; jitter = +- fraction per shot.
+      // A full-power bolt-action round: one heavy kick that is mostly gone after half a second. A pistol-calibre
+      // open-bolt SMG: small kicks on a schedule (sched: [until shot n, multiplier], ...), a slow sideways wander
+      // (wander amplitude, rate per shot) whose phase is re-rolled after a `pause` s break. A service pistol: a sharp
+      // snap that settles fast.
+      recoil: {
+        rifle:  { pitch: 0.062, yaw: 0.010, keep: 0.30, snap: 90, hold: 0.1, decay: 8, ads: 0.62, crouch: 0.85, prone: 0.55, jitter: 0.12, clampP: 0.3, clampY: 0.12 },
+        smg:    { pitch: 0.0072, yaw: 0.0014, keep: 0.36, snap: 60, hold: 0.09, decay: 6.5, ads: 0.6, crouch: 0.85, prone: 0.55, jitter: 0.15, clampP: 0.22, clampY: 0.1,
+                  sched: [[2, 1.25], [10, 1], [30, 0.45]], wander: 0.0036, wanderRate: 0.55, pause: 0.25 },
+        pistol: { pitch: 0.026, yaw: 0.006, keep: 0.24, snap: 90, hold: 0.06, decay: 10, ads: 0.7, crouch: 0.9, prone: 0.7, jitter: 0.15, clampP: 0.2, clampY: 0.1 }
+      },
       headMul: 2.6, limbMul: 0.65,
       grenade: { fuse: 4.0, radius: 7, dmg: 220, throwV: 16, count: 2 },
       rock: { throwV: 15, noise: 15, count: 99 },
@@ -108,6 +130,12 @@
       runSpeed: 3.9, walkSpeed: 1.45, searchSpeed: 2.2, turnRate: 6.3, // m/s; rad/s body turn (360 deg/s)
       grenadeCooldown: 24,      // s, shared by all enemies
       tokens: [2, 3, 4],        // how many soldiers may shoot at you at once (difficulty)
+      tokenGap: [1.6, 1.25, 0.9], // s, at least this long between two soldiers being allowed to open fire on you
+      tele: [0.7, 0.5, 0.35],   // s, the 'ready' telegraph (weapon raised, a call, a glint at night) before each burst at you
+      burst: { rifle: 2, smg: 5, pistol: 3, sniper: 1 }, // rounds per token: the token goes back when the burst ends
+      expoUp: [0.18, 0.25, 0.35], expoDown: 0.45, // accuracy exposure gained per second of continuous sight, lost per second out of it
+      expoFloor: 0.3,           // share of full accuracy at zero exposure (full at exposure 1)
+      rackTime: 0.6,            // s, an MG gunner racks his gun before each new burst at you
       alarmDelay: 2.2,          // s ringing before the alarm counts
       truckDelay: 28            // s after the alarm (or 60 when the telephone wire is cut)
     },
@@ -205,8 +233,39 @@
   }
   IV.save = load();
   IV.settings = IV.save.settings;
-  IV.persist = function () { try { localStorage.setItem(KEY, JSON.stringify(IV.save)); } catch (e) {} };
-  IV.reloadSave = function () { IV.save = load(); IV.settings = IV.save.settings; };
+  // Quality for this visit only, never saved: ?q=0|1|2 (Low, Medium, High) wins; otherwise a software renderer
+  // (SwiftShader, llvmpipe, anything 'Software' in the unmasked renderer string) starts on Low unless this browser
+  // already has a saved quality. Not in ?test runs, which choose their quality through the save. If the player picks
+  // a quality in Settings, that choice is saved as usual and the session override ends.
+  IV.qualityOverride = null; IV.qualityWhy = '';
+  {
+    const q = IV.params.get('q');
+    if (q != null && /^[012]$/.test(q)) { IV.qualityOverride = +q; IV.qualityWhy = '?q=' + q; }
+    else {
+      let saved = false; try { const raw = JSON.parse(localStorage.getItem(KEY) || 'null'); saved = !!(raw && raw.settings && raw.settings.quality != null); } catch (e) {}
+      if (!saved && !IV.test) {
+        try {
+          const gl = document.createElement('canvas').getContext('webgl'), ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+          const r = gl ? String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : '';
+          IV.gpuName = r;
+          if (/swiftshader|llvmpipe|softpipe|software/i.test(r)) { IV.qualityOverride = 0; IV.qualityWhy = 'software renderer'; }
+          const lose = gl && gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();
+        } catch (e) {}
+      }
+    }
+    if (IV.qualityOverride != null) { IV.savedQuality = IV.settings.quality; IV.settings.quality = IV.qualityOverride; }
+  }
+  IV.persist = function () {
+    try {
+      let s = IV.save;
+      if (IV.qualityOverride != null) {
+        if (IV.settings.quality !== IV.qualityOverride) IV.qualityOverride = null;   // chosen in Settings: save it
+        else s = Object.assign({}, IV.save, { settings: Object.assign({}, IV.settings, { quality: IV.savedQuality }) });
+      }
+      localStorage.setItem(KEY, JSON.stringify(s));
+    } catch (e) {}
+  };
+  IV.reloadSave = function () { IV.save = load(); IV.settings = IV.save.settings; if (IV.qualityOverride != null) { IV.savedQuality = IV.settings.quality; IV.settings.quality = IV.qualityOverride; } };
   IV.DEF_SETTINGS = DEF_SETTINGS;
 
   // the upper-body clip an actor is playing, for either character set (stand-in: .upper string; chars.js: .curUpper)
