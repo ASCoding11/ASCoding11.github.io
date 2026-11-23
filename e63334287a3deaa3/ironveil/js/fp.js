@@ -271,7 +271,7 @@
     if (want === !!v._sh) return; v._sh = want;
     v.group.traverse(o => { if (o.isMesh) { o.castShadow = want; o.receiveShadow = want; } });
     const L = vm.sun; L.castShadow = want;
-    if (want) { L.shadow.mapSize.set(1024, 1024); Object.assign(L.shadow.camera, { left: -0.6, right: 0.6, top: 0.6, bottom: -0.6, near: 0.05, far: 3 }); L.shadow.camera.updateProjectionMatrix(); L.shadow.bias = -0.0006; L.shadow.normalBias = 0.004; L.shadow.radius = 2; }
+    if (want) { L.shadow.mapSize.set(1024, 1024); Object.assign(L.shadow.camera, { left: -0.9, right: 0.9, top: 0.9, bottom: -0.9, near: 0.05, far: 3.5 }); L.shadow.camera.updateProjectionMatrix(); L.shadow.bias = -0.0006; L.shadow.normalBias = 0.004; L.shadow.radius = 2; }
   }
   // the clips' events run the gun: rounds go in at 'magIn', the reload ends at 'done', cases leave the port at 'shot'
   // (SMG, pistol) or 'eject' (rifle bolt), and each handling sound plays when the hands make it
@@ -284,6 +284,9 @@
   }
   function onRigEvent(e, c, v) {
     const A = IV.audio, WP = IV.weapons, rel = /^reload/.test(c);
+    // a small bump through the gun as the hands work it (springs: magazine out and in, bolt and slide home)
+    const bump = (z, p, r) => { SP.kZ.v += z; SP.kP.v += p; SP.kR.v += r || 0; };
+    if (e === 'magOut') bump(-0.15, -0.25, 0.2); else if (e === 'magIn') bump(0.35, 0.55, -0.3); else if (e === 'boltForward' || e === 'charge' || e === 'slide') bump(0.3, 0.35, 0.15); else if (e === 'boltBack') bump(-0.25, -0.2, 0);
     if (e === 'magOut') A && A.play('magOut');
     else if (e === 'magIn') { A && A.play('magIn'); if (rel) WP.magIn && WP.magIn(); }
     else if (e === 'done' && rel) WP.reloadDone && WP.reloadDone();
@@ -315,7 +318,8 @@
   // Springs for the gun's kick and look sway (x position, v velocity, k stiffness, c damping; the reference's
   // constants). Stepped in 8 ms pieces when a frame is long, so a slow frame never makes them ring or blow up.
   const mkSpring = (k, c) => ({ x: 0, v: 0, k, c });
-  const SP = FP.springs = { kZ: mkSpring(520, 30), kP: mkSpring(380, 26), kY: mkSpring(300, 22), kR: mkSpring(300, 20), swY: mkSpring(110, 15), swP: mkSpring(110, 15) };
+  const SP = FP.springs = { kZ: mkSpring(520, 30), kP: mkSpring(380, 26), kY: mkSpring(300, 22), kR: mkSpring(300, 20), swY: mkSpring(110, 15), swP: mkSpring(110, 15), jY: mkSpring(160, 14) };
+  // jY: the gun's height on a jump and a landing (it lags as the body rises, then drops and settles when the feet hit)
   function spring(s, to, dt) {
     const n = dt > 0.012 ? Math.ceil(dt / 0.008) : 1, h = dt / n;
     for (let i = 0; i < n; i++) { s.v += ((to - s.x) * s.k - s.v * s.c) * h; s.x += s.v * h; }
@@ -373,6 +377,11 @@
     for (const n in SP) spring(SP[n], 0, dt);
     SP.swY.x = IV.clamp(SP.swY.x, -0.09, 0.09); SP.swP.x = IV.clamp(SP.swP.x, -0.07, 0.07);
     const swOut = 1 - 0.75 * a, swY = SP.swY.x * swOut, swP = SP.swP.x * swOut;
+    // jump and landing: a push down as the body leaves the ground, a harder one by the fall speed on landing
+    const gr = !!P.grounded;
+    if (FP.wasGr != null && gr !== FP.wasGr) { if (!gr && P.vel.y > 0.5) SP.jY.v -= 0.35 * motion; else if (gr) { SP.jY.v -= IV.clamp(-(FP.airVy || 0) * 0.09, 0.15, 0.7) * motion; SP.kP.v += 0.5 * motion; } }
+    FP.wasGr = gr; if (!gr) FP.airVy = P.vel.y;
+    SP.jY.x = IV.clamp(SP.jY.x, -0.05, 0.03);
     FP.fatigue = IV.clamp((FP.fatigue || 0) + (P.sprinting ? dt / 4 : -dt / 7), 0, 1);
     const breath = (1 - 0.9 * a) * motion * (1 + FP.fatigue * 2.2);
     FP.kick = IV.damp(FP.kick, 0, 13, dt); FP.kickR = IV.damp(FP.kickR, 0, 9, dt);
@@ -380,7 +389,7 @@
     FP.vmLower = IV.damp(FP.vmLower, wall && !aiming ? IV.clamp(1 - (wall.t - 0.3) / 0.6, 0, 1) : 0, 8, dt);
     const relax = 1 - a * 0.88;   // bob and breathing aimed: about a tenth (the reference's x0.12)
     const ox = (Math.sin(t * 1.1) * 0.0022 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.45) * relax - swY * 0.06;
-    const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath) * relax + swP * 0.05 - FP.vmSpr * (v.kind === 'rifleScoped' ? 0.06 : 0.02) - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45 * relax;
+    const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath) * relax + swP * 0.05 - FP.vmSpr * (v.kind === 'rifleScoped' ? 0.06 : 0.02) - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45 * relax + SP.jY.x * relax;
     const oz = SP.kZ.x * 0.55 + FP.vmLower * 0.05;
     // the vm frames hip and aimed itself; on top: the turn layers (recoil, sway, wall lowering, lean roll) about the
     // right shoulder, behind and below the eye, so recoil travels back through the wrists instead of spinning the gun
@@ -500,9 +509,19 @@
       vm.sun.color.copy(W.sun.color); vm.sun.intensity = W.sun.intensity * (night ? Math.max(lit, 0.5) : lit);
       _v.set(W.moonDir.x, W.moonDir.y, W.moonDir.z).applyQuaternion(_q.copy(cam.quaternion).invert());
       vm.sun.target.position.set(0.12, -0.15, -0.4); vm.sun.position.copy(_v).normalize().multiplyScalar(1.5).add(vm.sun.target.position); vm.sun.target.updateMatrixWorld();
-      // a weak cool rim from the sky side, up and behind, so the silhouette holds at night
+      // a weak cool fill from the sky side, up and behind the eye, so the silhouette holds at night
       if (!vm.rim) { vm.rim = new THREE.DirectionalLight(0x9fb4d8, 0); vm.scene.add(vm.rim); }
       vm.rim.position.set(-0.4, 0.8, 0.6); vm.rim.intensity = night ? 0.6 * W.hemi.intensity : 0.15;
+      // a soft key from the sun or moon's side (kept above the horizon and in front of the eye, so it always reaches the
+      // backs of the gloves and the finger tops), and a faint rim from beyond the gun, back toward the eye, so the hands
+      // separate from the dark steel; both follow the hemisphere's strength, so overcast and night stay soft
+      if (!vm.key) { vm.key = new THREE.DirectionalLight(0xfff0e0, 0); vm.scene.add(vm.key); vm.scene.add(vm.key.target); vm.edge = new THREE.DirectionalLight(0xc8d8f0, 0); vm.scene.add(vm.edge); vm.scene.add(vm.edge.target); }
+      const hI = W.hemi ? W.hemi.intensity : 0.5;
+      _v.set(W.moonDir.x, W.moonDir.y, W.moonDir.z).applyQuaternion(_q.copy(cam.quaternion).invert()); _v.y = Math.max(_v.y, 0.45); _v.z = Math.min(_v.z, 0.2); _v.normalize();
+      vm.key.color.copy(W.sun.color).lerp(VE.c.set(0xffffff), 0.5); vm.key.position.copy(_v).add(vm.sun.target.position); vm.key.target.position.copy(vm.sun.target.position); vm.key.target.updateMatrixWorld();
+      vm.key.intensity = hI * (night ? 0.3 : 0.28) * Math.max(lit, 0.6);
+      vm.edge.position.set(-0.25, 0.55, -1).add(vm.sun.target.position); vm.edge.target.position.copy(vm.sun.target.position); vm.edge.target.updateMatrixWorld();
+      vm.edge.intensity = hI * (night ? 0.35 : 0.3);
     }
     // the nearest lamp pools and the muzzle / explosion flash light the arms from where they really are: each world point
     // light is copied into the viewmodel scene at its position relative to the eye (same colour, power, falloff)
@@ -510,6 +529,10 @@
     const src = [W.flashLight].concat(W.pointPool ? W.pointPool.slice(0, 2) : []);
     if (!vm.lamps) { vm.lamps = src.map(() => { const l = new THREE.PointLight(0xffc880, 0, 10, 2); vm.scene.add(l); return l; }); vm.pt.intensity = 0; }
     src.forEach((w, i) => { const l = vm.lamps[i]; if (!w || !l) return; l.color.copy(w.color); l.distance = w.distance; l.decay = w.decay; l.intensity = w.intensity * (night ? 0.9 : 1); l.position.copy(w.position).sub(cam.position).applyQuaternion(_q); });
+    // the flash light near the drawn gun: a world flash a metre or two off would sit right on the viewmodel's barrel
+    // (they are drawn at different scales) and burn the steel to white; it is held at least 25 cm out from the drawn
+    // muzzle and capped, so the barrel and hands glow warm for a frame or two without clipping
+    { const l = vm.lamps[0], mz = vm.rig.muzzle; if (l && l.intensity > 0 && mz) { mz.getWorldPosition(_v); const d = l.position.distanceTo(_v); if (d < 0.25) l.position.sub(_v).setLength(0.25).add(_v); l.intensity = Math.min(l.intensity, 0.9); } }
     // reflections: Medium and High get the arms' own small sky cube (vmEnv), in the eye's frame with the moon or sun
     // as a soft bright spot, so steel shows a highlight and oiled wood a sheen that move as you turn; Low keeps the
     // world's sky cube (no extra renders there)
@@ -536,7 +559,10 @@
   FP.recoil = function (k) {
     FP.kick = Math.min(1.5, FP.kick + k); FP.kickR = Math.min(0.25, FP.kickR + k * 0.06);
     const s = Math.min(2.6, k / 0.35), a = IV.camera.adsE || 0, bt = s * (1 - 0.45 * a);
-    SP.kZ.v += 1.5 * s * (1 - 0.4 * a); SP.kP.v += 1.5 * bt; SP.kY.v += (Math.random() - 0.5) * bt; SP.kR.v += (Math.random() - 0.5) * 1.8 * bt;
+    // the turn is capped (the rifle's kick goes back into the shoulder, not up through the view: at full size it threw
+    // the support glove up to the middle of the screen); the push back keeps the full size
+    const br = Math.min(bt, 1.3);
+    SP.kZ.v += 1.5 * s * (1 - 0.4 * a); SP.kP.v += 1.5 * br; SP.kY.v += (Math.random() - 0.5) * br; SP.kR.v += (Math.random() - 0.5) * 1.8 * br;
   };
 
   // ---------------------------------------------------------------- the second pass

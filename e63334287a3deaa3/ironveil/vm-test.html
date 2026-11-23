@@ -224,13 +224,16 @@
     const r = renderer(); w = w || 480; h = h || 270;
     const bg = scene.background, env = scene.environment; scene.background = new THREE.Color(0); scene.environment = null;
     const skies = []; scene.traverse(o => { if (o.userData.sky && o.visible) { skies.push(o); o.visible = false; } });
-    const om = scene.overrideMaterial; scene.overrideMaterial = VMT._white || (VMT._white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+    // white on black; a dithered (alphaHash) material keeps its vertex alpha so a faded sleeve counts only where drawn
+    const W1 = VMT._white || (VMT._white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })), WA = VMT._whiteA || (VMT._whiteA = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, vertexColors: true, alphaHash: true }));
+    const swapped = []; scene.traverse(o => { if (!o.isMesh || o.userData.sky) return; swapped.push([o, o.material]); o.material = Array.isArray(o.material) ? o.material.map(m => m.alphaHash ? WA : W1) : (o.material.alphaHash ? WA : W1); });
+    const om = scene.overrideMaterial;
     r.setSize(w, h); r.setScissorTest(false); r.setViewport(0, 0, w, h); cam.aspect = w / h; cam.updateProjectionMatrix();
     const tm = r.toneMapping; r.toneMapping = THREE.NoToneMapping; r.render(scene, cam); r.toneMapping = tm;
     const gl = r.getContext(), px = new Uint8Array(w * h * 4); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
-    scene.background = bg; scene.environment = env; scene.overrideMaterial = om; skies.forEach(o => { o.visible = true; });
+    scene.background = bg; scene.environment = env; scene.overrideMaterial = om; skies.forEach(o => { o.visible = true; }); swapped.forEach(([o, m]) => { o.material = m; });
     let n = 0, x0 = w, x1 = 0, y0 = h, y1 = 0, centre = 0, aboveH = 0;
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (px[(y * w + x) * 4] > 128) {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (px[(y * w + x) * 4] > 20) {
       n++; const yy = h - 1 - y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
       if (Math.abs(x - w / 2) < w * 0.06 && Math.abs(yy - h / 2) < h * 0.06) centre++;
       if (yy < h / 2) aboveH++;
@@ -251,10 +254,10 @@
   // ---------------------------------------------------------------- the real vm (js/vm.js)
   const VMS = {};
   VMT.vm = function (kind) {
-    if (VMS[kind]) return VMS[kind];
-    const sc = stage(), vm = IVVM.create(kind, { weapon: VMT.weapon });
+    if (VMS[kind] && VMS[kind].raw === !!VMT.rawMats) return VMS[kind];
+    const sc = stage(), vm = IVVM.create(kind, { weapon: VMT.weapon, rawMaterials: !!VMT.rawMats });   // VMT.rawMats: the gun's own materials
     sc.add(vm.group);
-    return (VMS[kind] = { vm, scene: sc });
+    return (VMS[kind] = { vm, scene: sc, raw: !!VMT.rawMats });
   };
   // pose a vm: state { ads, sprint, crouch, prone }, then clip `clip` advanced to time t (60 Hz steps, events kept)
   VMT.pose = function (kind, clip, t, state, opts) {
@@ -305,6 +308,7 @@
     if (opts.title) { c2.fillStyle = '#eee'; c2.fillText(opts.title, 8, 18); }
     rows.forEach((row, ri) => {
       const st = { ads: row.ads || 0, sprint: row.sprint || 0, crouch: row.crouch || 0, prone: row.prone || 0 };
+      VMT.rawMats = !!row.raw;
       const { V, vm, ev } = VMT.pose(row.gun, row.clip, row.t || 0, st, row);
       const chk = VMT.checks(row.gun), cov = VMT.coverage(V.scene, VMT.camera('eye', null, 0, 16 / 9));
       info.push(Object.assign({ row: row.label || (row.gun + ' ' + (row.clip || 'idle') + ' ' + (row.t || 0)), ev }, chk, cov));

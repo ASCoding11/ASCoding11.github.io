@@ -88,6 +88,10 @@
     }
     return rings.concat(out);
   }
+  // vertex tints (linear multipliers of the glove map's 58, 60, 64): the knuckle panel a worn tan-grey (sRGB about 85, 83,
+  // 77) and the back seams a little lighter (about 92, 90, 86), so the back of the hand reads against the dark gun
+  const TINT = { panel: [2.1, 1.85, 1.45], rib: [2.6, 2.35, 1.9] };
+  const tintOf = t => Array.isArray(t) ? t : [t || 1, t || 1, t || 1];
   function Builder(R) { this.R = R; this.pos = [[], []]; this.nrm = [[], []]; this.uv = [[], []]; this.idx = [[], []]; this.col = [[], []]; }
   Builder.prototype.tube = function (rings, o) {
     o = o || {};
@@ -112,7 +116,7 @@
         const jj = j % R, p = grid[k][jj], n = gn[k][jj];
         if (n.lengthSq() < 1e-14) n.copy(rings[k].f.t).multiplyScalar(k ? 1 : -1);
         n.normalize();
-        this.col[mat].push(o.tint || 1); P.push(p.x, p.y, p.z); N.push(n.x, n.y, n.z); U.push((o.u0 || 0) + j / R * (o.uScale || 1), (o.v0 || 0) + rings[k].v * (o.vScale || 10));
+        this.col[mat].push(tintOf(o.tint)); P.push(p.x, p.y, p.z); N.push(n.x, n.y, n.z); U.push((o.u0 || 0) + j / R * (o.uScale || 1), (o.v0 || 0) + rings[k].v * (o.vScale || 10));
       }
     }
     const W = R + 1;
@@ -127,7 +131,7 @@
   };
   Builder.prototype.fan = function (ring, start, R, mat, dir) {
     const P = this.pos[mat], N = this.nrm[mat], U = this.uv[mat], I = this.idx[mat], c = P.length / 3, n = ring.f.t;
-    P.push(ring.o.x, ring.o.y, ring.o.z); N.push(n.x * dir, n.y * dir, n.z * dir); U.push(0.5, ring.v * 10); this.col[mat].push(this._tint || 1);
+    P.push(ring.o.x, ring.o.y, ring.o.z); N.push(n.x * dir, n.y * dir, n.z * dir); U.push(0.5, ring.v * 10); this.col[mat].push(tintOf(this._tint));
     for (let j = 0; j < R; j++) { if (dir > 0) I.push(start + j, c, start + j + 1); else I.push(start + j, start + j + 1, c); }
   };
   Builder.prototype.geometry = function (mirror) {
@@ -140,16 +144,17 @@
         N.push(mirror ? -this.nrm[m][i] : this.nrm[m][i], this.nrm[m][i + 1], this.nrm[m][i + 2]);
       }
       for (let i = 0; i < this.uv[m].length; i++) U.push(this.uv[m][i]);
-      for (let i = 0; i < this.col[m].length; i++) { const t = this.col[m][i]; C.push(t, t, t); }
+      for (let i = 0; i < this.col[m].length; i++) { const t = this.col[m][i]; C.push(t[0], t[1], t[2], 1); }   // rgb tint, alpha (the sleeve's aimed fade)
       const ix = this.idx[m];
       for (let i = 0; i < ix.length; i += 3) { if (mirror) I.push(ix[i] + n0, ix[i + 2] + n0, ix[i + 1] + n0); else I.push(ix[i] + n0, ix[i + 1] + n0, ix[i + 2] + n0); }
       g.addGroup(i0, I.length - i0, m);
+      if (m === 1) g.userData.sleeveV0 = n0;
       off += this.pos[m].length / 3;
     }
     g.setAttribute('position', new T.Float32BufferAttribute(P, 3));
     g.setAttribute('normal', new T.Float32BufferAttribute(N, 3));
     g.setAttribute('uv', new T.Float32BufferAttribute(U, 2));
-    g.setAttribute('color', new T.Float32BufferAttribute(C, 3));
+    g.setAttribute('color', new T.Float32BufferAttribute(C, 4));
     g.setIndex(I);
     g.computeBoundingSphere();
     return g;
@@ -400,7 +405,7 @@
     for (const sx of [-0.021, -0.007, 0.007, 0.021]) {
       const pts = [];
       for (let i = 0; i <= 5; i++) { const y = 0.012 + i * 0.011; const x = sx * (0.75 + 0.25 * i / 5); pts.push(V(x - 0.0008, y, seamZ(y) - cup * 0.0015 * (x / 0.03) * (x / 0.03))); }
-      B.tube(cordRings(pts, 0.0022, V(0, 0, 1)), { radial: 6, capStart: true, tint: 1.7 });
+      B.tube(cordRings(pts, 0.0022, V(0, 0, 1)), { radial: 6, capStart: true, tint: TINT.rib });
     }
     {
       const pr = [];
@@ -413,7 +418,7 @@
       }
       const rings = cordRings(pr, 0, V(0, 0, 1));
       rings.forEach((r, i) => { const k = Math.sin((i / 6) * Math.PI); r.hw = 0.0085 + 0.0015 * k; r.hd = 0.0017; r.hp = 0.0017; r.e = 3; });
-      B.tube(rings, { radial: 8, capStart: true, tint: 1.45 });
+      B.tube(rings, { radial: 8, capStart: true, tint: TINT.panel });
     }
     // glove cuff, and the sleeve with its turned-back end
     const fa = pose.forearm || [0, -1, 0];
@@ -431,6 +436,18 @@
     return info;
   };
 
+  // the sleeve's aimed fade: vertex alpha (dithered by the sleeve material's alphaHash) falls from 1 at a0 to 0 at a1
+  // metres up the sleeve from the cuff, by k (0 none .. 1 full), so aimed the forearms melt away toward the eye
+  // instead of crossing the bottom of the view; the glove and the first few centimetres of wool stay
+  H.sleeveFade = function (g, k, a0, a1) {
+    const v0 = g.userData.sleeveV0; if (v0 == null) return;
+    const C = g.attributes.color, U = g.attributes.uv, n = C.count, A = C.array;
+    for (let i = v0; i < n; i++) {
+      const s = U.array[i * 2 + 1] / 12, x = Math.min(1, Math.max(0, (s - a0) / (a1 - a0)));
+      A[i * 4 + 3] = 1 - k * x * x * (3 - 2 * x);
+    }
+    C.needsUpdate = true;
+  };
   // per-vertex mix of two builds with the same topology into dst (positions and normals)
   H.blend = function (dst, a, b, k) {
     const P = dst.attributes.position.array, N = dst.attributes.normal.array, pa = a.attributes.position.array, pb = b.attributes.position.array, na = a.attributes.normal.array, nb = b.attributes.normal.array;
@@ -494,12 +511,12 @@
     const gloveC = canvasTex(W, W, d => {
       for (let i = 0; i < W * W; i++) {
         const m = mott[i], g = grain[i], k = 0.8 + m * 0.32 + (g - 0.5) * 0.06;
-        d[i * 4] = 35 * k; d[i * 4 + 1] = 38 * k; d[i * 4 + 2] = 42 * k; d[i * 4 + 3] = 255;
+        d[i * 4] = 58 * k; d[i * 4 + 1] = 60 * k; d[i * 4 + 2] = 64 * k; d[i * 4 + 3] = 255;
       }
     });
     gloveC.encoding = T.sRGBEncoding;
     const gloveR = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const v = (0.78 + (mott[i] - 0.55) * 0.15 + (grain[i] - 0.5) * 0.08) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } });
-    const glove = new T.MeshStandardMaterial({ name: 'vmGlove', color: 0xffffff, vertexColors: true, map: gloveC, normalMap: gloveN, roughnessMap: gloveR, roughness: 1.0, metalness: 0, envMapIntensity: 0.8 });
+    const glove = new T.MeshStandardMaterial({ name: 'vmGlove', color: 0xffffff, vertexColors: true, map: gloveC, normalMap: gloveN, roughnessMap: gloveR, roughness: 0.82, metalness: 0, envMapIntensity: 0.5 });
     glove.normalScale.set(0.9, 0.9);
     // wool serge: field drab, darker than grass; a fine diagonal weave and fibre noise only (no ribs)
     const wn = noise2(W, W, 31, 1, 2), wm = noise2(W, W, 43, 40, 3), hw = new Float32Array(W * W);
@@ -507,7 +524,7 @@
     const sleeveN = normalFromHeight(hw, W, W, 0.9);
     const sleeveC = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const k = 0.86 + wm[i] * 0.22 + (wn[i] - 0.5) * 0.06; d[i * 4] = 42 * k; d[i * 4 + 1] = 42 * k; d[i * 4 + 2] = 39 * k; d[i * 4 + 3] = 255; } });
     sleeveC.encoding = T.sRGBEncoding;
-    const sleeve = new T.MeshStandardMaterial({ name: 'vmSleeve', side: T.DoubleSide, map: sleeveC, normalMap: sleeveN, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
+    const sleeve = new T.MeshStandardMaterial({ name: 'vmSleeve', side: T.DoubleSide, vertexColors: true, alphaHash: true, map: sleeveC, normalMap: sleeveN, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
     sleeve.normalScale.set(0.5, 0.5);
     MATS = { glove, sleeve };
     return MATS;
