@@ -44,6 +44,8 @@
   // game never runs the solver.
   const F4 = (c, sp) => ({ curl: c, spread: sp || 0 });
   const OPEN = { index: F4([0.1, 0.1, 0.05], 0.05), middle: F4([0.1, 0.1, 0.05], 0.01), ring: F4([0.1, 0.1, 0.05], -0.03), little: F4([0.15, 0.1, 0.05], -0.07) };
+  const HK = (c, sp) => ({ curl: c, spread: sp, fixed: true });
+  const HOOK = { index: HK([0.35, 1.35, 0.9], 0.04), middle: HK([0.35, 1.4, 0.95], 0.01), ring: HK([0.4, 1.45, 1.0], -0.03), little: HK([0.5, 1.5, 1.0], -0.07) };
   const GRIPS = VM.GRIPS = {
     smg: {
       // firing hand round the raked pistol grip: palm on the right side, fingers round the front, thumb over the left
@@ -60,8 +62,10 @@
         forearmGun: [0.3, -0.45, -0.85], thumbGun: [[0.15, 0.75, 0.6], [0.05, 0.9, 0.4], [0, 0.95, 0.3]], nailGun: [1, 0, -0.3], towardGun: [-1, 0, 0],
         pose: { cup: 0.4, fingers: OPEN, thumb: { close: true }, sleeve: 0.70 } },
       // over the top to the cocking handle on the right side: palm down, fingers hooked round the handle
-      charge: { side: 'l', anchor: [0, 0.085, -0.012], at: [-0.010, 0.052, -0.040], fwd: [-1, -0.35, 0.05], back: [0, 1, 0.1],
-        forearmGun: [0.45, -0.25, -0.85], pose: { cup: 0.2, fingers: OPEN, thumb: { dirs: [[-0.6, 0.7, -0.3], [-0.5, 0.85, -0.2], [-0.4, 0.9, -0.15]] }, sleeve: 0.70 } }
+      // the cocking handle on the right side, from below: back of the hand to the right, fingers hooked up over it
+      charge: { side: 'l', anchor: [0, 0.085, -0.012], at: [-0.036, -0.032, -0.040], fwd: [0, 1, 0.1], back: [-1, 0, 0],
+        forearmGun: [-0.25, -0.75, -0.6], thumbGun: [[0.1, 0.4, 0.9], [0.05, 0.3, 0.95], [0.0, 0.2, 0.98]], nailGun: [-1, 0, 0], towardGun: [1, 0, 0],
+        pose: { cup: 0.3, fingers: HOOK, thumb: { close: true }, sleeve: 0.70 } }
     },
     pistol: {
       base: 'cup',
@@ -79,7 +83,7 @@
         pose: { cup: 0.4, fingers: OPEN, thumb: { close: true }, sleeve: 0.70 } },
       // over the top of the slide's rear, fingers on its far side, thumb on the near side
       slide: { side: 'l', anchor: [0, 0.06, -0.014], at: [0.006, 0.052, -0.055], fwd: [-1, -0.2, 0.1], back: [0.1, 1, 0],
-        forearmGun: [0.45, -0.3, -0.85], thumbGun: [[0.3, -0.6, 0.6], [0.4, -0.7, 0.4], [0.3, -0.9, 0.2]], nailGun: [1, 0, 0], towardGun: [-1, 0, 0],
+        forearmGun: [0.3, -0.8, -0.5], thumbGun: [[0.3, -0.6, 0.6], [0.4, -0.7, 0.4], [0.3, -0.9, 0.2]], nailGun: [1, 0, 0], towardGun: [-1, 0, 0],
         pose: { cup: 0.5, fingers: OPEN, thumb: { close: true }, sleeve: 0.70 } }
     },
     rifleScoped: {
@@ -95,9 +99,9 @@
         forearmGun: [0.3, -0.45, -0.85], thumbGun: [[0.15, 0.75, 0.6], [0.05, 0.9, 0.4], [0, 0.95, 0.3]], nailGun: [1, 0, -0.3], towardGun: [-1, 0, 0],
         pose: { cup: 0.4, fingers: OPEN, thumb: { close: true }, sleeve: 0.70 } },
       // reaching over to the bolt knob on the right side: knob pinched between thumb and the side of the bent index
-      bolt: { side: 'l', anchor: [0, 0.08, -0.012], at: [-0.020, 0.040, 0.03], fwd: [-0.9, -0.4, 0.15], back: [0.2, 1, 0],
-        forearmGun: [0.2, -0.85, -0.5], pose: { cup: 0.3, fingers: { index: F4([0.5, 0.9, 0.5], 0.05), middle: F4([0.7, 1.1, 0.6], 0.01), ring: F4([0.8, 1.2, 0.7], -0.03), little: F4([0.9, 1.2, 0.7], -0.07) },
-          thumb: { dirs: [[-0.6, 0.7, -0.35], [-0.35, 0.85, -0.4], [-0.2, 0.85, -0.5]] }, sleeve: 0.70 } }
+      bolt: { side: 'l', anchor: [0, 0.085, -0.012], at: [-0.054, -0.078, 0.045], fwd: [0, 1, 0.1], back: [-1, 0, 0],
+        forearmGun: [-0.25, -0.75, -0.6], thumbGun: [[0.1, 0.4, 0.9], [0.05, 0.3, 0.95], [0.0, 0.2, 0.98]], nailGun: [-1, 0, 0], towardGun: [1, 0, 0],
+        pose: { cup: 0.3, fingers: HOOK, thumb: { close: true }, sleeve: 0.70 } }
     }
   };
   // hands round things that are not the gun, in the thing's own frame (weapons.glb models: grenade, binoculars, knife)
@@ -119,7 +123,7 @@
   };
   // a grip written as another plus changes ('like')
   for (const k in GRIPS) for (const n in GRIPS[k]) { const g = GRIPS[k][n]; if (g.like) { const b = GRIPS[k][g.like]; const pose = Object.assign({}, b.pose, { fingers: Object.assign({}, b.pose.fingers, g.index ? { index: g.index } : {}) }); GRIPS[k][n] = Object.assign({}, b, { pose, like: g.like }); } }
-  const BAKED = VM.BAKED = {"smg":{"grip":{"curls":{"middle":[1.183,1.345,0.818],"ring":[1.151,1.345,0.818],"little":[0.6,1.331,0.809]},"thumb":[[-0.3791,0.1951,-0.9045],[-0.3659,0.8152,-0.449],[-0.3219,0.9391,-0.1203]]},"fore":{"curls":{"index":[0.64,0.79,0.799],"middle":[0.899,1.121,0.76],"ring":[0.986,1.232,0.837],"little":[1.1,1.314,0.895]},"thumb":[[-0.9441,0.2883,-0.1599],[-0.1585,0.8414,-0.5167],[0.1251,0.8019,-0.5842]]},"mag":{"curls":{"index":[1.061,1.328,0.904],"middle":[1.137,1.425,0.972],"ring":[0.856,1.494,1.02],"little":[0.15,1.397,0.952]},"thumb":[[-0.8291,0.5374,0.1543],[-0.9493,0.3131,-0.0293],[-0.9739,0.2037,-0.0998]]},"charge":{"curls":{"index":[0.618,0.762,0.511],"middle":[0.446,1.066,0.722],"ring":[0.381,1.025,0.693],"little":[0.15,0.956,0.645]}}},"props":{"grenade":{"curls":{"index":[0.759,0.942,0.636],"middle":[0.813,1.011,0.684],"ring":[0.813,1.011,0.684],"little":[0.798,0.928,0.626]},"thumb":[[-0.9117,0.3419,-0.2279],[0.208,0.1293,-0.9695],[0.8416,0,-0.54]]},"binoL":{"curls":{"index":[0.1,1.19,0.808],"middle":[0.1,1.314,0.895],"ring":[0.1,1.632,1.116],"little":[0.15,1.439,0.981]},"thumb":[[-0.8,-0.48,-0.36],[-0.8794,0.4726,-0.0578],[-0.5956,0.7928,0.1293]]},"binoR":{"curls":{"index":[0.1,1.19,0.808],"middle":[0.1,1.314,0.895],"ring":[0.1,1.632,1.116],"little":[0.15,1.439,0.981]},"thumb":[[-0.8,-0.48,-0.36],[-0.8794,0.4726,-0.0578],[-0.5956,0.7928,0.1293]]},"knife":{"curls":{"index":[1.115,1.397,0.952],"middle":[1.18,1.48,1.01],"ring":[1.202,1.508,1.029],"little":[0.442,1.508,1.029]},"thumb":[[-0.7454,0.5963,-0.2981],[-0.7454,0.2981,-0.5963],[-0.7071,0,-0.7071]]}},"pistol":{"grip":{"curls":{"middle":[0.6,0.6,1.25],"ring":[1.172,1.331,0.809],"little":[0.719,1.331,0.809]},"thumb":[[-0.3961,0.1755,-0.9013],[-0.2691,0.8505,-0.452],[-0.1984,0.9727,-0.1203]]},"cup":{"curls":{"index":[0.683,0.845,0.568],"middle":[0.834,1.038,0.703],"ring":[0.921,1.149,0.78],"little":[1.154,1.383,0.943]},"thumb":[[-0.843,0.5377,-0.018],[-0.4182,0.7079,-0.5692],[-0.2442,0.6871,-0.6842]]},"mag":{"curls":{"index":[0.834,1.038,0.703],"middle":[0.824,1.025,0.693],"ring":[0.986,1.232,0.837],"little":[1.5,1.75,1.25]},"thumb":[[-0.6317,0.5745,-0.5205],[0.164,0.7292,-0.6643],[0.4443,0.6533,-0.613]]},"slide":{"curls":{"index":[0.845,1.052,0.712],"middle":[0.834,1.038,0.703],"ring":[0.737,0.914,0.616],"little":[0.658,0.749,0.501]},"thumb":[[0.7038,-0.1301,-0.6984],[0.4175,0.5964,-0.6856],[0.0878,0.8398,-0.5358]]}},"rifleScoped":{"grip":{"curls":{"middle":[0.5,0.5,1.25],"ring":[1.18,1.369,0.905],"little":[1.137,1.314,0.866]},"thumb":[[-0.7118,0.0301,-0.7018],[-0.4284,0.7636,-0.4832],[-0.3194,0.9461,0.0546]]},"fore":{"curls":{"index":[0.694,0.859,0.578],"middle":[0.878,1.094,0.741],"ring":[0.964,1.204,0.818],"little":[1.057,1.259,0.856]},"thumb":[[-0.9441,0.2883,-0.1599],[-0.1405,0.8393,-0.5251],[0.1468,0.7922,-0.5923]]},"mag":{"curls":{"index":[0.208,0.238,1.183],"middle":[0.489,1.659,1.135],"ring":[0.273,1.618,1.106],"little":[1.5,1.75,1.25]},"thumb":[[-0.8291,0.5374,0.1543],[-0.9485,0.3128,0.0507],[-0.9788,0.2048,0]]},"bolt":{"curls":{"index":[0.586,1.01,0.577],"middle":[0.7,1.1,0.6],"ring":[0.8,1.2,0.7],"little":[0.9,1.2,0.7]}}}};   // BAKED-END
+  const BAKED = VM.BAKED = {"smg":{"grip":{"curls":{"middle":[1.183,1.345,0.818],"ring":[1.151,1.345,0.818],"little":[0.6,1.331,0.809]},"thumb":[[-0.3791,0.1951,-0.9045],[-0.3659,0.8152,-0.449],[-0.3219,0.9391,-0.1203]]},"fore":{"curls":{"index":[0.64,0.79,0.799],"middle":[0.899,1.121,0.76],"ring":[0.986,1.232,0.837],"little":[1.1,1.314,0.895]},"thumb":[[-0.9441,0.2883,-0.1599],[-0.1585,0.8414,-0.5167],[0.1251,0.8019,-0.5842]]},"mag":{"curls":{"index":[1.061,1.328,0.904],"middle":[1.137,1.425,0.972],"ring":[0.856,1.494,1.02],"little":[0.15,1.397,0.952]},"thumb":[[-0.8291,0.5374,0.1543],[-0.9493,0.3131,-0.0293],[-0.9739,0.2037,-0.0998]]},"charge":{"curls":{"index":[0.467,0.569,0.732],"middle":[0.392,0.983,0.664],"ring":[0.262,0.624,0.415],"little":[0.269,0.252,0.156]},"thumb":[[-0.8644,0.4925,-0.101],[-0.8987,0.3858,-0.2086],[-0.936,0.2906,-0.1987]]}},"props":{"grenade":{"curls":{"index":[0.759,0.942,0.636],"middle":[0.813,1.011,0.684],"ring":[0.813,1.011,0.684],"little":[0.798,0.928,0.626]},"thumb":[[-0.9117,0.3419,-0.2279],[0.208,0.1293,-0.9695],[0.8416,0,-0.54]]},"binoL":{"curls":{"index":[0.1,1.19,0.808],"middle":[0.1,1.314,0.895],"ring":[0.1,1.632,1.116],"little":[0.15,1.439,0.981]},"thumb":[[-0.8,-0.48,-0.36],[-0.8794,0.4726,-0.0578],[-0.5956,0.7928,0.1293]]},"binoR":{"curls":{"index":[0.1,1.19,0.808],"middle":[0.1,1.314,0.895],"ring":[0.1,1.632,1.116],"little":[0.15,1.439,0.981]},"thumb":[[-0.8,-0.48,-0.36],[-0.8794,0.4726,-0.0578],[-0.5956,0.7928,0.1293]]},"knife":{"curls":{"index":[1.115,1.397,0.952],"middle":[1.18,1.48,1.01],"ring":[1.202,1.508,1.029],"little":[0.442,1.508,1.029]},"thumb":[[-0.7454,0.5963,-0.2981],[-0.7454,0.2981,-0.5963],[-0.7071,0,-0.7071]]}},"pistol":{"grip":{"curls":{"middle":[0.6,0.6,1.25],"ring":[1.172,1.331,0.809],"little":[0.719,1.331,0.809]},"thumb":[[-0.3961,0.1755,-0.9013],[-0.2691,0.8505,-0.452],[-0.1984,0.9727,-0.1203]]},"cup":{"curls":{"index":[0.683,0.845,0.568],"middle":[0.834,1.038,0.703],"ring":[0.921,1.149,0.78],"little":[1.154,1.383,0.943]},"thumb":[[-0.843,0.5377,-0.018],[-0.4182,0.7079,-0.5692],[-0.2442,0.6871,-0.6842]]},"mag":{"curls":{"index":[0.834,1.038,0.703],"middle":[0.824,1.025,0.693],"ring":[0.986,1.232,0.837],"little":[1.5,1.75,1.25]},"thumb":[[-0.6317,0.5745,-0.5205],[0.164,0.7292,-0.6643],[0.4443,0.6533,-0.613]]},"slide":{"curls":{"index":[0.845,1.052,0.712],"middle":[0.834,1.038,0.703],"ring":[0.737,0.914,0.616],"little":[0.658,0.749,0.501]},"thumb":[[0.7038,-0.1301,-0.6984],[0.4175,0.5964,-0.6856],[0.0878,0.8398,-0.5358]]}},"rifleScoped":{"grip":{"curls":{"middle":[0.5,0.5,1.25],"ring":[1.18,1.369,0.905],"little":[1.137,1.314,0.866]},"thumb":[[-0.7118,0.0301,-0.7018],[-0.4284,0.7636,-0.4832],[-0.3194,0.9461,0.0546]]},"fore":{"curls":{"index":[0.694,0.859,0.578],"middle":[0.878,1.094,0.741],"ring":[0.964,1.204,0.818],"little":[1.057,1.259,0.856]},"thumb":[[-0.9441,0.2883,-0.1599],[-0.1405,0.8393,-0.5251],[0.1468,0.7922,-0.5923]]},"mag":{"curls":{"index":[0.208,0.238,1.183],"middle":[0.489,1.659,1.135],"ring":[0.273,1.618,1.106],"little":[1.5,1.75,1.25]},"thumb":[[-0.8291,0.5374,0.1543],[-0.9485,0.3128,0.0507],[-0.9788,0.2048,0]]},"bolt":{"curls":{"index":[0.338,0.404,0.261],"middle":[0.294,0.348,0.223],"ring":[0.294,0.348,0.223],"little":[0.312,0.307,0.194]},"thumb":[[-0.8644,0.4925,-0.101],[-0.7314,0.314,-0.6053],[-0.6988,0.2169,-0.6816]]}}};   // BAKED-END
 
   const _x = new T.Vector3(), _y = new T.Vector3(), _z = new T.Vector3();
   // the hand-to-gun matrix of a grip
@@ -195,7 +199,7 @@
     gun: { kind: 'vec', n: 6 }, mag: { kind: 'vec', n: 6 }, magHand: { kind: 'vec', n: 1 }, magVis: { kind: 'vec', n: 1 },
     bolt: { kind: 'vec', n: 1 }, boltTurn: { kind: 'vec', n: 1 }, hammer: { kind: 'vec', n: 1 }, trigger: { kind: 'vec', n: 1 }, charging: { kind: 'vec', n: 1 },
     hs: { kind: 'vec', n: 1 }, pin: { kind: 'vec', n: 1 }, pvis: { kind: 'vec', n: 1 },
-    hand: { kind: 'xf', n: 7 }, handE: { kind: 'xf', n: 7 }, phE: { kind: 'xf', n: 7 },
+    hand: { kind: 'xf', n: 10 }, handE: { kind: 'xf', n: 7 }, phE: { kind: 'xf', n: 7 },
     build: { kind: 'step' }, pbuild: { kind: 'step' }, prop: { kind: 'step' }
   };
   const VEC_CH = Object.keys(CH).filter(k => CH[k].kind !== 'step');
@@ -203,9 +207,22 @@
   function newPose() { const p = {}; for (const k of VEC_CH) p[k] = new Float32Array(CH[k].n); p.build = null; p.pbuild = null; p.prop = null; return p; }
   function copyPose(d, s) { for (const k of VEC_CH) d[k].set(s[k]); d.build = s.build; d.pbuild = s.pbuild; d.prop = s.prop; }
   const _qa = new T.Quaternion(), _qb = new T.Quaternion();
-  function mixXf(o, a, b, k) {
-    for (let i = 0; i < 3; i++) o[i] = a[i] + (b[i] - a[i]) * k;
-    _qa.set(a[3], a[4], a[5], a[6]); _qb.set(b[3], b[4], b[5], b[6]); _qa.slerp(_qb, k);
+  // A rigid place mixed from a to b. With a forearm direction (elements 7-9, the support hand's sleeve), the
+  // forearm swings along the short arc between its two directions and the rest of the turn happens in the hand's own
+  // frame, so a 70 cm sleeve never sweeps up through the view the way a plain slerp of the hand swings it.
+  const _sw = new T.Quaternion(), _sk = new T.Quaternion(), _dq = new T.Quaternion(), _dk = new T.Quaternion(), _qid = new T.Quaternion(), _fa = new T.Vector3(), _fb = new T.Vector3();
+  function mixXf(o, a, b, k, kp) {
+    for (let i = 0; i < 3; i++) o[i] = a[i] + (b[i] - a[i]) * (kp == null ? k : kp);
+    k = Math.max(0, Math.min(1, k));
+    _qa.set(a[3], a[4], a[5], a[6]); _qb.set(b[3], b[4], b[5], b[6]);
+    if (o.length >= 10 && a.length >= 10 && b.length >= 10) {
+      _fa.set(a[7], a[8], a[9]); _fb.set(b[7], b[8], b[9]);
+      _sw.setFromUnitVectors(_fa, _fb);
+      _dq.copy(_sw).multiply(_qa).invert().multiply(_qb);            // what is left after the swing, in the hand's frame
+      _sk.copy(_qid).slerp(_sw, k); _dk.copy(_qid).slerp(_dq, k);
+      _qa.premultiply(_sk).multiply(_dk);
+      _fa.applyQuaternion(_sk); o[7] = _fa.x; o[8] = _fa.y; o[9] = _fa.z;
+    } else _qa.slerp(_qb, k);
     o[3] = _qa.x; o[4] = _qa.y; o[5] = _qa.z; o[6] = _qa.w;
   }
   function mixPose(o, a, b, k) {   // o = a..b by k (o may be a)
@@ -219,7 +236,7 @@
     if (kind === 'step') return va;
     if (i === keys.length - 1 || t <= a[0]) { out.set(va); return out; }
     const b = keys[i + 1], vb = b[1] === 'base' ? base : b[1], k = (EASE[b[2] || 'io'])((t - a[0]) / Math.max(1e-6, b[0] - a[0]));
-    if (kind === 'xf') { const kk = Math.max(0, Math.min(1, k)); for (let j = 0; j < 3; j++) out[j] = va[j] + (vb[j] - va[j]) * k; _qa.set(va[3], va[4], va[5], va[6]); _qb.set(vb[3], vb[4], vb[5], vb[6]); _qa.slerp(_qb, kk); out[3] = _qa.x; out[4] = _qa.y; out[5] = _qa.z; out[6] = _qa.w; }
+    if (kind === 'xf') mixXf(out, va, vb, k, k);
     else for (let j = 0; j < out.length; j++) out[j] = va[j] + (vb[j] - va[j]) * k;
     return out;
   }
@@ -235,10 +252,15 @@
   function xfOf(m) { m.decompose(_p, _q, _s); return [_p.x, _p.y, _p.z, _q.x, _q.y, _q.z, _q.w]; }
   // a support-hand place on the gun: grip g of this gun, moved by d (gun frame) and turned by r (hand frame, about the wrist)
   function G(grips, g, d, r) {
-    const m = VM.gripMatrix(grips[g]);
+    const gr = grips[g], m0 = VM.gripMatrix(gr), m = m0.clone();
     if (r) m.multiply(_m1.makeRotationFromEuler(_e.set(r[0], r[1], r[2], 'YXZ')));
     if (d) m.premultiply(_m1.makeTranslation(d[0], d[1], d[2]));
-    return xfOf(m);
+    // the sleeve's direction on the gun (for mixXf): the grip's forearm in the hand's frame, turned with the hand
+    const f = new T.Vector3();
+    if (gr.forearmGun) f.fromArray(gr.forearmGun).normalize().transformDirection(_m2.copy(m0).invert());
+    else { const fa = (gr.pose && gr.pose.forearm) || [0, -1, 0]; f.set(fa[0] * (gr.side === 'l' ? -1 : 1), fa[1], fa[2]).normalize(); }
+    f.transformDirection(m);
+    return xfOf(m).concat([f.x, f.y, f.z]);
   }
   // a place in the eye frame
   function E(p, r) { _q.setFromEuler(_e.set(r[0], r[1], r[2], 'YXZ')); return [p[0], p[1], p[2], _q.x, _q.y, _q.z, _q.w]; }
@@ -276,7 +298,7 @@
     C.sprintIn = { dur: 0.3, ev: {}, ch: {} }; C.sprintOut = { dur: 0.3, ev: {}, ch: {} };
     // ---- reloads with a detachable magazine
     if (grips.mag) {
-      const cant = kind === 'pistol' ? [0.01, 0.04, 0.02, -0.25, 0.1, 0.35] : [0.015, 0.02, 0.02, -0.04, 0.04, 0.5];
+      const cant = kind === 'pistol' ? [0.01, 0.04, 0.02, -0.25, 0.1, 0.35] : [0.02, 0.07, 0.02, -0.06, -0.08, 0.55];
       const cantB = cant.slice(); cantB[1] += 0.008; cantB[3] -= 0.04; cantB[5] += 0.03;
       const away = kind === 'pistol' ? [0.05, -0.32, 0.05] : [0.07, -0.42, -0.1];
       const R = (dur, extra) => {
@@ -304,7 +326,7 @@
         c.ev.boltBack = 2.8;
         const cr = [0.0, 0.01, 0, -0.06, 0.02, -0.28];
         c.ch.gun.push([2.0, cr, 'io'], [2.8, cr], [2.84, [0, 0.012, -0.004, -0.08, 0.02, -0.3], 'fast'], [3.0, Z6, 'io']);
-        c.ch.hand.push([1.8, g('mag', [0.01, -0.04, 0])], [2.15, g('charge', [0, 0.02, 0.012]), 'fast'], [2.24, g('charge'), 'out'], [2.55, g('charge', [0, 0, -0.065]), 'fast'], [2.8, g('charge', [0, 0.004, -0.065])], [2.86, g('charge', [0.01, 0.03, -0.06]), 'fast'], [3.0, 'base', 'fast']);
+        c.ch.hand.push([1.8, g('mag', [0.01, -0.04, 0])], [2.15, g('charge', [-0.01, -0.03, 0.012]), 'fast'], [2.24, g('charge'), 'out'], [2.55, g('charge', [0, 0, -0.065]), 'fast'], [2.8, g('charge', [0, 0.004, -0.065])], [2.86, g('charge', [-0.01, -0.04, -0.06]), 'fast'], [3.0, 'base', 'fast']);
         c.ch.build.push([1.85, 'charge'], [2.9, base]);
         c.ch.charging = [[0, [0]], [2.24, [0]], [2.55, [0.065], 'fast'], [2.8, [0.065]], [2.83, [0], 'fast']];
         c.ch.bolt = [[0, [0]], [2.24, [0]], [2.55, [0.06], 'fast'], [2.8, [0.06]], [2.83, [0], 'fast']];
@@ -312,8 +334,9 @@
       if (kind === 'pistol') C.reloadEmpty = R(2.45, c => {
         c.ev.slide = 2.1;
         c.ch.gun.push([1.85, [0.01, 0.02, 0.02, -0.15, 0.06, 0.2], 'io'], [2.1, [0.01, 0.024, 0.016, -0.18, 0.06, 0.22], 'hit'], [2.35, Z6, 'io']);
-        c.ch.hand.push([1.8, g('slide', [0, 0.01, 0.01])], [1.95, g('slide'), 'fast'], [2.05, g('slide', [0, 0, -0.03]), 'fast'], [2.12, g('slide', [0, 0.01, -0.035])], [2.35, 'base', 'fast']);
-        c.ch.build.push([1.8, 'slide'], [2.22, base]);
+        c.ch.hand.push([1.78, g('mag', [0.05, -0.2, -0.02]), 'in'], [1.86, g('slide', [0.06, -0.12, 0.0]), 'io'], [1.95, g('slide'), 'fast'], [2.05, g('slide', [0, 0, -0.03]), 'fast'], [2.12, g('slide', [0, 0.01, -0.035])], [2.35, 'base', 'fast']);
+        c.ch.build.push([1.8, 'slide'], [2.25, base]);
+        c.ch.hand.push([2.25, g('slide', [0.06, -0.14, 0.0]), 'in']);
         c.ch.bolt = [[0, [0.028]], [1.95, [0.028]], [2.05, [0.032], 'fast'], [2.1, [0], 'fast']];
       });
     }
@@ -324,7 +347,7 @@
         const h = (d, tt, e) => [t0 + tt, g('bolt', d), e];
         return {
           gun: [[t0, Z6], [t0 + 0.2, cr, 'io'], [t0 + 0.84, cr], [t0 + 0.88, [0.01, 0.012, -0.004, -0.06, 0.03, -0.24], 'hit'], [t0 + 1.02, Z6, 'io']],
-          hand: [[t0, 'base'], [t0 + 0.07, g(base, [0.03, -0.16, -0.06]), 'in'], h([0.03, -0.17, 0.0], 0.15, 'io'), h([0, 0.025, 0.01], 0.22, 'fast'), h([0, 0, 0], 0.27, 'out'), h([0, 0.022, 0], 0.32, 'fast'), h([0, 0.022, -tr], 0.5, 'fast'), h([0, 0.022, -tr], 0.56), h([0, 0.022, 0], 0.7, 'hit'), h([0, 0, 0], 0.84, 'fast'), h([0.01, 0.03, 0.01], 0.9, 'fast'), [t0 + 1.04, 'base', 'fast']],
+          hand: [[t0, 'base'], [t0 + 0.07, g(base, [0.03, -0.16, -0.06]), 'in'], h([0.03, -0.17, 0.0], 0.15, 'io'), h([-0.01, -0.03, 0.01], 0.22, 'fast'), h([0, 0, 0], 0.27, 'out'), h([0, 0.022, 0], 0.32, 'fast'), h([0, 0.022, -tr], 0.5, 'fast'), h([0, 0.022, -tr], 0.56), h([0, 0.022, 0], 0.7, 'hit'), h([0, 0, 0], 0.84, 'fast'), h([-0.01, -0.04, 0.01], 0.9, 'fast'), [t0 + 1.04, 'base', 'fast']],
           build: [[t0, base], [t0 + 0.09, 'bolt'], [t0 + 0.9, base]],
           boltTurn: [[t0, [0]], [t0 + 0.27, [0]], [t0 + 0.32, [up], 'fast'], [t0 + 0.7, [up]], [t0 + 0.84, [0], 'hit']],
           bolt: [[t0, [0]], [t0 + 0.32, [0]], [t0 + 0.5, [tr], 'fast'], [t0 + 0.56, [tr]], [t0 + 0.7, [0], 'hit']]
@@ -340,14 +363,14 @@
         // the bolt's own events inside the empty reload (2.25 + 0.55 = 2.8 back)
         C.reloadEmpty.ch.bolt = [[0, [0]], [2.25 + 0.32, [0]], [2.8, [tr], 'fast'], [2.86, [tr]], [3.0, [0], 'hit']];
         C.reloadEmpty.ch.boltTurn = [[0, [0]], [2.25 + 0.27, [0]], [2.25 + 0.32, [up], 'fast'], [3.0, [up]], [3.12, [0], 'hit']];
-        C.reloadEmpty.ch.hand = C.reloadEmpty.ch.hand.filter(k => k[0] < 2.25).concat([[1.95, g('mag', [0.01, -0.05, 0])], [2.2, g('mag', [0.03, -0.2, -0.05]), 'in'], [2.38, g('bolt', [0.03, -0.17, 0]), 'io'], [2.47, g('bolt', [0, 0.025, 0.01]), 'fast'], [2.52, g('bolt'), 'out'], [2.57, g('bolt', [0, 0.022, 0]), 'fast'], [2.8, g('bolt', [0, 0.022, -tr]), 'fast'], [2.86, g('bolt', [0, 0.022, -tr])], [3.0, g('bolt', [0, 0.022, 0]), 'hit'], [3.12, g('bolt'), 'fast'], [3.18, g('bolt', [0.01, 0.03, 0.01]), 'fast'], [3.32, 'base', 'fast']]);
+        C.reloadEmpty.ch.hand = C.reloadEmpty.ch.hand.filter(k => k[0] < 2.25).concat([[1.95, g('mag', [0.01, -0.05, 0])], [2.2, g('mag', [0.03, -0.2, -0.05]), 'in'], [2.38, g('bolt', [0.03, -0.17, 0]), 'io'], [2.47, g('bolt', [-0.01, -0.03, 0.01]), 'fast'], [2.52, g('bolt'), 'out'], [2.57, g('bolt', [0, 0.022, 0]), 'fast'], [2.8, g('bolt', [0, 0.022, -tr]), 'fast'], [2.86, g('bolt', [0, 0.022, -tr])], [3.0, g('bolt', [0, 0.022, 0]), 'hit'], [3.12, g('bolt'), 'fast'], [3.18, g('bolt', [-0.01, -0.04, 0.01]), 'fast'], [3.32, 'base', 'fast']]);
         C.reloadEmpty.ch.gun = r.ch.gun.filter(k => k[0] <= 1.8).concat([[2.3, [0.01, 0.01, 0, -0.04, 0.03, -0.22], 'io'], [3.12, [0.01, 0.01, 0, -0.04, 0.03, -0.22]], [3.16, [0.01, 0.012, -0.004, -0.06, 0.03, -0.24], 'hit'], [3.33, Z6, 'io']]);
         C.reloadEmpty.ch.build = [[0, base], [0.14, 'mag'], [2.28, 'bolt'], [3.2, base]];
       }
     }
     if (kind === 'smg') C.charge = { dur: 0.75, ev: { charge: 0.36 }, ch: {
       gun: [[0, Z6], [0.15, [0, 0.01, 0, -0.06, 0.02, -0.28], 'antic'], [0.36, [0, 0.01, 0, -0.06, 0.02, -0.28]], [0.4, [0, 0.012, -0.004, -0.08, 0.02, -0.3], 'fast'], [0.72, Z6, 'io']],
-      hand: [[0, 'base'], [0.18, g('charge', [0, 0.02, 0.012]), 'fast'], [0.24, g('charge'), 'out'], [0.34, g('charge', [0, 0, -0.065]), 'fast'], [0.4, g('charge', [0.01, 0.03, -0.06]), 'fast'], [0.68, 'base', 'fast']],
+      hand: [[0, 'base'], [0.18, g('charge', [-0.01, -0.03, 0.012]), 'fast'], [0.24, g('charge'), 'out'], [0.34, g('charge', [0, 0, -0.065]), 'fast'], [0.4, g('charge', [-0.01, -0.04, -0.06]), 'fast'], [0.68, 'base', 'fast']],
       build: [[0, base], [0.06, 'charge'], [0.5, base]],
       charging: [[0, [0]], [0.24, [0]], [0.34, [0.065], 'fast'], [0.36, [0.065]], [0.39, [0], 'fast']],
       bolt: [[0, [0]], [0.24, [0]], [0.34, [0.06], 'fast'], [0.36, [0.06]], [0.39, [0], 'fast']] } };
@@ -479,7 +502,7 @@
     // --- poses
     const clips = clipsFor(kind, grips);
     const base = newPose(), out = newPose(), from = newPose(), smp = newPose();
-    base.hand.set(G(grips, baseB)); base.handE.set(base.hand); base.phE.set(E([0.1, -0.4, -0.3], [0, 0, 0]));
+    base.hand.set(G(grips, baseB)); base.handE.set(base.hand.subarray(0, 7)); base.phE.set(E([0.1, -0.4, -0.3], [0, 0, 0]));
     base.build = baseB; base.pbuild = firstP || null; base.magVis[0] = 1;
     const hipP = new T.Vector3(), hipQ = new T.Quaternion(), adsP = new T.Vector3(), adsQ = new T.Quaternion(), sprP = new T.Vector3(), sprQ = new T.Quaternion();
     framePose(fr.hip, hipP, hipQ); framePose(fr.sprint, sprP, sprQ); adsPose(kind, gun, fr.ads, adsP, adsQ);
@@ -637,7 +660,7 @@
     const g = new T.IcosahedronGeometry(0.03, 1), p = g.attributes.position;
     for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 1 + 0.18 * Math.sin(x * 160 + y * 90) * Math.cos(z * 120); p.setXYZ(i, x * k * 1.15, y * k * 0.8, z * k); }
     g.computeVertexNormals();
-    const m = new T.Mesh(g, new T.MeshStandardMaterial({ color: 0x6b675f, roughness: 0.95 })); m.matrixAutoUpdate = false; m.frustumCulled = false;
+    const m = new T.Mesh(g, new T.MeshStandardMaterial({ color: 0x4a4640, roughness: 1, metalness: 0 })); m.matrixAutoUpdate = false; m.frustumCulled = false;
     return m;
   }
 })();
