@@ -39,9 +39,27 @@
     if (C.recHold <= 0 && Math.abs(C.recP) < 1e-5 && Math.abs(C.recY) < 1e-5 && Math.abs(C.recTP) < 1e-5) { C.recP = C.recY = C.recTP = C.recTY = 0; C.recSpec = null; }
   };
   // look input (mouse/touch), applied every render frame (raw, no smoothing)
+  // Aiming down the sights (the reference's rules): one linear 0..1 progress that runs in ADS.time seconds each way
+  // (in or out, reversing mid-way from where it is) and is eased with a smootherstep, so it starts and lands with no
+  // velocity and never overshoots. The view's zoom, the arms' raise (js/fp.js) and the look speed all read C.adsE, so
+  // the sights, the FOV and the turn rate arrive together. Zoom per weapon is a magnification (tan of the half angle):
+  // iron sights a mild 1.3x / 1.25x, the rifle's scope view its own 4x once the rifle is at the eye.
+  const ADS = C.ADS = { time: 0.19, zoom: { smg: 1.3, pistol: 1.25, rifle: 1.3 } };
+  C.adsLin = 0; C.adsE = 0;
+  const smoother = x => x * x * x * (x * (6 * x - 15) + 10);
+  const tanH = f => Math.tan(f * Math.PI / 360);
+  C.stepAds = function (dt) {
+    const W8 = IV.weapons, want = !!(W8 && (W8.aiming || W8.scoped));
+    C.adsLin = IV.clamp(C.adsLin + (want ? dt : -dt) / ADS.time, 0, 1);
+    C.adsE = smoother(C.adsLin);
+  };
+  // The look speed follows the zoom: a mouse pixel turns the view by the same share of the screen at the hip and
+  // aimed (the turn rate is scaled by tan(aimed fov/2) / tan(hip fov/2)). The Aim sensitivity setting is a multiplier
+  // on top, relative to its default 0.75, so the default feels the same as the hip.
   C.look = function (dx, dy, touch) {
-    const S = IV.settings, W8 = IV.weapons, aimed = W8 && (W8.aiming || W8.scoped);
-    let k = CT.sens * (aimed ? S.aimSens : S.sens) * (touch ? 1.7 : 1) * (C.fov / 68);
+    const S = IV.settings, W8 = IV.weapons;
+    const base = C.fovBase || C.fov, zs = tanH(C.fov) / tanH(base), aK = W8 && (W8.aiming || W8.scoped || C.adsE > 0.01) ? C.adsE : 0;
+    let k = CT.sens * S.sens * (touch ? 1.7 : 1) * (base / 68) * zs * (1 + ((S.aimSens || 0.75) / 0.75 - 1) * aK);
     // aim friction while hip-firing (and lightly while aimed) over a visible enemy
     const fr = assistFriction(); k *= 1 - fr;
     P.yaw -= dx * k;
@@ -112,7 +130,8 @@
     const scoped = W8 && W8.scoped && !(IV.fp && IV.fp.on() && !IV.fp.scopeReady());
     C.scopeView = !!scoped;
     const binoc = !!(W8 && W8.binoc) && !(IV.fp && IV.fp.on() && !IV.fp.binocReady());   // binoculars come up to the eyes first too
-    C.aimK = IV.damp(C.aimK, aiming || (W8 && (W8.binoc || W8.scoped)) ? 1 : 0, 14, dt);
+    C.stepAds(dt);
+    C.aimK = W8 && W8.binoc ? IV.damp(C.aimK, 1, 14, dt) : C.adsE;
     C.scopeK = scoped ? 1 : 0;
     W.grassClear.value.set(P.render.x, 0, P.render.z, scoped || binoc ? 3.2 : P.stance === 'prone' ? 1.8 : 0);
     // pivot: at the shoulder, height by stance
@@ -147,10 +166,16 @@
     const sprintK = P.sprinting ? 1 : 0;
     C._spr = IV.damp(C._spr || 0, sprintK, 6, dt);
     let fov = S.fov + C._spr * CT.sprintFov;
-    fov = fov * (1 - C.aimK * (1 - CT.aimFov));
+    C.fovBase = fov;
+    const fp1 = IV.fp && IV.fp.on();
+    if (fp1) {   // first person: magnification eased with the sights (no lag of its own, so the raise and zoom agree)
+      const z = 1 + ((ADS.zoom[W8 && W8.cur] || 1.3) - 1) * C.adsE;
+      fov = 360 / Math.PI * Math.atan(tanH(fov) / z);
+    } else fov = fov * (1 - C.aimK * (1 - CT.aimFov));   // over the shoulder: as before
     if (binoc) fov = S.fov / 4.5;
-    if (scoped) fov = S.fov / T.weapons.rifle.zoom;
-    C.fov = IV.damp(C.fov, fov, scoped ? 40 : 12, dt);
+    if (scoped) fov = S.fov / T.weapons.rifle.zoom;   // the scope view, unchanged
+    // straight to the eased value in first person; the scope and binocular cuts ease over a few frames
+    C.fov = fp1 && !scoped && !binoc && Math.abs(C.fov - fov) < 8 ? fov : IV.damp(C.fov, fov, scoped ? 60 : fp1 ? 40 : 12, dt);
     if (Math.abs(cam.fov - C.fov) > 0.01) { cam.fov = C.fov; cam.updateProjectionMatrix(); }
     if (!scoped && !binoc && IV.fp && IV.fp.on()) { IV.fp.frame(cam, dt, dir, yaw, pitch); return; }   // the default view
     IV.fp && IV.fp.off();

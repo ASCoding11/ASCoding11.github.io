@@ -188,6 +188,12 @@
     // back to full there put the camera inside his head. The scope view hides the whole actor itself.)
     const on = bodyFP && P.alive;
     const M = IV.weapons.models || {};
+    // the long gun slung on his back would cross the view looking down: shadow only in first person (the holstered
+    // pistol too: with the hips masked it would float). Done BEFORE the body's first-person switch below: a gun that
+    // was slung or holstered (shadow only) and is now in the hands gets its own materials back first, so the switch
+    // records those and hides it. The other order put the real materials back over the hidden ones, and the world
+    // body's pistol (and rifle) were drawn in the view: a second, big pistol at the right of the pistol's sights.
+    for (const k in M) { const g = M[k]; if (!g) continue; const held = g === A.held; if (A.setFirstPerson && held) { if (g.userData._fpSO) { shadowOnly(g, false); FP._fpKey = null; } continue; } shadowOnly(g, on && !!g.parent); }
     if (A.setFirstPerson) {
       // the characters' own first-person body (no head, neck or arms; eyes, hair and the gun in the hands shadow-only,
       // a full-body shadow from an invisible copy). It treats what is attached at the call, so it is re-applied when
@@ -207,8 +213,6 @@
       fpHide.value = on ? 1 : 0;
       A.root.traverse(o => { if (o.userData.fpPart) shadowOnly(o, on); });
     }
-    // the long gun slung on his back would cross the view looking down: shadow only in first person
-    for (const k in M) { const g = M[k]; if (!g) continue; const held = g === A.held; if (A.setFirstPerson && held) { shadowOnly(g, false); continue; } shadowOnly(g, on && !!g.parent); }   // the holstered pistol too: with the hips masked it would float
   };
   // weapons.js: before guns are moved between the hands, the sling and the holster
   FP.beforeAttach = function () { const A = P.actor; if (A && A.setFirstPerson && FP._fpKey && FP._fpKey !== 'off') { A.setFirstPerson(false); FP._fpKey = null; } };
@@ -223,7 +227,7 @@
   };
   // tests: advance the arms (clips, layers) by dt without drawing a frame
   FP.vmTick = function (dt) { if (FP.on()) vmFrame(dt, P.yaw, P.pitch); };
-  FP.scopeReady = () => (FP.vmAim || 0) >= 0.9;   // the arms rig's adsRaise clip keeps the hand out of the eye during the raise
+  FP.scopeReady = () => VM && !VM.rig.standin ? (IV.camera.adsE || 0) >= 0.97 : (FP.vmAim || 0) >= 0.9;   // the rifle at the eye: the scope view starts (the arms rig's adsRaise clip keeps the hand out of the eye during the raise)
   FP.binocReady = () => VM && !VM.rig.standin ? !!FP.atEye : (FP.vmAim || 0) >= 0.9;
   // the old bone-scaling hide is gone: undo it if a previous frame left a bone collapsed
   FP.HIDE_RE = HIDE_RE;
@@ -382,6 +386,69 @@
   FP.vmToWorld = vmToWorld;
   function socketWorld(o, out) { o.getWorldPosition(out); return vmToWorld(out); }
   FP.realActive = () => !!(VM && !VM.rig.standin && FP.on() && VM.root.visible);
+  // Springs for the gun's kick and look sway (x position, v velocity, k stiffness, c damping; the reference's
+  // constants). Stepped in 8 ms pieces when a frame is long, so a slow frame never makes them ring or blow up.
+  const mkSpring = (k, c) => ({ x: 0, v: 0, k, c });
+  const SP = FP.springs = { kZ: mkSpring(520, 30), kP: mkSpring(380, 26), kY: mkSpring(300, 22), kR: mkSpring(300, 20), swY: mkSpring(110, 15), swP: mkSpring(110, 15) };
+  function spring(s, to, dt) {
+    const n = dt > 0.012 ? Math.ceil(dt / 0.008) : 1, h = dt / n;
+    for (let i = 0; i < n; i++) { s.v += ((to - s.x) * s.k - s.v * s.c) * h; s.x += s.v * h; }
+    return s.x;
+  }
+  const _mH = new THREE.Matrix4(), _mF = new THREE.Matrix4(), _mL = new THREE.Matrix4(), _qL = new THREE.Quaternion(), _pL = new THREE.Vector3();
+  const _r = new THREE.Vector3(), _d = new THREE.Vector3(), _u = new THREE.Vector3(), _q2 = new THREE.Quaternion(), _qz = new THREE.Quaternion(), _qi = new THREE.Quaternion();
+  const ZN = new THREE.Vector3(0, 0, -1), ZP = new THREE.Vector3(0, 0, 1);
+  // Hip framing on top of the arms' clips (metres and radians in the eye's frame, x right, y up, z back): the whole
+  // gun-and-arms assembly lower, further right and a little further out, turned so the barrel points in at the
+  // crosshair, like the reference's low, small hip carry. Turned about the right hand so the grip stays the pivot.
+  const HIP = FP.hipTune = {
+    rifleScoped: { p: [0.01, -0.02, -0.02], r: [0.0, 0.0, -0.25] },
+    smg:         { p: [0.015, -0.035, -0.03], r: [0.0, 0.02, 0.0] },
+    pistol:      { p: [0.015, -0.03, -0.02], r: [0.0, 0.02, 0.0] }
+  };
+  // aimed: how far in front of the eye the rear sight sits (m). The SMG's clip put it at 20 cm, so its receiver filled
+  // the lower middle of the screen under the target; further out the gun is smaller and the target clearer.
+  const ADS_REAR = FP.adsRear = { smg: 0.29 };
+  // elbow drop per gun: [hip, aimed] share of the way to pointing down (and `out` to the side), per arm
+  const ELBOW = FP.elbowTune = {
+    rifleScoped: { l: [0.85, 0.2], r: [0, 0], out: 0.2 },
+    smg:         { l: [0.25, 0.25], r: [0, 0], out: 0.35 },
+    pistol:      { l: [0.3, 0.75], r: [0.3, 0.75], out: 0.45 }
+  };
+  function hipFrame(v, kind, w, out) {
+    const h = HIP[kind]; if (!h || w <= 0) return out.identity();
+    v.group.position.set(0, 0, 0); v.group.quaternion.identity(); v.group.updateMatrixWorld(true);
+    const g = v.bones.hand_r ? v.bones.hand_r.getWorldPosition(_r) : _r.set(0, 0, 0);
+    _qL.setFromEuler(_e.set(h.r[0] * w, h.r[1] * w, h.r[2] * w));
+    _pL.copy(g).negate().applyQuaternion(_qL).add(g).add(_u.set(h.p[0] * w, h.p[1] * w, h.p[2] * w));
+    return out.compose(_pL, _qL, _s1);
+  }
+  // Exact sights: with the group at rest, the rear sight (scope eye on the rifle) and the sight line are read from the
+  // clip's pose, and the turn that puts that line on the view axis (and levels the gun about it) is blended in by the
+  // ADS progress, so the sight picture sits on the screen centre whatever the clip's own ADS pose drifts to. While a
+  // one-shot (a shot, a bolt) plays, the last base-pose correction is kept, so the shot's own kick still shows.
+  const FIX = {};
+  function sightFix(v, w, out) {
+    if (w <= 1e-4) return out.identity();
+    let f = FIX[v.kind];
+    if (!f || !v.current) {
+      v.group.position.set(0, 0, 0); v.group.quaternion.identity(); v.group.updateMatrixWorld(true);
+      const s = v.sockets, wr = v.bones.w_root; if (!wr) return out.identity();
+      wr.getWorldQuaternion(_q2);
+      if (s.sightRear && s.sightFront) { s.sightRear.getWorldPosition(_r); s.sightFront.getWorldPosition(_d).sub(_r).normalize(); }
+      else if (s.scopeEye) { s.scopeEye.getWorldPosition(_r); _d.copy(ZP).applyQuaternion(_q2); }
+      else return out.identity();
+      f = FIX[v.kind] = f || { q: new THREE.Quaternion(), r: new THREE.Vector3(), t: new THREE.Vector3() };
+      f.q.setFromUnitVectors(_d, ZN);
+      _u.set(0, 1, 0).applyQuaternion(_q2).applyQuaternion(f.q);        // the gun's up after the turn: level it
+      f.q.premultiply(_qz.setFromAxisAngle(ZP, Math.atan2(_u.x, _u.y)));
+      f.r.copy(_r); f.t.set(0, 0, ADS_REAR[v.kind] ? -ADS_REAR[v.kind] : Math.min(_r.z, -0.12));   // the rear sight on the axis, at least 12 cm out
+    }
+    _q2.copy(_qi).slerp(f.q, w);
+    _pL.copy(f.r).applyQuaternion(_q2).negate().add(f.r).addScaledVector(_u.copy(f.t).sub(f.r), w);
+    return out.compose(_pL, _q2, _s1);
+  }
+  FP.sightFix = FIX;
   function realFrame(vm, dt, yaw, pitch) {
     const W8 = IV.weapons, S = IV.settings, rig = vm.rig, M = IV.mission, I = IV.input, C = IV.camera;
     const gunKind = KIND[W8.cur] || 'smg';
@@ -407,39 +474,56 @@
     }
     // the rifle's bolt after the shot's own clip
     if (FP.boltDue && !v.isPlaying('fire') && !v.isPlaying('fireAds')) { FP.boltDue = false; rig.play('boltCycle'); }
-    // base blend: ADS and sprint carry are the rig's own poses
-    const aiming = !!(W8.aiming || W8.scoped);
-    FP.vmAim = IV.damp(FP.vmAim, aiming ? 1 : 0, aiming ? 14 : 11, dt);
-    FP.vmSpr = IV.damp(FP.vmSpr || 0, P.sprinting ? 1 : 0, P.sprinting ? 7 : 10, dt);
+    // base blend: ADS and sprint carry are the rig's own poses. The raise is the camera's eased ADS progress
+    // (camera.js C.adsE: 0.19 s each way on a smootherstep), so the gun, the zoom and the look speed move together.
+    const aiming = !!(W8.aiming || W8.scoped), a = IV.clamp(C.adsE || 0, 0, 1);
+    FP.vmAim = a;
+    // the sprint carry lets go quickly when aiming is asked for straight out of a sprint
+    FP.vmSpr = IV.damp(FP.vmSpr || 0, P.sprinting ? 1 : 0, P.sprinting ? 7 : aiming ? 20 : 10, dt);
     if (W8.binoc && FP.lastEvent && FP.lastEvent.e === 'atEye') FP.atEye = true;
     if (W8.binoc && !FP.atEye && v.current === 'binoculars' && FP.binocT == null) FP.binocT = IV.time;
     if (W8.binoc && FP.binocT != null && IV.time - FP.binocT > rig.len('binoculars') + 0.05) FP.atEye = true;   // no 'atEye' event: the end of the clip
     if (!W8.binoc) FP.binocT = null;
-    v.drive({ ads: FP.vmAim, sprint: FP.vmSpr }, dt);
+    // elbows (chars.js vm.elbows): the pistol's forearms fall away out of the bottom of the frame when it is up at
+    // the eye, and the rifle's support forearm drops instead of lying across the bottom of the screen; eased off while
+    // a one-shot (reload, bolt, draw) moves the hands about
+    const ek = ELBOW[v.kind] || ELBOW.smg, busyK = v.current && !/^fire/.test(v.current) ? 0 : 1;
+    FP.elbowK = IV.damp(FP.elbowK == null ? busyK : FP.elbowK, busyK, 8, dt);
+    v.elbows = v.elbows || {}; v.elbows.l = (ek.l[0] + (ek.l[1] - ek.l[0]) * a) * FP.elbowK; v.elbows.r = (ek.r[0] + (ek.r[1] - ek.r[0]) * a) * FP.elbowK; v.elbows.out = ek.out;
+    v.thumbL = v.kind === 'pistol' ? 0.8 * a * FP.elbowK : 0;
+    v.drive({ ads: a, sprint: FP.vmSpr }, dt);
     holdGrenade(v);
-    // small procedural layers: breathing, step bob, look lag, recoil, wall lowering, landing dip, lean roll
+    // small procedural layers: breathing, step bob, look sway and recoil on springs, wall lowering, landing dip, lean roll
     const motion = S.motion ? 0.4 : 1, t = IV.time, ph = FP.phase || 0, bobA = (FP.bobAmp || 0) * 0.9;
     const dyaw = IV.wrapA(yaw - (FP.lastYaw == null ? yaw : FP.lastYaw)), dpit = pitch - (FP.lastPitch == null ? pitch : FP.lastPitch);
     FP.lastYaw = yaw; FP.lastPitch = pitch;
-    const lagK = aiming ? 0.3 : 1;
-    FP.lagYaw = IV.clamp(IV.damp(FP.lagYaw, dyaw * 4 * lagK, 12, dt), -0.05, 0.05); FP.lagPitch = IV.clamp(IV.damp(FP.lagPitch, dpit * 4 * lagK, 12, dt), -0.04, 0.04);
+    // look sway: each frame's turn pushes the sway springs against the turn (the gun trails and settles without
+    // wobble); clamped, and much smaller aimed (impulse x0.4, drawn x0.25: about a tenth)
+    const swIn = (1 - 0.6 * a) * motion;
+    SP.swY.v += IV.clamp(-dyaw, -0.2, 0.2) * 3.2 * swIn; SP.swP.v += IV.clamp(-dpit, -0.2, 0.2) * 2.6 * swIn;
+    for (const n in SP) spring(SP[n], 0, dt);
+    SP.swY.x = IV.clamp(SP.swY.x, -0.09, 0.09); SP.swP.x = IV.clamp(SP.swP.x, -0.07, 0.07);
+    const swOut = 1 - 0.75 * a, swY = SP.swY.x * swOut, swP = SP.swP.x * swOut;
     FP.fatigue = IV.clamp((FP.fatigue || 0) + (P.sprinting ? dt / 4 : -dt / 7), 0, 1);
-    const breath = (aiming ? 0.1 : 1) * motion * (1 + FP.fatigue * 2.2);
+    const breath = (1 - 0.9 * a) * motion * (1 + FP.fatigue * 2.2);
     FP.kick = IV.damp(FP.kick, 0, 13, dt); FP.kickR = IV.damp(FP.kickR, 0, 9, dt);
     const cam = W.camera, look = C.lookDir, wall = W.raycast(cam.position.x, cam.position.y, cam.position.z, look.x, look.y, look.z, 0.9, F.SOLID | F.SIGHT, true);
     FP.vmLower = IV.damp(FP.vmLower, wall && !aiming ? IV.clamp(1 - (wall.t - 0.3) / 0.6, 0, 1) : 0, 8, dt);
-    const a = IV.smooth(IV.clamp(FP.vmAim, 0, 1)), relax = 1 - a * 0.85;
-    const ox = (Math.sin(t * 1.1) * 0.0022 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.45 - FP.lagYaw * 0.35) * relax;
-    const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath + FP.lagPitch * 0.3) * (1 - a * 0.7) - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45;
-    const oz = FP.kick * (aiming ? 0.02 : 0.03) + FP.vmLower * 0.05;
-    // the turn layers (recoil climb, look lag, wall lowering, lean roll) pivot about the right shoulder, behind and below
-    // the eye, so recoil travels back through the wrists and forearms instead of the gun spinning about the eye
-    // (a rifle sprint-carry offset lived here; the characters' own sprint clip now carries it low, so it is 0)
-    const rs = 0;
-    _e.set(FP.kickR * 0.7 + FP.lagPitch * 0.5 * relax - FP.vmLower * 0.5 - rs * 0.12, FP.lagYaw * 0.7 * relax - rs * 0.06, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax + rs * 0.12);
-    v.group.quaternion.setFromEuler(_e);
+    const relax = 1 - a * 0.88;   // bob and breathing aimed: about a tenth (the reference's x0.12)
+    const ox = (Math.sin(t * 1.1) * 0.0022 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.45) * relax - swY * 0.06;
+    const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath) * relax + swP * 0.05 - FP.vmSpr * (v.kind === 'rifleScoped' ? 0.06 : 0.02) - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45 * relax;
+    const oz = SP.kZ.x * 0.55 + FP.vmLower * 0.05;
+    // hip framing (fades out aimed), then the sight line put exactly on the view axis (fades in aimed), then the turn
+    // layers (recoil, sway, wall lowering, lean roll) about the right shoulder, behind and below the eye, so recoil
+    // travels back through the wrists and forearms instead of the gun spinning about the eye
+    hipFrame(v, v.kind, 1 - a, _mH);
+    sightFix(v, a, _mF);
+    _e.set(SP.kP.x + swP - FP.vmLower * 0.5, SP.kY.x + swY, -FP.roll * 0.5 + Math.sin(ph * Math.PI * 2) * bobA * 0.4 * relax + SP.kR.x + swY * 0.7);
+    _qL.setFromEuler(_e);
     SHOULDER.set(0.17, -0.3, 0.12);
-    v.group.position.copy(SHOULDER).negate().applyQuaternion(v.group.quaternion).add(SHOULDER).add(_o.set(ox, oy, oz - FP.vmTune.push * (1 - a)));   // the push eases out in ADS so the sights stay exact
+    _pL.copy(SHOULDER).negate().applyQuaternion(_qL).add(SHOULDER).add(_o.set(ox, oy, oz));
+    _mL.compose(_pL, _qL, _s1).multiply(_mF).multiply(_mH);
+    _mL.decompose(v.group.position, v.group.quaternion, v.group.scale);
     vmShadows(vm, v);
     vm.gun = rig.gun;
     vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
@@ -596,6 +680,12 @@
     if (!vm.lamps) { vm.lamps = src.map(() => { const l = new THREE.PointLight(0xffc880, 0, 10, 2); vm.scene.add(l); return l; }); vm.pt.intensity = 0; }
     src.forEach((w, i) => { const l = vm.lamps[i]; if (!w || !l) return; l.color.copy(w.color); l.distance = w.distance; l.decay = w.decay; l.intensity = w.intensity * (night ? 0.9 : 1); l.position.copy(w.position).sub(cam.position).applyQuaternion(_q); });
     vm.scene.environment = W.scene.environment || null;
+    // wet gloves in the rain: the world's wetness, eased down to 0.3 of it under a roof
+    const gw = window.IVChars && IVChars.fpGloveWet;
+    if (gw) {
+      const U = E && E.U, wet = U && U.uWet ? U.uWet.value : 0, roof = W.underRoof && W.underRoof(P.render.x, P.render.z, P.render.y + 1.5);
+      gw.value = IV.damp(gw.value, IV.clamp(wet * (roof ? 0.3 : 1), 0, 1), 0.5, 1 / 60);
+    }
   }
   // where the gun and hands are on screen (0..1, top-left origin), for HUD layout checks: the gun's box and the hand
   // and forearm bones, projected by the viewmodel camera
@@ -613,7 +703,14 @@
   // a finished interaction: a small nod (a breach is a shoulder into the door: a harder lurch)
   IV.on('interacted', o => { if (!FP.on()) return; FP.nodV = (FP.nodV || 0) - (o && o.id === 'breach' ? 3.2 : 1.2) * (IV.settings.motion ? 0.35 : 1); });
   // recoil from weapons.js: kick back and up
-  FP.recoil = function (k) { FP.kick = Math.min(1.5, FP.kick + k); FP.kickR = Math.min(0.25, FP.kickR + k * 0.06); };
+  // k: rifle 1, SMG 0.35, pistol 0.6. The arms rig gets velocity kicks on its springs (back, muzzle up, a random
+  // twist and roll; the reference's per-shot impulses at the SMG's size, scaled by k), smaller aimed; the stand-in
+  // keeps its old eased kick.
+  FP.recoil = function (k) {
+    FP.kick = Math.min(1.5, FP.kick + k); FP.kickR = Math.min(0.25, FP.kickR + k * 0.06);
+    const s = Math.min(2.6, k / 0.35), a = IV.camera.adsE || 0, bt = s * (1 - 0.45 * a);
+    SP.kZ.v += 1.5 * s * (1 - 0.4 * a); SP.kP.v += 1.5 * bt; SP.kY.v += (Math.random() - 0.5) * bt; SP.kR.v += (Math.random() - 0.5) * 1.8 * bt;
+  };
 
   // ---------------------------------------------------------------- the second pass
   // world.js draws the world and then calls W.overlay: with the post stack that is inside its HDR target (depth already
