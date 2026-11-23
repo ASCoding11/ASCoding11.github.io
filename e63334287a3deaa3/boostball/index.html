@@ -390,7 +390,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
   </section>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/lib/three/r187/three.min.js"></script>
 <script src="../autores.js"></script>
 <script src="../keybinds.js"></script>
 <script src="../events.js"></script>
@@ -406,6 +406,24 @@ const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>
 // drawing changes (the ball's size, bounce and everything sent to the room are the same); the Turkey Week switch on
 // the Back Room page turns it off for this browser. It is read once, here, when the game loads.
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TKON=!!(EVT&&EVT.on());
+// three.js r187 (/lib/three/r187, with its r128 layer) shades the Pretty materials (MeshStandard/MeshPhysical: paint,
+// trim, glass, ball, fine grass) with energy conservation r128 did not have: diffuse light is dimmed by the share that
+// is reflected, and the reflection cube also lights the paint as a soft fill. That made the pitch about 4% darker and
+// the cars brighter than before, so this page's copy of the shader chunks is put back to r128's sums.
+(function r128Shading(){
+  if(!THREE.R128_COMPAT)return;
+  const C=THREE.ShaderChunk,miss=[];
+  const rep=(k,a,b)=>{if(C[k].includes(a))C[k]=C[k].split(a).join(b);else miss.push(k)};
+  rep('lights_physical_pars_fragment','reflectedLight.directDiffuse += irradiance * diffuseBRDF * ( 1.0 - F );','reflectedLight.directDiffuse += irradiance * diffuseBRDF;');
+  rep('lights_physical_pars_fragment','vec3 diffuse = irradiance * BRDF_Lambert( material.diffuseContribution ) * ( 1.0 - singleScattering - multiScattering );','vec3 diffuse = irradiance * BRDF_Lambert( material.diffuseContribution );');
+  rep('lights_physical_pars_fragment','irradiance * specularBRDF * material.multiScatteringCompensation;','irradiance * specularBRDF;');
+  rep('lights_fragment_maps','#if defined( STANDARD ) || defined( LAMBERT ) || defined( PHONG )','#if defined( LAMBERT ) || defined( PHONG )');   // r128: a cube map gave reflections only, no fill
+  if(miss.length)console.warn('Boostball: r128 shading patch did not apply to',miss);
+  // r187 draws a see-through double-sided material twice (back faces, then front); r128 drew it once. Once again here:
+  // the same picture as before and no extra draw calls (the glass walls, nets, crowd and glows are all like that).
+  const sv=THREE.Material.prototype.setValues;
+  THREE.Material.prototype.setValues=function(v){this.forceSinglePass=true;return sv.call(this,v)};
+})();
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/bb-<code>, so the existing rules cover them.
@@ -1204,7 +1222,9 @@ function fineFloor(){
     im.data[o]=(nx/l*.5+.5)*255;im.data[o+1]=(ny/l*.5+.5)*255;im.data[o+2]=(1/l*.5+.5)*255;im.data[o+3]=255;
   }
   g.putImageData(im,0,0);
-  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(56,70);t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  // r128 placed every map of a material by the colour map's settings, so this grain was always drawn stretched once over the
+  // pitch (its old repeat of 56 x 70 was ignored); r187 honours each map's own repeat, so it is left at one to keep the look
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   return floorFine=new THREE.MeshStandardMaterial({map:fieldTex,normalMap:t,normalScale:new THREE.Vector2(.32,.32),roughness:.86,metalness:0});
 }
 
@@ -1428,9 +1448,12 @@ const bloom=(function(){
       renderer.getDrawingBufferSize(sz);const W=Math.floor(sz.x),H=Math.floor(sz.y);if(W<8||H<8)return;
       if(W!==w||H!==h){
         if(tex){tex.dispose();a.dispose();b.dispose()}
-        w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*3),w,h,THREE.RGBFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter;
+        w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*4),w,h,THREE.RGBAFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter;tex.needsUpdate=true; // RGBA: r187 has no RGBFormat; needsUpdate so the copy has a texture of the right size to land in
         const o={depthBuffer:false,stencilBuffer:false};a=new THREE.WebGLRenderTarget(Math.max(2,w>>2),Math.max(2,h>>2),o);b=new THREE.WebGLRenderTarget(a.width,a.height,o);
       }
+      // r187 only binds the copy's texture to unit 0 when it isn't there already, and doesn't switch to unit 0 when it is,
+      // so after a material that used several textures the copy went into the wrong one: make unit 0 the active one first
+      renderer.state.activeTexture(renderer.getContext().TEXTURE0);
       renderer.copyFramebufferToTexture(zero,tex);
       bright.uniforms.px.value.set(1/w,1/h);pass(bright,tex,a);
       for(const r of [1,2.2]){blur.uniforms.d.value.set(r/a.width,0);pass(blur,a.texture,b);blur.uniforms.d.value.set(0,r/a.height);pass(blur,b.texture,a)}
