@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Hush Pools is now Blackwade": "Hush Pools ahora se llama Blackwade",
+    "Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.": "Hush Pools tiene nombre y aspecto nuevos: Blackwade, con salas más oscuras y con niebla.",
+    "Every noise shows a label where it happened, and a meter tells you how loud you are being.": "Cada ruido muestra una etiqueta donde ocurrió, y un medidor te dice cuánto ruido haces.",
+    "Invite links, coins, upgrades and ratings carry over.": "Los enlaces de invitación, las monedas, las mejoras y las puntuaciones se conservan.",
     "A contact page": "Una página de contacto",
     "The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.": "La web ya tiene una página de Contacto, enlazada al final de cada página: manda un error, una idea o una pregunta, con un correo si quieres respuesta.",
     "Only the site's team can read what you send.": "Solo el equipo de la web puede leer lo que mandes.",

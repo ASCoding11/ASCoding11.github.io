@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.45', title: 'Hush Pools is now Blackwade', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.',
+      'Every noise shows a label where it happened, and a meter tells you how loud you are being.',
+      'Invite links, coins, upgrades and ratings carry over.'
+    ]},
     {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
      items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
              'Only the site\'s team can read what you send.']},
