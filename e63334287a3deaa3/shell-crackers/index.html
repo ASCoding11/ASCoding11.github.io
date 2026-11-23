@@ -713,7 +713,7 @@ sun.shadow.bias=-0.0005;sun.shadow.normalBias=0.03;
 // Viewmodel: drawn in its own pass so the gun never pokes through walls.
 const vmScene=new THREE.Scene();
 const vmCam=new THREE.PerspectiveCamera(60,1,0.01,10);
-vmScene.add(new THREE.HemisphereLight(0xffffff,0x6b5442,.9));
+const vmHemi=new THREE.HemisphereLight(0xffffff,0x6b5442,.9);vmScene.add(vmHemi);
 const vmSun=new THREE.DirectionalLight(0xffffff,.55);vmSun.position.set(.4,1,.6);vmScene.add(vmSun);
 const vmRoot=new THREE.Group();vmScene.add(vmRoot);
 // a small warm light at the muzzle that is only on while the muzzle flash shows, so the gun in your hands lights up with each shot
@@ -894,7 +894,26 @@ function voxMaterial(key){
   if(voxMats[key])return voxMats[key];
   const T=vtex();
   const m=key==='lamp'?new THREE.MeshBasicMaterial({color:0xfff2c4}):key==='water'?new THREE.MeshLambertMaterial({map:T.water,vertexColors:true,transparent:true,opacity:.85}):new THREE.MeshLambertMaterial({map:T[key],vertexColors:true});
+  if(key!=='lamp'&&key!=='water')blockTint(m);
   return voxMats[key]=m;
+}
+// Pretty: big flat faces (a field of grass, a yard of concrete) are one long quad each, so they came out one even colour
+// from edge to edge. The blocks' shader darkens and lightens them a little in soft patches a few metres across, worked out
+// from where each pixel is in the world (no texture, no extra draw); walls get it too (height shifts the pattern), so
+// nothing looks repeated. Fast compiles the shader without it (the patch and its cache key follow gfx; applyGfx recompiles).
+function blockTint(m){
+  m.onBeforeCompile=sh=>{
+    if(gfx!=='high')return;
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vScW;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\nvScW=(modelMatrix*vec4(transformed,1.0)).xyz;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vScW;\n'+
+      'float scH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\n'+
+      'float scN(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(scH(i),scH(i+vec2(1.0,0.0)),f.x),mix(scH(i+vec2(0.0,1.0)),scH(i+1.0),f.x),f.y);}')
+      .replace('#include <color_fragment>','#include <color_fragment>\n'+
+      '{vec2 q=vScW.xz+vScW.y*vec2(.7,.4);float n=scN(q*.09)*.6+scN(q*.33+7.3)*.4;'+
+      'diffuseColor.rgb*=1.0+(n-.5)*.5;}');
+  };
+  m.customProgramCacheKey=()=>'scTint'+(gfx==='high'?1:0);
 }
 let meshedAo=null;
 function meshWorld(group){
@@ -1613,6 +1632,9 @@ function buildMap(idx,sm){
   hemi.color.setHex(M.hemiS);hemi.groundColor.setHex(M.hemiG);hemi.intensity=M.hemiI||.55;amb.intensity=M.ambI||.1;   // an indoor map asks for more fill light
   _mv.set(M.sunPos[0],M.sunPos[1],M.sunPos[2]).normalize();sunSprite.position.set(SPAN/2+_mv.x*400,_mv.y*400,SPAN/2+_mv.z*400);
   sunSprite.material.color.setHex(M.sunC).lerp(_mc.setHex(0xffffff),.35);
+  // the gun in your hands takes half of the map's sky and ground colours and most of its sun colour, so it sits in the
+  // same light as the world (warm at Yolk Works, cool in Deep Freeze) instead of the same white light everywhere
+  vmHemi.color.setHex(0xffffff).lerp(_mc.setHex(M.hemiS),.5);vmHemi.groundColor.setHex(0x6b5442).lerp(_mc.setHex(M.hemiG),.5);vmSun.color.setHex(0xffffff).lerp(_mc.setHex(M.sunC),.7);
   if(idx===RANGE_IDX)Range.build();
 }
 let navReach=null;

@@ -85,6 +85,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: 'X.XX', title: 'Shell Crackers: livelier ground', kind: 'feature',
+     tags: ['Shell Crackers', 'Graphics'], items: [
+      'On Pretty graphics, grass, sand and pavement have soft lighter and darker patches instead of one flat colour.',
+      'Your gun now picks up each map\'s light, so it looks warmer in the sunset at Yolk Works.',
+      'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
     {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
      tags: ['Movi'], items: [
       'Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.',

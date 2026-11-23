@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Shell Crackers: livelier ground": "Shell Crackers: un suelo con más vida",
+    "On Pretty graphics, grass, sand and pavement have soft lighter and darker patches instead of one flat colour.": "Con gráficos Lindo, el césped, la arena y el pavimento tienen manchas suaves más claras y más oscuras en vez de un solo color plano.",
+    "Your gun now picks up each map's light, so it looks warmer in the sunset at Yolk Works.": "Tu arma ahora toma la luz de cada mapa, así que se ve más cálida con el atardecer de Yolk Works.",
+    "Nothing changes in how the game plays, and Fast graphics costs the same as before.": "Nada cambia en cómo se juega, y los gráficos Rápido cuestan lo mismo que antes.",
     "Movi is away for a rebuild": "Movi se va un tiempo para rehacerse",
     "Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.": "Movi, la app para clasificar películas, se ha quitado de la web por ahora mientras se rehace.",
     "It will come back to Web Development Projects when the new version is ready.": "Volverá a Web Development Projects cuando la nueva versión esté lista.",
