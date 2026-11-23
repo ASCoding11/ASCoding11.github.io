@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.46', title: 'Sky Duel: fairer bots, bigger hits', kind: 'feature',
+     img: 'm/thumbs/sky-duel.jpg', tags: ['Sky Duel'], items: [
+      'Bots are fairer: they leave you alone for a few seconds after you spawn unless you shoot first, and fewer of them hunt you at once when you fly solo.',
+      'Kills land harder: longer tracers, bigger explosions, more debris and a kick of the camera.',
+      'The first explosion of a match no longer makes the game stutter.'
+    ]},
     {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
      items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
              'Only the site\'s team can read what you send.']},
