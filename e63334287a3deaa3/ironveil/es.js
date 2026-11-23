@@ -132,6 +132,8 @@
     // sketch labels
     'FLAK': 'ANTIAÉREO', 'MG': 'AMETR.', 'post': 'puesto', 'sniper?': '¿francotirador?', 'Mauvenant Farm': 'Granja Mauvenant', 'orchard': 'huerto', 'wheat': 'trigo', 'the Lirette': 'el Lirette', 'telephone line': 'línea telefónica',
     'you are here (roughly)': 'estás acá (más o menos)', 'out': 'salida', 'start': 'inicio', 'run': 'correr', 'crouch': 'agacharse', 'crawl': 'arrastrarse', 'vault': 'saltar', 'pop-ups': 'blancos', 'rifle': 'fusil', 'pen': 'corral', 'binoculars': 'binoculares', 'pit': 'pozo',
-    'Camp Hollowmere': 'Campamento Hollowmere'
+    'Camp Hollowmere': 'Campamento Hollowmere',
+    // ---- handling round (movement, jump, crouch setting, crosshair, throws)
+    'Jump / vault / stand up': 'Saltar / pasar por encima / pararse'
   });
 })();

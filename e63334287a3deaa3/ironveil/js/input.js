@@ -13,7 +13,7 @@
       { id: 'sprint', label: 'Sprint', note: 'Hold', group: 'Move', keys: ['ShiftLeft'] },
       { id: 'crouch', label: 'Crouch', group: 'Move', keys: ['KeyC'] },   // not Ctrl by default: Ctrl+W closes the browser tab and no page can stop it
       { id: 'prone', label: 'Go prone', group: 'Move', keys: ['KeyZ'] },
-      { id: 'vault', label: 'Vault over / stand up', group: 'Move', keys: ['Space'] },
+      { id: 'vault', label: 'Jump / vault / stand up', group: 'Move', keys: ['Space'] },
       { id: 'leanLeft', label: 'Lean left', note: 'Hold', group: 'Move', keys: ['KeyQ'] },
       { id: 'leanRight', label: 'Lean right', note: 'Hold', group: 'Move', keys: ['KeyE'] },
       { id: 'fire', label: 'Fire', group: 'Fight', keys: ['Mouse0'] },

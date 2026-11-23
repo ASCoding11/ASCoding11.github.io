@@ -3,6 +3,8 @@
      rate (45 m/s^2 with a key held, 34 without), so diagonals, strafing while turning and A-to-D reversals answer at
      once with no dead time. Strafing is full speed, straight back 82 %; diagonals are not faster. Sprint on forward and
      forward-diagonal keys, no turn limit. Light air control; momentum carries in the air.
+   - Space: vault if there is something to vault, stand up if crouched or prone, otherwise jump (1 m, coyote time and
+     a jump buffer). In the air you land only on what is below your feet, so a jump cannot climb onto a high box.
    - Not aiming: the body turns toward the movement at a capped rate. Aiming: the body faces the aim and the legs strafe.
      Standing still while the camera swings past about 60 degrees: the body turns in place (with steps).
    - Step-up (0.35 m), ground snap (no hopping downhill), slopes over about 40 degrees push you back down.
@@ -16,7 +18,8 @@
     pos: new THREE.Vector3(), prev: new THREE.Vector3(), vel: new THREE.Vector3(), render: new THREE.Vector3(),
     yaw: 0, pitch: 0, bodyYaw: 0, bodyPrev: 0, stance: 'stand', stanceT: 0, grounded: true, hp: 100, alive: true,
     sprinting: false, speed: 0, gait: 'still', vault: null, inWater: false, lastHurt: -99, stride: 0, actor: null,
-    noise: 0, crops: false, god: false, frozen: false, cine: null, hurtDir: 0, turning: false, yawRate: 0, fallSpeed: 0
+    noise: 0, crops: false, god: false, frozen: false, cine: null, hurtDir: 0, turning: false, yawRate: 0, fallSpeed: 0,
+    coyoteT: 0, jumpBuf: 0, jumped: false
   };
   const HEIGHT = { stand: 1.78, crouch: 1.2, prone: 0.55 };
   P.height = () => HEIGHT[P.stance];
@@ -24,7 +27,7 @@
 
   P.spawn = function (x, z, yaw, stance) {
     P.pos.set(x, W.height(x, z), z); P.prev.copy(P.pos); P.render.copy(P.pos); P.vel.set(0, 0, 0);
-    P.yaw = yaw || 0; P.bodyYaw = P.bodyPrev = P.yaw; P.pitch = -0.05; P.stance = stance || 'stand'; P.stanceT = 0;
+    P.yaw = yaw || 0; P.bodyYaw = P.bodyPrev = P.yaw; P.pitch = -0.05; P.stance = stance || 'stand'; P.stanceT = 0; P.jumpBuf = 0; P.coyoteT = 0; P.grounded = true;
     P.hp = T.health.max; P.alive = true; P.vault = null; P.frozen = false; P.cine = null; P.cineClip = false; P.lastHurt = -99; P.turning = false;
     if (!P.actor) {
       P.actor = IVChars.spawn('hero');
@@ -73,15 +76,16 @@
 
   // ---------------------------------------------------------------- stance
   P.setStance = function (s) {
-    if (s === P.stance || P.vault) return;
+    if (s === P.stance || P.vault) return false;
     if ((s === 'stand' || (s === 'crouch' && P.stance === 'prone'))) {
       const cl = W.ceilingAt(P.pos.x, P.pos.z, P.pos.y);
-      if (cl < P.pos.y + HEIGHT[s] + 0.05) return;           // no room to get up
+      if (cl < P.pos.y + HEIGHT[s] + 0.05) return false;     // no room to get up
     }
     // stance changes take longer the further you go (stand-crouch 0.25 s, to or from prone 0.6-0.9 s)
     P.stanceT = (P.stance === 'prone' || s === 'prone') ? (P.stance === 'stand' || s === 'stand' ? 0.9 : 0.6) : 0.25; P.stance = s;
     IV.audio && IV.audio.play('cloth', { vol: 0.6 });
     IV.emit('stance', s);
+    return true;
   };
 
   // ---------------------------------------------------------------- vault
@@ -112,6 +116,7 @@
     if (Math.hypot(o.x - ex, o.z - ez) > 0.2) return false;
     P.vault = { t: 0, sx: P.pos.x, sy: P.pos.y, sz: P.pos.z, ex, ey, ez, top: c.y1 };
     if (P.stance !== 'stand') P.stance = 'stand';
+    P.jumpBuf = 0;
     P.bodyYaw = IV.yawTo(dir.x, dir.z);
     P.actor.play('vault', { fade: 0.08, once: true, restart: true });
     IV.ai && IV.ai.noise(P.pos.x, P.pos.z, T.noise.vault, 'step', P);
@@ -137,13 +142,21 @@
       const v = P.vault; v.t += dt / (IVChars.standin ? MV.vaultTime : MV.vaultTimeClip); const k = Math.min(1, v.t), e = IV.smooth(k);
       P.pos.x = v.sx + (v.ex - v.sx) * e; P.pos.z = v.sz + (v.ez - v.sz) * e;
       P.pos.y = v.sy + (v.ey - v.sy) * e + Math.sin(k * Math.PI) * Math.max(0.25, v.top - Math.min(v.sy, v.ey) + 0.15) * 0.85 + (v.top - v.sy) * 0.15 * Math.sin(k * Math.PI);
-      if (k >= 1) { P.vault = null; P.vel.set((v.ex - v.sx) * 1.2, 0, (v.ez - v.sz) * 1.2); IV.audio && IV.audio.play('land', { surf: IV.SURF[W.surfAt(P.pos.x, P.pos.z)] }); IV.camera && IV.camera.landDip(0.6); }
+      if (k >= 1) { P.vault = null; P.grounded = true; P.vel.set((v.ex - v.sx) * 1.2, 0, (v.ez - v.sz) * 1.2); IV.audio && IV.audio.play('land', { surf: IV.SURF[W.surfAt(P.pos.x, P.pos.z)] }); IV.camera && IV.camera.landDip(0.6); }
       return;
     }
     // stance input
     if (I.pressed('crouch')) P.setStance(P.stance === 'crouch' ? 'stand' : 'crouch');
     if (I.pressed('prone')) P.setStance(P.stance === 'prone' ? 'crouch' : 'prone');
-    if (I.pressed('vault')) { if (P.stance !== 'stand' && !nearVault()) P.setStance('stand'); else if (!tryVault() && P.stance !== 'stand') P.setStance('stand'); }
+    // Space: vault if there is something to vault, stand up if crouched or prone, otherwise jump. A press is buffered
+    // for jumpBuffer s (pressed just before landing still jumps) and a jump is allowed coyote s after leaving the ground.
+    P.coyoteT = P.grounded ? MV.coyote : Math.max(0, P.coyoteT - dt);
+    if (I.pressed('vault')) {
+      if (P.stance !== 'stand' && !nearVault()) { P.setStance('stand'); P.jumpBuf = 0; }
+      else if (P.grounded && tryVault()) return;
+      else if (P.stance !== 'stand') { P.setStance('stand'); P.jumpBuf = 0; }
+      else P.jumpBuf = MV.jumpBuffer;
+    } else P.jumpBuf = Math.max(0, P.jumpBuf - dt);
     const W8 = IV.weapons, aiming = W8 && (W8.aiming || W8.scoped), binoc = W8 && W8.binoc;
     // sprint: standing, keys forward or forward-diagonal, not aiming, throwing or firing. Shift crouched = quieter crouch-run.
     const mx = I.moveX, my = I.moveY, ml = Math.min(1, Math.hypot(mx, my));
@@ -169,7 +182,7 @@
       const ahead = W.height(P.pos.x + tx * 0.6, P.pos.z + tz * 0.6) - W.height(P.pos.x - tx * 0.6, P.pos.z - tz * 0.6), grade = ahead / 1.2;
       sp *= grade > 0 ? Math.max(0.6, 1 - grade * 1.1) : Math.max(0.85, 1 + grade * 0.3);
     }
-    if (P.landT > 0) { P.landT -= dt; sp *= 0.5; }
+    if (P.landT > 0) { P.landT -= dt; sp *= 0.6; }   // only after a long fall (not a jump)
     P.inWater = W.height(P.pos.x, P.pos.z) < W.waterLevel(P.pos.x, P.pos.z) - 0.25;
     if (P.inWater) sp *= MV.waterMul;
     // mud drags at the boots (the environment kit's ground: about 10-20 % slower in deep wet mud, nothing on hard ground)
@@ -182,11 +195,22 @@
     const dl = Math.hypot(ddx, ddz), mstep = rate * dt;
     if (dl <= mstep) { if (P.grounded || has) { P.vel.x = wx; P.vel.z = wz; } }
     else { P.vel.x += ddx / dl * mstep; P.vel.z += ddz / dl * mstep; }
-    // move + collide (boxes lower than a step are stood on, not pushed against)
+    // jump (after the buffer and coyote checks above); you stand up for it, never jump out of a crouch
+    if (P.jumpBuf > 0 && P.coyoteT > 0 && P.stance === 'stand' && !P.inWater && P.stanceT <= 0) {
+      const cl = W.ceilingAt(P.pos.x, P.pos.z, P.pos.y);
+      if (cl > P.pos.y + HEIGHT.stand + 0.3) {
+        P.vel.y = Math.sqrt(2 * MV.gravity * MV.jumpApex); P.grounded = false; P.jumped = true; P.jumpBuf = 0; P.coyoteT = 0;
+        IV.audio && IV.audio.play('cloth', { vol: 0.7 });
+        IV.emit('jump');
+      }
+    }
+    // move + collide. On the ground, boxes lower than a step are stood on, not pushed against. In the air everything
+    // above your feet is a wall and you land only on what is below them, so a jump can't climb onto a high box or roof.
+    const air = !P.grounded, lift = air ? 0.04 : MV.step;
     o.x = P.pos.x + P.vel.x * dt; o.z = P.pos.z + P.vel.z * dt;
-    const hit = W.collide(o, MV.radius, P.pos.y + MV.step, P.pos.y + P.height());
-    const gNew = W.groundAt(o.x, o.z, P.pos.y);
-    if (gNew - P.pos.y > MV.step + 0.02) { o.x = P.pos.x; o.z = P.pos.z; }
+    const hit = W.collide(o, MV.radius, P.pos.y + lift, P.pos.y + P.height());
+    const gNew = W.groundAt(o.x, o.z, P.pos.y, lift);
+    if (gNew - P.pos.y > lift + 0.02) { o.x = P.pos.x; o.z = P.pos.z; }
     if (hit) { const vn = P.vel.x * o.nx + P.vel.z * o.nz; if (vn < 0) { P.vel.x -= o.nx * vn; P.vel.z -= o.nz * vn; } }
     // slope limit: on terrain steeper than about 40 degrees you can't climb, and you slide back down
     W.normal(o.x, o.z, nrm);
@@ -196,13 +220,22 @@
       P.vel.x += hx / hl * MV.slideAccel * dt; P.vel.z += hz / hl * MV.slideAccel * dt;
     }
     P.pos.x = IV.clamp(o.x, -W.half + 2, W.half - 2); P.pos.z = IV.clamp(o.z, -W.half + 2, W.half - 2);
-    // vertical: snap to ground within reach, otherwise fall
-    const g = W.groundAt(P.pos.x, P.pos.z, P.pos.y);
-    if (P.pos.y - g < MV.snap && P.vel.y <= 0.01) {
-      if (!P.grounded && P.vel.y < -6) P.landT = 0.25;   // a heavy landing slows you for a moment
-      if (!P.grounded && P.vel.y < -6) { IV.audio && IV.audio.play('land', { surf: IV.SURF[W.surfAt(P.pos.x, P.pos.z)] }); IV.ai && IV.ai.noise(P.pos.x, P.pos.z, T.noise.land, 'step', P); IV.camera && IV.camera.landDip(Math.min(1, -P.vel.y / 10)); }
-      P.pos.y = g; P.vel.y = 0; P.grounded = true;
-    } else { P.vel.y -= MV.gravity * dt; P.pos.y += P.vel.y * dt; P.grounded = false; if (P.pos.y < g) { P.pos.y = g; P.vel.y = 0; P.grounded = true; } }
+    // vertical: on the ground, stay glued within snap reach (walking downhill); in the air, fall until the feet meet
+    // whatever is below them (terrain or a box top)
+    const g = W.groundAt(P.pos.x, P.pos.z, P.pos.y, lift);
+    if (P.grounded && P.vel.y <= 0.01 && P.pos.y - g < MV.snap) { P.pos.y = g; P.vel.y = 0; }
+    else {
+      const vy0 = P.vel.y;
+      P.vel.y -= MV.gravity * dt; P.pos.y += (vy0 + P.vel.y) * 0.5 * dt; P.grounded = false;
+      if (P.vel.y > 0 && W.ceilingAt(P.pos.x, P.pos.z, P.pos.y) < P.pos.y + P.height() + 0.02) P.vel.y = 0;   // head on a beam
+      if (P.pos.y <= g) {
+        const fall = -P.vel.y;
+        P.pos.y = g; P.vel.y = 0; P.grounded = true; P.jumped = false;
+        if (fall > 9) P.landT = 0.2;   // a long drop slows you for a moment
+        if (fall > 3.5) { IV.audio && IV.audio.play('land', { surf: IV.SURF[W.surfAt(P.pos.x, P.pos.z)] }); IV.camera && IV.camera.landDip(Math.min(1, fall / 10)); }
+        if (fall > 6) IV.ai && IV.ai.noise(P.pos.x, P.pos.z, T.noise.land, 'step', P);
+      }
+    }
     P.fallSpeed = P.grounded ? 0 : -P.vel.y;
     // body facing
     P.speed = Math.hypot(P.vel.x, P.vel.z);
