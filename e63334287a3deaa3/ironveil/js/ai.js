@@ -408,7 +408,7 @@
     if (e.kind === 'sniper') p = Math.min(0.85, p * 2.4);
     if (e.kind === 'gunner') p *= 0.55;
     if (IV.mission.enemyAccMul) p *= IV.mission.enemyAccMul;
-    return Math.min(0.9, p);
+    return Math.min(e.kind === 'sniper' ? 0.85 : 0.8, p);   // nobody is a sure shot
   }
   AI.hitChance = hitChance;
   function shoot(e, tgt, dt) {
@@ -584,8 +584,7 @@
       const slow = (e.limp ? 0.55 : 1) * (e.stagger > 0 ? 0.4 : 1);
       if (e.hp < 30) e.crawl = true;
       // fall back, once: when hurt, or when the squad has lost men and he is nearly alone
-      let friends = 0; for (const q of AI.list) if (q !== e && q.alive && q.state === 'combat' && Math.hypot(q.pos.x - e.pos.x, q.pos.z - e.pos.z) < 25) friends++;
-      if (!e.fellBack && (e.hp < 50 || (AI.lost >= 2 && friends <= 1))) {
+      if (!e.fellBack && (e.hp < 50 || (AI.lost >= 2 && friendsNear(e, 25) <= 1))) {
         e.fellBack = true; const c = chooseCover(e, tp, false, true);
         if (c) { if (e.cover) e.cover.used = null; e.cover = c; c.used = e; e.coverT = 0; releaseToken(e); AI.bark(e, 'fallback', true); }
       }
@@ -661,6 +660,7 @@
     dead() {}
   };
   BEH.scripted = () => {};
+  function friendsNear(e, r) { let n = 0; for (const q of AI.list) if (q !== e && q.alive && q.state === 'combat' && Math.abs(q.pos.x - e.pos.x) < r && Math.hypot(q.pos.x - e.pos.x, q.pos.z - e.pos.z) < r) n++; return n; }
   const wclass = e => e.wkind === 'enemySmg' ? 'smg' : e.wkind === 'pistol' ? 'pistol' : 'rifle';
   function snapRange(e) { return A.snapRange[wclass(e)]; }
   // the wait after a round: an SMG burst is quick (a pause every five), a rifleman works his bolt; suppression slows both
