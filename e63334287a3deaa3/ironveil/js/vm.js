@@ -174,7 +174,7 @@
   // pivot: the gun-frame point the clips' turns are about. crouch / prone: small offsets of the hip pose.
   VM.FOV = 45;   // the viewmodel camera's vertical field of view (js/fp.js FP.vmTune.fov reads it)
   const FRAME = VM.FRAME = {
-    smg:         { hip: { p: [0.0807, -0.0763, -0.1753], r: [-0.0958, 0.0057, -0.25] }, ads: 0.29, sprint: { d: [0.03, -0.02, 0.04], r: [0.18, 0.6, 0.45] }, pivot: [0, 0, 0.08], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
+    smg:         { hip: { p: [0.0927, -0.0763, -0.1753], r: [-0.0958, 0.0057, -0.25] }, ads: 0.29, sprint: { d: [0.03, -0.02, 0.04], r: [0.18, 0.6, 0.45] }, pivot: [0, 0, 0.08], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
     pistol:      { hip: { p: [0.0627, -0.0575, -0.2135], r: [-0.0763, 0.2312, -0.3] }, ads: 0.36, sprint: { d: [0.0, -0.03, 0.02], r: [0.5, 0.15, 0.15] }, pivot: [0, 0, 0], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
     rifleScoped: { hip: { p: [0.0945, -0.081, -0.1541], r: [-0.021, -0.0715, -0.25] }, ads: 0.10, sprint: { d: [0.02, -0.03, 0.05], r: [0.32, 0.28, 0.2] }, pivot: [0, 0, 0.1], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] }
   };
