@@ -79,7 +79,7 @@ the mesh child carries a quantisation offset from meshopt and should not be move
 | weapon | triangles | draw calls | materials |
 |---|---|---|---|
 | rifleScoped | 10770 | 6 | wpn_glass, wpn_rifle |
-| smg | 8140 | 6 | wpn_smg |
+| smg | 8500 | 6 | wpn_smg |
 | binoculars | 1324 | 2 | wpn_atlas, wpn_glass |
 | enemyRifle | 2998 | 5 | wpn_atlas |
 | enemySmg | 2258 | 5 | wpn_atlas |
@@ -107,6 +107,26 @@ the mesh child carries a quantisation offset from meshopt and should not be move
 
 Draw calls count one per mesh primitive; the glass lenses are a second material. `python stats.py weapons.glb`
 prints this table for any build.
+
+## The player's SMG (Nov 23)
+
+The first-person SMG is worn blued steel (`blued2` in `mats.py`: metal 1, a greyer tint and 35 % more edge wear
+than `blued`) instead of the matte phosphate, which baked as non-metal (metal 0 on 95 % of the map) and read as a
+flat brown-grey slab; the stock now drops about 9 cm at the heel from just behind the receiver, so aimed (the rear
+sight 29 cm from the eye, `FP.adsRear` in `js/fp.js`) the stock is a short wedge low in the view instead of a wooden
+tube up to the rear sight; cross pins stand proud on both sides of the frame and receiver. Rebuild only the SMG and
+swap it into the shipped file, starting from the committed `weapons.glb` (each swap re-encodes all geometry):
+
+```sh
+BPY=python WOOD_SCAN=<folder with natural_walnut_veneer_*_2k.jpg> MACHINING=1 ./run.sh /tmp/wsmg 2048 smg
+git show HEAD:e63334287a3deaa3/ironveil/assets/weapons.glb > /tmp/w0.glb
+GT_MODULES=... node swap.mjs /tmp/w0.glb ../../assets/weapons.glb /tmp/wsmg/smg.glb \
+  --add '{"smg_sightRear":["smg",[0,0.0585,-0.053]],"smg_sightFront":["smg",[0,0.0435,0.426]]}'
+```
+
+Then rebuild the first-person clips (`tools/chars`, `fp_unpack.mjs` then `fp_clips.py export`), because the hand fits
+read the weapon's shape. The reduced `smgLod` in the atlas set was NOT rebuilt: it keeps the old straight stock and
+phosphate finish until the atlas set is baked again (about an hour).
 
 ## Hand frames
 
