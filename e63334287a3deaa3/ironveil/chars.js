@@ -365,6 +365,9 @@
       var mats = Array.isArray(o.material) ? o.material : [o.material];
       mats = mats.map(function (m0) {
         var m = m0.clone();
+        // steel reflects the arms' own sky cube a little harder than the world does (js/fp.js vmEnv), so a
+        // highlight runs along the receiver and barrel; wood and the glass keep the default
+        if (m.metalnessMap && !/glass/.test(m.name)) m.envMapIntensity = 1.5;
         m.onBeforeCompile = function (sh) {
           sh.uniforms.uOccPts = { value: occPts };
           sh.vertexShader = 'varying vec3 vOccPos;\n' + sh.vertexShader.replace('#include <project_vertex>',
