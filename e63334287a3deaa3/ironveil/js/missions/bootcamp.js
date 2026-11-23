@@ -74,7 +74,7 @@
     if (Math.abs(x) < 6 && z < RANGE_Z && z > -300) { c.setRGB(0.4, 0.48, 0.26); }
     return 0;
   }
-  const key = id => IV.touch ? IV.t({ forward: 'the left stick', sprint: 'Run', crouch: 'Crouch', prone: 'Prone', vault: 'Vault', aim: 'Aim', fire: 'Fire', breath: 'Breath', rock: 'Rock', grenade: 'Nade', binoc: 'Bino', knife: 'Use', use: 'Use', rifle: 'Swap', smg: 'Swap', order: 'Order', leanLeft: 'Lean L', leanRight: 'Lean R' }[id] || id) : IV.input.label(id);
+  const key = id => IV.touch ? IV.t({ forward: 'the left stick', sprint: 'Run', crouch: 'Crouch', prone: 'Prone', vault: 'Jump', aim: 'Aim', fire: 'Fire', breath: 'Breath', rock: 'Rock', grenade: 'Nade', binoc: 'Bino', knife: 'Use', use: 'Use', rifle: 'Swap', smg: 'Swap', order: 'Order', leanLeft: 'Lean L', leanRight: 'Lean R' }[id] || id) : IV.input.label(id);
   const moveKeys = () => IV.touch ? IV.t('the left stick') : [IV.input.label('forward'), IV.input.label('left'), IV.input.label('back'), IV.input.label('right')].join(' ');
 
   // ---------------------------------------------------------------- build
