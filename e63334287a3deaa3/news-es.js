@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A contact page": "Una página de contacto",
+    "The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.": "La web ya tiene una página de Contacto, enlazada al final de cada página: manda un error, una idea o una pregunta, con un correo si quieres respuesta.",
+    "Only the site's team can read what you send.": "Solo el equipo de la web puede leer lo que mandes.",
     "Movi is away for a rebuild": "Movi se va un tiempo para rehacerse",
     "Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.": "Movi, la app para clasificar películas, se ha quitado de la web por ahora mientras se rehace.",
     "It will come back to Web Development Projects when the new version is ready.": "Volverá a Web Development Projects cuando la nueva versión esté lista.",

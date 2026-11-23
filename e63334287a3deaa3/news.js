@@ -85,6 +85,9 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
+     items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
+             'Only the site\'s team can read what you send.']},
     {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
      tags: ['Movi'], items: [
       'Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.',
