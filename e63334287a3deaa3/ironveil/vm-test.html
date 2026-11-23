@@ -168,16 +168,17 @@
     // a neutral studio sky for reflections: grey-blue above, warm grey below, a soft bright key
     const es = new THREE.Scene(), geo = new THREE.SphereGeometry(5, 32, 16), col = [];
     const pa = geo.attributes.position;
-    for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) / 5, x = pa.getX(i) / 5; const k = Math.max(0, y); let r = 0.35 + 0.35 * k, g = 0.37 + 0.37 * k, b = 0.42 + 0.45 * k; if (y < 0) { r = 0.25; g = 0.23; b = 0.21; } const key = Math.max(0, 0.6 * x + 0.7 * y); r += key ** 8 * 2; g += key ** 8 * 2; b += key ** 8 * 1.9; col.push(r, g, b); }
+    for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) / 5, x = pa.getX(i) / 5; const k = Math.max(0, y); let r = 0.55 - 0.25 * k, g = 0.52 - 0.22 * k, b = 0.5 - 0.15 * k; if (y < 0) { r = 0.16; g = 0.15; b = 0.13; } const key = Math.max(0, -0.6 * x + 0.3 * y - 0.5 * pa.getZ(i) / 5); r += key ** 6 * 0.8; g += key ** 6 * 0.65; b += key ** 6 * 0.45; col.push(r, g, b); }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     es.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
     const pm = new THREE.PMREMGenerator(R); ENV = pm.fromScene(es, 0.02).texture;
     return R;
   }
   function stage(bg) {
-    const sc = new THREE.Scene(); sc.background = new THREE.Color(bg || 0x5d646b); sc.environment = ENV;
+    const sc = new THREE.Scene(); sc.environment = ENV;
+    if (bg) sc.background = new THREE.Color(bg); else { const sk = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 16), new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, depthWrite: false })); const pa = sk.geometry.attributes.position, c = []; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) / 15; if (y > -0.02) { const k = Math.min(1, y * 2.5); c.push(0.78 - 0.45 * k, 0.72 - 0.42 * k, 0.62 - 0.28 * k); } else c.push(0.30, 0.27, 0.23); } sk.geometry.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); sk.renderOrder = -1; sc.add(sk); }
     sc.add(new THREE.HemisphereLight(0xc8d4e0, 0x403830, 0.55));
-    const key = new THREE.DirectionalLight(0xfff2e0, 1.6); key.position.set(-0.6, 1, 0.5); sc.add(key);
+    const key = new THREE.DirectionalLight(0xffe8cc, 1.1); key.position.set(-0.8, 0.5, -0.6); sc.add(key);
     const rim = new THREE.DirectionalLight(0x9fb4d8, 0.5); rim.position.set(0.5, 0.6, -1); sc.add(rim);
     return sc;
   }

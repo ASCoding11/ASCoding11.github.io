@@ -33,15 +33,15 @@
 
   // ------------------------------------------------------------------ dimensions (gloved adult hand)
   const FINGERS = {
-    //          MCP joint (x, y, z)        segment lengths            half-width base..tip   depth/width
-    index:  { m: [-0.0275, 0.0855, 0.0], L: [0.0400, 0.0240, 0.0215], r: [0.0107, 0.0087], d: 0.88 },
-    middle: { m: [-0.0085, 0.0895, 0.0], L: [0.0445, 0.0285, 0.0225], r: [0.0110, 0.0089], d: 0.88 },
-    ring:   { m: [0.0105, 0.0860, -0.0005], L: [0.0410, 0.0270, 0.0215], r: [0.0104, 0.0084], d: 0.88 },
-    little: { m: [0.0280, 0.0770, -0.0020], L: [0.0320, 0.0200, 0.0190], r: [0.0093, 0.0076], d: 0.9 }
+    //          MCP joint (x, y, z)        segment lengths            radius knuckle..tip    depth/width
+    index:  { m: [-0.0315, 0.0860, 0.0], L: [0.044, 0.026, 0.022], r: [0.0096, 0.0076], d: 0.92 },
+    middle: { m: [-0.0105, 0.0900, 0.0], L: [0.049, 0.030, 0.023], r: [0.0096, 0.0076], d: 0.92 },
+    ring:   { m: [0.0105, 0.0865, -0.0005], L: [0.045, 0.028, 0.022], r: [0.0094, 0.0074], d: 0.92 },
+    little: { m: [0.0315, 0.0770, -0.0020], L: [0.035, 0.021, 0.020], r: [0.0084, 0.0066], d: 0.93 }
   };
   const ORDER = ['index', 'middle', 'ring', 'little'];
-  const THUMB = { base: [-0.0215, 0.0175, -0.0075], L: [0.045, 0.032, 0.029], r: [0.0122, 0.0098] };
-  const BULGE = [0.0032, 0.0019, 0.0012];   // extra dorsal depth at the MCP, PIP and DIP knuckles
+  const THUMB = { base: [-0.0225, 0.0175, -0.0075], L: [0.044, 0.031, 0.027], r: [0.0108, 0.0086] };
+  const BULGE = [0.0014, 0.0012, 0.0010];   // extra dorsal depth at the MCP, PIP and DIP knuckles
 
   // ------------------------------------------------------------------ small vector helpers (load time only)
   const V = (x, y, z) => new T.Vector3(x, y, z);
@@ -71,8 +71,9 @@
   // (smooth along and around the tube; each part keeps its own normals, so where parts meet the joint stays a crease).
   function ringPoint(r, phi, out) {
     const c = Math.cos(phi), s = Math.sin(phi), e = r.e || 2;
-    const px = Math.sign(c) * Math.pow(Math.abs(c), 2 / e) * r.hw;
-    const pz = Math.sign(s) * Math.pow(Math.abs(s), 2 / e) * (s > 0 ? r.hd : r.hp);
+    let px = Math.sign(c) * Math.pow(Math.abs(c), 2 / e) * r.hw;
+    let pz = Math.sign(s) * Math.pow(Math.abs(s), 2 / e) * (s > 0 ? r.hd : r.hp);
+    if (r.fold) { const k = 1 + r.fold.a * Math.sin(r.fold.n * phi + r.fold.p); px *= k; pz *= k; }
     out.copy(r.o).addScaledVector(r.f.X, px).addScaledVector(r.f.Z, pz);
     if (r.bend) r.bend(out, px / r.hw, pz);
     return out;
@@ -87,9 +88,10 @@
     }
     return rings.concat(out);
   }
-  function Builder(R) { this.R = R; this.pos = [[], []]; this.nrm = [[], []]; this.uv = [[], []]; this.idx = [[], []]; }
+  function Builder(R) { this.R = R; this.pos = [[], []]; this.nrm = [[], []]; this.uv = [[], []]; this.idx = [[], []]; this.col = [[], []]; }
   Builder.prototype.tube = function (rings, o) {
     o = o || {};
+    this._tint = o.tint || 1;
     const R = o.radial || this.R, mat = o.mat || 0, P = this.pos[mat], N = this.nrm[mat], U = this.uv[mat], I = this.idx[mat];
     const K = rings.length, grid = [], tmp = new T.Vector3();
     // arc length along the centre line for v
@@ -110,7 +112,7 @@
         const jj = j % R, p = grid[k][jj], n = gn[k][jj];
         if (n.lengthSq() < 1e-14) n.copy(rings[k].f.t).multiplyScalar(k ? 1 : -1);
         n.normalize();
-        P.push(p.x, p.y, p.z); N.push(n.x, n.y, n.z); U.push((o.u0 || 0) + j / R * (o.uScale || 1), (o.v0 || 0) + rings[k].v * (o.vScale || 10));
+        this.col[mat].push(o.tint || 1); P.push(p.x, p.y, p.z); N.push(n.x, n.y, n.z); U.push((o.u0 || 0) + j / R * (o.uScale || 1), (o.v0 || 0) + rings[k].v * (o.vScale || 10));
       }
     }
     const W = R + 1;
@@ -125,11 +127,11 @@
   };
   Builder.prototype.fan = function (ring, start, R, mat, dir) {
     const P = this.pos[mat], N = this.nrm[mat], U = this.uv[mat], I = this.idx[mat], c = P.length / 3, n = ring.f.t;
-    P.push(ring.o.x, ring.o.y, ring.o.z); N.push(n.x * dir, n.y * dir, n.z * dir); U.push(0.5, ring.v * 10);
+    P.push(ring.o.x, ring.o.y, ring.o.z); N.push(n.x * dir, n.y * dir, n.z * dir); U.push(0.5, ring.v * 10); this.col[mat].push(this._tint || 1);
     for (let j = 0; j < R; j++) { if (dir > 0) I.push(start + j, c, start + j + 1); else I.push(start + j, start + j + 1, c); }
   };
   Builder.prototype.geometry = function (mirror) {
-    const g = new T.BufferGeometry(), P = [], N = [], U = [], I = [];
+    const g = new T.BufferGeometry(), P = [], N = [], U = [], I = [], C = [];
     let off = 0;
     for (let m = 0; m < 2; m++) {
       const n0 = P.length / 3, i0 = I.length;
@@ -138,6 +140,7 @@
         N.push(mirror ? -this.nrm[m][i] : this.nrm[m][i], this.nrm[m][i + 1], this.nrm[m][i + 2]);
       }
       for (let i = 0; i < this.uv[m].length; i++) U.push(this.uv[m][i]);
+      for (let i = 0; i < this.col[m].length; i++) { const t = this.col[m][i]; C.push(t, t, t); }
       const ix = this.idx[m];
       for (let i = 0; i < ix.length; i += 3) { if (mirror) I.push(ix[i] + n0, ix[i + 2] + n0, ix[i + 1] + n0); else I.push(ix[i] + n0, ix[i + 1] + n0, ix[i + 2] + n0); }
       g.addGroup(i0, I.length - i0, m);
@@ -146,6 +149,7 @@
     g.setAttribute('position', new T.Float32BufferAttribute(P, 3));
     g.setAttribute('normal', new T.Float32BufferAttribute(N, 3));
     g.setAttribute('uv', new T.Float32BufferAttribute(U, 2));
+    g.setAttribute('color', new T.Float32BufferAttribute(C, 3));
     g.setIndex(I);
     g.computeBoundingSphere();
     return g;
@@ -184,7 +188,7 @@
         const hw = F.r[0] + (F.r[1] - F.r[0]) * sl;
         const r = { o: ch.joints[j].clone().addScaledVector(ch.frames[j].t, k * F.L[j]), f: i === 0 ? fa : ch.frames[j], hw, hd: hw * F.d, hp: hw * F.d, e: 2.15 };
         if (i === 0) { r.hd += BULGE[j]; r.hw += BULGE[j] * 0.35; if (j) r.hp -= 0.0012; }      // knuckle: high and wide; crease under it
-        else { r.hp += 0.0009; }                                                              // the pad of each segment
+        else { r.hp += 0.0004; r.e = 2.4; }                                                              // the pad of each segment
         rings.push(r);
       }
       s += F.L[j];
@@ -269,7 +273,7 @@
     // the ball of the thumb: a thick, flattened start that sits in the palm's edge
     const f0 = ch.frames[0];
     rings.push({ o: ch.joints[0].clone().addScaledVector(f0.t, -0.004), f: f0, hw: 0.0135, hd: 0.0110, hp: 0.0150, e: 2.3 });
-    rings.push({ o: ch.joints[0].clone().addScaledVector(f0.t, THUMB.L[0] * 0.35), f: f0, hw: 0.0150, hd: 0.0118, hp: 0.0160, e: 2.3 });
+    rings.push({ o: ch.joints[0].clone().addScaledVector(f0.t, THUMB.L[0] * 0.35), f: f0, hw: 0.0138, hd: 0.0108, hp: 0.0145, e: 2.3 });
     rings.push({ o: ch.joints[0].clone().addScaledVector(f0.t, THUMB.L[0] * 0.7), f: f0, hw: 0.0135, hd: 0.0110, hp: 0.0125, e: 2.2 });
     const fa = mixFrame(ch.frames[0], ch.frames[1], 0.5), fb = mixFrame(ch.frames[1], ch.frames[2], 0.5);
     rings.push({ o: ch.joints[1].clone(), f: fa, hw: r0 + 0.0008, hd: r0 * 0.9 + 0.0022, hp: r0 * 0.85, e: 2.15 });
@@ -326,16 +330,24 @@
     // that widens from the wrist up the forearm, and a turned-back cuff with a real edge (a step in and out)
     const st = part === 'glove'
       ? [[0, 0.0255, 0.0150, 0.0170], [0.010, 0.0270, 0.0180, 0.0190], [0.022, 0.0280, 0.0205, 0.0205], [0.038, 0.0288, 0.0220, 0.0220], [0.052, 0.0292, 0.0225, 0.0225], [0.060, 0.0295, 0.0228, 0.0228], [0.064, 0.0290, 0.0224, 0.0224]]
-      : [[0.046, 0.0272, 0.0218, 0.0218], [0.050, 0.0318, 0.0255, 0.0255], [0.054, 0.0322, 0.0260, 0.0260], [0.080, 0.0322, 0.0260, 0.0260], [0.084, 0.0302, 0.0244, 0.0244], [0.090, 0.0300, 0.0242, 0.0242]];
-    // the sleeve's length varies by build, its ring count does not (every build of a hand shares one topology)
-    if (part !== 'glove') { const end = Math.min(total, len + 0.05); for (let i = 1; i <= 4; i++) { const k = i / 4; st.push([0.09 + (end - 0.09) * k, 0.0300 + 0.0035 * Math.min(1, k * 1.6), 0.0242 + 0.0028 * Math.min(1, k * 1.6), 0.0242 + 0.0028 * Math.min(1, k * 1.6)]); } }
+      : [[0.046, 0.0300, 0.0260, 0.0260]];
+    if (part !== 'glove') {
+      const end = Math.min(total, len + 0.05), N = 13;
+      for (let i = 0; i <= N; i++) {
+        const sArc = 0.050 + (end - 0.050) * i / N, up = sArc - 0.05;                       // metres up the forearm from the cuff
+        let r = 0.040 + 0.012 * Math.min(1, up / 0.30);
+        if (up > 0.15 && up < 0.18) r -= 0.003;                                           // the cuff band
+        const deep = Math.max(Math.exp(-up / 0.06), Math.exp(-Math.max(0, 0.30 - up) / 0.06));  // folds deepest at wrist and elbow
+        st.push([sArc, r, r * 0.88, r * 0.88, { a: 0.045 * deep + 0.012, n: 3, p: up * 18 }]);
+      }
+    }
     let lastP = at(0);
     for (const s of st) {
       const p = at(s[0]), p2 = at(s[0] + 0.004), t = p2.clone().sub(p).normalize();
       // transport: rotate the previous frame by the turn from its t to this t
       const q = new T.Quaternion().setFromUnitVectors(f.t, t);
       f = { X: f.X.clone().applyQuaternion(q).normalize(), t, Z: f.Z.clone().applyQuaternion(q).normalize() };
-      rings.push({ o: p, f, hw: s[1], hd: s[2], hp: s[3], e: 2.2, v: s[0] });
+      rings.push({ o: p, f, hw: s[1], hd: s[2], hp: s[3], e: 2.2, v: s[0], fold: s[4] });
       lastP = p;
     }
     return rings;
@@ -363,7 +375,7 @@
   }
 
   H.build = function (pose) {
-    const R = pose.radial || 12, cup = pose.cup || 0, B = new Builder(R), info = { fingers: {} };
+    const R = pose.radial || 16, cup = pose.cup || 0, B = new Builder(R), info = { fingers: {} };
     const fps = {};
     for (const n of ORDER) {
       let fp = Object.assign({ curl: [0.2, 0.3, 0.2], spread: 0 }, (pose.fingers || {})[n]);
@@ -385,10 +397,10 @@
     // the back of the glove: three raised seams from the cuff toward the gaps between the knuckles, and a stitched
     // knuckle panel (a flat pad over the knuckle line)
     const seamZ = y => 0.0118 + (y > 0.06 ? -0.0004 : 0.0003);
-    for (const sx of [-0.017, 0.0, 0.017]) {
+    for (const sx of [-0.021, -0.007, 0.007, 0.021]) {
       const pts = [];
       for (let i = 0; i <= 5; i++) { const y = 0.012 + i * 0.011; const x = sx * (0.75 + 0.25 * i / 5); pts.push(V(x - 0.0008, y, seamZ(y) - cup * 0.0015 * (x / 0.03) * (x / 0.03))); }
-      B.tube(cordRings(pts, 0.0011, V(0, 0, 1)), { radial: 4, capStart: true });
+      B.tube(cordRings(pts, 0.0022, V(0, 0, 1)), { radial: 6, capStart: true, tint: 1.7 });
     }
     {
       const pr = [];
@@ -401,7 +413,7 @@
       }
       const rings = cordRings(pr, 0, V(0, 0, 1));
       rings.forEach((r, i) => { const k = Math.sin((i / 6) * Math.PI); r.hw = 0.0085 + 0.0015 * k; r.hd = 0.0017; r.hp = 0.0017; r.e = 3; });
-      B.tube(rings, { radial: 8, capStart: true });
+      B.tube(rings, { radial: 8, capStart: true, tint: 1.45 });
     }
     // glove cuff, and the sleeve with its turned-back end
     const fa = pose.forearm || [0, -1, 0];
@@ -482,18 +494,18 @@
     const gloveC = canvasTex(W, W, d => {
       for (let i = 0; i < W * W; i++) {
         const m = mott[i], g = grain[i], k = 0.8 + m * 0.32 + (g - 0.5) * 0.06;
-        d[i * 4] = 50 * k; d[i * 4 + 1] = 34 * k; d[i * 4 + 2] = 23 * k; d[i * 4 + 3] = 255;
+        d[i * 4] = 35 * k; d[i * 4 + 1] = 38 * k; d[i * 4 + 2] = 42 * k; d[i * 4 + 3] = 255;
       }
     });
     gloveC.encoding = T.sRGBEncoding;
-    const gloveR = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const v = (0.55 + (mott[i] - 0.55) * 0.2 + (grain[i] - 0.5) * 0.08) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } });
-    const glove = new T.MeshStandardMaterial({ name: 'vmGlove', color: 0xffffff, map: gloveC, normalMap: gloveN, roughnessMap: gloveR, roughness: 1.0, metalness: 0, envMapIntensity: 0.8 });
+    const gloveR = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const v = (0.78 + (mott[i] - 0.55) * 0.15 + (grain[i] - 0.5) * 0.08) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } });
+    const glove = new T.MeshStandardMaterial({ name: 'vmGlove', color: 0xffffff, vertexColors: true, map: gloveC, normalMap: gloveN, roughnessMap: gloveR, roughness: 1.0, metalness: 0, envMapIntensity: 0.8 });
     glove.normalScale.set(0.9, 0.9);
     // wool serge: field drab, darker than grass; a fine diagonal weave and fibre noise only (no ribs)
     const wn = noise2(W, W, 31, 1, 2), wm = noise2(W, W, 43, 40, 3), hw = new Float32Array(W * W);
     for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) { const d = ((x + y) % 3) === 0 ? 0.12 : 0; hw[y * W + x] = d + wn[y * W + x] * 0.35 + wm[y * W + x] * 0.1; }
     const sleeveN = normalFromHeight(hw, W, W, 0.9);
-    const sleeveC = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const k = 0.86 + wm[i] * 0.22 + (wn[i] - 0.5) * 0.06; d[i * 4] = 50 * k; d[i * 4 + 1] = 47 * k; d[i * 4 + 2] = 37 * k; d[i * 4 + 3] = 255; } });
+    const sleeveC = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const k = 0.86 + wm[i] * 0.22 + (wn[i] - 0.5) * 0.06; d[i * 4] = 42 * k; d[i * 4 + 1] = 42 * k; d[i * 4 + 2] = 39 * k; d[i * 4 + 3] = 255; } });
     sleeveC.encoding = T.sRGBEncoding;
     const sleeve = new T.MeshStandardMaterial({ name: 'vmSleeve', side: T.DoubleSide, map: sleeveC, normalMap: sleeveN, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
     sleeve.normalScale.set(0.5, 0.5);
