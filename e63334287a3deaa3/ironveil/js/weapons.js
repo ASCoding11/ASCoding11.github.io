@@ -327,7 +327,7 @@
     let hx = c.x + d.x / hl * D - o.x, hz = c.z + d.z / hl * D - o.z; const ll = Math.hypot(hx, hz) || 1; hx /= ll; hz /= ll;
     return { x: hx * hl * v, y: d.y * v + v * up, z: hz * hl * v };
   }
-  function throwOrigin() { const f = IV.fwd(P.yaw), r = { x: -f.z, z: f.x }; return { x: P.pos.x + r.x * 0.25 + f.x * 0.3, y: P.eyeY() + 0.15, z: P.pos.z + r.z * 0.25 + f.z * 0.3 }; }
+  function throwOrigin() { const f = IV.fwd(P.yaw), r = { x: -f.z, z: f.x }; return { x: P.pos.x + r.x * 0.3 + f.x * 0.35, y: P.eyeY() + 0.05, z: P.pos.z + r.z * 0.3 + f.z * 0.35 }; }   // just above eye level so the arc starts on screen, and still clears cover you crouch behind
   const arcOut = { pts: [], hit: null, t: 0 };
   WP.arc = function () { // predicted path: points along it (one every 2 steps) and the first surface it hits
     if (!WP.busyThrow) return null;
