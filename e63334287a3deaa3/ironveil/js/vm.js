@@ -324,8 +324,8 @@
         const h = (d, tt, e) => [t0 + tt, g('bolt', d), e];
         return {
           gun: [[t0, Z6], [t0 + 0.2, cr, 'io'], [t0 + 0.84, cr], [t0 + 0.88, [0.01, 0.012, -0.004, -0.06, 0.03, -0.24], 'hit'], [t0 + 1.02, Z6, 'io']],
-          hand: [[t0, 'base'], h([0, 0.025, 0.01], 0.22, 'fast'), h([0, 0, 0], 0.27, 'out'), h([0, 0.022, 0], 0.32, 'fast'), h([0, 0.022, -tr], 0.5, 'fast'), h([0, 0.022, -tr], 0.56), h([0, 0.022, 0], 0.7, 'hit'), h([0, 0, 0], 0.84, 'fast'), h([0.01, 0.03, 0.01], 0.9, 'fast'), [t0 + 1.04, 'base', 'fast']],
-          build: [[t0, base], [t0 + 0.08, 'bolt'], [t0 + 0.9, base]],
+          hand: [[t0, 'base'], [t0 + 0.07, g(base, [0.03, -0.16, -0.06]), 'in'], h([0.03, -0.17, 0.0], 0.15, 'io'), h([0, 0.025, 0.01], 0.22, 'fast'), h([0, 0, 0], 0.27, 'out'), h([0, 0.022, 0], 0.32, 'fast'), h([0, 0.022, -tr], 0.5, 'fast'), h([0, 0.022, -tr], 0.56), h([0, 0.022, 0], 0.7, 'hit'), h([0, 0, 0], 0.84, 'fast'), h([0.01, 0.03, 0.01], 0.9, 'fast'), [t0 + 1.04, 'base', 'fast']],
+          build: [[t0, base], [t0 + 0.09, 'bolt'], [t0 + 0.9, base]],
           boltTurn: [[t0, [0]], [t0 + 0.27, [0]], [t0 + 0.32, [up], 'fast'], [t0 + 0.7, [up]], [t0 + 0.84, [0], 'hit']],
           bolt: [[t0, [0]], [t0 + 0.32, [0]], [t0 + 0.5, [tr], 'fast'], [t0 + 0.56, [tr]], [t0 + 0.7, [0], 'hit']]
         };
@@ -340,9 +340,9 @@
         // the bolt's own events inside the empty reload (2.25 + 0.55 = 2.8 back)
         C.reloadEmpty.ch.bolt = [[0, [0]], [2.25 + 0.32, [0]], [2.8, [tr], 'fast'], [2.86, [tr]], [3.0, [0], 'hit']];
         C.reloadEmpty.ch.boltTurn = [[0, [0]], [2.25 + 0.27, [0]], [2.25 + 0.32, [up], 'fast'], [3.0, [up]], [3.12, [0], 'hit']];
-        C.reloadEmpty.ch.hand = C.reloadEmpty.ch.hand.filter(k => k[0] < 2.25).concat([[1.95, g('mag', [0.01, -0.05, 0])], [2.47, g('bolt', [0, 0.025, 0.01]), 'fast'], [2.52, g('bolt'), 'out'], [2.57, g('bolt', [0, 0.022, 0]), 'fast'], [2.8, g('bolt', [0, 0.022, -tr]), 'fast'], [2.86, g('bolt', [0, 0.022, -tr])], [3.0, g('bolt', [0, 0.022, 0]), 'hit'], [3.12, g('bolt'), 'fast'], [3.18, g('bolt', [0.01, 0.03, 0.01]), 'fast'], [3.32, 'base', 'fast']]);
+        C.reloadEmpty.ch.hand = C.reloadEmpty.ch.hand.filter(k => k[0] < 2.25).concat([[1.95, g('mag', [0.01, -0.05, 0])], [2.2, g('mag', [0.03, -0.2, -0.05]), 'in'], [2.38, g('bolt', [0.03, -0.17, 0]), 'io'], [2.47, g('bolt', [0, 0.025, 0.01]), 'fast'], [2.52, g('bolt'), 'out'], [2.57, g('bolt', [0, 0.022, 0]), 'fast'], [2.8, g('bolt', [0, 0.022, -tr]), 'fast'], [2.86, g('bolt', [0, 0.022, -tr])], [3.0, g('bolt', [0, 0.022, 0]), 'hit'], [3.12, g('bolt'), 'fast'], [3.18, g('bolt', [0.01, 0.03, 0.01]), 'fast'], [3.32, 'base', 'fast']]);
         C.reloadEmpty.ch.gun = r.ch.gun.filter(k => k[0] <= 1.8).concat([[2.3, [0.01, 0.01, 0, -0.04, 0.03, -0.22], 'io'], [3.12, [0.01, 0.01, 0, -0.04, 0.03, -0.22]], [3.16, [0.01, 0.012, -0.004, -0.06, 0.03, -0.24], 'hit'], [3.33, Z6, 'io']]);
-        C.reloadEmpty.ch.build = [[0, base], [0.14, 'mag'], [2.3, 'bolt'], [3.2, base]];
+        C.reloadEmpty.ch.build = [[0, base], [0.14, 'mag'], [2.28, 'bolt'], [3.2, base]];
       }
     }
     if (kind === 'smg') C.charge = { dur: 0.75, ev: { charge: 0.36 }, ch: {
