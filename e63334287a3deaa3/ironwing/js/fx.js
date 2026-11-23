@@ -40,7 +40,7 @@
             float r = aM.y; vec2 p = position.xy; p = vec2(p.x * cos(r) - p.y * sin(r), p.x * sin(r) + p.y * cos(r));
             vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]), up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
             vec3 w = aP.xyz + (right * p.x + up * p.y) * aP.w;
-            vUv = (uv + vec2(mod(aM.x, 2.0), floor(aM.x / 2.0))) * 0.5; vC = aC;
+            vUv = (uv + vec2(mod(aM.x, 2.0), 1.0 - floor(aM.x / 2.0))) * 0.5; vC = aC;   // canvas row 0 is the top (v = 1)
             float d = distance(cameraPosition, aP.xyz); vC.a *= smoothstep(aP.w * 0.3, aP.w * 1.2, d);
             vec4 mvPosition = viewMatrix * vec4(w, 1.0); gl_Position = projectionMatrix * mvPosition;
             #include <fog_vertex>
@@ -184,16 +184,174 @@
     };
   };
 
+  // ---------------------------------------------------------------- foam patches: flat foam on the water (one instanced draw)
+  // left where something hit the sea: a splash, a crash, a sinking ship. Each follows the waves and fades.
+  let foamDiscTex = null;
+  function foamDisc() {
+    if (foamDiscTex) return foamDiscTex;
+    const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), img = g.createImageData(S, S);
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const u = x / S - 0.5, v = y / S - 0.5, d = Math.hypot(u, v) * 2, n = IW.fbm(x / 7, y / 7, 23, 4), n2 = IW.fbm(x / 3, y / 3, 29, 3);
+      const ring = Math.exp(-((d - 0.72) ** 2) * 30) * 0.8 + (1 - IW.sstep(0.2, 0.95, d)) * 0.55;
+      const a = IW.clamp(ring * IW.sstep(0.32, 0.62, n) * (0.65 + 0.5 * n2) * (1 - IW.sstep(0.85, 1, d)), 0, 1);
+      const i = (y * S + x) * 4; img.data[i] = img.data[i + 1] = img.data[i + 2] = 245; img.data[i + 3] = a * 255;
+    }
+    g.putImageData(img, 0, 0); foamDiscTex = new THREE.CanvasTexture(c); foamDiscTex.generateMipmaps = true; return foamDiscTex;
+  }
+  class Foam {
+    constructor(N) {
+      this.N = N; this.list = [];
+      const base = new THREE.PlaneGeometry(1, 1); base.rotateX(-Math.PI / 2);
+      const g = new THREE.InstancedBufferGeometry(); g.index = base.index; g.setAttribute('position', base.attributes.position); g.setAttribute('uv', base.attributes.uv);
+      this.aP = new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4); this.aC = new THREE.InstancedBufferAttribute(new Float32Array(N * 2), 2);
+      this.aP.setUsage(THREE.DynamicDrawUsage); this.aC.setUsage(THREE.DynamicDrawUsage);
+      g.setAttribute('aP', this.aP); g.setAttribute('aC', this.aC); g.instanceCount = 0; this.geo = g;
+      const m = new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+        uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tF: { value: foamDisc() }, uSun: { value: 1 } }]),
+        vertexShader: `attribute vec4 aP; attribute vec2 aC; varying vec2 vUv; varying float vA;
+          #include <fog_pars_vertex>
+          void main(){ float r = aC.y; vec2 q = vec2(position.x * cos(r) - position.z * sin(r), position.x * sin(r) + position.z * cos(r)) * aP.w;
+            vUv = uv; vA = aC.x; vec4 mvPosition = viewMatrix * vec4(aP.x + q.x, aP.y, aP.z + q.y, 1.0); gl_Position = projectionMatrix * mvPosition;
+            #include <fog_vertex>
+          }`,
+        fragmentShader: `uniform sampler2D tF; uniform float uSun; varying vec2 vUv; varying float vA;
+          #include <fog_pars_fragment>
+          void main(){ float a = texture2D(tF, vUv).a * vA; if (a < 0.004) discard; gl_FragColor = vec4(vec3(0.84, 0.89, 0.9) * uSun, a);
+            #include <tonemapping_fragment>
+            #include <encodings_fragment>
+            #include <fog_fragment>
+          }`
+      });
+      m.userData.linear = true; this.mesh = new THREE.Mesh(g, m); this.mesh.frustumCulled = false; this.mesh.renderOrder = -3;
+    }
+    add(x, z, r0, r1, life, a) {
+      if (this.list.length >= this.N) this.list.shift();
+      this.list.push({ x, z, r0, r1, life, t: 0, a: a == null ? 0.9 : a, rot: Math.random() * 6.28 });
+    }
+    update(dt) {
+      const P = this.aP.array, C = this.aC.array; let n = 0;
+      for (let i = this.list.length - 1; i >= 0; i--) { const f = this.list[i]; f.t += dt; if (f.t >= f.life) this.list.splice(i, 1); }
+      for (const f of this.list) {
+        const u = f.t / f.life, r = f.r0 + (f.r1 - f.r0) * Math.sqrt(u);
+        P[n * 4] = f.x; P[n * 4 + 1] = W.waveAt(f.x, f.z) + 0.2; P[n * 4 + 2] = f.z; P[n * 4 + 3] = r * 2;
+        C[n * 2] = f.a * Math.min(1, f.t * 4) * (1 - u) ** 1.3; C[n * 2 + 1] = f.rot + u * 0.3; n++;
+      }
+      this.geo.instanceCount = n; if (n) { this.aP.needsUpdate = this.aC.needsUpdate = true; }
+      this.mesh.material.uniforms.uSun.value = 0.55 + 0.45 * Math.max(0, W.sunDir.y * 1.5);
+    }
+    clear() { this.list.length = 0; this.geo.instanceCount = 0; }
+  }
+
+  // ---------------------------------------------------------------- debris: small torn panels thrown out of a blast (one instanced draw)
+  class Debris {
+    constructor(N) {
+      this.N = N; this.list = [];
+      const g = new THREE.BoxGeometry(1, 0.08, 0.7); g.userData.shared = true;
+      const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75, metalness: 0.35 }); m.userData.linear = true;
+      this.mesh = new THREE.InstancedMesh(g, m, N); this.mesh.count = 0; this.mesh.frustumCulled = false;
+      this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      const c = new THREE.Color(); for (let i = 0; i < N; i++) this.mesh.setColorAt(i, c.setRGB(0.05, 0.05, 0.05));
+      this.o = new THREE.Object3D(); this.ax = new THREE.Vector3();
+    }
+    add(p, v, s, col, smoke) {
+      if (this.list.length >= this.N) this.list.shift();
+      const d = { x: p.x, y: p.y, z: p.z, vx: v.x, vy: v.y, vz: v.z, s, t: 0, life: 6 + Math.random() * 4, q: new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 6, Math.random() * 6, 0)),
+        w: new THREE.Vector3(R(), R(), R()).normalize(), ws: 4 + Math.random() * 10, col, smoke: smoke && Math.random() < 0.5, st: 0 };
+      this.list.push(d);
+    }
+    update(dt) {
+      const o = this.o, tq = new THREE.Quaternion(); let n = 0;
+      for (let i = this.list.length - 1; i >= 0; i--) {
+        const d = this.list[i]; d.t += dt;
+        const k = Math.exp(-0.25 * dt); d.vx *= k; d.vz *= k; d.vy = d.vy * k - 9.8 * dt;
+        d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt;
+        if (d.smoke && d.t < 3 && (d.st -= dt) <= 0) { d.st = 0.06; smoke.spawn({ x: d.x, y: d.y, z: d.z, life: 1.6, s0: 0.6 * d.s + 0.4, s1: 3 * d.s + 1.5, c: smokeCol(0.12), a: 0.55, tile: 0, rv: R() * 0.5 }); }
+        const g = W.landAt(d.x, d.z), sea = W.waveAt(d.x, d.z);
+        if (d.y < Math.max(g, sea) || d.t > d.life) { if (d.y < sea && g < sea && d.s > 0.5) F.waterHit({ x: d.x, y: sea, z: d.z }); this.list.splice(i, 1); }
+      }
+      for (const d of this.list) {
+        tq.setFromAxisAngle(d.w, d.ws * dt); d.q.multiply(tq);
+        o.position.set(d.x, d.y, d.z); o.quaternion.copy(d.q); o.scale.setScalar(d.s); o.updateMatrix();
+        this.mesh.setMatrixAt(n, o.matrix); this.mesh.setColorAt(n, d.col); n++;
+      }
+      this.mesh.count = n; if (n) { this.mesh.instanceMatrix.needsUpdate = true; if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true; }
+    }
+    clear() { this.list.length = 0; this.mesh.count = 0; }
+  }
+
+  // ---------------------------------------------------------------- parts that break off: real model pieces falling free
+  const pieces = [];
+  F.detach = function (obj, vel, spin) {
+    if (!obj || !obj.parent) return;
+    W.world.attach(obj);   // keeps its world transform
+    pieces.push({ o: obj, v: vel.clone(), w: new THREE.Vector3(R(), R() * 0.5, R()).normalize(), ws: spin || 3 + Math.random() * 3, t: 0, st: 0 });
+  };
+  F.release = function (obj) { const i = pieces.findIndex(p => p.o === obj); if (i >= 0) pieces.splice(i, 1); };
+  function stepPieces(dt) {
+    const tq = new THREE.Quaternion();
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      const p = pieces[i], o = p.o; p.t += dt;
+      const k = Math.exp(-0.35 * dt); p.v.x *= k; p.v.z *= k; p.v.y = p.v.y * k - 9.8 * dt;
+      o.position.addScaledVector(p.v, dt); tq.setFromAxisAngle(p.w, p.ws * dt); o.quaternion.premultiply(tq);
+      if (p.t < 5 && (p.st -= dt) <= 0) { p.st = 0.05; smoke.spawn({ x: o.position.x, y: o.position.y, z: o.position.z, vx: R(), vy: R(), vz: R(), life: 2.5, s0: 0.8, s1: 4, c: smokeCol(0.1), a: 0.6, tile: 0, rv: R() * 0.4 }); if (p.t < 1.5) fire.spawn({ x: o.position.x, y: o.position.y, z: o.position.z, life: 0.25, s0: 1.4, s1: 0.5, c: [2.4, 1, 0.3], tile: 1, rv: R() * 2 }); }
+      const g = W.landAt(o.position.x, o.position.z), sea = W.waveAt(o.position.x, o.position.z);
+      if (o.position.y < Math.max(g, sea) + 0.5 || p.t > 30) {
+        if (o.position.y < sea + 1 && g < sea && p.t <= 30) { F.splash(o.position, 0.5, true); }
+        o.parent && o.parent.remove(o); pieces.splice(i, 1);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------- fires left burning where something crashed on land
+  const burns = [];
+  F.burn = function (p, dur, size) { if (burns.length > 12) burns.shift(); burns.push({ p: p.clone(), t: 0, dur, size: size || 1, ft: 0 }); };
+  function stepBurns(dt) {
+    for (let i = burns.length - 1; i >= 0; i--) {
+      const b = burns[i]; b.t += dt; if (b.t > b.dur) { burns.splice(i, 1); continue; }
+      if ((b.ft -= dt) > 0) continue; const k = 1 - b.t / b.dur; b.ft = 0.12 / Math.max(0.3, k);
+      fire.spawn({ x: b.p.x + R() * 1.5 * b.size, y: b.p.y + 0.5, z: b.p.z + R() * 1.5 * b.size, vy: 3 + Math.random() * 2, life: 0.5 + Math.random() * 0.4, s0: 2.2 * b.size * (0.5 + k * 0.5), s1: 0.8, c: [2.4, 1.0, 0.3], tile: 1, rv: R() * 2 });
+      smoke.spawn({ x: b.p.x + R() * b.size, y: b.p.y + 2, z: b.p.z + R() * b.size, vx: R() * 0.6 + 1.2, vy: 3 + Math.random() * 2, vz: R() * 0.6, life: 7 + Math.random() * 4, s0: 3 * b.size, s1: 12 * b.size, c: smokeCol(0.1), a: 0.55 * k + 0.2, drag: 0.3, tile: 0, rv: R() * 0.2 });
+    }
+  }
+
+  // ---------------------------------------------------------------- a damaged aircraft's trail: grows from grey wisps to black smoke and fire
+  // k: 0 (just damaged) .. 1 (burning). Called every simulation step by the aircraft; spawns enough puffs that the trail
+  // stays joined up at any speed (one puff every few metres), fewer on Low.
+  F.trail = function (p, vel, k, dt, st) {
+    st.acc = (st.acc || 0) + Math.hypot(vel.x, vel.y, vel.z) * dt + dt * 8;
+    const gap = (lowQ ? 7 : 4.5) - k * 1.5;
+    while (st.acc > gap) {
+      st.acc -= gap; const back = st.acc / Math.max(1, Math.hypot(vel.x, vel.y, vel.z));
+      const x = p.x - vel.x * back, y = p.y - vel.y * back, z = p.z - vel.z * back;
+      const dark = IW.clamp((k - 0.25) * 1.6, 0, 1), s = 1.5 + k * 3.2;
+      smoke.spawn({ x, y, z, vx: vel.x * 0.08 + R(), vy: vel.y * 0.08 + 1, vz: vel.z * 0.08 + R(), life: 2 + k * 4, s0: s, s1: s * (3 + k * 2), c: smokeCol(0.62 - dark * 0.52), a: 0.32 + k * 0.5, drag: 0.7, tile: 0, rv: R() * 0.4, fade: 0.05 });
+      if (k > 0.62) fire.spawn({ x, y, z, vx: vel.x * 0.6, vy: vel.y * 0.6, vz: vel.z * 0.6, life: 0.18 + Math.random() * 0.12 + (k - 0.62) * 0.4, s0: 1.2 + k * 1.8, s1: 0.5, c: [2.6, 1.1, 0.32], tile: 1, rv: R() * 2, fade: 0.02 });
+    }
+  };
+
   // ---------------------------------------------------------------- setup and presets
-  let W, smoke, fire, tracers;
+  let W, smoke, fire, tracers, foamP, debris, lowQ = false;
   F.init = function () {
-    W = IW.world; const tex = atlas();
-    smoke = F.smoke = new PS(IW.world.Q.name === 'low' ? 1800 : 3200, false, tex);
+    W = IW.world; const tex = atlas(); lowQ = IW.world.Q.name === 'low';
+    smoke = F.smoke = new PS(lowQ ? 1800 : 3200, false, tex);
     fire = F.fire = new PS(1600, true, tex);
     tracers = F.tracers = new Tracers(700);
-    W.scene.add(smoke.mesh, fire.mesh, tracers.mesh);
+    foamP = F.foamP = new Foam(lowQ ? 24 : 48);
+    debris = F.debrisP = new Debris(lowQ ? 32 : 64);
+    W.scene.add(smoke.mesh, fire.mesh, tracers.mesh, foamP.mesh, debris.mesh);
   };
-  F.clear = function () { smoke.clear(); fire.clear(); tracers.geo.instanceCount = 0; F.shakeAmt = 0; };
+  F.clear = function () {
+    smoke.clear(); fire.clear(); tracers.geo.instanceCount = 0; F.shakeAmt = 0; foamP.clear(); debris.clear(); burns.length = 0;
+    for (const p of pieces) p.o.parent && p.o.parent.remove(p.o); pieces.length = 0;
+  };
+  F.foam = function (p, r0, r1, life, a) { foamP.add(p.x, p.z, r0, r1, life, a); };
+  // torn panels thrown out of a blast: n pieces of about size m, coloured like what blew up
+  const DEB = { air: new THREE.Color(0.06, 0.065, 0.06), ship: new THREE.Color(0.07, 0.07, 0.075), ground: new THREE.Color(0.06, 0.055, 0.05) };
+  F.debris = function (p, v, n, size, kind) {
+    n = Math.round(n * (lowQ ? 0.6 : 1)); const c = DEB[kind] || DEB.air;
+    for (let i = 0; i < n; i++) debris.add(p, { x: (v ? v.x * 0.5 : 0) + R() * 22 * size, y: (v ? v.y * 0.5 : 0) + R() * 14 * size + 10, z: (v ? v.z * 0.5 : 0) + R() * 22 * size }, (0.35 + Math.random() * 0.9) * size, c, kind !== 'ground');
+  };
   const R = () => Math.random() * 2 - 1;
   const smokeCol = k => { const s = W.mood ? 0.55 + 0.45 * Math.max(0, W.sunDir.y * 2) : 1; return [k * s, k * s, k * s * 1.02]; };
   F.muzzle = function (p, v) { fire.spawn({ x: p.x, y: p.y, z: p.z, vx: v.x, vy: v.y, vz: v.z, life: 0.05, s0: 0.9, s1: 1.4, c: [3, 2, 1], tile: 2 }); };
@@ -228,7 +386,7 @@
     const d = W.camera.position.distanceTo(p); F.shake(IW.clamp(size * 60 / (d + 20), 0, 1.2));
   };
   F.shake = function (k) { if (IW.S.motion) return; F.shakeAmt = Math.min(1.5, F.shakeAmt + k); };
-  F.frame = function (dt) { smoke.update(dt); fire.update(dt); F.shakeAmt = Math.max(0, F.shakeAmt - dt * 1.8); };
+  F.frame = function (dt) { stepPieces(dt); stepBurns(dt); smoke.update(dt); fire.update(dt); foamP.update(dt); debris.update(dt); F.shakeAmt = Math.max(0, F.shakeAmt - dt * 1.8); };
   // shown once behind the loading screen so their shaders are built before play
   F.warm = function () { const p = W.camera.position.clone().add(new THREE.Vector3(0, 0, -50).applyQuaternion(W.camera.quaternion)); smoke.spawn({ x: p.x, y: p.y, z: p.z, life: 0.01 }); fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.01, c: [0, 0, 0] }); smoke.update(0); fire.update(0); };
 })();

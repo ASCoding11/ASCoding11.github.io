@@ -529,9 +529,19 @@
     if (lod) lod.visible = false;
     root.userData.kind = kind;
     root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    // the outer left wing panel can tear off (A.breakup); keep where it and the aileron on it belong
+    const wo = parts.wingOut = get('_wingOut'); parts.hi = hi;
+    const home = o => o && { o, p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() };
+    parts.home = [home(wo), home(parts.aileronL)].filter(Boolean);
     let spin = 0, far = false;
     return {
       root, parts,
+      // put back a torn-off wing (the player's aircraft is reused after a crash)
+      reset() {
+        if (!parts.broken) return; parts.broken = false; root.scale.x = 1;
+        for (const h of parts.home) { IW.fx.release(h.o); root.add(h.o); h.o.position.copy(h.p); h.o.quaternion.copy(h.q); h.o.scale.copy(h.s); }
+        if (wo && !hi.includes(wo)) hi.push(wo);
+      },
       animate(dt, rpm, ctl) {
         // the reduced copy far away (never for your own aircraft)
         const isFar = !!(!hero && lod && root.position.distanceToSquared(IW.world.camera.position) > 450 * 450);
@@ -549,6 +559,21 @@
         for (const L of parts.legs) { L.piv.visible = k > 0.02; L.piv.rotation.z = (1 - k) * L.side * Math.PI / 2 * 0.98; }
       }
     };
+  };
+  // a shot-down aircraft loses its outer wing panel (doIt: the caller's dice). Half the time the whole aircraft is
+  // mirrored first, so it is the right wing that goes. Returns { side: the roll direction toward the missing wing
+  // (+1 rolls right), at: the break in the aircraft's own frame, for the smoke } or null.
+  A.breakup = function (model, vel, doIt) {
+    const P = model.parts, wo = P && P.wingOut; if (!doIt || !wo || P.broken || !wo.parent) return null;
+    P.broken = true; const mir = Math.random() < 0.5; if (mir) model.root.scale.x = -1;
+    if (P.aileronL) wo.attach(P.aileronL);
+    const i = P.hi.indexOf(wo); if (i >= 0) P.hi.splice(i, 1);
+    wo.visible = true;
+    model.root.updateMatrixWorld(true);
+    const out = new THREE.Vector3(mir ? -1 : 1, 0, 0).applyQuaternion(model.root.quaternion);
+    const h = P.home[0].p, at = new THREE.Vector3(mir ? -h.x : h.x, h.y, h.z);
+    IW.fx.detach(wo, vel.clone().addScaledVector(out, 7).add(new THREE.Vector3(0, 4, 0)), 3 + Math.random() * 4);
+    return { side: mir ? 1 : -1, at };
   };
   A.ship = function (kind, team) {
     const root = clone(kind); if (!root) return SA.ship(kind, team);
