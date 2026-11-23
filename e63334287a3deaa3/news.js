@@ -85,6 +85,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.48', title: 'See when someone is waiting for your room', kind: 'feature',
+     tags: ['Playing now'], items: [
+      'When a room is full and someone queues for it, the people in that room are now told.'
+    ]},
     {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
      items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
              'Only the site\'s team can read what you send.']},

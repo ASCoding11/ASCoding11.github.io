@@ -6,6 +6,8 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "See when someone is waiting for your room": "Mira cuándo alguien espera por tu sala",
+    "When a room is full and someone queues for it, the people in that room are now told.": "Cuando una sala está llena y alguien se pone en cola, ahora se avisa a quienes están en la sala.",
     "A contact page": "Una página de contacto",
     "The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.": "La web ya tiene una página de Contacto, enlazada al final de cada página: manda un error, una idea o una pregunta, con un correo si quieres respuesta.",
     "Only the site's team can read what you send.": "Solo el equipo de la web puede leer lo que mandes.",
