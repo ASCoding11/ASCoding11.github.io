@@ -19,6 +19,13 @@
     'Sketch map of the area': 'Croquis de la zona', 'Game view': 'Vista del juego',
     'PAUSED': 'PAUSA', 'Resume': 'Seguir', 'Restart from checkpoint': 'Volver al punto de control', 'Restart mission': 'Reiniciar la misión', 'Quit to map table': 'Salir a la mesa de mapas',
     'Game': 'Juego', 'Video': 'Video', 'Audio': 'Audio', 'Look sensitivity': 'Sensibilidad de la vista', 'Aim sensitivity': 'Sensibilidad al apuntar', 'While aiming or scoped': 'Al apuntar o con la mira',
+    // ---- shooting (aim assist only on touch screens, debrief rating, hit and ammo cues)
+    'Enemies slow to notice and miss more. Strong aim assist on touch screens.': 'Los enemigos tardan en verte y fallan más. Mucha ayuda de puntería en pantallas táctiles.',
+    'A fair fight. Light aim assist on touch screens.': 'Una pelea pareja. Poca ayuda de puntería en pantallas táctiles.',
+    'Sharp eyes, hard hits. Faint aim assist on touch screens.': 'Ven bien y pegan fuerte. Una pizca de ayuda de puntería en pantallas táctiles.',
+    'Touch screens only (never with a mouse). 0 turns it off.': 'Solo en pantallas táctiles (nunca con ratón). 0 la apaga.',
+    'Skill rating': 'Nota de habilidad', 'Skill rating of {n} or better': 'Nota de habilidad de {n} o más', 'Head shots': 'Tiros a la cabeza', 'Deaths': 'Muertes',
+    'new best': 'nuevo récord', 'best {n}': 'récord {n}', 'par {t}': 'referencia {t}',
     'Invert look up and down': 'Invertir la vista arriba y abajo', 'Aim assist strength': 'Fuerza de la ayuda de puntería', "Multiplies the difficulty's assist. 0 turns it off.": 'Multiplica la ayuda de la dificultad. 0 la apaga.',
     'Auto-fire on target': 'Disparo automático sobre el blanco', 'Touch screens: fires when the reticle is on an enemy': 'Pantallas táctiles: dispara cuando la mira está sobre un enemigo',
     'Subtitle size': 'Tamaño de subtítulos', 'Small': 'Chico', 'Medium': 'Mediano', 'Large': 'Grande', 'Blood effects': 'Efectos de sangre', 'Off: hits show dust puffs instead': 'Apagado: los impactos muestran polvo',
