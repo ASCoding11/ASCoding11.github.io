@@ -214,6 +214,9 @@
     const model = WP.models[k], muzzle = model.userData.muzzle;
     muzzle.getWorldPosition(mz);
     if (IV.fp && IV.fp.on() && !WP.scoped) IV.fp.muzzle(mz);   // first person: the flash and tracer start at the visible muzzle
+    // a gun left behind by an animation (seen after planting the charge: the model stayed 2.7 m away and every round
+    // started there, into the sandbags) must never be where a round starts: fall back to the player's eye
+    { const ey = P.pos.y + (P.eyeH || 1.6), gx = mz.x - P.pos.x, gy = mz.y - ey, gz = mz.z - P.pos.z; if (gx * gx + gy * gy + gz * gz > 1.8 * 1.8) mz.set(P.pos.x, ey, P.pos.z); }
     if (WP.scoped) {
       // from the scope: start one sight-height below the eye, angled up by the zero angle
       const up = new THREE.Vector3(0, 1, 0).applyQuaternion(c.quaternion);
