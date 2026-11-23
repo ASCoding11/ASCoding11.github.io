@@ -53,8 +53,8 @@
     // the hedge line and the hills.
     day_overcast: {
       skyTop: 0x6f7d8c, skyHor: 0xb6b8b3, ground: 0x4b4a44, fog: 0xa7aaa8, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
-      sunDir: [0.6, 0.47, -0.62], sunCol: 0xf1e2c8, sunI: 1.75, sunShadow: true, soft: 5, moon: 0, stars: 0, cloud: 0.8, cloudCol: 0x8f9396, glow: 1.2, cscale: 0.75,
-      hemiSky: 0x9aa7b6, hemiGround: 0x635a4a, hemiI: 0.7, env: 0.75, exposure: 0.92, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
+      sunDir: [0.6, 0.47, -0.62], sunCol: 0xf1e2c8, sunI: 1.35, sunShadow: true, soft: 5, moon: 0, stars: 0, cloud: 0.8, cloudCol: 0x8f9396, glow: 1.2, cscale: 0.75,
+      hemiSky: 0x9aa7b6, hemiGround: 0x635a4a, hemiI: 0.85, env: 0.75, exposure: 0.9, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
     }
   };
 
