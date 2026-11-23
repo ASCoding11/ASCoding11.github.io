@@ -118,7 +118,7 @@
   let pLight = 0.3, pLightT = -1;
   AI.playerLight = function () { if (IV.time - pLightT > 0.1) { pLight = W.lightAt(P.pos.x, P.pos.y + (P.stance === 'prone' ? 0.3 : 1.0), P.pos.z); pLightT = IV.time; } return pLight; };
   AI.visRange = function (e, light) {
-    const st = P.stance, mv = P.speed < 0.3 ? 'still' : P.sprinting ? 'sprint' : P.speed > 2.8 ? 'run' : 'walk';
+    const st = P.stance, g = P.gait, mv = P.speed < 0.3 ? 'still' : P.sprinting ? 'sprint' : g === 'run' || g === 'crouchRun' ? 'run' : 'walk';   // by gait, not raw speed: walking with the gun raised (3.2 m/s) is still a walk
     let r = A.sightRange * e.sightMul * Math.min(1.2, light) * A.stance[st] * A.move[mv];
     if (P.crops) r *= A.conceal[st];
     if (e.state === 'combat') r *= 1.6; else if (e.alerted) r *= 1.3;
