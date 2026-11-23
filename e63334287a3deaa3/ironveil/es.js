@@ -132,6 +132,13 @@
     // sketch labels
     'FLAK': 'ANTIAÉREO', 'MG': 'AMETR.', 'post': 'puesto', 'sniper?': '¿francotirador?', 'Mauvenant Farm': 'Granja Mauvenant', 'orchard': 'huerto', 'wheat': 'trigo', 'the Lirette': 'el Lirette', 'telephone line': 'línea telefónica',
     'you are here (roughly)': 'estás acá (más o menos)', 'out': 'salida', 'start': 'inicio', 'run': 'correr', 'crouch': 'agacharse', 'crawl': 'arrastrarse', 'vault': 'saltar', 'pop-ups': 'blancos', 'rifle': 'fusil', 'pen': 'corral', 'binoculars': 'binoculares', 'pit': 'pozo',
-    'Camp Hollowmere': 'Campamento Hollowmere'
+    'Camp Hollowmere': 'Campamento Hollowmere',
+    // ---- handling round (movement, jump, crouch setting, crosshair, throws)
+    'Toggle: press to crouch, again to stand. Hold: crouched while the key is down': 'Alternar: aprieta para agacharte y otra vez para pararte. Mantener: agachado mientras tengas la tecla apretada',
+    'Toggle': 'Alternar', 'Hold': 'Mantener',
+    'Hold to cook and aim (the arc shows where it lands), let go to throw. Tap throws at once': 'Mantén para quitar el seguro y apuntar (el arco muestra dónde cae), suelta para tirar. Un toque la tira enseguida',
+    'Hold to aim (the arc shows where it lands), let go to throw. Guards go to look': 'Mantén para apuntar (el arco muestra dónde cae), suelta para tirar. Los guardias van a mirar',
+    'Jump': 'Saltar',
+    'Jump / vault / stand up': 'Saltar / pasar por encima / pararse'
   });
 })();

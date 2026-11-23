@@ -306,7 +306,32 @@
       c.tracks = c.tracks.filter(function (t) { return !t._drop; });
       FPCLIPS[c.name] = c;
     });
-    g.scene.traverse(function (o) { if (o.isMesh) { prepMaterial(o.material); if (o.material.map) o.material.map.anisotropy = 8; } });
+    g.scene.traverse(function (o) { if (o.isMesh) { prepMaterial(o.material); if (o.material.map) o.material.map.anisotropy = 8; gloveMaterial(o.material); } });
+  }
+  // The gloves: the arms' atlas (tools/chars/fp_tex.py) already paints dark brown leather with lighter polished
+  // knuckles and fingertips; this shader only takes the brown texels (red over green over blue; the smock sleeve is
+  // green-grey, the watch steel grey) a little darker and greyer, and holds their roughness at 0.46-0.62 so the
+  // knuckles and the back of the hand catch a soft highlight instead of reading as one flat dark shape. The arms'
+  // normal map is run at 1.7 so seams, folds and the sleeve's weave show at arm's length. IV.fpGloveWet (0..1, set
+  // by the game from the rain, eased down under a roof) darkens the leather a little more and makes it glossier,
+  // like the ground and walls when wet. Material only: no asset change.
+  IV.fpGloveWet = { value: 0 };
+  function gloveMaterial(m) {
+    if (!m || m.userData.glove) return; m.userData.glove = true;
+    m.onBeforeCompile = function (sh) {
+      sh.uniforms.uGloveWet = IV.fpGloveWet;
+      sh.fragmentShader = 'uniform float uGloveWet;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+        '#include <map_fragment>\n' +
+        '  float gl = smoothstep(0.18, 0.36, (diffuseColor.r - diffuseColor.g) / max(diffuseColor.r, 1e-4)) * step(diffuseColor.b, diffuseColor.g * 1.15);\n' +
+        '  vec3 lea = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.2) * vec3(0.90, 0.85, 0.80);\n' +
+        '  lea *= 1.0 - 0.22 * uGloveWet;\n' +
+        '  diffuseColor.rgb = mix(diffuseColor.rgb, lea, gl);\n' +
+        '  float gloveK = gl;')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' +
+        '  roughnessFactor = mix(roughnessFactor, mix(clamp(roughnessFactor, 0.46, 0.62), 0.32, uGloveWet), gloveK);');
+    };
+    m.customProgramCacheKey = function () { return 'fpglove3'; };
+    if (m.normalMap) m.normalScale.set(1.7, 1.7);   // seams, knuckle folds and the sleeve's weave read at arm's length
   }
   IV.fpClips = function (kind) {
     return Object.keys(FPCLIPS).filter(function (n) { return n.indexOf(kind + '.') === 0; }).map(function (n) { return n.slice(kind.length + 1); });
@@ -340,6 +365,9 @@
       var mats = Array.isArray(o.material) ? o.material : [o.material];
       mats = mats.map(function (m0) {
         var m = m0.clone();
+        // steel reflects the arms' own sky cube a little harder than the world does (js/fp.js vmEnv), so a
+        // highlight runs along the receiver and barrel; wood and the glass keep the default
+        if (m.metalnessMap && !/glass/.test(m.name)) m.envMapIntensity = 1.5;
         m.onBeforeCompile = function (sh) {
           sh.uniforms.uOccPts = { value: occPts };
           sh.vertexShader = 'varying vec3 vOccPos;\n' + sh.vertexShader.replace('#include <project_vertex>',
@@ -375,6 +403,12 @@
     if (raiseC) { raise = mixer.clipAction(raiseC); raise.setLoop(T.LoopOnce, 1); raise.clampWhenFinished = true; raise.timeScale = 0; raise.play(); raise.setEffectiveWeight(0); }
     function sstep(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
     var oneW = 0, oneFade = 0.1, oneOut = false, st = { ads: 0, sprint: 0 };
+    // Bones that drive() turns after the mixer (dropElbow: upper arms and hands; aimThumb: thumbs). three.js's
+    // PropertyMixer only writes a bone when the blended value differs from the previous frame's, so on a held pose
+    // (constant tracks) these turns were never undone: after a shot the firing hand kept the fire pose's turn and
+    // drifted, fingers standing up over the pistol's sights. Each frame they get the mixer's last value back first.
+    var procB = ['upperarm_l', 'upperarm_r', 'hand_l', 'hand_r', 'thumb_01_l', 'thumb_01_r'].map(function (n) { return bones[n]; }).filter(Boolean);
+    var procQ = procB.map(function (b) { return b.quaternion.clone(); });
     function find(o, n) { return o.getObjectByName(kind + '_' + n) || null; }
     var ao = kmeta.adsOffset;
     var vm = {
@@ -429,8 +463,13 @@
         if (base.sprint) base.sprint.setEffectiveWeight(ws * bw);
         if (one) one.setEffectiveWeight(oneW);
         var t0 = one ? one.time : 0;
+        for (var pi = 0; pi < procB.length; pi++) procB[pi].quaternion.copy(procQ[pi]);
         mixer.update(dt || 0);
+        for (pi = 0; pi < procB.length; pi++) procQ[pi].copy(procB[pi].quaternion);
         root.updateMatrixWorld(true);
+        if (vm.elbows) { dropElbow(bones, 'l', vm.elbows.l || 0, vm.elbows.out || 0); dropElbow(bones, 'r', vm.elbows.r || 0, vm.elbows.out || 0); }
+        // (vm.thumbL is no longer applied: the pistol clips curl both thumbs down against the grip, below the slide;
+        // laid forward by aimThumb the support thumb rose to the sight line)
         for (var bi = 0; bi < 6; bi++) { var bb = bones[occBones[bi]]; if (bb) occPts[bi].setFromMatrixPosition(bb.matrixWorld); }
         if (bones.hand_r && bones.middle_01_r) { occPts[0].lerp(occPts[1], 0.5); occPts[3].lerp(occPts[4], 0.5); }   // palm centres
         var out = [];
@@ -448,6 +487,37 @@
     vm.drive({}, 0);
     return vm;
   };
+
+  // vm.elbows = { l: 0..1, r: 0..1, out }: the game can swing each elbow down (and `out` sideways) about the line
+  // from the shoulder to the hand, by that share of the way, after the clip is applied. The hand keeps its place and
+  // its turn, so the grip on the gun is untouched; only the forearm's path changes. With the elbows level the
+  // forearms ran forward along the view under a pistol held at the eye (two sleeves up the middle of the screen);
+  // dropped, they fall away steeply out of the bottom of the frame.
+  var _ea = new T.Vector3(), _es = new T.Vector3(), _eh = new T.Vector3(), _ee = new T.Vector3(), _ed = new T.Vector3(), _ex = new T.Vector3();
+  var _eq = new T.Quaternion(), _eq2 = new T.Quaternion();
+  function dropElbow(bones, s, k, out) {
+    var ua = bones['upperarm_' + s], la = bones['lowerarm_' + s], h = bones['hand_' + s];
+    if (!ua || !la || !h || !(k > 0.001)) return;
+    worldPos(ua, _es); worldPos(h, _eh); worldPos(la, _ee);
+    _ea.copy(_eh).sub(_es); if (_ea.lengthSq() < 1e-8) return; _ea.normalize();
+    _ee.sub(_es); _ee.addScaledVector(_ea, -_ee.dot(_ea)); if (_ee.lengthSq() < 1e-8) return; _ee.normalize();
+    _ed.set(s === 'l' ? -out : out, -1, 0); _ed.addScaledVector(_ea, -_ed.dot(_ea)); if (_ed.lengthSq() < 1e-8) return; _ed.normalize();
+    var ang = Math.atan2(_ex.crossVectors(_ee, _ed).dot(_ea), _ee.dot(_ed));
+    worldQuat(h, _eq2);
+    rotWorld(ua, _eq.setFromAxisAngle(_ea, ang * Math.min(1, k)));
+    setWorldQuat(h, _eq2);
+  }
+
+  // vm.thumbL = 0..1: the support thumb laid forward along the frame (a thumbs-forward pistol grip) by that share;
+  // the clip's pistol grip left it sticking straight out sideways from the hands
+  var _tq = new T.Quaternion();
+  function aimThumb(bones, s, k) {
+    var t1 = bones['thumb_01_' + s], tip = bones['thumb_04_leaf_' + s] || bones['thumb_03_' + s]; if (!t1 || !tip) return;
+    worldPos(t1, _es); worldPos(tip, _eh); _ed.copy(_eh).sub(_es); if (_ed.lengthSq() < 1e-8) return; _ed.normalize();
+    _ex.set(s === 'l' ? 0.3 : -0.3, 0.1, -1).normalize();
+    _tq.setFromUnitVectors(_ed, _ex); _eq.identity().slerp(_tq, Math.min(1, k));
+    rotWorld(t1, _eq);
+  }
 
   // ---------- math helpers
   var _v1 = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _v4 = new T.Vector3(), _v5 = new T.Vector3();

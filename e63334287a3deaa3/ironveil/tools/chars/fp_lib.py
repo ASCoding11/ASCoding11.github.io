@@ -161,12 +161,34 @@ def arm_to(rig, L, W, s, Mhand, pole, twist=0.7, reach=0.93):
 def palm_normal(rig, W, s):
     return (rig.delta(W, 'hand_' + s) @ Vector((0, 0, -1))).normalized()
 
+def thumb_side(rig, W, s):
+    """Unit vector in the palm plane, across the hand from the knuckle line toward the thumb."""
+    h = W['hand_' + s].translation; d = (W['middle_01_' + s].translation - h).normalized()
+    t = W['index_01_' + s].translation - W['pinky_01_' + s].translation
+    pn = palm_normal(rig, W, s)
+    t = t - d * t.dot(d) - pn * t.dot(pn)
+    return t.normalized() if t.length > 1e-9 else Vector((0, 0, 1))
+
 def set_fingers(rig, L, W, s, ang):
-    """ang: finger -> (a1, a2, a3) curl angles in radians (+ toward the palm), thumb also takes 'spread' as a4."""
+    """ang: finger -> (a1, a2, a3) curl angles in radians (+ toward the palm), thumb also takes 'spread' as a4.
+    A fourth value on a finger is its sideways swing at the knuckle (radians, + toward the thumb): the trigger finger
+    laid forward along the frame."""
     palm = palm_normal(rig, W, s)
     for f in FINGERS:
         a = ang.get(f)
         if a is None: continue
+        if f != 'thumb' and len(a) > 3 and a[3]:
+            b = '%s_01_%s' % (f, s)
+            d = (W[b].to_3x3() @ Vector((0, 1, 0))).normalized(); ts = thumb_side(rig, W, s)
+            sg = 1.0 if d.cross(ts).dot(palm) < 0 else -1.0       # the turn about the palm normal that swings d toward ts
+            rig.rot_world(L, W, b, Quaternion(palm, -sg * a[3]))
+        if f == 'thumb' and len(a) > 4 and a[4]:
+            # a fifth value swings the whole thumb about the palm normal toward the fingers (+) or away (-): the thumb
+            # laid forward alongside the index (a pistol's thumbs-forward grip), which curl and spread cannot reach
+            b = 'thumb_01_' + s
+            d = (W[b].to_3x3() @ Vector((0, 1, 0))).normalized(); hd = (W['middle_01_' + s].translation - W['hand_' + s].translation).normalized()
+            sg = 1.0 if d.cross(hd).dot(palm) > 0 else -1.0
+            rig.rot_world(L, W, b, Quaternion(palm, sg * a[4]))
         if f == 'thumb' and len(a) > 3 and a[3]:
             b = 'thumb_01_' + s
             d = (W[b].to_3x3() @ Vector((0, 1, 0))).normalized()
@@ -281,7 +303,7 @@ def wrap_fingers(rig, skin, L0, W0, s, bvh, Minv, fingers=('index', 'middle', 'r
     return out
 
 def grasp_fingers(rig, skin, L0, W0, s, bvh, Minv, fingers=('index', 'middle', 'ring', 'pinky', 'thumb'), gap=0.0012,
-                  thumb_spread=0.0, start=None, step=0.04):
+                  thumb_spread=0.0, start=None, step=0.04, spread=None):
     """Grasp like a hand closing on an object: each finger curls with natural joint coupling until any of its
     segments touches the surface (bvh, in the frame Minv maps first-person space into); then the middle and end
     joints keep closing, then the end joint alone, each until it touches. Fingers never bend backwards and never
@@ -292,17 +314,17 @@ def grasp_fingers(rig, skin, L0, W0, s, bvh, Minv, fingers=('index', 'middle', '
         segs = ['%s_0%d_%s' % (f, j + 1, s) for j in range(3)]
         ids = [skin.verts_of((segs[j],) + (('%s_04_leaf_%s' % (f, s),) if j == 2 else ())) for j in range(3)]
         ids = [i[::2] if len(i) > 40 else i for i in ids]
-        sp = thumb_spread if f == 'thumb' else 0.0
+        sp = thumb_spread if f == 'thumb' else (spread or {}).get(f, 0.0)
         cp = COUP.get(f, (1.0, 1.15, 0.8))
         def touch(a, from_seg):
             L = {k: v.copy() for k, v in L0.items()}; W = {k: v.copy() for k, v in W0.items()}
-            set_fingers(rig, L, W, s, {f: tuple(a) + ((sp,) if f == 'thumb' else ())})
+            set_fingers(rig, L, W, s, {f: tuple(a) + ((sp,) if (f == 'thumb' or sp) else ())})
             for j in range(from_seg, 3):
                 for p in skin.pose(W, ids[j]):
                     if signed_dist(bvh, Minv @ Vector(p)) < gap: return True
             return False
         a = list((start or {}).get(f, (0.0, 0.0, 0.0)))[:3]
-        a = [max(0.0, v) for v in a]
+        a = [max(0.0, v) for v in a] if f != 'thumb' else [max(-1.0, v) for v in a]   # a thumb may start opened out
         lim = (1.5, 1.7, 1.25)
         touched = False
         # stage 1: all three joints together
@@ -321,5 +343,5 @@ def grasp_fingers(rig, skin, L0, W0, s, bvh, Minv, fingers=('index', 'middle', '
                 for j in range(first, 3): a[j] = max(0.0, a[j] - 0.5 * step * cp[j] * 0.7)
         if not touched and f != 'thumb':     # nothing to hold: a relaxed curl, not a straight finger
             a = [max(a[0], 0.55), max(a[1], 0.65), max(a[2], 0.45)]
-        out[f] = tuple(a) + ((sp,) if f == 'thumb' else ())
+        out[f] = tuple(a) + ((sp,) if (f == 'thumb' or sp) else ())
     return out
