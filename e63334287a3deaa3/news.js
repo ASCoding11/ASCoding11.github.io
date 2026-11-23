@@ -85,6 +85,70 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
+     items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
+             'Only the site\'s team can read what you send.']},
+    {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
+     tags: ['Movi'], items: [
+      'Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.',
+      'It will come back to Web Development Projects when the new version is ready.'
+    ]},
+    {date: '2026-11-22', version: '1.41.2', title: 'It has a shape now', kind: 'soon',
+     img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
+      'Whatever was warming up has a real shape now, down to the rivets.',
+      'Still not ready, and still loud.',
+      'Keep watching the sky. And the sea.'
+    ]},
+    {date: '2026-11-22', version: '1.41.1', title: 'Something is warming up', kind: 'soon',
+     img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
+      'Somewhere past the Back Room, something is warming up.',
+      'It is loud, it is fast, and it is not ready yet.',
+      'No names, no dates. Keep your eyes on the sky.'
+    ]},
+    {date: '2026-11-20', version: '1.41', title: 'Offline mode, rebuilt', kind: 'feature',
+     tags: ['Offline', 'Every game'], items: [
+      'Games load faster again: offline mode now saves files in the background instead of making you wait for them.',
+      'Works with the new game server: online games connect straight to it and are never slowed down by offline mode.',
+      'The installed ascoding11 app and the Projects, Productivity, Engineering and Movi pages now open with no internet too.',
+      'Games you\'ve played on a device still open on it offline; play each one once with internet after this update so it\'s saved again.'
+    ]},
+    {date: '2026-11-20', version: '1.40.1', title: 'The app is now called ascoding11', kind: 'fix',
+     items: [
+      'The installable app is now named ascoding11, under its icon and in its window title. If you already installed it, Chrome updates the name on its own within a day or so.'
+    ]},
+    {date: '2026-11-20', version: '1.40', title: 'Online games on our own server', kind: 'feature',
+     items: [
+      'The fast online games now run on our own game server near New York, like Coil: Slipstream, Boostball, Kartwheel, Rumble Karts, Shell Crackers, Backrooms 1v1, Driftfall, Blockstorm, Sky Duel, Hail Mary, Updraft, Spire, Tumble Trials, Turbo Trail, Escapade, Chromaflage, Hush Pools, Putterby, Lokop and Lanternhold.',
+      'Other players should move more smoothly, with less lag and fewer jumps.',
+      'Nothing changes in how you play: the same room codes, invite links, Quick match, parties, bots, ratings and leaderboards.',
+      'Card, word and puzzle games stay as they were.'
+    ]},
+    {date: '2026-11-20', version: '1.39', title: 'Coil: our own game server', kind: 'feature',
+     tags: ['Coil'], img: 'm/thumbs/coil.jpg', items: [
+      'Online Coil rooms now run on our own game server in New Jersey, close to New York, instead of the shared database, so other snakes should move more smoothly with less lag.',
+      'Nothing changes in how you play: the same room codes, invite links, public arenas, parties and bots.',
+      'More online games will move over once Coil has had a good run.'
+    ]},
+    {date: '2026-11-20', version: '1.38', title: 'Flipline: flip with the arrows', kind: 'feature',
+     tags: ['Flipline'], img: 'm/thumbs/flipline.jpg', items: [
+      'Flips are on the arrow keys now: hold ← to spin backwards and → to spin forwards, so front flips are a real trick. Space, the up arrow or the mouse is just the gas.',
+      'Gravity is on: nobody levels the bike for you in the air any more. A spin keeps going until you stop it and the heavy front end drops the nose, so steer with the arrows to land on your wheels.',
+      'On the ground the arrows pop a wheelie or lean you over the bars.',
+      'On a phone, two round buttons in the bottom-left corner spin you back and forward; touch anywhere else for gas.',
+      'Every level can still be finished with all three medals. Level ghosts saved before today can\'t replay with the new controls, so your next finish of each level saves a new one (your best times stay).'
+    ]},
+    {date: '2026-11-20', version: '1.37', title: 'Install the site as an app', kind: 'feature',
+     items: [
+      'You can now install the site as an app in Chrome (and Edge, and Chrome on Android): open the home page and click Install app under the intro, or the install icon at the right of the address bar.',
+      'It opens in its own window with its own icon, like any other app on your computer, and you can pin it to the taskbar or dock.',
+      'Everything works the same inside it: sign in, the Back Room code, online games and offline play.'
+    ]},
+    {date: '2026-11-20', version: '1.36', title: 'Movi: rank your movies', kind: 'feature',
+     tags: ['Movi'], items: [
+      'Movi is on the site now (Web Development Projects): rank every movie you\'ve seen by picking which of two you liked more, and each one gets a score out of 10.',
+      'Type a list of movies you remember and it matches them to the real films for you, then follow friends to see what they\'re watching.',
+      'Sign in with Google or email. Your Movi account is the same one you use on Movi\'s own site.'
+    ]},
     {date: '2026-11-20', title: 'Sky Duel: bigger planes', kind: 'fix',
      tags: ['Sky Duel'], img: 'm/thumbs/sky-duel.jpg', items: [
       'The planes in Sky Duel are a little bigger (about 15%), so they are easier to see and to hit. Bullets hit what you see, in the chase and cockpit views alike.',
