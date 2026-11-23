@@ -85,10 +85,11 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-23', version: 'X.XX', title: 'Boostball: a sharper stadium', kind: 'feature',
+    {date: '2026-11-23', version: 'X.XX', title: 'Boostball: a greener, brighter stadium', kind: 'feature',
      tags: ['Boostball', 'Graphics'], items: [
-      'The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer and the pitch stands out.',
-      'On Pretty graphics the turf has a fine grain you can see around your car, and car paint picks up sharp reflections of the floodlights.',
+      'The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.',
+      'The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.',
+      'On Pretty graphics: a grass grain around your car, soft shadows where cars and the ball meet the ground, a tighter glow round bright lights, halos on the floodlights and a little haze over the far stand.',
       'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
     {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
      tags: ['Movi'], items: [

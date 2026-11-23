@@ -6,9 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
-    "Boostball: a sharper stadium": "Boostball: un estadio más nítido",
-    "The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer and the pitch stands out.": "El público se dibuja en bloques de aficionados en vez de un moteado de colores al azar, así que las gradas se ven más tranquilas y el campo destaca más.",
-    "On Pretty graphics the turf has a fine grain you can see around your car, and car paint picks up sharp reflections of the floodlights.": "Con gráficos Lindo el césped tiene una textura fina que se ve alrededor de tu coche, y la pintura de los coches refleja con nitidez los focos.",
+    "Boostball: a greener, brighter stadium": "Boostball: un estadio más verde y luminoso",
+    "The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.": "El campo tiene un verde más fresco con franjas de corte, un charco de luz de los focos en el centro y líneas más nítidas.",
+    "The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.": "El público se dibuja en bloques de aficionados en vez de un moteado de colores al azar, así que las gradas se ven más tranquilas.",
+    "On Pretty graphics: a grass grain around your car, soft shadows where cars and the ball meet the ground, a tighter glow round bright lights, halos on the floodlights and a little haze over the far stand.": "Con gráficos Lindo: textura de césped alrededor de tu coche, sombras suaves donde los coches y el balón tocan el suelo, un brillo más ajustado alrededor de las luces, halos en los focos y un poco de neblina sobre la grada del fondo.",
     "Nothing changes in how the game plays, and Fast graphics costs the same as before.": "Nada cambia en cómo se juega, y los gráficos Rápido cuestan lo mismo que antes.",
     "Movi is away for a rebuild": "Movi se va un tiempo para rehacerse",
     "Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.": "Movi, la app para clasificar películas, se ha quitado de la web por ahora mientras se rehace.",

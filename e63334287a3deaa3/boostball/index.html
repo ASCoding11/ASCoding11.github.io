@@ -1178,20 +1178,24 @@ function drawField(g,w,h){
   g.beginPath();
   const poly=[[-AW,-AL+CUT],[-AW,AL-CUT],[-AW+CUT,AL],[AW-CUT,AL],[AW,AL-CUT],[AW,-AL+CUT],[AW-CUT,-AL],[-AW+CUT,-AL]];
   poly.forEach(([x,z],i)=>i?g.lineTo(fx(x),fz(z)):g.moveTo(fx(x),fz(z)));g.closePath();g.clip();
-  const n=16;for(let i=0;i<n;i++){g.fillStyle=TKON?(i%2?'#5c5a22':'#6a682b'):(i%2?'#1e6e38':'#237c40');g.fillRect(0,i*h/n,w,h/n+1)}
+  // mowing stripes across the pitch: two greens about 20% apart, a little yellower than before so the bluish stadium light
+  // leaves them green rather than teal
+  const n=16;for(let i=0;i<n;i++){g.fillStyle=TKON?(i%2?'#5c5a22':'#6a682b'):(i%2?'#27702e':'#37903c');g.fillRect(0,i*h/n,w,h/n+1)}
   // turf grain
   for(let i=0;i<9000;i++){g.fillStyle=rnd()<.5?'rgba(0,0,0,.06)':'rgba(255,255,255,.035)';g.fillRect(rnd()*w,rnd()*h,2,2)}
   // lengthwise mowing bands crossing the stripes, then the floodlights' pool of light fading toward the corners
   for(let i=1;i<10;i+=2){g.fillStyle='rgba(255,255,255,.035)';g.fillRect(i*w/10,0,w/10,h)}
   for(let i=0;i<2600;i++){g.fillStyle=rnd()<.5?'rgba(10,40,20,.05)':'rgba(190,255,200,.03)';g.fillRect(rnd()*w,rnd()*h,1,5+rnd()*9)}
-  const vg=g.createRadialGradient(w/2,h/2,h*.15,w/2,h/2,h*.66);vg.addColorStop(0,'rgba(255,255,230,.08)');vg.addColorStop(.55,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,8,22,.34)');
-  g.fillStyle=vg;g.fillRect(0,0,w,h);
+  if(!TKON){g.save();g.translate(w/2,h/2);g.scale(1,h/w);   // the pool is as long as the pitch: brightest in the middle third, falling off to walls and corners
+    const vg=g.createRadialGradient(0,0,w*.1,0,0,w*.75);vg.addColorStop(0,'rgba(255,255,225,.16)');vg.addColorStop(.4,'rgba(255,255,225,.05)');vg.addColorStop(.7,'rgba(0,10,20,.12)');vg.addColorStop(1,'rgba(0,8,22,.42)');
+    g.fillStyle=vg;g.fillRect(-w,-w,2*w,2*w);g.restore()}
+  else{const vg=g.createRadialGradient(w/2,h/2,h*.15,w/2,h/2,h*.66);vg.addColorStop(0,'rgba(255,255,230,.08)');vg.addColorStop(.55,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,8,22,.34)');g.fillStyle=vg;g.fillRect(0,0,w,h)}
   // team halves
   let gr=g.createLinearGradient(0,0,0,h);
-  gr.addColorStop(0,'rgba('+TEAM[0].rgb+',.2)');gr.addColorStop(.45,'rgba('+TEAM[0].rgb+',0)');gr.addColorStop(.55,'rgba('+TEAM[1].rgb+',0)');gr.addColorStop(1,'rgba('+TEAM[1].rgb+',.2)');
+  gr.addColorStop(0,'rgba('+TEAM[0].rgb+',.16)');gr.addColorStop(.3,'rgba('+TEAM[0].rgb+',0)');gr.addColorStop(.7,'rgba('+TEAM[1].rgb+',0)');gr.addColorStop(1,'rgba('+TEAM[1].rgb+',.16)');
   g.fillStyle=gr;g.fillRect(0,0,w,h);
   g.restore();
-  g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=4;g.lineJoin='round';
+  g.strokeStyle='rgba(255,255,255,.95)';g.lineWidth=4;g.lineJoin='round';
   // the edge of the flat floor, where the ramps start
   const inner=[[IXW,-OAZ],[IXW,OAZ],[OBX,OBZ],[-OBX,OBZ],[-IXW,OAZ],[-IXW,-OAZ],[-OBX,-OBZ],[OBX,-OBZ]];
   g.beginPath();inner.forEach(([x,z],i)=>i?g.lineTo(fx(x),fz(z)):g.moveTo(fx(x),fz(z)));g.closePath();g.stroke();
@@ -1416,6 +1420,8 @@ function recolorGoals(){
     const p=new THREE.Mesh(new THREE.BoxGeometry(2.4,120,2.4),pole);p.position.set(sx*(AW+118),70,sz*(AL+GD+118));p.scale.y=1.2;scene.add(p);
     const l=new THREE.Mesh(new THREE.BoxGeometry(30,14,2),lamp);l.position.set(sx*(AW+118),150,sz*(AL+GD+118));l.lookAt(0,0,0);scene.add(l);
     const h=glowSprite(0xfff0cc,.55,90);h.position.copy(l.position);h.visible=false;scene.add(h);prettyOnly.push(h);
+    // and a wide, faint halo round it, as floodlights have in the night air (Pretty; four more draw calls)
+    const hh=glowSprite(0xffe6b8,.2,300);hh.position.copy(l.position);hh.visible=false;hh.material.fog=false;scene.add(hh);prettyOnly.push(hh);
     // a faint beam from the lamp down to the pitch
     const to=new V3(sx*AW*.3,0,sz*AL*.35),d=to.clone().sub(l.position),L=d.length();
     const cg=new THREE.ConeGeometry(L*.34,L,28,1,true);cg.translate(0,-L/2,0);
@@ -1445,29 +1451,34 @@ const MAP=scene.children.filter(o=>!o.isLight);
 const bloom=(function(){
   const VS='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
   const mk=(fs,u,add)=>new THREE.ShaderMaterial({vertexShader:VS,fragmentShader:'varying vec2 vUv;uniform sampler2D t;'+fs,uniforms:Object.assign({t:{value:null}},u),depthTest:false,depthWrite:false,transparent:!!add,blending:add?THREE.AdditiveBlending:THREE.NoBlending});
-  const bright=mk('uniform vec2 px;void main(){vec3 c=(texture2D(t,vUv+px*vec2(-1.,-1.)).rgb+texture2D(t,vUv+px*vec2(1.,-1.)).rgb+texture2D(t,vUv+px*vec2(-1.,1.)).rgb+texture2D(t,vUv+px).rgb)*.25;float m=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(.8,1.,m),1.);}',{px:{value:new THREE.Vector2()}});
+  const bright=mk('uniform vec2 px;void main(){vec3 c=(texture2D(t,vUv+px*vec2(-1.,-1.)).rgb+texture2D(t,vUv+px*vec2(1.,-1.)).rgb+texture2D(t,vUv+px*vec2(-1.,1.)).rgb+texture2D(t,vUv+px).rgb)*.25;float m=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(.86,1.,m),1.);}',{px:{value:new THREE.Vector2()}});
   const blur=mk('uniform vec2 d;void main(){vec3 c=texture2D(t,vUv).rgb*.227;c+=(texture2D(t,vUv+d*1.385).rgb+texture2D(t,vUv-d*1.385).rgb)*.316;c+=(texture2D(t,vUv+d*3.231).rgb+texture2D(t,vUv-d*3.231).rgb)*.0703;gl_FragColor=vec4(c,1.);}',{d:{value:new THREE.Vector2()}});
   // the last pass redraws the frame with the glow added, a little more colour and contrast, and darker corners
-  const mix=mk('uniform sampler2D b;uniform float k;void main(){vec3 c=clamp(texture2D(t,vUv).rgb+texture2D(b,vUv).rgb*k,0.,1.);float l=dot(c,vec3(.2126,.7152,.0722));c=clamp(mix(vec3(l),c,1.1),0.,1.);c=mix(c,c*c*(3.-2.*c),.35);vec2 q=vUv-.5;c*=1.-dot(q,q)*.6;gl_FragColor=vec4(c,1.);}',{b:{value:null},k:{value:.6}});
+  const mix=mk('uniform sampler2D b;uniform sampler2D b2;uniform float k;uniform float k2;void main(){vec3 c=clamp(texture2D(t,vUv).rgb+texture2D(b2,vUv).rgb*k2+texture2D(b,vUv).rgb*k,0.,1.);float l=dot(c,vec3(.2126,.7152,.0722));c=clamp(mix(vec3(l),c,1.1),0.,1.);c=mix(c,c*c*(3.-2.*c),.35);vec2 q=vUv-.5;c*=1.-dot(q,q)*.6;gl_FragColor=vec4(c,1.);}',{b:{value:null},b2:{value:null},k:{value:.3},k2:{value:.32}});
   const cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1),quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),bright),sc=new THREE.Scene();sc.add(quad);quad.frustumCulled=false;
-  const sz=new THREE.Vector2(),zero=new THREE.Vector2();let tex=null,a=null,b=null,w=0,h=0,dead=false;
+  const sz=new THREE.Vector2(),zero=new THREE.Vector2();let tex=null,a=null,b=null,ha=null,hb=null,w=0,h=0,dead=false;
   function pass(m,src,dst){quad.material=m;m.uniforms.t.value=src;renderer.setRenderTarget(dst);renderer.render(sc,cam)}
   function run(){
     if(dead)return;
     try{
       renderer.getDrawingBufferSize(sz);const W=Math.floor(sz.x),H=Math.floor(sz.y);if(W<8||H<8)return;
       if(W!==w||H!==h){
-        if(tex){tex.dispose();a.dispose();b.dispose()}
+        if(tex){tex.dispose();a.dispose();b.dispose();ha.dispose();hb.dispose()}
         w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*4),w,h,THREE.RGBAFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter;tex.needsUpdate=true; // RGBA: r187 has no RGBFormat; needsUpdate so the copy has a texture of the right size to land in
         const o={depthBuffer:false,stencilBuffer:false};a=new THREE.WebGLRenderTarget(Math.max(2,w>>2),Math.max(2,h>>2),o);b=new THREE.WebGLRenderTarget(a.width,a.height,o);
+        ha=new THREE.WebGLRenderTarget(Math.max(2,w>>1),Math.max(2,h>>1),o);hb=new THREE.WebGLRenderTarget(ha.width,ha.height,o);
       }
       // r187 only binds the copy's texture to unit 0 when it isn't there already, and doesn't switch to unit 0 when it is,
       // so after a material that used several textures the copy went into the wrong one: make unit 0 the active one first
       renderer.state.activeTexture(renderer.getContext().TEXTURE0);
       renderer.copyFramebufferToTexture(zero,tex);
-      bright.uniforms.px.value.set(1/w,1/h);pass(bright,tex,a);
-      for(const r of [1,2.2]){blur.uniforms.d.value.set(r/a.width,0);pass(blur,a.texture,b);blur.uniforms.d.value.set(0,r/a.height);pass(blur,b.texture,a)}
-      mix.uniforms.b.value=a.texture;pass(mix,tex,null);
+      // the bright parts go to a half-size target and get a small blur there (a tight glow hugging each light), and that is
+      // shrunk again for the wide, faint glow at quarter size; the last pass adds the two
+      bright.uniforms.px.value.set(.5/w,.5/h);pass(bright,tex,ha);
+      blur.uniforms.d.value.set(1/ha.width,0);pass(blur,ha.texture,hb);blur.uniforms.d.value.set(0,1/ha.height);pass(blur,hb.texture,ha);
+      blur.uniforms.d.value.set(1/a.width,0);pass(blur,ha.texture,b);blur.uniforms.d.value.set(0,1/a.height);pass(blur,b.texture,a);
+      blur.uniforms.d.value.set(2.2/a.width,0);pass(blur,a.texture,b);blur.uniforms.d.value.set(0,2.2/a.height);pass(blur,b.texture,a);
+      mix.uniforms.b.value=a.texture;mix.uniforms.b2.value=ha.texture;pass(mix,tex,null);
     }catch(e){dead=true;renderer.setRenderTarget(null);renderer.autoClear=true}
   }
   return{run};
@@ -1519,6 +1530,8 @@ function lookSync(){
   floor.material=realSh?fineFloor():floorFlat;
   sun.castShadow=realSh;if(realSh)sun.position.set(0,100,-12);else sun.position.set(30,80,-20);
   for(const o of prettyOnly)o.visible=gl;
+  // Pretty: a lighter night haze that starts at the far end of the pitch, so the far stand sits back behind the near one
+  scene.fog.color.setHex(gl?0x17224c:0x0b1433);scene.fog.near=gl?190:240;scene.fog.far=gl?540:640;
 }
 let fxAvg=16,fxSlow=0,fxLast=0;
 function fxWatch(){
@@ -1655,31 +1668,20 @@ let envTex=null;
 function stadiumEnv(){
   if(envTex)return envTex;
   const S=128,face=draw=>{const c=document.createElement('canvas');c.width=c.height=S;draw(c.getContext('2d'));return c};
-  // the sides: dark roof with banks of floodlights and the strip light under its edge, the crowd (a mottled band with the
-  // LED ribbon across it), the lit rim of the wall, then the pitch. three.js blurs this for rough surfaces itself, so
-  // the paint's clear coat shows the floodlights sharp and the paint under it a soft glow of the same picture.
   const side=g=>{
-    const r=rng(31),gr=g.createLinearGradient(0,0,0,S);
-    gr.addColorStop(0,'#04070f');gr.addColorStop(.22,'#0a1024');gr.addColorStop(.3,'#1a2246');gr.addColorStop(.52,'#28325e');gr.addColorStop(.555,'#3a4a7a');
-    gr.addColorStop(.565,'#2f8f55');gr.addColorStop(.7,'#24783f');gr.addColorStop(1,'#1c6a36');
+    const gr=g.createLinearGradient(0,0,0,S);
+    gr.addColorStop(0,'#0a1230');gr.addColorStop(.3,'#101a3c');gr.addColorStop(.5,'#1c2a52');gr.addColorStop(.56,'#24583a');gr.addColorStop(1,'#1e6e38');
     g.fillStyle=gr;g.fillRect(0,0,S,S);
-    const dots=['rgba(255,255,255,.18)','rgba(255,210,90,.16)','rgba(120,170,255,.16)','rgba(255,110,130,.14)','rgba(0,0,0,.25)'];
-    for(let i=0;i<420;i++){g.fillStyle=dots[r()*5|0];g.fillRect(r()*S,S*(.3+r()*.22),2,1)}
-    g.fillStyle='rgba(10,14,30,.9)';g.fillRect(0,S*.41,S,3);
-    g.fillStyle='rgba(255,246,226,.5)';for(let x=6;x<S;x+=32)g.fillRect(x-3,S*.16-3,26,12);
-    g.fillStyle='#fff6e2';for(let x=6;x<S;x+=32)g.fillRect(x,S*.16,20,6);
-    g.fillStyle='rgba(255,241,210,.9)';g.fillRect(0,S*.255,S,2);
-    g.fillStyle='rgba(200,225,255,.7)';g.fillRect(0,S*.548,S,3);
+    g.fillStyle='#f4f8ff';for(let x=10;x<S;x+=28)g.fillRect(x,24,16,7);   // a row of floodlights
+    g.fillStyle='rgba(190,215,255,.45)';g.fillRect(0,56,S,4);             // the lit rim of the wall
   };
-  const top=g=>{g.fillStyle='#060a1a';g.fillRect(0,0,S,S);g.strokeStyle='rgba(255,241,210,.85)';g.lineWidth=3;g.strokeRect(10,10,S-20,S-20);
-    g.fillStyle='#fffaf0';for(const [x,y] of [[14,14],[S-34,14],[14,S-24],[S-34,S-24]])g.fillRect(x,y,20,10)};
-  const bottom=g=>{g.fillStyle='#1e6e38';g.fillRect(0,0,S,S);g.fillStyle='#237c40';for(let i=0;i<8;i+=2)g.fillRect(0,i*S/8,S,S/8);
-    g.strokeStyle='rgba(255,255,255,.6)';g.lineWidth=2;g.beginPath();g.arc(S/2,S/2,S/4,0,7);g.stroke()};
+  const top=g=>{g.fillStyle='#070c20';g.fillRect(0,0,S,S);g.fillStyle='#eef4ff';for(const y of [28,88])for(let x=16;x<S;x+=32)g.fillRect(x,y,18,10)};
+  const bottom=g=>{g.fillStyle='#1e6e38';g.fillRect(0,0,S,S)};
   envTex=new THREE.CubeTexture([face(side),face(side),face(top),face(bottom),face(side),face(side)]);
   envTex.needsUpdate=true;return envTex;
 }
 // Car paint: a coloured base under a clear glossy coat, like real car paint.
-function paint(hex){return matCache['p'+hex]||(matCache['p'+hex]=new THREE.MeshPhysicalMaterial({color:hex,roughness:.35,metalness:.55,clearcoat:1,clearcoatRoughness:.05,envMap:stadiumEnv(),envMapIntensity:1}))}
+function paint(hex){return matCache['p'+hex]||(matCache['p'+hex]=new THREE.MeshPhysicalMaterial({color:hex,roughness:.5,metalness:.45,clearcoat:1,clearcoatRoughness:.08,envMap:stadiumEnv(),envMapIntensity:1}))}
 function std(hex,rough,metal,extra){
   const k='s'+hex+':'+rough+':'+metal;
   return matCache[k]||(matCache[k]=new THREE.MeshStandardMaterial(Object.assign({color:hex,roughness:rough,metalness:metal,envMap:stadiumEnv(),envMapIntensity:1},extra||{})));
@@ -2137,7 +2139,7 @@ function updateCarMesh(c,dt,time){
   if(c.boosting){const s=.8+Math.random()*.5;m.flame.scale.set(1,s,1);m.flame.position.z=-1.2-.7*s;if(m.boostGlow)m.boostGlow.scale.set(2.6+s,2.6+s,1)}
   const h=Math.max(0,c.pos.y-CAR_Y);
   m.shadow.position.set(c.pos.x,.03,c.pos.z);m.shadow.rotation.z=c.yaw||Math.atan2(_v1.x,_v1.z);
-  const k=clamp(1-h/12,.15,1);m.shadow.scale.set(k,k,k);m.shadow.material.opacity=realSh?k*.45*clamp(1-h/3,0,1):k;
+  const k=clamp(1-h/12,.15,1);m.shadow.scale.set(k,k,k);m.shadow.material.opacity=realSh?.8*clamp(1-h/2.2,0,1):k;if(realSh){const c=1.15+.2*clamp(h/2.2,0,1);m.shadow.scale.set(c,c,c)}
 }
 
 // ---------- particles ----------
@@ -3931,7 +3933,7 @@ function stepVisuals(dt,now,freeze){
     if(sdf(ball.pos,_v4)<BR+.08)ball.ang.crossVectors(_v4,ball.vel).multiplyScalar(1/BR);else ball.ang.multiplyScalar(Math.exp(-dt*.3));
     const w=ball.ang.length();if(w>1e-4&&!freeze){_qa.setFromAxisAngle(_v5.copy(ball.ang).multiplyScalar(1/w),w*dt);ballMesh.quaternion.premultiply(_qa)}
     const hgt=ballMesh.position.y-BR;const k=clamp(1-hgt/20,.25,1);
-    ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=realSh?k*.4*clamp(1-hgt/4,0,1):k;
+    ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=realSh?.85*clamp(1-hgt/3,0,1):k;if(realSh){const c=.62+.38*clamp(hgt/3,0,1);ballShadow.scale.set(c,c,c)}
     ballRing.position.set(ballMesh.position.x,.05,ballMesh.position.z);ballRing.material.opacity=hgt>3?.4:0;
   }
   updateLanding(state==='playing');
