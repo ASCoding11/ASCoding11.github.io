@@ -43,6 +43,8 @@
       P.q.setFromUnitVectors(new V3(0, 0, 1), d); P.vel.copy(d).multiplyScalar(spot.speed || 120);
     }
     P.prev.copy(P.pos); P.prevQ.copy(P.q); P.render.copy(P.pos); P.renderQ.copy(P.q);
+    if (P.model.reset) P.model.reset();   // a wing torn off last time goes back on
+    P.trailSt = {}; P.spinRate = 3.2; P.smokeAt = null;
     P.model.root.visible = true;
     IW.camera.reset();
   };
@@ -224,7 +226,9 @@
   function crash(why) {
     if (!P.alive) return;
     P.alive = false; P.state = 'dead'; P.hp = 0; P.grounded = false;
-    IW.fx.explode(P.pos, 1.6, 'air'); IW.fx.splash && IW.world.landAt(P.pos.x, P.pos.z) < 0 && IW.fx.splash(P.pos, 1.2);
+    const sea = IW.world.landAt(P.pos.x, P.pos.z) < 0;
+    IW.fx.explode(P.pos, 1.6, sea ? 'air' : 'ground'); IW.fx.debris(P.pos, P.vel, 5, 0.8, 'air');
+    if (sea) { IW.fx.splash(P.pos, 1.2); IW.fx.foam(P.pos, 4, 16, 30, 0.9); } else IW.fx.burn(P.pos.clone().setY(Math.max(0, IW.world.landAt(P.pos.x, P.pos.z))), 20, 1);
     P.model.root.visible = false; P.deadT = 0;
     IW.emit('playerDown', why);
   }
@@ -238,16 +242,25 @@
   function shotDown() {
     if (!P.alive) return;
     P.alive = false; P.state = 'dead'; P.deadT = 0; P.hp = 0;
-    IW.fx.explode(P.pos, 0.8, 'air');
+    IW.fx.explode(P.pos, 0.8, 'air'); IW.fx.debris(P.pos, P.vel, 4, 0.7, 'air');
+    // as with the AI: maybe a wing panel tears off, and the wreck rolls toward it
+    const br = IW.art.breakup && IW.art.breakup(P.model, P.vel, IW.forceBreak || Math.random() < 0.5);
+    P.spinRate = br ? br.side * 4.2 : 3.2; P.smokeAt = br ? br.at : new V3(0, 0, 3); P.trailSt = {};
     IW.emit('playerShotDown');
   }
   function deadStep(dt) {
     P.deadT += dt;
     if (P.model.root.visible) {
       P.vel.y -= T.g * dt; P.vel.multiplyScalar(Math.exp(-0.3 * dt)); P.pos.addScaledVector(P.vel, dt);
-      tq.setFromAxisAngle(new V3(0, 0, 1), 3.2 * dt); P.q.multiply(tq);
-      if ((P.smokeT -= dt) <= 0) { P.smokeT = 0.03; IW.fx.firePuff(P.pos, P.vel, 3); IW.fx.smokePuff(P.pos, P.vel, 3, true, 5); }
-      if (P.pos.y < IW.world.groundAt(P.pos.x, P.pos.z) + 1 || P.deadT > 14) { IW.fx.explode(P.pos, 1.5, 'air'); if (IW.world.landAt(P.pos.x, P.pos.z) < 0) IW.fx.splash(P.pos, 1.5); P.model.root.visible = false; IW.emit('playerDown', 'Shot down.'); }
+      tq.setFromAxisAngle(new V3(0, 0, 1), (P.spinRate || 3.2) * dt); P.q.multiply(tq);
+      P.vel.applyAxisAngle(new V3(0, 1, 0), (P.spinRate || 3.2) * 0.08 * Math.min(1, P.deadT) * dt);
+      IW.fx.trail(tA.copy(P.smokeAt || new V3(0, 0, 3)).applyQuaternion(P.q).add(P.pos), P.vel, 1, dt, P.trailSt || (P.trailSt = {}));
+      if (P.pos.y < IW.world.groundAt(P.pos.x, P.pos.z) + 1 || P.deadT > 14) {
+        const sea = IW.world.landAt(P.pos.x, P.pos.z) < 0;
+        IW.fx.explode(P.pos, 1.5, sea ? 'air' : 'ground');
+        if (sea) { IW.fx.splash(P.pos, 1.5); IW.fx.foam(P.pos, 4, 18, 30, 0.9); } else IW.fx.burn(P.pos.clone().setY(Math.max(0, IW.world.landAt(P.pos.x, P.pos.z))), 20, 1);
+        P.model.root.visible = false; IW.emit('playerDown', 'Shot down.');
+      }
     }
   }
 
@@ -325,17 +338,15 @@
   }
   function effects(dt) {
     P.smokeT -= dt;
-    if (P.smokeT <= 0 && P.hp < 55) {
-      P.smokeT = P.hp < 25 ? 0.04 : 0.09;
-      const e = P.pos.clone().addScaledVector(P.fwd(tA), 3);
-      IW.fx.smokePuff(e, P.vel, 1.2, P.hp < 40, 2.5); if (P.hp < 25) IW.fx.firePuff(e, P.vel, 1.2);
-    }
+    // damage shows as a trail from the engine that thickens and darkens, with fire when it is nearly gone
+    if (P.hp < 60 && P.alive) IW.fx.trail(P.pos.clone().addScaledVector(P.fwd(tA), 3), P.vel, IW.clamp((60 - P.hp) / 55, 0, 1) * 0.9, dt, P.trailSt || (P.trailSt = {}));
     if (P.gload > 5.5 && P.speed > 90 && !IW.S.motion) { const r = tB.set(-1, 0, 0).applyQuaternion(P.q); for (const s of [1, -1]) IW.fx.contrail(P.pos.clone().addScaledVector(r, 5.6 * s)); }
   }
   P.frame = function (alpha, dt) {
     P.render.lerpVectors(P.prev, P.pos, alpha); P.renderQ.copy(P.prevQ).slerp(P.q, alpha);
     if (!P.model) return;
     P.model.root.position.copy(P.render); P.model.root.quaternion.copy(P.renderQ);
+    P.ctl.canopy = P.alive && (P.state === 'rearm' || (P.grounded && P.throttle < 0.5)) ? 1 : 0;   // the hood opens on the deck
     P.model.animate(dt, P.rpm, P.ctl);
     IW.audio.engine(P.rpm, P.throttle, P.speed, P.alive && IW.playing());
     IW.audio.stallHorn(P.alive && (P.stalled || (P.aoa > (F.aoaLimit + 1) * deg && P.speed > 20)) && !P.grounded);

@@ -78,6 +78,38 @@ node fp_pack.mjs $CHARS_WORK/fp/fp.glb ../../assets/fp.glb; cp $CHARS_WORK/fp/fp
   chosen per frame to keep the arm out of the weapon; skinning is the same linear blend three.js runs, so the
   penetration numbers in `fp.json` are what the game shows. Clip programs are small keyframe functions per weapon.
 
+### Hands on the guns (Nov 23)
+
+- The firing hand on each gun is a *wrap* grip (`GRIPSPEC[...]['wrap']`, `solve_wrap` in `fp_clips.py`): the palm
+  placement is searched in the hand's own axes (palm normal, metacarpals, knuckle line, two small turns) with the
+  fingers grasped inside the cost, so it ends where middle, ring and little finger really close round the stock wrist
+  or pistol grip; vertices inside the gun, palm contact, unclosed fingers and the wrist's joint cost are scored.
+  `pc`, `dir` and `palm` are in the weapon frame (`palm` is made square to `dir`; the old specs had them 35-45 degrees
+  apart, which laid the rifle hand flat across the wrist with straight fingers).
+- The chosen placements are frozen as `xfix` (checked by eye in close-ups); set `REFIT=1` to search again after a
+  weapon changes shape. `fstart` starts a finger part-closed where the grasp would otherwise stop at once on a
+  surface it already touches (the rifle's middle finger).
+- The trigger finger is authored (`index`: three curls and a fourth value, a sideways swing at the knuckle toward the
+  thumb, `set_fingers` in `fp_lib.py`), so it lies forward along the frame instead of pointing at the camera.
+- Thumbs: grasped by default (they may start opened out, `tstart`); `thumb_dir` / `thumb_pt` aim a thumb with
+  `aim_thumb` (curl, spread and a fifth value, a swing about the palm normal). Aiming the pistol thumbs forward was
+  tried and left off: the grid could not get closer than about 40 degrees and the thumbs crossed behind the slide.
+- Pistol (Nov 23, second round): both thumbs are curled down against the grip (`PGR_THUMB`, `PGL_THUMB`,
+  `PTHUMBL_ADS`) and the trigger finger rests in the guard (`PGR_INDEX`); in every frame of the aimed idle, fireAds
+  and adsRaise the highest hand vertex is 3.3-4 degrees below the slide top (check with a script that projects the
+  posed hand vertices, as `pen` does for penetration). The two fingers standing up over the sights in the game were
+  not in the clips at all: `chars.js` turned arm, hand and thumb bones after the mixer, and three.js's mixer does not
+  rewrite a bone whose blended value has not changed, so the turns piled up after a shot; `drive()` now puts the
+  mixer's last value back first (see the comment there). Any new post-mixer bone edit must be added to that list.
+- A hand holding a magazine is always closed round it (`solve_part_grip`), and the magazine now stays in the hand
+  through the swap (the hand used to be open and empty for the middle of every reload).
+- `joint_cost` penalises forearm roll past 95 degrees and the elbow pole search weighs it, which took the reload
+  hand's roll from 175-180 to 88-127 degrees (the sleeve no longer wrings at the wrist).
+- Checking: `HANDVIEW=1 KINDS=pistol SHOTS=ads@0 fp_clips.py preview` renders the frame plus three close-ups of each
+  hand (from the eye, the back of the hand, the palm side); `NORENDER=1` only fits and logs each grip's penetration
+  by bone group and finger angles. The sling is hidden in previews, as in the game.
+- Penetration and joint numbers per clip are in `assets/fp.json` (`pen_max_verts`, `pen_max_depth_mm`, `joints`).
+
 ## Notes for later edits
 
 - Bone names, clip names and the `anims.json` fields (`duration`, `stride`, `speed`, `theta`) are part of the API that

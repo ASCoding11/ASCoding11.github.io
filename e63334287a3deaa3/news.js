@@ -85,12 +85,21 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-23', version: 'X.XX', title: 'Boostball: a greener, brighter stadium', kind: 'feature',
+    {date: '2026-11-23', version: '1.49', title: 'Boostball: a greener, brighter stadium', kind: 'feature',
      tags: ['Boostball', 'Graphics'], items: [
       'The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.',
       'The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.',
-      'On Pretty graphics: a grass grain around your car, soft shadows where cars and the ball meet the ground, a tighter glow round bright lights, halos on the floodlights and a little haze over the far stand.',
+      'On Pretty graphics: a grass grain around your car, a tighter glow round bright lights and soft halos on the floodlights.',
       'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
+    {date: '2026-11-23', version: '1.42', title: 'Rollaway is now Overdrop', kind: 'feature',
+     img: 'm/thumbs/rollaway.jpg', tags: ['Overdrop'], items: [
+      'Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.',
+      'There are new hazards, and each kind has its own shape so you can tell them apart at speed.',
+      'Your best run, gems and settings carry over.'
+    ]},
+    {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
+     items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
+             'Only the site\'s team can read what you send.']},
     {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
      tags: ['Movi'], items: [
       'Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.',
