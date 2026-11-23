@@ -1,0 +1,29 @@
+# Preview links for pull requests from forks (step 1 of 2).
+# Pull requests from branches in this repo already get a Cloudflare Pages preview from Cloudflare's own Git
+# integration. Cloudflare doesn't build forks, so this job copies the fork's site files into an artifact, with no
+# secrets and nothing run, and fork-preview-deploy.yml uploads them to Cloudflare Pages as a static preview.
+# Server code (functions/, _routes.json, _worker.js) is left out: previews are plain files only.
+name: Fork preview (package)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  package:
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - name: Copy the site's files
+        run: |
+          out="$RUNNER_TEMP/out"; mkdir -p "$out/site"
+          git ls-files -z | grep -zvE '^(\.|functions/|_routes\.json$|_worker\.js$|netlify\.toml$)' | xargs -0 cp --parents -t "$out/site"
+          echo "${{ github.event.pull_request.number }}" > "$out/pr.txt"
+          echo "$(find "$out/site" -type f | wc -l) files"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fork-preview
+          path: ${{ runner.temp }}/out
+          retention-days: 3

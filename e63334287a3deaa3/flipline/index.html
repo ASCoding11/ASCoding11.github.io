@@ -51,6 +51,13 @@ body:not(.touch) .touchonly{display:none!important}
 #levelBar{position:absolute;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(60vw,520px);height:10px;border:3px solid var(--ink);border-radius:999px;background:var(--paper);overflow:hidden}
 #levelBar i{display:block;height:100%;width:0;background:var(--teal)}
 #levelBar:not([hidden])~#hint{bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px))}
+/* touch screens: two lean buttons bottom-left (touch anywhere else is the gas); the hint sits above them */
+#lean{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px));display:flex;gap:14px;pointer-events:auto}
+#lean button{width:74px;height:74px;border-radius:50%;background:rgba(248,239,223,.88);border:3px solid var(--ink);box-shadow:3px 3px 0 rgba(43,34,48,.3);color:var(--ink);display:grid;place-items:center;padding:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#lean button svg{width:34px;height:34px;pointer-events:none}
+#lean button.on{background:var(--teal);transform:translate(2px,2px);box-shadow:1px 1px 0 rgba(43,34,48,.3)}
+body.touch #hint,body.touch #levelBar:not([hidden])~#hint{bottom:max(124px,calc(env(safe-area-inset-bottom) + 116px))}
+@media (max-height:440px) and (orientation:landscape){#lean button{width:64px;height:64px}body.touch #hint,body.touch #levelBar:not([hidden])~#hint{bottom:max(108px,calc(env(safe-area-inset-bottom) + 100px))}}
 
 /* ---------- overlays: paper cards ---------- */
 .overlay{position:absolute;inset:0;overflow:auto;padding:max(14px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center}
@@ -172,6 +179,10 @@ details.help ul{margin:8px 0 0;padding-left:20px;font-weight:700;font-size:14px;
     </div>
     <div id="levelBar" hidden><i></i></div>
     <div id="hint" hidden></div>
+    <div id="lean" class="touchonly">
+      <button type="button" data-lean="-1" data-no-ad-refresh aria-label="Lean back / backflip"><svg viewBox="0 0 24 24"><path d="M9 6a7.5 7.5 0 1 1-4.5 8" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M12.5 2.5 8.5 6l4 3.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" data-lean="1" data-no-ad-refresh aria-label="Lean forward / front flip"><svg viewBox="0 0 24 24"><path d="M15 6a7.5 7.5 0 1 0 4.5 8" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M11.5 2.5 15.5 6l-4 3.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
   </div>
 
   <section id="menu" class="overlay" hidden>
@@ -191,7 +202,7 @@ details.help ul{margin:8px 0 0;padding-left:20px;font-weight:700;font-size:14px;
         <path d="M24 112 H 300" stroke="#23877f" stroke-width="5" stroke-linecap="round"/>
         <circle cx="300" cy="112" r="7" fill="#f2b632" stroke="#2b2230" stroke-width="3"/>
       </svg>
-      <p class="tagline">Hold to ride. Hold in the air to flip. Land it clean.</p>
+      <p class="tagline">Hold to ride. Flip with ← →. Land it clean.</p>
       <div class="grid2">
         <button class="btn clay mode" id="mEndless" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 16c3-8 6-8 8 0s5 8 8 0" fill="none" stroke="#2b2230" stroke-width="2.6" stroke-linecap="round"/></svg></span><span><b>Endless</b><span id="mEndlessS" data-noi18n>best 0 m</span></span></button>
         <button class="btn teal mode" id="mDaily" type="button"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="#2b2230" stroke-width="2.4"/><path d="M4 10h16M9 3v4M15 3v4" stroke="#2b2230" stroke-width="2.4" stroke-linecap="round"/></svg></span><span><b>Daily run</b><span id="mDailyS" data-noi18n>same course for everyone</span></span></button>
@@ -203,8 +214,9 @@ details.help ul{margin:8px 0 0;padding-left:20px;font-weight:700;font-size:14px;
       <details class="help" style="margin-top:12px">
         <summary>How to play</summary>
         <ul>
-          <li><b>One button.</b> <span class="kbonly">Space, the up arrow, or the mouse.</span><span class="touchonly">Touch anywhere.</span> Hold it on the ground to ride, let go to coast.</li>
-          <li><b>In the air</b>, holding tips you over backwards. Hold long enough and it's a flip. Let go and the rider steadies the bike.</li>
+          <li><b>Gas:</b> <span class="kbonly">Space, the up arrow, or the mouse.</span><span class="touchonly">touch anywhere except the two round buttons.</span> Hold it to ride, let go to coast.</li>
+          <li><b>Flip with the arrows:</b> <span class="kbonly"><kbd>←</kbd> spins you backwards, <kbd>→</kbd> forwards.</span><span class="touchonly">hold the left round button to spin backwards, the right one to spin forwards.</span> On the ground they pop a wheelie or lean you over the bars.</li>
+          <li><b>Gravity is on.</b> Nobody levels the bike for you: a spin keeps going until you stop it, and the heavy front end drops the nose. Steer with the arrows to land on your wheels.</li>
           <li><b>Land on your wheels</b>, close to the slope of the ground. Nearly level is a <b>clean landing</b>: it keeps your combo going and multiplies the next trick.</li>
           <li><b>Red and cream with teeth</b> means danger: spikes, swinging balls, saws, crushers and low beams. Gold rounds are coins.</li>
           <li>Moving traps are timed for a bike at a good pace: keep your speed up and they swing out of your way.</li>
@@ -334,10 +346,11 @@ const P={
   MU:1.25,           // grip: the push never exceeds MU × the rear wheel's load
   CRR:0.018,         // rolling resistance (× load) when coasting
   DRAG:0.0035,       // air drag (1/m): slows by DRAG × speed²
-  AIR_ACC:18,        // held in the air: backward spin builds at this rate (rad/s²)
+  AIR_ACC:18,        // an arrow held in the air: spin builds this way at this rate (rad/s²); ← backwards, → forwards
   AIR_WMAX:8,        // ... up to this spin (rad/s), about 460°/s
-  AIR_DAMP:3,        // released in the air: spin fades by this fraction per second
-  RIGHT_ZONE:1.0, RIGHT_K:2.5, RIGHT_ACC:7, // released within 57° of level, the rider eases the bike level (rad/s per rad, max rad/s²)
+  AIR_DAMP:1.2,      // no arrow in the air: spin fades by this fraction per second (it keeps going for a while; nothing levels the bike for you)
+  GRAV_PITCH:2.4,    // in the air the heavy front end drops: nose-down spin builds at this × cos(angle) (rad/s²)
+  LEAN_G:9,          // an arrow held on the ground leans the rider back or forward (rad/s²): wheelies and nose-downs
   WHEELIE:0.75, WHEELIE_K:28, REAR_DAMP:6, // on the back wheel past 43° the rider leans forward (torque per rad)
   TILT:1.31,         // touching down more than 75° off the ground's angle is a crash
   CLEAN:0.26,        // within 15° of the ground's angle is a clean landing
@@ -655,7 +668,7 @@ function floorAt(tr,x){const b=Math.floor(x/BW);let m=Infinity;for(let i=b-4;i<=
 // ---------- the run ----------
 function newState(tr){
   const x=tr.start,y=groundTop(tr,x);
-  return{t:0,n:0,x,y:(y==null?0:y)-P.WY+P.WR-0.035,a:0,vx:0,vy:0,w:0,hold:false,
+  return{t:0,n:0,x,y:(y==null?0:y)-P.WY+P.WR-0.035,a:0,vx:0,vy:0,w:0,hold:false,lean:0,
     cR:false,cF:false,air:0,jump:false,jt:0,rot:0,pend:null,since:9,imp:0,lastImp:0,gslope:0,
     crash:null,crashT:0,done:false,doneT:0,maxX:x,stall:0,mvI:0,hzI:0,cI:0,mvs:[],mvT:[],hzT:{},
     ts:0,combo:0,toSl:0,dist:0,score:0,nmI:-1,nmD:9,coins:0,got:null,noPick:false,ev:[],
@@ -674,9 +687,10 @@ function crash(s,why){if(s.crash)return;s.crash=why;s.crashT=s.t;s.pend=null;s.c
   s.helm={x:hx-sa*0.35,y:hy+ca*0.35,vx:s.vx*0.7+1.2,vy:s.vy*0.5+5.5,a:s.a,w:-7};
   s.ev.push({k:'crash',why});
 }
-function step(tr,s,hold){
+// hold: the gas (true/false); lean: -1 an arrow back (←), 1 forward (→), 0 neither
+function step(tr,s,hold,lean){
   if(s.done){s.t+=P.DT;s.n++;s.doneT+=P.DT;return}
-  const dt=P.DT;s.hold=hold&&!s.crash;
+  const dt=P.DT;s.hold=hold&&!s.crash;lean=s.crash?0:(lean|0);s.lean=lean;
   const ca=Math.cos(s.a),sa=Math.sin(s.a);
   while(s.mvI<tr.mv.length&&tr.mv[s.mvI].x1<s.x-30)s.mvI++;
   let fx=-P.DRAG*s.vx*Math.abs(s.vx),fy=-P.G-P.DRAG*s.vy*Math.abs(s.vy),tq=0;
@@ -712,11 +726,14 @@ function step(tr,s,hold){
   let rel=0;
   if(wheels){const gl=Math.hypot(gnx,gny);gnx/=gl;gny/=gl;s.gslope=Math.atan2(-gnx,gny);rel=wrap(s.a-s.gslope)}
   if(!s.crash){
-    if(!wheels){if(s.hold){if(s.w<P.AIR_WMAX){s.w+=P.AIR_ACC*dt;if(s.w>P.AIR_WMAX)s.w=P.AIR_WMAX}}
-      else{s.w*=1-P.AIR_DAMP*dt;const a=wrap(s.a);
-        if(Math.abs(a)<P.RIGHT_ZONE){const dw=clamp(-P.RIGHT_K*a-s.w,-P.RIGHT_ACC*dt,P.RIGHT_ACC*dt);s.w+=dw}}}
+    if(!wheels){ // in the air: the arrows spin the bike, nothing levels it, and the front end drops
+      if(lean<0){if(s.w<P.AIR_WMAX){s.w+=P.AIR_ACC*dt;if(s.w>P.AIR_WMAX)s.w=P.AIR_WMAX}}
+      else if(lean>0){if(s.w>-P.AIR_WMAX){s.w-=P.AIR_ACC*dt;if(s.w<-P.AIR_WMAX)s.w=-P.AIR_WMAX}}
+      else s.w*=1-P.AIR_DAMP*dt;
+      s.w-=P.GRAV_PITCH*Math.cos(s.a)*dt}
     else{
-      if(cR&&!cF){if(rel>P.WHEELIE)tq-=P.WHEELIE_K*(rel-P.WHEELIE);if(s.w>0)tq-=P.REAR_DAMP*s.w*P.I}
+      if(lean)tq-=lean*P.LEAN_G*P.I;
+      if(cR&&!cF){if(rel>P.WHEELIE&&lean>=0)tq-=P.WHEELIE_K*(rel-P.WHEELIE);if(s.w>0&&lean>=0)tq-=P.REAR_DAMP*s.w*P.I}
       if(s.since<P.ASSIST&&Math.abs(rel)<P.ASSIST_MAX)tq+=(-P.ASSIST_K*rel-P.ASSIST_C*s.w)*P.I;
     }
   }
@@ -839,16 +856,30 @@ function vRun(tr,toX,log){
   return fails;
 }
 
-// ---------- the bot: tries a few hold patterns ahead with the real physics and picks the best ----------
-const PLANS=[[1,9,1],[0,9,0],[1,0.12,0],[0,0.12,1],[1,0.3,0],[0,0.3,1],[1,0.6,0],[0,0.6,1],[1,1.0,0],[0,1.0,1]];
-function botPolicy(s){ // a plain fallback: go on the ground, level the bike in the air
-  if(s.cR||s.cF)return true;
-  const a=wrap(s.a);return a<-0.15&&s.w<2.5;
+// ---------- the bot: tries a few gas and flip patterns ahead with the real physics and picks the best ----------
+// inputs are one small number: bit 0 the gas, bits 1-2 the lean + 1 (0 back, 1 none, 2 forward)
+const inCode=(h,l)=>(h?1:0)|((l|0)+1)<<1, inHold=c=>!!(c&1), inLean=c=>(c>>1)-1;
+// a plan: gas h0 for sw seconds then h1; in the air, lean f (-1 back, 1 forward) for the first ft seconds of air, then level the bike
+const PLANS=[[1,9,1,0,0],[0,9,0,0,0],[1,0.12,0,0,0],[0,0.12,1,0,0],[1,0.3,0,0,0],[0,0.3,1,0,0],[1,0.6,0,0,0],[0,0.6,1,0,0],[1,1.0,0,0,0],[0,1.0,1,0,0],
+  [1,9,1,-1,0.35],[1,9,1,-1,0.7],[1,9,1,-1,1.1],[1,9,1,1,0.5],[0,9,0,-1,0.5]];
+function botLevel(tr,s){ // steer the bike in the air toward the slope it will land on, allowing for the nose dropping
+  const gx=s.x+s.vx*0.25,sl=slopeAt(tr,gx),err=wrap(s.a-sl)+0.22*s.w;
+  return err>0.12?1:err<-0.12?-1:0;
+}
+function botPolicy(tr,s){ // a plain fallback: gas on the ground, level the bike in the air
+  if(s.cR||s.cF)return inCode(1,0);
+  return inCode(0,botLevel(tr,s));
+}
+function botIn(tr,s,plan,i,sw){
+  const h=i<sw?plan[0]:plan[2];
+  if(s.cR||s.cF)return inCode(h,0);
+  const l=plan[3]&&s.air<plan[4]?plan[3]:botLevel(tr,s);
+  return inCode(h,l);
 }
 function botEval(tr,s0,plan,H,H2,flipW){
   const s=clone(s0);s.noPick=true;const x0=s.x;const n1=Math.round(H/P.DT),n2=Math.round(H2/P.DT),sw=Math.round(plan[1]/P.DT);
   let flips=s.st.flips;
-  for(let i=0;i<n1+n2;i++){const h=i<n1?(i<sw?plan[0]:plan[2]):botPolicy(s);step(tr,s,!!h);
+  for(let i=0;i<n1+n2;i++){const c=i<n1?botIn(tr,s,plan,i,sw):botPolicy(tr,s);step(tr,s,inHold(c),inLean(c));
     if(s.crash)return -1000+i*P.DT*20+(s.x-x0)*0.1;if(s.done)return 600-i*P.DT;}
   let sc=s.x-x0+(s.st.flips-flips)*flipW;
   if(!(s.cR||s.cF))sc-=Math.abs(wrap(s.a))*8;
@@ -856,23 +887,24 @@ function botEval(tr,s0,plan,H,H2,flipW){
 }
 function botRun(tr,opt){
   opt=opt||{};const s=newState(tr);const every=Math.round((opt.every||0.1)/P.DT),H=opt.H||1.4,H2=opt.H2||0.9,flipW=opt.flipW||0;
-  const maxT=opt.maxT||240,toX=opt.toX||Infinity;let hold=true;const toggles=[];let last=null;
+  const maxT=opt.maxT||240,toX=opt.toX||Infinity;let bp=PLANS[0],k=0;const toggles=[];let last=-1;
   while(!s.crash&&!s.done&&s.t<maxT&&s.x<toX){
     if(s.n%every===0){
       if(tr.kind==='endless')extend(tr,s.x+160);
-      let best=-1e9,bp=PLANS[0];for(const p of PLANS){const v=botEval(tr,s,p,H,H2,flipW);if(v>best+1e-9){best=v;bp=p}}
-      hold=!!bp[0];
+      let best=-1e9;bp=PLANS[0];for(const p of PLANS){if(!flipW&&p[3])continue;const v=botEval(tr,s,p,H,H2,flipW);if(v>best+1e-9){best=v;bp=p}}
+      k=0;
     }
-    if(hold!==last){toggles.push(s.n);last=hold}
-    step(tr,s,hold);s.ev.length=0;
+    const c=botIn(tr,s,bp,k++,Math.round(bp[1]/P.DT));
+    if(c!==last){toggles.push(s.n*8+c);last=c}
+    step(tr,s,inHold(c),inLean(c));s.ev.length=0;
   }
   return{s,toggles};
 }
-// replay a run from its list of toggles (the step numbers where the button changed; it starts held)
-function replay(tr,toggles,n){const s=newState(tr);let k=0,h=false;for(let i=0;i<n;i++){while(k<toggles.length&&toggles[k]<=s.n){h=!h;k++}step(tr,s,h);s.ev.length=0;if(s.done)break}return s}
+// replay a run from its input list (step number × 8 + input code, each where the input changed; see inCode)
+function replay(tr,toggles,n){const s=newState(tr);let k=0,c=inCode(0,0);for(let i=0;i<n;i++){while(k<toggles.length&&(toggles[k]>>3)<=s.n){c=toggles[k]&7;k++}step(tr,s,inHold(c),inLean(c));s.ev.length=0;if(s.done)break}return s}
 
 return{P,MOD,PICK,LEVELS,TAU,rad,wrap,clamp,rng,hashStr,newTrack,endless,extend,level,parseCourse,dailySeed,newState,clone,step,probe,groundTop,gTop,floorAt,
-  hzCaps,hzU,pendA,CAP,sawY,cruY,VD,moverPose,vRun,vInit,botRun,replay,PLANS,BW,ENDLESS_RAMP};
+  hzCaps,hzU,pendA,CAP,sawY,cruY,VD,moverPose,vRun,vInit,botRun,replay,PLANS,BW,ENDLESS_RAMP,inCode,inHold,inLean,botLevel};
 })();
 // ==END CORE==
 </script>
@@ -1088,7 +1120,7 @@ const grain=(()=>{const c=document.createElement('canvas');c.width=c.height=128;
 let grainPat=null;
 
 // ======================= GAME STATE =======================
-const G={mode:'menu',phase:'idle',tr:null,s:null,prev:null,L:null,lvIndex:-1,seed:0,paused:false,held:false,inQ:[],rt:0,toggles:[],
+const G={mode:'menu',phase:'idle',tr:null,s:null,prev:null,L:null,lvIndex:-1,seed:0,paused:false,held:false,inC:2,inQ:[],rt:0,toggles:[],
   ghost:null,gs:null,cam:{x:0,y:0,z:1,vx:0},demo:false,endAt:0,shown:false,replay:null,rec:[],pops:[],shake:0,flash:0,hint:'',lastEv:[],
   runCoins:0,custom:null,scarf:null,ear:0,popT:0,crouch:0,lean:0,newBest:false,startT:0};
 const theme=()=>THEMES.find(t=>t.id===(G.themeOverride||save.thm))||THEMES[0];
@@ -1429,7 +1461,7 @@ function newRun(mode,opt){
   if(mode==='endless'){G.seed=opt.seed!=null?opt.seed:((Date.now()^(Math.random()*1e9))>>>0);G.tr=FL.endless(G.seed);FL.extend(G.tr,320);G.themeOverride=null}
   else if(mode==='daily'){G.seed=FL.dailySeed();G.tr=FL.endless(G.seed);FL.extend(G.tr,320);G.themeOverride=THEMES[G.seed%THEMES.length].id}
   else if(mode==='level'){G.lvIndex=opt.i;G.L=LV[opt.i];G.tr=levelTrack(opt.i);G.themeOverride=THEMES[G.L.th].id;
-    const rec=save.lv[G.L.id];if(rec&&rec.g&&save.set.ghost)G.ghost=rec.g}
+    const rec=save.lv[G.L.id];if(rec&&rec.g&&rec.gv===2&&save.set.ghost)G.ghost=rec.g}
   else if(mode==='custom'){G.L={id:'custom',n:TX('Your track'),c:opt.code,f:0,t:0,th:0};G.tr=FL.level(G.L);G.themeOverride=null}
   else if(mode==='demo'){G.tr=FL.endless(opt.seed||4242);FL.extend(G.tr,320)}
   restart();
@@ -1437,16 +1469,16 @@ function newRun(mode,opt){
 const lvCache={};function levelTrack(i){return lvCache[i]||(lvCache[i]=FL.level(LV[i]))}
 function restart(){
   G.s=FL.newState(G.tr);G.prev=snap(G.s,{});G.phase=G.mode==='demo'?'run':'ready';G.toggles=[];G.inQ.length=0;G.endAt=0;G.shown=false;G.pops.length=0;G.runCoins=0;
-  G.replay=null;G.rec.length=0;G.newBest=false;G.simHold=false;pnum=0;scarfPts=null;G.combo=0;G.lastFin=null;G.crouch=0;G.lean=0;
-  G.gs=G.ghost?FL.newState(G.tr):null;if(G.gs)G.gs.noPick=true;G.gk=0;G.gh=false;
+  G.replay=null;G.rec.length=0;G.newBest=false;G.simIn=FL.inCode(0,0);pnum=0;scarfPts=null;G.combo=0;G.lastFin=null;G.crouch=0;G.lean=0;
+  G.gs=G.ghost?FL.newState(G.tr):null;if(G.gs)G.gs.noPick=true;G.gk=0;G.gc=FL.inCode(0,0);
   const s=G.s;G.cam.x=s.x+camLead();G.cam.y=s.y+1.5;G.cam.z=1;G.cam.vx=0;
   hideAll();if(G.mode!=='demo'){$('hud').hidden=false;$('levelBar').hidden=!G.L;}
   setHint(G.mode==='demo'?'':readyHint());updateHud(true);
   AU.song(THEMES.indexOf(theme()));
   if(G.held&&G.mode!=='demo')beginRun(performance.now());
 }
-function readyHint(){return touchUI?TX('Touch and hold to ride'):TX('Hold {k} to ride',{k:keyName('go')})}
-function beginRun(t){if(G.phase!=='ready')return;G.phase='run';G.rt=t;G.startT=t;G.inQ.push({t,h:G.held});setHint('');AU.S.go()}
+function readyHint(){return touchUI?TX('Touch and hold to ride. ◀ ▶ flip'):TX('Hold {k} to ride. {b} {f} to flip',{k:keyName('go'),b:keyName('back'),f:keyName('front')})}
+function beginRun(t){if(G.phase!=='ready')return;G.phase='run';G.rt=t;G.startT=t;G.inQ.push({t,c:G.inC});setHint('');AU.S.go()}
 function camLead(){return Math.min(W/PPM*0.17,5)}
 function snap(s,o){o.x=s.x;o.y=s.y;o.a=s.a;o.dR=s.dR;o.dF=s.dF;o.t=s.t;return o}
 
@@ -1458,12 +1490,12 @@ function simulate(now){
   if(now-G.rt>250)G.rt=now-250;
   let n=0;const stepMs=DT*1000;
   while(G.rt+stepMs<=now&&n<120){
-    while(G.inQ.length&&G.inQ[0].t<=G.rt+stepMs){const e=G.inQ.shift();if(e.h!==G.simHold){G.simHold=e.h;if(G.phase==='run'&&!s.crash&&!s.done)G.toggles.push(s.n)}}
+    while(G.inQ.length&&G.inQ[0].t<=G.rt+stepMs){const e=G.inQ.shift();if(e.c!==G.simIn){G.simIn=e.c;if(G.phase==='run'&&!s.crash&&!s.done)G.toggles.push(s.n*8+e.c)}}
     if(G.tr.kind==='endless'&&s.n%60===0)FL.extend(G.tr,s.x+220);
     snap(s,G.prev);
-    let hold=G.simHold;if(G.mode==='demo')hold=demoHold(s);
-    FL.step(G.tr,s,hold);
-    if(G.gs){while(G.gk<G.ghost.length&&G.ghost[G.gk]<=G.gs.n){G.gh=!G.gh;G.gk++}FL.step(G.tr,G.gs,G.gh);G.gs.ev.length=0}
+    const c=G.mode==='demo'?demoIn(s):G.simIn;
+    FL.step(G.tr,s,FL.inHold(c),FL.inLean(c));
+    stepGhost();
     if(s.n%4===0)record(s);
     handleEvents(s);
     G.rt+=stepMs;n++;
@@ -1471,12 +1503,16 @@ function simulate(now){
   }
   if(n>=120)G.rt=now;
 }
+// the ghost replays the saved inputs (step number × 8 + input code) through the same physics
+function stepGhost(){const g=G.gs;if(!g)return;while(G.gk<G.ghost.length&&(G.ghost[G.gk]>>3)<=g.n){G.gc=G.ghost[G.gk]&7;G.gk++}FL.step(G.tr,g,FL.inHold(G.gc),FL.inLean(G.gc));g.ev.length=0}
 function record(s){G.rec.push({x:s.x,y:s.y,a:s.a,dR:s.dR,dF:s.dF,t:s.t,rag:s.rag&&{x:s.rag.x,y:s.rag.y,a:s.rag.a},helm:s.helm&&{x:s.helm.x,y:s.helm.y,a:s.helm.a},crash:s.crash,crashT:s.crashT,hold:s.hold});if(G.rec.length>60*6)G.rec.shift()}
 // the demo behind the menu: a light version of the test bot
-let demoNext=0,demoH=true;
-function demoHold(s){if(s.n>=demoNext){demoNext=s.n+30;let best=-1e9;for(const p of[[1,9,1],[0,9,0],[1,0.3,0],[0,0.3,1],[1,0.7,0],[1,1.1,0]]){const c=FL.clone(s);c.noPick=true;let sc=0;const x0=c.x,sw=Math.round(p[1]/DT);
-  for(let i=0;i<360;i++){FL.step(G.tr,c,i<sw?!!p[0]:!!p[2]);if(c.crash){sc=-1000+i;break}}if(!c.crash)sc=c.x-x0+c.st.flips*30+(c.cR||c.cF?0:-Math.abs(FL.wrap(c.a))*6);if(sc>best){best=sc;demoH=!!p[0]}}}
-  if(s.crash&&s.t-s.crashT>1.6){newRun('demo',{seed:(Math.random()*1e9)>>>0})}return demoH}
+let demoNext=0,demoP=null,demoK=0;
+const DEMO_PLANS=[[1,9,1,0,0],[0,9,0,0,0],[1,0.3,0,0,0],[0,0.3,1,0,0],[1,0.7,0,0,0],[1,9,1,-1,0.4],[1,9,1,-1,0.8],[1,9,1,1,0.5]];
+function demoIn(s){if(s.n>=demoNext||!demoP){demoNext=s.n+30;demoK=0;let best=-1e9;for(const p of DEMO_PLANS){const c=FL.clone(s);c.noPick=true;let sc=0;const x0=c.x,sw=Math.round(p[1]/DT);
+  for(let i=0;i<360;i++){const k=demoCode(c,p,i,sw);FL.step(G.tr,c,FL.inHold(k),FL.inLean(k));if(c.crash){sc=-1000+i;break}}if(!c.crash)sc=c.x-x0+c.st.flips*30+(c.cR||c.cF?0:-Math.abs(FL.wrap(c.a))*6);if(sc>best){best=sc;demoP=p}}}
+  if(s.crash&&s.t-s.crashT>1.6){newRun('demo',{seed:(Math.random()*1e9)>>>0})}return demoCode(s,demoP,demoK++,Math.round(demoP[1]/DT))}
+function demoCode(s,p,i,sw){const h=i<sw?p[0]:p[2];if(s.cR||s.cF)return FL.inCode(h,0);return FL.inCode(h,p[3]&&s.air<p[4]?p[3]:FL.botLevel(G.tr,s))}
 
 function handleEvents(s){
   for(const e of s.ev){
@@ -1484,7 +1520,7 @@ function handleEvents(s){
     switch(e.k){
       case'touch':{const imp=e.imp||0;const gy=s.y-0.6;dust(s.x,gy,fx()?Math.round(6+imp*3):4,2+imp*0.6,theme().g.lip);AU.S.land(imp+(e.air||0)*2);AU.S.chirp();G.crouch=Math.min(1,0.4+imp*0.12+e.air*0.3);
         if(fx())G.shake=Math.max(G.shake,Math.min(0.5,imp*0.05+e.air*0.06));G.popT=1;break}
-      case'bank':{if(e.n>0){const nm=e.n===1?TX('Backflip!'):e.n===2?TX('Double flip!'):e.n===3?TX('Triple flip!'):e.n===4?TX('Quadruple flip!'):TX('{n}× flip!',{n:e.n});pop(nm+'  +'+NUM(e.pts),'#fff6e4',true);AU.S.flip(e.n,e.combo)}
+      case'bank':{if(e.n>0){const nm=e.n===1?(e.back?TX('Backflip!'):TX('Front flip!')):e.n===2?TX('Double flip!'):e.n===3?TX('Triple flip!'):e.n===4?TX('Quadruple flip!'):TX('{n}× flip!',{n:e.n});pop(nm+'  +'+NUM(e.pts),'#fff6e4',true);AU.S.flip(e.n,e.combo)}
         if(e.clean){pop(TX('Clean landing')+(e.combo>1?'  ×'+e.mult:''),'#bff3e6',!e.n);AU.S.clean(e.combo);confetti(s.x,s.y,e.n?26:12)}
         else if(e.air>0.55&&!e.clean&&!e.n){AU.S.sloppy()}
         if(!e.n&&!e.clean&&e.pts>0)pop(TX('Big air')+'  +'+e.pts,'#fff6e4');
@@ -1513,7 +1549,8 @@ function endRun(silent){
   let medals=0;
   if(G.mode==='level'&&s.done){const rec=save.lv[L.id]||(save.lv[L.id]={m:0,t:0,f:0});const old=rec.m|0;let m=old|1;
     if(st.flips>=L.f)m|=2;if(s.t<=L.t)m|=4;
-    if(!rec.t||s.t<rec.t){rec.t=+s.t.toFixed(2);rec.g=G.toggles.slice(0,4000);newBest=!!old}
+    const faster=!rec.t||s.t<rec.t;if(faster){rec.t=+s.t.toFixed(2);newBest=!!old}
+    if(faster||rec.gv!==2){rec.g=G.toggles.slice(0,6000);rec.gv=2} // ghosts from before the arrow keys can't replay, so the first finish since replaces one
     if(st.flips>rec.f)rec.f=st.flips;rec.m=m;medals=m;
     for(const b of[1,2,4])if((m&b)&&!(old&b)){medalsNew++;earned+=15}
     if(medalsNew)AU.S.medal();statsHook('max','medals',medalCount());
@@ -1619,8 +1656,8 @@ function render(now,dtReal){
   groundShadow(G.tr,pose.x,pose.y);
   const v=veh(),r=rid();
   if(s&&!G.replay){const air=!(s.cR||s.cF);G.crouch=Math.max(0,G.crouch-dtReal*2.5);const tuck=air&&s.hold?0.55:0;
-    G.lean+=((!air&&s.hold&&spd<12?0.6:0)-G.lean)*Math.min(1,dtReal*6);G.popT=Math.max(0,G.popT-dtReal*2.5);G.ear=clamp(spd/16,0,1)}
-  pose.lean=G.lean;pose.crouch=Math.max(G.crouch,s&&!(s.cR||s.cF)&&s.hold?0.5:0);pose.wr=-(pose.x/P.WR);pose.ear=G.ear;
+    G.lean+=(clamp((!air&&s.hold&&spd<12&&!s.lean?0.6:0)-(s.lean||0)*0.9,-1,1)-G.lean)*Math.min(1,dtReal*(s.lean?10:6));G.popT=Math.max(0,G.popT-dtReal*2.5);G.ear=clamp(spd/16,0,1)}
+  pose.lean=G.lean;pose.crouch=Math.max(G.crouch,s&&!(s.cR||s.cF)&&s.lean?0.5:0);pose.wr=-(pose.x/P.WR);pose.ear=G.ear;
   // scarf: anchor at the neck in world space, then convert to the bike's frame for drawing
   {const ca=Math.cos(pose.a),sa=Math.sin(pose.a),nx=-0.12,ny=0.86-0.14*pose.crouch;const ax=pose.x+ca*nx-sa*ny,ay=pose.y+sa*nx+ca*ny;
     scarfStep(ax,ay,(s&&!pose.crash)?s.vx:0,(s&&!pose.crash)?s.vy:0,Math.min(dtReal,0.05));
@@ -1666,38 +1703,46 @@ let toastT=0;function toast(t){const el=$('toast');el.textContent=t;el.hidden=fa
 
 // ======================= INPUT =======================
 const KB=Keybinds.create({game:'flipline',actions:[
-  {id:'go',label:'Ride / flip',note:'Hold on the ground to ride, hold in the air to flip',group:'Ride',keys:['Space','ArrowUp','KeyW']},
+  {id:'go',label:'Gas',note:'Hold to ride, let go to coast',group:'Ride',keys:['Space','ArrowUp','KeyW']},
+  {id:'back',label:'Lean back / backflip',note:'In the air: spin backwards. On the ground: wheelie',group:'Ride',keys:['ArrowLeft','KeyA']},
+  {id:'front',label:'Lean forward / front flip',note:'In the air: spin forwards. On the ground: lean over the bars',group:'Ride',keys:['ArrowRight','KeyD']},
   {id:'restart',label:'Restart',group:'Ride',keys:['KeyR']},
   {id:'pause',label:'Pause',group:'Ride',keys:['Escape','KeyP']}],classes:{button:'btn sm',primary:'btn clay sm'}});
 function keyName(a){try{return KB.short(a)}catch(e){return a}}
-const keys=new Set();let ptrs=new Set();
+const keys=new Set();let ptrs=new Set();const leanPtrs=new Map(); // leanPtrs: touch pointer → -1 back / 1 forward (the on-screen lean buttons)
 function computeHeld(){return KB.held('go',keys)||ptrs.size>0}
-function inputChanged(t){const h=computeHeld();if(h===G.held)return;G.held=h;AU.resume();
-  if(G.replay){if(h){G.replay=null;setHint('');$('results').hidden=false}return}
+function computeLean(){let b=KB.held('back',keys),f=KB.held('front',keys);for(const d of leanPtrs.values()){if(d<0)b=true;else f=true}return b&&!f?-1:f&&!b?1:0}
+function inputChanged(t){const h=computeHeld(),l=computeLean(),c=FL.inCode(h,l);if(c===G.inC)return;const pressed=h&&!G.held;G.held=h;G.inC=c;AU.resume();
+  if(G.replay){if(pressed){G.replay=null;setHint('');$('results').hidden=false}return}
   if(G.mode==='demo')return;
-  if(h&&G.shown){restartSame();return}
-  if(h&&G.phase==='ready'&&!G.paused&&overlaysClosed()){beginRun(t)}
-  if(G.phase==='run')G.inQ.push({t,h});
+  if(pressed&&G.shown){restartSame();return}
+  if(pressed&&G.phase==='ready'&&!G.paused&&overlaysClosed()){beginRun(t)}
+  if(G.phase==='run')G.inQ.push({t,c});
   // after a crash a fresh press goes straight back to the start (the run is still scored); a finished level shows its card
-  if(h&&G.s&&G.s.crash&&!G.shown&&G.s.t-G.s.crashT>0.3){endRun(true);restartSame();return}
-  if(h&&G.s&&G.s.done&&!G.shown&&G.s.doneT>0.4){endRun()}
+  if(pressed&&G.s&&G.s.crash&&!G.shown&&G.s.t-G.s.crashT>0.3){endRun(true);restartSame();return}
+  if(pressed&&G.s&&G.s.done&&!G.shown&&G.s.doneT>0.4){endRun()}
 }
 function overlaysClosed(){return['menu','levels','garage','chal','settings','editor','pause'].every(id=>$(id).hidden)}
 addEventListener('keydown',e=>{
   if(KB.busy())return;if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
   const acts=KB.actionsFor(e.code);
-  if(acts.includes('go')){if(!overlaysClosed())return;e.preventDefault();if(e.repeat)return;keys.add(e.code);inputChanged(e.timeStamp||performance.now());return}
+  if(acts.includes('go')||acts.includes('back')||acts.includes('front')){if(!overlaysClosed())return;e.preventDefault();if(e.repeat)return;keys.add(e.code);inputChanged(e.timeStamp||performance.now());return}
   if(acts.includes('restart')&&G.mode!=='menu'&&G.mode!=='demo'&&overlaysClosed()){e.preventDefault();AU.resume();if(G.replay){G.replay=null}if(G.s&&(G.s.crash||G.s.done)&&!G.shown)endRun(true);restartSame();return}
   if(acts.includes('pause')||e.code==='Escape'){e.preventDefault();if(!$('pause').hidden)resume();else if(G.mode!=='demo'&&G.mode!=='menu'&&overlaysClosed()&&!G.shown)pause();else if(e.code==='Escape')backFromOverlay();return}
   if(e.code==='Backquote'&&TEST)G.dbg=!G.dbg;
 });
-addEventListener('keyup',e=>{keys.delete(e.code);if(KB.is('go',e.code))inputChanged(e.timeStamp||performance.now())});
-addEventListener('blur',()=>{keys.clear();ptrs.clear();inputChanged(performance.now());if(G.phase==='run'&&!G.shown&&G.mode!=='demo')pause()});
+addEventListener('keyup',e=>{keys.delete(e.code);if(KB.is('go',e.code)||KB.is('back',e.code)||KB.is('front',e.code))inputChanged(e.timeStamp||performance.now())});
+addEventListener('blur',()=>{keys.clear();ptrs.clear();leanPtrs.clear();inputChanged(performance.now());if(G.phase==='run'&&!G.shown&&G.mode!=='demo')pause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){AU.suspend(true);if(G.phase==='run'&&!G.shown&&G.mode!=='demo')pause()}else if(!G.paused)AU.suspend(false)});
 cv.addEventListener('pointerdown',e=>{e.preventDefault();ptrs.add(e.pointerId);try{cv.setPointerCapture(e.pointerId)}catch(_){}inputChanged(e.timeStamp||performance.now())});
 const up=e=>{if(ptrs.delete(e.pointerId))inputChanged(e.timeStamp||performance.now())};
 cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);cv.addEventListener('lostpointercapture',up);
 cv.addEventListener('contextmenu',e=>e.preventDefault());
+// the on-screen lean buttons (touch screens only): hold ◀ to lean back / backflip, ▶ to lean forward / front flip
+document.querySelectorAll('#lean button').forEach(b=>{const d=+b.dataset.lean;
+  b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();leanPtrs.set(e.pointerId,d);b.classList.add('on');try{b.setPointerCapture(e.pointerId)}catch(_){}inputChanged(e.timeStamp||performance.now())});
+  const off=e=>{if(leanPtrs.delete(e.pointerId)){if(![...leanPtrs.values()].includes(d))b.classList.remove('on');inputChanged(e.timeStamp||performance.now())}};
+  b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);b.addEventListener('contextmenu',e=>e.preventDefault())});
 // tapping the results backdrop (not its buttons) goes again
 $('results').addEventListener('pointerdown',e=>{if(e.target===$('results')){e.preventDefault();ptrs.add(e.pointerId);inputChanged(e.timeStamp||performance.now())}});
 $('results').addEventListener('pointerup',up);
@@ -1724,7 +1769,7 @@ $('mEditor').onclick=()=>{AU.resume();AU.S.ui();openEditor()};
 $('setBtn').onclick=()=>{AU.resume();AU.S.ui();menuFrom='menu';openSettings()};
 $('pauseBtn').onclick=e=>{e.stopPropagation();AU.S.ui();if(G.shown)return;pause()};
 $('pResume').onclick=()=>{AU.S.ui();resume()};$('pRestart').onclick=()=>{AU.S.ui();G.paused=false;restartSame()};$('pMenu').onclick=()=>{AU.S.ui();toMenu()};
-function pause(){if(G.mode==='demo'||G.mode==='menu')return;G.paused=true;keys.clear();ptrs.clear();G.held=false;if(G.phase==='run')G.inQ.push({t:performance.now(),h:false});
+function pause(){if(G.mode==='demo'||G.mode==='menu')return;G.paused=true;keys.clear();ptrs.clear();leanPtrs.clear();document.querySelectorAll('#lean button').forEach(b=>b.classList.remove('on'));G.held=false;G.inC=FL.inCode(0,0);if(G.phase==='run')G.inQ.push({t:performance.now(),c:G.inC});
   $('pMusic').value=save.set.mus;$('pSfx').value=save.set.sfx;hideAll();$('pause').hidden=false;$('hud').hidden=false}
 function resume(){$('pause').hidden=true;G.paused=false;G.rt=performance.now();$('hud').hidden=false}
 function openLevels(){
@@ -1829,14 +1874,14 @@ function boot(){
 }
 // test hooks (only for automated browsers)
 if(TEST)window.__fl={FL,G,get save(){return save},set save(v){save=v},persist,loadSave,newRun,restart,toMenu,endRun,startReplay,THEMES,VEH,RID,CH,openGarage,openLevels,openChal,openSettings,openEditor,
-  inputAt(t,h){if(h&&G.phase==='ready')beginRun(t);if(G.phase==='run')G.inQ.push({t,h})},simulate,render:(n)=>render(n,1/60),setTheme(id){G.themeOverride=id;bgCache=null},popsClear(){G.pops.length=0},
+  inputAt(t,h,l){G.held=!!h;G.inC=FL.inCode(h,l);if(h&&G.phase==='ready')beginRun(t);if(G.phase==='run')G.inQ.push({t,c:G.inC})},simulate,render:(n)=>render(n,1/60),setTheme(id){G.themeOverride=id;bgCache=null},popsClear(){G.pops.length=0},
   setHeld(h){G.held=h},
   // manual stepping for frame strips: n physics steps with the button held or not, then one drawn frame
-  advance(n,hold,draw){G.manual=true;if(G.phase==='ready')G.phase='run';const s=G.s;for(let i=0;i<n;i++){snap(s,G.prev);FL.step(G.tr,s,hold);if(G.gs){while(G.gk<G.ghost.length&&G.ghost[G.gk]<=G.gs.n){G.gh=!G.gh;G.gk++}FL.step(G.tr,G.gs,G.gh);G.gs.ev.length=0}if(G.tr.kind==='endless'&&s.n%60===0)FL.extend(G.tr,s.x+220);if(s.n%4===0)record(s);handleEvents(s)}
+  advance(n,hold,draw,lean){G.manual=true;if(G.phase==='ready')G.phase='run';const s=G.s;for(let i=0;i<n;i++){snap(s,G.prev);FL.step(G.tr,s,hold,lean|0);stepGhost();if(G.tr.kind==='endless'&&s.n%60===0)FL.extend(G.tr,s.x+220);if(s.n%4===0)record(s);handleEvents(s)}
     stepParticles(n*DT);setHint('');if(draw!==false){G.rt=performance.now()-DT*1000;render(performance.now(),Math.max(n*DT,1/60))}return{x:s.x,y:s.y,a:s.a,crash:s.crash,done:s.done,air:!(s.cR||s.cF),flips:s.st.flips,t:s.t}},
-  // policy stepping: hold on the ground, and in the air hold for X s after take-off (X<0: never), then let go
+  // policy stepping: gas on the ground; in the air lean back for X s after take-off (X<0: never), then level the bike like the bot
   advanceP(n,X,draw){const s=G.s;let r;for(let i=0;i<n;i++){const air=!(s.cR||s.cF);if(air&&G._airAt==null)G._airAt=s.t;if(!air)G._airAt=null;
-      const h=!air?true:(X>=0&&s.t-G._airAt<X);r=__fl.advance(1,h,draw!==false&&i%4===3)}if(draw!==false)r=__fl.advance(0,false,true);return r},
+      const l=!air?0:(X>=0&&s.t-G._airAt<X)?-1:FL.botLevel(G.tr,s);r=__fl.advance(1,!air,draw!==false&&i%4===3,l)}if(draw!==false)r=__fl.advance(0,false,true);return r},
   audioState(){return AU.ctx?AU.ctx.state:'none'},
   screenPos(){return{x:(OX+G.s.x*K)/DPR,y:(OY-G.s.y*K)/DPR,ppm:K/DPR}}};
 boot();
