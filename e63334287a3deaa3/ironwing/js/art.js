@@ -476,15 +476,24 @@
     m.name = name; m.userData.linear = true; return (GM[key] = m);
   }
   function tinted(m, team, table) {
-    if (!team || !m.color || m.name === 'glass' || m.name === 'deck') return m;
+    if (!team || !m.color || m.name === 'glass' || m.name === 'deck' || m.name === 'tex_deck') return m;
     const key = m.uuid + team; if (GM[key]) return GM[key];
     const c = m.clone(); c.color.copy(table[team] || table.blue); c.userData.linear = true; return (GM[key] = c);
+  }
+  // the hero models' baked sets (tools/vehicles/texbake.py): albedo (sRGB), normal and ORM maps come with the file;
+  // only the environment strength is set here, once per set, so every clone shares one material
+  const TEXM = {};
+  function texMat(m, group) {
+    const key = m.name; if (TEXM[key]) return TEXM[key];
+    m.envMapIntensity = key === 'tex_deck' ? 0.35 : group === 'air' ? 0.8 : 0.6; m.vertexColors = false;
+    if (m.map) m.map.anisotropy = 4;
+    m.userData.linear = true; return (TEXM[key] = m);
   }
   function prep(root, group) {
     root.traverse(o => {
       if (!o.isMesh) return;
       const name = (o.material && o.material.name || 'paint').replace(/\.\d+$/, '');
-      o.material = gm(name, group); o.geometry.userData.shared = true;
+      o.material = /^tex_/.test(name) ? texMat(o.material, group) : gm(name, group); o.geometry.userData.shared = true;
       o.castShadow = group !== 'ground' || !/_dead$/.test(o.name); o.receiveShadow = group !== 'air';
     });
   }
