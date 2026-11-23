@@ -14,6 +14,7 @@
   const AI = IV.ai = { list: [], bodies: [], maskUntil: 0, masks: [], loud: false, alarm: null, alarmRung: false, grenadeCool: 0, lastSpotted: -99, spottedCount: 0, perceiveP: null };
   const P = IV.player;
   const diff = () => (IV.mission && IV.mission.diff) || 0;
+  const hyp = (x, z) => Math.sqrt(x * x + z * z);   // flat distance (Math.hypot is slow in the hot loops)
   const BARK = {
     suspicious: ['Hm? Who is there?', 'Did you hear that?', 'Something moved.'],
     investigate: ['I will take a look.', 'Stay here. I am checking it.'],
@@ -31,7 +32,7 @@
   // force: the warnings that matter to you (a grenade coming, a flank) skip his talk cooldown
   AI.bark = function (e, kind, force) {
     if ((!force && IV.time < (e.barkT || 0)) || !BARK[kind]) return;
-    const d = Math.hypot(e.pos.x - P.pos.x, e.pos.z - P.pos.z); if (d > 45) return;
+    const d = hyp(e.pos.x - P.pos.x, e.pos.z - P.pos.z); if (d > 45) return;
     e.barkT = IV.time + 6;
     IV.hud && IV.hud.bark(e, IV.t(BARK[kind][Math.floor(Math.random() * BARK[kind].length)]));
   };
@@ -45,7 +46,7 @@
     this.actor.attach(this.weapon, 'handR');
     if (this.wkind === 'mg' && IV.weapons.prepMG) IV.weapons.prepMG(this.weapon);
     this.actor.groundAt = (x, z) => W.groundAt(x, z, this.pos.y + 0.4);
-    this.actor.onFoot = (side, k) => { if (Math.hypot(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z) < 32) IV.footFx(this.pos, this.speed > 3 ? 'run' : this.stance === 'crouch' ? 'crouch' : 'walk', k, false, 0.5); };
+    this.actor.onFoot = (side, k) => { if (hyp(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z) < 32) IV.footFx(this.pos, this.speed > 3 ? 'run' : this.stance === 'crouch' ? 'crouch' : 'walk', k, false, 0.5); };
     // never start inside a hedge or a wall (scripted spawns use rough positions)
     if (o.y == null && IV.nav.grid && !IV.nav.walkable(o.x, o.z)) { const p = IV.nav.nearest(o.x, o.z, 6); if (p) { o.x = p.x; o.z = p.z; } }
     this.pos = new THREE.Vector3(o.x, W.height(o.x, o.z), o.z); this.prev = this.pos.clone(); this.vel = new THREE.Vector3();
@@ -123,7 +124,7 @@
     if (blast && dir) this.fallV = { x: dir.x * 3, z: dir.z * 3 };
     // his friends flinch and one calls it
     if (wasCombat) AI.lost++;
-    if (wasCombat) { let called = false; for (const q of AI.list) { if (q === this || !q.alive || Math.hypot(q.pos.x - this.pos.x, q.pos.z - this.pos.z) > 20) continue; q.suppr = Math.min(1, q.suppr + 0.3); if (!called && q.state === 'combat') { called = true; AI.bark(q, 'manDown'); } } }
+    if (wasCombat) { let called = false; for (const q of AI.list) { if (q === this || !q.alive || hyp(q.pos.x - this.pos.x, q.pos.z - this.pos.z) > 20) continue; q.suppr = Math.min(1, q.suppr + 0.3); if (!called && q.state === 'combat') { called = true; AI.bark(q, 'manDown'); } } }
     this.deadT = 0; this.bodyAt = null;
     if (this.glint) this.glint.material.opacity = 0;
     AI.bodies.push(this);
@@ -173,14 +174,14 @@
     for (let i = AI.smokes.length - 1; i >= 0; i--) {
       const s = AI.smokes[i]; if (s.until < IV.time) { AI.smokes.splice(i, 1); continue; }
       const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1, t = IV.clamp(((s.x - ax) * dx + (s.z - az) * dz) / l2, 0, 1);
-      const d = Math.hypot(ax + dx * t - s.x, az + dz * t - s.z);
+      const d = hyp(ax + dx * t - s.x, az + dz * t - s.z);
       if (d < s.r) return 0; if (d < s.r * 1.6) k = 0.5;
     }
     return k;
   }
   AI.smokeK = smokeK;
   function perceive(e, dt) {
-    const d = Math.hypot(P.pos.x - e.pos.x, P.pos.z - e.pos.z);
+    const d = hyp(P.pos.x - e.pos.x, P.pos.z - e.pos.z);
     e.seeing = false;
     if (P.alive && !AI.ignorePlayer) {
       const light = AI.playerLight(), r = AI.visRange(e, light);
@@ -199,7 +200,7 @@
     }
     // the squadmate is only noticed once the shooting has started
     if (!e.seeing && e.state === 'combat' && IV.ally && IV.ally.ent && IV.ally.ent.alive) {
-      const al = IV.ally.ent, da = Math.hypot(al.pos.x - e.pos.x, al.pos.z - e.pos.z);
+      const al = IV.ally.ent, da = hyp(al.pos.x - e.pos.x, al.pos.z - e.pos.z);
       if (da < 45 && inView(e, al.pos.x, al.pos.y + 1.2, al.pos.z, da)) { e.seeAlly = true; } else e.seeAlly = false;
     } else e.seeAlly = false;
     if (e.seeing) e.seeT += dt; else e.seeT = Math.max(0, e.seeT - dt * 2);
@@ -210,7 +211,7 @@
     // bodies
     if (e.state !== 'combat') for (const b of AI.bodies) {
       if (b.found || b === e) continue;
-      const db = Math.hypot(b.pos.x - e.pos.x, b.pos.z - e.pos.z);
+      const db = hyp(b.pos.x - e.pos.x, b.pos.z - e.pos.z);
       const lit = W.lightAt(b.pos.x, b.pos.y + 0.3, b.pos.z);
       const rb = 34 * Math.min(1.1, lit) * (W.surfAt(b.pos.x, b.pos.z) === IV.S.crops ? 0.25 : 1) + 2;
       if (db < rb && inView(e, b.pos.x, b.pos.y + 0.3, b.pos.z, db)) {
@@ -227,7 +228,7 @@
   AI.alertNear = function (e, r, at) {
     for (const o of AI.list) {
       if (o === e || !o.alive || o.state === 'combat') continue;
-      if (Math.hypot(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < r) { o.alerted = true; o.aw = Math.max(o.aw, 0.7); o.lkp = { x: at.x, z: at.z, t: IV.time }; o.interest = { x: at.x, z: at.z }; o.setState('searching'); }
+      if (hyp(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < r) { o.alerted = true; o.aw = Math.max(o.aw, 0.7); o.lkp = { x: at.x, z: at.z, t: IV.time }; o.interest = { x: at.x, z: at.z }; o.setState('searching'); }
     }
   };
 
@@ -239,9 +240,9 @@
     for (const e of AI.list) {
       if (!e.alive || e.busy) continue;
       let r = radius * m;
-      for (const mk of AI.masks) if (mk.on && Math.hypot(e.pos.x - mk.x, e.pos.z - mk.z) < mk.r) r *= mk.mul;
+      for (const mk of AI.masks) if (mk.on && hyp(e.pos.x - mk.x, e.pos.z - mk.z) < mk.r) r *= mk.mul;
       if (e.alerted) r *= 1.2;
-      const d = Math.hypot(e.pos.x - x, e.pos.z - z);
+      const d = hyp(e.pos.x - x, e.pos.z - z);
       // a stone just out of earshot still makes a calm guard turn and listen (suspicious, no walk)
       if (type === 'rock' && d > r && d < r * T.noise.rockFaint && (e.state === 'unaware' || e.state === 'returning')) {
         e.aw = Math.max(e.aw, A.suspicious + 0.05); e.interest = { x, z }; e.setState('suspicious'); AI.bark(e, 'suspicious'); IV.emit('heard', { e, type: 'rockFaint' }); continue;
@@ -284,12 +285,12 @@
   const o = { x: 0, z: 0 };
   function moveTo(e, tx, tz, speed, dt) {
     // (re)path when the goal moved or we have none
-    if (!e.path || !e.goal || Math.hypot(e.goal.x - tx, e.goal.z - tz) > 1.5 || e.repath <= 0) {
+    if (!e.path || !e.goal || hyp(e.goal.x - tx, e.goal.z - tz) > 1.5 || e.repath <= 0) {
       e.goal = { x: tx, z: tz }; e.path = IV.nav.path(e.pos.x, e.pos.z, tx, tz) || [{ x: tx, z: tz }]; e.pathI = 0; e.repath = 2.5;
     }
     e.repath -= dt;
     const p = e.path[e.pathI]; if (!p) { e.speed = IV.damp(e.speed, 0, 8, dt); return true; }
-    const dx = p.x - e.pos.x, dz = p.z - e.pos.z, d = Math.hypot(dx, dz);
+    const dx = p.x - e.pos.x, dz = p.z - e.pos.z, d = hyp(dx, dz);
     if (d < 0.45) { e.pathI++; if (e.pathI >= e.path.length) { e.speed = 0; return true; } return false; }
     e.speed = IV.damp(e.speed, speed, 6, dt);
     // no gliding and no instant 180s: turn first (in place) when the way on is well behind, at a capped rate
@@ -299,7 +300,7 @@
     const st = Math.min(d, e.speed * dt);
     o.x = e.pos.x + dx / d * st; o.z = e.pos.z + dz / d * st;
     // keep apart from other soldiers
-    for (const q of AI.list) { if (q === e || !q.alive) continue; const sx = o.x - q.pos.x, sz = o.z - q.pos.z, sd = Math.hypot(sx, sz); if (sd < 0.75 && sd > 0.001) { o.x += sx / sd * (0.75 - sd) * 0.5; o.z += sz / sd * (0.75 - sd) * 0.5; } }
+    for (const q of AI.list) { if (q === e || !q.alive) continue; const sx = o.x - q.pos.x, sz = o.z - q.pos.z, sd = hyp(sx, sz); if (sd < 0.75 && sd > 0.001) { o.x += sx / sd * (0.75 - sd) * 0.5; o.z += sz / sd * (0.75 - sd) * 0.5; } }
     W.collide(o, 0.3, e.pos.y + 0.45, e.pos.y + 1.7);
     e.vel.set((o.x - e.pos.x) / dt, 0, (o.z - e.pos.z) / dt);
     e.pos.x = o.x; e.pos.z = o.z; e.pos.y = W.groundAt(e.pos.x, e.pos.z, e.pos.y);
@@ -322,24 +323,24 @@
     const tx = tgt.x, tz = tgt.z;
     for (const c of pts) {
       if (c.used && c.used !== e) continue;
-      const dT = Math.hypot(c.x - tx, c.z - tz); if (dT < 6 || dT > 55) continue;
+      const dT = hyp(c.x - tx, c.z - tz); if (dT < 6 || dT > 55) continue;
       // the cover's face must point away from the target (the wall is between us)
       const ux = (tx - c.x) / dT, uz = (tz - c.z) / dT, facing = -(c.nx * ux + c.nz * uz);
       if (facing < 0.35) continue;
-      const dS = Math.hypot(c.x - e.pos.x, c.z - e.pos.z);
+      const dS = hyp(c.x - e.pos.x, c.z - e.pos.z);
       // distance from you: inside his weapon's band (SMG close, rifle further), the middle of it best
       const band = A.prefRange[wclass(e)], mid = (band[0] + band[1]) / 2;
       let s = facing * 4 - dS * 0.35 - Math.abs(dT - mid) * 0.12 + (c.low ? 0.5 : 0);
       if (dT < band[0]) s -= (band[0] - dT) * 0.5; else if (dT > band[1]) s -= (dT - band[1]) * 0.35;
-      if (back) s += (dT - Math.hypot(e.pos.x - tx, e.pos.z - tz)) * 0.6;
-      else s -= Math.max(0, dT - Math.hypot(e.pos.x - tx, e.pos.z - tz) - 4) * 0.3;   // no long runs away from you to reach it
+      if (back) s += (dT - hyp(e.pos.x - tx, e.pos.z - tz)) * 0.6;
+      else s -= Math.max(0, dT - hyp(e.pos.x - tx, e.pos.z - tz) - 4) * 0.3;   // no long runs away from you to reach it
       if (flank) { const a0 = IV.yawTo(e.pos.x - tx, e.pos.z - tz), a1 = IV.yawTo(c.x - tx, c.z - tz); s += Math.min(1.4, Math.abs(IV.wrapA(a1 - a0))) * 6; }
       // other soldiers' cover: spread out, both on the ground and by bearing round the target (two men on the same
       // line from you are one target; men on different bearings make you turn your head)
       const bc = IV.yawTo(c.x - tx, c.z - tz);
       for (const q of AI.list) {
         if (q === e || !q.alive || !q.cover) continue;
-        if (Math.hypot(q.cover.x - c.x, q.cover.z - c.z) < 3) s -= 3;
+        if (hyp(q.cover.x - c.x, q.cover.z - c.z) < 3) s -= 3;
         if (q.state === 'combat') { const db = Math.abs(IV.wrapA(IV.yawTo(q.cover.x - tx, q.cover.z - tz) - bc)); if (db < 0.52) s -= 2.5 * (1 - db / 0.52); }
       }
       if (s > bs) { bs = s; best = c; }
@@ -415,7 +416,7 @@
   }
   AI.hitChance = hitChance;
   function shoot(e, tgt, dt) {
-    const d = Math.hypot(tgt.pos.x - e.pos.x, tgt.pos.z - e.pos.z);
+    const d = hyp(tgt.pos.x - e.pos.x, tgt.pos.z - e.pos.z);
     const isP = !!tgt.isPlayer;
     if (isP && e.kind !== 'gunner') {
       // no turn free: he asks again shortly (the turn goes to whoever asks first once one frees up); now and then he
@@ -489,7 +490,7 @@
         }
       } else {
         const ps = e.post;
-        if (Math.hypot(e.pos.x - ps.x, e.pos.z - ps.z) > 0.8 && !e.fixed) { moveTo(e, ps.x, ps.z, A.walkSpeed, dt); return; }
+        if (hyp(e.pos.x - ps.x, e.pos.z - ps.z) > 0.8 && !e.fixed) { moveTo(e, ps.x, ps.z, A.walkSpeed, dt); return; }
         e.speed = IV.damp(e.speed, 0, 8, dt);
         // scan slowly between the post's look directions
         const sc = ps.scan || [0], k = Math.floor(IV.time / 6 + e.id) % sc.length;
@@ -507,7 +508,7 @@
       const at = e.interest || e.lkp; if (!at) { e.setState('returning'); return; }
       e.actor.setUpper('aimIdle');
       if (e.fixed) { faceTo(e, at.x, at.z, 4, dt); if (e.stateT > 8) e.setState('returning'); return; }
-      const arrived = Math.hypot(at.x - e.pos.x, at.z - e.pos.z) < 1.6 || moveTo(e, at.x, at.z, A.searchSpeed * 0.8, dt);
+      const arrived = hyp(at.x - e.pos.x, at.z - e.pos.z) < 1.6 || moveTo(e, at.x, at.z, A.searchSpeed * 0.8, dt);
       if (arrived) {
         e.speed = IV.damp(e.speed, 0, 8, dt);
         e.lookT = (e.lookT || 0) + dt; e.headYaw = Math.sin(e.lookT * 1.3) * 0.45;
@@ -523,7 +524,7 @@
         const pts = [], R = IV.R;
         for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283 + R() * 0.5, r = 4 + R() * 10, p = IV.nav.nearest(at.x + Math.cos(a) * r, at.z + Math.sin(a) * r, 4); if (p) pts.push(p); }
         if (!e.partner || !e.partner.alive || e.partner.state === 'dead') {
-          let bp = null, bd = 25; for (const q of AI.list) if (q !== e && q.alive && !q.fixed && q.state !== 'combat' && !q.partner) { const d = Math.hypot(q.pos.x - e.pos.x, q.pos.z - e.pos.z); if (d < bd) { bd = d; bp = q; } }
+          let bp = null, bd = 25; for (const q of AI.list) if (q !== e && q.alive && !q.fixed && q.state !== 'combat' && !q.partner) { const d = hyp(q.pos.x - e.pos.x, q.pos.z - e.pos.z); if (d < bd) { bd = d; bp = q; } }
           if (bp) { e.partner = bp; bp.partner = e; bp.alerted = true; bp.lkp = at; if (bp.state !== 'searching') bp.setState('searching'); }
         }
         const half = e.partner && e.partner.id < e.id ? 1 : 0;
@@ -543,8 +544,8 @@
     },
     combat(e, dt) {
       // a live grenade close by: get away from it first
-      const g = IV.weapons.throws.find(g => g.kind === 'grenade' && !g.enemy && g.fuse < 3.5 && Math.hypot(g.x - e.pos.x, g.z - e.pos.z) < 6.5);
-      if (g && !e.fixed) { if (!e.fleeT) AI.bark(e, 'grenade'); e.fleeT = 1; const ax = e.pos.x - g.x, az = e.pos.z - g.z, al = Math.hypot(ax, az) || 1; moveTo(e, e.pos.x + ax / al * 9, e.pos.z + az / al * 9, A.runSpeed * 1.1, dt); e.stance = 'stand'; return; }
+      const g = IV.weapons.throws.length ? IV.weapons.throws.find(g => g.kind === 'grenade' && !g.enemy && g.fuse < 3.5 && hyp(g.x - e.pos.x, g.z - e.pos.z) < 6.5) : null;
+      if (g && !e.fixed) { if (!e.fleeT) AI.bark(e, 'grenade'); e.fleeT = 1; const ax = e.pos.x - g.x, az = e.pos.z - g.z, al = hyp(ax, az) || 1; moveTo(e, e.pos.x + ax / al * 9, e.pos.z + az / al * 9, A.runSpeed * 1.1, dt); e.stance = 'stand'; return; }
       e.fleeT = 0;
       const tgt = e.target = pickTarget(e);
       const tp = e.seeing || (tgt !== WPent() && e.seeAlly) ? tgt.pos : e.lkp ? e.lkp : tgt.pos;
@@ -552,7 +553,7 @@
       if (e.seeing) e.lkp = { x: P.pos.x, z: P.pos.z, t: IV.time };
       const canShoot = (e.seeing || e.seeAlly) && IV.time - (e.firstSee || 0) > A.reaction[diff()];
       if (!e.seeing && !e.seeAlly) e.firstSee = IV.time; else if (!e.firstSee) e.firstSee = IV.time;
-      const dT = Math.hypot(tp.x - e.pos.x, tp.z - e.pos.z);
+      const dT = hyp(tp.x - e.pos.x, tp.z - e.pos.z);
       // officer: run for the alarm bell
       if (e.kind === 'officer' && AI.alarm && !AI.alarmRung && !AI.alarm.off) { BEH.alarm(e, dt); return; }
       // fixed posts (sniper, gunner) fight from where they are
@@ -601,7 +602,7 @@
       }
       e.coverT += dt;
       e.shotT -= dt;
-      if (e.cover && Math.hypot(e.cover.x - e.pos.x, e.cover.z - e.pos.z) > 0.6) {
+      if (e.cover && hyp(e.cover.x - e.pos.x, e.cover.z - e.pos.z) > 0.6) {
         // caught in the open within his range: his turn (call, weapon up, then the burst) is taken where he stands, down
         // on one knee; without a turn he runs on to cover. A crawling man only crawls
         const opening = now < (e.openUntil || 0) && (e.seeing || e.seeAlly) && dT < snapRange(e) && !e.crawl && !e.fellBack;
@@ -615,7 +616,7 @@
         }
         moveTo(e, e.cover.x, e.cover.z, e.crawl ? 0.7 : A.runSpeed * slow, dt);
         // on the move he keeps his head turned to where you are (as far as a neck turns), so he can still see you
-        e.headYaw = IV.clamp(IV.wrapA(IV.yawTo(tp.x - e.pos.x, tp.z - e.pos.z) - e.bodyYaw), -1.2, 1.2);
+        if (e.perT > 0.1 - dt * 1.5) e.headYaw = IV.clamp(IV.wrapA(IV.yawTo(tp.x - e.pos.x, tp.z - e.pos.z) - e.bodyYaw), -1.2, 1.2);   // once per perception tick
         e.stance = e.crawl ? 'prone' : 'stand'; e.peek = false; e.actor.setUpper(!e.crawl && canShoot && dT < 15 ? 'aimIdle' : null);
         return;
       }
@@ -643,8 +644,8 @@
       // lost you: after a while the two nearest move up on your last known position, the others watch it from cover;
       // later still the whole group goes to a proper search
       if (lostFor > A.pushLost[D] && e.lkp) {
-        let rank = 0; const dl = Math.hypot(e.lkp.x - e.pos.x, e.lkp.z - e.pos.z);
-        for (const q of AI.list) if (q !== e && q.alive && q.state === 'combat' && !q.fixed && !q.noRoam && Math.hypot(e.lkp.x - q.pos.x, e.lkp.z - q.pos.z) < dl) rank++;
+        let rank = 0; const dl = hyp(e.lkp.x - e.pos.x, e.lkp.z - e.pos.z);
+        for (const q of AI.list) if (q !== e && q.alive && q.state === 'combat' && !q.fixed && !q.noRoam && hyp(e.lkp.x - q.pos.x, e.lkp.z - q.pos.z) < dl) rank++;
         if (rank < 2 && dl > 4 && !e.noRoam && !e.crawl) {
           if (e.cover) e.cover.used = null; e.cover = null; if (!e.pushing) { e.pushing = true; AI.bark(e, 'push'); }
           moveTo(e, e.lkp.x, e.lkp.z, A.searchSpeed * slow, dt); e.stance = 'stand'; e.actor.setUpper('aimIdle');
@@ -655,7 +656,7 @@
     alarm(e, dt) {
       const al = AI.alarm;
       e.actor.setUpper(null); e.stance = 'stand';
-      if (Math.hypot(al.x - e.pos.x, al.z - e.pos.z) > 1.2) { moveTo(e, al.x, al.z, A.runSpeed * 1.05, dt); e.ringT = 0; return; }
+      if (hyp(al.x - e.pos.x, al.z - e.pos.z) > 1.2) { moveTo(e, al.x, al.z, A.runSpeed * 1.05, dt); e.ringT = 0; return; }
       e.speed = 0; faceTo(e, al.bx || al.x, al.bz || al.z, 6, dt);
       e.ringT += dt; e.actor.play('salute', { fade: 0.15 }); e.ringUntil = IV.time + 0.25;
       if (e.ringT > A.alarmDelay && !AI.alarmRung) { AI.ringAlarm(e); }
@@ -663,7 +664,7 @@
     dead() {}
   };
   BEH.scripted = () => {};
-  function friendsNear(e, r) { let n = 0; for (const q of AI.list) if (q !== e && q.alive && q.state === 'combat' && Math.abs(q.pos.x - e.pos.x) < r && Math.hypot(q.pos.x - e.pos.x, q.pos.z - e.pos.z) < r) n++; return n; }
+  function friendsNear(e, r) { let n = 0; for (const q of AI.list) if (q !== e && q.alive && q.state === 'combat' && Math.abs(q.pos.x - e.pos.x) < r && hyp(q.pos.x - e.pos.x, q.pos.z - e.pos.z) < r) n++; return n; }
   const wclass = e => e.wkind === 'enemySmg' ? 'smg' : e.wkind === 'pistol' ? 'pistol' : 'rifle';
   function snapRange(e) { return A.snapRange[wclass(e)]; }
   // the wait after a round: an SMG burst is quick (a pause every five), a rifleman works his bolt; suppression slows both
@@ -672,7 +673,7 @@
     return (AI.tokens.has(e) ? 0.6 + Math.random() * 0.3 : 0.9 + Math.random() * 0.8) * (1 + e.suppr);
   }
   function exposed(c, tp) {
-    const dx = tp.x - c.x, dz = tp.z - c.z, d = Math.hypot(dx, dz);
+    const dx = tp.x - c.x, dz = tp.z - c.z, d = hyp(dx, dz);
     return -(c.nx * dx / d + c.nz * dz / d) < 0.2;
   }
   // suppressing fire at a remembered spot: rounds land 1.8-4 m round it, so it pins you without being an unannounced
@@ -706,12 +707,12 @@
     if (IV.time - AI.lastSpotted > 8) { AI.spottedCount++; IV.emit('spotted', e); }
     AI.lastSpotted = IV.time;
     // the nearest friend becomes the flanker
-    let best = null, bd = 25; for (const q of AI.list) if (q !== e && q.alive && !q.fixed && q.role !== 'flank') { const d = Math.hypot(q.pos.x - e.pos.x, q.pos.z - e.pos.z); if (d < bd && q.state === 'combat') { bd = d; best = q; } }
+    let best = null, bd = 25; for (const q of AI.list) if (q !== e && q.alive && !q.fixed && q.role !== 'flank') { const d = hyp(q.pos.x - e.pos.x, q.pos.z - e.pos.z); if (d < bd && q.state === 'combat') { bd = d; best = q; } }
     if (best && !AI.list.some(q => q.alive && q.role === 'flank')) best.role = 'flank';
     // he shouts where you are (his own last known position of you: what he saw or heard)
     const at = e.lkp || { x: e.pos.x, z: e.pos.z };
     AI.alertNear(e, 18, at);
-    for (const q of AI.list) if (q !== e && q.alive && Math.hypot(q.pos.x - e.pos.x, q.pos.z - e.pos.z) < 18 && q.state !== 'combat') { q.aw = 1; q.lkp = { x: at.x, z: at.z, t: IV.time }; q.setState('combat'); }
+    for (const q of AI.list) if (q !== e && q.alive && hyp(q.pos.x - e.pos.x, q.pos.z - e.pos.z) < 18 && q.state !== 'combat') { q.aw = 1; q.lkp = { x: at.x, z: at.z, t: IV.time }; q.setState('combat'); }
   };
 
   // ---------------------------------------------------------------- animation
@@ -742,11 +743,11 @@
       // aim at the target / look about
       let ap = 0, ay = this.headYaw;
       // his gun follows you only while he can see you; otherwise it points at where he last knew you were
-      if (this.state === 'combat' && this.target) { const sees = this.seeing || this.seeAlly, t = sees || !this.lkp ? this.target.pos : { x: this.lkp.x, y: this.pos.y, z: this.lkp.z }, d = Math.hypot(t.x - this.pos.x, t.z - this.pos.z); ap = Math.atan2(t.y + this.target.chestH() - this.eye(), d); ay = IV.clamp(IV.wrapA(IV.yawTo(t.x - this.pos.x, t.z - this.pos.z) - this.bodyYaw), -1, 1); }
+      if (this.state === 'combat' && this.target) { const sees = this.seeing || this.seeAlly, t = sees || !this.lkp ? this.target.pos : { x: this.lkp.x, y: this.pos.y, z: this.lkp.z }, d = hyp(t.x - this.pos.x, t.z - this.pos.z); ap = Math.atan2(t.y + this.target.chestH() - this.eye(), d); ay = IV.clamp(IV.wrapA(IV.yawTo(t.x - this.pos.x, t.z - this.pos.z) - this.bodyYaw), -1, 1); }
       this.actor.setAim(ap, ay); this._ap = ap; this._ay = ay;
     }
     // cull animation work for far soldiers (update every few frames)
-    const d = Math.hypot(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z);
+    const d = hyp(this.pos.x - W.camera.position.x, this.pos.z - W.camera.position.z);
     this.animAcc = (this.animAcc || 0) + dt;
     const seen = onScreen(this.pos) && d < (W.quality === 0 ? 140 : 260);
     const every = !seen && d > 6 ? 0.25 : d > 90 ? 0.15 : d > 50 ? 0.066 : 0;
@@ -797,14 +798,16 @@
     for (const e of AI.list) if (e.alive && e.state === 'combat' && !e.scripted) { n++; if (e.lkp && (!newest || e.lkp.t > newest.t)) newest = e.lkp; }
     if (!n || !newest) { AI.know = null; return; }
     const K = AI.know;
-    if (!K || Math.hypot(newest.x - K.x, newest.z - K.z) > 3.5) AI.know = { x: newest.x, z: newest.z, t: newest.t, since: newest.t };
+    if (!K || hyp(newest.x - K.x, newest.z - K.z) > 3.5) AI.know = { x: newest.x, z: newest.z, t: newest.t, since: newest.t };
     else K.t = Math.max(K.t, newest.t);
     const k = AI.know, held = now - k.since, fresh = now - k.t < 10;
     if (!fresh) return;
+    const wantFlank = held > A.campFlank[D] && now > AI.flankAt, wantGren = held > A.campGrenade[D] && now > AI.grenadeAt && now - k.t < 8;
+    if (!wantFlank && !wantGren) return;
     const free = AI.list.filter(e => e.alive && e.state === 'combat' && !e.fixed && !e.noRoam && !e.scripted && !AI.tokens.has(e) && !e.throwAt && !e.crawl);
     // a flanker, and covering fire while he moves
-    if (held > A.campFlank[D] && now > AI.flankAt && free.length >= 2 && !AI.list.some(q => q.alive && q.state === 'combat' && q.role === 'flank')) {
-      let f = null, fd = 1e9; for (const e of free) { const d = Math.hypot(e.pos.x - k.x, e.pos.z - k.z); if (e.hp >= 50 && d > 8 && d < 40 && d < fd) { fd = d; f = e; } }
+    if (wantFlank && free.length >= 2 && !AI.list.some(q => q.alive && q.state === 'combat' && q.role === 'flank')) {
+      let f = null, fd = 1e9; for (const e of free) { const d = hyp(e.pos.x - k.x, e.pos.z - k.z); if (e.hp >= 50 && d > 8 && d < 40 && d < fd) { fd = d; f = e; } }
       if (f) {
         f.role = 'flank'; if (f.cover) f.cover.used = null; f.cover = null; AI.flankAt = now + 15;
         const c = free.find(e => e !== f && W.clear(e.pos.x, e.eye(), e.pos.z, k.x, W.height(k.x, k.z) + 1, k.z, F.SIGHT)) || free.find(e => e !== f);
@@ -813,10 +816,10 @@
       }
     }
     // a grenade at the spot you have held: the thrower shouts first, then throws after grenadeWarn s
-    if (held > A.campGrenade[D] && now > AI.grenadeAt && now - k.t < 8) {
+    if (wantGren) {
       // never onto a friend: no throw when one of them is within 6 m of the spot
-      const friendNear = AI.list.some(q => q.alive && Math.hypot(q.pos.x - k.x, q.pos.z - k.z) < 6);
-      let g = null, gd = 1e9; if (!friendNear) for (const e of free) { const d = Math.hypot(e.pos.x - k.x, e.pos.z - k.z); if (d > 9 && d < 30 && d < gd) { gd = d; g = e; } }
+      const friendNear = AI.list.some(q => q.alive && hyp(q.pos.x - k.x, q.pos.z - k.z) < 6);
+      let g = null, gd = 1e9; if (!friendNear) for (const e of free) { const d = hyp(e.pos.x - k.x, e.pos.z - k.z); if (d > 9 && d < 30 && d < gd) { gd = d; g = e; } }
       if (g) {
         AI.grenadeAt = now + A.grenadeCooldown[D];
         const sc = A.grenadeScatter[D], a = Math.random() * 6.283, r = sc * Math.sqrt(Math.random());
