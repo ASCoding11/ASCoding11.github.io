@@ -202,7 +202,7 @@ def _axis(W):
     s = W.zones.get('slide', (0, 1, 0))
     return 'Z' if abs(s[2]) > 0.5 else 'Y'
 
-def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082)):
+def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082), worn=1.0):
     nb = NB(name, mask)
     P = nb.P
     n1 = nb.noise(P, 14, 4, 0.55, w=seed)
@@ -210,7 +210,7 @@ def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082)):
     n3 = nb.noise(P, 45, 3, 0.5, w=seed + 7)
     hand = _hand(nb, W)
     edge = nb.edge()
-    wear = nb.ss(nb.add(nb.mul(edge, nb.add(0.40, nb.mul(n2, 1.2))), nb.mul(hand, edge, 0.6)), 0.34, 0.66)
+    wear = nb.ss(nb.mul(nb.add(nb.mul(edge, nb.add(0.40, nb.mul(n2, 1.2))), nb.mul(hand, edge, 0.6)), worn), 0.34, 0.66)
     scr = nb.scratch_set(_axis(W), 1.0, along=1.2, fine=1.1, seed=seed)
     cav = nb.cavity()
     rust = nb.mul(nb.ss(cav, 0.25, 0.75), nb.ss(nb.noise(P, 70, 4, 0.6, w=seed + 9), 0.50, 0.68))
@@ -244,7 +244,7 @@ def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082)):
         ch = nb.mul(nb.checker('X', 'Z', 0.0020), cm, nb.inv(nb.mul(wear, 0.8)))
         h = nb.add(h, nb.mul(ch, 0.7))
     h, r = _machining(nb, W, h, r)
-    return nb.finish(c, r, metal, h, bump_dist=0.00035)
+    return nb.finish(c, r, metal, h, bump_dist=0.00035 * worn)
 
 def parkerized(name, W, mask, seed=0.0, tint=(0.024, 0.025, 0.0235), serr=None):
     """Phosphate finish: matte dark grey-green non-metal coat; bare steel shows on worn edges and scratches."""
@@ -608,6 +608,7 @@ def blade(name, W, mask, seed=0.0):
 
 def make(t, name, W, mask, seed=0.0):
     if t == 'blued': return blued(name, W, mask, seed)
+    if t == 'blued2': return blued(name, W, mask, seed, tint=(0.115, 0.118, 0.130), worn=1.35)   # worn blued steel, gone grey
     if t == 'park': return parkerized(name, W, mask, seed, serr=W.zones.get('serr'))
     if t == 'steel': return steel(name, W, mask, seed)
     if t == 'brass': return brass(name, W, mask, seed)

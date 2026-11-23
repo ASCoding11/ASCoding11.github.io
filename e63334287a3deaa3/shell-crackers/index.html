@@ -573,7 +573,7 @@ body.touch #ksH{max-width:210px}
   </section>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/lib/three/r187/three.min.js"></script>
 <script src="../autores.js"></script>
 <script src="../keybinds.js"></script>
 <script src="../netsmooth.js"></script>
@@ -586,6 +586,9 @@ body.touch #ksH{max-width:210px}
 'use strict';
 // Spanish (lang.js + es.js): words put together here go through TX; fixed page text is translated by lang.js itself.
 const TX=window.BackRoomLang?BackRoomLang.t:(s,v)=>String(s).replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
+// three.js r187 (/lib/three/r187, with its r128 layer) draws a see-through double-sided material twice (back faces, then
+// front); r128 drew it once. Once again on this page: the same picture as before and no extra draw calls.
+if(THREE.R128_COMPAT){const sv=THREE.Material.prototype.setValues;THREE.Material.prototype.setValues=function(v){this.forceSinglePass=true;return sv.call(this,v)}}
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/sc-<code>, so the existing rules cover them.

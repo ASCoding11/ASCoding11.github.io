@@ -8,6 +8,9 @@
 #     <kind>_prop[0..]          propeller pivots (spin about +Z); child <kind>_prop[i]_mesh
 #     <kind>_gearL/_gearR       main gear pivots (fold about Z); <kind>_tailwheel
 #     <kind>_aileronL/R, _elevator, _rudder, _flaps    (the Kestrel only: the player's aircraft)
+#     <kind>_canopy             the sliding hood with its frames (the Kestrel only; slides back along -Z)
+#     <kind>_wingOut            the left wing's outer panel (a separate node so it can break off)
+#     <kind>_bayL/_bayR         bomb-bay doors (the level bomber: hinged on their outer edges, swing about Z)
 #     <kind>_gunL0.. / _gunR0.. muzzles      <kind>_cockpitEye      <kind>_lod1 (whole aircraft, reduced)
 import math
 from mathutils import Vector
@@ -138,7 +141,7 @@ SCHEMES = {
     'redB': {'top': '#5a5844', 'bot': '#9fa294', 'mark': '#efefe6', 'spin': '#4a4a40'},
 }
 
-def scheme_fn(S, band=None, wingtip=None, chev=None, split=0.0, exhaust=None):
+def scheme_fn(S, band=None, wingtip=None, chev=None, split=0.0, exhaust=None, bay=None):
     def fn(c, n):
         x, y, z = c.x, c.y, c.z
         # top/bottom split with a soft wave along the fuselage
@@ -154,6 +157,8 @@ def scheme_fn(S, band=None, wingtip=None, chev=None, split=0.0, exhaust=None):
                     col = S['mark']
                 if side == 'wing' and n.z > 0.5 and chev_in(abs(x), -y, cy, cz, cs):
                     col = S['mark']
+        if bay and bay[0] < y < bay[1] and abs(x) < bay[2] and z < bay[3] + 0.25 and n.z < -0.4:
+            return '#141412'
         if exhaust and abs(x) > 0.3 and exhaust[0] < y < exhaust[1] and abs(z - exhaust[2]) < 0.35 + (y - exhaust[0]) * 0.08:
             col = mix(col, '#2e2a26', 0.55 * (1 - (y - exhaust[0]) / (exhaust[1] - exhaust[0])))
         return col
@@ -166,7 +171,7 @@ def chev_in(y, z, y0, z0, s):
 
 TYPES = {
     'fighter': dict(scheme='blue', fus=[(-4.45, 0.62, -0.62, 1.24, 2.0), (-4.0, 0.72, -0.74, 1.40, 2.0), (-3.0, 0.76, -0.82, 1.42, 2.2), (-2.0, 0.80, -0.86, 1.32, 2.4), (-1.0, 0.82, -0.88, 1.18, 2.4), (0.0, 0.80, -0.84, 1.10, 2.4), (1.0, 0.72, -0.74, 0.98, 2.3), (2.5, 0.56, -0.56, 0.76, 2.2), (4.0, 0.42, -0.30, 0.46, 2.2), (5.15, 0.32, 0.08, 0.12, 2.0)],
-                    engine='radial', cowl=(-4.45, 0.72, 1.15), prop=(-4.6, 1.6, 3), wing=dict(x0=0.55, x1=5.3, c0=2.45, c1=1.15, le0=-1.78, le1=-1.2, z=-0.42, di=6, tip=0.55),
+                    engine='radial', cowl=(-4.45, 0.72, 1.15), prop=(-4.6, 1.6, 3), wing=dict(x0=0.55, x1=5.3, c0=2.45, c1=1.15, le0=-1.78, le1=-1.2, z=-0.42, di=6, tip=0.55, brk=3.25),
                     tail=dict(x1=1.95, c0=1.25, c1=0.62, le0=3.85, le1=4.3, z=0.12), fin=dict(h=1.75, c0=1.55, c1=0.68, le0=3.65, le1=4.55, z0=0.42),
                     canopy=(-1.25, 0.65, 0.78, 0.62, 0.5), guns=[(2.4, -1.85, -0.38), (2.85, -1.8, -0.36)], gear=(1.7, -1.25, -0.5, -1.95), tailwheel=4.55,
                     band=(2.55, 3.0), wingtip=5.25, exhaust=(-3.35, -1.2, -0.25), hero=True),
@@ -179,7 +184,7 @@ TYPES = {
                    engine='twin', prop=None, wing=dict(x0=1.0, x1=10.4, c0=4.3, c1=1.7, le0=-2.7, le1=-1.2, z=0.15, di=4, tip=0.7),
                    tail=dict(x1=3.8, c0=2.1, c1=1.0, le0=6.3, le1=7.0, z=0.4), fin=dict(h=3.4, c0=2.6, c1=1.2, le0=5.9, le1=7.4, z0=0.8),
                    canopy=(-4.6, 1.0, 1.15, 1.0, 0.55), nose_glass=True, turret=(1.0, 1.35), tailgun=8.6, nacelles=3.6, guns=[(0.0, -1.5, 1.6), (0.0, 8.8, 0.4)],
-                   gear=(3.6, -3.1, -0.6, -2.4), tailwheel=7.6, chev=[(4.4, 0.1, 1.3, 'fus'), (7.5, 3.0, 1.6, 'wing')]),
+                   gear=(3.6, -3.1, -0.6, -2.4), tailwheel=7.6, chev=[(4.4, 0.1, 1.3, 'fus'), (7.5, 3.0, 1.6, 'wing')], bay=(-2.4, 1.0, 0.5, -1.2)),
     'torpedo': dict(scheme='redB', fus=[(-4.75, 0.74, -0.74, 1.48, 2.0), (-4.2, 0.85, -0.86, 1.62, 2.0), (-3.0, 0.92, -0.98, 1.66, 2.3), (-1.0, 0.98, -1.02, 1.52, 2.5), (1.0, 0.92, -0.92, 1.36, 2.5), (3.0, 0.72, -0.66, 1.0, 2.3), (4.8, 0.52, -0.32, 0.56, 2.2), (6.0, 0.4, 0.05, 0.16, 2.0)],
                     engine='radial', cowl=(-4.75, 0.86, 1.2), prop=(-4.9, 1.75, 3), wing=dict(x0=0.75, x1=6.7, c0=2.85, c1=1.25, le0=-1.9, le1=-1.15, z=-0.55, di=6, tip=0.7),
                     tail=dict(x1=2.4, c0=1.45, c1=0.72, le0=4.35, le1=4.95, z=0.15), fin=dict(h=2.1, c0=1.75, c1=0.8, le0=4.1, le1=5.5, z0=0.55),
@@ -195,7 +200,7 @@ TYPES = {
 def build(kind):
     T = TYPES[kind]; S = SCHEMES[T['scheme']]
     root = empty(kind)
-    sfn = scheme_fn(S, band=T.get('band'), wingtip=T.get('wingtip'), chev=T.get('chev'), split=-0.12, exhaust=T.get('exhaust'))
+    sfn = scheme_fn(S, band=T.get('band'), wingtip=T.get('wingtip'), chev=T.get('chev'), split=-0.12, exhaust=T.get('exhaust'), bay=T.get('bay'))
     body = []
     # fuselage: a subdivided loft through superellipse stations
     st = [dict(y=y, zt=zt, zb=zb, w=w, e=e) for (y, zt, zb, w, e) in T['fus']]
@@ -217,8 +222,17 @@ def build(kind):
     # wings
     W = T['wing']
     wst = planform(W['x0'], W['x1'], W['c0'], W['c1'], W['le0'], W['le1'], W['z'], W['di'], 0.15, 0.10, n=6, tip=W.get('tip', 0), ell=W.get('ell', False))
-    wr = wing(kind + '_wingR', [(-x, c, le, z, t) for (x, c, le, z, t) in wst]); wl = wing(kind + '_wingL', wst)
-    part(wr, sfn); part(wl, sfn); body += [wr, wl]
+    wr = wing(kind + '_wingR', [(-x, c, le, z, t) for (x, c, le, z, t) in wst])
+    # the left wing's outer panel is its own node (`<kind>_wingOut`) so it can break off when the aircraft is shot down
+    # (the game mirrors the whole aircraft for half the kills, so either wing can go)
+    xs = W.get('brk', W['x0'] + (W['x1'] - W['x0']) * 0.55)
+    for i in range(len(wst) - 1):
+        a_, b_ = wst[i], wst[i + 1]
+        if a_[0] <= xs <= b_[0]:
+            u = (xs - a_[0]) / max(1e-6, b_[0] - a_[0]); mid = tuple(a_[k] + (b_[k] - a_[k]) * u for k in range(5))
+            win, wout = wst[:i + 1] + [mid], [mid] + wst[i + 1:]; break
+    wl = wing(kind + '_wingL', win); wo = wing(kind + '_wingOut', wout)
+    part(wr, sfn); part(wl, sfn); part(wo, sfn); body += [wr, wl]
     # fillets where the wing meets the fuselage
     for s in (1, -1):
         fl = loft_y(kind + '_fillet', [dict(y=W['le0'] + 0.1, zt=W['z'] + 0.05, zb=W['z'] - 0.05, w=0.2, e=2, x=s * W['x0'] * 1.05), dict(y=W['le0'] + W['c0'] * 0.4, zt=W['z'] + 0.22, zb=W['z'] - 0.14, w=0.6, e=2.2, x=s * W['x0'] * 1.1), dict(y=W['le0'] + W['c0'] * 1.05, zt=W['z'] + 0.12, zb=W['z'] - 0.06, w=0.3, e=2, x=s * W['x0'] * 1.0)], n=12)
@@ -240,14 +254,25 @@ def build(kind):
         u = i / (nfr - 1); y = cy0 + (cy1 - cy0) * u
         prof = math.sin(math.pi * min(1, (u + 0.08) / 0.4) / 2) if u < 0.4 else (1 - 0.35 * max(0, (u - 0.7) / 0.3) ** 1.5)
         cst.append(dict(y=y, zt=cz + ch * prof, zb=cz - 0.25, w=cw * (0.75 + 0.25 * prof), e=2.2))
-    glass = loft_y(kind + '_glass', cst, n=18); subsurf(glass, 1); part(glass, '#1c2a36', 'glass')
-    frames = []
-    for i in range(0, nfr, 2 if kind in ('torpedo', 'dive') else 3):
-        s = cst[i]; pts = []
+    def frame(s, k_=1.02):
+        pts = []
         for k in range(13):
             a = math.pi * k / 12; u, v = math.cos(a), math.sin(a)
-            hw = s['w'] / 2 * 1.02; pts.append((hw * u, s['y'], s['zb'] + 0.25 + (s['zt'] - s['zb'] - 0.25) * 1.02 * v + 0.0))
-        fr = sweep(kind + '_frame', pts, dict(w=0.045, h=0.045, e=2.0), n=6, cap=True); part(fr, S['top']); frames.append(fr)
+            hw = s['w'] / 2 * k_; pts.append((hw * u, s['y'], s['zb'] + 0.25 + (s['zt'] - s['zb'] - 0.25) * k_ * v + 0.0))
+        fr = sweep(kind + '_frame', pts, dict(w=0.045, h=0.045, e=2.0), n=6, cap=True); part(fr, S['top']); return fr
+    frames, hood = [], None
+    if T.get('hero'):
+        # the player's aircraft: a fixed windscreen and a hood that slides back (`<kind>_canopy`), a little larger so
+        # it rides over the windscreen's rear frame
+        glass = loft_y(kind + '_glass', cst[:3], n=18); subsurf(glass, 1); part(glass, '#1c2a36', 'glass')
+        hst = [dict(s, w=s['w'] * 1.04, zt=s['zt'] + 0.025) for s in cst[2:]]
+        hg = loft_y(kind + '_hoodglass', hst, n=18); subsurf(hg, 1); part(hg, '#1c2a36', 'glass')
+        frames.append(frame(cst[0]))
+        hood = join([hg, frame(hst[0], 1.03), frame(hst[2], 1.03), frame(hst[-1], 1.03)], kind + '_canopy_mesh')
+    else:
+        glass = loft_y(kind + '_glass', cst, n=18); subsurf(glass, 1); part(glass, '#1c2a36', 'glass')
+        for i in range(0, nfr, 2 if kind in ('torpedo', 'dive') else 3):
+            frames.append(frame(cst[i]))
     seat = box(kind + '_seat', (0, (cy0 + cy1) / 2 + 0.25, cz - 0.15), (0.45, 0.12, 0.6), bev=0.02); part(seat, '#3a3a36', 'dark')
     dash = box(kind + '_dash', (0, cy0 + 0.25, cz - 0.05), (0.6, 0.06, 0.3), bev=0.01); part(dash, '#1b1b1b', 'dark')
     body += frames + [seat, dash]
@@ -301,6 +326,13 @@ def build(kind):
         for s in (1, -1):
             for zz in (-0.12, 0.12):
                 br = box(kind + '_brake', (s * 2.8, W['le0'] + W['c0'] * 0.72, W['z'] + 0.25 + zz), (2.0, 0.05, 0.16), bev=0.01); part(br, '#5f5d4c'); body.append(br)
+    # bomb bay (the level bomber): a dark bay painted under the fuselage and two doors that close over it
+    bays = []
+    if T.get('bay'):
+        y0, y1, hw, zb = T['bay']
+        for s, nm in ((1, '_bayL'), (-1, '_bayR')):
+            d = box(kind + nm, (s * hw / 2, (y0 + y1) / 2, zb - 0.03), (hw, y1 - y0, 0.04), bev=0.01); part(d, S['bot'])
+            bays.append((d, (s * hw, (y0 + y1) / 2, zb - 0.02)))
     # landing gear
     gears = []
     if T.get('gear'):
@@ -353,6 +385,11 @@ def build(kind):
     # assemble the airframe
     bodyo = join(body, kind + '_body'); attach(bodyo, root)
     attach(glass, root, kind + '_glass')
+    if hood is not None:   # slides back along -Z in the game (aft): the pivot sits at the hood's front frame
+        pivot(hood, (0, cst[2]['y'], cz), root); hood.name = kind + '_canopy'; hood.data.name = kind + '_canopy'
+    pivot(wo, (mid[0], mid[2] + mid[1] * 0.4, mid[3]), root); wo.name = kind + '_wingOut'; wo.data.name = wo.name
+    for (d, p) in bays:    # bomb-bay doors: hinged on their outer edges, they swing down and out about the game's Z
+        pivot(d, p, root)
     for (pm, p) in props:
         pv = empty(pm.name.replace('_mesh', ''), p, root); pm.parent = pv; pm.location = (0, 0, 0)   # built at the origin already
     for (g, p) in gears:
