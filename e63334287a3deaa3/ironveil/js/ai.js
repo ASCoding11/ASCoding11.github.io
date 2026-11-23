@@ -812,10 +812,13 @@
     }
     // a grenade at the spot you have held: the thrower shouts first, then throws after grenadeWarn s
     if (held > A.campGrenade[D] && now > AI.grenadeAt && now - k.t < 8) {
-      let g = null, gd = 1e9; for (const e of free) { const d = Math.hypot(e.pos.x - k.x, e.pos.z - k.z); if (d > 9 && d < 30 && d < gd) { gd = d; g = e; } }
+      // never onto a friend: no throw when one of them is within 6 m of the spot
+      const friendNear = AI.list.some(q => q.alive && Math.hypot(q.pos.x - k.x, q.pos.z - k.z) < 6);
+      let g = null, gd = 1e9; if (!friendNear) for (const e of free) { const d = Math.hypot(e.pos.x - k.x, e.pos.z - k.z); if (d > 9 && d < 30 && d < gd) { gd = d; g = e; } }
       if (g) {
         AI.grenadeAt = now + A.grenadeCooldown[D];
-        g.throwAt = { t: now + A.grenadeWarn, x: k.x + (Math.random() - 0.5) * 2.5, z: k.z + (Math.random() - 0.5) * 2.5 };
+        const sc = A.grenadeScatter[D], a = Math.random() * 6.283, r = sc * Math.sqrt(Math.random());
+        g.throwAt = { t: now + A.grenadeWarn, x: k.x + Math.cos(a) * r, z: k.z + Math.sin(a) * r };
         AI.bark(g, 'throwing', true); IV.emit('aiOrder', { kind: 'grenade', e: g });
       }
     }

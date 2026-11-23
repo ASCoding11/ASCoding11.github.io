@@ -142,7 +142,8 @@
       openHold: 3,              // s: on first contact he answers from where he stands (if a turn to fire is free) before moving
       snapRange: { smg: 22, rifle: 34, pistol: 16 }, // m: caught in the open he stops and fires (his turn) instead of running first
       campFlank: [16, 11, 8],   // s you stay on one spot they know (within 3.5 m) before one of them is sent round your flank
-      campGrenade: [13, 8, 6],  // s on one known spot before a grenade (one man shouts first, then throws)
+      campGrenade: [16, 8, 6],  // s on one known spot before a grenade (one man shouts first, then throws)
+      grenadeScatter: [4.5, 2.5, 1.8], // m: how far from that spot his grenade may land
       grenadeWarn: 0.9,         // s from his shout to the throw
       pushLost: [14, 10, 8],    // s out of sight before two of them move up on your last known position (the rest cover it)
       searchLost: [30, 22, 18], // s out of sight before the whole group goes to a proper search
