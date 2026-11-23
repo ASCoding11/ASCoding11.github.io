@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.43', title: 'Flipline is now Chromeline', kind: 'feature',
+     img: 'm/thumbs/flipline.jpg', tags: ['Chromeline'], items: [
+      'Flipline has a new name and a new look: Chromeline, a stunt bike ride through a neon city at night.',
+      'All 24 levels and their medal targets were run again on the arrow-key controls, and two big loops got a boost strip.',
+      'The mace and the saw have a dark outline, so they stand out against the lit towers.'
+    ]},
     {date: '2026-11-23', version: '1.42', title: 'Rollaway is now Overdrop', kind: 'feature',
      img: 'm/thumbs/rollaway.jpg', tags: ['Overdrop'], items: [
       'Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.',
