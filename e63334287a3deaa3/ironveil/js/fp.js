@@ -708,6 +708,8 @@
   // keeps its old eased kick.
   FP.recoil = function (k) {
     FP.kick = Math.min(1.5, FP.kick + k); FP.kickR = Math.min(0.25, FP.kickR + k * 0.06);
+    const s = Math.min(2.6, k / 0.35), a = IV.camera.adsE || 0, bt = s * (1 - 0.45 * a);
+    SP.kZ.v += 1.5 * s * (1 - 0.4 * a); SP.kP.v += 1.5 * bt; SP.kY.v += (Math.random() - 0.5) * bt; SP.kR.v += (Math.random() - 0.5) * 1.8 * bt;
   };
 
   // ---------------------------------------------------------------- the second pass
