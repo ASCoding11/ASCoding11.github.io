@@ -27,6 +27,8 @@ What was changed (`tools/weapons/demark.py`, `tools/weapons/scanned.py`; downloa
   `_sightRear`, `_sightFront`, `_scopeEye`).
 
 The SMG also got `_sightRear` and `_sightFront` empties (`tools/weapons/swap.mjs --add`).
+On 23 Nov the SMG was rebuilt from the same scripts (worn blued steel, a dropped stock, cross pins); no new outside
+source was used, the walnut grain is still the Poly Haven scan below.
 
 ## Poly Haven texture (CC0)
 

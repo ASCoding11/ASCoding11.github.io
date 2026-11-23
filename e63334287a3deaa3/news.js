@@ -91,6 +91,12 @@
       'All 24 levels and their medal targets were run again on the arrow-key controls, and two big loops got a boost strip.',
       'The mace and the saw have a dark outline, so they stand out against the lit towers.'
     ]},
+    {date: '2026-11-23', version: '1.42', title: 'Rollaway is now Overdrop', kind: 'feature',
+     img: 'm/thumbs/rollaway.jpg', tags: ['Overdrop'], items: [
+      'Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.',
+      'There are new hazards, and each kind has its own shape so you can tell them apart at speed.',
+      'Your best run, gems and settings carry over.'
+    ]},
     {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
      items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
              'Only the site\'s team can read what you send.']},

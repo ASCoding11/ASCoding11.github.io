@@ -134,7 +134,7 @@
     const WP = IV.weapons, C = IV.camera, cx = w / 2, cy = h / 2, u = dpr;
     if (C.mode === 'scope' && WP.scoped) drawScope(w, h, u);
     else if (WP.binoc && C.mode === 'scope') drawBinoc(w, h, u);
-    else if (P.alive && !P.cine && !P.sprinting && !(WP.reloadT > 0) && !(C.mode === 'first' && (WP.aiming || WP.scoped))) drawReticle(cx, cy, u, dt);   // no crosshair while sprinting, reloading or looking down the sights
+    else if (P.alive && !P.cine && !(C.mode === 'first' && (WP.aiming || WP.scoped))) drawReticle(cx, cy, u, dt);   // always there from the hip (sprinting, jumping, reloading too); gone only down the sights
     if (C.mode !== 'scope') drawHit(cx, cy, u);
     drawGrenadeWarn(cx, cy, u);
     drawAwareness(cx, cy, u);
@@ -163,12 +163,28 @@
   // and prone tighten it, the SMG blooms as it fires; weapons.js eases the cone itself), plus a kick on every shot. In first person it goes away while you look down the sights (the sights are the crosshair then).
   function drawReticle(cx, cy, u, dt) {
     const WP = IV.weapons;
-    const ppr = (cv.height / 2) / Math.tan(W.camera.fov * Math.PI / 360), want = Math.tan(WP.currentSpread()) * ppr / u + 3;
+    // gap (CSS px) = tan(spread) / tan(fov / 2) x half the screen height + 4, plus 10 while sprinting (eased), 4-70 px
+    const ppr = (cv.height / 2) / Math.tan(W.camera.fov * Math.PI / 360);
+    H.sprK = IV.damp(H.sprK || 0, P.sprinting ? 1 : 0, 10, dt);
+    const want = Math.tan(WP.currentSpread()) * ppr / u + 4 + 10 * H.sprK;
     H.kickK = Math.max(0, (H.kickK || 0) - dt * 5);
-    H.gap = want;   // weapons.js already eases the cone; the marks sit exactly on it
+    H.gap = IV.clamp(want, 4, 70);   // weapons.js already eases the cone; the marks sit exactly on it
     const sp = H.gap + H.kickK * 9;
-    g.strokeStyle = 'rgba(240,232,210,.88)'; g.lineWidth = 2 * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
-    if (WP.busyThrow) { g.beginPath(); g.arc(cx, cy, 3 * u, 0, 6.29); g.stroke(); }
+    const dim = WP.reloadT > 0 ? 0.5 : 1;   // still there while reloading, fainter
+    g.strokeStyle = `rgba(240,232,210,${0.88 * dim})`; g.lineWidth = 2 * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
+    if (WP.busyThrow) {
+      g.beginPath(); g.arc(cx, cy, 3 * u, 0, 6.29); g.stroke();
+      // grenade cook: a ring that empties as the fuse burns, one pip per second left, red in the last 1.5 s
+      const bt = WP.busyThrow;
+      if (bt.kind === 'grenade') {
+        const fuse = T.weapons.grenade.fuse, left = Math.max(0, fuse - (IV.time - bt.t0)), r = 22 * u, hot = left < 1.5;
+        g.lineWidth = 3 * u; g.strokeStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.arc(cx, cy, r, 0, 6.29); g.stroke();
+        g.strokeStyle = hot ? 'rgba(232,87,60,.95)' : 'rgba(240,232,210,.9)';
+        g.beginPath(); g.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 6.283 * left / fuse); g.stroke();
+        g.fillStyle = g.strokeStyle;
+        for (let i = 0; i < Math.ceil(left - 1e-3); i++) { const a = -Math.PI / 2 + i * 0.34 - (Math.ceil(fuse) - 1) * 0.17; g.beginPath(); g.arc(cx + Math.cos(a) * (r + 11 * u), cy + Math.sin(a) * (r + 11 * u), 2.6 * u, 0, 6.29); g.fill(); }
+      }
+    }
     else {
       const s = sp * u, l = 8 * u;
       g.beginPath(); g.moveTo(cx - s - l, cy); g.lineTo(cx - s, cy); g.moveTo(cx + s, cy); g.lineTo(cx + s + l, cy); g.moveTo(cx, cy + s); g.lineTo(cx, cy + s + l); g.moveTo(cx, cy - s - l); g.lineTo(cx, cy - s); g.stroke();
