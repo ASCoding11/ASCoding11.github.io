@@ -259,6 +259,7 @@ def joint_cost(W, s):
     if OLD: return 0.0
     flex, dev, elbow, above, tw = joint_stats(W, s)
     c = (max(0.0, abs(flex) - 25) / 10) ** 2 + (max(0.0, abs(dev) - 12) / 6) ** 2
+    c += (max(0.0, abs(tw) - 95) / 12) ** 2      # forearm roll past about 95 degrees wrings the sleeve at the wrist
     c += (max(0.0, 35 - elbow) / 10) ** 2 + (max(0.0, elbow - 150) / 10) ** 2 + (max(0.0, above + 0.02) / 0.015) ** 2
     return c
 
@@ -270,26 +271,40 @@ def nz(*v): return Vector(v).normalized()
 GRIPSPEC = {
     # rifle (ray-probed scan): stock wrist at y 0.04..0.08 is 26-32 mm wide, z -0.059..-0.010; the fore-end at
     # y -0.255 is 36 mm wide with its underside at z -0.024
-    ('rifleScoped', 'gripR'): dict(pc=(-0.022, 0.074, -0.026), dir=nz(0.25, -0.55, -0.8), palm=nz(0.75, 0.0, -0.66), bound=(0.005, 0.010, 0.006)),
+    # right hand round the stock wrist: palm on its right side (facing +X, into the wood), the metacarpals running
+    # forward and down so the knuckles sit under the wrist and the fingers wrap up its left side; the trigger finger
+    # swung forward along the side of the receiver above the guard; the thumb over the top of the wrist
+    ('rifleScoped', 'gripR'): dict(pc=tuple(float(v) for v in os.environ.get('RGR_PC', '-0.019,0.105,-0.018').split(',')), dir=nz(*tuple(float(v) for v in os.environ.get('RGR_DIR', '0.25,-0.25,-0.93').split(','))), palm=nz(*tuple(float(v) for v in os.environ.get('RGR_PALM', '1,0,0.05').split(','))),
+                                   index=tuple(float(v) for v in os.environ.get('RGR_INDEX', '-0.05,0.15,0.1,0.95').split(',')), wrap=True, trig_abd=0.25,
+                                   xfix=[-0.019, 0.0225, -0.003, 0.18, -0.16], fstart={'middle': (0.55, 0.65, 0.45)}),
     ('rifleScoped', 'gripL'): dict(pc=tuple(float(v) for v in os.environ.get('RGL_PC', '0.020,-0.255,-0.031').split(',')),
                                    dir=nz(*[float(v) for v in os.environ.get('RGL_DIR', '-1,-0.35,0.05').split(',')]),
                                    palm=nz(*[float(v) for v in os.environ.get('RGL_PALM', '-0.3,0,1').split(',')]), bound=(0.006, 0.015, 0.004)),
-    ('smg', 'gripR'): dict(pc=(-0.022, 0.072, -0.070), dir=nz(0.15, -1, -0.25), palm=nz(1, -0.5, 0)),
+    # right hand round the pistol grip: web high under the tang, fingers round the front strap, the trigger finger
+    # laid forward along the frame above the guard, the thumb down the left side
+    ('smg', 'gripR'): dict(pc=tuple(float(v) for v in os.environ.get('SGR_PC', '-0.012,0.065,-0.070').split(',')),
+                           dir=nz(*[float(v) for v in os.environ.get('SGR_DIR', '0.35,-0.9,-0.27').split(',')]),
+                           palm=nz(*[float(v) for v in os.environ.get('SGR_PALM', '1,0.35,0').split(',')]),
+                           index=tuple(float(v) for v in os.environ.get('SGR_INDEX', '-0.05,0.15,0.1,0.5').split(',')), wrap=True, trig_abd=0.2,
+                           thumb_dir=tuple(float(v) for v in os.environ.get('SGR_TDIR', '').split(',') if v) or None, xfix=[-0.012, 0.012, 0.006, -0.12, 0.2]),
     ('smg', 'gripL'): dict(pc=(0.004, -0.20, -0.017), dir=nz(-1, -0.25, 0.05), palm=nz(-0.25, 0, 1)),
     # palm round onto the backstrap with the web high under the slide, so the camera behind the gun sees the hand, not a bare backstrap
-    ('pistol', 'gripR'): dict(pc=tuple(float(v) for v in os.environ.get('PGR_PC', '-0.019,0.064,-0.024').split(',')),
-                              dir=nz(*[float(v) for v in os.environ.get('PGR_DIR', '0.15,-1,-0.25').split(',')]),
-                              palm=nz(*[float(v) for v in os.environ.get('PGR_PALM', '1,-1,0').split(',')]),
+    ('pistol', 'gripR'): dict(pc=tuple(float(v) for v in os.environ.get('PGR_PC', '-0.016,0.055,-0.050').split(',')),
+                              dir=nz(*[float(v) for v in os.environ.get('PGR_DIR', '0.35,-0.9,-0.27').split(',')]),
+                              palm=nz(*[float(v) for v in os.environ.get('PGR_PALM', '1,0.35,0').split(',')]),
+                              index=tuple(float(v) for v in os.environ.get('PGR_INDEX', '0.0,0.10,0.06').split(',')),
                               thumb=tuple(float(v) for v in os.environ.get('PGR_THUMB', '').split(',') if v) or None,
-                              bound=(0.008, 0.008, 0.004)),     # keep the web high under the slide
+                              thumb_dir=tuple(float(v) for v in os.environ.get('PGR_TDIR', '').split(',') if v) or None,
+                              thumb_pt=tuple(float(v) for v in os.environ.get('PGR_TPT', '').split(',') if v) or None,   # thumb forward down the left of the frame, under the slide
+                              wrap=True, trig_abd=0.0, xfix=[0.009, 0.012, 0.003, 0.26, -0.2]),
     ('pistol', 'gripL'): dict(pc=tuple(float(v) for v in os.environ.get('PGL_PC', '0.014,0.060,-0.058').split(',')),
                               dir=nz(*[float(v) for v in os.environ.get('PGL_DIR', '-0.35,-1,-0.35').split(',')]), palm=nz(-1, 0.35, 0.15), fixed=True),
 }
 # pistol ADS: the support hand turned to point along the gun (forward, a little up) so its forearm can come from below
 # and behind under the gun instead of from the far left; the grips blend from the hip ones by the ADS amount
-GRIPSPEC[('pistol', 'gripLads')] = dict(GRIPSPEC[('pistol', 'gripL')], dir=nz(*[float(v) for v in os.environ.get('PGLA_DIR', '-0.15,-1,0.0').split(',')]),
+GRIPSPEC[('pistol', 'gripLads')] = dict(GRIPSPEC[('pistol', 'gripL')], thumb_pt=tuple(float(v) for v in os.environ.get('PGLA_TPT', '').split(',') if v) or None, dir=nz(*[float(v) for v in os.environ.get('PGLA_DIR', '-0.15,-1,0.0').split(',')]),
                                         palm=nz(*[float(v) for v in os.environ.get('PGLA_PALM', '-1,0.15,0.15').split(',')]))
-GRIPSPEC[('pistol', 'gripRads')] = dict(GRIPSPEC[('pistol', 'gripR')], dir=nz(*[float(v) for v in os.environ.get('PGRA_DIR', '0.15,-1,-0.1').split(',')]))
+# (the firing hand keeps the same grip aimed: no separate ADS frame for it)
 PALM = {}
 for s_ in ('l', 'r'):
     ids = [i for i, b in enumerate(skin.dom) if b == 'hand_' + s_ and skin.N[i][2] < -0.5]
@@ -315,6 +330,7 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
     """Fit the hand on the weapon: alternate (1) a search over the palm offset and a small turn of the hand, scored
     by every hand vertex inside the weapon plus palm contact, and (2) closing the fingers on the surface."""
     w = WPN[k]; W = BASE[k]['hip']; g = GRIPSPEC[(k, nm)]
+    if g.get('wrap'): return solve_wrap(k, nm, s, trigger=trigger, Wf=Wf, bvh=bvh)
     Wf = Wf or W
     bvh = bvh or w.bvh['body']; Minv = Wf.inverted()
     hand_ids = skin.verts_of(('hand_' + s, 'index_', 'middle_', 'ring_', 'pinky_', 'thumb_'))
@@ -325,7 +341,7 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
                'thumb': (0.05, 0.05, 0.0, 0.1)}   # wrapped over the firing hand, thumb forward along the frame
     else:
         ang = {'index': (0.3, 0.4, 0.2), 'middle': (0.5, 0.5, 0.3), 'ring': (0.5, 0.5, 0.3), 'pinky': (0.5, 0.5, 0.3), 'thumb': (0.1, 0.2, 0.2, 0.3)}
-    if not trigger and not all_fingers and not g.get('fixed'): ang['index'] = (0.10, 0.08, 0.05)
+    if not trigger and not all_fingers and not g.get('fixed'): ang['index'] = g.get('index', (0.10, 0.08, 0.05))
     base_dir, base_palm = Vector(g['dir']), Vector(g['palm'])
     def pose_with(x):
         off = Vector(x[:3])
@@ -352,7 +368,7 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         near = np.sort(dp)[: max(4, len(dp) // 5)]
         bnd = g.get('bound', (0.010, 0.020, 0.008))     # per-axis travel limits of the fit (weapon frame, metres)
         over = sum(max(0.0, abs(x[i]) - bnd[i]) ** 2 for i in range(3)) * 1e6 if bnd else 0.0
-        return float((pen ** 2).sum() * 6e5 + ((near.mean() - 0.003) ** 2) * 3e4 + Vector(x[:3]).length ** 2 * 60 + (x[3] ** 2 + x[4] ** 2) * 0.5 + over
+        return float((pen ** 2).sum() * 6e5 + ((near.mean() - 0.003) ** 2) * 3e4 + Vector(x[:3]).length ** 2 * 60 + (x[3] ** 2 + x[4] ** 2) * g.get('turnk', 0.5) + over
                      + joint_cost(Wd, s) * 2.0)
     x = [0.0] * 5
     for rnd in range(3):
@@ -372,6 +388,11 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
         ang.update(new)
     if g.get('thumb'): ang['thumb'] = g['thumb']        # authored thumb (pistol: along the left of the frame)
     L, Wd, R = pose_with(x)
+    if g.get('thumb_pt'):    # thumb laid forward under the firing thumb, pointing at a spot on the frame
+        F.set_fingers(rig, L, Wd, s, {f: a for f, a in ang.items() if f != 'thumb'})
+        ang['thumb'], tc = aim_thumb(L, Wd, s, Wf @ Vector(g['thumb_pt']) - Wd['thumb_01_' + s].translation, bvh, Minv)
+        log('  thumb', k, nm, tuple(round(float(v), 2) for v in ang['thumb']), 'cost %.3f' % tc)
+        L, Wd, R = pose_with(x)
     g['dir'] = R @ base_dir; g['palm'] = R @ base_palm     # keep the fitted turn in the spec
     F.set_fingers(rig, L, Wd, s, ang)
     pen = F.penetration(skin, Wd, bvh, Minv, idx=hand_ids)
@@ -382,6 +403,129 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
     log('  frame', k, nm, 'want dir', tuple(round(v, 2) for v in g['dir']), 'got', tuple(round(v, 2) for v in act_dir),
         'want palm', tuple(round(v, 2) for v in g['palm']), 'got', tuple(round(v, 2) for v in act_palm))
     log('grip', k, nm, 'offset', tuple(round(v, 4) for v in x), 'pen', pen, 'cost', round(c0, 3),
+        {f: tuple(round(v, 2) for v in a) for f, a in ang.items()})
+    return GRIP[(k, nm)]
+
+def aim_thumb(L0, W0, s, want, bvh, Minv, others=None):
+    """Thumb angles (a1, a2, a3, spread) that point the thumb (its middle joint to its tip) along `want` (world
+    direction) without sinking into the weapon: a grid over the base curl and spread, then the two outer joints.
+    `others`: the other fingers' angles, set first (the thumb's own frame depends on the hand only)."""
+    want = want.normalized(); ids = skin.verts_of(('thumb_02_' + s, 'thumb_03_' + s, 'thumb_04_leaf_' + s))[::3]
+    def cost(a):
+        L = {b: m.copy() for b, m in L0.items()}; W = {b: m.copy() for b, m in W0.items()}
+        F.set_fingers(rig, L, W, s, {'thumb': a})
+        d = (W['thumb_04_leaf_' + s].translation - W['thumb_02_' + s].translation).normalized()
+        c = d.angle(want, 0.0) ** 2
+        for p in skin.pose(W, ids):
+            q = Minv @ Vector(p); dd = F.signed_dist(bvh, q)
+            if dd < 0.001 and (dd >= 0 or F.inside(bvh, q)): c += (0.001 - dd) ** 2 * 4e4
+        return c
+    best = None
+    for a1 in np.linspace(-0.6, 1.0, 7):
+        for sp in np.linspace(-1.0, 1.0, 6):
+            for sw in np.linspace(-0.4, 1.4, 7):
+                a = (a1, 0.15, 0.1, sp, sw); c = cost(a)
+                if best is None or c < best[0]: best = (c, a)
+    a = list(best[1]); c0 = best[0]; st = [0.1, 0.15, 0.15, 0.1, 0.1]
+    while max(st) > 0.01:
+        moved = False
+        for j in range(5):
+            for sg in (-1, 1):
+                b = a[:]; b[j] += sg * st[j]
+                if j in (1, 2): b[j] = max(-0.1, min(1.2, b[j]))
+                c = cost(tuple(b))
+                if c < c0: a, c0, moved = b, c, True
+        if not moved: st = [v * 0.5 for v in st]
+    return tuple(a), c0
+
+def solve_wrap(k, nm, s, trigger=False, Wf=None, bvh=None):
+    """A hand closed round a grip (pistol grip, stock wrist, magazine): the palm placement is searched with the
+    fingers grasped inside the cost, so it ends where the fingers really wrap instead of lying flat along the side.
+    Search axes are the hand's own: along its palm normal, its metacarpals and its knuckle line, plus small turns
+    about the knuckle line and the palm normal. Cost: hand vertices inside the weapon, palm contact, fingers in
+    `wrapf` that close less than `curl` radians in total or whose end segment does not reach the surface, travel,
+    and the wrist's joint cost. Spec keys: pc, dir, palm (weapon frame), wrapf, curl, index (authored trigger finger,
+    with its sideways swing), thumb (authored) or thumb grasped, bound (travel per axis), tspread (thumb spread)."""
+    w = WPN[k]; W = BASE[k]['hip']; g = GRIPSPEC[(k, nm)]
+    Wf = Wf or W; bvh = bvh or w.bvh['body']; Minv = Wf.inverted(); R3 = Wf.to_3x3()
+    hand_ids = np.array([i for i in skin.verts_of(('hand_' + s, 'index_', 'middle_', 'ring_', 'pinky_', 'thumb_')) if skin.dom[i].endswith('_' + s)], int)
+    palm_ids = np.array([i for i in hand_ids if skin.dom[i] == 'hand_' + s and skin.N[i][2] < -0.3], int)
+    tip_ids = {f: skin.verts_of(('%s_03_%s' % (f, s), '%s_04_leaf_%s' % (f, s))) for f in F.FINGERS}
+    wrapf = tuple(g.get('wrapf', ('middle', 'ring', 'pinky')))
+    authored = {}
+    if 'index' in g and not trigger: authored['index'] = tuple(g['index'])
+    if 'thumb' in g and g['thumb']: authored['thumb'] = tuple(g['thumb'])
+    grasp = tuple(f for f in ('index', 'middle', 'ring', 'pinky', 'thumb') if f not in authored and not (f == 'thumb' and g.get('thumb_dir')))
+    base_dir = Vector(g['dir']).normalized(); base_palm = Vector(g['palm']); base_palm = (base_palm - base_dir * base_palm.dot(base_dir)).normalized()
+    kx = base_dir.cross(base_palm).normalized()
+    bnd = g.get('bound', (0.008, 0.010, 0.010)); tb = g.get('tbound', (0.25, 0.25))
+    want = g.get('curl', 2.2)
+    def pose(x):
+        Rr = Matrix.Rotation(x[3], 3, kx) @ Matrix.Rotation(x[4], 3, base_palm)
+        d = Rr @ base_dir; p = Rr @ base_palm
+        off = base_palm * x[0] + base_dir * x[1] + kx * x[2]
+        L, Wd = rest()
+        for side in ('l', 'r'): F.place_shoulder(rig, L, Wd, side, shoulders_for(k, W)[side])
+        Hm = hand_matrix(s, Wf @ (Vector(g['pc']) + off), R3 @ d, R3 @ p)
+        if not arm_place(L, Wd, k, W, s, Hm):
+            cap_shoulder(L, Wd, k, W, s, Hm); F.arm_to(rig, L, Wd, s, Hm, pole_for(k, W, s))
+        return L, Wd, d, p, off
+    def evaluate(x, step=0.08):
+        L, Wd, d, p, off = pose(x)
+        ang = dict(authored)
+        ang.update(F.grasp_fingers(rig, skin, L, Wd, s, bvh, Minv, fingers=grasp, thumb_spread=g.get('tspread', 0.35 if s == 'r' else 0.2),
+                                   step=step, spread={'index': g.get('trig_abd', 0.0)} if trigger else None,
+                                   start=dict(g.get('fstart', {}), thumb=tuple(g.get('tstart', (-0.6, -0.1, 0.0))))))
+        L2 = {b: m.copy() for b, m in L.items()}; W2 = {b: m.copy() for b, m in Wd.items()}
+        F.set_fingers(rig, L2, W2, s, ang)
+        P = skin.pose(W2, hand_ids[::2])
+        dd = np.array([F.signed_dist(bvh, Minv @ Vector(q)) for q in P])
+        for i in np.where(dd < 0)[0]:
+            if not F.inside(bvh, Minv @ Vector(P[i])): dd[i] = -dd[i]
+        c = float((np.clip(0.0008 - dd, 0, None) ** 2).sum() * 6e5)
+        dp = np.array([F.signed_dist(bvh, Minv @ Vector(q)) for q in skin.pose(W2, palm_ids[::2])])
+        c += ((np.sort(dp)[: max(4, len(dp) // 5)].mean() - 0.003) ** 2) * 3e4
+        for f in wrapf:
+            a = ang.get(f, (0, 0, 0)); c += (max(0.0, want - (a[0] + a[1] + a[2])) / 0.25) ** 2
+            dt = min(F.signed_dist(bvh, Minv @ Vector(q)) for q in skin.pose(W2, tip_ids[f][::2]))
+            c += (max(0.0, abs(dt) - 0.004) / 0.004) ** 2
+        c += sum((max(0.0, abs(x[i]) - bnd[i]) / 0.002) ** 2 for i in range(3)) + sum((max(0.0, abs(x[3 + i]) - tb[i]) / 0.05) ** 2 for i in range(2))
+        c += Vector(x[:3]).length ** 2 * 300 + (x[3] ** 2 + x[4] ** 2) * 2.0 + joint_cost(Wd, s) * g.get('jointk', 0.3)
+        return c, ang
+    def breakdown(x):
+        L, Wd, d, p, off = pose(x); a_ = evaluate(x)[1]; F.set_fingers(rig, L, Wd, s, a_); out = {}
+        for pre in ('hand_', 'thumb_', 'index_', 'middle_', 'ring_', 'pinky_'):
+            ids_ = np.array([i for i in hand_ids if skin.dom[i].startswith(pre)], int)
+            if len(ids_): q_ = F.penetration(skin, Wd, bvh, Minv, idx=ids_); out[pre[:-1]] = (q_[0], round(q_[1] * 1000, 1)) if q_[0] else 0
+        return out
+    if os.environ.get('WRAPDBG'): log('wrap start', k, nm, breakdown(list(g.get('x0', [0.0] * 5))), 'cost', round(evaluate(list(g.get('x0', [0.0] * 5)))[0], 2))
+    x = list(g.get('x0', [0.0] * 5)); c0, ang0 = evaluate(x); step = [0.004, 0.006, 0.006, 0.08, 0.08]; n = 0
+    if g.get('xfix') and not os.environ.get('REFIT'):   # a placement chosen from earlier fits and checked by eye: no search
+        x = list(g['xfix']); step = [0.0] * 5
+    while max(step[:3]) > 0.0009 and n < 400:
+        moved = False
+        for ax in range(5):
+            for sg in (-1, 1):
+                cand = list(x); cand[ax] += sg * step[ax]
+                c, a_ = evaluate(cand); n += 1
+                if c < c0: c0, x, ang0, moved = c, cand, a_, True
+        if not moved: step = [v * 0.5 for v in step]
+    c0, ang = evaluate(x, step=0.03)
+    L, Wd, d, p, off = pose(x)
+    if g.get('thumb_dir') or g.get('thumb_pt'):      # the thumb pointed along the frame (pistol: forward down the left side)
+        want = R3 @ Vector(g['thumb_dir']) if g.get('thumb_dir') else (Wf @ Vector(g['thumb_pt']) - Wd['thumb_01_' + s].translation)
+        ang['thumb'], tc = aim_thumb(L, Wd, s, want, bvh, Minv)
+        log('  thumb', k, nm, tuple(round(float(v), 2) for v in ang['thumb']), 'cost %.3f' % tc)
+    # store as the plain spec + offset (weapon frame) that hand_frame() and the clips use
+    g['dir'] = d; g['palm'] = p
+    F.set_fingers(rig, L, Wd, s, ang)
+    pen = F.penetration(skin, Wd, bvh, Minv, idx=hand_ids)
+    GRIP[(k, nm)] = {'off': off, 'fingers': ang, 'pen': pen}
+    grp = {}
+    for pre in ('hand_', 'thumb_', 'index_', 'middle_', 'ring_', 'pinky_'):
+        ids_ = np.array([i for i in hand_ids if skin.dom[i].startswith(pre)], int)
+        if len(ids_): q_ = F.penetration(skin, Wd, bvh, Minv, idx=ids_); grp[pre[:-1]] = (q_[0], round(q_[1] * 1000, 1)) if q_[0] else 0
+    log('wrap', k, nm, 'x', tuple(round(v, 4) for v in x), 'evals', n, 'pen', (pen[0], round(pen[1] * 1000, 1)), grp, 'cost', round(c0, 3),
         {f: tuple(round(v, 2) for v in a) for f, a in ang.items()})
     return GRIP[(k, nm)]
 
@@ -429,7 +573,8 @@ def frame(k, Ww, hands, fingers, parts=None, shoulders=None, prop=None, nudge=No
                 cap_shoulder(L2, W2, k, Ww, s, H)
                 F.arm_to(rig, L2, W2, s, H, pole)
                 pen = arm_pen(W2, s, bvh, Minv, hand=bool((nudge or {}).get(s)))
-                c = pen + abs(a_) * 0.00004 + abs(a_ - LASTPOLE.get(s, 0)) * 0.0002 + joint_cost(W2, s) * 0.002
+                c = pen + abs(a_) * 0.00004 + abs(a_ - LASTPOLE.get(s, 0)) * 0.0002 + joint_cost(W2, s) * 0.002 \
+                    + (max(0.0, abs(joint_stats(W2, s)[4]) - 95) / 12) ** 2 * 0.004
                 if os.environ.get('POLEDBG'): log('    pole', s, a_, 'pen %.4f joint %.2f' % (pen, joint_cost(W2, s)))
                 if best is None or c < best[0] - 1e-9: best = (c, L2, W2, a_, pen)
             sp = arm_spec(k, Ww, s)
@@ -489,7 +634,7 @@ def place_weapon(k, W):
     for kk in WPN:
         root = WPN[kk].root
         root.hide_render = kk != k
-        for c in root.children_recursive: c.hide_render = kk != k
+        for c in root.children_recursive: c.hide_render = kk != k or '_sling' in c.name
     if PROPSHOW[0]:
         pr = WPN[PROPSHOW[0]].root; pr.hide_render = False
         for c in pr.children_recursive: c.hide_render = False
@@ -585,6 +730,15 @@ def solve_part_grip(k, nm, s):
     Mp = W @ w.empty[part]
     if part == 'boltHandle': Mp = W @ w.empty['bolt'] @ w.empty['bolt'].inverted() @ w.empty['boltHandle']
     G_ = solve_grip(k, nm, s, Wf=Mp, bvh=w.bvh[part], all_fingers=True)
+    if nm == 'magL':
+        # a hand holding a magazine is closed round it: a finger the fit left open (nothing to reach on a short box
+        # magazine, as on the rifle) curls in instead of standing out straight (the spread hand mid-reload)
+        CL = {'index': (0.85, 0.95, 0.55), 'middle': (0.95, 1.05, 0.6), 'ring': (1.05, 1.1, 0.6), 'pinky': (1.15, 1.1, 0.6)}
+        for f_, c_ in CL.items():
+            a_ = G_['fingers'].get(f_, (0, 0, 0))
+            if a_[0] + a_[1] + a_[2] < 1.2: G_['fingers'][f_] = c_
+        th = G_['fingers'].get('thumb', (0, 0, 0, 0.2))
+        if th[0] + th[1] + th[2] < 0.5: G_['fingers']['thumb'] = (0.35, 0.3, 0.25) + tuple(th[3:])
     if nm.endswith('R') and part in ('boltHandle', 'charging'):
         # a pinch: thumb and index on the knob, the other fingers loosely curled out of the way
         G_['fingers'].update({'middle': (0.9, 1.0, 0.6), 'ring': (1.0, 1.1, 0.6), 'pinky': (1.1, 1.1, 0.6)})
@@ -729,7 +883,7 @@ def make_clips(k):
             s1 = 0.30 if not long_ else 0.32
             out = ramp(t, 0.55, 0.8) * 0.11 + ramp(t, 0.8, 1.1) * 0.25
             inn = (1 - ramp(t, 1.25, 1.62)) * 0.30 if t >= 1.15 else None
-            vis = 0.0 if 1.1 <= t < 1.15 else 1.0
+            vis = 1.0    # the magazine stays in the hand through the swap (hidden, the hand closed on nothing mid-reload)
             off = (out if t < 1.15 else inn)
             if empty and not long_ and t < 0.55: off = 0.0
             Dm = tr(mag_down * off)
@@ -940,7 +1094,7 @@ def bake_kind(k, report):
     W = BASE[k]['hip']; F.arm_to(rig, L, Wd, 'r', grip_r(k, W), POLE_K.get(k, POLE)['r'])
     ang = F.grasp_fingers(rig, skin, L, Wd, 'r', WPN[k].bvh['trigger'] if 'trigger' in WPN[k].bvh else WPN[k].bvh['body'],
                           (W @ WPN[k].empty['trigger']).inverted() if 'trigger' in WPN[k].empty else W.inverted(), fingers=('index',),
-                          start={'index': (0.25, 0.3, 0.15)})
+                          start={'index': (0.25, 0.3, 0.15)}, spread={'index': GRIPSPEC[(k, 'gripR')].get('trig_abd', 0.0)})
     GRIP[(k, 'gripR_trigger')] = {'fingers': ang}
     add_part_specs(k)
     for nm in [n for (kk, n) in GRIPSPEC if kk == k and n not in ('gripR', 'gripL', 'gripLads', 'gripRads')]:
@@ -1139,7 +1293,9 @@ if __name__ == '__main__':
             solve_part_grip(k, nm, 'r' if nm.endswith('R') else 'l')
         GRIP[(k, 'gripR_trigger')] = {'fingers': {'index': (0.55, 0.75, 0.35)}}
         make_clips(k)
-        for spec in os.environ.get('SHOTS', 'idle@0').split(','):
+        for o_ in bpy.data.objects:      # the game hides the sling in first person
+            if o_.name.split('.')[0].endswith('_sling') or '_sling_mesh' in o_.name: o_.hide_render = True
+        for spec in ([] if os.environ.get('NORENDER') else os.environ.get('SHOTS', 'idle@0').split(',')):
             nm, tt = spec.split('@')
             d_ = CLIPS[k + '.' + nm][2](float(tt))
             L, W = solve_frame(k, d_)
@@ -1150,6 +1306,14 @@ if __name__ == '__main__':
             if os.environ.get('OUTSIDE'):
                 render(FPW + '/preview/%s_%s_%s_out.png' % (k, nm, tt), L, W, k, view=(Vector((0.75, -0.45, 0.35)), Vector((0.0, 0.25, -0.2)), 50))
                 render(FPW + '/preview/%s_%s_%s_out2.png' % (k, nm, tt), L, W, k, view=(Vector((-0.2, 0.9, -0.5)), Vector((0.0, 0.2, -0.15)), 50))
+            if os.environ.get('HANDVIEW'):   # close views of each hand: from the eye (zoomed), the back of the hand, the palm side
+                for s_ in ('r', 'l'):
+                    R3 = W['hand_' + s_].to_3x3() @ rig.Rr['hand_' + s_].transposed()
+                    c = W['hand_' + s_].translation + R3 @ (PALM[s_] - rig.Mr['hand_' + s_].translation)
+                    n_ = F.palm_normal(rig, W, s_)
+                    render(FPW + '/preview/%s_%s_%s_h%s1.png' % (k, nm, tt, s_), L, W, k, view=(Vector((0, 0, 0)), c, 16))
+                    render(FPW + '/preview/%s_%s_%s_h%s2.png' % (k, nm, tt, s_), L, W, k, view=(c - n_ * 0.3 + Vector((0, -0.05, 0.05)), c, 32))
+                    render(FPW + '/preview/%s_%s_%s_h%s3.png' % (k, nm, tt, s_), L, W, k, view=(c + n_ * 0.3 + Vector((0, -0.05, -0.05)), c, 32))
             if os.environ.get('GRIPVIEW'):   # close views of the right-hand grip: from the left side and from below-behind
                 g = W['w_root'] @ F.RX90.inverted() @ Vector([float(v) for v in os.environ.get('GRIPPT', '0,0.04,-0.04').split(',')])
                 R3 = (W['w_root'] @ F.RX90.inverted()).to_3x3()

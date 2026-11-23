@@ -308,12 +308,13 @@
     });
     g.scene.traverse(function (o) { if (o.isMesh) { prepMaterial(o.material); if (o.material.map) o.material.map.anisotropy = 8; gloveMaterial(o.material); } });
   }
-  // The gloves: the arms' atlas paints them mid-brown, as light as the skin they replaced, so the hand read as a big
-  // bare shape. In the shader every brown texel (leather: red over green over blue; the smock sleeve is green-grey,
-  // the watch steel grey) becomes dark, worn, slightly desaturated leather, darker than the sleeve, with a duller
-  // sheen; stitching and seams keep their contrast because it is a multiply. IV.fpGloveWet (0..1, set by the game
-  // from the rain, eased down under a roof) darkens the leather a little more and makes it glossier, like the
-  // ground and walls when wet. Material only: no asset change.
+  // The gloves: the arms' atlas (tools/chars/fp_tex.py) already paints dark brown leather with lighter polished
+  // knuckles and fingertips; this shader only takes the brown texels (red over green over blue; the smock sleeve is
+  // green-grey, the watch steel grey) a little darker and greyer, and holds their roughness at 0.46-0.62 so the
+  // knuckles and the back of the hand catch a soft highlight instead of reading as one flat dark shape. The arms'
+  // normal map is run at 1.7 so seams, folds and the sleeve's weave show at arm's length. IV.fpGloveWet (0..1, set
+  // by the game from the rain, eased down under a roof) darkens the leather a little more and makes it glossier,
+  // like the ground and walls when wet. Material only: no asset change.
   IV.fpGloveWet = { value: 0 };
   function gloveMaterial(m) {
     if (!m || m.userData.glove) return; m.userData.glove = true;
@@ -322,14 +323,15 @@
       sh.fragmentShader = 'uniform float uGloveWet;\n' + sh.fragmentShader.replace('#include <map_fragment>',
         '#include <map_fragment>\n' +
         '  float gl = smoothstep(0.18, 0.36, (diffuseColor.r - diffuseColor.g) / max(diffuseColor.r, 1e-4)) * step(diffuseColor.b, diffuseColor.g * 1.15);\n' +
-        '  vec3 lea = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.3) * vec3(0.55, 0.52, 0.50);\n' +
+        '  vec3 lea = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.2) * vec3(0.90, 0.85, 0.80);\n' +
         '  lea *= 1.0 - 0.22 * uGloveWet;\n' +
         '  diffuseColor.rgb = mix(diffuseColor.rgb, lea, gl);\n' +
         '  float gloveK = gl;')
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' +
-        '  roughnessFactor = mix(roughnessFactor, mix(max(roughnessFactor, 0.68), 0.38, uGloveWet), gloveK);');
+        '  roughnessFactor = mix(roughnessFactor, mix(clamp(roughnessFactor, 0.46, 0.62), 0.32, uGloveWet), gloveK);');
     };
-    m.customProgramCacheKey = function () { return 'fpglove2'; };
+    m.customProgramCacheKey = function () { return 'fpglove3'; };
+    if (m.normalMap) m.normalScale.set(1.7, 1.7);   // seams, knuckle folds and the sleeve's weave read at arm's length
   }
   IV.fpClips = function (kind) {
     return Object.keys(FPCLIPS).filter(function (n) { return n.indexOf(kind + '.') === 0; }).map(function (n) { return n.slice(kind.length + 1); });
@@ -363,6 +365,9 @@
       var mats = Array.isArray(o.material) ? o.material : [o.material];
       mats = mats.map(function (m0) {
         var m = m0.clone();
+        // steel reflects the arms' own sky cube a little harder than the world does (js/fp.js vmEnv), so a
+        // highlight runs along the receiver and barrel; wood and the glass keep the default
+        if (m.metalnessMap && !/glass/.test(m.name)) m.envMapIntensity = 1.5;
         m.onBeforeCompile = function (sh) {
           sh.uniforms.uOccPts = { value: occPts };
           sh.vertexShader = 'varying vec3 vOccPos;\n' + sh.vertexShader.replace('#include <project_vertex>',

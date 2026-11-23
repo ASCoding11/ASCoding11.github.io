@@ -657,6 +657,52 @@
     vm.cam.position.set(0, 0, 0); vm.cam.quaternion.identity(); vm.cam.updateMatrixWorld(true);
     vmLight(vm);
   }
+  // The arms' reflection cube: a 32 px cube of a sky built from the world's own light (hemisphere sky and ground
+  // colours, the horizon between them, the sun or moon as a bright soft spot where it really is relative to the
+  // eye), re-rendered only when that spot has moved by about 5 degrees or the light changed, at most every third
+  // frame. It replaces nothing in the world and costs six tiny draws when it updates.
+  const VE = { rt: null, key: new THREE.Vector3(9, 9, 9), sig: '', n: 0, keyCol: new THREE.Color(), c: new THREE.Color() };
+  function vmEnv(lit, night) {
+    const r = W.renderer;
+    if (!VE.rt) {
+      VE.rt = new THREE.WebGLCubeRenderTarget(32, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, type: THREE.UnsignedByteType });
+      VE.cam = new THREE.CubeCamera(0.05, 10, VE.rt);
+      VE.mat = new THREE.ShaderMaterial({
+        side: THREE.BackSide, depthWrite: false, depthTest: false,
+        uniforms: { uTop: { value: new THREE.Color() }, uHor: { value: new THREE.Color() }, uGnd: { value: new THREE.Color() }, uKey: { value: new THREE.Vector3(0, 1, 0) }, uKeyCol: { value: new THREE.Color() } },
+        vertexShader: 'varying vec3 vD;\nvoid main() { vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: 'uniform vec3 uTop, uHor, uGnd, uKey, uKeyCol;\nvarying vec3 vD;\nvoid main() {\n' +
+          '  vec3 d = normalize(vD); float y = d.y;\n' +
+          '  vec3 c = mix(uGnd, uHor, smoothstep(-0.35, 0.02, y));\n' +
+          '  c = mix(c, uTop, smoothstep(0.05, 0.75, y));\n' +
+          '  float k = max(dot(d, uKey), 0.0);\n' +
+          '  c += uKeyCol * (pow(k, 40.0) * 3.0 + pow(k, 6.0) * 0.45);\n' +
+          '  c += uHor * 0.6 * smoothstep(0.25, 0.0, abs(y - 0.05)) * smoothstep(0.2, -0.6, d.z);\n' +   // a brighter horizon ahead: grazing edges catch it
+          '  gl_FragColor = vec4(c, 1.0);\n}'
+      });
+      VE.scene = new THREE.Scene(); VE.scene.add(new THREE.Mesh(new THREE.SphereGeometry(4, 24, 12), VE.mat)); VE.scene.add(VE.cam);
+    }
+    VE.n++;
+    // the sun or moon in the eye's frame (the arms' camera is the eye with no turn)
+    _v.set(W.moonDir.x, W.moonDir.y, W.moonDir.z).applyQuaternion(_q.copy(W.camera.quaternion).invert()).normalize();
+    const hI = W.hemi ? W.hemi.intensity : 0.5, sI = W.sun ? W.sun.intensity : 0.5;
+    const sig = [hI, sI, lit, night].map(v => (+v).toFixed(2)).join() + (W.hemi ? W.hemi.color.getHexString() + W.hemi.groundColor.getHexString() : '') + (W.sun ? W.sun.color.getHexString() : '');
+    if (VE.rt.texture && sig === VE.sig && _v.dot(VE.key) > 0.996) return VE.rt.texture;
+    if (VE.sig && VE.n % 3) return VE.rt.texture;
+    VE.sig = sig; VE.key.copy(_v);
+    const U = VE.mat.uniforms, e = night ? 1.25 : 0.85;   // at night the sky reads darker than its light; lift it a little
+    const le = night ? Math.max(lit, 0.45) : lit;
+    U.uTop.value.copy(W.hemi ? W.hemi.color : VE.c.set(0x8090a0)).multiplyScalar(hI * e * le);
+    U.uGnd.value.copy(W.hemi ? W.hemi.groundColor : VE.c.set(0x303030)).multiplyScalar(hI * 0.5 * le);
+    U.uHor.value.copy(U.uTop.value).lerp(U.uGnd.value, 0.35).multiplyScalar(1.15);
+    U.uKey.value.copy(_v);
+    U.uKeyCol.value.copy(W.sun ? W.sun.color : VE.c.set(0xffffff)).multiplyScalar(Math.max(sI, night ? 0.35 * hI : 0) * (night ? Math.max(lit, 0.6) * 2.2 : lit));
+    const tm = r.toneMapping, rt0 = r.getRenderTarget(); r.toneMapping = THREE.NoToneMapping;
+    VE.cam.update(r, VE.scene);
+    r.toneMapping = tm; r.setRenderTarget(rt0);
+    return VE.rt.texture;
+  }
+  FP.vmEnv = VE;
   function vmLight(vm) {
     const cam = W.camera;
     // lighting copied from the world, scaled by how lit the player is
@@ -667,12 +713,14 @@
     if (W.hemi) { vm.hemi.color.copy(W.hemi.color); vm.hemi.groundColor.copy(W.hemi.groundColor); vm.hemi.intensity = W.hemi.intensity * lit; }
     if (W.sun) {
       // the sun or moon direction in the viewmodel camera's frame
-      vm.sun.color.copy(W.sun.color); vm.sun.intensity = W.sun.intensity * lit;
+      // (the key keeps at least half its strength in shade at night, so steel and leather still show their form by
+      // moonlight against a dark scene; the fill below stays scaled by how lit the player is)
+      vm.sun.color.copy(W.sun.color); vm.sun.intensity = W.sun.intensity * (night ? Math.max(lit, 0.5) : lit);
       _v.set(W.moonDir.x, W.moonDir.y, W.moonDir.z).applyQuaternion(_q.copy(cam.quaternion).invert());
       vm.sun.target.position.set(0.12, -0.15, -0.4); vm.sun.position.copy(_v).normalize().multiplyScalar(1.5).add(vm.sun.target.position); vm.sun.target.updateMatrixWorld();
       // a weak cool rim from the sky side, up and behind, so the silhouette holds at night
       if (!vm.rim) { vm.rim = new THREE.DirectionalLight(0x9fb4d8, 0); vm.scene.add(vm.rim); }
-      vm.rim.position.set(-0.4, 0.8, 0.6); vm.rim.intensity = night ? 0.35 * W.hemi.intensity : 0.12;
+      vm.rim.position.set(-0.4, 0.8, 0.6); vm.rim.intensity = night ? 0.6 * W.hemi.intensity : 0.15;
     }
     // the nearest lamp pools and the muzzle / explosion flash light the arms from where they really are: each world point
     // light is copied into the viewmodel scene at its position relative to the eye (same colour, power, falloff)
@@ -680,7 +728,10 @@
     const src = [W.flashLight].concat(W.pointPool ? W.pointPool.slice(0, 2) : []);
     if (!vm.lamps) { vm.lamps = src.map(() => { const l = new THREE.PointLight(0xffc880, 0, 10, 2); vm.scene.add(l); return l; }); vm.pt.intensity = 0; }
     src.forEach((w, i) => { const l = vm.lamps[i]; if (!w || !l) return; l.color.copy(w.color); l.distance = w.distance; l.decay = w.decay; l.intensity = w.intensity * (night ? 0.9 : 1); l.position.copy(w.position).sub(cam.position).applyQuaternion(_q); });
-    vm.scene.environment = W.scene.environment || null;
+    // reflections: Medium and High get the arms' own small sky cube (vmEnv), in the eye's frame with the moon or sun
+    // as a soft bright spot, so steel shows a highlight and oiled wood a sheen that move as you turn; Low keeps the
+    // world's sky cube (no extra renders there)
+    vm.scene.environment = (IV.settings.quality | 0) >= 1 && W.sun ? vmEnv(lit, night) : (W.scene.environment || null);
     // wet gloves in the rain: the world's wetness, eased down to 0.3 of it under a roof
     const gw = window.IVChars && IVChars.fpGloveWet;
     if (gw) {
