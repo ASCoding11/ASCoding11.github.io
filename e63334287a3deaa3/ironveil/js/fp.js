@@ -402,18 +402,18 @@
   // gun-and-arms assembly lower, further right and a little further out, turned so the barrel points in at the
   // crosshair, like the reference's low, small hip carry. Turned about the right hand so the grip stays the pivot.
   const HIP = FP.hipTune = {
-    rifleScoped: { p: [0, 0, 0], r: [0, 0, 0] },
-    smg:         { p: [0, 0, 0], r: [0, 0, 0] },
-    pistol:      { p: [0, 0, 0], r: [0, 0, 0] }
+    rifleScoped: { p: [0.01, -0.02, -0.02], r: [0.0, 0.0, -0.25] },
+    smg:         { p: [0.015, -0.035, -0.03], r: [0.0, 0.02, 0.0] },
+    pistol:      { p: [0.015, -0.03, -0.02], r: [0.0, 0.02, 0.0] }
   };
   // aimed: how far in front of the eye the rear sight sits (m). The SMG's clip put it at 20 cm, so its receiver filled
   // the lower middle of the screen under the target; further out the gun is smaller and the target clearer.
   const ADS_REAR = FP.adsRear = { smg: 0.29 };
   // elbow drop per gun: [hip, aimed] share of the way to pointing down (and `out` to the side), per arm
   const ELBOW = FP.elbowTune = {
-    rifleScoped: { l: [0, 0], r: [0, 0], out: 0 },
-    smg:         { l: [0, 0], r: [0, 0], out: 0 },
-    pistol:      { l: [0, 0], r: [0, 0], out: 0 }
+    rifleScoped: { l: [0.85, 0.2], r: [0, 0], out: 0.2 },
+    smg:         { l: [0.25, 0.25], r: [0, 0], out: 0.35 },
+    pistol:      { l: [0.3, 0.75], r: [0.3, 0.75], out: 0.45 }
   };
   function hipFrame(v, kind, w, out) {
     const h = HIP[kind]; if (!h || w <= 0) return out.identity();
@@ -490,6 +490,7 @@
     const ek = ELBOW[v.kind] || ELBOW.smg, busyK = v.current && !/^fire/.test(v.current) ? 0 : 1;
     FP.elbowK = IV.damp(FP.elbowK == null ? busyK : FP.elbowK, busyK, 8, dt);
     v.elbows = v.elbows || {}; v.elbows.l = (ek.l[0] + (ek.l[1] - ek.l[0]) * a) * FP.elbowK; v.elbows.r = (ek.r[0] + (ek.r[1] - ek.r[0]) * a) * FP.elbowK; v.elbows.out = ek.out;
+    v.thumbL = v.kind === 'pistol' ? 0.8 * a * FP.elbowK : 0;
     v.drive({ ads: a, sprint: FP.vmSpr }, dt);
     holdGrenade(v);
     // small procedural layers: breathing, step bob, look sway and recoil on springs, wall lowering, landing dip, lean roll
@@ -510,7 +511,7 @@
     FP.vmLower = IV.damp(FP.vmLower, wall && !aiming ? IV.clamp(1 - (wall.t - 0.3) / 0.6, 0, 1) : 0, 8, dt);
     const relax = 1 - a * 0.88;   // bob and breathing aimed: about a tenth (the reference's x0.12)
     const ox = (Math.sin(t * 1.1) * 0.0022 * breath + Math.sin(ph * Math.PI * 2) * bobA * 0.45) * relax - swY * 0.06;
-    const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath) * relax + swP * 0.05 - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45 * relax;
+    const oy = (-Math.abs(Math.sin(ph * Math.PI * 2)) * bobA * 0.7 + Math.sin(t * 1.7) * 0.0016 * breath) * relax + swP * 0.05 - FP.vmSpr * (v.kind === 'rifleScoped' ? 0.06 : 0.02) - FP.vmLower * 0.09 + (C.bobY || 0) * 0.45 * relax;
     const oz = SP.kZ.x * 0.55 + FP.vmLower * 0.05;
     // hip framing (fades out aimed), then the sight line put exactly on the view axis (fades in aimed), then the turn
     // layers (recoil, sway, wall lowering, lean roll) about the right shoulder, behind and below the eye, so recoil
