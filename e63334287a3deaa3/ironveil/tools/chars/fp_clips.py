@@ -292,11 +292,11 @@ GRIPSPEC = {
     ('pistol', 'gripR'): dict(pc=tuple(float(v) for v in os.environ.get('PGR_PC', '-0.016,0.055,-0.050').split(',')),
                               dir=nz(*[float(v) for v in os.environ.get('PGR_DIR', '0.35,-0.9,-0.27').split(',')]),
                               palm=nz(*[float(v) for v in os.environ.get('PGR_PALM', '1,0.35,0').split(',')]),
-                              index=tuple(float(v) for v in os.environ.get('PGR_INDEX', '-0.05,0.12,0.08,0.35').split(',')),
+                              index=tuple(float(v) for v in os.environ.get('PGR_INDEX', '0.0,0.10,0.06').split(',')),
                               thumb=tuple(float(v) for v in os.environ.get('PGR_THUMB', '').split(',') if v) or None,
                               thumb_dir=tuple(float(v) for v in os.environ.get('PGR_TDIR', '').split(',') if v) or None,
                               thumb_pt=tuple(float(v) for v in os.environ.get('PGR_TPT', '').split(',') if v) or None,   # thumb forward down the left of the frame, under the slide
-                              wrap=True, trig_abd=0.15, xfix=[0.009, 0.012, 0.003, 0.26, -0.2]),
+                              wrap=True, trig_abd=0.0, xfix=[0.009, 0.012, 0.003, 0.26, -0.2]),
     ('pistol', 'gripL'): dict(pc=tuple(float(v) for v in os.environ.get('PGL_PC', '0.014,0.060,-0.058').split(',')),
                               dir=nz(*[float(v) for v in os.environ.get('PGL_DIR', '-0.35,-1,-0.35').split(',')]), palm=nz(-1, 0.35, 0.15), fixed=True),
 }
