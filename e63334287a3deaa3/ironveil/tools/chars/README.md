@@ -94,6 +94,13 @@ node fp_pack.mjs $CHARS_WORK/fp/fp.glb ../../assets/fp.glb; cp $CHARS_WORK/fp/fp
 - Thumbs: grasped by default (they may start opened out, `tstart`); `thumb_dir` / `thumb_pt` aim a thumb with
   `aim_thumb` (curl, spread and a fifth value, a swing about the palm normal). Aiming the pistol thumbs forward was
   tried and left off: the grid could not get closer than about 40 degrees and the thumbs crossed behind the slide.
+- Pistol (Nov 23, second round): both thumbs are curled down against the grip (`PGR_THUMB`, `PGL_THUMB`,
+  `PTHUMBL_ADS`) and the trigger finger rests in the guard (`PGR_INDEX`); in every frame of the aimed idle, fireAds
+  and adsRaise the highest hand vertex is 3.3-4 degrees below the slide top (check with a script that projects the
+  posed hand vertices, as `pen` does for penetration). The two fingers standing up over the sights in the game were
+  not in the clips at all: `chars.js` turned arm, hand and thumb bones after the mixer, and three.js's mixer does not
+  rewrite a bone whose blended value has not changed, so the turns piled up after a shot; `drive()` now puts the
+  mixer's last value back first (see the comment there). Any new post-mixer bone edit must be added to that list.
 - A hand holding a magazine is always closed round it (`solve_part_grip`), and the magazine now stays in the hand
   through the swap (the hand used to be open and empty for the middle of every reload).
 - `joint_cost` penalises forearm roll past 95 degrees and the elbow pole search weighs it, which took the reload
