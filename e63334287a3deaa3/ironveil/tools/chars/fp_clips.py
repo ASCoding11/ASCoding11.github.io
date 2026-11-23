@@ -292,13 +292,14 @@ GRIPSPEC = {
     ('pistol', 'gripR'): dict(pc=tuple(float(v) for v in os.environ.get('PGR_PC', '-0.016,0.055,-0.050').split(',')),
                               dir=nz(*[float(v) for v in os.environ.get('PGR_DIR', '0.35,-0.9,-0.27').split(',')]),
                               palm=nz(*[float(v) for v in os.environ.get('PGR_PALM', '1,0.35,0').split(',')]),
-                              index=tuple(float(v) for v in os.environ.get('PGR_INDEX', '0.0,0.10,0.06').split(',')),
-                              thumb=tuple(float(v) for v in os.environ.get('PGR_THUMB', '').split(',') if v) or None,
+                              index=tuple(float(v) for v in os.environ.get('PGR_INDEX', '0.25,0.75,0.5').split(',')),
+                              thumb=tuple(float(v) for v in os.environ.get('PGR_THUMB', '0.9,0.6,0.4,0.35').split(',') if v) or None,   # curled down the left of the grip, below the slide
                               thumb_dir=tuple(float(v) for v in os.environ.get('PGR_TDIR', '').split(',') if v) or None,
                               thumb_pt=tuple(float(v) for v in os.environ.get('PGR_TPT', '').split(',') if v) or None,   # thumb forward down the left of the frame, under the slide
                               wrap=True, trig_abd=0.0, xfix=[0.009, 0.012, 0.003, 0.26, -0.2]),
     ('pistol', 'gripL'): dict(pc=tuple(float(v) for v in os.environ.get('PGL_PC', '0.014,0.060,-0.058').split(',')),
-                              dir=nz(*[float(v) for v in os.environ.get('PGL_DIR', '-0.35,-1,-0.35').split(',')]), palm=nz(-1, 0.35, 0.15), fixed=True),
+                              dir=nz(*[float(v) for v in os.environ.get('PGL_DIR', '-0.35,-1,-0.35').split(',')]), palm=nz(-1, 0.35, 0.15), fixed=True,
+                              thumb=tuple(float(v) for v in os.environ.get('PGL_THUMB', '0.85,0.55,0.35,0.1').split(',') if v) or None),
 }
 # pistol ADS: the support hand turned to point along the gun (forward, a little up) so its forearm can come from below
 # and behind under the gun instead of from the far left; the grips blend from the hip ones by the ADS amount
@@ -339,6 +340,10 @@ def solve_grip(k, nm, s, trigger=False, Wf=None, bvh=None, all_fingers=False):
     if g.get('fixed'):
         ang = {'index': (1.15, 1.2, 0.7), 'middle': (1.2, 1.25, 0.7), 'ring': (1.25, 1.25, 0.7), 'pinky': (1.3, 1.25, 0.7),
                'thumb': (0.05, 0.05, 0.0, 0.1)}   # wrapped over the firing hand, thumb forward along the frame
+        fc = os.environ.get('PGL_FING', g.get('fing', ''))
+        if fc:   # a tighter wrap: the support fingers' tips stood out past the front strap like a pointing finger
+            a_ = [float(v) for v in fc.split(',')]
+            for f in ('index', 'middle', 'ring', 'pinky'): ang[f] = tuple(a_)
     else:
         ang = {'index': (0.3, 0.4, 0.2), 'middle': (0.5, 0.5, 0.3), 'ring': (0.5, 0.5, 0.3), 'pinky': (0.5, 0.5, 0.3), 'thumb': (0.1, 0.2, 0.2, 0.3)}
     if not trigger and not all_fingers and not g.get('fixed'): ang['index'] = g.get('index', (0.10, 0.08, 0.05))
@@ -759,7 +764,7 @@ def ramp(t, t0, t1): return AL.smooth((t - t0) / max(1e-6, t1 - t0))
 def bump(t, t0, t1, t2): return ramp(t, t0, t1) * (1 - ramp(t, t1, t2))
 
 PTHUMBR_ADS = tuple(float(v) for v in os.environ.get('PTHUMBR_ADS', '0.8,0.6,0.3,0.0').split(','))
-PTHUMBL_ADS = tuple(float(v) for v in os.environ.get('PTHUMBL_ADS', '0.05,0.05,0.0,0.1').split(','))
+PTHUMBL_ADS = tuple(float(v) for v in os.environ.get('PTHUMBL_ADS', '0.85,0.55,0.35,0.1').split(','))
 def grip_r(k, W):
     if (k, 'gripRads') in GRIP and not OLD:
         a = ads_factor(k, W)
