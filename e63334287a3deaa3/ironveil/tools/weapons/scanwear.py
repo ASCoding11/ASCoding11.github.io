@@ -33,13 +33,13 @@ SETS = {
         zones=dict(handR=((0, 0.045, -0.040), (0.030, 0.060, 0.045)), handL=((0, -0.280, -0.020), (0.032, 0.080, 0.035)),
                    cheek=((0.02, 0.200, 0.000), (0.025, 0.110, 0.025)), butt=((0, 0.345, -0.060), (0.04, 0.014, 0.09)),
                    mud=((0, 0.290, -0.135), (0.06, 0.120, 0.055)), mud2=((0, -0.520, -0.035), (0.03, 0.200, 0.018)),
-                   oil=((-0.01, -0.070, 0.020), (0.030, 0.090, 0.030)), slide=(0, 1, 0))),
+                   oil=((-0.01, -0.070, 0.020), (0.030, 0.090, 0.030)), slide=(0, 1, 0), rub=0.35)),
     'pistol': dict(root='pistol', sets={
         'main': dict(diff='service_pistol_diff_2k', arm='service_pistol_arm_1k', nor='service_pistol_nor_gl_2k', size=2048, lod=None)},
         zones=dict(handR=((0, 0.050, -0.050), (0.030, 0.040, 0.055)), handL=((0, 0.030, -0.060), (0.030, 0.040, 0.050)),
                    cheek=((0, 0, 0), (0.001, 0.001, 0.001)), butt=((0, 0, 0), (0.001, 0.001, 0.001)),
                    mud=((0, 0.055, -0.100), (0.030, 0.040, 0.022)), mud2=((0, -0.090, -0.012), (0.020, 0.050, 0.012)),
-                   oil=((0, -0.040, 0.020), (0.020, 0.090, 0.022)), slide=(0, 1, 0))),
+                   oil=((0, -0.040, 0.020), (0.020, 0.090, 0.022)), slide=(0, 1, 0), rub=0.85)),
 }
 
 def load_img(name, data):
@@ -92,6 +92,14 @@ def wear_material(name, st, W, mask):
     c = nb.mixc(nb.mul(scr, isM, 0.75), c, (0.44, 0.44, 0.43))
     c = nb.mixc(nb.mul(ew, isM, 0.85), c, (0.50, 0.495, 0.47))
     c = nb.mixc(nb.mul(pits, isM, 0.8), c, (0.10, 0.045, 0.02))
+    # holster and pocket wear: the finish rubbed thin to grey steel in broad patches on the flats (pistol mostly)
+    k = W.zones.get('rub', 0.0)
+    if k:
+        rubm = nb.mul(nb.ss(nb.noise(nb.mapping(P, scale=(2.5, 0.4, 2.5)), 30, 4, 0.6, w=21), 0.50, 0.70), isM, k)
+        c = nb.mixc(rubm, c, nb.mixc(nb.noise(P, 300, 3, 0.5, w=22), (0.30, 0.295, 0.285), (0.40, 0.395, 0.38)))
+        r = nb.lerp(rubm, r, 0.30)
+        ew2 = nb.clamp(nb.mul(ew, k))
+        c = nb.mixc(nb.mul(ew2, isM), c, (0.55, 0.545, 0.52))
     r = nb.lerp(nb.mul(scr, isM, 0.8), r, 0.24)
     r = nb.lerp(nb.mul(ew, isM), r, 0.22)
     r = nb.lerp(nb.mul(pits, isM), r, 0.85)
@@ -102,7 +110,7 @@ def wear_material(name, st, W, mask):
     wscr = nb.mx(nb.scratches(900, 16, (5, 70, -20), 0.03, 0.26, 9), nb.scratches(700, 12, (-60, 10, 35), 0.03, 0.2, 19))
     worn = nb.clamp(nb.add(nb.zone(*W.zones['butt']), nb.mul(nb.zone(*W.zones['cheek']), 0.8)))
     c = nb.mixc(nb.mul(hand, isW, 0.55), c, nb.cmul(c, 0.55))
-    c = nb.mixc(nb.mul(worn, isW, 0.5), c, nb.cmul(nb.mixc(0.35, c, (0.20, 0.15, 0.10)), 1.5))
+    c = nb.mixc(nb.mul(worn, isW, 0.18), c, nb.cmul(nb.mixc(0.25, c, (0.20, 0.15, 0.10)), 1.25))
     c = nb.mixc(nb.mul(ew, isW, 0.75), c, nb.cmul(nb.mixc(0.3, c, (0.22, 0.15, 0.09)), 1.75))
     c = nb.mixc(nb.mul(nb.mx(wscr, gouge), isW, 0.7), c, nb.cmul(c, 1.9))
     c = nb.mixc(nb.mul(dent, isW, 0.6), c, nb.cmul(c, 0.6))
