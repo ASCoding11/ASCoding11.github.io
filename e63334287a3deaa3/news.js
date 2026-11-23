@@ -85,6 +85,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
+     tags: ['Movi'], items: [
+      'Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.',
+      'It will come back to Web Development Projects when the new version is ready.'
+    ]},
     {date: '2026-11-22', version: '1.41.2', title: 'It has a shape now', kind: 'soon',
      img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
       'Whatever was warming up has a real shape now, down to the rivets.',

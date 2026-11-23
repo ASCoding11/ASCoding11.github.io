@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Movi is away for a rebuild": "Movi se va un tiempo para rehacerse",
+    "Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.": "Movi, la app para clasificar películas, se ha quitado de la web por ahora mientras se rehace.",
+    "It will come back to Web Development Projects when the new version is ready.": "Volverá a Web Development Projects cuando la nueva versión esté lista.",
     "It has a shape now": "Ya tiene forma",
     "Whatever was warming up has a real shape now, down to the rivets.": "Lo que se estaba calentando ya tiene una forma de verdad, hasta los remaches.",
     "Still not ready, and still loud.": "Todavía no está listo, y sigue haciendo ruido.",
