@@ -172,7 +172,19 @@
     const sp = H.gap + H.kickK * 9;
     const dim = WP.reloadT > 0 ? 0.5 : 1;   // still there while reloading, fainter
     g.strokeStyle = `rgba(240,232,210,${0.88 * dim})`; g.lineWidth = 2 * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
-    if (WP.busyThrow) { g.beginPath(); g.arc(cx, cy, 3 * u, 0, 6.29); g.stroke(); }
+    if (WP.busyThrow) {
+      g.beginPath(); g.arc(cx, cy, 3 * u, 0, 6.29); g.stroke();
+      // grenade cook: a ring that empties as the fuse burns, one pip per second left, red in the last 1.5 s
+      const bt = WP.busyThrow;
+      if (bt.kind === 'grenade') {
+        const fuse = T.weapons.grenade.fuse, left = Math.max(0, fuse - (IV.time - bt.t0)), r = 22 * u, hot = left < 1.5;
+        g.lineWidth = 3 * u; g.strokeStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.arc(cx, cy, r, 0, 6.29); g.stroke();
+        g.strokeStyle = hot ? 'rgba(232,87,60,.95)' : 'rgba(240,232,210,.9)';
+        g.beginPath(); g.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + 6.283 * left / fuse); g.stroke();
+        g.fillStyle = g.strokeStyle;
+        for (let i = 0; i < Math.ceil(left - 1e-3); i++) { const a = -Math.PI / 2 + i * 0.34 - (Math.ceil(fuse) - 1) * 0.17; g.beginPath(); g.arc(cx + Math.cos(a) * (r + 11 * u), cy + Math.sin(a) * (r + 11 * u), 2.6 * u, 0, 6.29); g.fill(); }
+      }
+    }
     else {
       const s = sp * u, l = 8 * u;
       g.beginPath(); g.moveTo(cx - s - l, cy); g.lineTo(cx - s, cy); g.moveTo(cx + s, cy); g.lineTo(cx + s + l, cy); g.moveTo(cx, cy + s); g.lineTo(cx, cy + s + l); g.moveTo(cx, cy - s - l); g.lineTo(cx, cy - s); g.stroke();

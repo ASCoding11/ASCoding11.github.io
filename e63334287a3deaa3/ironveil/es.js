@@ -136,6 +136,8 @@
     // ---- handling round (movement, jump, crouch setting, crosshair, throws)
     'Toggle: press to crouch, again to stand. Hold: crouched while the key is down': 'Alternar: aprieta para agacharte y otra vez para pararte. Mantener: agachado mientras tengas la tecla apretada',
     'Toggle': 'Alternar', 'Hold': 'Mantener',
+    'Hold to cook and aim (the arc shows where it lands), let go to throw. Tap throws at once': 'Mantén para quitar el seguro y apuntar (el arco muestra dónde cae), suelta para tirar. Un toque la tira enseguida',
+    'Hold to aim (the arc shows where it lands), let go to throw. Guards go to look': 'Mantén para apuntar (el arco muestra dónde cae), suelta para tirar. Los guardias van a mirar',
     'Jump / vault / stand up': 'Saltar / pasar por encima / pararse'
   });
 })();
