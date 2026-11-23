@@ -82,13 +82,15 @@ def wear_material(name, st, W, mask):
     edge, cav = nb.edge(), nb.cavity()
     hand = MT._hand(nb, W)
     n2 = nb.noise(P, 180, 4, 0.6, w=3)
-    ew = nb.ss(nb.mul(nb.add(nb.mul(edge, nb.add(0.35, nb.mul(n2, 1.25))), nb.mul(hand, edge, 0.6)), 1.3), 0.30, 0.62)
+    # the scans' bevels are thin and even, so the edge mask alone draws an outline: break it into worn patches
+    patch = nb.ss(nb.noise(P, 24, 4, 0.6, w=5), 0.42, 0.62)
+    ew = nb.ss(nb.mul(nb.add(nb.mul(edge, nb.add(0.15, nb.mul(n2, 1.1)), nb.add(0.25, patch)), nb.mul(hand, edge, 0.6)), 1.2), 0.40, 0.75)
     # steel: worn bright on edges and corners, rubbed thin where hands go, scratched, pitted in spots
     scr = nb.scratch_set('Y', 1.0, along=1.0, fine=1.0, seed=7)
     pits = nb.mul(nb.ss(nb.vor(P, 420, 'F1', 1.0), 0.06, 0.0), nb.ss(nb.noise(P, 30, 2, 0.5, w=13), 0.55, 0.72))
     c = nb.mixc(nb.mul(hand, isM, 0.45), c, nb.cmul(nb.mixc(0.5, c, (0.20, 0.19, 0.18)), 1.0))
     c = nb.mixc(nb.mul(scr, isM, 0.75), c, (0.44, 0.44, 0.43))
-    c = nb.mixc(nb.mul(ew, isM, 0.95), c, (0.62, 0.61, 0.58))
+    c = nb.mixc(nb.mul(ew, isM, 0.85), c, (0.50, 0.495, 0.47))
     c = nb.mixc(nb.mul(pits, isM, 0.8), c, (0.10, 0.045, 0.02))
     r = nb.lerp(nb.mul(scr, isM, 0.8), r, 0.24)
     r = nb.lerp(nb.mul(ew, isM), r, 0.22)
