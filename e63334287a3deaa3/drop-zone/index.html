@@ -816,6 +816,11 @@ const shEd=(site,sh)=>({v(f,p){sh.vertexShader=shRep(site,sh.vertexShader,f,p);r
 // r187 draws a see-through double-sided material twice (back faces, then front); r128 drew it once. Once again here, for
 // the same picture and no extra draw calls (the storm wall, the plane's haze and glows, grass tufts and the like).
 (function(){const sv=THREE.Material.prototype.setValues;THREE.Material.prototype.setValues=function(v){this.forceSinglePass=true;return sv.call(this,v)}})();
+// Pretty's colour: a touch more colour and contrast, worked out in each material's last line (three's custom tone
+// mapping, switched on by lookSync for levels 1 and 2 only), so it costs no extra pass. It is the colour half of the old
+// level-2 grade (that pass now only darkens the corners), so level 2 looks as before and level 1 gets the colour too.
+THREE.ShaderChunk.tonemapping_pars_fragment=shRep('tone',THREE.ShaderChunk.tonemapping_pars_fragment,'vec3 CustomToneMapping( vec3 color ) { return color; }',
+  'vec3 CustomToneMapping( vec3 color ) { float l=dot(color,vec3(.2126,.7152,.0722));vec3 c=clamp(mix(vec3(l),color,1.14),0.,1.);return mix(c,c*c*(3.-2.*c),.32); }');
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
 renderer.domElement.id='view';renderer.domElement.tabIndex=-1;
@@ -832,7 +837,7 @@ function setNear(v){if(camera.near!==v){camera.near=v;camera.updateProjectionMat
 // shadows are long, and a cooler, weaker fill from the sky. The three add up to about 1.2 on sunlit ground, so
 // colours keep their hue instead of washing out to white.
 // (The fill's ground colour is a pale stone rather than grass green, and a little stronger, so walls in shade stay their own colour instead of going olive.)
-const LIGHT={hemi:.58,amb:.11,sun:.9};
+const LIGHT={hemi:.58,amb:.11,sun:.9},LIGHT0={hemi:.58,amb:.11,sun:.9},LIGHT1={hemi:.5,amb:.07,sun:1.04};   // (Pretty: a little more sun and less fill, so shapes read; see lookSync)
 const hemi=new THREE.HemisphereLight(0xd6e9ff,0x938f7c,LIGHT.hemi);scene.add(hemi);
 const amb=new THREE.AmbientLight(0xffffff,LIGHT.amb);scene.add(amb);
 const SUN_V=[0.56,0.66,0.38];
@@ -933,7 +938,7 @@ MAT.onBeforeCompile=sh=>{
       // the surface texture: its colour times the paint (the vertex colour) where its alpha is 1, its own colour (mortar, nail heads, stripes) where it is 0
       +'float ly=floor(dzU.z+.5);vec4 kt=texture(dzArr,vec3(dzU.xy,max(ly-1.,0.)));vec3 vc=diffuseColor.rgb;float mx=max(vc.r,max(vc.g,vc.b));diffuseColor.rgb=mix(vc,min(kt.rgb*1.1,1.)*mix(vec3(mx),vc,kt.a),step(.5,ly));\n#endif\n'
       // dirt and shade where a wall, a post or a trunk meets the ground, and the dimmer light indoors
-      +'float gr=1.-smoothstep(0.,1.4,dzK.x);diffuseColor.rgb*=mix(vec3(1.),vec3(.64,.58,.5),gr*gr*.8);\n#ifdef FINE\ndiffuseColor.rgb*=1.-dzK.y*.26;\n#else\ndiffuseColor.rgb*=1.-dzK.y*.4;\n#endif\n}\n#endif\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.3+(g2-.5)*.22)*w.y);\n#ifdef WORLD\n'
+      +'float gr=1.-smoothstep(0.,1.4,dzK.x);diffuseColor.rgb*=mix(vec3(1.),vec3(.64,.58,.5),gr*gr*.8);\n#ifdef FINE\ndiffuseColor.rgb*=mix(vec3(1.),vec3(1.06,1.02,.94),dzK.y);{float fy=mod(dzK.x,4.);diffuseColor.rgb*=1.-dzK.y*(.34*smoothstep(1.3,3.8,fy)*step(-.5,dzN.y)+.22*(1.-smoothstep(0.,.45,fy))*(1.-abs(dzN.y))+.18*step(dzN.y,-.5));}\n#else\ndiffuseColor.rgb*=1.-dzK.y*.4;\n#endif\n}\n#endif\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.3+(g2-.5)*.22)*w.y);\n#ifdef WORLD\n'
       // the island only (WMAT): broad soft patches on walls, so a big wall isn't one flat colour
       +'float side=1.-w.y;float b2=texture2D(dzTex,vec2(dzP.x+dzP.z,dzP.y*1.7)*.045).g;diffuseColor.rgb*=1.-side*(.5-b2)*.16;\n#endif\n}\n#endif');
 };
@@ -1870,10 +1875,15 @@ function landMaterial(){
       // grass: lush, with broad paler and darker patches, and blades up close
       vec3 col=mix(vec3(.25,.55,.16),vec3(.48,.62,.21),smoothstep(.36,.7,df.r+(h-7.)*.012));
       col=mix(col,vec3(.15,.42,.15),smoothstep(.52,.74,df.g)*.5);
+      col*=mix(vec3(1.07,1.,.8),vec3(.9,1.,1.1),smoothstep(.3,.7,df.g));   // (warmer, drier patches and cooler, bluer ones)
+      #ifdef FINE
+      col=mix(vec3(dot(col,vec3(.3,.59,.11))),col,.84)*.95;   // (Pretty's colour curve adds saturation: the grass gives a little back, so it stays grass, not lime)
+      #endif
       col*=(.74+.52*dn.r)*(.86+.28*fine);
       // dirt, where the control map says so: the grain decides the edge
       float kd=smoothstep(.5-soft,.5+soft,ct.r+(dn.g-.5)*.36+(df.b-.5)*.2);
-      col=mix(col,mix(vec3(.5,.4,.27),vec3(.74,.62,.43),dn.g)*(.88+.24*df.a)*(.9+.2*fine),kd);
+      // (with broad darker, redder trodden patches and paler dusty ones, so a yard is not one flat tan)
+      col=mix(col,mix(vec3(.5,.4,.27),vec3(.74,.62,.43),dn.g)*(.88+.24*df.a)*(.9+.2*fine)*mix(vec3(.8,.74,.7),vec3(1.07,1.04,.98),smoothstep(.28,.72,df.r)),kd);
       // sand near sea level, wet at the waterline
       float ks=1.-smoothstep(1.2-soft*3.,1.5+soft*3.,h+(df.r-.5)*1.2+(dn.g-.5)*.34);
       vec3 sand=vec3(.9,.8,.56)*(.84+.3*dn.g)*(.93+.14*fine);
@@ -1881,7 +1891,10 @@ function landMaterial(){
       col=mix(col,sand,ks*(1.-kd*step(1.3,h)));
       // rock on steep faces
       float kr=1.-smoothstep(.7-soft,.79+soft,ny+(dn.b-.5)*.1);
-      col=mix(col,mix(vec3(.3,.29,.29),vec3(.6,.57,.53),strata)*(.85+.3*dn.g),kr);
+      // (warm layered stone: pale and sandy bands with a few rust-coloured ones, so a cliff is not one dark grey sheet)
+      vec3 rk=mix(vec3(.52,.46,.4),vec3(.88,.8,.66),strata)*(.82+.36*dn.g);
+      rk=mix(rk,rk*vec3(1.12,.86,.7),smoothstep(.55,.95,sin(lP.y*1.7+dn.b*2.6+strata*1.5))*.55);
+      col=mix(col,rk,kr);
       // paving, with joints on the 4 m grid
       float kp=smoothstep(.5-soft*.6,.5+soft*.6,ct.g+(dn.a-.5)*.06);
       vec2 jv=(.5-abs(fract(lP.xz*.25)-.5))*4.;float jl=(1.-smoothstep(.03,.055+dist*.0025,min(jv.x,jv.y)))*clamp(1.6-dist*.02,0.,1.);
@@ -2004,31 +2017,73 @@ function followSun(){
   _sc.copy(_sr).multiplyScalar(a).addScaledVector(_su,b).addScaledVector(SUN_DIR,d);
   sun.target.position.copy(_sc);sun.position.copy(_sc).addScaledVector(SUN_DIR,160);sun.target.updateMatrixWorld();
 }
-// sky: a dome that deepens toward the top and meets the fog colour at the horizon, and a soft sun
-const skyDome=new THREE.Mesh(new THREE.SphereGeometry(700,24,12),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false,map:(()=>{
-  const c=document.createElement('canvas');c.width=4;c.height=256;const g=c.getContext('2d'),gr=g.createLinearGradient(0,0,0,256);
-  gr.addColorStop(0,'#2a72c8');gr.addColorStop(.22,'#3f8fdc');gr.addColorStop(.4,'#74b8ea');gr.addColorStop(.475,'#a9d8ee');gr.addColorStop(.5,'#d9eef6');gr.addColorStop(.525,'#a9d8ee');gr.addColorStop(1,'#a9d8ee');
-  g.fillStyle=gr;g.fillRect(0,0,4,256);return new THREE.CanvasTexture(c)})()}));
+// sky: a dome worked out per pixel from the direction: a pale haze at the horizon that matches the fog (so the sea and
+// the far land melt into it), a deep blue overhead, a bright band just above the horizon, and the sky round the sun
+// warmer and lighter. Still one draw call and no texture. (Its colour is still darkened by the storm, see the material's color.)
+const skyDome=new THREE.Mesh(new THREE.SphereGeometry(700,32,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,fog:false,depthWrite:false}));
+skyDome.material.onBeforeCompile=sh=>{sh.uniforms.sSun={value:SUN_V_N()};sh.uniforms.sTex={value:detailTex};sh.uniforms.sT=seaT;
+  shEd('sky',sh).v('#include <common>','#include <common>\nvarying vec3 sD;').v('#include <begin_vertex>','#include <begin_vertex>\nsD=position;')
+    .f('#include <common>','#include <common>\nvarying vec3 sD;uniform vec3 sSun;uniform sampler2D sTex;uniform float sT;')
+    .f('#include <map_fragment>',`{vec3 d=normalize(sD);float y=d.y,h=max(y,0.),s=max(dot(d,sSun),0.);
+      vec3 c=mix(vec3(.69,.86,.94),vec3(.45,.71,.93),smoothstep(.0,.16,h));
+      c=mix(c,vec3(.17,.43,.82),smoothstep(.1,.8,h));
+      c=mix(c,vec3(.87,.95,.98),(1.-smoothstep(0.,.07,abs(y)))*.55);
+      c=mix(c,vec3(1.,.95,.84),pow(s,4.)*(1.-smoothstep(0.,.45,h))*.45);
+      c+=vec3(1.,.9,.7)*(pow(s,24.)*.22+pow(s,300.)*.6);
+      // soft high cloud: smooth noise laid on a flat layer above, thinning toward the horizon, lit on the sun's side
+      vec2 cp=d.xz/(d.y+.25);float cn=texture2D(sTex,cp*.17+sT*vec2(.0011,.0004)).g*.66+texture2D(sTex,cp*.5+vec2(.31,.17)-sT*vec2(.0007,.0013)).g*.24+texture2D(sTex,cp*1.4+vec2(.61,.43)).g*.1;
+      float ck=smoothstep(.57,.65,cn)*smoothstep(.06,.3,y);
+      c=mix(c,mix(vec3(.78,.85,.94),vec3(1.,1.,.98),smoothstep(.57,.72,cn)*.8+pow(s,3.)*.3),ck*.92);
+      c=mix(c,vec3(${new THREE.Color(SKY).toArray().map(v=>v.toFixed(3)).join(',')}),1.-smoothstep(-.02,.0,y));
+      diffuseColor.rgb*=c;}`)};
+function SUN_V_N(){return new THREE.Vector3(SUN_V[0],SUN_V[1],SUN_V[2]).normalize()}
 skyDome.renderOrder=-10;skyDome.frustumCulled=false;skyDome.visible=false;scene.add(skyDome);
 const sunGlow=new THREE.Sprite(new THREE.SpriteMaterial({fog:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,map:(()=>{
   const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),gr=g.createRadialGradient(64,64,0,64,64,64);
   gr.addColorStop(0,'rgba(255,252,235,1)');gr.addColorStop(.12,'rgba(255,246,210,.9)');gr.addColorStop(.3,'rgba(255,236,180,.28)');gr.addColorStop(1,'rgba(255,230,170,0)');
   g.fillStyle=gr;g.fillRect(0,0,128,128);return new THREE.CanvasTexture(c)})()}));
 sunGlow.scale.set(210,210,1);sunGlow.renderOrder=-9;sunGlow.visible=false;scene.add(sunGlow);
+// The Pretty sea: the same sheets and colours, lit like the plain one, plus what makes water read as water. Ripples come
+// from one small tiling slope texture (smooth noise, drawn once) read twice at two sizes and angles drifting different
+// ways, so no pattern repeats where you can see it, and they calm down with distance so the far sea doesn't shimmer.
+// The surface reflects the sky (the same colours as the dome) more the flatter you look across it, which is what makes the
+// horizon melt into the sky and the shallows stay clear underfoot, and the sun leaves a glittering path on it.
+const seaT={value:0},seaSun={value:1},seaSky={value:null};
 function fineSea(){
   if(seaFine)return seaFine;
-  const N=128,c=document.createElement('canvas');c.width=c.height=N;const g=c.getContext('2d'),im=g.createImageData(N,N),h=new Float32Array(N*N);
-  for(let y=0;y<N;y++)for(let x=0;x<N;x++)h[y*N+x]=Math.sin(x/N*6.283*3+Math.sin(y/N*6.283*2)*1.3)*.5+Math.sin(y/N*6.283*5+x/N*6.283)*.3+Math.sin((x+y)/N*6.283*7)*.2;
-  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const dx=h[y*N+(x+1)%N]-h[y*N+(x+N-1)%N],dy=h[((y+1)%N)*N+x]-h[((y+N-1)%N)*N+x],l=Math.hypot(dx,dy,1),o=(y*N+x)*4;im.data[o]=(-dx/l*.5+.5)*255;im.data[o+1]=(-dy/l*.5+.5)*255;im.data[o+2]=(1/l*.5+.5)*255;im.data[o+3]=255}
-  g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;
-  t.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());return seaFine=new THREE.MeshPhongMaterial({vertexColors:true,transparent:true,depthWrite:false,specular:0x6fb4d8,shininess:36,normalMap:t,normalScale:new THREE.Vector2(.3,.3)});
+  const N=256,h=new Float32Array(N*N),d=new Uint8Array(N*N*4);
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++)h[y*N+x]=pnoise(x/32,y/32,8,8,71)*.55+pnoise(x/16,y/16,16,16,72)*.3+pnoise(x/8,y/8,32,32,73)*.15;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const dx=(h[y*N+(x+1)%N]-h[y*N+(x+N-1)%N])*20,dy=(h[((y+1)%N)*N+x]-h[((y+N-1)%N)*N+x])*20,o=(y*N+x)*4;
+    d[o]=clamp(dx*.5+.5,0,1)*255;d[o+1]=clamp(dy*.5+.5,0,1)*255;d[o+2]=h[y*N+x]*255;d[o+3]=255}
+  const t=new THREE.DataTexture(d,N,N,THREE.RGBAFormat);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.generateMipmaps=true;t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.needsUpdate=true;
+  seaSky.value=skyDome.material.color;
+  const m=new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,depthWrite:false});
+  m.onBeforeCompile=sh=>{Object.assign(sh.uniforms,{sN:{value:t},sT:seaT,sSunK:seaSun,sSky:seaSky,sSun:{value:SUN_V_N()}});
+    shEd('sea',sh).v('#include <common>','#include <common>\nvarying vec3 sW;').v('#include <project_vertex>','#include <project_vertex>\nsW=(modelMatrix*vec4(transformed,1.)).xyz;')
+      .f('#include <common>','#include <common>\nvarying vec3 sW;uniform sampler2D sN;uniform float sT,sSunK;uniform vec3 sSky,sSun;')
+      .f('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+      vec3 sV=cameraPosition-sW;float sDist=length(sV);sV/=sDist;
+      vec2 sq=sW.xz;
+      vec2 s1=texture2D(sN,sq*.027+sT*vec2(.0021,.0013)).xy-.5,s2=texture2D(sN,mat2(.8,-.6,.6,.8)*sq*.071+sT*vec2(-.0034,.0026)).xy-.5;
+      vec2 sl=(s1*.62+s2*.38)*(.5*(1.-smoothstep(30.,260.,sDist))+.08);
+      vec3 sWN=normalize(vec3(sl.x,1.,sl.y));
+      normal=normalize((viewMatrix*vec4(sWN,0.)).xyz);`)
+      .f('#include <opaque_fragment>',`{float c=max(dot(sV,sWN),0.),fr=.03+.97*pow(1.-c,5.);
+      vec3 R=reflect(-sV,sWN);float ry=max(R.y,0.),sg=max(dot(R,sSun),0.);
+      vec3 sky=mix(vec3(.62,.81,.92),vec3(.34,.6,.88),smoothstep(.0,.4,ry))*sSky;
+      outgoingLight=mix(outgoingLight,sky,clamp(fr*1.1,0.,.9));
+      float gl=(pow(sg,500.)*3.+pow(sg,60.)*.25+pow(sg,8.)*.07)*sSunK;
+      outgoingLight+=vec3(1.,.95,.82)*gl;
+      diffuseColor.a=clamp(max(diffuseColor.a,fr)+gl,0.,1.);}
+      #include <opaque_fragment>`)};
+  return seaFine=m;
 }
 // colour grade (level 2): the finished frame is copied to a texture and redrawn with a touch more colour and contrast and
 // slightly darker corners. (No bloom here: in full daylight most pale surfaces are already at full brightness, so a glow
 // pass just smears them.) The scene itself is still drawn once, straight to the screen; the HUD is HTML and is never touched.
 const grade=(function(){
   const mat=new THREE.ShaderMaterial({vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}',
-    fragmentShader:'varying vec2 vUv;uniform sampler2D t;void main(){vec3 c=texture2D(t,vUv).rgb;float l=dot(c,vec3(.2126,.7152,.0722));c=clamp(mix(vec3(l),c,1.14),0.,1.);c=mix(c,c*c*(3.-2.*c),.32);vec2 q=vUv-.5;c*=1.-dot(q,q)*.42;gl_FragColor=vec4(c,1.);}',
+    fragmentShader:'varying vec2 vUv;uniform sampler2D t;void main(){vec3 c=texture2D(t,vUv).rgb;vec2 q=vUv-.5;c*=1.-dot(q,q)*.42;gl_FragColor=vec4(c,1.);}',
     uniforms:{t:{value:null}},depthTest:false,depthWrite:false,blending:THREE.NoBlending,fog:false});
   const cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1),quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat),sc=new THREE.Scene();sc.add(quad);quad.frustumCulled=false;
   const sz=new THREE.Vector2(),zero=new THREE.Vector2();let tex=null,w=0,h=0,dead=false;
@@ -2059,6 +2114,8 @@ function lookSync(){
     const want=lookOn?1:undefined;if(MAT.defines===undefined)MAT.defines={};
     for(const M of [MAT,WMAT,GMAT,FLMAT,BMAT,LMAT])if(M&&M.defines.FINE!==want){if(want)M.defines.FINE=1;else delete M.defines.FINE;M.needsUpdate=true}
     if(seaMesh&&seaFlat)seaMesh.material=lakeMesh.material=lookOn?fineSea():seaFlat;
+    renderer.toneMapping=lookOn?THREE.CustomToneMapping:THREE.NoToneMapping;
+    FOG[0]=lookOn?72:110;FOG[1]=lookOn?430:400;Object.assign(LIGHT,lookOn?LIGHT1:LIGHT0);
     if(!!stormMat.defines.LITE===lookOn){if(lookOn)delete stormMat.defines.LITE;else stormMat.defines.LITE=1;stormMat.needsUpdate=true}
   }
   if(!lookOn){skyDome.visible=sunGlow.visible=false;return}
@@ -2066,7 +2123,8 @@ function lookSync(){
   const clear=stormK<.98;                                      // deep in the storm the flat slate sky takes over
   skyDome.visible=sunGlow.visible=clear;
   if(clear){skyDome.position.copy(camera.position);sunGlow.position.copy(camera.position).addScaledVector(SUN_DIR,640)}
-  if(seaFine)seaFine.normalMap.offset.set(performance.now()*.0000035,performance.now()*.0000021);
+  {const k=clamp((camera.position.y-30)/90,0,1);if(stormK<.01){scene.fog.near=FOG[0]+k*140;scene.fog.far=FOG[1]+k*330}}
+  if(seaFine){seaT.value=RM?0:(performance.now()*.001)%10000;seaSun.value=sun.intensity/LIGHT.sun}
   if(!RM)tuftT.value=(performance.now()*.001)%1000;
 }
 let fxAvg=14,fxSlow=0,fxFast=0,fxLast=0,fxNew=0;
@@ -4422,6 +4480,10 @@ const stormMat=new THREE.ShaderMaterial({transparent:true,side:THREE.DoubleSide,
       #ifndef LITE
       float r=texture2D(t,vec2(wp.x*.7+wp.y*.05,wp.y*.012+time*.9)).r*w.x+texture2D(t,vec2(wp.z*.7+wp.y*.05,wp.y*.012+time*.9)).r*w.y;
       c+=vec3(.36,.43,.5)*smoothstep(.62,.9,r)*(1.-smoothstep(.1,.45,h));
+      #endif
+      #ifndef LITE
+      c=mix(c*vec3(.86,.84,1.02),c*1.12+vec3(.02,.02,.05),smoothstep(.45,.8,n));
+      c+=vec3(.3,.36,.7)*(1.-smoothstep(0.,.2,h))*(.5+.5*n);
       #endif
       c+=flash*vec3(.5,.6,.8)*(.2+n);
       float top=1.-smoothstep(.5,.96,h+(n-.5)*.7);
@@ -7247,7 +7309,7 @@ function updateWorldFx(){
   stormK+=(want-stormK)*Math.min(1,dt*4);if(Math.abs(want-stormK)<.004)stormK=want;
   const k=stormK,fl=RM?0:glow;stormMat.uniforms.flash.value=fl;
   _skyC.setHex(SKY).lerp(_stormC,k);if(k>0&&fl>0)_skyC.lerp(_flashC,fl*.45*k);
-  scene.fog.color.copy(_skyC);scene.background.copy(_skyC);scene.fog.near=110-98*k;scene.fog.far=400-250*k;
+  scene.fog.color.copy(_skyC);scene.background.copy(_skyC);scene.fog.near=FOG[0]-(FOG[0]-12)*k;scene.fog.far=FOG[1]-(FOG[1]-150)*k;
   hemi.intensity=LIGHT.hemi*(1-.34*k)+fl*.45*k;amb.intensity=LIGHT.amb+fl*.2*k;sun.intensity=LIGHT.sun*(1-.8*k);
   if(cloudMesh)cloudMesh.material.color.setRGB(1-.62*k,1-.56*k,1-.46*k);
   skyDome.material.color.setRGB(1-.7*k,1-.64*k,1-.52*k);sunGlow.material.opacity=1-k;
@@ -7257,6 +7319,7 @@ function updateWorldFx(){
   {const sv=stormV||(stormV=$('stormv'));if(sv)hudSet(sv,'sv:opacity',k<.01?'0':(k*(RM?.7:.62+.18*Math.sin(now*.0042))).toFixed(2))}   // (the HUD isn't shown in the menu, so this is only seen in a match)
   stormHum(k);
 }
+let FOG=[110,400];   // (Pretty starts the haze nearer, for depth: see lookSync)
 let stormV=null,wfLast=performance.now(),stormK=0,rainCover=0,rainRoof=1,rainA=1;
 const _skyC=new THREE.Color(),_stormC=new THREE.Color(STORM_SKY),_flashC=new THREE.Color(0xc4d2ea);
 
