@@ -255,8 +255,8 @@
     else if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
     IV.audio && IV.audio.play(k, { x: mz.x, z: mz.z, own: true });
     IV.ai && IV.ai.noise(P.pos.x, P.pos.z, w.noise, 'shot', P);
-    // recoil (TUNING.weapons.recoil): rifle one heavy kick, SMG a per-shot climb schedule with a slow sideways
-    // wander, pistol a sharp snap; a kept part stays in the aim, the rest springs back after the trigger is let go
+    // recoil (TUNING.weapons.recoil): rifle one heavy kick, SMG a per-shot climb schedule with a fixed sideways
+    // pattern, pistol a sharp snap; a kept part stays in the aim, the rest springs back after the trigger is let go
     const motion = IV.settings.motion ? 0.6 : 1;
     recoil(k);
     if (w.bloom) WP.bloom = Math.min(w.bloomMax, WP.bloom + w.bloom);
@@ -269,8 +269,8 @@
     IV.setUpper(P.actor, k === 'rifle' ? 'boltCycle' : 'fire');
     IV.emit('shot', k);
   }
-  // one shot's kick. WP.recN counts rounds in the current string: it and the SMG's wander phase start again only once
-  // the gun has rested for spec.pause (quick taps continue the same path; a real pause starts from a fresh side)
+  // one shot's kick. WP.recN counts rounds in the current string: it starts again from shot 1 only once the gun has
+  // rested for spec.pause (quick taps carry on along the same path; a real pause starts the pattern again)
   WP.lastShotAt = -9; WP.recN = 0;
   // the sideways pattern: linear between the [shot, share] keyframes, held past the last one
   function patAt(pat, n) {
