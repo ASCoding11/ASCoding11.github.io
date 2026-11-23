@@ -106,7 +106,7 @@
       // kick; move adds this share at a full jog, air this share while off the ground (a jump).
       recoil: {
         rifle:  { pitch: 0.062, yaw: 0.008, pat: [[1, 0.6]], keep: 0.30, snap: 90, hold: 0.1, decay: 8, ads: 0.62, crouch: 0.85, prone: 0.55, move: 0.35, air: 1.2, jitter: 0.12, clampP: 0.3, clampY: 0.12, pause: 0.25 },
-        smg:    { pitch: 0.0072, yaw: 0.0024, keep: 0.34, snap: 90, hold: 0.1, decay: 8, ads: 0.6, crouch: 0.85, prone: 0.55, move: 0.35, air: 1.2, jitter: 0.12, clampP: 0.22, clampY: 0.1,
+        smg:    { pitch: 0.0072, yaw: 0.0032, keep: 0.34, snap: 90, hold: 0.1, decay: 8, ads: 0.6, crouch: 0.85, prone: 0.55, move: 0.35, air: 1.2, jitter: 0.12, clampP: 0.22, clampY: 0.1,
                   sched: [[3, 1.3], [10, 1], [30, 0.5]],
                   pat: [[1, 0.15], [4, 0.35], [7, 1], [11, 0.9], [13, -0.6], [18, -1.1], [21, -0.4], [24, 0.7], [30, 1]], pause: 0.25 },
         pistol: { pitch: 0.026, yaw: 0.005, pat: [[1, 0.5], [8, 0.9]], keep: 0.24, snap: 90, hold: 0.06, decay: 9, ads: 0.7, crouch: 0.9, prone: 0.7, move: 0.35, air: 1.2, jitter: 0.12, clampP: 0.2, clampY: 0.1, pause: 0.25 }
