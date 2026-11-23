@@ -39,7 +39,7 @@ SETS = {
         zones=dict(handR=((0, 0.050, -0.050), (0.030, 0.040, 0.055)), handL=((0, 0.030, -0.060), (0.030, 0.040, 0.050)),
                    cheek=((0, 0, 0), (0.001, 0.001, 0.001)), butt=((0, 0, 0), (0.001, 0.001, 0.001)),
                    mud=((0, 0.055, -0.100), (0.030, 0.040, 0.022)), mud2=((0, -0.090, -0.012), (0.020, 0.050, 0.012)),
-                   oil=((0, -0.040, 0.020), (0.020, 0.090, 0.022)), slide=(0, 1, 0), rub=0.85)),
+                   oil=((0, -0.040, 0.020), (0.020, 0.090, 0.022)), slide=(0, 1, 0), rub=0.85, dustk=1.6, roughmin=0.34)),
 }
 
 def load_img(name, data):
@@ -117,6 +117,8 @@ def wear_material(name, st, W, mask):
     r = nb.lerp(nb.mul(hand, isW), r, nb.mul(r, 0.72))
     r = nb.lerp(nb.mul(nb.mx(ew, worn), isW, 0.8), r, 0.75)
     h = nb.add(nb.mul(scr, isM, -0.5), nb.mul(pits, -0.6), nb.mul(dent, isW, -1.0), nb.mul(gouge, isW, -0.8), nb.mul(wscr, isW, -0.35))
+    if W.zones.get('roughmin'):   # the pistol scan's steel is close to a mirror: no factory-new polish in the field
+        r = nb.mx(r, nb.add(W.zones['roughmin'], nb.mul(nb.sub(nb.noise(P, 40, 3, 0.5, w=31), 0.5), 0.16)))
     c, r, metal, h = MT._dirty(nb, W, c, r, metal, h)
     m = nb.finish(c, r, metal, h, bump_dist=0.0004)
     b = next(n for n in nt.nodes if n.type == 'BUMP')

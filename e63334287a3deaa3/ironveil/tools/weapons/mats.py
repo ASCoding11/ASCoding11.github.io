@@ -226,7 +226,7 @@ def _dirty(nb, W, c, r, metal, h, surf='metal'):
     h = nb.add(h, nb.mul(grime, nb.noise(P, 700, 2, 0.5, w=44), 0.25))
     # dust: faces that look up, patchy, not where hands rub
     up = nb.ss(nz, 0.15, 0.85)
-    dust = nb.mul(up, nb.ss(nb.noise(P, 32, 5, 0.65, w=47), 0.40, 0.72), nb.inv(nb.mul(hand, 0.9)), 0.70)
+    dust = nb.mul(up, nb.ss(nb.noise(P, 32, 5, 0.65, w=47), 0.40, 0.72), nb.inv(nb.mul(hand, 0.9)), 0.70 * z.get('dustk', 1.0))
     dust = nb.add(dust, nb.mul(nb.ss(cav, 0.3, 0.8), 0.25))
     dust = nb.clamp(nb.mul(dust, nb.ss(nb.noise(P, 300, 2, 0.5, w=48), 0.25, 0.55)))
     c = nb.mixc(dust, c, (0.205, 0.185, 0.150))
@@ -246,7 +246,7 @@ def _dirty(nb, W, c, r, metal, h, surf='metal'):
     # dry film and old oil in patches: roughness never uniform, so light breaks up on the flats
     film = nb.ss(nb.noise(P, 11, 4, 0.6, w=59), 0.35, 0.70)
     r = nb.lerp(nb.mul(film, 0.7), r, nb.add(r, 0.22))
-    c = nb.mixc(nb.mul(film, 0.25), c, nb.cmul(nb.mixc(0.5, c, (0.16, 0.15, 0.13)), 1.0))
+    c = nb.mixc(nb.mul(film, metal, 0.25), c, nb.cmul(nb.mixc(0.5, c, (0.16, 0.15, 0.13)), 1.0))   # greyed film on steel only
     if surf == 'metal':   # oily finger smudges round the action and where the hands hold
         oz = nb.clamp(nb.add(nb.zone(*z['oil']), nb.mul(hand, 0.6)))
         sm = nb.mul(nb.ss(nb.noise(P, 90, 3, 0.6, w=57), 0.48, 0.68), oz)
