@@ -278,10 +278,10 @@
   WP.spreadTarget = function () {
     const k = WP.cur, w = WT[k], ads = WP.aiming || WP.scoped;
     let sp = ads ? w.spread : w.hipSpread;
-    sp *= 1 + (ads ? 0.9 : 0.7) * IV.clamp((P.speed - 0.3) / 3.5, 0, 1);   // walking adds a little, a jog about 70 % more
+    sp *= 1 + (ads ? 0.9 : 0.7) * IV.clamp((P.speed - 0.3) / (T.move.run - 0.3), 0, 1) + (P.sprinting ? 0.3 : 0);   // a jog about 70 % more, a sprint 100 %
     if (P.stance === 'crouch') sp *= 0.8; else if (P.stance === 'prone') sp *= 0.6;
     if (k === 'smg') sp += WP.bloom * (ads ? 0.7 : 1);
-    if (P.grounded === false && !P.vault) sp += 0.02;
+    if (P.grounded === false && !P.vault) sp += 0.022;   // airborne (a jump): wide open
     return sp;
   };
   WP.spread = null;
@@ -306,29 +306,52 @@
   WP.magIn = function () { if (WP.reloadT > 0 && WP.fpReload && !WP.fpReload.magged) { const k = WP.cur, inv = WP.inv[k], take = Math.min(WT[k].mag - inv.mag, inv.res); inv.mag += take; inv.res -= take; WP.fpReload.magged = true; } };
   WP.reloadDone = function () { if (WP.reloadT > 0 && WP.fpReload) { WP.reloadT = 0; finishReload(); } };
 
-  // grenade / rock throw: hold to aim (arc preview), let go to throw. Grenade fuse runs from the press (cooking).
-  function throwVel(kind) {
-    const d = IV.camera.lookDir, v = kind === 'grenade' ? WT.grenade.throwV : WT.rock.throwV;
+  // grenade / rock throw: hold to aim (the arc shows where it lands), let go to throw; a quick tap throws at once with
+  // the same arc. Grenade fuse runs from the press (cooking). The preview and the real throw share flyStep and the
+  // fixed step, so the throw lands where the ring is. It leaves from the right hand but its heading converges on the
+  // crosshair line at the distance it will land.
+  const GRAV = 9.8;
+  function flyStep(g, dt) { // one fixed step of a thrown object; returns the surface hit on this step, or null
+    const x0 = g.x, y0 = g.y, z0 = g.z;
+    g.vy -= GRAV * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
+    const dx = g.x - x0, dy = g.y - y0, dz = g.z - z0, l = Math.hypot(dx, dy, dz);
+    return l > 0 ? W.raycast(x0, y0, z0, dx / l, dy / l, dz / l, l + 0.06, F.SOLID | F.BULLET) : null;
+  }
+  WP.flyStep = flyStep;
+  let throwD = 12;   // m, the last predicted landing distance (the heading converges on the crosshair line there)
+  function throwVel(kind, o) {
+    const d = IV.camera.lookDir, v = kind === 'grenade' ? WT.grenade.throwV : WT.rock.throwV, c = W.camera.position;
     const up = 0.32 + Math.max(0, d.y) * 0.3;
-    return { x: d.x * v, y: d.y * v + v * up, z: d.z * v };
+    // heading: from the hand toward the point on the crosshair's line, over the ground, where the throw comes down
+    const hl = Math.hypot(d.x, d.z) || 1, D = Math.max(2, throwD);
+    let hx = c.x + d.x / hl * D - o.x, hz = c.z + d.z / hl * D - o.z; const ll = Math.hypot(hx, hz) || 1; hx /= ll; hz /= ll;
+    return { x: hx * hl * v, y: d.y * v + v * up, z: hz * hl * v };
   }
   function throwOrigin() { const f = IV.fwd(P.yaw), r = { x: -f.z, z: f.x }; return { x: P.pos.x + r.x * 0.25 + f.x * 0.3, y: P.eyeY() + 0.15, z: P.pos.z + r.z * 0.25 + f.z * 0.3 }; }
-  WP.arc = function () { // predicted path for the preview line
+  const arcOut = { pts: [], hit: null, t: 0 };
+  WP.arc = function () { // predicted path: points along it (one every 2 steps) and the first surface it hits
     if (!WP.busyThrow) return null;
-    const o = throwOrigin(), v = throwVel(WP.busyThrow.kind), pts = [];
-    let x = o.x, y = o.y, z = o.z, vx = v.x, vy = v.y, vz = v.z;
-    for (let i = 0; i < 60; i++) {
-      pts.push(x, y, z);
-      const nx = x + vx * 0.04, ny = y + vy * 0.04, nz = z + vz * 0.04;
-      const dl = Math.hypot(nx - x, ny - y, nz - z), h = W.raycast(x, y, z, (nx - x) / dl, (ny - y) / dl, (nz - z) / dl, dl, F.SOLID | F.BULLET);
-      if (h) { pts.push(h.x, h.y, h.z); break; }
-      x = nx; y = ny; z = nz; vy -= 9.8 * 0.04;
+    const o = throwOrigin(), v = throwVel(WP.busyThrow.kind, o), dt = T.step, pts = arcOut.pts;
+    const g = { x: o.x, y: o.y, z: o.z, vx: v.x, vy: v.y, vz: v.z };
+    pts.length = 0; arcOut.hit = null; arcOut.air = false;
+    // a grenade whose fuse runs out in the air bursts there: the line stops at that point and the ring marks it
+    const bt = WP.busyThrow, steps = bt.kind === 'grenade' ? Math.max(1, Math.floor((WT.grenade.fuse - (IV.time - bt.t0)) / dt)) : 300;
+    let i = 0;
+    for (; i < Math.min(300, steps); i++) {
+      if (i % 2 === 0) pts.push(g.x, g.y, g.z);
+      const h = flyStep(g, dt);
+      if (h) { pts.push(h.x, h.y, h.z); arcOut.hit = h; break; }
     }
+    if (!arcOut.hit && bt.kind === 'grenade' && i < 300) { pts.push(g.x, g.y, g.z); arcOut.hit = { x: g.x, y: g.y, z: g.z, nx: 0, ny: 1, nz: 0, air: true }; arcOut.air = true; }
+    arcOut.t = i * dt;
+    if (arcOut.hit) throwD = Math.hypot(arcOut.hit.x - W.camera.position.x, arcOut.hit.z - W.camera.position.z);
     return pts;
   };
+  WP.arcInfo = () => arcOut;
   function release() {
     const bt = WP.busyThrow; if (!bt) return;
-    const o = throwOrigin(), v = throwVel(bt.kind);
+    WP.arc();   // the heading uses this frame's landing distance
+    const o = throwOrigin(), v = throwVel(bt.kind, o);
     WP.throws.push({ kind: bt.kind, x: o.x, y: o.y, z: o.z, vx: v.x, vy: v.y, vz: v.z, fuse: bt.kind === 'grenade' ? WT.grenade.fuse - (IV.time - bt.t0) : 99, rest: false, bounced: 0 });
     if (bt.kind === 'grenade') WP.inv.grenades--;
     P.actor.setUpper('throw'); IV.audio && IV.audio.play('throw');
@@ -365,11 +388,9 @@
       const g = WP.throws[i];
       g.fuse -= dt;
       if (!g.rest) {
-        const x0 = g.x, y0 = g.y, z0 = g.z;
-        g.vy -= 9.8 * dt; g.x += g.vx * dt; g.y += g.vy * dt; g.z += g.vz * dt;
-        const dx = g.x - x0, dy = g.y - y0, dz = g.z - z0, l = Math.hypot(dx, dy, dz);
-        const h = l > 0 ? W.raycast(x0, y0, z0, dx / l, dy / l, dz / l, l + 0.06, F.SOLID | F.BULLET) : null;
+        const h = flyStep(g, dt);
         if (h) {
+          if (!g.bounced) g.firstHit = { x: h.x, y: h.y, z: h.z };
           // bounce off the surface
           const vn = g.vx * h.nx + g.vy * h.ny + g.vz * h.nz;
           g.vx = (g.vx - 2 * vn * h.nx) * 0.35; g.vy = (g.vy - 2 * vn * h.ny) * 0.3; g.vz = (g.vz - 2 * vn * h.nz) * 0.35;
@@ -460,7 +481,8 @@
       const bt = WP.busyThrow, held = I.held(bt.kind);
       const cookedOut = bt.kind === 'grenade' && IV.time - bt.t0 > WT.grenade.fuse - 0.35;
       // first person: the throw leaves the hand when the arms' clip reaches its release (js/fp.js holds the cocked pose while the key is held)
-      if (!held || cookedOut) { if (!(bt.kind === 'grenade' && IV.fp && IV.fp.throwSync && IV.fp.throwSync(bt, cookedOut))) release(); }
+      // first person waits for the arms' release frame, but never more than 0.25 s, so a tap still throws at once
+      if (!held || cookedOut) { if (!(bt.kind === 'grenade' && IV.fp && IV.fp.throwSync && IV.fp.throwSync(bt, cookedOut) && IV.time - (bt.relT == null ? IV.time : bt.relT) < 0.25)) release(); }
       return;
     }
     // takedown (F), shown as a prompt by the HUD when available
@@ -484,7 +506,7 @@
   };
 
   // grenade arc line (render)
-  let arcLine = null;
+  let arcLine = null, arcRing = null;
   // ---------------------------------------------------------------- moving parts (named empties in weapons.glb)
   // Each part moves relative to its rest transform: bolts and charging handles kick back on a shot, triggers pull while
   // the trigger is held, the magazine drops out and comes back during a reload, the MG bipod folds down when the gunner
@@ -553,14 +575,29 @@
 
   WP.frame = function () {
     playerParts(1 / 60);
-    const pts = WP.busyThrow ? WP.arc() : null;
+    const pts = WP.busyThrow && !(P.cine || !P.alive) ? WP.arc() : null;
     if (!arcLine || arcLine.parent !== W.scene) {
-      arcLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xf0e6c8, dashSize: 0.3, gapSize: 0.2, transparent: true, opacity: 0.8, depthTest: false }));
-      arcLine.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(64 * 3), 3));
+      // a dotted line (drawn over everything, so it never hides in grass) and a ring where it comes down
+      arcLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xf4ead0, dashSize: 0.22, gapSize: 0.22, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false }));
+      arcLine.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(160 * 3), 3));
       arcLine.frustumCulled = false; arcLine.renderOrder = 9; W.scene.add(arcLine);
+      arcRing = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.55, 40), new THREE.MeshBasicMaterial({ color: 0xf4ead0, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));
+      const dot = new THREE.Mesh(new THREE.CircleGeometry(0.08, 16), arcRing.material); arcRing.add(dot);
+      arcRing.frustumCulled = false; arcRing.renderOrder = 9; W.scene.add(arcRing);
     }
-    if (pts) { const a = arcLine.geometry.attributes.position.array; a.set(pts.slice(0, 192)); arcLine.geometry.setDrawRange(0, Math.min(64, pts.length / 3)); arcLine.geometry.attributes.position.needsUpdate = true; arcLine.computeLineDistances(); arcLine.visible = true; }
-    else arcLine.visible = false;
+    if (pts) {
+      const n = Math.min(160, pts.length / 3), a = arcLine.geometry.attributes.position.array; a.set(pts.slice(0, n * 3));
+      arcLine.geometry.setDrawRange(0, n); arcLine.geometry.attributes.position.needsUpdate = true; arcLine.computeLineDistances(); arcLine.visible = true;
+      const h = arcOut.hit, ring = arcRing;
+      if (h) {
+        ring.visible = true; ring.position.set(h.x + h.nx * 0.03, h.y + h.ny * 0.03, h.z + h.nz * 0.03);
+        ring.lookAt(h.x + h.nx, h.y + h.ny, h.z + h.nz);
+        // grenade: the ring is red while the throw would land inside the blast round you
+        const near = WP.busyThrow.kind === 'grenade' && Math.hypot(h.x - P.pos.x, h.z - P.pos.z) < WT.grenade.radius;
+        ring.material.color.setHex(near ? 0xe0573c : 0xf4ead0); arcLine.material.color.setHex(near ? 0xe0573c : 0xf4ead0);
+        const s2 = WP.busyThrow.kind === 'grenade' ? 1 : 0.6; ring.scale.set(s2, s2, s2);
+      } else ring.visible = false;
+    } else { arcLine.visible = false; if (arcRing) arcRing.visible = false; }
     // grenade/rock meshes in flight
     // grenades are the real models (the enemy's is the stick grenade), rocks a small stone; each tumbles in flight
     WP.throwMeshes = WP.throwMeshes || {};
