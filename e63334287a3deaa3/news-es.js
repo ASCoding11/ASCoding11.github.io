@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A badge for the top of each board": "Una insignia para el primero de cada clasificación",
+    "Whoever is top of a game's main leaderboard now wears a small badge for that game next to their name.": "Quien va primero en la clasificación principal de un juego lleva ahora una insignia pequeña de ese juego junto a su nombre.",
+    "The badges show in the Online panel, the Party panel and the Leaderboards.": "Las insignias se ven en el panel Online, en el panel de Fiesta y en las Clasificaciones.",
     "A contact page": "Una página de contacto",
     "The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.": "La web ya tiene una página de Contacto, enlazada al final de cada página: manda un error, una idea o una pregunta, con un correo si quieres respuesta.",
     "Only the site's team can read what you send.": "Solo el equipo de la web puede leer lo que mandes.",

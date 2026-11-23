@@ -85,6 +85,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.47', title: 'A badge for the top of each board', kind: 'feature',
+     tags: ['Leaderboards'], items: [
+      'Whoever is top of a game\'s main leaderboard now wears a small badge for that game next to their name.',
+      'The badges show in the Online panel, the Party panel and the Leaderboards.'
+    ]},
     {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
      items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
              'Only the site\'s team can read what you send.']},
