@@ -330,6 +330,8 @@
     const m = new THREE.MeshStandardMaterial({ map: T.alb, normalMap: T.nri, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, roughness: 1, metalness: 0, alphaTest: 0.02 });
     m.customProgramCacheKey = () => 'ivdecalsatlas';
     m.onBeforeCompile = function (sh) {   // r187: the atlas UV is vMapUv (r128's vUv)
+      // the atlas is raw sRGB (env/core.js makeTex): decoded after filtering, as r128 did
+      E.patch(sh, 'fragment', '#include <map_fragment>', 'vec4 sampledDiffuseColor = sRGBTransferEOTF(texture2D(map, vMapUv)); diffuseColor *= sampledDiffuseColor;', 'env/builder decals');
       E.patch(sh, 'fragment', '#include <roughnessmap_fragment>', 'float roughnessFactor = texture2D(normalMap, vMapUv).b;', 'env/builder decals');
       E.patch(sh, 'fragment', '#include <normal_fragment_maps>', `vec4 dn = texture2D(normalMap, vMapUv); vec3 mapN = vec3(dn.xy * 2.0 - 1.0, 0.0); mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
           normal = ivPerturbNormal2Arb(-vViewPosition, normal, mapN, faceDirection, vMapUv);`, 'env/builder decals');

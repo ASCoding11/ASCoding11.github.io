@@ -110,7 +110,9 @@
     const t = new THREE.DataTexture(data, S, S, THREE.RGBAFormat, THREE.UnsignedByteType);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter;
     t.generateMipmaps = true; t.anisotropy = aniso; t.flipY = false;
-    if (srgb) t.encoding = THREE.sRGBEncoding;
+    // sRGB albedo stays raw (no colour space) and the env shaders decode it after filtering, as three r128 did: r187
+    // would decode before filtering (an sRGB texture format), which made distant gravel, roofs and walls a little lighter
+    if (srgb) t.userData.srgb = true;
     t.needsUpdate = true; return t;
   }
 
@@ -331,7 +333,7 @@
         #endif
         vEnvW = (modelMatrix * envWP).xyz; vEnvA = aEnv;`);
       sh.vertexShader = 'attribute vec4 aEnv;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' + sh.vertexShader;
-      // r187: the map's UV is vMapUv (r128's vUv), and three decodes the sRGB albedo itself (r128: mapTexelToLinear)
+      // r187: the map's UV is vMapUv (r128's vUv); the albedo is decoded in MAP_FRAG (r128: mapTexelToLinear)
       P('fragment', '#include <map_fragment>', MAP_FRAG);
       P('fragment', '#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(envRough, 0.03, 1.0);');
       P('fragment', '#include <metalnessmap_fragment>', 'float metalnessFactor = metalness;\n#ifdef ENV_METALMASK\nmetalnessFactor *= envN.a;\n#endif');
@@ -383,7 +385,7 @@
     }
     #endif
     vec4 envT = texture2D(map, envUv); vec4 envN = texture2D(normalMap, envUv);
-    vec3 envAlb = envT.rgb; float envH = envT.a; float envRough = envN.b;
+    vec3 envAlb = sRGBTransferEOTF(vec4(envT.rgb, 1.0)).rgb; float envH = envT.a; float envRough = envN.b;
     vec3 wp = vEnvW;
     float m1 = texture2D(uMacro, (wp.xz + wp.y * vec2(0.71, 0.37)) * 0.035).r;
     float m2 = texture2D(uMacro, (wp.xy + wp.zz * vec2(0.83, -0.4)) * 0.11 + 0.37).g;

@@ -452,8 +452,8 @@
   window.handPen = function (a, g) {
     if (!a || !g || a.fb) return null;
     a.root.updateMatrixWorld(true);
-    // quantized (meshopt) positions are not denormalized by the r128 raycaster: test against float copies
-    var meshes = [], dq = function (at) { if (!at.normalized) return 1; var A = at.array; return A instanceof Int16Array ? 32767 : A instanceof Uint16Array ? 65535 : A instanceof Int8Array ? 127 : A instanceof Uint8Array ? 255 : 1; };
+    // test against float copies (r128 did not denormalize quantized meshopt positions; r187 getX does, so d is 1 there)
+    var meshes = [], dq = function (at) { if (!at.normalized || THREE.BufferAttribute.prototype.getComponent) return 1; var A = at.array; return A instanceof Int16Array ? 32767 : A instanceof Uint16Array ? 65535 : A instanceof Int8Array ? 127 : A instanceof Uint8Array ? 255 : 1; };
     g.updateMatrixWorld(true);
     g.traverse(function (o) {
       if (!o.isMesh || !o.visible) return;
@@ -471,7 +471,7 @@
       if (!m.isSkinnedMesh || /Hair/.test(m.name)) return;
       var pos = m.geometry.attributes.position, si = m.geometry.attributes.skinIndex, sw = m.geometry.attributes.skinWeight, bones = m.skeleton.bones;
       var v = new THREE.Vector3();
-      var den = function (at) { if (!at.normalized) return 1; var A = at.array; return A instanceof Int16Array ? 32767 : A instanceof Uint16Array ? 65535 : A instanceof Int8Array ? 127 : A instanceof Uint8Array ? 255 : 1; };
+      var den = function (at) { if (!at.normalized || THREE.BufferAttribute.prototype.getComponent) return 1; var A = at.array; return A instanceof Int16Array ? 32767 : A instanceof Uint16Array ? 65535 : A instanceof Int8Array ? 127 : A instanceof Uint8Array ? 255 : 1; };
       var dp = den(pos), dw = den(sw), comp = function (at, i, k) { return [at.getX(i), at.getY(i), at.getZ(i), at.getW(i)][k]; };
       for (var i = 0; i < pos.count; i++) {
         var side = null, wsum = { r: 0, l: 0 };

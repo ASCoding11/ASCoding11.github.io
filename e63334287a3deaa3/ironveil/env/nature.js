@@ -132,6 +132,9 @@
         P('fragment', '#include <normal_fragment_begin>', 'float faceDirection = gl_FrontFacing ? 1.0 : -1.0; vec3 normal = normalize(vNormal); vec3 nonPerturbedNormal = normal;');
         P('fragment', '#include <color_fragment>', '#include <color_fragment>\n { float lm = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11)), cap = mix(0.3, 0.15, uNight); if (lm > cap) diffuseColor.rgb *= cap / lm; } ivTransCol = diffuseColor.rgb * vec3(1.1, 1.2, 0.7); ivTransAmt = uTrans;');
         P('fragment', '#include <aomap_fragment>', 'reflectedLight.directSpecular = vec3(0.0); reflectedLight.indirectSpecular = vec3(0.0);');
+        // alpha to coverage as r128 did it: cut at alphaTest, the texture's alpha gives the coverage. r187 sharpens the
+        // alpha over fwidth instead, which thinned distant hedges and crowns where the mip alpha varies pixel to pixel
+        P('fragment', '#include <alphatest_fragment>', '#ifdef USE_ALPHATEST\n if (diffuseColor.a < alphaTest) discard;\n#endif');
         P('fragment', 'float dotNL = saturate( dot( geometryNormal, directLight.direction ) );', 'float dotNL = saturate( (dot( geometryNormal, directLight.direction ) + 0.45) / 1.45 ) * 0.85;');
         sh.fragmentShader = 'uniform float uTrans, uNight;\nvec3 ivTransCol; float ivTransAmt;\n' + sh.fragmentShader;
       }
