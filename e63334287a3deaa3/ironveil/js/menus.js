@@ -112,16 +112,16 @@
 
   // ---------------------------------------------------------------- settings
   const S = () => IV.settings;
-  const binds = [['sSens', 'sens', 'range'], ['sAimSens', 'aimSens', 'range'], ['sInvert', 'invert', 'check'], ['sAssist', 'assist', 'range'], ['sAuto', 'auto', 'check'], ['sSub', 'sub', 'select'], ['sMotion', 'motion', 'check'], ['sView', 'view', 'select'], ['sBob', 'bob', 'check'], ['sBlood', 'blood', 'check'],
+  const binds = [['sSens', 'sens', 'range'], ['sAimSens', 'aimSens', 'range'], ['sInvert', 'invert', 'check'], ['sAssist', 'assist', 'range'], ['sAuto', 'auto', 'check'], ['sSub', 'sub', 'select'], ['sMotion', 'motion', 'check'], ['sView', 'view', 'select'], ['sCrouch', 'crouchHold', 'select'], ['sBob', 'bob', 'check'], ['sBlood', 'blood', 'check'],
     ['sQual', 'quality', 'select'], ['sFov', 'fov', 'range'], ['sBright', 'bright', 'range'], ['sVol', 'vol', 'range'], ['sSfx', 'sfx', 'range'], ['sMus', 'mus', 'range'], ['sMute', 'mute', 'check']];
   UI.settings = function (from) {
     UI.settingsFrom = from || UI.cur;
-    for (const [id, k, t] of binds) { const el = $(id); if (t === 'check') el.checked = !!S()[k]; else el.value = S()[k]; }
+    for (const [id, k, t] of binds) { const el = $(id); if (t === 'check') el.checked = !!S()[k]; else el.value = k === 'crouchHold' ? (S()[k] ? '1' : '0') : S()[k]; }
     UI.show('settings');
   };
   for (const [id, k, t] of binds) {
     $(id).addEventListener(t === 'range' ? 'input' : 'change', e => {
-      const el = e.target; S()[k] = t === 'check' ? el.checked : t === 'select' ? (k === 'sub' ? parseFloat(el.value) : k === 'view' ? el.value : +el.value) : parseFloat(el.value);
+      const el = e.target; S()[k] = t === 'check' ? el.checked : t === 'select' ? (k === 'sub' ? parseFloat(el.value) : k === 'view' ? el.value : k === 'crouchHold' ? el.value === '1' : +el.value) : parseFloat(el.value);
       IV.persist(); UI.applySettings();
       if (k === 'quality') IV.hud.toast(IV.t('Quality changes apply when the page reloads'));
     });

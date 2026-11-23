@@ -243,7 +243,7 @@ def smg(hi=True):
         G.boolean(rcv, G.box('slot', (-0.016, -0.005, 0.0335), (0.012, 0.118, 0.0050), bev=0.0))
         G.boolean(rcv, G.box('topGroove', (0, -0.050, 0.0462), (0.0060, 0.200, 0.0030), bev=0.0))
         G.bevel(rcv, 0.0007, seg=2, angle=40)
-    W.add(rcv, 'park')
+    W.add(rcv, 'blued2')
     # trigger frame
     F = [dict(y=-0.120, zt=0.0020, zb=-0.0240, w=0.0290, e=5), dict(y=-0.116, zt=0.0020, zb=-0.0270, w=0.0310, e=6),
          dict(y=0.072, zt=0.0020, zb=-0.0270, w=0.0310, e=6), dict(y=0.077, zt=0.0020, zb=-0.0240, w=0.0290, e=5)]
@@ -251,25 +251,27 @@ def smg(hi=True):
     if hi:
         G.bevel(fr, 0.0007, seg=2, angle=40)
         G.boolean(fr, G.box('magway', (0, -0.088, -0.012), (0.0240, 0.0420, 0.04), bev=0.0))
-    W.add(fr, 'park')
+    W.add(fr, 'blued2')
     gp = G.bezier([(0, 0.012, -0.026), (0, 0.006, -0.050), (0, -0.040, -0.052), (0, -0.056, -0.026)], N(12, 6))
-    W.add(G.sweep('guard', gp, dict(w=0.0036, h=0.0105, e=3.0), n=N(10, 6), up=Vector((1, 0, 0))), 'park')
-    # stock mount plate, buttstock (walnut), butt plate
-    W.add(G.box('stockMount', (0, 0.082, 0.018), (0.032, 0.008, 0.044), bev=0.0018), 'park')
-    S = [dict(y=0.0855, zt=0.0400, zb=-0.0040, w=0.0300, e=3.0), dict(y=0.110, zt=0.0390, zb=-0.0150, w=0.0330, e=3.0),
-         dict(y=0.180, zt=0.0360, zb=-0.0410, w=0.0360, et=2.9, eb=2.7), dict(y=0.270, zt=0.0335, zb=-0.0700, w=0.0385, et=2.9, eb=2.7),
-         dict(y=0.3575, zt=0.0320, zb=-0.0935, w=0.0400, et=3.0, eb=2.8)]
+    W.add(G.sweep('guard', gp, dict(w=0.0036, h=0.0105, e=3.0), n=N(10, 6), up=Vector((1, 0, 0))), 'blued2')
+    # stock mount plate and a skeleton stock: two steel struts a side running back and down to a stamped butt plate.
+    # (The wooden buttstock sat just under the sight line, so aimed, with the rear sight 29 cm from the eye, it filled
+    # the lower middle of the view as a smooth brown tube up to the rear sight; the struts are thin lines low and to
+    # the sides. Wood stays on the pistol grip and fore-end.)
+    W.add(G.box('stockMount', (0, 0.082, 0.012), (0.030, 0.008, 0.036), bev=0.0018), 'blued2')
+    BY, BZT, BZB = 0.352, -0.030, -0.140           # butt plate: rear face y, top and bottom z
+    for sx in (-1, 1):
+        for p0, p1, p2 in (((sx * 0.0115, 0.084, 0.020), (sx * 0.0175, 0.200, -0.004), (sx * 0.0175, BY - 0.004, BZT - 0.012)),
+                           ((sx * 0.0105, 0.084, -0.008), (sx * 0.0175, 0.230, -0.070), (sx * 0.0175, BY - 0.004, BZB + 0.018))):
+            path = G.bezier([p0, p1, p2], N(14, 5))
+            W.add(G.sweep('strut', path, dict(w=0.0072, h=0.0072, e=2.0), n=N(10, 6), up=Vector((1, 0, 0))), 'blued2')
+    bp = [dict(y=BY - 0.008, zt=BZT, zb=BZB, w=0.040, et=2.6, eb=2.4), dict(y=BY, zt=BZT + 0.002, zb=BZB - 0.002, w=0.042, et=2.6, eb=2.4)]
+    W.add(G.loft_y('buttplate', bp, n=N(32, 12)), 'blued2')
     if hi:
-        S = [S[0], S[1], dict(y=0.140, zt=0.0375, zb=-0.0270, w=0.0345, e=3.0), S[2], dict(y=0.225, zt=0.0348, zb=-0.0555, w=0.0372, et=2.9, eb=2.7), S[3], dict(y=0.330, zt=0.0326, zb=-0.0860, w=0.0396, et=3.0, eb=2.8), S[4]]
-    W.add(G.loft_y('stock', S, n=N(44, 12)), 'wood')
-    last = S[-1]; bp = []
-    for dy, g in ((0.0, 0.0006), (0.0045, 0.0006), (0.0060, -0.0005)):
-        st = dict(last); st['y'] = last['y'] + dy; st['zt'] += g + 0.0005; st['zb'] -= g + 0.0005; st['w'] += 2 * g; bp.append(st)
-    W.add(G.loft_y('buttplate', bp, n=N(36, 12)), 'park')
-    if hi:
-        for z in (0.010, -0.060):
-            W.add(G.cyl('bpScrew', 0.0034, last['y'] + 0.0060, last['y'] + 0.0072, c=(0, 0, z), n=12), 'park')
-        W.add(G.cyl('stockBolt', 0.0042, -0.0170, -0.0195, axis='X', c=(0, 0.095, 0.020), n=12), 'park')
+        W.add(G.loft_y('buttPad', [dict(y=BY, zt=BZT - 0.002, zb=BZB + 0.002, w=0.038, et=2.6, eb=2.4), dict(y=BY + 0.008, zt=BZT - 0.003, zb=BZB + 0.003, w=0.037, et=2.6, eb=2.4)], n=24), 'leather')
+        for z in (BZT - 0.022, BZB + 0.022):
+            W.add(G.cyl('bpScrew', 0.0030, BY + 0.0080, BY + 0.0092, c=(0, 0, z), n=12), 'blued2')
+        W.add(G.cyl('stockBolt', 0.0042, -0.0160, -0.0185, axis='X', c=(0, 0.082, 0.012), n=12), 'blued2')
     # pistol grip (walnut), swept back about 17 degrees
     gpath = G.bezier([(0, 0.030, -0.018), (0, 0.040, -0.060), (0, 0.054, -0.100), (0, 0.060, -0.118)], N(10, 5))
     secs = []
@@ -283,34 +285,34 @@ def smg(hi=True):
            (0.0138, -0.186), (0.0138, -0.170)]
     if not hi:
         bp_ = [(0.0057, -0.43), (0.0057, -0.441), (0.0105, -0.441), (0.0105, -0.188), (0.0138, -0.186), (0.0138, -0.170)]
-    W.add(G.lathe('barrel', bp_, n=N(32, 10), axis='Y', center=(0, 0, B), cap0=True, cap1=True), 'park')
+    W.add(G.lathe('barrel', bp_, n=N(32, 10), axis='Y', center=(0, 0, B), cap0=True, cap1=True), 'blued2')
     W.add(G.plate('fsight', [(-0.4300, B + 0.0090), (-0.4200, B + 0.0090), (-0.4235, B + 0.0185), (-0.4285, B + 0.0185)],
-                  -0.0012, 0.0012, bev=0.0004), 'park')
+                  -0.0012, 0.0012, bev=0.0004), 'blued2')
     W.add(G.plate('fsBase', [(-0.436, B + 0.0080), (-0.414, B + 0.0080), (-0.416, B + 0.0115), (-0.434, B + 0.0115)],
-                  -0.0040, 0.0040, bev=0.0006), 'park')
+                  -0.0040, 0.0040, bev=0.0006), 'blued2')
     # fore-end (walnut) under the barrel
     FE = [dict(y=-0.3255, zt=0.0120, zb=-0.0060, w=0.0230, e=2.4), dict(y=-0.321, zt=0.0160, zb=-0.0140, w=0.0310, et=3.5, eb=2.4),
           dict(y=-0.250, zt=0.0165, zb=-0.0165, w=0.0330, et=3.5, eb=2.4), dict(y=-0.190, zt=0.0170, zb=-0.0150, w=0.0335, et=3.5, eb=2.5),
           dict(y=-0.176, zt=0.0160, zb=-0.0080, w=0.0310, et=3.5, eb=2.5)]
     W.add(G.loft_y('foreend', FE, n=N(40, 10)), 'wood')
-    W.add(G.box('feBracket', (0, -0.173, 0.006), (0.030, 0.006, 0.018), bev=0.0012), 'park')
+    W.add(G.box('feBracket', (0, -0.173, 0.006), (0.030, 0.006, 0.018), bev=0.0012), 'blued2')
     # rear sight: base, two protective ears, aperture blade
-    W.add(G.box('rsBase', (0, 0.050, 0.0475), (0.0160, 0.024, 0.0040), bev=0.0010), 'park')
+    W.add(G.box('rsBase', (0, 0.050, 0.0475), (0.0160, 0.024, 0.0040), bev=0.0010), 'blued2')
     for s in (-1, 1):
         W.add(G.plate('rsEar', [(0.040, 0.049), (0.062, 0.049), (0.058, 0.0640), (0.050, 0.0660), (0.044, 0.0600)],
-                      s * 0.0055, s * 0.0078, bev=0.0005), 'park')
+                      s * 0.0055, s * 0.0078, bev=0.0005), 'blued2')
     ap = G.plate('rsBlade', [(-0.0050, 0.049), (0.0050, 0.049), (0.0050, 0.0620), (-0.0050, 0.0620)], 0.0525, 0.0545, bev=0.0004, axis='Y')
     if hi:
         G.boolean(ap, G.cyl('peep', 0.0011, -0.01, 0.01, axis='Y', c=(0, 0.053, 0.0585), n=10))
-    W.add(ap, 'park')
+    W.add(ap, 'blued2')
     # selector and safety levers, magazine catch (left side, +X)
     if hi:
         for y, z, a in ((0.030, -0.010, 25), (0.000, -0.012, -20)):
             lv = G.plate('lever', [(y - 0.003, z - 0.003), (y + 0.003, z - 0.003), (y + 0.0035, z + 0.004), (y - 0.0025, z + 0.016), (y - 0.006, z + 0.014)],
                          0.0155, 0.0180, bev=0.0006)
-            G.rot(lv, a, 'X', (0, y, z)); W.add(lv, 'park')
-            W.add(G.cyl('leverPin', 0.0032, 0.0155, 0.0185, axis='X', c=(0, y, z), n=10), 'park')
-        W.add(G.box('magCatch', (0.0165, -0.060, -0.016), (0.003, 0.010, 0.012), bev=0.0008), 'park')
+            G.rot(lv, a, 'X', (0, y, z)); W.add(lv, 'blued2')
+            W.add(G.cyl('leverPin', 0.0032, 0.0155, 0.0185, axis='X', c=(0, y, z), n=10), 'blued2')
+        W.add(G.box('magCatch', (0.0165, -0.060, -0.016), (0.003, 0.010, 0.012), bev=0.0008), 'blued2')
         # bolt (moving) visible through the port, cocked to the rear
         W.add(G.box('boltB', (0, -0.012, 0.0235), (0.0245, 0.110, 0.0300), bev=0.0015), 'steel', 'bolt')
         W.pivots['bolt'] = (0, -0.012, 0.0235)
@@ -319,6 +321,11 @@ def smg(hi=True):
     W.add(G.lathe('cockKnob', [(0.0, -0.0225), (0.0060, -0.0225), (0.0068, -0.0262), (0.0060, -0.0310), (0.0, -0.0318)],
                   n=N(16, 8), axis='X', center=(0, 0.040, 0.0335)), 'steel', 'charging')
     W.pivots['charging'] = (-0.020, 0.040, 0.0335)
+    if hi:   # cross pins through the frame and receiver, heads proud on both sides
+        for y, z in ((-0.100, -0.012), (-0.030, -0.014), (0.040, -0.012), (0.062, 0.010), (-0.140, 0.012)):
+            for sx in (-1, 1):
+                W.add(G.cyl('pin', 0.0024 if z < 0 else 0.0030, sx * 0.0153, sx * (0.0153 + 0.0010), axis='X', c=(0, y, z), n=10, caps=True) if z < 0
+                      else G.cyl('pin', 0.0030, sx * 0.0172, sx * (0.0172 + 0.0010), axis='X', c=(0, y, z), n=10, caps=True), 'blued2')
     # trigger
     tp = G.bezier([(0, -0.0130, -0.024), (0, -0.0140, -0.036), (0, -0.0110, -0.044), (0, -0.0065, -0.0475)], N(6, 3))
     W.add(G.sweep('trigger', tp, dict(w=0.0042, h=0.0062, e=3.0), n=8, up=Vector((1, 0, 0))), 'steel', 'trigger')
@@ -331,14 +338,14 @@ def smg(hi=True):
             for yy in (-0.097, -0.079):
                 rb = G.loft_y('rib', [dict(y=yy - 0.003, zt=-0.030, zb=-0.215, w=0.0010, e=2, x=sx * 0.0114), dict(y=yy + 0.003, zt=-0.030, zb=-0.215, w=0.0010, e=2, x=sx * 0.0114)], n=8)
                 mag = G.join([mag, rb], 'magBody')
-    W.add(mag, 'park', 'mag')
-    W.add(G.box('magFloor', (0, -0.088, -0.2385), (0.0250, 0.0430, 0.0040), bev=0.0012), 'park', 'mag')
+    W.add(mag, 'blued2', 'mag')
+    W.add(G.box('magFloor', (0, -0.088, -0.2385), (0.0250, 0.0430, 0.0040), bev=0.0012), 'blued2', 'mag')
     W.pivots['mag'] = (0, -0.088, -0.020)
     # sling swivels (left side) and canvas sling
     for y, z in ((-0.300, 0.000), (0.300, -0.030)):
-        W.add(G.box('swBase', (0.0195, y, z), (0.004, 0.010, 0.008), bev=0.0010), 'park')
+        W.add(G.box('swBase', (0.0195, y, z), (0.004, 0.010, 0.008), bev=0.0010), 'blued2')
         W.add(G.sweep('swLoop', [(0.022, y, z + 0.0), (0.026, y - 0.016, z + 0.002), (0.026, y - 0.016, z - 0.004), (0.022, y, z - 0.002),
-                                 (0.026, y + 0.016, z - 0.004), (0.026, y + 0.016, z + 0.002)], dict(w=0.003, h=0.003), n=6, closed=True), 'park')
+                                 (0.026, y + 0.016, z - 0.004), (0.026, y + 0.016, z + 0.002)], dict(w=0.003, h=0.003), n=6, closed=True), 'blued2')
     pts = []
     K = N(40, 9)
     for i in range(K + 1):
@@ -360,7 +367,7 @@ def smg(hi=True):
     W.empties['ejection'] = ((-0.019, -0.090, 0.030), (-1, 0, 0.5))
     W.gripL = (0, -0.245, 0.0)
     W.zones = dict(handR=((0, 0.045, -0.065), (0.030, 0.035, 0.060)), handL=((0, -0.250, 0.0), (0.030, 0.070, 0.035)),
-                   cheek=((0.02, 0.200, 0.030), (0.025, 0.11, 0.02)), butt=((0, 0.36, -0.03), (0.04, 0.012, 0.08)), slide=(0, 1, 0))
+                   cheek=((0.02, 0.170, 0.008), (0.025, 0.11, 0.02)), butt=((0, 0.36, -0.092), (0.04, 0.012, 0.08)), slide=(0, 1, 0))
     W.uvscale = {'mag': 0.8, 'sling': 0.5, 'charging': 1.5}
     W.gripRoff, W.gripLoff = (0.012, 0, 0.006), (0.012, 0, -0.024)
     return W
