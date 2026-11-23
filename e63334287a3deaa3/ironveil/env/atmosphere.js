@@ -18,7 +18,7 @@
     night_moon: {
       skyTop: 0x04060b, skyHor: 0x151b25, ground: 0x07080a, fog: 0x0e131a, fogD: 0.0105, mist: 0.5, mistTop: 1.8,
       sunDir: [-0.5, 0.74, 0.45], sunCol: 0xa9bde0, sunI: 1.5, sunShadow: true, soft: 3, moon: 1, stars: 1, cloud: 0.42, cloudCol: 0x151a22, glow: 0.5, cscale: 0.6,
-      hemiSky: 0x33435f, hemiGround: 0x1c1712, hemiI: 0.48, env: 0.35, exposure: 1.1, wind: 0.35, wet: 0.22, rain: 0, grade: 'night'
+      hemiSky: 0x33435f, hemiGround: 0x1c1712, hemiI: 0.58, env: 0.35, exposure: 1.1, wind: 0.35, wet: 0.22, rain: 0, grade: 'night'
     },
     night_overcast: {
       skyTop: 0x080a0d, skyHor: 0x1b1f25, ground: 0x0b0c0d, fog: 0x171b20, fogD: 0.0135, mist: 0.7, mistTop: 2.2,
@@ -54,7 +54,7 @@
     day_overcast: {
       skyTop: 0x6f7d8c, skyHor: 0xb6b8b3, ground: 0x4b4a44, fog: 0xa7aaa8, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
       sunDir: [0.55, 0.32, -0.77], sunCol: 0xf3d9b0, sunI: 1.5, sunShadow: true, soft: 5, moon: 0, stars: 0, cloud: 0.75, cloudCol: 0x8f9396, glow: 1.6, cscale: 0.75,
-      hemiSky: 0x9aa7b6, hemiGround: 0x635a4a, hemiI: 0.85, env: 0.75, exposure: 0.9, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
+      hemiSky: 0x9aa7b6, hemiGround: 0x635a4a, hemiI: 0.85, env: 0.75, exposure: 0.98, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
     }
   };
 
