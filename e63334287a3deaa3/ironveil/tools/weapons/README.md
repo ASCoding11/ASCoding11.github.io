@@ -79,7 +79,7 @@ the mesh child carries a quantisation offset from meshopt and should not be move
 | weapon | triangles | draw calls | materials |
 |---|---|---|---|
 | rifleScoped | 10770 | 6 | wpn_glass, wpn_rifle |
-| smg | 8500 | 6 | wpn_smg |
+| smg | 8988 | 6 | wpn_smg |
 | binoculars | 1324 | 2 | wpn_atlas, wpn_glass |
 | enemyRifle | 2998 | 5 | wpn_atlas |
 | enemySmg | 2258 | 5 | wpn_atlas |
@@ -112,9 +112,11 @@ prints this table for any build.
 
 The first-person SMG is worn blued steel (`blued2` in `mats.py`: metal 1, a greyer tint and 35 % more edge wear
 than `blued`) instead of the matte phosphate, which baked as non-metal (metal 0 on 95 % of the map) and read as a
-flat brown-grey slab; the stock now drops about 9 cm at the heel from just behind the receiver, so aimed (the rear
-sight 29 cm from the eye, `FP.adsRear` in `js/fp.js`) the stock is a short wedge low in the view instead of a wooden
-tube up to the rear sight; cross pins stand proud on both sides of the frame and receiver. Rebuild only the SMG and
+flat brown-grey slab; the wooden buttstock, which sat just under the sight line and, aimed (the rear sight 29 cm from
+the eye, `FP.adsRear` in `js/fp.js`), filled the lower middle of the view as a smooth brown tube up to the rear
+sight (a dropped wooden stock was tried first and still did), is now a steel skeleton stock: two struts a side and a
+stamped butt plate with a leather pad; wood stays on the pistol grip and fore-end; cross pins stand proud on both
+sides of the frame and receiver. Rebuild only the SMG and
 swap it into the shipped file, starting from the committed `weapons.glb` (each swap re-encodes all geometry):
 
 ```sh
@@ -125,8 +127,7 @@ GT_MODULES=... node swap.mjs /tmp/w0.glb ../../assets/weapons.glb /tmp/wsmg/smg.
 ```
 
 Then rebuild the first-person clips (`tools/chars`, `fp_unpack.mjs` then `fp_clips.py export`), because the hand fits
-read the weapon's shape. The reduced `smgLod` in the atlas set was NOT rebuilt: it keeps the old straight stock and
-phosphate finish until the atlas set is baked again (about an hour).
+read the weapon's shape. The reduced `smgLod` in the atlas set was NOT rebuilt: it keeps the old wooden stock and phosphate finish until the atlas set is baked again (about an hour).
 
 ## Hand frames
 
