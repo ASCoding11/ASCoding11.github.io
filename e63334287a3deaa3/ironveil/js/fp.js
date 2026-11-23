@@ -667,6 +667,7 @@
     const r = W.renderer;
     if (!VE.rt) {
       VE.rt = new THREE.WebGLCubeRenderTarget(32, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, type: THREE.UnsignedByteType });
+      if (window.IVEnv && IVEnv.r128EnvCube) IVEnv.r128EnvCube(VE.rt);   // lit the r128 way, not as a PMREM (env/atmosphere.js)
       VE.cam = new THREE.CubeCamera(0.05, 10, VE.rt);
       VE.mat = new THREE.ShaderMaterial({
         side: THREE.BackSide, depthWrite: false, depthTest: false,

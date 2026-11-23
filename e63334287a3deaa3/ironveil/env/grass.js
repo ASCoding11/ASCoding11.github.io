@@ -162,6 +162,9 @@
     const g = new THREE.InstancedBufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(t.length * 3), 3));
     g.setAttribute('aT', new THREE.Float32BufferAttribute(t, 1)); g.setAttribute('aS', new THREE.Float32BufferAttribute(s, 1));
+    // the shader makes the normal (beginnormal_vertex below); three r187 builds a flat-shaded program, without vNormal,
+    // for any geometry that has no normal attribute, so the blades carry an unused one
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(t.length * 3), 3));
     g.setIndex(idx); g.userData.tris = idx.length / 3;
     return g;
   }
@@ -177,6 +180,7 @@
     const g = new THREE.InstancedBufferGeometry(), n = o.length / 3;
     g.setAttribute('position', new THREE.Float32BufferAttribute(o, 3));
     g.setAttribute('aT', new THREE.Float32BufferAttribute(new Array(n).fill(1), 1)); g.setAttribute('aS', new THREE.Float32BufferAttribute(new Array(n).fill(0), 1));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3));   // unused (see bladeGeo)
     g.setIndex(idx); g.userData.tris = idx.length / 3; return g;
   }
 
