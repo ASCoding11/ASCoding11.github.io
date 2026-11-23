@@ -278,10 +278,10 @@
   WP.spreadTarget = function () {
     const k = WP.cur, w = WT[k], ads = WP.aiming || WP.scoped;
     let sp = ads ? w.spread : w.hipSpread;
-    sp *= 1 + (ads ? 0.9 : 0.7) * IV.clamp((P.speed - 0.3) / 3.5, 0, 1);   // walking adds a little, a jog about 70 % more
+    sp *= 1 + (ads ? 0.9 : 0.7) * IV.clamp((P.speed - 0.3) / (T.move.run - 0.3), 0, 1) + (P.sprinting ? 0.3 : 0);   // a jog about 70 % more, a sprint 100 %
     if (P.stance === 'crouch') sp *= 0.8; else if (P.stance === 'prone') sp *= 0.6;
     if (k === 'smg') sp += WP.bloom * (ads ? 0.7 : 1);
-    if (P.grounded === false && !P.vault) sp += 0.02;
+    if (P.grounded === false && !P.vault) sp += 0.022;   // airborne (a jump): wide open
     return sp;
   };
   WP.spread = null;
