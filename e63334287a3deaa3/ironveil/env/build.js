@@ -935,6 +935,12 @@
     house(B2, S2, { w, d, T, floors: 1, storey, out: 'planks', in: 'plaster_interior', roof: 'slate', ridgeMat: 'slate', pitch: 0.42, over: 0.4, gableOver: 0.3, head: 'timber', doorHead: 'timber', shutters: false, quoins: false, front: sideW, back: sideW.map(o => Object.assign({}, o)), right: door, left: end, sill: false, trim: true, sag: 0.03 });
     mergeB(B, B2, 0, 0, 0, lift);
     S.windows.push(...S2.windows.map(o => Object.assign({}, o, { y: o.y + lift })));
+    // inside: tie beams across at the eaves, a pair of rafters on each, a ridge board (no flat black ceiling)
+    { const rise = d / 2 * Math.tan(0.42), y0 = lift + storey, len = Math.hypot(d / 2, rise), nb = Math.max(3, Math.round(w / 1.8));
+      for (let i = 0; i < nb; i++) { const x = -w / 2 + T + 0.3 + (w - 2 * T - 0.6) * i / (nb - 1);
+        B.box('timber', x, y0 - 0.16, 0, 0.1, 0.15, d - 2 * T, 0, { grain: 'long', noFoot: true });
+        for (const side of [1, -1]) B.box('timber', x, y0 + rise / 2 - 0.2, side * d / 4, 0.08, 0.13, len - 0.1, 0, { rx: side * 0.42, grain: 'long', noFoot: true }); }
+      B.box('timber', 0, y0 + rise - 0.24, 0, w - 2 * T, 0.16, 0.05, 0, { grain: 'long', noFoot: true }); }
     // plinth with air bricks, and the floor
     B.box('brick_red', 0, -0.25, 0, w + 0.06, lift + 0.25, d + 0.06, 0, { tint: tintJ(R, 0.05) });
     for (let i = 0; i < 4; i++) for (const s of [-1, 1]) B.box('metal_rust', -w / 2 + (i + 0.5) * w / 4, 0.18, s * (d / 2 + 0.035), 0.22, 0.07, 0.01, 0, { noFoot: true, tint: new THREE.Color(0.4, 0.4, 0.4) });

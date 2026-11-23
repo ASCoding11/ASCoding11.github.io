@@ -28,8 +28,11 @@
     uMacro: { value: null },
     uGrime: { value: 1 },
     // roofed boxes (x0, z0, x1, z1) and their roof heights: inside them rain does not reach (IVEnv.setRoofs)
-    uRoof: { value: [] }, uRoofY: { value: [] }, uRoofN: { value: 0 }
+    uRoof: { value: [] }, uRoofY: { value: [] }, uRoofN: { value: 0 },
+    // openings (windows, doors) of the rooms near the camera: the light that comes in through them (IVEnv.setPortals)
+    uWin: { value: [] }, uWinN: { value: [] }, uWinNum: { value: 0 }, uWinC: { value: new THREE.Color(0.3, 0.32, 0.36) }, uProbeK: { value: 0 }
   };
+  for (let i = 0; i < 8; i++) { U.uWin.value.push(new THREE.Vector4()); U.uWinN.value.push(new THREE.Vector4()); }
   for (let i = 0; i < 8; i++) U.uPush.value.push(new THREE.Vector4(0, 0, 0, 0));
   const ROOFS = 16; for (let i = 0; i < ROOFS; i++) { U.uRoof.value.push(new THREE.Vector4(0, 0, 0, 0)); U.uRoofY.value.push(-1e4); }
   // IVEnv.setRoofs([[x0, z0, x1, z1, yTop]...]): the nearest 16 to the camera are kept up to date by IVEnv.update
@@ -42,6 +45,64 @@
     const n = Math.min(ROOFS, l.length); U.uRoofN.value = n;
     for (let i = 0; i < ROOFS; i++) { const r = l[i]; if (r && i < n) { U.uRoof.value[i].set(r[0], r[1], r[2], r[3]); U.uRoofY.value[i] = r[4]; } else U.uRoofY.value[i] = -1e4; }
   });
+
+  // IVEnv.setPortals([{ x, y, z, nx, nz, w, h }]): the openings of roofed rooms (centre, normal pointing INTO the room,
+  // width, height, metres). The 8 nearest the camera light the inside of their room (E.GLSL.interior).
+  let portals = [], portT = 0;
+  E.setPortals = function (list) { portals = (list || []).slice(); portT = 1e9; };
+  E._updaters.push(function (dt, cam) {
+    portT += dt; if (portT < 0.25 || !cam) return; portT = 0;
+    const px = cam.position.x, py = cam.position.y, pz = cam.position.z;
+    const l = portals.filter(p => (p.x - px) ** 2 + (p.z - pz) ** 2 < 30 * 30).sort((a, b) => ((a.x - px) ** 2 + (a.y - py) ** 2 + (a.z - pz) ** 2) - ((b.x - px) ** 2 + (b.y - py) ** 2 + (b.z - pz) ** 2));
+    const n = Math.min(8, l.length); U.uWinNum.value = n;
+    for (let i = 0; i < n; i++) { const p = l[i], k = Math.hypot(p.nx, p.nz) || 1; U.uWin.value[i].set(p.x, p.y, p.z, p.w / 2); U.uWinN.value[i].set(p.nx / k, 0, p.nz / k, p.h / 2); }
+  });
+  // Inside a roofed room the outdoor sky fill and sky reflections fall away and the room is lit by its openings: each
+  // one is a small area light of the sky's colour (form factor of the opening seen from the point), so light comes in
+  // at the windows and door and falls off across the floor and up the far wall; lamps add their own pools. Without a
+  // shadow map (Low) the sun and moon are also mostly kept out under the roof. vec3 wp: world position, nW: world normal.
+  E.GLSL = E.GLSL || {};
+  E.GLSL.interior = `
+    float ivInside(vec3 wp){ float d = 0.0;
+      for (int i = 0; i < 16; i++) { if (i >= uRoofN) break; vec4 r = uRoof[i];
+        vec2 inb = smoothstep(vec2(0.05), vec2(0.5), min(wp.xz - r.xy, r.zw - wp.xz));
+        d = max(d, inb.x * inb.y * step(wp.y, uRoofY[i] + 0.6)); }
+      return d; }
+    vec3 ivWindows(vec3 wp, vec3 nW){ vec3 s = vec3(0.0);
+      for (int i = 0; i < 8; i++) { if (i >= uWinNum) break;
+        vec3 wn = uWinN[i].xyz; float A = 4.0 * uWin[i].w * uWinN[i].w;
+        vec3 L = uWin[i].xyz - wp; float d2 = max(dot(L, L), 0.04); L *= inversesqrt(d2);
+        float cw = max(dot(-L, wn), 0.0), cn = clamp(dot(nW, L) * 0.7 + 0.3, 0.0, 1.0);
+        s += A * cw * cn / (3.14159 * d2 + A); }
+      return s * uWinC; }
+    void ivInteriorLight(inout ReflectedLight rl, vec3 albedo, vec3 wp, vec3 nV){
+      float inside = ivInside(wp); if (inside <= 0.0) return;
+      vec3 nW = inverseTransformDirection(nV, viewMatrix);
+      rl.indirectDiffuse *= mix(1.0, 0.2, inside); rl.indirectSpecular *= mix(1.0, 0.6, inside);
+      rl.indirectDiffuse += inside * albedo * (ivWindows(wp, nW) * 10.0 + uWinC * 0.12);
+      // bounce: the room's own light probe (js/world.js renders one when the camera walks into a room), its most
+      // blurred level along the normal
+      #if defined( USE_ENVMAP ) && defined( STANDARD )
+      rl.indirectDiffuse += inside * albedo * getIBLRadiance(vec3(0.0, 0.0, 1.0), nV, 1.0) * uProbeK;
+      #endif
+      #ifndef USE_SHADOWMAP
+      rl.directDiffuse *= mix(1.0, 0.15, inside); rl.directSpecular *= mix(1.0, 0.15, inside);
+      #endif
+    }`;
+  E.GLSL.interiorUniforms = 'uniform vec4 uWin[8]; uniform vec4 uWinN[8]; uniform int uWinNum; uniform vec3 uWinC; uniform float uProbeK;\n';
+  // the same for a material that is not an IVEnv one (the kit's, js/world.js): adds the world position and uniforms
+  E.interiorPatch = function (sh, tag) {
+    Object.assign(sh.uniforms, { uRoof: U.uRoof, uRoofY: U.uRoofY, uRoofN: U.uRoofN, uWin: U.uWin, uWinN: U.uWinN, uWinNum: U.uWinNum, uWinC: U.uWinC, uProbeK: U.uProbeK });
+    E.patch(sh, 'vertex', '#include <project_vertex>', `#include <project_vertex>
+      { vec4 ivp = vec4(transformed, 1.0);
+      #ifdef USE_INSTANCING
+        ivp = instanceMatrix * ivp;
+      #endif
+      vIvW = (modelMatrix * ivp).xyz; }`, tag);
+    sh.vertexShader = 'varying vec3 vIvW;\n' + sh.vertexShader;
+    E.patch(sh, 'fragment', '#include <aomap_fragment>', '#include <aomap_fragment>\n ivInteriorLight(reflectedLight, diffuseColor.rgb, vIvW, normal);', tag);
+    sh.fragmentShader = 'varying vec3 vIvW; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN;\n' + E.GLSL.interiorUniforms + sh.fragmentShader.replace('void main() {', E.GLSL.interior + '\nvoid main() {');
+  };
 
   // ------------------------------------------------------------------ helpers
   E.rng = function (seed) { return IVEnvTexGen.rng((seed | 0) * 2654435761 + 12345); };
@@ -84,7 +145,7 @@
   E.withPerturb = function (fs) { return fs.indexOf('vec3 ivPerturbNormal2Arb(') >= 0 ? fs : E.GLSL_PERTURB + fs; };
 
   // ------------------------------------------------------------------ GLSL shared by every env shader
-  E.GLSL = {};
+  E.GLSL = E.GLSL || {};
   E.GLSL.noise = `
     float ivH(vec2 p){ p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
     float ivN(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
@@ -320,7 +381,7 @@
       uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime, uDust: U.uDust, uNight: U.uNight,
       uIdAmt: { value: R.id || 0 }, uMacroAmt: { value: R.macro || 0.15 }, uTexSize: { value: S },
       uRoof: U.uRoof, uRoofY: U.uRoofY, uRoofN: U.uRoofN, uWetK: { value: new THREE.Vector3().fromArray(R.wet || [0.38, 0.45, 0]) },
-      uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: R.scan && /brick|fieldstone|ashlar|roof_tile|slate/.test(R.tex) ? 1.0 : 0.85 }
+      uWin: U.uWin, uWinN: U.uWinN, uWinNum: U.uWinNum, uWinC: U.uWinC, uProbeK: U.uProbeK, uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: R.scan && /brick|fieldstone|ashlar|roof_tile|slate/.test(R.tex) ? 1.0 : 0.85 }
     };
     m.userData.uniforms = uni;
     m.onBeforeCompile = function (sh) {
@@ -349,9 +410,10 @@
       P('fragment', '#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (m.userData.gapLit ? '{ float gx = vMapUv.x * 8.0; float gd = min(fract(gx), 1.0 - fract(gx)); float gw = max(0.035, fwidth(gx) * 0.9); float on = step(0.62, fract(sin(floor(gx + 0.5) * 12.9898) * 43758.5)) * smoothstep(0.35, 0.65, texture2D(uMacro, vec2(gx * 0.13, vMapUv.y * 0.6)).g); totalEmissiveRadiance += vec3(1.0, 0.5, 0.18) * 0.38 * uNight * on * smoothstep(gw, 0.0, gd) * (0.6 + 0.4 * smoothstep(0.2, 0.07, envH)); }' : ''));
       P('fragment', '#include <aomap_fragment>', `
             float envAO = mix(1.0, 0.3 + 0.7 * smoothstep(0.05, 0.75, envH), uAOAmt);
-            reflectedLight.indirectDiffuse *= envAO; reflectedLight.indirectSpecular *= envAO * envAO;`);
-      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN; uniform vec3 uWetK;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
-        E.withPerturb(sh.fragmentShader);
+            reflectedLight.indirectDiffuse *= envAO; reflectedLight.indirectSpecular *= envAO * envAO;
+            ivInteriorLight(reflectedLight, diffuseColor.rgb, vEnvW, normal);`);
+      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN; uniform vec3 uWetK;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' + E.GLSL.interiorUniforms +
+        E.withPerturb(sh.fragmentShader).replace('void main() {', E.GLSL.interior + '\nvoid main() {');
     };
     m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).map(k => k + defs[k]).join(',') + (m.userData.gapLit ? 'gap' : '');
   }

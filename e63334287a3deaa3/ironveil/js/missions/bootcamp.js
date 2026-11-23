@@ -83,7 +83,11 @@
   function hut(kitFn, spec, x, z, rot) {
     if (!IV.art.envOn() || !IVEnv.building) return kitFn();
     IV.kit.noMesh = true; let r; try { r = kitFn(); } finally { IV.kit.noMesh = false; }
-    try { const bd = IVEnv.building(spec); bd.group.position.set(x, W.height(x, z), z); bd.group.rotation.y = rot; (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(bd.group); } catch (e) { console.warn('hut', e); }
+    try { const bd = IVEnv.building(spec); bd.group.position.set(x, W.height(x, z), z); bd.group.rotation.y = rot; (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(bd.group);
+      // its windows light the room inside (outward normals in the building's frame, turned to the world and flipped)
+      const c = Math.cos(rot), s = Math.sin(rot), y0 = W.height(x, z);
+      for (const w of bd.windows || []) W.addPortal({ x: x + w.x * c + w.z * s, y: y0 + w.y, z: z - w.x * s + w.z * c, nx: -(w.nx * c + w.nz * s), nz: -(-w.nx * s + w.nz * c), w: w.w, h: w.h });
+    } catch (e) { console.warn('hut', e); }
     return r;
   }
   // camp dressing drawn by IVEnv, with its colliders handed to the world (the nav grid is built after this)

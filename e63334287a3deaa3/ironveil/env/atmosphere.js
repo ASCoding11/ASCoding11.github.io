@@ -12,10 +12,13 @@
   // sRGB hex helper -> linear THREE.Color
   const L = (h) => E.lin(h);
   E.PRESETS = {
+    // Night Drop. One key: the moon, cool and from the same direction as before (stealth reads it), strong enough to
+    // throw long shadows but not to paint the fields pale; a low, cool fill so shadow is real dark (lifted a little by
+    // the grade, never crushed); a wide soft glow round the moon in a broken deck. Lamps and windows do the rest.
     night_moon: {
-      skyTop: 0x070a12, skyHor: 0x26303f, ground: 0x0e1014, fog: 0x1d2531, fogD: 0.0105, mist: 0.55, mistTop: 1.8,
-      sunDir: [-0.5, 0.74, 0.45], sunCol: 0xb4c6ea, sunI: 3.9, sunShadow: true, moon: 1, stars: 1, cloud: 0.4, cloudCol: 0x2b3442,
-      hemiSky: 0x5f7298, hemiGround: 0x48433a, hemiI: 0.84, env: 0.6, exposure: 0.9, wind: 0.35, wet: 0.15, rain: 0, grade: 'night'
+      skyTop: 0x04060b, skyHor: 0x151b25, ground: 0x07080a, fog: 0x0e131a, fogD: 0.0105, mist: 0.5, mistTop: 1.8,
+      sunDir: [-0.5, 0.74, 0.45], sunCol: 0xa9bde0, sunI: 1.5, sunShadow: true, soft: 3, moon: 1, stars: 1, cloud: 0.42, cloudCol: 0x151a22, glow: 0.5, cscale: 0.6,
+      hemiSky: 0x33435f, hemiGround: 0x1c1712, hemiI: 0.48, env: 0.35, exposure: 1.1, wind: 0.35, wet: 0.22, rain: 0, grade: 'night'
     },
     night_overcast: {
       skyTop: 0x080a0d, skyHor: 0x1b1f25, ground: 0x0b0c0d, fog: 0x171b20, fogD: 0.0135, mist: 0.7, mistTop: 2.2,
@@ -44,10 +47,14 @@
       sunDir: [-0.85, 0.22, -0.2], sunCol: 0xb79a88, sunI: 0.75, sunShadow: true, moon: 0, gap: 0.7, stars: 0, cloud: 1.0, cloudCol: 0x2c3036,
       hemiSky: 0x7a8494, hemiGround: 0x2e2c2a, hemiI: 0.85, env: 0.8, exposure: 1.0, wind: 1.3, wet: 1.0, rain: 1, grade: 'rain'
     },
+    // Boot Camp. Overcast, but with a direction: the sun is a bright patch behind thinner cloud low in the south-west
+    // quarter, so there is a lit side and a shade side, soft shadows under huts, sandbags and people, and big cloud
+    // shapes with a lit edge toward it; the fill is lower than before so things have weight; haze separates the range,
+    // the hedge line and the hills.
     day_overcast: {
-      skyTop: 0x7f8c99, skyHor: 0xb3b7b6, ground: 0x4b4a44, fog: 0xa4a9aa, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
-      sunDir: [0.4, 0.7, 0.35], sunCol: 0xe8e2d6, sunI: 1.1, sunShadow: true, moon: 0, stars: 0, cloud: 0.85, cloudCol: 0x9ea2a4,
-      hemiSky: 0xb6c0cc, hemiGround: 0x5a5448, hemiI: 0.75, env: 0.9, exposure: 0.9, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
+      skyTop: 0x6f7d8c, skyHor: 0xb6b8b3, ground: 0x4b4a44, fog: 0xa7aaa8, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
+      sunDir: [0.55, 0.6, -0.58], sunCol: 0xf1e2c8, sunI: 1.75, sunShadow: true, soft: 5, moon: 0, stars: 0, cloud: 0.8, cloudCol: 0x8f9396, glow: 0.7, cscale: 0.75,
+      hemiSky: 0x9aa7b6, hemiGround: 0x635a4a, hemiI: 0.62, env: 0.75, exposure: 0.92, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
     }
   };
 
@@ -134,17 +141,23 @@
 
   // ------------------------------------------------------------------ sky
   const SKY_VS = 'varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }';
+  // The sky: a gradient that is brighter in the quarter of the sky the key light is in, a wide glow round the sun or
+  // moon (haze scattering it forward) and a tighter core, stars, the moon's disc, and a cloud deck with relief: the
+  // deck's density sampled again a step toward the light, so cloud sides facing the light are lit and the far sides
+  // and thick cores fall dark; thin edges near the light glow. Lightning lights the deck from inside.
   const SKY_FS = E.GLSL.noise + `
-    uniform vec3 top, hor, gnd, moonDir, moonCol, cloudCol, flashDir; uniform float moonAmt, starAmt, cloud, time, bright, gap, flash;
+    uniform vec3 top, hor, gnd, moonDir, moonCol, cloudCol, flashDir; uniform float moonAmt, starAmt, cloud, time, bright, gap, flash, glow, cscale;
     varying vec3 vD;
     float fbm3(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ s += a * ivN(p); p = p * 2.03 + 7.1; a *= 0.5; } return s; }
     void main(){
       vec3 d = normalize(vD);
       float h = d.y;
-      vec3 c = mix(hor, top, pow(clamp(h, 0.0, 1.0), 0.5));
-      c = mix(c, gnd, smoothstep(0.0, -0.08, h));
       float md = max(dot(d, moonDir), 0.0);
-      // stars: hashed cells on the sphere, small, twinkling a little
+      vec2 hz = normalize(d.xz + 1e-4), lz = normalize(moonDir.xz + 1e-4);
+      float side = max(dot(hz, lz), 0.0);
+      vec3 c = mix(hor, top, pow(clamp(h, 0.0, 1.0), 0.5));
+      c *= 1.0 + glow * 0.5 * side * side * (1.0 - smoothstep(0.0, 0.7, h));
+      c = mix(c, gnd, smoothstep(0.0, -0.08, h));
       if (starAmt > 0.0 && h > 0.0) {
         vec2 sp = vec2(atan(d.z, d.x) * 180.0, asin(clamp(h, -1.0, 1.0)) * 180.0);
         vec2 ci = floor(sp), cf = fract(sp) - 0.5;
@@ -153,42 +166,41 @@
         star *= (0.5 + 0.5 * b) * (0.8 + 0.2 * sin(time * (2.0 + b * 3.0) + r * 40.0));
         c += vec3(0.55, 0.6, 0.75) * star * starAmt * smoothstep(0.0, 0.25, h);
       }
-      // moon: disc with soft halo
       if (moonAmt > 0.0) {
         float disc = smoothstep(0.99955, 0.99975, md);
         float mare = 0.8 + 0.2 * ivN(d.xy * 900.0);
         c = mix(c, moonCol * 2.2 * mare, disc * moonAmt);
-        c += moonCol * (pow(md, 60.0) * 0.12 + pow(md, 8.0) * 0.035) * moonAmt;
       }
-      // clouds: a slab seen from below, lit from the moon side, drifting
+      // the glow round the light (and the sun's own small bright core by day)
+      vec3 halo = moonCol * glow * (pow(md, 5.0) * 0.22 + pow(md, 40.0) * 0.5 + pow(md, 900.0) * 3.0 * (1.0 - moonAmt));
+      float cov = 0.0;
       if (h > 0.0 && cloud > 0.0) {
-        vec2 cp = d.xz / (h + 0.08) * 1.6 + vec2(time * 0.012, time * 0.005);
-        float n = fbm3(cp * 0.8);
-        float cov = smoothstep(1.0 - cloud * 0.85 - 0.12, 1.0 - cloud * 0.85 + 0.25, n + cloud * 0.35);
-        // a ragged gap in the deck round the key light (the moon or a low sun shows through it, edges torn by the noise)
+        vec2 cp = d.xz / (h + 0.1) * cscale + vec2(time * 0.010, time * 0.004);
+        float n = fbm3(cp);
+        cov = smoothstep(1.0 - cloud * 0.85 - 0.12, 1.0 - cloud * 0.85 + 0.28, n + cloud * 0.35);
         if (gap > 0.0) { float gd = md + (n - 0.5) * 0.16 + (fbm3(cp * 2.3 + 5.0) - 0.5) * 0.05; cov *= 1.0 - gap * 0.9 * smoothstep(0.9, 0.975, gd); }
-        // relief: the cloud base sampled again a little toward the light; where it thins toward the light the edge is lit
-        vec2 ld = normalize(moonDir.xz + 1e-4) * 0.09;
-        float rel = clamp((n - fbm3((cp + ld) * 0.8)) * 5.0, -1.0, 1.0);
-        float lit = 0.6 + 0.6 * pow(md, 4.0) * moonAmt + 0.25 * fbm3(cp * 1.7 + 3.0);
-        lit *= 1.0 + rel * 0.35 * (0.4 + 0.6 * pow(md, 3.0));
-        vec3 cc = cloudCol * lit;
-        // lightning inside the deck: a glow centred on this strike's direction, strongest where the cloud is thick,
-        // with the cloud relief toward it picking out the billows
+        // relief: thinner a step toward the light = this side faces the light
+        float n2 = fbm3(cp + lz * 0.16);
+        float rel = clamp((n - n2) * 5.0, -1.0, 1.0);
+        float thick = smoothstep(0.45, 0.95, n);
+        float toward = 0.35 + 0.65 * pow(md, 2.0);
+        vec3 dark = cloudCol * 0.6, litc = mix(cloudCol, moonCol, 0.25) * (1.0 + 0.45 * toward);
+        vec3 cc = mix(dark, litc, clamp(0.45 + 0.55 * rel * toward - 0.4 * thick, 0.0, 1.0));
+        float edge = cov * (1.0 - cov) * 4.0;
+        cc += moonCol * glow * (pow(md, 6.0) * 0.6 + pow(md, 30.0) * 1.2) * edge;
         if (flash > 0.0) {
           float fd = max(dot(d, flashDir), 0.0), dens = cov * smoothstep(0.3, 0.75, n);
-          vec2 fl = normalize(flashDir.xz + 1e-4) * 0.07; float frel = clamp((n - fbm3((cp + fl) * 0.8)) * 4.0, -1.0, 1.0);
-          float core = pow(fd, 14.0) * (0.15 + 1.6 * dens * dens) * (1.0 + 0.8 * frel), halo = pow(fd, 4.0) * 0.1 * dens;
-          cc += vec3(0.5, 0.56, 0.74) * flash * (core + halo) * 0.55;
+          vec2 fl = normalize(flashDir.xz + 1e-4) * 0.07; float frel = clamp((n - fbm3(cp + fl)) * 4.0, -1.0, 1.0);
+          float core = pow(fd, 14.0) * (0.15 + 1.6 * dens * dens) * (1.0 + 0.8 * frel), hl = pow(fd, 4.0) * 0.1 * dens;
+          cc += vec3(0.5, 0.56, 0.74) * flash * (core + hl) * 0.55;
         }
-        // structure: slow darker bands of heavier cloud base, and (by day) a brighter thin patch toward the hidden sun
         float band = fbm3(cp * 0.33 + vec2(7.0, 1.3));
-        cc *= mix(0.68, 1.12, smoothstep(0.32, 0.68, band));
-        cc += cloudCol * (1.0 - moonAmt) * (0.45 * pow(max(md, 0.0), 5.0) + 0.12 * smoothstep(0.55, 0.8, band));
-        c = mix(c, cc, cov * smoothstep(0.0, 0.12, h));
+        cc *= mix(0.72, 1.1, smoothstep(0.32, 0.68, band));
+        cov *= smoothstep(0.0, 0.12, h);
+        c = mix(c, cc, cov);
       }
+      c += halo * (1.0 - 0.7 * cov);
       c *= bright;
-      // dither against banding (one 8-bit step)
       c += (ivH(gl_FragCoord.xy + fract(time) * 61.0) - 0.5) / 255.0;
       gl_FragColor = vec4(c, 1.0);
     }`;
@@ -197,7 +209,7 @@
       uniforms: {
         top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, gnd: { value: new THREE.Color() }, moonDir: { value: new THREE.Vector3(0, 1, 0) },
         moonCol: { value: new THREE.Color(0xdde6ff) }, cloudCol: { value: new THREE.Color() }, moonAmt: { value: 1 }, starAmt: { value: 1 }, cloud: { value: 0.4 }, time: { value: 0 }, bright: { value: 1 },
-        gap: { value: 0 }, flash: { value: 0 }, flashDir: { value: new THREE.Vector3(0.3, 0.4, -0.8).normalize() }
+        gap: { value: 0 }, flash: { value: 0 }, glow: { value: 0.3 }, cscale: { value: 1.3 }, flashDir: { value: new THREE.Vector3(0.3, 0.4, -0.8).normalize() }
       },
       vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false, depthTest: true, fog: false, toneMapped: true
     });
@@ -274,10 +286,11 @@
       A.dir.set(P.sunDir[0], P.sunDir[1], P.sunDir[2]).normalize();
       const u = sky.uniforms;
       u.top.value.copy(L(P.skyTop)); u.hor.value.copy(L(P.skyHor)); u.gnd.value.copy(L(P.ground)); u.moonDir.value.copy(A.dir);
-      u.moonAmt.value = P.moon; u.starAmt.value = P.stars; u.cloud.value = P.cloud; u.cloudCol.value.copy(L(P.cloudCol)); u.gap.value = P.gap || 0;
+      u.moonAmt.value = P.moon; u.starAmt.value = P.stars; u.cloud.value = P.cloud; u.glow.value = P.glow != null ? P.glow : 0.3; u.cscale.value = P.cscale || 1.3; u.cloudCol.value.copy(L(P.cloudCol)); u.gap.value = P.gap || 0;
       if (!P.moon) u.moonCol.value.copy(L(P.sunCol)); else u.moonCol.value.set(0xdde6ff).convertSRGBToLinear();
-      sun.color.copy(L(P.sunCol)); sun.intensity = P.sunI; sun.castShadow = opts.shadows !== false && !!P.sunShadow && (P.shadowHi < 0.5 || !P.shadowHi || Q.name === 'high');
+      sun.color.copy(L(P.sunCol)); sun.intensity = P.sunI; sun.shadow.radius = (P.soft || 3) * (Q.name === 'high' ? 1.25 : 1);   // shadow edge width in map texels (js/render.js widens the kernel) sun.castShadow = opts.shadows !== false && !!P.sunShadow && (P.shadowHi < 0.5 || !P.shadowHi || Q.name === 'high');
       hemi.color.copy(L(P.hemiSky)); hemi.groundColor.copy(L(P.hemiGround)); hemi.intensity = P.hemiI;
+      E.U.uWinC.value.copy(L(P.hemiSky)).multiplyScalar(P.hemiI).add(L(P.sunCol).multiplyScalar(P.sunI * 0.12));   // the light coming in at windows and doors
       fog.color.copy(L(P.fog)); fog.near = (opts.fogD || P.fogD) * (opts.fogMul || 1);   // opts.fogD: a map's own haze in place of the preset's fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;
       renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : 1.45);   // Low has no grade/lift pass
