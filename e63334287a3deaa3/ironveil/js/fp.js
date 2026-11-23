@@ -680,6 +680,12 @@
     if (!vm.lamps) { vm.lamps = src.map(() => { const l = new THREE.PointLight(0xffc880, 0, 10, 2); vm.scene.add(l); return l; }); vm.pt.intensity = 0; }
     src.forEach((w, i) => { const l = vm.lamps[i]; if (!w || !l) return; l.color.copy(w.color); l.distance = w.distance; l.decay = w.decay; l.intensity = w.intensity * (night ? 0.9 : 1); l.position.copy(w.position).sub(cam.position).applyQuaternion(_q); });
     vm.scene.environment = W.scene.environment || null;
+    // wet gloves in the rain: the world's wetness, eased down to 0.3 of it under a roof
+    const gw = window.IVChars && IVChars.fpGloveWet;
+    if (gw) {
+      const U = E && E.U, wet = U && U.uWet ? U.uWet.value : 0, roof = W.underRoof && W.underRoof(P.render.x, P.render.z, P.render.y + 1.5);
+      gw.value = IV.damp(gw.value, IV.clamp(wet * (roof ? 0.3 : 1), 0, 1), 0.5, 1 / 60);
+    }
   }
   // where the gun and hands are on screen (0..1, top-left origin), for HUD layout checks: the gun's box and the hand
   // and forearm bones, projected by the viewmodel camera
