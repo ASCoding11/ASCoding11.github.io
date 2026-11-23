@@ -33,6 +33,13 @@
   const JPOLE = { x: 37, z: -47.4 };
   const EXTRACT = { x: 166, z: 90 };
   const pd = (x, z, pts) => IV.polyDist(x, z, pts).d;
+  // the shared wet map (env/ground.js IVEnv.wetMap): cart ruts down the lanes and roads, churned gateways, and puddles
+  // in the farmyard, at the crossroads and in the lane's dips (the ground, footsteps and splashes all read it)
+  const WET = { seed: 41, ruts: [{ pts: L1 }, { pts: L2 }, { pts: R1, k: 0.55, gauge: 1.6 }, { pts: R2, k: 0.7, gauge: 1.6 }, { pts: R3, k: 0.55, gauge: 1.6 }],
+    gates: [[96, -64, 3.2], [126, -60, 2.6], [1, 10, 3.5], [3, -42, 3.0], [-44, 18, 2.6], [116, -54, 2.8], [-41, 18, 2.2]],
+    puddles: [[104, -70, 1.7, 1.0, 0.3, 0.22], [118, -62, 1.3, 0.8, 1.1, 0.18], [97, -79, 2.1, 1.1, -0.2, 0.24], [127, -80, 1.1, 0.7, 0.5, 0.16], [110, -84, 0.9, 0.6, 0, 0.14],
+      [-1, 13, 1.5, 0.9, 0.4, 0.2], [4, -45, 1.2, 0.8, 0.1, 0.18], [-80, 22.4, 1.6, 0.7, -0.2, 0.2], [-58, 19.2, 1.2, 0.6, -0.1, 0.16], [-26, 15.2, 1.4, 0.7, -0.25, 0.2],
+      [130, -16, 1.3, 0.7, 1.2, 0.2], [146, 44, 1.5, 0.7, 1.2, 0.22], [158, 77, 1.1, 0.6, 1.0, 0.16]] };
   const HAMLET = (() => {
       const H2 = Math.PI / 2, roadX = (z) => z < 80 ? 0 + z / 80 : 1 + (z - 80) / 108;
       // neighbours are not alike: each stands at its own distance from the road (sb, metres further back) and a
@@ -200,7 +207,53 @@
 
   // ---------------------------------------------------------------- build (static world)
   let grass = null;
+  // ---- painted text (env/labels.js, one atlas): an invented village (Verchannes) and farm (the Grand Clos), house
+  // numbers, a cafe board, a faded gable advert, kilometre stones, a fingerpost. All names are made up.
+  function signs(hamlet) {
+    if (!IV.art.envOn()) return;
+    const A = IV.art, gy = (x, z) => W.height(x, z);
+    const plate = { kind: 'enamel', ground: '#1d3466', color: '#efece2', distress: 0.35, size: 72 };
+    let odd = 1, even = 2;
+    for (const sp of hamlet) {
+      if (sp.kind === 'church' || sp.kind === 'ruin' || (sp.damage || 0) > 0.5) continue;
+      const fx = Math.sin(sp.rot), fz = Math.cos(sp.rot), lx = Math.cos(sp.rot), lz = -Math.sin(sp.rot), half = (sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2, y = gy(sp.x, sp.z);
+      const from = (lat, up, out) => [sp.x + fx * (half + (out || 3.5)) + lx * lat, y + up, sp.z + fz * (half + (out || 3.5)) + lz * lat], to = (lat, up) => [sp.x + lx * lat, y + up, sp.z + lz * lat];
+      if (sp.kind !== 'shed' && sp.kind !== 'barn') { const n = sp.x > 1 ? odd : even; if (sp.x > 1) odd += 2; else even += 2; A.sign(String(n), plate, from(1.1, 2.25), to(1.1, 2.25), 0.17); }
+      if (sp.kind === 'barn' && sp.x < 0) A.sign('AMER PICOREL\nL\'APÉRITIF DU SOIR', { kind: 'gable', ground: null, color: 'rgba(232,222,194,0.9)', distress: 0.48, size: 96 }, from(0, 3.3, 3), to(0, 3.3), 5.2);
+    }
+    // the street name on the first cottage, the village board at the south end, the stones and the fingerpost
+    A.sign('RUE DE L\'ÉGLISE', Object.assign({}, plate, { size: 60 }), [-3.2, gy(-1, 34) + 2.85, 38.6], [8, gy(8, 38) + 2.85, 38.6], 0.75);
+    A.signpost(4.4, 22.5, Math.PI, 'VERCHANNES', { kind: 'enamel', ground: '#f0ede4', color: '#1b1a18', distress: 0.25, size: 80 }, { h: 2.0, w: 1.15, plate: true, boardTint: new THREE.Color(1.3, 1.3, 1.25) });
+    A.signpost(-3.6, 5.2, -Math.PI / 2, 'ST-ODRAN  6 km', { kind: 'paint', ground: '#e8e2d2', color: '#262420', distress: 0.4, size: 64 }, { h: 2.2, w: 1.3 });
+    A.stone(4.8, 3.6, -Math.PI / 2, 'VERCHANNES\n1,2');
+    A.stone(5.8, -52, -Math.PI / 2 + 0.1, 'ST-ODRAN\n5,7');
+    // (no stone on the sunken lane: it is the stealth route, and a collider there changes the approach)
+    // the farm: its name painted on the farmhouse's yard wall, a no-smoking plate on the barn, the office door
+    A.sign('FERME DU GRAND CLOS', { kind: 'paint', ground: null, color: 'rgba(232,224,202,0.8)', distress: 0.55, size: 80 }, [HOUSE.x + 2.5, gy(HOUSE.x, HOUSE.z) + 3.0, HOUSE.z + 12], [HOUSE.x + 2.5, gy(HOUSE.x, HOUSE.z) + 3.0, HOUSE.z], 2.8);
+    A.sign('DÉFENSE\nDE FUMER', { kind: 'enamel', ground: '#f2efe6', color: '#a3241c', distress: 0.4, size: 64 }, [BARN.x - 12, gy(BARN.x, BARN.z) + 1.75, BARN.z + 3.2], [BARN.x, gy(BARN.x, BARN.z) + 1.75, BARN.z + 3.2], 0.5);
+  }
+  // ---- dense dressing (level-design pass): something at cover height every 6-8 m along the extraction lane's verges,
+  // the hamlet street and the farmyard's barn wall, with small random offsets and turns; garden fences with gaps
+  // behind the hamlet; one climbable bale stack in the hamlet. Kept off the stealth route (the sunken lane L1, the
+  // crossroads, the road south and the maize path) and off the lane's hedge gaps, where the ambush stands.
+  function dressing(b) {
+    const A = IV.art, R = IV.rng(733), mix = ['crates', 'barrels', 'woodpile', 'crate', 'sandbags', 'barrel'];
+    const gaps = [[133, 0, 6], [150, 74, 6], [150, 40, 6], [165, 90, 6], [126.4, -26, 4], [138.5, 18, 4], [147, 50.6, 4], [EXTRACT.x, EXTRACT.z, 9], [140, 16, 3], [148, 45, 3], [152, 30, 3], [116, -54, 6]];
+    let n = 0;
+    for (let i = 0; i < L2.length - 1; i++) n += A.row(b, mix, L2[i], L2[i + 1], { every: 7, side: (k) => (k % 2 ? 2.8 : -2.8), avoid: gaps, skip: 0.1, R });
+    // the hamlet street: in front of the houses, both sides, clear of doors, the well, the cross and the signs
+    const roadX = (z) => z < 80 ? z / 80 : 1 + (z - 80) / 108, doors = HAMLET.map(sp => [sp.x + (sp.x > roadX(sp.z) ? -1 : 1) * ((sp.kind === 'barn' ? sp.w || 10 : sp.kind === 'shoprow' ? 8 : sp.d || 6) / 2), sp.z, 1.6]);   // the middle of each front
+    const keep = doors.concat([[-5.4, 64, 2.2], [-4.2, 26, 2], [4.4, 22.5, 2], [37, 88, 10], [-3.6, 82, 3.5]]);
+    for (const sd of [1, -1]) n += A.row(b, ['barrels', 'crate', 'woodpile', 'barrel', 'cart', 'crates'], [roadX(30) + sd * 4.7, 30], [roadX(104) + sd * 4.7, 104], { every: 7.5, side: 0, avoid: keep, skip: 0.15, R });
+    A.vantage(b, -3.6, 84, Math.PI / 2, 5, R);   // bales by the barn: up 1.65 m to see over the hedges to the farm
+    // the farmyard: along the barn's west wall, clear of its door and the lamp
+    n += A.row(b, ['barrels', 'woodpile', 'crates'], [117.6, -81], [117.6, -66], { every: 6, avoid: [[118, -70, 2.6], [117, -82.5, 2]], R });
+    // back-garden fences behind the west and east houses, broken into runs with gaps
+    for (const [x, z0, z1] of [[-17.5, 30, 60], [-17.5, 64, 98], [19.5, 46, 74]]) for (let z = z0; z < z1 - 3; ) { const L = 4 + R() * 6; A.fence(b, [[x + (R() - 0.5) * 0.4, z], [x + (R() - 0.5) * 0.4, Math.min(z1, z + L)]], 1.2); z += L + 1.6 + R() * 1.5; }
+    IV.art.dressedND = n;
+  }
   function build(M) {
+    window.IVEnv && (IVEnv.labelLang = 'fr');
     const b = K.begin();
     // hedgerows
     const hedge = (pts, gaps, o) => IV.art.hedge(b, pts, gapsAt(pts, gaps || []), o);
@@ -261,6 +314,7 @@
     {
       const H2 = Math.PI / 2, hamlet = HAMLET;
       IV.art.settle(b, hamlet.map(sp => sp.kind === 'church' || sp.kind === 'shed' ? sp : Object.assign({ free: ['back'], wingMax: 5.2 }, sp)), { seed: 404, rugged: 1 });
+      signs(hamlet);
       // the churchyard wall (gap to the road), the well, a wayside cross at the crossroads corner
       IV.art.wall(b, [[28, 74], [28, 80.5]], 1.2, [], { coping: 'flat' }); IV.art.wall(b, [[28, 87.5], [28, 104], [47, 104], [47, 72], [28, 72], [28, 74]], 1.2, [], { coping: 'flat' });
       if (IV.art.envOn() && IVEnv.prop) { try { const wl = IVEnv.prop('well', 61); wl.group.position.set(-5.4, W.height(-5.4, 64), 64); (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(wl.group); W.addBox(-5.4, 64, 0.8, 0.8, W.height(-5.4, 64), W.height(-5.4, 64) + 0.9, 0, F.SOLID | F.BULLET | F.NAV, 'stone'); } catch (e) {} }
@@ -451,6 +505,7 @@
     { const gy = W.height(126.4, -26); K.box(b, 'bark', 126.4, gy, -26, 2.2, 0.75, 0.75, 0.4, 0x7a6a58, F.SOLID | F.BULLET | F.NAV | F.LOW | F.VAULT, 'wood', 0.3); }
     IV.art.prop('cart', b, 138.5, 18, 0.25);
     IV.art.prop('crate', b, 147.5, W.height(147.5, 50), 50, 0.3, 1.0); IV.art.prop('crate', b, 146.6, W.height(146.6, 51.2), 51.2, 1.0, 0.9);
+    dressing(b);
     // the flak pit: a ring of sandbags, ammunition crates; MG nest to the west of it
     // gaps in the ring: the yard side, and the north (the quiet way in)
     const ring = 8; for (let i = 0; i < ring; i++) { if (i === 2 || i === 6) continue; const a0 = i / ring * 6.283, a1 = (i + 1) / ring * 6.283; IV.art.prop('sandbags', b, AA.x + Math.cos(a0) * 4, AA.z + Math.sin(a0) * 4, AA.x + Math.cos(a1) * 4, AA.z + Math.sin(a1) * 4, 4); }
@@ -969,7 +1024,7 @@
       'Set the charge on the gun. When it goes up the whole farm will be on you: get clear and down the sunken lane to the east, where Rook\'s men are waiting.'
     ],
     preview: [{ text: 'Find Cpl. Dunning' }, { text: 'Cut the field-telephone line' }, { text: 'Destroy the flak gun' }, { text: 'Reach the extraction lane' }, { text: 'Take the map from the farm office', opt: true }, { text: 'Take out the sniper in the barn loft', opt: true }],
-    world: { size: 380, day: false, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8, woods: 0.55 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 1.6 }, fog: 0.0125, fogColor: 0x0a0f15 },
+    world: { size: 380, day: false, wet: WET, height, surface, groundColor, waterLevel, surfaceKind, skirt: { hills: 34, fogK: 0.8, woods: 0.55 }, grass: { nearMul: 1.3, carpetMul: 1.25, midMul: 1.6 }, fog: 0.0125, fogColor: 0x0a0f15 },
     build, setup, step, frame, backdrop, sketch,
     medals: [
       { text: 'Finish in under 15:00', ok: s => s.time < 900 },

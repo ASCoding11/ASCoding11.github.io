@@ -29,8 +29,10 @@
     },
     night_rain: {
       skyTop: 0x06080b, skyHor: 0x1a1e24, ground: 0x0b0c0d, fog: 0x161a1f, fogD: 0.016, mist: 0.6, mistTop: 2.0,
-      sunDir: [-0.5, 0.74, 0.45], sunCol: 0x8a96aa, sunI: 0.5, sunShadow: false, moon: 0, stars: 0, cloud: 1.0, cloudCol: 0x1a1d22,
-      hemiSky: 0x5a6476, hemiGround: 0x2a2826, hemiI: 1.0, env: 0.5, exposure: 1.1, wind: 1.1, wet: 1.0, rain: 1, grade: 'rain'
+      // key: a low, cool moon through a ragged gap in the deck (lit side, dark side and a rim on everything; a long
+      // glint toward it on wet ground); the fill drops so the key reads. Moon shadows on High only (shadowHi).
+      sunDir: [-0.78, 0.3, 0.5], sunCol: 0x9fb0d0, sunI: 1.45, sunShadow: true, shadowHi: 1, moon: 0.55, gap: 1, stars: 0, cloud: 1.0, cloudCol: 0x1a1d22,
+      hemiSky: 0x56606f, hemiGround: 0x262422, hemiI: 0.74, env: 0.5, exposure: 1.1, wind: 1.1, wet: 1.0, rain: 1, grade: 'rain'
     },
     dusty: {
       skyTop: 0x9a9284, skyHor: 0xc8b89c, ground: 0x6a5c48, fog: 0xb8a78a, fogD: 0.012, mist: 0.0, mistTop: 1.0,
@@ -39,7 +41,7 @@
     },
     dusk_rain: {
       skyTop: 0x1a1f28, skyHor: 0x4a4c50, ground: 0x151617, fog: 0x34383d, fogD: 0.017, mist: 0.6, mistTop: 2.0,
-      sunDir: [-0.85, 0.22, -0.2], sunCol: 0xb79a88, sunI: 0.55, sunShadow: true, moon: 0, stars: 0, cloud: 1.0, cloudCol: 0x2c3036,
+      sunDir: [-0.85, 0.22, -0.2], sunCol: 0xb79a88, sunI: 0.75, sunShadow: true, moon: 0, gap: 0.7, stars: 0, cloud: 1.0, cloudCol: 0x2c3036,
       hemiSky: 0x7a8494, hemiGround: 0x2e2c2a, hemiI: 0.85, env: 0.8, exposure: 1.0, wind: 1.3, wet: 1.0, rain: 1, grade: 'rain'
     },
     day_overcast: {
@@ -100,7 +102,7 @@
   // ------------------------------------------------------------------ sky
   const SKY_VS = 'varying vec3 vD; void main(){ vD = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.0); gl_Position = p.xyww; }';
   const SKY_FS = E.GLSL.noise + `
-    uniform vec3 top, hor, gnd, moonDir, moonCol, cloudCol; uniform float moonAmt, starAmt, cloud, time, bright;
+    uniform vec3 top, hor, gnd, moonDir, moonCol, cloudCol, flashDir; uniform float moonAmt, starAmt, cloud, time, bright, gap, flash;
     varying vec3 vD;
     float fbm3(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ s += a * ivN(p); p = p * 2.03 + 7.1; a *= 0.5; } return s; }
     void main(){
@@ -130,8 +132,22 @@
         vec2 cp = d.xz / (h + 0.08) * 1.6 + vec2(time * 0.012, time * 0.005);
         float n = fbm3(cp * 0.8);
         float cov = smoothstep(1.0 - cloud * 0.85 - 0.12, 1.0 - cloud * 0.85 + 0.25, n + cloud * 0.35);
+        // a ragged gap in the deck round the key light (the moon or a low sun shows through it, edges torn by the noise)
+        if (gap > 0.0) { float gd = md + (n - 0.5) * 0.16 + (fbm3(cp * 2.3 + 5.0) - 0.5) * 0.05; cov *= 1.0 - gap * 0.9 * smoothstep(0.9, 0.975, gd); }
+        // relief: the cloud base sampled again a little toward the light; where it thins toward the light the edge is lit
+        vec2 ld = normalize(moonDir.xz + 1e-4) * 0.09;
+        float rel = clamp((n - fbm3((cp + ld) * 0.8)) * 5.0, -1.0, 1.0);
         float lit = 0.6 + 0.6 * pow(md, 4.0) * moonAmt + 0.25 * fbm3(cp * 1.7 + 3.0);
+        lit *= 1.0 + rel * 0.35 * (0.4 + 0.6 * pow(md, 3.0));
         vec3 cc = cloudCol * lit;
+        // lightning inside the deck: a glow centred on this strike's direction, strongest where the cloud is thick,
+        // with the cloud relief toward it picking out the billows
+        if (flash > 0.0) {
+          float fd = max(dot(d, flashDir), 0.0), dens = cov * smoothstep(0.3, 0.75, n);
+          vec2 fl = normalize(flashDir.xz + 1e-4) * 0.07; float frel = clamp((n - fbm3((cp + fl) * 0.8)) * 4.0, -1.0, 1.0);
+          float core = pow(fd, 14.0) * (0.15 + 1.6 * dens * dens) * (1.0 + 0.8 * frel), halo = pow(fd, 4.0) * 0.1 * dens;
+          cc += vec3(0.5, 0.56, 0.74) * flash * (core + halo) * 0.55;
+        }
         // structure: slow darker bands of heavier cloud base, and (by day) a brighter thin patch toward the hidden sun
         float band = fbm3(cp * 0.33 + vec2(7.0, 1.3));
         cc *= mix(0.68, 1.12, smoothstep(0.32, 0.68, band));
@@ -147,7 +163,8 @@
     return new THREE.ShaderMaterial({
       uniforms: {
         top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, gnd: { value: new THREE.Color() }, moonDir: { value: new THREE.Vector3(0, 1, 0) },
-        moonCol: { value: new THREE.Color(0xdde6ff) }, cloudCol: { value: new THREE.Color() }, moonAmt: { value: 1 }, starAmt: { value: 1 }, cloud: { value: 0.4 }, time: { value: 0 }, bright: { value: 1 }
+        moonCol: { value: new THREE.Color(0xdde6ff) }, cloudCol: { value: new THREE.Color() }, moonAmt: { value: 1 }, starAmt: { value: 1 }, cloud: { value: 0.4 }, time: { value: 0 }, bright: { value: 1 },
+        gap: { value: 0 }, flash: { value: 0 }, flashDir: { value: new THREE.Vector3(0.3, 0.4, -0.8).normalize() }
       },
       vertexShader: SKY_VS, fragmentShader: SKY_FS, side: THREE.BackSide, depthWrite: false, depthTest: true, fog: false, toneMapped: true
     });
@@ -224,11 +241,11 @@
       A.dir.set(P.sunDir[0], P.sunDir[1], P.sunDir[2]).normalize();
       const u = sky.uniforms;
       u.top.value.copy(L(P.skyTop)); u.hor.value.copy(L(P.skyHor)); u.gnd.value.copy(L(P.ground)); u.moonDir.value.copy(A.dir);
-      u.moonAmt.value = P.moon; u.starAmt.value = P.stars; u.cloud.value = P.cloud; u.cloudCol.value.copy(L(P.cloudCol));
+      u.moonAmt.value = P.moon; u.starAmt.value = P.stars; u.cloud.value = P.cloud; u.cloudCol.value.copy(L(P.cloudCol)); u.gap.value = P.gap || 0;
       if (!P.moon) u.moonCol.value.copy(L(P.sunCol)); else u.moonCol.value.set(0xdde6ff).convertSRGBToLinear();
-      sun.color.copy(L(P.sunCol)); sun.intensity = P.sunI; sun.castShadow = opts.shadows !== false && P.sunShadow;
+      sun.color.copy(L(P.sunCol)); sun.intensity = P.sunI; sun.castShadow = opts.shadows !== false && !!P.sunShadow && (P.shadowHi < 0.5 || !P.shadowHi || Q.name === 'high');
       hemi.color.copy(L(P.hemiSky)); hemi.groundColor.copy(L(P.hemiGround)); hemi.intensity = P.hemiI;
-      fog.color.copy(L(P.fog)); fog.near = P.fogD * (opts.fogMul || 1); fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
+      fog.color.copy(L(P.fog)); fog.near = (opts.fogD || P.fogD) * (opts.fogMul || 1);   // opts.fogD: a map's own haze in place of the preset's fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;
       renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : 1.45);   // Low has no grade/lift pass
       E.U.uWet.value = P.wet; E.U.uRain.value = P.rain ? 1 : 0; E.U.uDust.value = P.rain ? 0 : P.grade === 'day' ? 0.5 : 0.35; E.U.uNight.value = P.grade === 'night' || P.grade === 'rain' ? 1 : 0;
@@ -267,10 +284,11 @@
         for (; k < 4; k++) { const l = ls[k]; if (l) { U.uLamp.value[k].set(l.position.x, l.position.y, l.position.z, Math.min(1.5, l.intensity * 0.5)); U.uLampC.value[k].copy(l.color); } else U.uLamp.value[k].w = 0; }
         // lightning: a double flicker every 12-25 s, cool white, on the hemisphere light and the rain
         A.flashT = (A.flashT == null ? 8 : A.flashT) - dt;
-        if (A.flashT < 0) { A.flashT = 12 + Math.random() * 13; A.flashAge = A.flashes ? 0 : 99; const dist = 600 + Math.random() * 2400; if (E.onAmbience) E.onAmbience({ kind: 'thunder', delay: dist / 343, dist }); }   // thunder arrives after the sound delay
+        if (A.flashT < 0) { A.flashT = 12 + Math.random() * 13; A.flashAge = A.flashes ? 0 : 99;
+          { const az = Math.random() * Math.PI * 2, el = 0.12 + Math.random() * 0.4; sky.uniforms.flashDir.value.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el)); }   /* each strike somewhere else in the deck */ const dist = 600 + Math.random() * 2400; if (E.onAmbience) E.onAmbience({ kind: 'thunder', delay: dist / 343, dist }); }   // thunder arrives after the sound delay
         A.flashAge = (A.flashAge == null ? 99 : A.flashAge + dt);
         const f = A.flashAge < 0.07 ? 1 : A.flashAge < 0.16 ? 0 : A.flashAge < 0.24 ? 0.55 : Math.max(0, 0.55 - (A.flashAge - 0.24) * 2.5);
-        hemi.intensity = A.P.hemiI * (1 + f * 2.5); U.uFlash.value = f;
+        hemi.intensity = A.P.hemiI * (1 + f * 1.4); U.uFlash.value = f; sky.uniforms.flash.value = f;
       }
     };
     A.set(preset || 'night_moon');

@@ -64,12 +64,74 @@
     opts = opts || {}; const E = env(); const F = IV.CF, flags = opts.flags != null ? opts.flags : F.SOLID | F.SIGHT | F.BULLET | F.NAV;
     if (!E || !E.settle) { for (const sp of specs) if (sp.solid !== false && !opts.shellOnly) K.box(b, 'stone', sp.x, (opts.heightFn || H)(sp.x, sp.z) - 0.5, sp.z, sp.w || 8, 5, sp.d || 6, sp.rot || 0, 0xa09a90, flags, 'stone'); return null; }
     const r = safe(() => E.settle(specs, Object.assign({ heightFn: H }, opts)), 'settle'); if (!r) return null;
-    W.scene.add(r.group);
+    W.scene.add(r.group); (A._settled || (A._settled = [])).push(r.group);
     if (opts.solid !== false) for (const c of r.colliders) W.addBox(c.x, c.z, c.hx, c.hz, c.y0, c.y1, c.rot, flags, 'stone', 'building');
     if (opts.lights !== false) for (const l of r.lights.slice(0, opts.maxLights || 6)) W.addLamp({ x: l.x, y: l.y, z: l.z, r: 5, i: 0, power: 1.1, color: 0xff9a48, flicker: true, los: false, visual: true });
     A.chimneys.push(...r.chimneys);
     return r;
   };
+  // ---------------------------------------------------------------- painted text (env/labels.js, one atlas, one draw call)
+  // IV.art.sign(text, style, from[x,y,z], to[x,y,z], width): paint text where a ray from 'from' toward 'to' meets what is
+  //   drawn (resolved in flush, after the merge, against the real meshes), so it sits on the wall the player sees.
+  // IV.art.label(text, style, p, n, width, opts): text at a known point and normal (world space).
+  // IV.art.signpost(x, z, rot, text, style, opts): a post with a board (or an enamel plate), text on both faces.
+  // IV.art.stone(x, z, rot, text): a roadside kilometre stone with carved text on its road face.
+  const pendSigns = [];
+  A.sign = function (text, style, from, to, width, o) { if (env()) pendSigns.push({ text, style, from, to, width, o: o || {} }); };
+  A.label = function (text, style, p, n, width, o) { const E = env(); if (E && E.label) safe(() => E.labels.place(E.label(text, style), p, n, width, o), 'label'); };
+  A.signpost = function (x, z, rot, text, style, o) {
+    const E = env(); if (!E || !E.builder) return; o = o || {};
+    safe(() => {
+      const B = E.builder(seed()), y = H(x, z), ph = o.h || 2.1, bw = o.w || 1.3, c = Math.cos(rot || 0), s = Math.sin(rot || 0), L = E.label ? E.label(text, style) : null, bh = L ? bw / L.aspect : 0.3;
+      const by = y + ph - bh - 0.05;
+      // two posts stand just outside the board's ends; a single post stops under the board (it would cross the text)
+      for (const k of o.posts === 2 ? [-1, 1] : [0]) { const off = k * (bw / 2 + 0.08); B.box('timber', x + c * off, y - 0.3, z - s * off, 0.09, (k ? ph : by - y + 0.04) + 0.3, 0.09, rot || 0, { grain: 'long', foot: y, tint: new THREE.Color(0.62, 0.56, 0.48) }); }
+      if (o.posts === 2) for (const k of [-1, 1]) { const off = k * (bw / 2 + 0.04); B.box('timber', x + c * off - s * 0.06, by + bh * 0.5 - 0.03, z - s * off - c * 0.06, 0.1, 0.06, 0.04, rot || 0, { noFoot: true }); }   // the cleats the board is nailed to B.box(o.plate ? 'metal_painted' : 'planks', x - s * 0.06, by, z - c * 0.06, bw + 0.04, bh + 0.04, 0.03, rot || 0, { noFoot: true, tint: o.boardTint || new THREE.Color(0.7, 0.68, 0.62) });
+      if (L) for (const side of [1, -1]) B.label(text, style, [x - s * (0.06 - side * 0.016), by + (bh + 0.04) / 2, z - c * (0.06 - side * 0.016)], [side * s, 0, side * c], bw);
+      const g = B.finish(); g.name = 'IVEnv.signpost'; root().add(g);
+      W.addBox(x, z, 0.08, 0.08, y, y + ph, rot || 0, IV.CF.SOLID | IV.CF.BULLET, 'wood', 'post');
+    }, 'signpost');
+  };
+  A.stone = function (x, z, rot, text) {
+    const E = env(); if (!E || !E.builder) return;
+    safe(() => {
+      const B = E.builder(seed()), y = H(x, z), c = Math.cos(rot || 0), s = Math.sin(rot || 0);
+      B.box('ashlar', x, y - 0.15, z, 0.42, 0.78, 0.24, rot || 0, { foot: y, tint: new THREE.Color(1.55, 1.53, 1.46), bevel: 0.03 });   // whitewashed, like the real kind
+      B.box('wood_painted', x, y + 0.6, z, 0.44, 0.07, 0.26, rot || 0, { noFoot: true, tint: new THREE.Color(1.6, 0.42, 0.3), bevel: 0.02 });   // the red-painted cap
+      B.label(text, { kind: 'carved', color: 'rgba(30,28,26,0.95)', ground: null, distress: 0.4, size: 56 }, [x + s * 0.121, y + 0.36, z + c * 0.121], [s, 0, c], 0.36);
+      const g = B.finish(); g.name = 'IVEnv.kmstone'; root().add(g);
+      W.addBox(x, z, 0.21, 0.12, y, y + 0.67, rot || 0, IV.CF.SOLID | IV.CF.BULLET, 'stone', 'stone');
+    }, 'km stone');
+  };
+  // put every label (props' stencils, signposts, the mission's signs) into the one atlas mesh
+  function flushLabels(E) {
+    if (!E.labels || !E.label) { pendSigns.length = 0; return; }
+    const v = new THREE.Vector3(), n = new THREE.Vector3(), nm = new THREE.Matrix3();
+    // labels carried by builder groups (local space): to world
+    const roots = [W.envRoot].concat(A._settled || []);
+    for (const rt of roots) rt.updateMatrixWorld(true);
+    for (const rt of roots) rt.traverse(o => { const ls = o.userData && o.userData.labels; if (!ls) return; nm.getNormalMatrix(o.matrixWorld);
+      for (const l of ls) { v.fromArray(l.p).applyMatrix4(o.matrixWorld); n.fromArray(l.n).applyMatrix3(nm).normalize(); E.labels.place(E.label(l.text, l.style), [v.x, v.y, v.z], [n.x, n.y, n.z], l.w, l.o); }
+      o.userData.labels = null; });
+    return v;
+  }
+  function resolveSigns(E) {
+    if (!E.labels || !E.label || !pendSigns.length) return;
+    const rc = new THREE.Raycaster(), targets = [W.statics].concat(A._settled || []), nm = new THREE.Matrix3(), d = new THREE.Vector3(), o = new THREE.Vector3();
+    W.scene.updateMatrixWorld(true);
+    let hit = 0;
+    for (const sg of pendSigns) {
+      o.fromArray(sg.from); d.fromArray(sg.to).sub(o); const len = d.length(); d.normalize();
+      rc.set(o, d); rc.far = len * 1.6; rc.camera = W.camera;   // (lamp-glow sprites need the camera to be ray-tested)
+      const hits = rc.intersectObjects(targets, true).filter(h => h.object.isMesh && h.face && !/ground|glass/.test(h.object.name) && !(h.object.material && h.object.material.transparent));
+      if (!hits.length) continue;
+      let h = null, N = null;
+      for (const c of hits) { nm.getNormalMatrix(c.object.matrixWorld); const n2 = c.face.normal.clone().applyMatrix3(nm).normalize(); if (n2.dot(d) > 0) n2.negate(); if (Math.abs(n2.y) < 0.35) { h = c; N = n2; break; } }   // walls only (not an eave, a sill top or a roof)
+      if (!h) continue;
+      E.labels.place(E.label(sg.text, sg.style), [h.point.x, h.point.y, h.point.z], [N.x, N.y, N.z], sg.width, Object.assign({ off: 0.012 }, sg.o)); hit++;
+    }
+    A.signsPlaced = hit + '/' + pendSigns.length; pendSigns.length = 0;
+  }
   // weather: IV.art.weather('night_moon' | 'night_rain' | 'dusty' | 'day_overcast' | 'dusk_rain' ..., seconds) eases the
   // whole state (sky, fog, lights, wetness, wind, rain); seconds 0 = at once. Lightning raises IV.emit('ambience', 'thunder')
   if (window.IVEnv) IVEnv.onAmbience = (a) => IV.emit('ambience', a);
@@ -95,6 +157,61 @@
     } catch (e) { console.warn('IVEnv prop', kind, e); }
     return r;
   };
+  // ---------------------------------------------------------------- dense dressing (rows, clusters, vantage)
+  // Small random offsets and turns everywhere (nothing stacked or lined up like a CAD model): +-5 cm sideways, +-4 cm
+  // along, +-1.3 deg, as real stacks and rows sit. Every piece goes through IV.art.prop, so its colliders are the kit's.
+  // IV.art.dress(b, kind, x, z, rot, R): one set piece: crate (sometimes a second on top), crates (a cluster of 2-3),
+  //   barrel, barrels (2-3 in a knot), woodpile, cart, sandbags (a short run along rot), hay.
+  // IV.art.row(b, kinds, a[x,z], c[x,z], { every, side, jit, skip, avoid: [[x, z, r]], R }): pieces every ~`every` m
+  //   (jittered by `jit`) along a->c, `side` metres to the left (negative: right), skipping the `avoid` circles and a
+  //   share `skip` of the slots (gaps). Returns how many pieces it placed.
+  // IV.art.vantage(b, x, z, rot, n, R): n steps of stacked bales, each 0.33 m higher (under the 0.35 m step-up), so
+  //   the player walks up onto a 1.3-1.7 m platform to see over hedges and walls.
+  A.dressed = 0;
+  A.noDress = /[?&]nodress\b/.test(location.search);   // ?nodress: for measuring what the dressing costs
+  A.dress = function (b, kind, x, z, rot, R) {
+    if (A.noDress) return;
+    R = R || IV.rng((x * 31 + z * 17) | 0); rot = rot || 0;
+    const tw = () => (R() - 0.5) * 0.045, jo = (k) => (R() - 0.5) * 2 * k, c = Math.cos(rot), s = Math.sin(rot);
+    const at = (u, v) => [x + c * u + s * v + jo(0.05), z - s * u + c * v + jo(0.04)];
+    if (kind === 'crate') { const sz = 0.8 + R() * 0.2; A.prop('crate', b, x, H(x, z), z, rot + tw(), sz); A.dressed++; if (R() < 0.45) { A.prop('crate', b, x + jo(0.06), H(x, z) + sz, z + jo(0.06), rot + tw() + (R() - 0.5) * 0.5, sz * 0.8); A.dressed++; } }
+    else if (kind === 'crates') { const n = 2 + (R() < 0.5 ? 1 : 0); for (let i = 0; i < n; i++) { const p = at((i - (n - 1) / 2) * 0.86, i === 1 ? 0.12 : 0); A.prop('crate', b, p[0], H(p[0], p[1]), p[1], rot + tw(), 0.85); A.dressed++; } }
+    else if (kind === 'barrel') { A.prop('barrel', b, x, H(x, z), z); A.dressed++; }
+    else if (kind === 'barrels') { const n = 2 + (R() < 0.6 ? 1 : 0); for (let i = 0; i < n; i++) { const p = at(i === 2 ? 0.33 : (i - 0.5) * 0.68, i === 2 ? 0.58 : 0); A.prop('barrel', b, p[0], H(p[0], p[1]), p[1]); A.dressed++; } }
+    else if (kind === 'woodpile') { A.prop('woodpile', b, x, z, rot + tw()); A.dressed++; }
+    else if (kind === 'cart') { A.prop('cart', b, x, z, rot + (R() - 0.5) * 0.3); A.dressed++; }
+    else if (kind === 'sandbags') { const L = 1.1 + R() * 0.8; A.prop('sandbags', b, x - c * L, z + s * L, x + c * L, z - s * L, 3); A.dressed++; }
+    else if (kind === 'hay') { A.prop('hay', b, x, H(x, z), z, rot + tw() * 4); A.dressed++; }
+  };
+  A.row = function (b, kinds, a, c, o) {
+    o = o || {}; const R = o.R || IV.rng(((a[0] + c[0]) * 13 + (a[1] + c[1]) * 7) | 0), every = o.every || 7, L = Math.hypot(c[0] - a[0], c[1] - a[1]); if (L < 0.5) return 0;
+    const dx = (c[0] - a[0]) / L, dz = (c[1] - a[1]) / L, nx = -dz, nz = dx, rot = Math.atan2(-dz, dx); let n = 0;
+    for (let t = every * 0.5; t < L - 0.5; t += every + (R() - 0.5) * (o.jit != null ? o.jit : 1.2) * 2) {
+      if (R() < (o.skip || 0)) continue;
+      const side = typeof o.side === 'function' ? o.side(n) : (o.side || 0), x = a[0] + dx * t + nx * side, z = a[1] + dz * t + nz * side;
+      if ((o.avoid || []).some(q => Math.hypot(x - q[0], z - q[1]) < q[2])) continue;
+      A.dress(b, kinds[(R() * kinds.length) | 0], x, z, rot + (R() < 0.5 ? 0 : Math.PI), R); n++;
+    }
+    return n;
+  };
+  A.vantage = function (b, x, z, rot, n, R) {
+    if (A.noDress) return;
+    R = R || IV.rng((x * 7 + z * 11) | 0); n = n || 5; const c = Math.cos(rot), s = Math.sin(rot), gy = H(x, z), E = env();
+    const B = E && E.builder ? E.builder(seed()) : null;
+    for (let k = 0; k < n; k++) {
+      const u = k * 0.62, px = x + c * u, pz = z - s * u, top = gy + 0.33 * (k + 1), deep = k === n - 1 ? 1.6 : 0.62;
+      const cx = px + c * (deep - 0.62) / 2, cz = pz - s * (deep - 0.62) / 2;
+      collidersOnly(() => K.box(b, 'cloth', cx, gy - 0.2, cz, deep, top - gy + 0.2, 1.3, rot, 0xc8b070, IV.CF.SOLID | IV.CF.BULLET | IV.CF.NAV | IV.CF.LOW, 'cloth'));
+      if (!B) { K.box(b, 'cloth', cx, gy - 0.2, cz, deep, top - gy + 0.2, 1.3, rot, 0xc8b070); continue; }
+      // bales: each layer of the step a row of two bales, a little askew
+      for (let l = 0; l <= k; l++) for (const w of [-0.33, 0.33]) for (let d = 0; d < Math.round(deep / 0.62); d++) {
+        const bx = px + c * d * 0.62 - s * w + (R() - 0.5) * 0.04, bz = pz - s * d * 0.62 - c * w + (R() - 0.5) * 0.04;
+        B.box('straw', bx, gy + l * 0.33, bz, 0.6, 0.33, 0.62, rot + Math.PI / 2 + (R() - 0.5) * 0.06, { foot: gy, tint: new THREE.Color(0.95 + R() * 0.1, 0.9 + R() * 0.1, 0.8) });
+      }
+    }
+    if (B) { const g = B.finish(); g.name = 'IVEnv.vantage'; root().add(g); }
+    A.dressed++;
+  };
   A.pole = function (b, x, z, h) {
     const E = env(); if (E && E.prop) { const r = collidersOnly(() => K.pole(b, x, z, h)); try { place(E.prop('telegraph', seed()), x, H(x, z), z, 0); } catch (e) {} return r; }
     return K.pole(b, x, z, h);
@@ -114,6 +231,8 @@
   // the ground mesh (world.js asks first)
   A.ground = function (cfg) {
     const E = env(); if (!E || !E.ground) return null;
+    // the shared wet map first (the ground shader and the footstep queries both read it)
+    if (E.wetMap) safe(() => E.wetMap.build(Object.assign({ heightFn: H, kindAt: W.surfaceAt, x0: -W.size / 2, z0: -W.size / 2, size: W.size }, cfg && cfg.wet)), 'wet map');
     const g = E.ground(H, { surfaceAt: W.surfaceAt, size: W.size });
     // land, hills and woods beyond the map edge, so the world never ends in a line (cfg.skirt tunes the hills)
     if (g && g.group && E.skirt) { const sk = safe(() => E.skirt(H, Object.assign({ half: W.size / 2, day: !!(cfg && cfg.day) }, cfg && cfg.skirt)), 'skirt'); if (sk) g.group.add(sk); }
@@ -124,7 +243,7 @@
     const E = env(); if (!E || !E.atmosphere) return null;
     // flashes: lightning on dusk_rain; off when the player has asked for reduced effects (Settings, "Reduced motion")
     const preset = cfg.rain ? 'dusk_rain' : cfg.day ? 'day_overcast' : 'night_moon';
-    const a = E.atmosphere(W.scene, W.renderer, preset, { mistBase: 0, shadows: W.P.shadow > 0, fogMul: W.P.fogMul, flashes: !IV.settings.motion });
+    const a = E.atmosphere(W.scene, W.renderer, preset, { mistBase: 0, shadows: W.P.shadow > 0, fogMul: W.P.fogMul, fogD: cfg.envFog, flashes: !IV.settings.motion });   // cfg.envFog: the map's haze density (exp2), else the preset's
     if (a && a.sun) { W.moonDir.copy(a.sun.position).normalize(); }
     return a;
   };
@@ -137,10 +256,13 @@
     // leaf litter and twigs under every tree (ground decals), then the trees themselves
     if (pendingTrees.length && E.builder && E.Q.name !== 'low') safe(() => { const LB = E.builder(515), R = E.rng(515); for (const t of pendingTrees) { const n = t.kind === 'poplar' ? 2 : 4; for (let i = 0; i < n; i++) { const a = R() * 6.28, r = R() * 3.2, x = t.x + Math.cos(a) * r, z = t.z + Math.sin(a) * r; LB.decal(R() < 0.65 ? 'leaves' : 'grime', [x, H(x, z) + 0.025, z], [0, 1, 0], 1.6 + R() * 2.2, 1.4 + R() * 2, R() * 6.28); } } root().add(LB.finish()); }, 'leaf litter');
     if (pendingTrees.length && E.trees) { const t = safe(() => E.trees(pendingTrees), 'trees'); add(t); pendingTrees = []; }
+    if (E.setRoofs) E.setRoofs(W.roofs || []);   // rain stays out of roofed rooms (env/core.js)
+    if (W.envRoot) safe(() => flushLabels(E), 'labels');
     if (E.mergeStatic && W.envRoot) { const merged = safe(() => E.mergeStatic(W.envRoot, { cell: E.Q.name === 'high' ? 64 : 128 }), 'merge'); if (merged && merged !== W.envRoot) { if (E.Q.name !== 'high') merged.traverse(o => { if (o.isMesh && o.material && o.material.userData && /^(glass|canvas|straw|metal_painted|wood_painted|bottles)$/.test(o.material.userData.ivenv || '')) o.castShadow = false; });   // small trim casts no shadow on Low/Medium
       W.statics.remove(W.envRoot); W.statics.add(merged); W.envRoot = merged; } }
+    safe(() => { resolveSigns(E); const lm = E.labels && E.labels.finish(); if (lm) { W.statics.add(lm); A.labelMesh = lm; } }, 'label atlas');
   };
-  A.reset = function () { pendingTrees = []; seedN = 1; if (window.IVEnv) { IVEnv._treeGrid = null; IVEnv._treeNear = null; } W.envRoot = null; A.chimneys = []; A.squads = []; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
+  A.reset = function () { pendingTrees = []; seedN = 1; pendSigns.length = 0; A._settled = []; if (window.IVEnv && IVEnv.labels) IVEnv.labels.reset(); if (window.IVEnv) { IVEnv._treeGrid = null; IVEnv._treeNear = null; } W.envRoot = null; A.chimneys = []; A.squads = []; const E = env(); if (E && E.clearDecals) E.clearDecals(); };
   // every bullet hit on the world (not on people): effects by surface, and IVEnv's own decal for that material
   A.impact = function (surface, p, n, dir) {
     IV.fx.impact(p.x, p.y, p.z, n.x, n.y, n.z, surface, dir);

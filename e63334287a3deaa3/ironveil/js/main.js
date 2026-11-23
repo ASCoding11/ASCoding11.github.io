@@ -55,8 +55,12 @@
     await M.loadWorld(nd, (k, t) => progress(0.45 + k * 0.5, t));
     if (nd.backdrop) nd.backdrop(M);
     W.linearize(W.scene);
+    progress(0.97);
+    await new Promise(r => setTimeout(r, 30));   // let the bar show before the compile
+    W.warmShaders();   // the title's shaders compile under the loading bar, not as a freeze after it reaches 100%
     progress(1, '');
     state = 'menu';
+    if (IV.params.has('bench')) { requestAnimationFrame(frame); await loadScript('js/bench.js'); IV.bench.run(IV.params.get('bench')); return; }   // no menus: straight into the bench flight (js/bench.js)
     if (UI.needsGate()) UI.show('gate'); else UI.title();
     requestAnimationFrame(frame);
   }
@@ -89,7 +93,10 @@
     UI.hideAll(); IV.hud.reset(); IV.hud.show(true); IV.hud.objectives();
     IV.touchUI.reset();
     state = 'play'; IV.input.clear(); acc = 0;
-    IV.fp && IV.fp.warm && IV.fp.warm();   // the first-person arms' shaders compiled now, not on the first shot
+    // one frame first (the first-person body switches to its looking-down set), then every shader the mission can
+    // need is built now, before the browser paints again, not as a hitch on the first shot, scope or grenade
+    try { render(1 / 60); } catch (e) {}
+    W.warmShaders();
     if (!IV.touch) IV.input.requestLock(false);
     IV.audio.ambience(W.day ? 'day' : 'night'); IV.audio.music(true);
     $('fade').style.opacity = 0;
@@ -129,20 +136,30 @@
   document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play' && !IV.test) app.pause(); });
 
   // ---------------------------------------------------------------- the loop
+  // Every subsystem runs inside its own try/catch: one that throws is logged once (the first error per subsystem,
+  // with its stack, through console.error so window.__errors has it) and the rest of the frame and the game go on.
   const STEP = T.step;
   let acc = 0, last = 0, alpha = 0, paused = false;
   IV.timeScale = 1;
+  const failed = IV.failed = {};
+  function guard(name, f, a, b) {
+    try { f(a, b); } catch (e) {
+      const n = failed[name] = (failed[name] || 0) + 1;
+      if (n === 1) console.error('[' + IV.GAME_NAME + '] ' + name + ' failed (first error; later ones are counted, not logged): ' + (e && e.stack || e));
+    }
+  }
+  IV.guard = guard;
   function simulate(dt) {
     IV.time += dt;
-    IV.input.beginStep();
+    guard('input', IV.input.beginStep);
     if (IV.input.pressed('mute')) IV.audio.toggleMute();
     if (IV.input.pressed('shoulder')) IV.camera.side *= -1;
     if (IV.input.pressed('pause')) { app.pause(); return; }
-    IV.player.step(dt);
-    IV.weapons.step(dt);
-    IV.ally.step(dt);
-    IV.ai.step(dt);
-    M.step(dt);
+    guard('player.step', IV.player.step, dt);
+    guard('weapons.step', IV.weapons.step, dt);
+    guard('ally.step', IV.ally.step, dt);
+    guard('ai.step', IV.ai.step, dt);
+    guard('mission.step', M.step, dt);
   }
   // First thing to go when frames are slow: the environment's parallax occlusion on brick, stone and tile (it more than
   // doubled a wall-filling frame in a software test). After about two seconds averaging under 30 fps it is compiled
@@ -163,22 +180,23 @@
   }
   function render(dt) {
     watchFrames(dt);
-    IV.frameNo = (IV.frameNo || 0) + 1;
-    IV.player.frame(alpha, dt);
-    IV.ai.frame(alpha, dt);
-    IV.ally.frame(alpha, dt);
-    IV.ambience && IV.ambience.frame(dt);
+    IV.frameNo = (IV.frameNo || 0) + 1; window.__frames = IV.frameNo;
+    guard('player.frame', IV.player.frame, alpha, dt);
+    guard('ai.frame', IV.ai.frame, alpha, dt);
+    guard('ally.frame', IV.ally.frame, alpha, dt);
+    IV.ambience && guard('ambience.frame', IV.ambience.frame, dt);
     const I = IV.input;
-    if (I.dx || I.dy) { IV.camera.look(I.dx, I.dy, false); I.dx = I.dy = 0; }
-    IV.camera.frame(dt);
-    IV.weapons.frame();
-    IV.fx.frame(dt);
-    IV.art.frame(dt);
-    W.frame(dt, IV.player.render);
-    if (M.def && M.def.frame) M.def.frame(M, dt);
-    IV.hud.frame(dt);
-    IV.touchUI.frame();
-    W.draw(dt);
+    guard('input.look', () => { I.edgeTurn(dt); if (I.dx || I.dy) { IV.camera.look(I.dx, I.dy, false); I.dx = I.dy = 0; } });
+    guard('camera.frame', IV.camera.frame, dt);
+    guard('weapons.frame', IV.weapons.frame);
+    guard('fx.frame', IV.fx.frame, dt);
+    guard('art.frame', IV.art.frame, dt);
+    guard('world.frame', W.frame, dt, IV.player.render);
+    if (M.def && M.def.frame) guard('mission.frame', M.def.frame, M, dt);
+    guard('hud.frame', IV.hud.frame, dt);
+    guard('audio.frame', IV.audio.frame, dt);
+    guard('touch.frame', IV.touchUI.frame);
+    guard('draw', W.draw, dt);
   }
   function frame(now) {
     requestAnimationFrame(frame);
@@ -193,12 +211,13 @@
       render(dt);
     } else if (state === 'menu' || state === 'paused' || state === 'results') {
       IV.time += dt * (state === 'paused' ? 0 : 1);
-      if (state === 'menu' && M.def && M.def.backdropFrame) M.def.backdropFrame(M, dt);
-      if (state !== 'paused') { IV.ai.frame(1, dt); IV.ally.frame(1, dt); if (IV.player.actor && IV.player.actor.root.parent) IV.player.frame(1, dt); }
-      IV.fx.frame(dt); W.frame(dt, W.camera.position);
-      if (state === 'menu' && IV.camera.override) IV.camera.frame(dt);
-      IV.art.frame(dt);
-      W.draw(dt);
+      window.__frames = IV.frameNo = (IV.frameNo || 0) + 1;
+      if (state === 'menu' && M.def && M.def.backdropFrame) guard('backdrop', M.def.backdropFrame, M, dt);
+      if (state !== 'paused') { guard('ai.frame', IV.ai.frame, 1, dt); guard('ally.frame', IV.ally.frame, 1, dt); if (IV.player.actor && IV.player.actor.root.parent) guard('player.frame', IV.player.frame, 1, dt); }
+      guard('fx.frame', IV.fx.frame, dt); guard('world.frame', W.frame, dt, W.camera.position);
+      if (state === 'menu' && IV.camera.override) guard('camera.frame', IV.camera.frame, dt);
+      guard('art.frame', IV.art.frame, dt);
+      guard('draw', W.draw, dt);
     }
   }
 
@@ -220,5 +239,5 @@
     };
   }
   addEventListener('error', e => { if (IV.test) IV.err('Error: ' + e.message + ' ' + (e.filename || '').split('/').pop() + ':' + e.lineno); });
-  boot().catch(e => { IV.err(IV.GAME_NAME + ' could not start: ' + e.message); console.error(e); });
+  boot().then(() => { window.__ready = true; }).catch(e => { window.__fatal = { message: String(e && e.message || e), stack: String(e && e.stack || '') }; IV.err(IV.GAME_NAME + ' could not start: ' + (e && e.message)); console.error(e); });
 })();

@@ -319,7 +319,9 @@
             if (!op.open) box(glassMat, pu, bot, inset, op.w - 0.1, top - bot, 0.04, 0xffffff);
             box('wood', pu, bot, sgn * (hd - t * 0.55), 0.06, top - bot, 0.08, 0x5a4a38); box('wood', pu, (bot + top) / 2, sgn * (hd - t * 0.55), op.w, 0.06, 0.08, 0x5a4a38);
             if (EB) {
-              vb('ashlar', pu, bot - 0.08, sgn * (hd + 0.02), op.w + 0.24, 0.09, t * 0.4 + 0.12, { tint: TT(0.7, 0.7, 0.7) }); if (mat !== 'wood') vb('ashlar', pu, top, sgn * (hd + 0.012), op.w + 0.4, 0.24, t * 0.32, { tint: TT(0.72, 0.71, 0.7) });
+              vb('ashlar', pu, bot - 0.08, sgn * (hd + 0.02), op.w + 0.24, 0.09, t * 0.4 + 0.12, { tint: TT(0.7, 0.7, 0.7) });
+              if (EB.drip) { const dp = L2W(pu, sgn * (hd + 0.02)), dn = wn(0, sgn); EB.drip(dp[0], bot - 0.08, dp[1], dn[0], dn[1], op.w + 0.1, 1.3, 0.26); }   // rain streaks under the sill (baked wear)
+              if (mat !== 'wood') vb('ashlar', pu, top, sgn * (hd + 0.012), op.w + 0.4, 0.24, t * 0.32, { tint: TT(0.72, 0.71, 0.7) });
               for (const k of [-1, 1]) vb('timber', pu + k * op.w / 4, bot, sgn * (hd - t * 0.55), 0.035, top - bot, 0.05, { noFoot: true, tint: TT(0.6, 0.58, 0.52) });
               if (op.shut) for (const k of [-1, 1]) vb('wood_painted', pu + k * (op.w / 2 + 0.3), bot, sgn * (hd + 0.04), 0.55, top - bot, 0.05, { noFoot: true, tint: TT(0.75, 0.95, 0.8) });
             } else box('stone', pu, bot - 0.06, sgn * (hd + 0.04), op.w + 0.2, 0.08, 0.2, 0x8a867c);

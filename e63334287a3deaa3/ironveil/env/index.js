@@ -97,4 +97,7 @@
     E.info.textureMB = +(E.texMemory() / 1048576).toFixed(1);
     E.info.genMs = Math.round(E.genMs || 0);
   };
+  // painted text and signs (env/labels.js): loaded from here while the textures are made, unless the page's own script
+  // list already loaded it
+  if (!E.labels && typeof document !== 'undefined') { const s = document.createElement('script'); s.src = (E.BASE || '') + 'labels.js'; s.async = false; document.head.appendChild(s); }
 })();
