@@ -307,7 +307,7 @@
   // point sits just in front of the world (the projection does not change with that).
   function vmToWorld(out) {
     out.applyMatrix4(VM.cam.matrixWorldInverse).multiplyScalar(0.9);
-    const wc = W.camera, vc = VM.cam, vf = FP.vmTune.fov;
+    const wc = W.camera, vc = VM.cam, vf = vc.fov;   // the arms' camera as last drawn (FP.vmFov)
     const k = (Math.tan(wc.fov * Math.PI / 360) / (wc.zoom || 1)) / (Math.tan(vf * Math.PI / 360) / (vc.zoom || 1));
     out.x *= k; out.y *= k;
     return out.applyMatrix4(wc.matrixWorld);
@@ -440,7 +440,10 @@
   }
   FP.vm = () => VM;
   // the arms pass: its own field of view (50-60, never the world's) and a small push of the whole rig away from the eye
-  FP.vmTune = { fov: window.IVVM && IVVM.FOV || 45, push: 0.03 };   // 45 (js/vm.js IVVM.FOV): the narrower view draws the gun big and close like the reference; the hip poses are fitted for it
+  FP.vmTune = { fov: window.IVVM && IVVM.FOV || 45, push: 0.03 };
+  // a screen taller than wide (an upright phone) widens the arms' view a little, so the gun does not fill a third of the
+  // narrow screen (the aimed sight stays on the axis at any field of view; the muzzle mapping reads the camera's own)
+  FP.vmFov = function (aspect) { const f = FP.vmTune.fov; if (!(aspect < 1)) return f; const k = 1 + 0.35 * (1 / aspect - 1); return Math.atan(Math.tan(f * Math.PI / 360) * k) * 360 / Math.PI; };   // 45 (js/vm.js IVVM.FOV): the narrower view draws the gun big and close like the reference; the hip poses are fitted for it
   const KIND = { rifle: 'rifleScoped', smg: 'smg', pistol: 'pistol', binoc: 'binoculars', grenade: 'grenade', knife: 'knife' };
   const vst = { ads: 0, sprint: 0, crouch: 0, prone: 0 };
   function vmFrame(dt, yaw, pitch) {
@@ -572,7 +575,7 @@
   FP.draw = function (target) {
     if (!VM || !VM.root.visible || !FP.on()) return;
     const r = W.renderer, ac = r.autoClear, tm = r.toneMapping;
-    VM.cam.aspect = W.camera.aspect; VM.cam.fov = FP.vmTune.fov; VM.cam.updateProjectionMatrix();   // fixed: never follows the world FOV setting
+    VM.cam.aspect = W.camera.aspect; VM.cam.fov = FP.vmFov(VM.cam.aspect); VM.cam.updateProjectionMatrix();   // fixed: never follows the world FOV setting
     r.autoClear = false; if (!target) { r.setRenderTarget(null); r.clearDepth(); }
     if (!target) r.toneMapping = THREE.ACESFilmicToneMapping;   // inside the HDR target the post stack tone maps world and gun together
     { const ri = r.info.render; FP.worldInfo = { calls: ri.calls, tris: ri.triangles }; }   // the world pass just drawn (without the post stack this is all of it)
