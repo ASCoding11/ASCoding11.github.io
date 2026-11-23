@@ -86,9 +86,9 @@
 (function () {
   var NEWS = [
     {date: '2026-11-23', version: 'X.XX', title: 'Driftfall looks brighter', kind: 'feature', tags: ['Driftfall'],
-     items: ['On the Pretty setting, Driftfall has a deeper sky with soft drifting clouds and a sea that ripples, shines in the sun and fades into the horizon.',
-       'The island looks clearer from the sky, with less haze over it.',
-       'Cliffs are warm layered stone, grass and dirt have more colour, and colours are a little richer overall.',
+     items: ['On every setting: a new sky with soft clouds, a clearer view of the island as you drop, a sea that fades into the horizon, warm layered cliffs and more varied grass and dirt.',
+       'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
+       'Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, and a column of colour where a player is knocked out.',
        'Play, controls and your Locker items are unchanged.']},
     {date: '2026-11-23', version: '1.42', title: 'Rollaway is now Overdrop', kind: 'feature',
      img: 'm/thumbs/rollaway.jpg', tags: ['Overdrop'], items: [

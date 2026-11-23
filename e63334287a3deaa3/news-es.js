@@ -7,9 +7,9 @@
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
     "Driftfall looks brighter": "Driftfall se ve más vivo",
-    "On the Pretty setting, Driftfall has a deeper sky with soft drifting clouds and a sea that ripples, shines in the sun and fades into the horizon.": "Con los gráficos Bonitos, Driftfall tiene un cielo más profundo con nubes suaves que se mueven y un mar que se ondula, brilla al sol y se funde con el horizonte.",
-    "The island looks clearer from the sky, with less haze over it.": "La isla se ve más nítida desde el cielo, con menos bruma encima.",
-    "Cliffs are warm layered stone, grass and dirt have more colour, and colours are a little richer overall.": "Los acantilados son de piedra cálida en capas, la hierba y la tierra tienen más color, y en general los colores son un poco más intensos.",
+    "On every setting: a new sky with soft clouds, a clearer view of the island as you drop, a sea that fades into the horizon, warm layered cliffs and more varied grass and dirt.": "Con cualquier ajuste: un cielo nuevo con nubes suaves, una vista más clara de la isla al caer, un mar que se funde con el horizonte, acantilados de piedra cálida en capas y hierba y tierra más variadas.",
+    "Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.": "Solo con gráficos Bonitos: nubes que se mueven y un brillo alrededor del sol, agua que se ondula y destella al sol, colores un poco más intensos y una línea brillante donde la tormenta toca el suelo.",
+    "Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, and a column of colour where a player is knocked out.": "Solo con gráficos Bonitos: haces de luz sobre las armas raras, épicas y legendarias del suelo, y una columna de color donde cae eliminado un jugador.",
     "Play, controls and your Locker items are unchanged.": "El juego, los controles y tus objetos del Locker no cambian.",
     "Rollaway is now Overdrop": "Rollaway ahora se llama Overdrop",
     "Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.": "Rollaway tiene nombre y aspecto nuevos: Overdrop, una pista más empinada y más rápida por una ciudad de neón.",

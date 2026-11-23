@@ -820,7 +820,7 @@ const shEd=(site,sh)=>({v(f,p){sh.vertexShader=shRep(site,sh.vertexShader,f,p);r
 // mapping, switched on by lookSync for levels 1 and 2 only), so it costs no extra pass. It is the colour half of the old
 // level-2 grade (that pass now only darkens the corners), so level 2 looks as before and level 1 gets the colour too.
 THREE.ShaderChunk.tonemapping_pars_fragment=shRep('tone',THREE.ShaderChunk.tonemapping_pars_fragment,'vec3 CustomToneMapping( vec3 color ) { return color; }',
-  'vec3 CustomToneMapping( vec3 color ) { float l=dot(color,vec3(.2126,.7152,.0722));vec3 c=clamp(mix(vec3(l),color,1.14),0.,1.);return mix(c,c*c*(3.-2.*c),.32); }');
+  'vec3 CustomToneMapping( vec3 color ) { float l=dot(color,vec3(.2126,.7152,.0722));vec3 c=clamp(mix(vec3(l),color,1.14),0.,1.);return mix(c,c*c*(3.-2.*c),.32*smoothstep(.22,.55,c)); }');
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
 renderer.domElement.id='view';renderer.domElement.tabIndex=-1;
@@ -837,7 +837,7 @@ function setNear(v){if(camera.near!==v){camera.near=v;camera.updateProjectionMat
 // shadows are long, and a cooler, weaker fill from the sky. The three add up to about 1.2 on sunlit ground, so
 // colours keep their hue instead of washing out to white.
 // (The fill's ground colour is a pale stone rather than grass green, and a little stronger, so walls in shade stay their own colour instead of going olive.)
-const LIGHT={hemi:.58,amb:.11,sun:.9},LIGHT0={hemi:.58,amb:.11,sun:.9},LIGHT1={hemi:.5,amb:.07,sun:1.04};   // (Pretty: a little more sun and less fill, so shapes read; see lookSync)
+const LIGHT={hemi:.58,amb:.11,sun:.9},LIGHT0={hemi:.58,amb:.11,sun:.9},LIGHT1={hemi:.56,amb:.1,sun:1.};   // (Pretty: a little more sun and less fill, so shapes read; see lookSync)
 const hemi=new THREE.HemisphereLight(0xd6e9ff,0x938f7c,LIGHT.hemi);scene.add(hemi);
 const amb=new THREE.AmbientLight(0xffffff,LIGHT.amb);scene.add(amb);
 const SUN_V=[0.56,0.66,0.38];
@@ -938,7 +938,7 @@ MAT.onBeforeCompile=sh=>{
       // the surface texture: its colour times the paint (the vertex colour) where its alpha is 1, its own colour (mortar, nail heads, stripes) where it is 0
       +'float ly=floor(dzU.z+.5);vec4 kt=texture(dzArr,vec3(dzU.xy,max(ly-1.,0.)));vec3 vc=diffuseColor.rgb;float mx=max(vc.r,max(vc.g,vc.b));diffuseColor.rgb=mix(vc,min(kt.rgb*1.1,1.)*mix(vec3(mx),vc,kt.a),step(.5,ly));\n#endif\n'
       // dirt and shade where a wall, a post or a trunk meets the ground, and the dimmer light indoors
-      +'float gr=1.-smoothstep(0.,1.4,dzK.x);diffuseColor.rgb*=mix(vec3(1.),vec3(.64,.58,.5),gr*gr*.8);\n#ifdef FINE\ndiffuseColor.rgb*=mix(vec3(1.),vec3(1.06,1.02,.94),dzK.y);{float fy=mod(dzK.x,4.);diffuseColor.rgb*=1.-dzK.y*(.34*smoothstep(1.3,3.8,fy)*step(-.5,dzN.y)+.22*(1.-smoothstep(0.,.45,fy))*(1.-abs(dzN.y))+.18*step(dzN.y,-.5));}\n#else\ndiffuseColor.rgb*=1.-dzK.y*.4;\n#endif\n}\n#endif\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.3+(g2-.5)*.22)*w.y);\n#ifdef WORLD\n'
+      +'float gr=1.-smoothstep(0.,1.4,dzK.x);diffuseColor.rgb*=mix(vec3(1.),vec3(.64,.58,.5),gr*gr*.8);\n#ifdef FINE\ndiffuseColor.rgb*=mix(vec3(1.),vec3(1.06,1.02,.94),dzK.y);{float fy=mod(dzK.x,4.);diffuseColor.rgb*=1.-dzK.y*(.3*smoothstep(2.3,3.8,fy)*step(-.5,dzN.y)+.16*step(dzN.y,-.5));}\n#else\ndiffuseColor.rgb*=1.-dzK.y*.4;\n#endif\n}\n#endif\n#ifdef FINE\n{vec3 w=pow(abs(dzN),vec3(4.));w/=(w.x+w.y+w.z);vec3 q=dzP*.42;float f=texture2D(dzTex,q.zy).r*w.x+texture2D(dzTex,q.xz).r*w.y+texture2D(dzTex,q.xy).r*w.z;float b=texture2D(dzTex,dzP.xz*.023).g;float g2=texture2D(dzTex,dzP.xz*1.9).r;diffuseColor.rgb*=(.95+.1*f)*(1.+((b-.5)*.3+(g2-.5)*.22)*w.y);\n#ifdef WORLD\n'
       // the island only (WMAT): broad soft patches on walls, so a big wall isn't one flat colour
       +'float side=1.-w.y;float b2=texture2D(dzTex,vec2(dzP.x+dzP.z,dzP.y*1.7)*.045).g;diffuseColor.rgb*=1.-side*(.5-b2)*.16;\n#endif\n}\n#endif');
 };
@@ -1810,8 +1810,10 @@ function landDetail(N){
   store(0,150);
   // grain: speckle, small stones with a dark rim
   fill((u,v)=>(rnd()-.5)*.5+(pnoise(u*26,v*26,26,26,31)-.5)*.5+(pnoise(u*5,v*5,5,5,32)-.5)*.3);
-  for(let k=0;k<300;k++){const x0=rnd()*N|0,y0=rnd()*N|0,r=(1.6+rnd()*4)*S,lt=.25+rnd()*.35;
-    for(let y=-Math.ceil(r)-1;y<=r+1;y++)for(let x=-Math.ceil(r)-1;x<=r+1;x++){const d=Math.sqrt(x*x+y*y);if(d<r)f[W(x0+x,y0+y)]=lt-(d/r)*.15+(y/r)*-.12;else if(d<r+1.2)f[W(x0+x,y0+y)]-=.3}}
+  // (two in five of them drawn, fainter and with a softer rim: at 300 the even sprinkle read as polka dots on dirt; the
+  // same numbers are drawn either way, so the rest of the texture is unchanged)
+  for(let k=0;k<300;k++){const x0=rnd()*N|0,y0=rnd()*N|0,r=(1.6+rnd()*4)*S,lt=.25+rnd()*.35;if(k%5>1)continue;
+    for(let y=-Math.ceil(r)-1;y<=r+1;y++)for(let x=-Math.ceil(r)-1;x<=r+1;x++){const d=Math.sqrt(x*x+y*y);if(d<r)f[W(x0+x,y0+y)]+=(lt*.5-(d/r)*.1+(y/r)*-.08-f[W(x0+x,y0+y)])*.6;else if(d<r+1.2)f[W(x0+x,y0+y)]-=.12}}
   store(1,170);
   // rock: layers along one way, a few cracks across them
   fill((u,v)=>(pnoise(u*3,v*22,3,22,41)-.5)*.9+(pnoise(u*9,v*46,9,46,42)-.5)*.5+(pnoise(u*30,v*30,30,30,43)-.5)*.3+(rnd()-.5)*.12);
@@ -1849,6 +1851,7 @@ function paintControl(N){
   return c;
 }
 const LITE_LAND=matchMedia('(pointer: coarse)').matches||store.get('gfx','auto')==='fast'||renderer.capabilities.maxTextureSize<2048;
+const lStormU={value:new THREE.Vector4(0,0,0,0)};
 function landMaterial(){
   ctlCanvas=paintControl(LITE_LAND?512:1024);
   const ctl=new THREE.CanvasTexture(ctlCanvas);
@@ -1859,9 +1862,9 @@ function landMaterial(){
   const M=new THREE.MeshLambertMaterial({vertexColors:true});M.defines={};
   const ctlU={value:ctl};M.userData.ctlU=ctlU;   // (an arena swaps in its own control map: see setArena)
   M.onBeforeCompile=sh=>{
-    sh.uniforms.lDet={value:det};sh.uniforms.lDet2={value:det2};sh.uniforms.lCtl=ctlU;
+    sh.uniforms.lDet={value:det};sh.uniforms.lDet2={value:det2};sh.uniforms.lCtl=ctlU;sh.uniforms.lStorm=lStormU;
     shEd('land',sh).v('#include <common>','#include <common>\nattribute float lMac;varying vec3 lP;varying vec3 lN;varying float lM;').v('#include <begin_vertex>','#include <begin_vertex>\nlP=transformed;lN=objectNormal;lM=lMac;')
-      .f('#include <common>','#include <common>\nuniform sampler2D lDet;uniform sampler2D lDet2;uniform sampler2D lCtl;varying vec3 lP;varying vec3 lN;varying float lM;')
+      .f('#include <common>','#include <common>\nuniform sampler2D lDet;uniform sampler2D lDet2;uniform sampler2D lCtl;uniform vec4 lStorm;varying vec3 lP;varying vec3 lN;varying float lM;')
       .f('#include <map_fragment>',`{
       float dist=1./gl_FragCoord.w,soft=.035+min(.16,dist*.0012),h=lP.y,ny=normalize(lN).y;
       vec4 dn=texture2D(lDet,lP.xz*.2);
@@ -1875,19 +1878,15 @@ function landMaterial(){
       // grass: lush, with broad paler and darker patches, and blades up close
       vec3 col=mix(vec3(.25,.55,.16),vec3(.48,.62,.21),smoothstep(.36,.7,df.r+(h-7.)*.012));
       col=mix(col,vec3(.15,.42,.15),smoothstep(.52,.74,df.g)*.5);
-      #ifdef FINE
       col*=mix(vec3(1.07,1.,.8),vec3(.9,1.,1.1),smoothstep(.3,.7,df.g));   // (warmer, drier patches and cooler, bluer ones)
+      #ifdef FINE
       col=mix(vec3(dot(col,vec3(.3,.59,.11))),col,.84)*.95;   // (Pretty's colour curve adds saturation: the grass gives a little back, so it stays grass, not lime)
       #endif
       col*=(.74+.52*dn.r)*(.86+.28*fine);
       // dirt, where the control map says so: the grain decides the edge
       float kd=smoothstep(.5-soft,.5+soft,ct.r+(dn.g-.5)*.36+(df.b-.5)*.2);
       // (with broad darker, redder trodden patches and paler dusty ones, so a yard is not one flat tan)
-      #ifdef FINE
       col=mix(col,mix(vec3(.5,.4,.27),vec3(.74,.62,.43),dn.g)*(.88+.24*df.a)*(.9+.2*fine)*mix(vec3(.8,.74,.7),vec3(1.07,1.04,.98),smoothstep(.28,.72,df.r)),kd);
-      #else
-      col=mix(col,mix(vec3(.5,.4,.27),vec3(.74,.62,.43),dn.g)*(.88+.24*df.a)*(.9+.2*fine),kd);
-      #endif
       // sand near sea level, wet at the waterline
       float ks=1.-smoothstep(1.2-soft*3.,1.5+soft*3.,h+(df.r-.5)*1.2+(dn.g-.5)*.34);
       vec3 sand=vec3(.9,.8,.56)*(.84+.3*dn.g)*(.93+.14*fine);
@@ -1897,9 +1896,7 @@ function landMaterial(){
       float kr=1.-smoothstep(.7-soft,.79+soft,ny+(dn.b-.5)*.1);
       // (warm layered stone: pale and sandy bands with a few rust-coloured ones, so a cliff is not one dark grey sheet)
       vec3 rk=mix(vec3(.52,.46,.4),vec3(.88,.8,.66),strata)*(.82+.36*dn.g);
-      #ifdef FINE
       rk=mix(rk,rk*vec3(1.12,.86,.7),smoothstep(.55,.95,sin(lP.y*1.7+dn.b*2.6+strata*1.5))*.55);
-      #endif
       col=mix(col,rk,kr);
       // paving, with joints on the 4 m grid
       float kp=smoothstep(.5-soft*.6,.5+soft*.6,ct.g+(dn.a-.5)*.06);
@@ -1910,7 +1907,9 @@ function landMaterial(){
       float foam=(1.-smoothstep(.0,.07,abs(h-.03)-.02*dn.g))*step(h,3.);
       col=mix(col,vec3(.13,.45,.56),clamp(-h*.8,0.,.82));
       col=mix(col,vec3(.95,.97,.95),foam*.7);
-      diffuseColor.rgb=col;}`);
+      diffuseColor.rgb=col;}`)
+      // Pretty: where the storm wall meets the ground, a soft glowing line, so the edge reads on the land and not only in the air
+      .f('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef FINE\n{float sd=abs(length(lP.xz-lStorm.xy)-lStorm.z);totalEmissiveRadiance+=vec3(.42,.5,1.)*lStorm.w*(1.-smoothstep(0.,1.8,sd))*.6;}\n#endif');
   };
   return M;
 }
@@ -1923,6 +1922,9 @@ function waterGeo(x0,z0,x1,z1,cell,level,far,deep){
   for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const o=j*nx+i,x=xs[i],z=zs[j],d=Math.max(0,(level-terrainH(x,z))*deep),k=clamp(d/2.6,0,1);
     pos[o*3]=x;pos[o*3+1]=level;pos[o*3+2]=z;nor[o*3+1]=1;uv[o*2]=x/47;uv[o*2+1]=z/47;
     col[o*4]=.36-.24*k;col[o*4+1]=.78-.31*k;col[o*4+2]=.76-.09*k;col[o*4+3]=.3+.7*sst(0,3,d);
+    // (the open sea pales toward the sky's haze colour as it goes out, as a sea seen from the island does, so it melts
+    // into the horizon; baked into the corners' colours, so it costs nothing on either look)
+    if(far){const h=sst(80,330,Math.hypot(x-MAP/2,z-MAP/2))*.6;col[o*4]+=(.56-col[o*4])*h;col[o*4+1]+=(.77-col[o*4+1])*h;col[o*4+2]+=(.9-col[o*4+2])*h}
     if(i<nx-1&&j<nz-1)idx.push(o,o+nx,o+1,o+1,o+nx,o+nx+1)}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('normal',new THREE.BufferAttribute(nor,3));g.setAttribute('color',new THREE.BufferAttribute(col,4));g.setAttribute('uv',new THREE.BufferAttribute(uv,2));g.setIndex(idx);return g;
 }
@@ -1995,13 +1997,12 @@ function finishWorld(){
     B.mesh=m;B.pos=m.geometry.attributes.position;B.col=m.geometry.attributes.color;B.pos.setUsage(THREE.DynamicDrawUsage);B.col.setUsage(THREE.DynamicDrawUsage);
     B.p0=B.pos.array.slice();B.c0=B.col.array.slice();B.p=B.n=B.c=B.a=null}
   mpLink();shardInit();
-  // clouds, all one mesh, above the Drifter's line
-  // (bigger and fewer than before: each is a row of five to seven puffs with a flat, blue-grey underside and a white top)
-  const cb=Bag(),rr=mulberry(99),CLD=ICO;
-  for(let i=0;i<20;i++){const x=-420+rr()*(MAP+840),z=-420+rr()*(MAP+840),y=165+rr()*45,n=5+Math.floor(rr()*3),a=rr()*3,s=.8+rr()*.9;
-    for(let k=0;k<n;k++){const u=(k-(n-1)/2)*11*s,m=1-Math.abs(k-(n-1)/2)/n;shape(CLD,x+Math.cos(a)*u+rr()*6,y+m*5*s,z+Math.sin(a)*u+rr()*6,(11+rr()*6)*s*(.6+m*.6),(4.5+rr()*2.5)*s*(.5+m),(9+rr()*5)*s*(.6+m*.6),0xffffff,rr()*3,1,cb)}}
-  for(let i=0;i<cb.n.length;i+=3){const k=clamp(cb.n[i+1]*.75+.55,0,1);cb.c[i]=.68+.32*k;cb.c[i+1]=.76+.24*k;cb.c[i+2]=.88+.12*k}
-  cloudMesh=new THREE.Mesh(bagGeo(cb),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,transparent:true,opacity:.94}));scene.add(cloudMesh);
+  // The plain look's sky (Fast and phones): the Pretty sky (skySample, the same sums as the dome's shader, clouds held still)
+  // worked out once here at the corners of a dome and drawn with their colours, so it costs what the old cloud mesh did:
+  // one draw call, no texture, nothing per pixel but the colour between corners. It takes the old clouds' place on both
+  // looks (Pretty draws its own clouds), so there is one kind of cloud in the sky.
+  cloudMesh=new THREE.Mesh(skyLoGeo(),new THREE.MeshBasicMaterial({vertexColors:true,fog:false,transparent:true,depthWrite:false}));
+  cloudMesh.frustumCulled=false;cloudMesh.renderOrder=-10;cloudMesh.visible=false;scene.add(cloudMesh);
 }
 
 /* ---------- Pretty graphics: sky, sun, real shadows, a shinier sea, a colour grade ---------- */
@@ -2044,6 +2045,32 @@ skyDome.material.onBeforeCompile=sh=>{sh.uniforms.sSun={value:SUN_V_N()};sh.unif
       c=mix(c,vec3(${new THREE.Color(SKY).toArray().map(v=>v.toFixed(3)).join(',')}),1.-smoothstep(-.02,.0,y));
       diffuseColor.rgb*=c;}`)};
 function SUN_V_N(){return new THREE.Vector3(SUN_V[0],SUN_V[1],SUN_V[2]).normalize()}
+// The dome's sums in script, for the plain look's baked sky (clouds still, and no small bright sun disc, which corners
+// this far apart can't draw; the sun's warm halo is there). out: [r,g,b]
+let skyTexD=null;
+function skySample(dx,dy,dz,out){
+  if(!skyTexD){const c=detailTex.image;skyTexD=c.getContext('2d').getImageData(0,0,c.width,c.height).data}
+  const N=detailTex.image.width,G=(u,v)=>{u=(u%1+1)%1*N-.5;v=(1-(v%1+1)%1)*N-.5;const i=Math.floor(u),j=Math.floor(v),fu=u-i,fv=v-j,
+    at=(a,b)=>skyTexD[((((b%N)+N)%N)*N+(((a%N)+N)%N))*4+1]/255;
+    return at(i,j)*(1-fu)*(1-fv)+at(i+1,j)*fu*(1-fv)+at(i,j+1)*(1-fu)*fv+at(i+1,j+1)*fu*fv};
+  const S=SUN_V_N(),ss=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)},mx=(c,d,k)=>{c[0]+=(d[0]-c[0])*k;c[1]+=(d[1]-c[1])*k;c[2]+=(d[2]-c[2])*k};
+  const y=dy,h=Math.max(y,0),s=Math.max(dx*S.x+dy*S.y+dz*S.z,0),s4=s**4;
+  const c=[.69,.86,.94];mx(c,[.45,.71,.93],ss(0,.16,h));mx(c,[.17,.43,.82],ss(.1,.8,h));mx(c,[.87,.95,.98],(1-ss(0,.07,Math.abs(y)))*.55);
+  mx(c,[1,.95,.84],s4*(1-ss(0,.45,h))*.45);const g=s**24*.22;c[0]+=g;c[1]+=g*.9;c[2]+=g*.7;
+  const px=dx/(dy+.25),pz=dz/(dy+.25),cn=G(px*.17,pz*.17)*.66+G(px*.5+.31,pz*.5+.17)*.34,ck=ss(.53,.68,cn)*ss(.06,.3,y);   // (softer edges than the Pretty clouds: corners can't draw a crisp edge)
+  const w=Math.min(1,ss(.57,.72,cn)*.8+s*s*s*.3);mx(c,[.78+.22*w,.85+.15*w,.94+.04*w],ck*.92);
+  const sk=new THREE.Color(SKY);mx(c,[sk.r,sk.g,sk.b],1-ss(-.02,0,y));
+  out[0]=c[0];out[1]=c[1];out[2]=c[2];return out;
+}
+// the baked dome: 160 corners round, rings closer together near the horizon where the colour changes fastest
+function skyLoGeo(){
+  const R=690,NA=160,el=[-12,-3,-1,0,.6,1.4,2.4,3.6,5];for(let e=6.5;e<=60;e+=1.8)el.push(e);for(const e of [65,72,80,90])el.push(e);
+  const pos=[],col=[],idx=[],o=[0,0,0];
+  for(let j=0;j<el.length;j++){const a=el[j]*Math.PI/180,cy=Math.sin(a),cr=Math.cos(a);
+    for(let i=0;i<=NA;i++){const b=i/NA*Math.PI*2,x=Math.cos(b)*cr,z=Math.sin(b)*cr;pos.push(x*R,cy*R,z*R);skySample(x,cy,z,o);col.push(o[0],o[1],o[2])}}
+  for(let j=0;j<el.length-1;j++)for(let i=0;i<NA;i++){const a=j*(NA+1)+i,b=a+NA+1;idx.push(a,a+1,b,a+1,b+1,b)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));g.setIndex(idx);return g;
+}
 skyDome.renderOrder=-10;skyDome.frustumCulled=false;skyDome.visible=false;scene.add(skyDome);
 const sunGlow=new THREE.Sprite(new THREE.SpriteMaterial({fog:false,depthWrite:false,transparent:true,blending:THREE.AdditiveBlending,map:(()=>{
   const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),gr=g.createRadialGradient(64,64,0,64,64,64);
@@ -2126,12 +2153,14 @@ function lookSync(){
     FOG[0]=lookOn?72:110;FOG[1]=lookOn?430:400;Object.assign(LIGHT,lookOn?LIGHT1:LIGHT0);
     if(!!stormMat.defines.LITE===lookOn){if(lookOn)delete stormMat.defines.LITE;else stormMat.defines.LITE=1;stormMat.needsUpdate=true}
   }
+  // (both looks: the haze opens up as the camera climbs, so the island reads clearly from the drop; only the fog's numbers change)
+  {const k=clamp((camera.position.y-30)/90,0,1);if(stormK<.01){scene.fog.near=FOG[0]+k*140;scene.fog.far=FOG[1]+k*330}}
+  if(cloudMesh){cloudMesh.visible=!lookOn&&stormK<.98;if(cloudMesh.visible)cloudMesh.position.copy(camera.position)}
   if(!lookOn){skyDome.visible=sunGlow.visible=false;return}
   followSun();
   const clear=stormK<.98;                                      // deep in the storm the flat slate sky takes over
   skyDome.visible=sunGlow.visible=clear;
   if(clear){skyDome.position.copy(camera.position);sunGlow.position.copy(camera.position).addScaledVector(SUN_DIR,640)}
-  {const k=clamp((camera.position.y-30)/90,0,1);if(stormK<.01){scene.fog.near=FOG[0]+k*140;scene.fog.far=FOG[1]+k*330}}
   if(seaFine){seaT.value=RM?0:(performance.now()*.001)%10000;seaSun.value=sun.intensity/LIGHT.sun}
   if(!RM)tuftT.value=(performance.now()*.001)%1000;
 }
@@ -2359,6 +2388,7 @@ function drawItems(dt){
   for(const ch of chests){if(!ch.present||ch.open||ng>=ITEM_CAP)continue;const dx=ch.x-c.x,dz=ch.z-c.z;if(dx*dx+dz*dz>90*90)continue;
     _o.position.set(ch.x,ch.y+.04,ch.z);_o.rotation.set(0,0,0);_o.scale.setScalar(2.9*(RM?1:1+.07*Math.sin(itemClock*2.4+ch.id)));_o.updateMatrix();glowIM.setMatrixAt(ng,_o.matrix);glowIM.setColorAt(ng++,_col.setHex(0xffc93c))}
   glowIM.count=ng;glowIM.visible=ng>0;if(ng){glowIM.instanceMatrix.needsUpdate=true;glowIM.instanceColor.needsUpdate=true}
+  drawBeams(dt);
 }
 // Loot is decided by the match seed, so every browser rolls the same chests and floor spots without sending them.
 let seed=1;
@@ -2650,7 +2680,7 @@ function tryBuild(s,owner,quiet,oid){
   if(owner&&owner.local){const sh=pieceShape(s,0);if(wouldTrap(sh.boxes,sh.rps))return false}
   const pc=makePiece(s,oid||(owner?(owner===player?myId():owner.id):null));if(!pc)return false;
   clearBodies(pc);
-  if(!quiet&&!RM){pc.pop=0;pops.add(pc);redraw(pc)}
+  if(!quiet&&!RM){pc.pop=0;pops.add(pc);redraw(pc);buildDust(s,false)}
   if(!quiet)sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pieceCentre(s))*.08));
   return true;
 }
@@ -2662,7 +2692,7 @@ function editPiece(pc,ed,quiet,en){
   pc.en=en!=null?en:Math.min(4095,pc.en+1);bdDirty=true;
   if(ed===pc.ed)return true;
   shapePiece(pc,ed);clearBodies(pc);
-  if(!quiet&&!RM){pc.pop=.55;pops.add(pc);redraw(pc)}
+  if(!quiet&&!RM){pc.pop=.55;pops.add(pc);redraw(pc);buildDust(pc.spec,true)}
   if(!quiet)sfxBuild(1/(1+camera.position.distanceTo(pieceCentre(pc.spec))*.08));
   return true;
 }
@@ -4243,7 +4273,7 @@ function debris(p,hex,n){for(let i=0;i<(n||8);i++)bit(p.clone().add(new V3((Math
 // a knockout: a burst of stars, confetti in the player's colour and a few pale puffs that drift up (no mess)
 // (November 2026: a bigger pop: a white star inside a wider flash of the player's colour, confetti thrown up and a ring of
 // it out flat, pale puffs, and a slow column of gold sparkles rising where they were; fewer bits on Fast and on phones)
-function puff(p,hex){const lo=gfxPref==='fast'||touchUI;flash(p,null,0xffffff,2.4,.18);flash(p,null,hex,3,.3);
+function puff(p,hex){const lo=gfxPref==='fast'||touchUI;koColumn(p,hex);flash(p,null,0xffffff,2.4,.18);flash(p,null,hex,3,.3);
   for(let i=0;i<(lo?12:18);i++)bit(p.clone(),rv(8,7),i%3?hex:i%2?0xffd84a:0xffffff,.15,.8+Math.random()*.3,11);
   for(let i=0;i<(lo?6:10);i++){const a=i/(lo?6:10)*6.283;bit(p.clone(),new V3(Math.cos(a)*6,.6,Math.sin(a)*6),i%2?hex:0xffffff,.12,.45,3)}
   for(let i=0;i<6;i++)bit(p.clone().add(rv(.8)),rv(1.4,1.8),0xf2f2ee,.22+Math.random()*.1,.9,-1.5);
@@ -4267,6 +4297,42 @@ function updateFx(dt){
   for(let i=0;i<bits.length;i++){const b=bits[i],k=b.life/b.max;_o.position.copy(b.p);_o.rotation.set(b.life*3,b.life*2,0);_o.scale.setScalar(b.size*(.4+.6*k));_o.updateMatrix();bitMesh.setMatrixAt(i,_o.matrix);bitMesh.setColorAt(i,_col.setHex(b.hex))}
   bitMesh.count=bits.length;bitMesh.instanceMatrix.needsUpdate=true;if(bitMesh.instanceColor)bitMesh.instanceColor.needsUpdate=true;
 }
+// ---- Pretty-only effects (November 2026). Only how things look: they draw their random numbers from their own
+// generator (fxR), never Math.random, so nothing the game rolls (loot, bots, spawns) moves because of them.
+const fxR=mulberry(0x6a3f21);
+// Soft upright beams of light, one instanced mesh (a draw call only while one is in view): over Rare, Epic and Legendary
+// weapons on the floor, in their rarity colour and taller the rarer, so good loot can be spotted across a field; and a
+// brief column in a player's colour where they are knocked out. Each is a flat strip that turns to face you.
+// (made the first time the Pretty look draws one, so the plain look never compiles its shader)
+const BEAM_CAP=96;let beamIM=null;
+function beamMake(){beamIM=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1).translate(0,.5,0),new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide,
+  vertexShader:`varying vec2 vU;varying vec3 vC;varying float vA;void main(){vU=uv;
+    vec3 c=(modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz;float w=length(instanceMatrix[0].xyz),h=length(instanceMatrix[1].xyz),a=length(instanceMatrix[2].xyz);
+    vec3 t=cameraPosition-c;t.y=0.;vec3 r=normalize(vec3(-t.z,0.,t.x)+vec3(1e-4,0.,0.));float d=length(cameraPosition-c);
+    vC=instanceColor;vA=a*smoothstep(3.,9.,d)*(1.-smoothstep(120.,170.,d));
+    gl_Position=projectionMatrix*viewMatrix*vec4(c+r*position.x*w+vec3(0.,position.y*h,0.),1.);}`,
+  fragmentShader:`varying vec2 vU;varying vec3 vC;varying float vA;void main(){float x=1.-abs(vU.x*2.-1.),y=1.-vU.y;gl_FragColor=vec4(vC*vA*x*x*(.25+.75*y*y),1.);}`}),BEAM_CAP);
+beamIM.frustumCulled=false;beamIM.setColorAt(0,new THREE.Color(1,1,1));beamIM.count=0;beamIM.visible=false;beamIM.renderOrder=4;scene.add(beamIM)}
+const koCols=[];   // knockout columns: {x,y,z,hex,life}
+function koColumn(p,hex){if(!lookOn||RM)return;if(koCols.length>=8)koCols.shift();koCols.push({x:p.x,y:p.y-1,z:p.z,hex,life:1.3,max:1.3})}
+function drawBeams(dt){
+  if(!lookOn){koCols.length=0;if(beamIM&&beamIM.visible){beamIM.visible=false;beamIM.count=0}return}
+  if(!beamIM)beamMake();
+  let n=0;
+  {const c=camera.position;
+    for(const it of itemList){if(n>=BEAM_CAP-8)break;if(!WEAP[it.t]||(it.r|0)<2)continue;const dx=it.x-c.x,dz=it.z-c.z;if(dx*dx+dz*dz>170*170)continue;
+      const r=it.r|0,pul=RM?1:.85+.15*Math.sin(itemClock*2+it.ix);_o.position.set(it.x,it.y,it.z);_o.rotation.set(0,0,0);_o.scale.set(.7+.14*r,2.8+1.4*r,(.42+.13*r)*pul);_o.updateMatrix();
+      beamIM.setMatrixAt(n,_o.matrix);beamIM.setColorAt(n++,_col.setHex(it.col))}
+    for(let i=koCols.length-1;i>=0;i--){const k=koCols[i];k.life-=dt;if(k.life<=0){koCols.splice(i,1);continue}const u=k.life/k.max;
+      _o.position.set(k.x,k.y,k.z);_o.rotation.set(0,0,0);_o.scale.set(1.1+.5*(1-u),7+3*(1-u),.9*u*u);_o.updateMatrix();beamIM.setMatrixAt(n,_o.matrix);beamIM.setColorAt(n++,_col.setHex(k.hex))}}
+  _o.scale.set(1,1,1);beamIM.count=n;beamIM.visible=n>0;if(n){beamIM.instanceMatrix.needsUpdate=true;beamIM.instanceColor.needsUpdate=true}
+}
+// A build or an edit settling: a little pale dust kicked out along the piece's foot (Pretty, close by, not with reduced motion)
+function buildDust(s,edit){if(!lookOn||RM)return;const b=pieceBox(s),cx=(b.min[0]+b.max[0])/2,cz=(b.min[2]+b.max[2])/2;
+  if((cx-camera.position.x)**2+(cz-camera.position.z)**2>40*40)return;
+  const y=edit?(b.min[1]+b.max[1])/2:b.min[1]+.15,n=edit?4:8;
+  for(let i=0;i<n;i++){const x=b.min[0]+fxR()*(b.max[0]-b.min[0]),z=b.min[2]+fxR()*(b.max[2]-b.min[2]),a=fxR()*6.283;
+    bit(_p.set(x,y,z),new V3(Math.cos(a)*(1+fxR()*1.4),.4+fxR()*.9,Math.sin(a)*(1+fxR()*1.4)),edit?0xd9b07a:0xbfa27a,.1+fxR()*.1,.5+fxR()*.3,6)}}
 const dmgLayer=$('dmg');const dnums=[];
 function dmgNumber(pt,amt,head,sh){if(dnums.length>24)return;const el=document.createElement('div');el.className='dn'+(head?' head':sh?' sh':'');el.textContent=amt;dmgLayer.appendChild(el);dnums.push({el,p:pt.clone(),t:0,dx:(Math.random()-.5)*36,big:head?1:0})}
 const tmpV=new V3();
@@ -7312,6 +7378,7 @@ function updateWorldFx(){
     else boltMesh.visible=false;
     busMesh.visible=!!busLine&&t>-12&&t<busLine.tEnd+4;if(busMesh.visible){Plane.place(t);const d=inMatch&&player.st==='bus'?30:ce.distanceTo(busMesh.position);planeDrone(.3/(1+Math.max(0,d-30)*.022),240+700/(1+d*.012))}else planeDrone(0,300)}
   else{stormMesh.visible=false;busMesh.visible=false;boltMesh.visible=false;planeDrone(0,300)}
+  lStormU.value.set(stormMesh.position.x,stormMesh.position.z,stormMesh.scale.x,stormMesh.visible?1:0);
   // Out in the storm the light drops, the sky and the haze turn slate, the haze closes in and it rains. stormK eases
   // between the two looks over about half a second as the camera crosses the wall.
   stormK+=(want-stormK)*Math.min(1,dt*4);if(Math.abs(want-stormK)<.004)stormK=want;
@@ -7319,7 +7386,7 @@ function updateWorldFx(){
   _skyC.setHex(SKY).lerp(_stormC,k);if(k>0&&fl>0)_skyC.lerp(_flashC,fl*.45*k);
   scene.fog.color.copy(_skyC);scene.background.copy(_skyC);scene.fog.near=FOG[0]-(FOG[0]-12)*k;scene.fog.far=FOG[1]-(FOG[1]-150)*k;
   hemi.intensity=LIGHT.hemi*(1-.34*k)+fl*.45*k;amb.intensity=LIGHT.amb+fl*.2*k;sun.intensity=LIGHT.sun*(1-.8*k);
-  if(cloudMesh)cloudMesh.material.color.setRGB(1-.62*k,1-.56*k,1-.46*k);
+  if(cloudMesh)cloudMesh.material.color.setRGB(1-.7*k,1-.64*k,1-.52*k);
   skyDome.material.color.setRGB(1-.7*k,1-.64*k,1-.52*k);sunGlow.material.opacity=1-k;
   if(k>.02){rainCover-=dt;if(rainCover<=0){rainCover=.3;const c=camera.position;rainRoof=raycast([c.x,c.y+.3,c.z],[0,1,0],40,null,false).hit?.2:1}
     rainA+=(rainRoof-rainA)*Math.min(1,dt*5);rainMesh.visible=true;const u=rainMesh.material.uniforms;u.time.value=RM?0:(now*.001)%600;u.cam.value.copy(camera.position);u.op.value=.75*k*rainA}
