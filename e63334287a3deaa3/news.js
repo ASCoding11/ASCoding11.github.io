@@ -85,10 +85,11 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-23', version: 'X.XX', title: 'Shell Crackers: livelier ground', kind: 'feature',
+    {date: '2026-11-23', version: 'X.XX', title: 'Shell Crackers: bigger bangs, livelier blocks', kind: 'feature',
      tags: ['Shell Crackers', 'Graphics'], items: [
-      'On Pretty graphics, grass, sand and pavement have soft lighter and darker patches instead of one flat colour.',
-      'Your gun now picks up each map\'s light, so it looks warmer in the sunset at Yolk Works.',
+      'On Pretty graphics, yolk bombs go off in a soft glowing fireball and a rolling cloud, shots kick up puffs of dust or yolk, and muzzle flashes glow.',
+      'Grass and sand show a gentle two-tone block grid, corners where blocks meet are a little darker, and far-off blocks fade into each map\'s haze.',
+      'Your gun is lit more clearly, with bright top edges, and picks up each map\'s light.',
       'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
     {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
      tags: ['Movi'], items: [

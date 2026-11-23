@@ -708,13 +708,17 @@ const amb=new THREE.AmbientLight(0xffffff,.1);scene.add(amb);
 const sun=new THREE.DirectionalLight(0xfff1d6,.8);scene.add(sun);scene.add(sun.target);
 sun.castShadow=gfx==='high';sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-50,right:50,top:50,bottom:-50,near:1,far:240});
-sun.shadow.bias=-0.0005;sun.shadow.normalBias=0.03;
+sun.shadow.bias=-0.0005;sun.shadow.normalBias=0.03;sun.shadow.radius=2.5;   // softer shadow edges (sun shadows are drawn only on Pretty)
 
 // Viewmodel: drawn in its own pass so the gun never pokes through walls.
 const vmScene=new THREE.Scene();
 const vmCam=new THREE.PerspectiveCamera(60,1,0.01,10);
 const vmHemi=new THREE.HemisphereLight(0xffffff,0x6b5442,.9);vmScene.add(vmHemi);
 const vmSun=new THREE.DirectionalLight(0xffffff,.55);vmSun.position.set(.4,1,.6);vmScene.add(vmSun);
+// Pretty: less flat fill and a stronger key light, plus a light from above and ahead that catches the gun's top edges, so
+// its faces read as light, mid and dark instead of one dark shape (Fast keeps the old two lights; vmLook switches)
+const vmRim=new THREE.DirectionalLight(0xffffff,.85);vmRim.position.set(-.2,1,-1.2);vmScene.add(vmRim);
+function vmLook(){const hi=gfx==='high';vmHemi.intensity=hi?.5:.9;vmSun.intensity=hi?1.15:.55;vmRim.visible=hi}
 const vmRoot=new THREE.Group();vmScene.add(vmRoot);
 // a small warm light at the muzzle that is only on while the muzzle flash shows, so the gun in your hands lights up with each shot
 const vmFlashL=new THREE.PointLight(0xffc462,0,1.6);vmScene.add(vmFlashL);
@@ -894,26 +898,27 @@ function voxMaterial(key){
   if(voxMats[key])return voxMats[key];
   const T=vtex();
   const m=key==='lamp'?new THREE.MeshBasicMaterial({color:0xfff2c4}):key==='water'?new THREE.MeshLambertMaterial({map:T.water,vertexColors:true,transparent:true,opacity:.85}):new THREE.MeshLambertMaterial({map:T[key],vertexColors:true});
-  if(key!=='lamp'&&key!=='water')blockTint(m);
+  if(key!=='lamp'&&key!=='water')blockTint(m,key==='grass'||key==='plain'||key==='dirt');
   return voxMats[key]=m;
 }
 // Pretty: big flat faces (a field of grass, a yard of concrete) are one long quad each, so they came out one even colour
 // from edge to edge. The blocks' shader darkens and lightens them a little in soft patches a few metres across, worked out
 // from where each pixel is in the world (no texture, no extra draw); walls get it too (height shifts the pattern), so
 // nothing looks repeated. Fast compiles the shader without it (the patch and its cache key follow gfx; applyGfx recompiles).
-function blockTint(m){
+function blockTint(m,grid){
   m.onBeforeCompile=sh=>{
     if(gfx!=='high')return;
     sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vScW;')
-      .replace('#include <begin_vertex>','#include <begin_vertex>\nvScW=(modelMatrix*vec4(transformed,1.0)).xyz;');
-    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vScW;\n'+
+      .replace('#include <common>','#include <common>\nvarying float vScUp;').replace('#include <begin_vertex>','#include <begin_vertex>\nvScW=(modelMatrix*vec4(transformed,1.0)).xyz;vScUp=objectNormal.y;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vScW;varying float vScUp;\n'+
       'float scH(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}\n'+
       'float scN(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(scH(i),scH(i+vec2(1.0,0.0)),f.x),mix(scH(i+vec2(0.0,1.0)),scH(i+1.0),f.x),f.y);}')
       .replace('#include <color_fragment>','#include <color_fragment>\n'+
       '{vec2 q=vScW.xz+vScW.y*vec2(.7,.4);float n=scN(q*.09)*.6+scN(q*.33+7.3)*.4;'+
-      'diffuseColor.rgb*=1.0+(n-.5)*.5;}');
+      'diffuseColor.rgb*=1.0+(n-.5)*.3;'+
+      (grid?'float ck=mod(floor(vScW.x)+floor(vScW.z),2.0);vec2 fw=fwidth(vScW.xz);diffuseColor.rgb*=1.0+(ck-.5)*.07*(1.0-smoothstep(.2,.5,max(fw.x,fw.y)))*step(.5,vScUp);':'')+'}');
   };
-  m.customProgramCacheKey=()=>'scTint'+(gfx==='high'?1:0);
+  m.customProgramCacheKey=()=>gfx==='high'?'scTint1'+(grid?'g':''):'scTint0';   // Fast: one program for all, as before
 }
 let meshedAo=null;
 function meshWorld(group){
@@ -926,7 +931,7 @@ function meshWorld(group){
   // Soft shading in corners: each corner of a face is darkened by how many of the three blocks around it (on the open
   // side) are solid, 0 to 3. It is worked out once when the map is built and stored in the vertex colours, so it costs
   // nothing per frame. Faces only merge when their four corners match, so the map has more triangles with it on (Pretty).
-  const AO=[1,.8,.64,.5],occ=(x,y,z)=>{const m=vget(x,y,z);return m!==0&&m!==255&&m!==M_.WATER&&m!==M_.BARRIER&&m!==M_.LAMP?1:0};
+  const AO=[1,.7,.52,.38],occ=(x,y,z)=>{const m=vget(x,y,z);return m!==0&&m!==255&&m!==M_.WATER&&m!==M_.BARRIER&&m!==M_.LAMP?1:0};
   const aoOn=gfx==='high',ap=[0,0,0];
   const aoAt=(ax,u,v,su,sv)=>{ap[u]+=su;const a=occ(ap[0],ap[1],ap[2]);ap[v]+=sv;const c=occ(ap[0],ap[1],ap[2]);ap[u]-=su;const b=occ(ap[0],ap[1],ap[2]);ap[v]-=sv;return a&&b?3:a+b+c};
   const emit=(ax,sg,d,i,j,w,h,fk,u,v)=>{
@@ -1626,7 +1631,7 @@ function buildMap(idx,sm){
   for(const g of [hillGeo,trunkGeo,coneA,coneB,puffGeo])g.dispose();
   // look and light
   skyMat.map&&skyMat.map.dispose();skyMat.map=skyTex(M.skyTop,M.skyHor);skyMat.needsUpdate=true;
-  scene.fog=new THREE.Fog(M.fog,45,M.fogFar);scene.background=new THREE.Color(M.fog);
+  scene.fog=new THREE.Fog(M.fog,45,M.fogFar);fogFar0=M.fogFar;fogLook();scene.background=new THREE.Color(M.fog);
   matFloor.map=grassTex(M.outer);matFloor.map.repeat.set(225,225);matFloor.needsUpdate=true;
   sun.color.setHex(M.sunC);sun.intensity=M.sunI;sun.position.set(SPAN/2+M.sunPos[0],M.sunPos[1],SPAN/2+M.sunPos[2]);sun.target.position.set(SPAN/2,0,SPAN/2);
   hemi.color.setHex(M.hemiS);hemi.groundColor.setHex(M.hemiG);hemi.intensity=M.hemiI||.55;amb.intensity=M.ambI||.1;   // an indoor map asks for more fill light
@@ -1634,9 +1639,12 @@ function buildMap(idx,sm){
   sunSprite.material.color.setHex(M.sunC).lerp(_mc.setHex(0xffffff),.35);
   // the gun in your hands takes half of the map's sky and ground colours and most of its sun colour, so it sits in the
   // same light as the world (warm at Yolk Works, cool in Deep Freeze) instead of the same white light everywhere
-  vmHemi.color.setHex(0xffffff).lerp(_mc.setHex(M.hemiS),.5);vmHemi.groundColor.setHex(0x6b5442).lerp(_mc.setHex(M.hemiG),.5);vmSun.color.setHex(0xffffff).lerp(_mc.setHex(M.sunC),.7);
+  vmHemi.color.setHex(0xffffff).lerp(_mc.setHex(M.hemiS),.5);vmHemi.groundColor.setHex(0x6b5442).lerp(_mc.setHex(M.hemiG),.5);vmSun.color.setHex(0xffffff).lerp(_mc.setHex(M.sunC),.7);vmRim.color.copy(vmSun.color);vmLook();
   if(idx===RANGE_IDX)Range.build();
 }
+// Pretty: the map's haze starts nearer, so blocks across the map sit back in the map's own sky colour
+let fogFar0=0;
+function fogLook(){const f=scene.fog;if(!f||!fogFar0)return;const hi=gfx==='high';f.near=hi?20:45;f.far=hi?fogFar0*.7:fogFar0}
 let navReach=null;
 function spawnSpot(s){
   if(standV(s.x,s.y,s.z))return{x:s.x+.5,y:s.y*VY,z:s.z+.5,fx:s.fx,fz:s.fz};
@@ -1759,6 +1767,7 @@ function buildGun(key,vm,skin){
   g.add(new THREE.Mesh(S?S.geo:G_.geo,vm?(gfx==='high'?vmGunMat:gunMat):S&&S.mat||gunMat));
   const muzzle=new THREE.Object3D();muzzle.position.set(0,.015,G_.tip);g.add(muzzle);
   const fl=new THREE.Sprite(new THREE.SpriteMaterial({map:flashTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));fl.scale.set(.42,.42,1);fl.visible=false;muzzle.add(fl);
+  if(vm){const gw=new THREE.Sprite(new THREE.SpriteMaterial({map:puffTex,color:0xffb54a,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true}));gw.scale.set(3.2,3.2,1);fl.add(gw);fl.userData.glow=gw}
   g.userData={muzzle,flash:fl};
   return g;
 }
@@ -2000,8 +2009,55 @@ function updateSparks(dt){for(const k of sparks){if(!k.m.visible)continue;k.t-=d
 // explosion flashes
 const booms=[];const boomGeo=new THREE.SphereGeometry(1,16,12);
 function spawnBoom(pos){
-  const m=new THREE.Mesh(boomGeo,new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.9,depthWrite:false}));m.position.copy(pos);scene.add(m);booms.push({m,t:0});
+  if(gfx==='high')boomPuffs(pos);
+  else{const m=new THREE.Mesh(boomGeo,new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.9,depthWrite:false}));m.position.copy(pos);scene.add(m);booms.push({m,t:0})}
   emit(pos,0xffc93c,26,10,.07,.8,14,.6);emit(pos,0xfffbef,18,8,.06,.7,14,.6);emit(pos,0x8a6f55,10,6,.05,.8,14,.4);
+}
+
+// Soft puffs (Pretty only): two pools of round, soft-edged sprites, each ONE draw call (a Points object) and hidden while
+// empty: a glow pool drawn added on top (muzzle flashes, the yolk bomb's fireball, sparks) and a smoke pool drawn over the
+// scene (dust from hits, the bomb's cloud, yolk spray). Every puff grows from s0 to s1 and fades over its life. The pools
+// are made once; nothing is allocated per shot. On Fast nothing is emitted, so Fast draws exactly what it did.
+const PUFF_VS='attribute vec3 pc;attribute float pa;attribute float ps;uniform float uScale;varying vec3 vC;varying float vA;'+
+  'void main(){vC=pc;vA=pa;vec4 mv=modelViewMatrix*vec4(position,1.0);gl_PointSize=min(ps*uScale/max(.05,-mv.z),512.0);gl_Position=projectionMatrix*mv;}';
+const PUFF_FS='varying vec3 vC;varying float vA;void main(){vec2 d=gl_PointCoord-.5;float r=dot(d,d)*4.0;if(r>1.0)discard;float a=vA*(1.0-r)*(1.0-r);gl_FragColor=vec4(vC,a);}';
+function puffPool(n,add){
+  const g=new THREE.BufferGeometry(),P=new Float32Array(n*3),C=new Float32Array(n*3),A=new Float32Array(n),S=new Float32Array(n);
+  const at=(k,a,w)=>{const b=new THREE.BufferAttribute(a,w);b.setUsage(THREE.DynamicDrawUsage);g.setAttribute(k,b);return b};
+  const o={P:at('position',P,3),C:at('pc',C,3),A:at('pa',A,1),S:at('ps',S,1),n,i:0,items:[]};
+  o.mat=new THREE.ShaderMaterial({uniforms:{uScale:{value:400}},vertexShader:PUFF_VS,fragmentShader:PUFF_FS,transparent:true,depthWrite:false,blending:add?THREE.AdditiveBlending:THREE.NormalBlending});
+  o.pts=new THREE.Points(g,o.mat);o.pts.frustumCulled=false;o.pts.visible=false;o.pts.renderOrder=add?3:2;scene.add(o.pts);
+  for(let i=0;i<n;i++)o.items.push({on:false,t:0,life:1,x:0,y:0,z:0,vx:0,vy:0,vz:0,s0:1,s1:1,a0:1,r:1,g:1,b:1,up:0});
+  return o;
+}
+// the puffs' own random numbers, so they never use up the game's (bots and spread draw from Math.random)
+let pSeed=12345;const prand=(a,b)=>{pSeed=(pSeed*16807)%2147483647;return a+(b-a)*(pSeed/2147483647)};
+const glowPuffs=puffPool(48,true),smokePuffs=puffPool(96,false);
+function puff(pool,pos,hex,s0,s1,life,a0,spread,up,ox,oy,oz){
+  if(gfx!=='high')return;
+  const q=pool.items[pool.i=(pool.i+1)%pool.n];_ic.setHex(hex);
+  q.on=true;q.t=0;q.life=life;q.x=pos.x+(ox||0);q.y=pos.y+(oy||0);q.z=pos.z+(oz||0);q.s0=s0;q.s1=s1;q.a0=a0;q.r=_ic.r;q.g=_ic.g;q.b=_ic.b;q.up=up||0;
+  q.vx=prand(-1,1)*spread;q.vy=prand(-.3,1)*spread;q.vz=prand(-1,1)*spread;
+}
+function updatePuffs(dt){
+  const sc=camera.projectionMatrix.elements[5]*renderer.getContext().drawingBufferHeight/2;
+  for(const o of [glowPuffs,smokePuffs]){let live=0;o.mat.uniforms.uScale.value=sc;
+    for(let i=0;i<o.n;i++){const q=o.items[i];
+      if(q.on){q.t+=dt;if(q.t>=q.life)q.on=false}
+      if(!q.on){o.A.array[i]=0;o.S.array[i]=0;continue}
+      live++;const k=q.t/q.life,e=1-(1-k)*(1-k);
+      q.x+=q.vx*dt;q.y+=(q.vy+q.up)*dt;q.z+=q.vz*dt;const dmp=Math.exp(-dt*3);q.vx*=dmp;q.vy*=dmp;q.vz*=dmp;
+      o.P.array[i*3]=q.x;o.P.array[i*3+1]=q.y;o.P.array[i*3+2]=q.z;o.C.array[i*3]=q.r;o.C.array[i*3+1]=q.g;o.C.array[i*3+2]=q.b;
+      o.S.array[i]=q.s0+(q.s1-q.s0)*e;o.A.array[i]=q.a0*(k<.15?k/.15:1)*(1-k)*(1-k*.3);
+    }
+    o.pts.visible=live>0;if(live||o.wasLive){o.P.needsUpdate=o.C.needsUpdate=o.A.needsUpdate=o.S.needsUpdate=true}o.wasLive=live>0;
+  }
+}
+// the yolk bomb on Pretty: a white-hot flash, a fireball of yolk-orange glow puffs and a cream cloud that rolls up and fades
+function boomPuffs(p){
+  puff(glowPuffs,p,0xfff2c8,3,12,.22,.95,0,0);
+  for(let i=0;i<9;i++)puff(glowPuffs,p,[0xffc93c,0xffa31a,0xffe08a][i%3],1.6,prand(4.5,6.5),prand(.35,.55),.8,4.5,.8,prand(-.8,.8),prand(0,.9),prand(-.8,.8));
+  for(let i=0;i<14;i++)puff(smokePuffs,p,[0xe9dfcc,0xcfc3ad,0xf6efe0][i%3],1.5,prand(4.5,7),prand(1.1,1.8),.6,4,1.6,prand(-1,1),prand(0,1),prand(-1,1));
 }
 function updateBooms(dt){for(let i=booms.length-1;i>=0;i--){const b=booms[i];b.t+=dt;const s=.5+b.t*16;b.m.scale.setScalar(Math.min(s,6.5));b.m.material.opacity=Math.max(0,.9-b.t*3);if(b.t>.32){scene.remove(b.m);b.m.material.dispose();booms.splice(i,1)}}}
 // grenades ("yolk bombs")
@@ -2101,7 +2157,8 @@ function fireShot(e){
       let dmg=w.dmg*(he.head?w.head:1)*falloff(w,t);if(e.isBot)dmg*=DIFF[diffKey].dmg;
       prev.dmg+=dmg;prev.head=prev.head||he.head;hits.set(he.e,prev);
       emit(_hp,0xffc93c,he.head?6:3,4,.05,.45,12);emit(_hp,he.e.color?new THREE.Color(he.e.color).getHex():0xffffff,2,3,.05,.5,12);
-    }else if(t<maxT-.1){emit(_hp,0xd9cbb0,3,2.5,.05,.5,8,.4);spark(_hp,_d)}
+      puff(smokePuffs,_hp,0xffc93c,.25,he.head?1.1:.8,.35,.85,1.2,.3);puff(smokePuffs,_hp,0xfffbef,.2,.7,.3,.7,1.5,.2);puff(glowPuffs,_hp,0xffd76a,.3,.9,.12,.6,0,0);
+    }else if(t<maxT-.1){emit(_hp,0xd9cbb0,3,2.5,.05,.5,8,.4);spark(_hp,_d);_tmp.copy(_hp).addScaledVector(_d,-.12);puff(smokePuffs,_tmp,0xe3d8c2,.2,.85,.55,.6,.6,.5);puff(glowPuffs,_tmp,0xffe6a8,.25,.55,.08,.7,0,0)}
   }
   for(const [t,h] of hits)hitTarget(e,t,h.dmg,h.head,e.wkey);
   if(rng)Range.shot(anyHit,anyHead);
@@ -2109,7 +2166,7 @@ function fireShot(e){
   if(e===player){
     const k=e.ads?.6:1;camPitchKick+=w.recoil*k;player.yaw+=(Math.random()-.5)*w.recoil*.6*k;vmKick=1;
     sfx(e.wkey);
-  }else{if(e.model&&e.model.flash){e.model.flash.visible=true;e.model.flashT=.05;e.model.flash.material.rotation=Math.random()*6}sfx(e.wkey,e.pos)}
+  }else{if(e.model&&e.model.flash){e.model.flash.visible=true;e.model.flashT=.05;e.model.flash.material.rotation=Math.random()*6;puff(glowPuffs,_mz,0xffc462,.4,1.3,.09,.6,0,0)}sfx(e.wkey,e.pos)}
   if(!w.pellets)e.bloom=Math.min(.05,e.bloom+(w.auto?.004:.01));
 }
 function tryFire(e){
@@ -3034,7 +3091,7 @@ function sfx(name,pos){
 //  Viewmodel
 // =====================================================================
 let vmGun=null,vmKick=0,vmSwitch=0,vmMelee=0,vmThrow=0,vmBob=0,swayX=0,swayY=0;
-function setVmGun(key){if(vmGun){vmRoot.remove(vmGun);vmGun.userData.flash.material.dispose()}vmGun=buildGun(key,true,KIT&&KIT.mySkin());vmGun.scale.setScalar(.78);vmRoot.add(vmGun)}
+function setVmGun(key){if(vmGun){vmRoot.remove(vmGun);vmGun.userData.flash.material.dispose();const gw=vmGun.userData.flash.userData.glow;if(gw)gw.material.dispose()}vmGun=buildGun(key,true,KIT&&KIT.mySkin());vmGun.scale.setScalar(.78);vmRoot.add(vmGun)}
 function updateViewmodel(dt){
   if(!vmGun)return;
   const w=WEAPONS[player.wkey],a=player.adsK;
@@ -3606,7 +3663,7 @@ function playerControl(dt){
   steer(p,wx,wz,dt,speedOf(p)*mag);
   if(p.onGround&&l>0){stepT-=dt;if(stepT<=0){stepT=.34/WEAPONS[p.wkey].speed;sfx('step')}}
   clickQueued-=dt;
-  if(w.auto?held('fire'):clickQueued>0){if(tryFire(p)){clickQueued=0;const fl=vmGun&&vmGun.userData.flash;if(fl){fl.visible=true;fl.userData.t=.045;fl.material.rotation=Math.random()*6;const fs=.36+Math.random()*.14;fl.scale.set(fs,fs,1)}}}
+  if(w.auto?held('fire'):clickQueued>0){if(tryFire(p)){clickQueued=0;const fl=vmGun&&vmGun.userData.flash;if(fl){fl.visible=true;fl.userData.t=.045;fl.material.rotation=Math.random()*6;const fs=.36+Math.random()*.14;fl.scale.set(fs,fs,1);if(fl.userData.glow)fl.userData.glow.visible=gfx==='high'}}}
 }
 
 // =====================================================================
@@ -4064,7 +4121,7 @@ function step(dt){
     $('again').disabled=!host||Vote.sent;
     if(!Vote.sent&&(host?endTimer<=0:endTimer<=-5)){Vote.sent=true;Net.rematch(voteDecide())}
   }
-  updateParts(dt);updateShards(dt);updateSplats(dt);updateTracers(dt);updateSparks(dt);updateBooms(dt);
+  updateParts(dt);updateShards(dt);updateSplats(dt);updateTracers(dt);updateSparks(dt);updateBooms(dt);updatePuffs(dt);
   for(const c of clouds)c.rotation.y-=.007*dt;
   for(const e of ents)if(e.model)updateModel(e,dt);
   if(KIT)KIT.update(dt);
@@ -4208,7 +4265,7 @@ for(const id of ['rules','rulesNextP','rulesNextE']){rulesOptions($(id));$(id).a
 function renderGfx(){for(const b of $('gfxSeg').children)b.setAttribute('aria-pressed',String(b.dataset.q===gfx))}
 $('diffSeg').addEventListener('click',e=>{const d=e.target.dataset&&e.target.dataset.d;if(d&&DIFF[d]){diffKey=d;store.set('diff',d);renderDiff()}});
 function applyGfx(q){gfx=q;store.set('gfx',q);renderGfx();
-  renderer.shadowMap.enabled=gfx==='high';sun.castShadow=gfx==='high';if(vmGun)vmGun.children[0].material=gfx==='high'?vmGunMat:gunMat;if(mapIdx!==-1&&meshedAo!==(gfx==='high')){disposeGroup(mapGroup);meshWorld(mapGroup)}scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize()}
+  renderer.shadowMap.enabled=gfx==='high';sun.castShadow=gfx==='high';vmLook();fogLook();if(vmGun)vmGun.children[0].material=gfx==='high'?vmGunMat:gunMat;if(mapIdx!==-1&&meshedAo!==(gfx==='high')){disposeGroup(mapGroup);meshWorld(mapGroup)}scene.traverse(o=>{if(o.material){const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>m.needsUpdate=true)}});resize()}
 $('gfxSeg').addEventListener('click',e=>{const q=e.target.dataset&&e.target.dataset.q;if(q)applyGfx(q)});
 // A machine that can't keep up: if frames stay slower than about 30 a second for 8 s of play even after autores.js has
 // dropped to its lowest resolution, and the player has never picked a graphics setting, switch to Fast (no shadows) and

@@ -6,9 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
-    "Shell Crackers: livelier ground": "Shell Crackers: un suelo con más vida",
-    "On Pretty graphics, grass, sand and pavement have soft lighter and darker patches instead of one flat colour.": "Con gráficos Lindo, el césped, la arena y el pavimento tienen manchas suaves más claras y más oscuras en vez de un solo color plano.",
-    "Your gun now picks up each map's light, so it looks warmer in the sunset at Yolk Works.": "Tu arma ahora toma la luz de cada mapa, así que se ve más cálida con el atardecer de Yolk Works.",
+    "Shell Crackers: bigger bangs, livelier blocks": "Shell Crackers: explosiones más grandes, bloques con más vida",
+    "On Pretty graphics, yolk bombs go off in a soft glowing fireball and a rolling cloud, shots kick up puffs of dust or yolk, and muzzle flashes glow.": "Con gráficos Lindo, las bombas de yema estallan en una bola de fuego suave y brillante y una nube que se levanta, los disparos levantan polvo o yema y los fogonazos brillan.",
+    "Grass and sand show a gentle two-tone block grid, corners where blocks meet are a little darker, and far-off blocks fade into each map's haze.": "El césped y la arena muestran una cuadrícula suave de dos tonos, las esquinas donde se juntan los bloques son un poco más oscuras y los bloques lejanos se pierden en la neblina de cada mapa.",
+    "Your gun is lit more clearly, with bright top edges, and picks up each map's light.": "Tu arma está mejor iluminada, con bordes superiores brillantes, y toma la luz de cada mapa.",
     "Nothing changes in how the game plays, and Fast graphics costs the same as before.": "Nada cambia en cómo se juega, y los gráficos Rápido cuestan lo mismo que antes.",
     "Movi is away for a rebuild": "Movi se va un tiempo para rehacerse",
     "Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.": "Movi, la app para clasificar películas, se ha quitado de la web por ahora mientras se rehace.",
