@@ -176,7 +176,7 @@
   }
   function stage(bg) {
     const sc = new THREE.Scene(); sc.environment = ENV;
-    if (bg) sc.background = new THREE.Color(bg); else { const sk = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 16), new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, depthWrite: false })); const pa = sk.geometry.attributes.position, c = []; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) / 15; if (y > -0.02) { const k = Math.min(1, y * 2.5); c.push(0.78 - 0.45 * k, 0.72 - 0.42 * k, 0.62 - 0.28 * k); } else c.push(0.30, 0.27, 0.23); } sk.geometry.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); sk.renderOrder = -1; sc.add(sk); }
+    if (bg) sc.background = new THREE.Color(bg); else { const sk = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 16), new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, depthWrite: false })); const pa = sk.geometry.attributes.position, c = []; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) / 15; if (y > -0.02) { const k = Math.min(1, y * 2.5); c.push(0.78 - 0.45 * k, 0.72 - 0.42 * k, 0.62 - 0.28 * k); } else c.push(0.30, 0.27, 0.23); } sk.geometry.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); sk.renderOrder = -1; sk.userData.sky = true; sc.add(sk); }
     sc.add(new THREE.HemisphereLight(0xc8d4e0, 0x403830, 0.55));
     const key = new THREE.DirectionalLight(0xffe8cc, 1.1); key.position.set(-0.8, 0.5, -0.6); sc.add(key);
     const rim = new THREE.DirectionalLight(0x9fb4d8, 0.5); rim.position.set(0.5, 0.6, -1); sc.add(rim);
@@ -223,11 +223,12 @@
   VMT.coverage = function (scene, cam, w, h) {
     const r = renderer(); w = w || 480; h = h || 270;
     const bg = scene.background, env = scene.environment; scene.background = new THREE.Color(0); scene.environment = null;
+    const skies = []; scene.traverse(o => { if (o.userData.sky && o.visible) { skies.push(o); o.visible = false; } });
     const om = scene.overrideMaterial; scene.overrideMaterial = VMT._white || (VMT._white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
     r.setSize(w, h); r.setScissorTest(false); r.setViewport(0, 0, w, h); cam.aspect = w / h; cam.updateProjectionMatrix();
     const tm = r.toneMapping; r.toneMapping = THREE.NoToneMapping; r.render(scene, cam); r.toneMapping = tm;
     const gl = r.getContext(), px = new Uint8Array(w * h * 4); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
-    scene.background = bg; scene.environment = env; scene.overrideMaterial = om;
+    scene.background = bg; scene.environment = env; scene.overrideMaterial = om; skies.forEach(o => { o.visible = true; });
     let n = 0, x0 = w, x1 = 0, y0 = h, y1 = 0, centre = 0, aboveH = 0;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (px[(y * w + x) * 4] > 128) {
       n++; const yy = h - 1 - y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
