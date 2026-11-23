@@ -226,7 +226,7 @@
   //   cp: { mission, diff, idx, data } (the last checkpoint, so Continue resumes there), tut: boot camp finished once }
   const KEY = 'ironveil:save';
   const DEF_SETTINGS = { sens: 1, aimSens: 0.75, invert: false, assist: IV.touch ? 1 : 0, auto: IV.touch, sub: 1, motion: IV.reducedMotion, blood: true, bob: true,
-    quality: IV.touch ? 0 : 1, view: 'first', fov: 74, bright: 1, vol: 0.8, sfx: 1, mus: 0.55, mute: false };
+    quality: IV.touch ? 0 : 1, view: 'first', crouchHold: false, fov: 74, bright: 1, vol: 0.8, sfx: 1, mus: 0.55, mute: false };
   function load() {
     let s = null;
     try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }

@@ -5,6 +5,8 @@
      forward-diagonal keys, no turn limit. Light air control; momentum carries in the air.
    - Space: vault if there is something to vault, stand up if crouched or prone, otherwise jump (1 m, coyote time and
      a jump buffer). In the air you land only on what is below your feet, so a jump cannot climb onto a high box.
+   - Stance changes are quick (crouch 0.18 s, prone 0.4 s) with full speed and control throughout; the eye height eases
+     over exactly that time (P.eyeH, interpolated for rendering by P.eyeHR). Settings: crouch toggle or hold.
    - Not aiming: the body turns toward the movement at a capped rate. Aiming: the body faces the aim and the legs strafe.
      Standing still while the camera swings past about 60 degrees: the body turns in place (with steps).
    - Step-up (0.35 m), ground snap (no hopping downhill), slopes over about 40 degrees push you back down.
@@ -19,15 +21,17 @@
     yaw: 0, pitch: 0, bodyYaw: 0, bodyPrev: 0, stance: 'stand', stanceT: 0, grounded: true, hp: 100, alive: true,
     sprinting: false, speed: 0, gait: 'still', vault: null, inWater: false, lastHurt: -99, stride: 0, actor: null,
     noise: 0, crops: false, god: false, frozen: false, cine: null, hurtDir: 0, turning: false, yawRate: 0, fallSpeed: 0,
-    coyoteT: 0, jumpBuf: 0, jumped: false
+    eyeH: 1.62, eyePrev: 1.62, eyeFrom: 1.62, stanceDur: 0, coyoteT: 0, jumpBuf: 0, jumped: false
   };
   const HEIGHT = { stand: 1.78, crouch: 1.2, prone: 0.55 };
   P.height = () => HEIGHT[P.stance];
-  P.eyeY = () => P.pos.y + (P.stance === 'stand' ? 1.62 : P.stance === 'crouch' ? 1.08 : 0.42);
+  // eye height above the feet: eased between stances (fixed step); P.eyeHR(alpha) for the rendered frame
+  P.eyeY = () => P.pos.y + P.eyeH;
+  P.eyeHR = a => P.eyePrev + (P.eyeH - P.eyePrev) * (a == null ? 1 : a);
 
   P.spawn = function (x, z, yaw, stance) {
     P.pos.set(x, W.height(x, z), z); P.prev.copy(P.pos); P.render.copy(P.pos); P.vel.set(0, 0, 0);
-    P.yaw = yaw || 0; P.bodyYaw = P.bodyPrev = P.yaw; P.pitch = -0.05; P.stance = stance || 'stand'; P.stanceT = 0; P.jumpBuf = 0; P.coyoteT = 0; P.grounded = true;
+    P.yaw = yaw || 0; P.bodyYaw = P.bodyPrev = P.yaw; P.pitch = -0.05; P.stance = stance || 'stand'; P.stanceT = 0; P.eyeH = P.eyePrev = P.eyeFrom = MV.eye[P.stance]; P.jumpBuf = 0; P.coyoteT = 0; P.grounded = true;
     P.hp = T.health.max; P.alive = true; P.vault = null; P.frozen = false; P.cine = null; P.cineClip = false; P.lastHurt = -99; P.turning = false;
     if (!P.actor) {
       P.actor = IVChars.spawn('hero');
@@ -81,12 +85,19 @@
       const cl = W.ceilingAt(P.pos.x, P.pos.z, P.pos.y);
       if (cl < P.pos.y + HEIGHT[s] + 0.05) return false;     // no room to get up
     }
-    // stance changes take longer the further you go (stand-crouch 0.25 s, to or from prone 0.6-0.9 s)
-    P.stanceT = (P.stance === 'prone' || s === 'prone') ? (P.stance === 'stand' || s === 'stand' ? 0.9 : 0.6) : 0.25; P.stance = s;
+    // quick and predictable: stand <-> crouch 0.18 s, to or from prone 0.4 s; the eye eases from where it is now
+    // (a change in the middle of another one carries on smoothly). No speed loss, full control throughout.
+    P.stanceDur = P.stanceT = (P.stance === 'prone' || s === 'prone') ? MV.proneTime : MV.crouchTime;
+    P.eyeFrom = P.eyeH; P.stance = s;
     IV.audio && IV.audio.play('cloth', { vol: 0.6 });
     IV.emit('stance', s);
     return true;
   };
+  function stepEye(dt) {
+    const to = MV.eye[P.stance];
+    if (P.stanceT > 0 && P.stanceDur > 0) { const k = 1 - P.stanceT / P.stanceDur, e = k * k * k * (k * (k * 6 - 15) + 10); P.eyeH = P.eyeFrom + (to - P.eyeFrom) * e; }
+    else P.eyeH = to;
+  }
 
   // ---------------------------------------------------------------- vault
   const probe = { x: 0, z: 0 };
@@ -115,7 +126,7 @@
     W.collide(o, MV.radius, ey + 0.4, ey + 1.6);
     if (Math.hypot(o.x - ex, o.z - ez) > 0.2) return false;
     P.vault = { t: 0, sx: P.pos.x, sy: P.pos.y, sz: P.pos.z, ex, ey, ez, top: c.y1 };
-    if (P.stance !== 'stand') P.stance = 'stand';
+    if (P.stance !== 'stand') { P.eyeFrom = P.eyeH; P.stance = 'stand'; P.stanceDur = P.stanceT = MV.crouchTime; }
     P.jumpBuf = 0;
     P.bodyYaw = IV.yawTo(dir.x, dir.z);
     P.actor.play('vault', { fade: 0.08, once: true, restart: true });
@@ -132,10 +143,11 @@
   // ---------------------------------------------------------------- simulate one fixed step
   const o = { x: 0, z: 0 }, nrm = new THREE.Vector3();
   P.step = function (dt) {
-    P.prev.copy(P.pos); P.bodyPrev = P.bodyYaw;
+    P.prev.copy(P.pos); P.bodyPrev = P.bodyYaw; P.eyePrev = P.eyeH;
     if (!P.alive) { P.yawRate = 0; return; }
     const I = IV.input;
-    if (P.stanceT > 0) P.stanceT -= dt;
+    if (P.stanceT > 0) P.stanceT = Math.max(0, P.stanceT - dt);
+    stepEye(dt);
     if (P.cine) { P.cine(dt); P.speed = 0; return; }     // a scripted moment moves the player
     if (P.frozen) { P.vel.set(0, 0, 0); P.speed = 0; return; }
     if (P.vault) {
@@ -145,9 +157,14 @@
       if (k >= 1) { P.vault = null; P.grounded = true; P.vel.set((v.ex - v.sx) * 1.2, 0, (v.ez - v.sz) * 1.2); IV.audio && IV.audio.play('land', { surf: IV.SURF[W.surfAt(P.pos.x, P.pos.z)] }); IV.camera && IV.camera.landDip(0.6); }
       return;
     }
-    // stance input
-    if (I.pressed('crouch')) P.setStance(P.stance === 'crouch' ? 'stand' : 'crouch');
-    if (I.pressed('prone')) P.setStance(P.stance === 'prone' ? 'crouch' : 'prone');
+    // stance input. Crouch: toggle (default), or hold (Settings; touch buttons always toggle). Prone toggles to crouch.
+    const holdCrouch = IV.settings.crouchHold && !IV.touch;
+    if (holdCrouch) {
+      if (I.held('crouch')) { if (P.stance !== 'crouch' && (I.pressed('crouch') || P.stance === 'stand')) P.setStance('crouch'); }
+      else if (P.stance === 'crouch' && !P.proneCrouch) P.setStance('stand');
+      if (I.pressed('crouch')) P.proneCrouch = false;
+    } else if (I.pressed('crouch')) P.setStance(P.stance === 'crouch' ? 'stand' : 'crouch');
+    if (I.pressed('prone')) { P.setStance(P.stance === 'prone' ? 'crouch' : 'prone'); P.proneCrouch = holdCrouch && P.stance === 'crouch' && !I.held('crouch'); }
     // Space: vault if there is something to vault, stand up if crouched or prone, otherwise jump. A press is buffered
     // for jumpBuffer s (pressed just before landing still jumps) and a jump is allowed coyote s after leaving the ground.
     P.coyoteT = P.grounded ? MV.coyote : Math.max(0, P.coyoteT - dt);
@@ -295,7 +312,7 @@
     return Object.assign(out, o);
   };
   P.frame = function (alpha, dt) {
-    P.render.lerpVectors(P.prev, P.pos, alpha);
+    P.render.lerpVectors(P.prev, P.pos, alpha); P.alpha = alpha;
     const A = P.actor; if (!A) return;
     A.root.position.copy(P.render);
     const by = P.bodyPrev + IV.wrapA(P.bodyYaw - P.bodyPrev) * alpha;

@@ -134,6 +134,8 @@
     'you are here (roughly)': 'estás acá (más o menos)', 'out': 'salida', 'start': 'inicio', 'run': 'correr', 'crouch': 'agacharse', 'crawl': 'arrastrarse', 'vault': 'saltar', 'pop-ups': 'blancos', 'rifle': 'fusil', 'pen': 'corral', 'binoculars': 'binoculares', 'pit': 'pozo',
     'Camp Hollowmere': 'Campamento Hollowmere',
     // ---- handling round (movement, jump, crouch setting, crosshair, throws)
+    'Toggle: press to crouch, again to stand. Hold: crouched while the key is down': 'Alternar: aprieta para agacharte y otra vez para pararte. Mantener: agachado mientras tengas la tecla apretada',
+    'Toggle': 'Alternar', 'Hold': 'Mantener',
     'Jump / vault / stand up': 'Saltar / pasar por encima / pararse'
   });
 })();

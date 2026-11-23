@@ -117,11 +117,12 @@
     W.grassClear.value.set(P.render.x, 0, P.render.z, scoped || binoc ? 3.2 : P.stance === 'prone' ? 1.8 : 0);
     // pivot: at the shoulder, height by stance
     const pr = P.render;
-    const ph = P.stance === 'stand' ? 1.55 : P.stance === 'crouch' ? 1.05 : 0.5;
+    // the shoulder follows the eased eye height (player.js), so a stance change glides over its exact time, no pop
+    const eh = P.eyeHR ? P.eyeHR(P.alpha) : 1.62, ph = eh >= 1.08 ? 1.05 + (eh - 1.08) * (0.5 / 0.54) : 0.5 + (eh - 0.42) * (0.55 / 0.66);
     want.set(pr.x, pr.y + ph + C.bobY, pr.z);
     if (!inited) { C.pivot.copy(want); inited = true; }
     C.pivot.x = IV.damp(C.pivot.x, want.x, CT.follow, dt); C.pivot.z = IV.damp(C.pivot.z, want.z, CT.follow, dt);
-    C.pivot.y = IV.damp(C.pivot.y, want.y, 11, dt) + (C.bobY - (C.lastBob || 0)); C.lastBob = C.bobY;
+    C.pivot.y = IV.damp(C.pivot.y, want.y, 24, dt) + (C.bobY - (C.lastBob || 0)); C.lastBob = C.bobY;
     // shake
     C.trauma = Math.max(0, C.trauma - dt * 1.6);
     const sh = C.trauma * C.trauma, t = IV.time;
