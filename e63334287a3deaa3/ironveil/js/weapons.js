@@ -234,7 +234,7 @@
     // over the first few metres (vis: muzzle minus origin, faded out by fx.js)
     WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2, vis: WP.scoped ? null : { x: mz.x - ox, y: mz.y - oy, z: mz.z - oz } });   // tracer rounds every third in the SMG magazine
     // effects
-    IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle');
+    IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle', !!(IV.fp && IV.fp.on() && !WP.scoped));
     const fpArms = IV.fp && IV.fp.realActive && IV.fp.realActive();   // first person on the arms rig: its clip events throw the cases
     if (fpArms) { if (model) model.userData.kickT = 1; }
     else if (part(model, (PART_KIND[k] || k) + '_ejection')) WP.gunShot(model, PART_KIND[k] || k);   // bolt kick and a case from the ejection port

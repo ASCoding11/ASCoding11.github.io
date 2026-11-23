@@ -399,6 +399,12 @@
     if (raiseC) { raise = mixer.clipAction(raiseC); raise.setLoop(T.LoopOnce, 1); raise.clampWhenFinished = true; raise.timeScale = 0; raise.play(); raise.setEffectiveWeight(0); }
     function sstep(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
     var oneW = 0, oneFade = 0.1, oneOut = false, st = { ads: 0, sprint: 0 };
+    // Bones that drive() turns after the mixer (dropElbow: upper arms and hands; aimThumb: thumbs). three.js's
+    // PropertyMixer only writes a bone when the blended value differs from the previous frame's, so on a held pose
+    // (constant tracks) these turns were never undone: after a shot the firing hand kept the fire pose's turn and
+    // drifted, fingers standing up over the pistol's sights. Each frame they get the mixer's last value back first.
+    var procB = ['upperarm_l', 'upperarm_r', 'hand_l', 'hand_r', 'thumb_01_l', 'thumb_01_r'].map(function (n) { return bones[n]; }).filter(Boolean);
+    var procQ = procB.map(function (b) { return b.quaternion.clone(); });
     function find(o, n) { return o.getObjectByName(kind + '_' + n) || null; }
     var ao = kmeta.adsOffset;
     var vm = {
@@ -453,10 +459,13 @@
         if (base.sprint) base.sprint.setEffectiveWeight(ws * bw);
         if (one) one.setEffectiveWeight(oneW);
         var t0 = one ? one.time : 0;
+        for (var pi = 0; pi < procB.length; pi++) procB[pi].quaternion.copy(procQ[pi]);
         mixer.update(dt || 0);
+        for (pi = 0; pi < procB.length; pi++) procQ[pi].copy(procB[pi].quaternion);
         root.updateMatrixWorld(true);
         if (vm.elbows) { dropElbow(bones, 'l', vm.elbows.l || 0, vm.elbows.out || 0); dropElbow(bones, 'r', vm.elbows.r || 0, vm.elbows.out || 0); }
-        if (vm.thumbL > 0.001) aimThumb(bones, 'l', vm.thumbL);
+        // (vm.thumbL is no longer applied: the pistol clips curl both thumbs down against the grip, below the slide;
+        // laid forward by aimThumb the support thumb rose to the sight line)
         for (var bi = 0; bi < 6; bi++) { var bb = bones[occBones[bi]]; if (bb) occPts[bi].setFromMatrixPosition(bb.matrixWorld); }
         if (bones.hand_r && bones.middle_01_r) { occPts[0].lerp(occPts[1], 0.5); occPts[3].lerp(occPts[4], 0.5); }   // palm centres
         var out = [];
