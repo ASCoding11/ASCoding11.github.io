@@ -1,7 +1,8 @@
 /*
- * Ironveil characters (window.IVChars) for three.js r128 (global build).
+ * Ironveil characters (window.IVChars) for three.js r187 (the site's global build in /lib/three/r187/).
  *
- * Load after three.min.js. It loads its own GLTFLoader / SkeletonUtils copies from assets/lib/ if the page has not.
+ * Load after three.min.js and three-addons.min.js (GLTFLoader, SkeletonUtils) and env/core.js (IVEnv.patch). It loads
+ * the meshopt decoder from assets/lib/ if the page has not.
  *   IVChars.load(onProgress) -> Promise           fetches hero, ally, enemies, clips and weapons (about 9 MB)
  *   IVChars.spawn(kind) -> actor                    'hero','ally','rifleman','officer','sniper','gunner'
  *   IVChars.weapon(kind[, {lod:true}]) -> Object3D  'rifleScoped','smg','pistol','enemyRifle','enemySmg','mg','knife','binoculars','grenade','stickGrenade' (lod: reduced rifle/SMG for others)
@@ -78,7 +79,7 @@
   };
   var META = {}, gltf = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {}, WTEMPLATES = {}, TRIS = {}, upperSet = null;
 
-  // ---------- script loading (own copies of the r128 example loaders)
+  // ---------- script loading (the meshopt decoder; GLTFLoader and SkeletonUtils come with three-addons.min.js)
   function addScript(src) {
     return new Promise(function (res, rej) {
       var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error('script ' + src)); };
@@ -86,14 +87,8 @@
     });
   }
   function needLibs() {
-    var p = [];
-    if (!T.GLTFLoader) p.push(addScript(ASSETS + 'lib/GLTFLoader.js'));
-    return Promise.all(p).then(function () {
-      var q = [];
-      if (!T.SkeletonUtils) q.push(addScript(ASSETS + 'lib/SkeletonUtils.js'));
-      if (!window.MeshoptDecoder) q.push(addScript(ASSETS + 'lib/meshopt_decoder.js'));
-      return Promise.all(q);
-    }).then(function () { return window.MeshoptDecoder && MeshoptDecoder.ready; });
+    if (!T.GLTFLoader || !T.SkeletonUtils) return Promise.reject(new Error('chars.js needs /lib/three/r187/three-addons.min.js'));
+    return (window.MeshoptDecoder ? Promise.resolve() : addScript(ASSETS + 'lib/meshopt_decoder.js')).then(function () { return window.MeshoptDecoder && MeshoptDecoder.ready; });
   }
 
   function loadGLB(name, prog) {
@@ -580,9 +575,9 @@
   // head, neck, arms and the upper chest kit (pouches, collar, pack top) are dropped: looking down shows the belt,
   // legs and boots; the viewmodel draws the arms
   var FP_DROP = /^(Head|neck_01|spine_03|clavicle_|upperarm_|lowerarm_|hand_|index_|middle_|ring_|pinky_|thumb_|weapon_r)/;
-  function attrComp(a, i, k) {   // r128 has no BufferAttribute.getComponent; read the raw value and denormalise
+  function attrComp(a, i, k) {   // the value, denormalised (r187's getX does that itself; r128's did not)
     var v = k === 0 ? a.getX(i) : k === 1 ? a.getY(i) : k === 2 ? a.getZ(i) : a.getW(i);
-    if (a.normalized) {
+    if (a.normalized && !T.BufferAttribute.prototype.getComponent) {
       var arr = a.array;
       if (arr instanceof Uint8Array) v /= 255; else if (arr instanceof Uint16Array) v /= 65535;
       else if (arr instanceof Int8Array) v = Math.max(v / 127, -1); else if (arr instanceof Int16Array) v = Math.max(v / 32767, -1);
@@ -640,7 +635,9 @@
       var ia = fg.attributes[an];
       if (!ia.isInterleavedBufferAttribute) continue;
       var Ctor = ia.data.array.constructor, da = new Ctor(ia.count * ia.itemSize), gets = ['getX', 'getY', 'getZ', 'getW'];
-      for (var vi = 0; vi < ia.count; vi++) for (var ci_ = 0; ci_ < ia.itemSize; ci_++) da[vi * ia.itemSize + ci_] = ia[gets[ci_]](vi);
+      // raw values straight from the interleaved array: r187's getX denormalises, which rounded quantized positions to 0
+      var src = ia.data.array, st = ia.data.stride;
+      for (var vi = 0; vi < ia.count; vi++) for (var ci_ = 0; ci_ < ia.itemSize; ci_++) da[vi * ia.itemSize + ci_] = src[vi * st + ia.offset + ci_];
       fg.setAttribute(an, new T.BufferAttribute(da, ia.itemSize, ia.normalized));
     }
     var pos = fg.attributes.position, n0 = pos.count, key = {}, wid = new Int32Array(n0);
@@ -694,7 +691,8 @@
       }
       var l = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
       if (N) {
-        var sc = !N.normalized ? 0 : N.array instanceof Int8Array ? 127 : N.array instanceof Int16Array ? 32767 : 0;
+        // r128's setXYZ stored raw values (scale by hand); r187's normalises itself
+        var sc = !N.normalized || T.BufferAttribute.prototype.getComponent ? 0 : N.array instanceof Int8Array ? 127 : N.array instanceof Int16Array ? 32767 : 0;
         for (j = 0; j <= m; j++) {
           if (sc) N.setXYZ(base + j, Math.round(nx / l * sc), Math.round(ny / l * sc), Math.round(nz / l * sc));
           else N.setXYZ(base + j, nx / l, ny / l, nz / l);

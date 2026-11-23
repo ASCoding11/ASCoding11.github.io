@@ -485,7 +485,7 @@
     const mat = new THREE.MeshStandardMaterial({ map: W.tex.grassCard(), alphaTest: 0.45, side: THREE.DoubleSide, vertexColors: true, roughness: 1 });
     const wind = W.windPatch(0.12, 1.7);
     // grass right round you flattens away while you're prone or using a scope, so it never fills the view
-    mat.onBeforeCompile = sh => { wind(sh); sh.uniforms.uClear = W.grassClear; sh.vertexShader = 'uniform vec4 uClear;\n' + sh.vertexShader.replace('#include <project_vertex>', 'if (uClear.w > 0.0) { float dc = distance(ip.xz, uClear.xz); transformed *= mix(1.0, smoothstep(uClear.w * 0.6, uClear.w, dc), 1.0); }\n#include <project_vertex>'); };
+    mat.onBeforeCompile = sh => { wind(sh); sh.uniforms.uClear = W.grassClear; IVEnv.patch(sh, 'vertex', '#include <project_vertex>', 'if (uClear.w > 0.0) { float dc = distance(ip.xz, uClear.xz); transformed *= mix(1.0, smoothstep(uClear.w * 0.6, uClear.w, dc), 1.0); }\n#include <project_vertex>', 'js/kit grass'); sh.vertexShader = 'uniform vec4 uClear;\n' + sh.vertexShader; };
     const im = new THREE.InstancedMesh(cardGeo2(0.9, 0.55), mat, count);
     im.setColorAt(count - 1, new THREE.Color(1, 1, 1));   // allocate the colour buffer at full size first
     im.count = 0; im.frustumCulled = false; im.receiveShadow = true;
