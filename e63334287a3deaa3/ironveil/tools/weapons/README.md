@@ -156,8 +156,8 @@ GT_MODULES=... node swap.mjs /tmp/w0.glb ../../assets/weapons.glb /tmp/w/smg.glb
 ```
 
 The first-person gloves were not re-closed: the hand surfaces did not move. Measured with the hands in place (vertices
-inside the gun, deepest): firing hand 41 / 5.7 mm (was 42 / 5.7), support hand idle 13 / 2.5 mm (was 3 / 2.5: the
-thumb tip touches the jacket's left side by under 1 mm), charging 95 / 6.0 mm (was 78 / 5.9).
+inside the gun, deepest): firing hand 41 / 5.7 mm (was 42 / 5.7), support hand idle 3 / 2.5 mm (was 3 / 2.5), charging
+98 / 6.0 mm (was 78 / 5.9: the hand riding the knob back brushes the wider receiver's rear corner).
 
 ## Field wear on the scanned rifle and pistol
 
