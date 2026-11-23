@@ -87,7 +87,7 @@
         const u = this.life[i] / this.max[i], fi = Math.min(1, this.life[i] / Math.max(0.001, this.fade[i] * this.max[i]));
         const s = this.s0[i] + (this.s1[i] - this.s0[i]) * Math.sqrt(u);
         P[w * 4] = this.px[i]; P[w * 4 + 1] = this.py[i]; P[w * 4 + 2] = this.pz[i]; P[w * 4 + 3] = s;
-        const cu = Math.min(1, u * 2.2), h = this.hold[i];
+        const cu = Math.min(1, u * 4.5), h = this.hold[i];
         C[w * 4] = this.r[i] + (this.r1[i] - this.r[i]) * cu; C[w * 4 + 1] = this.g[i] + (this.g1[i] - this.g[i]) * cu; C[w * 4 + 2] = this.b[i] + (this.b1[i] - this.b[i]) * cu;
         C[w * 4 + 3] = this.a[i] * fi * (h > 0 ? 1 - Math.pow(u, h) : (1 - u) * (1 - u * 0.3));
         M[w * 2] = this.tile[i]; M[w * 2 + 1] = this.rot[i]; w++;
@@ -158,18 +158,20 @@
   }
   function ribbonMat(order) {
     const m = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tF: { value: foam() }, uSun: { value: 1 } }]), fog: true,
+      transparent: true, depthWrite: false, uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tF: { value: foam() }, uTint: { value: new THREE.Color(0.84, 0.89, 0.91) } }]), fog: true,
       polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
       vertexShader: `attribute float alpha; varying vec2 vUv; varying float vA;
         #include <fog_pars_vertex>
         void main(){ vUv = uv; vA = alpha; vec4 mvPosition = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mvPosition;
         #include <fog_vertex>
         }`,
-      fragmentShader: `uniform sampler2D tF; uniform float uSun; varying vec2 vUv; varying float vA;
+      fragmentShader: `uniform sampler2D tF; uniform vec3 uTint; varying vec2 vUv; varying float vA;
         #include <fog_pars_fragment>
         void main(){ float a = texture2D(tF, vUv).a, b = texture2D(tF, vUv * vec2(0.6, 0.31) + vec2(0.37, 0.11)).a;
-          a = clamp(a * 0.95 + b * 0.7, 0.0, 1.0) * vA; if (a < 0.004) discard;
-          gl_FragColor = vec4(vec3(0.84, 0.89, 0.91) * uSun, a);
+          float e = smoothstep(0.0, 0.3, min(vUv.x, 1.0 - vUv.x));            // feathered sides
+          float thr = (1.0 - vA) * 0.75;                                        // as it fades the foam breaks into patches
+          a = smoothstep(thr, thr + 0.3, clamp(a * 0.65 + b * 0.6, 0.0, 1.0)) * vA * e; if (a < 0.004) discard;
+          gl_FragColor = vec4(uTint, a);
         #include <tonemapping_fragment>
         #include <encodings_fragment>
         #include <fog_fragment>
@@ -187,7 +189,7 @@
     const N = 70, group = new THREE.Group(), trail = ribbonMat(-4), bow = ribbonMat(-3);
     group.add(trail, bow);
     const T = ribbon(trail, N), M = 26, B = ribbon(bow, M * 2);
-    const pts = []; let t = 0, sprayT = 0;
+    const pts = []; let t = 0;
     const tan = Math.tan(19.5 * IW.deg);
     return {
       mesh: group,
@@ -202,7 +204,9 @@
           const y = W.waveAt(q.x, q.z) + 0.25, pos = T.pos;
           pos[i * 6] = q.x + sx * w; pos[i * 6 + 1] = y; pos[i * 6 + 2] = q.z + sz * w; pos[i * 6 + 3] = q.x - sx * w; pos[i * 6 + 4] = y; pos[i * 6 + 5] = q.z - sz * w;
           T.uv[i * 4] = 0; T.uv[i * 4 + 2] = 1; T.uv[i * 4 + 1] = T.uv[i * 4 + 3] = v; v += 0.08;
-          const a = i >= n ? 0 : IW.clamp(1 - age / 32, 0, 1) ** 1.2 * IW.clamp(q.s / 8, 0, 1) * (0.75 + 0.25 * IW.clamp(1 - age / 4, 0, 1)) * IW.clamp((n - 1 - i) / 6, 0, 1); T.al[i * 2] = T.al[i * 2 + 1] = a;
+          // bright for the first few ship lengths, then fading out (eased) over the last third of the track
+          const u = n > 1 ? Math.min(1, i / (n - 1)) : 1, tail = 1 - IW.sstep(0.6, 1, u), near = 1 - IW.sstep(0, 3 * ship.len, age * Math.max(1, q.s));
+          const a = i >= n ? 0 : IW.clamp(1 - age / 32, 0, 1) ** 1.2 * IW.clamp(q.s / 8, 0, 1) * (0.55 + 0.4 * near) * tail; T.al[i * 2] = T.al[i * 2 + 1] = a;
         }
         T.g.attributes.position.needsUpdate = T.g.attributes.uv.needsUpdate = T.g.attributes.alpha.needsUpdate = true;
         // the bow waves, in the ship's frame (x across, z along, the bow at +len/2), placed from the drawn ship
@@ -217,22 +221,14 @@
             const x0 = x - nx * wd * 0.35, z0 = z - nz * wd * 0.35, x1 = x + nx * wd, z1 = z + nz * wd;
             const w0x = ox + x0 * c + z0 * s, w0z = oz - x0 * s + z0 * c, w1x = ox + x1 * c + z1 * s, w1z = oz - x1 * s + z1 * c;
             const lift = d < hug ? 0.55 * (1 - d / hug) * sk : 0;
-            B.pos[k * 6] = w0x; B.pos[k * 6 + 1] = W.waveAt(w0x, w0z) + 0.3 + lift; B.pos[k * 6 + 2] = w0z;
-            B.pos[k * 6 + 3] = w1x; B.pos[k * 6 + 4] = W.waveAt(w1x, w1z) + 0.3; B.pos[k * 6 + 5] = w1z;
+            B.pos[k * 6] = w0x; B.pos[k * 6 + 1] = W.waveAt(w0x, w0z) + 0.5 + lift; B.pos[k * 6 + 2] = w0z;
+            B.pos[k * 6 + 3] = w1x; B.pos[k * 6 + 4] = W.waveAt(w1x, w1z) + 0.45; B.pos[k * 6 + 5] = w1z;
             B.uv[k * 4] = 0; B.uv[k * 4 + 2] = 1; B.uv[k * 4 + 1] = B.uv[k * 4 + 3] = d / 18 - t * 0.04 * sk;
-            const a = (i === 0 || i === M - 1) ? 0 : sk * (d < hug ? 0.95 : 0.8 * (1 - (d - hug) / (arm - hug)) ** 1.4); B.al[k * 2] = B.al[k * 2 + 1] = ship.sinking ? 0 : a;
+            const a = (i === 0 || i === M - 1) ? 0 : sk * (d < hug ? 1 : 0.85 * (1 - (d - hug) / (arm - hug)) ** 1.4); B.al[k * 2] = B.al[k * 2 + 1] = ship.sinking ? 0 : a;
           }
         }
         B.g.attributes.position.needsUpdate = B.g.attributes.uv.needsUpdate = B.g.attributes.alpha.needsUpdate = true;
-        // spray thrown up at the stem
-        if (sk > 0.3 && !ship.sinking && (sprayT -= dt) <= 0) {
-          sprayT = lowQ ? 0.35 : 0.14;
-          for (const side of [1, -1]) {
-            const x = side * (1 + Math.random() * hb * 0.5), z = L / 2 - Math.random() * L * 0.06, wx = ox + x * c + z * s, wz = oz - x * s + z * c;
-            smoke.spawn({ x: wx, y: W.waveAt(wx, wz) + 0.8, z: wz, vx: speed * dir.x + side * c * 2.5, vy: 1.5 + Math.random() * 2.5 * sk, vz: speed * dir.z - side * s * 2.5, life: 0.9, s0: 1 + beam * 0.04, s1: 3 + beam * 0.12, c: [0.92, 0.94, 0.96], a: 0.4 * sk, grav: 5, tile: 7, rv: R() });
-          }
-        }
-        trail.material.uniforms.uSun.value = bow.material.uniforms.uSun.value = 0.55 + 0.45 * Math.max(0, W.sunDir.y * 1.5);
+        trail.material.uniforms.uTint.value.copy(F.tint()); bow.material.uniforms.uTint.value.copy(F.tint());
       }
     };
   };
@@ -261,16 +257,16 @@
       g.setAttribute('aP', this.aP); g.setAttribute('aC', this.aC); g.instanceCount = 0; this.geo = g;
       const m = new THREE.ShaderMaterial({
         transparent: true, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
-        uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tF: { value: foamDisc() }, uSun: { value: 1 } }]),
+        uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { tF: { value: foamDisc() }, uTint: { value: new THREE.Color(0.84, 0.89, 0.9) } }]),
         vertexShader: `attribute vec4 aP; attribute vec2 aC; varying vec2 vUv; varying float vA;
           #include <fog_pars_vertex>
           void main(){ float r = aC.y; vec2 q = vec2(position.x * cos(r) - position.z * sin(r), position.x * sin(r) + position.z * cos(r)) * aP.w;
             vUv = uv; vA = aC.x; vec4 mvPosition = viewMatrix * vec4(aP.x + q.x, aP.y, aP.z + q.y, 1.0); gl_Position = projectionMatrix * mvPosition;
             #include <fog_vertex>
           }`,
-        fragmentShader: `uniform sampler2D tF; uniform float uSun; varying vec2 vUv; varying float vA;
+        fragmentShader: `uniform sampler2D tF; uniform vec3 uTint; varying vec2 vUv; varying float vA;
           #include <fog_pars_fragment>
-          void main(){ float a = texture2D(tF, vUv).a * vA; if (a < 0.004) discard; gl_FragColor = vec4(vec3(0.84, 0.89, 0.9) * uSun, a);
+          void main(){ float a = texture2D(tF, vUv).a * vA; if (a < 0.004) discard; gl_FragColor = vec4(uTint, a);
             #include <tonemapping_fragment>
             #include <encodings_fragment>
             #include <fog_fragment>
@@ -291,7 +287,7 @@
         C[n * 2] = f.a * Math.min(1, f.t * 4) * (1 - u) ** 1.3; C[n * 2 + 1] = f.rot + u * 0.3; n++;
       }
       this.geo.instanceCount = n; if (n) { this.aP.needsUpdate = this.aC.needsUpdate = true; }
-      this.mesh.material.uniforms.uSun.value = 0.55 + 0.45 * Math.max(0, W.sunDir.y * 1.5);
+      this.mesh.material.uniforms.uTint.value.copy(F.tint());
     }
     clear() { this.list.length = 0; this.geo.instanceCount = 0; }
   }
@@ -340,6 +336,12 @@
     W.world.attach(obj);   // keeps its world transform
     pieces.push({ o: obj, v: vel.clone(), w: new THREE.Vector3(R(), R() * 0.5, R()).normalize(), ws: spin || 3 + Math.random() * 3, t: 0, st: 0 });
   };
+  F.tearFlash = function (p) {
+    fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.18, s0: 7, s1: 13, c: [6, 4.4, 2.4], tile: 2, fade: 0.01 });
+    for (let i = 0; i < 4; i++) fire.spawn({ x: p.x, y: p.y, z: p.z, vx: R() * 6, vy: R() * 6, vz: R() * 6, life: 0.4 + Math.random() * 0.2, s0: 2.6, s1: 4.5, c: [4, 2.2, 0.7], c1: [1.4, 0.4, 0.06], tile: 1, rv: R() * 2 });
+    for (let i = 0; i < 10; i++) fire.spawn({ x: p.x, y: p.y, z: p.z, vx: R() * 35, vy: R() * 35, vz: R() * 35, life: 0.35 + Math.random() * 0.3, s0: 0.7, s1: 0.25, c: [5, 3, 1.4], tile: 2, drag: 2 });
+    W.flash(p, new THREE.Color(1, 0.6, 0.3), 14, 0.25, 220);
+  };
   F.release = function (obj) { const i = pieces.findIndex(p => p.o === obj); if (i >= 0) pieces.splice(i, 1); };
   function stepPieces(dt) {
     const tq = new THREE.Quaternion();
@@ -347,7 +349,7 @@
       const p = pieces[i], o = p.o; p.t += dt;
       const k = Math.exp(-0.35 * dt); p.v.x *= k; p.v.z *= k; p.v.y = p.v.y * k - 9.8 * dt;
       o.position.addScaledVector(p.v, dt); tq.setFromAxisAngle(p.w, p.ws * dt); o.quaternion.premultiply(tq);
-      if (p.t < 5 && (p.st -= dt) <= 0) { p.st = 0.05; smoke.spawn({ x: o.position.x, y: o.position.y, z: o.position.z, vx: R(), vy: R(), vz: R(), life: 2.5, s0: 0.8, s1: 4, c: smokeCol(0.1), a: 0.6, tile: 0, rv: R() * 0.4 }); if (p.t < 1.5) fire.spawn({ x: o.position.x, y: o.position.y, z: o.position.z, life: 0.25, s0: 1.4, s1: 0.5, c: [2.4, 1, 0.3], tile: 1, rv: R() * 2 }); }
+      if (p.t < 5 && (p.st -= dt) <= 0) { p.st = 0.035; smoke.spawn({ x: o.position.x, y: o.position.y, z: o.position.z, vx: R(), vy: R(), vz: R(), life: 3, s0: 1.6, s1: 6.5, c: smokeCol(0.08), a: 0.8, tile: 0, rv: R() * 0.4 }); if (p.t < 2) fire.spawn({ x: o.position.x, y: o.position.y, z: o.position.z, life: 0.3, s0: 2.4, s1: 0.8, c: [2.8, 1.2, 0.35], tile: 1, rv: R() * 2 }); }
       const g = W.landAt(o.position.x, o.position.z), sea = W.waveAt(o.position.x, o.position.z);
       if (o.position.y < Math.max(g, sea) + 0.5 || p.t > 30) {
         if (o.position.y < sea + 1 && g < sea && p.t <= 30) { F.splash(o.position, 0.5, true); }
@@ -421,8 +423,9 @@
     fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.1, s0: 9, s1: 16, c: [6, 4, 2], tile: 2, fade: 0.01 });
     fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.3, s0: 4.5, s1: 8.5, c: [3.4, 1.8, 0.6], c1: [1.3, 0.35, 0.06], tile: 1, rv: R() * 3, fade: 0.02 });
     for (let i = 0; i < (lowQ ? 4 : 8); i++) fire.spawn({ x: p.x, y: p.y, z: p.z, vx: R() * 70, vy: R() * 70, vz: R() * 70, life: 0.22 + Math.random() * 0.15, s0: 0.9, s1: 0.3, c: [5, 3, 1.4], tile: 2, drag: 3 });
-    const n = lowQ ? 4 : 7, life = lowQ ? 10 : 16;
-    for (let i = 0; i < n; i++) smoke.spawn({ x: p.x + R() * 3, y: p.y + R() * 3, z: p.z + R() * 3, vx: R() * 7, vy: R() * 7, vz: R() * 7, life: life * (0.7 + Math.random() * 0.5), s0: 4 + Math.random() * 2, s1: 10 + Math.random() * 6, c: [0.3, 0.17, 0.09], c1: smokeCol(0.05 + Math.random() * 0.04), a: 0.93, drag: 2.4, tile: 5, rv: R() * 0.12, fade: 0.01, hold: 2.4, wind: 1 });
+    const n = lowQ ? 2 : 3, life = lowQ ? 10 : 16;
+    smoke.spawn({ x: p.x, y: p.y, z: p.z, vx: R(), vy: R(), vz: R(), life: life, s0: 11, s1: 24, c: [0.3, 0.17, 0.09], c1: smokeCol(0.06), a: 0.95, drag: 2.4, tile: 5, rv: R() * 0.1, fade: 0.01, hold: 2.4, wind: 1 });
+    for (let i = 0; i < n; i++) smoke.spawn({ x: p.x + R() * 3.5, y: p.y + R() * 3, z: p.z + R() * 3.5, vx: R() * 2, vy: R() * 2, vz: R() * 2, life: life * (0.6 + Math.random() * 0.3), s0: 5 + Math.random() * 2, s1: 11 + Math.random() * 3, c: [0.3, 0.17, 0.09], c1: smokeCol(0.05 + Math.random() * 0.04), a: 0.9, drag: 2.4, tile: 5, rv: R() * 0.12, fade: 0.01, hold: 2.2, wind: 1 });
     smoke.spawn({ x: p.x, y: p.y, z: p.z, life: life * 1.4, s0: 10, s1: 28, c: smokeCol(0.3), a: 0.22, drag: 1, tile: 7, hold: 1.6, wind: 1, fade: 0.05 });
     W.flash(p, new THREE.Color(1, 0.6, 0.3), 9, 0.15, 260);
   };
@@ -434,15 +437,27 @@
   // a bomb, a crash or a torpedo hit in the sea: a tall column of spray that hangs and falls back as a curtain, a crown
   // thrown out sideways, a low surge of mist rolling outward, and a patch of foam left on the water
   F.splash = function (p, size, quiet) {
-    size = size || 1; const y0 = W.waveAt(p.x, p.z), q = lowQ ? 0.55 : 1, sq = Math.sqrt(size);
-    for (let i = 0, n = Math.round((12 + 10 * size) * q); i < n; i++) { const up = (0.5 + 0.5 * Math.random()) * (18 + 17 * sq), sheet = i % 3 === 0;
-      smoke.spawn({ x: p.x + R() * 1.6 * sq, y: y0 + 1, z: p.z + R() * 1.6 * sq, vx: R() * 2.2 * sq, vy: up, vz: R() * 2.2 * sq, life: 2.3 + Math.random() * 1.5, s0: 2.4 * sq, s1: (sheet ? 9 : 6.5) * sq, c: [0.93, 0.95, 0.97], a: 0.95, grav: 9.8, drag: 0.15, tile: sheet ? 6 : 4, rot: sheet ? R() * 0.15 : undefined, rv: sheet ? 0 : R() * 0.3, fade: 0.02, hold: 1.7 }); }
-    for (let i = 0, n = Math.round((10 + 6 * size) * q); i < n; i++) { const a = Math.random() * 6.28, sp = (7 + Math.random() * 7) * sq;
-      smoke.spawn({ x: p.x, y: y0 + 1.5, z: p.z, vx: Math.cos(a) * sp, vy: 7 + Math.random() * 9 * sq, vz: Math.sin(a) * sp, life: 1.6 + Math.random(), s0: 1.6 * sq, s1: 4.5 * sq, c: [0.9, 0.93, 0.95], a: 0.85, grav: 9.8, drag: 0.4, tile: 4, rv: R() }); }
-    for (let i = 0, n = Math.round(8 * q); i < n; i++) { const a = i / n * 6.28 + Math.random();
-      smoke.spawn({ x: p.x + Math.cos(a) * 2 * size, y: y0 + 1.5, z: p.z + Math.sin(a) * 2 * size, vx: Math.cos(a) * 6 * size, vy: 0.6, vz: Math.sin(a) * 6 * size, life: 5 + Math.random() * 3, s0: 4 * size, s1: 15 * size, c: [0.82, 0.86, 0.88], a: 0.45, drag: 0.7, tile: 7, rv: R() * 0.2, wind: 1, delay: 0.1 }); }
-    F.foam(p, 2 * size, 11 * size, 22 + 8 * size, 0.9);
+    size = size || 1; const y0 = W.waveAt(p.x, p.z), q = lowQ ? 0.55 : 1, sq = Math.sqrt(size), t = F.tint(), c = [t.r, t.g, t.b], c2 = [t.r * 0.92, t.g * 0.94, t.b * 0.96];
+    // the column: soft, dense at the core, rising to about mast height (h ~ v^2 / 2g) and hanging before it falls back
+    for (let i = 0, n = Math.round((16 + 8 * size) * q); i < n; i++) { const up = (0.6 + 0.4 * Math.random()) * (19 + 7 * sq), r = Math.random() * Math.random();
+      smoke.spawn({ x: p.x + R() * 1.4 * sq * r, y: y0 + 1, z: p.z + R() * 1.4 * sq * r, vx: R() * 1.4 * sq, vy: up, vz: R() * 1.4 * sq, life: 4.2 + Math.random() * 1.6, s0: 3.4 * sq, s1: 9 * sq, c, a: 0.92, grav: 9.8, drag: 0.12, tile: i % 3 === 0 ? 4 : 0, rv: R() * 0.2, fade: 0.03, hold: 1.8 }); }
+    // falling curtains round the column
+    for (let i = 0, n = Math.round(6 * q); i < n; i++) { const a = i / n * 6.28 + Math.random();
+      smoke.spawn({ x: p.x + Math.cos(a) * 2.5 * sq, y: y0 + 1, z: p.z + Math.sin(a) * 2.5 * sq, vx: Math.cos(a) * 3 * sq, vy: (14 + 5 * sq) * (0.7 + 0.3 * Math.random()), vz: Math.sin(a) * 3 * sq, life: 3.4 + Math.random(), s0: 3 * sq, s1: 10 * sq, c: c2, a: 0.5, grav: 9.8, drag: 0.2, tile: 6, rot: R() * 0.12, rv: 0, fade: 0.05, hold: 1.5 }); }
+    // the base: a ring of white water and mist rolling outward
+    for (let i = 0, n = Math.round(10 * q); i < n; i++) { const a = i / n * 6.28 + Math.random() * 0.5;
+      smoke.spawn({ x: p.x + Math.cos(a) * 3 * sq, y: y0 + 1.2, z: p.z + Math.sin(a) * 3 * sq, vx: Math.cos(a) * 7 * sq, vy: 1.2, vz: Math.sin(a) * 7 * sq, life: 4.5 + Math.random() * 2.5, s0: 4.5 * sq, s1: 15 * sq, c: c2, a: 0.5, drag: 0.7, tile: 7, rv: R() * 0.2, wind: 1, delay: 0.05 }); }
+    F.foam(p, 4 * size, 15 * size, 26 + 8 * size, 0.95);
     if (!quiet) IW.audio.splash(p);
+  };
+  // spray and foam take the scene's light: the sun's colour and the sky's, dimmer when the sun is low
+  const tintC = new THREE.Color(), tA = new THREE.Color();
+  F.tint = function () {
+    const m = W.mood; if (!m) return tintC.setRGB(0.84, 0.89, 0.91);
+    const sc = W.U.uSunCol.value, hz = W.U.uHor.value, k = 0.5 + 0.45 * IW.clamp(W.sunDir.y * 1.6, 0, 1);
+    const ms = Math.max(sc.r, sc.g, sc.b, 1e-3), mh = Math.max(hz.r, hz.g, hz.b, 1e-3);
+    tA.setRGB(sc.r / ms, sc.g / ms, sc.b / ms).multiplyScalar(0.5).add(tintC.setRGB(hz.r / mh, hz.g / mh, hz.b / mh).multiplyScalar(0.5));
+    return tintC.setRGB(1, 1, 1).lerp(tA, 0.22).multiplyScalar(0.92 * k);   // white water, with a little of the light's colour
   };
   // an explosion in layers: a flash; a fireball of hot cores cooling from yellow-white to deep orange; smoke billows lit
   // orange from inside at first, then dark, drifting downwind; burning fragments arcing out; on the ground or a ship a
@@ -452,7 +467,8 @@
     const n = Math.max(3, Math.round(8 * size * q));
     fire.spawn({ x: p.x, y: p.y, z: p.z, life: 0.16, s0: 13 * size, s1: 32 * size, c: [6, 4.4, 2.4], tile: 2, fade: 0.01 });
     for (let i = 0; i < n; i++) fire.spawn({ x: p.x + R() * 2 * size, y: p.y + R() * 2 * size, z: p.z + R() * 2 * size, vx: R() * 9 * size, vy: R() * 9 * size + 3, vz: R() * 9 * size, life: 0.55 + Math.random() * 0.55, s0: 4 * size, s1: 10 * size, c: [4.4, 2.8, 1.1], c1: [1.7, 0.45, 0.08], tile: 1, drag: 2.2, rv: R() * 2, fade: 0.04, delay: Math.random() * 0.06 });
-    for (let i = 0; i < n + 4; i++) smoke.spawn({ x: p.x + R() * 3 * size, y: p.y + R() * 3 * size, z: p.z + R() * 3 * size, vx: R() * 6 * size, vy: R() * 4 + 3, vz: R() * 6 * size, life: 5 + Math.random() * 4, s0: 5 * size, s1: 19 * size, c: [0.6, 0.32, 0.14], c1: smokeCol(0.07 + Math.random() * 0.08), a: 0.88, drag: 1.1, tile: i % 2 ? 5 : 0, rv: R() * 0.3, fade: 0.06, hold: 1.5, wind: 1, delay: 0.05 + Math.random() * 0.15 });
+    const sm = kind === 'air' ? 0.6 : 1;   // a blast in the air leaves less smoke than one on a deck or the ground
+    for (let i = 0; i < n + 4; i++) smoke.spawn({ x: p.x + R() * 3 * size, y: p.y + R() * 3 * size, z: p.z + R() * 3 * size, vx: R() * 6 * size, vy: R() * 4 + 3, vz: R() * 6 * size, life: 5 + Math.random() * 4, s0: 5 * size * sm, s1: 19 * size * sm, c: kind === 'air' ? [0.3, 0.2, 0.12] : [0.6, 0.32, 0.14], c1: smokeCol(0.07 + Math.random() * 0.08), a: 0.88, drag: 1.1, tile: i % 2 ? 5 : 0, rv: R() * 0.3, fade: 0.06, hold: 1.5, wind: 1, delay: 0.05 + Math.random() * 0.15 });
     for (let i = 0, m = Math.round(14 * size * q); i < m; i++) fire.spawn({ x: p.x, y: p.y, z: p.z, vx: R() * 42, vy: R() * 30 + 14, vz: R() * 42, life: 0.9 + Math.random() * 1.1, s0: 0.8, s1: 0.25, c: [4, 2.2, 0.8], c1: [2, 0.6, 0.1], tile: 2, grav: 9.8, drag: 0.5 });
     if (kind === 'ground' || kind === 'ship') {
       for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + R() * 4, y: p.y + 2, z: p.z + R() * 4, vx: R() * 2, vy: 6 + Math.random() * 6, vz: R() * 2, life: 10 + Math.random() * 6, s0: 8 * size, s1: 30 * size, c: smokeCol(0.08), a: 0.8, drag: 0.4, tile: i % 2 ? 5 : 0, rv: R() * 0.2, hold: 1.3, wind: 1 });

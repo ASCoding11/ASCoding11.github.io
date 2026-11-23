@@ -587,6 +587,7 @@
     model.root.updateMatrixWorld(true);
     const out = new THREE.Vector3(mir ? -1 : 1, 0, 0).applyQuaternion(model.root.quaternion);
     const h = P.home[0].p, at = new THREE.Vector3(mir ? -h.x : h.x, h.y, h.z);
+    if (IW.fx.tearFlash) IW.fx.tearFlash(wo.getWorldPosition(new THREE.Vector3()));
     IW.fx.detach(wo, vel.clone().addScaledVector(out, 7).add(new THREE.Vector3(0, 4, 0)), 3 + Math.random() * 4);
     return { side: mir ? 1 : -1, at };
   };
