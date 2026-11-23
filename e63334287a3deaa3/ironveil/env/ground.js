@@ -118,13 +118,13 @@
           float pud = smoothstep(0.0, 0.035, wd), soak = smoothstep(-0.1, 0.0, wd);
           float damp = max(max(wm.g, smoothstep(-0.32, -0.1, wd)), clamp(vW1.y * 0.5 + uWet * 0.55, 0.0, 1.0));
           galb *= 1.0 - damp * 0.26 - soak * 0.18;
-          galb = mix(galb, vec3(0.055, 0.045, 0.032), wm.b * 0.45);   // churned mud along ruts and through gateways
+          galb = mix(galb, vec3(0.05, 0.038, 0.026), wm.b * 0.7); grough = mix(grough, 0.35, wm.b * 0.6);   // churned mud along ruts and through gateways
           grough = mix(grough, 0.46 + 0.1 * mB, damp); grough = mix(grough, 0.15, soak);
-          galb = mix(galb, galb * 0.45, pud);
+          galb = mix(galb, galb * 0.6, pud);
           grough = mix(grough, 0.055 - 0.02 * smoothstep(0.035, 0.22, wd), pud);
           float ivPud = pud;
           { vec2 mu = (vGW.xz - uMarksRect.xy) / uMarksRect.zw; if (mu.x > 0.0 && mu.y > 0.0 && mu.x < 1.0 && mu.y < 1.0) { vec4 mk = texture2D(uMarks, mu);
-            galb *= 1.0 - mk.r * 0.38; galb = mix(galb, vec3(0.06, 0.045, 0.03), mk.b * 0.55); grough = mix(grough, 0.25, mk.g); } }   // stamped marks: prints in mud, tracked mud, wet ruts
+            galb = mix(galb, vec3(0.05, 0.038, 0.026), mk.r * 0.55); galb *= 1.0 - mk.r * 0.3; grough = mix(grough, 0.3, mk.r * 0.6); galb = mix(galb, vec3(0.06, 0.045, 0.03), mk.b * 0.55); grough = mix(grough, 0.25, mk.g); } }   // stamped marks: prints in mud, tracked mud, wet ruts
           diffuseColor.rgb *= galb;`);
       P('fragment', '#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(grough, 0.03, 1.0);');
       P('fragment', '#include <normal_fragment_maps>', `
@@ -138,7 +138,11 @@
           float gao = 0.45 + 0.55 * smoothstep(0.05, 0.6, gh);
           reflectedLight.indirectDiffuse *= gao; reflectedLight.indirectSpecular *= mix(gao, 2.2, ivPud);   // (the sky cube is stored dimmed; standing water shows the sky at its own brightness)
           // at night the moon's sheen on damp (not flooded) ground is held down: a broad pale sheen read as frost or snow
-          reflectedLight.directSpecular *= mix(1.0, mix(0.4, 0.7, ivPud), uNight);
+          reflectedLight.directSpecular *= mix(1.0, mix(0.55, 0.85, ivPud), uNight);
+          #ifndef USE_SHADOWMAP
+          // Low (no shadow map): the moon lights everything, so its sheen and the soil's brightness come down further
+          reflectedLight.directSpecular *= mix(1.0, 0.35, uNight); reflectedLight.directDiffuse *= mix(1.0, 0.8, uNight);
+          #endif
           // standing water mirrors the lamps: a soft reflected image of each pooled light (the GGX highlight alone is a
           // pin-prick at this roughness), so a puddle shows the lamp instead of going black
           #if NUM_POINT_LIGHTS > 0

@@ -309,7 +309,7 @@
       sc.remove(o);
       o.traverse(n => { if (n.geometry && !n.userData.keepGeo) n.geometry.dispose(); });
     }
-    W.colliders = []; W.hash = new Map(); W.lamps = []; W.flashes = []; W.roofs = []; W.portals = []; if (window.IVEnv && IVEnv.setPortals) IVEnv.setPortals([]); PR.key = ''; PR.sky = null; if (window.IVEnv && IVEnv.U) IVEnv.U.uProbeK.value = 0; W.waterPolys = []; W.cullList = [];
+    W.colliders = []; W.hash = new Map(); W.lamps = []; W.flashes = []; W.roofs = []; W.portals = []; if (window.IVEnv && IVEnv.setPortals) IVEnv.setPortals([]); PR.key = ''; PR.sky = null; if (window.IVEnv && IVEnv.marks && IVEnv.marks.area) IVEnv.marks.area(-190, -190, 380, 512);   // ground marks start clean each level if (window.IVEnv && IVEnv.U) IVEnv.U.uProbeK.value = 0; W.waterPolys = []; W.cullList = [];
     IV.art && IV.art.reset();
     W.statics = new THREE.Group(); W.dynamic = new THREE.Group(); sc.add(W.statics); sc.add(W.dynamic);
   };
@@ -364,9 +364,18 @@
     }
     // A fixed pool of point lights: the nearest lamps get them each frame (changing the light count recompiles shaders).
     }
-    W.pointPool = [];
-    for (let i = 0; i < P.points; i++) { const l = new THREE.PointLight(0xffb060, 0, 14, 2); sc.add(l); W.pointPool.push(l); }
-    W.flashLight = new THREE.PointLight(0xffc880, 0, 12, 2); sc.add(W.flashLight);
+    W.pointPool = []; W.lampHaze = [];
+    for (let i = 0; i < P.points; i++) {
+      const l = new THREE.PointLight(0xffb060, 0, 14, 2); sc.add(l); W.pointPool.push(l);
+      // a little lit haze round each pooled lamp (night air scattering its light); drawing only
+      const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: W.tex.glow(), color: 0xffb060, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+      h.scale.set(1.8, 1.8, 1); h.visible = false; sc.add(h); W.lampHaze.push(h);
+    }
+    // a small reused pool of point lights for muzzle flashes and blasts (the brightest live ones get them); W.flashLight
+    // is the first (js/fp.js lights the arms from it)
+    W.flashLights = [];
+    for (let i = 0; i < [1, 2, 2][W.quality]; i++) { const l = new THREE.PointLight(0xffc880, 0, 12, 2); sc.add(l); W.flashLights.push(l); }
+    W.flashLight = W.flashLights[0];
     W.spot = null;
   }
   W.addSpot = function () { // the searchlight
@@ -642,6 +651,14 @@
 
   // ---------------------------------------------------------------- light (for stealth)
   // lamps: {x,y,z,r,i, los:true, on:true}. flashes: {x,y,z,r,i,until}. roofs: [x0,z0,x1,z1,y] rectangles that shade.
+  // churned, trodden mud at a doorway, gate or firing point: boot prints pressed into the ground (dark, damp) and a
+  // few wheel or drag ruts, in the ground's mark texture (drawing only; footsteps read the wet map, not this)
+  W.dirtPatch = function (x, z, r, n, rot) {
+    if (!window.IVEnv || !IVEnv.marks) return;
+    const R = IV.rng(Math.round(x * 31 + z * 17) | 0), M = IVEnv.marks;
+    for (let i = 0; i < (n || 40); i++) { const a = R() * 6.283, d = Math.sqrt(R()) * r; M.stamp(x + Math.cos(a) * d, z + Math.sin(a) * d, 'boot', (rot || 0) + (R() - 0.5) * 1.2, 0.55 + R() * 0.45); }
+    for (let i = 0; i < Math.round((n || 40) / 12); i++) { const a = R() * 6.283, d = R() * r * 0.6; M.stamp(x + Math.cos(a) * d, z + Math.sin(a) * d, 'rut', (rot || 0) + (R() - 0.5) * 0.6, 0.5 + R() * 0.4); }
+  };
   // the openings of a roofed room (window or door: centre, normal pointing INTO the room, width, height), so its inside
   // is lit from them (env/core.js); drawing only, not stealth light
   W.addPortal = function (p) { (W.portals = W.portals || []).push(p); if (window.IVEnv && IVEnv.setPortals) IVEnv.setPortals(W.portals); return p; };
@@ -711,6 +728,7 @@
   }
   W.roomProbe = PR;
   // Each frame: give the pooled point lights to the lamps nearest the camera, drive the flash light, follow the shadow.
+  const flashSort = [];
   const lampSort = [], cullM = new THREE.Matrix4(), cullF = new THREE.Frustum();
   W.frame = function (dt, focus) {
     W.govFrame(dt);
@@ -729,13 +747,19 @@
         pl.position.set(l.x, l.y, l.z); pl.color.setHex(l.color || 0xffb060); pl.distance = l.r * 1.8;
         const flick = l.flicker ? 0.86 + 0.14 * IV.noise(IV.time * 7 + i * 10, 0.5) : 1;
         pl.intensity = (l.power || 1.6) * (W.day ? 0.85 : 1.5) * flick * IV.clamp(1.6 - Math.sqrt(l._d) / 90, 0, 1);
+        if (W.underRoof(l.x, l.z, l.y)) pl.distance = l.r * 1.25;   // indoors a lamp falls off within its room
       } else pl.intensity = 0;
+      const hz = W.lampHaze && W.lampHaze[i];
+      if (hz) { hz.visible = !W.day && pl.intensity > 0 && !(l && l.visual) && !(l && W.underRoof(l.x, l.z, l.y)); if (hz.visible) { hz.position.copy(pl.position); hz.material.color.copy(pl.color); hz.material.opacity = Math.min(0.25, pl.intensity * 0.05); } }
     }
     // brightest live flash gets the flash light
-    let fb = null, fv = 0;
-    for (let i = 0; i < W.flashes.length; i++) { const f = W.flashes[i], k = (f.until - IV.time) / f.dur; if (k * f.i > fv) { fv = k * f.i; fb = f; } }
-    const fl = W.flashLight;
-    if (fb) { fl.position.set(fb.x, fb.y, fb.z); fl.distance = Math.min(60, fb.r * 1.6); fl.intensity = Math.min(5, fv * 3); fl.color.setHex(fb.color); } else fl.intensity = 0;
+    flashSort.length = 0;
+    for (let i = 0; i < W.flashes.length; i++) { const f = W.flashes[i]; f._v = (f.until - IV.time) / f.dur * f.i; if (f._v > 0) flashSort.push(f); }
+    if (flashSort.length > 1) flashSort.sort((a, b) => b._v - a._v);
+    for (let i = 0; i < W.flashLights.length; i++) {
+      const fl = W.flashLights[i], fb = flashSort[i];
+      if (fb) { fl.position.set(fb.x, fb.y, fb.z); fl.distance = Math.min(60, fb.r * 1.6); fl.intensity = Math.min(5, fb._v * 3); fl.color.setHex(fb.color); } else fl.intensity = 0;
+    }
     // shadow camera follows the focus point, snapped to texels so shadows do not swim
     if (W.sun.castShadow && focus && !W.atm) {
       const s = W.shadowR || 40, texel = (2 * s) / (W.sun.shadow.mapSize.x || 1024);

@@ -474,6 +474,8 @@
     // interior lights (kitchen, office) and the doors' positions for the script
     [[-5, 2.2], [5.4, 2.0], [-5, -2.2]].forEach((q, i) => { const p = L(q[0], q[1]); W.addLamp({ x: p[0], y: fy + 2.4, z: p[1], r: 6.5, i: 0.8, power: 1.2, color: 0xffa850, flicker: true }); });
     M.houseDoorN = { x: L(0, -5.3)[0], z: L(0, -5.3)[1] }; M.houseDoorS = { x: L(0, 5.3)[0], z: L(0, 5.3)[1] }; M.houseFy = fy;
+    // trodden mud at the doors, the farm gates and the field gateways (ground marks: drawing only)
+    if (W.dirtPatch) { W.dirtPatch(M.houseDoorN.x, M.houseDoorN.z, 2.2, 60); W.dirtPatch(M.houseDoorS.x, M.houseDoorS.z, 2.2, 60); for (const g of WET.gates) W.dirtPatch(g[0], g[1], g[2], Math.round(g[2] * 22)); W.dirtPatch(BARN.x - BARN.w / 2 - 1.5, BARN.z, 3.5, 80); }
     M.rooms = { kitchen: L(-5, 2.6), parlour: L(-5, -2.4), office: L(5, 2.2), bedroom: L(5, -2.2), hall: L(0, 0) };
     // barn: tall wooden walls on a stone base, loft over the north half, hay door high on the west wall
     const BB = IV.art.building(b, { x: BARN.x, z: BARN.z, w: BARN.w, d: BARN.d, y: farmH - 0.1, h: 6.2, floor: 0.12, mat: 'wood', color: 0x8a7458, floorMat: 'stone', floorCol: 0x6a6258, beams: false,

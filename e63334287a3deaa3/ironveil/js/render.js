@@ -31,7 +31,7 @@
     night: { sat: 0.8, shadow: [0.94, 0.98, 1.06], high: [1.04, 1.0, 0.94], curve: 0.22, lift: [0.010, 0.013, 0.020], vig: 0.6, grain: 0.018, bloom: 0.05 },
     rain: { sat: 0.7, shadow: [0.9, 0.98, 1.1], high: [1.04, 1.0, 0.95], curve: 0.18, lift: [0.011, 0.013, 0.017], vig: 0.55, grain: 0.018, bloom: 0.05 },
     dawn: { sat: 0.86, shadow: [0.92, 0.98, 1.08], high: [1.07, 1.0, 0.9], curve: 0.18, lift: [0.010, 0.010, 0.012], vig: 0.5, grain: 0.016, bloom: 0.045 },
-    day: { sat: 0.84, shadow: [0.97, 0.99, 1.03], high: [1.02, 1.0, 0.97], curve: 0.2, lift: [0.008, 0.009, 0.011], vig: 0.45, grain: 0.014, bloom: 0.035 }
+    day: { sat: 0.96, shadow: [0.97, 0.99, 1.03], high: [1.03, 1.0, 0.96], curve: 0.28, lift: [0.008, 0.009, 0.011], vig: 0.45, grain: 0.014, bloom: 0.035 }
   };
   if (window.IVEnv) IVEnv.GRADES = R.GRADES;
 
@@ -88,7 +88,9 @@
         s += t.r * wt; w += wt; } }
       gl_FragColor = vec4(s / w, c.g, 0.0, 1.0); }`;
   // 4. occlusion into the world, by multiplying blend: upsampled by depth, weighted by how lit the pixel already is
-  const AOAPPLY = `uniform sampler2D tAO, tScene, tDepth; uniform vec2 uHalf; uniform float uNear, uFar, uExp, uOn;
+  const AOAPPLY = `uniform sampler2D tAO, tScene, tDepth; uniform vec2 uHalf, uProj; uniform float uNear, uFar, uExp, uOn, uCloudSh, uTime; uniform mat4 uCamW;
+    float ivVH(vec2 p){ p = fract(p * vec2(0.1031, 0.1030)); p += dot(p, p.yx + 33.33); return fract((p.x + p.y) * p.x); }
+    float ivVN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(ivVH(i), ivVH(i + vec2(1.0, 0.0)), f.x), mix(ivVH(i + vec2(0.0, 1.0)), ivVH(i + vec2(1.0, 1.0)), f.x), f.y); }
     varying vec2 vUv;
     void main(){
       float d = texelFetch(tDepth, ivec2(gl_FragCoord.xy), 0).r;
@@ -106,6 +108,15 @@
       float lit = smoothstep(0.16, 0.85, dot(c, vec3(0.2126, 0.7152, 0.0722)) * uExp);
       // grime gathers where the occlusion is deep (corners, wall feet, under ledges): a little browner there as well
       vec3 k = vec3(mix(1.0, ao, 0.95 * (1.0 - 0.8 * lit))) * mix(vec3(1.0), vec3(0.9, 0.85, 0.76), (1.0 - ao) * 0.6);
+      // by day under broken overcast: slow drifting patches where the sun breaks through and where cloud shadows it,
+      // on sunlit surfaces only (the shade is lit by the sky and does not change)
+      if (uCloudSh > 0.0) {
+        vec3 wp = (uCamW * vec4((vUv * 2.0 - 1.0) * uProj * z, -z, 1.0)).xyz;
+        vec2 cp = wp.xz * 0.011 + uTime * vec2(0.006, 0.0025);
+        float n = ivVN(cp) * 0.65 + ivVN(cp * 2.3 + 4.1) * 0.35;
+        float sh = smoothstep(0.38, 0.66, n);
+        k *= mix(1.0, mix(1.12, 0.7, sh), lit * uCloudSh);
+      }
       gl_FragColor = vec4(k, 1.0);
     }`;
 
@@ -208,7 +219,7 @@
     const mLin = mk(LIN, { tDepth: { value: depthTex }, uNear: { value: 0.1 }, uFar: { value: 900 } });
     const mAO = mk(AO(high ? 12 : 8), { tLin: { value: rtLin.texture }, uProj: { value: new THREE.Vector2(1, 1) }, uTexel: { value: new THREE.Vector2() }, uRadius: { value: 0.9 }, uScale: { value: 1 }, uInt: { value: 1.6 }, uTime: { value: 0 } });
     const mBlur = mk(AOBLUR, { tSrc: { value: null }, uDir: { value: new THREE.Vector2() } });
-    const mApply = mk(AOAPPLY, { tAO: { value: rtAO.texture }, tScene: { value: rtScene.texture }, tDepth: { value: depthTex }, uHalf: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 900 }, uExp: { value: 1 }, uOn: { value: 1 } },
+    const mApply = mk(AOAPPLY, { tAO: { value: rtAO.texture }, tScene: { value: rtScene.texture }, tDepth: { value: depthTex }, uHalf: { value: new THREE.Vector2() }, uNear: { value: 0.1 }, uFar: { value: 900 }, uExp: { value: 1 }, uOn: { value: 1 }, uProj: { value: new THREE.Vector2(1, 1) }, uCamW: { value: new THREE.Matrix4() }, uCloudSh: { value: 0 }, uTime: { value: 0 } },
       { blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.ZeroFactor, blendDst: THREE.SrcColorFactor, transparent: true });
     const mDown = mk(DOWN, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() }, uFirst: { value: 0 } });
     const mUp = mk(UP, { tSrc: { value: null }, tLow: { value: null }, uTexel: { value: new THREE.Vector2() }, uMix: { value: 0.62 } });
@@ -269,6 +280,8 @@
           mBlur.uniforms.tSrc.value = rtAO.texture; mBlur.uniforms.uDir.value.set(1 / rtAO.width, 0); pass(mBlur, rtAO2);
           mBlur.uniforms.tSrc.value = rtAO2.texture; mBlur.uniforms.uDir.value.set(0, 1 / rtAO.height); pass(mBlur, rtAO);
           mApply.uniforms.uExp.value = exp; mApply.uniforms.uOn.value = 1;
+          mApply.uniforms.uProj.value.set(tx, ty); mApply.uniforms.uCamW.value.copy(camera.matrixWorld); mApply.uniforms.uTime.value = P.uTime.value;
+          mApply.uniforms.uCloudSh.value = (E && E.atmo && E.atmo.P && E.atmo.P.cloudShadow) || 0;
           renderer.autoClear = false; rtScene.resolveDepthBuffer = false; pass(mApply, rtScene); renderer.autoClear = ac;
         } else pass(mLin, rtLin);
         // 5. soft particles

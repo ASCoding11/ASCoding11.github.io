@@ -16,9 +16,9 @@
     // throw long shadows but not to paint the fields pale; a low, cool fill so shadow is real dark (lifted a little by
     // the grade, never crushed); a wide soft glow round the moon in a broken deck. Lamps and windows do the rest.
     night_moon: {
-      skyTop: 0x04060b, skyHor: 0x151b25, ground: 0x07080a, fog: 0x0e131a, fogD: 0.0105, mist: 0.5, mistTop: 1.8,
-      sunDir: [-0.5, 0.74, 0.45], sunCol: 0xa9bde0, sunI: 1.5, sunShadow: true, soft: 3, moon: 1, stars: 1, cloud: 0.42, cloudCol: 0x151a22, glow: 0.5, cscale: 0.6,
-      hemiSky: 0x33435f, hemiGround: 0x1c1712, hemiI: 0.58, env: 0.35, exposure: 1.1, wind: 0.35, wet: 0.22, rain: 0, grade: 'night'
+      skyTop: 0x04060b, skyHor: 0x26303f, ground: 0x07080a, fog: 0x161d27, fogD: 0.0105, mist: 0.5, mistTop: 1.8,
+      sunDir: [-0.5, 0.74, 0.45], sunCol: 0xa3b8de, sunI: 2.2, sunShadow: true, soft: 2.5, moon: 1, stars: 1, cloud: 0.42, cloudCol: 0x161b24, glow: 0.55, cscale: 0.6,
+      hemiSky: 0x33435f, hemiGround: 0x1c1712, hemiI: 0.5, env: 0.45, exposure: 1.1, wind: 0.35, wet: 0.22, rain: 0, grade: 'night', rim: 0.55, rimCol: 0x8aa0c8
     },
     night_overcast: {
       skyTop: 0x080a0d, skyHor: 0x1b1f25, ground: 0x0b0c0d, fog: 0x171b20, fogD: 0.0135, mist: 0.7, mistTop: 2.2,
@@ -53,8 +53,8 @@
     // the hedge line and the hills.
     day_overcast: {
       skyTop: 0x6f7d8c, skyHor: 0xb6b8b3, ground: 0x4b4a44, fog: 0xa7aaa8, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
-      sunDir: [0.55, 0.32, -0.77], sunCol: 0xf3d9b0, sunI: 1.5, sunShadow: true, soft: 5, moon: 0, stars: 0, cloud: 0.75, cloudCol: 0x8f9396, glow: 1.6, cscale: 0.75,
-      hemiSky: 0x9aa7b6, hemiGround: 0x635a4a, hemiI: 0.85, env: 0.75, exposure: 0.98, wind: 0.6, wet: 0.0, rain: 0, grade: 'day'
+      sunDir: [0.55, 0.32, -0.77], sunCol: 0xf3dcb6, sunI: 1.7, sunShadow: true, soft: 4, moon: 0, stars: 0, cloud: 0.72, cloudCol: 0x8f9396, glow: 1.6, cscale: 0.75,
+      hemiSky: 0x9fb0c4, hemiGround: 0x8a7f68, hemiI: 1.0, env: 0.8, exposure: 0.95, wind: 0.6, wet: 0.0, rain: 0, grade: 'day', rim: 0.08, cloudShadow: 1
     }
   };
 
@@ -290,6 +290,7 @@
       if (!P.moon) u.moonCol.value.copy(L(P.sunCol)); else u.moonCol.value.set(0xdde6ff).convertSRGBToLinear();
       sun.color.copy(L(P.sunCol)); sun.intensity = P.sunI; sun.shadow.radius = (P.soft || 3) * (Q.name === 'high' ? 1.25 : 1);   // shadow edge width in map texels (js/render.js widens the kernel) sun.castShadow = opts.shadows !== false && !!P.sunShadow && (P.shadowHi < 0.5 || !P.shadowHi || Q.name === 'high');
       hemi.color.copy(L(P.hemiSky)); hemi.groundColor.copy(L(P.hemiGround)); hemi.intensity = P.hemiI;
+      E.U.uRim.value.copy(L(P.rimCol || P.hemiSky)).multiplyScalar(P.rim != null ? P.rim : 0.1);
       E.U.uWinC.value.copy(L(P.hemiSky)).multiplyScalar(P.hemiI).add(L(P.sunCol).multiplyScalar(P.sunI * 0.12));   // the light coming in at windows and doors
       fog.color.copy(L(P.fog)); fog.near = (opts.fogD || P.fogD) * (opts.fogMul || 1);   // opts.fogD: a map's own haze in place of the preset's fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;

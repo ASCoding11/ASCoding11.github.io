@@ -47,7 +47,7 @@
       ['x-smoke', { extra: 1, cam: [0, 1.7, 46], at: [0, 1.2, 30], smoke: [0, 30], steps: 150 }],
       ['x-blast', { extra: 1, cam: [0, 1.7, 46], at: [0, 1.2, 30], blast: [0, 30], steps: 25 }],
       ['x-ceiling', { extra: 1, cam: [16, 1.6, 141], at: [13, 3.6, 139.5] }],
-      ['x-door', { extra: 1, cam: [8.3, 1.5, 141.2], at: [11, 0.7, 140] }],
+      ['x-door', { extra: 1, cam: [8.3, 1.5, 141.2], at: [11, 0.7, 140] }], ['x-wallfoot', { extra: 1, cam: [14, 1.2, 147.5], at: [16, 0.5, 143.2] }], ['x-yardsurf', { extra: 1, cam: [1.5, 1.4, 28.5], at: [0, 0, 24] }],
       ['x-guard30', { extra: 1, spawnAt: [4, 152], guard: 'still30', dist: 30 }]],
     nightdrop: [
       ['wide', { cam: [70, 14, -40], at: [100, 0, -85] }], ['lane', { cam: [-60, 1.7, 19], at: [-80, 1.4, 19] }],
@@ -56,12 +56,14 @@
       ['fp-hip', { fp: [96, -64, -1.2] }], ['fp-aim', { fp: [96, -64, -1.2], aim: 1 }],
       ['x-guard25', { extra: 1, guard: 'g1', dist: 25 }], ['x-guard30', { extra: 1, guard: 'g1', dist: 30 }],
       ['x-door', { extra: 1, door: 1 }],
+      ['x-field30', { extra: 1, spawnAt: [55, -86], enemy: 1, cam: [25.2, 1.7, -82.5], at: [55, 1.1, -86] }], ['x-field40', { extra: 1, spawnAt: [55, -86], enemy: 1, cam: [15.3, 1.7, -81.3], at: [55, 1.1, -86] }],
+      ['x-wallfoot', { extra: 1, wallfoot: 1 }], ['x-lanesurf', { extra: 1, cam: [-60, 1.5, 19], at: [-64.5, 0, 19.3] }],
       ['x-smoke', { extra: 1, cam: [90, 1.7, -60], at: [100, 1.2, -68], smoke: [100, -68], steps: 150 }],
       ['x-blast', { extra: 1, cam: [90, 1.7, -60], at: [100, 1.2, -68], blast: [100, -68], steps: 25 }]]
   };
   const frame = document.getElementById('game');
   frame.style.width = FW + 'px'; frame.style.height = FH + 'px';
-  frame.src = 'index.html?test&q=' + Q;
+  frame.src = 'index.html?test&q=' + Q + (qs.get('gov') ? '&gov=1' : '');
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   async function until(fn, ms, what) { const end = performance.now() + ms; while (performance.now() < end) { try { if (fn()) return; } catch (e) {} await sleep(250); } throw new Error('timed out waiting for ' + what); }
   const shots = [];
@@ -85,6 +87,11 @@
       const c0 = performance.now(); W.renderer.compile(W.scene, W.camera);
       L.meta[m] = { loadS: +((performance.now() - tm) / 1000).toFixed(1), compileMs: Math.round(performance.now() - c0), programs: W.renderer.info.programs.length };
       log(m + ' ready ' + L.meta[m].loadS + ' s');
+      // ?gov=1: feed the frame-time governor 70 ms frames for 9 s and record what it does to the internal buffers
+      if (qs.get('gov')) { const before = W.post ? W.post.size.slice() : null; W.govStart(); const t1 = performance.now();
+        while (performance.now() - t1 < 9000) { W.govFrame(0.07); await sleep(40); }
+        L.meta[m + '-gov'] = { before, after: W.post ? W.post.size : null, scale: W.post ? +W.post.scale.toFixed(2) : null, log: W.gov.log.slice(-8) };
+        log(m + ' gov ' + JSON.stringify(L.meta[m + '-gov'])); }
       for (const [name, v] of VIEWS[m]) {
         if (v.extra && !EXTRA) continue;
         if (ONLY.length && !ONLY.includes(name)) continue;
@@ -117,7 +124,8 @@
     if (v.fp) { api.teleport(v.fp[0], v.fp[1], v.fp[2]); P.pitch = -0.05; try { IV.weapons.equip('smg'); } catch (e) {} if (v.aim) api.press('aim', true); api.step(40); return 'fp'; }
     if (v.cam) { cam = [v.cam[0], gy(v.cam[0], v.cam[2]) + v.cam[1], v.cam[2]]; at = [v.at[0], gy(v.at[0], v.at[2]) + v.at[1], v.at[2]]; }
     if (v.room) { const a = M.rooms[v.room[0]], b = M.rooms[v.room[1]], fy = (M.houseFy != null ? M.houseFy : gy(a[0], a[1]) + 0.3); cam = [a[0], fy + 1.6, a[1]]; at = [b[0], fy + 1.1, b[1]]; note = 'floor ' + fy.toFixed(2); }
-    if (v.spawnAt) { { const e = IV.ai.spawn({ kind: 'ally', weapon: 'smg', x: v.spawnAt[0], z: v.spawnAt[1], yaw: Math.PI, noShoot: true, fixed: true, name: 'still30' }); if (e) e.hp = 9999; note = 'spawned ' + !!e + ' at ' + (e ? e.pos.x.toFixed(1) + ',' + e.pos.z.toFixed(1) : '-'); } api.step(30); }
+    if (v.spawnAt) { { const old = IV.ai.list.find(e => e.name === 'still30'); if (old) { old.pos.x = v.spawnAt[0]; old.pos.z = v.spawnAt[1]; } const e = old || IV.ai.spawn(Object.assign(v.enemy ? {} : { kind: 'ally', weapon: 'smg' }, { x: v.spawnAt[0], z: v.spawnAt[1], yaw: Math.PI, noShoot: true, fixed: true, name: 'still30' })); if (e) e.hp = 9999; note = 'spawned ' + !!e + ' at ' + (e ? e.pos.x.toFixed(1) + ',' + e.pos.z.toFixed(1) : '-'); } api.step(30); }
+    if (v.wallfoot) { const d = M.houseDoorS, hx = 98, hz = -92, dx = d.x - hx, dz = d.z - hz, L = Math.hypot(dx, dz) || 1, fy = M.houseFy || gy(d.x, d.z), px = -dz / L, pz = dx / L; cam = [d.x + dx / L * 2.2 + px * 3.2, gy(d.x, d.z) + 1.1, d.z + dz / L * 2.2 + pz * 3.2]; at = [d.x + px * 3.2, gy(d.x, d.z) + 0.35, d.z + pz * 3.2]; note = 'wallfoot'; }
     if (v.door) { const d = M.houseDoorS, hx = 98, hz = -92, dx = d.x - hx, dz = d.z - hz, L = Math.hypot(dx, dz) || 1, fy = M.houseFy || gy(d.x, d.z); cam = [d.x + dx / L * 2.6 + 0.6, fy + 1.3, d.z + dz / L * 2.6]; at = [d.x, fy + 0.6, d.z]; note = 'door'; }
     if (v.spawn) { if (!IV.__spawned) { IV.__spawned = IV.ai.spawn({ kind: 'ally', weapon: 'smg', x: v.spawn[0], z: v.spawn[1], yaw: 0, noShoot: true, fixed: true, name: 'still' }); IV.__spawned.hp = 9999; } api.step(30); }
     if (v.ent || v.spawn) { const e = v.spawn ? IV.__spawned : IV.ai.list.find(e => e.name === v.ent || e.id === v.ent); if (!e) return 'NO ENT'; cam = [e.pos.x + 1.5, e.pos.y + 1.6, e.pos.z + 1.6]; at = [e.pos.x, e.pos.y + 1.3, e.pos.z]; note = 'ent'; }
