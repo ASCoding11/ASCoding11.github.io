@@ -32,13 +32,14 @@
   FP.frame = function (cam, dt, dir, yaw, pitch) {
     const S = IV.settings, W8 = IV.weapons, pr = P.render;
     // eye height by stance, eased (a slight overshoot coming up)
-    const want = P.vault ? 1.4 : EYE[P.stance] || 1.62;
-    FP.eye = IV.damp(FP.eye, want, P.stance === 'prone' || want < FP.eye ? 7 : 9, dt);
+    // (the player's own fixed-step ease, P.eyeH: 0.18 s to a crouch, 0.4 s to prone; only a vault is damped here)
+    const want = P.vault ? 1.4 : (P.eyeHR ? P.eyeHR(P.alpha) : EYE[P.stance] || 1.62);
+    FP.eye = P.vault ? IV.damp(FP.eye, want, 9, dt) : want;
     // the body camera: for prone, stance changes, vaults and scripted moments the eye rides on the hero's own head
     // (the head bone, a little up and forward to the eyes), so going prone pitches you forward onto your elbows and
     // a vault carries you up and over with the body instead of a flat height ease
     const A = P.actor, hb = A && A.bone && A.bone('Head'), fb = IV.fwd(P.bodyYaw);
-    const bodyWant = P.vault || P.stance === 'prone' || P.stanceT > 0 || P.cineClip ? 1 : 0;
+    const bodyWant = P.vault || P.stance === 'prone' || P.cineClip ? 1 : 0;
     FP.bodyK = IV.damp(FP.bodyK || 0, bodyWant, bodyWant ? 9 : 4, dt);
     if (hb) {
       hb.getWorldPosition(hv);
@@ -538,7 +539,7 @@
   FP.throwSync = function (bt, force) {
     if (force || !VM || VM.rig.standin || !FP.on() || !VM.root.visible) return false;
     const v = VM.rig.vm; if (!split(v)) return false;
-    if (bt.relT == null) { bt.relT = IV.time; v.play('grenadeThrow', { fade: 0.08 }); }
+    if (bt.relT == null) { bt.relT = IV.time; v.play('grenadeThrow', { fade: 0.06, speed: 1.5 }); }   // release frame (0.38 s in the clip) lands at 0.25 s, when weapons.js lets the grenade go
     if (FP.lastEvent && FP.lastEvent.e === 'release' && FP.lastEvent.c === 'grenadeThrow' && FP.lastEvent.t >= bt.relT - 1e-3) return false;
     return IV.time - bt.relT < 0.6;
   };
