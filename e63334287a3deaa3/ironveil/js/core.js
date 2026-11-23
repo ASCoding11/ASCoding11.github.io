@@ -27,27 +27,31 @@
   // Every number that sets how the game feels, in one place, with units. Tuned by playing (see README).
   IV.TUNING = {
     step: 1 / 60,                       // s, fixed simulation step
-    move: {                              // MOVEMENT.md section 2 (a soldier with rifle and kit)
-      walk: 1.5, run: 3.8, sprint: 6.4,  // m/s: walk is also the speed while aiming; run is the default jog
-      crouch: 1.3, crouchRun: 2.0,       // m/s crouched (crouch-walk is quiet; Shift crouched = crouch-run)
-      prone: 0.6,                        // m/s crawling
-      strafeMul: 0.85, backMul: 0.7,     // sideways and backward speed vs forward
-      accel: 12,                         // 1/s exponential approach: about 0.25 s to jog
-      sprintAccel: 5,                    // 1/s from jog up to sprint: about 0.6 s
-      decel: 14, airAccel: 2,            // 1/s: stop in about 0.2 s (14, as the characters' test page; the stop's foot glide depends on the foot phase at release, 5-20 cm, not on this rate)
-      sprintDecel: 7,                    // 1/s: stopping or reversing from above a jog takes about 0.4 s (a braking step, not a skid)
-      plantTime: 0.12, plantSpeed: 2.5,  // s the feet plant on a full reversal above this speed (m/s)
+    move: {                              // arcade response on the reference shooter's rules, scaled to our farm-sized maps (README)
+      run: 5.0, sprint: 7.5,             // m/s: the default jog; sprint (Shift, forward or forward-diagonal)
+      ads: 3.2,                          // m/s while aiming down the sights (the reference keeps 63 % of its jog)
+      walk: 3.2,                         // m/s, old name for the aimed speed (kept for anything that still reads it)
+      crouch: 2.6, crouchRun: 3.3,       // m/s crouched (crouch-walk is quiet; Shift crouched = crouch-run)
+      prone: 1.2,                        // m/s crawling
+      backMul: 0.82,                     // straight back is 82 % (eased in by how far back the stick points); strafing is full speed
+      accel: 45,                         // m/s^2: the velocity VECTOR moves toward the wanted one at this rate (jog in 0.11 s,
+      decel: 34,                         //   A to D reversal in 0.22 s), no key released dead time; decel when no key is held
+      airAccel: 9, airDrag: 0.6,         // m/s^2 in the air: steering with keys held; drift loss with none (momentum carries)
       turnRate: 9.4,                     // rad/s body turn toward the movement (540 deg/s)
       aimTurnRate: 12.5,                 // rad/s body toward the aim while aiming (720 deg/s)
-      sprintTurnRate: 2.1,               // rad/s the sprint direction can swing (120 deg/s): no turning on the spot
       turnInPlace: 1.05, turnInPlaceRate: 4.4, // rad past which a standing body turns in place, and how fast
-      gravity: 22,                       // m/s^2 (snappier than 9.8 for a character)
+      gravity: 21,                       // m/s^2
+      jumpApex: 1.0,                     // m, jump height (take-off speed sqrt(2 g h) = 6.5 m/s)
+      coyote: 0.12, jumpBuffer: 0.13,    // s: jump still allowed just after walking off an edge; a press just before landing counts
       step: 0.35, snap: 0.5,             // m: step-up height; ground snap reach (stays glued going downhill)
       slopeCos: 0.766, slideAccel: 9,    // cos(40 deg): steeper terrain can't be climbed and slides you back
       radius: 0.32,                      // m, body radius
       vaultMin: 0.45, vaultMax: 1.35,    // m, heights you can vault over
       vaultTime: 0.62, vaultTimeClip: 1.1, // s: stand-in vault; chars.js's vault clip (in place, root moved by us)
-      stanceTime: 0.28,                  // s, (see setStance: 0.25 / 0.6 / 0.9 s by how far the change goes)
+      crouchTime: 0.18, proneTime: 0.4,  // s: stand <-> crouch; to or from prone. Eye height eases over exactly this; no speed loss
+      eye: { stand: 1.62, crouch: 1.08, prone: 0.42 }, // m eye height above the feet by stance
+      cadence: { walk: 1.7, run: 2.6, sprint: 3.1, crouch: 1.45, crouchRun: 2.0, prone: 0.8 }, // footfalls per second by gait:
+                                         //   the guards hear one per footfall, so noise follows gait and stance, not raw speed
       sprintOut: 0.22,                   // s after a sprint before the weapon can fire or aim
       waterMul: 0.55                     // speed in the stream
     },

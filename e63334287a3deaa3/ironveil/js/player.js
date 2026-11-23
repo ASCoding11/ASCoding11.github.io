@@ -1,7 +1,8 @@
-/* Ironveil player: a kinematic capsule on the heightfield and boxes (MOVEMENT.md sections 1-2).
-   - Velocity always eases toward a target (exponential), never set from the keys. Speeds and times in TUNING.move.
-   - Strafing and backpedalling are slower than forward; diagonals are not faster.
-   - A full reversal at jog or sprint plants for a moment before the new direction takes over; sprint turns slowly.
+/* Ironveil player: a kinematic capsule on the heightfield and boxes. Speeds and times in TUNING.move.
+   - Arcade response (the reference shooter's rules): the velocity VECTOR moves straight toward the wanted one at a fixed
+     rate (45 m/s^2 with a key held, 34 without), so diagonals, strafing while turning and A-to-D reversals answer at
+     once with no dead time. Strafing is full speed, straight back 82 %; diagonals are not faster. Sprint on forward and
+     forward-diagonal keys, no turn limit. Light air control; momentum carries in the air.
    - Not aiming: the body turns toward the movement at a capped rate. Aiming: the body faces the aim and the legs strafe.
      Standing still while the camera swings past about 60 degrees: the body turns in place (with steps).
    - Step-up (0.35 m), ground snap (no hopping downhill), slopes over about 40 degrees push you back down.
@@ -15,7 +16,7 @@
     pos: new THREE.Vector3(), prev: new THREE.Vector3(), vel: new THREE.Vector3(), render: new THREE.Vector3(),
     yaw: 0, pitch: 0, bodyYaw: 0, bodyPrev: 0, stance: 'stand', stanceT: 0, grounded: true, hp: 100, alive: true,
     sprinting: false, speed: 0, gait: 'still', vault: null, inWater: false, lastHurt: -99, stride: 0, actor: null,
-    noise: 0, crops: false, god: false, frozen: false, cine: null, hurtDir: 0, plantT: 0, turning: false, yawRate: 0, fallSpeed: 0
+    noise: 0, crops: false, god: false, frozen: false, cine: null, hurtDir: 0, turning: false, yawRate: 0, fallSpeed: 0
   };
   const HEIGHT = { stand: 1.78, crouch: 1.2, prone: 0.55 };
   P.height = () => HEIGHT[P.stance];
@@ -24,7 +25,7 @@
   P.spawn = function (x, z, yaw, stance) {
     P.pos.set(x, W.height(x, z), z); P.prev.copy(P.pos); P.render.copy(P.pos); P.vel.set(0, 0, 0);
     P.yaw = yaw || 0; P.bodyYaw = P.bodyPrev = P.yaw; P.pitch = -0.05; P.stance = stance || 'stand'; P.stanceT = 0;
-    P.hp = T.health.max; P.alive = true; P.vault = null; P.frozen = false; P.cine = null; P.cineClip = false; P.lastHurt = -99; P.plantT = 0; P.turning = false;
+    P.hp = T.health.max; P.alive = true; P.vault = null; P.frozen = false; P.cine = null; P.cineClip = false; P.lastHurt = -99; P.turning = false;
     if (!P.actor) {
       P.actor = IVChars.spawn('hero');
       P.actor.root.traverse(o => { o.userData.player = true; });
@@ -32,7 +33,7 @@
       // pelvis drop would pull the body down to it)
       P.actor.groundAt = (x, z) => P.cine ? null : W.groundAt(x, z, P.render.y + 0.4);
       // footsteps come from the animation's foot contacts
-      P.actor.onFoot = (side, strength) => footFx(P.render, P.stance === 'stand' ? (P.sprinting ? 'sprint' : P.speed > 2.6 ? 'run' : 'walk') : P.stance === 'crouch' ? 'crouch' : 'prone', strength, true);
+      P.actor.onFoot = (side, strength) => footFx(P.render, P.gait === 'still' ? (P.stance === 'stand' ? 'walk' : P.stance) : P.gait, strength, true);   // the sound follows the gait (player.step)
     }
     W.dynamic.add(P.actor.root);
     P.actor._gOff = null; P.actor._pelDrop = 0;   // a respawn starts the foot IK fresh, not eased from where the body was
@@ -144,25 +145,25 @@
     if (I.pressed('prone')) P.setStance(P.stance === 'prone' ? 'crouch' : 'prone');
     if (I.pressed('vault')) { if (P.stance !== 'stand' && !nearVault()) P.setStance('stand'); else if (!tryVault() && P.stance !== 'stand') P.setStance('stand'); }
     const W8 = IV.weapons, aiming = W8 && (W8.aiming || W8.scoped), binoc = W8 && W8.binoc;
-    // sprint: standing, moving mostly forward, not aiming. Shift while crouched is a quieter crouch-run.
-    const sprint = I.held('sprint') && I.moveY > 0.3 && !aiming && !binoc && !(W8 && W8.busyThrow) && P.stance === 'stand';
+    // sprint: standing, keys forward or forward-diagonal, not aiming, throwing or firing. Shift crouched = quieter crouch-run.
+    const mx = I.moveX, my = I.moveY, ml = Math.min(1, Math.hypot(mx, my));
+    const wantSprint = I.held('sprint') && my > 0.5 && Math.abs(mx) < 0.75 && !aiming && !binoc && !(W8 && W8.busyThrow) && !I.held('fire') && P.stance === 'stand' && !P.inWater;
+    const sprint = wantSprint && (P.grounded ? Math.hypot(P.vel.x, P.vel.z) > MV.run * 0.6 : P.sprinting);
     if (P.sprinting && !sprint) P.sprintOutT = MV.sprintOut;   // the weapon needs a moment to come up after a sprint
     P.sprintOutT = Math.max(0, (P.sprintOutT || 0) - dt);
     P.sprinting = sprint;
     P.crouchRun = I.held('sprint') && P.stance === 'crouch';
-    // target velocity, camera relative; strafe and backpedal slower than forward
+    // wanted velocity, camera relative
     const f = IV.fwd(P.yaw), rx = -f.z, rz = f.x;
-    const mx = I.moveX, my = I.moveY, ml = Math.min(1, Math.hypot(mx, my));
     let tx = f.x * my + rx * mx, tz = f.z * my + rz * mx;
     const tl = Math.hypot(tx, tz); if (tl > 1e-4) { tx /= tl; tz /= tl; }
-    const fw = Math.max(0, my), bk = Math.max(0, -my), sd = Math.abs(mx), dirMul = (fw + bk * MV.backMul + sd * MV.strafeMul) / Math.max(1e-4, fw + bk + sd);
     let sp;
     if (P.stance === 'prone') sp = MV.prone;
     else if (P.stance === 'crouch') sp = P.crouchRun ? MV.crouchRun : MV.crouch;
-    else sp = sprint ? MV.sprint : aiming ? MV.walk : MV.run;
-    if (aiming && P.stance !== 'stand') sp = Math.min(sp, MV.crouch * 0.85);
+    else sp = wantSprint ? MV.sprint : MV.run;
+    if (aiming) sp = Math.min(sp, MV.ads);
     if (binoc) sp *= 0.5;
-    if (P.stanceT > 0) sp *= 0.5;
+    if (my < 0) sp *= 1 + (MV.backMul - 1) * Math.min(1, -my);   // straight back 82 %, back-diagonals in between
     // slopes: slower going up (about 15% at 15 degrees, 30% at 25), a little slower steeply down; across is free
     if (tl > 1e-4 && P.grounded) {
       const ahead = W.height(P.pos.x + tx * 0.6, P.pos.z + tz * 0.6) - W.height(P.pos.x - tx * 0.6, P.pos.z - tz * 0.6), grade = ahead / 1.2;
@@ -173,23 +174,14 @@
     if (P.inWater) sp *= MV.waterMul;
     // mud drags at the boots (the environment kit's ground: about 10-20 % slower in deep wet mud, nothing on hard ground)
     if (!P.inWater && P.grounded && window.IVEnv && IVEnv.groundInfo && !W.underRoof(P.pos.x, P.pos.z)) { try { const gi = IVEnv.groundInfo(P.pos.x, P.pos.z); if (gi.mud > 0.4) sp *= 1 - 0.16 * gi.mud * (0.7 + 0.3 * gi.wet); P.mud = gi.mud; } catch (e) {} }
-    sp *= ml * (sprint ? 1 : dirMul);
-    // reversal plant: a hard change of direction at speed holds the acceleration back for a moment
-    const cur = Math.hypot(P.vel.x, P.vel.z);
-    if (cur > MV.plantSpeed && ml > 0.3 && (P.vel.x * tx + P.vel.z * tz) / cur < -0.3 && P.plantT <= 0 && !P.planted) { P.plantT = MV.plantTime; P.planted = true; }
-    if ((P.vel.x * tx + P.vel.z * tz) >= 0) P.planted = false;
-    let k;
-    const fast = cur > MV.run + 0.5;   // coming down from a sprint: brake over about 0.4 s so the feet can plant
-    if (P.plantT > 0) { P.plantT -= dt; tx = 0; tz = 0; sp = 0; k = fast ? MV.sprintDecel : MV.decel * 1.4; }
-    else if (!P.grounded) k = MV.airAccel;
-    else if (sp < 0.05) k = fast ? MV.sprintDecel : MV.decel;
-    else k = sprint && cur > MV.run - 0.3 ? MV.sprintAccel : MV.accel;
-    // sprinting can't turn on the spot: the velocity's direction swings at a capped rate
-    if (sprint && cur > 2.5 && sp > 0) {
-      const va = IV.yawTo(P.vel.x, P.vel.z), ta = IV.yawTo(tx, tz), na = turnToward(va, ta, MV.sprintTurnRate, dt), nf = IV.fwd(na);
-      tx = nf.x; tz = nf.z;
-    }
-    P.vel.x = IV.damp(P.vel.x, tx * sp, k, dt); P.vel.z = IV.damp(P.vel.z, tz * sp, k, dt);
+    sp *= ml;
+    // the velocity vector moves straight toward the wanted one at a fixed rate: no per-axis lag, no plant, no turn cap
+    const has = ml > 0.1, wx = has ? tx * sp : 0, wz = has ? tz * sp : 0;
+    const rate = P.grounded ? (has ? MV.accel : MV.decel) : (has ? MV.airAccel : MV.airDrag);
+    let ddx = wx - P.vel.x, ddz = wz - P.vel.z;
+    const dl = Math.hypot(ddx, ddz), mstep = rate * dt;
+    if (dl <= mstep) { if (P.grounded || has) { P.vel.x = wx; P.vel.z = wz; } }
+    else { P.vel.x += ddx / dl * mstep; P.vel.z += ddz / dl * mstep; }
     // move + collide (boxes lower than a step are stood on, not pushed against)
     o.x = P.pos.x + P.vel.x * dt; o.z = P.pos.z + P.vel.z * dt;
     const hit = W.collide(o, MV.radius, P.pos.y + MV.step, P.pos.y + P.height());
@@ -216,7 +208,7 @@
     P.speed = Math.hypot(P.vel.x, P.vel.z);
     const faceAim = aiming || binoc || (W8 && (W8.firingRecently || W8.busyThrow));
     if (faceAim) { P.bodyYaw = turnToward(P.bodyYaw, P.yaw, MV.aimTurnRate, dt); P.turning = false; }
-    else if (P.speed > 0.4 && sp > 0) { P.bodyYaw = turnToward(P.bodyYaw, IV.yawTo(P.vel.x, P.vel.z), MV.turnRate * (P.stance === 'prone' ? 0.35 : 1), dt); P.turning = false; }
+    else if (P.speed > 0.4 && has) { P.bodyYaw = turnToward(P.bodyYaw, IV.yawTo(P.vel.x, P.vel.z), MV.turnRate * (P.stance === 'prone' ? 0.35 : 1), dt); P.turning = false; }
     else if (P.speed < 0.4 && P.stance !== 'prone') {
       const d = Math.abs(IV.wrapA(P.yaw - P.bodyYaw));
       if (d > MV.turnInPlace) P.turning = true;
@@ -224,16 +216,19 @@
     }
     P.yawRate = IV.wrapA(P.bodyYaw - P.bodyPrev) / dt;
     // footstep noise the guards can hear: by distance walked, in the fixed step (the sound itself comes from onFoot)
-    P.gait = P.speed < 0.3 ? 'still' : P.stance === 'prone' ? 'prone' : P.stance === 'crouch' ? (P.crouchRun ? 'crouchRun' : 'crouch') : sprint ? 'sprint' : P.speed > 2.6 ? 'run' : 'walk';
+    // gait by stance and intent (sprint key, aiming, how far the stick is pushed), not raw speed
+    P.gait = P.speed < 0.3 ? 'still' : P.stance === 'prone' ? 'prone' : P.stance === 'crouch' ? (P.crouchRun ? 'crouchRun' : 'crouch') : sprint ? 'sprint' : !aiming && P.speed > MV.run * 0.75 ? 'run' : 'walk';
     const kind = W.surfaceAt(P.pos.x, P.pos.z);
     P.surface = P.inWater ? 'water' : AUDIO_SURF[kind] || 'grass';
     const onBox = g > W.height(P.pos.x, P.pos.z) + 0.05;
     if (onBox) { const c = W.near(P.pos.x, P.pos.z, 0.3).find(c => Math.abs(c.y1 - g) < 0.03); if (c) P.surface = c.surf === 'foliage' ? 'grass' : c.surf; }
     P.crops = !onBox && (kind === 'field' || kind === 'meadow');
     if (P.gait !== 'still' && P.grounded) {
-      const strideLen = P.gait === 'sprint' ? 1.9 : P.gait === 'run' ? 1.5 : P.gait === 'prone' ? 0.8 : 0.9;
-      P.stride += P.speed * dt;
-      if (P.stride > strideLen) {
+      // one footfall per 1/cadence s at the gait's own speed (stride = that speed / cadence): the guards hear as many
+      // steps per second as before the speeds went up, so a crouch-walk is no louder than it was
+      const gs = { walk: MV.ads, run: MV.run, sprint: MV.sprint, crouch: MV.crouch, crouchRun: MV.crouchRun, prone: MV.prone }[P.gait] || MV.run;
+      P.stride += P.speed * dt * MV.cadence[P.gait] / gs;
+      if (P.stride > 1) {
         P.stride = 0;
         const r = (T.noise[P.gait] || 5) * (T.noise.surface[P.surface] || 1);
         P.noise = r;
