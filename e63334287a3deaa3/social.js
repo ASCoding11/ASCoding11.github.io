@@ -227,7 +227,7 @@
     { k: 'pf', n: 'Puffer Party', d: 'puffer-party', room: ROOM },
     { k: 'bs', n: 'Blockstorm', d: 'blockstorm', room: ROOM },
     { k: 'lh', n: 'Lanternhold', d: 'lanternhold', room: ROOM },
-    { k: 'hp', n: 'Hush Pools', d: 'hush-pools', room: ROOM },
+    { k: 'hp', n: 'Blackwade', d: 'hush-pools', room: ROOM },
     { k: 'vq', n: 'Sky Duel', d: 'sky-duel', room: ROOM },
     { k: 'qg', n: 'Putterby', d: 'putterby', room: ROOM },
     { k: 'tv', n: 'Trivium', d: 'trivium', room: /^[a-z]{5}$/ },
