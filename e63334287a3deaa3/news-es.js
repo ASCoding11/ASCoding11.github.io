@@ -6,6 +6,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Boostball: a greener, brighter stadium": "Boostball: un estadio más verde y luminoso",
+    "The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.": "El campo tiene un verde más fresco con franjas de corte, un charco de luz de los focos en el centro y líneas más nítidas.",
+    "The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.": "El público se dibuja en bloques de aficionados en vez de un moteado de colores al azar, así que las gradas se ven más tranquilas.",
+    "On Pretty graphics: a grass grain around your car, a tighter glow round bright lights and soft halos on the floodlights.": "Con gráficos Lindo: textura de césped alrededor de tu coche, un brillo más ajustado en las luces fuertes y halos suaves en los focos.",
+    "Nothing changes in how the game plays, and Fast graphics costs the same as before.": "Nada cambia en cómo se juega, y los gráficos Rápido cuestan lo mismo que antes.",
     "See when someone is waiting for your room": "Mira cuándo alguien espera por tu sala",
     "When a room is full and someone queues for it, the people in that room are now told.": "Cuando una sala está llena y alguien se pone en cola, ahora se avisa a quienes están en la sala.",
     "A badge for the top of each board": "Una insignia para el primero de cada clasificación",

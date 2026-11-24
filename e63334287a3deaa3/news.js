@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.49', title: 'Boostball: a greener, brighter stadium', kind: 'feature',
+     tags: ['Boostball', 'Graphics'], items: [
+      'The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.',
+      'The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.',
+      'On Pretty graphics: a grass grain around your car, a tighter glow round bright lights and soft halos on the floodlights.',
+      'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
     {date: '2026-11-23', version: '1.48', title: 'See when someone is waiting for your room', kind: 'feature',
      tags: ['Playing now'], items: [
       'When a room is full and someone queues for it, the people in that room are now told.'
