@@ -91,6 +91,11 @@
       'Grass, sand, snow and dirt show a gentle two-tone block grid, and shadows have softer edges.',
       'Your gun is lit more clearly, with bright top edges, and picks up each map\'s light.',
       'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
+    {date: '2026-11-23', version: '1.47', title: 'A badge for the top of each board', kind: 'feature',
+     tags: ['Leaderboards'], items: [
+      'Whoever is top of a game\'s main leaderboard now wears a small badge for that game next to their name.',
+      'The badges show in the Online panel, the Party panel and the Leaderboards.'
+    ]},
     {date: '2026-11-23', version: '1.46', title: 'Sky Duel: fairer bots, bigger hits', kind: 'feature',
      img: 'm/thumbs/sky-duel.jpg', tags: ['Sky Duel'], items: [
       'Bots are fairer: they leave you alone for a few seconds after you spawn unless you shoot first, and fewer of them hunt you at once when you fly solo.',
