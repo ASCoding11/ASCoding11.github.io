@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Hush Pools</title>
+<title>Blackwade</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
-<meta name="theme-color" content="#0d3b3f">
+<meta name="theme-color" content="#070b0a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -15,18 +15,19 @@
 <script src="/e63334287a3deaa3/elo.js" data-game="hush-pools" defer></script>
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <style>
-/* Hush Pools. Layout: a full-screen WebGL view (#view) with the HUD hugging the edges: room and objective top left,
+/* Blackwade (first released as Hush Pools; the folder, room prefix and storage keys keep that name). Layout: a full-screen WebGL view (#view) with the HUD hugging the edges: room and objective top left,
    clock and coins top right, the team down the left, the noise meter bottom left, the hotbar bottom centre, the E
    prompt under the crosshair. Panels (menu, party, shop, keypad, settings, results) sit centred over a dimmed view.
    Touch screens get the stick and buttons in #touch, and the HUD moves up out of their way. */
 :root{
-  --tile:#eef6f4;--tile-2:#d9ebe8;--teal:#2bb3a8;--teal-2:#1d8b83;--deep:#0d3b3f;--ink:#0f2426;--ink-2:#46605f;--ink-3:#7f9796;
-  --warn:#e0483e;--amber:#f2c14e;--glass:rgba(10,36,38,.72);--glass-2:rgba(10,36,38,.55);--line:rgba(255,255,255,.16);
+  --tile:#d8d3c2;--tile-2:#bdb8a4;--teal:#6fc2ae;--teal-2:#3f8574;--deep:#0b1412;--ink:#0b1210;--ink-2:#3e4b46;--ink-3:#84928b;
+  --warn:#e0483e;--amber:#eab54e;--glass:rgba(7,12,11,.82);--glass-2:rgba(7,12,11,.64);--line:rgba(220,235,225,.14);
+  --quiet:#8fe0cd;--loud:#eab54e;--wet:#ff5d4d;
   --f-d:'Archivo','Helvetica Neue',Arial,system-ui,sans-serif;--f-m:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;overflow:hidden;background:#0b2a2c;color:#f2fbfa;font-family:var(--f-d);-webkit-font-smoothing:antialiased}
+html,body{height:100%;margin:0;overflow:hidden;background:#070b0a;color:#f2fbfa;font-family:var(--f-d);-webkit-font-smoothing:antialiased}
 body{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 #view{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none;outline:none}
@@ -37,11 +38,21 @@ input,select{font:inherit}
 .mono{font-family:var(--f-m)}
 /* name tags, pings and chat bubbles over people's heads */
 #tags{position:fixed;inset:0;pointer-events:none;overflow:hidden}
-#tags .tg{position:absolute;left:0;top:0;transform-origin:50% 100%;white-space:nowrap;font:600 12px/1.25 var(--f-m);color:#fff;background:rgba(10,36,38,.7);padding:2px 7px;border-radius:4px;will-change:transform}
+#tags .tg{position:absolute;left:0;top:0;transform-origin:50% 100%;white-space:nowrap;font:600 12px/1.25 var(--f-m);color:#fff;background:rgba(7,12,11,.72);padding:2px 7px;border-radius:4px;will-change:transform}
 #tags .tg.dn{background:rgba(224,72,62,.85)}
 #tags .tg b{display:block;font:500 12px/1.3 var(--f-d);max-width:220px;white-space:normal;color:#e9fffc}
 #tags .pg{position:absolute;left:0;top:0;font:900 13px var(--f-d);letter-spacing:.06em;color:#0f2426;background:var(--amber);padding:3px 8px;border-radius:999px;box-shadow:0 0 0 3px rgba(242,193,78,.35)}
 #tags .pg.danger{background:var(--warn);color:#fff;box-shadow:0 0 0 3px rgba(224,72,62,.35)}
+/* what made a noise, at the spot it happened: bigger and hotter the louder it was; quiet things are small and calm */
+#tags .nz{position:absolute;left:0;top:0;display:flex;align-items:center;gap:5px;white-space:nowrap;font:800 13px/1 var(--f-d);letter-spacing:.02em;padding:5px 9px 5px 6px;border-radius:999px;transform-origin:50% 100%;will-change:transform,opacity}
+#tags .nz svg{width:15px;height:15px;flex:0 0 15px}
+#tags .nz.l3{background:var(--wet);color:#fff;box-shadow:0 0 0 3px rgba(255,93,77,.3),0 4px 14px rgba(0,0,0,.5)}
+#tags .nz.l2{background:var(--loud);color:#1a1205;box-shadow:0 0 0 3px rgba(234,181,78,.28),0 4px 14px rgba(0,0,0,.5)}
+#tags .nz.l1{background:rgba(7,12,11,.8);color:#f3d79b;border:1px solid rgba(234,181,78,.6)}
+#tags .nz.q{background:rgba(7,12,11,.55);color:var(--quiet);border:1px solid rgba(143,224,205,.35);font:600 11px/1 var(--f-m);letter-spacing:.06em;padding:3px 7px 3px 5px}
+#tags .nz small{font:600 10px var(--f-m);opacity:.8}
+#tags .mk{position:absolute;left:0;top:0;white-space:nowrap;font:800 11px/1 var(--f-m);letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:5px;background:rgba(7,12,11,.72)}
+#tags .mk.quiet{color:var(--quiet)}#tags .mk.edge,#tags .mk.hard{color:var(--loud)}#tags .mk.climb{color:var(--loud)}#tags .mk.fall{color:var(--wet)}
 /* HUD */
 #hud{position:fixed;inset:0;pointer-events:none}
 .hcard{background:var(--glass-2);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:10px}
@@ -58,10 +69,18 @@ input,select{font:inherit}
 #team .tm.dn small{color:var(--warn)}
 #team .tm.esc small{color:var(--teal)}
 #noise{position:absolute;left:calc(14px + env(safe-area-inset-left));bottom:calc(16px + env(safe-area-inset-bottom));padding:9px 12px;width:210px}
-#noise .lb{display:flex;justify-content:space-between;font:600 11px var(--f-m);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+#noise .lb{display:flex;justify-content:space-between;align-items:center;gap:8px;font:600 11px var(--f-m);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+#noise .lb b{display:flex;align-items:center;gap:5px;white-space:nowrap;text-transform:none;letter-spacing:0;font:700 12.5px var(--f-d)}#noise .lb svg{width:14px;height:14px}
+#noise.hot .lb b{color:var(--loud)}#noise.wet .lb b{color:var(--wet)}
+#noise .st{display:flex;justify-content:space-between;margin-top:7px;font:600 11px var(--f-m);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+#noise .st b{font-weight:700;letter-spacing:.1em}#noise .st b.s{color:var(--quiet)}#noise .st b.n{color:var(--loud)}
 #noise .lb b{color:#fff;letter-spacing:.04em}
 #noise .bar{height:8px;border-radius:4px;background:rgba(255,255,255,.12);margin-top:7px;overflow:hidden}
 #noise .bar i{display:block;height:100%;width:0;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--amber) 60%,var(--warn));transition:width .12s ease-out}
+/* one short lesson at a time, the first time you do the thing */
+#teach{position:absolute;left:50%;top:25%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;width:max-content;max-width:min(440px,86vw);padding:9px 14px 9px 10px;font:600 14px/1.35 var(--f-d);opacity:0;transition:opacity .3s}
+#teach.on{opacity:1}#teach svg{width:24px;height:24px;flex:0 0 24px}#teach b{color:var(--loud)}#teach i{font-style:normal;color:var(--quiet)}
+#dim{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,0,.55) 100%)}
 #hotbar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));display:flex;gap:6px;pointer-events:auto}
 #hotbar button{width:62px;height:62px;border-radius:10px;background:var(--glass-2);border:1px solid var(--line);position:relative;display:grid;place-items:center;padding:0}
 #hotbar button.on{border-color:var(--amber);box-shadow:0 0 0 2px rgba(242,193,78,.5) inset}
@@ -82,7 +101,7 @@ input,select{font:inherit}
 #snaps div{width:40px;padding:5px 0 6px;text-align:center}
 #snaps small{display:block;font:600 10px var(--f-m);color:var(--ink-3)}
 #snaps b{font:900 22px var(--f-d)}
-#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,20,20,.75) 100%);opacity:0}
+#vig{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,20,20,.75) 100%);opacity:0}
 #fade{position:fixed;inset:0;pointer-events:none;background:#000;opacity:0}
 #flash{position:fixed;inset:0;pointer-events:none;background:#fff;opacity:0}
 #flash.red{background:#b0100c;mix-blend-mode:multiply}
@@ -93,7 +112,7 @@ input,select{font:inherit}
 /* taken: black screen, one red word that won't sit still */
 #taken{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;opacity:0;font:900 clamp(56px,14vw,170px)/1 var(--f-d);letter-spacing:.08em;color:#d21a12;text-shadow:3px 0 0 rgba(0,255,240,.25),-3px 0 0 rgba(255,0,60,.5)}
 #taken.soft{color:#cfd8d6;text-shadow:none;font-size:clamp(34px,8vw,80px)}
-#chatlog{position:absolute;left:calc(14px + env(safe-area-inset-left));bottom:calc(84px + env(safe-area-inset-bottom));display:grid;gap:3px;max-width:min(380px,70vw)}
+#chatlog{position:absolute;left:calc(14px + env(safe-area-inset-left));bottom:calc(108px + env(safe-area-inset-bottom));display:grid;gap:3px;max-width:min(380px,70vw)}
 #chatlog div{font:600 13px/1.3 var(--f-d);background:rgba(10,36,38,.6);padding:4px 9px;border-radius:6px;transition:opacity .6s}
 #chatlog div b{color:var(--teal)}
 #chatbox{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);width:min(420px,90vw);pointer-events:auto}
@@ -108,24 +127,37 @@ input,select{font:inherit}
 #spec .rv{height:6px;border-radius:3px;background:rgba(255,255,255,.15);margin-top:8px;overflow:hidden}
 #spec .rv i{display:block;height:100%;width:0;background:var(--teal)}
 /* Panels */
-.scrim{position:fixed;inset:0;display:grid;place-items:center;padding:16px;background:rgba(6,24,26,.55);overflow:auto}
-.panel{width:min(520px,100%);background:rgba(11,40,42,.94);border:1px solid var(--line);border-radius:16px;padding:22px 22px 20px;box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
+.scrim{position:fixed;inset:0;display:grid;place-items:center;padding:16px;background:rgba(4,8,7,.6);overflow:auto}
+.panel{width:min(520px,100%);background:rgba(10,16,14,.95);border:1px solid var(--line);border-radius:16px;padding:22px 22px 20px;box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
 .panel h2{margin:0 0 4px;font:900 24px/1.1 var(--f-d);letter-spacing:.03em}
-.panel .sub{margin:0 0 16px;color:#bcd6d3;font:500 14px/1.45 var(--f-d)}
+.panel .sub{margin:0 0 16px;color:#b9c7c1;font:500 14px/1.45 var(--f-d)}
 .panel label.f{display:grid;gap:6px;font:600 11px var(--f-m);letter-spacing:.12em;text-transform:uppercase;color:#9fbcb9;margin-bottom:12px}
 .panel input[type=text]{width:100%;padding:11px 13px;border-radius:9px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:#fff;font:600 16px var(--f-d);letter-spacing:0;text-transform:none}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:10px;background:rgba(255,255,255,.1);border:1px solid var(--line);font:700 15px var(--f-d)}
 .btn:hover:not(:disabled){background:rgba(255,255,255,.16)}
-.btn.primary{background:var(--teal);border-color:var(--teal);color:#062022}
-.btn.primary:hover:not(:disabled){background:#38c7bc}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#06120f}
+.btn.primary:hover:not(:disabled){background:#86d4c1}
 .btn.warn{background:rgba(224,72,62,.2);border-color:rgba(224,72,62,.5)}
 .btn.wide{flex:1 1 0}
 .msg{min-height:20px;margin:12px 0 0;font:600 13px/1.4 var(--f-m);color:var(--amber)}
-#menu{background:linear-gradient(180deg,rgba(6,24,26,.15),rgba(6,24,26,.75))}
+#menu{background:linear-gradient(180deg,rgba(4,8,7,.1),rgba(4,8,7,.8))}
 #menu .panel{width:min(560px,100%)}
-.logo{margin:0 0 6px;font:900 clamp(40px,9vw,64px)/.9 var(--f-d);letter-spacing:.02em;color:#f4fffd;text-shadow:0 0 30px rgba(43,179,168,.45)}
-.logo span{display:block;font:600 12px/1 var(--f-m);letter-spacing:.32em;color:var(--teal);margin-top:12px;text-shadow:none}
+/* The wordmark: the word stands in black water up to its waist, bone-pale above the line and drowned below it,
+   with a dim, broken reflection under it. One colour (the bone) still reads at favicon size. */
+.logo{margin:0 0 8px;font:900 clamp(42px,10.5vw,70px)/.92 var(--f-d);letter-spacing:.07em}
+.logo .wm{position:relative;display:inline-block;color:transparent;background:linear-gradient(180deg,#efeadb 0%,#cfc8b2 40%,#9a9886 56%,#3a4a40 57.5%,#16211c 100%);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 2px 0 rgba(0,0,0,.65))}
+.logo .wm::before{content:"";position:absolute;left:-4%;right:-4%;top:56.5%;height:2px;background:linear-gradient(90deg,transparent,rgba(170,215,195,.55) 20%,rgba(170,215,195,.25) 70%,transparent)}
+.logo .wm::after{content:attr(data-t);position:absolute;left:0;top:100%;color:rgba(150,180,165,.13);transform:scaleY(-.42);transform-origin:50% 0;filter:blur(1.2px);pointer-events:none}
+.logo span.tag{display:block;font:600 12px/1 var(--f-m);letter-spacing:.36em;color:#8fb5a6;margin-top:22px}
+.nhelp{display:grid;gap:5px;margin:4px 0 12px}
+.nhelp h3{margin:10px 0 2px;font:600 11px var(--f-m);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.nhelp .r{display:grid;grid-template-columns:22px 1fr 92px;gap:2px 10px;align-items:center;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.04)}
+.nhelp .r svg{width:18px;height:18px}
+.nhelp .r b{font:700 14px var(--f-d)}.nhelp .r small{grid-column:2/4;font:500 12px/1.35 var(--f-d);color:#a9b8b1}
+.nhelp .r .m{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;position:relative}
+.nhelp .r .m i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+.nhelp .r.s b{color:var(--quiet)}
 .rules{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:14px 0 16px;font:500 13px/1.4 var(--f-d);color:#cfe3e0}
 .rules b{font:600 11px/1.6 var(--f-m);color:var(--teal);letter-spacing:.06em}
 .rules-touch,body.touch .rules-keys{display:none}
@@ -201,6 +233,7 @@ body.touch #clock{top:calc(64px + env(safe-area-inset-top))}
 body.touch #snaps{top:calc(140px + env(safe-area-inset-top))}
 body.touch #chatlog{bottom:auto;top:40%}
 body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
+body.touch #teach{bottom:auto;top:calc(300px + env(safe-area-inset-top));max-width:min(330px,84vw);font-size:13px}
 @media (max-width:640px){
   #obj{max-width:calc(100vw - 28px);top:calc(66px + env(safe-area-inset-top))}
   body.touch #obj{top:calc(66px + env(safe-area-inset-top))}
@@ -209,8 +242,9 @@ body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
   body.touch #team{top:calc(146px + env(safe-area-inset-top))}
   body.touch #team .tm{font-size:12px;padding:4px 9px 4px 5px}
   body.touch #noise{top:calc(146px + env(safe-area-inset-top));width:140px}
-  body.touch #clock{top:calc(196px + env(safe-area-inset-top));bottom:auto;padding:5px 9px;font-size:12px;gap:9px}
-  body.touch #snaps{top:calc(246px + env(safe-area-inset-top))}
+  body.touch #clock{top:calc(216px + env(safe-area-inset-top));bottom:auto;padding:5px 9px;font-size:12px;gap:9px}
+  body.touch #snaps{top:calc(262px + env(safe-area-inset-top))}
+  body.touch #teach{top:43%}
   body.touch #toast{top:36%;font-size:17px;width:86vw}
   #team .tm{min-width:0}
   .stats b{font-size:20px}
@@ -221,24 +255,26 @@ body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
   body.touch #team{top:calc(84px + env(safe-area-inset-top))}
   body.touch #hotbar{left:50%;right:auto;transform:translateX(-50%);top:calc(8px + env(safe-area-inset-top))}
   body.touch #noise{top:calc(8px + env(safe-area-inset-top));width:150px}
-  body.touch #clock{top:calc(62px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));bottom:auto;padding:5px 8px;font-size:12px;gap:8px}
-  body.touch #snaps{top:calc(104px + env(safe-area-inset-top))}
+  body.touch #clock{top:calc(80px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));bottom:auto;padding:5px 8px;font-size:12px;gap:8px}
+  body.touch #snaps{top:calc(120px + env(safe-area-inset-top))}
   body.touch #toast{top:24%;font-size:18px}
+  body.touch #teach{top:calc(66px + env(safe-area-inset-top));max-width:min(300px,38vw);font-size:12px;padding:7px 10px 7px 8px}
+  body.touch #noise .st{margin-top:4px}
   .panel{padding:16px}
 }
-@media (prefers-reduced-motion:reduce){#toast,#noise .bar i{transition:none}#alarm.on{animation-duration:.01s;opacity:1}}
+@media (prefers-reduced-motion:reduce){#toast,#noise .bar i,#teach{transition:none}#alarm.on{animation-duration:.01s;opacity:1}}
 </style>
 </head>
 <body>
-<canvas id="view" tabindex="0" aria-label="Hush Pools"></canvas>
-<div id="tags" aria-hidden="true"></div>
-<div id="vig"></div>
+<canvas id="view" tabindex="0" aria-label="Blackwade"></canvas>
+<div id="tags" aria-hidden="true"><div id="mkTag" class="mk" hidden></div></div>
+<div id="dim"></div><div id="vig"></div>
 <div id="hud" hidden>
   <div id="obj" class="hcard"><div class="rm" id="objRoom">Pillar Hall</div><div class="tx" id="objText">Cross quietly.</div></div>
   <div id="clock" class="hcard"><span id="clockT">0:00</span><span class="cn" id="clockC">0 coins</span><button id="menuBtn" type="button" aria-label="Menu" data-no-ad-refresh>Esc</button></div>
   <div id="snaps" aria-label="Numbers you've snapped"></div>
   <div id="team"></div>
-  <div id="noise" class="hcard"><div class="lb"><span>Noise</span><b id="noiseLb">Silent</b></div><div class="bar"><i id="noiseBar"></i></div></div>
+  <div id="noise" class="hcard"><div class="lb"><span>Noise</span><b id="noiseLb">Silent</b></div><div class="bar"><i id="noiseBar"></i></div><div class="st"><span id="stanceN">Walking</span><b id="stanceV" class="s">silent</b></div></div>
   <div id="hotbar" role="toolbar" aria-label="Items"></div>
   <div id="cross"></div>
   <div id="prompt" class="hcard" hidden><svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="4"/><circle id="ring" cx="18" cy="18" r="15" fill="none" stroke="#2bb3a8" stroke-width="4" stroke-linecap="round" stroke-dasharray="94.25" stroke-dashoffset="94.25" transform="rotate(-90 18 18)"/></svg><span id="promptTx"></span></div>
@@ -246,6 +282,7 @@ body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
   <div id="spec" class="hcard" hidden><b id="specT">You're down</b><small id="specS">A teammate can hold E next to you.</small><div class="rv"><i id="specRv"></i></div></div>
   <div id="banner" class="hcard" hidden><h2 id="bannerH"></h2><p id="bannerP"></p></div>
   <div id="toast"></div>
+  <div id="teach" class="hcard" aria-live="polite"></div>
   <div id="alarm" aria-live="assertive"></div>
 </div>
 <div id="wheel" hidden><div class="w0">HERE</div><div class="w1">GO</div><div class="w2">HELP</div><div class="w3">DANGER</div></div>
@@ -263,21 +300,21 @@ body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
 
 <div id="menu" class="scrim">
   <div class="panel">
-    <h1 class="logo">HUSH POOLS<span>DON'T SPLASH</span></h1>
-    <p class="sub">Hop across the flooded tile halls with up to three friends. Something tall and blind wades the water. It can't see you, but it hears every splash.</p>
+    <h1 class="logo"><span class="wm" data-t="BLACKWADE">BLACKWADE</span><span class="tag">IT HEARS THE WATER</span></h1>
+    <p class="sub">The pool halls were shut and left to rot. Hop across them with up to three friends while something tall and blind wades the black water. It can't see you, but it hears every splash.</p>
     <label class="f">Your name<input id="name" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="Swimmer"></label>
     <div class="row" style="margin-bottom:10px"><button class="btn primary wide" id="solo" type="button">Play solo</button><button class="btn wide" id="quick" type="button">Quick match</button></div>
     <label class="f">Room code<div class="row"><input id="room" type="text" maxlength="17" autocomplete="off" spellcheck="false" placeholder="e.g. tiles42" style="flex:1"><button class="btn" id="joinRoom" type="button">Play in room</button></div></label>
     <button class="btn" id="rejoin" type="button" hidden style="width:100%;margin-bottom:10px"></button>
     <div class="rules rules-touch"><b>LEFT</b><span>Drag to move · drag anywhere else to look</span>
-      <b>JUMP</b><span><b>RUN</b> is louder · <b>CREEP</b> is silent</span>
+      <b>JUMP</b><span>Walking and <b>CREEP</b> are silent · <b>RUN</b> is loud</span>
       <b>E</b><span>Hold to use: valves, pebbles, numbers, teammates</span>
       <b>THROW</b><span>Tap an item at the top, hold THROW to aim, let go · <b>PING</b> marks a spot</span></div>
-    <div class="rules rules-keys"><b>WASD</b><span>Move · <b>SPACE</b> jump · <b>SHIFT</b> run (louder) · <b>CTRL</b> or <b>C</b> creep (silent)</span>
+    <div class="rules rules-keys"><b>WASD</b><span>Move (silent) · <b>SPACE</b> jump · <b>SHIFT</b> run (loud) · <b>CTRL</b> or <b>C</b> creep (silent)</span>
       <b>E</b><span>Hold to use: valves, pebbles, numbers, teammates</span>
       <b>1–5</b><span>Items · hold the mouse to aim, let go to throw</span>
       <b>Q</b><span>Ping wheel · <b>ENTER</b> chat · <b>TAB</b> party · <b>ESC</b> menu</span></div>
-    <div class="row"><button class="btn" id="setBtn" type="button">Settings</button><span class="wallet" id="menuWallet"></span></div>
+    <div class="row"><button class="btn" id="setBtn" type="button">Settings</button><button class="btn" id="helpBtn" type="button">How noise works</button><span class="wallet" id="menuWallet"></span></div>
     <p class="msg" id="msg" role="status"></p>
   </div>
 </div>
@@ -317,7 +354,16 @@ body.touch #spec{bottom:calc(150px + env(safe-area-inset-bottom))}
   <div class="panel" style="width:min(360px,100%)">
     <h2>Paused</h2>
     <p class="sub" id="pauseSub">The run keeps going for everyone else.</p>
-    <div style="display:grid;gap:8px"><button class="btn primary" id="resume" type="button">Resume</button><button class="btn" id="pauseParty" type="button">Party</button><button class="btn" id="pauseSet" type="button">Settings</button><button class="btn warn" id="leave" type="button">Leave</button></div>
+    <div style="display:grid;gap:8px"><button class="btn primary" id="resume" type="button">Resume</button><button class="btn" id="pauseParty" type="button">Party</button><button class="btn" id="pauseSet" type="button">Settings</button><button class="btn" id="pauseHelp" type="button">How noise works</button><button class="btn warn" id="leave" type="button">Leave</button></div>
+  </div>
+</div>
+
+<div id="nhelp" class="scrim" hidden>
+  <div class="panel" role="dialog" aria-labelledby="nhelpH">
+    <h2 id="nhelpH">How noise works</h2>
+    <p class="sub">It is blind. It goes to the loudest thing it heard in the last few seconds. The rings on the water show how far each sound carries: inside the ring, it heard you.</p>
+    <div class="nhelp" id="nhelpList"></div>
+    <div class="row"><button class="btn primary wide" id="nhelpClose" type="button">Got it</button><button class="btn" id="nhelpTips" type="button">Show the tips again</button></div>
   </div>
 </div>
 
@@ -374,7 +420,9 @@ const TUNING = {
   loud: { fall: 1.0, clip: 0.7, hard: 0.42, sprint: 0.16, wade: 0.45, wadeRun: 0.62, wadeCreep: 0.24, climb: 0.3, struggle: 0.24,
     pebbleWater: 0.75, skip: 0.5, pebbleTile: 0.3, bottle: 1.25, echo: 0.6, toy: 0.6, valve: 1.05, bump: 0.5, keypad: 0.3 },
   baseRadius: 20,
-  hardLandVy: -9.5, edgeMargin: 0.2, sprintStep: 0.36, struggleEvery: 2.6,
+  // oneNoise: a landing or pull-up within this many seconds after the same player's last landing noise, pull-up, dip or
+  // splash into the water makes no noise of its own (one noise per mistake; going into the water is always heard)
+  hardLandVy: -9.5, edgeMargin: 0.2, oneNoise: 0.3, sprintStep: 0.36, struggleEvery: 2.6,
   // the monster (there's one): it freezes for \`react\` seconds when it hears something close, then rushes there at monHunt
   memory: 8, huntRange: 14, grabRange: 2.0, grabHigh: 3.8, warnRange: 4.5, noisyGrab: 1.0, dashReach: 3,
   monIdle: 1.3, monInvestigate: 4.2, monHunt: 14, react: 0.6, grabTime: 1.6, monCooldown: 4.5, linger: 2.6,
@@ -924,6 +972,30 @@ function supportAt(W, x, y, z, m) {
   return best;
 }
 const edgeDist = (b, x, z) => b.type === 'rot' ? 1 : Math.min(x - b.x0, b.x1 - x, z - b.z0, b.z1 - z);
+// What a landing on sup at (x, z) at speed lv sounds like: 'hard' (a big drop), 'edge' (your middle on the rim) or ''
+// (quiet). The host uses it to decide, and every browser uses it to show the landing marker before you land.
+function landNoise(sup, x, z, lv) {
+  if (!sup) return '';
+  if (lv < TUNING.hardLandVy) return 'hard';
+  return edgeDist(sup, x, z) < TUNING.edgeMargin ? 'edge' : '';
+}
+// Where the body will come down if the input stays as it is: steps a copy of it (the real stepPlayer, the world as it
+// is now) until it lands, pulls itself up onto a tile, or goes into the water. Returns { x, y, z, k, t } with k 'quiet',
+// 'edge', 'hard', 'climb' (caught a tile's side and pulled up) or 'fall' (into the water), or null within maxT seconds.
+const predBody = newBody(0, 0, 0);
+function predictLanding(W, p, inp, maxT) {
+  const q = predBody, h = 1 / 60, n = Math.ceil((maxT || 2) / h);
+  Object.assign(q, { x: p.x, y: p.y, z: p.z, vx: p.vx, vy: p.vy, vz: p.vz, gr: p.gr, inW: p.inW, mant: 0, my: p.y, li: 0, lv: 0, h: p.h || 0 });
+  const qi = { mx: inp.mx, mz: inp.mz, jump: false, sprint: inp.sprint, crouch: inp.crouch };
+  for (let i = 1; i <= n; i++) {
+    stepPlayer(W, q, qi, h);
+    const ev = q.ev;
+    if (ev.includes('splash')) return { x: q.x, y: waterY(W, q.z), z: q.z, k: 'fall', t: i * h };
+    if (ev.includes('climb')) return { x: q.x, y: q.y, z: q.z, k: 'climb', t: i * h };
+    if (ev.includes('land')) { const k = landNoise(q.gr, q.x, q.z, q.lv); return { x: q.x, y: q.y, z: q.z, k: k || 'quiet', t: i * h, sup: q.gr }; }
+  }
+  return null;
+}
 
 // ---- Thrown things: the same flight on the host (which decides what they do) and in the thrower's browser (for show) ----
 // Returns '' while flying, else 'tile', 'water' or 'skip' (a pebble bouncing on the water).
@@ -1016,8 +1088,9 @@ function hostSense(S, W, u, rep, dt) {
   if (sup && !sup.type && (sup.k === 'deck' || sup.k === 'stable' || sup.k === 'tile' || sup.k === 'lane')) P.safe = { x: clamp(rep.x, sup.x0 + 0.3, sup.x1 - 0.3), y: sup.y1, z: clamp(rep.z, sup.z0 + 0.3, sup.z1 - 0.3) };
   // feet in the water: going in is a splash; every few steps in it is a splash too, louder the faster you go
   const inW = rep.y < wy - 0.08, touched = rep.my < wy - 0.08;
-  if (inW && !P.inW) emit(S, W, rep.x, wy, rep.z, TUNING.loud.fall, 'fall', u);
-  else if (!inW && !P.inW && touched) emit(S, W, rep.x, wy, rep.z, TUNING.loud.clip, 'clip', u);   // in and out between two reports
+  // one noise per mistake: going in, a quick dip or a climb out (P.mk, when) isn't followed by a landing noise as well
+  if (inW && !P.inW) { emit(S, W, rep.x, wy, rep.z, TUNING.loud.fall, 'fall', u); P.mk = S.t; }
+  else if (!inW && !P.inW && touched) { emit(S, W, rep.x, wy, rep.z, TUNING.loud.clip, 'clip', u); P.mk = S.t; }   // in and out between two reports
   if (inW && P.inW && P.has && dt > 0) {
     P.wsp += (hd / Math.max(dt, 0.03) - P.wsp) * 0.35; P.wd += hd;
     if (P.wd >= TUNING.wadeStep) {
@@ -1027,10 +1100,11 @@ function hostSense(S, W, u, rep, dt) {
   } else if (!inW) { P.wd = 0; P.wsp = 0; }
   P.inW = inW;
   if (P.li != null && rep.li !== P.li && !inW && sup) {
-    if (rep.lv === -1) emit(S, W, rep.x, sup.y1 != null ? sup.y1 : TOP, rep.z, TUNING.loud.climb, 'climb', u);   // pulled up out of the water
-    else {
-      const hard = rep.lv < TUNING.hardLandVy, edge = edgeDist(sup, rep.x, rep.z) < TUNING.edgeMargin;
-      if (hard || edge) emit(S, W, rep.x, sup.y1 != null ? sup.y1 : TOP, rep.z, TUNING.loud.hard, hard ? 'hard' : 'edge', u);
+    const again = P.mk != null && S.t - P.mk < TUNING.oneNoise;
+    if (rep.lv === -1) { if (!again) emit(S, W, rep.x, sup.y1 != null ? sup.y1 : TOP, rep.z, TUNING.loud.climb, 'climb', u); P.mk = S.t; }   // pulled up onto a tile (out of the water, or a jump that came up short)
+    else if (!again) {
+      const k = landNoise(sup, rep.x, rep.z, rep.lv);
+      if (k) { emit(S, W, rep.x, sup.y1 != null ? sup.y1 : TOP, rep.z, TUNING.loud.hard, k, u); P.mk = S.t; }
     }
   }
   P.li = rep.li;
@@ -1275,68 +1349,241 @@ const runScore = P => P.revives * 10 + P.help * 4 - P.downs * 6;
 //  water shader, the fog and the tiles agree.
 // =====================================================================
 const $ = id => document.getElementById(id);
-// The halls are full of mist: you see about 20 m, the far wall and the monster only when you're close.
-const FOG = 0xaec3c0, FOG_NEAR = 1, FOG_FAR = 17;
+// The halls are full of mist, and it's dark in there now: you see about 15 m, the far wall and the monster only when
+// you're close. The mist is a dim green-grey, so far things sink into murk rather than into white.
+const FOG = 0x18211d, FOG_NEAR = 1, FOG_FAR = 17;
 let gfx = 2;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const renderer = new THREE.WebGLRenderer({ canvas: $('view'), antialias: true, powerPreference: 'high-performance' });
 renderer.setClearColor(FOG);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(FOG, FOG_NEAR, FOG_FAR);
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 60);
-scene.add(new THREE.HemisphereLight(0xf4ffff, 0x3a9a93, 0.72));
-const sun = new THREE.DirectionalLight(0xffffff, 0.32); sun.position.set(4, 10, -3); scene.add(sun);
-scene.add(new THREE.AmbientLight(0xbfe6e2, 0.12));
-const U = { time: { value: 0 } };   // shared by every shader that ripples
-// A procedural caustic: bright wavy cells, the kind light makes through moving water.
-const GLSL_CAUSTIC = `
-float caustic(vec2 p, float t){
-  vec2 q = p; float v = 0.0;
-  for (int i = 0; i < 3; i++) { q = vec2(sin(q.y * 1.37 + t * 0.61), cos(q.x * 1.73 - t * 0.47)) * 1.3 + p * 0.85; v += abs(sin(q.x + q.y)); }
-  return pow(max(0.0, 1.0 - v / 3.0), 3.0) * 2.4;
+// The halls have been dark for years: a dim cold fill so the route still reads, and the light comes from the few
+// ceiling panels that still work (the "lamps" below), so you move from pool of light to pool of light.
+scene.add(new THREE.HemisphereLight(0x9fb6aa, 0x18241f, 0.62));
+const sun = new THREE.DirectionalLight(0xc9d6cf, 0.14); sun.position.set(4, 10, -3); scene.add(sun);
+scene.add(new THREE.AmbientLight(0x34423b, 0.24));
+const U = { time: { value: 0 } };   // shared by every shader that moves
+// One small tiling noise texture (blurred random values, a different pattern in each channel) that every grime, mould,
+// rust, scum and mist layer samples: cheaper on phones than working noise out in the shader.
+const NOISE_TEX = (() => {
+  const N = 128, d = new Uint8Array(N * N * 4), f = new Float32Array(N * N);
+  for (let c = 0; c < 4; c++) {
+    for (let i = 0; i < N * N; i++) f[i] = Math.random();
+    for (let pass = 0; pass < 4; pass++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      let s = 0; for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) s += f[((y + j + N) % N) * N + (x + k + N) % N];
+      f[y * N + x] = s / 9;
+    }
+    let lo = 1, hi = 0; for (let i = 0; i < N * N; i++) { lo = Math.min(lo, f[i]); hi = Math.max(hi, f[i]); }
+    for (let i = 0; i < N * N; i++) d[i * 4 + c] = Math.round((f[i] - lo) / (hi - lo) * 255);
+  }
+  const t = new THREE.DataTexture(d, N, N, THREE.RGBAFormat); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
+})();
+// Working ceiling lights: the nearest LAMP_N to you each frame (see lampFrame), shared by every lit material and the water.
+const LAMP_N = 8;
+const LAMPU = { uLamp: { value: Array.from({ length: LAMP_N }, () => new THREE.Vector4()) }, uLampC: { value: Array.from({ length: LAMP_N }, () => new THREE.Color()) }, uNoise: { value: NOISE_TEX } };
+const GLSL_LAMPS = `
+uniform vec4 uLamp[${LAMP_N}]; uniform vec3 uLampC[${LAMP_N}]; uniform sampler2D uNoise;
+vec3 lampLight(vec3 p, vec3 n) {
+  vec3 s = vec3(0.0);
+  for (int i = 0; i < ${LAMP_N}; i++) {
+    vec4 L = uLamp[i]; if (L.w <= 0.0) continue;
+    vec3 d = L.xyz - p; float r2 = dot(d, d);
+    float a = L.w * (1.0 - smoothstep(1.2, 7.5, length(d.xz))) / (1.0 + 0.045 * r2);
+    s += uLampC[i] * a * (0.3 + 0.7 * max(dot(n, d * inversesqrt(r2)), 0.0));
+  }
+  return min(s, vec3(1.15));   // nothing close to a lamp glows
 }`;
-// Tiled surfaces worked out from where the pixel is in the world, so one material fits boxes of any size (and instancing).
+// Any Lambert or Phong material lit by the lamps too, with an optional rim (uRim) so dark shapes separate from the dark.
+function lampPatch(m, rim, key) {
+  m.userData.lu = Object.assign({ uRim: { value: new THREE.Color(rim || 0) } }, LAMPU);
+  m.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, m.userData.lu);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLW; varying vec3 vLN;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vec4 lw = vec4(transformed, 1.0); vec3 ln = objectNormal;
+        #ifdef USE_INSTANCING
+          lw = instanceMatrix * lw; ln = mat3(instanceMatrix) * ln;
+        #endif
+        lw = modelMatrix * lw; vLW = lw.xyz; vLN = normalize(mat3(modelMatrix) * ln);`);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vLW; varying vec3 vLN; uniform vec3 uRim;' + GLSL_LAMPS)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        vec3 lnn = normalize(vLN);
+        totalEmissiveRadiance += diffuseColor.rgb * lampLight(vLW, lnn) * 0.8;
+        totalEmissiveRadiance += uRim * pow(1.0 - max(dot(lnn, normalize(cameraPosition - vLW)), 0.0), 2.5);`);
+  };
+  m.customProgramCacheKey = () => 'bw-lamp';   // the same code for every material it patches
+  return m;
+}
+// Tiled surfaces worked out from where the pixel is in the world, so one material fits boxes of any size (and
+// instancing), with layers of age on top: stained grout, cracked and missing tiles, grime, green-black mould rising
+// from the water, rust runs under the old pipes, peeling paint on the ceiling. Walkable tops (o.lip) show a dark,
+// chipped rim exactly TUNING.edgeMargin wide (landing with your middle on it is loud) and a worn, cleaner middle.
+// Floating tiles (visual only: collision and the rules never see this). Each frame floatFrame works out up to FLOAT_N
+// tiles that are moving (a landing's dip and rock, someone standing on it) and hands them to the shader; every floating
+// tile also bobs very slightly, out of step with its neighbours.
+const FLOAT_N = 12;
+const FLOATU = { uFl: { value: Array.from({ length: FLOAT_N }, () => new THREE.Vector4()) }, uFlT: { value: Array.from({ length: FLOAT_N }, () => new THREE.Vector2()) }, uBob: { value: REDUCED ? 0 : 1 } };
+const BOB_A = 0.012;
+const bobAt = (cx, cz, t) => BOB_A * Math.sin(t * 1.3 + 6.2832 * (((cx * 0.618 + cz * 0.371) % 1 + 1) % 1));
+// Which tiles float: the stepping tiles (not decks, stairs, lanes or the broken walkway) and the moving, sinking and
+// memory tiles (LV.dynOf). A landing "kicks" its tile: a damped dip and rock sized by the same loudness the noise label
+// uses (landNoise), so a clean landing is a soft dip and a small ring, a rim landing a big tilt, a slosh and a loud ring.
+const FLOATS = new Set(['tile', 'stable', 'ledge', 'current']);
+const FK = [];
+const isFloat = b => !!b && b.x0 != null && (FLOATS.has(b.k) || (LV && LV.dynOf && LV.dynOf.has(b)));
+const FO = { y: 0, tx: 0, tz: 0 };
+// how a floating tile sits right now: y (its drawn offset, the idle bob included) and tx, tz (its slope, metres per metre)
+function floatOf(b) {
+  FO.y = 0; FO.tx = 0; FO.tz = 0; if (!isFloat(b)) return FO;
+  if (!REDUCED) FO.y = bobAt((b.x0 + b.x1) / 2, (b.z0 + b.z1) / 2, U.time.value);
+  const f = LV.fl && LV.fl.get(b); if (f) { FO.y -= f.dip; FO.tx = f.tx; FO.tz = f.tz; }
+  return FO;
+}
+// the drawn height change at (x, z) on tile b: what the feet of anyone standing there move by
+function floatAt(b, x, z) { if (!isFloat(b)) return 0; const f = floatOf(b); return f.y + f.tx * (x - (b.x0 + b.x1) / 2) + f.tz * (z - (b.z0 + b.z1) / 2); }
+function landKick(b, x, z, loud, quietSound) {
+  if (!isFloat(b) || !G.W) return;
+  const now = U.time.value, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, hx = (b.x1 - b.x0) / 2, hz = (b.z1 - b.z0) / 2;
+  const ox = clamp((x - cx) / hx, -1, 1), oz = clamp((z - cz) / hz, -1, 1), A = (0.03 + loud * 0.12) * (REDUCED ? 0.5 : 1), S = REDUCED ? 0 : 0.012 + loud * 0.17;
+  let k = FK.find(k => k.b === b && now - k.t0 < 0.4);
+  if (k) { if (loud <= k.loud) return; Object.assign(k, { A, sx: -ox * S / hx, sz: -oz * S / hz, loud }); }
+  else { if (FK.length > 24) FK.shift(); FK.push({ b, t0: now, A, sx: -ox * S / hx, sz: -oz * S / hz, loud }); }
+  // the water answers: a ring from the tile's edge, and on a bad landing spray and a slosh over the side you came down on
+  const wy = waterY(G.W, cz), r0 = Math.max(hx, hz);
+  G.rings.push({ x: cx, z: cz, R: r0 + 0.9 + loud * 4.5, r0, t: 0, l: loud > 0 ? loud : -0.4 }); if (G.rings.length > RINGS) G.rings.shift();
+  if (loud > 0 && gfx > 0) {
+    const side = Math.abs(ox) > Math.abs(oz), px = side ? (ox > 0 ? b.x1 : b.x0) : clamp(x, b.x0, b.x1), pz = side ? clamp(z, b.z0, b.z1) : (oz > 0 ? b.z1 : b.z0);
+    splash(px, wy, pz, Math.round(8 + loud * 26), 1.6 + loud * 5);
+    if (loud >= TUNING.loud.hard && Math.hypot(ox, oz) < 0.6) for (const [qx, qz] of [[b.x0, cz], [b.x1, cz], [cx, b.z0], [cx, b.z1]]) splash(qx, wy, qz, 7, 2.5);
+  }
+  if (quietSound != null) sfx(loud > 0 ? 'slosh' : 'land', x, b.y1 != null ? b.y1 : TOP, z, loud > 0 ? 0.6 + loud : 1);
+}
+// each frame: the kicks, people standing on tiles (a little lower, leaning toward where they stand), and the nearest
+// FLOAT_N moving static tiles handed to the shader (moving, sinking and memory tiles take theirs in drawWorld)
+const flSlots = [];
+function floatFrame(dt) {
+  if (!LV || !LV.fl) return;
+  const now = U.time.value; LV.fl.clear();
+  const add = (b, dip, tx, tz) => { let f = LV.fl.get(b); if (!f) LV.fl.set(b, f = { dip: 0, tx: 0, tz: 0 }); f.dip += dip; f.tx += tx; f.tz += tz; };
+  for (let i = FK.length - 1; i >= 0; i--) { const k = FK[i], t = now - k.t0; if (t > 2.2) { FK.splice(i, 1); continue; }
+    const sp = Math.exp(-3.4 * t) * Math.cos(9.5 * t), rk = Math.exp(-2.8 * t) * Math.cos(7 * t); add(k.b, k.A * sp, k.sx * rk, k.sz * rk); }
+  const want = new Map(), stand = (b, x, z) => { if (isFloat(b)) want.set(b, [x, z]); };
+  if (G.mode === 'play' && G.body.gr && !G.body.inW) stand(G.body.gr, G.body.x, G.body.z);
+  for (const [, o] of G.others) if (o.view && o.smp && !(o.a & 24)) stand(supportAt(G.W, o.smp.x, o.smp.y, o.smp.z, 0.1), o.smp.x, o.smp.z);
+  for (const [b, w] of want) { let st = LV.st.get(b); if (!st) LV.st.set(b, st = { v: 0, x: w[0], z: w[1] }); st.x = w[0]; st.z = w[1]; }
+  for (const [b, st] of LV.st) {
+    st.v += ((want.has(b) ? 1 : 0) - st.v) * Math.min(1, dt * 4); if (!want.has(b) && st.v < 0.01) { LV.st.delete(b); continue; }
+    const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, hx = (b.x1 - b.x0) / 2, hz = (b.z1 - b.z0) / 2, L = REDUCED ? 0 : 0.012;
+    add(b, (REDUCED ? 0.01 : 0.018) * st.v, -clamp((st.x - cx) / hx, -1, 1) * L / hx * st.v, -clamp((st.z - cz) / hz, -1, 1) * L / hz * st.v);
+  }
+  flSlots.length = 0; for (const [b, f] of LV.fl) if (FLOATS.has(b.k) && !LV.dynOf.has(b)) { f.b = b; f.d = Math.hypot((b.x0 + b.x1) / 2 - camera.position.x, (b.z0 + b.z1) / 2 - camera.position.z); flSlots.push(f); }
+  flSlots.sort((a, c) => a.d - c.d);
+  const U4 = FLOATU.uFl.value, U2 = FLOATU.uFlT.value;
+  for (let i = 0; i < FLOAT_N; i++) { const f = flSlots[i]; if (!f) { U4[i].w = 0; continue; } U4[i].set((f.b.x0 + f.b.x1) / 2, (f.b.z0 + f.b.z1) / 2, f.dip, 1); U2[i].set(f.tx, f.tz); }
+}
 function tileMat(o) {
   const m = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  m.userData.u = { uBase: { value: new THREE.Color(o.base) }, uGrout: { value: new THREE.Color(o.grout) }, uSize: { value: o.size || 0.5 }, uGw: { value: o.gw || 0.06 },
-    uBand: { value: new THREE.Color(o.band || o.base) }, uBandY: { value: new THREE.Vector2(o.bandY ? o.bandY[0] : 99, o.bandY ? o.bandY[1] : 99) }, uCaus: { value: o.caus == null ? 1 : o.caus }, uTime: U.time };
+  m.userData.u = Object.assign({ uBase: { value: new THREE.Color(o.base) }, uGrout: { value: new THREE.Color(o.grout) }, uSize: { value: o.size || 0.5 }, uGw: { value: o.gw || 0.06 },
+    uBand: { value: new THREE.Color(o.band || o.base) }, uBandY: { value: new THREE.Vector2(o.bandY ? o.bandY[0] : 99, o.bandY ? o.bandY[1] : 99) },
+    uLip: { value: o.lip ? TUNING.edgeMargin : 0 }, uDirt: { value: o.dirt == null ? 1 : o.dirt }, uMiss: { value: o.miss || 0 }, uRustY: { value: o.rust || -99 }, uPeel: { value: o.peel || 0 }, uTime: U.time }, LAMPU, o.float ? FLOATU : {});
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, m.userData.u);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;')
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; varying vec2 vLP; varying vec2 vHS;' + (o.float ? `
+uniform vec4 uFl[${FLOAT_N}]; uniform vec2 uFlT[${FLOAT_N}]; uniform float uBob; uniform float uTime;` : ''))
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-        vec4 hpW = vec4(transformed, 1.0); vec3 hpN = objectNormal;
+        vec4 hpW = vec4(transformed, 1.0); vec3 hpN = objectNormal; mat4 hpM = modelMatrix;
         #ifdef USE_INSTANCING
-          hpW = instanceMatrix * hpW; hpN = mat3(instanceMatrix) * hpN;
+          hpW = instanceMatrix * hpW; hpN = mat3(instanceMatrix) * hpN; hpM = modelMatrix * instanceMatrix;
         #endif
-        hpW = modelMatrix * hpW; vWP = hpW.xyz; vWN = normalize(mat3(modelMatrix) * hpN);`);
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;\nuniform vec3 uBase; uniform vec3 uGrout; uniform float uSize; uniform float uGw; uniform vec3 uBand; uniform vec2 uBandY; uniform float uCaus; uniform float uTime;' + GLSL_CAUSTIC)
+        hpW = modelMatrix * hpW; vWP = hpW.xyz; vWN = normalize(mat3(modelMatrix) * hpN);
+        vec2 hpS = vec2(length(hpM[0].xyz), length(hpM[2].xyz)); vLP = position.xz * hpS; vHS = 0.5 * hpS;` + (o.float ? `
+        vec2 fc = hpM[3].xz, fl = vWP.xz - fc;
+        float fdy = uBob * ${BOB_A} * sin(uTime * 1.3 + 6.2832 * fract(fc.x * 0.618 + fc.y * 0.371));
+        for (int i = 0; i < ${FLOAT_N}; i++) { vec4 f = uFl[i]; if (f.w > 0.0 && distance(f.xy, fc) < 0.05) fdy += -f.z + dot(uFlT[i], fl); }
+        transformed.y += fdy / max(length(hpM[1].xyz), 1e-3); vWP.y += fdy;` : ''));
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN; varying vec2 vLP; varying vec2 vHS;\nuniform vec3 uBase; uniform vec3 uGrout; uniform float uSize; uniform float uGw; uniform vec3 uBand; uniform vec2 uBandY; uniform float uLip; uniform float uDirt; uniform float uMiss; uniform float uRustY; uniform float uPeel; uniform float uTime;' + GLSL_LAMPS)
       .replace('#include <color_fragment>', `#include <color_fragment>
         vec3 an = abs(vWN);
-        vec2 tuv = an.y > 0.5 ? vWP.xz : (an.x > 0.5 ? vWP.zy : vWP.xy);
-        tuv /= uSize;
+        bool top = vWN.y > 0.5;
+        vec2 wq = an.y > 0.5 ? vWP.xz : (an.x > 0.5 ? vWP.zy : vWP.xy);
+        vec2 tuv = wq / uSize;
         vec2 tf = abs(fract(tuv) - 0.5);
         float tg = smoothstep(0.5 - uGw, 0.5 - uGw * 0.45, max(tf.x, tf.y));
-        float th = fract(sin(dot(floor(tuv), vec2(12.9898, 78.233))) * 43758.5453);
+        vec2 cell = floor(tuv);
+        float th = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453), th2 = fract(th * 37.31);
+        float n1 = texture2D(uNoise, wq * 0.043).r, n2 = texture2D(uNoise, wq * 0.19).g, n3 = texture2D(uNoise, wq * 0.83).b;
+        // the rim and the worn middle of anything you can stand on
+        float lip = 0.0, worn = 0.0, ed = 9.0;
+        if (uLip > 0.0 && top) { vec2 e2 = vHS - abs(vLP); ed = min(e2.x, e2.y); lip = 1.0 - smoothstep(uLip - 0.012, uLip + 0.012, ed); worn = smoothstep(uLip + 0.12, uLip + 0.75, ed); }
         vec3 tc = (vWP.y > uBandY.x && vWP.y < uBandY.y && an.y < 0.5) ? uBand : uBase;
-        tc *= 0.955 + 0.06 * th;
-        diffuseColor.rgb *= mix(tc, uGrout, tg);`)
+        tc *= 0.84 + 0.2 * th;
+        vec3 grout = mix(uGrout, vec3(0.09, 0.09, 0.06), 0.5 + 0.35 * n2);
+        vec3 col = mix(tc, grout, tg);
+        // missing tiles: bare, dark concrete (never on what you stand on)
+        float miss = step(th2, uMiss) * (top && uLip > 0.0 ? 0.0 : 1.0);
+        col = mix(col, vec3(0.15, 0.15, 0.13) * (0.6 + 0.7 * n3), miss);
+        // hairline cracks across some tiles
+        vec2 cf = fract(tuv) - 0.5; float ca = th2 * 6.2832;
+        float crk = step(0.82, th) * smoothstep(0.022, 0.0, abs(dot(cf, vec2(cos(ca), sin(ca))) + (th - 0.91) * 1.5));
+        col *= 1.0 - 0.65 * crk * uDirt;
+        // grime: blotchy brown-black, lighter where feet have worn it away
+        float grime = smoothstep(0.3, 0.78, n1 * 0.65 + n2 * 0.35) * uDirt * (1.0 - 0.75 * worn);
+        col = mix(col, col * vec3(0.4, 0.38, 0.31), grime * 0.9);
+        // mould and slime climbing from the water line, heaviest on walls and in corners
+        float up = vWP.y;
+        float rise = (1.0 - smoothstep(0.0, 1.0 + 1.6 * n1, up)) * (an.y < 0.5 ? 1.0 : 0.3);
+        col = mix(col, vec3(0.06, 0.09, 0.05) + 0.06 * n3 * vec3(0.6, 1.0, 0.4), clamp(rise * (0.5 + 0.7 * n2), 0.0, 0.94) * uDirt);
+        col = mix(col, vec3(0.04, 0.07, 0.05), step(up, -0.02) * 0.75 * uDirt);
+        // rust runs streaking down from the old pipes
+        if (an.y < 0.5 && uRustY > 0.0 && vWP.y < uRustY) {
+          float st = texture2D(uNoise, vec2(wq.x * 1.3, vWP.y * 0.018)).r;
+          float run = smoothstep(0.6, 0.85, st) * (1.0 - smoothstep(0.0, 2.6 + 2.0 * n2, uRustY - vWP.y));
+          col = mix(col, vec3(0.30, 0.13, 0.05) * (0.7 + 0.5 * n3), run * 0.85);
+        }
+        // the ceiling's paint coming away in flakes, and old water stains
+        if (uPeel > 0.0) {
+          float fl = smoothstep(0.5, 0.56, n1 * 0.55 + n2 * 0.45);
+          col = mix(vec3(0.33, 0.35, 0.31) * (0.8 + 0.3 * n1), vec3(0.17, 0.17, 0.15), fl);
+          col *= 1.0 - 0.45 * smoothstep(0.02, 0.0, abs(n1 - 0.62)) - 0.25 * smoothstep(0.55, 0.8, n1);
+        }
+        // rim and worn middle on top of everything
+        if (uLip > 0.0 && top) {
+          col = mix(col, col * 1.22 + vec3(0.025), worn * 0.6);
+          col = mix(col, vec3(0.07, 0.065, 0.05) * (0.8 + 0.4 * n3), lip * 0.95);
+          col += vec3(0.45, 0.43, 0.36) * smoothstep(0.024, 0.0, abs(ed - uLip)) * 0.75;
+        }
+        diffuseColor.rgb *= col;`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        float cb = (1.0 - smoothstep(0.0, 2.6, vWP.y)) * step(-2.95, vWP.y);
-        totalEmissiveRadiance += vec3(0.30, 0.62, 0.62) * caustic(vWP.xz * 0.55 + vWP.y * 0.3, uTime) * cb * uCaus * (vWP.y < 0.0 ? 0.55 : 1.0 - an.y * 0.8);`);
+        totalEmissiveRadiance += diffuseColor.rgb * lampLight(vWP, normalize(vWN));`);
   };
+  m.customProgramCacheKey = () => o.float ? 'bw-tile-float' : 'bw-tile';
   return m;
 }
 const MAT = {
-  tile: tileMat({ base: 0xe4eeec, grout: 0xa9c3c0, size: 0.5, band: 0x8fd6cf, bandY: [0.6, 0.78] }),
-  pillar: tileMat({ base: 0xdff2ef, grout: 0x8bb5b1, size: 0.22, band: 0x2bb3a8, bandY: [1.9, 2.1] }),
-  wall: tileMat({ base: 0xf2f7f5, grout: 0xb4cac7, size: 0.3, band: 0x46b9b0, bandY: [1.15, 1.35] }),
-  floor: tileMat({ base: 0x7fd3cb, grout: 0x4f9e98, size: 0.5, caus: 1.6 }),
-  ceil: tileMat({ base: 0xe9efee, grout: 0xc4d0ce, size: 0.6, caus: 0 }),
-  mem: tileMat({ base: 0xc9d6d4, grout: 0x8ea3a1, size: 0.3 }),
-  lane: tileMat({ base: 0xe8efed, grout: 0x9db5b2, size: 0.4, band: 0x506b6e, bandY: [-0.2, 0.58] }),
-  crush: new THREE.MeshLambertMaterial({ color: 0x59646a }),
-  door: new THREE.MeshLambertMaterial({ color: 0x6a7d86 }),
-  dark: new THREE.MeshLambertMaterial({ color: 0x23393b })
+  tile: tileMat({ base: 0xcfcbb6, grout: 0x58584b, size: 0.5, band: 0x6f8d84, bandY: [0.6, 0.78], lip: 1 }),
+  float: tileMat({ base: 0xcfcbb6, grout: 0x58584b, size: 0.5, band: 0x6f8d84, bandY: [0.6, 0.78], lip: 1, float: 1 }),
+  pillar: tileMat({ base: 0xb8bcaf, grout: 0x4c524a, size: 0.22, band: 0x3f6a60, bandY: [1.9, 2.1], miss: 0.07, rust: 5.6 }),
+  wall: tileMat({ base: 0x9fa69a, grout: 0x404840, size: 0.3, band: 0x3d6058, bandY: [1.15, 1.35], miss: 0.05, rust: 4.75 }),
+  floor: tileMat({ base: 0x2d3d36, grout: 0x18201c, size: 0.5, miss: 0.08 }),
+  ceil: tileMat({ base: 0x5a5e57, grout: 0x2c2f2a, size: 0.6, gw: 0, peel: 1 }),
+  mem: tileMat({ base: 0xb0b2a3, grout: 0x4a4f47, size: 0.3, lip: 1 }),
+  lane: tileMat({ base: 0xc7c3ae, grout: 0x55574b, size: 0.4, band: 0x3a4a48, bandY: [-0.2, 0.58], lip: 1 }),
+  crush: lampPatch(new THREE.MeshLambertMaterial({ color: 0x5d564c }), 0x0d1110, 'crush'),
+  door: lampPatch(new THREE.MeshLambertMaterial({ color: 0x585e58 }), 0, 'door'),
+  dark: lampPatch(new THREE.MeshLambertMaterial({ color: 0x1c2420 }), 0, 'dark'),
+  rust: lampPatch(new THREE.MeshLambertMaterial({ color: 0x5a3523 }), 0, 'rust'),
+  debris: lampPatch(new THREE.MeshLambertMaterial({ color: 0xffffff }), 0, 'debris')
 };
+// Years of dirt on anything printed or painted: blotches, a dark tide at the bottom and drips running down.
+function grime(g, w, h, seed, amt) {
+  const r = mulberry32(hash32('grime' + seed)); amt = amt == null ? 1 : amt;
+  for (let i = 0; i < 26 * amt; i++) { const x = r() * w, y = r() * h, rr = (0.05 + r() * 0.22) * Math.max(w, h) * 0.5, gr = g.createRadialGradient(x, y, 0, x, y, rr);
+    gr.addColorStop(0, 'rgba(40,34,20,' + (0.08 + r() * 0.2) * amt + ')'); gr.addColorStop(1, 'rgba(40,34,20,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, rr * 2, rr * 2); }
+  const tide = g.createLinearGradient(0, h * 0.7, 0, h); tide.addColorStop(0, 'rgba(25,30,18,0)'); tide.addColorStop(1, 'rgba(25,30,18,' + 0.45 * amt + ')'); g.fillStyle = tide; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 9 * amt; i++) { const x = r() * w, y0 = r() * h * 0.3, len = (0.25 + r() * 0.6) * h; g.fillStyle = 'rgba(70,40,16,' + (0.12 + r() * 0.2) + ')'; g.fillRect(x, y0, 1.5 + r() * 3, len); }
+}
 // One unit box for every static wall, tile and pillar, scaled per instance.
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; }
@@ -1344,25 +1591,26 @@ const FRAME_TEX = canvasTex(128, 128, (g, w) => { g.clearRect(0, 0, w, w); g.str
 const MIST_TEX = (() => { const t = canvasTex(256, 256, (g, w) => { g.clearRect(0, 0, w, w); let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
   for (let i = 0; i < 46; i++) { const x = r() * w, y = r() * w, rad = 18 + r() * 60; for (const dx of [-w, 0, w]) for (const dy of [-w, 0, w]) { const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad); gr.addColorStop(0, 'rgba(255,255,255,' + (0.18 + r() * 0.25) + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x + dx - rad, y + dy - rad, rad * 2, rad * 2); } } });
   t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
-const BLOB_TEX = canvasTex(64, 64, (g, w) => { const r = g.createRadialGradient(32, 32, 2, 32, 32, 31); r.addColorStop(0, 'rgba(0,30,32,.55)'); r.addColorStop(1, 'rgba(0,30,32,0)'); g.fillStyle = r; g.fillRect(0, 0, w, w); });
-const ARROW_TEX = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#2bb3a8'; for (let i = 0; i < 3; i++) { const x = 24 + i * 70; g.beginPath(); g.moveTo(x, 18); g.lineTo(x + 50, 64); g.lineTo(x, 110); g.lineTo(x + 18, 110); g.lineTo(x + 68, 64); g.lineTo(x + 18, 18); g.closePath(); g.fill(); } });
-const CURRENT_TEX = (() => { const t = canvasTex(128, 128, (g, w) => { g.clearRect(0, 0, w, w); g.fillStyle = 'rgba(29,139,131,.85)'; for (let y = 0; y < 2; y++) { const yy = 16 + y * 64; g.beginPath(); g.moveTo(20, yy); g.lineTo(70, yy + 16); g.lineTo(20, yy + 32); g.lineTo(34, yy + 16); g.closePath(); g.fill(); g.beginPath(); g.moveTo(70, yy); g.lineTo(120, yy + 16); g.lineTo(70, yy + 32); g.lineTo(84, yy + 16); g.closePath(); g.fill(); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
-const PLANK_TEX = (() => { const t = canvasTex(64, 256, (g, w, h) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#f4f7f6' : '#3b8fd1'; g.fillRect(0, i * 32, w, 32); } g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(0, 0, 4, h); g.fillRect(w - 4, 0, 4, h); }); t.wrapT = THREE.RepeatWrapping; return t; })();
+const BLOB_TEX = canvasTex(64, 64, (g, w) => { const r = g.createRadialGradient(32, 32, 2, 32, 32, 31); r.addColorStop(0, 'rgba(0,0,0,.6)'); r.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = r; g.fillRect(0, 0, w, w); });
+const ARROW_TEX = canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#4f9a8a'; for (let i = 0; i < 3; i++) { const x = 24 + i * 70; g.beginPath(); g.moveTo(x, 18); g.lineTo(x + 50, 64); g.lineTo(x, 110); g.lineTo(x + 18, 110); g.lineTo(x + 68, 64); g.lineTo(x + 18, 18); g.closePath(); g.fill(); } });
+const CURRENT_TEX = (() => { const t = canvasTex(128, 128, (g, w) => { g.clearRect(0, 0, w, w); g.fillStyle = 'rgba(96,196,176,.85)'; for (let y = 0; y < 2; y++) { const yy = 16 + y * 64; g.beginPath(); g.moveTo(20, yy); g.lineTo(70, yy + 16); g.lineTo(20, yy + 32); g.lineTo(34, yy + 16); g.closePath(); g.fill(); g.beginPath(); g.moveTo(70, yy); g.lineTo(120, yy + 16); g.lineTo(70, yy + 32); g.lineTo(84, yy + 16); g.closePath(); g.fill(); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; })();
+const PLANK_TEX = (() => { const t = canvasTex(64, 256, (g, w, h) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#c9c5b2' : '#35607a'; g.fillRect(0, i * 32, w, 32); } g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, 0, 4, h); g.fillRect(w - 4, 0, 4, h); grime(g, w, h, 'plank', 0.8); }); t.wrapT = THREE.RepeatWrapping; return t; })();
 function signTex(text, o) {
   o = o || {};
   const lines = String(text).split('|');
   return canvasTex(1024, 256, (g, w, h) => {
-    g.fillStyle = o.bg || '#f6fbfa'; g.fillRect(0, 0, w, h);
-    g.strokeStyle = o.edge || '#1d8b83'; g.lineWidth = 14; g.strokeRect(10, 10, w - 20, h - 20);
-    g.fillStyle = o.ink || '#0d3b3f'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = o.bg || '#cfc9b2'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = o.edge || '#3b5a50'; g.lineWidth = 14; g.strokeRect(10, 10, w - 20, h - 20);
+    if (!o.clean) grime(g, w, h, text, 0.7);
+    g.fillStyle = o.ink || '#141a17'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = '900 ' + (lines.length > 1 ? 74 : 96) + 'px Archivo, Arial, sans-serif';
     g.fillText(lines[0], w / 2, lines.length > 1 ? 92 : h / 2, w - 60);
-    if (lines[1]) { g.font = '600 40px "IBM Plex Mono", Menlo, monospace'; g.fillStyle = o.ink2 || '#2a5c5e'; g.fillText(lines[1], w / 2, 178, w - 60); }
+    if (lines[1]) { g.font = '600 40px "IBM Plex Mono", Menlo, monospace'; g.fillStyle = o.ink2 || '#2c3d37'; g.fillText(lines[1], w / 2, 178, w - 60); }
   });
 }
 function digitTex(n, d) {
   return canvasTex(128, 256, (g, w, h) => {
-    g.fillStyle = '#e8f4f2'; g.fillRect(0, 0, w, h); g.fillStyle = '#0d3b3f'; g.fillRect(0, 0, w, 54);
+    g.fillStyle = '#d6d1bd'; g.fillRect(0, 0, w, h); grime(g, w, h, 'digit' + n, 0.6); g.fillStyle = '#16211d'; g.fillRect(0, 0, w, 54);
     g.fillStyle = '#7ff5e8'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '600 34px "IBM Plex Mono", monospace'; g.fillText('#' + (n + 1), w / 2, 28);
     g.fillStyle = '#c0392b'; g.font = '900 150px Archivo, Arial, sans-serif'; g.fillText(String(d), w / 2, 160);
   });
@@ -1381,12 +1629,13 @@ function ownMat(m) { m.userData.own = 1; return m; }
 function buildLevel(W) {
   disposeLevel();
   const G = new THREE.Group(); scene.add(G);
-  LV = { group: G, W, dyn: [], planks: [], waters: [], stones: [], valves: [], lights: [], flick: [], mist: [], doors: [], keypadLamp: null };
-  const stat = { tile: [], pillar: [], wall: [], mem: [], lane: [], crush: [], door: [], dark: [] };
+  LV = { group: G, W, dyn: [], planks: [], waters: [], stones: [], valves: [], lights: [], flick: [], mist: [], doors: [], lamps: [], keypadLamp: null };
+  const rnd = mulberry32(hash32('decor:' + W.df));   // the same dressing in every browser
+  const stat = { tile: [], float: [], pillar: [], wall: [], mem: [], lane: [], crush: [], door: [], dark: [] };
   const dynBoxes = new Set(W.dyn.map(d => d.b));
   for (const b of W.boxes) {
     if (dynBoxes.has(b)) continue;
-    const k = b.k === 'pillar' ? 'pillar' : b.k === 'wall' ? 'wall' : b.k === 'lane' ? 'lane' : b.k === 'crusher' ? 'crush' : 'tile';
+    const k = b.k === 'pillar' ? 'pillar' : b.k === 'wall' ? 'wall' : b.k === 'lane' ? 'lane' : b.k === 'crusher' ? 'crush' : FLOATS.has(b.k) ? 'float' : 'tile';
     stat[k].push(b);
   }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3();
@@ -1401,11 +1650,12 @@ function buildLevel(W) {
   const FR = { sink: frameMat(0xfff2b8), stable: frameMat(0x173235), mover: frameMat(0x3b8fd1), mem: frameMat(0x6d8583) };
   const PLANE = new THREE.PlaneGeometry(1, 1); PLANE.userData.shared = 1; PLANE.rotateX(-Math.PI / 2);
   const addFrame = (b, mat) => { const f = new THREE.Mesh(PLANE, mat); f.position.set((b.x0 + b.x1) / 2, b.y1 + 0.006, (b.z0 + b.z1) / 2); f.scale.set(b.x1 - b.x0, 1, b.z1 - b.z0); G.add(f); return f; };
-  for (const b of W.boxes) if (b.k === 'stable' && !dynBoxes.has(b)) addFrame(b, FR.stable);
+  LV.fframes = [];
+  for (const b of W.boxes) if (b.k === 'stable' && !dynBoxes.has(b)) LV.fframes.push({ f: addFrame(b, FR.stable), b });
   for (const b of W.boxes) if (b.k === 'current') {
     const t = CURRENT_TEX.clone(); t.needsUpdate = true; t.repeat.set(b.cur > 0 ? 2 : -2, 2);
     const m = ownMat(new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
-    const f = addFrame(b, m); f.userData.cur = b.cur; LV.flick.push({ cur: f });
+    const f = addFrame(b, m); f.userData.cur = b.cur; LV.flick.push({ cur: f }); LV.fframes.push({ f, b });
   }
   for (const d of W.dyn) {
     const b = d.b;
@@ -1418,6 +1668,7 @@ function buildLevel(W) {
     if (d.type === 'push') { e.stripe = new THREE.Mesh(BOX, ownMat(new THREE.MeshBasicMaterial({ color: 0xd8432f }))); G.add(e.stripe); }
     LV.dyn.push(e);
   }
+  LV.dynOf = new Set(W.dyn.filter(d => d.type === 'sink' || d.type === 'mem' || d.type === 'move').map(d => d.b)); LV.fl = new Map(); LV.st = new Map(); FK.length = 0;
   // housings that never push: a green light says this lane is open
   for (const h of W.housings) {
     const m = new THREE.Mesh(BOX, MAT.crush); m.position.set(h.x - 0.3, h.y, h.z); m.scale.set(1.2, 2.2, 2.4); G.add(m);
@@ -1427,12 +1678,15 @@ function buildLevel(W) {
   const PL = new THREE.BoxGeometry(1, 0.22, 1);
   for (const p of W.planks) {
     const t = PLANK_TEX.clone(); t.needsUpdate = true; t.repeat.set(1, p.hl * 2 / 2.4);
-    const m = new THREE.Mesh(PL, ownMat(new THREE.MeshLambertMaterial({ map: t }))); m.scale.set(p.hw * 2, 1, p.hl * 2); G.add(m);
+    const m = new THREE.Mesh(PL, ownMat(lampPatch(new THREE.MeshLambertMaterial({ map: t }), 0x0a0d0c))); m.scale.set(p.hw * 2, 1, p.hl * 2); G.add(m);
     const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 3.6, 12), MAT.dark); hub.position.set(p.cx, p.top - 1.9, p.cz); G.add(hub);
     LV.planks.push({ p, m });
   }
   // the pool floor, the water and the ceiling of each room (and the lobby's little pool)
   const rooms = [W.lobby].concat(W.rooms);
+  const near = (R, x, z) => R.boxes.some(b => x > b.x0 - 0.4 && x < b.x1 + 0.4 && z > b.z0 - 0.4 && z < b.z1 + 0.4);
+  const deco = { rub: [], flo: [], lad: [], pipe: [], buoy: [] };
+  const PANEL = new THREE.PlaneGeometry(2.2, 1.1).rotateX(Math.PI / 2);
   for (const R of rooms) {
     const len = R.z1 - R.z0, cz = (R.z0 + R.z1) / 2;
     const hw = R.hw;
@@ -1441,28 +1695,77 @@ function buildLevel(W) {
     if (R.i >= 0 && gfx > 0) for (const [y, o, sp] of [[0.3, 0.55, 0.012], [1.3, 0.38, -0.008]]) {
       // low mist lying over the water, drifting
       const mt = MIST_TEX.clone(); mt.needsUpdate = true; mt.repeat.set(hw / 7, len / 7);
-      const mm = new THREE.Mesh(new THREE.PlaneGeometry(2 * hw, len).rotateX(-Math.PI / 2), ownMat(new THREE.MeshBasicMaterial({ map: mt, color: FOG, transparent: true, opacity: o, depthWrite: false, fog: true })));
+      const mm = new THREE.Mesh(new THREE.PlaneGeometry(2 * hw, len).rotateX(-Math.PI / 2), ownMat(new THREE.MeshBasicMaterial({ map: mt, color: 0x4a5a52, transparent: true, opacity: o, depthWrite: false, fog: true })));   // dim grey-green so it reads against the dark
       mm.position.set(0, y, cz); mm.renderOrder = 3; G.add(mm); LV.mist.push({ t: mt, sp });
     }
     if (R.i >= 0) { const wm = new THREE.Mesh(new THREE.PlaneGeometry(2 * hw, len, 1, 1).rotateX(-Math.PI / 2), WATER); wm.position.set(0, 0, cz); wm.renderOrder = 2; G.add(wm); LV.waters.push({ R, m: wm }); }
     else { const wm = new THREE.Mesh(new THREE.PlaneGeometry(10, 7).rotateX(-Math.PI / 2), WATER); wm.position.set(0, 0, -12.5); wm.renderOrder = 2; G.add(wm); }
-    // light panels in the ceiling, one of them flickering
+    // ceiling panels: most are dead (a few hang loose), a few still work over the way across, one in a room flickers
     const pts = []; for (let z = R.z0 + 3; z < R.z1 - 1; z += 6) for (let x = -hw + 4; x <= hw - 4; x += 8) pts.push([x, z]);
-    const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(2.2, 1.1).rotateX(Math.PI / 2), ownMat(new THREE.MeshBasicMaterial({ color: 0xffffff })), pts.length);
-    const c = new THREE.Color(0xffffff);
-    pts.forEach((p, i) => { m4.compose(v.set(p[0], CEIL - 0.01, p[1]), q, s.set(1, 1, 1)); im.setMatrixAt(i, m4); im.setColorAt(i, c.setHex(0xfbfffd)); });
-    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; G.add(im);
-    LV.flick.push({ im, i: (R.i * 7 + 3) % pts.length, ph: R.i * 1.7 });
+    const kind = pts.map(() => 'dead');
+    const stops = R.i < 0 ? [{ x: 0, z: -4 }, { x: -9, z: -12.5 }, { x: 9, z: -12.5 }, { x: 0, z: -21 }] : R.stops.filter((st, i) => i % 3 === 0 || i === R.stops.length - 1);
+    let on = 0;
+    for (const st of stops) {
+      let bi = 0, bd = 1e9; pts.forEach((p, i) => { const d = Math.hypot(p[0] - st.x, p[1] - st.z); if (d < bd) { bd = d; bi = i; } });
+      if (kind[bi] === 'dead' && on < 7 && !pts.some((p, i) => kind[i] === 'on' && Math.hypot(p[0] - pts[bi][0], p[1] - pts[bi][1]) < 6.5)) { kind[bi] = 'on'; on++; }
+    }
+    const fi = pts.findIndex((p, i) => kind[i] === 'dead' && rnd() < 0.3); if (fi >= 0) kind[fi] = 'flick';
+    const im = new THREE.InstancedMesh(PANEL, ownMat(new THREE.MeshBasicMaterial({ color: 0xffffff })), pts.length);
+    const c = new THREE.Color();
+    pts.forEach((p, i) => {
+      const hang = kind[i] === 'dead' && rnd() < 0.3;
+      q.setFromEuler(new THREE.Euler(hang ? (rnd() - 0.5) * 0.9 : 0, 0, hang ? (rnd() - 0.5) * 0.5 : 0));
+      m4.compose(v.set(p[0], CEIL - 0.01 - (hang ? 0.35 : 0), p[1]), q, s.set(1, 1, 1)); im.setMatrixAt(i, m4);
+      im.setColorAt(i, c.setHex(kind[i] === 'on' ? 0xeee6cc : kind[i] === 'flick' ? 0xc9dccf : 0x1b201d));
+      if (kind[i] !== 'dead') LV.lamps.push({ x: p[0], y: CEIL - 0.4, z: p[1], w: kind[i] === 'on' ? 2.0 : 1.6, k: kind[i], ph: rnd() * 50, im, i, col: kind[i] === 'on' ? 0xf4dcae : 0xc6e0d2, cur: 1 });
+    });
+    q.identity();
+    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.frustumCulled = false; G.add(im);
+    // dressing: old pipes along the top of the walls, pool ladders, a lifebuoy, broken tile on the decks, rubbish on the water
+    if (R.i >= 0) {
+      for (const sx of [-1, 1]) { deco.pipe.push([sx * (hw - 0.2), 4.85, cz, len, 0.11]); deco.pipe.push([sx * (hw - 0.16), 5.2, cz, len, 0.06]); }
+      const dk = R.boxes.find(b => b.k === 'deck' && b.z0 <= R.z0 + 0.01);
+      if (dk && R.i < ROOMS.length - 1) for (const lx of [dk.x0 + 1.2, dk.x1 - 1.2]) if (rnd() < 0.75) deco.lad.push([lx, dk.z1 + 0.1]);
+      for (const bs of [-1, 1]) if (rnd() < 0.7) deco.buoy.push([bs * (hw - 0.12), 2.1, R.z0 + 6 + rnd() * (len - 12), bs]);
+      for (let n = 0; n < 2; n++) { const bx = (rnd() - 0.5) * 2 * (hw - 3), bz = R.z0 + 8 + rnd() * (len - 14); if (!near(R, bx, bz)) deco.buoy.push([bx, 0.02, bz, 0]); }
+      for (let n = 0; n < 70; n++) { const x = (rnd() - 0.5) * 2 * (hw - 1), z = R.z0 + 5 + rnd() * (len - 9); if (!near(R, x, z)) deco.flo.push([x, z, rnd()]); }
+    }
+    // broken tile heaped at the ends of each deck, against the walls
+    const decks = R.boxes.filter(b => b.k === 'deck' && b.y1 <= TOP + 0.01 && b.x1 - b.x0 > 3);
+    for (const b of decks) for (let n = 0; n < 14; n++) {
+      const end = rnd() < 0.5, x = end ? b.x0 + 0.25 + rnd() * rnd() * 2.5 : b.x1 - 0.25 - rnd() * rnd() * 2.5, z = b.z0 + 0.2 + rnd() * (b.z1 - b.z0 - 0.4);
+      deco.rub.push([x, b.y1, z, rnd()]);
+    }
   }
+  // all the dressing as a handful of instanced meshes (a few draw calls for the whole level)
+  const inst = (geo, mat, list, place) => { if (!list.length) return null; const im = new THREE.InstancedMesh(geo, mat, list.length); const c = new THREE.Color();
+    list.forEach((e, i) => { place(e, c); im.setMatrixAt(i, m4); if (c.r + c.g + c.b < 2.99) im.setColorAt(i, c); }); im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.frustumCulled = false; G.add(im); return im; };   // (instances spread over the whole level: the base shape's bounds would cull them wrongly)
+  const PIPE = new THREE.CylinderGeometry(1, 1, 1, 10).rotateX(Math.PI / 2);
+  inst(PIPE, MAT.rust, deco.pipe, (e, c) => { m4.compose(v.set(e[0], e[1], e[2]), q.identity(), s.set(e[4], e[4], e[3])); c.setRGB(1, 1, 1); });
+  const LADP = []; for (const l of deco.lad) { for (const dx of [-0.28, 0.28]) { LADP.push([l[0] + dx, -0.4, l[1] + 0.06, 0.05, 2.4, 0.05]); LADP.push([l[0] + dx, TOP + 0.85, l[1] - 0.12, 0.05, 0.05, 0.36]); LADP.push([l[0] + dx, TOP + 0.42, l[1] - 0.3, 0.05, 0.86, 0.05]); } for (const y of [-0.3, 0.1, 0.5]) LADP.push([l[0], y, l[1] + 0.06, 0.56, 0.04, 0.04]); }
+  inst(BOX, MAT.door, LADP, (e, c) => { m4.compose(v.set(e[0], e[1], e[2]), q.identity(), s.set(e[3], e[4], e[5])); c.setRGB(0.75, 0.62, 0.5); });
+  const buoyM = ownMat(lampPatch(new THREE.MeshLambertMaterial({ map: canvasTex(64, 16, (g, w, h) => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#c8c0aa' : '#8c3326'; g.fillRect(i * 8, 0, 8, h); } grime(g, w, h, 'buoy', 1); }) }), 0x0c0f0e));
+  inst(new THREE.TorusGeometry(0.32, 0.085, 6, 14), buoyM, deco.buoy, (e, c) => { q.setFromEuler(new THREE.Euler(e[3] ? 0 : Math.PI / 2, e[3] ? Math.PI / 2 : 0, 0.3)); m4.compose(v.set(e[0], e[1], e[2]), q, s.set(1, 1, 1)); c.setRGB(1, 1, 1); });
+  inst(BOX, MAT.debris, deco.rub, (e, c) => { const r = e[3]; q.setFromEuler(new THREE.Euler((r - 0.5) * 0.3, r * 9, (r - 0.5) * 0.3)); const sz = 0.08 + r * r * 0.3;
+    m4.compose(v.set(e[0], e[1] + 0.02, e[2]), q, s.set(sz, 0.035 + r * 0.04, sz * (0.6 + r))); const k = r < 0.5 ? 0.55 + r * 0.6 : 0.22 + r * 0.2; c.setRGB(k, k * 0.97, k * 0.86); });
+  inst(BOX, MAT.debris, deco.flo, (e, c) => { const r = e[2]; q.setFromEuler(new THREE.Euler(0, r * 17, 0)); m4.compose(v.set(e[0], 0.012, e[1]), q, s.set(0.12 + r * 0.6, 0.02, 0.08 + r * 0.25));
+    if (r < 0.35) c.setRGB(0.32, 0.22, 0.13); else if (r < 0.7) c.setRGB(0.2, 0.24, 0.13); else c.setRGB(0.52, 0.5, 0.42); });
+  // light falling through the mist under each working panel, and the mist itself
+  if (LV.lamps.length) {
+    const CONE = new THREE.CylinderGeometry(0.75, 2.6, 5.1, 18, 1, true);
+    LV.cones = inst(CONE, CONE_MAT, LV.lamps, (e, c) => { m4.compose(v.set(e.x, CEIL - 0.1 - 2.55, e.z), q.identity(), s.set(1, 1, 1)); c.setRGB(0.99, 0.99, 0.99); });
+    if (LV.cones) LV.cones.renderOrder = 4;
+  }
+  if (LV.cones) LV.cones.visible = gfx > 0;
   // signs, arrows, stones, valves, numbers, keypad, the exit
   for (const sg of W.signs) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), ownMat(new THREE.MeshBasicMaterial({ map: signTex(sg.text), fog: true })));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), ownMat(new THREE.MeshBasicMaterial({ map: signTex(sg.text), color: 0x9d9a8e, fog: true })));
     m.position.set(sg.x, sg.y, sg.z); m.rotation.y = Math.PI; G.add(m);
     const rod = new THREE.Mesh(BOX, MAT.dark); rod.position.set(sg.x, (sg.y + CEIL) / 2 + 0.3, sg.z); rod.scale.set(0.04, CEIL - sg.y - 0.5, 0.04); G.add(rod);
   }
   const arrowMat = ownMat(new THREE.MeshBasicMaterial({ map: ARROW_TEX, transparent: true, depthWrite: false }));
   for (const a of W.arrows) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8), arrowMat); m.position.set(a.x - a.side * 0.01, a.y, a.z); m.rotation.y = a.side < 0 ? Math.PI / 2 : -Math.PI / 2; if (a.side < 0) m.scale.x = -1; G.add(m); }
-  const rockG = new THREE.DodecahedronGeometry(0.16, 0), rockM = ownMat(new THREE.MeshLambertMaterial({ color: 0x8c9394 }));
+  const rockG = new THREE.DodecahedronGeometry(0.16, 0), rockM = ownMat(lampPatch(new THREE.MeshLambertMaterial({ color: 0x9aa09a }), 0x2a3330));
   for (const st of W.stones) {
     const g = new THREE.Group(); g.position.set(st.x, st.y, st.z);
     for (let i = 0; i < 6; i++) { const r = new THREE.Mesh(rockG, rockM); const a = i * 1.9; r.position.set(Math.cos(a) * 0.22 * (i % 3), 0.08, Math.sin(a) * 0.2 * (i % 2 + 0.5)); r.scale.setScalar(0.7 + (i * 37 % 5) * 0.12); r.rotation.set(i, i * 2, 0); g.add(r); }
@@ -1472,14 +1775,14 @@ function buildLevel(W) {
     const g = new THREE.Group(); g.position.set(V.x, V.y, V.z);
     const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.1, 10), MAT.door); pipe.position.y = 0.55; g.add(pipe);
     const wheel = new THREE.Group(); wheel.position.set(0, 1.12, 0); g.add(wheel);
-    const red = ownMat(new THREE.MeshLambertMaterial({ color: 0xd8342b, emissive: 0x3a0806 }));
+    const red = ownMat(lampPatch(new THREE.MeshLambertMaterial({ color: 0xc9352b, emissive: 0x4a0a07 }), 0x301010));
     const tor = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.055, 8, 24), red); tor.rotation.x = Math.PI / 2; wheel.add(tor);
     for (let i = 0; i < 4; i++) { const sp = new THREE.Mesh(BOX, red); sp.scale.set(0.84, 0.05, 0.05); sp.rotation.y = i * Math.PI / 4 * 2 / 2 + (i % 2) * Math.PI / 2; wheel.add(sp); }
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), ownMat(new THREE.MeshBasicMaterial({ color: 0xff4b3e }))); lamp.position.y = 1.5; g.add(lamp);
     G.add(g); LV.valves.push({ g, wheel, lamp, red });
   }
   for (const D of W.digits) {
-    const tex = digitTex(D.n, D.d), mat = ownMat(new THREE.MeshBasicMaterial({ map: tex, fog: true }));
+    const tex = digitTex(D.n, D.d), mat = ownMat(new THREE.MeshBasicMaterial({ map: tex, color: 0xcfcbbd, fog: true }));
     // a number on every face of the pillar: front (-z), back, left, right
     const faces = [[0, -0.355, Math.PI], [0, 0.355, 0], [-0.355, 0, -Math.PI / 2], [0.355, 0, Math.PI / 2]];
     for (const f of faces) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 1.32), mat); m.position.set(D.x + f[0], D.y, D.z + 0.35 + f[1]); m.rotation.y = f[2]; G.add(m); }
@@ -1490,12 +1793,12 @@ function buildLevel(W) {
     face.position.set(K.x - 0.065, K.y, K.z); face.rotation.y = -Math.PI / 2; G.add(face);
     LV.keypadLamp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), ownMat(new THREE.MeshBasicMaterial({ color: 0xff4b3e }))); LV.keypadLamp.position.set(K.x - 0.07, K.y + 0.38, K.z); G.add(LV.keypadLamp);
     const R9 = W.rooms[W.rooms.length - 1];
-    const ex = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.5), ownMat(new THREE.MeshBasicMaterial({ map: signTex('EXIT', { bg: '#0f6b3f', edge: '#7cf0b0', ink: '#eafff2' }) })));
+    const ex = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.5), ownMat(new THREE.MeshBasicMaterial({ map: signTex('EXIT', { bg: '#0f6b3f', edge: '#7cf0b0', ink: '#eafff2', clean: 1 }) })));
     ex.position.set(R9.cx, CORR_TOP + 3.1, R9.z1 - 0.02); ex.rotation.y = Math.PI; G.add(ex);
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(8, 6), ownMat(new THREE.MeshBasicMaterial({ color: 0xffffff }))); glow.position.set(R9.cx, CORR_TOP + 2, R9.z1 + 6.95); glow.rotation.y = Math.PI; G.add(glow);
   }
   // the doors in each far wall: a dark frame, a lamp and an EXIT sign on every one; the shut ones are barred
-  const exitTex = signTex('EXIT', { bg: '#0f6b3f', edge: '#7cf0b0', ink: '#eafff2' }), exitMat = ownMat(new THREE.MeshBasicMaterial({ map: exitTex, fog: true }));
+  const exitTex = signTex('EXIT', { bg: '#0f6b3f', edge: '#7cf0b0', ink: '#eafff2', clean: 1 }), exitMat = ownMat(new THREE.MeshBasicMaterial({ map: exitTex, fog: true }));
   const lampMat = ownMat(new THREE.MeshBasicMaterial({ color: 0xffd27a, fog: true }));
   for (const D of W.doors) {
     const z = D.z - 0.27, g = new THREE.Group(); g.position.set(D.x, TOP, z); G.add(g);
@@ -1508,6 +1811,8 @@ function buildLevel(W) {
       for (const y of [0.9, 2.3]) { const b = new THREE.Mesh(BOX, MAT.door); b.position.set(0, y, -0.06); b.scale.set(3.9, 0.08, 0.06); g.add(b); }
     }
     LV.doors.push({ D, lamp });
+    // each door's lamp lights the way to it (the open one a little warmer and brighter)
+    LV.lamps.push({ x: D.x, y: TOP + 4.0, z: z - 0.6, w: D.real ? 1.5 : 1.1, k: 'door', ph: 0, im: null, i: 0, col: D.real ? 0xffcf7a : 0xd8b878, cur: 1 });
   }
   // the lobby: two stalls and the party pad
   const L = W.lobby;
@@ -1516,45 +1821,89 @@ function buildLevel(W) {
     const desk = new THREE.Mesh(BOX, MAT.lane); desk.position.y = 0.5; desk.scale.set(3.2, 1, 1.2); g.add(desk);
     const post1 = new THREE.Mesh(BOX, MAT.dark); post1.position.set(-1.5, 1.4, -0.5); post1.scale.set(0.08, 2.8, 0.08); g.add(post1);
     const post2 = post1.clone(); post2.position.x = 1.5; g.add(post2);
-    const can = new THREE.Mesh(BOX, ownMat(new THREE.MeshLambertMaterial({ color: st.k === 'equip' ? 0x2bb3a8 : 0xf2c14e }))); can.position.set(0, 2.85, -0.2); can.scale.set(3.6, 0.14, 1.8); g.add(can);
-    const sg = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.75), ownMat(new THREE.MeshBasicMaterial({ map: signTex(st.n.toUpperCase() + '|Walk up and press E') }))); sg.position.set(0, 2.3, 0.45); g.add(sg);
+    const can = new THREE.Mesh(BOX, ownMat(lampPatch(new THREE.MeshLambertMaterial({ color: st.k === 'equip' ? 0x3f8f80 : 0xc99a3c })))); can.position.set(0, 2.85, -0.2); can.scale.set(3.6, 0.14, 1.8); g.add(can);
+    const sg = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.75), ownMat(new THREE.MeshBasicMaterial({ map: signTex(st.n.toUpperCase() + '|Walk up and press E'), color: 0xb5b2a6 }))); sg.position.set(0, 2.3, 0.45); g.add(sg);
     G.add(g);
   }
   const pad = new THREE.Mesh(new THREE.RingGeometry(L.pad.r - 0.25, L.pad.r, 48).rotateX(-Math.PI / 2), ownMat(new THREE.MeshBasicMaterial({ color: 0x46f0d8, transparent: true, opacity: 0.85 })));
   pad.position.set(L.pad.x, L.pad.y + 0.01, L.pad.z); G.add(pad); LV.pad = pad;
-  const ps = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), ownMat(new THREE.MeshBasicMaterial({ map: signTex('TOUCH TO CREATE A PARTY|Stand in the ring · Tab opens it too') })));
+  const ps = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), ownMat(new THREE.MeshBasicMaterial({ map: signTex('TOUCH TO CREATE A PARTY|Stand in the ring · Tab opens it too'), color: 0xb5b2a6 })));
   ps.position.set(0, 3.2, -1.2); ps.rotation.y = Math.PI; G.add(ps);
-  const ls = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), ownMat(new THREE.MeshBasicMaterial({ map: signTex('HUSH POOLS|Don\'t splash. Escape together.') })));
+  const ls = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), ownMat(new THREE.MeshBasicMaterial({ map: signTex('BLACKWADE|Don\'t splash. Escape together.'), color: 0xb5b2a6 })));
   ls.position.set(0, 3.4, -25.9); G.add(ls);
   return LV;
 }
-// The water: see-through teal with moving caustics, and the noise rings drawn into it.
+// The water: murky green-black under a scum film, flecked with the lamps' reflections, with something pale now and then
+// just under the surface, and the noise rings drawn into it (pale and sharp, so they read on the dark water).
 const RINGS = 14;
 const WATER = new THREE.ShaderMaterial({
   transparent: true, depthWrite: false,
-  uniforms: { uTime: U.time, uRings: { value: Array.from({ length: RINGS }, () => new THREE.Vector4()) }, uCam: { value: new THREE.Vector3() },
-    uFog: { value: new THREE.Color(FOG) }, uNear: { value: FOG_NEAR }, uFar: { value: FOG_FAR }, uFlare: { value: new THREE.Vector4(0, 0, 0, 0) } },
+  uniforms: Object.assign({ uTime: U.time, uRings: { value: Array.from({ length: RINGS }, () => new THREE.Vector4()) }, uCam: { value: new THREE.Vector3() },
+    uFog: { value: new THREE.Color(FOG) }, uNear: { value: FOG_NEAR }, uFar: { value: FOG_FAR }, uFlare: { value: new THREE.Vector4(0, 0, 0, 0) }, uShapes: { value: REDUCED ? 0 : 1 } }, LAMPU),
   vertexShader: 'varying vec3 vWP; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vWP = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
-  fragmentShader: `uniform float uTime; uniform vec4 uRings[${RINGS}]; uniform vec3 uCam; uniform vec3 uFog; uniform float uNear; uniform float uFar; uniform vec4 uFlare; varying vec3 vWP;` + GLSL_CAUSTIC + `
+  fragmentShader: `uniform float uTime; uniform vec4 uRings[${RINGS}]; uniform vec3 uCam; uniform vec3 uFog; uniform float uNear; uniform float uFar; uniform vec4 uFlare; uniform float uShapes; varying vec3 vWP;` + GLSL_LAMPS + `
   void main(){
-    vec2 p = vWP.xz;
-    float w = sin(p.x * 1.7 + uTime * 0.9) * 0.5 + sin(p.y * 2.3 - uTime * 1.1) * 0.5 + sin((p.x + p.y) * 3.1 + uTime * 1.7) * 0.25;
-    vec3 col = mix(vec3(0.16, 0.55, 0.56), vec3(0.42, 0.80, 0.78), 0.5 + 0.1 * w) + vec3(0.6, 0.95, 0.92) * caustic(p * 0.45, uTime * 0.8) * 0.16;
+    vec2 p = vWP.xz; float t = uTime;
+    float n1 = texture2D(uNoise, p * 0.05 + vec2(t * 0.003, t * 0.0015)).r;
+    float n2 = texture2D(uNoise, p * 0.09 - vec2(t * 0.004, -t * 0.002)).g;
+    vec2 q = p * 0.13 + vec2(t * 0.011, t * 0.007);
+    float hA = texture2D(uNoise, q).b, hB = texture2D(uNoise, q + vec2(0.04, 0.0)).b, hC = texture2D(uNoise, q + vec2(0.0, 0.04)).b;
+    vec3 N = normalize(vec3((hA - hB) * 0.9, 1.0, (hA - hC) * 0.9));
+    vec3 col = mix(vec3(0.018, 0.034, 0.028), vec3(0.04, 0.066, 0.05), n1);
+    // scum: a dull green-brown film in drifting patches
+    float scum = smoothstep(0.55, 0.8, n1 * 0.6 + n2 * 0.4);
+    col = mix(col, vec3(0.13, 0.14, 0.085) * (0.8 + 0.4 * n2), scum * 0.7);
+    // something pale just under the surface, drifting, never clear
+    vec2 cl = floor(p / 9.0); float hh = fract(sin(dot(cl, vec2(41.3, 289.1))) * 43758.5);
+    if (hh > 0.62 && uShapes > 0.0) {
+      vec2 c = cl * 9.0 + 4.5 + vec2(sin(t * 0.07 + hh * 20.0), cos(t * 0.05 + hh * 13.0)) * 2.4;
+      float an = hh * 6.28 + t * 0.03; vec2 d = p - c; d = vec2(d.x * cos(an) - d.y * sin(an), d.x * sin(an) + d.y * cos(an));
+      float sh = smoothstep(1.0, 0.0, length(d * vec2(1.0, 3.2))) * (0.55 + 0.45 * sin(t * 0.4 + hh * 9.0));
+      col += vec3(0.05, 0.065, 0.055) * sh * (1.0 - scum);
+    }
+    // the lamps: a dim pool on the water under each, and a sharp glint where it reflects toward you
+    vec3 V = normalize(uCam - vWP), R = reflect(-V, N), lit = vec3(0.0);
+    for (int i = 0; i < ${LAMP_N}; i++) {
+      vec4 L = uLamp[i]; if (L.w <= 0.0) continue;
+      vec3 d = L.xyz - vWP; float r2 = dot(d, d);
+      float a = L.w * (1.0 - smoothstep(1.2, 8.0, length(d.xz))) / (1.0 + 0.045 * r2);
+      lit += uLampC[i] * (a * 0.16 + L.w * pow(max(dot(R, d * inversesqrt(r2)), 0.0), 90.0) * 0.6 / (1.0 + 0.012 * r2));
+    }
+    col += lit * (1.0 - 0.6 * scum);
     float ring = 0.0;
-    for (int i = 0; i < ${RINGS}; i++) { vec4 r = uRings[i]; if (r.w <= 0.0) continue; float d = abs(length(p - r.xy) - r.z); ring += r.w * (smoothstep(0.28, 0.0, d) + 0.3 * smoothstep(1.4, 0.0, d) * step(length(p - r.xy), r.z)); }
-    col += vec3(0.9, 1.0, 1.0) * min(ring, 1.4);
+    for (int i = 0; i < ${RINGS}; i++) { vec4 r = uRings[i]; if (r.w <= 0.0) continue; float dd = length(p - r.xy), d = abs(dd - r.z); ring += r.w * (smoothstep(0.24, 0.0, d) + 0.22 * smoothstep(1.4, 0.0, d) * step(dd, r.z) + smoothstep(0.45, 0.0, dd) * (1.0 - smoothstep(0.3, 1.2, r.z))); }
+    col += vec3(0.78, 0.92, 0.84) * min(ring, 1.3) * 0.9;
     if (uFlare.w > 0.0) col += vec3(1.0, 0.25, 0.2) * uFlare.w * smoothstep(7.0, 0.0, length(p - uFlare.xy)) * 0.5;
-    vec3 v = normalize(uCam - vWP); float fr = pow(1.0 - max(v.y, 0.0), 3.0);
-    col = mix(col, vec3(0.86, 0.97, 0.96), fr * 0.45);
+    float fr = pow(1.0 - max(V.y, 0.0), 3.0);
+    col = mix(col, uFog * 2.2 + vec3(0.02, 0.03, 0.025), fr * 0.35);
     float fogF = smoothstep(uNear, uFar, length(uCam - vWP));
-    // shallow and clear: you can see the floor tiles (and its feet) through it, but not ripples' worth of detail
-    gl_FragColor = vec4(mix(col, uFog, fogF), mix(0.5 + fr * 0.38 + min(ring, 1.0) * 0.25, 1.0, fogF));
+    // knee deep and murky: the floor and feet show through only faintly
+    gl_FragColor = vec4(mix(col, uFog, fogF), mix(0.8 + fr * 0.15 + min(ring, 1.0) * 0.08, 1.0, fogF));
   }`
+});
+// Light falling through the air under a working panel: brightest at the top, soft at the edges, and gone when the camera
+// is close or inside it (so it never washes over the screen).
+const CONE_MAT = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uTint: { value: new THREE.Color(0x2a261d) } },
+  vertexShader: `varying float vV; varying vec3 vWP; varying vec3 vWN; varying vec3 vC;
+    void main(){ vec4 w = vec4(position, 1.0); vec3 n = normal; vC = vec3(1.0);
+      #ifdef USE_INSTANCING
+        w = instanceMatrix * w; n = mat3(instanceMatrix) * n;
+      #endif
+      #ifdef USE_INSTANCING_COLOR
+        vC = instanceColor;
+      #endif
+      w = modelMatrix * w; vWP = w.xyz; vWN = normalize(mat3(modelMatrix) * n); vV = uv.y; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `uniform vec3 uTint; varying float vV; varying vec3 vWP; varying vec3 vWN; varying vec3 vC;
+    void main(){ vec3 V = cameraPosition - vWP; float d = length(V);
+      float k = pow(vV, 1.6) * abs(dot(normalize(vWN), V / d)) * smoothstep(1.5, 5.5, d) * (1.0 - smoothstep(22.0, 32.0, d));
+      gl_FragColor = vec4(uTint * vC * k * 1.6, 1.0); }`
 });
 // ---- People and the monster ----
 const SKIN = 0xe8c4a8;
 function makeSwimmer(color) {
-  const g = new THREE.Group(), cm = new THREE.MeshLambertMaterial({ color }), dm = new THREE.MeshLambertMaterial({ color: 0x24363a }), sm = new THREE.MeshLambertMaterial({ color: SKIN });
+  // a soft warm rim on every swimmer so teammates (and you) stay findable in the dark
+  const g = new THREE.Group(), cm = lampPatch(new THREE.MeshLambertMaterial({ color }), 0x3a3428), dm = lampPatch(new THREE.MeshLambertMaterial({ color: 0x2a3433 }), 0x2a2a22), sm = lampPatch(new THREE.MeshLambertMaterial({ color: SKIN }), 0x3a3428);
   const body = new THREE.Group(); g.add(body);
   const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.27, 0.72, 12), cm); torso.position.y = 1.08; body.add(torso);
   const hood = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), cm); hood.position.y = 1.43; body.add(hood);
@@ -1586,7 +1935,8 @@ function dropSwimmer(S) { scene.remove(S.g); scene.remove(S.blob); S.g.traverse(
 // The monster: very tall, starved and hunched, dark wet skin like something that's been in the water too long, milky
 // blind eyes, long black hair stuck to it, a mouth that splits back to where ears would be, arms long enough to trail
 // in the water, and knees that bend the wrong way.
-const MON_MAT = new THREE.MeshPhongMaterial({ color: 0x4c5650, specular: 0x6c7f7a, shininess: 90, emissive: 0x050706 });
+// (Blackwade: lit by the working lamps too, with a cold rim so its silhouette still reads against the dark halls)
+const MON_MAT = lampPatch(new THREE.MeshPhongMaterial({ color: 0x4c5650, specular: 0x6c7f7a, shininess: 90, emissive: 0x050706 }), 0x55716b);
 const MON_EYE = new THREE.MeshPhongMaterial({ color: 0xc9d3cc, specular: 0x9aa6a0, shininess: 40, emissive: 0x3a4440 });
 const MON_HAIR = new THREE.MeshPhongMaterial({ color: 0x070808, specular: 0x5c6a68, shininess: 120, side: THREE.DoubleSide });
 const MON_DARK = new THREE.MeshBasicMaterial({ color: 0x050404 });
@@ -1714,7 +2064,7 @@ function poseMonster(M, x, z, h, st, dt, scare) {
 const DROPS = 260;
 const dropPos = new Float32Array(DROPS * 3), dropVel = new Float32Array(DROPS * 3), dropLife = new Float32Array(DROPS);
 const dropGeo = new THREE.BufferGeometry(); dropGeo.setAttribute('position', new THREE.BufferAttribute(dropPos, 3));
-const drops = new THREE.Points(dropGeo, new THREE.PointsMaterial({ color: 0xe9fffb, size: 0.09, transparent: true, opacity: 0.9, depthWrite: false }));
+const drops = new THREE.Points(dropGeo, new THREE.PointsMaterial({ color: 0xa9bcaf, size: 0.09, transparent: true, opacity: 0.85, depthWrite: false }));
 drops.frustumCulled = false; scene.add(drops);
 let dropNext = 0;
 function splash(x, y, z, n, up) {
@@ -1749,6 +2099,36 @@ arc.frustumCulled = false; arc.visible = false; scene.add(arc);
 const arcEnd = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.32, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.9, depthWrite: false }));
 arcEnd.visible = false; scene.add(arcEnd);
 const arcP = { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, k: 0, skips: 0 };
+// The landing marker: while you're in the air, where you'll come down and what it will sound like. Three looks that
+// differ in shape as well as colour: a thin pale ring (quiet), a thick amber ring with notches (loud), a red ring with a
+// cross (wet). And a red water line around your legs when your feet are about to touch the surface.
+const MARK_TEX = {
+  quiet: canvasTex(128, 128, (g) => { g.strokeStyle = '#8fe0cd'; g.lineWidth = 7; g.beginPath(); g.arc(64, 64, 50, 0, 7); g.stroke(); g.fillStyle = 'rgba(143,224,205,.14)'; g.fill(); g.fillStyle = '#8fe0cd'; g.beginPath(); g.arc(64, 64, 6, 0, 7); g.fill(); }),
+  loud: canvasTex(128, 128, (g) => { g.strokeStyle = '#eab54e'; g.lineWidth = 12; g.beginPath(); g.arc(64, 64, 48, 0, 7); g.stroke(); g.lineWidth = 8; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + Math.PI / 4; g.beginPath(); g.moveTo(64 + Math.cos(a) * 18, 64 + Math.sin(a) * 18); g.lineTo(64 + Math.cos(a) * 34, 64 + Math.sin(a) * 34); g.stroke(); } }),
+  wet: canvasTex(128, 128, (g) => { g.strokeStyle = '#ff5d4d'; g.lineWidth = 9; g.setLineDash([16, 9]); g.beginPath(); g.arc(64, 64, 50, 0, 7); g.stroke(); g.setLineDash([]); g.lineWidth = 10; g.beginPath(); g.moveTo(44, 44); g.lineTo(84, 84); g.moveTo(84, 44); g.lineTo(44, 84); g.stroke(); })
+};
+const MARK_WORD = { quiet: 'quiet', edge: 'loud · rim', hard: 'loud · drop', climb: 'pull-up · noisy', fall: 'water · loud' };
+const marker = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.95).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: MARK_TEX.quiet, transparent: true, depthWrite: false, fog: false }));
+marker.renderOrder = 5; marker.visible = false; scene.add(marker);
+const wline = new THREE.Mesh(new THREE.RingGeometry(0.31, 0.4, 36).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xff5d4d, transparent: true, depthWrite: false, fog: false }));
+wline.renderOrder = 5; wline.visible = false; scene.add(wline);
+function drawMarker(W, me, V) {
+  const p = G.body, up = me && me.st === 0 && G.mode === 'play' && (V.ph === 'run' || V.ph === 'lobby' || V.ph === 'count');
+  G.pred = up && !p.gr && !p.inW && G.inp ? predictLanding(W, p, G.inp, 2) : null;
+  const pr = G.pred;
+  marker.visible = !!pr && pr.t > 0.06;
+  if (marker.visible) {
+    const k = pr.k, tex = k === 'quiet' ? MARK_TEX.quiet : k === 'fall' ? MARK_TEX.wet : MARK_TEX.loud;
+    if (marker.material.map !== tex) { marker.material.map = tex; marker.material.needsUpdate = true; }
+    marker.position.set(pr.x, (k === 'fall' ? waterY(W, pr.z) : pr.y) + 0.03, pr.z);
+    const sc = REDUCED ? 1 : 1 + Math.min(0.3, pr.t * 0.3); marker.scale.set(sc, 1, sc);
+    if (V.ph === 'run') tip('air');
+  }
+  // the water line: about to touch the surface, or standing on a tile that's going under
+  const wy = waterY(W, p.z), sinking = p.gr && p.gr.y1 != null && p.gr.y1 < wy + 0.3;
+  wline.visible = !!up && !p.inW && (sinking || (!!pr && pr.k === 'fall' && p.y - wy < 1.1));
+  if (wline.visible) { wline.position.set(p.x, wy + 0.015, p.z); wline.material.opacity = REDUCED ? 0.85 : 0.6 + 0.35 * Math.sin(U.time.value * 9); }
+}
 function drawArc(W, o, v, k, skips) {
   Object.assign(arcP, { x: o[0], y: o[1], z: o[2], vx: v[0], vy: v[1], vz: v[2], k, skips });
   let n = 0, end = '';
@@ -1796,7 +2176,7 @@ function audioInit() {
     AU.noise = C.createBuffer(1, C.sampleRate * 2, C.sampleRate); const nd = AU.noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
     // the hum of the lights, a low drone, a far-off rumble
     const buzz = C.createOscillator(); buzz.type = 'sawtooth'; buzz.frequency.value = 120; const bp = C.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 9;
-    const bg = C.createGain(); bg.gain.value = 0.02; buzz.connect(bp); bp.connect(bg); bg.connect(AU.amb); buzz.start();
+    const bg = C.createGain(); bg.gain.value = 0.007; buzz.connect(bp); bp.connect(bg); bg.connect(AU.amb); buzz.start();
     for (const f of [55, 82.4]) { const o = C.createOscillator(); o.frequency.value = f; const g = C.createGain(); g.gain.value = 0.028; o.connect(g); g.connect(AU.amb); g.connect(AU.revIn); o.start(); }
     const rn = C.createBufferSource(); rn.buffer = AU.noise; rn.loop = true; const lp = C.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; const rg = C.createGain(); rg.gain.value = 0.05; rn.connect(lp); lp.connect(rg); rg.connect(AU.amb); rn.start();
     AU.buzzG = bg;
@@ -1835,7 +2215,8 @@ function sfx(name, x, y, z, k) {
     case 'hard': case 'edge': tn(d, t, 130, 55, 0.2, 'sine', 0.6 * k); nz(d, t, 0.1, 'lowpass', 700, 1, 0.3 * k); break;
     case 'sprint': nz(d, t, 0.07, 'bandpass', 2600, 2, 0.16 * k); break;
     case 'step': nz(d, t, 0.05, 'lowpass', 900, 1, 0.05 * k); break;
-    case 'land': nz(d, t, 0.08, 'lowpass', 600, 1, 0.12 * k); break;
+    case 'land': tn(d, t, 92, 46, 0.3, 'sine', 0.2 * k); nz(d, t, 0.09, 'lowpass', 520, 1, 0.08 * k); nz(d, t + 0.13, 0.4, 'bandpass', 720, 1.3, 0.045 * k, 360); break;   // a soft watery whumph, then the lap
+    case 'slosh': tn(d, t, 120, 50, 0.22, 'sine', 0.25 * k); nz(d, t, 0.06, 'highpass', 1800, 0.8, 0.12 * k); nz(d, t + 0.04, 0.55, 'bandpass', 1300, 1, 0.2 * k, 420); nz(d, t + 0.32, 0.4, 'bandpass', 800, 1.2, 0.08 * k, 400); break;   // a slap and the water slopping back
     case 'pebble': tn(d, t, 1900, 1200, 0.09, 'triangle', 0.25 * k); nz(d, t + 0.01, 0.25, 'bandpass', 1800, 1.5, 0.3 * k, 900); break;
     case 'skip': tn(d, t, 2300, 1700, 0.06, 'triangle', 0.2 * k); nz(d, t, 0.12, 'bandpass', 2200, 2, 0.2 * k); break;
     case 'bottle': case 'echo': { const v = name === 'echo' ? 0.4 : 1; nz(d, t, 0.5, 'highpass', 3000, 0.7, 0.6 * k * v); for (let i = 0; i < 6; i++) tn(d, t + Math.random() * 0.3, 2500 + Math.random() * 2200, 2200, 0.12, 'sine', 0.12 * k * v); break; }
@@ -1864,6 +2245,12 @@ function sfx(name, x, y, z, k) {
     case 'drip': tn(d, t, 1500 + Math.random() * 900, 700, 0.12, 'sine', 0.12 * k); break;
     case 'escape': [523, 659, 784, 1047].forEach((f, i) => tn(d, t + i * 0.14, f, f, 0.35, 'triangle', 0.12)); break;
     case 'click': tn(d, t, 700, 700, 0.03, 'square', 0.04); break;
+    // far-off sounds of the building itself (never splashes, so they can't be mistaken for a noise it hears)
+    case 'clank': { const f = 260 + Math.random() * 160; [1, 1.47, 2.31, 3.1].forEach((m, i) => tn(d, t + i * 0.004, f * m, f * m * 0.985, 1.4 - i * 0.25, 'sine', 0.05 * k / (i + 1))); nz(d, t, 0.06, 'bandpass', 1800, 2, 0.08 * k); break; }
+    case 'groan': { const o = AU.ctx.createOscillator(), f = AU.ctx.createBiquadFilter(), g = AU.ctx.createGain(), f0 = 38 + Math.random() * 22;
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 1.35, t + 1.1); o.frequency.linearRampToValueAtTime(f0 * 0.9, t + 2.6);
+      f.type = 'lowpass'; f.frequency.value = 260; f.Q.value = 6; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.07 * k, t + 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+      o.connect(f); f.connect(g); g.connect(d); o.start(t); o.stop(t + 2.9); break; }
   }
 }
 // A harsh edge for the shrieks (one shared shaper), and the rest of the sound dipping under the scare.
@@ -1902,6 +2289,7 @@ const G = {
   heartT: 0, dripT: 2, toastT: 0, lastValves: 0, lastDoor: 0, lastKb: 0, kpCode: '', noiseShow: 0, noiseLbl: 'Silent', menuT: 0, others: new Map(), monViews: [], lastCp: 0, sawWon: -1
 };
 G.V = G.S;
+Object.assign(G, { tipQ: [], tipT: 0, tipGap: 0, tipK: '', pred: null, inp: null, noiseCls: '', moveT: 0, ambT: 8 });
 let ME = null;   // my swimmer mesh
 function ensureWorld(df, seed) {
   const k = df + ':' + seed; if (G.Wk === k && G.W) return;
@@ -2299,12 +2687,16 @@ const pingList = [];
 function addPing(u, n, k, x, y, z) { for (let i = pingList.length - 1; i >= 0; i--) if (pingList[i].u === u) { pingList[i].el.remove(); pingList.splice(i, 1); } const el = document.createElement('div'); el.className = 'pg' + (k === 3 ? ' danger' : ''); el.textContent = PINGS[k] || 'HERE'; $('tags').appendChild(el); pingList.push({ u, x, y: y + 0.4, z, t: performance.now(), el }); }
 
 // ---- Panels ----
-function closePanels() { ['party', 'shop', 'keypad', 'settings', 'pause'].forEach(id => $(id).hidden = true); if (G.panel === 'chat') closeChat(); G.panel = ''; lockPointer(); }
+function closePanels() { ['party', 'shop', 'keypad', 'settings', 'pause', 'nhelp'].forEach(id => $(id).hidden = true); if (G.panel === 'chat') closeChat(); G.panel = ''; lockPointer(); }
 function openPanel(id) { closePanels(); G.panel = id; $(id).hidden = false; if (document.pointerLockElement) document.exitPointerLock(); }
 function openPause() { openPanel('pause'); $('pauseSub').textContent = G.online ? 'The run keeps going for everyone else.' : 'The run is paused.'; }
 $('resume').onclick = () => closePanels();
 $('pauseParty').onclick = () => openParty();
 $('pauseSet').onclick = () => openSettings();
+$('pauseHelp').onclick = () => { openPanel('nhelp'); renderNoiseHelp(); };
+$('helpBtn').onclick = () => { renderNoiseHelp(); $('nhelp').hidden = false; };
+$('nhelpClose').onclick = () => { $('nhelp').hidden = true; if (G.mode === 'play') closePanels(); };
+$('nhelpTips').onclick = () => { SET.tips = {}; saveSet(); $('nhelpTips').textContent = 'Tips will show again'; };
 $('leave').onclick = () => toMenu();
 $('menuBtn').onclick = () => openPause();
 function openParty() { openPanel('party'); renderParty(); }
@@ -2404,7 +2796,7 @@ function openSettings() {
 }
 $('setBtn').onclick = () => { $('settings').hidden = false; openSettings(); G.panel = G.mode === 'play' ? 'settings' : ''; $('menu').hidden = G.mode !== 'menu' ? true : false; };
 $('setClose').onclick = () => { $('settings').hidden = true; if (G.mode === 'play') closePanels(); else G.panel = ''; };
-function applyGfx() { gfx = SET.gfx; renderer.setPixelRatio(Math.min(devicePixelRatio || 1, gfx >= 2 ? 2 : gfx === 1 ? 1.25 : 0.8)); G.fogK = null; drops.visible = gfx > 0; resize(); }
+function applyGfx() { gfx = SET.gfx; renderer.setPixelRatio(Math.min(devicePixelRatio || 1, gfx >= 2 ? 2 : gfx === 1 ? 1.25 : 0.8)); G.fogK = null; drops.visible = gfx > 0; if (LV && LV.cones) LV.cones.visible = gfx > 0; resize(); }
 // results
 $('again').onclick = () => { if (!G.host) { $('resMsg').textContent = 'Waiting for the host…'; return; } $('result').hidden = true; G.panel = ''; hostStartRun(G.S.df); lockPointer(); };
 $('toLobby').onclick = () => {
@@ -2457,7 +2849,73 @@ function renderTeam() {
   else if (G.online) { for (const p of partyPeople()) h += '<div class="tm hcard"><i style="background:' + p.c + '"></i>' + esc(p.n) + '<small>' + (p.rd ? 'READY' : '') + '</small></div>'; }
   if (G.teamKey !== h) { G.teamKey = h; $('team').innerHTML = h; }
 }
-const NOISE_LBL = { fall: 'SPLASH!', clip: 'Feet in the water', hard: 'Hard landing', edge: 'Landed on the edge', sprint: 'Running steps', wade: 'Wading', wadeRun: 'Running in water!', wadeCreep: 'Wading slowly', climb: 'Climbed out', struggle: 'Struggling', bump: 'Bumped it!' };
+// What made each noise, in words and a small icon. wet: a water noise (shown red); the rest go amber when loud.
+const SVG = d => '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+const NIC = {
+  drop: SVG('<path d="M8 1.5c2.2 3 3.2 4.6 3.2 6.1a3.2 3.2 0 0 1-6.4 0c0-1.5 1-3.1 3.2-6.1z"/><path d="M1 14c2-1.6 4 1.6 7 0s5 1.6 7 0"/>'),
+  wave: SVG('<path d="M1 9c2-2 4 2 7 0s5 2 7 0M1 13c2-2 4 2 7 0s5 2 7 0"/><path d="M6 6V2M10 6V2"/>'),
+  land: SVG('<path d="M8 1v7M4.5 4.5 8 8l3.5-3.5M1.5 12h13"/><path d="M1.5 12v2.5M14.5 12v2.5"/>'),
+  steps: SVG('<ellipse cx="5" cy="5" rx="2" ry="3"/><ellipse cx="11" cy="11" rx="2" ry="3"/>'),
+  bump: SVG('<circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v4.5M8 11.5v.1"/>'),
+  burst: SVG('<path d="M8 1v3M8 12v3M1 8h3M12 8h3M3.2 3.2l2 2M10.8 10.8l2 2M3.2 12.8l2-2M10.8 5.2l2-2"/>'),
+  quiet: SVG('<path d="M3 8.5 6.5 12 13 4.5"/>'),
+  ring: SVG('<circle cx="8" cy="8" r="2"/><circle cx="8" cy="8" r="6"/>')
+};
+const NOISE_INFO = {
+  fall: { t: 'Into the water', ic: 'drop', wet: 1 }, clip: { t: 'Feet touched water', ic: 'drop', wet: 1 }, struggle: { t: 'Struggling', ic: 'wave', wet: 1 },
+  wade: { t: 'Wading', ic: 'wave', wet: 1 }, wadeRun: { t: 'Running in water', ic: 'wave', wet: 1 }, wadeCreep: { t: 'Wading slowly', ic: 'wave', wet: 1 }, climb: { t: 'Pulled up onto a tile', ic: 'land' },
+  hard: { t: 'Hard landing', ic: 'land' }, edge: { t: 'Edge landing', ic: 'land' }, sprint: { t: 'Running', ic: 'steps' }, bump: { t: 'Bumped into it', ic: 'bump' },
+  pebble: { t: 'Pebble', ic: 'burst' }, skip: { t: 'Pebble skip', ic: 'burst' }, bottle: { t: 'Bottle smash', ic: 'burst' }, echo: { t: 'Echo', ic: 'burst' }, toy: { t: 'Wind-up toy', ic: 'burst' },
+  valve: { t: 'Valve', ic: 'burst' }, keypad: { t: 'Wrong code', ic: 'burst' }
+};
+const noiseTier = (src, l) => (NOISE_INFO[src] || {}).wet ? 'l3' : l >= 0.4 ? 'l2' : 'l1';
+// Labels where a noise happened: scaled by loudness, rising a little and fading. Quiet ones (a clean landing) are small and calm.
+const noiseTags = [];
+function noiseTag(x, y, z, html, cls, scale, life) {
+  if (noiseTags.length >= 10) { const o = noiseTags.shift(); o.el.remove(); }
+  const el = document.createElement('div'); el.className = 'nz ' + cls; el.innerHTML = html; $('tags').appendChild(el);
+  noiseTags.push({ el, x, y, z, t: 0, life: life || 1.8, sc: scale || 1 });
+}
+// One short lesson per idea, the first time you do the thing; remembered in this browser's settings (SET.tips).
+const TIPS = {
+  quiet: ['quiet', 'Walking and creeping are <i>silent</i>. It hunts by sound alone.'],
+  air: ['land', 'The ring under you is where you\'ll land: <i>pale is quiet</i>, <b>amber is loud</b>, red is water.'],
+  rim: ['land', '<b>Loud landing.</b> Come down on the worn middle of a tile, not its dark rim.'],
+  run: ['steps', TOUCH ? '<b>Running is loud.</b> Turn RUN off to walk silently.' : '<b>Running is loud.</b> Let go of Shift to walk silently.'],
+  wet: ['drop', '<b>Water is loud.</b> Going in splashes, and every step you wade splashes again. Get back onto a tile.'],
+  climb: ['land', 'Pulling yourself up onto a tile is <b>a little noisy</b>. Jump long enough to land on top.'],
+  ring: ['ring', 'Rings on the water show how far a sound carried. <i>Outside the ring, it didn\'t hear.</i>'],
+  still: ['bump', 'It\'s close. <i>Stand still and quiet</i>: it can\'t see you.']
+};
+function tip(k) { SET.tips = SET.tips || {}; if (SET.tips[k] || G.tipQ.includes(k) || G.tipK === k) return; G.tipQ.push(k); }
+function tipFrame(dt) {
+  const el = $('teach');
+  const busy = G.V.ph !== 'run' || (myRec() && myRec().st !== 0) || !!G.scare;   // never over the scare, or while you're down
+  if (G.tipT > 0) { G.tipT -= dt; if (G.tipT <= 0 || busy) { el.classList.remove('on'); G.tipK = ''; G.tipT = 0; G.tipGap = 0.8; } return; }
+  if (G.tipGap > 0) { G.tipGap -= dt; return; }
+  if (busy || G.panel || !G.tipQ.length || G.toastT > 0) return;   // (one message at a time: a toast goes first)
+  const k = G.tipQ.shift(); SET.tips = SET.tips || {}; SET.tips[k] = 1; saveSet();
+  G.tipK = k; G.tipT = 4.8; el.innerHTML = NIC[TIPS[k][0]] + '<span>' + TIPS[k][1] + '</span>'; el.classList.add('on');
+}
+// The "How noise works" card: every cause from loudest to quietest, with how far each carries on this difficulty.
+function renderNoiseHelp() {
+  const df = G.V && G.V.ph !== 'lobby' && G.V.ph !== 'count' ? G.V.df : (G.S.df || 1), L = TUNING.loud, top = hearRadius(L.bottle, df);
+  const row = (ic, t, l, d, wet) => '<div class="r' + (l ? '' : ' s') + '">' + NIC[ic] + '<b>' + t + '</b><div class="m">' + (l ? '<i style="width:' + Math.round(hearRadius(l, df) / top * 100) + '%;background:' + (wet ? 'var(--wet)' : l >= 0.4 ? 'var(--loud)' : '#b8a679') + '"></i>' : '') + '</div><small>' + d + (l ? ' Heard up to ' + Math.round(hearRadius(l, df)) + ' m away.' : '') + '</small></div>';
+  $('nhelpList').innerHTML = '<h3>What you do · ' + DIFFS[df].n + '</h3>' +
+    row('drop', 'Going into the water', L.fall, 'Stepping, falling or coming up short into it. (Out again before anyone heard the splash: feet touching water, ' + Math.round(hearRadius(L.clip, df)) + ' m.)', 1) +
+    row('wave', 'Running in the water', L.wadeRun, 'Every ' + TUNING.wadeStep + ' m you wade at a run.', 1) +
+    row('wave', 'Wading', L.wade, 'Every ' + TUNING.wadeStep + ' m you wade at a walk.', 1) +
+    row('wave', 'Wading slowly (creeping)', L.wadeCreep, 'Every ' + TUNING.wadeStep + ' m you creep through it. Quieter, never silent.', 1) +
+    row('bump', 'Bumping into it', L.bump, 'Walking right into it.') +
+    row('land', 'Edge or hard landing', L.hard, 'Landing with your middle on a tile\'s dark rim, or a big drop. The ring under you shows it before you land.') +
+    row('land', 'Pulling yourself up onto a tile', L.climb, 'Out of the water, or after a jump that comes up just short.') +
+    row('steps', 'Running', L.sprint, 'Each step while you run on a tile.') +
+    row('quiet', 'Walking, creeping, standing still on tiles', 0, 'Silent. So is landing on the worn middle of a tile.') +
+    '<h3>What you use</h3>' +
+    row('burst', 'Bottle', L.bottle, 'Smashes, then echoes a moment later.') + row('burst', 'Valve', L.valve, 'All the time you hold E on it.') +
+    row('burst', 'Pebble into water', L.pebbleWater, 'A pebble that skips is quieter each bounce.') + row('burst', 'Wind-up toy', L.toy, 'Rattles where it lands.') +
+    row('burst', 'Pebble on a tile', L.pebbleTile, 'Clatters, quietly.') + row('burst', 'Wrong keypad code', L.keypad, 'A short buzz.');
+}
 function objective() {
   const V = G.V, R = roomAt(G.W, G.body.z);
   if (V.ph === 'lobby' || V.ph === 'count') return ['Lobby', V.ph === 'count' ? 'Starting in ' + Math.ceil(V.count) + '…' : 'Stalls for gear and upgrades. Press E in the glowing ring to start a run.'];
@@ -2508,6 +2966,7 @@ function menuFrame(dt) {
   camera.lookAt(Math.sin(a) * 2, 0.8, camera.position.z + 8);
   drawMonsters(A.S.mons, dt, -1);
   if (ME) { ME.g.visible = false; ME.blob.visible = false; }
+  lampFrame(camera.position.x, camera.position.z + 6); floatFrame(dt);
   WATER.uniforms.uCam.value.copy(camera.position);
   updateRings(dt);
   stepDrops(dt);
@@ -2554,7 +3013,9 @@ function playFrame(dt) {
   if (!G.host && V.ph === 'run') { const est = V.t + Math.max(0, Net.now() - V.ts) / 1000; G.clock = Math.abs(G.clock + dt - est) > 0.3 ? est : G.clock + dt + (est - G.clock - dt) * 0.1; }
   else if (G.host) G.clock = G.S.t;
   // teleports from the host
-  if (me && me.tp && me.tp[0] > G.tpSeen) { G.tpSeen = me.tp[0]; G.body = newBody(me.tp[1], me.tp[2], me.tp[3]); }
+  // (the landing count carries over: the host compares it with the last one it saw, so restarting it at 0 could hide
+  // the first landing after a teleport)
+  if (me && me.tp && me.tp[0] > G.tpSeen) { G.tpSeen = me.tp[0]; const li = G.body.li; G.body = newBody(me.tp[1], me.tp[2], me.tp[3]); G.body.li = li; }
   if (V.ph === 'lobby' && !G.online && !me) G.S.pl.me = newPlayerRec(myName());
   // look
   const sens = 0.0022 * SET.sens;
@@ -2564,29 +3025,35 @@ function playFrame(dt) {
   G.crouch = !!(keys.ControlLeft || keys.ControlRight || keys.KeyC || G.crouchT) && !G.panel;
   const iv = inputVec();
   const inp = { mx: iv.mx, mz: iv.mz, jump: jumpQ && !G.panel, sprint: isSprint() && !G.panel, crouch: G.crouch };
-  jumpQ = false;
+  jumpQ = false; G.inp = inp;
   if (alive) {
     if (!G.host || V.ph !== 'run') updateDyn(W, G.clock, dt, dynFeet(), V);
-    const n = Math.ceil(dt / (1 / 60)), h = dt / n;
-    for (let i = 0; i < n; i++) { stepPlayer(W, G.body, inp, h); if (i === 0) inp.jump = false; bodyEvents(); }
-  } else if (!G.host) updateDyn(W, G.clock, dt, dynFeet(), V);
+    const n = G.hold ? 0 : Math.ceil(dt / (1 / 60)), h = dt / Math.max(1, n);   // G.hold: test browsers freeze your body
+    for (let i = 0; i < n; i++) {
+      stepPlayer(W, G.body, inp, h); if (i === 0) inp.jump = false; bodyEvents(); G.repT += h;
+      // a landing, a splash or a pull-up is reported on the step it happens, so the host judges the rim where you really
+      // came down (with 20 Hz reports alone it judged about 6% of landings from a spot 50 ms later)
+      if (G.body.ev.includes('land') || G.body.ev.includes('splash') || G.body.ev.includes('climb')) sendReport();
+    }
+    if (V.ph === 'run' && Math.hypot(G.body.vx, G.body.vz) > 1 && roomAt(W, G.body.z).i === 0) { G.moveT += dt; if (G.moveT > 1) tip('quiet'); }
+  } else { G.repT += dt; if (!G.host) updateDyn(W, G.clock, dt, dynFeet(), V); }
   // hold E
   const it = interactTarget(); G.eAct = G.eHeld && it && it.hold ? it.hold : '';
   if (G.host && G.S.pl[myUid()]) G.S.pl[myUid()].hold = alive ? G.eAct : '';
   // tell the room (or the host part of this page) where we are, 20 times a second
-  G.repT += dt;
-  if (G.repT >= 0.05) {
-    const rep = { x: G.body.x, y: G.body.y, z: G.body.z, my: G.body.my, li: G.body.li, lv: G.body.lv, tp: G.tpSeen };
-    if (G.host) { if (!G.S.pl[myUid()]) G.S.pl[myUid()] = newPlayerRec(myName()); hostSense(G.S, W, myUid(), rep, G.repT); }
-    if (G.online) { if (G.host) hostPublish(); else Net.upd(nodeBase()); }
-    G.body.my = G.body.y; G.repT = 0;
-  }
+  if (G.repT >= 0.05) sendReport();
   if (G.online && !G.host && performance.now() - Net.hbT > 1500) Net.upd(nodeBase());
   // things that happened in the run
   runEvents(dt);
   // draw
   drawWorld(dt, it);
   drawHud(dt, it);
+}
+function sendReport() {
+  const rep = { x: G.body.x, y: G.body.y, z: G.body.z, my: G.body.my, li: G.body.li, lv: G.body.lv, tp: G.tpSeen };
+  if (G.host) { if (!G.S.pl[myUid()]) G.S.pl[myUid()] = newPlayerRec(myName()); hostSense(G.S, G.W, myUid(), rep, Math.max(G.repT, 1 / 120)); }
+  if (G.online) { if (G.host) hostPublish(); else Net.upd(nodeBase()); }
+  G.body.my = G.body.y; G.repT = 0;
 }
 function dynFeet() {
   const f = [G.body]; for (const [, o] of G.others) if (o.view) f.push(o.view.g.position); return f;
@@ -2595,12 +3062,15 @@ function bodyEvents() {
   const p = G.body;
   for (const e of p.ev) {
     if (e === 'jump') sfx('step', p.x, p.y, p.z, 0.8);
-    else if (e === 'land') sfx('land', p.x, p.y, p.z);
+    else if (e === 'land' && isFloat(p.gr)) { const k = landNoise(p.gr, p.x, p.z, p.lv); landKick(p.gr, p.x, p.z, k ? TUNING.loud.hard : 0, 1);
+      // a clean landing says so, softly, so you learn what's safe (the host decides; this uses the same rule)
+      if (G.V.ph === 'run' && p.lv < -3 && p.gr && !landNoise(p.gr, p.x, p.z, p.lv)) noiseTag(p.x, (p.gr.y1 != null ? p.gr.y1 : p.gr.top) + 0.25, p.z, NIC.quiet + '<span>quiet</span>', 'q', 1, 1.1); }
     else if (e === 'splash') { splash(p.x, waterY(G.W, p.z), p.z, 30, 5); }
-    else if (e === 'climb') splash(p.x, waterY(G.W, p.z), p.z, 8, 2);
+    else if (e === 'climb') { splash(p.x, waterY(G.W, p.z), p.z, 8, 2); landKick(p.gr, p.x, p.z, TUNING.loud.climb); }
+    else if (e === 'land') sfx('land', p.x, p.y, p.z, 0.6);
   }
   // footsteps (quiet; the host decides whether running is heard)
-  if (p.gr && !p.inW && Math.hypot(p.vx, p.vz) > 1) { G.stepT = (G.stepT || 0) - 1 / 60; if (G.stepT <= 0) { G.stepT = isSprint() ? 0.3 : G.crouch ? 0.6 : 0.42; if (!G.crouch) sfx('step', p.x, p.y, p.z, isSprint() ? 1 : 0.6); } }
+  if (p.gr && !p.inW && Math.hypot(p.vx, p.vz) > 1) { G.stepT = (G.stepT || 0) - 1 / 60; if (G.stepT <= 0) { G.stepT = isSprint() ? 0.3 : G.crouch ? 0.6 : 0.42; if (!G.crouch) sfx('step', p.x, p.y, p.z, isSprint() ? 1 : 0.25); } }
 }
 function hostFrame(dt) {
   const S = G.S;
@@ -2626,7 +3096,16 @@ function runEvents(dt) {
     sfx(e.src === 'toy' ? 'toy' : e.src === 'echo' ? 'echo' : e.src, e.x, e.y, e.z, 1);
     if (['fall', 'pebble', 'bottle', 'skip', 'struggle', 'wade', 'wadeRun', 'wadeCreep'].includes(e.src)) splash(e.x, e.y, e.z, e.src === 'fall' ? 26 : e.src === 'bottle' ? 18 : e.src === 'wadeRun' ? 12 : 6, e.src === 'fall' ? 5 : e.src.startsWith('wade') ? 2 : 3);
     if (e.src === 'bottle') { for (const gh of G.ghosts) if (gh.k === 1) gh.age = 99; }
-    if (e.u === myUid() && e.src !== 'struggle') { G.noiseShow = clamp(e.l / 1.1, 0.08, 1); G.noiseLbl = NOISE_LBL[e.src] || 'Noise'; G.noiseHold = 1.2; G.myNoiseT = performance.now(); }
+    const info = NOISE_INFO[e.src] || { t: 'Noise', ic: 'burst' }, mine = e.u === myUid();
+    if (e.src === 'edge' || e.src === 'hard' || e.src === 'climb') landKick(supportAt(W, e.x, e.y, e.z, 0.45), e.x, e.z, e.l);
+    if (Math.hypot(e.x - camera.position.x, e.z - camera.position.z) < 26 && G.mode === 'play') {
+      const who = !mine && e.u && V.pl && V.pl[e.u] ? esc(V.pl[e.u].n) + ' · ' : '';
+      noiseTag(e.x, e.y + 0.5, e.z, NIC[info.ic] + '<span>' + who + info.t + '</span>', noiseTier(e.src, e.l), 0.8 + Math.min(1.25, e.l) * 0.45, 1.9);
+    }
+    if (mine && e.src !== 'struggle') {
+      G.noiseShow = clamp(e.l / 1.1, 0.08, 1); G.noiseLbl = NIC[info.ic] + esc(info.t); G.noiseCls = info.wet ? 'wet' : 'hot'; G.noiseHold = 1.6; G.myNoiseT = performance.now();
+      if (V.ph === 'run') { if (e.src === 'edge' || e.src === 'hard') tip('rim'); else if (e.src === 'sprint') tip('run'); else if (e.src === 'climb') tip('climb'); else if (info.wet) tip('wet'); tip('ring'); }
+    }
   }
   if (V.ph !== 'run' && V.ph !== 'wipe' && V.ph !== 'won') return;
   if (!me) return;
@@ -2684,19 +3163,50 @@ function reportElo() {
   if (!opp.length) return;
   try { BackRoomElo.report({ id: G.room + ':' + V.g + ':' + V.seed, won: true, opp }); } catch (e) {}
 }
+// ---- The lamps: which still work, the flicker, and the nearest LAMP_N handed to the shaders ----
+// A flickering panel steps between on, dim and off at most a couple of times a second, and only its own pool of light
+// changes (never the whole screen); with Reduced motion it just stays dim.
+function lampLevel(L, t) {
+  if (L.k !== 'flick') return 1;
+  if (REDUCED) return 0.55;
+  const seg = Math.floor(t * 1.6 + L.ph), h = Math.abs(Math.sin(seg * 91.7 + L.ph * 3.1) * 43758.5453) % 1;
+  return h < 0.55 ? 1 : h < 0.8 ? 0.35 : 0.04;
+}
+const lampSort = [], lampDead = new THREE.Color(0x1b201d), lampLit = new THREE.Color();
+function lampFrame(px, pz) {
+  if (!LV) return;
+  const t = U.time.value; let dirtyC = false;
+  LV.lamps.forEach((L, li) => {
+    const lv = lampLevel(L, t);
+    if (Math.abs(lv - L.cur) > 0.01) {
+      L.cur = lv; if (!L.im) return; lampLit.setHex(L.k === "on" ? 0xeee6cc : 0xc9dccf); L.im.setColorAt(L.i, tmpColor.copy(lampDead).lerp(lampLit, lv)); L.im.instanceColor.needsUpdate = true;
+      if (LV.cones && li < LV.cones.count) { LV.cones.setColorAt(li, tmpColor.setRGB(lv, lv, lv)); dirtyC = true; }
+    }
+  });
+  if (dirtyC) LV.cones.instanceColor.needsUpdate = true;
+  lampSort.length = 0; for (const L of LV.lamps) { L.d = Math.hypot(L.x - px, L.z - pz); lampSort.push(L); }
+  lampSort.sort((a, b) => a.d - b.d);
+  const P = LAMPU.uLamp.value, C = LAMPU.uLampC.value; let k = 0;
+  if (G.scare && !SET.soft) { P[0].set(camera.position.x, camera.position.y + 0.6, camera.position.z, 0.9); C[0].setHex(0xb9cad2); k = 1; }   // its face, lit from where you are
+  for (let i = 0; k < LAMP_N; i++, k++) { const L = lampSort[i]; if (!L) { P[k].w = 0; continue; } P[k].set(L.x, L.y, L.z, L.w * L.cur); C[k].setHex(L.col); }
+}
 // ---- Drawing each frame ----
 function drawWorld(dt, it) {
   const W = G.W, V = G.V, me = myRec();
+  floatFrame(dt);
   // moving floors
   for (const e of LV.dyn) {
     const b = e.d.b, c = boxCenter(b), m = e.mesh;
     m.position.set(c[0], c[1], c[2]); m.scale.set(b.x1 - b.x0, Math.max(0.01, b.y1 - b.y0), b.z1 - b.z0);
     m.visible = e.d.type !== 'stair' || b.y1 > FLOOR + 0.2;
-    if (e.frame) { e.frame.position.set(c[0], b.y1 + 0.006, c[2]); e.frame.visible = b.y1 > -0.8; }
-    if (e.glow) { const lit = V.ph === 'run' ? memLit(W, G.clock) : -1; e.glow.position.set(c[0], b.y1 + 0.01, c[2]); e.glow.material.opacity = e.d.safe && lit === b.row ? 0.95 : Math.max(0, e.glow.material.opacity - dt * 2.5); }
+    const fo = e.d.type === 'stair' || e.d.type === 'push' || e.d.type === 'door' ? null : floatOf(b);   // moving, sinking and memory tiles float too, on top of what the rules do
+    if (fo) { m.position.y += fo.y; m.rotation.set(-Math.atan(fo.tz), 0, Math.atan(fo.tx)); } else m.rotation.set(0, 0, 0);
+    if (e.frame) { e.frame.position.set(c[0], b.y1 + 0.006 + (fo ? fo.y : 0), c[2]); e.frame.rotation.set(fo ? -Math.atan(fo.tz) : 0, 0, fo ? Math.atan(fo.tx) : 0); e.frame.visible = b.y1 > -0.8; }
+    if (e.glow) { const lit = V.ph === 'run' ? memLit(W, G.clock) : -1; e.glow.position.set(c[0], b.y1 + 0.01 + (fo ? fo.y : 0), c[2]); e.glow.material.opacity = e.d.safe && lit === b.row ? 0.95 : Math.max(0, e.glow.material.opacity - dt * 2.5); }
     if (e.stripe) { e.stripe.position.set(b.x1 + 0.01, c[1] + 0.5, c[2]); e.stripe.scale.set(0.04, 0.3, b.z1 - b.z0 - 0.2); }
   }
   for (const p of LV.planks) { p.m.position.set(p.p.cx, p.p.top - 0.11, p.p.cz); p.m.rotation.y = -p.p.ang; }
+  for (const ff of LV.fframes) { const fo = floatOf(ff.b), c = boxCenter(ff.b); ff.f.position.set(c[0], ff.b.y1 + 0.006 + fo.y, c[2]); ff.f.rotation.set(-Math.atan(fo.tz), 0, Math.atan(fo.tx)); }
   for (const w of LV.waters) w.m.position.y = w.R.wy;
   // mist: the lobby is clear, the halls are thick with it (eased, so walking through the door isn't a jump)
   const fogT = G.body && G.body.z > 0.5 ? 1 : 0; G.fogK = G.fogK == null ? fogT : G.fogK + (fogT - G.fogK) * Math.min(1, dt * 2.5);
@@ -2704,9 +3214,9 @@ function drawWorld(dt, it) {
   WATER.uniforms.uNear.value = scene.fog.near; WATER.uniforms.uFar.value = scene.fog.far;
   for (const m of LV.mist) { m.t.offset.x += dt * m.sp; m.t.offset.y += dt * m.sp * 0.6; }
   for (const f of LV.flick) {
-    if (f.cur) { f.cur.material.map.offset.x -= dt * 0.6 * Math.sign(f.cur.userData.cur); continue; }
-    const on = Math.sin(U.time.value * 23 + f.ph) > 0.2 || Math.sin(U.time.value * 1.3 + f.ph) > -0.6; f.im.setColorAt(f.i, tmpColor.setHex(on ? 0xfbfffd : 0x8a9a98)); f.im.instanceColor.needsUpdate = true;
+    if (f.cur) f.cur.material.map.offset.x -= dt * 0.6 * Math.sign(f.cur.userData.cur);
   }
+  lampFrame(G.body.x, G.body.z);
   if (LV.pad) LV.pad.material.opacity = 0.55 + Math.sin(U.time.value * 3) * 0.3;
   // stones, valves, keypad
   W.stones.forEach((s, i) => { const cd = V === G.S ? (V.stoneCd[i] || 0) - V.t : (V.stoneCd[i] || 0); LV.stones[i].scale.setScalar(cd > 0 ? 0.45 : 1); });
@@ -2720,7 +3230,7 @@ function drawWorld(dt, it) {
     let dh = face - (ME.face || 0); dh = Math.atan2(Math.sin(dh), Math.cos(dh)); ME.face = (ME.face || 0) + dh * Math.min(1, dt * 12);
     if (down) poseSwimmer(ME, { x: me.dx, y: me.dy, z: me.dz, h: ME.face, speed: 0, down: true });
     else if (held) { const m = V.mons.find(m => m.grab === myUid()); poseSwimmer(ME, { x: m ? m.x + Math.sin(m.h) * 0.75 : p.x, y: FLOOR + 1.5, z: m ? m.z + Math.cos(m.h) * 0.75 : p.z, h: m ? m.h + Math.PI : ME.face, speed: 0, air: true }); }
-    else poseSwimmer(ME, { x: p.x, y: p.y, z: p.z, h: ME.face, speed: Math.hypot(p.vx, p.vz), air: !p.gr && !p.inW, inW: p.inW, crouch: G.crouch, gy });
+    else { const fy = p.gr && !p.inW ? floatAt(p.gr, p.x, p.z) : 0; poseSwimmer(ME, { x: p.x, y: p.y + fy, z: p.z, h: ME.face, speed: Math.hypot(p.vx, p.vz), air: !p.gr && !p.inW, inW: p.inW, crouch: G.crouch, gy: gy != null ? gy + fy : null }); }
     ME.g.visible = !(G.scare && !SET.soft);
     const sh = me && me.sh > 0 && V.ph === 'run'; ME.cm.emissive && ME.cm.emissive.setHex(sh && Math.sin(U.time.value * 12) > 0 ? 0x225555 : 0);
   }
@@ -2736,7 +3246,13 @@ function drawWorld(dt, it) {
     const inPlay = V.ph === 'run' || V.ph === 'wipe';
     if (inPlay && P && P.st === 2) poseSwimmer(o.view, { x: P.dx, y: P.dy, z: P.dz, h: o.face || 0, speed: 0, down: true });
     else if (inPlay && P && P.st === 1) { const m = V.mons.find(m => m.grab === u); poseSwimmer(o.view, { x: m ? m.x + Math.sin(m.h) * 0.75 : s.x, y: FLOOR + 1.5, z: m ? m.z + Math.cos(m.h) * 0.75 : s.z, h: m ? m.h + Math.PI : o.face || 0, speed: 0, air: true }); }
-    else { const gy = supportAt(W, s.x, s.y, s.z, 0.1) ? s.y : null; poseSwimmer(o.view, { x: s.x, y: s.y, z: s.z, h: o.face || 0, speed: sp, air: !!(o.a & 16), inW: !!(o.a & 8), crouch: !!(o.a & 4), gy }); }
+    else {
+      const sup = supportAt(W, s.x, s.y, s.z, 0.1), gy = sup ? s.y : null, air = !!(o.a & 16), inW = !!(o.a & 8), fy = sup && !air && !inW ? floatAt(sup, s.x, s.z) : 0;
+      // a teammate coming down on a tile: the same dip and ring you'd see for your own (the host's noise makes it bigger if it was loud)
+      if (o.wasAir && !air && !inW && sup) landKick(sup, s.x, s.z, 0, 1);
+      o.wasAir = air && inPlay;
+      poseSwimmer(o.view, { x: s.x, y: s.y + fy, z: s.z, h: o.face || 0, speed: sp, air, inW, crouch: !!(o.a & 4), gy: gy != null ? gy + fy : null });
+    }
     o.view.g.visible = !(P && P.st === 3);
   }
   // monsters: only the rooms near you
@@ -2770,6 +3286,7 @@ function drawWorld(dt, it) {
   // aim arc
   const meUp = me && me.st === 0 && V.ph === 'run';
   if (G.aiming && meUp && G.sel < 4) drawArc(W, aimOrigin(), aimVel(), G.sel, skipsOf(SAVE.up)); else { arc.visible = false; arcEnd.visible = false; }
+  drawMarker(W, me, V);
   // camera
   placeCamera(dt, me);
   WATER.uniforms.uCam.value.copy(camera.position);
@@ -2798,7 +3315,7 @@ function updateRings(dt) {
     const r = G.rings[i];
     if (!r) { R[i].set(0, 0, 0, 0); continue; }
     const u = Math.min(1, r.t / 1.3), e = 1 - Math.pow(1 - u, 2.2);
-    R[i].set(r.x, r.z, Math.max(0.2, r.R * e), Math.min(1, 0.35 + r.l * 0.6) * (1 - Math.max(0, (r.t - 0.9) / 0.9)));
+    R[i].set(r.x, r.z, r.r0 ? r.r0 + (r.R - r.r0) * e : Math.max(0.2, r.R * e), Math.min(1, 0.35 + r.l * 0.6) * (1 - Math.max(0, (r.t - 0.9) / 0.9)));
   }
 }
 function placeCamera(dt, me) {
@@ -2884,10 +3401,13 @@ function soundsFrame(dt, me, room) {
   }
   // too close: red edges and your heart
   const k = near < TUNING.warnRange ? 1 - near / TUNING.warnRange : 0;
+  if (near < 6 && V.ph === 'run') tip('still');
   $('vig').style.opacity = k > 0 ? (0.25 + k * 0.6).toFixed(3) : (G.scare ? 0.8 : 0);
   if (k > 0) { G.heartT -= dt; if (G.heartT <= 0) { G.heartT = 0.95 - k * 0.5; sfx('heart', null, null, null, 0.6 + k * 0.6); } } else G.heartT = 0;
   // drips somewhere in the hall
   G.dripT -= dt; if (G.dripT <= 0) { G.dripT = 1.2 + Math.random() * 4; sfx('drip', p.x + (Math.random() - 0.5) * 20, 0, p.z + (Math.random() - 0.5) * 20, 0.6 + Math.random() * 0.6); }
+  // now and then something far off in the building: a clank in the pipes or a long groan
+  G.ambT -= dt; if (G.ambT <= 0) { G.ambT = 7 + Math.random() * 11; const a = Math.random() * 6.28; sfx(Math.random() < 0.55 ? 'clank' : 'groan', p.x + Math.cos(a) * 24, 4.5, p.z + Math.sin(a) * 24, 0.7 + Math.random() * 0.5); }
 }
 // ---- HUD each frame ----
 const tagEls = new Map();
@@ -2898,8 +3418,30 @@ function drawHud(dt, it) {
   $('clockT').textContent = V.ph === 'lobby' || V.ph === 'count' ? (G.online ? 'Room ' + G.room.replace(/^hp-/, '') : 'Solo') : fmtT(t);
   $('clockC').textContent = (me && (V.ph === 'run' || V.ph === 'wipe' || V.ph === 'won') ? '+' + me.coins + ' · ' : '') + SAVE.coins + ' coins';
   // noise meter: what you did last
-  if (G.noiseHold > 0) G.noiseHold -= dt; else { G.noiseShow = Math.max(0, G.noiseShow - dt * 0.6); if (G.noiseShow <= 0.02) G.noiseLbl = G.body.inW ? (Math.hypot(G.body.vx, G.body.vz) > 0.3 ? 'In the water' : 'Still in the water (silent)') : G.crouch ? 'Creeping (silent)' : isSprint() && G.body.gr ? 'Running' : 'Silent'; }
-  $('noiseBar').style.width = Math.round(G.noiseShow * 100) + '%'; $('noiseLb').textContent = G.noiseLbl;
+  if (G.noiseHold > 0) G.noiseHold -= dt; else { G.noiseShow = Math.max(0, G.noiseShow - dt * 0.6); if (G.noiseShow <= 0.02) { G.noiseLbl = 'Silent'; G.noiseCls = ''; } }
+  $('noiseBar').style.width = Math.round(G.noiseShow * 100) + '%';
+  if ($('noiseLb').dataset.h !== G.noiseLbl) { $('noiseLb').innerHTML = G.noiseLbl; $('noiseLb').dataset.h = G.noiseLbl; }
+  if (G.noiseClsW !== G.noiseCls) { G.noiseClsW = G.noiseCls; $('noise').className = 'hcard' + (G.noiseCls ? ' ' + G.noiseCls : ''); }
+  // how you're moving, and whether that makes a sound
+  { const p = G.body, sp = Math.hypot(p.vx, p.vz); let sn = 'Still', sv = 'silent', loud = false;
+    if (!me || me.st !== 0) { sn = me && me.st === 2 ? 'Down' : 'Held'; sv = ''; }
+    else if (p.inW) { sn = G.crouch ? 'Wading slow' : isSprint() ? 'Wading fast' : 'Wading'; sv = Math.hypot(p.vx, p.vz) > 0.3 ? 'noisy' : 'quiet'; loud = sv === 'noisy'; }
+    else if (!p.gr) { const k = G.pred ? G.pred.k : ''; sn = 'Jumping'; sv = k === 'quiet' ? 'quiet' : k === 'edge' || k === 'hard' ? 'loud' : k === 'climb' ? 'pull-up' : k === 'fall' ? 'water!' : ''; loud = !!k && k !== 'quiet'; }
+    else if (sp > 0.4) { if (G.crouch) sn = 'Creeping'; else if (isSprint() && sp > TUNING.walk * 1.1) { sn = 'Running'; sv = 'noisy'; loud = true; } else sn = 'Walking'; }
+    const key = sn + sv; if (G.stanceK !== key) { G.stanceK = key; $('stanceN').textContent = sn; const b = $('stanceV'); b.textContent = sv; b.className = loud ? 'n' : 's'; } }
+  // labels where noises happened
+  for (let i = noiseTags.length - 1; i >= 0; i--) {
+    const n = noiseTags[i]; n.t += dt; if (n.t > n.life) { n.el.remove(); noiseTags.splice(i, 1); continue; }
+    tmpV.set(n.x, n.y + (REDUCED ? 0 : n.t * 0.35), n.z).project(camera); if (tmpV.z > 1) { n.el.style.opacity = 0; continue; }
+    n.el.style.opacity = Math.min(1, (n.life - n.t) / 0.5).toFixed(2);
+    n.el.style.transform = 'translate(' + ((tmpV.x * 0.5 + 0.5) * innerWidth - n.el.offsetWidth / 2).toFixed(0) + 'px,' + ((-tmpV.y * 0.5 + 0.5) * innerHeight - n.el.offsetHeight).toFixed(0) + 'px) scale(' + n.sc.toFixed(2) + ')';
+  }
+  // the word under the landing marker
+  const mk = $('mkTag');
+  if (marker.visible && G.pred) { tmpV.copy(marker.position).project(camera); if (tmpV.z < 1) { const k = G.pred.k, txt = MARK_WORD[k]; if (mk.dataset.k !== k) { mk.dataset.k = k; mk.textContent = txt; mk.className = 'mk ' + k; } mk.hidden = false;
+      mk.style.transform = 'translate(' + ((tmpV.x * 0.5 + 0.5) * innerWidth - mk.offsetWidth / 2).toFixed(0) + 'px,' + ((-tmpV.y * 0.5 + 0.5) * innerHeight + (TOUCH ? -34 - mk.offsetHeight : 10)).toFixed(0) + 'px)'; } else mk.hidden = true; }   // on touch the word goes above the ring, away from the buttons
+  else mk.hidden = true;
+  tipFrame(dt);
   // E prompt with its fill ring
   const pr = $('prompt');
   if (it && !G.panel) { pr.hidden = false; if (G.prKey !== it.tx) { G.prKey = it.tx; $('promptTx').innerHTML = TOUCH ? it.tx.replace(/<kbd>E<\/kbd>/g, '<kbd>E</kbd>') : it.tx; } $('ring').style.strokeDashoffset = (94.25 * (1 - (it.prog || 0))).toFixed(1); }
@@ -2960,7 +3502,8 @@ camera.fov = SET.fov; applyGfx(); startAttract(); renderMenuExtras();
 requestAnimationFrame(t => { last = t; frame(t); });
 // Test hook (automated browsers only)
 if (navigator.webdriver) window.__hp = { G, Net, SAVE: () => SAVE, get S() { return G.S; }, get V() { return G.V; }, get W() { return G.W; }, hostStartRun, enterPlay, toMenu, keys, TUNING, stepPlayer, newBody, camera, renderer, scene, setYaw(y, p) { G.yaw = y; if (p != null) G.pitch = p; },
-  tp(x, y, z) { G.body = newBody(x, y, z); const P = G.S.pl[myUid()]; if (P) { P.x = x; P.y = y; P.z = z; P.has = false; P.unsup = 0; } }, jump() { jumpQ = true; }, useItem, pressE, sel(i) { G.sel = i; }, openParty, openShop, buildLevel };
+  tp(x, y, z) { const li = G.body.li; G.body = newBody(x, y, z); G.body.li = li; const P = G.S.pl[myUid()]; if (P) { P.x = x; P.y = y; P.z = z; P.has = false; P.unsup = 0; } }, jump() { jumpQ = true; }, useItem, pressE, sel(i) { G.sel = i; }, openParty, openShop, buildLevel,
+  hold(on) { G.hold = !!on; }, SET, renderNoiseHelp, predictLanding, landNoise };
 </script>
 <script src="/analytics/tracker.js" data-site="hush-pools" defer></script>
 </body>

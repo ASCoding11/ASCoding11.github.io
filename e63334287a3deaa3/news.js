@@ -91,6 +91,12 @@
       'The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.',
       'On Pretty graphics: a grass grain around your car, a tighter glow round bright lights and soft halos on the floodlights.',
       'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
+    {date: '2026-11-23', version: '1.45', title: 'Hush Pools is now Blackwade', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.',
+      'Every noise shows a label where it happened, and a meter tells you how loud you are being.',
+      'Invite links, coins, upgrades and ratings carry over.'
+    ]},
     {date: '2026-11-23', version: '1.44', title: 'Beatvault is now Pulsebox', kind: 'feature',
      img: 'm/thumbs/beatvault.jpg', tags: ['Pulsebox'], items: [
       'Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.',
