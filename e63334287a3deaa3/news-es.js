@@ -8,6 +8,10 @@
   BackRoomLang.add({
     "See when someone is waiting for your room": "Mira cuándo alguien espera por tu sala",
     "When a room is full and someone queues for it, the people in that room are now told.": "Cuando una sala está llena y alguien se pone en cola, ahora se avisa a quienes están en la sala.",
+    "Hush Pools is now Blackwade": "Hush Pools ahora se llama Blackwade",
+    "Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.": "Hush Pools tiene nombre y aspecto nuevos: Blackwade, con salas más oscuras y con niebla.",
+    "Every noise shows a label where it happened, and a meter tells you how loud you are being.": "Cada ruido muestra una etiqueta donde ocurrió, y un medidor te dice cuánto ruido haces.",
+    "Invite links, coins, upgrades and ratings carry over.": "Los enlaces de invitación, las monedas, las mejoras y las puntuaciones se conservan.",
     "Beatvault is now Pulsebox": "Beatvault ahora se llama Pulsebox",
     "Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.": "Beatvault tiene nombre y aspecto nuevos: Pulsebox, una discoteca de neón con focos sobre cada escenario.",
     "Every song is about 6% faster.": "Todas las canciones van un 6% más rápido, más o menos.",
