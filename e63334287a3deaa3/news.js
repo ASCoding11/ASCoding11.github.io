@@ -91,6 +91,11 @@
       'The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.',
       'On Pretty graphics: a grass grain around your car, a tighter glow round bright lights and soft halos on the floodlights.',
       'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
+    {date: '2026-11-23', version: '1.47', title: 'A badge for the top of each board', kind: 'feature',
+     tags: ['Leaderboards'], items: [
+      'Whoever is top of a game\'s main leaderboard now wears a small badge for that game next to their name.',
+      'The badges show in the Online panel, the Party panel and the Leaderboards.'
+    ]},
     {date: '2026-11-23', version: '1.46', title: 'Sky Duel: fairer bots, bigger hits', kind: 'feature',
      img: 'm/thumbs/sky-duel.jpg', tags: ['Sky Duel'], items: [
       'Bots are fairer: they leave you alone for a few seconds after you spawn unless you shoot first, and fewer of them hunt you at once when you fly solo.',
