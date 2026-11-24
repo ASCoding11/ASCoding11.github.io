@@ -11,6 +11,8 @@
     "The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.": "El público se dibuja en bloques de aficionados en vez de un moteado de colores al azar, así que las gradas se ven más tranquilas.",
     "On Pretty graphics: a grass grain around your car, a tighter glow round bright lights and soft halos on the floodlights.": "Con gráficos Lindo: textura de césped alrededor de tu coche, un brillo más ajustado en las luces fuertes y halos suaves en los focos.",
     "Nothing changes in how the game plays, and Fast graphics costs the same as before.": "Nada cambia en cómo se juega, y los gráficos Rápido cuestan lo mismo que antes.",
+    "See when someone is waiting for your room": "Mira cuándo alguien espera por tu sala",
+    "When a room is full and someone queues for it, the people in that room are now told.": "Cuando una sala está llena y alguien se pone en cola, ahora se avisa a quienes están en la sala.",
     "A badge for the top of each board": "Una insignia para el primero de cada clasificación",
     "Whoever is top of a game's main leaderboard now wears a small badge for that game next to their name.": "Quien va primero en la clasificación principal de un juego lleva ahora una insignia pequeña de ese juego junto a su nombre.",
     "The badges show in the Online panel, the Party panel and the Leaderboards.": "Las insignias se ven en el panel Online, en el panel de Fiesta y en las Clasificaciones.",
