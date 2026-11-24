@@ -90,6 +90,12 @@
       'Whoever is top of a game\'s main leaderboard now wears a small badge for that game next to their name.',
       'The badges show in the Online panel, the Party panel and the Leaderboards.'
     ]},
+    {date: '2026-11-23', version: '1.44', title: 'Beatvault is now Pulsebox', kind: 'feature',
+     img: 'm/thumbs/beatvault.jpg', tags: ['Pulsebox'], items: [
+      'Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.',
+      'Every song is about 6% faster.',
+      'Your progress, keys, settings and the levels you made carry over.'
+    ]},
     {date: '2026-11-23', version: '1.43', title: 'Flipline is now Chromeline', kind: 'feature',
      img: 'm/thumbs/flipline.jpg', tags: ['Chromeline'], items: [
       'Flipline has a new name and a new look: Chromeline, a stunt bike ride through a neon city at night.',
