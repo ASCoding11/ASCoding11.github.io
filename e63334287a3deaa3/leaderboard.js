@@ -295,7 +295,7 @@
       { k: 'r2-freefall', l: '28. Freefall', chip: 'Freefall', f: 'time', lo: 38.7, hi: 3600 },
       { k: 'r2-afterburner', l: '29. Afterburner', chip: 'Afterburner', f: 'time', lo: 29.9, hi: 3600 },
       { k: 'r2-final-exam', l: '30. Final Exam', chip: 'Final Exam', f: 'time', lo: 34.8, hi: 3600 }] },
-    { d: 'flipline', n: 'Flipline', st: [
+    { d: 'flipline', n: 'Chromeline', st: [
       { k: 'distance', l: 'Longest Endless run', chip: 'Endless', f: 'm', hi: 100000 },
       { k: 'score', l: 'Best Endless score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
       { k: 'medals', l: 'Medals (of 72)', chip: 'Medals', f: 'n', u: 'medal', hi: 72 },
