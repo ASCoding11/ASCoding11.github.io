@@ -51,6 +51,39 @@
     }
   };
 
+  // ------------------------------------------------------------------ environment light as three r128 drew it
+  // The game's environment maps are small cube renders of the sky with plain mipmaps (cubeRT below; js/fp.js vmEnv).
+  // three r128 used such a cube for reflections only (a mip picked by roughness); it added no diffuse light from it
+  // (that came only with a PMREM). r187 turns every cube into a PMREM and adds its diffuse light too, which lit
+  // interiors about twice as bright (measured: Boot Camp hut, environment-only light 23 -> 45 of 255). The cubes are
+  // flagged isPMREMTexture so r187 uses them as they are, and this chunk puts r128's lookups back (Midnight Ops only:
+  // this page's ShaderChunk, after lib/three's r128 compatibility layer).
+  let envChunkDone = false;
+  E.r128EnvChunk = function () {
+    if (envChunkDone) return; envChunkDone = true;
+    THREE.ShaderChunk.envmap_physical_pars_fragment = `#ifdef USE_ENVMAP
+      float ivEnvMaxMip() { return log2(float(textureSize(envMap, 0).x)); }
+      vec3 getIBLIrradiance( const in vec3 normal ) { return vec3( 0.0 ); }
+      vec3 getIBLRadiance( const in vec3 viewDir, const in vec3 normal, const in float roughness ) {
+        vec3 reflectVec = reflect( - viewDir, normal );
+        reflectVec = normalize( mix( reflectVec, normal, roughness * roughness ) );
+        reflectVec = inverseTransformDirection( reflectVec, viewMatrix );
+        float maxMip = ivEnvMaxMip(), sigma = PI * roughness * roughness / ( 1.0 + roughness );
+        vec4 envMapColor = textureLod( envMap, envMapRotation * reflectVec, clamp( maxMip + log2( sigma ), 0.0, maxMip ) );
+        return envMapColor.rgb * envMapIntensity;
+      }
+    #endif`;
+  };
+  // a cube render target used as an environment map the r128 way (see above)
+  // r187 reads a PMREM texture's size from texture.mipmaps[0] when it builds the program; a real list of levels there
+  // would make it allocate the target per level (and CubeCamera cannot draw into that), so it gets an empty list that
+  // still answers [0] (the chunk above takes the level count from textureSize instead)
+  E.r128EnvCube = function (rt) {
+    E.r128EnvChunk(); rt.texture.isPMREMTexture = true;
+    rt.texture.mipmaps = { length: 0, 0: { width: rt.width, height: rt.width }, slice() { return []; } };
+    return rt;
+  };
+
   // ------------------------------------------------------------------ fog + mist chunks (installed once)
   let chunksDone = false;
   function installFogChunks() {
@@ -226,7 +259,7 @@
     const envScene = new THREE.Scene(), envDome = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 16), sky.clone());
     envScene.add(envDome);
     // A small cube render of the sky with mipmaps (PMREM float targets proved unreliable on software GL).
-    const cubeRT = new THREE.WebGLCubeRenderTarget(64, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, type: THREE.UnsignedByteType });
+    const cubeRT = E.r128EnvCube(new THREE.WebGLCubeRenderTarget(64, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, type: THREE.UnsignedByteType }));
     const cubeCam = new THREE.CubeCamera(0.1, 200, cubeRT); envScene.add(cubeCam);
     A.dir = new THREE.Vector3();
 

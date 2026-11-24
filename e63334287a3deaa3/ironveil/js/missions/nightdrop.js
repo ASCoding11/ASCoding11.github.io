@@ -554,7 +554,7 @@
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); g.setIndex(idx); g.computeVertexNormals();
     const m = new THREE.MeshStandardMaterial({ color: 0x0e161c, roughness: 0.06, metalness: 0.1, transparent: true, opacity: 0.88 });
-    m.onBeforeCompile = sh => { sh.uniforms.uT = W.windU; sh.fragmentShader = 'uniform float uT;\n' + sh.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize(normal + vec3(sin(vViewPosition.x*3.1+uT*1.7)*0.05, 0.0, cos(vViewPosition.y*2.3+uT*1.3)*0.05));'); };
+    m.onBeforeCompile = sh => { sh.uniforms.uT = W.windU; IVEnv.patch(sh, 'fragment', '#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize(normal + vec3(sin(vViewPosition.x*3.1+uT*1.7)*0.05, 0.0, cos(vViewPosition.y*2.3+uT*1.3)*0.05));', 'nightdrop river'); sh.fragmentShader = 'uniform float uT;\n' + sh.fragmentShader; };
     const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; W.statics.add(mesh);
   }
   function bridge(b) {

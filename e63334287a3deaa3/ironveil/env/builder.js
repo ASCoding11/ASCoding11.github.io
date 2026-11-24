@@ -329,10 +329,13 @@
     const T = E.tex.decals;
     const m = new THREE.MeshStandardMaterial({ map: T.alb, normalMap: T.nri, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, roughness: 1, metalness: 0, alphaTest: 0.02 });
     m.customProgramCacheKey = () => 'ivdecalsatlas';
-    m.onBeforeCompile = function (sh) {
-      sh.fragmentShader = sh.fragmentShader.replace('#include <roughnessmap_fragment>', 'float roughnessFactor = texture2D(normalMap, vUv).b;')
-        .replace('#include <normal_fragment_maps>', `vec4 dn = texture2D(normalMap, vUv); vec3 mapN = vec3(dn.xy * 2.0 - 1.0, 0.0); mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
-          normal = perturbNormal2Arb(-vViewPosition, normal, mapN, faceDirection);`);
+    m.onBeforeCompile = function (sh) {   // r187: the atlas UV is vMapUv (r128's vUv)
+      // the atlas is raw sRGB (env/core.js makeTex): decoded after filtering, as r128 did
+      E.patch(sh, 'fragment', '#include <map_fragment>', 'vec4 sampledDiffuseColor = sRGBTransferEOTF(texture2D(map, vMapUv)); diffuseColor *= sampledDiffuseColor;', 'env/builder decals');
+      E.patch(sh, 'fragment', '#include <roughnessmap_fragment>', 'float roughnessFactor = texture2D(normalMap, vMapUv).b;', 'env/builder decals');
+      E.patch(sh, 'fragment', '#include <normal_fragment_maps>', `vec4 dn = texture2D(normalMap, vMapUv); vec3 mapN = vec3(dn.xy * 2.0 - 1.0, 0.0); mapN.z = sqrt(max(0.05, 1.0 - dot(mapN.xy, mapN.xy)));
+          normal = ivPerturbNormal2Arb(-vViewPosition, normal, mapN, faceDirection, vMapUv);`, 'env/builder decals');
+      sh.fragmentShader = E.withPerturb(sh.fragmentShader);
     };
     m.userData.linear = true; decalMat = m; return m;
   };
@@ -381,8 +384,10 @@
     if (lowMat) return lowMat;
     const m = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0 });
     m.onBeforeCompile = (sh) => {
-      sh.vertexShader = 'attribute vec4 aEnv;\nvarying vec3 vTint;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vTint = aEnv.rgb;');
-      sh.fragmentShader = 'varying vec3 vTint;\n' + sh.fragmentShader.replace('#include <map_fragment>', 'diffuseColor.rgb = vTint;');
+      E.patch(sh, 'vertex', '#include <begin_vertex>', '#include <begin_vertex>\n vTint = aEnv.rgb;', 'env/builder low minor');
+      E.patch(sh, 'fragment', '#include <map_fragment>', 'diffuseColor.rgb = vTint;', 'env/builder low minor');
+      sh.vertexShader = 'attribute vec4 aEnv;\nvarying vec3 vTint;\n' + sh.vertexShader;
+      sh.fragmentShader = 'varying vec3 vTint;\n' + sh.fragmentShader;
     };
     m.customProgramCacheKey = () => 'ivlowminor'; m.userData.linear = true; lowMat = m; return m;
   };
