@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Shell Crackers: bigger bangs, livelier blocks": "Shell Crackers: explosiones más grandes, bloques con más vida",
+    "On Pretty graphics, yolk bombs go off in a soft glowing fireball and a rolling cloud, shots kick up puffs of dust or yolk, and muzzle flashes glow.": "Con gráficos Lindo, las bombas de yema estallan en una bola de fuego suave y brillante y una nube que se levanta, los disparos levantan polvo o yema y los fogonazos brillan.",
+    "Grass, sand, snow and dirt show a gentle two-tone block grid, and shadows have softer edges.": "El césped, la arena, la nieve y la tierra muestran una cuadrícula suave de dos tonos, y las sombras tienen bordes más suaves.",
+    "Your gun is lit more clearly, with bright top edges, and picks up each map's light.": "Tu arma está mejor iluminada, con bordes superiores brillantes, y toma la luz de cada mapa.",
     "Boostball: a greener, brighter stadium": "Boostball: un estadio más verde y luminoso",
     "The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.": "El campo tiene un verde más fresco con franjas de corte, un charco de luz de los focos en el centro y líneas más nítidas.",
     "The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.": "El público se dibuja en bloques de aficionados en vez de un moteado de colores al azar, así que las gradas se ven más tranquilas.",

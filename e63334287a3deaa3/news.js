@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.50', title: 'Shell Crackers: bigger bangs, livelier blocks', kind: 'feature',
+     tags: ['Shell Crackers', 'Graphics'], items: [
+      'On Pretty graphics, yolk bombs go off in a soft glowing fireball and a rolling cloud, shots kick up puffs of dust or yolk, and muzzle flashes glow.',
+      'Grass, sand, snow and dirt show a gentle two-tone block grid, and shadows have softer edges.',
+      'Your gun is lit more clearly, with bright top edges, and picks up each map\'s light.',
+    ]},
     {date: '2026-11-23', version: '1.49', title: 'Boostball: a greener, brighter stadium', kind: 'feature',
      tags: ['Boostball', 'Graphics'], items: [
       'The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.',
