@@ -8,6 +8,10 @@
   BackRoomLang.add({
     "See when someone is waiting for your room": "Mira cuándo alguien espera por tu sala",
     "When a room is full and someone queues for it, the people in that room are now told.": "Cuando una sala está llena y alguien se pone en cola, ahora se avisa a quienes están en la sala.",
+    "Sky Duel: fairer bots, bigger hits": "Sky Duel: bots más justos, impactos más grandes",
+    "Bots are fairer: they leave you alone for a few seconds after you spawn unless you shoot first, and fewer of them hunt you at once when you fly solo.": "Los bots son más justos: te dejan en paz unos segundos después de aparecer si no disparas primero, y te persiguen menos a la vez cuando vuelas solo.",
+    "Kills land harder: longer tracers, bigger explosions, more debris and a kick of the camera.": "Los derribos se notan más: trazadoras más largas, explosiones más grandes, más restos y un golpe de cámara.",
+    "The first explosion of a match no longer makes the game stutter.": "La primera explosión de una partida ya no hace que el juego dé un tirón.",
     "Hush Pools is now Blackwade": "Hush Pools ahora se llama Blackwade",
     "Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.": "Hush Pools tiene nombre y aspecto nuevos: Blackwade, con salas más oscuras y con niebla.",
     "Every noise shows a label where it happened, and a meter tells you how loud you are being.": "Cada ruido muestra una etiqueta donde ocurrió, y un medidor te dice cuánto ruido haces.",
