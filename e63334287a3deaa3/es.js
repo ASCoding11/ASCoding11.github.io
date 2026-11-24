@@ -200,6 +200,7 @@
     "Bots at three levels (Rookie, Veteran, Ace) fill the empty seats, or fly solo against them": "Bots de tres niveles (Novato, Veterano, As) ocupan los lugares vacíos, o vuela solo contra ellos",
     "A lead marker for the guns, lock-on missiles, flares, boost, a barrel-roll dodge, and repair, missile and flare rings to fly through": "Un marcador de anticipación para las ametralladoras, misiles con fijación, bengalas, turbo, un tonel para esquivar, y aros de reparación, misiles y bengalas para atravesar",
     "Radar, target boxes, a kill feed, contrails and four planes to pick from": "Radar, recuadros de blanco, registro de bajas, estelas y cuatro aviones para elegir",
+    "Glowing tracers, burning wrecks that fall out of the sky, and respawns that put you straight back into the fight": "Trazadoras brillantes, restos en llamas que caen del cielo y reapariciones que te devuelven enseguida al combate",
     "Mouse and keyboard (the keys can be changed), or a stick, throttle and buttons on a phone.": "Mouse y teclado (las teclas se pueden cambiar), o palanca, acelerador y botones en el celular.",
     "Obbies, towers, climbs and runs. Race friends or chase your best time.": "Obbies, torres, escaladas y carreras. Corre contra tus amigos o supera tu mejor tiempo.",
     "Climbing": "Escalada",
