@@ -472,14 +472,21 @@ function gstyle(n){if(!HOLDS[n])return null;if(gstyles[n])return gstyles[n];cons
 // The gliders' material: the page's own (its look, MAT's grain on Pretty), plus the moving parts on the clock gT.
 css();
 const gT={value:0};
+// (Drawn unskinned on the glider's skinned mesh, as on r128, which skinned only a material with skinning:true; r187 skins
+// every skinned mesh, and a Locker glider has no bone weights, so it would fold into a point: hence #undef USE_SKINNING.)
 const GLX=new THREE.MeshLambertMaterial({vertexColors:true});GLX.defines={};
+// (its shadow too: r187 would cast it skinned, which folds a Locker glider's shadow into a point)
+// r187 also works out a skinned mesh's bounds from its bones (to sort and cull it), which fails on a geometry without bone
+// weights: a Locker glider's bounds are its geometry's, as r128 always used; the standard glider's are worked out again.
+function gliderBounds(m,g){if(g){if(!g.boundingSphere)g.computeBoundingSphere();if(!g.boundingBox)g.computeBoundingBox();m.boundingSphere=g.boundingSphere.clone();m.boundingBox=g.boundingBox.clone()}else{m.boundingSphere=null;m.boundingBox=null}}
+const GLXD=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking});GLXD.onBeforeCompile=sh=>{G.shEd('GLX shadow',sh).v('#include <common>','#undef USE_SKINNING\n#include <common>')};
 GLX.onBeforeCompile=sh=>{G.MAT.onBeforeCompile(sh);sh.uniforms.gT=gT;
   const fn='uniform float gT;attribute vec3 gan;\n'
     +'float lxA(float sx){if(gan.x>.5&&gan.x<1.5)return gT*gan.y;if(gan.x>1.5&&gan.x<2.5)return sin(gT*5.)*gan.z*sx;if(gan.x>5.5&&gan.x<6.5)return sin(gT*2.2)*gan.z*sx;if(gan.x>6.5)return sin(gT*3.)*gan.z*sx;return 0.;}\n'
     +'vec3 lxR(vec3 v,float a,bool spin){float c=cos(a),s=sin(a);if(spin)return vec3(c*v.x-s*v.z,v.y,s*v.x+c*v.z);return vec3(c*v.x-s*v.y,s*v.x+c*v.y,v.z);}\n';
-  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\n'+fn)
-    .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\n{float sx=position.x<0.?-1.:1.;float a=lxA(sx);if(a!=0.)objectNormal=lxR(objectNormal,a,gan.x<1.5||gan.x>6.5);}')
-    .replace('#include <begin_vertex>','#include <begin_vertex>\n{float sx=position.x<0.?-1.:1.;float a=lxA(sx);'
+  G.shEd('GLX',sh).v('#include <common>','#undef USE_SKINNING\n#include <common>\n'+fn)
+    .v('#include <beginnormal_vertex>','#include <beginnormal_vertex>\n{float sx=position.x<0.?-1.:1.;float a=lxA(sx);if(a!=0.)objectNormal=lxR(objectNormal,a,gan.x<1.5||gan.x>6.5);}')
+    .v('#include <begin_vertex>','#include <begin_vertex>\n{float sx=position.x<0.?-1.:1.;float a=lxA(sx);'
       +'if(gan.x>.5&&gan.x<1.5)transformed=lxR(transformed,a,true);'
       +'else if((gan.x>1.5&&gan.x<2.5)||gan.x>5.5){vec3 q=transformed;q.x-=sx*gan.y;q=lxR(q,a,gan.x>6.5);q.x+=sx*gan.y;transformed=q;}'
       +'else if(gan.x>2.5&&gan.x<3.5){transformed.y+=sin(gT*1.8+gan.z)*gan.y;transformed.x+=sin(gT*1.3+gan.z*1.7)*gan.y*.5;}'
@@ -630,12 +637,12 @@ const GLSL_SKIN='vec4 c4(float f,vec3 a,vec3 b,vec3 c,vec3 d){return vec4(f<.4?a
   +'else{c=fract((p.z+abs(p.y-.05)*1.5)*5.)<.4?vec3(1.,.78,.15):vec3(.97,.96,.92);c*=dk>.5?.75:1.;c+=vec3(.12)*smoothstep(.5,.9,up);}\n'
   +'return c;}\n';
 GSK.onBeforeCompile=sh=>{sh.uniforms.uT=uT;
-  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float gsk;attribute float gcl;varying float vSk;varying float vCl;varying vec3 vP;varying vec3 vN;varying vec3 vVN;varying vec3 vVD;')
-    .replace('#include <begin_vertex>','#include <begin_vertex>\nvSk=gsk;vCl=gcl;vP=position;vN=normal;')
-    .replace('#include <project_vertex>','#include <project_vertex>\nvVN=normalize(transformedNormal);vVD=normalize(-mvPosition.xyz);');
-  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform float uT;varying float vSk;varying float vCl;varying vec3 vP;varying vec3 vN;varying vec3 vVN;varying vec3 vVD;\n'+GLSL_NOISE+GLSL_SKIN)
-    .replace('#include <color_fragment>','#include <color_fragment>\nvec3 lxEm=vec3(0.);if(vSk>.5&&vCl>.5)diffuseColor.rgb=lxSkin(floor(vSk+.5),floor(vCl+.5),vP,normalize(vN),normalize(vVN),normalize(vVD),lxEm);')
-    .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=lxEm;');
+  G.shEd('GSK',sh).v('#include <common>','#include <common>\nattribute float gsk;attribute float gcl;varying float vSk;varying float vCl;varying vec3 vP;varying vec3 vN;varying vec3 vVN;varying vec3 vVD;')
+    .v('#include <begin_vertex>','#include <begin_vertex>\nvSk=gsk;vCl=gcl;vP=position;vN=normal;')
+    .v('#include <project_vertex>','#include <project_vertex>\nvVN=normalize(transformedNormal);vVD=normalize(-mvPosition.xyz);')
+    .f('#include <common>','#include <common>\nuniform float uT;varying float vSk;varying float vCl;varying vec3 vP;varying vec3 vN;varying vec3 vVN;varying vec3 vVD;\n'+GLSL_NOISE+GLSL_SKIN)
+    .f('#include <color_fragment>','#include <color_fragment>\nvec3 lxEm=vec3(0.);if(vSk>.5&&vCl>.5)diffuseColor.rgb=lxSkin(floor(vSk+.5),floor(vCl+.5),vP,normalize(vN),normalize(vVN),normalize(vVD),lxEm);')
+    .f('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance+=lxEm;');
 };
 const gunGeo={},gunSk={};
 function skinGunGeo(k){
@@ -689,9 +696,9 @@ function tileCanvas(k){if(bTile[k])return bTile[k];const c=document.createElemen
 // The plywood's materials learn the skins: a piece whose bsk is 0 is drawn exactly as before (the same texture read).
 function patchBuildMat(mat){const prev=mat.onBeforeCompile;
   mat.onBeforeCompile=function(sh,r){if(prev)prev.call(this,sh,r);sh.uniforms.bskTex={value:buildTex()};
-    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float bsk;varying float vBsk;').replace('#include <begin_vertex>','#include <begin_vertex>\nvBsk=bsk;');
-    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D bskTex;varying float vBsk;')
-      .replace('#include <map_fragment>','#ifdef USE_MAP\nvec4 texelColor;if(vBsk>.5){float t=floor(vBsk+.5)-1.;vec2 o=vec2(mod(t,4.),1.-floor(t/4.));texelColor=texture2D(bskTex,(o+mix(vec2(.012),vec2(.988),clamp(vUv,0.,1.)))/vec2(4.,2.));}else texelColor=texture2D(map,vUv);\ntexelColor=mapTexelToLinear(texelColor);diffuseColor*=texelColor;\n#endif')};
+    G.shEd('builds',sh).v('#include <common>','#include <common>\nattribute float bsk;varying float vBsk;').v('#include <begin_vertex>','#include <begin_vertex>\nvBsk=bsk;')
+      .f('#include <common>','#include <common>\nuniform sampler2D bskTex;varying float vBsk;')
+      .f('#include <map_fragment>','#ifdef USE_MAP\nvec4 texelColor;if(vBsk>.5){float t=floor(vBsk+.5)-1.;vec2 o=vec2(mod(t,4.),1.-floor(t/4.));texelColor=texture2D(bskTex,(o+mix(vec2(.012),vec2(.988),clamp(vMapUv,0.,1.)))/vec2(4.,2.));}else texelColor=texture2D(map,vMapUv);\ndiffuseColor*=texelColor;\n#endif')};
   mat.needsUpdate=true}
 const bskMeshes=new Set();
 function bskAttr(mesh){let a=mesh.geometry.attributes.bsk;if(!a){a=new THREE.InstancedBufferAttribute(new Float32Array(mesh.instanceMatrix.count),1).setUsage(THREE.DynamicDrawUsage);mesh.geometry.setAttribute('bsk',a);bskMeshes.add(mesh)}return a}
@@ -868,11 +875,11 @@ function pickPic(n,W,H){const sc=new THREE.Scene();lights(sc);const m=new THREE.
 function dress(e){
   if(!e||!e.model)return;const o=parse(e.lx||''),u=e.model.userData;e.lxo=o;
   const g=o.g?gliderOf(o.g):null;
-  if(g){u.glider.geometry=g;u.glider.material=GLX;u.glider.castShadow=true}else if(u.glider.material===GLX){u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.BMAT}   // (a Locker glider is drawn unskinned: it opens its own way, PLACE)
+  if(g){u.glider.geometry=g;u.glider.material=GLX;u.glider.customDepthMaterial=GLXD;gliderBounds(u.glider,g);u.glider.castShadow=true}else if(u.glider.material===GLX){u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.BMAT;u.glider.customDepthMaterial=undefined;gliderBounds(u.glider,null)}   // (a Locker glider is drawn unskinned: it opens its own way, PLACE)
   u.gs=o.w||0;u.lxO=o.o||0;
   const pk=o.p||0;if((u.lxPk|0)!==pk){u.lxPk=pk;G.setModelColor(e.model,u.hex,u.skinIx,u.fit,u.face)}
 }
-function setGlider(model,n){const u=model.userData,g=n?gliderOf(n):null;if(g){u.glider.geometry=g;u.glider.material=GLX}else{u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.BMAT}}
+function setGlider(model,n){const u=model.userData,g=n?gliderOf(n):null;if(g){u.glider.geometry=g;u.glider.material=GLX;u.glider.customDepthMaterial=GLXD;gliderBounds(u.glider,g)}else{u.glider.geometry=G.GLIDER_GEO;u.glider.material=G.BMAT;u.glider.customDepthMaterial=undefined;gliderBounds(u.glider,null)}}
 function tick(dt){
   emoteTick();
   gT.value+=G.RM?0:dt;uT.value+=G.RM?0:dt;
