@@ -85,6 +85,48 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.48', title: 'See when someone is waiting for your room', kind: 'feature',
+     tags: ['Playing now'], items: [
+      'When a room is full and someone queues for it, the people in that room are now told.'
+    ]},
+    {date: '2026-11-23', version: '1.47', title: 'A badge for the top of each board', kind: 'feature',
+     tags: ['Leaderboards'], items: [
+      'Whoever is top of a game\'s main leaderboard now wears a small badge for that game next to their name.',
+      'The badges show in the Online panel, the Party panel and the Leaderboards.'
+    ]},
+    {date: '2026-11-23', version: '1.46', title: 'Sky Duel: fairer bots, bigger hits', kind: 'feature',
+     img: 'm/thumbs/sky-duel.jpg', tags: ['Sky Duel'], items: [
+      'Bots are fairer: they leave you alone for a few seconds after you spawn unless you shoot first, and fewer of them hunt you at once when you fly solo.',
+      'Kills land harder: longer tracers, bigger explosions, more debris and a kick of the camera.',
+      'The first explosion of a match no longer makes the game stutter.'
+    ]},
+    {date: '2026-11-23', version: '1.45', title: 'Hush Pools is now Blackwade', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.',
+      'Every noise shows a label where it happened, and a meter tells you how loud you are being.',
+      'Invite links, coins, upgrades and ratings carry over.'
+    ]},
+    {date: '2026-11-23', version: '1.44', title: 'Beatvault is now Pulsebox', kind: 'feature',
+     img: 'm/thumbs/beatvault.jpg', tags: ['Pulsebox'], items: [
+      'Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.',
+      'Every song is about 6% faster.',
+      'Your progress, keys, settings and the levels you made carry over.'
+    ]},
+    {date: '2026-11-23', version: '1.43', title: 'Flipline is now Chromeline', kind: 'feature',
+     img: 'm/thumbs/flipline.jpg', tags: ['Chromeline'], items: [
+      'Flipline has a new name and a new look: Chromeline, a stunt bike ride through a neon city at night.',
+      'All 24 levels and their medal targets were run again on the arrow-key controls, and two big loops got a boost strip.',
+      'The mace and the saw have a dark outline, so they stand out against the lit towers.'
+    ]},
+    {date: '2026-11-23', version: '1.42', title: 'Rollaway is now Overdrop', kind: 'feature',
+     img: 'm/thumbs/rollaway.jpg', tags: ['Overdrop'], items: [
+      'Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.',
+      'There are new hazards, and each kind has its own shape so you can tell them apart at speed.',
+      'Your best run, gems and settings carry over.'
+    ]},
+    {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
+     items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
+             'Only the site\'s team can read what you send.']},
     {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
      tags: ['Movi'], items: [
       'Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.',

@@ -65,14 +65,23 @@
     }
     spheres() { const out = []; for (const s of SPHERES[this.kind]) out.push([new V3(s[0], s[1], s[2]).applyQuaternion(this.q).add(this.pos), s[3]]); return out; }
     test(p0, p1) { if (this.falling) return -1; let best = -1; for (const [c, r] of this.spheres()) { const t = segSphere(p0, p1, c, r * (this.team === 'red' && IW.mission.diff === 0 ? 1.25 : 1)); if (t >= 0 && (best < 0 || t < best)) best = t; } return best; }
-    damage(a, from, kind) {
+    damage(a, from, kind, point) {
       if (!this.alive) return;
+      // where the smoke trail starts (visual only): the first hit's spot in the aircraft's own frame, else the engine
+      if (!this.smokeAt) this.smokeAt = point ? point.clone().sub(this.pos).applyQuaternion(tq.copy(this.q).invert()).clampLength(0, this.kind === 'bomber' ? 7 : 4) : new V3(0, 0, 3);
       this.hp -= a; this.lastHit = from; if (this.role === 'fighter' && Math.random() < 0.08 * a && this.st !== 'evade') this.evade();
       if (this.hp <= 0) this.die(from);
     }
     die(from) {
       this.alive = false; this.falling = true; this.fallT = 0; this.spin = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 2);
       IW.fx.explode(this.pos, this.kind === 'bomber' ? 1.4 : 0.9, 'air');
+      IW.fx.debris(this.pos, this.vel, this.kind === 'bomber' ? 7 : 4, this.kind === 'bomber' ? 1.2 : 0.8, 'air');
+      // a wing panel may tear off (the model is mirrored for half of these, so it can be either wing); the wreck then
+      // rolls toward the missing wing and spirals down. Visual only: the kill has already counted.
+      const br = IW.art.breakup && IW.art.breakup(this.model, this.vel, IW.forceBreak || Math.random() < (this.kind === 'bomber' ? 0.45 : 0.6));
+      if (br) { this.lostWing = br.side; this.spin = br.side * (2.6 + Math.random() * 1.6); this.smokeAt = br.at; }
+      else if (!this.smokeAt) this.smokeAt = new V3(0, 0, 3);
+      this.trailSt = {};
       IW.emit('kill', this, from);
     }
     // ------------------------------------------------------------ the brain
@@ -220,11 +229,17 @@
     step(dt) {
       this.prev.copy(this.pos); this.prevQ.copy(this.q);
       if (this.falling) {
-        this.fallT += dt; this.vel.y -= T.g * dt * 0.9; this.pos.addScaledVector(this.vel, dt); this.bank += this.spin * dt;
+        // a spinning fall: the path curls round as the wreck rolls (faster with a wing gone)
+        this.fallT += dt; this.vel.y -= T.g * dt * 0.9;
+        this.vel.applyAxisAngle(UPW, this.spin * (this.lostWing ? 0.3 : 0.12) * Math.min(1, this.fallT) * dt);
+        this.pos.addScaledVector(this.vel, dt); this.bank += this.spin * dt * (this.lostWing ? 1.5 : 1);
         this.dir.copy(this.vel).normalize(); this.orient();
-        if ((this.smokeT -= dt) <= 0) { this.smokeT = 0.05; IW.fx.firePuff(this.pos, this.vel, 2.5); IW.fx.smokePuff(this.pos, this.vel, 2.4, true, 6); }
+        IW.fx.trail(tA.copy(this.smokeAt).applyQuaternion(this.q).add(this.pos), this.vel, 1, dt, this.trailSt);
         if (this.pos.y < IW.world.groundAt(this.pos.x, this.pos.z) + 1 || this.fallT > 25) {
-          IW.fx.explode(this.pos, this.kind === 'bomber' ? 1.6 : 1.1, 'air'); if (IW.world.landAt(this.pos.x, this.pos.z) < 0) IW.fx.splash(this.pos, 1.4);
+          const sea = IW.world.landAt(this.pos.x, this.pos.z) < 0, big = this.kind === 'bomber';
+          IW.fx.explode(this.pos, big ? 1.6 : 1.1, sea ? 'air' : 'ground');
+          if (sea) { IW.fx.splash(this.pos, big ? 2 : 1.4); IW.fx.foam(this.pos, 4, big ? 26 : 16, 30, 0.9); }
+          else IW.fx.burn(this.pos.clone().setY(IW.world.landAt(this.pos.x, this.pos.z)), big ? 30 : 20, big ? 1.6 : 1);
           this.gone = true;
         }
         return;
@@ -241,14 +256,21 @@
       const wantBank = IW.clamp(-Math.atan(w.dot(up) * this.speed / T.g), -1.4, 1.4);
       this.bank = IW.damp(this.bank, wantBank, 3, dt); this.orient();
       if (this.role !== 'fighter' && this.role !== 'drone') this.gunnersStep(dt);
-      if (this.hp < this.maxHp * 0.5 && (this.smokeT -= dt) <= 0) { this.smokeT = 0.08; IW.fx.smokePuff(this.pos.clone().addScaledVector(this.dir, 3), this.vel, 1.4, this.hp < this.maxHp * 0.3, 2.5); }
+      // damage shows: a thin grey trail from about a third down, black smoke past half, fire near the end
+      const dk = 1 - this.hp / this.maxHp;
+      if (dk > 0.3 && this.smokeAt) IW.fx.trail(tA.copy(this.smokeAt).applyQuaternion(this.q).add(this.pos), this.vel, IW.clamp((dk - 0.3) / 0.6, 0, 1) * 0.85, dt, this.trailSt || (this.trailSt = {}));
     }
     frame(alpha, dt) {
       const r = this.model.root, d2 = this.pos.distanceToSquared(IW.world.camera.position);
       r.visible = d2 < 14000 * 14000;
       if (!r.visible) return;
       r.position.lerpVectors(this.prev, this.pos, alpha); r.quaternion.copy(this.prevQ).slerp(this.q, alpha);
-      this.model.animate(dt, this.falling ? 0.2 : 0.85, null);
+      // what the moving parts should do (art.js eases them there): gear down only when low and slow (a scramble from a
+      // runway), bomb-bay doors open for a level bomber's run
+      const c = this.ctlA || (this.ctlA = { ai: true, gear: 0, bay: 0 });
+      c.gear = !this.falling && this.speed < 95 && this.pos.y - IW.world.groundAt(this.pos.x, this.pos.z) < 60 ? 1 : 0;
+      c.bay = this.role === 'bomber' && !this.falling && (this.st === 'run' || (this.st === 'egress' && this.stT < 3)) ? 1 : 0;
+      this.model.animate(dt, this.falling ? 0.2 : 0.85, c);
     }
     remove() { this.model.root.parent && this.model.root.parent.remove(this.model.root); }
   }
@@ -300,7 +322,12 @@
       if (!this.alive) return;
       if (this.team === 'blue') a *= [0.5, 0.8, 1][IW.mission.diff];   // our own ships are tougher on easier settings
       this.hp -= a; this.lastHit = from; if (kind !== 'gun') IW.emit('shipHit', this, a);
-      if (this.hp <= 0) { this.alive = false; this.sinking = true; this.sinkT = 0; this.rollDir = Math.random() < 0.5 ? -1 : 1; IW.fx.explode(this.pos.clone().setY(this.deckY + 4), 3, 'ship'); IW.emit('kill', this, from); }
+      if (this.hp <= 0) {
+        this.alive = false; this.sinking = true; this.sinkT = 0; this.rollDir = Math.random() < 0.5 ? -1 : 1; this.plunged = false; this.boomT = 1.5;
+        IW.fx.explode(this.pos.clone().setY(this.deckY + 4), 3, 'ship'); IW.fx.debris(this.pos.clone().setY(this.deckY + 3), null, 10, 1.6, 'ship');
+        IW.fx.splash(this.toWorld(this.beam * 0.6 * this.rollDir, 0, 0), 2.4); IW.fx.foam(this.pos, this.len * 0.3, this.len * 0.7, 40, 0.7);
+        IW.emit('kill', this, from);
+      }
     }
     makeDeck() {
       const s = this;
@@ -316,7 +343,11 @@
       this.prev.copy(this.pos); this.prevH = this.heading;
       if (this.sinking) {
         this.sinkT += dt; this.speed = Math.max(0, this.speed - dt * 0.8); this.pos.y -= dt * (0.15 + this.sinkT * 0.02);
-        if ((this.fireT -= dt) <= 0) { this.fireT = 0.12; const p = this.toWorld((Math.random() - 0.5) * this.beam, this.pos.y + this.deckY + 2, (Math.random() - 0.5) * this.len * 0.8); IW.fx.firePuff(p, null, 6); IW.fx.smokePuff(p, null, 6, true, 9); }
+        if ((this.fireT -= dt) <= 0) { this.fireT = 0.12; const p = this.toWorld((Math.random() - 0.5) * this.beam, this.pos.y + this.deckY + 2, (Math.random() - 0.5) * this.len * 0.8); if (p.y > 0.5) { IW.fx.firePuff(p, null, 6); IW.fx.smokePuff(p, null, 6, true, 9); } else IW.fx.smokePuff(p.setY(1), null, 5, false, 6); }
+        // going down: secondary blasts, foam boiling up along the hull, and a last surge of spray as the deck goes under
+        if ((this.boomT -= dt) <= 0 && this.sinkT < 20) { this.boomT = 2 + Math.random() * 3; IW.fx.explode(this.toWorld((Math.random() - 0.5) * this.beam * 0.6, this.pos.y + this.deckY + 1, (Math.random() - 0.5) * this.len * 0.6), 0.9, 'ship'); }
+        if ((this.foamT = (this.foamT || 0) - dt) <= 0) { this.foamT = 0.7; const p = this.toWorld((Math.random() - 0.5) * this.beam * 1.4, 0, (Math.random() - 0.5) * this.len * 0.95); IW.fx.foam(p, 6, 14 + Math.random() * 10, 18, 0.75); }
+        if (!this.plunged && this.pos.y + this.deckY < 0.5) { this.plunged = true; for (let i = -1; i <= 1; i++) IW.fx.splash(this.toWorld(0, 0, i * this.len * 0.3), 2.6); IW.fx.foam(this.pos, this.len * 0.25, this.len * 0.8, 45, 0.9); }
         if (this.sinkT > 70) this.gone = true;
       } else {
         // a route: steer for the next waypoint; or hold a heading with a slow zigzag
@@ -356,6 +387,7 @@
       if (IW.art.shipLod) IW.art.shipLod(this.art, this.model.position.distanceTo(IW.world.camera.position));
       this.model.position.set(p.x, p.y + (hb + hs + hp + hsb) * 0.25 * k, p.z);
       this.model.rotation.set(pitch, h, roll, 'YXZ');
+      if (this.art.radars && !this.sinking) for (const r of this.art.radars) r.rotation.y += dt * 1.1;
       this.wake.update(dt, this.art.stern.getWorldPosition(tA), this.dir, this.speed);
       if (!this.sinking && this.art.funnels.length && (this.smokeF = (this.smokeF || 0) - dt) <= 0) { this.smokeF = 0.4; for (const f of this.art.funnels) { const w = this.toWorld(f.x, f.y + this.pos.y, f.z); IW.fx.smokePuff(w, this.vel, 3, false, 6); } }
     }
