@@ -85,6 +85,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.48', title: 'See when someone is waiting for your room', kind: 'feature',
+     tags: ['Playing now'], items: [
+      'When a room is full and someone queues for it, the people in that room are now told.'
+    ]},
     {date: '2026-11-23', version: '1.47', title: 'A badge for the top of each board', kind: 'feature',
      tags: ['Leaderboards'], items: [
       'Whoever is top of a game\'s main leaderboard now wears a small badge for that game next to their name.',

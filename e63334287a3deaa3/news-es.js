@@ -6,6 +6,8 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "See when someone is waiting for your room": "Mira cuándo alguien espera por tu sala",
+    "When a room is full and someone queues for it, the people in that room are now told.": "Cuando una sala está llena y alguien se pone en cola, ahora se avisa a quienes están en la sala.",
     "A badge for the top of each board": "Una insignia para el primero de cada clasificación",
     "Whoever is top of a game's main leaderboard now wears a small badge for that game next to their name.": "Quien va primero en la clasificación principal de un juego lleva ahora una insignia pequeña de ese juego junto a su nombre.",
     "The badges show in the Online panel, the Party panel and the Leaderboards.": "Las insignias se ven en el panel Online, en el panel de Fiesta y en las Clasificaciones.",

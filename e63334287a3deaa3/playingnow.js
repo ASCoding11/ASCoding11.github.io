@@ -33,7 +33,10 @@
  * the game's Play in room button); it doesn't make you a party member. The room's player count is read every 5 s
  * (rooms/<prefix>-<room>/players, nodes heard from within the game's own live window). Games with rounds offer
  * "Queue for next game" when the room is full: this tab checks every 3 s and launches as soon as there's a spot.
- * Nothing is written by this file.
+ * Nothing is written by this file itself. A queue is announced through social.js (window.BackRoomOnline.queue), which
+ * puts qg / qr / qt on the queuer's own Online node while the queue runs and takes them off when it ends, however it
+ * ends; the people in that room get a toast there, and the room's row here says how many are queued
+ * (BackRoomOnline.queued, with their names in the row's tooltip).
  */
 (function () {
   'use strict';
@@ -58,7 +61,12 @@
       'That game just ended.': 'Esa partida acaba de terminar.', 'That room just filled up ({a} of {b}).': 'Esa sala se acaba de llenar ({a} de {b}).',
       'That room just filled up ({a} of {b}). You can queue for a spot.': 'Esa sala se acaba de llenar ({a} de {b}). Puedes hacer fila para un lugar.',
       'You’re in the queue for {g}. Keep this page open; you’ll join as soon as a spot opens.': 'Estás en la fila para {g}. Deja esta página abierta; entras apenas se libere un lugar.',
-      'You left the queue.': 'Saliste de la fila.', 'No spot opened in 30 minutes, so the queue stopped. Queue again any time.': 'No se liberó ningún lugar en 30 minutos, así que la fila se detuvo. Vuelve a hacer fila cuando quieras.'
+      'You left the queue.': 'Saliste de la fila.',
+      'You’re in the queue for {g}, and the people in that room have been told you’re waiting. Keep this page open; you’ll join as soon as a spot opens.':
+        'Estás en la fila para {g}, y a la gente de esa sala se le avisó que estás esperando. Deja esta página abierta; entras apenas se libere un lugar.',
+      'You’re in the queue for {g}. People in the room can’t see you’re waiting while Hide me is on. Keep this page open; you’ll join as soon as a spot opens.':
+        'Estás en la fila para {g}. La gente de la sala no puede ver que estás esperando mientras Ocultarme esté activado. Deja esta página abierta; entras apenas se libere un lugar.',
+      ' · {n} queued': ' · {n} en la fila', 'Queued: {w}': 'En la fila: {w}', 'No spot opened in 30 minutes, so the queue stopped. Queue again any time.': 'No se liberó ningún lugar en 30 minutos, así que la fila se detuvo. Vuelve a hacer fila cuando quieras.'
     });
   })(0);
   var STALE = 120000, PARTY_TTL = 15000, ROOM_TTL = 5000, QPOLL = 3000, QUEUE_MAX = 30 * 60000;
@@ -134,6 +142,9 @@
   var queued = null;  // { id, k, r, since, busy }
   var test = navigator.webdriver ? { cap: {} } : null;
   function now() { return P && P.now ? P.now() : Date.now(); }
+  // social.js's Online node carries the queue (qg / qr / qt) for the people in that room; this file only asks.
+  function announce(q) { var O = window.BackRoomOnline; try { return O && O.queue ? O.queue(q) : 'off'; } catch (e) { return 'off'; } }
+  function queuers(e) { var O = window.BackRoomOnline; try { return O && O.queued ? O.queued(e.k, e.r) : []; } catch (er) { return []; } }
   function capOf(k) { var c = CAP[k] || {}; return { m: (test && test.cap[k]) || c.m || (games[k] && games[k].max) || 8, l: c.l || 10000, q: !!c.q, bb: !!c.bb }; }
   function dbRoom(g, r) { return g.pre + r; }
 
@@ -307,14 +318,20 @@
       var ac = action(e), btn = ac.a ? '<button type="button" class="btn sm' + (ac.pri ? ' primary' : '') + '" data-' + ac.a + '="' + esc(e.id) + '">' + ac.label + '</button>'
         : '<button type="button" class="btn sm" disabled>' + ac.label + '</button>';
       var room = e.n < 0 ? 'Checking the room…' : e.n === 0 ? 'Starting the game…' : T('<b>{a} of {b}</b> in the room', { a: e.n, b: e.cap });
-      if (queued && queued.id === e.id) room = 'You’re queued · joining as soon as there’s a spot';
+      if (queued && queued.id === e.id) room = esc(T('You’re queued · joining as soon as there’s a spot'));   // (the row is data-noi18n, so translated here)
+      // Who else is waiting for this room (their Online nodes' qg / qr / qt, through social.js), and us.
+      var qs = queuers(e), qn = qs.length + (queued && queued.id === e.id ? 1 : 0), qtip = '';
+      if (qn) {
+        room += esc(T(' · {n} queued', { n: qn }));
+        if (qs.length) qtip = ' title="' + esc(T('Queued: {w}', { w: qs.map(function (w) { return w.n + ' · ' + w.seat; }).join(', ') })) + '"';
+      }
       var avs = e.who.slice(0, 3).map(function (w) { return '<span class="pn-av" style="background:' + esc(w.c) + '" data-u="' + esc(w.uid) + '">' + esc(w.n.charAt(0).toUpperCase()) + '</span>'; }).join('');
       return '<li class="pn-it" data-id="' + esc(e.id) + '"><img class="pn-th" alt="" loading="lazy" src="' + esc(BASE + 'm/thumbs/' + e.g.d + '.jpg') + '">' +
         '<span class="pn-who" data-noi18n><span class="pn-g">' + esc(e.g.n) + (e.p ? T(' · party of {n}', { n: e.p.size }) : '') + '</span>' +
         '<span class="pn-l"><span class="pn-avs">' + avs + '</span>' +
         '<span>' + (e.p ? T('Led by {n}', { n: esc(e.p.L.n) }) + (Math.max(e.n, e.who.length) > 1 ? T(' · with {w}', { w: esc(names({ who: e.who.slice(1), n: Math.max(0, e.n - 1) })) }) : '') : T('Room with {w}', { w: esc(names(e)) })) +
         (e.t0 ? ' · ' + esc(ago(e.t0)) : '') + '</span></span>' +
-        '<span class="pn-r">' + room + '</span></span>' + btn + '</li>';
+        '<span class="pn-r"' + qtip + '>' + room + '</span></span>' + btn + '</li>';
     }).join('');
     var sig = list.map(function (e) { var ac = action(e); return e.who.map(function (w) { return w.uid; }).join(',') + '>' + e.id + '>' + ac.label; }).join('|');
     if (sig !== lastSig) { lastSig = sig; try { document.dispatchEvent(new CustomEvent('backroom:playing')); } catch (er) {} }
@@ -330,6 +347,7 @@
   // ---------------- Join and queue ----------------
   function find(id) { return entries().filter(function (e) { return e.id === id; })[0] || null; }
   function go(e) {
+    if (queued) announce(null);
     queued = null;
     say(T('Joining {n}’s {g} (room {r})…', { n: e.p ? e.p.L.n : e.who[0].n, g: e.g.n, r: e.r })); var joining = $msg.textContent;
     if (!P.launch(e.k, e.r)) say('Couldn’t open that game. Reload the page to update.', true);
@@ -348,10 +366,13 @@
   function startQueue(id) {
     var e = find(id); if (!e || queued) return;
     queued = { id: id, k: e.k, r: e.r, since: now() };
-    say('You’re in the queue for ' + e.g.n + '. Keep this page open; you’ll join as soon as a spot opens.');
+    var told = announce({ g: e.k, r: e.r });
+    say(told === 'told' ? 'You’re in the queue for ' + e.g.n + ', and the people in that room have been told you’re waiting. Keep this page open; you’ll join as soon as a spot opens.'
+      : told === 'hidden' ? 'You’re in the queue for ' + e.g.n + '. People in the room can’t see you’re waiting while Hide me is on. Keep this page open; you’ll join as soon as a spot opens.'
+      : 'You’re in the queue for ' + e.g.n + '. Keep this page open; you’ll join as soon as a spot opens.');
     draw(); tickQueue();
   }
-  function cancelQueue(why) { if (!queued) return; queued = null; say(why || 'You left the queue.'); draw(); }
+  function cancelQueue(why) { if (!queued) return; queued = null; announce(null); say(why || 'You left the queue.'); draw(); }
   var qT = 0;
   function tickQueue() {
     clearTimeout(qT);
@@ -418,6 +439,8 @@
   // button works from the Online list over a game); act(uid) joins or queues, and says whether it did anything.
   function rowOf(u) { return entries().filter(function (e) { return e.who.some(function (w) { return w.uid === u; }); })[0] || null; }
   window.BackRoomPlaying = {
+    // Whether Playing now offers a queue for this game (social.js only shows queues for these).
+    canQueue: function (k) { return !!(games[k] && capOf(k).q); },
     state: function (u) {
       if (!db || !UID.test(String(u))) return null;
       var a = ads[u], look = !document.hidden && (!inGame() || !!document.querySelector('.onl-dr.open'));
