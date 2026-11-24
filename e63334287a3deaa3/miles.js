@@ -29,10 +29,14 @@
  *                       award: see "Earned awards" below), else 0; also takes a uid
  *   crackerOf(result)   a result's player's all-time Shell Crackers kills if they hold Top Cracker (the other earned
  *                       award: most Shell Crackers kills, CRACK_MIN or more), else 0; also takes a uid
+ *   minisOf(result)     the games (leaderboard.js board ids) a result's player is top player in, for the mini badges
+ *                       (see "Top player in a game" below), [] for most people; also takes a uid
+ *   minisList(result)   those games as a larger list, each shield with the game's name (an open chat's header), or null
  *   setTops(tops)       leaderboard.js hands over the top three ({ all, week: [uid…] the firsts, allTie, weekTie, and
  *                       all2, all3, week2, week3: [uid…] the seconds and thirds; topOf's all and week are the place, 1 to 3;
  *                       and ace: [uid…], aceN: the Slipstream ace's holders and how many tracks they lead; crack:
- *                       [uid…], crackN: Top Cracker's holders and their all-time Shell Crackers kills) after each
+ *                       [uid…], crackN: Top Cracker's holders and their all-time Shell Crackers kills; mini:
+ *                       [[board id, [uid…]], …] who is first on each game's main board) after each
  *                       read of the boards; topOf(uid) is { all, week, allTie, weekTie } for a leader, else null;
  *                       needTops() asks the boards again if a badge wanted an answer before leaderboard.js had loaded
  *   guide()             opens a window listing every badge (tiers, crew, places, awards) and how to get each; drawn
@@ -108,7 +112,13 @@
         'Se gana: ten la vuelta más rápida de la temporada en más pistas de Slipstream que nadie, {n} o más a la vez. Pasa a quien tome la delantera.',
       'Earned: have more Shell Crackers kills of all time than anyone else, {n} or more. It moves to whoever takes the lead.':
         'Se gana: ten más bajas históricas en Shell Crackers que nadie, {n} o más. Pasa a quien tome la delantera.',
-      'Leads {n} Slipstream tracks': 'Lidera {n} pistas de Slipstream', 'Most Shell Crackers kills: {n}': 'Más bajas en Shell Crackers: {n}',
+      'Leads {n} Slipstream tracks': 'Lidera {n} pistas de Slipstream',
+      // Top player in a game (mini badges). Game names stay in English.
+      'Top player in {g}': 'Mejor jugador en {g}', 'Also top player in: {l}': 'También mejor jugador en: {l}', 'Top player in: {l}': 'Mejor jugador en: {l}',
+      'Top player in a game': 'Mejor jugador de un juego', 'Top player in': 'Mejor jugador en',
+      'Small shields, after everything else. One player can hold several.': 'Escudos pequeños, después de todo lo demás. Un jugador puede tener varios.',
+      'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead.':
+        'Se gana: lidera la tabla principal de un juego (su Elo, o su mejor puntaje, tiempo o racha) para ganar su insignia. Pasa a quien tome la delantera.', 'Most Shell Crackers kills: {n}': 'Más bajas en Shell Crackers: {n}',
       'Ranked #{p} in miles, all time': 'Puesto #{p} en millas, histórico', 'Ranked #{p} in miles, this week': 'Puesto #{p} en millas, esta semana',
       'Ranked #{p} in miles, all time (tied for first)': 'Puesto #{p} en millas, histórico (empatado en el primero)', 'Ranked #{p} in miles, this week (tied for first)': 'Puesto #{p} en millas, esta semana (empatado en el primero)'
     });
@@ -213,6 +223,79 @@
     '6QQvFAzdtMeJdAUSPwHd6v2zaDk1': ['boostball'],   // Nico (Google sign-in, "Negus"): a Boostball badge, asked for by Nico
     'QaJlsT7SVnf85IK1PRHFpR9Zbln2': ['boostball']    // Nico ("nico"): the same person's other account
   };
+  // ---- Top player in a game: mini badges ----
+  // Whoever is first on a game's main board (leaderboard.js topBoards: its Elo board, or its best score, time or streak)
+  // holds that game's mini badge: a small shield after every other badge, one per game they lead, so one player can hold
+  // several. Nobody is listed here: leaderboard.js works the holders out after every read of the boards and hands them over
+  // in the same answer as the #1 tags (setTops: mini). The words come from the game's name in leaderboard.js's GAMES
+  // ("Top player in Stackfall (Sand)"), so a renamed game takes its badge with it. This table is only how each one looks: the
+  // shield's colour (c) and a simple mark that hints at the game (e), SVG in a 16 x 16 box drawn inside the shield, light
+  // on the shield's colour. Every shield shares the same frame (a dark outline and a pale inner rim), so they read as one
+  // family on light and dark pages and can't be taken for a tier pill, a place tag or an award's round medal. A game with
+  // no line here (a new game) gets MINI_ANY, a star, so it still has a badge. Keys are leaderboard.js's board ids: the
+  // game's folder, or folder:stat for a game's second board (Stackfall's Sand).
+  var MINI = {
+    'rumble-karts': { c: '#C63A22', e: '<circle cx="8" cy="7.9" r="3.4" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M4.8 7.4h6.4M8 7.4v3.8" stroke="#fff" stroke-width="1.4"/><circle cx="8" cy="7.6" r="1.1" fill="#fff"/>' },
+    'blockstorm': { c: '#45702A', e: '<path d="M8 3.4l3.7 1.9L8 7.2 4.3 5.3z" fill="#C8EC8C"/><path d="M4.3 5.3L8 7.2v4.3L4.3 9.6z" fill="#fff"/><path d="M11.7 5.3v4.3L8 11.5V7.2z" fill="#93C860"/>' },
+    'sky-duel': { c: '#2659A6', e: '<path d="M8 2.9l.9 2.7 3.7 2.1v1.1l-3.7-1-.3 2.5 1.3.9v.8L8 11.6l-1.9.4v-.8l1.3-.9-.3-2.5-3.7 1V7.7l3.7-2.1z" fill="#fff"/>' },
+    'putterby': { c: '#2E7D4A', e: '<path d="M6.4 11.6V3.6" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M6.9 3.7l4.6 1.8-4.6 1.8z" fill="#FF5A4E"/><ellipse cx="7.6" cy="11.7" rx="3.4" ry="1" fill="#0F3D22"/><circle cx="10.6" cy="10.6" r="1" fill="#fff"/>' },
+    'backrooms-1v1': { c: '#A88A1E', e: '<rect x="5.1" y="3.6" width="5.8" height="8.2" rx=".4" fill="#2A2410"/><circle cx="9.5" cy="8" r=".7" fill="#F6E27A"/>' },
+    'drop-zone': { c: '#3354A0', e: '<path d="M3.5 7.4a4.5 4 0 0 1 9 0z" fill="#fff"/><path d="M3.9 7.4L8 10.8l4.1-3.4" fill="none" stroke="#fff" stroke-width=".8"/><circle cx="8" cy="11.3" r="1.1" fill="#FFC24B"/>' },
+    'lunge-line': { c: '#64285A', e: '<path d="M4.4 11.6l7.4-7.4" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><path d="M4.2 8.8l3 3" stroke="#F7B6E3" stroke-width="1.9" stroke-linecap="round"/>' },
+    'boostball': { c: '#2F68D6', e: '<circle cx="8" cy="7.9" r="3.7" fill="#fff"/><path d="M8 6.3l1.5 1.1-.6 1.8H7.1l-.6-1.8z" fill="#0E1B3A"/>' },
+    'coil': { c: '#24804C', e: '<path d="M10.9 4.6C9 3.5 5.9 4 5.9 5.9s5.2 1.6 5.2 3.7-3.3 2.7-5.4 1.6" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="10.9" cy="4.6" r="1.2" fill="#C9F7A8"/>' },
+    'trivium': { c: '#6A3AB0', e: '<path d="M5.9 5.9a2.1 2.1 0 1 1 3.1 1.8c-.7.4-1 .9-1 1.5v.4" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="8" cy="11.4" r=".95" fill="#fff"/>' },
+    'showdown': { c: '#1C6440', e: '<path d="M8 3.4c1.7 1.8 3.8 3 3.8 4.9 0 1.5-1.7 2.1-2.9 1.2l.6 2.2h-3l.6-2.2c-1.2.9-2.9.3-2.9-1.2 0-1.9 2.1-3.1 3.8-4.9z" fill="#fff"/>' },
+    'chromaflage': { c: '#B82F72', e: '<circle cx="8" cy="7.9" r="3.7" fill="#fff"/><path d="M8 4.2a3.7 3.7 0 0 1 0 7.4z" fill="#FFD34D"/>' },
+    'spire': { c: '#54479C', e: '<path d="M8 2.8l2.2 3.4v5.8H5.8V6.2z" fill="#fff"/><rect x="7.2" y="7.2" width="1.6" height="2" fill="#54479C"/>' },
+    'turbo-trail': { c: '#D2560E', e: '<path d="M4.4 4.6l3.1 3.3-3.1 3.3M8.5 4.6l3.1 3.3-3.1 3.3" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>' },
+    'escapade': { c: '#7E5022', e: '<circle cx="6" cy="6.1" r="2" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M7.4 7.5l4.2 4.2M10.2 10.3l1.3-1.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>' },
+    'updraft': { c: '#16264A', e: '<path d="M3.4 11.8l3.4-4.3 1.5 1.7 1.2-1.4 3.1 4z" fill="#A9ECFF"/><path d="M8 2.8l2.3 2.6H8.8v1.8H7.2V5.4H5.7z" fill="#FFB347"/>' },
+    'asteroid-run': { c: '#363A62', e: '<path d="M5 5.2l2.5-1.5 2.7.6 1.8 2.1-.4 2.9-2.1 1.8-2.8-.2-1.9-2.2z" fill="#D6CEC0"/><circle cx="7.1" cy="6.4" r=".8" fill="#8C8475"/><circle cx="9.4" cy="8.9" r="1" fill="#8C8475"/>' },
+    'rollaway': { c: '#A8722C', e: '<circle cx="8" cy="7.9" r="3.7" fill="#fff"/><path d="M5.2 8.7c1.5-1.7 4-1.9 5.6-.6" fill="none" stroke="#3A7BD5" stroke-width="1.3" stroke-linecap="round"/>' },
+    'rampline': { c: '#23719A', e: '<circle cx="8" cy="6.5" r="2.7" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M3.4 11.8h9.2" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/>' },
+    'flipline': { c: '#C2452F', e: '<circle cx="5.2" cy="9.6" r="2.1" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="10.8" cy="9.6" r="2.1" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M5.2 9.6L8 5.6l2.8 4" fill="none" stroke="#FFD0C4" stroke-width="1.3" stroke-linejoin="round"/>' },
+    'tidewick': { c: '#177280', e: '<path d="M3.5 10.1c1.2-1.2 2.4-1.2 3.6 0s2.4 1.2 3.6 0c.6-.6 1.3-.8 1.8-.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/><path d="M8 3.1c1.3 1.4 1.5 2.6 0 3.6-1.5-1-1.3-2.2 0-3.6z" fill="#FFC94A"/>' },
+    'beatvault': { c: '#7E2499', e: '<path d="M6.9 10.9V5.1l4.4-1.3v5.8" fill="none" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/><circle cx="5.7" cy="11" r="1.4" fill="#fff"/><circle cx="10.1" cy="9.7" r="1.4" fill="#fff"/>' },
+    'odd-one-out': { c: '#8E6017', e: '<rect x="3.8" y="4.3" width="3.2" height="3.2" fill="#fff"/><rect x="9" y="4.3" width="3.2" height="3.2" fill="#fff"/><circle cx="8" cy="10.4" r="2" fill="#FFD54A"/>' },
+    'tumble-trials': { c: '#C93C86', e: '<path d="M4 11.2h8l.6-6.1-2.6 2L8 3.9 6 7.1 3.4 5.1z" fill="#FFE066"/>' },
+    'deepword': { c: '#0F466D', e: '<path d="M3.9 7.9c1.6-2.3 4.7-2.3 6.3 0-1.6 2.3-4.7 2.3-6.3 0z" fill="#fff"/><path d="M10.1 7.9l2.3-1.7v3.4z" fill="#fff"/><circle cx="5.8" cy="7.5" r=".6" fill="#0F466D"/>' },
+    'puffer-party': { c: '#BE6416', e: '<circle cx="8" cy="8" r="3.1" fill="#FFE7A8"/><path d="M8 3.3v1.6M8 11.1v1.6M3.3 8h1.6M11.1 8h1.6" stroke="#FFE7A8" stroke-width="1.5" stroke-linecap="round"/><circle cx="9" cy="7.4" r=".75" fill="#3A2208"/>' },
+    'gridpop': { c: '#C93556', e: '<rect x="4.3" y="4.2" width="3.3" height="3.3" rx=".5" fill="#fff"/><rect x="8.4" y="4.2" width="3.3" height="3.3" rx=".5" fill="#fff"/><rect x="4.3" y="8.3" width="3.3" height="3.3" rx=".5" fill="#fff"/><rect x="8.4" y="8.3" width="3.3" height="3.3" rx=".5" fill="#FFB8C8"/>' },
+    '2048': { c: '#B5761F', e: '<rect x="4" y="4" width="8" height="7.8" rx="1.2" fill="#FFF3D6"/><path d="M6.5 6.6a1.5 1.4 0 1 1 2.6 1L6.5 10.2h3" fill="none" stroke="#6B4410" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>' },
+    'stackfall': { c: '#3149D6', e: '<path d="M4.2 5h7.6v2.6H9.3v2.6H6.7V7.6H4.2z" fill="#fff"/><path d="M4.2 11.8h7.6" stroke="#9FB2FF" stroke-width="1.2"/>' },
+    'stackfall:sand': { c: '#A27A1F', e: '<path d="M4.8 4h6.4v2.2H9.1v2.2H6.9V6.2H4.8z" fill="#fff"/><path d="M4.4 11.6h7.2l-1.1-1.8H5.5z" fill="#FFE39A"/><circle cx="8" cy="9.1" r=".6" fill="#FFE39A"/>' },
+    'melon-merge': { c: '#23893F', e: '<path d="M3.7 6.3h8.6a4.3 4.3 0 0 1-8.6 0z" fill="#FF5A6E" stroke="#fff" stroke-width="1"/><circle cx="6.6" cy="7.6" r=".55" fill="#1B1B1B"/><circle cx="9.4" cy="7.6" r=".55" fill="#1B1B1B"/><circle cx="8" cy="9" r=".55" fill="#1B1B1B"/>' },
+    'patchwork-tower': { c: '#8E4524', e: '<rect x="4.7" y="9" width="6.6" height="2.6" fill="#fff"/><rect x="5.6" y="6.3" width="4.8" height="2.4" fill="#FFD08A"/><rect x="6.5" y="3.6" width="3" height="2.4" fill="#9FD8FF"/>' },
+    'flickerwood': { c: '#2E5729', e: '<path d="M7.6 3.4l3.4 4.9H9.1l2 3.4H4.1l2-3.4H4.2z" fill="#C2E8A4"/><circle cx="11.8" cy="4.6" r=".9" fill="#FFE45C"/>' },
+    'hush-pools': { c: '#106374', e: '<path d="M8 3.4c1.4 1.9 2 2.9 2 3.8a2 2 0 0 1-4 0c0-.9.6-1.9 2-3.8z" fill="#fff"/><ellipse cx="8" cy="10.6" rx="4" ry="1.4" fill="none" stroke="#9FE6F2" stroke-width="1"/>' },
+    'lanternhold': { c: '#5A3A1C', e: '<path d="M6.4 5.4L8 3.6l1.6 1.8" fill="none" stroke="#fff" stroke-width="1"/><rect x="5.6" y="5.4" width="4.8" height="5.4" rx="1" fill="#FFC94A"/><rect x="5.1" y="10.8" width="5.8" height="1.1" fill="#fff"/>' },
+    'daily': { c: '#3E525C', e: '<rect x="4" y="4.4" width="8" height="7.4" rx="1" fill="#fff"/><rect x="4" y="4.4" width="8" height="2.1" fill="#FF6B5B"/><path d="M5.9 9.1l1.4 1.3 2.8-2.6" fill="none" stroke="#3E525C" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>' },
+    'hunch': { c: '#5547C9', e: '<path d="M8 3.4a3 3 0 0 1 1.8 5.4v1.3H6.2V8.8A3 3 0 0 1 8 3.4z" fill="#FFE066"/><rect x="6.4" y="10.6" width="3.2" height="1.3" rx=".4" fill="#fff"/>' },
+    'fourcast': { c: '#336396', e: '<path d="M5.3 9.6a2 2 0 0 1 .4-3.9 2.6 2.6 0 0 1 5 .6 1.7 1.7 0 0 1 .2 3.3z" fill="#fff"/><path d="M6.1 11l-.4 1M8.1 11l-.4 1M10.1 11l-.4 1" stroke="#9FD3FF" stroke-width="1" stroke-linecap="round"/>' },
+    'quartets': { c: '#5E2F80', e: '<rect x="4.3" y="4.2" width="3.3" height="3.3" fill="#FFD84D"/><rect x="8.4" y="4.2" width="3.3" height="3.3" fill="#5EC2FF"/><rect x="4.3" y="8.3" width="3.3" height="3.3" fill="#7CE38B"/><rect x="8.4" y="8.3" width="3.3" height="3.3" fill="#FF8FB1"/>' },
+    'crosslet': { c: '#3A4658', e: '<rect x="4.2" y="4.1" width="7.6" height="7.6" fill="#fff"/><rect x="8" y="4.1" width="3.8" height="3.8" fill="#3A4658"/><rect x="4.2" y="7.9" width="3.8" height="3.8" fill="#3A4658"/>' },
+    'sleight': { c: '#542680', e: '<path d="M4.4 11.8L9.6 6.6" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M11 3l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z" fill="#FFE066"/>' },
+    'nearword': { c: '#287366', e: '<circle cx="8" cy="7.9" r="3.6" fill="none" stroke="#fff" stroke-width="1.5"/><circle cx="8" cy="7.9" r="1.5" fill="#fff"/>' },
+    'warmer': { c: '#B53E27', e: '<path d="M7 3.6h2v5.5a2.1 2.1 0 1 1-2 0z" fill="#fff"/><circle cx="8" cy="10.8" r="1.1" fill="#FF6B4A"/><path d="M8 6.2v4" stroke="#FF6B4A" stroke-width="1"/>' },
+    'hotspot': { c: '#A83232', e: '<path d="M8 12.2S4.6 8.6 4.6 6.5a3.4 3.4 0 0 1 6.8 0c0 2.1-3.4 5.7-3.4 5.7z" fill="#fff"/><circle cx="8" cy="6.5" r="1.2" fill="#A83232"/>' },
+    'outline': { c: '#336E50', e: '<path d="M4.4 6.3l2.1-2.1 2.2.8 2.5-.6.7 2.7-1 2 .4 2.1-2.7.6-2-1.2-2.1.2-.6-2.3z" fill="#fff"/>' },
+    'unfurl': { c: '#7D5E31', e: '<rect x="5" y="4.4" width="6" height="7" fill="#FFF1CF"/><rect x="4" y="3.6" width="8" height="1.7" rx=".85" fill="#fff"/><rect x="4" y="10.7" width="8" height="1.7" rx=".85" fill="#fff"/>' },
+    'overland': { c: '#476F34', e: '<path d="M4.6 11.3c1.6 0 1.6-3 3.4-3s1.8-3 3.4-3" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/><circle cx="11.5" cy="5.3" r="1.5" fill="#FFD84D"/>' },
+    'ninefold': { c: '#36469E', e: '<path d="M4.3 4.2h2v2h-2zM7 4.2h2v2H7zM9.7 4.2h2v2h-2zM4.3 6.9h2v2h-2zM7 6.9h2v2H7zM9.7 6.9h2v2h-2zM4.3 9.6h2v2h-2zM7 9.6h2v2H7zM9.7 9.6h2v2h-2z" fill="#fff"/>' },
+    'poopdle': { c: '#6E4224', e: '<ellipse cx="8" cy="10.7" rx="3.7" ry="1.3" fill="#E3B98F"/><ellipse cx="8" cy="8.6" rx="2.7" ry="1.1" fill="#E3B98F"/><ellipse cx="8" cy="6.7" rx="1.7" ry=".95" fill="#E3B98F"/><path d="M8 5.8c.2-.8.7-1.3 1.3-1.6" fill="none" stroke="#E3B98F" stroke-width="1" stroke-linecap="round"/>' },
+    'deadline-day': { c: '#2A3A6A', e: '<circle cx="8" cy="7.9" r="3.7" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M8 5.6v2.4l1.7 1.1" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>' },
+    'journeyman': { c: '#573B33', e: '<path d="M6.6 6V4.8h2.8V6" fill="none" stroke="#fff" stroke-width="1"/><rect x="4" y="6" width="8" height="5.6" rx="1" fill="#fff"/><rect x="4" y="8.2" width="8" height=".8" fill="#573B33"/>' },
+    'scout-report': { c: '#36454D', e: '<rect x="5" y="5" width="2" height="4.4" fill="#fff"/><rect x="9" y="5" width="2" height="4.4" fill="#fff"/><circle cx="5.7" cy="9.6" r="2" fill="#fff"/><circle cx="10.3" cy="9.6" r="2" fill="#fff"/><circle cx="5.7" cy="9.6" r=".9" fill="#36454D"/><circle cx="10.3" cy="9.6" r=".9" fill="#36454D"/>' },
+    'crossbar': { c: '#2A7230', e: '<path d="M3.8 11.8V5h8.4v6.8" fill="none" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/><circle cx="8" cy="9.6" r="1.4" fill="#9FE0A6"/>' },
+    'teamsheet': { c: '#405493', e: '<rect x="4.6" y="4.4" width="6.8" height="7.8" rx=".8" fill="#fff"/><rect x="6.6" y="3.5" width="2.8" height="1.7" fill="#FFD84D"/><path d="M6 7.2h4M6 9h4M6 10.8h2.6" stroke="#405493" stroke-width=".9"/>' },
+    'back-four': { c: '#1D4874', e: '<circle cx="4.7" cy="8" r="1.3" fill="#fff"/><circle cx="6.9" cy="8" r="1.3" fill="#fff"/><circle cx="9.1" cy="8" r="1.3" fill="#fff"/><circle cx="11.3" cy="8" r="1.3" fill="#fff"/>' },
+    'stat-duel': { c: '#614397', e: '<rect x="4.6" y="6.2" width="2.7" height="5.6" fill="#fff"/><rect x="8.7" y="4" width="2.7" height="7.8" fill="#FFD84D"/>' },
+    'top-bins': { c: '#006B5F', e: '<path d="M3.6 11.8V4.6h8.8" fill="none" stroke="#fff" stroke-width="1.7"/><circle cx="10" cy="7.2" r="1.9" fill="#fff"/>' }
+  };
+  var MINI_ANY = { c: '#4A5568', e: '<path d="M8 3.3l1.4 2.9 3.1.4-2.3 2.1.6 3.1L8 10.3l-2.8 1.5.6-3.1-2.3-2.1 3.1-.4z" fill="#fff"/>' };
+  // The frame every mini shares: a shield, its dark outline, the game's colour, a pale inner rim.
+  var MINI_SHIELD = 'M8 1.1l6.1 2.1v4.7c0 3.6-2.5 6.1-6.1 7.2-3.6-1.1-6.1-3.6-6.1-7.2V3.2z';
   var LAP_PER_TRACK = 200, LAP_CAP = 2000, LAP_WINDOW = 2.5, REC_EACH = 100, REC_CAP = 1000;
 
   function num(v) { return typeof v === 'number' && isFinite(v) ? v : NaN; }
@@ -304,15 +387,17 @@
     // First on the Miles board: the pill and its "#1" tags in one wrapper. Everyone else gets the pill alone, as before.
     // An award holder gets the same wrapper, with a ribbon for each award after the tags.
     // The earned awards (the Slipstream ace, then Top Cracker) come last, after any award that was given.
-    var top = null, aw = awardsOf(res), led = 0, cr = 0;
-    if (res && res.uid) { wantTops(); top = topOf(res.uid); led = aceOf(res); cr = crackerOf(res); }
-    if (!top && !aw.length && !led && !cr) return s;
+    // Then, last of all, a mini shield for every game they are first in (minisOf), in the boards' order.
+    var top = null, aw = awardsOf(res), led = 0, cr = 0, mi = [];
+    if (res && res.uid) { wantTops(); top = topOf(res.uid); led = aceOf(res); cr = crackerOf(res); mi = minisOf(res); }
+    if (!top && !aw.length && !led && !cr && !mi.length) return s;
     var w = document.createElement('span'); w.className = 'bra-tw'; w.appendChild(s);
     if (top && top.all) w.appendChild(topTag('all', top.all, top.allTie));
     if (top && top.week) w.appendChild(topTag('week', top.week, top.weekTie));
     aw.forEach(function (k) { w.appendChild(awardTag(k)); });
     if (led) w.appendChild(awardTag('slipstream', 'Leads ' + led + ' Slipstream tracks'));
     if (cr) w.appendChild(awardTag('shellcrackers', 'Most Shell Crackers kills: ' + fmt(cr)));
+    if (mi.length) w.appendChild(miniGroup(mi));
     fitSoon(w);
     return w;
   }
@@ -347,6 +432,50 @@
     s.title = a.n + ' · ' + (tip || a.tip);
     return s;
   }
+  // The mini badges: a group of small shields, one per game, and a "+N" chip that fit() shows when some are folded away
+  // (its tooltip names them). Each shield has its own tooltip and label, "Top player in Stackfall (Sand)".
+  function miniName(id) {
+    var B = LB(), n = '';
+    try { n = B && B.topName ? B.topName(id) : ''; } catch (e) { n = ''; }
+    // Before leaderboard.js has loaded (it is on every page that draws badges): the folder, readable.
+    return n || id.split(':')[0].replace(/-/g, ' ').replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }) + (id.indexOf(':') > 0 ? ' (' + id.split(':')[1] + ')' : '');
+  }
+  function miniTip(id) { return 'Top player in ' + miniName(id); }
+  function miniTag(id, px) {
+    var m = MINI[id] || MINI_ANY, s = document.createElement('span'), z = px || 16;
+    s.className = 'bra-mini'; s.setAttribute('data-mini', id); s.setAttribute('role', 'img');
+    s.title = miniTip(id); s.setAttribute('aria-label', s.title);
+    s.innerHTML = '<svg viewBox="0 0 16 16" width="' + z + '" height="' + z + '" aria-hidden="true" focusable="false"><path d="' + MINI_SHIELD + '" fill="' + m.c + '" stroke="#0B0E16" stroke-width="1.3" stroke-linejoin="round"/><path d="' + MINI_SHIELD + '" fill="none" stroke="#EEF3FB" stroke-opacity=".75" stroke-width=".55" stroke-linejoin="round" transform="translate(.8 .8) scale(.9)"/><g transform="translate(8 7.9) scale(1.1) translate(-8 -7.9)">' + m.e + '</g></svg>';   // fixed markup from the table above, no text from anyone
+    return s;
+  }
+  function miniGroup(ids) {
+    var g = document.createElement('span'), more = document.createElement('span');
+    g.className = 'bra-mn';
+    ids.forEach(function (id) { g.appendChild(miniTag(id)); });
+    more.className = 'bra-mn-more'; g.appendChild(more);
+    return g;
+  }
+  // Show the first n minis and fold the rest into "+N" (n at least 0; all of them: no chip).
+  function miniShow(g, n) {
+    var k = g.querySelectorAll('.bra-mini'), more = g.lastChild, rest = [];
+    for (var i = 0; i < k.length; i++) { var off = i >= n; k[i].classList.toggle('bra-off', off); if (off) rest.push(miniName(k[i].getAttribute('data-mini'))); }
+    g.classList.toggle('bra-mn-on', rest.length > 0);
+    more.textContent = rest.length ? '+' + rest.length : '';
+    if (rest.length) { more.title = (n ? 'Also top player in: ' : 'Top player in: ') + rest.join(', '); more.setAttribute('role', 'img'); more.setAttribute('aria-label', more.title); }
+    else { more.removeAttribute('title'); more.removeAttribute('aria-label'); more.removeAttribute('role'); }
+  }
+  // The larger list for a place with room (an open chat's header in the Online panel): each game's shield at 22 px with its
+  // name beside it, wrapping onto more lines as needed. null when the player leads no game.
+  function minisList(res) {
+    var ids = minisOf(res); if (!ids.length) return null;
+    var box = document.createElement('span'), h = document.createElement('span');
+    box.className = 'bra-mnl'; h.className = 'bra-mnl-h'; h.textContent = 'Top player in'; box.appendChild(h);
+    ids.forEach(function (id) {
+      var it = document.createElement('span'), n = document.createElement('span');
+      it.className = 'bra-mnl-i'; it.appendChild(miniTag(id, 22)); n.textContent = miniName(id); it.appendChild(n); box.appendChild(it);
+    });
+    return box;
+  }
   var TOP_TEXT = { all: 'all time', week: 'this week' };
   // place: 1, 2 or 3 (gold, silver, bronze). All time is a solid metal chip; this week is the same metal as an outline
   // on slate, so a week's medal reads as a step below an all-time one.
@@ -364,10 +493,21 @@
   // In order, as room runs out: the awards' words go (bra-tw-a), then the tags' words, with two medals overlapping
   // (bra-tw-s), then the tier's name if under half of it would show (bra-tw-p). Nothing ever makes a row taller.
   var fitQ = [], fitT = 0;
+  // Mini badges (bra-mn) go first, one at a time from the end into the "+N" chip, down to one shield and the chip, then the
+  // steps above; after the tags' words, the last shield goes too (just "+N"), before the tier's name.
   function fit(w) {
     if (!w.isConnected) return;
     w.classList.remove('bra-tw-s', 'bra-tw-a', 'bra-tw-p');
     var kids = w.firstChild ? w.firstChild.children : [];
+    var mg = w.querySelector('.bra-mn'), mn = mg ? mg.querySelectorAll('.bra-mini').length : 0;
+    if (mg) { mg.classList.remove('bra-mn-x'); miniShow(mg, mn); }
+    function taller(a, b) { return a.some(function (h, i) { return h > b[i]; }); }
+    // As many shields as fit now, after a step made room.
+    function regrow() {
+      if (!mg) return;
+      var cur = mg.querySelectorAll('.bra-mini:not(.bra-off)').length;
+      while (cur < mn) { miniShow(mg, cur + 1); if (tight()) { miniShow(mg, cur); break; } cur++; }
+    }
     function tight() {
       var t = w.scrollWidth > w.clientWidth;
       for (var i = 0; i < kids.length && !t; i++) t = kids[i].tagName === 'SPAN' && kids[i].scrollWidth > kids[i].clientWidth;
@@ -377,18 +517,41 @@
     if (!tight()) {
       // Room for everything, but a row that wraps (your own Online row) may have found it by taking a second line: an
       // award's words must never make a row taller, so they go if the boxes around the badge are shorter without them.
-      if (!aw) return;
-      var was = heights(w); w.classList.add('bra-tw-a'); var now = heights(w);
-      if (!now.some(function (h, i) { return h < was[i]; })) w.classList.remove('bra-tw-a');
+      if (!aw && !mg) return;
+      if (!mg) {
+        var was = heights(w); w.classList.add('bra-tw-a'); var now = heights(w);
+        if (!now.some(function (h, i) { return h < was[i]; })) w.classList.remove('bra-tw-a');
+        return;
+      }
+      // With mini badges, the same for them (and they give way first): the lowest the row can be is with the ribbon
+      // folded and every shield in the "+N" chip. If that is no shorter, everything stays. Else the award's words come
+      // back if they keep that height, then as many shields as keep it.
+      var full = heights(w);
+      if (aw) w.classList.add('bra-tw-a');
+      miniShow(mg, 0);
+      var low = heights(w);
+      if (!low.some(function (h, i) { return h < full[i]; })) { w.classList.remove('bra-tw-a'); miniShow(mg, mn); return; }
+      if (aw) { w.classList.remove('bra-tw-a'); if (taller(heights(w), low)) w.classList.add('bra-tw-a'); }
+      for (var n = 1; n <= mn; n++) { miniShow(mg, n); if (taller(heights(w), low)) { miniShow(mg, n - 1); break; } }
       return;
     }
+    // No room: the mini badges give way first, from the end into the "+N" chip, before anything that was there before them.
+    if (mg) { for (var m = mn - 1; m >= 0 && tight(); m--) miniShow(mg, m); if (!tight()) return; }
     // An award's ribbon folds away first (bra-tw-a: just its medal; with two awards, both), then the tags' words go as
     // well (bra-tw-s; two medals then also overlap like stacked coins, see the styles).
-    if (aw) { w.classList.add('bra-tw-a'); if (!tight()) return; }
+    // Each later step makes room, so as many shields as now fit come back (regrow).
+    if (aw) { w.classList.add('bra-tw-a'); if (!tight()) { regrow(); return; } }
     w.classList.add('bra-tw-s');
+    if (mg && !tight()) regrow();
     // Still squeezed hard (place tags and two medals in a phone row): a tier name cut to under half ("VI…") says less
     // than none, so the pill keeps just its icon and colours (bra-tw-p); its tooltip still names the tier.
-    for (var i = 0; i < kids.length; i++) if (kids[i].tagName === 'SPAN') { if (kids[i].clientWidth < kids[i].scrollWidth / 2) w.classList.add('bra-tw-p'); break; }
+    // (If the mini badges' "+N" chip is what squeezes it that far, the chip goes instead: see bra-mn-x below.)
+    function half() { for (var i = 0; i < kids.length; i++) if (kids[i].tagName === 'SPAN') return kids[i].clientWidth < kids[i].scrollWidth / 2; return false; }
+    if (mg && half()) mg.classList.add('bra-mn-x');
+    if (half()) w.classList.add('bra-tw-p');
+    // And no room even for "+N" (your own row on a phone, beside the miles line): the shields are left out of this one
+    // place (bra-mn-x); every other place, and an open chat's header, still shows them.
+    if (mg && tight()) mg.classList.add('bra-mn-x');
   }
   function heights(w) { var out = [], e = w.parentNode; for (var i = 0; i < 4 && e && e.nodeType === 1 && e !== document.body; i++, e = e.parentNode) out.push(e.offsetHeight); return out; }
   function fitRun() { fitT = 0; var q = fitQ; fitQ = []; q.forEach(function (w) { try { fit(w); } catch (e) {} }); }
@@ -455,7 +618,17 @@
     // the one before it.
     '.bra-tw-s .bra-aw+.bra-aw{margin-left:-6px}.bra-tw-s .bra-aw+.bra-aw svg{z-index:0}' +
     // And the tier name would be cut to under half: the pill is its icon alone.
-    '.bra-tw-p>.bra-tier{padding:3px 5px;gap:0;flex:none}.bra-tw-p>.bra-tier>span{display:none}';
+    '.bra-tw-p>.bra-tier{padding:3px 5px;gap:0;flex:none}.bra-tw-p>.bra-tier>span{display:none}' +
+    // Mini badges (top of a game): 14 px shields, smaller than the medals and tags, after everything else. bra-off: folded
+    // into the "+N" chip, which only shows when something is folded (bra-mn-on).
+    '.bra-mn{display:inline-flex;align-items:center;gap:2px;flex:none;margin-left:1px}' +
+    '.bra-mini{display:inline-flex;flex:none}.bra-mini svg{display:block}.bra-mini.bra-off{display:none}' +
+    '.bra-mn-more{display:none;align-items:center;flex:none;box-sizing:border-box;height:16px;padding:0 4px;border-radius:8px;font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:10px;font-weight:700;letter-spacing:.02em;line-height:1;color:#EEF3FB;background:#2A3142;box-shadow:inset 0 0 0 1px rgba(238,243,251,.55),0 0 0 1px rgba(11,14,22,.55);white-space:nowrap}' +
+    '.bra-mn-on .bra-mn-more{display:inline-flex}.bra-mn.bra-mn-x{display:none}' +
+    // The larger list (minisList): shield and game name, wrapping.
+    '.bra-mnl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;min-width:0}' +
+    '.bra-mnl-h{font-family:var(--mono,var(--f-m,ui-monospace,monospace));font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}' +
+    '.bra-mnl-i{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:var(--ink,inherit);font-size:13px;font-weight:600}';
   (document.head || document.documentElement).appendChild(css);
 
   // ---------------- #1 on the Miles board ----------------
@@ -467,6 +640,7 @@
   // than TOPS_TTL, the boards are asked to read once (BackRoomBoards.readTops: the one read the Leaderboards section
   // makes anyway, which it then doesn't repeat), not more often than TOPS_RETRY and not in a tab nobody is looking at.
   // An answer older than TOPS_KEEP isn't shown. The admin page works it out from the nodes it has read (topsOf).
+  var MINI_GAMES = 120, MINI_IDS = 12, MINI_ID = /^[a-z0-9-]{1,30}(?::[a-z0-9-]{1,30})?$/;   // games, uids per game, a board id
   var TOPS_KEY = 'lb:tops', TOPS_TTL = 15 * 60000, TOPS_KEEP = 60 * 60000, TOPS_RETRY = 60000, TOPS_MAX = 50;
   var tops = null, topsAsked = 0, topsWanted = false;
   function uidList(a) { return Array.isArray(a) ? a.filter(okUid).slice(0, TOPS_MAX) : []; }
@@ -479,11 +653,18 @@
     var aceN = Math.floor(num(o.aceN)), ace = aceN >= ACE_MIN && aceN <= 99 ? uidList(o.ace) : [];
     // crack, crackN: Top Cracker's holders and their kills, the same way (absent before it; under CRACK_MIN, nobody).
     var crackN = Math.floor(num(o.crackN)), crack = crackN >= CRACK_MIN && crackN <= 1e7 ? uidList(o.crack) : [];
+    // mini: [[board id, [uid…]], …], who is first on each game's main board (absent before it: nobody holds a mini).
+    var mini = [];
+    if (Array.isArray(o.mini)) o.mini.slice(0, MINI_GAMES).forEach(function (x) {
+      if (!Array.isArray(x) || typeof x[0] !== 'string' || !MINI_ID.test(x[0]) || mini.some(function (y) { return y[0] === x[0]; })) return;
+      var u = Array.isArray(x[1]) ? x[1].filter(okUid).slice(0, MINI_IDS) : [];
+      if (u.length) mini.push([x[0], u]);
+    });
     return { t: t, all: uidList(o.all), week: uidList(o.week), allTie: !!o.allTie, weekTie: !!o.weekTie,
       all2: uidList(o.all2), all3: uidList(o.all3), week2: uidList(o.week2), week3: uidList(o.week3), ace: ace, aceN: ace.length ? aceN : 0,
-      crack: crack, crackN: crack.length ? crackN : 0 };
+      crack: crack, crackN: crack.length ? crackN : 0, mini: mini };
   }
-  function topsSig(o) { return o ? [o.all, o.week, o.all2, o.all3, o.week2, o.week3, o.ace, o.crack].map(function (a) { return a.join(); }).join('|') + '|' + (o.allTie ? 1 : 0) + (o.weekTie ? 1 : 0) + '|' + o.aceN + '|' + o.crackN : ''; }
+  function topsSig(o) { return o ? [o.all, o.week, o.all2, o.all3, o.week2, o.week3, o.ace, o.crack].map(function (a) { return a.join(); }).join('|') + '|' + (o.allTie ? 1 : 0) + (o.weekTie ? 1 : 0) + '|' + o.aceN + '|' + o.crackN + '|' + o.mini.map(function (x) { return x[0] + ':' + x[1].join(); }).join(';') : ''; }
   function liveTops() { return tops && Date.now() - tops.t < TOPS_KEEP ? tops : null; }
   function takeTops(c) {
     var was = topsSig(liveTops()); tops = c;
@@ -524,6 +705,13 @@
   function crackerOf(res) {
     var c = liveTops(); if (!c || !c.crackN) return 0;
     return idsOf(res).some(function (u) { return c.crack.indexOf(u) >= 0; }) ? c.crackN : 0;
+  }
+  // The games a result's player is first in (mini badges), as board ids in the boards' order; [] for most people. Accounts
+  // shown as one row count as one player (idsOf). Takes a result or a uid.
+  function minisOf(res) {
+    var c = liveTops(); if (!c || !c.mini.length) return [];
+    var ids = idsOf(res); if (!ids.length) return [];
+    return c.mini.filter(function (x) { return ids.some(function (u) { return x[1].indexOf(u) >= 0; }); }).map(function (x) { return x[0]; });
   }
   function wantTops() {
     var now = Date.now();
@@ -644,6 +832,14 @@
       gRow(l, [awardTag(k)], AWARD_KINDS[k].n, k === 'slipstream' ? 'Earned: hold the fastest lap this season on more Slipstream tracks than anyone else, ' + ACE_MIN + ' or more at once. It moves to whoever takes the lead.'
         : k === 'shellcrackers' ? 'Earned: have more Shell Crackers kills of all time than anyone else, ' + CRACK_MIN + ' or more. It moves to whoever takes the lead.' : AWARD_KINDS[k].tip + '.');
     });
+    // Top player in a game: one line for the rule, then every game's shield (each with its tooltip), from the boards' own list.
+    l = gSec(box, 'Top player in a game', 'Small shields, after everything else. One player can hold several.');
+    var B = LB(), ids = [];
+    try { ids = B && B.topBoards ? B.topBoards().map(function (b) { return b.id; }) : Object.keys(MINI); } catch (e) { ids = Object.keys(MINI); }
+    gRow(l, [miniTag(ids[0] || 'stackfall')], 'Top player in a game', 'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead.');
+    var all = gEl('li', 'bra-g-r bra-g-mn'), wrap = gEl('div', 'bra-g-b');
+    ids.forEach(function (id) { wrap.appendChild(miniTag(id, 20)); });
+    all.appendChild(wrap); l.appendChild(all);
     d.appendChild(box);
     // A click on the dimmed area outside the window closes it.
     d.addEventListener('click', function (e) { if (e.target === d) d.close(); });
@@ -671,12 +867,14 @@
     '.bra-g-r+.bra-g-r{border-top:1px solid var(--line,#D3DAD2)}' +
     '.bra-g-b{display:flex;flex-wrap:wrap;gap:4px;align-items:center}' +
     '.bra-g-t{font-size:14px;line-height:1.4}.bra-g-t b{display:block;font-weight:700}.bra-g-t span{color:var(--ink-2,#4A5751)}' +
+    '.bra-g-mn{grid-template-columns:1fr}.bra-g-mn .bra-g-b{gap:6px}' +
     '@media (max-width:480px){.bra-g-in{padding:14px}.bra-g-r{grid-template-columns:1fr}}';
   (document.head || document.documentElement).appendChild(gcss);
 
   window.BackRoomMiles = { of: of, tierOf: tierOf, isOwner: isOwner, badge: badge, guide: guide, line: line, peek: peek, load: load, fmt: fmt, TIERS: TIERS, RULES: RULES, PATH: PATH, HOUR: HOUR,
     CAPTAIN: CAPTAIN, OWNERS: OWNERS.slice(), FOUNDER: FOUNDER, isFounder: isFounder, isVice: isVice, VICE_CAPTAIN: VICE_CAPTAIN, VICE_CAPTAINS: VICE_CAPTAINS.slice(), forget: function (uid) { if (uid) delete cache[uid]; else cache = {}; },
     setTops: setTops, topOf: topOf, needTops: needTops,
+    minisOf: minisOf, minisList: minisList, MINI: JSON.parse(JSON.stringify(MINI)), MINI_ANY: JSON.parse(JSON.stringify(MINI_ANY)), miniTag: miniTag,
     awardsOf: awardsOf, aceOf: aceOf, ACE_MIN: ACE_MIN, crackerOf: crackerOf, CRACK_MIN: CRACK_MIN, AWARD_KINDS: JSON.parse(JSON.stringify(AWARD_KINDS)), AWARDS: JSON.parse(JSON.stringify(AWARDS)) };
   // Test hook for the automated checks; harmless in normal play. put: a result for a uid without a read.
   if (navigator.webdriver) window.__miles = { get tops() { return tops; }, get asked() { return topsAsked; }, get wanted() { return topsWanted; }, TOPS_KEY: TOPS_KEY, TOPS_TTL: TOPS_TTL, TOPS_KEEP: TOPS_KEEP,
