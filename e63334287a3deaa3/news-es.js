@@ -6,6 +6,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Beatvault is now Pulsebox": "Beatvault ahora se llama Pulsebox",
+    "Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.": "Beatvault tiene nombre y aspecto nuevos: Pulsebox, una discoteca de neón con focos sobre cada escenario.",
+    "Every song is about 6% faster.": "Todas las canciones van un 6% más rápido, más o menos.",
+    "Your progress, keys, settings and the levels you made carry over.": "Tu progreso, tus llaves, tus ajustes y los niveles que hiciste se conservan.",
     "Flipline is now Chromeline": "Flipline ahora se llama Chromeline",
     "Flipline has a new name and a new look: Chromeline, a stunt bike ride through a neon city at night.": "Flipline tiene nombre y aspecto nuevos: Chromeline, una moto de acrobacias por una ciudad de neón de noche.",
     "All 24 levels and their medal targets were run again on the arrow-key controls, and two big loops got a boost strip.": "Los 24 niveles y sus tiempos de medalla se volvieron a probar con los controles de flechas, y dos rizos grandes tienen ahora una franja de impulso.",
