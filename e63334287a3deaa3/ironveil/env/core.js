@@ -495,16 +495,16 @@
       // the foot of a wall: a dark damp band rising 20 to 45 cm with a ragged top and a faint tide line above it,
       // moss in its hollows, and splashed-up mud in the bottom 10 to 25 cm
       float foot = vEnvA.w > 0.5 ? vEnvA.w - 1.0 : 99.0;
-      float dampH = 0.2 + 0.22 * m2 + 0.12 * m1;
+      float dampH = 0.24 + 0.24 * m2 + 0.14 * m1;
       float damp = (1.0 - smoothstep(dampH - 0.1, dampH + 0.03, foot)) * uGrime;
       float tide = smoothstep(0.045, 0.0, abs(foot - dampH - 0.03)) * uGrime;
       float moss = damp * smoothstep(0.6, 0.2, envH + m1 * 0.35 - 0.15);
-      envAlb = mix(envAlb, envAlb * vec3(0.4, 0.38, 0.32), damp * 0.9);
+      envAlb = mix(envAlb, envAlb * vec3(0.34, 0.32, 0.26), damp * 0.92);
       envAlb = mix(envAlb, envAlb * vec3(0.82, 0.8, 0.72), tide * 0.5);
       envAlb = mix(envAlb, vec3(0.03, 0.045, 0.015), moss * 0.8);
       envRough = mix(envRough, envRough * 0.7, damp);
-      float splash = (1.0 - smoothstep(0.0, 0.1 + 0.15 * m1, foot)) * uGrime * smoothstep(0.3, 0.6, texture2D(uMacro, wp.xz * 2.1 + wp.y * 3.0).g + 0.25);
-      envAlb = mix(envAlb, vec3(0.055, 0.042, 0.03), splash * 0.75);
+      float splash = (1.0 - smoothstep(0.0, 0.14 + 0.16 * m1, foot)) * uGrime * smoothstep(0.3, 0.6, texture2D(uMacro, wp.xz * 2.1 + wp.y * 3.0).g + 0.25);
+      envAlb = mix(envAlb, vec3(0.05, 0.038, 0.026), splash * 0.85);
     }
     #endif
     // weathering shared by every material, lined up in world space: rain streaks down walls, sun fading, and dust
