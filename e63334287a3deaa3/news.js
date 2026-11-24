@@ -85,6 +85,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-23', version: '1.46', title: 'Sky Duel: fairer bots, bigger hits', kind: 'feature',
+     img: 'm/thumbs/sky-duel.jpg', tags: ['Sky Duel'], items: [
+      'Bots are fairer: they leave you alone for a few seconds after you spawn unless you shoot first, and fewer of them hunt you at once when you fly solo.',
+      'Kills land harder: longer tracers, bigger explosions, more debris and a kick of the camera.',
+      'The first explosion of a match no longer makes the game stutter.'
+    ]},
     {date: '2026-11-23', version: '1.45', title: 'Hush Pools is now Blackwade', kind: 'feature',
      img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
       'Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.',
