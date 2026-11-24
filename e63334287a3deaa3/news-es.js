@@ -8,6 +8,10 @@
   BackRoomLang.add({
     "See when someone is waiting for your room": "Mira cuándo alguien espera por tu sala",
     "When a room is full and someone queues for it, the people in that room are now told.": "Cuando una sala está llena y alguien se pone en cola, ahora se avisa a quienes están en la sala.",
+    "Flipline is now Chromeline": "Flipline ahora se llama Chromeline",
+    "Flipline has a new name and a new look: Chromeline, a stunt bike ride through a neon city at night.": "Flipline tiene nombre y aspecto nuevos: Chromeline, una moto de acrobacias por una ciudad de neón de noche.",
+    "All 24 levels and their medal targets were run again on the arrow-key controls, and two big loops got a boost strip.": "Los 24 niveles y sus tiempos de medalla se volvieron a probar con los controles de flechas, y dos rizos grandes tienen ahora una franja de impulso.",
+    "The mace and the saw have a dark outline, so they stand out against the lit towers.": "La maza y la sierra tienen un contorno oscuro para que destaquen contra las torres iluminadas.",
     "Rollaway is now Overdrop": "Rollaway ahora se llama Overdrop",
     "Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.": "Rollaway tiene nombre y aspecto nuevos: Overdrop, una pista más empinada y más rápida por una ciudad de neón.",
     "There are new hazards, and each kind has its own shape so you can tell them apart at speed.": "Hay peligros nuevos, y cada tipo tiene su propia forma para que los distingas a toda velocidad.",
