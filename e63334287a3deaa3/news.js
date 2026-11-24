@@ -90,6 +90,12 @@
       'On Pretty graphics, yolk bombs go off in a soft glowing fireball and a rolling cloud, shots kick up puffs of dust or yolk, and muzzle flashes glow.',
       'Grass, sand, snow and dirt show a gentle two-tone block grid, and shadows have softer edges.',
       'Your gun is lit more clearly, with bright top edges, and picks up each map\'s light.',
+    ]},
+    {date: '2026-11-23', version: '1.49', title: 'Boostball: a greener, brighter stadium', kind: 'feature',
+     tags: ['Boostball', 'Graphics'], items: [
+      'The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.',
+      'The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.',
+      'On Pretty graphics: a grass grain around your car, a tighter glow round bright lights and soft halos on the floodlights.',
       'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
     {date: '2026-11-23', version: '1.48', title: 'See when someone is waiting for your room', kind: 'feature',
      tags: ['Playing now'], items: [
