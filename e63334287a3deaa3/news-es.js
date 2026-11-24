@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A badge for the top of each board": "Una insignia para el primero de cada clasificación",
+    "Whoever is top of a game's main leaderboard now wears a small badge for that game next to their name.": "Quien va primero en la clasificación principal de un juego lleva ahora una insignia pequeña de ese juego junto a su nombre.",
+    "The badges show in the Online panel, the Party panel and the Leaderboards.": "Las insignias se ven en el panel Online, en el panel de Fiesta y en las Clasificaciones.",
     "Sky Duel: fairer bots, bigger hits": "Sky Duel: bots más justos, impactos más grandes",
     "Bots are fairer: they leave you alone for a few seconds after you spawn unless you shoot first, and fewer of them hunt you at once when you fly solo.": "Los bots son más justos: te dejan en paz unos segundos después de aparecer si no disparas primero, y te persiguen menos a la vez cuando vuelas solo.",
     "Kills land harder: longer tracers, bigger explosions, more debris and a kick of the camera.": "Los derribos se notan más: trazadoras más largas, explosiones más grandes, más restos y un golpe de cámara.",

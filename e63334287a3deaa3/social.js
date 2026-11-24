@@ -394,6 +394,8 @@
     '.onl-dh h2{font-size:24px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
     '.onl-x{font:inherit;font-size:22px;line-height:1;color:var(--ink-2);background:none;border:1px solid var(--line);border-radius:8px;width:38px;height:38px;cursor:pointer;flex:none}' +
     '.onl-dsub{padding:8px 14px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-2);flex:none;display:grid;gap:8px}' +
+    // One column no wider than the drawer, so a long badge (mini badges) folds to fit instead of widening it.
+    '.onl-dsub{grid-template-columns:minmax(0,1fr)}' +
     '.onl-acts{display:flex;flex-wrap:wrap;gap:6px}' +
     '.onl-db{flex:1;overflow:auto;overscroll-behavior:contain;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-height:0}' +
     '.onl-db .onl-list{max-height:none;overflow:visible;flex:none;grid-template-columns:minmax(0,1fr)}' +   // full height: the drawer body scrolls, and keeps its place when redrawn
@@ -1837,6 +1839,9 @@
       if (dbadge) dline.append(dbadge, ' ');
       dline.append((p && visible(p) ? statusText(p) : 'Not online') + ' · private: only the two of you can read this.');
       dsub.append(dline);
+      // The games they are top player in (miles.js), larger and named, on a line of their own where there is room.
+      var dmn = null, dt = tierOf(u); if (dt && BackRoomMiles.minisList) { try { dmn = BackRoomMiles.minisList(dt); } catch (e) { dmn = null; } }
+      if (dmn) dsub.append(dmn);
       var da = el('div', 'onl-acts'), why = canTalk(u), theirs = mask(p ? p.n : (t ? cleanName(t.n) : '') || 'them'), mate = partyMate(u);
       if (chats[u]) da.append(btn('End chat', '', 'endchat'));
       else if (!mate && !pendingIn(u) && !isBlocked(u)) {
