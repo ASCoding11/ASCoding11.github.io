@@ -181,7 +181,7 @@
     // scale: the whole viewmodel about the eye (rig units below). hip: fitted on screen (vm-test.html, 16:9, FOV 54) so
     // the muzzle sits about 55 % across and 60 % down and the gun covers about a fifth of the view (SMG about 20 %, rifle
     // about 17 %, pistol 10.9 %), its rear leaving through the bottom right; aimed (ads, rig units) is unchanged on screen
-    smg:         { scale: 1.5, hip: { p: [0.0733, -0.072, -0.1345], r: [0.0292, 0.0595, 0.03] }, ads: 0.29, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.022, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
+    smg:         { scale: 1.5, hip: { p: [0.0777, -0.0763, -0.1369], r: [0.0292, 0.0595, 0.03] }, ads: 0.29, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.022, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
     pistol:      { scale: 1.3, hip: { p: [0.0746, -0.0634, -0.2135], r: [-0.0768, 0.2807, -0.3] }, ads: 0.46, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.019, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
     rifleScoped: { scale: 1.7, hip: { p: [0.0722, -0.0725, -0.1424], r: [0.0558, -0.0012, 0.03] }, ads: 0.10, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.02, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] }
   };
