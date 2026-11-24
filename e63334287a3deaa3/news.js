@@ -90,6 +90,12 @@
       'Whoever is top of a game\'s main leaderboard now wears a small badge for that game next to their name.',
       'The badges show in the Online panel, the Party panel and the Leaderboards.'
     ]},
+    {date: '2026-11-23', version: '1.45', title: 'Hush Pools is now Blackwade', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.',
+      'Every noise shows a label where it happened, and a meter tells you how loud you are being.',
+      'Invite links, coins, upgrades and ratings carry over.'
+    ]},
     {date: '2026-11-23', version: '1.44', title: 'Beatvault is now Pulsebox', kind: 'feature',
      img: 'm/thumbs/beatvault.jpg', tags: ['Pulsebox'], items: [
       'Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.',
