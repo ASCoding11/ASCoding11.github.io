@@ -6,6 +6,13 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Chromeline: one button and 26 new pieces": "Chromeline: un solo botón y 26 piezas nuevas",
+    "Chromeline is now one button: hold to ride on the ground, hold in the air to flip backwards, let go to stop the spin. The arrow keys and the two round touch buttons are gone.": "Chromeline ahora se juega con un solo botón: mantén para avanzar en el suelo, mantén en el aire para girar hacia atrás y suelta para frenar el giro. Ya no están las flechas ni los dos botones redondos táctiles.",
+    "26 new track pieces, from easy to very hard: spike ceilings, glowing posts, floating triangles, wavy ground, broken track, steep ramps, triple loops, a giant loop, fast-dropping platforms and more.": "26 piezas de pista nuevas, de fáciles a muy difíciles: techos de pinchos, postes brillantes, triángulos flotantes, suelo ondulado, pista rota, rampas empinadas, rizos triples, un rizo gigante, plataformas que caen enseguida y más.",
+    "Loops now pay: gems sit inside them, a gold crown waits at the top of some, and every loop raises your run multiplier, which multiplies every trick and gem.": "Los rizos ahora valen la pena: tienen gemas dentro, algunos esconden una corona dorada arriba y cada rizo sube tu multiplicador de la carrera, que multiplica cada truco y cada gema.",
+    "Endless gets hard much sooner and keeps getting harder, and level time targets are tighter.": "El modo Infinito se pone difícil mucho antes y sigue endureciéndose, y los tiempos objetivo de los niveles son más ajustados.",
+    "Flips take a little more skill: a slightly slower spin and a stricter clean landing.": "Los giros piden un poco más de habilidad: el giro es algo más lento y el aterrizaje limpio es más exigente.",
+    "The rider is gone: it is just the bike now, a little smaller and more modern.": "Ya no hay piloto: ahora es solo la moto, un poco más pequeña y más moderna.",
     "A proper \"page not found\"": "Una página de \"no encontrada\" de verdad",
     "A mistyped or old link now shows a \"Page not found\" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.": "Un enlace mal escrito o antiguo ahora muestra una página de \"Página no encontrada\" con botones para volver a la página de inicio, los juegos y las herramientas de estudio, en vez de un error sin más o la página de inicio.",
     "It shows the address you tried, and has a button to tell us about the broken link.": "Muestra la dirección que intentaste abrir y tiene un botón para avisarnos del enlace roto.",

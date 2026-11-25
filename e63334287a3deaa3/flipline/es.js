@@ -88,5 +88,20 @@ if (window.BackRoomLang) BackRoomLang.add({
   'New best time!': '¡Nuevo mejor tiempo!', 'New best!': '¡Nuevo récord!', 'Finish': 'Terminar', '{n} flips': '{n} giros', '1 flip': '1 giro', 'Under {t}': 'Menos de {t}',
   '{n} new medals (+{c} coins)': '{n} medallas nuevas (+{c} monedas)', 'coins': 'monedas', 'Secret vehicle unlocked: {v}': 'Vehículo secreto desbloqueado: {v}',
   'Again': 'Otra vez', 'Next level': 'Nivel siguiente', 'Watch the crash': 'Ver el choque', 'Edit': 'Editar',
-  'Tap to go again': 'Toca para volver a empezar', '{k} to go again': '{k} para volver a empezar', 'Tap anywhere else to go again': 'Toca en cualquier otro lugar para volver a empezar', '{k} or {r} to go again': '{k} o {r} para volver a empezar'
+  'Tap to go again': 'Toca para volver a empezar', '{k} to go again': '{k} para volver a empezar', 'Tap anywhere else to go again': 'Toca en cualquier otro lugar para volver a empezar', '{k} or {r} to go again': '{k} o {r} para volver a empezar',
+  // one button, the run multiplier, gems and the new pieces (1.54)
+  'Touch and hold to ride. Hold in the air to flip': 'Toca y mantén para avanzar. Mantén en el aire para girar',
+  'Hold {k} to ride. Hold it in the air to flip': 'Mantén {k} para avanzar. Mantenlo en el aire para girar',
+  'Gas / flip': 'Acelerar / girar', 'On the ground: hold to ride, let go to coast. In the air: hold to flip backwards': 'En el suelo: mantén para avanzar; suelta para rodar sin acelerar. En el aire: mantén para girar hacia atrás',
+  'One button:': 'Un solo botón:', 'Space (or the up arrow, W, or the mouse).': 'Espacio (o la flecha arriba, W o el mouse).', 'touch and hold anywhere on the screen.': 'toca y mantén en cualquier lugar de la pantalla.',
+  'On the ground, holding is the gas; let go to coast.': 'En el suelo, mantener es acelerar; suelta para rodar sin acelerar.',
+  'In the air, holding flips you backwards.': 'En el aire, mantener te hace girar hacia atrás.',
+  'Let go and the spin slows down and the heavy front end drops the nose, so let go in time to land on your wheels.': 'Si sueltas, el giro se frena y el peso de la parte delantera baja el morro, así que suelta a tiempo para aterrizar sobre las ruedas.',
+  'means danger: spikes, spike ceilings, glowing posts, floating triangles, the swinging mace, saws, crushers, low beams and laser gates. Gold rounds are coins; a gold': 'significa peligro: pinchos, techos de pinchos, postes brillantes, triángulos flotantes, la maza que se balancea, sierras, prensas, vigas bajas y barreras láser. Los círculos dorados son monedas; un',
+  'The run multiplier': 'El multiplicador de la carrera',
+  '(the badge by your score) multiplies every trick and gem. Loops raise it most, clean landings and flips raise it a little, a gold crown at the top of a loop adds +0.5, and flips from a lit': '(la insignia junto a tus puntos) multiplica cada truco y cada gema. Los rizos lo suben más; los aterrizajes limpios y los giros lo suben un poco; una corona dorada en lo alto de un rizo suma +0,5, y los giros desde una',
+  'flip zone': 'zona de giro', 'count three times. A sloppy landing halves it.': 'iluminada cuentan el triple. Un mal aterrizaje lo reduce a la mitad.',
+  'Gems': 'Gemas', 'sit inside loops, over big jumps and under ceilings: some can only be reached by riding the loop.': 'están dentro de los rizos, sobre los saltos grandes y bajo los techos: a algunas solo llegas dando la vuelta al rizo.',
+  'Every vehicle rides exactly the same: same speed, same grip, same flips. They only look different. Coins come from playing; nothing here costs real money.': 'Todos los vehículos van exactamente igual: misma velocidad, mismo agarre, mismos giros. Solo cambia su aspecto. Las monedas se ganan jugando; aquí nada cuesta dinero real.',
+  'vehicles, places': 'vehículos, lugares', 'Best multiplier': 'Mejor multiplicador', 'FLIP ZONE ×3': 'ZONA DE GIRO ×3', 'Crown!': '¡Corona!', 'Flip zone': 'Zona de giro', 'Run multiplier': 'Multiplicador de la carrera',
 });

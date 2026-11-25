@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-25', version: '1.54', title: 'Chromeline: one button and 26 new pieces', kind: 'feature',
+     items: ['Chromeline is now one button: hold to ride on the ground, hold in the air to flip backwards, let go to stop the spin. The arrow keys and the two round touch buttons are gone.',
+             '26 new track pieces, from easy to very hard: spike ceilings, glowing posts, floating triangles, wavy ground, broken track, steep ramps, triple loops, a giant loop, fast-dropping platforms and more.',
+             'Loops now pay: gems sit inside them, a gold crown waits at the top of some, and every loop raises your run multiplier, which multiplies every trick and gem.',
+             'Endless gets hard much sooner and keeps getting harder, and level time targets are tighter.',
+             'Flips take a little more skill: a slightly slower spin and a stricter clean landing.',
+             'The rider is gone: it is just the bike now, a little smaller and more modern.']},
     {date: '2026-11-25', version: '1.51.3', title: 'A proper "page not found"', kind: 'fix',
      items: [
       'A mistyped or old link now shows a "Page not found" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.',
