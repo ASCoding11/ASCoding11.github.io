@@ -9,10 +9,17 @@
   const WP = IV.weapons = {
     cur: 'rifle', aiming: false, scoped: false, binoc: false, busyThrow: null, firingRecently: false,
     hideSlungWhenAiming: true, inv: null, reloadT: 0, boltT: 0, cool: 0, bloom: 0, burst: 0, lastFire: -9, bullets: [], throws: [], wind: { x: 1.6, z: 0.4 },
-    stats: { shots: 0, hits: 0, kills: 0, heads: 0, takedowns: 0 }, models: {}, tagged: new Set(), takedownTarget: null
+    stats: { shots: 0, hits: 0, kills: 0, heads: 0, takedowns: 0, headHits: 0, deaths: 0 }, models: {}, tagged: new Set(), takedownTarget: null
   };
   const NAMES = { rifle: 'Scoped rifle', smg: 'Submachine gun', pistol: 'Pistol' };
   WP.name = k => IV.t(NAMES[k] || k);
+  // deaths count toward the debrief rating: kept in the run's stats and in the saved checkpoint, so the retry that
+  // follows (mission.js restoreCheckpoint) and a Continue after closing the page both still know
+  IV.on('playerDied', () => {
+    WP.stats.deaths = (WP.stats.deaths || 0) + 1;
+    const cp = IV.save.cp, M = IV.mission;
+    if (cp && M.def && cp.mission === M.def.id && cp.data && cp.data.stats) { cp.data.stats.deaths = WP.stats.deaths; IV.persist(); }
+  });
 
   // ---------------------------------------------------------------- ballistics
   // Step a round with quadratic drag relative to the air (so wind drifts it) and gravity.
@@ -57,7 +64,7 @@
     WP.has = loadout.has || { rifle: true, smg: true, pistol: true };
     WP.cur = loadout.start || 'smg'; WP.aiming = WP.scoped = WP.binoc = false; WP.busyThrow = null;
     WP.reloadT = WP.boltT = WP.cool = WP.bloom = 0; WP.bullets.length = 0; WP.throws.length = 0;
-    WP.stats = { shots: 0, hits: 0, kills: 0, heads: 0, takedowns: 0 }; WP.tagged = new Set();
+    WP.stats = { shots: 0, hits: 0, kills: 0, heads: 0, takedowns: 0, headHits: 0, deaths: 0 }; WP.tagged = new Set(); WP.lowCued = {};
     // models on the hero
     const A = P.actor;
     for (const k in WP.models) A.detach(WP.models[k]);
@@ -77,6 +84,7 @@
   }
   WP.equip = function (k) {
     if (!WP.has[k] || k === WP.cur || WP.busyThrow) return;
+    if (WP.reloadT > 0) WP.cancelReload();
     WP.cur = k; WP.reloadT = 0; WP.boltT = 0; WP.cool = 0.35; WP.bloom = 0; WP.spread = null;
     equipModels(); P.actor.setUpper(null);
     IV.audio && IV.audio.play('equip');
@@ -136,8 +144,8 @@
       const ex = e.pos.x - x0, ez = e.pos.z - z0, along = ex * ux + ez * uz;
       if (along < -2 || along > len + 2) continue;
       const lat = Math.abs(ex * uz - ez * ux); if (lat > 2.2) continue;
-      WP.spheres(e, sph);
-      for (const s of sph) { const t = segSphere(x0, y0, z0, ux, uy, uz, best, s[0], s[1], s[2], s[3]); if (t >= 0 && t < best) { best = t; hitEnt = e; hitZone = s[4]; } }
+      if (e !== b.spare) { WP.spheres(e, sph);
+      for (const s of sph) { const t = segSphere(x0, y0, z0, ux, uy, uz, best, s[0], s[1], s[2], s[3]); if (t >= 0 && t < best) { best = t; hitEnt = e; hitZone = s[4]; } } }   // spare: an enemy round rolled as a miss at this man (see ai.js shoot)
       // near miss: suppression and the crack of a passing round
       if (!hitEnt || hitEnt !== e) {
         const cx = e.pos.x, cy = e.pos.y + e.chestH(), cz = e.pos.z;
@@ -148,16 +156,18 @@
     }
     if (hitEnt) {
       const hx = x0 + ux * best, hy = y0 + uy * best, hz = z0 + uz * best;
-      const mul = b.flat ? (hitZone === 'head' ? 1.4 : 1) : hitZone === 'head' ? WT.headMul : hitZone === 'limb' ? WT.limbMul : 1;
+      const ws = b.wk && WT[b.wk] || WT;   // the player's rounds carry their gun's zone multipliers
+      const mul = b.flat ? (hitZone === 'head' ? 1.4 : 1) : hitZone === 'head' ? (ws.head || WT.headMul) : hitZone === 'limb' ? (ws.limb || WT.limbMul) : 1;
       const wasAlive = hitEnt.alive;
       const fo = b.fall ? IV.clamp(1 - (b.travelled - b.fall[0]) / (b.fall[1] - b.fall[0]), 0, 1) * (1 - b.fall[2]) + b.fall[2] : 1;
       hitEnt.hit(hitZone, b.dmg * mul * fo, { x: ux, y: uy, z: uz }, b.owner ? b.owner.pos : null, b);
       IV.fx.blood(hx, hy, hz, ux, uy, uz, hitZone === 'head' || b.dmg > 100);
       if (b.owner === WP.playerEnt) {
-        WP.stats.hits++;
+        WP.stats.hits++; if (hitZone === 'head') WP.stats.headHits++;
         const killed = wasAlive && !hitEnt.alive;
         if (killed) { WP.stats.kills++; if (hitZone === 'head') WP.stats.heads++; }
-        IV.emit('hitmarker', { kill: killed, head: hitZone === 'head' });
+        // three markers the HUD draws differently (hit, head, kill); sounds can key off the same event
+        IV.emit('hitmarker', { kill: killed, head: hitZone === 'head', zone: hitZone, kind: b.wk });
         IV.audio && IV.audio.play(killed ? 'killThud' : 'hitThud');
       }
       b.alive = false; return;
@@ -193,16 +203,20 @@
   function fire() {
     const k = WP.cur, w = WT[k], inv = WP.inv[k], c = W.camera, d = IV.camera.lookDir;
     if (inv.mag <= 0) {
-      IV.audio && IV.audio.play('dry'); WP.cool = 0.3;
+      IV.audio && IV.audio.play('dry'); WP.cool = 0.3; IV.emit('ammo', { kind: k, state: 'empty', res: inv.res });
       if (inv.res > 0) startReload();
       else { const alt = ['pistol', 'smg', 'rifle'].find(x => x !== k && WP.has[x] && WP.inv[x] && WP.inv[x].mag + WP.inv[x].res > 0); if (alt) WP.equip(alt); }   // out of rounds: draw the next gun that has any
       return;
     }
+    const restedFor = IV.time - WP.lastFire;
     inv.mag--; WP.stats.shots++; WP.lastFire = IV.time; WP.firingRecently = true;
     let ox, oy, oz, dx, dy, dz;
     const model = WP.models[k], muzzle = model.userData.muzzle;
     muzzle.getWorldPosition(mz);
     if (IV.fp && IV.fp.on() && !WP.scoped) IV.fp.muzzle(mz);   // first person: the flash and tracer start at the visible muzzle
+    // a gun left behind by an animation (seen after planting the charge: the model stayed 2.7 m away and every round
+    // started there, into the sandbags) must never be where a round starts: fall back to the player's eye
+    { const ey = P.pos.y + (P.eyeH || 1.6), gx = mz.x - P.pos.x, gy = mz.y - ey, gz = mz.z - P.pos.z; if (gx * gx + gy * gy + gz * gz > 1.8 * 1.8) mz.set(P.pos.x, ey, P.pos.z); }
     if (WP.scoped) {
       // from the scope: start one sight-height below the eye, angled up by the zero angle
       const up = new THREE.Vector3(0, 1, 0).applyQuaternion(c.quaternion);
@@ -225,14 +239,17 @@
     }
     // spread: tight aimed, loose from the hip, bloom for the SMG, worse while moving
     let sp = WP.currentSpread();
-    if ((WP.aiming || WP.scoped) && P.speed < 0.3 && (k !== 'smg' || WP.burst === 0)) sp = 0;   // first aimed shot, standing still: dead on
+    // the first aimed shot standing still, with the gun settled (WT.firstShot s since the last round), goes dead on:
+    // tapping and short bursts with a beat between them keep that; holding the trigger or spamming does not
+    const settled = restedFor > WT.firstShot;
+    if ((WP.aiming || WP.scoped) && P.speed < 0.3 && P.grounded !== false && settled) sp = 0;
     const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * sp;
     const ux = new THREE.Vector3(dx, dy, dz), ortho1 = new THREE.Vector3().crossVectors(ux, Math.abs(dy) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0)).normalize(), ortho2 = new THREE.Vector3().crossVectors(ux, ortho1);
     ux.addScaledVector(ortho1, Math.cos(a) * r).addScaledVector(ortho2, Math.sin(a) * r).normalize();
     const v0 = k === 'rifle' ? BL.v0 : k === 'smg' ? BL.smgV0 : BL.pistolV0;
     // the round flies along the sight line; its tracer is drawn leaving the visible muzzle and merging onto that line
     // over the first few metres (vis: muzzle minus origin, faded out by fx.js)
-    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2, vis: WP.scoped ? null : { x: mz.x - ox, y: mz.y - oy, z: mz.z - oz } });   // tracer rounds every third in the SMG magazine
+    WP.spawnBullet({ x: ox, y: oy, z: oz, vx: ux.x * v0, vy: ux.y * v0, vz: ux.z * v0, drag: k === 'rifle' ? BL.drag : 0.0012, dmg: w.dmg, fall: w.fall, wk: k, owner: WP.playerEnt, team: 'us', tracer: k === 'smg' && (WP.stats.shots % 3 === 0), life: k === 'rifle' ? 2.5 : 1.2, vis: WP.scoped ? null : { x: mz.x - ox, y: mz.y - oy, z: mz.z - oz } });   // tracer rounds every third in the SMG magazine
     // effects
     IV.fx.muzzle(mz.x, mz.y, mz.z, ux.x, ux.y, ux.z, k === 'rifle', !!(IV.fp && IV.fp.on() && !WP.scoped));
     const fpArms = IV.fp && IV.fp.realActive && IV.fp.realActive();   // first person on the arms rig: its clip events throw the cases
@@ -241,34 +258,48 @@
     else if (k !== 'rifle') { const rt = new THREE.Vector3(-1, 0, 0).applyQuaternion(model.getWorldQuaternion(new THREE.Quaternion())); IV.fx.casing(mz.x - ux.x * 0.5, mz.y, mz.z - ux.z * 0.5, rt.x * 2.2 + Math.random(), 2 + Math.random(), rt.z * 2.2 + Math.random()); }
     IV.audio && IV.audio.play(k, { x: mz.x, z: mz.z, own: true });
     IV.ai && IV.ai.noise(P.pos.x, P.pos.z, w.noise, 'shot', P);
-    // recoil (TUNING.weapons.recoil): rifle one heavy kick, SMG a per-shot climb schedule with a slow sideways
-    // wander, pistol a sharp snap; a kept part stays in the aim, the rest springs back after the trigger is let go
+    // recoil (TUNING.weapons.recoil): rifle one heavy kick, SMG a per-shot climb schedule with a fixed sideways
+    // pattern, pistol a sharp snap; a kept part stays in the aim, the rest springs back after the trigger is let go
     const motion = IV.settings.motion ? 0.6 : 1;
     recoil(k);
-    if (k === 'smg') WP.bloom = Math.min(w.bloomMax, WP.bloom + w.bloom);
+    if (w.bloom) WP.bloom = Math.min(w.bloomMax, WP.bloom + w.bloom);
     IV.camera.shake((k === 'rifle' ? 0.12 : 0.05) * motion);
     IV.fp && IV.fp.recoil(k === 'rifle' ? 1 : k === 'smg' ? 0.35 : 0.6);
     // the bolt: as long as the arms' fire and bolt clips take in first person, else the tuning value
     if (k === 'rifle') { const fl = IV.fp && IV.fp.clipLen ? IV.fp.clipLen(WP.aiming || WP.scoped ? 'fireAds' : 'fire', 'rifle') + IV.fp.clipLen('boltCycle', 'rifle') : 0; WP.boltT = fl > 0.3 && IV.fp.on() ? fl : WT.rifle.bolt; if (!fpArms) setTimeout(() => IV.audio && IV.audio.play('bolt'), 330); }
-    WP.cool = w.rpm ? 60 / w.rpm : 0.18;
+    WP.cool = (WP.cool > -T.step ? Math.min(0, WP.cool) : 0) + (w.rpm ? 60 / w.rpm : 0.18);   // carry the part of a step already spent, so 600 rpm is 600 at 60 steps a second
+    lowCue(k);
     IV.setUpper(P.actor, k === 'rifle' ? 'boltCycle' : 'fire');
     IV.emit('shot', k);
   }
-  // one shot's kick. WP.recN counts rounds in the current string: it and the SMG's wander phase start again only once
-  // the gun has rested for spec.pause (quick taps continue the same path; a real pause starts from a fresh side)
-  WP.recPhase = 0; WP.lastShotAt = -9; WP.recN = 0;
+  // one shot's kick. WP.recN counts rounds in the current string: it starts again from shot 1 only once the gun has
+  // rested for spec.pause (quick taps carry on along the same path; a real pause starts the pattern again)
+  WP.lastShotAt = -9; WP.recN = 0;
+  // the sideways pattern: linear between the [shot, share] keyframes, held past the last one
+  function patAt(pat, n) {
+    if (!pat || !pat.length) return 0;
+    if (n <= pat[0][0]) return pat[0][1];
+    for (let i = 1; i < pat.length; i++) if (n <= pat[i][0]) { const a = pat[i - 1], b = pat[i]; return a[1] + (b[1] - a[1]) * (n - a[0]) / (b[0] - a[0]); }
+    return pat[pat.length - 1][1];
+  }
+  WP.patAt = patAt;
+  WP.recoilMul = function (k) {   // what stance, the sights, moving and jumping do to a kick
+    const R = WT.recoil[k]; if (!R) return 1;
+    let m = (WP.aiming || WP.scoped ? R.ads : 1) * (P.stance === 'prone' ? R.prone : P.stance === 'crouch' ? R.crouch : 1);
+    m *= 1 + (R.move || 0) * IV.clamp((P.speed - 0.3) / (T.move.run - 0.3), 0, 1.3) + (P.grounded === false && !P.vault ? R.air || 0 : 0);
+    return m;
+  };
   function recoil(k) {
     const R = WT.recoil[k]; if (!R) return;
     const rest = IV.time - WP.lastShotAt; WP.lastShotAt = IV.time;
-    if (rest > (R.pause || 0.25) || WP.recKind !== k) { WP.recN = 0; WP.recPhase = Math.random() * 6.283; WP.recKind = k; }
+    if (rest > (R.pause || 0.25) || WP.recKind !== k) { WP.recN = 0; WP.recKind = k; }
     const n = ++WP.recN; WP.burst++;
-    let m = (WP.aiming || WP.scoped ? R.ads : 1) * (P.stance === 'prone' ? R.prone : P.stance === 'crouch' ? R.crouch : 1);
-    if (R.sched) { for (const s of R.sched) if (n <= s[0]) { m *= s[1]; break; } if (n > R.sched[R.sched.length - 1][0]) m *= R.sched[R.sched.length - 1][1]; }
-    const j = 1 + (Math.random() * 2 - 1) * R.jitter;
-    let yaw;
-    if (R.wander && n > 3) yaw = Math.sin(n * R.wanderRate + WP.recPhase) * R.wander + (Math.random() - 0.5) * R.yaw;
-    else yaw = (Math.random() - 0.5) * 2 * R.yaw;
-    IV.camera.kick(R.pitch * m * j, yaw * m, R);
+    let m = WP.recoilMul(k);
+    if (R.sched) { let s = R.sched[R.sched.length - 1][1]; for (const e of R.sched) if (n <= e[0]) { s = e[1]; break; } m *= s; }
+    // the same climb and the same sideways walk every magazine, with a little random on top (R.jitter)
+    const jp = 1 + (Math.random() * 2 - 1) * R.jitter, jy = (Math.random() * 2 - 1) * R.jitter;
+    const yaw = R.yaw * (patAt(R.pat, n) * (1 + jy) + jy * 0.5);
+    IV.camera.kick(R.pitch * m * jp, -yaw * m, R);   // a positive pattern share walks the view right (yaw is + to the left)
   }
   WP.recoilShot = recoil;
   // the spread cone (rad). spreadTarget is where the cone wants to be right now (aimed or hip, stance, how fast you
@@ -280,17 +311,32 @@
     let sp = ads ? w.spread : w.hipSpread;
     sp *= 1 + (ads ? 0.9 : 0.7) * IV.clamp((P.speed - 0.3) / (T.move.run - 0.3), 0, 1) + (P.sprinting ? 0.3 : 0);   // a jog about 70 % more, a sprint 100 %
     if (P.stance === 'crouch') sp *= 0.8; else if (P.stance === 'prone') sp *= 0.6;
-    if (k === 'smg') sp += WP.bloom * (ads ? 0.7 : 1);
+    if (w.bloom) sp += WP.bloom * (ads ? 0.7 : 1);
     if (P.grounded === false && !P.vault) sp += 0.022;   // airborne (a jump): wide open
     return sp;
   };
   WP.spread = null;
   WP.currentSpread = function () { return WP.spread == null ? WP.spreadTarget() : WP.spread; };
   function stepSpread(dt) { const t = WP.spreadTarget(); WP.spread = WP.spread == null ? t : WP.spread + (t - WP.spread) * (1 - Math.exp(-18 * dt)); }
+  // a cue the moment the magazine runs low (a quarter or less) and when it runs dry; the HUD shows it, audio can hook it
+  function lowCue(k) {
+    const inv = WP.inv[k], cap = WT[k].mag; WP.lowCued = WP.lowCued || {};
+    if (inv.mag === 0) IV.emit('ammo', { kind: k, state: 'out', res: inv.res });
+    else if (cap > 1 && inv.mag <= Math.max(1, Math.floor(cap * 0.27)) && !WP.lowCued[k]) { WP.lowCued[k] = true; IV.emit('ammo', { kind: k, state: 'low', res: inv.res }); }
+    if (inv.mag > Math.floor(cap * 0.27)) WP.lowCued[k] = false;
+  }
+  // a reload can be broken off (sprint, switch weapons, or pull the trigger with rounds still in the gun); whatever
+  // stage it finished stays done: once the new magazine is in (magIn: the arms' clip event in first person, 60 % of
+  // the reload time otherwise) its rounds are in the gun
+  WP.cancelReload = function () {
+    if (WP.reloadT <= 0) return;
+    WP.reloadT = 0; WP.fpReload = null; WP.reloadStage = null; P.actor.setUpper(null); IV.fp && IV.fp.cancelAction && IV.fp.cancelAction();
+    IV.emit('reloadCancel', WP.cur);
+  };
   function startReload() {
     const k = WP.cur, inv = WP.inv[k];
     if (WP.reloadT > 0 || inv.res <= 0 || inv.mag >= WT[k].mag) return;
-    WP.reloadT = WT[k].reload; WP.scoped = false;
+    WP.reloadT = WT[k].reload; WP.scoped = false; WP.reloadStage = { total: WT[k].reload, magged: false };
     // first person on the arms rig: rounds go in at the clip's 'magIn' and the reload ends at its 'done' (js/fp.js);
     // the timer is only a safety net a little past the clip's end
     const rl = IV.fp && IV.fp.onReload ? IV.fp.onReload(inv.mag === 0) : 0;
@@ -300,8 +346,8 @@
     if (!WP.fpReload) IV.audio && IV.audio.play('reload', { kind: k });
   }
   function finishReload() {
-    if (!(WP.fpReload && WP.fpReload.magged)) { const k = WP.cur, inv = WP.inv[k], need = WT[k].mag - inv.mag, take = Math.min(need, inv.res); inv.mag += take; inv.res -= take; }
-    WP.fpReload = null; P.actor.setUpper(WP.aiming ? 'aimIdle' : null);
+    if (!(WP.fpReload && WP.fpReload.magged) && !(WP.reloadStage && WP.reloadStage.magged)) { const k = WP.cur, inv = WP.inv[k], need = WT[k].mag - inv.mag, take = Math.min(need, inv.res); inv.mag += take; inv.res -= take; }
+    WP.fpReload = null; WP.reloadStage = null; WP.lowCued[WP.cur] = false; P.actor.setUpper(WP.aiming ? 'aimIdle' : null);
   }
   WP.magIn = function () { if (WP.reloadT > 0 && WP.fpReload && !WP.fpReload.magged) { const k = WP.cur, inv = WP.inv[k], take = Math.min(WT[k].mag - inv.mag, inv.res); inv.mag += take; inv.res -= take; WP.fpReload.magged = true; } };
   WP.reloadDone = function () { if (WP.reloadT > 0 && WP.fpReload) { WP.reloadT = 0; finishReload(); } };
@@ -449,11 +495,16 @@
   WP.step = function (dt) {
     const I = IV.input;
     IV.camera.stepRecoil && IV.camera.stepRecoil(dt);
-    WP.cool = Math.max(0, WP.cool - dt); WP.throwCool = Math.max(0, (WP.throwCool || 0) - dt);
+    WP.cool = Math.max(-T.step, WP.cool - dt); WP.throwCool = Math.max(0, (WP.throwCool || 0) - dt);
     if (WP.boltT > 0) { WP.boltT -= dt; if (WP.boltT <= 0) P.actor.setUpper(WP.aiming ? 'aimIdle' : null); }
-    if (WP.reloadT > 0 && P.sprinting) { WP.reloadT = 0; WP.fpReload = null; P.actor.setUpper(null); IV.fp && IV.fp.cancelAction && IV.fp.cancelAction(); }   // sprinting cancels a reload (no rounds added)
-    if (WP.reloadT > 0) { WP.reloadT -= dt; if (WP.reloadT <= 0) finishReload(); }
-    WP.bloom = Math.max(0, WP.bloom - dt * (I.held('fire') ? 0.01 : 0.12));
+    if (WP.reloadT > 0 && P.sprinting) WP.cancelReload();   // sprinting breaks off a reload (a magazine already in stays in)
+    if (WP.reloadT > 0) {
+      WP.reloadT -= dt;
+      // no arms clip to say when the magazine goes in: it goes in at 60 % of the reload time
+      const rs = WP.reloadStage; if (rs && !WP.fpReload && !rs.magged && WP.reloadT <= rs.total * 0.4) { const k = WP.cur, inv = WP.inv[k], take = Math.min(WT[k].mag - inv.mag, inv.res); inv.mag += take; inv.res -= take; rs.magged = true; }
+      if (WP.reloadT <= 0) finishReload();
+    }
+    WP.bloom = Math.max(0, WP.bloom - dt * (I.held('fire') ? 0.01 : (WT[WP.cur].bloomBack || 0.12)));
     if (!I.held('fire')) WP.burst = 0;
     WP.firingRecently = IV.time - WP.lastFire < 0.6;
     stepSpread(dt);
@@ -498,10 +549,12 @@
     else if (!wantAim && IV.upperOf(P.actor) === 'aimIdle') P.actor.setUpper(null);
     // reload
     if (I.pressed('reload')) startReload();
+    // pulling the trigger with rounds still in the gun breaks off a reload and fires
+    if (I.pressed('fire') && WP.reloadT > 0 && WP.inv[WP.cur].mag > 0 && !P.sprinting) { WP.cancelReload(); WP.cool = Math.max(WP.cool, 0.12); }
     // fire
     const auto = WT[WP.cur].rpm >= 400;
     const trig = auto ? I.held('fire') : I.pressed('fire');
-    if (trig && WP.cool <= 0 && WP.reloadT <= 0 && WP.boltT <= 0 && !P.sprinting && !(P.sprintOutT > 0)) fire();
+    if (trig && WP.cool <= 1e-6 && WP.reloadT <= 0 && WP.boltT <= 0 && !P.sprinting && !(P.sprintOutT > 0)) fire();
     else if (trig && P.sprinting) P.sprinting = false;
   };
 
