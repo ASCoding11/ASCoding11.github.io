@@ -239,7 +239,7 @@
   // ---------------------------------------------------------------- materials
   W.mats = {};
   function std(o) { return new THREE.MeshStandardMaterial(Object.assign({ roughness: 0.92, metalness: 0 }, o)); }
-  // r128 has no colour management: hex colours are linear unless converted. Everything here is authored in sRGB.
+  // no colour management (r128 had none; the r187 build keeps it off): hex colours are linear unless converted. Everything here is authored in sRGB.
   const linDone = new WeakSet();
   W.linearize = function (root) {
     root.traverse(o => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) { if (linDone.has(m)) continue; linDone.add(m); if (m.userData.linear) continue; if (m.color) m.color.convertSRGBToLinear(); if (m.emissive) m.emissive.convertSRGBToLinear(); } });   // IVEnv materials are already linear (colour and emissive): skipped
@@ -269,14 +269,16 @@
   // Wind sway for instanced vegetation: vertices bend by height above the instance origin.
   W.windU = { value: 0 };
   W.grassClear = { value: new THREE.Vector4(0, 0, 0, 0) };
-  // r128 keys a compiled program on onBeforeCompile.toString(): every call of this patch has the same source but bakes
+  // three (r128 and r187) keys a compiled program on onBeforeCompile.toString(): every call of this patch has the same source but bakes
   // its own amp/freq into the shader, so each patch gets its own toString (and so its own program)
   function windPatch(amp, freq) {
     const f = function (sh) {
       // cards: both faces light like the front (no dark backs)
-      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace(/normal\s*=\s*normal\s*\*\s*faceDirection;/g, '').replace(/normal\s*\*=\s*faceDirection;/g, ''));
+      const nb = { fragmentShader: THREE.ShaderChunk.normal_fragment_begin };
+      IVEnv.patch(nb, 'fragment', /normal\s*\*=\s*faceDirection;/g, '', 'js/world wind: no face flip');   // r187's spelling (r128: normal = normal * faceDirection)
+      IVEnv.patch(sh, 'fragment', '#include <normal_fragment_begin>', nb.fragmentShader, 'js/world wind');
       sh.uniforms.uTime = W.windU;
-      sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+      IVEnv.patch(sh, 'vertex', '#include <begin_vertex>', `#include <begin_vertex>
         #ifdef USE_INSTANCING
           vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
         #else
@@ -285,7 +287,8 @@
         float hgt = max(position.y, 0.0);
         float ph = ip.x * 0.37 + ip.z * 0.29;
         transformed.x += sin(uTime * ${freq.toFixed(2)} + ph) * ${amp.toFixed(3)} * hgt;
-        transformed.z += cos(uTime * ${(freq * 0.83).toFixed(2)} + ph * 1.3) * ${(amp * 0.6).toFixed(3)} * hgt;`);
+        transformed.z += cos(uTime * ${(freq * 0.83).toFixed(2)} + ph * 1.3) * ${(amp * 0.6).toFixed(3)} * hgt;`, 'js/world wind');
+      sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader;
     };
     f.toString = () => 'ivwind:' + amp + ':' + freq;
     return f;
@@ -460,22 +463,25 @@
     const tg = W.tex.grass(), tm = W.tex.mud(), tgr = W.tex.gravel(); m.customProgramCacheKey = () => 'ivkitterrain';
     m.onBeforeCompile = function (sh) {
       sh.uniforms.tGrass = { value: tg }; sh.uniforms.tMud = { value: tm }; sh.uniforms.tGrav = { value: tgr };
-      sh.vertexShader = 'attribute float aMud; varying float vMud; varying vec3 vWP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMud = aMud; vWP = (modelMatrix * vec4(position,1.0)).xyz;');
-      sh.fragmentShader = 'uniform sampler2D tGrass; uniform sampler2D tMud; uniform sampler2D tGrav; varying float vMud; varying vec3 vWP;\n' +
-        sh.fragmentShader.replace('#include <map_fragment>', `
+      IVEnv.patch(sh, 'vertex', '#include <begin_vertex>', '#include <begin_vertex>\n vMud = aMud; vWP = (modelMatrix * vec4(position,1.0)).xyz;', 'js/world kit terrain');
+      sh.vertexShader = 'attribute float aMud; varying float vMud; varying vec3 vWP;\n' + sh.vertexShader;
+      // r128 read these sRGB canvas textures raw (no decode) in this shader; r187 decodes them on upload, so ivRaw
+      // encodes them back to keep the same colours
+      IVEnv.patch(sh, 'fragment', '#include <map_fragment>', `
           vec2 tuv = vWP.xz * 0.21;
-          float macro = texture2D(tGrass, vWP.xz * 0.011).r;
-          vec3 gA = texture2D(tGrass, tuv).rgb, gB = texture2D(tGrass, tuv * 0.31 + vec2(0.37, 0.71)).rgb;
+          float macro = ivRaw(tGrass, vWP.xz * 0.011).r;
+          vec3 gA = ivRaw(tGrass, tuv).rgb, gB = ivRaw(tGrass, tuv * 0.31 + vec2(0.37, 0.71)).rgb;
           vec3 gr = mix(gA, gB, smoothstep(0.35, 0.65, macro));
-          vec3 md = texture2D(tMud, tuv * 0.8).rgb;
-          vec3 gv = texture2D(tGrav, tuv * 1.3).rgb;
+          vec3 md = ivRaw(tMud, tuv * 0.8).rgb;
+          vec3 gv = ivRaw(tGrav, tuv * 1.3).rgb;
           float mw = clamp(vMud, 0.0, 1.0);
           float gw = clamp(vMud - 1.0, 0.0, 1.0);
           float hb = smoothstep(0.0, 1.0, clamp((mw * 1.4 - (gr.g - 0.3)), 0.0, 1.0));
           vec3 det = mix(gr, md, hb);
           det = mix(det, gv, gw);
           diffuseColor.rgb *= det * 2.0 * (0.85 + macro * 0.3);
-        `);
+        `, 'js/world kit terrain');
+      sh.fragmentShader = 'uniform sampler2D tGrass; uniform sampler2D tMud; uniform sampler2D tGrav; varying float vMud; varying vec3 vWP;\n#define ivRaw(t, uv) sRGBTransferOETF(texture2D(t, uv))\n' + sh.fragmentShader;
     };
     const mesh = new THREE.Mesh(g, m);
     mesh.receiveShadow = true;
