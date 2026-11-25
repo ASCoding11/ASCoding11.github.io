@@ -6,11 +6,11 @@
   'use strict';
   const $ = IV.$, W = IV.world, T = IV.TUNING;
   const H = IV.hud = {};
-  let cv, g, dpr = 1, hitT = 0, hitKill = false, hitHead = false, dmgT = 0, sup = 0, barks = [], fleckT = 0, flecks = [];
+  let cv, g, dpr = 1, hitT = 0, hitLife = 0.22, hitKill = false, hitHead = false, dmgT = 0, sup = 0, barks = [], fleckT = 0, flecks = [];
   const P = IV.player;
   H.init = function () {
     cv = $('hudc'); g = cv.getContext('2d');
-    IV.on('hitmarker', h => { hitT = 0.28; hitKill = h.kill; hitHead = h.head; });
+    IV.on('hitmarker', h => { hitKill = !!h.kill; hitHead = !!h.head; hitT = hitLife = hitKill ? 0.42 : hitHead ? 0.32 : 0.22; });
     IV.on('hurt', h => { dmgT = 1; fleckT = 1.2; makeFlecks(h.dmg); H.dmgDir = { a: P.hurtDir, x: h.from ? h.from.x : null, z: h.from ? h.from.z : null, t: 1.6 }; addArc(h); });
     IV.on('shot', k => { H.kickK = Math.min(1.6, (H.kickK || 0) + (k === 'rifle' ? 1.2 : k === 'pistol' ? 0.8 : 0.45)); });
     IV.on('suppressed', k => { sup = Math.min(1, sup + k * 0.6); });
@@ -135,7 +135,7 @@
     if (C.mode === 'scope' && WP.scoped) drawScope(w, h, u);
     else if (WP.binoc && C.mode === 'scope') drawBinoc(w, h, u);
     else if (P.alive && !P.cine && !(C.mode === 'first' && (WP.aiming || WP.scoped))) drawReticle(cx, cy, u, dt);   // always there from the hip (sprinting, jumping, reloading too); gone only down the sights
-    if (C.mode !== 'scope') drawHit(cx, cy, u);
+    drawHit(cx, cy, u);   // through the scope too: a rifle kill is confirmed where you are looking
     drawGrenadeWarn(cx, cy, u);
     drawAwareness(cx, cy, u);
     drawCompass(w, u);
@@ -192,13 +192,19 @@
     }
     g.shadowBlur = 0;
   }
-  // hit marker: four ticks round the centre, white on a hit, warm on a kill, red on a head kill; shown in ADS too
+  // hit markers, three kinds that read at a glance: a HIT is four short thin white ticks; a HEAD hit is thicker amber
+  // ticks; a KILL is long heavy red ticks that spread out (a head kill adds a red ring). Shown down the sights too.
   function drawHit(cx, cy, u) {
     if (hitT <= 0) return;
-    const k = 6 * u + (0.28 - hitT) * 20 * u, c = hitKill ? (hitHead ? '#ff5a3c' : '#f2e2c0') : '#fff';
-    g.strokeStyle = c; g.lineWidth = (hitKill ? 3 : 2) * u; g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 3 * u;
-    g.beginPath(); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { g.moveTo(cx + a * k, cy + b * k); g.lineTo(cx + a * (k + 8 * u), cy + b * (k + 8 * u)); } g.stroke();
-    g.shadowBlur = 0;
+    const age = hitLife - hitT, fade = Math.min(1, hitT / 0.12);
+    const kind = hitKill ? 'kill' : hitHead ? 'head' : 'hit';
+    const c = kind === 'kill' ? '255,74,46' : kind === 'head' ? '255,194,58' : '255,255,255';
+    const k = (kind === 'kill' ? 7 : 6) * u + age * (kind === 'kill' ? 30 : 16) * u, len = (kind === 'kill' ? 13 : kind === 'head' ? 10 : 7) * u;
+    g.strokeStyle = `rgba(${c},${fade.toFixed(3)})`; g.lineWidth = (kind === 'kill' ? 3.6 : kind === 'head' ? 3 : 2) * u; g.lineCap = 'round';
+    g.shadowColor = 'rgba(0,0,0,.85)'; g.shadowBlur = 3 * u;
+    g.beginPath(); for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { g.moveTo(cx + a * k, cy + b * k); g.lineTo(cx + a * (k + len), cy + b * (k + len)); } g.stroke();
+    if (kind === 'kill' && hitHead) { g.lineWidth = 2.2 * u; g.beginPath(); g.arc(cx, cy, k + len + 5 * u, 0, 6.29); g.stroke(); }
+    g.shadowBlur = 0; g.lineCap = 'butt';
   }
   // awareness: one arc per soldier who has noticed something, placed round the reticle in his direction
   function drawAwareness(cx, cy, u) {

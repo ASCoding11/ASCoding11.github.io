@@ -116,12 +116,32 @@
   };
   M.restoreCheckpoint = function () {
     const cp = IV.save.cp;
+    const deaths = IV.weapons.stats.deaths || 0;   // a retry keeps counting this run's deaths
     if (cp && cp.mission === M.def.id && cp.idx > 0) M.begin(cp.idx, cp.data); else M.begin(0, null);
+    IV.weapons.stats.deaths = Math.max(deaths, IV.weapons.stats.deaths || 0);
   };
   M.fail = function (reason) {
     if (M.failed || M.finished) return;
     M.failed = true; M.on = false;
     IV.emit('missionFailed', reason);
+  };
+  // The skill rating (0-1000) on the debrief: what a better player does better, each part capped so no single one
+  // carries a run. Accuracy 250 (60 % of rounds on target is full marks), head shots 200 (40 % of hits), time 200
+  // (half the par time is full, par is 100, one and a half par is 0), deaths 200 (minus 100 each), times spotted 150
+  // (minus 50 each). A run without a shot fired keeps full accuracy and head-shot marks: a clean ghost is skill too.
+  M.RATE_GOLD = 700;
+  M.PAR = { bootcamp: 360, nightdrop: 900 };
+  M.rate = function (s, def) {
+    const par = def.par || M.PAR[def.id] || 600, cl = IV.clamp;
+    const p = {
+      acc: s.shots ? Math.round(250 * cl(s.hits / s.shots / 0.6, 0, 1)) : 250,
+      head: s.hits ? Math.round(200 * cl(s.headHits / s.hits / 0.4, 0, 1)) : 200,
+      time: Math.round(200 * cl((1.5 * par - s.time) / par, 0, 1)),
+      deaths: Math.max(0, 200 - 100 * s.deaths),
+      spotted: Math.max(0, 150 - 50 * (s.spotted || 0))
+    };
+    s.scoreParts = p; s.score = p.acc + p.head + p.time + p.deaths + p.spotted; s.par = par;
+    return s.score;
   };
   M.complete = function () {
     if (M.finished || M.failed) return;
@@ -129,14 +149,20 @@
     const st = IV.weapons.stats, def = M.def;
     const s = { time: M.time, shots: st.shots, hits: st.hits, acc: st.shots ? Math.round(st.hits / st.shots * 100) : 0, kills: st.kills, heads: st.heads, takedowns: st.takedowns, spotted: IV.ai.spottedCount,
       optional: M.objs.filter(o => o.optional && o.state === 'done').length, optionalTotal: def.optionalTotal || M.objs.filter(o => o.optional).length, diff: M.diff };
+    s.headHits = st.headHits || 0; s.deaths = st.deaths || 0; s.headPct = s.hits ? Math.round(s.headHits / s.hits * 100) : 0;
+    M.rate(s, def);
     const crit = (def.medals || []).map(c => ({ text: IV.t(c.text, c.vars), ok: !!c.ok(s, M) }));
+    crit.push({ text: IV.t('Skill rating of {n} or better', { n: M.RATE_GOLD }), ok: s.score >= M.RATE_GOLD });
     const n = crit.filter(c => c.ok).length;
-    s.medal = n >= 3 ? 'gold' : n >= 2 ? 'silver' : 'bronze'; s.crit = crit;
+    s.medal = n >= crit.length ? 'gold' : n >= crit.length - 1 ? 'silver' : 'bronze'; s.crit = crit;
     const rec = IV.save.missions[def.id] = IV.save.missions[def.id] || {};
     const rank = { bronze: 1, silver: 2, gold: 3 };
     rec.done = true; rec.last = s.medal;
     if (!rec.medal || rank[s.medal] > rank[rec.medal]) rec.medal = s.medal;
     if (!rec.best || s.time < rec.best) rec.best = Math.round(s.time);
+    // the best skill rating and the run that set it (fields added to the save; older saves simply lack them)
+    s.prevBest = rec.bestScore || 0; rec.lastScore = s.score;
+    if (!rec.bestScore || s.score > rec.bestScore) { rec.bestScore = s.score; rec.bestRun = { score: s.score, acc: s.acc, headPct: s.headPct, time: Math.round(s.time), deaths: s.deaths, spotted: s.spotted, diff: s.diff }; s.newBest = true; }
     if (def.id === 'bootcamp') IV.save.tut = true;
     if (IV.save.cp && IV.save.cp.mission === def.id) IV.save.cp = null;
     IV.persist();
