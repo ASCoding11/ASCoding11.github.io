@@ -80,7 +80,11 @@
       float inside = ivInside(wp); if (inside <= 0.0) return;
       vec3 nW = inverseTransformDirection(nV, viewMatrix);
       rl.indirectDiffuse *= mix(1.0, 0.2, inside); rl.indirectSpecular *= mix(1.0, 0.6, inside);
+      #ifdef USE_SHADOWMAP
       rl.indirectDiffuse += inside * albedo * (ivWindows(wp, nW) * 10.0 + uRoomAmb);
+      #else
+      rl.indirectDiffuse += inside * albedo * (uWinC * 0.45 + uRoomAmb);   // Low: one flat fill, not a loop over the openings (cost)
+      #endif
       // bounce: the room's own light probe (js/world.js renders one when the camera walks into a room), its most
       // blurred level along the normal
       #if defined( USE_ENVMAP ) && defined( STANDARD )
@@ -396,8 +400,10 @@
     if (R.interior) defs.ENV_INTERIOR = '';
     // wear layers (MAP_FRAG): chipped paint (with what shows under it), rust runs, weathered timber, scuffed floors,
     // stained plaster, mottled sandbags
-    if (R.paintUnder) defs.ENV_PAINT_UNDER = R.paintUnder; if (R.paintUnder) defs.ENV_PAINT = '';
-    if (R.rust) defs.ENV_RUST = ''; if (R.timber) defs.ENV_TIMBER = ''; if (R.floor) defs.ENV_FLOOR = ''; if (R.stain) defs.ENV_STAIN = ''; if (R.bag) defs.ENV_BAG = '';
+    // (not on Low: Low must not cost more than it did before them)
+    const lowQ = E.Q.name === 'low';
+    if (lowQ) defs.ENV_LOW = ''; else { if (R.paintUnder) defs.ENV_PAINT_UNDER = R.paintUnder; if (R.paintUnder) defs.ENV_PAINT = '';
+      if (R.rust) defs.ENV_RUST = ''; if (R.timber) defs.ENV_TIMBER = ''; if (R.floor) defs.ENV_FLOOR = ''; if (R.stain) defs.ENV_STAIN = ''; if (R.bag) defs.ENV_BAG = ''; }
     if (R.wet && R.wet[2] > 0) defs.ENV_BEADS = '';
     m.defines = Object.assign(m.defines || {}, defs);
     const uni = {
@@ -438,7 +444,7 @@
       sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN; uniform vec3 uWetK;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' + E.GLSL.interiorUniforms +
         E.withPerturb(sh.fragmentShader).replace('void main() {', E.GLSL.interior + '\nvoid main() {');
     };
-    m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).map(k => k + defs[k]).join(',') + (m.userData.gapLit ? 'gap' : '');
+    m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).map(k => k + defs[k]).join(',') + (m.userData.gapLit ? 'gap' : '') + (lowQ ? 'L' : '');
   }
   const MAP_FRAG = `
     vec2 envUv = vMapUv;
@@ -503,7 +509,11 @@
       envAlb = mix(envAlb, envAlb * vec3(0.7, 0.66, 0.56), tide * 0.7);
       envAlb = mix(envAlb, vec3(0.03, 0.045, 0.015), moss * 0.8);
       envRough = mix(envRough, envRough * 0.7, damp);
+      #ifdef ENV_LOW
+      float splash = (1.0 - smoothstep(0.0, 0.2 + 0.22 * m1, foot)) * uGrime * 0.7;
+      #else
       float splash = (1.0 - smoothstep(0.0, 0.2 + 0.22 * m1, foot)) * uGrime * smoothstep(0.3, 0.6, texture2D(uMacro, wp.xz * 2.1 + wp.y * 3.0).g + 0.3);
+      #endif
       envAlb = mix(envAlb, vec3(0.045, 0.034, 0.022), splash * 0.9); envRough = mix(envRough, 0.5, splash * 0.5);
     }
     #endif
@@ -514,7 +524,11 @@
       float vert = 1.0 - abs(wn.y);
       float streak = texture2D(uMacro, vec2((wp.x + wp.z) * 0.33, wp.y * 0.05)).a;
       // green-black run-off streaks down walls (under sills, gutters, eaves), several per few metres
+      #ifdef ENV_LOW
+      float streak2 = 0.0;
+      #else
       float streak2 = texture2D(uMacro, vec2((wp.x + wp.z) * 0.9, wp.y * 0.07 + 0.2)).a;
+      #endif
       float runs = vert * max(smoothstep(0.55, 0.9, streak), smoothstep(0.62, 0.86, streak2) * 0.8) * uGrime;
       envAlb = mix(envAlb, envAlb * vec3(0.5, 0.55, 0.44), runs * 0.55);
       // patches that cross many stones or boards (a wall reads as one weathered surface first): lichen and green
@@ -532,6 +546,7 @@
       envRough = mix(envRough, 1.0, dustAmt);
     }
     // material wear, all in world space so it never repeats with the texture
+    #if defined(ENV_PAINT) || defined(ENV_RUST) || defined(ENV_TIMBER) || defined(ENV_FLOOR) || defined(ENV_STAIN) || defined(ENV_BAG)
     {
       vec3 wn3 = inverseTransformDirection(normalize(vNormal), viewMatrix); float vt = 1.0 - abs(wn3.y);
       float hf = texture2D(uMacro, wp.xy * 1.3 + wp.zz * 0.9 + 0.11).b * 0.6 + texture2D(uMacro, (wp.zy + wp.xx) * 3.1).r * 0.4;
@@ -568,6 +583,7 @@
         envAlb = mix(envAlb, vec3(0.08, 0.065, 0.045), smoothstep(0.62, 0.82, m2) * 0.6); }
       #endif
     }
+    #endif
     // rain by exposure and material: upward faces soak; vertical faces wet in streaks plus a splash band at the foot;
     // undersides (soffits, eave bottoms, sill undersides) stay dry; nothing inside a roofed box gets more than a trace
     float envWetUp = 0.0;

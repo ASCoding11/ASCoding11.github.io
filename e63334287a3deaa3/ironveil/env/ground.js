@@ -53,7 +53,7 @@
       sh.vertexShader = 'attribute vec4 aW0; attribute vec4 aW1; attribute vec4 aGC;\nvarying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;\n' + sh.vertexShader;
       // the sRGB layers are sampled raw and decoded here (sRGBTransferEOTF is r128's sRGBToLinear); the ground's normal
       // map UV is vNormalMapUv (r128's vUv)
-      const HEAD = `
+      const HEAD = (LOW ? "#define IV_GROUND_LOW\n" : "") + `
         uniform sampler2D uMarks; uniform vec4 uMarksRect; uniform sampler2D uWetMap; uniform vec4 uWetRect;
         uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime, uTl0, uNight; uniform vec2 uCarry;
         vec2 ivRipple(vec2 p, float t) { vec2 cell = floor(p), f = fract(p) - 0.5; float r = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453); float ph = fract(t * 1.4 + r * 7.0);
@@ -147,7 +147,7 @@
           #endif
           // standing water mirrors the lamps: a soft reflected image of each pooled light (the GGX highlight alone is a
           // pin-prick at this roughness), so a puddle shows the lamp instead of going black
-          #if NUM_POINT_LIGHTS > 0
+          #if NUM_POINT_LIGHTS > 0 && !defined(IV_GROUND_LOW)
           if (ivPud > 0.02) { vec3 ivR = reflect(normalize(-vViewPosition), normal);
             for (int i = 0; i < NUM_POINT_LIGHTS; i++) { vec3 ld = pointLights[i].position + vViewPosition; float dl = length(ld);
               float c = dot(ivR, ld / dl); reflectedLight.indirectSpecular += pointLights[i].color * exp((c - 1.0) * 700.0) * ivPud * 0.6 / (1.0 + dl * dl * 0.004); } }
