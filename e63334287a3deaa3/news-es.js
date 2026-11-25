@@ -6,6 +6,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Blackwade: it hunts every hall": "Blackwade: caza en todas las salas",
+    "The monster follows you into every hall and comes up out of the water ahead of you soon after you arrive, so you know it's there.": "El monstruo te sigue a todas las salas y sale del agua delante de ti poco después de que llegas, para que sepas que está ahí.",
+    "The water gives you away: going in is heard across the whole hall, and every step you wade calls it closer.": "El agua te delata: caer al agua se oye en toda la sala, y cada paso que das dentro lo trae más cerca.",
+    "It gets a little sharper each hall further in: it hears farther, reacts faster and moves quicker. Easy stays gentle; Hard does not.": "Se vuelve un poco más atento en cada sala: oye desde más lejos, reacciona antes y se mueve más rápido. Fácil sigue siendo suave; Difícil no.",
+    "Standing still and quiet on a tile is still safe, and pebbles, bottles, toys and flares pull it away.": "Quedarte quieto y en silencio sobre una baldosa sigue siendo seguro, y las piedras, botellas, juguetes y bengalas lo alejan.",
     "Showcase traffic chart fixed": "Arreglado el gráfico de visitas de la vitrina",
     "The visitors-per-day chart on the showcase page is readable again: a bot that loaded the page about 11,000 times in three days no longer counts as visitors.": "El gráfico de visitantes por día de la página de vitrina se puede leer otra vez: un bot que cargó la página unas 11.000 veces en tres días ya no cuenta como visitante.",
     "The showcase now shows total engaged hours instead of the average engaged time.": "La vitrina ahora muestra el total de horas de uso activo en vez del tiempo medio.",
