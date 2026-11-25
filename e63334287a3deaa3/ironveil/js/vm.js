@@ -106,7 +106,7 @@
       // the bolt knob pinched: fingers up past its outside and hooked over it, thumb up its front, ring and little tucked
       bolt: { side: 'l', part: 'bolt', solveObj: 'bolt', anchor: [0, 0.07, -0.013], at: [-0.047, -0.004, 0.064], fwd: [0.1, 1, 0.08], back: [-1, 0.1, 0],
         forearmGun: [-0.25, -0.75, -0.6], thumbGun: [[0.15, 0.55, 0.8], [0.35, 0.4, 0.85], [0.5, 0.2, 0.85]], nailGun: [-1, 0, 0], towardGun: [1, 0, 0],
-        pose: { cup: 0.4, fingers: { index: F4([0.3, 0.5, 0.3], 0.04), middle: F4([0.3, 0.5, 0.3], 0.0), ring: HK([1.2, 1.5, 1.05], -0.03), little: HK([1.25, 1.5, 1.05], -0.06) }, thumb: { close: true }, sleeve: 0.70 } }
+        pose: { cup: 0.45, fingers: { index: HK([0.75, 1.1, 0.7], 0.03), middle: HK([0.95, 1.3, 0.85], 0.0), ring: HK([1.2, 1.5, 1.05], -0.03), little: HK([1.25, 1.5, 1.05], -0.06) }, thumb: { close: true }, sleeve: 0.70 } }   // fingers curled round the knob (straighter, they stood up over the gun like a claw)
     }
   };
   // hands round things that are not the gun, in the thing's own frame (weapons.glb models: grenade, binoculars, knife)
