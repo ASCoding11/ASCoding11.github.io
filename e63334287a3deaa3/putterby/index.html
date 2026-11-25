@@ -50,7 +50,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .pill{background:rgba(255,251,242,.94);border-radius:16px;box-shadow:0 4px 14px rgba(20,40,30,.18);padding:8px 14px}
 #holeBox{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px));max-width:calc(100% - 190px)}
 #holeBox b{display:block;font-family:var(--f-d);font-weight:400;font-size:20px;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#holeBox span{font-weight:800;font-size:13px;color:var(--ink-2)}
+#holeBox span{display:block;font-weight:800;font-size:13px;color:var(--ink-2);white-space:nowrap}
 #holeBox span em{font-style:normal;color:var(--ink)}
 #clock{position:absolute;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);font-family:var(--f-d);font-size:18px;padding:6px 14px}
 #clock.low{color:#c2331f}
@@ -248,6 +248,9 @@ body.touch #hint{font-size:13px}
 <script src="../netsmooth.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../autores.js"></script>
+<script src="../colyseus.js"></script> <!-- the game relay: online rooms go through it (see README) -->
+<script src="../netrelay.js"></script>
+<script src="../netrelay-config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -388,11 +391,26 @@ function prepHole(src){
   for(const w of src.W||[])H.W.push({ax:w[0],az:w[1],bx:w[2],bz:w[3],ya:w[4]+RAIL_H,yb:w[4]+RAIL_H,base:GROUND_Y,t:RAIL_T,rail:1});
   for(const b of src.B||[])H.B.push({x:b[0],z:b[1],r:b[2],y:surfAt(H,b[0],b[1]),flash:0});
   for(const m of src.M||[])H.M.push(Object.assign({},m));
+  // A sliding gate stops a ball's width (plus a little) short of every rail, so it can never crush a ball through
+  // one and off the course. Worked out from the hole data alone, so every player's gates still match.
+  for(const m of H.M)if(m.k==='slide'){while(m.amp>0.05&&gateHitsWall(H,m,m.amp))m.amp=Math.round((m.amp-0.01)*100)/100}
   for(const l of src.L||[]){const y=surfAt(H,l.x,l.z);H.L.push(Object.assign({},l,{lx:l.dz,lz:-l.dx,y}))}
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;for(const p of H.P){x0=Math.min(x0,p.x0);x1=Math.max(x1,p.x1);z0=Math.min(z0,p.z0);z1=Math.max(z1,p.z1)}
   H.bx0=x0;H.bx1=x1;H.bz0=z0;H.bz1=z1;H.cx=(x0+x1)/2;H.cz=(z0+z1)/2;
   H.cupY=surfAt(H,H.cup[0],H.cup[1]);H.teeY=surfAt(H,H.tee[0],H.tee[1]);
   return H;
+}
+function gateHitsWall(H,m,amp){
+  const gap=2*R+0.03;
+  for(const s of [-1,1]){
+    const cx=m.x+m.ax*amp*s,cz=m.z+m.az*amp*s;
+    for(const w of H.W){
+      if(Math.max(w.ya,w.yb)<=m.y0)continue;
+      const hx=m.w/2+gap+w.t/2,hz=m.l/2+gap+w.t/2,L=Math.hypot(w.bx-w.ax,w.bz-w.az),n=Math.max(1,Math.ceil(L/0.04));
+      for(let i=0;i<=n;i++){const x=w.ax+(w.bx-w.ax)*i/n,z=w.az+(w.bz-w.az)*i/n;if(Math.abs(x-cx)<hx&&Math.abs(z-cz)<hz)return true}
+    }
+  }
+  return false;
 }
 function pieceTop(p,x,z){
   if(p.h1===p.h0)return p.h0;
@@ -449,14 +467,22 @@ function floorAt(H,b){
   }
   return bp?{top:best,p:bp}:null;
 }
+// Moving parts first and walls last, so a rail always wins: a gate that sweeps up to a rail squeezes the ball
+// along it instead of pushing it through and off the course. A ball pinned between a moving part and a wall can't
+// leave faster than it came in (or 0.6 m/s), so a squeeze never fires it across the hole.
 function collide(H,b,t){
-  for(const w of H.W){
-    const ex=w.bx-w.ax,ez=w.bz-w.az,L2=ex*ex+ez*ez;let u=L2>0?((b.x-w.ax)*ex+(b.z-w.az)*ez)/L2:0;u=clamp(u,0,1);
-    const px=w.ax+ex*u,pz=w.az+ez*u,dx=b.x-px,dz=b.z-pz,d2=dx*dx+dz*dz,rr=R+w.t/2;
-    if(d2>=rr*rr)continue;
-    const top=w.ya+(w.yb-w.ya)*u;if(b.y-R>=top||b.y+R<=w.base)continue;
-    const d=Math.sqrt(d2)||1e-6,nx=d2>0?dx/d:-ez/Math.sqrt(L2),nz=d2>0?dz/d:ex/Math.sqrt(L2);
-    b.x=px+nx*rr;b.z=pz+nz*rr;bounce(b,nx,nz,0.72,0,0);
+  const vx0=b.vx,vz0=b.vz;let moved=false;
+  for(const m of H.M){
+    if(b.y-R>m.y0+m.hgt||b.y+R<m.y0)continue;
+    const s=moverState(m,t);
+    if(m.k==='slide'){if(rectPush(b,s.x-m.w/2,s.x+m.w/2,s.z-m.l/2,s.z+m.l/2,s.vx,s.vz,0.6))moved=true}
+    else{
+      const ex=s.ca*m.len,ez=s.sa*m.len;
+      let u=((b.x-m.x)*ex+(b.z-m.z)*ez)/(ex*ex+ez*ez);u=clamp(u,-1,1);
+      const px=m.x+ex*u,pz=m.z+ez*u,dx=b.x-px,dz=b.z-pz,d2=dx*dx+dz*dz,rr=R+m.th/2;
+      if(d2<rr*rr){const d=Math.sqrt(d2)||1e-6,nx=d2>0?dx/d:-s.sa,nz=d2>0?dz/d:s.ca;b.x=px+nx*rr;b.z=pz+nz*rr;
+        const ox=px-m.x,oz=pz-m.z;bounce(b,nx,nz,0.6,-s.w*oz,s.w*ox);moved=true}
+    }
   }
   for(const q of H.B){
     const dx=b.x-q.x,dz=b.z-q.z,d2=dx*dx+dz*dz,rr=R+q.r;
@@ -467,23 +493,21 @@ function collide(H,b,t){
     const out=b.vx*nx+b.vz*nz;if(vn<0&&out<2.4){b.vx+=nx*(2.4-out);b.vz+=nz*(2.4-out)}
     if(vn<0){q.flash=1;b.bump=1}
   }
-  for(const m of H.M){
-    if(b.y-R>m.y0+m.hgt||b.y+R<m.y0)continue;
-    const s=moverState(m,t);
-    if(m.k==='slide'){rectPush(b,s.x-m.w/2,s.x+m.w/2,s.z-m.l/2,s.z+m.l/2,s.vx,s.vz,0.6)}
-    else{
-      const ex=s.ca*m.len,ez=s.sa*m.len;
-      let u=((b.x-m.x)*ex+(b.z-m.z)*ez)/(ex*ex+ez*ez);u=clamp(u,-1,1);
-      const px=m.x+ex*u,pz=m.z+ez*u,dx=b.x-px,dz=b.z-pz,d2=dx*dx+dz*dz,rr=R+m.th/2;
-      if(d2<rr*rr){const d=Math.sqrt(d2)||1e-6,nx=d2>0?dx/d:-s.sa,nz=d2>0?dz/d:s.ca;b.x=px+nx*rr;b.z=pz+nz*rr;
-        const ox=px-m.x,oz=pz-m.z;bounce(b,nx,nz,0.6,-s.w*oz,s.w*ox)}
-    }
+  let pinned=false;
+  for(const w of H.W){
+    const ex=w.bx-w.ax,ez=w.bz-w.az,L2=ex*ex+ez*ez;let u=L2>0?((b.x-w.ax)*ex+(b.z-w.az)*ez)/L2:0;u=clamp(u,0,1);
+    const px=w.ax+ex*u,pz=w.az+ez*u,dx=b.x-px,dz=b.z-pz,d2=dx*dx+dz*dz,rr=R+w.t/2;
+    if(d2>=rr*rr)continue;
+    const top=w.ya+(w.yb-w.ya)*u;if(b.y-R>=top||b.y+R<=w.base)continue;
+    const d=Math.sqrt(d2)||1e-6,nx=d2>0?dx/d:-ez/Math.sqrt(L2),nz=d2>0?dz/d:ex/Math.sqrt(L2);
+    b.x=px+nx*rr;b.z=pz+nz*rr;bounce(b,nx,nz,0.72,0,0);if(moved)pinned=true;
   }
+  if(pinned){const sp=Math.hypot(b.vx,b.vz),sp0=Math.hypot(vx0,vz0);if(sp>sp0&&sp>0){const k=Math.max(sp0,0.6)/sp;if(k<1){b.vx*=k;b.vz*=k}}}
 }
 // One physics step. t: the shared clock in seconds (for moving parts). Sets b.event to 'cup', 'water' or 'out'.
 function simStep(H,b,dt,t){
   if(b.mode==='cup'){b.ct+=dt;const k=Math.min(1,b.ct/0.22);b.x=lerp(b.x,H.cup[0],0.25);b.z=lerp(b.z,H.cup[1],0.25);b.y=H.cupY+R-0.28*k;return}
-  if(b.mode==='loop'){loopStep(b,dt);return}
+  if(b.mode==='loop'){loopStep(b,dt,H);return}
   if(b.lc>0)b.lc-=dt;
   if(b.ground&&b.piece){
     const p=b.piece,k=1+p.gx*p.gx+p.gz*p.gz;
@@ -522,19 +546,19 @@ function simStep(H,b,dt,t){
   if(b.ground&&sp<0.07&&pull<MU[b.piece?b.piece.t:'g']*GRAV){b.restT+=dt;if(b.restT>0.2){b.vx=b.vz=0;b.rest=true}}
   else{b.restT=0;b.rest=false}
 }
-function loopStep(b,dt){
+function loopStep(b,dt,H){
   const L=b.L;let th=b.ls/L.R;
   b.lv+=(-GRAV*Math.sin(th)-Math.sign(b.lv)*0.05*GRAV)*dt;b.ls+=b.lv*dt;th=b.ls/L.R;
   const N=b.lv*b.lv/L.R+GRAV*Math.cos(th),f=clamp(th/(2*Math.PI),0,1),lat=b.lat0+L.w*f*f*(3-2*f);
   const al=L.R*Math.sin(th),up=L.R*(1-Math.cos(th));
   b.x=L.x+L.dx*al+L.lx*lat;b.z=L.z+L.dz*al+L.lz*lat;b.y=L.y+R+up;b.rest=false;b.restT=0;
-  if(b.ls<=0){b.mode='roll';b.ground=true;b.piece=null;b.x=L.x+L.lx*b.lat0-L.dx*0.1;b.z=L.z+L.lz*b.lat0-L.dz*0.1;b.y=L.y+R;b.vx=L.dx*b.lv;b.vz=L.dz*b.lv;b.vy=0;b.lc=0.6;relink(b)}
-  else if(b.ls>=2*Math.PI*L.R){b.mode='roll';b.ground=true;b.piece=null;const la=b.lat0+L.w;b.x=L.x+L.lx*la+L.dx*0.14;b.z=L.z+L.lz*la+L.dz*0.14;b.y=L.y+R;b.vx=L.dx*b.lv;b.vz=L.dz*b.lv;b.vy=0;b.lc=0.6;relink(b)}
+  if(b.ls<=0){b.mode='roll';b.ground=true;b.piece=null;b.x=L.x+L.lx*b.lat0-L.dx*0.1;b.z=L.z+L.lz*b.lat0-L.dz*0.1;b.y=L.y+R;b.vx=L.dx*b.lv;b.vz=L.dz*b.lv;b.vy=0;b.lc=0.6;relink(b,H)}
+  else if(b.ls>=2*Math.PI*L.R){b.mode='roll';b.ground=true;b.piece=null;const la=b.lat0+L.w;b.x=L.x+L.lx*la+L.dx*0.14;b.z=L.z+L.lz*la+L.dz*0.14;b.y=L.y+R;b.vx=L.dx*b.lv;b.vz=L.dz*b.lv;b.vy=0;b.lc=0.6;relink(b,H)}
   else if(N<0&&th>Math.PI/2&&th<1.5*Math.PI){ // too slow at the top: it falls off the track
     b.mode='roll';b.ground=false;b.vx=L.dx*b.lv*Math.cos(th);b.vz=L.dz*b.lv*Math.cos(th);b.vy=b.lv*Math.sin(th);b.lc=1.2;
   }
 }
-function relink(b){const f=floorAt(hole,b);if(f){b.piece=f.p;b.y=f.top+R}else b.ground=false}
+function relink(b,H){const f=floorAt(H||hole,b);if(f){b.piece=f.p;b.y=f.top+R}else b.ground=false}
 
 // =====================================================================
 //  Drawing (three.js r128). Each hole is rebuilt when it starts: the
@@ -729,10 +753,10 @@ function clockT(){return now()/1000}
 function loadHole(H){hole=H;buildHole(H);ball=newBall(H);ball.piece=floorAt(H,ball)?floorAt(H,ball).p:null;G.strokes=0;G.lastShot={x:ball.x,y:ball.y,z:ball.z};G.state='aim';
   cam.yaw=Math.atan2(H.cup[0]-H.tee[0],H.cup[1]-H.tee[1]);cam.tyaw=cam.yaw;cam.cy=cam.yaw;cam.over=false;$('bView').classList.remove('on');cam.target.set(ball.x,ball.y,ball.z);cam.userTurned=false;
   for(const e of ents.values())e.snaps.length=0;updateHud()}
-function holeLabel(){return G.mode==='daily'?'Daily hole':'Hole '+(G.holeIdx+1)+' of '+HOLES}
+function holeLabel(){return G.mode==='daily'?'Daily hole':'Hole '+(G.holeIdx+1)+(innerWidth<=480?'/':' of ')+HOLES}   // short on phones so the box stays two lines
 function updateHud(){
-  $('hName').textContent=holeLabel()+' · '+hole.n;
-  $('hInfo').innerHTML='Par '+hole.par+' · Shot <em>'+Math.min(G.strokes+(G.state==='aim'?1:0),MAX_SHOTS+1)+'</em>'+(G.mode!=='daily'?' · '+relTotal():'');
+  $('hName').textContent=hole.n;
+  $('hInfo').innerHTML=(G.mode==='daily'?'':esc(holeLabel())+' · ')+'Par '+hole.par+' · Shot <em>'+Math.min(G.strokes+(G.state==='aim'?1:0),MAX_SHOTS+1)+'</em>'+(G.mode!=='daily'?' · '+relTotal():'');
 }
 function relTotal(){let s=0,p=0;G.card.forEach((v,i)=>{if(v!=null){s+=v;p+=COURSE[i].par}});const d=s-p;return p?(d===0?'E':d>0?'+'+d:''+d):'E'}
 function scoreName(st,par){if(st===1)return'Hole in one!';const d=st-par;return d<=-3?'Albatross!':d===-2?'Eagle!':d===-1?'Birdie!':d===0?'Par':d===1?'Bogey':d===2?'Double bogey':(st>=PICKUP?'Picked up':'+'+d)}
@@ -784,14 +808,15 @@ function nextSolo(){
 }
 
 // ---- daily ----
-function startDaily(){Net.leave();G.mode='daily';G.dkey=dayKey();loadHole(prepHole(dailyHole(G.dkey)));show(null);showHint(hintShown?'':'Drag back from your ball and let go to putt')}
+function startDaily(){Net.leave();G.mode='daily';G.dailyRes=null;G.dkey=dayKey();loadHole(prepHole(dailyHole(G.dkey)));show(null);showHint(hintShown?'':'Drag back from your ball and let go to putt')}
 function dailyState(){const d=store.get('daily',null);return d&&typeof d==='object'?d:{}}
 function dailyDone(st){
   const d=dailyState(),k=G.dkey;let first=false;
   if(d.k!==k){first=true;const streak=d.k===prevDay(k)?(d.n|0)+1:1;Object.assign(d,{k,first:st,best:st,n:streak});stat('max','dstreak',streak)}
   else d.best=Math.min(d.best||99,st);
   store.set('daily',d);renderDaily();
-  setTimeout(()=>{if(G.mode!=='daily')return;showCard(true,{daily:true,first,st,d})},1600);
+  G.dailyRes={daily:true,first,st,d};
+  setTimeout(()=>{if(G.mode!=='daily'||!G.dailyRes)return;G.state='over';showCard(true,G.dailyRes)},1600);
 }
 function renderDaily(){const d=dailyState(),k=dayKey();let t;
   if(d.k===k)t='Today’s hole: <b>'+d.first+'</b> (best '+d.best+') · streak '+(d.n|0)+' day'+((d.n|0)===1?'':'s');
@@ -822,9 +847,18 @@ function renderCardTable(){
   $('scTable').innerHTML=h;return rows;
 }
 function showCard(final,o){
-  o=o||{};G.cardOpen=true;G.userCard=!!o.user;const btns=$('cardBtns');btns.innerHTML='';
+  o=o||{};
+  // the daily hole has no nine-hole card: show its result once it's finished, or the hole so far before that
+  if(G.mode==='daily'&&!o.daily)o=G.dailyRes||{daily:true,live:true};
+  G.cardOpen=true;G.userCard=!!o.user;const btns=$('cardBtns');btns.innerHTML='';
   const mk=(t,cls,fn)=>{const b=document.createElement('button');b.type='button';b.className='btn '+cls;b.textContent=t;b.onclick=fn;btns.appendChild(b);return b};
-  if(o.daily){
+  if(o.daily&&o.live){
+    const d=dailyState(),today=d.k===G.dkey;
+    $('cardTitle').textContent='Daily hole';$('cardSub').textContent='Daily hole';
+    $('scTable').innerHTML='<tr><th class="nm">Daily hole</th><th>Par</th><th>Shots</th><th>Today</th><th>Streak</th></tr><tr><td class="nm">'+esc(hole.n)+'</td><td>'+hole.par+'</td><td class="tot">'+G.strokes+'</td><td>'+(today?d.first:'–')+'</td><td>'+(d.n|0)+' day'+((d.n|0)===1?'':'s')+'</td></tr>';
+    $('cardNote').textContent=today?'You’ve already finished today’s hole; this round is for practice.':'Your first finish of the day is your score.';
+    mk('Back to the hole','cta',hideCard);
+  }else if(o.daily){
     $('cardTitle').textContent=scoreName(o.st,hole.par);$('cardSub').textContent='Daily hole';
     $('scTable').innerHTML='<tr><th class="nm">Daily hole</th><th>Par</th><th>Today</th><th>Best today</th><th>Streak</th></tr><tr><td class="nm">'+esc(hole.n)+'</td><td>'+hole.par+'</td><td class="tot">'+o.d.first+'</td><td>'+o.d.best+'</td><td>'+(o.d.n|0)+' day'+((o.d.n|0)===1?'':'s')+'</td></tr>';
     $('cardNote').textContent=o.first?'Your first finish today counts. Come back tomorrow for a new hole.':'Only your first finish of the day counts; this one was for practice.';
@@ -834,8 +868,8 @@ function showCard(final,o){
     if(final){
       const me=totals(G.card);
       if(G.mode==='online'){
-        const full=rows.filter(r=>r.k===HOLES),win=full.length?Math.min(...full.map(r=>r.s)):0,mine=me.k===HOLES&&me.s===win;
-        $('cardTitle').textContent=mine?'You win!':full.length?'Round over':'Round over';
+        const full=rows.filter(r=>r.k===HOLES),win=full.length?Math.min(...full.map(r=>r.s)):0,mine=full.length>=2&&me.k===HOLES&&me.s===win;
+        $('cardTitle').textContent=mine?'You win!':'Round over';
         $('cardNote').textContent=full.length?('Lowest total: '+win+'. '+(rows.length>1?'Players who joined part way through aren’t ranked.':'')):'';
         if(G.host)mk('Play again','cta',()=>{hideCard();startRound()});else mk('Waiting for the host…','ghost',()=>{}).disabled=true;
         mk('Leave','ghost',toMenu);
@@ -912,7 +946,7 @@ addEventListener('keyup',e=>{keys[e.code]=false});
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
 function toggleView(){cam.over=!cam.over;$('bView').classList.toggle('on',cam.over);if(cam.over&&drag&&drag.aim)cancelAim()}
 function toggleMenuConfirm(){if(G.mode==='online'){if(confirm('Leave this room?'))toMenu()}else toMenu()}
-$('bView').onclick=toggleView;$('bCard').onclick=()=>{if(G.cardOpen)hideCard();else showCard(false,{user:1})};$('bMenu').onclick=toggleMenuConfirm;
+$('bView').onclick=toggleView;$('bCard').onclick=()=>{if(G.cardOpen){if(G.state!=='over')hideCard()}else showCard(false,{user:1})};$('bMenu').onclick=toggleMenuConfirm;
 
 function updateCamera(dt){
   if(keys.ArrowLeft||keys.KeyA){cam.yaw+=1.8*dt;cam.tyaw=cam.yaw;cam.userTurned=true}
@@ -987,7 +1021,7 @@ const Net={
     try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),25000,'Signing in to the game server timed out. Check your connection, or play on your own.')}
     catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console.':'Sign-in failed: '+(err.message||c))}
     finally{clearTimeout(slow)}
-    this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    this.uid=firebase.auth().currentUser.uid;this.db=(window.NetRelay?NetRelay.database(firebase.database(),window.RELAY_ROOMS):firebase.database());
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
@@ -1193,7 +1227,7 @@ function updateClock(){
   if(G.state==='done'){const w=participants().filter(p=>p.r===rs.id&&p.hd<rs.ho).length;$('clock').textContent=w?'Waiting for '+w+' · '+Math.ceil(left)+'s':'Next hole…';$('clock').classList.remove('low')}
   else{$('clock').textContent=Math.ceil(left)+'s';$('clock').classList.toggle('low',left<20)}
 }
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?62:50;camera.updateProjectionMatrix()}
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?62:50;camera.updateProjectionMatrix();if(G.mode!=='menu')updateHud()}
 addEventListener('resize',resize);
 // A tab in the background gets no frames: keep the node fresh and, for the host, the round moving.
 setInterval(()=>{if(!document.hidden||!Net.refs)return;try{hostTick();if(performance.now()-Net.hbT>2000)Net.upd({})}catch(err){console.error(err)}},1000);
@@ -1227,8 +1261,8 @@ if(navigator.webdriver)window.__qg={G,Net,COURSE,cam,camera,renderer,ballScreen,
   advance(s){G.noRender=true;try{const n=Math.round(s/DT);for(let i=0;i<n;i++){stepBall(clockT());if(G.state==='done'&&G.mode==='solo'&&i===n-1){}}}finally{G.noRender=false}},
   frame(n){for(let i=0;i<(n||1);i++)update(1/60);renderer.render(scene,camera)},
   // a ghost putt on a copy of the ball: where would it end up? (for checking holes can be played)
-  trial(H,from,dir,p,secs){const b=newBall(H);Object.assign(b,from||{});const f=floorAt(H,b);if(f){b.piece=f.p;b.y=f.top+R}b.vx=Math.sin(dir)*VMAX*p;b.vz=Math.cos(dir)*VMAX*p;b.rest=false;b.restT=0;let ev='';
-    for(let i=0;i<(secs||25)/DT;i++){b.event='';simStep(H,b,DT,i*DT);if(b.event){ev=b.event;break}if(b.rest&&i>10)break}return{x:b.x,y:b.y,z:b.z,ev,mode:b.mode,rest:b.rest}},
+  trial(H,from,dir,p,secs){const t0=clockT(),b=newBall(H);Object.assign(b,from||{});const f=floorAt(H,b);if(f){b.piece=f.p;b.y=f.top+R}b.vx=Math.sin(dir)*VMAX*p;b.vz=Math.cos(dir)*VMAX*p;b.rest=false;b.restT=0;let ev='';
+    for(let i=0;i<(secs||25)/DT;i++){b.event='';simStep(H,b,DT,t0+i*DT);if(b.event){ev=b.event;break}if(b.rest&&i>10)break}return{x:b.x,y:b.y,z:b.z,ev,mode:b.mode,rest:b.rest}},
   autoPutt(){const H=hole,from={x:ball.x,z:ball.z,y:ball.y};let best=null;
     for(let a=0;a<72;a++)for(let p=0.1;p<=1.001;p+=0.06){const r=this.trial(H,from,a/72*Math.PI*2,p,15);if(r.ev==='water'||r.ev==='out')continue;const d=r.ev==='cup'?-1:Math.hypot(r.x-H.cup[0],r.z-H.cup[1]);if(!best||d<best.d)best={d,a:a/72*Math.PI*2,p};if(d<0)break}
     return best?shoot(Math.sin(best.a),Math.cos(best.a),best.p):false},

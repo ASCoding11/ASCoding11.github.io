@@ -29,11 +29,15 @@ When adding a game:
 - Add a `kind: 'game'` entry for it to What's new (`e63334287a3deaa3/news.js`, with its Spanish in `news-es.js`), with the game in `games` and its phone thumbnail as `img`, so it appears in the "New games!" row.
 - Make it playable on a phone: on-screen touch controls shown only on touch screens (see how Shell Crackers or Kartwheel do it), with nothing overlapping in portrait or with the phone sideways. Then add it to the phone page: a row in `GROUPS` in `e63334287a3deaa3/m/index.html` and a 560 × 350 thumbnail in `e63334287a3deaa3/m/thumbs/`.
 
+## Skills
+
+`.claude/skills/` has this repo's own skills (game-graphics, game-performance, war-game-series) and all the game-dev skills from awesome-gamedev-agent-skills (see `.claude/gamedev-skills/README.md`), including engines and workflows the site doesn't use yet, for later projects. Use them, but the general ones often show Godot or Unity code: translate the idea to this site's plain JavaScript and three.js, and where they disagree with this file or the repo's own skills, this file and the repo's own skills win. The three.js skills target r187 with ES modules; follow them only for pages that have moved to r187.
+
 ## Rules
 
 - Keep each pull request to one feature or fix, and leave unrelated code alone.
 - Every update and pull request adds an entry to the top of `NEWS` in `e63334287a3deaa3/news.js` (the Back Room's What's new strip and its "New games!" row), following the how-to at the top of that file: the merge date, the next version number, `kind` (`game`, `feature` or `fix`), a short title and bullet points written for players. A new game also lists its name in `games` so it shows as a "New games!" chip for a week. Add the Spanish for each new line to `e63334287a3deaa3/news-es.js` too. The only exception is a change players can't notice at all (a README or comment edit); say so in the pull request.
-- Don't change these without saying so clearly in the pull request: `netlify.toml`, `_redirects`, `ads.txt`, `privacy.html`, `robots.txt`, `sitemap.xml`, `account/`, `analytics/`, AdSense code, or Firebase config.
+- Don't change these without saying so clearly in the pull request: `.github/workflows/`, `_redirects`, `_routes.json`, `functions/`, `ads.txt`, `privacy.html`, `robots.txt`, `sitemap.xml`, `account/`, `analytics/`, AdSense code, or Firebase config.
 - Never commit secrets, API keys, passwords or private files. `rounds.json` for Hype Cycle Exchange is deliberately kept out of the repo.
 - Don't add outside scripts, trackers or ads unless the pull request is specifically about that.
 - Write all game text, trivia questions and college prompt summaries in your own words; don't paste copyrighted text.

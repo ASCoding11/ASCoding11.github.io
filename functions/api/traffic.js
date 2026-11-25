@@ -7,11 +7,17 @@
 //   traffic_days/_latest       the last answer; reused for 30 minutes, so most requests cost one read
 // Only this function (the service account) reads or writes traffic_days; the site's pages can't reach it.
 //
-// Bot traffic: a session made only of 0-second homepage views with no referrer is left out (a burst of 3,158 such
-// hits on 2026-10-28 was a bot). The homepage itself is left out of the top pages list.
+// Bot traffic: a session whose every view had 0 engaged seconds is left out if it was a first visit or came with no
+// referrer, on any page. Bots load a page for under 5 seconds with fresh storage, so they look exactly like that: a
+// burst of 3,158 such homepage hits on 2026-10-28, and about 11,000 /showcase/ "visitors" on 2026-11-20..22 with 0.4
+// engaged hours between them, which flattened the showcase chart. The homepage is left out of the top pages list.
+//
+// VER: bump it whenever summarize() changes, so saved day summaries are worked out again with the new rules. At most
+// REDO_MAX old days are redone per request (each costs that day's pageview reads); until they're all redone, the
+// answer isn't saved to _latest, so the next requests carry on where this one stopped.
 import { cors, json, googleToken, DOCS, FS } from '../_lib.js';
 
-const DAYS = 30, FRESH_MS = 30 * 60 * 1000, DAY_MS = 86400000;
+const DAYS = 30, FRESH_MS = 30 * 60 * 1000, DAY_MS = 86400000, VER = 2, REDO_MAX = 4;
 const NAMES = { 'rumble-karts': 'Rumble Karts', 'backrooms-1v1': 'Backrooms 1v1', 'hype-cycle': 'Hype Cycle Exchange',
   'games': 'Web Development Projects page', 'productivity': 'Productivity page', 'phone-games': 'Phone games page', 'back-room': 'Back Room page' };
 const label = k => NAMES[k] || k.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -34,20 +40,26 @@ export async function onRequestGet({ request, env }) {
 export async function traffic(env, fetchFn, now) {
   const auth = { Authorization: 'Bearer ' + await googleToken(env, fetchFn) };
   const latest = await getDoc(fetchFn, auth, 'traffic_days/_latest');
-  if (latest && now - latest.at < FRESH_MS) return latest.out;
+  if (latest && latest.ver === VER && now - latest.at < FRESH_MS) return latest.out;
 
   const today = dayKey(now), start = Date.parse(today) - (DAYS - 1) * DAY_MS;
   const keys = []; for (let i = 0; i < DAYS; i++) keys.push(dayKey(start + i * DAY_MS));
   const past = keys.slice(0, -1), saved = await getDocs(fetchFn, auth, past.map(k => 'traffic_days/' + k));
   const days = [], writes = [];
-  for (const k of past) {
+  let redone = 0, behind = false;
+  for (const k of past.slice().reverse()) {   // newest first, so recent days are redone first
     let d = saved[k];
-    if (!d) { d = summarize(await pageviews(fetchFn, auth, Date.parse(k), Date.parse(k) + DAY_MS)); writes.push(['traffic_days/' + k, d]); }
-    days.push(d);
+    const stale = d && d.ver !== VER;
+    if (!d || (stale && redone < REDO_MAX)) {
+      if (stale) redone++;
+      d = summarize(await pageviews(fetchFn, auth, Date.parse(k), Date.parse(k) + DAY_MS));
+      writes.push(['traffic_days/' + k, d]);
+    } else if (stale) behind = true;
+    days.unshift(d);
   }
   days.push(summarize(await pageviews(fetchFn, auth, Date.parse(today), Date.parse(today) + DAY_MS)));
   const out = combine(days, today);
-  writes.push(['traffic_days/_latest', { at: now, out }]);
+  if (!behind) writes.push(['traffic_days/_latest', { at: now, ver: VER, out }]);
   await putDocs(fetchFn, auth, writes);
   return out;
 }
@@ -56,9 +68,9 @@ export async function traffic(env, fetchFn, now) {
 export function summarize(rows) {
   const bySid = {};
   for (const r of rows) (bySid[r.sid] = bySid[r.sid] || []).push(r);
-  const day = { pv: 0, dur: 0, s: 0, v: {}, sites: {} };
+  const day = { ver: VER, pv: 0, dur: 0, s: 0, v: {}, sites: {} };
   for (const sess of Object.values(bySid)) {
-    if (sess.every(r => r.site === 'home' && !r.dur && !r.ref)) continue;   // bot-like: see the note at the top
+    if (sess.every(r => !r.dur) && (sess.some(r => r.nv) || sess.every(r => !r.ref))) continue;   // bot-like: see the note at the top
     day.s++;
     const vid = sess[0].vid, v = day.v[vid] || (day.v[vid] = [0, 0, 0]);
     v[2]++;

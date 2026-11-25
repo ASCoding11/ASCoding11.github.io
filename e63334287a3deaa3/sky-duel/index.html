@@ -144,30 +144,44 @@ table.standings i.dot{display:inline-block;width:11px;height:11px;border-radius:
 .mark{position:absolute;left:0;top:0;width:36px;height:36px;margin:-18px 0 0 -18px;border:2px solid var(--red);border-radius:4px;will-change:transform}
 .mark.fr{border-color:var(--cyan)}
 .mark.tg{box-shadow:0 0 0 2px rgba(255,255,255,.75)}
-.mark span{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:3px;font-size:11.5px;white-space:nowrap;font-weight:700}
+/* the name sits to the right of the box, out of the middle of the screen; only the nearest two and the target have one */
+.mark span{position:absolute;left:100%;top:50%;transform:translateY(-50%);margin-left:6px;font-size:11.5px;white-space:nowrap;font-weight:700}
+.mark.nolbl span{display:none}
 .mark u{position:absolute;left:-2px;bottom:100%;margin-bottom:3px;height:4px;width:40px;background:rgba(0,10,30,.55);border-radius:2px;text-decoration:none}
 .mark u i{display:block;height:100%;background:var(--red);border-radius:2px}
 .mark.fr u i{background:var(--cyan)}
 .mark.off{border:0;width:0;height:0;margin:0}
 .mark.off::before{content:"";position:absolute;left:-9px;top:-9px;border:9px solid transparent;border-left:15px solid var(--red);border-right:0;transform:rotate(var(--a,0deg));transform-origin:9px 9px}
 .mark.off.fr::before{border-left-color:var(--cyan)}
+.mark.off.far{opacity:.45}
+.mark.off.tg::before{border-left-color:#fff}
 .mark.off span,.mark.off u{display:none}
 #hitm{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px;opacity:0;transition:opacity .25s}
 #hitm.on{opacity:1;transition:none}
 #hitm::before,#hitm::after{content:"";position:absolute;left:14px;top:0;width:2px;height:30px;background:#fff;transform:rotate(45deg)}
 #hitm::after{transform:rotate(-45deg)}
+#hitm.kill{width:46px;height:46px;margin:-23px}#hitm.kill::before,#hitm.kill::after{left:21px;height:46px;width:3px;background:var(--red);box-shadow:0 0 6px rgba(255,90,77,.9)}
+/* where the shots that hit you came from: an arc on a ring round the middle, pointing at the attacker */
+.dmg{position:absolute;left:50%;top:50%;width:0;height:0;opacity:0;transition:opacity .9s}
+.dmg.on{opacity:1;transition:none}
+.dmg i{position:absolute;left:-46px;top:-150px;width:92px;height:26px;border-radius:50% 50% 0 0/100% 100% 0 0;border-top:6px solid rgba(255,70,50,.9);filter:drop-shadow(0 0 4px rgba(255,40,20,.8))}
+body.touch .dmg i{top:-110px}
 #warn{position:absolute;left:50%;top:24%;transform:translateX(-50%);display:grid;gap:5px;justify-items:center;font-family:var(--f-d);font-weight:400;font-size:19px;letter-spacing:.06em;text-align:center}
 #warn div{background:rgba(190,26,16,.85);border-radius:8px;padding:3px 12px;animation:blink .5s steps(2) infinite}
 #warn div.soft{background:rgba(8,22,46,.6);animation:none;font-size:15px}
 @keyframes blink{50%{opacity:.35}}
-#banner{position:absolute;left:50%;top:36%;transform:translateX(-50%);font-family:var(--f-d);font-weight:400;font-size:clamp(20px,4.4vw,34px);text-align:center;white-space:nowrap;opacity:0;transition:opacity .4s}
+#reticle,#nose,#lead,#lockRing,#marks{transition:opacity .25s}
+#hud.killfade #reticle,#hud.killfade #nose,#hud.killfade #lead,#hud.killfade #lockRing,#hud.killfade #marks{opacity:.1;transition:opacity .08s}
+/* banners are a short line under the score, never over the fight */
+#banner{position:absolute;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);font-family:var(--f-d);font-weight:400;font-size:clamp(17px,2.4vw,23px);text-align:center;white-space:nowrap;opacity:0;transition:opacity .4s}
 #banner.on{opacity:1}
-#banner small{display:block;font-family:var(--f-b);font-weight:700;font-size:15px;letter-spacing:.04em;margin-top:4px}
+#banner small{display:block;font-family:var(--f-b);font-weight:700;font-size:13px;letter-spacing:.04em;margin-top:2px}
 #vign{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(255,40,20,0) 45%,rgba(255,40,20,.55));opacity:0}
 #white{position:absolute;inset:0;background:#fff;opacity:0}
 #gvign{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 42%,rgba(0,0,0,.85));opacity:0;pointer-events:none}
 #hud.cockpit #nose,#hud.cockpit #status{display:none}
 #hint{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));font-size:12.5px;text-align:right;line-height:1.55;opacity:.9;max-width:330px}
+#hint{transition:opacity .8s}#hint.gone{opacity:0}
 #hint b{background:rgba(8,22,46,.6);border-radius:5px;padding:1px 6px;font-weight:800}
 #board{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,92vw);background:rgba(8,22,46,.82);border:1.5px solid rgba(255,255,255,.3);border-radius:14px;padding:10px 14px;text-shadow:none}
 #board table{width:100%;border-collapse:collapse;font-size:14.5px}
@@ -202,19 +216,19 @@ body.touch #top{padding:3px 9px;gap:7px}
 body.touch #top b{font-size:19px}body.touch #top #clock{font-size:15px;min-width:44px}
 body.touch #status{width:300px;max-width:calc(100vw - 420px);bottom:calc(14px + env(safe-area-inset-bottom,0px));padding:5px 8px;gap:3px}
 body.touch #warn{top:19%;font-size:16px}
-body.touch #banner{top:30%}
+body.touch #banner{top:calc(56px + env(safe-area-inset-top,0px))}
 @media (orientation:portrait){
   body.touch #status{max-width:calc(100vw - 20px);bottom:calc(158px + env(safe-area-inset-bottom,0px))}
   body.touch #top{left:auto;right:calc(8px + env(safe-area-inset-right,0px));transform:none}
   body.touch #feed div:nth-last-child(n+4){display:none}
-  body.touch #warn{top:calc(164px + env(safe-area-inset-top,0px));width:max-content;max-width:calc(100vw - 24px)}
-  body.touch #banner{top:42%;white-space:normal;width:max-content;max-width:calc(100vw - 32px)}
+  body.touch #warn{top:calc(212px + env(safe-area-inset-top,0px));width:max-content;max-width:calc(100vw - 24px)}
+  body.touch #banner{top:calc(156px + env(safe-area-inset-top,0px));white-space:normal;width:max-content;max-width:calc(100vw - 32px)}
 }
 @media (orientation:landscape){
-  body.touch #banner{font-size:22px;white-space:normal;width:max-content;max-width:calc(100vw - 400px)}
+  body.touch #banner{font-size:18px;white-space:normal;width:max-content;max-width:calc(100vw - 400px)}
 }
 @media (orientation:landscape) and (max-height:520px){
-  body.touch #warn{top:17%}
+  body.touch #warn{top:28%}
   .card{padding:14px 16px}
 }
 @media (prefers-reduced-motion:reduce){#warn div{animation:none}}
@@ -235,7 +249,7 @@ body.touch #banner{top:30%}
     <div id="lead" class="hm" hidden><i></i></div>
     <div id="nose" class="hm"></div>
     <div id="reticle" class="hm"></div>
-    <div id="hitm"></div>
+    <div id="hitm"></div><div class="dmg"><i></i></div><div class="dmg"><i></i></div><div class="dmg"><i></i></div>
     <div id="top"><b id="scoreL">0</b><div><div id="clock">0:00</div><small id="rule"></small></div><b id="scoreR">0</b></div>
     <div id="feed" aria-live="polite"></div>
     <canvas id="radar" width="264" height="264" aria-hidden="true"></canvas>
@@ -403,6 +417,9 @@ body.touch #banner{top:30%}
 <script src="../autores.js"></script>
 <script src="../netsmooth.js"></script>
 <script src="../keybinds.js"></script>
+<script src="../colyseus.js"></script> <!-- the game relay: online rooms go through it (see README) -->
+<script src="../netrelay.js"></script>
+<script src="../netrelay-config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -458,9 +475,16 @@ const CEIL=900;                       // the air thins out above this and the en
 // 10.08 m, now 11.59 m), so what you see is what you hit. The shooter's own browser decides its bullets' hits, so a page
 // from before this change in the same room still works; its hits just use its own older radius.
 const PLANE_GROW=1.12*1.15,PLANE_SIZE=1.15*PLANE_GROW;
-const BULLET_V=540,BULLET_LIFE=1.25,BULLET_DMG=6,GUN_RATE=.085,HIT_R=9*PLANE_GROW;
+// Guns (November 2026): 9 hull a bullet (was 6) and 600 m/s (was 540), because a kill took 12 to 28 seconds from the
+// first hit. The browser that fires decides the hit and the damage, so in a room with an older page each player's
+// bullets simply do what their own page says.
+const BULLET_V=600,BULLET_LIFE=1.2,BULLET_DMG=9,GUN_RATE=.085,HIT_R=9*PLANE_GROW;
 const HEAT_UP=.024,HEAT_COOL=.3;      // per shot / per second
 const LOCK_T=1.3,LOCK_RANGE=950,LOCK_CONE=.25,MSL_DMG=55,MSL_LIFE=6.5,MSL_TURN=1.9,MSL_MAX=4,FLARE_MAX=4,FLARE_R=520;
+// MSL_GRACE: for this long after spawning nobody can lock a missile on you, and a missile that reaches you does no
+// damage. Like the shield, the plane's own browser decides it and tells the room (flag 64), so old and new pages agree
+// on the damage (an old page can still lock and fire; the missile just does nothing).
+const MSL_GRACE=6;
 const RESPAWN=3.2,SHIELD=2.5,PICK_R=18,PICK_RESPAWN=20000;
 const ARENA_R=2350,ARENA_OUT=2650;    // warning past the first, eight seconds to turn back; past the second there's no time left
 const COLORS=['#ff5a4d','#ff9a2a','#ffd93d','#4ddc7a','#34d0c8','#4d9dff','#a97bff','#ff7ad1'];
@@ -491,7 +515,7 @@ let myColor=COLORS.indexOf(store.get('color',''))>=0?store.get('color',''):COLOR
 let myFrame=clamp(parseInt(store.get('frame','0'),10)||0,0,FRAMES.length-1);
 let sens=clamp(+store.get('sens',1)||1,.3,3),invY=store.get('invY','0')==='1',volume=clamp(+store.get('vol',.7),0,1);
 let gfx=store.get('gfx',touchUI?'low':'high')==='low'?'low':'high';
-const solo={mode:clamp(+store.get('smode',1)|0,0,2),lvl:clamp(+store.get('slvl',1)|0,0,2),kl:+store.get('skl',10)||10,tl:+store.get('stl',300)||300};
+const solo={mode:clamp(+store.get('smode',1)|0,0,2),lvl:clamp(+store.get('slvl',0)|0,0,2),kl:+store.get('skl',10)||10,tl:+store.get('stl',300)||300};
 
 // =====================================================================
 //  Sound (Web Audio, everything synthesised)
@@ -500,7 +524,9 @@ let AC=null,master=null,noiseBuf=null,eng=null;
 function initAudio(){
   if(AC){if(AC.state==='suspended')AC.resume().catch(()=>{});return}
   try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){AC=null;return}
-  master=AC.createGain();master.gain.value=volume;master.connect(AC.destination);
+  // everything goes through one compressor, so a burst, a hit and an explosion together don't clip
+  const comp=AC.createDynamicsCompressor();comp.threshold.value=-14;comp.knee.value=8;comp.ratio.value=5;comp.attack.value=.004;comp.release.value=.2;comp.connect(AC.destination);
+  master=AC.createGain();master.gain.value=volume;master.connect(comp);
   noiseBuf=AC.createBuffer(1,AC.sampleRate*1.5|0,AC.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
   // engine: two detuned saws through a low-pass, plus wind
   const o1=AC.createOscillator(),o2=AC.createOscillator(),f=AC.createBiquadFilter(),g=AC.createGain();
@@ -521,25 +547,29 @@ function noise(dur,vol,f0,f1,type,delay){
   g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0008,t+dur);s.connect(f);f.connect(g);g.connect(master);s.start(t,Math.random()*.5);s.stop(t+dur+.03);
 }
 let sfxGunT=0;
+// Every sound is made here from oscillators and noise. Tunables are in the recipes below; pitch varies a little each
+// time so repeated sounds (guns above all) don't buzz. Explosions far away arrive late (sound travels 343 m/s).
 function sfx(name,pos,scale){
-  if(!AC||G.noRender)return;let v=scale==null?1:scale;
-  if(pos){const d=pos.distanceTo(camera.position);v*=Math.pow(clamp(1-d/2200,0,1),2);if(v<.02)return}
+  if(!AC||G.noRender)return;let v=scale==null?1:scale,dl=0;
+  if(pos){const d=pos.distanceTo(camera.position);v*=Math.pow(clamp(1-d/2200,0,1),2);if(v<.02)return;if(name==='boom')dl=Math.min(.9,d/343)}
+  const vr=.92+Math.random()*.16;
   switch(name){
-    case 'gun':noise(.06,.17*v,2200,500);tone(170,.05,'square',.07*v,60);break;
-    case 'gunfar':{const t=performance.now();if(t-sfxGunT<60)return;sfxGunT=t;noise(.05,.11*v,1300,400);break}
-    case 'boom':noise(1,.6*v,1100,50);tone(80,.6,'sine',.5*v,28);break;
+    case 'gun':noise(.07,.2*v,2600*vr,700,'bandpass');noise(.05,.16*v,900*vr,200);tone(120*vr,.07,'sine',.16*v,45);tone(2400*vr,.02,'square',.025*v,900);break;
+    case 'gunfar':{const t=performance.now();if(t-sfxGunT<60)return;sfxGunT=t;noise(.06,.12*v,1100*vr,350,'bandpass');tone(90*vr,.06,'sine',.06*v,40);break}
+    case 'boom':noise(1.6,.75*v,1600,45,'lowpass',dl);noise(.25,.5*v,3000,400,'lowpass',dl);tone(72*vr,1.1,'sine',.6*v,24,dl);tone(46,1.4,'triangle',.3*v,20,dl+.05);break;
     case 'missile':noise(.7,.3*v,400,3200,'bandpass');tone(220,.5,'sawtooth',.06*v,90);break;
     case 'flare':noise(.3,.2*v,5000,900,'highpass');tone(1400,.2,'triangle',.07*v,500);break;
     case 'lock':tone(880,.05,'square',.05*v);break;
     case 'locked':tone(1320,.08,'square',.06*v);break;
     case 'warn':tone(760,.09,'sawtooth',.09*v);tone(540,.09,'sawtooth',.09*v,null,.11);break;
     case 'pickup':tone(660,.1,'triangle',.16*v);tone(880,.1,'triangle',.16*v,null,.08);tone(1320,.18,'triangle',.16*v,null,.16);break;
-    case 'hit':tone(1750,.035,'square',.05*v);break;
-    case 'hurt':noise(.14,.3*v,700,180);tone(110,.1,'square',.1*v,60);break;
+    case 'hit':tone(2500*vr,.05,'triangle',.11*v,1800);tone(3700*vr,.035,'square',.035*v);noise(.03,.12*v,5000,2500,'highpass');break;
+    case 'hurt':noise(.16,.36*v,1400,180);tone(95,.12,'square',.12*v,50);tone(1900*vr,.04,'square',.04*v,700);break;
+    case 'whoosh':noise(.7,.34*v,500,2400,'bandpass');noise(.7,.18*v,2600,500,'bandpass',.25);break;
     case 'stall':tone(190,.14,'sawtooth',.07*v);break;
     case 'roll':noise(.45,.14*v,350,1700,'bandpass');break;
     case 'nolock':tone(240,.09,'square',.06*v);break;
-    case 'kill':tone(784,.09,'triangle',.18*v);tone(1047,.09,'triangle',.18*v,null,.09);tone(1568,.22,'triangle',.18*v,null,.18);break;
+    case 'kill':tone(110,.25,'sine',.35*v,40);tone(784,.09,'triangle',.18*v);tone(1047,.09,'triangle',.18*v,null,.09);tone(1568,.22,'triangle',.18*v,null,.18);break;
     case 'win':[523,659,784,1047].forEach((f,i)=>tone(f,.25,'triangle',.18*v,null,i*.13));break;
     case 'lose':[392,330,262].forEach((f,i)=>tone(f,.3,'triangle',.16*v,null,i*.16));break;
     case 'click':tone(520,.04,'square',.05*v);break;
@@ -610,7 +640,15 @@ const camera=new THREE.PerspectiveCamera(64,1,1.5,14000);
 camera.position.set(0,500,900);
 let VW=1,VH=1,waterMesh=null;
 // The water: Pretty has a sun glint (per-pixel Phong); Fast lights it per vertex, the same colour without the glint.
-const WATER_MAT=[new THREE.MeshLambertMaterial({color:0x2b7bb5,transparent:true,opacity:.84}),new THREE.MeshPhongMaterial({color:0x2b7bb5,transparent:true,opacity:.84,shininess:90,specular:0x9fc8e8})];
+// Pretty water also has moving ripples (a generated normal map that drifts), which break up the sun glint.
+const WATER_NRM=(function(){
+  const S=128,cv=document.createElement('canvas');cv.width=cv.height=S;const x=cv.getContext('2d'),im=x.createImageData(S,S),d=im.data,hf=new Float32Array(S*S);
+  for(let j=0;j<S;j++)for(let i=0;i<S;i++){let h=0;for(let k=0;k<6;k++){const a=k*2.4+.7,f=(k%3+1)*2*Math.PI/S,kx=Math.round(Math.cos(a)*(k+2)),kz=Math.round(Math.sin(a)*(k+2));h+=Math.sin((i*kx+j*kz)*2*Math.PI/S+k*1.7)/(k+2)}hf[j*S+i]=h}
+  for(let j=0;j<S;j++)for(let i=0;i<S;i++){const k=(j*S+i)*4,dx=hf[j*S+(i+1)%S]-hf[j*S+(i+S-1)%S],dz=hf[((j+1)%S)*S+i]-hf[((j+S-1)%S)*S+i],l=Math.hypot(dx,dz,.6);
+    d[k]=128-dx/l*127;d[k+1]=128-dz/l*127;d[k+2]=128+.6/l*127;d[k+3]=255}
+  x.putImageData(im,0,0);const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(420,420);return t;
+})();
+const WATER_MAT=[new THREE.MeshLambertMaterial({color:0x2b7bb5,transparent:true,opacity:.84}),new THREE.MeshPhongMaterial({color:0x2672ad,transparent:true,opacity:.86,shininess:140,specular:0xcfe4f5,normalMap:WATER_NRM,normalScale:new THREE.Vector2(.55,.55)})];
 // Pretty draws at up to 1.5 pixels per CSS pixel (2 was 78% more pixels for little to see), Fast at 1 (1.25 on phones).
 function applyGfx(){renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,gfx==='high'?1.5:touchUI?1.25:1));if(waterMesh)waterMesh.material=WATER_MAT[gfx==='high'?1:0]}
 function resize(){VW=window.innerWidth;VH=window.innerHeight;renderer.setSize(VW,VH,false);camera.aspect=VW/VH;camera.updateProjectionMatrix()}
@@ -641,9 +679,20 @@ function setSky(i){
   scene.fog.color.setHex(s.fog);scene.fog.near=s.fogN;scene.fog.far=s.fogF;renderer.setClearColor(s.fog);
   hemi.color.setHex(s.hemi);hemi.groundColor.setHex(s.gnd);hemi.intensity=s.hemiI;sun.color.setHex(s.dir);sun.intensity=s.dirI;sun.position.set(s.sun[0],s.sun[1],s.sun[2]).multiplyScalar(1000);
   if(FX.alpha)FX.alpha.mat.uniforms.fogC.value.setHex(s.fog);
+  if(CLOUD_MAT)CLOUD_MAT.emissive.setHex(s.hor);
 }
 
 // ---------- terrain mesh: faceted, coloured per face by height, slope and region ----------
+// The low-poly facets are the game's look, so they stay; a world-space detail texture (two scales, generated here)
+// gives every face some grain close up, which is most of the sense of speed when flying low.
+const DETAIL_TEX=(function(){
+  const S=256,cv=document.createElement('canvas');cv.width=cv.height=S;const x=cv.getContext('2d'),im=x.createImageData(S,S),d=im.data;
+  const tile=(px,pz,f,o)=>{const W=S/f;let s=0,a=.5,ff=1;for(let k=0;k<4;k++){const P=W*ff,X=px/f*ff,Z=pz/f*ff,ix=Math.floor(X),iz=Math.floor(Z),fx=X-ix,fz=Z-iz,ux=fx*fx*(3-2*fx),uz=fz*fz*(3-2*fz);
+    const h=(i,j)=>hash2(((i%P)+P)%P+o,((j%P)+P)%P+o*7);s+=a*(h(ix,iz)+(h(ix+1,iz)-h(ix,iz))*ux+(h(ix,iz+1)-h(ix,iz))*uz+(h(ix,iz)-h(ix+1,iz)-h(ix,iz+1)+h(ix+1,iz+1))*ux*uz);a*=.5;ff*=2}return s/.9375};
+  for(let j=0;j<S;j++)for(let i=0;i<S;i++){const k=(j*S+i)*4;d[k]=255*clamp(tile(i,j,32,11),0,1);d[k+1]=255*clamp(tile(i,j,16,57),0,1);d[k+2]=255*clamp(tile(i,j,64,93),0,1);d[k+3]=255}
+  x.putImageData(im,0,0);const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());return t;
+})();
+let TERRAIN_MAT=null;
 (function buildTerrain(){
   const n=GRID*GRID*6,pos=new Float32Array(n*3),col=new Float32Array(n*3),nor=new Float32Array(n*3);
   let o=0;const rng=mulberry(77);
@@ -671,13 +720,22 @@ function setSky(i){
     tri(x0,a,z0,x0,c,z1,x1,b,z0);tri(x1,b,z0,x0,c,z1,x1,d,z1);
   }
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('normal',new THREE.BufferAttribute(nor,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
-  const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true}));m.frustumCulled=false;scene.add(m);
+  const mat=new THREE.MeshLambertMaterial({vertexColors:true});
+  mat.onBeforeCompile=sh=>{
+    sh.uniforms.detTex={value:DETAIL_TEX};
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWP;').replace('#include <project_vertex>','#include <project_vertex>\nvWP=(modelMatrix*vec4(transformed,1.)).xyz;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D detTex;varying vec3 vWP;')
+      .replace('#include <color_fragment>','#include <color_fragment>\nvec3 dA=texture2D(detTex,vWP.xz/170.).rgb,dB=texture2D(detTex,vWP.xz/21.).rgb;diffuseColor.rgb*=.86+.28*(dA.b*.45+dB.r*.4+dB.g*.15);');
+  };
+  mat.customProgramCacheKey=()=>'sd-terrain';TERRAIN_MAT=mat;
+  const m=new THREE.Mesh(g,mat);m.frustumCulled=false;scene.add(m);
   // water, and a skirt of haze-coloured ground far out so the horizon never shows a hole
   const w=new THREE.Mesh(new THREE.PlaneGeometry(30000,30000),WATER_MAT[gfx==='high'?1:0]);
   w.rotation.x=-Math.PI/2;w.position.y=0;scene.add(w);waterMesh=w;
 })();
 
 // ---------- trees (one instanced mesh) and clouds (one merged mesh you can fly through) ----------
+let CLOUD_MAT=null;   // tinted with the sky's horizon colour by setSky
 const cloudBlobs=[];   // [x, y, z, radius] for the whiteout when the camera is inside one
 let CLOUD_Y0=1e9,CLOUD_Y1=-1e9;   // the lowest and highest any cloud reaches
 (function buildScenery(){
@@ -695,18 +753,26 @@ let CLOUD_Y0=1e9,CLOUD_Y1=-1e9;   // the lowest and highest any cloud reaches
   }
   trees.count=k;trees.instanceMatrix.needsUpdate=true;if(trees.instanceColor)trees.instanceColor.needsUpdate=true;trees.frustumCulled=false;scene.add(trees);
 
-  const ico=new THREE.IcosahedronGeometry(1,1),ia=ico.attributes.position,pos=[];const v=new V3();
+  const ico=new THREE.IcosahedronGeometry(1,gfx==="high"?2:1),ia=ico.attributes.position,pos=[],nrm=[];const v=new V3();   // smooth ellipsoid normals, so clouds are soft, not faceted
   const nC=gfx==='high'?34:20;
   for(let i=0;i<nC;i++){
-    const a=rng()*6.283,rr=300+rng()*2500,cx=Math.cos(a)*rr,cz=Math.sin(a)*rr,cy=430+rng()*420,big=.8+rng()*.9,nb=4+Math.floor(rng()*4);
+    // two layers: big banks above where fights happen (980-1300 m), and a few small puffs lower down (780-920 m)
+    const hi=rng()<.7,a=rng()*6.283,rr=300+rng()*2500,cx=Math.cos(a)*rr,cz=Math.sin(a)*rr,cy=hi?980+rng()*320:780+rng()*140,big=hi?.9+rng()*.9:.4+rng()*.35,nb=(hi?4:2)+Math.floor(rng()*(hi?4:3));
     for(let b=0;b<nb;b++){
       const bx=cx+(rng()-.5)*230*big,by=cy+(rng()-.5)*36,bz=cz+(rng()-.5)*150*big,rx=(70+rng()*70)*big,ry=rx*(.42+rng()*.2),rz=rx*(.7+rng()*.4);
-      for(let t=0;t<ia.count;t++){v.fromBufferAttribute(ia,t);pos.push(bx+v.x*rx,by+v.y*ry,bz+v.z*rz)}
+      for(let t=0;t<ia.count;t++){v.fromBufferAttribute(ia,t);pos.push(bx+v.x*rx,by+v.y*ry,bz+v.z*rz);const nx=v.x/rx,ny=v.y/ry+.6/ry,nz=v.z/rz,l=Math.hypot(nx,ny,nz);nrm.push(nx/l,ny/l,nz/l)}
       cloudBlobs.push([bx,by,bz,rx,ry,rz]);CLOUD_Y0=Math.min(CLOUD_Y0,by-ry);CLOUD_Y1=Math.max(CLOUD_Y1,by+ry);
     }
   }
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.computeVertexNormals();
-  const clouds=new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:0xffffff,emissive:0x8fa3b8,emissiveIntensity:.55}));clouds.frustumCulled=false;scene.add(clouds);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('normal',new THREE.Float32BufferAttribute(nrm,3));
+  // soft edges: each puff fades out where you look across its surface, so clouds are not hard white blobs
+  CLOUD_MAT=new THREE.MeshLambertMaterial({color:0xffffff,emissive:0x8fa3b8,emissiveIntensity:.5,transparent:true,depthWrite:false});
+  CLOUD_MAT.onBeforeCompile=sh=>{
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying float vRim;').replace('#include <project_vertex>','#include <project_vertex>\nvRim=abs(dot(normalize(normalMatrix*objectNormal),normalize(-mvPosition.xyz)));');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying float vRim;').replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );','gl_FragColor = vec4( outgoingLight, diffuseColor.a*smoothstep(.04,.6,vRim)*.94 );');
+  };
+  CLOUD_MAT.customProgramCacheKey=()=>'sd-cloud';
+  const clouds=new THREE.Mesh(g,CLOUD_MAT);clouds.frustumCulled=false;clouds.renderOrder=2;scene.add(clouds);
 })();
 
 // =====================================================================
@@ -758,16 +824,36 @@ const FX=(function(){
     aP.needsUpdate=aA.needsUpdate=true;if(colDirty){aC.needsUpdate=true;colDirty=false}
     mat.uniforms.sc.value=renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360));
   }
-  // tracers
-  const NB=260,bp=new Float32Array(NB*6),bg=new THREE.BufferGeometry(),bA=new THREE.BufferAttribute(bp,3);bA.setUsage(THREE.DynamicDrawUsage);bg.setAttribute('position',bA);
-  const lines=new THREE.LineSegments(bg,new THREE.LineBasicMaterial({color:0xffe9a6,transparent:true,opacity:.95,fog:false}));lines.frustumCulled=false;lines.renderOrder=6;scene.add(lines);
-  const bullets=[];for(let i=0;i<NB;i++)bullets.push({on:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,by:'',local:false,far:false});
+  // tracers: glowing ribbons that face the camera (a WebGL line is one pixel wide whatever you ask, which made the old
+  // tracers all but invisible). Each is a quad from the bullet back along its path, bright at the head, fading to the
+  // tail, and a little wider with distance so far-off bursts still read. One draw call for all of them.
+  // plus a soft glow at each bullet's head, so a burst still reads when it flies straight away from the camera
+  const NB=320,bp=new Float32Array(NB*24),bu=new Float32Array(NB*16),bi=[];
+  for(let i=0;i<NB;i++){const o=i*8;bi.push(o,o+1,o+2,o,o+2,o+3,o+4,o+5,o+6,o+4,o+6,o+7);bu.set([1,0,1,1,0,1,0,0,2,0,3,0,3,1,2,1],i*16)}
+  const bg=new THREE.BufferGeometry(),bA=new THREE.BufferAttribute(bp,3);bA.setUsage(THREE.DynamicDrawUsage);bg.setAttribute('position',bA);bg.setAttribute('uv',new THREE.BufferAttribute(bu,2));bg.setIndex(bi);
+  const tmat=new THREE.ShaderMaterial({
+    vertexShader:'varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader:'varying vec2 vU;void main(){if(vU.x>1.5){vec2 q=vU-vec2(2.5,.5);float g=max(0.,1.-dot(q,q)*4.);g*=g;gl_FragColor=vec4(vec3(1.,.8,.45)*g*1.3,g);return;}float a=vU.x*vU.x*(1.-pow(abs(vU.y*2.-1.),2.));vec3 c=mix(vec3(1.,.42,.08),vec3(1.,.95,.7),vU.x*vU.x);gl_FragColor=vec4(c*a*2.2,a);}',
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+  const lines=new THREE.Mesh(bg,tmat);lines.frustumCulled=false;lines.renderOrder=6;scene.add(lines);
+  const bullets=[];for(let i=0;i<NB;i++)bullets.push({on:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0,by:'',local:false,far:false,age:0});
   let bn=0;
-  function bullet(x,y,z,vx,vy,vz,by,local){const b=bullets[bn];bn=(bn+1)%NB;b.on=true;b.x=x;b.y=y;b.z=z;b.vx=vx;b.vy=vy;b.vz=vz;b.life=BULLET_LIFE;b.by=by;b.local=local;return b}
+  function bullet(x,y,z,vx,vy,vz,by,local){const b=bullets[bn];bn=(bn+1)%NB;b.on=true;b.x=x;b.y=y;b.z=z;b.vx=vx;b.vy=vy;b.vz=vz;b.life=BULLET_LIFE;b.by=by;b.local=local;b.age=0;return b}
   function drawBullets(){
-    for(let i=0;i<NB;i++){const b=bullets[i],j=i*6;
-      if(!b.on){bp[j]=bp[j+1]=bp[j+2]=bp[j+3]=bp[j+4]=bp[j+5]=0;continue}
-      bp[j]=b.x;bp[j+1]=b.y;bp[j+2]=b.z;bp[j+3]=b.x-b.vx*.04;bp[j+4]=b.y-b.vy*.04;bp[j+5]=b.z-b.vz*.04;
+    const cp=camera.position;
+    const cr=camera.matrixWorld.elements,rx_=cr[0],ry_=cr[1],rz_=cr[2],ux_=cr[4],uy_=cr[5],uz_=cr[6];   // camera right and up
+    for(let i=0;i<NB;i++){const b=bullets[i],j=i*24;
+      if(!b.on){for(let k=0;k<24;k++)bp[j+k]=0;continue}
+      const sp=Math.hypot(b.vx,b.vy,b.vz)||1,dx=b.vx/sp,dy=b.vy/sp,dz=b.vz/sp,L=Math.min(clamp(18+Math.hypot(camera.position.x-b.x,camera.position.y-b.y,camera.position.z-b.z)*.09,18,70),b.age*sp+3);
+      const tx=b.x-dx*L,ty=b.y-dy*L,tz=b.z-dz*L;
+      // side = dir x (to camera), sized by distance so a tracer is never thinner than about 1.5 pixels
+      const cx=cp.x-b.x,cy=cp.y-b.y,cz=cp.z-b.z,cd=Math.hypot(cx,cy,cz)||1;
+      let sx=dy*cz-dz*cy,sy=dz*cx-dx*cz,sz=dx*cy-dy*cx;const sl=Math.hypot(sx,sy,sz)||1,w=(.45+cd*.0042)/sl;sx*=w;sy*=w;sz*=w;
+      bp[j]=b.x+sx;bp[j+1]=b.y+sy;bp[j+2]=b.z+sz;bp[j+3]=b.x-sx;bp[j+4]=b.y-sy;bp[j+5]=b.z-sz;
+      bp[j+6]=tx-sx;bp[j+7]=ty-sy;bp[j+8]=tz-sz;bp[j+9]=tx+sx;bp[j+10]=ty+sy;bp[j+11]=tz+sz;
+      const g=b.age<.03?0:.6+cd*.006;   // the glow: about 5 pixels across whatever the distance
+      bp[j+12]=b.x-rx_*g+ux_*g;bp[j+13]=b.y-ry_*g+uy_*g;bp[j+14]=b.z-rz_*g+uz_*g;bp[j+15]=b.x+rx_*g+ux_*g;bp[j+16]=b.y+ry_*g+uy_*g;bp[j+17]=b.z+rz_*g+uz_*g;
+      bp[j+18]=b.x+rx_*g-ux_*g;bp[j+19]=b.y+ry_*g-uy_*g;bp[j+20]=b.z+rz_*g-uz_*g;bp[j+21]=b.x-rx_*g-ux_*g;bp[j+22]=b.y-ry_*g-uy_*g;bp[j+23]=b.z-rz_*g-uz_*g;
     }
     bA.needsUpdate=true;
   }
@@ -775,19 +861,119 @@ const FX=(function(){
   return {puff,update,bullets,bullet,drawBullets,clear,low:()=>gfx!=='high'};
 })();
 
-function boom(p,big){
-  const n=big?(FX.low()?10:18):5,s=big?1:.45;
-  for(let i=0;i<n;i++){
-    const a=rand(0,6.283),u=rand(-1,1),q=Math.sqrt(1-u*u),sp=rand(8,46)*s;
-    FX.puff(p.x,p.y,p.z,Math.cos(a)*q*sp,u*sp+6,Math.sin(a)*q*sp,rand(.35,.8),14*s,34*s,1,rand(.45,.8),.18,.9,1,0);
-    if(i%2===0)FX.puff(p.x,p.y,p.z,Math.cos(a)*q*sp*.5,u*sp*.5+4,Math.sin(a)*q*sp*.5,rand(1.4,2.6),16*s,52*s,.2,.2,.22,.6,0,-2);
+// (the colour buffer is made by the first setColorAt, sized by count, so count only drops to 0 after that)
+const instMesh=(geo,mat,n,col)=>{const m=new THREE.InstancedMesh(geo,mat,n);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;
+  if(col){const c=new THREE.Color(1,1,1);for(let i=0;i<n;i++)m.setColorAt(i,c);m.instanceColor.setUsage(THREE.DynamicDrawUsage)}m.count=0;m.visible=false;scene.add(m);return m};
+// Speed streaks: faint lines of air rushing past close to your plane when you are fast (and stronger when boosting),
+// the cheapest strong cue for speed there is. They are fixed points in the air that you fly past, drawn as thin
+// ribbons along your flight path; none with reduced motion, in the cockpit view or while you aren't flying.
+const STREAK=(function(){
+  const N=36,P=new Float32Array(N*12),U=new Float32Array(N*8),I=[],pts=[];
+  for(let i=0;i<N;i++){const o=i*4;I.push(o,o+1,o+2,o,o+2,o+3);U.set([1,0,1,1,0,1,0,0],i*8);pts.push(new V3(0,-1e5,0))}
+  const g=new THREE.BufferGeometry(),A=new THREE.BufferAttribute(P,3);A.setUsage(THREE.DynamicDrawUsage);g.setAttribute('position',A);g.setAttribute('uv',new THREE.BufferAttribute(U,2));g.setIndex(I);
+  const mat=new THREE.ShaderMaterial({uniforms:{op:{value:0}},
+    vertexShader:'varying vec2 vU;void main(){vU=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
+    fragmentShader:'uniform float op;varying vec2 vU;void main(){float a=op*sin(vU.x*3.1416)*(1.-pow(abs(vU.y*2.-1.),2.));gl_FragColor=vec4(vec3(a),a);}',
+    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+  const mesh=new THREE.Mesh(g,mat);mesh.frustumCulled=false;mesh.renderOrder=7;mesh.visible=false;scene.add(mesh);
+  const R=new V3(),Q=new V3();let op=0;
+  function seed(p,me,fresh){   // a point somewhere ahead of the camera, off to the side of the flight path
+    const a=rand(0,6.283),r=rand(7,26),f=fresh?rand(-20,150):rand(110,170);
+    R.set(Math.cos(me.h),0,-Math.sin(me.h));Q.crossVectors(me.fwd,R).normalize();
+    p.copy(camera.position).addScaledVector(me.fwd,f).addScaledVector(R,Math.cos(a)*r).addScaledVector(Q,Math.sin(a)*r);
   }
-  FX.puff(p.x,p.y,p.z,0,0,0,.16,90*s,150*s,1,.95,.8,.9,1,0);
-  if(big)for(let i=0;i<8;i++){const a=rand(0,6.283),u=rand(-.4,1),q=Math.sqrt(1-u*u),sp=rand(40,90);FX.puff(p.x,p.y,p.z,Math.cos(a)*q*sp,u*sp,Math.sin(a)*q*sp,rand(.8,1.5),5,2,1,.75,.3,1,1,30)}
-  sfx('boom',p,big?1:.4);
-  const d=p.distanceTo(camera.position);if(big&&d<500&&!REDUCED)G.shake=Math.max(G.shake,(1-d/500)*.8);
+  return function(dt){
+    const me=G.me,on=!REDUCED&&!!me&&me.alive&&G.phase==='play'&&!CP.active();
+    const want=on?clamp((me.speed-118)/90,0,1)*.24+(me.boosting?.14:0):0;op+=(want-op)*Math.min(1,dt*3);
+    mesh.visible=op>.004;mat.uniforms.op.value=op;if(!mesh.visible||!me)return;
+    const L=clamp(me.speed*.09,6,22);
+    for(let i=0;i<N;i++){const p=pts[i],j=i*12;
+      T1.copy(p).sub(camera.position);const ahead=T1.dot(me.fwd);
+      if(ahead<-10||T1.lengthSq()>200*200)seed(p,me,p.y<-1e4);
+      const cx=camera.position.x-p.x,cy=camera.position.y-p.y,cz=camera.position.z-p.z,cd=Math.hypot(cx,cy,cz)||1,f=me.fwd;
+      let sx=f.y*cz-f.z*cy,sy=f.z*cx-f.x*cz,sz=f.x*cy-f.y*cx;const sl=Math.hypot(sx,sy,sz)||1,w=(.05+cd*.0016)/sl;sx*=w;sy*=w;sz*=w;
+      const tx=p.x-f.x*L,ty=p.y-f.y*L,tz=p.z-f.z*L;
+      P[j]=p.x+sx;P[j+1]=p.y+sy;P[j+2]=p.z+sz;P[j+3]=p.x-sx;P[j+4]=p.y-sy;P[j+5]=p.z-sz;P[j+6]=tx-sx;P[j+7]=ty-sy;P[j+8]=tz-sz;P[j+9]=tx+sx;P[j+10]=ty+sy;P[j+11]=tz+sz;
+    }
+    A.needsUpdate=true;
+  };
+})();
+// An explosion in layers: a white flash (and a real light on the land and planes for a moment), a fast orange
+// fireball, sparks and burning bits thrown out with gravity, a dark smoke cloud that rises and spreads for a few
+// seconds, and a shock puff. A missile that misses is the small version. Looks only (each browser draws its own).
+const FLASH=new THREE.PointLight(0xffb060,0,700,2);scene.add(FLASH);let flashT=0;
+function boom(p,big,vx,vy,vz){
+  const s=big?1.45:.55,lo=FX.low();vx=vx||0;vy=vy||0;vz=vz||0;
+  FX.puff(p.x,p.y,p.z,vx*.3,vy*.3,vz*.3,.13,60*s,110*s,1,.97,.85,1,1,0);   // flash
+  const nf=big?(lo?12:20):6;
+  for(let i=0;i<nf;i++){   // fireball
+    const a=rand(0,6.283),u=rand(-1,1),q=Math.sqrt(1-u*u),sp=rand(6,30)*s;
+    FX.puff(p.x,p.y,p.z,Math.cos(a)*q*sp+vx*.25,u*sp+5+vy*.25,Math.sin(a)*q*sp+vz*.25,rand(.45,.95),10*s,rand(30,48)*s,1,rand(.42,.72),.12,1,1,-4);
+  }
+  const ns=big?(lo?7:12):3;
+  for(let i=0;i<ns;i++){   // smoke, born inside the fireball, rising and spreading
+    const a=rand(0,6.283),u=rand(-.6,1),q=Math.sqrt(1-u*u),sp=rand(3,16)*s,g=rand(.13,.24);
+    FX.puff(p.x+rand(-4,4)*s,p.y+rand(-3,3)*s,p.z+rand(-4,4)*s,Math.cos(a)*q*sp+vx*.15,u*sp+vy*.15+3,Math.sin(a)*q*sp+vz*.15,rand(2.4,4.2)*(big?1:.6),18*s,rand(60,90)*s,g,g*.95,g*.92,.62,0,-3);
+  }
+  const nk=big?(lo?10:18):5;
+  for(let i=0;i<nk;i++){   // sparks and burning bits
+    const a=rand(0,6.283),u=rand(-.5,1),q=Math.sqrt(1-u*u),sp=rand(45,110)*s;
+    FX.puff(p.x,p.y,p.z,Math.cos(a)*q*sp+vx*.4,u*sp+vy*.4,Math.sin(a)*q*sp+vz*.4,rand(.7,1.6),rand(3,5),1.5,1,rand(.6,.85),.25,1,1,40);
+  }
+  if(big){FX.puff(p.x,p.y,p.z,0,0,0,.35,20,170,1,1,1,.22,0,0);if(!lo)debris(p,vx,vy,vz,10)}   // shock puff and wreckage
+  const d=p.distanceTo(camera.position);
+  if(d<1400&&(big||d<600)){FLASH.position.copy(p);FLASH.intensity=Math.max(FLASH.intensity,big?4:2);flashT=big?.35:.2}
+  sfx('boom',p,big?1:.45);
+  if(!REDUCED&&d<600)G.shake=Math.max(G.shake,(1-d/600)*(big?.9:.4));
 }
-function spark(x,y,z){for(let i=0;i<3;i++)FX.puff(x,y,z,rand(-20,20),rand(-10,25),rand(-20,20),rand(.15,.35),5,1.5,1,.9,.5,1,1,20)}
+// Bits of a plane flung out of a shoot-down: one instanced mesh of small plates that tumble, fall and smoke.
+const DEB_MAX=64,DEB=instMesh(new THREE.BoxGeometry(1.1,.18,.8),new THREE.MeshLambertMaterial({color:0xffffff}),DEB_MAX,true);
+const debs=[];for(let i=0;i<DEB_MAX;i++)debs.push({on:false,p:new V3(),v:new V3(),r:new V3(),w:new V3(),s:1,life:0,smT:0,c:new THREE.Color()});
+let debN=0;const DEB_O=new THREE.Object3D();
+function debris(p,vx,vy,vz,n,col){
+  for(let i=0;i<n;i++){const d=debs[debN];debN=(debN+1)%DEB_MAX;d.on=true;d.p.copy(p);
+    const a=rand(0,6.283),u=rand(-.3,1),q=Math.sqrt(1-u*u),sp=rand(25,70);d.v.set(Math.cos(a)*q*sp+vx*.5,u*sp+vy*.5+10,Math.sin(a)*q*sp+vz*.5);
+    d.r.set(rand(0,6),rand(0,6),rand(0,6));d.w.set(rand(-9,9),rand(-9,9),rand(-9,9));d.s=rand(.3,.8)*PLANE_SIZE;d.life=rand(1.8,3.2);d.smT=0;
+    if(col&&i%3===0)d.c.set(col);else d.c.setRGB(.34,.32,.3)}
+}
+// A plane that is shot down does not just vanish: it falls on fire, spinning and trailing black smoke, and blows up
+// again where it hits the ground (or after a few seconds). Looks only; drawn with the same instanced airframes.
+const wrecks=[];
+function addWreck(v){
+  if(wrecks.length>=8)wrecks.shift();
+  wrecks.push({e:v,frame:v.frame,col:new THREE.Color(entColor(v)).multiplyScalar(.35),p:v.pos.clone(),v:v.fwd.clone().multiplyScalar(Math.max(60,v.speed)*.7),
+    h:v.h,pi:v.p,r:v.r,spin:(Math.random()<.5?-1:1)*rand(3,6),t:0,life:rand(4,5.5),smT:0,o:new THREE.Object3D()});
+}
+function updateWrecks(dt){
+  FLASH.intensity=flashT>0?FLASH.intensity*Math.exp(-dt*9):0;flashT-=dt;
+  for(let i=wrecks.length-1;i>=0;i--){const w=wrecks[i];w.t+=dt;
+    w.v.y-=24*dt;w.v.multiplyScalar(1-dt*.25);w.p.addScaledVector(w.v,dt);w.r+=w.spin*dt;w.pi=Math.max(-1.35,w.pi-dt*.6);
+    w.h=Math.atan2(w.v.x,w.v.z);
+    w.smT-=dt;if(w.smT<=0){w.smT=FX.low()?.06:.03;const g=rand(.08,.16);
+      FX.puff(w.p.x,w.p.y,w.p.z,rand(-3,3),rand(2,6),rand(-3,3),rand(3.6,5.2),8,42,g,g,g,.75,0,-2);
+      FX.puff(w.p.x,w.p.y,w.p.z,w.v.x*.2,w.v.y*.2,w.v.z*.2,.35,9,4,1,rand(.45,.7),.12,1,1,0)}
+    const gh=groundH(w.p.x,w.p.z);
+    if(w.p.y<gh+2||w.t>w.life){w.p.y=Math.max(w.p.y,gh+2);boom(w.p,false);if(w.p.y<gh+6)groundBurst(w.p,gh<=0);wrecks.splice(i,1)}
+  }
+  let n=0;for(let i=0;i<DEB_MAX;i++){const d=debs[i];if(!d.on)continue;d.life-=dt;
+    d.v.y-=30*dt;d.p.addScaledVector(d.v,dt);d.r.addScaledVector(d.w,dt);
+    if(d.life<=0||d.p.y<groundH(d.p.x,d.p.z)){d.on=false;continue}
+    d.smT-=dt;if(d.smT<=0&&!FX.low()){d.smT=.07;FX.puff(d.p.x,d.p.y,d.p.z,0,2,0,1.1,2,8,.2,.19,.18,.45,0,0)}
+    DEB_O.position.copy(d.p);DEB_O.rotation.set(d.r.x,d.r.y,d.r.z);DEB_O.scale.setScalar(d.s);DEB_O.updateMatrix();DEB.setMatrixAt(n,DEB_O.matrix);DEB.setColorAt(n,d.c);n++}
+  DEB.count=n;DEB.visible=n>0;if(n){DEB.instanceMatrix.needsUpdate=true;DEB.instanceColor.needsUpdate=true}
+}
+// dust (or spray, over water) thrown up where something hits the ground
+function groundBurst(p,water){
+  const n=FX.low()?6:12;
+  for(let i=0;i<n;i++){const a=rand(0,6.283),sp=rand(15,45),c=water?.92:.62;
+    FX.puff(p.x,p.y+2,p.z,Math.cos(a)*sp,rand(water?20:4,water?55:16),Math.sin(a)*sp,rand(1.2,2.4),8,rand(26,40),c,water?.95:c*.86,water?1:c*.7,water?.7:.55,0,water?30:4)}
+}
+// a bullet hitting a plane: a bright pop, sparks and a puff of dark smoke
+function spark(x,y,z){
+  FX.puff(x,y,z,0,0,0,.08,9,3,1,.95,.75,1,1,0);
+  for(let i=0;i<4;i++)FX.puff(x,y,z,rand(-35,35),rand(-15,40),rand(-35,35),rand(.18,.4),3.5,1,1,.82,.4,1,1,40);
+  FX.puff(x,y,z,rand(-3,3),rand(1,4),rand(-3,3),.7,3,9,.25,.24,.24,.5,0,0);
+}
 
 // =====================================================================
 //  Planes: four original airframes built from boxes, cones and tubes.
@@ -832,9 +1018,6 @@ const SHIELD_GEO=new THREE.SphereGeometry(HIT_R,14,10),PROP_GEO=new THREE.Circle
 // one for the spawn shields, so 8 planes cost at most 10 draw calls instead of 3 or 4 each. e.mesh only holds where
 // a plane is (position, YXZ rotation, scale); drawEnts copies that into the instances every frame.
 const PLANE_MAX=16,BODY_MAT=new THREE.MeshLambertMaterial({color:0xffffff});
-// (the colour buffer is made by the first setColorAt, sized by count, so count only drops to 0 after that)
-const instMesh=(geo,mat,n,col)=>{const m=new THREE.InstancedMesh(geo,mat,n);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;
-  if(col){const c=new THREE.Color(1,1,1);for(let i=0;i<n;i++)m.setColorAt(i,c);m.instanceColor.setUsage(THREE.DynamicDrawUsage)}m.count=0;m.visible=false;scene.add(m);return m};
 const PLANE_INST=PLANE_GEO.map(pg=>({body:instMesh(pg.body,BODY_MAT,PLANE_MAX,true),trim:instMesh(pg.trim,TRIM_MAT,PLANE_MAX,false)}));
 const PROP_INST=instMesh(PROP_GEO,PROP_MAT,PLANE_MAX,false),SHIELD_INST=instMesh(SHIELD_GEO,SHIELD_MAT,PLANE_MAX,false);
 function makeMesh(e){
@@ -847,25 +1030,49 @@ function mkEnt(id,o){
   const e={id,name:o.name||'Pilot',color:o.color||COLORS[0],frame:clamp(o.frame|0,0,3),team:o.team==null?-1:o.team,bot:!!o.bot,local:!!o.local,lvl:clamp(o.lvl|0,0,2),
     pos:new V3(0,500,0),fwd:new V3(0,0,1),vel:new V3(),h:0,p:0,r:0,bank:0,rollA:0,speed:100,thr:.8,yr:0,pr:0,aimH:0,aimP:0,
     hp:100,alive:false,out:false,kills:0,deaths:0,heat:0,jam:false,msl:2,flares:2,boostM:1,boosting:false,firing:false,rolling:false,stalled:false,
-    rollT:0,rollDir:1,rollCd:0,shield:0,respT:0,gunT:0,gunSide:1,lastHitBy:'',lastHitT:-99,outT:0,mslT:0,flT:0,trailT:0,lock:{id:'',t:0},
+    rollT:0,rollDir:1,rollCd:0,shield:0,grace:0,respT:0,gunT:0,gunSide:1,lastHitBy:'',lastHitT:-99,outT:0,mslT:0,flT:0,trailT:0,lock:{id:'',t:0},
     ctl:{boost:false,fire:false,roll:0},ai:null,lag:null,snaps:[],mesh:null,vscale:1,seenT:0};
   e.mesh=makeMesh(e);G.ents.set(id,e);return e;
 }
 function dropEnt(e){G.ents.delete(e.id);if(G.tgt===e)G.tgt=null;if(G.spec===e)G.spec=null}
-function clearEnts(){for(const e of [...G.ents.values()])dropEnt(e);G.me=null;G.tgt=null;G.spec=null;G.missiles.length=0;for(const f of G.flares)f.life=0;G.flares.length=0;FX.clear()}
+function clearEnts(){for(const e of [...G.ents.values()])dropEnt(e);G.me=null;G.tgt=null;G.spec=null;G.missiles.length=0;for(const f of G.flares)f.life=0;G.flares.length=0;FX.clear();wrecks.length=0;for(const d of debs)d.on=false}
 function enemies(a,b){return a!==b&&(a.team<0||a.team!==b.team)}
 
 // ---------- spawning ----------
+// Spawning puts a plane back near the fight, not across the map: about a kilometre from the nearest enemy (never
+// closer than 650 m, and never right in front of an enemy's guns), inside the arena, pointed at the fight, so the
+// next engagement is seconds away. With nobody else up it starts on the old ring, facing the middle.
 function spawn(e){
-  let best=0,bs=-1;const n=12,off=Math.random()*6.283;
-  for(let i=0;i<n;i++){
-    const a=off+i/n*6.283,x=Math.cos(a)*1450,z=Math.sin(a)*1450;let near=1e9;
-    for(const o of G.ents.values())if(o!==e&&o.alive){const d=Math.hypot(o.pos.x-x,o.pos.z-z)*(enemies(e,o)?1:2.5);if(d<near)near=d}
-    if(near>bs){bs=near;best=a}
+  const foes=[];let cx=0,cz=0,cy=0;
+  for(const o of G.ents.values())if(o!==e&&o.alive&&enemies(e,o)){foes.push(o);cx+=o.pos.x;cz+=o.pos.z;cy+=o.pos.y}
+  let x,z,h;
+  if(foes.length){
+    cx/=foes.length;cz/=foes.length;cy/=foes.length;
+    let bs=-1e9,bx=0,bz=0;const off=Math.random()*6.283;
+    for(let i=0;i<16;i++){
+      const a=off+i/16*6.283,r=950+(i%3)*180,px=cx+Math.cos(a)*r,pz=cz+Math.sin(a)*r,pr=Math.hypot(px,pz);
+      if(pr>1900)continue;
+      let near=1e9,sc=0;
+      for(const o of foes){const dx=px-o.pos.x,dz=pz-o.pos.z,d=Math.hypot(dx,dz);if(d<near)near=d;
+        if(d<1300&&(o.fwd.x*dx+o.fwd.z*dz)/d>.8)sc-=600}   // in front of someone's guns
+      for(const o of G.ents.values())if(o!==e&&o.alive&&!enemies(e,o)){const d=Math.hypot(px-o.pos.x,pz-o.pos.z);if(d<500)sc+=150}   // near a teammate is good
+      sc-=Math.abs(near-1000)+(near<650?2000:0)+Math.max(0,groundH(px,pz)-200)*.5;
+      if(sc>bs){bs=sc;bx=px;bz=pz}
+    }
+    if(bs>-1e9){x=bx;z=bz;h=Math.atan2(cx-x,cz-z)}
   }
-  const x=Math.cos(best)*1450,z=Math.sin(best)*1450;
-  e.pos.set(x,Math.max(430,groundH(x,z)+230),z);e.h=e.aimH=Math.atan2(-x,-z);e.p=e.aimP=0;e.r=e.bank=e.rollA=0;e.yr=e.pr=0;
-  e.speed=108;e.thr=.8;e.hp=100;e.heat=0;e.jam=false;e.msl=2;e.flares=2;e.boostM=1;e.shield=SHIELD;e.alive=true;e.stalled=false;e.rollT=0;e.rollCd=0;e.outT=0;e.mslT=e.flT=0;e.lock.t=0;e.lastHitBy='';
+  if(x===undefined){
+    let best=0,bs=-1;const n=12,off=Math.random()*6.283;
+    for(let i=0;i<n;i++){
+      const a=off+i/n*6.283,px=Math.cos(a)*1450,pz=Math.sin(a)*1450;let near=1e9;
+      for(const o of G.ents.values())if(o!==e&&o.alive){const d=Math.hypot(o.pos.x-px,o.pos.z-pz)*(enemies(e,o)?1:2.5);if(d<near)near=d}
+      if(near>bs){bs=near;best=a}
+    }
+    x=Math.cos(best)*1450;z=Math.sin(best)*1450;h=Math.atan2(-x,-z);
+  }
+  const gy=groundH(x,z)+230,fy=foes.length?clamp(cy,gy,620):430;
+  e.pos.set(x,Math.max(gy,fy),z);e.h=e.aimH=h;e.p=e.aimP=0;e.r=e.bank=e.rollA=0;e.yr=e.pr=0;
+  e.speed=108;e.thr=.8;e.hp=100;e.heat=0;e.jam=false;e.msl=2;e.flares=2;e.boostM=1;e.shield=SHIELD;e.grace=MSL_GRACE;e.spawnT=G.time;e.alive=true;e.stalled=false;e.rollT=0;e.rollCd=0;e.outT=0;e.mslT=e.flT=0;e.lock.t=0;e.lastHitBy='';
   dirOf(e.h,e.p,e.fwd);e.vel.copy(e.fwd).multiplyScalar(e.speed);
   if(e===G.me){G.tgtManual=false;G.spec=null;camSnap=true}
 }
@@ -900,7 +1107,7 @@ function stepPlane(e,dt){
   if(e.stalled)e.pos.y-=18*dt;
   if(e.rolling){const s=Math.sin((1-e.rollT/ROLL_T)*Math.PI)*46*dt*e.rollDir;e.pos.x-=Math.cos(e.h)*s;e.pos.z+=Math.sin(e.h)*s}
   e.vel.copy(e.fwd).multiplyScalar(e.speed);
-  e.rollCd=Math.max(0,e.rollCd-dt);e.shield=Math.max(0,e.shield-dt);
+  e.rollCd=Math.max(0,e.rollCd-dt);e.shield=Math.max(0,e.shield-dt);e.grace=Math.max(0,e.grace-dt);
   e.mslT+=dt;if(e.mslT>22){e.mslT=0;if(e.msl<MSL_MAX)e.msl++}
   e.flT+=dt;if(e.flT>16){e.flT=0;if(e.flares<FLARE_MAX)e.flares++}
   // guns
@@ -916,6 +1123,8 @@ function shoot(e,local){
   const s=e.gunSide=-e.gunSide,rx=-Math.cos(e.h)*s*2.4,rz=Math.sin(e.h)*s*2.4,v=BULLET_V+e.speed;
   FX.bullet(e.pos.x+e.fwd.x*8+rx,e.pos.y+e.fwd.y*8-.3,e.pos.z+e.fwd.z*8+rz,(e.fwd.x+rand(-.004,.004))*v,(e.fwd.y+rand(-.004,.004))*v,(e.fwd.z+rand(-.004,.004))*v,e.id,local);
   if(e===G.me)sfx('gun');else sfx('gunfar',e.pos);
+  if(e.mesh&&e.mesh.visible!==false&&!(e===G.me&&CP.active())){const x=e.pos.x+e.fwd.x*7.5*PLANE_SIZE+rx,y=e.pos.y+e.fwd.y*7.5*PLANE_SIZE-.3,z=e.pos.z+e.fwd.z*7.5*PLANE_SIZE+rz;   // muzzle flash
+    FX.puff(x,y,z,e.vel.x,e.vel.y,e.vel.z,.05,rand(3,4.5)*(e.vscale||1),1.5,1,.85,.45,1,1,0)}
 }
 // Bullets this browser owns (mine and my bots') decide their own hits against where the other planes are drawn.
 const hitAcc=new Map(),ENTS=[];let hitFlushT=0;
@@ -924,7 +1133,7 @@ function updateBullets(dt){
   for(const b of FX.bullets){
     if(!b.on)continue;
     const x0=b.x,y0=b.y,z0=b.z,dx=b.vx*dt,dy=b.vy*dt,dz=b.vz*dt;
-    b.x+=dx;b.y+=dy;b.z+=dz;b.life-=dt;
+    b.x+=dx;b.y+=dy;b.z+=dz;b.life-=dt;b.age+=dt;
     if(b.life<=0){b.on=false;continue}
     if(b.y<terrainH(b.x,b.z)||b.y<0){b.on=false;if(b.y<1)FX.puff(b.x,1,b.z,0,14,0,.5,4,9,.9,.95,1,.6,0,20);else FX.puff(b.x,b.y+1,b.z,0,6,0,.5,4,10,.6,.52,.42,.6,0,0);continue}
     if(!b.local||!live)continue;
@@ -952,12 +1161,15 @@ function emit(ev){handleEvent(ev,true);if(G.online)Net.pushEv(ev)}
 function handleEvent(ev,mine){
   switch(ev.t){
     case 'h':{const t=G.ents.get(ev.to);if(!t||!t.local||!t.alive||t.shield>0||!simLive())break;
+      if(ev.w===1&&t.grace>0)break;   // spawn grace: missiles do nothing yet
       const d=numIn(ev.d,0,100,0);t.hp-=d;t.lastHitBy=String(ev.by||'');t.lastHitT=G.time;if(t.ai)t.ai.hurtT=G.time;
-      if(t===G.me){G.hurtFlash=Math.min(1,G.hurtFlash+.25+d/90);sfx('hurt');if(!REDUCED)G.shake=Math.max(G.shake,.25+d/120)}
+      if(t===G.me){G.hurtFlash=Math.min(1,G.hurtFlash+.25+d/90);sfx('hurt');dmgFrom(G.ents.get(String(ev.by||'')));if(!REDUCED)G.shake=Math.max(G.shake,.25+d/120)}
       if(t.hp<=0)kill(t,t.lastHitBy,ev.w===1?1:0);break}
     case 'k':{const v=G.ents.get(ev.v),by=G.ents.get(ev.by);if(!v)break;
-      boom(v.pos,true);if(KIT)KIT.downed(v,by);if(!v.local){v.alive=false;v.mesh.visible=false}
-      if(by&&by!==v&&by.local&&G.phase==='play'){by.kills++;if(by===G.me){banner(TX('You shot down {n}',{n:v.name}),ev.w===1?'Missile':ev.w===2?'They hit the ground running from you':'Guns',1800);sfx('kill');stat('add','kills',1);stat('add','kdkills',1)}}
+      if(ev.w===2){boom(v.pos,true);groundBurst(v.pos,v.pos.y<4)}else{boom(v.pos,true,v.vel.x,v.vel.y,v.vel.z);addWreck(v)}
+      if(KIT)KIT.downed(v,by);if(!v.local){v.alive=false;v.mesh.visible=false}
+      if(by&&by!==v&&by.local&&G.phase==='play'){by.kills++;if(by===G.me){banner(TX('You shot down {n}',{n:v.name}),ev.w===1?'Missile':ev.w===2?'They hit the ground running from you':'Guns',1300);sfx('kill');hitMark(true);killFade();
+          if(!REDUCED)G.shake=Math.max(G.shake,.45);if(ev.w!==2)debris(v.pos,v.vel.x,v.vel.y,v.vel.z,8,entColor(v));stat('add','kills',1);stat('add','kdkills',1)}}
       feedLine(by&&by!==v?by:null,v,ev.w);
       if(v===G.me&&by&&by!==v)G.spec=by;
       break}
@@ -1011,7 +1223,8 @@ function updateMissiles(dt){
       if(ang>1e-4)m.dir.lerp(T1,Math.min(1,st/ang)).normalize();
       if(m.local){
         if((m.decoy&&tp===m.decoy.pos)?d<26:d<17){if(tg&&tp===tg.pos)emit({t:'h',by:m.by,to:tg.id,d:MSL_DMG,w:1});endMissile(m,1);continue}
-        if(tg&&tp===tg.pos){
+        if(tg&&tp===tg.pos&&tg.grace>0){m.to='';emit({t:'c',mid:m.id})}
+        else if(tg&&tp===tg.pos){
           if(tg.rolling&&d<180&&!m.rollChk){m.rollChk=true;if(Math.random()<.75){m.to='';emit({t:'c',mid:m.id})}}
           else if(ang>1.35&&d<320){m.to='';emit({t:'c',mid:m.id})}
         }
@@ -1071,10 +1284,19 @@ function updatePicks(dt){
 //  Bots. They fly the same plane with the same controls: each frame a
 //  bot only decides where to aim, the throttle and which buttons to press.
 // =====================================================================
-function mkAI(){return {tg:null,t:0,nT:0,nx:0,ny:0,onT:0,cool:false,mslCd:rand(2,6),hurtT:-99,breakT:0,breakDir:1,breakP:0,wp:new V3(rand(-1500,1500),rand(350,650),rand(-1500,1500)),seen:new Set(),boost:false}}
+function mkAI(){return {tg:null,t:0,nT:0,nx:0,ny:0,onT:0,cool:false,mslCd:rand(2,6),hurtT:-99,breakT:0,breakDir:1,breakP:0,wp:new V3(rand(-1500,1500),rand(350,650),rand(-1500,1500)),seen:new Set(),boost:false,circT:0,manT:0,manK:0,tailT:0}}
+// Fair play for people (the host decides, as for everything bots do): for FRESH seconds after a person spawns no bot
+// picks them as a target unless they have just shot at that bot, a plane in its missile grace or shield is engaged by
+// one bot at most, and in a solo free-for-all only so many bots may hunt the human at once (1 Rookie, 2 Veteran, 3 Ace),
+// so the bots fight each other too.
+const HUNT_CAP=[1,2,3],FRESH=12;
+function huntersOf(o,e){let n=0;for(const b of G.ents.values())if(b!==e&&b.bot&&b.alive&&b.ai&&b.ai.tg===o)n++;return n}
 function pickTarget(e){
-  let best=null,bs=1e9;
-  for(const o of G.ents.values()){if(!o.alive||!enemies(e,o))continue;T1.copy(o.pos).sub(e.pos);const d=T1.length(),ang=e.fwd.angleTo(T1);const s=d*(1+ang*.6)*(o.bot?1:.85);if(s<bs){bs=s;best=o}}
+  let best=null,bs=1e9;const solo=!G.online&&G.rs&&G.rs.md===1;
+  for(const o of G.ents.values()){if(!o.alive||!enemies(e,o))continue;
+    if(!o.bot&&G.time-(o.spawnT||-99)<FRESH&&!(e.lastHitBy===o.id&&G.time-e.lastHitT<4))continue;
+    if(o.grace>0||o.shield>0||(solo&&!o.bot)){const n=huntersOf(o,e);if((o.grace>0||o.shield>0)&&n>=1)continue;if(solo&&!o.bot&&n>=HUNT_CAP[e.lvl])continue}
+    T1.copy(o.pos).sub(e.pos);const d=T1.length(),ang=e.fwd.angleTo(T1);const s=d*(1+ang*.6)*(o.bot?1:.85);if(s<bs){bs=s;best=o}}
   return best;
 }
 function avoidGround(e,dh,dp,margin){
@@ -1103,14 +1325,31 @@ function botThink(e,dt){
     if(e.heat>.86)a.cool=true;else if(e.heat<.3)a.cool=false;
     fire=fire&&!a.cool&&!(tg.shield>0);
     if(dist<150&&ang<.6)thr=.3;else if(dist>650&&a.boost)boost=true;
+    // A turn fight: a slower plane turns tighter, so Veterans and Aces ease the throttle off while the target is off
+    // the nose. Coming head-on, everyone opens fire a little further out (the gap closes fast).
+    const sk=e.lvl/2;
+    if(ang>.5&&dist<700)thr=lerp(thr,.42,sk*.85);
+    T3.copy(e.pos).sub(tg.pos).divideScalar(Math.max(dist,1));const facing=tg.fwd.dot(T3);
+    if(facing>.93&&ang<D.cone*1.6&&dist<D.range*1.35&&!a.cool&&!(tg.shield>0))fire=true;
+    // Two planes chasing each other's tails in a flat circle is dull and goes nowhere: after a while in one, break
+    // out of it, either a climbing zoom that comes back down on them or a boosted run out and back.
+    if(ang>.7&&ang<2.6&&dist<900)a.circT+=dt;else a.circT=Math.max(0,a.circT-dt*2);
+    if(a.circT>9-2.5*e.lvl&&a.manT<=0){a.circT=0;a.manT=rand(2.2,3.2);a.manK=Math.random()<.55?0:1}
+    // someone sitting on my tail and pointing at me: break before the bullets arrive (Veteran and Ace)
+    T3.copy(e.pos).sub(tg.pos);const behind=dist<450&&e.fwd.dot(T3)>dist*.5&&tg.fwd.dot(T3)>dist*.85;
+    if(behind)a.tailT+=dt;else a.tailT=0;
+    if(a.tailT>.9-.3*e.lvl&&e.lvl>0&&a.breakT<=0&&Math.random()<D.evade*dt*2){a.breakT=rand(.8,1.4);a.breakDir=Math.random()<.5?1:-1;a.breakP=rand(-.2,.4);if(e.rollCd<=0&&Math.random()<.6)c.roll=-a.breakDir}
     // lock and missile
     T2.copy(tg.pos).sub(e.pos);
-    if(dist<LOCK_RANGE&&e.fwd.angleTo(T2)<LOCK_CONE){if(e.lock.id!==tg.id){e.lock.id=tg.id;e.lock.t=0}e.lock.t+=dt}else e.lock.t=Math.max(0,e.lock.t-dt*2);
+    if(dist<LOCK_RANGE&&e.fwd.angleTo(T2)<LOCK_CONE&&!(tg.grace>0)){if(e.lock.id!==tg.id){e.lock.id=tg.id;e.lock.t=0}e.lock.t+=dt}else e.lock.t=Math.max(0,e.lock.t-dt*2);
     if(e.lock.t>=LOCK_T&&e.msl>0&&a.mslCd<=0&&dist>170&&Math.random()<D.msl*dt*1.6){fireMissile(e,tg);a.mslCd=rand(5,9)}
   }else{
     if(e.pos.distanceTo(a.wp)<260)a.wp.set(rand(-1500,1500),rand(350,650),rand(-1500,1500));
     T1.copy(a.wp).sub(e.pos);dh=Math.atan2(T1.x,T1.z);dp=clamp(Math.atan2(T1.y,Math.hypot(T1.x,T1.z)),-.4,.4);thr=.7;
   }
+  if(a.manT>0){a.manT-=dt;fire=fire&&a.manK===0;
+    if(a.manK===0){dp=a.manT>1.2?.85:dp;thr=1;boost=e.boostM>.3}   // zoom up, then back down onto them
+    else{dh=a.manT>1.1?e.h:dh;dp=a.manT>1.1?.05:dp;boost=e.boostM>.2;thr=1}}   // run out, then turn back in
   // being shot at: maybe roll and break away
   if(G.time-a.hurtT<.6&&a.breakT<=0&&Math.random()<D.evade*dt*4){a.breakT=rand(.9,1.6);a.breakDir=Math.random()<.5?1:-1;a.breakP=rand(-.3,.5);c.roll=-a.breakDir}
   if(a.breakT>0){a.breakT-=dt;dh=e.h+a.breakDir*1.1;dp=a.breakP;fire=false;boost=true}
@@ -1160,6 +1399,7 @@ function drawEnts(dt){
     if(e.shield>0&&ns<PLANE_MAX&&!mine)SHIELD_INST.setMatrixAt(ns++,m.matrix);
     const pg0=PLANE_GEO[e.frame];
     if(pg0.prop&&np<PLANE_MAX&&!mine){if(KIT)KIT.prop(e,np);u.propA+=dt*40;PM2.makeRotationZ(u.propA).scale(T4.set(pg0.propR,pg0.propR,pg0.propR)).setPosition(0,0,pg0.prop);PM.multiplyMatrices(m.matrix,PM2);PROP_INST.setMatrixAt(np++,PM)}
+    if(e!==G.me&&G.me&&G.me.alive&&d<75&&G.time-(e.whT||-9)>2){e.whT=G.time;sfx('whoosh',null,1-d/90)}
     e.trailT-=dt;if(e.trailT>0||d>2600)continue;e.trailT=FX.low()?.07:.035;
     const pg=PLANE_GEO[e.frame],cr=Math.cos(e.r),sr=Math.sin(e.r),rx=-Math.cos(e.h),rz=Math.sin(e.h);
     if(e.speed>112||e.boosting||Math.abs(e.yr)>.75){
@@ -1173,6 +1413,9 @@ function drawEnts(dt){
     if(e.boosting)FX.puff(e.pos.x+e.fwd.x*pg.tail,e.pos.y+e.fwd.y*pg.tail,e.pos.z+e.fwd.z*pg.tail,0,0,0,.14,7,3,1,.72,.3,1,1,0);
     if(e.hp<45)FX.puff(e.pos.x+e.fwd.x*pg.tail*.5,e.pos.y,e.pos.z+e.fwd.z*pg.tail*.5,rand(-3,3),rand(2,8),rand(-3,3),e.hp<22?2.2:1.4,4,e.hp<22?16:11,.16,.16,.18,.55,0,0);
   }
+  for(const w of wrecks){const q=PLANE_INST[w.frame],k=q.body.count;if(k>=PLANE_MAX)continue;
+    const o=w.o;o.position.copy(w.p);o.rotation.order='YXZ';o.rotation.set(-w.pi,w.h,w.r);o.scale.setScalar(clamp(w.p.distanceTo(cp)/260,1,3));o.updateMatrix();
+    q.body.setMatrixAt(k,o.matrix);q.body.setColorAt(k,w.col);q.trim.setMatrixAt(k,o.matrix);q.body.count=q.trim.count=k+1;if(KIT)KIT.inst(w.e,k)}
   if(KIT)KIT.end();
   // an instanced mesh with nothing in it is hidden, so it costs no draw call
   for(const q of PLANE_INST){const on=q.body.count>0;q.body.visible=q.trim.visible=on;if(on){q.body.instanceMatrix.needsUpdate=q.body.instanceColor.needsUpdate=q.trim.instanceMatrix.needsUpdate=true}}
@@ -1204,7 +1447,7 @@ const Net={
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
     try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),12000,'Signing in to the game server timed out. Check your connection.')}
     catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console.':'Sign-in failed: '+(err.message||c))}
-    this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    this.uid=firebase.auth().currentUser.uid;this.db=(window.NetRelay?NetRelay.database(firebase.database(),window.RELAY_ROOMS):firebase.database());
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
@@ -1255,12 +1498,12 @@ const Net={
     try{if(/^#vq-/.test(location.hash))history.replaceState(null,'',location.pathname)}catch(e){}
   }
 };
-const flagsOf=e=>(e.firing?1:0)|(e.boosting?2:0)|(e.rolling?4:0)|(e.alive?8:0)|(e.shield>0?16:0)|(e.out?32:0);
+const flagsOf=e=>(e.firing?1:0)|(e.boosting?2:0)|(e.rolling?4:0)|(e.alive?8:0)|(e.shield>0?16:0)|(e.out?32:0)|(e.grace>0?64:0);
 const isHost=()=>!G.online||Net.hostUid()===Net.uid;
 function applyState(e,a,ts,now){
   // a: x y z h p r speed flags hull kills deaths
   if(!finN(a[0])||!finN(a[1])||!finN(a[2]))return;
-  const f=a[7]|0;e.speed=numIn(a[6],0,400,100);e.firing=!!(f&1);e.boosting=!!(f&2);e.rolling=!!(f&4);e.alive=!!(f&8)&&!e.out;e.shield=f&16?.3:0;
+  const f=a[7]|0,was=e.alive;e.speed=numIn(a[6],0,400,100);e.firing=!!(f&1);e.boosting=!!(f&2);e.rolling=!!(f&4);e.alive=!!(f&8)&&!e.out;e.shield=f&16?.3:0;e.grace=f&64?.3:0;if(e.alive&&!was)e.spawnT=G.time;
   e.hp=numIn(a[8],0,100,100);e.kills=numIn(a[9],0,999,0)|0;e.deaths=numIn(a[10],0,999,0)|0;
   pushSnap(e,ts,clamp(a[0],-4000,4000),clamp(a[1],-50,3000),clamp(a[2],-4000,4000),numIn(a[3],-7,7,0),numIn(a[4],-2,2,0),numIn(a[5],-7,7,0),now);
 }
@@ -1400,7 +1643,7 @@ function beginMatch(){
   for(const p of PICKS)p.until=0;
   G.tgt=null;G.tgtManual=false;G.spec=null;camSnap=true;
   $('feed').textContent='';for(const id of ['menu','lobby','end','pause'])$(id).hidden=true;
-  $('hud').hidden=false;$('touch').hidden=!touchUI;$('clickPlay').hidden=touchUI||!!document.pointerLockElement;
+  $('hud').hidden=false;$('touch').hidden=!touchUI;$('clickPlay').hidden=touchUI||!!document.pointerLockElement||kbFlying;showHint();
   $('rule').textContent=(rs.md===2?'Teams, first to ':'First to ')+rs.kl;
   const me=G.me;
   banner(MODE_NAME[rs.md],me&&me.out?'This match is full: you fly in the next one':rs.md===2&&me?'You are on '+TEAM_NAME[me.team<0?0:me.team]:'Most kills wins',3200);   // (banner() translates them)
@@ -1500,6 +1743,10 @@ const KB=Keybinds.create({game:'sky-duel',mouse:true,classes:{button:'btn alt sm
   {id:'pause',label:'Pause',group:'Other',keys:['Escape'],fixed:true}
 ]});
 const touch={fire:false,boost:false,sx:0,sy:0,stick:false};
+// The key hint (bottom right) fades after 10 seconds of flying, or once each of its keys has been used; the pause
+// menu brings it back for another 10 seconds.
+let kbFlying=false,hintT=10;const hintUsed=new Set(),HINT_KEYS=['fire','missile','flare','boost','roll','thr'];
+function showHint(){hintT=10;hintUsed.clear();const h=$('hint');if(h)h.classList.remove('gone')}
 let tapT={left:0,right:0},kbTurn=0;
 const flying=()=>G.phase==='play'&&!G.paused&&G.mode!=='menu';
 function press(code,e){
@@ -1507,7 +1754,9 @@ function press(code,e){
   const acts=KB.actionsFor(code);if(!acts.length)return;
   if(e&&code.indexOf('Mouse')!==0)e.preventDefault();
   if(keys.has(code))return;keys.add(code);const me=G.me;
+  if(code.indexOf('Mouse')!==0&&!kbFlying){kbFlying=true;$('clickPlay').hidden=true}   // flying on the keys: the controls are taken
   for(const a of acts){
+    hintUsed.add(a==='rollL'||a==='rollR'?'roll':a==='thrUp'||a==='thrDown'?'thr':a);
     if(a==='board')G.board=true;
     if(a==='view')CP.toggle();
     if(!me||!me.alive)continue;
@@ -1538,7 +1787,7 @@ addEventListener('mousemove',e=>{
   const k=.0021*sens;me.aimH-=clamp(e.movementX,-200,200)*k;me.aimP-=clamp(e.movementY,-200,200)*k*(invY?-1:1);
 });
 document.addEventListener('pointerlockchange',()=>{
-  const on=document.pointerLockElement===canvas;$('clickPlay').hidden=on||touchUI||G.phase!=='play';
+  const on=document.pointerLockElement===canvas;$('clickPlay').hidden=on||touchUI||G.phase!=='play'||kbFlying;
   if(!on){keys.clear();if(G.phase==='play'&&!G.paused&&!touchUI&&!navigator.webdriver)openPause()}
 });
 // touch: a stick to steer, a throttle slider, and buttons
@@ -1599,7 +1848,7 @@ function updateTarget(dt){
   }
   if(tg){
     T1.copy(tg.pos).sub(me.pos);
-    if(T1.length()<LOCK_RANGE&&me.fwd.angleTo(T1)<LOCK_CONE&&me.msl>0){
+    if(T1.length()<LOCK_RANGE&&me.fwd.angleTo(T1)<LOCK_CONE&&me.msl>0&&!(tg.grace>0)){
       if(me.lock.id!==tg.id){me.lock.id=tg.id;me.lock.t=0}
       const was=me.lock.t;me.lock.t=Math.min(LOCK_T,me.lock.t+dt);
       if(me.lock.t>=LOCK_T){if(was<LOCK_T)sfx('locked')}else{lockBeep-=dt;if(lockBeep<=0){lockBeep=.22;sfx('lock')}}
@@ -1616,7 +1865,7 @@ function tryMissile(){const me=G.me;if(!me||!me.alive)return;if(me.msl>0&&me.loc
 // =====================================================================
 //  Camera
 // =====================================================================
-let camSnap=true;const camDir=new V3(0,0,1),camPos=new V3();let camFov=64;
+let camSnap=true;const camDir=new V3(0,0,1),camPos=new V3();let camFov=64,camBack=0;
 
 // =====================================================================
 //  Cockpit view (V, or View on a touch screen): sit in the pilot's seat.
@@ -1913,13 +2162,17 @@ function updateCamera(dt){
   }
   if(!e)T2.set(Math.sin(G.time*.08),-.25,Math.cos(G.time*.08)).normalize();
   if(camSnap)camDir.copy(T2);else camDir.lerp(T2,1-Math.exp(-dt*(mine?9:4))).normalize();
-  const c=e?e.pos:T3.set(0,720,0),dist=mine?40:G.mode==='menu'?64:58;
-  camPos.copy(c).addScaledVector(camDir,-dist);camPos.y+=mine?9.5:15;
+  // your own plane: the camera drops back a little as you speed up and when boosting, so speed reads as motion
+  if(mine)camBack+=((me.boosting?7:0)+clamp((me.speed-110)/20,0,3)-camBack)*Math.min(1,dt*2.5);
+  const c=e?e.pos:T3.set(0,720,0),dist=mine?48+camBack:G.mode==='menu'?64:58;
+  // your plane sits well below the middle (about 15 degrees), so what is ahead of you, where you aim, is never behind it
+  camPos.copy(c).addScaledVector(camDir,-dist);camPos.y+=mine?17:15;
   const gh=groundH(camPos.x,camPos.z)+5;if(camPos.y<gh)camPos.y=gh;
   if(camSnap)camera.position.copy(camPos);else camera.position.lerp(camPos,1-Math.exp(-dt*16));
   camSnap=false;
-  T4.copy(c).addScaledVector(camDir,170);T4.y+=mine?3:0;camera.up.set(0,1,0);camera.lookAt(T4);
+  T4.copy(c).addScaledVector(camDir,170);T4.y+=mine?13:0;camera.up.set(0,1,0);camera.lookAt(T4);
   if(mine&&!REDUCED)camera.rotateZ(-me.bank*.2);
+  if(mine&&!REDUCED&&me.boosting)G.shake=Math.max(G.shake,.05);   // a faint buzz under boost
   if(G.shake>.01){camera.position.x+=rand(-1,1)*G.shake*2;camera.position.y+=rand(-1,1)*G.shake*2;G.shake*=Math.exp(-dt*6)}
   const fv=64+(mine?(me.boosting?11:0)+clamp((me.speed-100)/12,0,4):0);camFov+=(fv-camFov)*Math.min(1,dt*4);
   if(Math.abs(camera.fov-camFov)>.05){camera.fov=camFov;camera.updateProjectionMatrix()}
@@ -1953,7 +2206,15 @@ const marks=[];
 let hudT=0,bannerT=0,hitT=0;
 const HE={};for(const id of ['vign','white','reticle','nose','lead','lockRing','hpF','boF','heF'])HE[id]=$(id);
 function banner(t,sub,ms){const b=$('banner');b.textContent=TX(t);if(sub){const s=document.createElement('small');s.textContent=TX(sub);b.appendChild(s)}b.classList.add('on');bannerT=(ms||1500)/1000}
-function hitMark(){hitT=.12;$('hitm').classList.add('on')}
+// your kill: the aim ring, gun cross, lead and target boxes fade for a moment so they don't cover the explosion
+let killFadeTimer=0;function killFade(){const h=$('hud');h.classList.add('killfade');clearTimeout(killFadeTimer);killFadeTimer=setTimeout(()=>h.classList.remove('killfade'),700)}
+function hitMark(kill){const h=$('hitm');if(kill){hitT=.45;h.classList.add('kill')}else if(!h.classList.contains('kill')||hitT<=0){hitT=.12;h.classList.remove('kill')}h.classList.add('on')}
+// a hit on you: point an arc at whoever fired (the newest of three arcs, each fading over a second)
+let dmgI=0;const dmgDirs=[];
+function dmgFrom(by){const me=G.me;if(!by||!me)return;const els=document.querySelectorAll('.dmg');if(!els.length)return;
+  T1.copy(by.pos).applyMatrix4(camera.matrixWorldInverse);const a=(T1.z>0&&Math.hypot(T1.x,T1.y)<T1.z*.15)?Math.PI:Math.atan2(T1.x,T1.y);   // up the screen is 0, clockwise
+  let el=null;for(const d of dmgDirs)if(d.by===by.id)el=d;if(!el){el={el:els[dmgI++%els.length],by:by.id};for(let i=dmgDirs.length-1;i>=0;i--)if(dmgDirs[i].el===el.el)dmgDirs.splice(i,1);dmgDirs.push(el)}
+  el.el.style.transform='rotate('+(a*57.3).toFixed(0)+'deg)';el.el.classList.add('on');clearTimeout(el.t);el.t=setTimeout(()=>el.el.classList.remove('on'),350)}
 function feedLine(by,v,w){
   if(G.mode==='menu')return;
   const f=$('feed'),d=document.createElement('div');
@@ -1967,7 +2228,7 @@ function fmtClock(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+Stri
 function updateHud(dt){
   const me=G.me,rs=G.rs,fly=!!me&&me.alive;
   if(bannerT>0){bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('on')}
-  if(hitT>0){hitT-=dt;if(hitT<=0)$('hitm').classList.remove('on')}
+  if(hitT>0){hitT-=dt;if(hitT<=0){$('hitm').classList.remove('on');$('hitm').classList.remove('kill')}}
   G.hurtFlash=Math.max(0,G.hurtFlash-dt*1.6);
   setOp(HE.vign,(fly?Math.max(G.hurtFlash,me.hp<30?.35:0):0).toFixed(2));
   setOp(HE.white,G.white.toFixed(2));
@@ -1989,12 +2250,13 @@ function updateHud(dt){
   if(lead.hidden===leadOn)lead.hidden=!leadOn;
   // boxes round the other planes, arrows for the ones off screen
   let mi=0;const edge=Math.min(VW,VH)*.4;
+  let n1=null,n2=null,d1=1e9,d2=1e9;if(me&&me.alive)for(const o of G.ents.values()){if(o===me||!o.alive||!enemies(me,o))continue;const d=o.pos.distanceTo(me.pos);if(d<d1){n2=n1;d2=d1;n1=o;d1=d}else if(d<d2){n2=o;d2=d}}
   if(G.phase==='play'&&G.mode!=='menu')for(const e of G.ents.values()){
     if(e===me||!e.alive||mi>=marks.length)continue;
     const m=marks[mi],foe=!me||enemies(me,e),isT=e===tg,ref=me&&me.alive?me.pos:camera.position,d=e.pos.distanceTo(ref),s=toScreen(e.pos);
     const on=s.front&&s.x>10&&s.x<VW-10&&s.y>10&&s.y<VH-10;
-    if(!on&&!isT&&(!foe||d>1300))continue;
-    mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off');
+    if(!on&&!isT&&(!foe||d>2400))continue;   // every enemy within 2.4 km gets an arrow at the edge (far ones fainter)
+    mi++;let cls='mark'+(foe?'':' fr')+(isT?' tg':'')+(on?'':' off')+(!on&&!isT&&d>1300?' far':'')+(on&&!isT&&foe&&e!==n1&&e!==n2?' nolbl':'');
     if(on){const sz=Math.round(clamp(2600*PLANE_GROW/d,24,72));if(m.sz!==sz){m.sz=sz;m.el.style.width=m.el.style.height=sz+'px';m.el.style.margin=(-sz/2).toFixed(0)+'px 0 0 '+(-sz/2).toFixed(0)+'px'}put(m.el,s.x,s.y)}
     else{let ax=s.cx,ay=-s.cy;if(!s.front&&Math.hypot(ax,ay)<1e-3)ay=1;const a=Math.atan2(ay,ax),deg=Math.round(a*57.2958);if(m.sz!==0){m.sz=0;m.el.style.width=m.el.style.height='';m.el.style.margin=''}if(m.deg!==deg){m.deg=deg;m.el.style.setProperty('--a',deg+'deg')}put(m.el,VW/2+Math.cos(a)*edge,VH/2+Math.sin(a)*edge)}
     if(m.cls!==cls){m.cls=cls;m.el.className=cls}
@@ -2010,6 +2272,7 @@ function updateHud(dt){
   for(let i=mi;i<marks.length;i++)if(!marks[i].el.hidden)marks[i].el.hidden=true;
   // bars every frame, text a few times a second
   if(fly){setBar(HE.hpF,me.hp/100);setBar(HE.boF,me.boostM);setBar(HE.heF,me.heat)}
+  if(G.phase==='play'&&!G.paused&&hintT>0){hintT-=dt;if(hintT<=0||HINT_KEYS.every(k=>hintUsed.has(k))){hintT=0;$('hint').classList.add('gone')}}
   hudT-=dt;if(hudT>0)return;hudT=.12;
   if(touch.fill&&me)css(touch.fill,'height',(me.thr*100).toFixed(0)+'%');
   const now=netNow();
@@ -2031,6 +2294,9 @@ function updateHud(dt){
   const w=[];
   if(fly){
     if(G.incoming)w.push(['MISSILE',0]);
+    // someone behind you, close and pointed at you: say so (their arrow is at the bottom edge)
+    else{for(const o of G.ents.values()){if(o===me||!o.alive||!enemies(me,o))continue;T1.copy(me.pos).sub(o.pos);const d=T1.length();
+      if(d<600&&d>1&&me.fwd.dot(T1)>d*.3&&o.fwd.dot(T1)>d*.9){w.push(['ON YOUR TAIL: break!',0]);break}}}
     if(me.stalled)w.push(['STALL: nose down, throttle up',0]);
     else if(avoidGround(me,me.h,me.p,.55).hit&&me.fwd.y<.15)w.push(['PULL UP',0]);
     if(me.outT>0)w.push(['TURN BACK '+Math.ceil(8-me.outT),0]);
@@ -2155,7 +2421,7 @@ function renderLobby(){
 }
 function lobbyCfg(){return isHost()||!G.rs?onlineCfg:G.rs}
 function openPause(){
-  if(G.phase!=='play'||G.paused)return;G.paused=true;keys.clear();touch.fire=touch.boost=false;
+  if(G.phase!=='play'||G.paused)return;G.paused=true;showHint();keys.clear();touch.fire=touch.boost=false;
   if(document.pointerLockElement)try{document.exitPointerLock()}catch(e){}
   $('pauseSub').textContent=G.online?'The fight goes on without you: your plane holds a safe course on autopilot.':'The match is paused.';
   $('copyInvite').hidden=!G.online||Net.isPublic;$('toLobby').hidden=!G.online||Net.isPublic||!isHost();$('inviteMsg').textContent='';
@@ -2251,7 +2517,7 @@ function frame(t){
   G.noRender=document.hidden;if(document.hidden)return;
   const sim=!(G.paused&&!G.online);
   if(sim)simStep(dt,t);
-  updateCamera(dt);drawEnts(sim?dt:0);FX.update(sim?dt:0);FX.drawBullets();if(KIT)KIT.update(dt);
+  if(sim){updateWrecks(dt);WATER_NRM.offset.x+=dt*.0016;WATER_NRM.offset.y+=dt*.0009}updateCamera(dt);STREAK(dt);drawEnts(sim?dt:0);FX.update(sim?dt:0);FX.drawBullets();if(KIT)KIT.update(dt);
   if(!$('hud').hidden)updateHud(dt);
   engineSound(G.me);
   renderer.render(scene,camera);
@@ -2273,6 +2539,9 @@ function kitSync(){if(kitOn())kitLoad();if(KIT)KIT.access()}
 function kitHeard(e,ck){if(KIT)KIT.heard(e,ck);else{e.ck0=ck;if(typeof ck==='string'&&/^[0-9a-z]{4}$/.test(ck)&&ck!=='0000')kitLoad()}}
 kitSync();if(CAPTAINS)CAPTAINS.onChange(kitSync);
 
+// Compile every shader now (things that start hidden too: debris, speed streaks, missiles, shields), so the first
+// explosion or the first burst of speed doesn't stall a frame while the GPU compiles it.
+(function warmShaders(){const hid=[];scene.traverse(o=>{if((o.isMesh||o.isPoints||o.isLine)&&!o.visible){hid.push(o);o.visible=true}});try{renderer.compile(scene,camera)}catch(e){}for(const o of hid)o.visible=false})();
 setSky(0);showMenu();requestAnimationFrame(frame);
 addEventListener('pagehide',()=>{if(G.online)Net.leave()});
 // A hook for automated tests only (browsers driven by a test tool say so with navigator.webdriver).

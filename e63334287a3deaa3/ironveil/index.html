@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>
+/* PREVIEW GATE. While IV_PREVIEW is true the game is a private preview: it runs only in a browser that holds the
+   preview flag (sessionStorage or localStorage 'ironveil:preview' = '1', set by the "Midnight Ops (preview)" button on
+   the admin page), and only Boot Camp can be played. Without the flag the page shows "Not available yet" and loads
+   none of the game's scripts or assets. Set it to false to open the game to everyone. This is page-only gating, like
+   the site's other hidden features: anyone who reads the source can set the flag. It is not security. */
+window.IV_PREVIEW = true;
+(function () {
+  if (!window.IV_PREVIEW) return;
+  var ok = false;
+  try { ok = sessionStorage.getItem('ironveil:preview') === '1' || localStorage.getItem('ironveil:preview') === '1'; } catch (e) {}
+  if (ok) { try { sessionStorage.setItem('ironveil:preview', '1'); } catch (e) {} return; }
+  window.IV_LOCKED = true;
+})();
+</script>
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script>if (!window.IV_LOCKED) document.write('<script src="es.js"><\/script>');</script> <!-- this game's own Spanish words (not while the preview gate is closed) -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Midnight Ops</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<script>if (!window.IV_LOCKED) document.write('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;800&family=Special+Elite&family=Barlow+Condensed:wght@400;500;600;700&display=swap">');</script>
+<style>
+/* Midnight Ops (folder ironveil/; the display name lives in IV.GAME_NAME in js/core.js). Layout: full-bleed WebGL scene; menus are paper and olive panels over the live world; the HUD keeps to the
+   corners (objective top left, compass top centre, weapon bottom right, stance bottom left) so the middle stays clear. */
+:root{
+  --ink:#dcd4bf;          /* parchment text, kept dim: the darkest game on the site */
+  --ink-dim:rgba(220,212,191,.58);
+  --paper:#e6dac0;        /* briefing paper */
+  --paper-ink:#2a2619;
+  --olive:#4b5320;
+  --olive-d:#2c3115;
+  --khaki:#c3b091;
+  --brass:#d0a84c;        /* accent: selection, objectives */
+  --warn:#e8c547;         /* suspicious */
+  --danger:#cf4630;       /* combat, damage */
+  --night:#0d1013;
+  --panel:rgba(10,11,8,.82);
+  --line:rgba(236,227,204,.18);
+  --f-stencil:'Big Shoulders Stencil Display','Impact',sans-serif;
+  --f-type:'Special Elite','Courier New',monospace;
+  --f-ui:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var(--ink)}
+body{font-family:var(--f-ui);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden;background:var(--night)}
+#view{display:block;position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#hudc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
+.grain{pointer-events:none;position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+body.envpost .grain,body.envpost .vignette{display:none}
+.vignette{pointer-events:none;position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
+
+/* ---------------- HUD ---------------- */
+#hud{position:absolute;inset:0;pointer-events:none;font-variant-numeric:tabular-nums}
+#hud .pad{position:absolute;inset:calc(14px + env(safe-area-inset-top,0px)) calc(18px + env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) calc(18px + env(safe-area-inset-left,0px))}
+#obj{position:absolute;left:0;top:0;max-width:min(360px,42vw);display:flex;flex-direction:column;gap:6px}
+#obj .head{font-family:var(--f-stencil);font-weight:800;letter-spacing:.14em;font-size:13px;color:var(--brass);text-transform:uppercase}
+#obj .o{display:flex;gap:8px;align-items:flex-start;font-size:17px;line-height:1.15;text-shadow:0 1px 2px #000,0 0 8px rgba(0,0,0,.6)}
+#obj .o i{flex:0 0 12px;height:12px;margin-top:3px;border:1.5px solid var(--ink);transform:rotate(45deg) scale(.8)}
+#obj .o.done{opacity:.55;text-decoration:line-through}
+#obj .o.done i{background:var(--ink)}
+#obj .o.opt{color:var(--khaki)}
+#obj .o.opt i{border-style:dashed}
+#obj .o.new{animation:objin .9s ease-out}
+@keyframes objin{0%{transform:translateX(-12px);opacity:0;color:var(--brass)}60%{color:var(--brass)}100%{transform:none;opacity:1}}
+/* first person: the gun fills the lower right, so the weapon and ammo sit bottom left, beside the stance */
+#wpn{position:absolute;left:150px;bottom:0;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-shadow:0 1px 2px #000}
+#wpn .name{font-family:var(--f-stencil);font-weight:800;font-size:16px;letter-spacing:.16em;text-transform:uppercase;color:var(--khaki)}
+#wpn .ammo{font-size:40px;font-weight:700;line-height:.95}
+#wpn .ammo small{font-size:20px;color:var(--ink-dim);font-weight:500}
+#wpn .gear{display:flex;gap:12px;font-size:15px;color:var(--ink-dim);letter-spacing:.06em}
+#wpn .gear b{color:var(--ink);font-weight:600}
+#stance{position:absolute;left:0;bottom:0;display:flex;align-items:flex-end;gap:12px;text-shadow:0 1px 2px #000}
+#stance svg{width:34px;height:44px;opacity:.9}
+#stance .lbl{display:flex;flex-direction:column;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
+#stance .lbl b{color:var(--ink);font-size:16px;font-weight:600}
+#noise{display:flex;gap:3px;margin-top:4px}
+#noise i{width:7px;height:10px;background:rgba(236,227,204,.2)}
+#noise i.on{background:var(--ink)}
+#noise i.on.hi{background:var(--warn)}
+#squad{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-top:6px}
+#squad b{color:var(--khaki);font-weight:600}
+/* first person: the gun owns the lower right and the centre is for aiming, so subtitles sit lower left of centre */
+#sub{position:absolute;left:calc(50% - min(330px,30vw));bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:min(520px,40vw);text-align:left;
+  font-family:var(--f-type);font-size:calc(19px * var(--subscale,1));line-height:1.35;background:rgba(10,11,8,.62);padding:8px 16px;border-left:3px solid var(--brass);color:#f1ead6}
+#sub .who{color:var(--brass);margin-right:.5em}
+#prompt{position:absolute;left:42%;top:64%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;font-size:19px;letter-spacing:.04em;text-shadow:0 1px 3px #000}
+#prompt kbd{font:600 15px var(--f-ui);border:1.5px solid var(--ink);padding:2px 8px;border-radius:3px;background:rgba(0,0,0,.35);min-width:28px;text-align:center;text-transform:uppercase}
+#prompt .bar{width:120px;height:4px;background:rgba(236,227,204,.25)}
+#prompt .bar i{display:block;height:100%;width:0;background:var(--brass)}
+#toast{position:absolute;right:0;top:0;font-family:var(--f-stencil);font-weight:800;letter-spacing:.18em;font-size:15px;color:var(--khaki);text-transform:uppercase;text-shadow:0 1px 2px #000;opacity:0;transition:opacity .4s}
+#toast.on{opacity:1}
+#dmg{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(120,10,0,.55) 85%,rgba(90,0,0,.8) 100%)}
+#flash{position:absolute;inset:0;pointer-events:none;background:#fff8e6;opacity:0}
+#fade{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;transition:opacity .6s}
+#flecks{position:absolute;inset:0;pointer-events:none;opacity:0}
+.letterbox::before,.letterbox::after{content:"";position:absolute;left:0;right:0;height:9vh;background:#000;z-index:2}
+.letterbox::before{top:0}.letterbox::after{bottom:0}
+
+/* ---------------- Screens ---------------- */
+.screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow:auto}
+.dim{background:linear-gradient(90deg,rgba(8,9,6,.92) 0%,rgba(8,9,6,.72) 46%,rgba(8,9,6,.25) 100%)}
+.dimc{background:rgba(8,9,6,.72)}
+.logo{font-family:var(--f-stencil);font-weight:800;font-size:clamp(56px,11vw,128px);line-height:.85;letter-spacing:.06em;color:var(--khaki);
+  text-shadow:0 2px 0 #3a3420,0 6px 24px rgba(0,0,0,.6);margin:0}
+.tag{font-family:var(--f-type);font-size:clamp(15px,2vw,19px);color:var(--ink-dim);margin:10px 0 0;letter-spacing:.04em}
+#title{justify-content:flex-start}
+#title .col{width:min(440px,100%);margin-left:clamp(0px,6vw,90px);display:flex;flex-direction:column;gap:22px}
+.menu{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.mi{display:flex;align-items:baseline;gap:12px;background:none;border:0;border-left:3px solid transparent;text-align:left;padding:9px 14px;font-size:24px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);transition:background .12s,border-color .12s,padding .12s}
+.mi small{font-size:15px;font-weight:400;letter-spacing:.02em;text-transform:none;color:var(--ink-dim)}
+.mi:hover,.mi:focus-visible,.mi.sel{background:linear-gradient(90deg,rgba(208,168,76,.18),transparent);border-left-color:var(--brass);padding-left:20px;outline:none}
+.mi:disabled{opacity:.42;cursor:default}
+.foot{font-size:13px;color:var(--ink-dim);letter-spacing:.04em;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.foot a{color:var(--ink-dim)}
+.panel{background:var(--panel);border:1px solid var(--line);padding:22px 24px;width:min(760px,100%);max-height:100%;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.panel h2{font-family:var(--f-stencil);font-weight:800;font-size:30px;letter-spacing:.12em;margin:0 0 4px;color:var(--khaki);text-transform:uppercase}
+.panel .sub{color:var(--ink-dim);margin:0 0 16px;font-size:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{background:transparent;border:1.5px solid var(--ink-dim);color:var(--ink);padding:9px 18px;font-size:18px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.btn:hover{border-color:var(--ink);background:rgba(236,227,204,.06)}
+.btn.cta{background:var(--brass);border-color:var(--brass);color:#1b1810}
+.btn.cta:hover{background:#e0b95a}
+.btn.ghost{border-color:transparent;color:var(--ink-dim)}
+/* campaign */
+.missions{display:flex;flex-direction:column;gap:6px;margin:6px 0 16px}
+.ms{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;text-align:left;background:rgba(236,227,204,.03);border:1px solid var(--line);padding:10px 14px;color:var(--ink)}
+.ms:not(:disabled):hover,.ms.sel{border-color:var(--brass);background:rgba(208,168,76,.09)}
+.ms .n{font-family:var(--f-stencil);font-size:26px;font-weight:800;color:var(--khaki);text-align:center}
+.ms .t{font-size:20px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.ms .d{display:block;font-size:15px;color:var(--ink-dim);font-weight:400;letter-spacing:0;text-transform:none;margin-top:2px}
+.ms .st{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);text-align:right}
+.ms:disabled{cursor:default}
+.ms:disabled .t,.ms:disabled .n{opacity:.5}
+.medal{display:inline-block;width:16px;height:16px;border-radius:50%;vertical-align:-3px;margin-left:6px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
+.medal.gold{background:#d9b44a}.medal.silver{background:#b9bec4}.medal.bronze{background:#b0763f}
+.diff{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 16px}
+.diff button{background:rgba(236,227,204,.03);border:1px solid var(--line);padding:10px;text-align:left}
+.diff button b{display:block;font-size:19px;letter-spacing:.08em;text-transform:uppercase}
+.diff button span{font-size:14px;color:var(--ink-dim)}
+.diff button[aria-pressed=true]{border-color:var(--brass);background:rgba(208,168,76,.14)}
+/* briefing: paper dossier */
+#briefing .dossier{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:0;width:min(1060px,100%);background:var(--paper);color:var(--paper-ink);box-shadow:0 30px 80px rgba(0,0,0,.6);transform:rotate(-.4deg);max-height:100%;overflow:auto}
+#briefing .map{position:relative;background:#ddd0b2;border-right:1px dashed rgba(42,38,25,.35);min-height:300px}
+#briefing canvas{display:block;width:100%;height:100%;aspect-ratio:1}
+#briefing .txt{padding:22px 26px;font-family:var(--f-type);font-size:16px;line-height:1.45;display:flex;flex-direction:column;gap:10px}
+#briefing .stamp{font-family:var(--f-stencil);font-weight:800;color:#8a2a1c;border:3px solid #8a2a1c;display:inline-block;padding:2px 10px;letter-spacing:.2em;transform:rotate(-4deg);align-self:flex-start;opacity:.85;font-size:18px}
+#briefing h3{font-family:var(--f-stencil);font-weight:800;font-size:34px;letter-spacing:.1em;margin:0;text-transform:uppercase}
+#briefing ul{margin:0;padding-left:20px}
+#briefing li.opt{color:#5a5238}
+#briefing .btn{color:var(--paper-ink);border-color:var(--paper-ink)}
+#briefing .btn.cta{background:var(--olive);border-color:var(--olive);color:var(--paper)}
+/* settings */
+.set{display:grid;grid-template-columns:1fr minmax(160px,240px);gap:10px 18px;align-items:center;margin:8px 0 18px}
+.set label{font-size:17px}
+.set label small{display:block;color:var(--ink-dim);font-size:13px}
+.set input[type=range]{width:100%;accent-color:var(--brass)}
+.set select{background:#1d1f17;color:var(--ink);border:1px solid var(--line);padding:6px;font:inherit;font-size:16px}
+.set input[type=checkbox]{width:22px;height:22px;accent-color:var(--brass);justify-self:start}
+.tabs{display:flex;gap:4px;margin-bottom:6px}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;font-size:17px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--brass)}
+/* results */
+#results .panel{width:min(620px,100%)}
+.res{display:grid;grid-template-columns:1fr auto;gap:6px 18px;font-size:18px;margin:10px 0 16px}
+.res span:nth-child(even){text-align:right;font-weight:600}
+.big-medal{display:flex;align-items:center;gap:16px;margin:4px 0 8px}
+.big-medal .m{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-stencil);font-weight:800;font-size:26px;color:#1b1810;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25),0 4px 18px rgba(0,0,0,.4)}
+.crit{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:4px;font-size:16px}
+.crit li::before{content:"○ ";color:var(--ink-dim)}
+.crit li.ok::before{content:"● ";color:var(--brass)}
+/* loading */
+#loading{flex-direction:column;gap:16px;background:var(--night)}
+#loading .bar{width:min(360px,70vw);height:3px;background:rgba(236,227,204,.15)}
+#loading .bar i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
+#loading p{font-family:var(--f-type);color:var(--ink-dim);margin:0;font-size:15px}
+#portrait{z-index:30;background:var(--night);flex-direction:column;gap:14px;text-align:center}
+#portrait svg{width:90px;height:90px;animation:rot 2.4s ease-in-out infinite}
+@keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+#portrait p{max-width:300px;font-size:18px;margin:0}
+#err{position:absolute;left:12px;bottom:12px;max-width:80vw;background:#3a120c;color:#ffd9cf;padding:8px 12px;font-size:14px;z-index:40}
+
+/* ---------------- Touch ---------------- */
+#touch{position:absolute;inset:0;pointer-events:none;display:none}
+body.touch #touch{display:block}
+#tLook{position:absolute;right:0;top:0;bottom:0;width:58%;pointer-events:auto;touch-action:none}
+#tStick{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;border:2px solid rgba(236,227,204,.28);background:rgba(10,11,8,.18);pointer-events:auto;touch-action:none}
+#tStick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(236,227,204,.35);border:2px solid rgba(236,227,204,.6)}
+.tb{position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid rgba(236,227,204,.45);background:rgba(10,11,8,.35);color:var(--ink);font:600 12px var(--f-ui);letter-spacing:.06em;text-transform:uppercase;pointer-events:auto;touch-action:none;display:grid;place-items:center;padding:0}
+/* the right-hand cluster sits over the gun and hands in first person: see-through until pressed */
+#touch .tb[data-t]:not([data-t=pause]):not([data-t=order]):not([data-t=swap]){opacity:.62}
+#touch .tb.on{opacity:1!important}
+.tb.on{background:rgba(208,168,76,.45);border-color:var(--brass)}
+.tb.big{width:76px;height:76px;font-size:13px}
+.tb.sm{width:46px;height:46px;font-size:11px}
+#tTop{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto}
+#tTop .tb{position:static;border-radius:6px;width:auto;height:40px;padding:0 12px}
+body.touch #wpn{bottom:auto;top:0;left:auto;right:0;text-align:right;align-items:flex-end}
+body.touch #wpn .ammo{font-size:30px}
+body.touch #wGear{display:none}
+body.touch #tTop{top:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+body.touch #stance{left:auto;right:0;bottom:auto;top:132px;display:none}
+body.touch #sub{bottom:auto;top:calc(60px + env(safe-area-inset-top,0px));font-size:15px;max-width:52vw;left:50%;text-align:center}
+body.touch #prompt{top:31%;bottom:auto;left:max(110px,14%)}
+body.touch #obj{max-width:34vw}
+body.touch #obj .o{font-size:14px}
+/* phones held upright (after "Play upright anyway"): the same controls re-laid so nothing overlaps at 390 x 844 */
+@media (orientation:portrait){
+  body.touch #tStick{width:120px;height:120px;left:calc(18px + env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+  body.touch #touch [data-t="fire"]{right:18px!important;bottom:120px!important}
+  body.touch #touch [data-t="aim"]{right:104px!important;bottom:150px!important}
+  body.touch #touch [data-t="crouch"]{right:18px!important;bottom:24px!important}
+  body.touch #touch [data-t="prone"]{right:86px!important;bottom:24px!important}
+  body.touch #touch [data-t="reload"]{right:154px!important;bottom:24px!important}
+  body.touch #touch [data-t="use"]{right:104px!important;bottom:86px!important}
+  body.touch #touch [data-t="sprint"]{left:18px!important;bottom:160px!important}
+  body.touch #touch [data-t="vault"]{left:72px!important;bottom:160px!important}
+  body.touch #touch [data-t="leanLeft"]{left:18px!important;bottom:214px!important}
+  body.touch #touch [data-t="leanRight"]{left:72px!important;bottom:214px!important}
+  body.touch #touch [data-t="binoc"]{right:18px!important;bottom:206px!important}
+  body.touch #touch [data-t="grenade"]{right:72px!important;bottom:222px!important}
+  body.touch #touch [data-t="rock"]{right:126px!important;bottom:222px!important}
+  body.touch #touch [data-t="breath"]{right:180px!important;bottom:150px!important}
+  body.touch #tTop{top:calc(114px + env(safe-area-inset-top,0px));bottom:auto;left:auto;right:12px;transform:none}
+  body.touch #sub{top:calc(162px + env(safe-area-inset-top,0px));bottom:auto;width:max-content;max-width:84vw;left:50%;text-align:center}
+  body.touch #prompt{bottom:auto;top:34%}
+  body.touch #obj{max-width:56vw;top:40px}
+  body.touch #wpn{top:40px}   /* below the compass, which is half the width of an upright screen */
+}
+@media (max-height:430px){
+  #obj .o{font-size:14px}
+  .panel{padding:14px 16px}
+  .panel h2{font-size:24px}
+  .mi{font-size:19px;padding:6px 12px}
+  #title .col{gap:10px}
+  .logo{font-size:64px}
+}
+@media (max-width:720px){
+  #briefing .dossier{grid-template-columns:1fr}
+  #briefing .map{min-height:0}
+  .set{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="view" aria-label="Game view"></canvas>
+  <canvas id="hudc" aria-hidden="true"></canvas>
+  <div class="vignette"></div>
+  <div class="grain"></div>
+  <div id="dmg"></div>
+  <canvas id="flecks"></canvas>
+  <div id="flash"></div>
+  <div id="fade"></div>
+
+  <div id="hud" hidden data-noi18n>
+    <div class="pad">
+      <div id="obj"></div>
+      <div id="toast"></div>
+      <div id="stance">
+        <svg id="stanceIc" viewBox="0 0 34 44" aria-hidden="true"></svg>
+        <div class="lbl"><b id="stanceTx">Standing</b><div id="noise"><i></i><i></i><i></i><i></i><i></i></div><div id="squad"></div></div>
+      </div>
+      <div id="wpn"><div class="name" id="wName"></div><div class="ammo" id="wAmmo"></div><div class="gear" id="wGear"></div></div>
+      <div id="prompt" hidden></div>
+      <div id="sub" hidden></div>
+    </div>
+  </div>
+
+  <div id="touch" aria-hidden="true">
+    <div id="tLook"></div>
+    <div id="tStick"><i></i></div>
+    <div id="tTop">
+      <button class="tb" data-t="pause">❚❚</button>
+      <button class="tb" data-t="order">Order</button>
+      <button class="tb" data-t="swap">Swap</button>
+    </div>
+    <button class="tb big" data-t="fire" style="right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px))">Fire</button>
+    <button class="tb" data-t="aim" style="right:calc(108px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px))">Aim</button>
+    <button class="tb" data-t="crouch" style="right:calc(176px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px))">Crouch</button>
+    <button class="tb" data-t="prone" style="right:calc(176px + env(safe-area-inset-right,0px));bottom:calc(80px + env(safe-area-inset-bottom,0px))">Prone</button>
+    <button class="tb" data-t="reload" style="right:calc(110px + env(safe-area-inset-right,0px));bottom:calc(110px + env(safe-area-inset-bottom,0px))">Reload</button>
+    <button class="tb" data-t="use" style="right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(116px + env(safe-area-inset-bottom,0px))">Use</button>
+    <button class="tb sm" data-t="sprint" style="left:calc(170px + env(safe-area-inset-left,0px));bottom:calc(120px + env(safe-area-inset-bottom,0px))">Run</button>
+    <button class="tb sm" data-t="leanLeft" style="left:calc(170px + env(safe-area-inset-left,0px));bottom:calc(176px + env(safe-area-inset-bottom,0px))">Lean L</button>
+    <button class="tb sm" data-t="leanRight" style="left:calc(224px + env(safe-area-inset-left,0px));bottom:calc(120px + env(safe-area-inset-bottom,0px))">Lean R</button>
+    <button class="tb sm" data-t="vault" style="left:calc(170px + env(safe-area-inset-left,0px));bottom:calc(64px + env(safe-area-inset-bottom,0px))">Jump</button>
+    <button class="tb sm" data-t="binoc" style="right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(186px + env(safe-area-inset-bottom,0px))">Bino</button>
+    <button class="tb sm" data-t="grenade" style="right:calc(180px + env(safe-area-inset-right,0px));bottom:calc(150px + env(safe-area-inset-bottom,0px))">Nade</button>
+    <button class="tb sm" data-t="rock" style="right:calc(120px + env(safe-area-inset-right,0px));bottom:calc(172px + env(safe-area-inset-bottom,0px))">Rock</button>
+    <button class="tb sm" data-t="breath" style="right:calc(72px + env(safe-area-inset-right,0px));bottom:calc(196px + env(safe-area-inset-bottom,0px))" hidden>Breath</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="screen">
+    <div class="logo" style="font-size:54px" data-gname-line></div>
+    <div class="bar"><i id="loadBar"></i></div>
+    <p id="loadTx">Loading…</p>
+  </div>
+
+  <!-- Content note, shown before the title until accepted (localStorage ironveil:terms) -->
+  <div id="gate" class="screen dimc" hidden>
+    <div class="panel" style="width:min(520px,100%)">
+      <h2>Before you play</h2>
+      <p style="font-size:20px;margin:6px 0 10px" id="gateTx"></p>
+      <ul style="font-size:17px;line-height:1.5;margin:0 0 18px;padding-left:20px">
+        <li>Realistic Second World War weapons</li>
+        <li>Enemy soldiers are shot and killed</li>
+        <li>Blood effects (they can be turned off in Settings)</li>
+      </ul>
+      <div class="row"><button class="btn cta" id="gateOk">I understand, continue</button><a class="btn ghost" href="/e63334287a3deaa3/" target="_top" style="text-decoration:none">Back</a></div>
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div id="title" class="screen dim" hidden>
+    <div class="col">
+      <div>
+        <h1 class="logo" data-gname-logo></h1>
+        <p class="tag">Behind the lines, Normandy country, 1944.</p>
+      </div>
+      <nav class="menu" id="mainMenu">
+        <button class="mi" data-go="continue" id="miContinue">Continue <small id="contTx"></small></button>
+        <button class="mi" data-go="campaign">Campaign</button>
+        <button class="mi" data-go="settings">Settings</button>
+        <button class="mi" data-go="controls">Controls</button>
+      </nav>
+      <div class="foot"><span data-lang-toggle></span><span>Single player · progress saves in this browser</span><a href="/e63334287a3deaa3/" target="_top">Back Room</a></div>
+    </div>
+  </div>
+
+  <!-- Campaign map table -->
+  <div id="campaign" class="screen dimc" hidden>
+    <div class="panel">
+      <h2>The Farmhouse</h2>
+      <p class="sub">Map table. Pick an operation. Each one can be replayed for a better rating.</p>
+      <div class="missions" id="missionList"></div>
+      <div style="font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:6px">Difficulty</div>
+      <div class="diff" id="diffPick">
+        <button data-d="0"><b>Recruit</b><span>Enemies slow to notice and miss more. Strong aim assist on touch screens.</span></button>
+        <button data-d="1"><b>Regular</b><span>A fair fight. Light aim assist on touch screens.</span></button>
+        <button data-d="2"><b>Veteran</b><span>Sharp eyes, hard hits. Faint aim assist on touch screens.</span></button>
+      </div>
+      <div class="row"><button class="btn" data-go="back">Back</button></div>
+    </div>
+  </div>
+
+  <!-- Briefing -->
+  <div id="briefing" class="screen dimc" hidden>
+    <div class="dossier">
+      <div class="map"><canvas id="sketch" width="900" height="900" aria-label="Sketch map of the area"></canvas></div>
+      <div class="txt">
+        <span class="stamp" id="bStamp">Secret</span>
+        <h3 id="bTitle"></h3>
+        <div id="bBody"></div>
+        <div><b>Objectives</b><ul id="bObj"></ul></div>
+        <div class="row" style="margin-top:auto"><button class="btn" data-go="campaign">Back</button><button class="btn cta" id="bGo">Begin</button><button class="btn" id="bSkip" hidden>Skip tutorial</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pause" class="screen dim" hidden>
+    <div style="width:min(420px,100%);margin-right:auto;margin-left:clamp(0px,6vw,90px)">
+      <div class="logo" style="font-size:56px">PAUSED</div>
+      <p class="tag" id="pauseObj"></p>
+      <nav class="menu">
+        <button class="mi" data-go="resume">Resume</button>
+        <button class="mi" data-go="checkpoint">Restart from checkpoint</button>
+        <button class="mi" data-go="restart">Restart mission</button>
+        <button class="mi" data-go="settings">Settings</button>
+        <button class="mi" data-go="controls">Controls</button>
+        <button class="mi" data-go="quit">Quit to map table</button>
+      </nav>
+      <p class="tag" id="pauseMsg" style="font-size:14px"></p>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="settings" class="screen dimc" hidden>
+    <div class="panel">
+      <h2>Settings</h2>
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="game" aria-selected="true">Game</button>
+        <button role="tab" data-tab="video">Video</button>
+        <button role="tab" data-tab="audio">Audio</button>
+      </div>
+      <div class="set" data-pane="game">
+        <label for="sSens">Look sensitivity</label><input id="sSens" type="range" min="0.2" max="3" step="0.05">
+        <label for="sAimSens">Aim sensitivity<small>While aiming or scoped</small></label><input id="sAimSens" type="range" min="0.2" max="2" step="0.05">
+        <label for="sInvert">Invert look up and down</label><input id="sInvert" type="checkbox">
+        <label for="sAssist">Aim assist strength<small>Touch screens only (never with a mouse). 0 turns it off.</small></label><input id="sAssist" type="range" min="0" max="1.5" step="0.05">
+        <label for="sAuto">Auto-fire on target<small>Touch screens: fires when the reticle is on an enemy</small></label><input id="sAuto" type="checkbox">
+        <label for="sSub">Subtitle size</label><select id="sSub"><option value="0.85">Small</option><option value="1">Medium</option><option value="1.25">Large</option></select>
+        <label for="sBlood">Blood effects<small>Off: hits show dust puffs instead</small></label><input id="sBlood" type="checkbox">
+        <label for="sView">View<small>First person, or the camera over your shoulder</small></label><select id="sView"><option value="first">First person</option><option value="third">Over the shoulder</option></select>
+        <label for="sCrouch">Crouch<small>Toggle: press to crouch, again to stand. Hold: crouched while the key is down</small></label><select id="sCrouch"><option value="0">Toggle</option><option value="1">Hold</option></select>
+        <label for="sBob">Camera bob<small>A small step bob and a dip when you land</small></label><input id="sBob" type="checkbox">
+        <label for="sMotion">Reduced motion<small>Less camera shake and sway, no lightning flashes</small></label><input id="sMotion" type="checkbox">
+      </div>
+      <div class="set" data-pane="video" hidden>
+        <label for="sQual">Quality<small>Low is best for school laptops and phones</small></label><select id="sQual"><option value="0">Low</option><option value="1">Medium</option><option value="2">High</option></select>
+        <label for="sFov">Field of view</label><input id="sFov" type="range" min="55" max="100" step="1">
+        <label for="sBright">Brightness</label><input id="sBright" type="range" min="0.7" max="1.6" step="0.05">
+      </div>
+      <div class="set" data-pane="audio" hidden>
+        <label for="sVol">Master volume</label><input id="sVol" type="range" min="0" max="1" step="0.05">
+        <label for="sSfx">Effects</label><input id="sSfx" type="range" min="0" max="1" step="0.05">
+        <label for="sMus">Music</label><input id="sMus" type="range" min="0" max="1" step="0.05">
+        <label for="sMute">Mute (M)</label><input id="sMute" type="checkbox">
+      </div>
+      <div class="row"><button class="btn cta" data-go="back">Done</button><button class="btn ghost" data-go="controls">Change keys</button></div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="screen dimc" hidden>
+    <div class="panel">
+      <h2 id="rTitle">Mission complete</h2>
+      <div class="big-medal"><div class="m" id="rMedal"></div><div><div id="rMedalTx" style="font-size:22px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"></div><div id="rDiff" style="color:var(--ink-dim)"></div></div></div>
+      <ul class="crit" id="rCrit"></ul>
+      <div class="res" id="rStats"></div>
+      <div class="row"><button class="btn cta" id="rNext">Continue</button><button class="btn" id="rRetry">Replay</button><button class="btn ghost" data-go="campaign">Map table</button></div>
+    </div>
+  </div>
+
+  <div id="portrait" class="screen" hidden>
+    <svg viewBox="0 0 48 48" fill="none" stroke="#ece3cc" stroke-width="2.5" stroke-linecap="round"><rect x="15" y="6" width="18" height="36" rx="3"/><path d="M22 37h4"/></svg>
+    <p id="portraitTx"></p>
+    <button class="btn" id="portraitGo" style="pointer-events:auto">Play upright anyway</button>
+  </div>
+  <div id="err" hidden></div>
+</div>
+<div id="ivLocked" style="position:fixed;inset:0;z-index:99;display:none;place-items:center;background:#0b0c0a;color:#ece3cc;font:500 18px/1.4 system-ui,sans-serif;text-align:center;padding:24px">
+  <div><p style="font-size:26px;font-weight:700;margin:0 0 10px">Not available yet</p><p style="margin:0 0 18px;opacity:.75">This game is still being made.</p><a href="/e63334287a3deaa3/" style="color:#d0a84c">Back to the Back Room</a></div>
+</div>
+
+<script>
+/* the game's scripts, in order (dynamic scripts with async=false run in insertion order). Not loaded at all while the
+   preview gate is closed; play-time counting (stats.js) only once the game is public. */
+(function () {
+  if (window.IV_LOCKED) { var l = document.getElementById('ivLocked'); l.style.display = 'grid'; document.getElementById('app') && (document.getElementById('app').hidden = true); return; }
+  var L = ['/lib/three/r187/three.min.js', '../autores.js', '/lib/three/r187/three-addons.min.js', '../keybinds.js', 'env/texgen.js', 'env/core.js', 'env/atmosphere.js', 'env/grass.js', 'env/ground.js', 'env/builder.js', 'env/build.js', 'env/nature.js', 'env/props.js', 'env/decals.js', 'env/labels.js', 'env/post.js', 'env/index.js', 'js/core.js', 'js/audio.js', 'js/input.js', 'js/world.js', 'js/kit.js', 'js/art.js', 'js/nav.js', 'js/fx.js', 'js/player.js', 'js/camera.js', 'js/fp.js', 'js/weapons.js', 'js/ai.js', 'js/ally.js', 'js/ambience.js', 'js/mission.js', 'js/missions/bootcamp.js', 'js/missions/nightdrop.js', 'js/hud.js', 'js/touch.js', 'js/menus.js', 'js/main.js', '/analytics/tracker.js'];
+  if (!window.IV_PREVIEW) L.unshift('/e63334287a3deaa3/stats.js');
+  L.forEach(function (src) { var s = document.createElement('script'); s.src = src; s.async = false; if (/stats\.js$/.test(src)) s.setAttribute('data-game', 'ironveil'); document.body.appendChild(s); });
+})();
+</script>
+</body>
+</html>

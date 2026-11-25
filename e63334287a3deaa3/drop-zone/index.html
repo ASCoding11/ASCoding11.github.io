@@ -666,11 +666,14 @@ body.touch.mbar #topc{top:calc(58px + env(safe-area-inset-top,0px))}
   </section>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/lib/three/r187/three.min.js"></script> <!-- three.js r187 with the site's r128 layer (see lib/three/README.md) -->
 <script src="../autores.js"></script>
 <script src="../keybinds.js"></script>
 <script src="../netsmooth.js"></script>
 <script src="../events.js"></script>
+<script src="../colyseus.js"></script> <!-- the game relay: online rooms go through it (see README) -->
+<script src="../netrelay.js"></script>
+<script src="../netrelay-config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -805,6 +808,14 @@ function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCo
 const randSeed=()=>Math.floor(Math.random()*2e9);
 
 /* ---------- renderer ---------- */
+// three.js r187 (/lib/three/r187, with its r128 layer). Every edit this page (and locker-extra.js) makes to a built-in
+// shader goes through shRep: r187 renamed or removed some of the text these edits search for, and a search that finds
+// nothing would quietly leave the effect out, so a miss is reported in the console with the place it came from.
+const shRep=(site,src,find,put)=>{if(src.includes(find))return src.replace(find,put);console.error('Driftfall: shader patch not found ('+site+'): '+find.slice(0,48));return src};
+const shEd=(site,sh)=>({v(f,p){sh.vertexShader=shRep(site,sh.vertexShader,f,p);return this},f(f,p){sh.fragmentShader=shRep(site,sh.fragmentShader,f,p);return this}});   // shEd('where',sh).v(find,put).f(find,put)
+// r187 draws a see-through double-sided material twice (back faces, then front); r128 drew it once. Once again here, for
+// the same picture and no extra draw calls (the storm wall, the plane's haze and glows, grass tufts and the like).
+(function(){const sv=THREE.Material.prototype.setValues;THREE.Material.prototype.setValues=function(v){this.forceSinglePass=true;return sv.call(this,v)}})();
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
 renderer.domElement.id='view';renderer.domElement.tabIndex=-1;
@@ -915,10 +926,10 @@ MAT.onBeforeCompile=sh=>{
   if(KIT_TEX)sh.uniforms.dzArr={value:KIT_TEX};
   // WORLD (the island's buildings and props): dzA carries each corner's surface (a layer of KIT_TEX, 0 for none), its height
   // above the foot of the thing it belongs to, and how far indoors it is. The surface is laid on in metres (2 m a tile).
-  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\n#ifdef FINE\nvarying vec3 dzP;varying vec3 dzN;\n#endif\n#ifdef WORLD\nattribute vec3 dzA;varying vec3 dzU;varying vec2 dzK;\n#endif')
-    .replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef FINE\ndzP=transformed;dzN=objectNormal;\n#endif\n#ifdef WORLD\n{vec3 an=abs(objectNormal);vec2 q=an.y>.5?transformed.xz:(an.x>an.z?transformed.zy:transformed.xy);dzU=vec3(q*.5,dzA.x);dzK=dzA.yz;}\n#endif');
-  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\n#ifdef FINE\nuniform sampler2D dzTex;varying vec3 dzP;varying vec3 dzN;\n#endif\n#ifdef WORLD\nvarying vec3 dzU;varying vec2 dzK;\n#ifdef KIT\nprecision highp sampler2DArray;uniform sampler2DArray dzArr;\n#endif\n#endif')
-    .replace('#include <color_fragment>','#include <color_fragment>\n#ifdef WORLD\n{\n#ifdef KIT\n'
+  shEd('MAT',sh).v('#include <common>','#include <common>\n#ifdef FINE\nvarying vec3 dzP;varying vec3 dzN;\n#endif\n#ifdef WORLD\nattribute vec3 dzA;varying vec3 dzU;varying vec2 dzK;\n#endif')
+    .v('#include <begin_vertex>','#include <begin_vertex>\n#ifdef FINE\ndzP=transformed;dzN=objectNormal;\n#endif\n#ifdef WORLD\n{vec3 an=abs(objectNormal);vec2 q=an.y>.5?transformed.xz:(an.x>an.z?transformed.zy:transformed.xy);dzU=vec3(q*.5,dzA.x);dzK=dzA.yz;}\n#endif')
+    .f('#include <common>','#include <common>\n#ifdef FINE\nuniform sampler2D dzTex;varying vec3 dzP;varying vec3 dzN;\n#endif\n#ifdef WORLD\nvarying vec3 dzU;varying vec2 dzK;\n#ifdef KIT\nprecision highp sampler2DArray;uniform sampler2DArray dzArr;\n#endif\n#endif')
+    .f('#include <color_fragment>','#include <color_fragment>\n#ifdef WORLD\n{\n#ifdef KIT\n'
       // the surface texture: its colour times the paint (the vertex colour) where its alpha is 1, its own colour (mortar, nail heads, stripes) where it is 0
       +'float ly=floor(dzU.z+.5);vec4 kt=texture(dzArr,vec3(dzU.xy,max(ly-1.,0.)));vec3 vc=diffuseColor.rgb;float mx=max(vc.r,max(vc.g,vc.b));diffuseColor.rgb=mix(vc,min(kt.rgb*1.1,1.)*mix(vec3(mx),vc,kt.a),step(.5,ly));\n#endif\n'
       // dirt and shade where a wall, a post or a trunk meets the ground, and the dimmer light indoors
@@ -943,7 +954,7 @@ const BMAT=new THREE.MeshLambertMaterial({vertexColors:true,skinning:true});BMAT
 // moved, so it never flutters.
 const flutT={value:0};
 BMAT.onBeforeCompile=sh=>{MAT.onBeforeCompile(sh);sh.uniforms.flutT=flutT;
-  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float flutT;').replace('#include <skinning_vertex>',`#include <skinning_vertex>
+  shEd('BMAT',sh).v('#include <common>','#include <common>\nuniform float flutT;').v('#include <skinning_vertex>',`#include <skinning_vertex>
   {float fa=length(getBoneMatrix(6.)[3].xyz-getBoneMatrix(0.)[3].xyz)*1.25;
   if(fa>.001){float w=smoothstep(.06,.26,position.z)*(.55+.9*smoothstep(1.5,1.75,position.y));
     float ph=flutT*29.+position.y*13.+position.x*7.;transformed.z+=fa*w*(.022+.022*sin(ph));transformed.x+=fa*w*.014*sin(ph*.83+1.7);transformed.y+=fa*w*.01*sin(ph*1.31);}}`)};
@@ -954,16 +965,16 @@ BMAT.onBeforeCompile=sh=>{MAT.onBeforeCompile(sh);sh.uniforms.flutT=flutT;
 const KNEE_Y=-.42,KNEE_Z=-.035;
 const kneeVS=(sh,nor)=>{
   const k=`float kw=-legK*smoothstep(${(KNEE_Y+.07).toFixed(3)},${(KNEE_Y-.07).toFixed(3)},position.y),kc=cos(kw),ks=sin(kw);`;
-  sh.vertexShader=sh.vertexShader.replace('void main() {','attribute float legK;\nvoid main() {')
-    .replace('#include <begin_vertex>',`#include <begin_vertex>\n{${k}vec3 q=transformed-vec3(0.,${KNEE_Y},${KNEE_Z});transformed=vec3(q.x,kc*q.y-ks*q.z,ks*q.y+kc*q.z)+vec3(0.,${KNEE_Y},${KNEE_Z});}`);
-  if(nor)sh.vertexShader=sh.vertexShader.replace('#include <beginnormal_vertex>',`#include <beginnormal_vertex>\n{${k}objectNormal=vec3(objectNormal.x,kc*objectNormal.y-ks*objectNormal.z,ks*objectNormal.y+kc*objectNormal.z);}`)};
+  shEd('knee',sh).v('void main() {','attribute float legK;\nvoid main() {')
+    .v('#include <begin_vertex>',`#include <begin_vertex>\n{${k}vec3 q=transformed-vec3(0.,${KNEE_Y},${KNEE_Z});transformed=vec3(q.x,kc*q.y-ks*q.z,ks*q.y+kc*q.z)+vec3(0.,${KNEE_Y},${KNEE_Z});}`);
+  if(nor)shEd('knee',sh).v('#include <beginnormal_vertex>',`#include <beginnormal_vertex>\n{${k}objectNormal=vec3(objectNormal.x,kc*objectNormal.y-ks*objectNormal.z,ks*objectNormal.y+kc*objectNormal.z);}`)};
 // the standard legs' own copy of the shared material (the same shader, plus the knee)
 const LMAT=new THREE.MeshLambertMaterial({vertexColors:true});LMAT.defines={};LMAT.onBeforeCompile=sh=>{MAT.onBeforeCompile(sh);kneeVS(sh,true)};
 const LDEPTH=new THREE.MeshDepthMaterial({depthPacking:THREE.RGBADepthPacking});LDEPTH.onBeforeCompile=sh=>kneeVS(sh,false);
 FLMAT.onBeforeCompile=sh=>{
   MAT.onBeforeCompile(sh);kneeVS(sh,true);
-  sh.vertexShader=sh.vertexShader.replace('void main() {','attribute vec4 lzmap;attribute vec4 legA;attribute vec4 legB;\nvec3 lunpack(float c){return vec3(floor(c/65536.),floor(mod(c,65536.)/256.),mod(c,256.))/255.;}\nvoid main() {')
-    .replace('#include <color_vertex>','#include <color_vertex>\n{float zi=legB.y<.5?lzmap.x:legB.y<1.5?lzmap.y:legB.y<2.5?lzmap.z:lzmap.w;vColor=lunpack(zi<.5?legA.x:zi<1.5?legA.y:zi<2.5?legA.z:zi<3.5?legA.w:legB.x);}');
+  shEd('FLMAT',sh).v('void main() {','attribute vec4 lzmap;attribute vec4 legA;attribute vec4 legB;\nvec3 lunpack(float c){return vec3(floor(c/65536.),floor(mod(c,65536.)/256.),mod(c,256.))/255.;}\nvoid main() {')
+    .v('#include <color_vertex>','#include <color_vertex>\n{float zi=legB.y<.5?lzmap.x:legB.y<1.5?lzmap.y:legB.y<2.5?lzmap.z:lzmap.w;vColor.rgb=lunpack(zi<.5?legA.x:zi<1.5?legA.y:zi<2.5?legA.z:zi<3.5?legA.w:legB.x);}');
 };
 // A unit box with rounded edges and smooth shading, for characters (a plain box pushed part of the way toward a ball).
 const ROUND_BOX=(()=>{
@@ -1844,9 +1855,9 @@ function landMaterial(){
   const ctlU={value:ctl};M.userData.ctlU=ctlU;   // (an arena swaps in its own control map: see setArena)
   M.onBeforeCompile=sh=>{
     sh.uniforms.lDet={value:det};sh.uniforms.lDet2={value:det2};sh.uniforms.lCtl=ctlU;
-    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute float lMac;varying vec3 lP;varying vec3 lN;varying float lM;').replace('#include <begin_vertex>','#include <begin_vertex>\nlP=transformed;lN=objectNormal;lM=lMac;');
-    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D lDet;uniform sampler2D lDet2;uniform sampler2D lCtl;varying vec3 lP;varying vec3 lN;varying float lM;')
-      .replace('#include <map_fragment>',`{
+    shEd('land',sh).v('#include <common>','#include <common>\nattribute float lMac;varying vec3 lP;varying vec3 lN;varying float lM;').v('#include <begin_vertex>','#include <begin_vertex>\nlP=transformed;lN=objectNormal;lM=lMac;')
+      .f('#include <common>','#include <common>\nuniform sampler2D lDet;uniform sampler2D lDet2;uniform sampler2D lCtl;varying vec3 lP;varying vec3 lN;varying float lM;')
+      .f('#include <map_fragment>',`{
       float dist=1./gl_FragCoord.w,soft=.035+min(.16,dist*.0012),h=lP.y,ny=normalize(lN).y;
       vec4 dn=texture2D(lDet,lP.xz*.2);
       vec3 ct=texture2D(lCtl,vec2(lP.x+${TM}.,${TW-TM}.-lP.z)/${TW}.).rgb;
@@ -1929,8 +1940,9 @@ function scatterLand(){
     tp.push(ca*.05-sa*w,0,sa*.05+ca*w, ca*.05+sa*w,0,sa*.05-ca*w, ca*(.05+ln),hh,sa*(.05+ln));tc.push(k*.9,k*.95,k*.8, k*.9,k*.95,k*.8, 1.2,1.24,1.05);tn.push(0,1,0,0,1,0,0,1,0)}
   const tg=new THREE.BufferGeometry();tg.setAttribute('position',new THREE.Float32BufferAttribute(tp,3));tg.setAttribute('color',new THREE.Float32BufferAttribute(tc,3));tg.setAttribute('normal',new THREE.Float32BufferAttribute(tn,3));
   const tm=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
-  tm.onBeforeCompile=sh=>{sh.uniforms.lT=tuftT;sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float lT;').replace('#include <lights_lambert_vertex>','#include <lights_lambert_vertex>\n#ifdef DOUBLE_SIDED\nvLightBack=vLightFront;vIndirectBack=vIndirectFront;\n#endif')   // (both sides of a blade are lit like the ground under it)
-    .replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\ntransformed*=1.-smoothstep(40.,65.,length((modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz));\ntransformed.xz+=vec2(.11,.07)*position.y*sin(lT*1.9+instanceMatrix[3].x*.6+instanceMatrix[3].z*.45);\n#endif')};
+  tm.onBeforeCompile=sh=>{sh.uniforms.lT=tuftT;shEd('tufts',sh).v('#include <common>','#include <common>\nuniform float lT;')
+    .f('#include <normal_fragment_begin>','#include <normal_fragment_begin>\n#ifdef DOUBLE_SIDED\nnormal*=faceDirection;nonPerturbedNormal=normal;\n#endif')   // (both sides of a blade are lit like the ground under it: r187 turns a back face's normal round, this turns it back)
+    .v('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\ntransformed*=1.-smoothstep(40.,65.,length((modelViewMatrix*instanceMatrix*vec4(0.,0.,0.,1.)).xyz));\ntransformed.xz+=vec2(.11,.07)*position.y*sin(lT*1.9+instanceMatrix[3].x*.6+instanceMatrix[3].z*.45);\n#endif')};
   const NT=LITE_LAND?(touch?1200:1600):4400,NS=LITE_LAND?150:420;
   tuftIM=new THREE.InstancedMesh(tg,tm,NT);stoneIM=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1,0),new THREE.MeshLambertMaterial(),NS);
   let n=0;for(let i=0;i<NT*14&&n<NT;i++){const x=4+rnd()*(MAP-8),z=4+rnd()*(MAP-8),h=terrainH(x,z),thick=lnoise(x/15,z/15,9);
@@ -2025,8 +2037,12 @@ const grade=(function(){
     const sm=renderer.shadowMap.autoUpdate;
     try{
       renderer.getDrawingBufferSize(sz);const W=Math.floor(sz.x),H=Math.floor(sz.y);if(W<8||H<8)return;
-      if(W!==w||H!==h){if(tex)tex.dispose();w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*3),w,h,THREE.RGBFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter}
+      // (RGBA: r187 has no RGB textures to copy into; needsUpdate, so the copy has a texture of the right size to land in)
+      if(W!==w||H!==h){if(tex)tex.dispose();w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*4),w,h,THREE.RGBAFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter;tex.needsUpdate=true}
       renderer.shadowMap.autoUpdate=false;                      // the shadow map is already drawn for this frame
+      // r187 binds the copy's texture to unit 0 only when it isn't there already, and doesn't switch to unit 0 when it is, so
+      // after a material that used several textures the copy could land in the wrong one: make unit 0 the active one first
+      renderer.state.activeTexture(renderer.getContext().TEXTURE0);
       renderer.copyFramebufferToTexture(zero,tex);mat.uniforms.t.value=tex;renderer.render(sc,cam);
     }catch(e){dead=true}
     renderer.shadowMap.autoUpdate=sm;
@@ -2445,7 +2461,8 @@ function pieceShape(s,mask){
 // own frame (pieceMatrix) and given its own window of the plank texture (uvw), so a cut board still reads as one board.
 // Whole pieces stay in the three instanced meshes they always had.
 const PART_CAP=1600,partMat=plyMat.clone();
-partMat.onBeforeCompile=sh=>{sh.vertexShader='attribute vec4 uvw;\n'+sh.vertexShader.replace('#include <uv_vertex>','#ifdef USE_UV\n\tvUv=(uvTransform*vec3(uv*uvw.zw+uvw.xy,1.)).xy;\n#endif')};
+// (r187 calls the map's coordinates vMapUv and its placement mapTransform; r128 called them vUv and uvTransform)
+partMat.onBeforeCompile=sh=>{shEd('partMat',sh).v('#include <common>','attribute vec4 uvw;\n#include <common>').v('#include <uv_vertex>','#ifdef USE_MAP\n\tvMapUv=(mapTransform*vec3(uv*uvw.zw+uvw.xy,1.)).xy;\n#endif')};
 const partIM=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),partMat,PART_CAP),partUV=new THREE.InstancedBufferAttribute(new Float32Array(PART_CAP*4),4);
 partIM.geometry.setAttribute('uvw',partUV);partIM.instanceMatrix.setUsage(THREE.DynamicDrawUsage);partIM.setColorAt(0,new THREE.Color(1,1,1));partIM.count=0;partIM.frustumCulled=false;partIM.visible=false;scene.add(partIM);
 const partList=[],pops=new Set(),_pm=new THREE.Matrix4(),_pv=new V3();let partDirty=false;
@@ -4735,11 +4752,11 @@ const Plane=(()=>{
     return vec4(0.);}`;
   const mat=new THREE.MeshLambertMaterial({vertexColors:true,map:tex});
   mat.onBeforeCompile=sh=>{Object.assign(sh.uniforms,PU);
-    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec4 pk;uniform float pT,pJ,pRM;varying vec4 vGl;varying float vUp;\n'+GLOW)
-      .replace('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nfloat pa=pk.x>4.5&&pk.x<5.5?mod(pT,62.832)*pk.w:0.;mat2 pr=mat2(cos(pa),sin(pa),-sin(pa),cos(pa));objectNormal.xy=pr*objectNormal.xy;')
-      .replace('#include <begin_vertex>','#include <begin_vertex>\ntransformed.xy=pk.yz+pr*(transformed.xy-pk.yz);vGl=pk.x>6.5?vec4(color,1.):plGlow(pk.x,pT,pJ,pRM);vUp=max(0.,-normalize((modelMatrix*vec4(objectNormal,0.)).xyz).y);');
-    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec4 vGl;varying float vUp;')
-      .replace('#include <tonemapping_fragment>','gl_FragColor.rgb+=diffuseColor.rgb*vec3(.3,.36,.42)*vUp;gl_FragColor.rgb=mix(gl_FragColor.rgb,vGl.rgb,vGl.a);\n#include <tonemapping_fragment>')};
+    shEd('plane',sh).v('#include <common>','#include <common>\nattribute vec4 pk;uniform float pT,pJ,pRM;varying vec4 vGl;varying float vUp;\n'+GLOW)
+      .v('#include <beginnormal_vertex>','#include <beginnormal_vertex>\nfloat pa=pk.x>4.5&&pk.x<5.5?mod(pT,62.832)*pk.w:0.;mat2 pr=mat2(cos(pa),sin(pa),-sin(pa),cos(pa));objectNormal.xy=pr*objectNormal.xy;')
+      .v('#include <begin_vertex>','#include <begin_vertex>\ntransformed.xy=pk.yz+pr*(transformed.xy-pk.yz);vGl=pk.x>6.5?vec4(color,1.):plGlow(pk.x,pT,pJ,pRM);vUp=max(0.,-normalize((modelMatrix*vec4(objectNormal,0.)).xyz).y);')
+      .f('#include <common>','#include <common>\nvarying vec4 vGl;varying float vUp;')
+      .f('#include <tonemapping_fragment>','gl_FragColor.rgb+=diffuseColor.rgb*vec3(.3,.36,.42)*vUp;gl_FragColor.rgb=mix(gl_FragColor.rgb,vGl.rgb,vGl.a);\n#include <tonemapping_fragment>')};
   const body=new THREE.Mesh(geo,mat);
   // ---- the see-through part: haze behind each engine, a long thin trail from each wing tip, a glow round each light
   const FP=[],FD=[];
@@ -6524,7 +6541,7 @@ const Net={
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
     try{await (a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth())}
     catch(err){const c=err&&err.code||'';throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
-    this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    this.uid=firebase.auth().currentUser.uid;this.db=(window.NetRelay?NetRelay.database(firebase.database(),window.RELAY_ROOMS):firebase.database());
     await new Promise(res=>this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()}));
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
@@ -7744,7 +7761,7 @@ function lxSync(){
   LX.menu(lockerOn()&&Locker.built);
 }
 // What the extras are lent from this page (locker-extra.js only draws: nothing here lets it touch the physics or the room).
-const LXAPI={THREE,scene,camera,renderer,MAT,Bag,bagGeo,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
+const LXAPI={THREE,shEd,scene,camera,renderer,MAT,Bag,bagGeo,store,player,gunIM,GUN_GEO,GUN_TIP,WIDS,WEAP,LIMB_N,plyMat,partMat,pieceInst,partIM,skirtIM,pieces,Locker,STAGE,
   GLIDER_GEO,GLIDE_Y,GLU,ROUND_LO,pose,BMAT,setModelColor,makeModel,disposeModel,LEG_GEO,NOOB,bagRBox,bagRLo,bagBox,bagTurn,POSES,POSE_N,GLIDE_POLE,UNIT_BOX,BS,ICONS,geoPWall,geoPFloor,geoPRamp,animModel,setHeldModel,newEnt,esc,$,lockerOn,myId,RM,
   get ents(){return ents},get state(){return state},get touchUI(){return touchUI},get low(){return touchUI||gfxPref==='fast'},get lookOn(){return lookOn},
   get myLx(){return myLx},setLx(v){myLx=lockerOn()?lxOf(v):'';store.set('lx',myLx);player.lx=myLx;if(LX)LX.dress(player);if(online)Net.publishSoon()},

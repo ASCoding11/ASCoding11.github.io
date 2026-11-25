@@ -49,6 +49,8 @@
  * worked out from the same rows; miles.js draws it as an earned award, and Slipstream's time boards say who holds it.
  * And Top Cracker (cracker(), after ace()), the second earned award: whoever has the most all-time Shell Crackers kills,
  * 25 or more, from the Kills board's own rows; Shell Crackers' Kills board says who holds it.
+ * And the mini badges (topBoards() and gameTops(), after cracker()): whoever is first on each game's main board, with a
+ * floor; miles.js draws a small shield per game, and that board says who holds it.
  *
  * Miles board (the first board, 'all'): This week or All time (a toggle, This week unless this browser picked All time:
  * localStorage 'lb:span'; it also switches each game's play-time board, shown in miles). All time ranks by BackRoomMiles.of(node).miles, the
@@ -120,6 +122,7 @@
       'Most stars': 'Más estrellas', 'Levels cleared (all time)': 'Niveles superados (histórico)', 'Levels cleared': 'Niveles superados', 'Best height': 'Mayor altura',
       'Fastest to the Crown (3000 m)': 'Más rápido a la Corona (3000 m)', 'The Crown': 'La Corona',
       'Fastest from the Crown gate to the Lodestar (6000 m)': 'Más rápido de la puerta de la Corona a la Estrella Guía (6000 m)', 'The Lodestar': 'La Estrella Guía', 'Fastest to the old summit (1000 m)': 'Más rápido a la vieja cumbre (1000 m)', 'Old summit': 'Vieja cumbre',
+      'Longest run (classic Rollaway)': 'Carrera más larga (Rollaway clásico)', 'Best score (classic Rollaway)': 'Mejor puntaje (Rollaway clásico)', 'Classic score': 'Puntaje clásico',
       'Longest Endless run': 'Carrera infinita más larga', 'Best Endless score': 'Mejor puntaje en Infinito', 'Medals (of 72)': 'Medallas (de 72)', 'Power crystals collected': 'Cristales de poder juntados', 'Runs (all time)': 'Carreras (histórico)',
       'Most props found in a round': 'Más objetos encontrados en una ronda', 'Longest survival as a prop': 'Más tiempo sobreviviendo como objeto', 'Props found (all time)': 'Objetos encontrados (histórico)',
       'Most crowns in a row': 'Más coronas seguidas', 'Shows played': 'Shows jugados', 'Answers given (all time)': 'Respuestas dadas (histórico)', 'Longest answer streak': 'Racha de respuestas más larga',
@@ -127,6 +130,15 @@
       'Most waves held': 'Más oleadas aguantadas', 'Daily puzzles finished': 'Puzles diarios terminados', 'Best daily streak (any puzzle)': 'Mejor racha diaria (cualquier puzle)',
       'Perfect days': 'Días perfectos', 'Perfect days (no mistakes)': 'Días perfectos (sin errores)', 'Clean daily solves': 'Resueltos limpios diarios', 'Daily clues solved': 'Pistas diarias resueltas',
       'No hints': 'Sin pistas', 'Solved with no hints': 'Resuelto sin pistas', 'Daily puzzles solved': 'Puzles diarios resueltos', 'Guesses to spare': 'Intentos de sobra', 'Mistakes to spare': 'Errores de sobra',
+      // A game's main board: who holds its mini badge (miles.js). Names and values are filled in as they are.
+      '{who}, with {v}.': '{who}, con {v}.', '{who}, with {v} each.': '{who}, con {v} cada uno.',
+      '{who}, with {v} on {b}.': '{who}, con {v} en {b}.', '{who}, with {v} each on {b}.': '{who}, con {v} cada uno en {b}.',
+      'unclaimed.': 'sin dueño.', '{n} players share the top, so {b} decides: {v}.': '{n} jugadores comparten el primer puesto, así que decide {b}: {v}.',
+      'Whoever is first on this board holds its badge.': 'Quien esté primero en esta tabla tiene su insignia.',
+      'Whoever is first on this board holds its badge (at least {m}).': 'Quien esté primero en esta tabla tiene su insignia (al menos {m}).',
+      'Whoever is first on this board holds its badge (at most {m}).': 'Quien esté primero en esta tabla tiene su insignia (como máximo {m}).',
+      'Whoever is first on {b} holds its badge; while nobody is on it, the next of these with anyone on it counts: {l}.': 'Quien esté primero en {b} tiene su insignia; mientras nadie esté en esa tabla, cuenta la primera de estas que tenga a alguien: {l}.',
+      'Top player in {g}:': 'Mejor jugador en {g}:',
       'Par days': 'Días en par', 'Par days (no hints)': 'Días en par (sin pistas)', 'Perfect routes': 'Rutas perfectas', 'Most entries found': 'Más respuestas encontradas'
     });
   })(0);
@@ -242,10 +254,14 @@
       { k: 'levels', l: 'Levels cleared (of 57)', chip: 'Levels', f: 'n', u: 'level', hi: 57 },
       { k: 'crystals', l: 'Power crystals collected', chip: 'Crystals', f: 'n', u: 'crystal', hi: 100000, sum: 1 },
       { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
-    { d: 'rollaway', n: 'Rollaway', st: [
-      { k: 'distance', l: 'Longest run', chip: 'Distance', f: 'm', hi: 100000 },
-      { k: 'score', l: 'Best score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
-      { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 5 }] },
+    // Overdrop (formerly Rollaway; folder and stat names unchanged): od-distance and od-score are the steep, fast track
+    // from November 2026; distance and score stay as the classic Rollaway boards, no longer raised
+    { d: 'rollaway', n: 'Overdrop', st: [
+      { k: 'od-distance', l: 'Longest run', chip: 'Distance', f: 'm', hi: 100000 },
+      { k: 'od-score', l: 'Best score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
+      { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 5 },
+      { k: 'distance', l: 'Longest run (classic Rollaway)', chip: 'Classic', f: 'm', hi: 100000 },
+      { k: 'score', l: 'Best score (classic Rollaway)', chip: 'Classic score', f: 'n', u: 'pt', hi: 1e7 }] },
     { d: 'rampline', n: 'Rampline', st: [
       { k: 'medals', l: 'Medals (of 120)', chip: 'Medals', f: 'n', u: 'medal', hi: 120 },
       { k: 'golds', l: 'Gold medals or better (of 30)', chip: 'Golds', f: 'n', u: 'gold', hi: 30 },
@@ -279,14 +295,14 @@
       { k: 'r2-freefall', l: '28. Freefall', chip: 'Freefall', f: 'time', lo: 38.7, hi: 3600 },
       { k: 'r2-afterburner', l: '29. Afterburner', chip: 'Afterburner', f: 'time', lo: 29.9, hi: 3600 },
       { k: 'r2-final-exam', l: '30. Final Exam', chip: 'Final Exam', f: 'time', lo: 34.8, hi: 3600 }] },
-    { d: 'flipline', n: 'Flipline', st: [
+    { d: 'flipline', n: 'Chromeline', st: [
       { k: 'distance', l: 'Longest Endless run', chip: 'Endless', f: 'm', hi: 100000 },
       { k: 'score', l: 'Best Endless score', chip: 'Score', f: 'n', u: 'pt', hi: 1e7 },
       { k: 'medals', l: 'Medals (of 72)', chip: 'Medals', f: 'n', u: 'medal', hi: 72 },
       { k: 'runs', l: 'Runs (all time)', chip: 'Runs', f: 'n', u: 'run', rate: 1 / 8 }] },
     { d: 'tidewick', n: 'Tidewick', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 999999 }] },
-    { d: 'beatvault', n: 'Beatvault', st: [{ k: 'levels', l: 'Levels cleared (of 6)', chip: 'Levels', f: 'n', u: 'level', hi: 6 },
-      { k: 'keys', l: 'Vault keys (of 18)', chip: 'Keys', f: 'n', u: 'key', hi: 18 },
+    { d: 'beatvault', n: 'Pulsebox', st: [{ k: 'levels', l: 'Levels cleared (of 6)', chip: 'Levels', f: 'n', u: 'level', hi: 6 },
+      { k: 'keys', l: 'Gold discs (of 18)', chip: 'Discs', f: 'n', u: 'disc', hi: 18 },
       { k: 'clears', l: 'Clears (all time)', chip: 'Clears', f: 'n', u: 'clear', rate: 1 / 60 }] },
     { d: 'odd-one-out', n: 'Odd One Out', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'rfound', l: 'Most props found in a round', f: 'n', u: 'prop', hi: 15, le: 'found' },
@@ -313,7 +329,7 @@
     { d: 'melon-merge', n: 'Melon Merge', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 1e7 }, { k: 'melons', l: 'Watermelons grown (all time)', chip: 'Watermelons', f: 'n', u: 'watermelon', rate: 0.05 }] },
     { d: 'patchwork-tower', n: 'Patchwork Tower', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
     { d: 'flickerwood', n: 'Flickerwood', st: [{ k: 'score', l: 'Best score', f: 'n', u: 'pt', hi: 9999999 }] },
-    { d: 'hush-pools', n: 'Hush Pools', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
+    { d: 'hush-pools', n: 'Blackwade', st: [{ k: 'elo', l: 'Elo', f: 'elo', lo: 100, hi: 3000 },
       { k: 'fastest', l: 'Fastest escape (Normal or Hard)', chip: 'Fastest escape', f: 'time', lo: 45, hi: 36000 },
       { k: 'escapes', l: 'Escapes (all time)', chip: 'Escapes', f: 'n', u: 'escape', rate: 1 / 60 },
       { k: 'revives', l: 'Teammates pulled out (all time)', chip: 'Rescues', f: 'n', u: 'rescue', rate: 1 / 8 }] },
@@ -927,6 +943,119 @@
     var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
     return who + ', with ' + fmtN(a.n) + ' kills' + (names.length > 1 ? ' each' : '') + '.' + rule;
   }
+  // ---- Top player in a game: a mini badge for whoever is first on each game's main board ----
+  // Every game in GAMES gets one (miles.js draws it as a small shield after every other badge), held by whoever rows()
+  // ranks 1 on that game's main board: the same checked nodes, merged accounts as one player, removed ones never, and
+  // everyone tied for first. The main board is the game's Elo board where it has one, else its first board that isn't
+  // hidden, unless TOP_PICK names another; TOP_MODES gives a game more than one (Stackfall: Classic and Sand). Shell Crackers
+  // and Slipstream have none: Top Cracker and the Slipstream ace are their badges (TOP_SKIP). A floor (TOP_MIN, or for
+  // times and other lowest-first boards TOP_MAX) keeps it from being handed out for nothing: an Elo leader must be above
+  // the starting rating, 1,000 (a rating is only published after a rated match, so that also means they have played);
+  // anything else needs at least 1 unless listed. A new game in GAMES gets a badge by these defaults with no change here;
+  // its name comes from GAMES's n, so a renamed game carries its badge's name with it.
+  var TOP_SKIP = { 'shell-crackers': 1, slipstream: 1 };
+  var TOP_MODES = { stackfall: ['classic', 'sand'] };
+  // The daily puzzles rank by their best daily streak (winning every day in a row), not by wins (days played) or fewest
+  // guesses (ties at the minimum); the rest pick the board that says "best", not a count that only grows with play.
+  var TOP_PICK = { blockstorm: 'mkills', beatvault: 'keys', 'stat-duel': 'streak' };
+  ['daily', 'hunch', 'fourcast', 'quartets', 'crosslet', 'sleight', 'nearword', 'warmer', 'hotspot', 'outline', 'unfurl', 'overland', 'ninefold', 'poopdle',
+    'deadline-day', 'journeyman', 'scout-report', 'crossbar', 'teamsheet', 'back-four', 'top-bins'].forEach(function (d) { TOP_PICK[d] = 'streak'; });
+  var ELO_START = 1000;
+  var TOP_MIN = { blockstorm: 5, coil: 300, trivium: 3000, showdown: 1000, escapade: 10, 'asteroid-run': 500, rollaway: 200,
+    rampline: 5, flipline: 200, tidewick: 1000, beatvault: 3, gridpop: 1000, '2048': 2000, stackfall: 1000, 'stackfall:sand': 1000,
+    'melon-merge': 1000, 'patchwork-tower': 1000, flickerwood: 1000, lanternhold: 5, 'stat-duel': 3 };
+  // Lowest first: the fastest tower must be under 10 minutes (where its miles start); a Putterby card at most 36 strokes,
+  // par (27) plus one a hole.
+  var TOP_MAX = { spire: 600, putterby: 36 };
+  var TOP_STREAK = 3;             // a daily streak: 3 days in a row or more
+  var TOP_IDS = 12;               // uids kept per game in the answer (ties and merged accounts), so it stays small
+  // -> [{ id: 'coil' or 'stackfall:sand', d, st, name: 'Stackfall (Sand)', min, max }] in GAMES order.
+  // Fallback boards: a game may list boards used, in order, only while the board before has no qualifying holder (Updraft:
+  // the Lodestar time while nobody has one, then the Crown, then the old summit). Used nowhere else for now.
+  var TOP_FALLBACK = { updraft: ['summit2', 'summit'] };
+  // A board with a cap ("of 144") where more than TIE_MANY players are tied at the cap: the game's uncapped best board named
+  // here decides among them (Escapade: the fastest World 1 total). Without one here they all share it, as any tie does.
+  var TOP_TIE = { escapade: 'total' }, TIE_MANY = 5;
+  var topB0 = null;   // GAMES never changes on a page, so the list is worked out once
+  function topFloor(id, st) {
+    var f = { st: st, min: 1, max: 0 };
+    if (st.f === 'elo') f.min = ELO_START + 1;
+    else if (st.f === 'days') f.min = TOP_STREAK;
+    var k = id + (TOP_MIN[id + '.' + st.k] != null ? '.' + st.k : '');
+    if (TOP_MIN[k] != null) f.min = TOP_MIN[k];
+    if (low(st)) { f.min = 0; f.max = TOP_MAX[k] || 0; }
+    return f;
+  }
+  // -> [{ id: 'coil' or 'stackfall:sand', d, st, name: 'Stackfall (Sand)', min, max, boards: [{ st, min, max }: the main
+  //      board, then any fallbacks], tie: a tie-break stat or null }] in GAMES order.
+  function topBoards() {
+    if (topB0) return topB0;
+    var out = topB0 = [];
+    GAMES.forEach(function (g) {
+      if (TOP_SKIP[g.d]) return;
+      var vis = g.st.filter(function (s) { return !s.hide; }), keys = TOP_MODES[g.d];
+      function stat(k) { return vis.filter(function (s) { return s.k === k; })[0] || null; }
+      if (!keys) { var k = TOP_PICK[g.d]; keys = [k && stat(k) ? k : stat('elo') ? 'elo' : vis[0] && vis[0].k]; }
+      keys.forEach(function (k, i) {
+        var st = stat(k); if (!st) return;
+        var id = i ? g.d + ':' + k : g.d, f = topFloor(id, st);
+        var b = { id: id, d: g.d, st: st, name: g.n + (TOP_MODES[g.d] ? ' (' + (st.chip || st.l) + ')' : ''), min: f.min, max: f.max, boards: [f], tie: null };
+        (i ? [] : TOP_FALLBACK[g.d] || []).forEach(function (fk) { var fs = stat(fk); if (fs) b.boards.push(topFloor(id, fs)); });
+        if (!i && TOP_TIE[g.d] && stat(TOP_TIE[g.d])) b.tie = stat(TOP_TIE[g.d]);
+        out.push(b);
+      });
+    });
+    return out;
+  }
+  function topName(id) { var b = topBoards().filter(function (x) { return x.id === id; })[0]; return b ? b.name : ''; }
+  // Who leads each board. people: a collapsed list; all: the list before collapse (merged accounts, as ace() and cracker()).
+  // -> [{ b: the board, st: the board it went by (b.st, or a fallback), n: the leader's value there (0 when unclaimed),
+  //      who: the holders, ids: their uids and merged accounts, tie: { st, v, n } when a tie-break decided }]
+  function gameTops(people, all, only) {
+    var list = (people || []).filter(function (p) { return p && !p.hidden && !p.into; });
+    return (only ? [only] : topBoards()).map(function (b) {
+      var out = { b: b, st: b.st, n: 0, who: [], ids: [], tie: null };
+      for (var i = 0; i < b.boards.length; i++) {
+        var f = b.boards[i], r = rows({ g: b.d, st: f.st }, list);
+        if (!r.length) continue;
+        var v = r[0].v;
+        if ((f.min && !(v >= f.min)) || (f.max && !(v <= f.max))) continue;
+        var who = r.filter(function (x) { return x.rank === 1; }).map(function (x) { return x.p; });
+        // Too many tied at the board's cap: the tie-break board decides among them (only those with a value there).
+        if (b.tie && i === 0 && who.length > TIE_MANY && f.st.hi && v >= f.st.hi) {
+          var tr = rows({ g: b.d, st: b.tie }, who);
+          if (tr.length) { out.tie = { st: b.tie, v: tr[0].v, n: who.length }; who = tr.filter(function (x) { return x.rank === 1; }).map(function (x) { return x.p; }); }
+        }
+        out.st = f.st; out.n = v;
+        out.who = who.sort(function (a, c) { return a.n < c.n ? -1 : a.n > c.n ? 1 : a.uid < c.uid ? -1 : 1; });
+        out.ids = out.who.map(function (p) { return p.uid; });
+        (all || []).forEach(function (p) { if (p && p.into && !p.hidden && out.ids.indexOf(p.into) >= 0 && out.ids.indexOf(p.uid) < 0) out.ids.push(p.uid); });
+        out.ids = out.ids.slice(0, TOP_IDS);
+        return out;
+      }
+      return out;
+    });
+  }
+  // The line a game's main board (and its fallbacks) carries about its badge. me(uid): whether that is the viewer.
+  // st: the board being shown, for its floor.
+  function fmtTop(st, v) { return st.f === 'elo' ? fmtN(v) + ' Elo' : fmt(st, v); }
+  // -> sentences, each its own text node so the Spanish (lang.js) can translate each one.
+  function gameTopLine(t, me, st) {
+    var b = t.b, f = b.boards.filter(function (x) { return x.st === (st || b.st); })[0] || b.boards[0], out = [];
+    var lim = f.max ? ' (at most ' + fmtTop(f.st, f.max) + ')' : f.min ? ' (at least ' + fmtTop(f.st, f.min) + ')' : '';
+    // A board's name inside a sentence: in Spanish already (lang.js translates whole text nodes, not words inside them).
+    function chipOf(x) { var c = x.chip || x.l; try { return window.BackRoomLang && BackRoomLang.t ? BackRoomLang.t(c) : c; } catch (e) { return c; } }
+    if (!t.n) out.push('unclaimed.');
+    else {
+      var names = t.who.map(function (p) { return p.n + (me && me(p.uid) ? ' (you)' : ''); });
+      var who = names.length > 1 ? names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] : names[0];
+      out.push(who + ', with ' + fmtTop(t.st, t.n) + (names.length > 1 ? ' each' : '') + (t.st !== b.st ? ' on ' + chipOf(t.st) : '') + '.');
+      if (t.tie) out.push(t.tie.n + ' players share the top, so ' + t.tie.st.l + ' decides: ' + fmtTop(t.tie.st, t.tie.v) + '.');
+    }
+    if (b.boards.length > 1) out.push('Whoever is first on ' + chipOf(b.st) + ' holds its badge; while nobody is on it, the next of these with anyone on it counts: ' + b.boards.slice(1).map(function (x) { return chipOf(x.st); }).join(', ') + '.');
+    else out.push('Whoever is first on this board holds its badge' + lim + '.');
+    return out;
+  }
   // Who is first, second and third on the Miles board, for the "#1 all time" / "#2 this week" … tags miles.js puts by
   // tier badges: the uids rows() ranks 1, 2 and 3 for each span, so the same checked nodes, the same week and the same tie rule as the board (a tie for
   // first: every tied player, and allTie / weekTie say so). people: a collapsed list. all: the list before collapse, to
@@ -950,6 +1079,8 @@
     });
     var a = ace(list, all); out.ace = a.ids; out.aceN = a.n;
     var c = cracker(list, all); out.crack = c.ids; out.crackN = c.n;
+    // mini: [[board id, [uid…]], …] in GAMES order, only the boards someone holds (see gameTops).
+    out.mini = gameTops(list, all).filter(function (t) { return t.n && t.ids.length; }).map(function (t) { return [t.b.id, t.ids]; });
     return out;
   }
   // The same from raw nodes, for the admin page (which also lists removed and merged accounts): read here as the boards
@@ -964,7 +1095,7 @@
   }
 
   // For the admin page: the same checks and names, so what it shows is what the boards would show. With data-lib, that's all.
-  window.BackRoomBoards = { rows: rows, tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
+  window.BackRoomBoards = { rows: rows, tops: tops, topsOf: topsOf, ace: ace, ACE_MIN: ACE_MIN, cracker: cracker, CRACK_MIN: CRACK_MIN, topBoards: topBoards, topName: topName, gameTops: gameTops,RS_PATH: RS_PATH, readResets: readResets, get resets() { return RESETS; }, showHidden: function (v) { SHOW_HIDDEN = !!v; }, parse: parse, collapse: collapse, GAMES: GAMES, BY: BY, TRACKS: TRACKS, SLIP_SEASON: SLIP_SEASON, SLIP_RESET: SLIP_RESET, trackRows: trackRows, EPOCH: EPOCH, PATH: PATH, MAX_NODES: MAX_NODES, NODE_MAX: NODE_MAX, fmt: fmt, fmtHours: fmtHours, cleanName: cleanName, mask: mask, seatOf: seatOf };
   if (me && me.hasAttribute('data-lib')) return;
 
   // ---------------- Styles ----------------
@@ -1312,10 +1443,13 @@
     $season.hidden = !(slip && view.st && (view.st.all || view.st.track));   // the lap and record boards, not Hours or Elo
     // Shell Crackers' Kills (all time) board: the same line for Top Cracker (cracker), which that board decides.
     var crackB = view.g === 'shell-crackers' && view.st && view.st.k === 'kills';
-    $ace.hidden = ($season.hidden && !crackB) || !people;
+    // A game's main board (topBoards): who holds that game's mini badge, the same kind of line.
+    var topB = !crackB && $season.hidden && view.st ? topBoards().filter(function (b) { return b.d === view.g && b.boards.some(function (f) { return f.st.k === view.st.k; }); })[0] : null;
+    $ace.hidden = ($season.hidden && !crackB && !topB) || !people;
     if (!$ace.hidden) {
       $ace.textContent = '';
       if (crackB) $ace.append(el('b', '', 'Top Cracker: '), crackerLine(cracker(people, everyone), isMe));
+      else if (topB) { $ace.append(el('b', '', 'Top player in ' + topB.name + ':')); gameTopLine(gameTops(people, everyone, topB)[0], isMe, view.st).forEach(function (x) { $ace.append(' ', el('span', '', x)); }); }
       else $ace.append(el('b', '', 'Slipstream ace: '), aceLine(ace(people, everyone), isMe));
     }
     var miles = view.g === 'all', spans = miles || !view.st, wk = spans && view.span === 'week';
@@ -1390,6 +1524,8 @@
   $refresh.addEventListener('click', function () { lastLoad = 0; load(); });
   // avatar.js and miles.js may load after the boards were drawn (the home page loads them alongside this file).
   document.addEventListener('backroom:avatar', function () { if (people) draw(); });
+  // A change of language: the mini-badge line names boards inside a sentence, so it is drawn again in the new language.
+  document.addEventListener('backroom:lang', function () { if (people && !$ace.hidden) draw(); });
   // The same event with detail.tops says who is first changed (the "#1" tags): redraw, unless it is our own answer.
   document.addEventListener('backroom:miles', function (e) {
     if (!people || !e.detail || e.detail.uid || pushing) return;
@@ -1421,5 +1557,5 @@
 
   // Test hook for the automated checks; harmless in normal play.
   if (navigator.webdriver) window.__lb = { get people() { return people; }, get view() { return view; }, get myUid() { return myUid; }, parse: parse, collapse: collapse, rows: rows, milesOf: milesOf, $span: $span, trackRows: trackRows, boardsFor: boardsFor, fmt: fmt, BY: BY, load: function () { lastLoad = 0; return load(); }, draw: draw, set top(n) { TOP = n; }, setResets: function (r) { RESETS = r || {}; }, PATH: PATH, EPOCH: EPOCH,
-    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, ace: ace, aceLine: aceLine, cracker: cracker, crackerLine: crackerLine, $ace: $ace, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
+    feed: function (val, now) { take(val || {}, now || Date.now()); say(''); draw(); }, tops: tops, ace: ace, aceLine: aceLine, cracker: cracker, crackerLine: crackerLine, gameTops: gameTops, gameTopLine: gameTopLine, topBoards: topBoards, $ace: $ace, get lastLoad() { return lastLoad; }, set lastLoad(t) { lastLoad = t; } };
 })();

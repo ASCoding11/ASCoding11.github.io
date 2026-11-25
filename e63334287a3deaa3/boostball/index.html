@@ -390,10 +390,13 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
   </section>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/lib/three/r187/three.min.js"></script>
 <script src="../autores.js"></script>
 <script src="../keybinds.js"></script>
 <script src="../events.js"></script>
+<script src="../colyseus.js"></script> <!-- the game relay: online rooms go through it (see README) -->
+<script src="../netrelay.js"></script>
+<script src="../netrelay-config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -403,6 +406,24 @@ const T=window.BackRoomLang?BackRoomLang.t:(s,v)=>s.replace(/\{(\w+)\}/g,(m,n)=>
 // drawing changes (the ball's size, bounce and everything sent to the room are the same); the Turkey Week switch on
 // the Back Room page turns it off for this browser. It is read once, here, when the game loads.
 const EVT=window.BackRoomEvents&&BackRoomEvents.turkey,TKON=!!(EVT&&EVT.on());
+// three.js r187 (/lib/three/r187, with its r128 layer) shades the Pretty materials (MeshStandard/MeshPhysical: paint,
+// trim, glass, ball, fine grass) with energy conservation r128 did not have: diffuse light is dimmed by the share that
+// is reflected, and the reflection cube also lights the paint as a soft fill. That made the pitch about 4% darker and
+// the cars brighter than before, so this page's copy of the shader chunks is put back to r128's sums.
+(function r128Shading(){
+  if(!THREE.R128_COMPAT)return;
+  const C=THREE.ShaderChunk,miss=[];
+  const rep=(k,a,b)=>{if(C[k].includes(a))C[k]=C[k].split(a).join(b);else miss.push(k)};
+  rep('lights_physical_pars_fragment','reflectedLight.directDiffuse += irradiance * diffuseBRDF * ( 1.0 - F );','reflectedLight.directDiffuse += irradiance * diffuseBRDF;');
+  rep('lights_physical_pars_fragment','vec3 diffuse = irradiance * BRDF_Lambert( material.diffuseContribution ) * ( 1.0 - singleScattering - multiScattering );','vec3 diffuse = irradiance * BRDF_Lambert( material.diffuseContribution );');
+  rep('lights_physical_pars_fragment','irradiance * specularBRDF * material.multiScatteringCompensation;','irradiance * specularBRDF;');
+  rep('lights_fragment_maps','#if defined( STANDARD ) || defined( LAMBERT ) || defined( PHONG )','#if defined( LAMBERT ) || defined( PHONG )');   // r128: a cube map gave reflections only, no fill
+  if(miss.length)console.warn('Boostball: r128 shading patch did not apply to',miss);
+  // r187 draws a see-through double-sided material twice (back faces, then front); r128 drew it once. Once again here:
+  // the same picture as before and no extra draw calls (the glass walls, nets, crowd and glows are all like that).
+  const sv=THREE.Material.prototype.setValues;
+  THREE.Material.prototype.setValues=function(v){this.forceSinglePass=true;return sv.call(this,v)};
+})();
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/bb-<code>, so the existing rules cover them.
@@ -1157,20 +1178,24 @@ function drawField(g,w,h){
   g.beginPath();
   const poly=[[-AW,-AL+CUT],[-AW,AL-CUT],[-AW+CUT,AL],[AW-CUT,AL],[AW,AL-CUT],[AW,-AL+CUT],[AW-CUT,-AL],[-AW+CUT,-AL]];
   poly.forEach(([x,z],i)=>i?g.lineTo(fx(x),fz(z)):g.moveTo(fx(x),fz(z)));g.closePath();g.clip();
-  const n=16;for(let i=0;i<n;i++){g.fillStyle=TKON?(i%2?'#5c5a22':'#6a682b'):(i%2?'#1e6e38':'#237c40');g.fillRect(0,i*h/n,w,h/n+1)}
+  // mowing stripes across the pitch: two greens about 20% apart, a little yellower than before so the bluish stadium light
+  // leaves them green rather than teal
+  const n=16;for(let i=0;i<n;i++){g.fillStyle=TKON?(i%2?'#5c5a22':'#6a682b'):(i%2?'#27702e':'#37903c');g.fillRect(0,i*h/n,w,h/n+1)}
   // turf grain
   for(let i=0;i<9000;i++){g.fillStyle=rnd()<.5?'rgba(0,0,0,.06)':'rgba(255,255,255,.035)';g.fillRect(rnd()*w,rnd()*h,2,2)}
   // lengthwise mowing bands crossing the stripes, then the floodlights' pool of light fading toward the corners
   for(let i=1;i<10;i+=2){g.fillStyle='rgba(255,255,255,.035)';g.fillRect(i*w/10,0,w/10,h)}
   for(let i=0;i<2600;i++){g.fillStyle=rnd()<.5?'rgba(10,40,20,.05)':'rgba(190,255,200,.03)';g.fillRect(rnd()*w,rnd()*h,1,5+rnd()*9)}
-  const vg=g.createRadialGradient(w/2,h/2,h*.15,w/2,h/2,h*.66);vg.addColorStop(0,'rgba(255,255,230,.08)');vg.addColorStop(.55,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,8,22,.34)');
-  g.fillStyle=vg;g.fillRect(0,0,w,h);
+  if(!TKON){g.save();g.translate(w/2,h/2);g.scale(1,h/w);   // the pool is as long as the pitch: brightest in the middle third, falling off to walls and corners
+    const vg=g.createRadialGradient(0,0,w*.1,0,0,w*.75);vg.addColorStop(0,'rgba(255,255,225,.16)');vg.addColorStop(.4,'rgba(255,255,225,.05)');vg.addColorStop(.7,'rgba(0,10,20,.12)');vg.addColorStop(1,'rgba(0,8,22,.42)');
+    g.fillStyle=vg;g.fillRect(-w,-w,2*w,2*w);g.restore()}
+  else{const vg=g.createRadialGradient(w/2,h/2,h*.15,w/2,h/2,h*.66);vg.addColorStop(0,'rgba(255,255,230,.08)');vg.addColorStop(.55,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,8,22,.34)');g.fillStyle=vg;g.fillRect(0,0,w,h)}
   // team halves
   let gr=g.createLinearGradient(0,0,0,h);
-  gr.addColorStop(0,'rgba('+TEAM[0].rgb+',.2)');gr.addColorStop(.45,'rgba('+TEAM[0].rgb+',0)');gr.addColorStop(.55,'rgba('+TEAM[1].rgb+',0)');gr.addColorStop(1,'rgba('+TEAM[1].rgb+',.2)');
+  gr.addColorStop(0,'rgba('+TEAM[0].rgb+',.16)');gr.addColorStop(.3,'rgba('+TEAM[0].rgb+',0)');gr.addColorStop(.7,'rgba('+TEAM[1].rgb+',0)');gr.addColorStop(1,'rgba('+TEAM[1].rgb+',.16)');
   g.fillStyle=gr;g.fillRect(0,0,w,h);
   g.restore();
-  g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=4;g.lineJoin='round';
+  g.strokeStyle='rgba(255,255,255,.95)';g.lineWidth=4;g.lineJoin='round';
   // the edge of the flat floor, where the ramps start
   const inner=[[IXW,-OAZ],[IXW,OAZ],[OBX,OBZ],[-OBX,OBZ],[-IXW,OAZ],[-IXW,-OAZ],[-OBX,-OBZ],[OBX,-OBZ]];
   g.beginPath();inner.forEach(([x,z],i)=>i?g.lineTo(fx(x),fz(z)):g.moveTo(fx(x),fz(z)));g.closePath();g.stroke();
@@ -1201,8 +1226,11 @@ function fineFloor(){
     im.data[o]=(nx/l*.5+.5)*255;im.data[o+1]=(ny/l*.5+.5)*255;im.data[o+2]=(1/l*.5+.5)*255;im.data[o+3]=255;
   }
   g.putImageData(im,0,0);
-  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(56,70);t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
-  return floorFine=new THREE.MeshStandardMaterial({map:fieldTex,normalMap:t,normalScale:new THREE.Vector2(.32,.32),roughness:.86,metalness:0});
+  // r128 placed every map of a material by the colour map's settings, so this grain was drawn stretched once over the whole
+  // pitch and never showed; r187 honours each map's own repeat, so it is tiled 24 x 30 times (a tile is about 7 units, a
+  // blade a few tenths): fine enough not to show a pattern, coarse enough to read as turf around the cars
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(24,30);t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  return floorFine=new THREE.MeshStandardMaterial({map:fieldTex,normalMap:t,normalScale:new THREE.Vector2(.42,.42),roughness:.86,metalness:0});
 }
 
 const netTex=canvasTex(128,128,(g,w,h)=>{g.clearRect(0,0,w,h);g.strokeStyle='rgba(255,255,255,.75)';g.lineWidth=3;for(let i=0;i<=w;i+=16){g.beginPath();g.moveTo(i,0);g.lineTo(i,h);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(w,i);g.stroke()}},[1,1]);
@@ -1329,19 +1357,28 @@ function recolorGoals(){
   // The stadium bowl: two tiers of crowd, LED boards along the front of each, and a roof with a strip of lights under its
   // edge, all swept around a rounded rectangle outside the arena (ring()). It is a few hundred triangles and three small
   // drawn textures; the made-up sponsor names on the boards are ours.
+  // The crowd is drawn in blocks: each block between two aisles (and each tier) has fans mostly in one colour, every
+  // fan a little different, and rows further back are a little darker. From the pitch a fan is a pixel or two, so
+  // fans picked at random from a bright palette read as TV static that shimmered as the camera moved; close colours in
+  // a block read as a crowd and stay calm. Same texture size and cost as before, on every graphics setting.
   const crowd=canvasTex(1024,512,(g,w,h)=>{
-    const r=rng(4242);g.fillStyle='#0a0f22';g.fillRect(0,0,w,h);
-    const shirts=['#e8ecf8','#c9d2ea','#8b95b8','#ffd34a','#46e39a','#ff6b81','#7fb2ff','#ffb066','#b592ff','#3b4466'],skin=['#f1c9a5','#d9a47a','#b07d56','#8a5a3c','#6b4226'];
+    const r=rng(4242);g.fillStyle='#0d1330';g.fillRect(0,0,w,h);
+    const pal=[[232,236,248],[201,210,234],[139,149,184],[255,211,74],[70,227,154],[255,107,129],[127,178,255],[255,176,102],[181,146,255],[59,68,102]];
+    const skin=[[241,201,165],[217,164,122],[176,125,86],[138,90,60],[107,66,38]],mixc=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+    const block=[];for(let s=0;s<16;s++)block.push(pal[r()*pal.length|0]);
     for(let y=0;y<h;y+=16){
-      g.fillStyle='#070b1a';g.fillRect(0,y,w,5);g.fillStyle='#151c3a';g.fillRect(0,y+5,w,2);
+      const lit=.45+.55*y/h;   // y = 0 is the back row
+      g.fillStyle='rgba(4,6,16,.3)';g.fillRect(0,y,w,5);
       for(let x=(y/16)%2?4:0;x<w;x+=9){
         if(r()<.14)continue;const j=r()*2-1;
-        g.fillStyle=shirts[r()*shirts.length|0];g.globalAlpha=.55+r()*.35;g.fillRect(x+j,y+8,6,8);
-        g.fillStyle=skin[r()*skin.length|0];g.globalAlpha=.8;g.beginPath();g.arc(x+j+3,y+6,2.4,0,7);g.fill();
-        if(r()<.012){g.globalAlpha=1;g.fillStyle='#fff';g.fillRect(x+j+2,y+3,2,2)}   // a phone light
+        const col=mixc(block[((x/128|0)+(y>=h/2?8:0))%16],pal[r()*pal.length|0],.3),grey=(col[0]+col[1]+col[2])/3,b=lit*(.925+.15*r())*.75;
+        const c=col.map(v=>Math.round((grey+(v-grey)*.6)*b));
+        g.fillStyle='rgb('+c+')';g.fillRect(x+j,y+8,6,8);
+        g.fillStyle='rgb('+mixc(skin[r()*skin.length|0],c,.5).map(v=>Math.round(v*b*.8))+')';g.beginPath();g.arc(x+j+3,y+6,2.4,0,7);g.fill();
+        if(r()<.012){g.fillStyle='#fff';g.fillRect(x+j+2,y+3,2,2)}   // a phone light
       }
     }
-    g.globalAlpha=1;g.fillStyle='#070b1a';for(let x=0;x<w;x+=128)g.fillRect(x,0,7,h);   // aisles
+    g.fillStyle='rgba(4,6,16,.8)';for(let x=0;x<w;x+=128)g.fillRect(x,0,7,h);   // aisles
   },[1,1]);
   const ads=canvasTex(2048,64,(g,w,h)=>{
     g.fillStyle='#050816';g.fillRect(0,0,w,h);
@@ -1383,6 +1420,8 @@ function recolorGoals(){
     const p=new THREE.Mesh(new THREE.BoxGeometry(2.4,120,2.4),pole);p.position.set(sx*(AW+118),70,sz*(AL+GD+118));p.scale.y=1.2;scene.add(p);
     const l=new THREE.Mesh(new THREE.BoxGeometry(30,14,2),lamp);l.position.set(sx*(AW+118),150,sz*(AL+GD+118));l.lookAt(0,0,0);scene.add(l);
     const h=glowSprite(0xfff0cc,.55,90);h.position.copy(l.position);h.visible=false;scene.add(h);prettyOnly.push(h);
+    // and a wide, faint halo round it, as floodlights have in the night air (Pretty; four more draw calls)
+    const hh=glowSprite(0xffe6b8,.2,300);hh.position.copy(l.position);hh.visible=false;hh.material.fog=false;scene.add(hh);prettyOnly.push(hh);
     // a faint beam from the lamp down to the pitch
     const to=new V3(sx*AW*.3,0,sz*AL*.35),d=to.clone().sub(l.position),L=d.length();
     const cg=new THREE.ConeGeometry(L*.34,L,28,1,true);cg.translate(0,-L/2,0);
@@ -1412,26 +1451,34 @@ const MAP=scene.children.filter(o=>!o.isLight);
 const bloom=(function(){
   const VS='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}';
   const mk=(fs,u,add)=>new THREE.ShaderMaterial({vertexShader:VS,fragmentShader:'varying vec2 vUv;uniform sampler2D t;'+fs,uniforms:Object.assign({t:{value:null}},u),depthTest:false,depthWrite:false,transparent:!!add,blending:add?THREE.AdditiveBlending:THREE.NoBlending});
-  const bright=mk('uniform vec2 px;void main(){vec3 c=(texture2D(t,vUv+px*vec2(-1.,-1.)).rgb+texture2D(t,vUv+px*vec2(1.,-1.)).rgb+texture2D(t,vUv+px*vec2(-1.,1.)).rgb+texture2D(t,vUv+px).rgb)*.25;float m=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(.8,1.,m),1.);}',{px:{value:new THREE.Vector2()}});
+  const bright=mk('uniform vec2 px;void main(){vec3 c=(texture2D(t,vUv+px*vec2(-1.,-1.)).rgb+texture2D(t,vUv+px*vec2(1.,-1.)).rgb+texture2D(t,vUv+px*vec2(-1.,1.)).rgb+texture2D(t,vUv+px).rgb)*.25;float m=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c*smoothstep(.86,1.,m),1.);}',{px:{value:new THREE.Vector2()}});
   const blur=mk('uniform vec2 d;void main(){vec3 c=texture2D(t,vUv).rgb*.227;c+=(texture2D(t,vUv+d*1.385).rgb+texture2D(t,vUv-d*1.385).rgb)*.316;c+=(texture2D(t,vUv+d*3.231).rgb+texture2D(t,vUv-d*3.231).rgb)*.0703;gl_FragColor=vec4(c,1.);}',{d:{value:new THREE.Vector2()}});
   // the last pass redraws the frame with the glow added, a little more colour and contrast, and darker corners
-  const mix=mk('uniform sampler2D b;uniform float k;void main(){vec3 c=clamp(texture2D(t,vUv).rgb+texture2D(b,vUv).rgb*k,0.,1.);float l=dot(c,vec3(.2126,.7152,.0722));c=clamp(mix(vec3(l),c,1.1),0.,1.);c=mix(c,c*c*(3.-2.*c),.35);vec2 q=vUv-.5;c*=1.-dot(q,q)*.6;gl_FragColor=vec4(c,1.);}',{b:{value:null},k:{value:.6}});
+  const mix=mk('uniform sampler2D b;uniform sampler2D b2;uniform float k;uniform float k2;void main(){vec3 c=clamp(texture2D(t,vUv).rgb+texture2D(b2,vUv).rgb*k2+texture2D(b,vUv).rgb*k,0.,1.);float l=dot(c,vec3(.2126,.7152,.0722));c=clamp(mix(vec3(l),c,1.1),0.,1.);c=mix(c,c*c*(3.-2.*c),.35);vec2 q=vUv-.5;c*=1.-dot(q,q)*.6;gl_FragColor=vec4(c,1.);}',{b:{value:null},b2:{value:null},k:{value:.3},k2:{value:.32}});
   const cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1),quad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),bright),sc=new THREE.Scene();sc.add(quad);quad.frustumCulled=false;
-  const sz=new THREE.Vector2(),zero=new THREE.Vector2();let tex=null,a=null,b=null,w=0,h=0,dead=false;
+  const sz=new THREE.Vector2(),zero=new THREE.Vector2();let tex=null,a=null,b=null,ha=null,hb=null,w=0,h=0,dead=false;
   function pass(m,src,dst){quad.material=m;m.uniforms.t.value=src;renderer.setRenderTarget(dst);renderer.render(sc,cam)}
   function run(){
     if(dead)return;
     try{
       renderer.getDrawingBufferSize(sz);const W=Math.floor(sz.x),H=Math.floor(sz.y);if(W<8||H<8)return;
       if(W!==w||H!==h){
-        if(tex){tex.dispose();a.dispose();b.dispose()}
-        w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*3),w,h,THREE.RGBFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter;
+        if(tex){tex.dispose();a.dispose();b.dispose();ha.dispose();hb.dispose()}
+        w=W;h=H;tex=new THREE.DataTexture(new Uint8Array(w*h*4),w,h,THREE.RGBAFormat);tex.minFilter=tex.magFilter=THREE.LinearFilter;tex.needsUpdate=true; // RGBA: r187 has no RGBFormat; needsUpdate so the copy has a texture of the right size to land in
         const o={depthBuffer:false,stencilBuffer:false};a=new THREE.WebGLRenderTarget(Math.max(2,w>>2),Math.max(2,h>>2),o);b=new THREE.WebGLRenderTarget(a.width,a.height,o);
+        ha=new THREE.WebGLRenderTarget(Math.max(2,w>>1),Math.max(2,h>>1),o);hb=new THREE.WebGLRenderTarget(ha.width,ha.height,o);
       }
+      // r187 only binds the copy's texture to unit 0 when it isn't there already, and doesn't switch to unit 0 when it is,
+      // so after a material that used several textures the copy went into the wrong one: make unit 0 the active one first
+      renderer.state.activeTexture(renderer.getContext().TEXTURE0);
       renderer.copyFramebufferToTexture(zero,tex);
-      bright.uniforms.px.value.set(1/w,1/h);pass(bright,tex,a);
-      for(const r of [1,2.2]){blur.uniforms.d.value.set(r/a.width,0);pass(blur,a.texture,b);blur.uniforms.d.value.set(0,r/a.height);pass(blur,b.texture,a)}
-      mix.uniforms.b.value=a.texture;pass(mix,tex,null);
+      // the bright parts go to a half-size target and get a small blur there (a tight glow hugging each light), and that is
+      // shrunk again for the wide, faint glow at quarter size; the last pass adds the two
+      bright.uniforms.px.value.set(.5/w,.5/h);pass(bright,tex,ha);
+      blur.uniforms.d.value.set(1/ha.width,0);pass(blur,ha.texture,hb);blur.uniforms.d.value.set(0,1/ha.height);pass(blur,hb.texture,ha);
+      blur.uniforms.d.value.set(1/a.width,0);pass(blur,ha.texture,b);blur.uniforms.d.value.set(0,1/a.height);pass(blur,b.texture,a);
+      blur.uniforms.d.value.set(2.2/a.width,0);pass(blur,a.texture,b);blur.uniforms.d.value.set(0,2.2/a.height);pass(blur,b.texture,a);
+      mix.uniforms.b.value=a.texture;mix.uniforms.b2.value=ha.texture;pass(mix,tex,null);
     }catch(e){dead=true;renderer.setRenderTarget(null);renderer.autoClear=true}
   }
   return{run};
@@ -1483,6 +1530,8 @@ function lookSync(){
   floor.material=realSh?fineFloor():floorFlat;
   sun.castShadow=realSh;if(realSh)sun.position.set(0,100,-12);else sun.position.set(30,80,-20);
   for(const o of prettyOnly)o.visible=gl;
+  // Pretty: a lighter night haze that starts at the far end of the pitch, so the far stand sits back behind the near one
+  scene.fog.color.setHex(gl?0x17224c:0x0b1433);scene.fog.near=gl?190:240;scene.fog.far=gl?540:640;
 }
 let fxAvg=16,fxSlow=0,fxLast=0;
 function fxWatch(){
@@ -2090,7 +2139,7 @@ function updateCarMesh(c,dt,time){
   if(c.boosting){const s=.8+Math.random()*.5;m.flame.scale.set(1,s,1);m.flame.position.z=-1.2-.7*s;if(m.boostGlow)m.boostGlow.scale.set(2.6+s,2.6+s,1)}
   const h=Math.max(0,c.pos.y-CAR_Y);
   m.shadow.position.set(c.pos.x,.03,c.pos.z);m.shadow.rotation.z=c.yaw||Math.atan2(_v1.x,_v1.z);
-  const k=clamp(1-h/12,.15,1);m.shadow.scale.set(k,k,k);m.shadow.material.opacity=realSh?k*.45*clamp(1-h/3,0,1):k;
+  const k=clamp(1-h/12,.15,1);m.shadow.scale.set(k,k,k);m.shadow.material.opacity=realSh?.8*clamp(1-h/2.2,0,1):k;if(realSh){const c=1.15+.2*clamp(h/2.2,0,1);m.shadow.scale.set(c,c,c)}
 }
 
 // ---------- particles ----------
@@ -3297,7 +3346,7 @@ const Net={
     try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),25000,'Signing in to the game server timed out. Check your connection, or play Practice.')}
     catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
     finally{clearTimeout(slow);if($('netMsg').textContent==='Still signing in…')setMsg(m0)}
-    this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    this.uid=firebase.auth().currentUser.uid;this.db=(window.NetRelay?NetRelay.database(firebase.database(),window.RELAY_ROOMS):firebase.database());
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
@@ -3884,7 +3933,7 @@ function stepVisuals(dt,now,freeze){
     if(sdf(ball.pos,_v4)<BR+.08)ball.ang.crossVectors(_v4,ball.vel).multiplyScalar(1/BR);else ball.ang.multiplyScalar(Math.exp(-dt*.3));
     const w=ball.ang.length();if(w>1e-4&&!freeze){_qa.setFromAxisAngle(_v5.copy(ball.ang).multiplyScalar(1/w),w*dt);ballMesh.quaternion.premultiply(_qa)}
     const hgt=ballMesh.position.y-BR;const k=clamp(1-hgt/20,.25,1);
-    ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=realSh?k*.4*clamp(1-hgt/4,0,1):k;
+    ballShadow.position.set(ballMesh.position.x,.04,ballMesh.position.z);ballShadow.scale.set(k,k,k);ballShadow.material.opacity=realSh?.85*clamp(1-hgt/3,0,1):k;if(realSh){const c=.62+.38*clamp(hgt/3,0,1);ballShadow.scale.set(c,c,c)}
     ballRing.position.set(ballMesh.position.x,.05,ballMesh.position.z);ballRing.material.opacity=hgt>3?.4:0;
   }
   updateLanding(state==='playing');

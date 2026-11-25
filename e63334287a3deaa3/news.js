@@ -85,12 +85,148 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-20', version: '1.36', title: 'New: Where Have You Been?', kind: 'feature',
+    {date: '2026-11-20', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
      tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
       'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
       'Type a list like "London, Kyoto, Machu Picchu" to log a whole trip at once, and keep a striped wishlist of places to go next.',
       'Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.',
       'Find it under Web Development Projects on the home page.'
+    ]},
+    {date: '2026-11-25', version: '1.51.3', title: 'A proper "page not found"', kind: 'fix',
+     items: [
+      'A mistyped or old link now shows a "Page not found" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.',
+      'It shows the address you tried, and has a button to tell us about the broken link.']},
+    {date: '2026-11-25', version: '1.51.2', title: 'Showcase traffic chart fixed', kind: 'fix',
+     items: [
+      'The visitors-per-day chart on the showcase page is readable again: a bot that loaded the page about 11,000 times in three days no longer counts as visitors.',
+      'The showcase now shows total engaged hours instead of the average engaged time.']},
+    {date: '2026-11-25', version: '1.51.1', title: 'Putterby fixes', kind: 'fix',
+     tags: ['Putterby'], items: [
+      'Sliding gates no longer squash your ball through the rail and cost you an out-of-bounds stroke while you wait to putt.',
+      'On the daily hole, Card now shows the daily hole instead of an empty nine-hole card, and your result can\'t be closed by accident.',
+      'The scorecard at the end of a round stays open when you press Card or Tab.',
+      'Online, you only see "You win!" when you beat someone who played every hole.',
+      'The hole name fits on phones: it sits on its own line above the hole number, par and shot.']},
+    {date: '2026-11-25', version: '1.51', title: 'Aisles: rename and customize', kind: 'feature',
+     tags: ['Aisles'], items: [
+      'Aisle leaders can now rename their Aisle and change its tag and colour any time: open your Aisle and press Customize.',
+      'Pick an emblem to show in your tag, like a plane, a crown or a lightning bolt.',
+      'Give your Aisle a motto. It shows under the name when anyone opens it.',
+      'Members keep their seats, miles and ranks; everyone sees the new look straight away.']},
+    {date: '2026-11-23', version: '1.50', title: 'Shell Crackers: bigger bangs, livelier blocks', kind: 'feature',
+     tags: ['Shell Crackers', 'Graphics'], items: [
+      'On Pretty graphics, yolk bombs go off in a soft glowing fireball and a rolling cloud, shots kick up puffs of dust or yolk, and muzzle flashes glow.',
+      'Grass, sand, snow and dirt show a gentle two-tone block grid, and shadows have softer edges.',
+      'Your gun is lit more clearly, with bright top edges, and picks up each map\'s light.',
+    ]},
+    {date: '2026-11-23', version: '1.49', title: 'Boostball: a greener, brighter stadium', kind: 'feature',
+     tags: ['Boostball', 'Graphics'], items: [
+      'The pitch is a fresher green with mowing stripes, a pool of floodlight in the middle and crisper lines.',
+      'The crowd is drawn in blocks of fans instead of a speckle of random colours, so the stands look calmer.',
+      'On Pretty graphics: a grass grain around your car, a tighter glow round bright lights and soft halos on the floodlights.',
+      'Nothing changes in how the game plays, and Fast graphics costs the same as before.']},
+    {date: '2026-11-23', version: '1.48', title: 'See when someone is waiting for your room', kind: 'feature',
+     tags: ['Playing now'], items: [
+      'When a room is full and someone queues for it, the people in that room are now told.'
+    ]},
+    {date: '2026-11-23', version: '1.47', title: 'A badge for the top of each board', kind: 'feature',
+     tags: ['Leaderboards'], items: [
+      'Whoever is top of a game\'s main leaderboard now wears a small badge for that game next to their name.',
+      'The badges show in the Online panel, the Party panel and the Leaderboards.'
+    ]},
+    {date: '2026-11-23', version: '1.46', title: 'Sky Duel: fairer bots, bigger hits', kind: 'feature',
+     img: 'm/thumbs/sky-duel.jpg', tags: ['Sky Duel'], items: [
+      'Bots are fairer: they leave you alone for a few seconds after you spawn unless you shoot first, and fewer of them hunt you at once when you fly solo.',
+      'Kills land harder: longer tracers, bigger explosions, more debris and a kick of the camera.',
+      'The first explosion of a match no longer makes the game stutter.'
+    ]},
+    {date: '2026-11-23', version: '1.45', title: 'Hush Pools is now Blackwade', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'Hush Pools has a new name and a new look: Blackwade, with darker, misty halls.',
+      'Every noise shows a label where it happened, and a meter tells you how loud you are being.',
+      'Invite links, coins, upgrades and ratings carry over.'
+    ]},
+    {date: '2026-11-23', version: '1.44', title: 'Beatvault is now Pulsebox', kind: 'feature',
+     img: 'm/thumbs/beatvault.jpg', tags: ['Pulsebox'], items: [
+      'Beatvault has a new name and a new look: Pulsebox, a neon disco with a lighting rig over every stage.',
+      'Every song is about 6% faster.',
+      'Your progress, keys, settings and the levels you made carry over.'
+    ]},
+    {date: '2026-11-23', version: '1.43', title: 'Flipline is now Chromeline', kind: 'feature',
+     img: 'm/thumbs/flipline.jpg', tags: ['Chromeline'], items: [
+      'Flipline has a new name and a new look: Chromeline, a stunt bike ride through a neon city at night.',
+      'All 24 levels and their medal targets were run again on the arrow-key controls, and two big loops got a boost strip.',
+      'The mace and the saw have a dark outline, so they stand out against the lit towers.'
+    ]},
+    {date: '2026-11-23', version: '1.42', title: 'Rollaway is now Overdrop', kind: 'feature',
+     img: 'm/thumbs/rollaway.jpg', tags: ['Overdrop'], items: [
+      'Rollaway has a new name and a new look: Overdrop, a steeper, faster track through a neon city.',
+      'There are new hazards, and each kind has its own shape so you can tell them apart at speed.',
+      'Your best run, gems and settings carry over.'
+    ]},
+    {date: '2026-11-23', version: '1.41.4', title: 'A contact page', kind: 'fix',
+     items: ['The site has a Contact page now, linked at the bottom of every page: send a bug, an idea or a question, with an email if you want a reply.',
+             'Only the site\'s team can read what you send.']},
+    {date: '2026-11-23', version: '1.41.3', title: 'Movi is away for a rebuild', kind: 'fix',
+     tags: ['Movi'], items: [
+      'Movi, the movie ranking app, has been taken off the site for now while it is rebuilt.',
+      'It will come back to Web Development Projects when the new version is ready.'
+    ]},
+    {date: '2026-11-22', version: '1.41.2', title: 'It has a shape now', kind: 'soon',
+     img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
+      'Whatever was warming up has a real shape now, down to the rivets.',
+      'Still not ready, and still loud.',
+      'Keep watching the sky. And the sea.'
+    ]},
+    {date: '2026-11-22', version: '1.41.1', title: 'Something is warming up', kind: 'soon',
+     img: 'news-soon.jpg', tags: ['???', 'Coming soon'], items: [
+      'Somewhere past the Back Room, something is warming up.',
+      'It is loud, it is fast, and it is not ready yet.',
+      'No names, no dates. Keep your eyes on the sky.'
+    ]},
+    {date: '2026-11-20', version: '1.41', title: 'Offline mode, rebuilt', kind: 'feature',
+     tags: ['Offline', 'Every game'], items: [
+      'Games load faster again: offline mode now saves files in the background instead of making you wait for them.',
+      'Works with the new game server: online games connect straight to it and are never slowed down by offline mode.',
+      'The installed ascoding11 app and the Projects, Productivity, Engineering and Movi pages now open with no internet too.',
+      'Games you\'ve played on a device still open on it offline; play each one once with internet after this update so it\'s saved again.'
+    ]},
+    {date: '2026-11-20', version: '1.40.1', title: 'The app is now called ascoding11', kind: 'fix',
+     items: [
+      'The installable app is now named ascoding11, under its icon and in its window title. If you already installed it, Chrome updates the name on its own within a day or so.'
+    ]},
+    {date: '2026-11-20', version: '1.40', title: 'Online games on our own server', kind: 'feature',
+     items: [
+      'The fast online games now run on our own game server near New York, like Coil: Slipstream, Boostball, Kartwheel, Rumble Karts, Shell Crackers, Backrooms 1v1, Driftfall, Blockstorm, Sky Duel, Hail Mary, Updraft, Spire, Tumble Trials, Turbo Trail, Escapade, Chromaflage, Hush Pools, Putterby, Lokop and Lanternhold.',
+      'Other players should move more smoothly, with less lag and fewer jumps.',
+      'Nothing changes in how you play: the same room codes, invite links, Quick match, parties, bots, ratings and leaderboards.',
+      'Card, word and puzzle games stay as they were.'
+    ]},
+    {date: '2026-11-20', version: '1.39', title: 'Coil: our own game server', kind: 'feature',
+     tags: ['Coil'], img: 'm/thumbs/coil.jpg', items: [
+      'Online Coil rooms now run on our own game server in New Jersey, close to New York, instead of the shared database, so other snakes should move more smoothly with less lag.',
+      'Nothing changes in how you play: the same room codes, invite links, public arenas, parties and bots.',
+      'More online games will move over once Coil has had a good run.'
+    ]},
+    {date: '2026-11-20', version: '1.38', title: 'Flipline: flip with the arrows', kind: 'feature',
+     tags: ['Flipline'], img: 'm/thumbs/flipline.jpg', items: [
+      'Flips are on the arrow keys now: hold ← to spin backwards and → to spin forwards, so front flips are a real trick. Space, the up arrow or the mouse is just the gas.',
+      'Gravity is on: nobody levels the bike for you in the air any more. A spin keeps going until you stop it and the heavy front end drops the nose, so steer with the arrows to land on your wheels.',
+      'On the ground the arrows pop a wheelie or lean you over the bars.',
+      'On a phone, two round buttons in the bottom-left corner spin you back and forward; touch anywhere else for gas.',
+      'Every level can still be finished with all three medals. Level ghosts saved before today can\'t replay with the new controls, so your next finish of each level saves a new one (your best times stay).'
+    ]},
+    {date: '2026-11-20', version: '1.37', title: 'Install the site as an app', kind: 'feature',
+     items: [
+      'You can now install the site as an app in Chrome (and Edge, and Chrome on Android): open the home page and click Install app under the intro, or the install icon at the right of the address bar.',
+      'It opens in its own window with its own icon, like any other app on your computer, and you can pin it to the taskbar or dock.',
+      'Everything works the same inside it: sign in, the Back Room code, online games and offline play.'
+    ]},
+    {date: '2026-11-20', version: '1.36', title: 'Movi: rank your movies', kind: 'feature',
+     tags: ['Movi'], items: [
+      'Movi is on the site now (Web Development Projects): rank every movie you\'ve seen by picking which of two you liked more, and each one gets a score out of 10.',
+      'Type a list of movies you remember and it matches them to the real films for you, then follow friends to see what they\'re watching.',
+      'Sign in with Google or email. Your Movi account is the same one you use on Movi\'s own site.'
     ]},
     {date: '2026-11-20', title: 'Sky Duel: bigger planes', kind: 'fix',
      tags: ['Sky Duel'], img: 'm/thumbs/sky-duel.jpg', items: [
