@@ -66,16 +66,19 @@
       pitchMin: -1.25, pitchMax: 1.2,          // rad
       sens: 0.0023                             // rad per mouse pixel at sensitivity 1
     },
-    assist: {                                   // aim assist (difficulty Recruit, Regular, Veteran)
-      snap: [0.85, 0.45, 0],                    // fraction of the angle to the target removed when aim is pressed
+    assist: {                                   // aim assist (difficulty Recruit, Regular, Veteran). TOUCH SCREENS ONLY: with a mouse
+                                                // there is none on any difficulty (camera.js assistScale), whatever the setting says
+      snap: [0.85, 0.45, 0],                    // fraction of the angle to the target removed when aim is pressed (over the shoulder only)
       cone: [0.26, 0.17, 0],                    // rad, half-angle of the cone searched on aim
-      friction: [0.55, 0.35, 0],                // look slowdown over a target while hip-firing (0..1)
+      friction: [0.4, 0.28, 0.15],              // look slowdown over a target (0..1); light, so a thumb still has to track
       frictionCone: 0.06,                       // rad
-      touchMul: 1.35,                           // stronger on touch screens
+      touchMul: 1,                              // multiplier on touch screens (Settings 'Aim assist' 0..1 on top)
       scopeMaxRange: 60,                        // m: no assist at all on the scoped rifle past this
       snapTime: 0.12                            // s, how long the snap takes (eased, not instant)
     },
-    health: { max: 100, regenDelay: 4.5, regenRate: 22 }, // hp, s, hp/s
+    // the player. 100 hp against an enemy rifle hit of about 28-34 on Regular is 3 or 4 hits; nothing comes back until
+    // 6.5 s after the last hit, then 12 hp/s (empty to full in about 8 s more), so breaking contact matters
+    health: { max: 100, regenDelay: 6.5, regenRate: 12 }, // hp, s, hp/s
     ballistics: {
       v0: 800,            // m/s rifle muzzle velocity
       drag: 0.00069,      // 1/m, quadratic drag factor (k in dv/dt = -k|v|v): ~650 m/s left at 300 m
@@ -85,22 +88,28 @@
       smgV0: 280, pistolV0: 250
     },
     weapons: {
-      rifle:  { dmg: 140, rpm: 0, mag: 5, reserve: 30, reload: 2.6, bolt: 1.05, spread: 0.0004, hipSpread: 0.03, recoil: 0.065, noise: 260, zoom: 4 },
-      smg:    { dmg: 30, fall: [20, 45, 0.6], rpm: 600, mag: 30, reserve: 120, reload: 2.2, spread: 0.008, hipSpread: 0.03, bloom: 0.0025, bloomMax: 0.04, recoil: 0.012, noise: 180 },
-      pistol: { dmg: 45, fall: [15, 35, 0.5], rpm: 300, mag: 8, reserve: 32, reload: 1.6, spread: 0.006, hipSpread: 0.018, recoil: 0.03, noise: 42 },
+      // dmg = hp per chest hit (a guard has 100, an MG gunner 120); head/limb = multipliers (default headMul/limbMul);
+      // fall = [m where falloff starts, m where it ends, share kept]; spread/hipSpread = cone half-angle (rad) aimed/from
+      // the hip; bloom per shot up to bloomMax, eased back at bloomBack per s once the trigger is let go
+      rifle:  { dmg: 140, head: 2.6, limb: 0.65, rpm: 0, mag: 5, reserve: 30, reload: 2.6, bolt: 1.05, spread: 0.0004, hipSpread: 0.035, recoil: 0.065, noise: 260, zoom: 4 },
+      smg:    { dmg: 30, head: 2.6, limb: 0.6, fall: [20, 45, 0.6], rpm: 600, mag: 30, reserve: 120, reload: 2.2, spread: 0.006, hipSpread: 0.032, bloom: 0.0028, bloomMax: 0.04, bloomBack: 0.12, recoil: 0.012, noise: 180 },
+      pistol: { dmg: 42, head: 2.0, limb: 0.6, fall: [15, 35, 0.5], rpm: 300, mag: 8, reserve: 32, reload: 1.6, spread: 0.005, hipSpread: 0.02, bloom: 0.004, bloomMax: 0.018, bloomBack: 0.09, recoil: 0.03, noise: 42 },
+      firstShot: 0.22,     // s: a shot aimed standing still, this long after the last one, goes exactly where the sights point
       // Recoil (rad). Each shot's kick splits in two: `keep` of it stays in the aim (you pull it back down yourself),
-      // the rest is a transient offset on the view that snaps in at `snap` 1/s (90/s: 95 % in about 35 ms), holds for `hold` s after the last
-      // shot, then eases away at `decay` 1/s. The offset is part of the aim: bullets go where the view points.
-      // pitch/yaw = per-shot kick from the hip; ads, crouch, prone multiply it; jitter = +- fraction per shot.
-      // A full-power bolt-action round: one heavy kick that is mostly gone after half a second. A pistol-calibre
-      // open-bolt SMG: small kicks on a schedule (sched: [until shot n, multiplier], ...), a slow sideways wander
-      // (wander amplitude, rate per shot) whose phase is re-rolled after a `pause` s break. A service pistol: a sharp
-      // snap that settles fast.
+      // the rest is a transient offset on the view that snaps in at `snap` 1/s (90/s: 95 % in about 33 ms), holds for
+      // `hold` s after the last shot, then eases away at `decay` 1/s (8/s: 95 % gone in about 0.37 s). The offset is
+      // part of the aim: bullets go where the view points.
+      // pitch = per-shot climb from the hip; yaw = per-shot sideways step; pat = the sideways PATTERN, [shot n, share of
+      // yaw] keyframes (linear between them), the same every magazine, so pulling down and across it is a skill that
+      // carries over; jitter = +- random share on top (pitch and yaw). sched = [until shot n, pitch multiplier], ...;
+      // a string of shots starts again from shot 1 once the gun has rested `pause` s. ads, crouch, prone multiply the
+      // kick; move adds this share at a full jog, air this share while off the ground (a jump).
       recoil: {
-        rifle:  { pitch: 0.062, yaw: 0.010, keep: 0.30, snap: 90, hold: 0.1, decay: 8, ads: 0.62, crouch: 0.85, prone: 0.55, jitter: 0.12, clampP: 0.3, clampY: 0.12 },
-        smg:    { pitch: 0.0072, yaw: 0.0014, keep: 0.36, snap: 60, hold: 0.09, decay: 6.5, ads: 0.6, crouch: 0.85, prone: 0.55, jitter: 0.15, clampP: 0.22, clampY: 0.1,
-                  sched: [[2, 1.25], [10, 1], [30, 0.45]], wander: 0.0036, wanderRate: 0.55, pause: 0.25 },
-        pistol: { pitch: 0.026, yaw: 0.006, keep: 0.24, snap: 90, hold: 0.06, decay: 10, ads: 0.7, crouch: 0.9, prone: 0.7, jitter: 0.15, clampP: 0.2, clampY: 0.1 }
+        rifle:  { pitch: 0.062, yaw: 0.008, pat: [[1, 0.6]], keep: 0.30, snap: 90, hold: 0.1, decay: 8, ads: 0.62, crouch: 0.85, prone: 0.55, move: 0.35, air: 1.2, jitter: 0.12, clampP: 0.3, clampY: 0.12, pause: 0.25 },
+        smg:    { pitch: 0.0072, yaw: 0.0032, keep: 0.34, snap: 90, hold: 0.1, decay: 8, ads: 0.6, crouch: 0.85, prone: 0.55, move: 0.35, air: 1.2, jitter: 0.12, clampP: 0.22, clampY: 0.1,
+                  sched: [[3, 1.3], [10, 1], [30, 0.5]],
+                  pat: [[1, 0.15], [4, 0.35], [7, 1], [11, 0.9], [13, -0.6], [18, -1.1], [21, -0.4], [24, 0.7], [30, 1]], pause: 0.25 },
+        pistol: { pitch: 0.026, yaw: 0.005, pat: [[1, 0.5], [8, 0.9]], keep: 0.24, snap: 90, hold: 0.06, decay: 9, ads: 0.7, crouch: 0.9, prone: 0.7, move: 0.35, air: 1.2, jitter: 0.12, clampP: 0.2, clampY: 0.1, pause: 0.25 }
       },
       headMul: 2.6, limbMul: 0.65,
       grenade: { fuse: 4.0, radius: 7, dmg: 220, throwV: 16, count: 2 },
@@ -125,20 +134,35 @@
       decay: 0.12,              // awareness lost per second when nothing is seen
       suspicious: 0.3, investigate: 0.62, spotted: 1.0,
       hearGain: 0.45,           // awareness from one footstep heard at the edge
-      reaction: [0.9, 0.6, 0.35], // s before the first shot once spotted
-      accRamp: 1.1,             // s of exposure to reach full accuracy
-      acc: [0.22, 0.38, 0.55],  // hit chance per shot at full ramp, 15 m, standing (difficulty)
-      dmg: [9, 14, 22],         // hp per enemy rifle/smg hit
+      reaction: [0.55, 0.47, 0.4], // s of continuous sight before he may act on seeing you (open fire, call it in)
+      // accuracy: hit chance per shot = acc * exposure ramp * range * your stance/movement * light * his own state.
+      // Exposure is seconds of continuous sight of you: the ramp is 1 - exp(-t / expoTau), from expoFloor at first sight
+      // to full after about 3 * expoTau s (11, 8, 7 s); out of sight it drains expoDrain times as fast as it builds.
+      acc: [0.36, 0.75, 0.82],  // hit chance per shot at full exposure, 20 m, you standing still and lit (difficulty)
+      expoTau: [3.6, 2.7, 2.3], expoDrain: 3, expoFloor: 0.25,
+      rangeRef: 20,             // m: the range factor is rangeRef / d (capped 1.3 close, 0.22 far: 0.4 at 50 m); SMG men lose more past 25 m
+      warnShots: [2, 1, 1],     // the first rounds of each new sight of you miss close by on purpose (a crack, a direction)
+      dark: { moon: 0.85, shadow: 0.62, lit: 1, flash: 0.92 }, // accuracy by the light on you (your own muzzle flash lights you)
+      dmg: [18, 34, 36],        // hp per enemy rifle hit before the difficulty's damage-taken multiplier (x0.6, x1, x1.45): 11, 34, 52
+      smgDmg: 0.75,             // an SMG round does this share of a rifle round
       sniperDmg: [45, 60, 85],
+      sniperTele: [2.4, 2, 1.6], // s: the sniper's glint and call before his shot (the long, obvious tell)
+      prefRange: { smg: [8, 18], rifle: [16, 30], pistol: [10, 22] }, // m: firing spots chosen in this band from you
+      openHold: 3,              // s: on first contact he answers from where he stands (if a turn to fire is free) before moving
+      snapRange: { smg: 22, rifle: 34, pistol: 16 }, // m: caught in the open he stops and fires (his turn) instead of running first
+      campFlank: [16, 11, 8],   // s you stay on one spot they know (within 3.5 m) before one of them is sent round your flank
+      campGrenade: [16, 8, 6],  // s on one known spot before a grenade (one man shouts first, then throws)
+      grenadeScatter: [4.5, 2.5, 1.8], // m: how far from that spot his grenade may land
+      grenadeWarn: 0.9,         // s from his shout to the throw
+      pushLost: [14, 10, 8],    // s out of sight before two of them move up on your last known position (the rest cover it)
+      searchLost: [30, 22, 18], // s out of sight before the whole group goes to a proper search
       searchTime: 38,           // s
       runSpeed: 3.9, walkSpeed: 1.45, searchSpeed: 2.2, turnRate: 6.3, // m/s; rad/s body turn (360 deg/s)
-      grenadeCooldown: 24,      // s, shared by all enemies
+      grenadeCooldown: [30, 22, 16], // s between enemy grenades, shared by all enemies (difficulty)
       tokens: [2, 3, 4],        // how many soldiers may shoot at you at once (difficulty)
       tokenGap: [1.6, 1.25, 0.9], // s, at least this long between two soldiers being allowed to open fire on you
       tele: [0.7, 0.5, 0.35],   // s, the 'ready' telegraph (weapon raised, a call, a glint at night) before each burst at you
-      burst: { rifle: 2, smg: 5, pistol: 3, sniper: 1 }, // rounds per token: the token goes back when the burst ends
-      expoUp: [0.18, 0.25, 0.35], expoDown: 0.45, // accuracy exposure gained per second of continuous sight, lost per second out of it
-      expoFloor: 0.3,           // share of full accuracy at zero exposure (full at exposure 1)
+      burst: { rifle: 3, smg: 6, pistol: 3, sniper: 1 }, // rounds per token: the token goes back when the burst ends
       rackTime: 0.6,            // s, an MG gunner racks his gun before each new burst at you
       alarmDelay: 2.2,          // s ringing before the alarm counts
       truckDelay: 28            // s after the alarm (or 60 when the telephone wire is cut)
