@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Shop</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0b1026">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (only the payment-help words are translated here so far) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+<script src="/e63334287a3deaa3/avatar.js" defer></script>
+<script src="/namefilter.js"></script>
+<script src="/e63334287a3deaa3/captains.js" defer></script>
+<script src="/e63334287a3deaa3/cosmetics.js" defer></script>
+<script src="/e63334287a3deaa3/wallet.js" defer></script>
+<style>
+/* The Back Room shop and locker (cosmetics.js, wallet.js). While cosmetics are switched off (cosmetics.js ENABLED) the
+   page only says the shop isn't open yet: everything below #closed is built by the script, and only when switched on. */
+:root{
+  --ink:#f3f5ff;
+  --ink-2:rgba(243,245,255,.7);
+  --ink-3:rgba(243,245,255,.45);
+  --night:#0b1026;
+  --panel:rgba(20,28,64,.78);
+  --panel-2:#161f48;
+  --line:rgba(243,245,255,.13);
+  --em:#2fbf71;
+  --em-2:#7cf0b0;
+  --mango:#ffb238;
+  --accent:#7c8cff;
+  --accent-ink:#0b1026;
+  --bad:#ff6b81;
+  --f-d:'Fredoka',ui-rounded,system-ui,sans-serif;
+  --f-u:'Nunito',system-ui,sans-serif;
+  --mono:ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--night)}
+body{margin:0;min-height:100vh;background:radial-gradient(120% 70% at 50% -10%,#24306e 0%,var(--night) 60%) no-repeat,var(--night);color:var(--ink);font-family:var(--f-u);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+a{color:inherit}
+button{font:inherit;color:inherit}
+#closed{min-height:100vh;display:grid;place-items:center;padding:24px 16px;text-align:center}
+#closed h1{font-family:var(--f-d);font-weight:600;font-size:28px;margin:0 0 8px}
+#closed p{margin:0 0 18px;color:var(--ink-2)}
+#closed a{display:inline-block;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:9px 16px;text-decoration:none;font-weight:700}
+
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:10px max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));background:rgba(11,16,38,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar .back{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink-2);font-weight:700;font-size:14px;padding:6px 4px;white-space:nowrap}
+.topbar .back:hover{color:var(--ink)}
+.topbar h1{font-family:var(--f-d);font-weight:600;font-size:20px;margin:0 4px 0 0}
+.wallet{display:flex;align-items:center;gap:8px;margin-left:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 8px;white-space:nowrap}
+.wallet .big{font-family:var(--f-d);font-weight:600;font-size:18px}
+.wallet .small{font-size:12.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:4px}
+.ico{width:18px;height:18px;flex:none;display:inline-block;vertical-align:middle}
+.ico.s{width:14px;height:14px}
+/* account.js's sign-in button */
+:root{--accent-ink:#0b1026}
+#acct button{font-family:var(--f-u)!important;letter-spacing:.02em!important;text-transform:none!important;color:var(--ink-2)!important;border-color:var(--line)!important}
+#acct .menu,#acct .msg{background:var(--panel-2)!important;color:var(--ink)}
+.topbar .wallet + #acct{margin-left:0}
+
+main{max-width:1120px;margin:0 auto;padding:18px max(16px,env(safe-area-inset-left)) 60px max(16px,env(safe-area-inset-right))}
+.hero{display:grid;grid-template-columns:auto 1fr;gap:4px 20px;align-items:center;background:linear-gradient(135deg,rgba(124,140,255,.22),rgba(47,191,113,.12));border:1px solid var(--line);border-radius:20px;padding:18px 20px}
+.hero .capsule{width:120px;height:120px;grid-row:span 2}
+.hero h2{font-family:var(--f-d);font-weight:600;font-size:26px;margin:0 0 4px}
+.hero p{margin:0 0 10px;color:var(--ink-2);font-size:14.5px}
+.odds{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;padding:0;list-style:none}
+.odds li{font-size:12.5px;font-weight:800;border-radius:999px;padding:3px 9px;background:rgba(0,0,0,.25);border:1px solid currentColor}
+.drawbtns{display:flex;flex-wrap:wrap;gap:8px;grid-column:2}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:8px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel-2);font-weight:800;font-size:14.5px;cursor:pointer;touch-action:manipulation}
+.btn:hover:not([disabled]){border-color:var(--ink-2)}
+.btn.go{background:var(--em);color:#04210f;border-color:transparent}
+.btn.go:hover:not([disabled]){background:#3bd481}
+.btn.confirm{background:var(--mango);color:#2a1700;border-color:transparent}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn .p{display:inline-flex;align-items:center;gap:3px;font-family:var(--f-d);font-weight:600}
+
+.tabs{display:flex;gap:6px;margin:22px 0 14px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;font-weight:800;font-size:15px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+h3{font-family:var(--f-d);font-weight:600;font-size:18px;margin:18px 0 10px}
+h3 small{font-family:var(--f-u);font-weight:700;font-size:13px;color:var(--ink-3);margin-left:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.pack{display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px}
+.pack .faces{display:flex;gap:4px;min-height:52px;align-items:center;flex-wrap:wrap}
+.pack .faces .bra-av,.pack .faces svg{width:48px;height:48px;border-radius:50%}
+.pack .nm{font-family:var(--f-d);font-weight:600;font-size:17px}
+.pack .ds{font-size:13.5px;color:var(--ink-2);flex:1}
+.pack .own{font-size:12.5px;color:var(--ink-3)}
+.pack .btn{width:100%}
+.pack.money{opacity:.72}
+.note{font-size:13.5px;color:var(--ink-2);margin:6px 0 0}
+
+.locker{display:grid;grid-template-columns:260px 1fr;gap:18px;align-items:start}
+.stage{position:sticky;top:72px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;text-align:center}
+.stage .big{width:180px;height:180px;margin:4px auto 8px;display:block}
+.stage .big svg{width:100%;height:100%;display:block}
+.stage .sn{font-family:var(--f-d);font-weight:600;font-size:18px}
+.stage .sd{font-size:13px;color:var(--ink-2);margin:2px 0 8px}
+.wearing{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:0;padding:0;list-style:none}
+.wearing li{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 9px}
+.wearing li button{width:22px;height:22px;border-radius:50%;border:0;background:rgba(255,255,255,.08);cursor:pointer;line-height:1;font-size:13px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.chips button{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:7px 12px;font-weight:800;font-size:13.5px;cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px}
+.item{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px 8px;background:var(--panel);border:2px solid var(--line);border-radius:14px;cursor:pointer;text-align:center;min-height:142px}
+.item svg{width:72px;height:72px;display:block}
+.item .in{font-weight:800;font-size:13px;line-height:1.15}
+.item .ir{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.item.locked{cursor:default}
+.item.locked svg{filter:grayscale(1) brightness(.45)}
+.item.locked .in{color:var(--ink-3)}
+.item.on{border-color:var(--em);box-shadow:0 0 0 2px rgba(47,191,113,.35)}
+.item .tick{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;background:var(--em);color:#04210f;font-weight:900;font-size:12px;display:grid;place-items:center}
+.item .lock{font-size:11px;color:var(--ink-3);font-weight:700;line-height:1.1}
+.item .ibuy{min-height:32px;padding:4px 6px;font-size:12.5px;border-radius:9px;width:100%;gap:4px;flex-wrap:wrap}
+.item .ibuy .ico.s{width:12px;height:12px}
+.item.locked .btn svg{filter:none}
+
+.log{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.log li{display:grid;grid-template-columns:1fr auto auto;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:14px;align-items:center}
+.log li:first-child{border-top:0}
+.log .t{color:var(--ink-3);font-size:12px;display:block}
+.log .d{font-family:var(--f-d);font-weight:600}
+.log .d.plus{color:var(--em-2)}
+.log .d.minus{color:var(--bad)}
+.log .b{color:var(--ink-3);font-size:12.5px;min-width:70px;text-align:right}
+.empty{color:var(--ink-3);font-size:14px;padding:12px 0}
+
+/* The chest reveal */
+#reveal{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(4,6,18,.86);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:16px;overflow:auto}
+#reveal .box{position:relative;width:min(560px,100%);text-align:center}
+#reveal .gem{width:150px;height:150px;margin:0 auto;display:block;animation:wob .7s ease-in-out 2}
+#reveal .burst{position:absolute;left:50%;top:75px;width:520px;height:520px;margin:-260px 0 0 -260px;pointer-events:none;opacity:0;animation:burst 1.2s ease-out forwards}
+#reveal .cards{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+#reveal .card{width:150px;padding:12px 8px 10px;border-radius:16px;background:var(--panel-2);border:2px solid var(--rc,var(--line));box-shadow:0 0 24px -4px var(--rc,transparent);opacity:0;transform:scale(.6) rotateY(80deg);animation:pop .45s cubic-bezier(.2,1.4,.4,1) forwards}
+#reveal .card svg{width:96px;height:96px;display:block;margin:0 auto 6px}
+#reveal .card .cn{font-family:var(--f-d);font-weight:600;font-size:16px;line-height:1.15}
+#reveal .card .cr{font-size:11.5px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--rc)}
+#reveal .card .cx{font-size:12px;color:var(--ink-2);margin-top:4px}
+#reveal .card .cx.new{color:var(--em-2);font-weight:800}
+#reveal.many .card{width:118px}
+#reveal.many .card svg{width:72px;height:72px}
+#reveal .done{margin-top:16px;min-width:140px}
+#reveal .tip{font-size:12.5px;color:var(--ink-3);margin-top:8px}
+@keyframes wob{0%,100%{transform:rotate(0) scale(1)}25%{transform:rotate(-9deg) scale(1.04)}75%{transform:rotate(9deg) scale(1.04)}}
+@keyframes burst{0%{opacity:0;transform:scale(.3) rotate(0)}30%{opacity:.9}100%{opacity:0;transform:scale(1.15) rotate(40deg)}}
+@keyframes pop{to{opacity:1;transform:scale(1) rotateY(0)}}
+@media (prefers-reduced-motion:reduce){#reveal .gem,#reveal .burst{animation:none}#reveal .card{animation:none;opacity:1;transform:none}}
+
+/* Gifting */
+.gift-b{min-height:34px!important;padding:5px 10px!important;font-size:13px!important;background:transparent!important}
+.item .igift{min-height:26px;padding:2px 6px;font-size:12px;border-radius:8px;width:100%;background:transparent}
+#giftdlg{position:fixed;inset:0;z-index:55;display:grid;place-items:center;background:rgba(4,6,18,.8);padding:16px;overflow:auto}
+#giftdlg .box{width:min(440px,100%);background:var(--panel-2);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
+#giftdlg h2{font-family:var(--f-d);font-weight:600;font-size:20px;margin:0}
+#giftdlg input{font:inherit;color:var(--ink);background:var(--night);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%}
+#giftdlg .who{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}
+#giftdlg .who button{display:flex;justify-content:space-between;gap:8px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:700}
+#giftdlg .who button[aria-pressed="true"]{border-color:var(--em);box-shadow:0 0 0 2px rgba(47,191,113,.35)}
+#giftdlg .who small{color:var(--ink-3);font-weight:700}
+#giftdlg .err{color:var(--bad);font-size:13.5px;min-height:1em;margin:0}
+#giftdlg .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+/* All sales are final, and the Payment help form (sent through feedback.js to the owners, who email back). */
+.pack .final{font-size:12px;color:var(--ink-3);margin:0;text-align:center}
+.payhelp{margin:10px 0 0;font-size:13.5px;color:var(--ink-2)}
+.payhelp .late{display:block;margin-bottom:4px;color:var(--ink)}
+.linkbtn{font:inherit;color:var(--em-2);background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
+#helpdlg{position:fixed;inset:0;z-index:55;display:flex;background:rgba(4,6,18,.8);padding:16px;overflow:auto}
+#helpdlg .box{margin:auto;width:min(440px,100%);background:var(--panel-2);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
+#helpdlg h2{font-family:var(--f-d);font-weight:600;font-size:20px;margin:0}
+#helpdlg label{display:flex;flex-direction:column;gap:4px;font-size:13.5px;font-weight:700;color:var(--ink-2)}
+#helpdlg input,#helpdlg textarea{font:inherit;font-size:16px;color:var(--ink);background:var(--night);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;box-sizing:border-box}
+#helpdlg textarea{min-height:96px;resize:vertical}
+@media (max-height:500px){#helpdlg{padding:8px}#helpdlg .box{gap:6px;padding:12px}#helpdlg textarea{min-height:56px}}
+#helpdlg .err{color:var(--bad);font-size:13.5px;min-height:1em;margin:0}
+#helpdlg .ok{color:var(--em-2);font-size:14px;margin:0}
+#helpdlg .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+/* The server wallet: the captains' preview and Stripe test mode bar, and the signed-out note */
+.modebar{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:center;align-items:center;padding:6px max(16px,env(safe-area-inset-right)) 6px max(16px,env(safe-area-inset-left));font-size:12.5px;font-weight:800;color:var(--ink-2);background:rgba(255,178,56,.08);border-bottom:1px solid var(--line);text-align:center}
+.modebar .tag{display:inline-block;background:var(--mango);color:#2a1700;border-radius:999px;padding:2px 9px;font-size:12px;letter-spacing:.02em;margin-right:4px}
+.signin{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:12px 0 0;padding:10px 14px;border:1px solid rgba(255,178,56,.45);border-radius:12px;background:rgba(255,178,56,.08);font-size:14px;font-weight:700}
+.signin .btn{min-height:36px;padding:6px 12px}
+#toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:60;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-weight:700;font-size:14px;max-width:calc(100vw - 32px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
+
+@media (max-width:760px){
+  .locker{grid-template-columns:1fr}
+  .stage{position:static;display:grid;grid-template-columns:110px 1fr;gap:12px;text-align:left;align-items:center}
+  .stage .big{width:110px;height:110px;margin:0}
+  .wearing{justify-content:flex-start}
+}
+@media (max-width:760px),(max-height:500px){
+  body.tab-locker .hero,body.tab-history .hero{display:none}
+}
+@media (max-width:520px){
+  .topbar{gap:6px}
+  .topbar h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .topbar .back{font-size:13.5px}
+  .wallet{padding:4px 10px 4px 6px;gap:6px}
+  .wallet .big{font-size:16px}
+  .hero{grid-template-columns:64px 1fr;gap:12px;padding:14px 12px}
+  .hero .capsule{width:64px;height:64px;grid-row:auto;align-self:start}
+  .hero h2{font-size:22px}
+  .hero p{font-size:13.5px}
+  .drawbtns{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .drawbtns .btn{padding:6px 4px;font-size:13px;gap:2px 4px;flex-wrap:wrap;line-height:1.15;text-align:center}
+  .grid{grid-template-columns:1fr}
+  .items{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .item{min-height:128px;padding:8px 4px}
+  .item svg{width:60px;height:60px}
+  #reveal .card{width:136px}
+  #reveal.many .card{width:96px;padding:8px 4px}
+  #reveal.many .card svg{width:58px;height:58px}
+  #reveal.many .card .cn{font-size:13px}
+}
+@media (max-height:500px) and (orientation:landscape){
+  .topbar{position:static}
+  .hero{grid-template-columns:auto 1fr;padding:12px 16px}
+  .hero .capsule{width:72px;height:72px}
+  .hero h2{font-size:21px}
+  .stage{position:static}
+  #reveal{place-items:start center}
+  #reveal .gem{width:96px;height:96px}
+  #reveal .burst{top:48px}
+  #reveal .card svg{width:64px;height:64px}
+  #reveal .card{width:120px;padding:8px 6px}
+  #reveal.many .card{width:96px}
+  #reveal.many .card svg{width:48px;height:48px}
+}
+</style>
+</head>
+<body>
+<div id="closed">
+  <div>
+    <h1>The shop isn&rsquo;t open yet</h1>
+    <p>Check back soon.</p>
+    <a href="/e63334287a3deaa3/">Back to the Back Room</a>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+  // Everything here waits for cosmetics.js and wallet.js (deferred), then builds the shop only when cosmetics are switched on.
+  function ready(fn) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+  var built = false;
+  ready(function () {
+    var C = window.BackRoomCosmetics, W = window.BackRoomWallet;
+    if (!C || !W) return;
+    if (C.on()) { build(C, W); if (C.previewing && C.previewing()) watchPreview(C); return; }
+    // The captains' preview (cosmetics.js CAPTAIN_PREVIEW): once captains.js confirms a captain, the real shop opens in
+    // this tab with the server wallet. Anyone else keeps "not open yet" (and the server refuses them anyway).
+    var K = window.BackRoomCaptains;
+    if (!C.previewAllowed || !C.previewAllowed() || !K || !K.onChange) return;   // switched off: the page stays "not open yet"
+    var go = function () { if (!built && K.captain() && C.startPreview()) { build(C, W); watchPreview(C); } };
+    K.ready.then(go); K.onChange(go);
+  });
+  // A preview tab whose account stops being a captain (signed out, another account) goes back to "not open yet".
+  function watchPreview(C) {
+    var K = window.BackRoomCaptains; if (!K || !K.onChange) return;
+    var end = function () { if (!K.captain()) { C.stopPreview(); location.reload(); } };
+    K.ready.then(end); K.onChange(end);
+  }
+
+  function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  // Spanish (lang.js) for the words added with Payment help and "All sales are final"; lang.js translates them as they
+  // appear (and back), so they are written in English below.
+  if (window.BackRoomLang) BackRoomLang.add({
+    'All sales are final. No refunds.': 'Todas las ventas son finales. No hay reembolsos.',
+    'Payment help': 'Ayuda con un pago', 'Your emeralds haven’t arrived yet.': 'Tus esmeraldas todavía no llegaron.',
+    'Tell us what happened and we’ll email you. We only use your email to answer this. Don’t put card numbers or passwords here.':
+      'Cuéntanos qué pasó y te escribiremos por email. Solo usamos tu email para responderte. No pongas números de tarjeta ni contraseñas.',
+    'Your email': 'Tu email', 'What happened?': '¿Qué pasó?', 'Send request': 'Enviar pedido', 'Sending…': 'Enviando…',
+    'Write a real email address so we can answer.': 'Escribe un email válido para que podamos responderte.',
+    'Say what happened (up to 500 characters).': 'Cuenta qué pasó (hasta 500 caracteres).',
+    "Sent. We'll email you, usually within a few days.": 'Enviado. Te escribiremos por email, normalmente en unos días.',
+    'You already sent a payment help request today. We’ll email you.': 'Ya enviaste un pedido de ayuda con un pago hoy. Te escribiremos por email.',
+    'You’ve sent a lot of notes today. Try again tomorrow.': 'Hoy mandaste muchas notas. Inténtalo mañana.',
+    'Requests aren’t switched on yet, so nothing was sent.': 'Los pedidos todavía no están activados, así que no se envió nada.',
+    'Couldn’t send it. Check your connection and try again.': 'No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.'
+  });
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+  var EM = '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L14 6 L8 15 L2 6 Z" fill="#2FBF71"/><path d="M8 1 L10.5 6 L8 15 L5.5 6 Z" fill="#7CF0B0" opacity=".7"/><path d="M2 6 L14 6" stroke="#1d8a50" stroke-width=".8"/></svg>';
+  var EMS = EM.replace('class="ico"', 'class="ico s"');
+  var MANGO = '<svg class="ico s" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 10 C2 5 7 2 11 3 C15 4 14.5 10 11 13 C8 15.5 4 14 3 10 Z" fill="#FFB238"/><path d="M5 9 C5 6.5 7.5 5 9.5 5.3" stroke="#FFE19A" stroke-width="1.1" fill="none" stroke-linecap="round"/><path d="M11 3 C11.5 1.8 12.6 1.2 13.6 1.4" stroke="#3E8A2E" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>';
+  var GEM = '<svg viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9AA8FF"/><stop offset=".55" stop-color="#7C5CFF"/><stop offset="1" stop-color="#3B2A9E"/></linearGradient></defs>' +
+    '<ellipse cx="60" cy="106" rx="34" ry="7" fill="#000" opacity=".3"/><path d="M60 8 C88 8 104 30 104 56 C104 84 84 102 60 102 C36 102 16 84 16 56 C16 30 32 8 60 8 Z" fill="url(#gg)"/>' +
+    '<path d="M18 52 L102 52 L102 60 L18 60 Z" fill="#FFD86B"/><circle cx="60" cy="56" r="11" fill="#FFD86B" stroke="#B88A1E" stroke-width="2"/><path d="M60 50 L61.8 54.2 L66 56 L61.8 57.8 L60 62 L58.2 57.8 L54 56 L58.2 54.2 Z" fill="#fff"/>' +
+    '<path d="M34 24 Q44 15 56 14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".55"/></svg>';
+  // A price in whole mangos, shown as emeralds and the mangos left over (60 → 3 emeralds 9 mangos).
+  var MPE = 17;
+  function price(n) { var e = Math.floor(n / MPE), m = n % MPE; return '<span class="p" title="' + e + (e === 1 ? ' emerald' : ' emeralds') + (m ? ' ' + m + (m === 1 ? ' mango' : ' mangos') : '') + '">' + (e || !m ? EMS + e : '') + (m ? (e ? ' ' : '') + MANGO + m : '') + '</span>'; }
+
+  function build(C, W) {
+    built = true;
+    document.getElementById('closed').hidden = true;
+    var S = !!(C.server && C.server());                 // the server wallet (functions/_wallet.js) is in use
+    var uid = ls('lbs:uid') || 'you';
+    MPE = W.MANGOS_PER_EMERALD || MPE;
+    var RC = {}; C.RARITY.forEach(function (r) { RC[r.id] = r; });
+
+    // The page's top bar (account.js puts its Google sign-in button here, which the wallet's sync uses).
+    var bar = el('header', 'topbar');
+    bar.innerHTML = '<a class="back" href="/e63334287a3deaa3/' + (location.search.indexOf('cosmetics=1') >= 0 ? '?cosmetics=1' : '') + '">&larr; Back Room</a><h1>Shop</h1>' +
+      '<div class="wallet" id="wallet" title=""><span class="big" id="wEm"></span><span class="small" id="wMa"></span></div>';
+    document.body.appendChild(bar);
+    var modeBar = el('div', 'modebar'); modeBar.id = 'modebar'; modeBar.hidden = true; document.body.appendChild(modeBar);
+    var acc = document.createElement('script'); acc.src = '/account/account.js'; acc.defer = true; document.body.appendChild(acc);
+
+    var main = el('main');
+    main.innerHTML =
+      '<section class="hero"><div class="capsule">' + GEM + '</div><div>' +
+        '<h2>Chest</h2><p>Each chest costs ' + W.format(C.CHEST_PRICE) + ' and gives one random skin. A skin you already have gives back ' + W.format(C.DUP_REFUND) + '.</p>' +
+        '<ul class="odds" aria-label="Chest odds">' + C.RARITY.slice().reverse().map(function (r) { return '<li style="color:' + r.color + '">' + r.name + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%</li>'; }).join('') + '</ul>' +
+        '</div><div class="drawbtns" id="drawbtns"></div></section>' +
+      '<div class="signin" id="signinNote" hidden></div>' +
+      '<nav class="tabs" role="tablist"><button role="tab" data-tab="packs" aria-selected="true">Packs</button><button role="tab" data-tab="locker" aria-selected="false">Locker</button><button role="tab" data-tab="history" aria-selected="false">Wallet</button></nav>' +
+      '<section id="t-packs"></section><section id="t-locker" hidden></section><section id="t-history" hidden></section>';
+    document.body.appendChild(main);
+    var toastEl = el('div'); toastEl.id = 'toast'; toastEl.hidden = true; toastEl.setAttribute('role', 'status'); document.body.appendChild(toastEl);
+    var tt = 0;
+    function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(tt); tt = setTimeout(function () { toastEl.hidden = true; }, 3200); }
+
+    var tab = 'packs';
+    main.querySelector('.tabs').addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-tab]'); if (!b) return;
+      tab = b.getAttribute('data-tab');
+      main.querySelectorAll('.tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+      ['packs', 'locker', 'history'].forEach(function (k) { document.getElementById('t-' + k).hidden = k !== tab; document.body.classList.toggle('tab-' + k, k === tab); });
+      draw();
+    });
+
+    // Two-tap buying: the first tap asks, the second (within 3 s) buys.
+    var armed = null, armT = 0;
+    function buyBtn(pack, label) {
+      var b = el('button', 'btn go');
+      b.type = 'button'; b.setAttribute('data-pack', pack.id);
+      b.innerHTML = (label || 'Buy') + ' ' + price(pack.price);
+      return b;
+    }
+    function setBuyState(b) {
+      var id = b.getAttribute('data-pack'), p = C.pack(id), pv = C.preview(id), have = W.balance(), cost = p.price;
+      var lab = b.getAttribute('data-label') || 'Buy';
+      b.classList.remove('confirm');
+      if (S && W.signedIn() !== true) { b.disabled = W.signedIn() === null; b.textContent = W.signedIn() === null ? 'Loading…' : 'Sign in to buy'; return; }
+      if (pv.all) { b.disabled = true; b.textContent = 'Owned'; return; }
+      if (!W.unlimited() && have < cost) { b.disabled = true; b.innerHTML = 'Need ' + price(cost - have) + ' more'; return; }
+      b.disabled = false;
+      if (armed === id) { b.classList.add('confirm'); b.innerHTML = 'Tap again: ' + price(p.price); }
+      else b.innerHTML = lab + ' ' + price(p.price);
+    }
+    // With the server wallet buying needs a Google sign-in (account.js's button in the top bar).
+    function signIn() { try { if (window.SiteAccount && SiteAccount.signIn) SiteAccount.signIn().then(function () { W.refresh(); }, function () {}); } catch (e) {} }
+    var busy = false;                                  // one purchase at a time (the server also does each request once)
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-pack]'); if (!b || b.disabled) return;
+      var id = b.getAttribute('data-pack');
+      if (S && W.signedIn() === false) { toast('Buying needs a Google sign-in.'); signIn(); return; }
+      if (busy) return;
+      if (armed !== id) { armed = id; clearTimeout(armT); armT = setTimeout(function () { armed = null; draw(); }, 3000); draw(); return; }
+      armed = null; clearTimeout(armT);
+      busy = true; b.disabled = true; if (S) b.textContent = 'Buying…';
+      Promise.resolve(C.buy(id)).then(function (r) {
+        busy = false;
+        if (!r.ok) { toast(r.reason === 'funds' ? 'Not enough emeralds yet.' : r.reason === 'owned' ? 'You already own ' + (/^item:/.test(id) ? 'this.' : 'everything in this pack.') : r.reason === 'signin' ? 'Buying needs a Google sign-in.' : r.message || 'That didn’t work. Try again.'); draw(); return; }
+        if (r.got.draws.length) reveal(r);
+        else { var n = r.got.skins.length + r.got.acc.length + (r.got.items || []).length; toast('Added ' + n + (n === 1 ? ' item' : ' items') + ' to your locker' + (r.refund ? ', and ' + W.format(r.refund) + ' back for ones you had' : '') + '. You have ' + W.format(r.balance) + ' left.'); }
+        draw();
+      }, function () { busy = false; toast('That didn’t work. Try again.'); draw(); });
+    });
+    // Emerald packs (real money): Stripe Checkout through store.js; Stripe sends the tab back here afterwards.
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-emerald]'); if (!b || b.disabled) return;
+      if (W.signedIn() === false) { toast('Buying needs a Google sign-in.'); signIn(); return; }
+      b.disabled = true; b.textContent = 'Opening checkout…';
+      W.buyEmeralds(b.getAttribute('data-emerald')).then(function (r) {
+        if (r.ok) return;
+        toast(r.reason === 'signin' ? 'Buying needs a Google sign-in.' : r.reason === 'closed' ? 'The shop isn’t open yet.' : r.message || 'Couldn’t start checkout. Try again in a minute.');
+        draw();
+      });
+    });
+
+    // ---------- Packs ----------
+    function packCard(p) {
+      var c = el('div', 'pack' + (p.kind === 'emeralds' && !S ? ' money' : ''));
+      if (p.kind === 'emeralds') p = { kind: 'emeralds', id: p.id, name: p.name, desc: p.emeralds.toLocaleString('en-US') + ' emeralds, to spend in the shop.', usd: p.usd, emeralds: p.emeralds, link: p.link, contents: {} };
+      var faces = '';
+      if (p.contents.skins) faces = p.contents.skins.map(function (id) { return C.avatarSvg(uid, 48, { look: { skin: id, accessories: {} } }); }).join('');
+      else if (p.contents.acc) faces = p.contents.acc.map(function (id) { var a = C.ACCESSORIES_BY_ID[id], o = {}; o[a.slot] = id; return C.avatarSvg(uid, 48, { look: { skin: null, accessories: o } }); }).join('');
+      else if (p.contents.items) faces = p.contents.items.map(function (id) { return C.itemSvg(id, 44); }).join('');
+      else if (p.contents.draws) faces = '<span style="display:inline-flex;width:48px;height:48px">' + GEM + '</span><span class="nm" style="font-size:22px">&times;' + p.contents.draws + '</span>';
+      else faces = '<span style="display:inline-flex;gap:2px">' + EM + EM + EM + '</span>';
+      c.innerHTML = '<div class="faces">' + faces + '</div><div class="nm">' + esc(p.name) + '</div><div class="ds">' + esc(p.desc) + '</div>';
+      if (p.kind === 'emeralds') {
+        c.innerHTML += '<div class="own">$' + p.usd.toFixed(2) + '</div>';
+        if (S) {                                        // the server wallet: Stripe Checkout (store.js), credited by the webhook
+          var sb = el('button', 'btn go', 'Buy for $' + p.usd.toFixed(2)); sb.type = 'button'; sb.setAttribute('data-emerald', p.id);
+          c.appendChild(sb);
+          c.appendChild(el('p', 'final', 'All sales are final. No refunds.'));   // also on Stripe's page (checkout.js FINAL_TEXT)
+          return c;
+        }
+        // Only a pack with a Payment Link pasted in wallet.js AND PAYMENTS switched on links anywhere; today none does.
+        var live = !!(p.link && W.PAYMENTS && W.PAYMENTS.enabled && /^https:\/\/buy\.stripe\.com\//.test(p.link));
+        var mb = live ? el('a', 'btn go', 'Buy for $' + p.usd.toFixed(2)) : el('button', 'btn', 'Not available yet');
+        if (live) { mb.href = p.link; mb.target = '_blank'; mb.rel = 'noopener'; } else { mb.type = 'button'; mb.disabled = true; }
+        c.appendChild(mb);
+        return c;
+      }
+      var pv = C.preview(p.id);
+      if (pv.items && pv.have && !pv.all) c.innerHTML += '<div class="own">You have ' + pv.have + ' of ' + pv.items + '; each of those gives back ' + W.format(C.DUP_REFUND) + '.</div>';
+      var b = buyBtn(p); c.appendChild(b); setBuyState(b);
+      c.appendChild(giftBtn(p.id, 'btn gift-b'));
+      return c;
+    }
+    function drawPacks() {
+      var t = document.getElementById('t-packs'); t.innerHTML = '';
+      [['skins', 'Skin packs', 'A pack costs the same as its skins bought one by one. Every skin, accessory and game item can also be bought on its own in the Locker.'], ['accessories', 'Accessory packs', 'Wear one of each kind with any skin.']].concat(Object.keys(C.GAMES || {}).map(function (gm) { return ['items', C.GAMES[gm].name + ' packs', 'Things to wear in ' + C.GAMES[gm].name + '. Put them on here in your locker or in the game’s own garage.', gm]; }), [['draws', 'Chests', 'Bought with emeralds only. Odds for every chest: ' + C.RARITY.slice().reverse().map(function (r) { return r.name.toLowerCase() + ' ' + (r.w * 100 / C.RARITY_TOTAL) + '%'; }).join(', ') + '.'], ['emeralds', 'Buy emeralds', S ? 'Packs of emeralds for real money (not loot chests). You pay on Stripe’s own page and come back here; the emeralds arrive a few seconds later. Buying needs a Google sign-in.' : 'Packs of emeralds for real money (not loot chests). Buying them isn’t available yet.']]).forEach(function (g) {
+        var h = el('h3', null, esc(g[1])); t.appendChild(h);
+        if (g[2]) t.appendChild(el('p', 'note', esc(g[2])));
+        var grid = el('div', 'grid'); grid.style.marginTop = '10px';
+        (g[0] === 'emeralds' ? (W.EMERALD_PACKS || []).map(function (e) { return Object.assign({ kind: 'emeralds' }, e); }) : C.PACKS).filter(function (p) { return p.kind === g[0] && (!g[3] || p.game === g[3]); }).forEach(function (p) { grid.appendChild(packCard(p)); });
+        t.appendChild(grid);
+        if (g[0] === 'emeralds' && S) {
+          var ph = el('p', 'payhelp');
+          if (late) ph.appendChild(el('span', 'late', 'Your emeralds haven’t arrived yet.'));
+          var lb = el('button', 'linkbtn', 'Payment help'); lb.type = 'button'; lb.setAttribute('data-payhelp', ''); ph.appendChild(lb);
+          t.appendChild(ph);
+        }
+      });
+    }
+    // ---------- Payment help ----------
+    // All sales are final: the site offers no refunds. Someone with a problem (a charge with no emeralds, a mistake)
+    // sends this form; it goes through feedback.js (BackRoomFeedback.send, sealed for the admin page like every note)
+    // as one note starting "Payment help:", with their email, their account id and the ids, times and amounts of the
+    // wallet's last 5 ledger lines (emerald purchases carry the Stripe Checkout session id), so the owners can find the
+    // payment in Stripe and email them. No card data: the site never has any. One request a day per account here, on
+    // top of feedback.js's own limits.
+    var late = '', hdlg = null, HELP_KEY = 'payhelp:v1', EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
+    function helpTimes() { try { var o = JSON.parse(ls(HELP_KEY) || '{}'); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; } }
+    function signedUid() {
+      try { var St = window.Store; if (St && St.user) return Promise.resolve(St.user()).then(function (u) { return (u && u.uid) || ''; }, function () { return ''; }); } catch (e) {}
+      return Promise.resolve('');
+    }
+    function feedback() {
+      if (window.BackRoomFeedback && BackRoomFeedback.send) return Promise.resolve(BackRoomFeedback);
+      return new Promise(function (res, rej) {
+        var sc = document.createElement('script'); sc.src = '/e63334287a3deaa3/feedback.js';   // the shop has no #home or .wrap, so no suggestion box is added
+        sc.onload = function () { if (window.BackRoomFeedback && BackRoomFeedback.send) res(BackRoomFeedback); else rej(new Error('net')); };
+        sc.onerror = function () { rej(new Error('net')); };
+        document.head.appendChild(sc);
+      });
+    }
+    function helpText(email, what, id) {
+      var out = 'Payment help: ' + what.replace(/\s+/g, ' ').trim() + '\nEmail: ' + email + '\nAccount: ' + (id || 'not signed in') + (late ? '\nCheckout: ' + late : '');
+      var rec = ((W.state && W.state().recent) || []).slice(-5).reverse();
+      if (rec.length) out += '\nLast ' + rec.length + ' wallet lines (time UTC, change in mangos, what, ref):';
+      rec.forEach(function (l) {
+        var line = '\n' + new Date(l[0]).toISOString().slice(0, 16).replace('T', ' ') + ' ' + (l[1] > 0 ? '+' : '') + l[1] + ' ' + String(l[3] || '').slice(0, 40) + (l[4] ? ' [' + String(l[4]).slice(0, 80) + ']' : '');
+        if ((out + line).length <= 1000) out += line;
+      });
+      return out;
+    }
+    function payHelp() {
+      if (hdlg) hdlg.remove();
+      hdlg = el('div'); hdlg.id = 'helpdlg'; hdlg.setAttribute('role', 'dialog'); hdlg.setAttribute('aria-modal', 'true'); hdlg.setAttribute('aria-label', 'Payment help');
+      hdlg.innerHTML = '<form class="box" novalidate><h2>Payment help</h2>' +
+        '<p class="note">Tell us what happened and we’ll email you. We only use your email to answer this. Don’t put card numbers or passwords here.</p>' +
+        '<label><span>Your email</span><input type="email" id="hmail" maxlength="120" autocomplete="email" required placeholder="you@example.com" data-noi18n></label>' +
+        '<label><span>What happened?</span><textarea id="hwhat" maxlength="500" required data-noi18n></textarea></label>' +
+        '<p class="err" id="herr" role="alert"></p><p class="ok" id="hok" role="status" hidden></p>' +
+        '<div class="row"><button type="button" class="btn" id="hno">Cancel</button><button type="submit" class="btn go" id="hyes">Send request</button></div></form>';
+      document.body.appendChild(hdlg);
+      var f = hdlg.querySelector('form'), err = hdlg.querySelector('#herr'), ok = hdlg.querySelector('#hok'), yes = hdlg.querySelector('#hyes');
+      var close = function () { if (hdlg) { hdlg.remove(); hdlg = null; } };
+      hdlg.querySelector('#hno').addEventListener('click', close);
+      hdlg.addEventListener('click', function (e) { if (e.target === hdlg) close(); });
+      hdlg.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+      hdlg.querySelector('#hmail').focus();
+      f.addEventListener('submit', function (e) {
+        e.preventDefault(); if (yes.disabled) return;
+        var email = hdlg.querySelector('#hmail').value.trim(), what = hdlg.querySelector('#hwhat').value.trim();
+        err.textContent = '';
+        if (!EMAIL_RE.test(email) || email.length > 120) { err.textContent = 'Write a real email address so we can answer.'; return; }
+        if (!what || what.length > 500) { err.textContent = 'Say what happened (up to 500 characters).'; return; }
+        yes.disabled = true; yes.textContent = 'Sending…';
+        signedUid().then(function (id) {
+          var times = helpTimes(), key = id || 'signed-out', now = Date.now();
+          if (times[key] && now - times[key] < 864e5) { var x = new Error('today'); x.code = 'today'; throw x; }
+          return feedback().then(function (F) { return F.send(helpText(email, what, id)); }).then(function () {
+            Object.keys(times).forEach(function (k) { if (!(now - times[k] < 864e5)) delete times[k]; });
+            times[key] = now; try { localStorage.setItem(HELP_KEY, JSON.stringify(times)); } catch (e2) {}
+          });
+        }).then(function () {
+          f.querySelectorAll('label').forEach(function (l) { l.hidden = true; });
+          ok.textContent = "Sent. We'll email you, usually within a few days."; ok.hidden = false;
+          yes.hidden = true; hdlg.querySelector('#hno').textContent = 'Close';
+        }, function (x) {
+          var c = x && x.code;
+          err.textContent = c === 'today' ? 'You already sent a payment help request today. We’ll email you.' : c === 'limit' ? 'You’ve sent a lot of notes today. Try again tomorrow.' :
+            c === 'denied' ? 'Requests aren’t switched on yet, so nothing was sent.' : 'Couldn’t send it. Check your connection and try again.';
+          yes.disabled = false; yes.textContent = 'Send request';
+        });
+      });
+    }
+    document.addEventListener('click', function (e) { if (e.target.closest('[data-payhelp]')) payHelp(); });
+    function drawDrawBtns() {
+      var box = document.getElementById('drawbtns'); box.innerHTML = '';
+      [1, 5, 10].forEach(function (n) { var p = C.PACKS_BY_ID['draw-' + n], lab = n === 1 ? '1 chest' : n + ' chests', b = buyBtn(p, lab); b.setAttribute('data-label', lab); box.appendChild(b); setBuyState(b); });
+    }
+
+    // ---------- Locker ----------
+    var filter = 'skins';
+    function sourceOf(id) {
+      var p = C.PACKS.filter(function (p) { return (p.contents.skins || []).concat(p.contents.acc || [], p.contents.items || []).indexOf(id) >= 0; })[0];
+      var gi = !p && C.GAME_ITEMS_BY_ID && C.GAME_ITEMS_BY_ID[id];   // a game item no pack holds is given by its game (free, or earned there)
+      if (gi && gi.give) return C.GAMES[gi.game].name;
+      return p ? p.name : '';
+    }
+    // A locked item's way in: its pack if it has one, and a button to buy it on its own (at its rarity's price).
+    function lockHtml(id) {
+      var src = sourceOf(id), gi = C.GAME_ITEMS_BY_ID && C.GAME_ITEMS_BY_ID[id];
+      if (gi && gi.give) return '<span class="lock">From ' + esc(src) + '</span>';
+      var one = C.pack('item:' + id);
+      return (src ? '<span class="lock">Or in ' + esc(src) + '</span>' : '') + (one ? '<button type="button" class="btn go ibuy" data-pack="item:' + esc(id) + '"></button>' : '');
+    }
+    // A Gift button for a pack, a chest or one item ('item:<id>'): same price as buying it, for someone else.
+    function giftBtn(id, cls) { var b = el('button', cls || 'btn igift', 'Gift'); b.type = 'button'; b.setAttribute('data-gift', id); return b; }
+    function giftHtml(id) { var gi = C.GAME_ITEMS_BY_ID && C.GAME_ITEMS_BY_ID[id]; return gi && gi.give ? '' : giftBtn('item:' + id).outerHTML; }
+    function shown(it) { return it.give !== 'exclusive'; }   // exclusive gifts (../captains.js) are shown only in their own game
+    function drawLocker() {
+      var t = document.getElementById('t-locker'), own = C.owned(), eq = C.equipped();
+      var sk = eq.skin && C.SKINS_BY_ID[eq.skin];
+      var wear = [];
+      if (sk) wear.push(['skin', sk.name]);
+      C.SLOTS.forEach(function (k) { if (eq.accessories[k]) wear.push([k, C.ACCESSORIES_BY_ID[eq.accessories[k]].name]); });
+      // game items (worn inside one game, not on the avatar): a chip per game slot, filter keys 'g:<game>:<slot>'
+      var games = Object.keys(C.GAMES || {}), gchips = [];
+      games.forEach(function (gm) { var ge = C.gameEquipped(gm); C.GAMES[gm].slots.forEach(function (sl) { var all = C.gameItems(gm, sl[0]).filter(shown); if (!all.length) return; if (ge[sl[0]]) wear.push([gm + ':' + sl[0], C.GAMES[gm].name + ': ' + ge[sl[0]].name]);
+        gchips.push(['g:' + gm + ':' + sl[0], C.GAMES[gm].name + ' ' + sl[1].toLowerCase() + ' ' + all.filter(function (it) { return own.items.indexOf(it.id) >= 0; }).length + '/' + all.length]); }); });
+      var html = '<div class="locker"><div class="stage"><span class="big">' + C.avatarSvg(uid, 180) + '</span><div><div class="sn">' + esc(sk ? sk.name : 'Your own look') + '</div>' +
+        '<div class="sd">' + esc(sk ? sk.desc : 'Pick a skin and accessories from your locker.') + '</div><ul class="wearing">' +
+        wear.map(function (w) { return '<li>' + esc(w[1]) + '<button type="button" data-off="' + w[0] + '" aria-label="Take off ' + esc(w[1]) + '">&times;</button></li>'; }).join('') + '</ul></div></div><div>';
+      html += '<div class="chips" role="group" aria-label="Show">' + [['skins', 'Skins ' + own.skins.length + '/' + C.SKINS.length]].concat(C.SLOTS.map(function (k) {
+        var all = C.ACCESSORIES.filter(function (a) { return a.slot === k; }), n = all.filter(function (a) { return own.accessories.indexOf(a.id) >= 0; }).length;
+        return [k, C.SLOT_NAMES[k] + ' ' + n + '/' + all.length];
+      }), gchips).map(function (c) { return '<button type="button" data-filter="' + c[0] + '" aria-pressed="' + (filter === c[0]) + '">' + esc(c[1]) + '</button>'; }).join('') + '</div><div class="items">';
+      var gf = /^g:/.test(filter) ? filter.split(':') : null, gworn = gf ? C.gameEquipped(gf[1]) : {};
+      var list = filter === 'skins' ? C.SKINS : gf ? C.gameItems(gf[1], gf[2]).filter(shown) : C.ACCESSORIES.filter(function (a) { return a.slot === filter; });
+      list.forEach(function (it) {
+        if (gf) {
+          var ghas = own.items.indexOf(it.id) >= 0, gon = !!gworn[it.slot] && gworn[it.slot].id === it.id, gr = RC[it.rarity];
+          html += '<div class="item' + (ghas ? '' : ' locked') + (gon ? ' on' : '') + '"' + (ghas ? ' role="button" tabindex="0" aria-pressed="' + gon + '"' : '') + ' data-item="' + it.id + '" title="' + esc(it.desc) + '">' +
+            C.itemSvg(it.id, 72) + '<span class="in">' + esc(it.name) + '</span><span class="ir" style="color:' + gr.color + '">' + gr.name + '</span>' +
+            (gon ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (ghas ? '' : lockHtml(it.id)) + giftHtml(it.id) + '</div>';
+          return;
+        }
+        var isSkin = filter === 'skins', has = (isSkin ? own.skins : own.accessories).indexOf(it.id) >= 0;
+        var worn = isSkin ? eq.skin === it.id : eq.accessories[it.slot] === it.id, r = RC[it.rarity];
+        var look = { skin: isSkin ? it.id : eq.skin, accessories: {} };
+        if (!isSkin) look.accessories[it.slot] = it.id;
+        html += '<div class="item' + (has ? '' : ' locked') + (worn ? ' on' : '') + '"' + (has ? ' role="button" tabindex="0" aria-pressed="' + worn + '"' : '') + ' data-item="' + it.id + '" title="' + esc(it.desc) + '">' +
+          C.avatarSvg(uid, 72, { look: look }) + '<span class="in">' + esc(it.name) + '</span><span class="ir" style="color:' + r.color + '">' + r.name + '</span>' +
+          (worn ? '<span class="tick" aria-hidden="true">&#10003;</span>' : '') + (has ? '' : lockHtml(it.id)) + giftHtml(it.id) + '</div>';
+      });
+      html += '</div></div></div>';
+      t.innerHTML = html;
+      t.querySelectorAll('.ibuy').forEach(setBuyState);
+    }
+    document.addEventListener('click', function (e) {
+      var f = e.target.closest('[data-filter]'); if (f) { filter = f.getAttribute('data-filter'); drawLocker(); return; }
+      var o = e.target.closest('[data-off]'); if (o) { C.unequip(o.getAttribute('data-off')); draw(); return; }
+      if (e.target.closest('button[data-pack],button[data-gift]')) return;
+      var it = e.target.closest('.item[data-item]'); if (!it || it.classList.contains('locked')) return;
+      var id = it.getAttribute('data-item');
+      if (it.classList.contains('on')) C.unequip(id); else C.equip(id);
+      draw();
+    });
+    document.addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.item[data-item]')) { e.preventDefault(); e.target.click(); } });
+
+    // ---------- Wallet history ----------
+    function drawHistory() {
+      var t = document.getElementById('t-history'), log = W.log().slice().reverse();
+      var html = W.PLAY_PAYS ? '<h3>How you earn</h3><p class="note">Playing Back Room games pays mangos: wins, escapes, laps, finished runs and more. ' + MPE + ' mangos make an emerald. Each game pays up to a daily limit, so there’s no need to grind.</p>'
+        : '<h3>Getting emeralds</h3><p class="note">Emeralds are bought with real money (7 for $0.99, in the emerald packs); playing doesn’t pay any. Mangos are the small change: ' + MPE + ' make an emerald, and when something costs part of an emerald the rest comes back as mangos.</p>' +
+          '<h3>Prices</h3><p class="note">By rarity, for skins, accessories and game items: ' + C.RARITY.slice().reverse().map(function (r) { return r.name.toLowerCase() + ' ' + W.format(C.PRICE[r.id]); }).join(', ') + '. A chest is ' + W.format(C.CHEST_PRICE) + '.</p>';
+      html += '<h3>History <small>last ' + Math.min(200, log.length) + '</small></h3>';
+      if (!log.length) html += '<p class="empty">Nothing yet.</p>';
+      else html += '<ul class="log">' + log.map(function (e) {
+        var d = new Date(e[0]), when = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        return '<li><span>' + esc(e[3]) + '<span class="t">' + esc(when) + '</span></span><span class="d ' + (e[1] > 0 ? 'plus' : 'minus') + '">' + (e[1] > 0 ? '+' : '−') + esc(W.format(Math.abs(e[1]), true)) + '</span><span class="b">' + esc(W.format(e[2], true)) + '</span></li>';
+      }).join('') + '</ul>';
+      t.innerHTML = html;
+    }
+
+    function drawWallet() {
+      var e = W.inEmeralds(), inf = W.unlimited();
+      if (S) {
+        var bits = [];
+        if (C.previewing && C.previewing()) bits.push('<span>Captains’ preview: only captains can open this shop until it launches.</span>');
+        if (W.testMode()) bits.push('<span><span class="tag" id="testTag">Test mode</span>Stripe sandbox: no real money is taken.</span>');
+        modeBar.innerHTML = bits.join(''); modeBar.hidden = !bits.length;
+        var sn = document.getElementById('signinNote'), st = W.state();
+        sn.hidden = !(st.signedIn === false || st.closed);
+        if (!sn.hidden) sn.innerHTML = st.closed ? 'The shop isn’t open to this account yet.' : '<span>Buying needs a Google sign-in. Your emeralds and items stay with your Google account.</span><button type="button" class="btn go" id="signinBtn">Sign in with Google</button>';
+        if (W.signedIn() !== true && !inf) {
+          document.getElementById('wEm').innerHTML = EM + ' —';
+          document.getElementById('wMa').textContent = W.signedIn() === false ? 'Sign in' : '…';
+          document.getElementById('wallet').title = W.signedIn() === false ? 'Sign in with Google to see your emeralds.' : '';
+          return;
+        }
+      }
+      document.getElementById('wEm').innerHTML = EM + ' ' + (inf ? '∞' : e.emeralds.toLocaleString('en-US'));
+      document.getElementById('wMa').innerHTML = inf ? 'Captain' : MANGO + ' ' + e.mangos + '/' + MPE;
+      document.getElementById('wallet').title = inf ? 'Captains have no limit: everything is free and owned.' : W.format();
+    }
+
+    // ---------- Gifting ----------
+    var gdlg = null;
+    function giftDialog(id) {
+      var p = C.pack(id); if (!p) return;
+      if (gdlg) gdlg.remove();
+      gdlg = el('div'); gdlg.id = 'giftdlg'; gdlg.setAttribute('role', 'dialog'); gdlg.setAttribute('aria-modal', 'true'); gdlg.setAttribute('aria-label', 'Send a gift');
+      gdlg.innerHTML = '<div class="box"><h2>Gift: ' + esc(p.name) + '</h2><p class="note">' + (W.unlimited() ? 'Free for captains.' : 'Costs ' + price(p.price) + ', the same as buying it.') + ' They get it the next time they open the Back Room or the shop.</p>' +
+        '<input type="search" id="gq" placeholder="Search people online, your Aisle and party" aria-label="Search for a player" autocomplete="off"><div class="who" id="gwho"><p class="empty">Looking for people…</p></div>' +
+        '<input type="text" id="gnote" maxlength="' + W.NOTE_MAX + '" placeholder="Short note (optional)" aria-label="Note" data-name-filter autocomplete="off">' +
+        '<p class="err" id="gerr"></p><div class="row"><button type="button" class="btn" id="gno">Cancel</button><button type="button" class="btn go" id="gyes" disabled>Send gift</button></div></div>';
+      document.body.appendChild(gdlg);
+      var pick = null, people = [];
+      function list() {
+        var q = gdlg.querySelector('#gq').value.trim().toLowerCase(), box = gdlg.querySelector('#gwho');
+        var l = people.filter(function (x) { return !q || x.n.toLowerCase().indexOf(q) >= 0; }).slice(0, 40);
+        box.innerHTML = l.length ? l.map(function (x) { return '<button type="button" data-to="' + esc(x.uid) + '" aria-pressed="' + (pick && pick.uid === x.uid) + '">' + esc(x.n) + '<small>' + (x.from === 'online' ? 'online' : x.from === 'aisle' ? 'your Aisle' : 'your party') + '</small></button>'; }).join('')
+          : '<p class="empty">' + (people.length ? 'Nobody by that name.' : 'Nobody to send to right now: they need to be online, in your Aisle or your party, and signed in with Google.') + '</p>';
+      }
+      W.giftPeople().then(function (l) { people = l; if (gdlg) list(); });
+      gdlg.querySelector('#gq').addEventListener('input', list);
+      gdlg.querySelector('#gwho').addEventListener('click', function (e) {
+        var b = e.target.closest('button[data-to]'); if (!b) return;
+        pick = people.filter(function (x) { return x.uid === b.getAttribute('data-to'); })[0] || null;
+        gdlg.querySelector('#gyes').disabled = !pick; list();
+      });
+      function close() { if (gdlg) { gdlg.remove(); gdlg = null; } }
+      gdlg.querySelector('#gno').addEventListener('click', close);
+      gdlg.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+      gdlg.querySelector('#gyes').addEventListener('click', function () {
+        if (!pick) return;
+        var yes = gdlg.querySelector('#gyes'); yes.disabled = true;
+        W.gift(id, pick.uid, pick.n, gdlg.querySelector('#gnote').value).then(function (r) {
+          if (!gdlg) return;
+          if (!r.ok) {
+            yes.disabled = false;
+            var gm = { signin: 'Sign in with Google to send gifts.', owned: pick.n + ' already has this.', busy: 'You have ' + W.GIFT_MAX + ' gifts still waiting to be opened. Try again once they are.', funds: 'Not enough emeralds yet.', recipient: pick.n + ' needs to sign in with Google first.', money: 'Emeralds and mangos can’t be gifted.' };
+            gdlg.querySelector('#gerr').textContent = (S && r.reason !== 'signin' && r.reason !== 'funds' && r.message) || gm[r.reason] || r.message || 'That didn’t work. Try again.';
+            return;
+          }
+          close(); toast('Gift sent to ' + pick.n + '.' + (r.spent ? ' You have ' + W.format(r.balance) + ' left.' : '')); draw();
+        });
+      });
+      gdlg.querySelector('#gq').focus();
+    }
+    document.addEventListener('click', function (e) { var b = e.target.closest('button[data-gift]'); if (b) giftDialog(b.getAttribute('data-gift')); });
+    function draw() {
+      drawWallet(); drawDrawBtns();
+      if (tab === 'packs') drawPacks(); else if (tab === 'locker') drawLocker(); else drawHistory();
+    }
+
+    // ---------- The reveal ----------
+    var rv = null;
+    function reveal(r) {
+      if (rv) rv.remove();
+      var draws = r.got.draws, best = 4, order = ['legendary', 'epic', 'rare', 'uncommon', 'common'];
+      draws.forEach(function (d) { best = Math.min(best, order.indexOf(d.rarity)); });
+      var bc = RC[order[best]].color;
+      rv = el('div', draws.length > 1 ? 'many' : ''); rv.id = 'reveal'; rv.setAttribute('role', 'dialog'); rv.setAttribute('aria-label', 'Your chest');
+      var rays = ''; for (var i = 0; i < 16; i++) { var a0 = i * Math.PI / 8, a1 = a0 + Math.PI / 16; rays += '<path d="M260 260 L' + (260 + 260 * Math.cos(a0)).toFixed(1) + ' ' + (260 + 260 * Math.sin(a0)).toFixed(1) + ' L' + (260 + 260 * Math.cos(a1)).toFixed(1) + ' ' + (260 + 260 * Math.sin(a1)).toFixed(1) + ' Z" fill="' + bc + '" opacity=".35"/>'; }
+      rv.innerHTML = '<div class="box"><svg class="burst" viewBox="0 0 520 520" aria-hidden="true">' + rays + '</svg><div class="gem">' + GEM + '</div><div class="cards"></div><div class="tip">Tap to skip</div></div>';
+      document.body.appendChild(rv);
+      var cards = rv.querySelector('.cards'), gem = rv.querySelector('.gem'), shown = false;
+      var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function showCards() {
+        if (shown) return; shown = true;
+        gem.style.display = 'none';
+        draws.forEach(function (d, i) {
+          var s = C.SKINS_BY_ID[d.skin], rr = RC[d.rarity];
+          var c = el('div', 'card'); c.style.setProperty('--rc', rr.color); c.style.animationDelay = (i * (draws.length > 1 ? 0.09 : 0)) + 's';
+          c.innerHTML = C.avatarSvg(uid, 96, { look: { skin: d.skin, accessories: {} } }) + '<div class="cr">' + rr.name + '</div><div class="cn">' + esc(s.name) + '</div>' +
+            '<div class="cx' + (d.dup ? '' : ' new') + '">' + (d.dup ? '+' + W.format(C.DUP_REFUND, true) + ' back' : 'New!') + '</div>';
+          cards.appendChild(c);
+        });
+        rv.querySelector('.tip').remove();
+        var done = el('button', 'btn go done', draws.length > 1 ? 'Nice!' : 'Wear it'); done.type = 'button';
+        done.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (draws.length === 1) C.equip(draws[0].skin);
+          close();
+        });
+        var keep = el('button', 'btn done', 'Close'); keep.type = 'button'; keep.style.marginLeft = '8px';
+        keep.addEventListener('click', function (e) { e.stopPropagation(); close(); });
+        var row = el('div'); row.appendChild(done); if (draws.length === 1) row.appendChild(keep); rv.querySelector('.box').appendChild(row);
+        done.focus();
+      }
+      function close() { if (rv) { rv.remove(); rv = null; } draw(); }
+      rv.addEventListener('click', function () { if (!shown) showCards(); });
+      document.addEventListener('keydown', function esc1(e) { if (!rv) { document.removeEventListener('keydown', esc1); return; } if (e.key === 'Escape') { if (!shown) showCards(); else close(); } });
+      setTimeout(showCards, still ? 0 : 1400);
+    }
+    if (navigator.webdriver) window.__shop = { reveal: reveal, draw: draw, toast: toast, giftDialog: giftDialog, payHelp: payHelp, late: function (s) { late = s; draw(); } };
+
+    // ---------- The server wallet: sign-in changes and coming back from Stripe ----------
+    if (S) {
+      document.addEventListener('click', function (e) { if (e.target.closest('#signinBtn')) signIn(); });
+      var tries = 0;
+      (function hookAcct() { var A = window.SiteAccount; if (A && A.onChange) { A.onChange(function () { W.refresh(); }); return; } if (++tries < 60) setTimeout(hookAcct, 250); })();
+      W.refresh().then(function () { draw(); returned(); });
+    }
+    // Stripe sends the tab back with ?purchase=success&sku=emeralds_7&session=cs_… (or purchase=cancel). The webhook,
+    // not this page, adds the emeralds: wait for the wallet's ledger to show that Checkout session.
+    function returned() {
+      var q = new URLSearchParams(location.search), st = q.get('purchase'), sku = q.get('sku') || '', ses = q.get('session') || '';
+      if ((st !== 'success' && st !== 'cancel') || !/^emeralds_\d+$/.test(sku)) return;
+      ['purchase', 'sku', 'session'].forEach(function (k) { q.delete(k); });
+      try { history.replaceState(history.state, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } catch (e) {}
+      if (st === 'cancel') { toast('Checkout cancelled: nothing was charged.'); return; }
+      var pk = (W.EMERALD_PACKS || []).filter(function (x) { return x.id === sku.replace(/_/g, '-'); })[0], end = Date.now() + 45000;
+      toast('Payment received. Adding your emeralds…');
+      (function poll() {
+        var hit = W.state().recent.some(function (l) { return l[4] === ses; });
+        if (hit) { toast('Added ' + (pk ? pk.emeralds.toLocaleString('en-US') + ' emeralds' : 'your emeralds') + '. You have ' + W.format() + '.'); draw(); return; }
+        if (Date.now() > end) { late = ses; draw(); toast('Your emeralds are on their way: it can take a minute. Reload the page to check, or use Payment help under the emerald packs.'); return; }
+        setTimeout(function () { W.refresh().then(poll); }, 2000);
+      })();
+    }
+
+    document.addEventListener('backroom:wallet', function () { draw(); });
+    document.addEventListener('backroom:captain', function () { draw(); });
+    document.addEventListener('backroom:gift', function (e) { var d = e.detail || {}; if (d.got && d.got.draws && d.got.draws.length) reveal({ got: d.got }); draw(); });
+    if (W.scan) W.scan(true);                         // open any gifts waiting, and claim last week's rewards
+    document.addEventListener('backroom:cosmetics', function () { if (tab === 'locker') drawLocker(); });
+    addEventListener('storage', function (e) { if (e.key === 'cosmetics:v1') draw(); });
+    document.addEventListener('backroom:avatar', function () { draw(); });
+    var g = W.welcome();
+    draw();
+    if (g !== false) toast('Welcome! Here are 20 emeralds to start you off.');
+  }
+})();
+</script>
+</body>
+</html>

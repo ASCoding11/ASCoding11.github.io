@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- Showdown's Spanish words -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may open the hidden Wardrobe (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Showdown</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -51,8 +55,8 @@ button{font:inherit;color:inherit}
 button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 button:disabled{opacity:.45;cursor:default}
 #app{position:fixed;inset:0;overflow:hidden;background:
-  radial-gradient(ellipse 70% 55% at 50% 0%,rgba(255,214,140,.10),transparent 70%),
-  radial-gradient(ellipse 90% 80% at 50% 55%,#0d1c15 0%,#07110c 60%,#040906 100%)}
+  radial-gradient(ellipse 70% 55% at 50% 0%,rgba(255,214,140,.13),transparent 70%),
+  radial-gradient(ellipse 90% 80% at 50% 55%,#10231a 0%,#08130d 58%,#030705 100%)}
 
 /* top bar */
 #bar{position:absolute;left:0;right:0;top:0;height:calc(48px + env(safe-area-inset-top,0px));padding:env(safe-area-inset-top,0px) 10px 0;display:flex;align-items:center;gap:8px;z-index:20}
@@ -66,38 +70,61 @@ button:disabled{opacity:.45;cursor:default}
 /* table */
 #stage{position:absolute;left:0;top:0;right:0;bottom:0}
 #table{position:absolute}
-#table .rail{position:absolute;inset:0;border-radius:9999px;background:linear-gradient(180deg,#4a2c18 0%,#2b190d 55%,#1c1008 100%);
-  box-shadow:0 30px 70px rgba(0,0,0,.65),0 0 0 1px rgba(0,0,0,.6),inset 0 2px 0 rgba(255,220,170,.18),inset 0 -3px 0 rgba(0,0,0,.4)}
+/* The rail is padded leather over a dark wood edge, lit from above by one lamp: a sheen along the top,
+   a stitched seam, then a brass inlay where it meets the felt. The felt gets a fine weave (a small noise
+   tile made once in the script, see feltGrain) and the rail's shadow falling onto it. */
+#table .rail{position:absolute;inset:0;border-radius:9999px;
+  background:
+    radial-gradient(ellipse 58% 46% at 50% 0%,rgba(255,222,170,.30),transparent 72%),
+    linear-gradient(180deg,#5b3620 0%,#3a2212 46%,#22140a 78%,#170d06 100%);
+  box-shadow:0 36px 80px rgba(0,0,0,.7),0 5px 0 #0f0804,0 0 0 1px rgba(0,0,0,.7),inset 0 2px 1px rgba(255,226,180,.30),inset 0 -5px 8px rgba(0,0,0,.55)}
+#table .rail::before{content:'';position:absolute;inset:calc(var(--rim,14px)*.44);border-radius:9999px;border:1px dashed rgba(255,226,180,.17);pointer-events:none}
 #table .felt{position:absolute;inset:calc(var(--rim,14px));border-radius:9999px;overflow:hidden;
-  background:radial-gradient(ellipse 75% 70% at 50% 42%,var(--felt-1) 0%,var(--felt-2) 52%,var(--felt-3) 100%);
-  box-shadow:inset 0 0 0 2px rgba(217,178,92,.55),inset 0 0 0 5px rgba(0,0,0,.25),inset 0 18px 50px rgba(0,0,0,.35)}
-#table .felt::after{content:'';position:absolute;inset:10%;border-radius:9999px;border:1.5px solid rgba(244,220,150,.13)}
-#table .mark{position:absolute;left:50%;bottom:17%;transform:translateX(-50%);font:400 calc(var(--cw)*.62) var(--f-d);color:rgba(244,232,190,.10);letter-spacing:.08em;white-space:nowrap;pointer-events:none}
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 36%,rgba(255,244,196,.15),transparent 72%),
+    radial-gradient(ellipse 78% 74% at 50% 44%,var(--felt-1) 0%,var(--felt-2) 54%,var(--felt-3) 100%);
+  box-shadow:inset 0 0 0 2px rgba(226,189,102,.75),inset 0 0 0 3.5px rgba(0,0,0,.45),inset 0 12px 22px rgba(0,0,0,.5),inset 0 0 80px rgba(0,0,0,.32)}
+#table .felt::before{content:'';position:absolute;inset:0;background-image:var(--grain,none);background-size:128px 128px;opacity:.55;mix-blend-mode:overlay;pointer-events:none}
+#table .felt::after{content:'';position:absolute;inset:10%;border-radius:9999px;border:1.5px solid rgba(244,220,150,.16);box-shadow:0 0 0 1px rgba(0,0,0,.12),inset 0 0 0 1px rgba(0,0,0,.12)}
+#table .mark{position:absolute;left:50%;bottom:17%;transform:translateX(-50%);font:400 calc(var(--cw)*.62) var(--f-d);color:rgba(244,232,190,.11);letter-spacing:.08em;white-space:nowrap;pointer-events:none;text-shadow:0 1px 0 rgba(0,0,0,.18)}
 #center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:calc(var(--cw)*.16);pointer-events:none}
 #pot{font:800 calc(11px + var(--cw)*.1) var(--f-u);color:var(--ink);background:rgba(0,0,0,.32);border:1px solid rgba(244,220,150,.18);border-radius:999px;padding:3px 12px;white-space:nowrap;font-variant-numeric:tabular-nums;display:flex;gap:10px;align-items:center;min-height:1.9em}
 #pot:empty{visibility:hidden}
+#pot::before{content:'';flex:none;width:.95em;height:.95em;border-radius:50%;margin:0 -2px .28em 0;
+  background:radial-gradient(circle,#e0b23e 0 44%,rgba(255,255,255,.85) 45% 52%,transparent 53%),repeating-conic-gradient(from 15deg,#e0b23e 0 34deg,#f6f0df 34deg 60deg);
+  box-shadow:0 .12em 0 #b98d34,0 .24em 0 #7b4fd0,0 .36em 0 #1f8a4c,0 .46em 0 rgba(0,0,0,.6)}
+#pot span{animation:potpop .24s cubic-bezier(.2,.8,.3,1.4)}
+@keyframes potpop{from{transform:scale(1.18)}}
 #pot small{font-weight:700;color:var(--ink-2)}
 #board{display:flex;gap:calc(var(--cw)*.1);min-height:calc(var(--cw)*1.4)}
 #board .slot{width:var(--cw);height:calc(var(--cw)*1.4);border-radius:calc(var(--cw)*.1);border:1.5px dashed rgba(244,220,150,.12)}
 #tmsg{font:700 calc(11px + var(--cw)*.08) var(--f-u);color:var(--gold-2);text-align:center;max-width:min(80vw,calc(var(--cw)*8));min-height:1.3em;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 
 /* cards */
-.cd{position:relative;width:var(--w,var(--cw));height:calc(var(--w,var(--cw))*1.4);border-radius:calc(var(--w,var(--cw))*.1);background:var(--card);
-  box-shadow:0 2px 0 rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.35);color:var(--c-s);flex:none;overflow:hidden}
+.cd{position:relative;width:var(--w,var(--cw));height:calc(var(--w,var(--cw))*1.4);border-radius:calc(var(--w,var(--cw))*.1);
+  background:linear-gradient(168deg,#fffefa 0%,var(--card) 48%,#ece5d2 100%);
+  box-shadow:0 1px 0 rgba(0,0,0,.3),0 3px 5px rgba(0,0,0,.28),0 9px 16px rgba(0,0,0,.24),inset 0 0 0 1px rgba(60,40,10,.10),inset 0 1px 0 rgba(255,255,255,.9);color:var(--c-s);flex:none;overflow:hidden}
 .cd .r{position:absolute;left:8%;top:3%;font:800 calc(var(--w,var(--cw))*.36)/1 var(--f-u);letter-spacing:-.04em}
 .cd .s1{position:absolute;left:9%;top:32%;font:calc(var(--w,var(--cw))*.26)/1 system-ui,sans-serif}
 .cd .s2{position:absolute;right:6%;bottom:2%;font:calc(var(--w,var(--cw))*.62)/1 system-ui,sans-serif}
 .cd.h{color:var(--c-h)}.cd.d{color:var(--c-d)}.cd.c{color:var(--c-c)}
 .four .cd.d{background:#eef4ff}.four .cd.c{background:#effaf2}
+/* The back: an ivory border, a fine lattice on oxblood, and a brass-edged lozenge in the middle. */
 .cd.back{background:
-  repeating-linear-gradient(45deg,rgba(255,255,255,.09) 0 2px,transparent 2px 7px),
-  repeating-linear-gradient(-45deg,rgba(255,255,255,.09) 0 2px,transparent 2px 7px),
-  linear-gradient(160deg,#9b2335,#5e1220);
-  box-shadow:inset 0 0 0 calc(var(--w,var(--cw))*.06) var(--card),0 3px 8px rgba(0,0,0,.4)}
+  repeating-linear-gradient(45deg,rgba(255,236,200,.13) 0 1.5px,transparent 1.5px 6px),
+  repeating-linear-gradient(-45deg,rgba(255,236,200,.13) 0 1.5px,transparent 1.5px 6px),
+  linear-gradient(160deg,#a62a3e,#5a0f1e);
+  box-shadow:inset 0 0 0 calc(var(--w,var(--cw))*.065) var(--card),inset 0 0 0 calc(var(--w,var(--cw))*.065 + 1px) rgba(40,0,8,.55),0 1px 0 rgba(0,0,0,.3),0 3px 5px rgba(0,0,0,.28),0 8px 14px rgba(0,0,0,.26)}
+.cd.back::after{content:'';position:absolute;left:50%;top:50%;width:36%;aspect-ratio:1;transform:translate(-50%,-50%) rotate(45deg);border-radius:12%;
+  background:linear-gradient(135deg,#7d1b2c,#4a0c18);box-shadow:0 0 0 1.5px var(--gold),0 0 0 calc(1.5px + var(--w,var(--cw))*.045) #5a0f1e}
 .cd.dim{filter:brightness(.55) saturate(.6)}
-.cd.hi{box-shadow:0 0 0 2px var(--win),0 0 16px rgba(255,211,107,.6)}
+/* A card in the winning hand lifts off the felt with a gold edge. The lift uses the translate property so it
+   can run alongside the flip, which uses transform. */
+.cd.hi{translate:0 -7%;box-shadow:0 0 0 2px var(--win),0 0 18px rgba(255,211,107,.6),0 12px 16px rgba(0,0,0,.35);animation:rise .36s cubic-bezier(.2,.8,.3,1.35) backwards}
+@keyframes rise{from{translate:0 0;box-shadow:0 0 0 0 rgba(255,211,107,0),0 0 0 rgba(255,211,107,0),0 6px 12px rgba(0,0,0,.3)}}
 .cd.in{animation:flip .38s cubic-bezier(.2,.8,.3,1.2) both}
-@keyframes flip{from{transform:rotateY(90deg) translateY(-6px);opacity:.2}}
+.cd.in.hi{animation:flip .38s cubic-bezier(.2,.8,.3,1.2) both,rise .36s cubic-bezier(.2,.8,.3,1.35) backwards}
+@keyframes flip{from{transform:perspective(420px) rotateY(90deg) translateY(-6px);opacity:.2}to{transform:perspective(420px) rotateY(0)}}
 .cd.dl{animation:deal .42s cubic-bezier(.2,.75,.3,1) both}
 @keyframes deal{from{transform:translate(var(--dx,0),var(--dy,0)) rotate(-25deg) scale(.55);opacity:0}}
 
@@ -117,28 +144,44 @@ button:disabled{opacity:.45;cursor:default}
 .meta b{display:block;font:700 calc(10px + var(--pw)*.025) var(--f-u);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .meta span{display:block;font:800 calc(10px + var(--pw)*.03) var(--f-u);color:var(--gold-2);font-variant-numeric:tabular-nums;white-space:nowrap}
 .meta i{font-style:normal;font-size:9px;font-weight:800;letter-spacing:.1em;color:var(--ink-3);border:1px solid var(--line);border-radius:4px;padding:0 3px;margin-left:4px;vertical-align:1px}
-.seat.folded .plate{opacity:.5}
-.seat.out .plate{opacity:.45}
-.seat.turn .plate{border-color:var(--gold);box-shadow:0 0 0 2px rgba(217,178,92,.35),0 0 24px rgba(217,178,92,.35),0 6px 16px rgba(0,0,0,.45)}
-.seat.won .plate{border-color:var(--win);box-shadow:0 0 0 2px rgba(255,211,107,.5),0 0 30px rgba(255,211,107,.45)}
+.plate{box-shadow:0 6px 16px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07)}
+.av{box-shadow:inset 0 2px 2px rgba(255,255,255,.4),inset 0 -4px 6px rgba(0,0,0,.22),0 0 0 2px rgba(0,0,0,.45)}
+.seat.folded .plate{opacity:.5;filter:saturate(.45)}
+.seat.out .plate{opacity:.45;filter:saturate(.45)}
+/* Whose turn it is: a gold edge, a brighter name, and a soft halo that breathes behind the plate. */
+.seat.turn .plate{border-color:var(--gold-2);background:linear-gradient(180deg,rgba(44,40,24,.97),rgba(18,17,10,.97));box-shadow:0 0 0 2px rgba(217,178,92,.5),0 6px 16px rgba(0,0,0,.45)}
+.seat.turn .plate::after{content:'';position:absolute;inset:-7px;border-radius:999px;z-index:-1;pointer-events:none;
+  box-shadow:0 0 0 2px rgba(244,220,150,.45),0 0 26px 6px rgba(217,178,92,.5);animation:halo 1.5s ease-in-out infinite alternate}
+@keyframes halo{from{opacity:.35}to{opacity:1}}
+.seat.turn .meta b{color:#fff}
+.seat.won .plate{border-color:var(--win);background:linear-gradient(180deg,rgba(58,46,16,.97),rgba(24,19,8,.97));box-shadow:0 0 0 2px rgba(255,211,107,.6),0 0 30px rgba(255,211,107,.5);animation:wonpop .5s cubic-bezier(.2,.8,.3,1.5)}
+@keyframes wonpop{from{transform:scale(.92)}}
 .tag{position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);font:800 11px var(--f-u);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;padding:2px 8px;border-radius:6px;background:rgba(0,0,0,.55);color:var(--ink-2);z-index:2}
 .seat.down .tag{top:auto;bottom:calc(100% + 4px)}
 .tag:empty{display:none}
 .tag.hand{background:rgba(255,211,107,.16);color:var(--win);text-transform:none;letter-spacing:.01em;font-size:12px}
-.tag.act-Fold{color:var(--ink-3)}
+.tag.act-Fold,.tag.act-Muck{color:var(--ink-3)}
 .tag.act-Raise,.tag.act-Bet{color:#ffb36b}
 .tag.act-All-in{color:#ff8a8a;background:rgba(120,10,20,.6)}
 .gain{position:absolute;left:calc(100% + 4px);top:50%;transform:translate(0,-50%);font:800 16px var(--f-u);color:var(--win);text-shadow:0 2px 6px rgba(0,0,0,.7);animation:gain 2.4s ease-out both;pointer-events:none;z-index:5;white-space:nowrap}
 @keyframes gain{0%{opacity:0;transform:translate(-6px,-50%)}12%{opacity:1;transform:translate(0,-50%)}80%{opacity:1}100%{opacity:0;transform:translate(0,-130%)}}
 .bubble{position:absolute;bottom:calc(100% + 34px);left:50%;transform:translateX(-50%);max-width:180px;background:var(--card);color:#1c1c1c;font:700 13px var(--f-u);padding:5px 10px;border-radius:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:6;box-shadow:0 4px 12px rgba(0,0,0,.4);animation:fadein .2s}
 @keyframes fadein{from{opacity:0}}
-.btn-d{position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;color:#111;font:800 12px/22px var(--f-u);text-align:center;transform:translate(-50%,-50%);box-shadow:0 2px 4px rgba(0,0,0,.5),inset 0 0 0 2px #ddd;transition:left .5s ease,top .5s ease;z-index:3}
+.btn-d{position:absolute;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 36% 30%,#fff 0%,#f1ecde 55%,#cfc7b2 100%);color:#2a1b02;font:800 12px/22px var(--f-u);text-align:center;transform:translate(-50%,-50%);box-shadow:0 2px 0 #8f8873,0 4px 5px rgba(0,0,0,.5),inset 0 0 0 2px rgba(217,178,92,.75);transition:left .5s cubic-bezier(.45,0,.2,1),top .5s cubic-bezier(.45,0,.2,1);z-index:3}
 .bet{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:5px;font:800 13px var(--f-u);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;z-index:3;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.8)}
-.bet.pop{animation:pop .25s ease-out}
+.bet.pop{animation:pop .26s cubic-bezier(.2,.8,.3,1.3)}
 @keyframes pop{from{transform:translate(-50%,-50%) scale(1.35)}}
-.chip{width:18px;height:18px;border-radius:50%;flex:none;background:radial-gradient(circle,var(--cc,#d33) 0 42%,#fff 43% 52%,var(--cc,#d33) 53%);box-shadow:0 2px 0 rgba(0,0,0,.45),inset 0 0 0 1.5px rgba(255,255,255,.35)}
+/* A clay chip seen from above: six ivory inserts round the edge, a thin ring, and the colour in the middle.
+   The shadow underneath is the chip's own edge, so a stack shows a sliver of each chip below the top one. */
+.chip{position:relative;width:18px;height:18px;border-radius:50%;flex:none;
+  background:
+    radial-gradient(circle,rgba(255,255,255,.22) 0 22%,transparent 23%),
+    radial-gradient(circle,var(--cc,#d33) 0 44%,rgba(255,255,255,.85) 45% 52%,transparent 53%),
+    repeating-conic-gradient(from 15deg,var(--cc,#d33) 0 34deg,#f6f0df 34deg 60deg);
+  box-shadow:0 1.5px 0 var(--cc,#d33),0 3px 0 rgba(0,0,0,.6),0 4px 4px rgba(0,0,0,.35),inset 0 0 0 1px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.35)}
 .chips{display:flex;flex-direction:column-reverse}
-.chips .chip+.chip{margin-bottom:-14px}
+.chips .chip+.chip{margin-bottom:-14.5px}
+.bet>span:last-child{background:rgba(0,0,0,.34);border-radius:999px;padding:1px 7px}
 .fly{position:absolute;transform:translate(-50%,-50%);transition:left .42s cubic-bezier(.3,.7,.3,1),top .42s cubic-bezier(.3,.7,.3,1),opacity .2s .4s;z-index:8;pointer-events:none}
 
 /* action bar */
@@ -148,6 +191,8 @@ button:disabled{opacity:.45;cursor:default}
 .ab{flex:1;min-width:96px;max-width:220px;height:52px;border-radius:12px;border:1px solid var(--line);cursor:pointer;font:800 16px var(--f-u);letter-spacing:.02em;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;background:rgba(255,255,255,.07);color:var(--ink)}
 .ab small{font-size:12px;font-weight:700;opacity:.8;font-variant-numeric:tabular-nums}
 .ab:hover{background:rgba(255,255,255,.12)}
+.ab{transition:transform .07s ease-out;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 3px 8px rgba(0,0,0,.3)}
+.ab:active{transform:translateY(1px) scale(.985)}
 .ab.fold{color:#ffb1b1}
 .ab.call{background:linear-gradient(180deg,#2f9a68,#1e7650);border-color:#3cc184;color:#f2fff7}
 .ab.call:hover{background:linear-gradient(180deg,#36ab74,#228259)}
@@ -203,7 +248,7 @@ button:disabled{opacity:.45;cursor:default}
 .center .inner{background:var(--panel-2);border:1px solid var(--line);border-radius:20px;margin:auto;width:min(440px,calc(100% - 28px));box-shadow:0 30px 80px rgba(0,0,0,.5)}
 .kicker{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;font:800 12px var(--f-u);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2)}
 .kicker b{color:var(--c-h)}
-.title{margin:8px 0 4px;font:400 clamp(54px,8.6vw,94px)/.92 var(--f-d);white-space:nowrap;letter-spacing:-.01em;background:linear-gradient(176deg,#fff3cf 0%,var(--gold-2) 38%,var(--gold) 70%,#9c7428 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 20px rgba(217,178,92,.25))}
+.title{margin:8px 0 4px;width:max-content;max-width:none;padding-right:.06em;font:400 clamp(54px,8.6vw,94px)/.92 var(--f-d);white-space:nowrap;letter-spacing:-.01em;background:linear-gradient(176deg,#fff3cf 0%,var(--gold-2) 38%,var(--gold) 70%,#9c7428 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 20px rgba(217,178,92,.25))}
 .suits{font:22px system-ui;letter-spacing:.3em;color:var(--ink-3)}
 .suits .r{color:var(--c-h)}
 .lede{margin:10px 0 18px;font:600 16.5px/1.5 var(--f-u);color:var(--ink-2);max-width:42ch}
@@ -232,6 +277,8 @@ button:disabled{opacity:.45;cursor:default}
 .seg button[aria-checked="true"]{background:rgba(217,178,92,.18);color:var(--gold-2)}
 .opts{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center;margin-top:10px}
 .opts>span{font:700 13px var(--f-u);color:var(--ink-2)}
+.opts>.nobots{grid-column:2;font-weight:600;margin-top:-4px}
+.opts .seg button:disabled{cursor:not-allowed;opacity:.6}
 .msg{margin:10px 0 0;font:600 14px/1.45 var(--f-u);color:var(--ink-2);min-height:1.45em}
 .msg.err{color:var(--bad)}
 details.how summary{cursor:pointer;font:800 15px var(--f-u);color:var(--ink-2);list-style:none}
@@ -264,6 +311,38 @@ details.how[open] summary::before{content:'– '}
   .meta i{display:none}
 }
 
+/* People who ask their device for less motion: nothing slides, flips, pops or pulses. Cards and chips just
+   appear, and the turn halo and winning cards hold still in their end state. */
+@media (prefers-reduced-motion:reduce){
+  .cd.in,.cd.dl,.cd.hi,.cd.in.hi,.bet.pop,.seat.won .plate,#pot span,.seat.turn .plate::after,.bubble{animation:none}
+  .gain{animation:gainfade 2.4s linear both}
+  .fly{transition:opacity .2s .4s}
+  .btn-d,.ab,.cta{transition:none}
+}
+@keyframes gainfade{0%{opacity:0}10%{opacity:1}80%{opacity:1}100%{opacity:0}}
+
+/* A phone held sideways is too short for a bar under the table, so the bar becomes a column on the right
+   (layout() adds .dock and gives the table the space to its left). Same buttons, same order. */
+#app.dock #actions{left:auto;top:calc(48px + env(safe-area-inset-top,0px));width:calc(204px + env(safe-area-inset-right,0px));padding:6px calc(10px + env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) 10px;gap:6px;justify-content:flex-end;align-items:stretch;
+  background:linear-gradient(270deg,rgba(4,9,6,.96) 0%,rgba(4,9,6,.9) 72%,rgba(4,9,6,0) 100%)}
+#app.dock #actions .row{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:6px;width:100%}
+#app.dock .ab{flex:none;max-width:none;min-width:0;width:100%;height:42px;flex-direction:row;gap:7px;font-size:15px}
+#app.dock .ab small{font-size:13px}
+#app.dock .sizer{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;width:100%}
+#app.dock .sizer button{height:30px;padding:0 4px;font-size:12px}
+#app.dock .sizer input[type=range]{grid-column:1 / span 2;min-width:0;width:100%}
+#app.dock .sizer input[type=number]{width:100%;height:30px;font-size:13px;padding:0 6px}
+#app.dock .info{font-size:13px;line-height:1.35}
+#app.dock .chk{font-size:13px;padding:8px 10px}
+#app.dock .pill{height:42px;padding:0 10px}
+#app.dock #coach{max-width:230px}
+#app.dock #center{top:46%}
+#app.dock #tmsg{display:none}
+#app.dock .seat.me .hole .cd{--w:calc(var(--mw)*.86)}
+#dockmsg{display:none}
+#app.dock #dockmsg{display:block;position:absolute;right:0;top:calc(56px + env(safe-area-inset-top,0px));width:calc(204px + env(safe-area-inset-right,0px));padding:0 calc(10px + env(safe-area-inset-right,0px)) 0 10px;z-index:16;pointer-events:none;
+  font:700 13px/1.35 var(--f-u);color:var(--gold-2);text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+
 /* Side rails: two tall ads beside the game on wide screens (1180px+). Off until a slot is set. */
 :root{--rail:184px}
 .rail-ad{display:none;box-sizing:border-box;position:fixed;top:0;bottom:0;width:var(--rail);background:#050b08;flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:2147483000}
@@ -276,13 +355,16 @@ details.how[open] summary::before{content:'– '}
   html.rails .rail-ad{display:flex}
 }
 </style>
+<script src="/e63334287a3deaa3/stats.js" data-game="showdown" defer></script>
+<script src="/e63334287a3deaa3/gamechat.js" defer></script>
+<script src="/adrefresh.js" defer></script>
 </head>
 <body>
 <div id="app">
   <div id="stage">
     <div id="table">
       <div class="rail"><div class="felt"><div class="mark">Showdown</div></div></div>
-      <div id="center"><div id="pot"></div><div id="board"></div><div id="tmsg"></div></div>
+      <div id="center"><div id="pot"></div><div id="board"></div><div id="tmsg" data-noi18n></div></div>
     </div>
   </div>
 
@@ -306,13 +388,14 @@ details.how[open] summary::before{content:'– '}
       <button type="button" role="tab" data-tab="chat" aria-selected="false" id="tabChat">Chat</button>
       <button type="button" role="tab" data-tab="plist" aria-selected="false">Players</button>
     </div>
-    <div class="pane" id="log"></div>
-    <div class="pane" id="chat" hidden><div id="chatLog"></div></div>
+    <div class="pane" id="log" data-noi18n></div>
+    <div class="pane" id="chat" hidden><div id="chatLog" data-noi18n></div></div>
     <form id="chatForm" hidden autocomplete="off"><input id="chatIn" maxlength="80" placeholder="Say something" aria-label="Chat message"><button class="tb" type="submit">Send</button></form>
     <div class="pane" id="plist" hidden></div>
   </aside>
 
   <div id="actions" hidden></div>
+  <div id="dockmsg" aria-hidden="true" data-noi18n></div>
 
   <section id="menu" class="overlay menu">
     <div class="inner">
@@ -355,6 +438,7 @@ details.how[open] summary::before{content:'– '}
             <span>Stack</span><div class="seg" role="radiogroup" data-opt="depth"><button type="button" role="radio" data-v="50">50 BB</button><button type="button" role="radio" data-v="100">100 BB</button><button type="button" role="radio" data-v="200">200 BB</button></div>
             <span>Timer</span><div class="seg" role="radiogroup" data-opt="timer"><button type="button" role="radio" data-v="15">15 s</button><button type="button" role="radio" data-v="30">30 s</button><button type="button" role="radio" data-v="60">60 s</button></div>
             <span>Fill seats</span><div class="seg" role="radiogroup" data-opt="bots"><button type="button" role="radio" data-v="1">With bots</button><button type="button" role="radio" data-v="0">People only</button></div>
+            <span id="noBotsNote" class="nobots" hidden>No bots in party games</span>
           </div>
           <p class="msg">Used for Practice and for rooms you start. Blinds are 10 / 20. Quick match tables are 6-max, 100 BB, 30 s, Normal bots.</p>
         </details>
@@ -377,6 +461,7 @@ details.how[open] summary::before{content:'– '}
         </details>
       </div>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
+      <div style="margin-top:14px" data-lang-toggle></div>
       <p class="foot" id="foot">Play chips only · <a href="/privacy.html">Privacy</a></p>
     </div>
   </section>
@@ -568,7 +653,7 @@ class Table{
     this.id=0;this.ph='wait';this.st=0;this.btn=-1;this.sbI=-1;this.bbI=-1;this.board=[];this.deck=[];
     this.pot=0;this.cb=0;this.mr=set.bb;this.turn=-1;this.dl=0;this.q=0;this.log=[];this.win=null;this.pots=null;
     this.bank={};this.job=null;this.v=0;this.msg='';this.ro=0;this.botAt=0;this.queue=[];this.onChange=null;
-    this.bid=Math.floor(Math.random()*1e6);this.agg=-1;this.pfAgg=-1;this.nr=0;this.speed=1;this.stats={};
+    this.bid=Math.floor(Math.random()*1e6);this.agg=-1;this.pfAgg=-1;this.sa=-1;this.nr=0;this.speed=1;this.stats={};
   }
   changed(){this.v++;if(this.onChange)this.onChange(this)}
   addLog(t){this.log.push(t);if(this.log.length>40)this.log.shift()}
@@ -655,7 +740,7 @@ class Table{
       this.changed();return;
     }
     const inEl=i=>el.includes(i);
-    this.id++;this.ph='pre';this.st=0;this.msg='';this.log=[];this.agg=-1;this.pfAgg=-1;this.nr=0;
+    this.id++;this.ph='pre';this.st=0;this.msg='';this.log=[];this.agg=-1;this.pfAgg=-1;this.sa=-1;this.nr=0;
     for(const i of el){this.seats[i].in=1;this.statOf(this.seats[i].u).h++}
     this.btn=this.nextOf(this.btn,inEl);
     if(el.length===2){this.sbI=this.btn;this.bbI=this.nextOf(this.btn,inEl)}
@@ -728,12 +813,14 @@ class Table{
     if(hi>=0&&hv>sec){const s=this.seats[hi],r=hv-sec;s.st+=r;s.bet-=r;s.tot-=r;if(s.st>0)s.ai=0;if(this.liveIdx().length>1)this.addLog('Uncalled '+fmt(r)+' returned to '+s.n)}
     for(const s of this.seats)if(s&&s.in){this.pot+=s.bet;s.bet=0;s.acted=0;s.cr=1}
     if(this.st===0)this.pfAgg=this.agg;
+    this.sa=this.agg; // last bettor of the last betting round shows first
     this.cb=0;this.mr=this.set.bb;this.agg=-1;this.nr=0;
     const live=this.liveIdx(),actors=live.filter(i=>!this.seats[i].ai);
     const at=this.clock();
     if(this.st>=3){this.job={at:at+700/this.speed,fn:'showdown'};return}
     if(actors.length<=1){
-      if(!this.ro){this.ro=1;for(const i of live)this.seats[i].sh=cardsStr(this.holes[i]);this.addLog('All in: cards face up')}
+      // nobody can bet any more: the board runs out with every hand still face down until the showdown
+      if(!this.ro){this.ro=1;this.addLog('All in: the board runs out')}
       this.job={at:at+1100/this.speed,fn:'dealStreet'};return;
     }
     this.job={at:at+650/this.speed,fn:'dealStreet'};
@@ -771,12 +858,21 @@ class Table{
   showdown(){
     this.job=null;this.turn=-1;this.ph='show';
     const live=this.liveIdx(),sc={};
-    for(const i of live){
-      const s=this.seats[i],all=this.holes[i].concat(this.board);
-      sc[i]=evalOf(all);s.sh=cardsStr(this.holes[i]);s.hn=handName(sc[i]);s.best=cardsStr(best5(all));
+    for(const i of live)sc[i]=evalOf(this.holes[i].concat(this.board));
+    const pots=this.computePots(),won=new Array(MAXS).fill(0);
+    // Hands are turned over in order: whoever bet or raised last first (else the first player after the
+    // button), then round the table. A hand that can't win or tie any pot it's in is mucked face down,
+    // so its cards never reach the screen, the log or the public table.
+    const first=live.includes(this.sa)?this.sa:this.nextOf(this.btn,i=>live.includes(i)),shownTop=pots.map(()=>-1);
+    for(let k=0;k<MAXS;k++){
+      const i=(first+k)%MAXS;if(!live.includes(i))continue;
+      const s=this.seats[i];
+      if(!pots.some((p,n)=>p.e.includes(i)&&sc[i]>=shownTop[n])){s.la='Muck';this.addLog(s.n+' mucks');continue}
+      pots.forEach((p,n)=>{if(p.e.includes(i)&&sc[i]>shownTop[n])shownTop[n]=sc[i]});
+      const all=this.holes[i].concat(this.board);
+      s.sh=cardsStr(this.holes[i]);s.hn=handName(sc[i]);s.best=cardsStr(best5(all));
       this.addLog(s.n+' shows '+this.holes[i].map(cTxt).join(' ')+' · '+s.hn);
     }
-    const pots=this.computePots(),won=new Array(MAXS).fill(0);
     pots.forEach((p,k)=>{
       let top=-1;for(const i of p.e)top=Math.max(top,sc[i]);
       const ws=[];for(let d=1;d<=MAXS;d++){const i=(this.btn+d)%MAXS;if(p.e.includes(i)&&sc[i]===top)ws.push(i)}
@@ -985,8 +1081,12 @@ const Net={
       catch(e){throw new Error('Could not reach the game server. Check your connection, or play Practice.')}
     }
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
-    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),12000,'Signing in to the game server timed out. Check your connection, or play Practice.')}
+    // A slow phone on school Wi-Fi can take 10-20 s to sign in: say so after 8 s (on the menu's connecting message, if
+    // one is showing, and put that message back once signed in), and only give up after 25 s.
+    const m0=$('netMsg').textContent,slow=setTimeout(()=>{const m=$('netMsg');if(m.textContent&&!m.classList.contains('err'))setMsg('Still signing in…')},8000);
+    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),25000,'Signing in to the game server timed out. Check your connection, or play Practice.')}
     catch(err){const c=err&&err.code||'';if(/timed out/.test(err&&err.message||''))throw err;throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
+    finally{clearTimeout(slow);if($('netMsg').textContent==='Still signing in…')setMsg(m0)}
     this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
     await new Promise(res=>{setTimeout(res,3000);this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})});
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
@@ -996,6 +1096,7 @@ const Net={
     // n, c, x, z, h and ts are always sent: the shared database rules expect that shape
     const o={n:myName||'Player',c:AVC[myAv],x:0,z:0,h:0,ts:Math.round(this.now()),j:this.j,av:myAv,pk:Keys.pub,sit:this.me.sit,rb:this.me.rb,ac:this.me.ac,ch:this.me.ch};
     if(G.host){o.tb=this.tb;o.hc=this.hc;o.he=G.he}
+    if(WD){const cz=WD.wire();if(cz)o.cz=cz}   // cz: what this player wears from the Wardrobe (wardrobe.js); never there for anyone else
     return o;
   },
   async count(room){
@@ -1097,6 +1198,9 @@ function practiceStats(){
 }
 // ---- online ----
 function setMsg(t,err){const m=$('netMsg');m.textContent=t;m.classList.toggle('err',!!err)}
+// A party launch (party.js, Play together) opens a room named p + 6 characters from party.js's own alphabet. Those
+// rooms are for the party's people only: no bots, whatever this browser's Fill seats says, and a new dealer keeps it so.
+function isPartyRoom(r){return /^p[a-hjkmnp-z2-9]{6}$/.test(sanitizeRoom(r))}
 function sanitizeRoom(s){return String(s||'').toLowerCase().replace(/^sd-/,'').replace(/[^a-z0-9-]/g,'').slice(0,17)}
 function randomRoom(){return pick(['river','flop','turn','ace','king','queen','jack','nuts','felt','chips'])+'-'+Math.floor(100+Math.random()*900)}
 function busy(on){for(const id of ['quick','joinRoom','practice'])$(id).disabled=on}
@@ -1124,6 +1228,7 @@ async function quickMatch(){
 }
 async function goOnline(room,isPublic,set){
   stopLoop();
+  if(isPartyRoom(room))set=Object.assign({},set,{bots:0});
   await Net.join(room,isPublic);
   G.mode='online';G.me=Net.uid;G.host=false;G.E=null;G.S=null;G.hole=null;G.holeId=-1;G.lastPub=null;G.lastHc='';G.hostUid=null;
   G.roomSet=Object.assign({},set);G.logs.clear();G.chat=[];G.seenCh.clear();G.seenAc.clear();G.seenRb.clear();G.seenSit.clear();G.he=0;G.maxHe=0;G.sent=-1;G.Sfrom=null;G.preCF=false;G.joinedAt=performance.now();
@@ -1157,6 +1262,7 @@ function becomeHost(){
   const prev=G.lastPub;
   const E=prev&&prev.seats?Table.fromPub(prev,()=>Net.now()):new Table(G.roomSet,()=>Net.now());
   useEngine(E);G.sealedId=-1;
+  if(isPartyRoom(Net.room)&&E.set.bots){E.set=Object.assign({},E.set,{bots:0});for(const s of E.seats)if(s&&s.bot)s.kick=1}
   E.seatHuman(Net.uid,myName||'Player',myAv);
   for(const [uid,o] of Net.others)if(Net.live(uid)){G.seenAc.set(uid,o.ac);G.seenRb.set(uid,o.rb);G.seenSit.set(uid,o.sit);E.seatHuman(uid,o.n,o.av)}
   E.maybeStart();E.changed();
@@ -1178,7 +1284,10 @@ function onNode(uid,v){
   if(!v||typeof v!=='object')return;
   const o={n:cleanName(v.n)||'Player',av:clamp(v.av|0,0,AVC.length-1),j:+v.j||+v.ts||0,ts:+v.ts||0,pk:typeof v.pk==='string'?v.pk:'',
     sit:typeof v.sit==='string'?v.sit:'0:1',rb:+v.rb||0,ac:typeof v.ac==='string'?v.ac:'',ch:typeof v.ch==='string'?v.ch:'',tb:typeof v.tb==='string'?v.tb:'',hc:typeof v.hc==='string'?v.hc:'',he:+v.he||0};
+  // cz: what they wear from the Wardrobe (wardrobe.js); older pages never read it
+  o.cz=typeof v.cz==='string'&&v.cz.length<=16?v.cz:'';const czWas=(Net.others.get(uid)||{}).cz||'';
   Net.others.set(uid,o);
+  if(o.cz!==czWas){if(!WD&&/[1-9]/.test(o.cz))wdLoad();else if(WD&&G.S)renderSeats()}
   if(o.tb&&o.he>G.maxHe)G.maxHe=o.he;
   // chat
   if(o.ch&&o.ch!==G.seenCh.get(uid)){const first=!G.seenCh.has(uid);G.seenCh.set(uid,o.ch);if(!first||performance.now()-G.joinedAt>3000)gotChat(uid,o.n,o.ch.split('|').slice(1).join('|'))}
@@ -1255,6 +1364,16 @@ for(let i=0;i<MAXS;i++){
   const s=document.createElement('div');s.className='seat';s.innerHTML='<div class="hole"></div><div class="plate"></div><div class="tag"></div>';s.hidden=true;table.appendChild(s);seatEls.push(s);
   const b=document.createElement('div');b.className='bet';b.hidden=true;table.appendChild(b);betEls.push(b);
 }
+// The felt's weave: one small tile of speckle, made once and laid over the felt by CSS (#table .felt::before).
+// Its own little random-number generator, so it never touches the one the cards and bots use.
+(function feltGrain(){
+  try{
+    const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),d=x.createImageData(128,128);
+    let r=20240611;const rnd=()=>(r=(Math.imul(r,1664525)+1013904223)|0,(r>>>8)/16777216);
+    for(let i=0;i<d.data.length;i+=4){const v=rnd()<.5?0:255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=rnd()*52|0}
+    x.putImageData(d,0,0);$('app').style.setProperty('--grain','url('+c.toDataURL()+')');
+  }catch(e){}
+})();
 const L={tw:0,th:0,pos:[],bet:[],btn:[],cx:0,cy:0,N:6,base:0,land:true};
 function cardHTML(c,cls,style){
   if(c<0)return '<div class="cd back '+(cls||'')+'"'+(style?' style="'+style+'"':'')+'></div>';
@@ -1266,24 +1385,29 @@ function chipsHTML(n){const k=clamp(Math.ceil(Math.log10(Math.max(n,1))),1,4);le
 function layout(){
   const W=innerWidth,H=innerHeight;
   const inGame=G.mode!=='attract';
-  const topH=inGame?48:0,botH=inGame?Math.max(96,$('actions').offsetHeight||96):0;
+  // A phone held sideways: the action bar is a column on the right instead of a bar underneath (see .dock).
+  const dock=inGame&&W>H&&H<=520&&W>=560;
+  $('app').classList.toggle('dock',dock);
+  const dockW=dock?($('actions').offsetWidth||204):0;
+  const topH=inGame?48:0,botH=dock?0:inGame?Math.max(96,$('actions').offsetHeight||96):0;
   const sideW=G.side&&inGame&&W>=1100?300:0;
   const offL=!inGame&&W>900?Math.min(520,W*.4):0;
-  const w=W-sideW-offL,h=H-topH-botH;
+  const w=W-sideW-offL-dockW,h=H-topH-botH;
   const land=w/h>1.05;L.land=land;
   const pw=land?clamp(w*.105,104,148):clamp(w*.27,88,124);
   let tw,th;
-  if(land){const mh=h-pw*1.25,mw=w-pw*1.15;tw=Math.min(mw,mh*2.05);th=tw/2.05}
+  if(dock){const mh=h-108,mw=w-pw*1.15;tw=Math.min(mw,mh*2.2);th=Math.min(mh,tw/1.55)}
+  else if(land){const mh=h-pw*1.25,mw=w-pw*1.15;tw=Math.min(mw,mh*2.05);th=tw/2.05}
   else{const mw=w-pw*.95,mh=h-pw*1.7;th=Math.min(mh,mw*1.6);tw=th/1.6;if(tw<mw*.98&&th===mh){tw=Math.min(mw,th/1.25)}}
   tw=Math.max(tw,200);th=Math.max(th,140);
   L.tw=tw;L.th=th;
-  const left=offL+(w-tw)/2,top=topH+(h-th)/2+(inGame?(land?pw*.06:0):0);
+  const left=offL+(w-tw)/2,top=topH+(h-th)/2+(inGame?(dock?-3:land?pw*.06:0):0);
   Object.assign(table.style,{left:left+'px',top:top+'px',width:tw+'px',height:th+'px'});
   const app=$('app').style;
   const cw=land?clamp(tw*.062,34,72):clamp(tw*.135,32,60);
   app.setProperty('--cw',cw+'px');app.setProperty('--pw',pw+'px');
   app.setProperty('--hw',clamp(pw*.3,26,40)+'px');app.setProperty('--mw',clamp(pw*.5,46,74)+'px');
-  app.setProperty('--rim',clamp(Math.min(tw,th)*.05,9,18)+'px');
+  app.setProperty('--rim',clamp(Math.min(tw,th)*.062,11,24)+'px');
   $('side').style.width=sideW?sideW+'px':'';
   // coach sits above the action bar, left
   $('coach').style.bottom=(botH+8)+'px';
@@ -1340,10 +1464,13 @@ function renderPot(S){
   let m='';
   if(S.ph==='wait')m=S.msg||'Next hand starting…';
   else if(S.ph==='show'&&S.win&&S.win.length){
-    m=S.win.map(([i,a,hn])=>{const s=S.seats[i];return(s?(s.u===G.me?'You win ':s.n+' wins '):'')+fmt(a)+(hn?' · '+hn:'')}).join(' · ');
+    m=S.win.map(([i,a,hn])=>{const s=S.seats[i];const x=(s?(s.u===G.me?'You win ':s.n+' wins '):'')+fmt(a)+(hn?' · '+hn:'');return window.SD_TR?SD_TR(x,sdNames()):x}).join(' · ');
   }
-  $('tmsg').textContent=m;
+  if(window.SD_TR&&S.ph==='wait')m=SD_TR(m,sdNames());$('tmsg').textContent=m;$('dockmsg').textContent=G.mode==='attract'?'':m;
 }
+// every name seen at this table (seats, the queue and chat), for SD_TR in es.js: names are never translated
+const sdSeen=new Set();
+function sdNames(){const S=G.S;if(S&&S.seats)for(const s of S.seats)if(s&&s.n)sdSeen.add(s.n);if(myName)sdSeen.add(myName);for(const m of G.chat||[])if(m&&m.n)sdSeen.add(m.n);return [...sdSeen]}
 function seatSig(S,i){
   const s=S.seats[i];if(!s)return 'e';
   return [s.u,s.n,s.av,s.s,s.f,s.a,s.i,s.o,s.l,s.sh,s.w,s.h,s.g,S.turn===i,S.ph,S.id,i===S.btn].join('~');
@@ -1368,30 +1495,32 @@ function renderSeats(){
       continue;
     }
     el.classList.remove('empty');
-    el.classList.toggle('folded',!!(s.i&&s.f));
+    const muck=S.ph==='show'&&s.l==='Muck';
+    el.classList.toggle('folded',!!(s.i&&(s.f||muck)));
     el.classList.toggle('out',!s.i&&S.ph!=='wait'&&!(s.u===G.me));
     el.classList.toggle('turn',S.turn===i);
     const winner=S.ph==='show'&&S.win&&S.win.some(w=>w[0]===i);
     el.classList.toggle('won',!!winner);
     // plate
     const stack=s.a&&s.s===0&&s.i?'All-in':fmt(s.s);
-    const psig=[s.n,s.av,stack,s.bot,s.o,s.g,s.i].join('~');
+    const wr=wearOf(s),wa=wr?wr[0]:0,wb=wr?wr[1]:0;   // what they wear from the Wardrobe (wardrobe.js): nothing for nearly everyone
+    const psig=[s.n,s.av,stack,s.bot,s.o,s.g,s.i,wa].join('~');
     if(plate.dataset.sig!==psig){
       plate.dataset.sig=psig;
       const ini=(s.n||'?').trim().charAt(0).toUpperCase();
       const status=s.g?'Away':s.o?(s.s<=0?'Busted':'Sitting out'):'';
-      plate.innerHTML='<div class="av" style="background:'+AVC[s.av]+'">'+esc(ini)+'<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.4" stroke="transparent"/></svg></div>'+
-        '<div class="meta"><b>'+esc(s.n)+'</b><span>'+(status?'<em style="font-style:normal;color:var(--ink-3)">'+status+'</em>':stack)+(s.bot?'<i>BOT</i>':'')+'</span></div>';
+      plate.innerHTML='<div class="av" style="background:'+AVC[s.av]+'">'+(wa?WD.avHTML(wa):esc(ini))+'<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18.4" stroke="transparent"/></svg></div>'+
+        '<div class="meta"><b data-noi18n>'+esc(s.n)+'</b><span>'+(status?'<em style="font-style:normal;color:var(--ink-3)">'+status+'</em>':stack)+(s.bot?'<i>BOT</i>':'')+'</span></div>';
     }
     // hole cards
     let cards=null,cls='',reveal=false;
     if(s.i){
       if(s.sh){cards=strCards(s.sh);reveal=true}
       else if(me&&G.hole&&G.holeId===S.id)cards=G.hole;
-      else if(!s.f)cards=[-1,-1];
-      if(me&&s.f&&G.hole&&G.holeId===S.id){cards=G.hole;cls='dim'}
+      else if(!s.f&&!muck)cards=[-1,-1];
+      if(me&&(s.f||muck)&&G.hole&&G.holeId===S.id){cards=G.hole;cls='dim'}
     }
-    const hsig=cards?S.id+':'+cards.join(',')+':'+cls+':'+(best?best.join(','):''):'';
+    const hsig=cards?S.id+':'+cards.join(',')+':'+cls+':'+(best?best.join(','):'')+(wb?':'+wb:''):'';
     if(holeEl.dataset.sig!==hsig){
       const prev=holeEl.dataset.sig||'';const prevId=prev.split(':')[0];
       const fresh=prevId!==String(S.id);
@@ -1406,6 +1535,7 @@ function renderSeats(){
           let st='';
           if(fresh){c2+=' dl';st='--dx:'+dx+';--dy:'+dy+';animation-delay:'+(order*.06+k*.06*(S.seats.filter(Boolean).length))+'s'}
           else if((reveal||me)&&wasBack&&c>=0){c2+=' in'}
+          if(c<0&&wb)c2+=' '+WD.backCls(wb);
           h+=cardHTML(c,c2,st);
         });
         if(fresh&&G.mode!=='attract'&&order===0)sfx('deal');
@@ -1419,7 +1549,7 @@ function renderSeats(){
     if(tag.textContent!==tg)tag.textContent=tg;if(tag.className!==tc)tag.className=tc;
     // chat bubble
     const bubs=G.bubbles&&G.bubbles.get(s.u);let bub=el.querySelector('.bubble');
-    if(bubs&&bubs.until>now){if(!bub){bub=document.createElement('div');bub.className='bubble';el.appendChild(bub)}if(bub.textContent!==bubs.t)bub.textContent=bubs.t}
+    if(bubs&&bubs.until>now){if(!bub){bub=document.createElement('div');bub.className='bubble';bub.setAttribute('data-noi18n','');el.appendChild(bub)}if(bub.textContent!==bubs.t)bub.textContent=bubs.t}
     else if(bub)bub.remove();
   }
 }
@@ -1457,7 +1587,7 @@ function animate(P,S){
     // pot to winners
     if(S.win&&!P.win){
       S.win.forEach(([i,a],k)=>{const p=L.pos[i];if(!p)return;flyChips(center,[p[0],p[1]],a,350+k*120);
-        setTimeout(()=>{const g=document.createElement('div');g.className='gain';g.textContent='+'+fmt(a);seatEls[i].appendChild(g);setTimeout(()=>g.remove(),2500)},500+k*120)});
+        setTimeout(()=>{const g=document.createElement('div');g.className='gain';g.textContent='+'+fmt(a);seatEls[i].appendChild(g);setTimeout(()=>g.remove(),2500);wdWin(i)},500+k*120)});
       const mine=S.win.some(w=>S.seats[w[0]]&&S.seats[w[0]].u===G.me);
       setTimeout(()=>sfx(mine?'win':'chip'),380);
     }
@@ -1474,7 +1604,11 @@ function animate(P,S){
   }
 }
 let toastT=0;
-function toast(t){const e=$('toast');const r=table.getBoundingClientRect(),cw=parseFloat($('app').style.getPropertyValue('--cw'))||50;e.style.top=(r.top+r.height/2+cw*1.2)+'px';e.style.left=(r.left+r.width/2)+'px';e.textContent=t;e.style.opacity=1;clearTimeout(toastT);toastT=setTimeout(()=>{e.style.opacity=0},1600)}
+function toast(t){const e=$('toast');const r=table.getBoundingClientRect(),cw=parseFloat($('app').style.getPropertyValue('--cw'))||50;
+  // with the bar docked on the right (phone sideways) the note goes above the buttons, so it never covers your cards
+  if($('app').classList.contains('dock')){const a=$('actions').getBoundingClientRect();e.style.top=(a.top+8)+'px';e.style.left=(a.left+a.width/2)+'px'}
+  else{e.style.top=(r.top+r.height/2+cw*1.2)+'px';e.style.left=(r.left+r.width/2)+'px'}
+  e.textContent=t;e.style.opacity=1;clearTimeout(toastT);toastT=setTimeout(()=>{e.style.opacity=0},1600)}
 // the timer ring on whoever is acting
 function ringLoop(){
   const S=G.S;
@@ -1582,7 +1716,7 @@ function renderCoach(){
     const T=engineLike(S);
     html+='<b>'+esc(name)+'</b> · top '+Math.max(1,Math.round(pct*100))+'% of starting hands<br>'+'Position: <b>'+esc(posName(T,v.i))+'</b><br>';
   }else{
-    html+='You have <b>'+esc(handName(evalOf(h.concat(bd))))+'</b><br>';
+    html+='You have <b>'+esc(window.SD_HAND?SD_HAND(handName(evalOf(h.concat(bd)))):handName(evalOf(h.concat(bd))))+'</b><br>';
   }
   if(v.s.f){html+='<span style="color:var(--ink-3)">You folded this hand.</span>';el.innerHTML=html;el.hidden=false;return}
   const eq=coach.eq;
@@ -1619,7 +1753,7 @@ function renderLog(){
     for(const t of G.logs.get(id)){
       if(/^Hand #/.test(t))continue;
       const cls=/^(Flop|Turn|River):/.test(t)?'st':/ (wins|split) /.test(t)?'wn':'';
-      h+='<p'+(cls?' class="'+cls+'"':'')+'>'+esc(t)+'</p>';
+      h+='<p'+(cls?' class="'+cls+'"':'')+'>'+esc(window.SD_TR?SD_TR(t,sdNames()):t)+'</p>';
     }
   }
   $('log').innerHTML=h;
@@ -1628,12 +1762,12 @@ function renderPlayers(){
   const S=G.S;if(!S||!G.side||G.tab!=='plist')return;
   const rows=S.seats.filter(Boolean).map(s=>{const inPlay=s.i&&BETTING.includes(S.ph)?s.t:0;const net=s.s+inPlay-s.y;return{n:s.n,bot:s.bot,me:s.u===G.me,st:s.s,net}}).sort((a,b)=>b.net-a.net);
   const sig=JSON.stringify(rows);if($('plist').dataset.sig===sig)return;$('plist').dataset.sig=sig;
-  $('plist').innerHTML='<table><tr><td style="color:var(--ink-3)">Player</td><td style="color:var(--ink-3)">Stack</td><td style="color:var(--ink-3)">Net</td></tr>'+rows.map(r=>'<tr><td'+(r.me?' style="color:var(--gold-2)"':'')+'>'+esc(r.n)+(r.bot?' <span style="color:var(--ink-3);font-size:11px">BOT</span>':'')+'</td><td>'+fmt(r.st)+'</td><td class="'+(r.net>0?'pos':r.net<0?'neg':'')+'">'+(r.net>0?'+':'')+fmt(r.net)+'</td></tr>').join('')+'</table>'+
+  $('plist').innerHTML='<table><tr><td style="color:var(--ink-3)">Player</td><td style="color:var(--ink-3)">Stack</td><td style="color:var(--ink-3)">Net</td></tr>'+rows.map(r=>'<tr><td'+(r.me?' style="color:var(--gold-2)"':'')+'><span data-noi18n>'+esc(r.n)+'</span>'+(r.bot?' <span style="color:var(--ink-3);font-size:11px">BOT</span>':'')+'</td><td>'+fmt(r.st)+'</td><td class="'+(r.net>0?'pos':r.net<0?'neg':'')+'">'+(r.net>0?'+':'')+fmt(r.net)+'</td></tr>').join('')+'</table>'+
     '<p class="msg">Net counts rebuys. Everyone starts with '+fmt(S.set.stack)+' play chips.</p>';
 }
 function renderChat(){
   if(!G.side||G.tab!=='chat')return;
-  $('chatLog').innerHTML=G.chat.length?G.chat.map(m=>'<p><b>'+esc(m.n)+':</b> '+esc(m.t)+'</p>').join(''):'<p style="color:var(--ink-3)">Say hi to the table.</p>';
+  $('chatLog').innerHTML=G.chat.length?G.chat.map(m=>'<p><b>'+esc(m.n)+':</b> '+esc(m.t)+'</p>').join(''):'<p style="color:var(--ink-3)">'+esc(window.BackRoomLang?BackRoomLang.t('Say hi to the table.'):'Say hi to the table.')+'</p>';
   $('chat').scrollTop=1e6;
 }
 function setTab(t){
@@ -1673,7 +1807,15 @@ $('swatches').innerHTML=AVC.map((c,i)=>'<button type="button" role="radio" aria-
 function paintSwatches(){for(const b of $('swatches').children)b.setAttribute('aria-checked',String(+b.dataset.i===myAv))}
 $('swatches').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;myAv=+b.dataset.i;store.set('av',myAv);paintSwatches()});
 // table settings
-function paintOpts(){for(const seg of document.querySelectorAll('[data-opt]'))for(const b of seg.children)b.setAttribute('aria-checked',String(String(prefs[seg.dataset.opt])===b.dataset.v))}
+function paintOpts(){
+  const party=isPartyRoom($('room').value);
+  for(const seg of document.querySelectorAll('[data-opt]'))for(const b of seg.children){
+    const lock=party&&seg.dataset.opt==='bots';b.disabled=lock;
+    b.setAttribute('aria-checked',String(lock?b.dataset.v==='0':String(prefs[seg.dataset.opt])===b.dataset.v));
+  }
+  $('noBotsNote').hidden=!party;
+}
+$('room').addEventListener('input',paintOpts);
 document.querySelectorAll('[data-opt]').forEach(seg=>seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;prefs[seg.dataset.opt]=+b.dataset.v;store.set('prefs',prefs);paintOpts()}));
 // hand rankings
 (function(){
@@ -1721,6 +1863,29 @@ addEventListener('resize',()=>layout());
 addEventListener('pointerdown',()=>initAudio(),{once:true});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&G.mode==='online')Net.publish()});
 
+// ---------- the Wardrobe (not public yet): seat looks, card backs, felts and win flourishes ----------
+// wardOn(): may this player open the Wardrobe and wear things? True for the site's captains (../captains.js: the Google
+// account signed in is one of miles.js's Captains), or with ?wardrobe=1 on localhost or in an automated browser
+// (remembered for the tab; ?wardrobe=0 forgets it). On the live site the address does nothing. To make it public for
+// everyone, change SD_PUBLIC to true: that one line is all it takes. Everything is drawn by wardrobe.js beside this page,
+// which is fetched the first time wardOn() is true, or when a player at the table wears something (their node's cz,
+// see onNode). For everyone else it is never loaded, WD stays null and the table is exactly as it was.
+// Looks only: no rule, card face, timer or chip changes.
+const SD_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const wardOn=()=>SD_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'wardrobe','sd-wardrobe'));
+let WD=null,wdAsked=false;
+function wdLoad(){
+  if(wdAsked)return;wdAsked=true;
+  loadScript('wardrobe.js').then(()=>{WD=window.SDWardrobe({$,store,esc,AVC,cardHTML,wardOn,get myAv(){return myAv},get myName(){return myName},changed:wdChanged});wdChanged()}).catch(e=>{wdAsked=false;console.error(e)});
+}
+// what a seat wears: [seat look, card back, felt, win flourish] item numbers, or null (bots and nearly everyone)
+function wearOf(s){if(!WD||!s||s.bot)return null;if(s.u===G.me)return WD.mine();const o=Net.others.get(s.u);return o&&o.cz?WD.parse(o.cz):null}
+function wdChanged(){if(!WD)return;WD.sync();if(G.mode==='online')Net.dirty();if(G.S)renderSeats()}
+function wdWin(i){const S=G.S,w=S&&wearOf(S.seats[i]);if(w&&w[3])WD.flourish(seatEls[i],w[3])}
+if(wardOn())wdLoad();
+if(CAPTAINS)CAPTAINS.onChange(()=>{if(wardOn())wdLoad();wdChanged()});
+
 // =====================================================================
 //  Ads
 // =====================================================================
@@ -1748,8 +1913,8 @@ setupAttract();
 requestAnimationFrame(ringLoop);
 // An invite opens this page with #sd-<code>: fill in the room and point at the join button.
 const inv=/^#sd-([a-z0-9-]{1,17})$/.exec(location.hash);
-if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited to room sd-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost','cta');$('quick').classList.replace('cta','ghost')}
-if(TEST)window.__sd={Table,evalHand,handName,best5,equity,strCards,cardsStr,botDecide,G,Net,startPractice,doAct,myView,pfPct,get PF(){return PF}};
+if(inv&&!/^pub-/.test(inv[1])){$('room').value=inv[1];setMsg('You were invited to room sd-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost','cta');$('quick').classList.replace('cta','ghost');paintOpts()}
+if(TEST)window.__sd={get WD(){return WD},wardOn,wdLoad,wearOf,Table,evalHand,handName,best5,equity,strCards,cardsStr,botDecide,G,Net,startPractice,doAct,myView,pfPct,get PF(){return PF}};
 })();
 </script>
 <aside class="rail-ad l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>

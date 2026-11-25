@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Hail Mary</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -192,6 +193,7 @@ details.ctrl[open] .keys{margin-top:10px}
 }
 @media (prefers-reduced-motion:reduce){#banner.show{animation:none}}
 </style>
+<script src="/adrefresh.js" defer></script>
 </head>
 <body>
 <aside class="rail l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
@@ -319,6 +321,10 @@ details.ctrl[open] .keys{margin-top:10px}
 </div>
 
 <script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
+<script src="../colyseus.js"></script> <!-- the game relay: online rooms go through it (see README) -->
+<script src="../netrelay.js"></script>
+<script src="../netrelay-config.js"></script>
 <script>
 (function(){
 'use strict';
@@ -1556,7 +1562,8 @@ function render(view){
 function dotLine(x0,y0,x1,y1){const a=SXp(x0),b=SYp(y0),c=SXp(x1),d=SYp(y1),n=Math.max(1,Math.round(hyp(c-a,d-b)/3));for(let i=0;i<=n;i++)ctx.fillRect(Math.round(lerp(a,c,i/n)),Math.round(lerp(b,d,i/n)),1,1)}
 
 /* ---------- online: follow the other side's live play ---------- */
-const snaps=[];let snapRecv=0,lastSnapT=0;
+// The host's view of the play, drawn a moment in the past; how far back adapts to how late its updates arrive (netsmooth.js).
+const snaps=[],snapLag=NetSmooth.lag();
 let myDef=null; // the defender you steer while the other player runs the play
 const fin={st:0,sl:0,jk:0,dv:0,lg:0,d:9,m:0,pl:0};
 function decodeSnap(s){
@@ -1574,14 +1581,14 @@ function snapStr(){
 function onSnap(s){
   if(!play||!play.follow)return;
   const o=decodeSnap(s);if(!o||o.pl!==play.pl)return;
-  if(snaps.length&&o.T<=snaps[snaps.length-1].T)return;
+  if(!snaps.length)snapLag.reset();
+  if(!snapLag.note(o.T*1000,performance.now()))return;
   snaps.push(o);if(snaps.length>30)snaps.shift();
-  snapRecv=performance.now();lastSnapT=o.T;
 }
 function followView(dt){
   const pl=play,P=pl.P;
   if(!snaps.length){return}
-  const est=lastSnapT+Math.min(.3,(performance.now()-snapRecv)/1000),rt=est-.11;
+  const rt=snapLag.time(performance.now())/1000;
   let a=snaps[0],c=snaps[snaps.length-1];
   for(let i=0;i<snaps.length-1;i++)if(snaps[i].T<=rt&&snaps[i+1].T>=rt){a=snaps[i];c=snaps[i+1];break}
   const s=c.T>a.T?clamp((rt-a.T)/(c.T-a.T),0,1):1;
@@ -1807,9 +1814,13 @@ const Net={
       catch(e){throw new Error('Could not reach the game server. Check your connection, or play Practice.')}
     }
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
-    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),12000,NET_BLOCKED)}
+    // A slow phone on school Wi-Fi can take 10-20 s to sign in: say so after 8 s (on the menu's connecting message, if
+    // one is showing, and put that message back once signed in), and only give up after 25 s.
+    const m0=$('netMsg').textContent,slow=setTimeout(()=>{const m=$('netMsg');if(m.textContent&&!m.classList.contains('err'))setMsg('Still signing in…')},8000);
+    try{await withTimeout((a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth()),25000,NET_BLOCKED)}
     catch(err){const c=err&&err.code||'';throw new Error(err.message===NET_BLOCKED?NET_BLOCKED:/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
-    this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    finally{clearTimeout(slow);if($('netMsg').textContent==='Still signing in…')setMsg(m0)}
+    this.uid=firebase.auth().currentUser.uid;this.db=(window.NetRelay?NetRelay.database(firebase.database(),window.RELAY_ROOMS):firebase.database());
     await withTimeout(new Promise(res=>this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()})),10000,NET_BLOCKED);
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;

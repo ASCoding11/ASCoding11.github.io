@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
+<script src="es.js"></script> <!-- this game's Spanish words -->
+<script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who may see the Locker while it is not public (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Backrooms 1v1–4v4</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -97,9 +101,18 @@ button:disabled{opacity:.5;cursor:default}
 #scope::before,#scope::after{content:"";position:absolute;background:rgba(0,0,0,.85)}
 #scope::before{left:0;right:0;top:50%;height:1px}
 #scope::after{top:0;bottom:0;left:50%;width:1px}
+#shift{position:absolute;inset:0;background:#0b0a06;opacity:0;pointer-events:none}
+#shift.on{animation:shift .9s ease-out}
+@keyframes shift{0%,25%{opacity:.96}100%{opacity:0}}
 #hurt{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,20,10,.75) 100%);opacity:0}
 #tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .ntag{position:absolute;left:0;top:0;font-weight:700;font-size:15px;letter-spacing:.06em;color:#ffb3a8;text-shadow:0 1px 2px #000;white-space:nowrap;pointer-events:none}
+/* Find tags: after 1:30 of a round every living player's tag flashes for 2 s every 15 s, through walls (see findClock). */
+.ntag.fl{font-size:16px;line-height:1.25;padding:1px 8px;background:rgba(14,12,5,.8);border:1px solid currentColor;will-change:transform,opacity}
+#find{position:absolute;top:calc(108px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-family:var(--f-osd);font-size:18px;line-height:1;letter-spacing:.08em;color:var(--ink-dim);background:var(--panel);border:1px solid var(--line);padding:3px 9px 5px;white-space:nowrap;overflow:hidden}
+#find i{position:absolute;left:0;bottom:0;width:100%;height:2px;background:var(--mustard);transform-origin:left center;transform:scaleX(0);transition:transform 1s linear}
+#find.on{color:var(--char);background:var(--mustard);border-color:var(--mustard)}
+#find.on i{opacity:0;transition:none}
 #feed .r{color:var(--red)} #feed .b{color:var(--blue)}
 
 #banner{position:absolute;left:0;right:0;top:30%;text-align:center;pointer-events:none;padding-inline:16px}
@@ -135,6 +148,10 @@ button:disabled{opacity:.5;cursor:default}
 .seg button:hover:not([aria-checked="true"]){color:var(--ink)}
 .range{display:flex;align-items:center;gap:12px}
 .range input{width:200px;max-width:60%;accent-color:var(--mustard)}
+.check{display:grid;grid-template-columns:auto 1fr;column-gap:10px;row-gap:2px;align-items:center;cursor:pointer;max-width:46ch}
+.check input{width:20px;height:20px;margin:0;accent-color:var(--mustard);cursor:pointer}
+.check span{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);font-weight:600}
+.check small{grid-column:2;font-size:14px;color:var(--ink-dim);line-height:1.35}
 .range output{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px;min-width:3ch}
 .cta{background:var(--mustard);color:var(--char);border:0;padding:11px 24px 10px;font-size:20px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;box-shadow:4px 4px 0 var(--mustard-deep);white-space:nowrap}
 .cta:hover:not(:disabled){filter:brightness(1.08)}
@@ -153,6 +170,13 @@ details.ctrl summary{cursor:pointer;font-size:13px;letter-spacing:.18em;text-tra
 details.ctrl summary::before{content:"▸ "}
 details.ctrl[open] summary::before{content:"▾ "}
 details.ctrl[open] .keys{margin-top:10px}
+#keysMenu{margin-top:12px;padding:8px 14px;font-size:15px}
+.keys div[hidden]{display:none}
+/* Controls panel (../keybinds.js): a dark, square card with the mustard accents of the menus */
+:root{--kb-bg:#1c1809;--kb-fg:var(--ink);--kb-muted:var(--ink-dim);--kb-line:var(--line);--kb-accent:var(--mustard);--kb-accent-ink:var(--char);--kb-warn:#ff8a7a;
+  --kb-border:1px solid rgba(244,234,208,.24);--kb-shadow:6px 6px 0 rgba(0,0,0,.45);--kb-radius:0;--kb-key-radius:0;--kb-key-border:1px solid rgba(244,234,208,.3);--kb-key-bg:rgba(244,234,208,.06);
+  --kb-font:var(--f-hud);--kb-font-display:var(--f-osd);--kb-font-key:var(--f-hud);--kb-font-group:var(--f-hud);--kb-key-size:15px;--kb-key-weight:700;--kb-label-size:16px;--kb-help-size:14px;
+  --kb-title-size:44px;--kb-title-weight:400;--kb-title-track:.02em;--kb-title-case:uppercase;--kb-title:#f6e7a6;--kb-backdrop:rgba(12,10,4,.62);--kb-blur:2px;--kb-width:560px}
 .center{justify-content:center;background:rgba(18,15,6,.8)}
 .result-score{font-size:56px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
 .result-score .y{color:var(--sh)} .result-score .t{color:var(--rec)}
@@ -200,6 +224,7 @@ details.ctrl[open] .keys{margin-top:10px}
    Only shown on touch screens, where the weapon and build slots become buttons along the top. */
 #touch{display:none;position:absolute;inset:0;pointer-events:none}
 body.touch #touch{display:block}
+body.touch #keysMenu,body.touch #keysPause{display:none}
 #tLook{position:absolute;inset:0;pointer-events:auto;touch-action:none}
 #tStick{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:128px;height:128px;border-radius:50%;background:rgba(0,0,0,.3);border:2px solid rgba(240,232,200,.6);pointer-events:auto;touch-action:none}
 #tStick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(240,232,200,.85);border:2px solid var(--mustard)}
@@ -210,10 +235,12 @@ body.touch #touch{display:block}
 #tJump{right:calc(130px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px))}
 #tAim{right:calc(126px + env(safe-area-inset-right,0px));bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 #tReload{right:calc(52px + env(safe-area-inset-right,0px));bottom:calc(138px + env(safe-area-inset-bottom,0px))}
+#tEdit{right:calc(122px + env(safe-area-inset-right,0px));bottom:calc(156px + env(safe-area-inset-bottom,0px))}
+#tEdit.can{border-color:#bff3ff;color:#bff3ff}
 #tPause{left:calc(10px + env(safe-area-inset-left,0px));top:calc(10px + env(safe-area-inset-top,0px));width:42px;height:42px;font-size:13px}
 /* Out of the round (or watching a match): only look, pause and Next (watch the next player) stay. */
 #tNext{right:calc(28px + env(safe-area-inset-right,0px));bottom:calc(40px + env(safe-area-inset-bottom,0px));width:104px;height:56px;border-radius:28px;font-size:15px}
-#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload{display:none}
+#hud.spec #tStick,#hud.spec #tFire,#hud.spec #tJump,#hud.spec #tAim,#hud.spec #tReload,#hud.spec #tEdit{display:none}
 /* With the lobby panel open over a match in progress, the match HUD and banners step aside so they don't overlap it on a small screen. */
 body.touch.inlobby #hud,body.touch.inlobby #banner,body.touch.inlobby #dmg{visibility:hidden}
 body.touch.inlobby #touch{display:none}
@@ -228,26 +255,34 @@ body.touch .slot .am{font-size:10px}
 body.touch .slot.gap{margin-left:6px}
 body.touch .osd{display:none}
 body.touch #feed{top:calc(64px + env(safe-area-inset-top,0px))}
-body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font-size:12px}
+#hint.long{white-space:normal;width:max-content;max-width:min(calc(100% - 24px),720px);text-align:center;line-height:1.35}
+body.touch #hint{bottom:auto;top:calc(110px + env(safe-area-inset-top,0px));font-size:12px;width:max-content;max-width:calc(100% - 24px);white-space:normal;text-align:center}
 body.touch #score{left:calc(200px + env(safe-area-inset-left,0px));transform:scale(.8);transform-origin:left top}
 body.touch #net{left:calc(200px + env(safe-area-inset-left,0px));transform:none;white-space:normal;width:max-content;max-width:calc(100vw - 220px);text-align:left}
 body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none;top:calc(56px + env(safe-area-inset-top,0px))}
+body.touch #find{left:calc(60px + env(safe-area-inset-left,0px));transform:none;top:calc(50px + env(safe-area-inset-top,0px));font-size:16px}
 @media (orientation:portrait){
   body.touch #slots{right:50%;transform:translateX(50%);top:calc(120px + env(safe-area-inset-top,0px))}
   body.touch #score{left:50%;transform:translateX(-50%) scale(.8);transform-origin:center top;top:calc(58px + env(safe-area-inset-top,0px))}
   body.touch #pips{left:50%;transform:translateX(-50%);top:calc(98px + env(safe-area-inset-top,0px))}
+  body.touch #find{left:auto;right:calc(10px + env(safe-area-inset-right,0px));top:calc(14px + env(safe-area-inset-top,0px))}
   body.touch #net{left:50%;transform:translateX(-50%);top:calc(170px + env(safe-area-inset-top,0px));max-width:calc(100vw - 32px);text-align:center}
   body.touch #hint{top:calc(198px + env(safe-area-inset-top,0px))}
   body.touch #feed{top:calc(232px + env(safe-area-inset-top,0px))}
 }
-@media (prefers-reduced-motion:reduce){.blink{animation:none}#banner.show{animation:none}}
+@media (prefers-reduced-motion:reduce){.blink{animation:none}#banner.show{animation:none}#find i{transition:none}}
 </style>
+<script src="/e63334287a3deaa3/stats.js" data-game="backrooms-1v1" defer></script>
+<script src="/e63334287a3deaa3/elo.js" data-game="backrooms-1v1" defer></script>
+<script src="/e63334287a3deaa3/gamechat.js" defer></script>
+<script src="/adrefresh.js" defer></script>
 </head>
 <body>
 <aside class="rail l" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
 <aside class="rail r" aria-label="Advertisement"><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></aside>
 <div id="app">
   <div class="vhs"></div>
+  <div id="shift"></div>
   <div class="osd" id="osd" hidden><span><span class="rec blink">●</span> REC</span><span id="clock">00:00:00</span><span>LEVEL 0</span></div>
 
   <div id="hud" hidden>
@@ -257,45 +292,47 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
       <div class="side them"><span class="n" id="sBot">0</span><span class="who" id="sBotLbl">Entity</span></div>
     </div>
     <div id="pips" hidden><span class="r" id="pipR"></span><span class="b" id="pipB"></span></div>
-    <div id="net" hidden></div>
-    <div id="feed"></div>
-    <div id="tags"></div>
+    <div id="net" hidden data-noi18n></div>
+    <div id="find" hidden><span id="findTxt" data-noi18n></span><i id="findBar"></i></div>
+    <div id="feed" data-noi18n></div>
+    <div id="tags" data-noi18n></div>
     <div id="scope" hidden></div>
     <div id="hurt"></div>
     <div id="cross"><i class="h" id="cl"></i><i class="h" id="cr"></i><i class="v" id="ct"></i><i class="v" id="cb"></i><i class="dot"></i></div>
     <div id="hitm"></div>
     <div id="reload" hidden><i id="reloadFill"></i></div>
-    <div id="hint" hidden></div>
+    <div id="hint" hidden data-noi18n></div>
     <div id="vitals">
       <div class="bar"><span class="num" id="shNum">50</span><div class="track"><div class="fill" id="shFill" style="width:100%"></div></div></div>
       <div class="bar"><span class="num" id="hpNum">100</span><div class="track"><div class="fill" id="hpFill" style="width:100%"></div></div></div>
     </div>
     <div id="slots">
-      <div class="slot" id="slot0"><span class="k">1</span><span class="nm">Rifle</span><span class="am" id="am0">30</span></div>
-      <div class="slot" id="slot1"><span class="k">2</span><span class="nm">Shotgun</span><span class="am" id="am1">5</span></div>
-      <div class="slot" id="slot2"><span class="k">3</span><span class="nm">Sniper</span><span class="am" id="am2">4</span></div>
-      <div class="slot build gap" id="slotwall"><span class="k">Q</span><span class="nm">Wall</span><span class="am">∞</span></div>
-      <div class="slot build" id="slotfloor"><span class="k">F</span><span class="nm">Floor</span><span class="am">∞</span></div>
-      <div class="slot build" id="slotramp"><span class="k">C</span><span class="nm">Ramp</span><span class="am">∞</span></div>
+      <div class="slot" id="slot0"><span class="k" data-kb="rifle" data-kb-short>1</span><span class="nm">Rifle</span><span class="am" id="am0" data-noi18n>30</span></div>
+      <div class="slot" id="slot1"><span class="k" data-kb="shotgun" data-kb-short>2</span><span class="nm">Shotgun</span><span class="am" id="am1" data-noi18n>5</span></div>
+      <div class="slot" id="slot2"><span class="k" data-kb="sniper" data-kb-short>3</span><span class="nm">Sniper</span><span class="am" id="am2" data-noi18n>4</span></div>
+      <div class="slot build gap" id="slotwall"><span class="k" data-kb="wall" data-kb-short>Q</span><span class="nm">Wall</span><span class="am">∞</span></div>
+      <div class="slot build" id="slotfloor"><span class="k" data-kb="floor" data-kb-short>F</span><span class="nm">Floor</span><span class="am">∞</span></div>
+      <div class="slot build" id="slotramp"><span class="k" data-kb="ramp" data-kb-short>C</span><span class="nm">Ramp</span><span class="am">∞</span></div>
     </div>
     <div id="touch" aria-hidden="true">
       <div id="tLook"></div>
       <div id="tStick"><i></i></div>
-      <button class="tb" id="tFire" type="button">FIRE</button>
+      <button class="tb" id="tFire" type="button" data-noi18n>FIRE</button>
       <button class="tb" id="tJump" type="button">JUMP</button>
-      <button class="tb" id="tAim" type="button">AIM</button>
-      <button class="tb" id="tReload" type="button">RELOAD</button>
+      <button class="tb" id="tAim" type="button" data-noi18n>AIM</button>
+      <button class="tb" id="tReload" type="button" data-noi18n>RELOAD</button>
+      <button class="tb" id="tEdit" type="button" data-noi18n>EDIT</button>
       <button class="tb" id="tPause" type="button" aria-label="Pause">❚❚</button>
       <button class="tb" id="tNext" type="button" hidden>NEXT ▸</button>
     </div>
   </div>
   <div id="dmg"></div>
-  <div id="banner" hidden></div>
+  <div id="banner" hidden data-noi18n></div>
 
   <section id="menu" class="overlay menu">
     <div class="menu-inner">
       <div class="osd-line"><span class="rec">● REC</span><span>CAM 01</span><span>LEVEL 0</span></div>
-      <h1 class="title">BACKROOMS<br><span>1v1–4v4</span></h1>
+      <h1 class="title" data-noi18n>BACKROOMS<br><span>1v1–4v4</span></h1>
       <p class="lede">Up to eight people noclipped into Level 0, split into Red and Blue. Build cover, take height, and wipe out the other team before they get you.</p>
       <div class="field">
         <label class="label" for="name">Your name</label>
@@ -332,23 +369,27 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
           <label class="label" for="sens">Look sensitivity</label>
           <div class="range"><input type="range" id="sens" min="0.3" max="2.5" step="0.05" value="1"><output id="sensOut" for="sens">1.00</output></div>
         </div>
+        <label class="check"><input type="checkbox" id="editRelease" checked><span>Edit on release</span><small>Hold Edit, sweep over the tiles, let go to confirm. Off: tap Edit, pick tiles, Edit again to confirm.</small></label>
+        <div class="row" style="align-items:center;gap:10px"><span class="label" style="margin:0">Language</span><div data-lang-toggle></div></div>
         <details class="ctrl">
           <summary>Controls</summary>
           <dl class="keys">
-            <div><dt>WASD</dt><dd>Move</dd></div>
-            <div><dt>SPACE</dt><dd>Jump</dd></div>
-            <div><dt>L-CLICK</dt><dd>Shoot / place build</dd></div>
-            <div><dt>SHIFT</dt><dd>Hold to aim / scope</dd></div>
-            <div><dt>R-CLICK</dt><dd>Also aims</dd></div>
-            <div><dt>1 2 3</dt><dd>Rifle, shotgun, sniper</dd></div>
-            <div><dt>Q F C</dt><dd>Wall, floor, ramp</dd></div>
-            <div><dt>R</dt><dd>Reload</dd></div>
-            <div><dt>ESC</dt><dd>Menu and invite link</dd></div>
+            <div><dt data-kb="forward left back right" data-kb-short data-kb-join="" data-kb-case="upper">WASD</dt><dd>Move</dd></div>
+            <div><dt data-kb="jump" data-kb-short data-kb-case="upper">SPACE</dt><dd>Jump</dd></div>
+            <div><dt data-kb="fire" data-kb-short data-kb-case="upper">L-CLICK</dt><dd>Shoot / place build</dd></div>
+            <div><dt id="kAim1">SHIFT</dt><dd>Hold to aim / scope</dd></div>
+            <div><dt id="kAim2">R-CLICK</dt><dd>Also aims</dd></div>
+            <div><dt data-kb="rifle shotgun sniper" data-kb-short data-kb-case="upper">1 2 3</dt><dd>Rifle, shotgun, sniper</dd></div>
+            <div><dt data-kb="wall floor ramp" data-kb-short data-kb-case="upper">Q F C</dt><dd>Wall, floor, ramp</dd></div>
+            <div><dt data-kb="edit" data-kb-short data-kb-case="upper">G</dt><dd>Edit a build of yours (aim at it): hold, look across the tiles, let go to confirm; R while editing resets it</dd></div>
+            <div><dt data-kb="reload" data-kb-short data-kb-case="upper">R</dt><dd>Reload</dd></div>
+            <div><dt data-kb="pause" data-kb-sep=" · " data-kb-case="upper">ESC</dt><dd>Menu and invite link</dd></div>
             <div><dt>CLICK</dt><dd>When out: watch the next teammate</dd></div>
           </dl>
+          <button class="ghost-btn" id="keysMenu" type="button">Change keys</button>
         </details>
       </div>
-      <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build.</p>
+      <p id="touchNote" class="note" hidden>Playing on a phone? Turn it sideways for the best view. Tap the slots at the top to switch weapons or build. Edit reshapes a build of yours that you're aiming at: hold it, drag another finger over the tiles and let go, or tap Edit, tap tiles, then Done.</p>
       <div class="adbox" id="adMenu" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
   </section>
@@ -357,12 +398,12 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
     <div class="menu-inner">
       <div class="osd-line"><span class="rec">● LOBBY</span><span id="lbRoom"></span><span id="lbCount"></span></div>
       <h2 class="title" style="font-size:clamp(48px,8vw,84px)">PICK A<br><span>SIDE</span></h2>
-      <p class="lede" id="lbStatus">Connecting to the room…</p>
+      <p class="lede" id="lbStatus" data-noi18n>Connecting to the room…</p>
       <div class="teams">
-        <div class="team r"><div class="th"><span>Red</span><span id="lbRedN">0</span></div><ul id="lbRed"></ul><button class="ghost-btn" id="joinRed" type="button">Join Red</button></div>
-        <div class="team b"><div class="th"><span>Blue</span><span id="lbBlueN">0</span></div><ul id="lbBlue"></ul><button class="ghost-btn" id="joinBlue" type="button">Join Blue</button></div>
+        <div class="team r"><div class="th"><span>Red</span><span id="lbRedN">0</span></div><ul id="lbRed" data-noi18n></ul><button class="ghost-btn" id="joinRed" type="button">Join Red</button></div>
+        <div class="team b"><div class="th"><span>Blue</span><span id="lbBlueN">0</span></div><ul id="lbBlue" data-noi18n></ul><button class="ghost-btn" id="joinBlue" type="button">Join Blue</button></div>
       </div>
-      <p class="wait" id="lbWait" hidden></p>
+      <p class="wait" id="lbWait" hidden data-noi18n></p>
       <div class="group" id="lbHost" hidden>
         <span class="label" id="toLbl">Host · rounds to win the match</span>
         <div class="row">
@@ -383,8 +424,10 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
     <div class="menu-inner">
       <div class="osd-line"><span>❚❚ PAUSE</span><span id="pauseRoom"></span></div>
       <p class="lede" id="pauseMsg">The fluorescent hum keeps going without you.</p>
-      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="leave" type="button">Leave match</button></div>
+      <div class="row"><button class="cta" id="resume" type="button">Resume</button><button class="ghost-btn" id="copyInvite" type="button" hidden>Copy invite link</button><button class="ghost-btn" id="keysPause" type="button">Controls</button><button class="ghost-btn" id="leave" type="button">Leave match</button></div>
       <p class="msg" id="inviteMsg"></p>
+      <div data-lang-toggle style="margin:6px 0 10px"></div>
+      <label class="check"><input type="checkbox" id="editReleaseP" checked><span>Edit on release</span><small>Hold Edit, sweep, let go to confirm. Off: Edit again confirms.</small></label>
     </div>
   </section>
 
@@ -393,8 +436,9 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
       <div class="osd-line"><span>■ STOP</span><span id="endClock">00:00:00</span></div>
       <h2 class="title" id="endTitle" style="font-size:clamp(48px,8vw,92px)">YOU GOT OUT</h2>
       <div class="result-score"><span class="y" id="eYou">5</span> <span style="color:var(--ink-dim)">–</span> <span class="t" id="eBot">0</span></div>
+      <p class="lede" id="endKd" style="font-size:15px;color:var(--ink-dim)"></p>
       <p class="lede" id="endMsg"></p>
-      <div class="endteams" id="endTeams" hidden></div>
+      <div class="endteams" id="endTeams" hidden data-noi18n></div>
       <div class="row"><button class="cta" id="again" type="button">Rematch</button><button class="ghost-btn" id="toMenu" type="button">Menu</button></div>
       <div class="adbox" id="adEnd" hidden><span class="ad-lbl">Advertisement</span><ins class="adsbygoogle"></ins></div>
     </div>
@@ -402,9 +446,18 @@ body.touch #pips{left:calc(200px + env(safe-area-inset-left,0px));transform:none
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../autores.js"></script>
+<script src="../keybinds.js"></script>
+<script src="../netsmooth.js"></script>
+<script src="../events.js"></script>
+<script src="../colyseus.js"></script> <!-- the game relay: online rooms go through it (see README) -->
+<script src="../netrelay.js"></script>
+<script src="../netrelay-config.js"></script>
 <script>
 (function(){
 'use strict';
+// Spanish (lang.js + es.js): words put together here go through TX; fixed page text is translated by lang.js itself.
+const TX=window.BackRoomLang?BackRoomLang.t:(s,v)=>String(s).replace(/\{(\w+)\}/g,(m,n)=>v&&v[n]!=null?v[n]:m);
 // =====================================================================
 //  Firebase (same project and Realtime Database rules as Rumble Karts).
 //  Online rooms live under rooms/br-<code>, so the existing rules cover them.
@@ -426,6 +479,15 @@ const AD_SLOT='';
 // Side rails beside the game on wide screens (1180px+). Uses its own ad unit if you set RAIL_SLOT
 // (a vertical 160x600 unit works best); otherwise falls back to AD_SLOT. Rails collapse if no ad fills.
 const RAIL_SLOT='';
+// The Locker (not public yet): outfits, gun skins, build skins, elimination effects and round-win celebrations, all
+// drawn by locker.js beside this page. lockerOn(): may this player see the Locker and wear things? True for the site's
+// captains (../captains.js: the Google account signed in is one of miles.js's Captains), or with ?locker=1 on localhost
+// or in an automated browser. To open it to everyone, change BR_PUBLIC to true: that one line is all it takes.
+// locker.js is fetched the first time lockerOn() is true, or when another player in the room arrives wearing something
+// (their node's lk); for everyone else it is never loaded, LK stays null and the game is exactly as it was.
+const BR_PUBLIC=false;
+const CAPTAINS=window.BackRoomCaptains||null;
+const lockerOn=()=>BR_PUBLIC||!!(CAPTAINS&&CAPTAINS.may(false,'locker','br1v1-locker'));
 
 const $=id=>document.getElementById(id);
 const V3=THREE.Vector3;
@@ -474,13 +536,18 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
 renderer.domElement.id='view';renderer.domElement.tabIndex=-1;
 $('app').prepend(renderer.domElement);
 const scene=new THREE.Scene();
-const FOG=0xa49863;
+const FOG=0x8a7d4c;
 scene.background=new THREE.Color(FOG);
 scene.fog=new THREE.Fog(FOG,9,60);
 const camera=new THREE.PerspectiveCamera(72,1,0.05,200);
-const amb=new THREE.AmbientLight(0xfff0c4,0.55);scene.add(amb);
-scene.add(new THREE.HemisphereLight(0xfff8dc,0x5e4f22,0.78));
-const sun=new THREE.DirectionalLight(0xfff3cf,0.22);sun.position.set(0.3,1,0.2);scene.add(sun);
+// Light (the picture only, nothing here is sent to anyone): a soft overall fill, plus a warm light from one side and a
+// weak cool one from the other, so walls that face different ways, and the two sides of a character, come out in
+// different shades and corners can be read. The carpet is darker than the walls and has a pool of light per cell.
+const AMB=0.40;
+const amb=new THREE.AmbientLight(0xfff0c4,AMB);scene.add(amb);
+scene.add(new THREE.HemisphereLight(0xfff6d6,0x75643a,0.62));
+const sun=new THREE.DirectionalLight(0xfff0c8,0.38);sun.position.set(0.7,0.6,0.35);scene.add(sun);
+const fill=new THREE.DirectionalLight(0xc4d2c4,0.14);fill.position.set(-0.3,0.25,-0.9);scene.add(fill);
 let VW=innerWidth,VH=innerHeight;
 function resize(){const a=document.getElementById('app'),w=VW=a.clientWidth||innerWidth,h=VH=a.clientHeight||innerHeight;renderer.setSize(w,h,false);renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';camera.aspect=w/h;camera.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();
@@ -495,12 +562,16 @@ const wallTex=canvasTex(256,256,(g,w,h)=>{
   for(let x=0;x<w;x+=32){g.fillStyle='rgba(255,244,190,.16)';g.fillRect(x+9,0,14,h);g.fillStyle='rgba(110,85,25,.13)';g.fillRect(x+8,0,1,h);g.fillRect(x+23,0,1,h)}
   g.strokeStyle='rgba(120,92,28,.3)';g.lineWidth=1.4;
   for(let x=0;x<w;x+=32)for(let y=0;y<h;y+=32){const cx=x+16,cy=y+((x/32)%2?16:0);g.beginPath();g.moveTo(cx,cy-5);g.lineTo(cx+4,cy);g.lineTo(cx,cy+5);g.lineTo(cx-4,cy);g.closePath();g.stroke()}
-  noise(g,w,h,14);blot(g,w,h,3,'rgba(95,70,20,.10)');
+  noise(g,w,h,14);blot(g,w,h,3,'rgba(95,70,20,.06)');
 },2,6);
-const carpetTex=canvasTex(256,256,(g,w,h)=>{
-  g.fillStyle='#9a8748';g.fillRect(0,0,w,h);noise(g,w,h,30);
-  for(let i=0;i<2200;i++){g.fillStyle=Math.random()<.5?'rgba(190,170,100,.25)':'rgba(60,48,18,.25)';g.fillRect(Math.random()*w,Math.random()*h,1,2)}
-  blot(g,w,h,4,'rgba(60,45,15,.20)');
+const carpetTex=canvasTex(512,512,(g,w,h)=>{
+  g.fillStyle='#75673f';g.fillRect(0,0,w,h);noise(g,w,h,26);
+  for(let i=0;i<9000;i++){g.fillStyle=Math.random()<.5?'rgba(170,152,98,.22)':'rgba(40,32,12,.25)';g.fillRect(Math.random()*w,Math.random()*h,1,2+Math.random()*2)}
+  blot(g,w,h,5,'rgba(48,36,12,.15)');
+  // one repeat of this texture is one 4 m cell, so this is the pool of light under the cell's ceiling panel, fading
+  // towards the walls (which also grounds the walls: the carpet is darkest where it meets them)
+  const pl=g.createRadialGradient(w/2,h/2,w*.08,w/2,h/2,w*.74);pl.addColorStop(0,'#fff');pl.addColorStop(.5,'#dad3bf');pl.addColorStop(1,'#978e79');
+  g.globalCompositeOperation='multiply';g.fillStyle=pl;g.fillRect(0,0,w,h);g.globalCompositeOperation='source-over';
 },N,N);
 const ceilTex=canvasTex(256,256,(g,w,h)=>{
   g.fillStyle='#d8d1ae';g.fillRect(0,0,w,h);
@@ -517,42 +588,108 @@ const plyTex=canvasTex(128,128,(g,w,h)=>{
   noise(g,w,h,10);
 },1,1);
 
+// office partitions: grey-blue felt with a darker trim along the top
+const fabricTex=canvasTex(128,64,(g,w,h)=>{
+  g.fillStyle='#8c93a0';g.fillRect(0,0,w,h);noise(g,w,h,26);
+  for(let i=0;i<500;i++){g.fillStyle=Math.random()<.5?'rgba(170,176,186,.35)':'rgba(60,64,72,.3)';g.fillRect(Math.random()*w,Math.random()*h,1,1)}
+  g.fillStyle='#5d5a50';g.fillRect(0,0,w,5);g.fillRect(0,0,3,h);g.fillRect(w-3,0,3,h);
+  blot(g,w,h,2,'rgba(90,75,40,.18)');
+},3,1);
+
 /* ---------- materials & shared geometry ---------- */
 function gradBox(w,h,d){const geo=new THREE.BoxGeometry(w,h,d);const p=geo.attributes.position;const c=new Float32Array(p.count*3);for(let i=0;i<p.count;i++){const k=.64+.36*((p.getY(i)+h/2)/h);c[i*3]=k;c[i*3+1]=k;c[i*3+2]=k*.97}geo.setAttribute('color',new THREE.BufferAttribute(c,3));return geo}
+// Joins box geometries into one (position, normal, uv, colour), so a wall and its skirting board, or all the parts of a
+// gun, are still a single draw call.
+function joinGeos(list){
+  const out=new THREE.BufferGeometry(),idx=[];let n=0;
+  for(const k of ['position','normal','uv','color']){
+    if(!list[0].attributes[k])continue;
+    const size=k==='uv'?2:3,a=new Float32Array(list.reduce((t,g)=>t+g.attributes[k].array.length,0));let o=0;
+    for(const g of list){a.set(g.attributes[k].array,o);o+=g.attributes[k].array.length}
+    out.setAttribute(k,new THREE.BufferAttribute(a,size));
+  }
+  for(const g of list){const ix=g.index.array;for(let i=0;i<ix.length;i++)idx.push(ix[i]+n);n+=g.attributes.position.count}
+  out.setIndex(idx);return out;
+}
+function flatBox(w,h,d,col){const g=new THREE.BoxGeometry(w,h,d),c=new Float32Array(g.attributes.position.count*3);for(let i=0;i<c.length;i+=3){c[i]=col[0];c[i+1]=col[1];c[i+2]=col[2]}g.setAttribute('color',new THREE.BufferAttribute(c,3));return g}
+// boxes [w,h,d, x,y,z, turn about y, colour] joined into one geometry
+function parts(list){return joinGeos(list.map(([w,h,d,x,y,z,ry,col])=>{const g=flatBox(w,h,d,col||[1,1,1]);if(ry)g.rotateY(ry);g.translate(x,y,z);return g}))}
+// a dark skirting board round the foot of a wall, post or pillar (drawn only: the collision boxes are the same as before)
+const SKIRT=[.34,.26,.19];
 const wallMat=new THREE.MeshLambertMaterial({map:wallTex,vertexColors:true});
 const pillarTex=wallTex.clone();pillarTex.needsUpdate=true;pillarTex.repeat.set(.5,6);
 const pillarMat=new THREE.MeshLambertMaterial({map:pillarTex,vertexColors:true});
-const geoWallH=gradBox(4,CEIL,.3),geoWallV=gradBox(.3,CEIL,4),geoPost=gradBox(.36,CEIL,.36),geoPillar=gradBox(.9,CEIL,.9);
+const skirtW=(w,d)=>{const b=flatBox(w+(w<3?.1:0),w<3&&d<3?.176:.17,d+(d<3?.1:0),SKIRT);b.translate(0,-CEIL/2+.085,0);return joinGeos([gradBox(w,CEIL,d),b])};
+const geoWallH=skirtW(4,.3),geoWallV=skirtW(.3,4),geoPost=skirtW(.36,.36),geoPillar=skirtW(.9,.9),geoBigPillar=skirtW(1.5,1.5);
+const lowMat=new THREE.MeshLambertMaterial({map:fabricTex,vertexColors:true});
+const geoLowH=gradBox(4,1.25,.12),geoLowV=gradBox(.12,1.25,4);
 const plyMat=new THREE.MeshLambertMaterial({map:plyTex});
 const geoPWall=new THREE.BoxGeometry(4,4,.25),geoPFloor=new THREE.BoxGeometry(4,.25,4),geoPRamp=new THREE.BoxGeometry(4,.25,Math.SQRT2*4);
 const panelGeo=new THREE.BoxGeometry(1.1,.06,2.2);
 const panelOn=new THREE.MeshBasicMaterial({color:0xfffae6});
 const panelDead=new THREE.MeshBasicMaterial({color:0x6e6851});
-const SHARED=new Set([wallMat,pillarMat,panelOn,panelDead]);
+// a soft glow on the ceiling round every working panel (one instanced mesh for the whole map)
+const haloTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,4,32,32,31);
+  r.addColorStop(0,'rgba(255,250,228,.85)');r.addColorStop(.4,'rgba(255,244,200,.38)');r.addColorStop(1,'rgba(255,240,190,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
+const haloGeo=new THREE.PlaneGeometry(3.3,4.6);haloGeo.rotateX(Math.PI/2);
+const haloMat=new THREE.MeshBasicMaterial({map:haloTex,transparent:true,depthWrite:false});
+const SHARED=new Set([wallMat,pillarMat,lowMat,panelOn,panelDead,haloMat]);
 
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshLambertMaterial({map:carpetTex}));
+// floor and ceiling have a corner on every cell corner, coloured by the light of the cells around it (applyLight)
+function cellPlane(n){const g=new THREE.PlaneGeometry(1,1,n,n);g.setAttribute('color',new THREE.BufferAttribute(new Float32Array((n+1)*(n+1)*3).fill(1),3));return g}
+const floor=new THREE.Mesh(cellPlane(12),new THREE.MeshLambertMaterial({map:carpetTex,vertexColors:true}));
 floor.rotation.x=-Math.PI/2;scene.add(floor);
-const ceil=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshLambertMaterial({map:ceilTex}));
+const ceil=new THREE.Mesh(cellPlane(12),new THREE.MeshLambertMaterial({map:ceilTex,vertexColors:true}));
 ceil.rotation.x=Math.PI/2;scene.add(ceil);
 function setMapSize(n){
   N=n;W=N*CELL;carpetTex.repeat.set(N,N);ceilTex.repeat.set(N,N);
+  if(floor.geometry.attributes.color.count!==(N+1)*(N+1)){floor.geometry.dispose();ceil.geometry.dispose();floor.geometry=cellPlane(N);ceil.geometry=cellPlane(N)}
   floor.scale.set(W,W,1);floor.position.set(W/2,0,W/2);ceil.scale.set(W,W,1);ceil.position.set(W/2,CEIL,W/2);
 }
 setMapSize(12);
 
 /* ---------- map (seeded, so every online player gets the same rooms) ---------- */
-let hWall=[],vWall=[],mapSolids=[],solids=[],ramps=[],flickers=[];
+// Three layouts, all built on the same grid of 4 m cells (walls on cell edges, pillars on cell corners):
+//  - layoutV3 (MAP_V 3): a new Level 0 every round in one consistent style: one-cell corridors and small rooms behind
+//    full-height walls, joined by doorways, with short sightlines and the same lighting everywhere (see layoutV3).
+//  - layoutV2: the previous random layout, still built when someone in the room has a page that knows v2 but not v3: the floor is split into areas of different sizes and shapes, each
+//    furnished its own way (twisty corridors, small rooms, open halls, pillar fields, office cubicles behind low
+//    partitions, long straight corridors, the odd solid block of wall), joined by doorways (sometimes several, so there
+//    are loops), with its own lighting (dim and dark patches, banks of lights that flicker together) and now and then a
+//    slightly different wallpaper or carpet, or a special room. Then every spawn area is cleared, any part that can't be
+//    reached is opened up, and the layout is checked for fairness (see fairV2) and redrawn if it fails.
+//  - layoutV1: the original maze (one per match). Online it's still used whenever someone in the room is on an older
+//    copy of the page, which only knows this one, so everyone in a room always builds the same walls.
+// Online, a match uses the newest layout every player in the room can build (round.mv: 3, 2, or none for v1).
+const MAP_V=3,LOW_H=1.25;
+let hWall=[],vWall=[],lowH=[],lowV=[],voidC=[],mapSolids=[],solids=[],ramps=[],flickers=[],mapInfo=null,litList=[];
 const mapGroup=new THREE.Group();scene.add(mapGroup);
-// n: maze size in cells; cells: spawn cells, each cleared to an open 3 x 3 area (defaults to the two 1v1 corners)
-function generateMap(seed,n,cells){
+const grid=(w,h,v)=>Array.from({length:w},()=>Array(h).fill(v));
+// A v2 map's size: a little random, and bigger for more players (1v1 11-13 cells across, up to 15-16 for 4v4).
+function mapSizeV2(players,seed){const r=mulberry((seed^0x2c1b3c6d)>>>0)();const o=players<=2?[11,12,12,13]:players<=4?[12,13,14]:players<=6?[14,15]:[15,16];return o[Math.floor(r*o.length)]}
+// Each online round's layout comes from the match seed and the round number, which every player already has.
+function roundSeed(seed,rn){let h=(seed>>>0)^Math.imul((rn|0)+1,0x9E3779B1);h=Math.imul(h^h>>>16,0x85ebca6b);h=Math.imul(h^h>>>13,0xc2b2ae35);return(h^h>>>16)>>>0}
+// n: maze size in cells; cells: spawn cells, each cleared to an open 3 x 3 area (defaults to the two 1v1 corners);
+// v: which layout (1 or true: the original v1 maze from this seed; 2: layoutV2; anything else: layoutV3)
+function generateMap(seed,n,cells,v){
   setMapSize(n||12);
   cells=cells&&cells.length?cells:[soloCell(0),soloCell(1)];
-  const rnd=mulberry(seed);
   clearPieces();
   while(mapGroup.children.length){const c=mapGroup.children.pop();if(c.dispose)c.dispose();if(c.material&&!SHARED.has(c.material))c.material.dispose()}
-  hWall=Array.from({length:N+1},()=>Array(N).fill(true));
-  vWall=Array.from({length:N+1},()=>Array(N).fill(true));
-  const seen=Array.from({length:N},()=>Array(N).fill(false));
+  const L=v===true||v===1?layoutV1(seed>>>0,cells):v===2?layoutV2(seed>>>0,cells):layoutV3(seed>>>0,cells);
+  L.spawns=cells.map(c=>[c,c[0]<N/2?TEAM_HEX.r:TEAM_HEX.b]);
+  buildMap(L);
+}
+function openEdge(x,z,i){if(i===0)vWall[x+1][z]=false;else if(i===2)vWall[x][z]=false;else if(i===1)hWall[z+1][x]=false;else hWall[z][x]=false}
+function spawnArea(c){return[clamp(c[0]-1,0,N-3),clamp(c[1]-1,0,N-3)]}
+// is there a full-height wall touching this corner (it then gets a post)
+function hasPost(x,z){return(x>0&&hWall[z][x-1])||(x<N&&hWall[z][x])||(z>0&&vWall[x][z-1])||(z<N&&vWall[x][z])}
+
+// The original maze; the random numbers are drawn in exactly the old order, so old and new pages agree.
+function layoutV1(seed,cells){
+  const rnd=mulberry(seed);
+  hWall=grid(N+1,N,true);vWall=grid(N+1,N,true);lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
+  const seen=grid(N,N,false);
   const stack=[[0,0]];seen[0][0]=true;
   while(stack.length){
     const [x,z]=stack[stack.length-1];
@@ -563,39 +700,430 @@ function generateMap(seed,n,cells){
   }
   for(let z=1;z<N;z++)for(let x=0;x<N;x++)if(hWall[z][x]&&rnd()<.6)hWall[z][x]=false;
   for(let x=1;x<N;x++)for(let z=0;z<N;z++)if(vWall[x][z]&&rnd()<.6)vWall[x][z]=false;
-  for(const [cx,cz] of cells){const sx=clamp(cx-1,0,N-3),sz=clamp(cz-1,0,N-3);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++){if(x<sx+2)vWall[x+1][z]=false;if(z<sz+2)hWall[z+1][x]=false}}
-  mapSolids=[];
-  const m=new THREE.Matrix4();
-  const hList=[],vList=[];
-  for(let z=0;z<=N;z++)for(let x=0;x<N;x++)if(hWall[z][x])hList.push([x,z]);
-  for(let x=0;x<=N;x++)for(let z=0;z<N;z++)if(vWall[x][z])vList.push([x,z]);
-  const ih=new THREE.InstancedMesh(geoWallH,wallMat,hList.length);
-  hList.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL/2,z*4);ih.setMatrixAt(i,m);mapSolids.push({min:[x*4,0,z*4-.15],max:[x*4+4,CEIL,z*4+.15]})});
-  const iv=new THREE.InstancedMesh(geoWallV,wallMat,vList.length);
-  vList.forEach(([x,z],i)=>{m.makeTranslation(x*4,CEIL/2,z*4+2);iv.setMatrixAt(i,m);mapSolids.push({min:[x*4-.15,0,z*4],max:[x*4+.15,CEIL,z*4+4]})});
-  mapGroup.add(ih,iv);
-  const posts=[],pillars=[];
-  for(let x=0;x<=N;x++)for(let z=0;z<=N;z++){
-    const t=(x>0&&hWall[z][x-1])||(x<N&&hWall[z][x])||(z>0&&vWall[x][z-1])||(z<N&&vWall[x][z]);
-    if(t)posts.push([x,z]);else if(rnd()<.2)pillars.push([x,z]);
-  }
-  const ip=new THREE.InstancedMesh(geoPost,wallMat,posts.length);
-  posts.forEach(([x,z],i)=>{m.makeTranslation(x*4,CEIL/2,z*4);ip.setMatrixAt(i,m);mapSolids.push({min:[x*4-.18,0,z*4-.18],max:[x*4+.18,CEIL,z*4+.18]})});
-  mapGroup.add(ip);
-  if(pillars.length){const ipl=new THREE.InstancedMesh(geoPillar,pillarMat,pillars.length);
-    pillars.forEach(([x,z],i)=>{m.makeTranslation(x*4,CEIL/2,z*4);ipl.setMatrixAt(i,m);mapSolids.push({min:[x*4-.45,0,z*4-.45],max:[x*4+.45,CEIL,z*4+.45]})});
-    mapGroup.add(ipl)}
-  const on=[],dead=[];flickers=[];
-  for(let x=0;x<N;x++)for(let z=0;z<N;z++){
-    const r=rnd();
-    if(r<.08){const mat=new THREE.MeshBasicMaterial({color:0xfffae6});const mesh=new THREE.Mesh(panelGeo,mat);mesh.position.set(x*4+2,CEIL-.03,z*4+2);mapGroup.add(mesh);flickers.push({mat,pos:mesh.position,next:1+rnd()*7,until:0,tick:0})}
-    else if(r<.2)dead.push([x,z]);else if(r<.9)on.push([x,z]);
-  }
-  const ion=new THREE.InstancedMesh(panelGeo,panelOn,on.length);on.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.03,z*4+2);ion.setMatrixAt(i,m)});mapGroup.add(ion);
-  if(dead.length){const idd=new THREE.InstancedMesh(panelGeo,panelDead,dead.length);dead.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.03,z*4+2);idd.setMatrixAt(i,m)});mapGroup.add(idd)}
-  solids=mapSolids.slice();
+  for(const c of cells){const [sx,sz]=spawnArea(c);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++){if(x<sx+2)vWall[x+1][z]=false;if(z<sz+2)hWall[z+1][x]=false}}
+  const pillars=new Map();
+  for(let x=0;x<=N;x++)for(let z=0;z<=N;z++)if(!hasPost(x,z)&&rnd()<.2)pillars.set(x*64+z,.9);
+  const panel=grid(N,N,0),next=grid(N,N,0);
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){const r=rnd();if(r<.08){panel[x][z]=3;next[x][z]=1+rnd()*7}else if(r<.2)panel[x][z]=2;else if(r<.9)panel[x][z]=1}
+  return{v:1,lit:false,pillars,panel,next,group:grid(N,N,-1),groups:0,light:grid(N,N,1),tint:grid(N,N,null),ftint:grid(N,N,null),styles:null,special:null};
 }
-function openEdge(x,z,i){if(i===0)vWall[x+1][z]=false;else if(i===2)vWall[x][z]=false;else if(i===1)hWall[z+1][x]=false;else hWall[z][x]=false}
+
+const TINTS=[[1.05,1.03,.9],[.93,.98,.8],[.97,.89,.77],[1.06,.97,.84]];
+function layoutV2(seed,cells){
+  const rnd=mulberry(seed);
+  let best=null;
+  for(let a=0;a<8;a++){
+    const L=attemptV2(rnd,cells),f=fairV2(cells);
+    if(f.ok){L.tries=a+1;return L}
+    if(!best||f.bad<best.f.bad)best={L,f,g:[hWall,vWall,lowH,lowV,voidC].map(q=>q.map(r=>r.slice()))};
+  }
+  // nothing passed: take the closest and make it the same both ways round (turned 180 degrees about the middle, which
+  // maps Red's spawns onto Blue's), so it's fair by construction
+  [hWall,vWall,lowH,lowV,voidC]=best.g;
+  mirrorV2(best.L);clearSpawns(best.L,cells);connectV2(rnd,cells);
+  best.L.mirrored=true;return best.L;
+}
+function attemptV2(rnd,cells){
+  const ri=n=>Math.floor(rnd()*n),chance=p=>rnd()<p;
+  const pickW=o=>{let s=0;for(const k in o)s+=o[k];let r=rnd()*s;for(const k in o){r-=o[k];if(r<0)return k}return Object.keys(o)[0]};
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+  hWall=grid(N+1,N,false);vWall=grid(N+1,N,false);lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
+  for(let i=0;i<N;i++){hWall[0][i]=hWall[N][i]=true;vWall[0][i]=vWall[N][i]=true}
+  const L={v:2,lit:true,pillars:new Map(),panel:grid(N,N,1),next:grid(N,N,0),group:grid(N,N,-1),groups:0,light:grid(N,N,1),tint:grid(N,N,null),ftint:grid(N,N,null),styles:[],special:null};
+  const near=(x,z,m)=>cells.some(c=>{const [sx,sz]=spawnArea(c);return x>=sx-m&&x<sx+3+m&&z>=sz-m&&z<sz+3+m});
+  const pil=(x,z,s)=>{if(x>0&&z>0&&x<N&&z<N)L.pillars.set(x*64+z,s)};
+  // 1. split the floor into areas: big and small, square and long, with the odd one-cell-wide corridor between two
+  const regs=[],reg=grid(N,N,-1);
+  (function split(x,z,w,d,depth){
+    if((w<4&&d<4)||(depth>0&&w*d<=6+ri(22))){regs.push({x,z,w,d});return}
+    let ax=w>d*1.3?0:d>w*1.3?1:ri(2),len=ax?d:w;
+    if(len<4){ax=1-ax;len=ax?d:w}
+    if(len>=7&&depth<3&&chance(.35)){const p=2+ri(len-4);
+      if(!ax){split(x,z,p,d,depth+1);regs.push({x:x+p,z,w:1,d,corr:1});split(x+p+1,z,w-p-1,d,depth+1)}
+      else{split(x,z,w,p,depth+1);regs.push({x,z:z+p,w,d:1,corr:1});split(x,z+p+1,w,d-p-1,depth+1)}
+    }else{const p=2+ri(len-3);
+      if(!ax){split(x,z,p,d,depth+1);split(x+p,z,w-p,d,depth+1)}else{split(x,z,w,p,depth+1);split(x,z+p,w,d-p,depth+1)}}
+  })(0,0,N,N,0);
+  regs.forEach((r,i)=>{r.i=i;r.cells=[];for(let x=r.x;x<r.x+r.w;x++)for(let z=r.z;z<r.z+r.d;z++){reg[x][z]=i;r.cells.push([x,z])}});
+  // 2. what each area is
+  let voids=0;
+  for(const r of regs){
+    const area=r.w*r.d;
+    if(r.corr)r.style='corridor';
+    else if(voids<2&&r.w<=3&&r.d<=3&&area>=4&&!r.cells.some(([x,z])=>near(x,z,1))&&chance(.3)){r.style='void';voids++}
+    else r.style=pickW(area<=6?{rooms:3,hall:2,office:2,maze:1,pillars:1}:area<=16?{maze:3,office:3,pillars:2,hall:2,rooms:3}:{maze:3,pillars:3,office:2,rooms:2,hall:1});
+  }
+  // one special room now and then (never where anyone spawns)
+  if(chance(.45)){const c=regs.filter(r=>!r.corr&&r.style!=='void'&&r.w*r.d>=4&&r.w*r.d<=20&&!r.cells.some(([x,z])=>near(x,z,0)));
+    if(c.length){const r=c[ri(c.length)];r.special=['blackout','columns','damp','buzz'][ri(4)];if(r.special==='columns')r.style='columns';L.special={kind:r.special,r:[r.x,r.z,r.x+r.w,r.z+r.d]}}}
+  for(const r of regs)if(r.style==='void')for(const [x,z] of r.cells)voidC[x][z]=true;
+  // 3. walls between areas, then doorways through them (at most one into a corridor from each area beside it, so it runs
+  //    long; longer walls get two or three, which makes loops)
+  const pairs=new Map();
+  const edge=(o,x,z,a,b)=>{if(a===b)return;if(o==='V')vWall[x][z]=true;else hWall[z][x]=true;const k=Math.min(a,b)+','+Math.max(a,b);if(!pairs.has(k))pairs.set(k,[]);pairs.get(k).push([o,x,z])};
+  for(let x=1;x<N;x++)for(let z=0;z<N;z++)edge('V',x,z,reg[x-1][z],reg[x][z]);
+  for(let z=1;z<N;z++)for(let x=0;x<N;x++)edge('H',x,z,reg[x][z-1],reg[x][z]);
+  const setE=(e,v)=>{if(e[0]==='V')vWall[e[1]][e[2]]=v;else hWall[e[2]][e[1]]=v};
+  for(const [k,es] of pairs){
+    const [A,B]=k.split(',').map(i=>regs[+i]);
+    if(A.style==='void'||B.style==='void')continue;
+    if(!A.corr&&!B.corr&&es.length>=2&&chance(.14)){
+      // no wall at all: two areas run into one bigger hall, sometimes with a row of pillars where the wall would be
+      const ends=new Map();for(const e of es){setE(e,false);const v=e[0]==='V'?[[e[1],e[2]],[e[1],e[2]+1]]:[[e[1],e[2]],[e[1]+1,e[2]]];for(const [vx,vz] of v){const q=vx*64+vz;ends.set(q,(ends.get(q)||0)+1)}}
+      if(chance(.6))for(const [q,n] of ends)if(n===2)pil(Math.floor(q/64),q%64,.9);
+      continue;
+    }
+    const n=A.corr||B.corr?(es.length<=2&&chance(.4)?0:1):es.length<=3?1:es.length<=6?1+ri(2):2+ri(2);
+    shuffle(es.slice()).slice(0,n).forEach(e=>setE(e,false));
+  }
+  // 4. furnish each area
+  const inner=(r,fn)=>{for(let x=r.x+1;x<r.x+r.w;x++)for(let z=r.z;z<r.z+r.d;z++)fn('V',x,z);for(let z=r.z+1;z<r.z+r.d;z++)for(let x=r.x;x<r.x+r.w;x++)fn('H',x,z)};
+  const corners=(r,fn)=>{for(let x=r.x+1;x<r.x+r.w;x++)for(let z=r.z+1;z<r.z+r.d;z++)fn(x,z)};
+  for(const r of regs){
+    const area=r.w*r.d;
+    if(r.style==='hall'||r.style==='rooms'&&area<=2){
+      let n=0;corners(r,(x,z)=>{if(chance(.18)){pil(x,z,.9);n++}});
+      // a few stray slabs of wall standing on their own
+      for(let k=Math.floor(area/7);k>0;k--)if(chance(.7)){const es=[];inner(r,(o,x,z)=>es.push([o,x,z]));if(es.length){setE(es[ri(es.length)],true);n++}}
+      if(!n&&area>=6)for(let k=0;k<2;k++)pil(r.x+1+ri(r.w-1),r.z+1+ri(r.d-1),.9);
+    }else if(r.style==='pillars'){
+      const big=chance(.4);corners(r,(x,z)=>{if(big?(x+z)%2===0:chance(.85))pil(x,z,big?1.5:.9)});
+    }else if(r.style==='columns'){
+      corners(r,(x,z)=>pil(x,z,1.5));
+    }else if(r.style==='maze'){
+      inner(r,(o,x,z)=>setE([o,x,z],true));
+      const seen=new Set(),k=(x,z)=>x*64+z,st=[[r.x+ri(r.w),r.z+ri(r.d)]];seen.add(k(...st[0]));
+      while(st.length){const [x,z]=st[st.length-1];
+        const o=DV.map((d,i)=>[x+d[0],z+d[1],i]).filter(([a,b])=>a>=r.x&&b>=r.z&&a<r.x+r.w&&b<r.z+r.d&&!seen.has(k(a,b)));
+        if(!o.length){st.pop();continue}const [a,b,i]=o[ri(o.length)];openEdge(x,z,i);seen.add(k(a,b));st.push([a,b])}
+      // knock a few walls out so there are loops as well as dead ends
+      const q=.12+rnd()*.25;inner(r,(o,x,z)=>{if(chance(q))setE([o,x,z],false)});
+    }else if(r.style==='rooms'){
+      (function sub(x,z,w,d){
+        if(w*d<=2+ri(3)||(w<2&&d<2))return;
+        let ax=w>d?0:d>w?1:ri(2);if((ax?d:w)<2)ax=1-ax;
+        const len=ax?d:w,p=1+ri(len-1),span=ax?w:d,door=ri(span),door2=span>=4&&chance(.5)?ri(span):-1;
+        for(let s=0;s<span;s++){if(s===door||s===door2)continue;if(!ax)vWall[x+p][z+s]=true;else hWall[z+p][x+s]=true}
+        if(!ax){sub(x,z,p,d);sub(x+p,z,w-p,d)}else{sub(x,z,w,p);sub(x,z+p,w,d-p)}
+      })(r.x,r.z,r.w,r.d);
+    }else if(r.style==='office'){
+      // rows of cubicles: pairs of rows back to back behind low partitions, with an open aisle between pairs
+      const ax=r.w>=r.d?0:1,U=ax?r.d:r.w,Vn=ax?r.w:r.d,ph=ri(3);
+      const at=(u,v)=>ax?[r.x+v,r.z+u]:[r.x+u,r.z+v];
+      for(let v=0;v<Vn;v++){
+        const band=(v+ph)%3;if(band===2)continue;
+        if(band===0&&v+1<Vn){const gap=U>3?ri(U):-1;for(let u=0;u<U;u++){if(u===gap)continue;const [x,z]=at(u,v+1);if(ax)lowV[x][z]=true;else lowH[z][x]=true}}
+        for(let u=1;u<U;u++)if(chance(.8)){const [x,z]=at(u,v);if(ax)lowH[z][x]=true;else lowV[x][z]=true}
+      }
+    }
+  }
+  // 5. lights: each area normal, bright, dim or dark, with its own mix of working, dead and flickering panels
+  for(const r of regs){
+    if(r.style==='void'){for(const [x,z] of r.cells)L.panel[x][z]=0;continue}
+    let lk=r.style==='office'?pickW({normal:5,bright:3,dim:1}):pickW({normal:11,dim:5,dark:1.3,bright:1.5});
+    if(r.special==='blackout')lk='blackout';else if(r.special==='columns')lk='bright';
+    const base={normal:1,bright:1.1,dim:.68,dark:.46,blackout:.3}[lk],on={normal:.86,bright:.97,dim:.4,dark:.1,blackout:0}[lk];
+    const tint=r.special==='damp'?[.92,.97,.84]:chance(.22)?TINTS[ri(TINTS.length)]:null;
+    const ftint=r.special==='damp'?[.66,.7,.62]:tint||(chance(.1)?[.8,.82,.74]:null);
+    let g=-1;if(r.special==='buzz'||(lk!=='dark'&&lk!=='blackout'&&L.groups<5&&chance(r.style==='corridor'?.4:.2)))g=L.groups++;
+    for(const [x,z] of r.cells){
+      L.light[x][z]=base*(.94+rnd()*.1);L.tint[x][z]=tint;L.ftint[x][z]=ftint;
+      const p=rnd();L.panel[x][z]=r.special==='buzz'?4+g:p<on?(g>=0?4+g:p<on*.05?3:1):2;
+      if(L.panel[x][z]>=4)L.group[x][z]=g;
+      if(L.panel[x][z]===3)L.next[x][z]=1+rnd()*7;
+    }
+  }
+  // at most a few lone flickering panels (each one costs a draw call)
+  let lone=0;for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.panel[x][z]===3&&++lone>3)L.panel[x][z]=1;
+  L.styles=regs.map(r=>r.style+(r.special?':'+r.special:''));L.regs=regs.map(r=>[r.x,r.z,r.w,r.d,r.style]);
+  clearSpawns(L,cells);connectV2(rnd,cells);
+  return L;
+}
+// Every spawn gets an open, lit 3 x 3 area: no walls, partitions or pillars inside it.
+function clearSpawns(L,cells){
+  for(const c of cells){const [sx,sz]=spawnArea(c);
+    for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++){
+      if(x<sx+2){vWall[x+1][z]=false;lowV[x+1][z]=false}if(z<sz+2){hWall[z+1][x]=false;lowH[z+1][x]=false}
+      voidC[x][z]=false;L.light[x][z]=Math.max(L.light[x][z],.92);if(!L.panel[x][z]||L.panel[x][z]===2)L.panel[x][z]=1;
+    }
+    for(let x=sx+1;x<sx+3;x++)for(let z=sz+1;z<sz+3;z++)L.pillars.delete(x*64+z);
+  }
+}
+// Can you walk from one cell to the next (no wall, partition or solid block in the way)?
+function passV2(x,z,i){const a=x+DV[i][0],b=z+DV[i][1];if(a<0||b<0||a>=N||b>=N||voidC[a][b])return false;
+  return i===0?!vWall[x+1][z]&&!lowV[x+1][z]:i===2?!vWall[x][z]&&!lowV[x][z]:i===1?!hWall[z+1][x]&&!lowH[z+1][x]:!hWall[z][x]&&!lowH[z][x]}
+function distFrom(src){const d=grid(N,N,-1),q=[];for(const [x,z] of src)if(!voidC[x][z]&&d[x][z]<0){d[x][z]=0;q.push([x,z])}
+  for(let h=0;h<q.length;h++){const [x,z]=q[h];for(let i=0;i<4;i++)if(passV2(x,z,i)){const a=x+DV[i][0],b=z+DV[i][1];if(d[a][b]<0){d[a][b]=d[x][z]+1;q.push([a,b])}}}return d}
+// No sealed areas: keep opening a wall between the part reachable from the first spawn and the rest until it's all one.
+function connectV2(rnd,cells){
+  for(let guard=0;guard<500;guard++){
+    const d=distFrom([cells[0]]),cand=[];let missing=false;
+    for(let x=0;x<N;x++)for(let z=0;z<N;z++){if(voidC[x][z]||d[x][z]>=0)continue;missing=true;
+      for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(a>=0&&b>=0&&a<N&&b<N&&!voidC[a][b]&&d[a][b]>=0)cand.push([x,z,i])}}
+    if(!missing)return;
+    if(!cand.length){voidC=grid(N,N,false);continue}
+    const [x,z,i]=cand[Math.floor(rnd()*cand.length)];openEdge(x,z,i);
+    if(i===0)lowV[x+1][z]=false;else if(i===2)lowV[x][z]=false;else if(i===1)lowH[z+1][x]=false;else lowH[z][x]=false;
+  }
+}
+// Fair enough to play? Both teams about as far from the middle, about as much cover on each half, no huge detour.
+function fairV2(cells){
+  const red=cells.filter(c=>c[0]<N/2),blue=cells.filter(c=>c[0]>=N/2);
+  const mid=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(Math.abs(x+.5-N/2)<=1&&Math.abs(z+.5-N/2)<=1&&!voidC[x][z])mid.push([x,z]);
+  if(!mid.length)return{ok:false,bad:99};
+  const d=distFrom(mid),mean=s=>s.reduce((a,[x,z])=>a+d[x][z],0)/s.length;
+  const dr=mean(red),db=mean(blue),tol=1+.15*Math.max(dr,db);
+  let cw=0,ce=0;const cover=(cx,k)=>{if(cx<N*2)cw+=k;else if(cx>N*2)ce+=k};
+  for(let x=1;x<N;x++)for(let z=0;z<N;z++){if(vWall[x][z]||lowV[x][z])cover(x*4,1)}
+  for(let z=1;z<N;z++)for(let x=0;x<N;x++){if(hWall[z][x]||lowH[z][x])cover(x*4+2,1)}
+  const ratio=Math.min(cw,ce)/Math.max(1,cw,ce);
+  const path=distFrom([red[0]||cells[0]])[(blue[0]||cells[1])[0]][(blue[0]||cells[1])[1]];
+  const ok=Math.abs(dr-db)<=tol&&ratio>=.65&&path>0&&path<=2.2*N;
+  return{ok,bad:Math.abs(dr-db)/tol+Math.max(0,.65-ratio)*5+(path>2.2*N?1:0),dr,db,ratio,path};
+}
+// Copy the west half onto the east half, turned 180 degrees about the middle of the map.
+function mirrorV2(L){
+  const wc=(x,z)=>2*x+1<N||(2*x+1===N&&2*z+1<N);
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){if(wc(x,z)||(2*x+1===N&&2*z+1===N))continue;const a=N-1-x,b=N-1-z;
+    voidC[x][z]=voidC[a][b];for(const k of ['light','tint','ftint','panel','group','next'])L[k][x][z]=L[k][a][b]}
+  for(let x=0;x<=N;x++)for(let z=0;z<N;z++)if(!(2*x<N||(2*x===N&&2*z+1<N))){vWall[x][z]=vWall[N-x][N-1-z];lowV[x][z]=lowV[N-x][N-1-z]}
+  for(let z=0;z<=N;z++)for(let x=0;x<N;x++)if(!(2*x+1<N||(2*x+1===N&&2*z<N))){hWall[z][x]=hWall[N-z][N-1-x];lowH[z][x]=lowH[N-z][N-1-x]}
+  const p=new Map();for(const [q,s] of L.pillars){const x=Math.floor(q/64),z=q%64;if(2*x<N||(2*x===N&&2*z<=N)){p.set(q,s);p.set((N-x)*64+(N-z),s)}}L.pillars=p;
+}
+
+// v3: one consistent Level 0 every round: 4 m corridors and rooms (2 x 2 to 2 x 4 cells, plus a 3 x 3 room round every
+// spawn), every wall full height, rooms entered through doorways (an opening with a short jamb of wall each side),
+// one opening at most between a room and each neighbour, a few loops, straight lines of sight cut at V3_RUN cells.
+// No low partitions, stray wall slabs, open halls or areas with their own lighting and wallpaper: the same light
+// everywhere, with the odd dead or flickering panel and one or two banks that flicker together.
+const V3_RUN=6,JAMB=.8;
+// are both cells in the same spawn area (whose inside stays open)?
+function sameSpawn(cells,x1,z1,x2,z2){return cells.some(c=>{const [sx,sz]=spawnArea(c);return x1>=sx&&x1<sx+3&&z1>=sz&&z1<sz+3&&x2>=sx&&x2<sx+3&&z2>=sz&&z2<sz+3})}
+// would the full-height walls touching this corner be a short piece (one or two cells long) standing on its own?
+function lonePiece(cx,cz){
+  const seen=new Set([cx*64+cz]),q=[[cx,cz]];let ends=0;
+  for(let h=0;h<q.length;h++){const [x,z]=q[h];if(x===0||z===0||x===N||z===N)return false;
+    for(const [ok,a,b] of [[x>0&&hWall[z][x-1],x-1,z],[x<N&&hWall[z][x],x+1,z],[z>0&&vWall[x][z-1],x,z-1],[z<N&&vWall[x][z],x,z+1]]){
+      if(!ok)continue;ends++;if(!seen.has(a*64+b)){seen.add(a*64+b);q.push([a,b])}}
+    if(ends>4)return false}
+  return ends>0;
+}
+function layoutV3(seed,cells){
+  const rnd=mulberry((seed^0x3c6ef372)>>>0);
+  let best=null;
+  // up to 16 draws (each passes about three times in four, so the fallback below is next to never needed)
+  for(let a=0;a<16;a++){
+    const L=attemptV3(rnd,cells),f=fairV2(cells);
+    if(f.ok){L.tries=a+1;return doorsV3(L,cells)}
+    if(!best||f.bad<best.f.bad)best={L,f,g:[hWall,vWall].map(q=>q.map(r=>r.slice()))};
+  }
+  // nothing passed: as for v2, the closest made point-symmetric (the rooms keep their ids, so doorways match); this can
+  // leave a few open patches and longer sightlines along the middle, but it is fair and fully connected
+  [hWall,vWall]=best.g;lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
+  const L=best.L;mirrorV2(L);
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(2*x+1>N||(2*x+1===N&&2*z+1>N))L.rid[x][z]=L.rid[N-1-x][N-1-z];
+  clearSpawns(L,cells);connectV2(rnd,cells);
+  L.mirrored=true;return doorsV3(L,cells);
+}
+function attemptV3(rnd,cells){
+  const ri=n=>Math.floor(rnd()*n),chance=p=>rnd()<p;
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=ri(i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+  hWall=grid(N+1,N,true);vWall=grid(N+1,N,true);lowH=grid(N+1,N,false);lowV=grid(N+1,N,false);voidC=grid(N,N,false);
+  const L={v:3,lit:true,pillars:new Map(),panel:grid(N,N,1),next:grid(N,N,0),group:grid(N,N,-1),groups:0,light:grid(N,N,1),tint:grid(N,N,null),ftint:grid(N,N,null),styles:null,special:null,rid:grid(N,N,-1),rooms:[]};
+  const rid=L.rid,rooms=L.rooms,isIn=(x,z)=>x>=0&&z>=0&&x<N&&z<N;
+  const spawnC=grid(N,N,false);for(const c of cells){const [sx,sz]=spawnArea(c);for(let x=sx;x<sx+3;x++)for(let z=sz;z<sz+3;z++)spawnC[x][z]=true}
+  const inSpawn=(x1,z1,x2,z2)=>spawnC[x1][z1]&&spawnC[x2][z2]&&sameSpawn(cells,x1,z1,x2,z2);
+  const addRoom=(x,z,w,d,sp)=>{const cs=[];for(let a=x;a<x+w;a++)for(let b=z;b<z+d;b++)if(rid[a][b]<0)cs.push([a,b]);if(!cs.length)return;
+    const id=rooms.length;rooms.push({x,z,w,d,sp,cells:cs});for(const [a,b] of cs)rid[a][b]=id;
+    for(const [a,b] of cs){if(a+1<N&&rid[a+1][b]===id)vWall[a+1][b]=false;if(b+1<N&&rid[a][b+1]===id)hWall[b+1][a]=false}};
+  // 1. a room round every spawn, then rooms dropped at random until about two fifths of the floor is rooms
+  for(const c of cells){const [sx,sz]=spawnArea(c);addRoom(sx,sz,3,3,true)}
+  let have=0;for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(rid[x][z]>=0)have++;
+  const target=N*N*(.36+rnd()*.08),sizes=N>=13?[[2,2],[2,2],[2,3],[3,2],[2,3],[3,2],[2,4],[4,2]]:[[2,2],[2,2],[2,3],[3,2],[2,3],[3,2]];
+  for(let k=0;k<90&&have<target;k++){const [w,d]=sizes[ri(sizes.length)],x=ri(N-w+1),z=ri(N-d+1);let ok=true;
+    for(let a=x;a<x+w&&ok;a++)for(let b=z;b<z+d;b++)if(rid[a][b]>=0){ok=false;break}
+    if(ok){addRoom(x,z,w,d,false);have+=w*d}}
+  // 2. everything else is corridor, one cell wide: each room and each corridor cell is a node, joined into a tree
+  const nodeOf=(x,z)=>rid[x][z]>=0?rid[x][z]:rooms.length+x*N+z;
+  const wallAt=(x,z,i)=>i===0?vWall[x+1][z]:i===2?vWall[x][z]:i===1?hWall[z+1][x]:hWall[z][x];
+  const linked=new Set(),pk=(a,b)=>a<b?a+','+b:b+','+a;
+  const openings=id=>{let n=0;for(const [x,z] of rooms[id].cells)for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(isIn(a,b)&&rid[a][b]!==id&&!wallAt(x,z,i))n++}return n};
+  // would this opening leave four corridor cells open as a square (corridors stay one cell wide)?
+  const square=(x,z,i)=>{const a=x+DV[i][0],b=z+DV[i][1],px=DV[i][1],pz=DV[i][0];
+    for(const s of [-1,1]){const x2=x+px*s,z2=z+pz*s,a2=a+px*s,b2=b+pz*s;if(!isIn(x2,z2)||!isIn(a2,b2))continue;
+      const j=px?(s>0?0:2):(s>0?1:3);if(!wallAt(x,z,j)&&!wallAt(a,b,j)&&!wallAt(x2,z2,i))return true}return false};
+  // or a short piece of wall standing on its own between corridors?
+  const lone=(x,z,i)=>{const c=i===0?[[x+1,z],[x+1,z+1]]:i===2?[[x,z],[x,z+1]]:i===1?[[x,z+1],[x+1,z+1]]:[[x,z],[x+1,z]];
+    openEdge(x,z,i);const r=lonePiece(...c[0])||lonePiece(...c[1]);
+    if(i===0)vWall[x+1][z]=true;else if(i===2)vWall[x][z]=true;else if(i===1)hWall[z+1][x]=true;else hWall[z][x]=true;return r};
+  // may this edge be opened? a room never gets two openings side by side in the same wall
+  const okOpen=(x,z,i)=>{const a=x+DV[i][0],b=z+DV[i][1],ra=rid[x][z],rb=rid[a][b];
+    if(ra<0&&rb<0)return !square(x,z,i)&&!lone(x,z,i);
+    if(lone(x,z,i))return false;
+    const px=DV[i][1],pz=DV[i][0];
+    for(const s of [-1,1]){const x2=x+px*s,z2=z+pz*s,a2=a+px*s,b2=b+pz*s;if(!isIn(x2,z2)||!isIn(a2,b2))continue;
+      if(((ra>=0&&rid[x2][z2]===ra)||(rb>=0&&rid[a2][b2]===rb))&&!wallAt(x2,z2,i))return false}
+    return true};
+  const open=(x,z,i)=>{openEdge(x,z,i);linked.add(pk(nodeOf(x,z),nodeOf(x+DV[i][0],z+DV[i][1])))};
+  const nodeCells=new Map();for(let x=0;x<N;x++)for(let z=0;z<N;z++){const k=nodeOf(x,z);if(!nodeCells.has(k))nodeCells.set(k,[]);nodeCells.get(k).push([x,z])}
+  const seen=new Set(),act=[nodeOf(cells[0][0],cells[0][1])];seen.add(act[0]);
+  while(act.length){
+    const k=chance(.6)?act.length-1:ri(act.length),nd=act[k],opts=[];
+    for(const [x,z] of nodeCells.get(nd))for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(!isIn(a,b))continue;const m=nodeOf(a,b);if(m!==nd&&!seen.has(m)&&okOpen(x,z,i))opts.push([x,z,i,m])}
+    if(!opts.length){act.splice(k,1);continue}
+    const [x,z,i,m]=opts[ri(opts.length)];open(x,z,i);seen.add(m);act.push(m);
+  }
+  // 3. loops: a second way in to some rooms, the odd extra link between corridors; most dead ends go somewhere
+  const cand=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)for(const i of [0,1]){const a=x+DV[i][0],b=z+DV[i][1];if(isIn(a,b)&&wallAt(x,z,i)&&nodeOf(x,z)!==nodeOf(a,b))cand.push([x,z,i])}
+  const most=id=>rooms[id].sp?4:rooms[id].cells.length>4?4:3;
+  for(const [x,z,i] of shuffle(cand)){const a=x+DV[i][0],b=z+DV[i][1],ra=rid[x][z],rb=rid[a][b];
+    if(linked.has(pk(nodeOf(x,z),nodeOf(a,b))))continue;
+    if(ra>=0||rb>=0){if(!chance(.45)||(ra>=0&&openings(ra)>=most(ra))||(rb>=0&&openings(rb)>=most(rb)))continue}
+    else if(!chance(.22))continue;
+    if(okOpen(x,z,i))open(x,z,i);
+  }
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){if(rid[x][z]>=0)continue;
+    const o=[];let n=0;for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(!isIn(a,b))continue;if(!wallAt(x,z,i))n++;else if(okOpen(x,z,i)&&(rid[a][b]<0||openings(rid[a][b])<most(rid[a][b])))o.push(i)}
+    if(n===1&&o.length&&chance(.9))open(x,z,o[ri(o.length)]);
+  }
+  // every spawn room has at least two ways out
+  for(let id=0;id<rooms.length;id++){if(!rooms[id].sp||openings(id)>=2)continue;const o=[];
+    for(const [x,z] of rooms[id].cells)for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(isIn(a,b)&&rid[a][b]!==id&&wallAt(x,z,i)&&!linked.has(pk(id,nodeOf(a,b)))&&okOpen(x,z,i))o.push([x,z,i])}
+    if(o.length){const [x,z,i]=o[ri(o.length)];open(x,z,i)}}
+  // 4. now and then a column in the middle of a room
+  for(const r of rooms)if(!r.sp&&r.w>=2&&r.d>=2&&chance(.3)){const x=r.x+1+ri(r.w-1),z=r.z+1+ri(r.d-1);L.pillars.set(x*64+z,.9)}
+  // 5. lights: the same everywhere, a few dead panels (a little darker below), a few lone flickers, one or two banks
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){L.light[x][z]=.96+rnd()*.07;if(!spawnC[x][z]&&chance(.08)){L.panel[x][z]=2;L.light[x][z]=.8}}
+  const banks=chance(.75)?(chance(.35)?2:1):0;
+  for(let g=0;g<banks;g++){
+    let list=[];
+    if(chance(.5)){const rs=rooms.filter(r=>!r.sp);if(rs.length)list=rs[ri(rs.length)].cells}
+    if(!list.length){const cs=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(rid[x][z]<0&&!spawnC[x][z])cs.push([x,z]);
+      if(cs.length){const s=cs[ri(cs.length)],q=[s],k=new Set([s[0]*64+s[1]]);
+        for(let h=0;h<q.length&&q.length<4+ri(3);h++){const [x,z]=q[h];for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(isIn(a,b)&&!wallAt(x,z,i)&&rid[a][b]<0&&!spawnC[a][b]&&!k.has(a*64+b)){k.add(a*64+b);q.push([a,b])}}}
+        list=q}}
+    if(!list.length)continue;const id=L.groups++;
+    for(const [x,z] of list){L.panel[x][z]=4+id;L.group[x][z]=id;L.light[x][z]=Math.max(L.light[x][z],.96)}
+  }
+  for(let k=0;k<3;k++){const x=ri(N),z=ri(N);if(chance(.6)&&L.panel[x][z]===1&&!spawnC[x][z]){L.panel[x][z]=3;L.next[x][z]=1+rnd()*7}}
+  L.regs=rooms.map(r=>[r.x,r.z,r.w,r.d,r.sp?'spawn':'room']);
+  clearSpawns(L,cells);connectV2(rnd,cells);
+  // 6. no long straight sightlines: a line of more than V3_RUN cells gets a wall across it near the middle
+  for(let pass=0;pass<10;pass++){let cut=0;
+    for(const ax of [0,1])for(let l=0;l<N;l++){let s=0;
+      for(let p=1;p<=N;p++){const x=ax?l:p,z=ax?p:l,shut=p===N||(ax?hWall[p][l]:vWall[p][l]);if(!shut)continue;
+        if(p-s>V3_RUN){const es=[];for(let q=s+1;q<p;q++){const x1=ax?l:q-1,z1=ax?q-1:l,x2=ax?l:q,z2=ax?q:l;
+            if(inSpawn(x1,z1,x2,z2)||(rid[x1][z1]>=0&&rid[x1][z1]===rid[x2][z2]))continue;
+            // a cut that joins a wall at one end at least, so it never stands on its own
+            const c1=ax?[l,q]:[q,l],c2=ax?[l+1,q]:[q,l+1];es.push([q,Math.abs(q-(s+p)/2)+(hasPost(...c1)||hasPost(...c2)?0:3)])}
+          if(es.length){es.sort((a,b)=>a[1]-b[1]);const best=es.filter(e=>e[1]<=es[0][1]+1),q=best[ri(best.length)][0];if(ax)hWall[q][l]=true;else vWall[q][l]=true;cut++;
+            // the corridor jogs round the cut rather than ending there
+            for(const [x,z] of ax?[[l,q-1],[l,q]]:[[q-1,l],[q,l]]){if(rid[x][z]>=0)continue;let n=0;const o=[];
+              for(let i=0;i<4;i++){const a=x+DV[i][0],b=z+DV[i][1];if(!isIn(a,b))continue;if(!wallAt(x,z,i))n++;else if((i&1)!==ax&&okOpen(x,z,i)&&(rid[a][b]<0||openings(rid[a][b])<most(rid[a][b])))o.push(i)}
+              if(n<=1&&o.length)open(x,z,o[ri(o.length)])}}}
+        s=p}}
+    if(!cut)break;connectV2(rnd,cells);
+  }
+  return L;
+}
+// doorway jambs: where a room opens onto something else, a short piece of wall each side of the opening, wherever the
+// wall carries on past it (so no jamb ever stands on its own)
+function doorsV3(L,cells){
+  const J=[],rid=L.rid;
+  const door=(x1,z1,x2,z2)=>{const a=rid[x1][z1],b=rid[x2][z2];return a!==b&&(a>=0||b>=0)&&!sameSpawn(cells,x1,z1,x2,z2)};
+  for(let x=1;x<N;x++)for(let z=0;z<N;z++)if(!vWall[x][z]&&door(x-1,z,x,z)){if(z===0||vWall[x][z-1])J.push(['V',x,z,0]);if(z===N-1||vWall[x][z+1])J.push(['V',x,z,1])}
+  for(let z=1;z<N;z++)for(let x=0;x<N;x++)if(!hWall[z][x]&&door(x,z-1,x,z)){if(x===0||hWall[z][x-1])J.push(['H',x,z,0]);if(x===N-1||hWall[z][x+1])J.push(['H',x,z,1])}
+  L.jambs=J;return L;
+}
+
+/* building the meshes: every kind of piece is one instanced mesh (one draw call), coloured per piece by the light
+   of the cells beside it, so dim and dark areas darken their walls, floor and ceiling too */
+const flickOn=[];
+// a doorway jamb: a short piece of wall, with the wallpaper scaled to match the walls beside it
+const geoJamb=(()=>{const g=gradBox(JAMB,CEIL,.3),uv=g.attributes.uv;for(let i=0;i<uv.count;i++){const f=Math.floor(i/4);uv.setX(i,uv.getX(i)*(f<2?.3/4:f>=4?JAMB/4:1))}
+  const b=flatBox(JAMB,.17,.4,SKIRT);b.translate(0,-CEIL/2+.085,0);return joinGeos([g,b])})();
+function buildMap(L){
+  mapInfo=L;mapSolids=[];litList=[];flickers=[];
+  const m=new THREE.Matrix4();
+  function inst(geo,mat,list,place,box,near){
+    if(!list.length)return;
+    const im=new THREE.InstancedMesh(geo,mat,list.length);
+    list.forEach((it,i)=>{place(m,it);im.setMatrixAt(i,m);mapSolids.push(box(it))});
+    litList.push({im,cells:list.map(near)});   // always coloured (white on a v1 map): three.js r128 keeps a material's first shader
+    mapGroup.add(im);
+  }
+  const hList=[],vList=[],lhList=[],lvList=[];
+  for(let z=0;z<=N;z++)for(let x=0;x<N;x++){if(hWall[z][x])hList.push([x,z]);else if(lowH[z][x])lhList.push([x,z])}
+  for(let x=0;x<=N;x++)for(let z=0;z<N;z++){if(vWall[x][z])vList.push([x,z]);else if(lowV[x][z])lvList.push([x,z])}
+  inst(geoWallH,wallMat,hList,(m,[x,z])=>m.makeTranslation(x*4+2,CEIL/2,z*4),([x,z])=>({min:[x*4,0,z*4-.15],max:[x*4+4,CEIL,z*4+.15]}),([x,z])=>[[x,z-1],[x,z]]);
+  inst(geoWallV,wallMat,vList,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4+2),([x,z])=>({min:[x*4-.15,0,z*4],max:[x*4+.15,CEIL,z*4+4]}),([x,z])=>[[x-1,z],[x,z]]);
+  // v3 doorway jambs (one instanced mesh for both directions)
+  if(L.jambs)inst(geoJamb,wallMat,L.jambs,(m,[o,x,z,e])=>{const t=e?4-JAMB/2:JAMB/2;if(o==='H')m.makeTranslation(x*4+t,CEIL/2,z*4);else m.makeRotationY(Math.PI/2).setPosition(x*4,CEIL/2,z*4+t)},
+    ([o,x,z,e])=>{const a=e?4-JAMB:0;return o==='H'?{min:[x*4+a,0,z*4-.15],max:[x*4+a+JAMB,CEIL,z*4+.15]}:{min:[x*4-.15,0,z*4+a],max:[x*4+.15,CEIL,z*4+a+JAMB]}},
+    ([o,x,z])=>o==='H'?[[x,z-1],[x,z]]:[[x-1,z],[x,z]]);
+  inst(geoLowH,lowMat,lhList,(m,[x,z])=>m.makeTranslation(x*4+2,LOW_H/2,z*4),([x,z])=>({min:[x*4,0,z*4-.06],max:[x*4+4,LOW_H,z*4+.06]}),([x,z])=>[[x,z-1],[x,z]]);
+  inst(geoLowV,lowMat,lvList,(m,[x,z])=>m.makeTranslation(x*4,LOW_H/2,z*4+2),([x,z])=>({min:[x*4-.06,0,z*4],max:[x*4+.06,LOW_H,z*4+4]}),([x,z])=>[[x-1,z],[x,z]]);
+  const posts=[],pillars=[],bigs=[];
+  for(let x=0;x<=N;x++)for(let z=0;z<=N;z++){
+    if(hasPost(x,z))posts.push([x,z]);
+    else{const s=L.pillars.get(x*64+z);if(s)(s>1?bigs:pillars).push([x,z])}
+  }
+  const vc=([x,z])=>[[x-1,z-1],[x,z-1],[x-1,z],[x,z]];
+  inst(geoPost,wallMat,posts,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.18,0,z*4-.18],max:[x*4+.18,CEIL,z*4+.18]}),vc);
+  inst(geoPillar,pillarMat,pillars,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.45,0,z*4-.45],max:[x*4+.45,CEIL,z*4+.45]}),vc);
+  inst(geoBigPillar,pillarMat,bigs,(m,[x,z])=>m.makeTranslation(x*4,CEIL/2,z*4),([x,z])=>({min:[x*4-.75,0,z*4-.75],max:[x*4+.75,CEIL,z*4+.75]}),vc);
+  // ceiling panels: working ones, dead ones, banks that flicker together (one material each) and a few lone flickers
+  const on=[],dead=[],banks=[];
+  for(let x=0;x<N;x++)for(let z=0;z<N;z++){const p=L.panel[x][z];
+    if(p===1)on.push([x,z]);else if(p===2)dead.push([x,z]);
+    else if(p===3){const mat=new THREE.MeshBasicMaterial({color:0xfffae6});const mesh=new THREE.Mesh(panelGeo,mat);mesh.position.set(x*4+2,CEIL-.03,z*4+2);mapGroup.add(mesh);flickers.push({mat,pos:mesh.position,next:L.next[x][z],until:0,tick:0,g:-1})}
+    else if(p>=4)(banks[p-4]=banks[p-4]||[]).push([x,z]);
+  }
+  const panels=(list,mat)=>{if(!list.length)return;const im=new THREE.InstancedMesh(panelGeo,mat,list.length);list.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.03,z*4+2);im.setMatrixAt(i,m)});mapGroup.add(im)};
+  panels(on,panelOn);panels(dead,panelDead);
+  if(on.length){const im=new THREE.InstancedMesh(haloGeo,haloMat,on.length);on.forEach(([x,z],i)=>{m.makeTranslation(x*4+2,CEIL-.07,z*4+2);im.setMatrixAt(i,m)});mapGroup.add(im)}
+  flickOn.length=0;
+  banks.forEach((list,g)=>{flickOn[g]=1;if(!list)return;const mat=new THREE.MeshBasicMaterial({color:0xfffae6});panels(list,mat);
+    const pos=new V3();for(const [x,z] of list)pos.x+=x*4+2,pos.z+=z*4+2;pos.divideScalar(list.length);pos.y=CEIL-.03;
+    flickers.push({mat,pos,next:1+(g*1.7)%6,until:0,tick:0,g})});
+  if(L.v===3)mapSolids=solidsV3(L,posts,pillars);
+  solids=mapSolids.slice();
+  applyLight();
+}
+// v3 maps have more walls, so their collision boxes are joined up: the walls and doorway jambs along each line that touch
+// end to end become one box, and the posts in the middle of a straight run (covered by it, bar 3 cm) are left out.
+// Movement and shots loop over every box each frame, so this keeps that work below a v2 map's.
+function solidsV3(L,posts,pillars){
+  const out=[],T=.15,segH=[],segV=[];
+  for(let z=0;z<=N;z++){segH[z]=[];for(let x=0;x<N;x++)if(hWall[z][x])segH[z].push([x*4,x*4+4])}
+  for(let x=0;x<=N;x++){segV[x]=[];for(let z=0;z<N;z++)if(vWall[x][z])segV[x].push([z*4,z*4+4])}
+  for(const [o,x,z,e] of L.jambs||[]){const a=e?4-JAMB:0;(o==='H'?segH[z]:segV[x]).push(o==='H'?[x*4+a,x*4+a+JAMB]:[z*4+a,z*4+a+JAMB])}
+  const runs=iv=>{iv.sort((p,q)=>p[0]-q[0]);const r=[];for(const s of iv){const l=r[r.length-1];if(l&&s[0]<=l[1]+1e-6)l[1]=Math.max(l[1],s[1]);else r.push(s.slice())}return r};
+  for(let z=0;z<=N;z++)for(const [a,b] of runs(segH[z]))out.push({min:[a,0,z*4-T],max:[b,CEIL,z*4+T]});
+  for(let x=0;x<=N;x++)for(const [a,b] of runs(segV[x]))out.push({min:[x*4-T,0,a],max:[x*4+T,CEIL,b]});
+  for(const [x,z] of posts){
+    const w=x>0&&hWall[z][x-1],e=x<N&&hWall[z][x],n=z>0&&vWall[x][z-1],s=z<N&&vWall[x][z];
+    if((w&&e&&!n&&!s)||(n&&s&&!w&&!e))continue;
+    out.push({min:[x*4-.18,0,z*4-.18],max:[x*4+.18,CEIL,z*4+.18]});
+  }
+  for(const [x,z] of pillars)out.push({min:[x*4-.45,0,z*4-.45],max:[x*4+.45,CEIL,z*4+.45]});
+  return out;
+}
+// colours of the floor and ceiling corners and of every wall, post and pillar from the light of the cells around them
+function applyLight(){
+  const L=mapInfo,fc=floor.geometry.attributes.color,cc=ceil.geometry.attributes.color;
+  const lc=(x,z)=>L.light[x][z]*(L.group[x][z]>=0?flickOn[L.group[x][z]]:1);
+  const mix=(list,tk,out)=>{if(!L.lit){out[0]=out[1]=out[2]=1;return out}let r=0,g=0,b=0,k=0;for(const [x,z] of list){if(x<0||z<0||x>=N||z>=N||voidC[x][z])continue;const l=lc(x,z),t=L[tk][x][z];r+=l*(t?t[0]:1);g+=l*(t?t[1]:1);b+=l*(t?t[2]:1);k++}
+    if(k){out[0]=r/k;out[1]=g/k;out[2]=b/k}else out[0]=out[1]=out[2]=1;return out};
+  const c=[0,0,0],col=new THREE.Color();
+  for(let iy=0;iy<=N;iy++)for(let ix=0;ix<=N;ix++){
+    const i=iy*(N+1)+ix;
+    mix([[ix-1,iy-1],[ix,iy-1],[ix-1,iy],[ix,iy]],'ftint',c);fc.setXYZ(i,c[0],c[1],c[2]);
+    const z=N-iy;mix([[ix-1,z-1],[ix,z-1],[ix-1,z],[ix,z]],'tint',c);cc.setXYZ(i,c[0],c[1],c[2]);
+  }
+  fc.needsUpdate=cc.needsUpdate=true;
+  for(const {im,cells} of litList){cells.forEach((cs,i)=>{mix(cs,'tint',c);im.setColorAt(i,col.setRGB(c[0],c[1],c[2]))});im.instanceColor.needsUpdate=true}
+}
 
 /* ---------- builds ---------- */
 const pieces=new Map();const pieceGroup=new THREE.Group();scene.add(pieceGroup);
@@ -606,11 +1134,11 @@ function specValid(s){
   if(!s||!hWall.length)return false;
   if(s.kind==='wall'){
     if(s.L<0||s.L>2)return false;
-    if(s.o==='V'){if(s.x<1||s.x>N-1||s.z<0||s.z>N-1||vWall[s.x][s.z])return false}
-    else if(s.o==='H'){if(s.z<1||s.z>N-1||s.x<0||s.x>N-1||hWall[s.z][s.x])return false}
+    if(s.o==='V'){if(s.x<1||s.x>N-1||s.z<0||s.z>N-1||vWall[s.x][s.z]||voidC[s.x-1][s.z]||voidC[s.x][s.z])return false}
+    else if(s.o==='H'){if(s.z<1||s.z>N-1||s.x<0||s.x>N-1||hWall[s.z][s.x]||voidC[s.x][s.z-1]||voidC[s.x][s.z])return false}
     else return false;
   }else if(s.kind==='floor'||s.kind==='ramp'){
-    if(s.x<0||s.z<0||s.x>N-1||s.z>N-1)return false;
+    if(s.x<0||s.z<0||s.x>N-1||s.z>N-1||voidC[s.x][s.z])return false;
     if(s.kind==='floor'&&(s.L<1||s.L>2))return false;
     if(s.kind==='ramp'&&(s.L<0||s.L>1||!(s.dir>=0&&s.dir<=3)))return false;
   }else return false;
@@ -622,32 +1150,126 @@ function placeObj(obj,s){
   else if(s.kind==='floor')obj.position.set(s.x*4+2,s.L*4,s.z*4+2);
   else{obj.position.set(s.x*4+2,s.L*4+2,s.z*4+2);obj.rotation.y=DIR_YAW[s.dir]}
 }
-function makePiece(s){
-  const mat=plyMat.clone();let obj,solid=null,ramp=null;
-  if(s.kind==='wall'){obj=new THREE.Mesh(geoPWall,mat);
-    solid=s.o==='H'?{min:[s.x*4,s.L*4,s.z*4-.125],max:[s.x*4+4,s.L*4+4,s.z*4+.125]}:{min:[s.x*4-.125,s.L*4,s.z*4],max:[s.x*4+.125,s.L*4+4,s.z*4+4]}}
-  else if(s.kind==='floor'){obj=new THREE.Mesh(geoPFloor,mat);solid={min:[s.x*4,s.L*4-.125,s.z*4],max:[s.x*4+4,s.L*4+.125,s.z*4+4]}}
-  else{obj=new THREE.Group();const inner=new THREE.Mesh(geoPRamp,mat);inner.rotation.x=-Math.PI/4;obj.add(inner);ramp={x0:s.x*4,z0:s.z*4,base:s.L*4,dir:s.dir}}
+// Editing. A piece is a grid of tiles, and its edit (ed) has one bit for each tile that has been cut out; 0 is the whole
+// piece. A wall is 3 x 3 (u along the wall towards +x or +z, v up), a floor 2 x 2 (u along x, v along z) and a ramp
+// 2 x 2 (u up the slope, v across it towards +z or +x); tile (u,v) is bit v*n+u. The tiles that are left are joined into
+// as few rectangles as it takes (edRects), and each rectangle is one ordinary solid box, or for a ramp one ordinary ramp
+// sheet with a smaller footprint (pieceShape). So movement, pushOut / rampOut and shots treat an edited piece with the
+// very code they use for a whole one: you walk through a door and shoot through a window because no box is there, and
+// what is left blocks from every side. The picture is one mesh made of the same rectangles (pieceGeo).
+const ED_N={wall:3,floor:2,ramp:2};
+const edFull=k=>(1<<ED_N[k]*ED_N[k])-1;
+const edOk=(k,m)=>Number.isInteger(m)&&m>=0&&m<edFull(k);   // at least one tile has to stay
+// runs of tiles along u in each row, then equal runs in rows next to each other joined: [u0,v0,u1,v1), ends not included
+function edRects(n,mask){
+  const out=[];
+  for(let v=0;v<n;v++)for(let u=0;u<n;u++){
+    if(mask>>(v*n+u)&1)continue;
+    let e=u+1;while(e<n&&!(mask>>(v*n+e)&1))e++;
+    const q=out.find(k=>k[0]===u&&k[2]===e&&k[3]===v);
+    if(q)q[3]=v+1;else out.push([u,v,e,v+1]);
+    u=e-1;
+  }
+  return out;
+}
+function pieceShape(s,mask){
+  const n=ED_N[s.kind],x0=s.x*4,z0=s.z*4,y0=s.L*4,boxes=[],rps=[];
+  for(const [u0,v0,u1,v1] of edRects(n,mask)){
+    if(s.kind==='wall'){
+      const a0=u0*4/n,a1=u1*4/n,b0=y0+v0*4/n,b1=y0+v1*4/n;
+      boxes.push(s.o==='H'?{min:[x0+a0,b0,z0-.125],max:[x0+a1,b1,z0+.125]}:{min:[x0-.125,b0,z0+a0],max:[x0+.125,b1,z0+a1]});
+    }else if(s.kind==='floor')boxes.push({min:[x0+u0*2,y0-.125,z0+v0*2],max:[x0+u1*2,y0+.125,z0+v1*2]});
+    else{
+      // a ramp sheet: the whole ramp's slope (x0, z0, base, dir), over the part of its cell from t0 to t1 up the slope
+      // (ax0..ax1 by az0..az1 on the ground)
+      const t0=u0/2,t1=u1/2,lo=s.dir<2?t0*4:4-t1*4,hi=s.dir<2?t1*4:4-t0*4,r={x0,z0,base:y0,dir:s.dir,t0,t1};
+      if(s.dir%2===0){r.ax0=x0+lo;r.ax1=x0+hi;r.az0=z0+v0*2;r.az1=z0+v1*2}
+      else{r.az0=z0+lo;r.az1=z0+hi;r.ax0=x0+v0*2;r.ax1=x0+v1*2}
+      rps.push(r);
+    }
+  }
+  return{boxes,rps};
+}
+// One geometry for an edited piece, in the frame its whole mesh uses (see placeObj), with the plywood texture laid
+// over the piece as a whole so a cut board still reads as one board.
+function pieceGeo(s,mask){
+  const n=ED_N[s.kind],list=[];
+  for(const [u0,v0,u1,v1] of edRects(n,mask)){
+    const w=(u1-u0)*4/n,h=(v1-v0)*4/n,cu=(u0+u1)*2/n-2,cv=(v0+v1)*2/n-2;let g;
+    if(s.kind==='wall'){g=new THREE.BoxGeometry(w,h,.25);g.translate(s.o==='V'?-cu:cu,cv,0)}
+    else if(s.kind==='floor'){g=new THREE.BoxGeometry(w,.25,h);g.translate(cu,0,cv)}
+    else{g=new THREE.BoxGeometry(h,.25,w*Math.SQRT2);g.translate(s.dir===0||s.dir===3?-cv:cv,0,cu*Math.SQRT2)}
+    list.push(g);
+  }
+  const geo=joinGeos(list),p=geo.attributes.position,uv=geo.attributes.uv;
+  for(let i=0;i<p.count;i++)uv.setXY(i,(p.getX(i)+2)/4,s.kind==='wall'?(p.getY(i)+2)/4:s.kind==='floor'?(p.getZ(i)+2)/4:p.getZ(i)/(4*Math.SQRT2)+.5);
+  return geo;
+}
+const wholeGeo=k=>k==='wall'?geoPWall:k==='floor'?geoPFloor:geoPRamp;
+function dropShape(pc){
+  for(const b of pc.boxes){const i=solids.indexOf(b);if(i>=0)solids.splice(i,1)}
+  for(const r of pc.rps){const i=ramps.indexOf(r);if(i>=0)ramps.splice(i,1)}
+  pc.boxes=[];pc.rps=[];
+}
+// Give a piece its shape: the collision boxes or ramp sheets, and the one mesh. (solid / ramp: the first of them, which
+// for a whole piece is the only one.)
+function shapePiece(pc,ed){
+  dropShape(pc);
+  const sh=pieceShape(pc.spec,ed),whole=wholeGeo(pc.spec.kind);
+  pc.ed=ed;pc.boxes=sh.boxes;pc.rps=sh.rps;pc.solid=sh.boxes[0]||null;pc.ramp=sh.rps[0]||null;
+  for(const b of sh.boxes){b.piece=pc;solids.push(b)}
+  for(const r of sh.rps){r.piece=pc;ramps.push(r)}
+  if(pc.mesh.geometry!==whole)pc.mesh.geometry.dispose();
+  pc.mesh.geometry=ed?pieceGeo(pc.spec,ed):whole;
+}
+// team: whose build it is, which decides who may edit it. Online 'r' or 'b'; in practice 'me' or 'bot'.
+function makePiece(s,team){
+  const mat=plyMat.clone();let obj,mesh;
+  if(s.kind==='wall')obj=mesh=new THREE.Mesh(geoPWall,mat);
+  else if(s.kind==='floor')obj=mesh=new THREE.Mesh(geoPFloor,mat);
+  else{obj=new THREE.Group();mesh=new THREE.Mesh(geoPRamp,mat);mesh.rotation.x=-Math.PI/4;obj.add(mesh)}
   placeObj(obj,s);
-  const pc={key:pieceKey(s),spec:s,hp:PHP[s.kind],max:PHP[s.kind],obj,mat,solid,ramp,pop:0};
-  if(solid){solid.piece=pc;solids.push(solid)}
-  if(ramp){ramp.piece=pc;ramps.push(ramp)}
+  const pc={key:pieceKey(s),spec:s,hp:PHP[s.kind],max:PHP[s.kind],obj,mesh,mat,solid:null,ramp:null,boxes:[],rps:[],ed:0,team:team||null,pop:0};
+  shapePiece(pc,0);
   obj.scale.setScalar(.82);
   pieceGroup.add(obj);pieces.set(pc.key,pc);
   return pc;
 }
-// owner: the entity that built it. Your own builds online are sent to everyone else in the room.
-function tryBuild(s,owner){
+// a piece (or a part of one put back by an edit) that lands on a body moves the body out rather than trapping it: out
+// of a wall or floor the shortest way (pushOut), up onto a ramp or out from inside it some other way (rampOut)
+function clearBodies(pc){
+  for(const e of ents){
+    if(!e.alive||!e.present||e.snaps)continue;   // other players are moved by their own browser
+    if(pc.boxes.some(b=>overlap(e.pos.x,e.pos.y,e.pos.z,b)))pushOut(e);
+    if(pc.rps.some(r=>inRamp(r,e.pos.x,e.pos.y,e.pos.z)))rampOut(e,true);
+  }
+}
+function myBuildTeam(){return online?player.team||null:'me'}
+// owner: the entity that built it (null: another player, whose team is given). Your own builds online are sent to
+// everyone else in the room.
+function tryBuild(s,owner,team,quiet,by){
   if(!specValid(s))return false;
-  const pc=makePiece(s);
-  sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
+  const pc=makePiece(s,owner===player?myBuildTeam():owner===opp?'bot':team);
+  if(LK)LK.piece(pc,owner||remotes.get(by));   // the builder's build skin (locker.js); by: another player's uid
+  clearBodies(pc);
+  if(!quiet)sfxBuild(owner===player?1:1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   if(online&&owner===player)Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo()});
+  return true;
+}
+// Change a piece's shape to ed (0: whole again). Refused if it would leave no tile. Tiles that come back can land on a
+// body, like a new build.
+function editPiece(pc,ed,quiet){
+  if(!pc||!pieces.has(pc.key)||!edOk(pc.spec.kind,ed))return false;
+  if(ed===pc.ed)return true;
+  shapePiece(pc,ed);clearBodies(pc);
+  pc.pop=.55;
+  if(!quiet)sfxBuild(1/(1+camera.position.distanceTo(pc.obj.position)*.08));
   return true;
 }
 function removePiece(pc,fx){
   pieceGroup.remove(pc.obj);pc.mat.dispose();
-  if(pc.solid){const i=solids.indexOf(pc.solid);if(i>=0)solids.splice(i,1)}
-  if(pc.ramp){const i=ramps.indexOf(pc.ramp);if(i>=0)ramps.splice(i,1)}
+  if(pc.mesh.geometry!==wholeGeo(pc.spec.kind))pc.mesh.geometry.dispose();
+  dropShape(pc);
   pieces.delete(pc.key);
   if(fx){debris(pc.obj.position);sfxBreak(1/(1+camera.position.distanceTo(pc.obj.position)*.07))}
 }
@@ -668,44 +1290,131 @@ for(const k in ghosts){ghosts[k].visible=false;scene.add(ghosts[k])}
 function hideGhosts(){for(const k in ghosts)ghosts[k].visible=false}
 
 /* ---------- collision & rays ---------- */
+// Players are boxes R wide either way and H tall. Walls, posts, pillars and build walls/floors are solid boxes; a ramp is
+// a solid sloping sheet (see inRamp) whose top you walk on (see groundAt). Movement never enters a solid or a ramp, so
+// the only way to end up inside one is a build landing on you, and pushOut / rampOut move you back out instead of
+// letting you walk or jump through it.
 function overlap(x,y,z,s){return x+R>s.min[0]&&x-R<s.max[0]&&z+R>s.min[2]&&z-R<s.max[2]&&y+H>s.min[1]+.01&&y<s.max[1]-.01}
 function blockedAt(nx,y,nz,ox,oz){for(const s of solids)if(overlap(nx,y,nz,s)&&!overlap(ox,y,oz,s))return s;return null}
-function rampH(r,x,z){
-  if(x<r.x0||x>r.x0+4||z<r.z0||z>r.z0+4)return -1;
-  let t;switch(r.dir){case 0:t=(x-r.x0)/4;break;case 1:t=(z-r.z0)/4;break;case 2:t=(r.x0+4-x)/4;break;default:t=(r.z0+4-z)/4}
-  return r.base+.15+4*clamp(t,0,1);
+function solidAt(x,y,z){for(const s of solids)if(overlap(x,y,z,s))return s;return null}
+function clampToMap(p){p.x=clamp(p.x,R+.15,W-R-.15);p.z=clamp(p.z,R+.15,W-R-.15);p.y=clamp(p.y,0,CEIL-H)}
+// If the box overlaps a solid, move it out along the axis that needs the smallest shove (sideways out of a wall, up onto
+// or down from under a floor), taking the shortest shove that ends inside the map and doesn't pass through any other
+// solid on the way (so being pushed out of a floor can't carry you through the wall beside you). Repeats a few times in
+// case nothing was clear. Returns true if anything moved.
+function shoveClear(p,d,ax,skip){
+  const n=Math.max(1,Math.ceil(Math.abs(d)/.1));
+  for(let j=1;j<=n;j++){
+    const f=d*j/n,x=p.x+(ax===0?f:0),y=p.y+(ax===1?f:0),z=p.z+(ax===2?f:0);
+    if(x<R+.15||x>W-R-.15||z<R+.15||z>W-R-.15||y<0||y>CEIL-H)return false;
+    for(const q of solids)if(!skip.includes(q)&&overlap(x,y,z,q))return false;
+  }
+  return true;
 }
+function pushOut(e){
+  const p=e.pos;let moved=false;
+  for(let i=0;i<4;i++){
+    const s=solidAt(p.x,p.y,p.z);if(!s)break;
+    const skip=solids.filter(q=>overlap(p.x,p.y,p.z,q));
+    const c=[[(s.max[0]+R+.002)-p.x,0],[(s.min[0]-R-.002)-p.x,0],[(s.max[2]+R+.002)-p.z,2],[(s.min[2]-R-.002)-p.z,2],[s.max[1]-p.y,1],[(s.min[1]-H)-p.y,1]]
+      .sort((a,b)=>Math.abs(a[0])-Math.abs(b[0]));
+    const [d,ax]=c.find(k=>shoveClear(p,k[0],k[1],skip))||c[0];
+    if(ax===0){p.x+=d;e.vel.x=0}
+    else if(ax===2){p.z+=d;e.vel.z=0}
+    else{p.y+=d;if(d>0){e.vel.y=0;e.onGround=true}else if(e.vel.y>0)e.vel.y=0}
+    clampToMap(p);moved=true;
+  }
+  return moved;
+}
+// how far up the ramp a point is: 0 at the low edge, 1 at the high edge
+function rampT(r,x,z){switch(r.dir){case 0:return (x-r.x0)/4;case 1:return (z-r.z0)/4;case 2:return (r.x0+4-x)/4;default:return (r.z0+4-z)/4}}
+function rampH(r,x,z){
+  if(x<r.ax0||x>r.ax1||z<r.az0||z>r.az1)return -1;
+  return r.base+.15+4*clamp(rampT(r,x,z),0,1);
+}
+// Ramps are solid: nothing walks or jumps through one, from any side. The sheet is RAMP_UNDER thick below the surface you
+// walk on (as drawn). With the middle of a body over a ramp, the body is clear of it in two cases only: on top (feet no
+// more than a step below the surface, which is how you step onto the low end or land on it from a jump), or underneath
+// with its head below the underside at the lowest point over the body (rampUnder: R further down the slope than the
+// middle). Anything in between is inside the ramp. An edited ramp is one or two sheets of the same slope with a smaller
+// footprint (ax0..az1, from t0 to t1 up the slope): the same rules, each over its own part of the cell.
+const RAMP_UNDER=.33;
+function rampUnder(r,x,z){return r.base+.15+4*clamp(rampT(r,x,z)-R/4,r.t0,r.t1)-RAMP_UNDER}
+function inRamp(r,x,y,z){const h=rampH(r,x,z);return h>=0&&y<h-STEP-.01&&y+H>rampUnder(r,x,z)+.01}
+function rampAt(x,y,z){for(const r of ramps)if(inRamp(r,x,y,z))return r;return null}
+// a move into a ramp (one you were not already inside)
+function rampBlocks(nx,y,nz,ox,oz){for(const r of ramps)if(inRamp(r,nx,y,nz)&&!inRamp(r,ox,y,oz))return r;return null}
+// A body inside a ramp (one was built where it stands) is moved out the shortest way that is free: up onto the ramp, down
+// under it, along the slope to where there is head room underneath or to where the ramp is low enough to step onto, or out
+// of either side. lift (a ramp just built on you): up onto it first if that is no more than 2 m, so a ramp placed in
+// the cell you are standing in puts you on it, ready to climb.
+function rampOut(e,lift){
+  const p=e.pos;let moved=false;
+  for(let i=0;i<4;i++){
+    const r=rampAt(p.x,p.y,p.z);if(!r)break;
+    const t=rampT(r,p.x,p.z),a=r.dir%2===0?0:2,o=2-a,sg=r.dir<2?1:-1,rel=p.y-r.base-.15,po=o===0?p.x:p.z,o0=o===0?r.ax0:r.az0,o1=o===0?r.ax1:r.az1;
+    const up=[rampH(r,p.x,p.z)-p.y,1];
+    const c=[up,[rampUnder(r,p.x,p.z)-H-p.y,1],
+      [sg*(4*(Math.min(r.t1,(rel+H+RAMP_UNDER)/4+R/4)-t)+.004),a],[-sg*(4*(t-Math.max(r.t0,(rel+STEP)/4))+.004),a],
+      [o0-.004-po,o],[o1+.004-po,o]].sort((x,y)=>Math.abs(x[0])-Math.abs(y[0]));
+    if(lift&&up[0]<=2)c.unshift(up);
+    const [d,ax]=c.find(k=>shoveClear(p,k[0],k[1],[])&&!rampAt(p.x+(k[1]===0?k[0]:0),p.y+(k[1]===1?k[0]:0),p.z+(k[1]===2?k[0]:0)))||c[0];
+    if(ax===0){p.x+=d;e.vel.x=0}
+    else if(ax===2){p.z+=d;e.vel.z=0}
+    else{p.y+=d;if(d>0){e.vel.y=0;e.onGround=true}else if(e.vel.y>0)e.vel.y=0}
+    clampToMap(p);moved=true;
+  }
+  return moved;
+}
+// The highest surface under the box (same footprint as the collision box, so you stand on anything your box overlaps
+// and fall only once you're clear of it) up to maxY: the floor, solid tops and ramp surfaces.
 function groundAt(x,z,maxY){
-  let g=0;const rr=R*.85;
-  for(const s of solids){if(x+rr>s.min[0]&&x-rr<s.max[0]&&z+rr>s.min[2]&&z-rr<s.max[2]&&s.max[1]<=maxY&&s.max[1]>g)g=s.max[1]}
+  let g=0;
+  for(const s of solids){if(x+R>s.min[0]&&x-R<s.max[0]&&z+R>s.min[2]&&z-R<s.max[2]&&s.max[1]<=maxY&&s.max[1]>g)g=s.max[1]}
   for(const r of ramps){const h=rampH(r,x,z);if(h>=0&&h<=maxY&&h>g)g=h}
   return g;
 }
+// One axis at a time (x, then z), so you slide along walls; a move that would enter a solid is dropped unless it's a
+// step of up to STEP onto something with head room. Long moves (a slow frame) are split into steps of at most 0.25 m,
+// shorter than the thinnest wall, so nothing can be skipped over; at normal frame rates that's the one step as before.
+// Ramps block the same way (rampBlocks), and a jump under one stops at its underside.
 function moveEntity(e,dt){
-  const p=e.pos;e.blocked=false;
-  for(const ax of [0,2]){
-    const delta=(ax===0?e.vel.x:e.vel.z)*dt;if(!delta)continue;
+  const p=e.pos;e.blocked=false;e.bump=null;
+  pushOut(e);rampOut(e);
+  const sx=p.x,sz=p.z;
+  const n=Math.min(16,Math.max(1,Math.ceil(Math.hypot(e.vel.x,e.vel.z)*dt/.25)));
+  for(let i=0;i<n;i++)for(const ax of [0,2]){
+    const delta=(ax===0?e.vel.x:e.vel.z)*dt/n;if(!delta)continue;
     const nx=ax===0?p.x+delta:p.x,nz=ax===2?p.z+delta:p.z;
-    const s=blockedAt(nx,p.y,nz,p.x,p.z);
-    if(!s){p.x=nx;p.z=nz;continue}
-    const up=s.max[1]-p.y;
-    if(up>0&&up<=STEP&&e.onGround&&!blockedAt(nx,s.max[1]+.001,nz,p.x,p.z)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
-    if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;
+    const s=blockedAt(nx,p.y,nz,p.x,p.z),rb=s?null:rampBlocks(nx,p.y,nz,p.x,p.z);
+    if(!s&&!rb){p.x=nx;p.z=nz;continue}
+    const up=s?s.max[1]-p.y:0;
+    if(up>0&&up<=STEP&&e.onGround&&!solidAt(nx,s.max[1]+.001,nz)&&!rampAt(nx,s.max[1]+.001,nz)){p.x=nx;p.z=nz;p.y=s.max[1]+.001;continue}
+    if(ax===0)e.vel.x=0;else e.vel.z=0;e.blocked=true;e.bump=(s||rb).piece||e.bump;
   }
   p.x=clamp(p.x,R+.15,W-R-.15);p.z=clamp(p.z,R+.15,W-R-.15);
   e.vel.y-=G*dt;
   let ny=p.y+e.vel.y*dt;
   if(e.vel.y<=0){
     const ground=groundAt(p.x,p.z,p.y+STEP);
-    if(ny<=ground){ny=ground;e.vel.y=0;e.onGround=true}
-    else if(e.onGround&&ground>p.y-STEP&&e.vel.y>-5){ny=ground;e.vel.y=0;e.onGround=true}
+    if(ny<=ground||(e.onGround&&ground>p.y-STEP&&e.vel.y>-5)){
+      // a ramp or step rising into something overhead (a floor built over a ramp): don't go up into it. Walking further
+      // up is stopped; if a floor dropped on you already pushed you down below the ramp, you can still walk downhill out
+      if(ground>p.y&&(solidAt(p.x,ground,p.z)||rampAt(p.x,ground,p.z))){
+        if(groundAt(sx,sz,p.y+H)<ground){p.x=sx;p.z=sz;e.vel.x=e.vel.z=0;e.blocked=true}
+        ny=p.y;
+      }else ny=ground;
+      e.vel.y=0;e.onGround=true;
+    }
     else e.onGround=false;
   }else{
     e.onGround=false;let lim=CEIL-H;
     for(const s of solids){if(p.x+R>s.min[0]&&p.x-R<s.max[0]&&p.z+R>s.min[2]&&p.z-R<s.max[2]&&s.min[1]>=p.y+H-.05&&s.min[1]-H<lim)lim=s.min[1]-H}
+    for(const r of ramps){if(rampH(r,p.x,p.z)<0)continue;const u=rampUnder(r,p.x,p.z)-H;if(u>=p.y-.05&&u<lim)lim=u}   // the underside of a ramp overhead
     if(ny>lim){ny=lim;e.vel.y=0}
   }
   p.y=ny;
+  pushOut(e);rampOut(e);
 }
 function rayBox(o,d,mn,mx,maxT){
   let t0=0,t1=maxT;
@@ -721,7 +1430,7 @@ function rayRamp(o,d,r,maxT){
   const den=d[1]-s*d[a];if(Math.abs(den)<1e-6)return -1;
   const k=-fo/den;if(k<0||k>maxT)return -1;
   const px=o[0]+d[0]*k,pz=o[2]+d[2]*k;
-  if(px<r.x0-.01||px>r.x0+4.01||pz<r.z0-.01||pz>r.z0+4.01)return -1;
+  if(px<r.ax0-.01||px>r.ax1+.01||pz<r.az0-.01||pz>r.az1+.01)return -1;
   return k;
 }
 function hitboxes(e){const p=e.pos;return[{head:true,min:[p.x-.28,p.y+1.5,p.z-.28],max:[p.x+.28,p.y+2.06,p.z+.28]},{head:false,min:[p.x-.42,p.y,p.z-.42],max:[p.x+.42,p.y+1.5,p.z+.42]}]}
@@ -737,37 +1446,75 @@ function raycast(o,d,maxT,ignore,withEnts,skipTeam){
 }
 
 /* ---------- characters ---------- */
-const gunMat=new THREE.MeshLambertMaterial({color:0x26241e});
-const pumpMat=new THREE.MeshLambertMaterial({color:0x6b4a2a});
 function box(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m)}
+// Turkey Week (../events.js): a pilgrim hat on every suit. One shared geometry and material (events.js builds the
+// hat), so it is one more draw call each; only the look changes. The Turkey Week switch on the Back Room page turns it off; it is read once, when the game loads.
+const EVT=window.BackRoomEvents&&BackRoomEvents.turkey;const TKON=!!(EVT&&EVT.on());let tkHatMat=null;
+function tkHat(parent,scale,y,z,ry){
+  if(!TKON)return null;
+  const m=new THREE.Mesh(EVT.hat(THREE),tkHatMat||(tkHatMat=new THREE.MeshLambertMaterial({vertexColors:true})));
+  m.scale.setScalar(scale);m.position.set(0,y,z||0);if(ry)m.rotation.y=ry;parent.add(m);return m;
+}
+let LK=null;   // the Locker (locker.js), once it is loaded: see BR_PUBLIC
+// A suit is a few meshes, each several boxes joined up (see parts), so the extra detail costs no extra draw calls.
 function makeSuit(suit,trim,visor){
   const g=new THREE.Group();
   const ms=new THREE.MeshLambertMaterial({color:suit}),mt=new THREE.MeshLambertMaterial({color:trim}),mv=new THREE.MeshBasicMaterial({color:visor});
-  const legs=[-.17,.17].map(x=>{const lg=new THREE.Group();lg.position.set(x,.86,0);const l=box(.28,.86,.3,ms);l.position.y=-.43;const b=box(.31,.16,.38,mt);b.position.set(0,-.78,-.03);lg.add(l,b);g.add(lg);return lg});
-  const torso=box(.74,.72,.44,ms);torso.position.y=1.22;
-  const belt=box(.77,.1,.47,mt);belt.position.y=.9;
-  const tank=box(.42,.52,.2,mt);tank.position.set(0,1.26,.31);
+  const P=(l,m)=>new THREE.Mesh(parts(l),m);
+  // legs: the leg, then the boot and a knee pad
+  const legs=[-.17,.17].map(x=>{const lg=new THREE.Group();lg.position.set(x,.86,0);lg.add(P([[.28,.86,.3,0,-.43,0]],ms),P([[.31,.16,.38,0,-.78,-.03],[.3,.14,.05,0,-.4,-.16]],mt));g.add(lg);return lg});
+  const torso=P([[.74,.72,.44,0,1.22,0]],ms);
+  const gear=P([[.77,.1,.47,0,.9,0],[.42,.52,.2,0,1.26,.31],[.09,.56,.03,-.2,1.28,-.225],[.09,.56,.03,.2,1.28,-.225],[.31,.07,.03,0,1.36,-.225],[.44,.06,.22,0,1.5,.3]],mt);   // belt, air tank, chest straps
+  const lamp=P([[.14,.07,.02,0,1.4,.412],[.05,.05,.02,0,1.16,.412]],mv);                                          // lamps on the tank, in the visor colour: what you see of yourself
   const head=new THREE.Group();head.position.y=1.78;
-  const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=box(.17,.14,.12,mt);filt.position.set(0,-.17,-.3);head.add(hood,vis,filt);
+  const hood=box(.54,.54,.54,ms);const vis=box(.42,.22,.04,mv);vis.position.set(0,.03,-.275);const filt=P([[.17,.14,.12,0,-.17,-.3],[.46,.05,.05,0,.17,-.27]],mt);head.add(hood,vis,filt);const tk=tkHat(head,.92,.27);
   const arms=new THREE.Group();arms.position.set(0,1.44,0);
-  const aL=box(.17,.17,.62,ms);aL.position.set(-.26,-.05,-.26);aL.rotation.y=-.35;
-  const aR=box(.17,.17,.62,ms);aR.position.set(.3,-.05,-.22);
-  const gun=new THREE.Group();gun.position.set(.16,-.04,-.62);arms.add(aL,aR,gun);
-  g.add(torso,belt,tank,head,arms);
-  g.userData={legs,arms,gun,head,gunId:-1,ms,mt,mv};
+  const sleeves=P([[.17,.17,.62,-.26,-.05,-.26,-.35],[.17,.17,.62,.3,-.05,-.22]],ms);
+  const gloves=P([[.18,.18,.14,-.176,-.05,-.49,-.35],[.18,.18,.14,.3,-.05,-.465]],mt);
+  const gun=new THREE.Group();gun.position.set(.16,-.04,-.62);arms.add(sleeves,gloves,gun);
+  g.add(torso,gear,lamp,head,arms);
+  // base: the plain suit's meshes and tk its pilgrim hat (an outfit from the Locker hides them and puts its own in: locker.js)
+  g.userData={legs,arms,gun,head,gunId:-1,ms,mt,mv,tk,base:[...legs.flatMap(l=>l.children),torso,gear,lamp,hood,vis,filt,sleeves,gloves]};
   return g;
 }
 // Suit colours: your practice suit, the Entity, and the two online teams.
 const SUITS={me:[0xe8e9e4,0x34536e,0x7fd3ff],entity:[0x1d1c19,0x3c3a33,0xff3b2e],r:[0xc8402f,0x5e1c14,0xffd2b8],b:[0x2f6ad6,0x15305f,0xbfe8ff]};
-function setSuit(model,key){const c=SUITS[key]||SUITS.me,u=model.userData;u.ms.color.setHex(c[0]);u.mt.color.setHex(c[1]);u.mv.color.setHex(c[2])}
+function setSuit(model,key){const c=SUITS[key]||SUITS.me,u=model.userData;u.ms.color.setHex(c[0]);u.mt.color.setHex(c[1]);u.mv.color.setHex(c[2]);u.key=key;if(LK)LK.suit(model)}
+// The three guns: each is one mesh made of boxes coloured per corner (one draw call), shared by every character.
+// z is along the barrel, pointing away from the holder. GUN_TIP is how far the muzzle is from the hands.
+// gunFit squeezes a gun along its barrel so it runs from z0 to z1: each gun is exactly as long as the plain one it
+// replaced (rifle 0.78 m, shotgun 0.86 m, sniper 1.18 m), so a character holding it takes up the same space as before.
+const gunVMat=new THREE.MeshLambertMaterial({vertexColors:true});
+const GC={steel:[.2,.2,.22],dark:[.09,.09,.1],grey:[.4,.41,.4],wood:[.52,.32,.16],tan:[.56,.48,.31],amber:[.96,.63,.16],red:[.82,.2,.15],lens:[.3,.82,.95]};
+const gunFit=(l,z0,z1)=>{let a=1e9,b=-1e9;for(const p of l){a=Math.min(a,p[5]-p[2]/2);b=Math.max(b,p[5]+p[2]/2)}const k=(z1-z0)/(b-a);
+  return parts(l.map(p=>{const q=p.slice();q[2]=p[2]*k;q[5]=z0+(p[5]-p[2]/2-a)*k+q[2]/2;return q}))};
+const GUN_SRC=[
+  [[[.1,.15,.4,0,0,.04,0,GC.steel],[.085,.11,.3,0,.005,-.3,0,GC.grey],[.04,.04,.2,0,.02,-.54,0,GC.dark],[.06,.06,.07,0,.02,-.63,0,GC.dark],
+    [.07,.11,.16,0,-.025,.3,0,GC.grey],[.085,.16,.04,0,-.04,.385,0,GC.dark],[.065,.15,.1,0,-.14,-.04,0,GC.dark],[.065,.06,.1,0,-.22,-.065,0,GC.dark],
+    [.055,.13,.07,0,-.13,.15,0,GC.dark],[.045,.025,.34,0,.088,-.06,0,GC.dark],[.05,.05,.03,0,.12,.12,0,GC.dark],[.03,.06,.03,0,.105,-.42,0,GC.dark],[.105,.035,.1,0,.03,.1,0,GC.amber]],-.39,.39],
+  [[[.11,.15,.32,0,0,.08,0,GC.steel],[.055,.055,.56,0,.035,-.36,0,GC.dark],[.05,.05,.46,0,-.03,-.31,0,GC.dark],[.12,.1,.22,0,-.04,-.27,0,GC.wood],
+    [.09,.13,.2,0,-.03,.3,0,GC.wood],[.095,.16,.04,0,-.045,.4,0,GC.dark],[.06,.1,.07,0,-.11,.2,0,GC.wood],[.02,.03,.02,0,.075,-.62,0,GC.amber],
+    [.02,.06,.045,.062,0,.02,0,GC.red],[.02,.06,.045,.062,0,.08,0,GC.red],[.02,.06,.045,.062,0,.14,0,GC.red]],-.43,.43],
+  [[[.085,.13,.38,0,0,.08,0,GC.steel],[.04,.04,.74,0,.015,-.48,0,GC.dark],[.065,.065,.1,0,.015,-.88,0,GC.dark],[.075,.08,.3,0,-.03,-.24,0,GC.tan],
+    [.075,.14,.2,0,-.03,.3,0,GC.tan],[.06,.04,.14,0,.06,.28,0,GC.dark],[.085,.17,.04,0,-.04,.4,0,GC.dark],[.06,.06,.34,0,.135,0,0,GC.dark],
+    [.085,.085,.08,0,.135,-.2,0,GC.dark],[.075,.075,.06,0,.135,.19,0,GC.dark],[.065,.065,.012,0,.135,-.245,0,GC.lens],[.03,.05,.04,0,.085,-.08,0,GC.steel],
+    [.03,.05,.04,0,.085,.1,0,GC.steel],[.06,.09,.1,0,-.1,.02,0,GC.dark],[.02,.02,.26,-.035,-.04,-.52,0,GC.grey],[.02,.02,.26,.035,-.04,-.52,0,GC.grey],[.05,.025,.025,.065,.03,.14,0,GC.grey]],-.75,.43]
+];
+const GUN_GEO=GUN_SRC.map(a=>gunFit(...a));
+const GUN_TIP=[.39,.43,.75];
 function setGun(model,wi){
   const u=model.userData;if(u.gunId===wi)return;u.gunId=wi;
-  const gun=u.gun;while(gun.children.length){const c=gun.children[0];gun.remove(c);c.geometry.dispose()}
-  if(wi===0){const b=box(.1,.16,.78,gunMat);const m=box(.08,.2,.1,gunMat);m.position.set(0,-.15,-.05);gun.add(b,m)}
-  else if(wi===1){const b=box(.12,.14,.86,gunMat);const p=box(.14,.1,.26,pumpMat);p.position.set(0,-.1,-.24);gun.add(b,p)}
-  else{const b=box(.09,.12,1.18,gunMat);b.position.z=-.16;const s=box(.08,.08,.34,gunMat);s.position.set(0,.12,-.05);gun.add(b,s)}
+  const geo=(u.lk&&LK&&LK.gunGeo(wi,u.lk.g))||GUN_GEO[wi]||GUN_GEO[0];   // u.lk: what it wears from the Locker (locker.js)
+  if(u.gunMesh)u.gunMesh.geometry=geo;else{u.gunMesh=new THREE.Mesh(geo,gunVMat);u.gun.add(u.gunMesh)}
 }
-function newEnt(model){return{pos:new V3(),vel:new V3(),onGround:false,hp:100,shield:50,alive:true,present:true,yaw:0,pitch:0,model,walk:0,wi:0,ammo:WEAPONS.map(w=>w.mag),cd:0,reloadT:0,switchT:0,dieT:0}}
+// the soft round shadow that sits on the ground under a character: 1 m across, about the width of the figure, so it
+// grounds the feet without making the character read as bigger than it is
+const shadowTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,3,32,32,31);
+  r.addColorStop(0,'rgba(20,14,2,.62)');r.addColorStop(.55,'rgba(20,14,2,.36)');r.addColorStop(1,'rgba(20,14,2,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)})();
+const shadowGeo=new THREE.PlaneGeometry(1,1);
+const shadowMat=new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+function makeShadow(){const m=new THREE.Mesh(shadowGeo,shadowMat);m.rotation.order='YXZ';m.visible=false;scene.add(m);return m}
+function newEnt(model){return{shadow:makeShadow(),kick:0,pos:new V3(),vel:new V3(),onGround:false,hp:100,shield:50,alive:true,present:true,yaw:0,pitch:0,model,walk:0,wi:0,ammo:WEAPONS.map(w=>w.mag),cd:0,reloadT:0,switchT:0,dieT:0}}
 const player=newEnt(makeSuit(...SUITS.me));
 const opp=newEnt(makeSuit(...SUITS.entity));   // the practice bot
 // ents: everything shots can hit. Practice: you and the Entity. Online: you and every remote player (remotes, by uid).
@@ -779,21 +1526,73 @@ Object.assign(opp,{seen:0,lastSeen:99,path:null,repath:0,strafeDir:1,strafeT:0,b
 
 /* ---------- effects ---------- */
 const fx=[];
+// Tracers, muzzle flashes and impact sparks come from small pools made once, so a shot makes no new objects. When a
+// pool runs out, the oldest one is taken over.
+function pool(n,make){const a=[];let i=0;return()=>{let o=a[i];if(!o){o=a[i]=make();scene.add(o)}else if(o.userData.fx)o.userData.fx.gone=true;i=(i+1)%n;o.visible=true;return o}}
+function play(o,life,kind){const f={obj:o,life,max:life,kind,pooled:true};o.userData.fx=f;fx.push(f)}
+// a tracer is a thin glowing beam: four-sided, and as wide at each end as it needs to be to show about two pixels
+// across wherever it is, so it reads the same nearby and down a long corridor
+const TR_IDX=[0,1,5,0,5,4,1,2,6,1,6,5,2,3,7,2,7,6,3,0,4,3,4,7];
+const nextTracer=pool(40,()=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(24),3));g.setIndex(TR_IDX);
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false,side:THREE.DoubleSide}));m.frustumCulled=false;return m});
+const trD=new V3(),trU=new V3(),trV=new V3(),trA=new V3(),trUp=new V3(0,1,0),trX=new V3(1,0,0);
 function addTracer(a,b,color){
-  const geo=new THREE.BufferGeometry().setFromPoints([a,b]);
-  const mat=new THREE.LineBasicMaterial({color,transparent:true,opacity:.85});
-  const line=new THREE.Line(geo,mat);scene.add(line);fx.push({obj:line,life:.07,max:.07,kind:'line'});
+  trD.subVectors(b,a);const len=trD.length();if(len<.05)return;trD.divideScalar(len);
+  // drawn from the end of the barrel rather than from inside the arms (the shot itself starts where it always did)
+  trA.copy(a).addScaledVector(trD,len>1.6?.6:0);
+  trU.crossVectors(trD,Math.abs(trD.y)>.95?trX:trUp).normalize();trV.crossVectors(trD,trU);
+  const m=nextTracer(),p=m.geometry.attributes.position,cp=camera.position;
+  const ta=clamp(cp.distanceTo(trA)*.0022,.008,.12),tb=clamp(cp.distanceTo(b)*.0022,.008,.12);
+  for(let i=0;i<8;i++){const e=i<4?trA:b,t=i<4?ta:tb,su=(i&3)===0||(i&3)===3?-t:t,sv=(i&3)<2?-t:t;p.setXYZ(i,e.x+trU.x*su+trV.x*sv,e.y+trU.y*su+trV.y*sv,e.z+trU.z*su+trV.z*sv)}
+  p.needsUpdate=true;m.material.color.setHex(color);m.material.opacity=.9;
+  play(m,.09,'line');
 }
-const sparkMat=new THREE.MeshBasicMaterial({color:0xfff1b0});const sparkGeo=new THREE.BoxGeometry(.12,.12,.12);
-function spark(p){const m=new THREE.Mesh(sparkGeo,sparkMat);m.position.copy(p);scene.add(m);fx.push({obj:m,life:.09,max:.09,kind:'spark'})}
+// one small star-shaped glow, used for the muzzle flash and for the flash where a shot lands
+const flashTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),r=g.createRadialGradient(32,32,0,32,32,30);
+  r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.22,'rgba(255,238,170,.9)');r.addColorStop(.55,'rgba(255,170,60,.3)');r.addColorStop(1,'rgba(255,140,40,0)');g.fillStyle=r;g.fillRect(0,0,64,64);
+  g.globalCompositeOperation='lighter';g.fillStyle='rgba(255,236,180,.85)';g.translate(32,32);g.rotate(.4);
+  for(let i=0;i<4;i++){g.rotate(Math.PI/2);g.beginPath();g.moveTo(0,-3.5);g.lineTo(31,0);g.lineTo(0,3.5);g.closePath();g.fill()}
+  return new THREE.CanvasTexture(c)})();
+const glowSprite=()=>new THREE.Sprite(new THREE.SpriteMaterial({map:flashTex,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));
+const nextFlash=pool(8,glowSprite),nextPuff=pool(14,glowSprite);
+// the flash at the end of the shooter's barrel, and the gun's kick (not shown with reduced motion, or when your own
+// body is hidden because the camera is right behind it or you are looking down the scope)
+function muzzleFlash(e,wi){
+  if(!e||!e.model)return;e.kick=RM?0:1;
+  if(RM||!e.model.visible)return;
+  const g=e.model.userData.gun,s=nextFlash();g.updateWorldMatrix(true,false);
+  s.position.set(0,.02,-(GUN_TIP[wi]||GUN_TIP[0])-.05).applyMatrix4(g.matrixWorld);
+  s.material.rotation=Math.random()*6.283;s.material.opacity=1;s.userData.s=wi===1?.95:wi===2?.85:.55;s.scale.setScalar(s.userData.s);
+  play(s,.055,'flash');
+}
+// where a shot lands: a quick flash and a few sparks that fall away
+// (all the sparks in the air are one instanced mesh, so a shotgun blast is still one draw call of them)
+const BITS=48,bitIM=new THREE.InstancedMesh(new THREE.BoxGeometry(.05,.05,.05),new THREE.MeshBasicMaterial({color:0xffdc8c}),BITS);
+bitIM.count=0;bitIM.visible=false;bitIM.frustumCulled=false;scene.add(bitIM);
+const bits=Array.from({length:BITS},()=>({p:new V3(),v:new V3(),life:0,max:1})),bitM=new THREE.Matrix4();let bitNext=0;
+function spark(p){
+  const f=nextPuff();f.position.copy(p);f.material.rotation=Math.random()*6.283;f.material.opacity=.95;f.scale.setScalar(.22);play(f,.1,'puff');
+  if(RM)return;
+  for(let i=0;i<3;i++){const b=bits[bitNext];bitNext=(bitNext+1)%BITS;b.p.copy(p);b.v.set((Math.random()-.5)*5,.6+Math.random()*3.4,(Math.random()-.5)*5);b.life=b.max=.16+Math.random()*.14}
+}
+function updateBits(dt){
+  let n=0;
+  for(const b of bits){if(b.life<=0)continue;b.life-=dt;b.v.y-=16*dt;b.p.addScaledVector(b.v,dt);const k=.35+.65*Math.max(0,b.life)/b.max;bitM.makeScale(k,k,k).setPosition(b.p);bitIM.setMatrixAt(n++,bitM)}
+  if(n||bitIM.visible){bitIM.count=n;bitIM.visible=n>0;bitIM.instanceMatrix.needsUpdate=true}
+}
 const debrisGeo=new THREE.BoxGeometry(.5,.08,.5);
 function debris(p){for(let i=0;i<8;i++){const m=new THREE.Mesh(debrisGeo,plyMat);m.position.copy(p).add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4));m.rotation.set(Math.random()*3,Math.random()*3,0);scene.add(m);fx.push({obj:m,life:.7,max:.7,kind:'debris',v:new V3((Math.random()-.5)*5,Math.random()*4,(Math.random()-.5)*5),spin:(Math.random()-.5)*10})}}
 function updateFx(dt){
-  for(let i=fx.length-1;i>=0;i--){const f=fx[i];f.life-=dt;
-    if(f.kind==='line')f.obj.material.opacity=.85*Math.max(0,f.life)/f.max;
-    if(f.kind==='debris'){f.v.y-=18*dt;f.obj.position.addScaledVector(f.v,dt);f.obj.rotation.x+=f.spin*dt;f.obj.scale.setScalar(Math.max(.01,f.life/f.max))}
-    if(f.life<=0){scene.remove(f.obj);if(f.kind==='line'){f.obj.geometry.dispose();f.obj.material.dispose()}fx.splice(i,1)}
+  for(let i=fx.length-1;i>=0;i--){const f=fx[i];
+    if(f.gone){fx.splice(i,1);continue}
+    f.life-=dt;const k=Math.max(0,f.life)/f.max,o=f.obj;
+    if(f.kind==='line')o.material.opacity=.9*k;
+    else if(f.kind==='flash'){o.scale.setScalar(o.userData.s*(1.3-.3*k));o.material.opacity=k}
+    else if(f.kind==='puff'){o.scale.setScalar(.22+.4*(1-k));o.material.opacity=.95*k}
+    else if(f.kind==='debris'){f.v.y-=18*dt;o.position.addScaledVector(f.v,dt);o.rotation.x+=f.spin*dt;o.scale.setScalar(Math.max(.01,f.life/f.max))}
+    if(f.life<=0){if(f.pooled){o.visible=false;o.userData.fx=null}else scene.remove(o);fx.splice(i,1)}
   }
+  updateBits(dt);
   for(const pc of pieces.values()){if(pc.pop<1){pc.pop=Math.min(1,pc.pop+dt*9);pc.obj.scale.setScalar(.82+.18*pc.pop)}}
 }
 const dmgLayer=$('dmg');const dnums=[];
@@ -827,14 +1626,15 @@ function sfxHit(head){tone('square',head?1500:1050,head?1700:1000,.07,.06)}
 function sfxHurt(){tone('sine',90,40,.5,.25);burst('lowpass',500,.25,.15)}
 function sfxCrackle(v){burst('highpass',2500,.08*v,.14)}
 function sfxJoin(){tone('triangle',440,660,.12,.18)}
+function sfxFind(){tone('sine',880,1320,.05,.16)}
 
 /* ---------- HUD ---------- */
-const hud={root:$('hud'),sYou:$('sYou'),sBot:$('sBot'),sYouLbl:$('sYouLbl'),sBotLbl:$('sBotLbl'),round:$('roundLbl'),goal:$('goalLbl'),pips:$('pips'),pipR:$('pipR'),pipB:$('pipB'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),hint:$('hint'),reload:$('reload'),reloadF:$('reloadFill'),scope:$('scope'),hurt:$('hurt'),hitm:$('hitm'),clock:$('clock'),feed:$('feed'),banner:$('banner'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),cross:$('cross'),tags:$('tags'),net:$('net')};
+const hud={root:$('hud'),sYou:$('sYou'),sBot:$('sBot'),sYouLbl:$('sYouLbl'),sBotLbl:$('sBotLbl'),round:$('roundLbl'),goal:$('goalLbl'),pips:$('pips'),pipR:$('pipR'),pipB:$('pipB'),hpN:$('hpNum'),hpF:$('hpFill'),shN:$('shNum'),shF:$('shFill'),hint:$('hint'),reload:$('reload'),reloadF:$('reloadFill'),scope:$('scope'),hurt:$('hurt'),hitm:$('hitm'),clock:$('clock'),feed:$('feed'),banner:$('banner'),cl:$('cl'),cr:$('cr'),ct:$('ct'),cb:$('cb'),cross:$('cross'),tags:$('tags'),net:$('net'),find:$('find'),findTxt:$('findTxt'),findBar:$('findBar')};
 let hurtA=0,hitT=0;
 function hitmark(head){hitT=.14;hud.hitm.style.color=head?'#ffd84a':'#fff'}
 function feed(html,cls){const d=document.createElement('div');d.className=cls;d.innerHTML=html;hud.feed.prepend(d);while(hud.feed.children.length>5)hud.feed.lastChild.remove();setTimeout(()=>{d.style.opacity='0'},3800);setTimeout(()=>d.remove(),4500)}
 let bannerTimer=0;
-function banner(big,small,dur){hud.banner.innerHTML=`<div class="big">${esc(big)}</div>${small?`<div class="small">${esc(small)}</div>`:''}`;hud.banner.classList.remove('show');void hud.banner.offsetWidth;hud.banner.classList.add('show');hud.banner.hidden=false;bannerTimer=dur||1.6}
+function banner(big,small,dur){big=TX(big);small=small&&TX(small);hud.banner.innerHTML=`<div class="big">${esc(big)}</div>${small?`<div class="small">${esc(small)}</div>`:''}`;hud.banner.classList.remove('show');void hud.banner.offsetWidth;hud.banner.classList.add('show');hud.banner.hidden=false;bannerTimer=dur||1.6}
 function fmtClock(s){s=Math.floor(s);const h=Math.floor(s/3600),m=Math.floor(s/60)%60,x=s%60;return [h,m,x].map(n=>String(n).padStart(2,'0')).join(':')}
 // Practice: You vs the Entity. Online: Red vs Blue team scores.
 function setScores(){
@@ -851,13 +1651,72 @@ function setScores(){
 
 /* ---------- game state ---------- */
 let state='menu',paused=false,online=false,phase='fight',phaseT=0,score={you:0,opp:0},matchTime=0,clockT=0;
-let oppName='Entity',mode='combat',buildType='wall',lmb=false,rmb=false,buildCd=0,camDist=3.5,locked=false,fallback=false,everLocked=false;
-const keys=new Set();
+let oppName='Entity',mode='combat',buildType='wall',lmb=false,buildCd=0,camDist=3.5,locked=false,fallback=false,everLocked=false;
+// Keys and mouse buttons can be changed in the Controls panel (../keybinds.js); saved in this browser as
+// keybinds:backrooms-1v1. keys holds the e.codes held down, and mouse buttons as Mouse0 (left) / Mouse2 (right).
+// lmb is "Shoot / place held" from a key or mouse button; the touch buttons hold actions in tAct (by action id),
+// so they work whatever keys are bound.
+const LOOK='Look, if the mouse can\u2019t be locked';
+const KB=Keybinds.create({
+  game:'backrooms-1v1',
+  mouse:true,
+  actions:[
+    {id:'forward',label:'Move forward',group:'Move',keys:['KeyW']},
+    {id:'back',label:'Move back',group:'Move',keys:['KeyS']},
+    {id:'left',label:'Move left',group:'Move',keys:['KeyA']},
+    {id:'right',label:'Move right',group:'Move',keys:['KeyD']},
+    {id:'jump',label:'Jump',group:'Move',keys:['Space']},
+    {id:'fire',label:'Shoot / place build',group:'Fight',keys:['Mouse0']},
+    {id:'aim',label:'Aim / scope',note:'Hold. Aim keys on the keyboard also leave build mode',group:'Fight',keys:['ShiftLeft','Mouse2']},
+    {id:'rifle',label:'Rifle',note:'The mouse wheel switches guns too',group:'Fight',keys:['Digit1']},
+    {id:'shotgun',label:'Shotgun',group:'Fight',keys:['Digit2']},
+    {id:'sniper',label:'Sniper',group:'Fight',keys:['Digit3']},
+    {id:'reload',label:'Reload',group:'Fight',keys:['KeyR']},
+    {id:'wall',label:'Build a wall',group:'Build',keys:['KeyQ','KeyZ']},
+    {id:'floor',label:'Build a floor',group:'Build',keys:['KeyF','KeyX']},
+    {id:'ramp',label:'Build a ramp',group:'Build',keys:['KeyC','KeyE']},
+    {id:'edit',label:'Edit a build',note:'Aim at one of yours. Hold, look across the tiles, let go to confirm (Edit on release; off, or a quick tap: pick tiles, press again). Reload resets it, Aim cancels',group:'Build',keys:['KeyG']},
+    {id:'lookUp',label:'Look up',group:LOOK,keys:['ArrowUp']},
+    {id:'lookDown',label:'Look down',group:LOOK,keys:['ArrowDown']},
+    {id:'lookLeft',label:'Look left',group:LOOK,keys:['ArrowLeft']},
+    {id:'lookRight',label:'Look right',group:LOOK,keys:['ArrowRight']},
+    {id:'pause',label:'Pause, menu and invite link',group:'Match',keys:['KeyP'],lock:['Escape']},
+    {id:'watch',label:'When out: watch the next teammate',group:'Match',text:'Click'}
+  ],
+  classes:{button:'ghost-btn',primary:'cta'}
+});
+const keys=new Set(),tAct={};
+const held=id=>!!tAct[id]||KB.held(id,keys);
+const firing=()=>lmb||!!tAct.fire;
+function clearInput(){lmb=false;keys.clear();for(const k in tAct)tAct[k]=false;editHold=null}
 // Online team play. RD is the room's round node as last seen (only the host writes it, see hostDuties).
 // curMatch / curRound: the match id and round number this browser has set up; roster: uid -> 'r' | 'b' for that match.
+let mapKey='';   // which match:round the current layout belongs to
 let RD=null,curMatch=null,curRound=0,roster=new Map(),myTeamPref='r',myKills=0,lobbyShown=false,lobbyDirty=false,watchMode=false,specUid=null,lastRz='';
 const names=new Map(),kills=new Map();   // uid -> name / kills this match, kept for players who leave mid-match
 const roundNo=()=>online?curRound:score.you+score.opp+1;
+// Find tags: once a round's fight has run for FIND_AT seconds, every FIND_EVERY seconds a name tag shows over every
+// living player for FIND_SHOW seconds, through walls, so players who can't find each other can (drawn in updateHud).
+// The clock is the round's own, so every browser flashes at the same moments and nothing new is sent: online, the
+// server-clock time since the fight began (the round node's pt is when the countdown ended, and it is left alone for the
+// whole fight phase); in practice, the seconds fought this round (roundT). findShift is only ever set by the test hook.
+const FIND_AT=90,FIND_EVERY=15,FIND_SHOW=2;
+let roundT=0,findShift=0,findSec=-1,findOn=false,findNoted=null;
+function findClock(){
+  if(state!=='playing')return -1;
+  if(!online)return phase==='fight'?roundT+findShift:-1;
+  return inPlay()&&RD.ph==='fight'&&curMatch===RD.id&&+RD.pt>0?Math.max(0,(Net.now()-RD.pt)/1000)+findShift:-1;
+}
+// How a tag looks u seconds into its flash: [opacity, size, white]. It pops in white and blinks once, holds in its team
+// colour, then blinks twice and is gone. With reduced motion it only fades in and out.
+function findEnv(u){
+  const e=FIND_SHOW-u;
+  if(RM)return[clamp(Math.min(u,e)/.2,0,1),1,0];
+  if(u<.1)return[u/.1,1.6-6*u,1];
+  if(u<.34)return[u>.18&&u<.26?.2:1,1,u<.18?1:0];
+  if(e>.5)return[1,1,0];
+  return[e>.38?1:e>.26?.2:e>.14?1:e/.14,1,0];
+}
 const matchTarget=()=>RD&&[3,5,10].includes(RD.to)?RD.to:5;
 const inPlay=()=>!!RD&&(RD.ph==='cd'||RD.ph==='fight'||RD.ph==='over');
 const myTeam=()=>online?roster.get(Net.uid)||null:null;
@@ -869,42 +1728,50 @@ function spawn(e,cell){
   e.pos.set(cx*4+2,0,cz*4+2);e.vel.set(0,0,0);e.hp=100;e.shield=50;e.alive=true;e.dieT=0;e.onGround=true;
   e.ammo=WEAPONS.map(w=>w.mag);e.cd=0;e.reloadT=0;e.switchT=0;
   e.yaw=yawTo(W/2-e.pos.x,W/2-e.pos.z);e.pitch=0;e.model.visible=e.present;
+  pushOut(e);
 }
-// Practice rounds (online rounds start in startOnlineRound)
+// A fresh v3 layout for practice (and the menu backdrop); round > 1 shows the lights going out as the rooms change.
+function practiceMap(){const sd=randSeed();generateMap(sd,mapSizeV2(2,sd))}
+function shiftFx(){if(RM)return;const el=$('shift');el.classList.remove('on');void el.offsetWidth;el.classList.add('on');sfxCrackle(.7)}
+// Practice rounds (online rounds start in startOnlineRound): every round is a new layout
 function newRound(){
-  clearPieces();
+  practiceMap();if(roundNo()>1)shiftFx();roundT=0;
   spawn(player,soloCell(0));spawn(opp,soloCell(1));
   player.wi=0;setGun(player.model,0);opp.wi=0;setGun(opp.model,0);
   Object.assign(opp,{seen:0,lastSeen:99,path:null,repath:0,buildCd:0,hurt:false,rampT:0,breakT:0,switchCd:0});
   mode='combat';phase='countdown';phaseT=1.5;
   setScores();
-  banner('ROUND '+roundNo(),score.you+' – '+score.opp,1.4);
+  banner(TX('ROUND {n}',{n:roundNo()}),score.you+' – '+score.opp,1.4);
 }
-function resetScores(){score={you:0,opp:0};matchTime=0;hud.feed.innerHTML=''}
+function resetScores(){score={you:0,opp:0};matchTime=0;hud.feed.innerHTML='';findNoted=null}
 function showHud(){state='playing';paused=false;$('osd').hidden=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('lobby').hidden=true;lobbyShown=false;$('hud').hidden=false;setScores()}
 
 function startPractice(){
   initAudio();Net.leave();online=false;oppName='Entity';
   opp.present=true;player.present=true;player.team=undefined;setSuit(player.model,'me');
-  generateMap(randSeed());resetScores();newRound();
+  resetScores();newRound();
   showHud();requestLock(true);
 }
 
 function endMatch(){
   state='end';$('hud').hidden=true;hideGhosts();
   const won=score.you>score.opp;
-  $('endTitle').textContent=won?'YOU GOT OUT':'NO EXIT';
+  if(won&&window.BackRoomStats)BackRoomStats.add('wins',1);
+  $('endTitle').textContent=TX(won?'YOU GOT OUT':'NO EXIT');
   $('eYou').textContent=score.you;$('eBot').textContent=score.opp;$('eYou').parentNode.classList.remove('tmode');$('endTeams').hidden=true;
+  $('endKd').textContent=kdLine(score.you,score.opp);
   $('endClock').textContent=fmtClock(matchTime);
   $('again').textContent='Rematch';$('again').disabled=false;$('toMenu').textContent='Menu';
-  $('endMsg').textContent=won?`You eliminated the entity ${score.you} times on ${diffKey} difficulty. The hum is quieter now.`:`The entity took ${score.opp} rounds on ${diffKey} difficulty. Try building higher before you push.`;
+  $('endMsg').textContent=TX(won?'You eliminated the entity {n} times on {d} difficulty. The hum is quieter now.':'The entity took {n} rounds on {d} difficulty. Try building higher before you push.',{n:won?score.you:score.opp,d:TX(diffKey)});
   $('end').hidden=false;showAd('adEnd');
   if(document.pointerLockElement)document.exitPointerLock();
 }
+// "3 kills · 1 death · K/D 3.00"
+function kdLine(k,d){return TX('{k} kill'+(k===1?'':'s')+' · {d} death'+(d===1?'':'s')+' · K/D {r}',{k,d,r:kdStr(k,d)})}
 function pauseGame(){if(state!=='playing'||paused||lobbyShown)return;
   // online and not playing this match (watching): Esc brings the lobby panel back instead
   if(online&&!activeOnline()){watchMode=false;showLobby();return}
-  paused=true;lmb=rmb=false;keys.clear();
+  paused=true;clearInput();
   $('pauseMsg').textContent=online?'The match keeps running while this menu is open.':'The fluorescent hum keeps going without you.';
   $('copyInvite').hidden=!(online&&!Net.quick);$('pauseRoom').textContent=online?Net.room:'LEVEL 0';$('inviteMsg').textContent='';
   $('pause').hidden=false}
@@ -913,15 +1780,18 @@ function toMenu(){
   const was=online;
   Net.leave();online=false;state='menu';$('osd').hidden=true;paused=false;$('pause').hidden=true;$('end').hidden=true;$('hud').hidden=true;$('lobby').hidden=true;lobbyShown=false;$('menu').hidden=false;hideGhosts();hud.banner.hidden=true;
   opp.present=true;player.present=true;player.team=undefined;setSuit(player.model,'me');
-  if(was){generateMap(randSeed());spawn(player,soloCell(0));spawn(opp,soloCell(1))}
+  if(was){practiceMap();spawn(player,soloCell(0));spawn(opp,soloCell(1))}
   if(document.pointerLockElement)document.exitPointerLock();showAd('adMenu')}
 
 function onKill(victim,killer,wi,head){
   if(!victim.alive&&victim===player&&phase==='over')return;
   victim.alive=false;victim.dieT=0;
-  const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+w.name+(head?' · head':'');
-  if(victim===opp){score.you++;feed(`You <b>⟶</b> ${esc(oppName)}${tail}`,'you');banner('ENTITY DOWN',head?'Headshot':'Eliminated',2.2)}
-  else{score.opp++;feed(`${esc(oppName)} <b>⟶</b> You${tail}`,'them');banner('ELIMINATED','The entity got you',2.2)}
+  if(LK)LK.elim(victim,killer);   // the winner's elimination effect (locker.js), if they wear one
+  const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+TX(w.name)+(head?' · '+TX('head'):'');
+  if(victim===opp&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.add('kdkills',1);BackRoomStats.max('mkills',score.you+1)}
+  if(victim===player&&window.BackRoomStats)BackRoomStats.add('deaths',1);
+  if(victim===opp){score.you++;feed(`${esc(TX('You'))} <b>⟶</b> ${esc(TX(oppName))}${tail}`,'you');banner('ENTITY DOWN',head?'Headshot':'Eliminated',2.2)}
+  else{score.opp++;feed(`${esc(TX(oppName))} <b>⟶</b> ${esc(TX('You'))}${tail}`,'them');banner('ELIMINATED','The entity got you',2.2)}
   hud.sYou.textContent=score.you;hud.sBot.textContent=score.opp;
   if(phase!=='over'){phase='over';phaseT=2.6}
 }
@@ -943,13 +1813,14 @@ function muzzleOf(e){return e.pos.clone().add(new V3(0,1.38,0)).addScaledVector(
 function resolveShot(shooter,w,rays,color){
   const skip=online?shooter.team:null;
   const entAcc=new Map(),pcAcc=new Map(),ends=[];
+  muzzleFlash(shooter,WEAPONS.indexOf(w));
   for(const ry of rays){
     const res=raycast(arr(ry.o),arr(ry.d),ry.max,shooter,true,skip);
     const end=ry.o.clone().addScaledVector(ry.d,res.t);ends.push(end);
     addTracer(ry.o,end,color);
     if(!res.hit)continue;
     let dmg=w.dmg;if(w.falloff)dmg*=res.t<6?1:Math.max(.3,1-(res.t-6)/22);
-    if(res.hit.kind==='ent'){const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
+    if(res.hit.kind==='ent'){spark(end);const a=entAcc.get(res.hit.ent)||{d:0,head:false,pt:end};a.d+=dmg*(res.hit.head?w.head:1);a.head=a.head||res.hit.head;entAcc.set(res.hit.ent,a)}
     else{spark(end);if(res.hit.kind==='piece')pcAcc.set(res.hit.piece,(pcAcc.get(res.hit.piece)||0)+dmg*w.build)}
   }
   const pd=[];
@@ -965,8 +1836,8 @@ function resolveShot(shooter,w,rays,color){
   }
   return{ends,pd,hits};
 }
-// Right-click or hold Shift to aim; with the sniper that brings up the scope.
-const aimHeld=()=>rmb||keys.has('ShiftLeft')||keys.has('ShiftRight');
+// Right-click or hold Shift to aim (the Aim keys); with the sniper that brings up the scope.
+const aimHeld=()=>held('aim');
 function isADS(){return state==='playing'&&!paused&&mode==='combat'&&aimHeld()&&player.alive&&player.reloadT<=0&&(!online||activeOnline())}
 function curSpread(e,w,ads){const moving=Math.hypot(e.vel.x,e.vel.z)>1.2||!e.onGround;let s=ads?w.ads:w.hip;if(moving&&w.pellets===1)s=s*1.7+.004;return s}
 function playerShoot(){
@@ -1013,6 +1884,194 @@ function playerBuildSpec(type){
   }
   return{kind:'ramp',x:ax,z:az,L:Math.round(p.y/4),dir};
 }
+/* ---------- editing builds ---------- */
+// Aim at a build your team made (in practice, one you made) from within EDIT_RANGE and press Edit: the piece turns
+// into its grid of tiles. With Edit on release (a setting, on unless the player turns it off) you hold Edit, the tiles
+// the crosshair sweeps across are picked (Shoot / place held does the same), and letting go of Edit confirms. Off, or
+// after a quick tap of Edit: Shoot / place opens or closes the tile under the crosshair (hold and sweep for several) and
+// Edit again confirms. Either way Reload resets the piece to whole and Aim cancels; on a touch screen a finger put down
+// on the grid picks the tiles it touches. Nothing changes until you confirm, and then the new shape is there at once
+// (and sent to the room as before); a Shoot / place still held from picking tiles doesn't fire until it is let go. While
+// you edit, only you see the grid: the tiles that will be left are tinted panels and the cut ones are just outlines
+// (three draw calls, in place of the piece's own), and your own body is hidden so it doesn't cover the tiles.
+const EDIT_RANGE=6,EDIT_V=1;
+let edit=null,editAim=null,editAimT=0,editPaint=-1,editNote='',editNoteT=0,editLatch=false,editFingers=0;
+// editHold is the edit being held open (Edit on release): when it opened, the shape it started from, what holds it (a key
+// code, or 'touch' for the button), the tile picked as it opened (auto) and how many tiles have changed since (n). A quick
+// tap (under EDIT_TAP s) that did no more than pick that first tile leaves the grid open as before, that tile still
+// picked (Edit again confirms); a longer hold that changed nothing cancels. Saved as br1v1-editOnRelease ('1' / '0'); the first
+// version's br1v1-editRelease is still read if the new key isn't there.
+let editRelease=store.get('editOnRelease',store.get('editRelease','1'))!=='0',editHold=null;
+const EDIT_TAP=.25;
+let editHelp=store.get('editHelp','')==='1';   // the fuller help line has been shown (it goes after your first confirmed edit)
+function setEditRelease(on){editRelease=!!on;editHold=null;store.set('editOnRelease',editRelease?1:0);for(const el of [$('editRelease'),$('editReleaseP')])if(el)el.checked=editRelease;lastHud=''}
+// Online, editing is on for a match only if every player's page could do it when the match began (the host writes ed
+// into the round node, the same way it picks the map version), so a mixed room always agrees on the shapes.
+const editOn=()=>!online||(!!RD&&RD.ed===1&&curMatch===RD.id);
+// asking the host for the pieces standing, after coming into a round that had already begun (see onRound, onlineTick)
+let pieceAsk=null;
+const canEdit=pc=>!!pc&&pieces.has(pc.key)&&pc.team!=null&&pc.team===myBuildTeam();
+function note(t){editNote=t;editNoteT=1.8}
+const editGroup=new THREE.Group();editGroup.visible=false;scene.add(editGroup);
+const editFill=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0x3aaee0,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide,fog:false,polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1}));
+const editHot=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({color:0xffe27a,transparent:true,opacity:.6,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+const editGrid=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xeaffff,transparent:true,opacity:.95,fog:false}));
+{const quads=n=>{const ix=[];for(let i=0;i<n;i++)ix.push(i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3);return ix};
+  editFill.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*12),3));editFill.geometry.setIndex(quads(9));
+  editHot.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(12),3));editHot.geometry.setIndex(quads(1));
+  editGrid.geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(9*24),3));
+  for(const m of [editFill,editHot,editGrid]){m.frustumCulled=false;editGroup.add(m)}}
+// corner (u,v) of a piece's tile grid, in the world: on the middle of a wall, the top of a floor or the top of a ramp
+const edV=new V3();
+function edPoint(s,u,v){
+  const n=ED_N[s.kind],q=4/n,x0=s.x*4,z0=s.z*4,y0=s.L*4;
+  if(s.kind==='wall')return s.o==='H'?edV.set(x0+u*q,y0+v*q,z0):edV.set(x0,y0+v*q,z0+u*q);
+  if(s.kind==='floor')return edV.set(x0+u*q,y0+.13,z0+v*q);
+  const t=u/n,c=v*q,y=y0+.17+4*t;
+  return s.dir===0?edV.set(x0+4*t,y,z0+c):s.dir===1?edV.set(x0+c,y,z0+4*t):s.dir===2?edV.set(x0+4-4*t,y,z0+c):edV.set(x0+c,y,z0+4-4*t);
+}
+function edQuad(s,i,arr3,o){const n=ED_N[s.kind],u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v+1],[u,v+1]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);arr3[o+k*3]=p.x;arr3[o+k*3+1]=p.y;arr3[o+k*3+2]=p.z})}
+function editDraw(){
+  const s=edit.pc.spec,n=ED_N[s.kind],fp=editFill.geometry.attributes.position;let k=0;
+  for(let i=0;i<n*n;i++)if(!(edit.mask>>i&1))edQuad(s,i,fp.array,12*k++);
+  fp.needsUpdate=true;editFill.geometry.setDrawRange(0,k*6);
+  editHot.visible=edit.hot>=0;
+  if(edit.hot>=0){const hp=editHot.geometry.attributes.position;edQuad(s,edit.hot,hp.array,0);hp.needsUpdate=true}
+}
+// The tile a line of sight from o along d points at (-1: none): where it meets the grid's own plane (the middle of a
+// wall, the top of a floor or a ramp), cut tiles included. A point just off the grid's edge (EDIT_EDGE of a tile) counts
+// as the edge tile, so a wall's bottom row or a floor's rim is still easy to pick up close.
+const EDIT_EDGE=.35,edA=new V3(),edU=new V3(),edW=new V3(),edN=new V3(),edR=new V3();
+function edTileAt(o,d){
+  const s=edit.pc.spec,n=ED_N[s.kind];
+  edA.copy(edPoint(s,0,0));edU.copy(edPoint(s,n,0)).sub(edA);edW.copy(edPoint(s,0,n)).sub(edA);
+  edN.crossVectors(edU,edW);const dn=edN.dot(d);if(Math.abs(dn)<1e-6)return -1;
+  const k=edN.dot(edR.copy(edA).sub(o))/dn;if(k<0)return -1;
+  edR.copy(o).addScaledVector(d,k).sub(edA);
+  let u=edR.dot(edU)/edU.lengthSq()*n,v=edR.dot(edW)/edW.lengthSq()*n;
+  if(u<-EDIT_EDGE||v<-EDIT_EDGE||u>n+EDIT_EDGE||v>n+EDIT_EDGE)return -1;
+  u=clamp(Math.floor(u),0,n-1);v=clamp(Math.floor(v),0,n-1);return v*n+u;
+}
+// the tile the crosshair is on
+function editTile(){return edTileAt(camera.position,fwdOf(player.yaw,player.pitch))}
+// a screen point (a finger on a touch screen) as a line of sight from the camera
+const edF=new V3();
+function screenRay(x,y){const r=view.getBoundingClientRect();return edF.set((x-r.left)/r.width*2-1,-(y-r.top)/r.height*2+1,.5).unproject(camera).sub(camera.position).normalize()}
+// the build the crosshair is on, if it is close enough to edit. Generous up close: when the line of sight itself finds
+// none of yours (an edge, a seam, the floor at your feet), a few lines just around it are tried (EDIT_FAN, radians).
+const EDIT_FAN=[[.06,0],[-.06,0],[0,.06],[0,-.06],[.13,0],[-.13,0],[0,.13],[0,-.13]];
+function editTarget(){
+  const f=fwdOf(player.yaw,player.pitch),st=camera.position.clone().addScaledVector(f,camDist);
+  const one=d=>{const r=raycast(arr(st),arr(d),EDIT_RANGE,player,false);return r.hit&&r.hit.kind==='piece'?r.hit.piece:null};
+  const o=arr(st),dd=arr(f),r=raycast(o,dd,EDIT_RANGE,player,false);let pc=r.hit&&r.hit.kind==='piece'?r.hit.piece:null,best=r.t;
+  // through an opening in an edited build of yours (a door you want to close): the whole piece's outline counts
+  for(const q of pieces.values()){if(!q.ed||!canEdit(q))continue;const w=q.whole||(q.whole=pieceShape(q.spec,0));
+    for(const b of w.boxes){const t=rayBox(o,dd,b.min,b.max,best);if(t>=0&&t<best){best=t;pc=q}}
+    for(const rp of w.rps){const t=rayRamp(o,dd,rp,best);if(t>=0&&t<best){best=t;pc=q}}}
+  if(pc)return pc;
+  for(const [a,b] of EDIT_FAN){const q=one(fwdOf(player.yaw+a,clamp(player.pitch+b,-1.5,1.5)));if(canEdit(q))return q}
+  return null;
+}
+// A name for the shape the tiles make, shown while you edit (only a guide: any set of tiles that leaves one is allowed).
+// Wall bits: v*3+u, v=0 the bottom row; floor and ramp: v*2+u, a ramp's u=0 the low half.
+function edName(k,m){return TX(edName0(k,m))}
+function edName0(k,m){
+  if(!m)return 'Whole';
+  const c=(m.toString(2).match(/1/g)||[]).length;
+  if(k==='wall'){
+    const W={18:'Door',9:'Door',36:'Door',27:'Wide door',54:'Wide door',146:'Tall door',73:'Side gap',292:'Side gap',23:'Arch',16:'Window',56:'Wide window',448:'Half wall',504:'Low wall',7:'Gap underneath',63:'High wall',511:'Gone'};
+    if(W[m])return W[m];
+    if(!(m&7))return c===1?'Window':'Windows';
+    return TX('{n} tiles open',{n:c});
+  }
+  if(k==='floor')return c===1?'Hole':c===3?'Corner':(m===5||m===10||m===3||m===12)?'Half floor':'Two holes';
+  return m===5?'Top half':m===10?'Bottom half':(m===3||m===12)?'Narrow ramp':c===1?'Ramp with a gap':c===3?'Ramp corner':'Two gaps';
+}
+// open the grid on the build you're aiming at; hold: what holds it open with Edit on release (a key code or 'touch')
+function openEdit(hold){
+  if(edit)return;
+  if(!editOn()){note('Editing is off: a player needs to refresh');return}
+  const pc=editTarget();
+  if(!pc){note('Aim at a build of yours, up close');return}
+  if(!canEdit(pc)){note(online?'That build is the other team’s':'That build is the Entity’s');return}
+  const s=pc.spec,n=ED_N[s.kind],gp=editGrid.geometry.attributes.position;
+  edit={pc,mask:pc.ed,hot:-1};
+  for(let i=0;i<n*n;i++){const u=i%n,v=Math.floor(i/n);[[u,v],[u+1,v],[u+1,v],[u+1,v+1],[u+1,v+1],[u,v+1],[u,v+1],[u,v]].forEach(([a,b],k)=>{const p=edPoint(s,a,b);gp.setXYZ(i*8+k,p.x,p.y,p.z)})}
+  gp.needsUpdate=true;editGrid.geometry.setDrawRange(0,n*n*8);
+  mode='edit';editPaint=-1;editAim=null;player.reloadT=0;tAct.aim=false;
+  pc.obj.visible=false;editGroup.visible=true;edit.hot=editTile();
+  tone('sine',660,990,.03,.05);
+  editHold=editRelease&&hold?{t0:performance.now(),mask0:edit.mask,code:hold,auto:-1,n:0}:null;
+  // holding Edit picks tiles straight away, starting with the one under the crosshair (a finger does it on a touch screen)
+  if(editHold&&hold!=='touch'&&edit.hot>=0){editHold.auto=edit.hot;paintTile(edit.hot);editHold.n=0}
+  editDraw();
+}
+function closeEdit(){
+  editHold=null;editFingers=0;
+  if(!edit)return;
+  if(pieces.has(edit.pc.key))edit.pc.obj.visible=true;
+  edit=null;editGroup.visible=false;if(mode==='edit')mode='combat';
+  editLatch=true;   // Shoot / place held from picking tiles doesn't fire until it's let go
+}
+// Open or close one tile: the first tile of a stroke decides which (an uncut tile starts a stroke that cuts).
+function paintTile(i){
+  if(!edit||i<0)return;
+  if(editPaint<0)editPaint=edit.mask>>i&1?0:1;
+  if((edit.mask>>i&1)===editPaint)return;
+  edit.mask^=1<<i;if(editHold)editHold.n++;editDraw();
+  tone('square',editPaint?520:700,editPaint?400:820,.035,.05);
+}
+// Confirm (whole: reset the piece to whole). The new shape is in place at once, here and (sent as before) in the room.
+function confirmEdit(whole){
+  if(!edit)return;
+  const pc=edit.pc,m=whole?0:edit.mask;
+  if(!edOk(pc.spec.kind,m)){note('Leave at least one tile');editHold=null;return}
+  closeEdit();
+  if(m===pc.ed)return;
+  if(editPiece(pc,m)&&online)sendEdit(pc);
+  if(!editHelp){editHelp=true;store.set('editHelp','1')}
+}
+// Edit pressed: open the grid, or (when it's open and not being held) confirm. code: the key, or 'touch'.
+function editKey(code){if(edit){if(!editHold)confirmEdit(false)}else openEdit(code||'key')}
+// Edit let go (key, mouse button or the touch button): with Edit on release, confirm the held edit
+function editKeyUp(code){
+  const h=editHold;
+  if(!h||!edit||(code&&h.code!==code))return;
+  editHold=null;
+  if((performance.now()-h.t0)/1000<EDIT_TAP&&h.n===0)editPaint=-1;   // a tap: the grid stays open (with the first tile still picked)
+  else if(edit.mask!==h.mask0)confirmEdit(false);
+  else closeEdit();
+}
+// A finger on a touch screen while editing: put down on the grid, it picks the tiles it passes over (and doesn't turn
+// the view); put down anywhere else, it turns the view as usual.
+function editFingerDown(e){
+  if(!edit||mode!=='edit')return false;
+  const i=edTileAt(camera.position,screenRay(e.clientX,e.clientY));if(i<0)return false;
+  editFingers++;paintTile(i);return true;
+}
+function editFingerMove(e){if(edit)paintTile(edTileAt(camera.position,screenRay(e.clientX,e.clientY)))}
+function editFingerUp(){editFingers=Math.max(0,editFingers-1);if(!editFingers&&!firing()&&!editHold)editPaint=-1}
+// An edit travels as the build message for that spot again, with ed (the tiles cut out) added, so it stays inside the
+// build messages the room already carries.
+function sendEdit(pc){const s=pc.spec;Net.send({type:'b',k:s.kind,x:s.x,z:s.z,L:s.L,o:s.o||'',dir:s.dir||0,r:roundNo(),ed:pc.ed})}
+// every frame: an edit is dropped if you are no longer in the round, or its piece is gone
+function editGuard(){
+  if(!edit)return;
+  const live=state==='playing'&&!lobbyShown&&player.alive&&(!online||activeOnline());
+  if(!(live&&mode==='edit'&&!paused&&pieces.has(edit.pc.key)&&edit.pc.obj.position.distanceTo(player.pos)<EDIT_RANGE+4))closeEdit();
+}
+function updateEdit(dt){
+  if(editLatch&&!firing())editLatch=false;
+  if(edit){
+    const i=editTile();if(i!==edit.hot){edit.hot=i;editDraw()}
+    // the crosshair picks tiles while Shoot / place is held, or Edit is (with a key: on a touch screen a finger does it)
+    if(firing()||(editHold&&editHold.code!=='touch')){paintTile(i);if(editHold&&i!==editHold.auto&&i>=0)editHold.n=Math.max(editHold.n,1)}
+    else if(!editFingers)editPaint=-1;
+  }else if(mode==='combat'&&pieces.size&&editOn()){
+    // a few times a second: is the crosshair on a build of yours? (the hint, and the lit Edit button on a touch screen)
+    if((editAimT-=dt)<=0){editAimT=.12;const t=editTarget();editAim=canEdit(t)?t:null}
+  }else editAim=null;
+}
 function updatePlayer(dt){
   const p=player;tickWeapon(p,dt);
   if(!p.alive){hideGhosts();return}
@@ -1020,28 +2079,29 @@ function updatePlayer(dt){
   const f=fwdOf(p.yaw,0),r=rightOf(p.yaw);
   let ix=0,iz=0;
   if(input){
-    let fw=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0),st=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0),mag=1;
+    let fw=(held('forward')?1:0)-(held('back')?1:0),st=(held('right')?1:0)-(held('left')?1:0),mag=1;
     if(tMove.on){fw=-tMove.y;st=tMove.x;mag=Math.min(1,Math.hypot(fw,st))}
     ix=f.x*fw+r.x*st;iz=f.z*fw+r.z*st;const il=Math.hypot(ix,iz);if(il>0){ix*=mag/il;iz*=mag/il}
-    if(fallback){if(keys.has('ArrowLeft'))p.yaw+=dt*2.2;if(keys.has('ArrowRight'))p.yaw-=dt*2.2;if(keys.has('ArrowUp'))p.pitch=clamp(p.pitch+dt*1.6,-1.45,1.45);if(keys.has('ArrowDown'))p.pitch=clamp(p.pitch-dt*1.6,-1.45,1.45)}
+    if(fallback){if(held('lookLeft'))p.yaw+=dt*2.2;if(held('lookRight'))p.yaw-=dt*2.2;if(held('lookUp'))p.pitch=clamp(p.pitch+dt*1.6,-1.45,1.45);if(held('lookDown'))p.pitch=clamp(p.pitch-dt*1.6,-1.45,1.45)}
   }
   const spd=SPEED*(isADS()?.7:1);
   const k=Math.min(1,(p.onGround?14:3.2)*dt);
   p.vel.x+=(ix*spd-p.vel.x)*k;p.vel.z+=(iz*spd-p.vel.z)*k;
-  if(input&&keys.has('Space')&&p.onGround){p.vel.y=JUMP;p.onGround=false}
+  if(input&&held('jump')&&p.onGround){p.vel.y=JUMP;p.onGround=false}
   moveEntity(p,dt);
   const w=WEAPONS[p.wi];
-  if(input&&mode==='combat'&&lmb&&phase!=='countdown'){
+  if(input&&mode==='combat'&&firing()&&!editLatch&&phase!=='countdown'){
     if(p.ammo[p.wi]<=0)startReload(p);
     else if(p.cd<=0&&p.reloadT<=0&&p.switchT<=0){playerShoot();p.ammo[p.wi]--;p.cd=w.rate}
   }
   if(p.ammo[p.wi]===0&&p.cd<=0)startReload(p);
   buildCd-=dt;
+  updateEdit(dt);
   hideGhosts();
   if(input&&mode==='build'){
     const s=playerBuildSpec(buildType);const ok=specValid(s);const g=ghosts[buildType];
     placeObj(g,s);g.visible=true;ghostMat.color.setHex(ok?0x8fe8ff:0xff6a5a);ghostEdge.color.setHex(ok?0xbff3ff:0xffb0a6);
-    if(lmb&&ok&&buildCd<=0){tryBuild(s,player);buildCd=.09}
+    if(firing()&&ok&&buildCd<=0){tryBuild(s,player);buildCd=.09}
   }
 }
 
@@ -1051,7 +2111,7 @@ function bfs(a,b){
   if(a[0]===b[0]&&a[1]===b[1])return[];
   const prev=new Map(),q=[a],k=c=>c[0]*64+c[1];prev.set(k(a),null);
   while(q.length){const c=q.shift();const [x,z]=c;
-    const nb=[];if(x<N-1&&!vWall[x+1][z])nb.push([x+1,z]);if(x>0&&!vWall[x][z])nb.push([x-1,z]);if(z<N-1&&!hWall[z+1][x])nb.push([x,z+1]);if(z>0&&!hWall[z][x])nb.push([x,z-1]);
+    const nb=[];for(let i=0;i<4;i++)if(passV2(x,z,i))nb.push([x+DV[i][0],z+DV[i][1]]);
     for(const n of nb){if(prev.has(k(n)))continue;prev.set(k(n),c);if(n[0]===b[0]&&n[1]===b[1]){const path=[n];let cur=c;while(cur&&!(cur[0]===a[0]&&cur[1]===a[1])){path.unshift(cur);cur=prev.get(k(cur))}return path}q.push(n)}
   }
   return null;
@@ -1116,7 +2176,12 @@ function updateBot(dt){
   if(!frozen&&p.alive){
     if(los&&b.seen>D.react)aimT=Math.random()<D.head?p.pos.clone().add(new V3(0,1.78,0)):chest;
     else if(!los&&b.lastSeen<4&&dist<30&&diffKey!=='easy'){const r=raycast(arr(eye),arr(dirP),dist,b,true);if(r.hit&&r.hit.kind==='piece'&&r.t<28)aimT=eye.clone().addScaledVector(dirP,r.t)}
-    if(!aimT&&b.breakT>0&&ml>.3){const fd=new V3(mx,0,mz).normalize();const o=eye.clone().add(new V3(0,-.4,0));const r=raycast(arr(o),arr(fd),3,b,false);if(r.hit&&r.hit.kind==='piece')aimT=o.addScaledVector(fd,r.t)}
+    if(!aimT&&b.breakT>0&&ml>.3){const fd=new V3(mx,0,mz).normalize();const o=eye.clone().add(new V3(0,-.4,0));const r=raycast(arr(o),arr(fd),3,b,false);if(r.hit&&r.hit.kind==='piece')aimT=o.addScaledVector(fd,r.t)
+      // nothing straight ahead at chest height, but a build stopped it (the sill of a window, the side of a doorway, a
+      // low hole): aim at the nearest part of the piece it walked into
+      else if(b.bump&&pieces.has(b.bump.key)){let bd=1e9;const c=new V3(b.pos.x,b.pos.y+1.3,b.pos.z),q=new V3();
+        for(const k of b.bump.boxes){q.set(clamp(c.x,k.min[0],k.max[0]),clamp(c.y,k.min[1],k.max[1]),clamp(c.z,k.min[2],k.max[2]));const dq=q.distanceTo(c);if(dq<bd){bd=dq;aimT=q.clone()}}
+        for(const k of b.bump.rps){q.set(clamp(c.x,k.ax0,k.ax1),0,clamp(c.z,k.az0,k.az1));q.y=rampH(k,q.x,q.z)-.1;const dq=q.distanceTo(c);if(dq<bd){bd=dq;aimT=q.clone()}}}}
   }
   if(aimT){const dx=aimT.x-b.pos.x,dz=aimT.z-b.pos.z;b.yaw=yawTo(dx,dz);b.pitch=Math.atan2(aimT.y-(b.pos.y+1.38),Math.hypot(dx,dz))}
   else if(ml>.2){b.yaw=yawTo(mx,mz);b.pitch*=.9}
@@ -1141,8 +2206,8 @@ function parseDd(s){return new Set(typeof s==='string'&&s?s.split(';').filter(Bo
 function nameOf(uid){if(uid===Net.uid)return myName;const o=Net.others.get(uid);return o?cleanName(o.v.n):names.get(uid)||'Someone'}
 // Everyone in the room right now: you plus every player whose node is fresh.
 function liveHumans(){
-  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j}],now=Net.now();
-  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts});
+  const out=[{uid:Net.uid,n:myName,t:myTeamPref,j:Net.j,mv:MAP_V,ev:EDIT_V}],now=Net.now();
+  for(const [u,o] of Net.others)if(now-o.ts<LIVE_MS)out.push({uid:u,n:cleanName(o.v.n),t:o.v.t==='b'?'b':'r',j:+o.v.j||o.ts,mv:+o.v.mv||1,ev:+o.v.ev||0});
   return out;
 }
 function setMyTeam(t,quiet){myTeamPref=t==='b'?'b':'r';if(!quiet){Net.publishSoon();lobbyDirty=true;renderLobby()}}
@@ -1154,11 +2219,11 @@ function allCells(ro,n){const kr=[...ro.values()].filter(t=>t==='r').length;retu
 function rebuildEnts(){ents=[player,opp,...remotes.values()]}
 function makeRemote(uid){
   const e=newEnt(makeSuit(...SUITS.r));
-  Object.assign(e,{uid,name:nameOf(uid),team:'r',snaps:[],lastRecv:0,present:false,alive:false});
+  Object.assign(e,{uid,name:nameOf(uid),team:'r',snaps:[],lag:NetSmooth.lag(),lastRecv:0,present:false,alive:false});
   setGun(e.model,0);e.model.visible=false;scene.add(e.model);remotes.set(uid,e);rebuildEnts();return e;
 }
 function clearRemotes(){
-  for(const e of remotes.values()){scene.remove(e.model);e.model.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material!==gunMat&&o.material!==pumpMat)o.material.dispose()})}
+  for(const e of remotes.values()){scene.remove(e.model,e.shadow);e.model.traverse(o=>{if(LK&&LK.shared(o))return;if(o.geometry&&!GUN_GEO.includes(o.geometry))o.geometry.dispose();if(o.material&&o.material!==gunVMat&&o.material!==tkHatMat)o.material.dispose()})}
   remotes.clear();rebuildEnts();
 }
 // Make sure every roster member has a body in their team colour; anyone else is hidden.
@@ -1168,11 +2233,11 @@ function syncRoster(){
 }
 function applyNode(e,v){
   e.lastRecv=Date.now();
+  if(v.lk!=null||e.model.userData.lk)lkHeard(e,v.lk);   // what they wear from the Locker (locker.js)
   if(!inPlay()||v.m!==curMatch||v.rd!==curRound)return;
   const s={t:+v.ts||Net.now(),x:+v.x,y:+v.y||0,z:+v.z,h:+v.h||0,p:+v.p||0};
   if(!isFinite(s.x)||!isFinite(s.z))return;
-  const last=e.snaps[e.snaps.length-1];
-  if(!last||s.t>last.t){e.snaps.push(s);if(e.snaps.length>30)e.snaps.shift()}
+  if(e.lag.note(s.t,Net.now())){e.snaps.push(s);if(e.snaps.length>30)e.snaps.shift()}
   e.hp=+v.hp||0;e.shield=+v.sh||0;e.reloadT=v.rl?1:0;
   if(v.wi>=0&&v.wi<=2&&v.wi!==e.wi){e.wi=v.wi;setGun(e.model,v.wi)}
   if(v.d&&e.alive){e.alive=false;e.dieT=0}
@@ -1183,27 +2248,29 @@ function onNode(uid,v){
   Net.others.set(uid,{v,ts:+v.ts||0});
   names.set(uid,cleanName(v.n));
   if(v.m===curMatch&&curMatch!=null)kills.set(uid,v.k|0);
-  if(fresh&&Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(cleanName(v.n))+' joined','info');sfxJoin()}
+  if(fresh&&Net.now()-(+v.ts||0)<LIVE_MS&&performance.now()-Net.joinedAt>2500){feed(esc(TX('{n} joined',{n:cleanName(v.n)})),'info');sfxJoin()}
   lobbyDirty=true;
   const e=remotes.get(uid);if(e){e.name=cleanName(v.n);applyNode(e,v)}
 }
 function onNodeGone(uid){
   const o=Net.others.get(uid);Net.others.delete(uid);lobbyDirty=true;
-  if(o)feed(esc(cleanName(o.v.n))+' left','info');
+  if(o)feed(esc(TX('{n} left',{n:cleanName(o.v.n)})),'info');
   const e=remotes.get(uid);if(e){e.present=false;e.alive=false;e.model.visible=false}
 }
+// Other players are drawn a moment in the past, between the updates around that moment; how far back adapts to how
+// late their updates arrive, and a late one is bridged by carrying on their movement (netsmooth.js).
+const _rs={};
 function updateRemotes(dt){
-  const rt=Net.now()-110;
+  const now=Net.now();
   for(const e of remotes.values()){
     if(!e.present)continue;
     const sn=e.snaps;if(!sn.length)continue;
-    let a=sn[0],b=null;
-    for(let i=sn.length-1;i>=0;i--){if(sn[i].t<=rt){a=sn[i];b=sn[i+1]||null;break}}
     const px=e.pos.x,py=e.pos.y,pz=e.pos.z;
-    if(b){const k=clamp((rt-a.t)/Math.max(1,b.t-a.t),0,1);
-      e.pos.set(a.x+(b.x-a.x)*k,a.y+(b.y-a.y)*k,a.z+(b.z-a.z)*k);
-      e.yaw=a.h+wrapAng(b.h-a.h)*k;e.pitch=a.p+(b.p-a.p)*k}
-    else{const l=sn[sn.length-1];e.pos.set(l.x,l.y,l.z);e.yaw=l.h;e.pitch=l.p}
+    NetSmooth.sample(sn,e.lag.time(now),_rs,['x','y','z','p'],['h']);
+    e.pos.set(_rs.x,_rs.y,_rs.z);e.yaw=_rs.h;e.pitch=_rs.p;
+    // the straight line between two updates can cut a corner, and a late update carries them on: keep them in the map
+    // and out of walls so nobody is ever drawn (or shot) inside one
+    clampToMap(e.pos);pushOut(e);
     if(dt>0){e.vel.set((e.pos.x-px)/dt,(e.pos.y-py)/dt,(e.pos.z-pz)/dt);if(e.vel.length()>30)e.vel.set(0,0,0)}
     e.onGround=Math.abs(e.vel.y)<.5;
   }
@@ -1220,20 +2287,29 @@ function onRound(r){
     if(curMatch!==r.id){
       curMatch=r.id;curRound=0;myKills=0;kills.clear();roster=parseRo(r.ro);matchTime=0;hud.feed.innerHTML='';watchMode=false;
       for(const u of roster.keys())names.set(u,nameOf(u));
-      const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns));
       syncRoster();
     }
-    if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound()}
+    // the layout: mv 3 or 2, a new one each round from the match seed and round number; otherwise one v1 maze per match
+    const mv=r.mv===3||r.mv===2?r.mv:1,key=r.id+':'+(mv>1?r.rn|0:0);
+    if(key!==mapKey){
+      if(mapKey&&curRound)shiftFx();
+      mapKey=key;
+      if(mv>1){const sd=roundSeed(r.seed,r.rn),ns=mapSizeV2(roster.size,sd);generateMap(sd,ns,allCells(roster,ns),mv)}
+      else{const ns=clamp(r.ns|0,12,16);generateMap(r.seed>>>0,ns,allCells(roster,ns),1)}
+    }
+    if(r.ph!=='end'&&(r.rn|0)!==curRound){curRound=r.rn|0;startOnlineRound();
+      // came in after this round began (joined late, or came back): ask the host what has been built and how it is shaped
+      pieceAsk=r.ph!=='cd'?{r:curRound,n:0,t:0}:null}
     applyDead(r);
   }else if(curMatch!=null){
     // back to the lobby: nobody is in a match until the host starts the next one
-    curMatch=null;curRound=0;roster=new Map();watchMode=false;clearPieces();syncRoster();
+    curMatch=null;curRound=0;roster=new Map();watchMode=false;mapKey='';clearPieces();syncRoster();
     player.alive=false;player.present=false;player.model.visible=false;
   }
   phase=r.ph==='cd'?'countdown':r.ph==='fight'?'fight':r.ph==='over'?'over':'waiting';
   if(r.ph==='over'&&(!prev||prev.ph!=='over'||prev.rn!==r.rn)){
     const w=r.rw,my=myTeam();
-    banner(!w?'DRAW':my?(w===my?'ROUND WON':'ROUND LOST'):TEAM_NAME[w].toUpperCase()+' TAKES IT',`Red ${r.sr|0} – ${r.sb|0} Blue`,2.6);
+    banner(!w?'DRAW':my?(w===my?'ROUND WON':'ROUND LOST'):TEAM_NAME[w].toUpperCase()+' TAKES IT',TX('Red {a} – {b} Blue',{a:r.sr|0,b:r.sb|0}),2.6);
   }
   setScores();syncView();
 }
@@ -1259,23 +2335,25 @@ function startOnlineRound(){
   const t=roster.get(Net.uid);player.team=t;
   if(t){player.present=true;setSuit(player.model,t);spawn(player,cellFor(Net.uid));player.wi=0;setGun(player.model,0);mode='combat'}
   else{player.present=false;player.alive=false;player.model.visible=false}
-  banner('ROUND '+curRound,`Red ${RD.sr|0} – ${RD.sb|0} Blue`+(t?` · you're ${TEAM_NAME[t]}`:' · watching'),1.8);
+  banner(TX('ROUND {n}',{n:curRound}),TX('Red {a} – {b} Blue',{a:RD.sr|0,b:RD.sb|0})+' · '+(t?TX("you're {t}",{t:TX(TEAM_NAME[t])}):TX('watching')),1.8);
   Net.publishSoon();
 }
 // You went down: tell everyone who got you. Only the victim reports its own death, so kill credit is
 // whoever landed the last hit, and the host counts you out for the rest of the round.
 function onlineDeath(shooter,head){
-  player.alive=false;player.dieT=0;lmb=false;
+  player.alive=false;player.dieT=0;lmb=false;tAct.fire=false;
+  if(kdm.m!==curMatch){kdm.m=curMatch;kdm.d=0}kdm.d++;if(window.BackRoomStats)BackRoomStats.add('deaths',1);
   const k=shooter&&shooter.uid||'',wi=shooter?shooter.wi|0:0;
+  if(LK)LK.elim(player,remotes.get(k));
   Net.send({type:'kill',v:Net.uid,k,w:wi,hd:head?1:0,r:curRound});
   killFeed(k,Net.uid,wi,head);
   if(Net.amHost)hostDead.add(curMatch+':'+curRound+':'+Net.uid);
-  banner('ELIMINATED',(k?nameOf(k)+' got you':'You went down')+(touchUI?'':' · click to watch a teammate'),2.4);
+  banner('ELIMINATED',(k?TX('{n} got you',{n:nameOf(k)}):TX('You went down'))+(touchUI?'':' · '+TX('click to watch a teammate')),2.4);
   Net.publishSoon();
 }
 function killFeed(k,v,wi,head){
-  const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+w.name+(head?' · head':'');
-  const nm=u=>`<span class="${roster.get(u)||''}">${u===Net.uid?'You':esc(nameOf(u))}</span>`;
+  const w=WEAPONS[wi]||WEAPONS[0],tail=' · '+TX(w.name)+(head?' · '+TX('head'):'');
+  const nm=u=>`<span class="${roster.get(u)||''}">${u===Net.uid?esc(TX('You')):esc(nameOf(u))}</span>`;
   feed((k?nm(k)+' <b>⟶</b> ':'')+nm(v)+tail,k===Net.uid?'you':v===Net.uid?'them':'info');
 }
 function handleEvent(e){
@@ -1285,7 +2363,7 @@ function handleEvent(e){
     const mate=roster.get(e.by)&&roster.get(e.by)===myTeam();
     const o=Array.isArray(e.o)?new V3(e.o[0],e.o[1],e.o[2]):null;const ends=Array.isArray(e.e)?e.e:[];
     if(o){for(const p of ends)if(Array.isArray(p)){const v=new V3(p[0],p[1],p[2]);addTracer(o,v,mate?0x9fd4ff:0xff8a70);spark(v)}
-      const w=WEAPONS[e.w]||WEAPONS[0];sfxShot(w.id,1/(1+camera.position.distanceTo(o)*.06))}
+      const w=WEAPONS[e.w]||WEAPONS[0];sfxShot(w.id,1/(1+camera.position.distanceTo(o)*.06));muzzleFlash(remotes.get(e.by),WEAPONS.indexOf(w))}
     if(!sameRound)return;
     if(Array.isArray(e.pd))for(const it of e.pd)if(Array.isArray(it))damagePiece(pieces.get(String(it[0])),+it[1]||0);
     if(Array.isArray(e.hs)&&RD.ph==='fight'&&player.alive)for(const h of e.hs){
@@ -1298,18 +2376,48 @@ function handleEvent(e){
     }
   }else if(e.type==='b'){
     if(!sameRound)return;
-    const s={kind:e.k,x:e.x|0,z:e.z|0,L:e.L|0};if(e.k==='wall')s.o=e.o;if(e.k==='ramp')s.dir=e.dir|0;
-    tryBuild(s,null);
+    const s={kind:e.k,x:e.x|0,z:e.z|0,L:e.L|0},tm=roster.get(e.by)||null;if(e.k==='wall')s.o=e.o;if(e.k==='ramp')s.dir=e.dir|0;
+    if(typeof e.ed!=='number'){tryBuild(s,null,tm,false,e.by);return}
+    // an edit: the build message again with the tiles cut out (ed). Only the team that built a piece can reshape it.
+    // (A page from before editing sees a build for a spot that is taken and ignores it, so it keeps the whole piece;
+    // that is why editing is only on when no such page is in the match.)
+    if(!editOn()||!tm)return;
+    let pc=pieces.get(pieceKey(s));
+    if(!pc){if(!tryBuild(s,null,tm,true,e.by))return;pc=pieces.get(pieceKey(s))}
+    if(pc.team!==tm)return;
+    if(edit&&edit.pc===pc)closeEdit();
+    editPiece(pc,e.ed);
+  }else if(e.type==='bq'){
+    // someone came in after the round began: the host sends them every piece standing, with its health, shape and team
+    if(sameRound&&Net.amHost)Net.send({type:'bs',r:curRound,to:String(e.by),p:[...pieces.values()].map(pc=>{const s=pc.spec;return[s.kind[0],s.x,s.z,s.L,s.kind==='wall'?s.o:s.dir|0,Math.ceil(pc.hp),pc.ed,pc.team||'-']})});
+  }else if(e.type==='bs'){
+    if(e.to!==Net.uid)return;
+    pieceAsk=null;
+    if(!sameRound||!Array.isArray(e.p))return;   // (nothing standing: the list is left out)
+    for(const it of e.p){
+      if(!Array.isArray(it))continue;
+      const k={w:'wall',f:'floor',r:'ramp'}[it[0]];if(!k)continue;
+      const s={kind:k,x:it[1]|0,z:it[2]|0,L:it[3]|0},tm=it[7]==='r'||it[7]==='b'?it[7]:null;if(k==='wall')s.o=it[4];else if(k==='ramp')s.dir=it[4]|0;
+      let pc=pieces.get(pieceKey(s));
+      if(!pc){if(!tryBuild(s,null,tm,true))continue;pc=pieces.get(pieceKey(s))}
+      if(it[6]!==pc.ed)editPiece(pc,it[6],true);
+      const hp=+it[5];if(hp>0&&hp<pc.hp)damagePiece(pc,pc.hp-hp);
+    }
   }else if(e.type==='kill'){
     const v=String(e.v||''),k=String(e.k||'');
     if(e.r!==curRound||v!==e.by)return;
     const ent=remotes.get(v);if(ent&&ent.alive){ent.alive=false;ent.dieT=0}
+    if(LK&&ent)LK.elim(ent,k===Net.uid?player:remotes.get(k));
     killFeed(k,v,e.w|0,!!e.hd);
-    if(k===Net.uid){myKills++;kills.set(Net.uid,myKills);banner(nameOf(v).toUpperCase()+' DOWN',e.hd?'Headshot':'Eliminated',1.8);Net.publishSoon()}
+    if(k===Net.uid&&window.BackRoomStats){BackRoomStats.add('kills',1);BackRoomStats.add('kdkills',1);BackRoomStats.max('mkills',myKills+1)}
+    if(k===Net.uid){myKills++;kills.set(Net.uid,myKills);banner(TX('{n} DOWN',{n:nameOf(v).toUpperCase()}),e.hd?'Headshot':'Eliminated',1.8);Net.publishSoon()}
     if(Net.amHost)hostDead.add(curMatch+':'+curRound+':'+v);
   }
 }
 
+// This match's deaths online (m: the match they belong to), for the K/D on the results screen; kills are myKills.
+const kdm={m:null,d:0};
+function kdStr(k,d){return (k/Math.max(1,d)).toFixed(2)}
 /* host: runs the match from the round node; if the host leaves, the next player in line carries on from it */
 const hostDead=new Set();   // "match:round:uid" deaths the host heard about from kill events
 function lobbyPatch(){return{ph:'lobby',rn:0,dd:'',ro:'',rw:'',mw:'',fm:0,pt:0,sr:0,sb:0}}
@@ -1361,10 +2469,14 @@ function hostStart(){
   if(Net.quick)hs.sort((a,b)=>a.j-b.j||(a.uid<b.uid?-1:1)).forEach((h,i)=>ro.set(h.uid,i%2?'b':'r'));
   else for(const h of hs)ro.set(h.uid,h.t);
   const kr=[...ro.values()].filter(t=>t==='r').length;
-  if(!kr||kr===ro.size){$('lbMsg').textContent='Both teams need at least one player.';return}
+  if(!kr||kr===ro.size){$('lbMsg').textContent=TX('Both teams need at least one player.');return}
   const now=Math.round(Net.now());
+  // the newest layout everyone in the room has a page that can build: v3, v2, or (no mv) the original maze
+  const lo=Math.min(...hs.map(h=>h.mv)),mv=lo>=3?{mv:3}:lo>=2?{mv:2}:{};
+  // editing builds is on for this match only if every page in the room can do it (see editOn)
+  if(hs.every(h=>h.ev>=EDIT_V))mv.ed=1;
   Net.tx(cur=>{if(!cur||cur.id!==r.id||cur.ph!=='lobby')return;
-    return{id:cur.id+1,ends:now,seed:randSeed(),ns:mapSizeFor(ro.size),ph:'cd',pt:now+3500,to:[3,5,10].includes(cur.to)?cur.to:5,rn:1,sr:0,sb:0,ro:fmtRo(ro),dd:'',rw:'',mw:'',fm:0,rz:cur.rz||''}});
+    return Object.assign({id:cur.id+1,ends:now,seed:randSeed(),ns:mapSizeFor(ro.size),ph:'cd',pt:now+3500,to:[3,5,10].includes(cur.to)?cur.to:5,rn:1,sr:0,sb:0,ro:fmtRo(ro),dd:'',rw:'',mw:'',fm:0,rz:cur.rz||''},mv)});
 }
 function hostRandomize(){
   const r=RD;if(!Net.amHost||!r||r.ph!=='lobby')return;
@@ -1396,7 +2508,7 @@ function syncView(){
 }
 function showLobby(){
   lobbyShown=true;paused=false;$('pause').hidden=true;$('lobby').hidden=false;$('osd').hidden=true;$('lbMsg').textContent='';
-  lmb=rmb=false;keys.clear();hideGhosts();
+  clearInput();hideGhosts();
   if(document.pointerLockElement)document.exitPointerLock();
   lobbyDirty=true;renderLobby();
 }
@@ -1411,22 +2523,22 @@ function renderLobby(){
   else for(const h of hs)lists[h.t].push({uid:h.uid});
   for(const t of ['r','b']){
     const a=lists[t].sort((x,y)=>nameOf(x.uid).localeCompare(nameOf(y.uid)));
-    $(t==='r'?'lbRed':'lbBlue').innerHTML=a.length?a.map(x=>`<li${x.out?' class="out"':''}><span class="nm">${esc(nameOf(x.uid))}</span>${x.uid===Net.uid?'<span class="tg">you</span>':''}${x.uid===Net.hostUid?'<span class="tg">host</span>':''}</li>`).join(''):'<li class="empty">Nobody yet</li>';
+    $(t==='r'?'lbRed':'lbBlue').innerHTML=a.length?a.map(x=>`<li${x.out?' class="out"':''}><span class="nm">${esc(nameOf(x.uid))}</span>${x.uid===Net.uid?'<span class="tg">'+esc(TX('you'))+'</span>':''}${x.uid===Net.hostUid?'<span class="tg">'+esc(TX('host'))+'</span>':''}</li>`).join(''):'<li class="empty">'+esc(TX('Nobody yet'))+'</li>';
     $(t==='r'?'lbRedN':'lbBlueN').textContent=a.length;
   }
   for(const [id,t] of [['joinRed','r'],['joinBlue','b']]){
     const b=$(id),on=myTeamPref===t;b.hidden=!!Net.quick;b.disabled=on;
-    b.textContent=on?(playing?`Next match: ${TEAM_NAME[t]}`:`You're on ${TEAM_NAME[t]}`):(playing?`Next match: join ${TEAM_NAME[t]}`:`Join ${TEAM_NAME[t]}`);
+    b.textContent=TX(on?(playing?'Next match: {t}':"You're on {t}"):(playing?'Next match: join {t}':'Join {t}'),{t:TX(TEAM_NAME[t])});
   }
   const waiting=playing?hs.filter(h=>!roster.has(h.uid)):[];
-  $('lbWait').hidden=!waiting.length;$('lbWait').textContent='Waiting for the next match: '+waiting.map(h=>h.n).join(', ');
+  $('lbWait').hidden=!waiting.length;$('lbWait').textContent=TX('Waiting for the next match: {l}',{l:waiting.map(h=>h.n).join(', ')});
   const nr=hs.filter(h=>h.t==='r').length,nb=hs.length-nr;
   let st;
-  if(!r||!Net.hostUid)st='Connecting to the room…';
-  else if(playing)st=`Match in progress: Red ${r.sr|0} – ${r.sb|0} Blue, round ${Math.max(1,r.rn|0)}, first to ${matchTarget()}. You'll play in the next match.`;
-  else if(Net.quick)st=hs.length<2?'Waiting for your opponent to load in…':'Opponent found. Starting…';
-  else if(Net.amHost)st=nr&&nb?`You're the host. When everyone has picked a side, start the match (first to ${matchTarget()}). Uneven teams are fine.`:'You\'re the host. Both teams need at least one player before you can start. Send the invite link to friends.';
-  else st=`Waiting for ${nameOf(Net.hostUid)} (host) to start the match · first to ${matchTarget()}.`;
+  if(!r||!Net.hostUid)st=TX('Connecting to the room…');
+  else if(playing)st=TX("Match in progress: Red {a} – {b} Blue, round {r}, first to {n}. You'll play in the next match.",{a:r.sr|0,b:r.sb|0,r:Math.max(1,r.rn|0),n:matchTarget()});
+  else if(Net.quick)st=TX(hs.length<2?'Waiting for your opponent to load in…':'Opponent found. Starting…');
+  else if(Net.amHost)st=nr&&nb?TX("You're the host. When everyone has picked a side, start the match (first to {n}). Uneven teams are fine.",{n:matchTarget()}):TX('You\'re the host. Both teams need at least one player before you can start. Send the invite link to friends.');
+  else st=TX('Waiting for {h} (host) to start the match · first to {n}.',{h:nameOf(Net.hostUid),n:matchTarget()});
   $('lbStatus').textContent=st;
   const host=Net.amHost&&!playing&&!Net.quick&&!!r;
   $('lbHost').hidden=!host;
@@ -1436,18 +2548,23 @@ function renderLobby(){
 function showOnlineEnd(){
   state='end';lobbyShown=false;$('lobby').hidden=true;$('osd').hidden=false;$('hud').hidden=true;$('pause').hidden=true;paused=false;hideGhosts();
   fillOnlineEnd();
+  if(RD&&roster.get(Net.uid)===(RD.mw==='b'?'b':'r')&&window.BackRoomStats)BackRoomStats.add('wins',1);
+  // ranked rating (../elo.js): opp is everyone on the other team
+  if(RD&&roster.has(Net.uid)&&window.BackRoomElo){try{const mt=roster.get(Net.uid),s=mt===(RD.mw==='b'?'b':'r')?1:0;BackRoomElo.report({id:Net.room+':'+RD.id,won:!!s,opp:[...roster].filter(([u,t])=>u!==Net.uid&&t!==mt).map(([u])=>({u,s}))})}catch(e){}}
   $('end').hidden=false;showAd('adEnd');
   if(document.pointerLockElement)document.exitPointerLock();
 }
 function fillOnlineEnd(){
   const r=RD,my=roster.get(Net.uid),w=r.mw==='b'?'b':'r',sr=r.sr|0,sb=r.sb|0;
-  $('endTitle').textContent=my?(my===w?'YOU GOT OUT':'NO EXIT'):TEAM_NAME[w].toUpperCase()+' WINS';
+  $('endTitle').textContent=TX(my?(my===w?'YOU GOT OUT':'NO EXIT'):TEAM_NAME[w].toUpperCase()+' WINS');
   $('eYou').textContent=sr;$('eBot').textContent=sb;$('eYou').parentNode.classList.add('tmode');
   $('endClock').textContent=fmtClock(matchTime);
-  $('endMsg').textContent=`${TEAM_NAME[w]} team won ${Math.max(sr,sb)}–${Math.min(sr,sb)}`+(r.fm?' after the other team left the room.':'.')+(Net.amHost?' You\'re the host: head back to the lobby when everyone\'s ready.':' Everyone goes back to the lobby in a few seconds.');
+  $('endMsg').textContent=TX('{t} team won {a}–{b}',{t:TX(TEAM_NAME[w]),a:Math.max(sr,sb),b:Math.min(sr,sb)})+(r.fm?TX(' after the other team left the room.'):'.')+TX(Net.amHost?' You\'re the host: head back to the lobby when everyone\'s ready.':' Everyone goes back to the lobby in a few seconds.');
   kills.set(Net.uid,myKills);
+  const myD=kdm.m===curMatch?kdm.d:0;
+  $('endKd').textContent=my?kdLine(myKills,myD):'';
   const col=t=>{const us=[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort((a,b)=>(kills.get(b)||0)-(kills.get(a)||0));
-    return `<div class="team ${t}"><div class="th"><span>${TEAM_NAME[t]}</span><span>${t==='r'?sr:sb}</span></div><ul>${us.map(u=>`<li><span class="nm">${esc(nameOf(u))}</span>${u===Net.uid?'<span class="tg">you</span>':''}<span class="k">${kills.get(u)||0} KO</span></li>`).join('')}</ul></div>`};
+    return `<div class="team ${t}"><div class="th"><span>${esc(TX(TEAM_NAME[t]))}</span><span>${t==='r'?sr:sb}</span></div><ul>${us.map(u=>`<li><span class="nm">${esc(nameOf(u))}</span>${u===Net.uid?'<span class="tg">'+esc(TX('you'))+'</span>':''}<span class="k">${kills.get(u)||0} KO${u===Net.uid?' · K/D '+kdStr(myKills,myD):''}</span></li>`).join('')}</ul></div>`};
   $('endTeams').innerHTML=col('r')+col('b');$('endTeams').hidden=false;
   $('again').textContent='Back to lobby';$('again').disabled=!Net.amHost;$('toMenu').textContent='Leave room';
 }
@@ -1484,7 +2601,7 @@ function onlineTick(){
   // so we see who's already here before picking a host
   if(settled&&Net.loaded&&t-Net.joinedAt>1500){
     const h=Net.elect();
-    if(h!==Net.hostUid){const was=Net.hostUid;Net.hostUid=h;Net.amHost=h===Net.uid;lobbyDirty=true;if(was)feed(Net.amHost?'You\'re the host now':esc(nameOf(h))+' is the host now','info')}
+    if(h!==Net.hostUid){const was=Net.hostUid;Net.hostUid=h;Net.amHost=h===Net.uid;lobbyDirty=true;if(was)feed(Net.amHost?esc(TX('You\'re the host now')):esc(TX('{n} is the host now',{n:nameOf(h)})),'info')}
     if(Net.amHost)hostDuties();
   }
   // a player whose node stops updating counts as gone (and out for the round)
@@ -1494,6 +2611,11 @@ function onlineTick(){
     if(liveHumans().length>=2){Net.aloneT=0;Net.hadMate=true}
     else if(!Net.aloneT)Net.aloneT=performance.now();
     else if(performance.now()-Net.aloneT>(Net.hadMate?5000:12000)){Net.aloneT=0;quickMatch(true);return}
+  }
+  // the pieces of a round we came into late: ask the host, and twice more if no answer comes (the host may have just changed)
+  if(pieceAsk){
+    if(pieceAsk.r!==curRound||!inPlay()||pieceAsk.n>2)pieceAsk=null;
+    else if(t-pieceAsk.t>3000){pieceAsk.t=t;pieceAsk.n++;Net.send({type:'bq',r:curRound})}
   }
   if(lobbyDirty)renderLobby();
   syncView();
@@ -1514,7 +2636,7 @@ const Net={
     if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
     try{await (a=>new Promise(r=>{const s=a.onAuthStateChanged(()=>{s();r()})}).then(()=>a.currentUser||a.signInAnonymously()))(firebase.auth())}
     catch(err){const c=err&&err.code||'';throw new Error(/operation-not-allowed|admin-restricted|configuration-not-found/.test(c)?'Anonymous sign-in is off in the Firebase console (Authentication → Sign-in method → Anonymous).':'Sign-in failed: '+(err.message||c))}
-    this.uid=firebase.auth().currentUser.uid;this.db=firebase.database();
+    this.uid=firebase.auth().currentUser.uid;this.db=(window.NetRelay?NetRelay.database(firebase.database(),window.RELAY_ROOMS):firebase.database());
     await new Promise(res=>this.db.ref('.info/serverTimeOffset').once('value',s=>{this.offset=s.val()||0;res()}));
     this.db.ref('.info/serverTimeOffset').on('value',s=>{this.offset=s.val()||0});
     this.ready=true;
@@ -1523,7 +2645,9 @@ const Net={
   // n, c, x, z, h and ts are always sent: the shared database rules expect that shape
   stateOf(){
     const p=player,act=activeOnline();
-    return{n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,ts:Math.round(this.now())};
+    const s={n:myName,c:TEAM_HEX[act?roster.get(this.uid):myTeamPref],x:r2(p.pos.x),y:r2(p.pos.y),z:r2(p.pos.z),h:r3(p.yaw),p:r3(p.pitch),hp:Math.max(0,Math.round(p.hp)),sh:Math.round(p.shield),wi:p.wi,rl:p.reloadT>0?1:0,d:act&&p.alive?0:1,rd:curRound,m:curMatch==null?-1:curMatch,t:myTeamPref,k:myKills,j:this.j,mv:MAP_V,ev:EDIT_V,ts:Math.round(this.now())};
+    if(LK){const lk=LK.wire();if(lk)s.lk=lk}   // what this player wears from the Locker; nothing at all for everyone else
+    return s;
   },
   async peek(room){
     const s=await this.db.ref('rooms/'+room+'/players').once('value');let n=0,r=0;
@@ -1560,13 +2684,17 @@ const Net={
     clearInterval(this.tickTimer);this.tickTimer=setInterval(onlineTick,250);
     try{if(!quick)history.replaceState(null,'','#'+room)}catch(e){}
   },
-  // About 20 updates a second while you're playing a round (15 in rooms of 5+), every half second otherwise.
+  // About 20 updates a second while you're playing a round (15 in rooms of 5+) and something changed (position, aim,
+  // health, weapon...), every half second otherwise or while nothing has.
   pubTick(){
     if(!online||!this.refs)return;
     const t=performance.now(),act=activeOnline()&&(player.alive||player.dieT<1);
     if(!this.soon&&t-this.lastPub<(act?(this.others.size>3?66:50):500))return;
-    this.soon=false;this.lastPub=t;
-    this.refs.me.set(this.stateOf()).catch(()=>{});
+    const force=this.soon;this.soon=false;this.lastPub=t;
+    const s=this.stateOf(),key=JSON.stringify(s,(k,v)=>k==='ts'?undefined:v);
+    if(!force&&key===this.lastKey&&t-(this.lastSent||0)<500)return;
+    this.lastKey=key;this.lastSent=t;
+    this.refs.me.set(s).catch(()=>{});
   },
   publishSoon(){this.soon=true},
   // the host is the live player who has been in the room longest
@@ -1625,7 +2753,7 @@ function prepOnline(){
   initAudio();opp.present=false;opp.alive=false;opp.model.visible=false;
   clearRemotes();RD=null;curMatch=null;curRound=0;roster=new Map();myKills=0;kills.clear();names.clear();hostDead.clear();lastRz='';watchMode=false;specUid=null;
   player.present=false;player.alive=false;player.model.visible=false;player.team=undefined;
-  generateMap(randSeed());resetScores();phase='waiting';
+  practiceMap();resetScores();phase='waiting';mapKey='';
 }
 // In a room: the lobby panel first; the HUD takes over once the host starts a match.
 function showRoom(){state='playing';paused=false;$('osd').hidden=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=true;setScores();showLobby();syncView()}
@@ -1643,9 +2771,9 @@ async function quickMatch(again){
   busy(true);
   try{
     Net.leave();prepOnline();
-    if(again){showRoom();$('lbStatus').textContent='Back in the queue…'}else setMsg('Looking for an opponent…');
+    if(again){showRoom();$('lbStatus').textContent=TX('Back in the queue…')}else setMsg('Looking for an opponent…');
     let searching=0;
-    const tick=setInterval(()=>{searching++;if(state==='menu')setMsg('Looking for an opponent… '+searching+'s');else $('lbStatus').textContent='Looking for an opponent… '+searching+'s'},1000);
+    const tick=setInterval(()=>{searching++;if(state==='menu')setMsg('Looking for an opponent… '+searching+'s');else $('lbStatus').textContent=TX('Looking for an opponent… {n}s',{n:searching})},1000);
     Net.searchTick=tick;
     await Net.queue(async room=>{
       clearInterval(tick);
@@ -1658,7 +2786,8 @@ async function quickMatch(again){
 
 /* ---------- animation ---------- */
 function animModel(e,dt){
-  const m=e.model,u=m.userData;
+  const m=e.model,u=m.userData,sh=e.shadow;
+  if(!e.present||!e.alive)sh.visible=false;
   if(!e.present){m.visible=false;return}
   if(!e.alive){e.dieT+=dt;m.rotation.set(0,e.yaw,Math.min(1.5,e.dieT*5));m.position.set(e.pos.x,e.pos.y+Math.min(.25,e.dieT),e.pos.z);if(e.dieT>2.2)m.visible=false;return}
   if(e!==player)m.visible=true;
@@ -1668,6 +2797,14 @@ function animModel(e,dt){
   u.legs[0].rotation.x=sw;u.legs[1].rotation.x=-sw;
   u.arms.rotation.x=e.pitch*.9;u.head.rotation.x=e.pitch*.5;
   u.arms.position.y=1.44+(e.reloadT>0?-.12:0);
+  // the gun jumps back a little on each shot and settles again
+  if(e.kick>0){e.kick=Math.max(0,e.kick-dt*9)}u.gun.position.z=-.62+.07*e.kick;
+  // shadow: on the ground under the feet (smaller while in the air), lying along a ramp when standing on one
+  let gy=e.pos.y,tilt=0,yaw=0;
+  if(!e.onGround)gy=Math.min(e.pos.y,groundAt(e.pos.x,e.pos.z,e.pos.y+.05));
+  else for(const r of ramps){const h=rampH(r,e.pos.x,e.pos.z);if(h>=0&&Math.abs(h-e.pos.y)<.25){tilt=Math.PI/4;yaw=DIR_YAW[r.dir];break}}
+  sh.visible=true;sh.position.set(e.pos.x,gy+(tilt?.07:.03),e.pos.z);sh.rotation.set(-Math.PI/2-tilt,yaw,0);sh.scale.setScalar(clamp(1-(e.pos.y-gy)/6,.4,1));
+  if(LK&&u.lk)LK.anim(e,dt);   // a round-win celebration (locker.js)
 }
 
 /* ---------- camera ---------- */
@@ -1693,22 +2830,47 @@ function updateCamera(dt){
   camDist=d<camDist?d:camDist+(d-camDist)*Math.min(1,dt*8);
   camera.position.copy(pivot).addScaledVector(back,camDist);
   camera.lookAt(pivot.clone().addScaledVector(f,20));
-  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w.id==='sr'):player.dieT<=2.2;
+  if(self)player.model.visible=player.alive?camDist>.9&&!(ads&&w.id==='sr')&&mode!=='edit':player.dieT<=2.2;
   else player.model.visible=player.present&&(player.alive||player.dieT<=2.2);
 }
 
 /* ---------- HUD update ---------- */
 let lastHud='';
+// The build hint from the current keys: " · click to place · Shift or 1 for your gun" with the defaults.
+function buildKeysText(){
+  const f=KB.keys('fire')[0],a=KB.keys('aim').find(c=>!/^Mouse/.test(c)),r=KB.keys('rifle')[0];
+  const gun=[a,r].filter(Boolean).map(KB.name).join(TX(' or '));
+  return (f?' · '+TX('{k} to place',{k:f==='Mouse0'?TX('click'):KB.name(f)}):'')+(gun?' · '+TX('{k} for your gun',{k:gun}):'');
+}
+// The line of help while editing: the shape so far, then what to do next. The first time (until your first edit is
+// confirmed) it says it all in full.
+function editHintText(kn){
+  const nm=edName(edit.pc.spec.kind,edit.mask),fire=kn('fire')||TX('shoot'),ek=kn('edit')||TX('Edit'),rk=kn('reload')||TX('reload'),ak=KB.keys('aim').map(KB.name)[0]||TX('aim');
+  const v={s:nm,f:fire===TX('click')?TX('Click'):fire,e:ek,r:rk,a:ak};
+  if(touchUI)return TX(editHold?(editHelp?'{s} · drag over the tiles · let go of Edit':'Keep holding Edit and drag a finger over the tiles you want open, then let go of Edit. Reset makes it whole.')
+    :(editHelp?'{s} · tap tiles · Done · Reset':'Tap the tiles you want open (or aim and press Tile), then Done. Reset makes it whole, Cancel leaves it.'),v);
+  if(editHold)return TX(editHelp?'{s} · sweep the tiles · let go of {e} · {r} reset'
+    :'Keep holding {e} and look across the tiles you want open, then let go to confirm. {r} resets it to whole.',v);
+  return editHelp?TX('{s} · {f} tiles · {e} done · {r} reset · {a} cancel',{s:nm,f:fire,e:ek,r:rk,a:ak})
+    :TX('{f} the tiles you want open (hold and sweep for several), then {e} to confirm. {r} resets it to whole, {a} cancels.',v);
+}
 function updateHud(dt){
   const p=player,w=WEAPONS[p.wi];
-  if(touchUI){$('tFire').textContent=mode==='build'?'PLACE':'FIRE';$('tAim').classList.toggle('on',rmb)}
-  const key=[Math.ceil(p.hp),Math.ceil(p.shield),p.wi,mode,buildType,p.ammo.join(','),p.reloadT>0].join('|');
+  if(touchUI){const tf=TX(mode==='build'?'PLACE':mode==='edit'?'TILE':'FIRE');if($('tFire').textContent!==tf)$('tFire').textContent=tf;$('tAim').classList.toggle('on',!!tAct.aim);$('tEdit').classList.toggle('can',!!editAim)}
+  if(editNoteT>0&&(editNoteT-=dt)<=0)editNote='';
+  const key=[Math.ceil(p.hp),Math.ceil(p.shield),p.wi,mode,buildType,p.ammo.join(','),p.reloadT>0,editAim?1:0,editNote,editHold?1:0,edit?edit.mask:-1,editHelp,editRelease].join('|');
   if(key!==lastHud){lastHud=key;
     hud.hpN.textContent=Math.max(0,Math.ceil(p.hp));hud.hpF.style.width=Math.max(0,p.hp)+'%';
     hud.shN.textContent=Math.ceil(p.shield);hud.shF.style.width=(p.shield/50*100)+'%';
-    for(let i=0;i<3;i++){$('slot'+i).classList.toggle('on',mode==='combat'&&p.wi===i);$('am'+i).textContent=(p.wi===i&&p.reloadT>0)?'reload':p.ammo[i]+' / '+WEAPONS[i].mag}
+    for(let i=0;i<3;i++){$('slot'+i).classList.toggle('on',mode==='combat'&&p.wi===i);$('am'+i).textContent=(p.wi===i&&p.reloadT>0)?TX('reload'):p.ammo[i]+' / '+WEAPONS[i].mag}
     for(const t of ['wall','floor','ramp'])$('slot'+t).classList.toggle('on',mode==='build'&&buildType===t);
-    hud.hint.hidden=mode!=='build';if(mode==='build')hud.hint.textContent='Build · '+buildType+(touchUI?' · tap Place · tap a gun to fight':' · click to place · Shift or 1 for your gun');
+    // the line of help: a short note (why an edit can't start), the build or edit keys, or "edit this build" while the crosshair is on one of yours
+    const kn=id=>{const c=KB.keys(id)[0];return c?(c==='Mouse0'?TX('click'):KB.name(c)):''};
+    const ht=(editNote&&TX(editNote))||(mode==='build'?TX('Build · {t}',{t:TX(buildType)})+(touchUI?' · '+TX('tap Place · tap a gun to fight'):buildKeysText())
+      :mode==='edit'?editHintText(kn)
+      :editAim&&!touchUI&&kn('edit')?kn('edit')+' · '+TX(editRelease?'hold to edit this build':'edit this build'):'');
+    hud.hint.hidden=!ht;if(ht){hud.hint.textContent=ht;hud.hint.classList.toggle('long',ht.length>60)}
+    if(touchUI){$('tEdit').textContent=TX(mode==='edit'&&!editHold?'DONE':'EDIT');$('tReload').textContent=TX(mode==='edit'?'RESET':'RELOAD');$('tAim').textContent=TX(mode==='edit'?'CANCEL':'AIM')}
   }
   hud.reload.hidden=!(p.reloadT>0);if(p.reloadT>0)hud.reloadF.style.width=(100*(1-p.reloadT/w.reload))+'%';
   const ads=isADS();const scoped=ads&&w.id==='sr';hud.scope.hidden=!scoped;
@@ -1718,16 +2880,46 @@ function updateHud(dt){
   hud.cross.style.opacity=scoped?'0':'1';
   hitT-=dt;hud.hitm.style.opacity=hitT>0?'1':'0';
   hurtA=Math.max(0,hurtA-dt*1.2);hud.hurt.style.opacity=hurtA.toFixed(3);
-  // online: name tags in team colours (teammates always, enemies only when in sight), alive pips and status line
+  // Name tags. Online: teammates always, enemies only when in sight, in team colours. Find tags (see findClock): for
+  // FIND_SHOW seconds every FIND_EVERY, everyone alive but the player the camera is on gets a tag, through walls, with
+  // how far away they are; one that is off the screen is pinned to the nearest edge with an arrow. In practice that is
+  // the Entity. Outside a flash this costs what it did before; the chip under the score counts down to the next one.
+  const ft=findClock(),fu=ft>=FIND_AT?(ft-FIND_AT)%FIND_EVERY:-1,flash=fu>=0&&fu<FIND_SHOW;
+  if(flash!==findOn){findOn=flash;
+    if(flash){sfxFind();const nk=online?curMatch:'p';if(findNoted!==nk){findNoted=nk;feed(esc(TX('Name tags now flash every {n} seconds',{n:FIND_EVERY})),'info')}}}
+  const fsec=ft<FIND_AT-10?-1:flash?0:Math.ceil(ft<FIND_AT?FIND_AT-ft:FIND_EVERY-fu);
+  if(fsec!==findSec){findSec=fsec;hud.find.hidden=fsec<0;
+    if(fsec>=0){hud.find.classList.toggle('on',!fsec);hud.findTxt.textContent=fsec?TX('TAGS IN {n}',{n:fsec}):TX('TAGS ON');hud.findBar.style.transform='scaleX('+(fsec?clamp(1-(fsec-1)/FIND_EVERY,0,1):0)+')'}}
   let ti=0;
-  if(online){
-    const my=myTeam(),tgt=camTarget();
-    for(const e of remotes.values()){
+  if(online||flash){
+    const my=myTeam(),tgt=camTarget(),env=flash?findEnv(fu):null;
+    for(const e of online?remotes.values():[opp]){
       if(!e.present||!e.alive||e===tgt)continue;
-      const top=e.pos.clone().add(new V3(0,2.35,0));const s=toScreen(top);if(!s.front)continue;
-      if(e.team!==my){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);if(raycast(arr(camera.position),arr(d),L-.3,null,false).hit)continue}
-      const el=tagEl(ti++);el.hidden=false;el.textContent=e.name;el.style.color=TEAM_HEX[e.team]||'';el.style.transform=`translate(${s.x}px,${s.y}px) translate(-50%,-100%)`;
+      const top=tagV.copy(e.pos);top.y+=2.35;const s=toScreen(top);
+      let tf='translate(-50%,-100%)',txt=e.name||TX(oppName);
+      if(flash){
+        const d=Math.round(top.distanceTo(camera.position));txt+=' · '+d+' m';
+        if(!s.front||s.x<0||s.x>VW||s.y<24||s.y>VH){
+          // off the screen (or behind the camera): pin it to the nearest edge, pointing the way to turn
+          tmpV.copy(top).applyMatrix4(camera.matrixWorldInverse);
+          if(tmpV.z>0){s.x=tmpV.x<0?-1:VW+1;s.y=VH*.45}
+          const lx=s.x<0,rx=s.x>VW,up=s.y<24;
+          s.x=clamp(s.x,12,VW-12);s.y=clamp(s.y,96,VH-116);
+          if(lx){txt='◂ '+txt;tf='translate(0,-50%)'}else if(rx){txt+=' ▸';tf='translate(-100%,-50%)'}else if(up){txt='▴ '+txt;tf='translate(-50%,0)'}else txt+=' ▾';
+        }
+        tf+=' scale('+env[1].toFixed(2)+')';
+      }else{
+        if(!s.front)continue;
+        if(e.team!==my){const d=top.clone().sub(camera.position);const L=d.length();d.divideScalar(L);if(raycast(arr(camera.position),arr(d),L-.3,null,false).hit)continue}
+      }
+      const el=tagEl(ti++);el.hidden=false;
+      if(el._t!==txt){el._t=txt;el.textContent=txt}
+      if(el._f!==flash){el._f=flash;el.className=flash?'ntag fl':'ntag'}
+      el.style.color=flash&&env[2]?'#fff':TEAM_HEX[e.team]||'';el.style.opacity=flash?env[0].toFixed(2):'';
+      el.style.transform=`translate(${s.x}px,${s.y}px) ${tf}`;
     }
+  }
+  if(online){
     const pk=inPlay()?[...roster].map(([u,t])=>u+t+((u===Net.uid?player:remotes.get(u))||{}).alive).join():'';
     if(pk!==lastPips){lastPips=pk;hud.pips.hidden=!pk;
       const dots=t=>[...roster].filter(x=>x[1]===t).map(x=>x[0]).sort().map(u=>{const e=u===Net.uid?player:remotes.get(u);return e&&e.alive?'●':'<i>●</i>'}).join('');
@@ -1741,13 +2933,13 @@ function updateHud(dt){
   let netTxt='';
   if(online&&inPlay()){
     const tgt=camTarget();
-    if(tgt&&tgt!==player)netTxt='Watching '+tgt.name+(specCandidates().length>1?(touchUI?' · tap Next for the next one':' · click for the next one'):'');
-    else if(RD.ph==='cd'&&activeOnline())netTxt='Starting in '+Math.max(1,Math.ceil((+RD.pt-Net.now())/1000));
-    else if(activeOnline()&&player.alive&&!locked&&!fallback&&!touchUI)netTxt='Click to play';
+    if(tgt&&tgt!==player)netTxt=TX('Watching {n}',{n:tgt.name})+(specCandidates().length>1?' · '+TX(touchUI?'tap Next for the next one':'click for the next one'):'');
+    else if(RD.ph==='cd'&&activeOnline())netTxt=TX('Starting in {n}',{n:Math.max(1,Math.ceil((+RD.pt-Net.now())/1000))});
+    else if(activeOnline()&&player.alive&&!locked&&!fallback&&!touchUI)netTxt=TX('Click to play');
   }
-  hud.net.hidden=!netTxt;if(netTxt)hud.net.textContent=netTxt;
+  hud.net.hidden=!netTxt;if(netTxt&&hud.net.textContent!==netTxt)hud.net.textContent=netTxt;
 }
-const tagEls=[];let lastPips='';
+const tagEls=[],tagV=new V3();let lastPips='';
 function tagEl(i){while(tagEls.length<=i){const d=document.createElement('div');d.className='ntag';d.hidden=true;hud.tags.appendChild(d);tagEls.push(d)}return tagEls[i]}
 
 /* ---------- lights ---------- */
@@ -1755,13 +2947,18 @@ let flickClock=0;
 function updateLights(dt){
   if(RM)return;
   flickClock+=dt;
+  let dirty=false;
   for(const f of flickers){
     f.next-=dt;
-    if(f.next<=0){f.until=.25+Math.random()*.6;f.next=3+Math.random()*9;const fd=camera.position.distanceTo(f.pos);if(fd<16)sfxCrackle(1-fd/16)}
-    if(f.until>0){f.until-=dt;f.tick-=dt;if(f.tick<=0){f.tick=.04+Math.random()*.07;f.mat.color.setHex(Math.random()<.5?0x5c5644:0xfffae6)}}
-    else f.mat.color.setHex(0xfffae6);
+    if(f.next<=0){f.until=.25+Math.random()*.6;f.next=3+Math.random()*9;const fd=camera.position.distanceTo(f.pos);if(fd<(f.g>=0?22:16))sfxCrackle(1-fd/(f.g>=0?22:16))}
+    let lit=true;
+    if(f.until>0){f.until-=dt;f.tick-=dt;if(f.tick<=0){f.tick=.04+Math.random()*.07;f.off=Math.random()<.5}lit=!f.off}
+    f.mat.color.setHex(lit?0xfffae6:0x5c5644);
+    // a bank of panels that flickers also dims the floor, ceiling and walls of its area
+    if(f.g>=0&&flickOn[f.g]!==(lit?1:.5)){flickOn[f.g]=lit?1:.5;dirty=true}
   }
-  amb.intensity=.55+Math.sin(flickClock*37)*.004;
+  if(dirty)applyLight();
+  amb.intensity=AMB+Math.sin(flickClock*37)*.004;
 }
 
 /* ---------- ads ---------- */
@@ -1806,10 +3003,12 @@ let last=performance.now();
 function frame(now){
   const raw=Math.min(1,Math.max(0,(now-last)/1000)),dt=Math.min(.05,raw);last=now;
   const running=state==='playing'&&(!paused||online);
+  editGuard();
   if(running&&!online){
     matchTime+=raw;
     // practice round timers run on the wall clock
     if(phase==='countdown'){phaseT-=raw;if(phaseT<=0)phase='fight'}
+    else if(phase==='fight')roundT+=raw;
     if(phase==='over'){phaseT-=raw;if(phaseT<=0){if(score.you>=FIRST_TO||score.opp>=FIRST_TO)endMatch();else newRound()}}
     if(state==='playing'){updatePlayer(dt);updateBot(dt)}
   }else if(running){
@@ -1819,6 +3018,7 @@ function frame(now){
     updateRemotes(dt);
   }else if(state==='end'&&online)updateRemotes(dt);
   if(!(state==='playing'&&paused&&!online)){for(const e of ents)animModel(e,dt);updateFx(dt);updateLights(dt)}
+  if(LK)LK.update(dt);
   updateCamera(dt);
   if(state==='playing')updateHud(dt);
   if(touchUI)document.body.classList.toggle('inlobby',lobbyShown);
@@ -1851,7 +3051,7 @@ document.addEventListener('pointerlockchange',()=>{
 });
 document.addEventListener('mousemove',e=>{
   if(state!=='playing'||paused||lobbyShown||!player.alive)return;
-  if(!locked&&!(fallback&&(lmb||rmb||e.buttons)))return;
+  if(!locked&&!(fallback&&(keys.has('Mouse0')||keys.has('Mouse2')||e.buttons)))return;
   const k=.0022*sens*(camera.fov/72);
   player.yaw-=e.movementX*k;player.pitch=clamp(player.pitch-e.movementY*k,-1.45,1.45);
 });
@@ -1861,25 +3061,38 @@ view.addEventListener('mousedown',e=>{
   if(isSpectating()){if(e.button===0)cycleSpectate();e.preventDefault();return}
   if(lobbyShown)return;
   if(!locked&&!fallback){requestLock(true);return}
-  if(e.button===0)lmb=true;if(e.button===2)rmb=true;
+  const c='Mouse'+e.button;keys.add(c);pressCode(c,false,false);
   e.preventDefault();
 });
-addEventListener('mouseup',e=>{if(e.button===0)lmb=false;if(e.button===2)rmb=false});
+addEventListener('mouseup',e=>releaseCode('Mouse'+e.button));
 view.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('wheel',e=>{if(state!=='playing'||paused||lobbyShown)return;const n=(player.wi+(e.deltaY>0?1:2))%3;switchWeapon(player,n);mode='combat'},{passive:true});
-const BUILD_KEYS={KeyQ:'wall',KeyZ:'wall',KeyF:'floor',KeyX:'floor',KeyC:'ramp',KeyE:'ramp'};
+// One press of a key (key true) or mouse button: the one-shot actions, by binding.
+const GUNS=['rifle','shotgun','sniper'],BUILDS=['wall','floor','ramp'];
+function pressCode(c,key,repeat){
+  if(KB.is('fire',c))lmb=true;
+  const gi=GUNS.findIndex(a=>KB.is(a,c)),bi=BUILDS.findIndex(a=>KB.is(a,c));
+  if(gi>=0){switchWeapon(player,gi);mode='combat'}
+  else if(bi>=0){mode='build';buildType=BUILDS[bi];player.reloadT=0}
+  else if(KB.is('edit',c)){if(!repeat&&canAct())editKey(c)}
+  else if(KB.is('aim',c)&&mode==='edit'){if(!repeat)closeEdit()}
+  else if(key&&KB.is('aim',c)&&mode==='build'&&!repeat)mode='combat';
+  else if(KB.is('reload',c)&&mode==='edit'){if(!repeat)confirmEdit(true)}
+  else if(KB.is('reload',c)&&mode==='combat')startReload(player);
+  else if(c==='Escape'){if(!locked)pauseGame()}
+  else if(KB.is('pause',c))pauseGame();
+}
+function releaseCode(c){keys.delete(c);if(KB.is('fire',c)&&!KB.held('fire',keys))lmb=false;if(KB.is('edit',c))editKeyUp(c)}
 addEventListener('keydown',e=>{
+  if(e.target&&e.target.closest&&e.target.closest('input,textarea,select,[contenteditable]'))return;
   if(state!=='playing'||paused||lobbyShown)return;
-  keys.add(e.code);
-  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
-  if(e.code==='Digit1'||e.code==='Digit2'||e.code==='Digit3'){switchWeapon(player,+e.code.slice(5)-1);mode='combat'}
-  else if(BUILD_KEYS[e.code]){mode='build';buildType=BUILD_KEYS[e.code];player.reloadT=0}
-  else if((e.code==='ShiftLeft'||e.code==='ShiftRight')&&mode==='build'&&!e.repeat)mode='combat';
-  else if(e.code==='KeyR'&&mode==='combat')startReload(player);
-  else if(e.code==='KeyP'||(e.code==='Escape'&&!locked))pauseGame();
+  const c=e.code;
+  keys.add(c);
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(c)||(locked&&c!=='Escape'&&KB.actionsFor(c).length))e.preventDefault();
+  pressCode(c,true,e.repeat);
 });
-addEventListener('keyup',e=>keys.delete(e.code));
-addEventListener('blur',()=>{keys.clear();lmb=rmb=false});
+addEventListener('keyup',e=>releaseCode(e.code));
+addEventListener('blur',clearInput);
 
 // Touch controls. On a touch screen there's no pointer lock: the stick moves, dragging turns the view
 // (including while holding Fire), the slots along the top switch weapons or build pieces, and each button does what its key does.
@@ -1895,11 +3108,12 @@ function touchLook(dx,dy){
   player.yaw-=dx*k;player.pitch=clamp(player.pitch-dy*k,-1.45,1.45);
 }
 // Drags on the look layer and the Fire button turn the view; each finger is tracked on its own.
+// While editing, a finger put down on the grid picks tiles instead (editFingerDown).
 function dragLook(el){
-  const pts=new Map();
-  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
-  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
-  const end=e=>pts.delete(e.pointerId);
+  const pts=new Map(),paint=el.id==='tLook';
+  el.addEventListener('pointerdown',e=>{e.preventDefault();pts.set(e.pointerId,[e.clientX,e.clientY,paint&&editFingerDown(e)]);try{el.setPointerCapture(e.pointerId)}catch(_){}});
+  el.addEventListener('pointermove',e=>{const q=pts.get(e.pointerId);if(!q)return;if(q[2])editFingerMove(e);else touchLook(e.clientX-q[0],e.clientY-q[1]);q[0]=e.clientX;q[1]=e.clientY});
+  const end=e=>{const q=pts.get(e.pointerId);if(q&&q[2])editFingerUp();pts.delete(e.pointerId)};
   el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
 }
 dragLook($('tLook'));dragLook($('tFire'));
@@ -1919,11 +3133,14 @@ function tButton(el,down,up){
   el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);el.addEventListener('lostpointercapture',end);
   el.addEventListener('contextmenu',e=>e.preventDefault());
 }
-tButton($('tFire'),()=>{if(canAct())lmb=true},()=>{lmb=false});
-tButton($('tJump'),()=>{if(canAct())keys.add('Space')},()=>{keys.delete('Space')});
-tButton($('tAim'),()=>{if(canAct()){rmb=!rmb;if(rmb)mode='combat'}},()=>{$('tAim').classList.toggle('on',rmb)});
-tButton($('tReload'),()=>{if(canAct()&&mode==='combat')startReload(player)});
-tButton($('tPause'),()=>{rmb=false;pauseGame()});
+tButton($('tFire'),()=>{if(canAct())tAct.fire=true},()=>{tAct.fire=false});
+tButton($('tJump'),()=>{if(canAct())tAct.jump=true},()=>{tAct.jump=false});
+tButton($('tAim'),()=>{if(!canAct())return;if(mode==='edit'){closeEdit();return}tAct.aim=!tAct.aim;if(tAct.aim)mode='combat'},()=>{$('tAim').classList.toggle('on',!!tAct.aim)});
+tButton($('tReload'),()=>{if(!canAct())return;if(mode==='edit')confirmEdit(true);else if(mode==='combat')startReload(player)});
+// Edit: start editing the build you're aiming at; while editing it reads Done (and Reload reads Whole, Aim reads Cancel).
+// With Edit on release, hold it, drag across the tiles on Tile with the other thumb, and let go to confirm.
+tButton($('tEdit'),()=>{if(canAct())editKey('touch')},()=>editKeyUp('touch'));
+tButton($('tPause'),()=>{tAct.aim=false;pauseGame()});
 // Out of the round: Next, or a tap on the view (like a click with a mouse), watches the next living player.
 tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
 {
@@ -1934,7 +3151,7 @@ tButton($('tNext'),()=>{if(isSpectating())cycleSpectate()});
   look.addEventListener('pointercancel',e=>taps.delete(e.pointerId));
 }
 [0,1,2].forEach(i=>tButton($('slot'+i),()=>{if(canAct()){switchWeapon(player,i);mode='combat'}}));
-['wall','floor','ramp'].forEach(t=>tButton($('slot'+t),()=>{if(!canAct())return;if(mode==='build'&&buildType===t)mode='combat';else{mode='build';buildType=t;player.reloadT=0;rmb=false}}));
+['wall','floor','ramp'].forEach(t=>tButton($('slot'+t),()=>{if(!canAct())return;if(mode==='build'&&buildType===t)mode='combat';else{mode='build';buildType=t;player.reloadT=0;tAct.aim=false}}));
 
 /* ---------- menu wiring ---------- */
 function setDiff(d){diffKey=d;for(const b of $('diffSeg').querySelectorAll('button'))b.setAttribute('aria-checked',String(b.dataset.d===d));store.set('diff',d)}
@@ -1942,6 +3159,7 @@ $('diffSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(
 const sensEl=$('sens');
 function setSens(v){sens=v;sensEl.value=v;$('sensOut').textContent=v.toFixed(2);store.set('sens',v)}
 sensEl.addEventListener('input',()=>setSens(parseFloat(sensEl.value)));
+for(const el of [$('editRelease'),$('editReleaseP')]){el.checked=editRelease;el.addEventListener('change',()=>setEditRelease(el.checked))}
 const nameEl=$('name');nameEl.value=myName;
 nameEl.addEventListener('input',()=>{myName=nameEl.value.replace(/[<>]/g,'').trim().slice(0,16)||'Wanderer';store.set('name',myName)});
 $('room').value=store.get('room','')||randomRoom();
@@ -1968,25 +3186,63 @@ $('startMatch').addEventListener('click',()=>{initAudio();hostStart()});
 $('randTeams').addEventListener('click',hostRandomize);
 $('toSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)hostSetTarget(+b.dataset.n)});
 $('lbWatch').addEventListener('click',()=>{watchMode=true;hideLobby()});
+// Controls panel (hidden on touch screens). The menu's two aim lines show the first Aim key, then the rest.
+function aimRows(){const k=KB.keys('aim').map(c=>KB.name(c).toUpperCase());$('kAim1').textContent=k[0]||'UNBOUND';$('kAim2').textContent=k.slice(1).join(' / ');$('kAim2').parentNode.hidden=k.length<2}
+aimRows();KB.onChange(()=>{aimRows();lastHud=''});
+$('keysMenu').addEventListener('click',()=>KB.open());
+$('keysPause').addEventListener('click',()=>KB.open());
 if(touchUI)setTouchUI(true);
+// English / Español switched (lang.js): redo the words this page put together itself (fixed text switches by itself)
+document.addEventListener('backroom:lang',()=>{lastHud='';findSec=-2;for(const el of tagEls)el._t=null;if(state!=='menu')setScores();if(lobbyShown)lobbyDirty=true;if(state==='end'&&online&&RD)fillOnlineEnd()});
 addEventListener('pagehide',()=>Net.leave());
 
 // An invite opens this page with #br-<code>: fill in the room and point at the join button.
 const inv=/^#br-([a-z0-9-]{1,17})$/.exec(location.hash);
 if(inv){$('room').value=inv[1];setMsg('You were invited to room br-'+inv[1]+'. Press Play in room to join.');$('joinRoom').classList.replace('ghost-btn','cta');$('quick').classList.replace('cta','ghost-btn')}
 
+// ---------- the Locker (locker.js; see BR_PUBLIC near the top) ----------
+let lkAsked=false;
+function lkLoad(){
+  if(lkAsked)return;lkAsked=true;
+  loadScript('locker.js').then(()=>{
+    LK=window.BackroomsLocker({THREE,scene,renderer,camera,store,$,TX,esc,flatBox,joinGeos,makeSuit,setSuit,setGun,SUITS,GUN_SRC,GUN_GEO,GUN_TIP,gunFit,GC,gunVMat,
+      plyTex,canvasTex,noise,player,opp,remotes,WEAPONS,RM,Net,
+      get on(){return lockerOn()},get state(){return state},get online(){return online},get phase(){return phase},get RD(){return RD},
+      get roster(){return roster},get touch(){return touchUI},get ents(){return ents},
+      teamOf:e=>online?(e===player?roster.get(Net.uid):e.team)||null:e===player?'me':null,
+      floorAt:(x,z,y)=>groundAt(x,z,y),
+      publish(){if(online)Net.publishSoon()}});
+    for(const e of remotes.values()){const o=Net.others.get(e.uid);if(o&&o.v.lk!=null)lkHeard(e,o.v.lk)}
+    LK.access();
+  }).catch(e=>{lkAsked=false;console.error(e)});
+}
+function lkSync(){if(lockerOn())lkLoad();if(LK)LK.access()}
+// Another player's lk: drawn once locker.js is here (fetched now if this is the first one seen wearing something).
+function lkHeard(e,lk){if(LK)LK.heard(e,lk);else if(typeof lk==='string'&&/^([ogbec][0-9]{1,3}){1,5}$/.test(lk))lkLoad()}
+lkSync();if(CAPTAINS)CAPTAINS.onChange(lkSync);
+
 // Test hook for automated browser tests only (navigator.webdriver is set by Playwright and similar tools).
 if(navigator.webdriver)window.__br={get state(){return state},get online(){return online},get phase(){return phase},get R(){return RD},get roster(){return roster},get curMatch(){return curMatch},get curRound(){return curRound},
   get lobbyShown(){return lobbyShown},get myTeamPref(){return myTeamPref},get myKills(){return myKills},get specUid(){return specUid},get N(){return N},get W(){return W},get ents(){return ents},get score(){return score},get mode(){return mode},
+  get LK(){return LK},lockerOn,lkLoad,makeSuit,SUITS,GUN_GEO,set phase(v){phase=v},
   Net,player,opp,remotes,names,kills,setMyTeam,hostStart,hostRandomize,hostSetTarget,hostToLobby,cellFor,camTarget,cycleSpectate,isSpectating,handleEvent,damageEntity,raycast,startPractice,toMenu,joinPrivate,liveHumans,
-  hitboxes,solids:()=>solids,keys,renderer,scene,camera,
+  hitboxes,solids:()=>solids,ramps:()=>ramps,pieces,walls:()=>({h:hWall,v:vWall}),keys,renderer,scene,camera,
+  // collision audit: the real movement, building and interpolation code, driven step by step
+  moveEntity,tryBuild,specValid,damagePiece,inRamp,rampAt,editPiece,edRects,edFull,edOk,pieceShape,groundAt,pushOut,rampOut,resolveShot,generateMap,spawn,soloCell,teamCells,wallSpec,playerBuildSpec,updateRemotes,makeRemote,updateBot,
+  mapSizeV2,roundSeed,fairV2,MAP_V,get mapKey(){return mapKey},
+  mapInfo(){const L=mapInfo;if(!L)return null;const fl=[];for(let x=0;x<N;x++)for(let z=0;z<N;z++)if(L.group[x][z]>=0)(fl[L.group[x][z]]=fl[L.group[x][z]]||[]).push([x,z]);
+    return{v:L.v,light:L.light,tint:L.tint.map((c,x)=>c.map((t,z)=>L.ftint[x][z]||t)),voids:voidC,flick:fl.filter(Boolean),special:L.special,spawns:L.spawns,styles:L.styles,regs:L.regs,mirrored:!!L.mirrored,tries:L.tries,low:{h:lowH,v:lowV},jambs:L.jambs||[],rid:L.rid||null}},
+  consts:{R,H,STEP,CELL,CEIL,SPEED,JUMP},
   teleport(x,z,y){player.pos.set(x,y||0,z);player.vel.set(0,0,0)},
   aimAt(e){const t=e.pos.clone().add(new V3(0,1.1,0));for(let i=0;i<4;i++){updateCamera(0);const c=camera.position;player.yaw=yawTo(t.x-c.x,t.z-c.z);player.pitch=Math.atan2(t.y-c.y,Math.hypot(t.x-c.x,t.z-c.z))}},
   fire(){const w=WEAPONS[player.wi];updateCamera(0);playerShoot();player.ammo[player.wi]=w.mag;player.cd=0},
-  setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'}};
+  setWeapon(i){switchWeapon(player,i);player.switchT=0;mode='combat'},
+  // find tags: the round clock they run on, and a shift (seconds) so a test need not wait a minute and a half
+  get edit(){return edit},get editAim(){return editAim},get editHold(){return editHold},get editRelease(){return editRelease},get editLatch(){return editLatch},get editHelp(){return editHelp},set editHelp(v){editHelp=!!v},tAct,setEditRelease,edName,edTileAt,edPoint,screenRay,editKeyUp,openEdit,closeEdit,confirmEdit,editKey,editTile,editTarget,editOn,canEdit,updatePlayer,updateCamera,EDIT:{range:EDIT_RANGE,v:EDIT_V,tap:EDIT_TAP},
+  get findT(){return findClock()},get findShift(){return findShift},set findShift(v){findShift=+v||0},findEnv,tags:()=>tagEls,FIND:{at:FIND_AT,every:FIND_EVERY,show:FIND_SHOW}};
 
 setDiff(diffKey);setSens(sens);
-generateMap(randSeed());
+practiceMap();
 spawn(player,soloCell(0));spawn(opp,soloCell(1));
 showAd('adMenu');
 requestAnimationFrame(t=>{last=t;frame(t)});

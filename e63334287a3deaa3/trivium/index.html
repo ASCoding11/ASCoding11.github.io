@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/trivium/es.js"></script>
+<script src="/namefilter.js"></script> <!-- masks rude words in player names (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Trivium – Free Trivia Quiz with Live Multiplayer Contests</title>
 <meta name="description" content="A free trivia game with nearly 1,800 questions in 19 categories, each with a fact to learn. Play a daily ten, quick games, Survival or a 60-second Blitz, or host a live contest where everyone answers on their phone.">
@@ -27,6 +30,7 @@ const FIREBASE_CONFIG = {
    Each file calls TRIVIA.cat(id, name, rows). */
 window.TRIVIA = { cats: [], cat(id, name, rows){ this.cats.push({id, name, rows}); } };
 </script>
+<script src="../events.js"></script>
 <script src="bank/geography.js"></script>
 <script src="bank/history.js"></script>
 <script src="bank/science.js"></script>
@@ -46,6 +50,7 @@ window.TRIVIA = { cats: [], cat(id, name, rows){ this.cats.push({id, name, rows}
 <script src="bank/usa.js"></script>
 <script src="bank/games.js"></script>
 <script src="bank/nyc.js"></script>
+<script src="bank/thanksgiving.js"></script> <!-- seasonal: adds nothing outside Turkey Week -->
 <style>
 :root{
   color-scheme:dark;
@@ -299,6 +304,8 @@ html.rails .rail.r{right:max(8px,calc(50% - 590px - 176px))}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
+<script src="/e63334287a3deaa3/stats.js" data-game="trivium" defer></script>
+<script src="/adrefresh.js" defer></script>
 </head>
 <body>
 <div class="wrap">
@@ -315,18 +322,19 @@ html.rails .rail.r{right:max(8px,calc(50% - 590px - 176px))}
   <main id="landing">
     <section class="hero">
       <div>
-        <h1 class="logo">Trivi<b>u</b>m</h1>
+        <h1 class="logo" id="tvLogo">Trivi<b>u</b>m</h1>
         <p class="tag"><b id="qCount">Over a thousand</b> trivia questions in <b id="cCount">19</b> categories, and every answer comes with a fact worth knowing. Play on your own, or host a live contest where everyone answers on their phone.</p>
         <div class="hero-actions">
           <button class="btn primary big" id="dailyGo" type="button">▶ Play today's ten</button>
           <a class="btn big" href="#mp" id="mpJump">Host or join a contest</a>
         </div>
         <p class="daily-status" id="dailyStatus"></p>
+        <div data-lang-toggle style="margin-top:10px"></div>
       </div>
       <aside class="fact" aria-live="polite">
         <div class="k"><span class="label" style="margin:0">Did you know?</span><span class="chip cat" id="factCat"></span></div>
-        <p class="q" id="factQ"></p>
-        <p class="f" id="factText"></p>
+        <p class="q" id="factQ" data-noi18n></p>
+        <p class="f" id="factText" data-noi18n></p>
         <button class="btn" id="factNext" type="button">Another fact</button>
       </aside>
     </section>
@@ -413,12 +421,12 @@ html.rails .rail.r{right:max(8px,calc(50% - 590px - 176px))}
     <div class="timebar" id="soloBarWrap"><i id="soloBar"></i></div>
     <section class="qcard">
       <div class="qmeta"><span class="chip cat" id="soloCat"></span><span class="diff" id="soloDiff"></span><span class="grow"></span><span class="muted" id="soloStreak" style="font-size:14px"></span></div>
-      <h2 class="qtext" id="soloQ"></h2>
-      <div class="answers" id="soloAns"></div>
+      <h2 class="qtext" id="soloQ" data-noi18n></h2>
+      <div class="answers" id="soloAns" data-noi18n></div>
       <div class="after" id="soloAfter" hidden>
         <div class="verdict" id="soloVerdict"></div>
         <button class="btn primary big" id="soloNext" type="button">Next ›</button>
-        <div class="factbox" id="soloFact"></div>
+        <div class="factbox" id="soloFact" data-noi18n></div>
       </div>
       <p class="keys">Keys: 1–4 or A–D to answer, Enter for the next question.</p>
     </section>
@@ -452,7 +460,7 @@ html.rails .rail.r{right:max(8px,calc(50% - 590px - 176px))}
         </section>
         <section class="panel">
           <h3>Standings</h3>
-          <div class="board" id="board"></div>
+          <div class="board" id="board" data-noi18n></div>
         </section>
         <section class="panel" id="hostSettings" hidden>
           <details id="setDetails">
@@ -505,13 +513,16 @@ const store = {
 };
 const getJSON = (k, d) => { try { const v = JSON.parse(store.get(k)); return v == null ? d : v; } catch(e){ return d; } };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmt = n => Math.round(n).toLocaleString("en-US");
+// Language (lang.js): Trivium's own words are in es.js; TR() translates text built in code. Questions, answers, facts
+// and player names are English by design (data-noi18n); the contest still stores only indexes and names, never translated text.
+const TR = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
+const fmt = n => Math.round(n).toLocaleString(window.BackRoomLang ? BackRoomLang.locale() : "en-US");
 function showNotice(t){ $("notice").textContent = t || ""; $("notice").hidden = !t; }
 
 /* =====================================================================
    QUESTION BANK
    ===================================================================== */
-const CAT_COLOR = {geo:"#38BDF8", his:"#F59E0B", sci:"#34D399", spc:"#A78BFA", ani:"#9BD84A", bod:"#F87171", lit:"#E879F9", art:"#FB923C", scr:"#F472B6", spo:"#22D3EE", fod:"#FACC15", mth:"#60A5FA", tec:"#2DD4BF", myt:"#C4A1FF", mon:"#4ADE80", wrd:"#FDBA74", usa:"#93C5FD", vid:"#F0ABFC", nyc:"#FDE047"};
+const CAT_COLOR = {geo:"#38BDF8", his:"#F59E0B", sci:"#34D399", spc:"#A78BFA", ani:"#9BD84A", bod:"#F87171", lit:"#E879F9", art:"#FB923C", scr:"#F472B6", spo:"#22D3EE", fod:"#FACC15", mth:"#60A5FA", tec:"#2DD4BF", myt:"#C4A1FF", mon:"#4ADE80", wrd:"#FDBA74", usa:"#93C5FD", vid:"#F0ABFC", nyc:"#FDE047", tgv:"#E2703A"};
 function hash(s){ let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); }
 const CATS = TRIVIA.cats.map(c => ({id: c.id, name: c.name, color: CAT_COLOR[c.id] || "#9AA0FF", n: c.rows.length}));
 const CBY = Object.fromEntries(CATS.map(c => [c.id, c]));
@@ -523,7 +534,7 @@ TRIVIA.cats.forEach(c => c.rows.forEach(r => {
 }));
 const DIFF_NAME = ["", "Easy", "Medium", "Hard"];
 const diffsFor = v => v === "mix" || v == null ? [1, 2, 3] : [+v];
-function diffHTML(d){ return '<i class="on"></i><i class="' + (d >= 2 ? "on" : "") + '"></i><i class="' + (d >= 3 ? "on" : "") + '"></i> ' + DIFF_NAME[d]; }
+function diffHTML(d){ return '<i class="on"></i><i class="' + (d >= 2 ? "on" : "") + '"></i><i class="' + (d >= 3 ? "on" : "") + '"></i> ' + TR(DIFF_NAME[d]); }
 function catChip(el, id){ const c = CBY[id] || {name: "", color: "#999"}; el.textContent = c.name; el.style.setProperty("--c", c.color); }
 function pool(cats, diffs, exclude){ return Q.filter(q => cats.includes(q.cat) && diffs.includes(q.d) && !(exclude && exclude.has(q.id))); }
 function pick(cats, diffs, exclude, rnd){
@@ -627,6 +638,9 @@ function newFact(){
 }
 $("factNext").onclick = newFact;
 newFact();
+if (window.BackRoomLang) BackRoomLang.englishOnly($("tvLogo"));
+// a language switch redraws what's built in code on the landing page and a finished results card
+document.addEventListener('backroom:lang', () => { if (!$("landing").hidden) renderLanding(); else if (!$("results").hidden && solo) showResults(); });
 
 const quickSel = (() => { const v = getJSON("trivium.quickCats", null); return Array.isArray(v) && v.length ? v.filter(id => CBY[id]) : CAT_IDS.slice(); })();
 let quickDiff = store.get("trivium.quickDiff") || "mix", quickLen = store.get("trivium.quickLen") || "10", quickTime = store.get("trivium.quickTime") || "20";
@@ -640,10 +654,14 @@ const DAY0 = Date.UTC(2026, 9, 13);
 function dayNum(s){ const [y, m, d] = s.split("-").map(Number); return Math.round((Date.UTC(y, m - 1, d) - DAY0) / 864e5) + 1; }
 function seeded(str){ let h = 1779033703 ^ str.length; for (let i = 0; i < str.length; i++){ h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; let t = (h >>> 0) + 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 /* The daily ten: three Easy, four Medium, three Hard, each from a different category. */
+/* The seasonal Thanksgiving category (bank/thanksgiving.js, only there during Turkey Week) is left out of the usual
+   daily draw, so adding it doesn't change any other day's ten; on Thanksgiving Day itself all ten come from it. */
+const DAILY_IDS = CAT_IDS.filter(id => id !== "tgv"), TG_DAY = "2026-11-26";
 function dailyItems(s){
-  const r = seeded("trivium:" + s), cats = shuffled(CATS.length, r).map(i => CAT_IDS[i]), plan = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3], used = new Set();
+  const r = seeded("trivium:" + s), feast = s === TG_DAY && CBY.tgv;
+  const cats = shuffled(DAILY_IDS.length, r).map(i => feast ? "tgv" : DAILY_IDS[i]), plan = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3], used = new Set();
   return plan.map((d, i) => {
-    let q = pick([cats[i % cats.length]], [d], used, r) || pick(CAT_IDS, [d], used, r);
+    let q = pick([cats[i % cats.length]], [d], used, r) || pick(DAILY_IDS, [d], used, r);
     used.add(q.id);
     return {id: q.id, order: shuffled(4, r)};
   });
@@ -654,7 +672,7 @@ function renderLanding(){
   const s = todayStr(), rec = dailyRec(s), st = streakInfo();
   const done = rec && rec.done;
   $("dailyGo").textContent = done ? "See today's results" : rec && rec.results && rec.results.length ? "▶ Finish today's ten" : "▶ Play today's ten";
-  $("dailyStatus").textContent = "Daily #" + dayNum(s) + " · same ten for everyone today" + (st.cur ? " · streak " + st.cur : "") + (done ? " · you scored " + fmt(rec.pts) : "");
+  $("dailyStatus").textContent = TR("Daily #{n}", {n: dayNum(s)}) + (s === TG_DAY && CBY.tgv ? " · " + TR("Thanksgiving special") : "") + " · " + TR("same ten for everyone today") + (st.cur ? " · " + TR("streak {n}", {n: st.cur}) : "") + (done ? " · " + TR("you scored {n}", {n: fmt(rec.pts)}) : "");
   const sb = getJSON("trivium.best.survival", 0), bb = getJSON("trivium.best.blitz", 0);
   $("survBest").textContent = sb ? "Your best: " + sb + " right" : "";
   $("blitzBest").textContent = bb ? "Your best: " + bb + " right" : "";
@@ -689,7 +707,7 @@ function startSolo(mode){
     solo = {mode, i: 0, results: [], score: 0, streak: 0, right: 0, secs: 0, used: new Set(), endsAt: 0};
   }
   show("solo");
-  $("soloMode").textContent = MODE_NAME[mode] + (mode === "daily" ? " #" + dayNum(solo.date) : "");
+  $("soloMode").textContent = TR(MODE_NAME[mode]) + (mode === "daily" ? " #" + dayNum(solo.date) : "");
   $("soloLives").hidden = mode !== "survival";
   $("soloBarWrap").hidden = mode !== "blitz" && !solo.secs;
   SFX.start();
@@ -787,9 +805,9 @@ function answerSolo(v){
   clearInterval(soloTimer);
   const vd = $("soloVerdict");
   vd.className = "verdict " + (ok ? "r" : "w");
-  vd.innerHTML = ok ? "Right!" + (pts ? " +" + fmt(pts) : "") + (solo.streak >= 2 ? "<small>🔥 " + solo.streak + " in a row" + (streakBonus(solo.streak) ? ", +" + streakBonus(solo.streak) + " streak bonus" : "") + "</small>" : "")
-    : (v < 0 ? "Time's up." : "Not quite.") + "<small>The answer is " + esc(cur.q.a[0]) + ".</small>";
-  $("soloFact").innerHTML = "<b>The fact</b>" + esc(cur.q.f);
+  vd.innerHTML = ok ? TR("Right!") + (pts ? " +" + fmt(pts) : "") + (solo.streak >= 2 ? "<small>🔥 " + TR("{n} in a row", {n: solo.streak}) + (streakBonus(solo.streak) ? ", " + TR("+{n} streak bonus", {n: streakBonus(solo.streak)}) : "") + "</small>" : "")
+    : TR(v < 0 ? "Time's up." : "Not quite.") + "<small>" + TR("The answer is {a}.", {a: "<span data-noi18n>" + esc(cur.q.a[0]) + "</span>"}) + "</small>";
+  $("soloFact").innerHTML = "<b>" + TR("The fact") + "</b>" + esc(cur.q.f);
   const last = (m === "daily" || m === "quick") ? solo.i >= solo.items.length : m === "survival" && solo.lives <= 0;
   $("soloNext").textContent = last ? "See results ›" : "Next ›";
   $("soloAfter").hidden = false;
@@ -826,20 +844,20 @@ function showResults(){
   let head = "", stats = "", share = "";
   if (m === "daily"){
     const st = streakInfo(), grid = res.map(r => r.ok ? "🟩" : "🟥").join("");
-    head = "<p class='label'>Daily #" + dayNum(solo.date) + "</p><h2>" + (right >= 9 ? "Brilliant." : right >= 7 ? "Sharp work." : right >= 5 ? "Not bad at all." : "Tomorrow's a new ten.") + "</h2><p class='grid-emoji' aria-label='" + right + " of 10 right'>" + grid + "</p>";
+    head = "<p class='label'>" + TR("Daily #{n}", {n: dayNum(solo.date)}) + "</p><h2>" + TR(right >= 9 ? "Brilliant." : right >= 7 ? "Sharp work." : right >= 5 ? "Not bad at all." : "Tomorrow's a new ten.") + "</h2><p class='grid-emoji' aria-label='" + TR("{n} of 10 right", {n: right}) + "'>" + grid + "</p>";
     stats = '<div><b class="big">' + fmt(pts) + '</b><span>points</span></div><div><b>' + right + '/10</b><span>right</span></div><div><b>' + (st.cur || 0) + '</b><span>day streak</span></div><div><b>' + (st.best || 0) + '</b><span>best streak</span></div>';
-    share = "Trivium Daily #" + dayNum(solo.date) + " · " + right + "/10 · " + fmt(pts) + " pts\n" + grid;
+    share = "Trivium " + TR("Daily #{n}", {n: dayNum(solo.date)}) + " · " + right + "/10 · " + fmt(pts) + " " + TR("pts") + "\n" + grid;
   } else if (m === "quick"){
-    head = "<p class='label'>Quick play</p><h2>" + right + " of " + res.length + " right</h2>";
+    head = "<p class='label'>" + TR("Quick play") + "</p><h2>" + TR("{a} of {b} right", {a: right, b: res.length}) + "</h2>";
     stats = '<div><b class="big">' + fmt(pts) + '</b><span>points</span></div><div><b>' + right + '/' + res.length + '</b><span>right</span></div><div><b>' + Math.max(0, ...streaks(res)) + '</b><span>longest streak</span></div>';
   } else {
-    head = "<p class='label'>" + MODE_NAME[m] + "</p><h2>" + right + " right" + (solo.newBest ? " — a new best!" : "") + "</h2>";
+    head = "<p class='label'>" + TR(MODE_NAME[m]) + "</p><h2>" + TR(solo.newBest ? "{n} right — a new best!" : "{n} right", {n: right}) + "</h2>";
     stats = '<div><b class="big">' + right + '</b><span>right answers</span></div><div><b>' + res.length + '</b><span>questions seen</span></div><div><b>' + Math.max(right, solo.prevBest || 0) + '</b><span>your best</span></div><div><b>' + Math.max(0, ...streaks(res)) + '</b><span>longest streak</span></div>';
   }
   const recap = res.map((r, i) => {
     const q = QBY[r.id]; if (!q) return "";
-    const yours = r.pick >= 0 ? q.a[r.pick] : "no answer";
-    return '<details><summary><span class="m ' + (r.ok ? "r" : "w") + '">' + (r.ok ? "✓" : "✗") + '</span><span class="t">' + esc(q.q) + '</span><span class="p">' + (r.pts ? "+" + fmt(r.pts) : "") + '</span></summary><div class="body"><p><b style="color:var(--ink)">' + esc(q.a[0]) + '</b>' + (r.ok ? "" : " · you said " + esc(yours)) + '</p><p>' + esc(q.f) + '</p></div></details>';
+    const yours = r.pick >= 0 ? q.a[r.pick] : TR("no answer");
+    return '<details><summary><span class="m ' + (r.ok ? "r" : "w") + '">' + (r.ok ? "✓" : "✗") + '</span><span class="t" data-noi18n>' + esc(q.q) + '</span><span class="p">' + (r.pts ? "+" + fmt(r.pts) : "") + '</span></summary><div class="body" data-noi18n><p><b style="color:var(--ink)">' + esc(q.a[0]) + '</b>' + (r.ok ? "" : " · " + TR("you said {a}", {a: esc(yours)})) + '</p><p>' + esc(q.f) + '</p></div></details>';
   }).join("");
   $("resBox").innerHTML = head + '<div class="stats">' + stats + '</div>' +
     '<div class="row-actions">' + (share ? '<button class="btn primary" id="shareBtn" type="button">Share result</button>' : '') +
@@ -1018,9 +1036,9 @@ function renderHostButtons(){
   const el = $("hostButtons"); el.innerHTML = "";
   const add = (txt, cls, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = "btn" + (cls ? " " + cls : ""); b.textContent = txt; b.onclick = fn; el.appendChild(b); return b; };
   const ph = state.phase, last = state.round >= state.total;
-  if (ph === "lobby"){ const b = add("Start question 1", "primary", nextQuestion); b.disabled = !players.length; if (!players.length) say("hostCtlMsg", "Start once someone has joined."); else if ($("hostCtlMsg").textContent.startsWith("Start once")) say("hostCtlMsg", ""); }
+  if (ph === "lobby"){ const b = add("Start question 1", "primary", nextQuestion); b.disabled = !players.length; if (!players.length) say("hostCtlMsg", "Start once someone has joined."); else if (/^Start once/.test($("hostCtlMsg").textContent) || $("hostCtlMsg").textContent === TR("Start once someone has joined.")) say("hostCtlMsg", ""); }
   if (ph === "question"){ add("Reveal the answer now", "primary", grade); add("+10 seconds", "", () => hostUpdate({endsAt: Math.max(state.endsAt, Date.now()) + 10000, limit: (state.limit || 0) + 10})); add("Skip this question", "", nextQuestion); }
-  if (ph === "reveal"){ if (last) add("Show the podium", "primary", () => hostUpdate({phase: "done"})); else add("Next question (" + (state.round + 1) + " of " + state.total + ")", "primary", nextQuestion); if (!last) add("End the contest now", "", () => hostUpdate({phase: "done"})); }
+  if (ph === "reveal"){ if (last) add("Show the podium", "primary", () => hostUpdate({phase: "done"})); else add(TR("Next question ({a} of {b})", {a: state.round + 1, b: state.total}), "primary", nextQuestion); if (!last) add("End the contest now", "", () => hostUpdate({phase: "done"})); }
   if (ph === "done") add("Play again with everyone", "primary", resetGame);
   if (ph !== "lobby"){
     const r = add(resetArmed ? "Tap again to reset" : "Reset contest", "danger", () => { if (!resetArmed){ resetArmed = true; renderHostButtons(); setTimeout(() => { resetArmed = false; if (state && isHost) renderHostButtons(); }, 3000); } else { resetArmed = false; resetGame(); } });
@@ -1064,8 +1082,8 @@ function renderBoard(){
   if (meI >= 10) shown = shown.concat([rows[meI]]);
   $("board").innerHTML = shown.length ? shown.map(r => {
     const i = rows.indexOf(r);
-    return '<div class="row' + (r.id === uid ? " me" : "") + '"><span class="rank">' + (i + 1) + '</span><span class="nm">' + esc(r.name) + (r.streak >= 3 ? '<span class="fire" title="' + r.streak + ' in a row">🔥' + r.streak + '</span>' : '') + '</span><span class="pts">' + fmt(r.pts) + (gains[r.id] ? '<span class="gain">+' + fmt(gains[r.id]) + '</span>' : '') + '</span></div>';
-  }).join("") + (rows.length > shown.length ? '<p class="muted" style="font-size:13px;margin:8px 0 0">+' + (rows.length - shown.length) + ' more</p>' : '') : '<p class="muted" style="font-size:14px;margin:0">No players yet.</p>';
+    return '<div class="row' + (r.id === uid ? " me" : "") + '"><span class="rank">' + (i + 1) + '</span><span class="nm">' + esc(r.name) + (r.streak >= 3 ? '<span class="fire" title="' + TR("{n} in a row", {n: r.streak}) + '">🔥' + r.streak + '</span>' : '') + '</span><span class="pts">' + fmt(r.pts) + (gains[r.id] ? '<span class="gain">+' + fmt(gains[r.id]) + '</span>' : '') + '</span></div>';
+  }).join("") + (rows.length > shown.length ? '<p class="muted" style="font-size:13px;margin:8px 0 0">' + TR("+{n} more", {n: rows.length - shown.length}) + '</p>' : '') : '<p class="muted" style="font-size:14px;margin:0">' + TR("No players yet.") + '</p>';
 }
 let lastPhase = null;
 const PHASE = {lobby: "Lobby", question: "Answering", reveal: "Answer", done: "Final results"};
@@ -1098,19 +1116,19 @@ function renderStage(){
   if (ph === "lobby"){
     if (isHost){
       st.innerHTML = '<section class="panel pop"><div class="lobby"><div><p class="label">Open Trivium and join with the code</p><div class="bigcode">' + esc(code) + '</div><div class="row-actions" style="margin:14px 0 0"><button class="btn" id="copyInvite" type="button">Copy invite link</button></div></div><div class="qr" id="qrBox" aria-label="QR code to join"></div></div>' +
-        '<p class="state-big" style="margin-top:18px">' + (players.length ? players.length + " player" + (players.length === 1 ? "" : "s") + " in" : "Waiting for players…") + '</p><div class="dots">' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>';
+        '<p class="state-big" style="margin-top:18px">' + (players.length ? TR(players.length === 1 ? "{n} player in" : "{n} players in", {n: players.length}) : TR("Waiting for players…")) + '</p><div class="dots" data-noi18n>' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>';
       $("copyInvite").onclick = async () => { try { await navigator.clipboard.writeText(inviteURL()); say("hostCtlMsg", "Invite link copied.", "ok"); } catch(e){ say("hostCtlMsg", inviteURL()); } };
       drawQR($("qrBox"), inviteURL());
     } else {
-      st.innerHTML = '<section class="panel pop"><div class="state-big">You\'re in, ' + esc((me || {}).name || "") + '.</div><p class="muted" style="margin:6px 0 0">Waiting for the host to start. ' + players.length + ' player' + (players.length === 1 ? "" : "s") + ' here.</p><div class="dots">' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>';
+      st.innerHTML = '<section class="panel pop"><div class="state-big">' + TR("You're in, {n}.", {n: '<span data-noi18n>' + esc((me || {}).name || "") + '</span>'}) + '</div><p class="muted" style="margin:6px 0 0">' + TR(players.length === 1 ? "Waiting for the host to start. {n} player here." : "Waiting for the host to start. {n} players here.", {n: players.length}) + '</p><div class="dots" data-noi18n>' + players.map(p => '<span>' + esc(p.name) + '</span>').join("") + '</div></section>';
     }
     return;
   }
   if (ph === "question" && cur){
     const canAnswer = playing && myV == null;
-    st.innerHTML = '<section class="pop">' + qHeader(cur) + '<h2 class="qtext">' + esc(cur.q) + '</h2><div class="answers' + (myV != null ? " locked" : "") + '" id="liveAns">' + answersHTML(cur.opts, canAnswer) + '</div>' +
-      (myV != null ? '<p class="answered" style="color:var(--ink)">Locked in ' + KEYS[myV] + '. Waiting for the reveal…</p>' : '') +
-      (isHost ? '<p class="answered" id="answeredN">' + answeredN + ' of ' + players.length + ' answered</p><div class="dots" id="ansDots"></div>' : '') + '</section>';
+    st.innerHTML = '<section class="pop">' + qHeader(cur) + '<h2 class="qtext" data-noi18n>' + esc(cur.q) + '</h2><div class="answers' + (myV != null ? " locked" : "") + '" id="liveAns" data-noi18n>' + answersHTML(cur.opts, canAnswer) + '</div>' +
+      (myV != null ? '<p class="answered" style="color:var(--ink)">' + TR("Locked in {k}. Waiting for the reveal…", {k: KEYS[myV]}) + '</p>' : '') +
+      (isHost ? '<p class="answered" id="answeredN">' + TR("{a} of {b} answered", {a: answeredN, b: players.length}) + '</p><div class="dots" id="ansDots" data-noi18n></div>' : '') + '</section>';
     if (myV != null){ const b = st.querySelector('.ans[data-i="' + myV + '"]'); if (b) b.classList.add("picked"); }
     $("liveAns").onclick = e => { const b = e.target.closest(".ans"); if (b && !b.disabled) liveAnswer(+b.dataset.i); };
     if (isHost){ $("ansDots").innerHTML = players.map(p => '<span class="' + (p.ans && p.ans[cur.k] && p.ans[cur.k].v != null ? "in" : "") + '">' + esc(p.name) + '</span>').join(""); }
@@ -1118,29 +1136,29 @@ function renderStage(){
   }
   if (ph === "reveal" && cur && state.reveal && state.reveal.k === cur.k){
     const r = state.reveal, max = Math.max(1, ...(r.counts || [0]));
-    let tiles = cur.opts.map((t, i) => '<div class="ans a' + i + (i === r.right ? " right" : "") + (i === myV ? " picked" + (i !== r.right ? " wrong" : "") : "") + '"><span class="key">' + KEYS[i] + '</span><span class="txt">' + esc(t) + '</span>' + (i === r.right ? '<span class="mark">✓</span>' : '') + '<span class="cnt">' + ((r.counts || [])[i] || 0) + '</span><span class="bar" style="width:' + (100 * ((r.counts || [])[i] || 0) / max) + '%"></span></div>').join("");
+    let tiles = cur.opts.map((t, i) => '<div class="ans a' + i + (i === r.right ? " right" : "") + (i === myV ? " picked" + (i !== r.right ? " wrong" : "") : "") + '"><span class="key">' + KEYS[i] + '</span><span class="txt" data-noi18n>' + esc(t) + '</span>' + (i === r.right ? '<span class="mark">✓</span>' : '') + '<span class="cnt">' + ((r.counts || [])[i] || 0) + '</span><span class="bar" style="width:' + (100 * ((r.counts || [])[i] || 0) / max) + '%"></span></div>').join("");
     let you = "";
     if (playing){
       const g = (r.gains || {})[uid], rows = board(), rank = rows.findIndex(x => x.id === uid) + 1, s = (state.scores || {})[uid] || {};
-      you = '<div class="youbox ' + (g ? "r" : "w") + ' pop"><b>' + (g ? "Right! +" + fmt(g) : myV != null ? "Not this time" : "No answer") + '</b><span>' + (g && r.fastest && r.fastest.id === uid ? "Fastest right answer in the room. " : "") + (s.streak >= 2 ? "🔥 " + s.streak + " in a row. " : "") + "You're " + ordinal(rank) + " of " + rows.length + " with " + fmt(s.pts || 0) + " points.</span></div>";
+      you = '<div class="youbox ' + (g ? "r" : "w") + ' pop"><b>' + (g ? TR("Right!") + " +" + fmt(g) : TR(myV != null ? "Not this time" : "No answer")) + '</b><span>' + (g && r.fastest && r.fastest.id === uid ? TR("Fastest right answer in the room.") + " " : "") + (s.streak >= 2 ? "🔥 " + TR("{n} in a row.", {n: s.streak}) + " " : "") + TR("You're {r} of {n} with {p} points.", {r: ordinal(rank), n: rows.length, p: fmt(s.pts || 0)}) + "</span></div>";
     }
     const nRight = Object.keys(r.gains || {}).length;
-    st.innerHTML = '<section class="pop">' + qHeader(cur) + '<h2 class="qtext">' + esc(cur.q) + '</h2><div class="answers done">' + tiles + '</div>' + you +
-      '<div class="factbox pop" style="margin-top:16px"><b>The fact</b>' + esc(r.f || "") + '</div>' +
-      '<p class="answered">' + nRight + ' of ' + (r.of || 0) + ' got it right' + (r.fastest ? ' · fastest: <b style="color:var(--ink)">' + esc(r.fastest.name) + '</b> in ' + (r.fastest.ms / 1000).toFixed(1) + ' s' : '') + '<span id="autoNote"></span></p></section>';
+    st.innerHTML = '<section class="pop">' + qHeader(cur) + '<h2 class="qtext" data-noi18n>' + esc(cur.q) + '</h2><div class="answers done">' + tiles + '</div>' + you +
+      '<div class="factbox pop" style="margin-top:16px"><b>' + TR("The fact") + '</b><span data-noi18n>' + esc(r.f || "") + '</span></div>' +
+      '<p class="answered">' + TR("{a} of {b} got it right", {a: nRight, b: r.of || 0}) + (r.fastest ? ' · ' + TR("fastest: {n} in {t} s", {n: '<b style="color:var(--ink)" data-noi18n>' + esc(r.fastest.name) + '</b>', t: (r.fastest.ms / 1000).toFixed(1)}) : '') + '<span id="autoNote"></span></p></section>';
     return;
   }
   if (ph === "done"){
     const rows = board(), top = rows.slice(0, 3), meI = rows.findIndex(x => x.id === uid);
     const order = [top[1], top[0], top[2]], h = [110, 160, 80], place = [2, 1, 3];
-    st.innerHTML = '<section class="panel pop"><h2 style="font:700 32px var(--serif)">Final results</h2><div class="podium">' + order.map((r, i) => r ? '<div class="step"><div class="name">' + esc(r.name) + '</div><div class="p">' + fmt(r.pts) + ' pts · ' + r.right + ' right</div><div class="block" style="height:' + h[i] + 'px">' + place[i] + '</div></div>' : '<div class="step"></div>').join("") + '</div>' +
-      (meI >= 0 ? '<p class="state-big" style="margin-top:14px">You finished ' + ordinal(meI + 1) + ' of ' + rows.length + '.</p>' : '') + '</section>';
+    st.innerHTML = '<section class="panel pop"><h2 style="font:700 32px var(--serif)">Final results</h2><div class="podium">' + order.map((r, i) => r ? '<div class="step"><div class="name" data-noi18n>' + esc(r.name) + '</div><div class="p">' + TR("{p} pts · {r} right", {p: fmt(r.pts), r: r.right}) + '</div><div class="block" style="height:' + h[i] + 'px">' + place[i] + '</div></div>' : '<div class="step"></div>').join("") + '</div>' +
+      (meI >= 0 ? '<p class="state-big" style="margin-top:14px">' + TR("You finished {r} of {n}.", {r: ordinal(meI + 1), n: rows.length}) + '</p>' : '') + '</section>';
     if (meI === 0 || isHost) SFX.win();
     return;
   }
   st.innerHTML = '<section class="panel"><p class="muted" style="margin:0">Waiting for the host…</p></section>';
 }
-function ordinal(n){ const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+function ordinal(n){ if (TR('1st') !== '1st') return n + '.º'; const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 let qrLoading = null;
 function drawQR(el, text){
   if (!el) return;
@@ -1169,7 +1187,7 @@ function liveTick(){
   }
   if (state.phase === "reveal" && state.auto && state.reveal){
     const wait = 10000, rem = Math.max(0, state.reveal.at + wait - Date.now());
-    const n = $("autoNote"); if (n) n.textContent = " · next in " + Math.ceil(rem / 1000) + " s";
+    const n = $("autoNote"); if (n) n.textContent = " · " + TR("next in {n} s", {n: Math.ceil(rem / 1000)});
     if (rem <= 0 && advancingK !== state.reveal.k){ advancingK = state.reveal.k; nextQuestion(); }
   }
 }

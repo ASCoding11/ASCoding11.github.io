@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("~630","bears;lions;eagles;dolphins;broncos;rams;panthers;jaguars;bengals;colts;ravens;falcons;seahawks;cardinals;bulls;hawks;raptors;timberwolves;grizzlies;hornets;bucks;pelicans;cubs;tigers;orioles;blue jays;marlins;diamondbacks;rays;penguins;sharks;ducks;bruins;coyotes;mammoth;thrashers","xnw3tsukhzkjrqp6gggpmll2gylkt0qpk1tsjin4taj0ponmhhs9dmd3mcvcutwdfxl2kaas");

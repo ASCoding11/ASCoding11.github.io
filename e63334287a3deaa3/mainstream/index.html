@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/mainstream/es.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<title>Mainstream</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#04111f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="/e63334287a3deaa3/wordplay/kit.css">
+<style>
+/* Mainstream: ten prompts, say what most people would say. The strip at the top is the run drawn as a river that
+   widens as the prompts are worth more; each stretch fills as far as the answer placed on its board. */
+:root{--water:#58b7ff;--water-2:#2f7fe0;--bed:rgba(241,247,255,.07);--u:8px}
+#game{align-items:center;background:radial-gradient(ellipse at 50% 0%,#0e2d58 0%,#04111f 70%)}
+#wrap{width:100%;max-width:620px;height:100%;display:flex;flex-direction:column;gap:var(--u);padding:clamp(10px,7vh,72px) 12px 12px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#wrap>*{flex:none}
+.mode .info b{font-variant-numeric:tabular-nums}
+
+/* the river */
+#river{display:block;width:100%;height:44px}
+#river .bed{fill:var(--bed);stroke:rgba(241,247,255,.16);stroke-width:1;vector-effect:non-scaling-stroke}
+#river .now{stroke:var(--sun);stroke-width:2;fill:rgba(255,209,102,.10)}
+#river .w{fill:url(#rv)}
+#river .dry{stroke:rgba(241,247,255,.28);stroke-width:1.5;stroke-dasharray:3 5;fill:none;vector-effect:non-scaling-stroke}
+#river .w.in{animation:fill .5s ease-out}
+@keyframes fill{from{opacity:0}to{opacity:1}}
+#reach{display:flex;gap:3px;margin-top:-4px;font:800 10px/1 var(--f-u);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+#reach span{text-align:center;white-space:nowrap;overflow:hidden}
+#reach span.on{color:var(--sun)}
+#reach b{color:var(--ink-2);font-weight:800}
+#reach span.on b{color:var(--sun)}
+
+/* cards */
+.card{background:var(--panel-3);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.meta{display:flex;align-items:center;justify-content:space-between;gap:8px;font:800 11px/1 var(--f-u);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.meta b{color:var(--sun)}
+.q{margin:0;font:700 26px/1.2 var(--f-d);letter-spacing:.005em;text-wrap:balance}
+.q.sm{font-size:19px;color:var(--ink-2)}
+.paused .q.live{filter:blur(9px);opacity:.5;user-select:none}
+
+/* intro */
+.intro h2{margin:0;font:700 28px/1.15 var(--f-d);text-wrap:balance}
+.intro p{margin:0;font:600 15px/1.45 var(--f-u);color:var(--ink-2)}
+.intro p b{color:var(--ink)}
+.intro .cta{align-self:flex-start;min-height:48px;padding:10px 22px}
+.note{font:600 12px/1.45 var(--f-u);color:var(--ink-3);margin:0}
+.note a,.intro a{color:var(--aqua)}
+
+/* asking */
+.clock{display:flex;align-items:center;gap:10px}
+.clock .track{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}
+.clock i{display:block;height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,var(--aqua),var(--water));transform-origin:left center}
+.clock.low i{background:var(--coral)}
+.clock .secs{font:700 22px/1 var(--f-d);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+.clock.low .secs{color:var(--coral)}
+#f{display:flex;gap:8px}
+#ans{flex:1;min-width:0;height:52px;border-radius:14px;border:2px solid var(--line);background:rgba(4,17,31,.7);color:var(--ink);font:800 20px var(--f-u);padding:0 14px;outline:none;-webkit-appearance:none;appearance:none}
+#ans:focus{border-color:var(--aqua)}
+#ans::placeholder{color:var(--ink-3);font-weight:700}
+#ans.no{border-color:var(--coral);animation:no .32s}
+@keyframes no{25%{transform:translateX(-5px)}60%{transform:translateX(5px)}}
+#f .cta{height:52px;padding:0 18px}
+#msg{margin:0;min-height:20px;font:700 14px/1.4 var(--f-u);color:var(--coral)}
+.under{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.under .ghost{min-height:44px;padding:8px 18px}
+.under span{font:700 12px/1.3 var(--f-u);color:var(--ink-3);text-align:right}
+
+/* the reveal */
+.verdict{display:flex;align-items:center;gap:10px;border-radius:12px;padding:10px 12px;background:rgba(255,255,255,.06)}
+.verdict div{flex:1;min-width:0}
+.verdict b{display:block;font:700 18px/1.2 var(--f-d)}
+.verdict span{display:block;font:700 13px/1.35 var(--f-u);color:var(--ink-2);overflow:hidden;text-overflow:ellipsis}
+.verdict em{font:700 24px/1 var(--f-d);font-style:normal;font-variant-numeric:tabular-nums;white-space:nowrap}
+.verdict.v1{background:linear-gradient(90deg,rgba(79,227,193,.26),rgba(88,183,255,.16))}
+.verdict.v1 b,.verdict.v1 em{color:var(--aqua)}
+.verdict.v2 b,.verdict.v2 em{color:var(--water)}
+.verdict.v0 em,.verdict.vx em{color:var(--ink-3)}
+.verdict.vx b{color:var(--coral)}
+.board{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.board li{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:8px;height:30px;padding:0 10px 0 8px;border-radius:9px;background:rgba(255,255,255,.045);overflow:hidden}
+.board li i{position:absolute;left:0;top:0;bottom:0;width:var(--w);background:linear-gradient(90deg,rgba(88,183,255,.34),rgba(88,183,255,.12));border-radius:9px}
+.board li>span,.board li>b,.board li>em{position:relative}
+.board .rk{font:700 14px/1 var(--f-d);color:var(--ink-3);text-align:center;font-variant-numeric:tabular-nums}
+.board .an{font:800 14px/1 var(--f-u);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.board em{font:700 13px/1 var(--f-u);font-style:normal;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.board li.me{background:rgba(255,209,102,.16);box-shadow:inset 0 0 0 2px var(--sun)}
+.board li.me i{background:linear-gradient(90deg,rgba(255,209,102,.42),rgba(255,209,102,.14))}
+.board li.me .rk,.board li.me em{color:var(--sun)}
+.board li.me .an::after{content:' · you';color:var(--sun);letter-spacing:.08em;font-size:11px}
+html[lang="es"] .board li.me .an::after{content:' · tú'} /* Spanish (lang.js sets <html lang>) */
+.board li.off{background:none;box-shadow:inset 0 0 0 1px var(--line)}
+.board.in li{animation:row .28s ease-out backwards}
+@keyframes row{from{opacity:0;transform:translateY(6px)}}
+.nx{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;bottom:-12px;z-index:2;margin:0 -16px;padding:8px 16px 12px;background:linear-gradient(180deg,rgba(13,31,62,0),var(--panel-3) 30%)}
+.nx .cta{min-height:48px;padding:10px 22px}
+.nx span{font:700 14px/1.2 var(--f-u);color:var(--ink-2);font-variant-numeric:tabular-nums;text-align:right}
+.nx span b{color:var(--ink);font:700 20px var(--f-d)}
+
+/* the end */
+.end .big{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.end .big b{font:700 44px/1 var(--f-d);font-variant-numeric:tabular-nums;color:var(--ink)}
+.end .big span{font:700 15px var(--f-u);color:var(--ink-3)}
+.end h2.band{color:var(--aqua)}
+.end h2.band.low{color:var(--sun)}
+.sum{display:grid;gap:4px;margin:2px 0 0;padding:0}
+.sum details{border-radius:10px;background:rgba(255,255,255,.045)}
+.sum summary{list-style:none;display:grid;grid-template-columns:20px minmax(0,1fr) auto 52px;align-items:center;gap:8px;padding:7px 10px 7px 8px;cursor:pointer;min-height:44px}
+.sum summary::-webkit-details-marker{display:none}
+.sum .n{font:700 13px/1 var(--f-d);color:var(--ink-3);text-align:center}
+.sum .qa{min-width:0}
+.sum .qa small{display:block;font:700 11px/1.25 var(--f-u);color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum .qa span{display:block;font:800 14px/1.3 var(--f-u);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum .qa span.none{color:var(--ink-3);text-transform:none;letter-spacing:0}
+.chip{font:800 11px/1 var(--f-u);letter-spacing:.06em;padding:5px 7px;border-radius:99px;background:rgba(255,255,255,.08);color:var(--ink-2);white-space:nowrap}
+.chip.c1{background:var(--aqua);color:var(--aqua-ink)}
+.chip.c2{background:rgba(88,183,255,.28);color:#d7ecff}
+.sum summary>b{font:700 15px/1 var(--f-d);text-align:right;font-variant-numeric:tabular-nums}
+.sum details[open] summary{border-bottom:1px solid var(--line)}
+.sum details .board{padding:8px}
+.sum details .note{padding:0 10px 8px}
+
+/* statistics window */
+.dist span{width:104px!important;font-size:12px!important}
+.st3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-top:12px}
+.st3 b{display:block;font:700 22px/1.1 var(--f-d);font-variant-numeric:tabular-nums}
+.st3 small{font:700 11px/1.2 var(--f-u);color:var(--ink-3);display:block}
+.pts{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin:6px 0 10px}
+.pts span{background:rgba(255,255,255,.07);border-radius:8px;padding:5px 2px;text-align:center;font:700 11px/1.3 var(--f-u);color:var(--ink-3)}
+.pts span b{display:block;font:700 15px var(--f-d)}
+.modal a{color:var(--aqua)}
+
+/* a phone on its side, or a phone with the keyboard up: tighter, and the board in two columns */
+@media (max-height:520px){
+  #wrap{gap:6px;padding:6px 12px 8px}
+  #river{height:30px}
+  .card{padding:10px 12px;gap:8px}
+  .nx{margin:0 -12px;padding:6px 12px 10px;bottom:-8px}
+  .q{font-size:21px}
+  #ans,#f .cta{height:46px}
+  #msg{min-height:18px;font-size:13px}
+  .under .ghost{min-height:40px;padding:6px 16px}
+  .intro h2{font-size:22px}
+}
+@media (max-height:520px) and (min-aspect-ratio:6/5){
+  #wrap{max-width:760px}
+  .board{grid-template-columns:1fr 1fr;grid-auto-flow:column;grid-template-rows:repeat(5,auto)}
+  .board li.off{grid-column:1/-1;grid-row:6}
+  .sum details .board{grid-template-rows:repeat(5,auto)}
+}
+/* a phone on its side with the keyboard up leaves a sliver: while a prompt is being asked, show only the prompt, the clock and the box */
+@media (max-height:300px){
+  .asking #modeSlot,.asking #riverBox,.asking .meta,.asking .under span{display:none}
+  .asking .card{padding:8px 12px;gap:6px}
+  .asking .q{font-size:18px}
+  .asking #msg{min-height:0;font-size:12px}
+  .asking .q{padding-right:72px}
+  .asking .under{position:absolute;right:12px;top:5px}
+  .asking .under .ghost{min-height:28px;padding:1px 12px;font-size:13px}
+  .asking .card{position:relative}
+}
+@media (max-width:640px){#wrap{padding-top:10px}}
+@media (max-width:380px){.q{font-size:22px}.nx{margin:0 -12px;padding:8px 12px 12px}.card{padding:12px}.end .big b{font-size:38px}.sum summary{grid-template-columns:18px minmax(0,1fr) auto 46px;gap:6px}}
+@media (prefers-reduced-motion:reduce){
+  #river .w.in,.board.in li,#ans.no{animation:none}
+}
+</style>
+</head>
+<body>
+<main id="game">
+  <div id="wrap">
+    <div id="modeSlot"></div>
+    <div id="riverBox">
+      <svg id="river" viewBox="0 0 1000 50" preserveAspectRatio="none" role="img" aria-label="Your run"></svg>
+      <div id="reach" aria-hidden="true"></div>
+    </div>
+    <div id="stage"></div>
+  </div>
+</main>
+<script src="/e63334287a3deaa3/wordplay/kit.js"></script>
+<script src="/e63334287a3deaa3/deepword/prompts.js"></script>
+<script src="/e63334287a3deaa3/mainstream/boards.js"></script>
+<script>
+'use strict';
+(function () {
+const K = Kit, h = K.h, $ = K.$;
+const SLUG = 'mainstream', NAME = 'Mainstream';
+
+// =====================================================================
+//  Scoring (version SV, saved with every result so old results can be told apart if the table ever changes)
+// =====================================================================
+const SV = 1;
+const RUN = 10;                                          // prompts in a run
+const SECS = 30, GRACE = 700;                            // the clock, and how long after zero an answer still counts (ms)
+const PTS = [100, 84, 70, 58, 48, 40, 32, 26, 20, 16];   // board places 1 to 10
+const OFF = 10;                                          // accepted, but not on the board
+const MULT = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3];             // prompts 1-3, 4-7, 8-10
+const REACH = [['Spring', 1, 3], ['Stream', 2, 4], ['River', 3, 3]]; // the river's three stretches: name, multiplier, prompts
+const MAX = MULT.reduce((a, m) => a + m * PTS[0], 0);    // 2,000
+const PASS = 1000;                                       // a daily run at or above this keeps the streak
+const BANDS = [[1900, 'Pure mainstream'], [1700, 'Full flow'], [1400, 'Main current'], [1000, 'In the flow'], [500, 'Backwater'], [0, 'Up the creek']];
+const bandOf = t => BANDS.findIndex(b => t >= b[0]);     // 0 is the best band
+const EMO = r => r === 1 ? '🌊' : r >= 2 && r <= 3 ? '🔵' : r >= 4 && r <= 6 ? '🟢' : r >= 7 ? '🟡' : r === 0 ? '⚪' : '⚫';
+// Language (lang.js): Mainstream's own words are in es.js and text built in code goes through TR(); the prompts and
+// answers come from Deepword's English bank and stay English (data-noi18n). The page is redrawn on a language switch.
+const TR = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
+const fmt = n => Math.round(n).toLocaleString(window.BackRoomLang ? BackRoomLang.locale() : 'en-US');
+const reduced = () => { try { return matchMedia('(prefers-reduced-motion:reduce)').matches; } catch (e) { return false; } };
+
+// =====================================================================
+//  Answers: Deepword's bank (../deepword/prompts.js, never edited here) holds every accepted answer and its
+//  spellings; boards.js says which ten are on each prompt's board. norm, parseList, safeRe, oneOff and nearMiss
+//  are the same as Deepword's, so an answer accepted there is accepted here.
+// =====================================================================
+function norm(s) {
+  s = String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  s = s.replace(/&/g, ' and ').replace(/[’'`.]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  if (s.length > 4 && s.slice(0, 4) === 'the ') s = s.slice(4);
+  return s;
+}
+const BANK = window.DW_BANK || { lists: {}, prompts: [] };
+function parseList(str) {
+  const out = [], seen = new Map();
+  for (const tok of String(str || '').split(';')) {
+    const t = tok.trim(); if (!t) continue;
+    const i = t.lastIndexOf(':'); let w = 3, names = t;
+    if (i > 0 && /^[1-5]$/.test(t.slice(i + 1))) { w = +t.slice(i + 1); names = t.slice(0, i); }
+    const raws = names.split('|').map(x => x.trim()).filter(Boolean);
+    const al = raws.map(norm).filter(Boolean); if (!al.length) continue;
+    const had = seen.get(al[0]);
+    if (had) { for (const a of al) if (had.al.indexOf(a) < 0) had.al.push(a); continue; } // the same answer twice: keep the first
+    const e = { n: al[0], al, w, raw: raws[0] }; seen.set(al[0], e); out.push(e);
+  }
+  return out;
+}
+function safeRe(f) { if (typeof f !== 'string' || !f || f.length > 2000 || !/^[a-z0-9 ^$.{}()|\[\]-]+$/.test(f) || /\{\d*,|\{\}|\(\)|\(\?|\]\{|\)\{/.test(f)) return null; try { return new RegExp(f); } catch (e) { return null; } }
+// A slip of the finger still counts: the same letters with the spaces left out, or, for six letters or more with
+// the first letter right, one letter wrong, missing, extra or swapped. Only when exactly one answer is that close.
+function oneOff(a, b) {
+  const la = a.length, lb = b.length; if (Math.abs(la - lb) > 1) return false;
+  let i = 0; while (i < la && i < lb && a[i] === b[i]) i++;
+  if (la === lb) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  return la > lb ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+}
+function nearMiss(m, t) {
+  const sq = t.replace(/ /g, ''); if (sq.length < 4) return null;
+  let hit = null;
+  for (const [a, e] of m) { if (a.length >= sq.length && a.replace(/ /g, '') === sq) { if (hit && hit !== e) return null; hit = e; } }
+  if (hit || sq.length < 6) return hit;
+  for (const [a, e] of m) { const b = a.replace(/ /g, ''); if (b[0] === sq[0] && oneOff(sq, b)) { if (hit && hit !== e) return null; hit = e; } }
+  return hit;
+}
+
+// The bank's prompts by their question, and every board whose question is in the bank.
+const CAT_KEYS = ['geo', 'animals', 'food', 'pop', 'science', 'sports', 'life'];
+const bankRow = new Map();
+(BANK.prompts || []).forEach(r => { if (Array.isArray(r) && r.length >= 3 && !bankRow.has(r[1])) bankRow.set(r[1], r); });
+const ALL = [], byQ = new Map();
+(window.MAINSTREAM_BOARDS || []).forEach(b => {
+  if (!Array.isArray(b) || typeof b[0] !== 'string' || !Array.isArray(b[1]) || byQ.has(b[0])) return;
+  const row = bankRow.get(b[0]); if (!row || CAT_KEYS.indexOf(row[0]) < 0) return;
+  const p = { q: b[0], cat: row[0], board: b[1], extra: b[2] || null, row, ok: null };
+  byQ.set(p.q, p); ALL.push(p);
+});
+// Works out a prompt's answers the first time it is needed. A prompt whose board no longer matches the bank
+// (an answer renamed or removed there) is left out instead of being scored wrongly; check.js finds these.
+function build(p) {
+  if (p.ok != null) return p.ok;
+  p.ok = false;
+  const src = p.row[2], inline = /[:;]/.test(src) && !BANK.lists[src];
+  let ent = parseList(inline ? src : BANK.lists[src] || '');
+  if (p.row[3]) { const re = safeRe(p.row[3]); if (!re) return false; ent = ent.map(e => { const al = e.al.filter(a => re.test(a)); return al.length ? (al.length === e.al.length ? e : { n: e.n, al, w: e.w, raw: re.test(e.n) ? e.raw : al[0] }) : null; }).filter(Boolean); }
+  const map = new Map(); for (const e of ent) for (const a of e.al) if (!map.has(a)) map.set(a, e);
+  const rank = new Map(), bmap = new Map();
+  if (ent.length < 25 || p.board.length !== RUN) return false;
+  for (let i = 0; i < RUN; i++) {
+    const e = map.get(norm(p.board[i])); if (!e || rank.has(e)) return false;
+    rank.set(e, i); for (const a of e.al) if (map.get(a) === e) bmap.set(a, e);
+  }
+  if (p.extra) for (const x in p.extra) { const t = map.get(norm(p.extra[x])); if (t && rank.has(t) && !bmap.has(norm(x))) bmap.set(norm(x), t); }
+  p.map = map; p.rank = rank; p.bmap = bmap;
+  return (p.ok = true);
+}
+// What a typed answer stands for: {e: the bank's entry, r: its place on the board, 0 if it isn't on it}, or null.
+// An exact spelling wins; then a board answer's stray plural or extra spelling; then, as in Deepword, a stray
+// plural of any accepted answer and a near miss.
+function judge(p, text) {
+  const t = norm(text); if (!t) return null;
+  const m = p.map, at = e => ({ e, r: p.rank.has(e) ? p.rank.get(e) + 1 : 0 });
+  const e = m.get(t); if (e && p.rank.has(e)) return at(e);
+  const v = [t];
+  if (t.length > 3 && t.endsWith('es')) v.push(t.slice(0, -2));
+  if (t.length > 2 && t.endsWith('s')) v.push(t.slice(0, -1));
+  v.push(t + 's', t + 'es');
+  for (const x of v) { const b = p.bmap.get(x); if (b) return at(b); }
+  if (e) return at(e);
+  for (let i = 1; i < v.length; i++) { const x = m.get(v[i]); if (x) return at(x); }
+  const nm = nearMiss(m, t);
+  return nm ? at(nm) : null;
+}
+// An off-board answer is shown as the bank spells it, with capitals added if it has none.
+const nice = s => /[A-Z]/.test(s) ? s : s.replace(/(^|[\s-])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+const pointsFor = (r, k) => (r >= 1 ? PTS[r - 1] : r === 0 ? OFF : 0) * MULT[k];
+
+// =====================================================================
+//  Which ten. Daily: the whole list is dealt out ten a day, so no prompt comes back until every day of the cycle
+//  has been played (34 days with 342 boards), and each day gets a spread of categories. Everyone gets the same ten.
+// =====================================================================
+const cycleCache = {};
+function cycleList(c) {
+  if (cycleCache[c]) return cycleCache[c];
+  let L = [];
+  CAT_KEYS.forEach(k => { const g = ALL.filter(p => p.cat === k); if (g.length) L = L.concat(K.shuffle(g, K.rng(SLUG + '-cycle-' + c + '-' + k))); });
+  return (cycleCache[c] = L);
+}
+function dailyPicks(day) {
+  const N = ALL.length, D = Math.floor(N / RUN); if (D < 1) return [];
+  let i = K.dayNum(day) - 1; if (i < 0) i = ((i % D) + D) % D; // before launch (previews): wrap round
+  const c = Math.floor(i / D), d = i - c * D, L = cycleList(c), out = [];
+  for (let j = 0; j < RUN; j++) {
+    let x = d + j * D, n = 0;
+    while (n < N && (!build(L[x % N]) || out.indexOf(L[x % N]) >= 0)) { x++; n++; } // a board that no longer matches the bank: take the next one
+    if (n < N) out.push(L[x % N]);
+  }
+  return K.shuffle(out, K.rng(SLUG + '-day-' + day));
+}
+function freePicks(not) {
+  const out = [], per = {};
+  for (const p of K.shuffle(ALL, Math.random)) {
+    if (out.length >= RUN) break;
+    if ((per[p.cat] || 0) >= 2 || (not && not.indexOf(p.q) >= 0) || !build(p)) continue;
+    per[p.cat] = (per[p.cat] || 0) + 1; out.push(p);
+  }
+  return K.shuffle(out, Math.random);
+}
+
+// =====================================================================
+//  Saved in this browser. daily:mainstream is the shared record the Daily Puzzles page reads (Kit.Daily);
+//  mainstream:day is today's run (so a reload carries on, with the time that was left); mainstream:stats the totals.
+//  A result r is a board place 1-10, 0 = accepted but off the board, -1 = passed, -2 = out of time.
+// =====================================================================
+function loadStats() {
+  const s = K.store.get(SLUG + ':stats', null);
+  const o = (s && typeof s === 'object' && s.v === 1) ? s : { v: 1 };
+  ['runs', 'sum', 'best', 'tops', 'hits', 'asked'].forEach(f => { o[f] = Math.max(0, +o[f] || 0); });
+  if (!o.days || typeof o.days !== 'object') o.days = {};
+  return o;
+}
+function saveDay() {
+  if (!st || st.mode !== 'daily') return;
+  K.store.set(SLUG + ':day', { v: 1, sv: SV, day: st.day, picks: st.picks.map(p => p.q), res: st.res, left: st.phase === 'ask' ? Math.max(0, Math.round(T.left)) : null, done: st.done });
+}
+function cleanRes(a, n) {
+  const out = [];
+  if (!Array.isArray(a)) return out;
+  for (let k = 0; k < a.length && k < n; k++) {
+    const x = a[k]; if (!x || typeof x !== 'object') break;
+    const r = Math.max(-2, Math.min(10, Math.round(+x.r))); if (!isFinite(r)) break;
+    out.push({ a: typeof x.a === 'string' ? x.a.slice(0, 80) : '', r, p: pointsFor(r, k) });
+  }
+  return out;
+}
+
+// =====================================================================
+//  The page
+// =====================================================================
+const HOW = () => TR('<p>Ten prompts. For each one, type the answer you think <b>most people</b> would give.</p>') +
+  TR('<ul><li>You get <b>{s} seconds</b> a prompt. If your answer isn\'t one we accept, try another while the clock runs. Your <b>first accepted answer is final</b>. You can pass.</li>', { s: SECS }) +
+  TR('<li>Every prompt has a board of its <b>ten most common answers</b>. Here is what each place scores:</li></ul>') +
+  '<div class="pts">' + PTS.map((p, i) => '<span>#' + (i + 1) + '<b>' + p + '</b></span>').join('') + '</div>' +
+  TR('<ul><li>An accepted answer that isn\'t on the board scores <b>{o}</b>. A pass, or running out of time, scores <b>0</b>.</li>', { o: OFF }) +
+  TR('<li>The river gets wider as it goes: prompts 1 to 3 count <b>×1</b>, 4 to 7 <b>×2</b> and 8 to 10 <b>×3</b>, so the ending matters most. A perfect run is <b>{m}</b>.</li>', { m: fmt(MAX) }) +
+  TR('<li>Score <b>{p}</b> or more in the daily run to keep your streak going.</li></ul>', { p: fmt(PASS) }) +
+  TR('<p><b>The boards are our own prepared estimates</b> of what most people would say. They are not survey results, and they are not what other players answered.</p>') +
+  TR('<p>The clock stops while this window is open or the tab is hidden. If time runs out with an accepted answer still in the box, it counts.</p>') +
+  TR('<p>Would you sooner find the answer nobody else thinks of? <a href="/e63334287a3deaa3/deepword/">Deepword</a> is this game turned upside down.</p>');
+const DIST = BANDS.map((b, i) => [String(i), b[1]]);
+let st = null;
+const T = { left: SECS * 1000, last: 0, raf: 0, shown: -1 };
+const S = K.shell({
+  slug: SLUG, name: NAME, how: { toString: HOW }, dist: DIST, distTitle: 'Daily runs by result', winLabel: fmt(PASS) + '+ %',
+  foot: ' Here that means the prompts and the boards: the boards are estimates, not survey results.',
+  extra: () => { const s = loadStats(); return h('div', { class: 'st3' }, [
+    h('div', { html: '<b>' + fmt(s.best) + '</b><small>Best daily score</small>' }),
+    h('div', { html: '<b>' + (s.runs ? fmt(s.sum / s.runs) : 0) + '</b><small>Average score</small>' }),
+    h('div', { html: '<b>' + fmt(s.tops) + '</b><small>Top answers</small>' })]); },
+  shareText: () => st && st.done ? shareText() : null,
+  onModal: open => { document.body.classList.toggle('paused', !!open); T.last = 0; if (!open && st && st.phase === 'ask') focusAns(); }
+});
+const mb = K.modeBar($('modeSlot'), m => start(m));
+const stage = $('stage'), river = $('river'), reach = $('reach'), wrap = $('wrap');
+const total = () => st.res.reduce((a, x) => a + x.p, 0);
+
+// ---- the river: ten stretches from a narrow spring to a wide river mouth. A finished stretch is filled as far as
+// ---- that answer's place on its board (the top answer fills the channel, an off-board answer is a thread, and a
+// ---- pass or a time-out leaves it dry).
+function drawRiver(fresh) {
+  const W = 1000, GAP = 4, half = m => 2 + m * 6, cy = x => 25 + 3.5 * Math.sin(x / W * Math.PI * 3.2);
+  const edge = []; for (let j = 0; j <= RUN; j++) edge.push(half(j === 0 ? MULT[0] : j === RUN ? MULT[RUN - 1] : (MULT[j - 1] + MULT[j]) / 2));
+  const seg = (k, f) => {
+    const x0 = k * W / RUN + GAP / 2, x1 = (k + 1) * W / RUN - GAP / 2, top = [], bot = [];
+    for (let s = 0; s <= 6; s++) { const u = s / 6, x = x0 + (x1 - x0) * u, hh = (edge[k] + (edge[k + 1] - edge[k]) * u) * f, c = cy(x); top.push(x.toFixed(1) + ',' + (c - hh).toFixed(1)); bot.unshift(x.toFixed(1) + ',' + (c + hh).toFixed(1)); }
+    return top.concat(bot).join(' ');
+  };
+  const mid = k => { const x0 = k * W / RUN + GAP / 2, x1 = (k + 1) * W / RUN - GAP / 2, pts = []; for (let s = 0; s <= 6; s++) { const x = x0 + (x1 - x0) * s / 6; pts.push(x.toFixed(1) + ',' + cy(x).toFixed(1)); } return pts.join(' '); };
+  let svg = '<defs><linearGradient id="rv" x1="0" x2="1"><stop offset="0" stop-color="#4fe3c1"/><stop offset="1" stop-color="#58b7ff"/></linearGradient></defs>';
+  const res = st ? st.res : [], cur = st && (st.phase === 'ask' || st.phase === 'reveal') ? st.k : -1, said = [];
+  for (let k = 0; k < RUN; k++) {
+    const r = res[k];
+    svg += '<polygon class="bed' + (k === cur && st.phase === 'ask' ? ' now' : '') + '" points="' + seg(k, 1) + '"/>';
+    if (r) {
+      if (r.r >= 0) svg += '<polygon class="w' + (fresh === k && !reduced() ? ' in' : '') + '" points="' + seg(k, Math.max(.1, (r.r >= 1 ? PTS[r.r - 1] : OFF) / PTS[0])) + '"/>';
+      else svg += '<polyline class="dry" points="' + mid(k) + '"/>';
+      said.push(r.r >= 1 ? TR('number {n}', { n: r.r }) : TR(r.r === 0 ? 'off the board' : r.r === -1 ? 'passed' : 'out of time'));
+    }
+  }
+  river.innerHTML = svg;
+  river.setAttribute('aria-label', said.length ? TR('Your run: {a} of {b} prompts answered. Places so far: {c}.', { a: said.length, b: RUN, c: said.join(', ') }) : TR('Your run: not started. The river widens as later prompts are worth more.'));
+  reach.innerHTML = '';
+  let from = 0;
+  REACH.forEach(z => { const on = cur >= from && cur < from + z[2]; reach.appendChild(h('span', { class: on ? 'on' : '', style: 'flex:' + z[2], html: TR(z[0]) + ' <b>×' + z[1] + '</b>' })); from += z[2]; });
+}
+
+// ---- the clock: only counts while the page is on screen and no window is open
+function paused() { return document.hidden || S.isOpen(); }
+function tick(now) {
+  T.raf = 0;
+  if (!st || st.phase !== 'ask') return;
+  if (paused()) T.last = 0;
+  else { if (T.last) T.left -= Math.min(1000, Math.max(0, now - T.last)); T.last = now; }
+  paintClock();
+  if (T.left <= -GRACE) { timeUp(); return; }
+  T.raf = requestAnimationFrame(tick);
+}
+function paintClock() {
+  const c = $('clock'); if (!c) return;
+  const left = Math.max(0, T.left), secs = Math.ceil(left / 1000);
+  c.querySelector('i').style.transform = 'scaleX(' + (left / (SECS * 1000)).toFixed(4) + ')';
+  if (secs !== T.shown) {
+    T.shown = secs; c.querySelector('.secs').textContent = secs; c.classList.toggle('low', secs <= 10);
+    c.setAttribute('aria-label', TR('{n} seconds left', { n: secs }));
+    saveDay();
+  }
+}
+function runClock() { cancelAnimationFrame(T.raf); T.last = 0; T.shown = -1; T.raf = requestAnimationFrame(tick); }
+document.addEventListener('visibilitychange', () => { T.last = 0; if (document.hidden) saveDay(); else if (st && st.phase === 'ask' && !T.raf) T.raf = requestAnimationFrame(tick); });
+addEventListener('pagehide', saveDay);
+
+// ---- starting a run
+function start(m) {
+  cancelAnimationFrame(T.raf); T.raf = 0;
+  if (st && st.mode === 'daily') saveDay();
+  if (m === 'daily') {
+    const day = K.today(), sv = K.store.get(SLUG + ':day', null);
+    st = { mode: 'daily', day, picks: null, res: [], k: 0, phase: 'intro', done: false, tries: 0 };
+    if (sv && sv.v === 1 && sv.day === day && Array.isArray(sv.picks) && sv.picks.length === RUN) {
+      const ps = sv.picks.map(q => byQ.get(q));
+      if (ps.every(p => p && build(p))) {
+        st.picks = ps; st.res = cleanRes(sv.res, RUN); st.k = st.res.length; st.done = st.res.length >= RUN;
+        st.left = !st.done && typeof sv.left === 'number' && sv.left >= 0 ? Math.min(SECS * 1000, sv.left) : null;
+      }
+    }
+    if (!st.picks) st.picks = dailyPicks(day);
+    if (st.done) st.phase = 'done';
+  } else {
+    st = { mode: 'free', day: '', picks: freePicks(st && st.picks ? st.picks.map(p => p.q) : null), res: [], k: 0, phase: 'intro', done: false, tries: 0 };
+  }
+  mb.set(m, true);
+  render();
+}
+function ask(k) {
+  st.k = k; st.phase = 'ask'; st.tries = 0;
+  T.left = st.left != null ? st.left : SECS * 1000; st.left = null;
+  render(); focusAns(); runClock(); saveDay();
+}
+function focusAns() { const a = $('ans'); if (a && !S.isOpen()) try { a.focus({ preventScroll: true }); } catch (e) { a.focus(); } }
+
+// ---- answering
+function submit() {
+  if (!st || st.phase !== 'ask') return;
+  const inp = $('ans'), text = inp.value, p = st.picks[st.k];
+  if (!norm(text)) { focusAns(); return; }
+  const hit = judge(p, text);
+  if (!hit) {
+    st.tries++;
+    $('msg').textContent = TR('“{a}” isn\'t an answer we accept here. Try another.', { a: text.trim().slice(0, 40) });
+    inp.classList.remove('no'); void inp.offsetWidth; inp.classList.add('no');
+    focusAns(); try { inp.select(); } catch (e) {}
+    return;
+  }
+  lock(hit.r, hit.r >= 1 ? p.board[hit.r - 1] : nice(hit.e.raw));
+}
+function timeUp() {
+  // forgiving at the end: an accepted answer still sitting in the box counts
+  const inp = $('ans'), hit = inp && norm(inp.value) ? judge(st.picks[st.k], inp.value) : null;
+  if (hit) lock(hit.r, hit.r >= 1 ? st.picks[st.k].board[hit.r - 1] : nice(hit.e.raw)); else lock(-2, '');
+}
+function lock(r, shown) {
+  if (!st || st.phase !== 'ask') return;
+  cancelAnimationFrame(T.raf); T.raf = 0;
+  st.res[st.k] = { a: shown, r, p: pointsFor(r, st.k) };
+  st.phase = 'reveal'; st.shownAt = performance.now();
+  if (st.res.length >= RUN) finish();
+  saveDay();
+  const a = $('ans'); if (a) a.blur(); // lets a phone keyboard drop so the board is in view
+  render(st.k);
+}
+function next() {
+  if (!st || st.phase !== 'reveal' || performance.now() - st.shownAt < 350) return;
+  if (st.res.length >= RUN) { st.phase = 'done'; render(); wrap.scrollTop = 0; if (st.mode === 'daily') setTimeout(() => { if (!S.isOpen() && st.phase === 'done') S.openStats(String(bandOf(total()))); }, 1600); return; }
+  ask(st.res.length);
+}
+function finish() {
+  st.done = true;
+  if (st.mode !== 'daily') return;
+  const t = total(), had = K.Daily.load(SLUG).days[st.day];
+  K.Daily.finish(SLUG, st.day, { win: t >= PASS, score: t, tries: st.res.filter(x => x.r === 1).length, time: null, dist: String(bandOf(t)) });
+  if (had && had.done) return; // already counted (another tab)
+  const s = loadStats();
+  s.runs++; s.sum += t; s.best = Math.max(s.best, t);
+  st.res.forEach(x => { s.asked++; if (x.r >= 1) s.hits++; if (x.r === 1) s.tops++; });
+  s.days[st.day] = { sv: SV, s: t, r: st.res.map(x => x.r) };
+  const cut = K.addDays(K.today(), -59); Object.keys(s.days).forEach(d => { if (d < cut) delete s.days[d]; });
+  K.store.set(SLUG + ':stats', s);
+}
+function shareText() {
+  const t = total();
+  return K.shareText(NAME, K.dayNum(st.day || K.today()), fmt(t) + '/' + fmt(MAX) + ' · ' + TR(BANDS[bandOf(t)][1]), st.res.map(x => EMO(x.r)).join(''), st.mode).replace(' (unlimited)', ' ' + TR('(unlimited)')).replace(' (preview)', ' ' + TR('(preview)'));
+}
+
+// ---- drawing
+const placeText = r => r >= 2 ? TR('#{n} on the board', { n: r }) : TR(r === 1 ? 'Top answer' : r === 0 ? 'Accepted, but not on the board' : r === -1 ? 'Passed' : 'Out of time');
+function boardEl(p, k, res, anim) {
+  const ol = h('ol', { class: 'board' + (anim && !reduced() ? ' in' : ''), 'aria-label': TR('The board: the ten most common answers, by our estimate'), 'data-noi18n': '' });
+  p.board.forEach((a, i) => {
+    const li = h('li', { class: res && res.r === i + 1 ? 'me' : '', style: '--w:' + PTS[i] + '%' + (anim ? ';animation-delay:' + ((RUN - 1 - i) * 55) + 'ms' : '') }, [
+      h('i'), h('span', { class: 'rk', text: String(i + 1) }), h('span', { class: 'an', text: a }), h('em', { text: fmt(PTS[i] * MULT[k]) })]);
+    if (res && res.r === i + 1) li.setAttribute('aria-label', TR('{n}, {a}, your answer, {p} points', { n: i + 1, a: a, p: PTS[i] * MULT[k] }));
+    ol.appendChild(li);
+  });
+  if (res && res.r === 0) ol.appendChild(h('li', { class: 'off me', style: '--w:0%' + (anim ? ';animation-delay:' + (RUN * 55) + 'ms' : '') }, [h('i'), h('span', { class: 'rk', text: '–' }), h('span', { class: 'an', text: res.a }), h('em', { text: fmt(OFF * MULT[k]) })]));
+  return ol;
+}
+const EST = () => TR('The board is our prepared estimate of what most people would say, not a survey.');
+function render(fresh) {
+  drawRiver(fresh);
+  stage.innerHTML = '';
+  wrap.classList.toggle('asking', st.phase === 'ask');
+  const n = st.picks.length;
+  if (n < RUN) { stage.appendChild(h('div', { class: 'card intro' }, [h('h2', { text: 'The prompts didn\'t load' }), h('p', { text: 'Check your connection and reload the page.' })])); mb.info.textContent = ''; return; }
+  mb.info.innerHTML = st.phase === 'intro' && !st.res.length ? '' : '<b>' + fmt(total()) + '</b> ' + TR('pts');
+
+  if (st.phase === 'intro') {
+    const daily = st.mode === 'daily', going = st.res.length > 0 || st.left != null;
+    const btn = h('button', { type: 'button', class: 'cta', id: 'go', text: going ? 'Carry on' : daily ? 'Start today\'s run' : 'Start a practice run' });
+    btn.addEventListener('click', () => ask(st.res.length));
+    stage.appendChild(h('div', { class: 'card intro' }, [
+      h('div', { class: 'meta' }, [h('span', { text: daily ? 'Daily run' : 'Practice run' }), h('span', { text: TR('{n} prompts · {s} s each', { n: RUN, s: SECS }) })]),
+      h('h2', { text: TR(going ? 'Prompt {a} of {b} is next' : 'What would most people say?', { a: st.res.length + 1, b: RUN }) }),
+      going ? h('p', { html: (st.left != null ? TR('You left in the middle of a prompt. Its clock picks up with <b>{n} seconds</b> left.', { n: Math.ceil(st.left / 1000) }) + ' ' : '') + TR('You have <b>{p}</b> points so far.', { p: fmt(total()) }) })
+        : h('p', { html: TR('Type the answer you think <b>most people</b> would give. The top answer on each board scores most, and later prompts count double, then triple.') + (daily ? '' : ' ' + TR('Practice runs are random and never touch your daily record.')) }),
+      btn,
+      h('p', { class: 'note', html: TR('The boards are our own estimates, not survey results. After the rarest answer, not the most common? Play <a href="/e63334287a3deaa3/deepword/">Deepword</a>.') })]));
+    return;
+  }
+
+  const k = st.k, p = st.picks[k];
+  if (st.phase === 'ask') {
+    const inp = h('input', { id: 'ans', type: 'text', inputmode: 'text', enterkeyhint: 'go', autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false', maxlength: '60', placeholder: TR('Type an answer'), 'aria-label': TR('{q}. Your answer', { q: p.q }) });
+    const form = h('form', { id: 'f', novalidate: '' }, [inp, h('button', { type: 'submit', class: 'cta', text: 'Enter' })]);
+    form.addEventListener('submit', e => { e.preventDefault(); submit(); });
+    const pass = h('button', { type: 'button', class: 'ghost', id: 'pass', text: 'Pass' });
+    pass.addEventListener('click', () => lock(-1, ''));
+    // tapping Enter or Pass must not take the cursor out of the box (on a phone that would drop the keyboard)
+    [form.querySelector('button'), pass].forEach(b => b.addEventListener('pointerdown', e => e.preventDefault()));
+    inp.addEventListener('input', () => { if ($('msg').textContent) $('msg').textContent = ''; inp.classList.remove('no'); });
+    stage.appendChild(h('div', { class: 'card' }, [
+      h('div', { class: 'meta' }, [h('span', { text: TR('Prompt {a} of {b}', { a: k + 1, b: RUN }) }), h('span', { html: TR('Top answer <b>{p}</b>', { p: fmt(PTS[0] * MULT[k]) }) })]),
+      h('h2', { class: 'q live', text: p.q, 'data-noi18n': '' }),
+      h('div', { class: 'clock', id: 'clock', role: 'timer' }, [h('div', { class: 'track' }, [h('i')]), h('span', { class: 'secs', text: String(Math.ceil(Math.max(0, T.left) / 1000)) })]),
+      form,
+      h('p', { id: 'msg', role: 'status', 'aria-live': 'polite' }),
+      h('div', { class: 'under' }, [pass, h('span', { text: 'Your first accepted answer is final' })])]));
+    return;
+  }
+
+  if (st.phase === 'reveal') {
+    const r = st.res[k], last = st.res.length >= RUN;
+    const vc = r.r === 1 ? 'v1' : r.r >= 2 ? 'v2' : r.r === 0 ? 'v0' : 'vx';
+    const btn = h('button', { type: 'button', class: 'cta', id: 'next', text: last ? 'See your result' : 'Next prompt' });
+    btn.addEventListener('click', next);
+    stage.appendChild(h('div', { class: 'card' }, [
+      h('div', { class: 'meta' }, [h('span', { text: TR('Prompt {a} of {b}', { a: k + 1, b: RUN }) }), h('span', { html: TR('Counts <b>×{m}</b>', { m: MULT[k] }) })]),
+      h('h2', { class: 'q sm', text: p.q, 'data-noi18n': '' }),
+      h('div', { class: 'verdict ' + vc, role: 'status' }, [
+        h('div', null, [h('b', { text: placeText(r.r) }), h('span', { 'data-noi18n': '', text: r.r >= 0 ? TR('You said {a}', { a: r.a }) : TR(r.r === -1 ? 'No answer given' : 'The clock ran out') })]),
+        h('em', { text: '+' + fmt(r.p) })]),
+      boardEl(p, k, r, fresh != null),
+      h('div', { class: 'nx' }, [btn, h('span', { html: TR('Total <b>{t}</b>', { t: fmt(total()) }) })]),
+      h('p', { class: 'note', text: EST() })]));
+    if (!K.touch) try { btn.focus({ preventScroll: true }); } catch (e) {}
+    return;
+  }
+
+  // done
+  const t = total(), b = bandOf(t), daily = st.mode === 'daily';
+  const sum = h('div', { class: 'sum' });
+  st.picks.forEach((pp, i) => {
+    const r = st.res[i];
+    const d = h('details', null, [
+      h('summary', { 'aria-label': TR('Prompt {n}, {q}: {a}{p}, {s} points. Open to see the board.', { n: i + 1, q: pp.q, a: r.r >= 0 ? r.a + ', ' : '', p: placeText(r.r), s: r.p }) }, [
+        h('span', { class: 'n', text: String(i + 1) }),
+        h('span', { class: 'qa', 'data-noi18n': '' }, [h('small', { text: pp.q }), h('span', { class: r.r >= 0 ? '' : 'none', text: r.r >= 0 ? r.a : TR(r.r === -1 ? 'Passed' : 'Out of time') })]),
+        h('span', { class: 'chip ' + (r.r === 1 ? 'c1' : r.r >= 2 ? 'c2' : ''), text: r.r >= 1 ? '#' + r.r : r.r === 0 ? 'Off board' : '–' }),
+        h('b', { text: '+' + fmt(r.p) })])]);
+    d.addEventListener('toggle', () => { if (d.open && !d.querySelector('.board')) d.appendChild(boardEl(pp, i, r, false)); });
+    sum.appendChild(d);
+  });
+  stage.appendChild(h('div', { class: 'end' }, [
+    h('div', { class: 'meta' }, [h('span', { text: daily ? TR('Daily run #{n}', { n: K.dayNum(st.day) }) : TR('Practice run') }), h('span', { text: TR('{a} of {b} on the board', { a: st.res.filter(x => x.r >= 1).length, b: RUN }) })]),
+    h('h2', { class: 'band' + (t < PASS ? ' low' : ''), text: TR(BANDS[b][1]) }),
+    h('div', { class: 'big' }, [h('b', { text: fmt(t) }), h('span', { text: TR('of {m}', { m: fmt(MAX) }) + ' · ' + (daily ? (t >= PASS ? TR('streak kept') : TR('{p} keeps a streak', { p: fmt(PASS) })) : TR('practice, not counted')) })]),
+    h('div', { class: 'row' }, [
+      h('button', { type: 'button', class: 'cta', text: 'Share', onclick: () => S.share() }),
+      h('button', { type: 'button', class: 'ghost', text: daily ? 'Play a practice run' : 'Another run', onclick: () => start('free') }),
+      daily ? h('span', { class: 'next', id: 'nextIn', text: 'Next in ' + K.countdown() }) : null]),
+    sum,
+    h('p', { class: 'note', html: TR('Tap a prompt to see its board.') + ' ' + EST() + ' ' + TR('Want the opposite game? <a href="/e63334287a3deaa3/deepword/">Deepword</a> rewards the rarest answer.') })]));
+}
+setInterval(() => { const e = $('nextIn'); if (e) e.textContent = 'Next in ' + K.countdown(); }, 1000);
+
+// Enter moves on from a board (not the same key press that sent the answer)
+document.addEventListener('keydown', e => {
+  if (!st || S.isOpen() || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Enter' && st.phase === 'reveal' && performance.now() - st.shownAt > 350 && !(e.target && e.target.closest && e.target.closest('button,a,summary'))) { e.preventDefault(); next(); }
+});
+
+// A phone keyboard that covers the page instead of resizing it (iPhone): keep the game above it.
+(function () {
+  const vv = window.visualViewport, g = $('game'); if (!vv) return;
+  function fit() { const kb = Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop)); g.style.bottom = kb > 60 ? kb + 'px' : ''; if (kb > 60 && (scrollY || document.documentElement.scrollTop)) scrollTo(0, 0); const a = $('ans'); if (a && document.activeElement === a) try { a.scrollIntoView({ block: 'nearest' }); } catch (e) {} }
+  addEventListener('resize', fit);
+  vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit);
+})();
+
+// A new day while the page is open: an unfinished or finished daily screen from yesterday moves on when it is next looked at.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && st && st.mode === 'daily' && st.day !== K.today() && (st.phase === 'intro' || st.phase === 'done')) start('daily'); });
+
+start('daily');
+if (window.BackRoomLang) BackRoomLang.englishOnly(mb.info.parentNode);
+document.addEventListener('backroom:lang', () => { if (st && st.phase !== 'ask') render(); });
+
+if (navigator.webdriver) window.__ms = {
+  get st() { return st; }, T, ALL, build, judge, dailyPicks, freePicks, pointsFor, total, start, submit, next, lock,
+  consts: { SV, PTS, OFF, MULT, MAX, PASS, BANDS, SECS, GRACE },
+  answer(text) { const a = $('ans'); if (!a) return false; a.value = text; submit(); return st.phase === 'reveal'; }
+};
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="mainstream" defer></script>
+</body>
+</html>

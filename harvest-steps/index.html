@@ -1,0 +1,1293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Harvest Steps · Footstep Power Workbench</title>
+<meta name="description" content="Harvest Steps: a kinetic floor mat for the Union Square Greenmarket that turns footsteps into electricity. Interactive 3D workbench with a step-by-step animation, an exploded blueprint, live energy physics, a market layout and a bench prototype you can build.">
+<link rel="canonical" href="https://ascoding11.github.io/harvest-steps/">
+<meta name="robots" content="index,follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arjun's Projects">
+<meta property="og:title" content="Harvest Steps · Footstep Power Workbench">
+<meta property="og:description" content="Harvest Steps: a kinetic floor mat for the Union Square Greenmarket that turns footsteps into electricity. Interactive 3D workbench with a step-by-step animation, an exploded blueprint, live energy physics, a market layout and a bench prototype you can build.">
+<meta property="og:url" content="https://ascoding11.github.io/harvest-steps/">
+<meta property="og:image" content="https://ascoding11.github.io/harvest-steps/preview.jpg">
+<meta property="og:image:width" content="1920">
+<meta property="og:image:height" content="1200">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#06141a; --bg-2:#0a1c23; --panel:#0c2029; --line:#1b3a45; --line-2:#2a5866;
+  --holo:#7fdcef; --holo-2:#4fb3c8; --ink:#d7eaef; --ink-2:#8aa6ae; --amber:#f2b84b; --good:#5fd39a; --bad:#f2796c;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans)}
+body{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;height:100dvh;overflow:hidden}
+a{color:inherit}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--holo);outline-offset:2px}
+
+.top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:24px;padding:14px 28px;border-bottom:1px solid var(--line)}
+.brand b{display:block;font-family:var(--sans);font-weight:600;letter-spacing:.14em;font-size:17px}
+.brand span{display:block;font-family:var(--mono);color:var(--holo);font-size:11px;letter-spacing:.32em}
+.brand small{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-2);margin-top:2px}
+.crumb{justify-self:center;font-family:var(--mono);font-size:13px;letter-spacing:.08em;color:var(--ink-2);text-align:center}
+.crumb a{color:var(--holo);text-decoration:none;margin-right:14px}
+.crumb a:hover{text-decoration:underline}
+.crumb b{color:var(--ink);font-weight:500}
+.rev{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;color:var(--holo);white-space:nowrap}
+.rev span{color:var(--ink-2);margin-left:18px}
+
+.tabs{display:flex;align-items:stretch;gap:4px;padding:0 28px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:14px 12px 12px;cursor:pointer;white-space:nowrap;color:var(--ink-2);font-size:15px}
+.tab i{font-style:normal;font-family:var(--mono);font-size:12.5px;margin-right:8px}
+.tab[aria-selected="true"]{color:var(--holo);border-bottom-color:var(--holo)}
+.tab:hover{color:var(--ink)}
+.tabs .spec{margin-left:auto;align-self:center;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ink-2);white-space:nowrap;padding-left:20px}
+
+main{display:grid;grid-template-columns:320px minmax(0,1fr);min-height:0}
+#side{border-right:1px solid var(--line);padding:22px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;min-height:0}
+.pane{display:none;flex-direction:column;gap:14px;flex:1}
+.pane.on{display:flex}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--holo);text-transform:uppercase;margin:0}
+.pane h2{font-weight:500;font-size:20px;margin:0}
+.pane p{margin:0;color:var(--ink-2);font-size:14px;line-height:1.55}
+
+.seq{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.seq button{display:grid;grid-template-columns:62px 1fr;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;padding:7px 8px;cursor:pointer;border-radius:0 6px 6px 0}
+.seq button:hover{background:var(--bg-2)}
+.seq code{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);padding-top:2px}
+.seq b{font-weight:400;font-size:15px}
+.seq small{grid-column:2;display:none;color:var(--ink-2);font-size:13px;line-height:1.5;margin-top:4px}
+.seq .on button{border-left-color:var(--holo);background:var(--bg-2)}
+.seq .on code{color:var(--holo)}
+.seq .on small{display:block}
+
+.tele{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;border-top:1px solid var(--line);padding-top:16px;margin-top:auto}
+.tele div{font-family:var(--mono)}
+.tele small{display:block;font-size:10.5px;letter-spacing:.12em;color:var(--ink-2)}
+.tele b{display:block;font-weight:500;font-size:16px;color:var(--holo)}
+.tele b.amber{color:var(--amber)}
+
+.parts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.parts button{display:flex;justify-content:space-between;gap:10px;width:100%;background:none;border:0;padding:7px 10px;border-radius:6px;cursor:pointer;text-align:left;font-size:14.5px}
+.parts button:hover{background:var(--bg-2)}
+.parts button span{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.parts .on button{background:var(--bg-2);color:var(--amber)}
+.sheet{border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.sheet h3{margin:0;font-weight:500;font-size:16px;color:var(--amber)}
+.sheet dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:13px}
+.sheet dt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-2);padding-top:2px}
+.sheet dd{margin:0}
+
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{display:flex;justify-content:space-between;font-size:13.5px}
+.field label output{font-family:var(--mono);color:var(--holo)}
+input[type=range]{width:100%;accent-color:var(--holo)}
+.seg{display:flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+.seg button{flex:1;background:none;border:0;padding:9px 8px;cursor:pointer;font-size:13.5px;color:var(--ink-2)}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed="true"]{background:var(--holo);color:var(--bg);font-weight:600}
+
+#stage{position:relative;min-width:0;min-height:0;overflow:hidden}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#gl.drag{cursor:grabbing}
+.corner{position:absolute;width:26px;height:26px;border-color:var(--line-2);border-style:solid;pointer-events:none}
+.c1{left:14px;top:14px;border-width:1px 0 0 1px}.c2{right:14px;top:14px;border-width:1px 1px 0 0}
+.c3{left:14px;bottom:14px;border-width:0 0 1px 1px}.c4{right:14px;bottom:14px;border-width:0 1px 1px 0}
+.cap{position:absolute;left:50%;top:22px;transform:translateX(-50%);text-align:center;pointer-events:none;max-width:min(560px,86%)}
+.cap code{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--holo)}
+.cap h3{margin:2px 0 4px;font-weight:500;font-size:22px;letter-spacing:.14em;text-transform:uppercase}
+.cap p{margin:0;font-family:var(--mono);font-size:12px;line-height:1.5;color:var(--ink-2)}
+.hint{position:absolute;right:22px;bottom:20px;font-family:var(--mono);font-size:11px;color:var(--ink-2);pointer-events:none;text-align:right}
+.tag{position:absolute;pointer-events:none;font-family:var(--mono);font-size:12px;color:var(--amber);background:rgba(6,20,26,.85);border:1px solid var(--amber);border-radius:4px;padding:3px 7px;transform:translate(-50%,-140%);white-space:nowrap;display:none}
+
+.doc{position:absolute;inset:0;overflow-y:auto;padding:28px 32px 40px;display:none}
+.doc.on{display:block}
+.doc h2{font-weight:500;font-size:22px;margin:0 0 6px}
+.doc h3{font-family:var(--mono);font-weight:500;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--holo);margin:28px 0 10px}
+.doc p,.doc li{color:var(--ink-2);font-size:14.5px;line-height:1.6}
+.doc p{margin:0 0 10px;max-width:72ch}
+.doc ol{padding-left:20px;margin:0;max-width:72ch}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--bg-2)}
+.card small{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--ink-2)}
+.card b{display:block;font-family:var(--mono);font-weight:500;font-size:24px;color:var(--holo);margin-top:4px}
+.card span{display:block;font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-family:var(--mono);font-size:12.5px}
+.flow span{border:1px solid var(--line-2);border-radius:6px;padding:6px 9px}
+.flow span b{color:var(--holo);font-weight:500}
+.flow i{font-style:normal;color:var(--ink-2)}
+.chartbox{border:1px solid var(--line);border-radius:8px;background:var(--bg-2);padding:10px}
+#chart{width:100%;height:280px;display:block}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-width:820px}
+.checks li{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.checks li b{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-align:center;border-radius:4px;padding:3px 0}
+.checks .pass b{color:var(--bg);background:var(--good)}
+.checks .fail b{color:var(--bg);background:var(--bad)}
+.checks .fix b{color:var(--bg);background:var(--amber)}
+.checks li span{font-size:14px;color:var(--ink)}
+.checks li span em{display:block;font-style:normal;color:var(--ink-2);font-size:13px;margin-top:2px}
+table{border-collapse:collapse;width:100%;max-width:820px;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.12em;color:var(--ink-2);text-transform:uppercase}
+td.num{font-family:var(--mono);white-space:nowrap}
+tfoot td{color:var(--ink);font-weight:600}
+pre{background:#030d11;border:1px solid var(--line);border-radius:8px;padding:14px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55;color:#bfe3ea;max-width:820px}
+.wire{max-width:820px;width:100%;height:auto;display:block}
+
+.bar{display:flex;align-items:center;gap:14px;padding:12px 20px;border-top:1px solid var(--line);flex-wrap:wrap}
+.bar .ctl{display:none;align-items:center;gap:14px;flex:1;min-width:0}
+.bar .ctl.on{display:flex}
+.play{border:1px solid var(--line-2);background:none;border-radius:4px;padding:7px 14px;cursor:pointer;font-family:var(--mono);font-size:13px;color:var(--holo);min-width:84px}
+.scrub{flex:1;min-width:120px}
+.clock{font-family:var(--mono);font-size:13px;color:var(--holo);white-space:nowrap;min-width:110px;text-align:right}
+.bar label{font-size:13.5px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.bar select{background:var(--bg-2);border:1px solid var(--line-2);border-radius:4px;padding:6px 8px}
+.modes{display:flex;border:1px solid var(--line-2);border-radius:4px;overflow:hidden;margin-left:auto}
+.modes button{background:none;border:0;padding:7px 12px;cursor:pointer;font-family:var(--mono);font-size:13px;color:var(--ink-2)}
+.modes button[aria-pressed="true"]{background:var(--bg-2);color:var(--holo)}
+
+.status{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;padding:9px 20px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;color:var(--ink-2)}
+.status .ok{color:var(--holo)}
+.status span:last-child{text-align:right}
+
+.toc{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:12px}
+.toc button{background:none;border:0;width:100%;text-align:left;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:14px;color:var(--ink-2)}
+.toc button:hover{background:var(--bg-2);color:var(--ink)}
+.cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;max-width:900px}
+.ticks{list-style:none;margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;gap:6px}
+.ticks li{font-size:14px;color:var(--ink-2);padding-left:18px;position:relative}
+.ticks li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:2px;background:var(--holo)}
+.ticks.warn li::before{background:var(--amber)}
+.build{display:grid;grid-template-columns:minmax(280px,360px) minmax(0,1fr);gap:20px;align-items:start;max-width:1320px}
+.boardwrap{position:sticky;top:0;background:var(--bg);padding:4px 0}
+.steptext{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--bg-2)}
+.stepnav{display:flex;align-items:center;gap:10px}
+.stepnav .play{min-width:48px}
+.dots{display:flex;flex-wrap:wrap;gap:5px;margin:12px 0 4px}
+.dots button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-2);background:none;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--ink-2);padding:0}
+.dots button.done{background:var(--line);color:var(--ink)}
+.dots button[aria-current="step"]{background:var(--amber);border-color:var(--amber);color:var(--bg);font-weight:600}
+.steptext h4{margin:12px 0 8px;font-weight:500;font-size:18px;color:var(--amber)}
+.steptext ul{margin:0 0 10px;padding-left:18px}
+.steptext li{font-size:14px;color:var(--ink);line-height:1.55;margin-bottom:4px}
+.steptext .lab{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--holo);margin:10px 0 4px;display:block}
+.steptext p{color:var(--ink-2);font-size:14px;margin:0 0 4px}
+#pb g[data-st]{transition:opacity .25s}
+#pb .todo{opacity:.12}
+#pb .done{opacity:.7}
+#pb .now{opacity:1;filter:drop-shadow(0 0 4px rgba(242,184,75,.9))}
+@media (max-width:900px){ .build{grid-template-columns:minmax(0,1fr)} .boardwrap{order:-1;top:0;z-index:2} }
+@media (max-width:900px){
+  body{display:block;height:auto;overflow:auto}
+  .top{grid-template-columns:1fr auto;padding:12px 16px;gap:10px}
+  .crumb{grid-column:1/-1;grid-row:2;justify-self:start;text-align:left;font-size:12px}
+  .rev span{display:none}
+  .tabs{padding:0 10px}
+  .tabs .spec{display:none}
+  main{display:flex;flex-direction:column}
+  #stage{height:58vh;min-height:340px;order:1}
+  #side{order:2;border-right:0;border-top:1px solid var(--line);overflow:visible}
+  .bar{position:sticky;bottom:0;background:var(--bg);z-index:5;padding:10px 12px;gap:10px}
+  .bar .ctl{flex-wrap:wrap}
+  .clock{min-width:0}
+  .bar label .lbl{display:none}
+  .status{grid-template-columns:1fr;text-align:left}
+  .status span:last-child{text-align:left}
+  .cap h3{font-size:17px}
+  .cap p{display:none}
+  .doc{position:static;display:none;padding:20px 16px 32px}
+  .doc.on{display:block}
+  #stage.docmode{height:auto;min-height:0}
+  #stage.docmode #gl,#stage.docmode .corner,#stage.docmode .cap,#stage.docmode .hint{display:none}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion: reduce){ .tab,.seq button{transition:none} }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<link rel="icon" href="/icons/app.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>HARVEST STEPS</b><span>FOOTSTEP POWER</span><small>CONCEPT ENGINEERING</small></div>
+  <div class="crumb"><a href="../engineering/">← Engineering projects</a><b>HARVEST MAT</b> / KINETIC FLOOR TILE FOR THE UNION SQUARE GREENMARKET</div>
+  <div class="rev">● CONCEPT STUDY <span>REV 01</span></div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Workbench views">
+  <button class="tab" role="tab" data-tab="sequence" aria-selected="true"><i>01</i>Step sequence</button>
+  <button class="tab" role="tab" data-tab="blueprint" aria-selected="false"><i>02</i>Exploded blueprint</button>
+  <button class="tab" role="tab" data-tab="physics" aria-selected="false"><i>03</i>Energy physics</button>
+  <button class="tab" role="tab" data-tab="market" aria-selected="false"><i>04</i>Market layout</button>
+  <button class="tab" role="tab" data-tab="prototype" aria-selected="false"><i>05</i>Bench prototype</button>
+  <span class="spec">600 × 600 × 45 mm · 6 mm TRAVEL · 24 V DC BUS</span>
+</nav>
+
+<main>
+  <aside id="side">
+    <!-- 01 Step sequence -->
+    <div class="pane on" data-pane="sequence">
+      <p class="eyebrow">Harvest Mat / one footstep</p>
+      <h2>Heel strike to battery</h2>
+      <ol class="seq" id="seq"></ol>
+      <div class="tele" aria-live="off">
+        <div><small>PLATE TRAVEL</small><b id="tTravel">0.0 mm</b></div>
+        <div><small>FOOT FORCE</small><b id="tForce">0 N</b></div>
+        <div><small>FLYWHEELS</small><b id="tRpm">0 rpm</b></div>
+        <div><small>CLUTCHES</small><b id="tClutch">FREE</b></div>
+        <div><small>THIS STEP</small><b class="amber" id="tEnergy">0.00 J</b></div>
+        <div><small>BUS</small><b id="tBus">24.0 V</b></div>
+        <div><small>STEPS COUNTED</small><b id="tSteps">0</b></div>
+        <div><small>WALKER</small><b id="tWalker">70 kg</b></div>
+      </div>
+    </div>
+
+    <!-- 02 Blueprint -->
+    <div class="pane" data-pane="blueprint">
+      <p class="eyebrow">Harvest Mat / parts</p>
+      <h2>Exploded blueprint</h2>
+      <p>Click a part in the list or on the model. Drag the explode slider to pull the tile apart.</p>
+      <ul class="parts" id="parts"></ul>
+      <div class="sheet" id="sheet" aria-live="polite"></div>
+    </div>
+
+    <!-- 03 Physics -->
+    <div class="pane" data-pane="physics">
+      <p class="eyebrow">Inputs</p>
+      <h2>Energy physics</h2>
+      <p>Change the walker, the tile or the crowd. Every number on the right updates.</p>
+      <div class="field"><label for="iMass">Walker mass <output id="oMass"></output></label><input type="range" id="iMass" min="40" max="110" step="1" value="70"></div>
+      <div class="field"><label for="iTravel">Plate travel <output id="oTravel"></output></label><input type="range" id="iTravel" min="2" max="12" step="0.5" value="6"></div>
+      <div class="field"><label for="iDrive">Gears and clutch efficiency <output id="oDrive"></output></label><input type="range" id="iDrive" min="50" max="98" step="1" value="85"></div>
+      <div class="field"><label for="iGen">Generator efficiency <output id="oGen"></output></label><input type="range" id="iGen" min="40" max="92" step="1" value="75"></div>
+      <div class="field"><label for="iElec">Electronics efficiency <output id="oElec"></output></label><input type="range" id="iElec" min="50" max="97" step="1" value="85"></div>
+      <div class="field"><label for="iVisitors">Visitors per market day <output id="oVisitors"></output></label><input type="range" id="iVisitors" min="5000" max="80000" step="1000" value="60000"></div>
+      <div class="field"><label>Mat coverage (steps on mats per visitor)</label>
+        <div class="seg" id="segCover">
+          <button data-spv="6" aria-pressed="false">A · Entry</button>
+          <button data-spv="60" aria-pressed="true">B · Aisle</button>
+          <button data-spv="400" aria-pressed="false">C · All</button>
+        </div>
+      </div>
+      <div class="field"><label for="iPrice">Electricity price <output id="oPrice"></output></label><input type="range" id="iPrice" min="0.10" max="0.45" step="0.01" value="0.29"></div>
+    </div>
+
+    <!-- 04 Market -->
+    <div class="pane" data-pane="market">
+      <p class="eyebrow">Union Square Greenmarket / schematic</p>
+      <h2>One market day</h2>
+      <p>Shoppers enter along the north and west sides of the park. Amber strips are mats; a shopper flashes amber while stepping on one.</p>
+      <div class="field"><label>Coverage</label>
+        <div class="seg" id="segMarket">
+          <button data-spv="6" aria-pressed="false">A · Entry</button>
+          <button data-spv="60" aria-pressed="true">B · Aisle</button>
+          <button data-spv="400" aria-pressed="false">C · All</button>
+        </div>
+      </div>
+      <p id="mDesc"></p>
+      <div class="tele">
+        <div><small>TIME</small><b id="mTime">8:00</b></div>
+        <div><small>SHOPPERS SO FAR</small><b id="mShoppers">0</b></div>
+        <div><small>STEPS ON MATS</small><b id="mSteps">0</b></div>
+        <div><small>ENERGY</small><b class="amber" id="mEnergy">0.00 kWh</b></div>
+        <div><small>PHONE CHARGES</small><b id="mPhones">0</b></div>
+        <div><small>GRID VALUE</small><b id="mValue">$0.00</b></div>
+      </div>
+    </div>
+
+    <!-- 05 Prototype -->
+    <div class="pane" data-pane="prototype">
+      <p class="eyebrow">Build one first</p>
+      <h2>Bench tile</h2>
+      <p>Every number in this workbench rests on one figure: how many joules of electricity a real step makes. This plywood tile measures it for about $127 in parts.</p>
+      <p><b style="color:var(--ink);font-weight:500">Goal:</b> at least 1.5 J per step at 6 mm of travel. A first build will probably land under that; finding out by how much is the point.</p>
+      <ul class="toc" id="toc">
+        <li><button data-go="p-how">1 · How the circuit works</button></li>
+        <li><button data-go="p-schem">2 · Schematic</button></li>
+        <li><button data-go="p-parts">3 · Parts</button></li>
+        <li><button data-go="p-tools">4 · Tools and safety</button></li>
+        <li><button data-go="p-frame">5 · Build the frame</button></li>
+        <li><button data-go="p-solder">6 · Solder the board</button></li>
+        <li><button data-go="p-checks">7 · Multimeter checks</button></li>
+        <li><button data-go="p-power">8 · First power-up</button></li>
+        <li><button data-go="p-code">9 · Sketch and calibration</button></li>
+        <li><button data-go="p-test">10 · Test plan</button></li>
+        <li><button data-go="p-trouble">11 · Troubleshooting</button></li>
+      </ul>
+    </div>
+  </aside>
+
+  <section id="stage" aria-label="Workbench view">
+    <canvas id="gl" aria-label="3D view of the Harvest Mat. Drag to turn, scroll or pinch to zoom."></canvas>
+    <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
+    <div class="cap" id="cap"><code id="capCode"></code><h3 id="capTitle"></h3><p id="capText"></p></div>
+    <div class="tag" id="tag"></div>
+    <div class="hint" id="hint">Drag to turn · scroll to zoom<br>Plate travel drawn 3× for visibility</div>
+
+    <div class="doc" id="docPhysics">
+      <h2>Energy per step, per day, per season</h2>
+      <p>A step can give up at most the walker's weight times how far the plate sinks. Springs take a share to lift the plate back; gears, generators and electronics lose more. What reaches the 24 V line is below.</p>
+      <h3>Where one step's energy goes</h3>
+      <div class="flow" id="flow"></div>
+      <h3>Results</h3>
+      <div class="cards" id="cards"></div>
+      <h3>Electricity per step vs plate travel</h3>
+      <div class="chartbox"><canvas id="chart" role="img" aria-label="Chart of electrical energy per step against plate travel for three walker masses"></canvas></div>
+      <h3>Checks</h3>
+      <ul class="checks" id="checks"></ul>
+      <p style="margin-top:14px;font-size:13px">Visitor figure: up to 60,000 on peak days (amNY, GrowNYC). Electricity price: Con Edison 2026 all-in residential average, about $0.29/kWh. Solar comparison is approximate. Steps per visitor are estimates to be checked with hand counts.</p>
+    </div>
+
+    <div class="doc" id="docProto">
+      <h2>Bench tile: full build guide</h2>
+      <p>A plywood plate on four springs pushes a rack. The rack turns a pinion, a belt makes a stepper motor spin almost four times faster, and the motor works as a generator. Two diode bridges turn its AC into DC, which heats a known resistor; an Arduino measures the voltage across that resistor and adds up each step's energy. Allow two afternoons: one for the frame, one for the board.</p>
+
+      <h3 id="p-how">1 · How the circuit works</h3>
+      <div class="cards">
+        <div class="card"><small>GENERATOR</small><b style="font-size:17px">Stepper motor</b><span>Two separate coils around a magnet rotor. Spin the shaft and each coil makes its own AC; faster spin, more voltage.</span></div>
+        <div class="card"><small>RECTIFIERS</small><b style="font-size:17px">Two diode bridges</b><span>One per coil, four diodes each. They flip the negative half-waves positive, so both coils feed one DC pair without fighting.</span></div>
+        <div class="card"><small>WHY SCHOTTKY</small><b style="font-size:17px">1N5819 diodes</b><span>About 0.3 V lost per diode instead of 0.7 V. Two conduct at a time, and a gentle step makes only a few volts.</span></div>
+        <div class="card"><small>LOAD</small><b style="font-size:17px">R1, 10 Ω</b><span>All the step's electricity turns into heat here. Power is V² ÷ R, so voltage alone tells you the energy.</span></div>
+        <div class="card"><small>MEASUREMENT</small><b style="font-size:17px">Divider, Zener, filter</b><span>R2 and R3 divide the voltage by 5.7 so up to 28 V reads as 0–5 V. The 5.1 V Zener clamps a hard stomp; C1 removes noise.</span></div>
+      </div>
+
+      <h3 id="p-schem">2 · Schematic</h3>
+      <svg class="wire" viewBox="0 0 880 410" role="img" aria-label="Schematic: the stepper's coil A feeds diode bridge D1 to D4 and coil B feeds bridge D5 to D8. Both bridges join on a positive rail and ground. R1, 10 ohms, sits across the rails. R2 47k and R3 10k divide the rail voltage into the Arduino's A0 pin, protected by Zener D9 and capacitor C1.">
+        <defs>
+          <g id="sd"><path d="M-8,-8 L8,0 L-8,8 Z" fill="#7fdcef" stroke="none"/><path d="M8,-8 V8" stroke-width="2"/></g>
+          <g id="sz"><path d="M-8,-8 L8,0 L-8,8 Z" fill="#7fdcef" stroke="none"/><path d="M4,-11 L8,-8 V8 L12,11" stroke-width="2"/></g>
+        </defs>
+        <g fill="none" stroke="#7fdcef" stroke-width="1.5">
+          <rect x="30" y="26" width="100" height="310" rx="8" stroke-dasharray="5 5" stroke="#2a5866"/>
+          <path d="M80,40 V60 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 V160"/>
+          <path d="M80,200 V220 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 a10,10 0 0 1 0,20 V320"/>
+          <path d="M80,40 H230 M80,160 H230 M80,200 H230 M80,320 H230"/>
+          <path d="M230,40 L290,100 L230,160 L170,100 Z M230,200 L290,260 L230,320 L170,260 Z"/>
+          <use href="#sd" transform="translate(260,70) rotate(45)"/><use href="#sd" transform="translate(260,130) rotate(-45)"/>
+          <use href="#sd" transform="translate(200,70) rotate(-45)"/><use href="#sd" transform="translate(200,130) rotate(45)"/>
+          <use href="#sd" transform="translate(260,230) rotate(45)"/><use href="#sd" transform="translate(260,290) rotate(-45)"/>
+          <use href="#sd" transform="translate(200,230) rotate(-45)"/><use href="#sd" transform="translate(200,290) rotate(45)"/>
+          <path d="M290,100 H340 M290,260 H340 V60 H790"/>
+          <path d="M170,100 H150 V380 H790 M170,260 H150"/>
+          <path d="M430,60 V190 l8,5 l-16,10 l16,10 l-16,10 l16,10 l-16,10 l8,5 V380"/>
+          <path d="M560,60 V100 l8,5 l-16,10 l16,10 l-16,10 l16,10 l-16,10 l8,5 V250 l8,5 l-16,10 l16,10 l-16,10 l16,10 l-16,10 l8,5 V380"/>
+          <path d="M560,210 H790"/>
+          <path d="M640,210 V287 M640,303 V380"/><use href="#sz" transform="translate(640,295) rotate(-90)"/>
+          <path d="M720,210 V288 M706,288 H734 M706,296 H734 M720,296 V380"/>
+          <rect x="790" y="180" width="76" height="216" rx="6" stroke="#4fb3c8"/>
+        </g>
+        <g fill="#7fdcef"><circle cx="340" cy="100" r="3.5"/><circle cx="150" cy="260" r="3.5"/><circle cx="430" cy="60" r="3.5"/><circle cx="430" cy="380" r="3.5"/><circle cx="560" cy="60" r="3.5"/><circle cx="560" cy="210" r="3.5"/><circle cx="560" cy="380" r="3.5"/><circle cx="640" cy="210" r="3.5"/><circle cx="640" cy="380" r="3.5"/><circle cx="720" cy="210" r="3.5"/><circle cx="720" cy="380" r="3.5"/></g>
+        <g font-family="IBM Plex Mono,monospace" font-size="12" fill="#d7eaef">
+          <text x="80" y="18" text-anchor="middle">M1 · NEMA 17</text>
+          <text x="98" y="104" fill="#8aa6ae">coil A</text><text x="98" y="264" fill="#8aa6ae">coil B</text>
+          <text x="140" y="34">A+</text><text x="140" y="154">A−</text><text x="140" y="194">B+</text><text x="140" y="314">B−</text>
+          <text x="272" y="62">D1</text><text x="272" y="150">D2</text><text x="190" y="62" text-anchor="end">D3</text><text x="190" y="150" text-anchor="end">D4</text>
+          <text x="272" y="222">D5</text><text x="272" y="310">D6</text><text x="190" y="222" text-anchor="end">D7</text><text x="190" y="310" text-anchor="end">D8</text>
+          <text x="350" y="52">+ rail (DC)</text><text x="160" y="400">GND</text>
+          <text x="446" y="212">R1</text><text x="446" y="228" fill="#8aa6ae">10 Ω 10 W</text><text x="446" y="244" fill="#8aa6ae">load</text>
+          <text x="576" y="124">R2</text><text x="576" y="140" fill="#8aa6ae">47 kΩ</text>
+          <text x="576" y="274">R3</text><text x="576" y="290" fill="#8aa6ae">10 kΩ</text>
+          <text x="576" y="202" fill="#f2b84b">A0 node, max 5 V</text>
+          <text x="656" y="292">D9</text><text x="656" y="308" fill="#8aa6ae">5.1 V</text>
+          <text x="740" y="288">C1</text><text x="740" y="304" fill="#8aa6ae">10 nF</text>
+          <text x="828" y="290" text-anchor="middle">Arduino</text><text x="828" y="306" text-anchor="middle">Nano</text>
+          <text x="798" y="214">A0</text><text x="798" y="376">GND</text>
+        </g>
+      </svg>
+      <p>Arrows show the direction each diode conducts; the bar end is the stripe on the real part. Crossing lines without a dot are not connected.</p>
+
+      <h3 id="p-parts">3 · Parts (approximate prices)</h3>
+      <table>
+        <thead><tr><th>Part</th><th>Qty</th><th>Why</th><th>Approx.</th></tr></thead>
+        <tbody>
+          <tr><td>12 mm plywood, 60 × 60 cm</td><td class="num">2</td><td>Top plate and base</td><td class="num">$20</td></tr>
+          <tr><td>Compression springs, about 4 N/mm, ~25 mm long</td><td class="num">4</td><td>Hold the plate up and return it</td><td class="num">$12</td></tr>
+          <tr><td>Rack and pinion, module 1, 8 mm bore pinion</td><td class="num">1</td><td>Turns plate travel into rotation</td><td class="num">$12</td></tr>
+          <tr><td>KFL08 bearings and 8 mm × 100 mm shaft</td><td class="num">2 + 1</td><td>Carry the pinion and big pulley</td><td class="num">$10</td></tr>
+          <tr><td>GT2 pulleys 60T (8 mm bore) and 16T (5 mm bore), 200 mm belt</td><td class="num">1 set</td><td>Spins the motor 3.75× faster</td><td class="num">$12</td></tr>
+          <tr><td>NEMA 17 stepper motor</td><td class="num">1</td><td>The generator</td><td class="num">$14</td></tr>
+          <tr><td>1N5819 Schottky diodes</td><td class="num">8</td><td>Two bridge rectifiers</td><td class="num">$2</td></tr>
+          <tr><td>10 Ω, 10 W ceramic resistor (R1)</td><td class="num">1</td><td>Known load</td><td class="num">$3</td></tr>
+          <tr><td>47 kΩ (R2) and 10 kΩ (R3) resistors, ¼ W</td><td class="num">1 each</td><td>Voltage divider</td><td class="num">$1</td></tr>
+          <tr><td>1N4733A 5.1 V Zener (D9), 10 nF ceramic capacitor (C1)</td><td class="num">1 each</td><td>Protect and filter the A0 input</td><td class="num">$2</td></tr>
+          <tr><td>Arduino Nano or compatible, USB cable</td><td class="num">1</td><td>Samples voltage, sums energy</td><td class="num">$12</td></tr>
+          <tr><td>Perfboard 5 × 7 cm, 4-way screw terminal, standoffs</td><td class="num">1 each</td><td>The circuit board</td><td class="num">$4</td></tr>
+          <tr><td>22 AWG solid and stranded wire, heat-shrink, jumper leads</td><td class="num">—</td><td>Rails, links, leads</td><td class="num">$8</td></tr>
+          <tr><td>8 mm dowel, wood blocks, screws, washers for shims</td><td class="num">—</td><td>Guides, mounts, end stops</td><td class="num">$15</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="3">Total</td><td class="num">≈ $127</td></tr></tfoot>
+      </table>
+
+      <h3 id="p-tools">4 · Tools and safety</h3>
+      <div class="cols2">
+        <ul class="ticks">
+          <li>Temperature-controlled soldering iron, chisel or conical tip</li>
+          <li>Lead-free rosin-core solder, 0.8 mm, and a flux pen</li>
+          <li>Brass-wool tip cleaner, helping hands or a small vise</li>
+          <li>Flush cutters, wire strippers, needle-nose pliers</li>
+          <li>Multimeter with resistance, continuity and diode test</li>
+          <li>Desoldering braid, heat-shrink and a heat gun or lighter</li>
+          <li>Calipers (or a ruler and feeler shims) for setting travel</li>
+        </ul>
+        <ul class="ticks warn">
+          <li>Safety glasses on: trimmed leads and solder spatter fly.</li>
+          <li>A fan pulling flux smoke away from your face; window open.</li>
+          <li>The iron's metal is at 340 °C: always return it to its stand.</li>
+          <li>Wash your hands after soldering, before eating.</li>
+          <li>Never connect the + rail straight to the Arduino: only A0 through the divider.</li>
+          <li>If you're new to soldering, practise ten joints on a spare piece of perfboard first.</li>
+        </ul>
+      </div>
+
+      <h3 id="p-frame">5 · Build the frame</h3>
+      <ol>
+        <li>Cut two 60 × 60 cm plywood squares. Drill a 10 mm hole 3 cm in from each corner of the base; glue 8 mm dowels into matching spots on the top plate so they slide in the holes as plungers.</li>
+        <li>Slip a spring over each dowel between the plates. Unloaded, the top plate should sit about 10 mm above the end stops.</li>
+        <li>Screw the rack upright to the underside of the top plate, near one edge, teeth facing inward.</li>
+        <li>Screw two KFL08 bearings to a wood block on the base. Push the 8 mm shaft through them with the pinion meshing on the rack and the 60-tooth pulley on the other end. Tighten both set screws on the shaft's flat.</li>
+        <li>Mount the stepper on a second block with the 16-tooth pulley on its 5 mm shaft. Fit the belt, slide the motor back until the belt is snug, and screw it down. Without this 3.75× step-up the motor turns too slowly to get past the diodes.</li>
+        <li>Glue four end-stop blocks to the base under the corners. Stack washers on them until the plate stops after 6 mm of travel; you'll change this to 4 and 8 mm in testing.</li>
+        <li>There is no one-way clutch on the bench tile. On the way back up the springs turn the motor backwards; the bridges rectify that too, so you also measure the energy the springs give back.</li>
+      </ol>
+
+      <h3 id="p-solder">6 · Solder the board, step by step</h3>
+      <p>Click through the steps. The board view highlights what each step adds; faded parts come later. The view is from the component side.</p>
+      <div class="build">
+        <div class="steptext">
+          <div class="stepnav">
+            <button class="play" id="sPrev" aria-label="Previous step">←</button>
+            <span id="sCount" class="clock" style="text-align:center;min-width:0;flex:1"></span>
+            <button class="play" id="sNext" aria-label="Next step">→</button>
+          </div>
+          <div class="dots" id="sDots"></div>
+          <h4 id="sTitle"></h4>
+          <div id="sBody"></div>
+        </div>
+        <div class="boardwrap"><svg id="pb" class="wire" viewBox="0 0 880 410" role="img" aria-label="Perfboard layout for the bench tile circuit, with the current step highlighted"></svg></div>
+      </div>
+
+      <h3 id="p-joints">What a good joint looks like</h3>
+      <svg class="wire" viewBox="0 0 820 160" role="img" aria-label="Three solder joints: a good joint is a shiny concave cone; a cold joint is a dull ball; a bridge joins two pads">
+        <g font-family="IBM Plex Mono,monospace" font-size="12.5" text-anchor="middle">
+          <rect x="40" y="110" width="200" height="10" fill="#23412f"/><rect x="110" y="104" width="60" height="6" fill="#b87d3e"/><rect x="137" y="20" width="6" height="90" fill="#b9c2c6"/>
+          <path d="M112,104 Q140,98 137,50 L143,50 Q140,98 168,104 Z" fill="#cfd6da"/>
+          <text x="140" y="142" fill="#5fd39a">GOOD · shiny cone</text>
+          <rect x="310" y="110" width="200" height="10" fill="#23412f"/><rect x="380" y="104" width="60" height="6" fill="#b87d3e"/><rect x="407" y="20" width="6" height="90" fill="#b9c2c6"/>
+          <ellipse cx="410" cy="84" rx="20" ry="17" fill="#8d9396"/>
+          <text x="410" y="142" fill="#f2796c">COLD · dull ball, reheat</text>
+          <rect x="580" y="110" width="220" height="10" fill="#23412f"/><rect x="600" y="104" width="50" height="6" fill="#b87d3e"/><rect x="730" y="104" width="50" height="6" fill="#b87d3e"/>
+          <rect x="622" y="20" width="6" height="90" fill="#b9c2c6"/><rect x="752" y="20" width="6" height="90" fill="#b9c2c6"/>
+          <path d="M600,104 Q625,70 640,92 Q690,80 740,92 Q755,70 780,104 Z" fill="#cfd6da"/>
+          <text x="690" y="142" fill="#f2796c">BRIDGE · remove with braid</text>
+        </g>
+      </svg>
+
+      <h3 id="p-checks">7 · Multimeter checks before any power</h3>
+      <table>
+        <thead><tr><th>Probe between</th><th>Setting</th><th>Expect</th><th>If not</th></tr></thead>
+        <tbody>
+          <tr><td>+ pad (column 22, top) and GND pad</td><td>Ω</td><td class="num">≈ 10 Ω</td><td>0 Ω: solder bridge between the rails. Open: an R1 lead is loose.</td></tr>
+          <tr><td>Each diode: red on the plain end, black on the stripe</td><td>Diode</td><td class="num">0.15–0.35 V</td><td>Swap probes and it should read OL. OL both ways: open joint. Low both ways: shorted diode or bridge.</td></tr>
+          <tr><td>A0 pad and GND</td><td>Ω</td><td class="num">≈ 8.2 kΩ</td><td>About 10 kΩ: R2 side open. About 47 kΩ: R3 side open. Much lower: D9 is in backwards.</td></tr>
+          <tr><td>Each J1 screw and its row-7 node</td><td>Continuity</td><td class="num">beep</td><td>The jumper wire's joint is open.</td></tr>
+          <tr><td>Column 5 node and column 10 node</td><td>Continuity</td><td class="num">no beep</td><td>Solder bridge between the two bridges.</td></tr>
+          <tr><td>Stepper wires, before connecting</td><td>Ω</td><td class="num">1–5 Ω in a pair</td><td>Wires from different coils read open: that's how you find the two pairs.</td></tr>
+        </tbody>
+      </table>
+
+      <h3 id="p-power">8 · First power-up</h3>
+      <ol>
+        <li>Find the coil pairs with the ohmmeter. Put one pair in J1's A+ and A−, the other in B+ and B−. Which wire of a pair goes where doesn't matter; the bridge rectifies either way.</li>
+        <li>Meter on DC volts across R1. Spin the big pulley by hand: the reading should flick up to a few volts.</li>
+        <li>Move the meter to A0 and GND. Stomp on the plate as hard as you can: it must stay under 5 V.</li>
+        <li>Plug the Nano into a laptop by USB, connect the A0 and GND leads, upload the sketch below, and open Serial Monitor at 115200 baud.</li>
+        <li>Step on the tile. Each step prints one line: step number, joules, peak volts and the running average.</li>
+      </ol>
+
+      <h3 id="p-code">9 · Logger sketch and calibration</h3>
+      <p>Before trusting the numbers, measure three things and type them into the top of the sketch: R1 with its leads (R_LOAD), R2 and R3 to work out (R2 + R3) ÷ R3 (DIVIDER), and the Nano's 5V pin while on USB (VREF; often 4.7–5.1 V). The output is comma-separated, so you can paste it straight into a spreadsheet.</p>
+<pre>// Harvest Steps bench logger v2: energy of each step into the load resistor
+// Put your own measurements in the four values below.
+const float R_LOAD  = 10.0;   // ohms: R1 plus its leads, measured
+const float DIVIDER = 5.70;   // (R2 + R3) / R3, from measured values
+const float VREF    = 5.00;   // volts on the Nano's 5V pin, measured on USB
+const float THRESH  = 0.20;   // volts across R1 that count as "producing"
+const unsigned long DT_US    = 500;  // sample every 0.5 ms (2 kHz)
+const unsigned long QUIET_MS = 400;  // this long below THRESH ends a step
+
+float joules = 0, peakV = 0, total = 0;
+unsigned long quietSince = 0;
+int steps = 0;
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("step,joules,peak_volts,average_joules");
+}
+
+void loop() {
+  static unsigned long next = micros();
+  while ((long)(micros() - next) &lt; 0) {}    // wait for the next sample
+  next += DT_US;
+
+  float v = analogRead(A0) * VREF / 1023.0 * DIVIDER;   // volts across R1
+  if (v &gt; THRESH) {
+    joules += v * v / R_LOAD * DT_US * 1e-6;              // P = V^2/R, times dt
+    if (v &gt; peakV) peakV = v;
+    quietSince = millis();
+  } else if (joules &gt; 0 &amp;&amp; millis() - quietSince &gt; QUIET_MS) {
+    steps++;
+    total += joules;
+    Serial.print(steps);      Serial.print(',');
+    Serial.print(joules, 4);  Serial.print(',');
+    Serial.print(peakV, 2);   Serial.print(',');
+    Serial.println(total / steps, 4);
+    joules = 0;  peakV = 0;
+  }
+}</pre>
+
+      <h3 id="p-test">10 · Test plan</h3>
+      <ol>
+        <li>Weigh three walkers of different builds on a bathroom scale.</li>
+        <li>With the end stops at 4 mm, each walker takes 20 normal steps across the tile. Save the serial output.</li>
+        <li>Repeat at 6 mm and 8 mm. Average each walker's joules at each travel.</li>
+        <li>In the Energy physics tab, set the mass and travel, then adjust the efficiencies until the prediction matches your average. That tells you which stage loses the most.</li>
+        <li>If 6 mm gives under 1 J, raise the step-up ratio (a 20T pinion or a bigger pulley) before changing anything else.</li>
+      </ol>
+
+      <h3 id="p-trouble">11 · Troubleshooting</h3>
+      <table>
+        <thead><tr><th>What you see</th><th>Likely cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Nothing prints when you step</td><td>Voltage never passes THRESH; motor spinning too slowly</td><td>Check the belt isn't slipping; spin the pulley fast by hand to test; lower THRESH to 0.1</td></tr>
+          <tr><td>Lines print with nobody on the tile</td><td>Noise on A0</td><td>Twist the A0 and GND leads together; check C1; raise THRESH</td></tr>
+          <tr><td>Only half the expected voltage</td><td>Both wires of one coil in the same bridge as the other coil's wire</td><td>Recheck the pairs with the ohmmeter; one pair per bridge</td></tr>
+          <tr><td>A0 reads near 0 always</td><td>D9 backwards, or A0 lead on the wrong pin</td><td>Stripe of D9 toward the A0 line; check the Nano pin label</td></tr>
+          <tr><td>Joules far below the physics tab</td><td>Diode drops dominate at low voltage; loose end stops</td><td>More step-up; check travel with calipers; heavier walker</td></tr>
+          <tr><td>R1 warm after drill tests</td><td>Continuous spinning, not steps</td><td>Normal; keep drill spins under 10 s</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div class="bar">
+  <div class="ctl on" data-ctl="sequence">
+    <button class="play" id="play">❚❚ Pause</button>
+    <input class="scrub" id="scrub" type="range" min="0" max="1000" value="0" aria-label="Step sequence time">
+    <span class="clock" id="clock">0.0 / 7.6 s</span>
+    <label><span class="lbl">Speed</span><select id="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+  </div>
+  <div class="ctl" data-ctl="blueprint">
+    <label for="explode">Explode</label>
+    <input class="scrub" id="explode" type="range" min="0" max="1000" value="650" aria-label="Explode amount">
+    <span class="clock" id="explodeOut">65 %</span>
+  </div>
+  <div class="ctl" data-ctl="market">
+    <button class="play" id="mPlay">❚❚ Pause</button>
+    <input class="scrub" id="mScrub" type="range" min="0" max="1000" value="0" aria-label="Time of day">
+    <span class="clock" id="mClock">8:00 / 18:00</span>
+    <label><span class="lbl">Speed</span><select id="mSpeed" aria-label="Market day speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+  </div>
+  <div class="ctl" data-ctl="doc"><span class="clock" style="text-align:left;color:var(--ink-2)" id="docNote"></span></div>
+  <div class="modes" id="modes" aria-label="Display mode">
+    <button data-mode="holo" aria-pressed="true">Hologram</button>
+    <button data-mode="mat" aria-pressed="false">Material</button>
+  </div>
+</div>
+
+<footer class="status">
+  <span class="ok" id="ready">● LOADING</span>
+  <span>HARVEST STEPS REV 01</span>
+  <span>CONCEPT DESIGN · NOT FIELD-TESTED</span>
+</footer>
+
+<script>
+(function(){
+'use strict';
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const ease = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+const fmt = (v, d = 0) => v.toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+
+/* ---------------- Physics model (shared by every tab) ---------------- */
+const P = {mass: 70, travel: 6, eDrive: 0.85, eGen: 0.75, eElec: 0.85, visitors: 60000, spv: 60, price: 0.29};
+const SPRING_PRELOAD = 60, SPRING_RATE = 15;     // N total at rest, N/mm total (4 springs)
+const SOLAR_KWH = 1.2, PHONE_WH = 15, SEASON_DAYS = 208, RAMP_RISE_MM = 45;
+function model(p = P) {
+  const g = 9.81, d = p.travel;                                  // d in mm
+  const mech = p.mass * g * d / 1000;                            // J, the ceiling
+  const spring = (SPRING_PRELOAD * d + 0.5 * SPRING_RATE * d * d) / 1000;
+  const toDrive = Math.max(0, mech - spring);
+  const afterDrive = toDrive * p.eDrive, afterGen = afterDrive * p.eGen, elec = afterGen * p.eElec;
+  const kwh = p.visitors * p.spv * elec / 3.6e6;
+  return {mech, spring, toDrive, afterDrive, afterGen, elec, kwh, usd: kwh * p.price,
+          phones: kwh * 1000 / PHONE_WH, season: kwh * SEASON_DAYS, panels: kwh / SOLAR_KWH};
+}
+
+/* ---------------- Three.js setup ---------------- */
+const canvas = $('gl'), stage = $('stage');
+if (!window.THREE) { $('ready').textContent = '● 3D LIBRARY DID NOT LOAD'; }
+const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(0x06141a, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.005, 2000);
+scene.add(new THREE.HemisphereLight(0xdfefff, 0x1a2a2f, 0.55));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(2, 4, 3); scene.add(sun);
+const fill = new THREE.DirectionalLight(0x9fc8ff, 0.35); fill.position.set(-3, 2, -2); scene.add(fill);
+
+const HOLO = 0x7fdcef, AMBER = 0xf2b84b;
+const holoFace = new THREE.MeshBasicMaterial({color: HOLO, transparent: true, opacity: 0.06, depthWrite: false, side: THREE.DoubleSide});
+const holoSolid = new THREE.MeshBasicMaterial({color: HOLO, transparent: true, opacity: 0.55});
+const MATS = {
+  rubber: new THREE.MeshStandardMaterial({color: 0x2b2f2e, roughness: 0.95}),
+  alu: new THREE.MeshStandardMaterial({color: 0x7f8a90, roughness: 0.6, metalness: 0.25}),
+  steel: new THREE.MeshStandardMaterial({color: 0xc9d0d4, roughness: 0.3, metalness: 0.85}),
+  nylon: new THREE.MeshStandardMaterial({color: 0xe8e2cf, roughness: 0.7}),
+  brass: new THREE.MeshStandardMaterial({color: 0xc9a046, roughness: 0.35, metalness: 0.8}),
+  motor: new THREE.MeshStandardMaterial({color: 0x3c4a55, roughness: 0.5, metalness: 0.5}),
+  pcb: new THREE.MeshStandardMaterial({color: 0x1f6b45, roughness: 0.6}),
+  chip: new THREE.MeshStandardMaterial({color: 0x15191b, roughness: 0.5}),
+  conn: new THREE.MeshStandardMaterial({color: 0x1d2a33, roughness: 0.6}),
+  ramp: new THREE.MeshStandardMaterial({color: 0x3a3f3d, roughness: 0.95}),
+  wire: new THREE.MeshStandardMaterial({color: 0xd2662f, roughness: 0.6})
+};
+let mode = 'holo';
+const solids = [];
+function solid(geo, matKey, opt = {}) {
+  const m = new THREE.Mesh(geo, holoFace);
+  m.userData.matKey = matKey; m.userData.thin = !!opt.thin;
+  if (!opt.thin) {
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo, opt.angle || 25), new THREE.LineBasicMaterial({color: HOLO, transparent: true, opacity: 0.9}));
+    m.add(e); m.userData.edge = e;
+  }
+  solids.push(m); applyMode(m); return m;
+}
+function applyMode(m) {
+  const holo = mode === 'holo', sel = m.userData.selected;
+  if (holo) m.material = m.userData.thin ? holoSolid : holoFace; else m.material = MATS[m.userData.matKey];
+  if (m.userData.thin && holo && sel) m.material = new THREE.MeshBasicMaterial({color: AMBER});
+  const e = m.userData.edge;
+  if (e) { e.material.color.setHex(sel ? AMBER : (holo ? HOLO : 0x0b1a20)); e.material.opacity = holo ? (sel ? 1 : 0.85) : (sel ? 1 : 0.35); }
+}
+function setMode(m) {
+  mode = m; solids.forEach(applyMode);
+  document.querySelectorAll('#modes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  ghost.visible = true; renderMarketMode();
+}
+
+/* ---------------- The Harvest Mat ---------------- */
+const tile = new THREE.Group(); scene.add(tile);
+const EX = 3;                      // drawn travel multiplier
+const parts = [];
+function part(def, objs, explode) {
+  const g = new THREE.Group(); objs.forEach(o => g.add(o)); tile.add(g);
+  def.group = g; def.explode = explode; def.objs = objs; g.userData.part = def; parts.push(def); return g;
+}
+function box(w, h, d, x, y, z, mat, opt) { const m = solid(new THREE.BoxGeometry(w, h, d), mat, opt); m.position.set(x, y, z); return m; }
+function cyl(r, h, x, y, z, mat, axis, seg = 24, opt) {
+  const m = solid(new THREE.CylinderGeometry(r, r, h, seg), mat, opt); m.position.set(x, y, z);
+  if (axis === 'x') m.rotation.z = Math.PI / 2; if (axis === 'z') m.rotation.x = Math.PI / 2; return m;
+}
+function gearGeo(r, teeth, thick) {
+  const s = new THREE.Shape(), ro = r * 1.12, ri = r * 0.86, n = teeth * 4;
+  for (let i = 0; i <= n; i++) {
+    const a = i / n * Math.PI * 2, k = i % 4, rr = (k === 1 || k === 2) ? ro : ri;
+    const x = Math.cos(a) * rr, y = Math.sin(a) * rr; i ? s.lineTo(x, y) : s.moveTo(x, y);
+  }
+  const hole = new THREE.Path(); hole.absarc(0, 0, r * 0.25, 0, Math.PI * 2, true); s.holes.push(hole);
+  const g = new THREE.ExtrudeGeometry(s, {depth: thick, bevelEnabled: false, curveSegments: 6}); g.translate(0, 0, -thick / 2); return g;
+}
+function wedgeGeo(len, h, w) {   // rises from 0 at z=len to h at z=0, width along x
+  const x = w / 2;
+  const v = [-x,0,0, x,0,0, x,0,len, -x,0,len, -x,h,0, x,h,0];
+  const idx = [0,2,1, 0,3,2, 0,1,5, 0,5,4, 4,5,2, 4,2,3, 0,4,3, 1,2,5];
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+const Y_FLOOR = 0.012, Y_PLATE = 0.039, AX = 0.0195, C = 0.24;
+const corners = [[1, 1], [-1, 1], [1, -1], [-1, -1]];
+
+// Base tray
+part({key: 'base', name: 'Base tray', qty: '1', material: 'Pressed aluminium, gasket groove, drain holes', size: '600 × 600 × 33 mm', mass: '3.1 kg', role: 'Carries everything and seals it to IP67 against rain, slush and road salt.'}, [
+  box(0.6, 0.012, 0.6, 0, 0.006, 0, 'alu'),
+  box(0.6, 0.021, 0.006, 0, 0.0225, 0.297, 'alu'), box(0.6, 0.021, 0.006, 0, 0.0225, -0.297, 'alu'),
+  box(0.006, 0.021, 0.588, 0.297, 0.0225, 0, 'alu'), box(0.006, 0.021, 0.588, -0.297, 0.0225, 0, 'alu')
+], new THREE.Vector3(0, -0.10, 0));
+
+// Top plate (moves)
+const plate = part({key: 'plate', name: 'Top plate', qty: '1', material: 'Recycled-rubber tread bonded to 6 mm aluminium', size: '588 × 588 × 12 mm', mass: '4.3 kg', role: 'What you step on. Rests on four plungers so a step anywhere pushes it down evenly.'}, [
+  box(0.588, 0.012, 0.588, 0, Y_PLATE, 0, 'rubber')
+], new THREE.Vector3(0, 0.20, 0));
+
+// Plungers, springs, racks, drive trains
+const plungerObjs = [], springObjs = [], rackObjs = [], pinions = [], flywheels = [], rotors = [], gearboxObjs = [], genObjs = [];
+corners.forEach(([sx, sz]) => {
+  plungerObjs.push(cyl(0.008, 0.027, sx * C, 0.0255, sz * C, 'steel'));
+  const pts = []; for (let i = 0; i <= 120; i++) { const a = i / 120 * Math.PI * 2 * 6; pts.push(new THREE.Vector3(Math.cos(a) * 0.014, i / 120 * 0.021, Math.sin(a) * 0.014)); }
+  const sp = solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 240, 0.0012, 5), 'steel', {thin: true});
+  sp.position.set(sx * C, Y_FLOOR, sz * C); springObjs.push(sp);
+  // Rack: vertical toothed bar facing the pinion (toward the centre along x)
+  const rs = new THREE.Shape(); const rx = 0.004, rh = 0.03; rs.moveTo(0, 0); rs.lineTo(rx, 0);
+  for (let i = 0; i < 9; i++) { const y = i * rh / 9; rs.lineTo(rx, y + 0.0008); rs.lineTo(rx + 0.0022, y + 0.0015); rs.lineTo(rx + 0.0022, y + 0.0025); rs.lineTo(rx, y + 0.0032); }
+  rs.lineTo(rx, rh); rs.lineTo(0, rh); rs.lineTo(0, 0);
+  const rg = new THREE.ExtrudeGeometry(rs, {depth: 0.006, bevelEnabled: false}); rg.translate(0, 0, -0.003);
+  const rack = solid(rg, 'nylon'); rack.scale.x = -sx; rack.position.set(sx * (C - 0.010), 0.006, sz * C); rackObjs.push(rack);
+  // Pinion meshes the rack; its axis runs along z
+  const pin = solid(gearGeo(0.006, 12, 0.005), 'nylon'); pin.position.set(sx * (C - 0.0225), AX, sz * C); pinions.push(pin);
+  // Gearbox, flywheel, generator along z toward the centre
+  const gb = box(0.022, 0.014, 0.022, sx * (C - 0.0225), AX, sz * (C - 0.020), 'alu'); gearboxObjs.push(gb);
+  const fw = cyl(0.007, 0.010, sx * (C - 0.0225), AX, sz * (C - 0.040), 'brass', 'z', 20); flywheels.push(fw);
+  const gen = cyl(0.006, 0.020, sx * (C - 0.0225), AX, sz * (C - 0.062), 'motor', 'z', 20); genObjs.push(gen);
+  const rot = box(0.0016, 0.0016, 0.004, sx * (C - 0.0225), AX + 0.0045, sz * (C - 0.0745), 'steel', {thin: true}); rotors.push(rot);
+});
+const plungers = part({key: 'plungers', name: 'Corner plungers', qty: '4', material: 'Stainless steel rod with hard end stop', size: 'Ø16 × 27 mm', mass: '0.05 kg each', role: 'Carry the plate down. The end stop limits travel to 6 mm, however hard someone lands.'}, plungerObjs, new THREE.Vector3(0, 0.12, 0));
+const springs = part({key: 'springs', name: 'Return springs', qty: '4', material: 'Music-wire compression springs', size: 'Ø28 mm, 15 N/mm total', mass: '0.03 kg each', role: 'Hold the plate up with 60 N and lift it back in about 0.3 s. Their stored energy is not harvested.'}, springObjs, new THREE.Vector3(0, 0.07, 0));
+const racks = part({key: 'racks', name: 'Racks', qty: '4', material: 'Glass-filled nylon, module 1', size: '30 × 6 mm', mass: '0.01 kg each', role: 'Fixed to the plate. As it sinks, each rack turns a pinion.'}, rackObjs, new THREE.Vector3(0, 0.155, 0));
+part({key: 'pinions', name: 'Pinions with one-way clutches', qty: '4', material: 'Nylon gear on a sprag clutch', size: '12 teeth, Ø12 mm', mass: '0.01 kg each', role: 'Turn about 57° per step. The clutch drives on the way down and freewheels on the way up.'}, pinions, new THREE.Vector3(0, 0.035, 0));
+part({key: 'gearbox', name: 'Step-up gearboxes', qty: '4', material: 'Two-stage spur gears in an aluminium case', size: '22 × 22 × 14 mm, 1:12', mass: '0.02 kg each', role: 'Spin the flywheel and generator 12 times faster than the pinion, to about 760 rpm at peak.'}, gearboxObjs, new THREE.Vector3(0, 0.0, 0));
+part({key: 'flywheels', name: 'Flywheels', qty: '4', material: 'Brass', size: 'Ø14 × 10 mm', mass: '0.012 kg each', role: 'Keep the generator turning after the push ends, so each step makes a longer, smoother pulse.'}, flywheels, new THREE.Vector3(0, -0.02, 0));
+part({key: 'generators', name: 'Generators', qty: '4', material: 'Brushless DC motors run backwards', size: 'Ø12 × 20 mm', mass: '0.03 kg each', role: 'Turn rotation into three-phase AC. Four small ones mean a step lands near one wherever the foot falls.'}, [...genObjs, ...rotors], new THREE.Vector3(0, -0.045, 0));
+
+// Power board and cabling
+const board = part({key: 'board', name: 'Power board', qty: '1', material: 'FR-4 circuit board, conformal coated', size: '120 × 80 mm', mass: '0.08 kg', role: 'Rectifies the four generators into a supercapacitor, boosts onto the 24 V bus, and counts each step for the footfall data.'}, [
+  box(0.12, 0.003, 0.08, 0, 0.0145, 0, 'pcb'),
+  cyl(0.008, 0.012, -0.035, 0.022, 0.015, 'chip', 'y', 18), box(0.016, 0.006, 0.016, 0.01, 0.019, -0.015, 'chip'),
+  box(0.012, 0.003, 0.012, 0.035, 0.0175, 0.018, 'chip'), cyl(0.006, 0.008, 0.03, 0.020, -0.02, 'motor', 'y', 16)
+], new THREE.Vector3(0, -0.075, 0));
+const cablePts = [];
+corners.forEach(([sx, sz]) => { cablePts.push([[sx * (C - 0.0225), AX, sz * (C - 0.075)], [sx * (C - 0.0225), 0.0135, sz * 0.12], [sx * 0.05, 0.0135, sz * 0.035]]); });
+const cables = cablePts.map(p => { const g = solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p.map(a => new THREE.Vector3(...a))), 30, 0.0012, 5), 'wire', {thin: true}); return g; });
+const busPath = [[0.06, 0.0135, 0], [0.2, 0.0135, 0], [0.288, 0.022, 0]];
+cables.push(solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(busPath.map(a => new THREE.Vector3(...a))), 20, 0.0016, 5), 'wire', {thin: true}));
+cables.push(solid(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[-0.06, 0.0135, 0], [-0.2, 0.0135, 0], [-0.288, 0.022, 0]].map(a => new THREE.Vector3(...a))), 20, 0.0016, 5), 'wire', {thin: true}));
+part({key: 'cables', name: 'Internal wiring', qty: '6 runs', material: 'Silicone-insulated copper', size: '3-phase from each generator; 24 V bus through', mass: '0.06 kg', role: 'Carries generator output to the board and the bus from one mat to the next.'}, cables, new THREE.Vector3(0, -0.06, 0));
+part({key: 'connectors', name: 'Bus connectors', qty: '2', material: 'IP67 two-pin, in and out', size: '24 × 16 mm', mass: '0.02 kg each', role: 'Mats click together in a row; the row becomes one cable run back to the Power Cart.'}, [
+  box(0.012, 0.016, 0.024, 0.306, 0.022, 0, 'conn'), box(0.012, 0.016, 0.024, -0.306, 0.022, 0, 'conn')
+], new THREE.Vector3(0, 0.0, 0));
+part({key: 'ramp', name: 'End ramp', qty: 'per open edge', material: 'Recycled rubber, 1:12 slope', size: '600 × 540 mm, 45 mm rise', mass: '2.9 kg', role: 'A 45 mm edge is too tall to step over safely or roll a wheelchair across, so every open edge of a mat strip gets a 1:12 ramp. Ramps harvest nothing.'}, [
+  (() => { const m = solid(wedgeGeo(0.54, 0.045, 0.6), 'ramp'); m.position.set(0, 0, 0.3); return m; })()
+], new THREE.Vector3(0, 0, 0.10));
+parts.forEach(p => { p.home = p.group.position.clone(); });
+
+// Ghost neighbour: the strip continues
+const ghost = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(0.6, 0.045, 0.6)), new THREE.LineBasicMaterial({color: HOLO, transparent: true, opacity: 0.18}));
+ghost.position.set(0, 0.0225, -0.6); tile.add(ghost);
+
+// Ground grid
+const grid = new THREE.GridHelper(4, 40, 0x1b3a45, 0x10262e); grid.position.y = -0.0005; tile.add(grid);
+
+// Foot
+const soleOutline = [[0,-0.13],[0.03,-0.12],[0.038,-0.09],[0.035,-0.04],[0.04,0.0],[0.05,0.05],[0.048,0.09],[0.035,0.12],[0.01,0.135],[-0.02,0.13],[-0.04,0.11],[-0.045,0.07],[-0.035,0.02],[-0.03,-0.04],[-0.036,-0.09],[-0.03,-0.12]];
+const soleShape = new THREE.Shape(soleOutline.map(([x, y]) => new THREE.Vector2(x, y)));
+const foot = new THREE.Group();
+const footFace = new THREE.Mesh(new THREE.ShapeGeometry(soleShape), new THREE.MeshBasicMaterial({color: AMBER, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false}));
+const footLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(soleOutline.map(([x, y]) => new THREE.Vector3(x, y, 0))), new THREE.LineBasicMaterial({color: AMBER, transparent: true}));
+foot.add(footFace, footLine); foot.rotation.x = -Math.PI / 2; foot.rotation.z = Math.PI; tile.add(foot);
+
+// Energy pulse
+const pulse = new THREE.Mesh(new THREE.SphereGeometry(0.008, 16, 12), new THREE.MeshBasicMaterial({color: AMBER}));
+const pulseHalo = new THREE.Mesh(new THREE.SphereGeometry(0.018, 16, 12), new THREE.MeshBasicMaterial({color: AMBER, transparent: true, opacity: 0.25, depthWrite: false}));
+pulse.add(pulseHalo); tile.add(pulse);
+const pulseCurve = new THREE.CatmullRomCurve3([[0, 0.02, 0], [0.06, 0.0135, 0], [0.2, 0.0135, 0], [0.288, 0.022, 0], [0.33, 0.022, 0], [0.62, 0.006, 0]].map(a => new THREE.Vector3(...a)));
+const genSparks = corners.map(([sx, sz]) => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.004, 10, 8), new THREE.MeshBasicMaterial({color: AMBER, transparent: true})); s.position.set(sx * (C - 0.0225), AX, sz * (C - 0.062)); tile.add(s); return s; });
+
+/* ---------------- Step sequence ---------------- */
+const SEQ = [
+  {t: 0.0, name: 'Approach', d: 'A shopper walks up the end ramp onto the strip. The plate sits 6 mm proud on four springs.'},
+  {t: 1.0, name: 'Heel strike', d: 'Weight lands on the plate and the force briefly passes body weight.'},
+  {t: 1.6, name: 'Plate travel', d: 'The plate sinks 6 mm, pushing all four plungers down evenly. In real life this takes about 0.15 s.'},
+  {t: 2.4, name: 'Racks turn pinions', d: 'Each rack turns its 12-tooth pinion about 57°. One-way clutches lock and drive the gearboxes.'},
+  {t: 3.2, name: 'Generators fire', d: 'The plate bottoms out with the flywheels at full speed, about 760 rpm. Four generators put out bursts of three-phase AC.'},
+  {t: 4.2, name: 'Spring return', d: 'The foot rolls off. Springs lift the plate back; the clutches freewheel so the flywheels keep coasting and generating.'},
+  {t: 5.2, name: 'Rectify and boost', d: 'The power board rectifies the pulses into a supercapacitor, boosts them onto the 24 V bus and counts the step.'},
+  {t: 6.2, name: 'Onto the spine', d: 'The energy leaves through the edge connector, mat to mat, toward the Power Cart battery.'}
+];
+const DUR = 7.6;
+let seqT = 0, seqPlaying = true, seqSpeed = 1, stepsCounted = 0, lastSeqT = 0;
+const seqEl = $('seq');
+SEQ.forEach((s, i) => {
+  const li = document.createElement('li');
+  li.innerHTML = `<button><code>T+${s.t.toFixed(1)}</code><b>${s.name}</b><small>${s.d}</small></button>`;
+  li.querySelector('button').addEventListener('click', () => { seqT = s.t + 0.01; });
+  seqEl.appendChild(li);
+});
+function press(t) { if (t < 1.0) return 0; if (t < 3.2) return ease((t - 1.0) / 2.2); if (t < 4.2) return 1; if (t < 4.7) return 1 - ease((t - 4.2) / 0.5); return 0; }
+function omega(t) { if (t < 1.2) return 0; if (t < 3.2) return ease((t - 1.2) / 2.0); return Math.exp(-(t - 3.2) / 1.1); }
+const N_SAMP = 400; let cumW = [], cumA = [];
+(function buildTables() {
+  let w = 0, a = 0; for (let i = 0; i <= N_SAMP; i++) { const t = i / N_SAMP * DUR, o = omega(t); w += o * o * DUR / N_SAMP; a += o * DUR / N_SAMP; cumW.push(w); cumA.push(a); }
+})();
+const lookup = (arr, t) => arr[Math.round(clamp(t / DUR, 0, 1) * N_SAMP)];
+function updateSequence(t) {
+  const m = model(), p = press(t), drop = P.travel / 1000 * EX * p;
+  plate.position.y = plate.userData.part.home.y + explodeOff(plate.userData.part).y - drop;
+  plungers.position.y = plungers.userData.part.home.y + explodeOff(plungers.userData.part).y - drop;
+  racks.position.y = racks.userData.part.home.y + explodeOff(racks.userData.part).y - drop;
+  springObjs.forEach(s => { s.scale.y = (0.021 - drop) / 0.021; });
+  const pinAng = p * 1.0;
+  pinions.forEach((g, i) => { g.rotation.z = -corners[i][0] * pinAng; });
+  const ang = lookup(cumA, t) * 60;
+  flywheels.forEach((f, i) => { f.rotation.y = ang * corners[i][1]; });
+  rotors.forEach((r, i) => { const [sx, sz] = corners[i]; const a = ang; r.position.x = sx * (C - 0.0225) + Math.cos(a) * 0.0045; r.position.y = AX + Math.sin(a) * 0.0045; });
+  const o = omega(t);
+  genSparks.forEach(s => { s.visible = o > 0.05; s.material.opacity = clamp(o, 0, 1); s.scale.setScalar(0.6 + o); });
+  // Foot
+  let fz, fy, fo;
+  if (t < 1.0) { const k = ease(t / 1.0); fz = 0.75 - 0.75 * k; fy = 0.10 * (1 - k) + 0.046; fo = Math.min(1, t * 3); }
+  else if (t < 4.2) { fz = 0; fy = 0.046 + 0.0002 - drop; fo = 1; }
+  else if (t < 5.0) { const k = ease((t - 4.2) / 0.8); fz = -0.45 * k; fy = 0.046 + 0.09 * k; fo = 1 - k; }
+  else { fz = -0.45; fy = 0.14; fo = 0; }
+  foot.position.set(0.02, fy, fz); footFace.material.opacity = 0.2 * fo; footLine.material.opacity = fo; foot.visible = fo > 0.01;
+  // Pulse
+  pulse.visible = t > 5.2 && t < 7.4;
+  if (pulse.visible) { const k = clamp((t - 5.2) / 2.2, 0, 1); pulse.position.copy(pulseCurve.getPointAt(ease(k))); }
+  // Telemetry
+  const contact = t >= 1.0 && t < 4.6;
+  let force = 0; if (contact) { const k = (t - 1.0) / 3.6; force = P.mass * 9.81 * (k < 0.15 ? 1.15 * ease(k / 0.15) : k < 0.85 ? 1.0 + 0.15 * Math.max(0, 1 - (k - 0.15) / 0.1) : 1 - ease((k - 0.85) / 0.15)); }
+  const eFrac = lookup(cumW, t) / cumW[N_SAMP];
+  $('tTravel').textContent = (P.travel * p).toFixed(1) + ' mm';
+  $('tForce').textContent = fmt(force) + ' N';
+  $('tRpm').textContent = fmt(o * 760) + ' rpm';
+  $('tClutch').textContent = (t >= 1.0 && t < 3.2) ? 'DRIVING' : 'FREE';
+  $('tEnergy').textContent = (m.elec * eFrac).toFixed(2) + ' J';
+  $('tBus').textContent = t > 5.2 && t < 6.6 ? '24.0 V ▲' : '24.0 V';
+  $('tWalker').textContent = P.mass + ' kg';
+  let cur = 0; SEQ.forEach((s, i) => { if (t >= s.t) cur = i; });
+  [...seqEl.children].forEach((li, i) => li.classList.toggle('on', i === cur));
+  setCaption('T+' + t.toFixed(1), SEQ[cur].name, SEQ[cur].d);
+  $('clock').textContent = t.toFixed(1) + ' / ' + DUR.toFixed(1) + ' s';
+  $('scrub').value = Math.round(t / DUR * 1000);
+}
+function setCaption(code, title, text) { $('capCode').textContent = code; $('capTitle').textContent = title; $('capText').textContent = text; }
+
+/* ---------------- Blueprint ---------------- */
+let explode = 0.65, selected = null;
+const explodeOff = p => (tab === 'blueprint' ? p.explode.clone().multiplyScalar(explode) : new THREE.Vector3());
+function placeParts() { parts.forEach(p => { p.group.position.copy(p.home).add(explodeOff(p)); }); springObjs.forEach(s => s.scale.y = 1); }
+const partsEl = $('parts');
+parts.forEach(p => {
+  const li = document.createElement('li');
+  li.innerHTML = `<button><b style="font-weight:400">${p.name}</b><span>${/^\d/.test(p.qty) ? '× ' + p.qty.split(' ')[0] : 'per edge'}</span></button>`;
+  li.querySelector('button').addEventListener('click', () => select(p));
+  p.li = li; partsEl.appendChild(li);
+});
+function select(p) {
+  selected = p;
+  parts.forEach(q => { q.li.classList.toggle('on', q === p); q.objs.forEach(o => { o.userData.selected = q === p; applyMode(o); }); });
+  $('sheet').innerHTML = p ? `<h3>${p.name}</h3><dl><dt>QTY</dt><dd>${p.qty}</dd><dt>MATERIAL</dt><dd>${p.material}</dd><dt>SIZE</dt><dd>${p.size}</dd><dt>MASS (EST.)</dt><dd>${p.mass}</dd></dl><p>${p.role}</p>` :
+    `<h3>Whole tile</h3><dl><dt>SIZE</dt><dd>600 × 600 × 45 mm</dd><dt>MASS (EST.)</dt><dd>8.6 kg tile, 2.9 kg per ramp</dd><dt>TRAVEL</dt><dd>6 mm, hard stop</dd><dt>OUTPUT</dt><dd>24 V DC bus</dd></dl><p>Masses are design estimates; the target is under 12 kg so one person can carry a tile.</p>`;
+  if (p) setCaption('PART', p.name, p.role); else setCaption('BLUEPRINT', 'Harvest Mat', 'Thirteen kinds of parts. Click one to see its datasheet.');
+}
+
+/* ---------------- Physics tab ---------------- */
+function bind(id, out, key, scale, show) {
+  const el = $(id); const upd = () => { P[key] = parseFloat(el.value) * scale; $(out).textContent = show(parseFloat(el.value)); refreshPhysics(); };
+  el.addEventListener('input', upd); $(out).textContent = show(parseFloat(el.value));
+}
+bind('iMass', 'oMass', 'mass', 1, v => v + ' kg');
+bind('iTravel', 'oTravel', 'travel', 1, v => v.toFixed(1) + ' mm');
+bind('iDrive', 'oDrive', 'eDrive', 0.01, v => v + ' %');
+bind('iGen', 'oGen', 'eGen', 0.01, v => v + ' %');
+bind('iElec', 'oElec', 'eElec', 0.01, v => v + ' %');
+bind('iVisitors', 'oVisitors', 'visitors', 1, v => fmt(v));
+bind('iPrice', 'oPrice', 'price', 1, v => '$' + v.toFixed(2) + '/kWh');
+function coverButtons(sel) {
+  document.querySelectorAll(sel + ' button').forEach(b => b.addEventListener('click', () => {
+    P.spv = parseFloat(b.dataset.spv);
+    document.querySelectorAll('#segCover button, #segMarket button').forEach(x => x.setAttribute('aria-pressed', parseFloat(x.dataset.spv) === P.spv));
+    refreshPhysics(); buildMats();
+  }));
+}
+coverButtons('#segCover'); coverButtons('#segMarket');
+function refreshPhysics() {
+  const m = model();
+  $('flow').innerHTML = `<span>Ceiling <b>${m.mech.toFixed(2)} J</b></span><i>− springs ${m.spring.toFixed(2)} →</i><span>Into gears <b>${m.toDrive.toFixed(2)} J</b></span><i>× ${Math.round(P.eDrive * 100)}% →</i><span>Generators <b>${m.afterDrive.toFixed(2)} J</b></span><i>× ${Math.round(P.eGen * 100)}% →</i><span>AC out <b>${m.afterGen.toFixed(2)} J</b></span><i>× ${Math.round(P.eElec * 100)}% →</i><span style="border-color:var(--amber)">On the bus <b style="color:var(--amber)">${m.elec.toFixed(2)} J</b></span>`;
+  const cards = [
+    ['PER STEP', m.elec.toFixed(2) + ' J', 'electricity onto the 24 V bus'],
+    ['PER MARKET DAY', m.kwh.toFixed(m.kwh < 1 ? 2 : 1) + ' kWh', fmt(P.visitors) + ' visitors × ' + P.spv + ' steps'],
+    ['GRID VALUE / DAY', '$' + m.usd.toFixed(2), 'at $' + P.price.toFixed(2) + '/kWh'],
+    ['PHONE CHARGES / DAY', fmt(m.phones), 'at 15 Wh per full charge'],
+    ['PER SEASON', fmt(m.season) + ' kWh', '$' + fmt(m.season * P.price) + ' over ' + SEASON_DAYS + ' market days'],
+    ['SOLAR PANELS', m.panels.toFixed(1), 'rooftop panels making the same (≈1.2 kWh/day each)']
+  ];
+  $('cards').innerHTML = cards.map(c => `<div class="card"><small>${c[0]}</small><b>${c[1]}</b><span>${c[2]}</span></div>`).join('');
+  const checks = [
+    [P.travel <= 6 ? 'pass' : 'fail', P.travel <= 6 ? 'PASS' : 'FAIL', 'Comfortable underfoot (travel ≤ 6 mm)', P.travel <= 6 ? 'Feels like a firm gym mat.' : 'Past 6 mm the floor feels spongy and tiring, and becomes a trip risk.'],
+    [m.elec >= 1.5 ? 'pass' : 'fail', m.elec >= 1.5 ? 'PASS' : 'FAIL', 'At least 1.5 J of electricity per step', m.elec.toFixed(2) + ' J now. The bench prototype has to confirm this.'],
+    [m.spring / m.mech <= 0.2 ? 'pass' : 'fail', m.spring / m.mech <= 0.2 ? 'PASS' : 'FAIL', 'Springs take under 20% of each step', Math.round(m.spring / m.mech * 100) + '% goes into lifting the plate back.'],
+    [m.kwh >= SOLAR_KWH ? 'pass' : 'fail', m.kwh >= SOLAR_KWH ? 'PASS' : 'FAIL', 'Beats one rooftop solar panel per day', m.kwh.toFixed(2) + ' kWh vs about 1.2 kWh (approximate).'],
+    ['fix', 'FIX', 'Edges safe to cross', RAMP_RISE_MM + ' mm is over the 13 mm a beveled edge allows, so each open edge of a strip needs a 1:12 ramp, 540 mm long.'],
+    ['fail', 'NO', 'Electricity pays for the system', 'A season of power is worth about $' + fmt(m.season * P.price) + ', about the parts cost of one bench prototype. Sponsors and footfall data have to pay.']
+  ];
+  $('checks').innerHTML = checks.map(c => `<li class="${c[0]}"><b>${c[1]}</b><span>${c[2]}<em>${c[3]}</em></span></li>`).join('');
+  drawChart(); updateMarketCounters();
+}
+function drawChart() {
+  const cv = $('chart'); if (!cv.offsetWidth) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), W = cv.offsetWidth, H = cv.offsetHeight;
+  cv.width = W * dpr; cv.height = H * dpr; const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const L = 48, R = 16, T = 16, B = 36, xs = d => L + (d - 2) / 10 * (W - L - R);
+  const yMax = 5, ys = j => T + (1 - j / yMax) * (H - T - B);
+  g.font = '11px IBM Plex Mono, monospace'; g.lineWidth = 1;
+  for (let j = 0; j <= yMax; j++) { g.strokeStyle = '#123039'; g.beginPath(); g.moveTo(L, ys(j)); g.lineTo(W - R, ys(j)); g.stroke(); g.fillStyle = '#8aa6ae'; g.textAlign = 'right'; g.fillText(j + ' J', L - 8, ys(j) + 4); }
+  g.textAlign = 'center'; for (let d = 2; d <= 12; d += 2) { g.fillStyle = '#8aa6ae'; g.fillText(d + ' mm', xs(d), H - 12); }
+  g.setLineDash([4, 4]); g.strokeStyle = '#f2b84b'; g.beginPath(); g.moveTo(xs(6), T); g.lineTo(xs(6), H - B); g.stroke();
+  g.strokeStyle = '#5fd39a'; g.beginPath(); g.moveTo(L, ys(1.5)); g.lineTo(W - R, ys(1.5)); g.stroke(); g.setLineDash([]);
+  g.textAlign = 'left'; g.fillStyle = '#f2b84b'; g.fillText('comfort limit', xs(6) + 6, T + 10); g.fillStyle = '#5fd39a'; g.fillText('1.5 J target', L + 6, ys(1.5) - 6);
+  [[55, '#4fb3c8'], [70, '#7fdcef'], [85, '#cfeff6']].forEach(([mass, col]) => {
+    g.strokeStyle = col; g.lineWidth = mass === 70 ? 2 : 1.25; g.beginPath();
+    for (let d = 2; d <= 12.001; d += 0.25) { const e = model(Object.assign({}, P, {mass, travel: d})).elec; d === 2 ? g.moveTo(xs(d), ys(e)) : g.lineTo(xs(d), ys(e)); }
+    g.stroke(); const e12 = model(Object.assign({}, P, {mass, travel: 12})).elec; g.fillStyle = col; g.textAlign = 'right'; g.fillText(mass + ' kg', W - R - 4, ys(e12) - 6);
+  });
+  const cur = model(); g.fillStyle = '#f2b84b'; g.beginPath(); g.arc(xs(P.travel), ys(cur.elec), 5, 0, Math.PI * 2); g.fill();
+  g.textAlign = 'left'; g.fillText(P.mass + ' kg, ' + P.travel.toFixed(1) + ' mm: ' + cur.elec.toFixed(2) + ' J', Math.min(xs(P.travel) + 9, W - 190), ys(cur.elec) - 10);
+}
+
+/* ---------------- Market layout ---------------- */
+const market = new THREE.Group(); market.visible = false; scene.add(market);
+const mLine = new THREE.LineBasicMaterial({color: HOLO, transparent: true, opacity: 0.55});
+const mFaceHolo = new THREE.MeshBasicMaterial({color: HOLO, transparent: true, opacity: 0.05, depthWrite: false});
+const mStallMat = new THREE.MeshStandardMaterial({color: 0xe9e4d6, roughness: 0.8});
+const mGroundMat = new THREE.MeshStandardMaterial({color: 0x56605c, roughness: 1});
+const mParkMat = new THREE.MeshStandardMaterial({color: 0x2f5a3a, roughness: 1});
+const marketSolids = [];
+function mSolid(geo, matMat, x, y, z) { const m = new THREE.Mesh(geo, mFaceHolo); m.position.set(x, y, z); const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), mLine); m.add(e); m.userData.mat = matMat; m.userData.edge = e; market.add(m); marketSolids.push(m); return m; }
+function renderMarketMode() { marketSolids.forEach(m => { m.material = mode === 'holo' ? mFaceHolo : m.userData.mat; m.userData.edge.visible = mode === 'holo'; }); }
+mSolid(new THREE.BoxGeometry(150, 0.2, 110), mGroundMat, 0, -0.1, 0);
+mSolid(new THREE.BoxGeometry(92, 0.6, 62), mParkMat, 8, 0.3, 10);
+for (let i = 0; i < 26; i++) { const x = -30 + (i % 7) * 12 + (i % 2) * 3, z = -14 + Math.floor(i / 7) * 13; mSolid(new THREE.CylinderGeometry(2.2, 2.2, 5, 8), mParkMat, x, 3, z); }
+const N_AISLE = {z: -30, x0: -52, x1: 50}, W_AISLE = {x: -46, z0: -30, z1: 42};
+for (let x = N_AISLE.x0 + 4; x < N_AISLE.x1; x += 5.2) { if (Math.abs(x - 2) < 4) continue; mSolid(new THREE.BoxGeometry(4.4, 2.6, 3), mStallMat, x, 1.3, N_AISLE.z - 5); mSolid(new THREE.BoxGeometry(4.4, 2.6, 3), mStallMat, x, 1.3, N_AISLE.z + 5); }
+for (let z = W_AISLE.z0 + 8; z < W_AISLE.z1; z += 5.2) { mSolid(new THREE.BoxGeometry(3, 2.6, 4.4), mStallMat, W_AISLE.x - 5, 1.3, z); mSolid(new THREE.BoxGeometry(3, 2.6, 4.4), mStallMat, W_AISLE.x + 5, 1.3, z); }
+// Power Cart near the info tent at the corner
+const cart = mSolid(new THREE.BoxGeometry(2.4, 1.6, 1.4), new THREE.MeshStandardMaterial({color: 0x1d6a4b}), -40, 0.8, -24);
+const ENTR = [{name: 'East', x: 54, z: N_AISLE.z}, {name: 'North', x: 2, z: -42}, {name: 'NW corner', x: -46, z: -42}, {name: 'South', x: W_AISLE.x, z: 46}];
+const matGroup = new THREE.Group(); market.add(matGroup);
+const matMat = new THREE.MeshBasicMaterial({color: AMBER, transparent: true, opacity: 0.85});
+let matRects = [];
+function addMatRect(x0, x1, z0, z1) { const w = x1 - x0, d = z1 - z0; const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.15, d), matMat); m.position.set((x0 + x1) / 2, 0.1, (z0 + z1) / 2); matGroup.add(m); matRects.push([x0, x1, z0, z1]); }
+const DESC = {6: 'Four short strips where shoppers come in. Cheapest to test, smallest yield.', 60: 'Entrance strips plus a two-mat strip down the middle of both aisles. The recommended first build.', 400: 'The whole aisle floor covered. Most energy, by far the most hardware and ramps.'};
+function buildMats() {
+  while (matGroup.children.length) matGroup.remove(matGroup.children[0]); matRects = [];
+  addMatRect(N_AISLE.x1 - 1, N_AISLE.x1 + 4, N_AISLE.z - 1.2, N_AISLE.z + 1.2);
+  addMatRect(0.8, 3.2, -41, -36); addMatRect(W_AISLE.x - 1.2, W_AISLE.x + 1.2, -41, -36);
+  addMatRect(W_AISLE.x - 1.2, W_AISLE.x + 1.2, W_AISLE.z1 - 1, W_AISLE.z1 + 4);
+  if (P.spv >= 60) { addMatRect(N_AISLE.x0, N_AISLE.x1, N_AISLE.z - 0.6, N_AISLE.z + 0.6); addMatRect(W_AISLE.x - 0.6, W_AISLE.x + 0.6, W_AISLE.z0, W_AISLE.z1); }
+  if (P.spv >= 400) { addMatRect(N_AISLE.x0, N_AISLE.x1, N_AISLE.z - 3, N_AISLE.z + 3); addMatRect(W_AISLE.x - 3, W_AISLE.x + 3, W_AISLE.z0, W_AISLE.z1); }
+  $('mDesc').textContent = DESC[P.spv];
+}
+// Shoppers
+const NS = 320, sPos = new Float32Array(NS * 3), sCol = new Float32Array(NS * 3);
+const sGeo = new THREE.BufferGeometry(); sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3)); sGeo.setAttribute('color', new THREE.BufferAttribute(sCol, 3));
+const shoppers = new THREE.Points(sGeo, new THREE.PointsMaterial({size: 1.1, vertexColors: true, sizeAttenuation: true}));
+market.add(shoppers);
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const NODES = {E: [54, N_AISLE.z], N: [2, -42], NW: [-46, -42], S: [W_AISLE.x, 46], J: [W_AISLE.x, N_AISLE.z], Nm: [2, N_AISLE.z], Sx: [W_AISLE.x, W_AISLE.z1]};
+const ROUTES = [['E', 'Nm', 'J', 'Sx', 'S'], ['S', 'Sx', 'J', 'Nm', 'E'], ['N', 'Nm', 'J', 'Sx', 'S'], ['NW', 'J', 'Nm', 'E'], ['E', 'Nm', 'N'], ['S', 'Sx', 'J', 'NW'], ['NW', 'J', 'Sx', 'S'], ['N', 'Nm', 'E']];
+const sh = [];
+for (let i = 0; i < NS; i++) {
+  const r = ROUTES[Math.floor(rnd() * ROUTES.length)], pts = r.map(k => NODES[k]); let len = 0; const segs = [];
+  for (let j = 1; j < pts.length; j++) { const l = Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]); segs.push(l); len += l; }
+  sh.push({pts, segs, len, off: (rnd() - 0.5) * 4.5, phase: rnd(), speed: 0.75 + rnd() * 0.5});
+}
+const DAY_H = [3, 6, 9, 12, 13, 13, 12, 11, 9, 7], DAY_SUM = DAY_H.reduce((a, b) => a + b);
+function arrived(h) { let s = 0; for (let i = 0; i < 10; i++) s += DAY_H[i] * clamp(h - i, 0, 1); return s / DAY_SUM; }
+let mT = 0, mPlaying = true, mSpeed = 1; const M_DUR = 50;
+function updateMarket(t, dt) {
+  const h = t / M_DUR * 10, crowd = DAY_H[Math.min(9, Math.floor(h))] / 13;
+  const elapsed = performance.now() / 1000;
+  for (let i = 0; i < NS; i++) {
+    const s = sh[i], active = i / NS < 0.25 + 0.75 * crowd;
+    let k = ((elapsed * 0.035 * s.speed * (60 / s.len) + s.phase) % 1) * s.len, j = 0;
+    while (j < s.segs.length - 1 && k > s.segs[j]) { k -= s.segs[j]; j++; }
+    const a = s.pts[j], b = s.pts[j + 1], f = clamp(k / s.segs[j], 0, 1), dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1;
+    const x = a[0] + dx * f + (-dz / L) * s.off, z = a[1] + dz * f + (dx / L) * s.off;
+    sPos[i * 3] = x; sPos[i * 3 + 1] = 1.0; sPos[i * 3 + 2] = z;
+    const onMat = matRects.some(r => x >= r[0] && x <= r[1] && z >= r[2] && z <= r[3]);
+    const c = onMat ? [0.95, 0.72, 0.29] : [0.62, 0.86, 0.92]; sCol[i * 3] = c[0]; sCol[i * 3 + 1] = c[1]; sCol[i * 3 + 2] = c[2];
+  }
+  sGeo.setDrawRange(0, Math.round(NS * (0.25 + 0.75 * crowd)));
+  sGeo.attributes.position.needsUpdate = true; sGeo.attributes.color.needsUpdate = true;
+  updateMarketCounters();
+}
+function updateMarketCounters() {
+  const h = mT / M_DUR * 10, frac = arrived(h), m = model(), vis = P.visitors * frac, steps = vis * P.spv, kwh = steps * m.elec / 3.6e6;
+  const hh = 8 + Math.floor(h), mm = Math.floor((h % 1) * 60);
+  const clockTxt = (hh > 12 ? hh - 12 : hh) + ':' + String(mm).padStart(2, '0') + (hh >= 12 ? ' pm' : ' am');
+  $('mTime').textContent = clockTxt; $('mShoppers').textContent = fmt(vis); $('mSteps').textContent = fmt(steps);
+  $('mEnergy').textContent = kwh.toFixed(2) + ' kWh'; $('mPhones').textContent = fmt(kwh * 1000 / PHONE_WH); $('mValue').textContent = '$' + (kwh * P.price).toFixed(2);
+  $('mClock').textContent = clockTxt + ' / 6:00 pm'; $('mScrub').value = Math.round(mT / M_DUR * 1000);
+  if (tab === 'market') setCaption('MARKET DAY · ' + clockTxt.toUpperCase(), 'Scenario ' + ({6: 'A', 60: 'B', 400: 'C'})[P.spv] + ': ' + kwh.toFixed(2) + ' kWh so far', 'Schematic, not to scale. Mat positions to be set by a day of hand counts.');
+}
+
+/* ---------------- Camera control ---------------- */
+const VIEWS = {sequence: {r: 1.15, th: 0.62, ph: 0.95, tg: [0, 0.02, 0.05]}, blueprint: {r: 1.25, th: 0.75, ph: 0.92, tg: [0, 0.05, 0.05]}, market: {r: 150, th: 0.35, ph: 0.85, tg: [2, 0, 4]}};
+const cam = {r: 1.15, th: 0.62, ph: 0.95, tg: new THREE.Vector3(0, 0.02, 0.05)}, camGoal = {r: 1.15, th: 0.62, ph: 0.95, tg: new THREE.Vector3(0, 0.02, 0.05)};
+let userTouched = 0;
+function setView(v, snap) { const V = VIEWS[v]; if (!V) return; const narrow = stage.clientWidth < stage.clientHeight * 1.1 ? 1.55 : 1; camGoal.r = V.r * narrow; camGoal.th = V.th; camGoal.ph = V.ph; camGoal.tg.set(...V.tg); if (snap) { cam.r = camGoal.r; cam.th = V.th; cam.ph = V.ph; cam.tg.copy(camGoal.tg); } }
+function applyCam(dt) {
+  const k = 1 - Math.exp(-dt * 4);
+  if (!userTouched) camGoal.th += dt * (tab === 'market' ? 0.02 : 0.05);
+  cam.r += (camGoal.r - cam.r) * k; cam.th += (camGoal.th - cam.th) * k; cam.ph += (camGoal.ph - cam.ph) * k; cam.tg.lerp(camGoal.tg, k);
+  camera.position.set(cam.tg.x + cam.r * Math.sin(cam.ph) * Math.sin(cam.th), cam.tg.y + cam.r * Math.cos(cam.ph), cam.tg.z + cam.r * Math.sin(cam.ph) * Math.cos(cam.th));
+  camera.lookAt(cam.tg);
+}
+const pointers = new Map(); let pinch0 = 0, r0 = 0, downAt = null;
+canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); canvas.classList.add('drag'); downAt = [e.clientX, e.clientY]; if (pointers.size === 2) { const p = [...pointers.values()]; pinch0 = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); r0 = camGoal.r; } });
+canvas.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) { hover(e); return; }
+  const prev = pointers.get(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); userTouched = 4;
+  if (pointers.size === 1) { camGoal.th -= (e.clientX - prev[0]) * 0.006; camGoal.ph = clamp(camGoal.ph - (e.clientY - prev[1]) * 0.005, 0.15, 1.45); }
+  else if (pointers.size === 2) { const p = [...pointers.values()]; const d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); camGoal.r = clamp(r0 * pinch0 / Math.max(d, 1), zoomMin(), zoomMax()); }
+});
+const endPtr = e => { const d = downAt ? Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) : 99; pointers.delete(e.pointerId); if (!pointers.size) canvas.classList.remove('drag'); if (d < 5 && tab === 'blueprint') pick(e); downAt = null; };
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); canvas.classList.remove('drag'); });
+canvas.addEventListener('wheel', e => { e.preventDefault(); userTouched = 4; camGoal.r = clamp(camGoal.r * Math.exp(e.deltaY * 0.001), zoomMin(), zoomMax()); }, {passive: false});
+const zoomMin = () => tab === 'market' ? 30 : 0.18, zoomMax = () => tab === 'market' ? 320 : 3;
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+function hitPart(e) {
+  const r = canvas.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera); const hits = ray.intersectObjects(parts.flatMap(p => p.objs), false);
+  for (const h of hits) { let o = h.object; while (o && !o.userData.part) o = o.parent; if (o) return o.userData.part; } return null;
+}
+function pick(e) { const p = hitPart(e); select(p); }
+function hover(e) {
+  const tag = $('tag'); if (tab !== 'blueprint') { tag.style.display = 'none'; return; }
+  const p = hitPart(e); if (!p) { tag.style.display = 'none'; canvas.style.cursor = ''; return; }
+  const r = stage.getBoundingClientRect(); tag.textContent = p.name; tag.style.display = 'block'; tag.style.left = (e.clientX - r.left) + 'px'; tag.style.top = (e.clientY - r.top) + 'px'; canvas.style.cursor = 'pointer';
+}
+
+/* ---------------- Tabs ---------------- */
+let tab = 'sequence';
+const TAB_KEYS = ['sequence', 'blueprint', 'physics', 'market', 'prototype'];
+function setTab(t) {
+  if (!TAB_KEYS.includes(t)) t = 'sequence';
+  tab = t;
+  document.querySelectorAll('.tab').forEach(b => { b.setAttribute('aria-selected', b.dataset.tab === t); if (b.dataset.tab === t && b.scrollIntoView) b.scrollIntoView({block: 'nearest', inline: 'nearest'}); });
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === t));
+  const docTab = t === 'physics' || t === 'prototype';
+  $('docPhysics').classList.toggle('on', t === 'physics'); $('docProto').classList.toggle('on', t === 'prototype');
+  stage.classList.toggle('docmode', docTab);
+  ['gl', 'cap', 'hint'].forEach(id => $(id).style.visibility = docTab ? 'hidden' : 'visible');
+  document.querySelectorAll('.corner').forEach(c => c.style.visibility = docTab ? 'hidden' : 'visible');
+  document.querySelectorAll('.bar .ctl').forEach(c => c.classList.toggle('on', c.dataset.ctl === (docTab ? 'doc' : t)));
+  $('modes').style.display = docTab ? 'none' : 'flex';
+  $('docNote').textContent = t === 'physics' ? 'Inputs on the left · every figure updates live' : 'Build guide · soldering steps in section 6';
+  tile.visible = t === 'sequence' || t === 'blueprint'; market.visible = t === 'market'; grid.visible = t === 'sequence';
+  $('hint').innerHTML = t === 'market' ? 'Drag to turn · scroll to zoom<br>Schematic, not to scale' : t === 'blueprint' ? 'Click a part · drag to turn · scroll to zoom' : 'Drag to turn · scroll to zoom<br>Plate travel drawn 3× · slowed for viewing';
+  $('tag').style.display = 'none';
+  userTouched = 0; setView(t);
+  if (t === 'blueprint') { placeParts(); foot.visible = false; pulse.visible = false; genSparks.forEach(s => s.visible = false); select(selected); }
+  else if (t === 'sequence') { parts.forEach(p => { p.objs.forEach(o => { o.userData.selected = false; applyMode(o); }); }); placeParts(); }
+  if (t === 'physics') requestAnimationFrame(drawChart);
+  if (t === 'market') updateMarketCounters();
+  if (history.replaceState) history.replaceState(null, '', '#' + t);
+  resize();
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+document.querySelectorAll('#modes button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+$('play').addEventListener('click', () => { seqPlaying = !seqPlaying; $('play').textContent = seqPlaying ? '❚❚ Pause' : '▶ Play'; });
+$('scrub').addEventListener('input', e => { seqT = e.target.value / 1000 * DUR; seqPlaying = false; $('play').textContent = '▶ Play'; });
+$('speed').addEventListener('change', e => seqSpeed = parseFloat(e.target.value));
+$('explode').addEventListener('input', e => { explode = e.target.value / 1000; $('explodeOut').textContent = Math.round(explode * 100) + ' %'; placeParts(); });
+$('mPlay').addEventListener('click', () => { mPlaying = !mPlaying; $('mPlay').textContent = mPlaying ? '❚❚ Pause' : '▶ Play'; });
+$('mScrub').addEventListener('input', e => { mT = e.target.value / 1000 * M_DUR; mPlaying = false; $('mPlay').textContent = '▶ Play'; updateMarketCounters(); });
+$('mSpeed').addEventListener('change', e => mSpeed = parseFloat(e.target.value));
+
+/* ---------------- Loop ---------------- */
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  if (tab === 'physics') drawChart();
+}
+window.addEventListener('resize', resize);
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (userTouched) userTouched = Math.max(0, userTouched - dt);
+  if (tab === 'sequence') {
+    if (seqPlaying) { seqT += dt * seqSpeed; if (seqT >= DUR) { seqT -= DUR; } }
+    if (seqT < lastSeqT && seqPlaying) { /* wrapped */ }
+    if (lastSeqT < 5.2 && seqT >= 5.2) { stepsCounted++; $('tSteps').textContent = fmt(stepsCounted); }
+    lastSeqT = seqT; updateSequence(seqT);
+  } else if (tab === 'market') {
+    if (mPlaying) { mT += dt * mSpeed; if (mT >= M_DUR) mT = 0; }
+    updateMarket(mT, dt);
+  }
+  if (tab === 'sequence' || tab === 'blueprint' || tab === 'market') { applyCam(dt); renderer.render(scene, camera); }
+  requestAnimationFrame(frame);
+}
+buildMats(); refreshPhysics(); select(null);
+setTab((location.hash || '#sequence').slice(1)); setView(tab, true);
+resize(); $('ready').textContent = '● VISUALIZATION READY';
+requestAnimationFrame(frame);
+
+/* ---------------- Bench prototype: soldering walkthrough ---------------- */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const PX = c => 40 + c * 22, PY = r => 40 + r * 22;
+const PB_PARTS = [
+  {s: 3, k: 'rail', a: [4, 0], b: [22, 0], t: '+ rail'},
+  {s: 3, k: 'rail', a: [4, 15], b: [23, 15], t: 'GND rail'},
+  {s: 4, k: 'term'},
+  {s: 5, k: 'diode', c: 5, r0: 0, r1: 6, t: 'D1'}, {s: 5, k: 'diode', c: 5, r0: 8, r1: 15, t: 'D3'}, {s: 5, k: 'trace', a: [5, 6], b: [5, 8]},
+  {s: 5, k: 'diode', c: 7, r0: 0, r1: 6, t: 'D2'}, {s: 5, k: 'diode', c: 7, r0: 8, r1: 15, t: 'D4'}, {s: 5, k: 'trace', a: [7, 6], b: [7, 8]},
+  {s: 6, k: 'diode', c: 10, r0: 0, r1: 6, t: 'D5'}, {s: 6, k: 'diode', c: 10, r0: 8, r1: 15, t: 'D7'}, {s: 6, k: 'trace', a: [10, 6], b: [10, 8]},
+  {s: 6, k: 'diode', c: 12, r0: 0, r1: 6, t: 'D6'}, {s: 6, k: 'diode', c: 12, r0: 8, r1: 15, t: 'D8'}, {s: 6, k: 'trace', a: [12, 6], b: [12, 8]},
+  {s: 7, k: 'jump', a: [1, 5], b: [5, 7], col: '#e5484d', dy: 50}, {s: 7, k: 'jump', a: [1, 6], b: [7, 7], col: '#3e8ef7', dy: 70},
+  {s: 7, k: 'jump', a: [1, 7], b: [10, 7], col: '#46c37b', dy: 92}, {s: 7, k: 'jump', a: [1, 8], b: [12, 7], col: '#e8e8e8', dy: 112},
+  {s: 8, k: 'res', c: 16, r0: 0, r1: 6, t: 'R2 47k', bands: ['#e8c547', '#8a4fd1', '#f08a24', '#c9a046']},
+  {s: 8, k: 'res', c: 16, r0: 8, r1: 15, t: 'R3 10k', bands: ['#8b5a2b', '#151515', '#f08a24', '#c9a046']},
+  {s: 8, k: 'trace', a: [16, 6], b: [16, 8]},
+  {s: 9, k: 'trace', a: [16, 7], b: [22, 7]}, {s: 9, k: 'trace', a: [18, 7], b: [18, 8]}, {s: 9, k: 'trace', a: [20, 7], b: [20, 8]},
+  {s: 9, k: 'zener', c: 18, r0: 8, r1: 15, t: 'D9'}, {s: 9, k: 'cap', c: 20, r0: 8, r1: 15, t: 'C1'},
+  {s: 10, k: 'r1'}, {s: 11, k: 'ard'}
+];
+const STEPS = [
+  {t: 'Dry-fit the layout', all: true,
+   do: ['Place every part in its holes without soldering, matching this board view.', 'Check every diode: all eight 1N5819s and the Zener D9 have their stripe toward the top (+) edge of the board.', 'Take a photo so you can rebuild the layout if parts fall out.'],
+   tip: 'Bend leads with pliers about 2 mm from the body, not right at it, so the glass or epoxy doesn’t crack.',
+   check: 'Everything matches the board view and every stripe points up.'},
+  {t: 'Set up the iron and stay safe', none: true,
+   do: ['Set the iron to 340 °C for lead-free solder (about 320 °C for leaded).', 'Wipe the tip on brass wool, then melt a little solder onto it until it’s shiny. This is called tinning.', 'Glasses on, fan pulling the smoke away from your face, iron back in its stand whenever you put it down.'],
+   tip: 'Re-tin whenever the tip looks dull. A dull tip doesn’t pass heat, and that is what makes cold joints.',
+   check: 'Solder flows over the tip and stays bright.'},
+  {t: 'Lay the two rails',
+   do: ['Cut two pieces of bare 22 AWG solid wire and straighten them by pulling between two pliers.', 'Lay one along the top row from column 4 to 22: the + rail. Lay the other along the bottom row from column 4 to 23: the GND rail.', 'Solder every third hole to hold each rail flat.'],
+   tip: 'Hold the wire down with the tip of a screwdriver while the first joint cools.',
+   check: 'Both rails are straight and touch only their own row.'},
+  {t: 'Solder the coil terminal J1',
+   do: ['Push the 4-way screw terminal into column 1, rows 5 to 8, wire openings facing the board edge.', 'Touch the iron to the pad and pin together for 1–2 seconds.', 'Feed solder into the joint, not onto the iron, until a small shiny cone forms. Pull the solder away, then the iron. About 3 seconds in all.'],
+   tip: 'Terminals have thick pins that soak up heat: give them an extra second before feeding solder.',
+   check: 'Four cone-shaped joints, none touching the next pad.'},
+  {t: 'Bridge A: D1 to D4',
+   do: ['D1 and D2 go in columns 5 and 7, rows 0 to 6, stripes on the + rail end. Solder their top leads to the + rail.', 'D3 and D4 go below them, rows 8 to 15, stripes toward row 8. Solder their bottom leads to the GND rail.', 'On the underside, bend D1’s lower lead and D3’s upper lead to meet at row 7 and solder them together. Do the same for D2 and D4. These two joints are coil A’s connection points.', 'Trim every lead with flush cutters, holding the loose end so it doesn’t fly.'],
+   tip: 'A diode survives about 5 seconds of heat. If a joint won’t flow, stop, let it cool, add flux and try again.',
+   check: 'Eight joints, two joined pairs at row 7, all stripes up.'},
+  {t: 'Bridge B: D5 to D8',
+   do: ['Repeat the last step in columns 10 and 12: D5 and D6 on top, D7 and D8 below.', 'Join each column’s two inner leads at row 7.'],
+   tip: 'Two bridges, one per coil, so the coils never push current into each other.',
+   check: 'Columns 7 and 10 are not touching anywhere.'},
+  {t: 'Coil jumpers',
+   do: ['Cut four short insulated wires. Strip 3 mm from each end, twist the strands and tin them.', 'Solder them from J1 to the row-7 joints: A+ to column 5, A− to column 7, B+ to column 10, B− to column 12.'],
+   tip: 'Tinned wire ends solder in about a second and don’t fray into the next pad.',
+   check: 'Tug each wire gently: nothing moves.'},
+  {t: 'Divider: R2 and R3',
+   do: ['Measure both resistors with the multimeter first and write down the real values. You need them for calibration.', 'R2, 47 kΩ (yellow, violet, orange), goes in column 16 from the + rail down to row 6. R3, 10 kΩ (brown, black, orange), goes from row 8 down to the GND rail.', 'Join their inner leads at row 7. That joint is the A0 node.'],
+   tip: 'Resistors have no direction; either way round is fine.',
+   check: 'Both measured values written down.'},
+  {t: 'Protection: D9 and C1',
+   do: ['Fit the 5.1 V Zener D9 in column 18, rows 8 to 15, with its stripe toward the top.', 'Fit the 10 nF capacitor C1 (marked 103) in column 20, rows 8 to 15.', 'Run a short bare wire along row 7 from column 16 to 22, joining the A0 node, the top of D9, the top of C1 and the A0 pad.'],
+   tip: 'The Zener is glass: keep each joint under 3 seconds.',
+   check: 'D9’s stripe faces the A0 line. Backwards, it pins A0 near 0.7 V and you read nothing useful.'},
+  {t: 'Load resistor R1, off the board',
+   do: ['R1 is big and warms up in long tests, so mount it on the wooden base, not the board.', 'Solder 10 cm leads to its two terminals and slide heat-shrink over each joint before shrinking it.', 'Solder the other ends to the + pad (column 22, top row) and the GND pad (column 23, bottom row).'],
+   tip: 'Slide the heat-shrink onto the wire before you solder, or it won’t go on afterwards.',
+   check: 'R1 sits clear of other wires.'},
+  {t: 'Arduino leads',
+   do: ['A yellow wire from the A0 pad (column 22, row 7) to the Nano’s A0 pin.', 'A black wire from the GND pad (column 22, bottom row) to a Nano GND pin.', 'Use female jumper ends on the Nano side so it unplugs.'],
+   tip: 'Twist the yellow and black wires together: it cuts noise on A0.',
+   check: 'Nothing from the + rail reaches the Nano except through the divider.'},
+  {t: 'Inspect, then test without power', all: true,
+   do: ['Look at every joint with a magnifier or your phone’s zoom. Shiny cones are good; dull balls are cold joints (reheat with flux); remove any bridge between pads with desoldering braid.', 'Then run every check in section 7 before connecting the motor or the Nano.'],
+   tip: 'Hold the board up to a light: solder bridges show up as dark lines between pads.',
+   check: 'All checks in section 7 pass.'}
+];
+let sCur = 0;
+function el(tag, attrs, parent) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function buildBoard() {
+  const svg = $('pb'); if (!svg) return;
+  el('rect', {x: 18, y: 18, width: 550, height: 374, rx: 8, fill: '#1e3a2b', stroke: '#2f5a44'}, svg);
+  const holes = el('g', {}, svg);
+  for (let c = 0; c < 24; c++) for (let r = 0; r < 16; r++) el('circle', {cx: PX(c), cy: PY(r), r: 3.6, fill: '#0e1d16', stroke: '#b87d3e', 'stroke-width': 1.4}, holes);
+  const lbl = el('g', {'font-family': 'IBM Plex Mono,monospace', 'font-size': 10, fill: '#8aa6ae'}, svg);
+  [0, 5, 10, 15, 20].forEach(c => { const t = el('text', {x: PX(c), y: 12 + 0, 'text-anchor': 'middle'}, lbl); t.textContent = c; });
+  [0, 7, 15].forEach(r => { const t = el('text', {x: 578, y: PY(r) + 4}, lbl); t.textContent = 'row ' + r; });
+  const blob = (g, c, r) => el('circle', {cx: PX(c), cy: PY(r), r: 4.6, fill: '#cfd6da'}, g);
+  const txt = (g, x, y, s, fill = '#d7eaef', anchor = 'start') => { const t = el('text', {x, y, 'font-family': 'IBM Plex Mono,monospace', 'font-size': 11, fill, 'text-anchor': anchor}, g); t.textContent = s; return t; };
+  PB_PARTS.forEach(p => {
+    const g = el('g', {'data-st': p.s}, svg);
+    if (p.k === 'rail') {
+      el('line', {x1: PX(p.a[0]), y1: PY(p.a[1]), x2: PX(p.b[0]), y2: PY(p.b[1]), stroke: '#c8d0d4', 'stroke-width': 3, 'stroke-linecap': 'round'}, g);
+      for (let c = p.a[0]; c <= p.b[0]; c += 3) blob(g, c, p.a[1]);
+      txt(g, PX(13), p.a[1] ? PY(15) + 17 : PY(0) - 8, p.t, '#d7eaef', 'middle');
+    } else if (p.k === 'trace') {
+      el('line', {x1: PX(p.a[0]), y1: PY(p.a[1]), x2: PX(p.b[0]), y2: PY(p.b[1]), stroke: '#c8d0d4', 'stroke-width': 4.5, 'stroke-linecap': 'round'}, g);
+      blob(g, p.a[0], p.a[1]); blob(g, p.b[0], p.b[1]);
+    } else if (p.k === 'term') {
+      el('rect', {x: PX(1) - 12, y: PY(5) - 12, width: 24, height: PY(8) - PY(5) + 24, rx: 3, fill: '#2b6cb0', stroke: '#173f6b'}, g);
+      ['A+', 'A−', 'B+', 'B−'].forEach((n, i) => { el('circle', {cx: PX(1), cy: PY(5 + i), r: 6, fill: '#9fb4c7', stroke: '#173f6b'}, g); el('line', {x1: PX(1) - 4, y1: PY(5 + i), x2: PX(1) + 4, y2: PY(5 + i), stroke: '#173f6b', 'stroke-width': 1.5}, g); txt(g, PX(1) - 16, PY(5 + i) + 4, n, '#d7eaef', 'end'); });
+      txt(g, PX(1), PY(4) - 2, 'J1', '#d7eaef', 'middle');
+    } else if (p.k === 'diode' || p.k === 'zener' || p.k === 'res' || p.k === 'cap') {
+      const x = PX(p.c), y0 = PY(p.r0), y1 = PY(p.r1), ym = (y0 + y1) / 2;
+      el('line', {x1: x, y1: y0, x2: x, y2: y1, stroke: '#b9c2c6', 'stroke-width': 1.8}, g);
+      blob(g, p.c, p.r0); blob(g, p.c, p.r1);
+      if (p.k === 'diode') { el('rect', {x: x - 6, y: ym - 16, width: 12, height: 32, rx: 3, fill: '#1b1b1b', stroke: '#444'}, g); el('rect', {x: x - 6, y: ym - 14, width: 12, height: 5, fill: '#c9c9c9'}, g); }
+      if (p.k === 'zener') { el('rect', {x: x - 5.5, y: ym - 14, width: 11, height: 28, rx: 5, fill: '#e07b39', 'fill-opacity': 0.85, stroke: '#a24f1d'}, g); el('rect', {x: x - 5.5, y: ym - 12, width: 11, height: 4, fill: '#111'}, g); }
+      if (p.k === 'res') { el('rect', {x: x - 7, y: ym - 18, width: 14, height: 36, rx: 6, fill: '#d9c7a0', stroke: '#a8946a'}, g); p.bands.forEach((b, i) => el('rect', {x: x - 7, y: ym - 13 + i * 7 + (i === 3 ? 4 : 0), width: 14, height: 4, fill: b}, g)); }
+      if (p.k === 'cap') { el('circle', {cx: x, cy: ym, r: 10, fill: '#e0a63a', stroke: '#9b6a17'}, g); txt(g, x, ym + 3.5, '103', '#3a2a08', 'middle').setAttribute('font-size', 8); }
+      txt(g, x + 11, ym + 4, p.t);
+    } else if (p.k === 'jump') {
+      const x0 = PX(p.a[0]), y0 = PY(p.a[1]), x1 = PX(p.b[0]), y1 = PY(p.b[1]);
+      const d = `M${x0},${y0} C${x0 + 30},${y0 + p.dy} ${x1 - 10},${y1 + p.dy} ${x1},${y1}`;
+      el('path', {d, fill: 'none', stroke: '#0b1418', 'stroke-width': 6.5, 'stroke-linecap': 'round'}, g);
+      el('path', {d, fill: 'none', stroke: p.col, 'stroke-width': 4, 'stroke-linecap': 'round'}, g);
+      blob(g, p.b[0], p.b[1]);
+    } else if (p.k === 'r1') {
+      const d1 = `M${PX(22)},${PY(0)} C${PX(22) + 50},${PY(0) - 10} 600,60 650,80`, d2 = `M${PX(23)},${PY(15)} C${PX(23) + 60},${PY(15)} 840,150 810,90`;
+      [d1, d2].forEach((d, i) => { el('path', {d, fill: 'none', stroke: '#0b1418', 'stroke-width': 6, 'stroke-linecap': 'round'}, g); el('path', {d, fill: 'none', stroke: i ? '#222' : '#e5484d', 'stroke-width': 3.6, 'stroke-linecap': 'round'}, g); });
+      el('rect', {x: 650, y: 66, width: 160, height: 34, rx: 4, fill: '#e2ddd1', stroke: '#9c968a'}, g);
+      el('rect', {x: 640, y: 74, width: 14, height: 18, rx: 3, fill: '#111'}, g); el('rect', {x: 806, y: 74, width: 14, height: 18, rx: 3, fill: '#111'}, g);
+      txt(g, 730, 88, 'R1 10 Ω 10 W', '#2b2b2b', 'middle');
+      txt(g, 730, 122, 'off-board, on the base', '#8aa6ae', 'middle');
+      blob(g, 22, 0); blob(g, 23, 15);
+    } else if (p.k === 'ard') {
+      const dA = `M${PX(22)},${PY(7)} C${PX(22) + 40},${PY(7)} 600,290 640,292`, dG = `M${PX(22)},${PY(15)} C${PX(22) + 40},${PY(15) - 6} 600,350 640,346`;
+      [[dA, '#f2d33b'], [dG, '#1a1a1a']].forEach(([d, c]) => { el('path', {d, fill: 'none', stroke: '#6b7f86', 'stroke-width': 6, 'stroke-linecap': 'round'}, g); el('path', {d, fill: 'none', stroke: c, 'stroke-width': 3.8, 'stroke-linecap': 'round'}, g); });
+      el('rect', {x: 640, y: 250, width: 210, height: 120, rx: 6, fill: '#1f4fa0', stroke: '#123268'}, g);
+      el('rect', {x: 838, y: 296, width: 22, height: 28, rx: 3, fill: '#c9d0d4'}, g);
+      txt(g, 745, 318, 'Arduino Nano', '#ffffff', 'middle');
+      txt(g, 652, 296, 'A0', '#f2d33b'); txt(g, 652, 350, 'GND', '#d7eaef');
+      txt(g, 860, 388, 'USB to laptop', '#8aa6ae', 'end');
+      blob(g, 22, 7); blob(g, 22, 15);
+    }
+  });
+  const sd = $('sDots');
+  STEPS.forEach((st, i) => { const b = document.createElement('button'); b.textContent = i + 1; b.setAttribute('aria-label', 'Step ' + (i + 1) + ': ' + st.t); b.addEventListener('click', () => showStep(i)); sd.appendChild(b); });
+  $('sPrev').addEventListener('click', () => showStep(Math.max(0, sCur - 1)));
+  $('sNext').addEventListener('click', () => showStep(Math.min(STEPS.length - 1, sCur + 1)));
+  showStep(0);
+}
+function showStep(i) {
+  sCur = i; const st = STEPS[i], n = i + 1;
+  $('sCount').textContent = 'STEP ' + n + ' OF ' + STEPS.length;
+  $('sTitle').textContent = st.t;
+  $('sBody').innerHTML = '<span class="lab">DO</span><ul>' + st.do.map(d => '<li>' + d + '</li>').join('') + '</ul><span class="lab">TIP</span><p>' + st.tip + '</p><span class="lab">CHECK</span><p>' + st.check + '</p>';
+  [...$('sDots').children].forEach((b, j) => { b.classList.toggle('done', j < i); if (j === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  $('pb').querySelectorAll('g[data-st]').forEach(g => {
+    const s = +g.getAttribute('data-st');
+    g.setAttribute('class', st.all ? 'now' : st.none ? 'todo' : s < n ? 'done' : s === n ? 'now' : 'todo');
+  });
+  $('sPrev').disabled = i === 0; $('sNext').disabled = i === STEPS.length - 1;
+}
+buildBoard();
+document.querySelectorAll('#toc button').forEach(b => b.addEventListener('click', () => {
+  if (tab !== 'prototype') setTab('prototype');
+  const t = $(b.dataset.go); if (t) t.scrollIntoView({behavior: 'smooth', block: 'start'});
+}));
+
+// Hook for screenshots and tests
+window.__hs = {seek(t) { seqT = t; seqPlaying = false; $('play').textContent = '▶ Play'; }, setTab, setMode, P, model, select: k => select(parts.find(p => p.key === k) || null), showStep};
+})();
+</script>
+</body>
+</html>

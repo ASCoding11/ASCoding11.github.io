@@ -37,6 +37,7 @@ if (/^#canvas=/.test(location.hash)) { window.__dkIn = location.hash.slice(8); h
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="/theme.js"></script> <!-- Auto / Light / Dark, before the page is drawn (see README) -->
 <link rel="stylesheet" href="../site.css">
 <style>
 :root{
@@ -44,10 +45,14 @@ if (/^#canvas=/.test(location.hash)) { window.__dkIn = location.hash.slice(8); h
   --busy:#E3E8E1; --warn:#9A5B00; --warn-bg:#FFF4DE;
 }
 @media (prefers-color-scheme: dark){
-  :root{
+  :root:not([data-theme="light"]){
     --c0:#6FA8E8;--c1:#F0995E;--c2:#C094E0;--c3:#4CC7B5;--c4:#EE7FA3;--c5:#B8C95A;--c6:#E2B048;--c7:#8E9BEA;
     --busy:#222D28; --warn:#F2B35B; --warn-bg:#2C2414;
   }
+}
+:root[data-theme="dark"]{
+  --c0:#6FA8E8;--c1:#F0995E;--c2:#C094E0;--c3:#4CC7B5;--c4:#EE7FA3;--c5:#B8C95A;--c6:#E2B048;--c7:#8E9BEA;
+  --busy:#222D28; --warn:#F2B35B; --warn-bg:#2C2414;
 }
 button{font:inherit;color:inherit}
 button.btn{cursor:pointer;color:var(--ink)}
@@ -235,12 +240,15 @@ button.chip:hover{border-color:var(--ink-2);color:var(--ink)}
 .lvl button{min-width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--ink-2)}
 .lvl button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--ground)}
 </style>
+<link rel="icon" href="/icons/app.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 </head>
 <body>
 <div class="wrap">
   <div class="topbar">
     <a class="wordmark" href="../">Arjun</a>
-    <nav class="nav" aria-label="Site"><a href="../">Home</a><a href="../projects/">Web Development Projects</a><a href="../productivity/" aria-current="page">Productivity</a><a href="../engineering/">Engineering Projects</a></nav>
+    <nav class="nav" aria-label="Site"><a href="../">Home</a><a href="../projects/">Web Development Projects</a><a href="../productivity/" aria-current="page">Productivity</a><a href="../engineering/">Engineering Projects</a><a href="../marketplace/">Marketplace</a></nav>
   </div>
   <header>
     <p class="kicker">Study planner for Canvas</p>
@@ -399,7 +407,7 @@ button.chip:hover{border-color:var(--ink-2);color:var(--ink)}
     </section>
   </div>
 
-  <footer>© 2026 Arjun · <a href="../privacy.html">Privacy policy</a> · Docket isn't affiliated with Instructure or Canvas.</footer>
+  <footer>© 2026 Arjun · <a href="../contact/">Contact</a> · <a href="../privacy.html">Privacy policy</a> · Docket isn't affiliated with Instructure or Canvas.</footer>
 </div>
 
 <!-- The bookmark button's code. It runs on your Canvas page, reads your assignments through Canvas's own API
@@ -1451,6 +1459,11 @@ async function boot(){
   S.events = S.events.filter(e => e.rr || e.e > cut);
   S.tasks = S.tasks.filter(t => !(t.complete && t.due < cut - 30 * DAY));
   save(); render();
+  // A shared …/docket/#sample link opens the sample week, but never over someone's own work.
+  if (location.hash === '#sample') {
+    history.replaceState(null, '', location.pathname + location.search);
+    if (S.sample || !(S.tasks.length || S.events.length || S.calendars.length || S.activities.length)) loadSample();
+  }
   if (S.lastCanvas) { const m = $('#canvasMsg'); if (!m.textContent) m.textContent = `Last Canvas import: ${fmtDay(S.lastCanvas.at)} at ${fmtTime(S.lastCanvas.at)} from ${S.lastCanvas.host}. Click the bookmark on Canvas again to refresh.`; }
   setInterval(() => { if (!document.hidden && !$('.pop') && !document.activeElement.matches('input,select,textarea')) render(); }, 5 * MIN);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });

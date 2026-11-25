@@ -1,6 +1,6 @@
 # Working on this repo
 
-This is Arjun's personal site (ascoding11.github.io). Contributors work in a fork and send changes as pull requests, which Arjun reviews and merges. Read `README.md` first: it describes every page and game, and how each one stores its data.
+This is Arjun's personal site (ascoding11.github.io, also served at ascoding11.com). Contributors work in a fork and send changes as pull requests, which Arjun reviews and merges. Read `README.md` first: it describes every page and game, and how each one stores its data.
 
 ## How the site is built
 
@@ -21,15 +21,23 @@ When adding a game:
 
 - Give it its own folder with a self-contained `index.html` and a `preview.jpg` screenshot (1920 × 1200) for its card. Copy the card markup and the page `<head>` (fonts, `site.css`, robots tag) from an existing Back Room game.
 - Multiplayer games use the existing Firebase Realtime Database under `rooms/<prefix>-<code>`, with a new two-letter prefix not already used (see the list in the invite-link code in `index.html`). Add the prefix there and a matching `data-invite` on the game's Play button, so invite links like `ascoding11.github.io/#xx-1234` open the game.
+- Draw other players with `../netsmooth.js` (see `README.md` and how Spire or Shell Crackers use it): stamp every position update with the time (`ts`), and show remote players from a short history of updates rather than moving them straight to the newest one, or they'll jump around over school Wi-Fi. Racing and ball games can project cars forward from their speed instead, like Kartwheel.
+- 3D games using three.js load `../autores.js` straight after `three.min.js`, so they drop resolution automatically on slow laptops (see `README.md`).
 - Don't change Firebase security rules or the Firebase config. If a game needs storage the current rules don't allow, say so in the pull request instead.
-- If the game shows ads, follow the existing `AD_SLOT` pattern and leave `AD_SLOT` empty; Arjun fills it in.
+- If the game shows ads, follow the existing `AD_SLOT` pattern and leave `AD_SLOT` empty; Arjun fills it in, and load `/adrefresh.js` in the `<head>`. Mark in-game touch buttons that aren't inside `#touch` with `data-no-ad-refresh`, so tapping them during play never reloads an ad.
 - Add a section for the game to `README.md`, in the same style as the others: what it is, how it stores data, and anything a later editor needs to know.
+- Add a `kind: 'game'` entry for it to What's new (`e63334287a3deaa3/news.js`, with its Spanish in `news-es.js`), with the game in `games` and its phone thumbnail as `img`, so it appears in the "New games!" row.
 - Make it playable on a phone: on-screen touch controls shown only on touch screens (see how Shell Crackers or Kartwheel do it), with nothing overlapping in portrait or with the phone sideways. Then add it to the phone page: a row in `GROUPS` in `e63334287a3deaa3/m/index.html` and a 560 × 350 thumbnail in `e63334287a3deaa3/m/thumbs/`.
+
+## Skills
+
+`.claude/skills/` has this repo's own skills (game-graphics, game-performance, war-game-series) and all the game-dev skills from awesome-gamedev-agent-skills (see `.claude/gamedev-skills/README.md`), including engines and workflows the site doesn't use yet, for later projects. Use them, but the general ones often show Godot or Unity code: translate the idea to this site's plain JavaScript and three.js, and where they disagree with this file or the repo's own skills, this file and the repo's own skills win. The three.js skills target r187 with ES modules; follow them only for pages that have moved to r187.
 
 ## Rules
 
 - Keep each pull request to one feature or fix, and leave unrelated code alone.
-- Don't change these without saying so clearly in the pull request: `netlify.toml`, `_redirects`, `ads.txt`, `privacy.html`, `robots.txt`, `sitemap.xml`, `account/`, `analytics/`, AdSense code, or Firebase config.
+- Every update and pull request adds an entry to the top of `NEWS` in `e63334287a3deaa3/news.js` (the Back Room's What's new strip and its "New games!" row), following the how-to at the top of that file: the merge date, the next version number, `kind` (`game`, `feature` or `fix`), a short title and bullet points written for players. A new game also lists its name in `games` so it shows as a "New games!" chip for a week. Add the Spanish for each new line to `e63334287a3deaa3/news-es.js` too. The only exception is a change players can't notice at all (a README or comment edit); say so in the pull request.
+- Don't change these without saying so clearly in the pull request: `.github/workflows/`, `_redirects`, `_routes.json`, `functions/`, `ads.txt`, `privacy.html`, `robots.txt`, `sitemap.xml`, `account/`, `analytics/`, AdSense code, or Firebase config.
 - Never commit secrets, API keys, passwords or private files. `rounds.json` for Hype Cycle Exchange is deliberately kept out of the repo.
 - Don't add outside scripts, trackers or ads unless the pull request is specifically about that.
 - Write all game text, trivia questions and college prompt summaries in your own words; don't paste copyrighted text.

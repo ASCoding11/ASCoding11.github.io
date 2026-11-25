@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="/e63334287a3deaa3/thereabouts/es.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<title>Thereabouts</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#04111f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap">
+<link rel="stylesheet" href="/e63334287a3deaa3/wordplay/kit.css">
+<style>
+/* Thereabouts: three estimation questions a day. The question sits on a navy card, the calculator beside it
+   (under it on a phone), and the answer comes back on the back of a cream envelope with the working written out. */
+:root{--paper:#f5ecd7;--paper-2:#eadfc4;--pink:#1c2742;--pink-2:rgba(28,39,66,.7);--pink-3:rgba(28,39,66,.45);--stamp:#d9523a;--rule:rgba(28,39,66,.16)}
+#game{background:radial-gradient(ellipse at 50% 0%,#0d2850 0%,#04111f 70%)}
+#wrap{width:100%;max-width:1040px;margin:0 auto;height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:12px 14px 22px;display:flex;flex-direction:column;gap:12px}
+.mode{flex-wrap:wrap;row-gap:6px}
+.mode .info{white-space:normal;text-align:right}
+#archBtn{padding:6px 12px;font-size:13px;border-radius:999px}
+#stage{display:grid;grid-template-columns:minmax(0,1fr) 312px;gap:14px;align-items:start;flex:none}
+#qcol{min-width:0;display:flex;flex-direction:column;gap:12px}
+
+/* progress dots */
+.dots{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.dot{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:999px;padding:5px 12px 5px 6px;font:800 13px var(--f-u);color:var(--ink-2);cursor:pointer;font-variant-numeric:tabular-nums}
+.dot i{font-style:normal;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.1);color:var(--ink);font:800 12px var(--f-u)}
+.dot.on{border-color:var(--aqua);color:var(--ink)}
+.dot.on i{background:var(--aqua);color:var(--aqua-ink)}
+.dot.done i{background:var(--sun);color:#3a2a00}
+.dot:disabled{opacity:.5;cursor:default}
+.dot.sum{padding:5px 12px}
+
+/* the question */
+.card{background:var(--panel-3);border:1px solid var(--line);border-radius:20px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font:800 11px var(--f-u);letter-spacing:.12em;text-transform:uppercase;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.07);color:var(--ink-2);white-space:nowrap}
+.tag.cat{background:rgba(79,227,193,.14);color:var(--aqua)}
+.tag.d3{background:rgba(255,122,89,.15);color:#ff9d83}
+.tag.d2{background:rgba(255,209,102,.14);color:var(--sun)}
+.qtext{margin:0;font:600 clamp(20px,2.6vw,27px)/1.28 var(--f-d);letter-spacing:.005em;text-wrap:pretty}
+.ask{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.gbox{flex:1 1 220px;min-width:0;display:flex;align-items:center;gap:10px;background:rgba(2,10,24,.6);border:2px solid var(--line);border-radius:14px;padding:0 14px;transition:border-color .15s}
+.gbox:focus-within{border-color:var(--aqua)}
+.gbox.bad{border-color:var(--red)}
+.gbox input{flex:1;min-width:0;width:100%;background:none;border:0;outline:0;color:var(--ink);font:700 24px var(--f-d);padding:11px 0;font-variant-numeric:tabular-nums}
+.gbox input::placeholder{color:var(--ink-3);font-weight:500}
+.gbox .unit{flex:none;font:800 14px var(--f-u);color:var(--sun);max-width:45%;text-align:right}
+.read{min-height:20px;margin:-4px 2px 0;font:700 13.5px/1.4 var(--f-u);color:var(--ink-3);font-variant-numeric:tabular-nums}
+.read b{color:var(--ink-2)}
+.read.err{color:#ff9aad}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chips span{font:700 12px var(--f-u);color:var(--ink-3)}
+.chip-b{border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:999px;padding:6px 11px;font:700 13px var(--f-u);color:var(--ink-2);cursor:pointer}
+.chip-b:hover{color:var(--ink);background:rgba(255,255,255,.1)}
+.tip{margin:0;font:600 13.5px/1.45 var(--f-u);color:var(--ink-3)}
+.cta.wide{padding:12px 22px;font-size:19px}
+
+/* the answer */
+.verdict{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mult{font:700 clamp(44px,8vw,64px)/.95 var(--f-d);letter-spacing:-.02em;font-variant-numeric:tabular-nums;animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
+.mult.g0{color:var(--green)}.mult.g1{color:var(--aqua)}.mult.g2{color:var(--sun)}.mult.g3{color:#ffa07a}.mult.g4{color:#ff8fa3}
+@keyframes pop{0%{transform:scale(.7);opacity:.2}100%{transform:none;opacity:1}}
+.vwords b{display:block;font:700 22px/1.15 var(--f-d)}
+.vwords span{font:700 14px/1.35 var(--f-u);color:var(--ink-2)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fact{background:rgba(2,10,24,.5);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-width:0}
+.fact small{display:block;font:800 11px var(--f-u);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.fact b{display:block;margin-top:2px;font:700 21px/1.2 var(--f-d);overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.fact em{display:block;font:700 12.5px/1.3 var(--f-u);font-style:normal;color:var(--ink-3);overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.fact.ans b{color:var(--sun)}
+/* how far out, on a scale where each step is ten times */
+.meter{position:relative;height:54px;margin:2px 4px 0}
+.meter .track{position:absolute;left:0;right:0;top:20px;height:10px;border-radius:5px;background:linear-gradient(90deg,#ff5c7a 0%,#ffa07a 22%,#ffd166 38%,#5ef08f 50%,#ffd166 62%,#ffa07a 78%,#ff5c7a 100%);opacity:.85}
+.meter .tick{position:absolute;top:16px;width:2px;height:18px;background:rgba(4,17,31,.55);transform:translateX(-1px)}
+.meter .lab{position:absolute;top:37px;transform:translateX(-50%);font:800 11px var(--f-u);color:var(--ink-3);white-space:nowrap}
+.meter .lab.mid{color:var(--ink-2)}
+.meter .you{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;transition:left .6s cubic-bezier(.2,.9,.3,1)}
+.meter .you span{font:800 11px var(--f-u);color:var(--night);background:var(--ink);border-radius:999px;padding:2px 7px;white-space:nowrap}
+.meter .you i{width:0;height:0;border:6px solid transparent;border-top-color:var(--ink);margin-top:-1px}
+.meter-cap{margin:0 2px;font:700 12px var(--f-u);color:var(--ink-3);display:flex;justify-content:space-between;gap:8px}
+
+/* the back of the envelope */
+.env{position:relative;background:linear-gradient(180deg,var(--paper),var(--paper-2));color:var(--pink);border-radius:16px;padding:44px 18px 16px;box-shadow:0 12px 30px rgba(0,0,0,.35);overflow:hidden}
+.env::before{content:"";position:absolute;left:0;right:0;top:0;height:40px;background:
+  linear-gradient(to bottom right,transparent calc(50% - 1px),var(--rule) calc(50% - 1px),var(--rule) calc(50% + 1px),transparent calc(50% + 1px)) left top/50% 100% no-repeat,
+  linear-gradient(to bottom left,transparent calc(50% - 1px),var(--rule) calc(50% - 1px),var(--rule) calc(50% + 1px),transparent calc(50% + 1px)) right top/50% 100% no-repeat}
+.env h3{margin:0 0 8px;font:700 20px/1.1 var(--f-d);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.env h3 small{font:800 11px var(--f-u);letter-spacing:.12em;text-transform:uppercase;color:#fff;background:var(--stamp);border-radius:6px;padding:4px 8px;transform:rotate(-2deg)}
+.env ol{margin:0;padding:0;list-style:none;counter-reset:st;display:flex;flex-direction:column;gap:8px}
+.env li{counter-increment:st;position:relative;padding:0 0 8px 34px;font:700 15.5px/1.45 var(--f-u);border-bottom:1px dashed var(--rule);overflow-wrap:anywhere}
+.env li:last-child{border-bottom:0;padding-bottom:0}
+.env li::before{content:counter(st);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;border:2px solid var(--pink-3);display:grid;place-items:center;font:800 12px var(--f-u);color:var(--pink-2)}
+.env .note{margin:12px 0 0;padding:10px 12px;border-radius:10px;background:rgba(28,39,66,.07);font:700 14px/1.45 var(--f-u);color:var(--pink-2)}
+.env .note b{color:var(--pink)}
+.env details{margin-top:10px;font:700 13px/1.45 var(--f-u);color:var(--pink-2)}
+.env summary{cursor:pointer;font-weight:800;color:var(--pink)}
+.env details ul{margin:6px 0 0;padding-left:18px}
+.env details li{counter-increment:none;padding:0;border:0;font:700 13px/1.45 var(--f-u);margin-top:4px}
+.env details li::before{content:none}
+.env a{color:#1d4f9c;text-decoration:underline;text-underline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* the day's result */
+.total{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.total small{display:block;font:800 11px var(--f-u);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+.lines{display:flex;flex-direction:column;gap:6px}
+.line{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;border:1px solid var(--line);background:rgba(2,10,24,.45);border-radius:14px;padding:9px 12px;cursor:pointer;color:var(--ink)}
+.line:hover{background:rgba(255,255,255,.07)}
+.line i{font-style:normal;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.1);font:800 12px var(--f-u)}
+.line span{min-width:0}
+.line span b{display:block;font:700 14.5px/1.3 var(--f-u);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.line span em{display:block;font:700 12.5px/1.3 var(--f-u);font-style:normal;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.line strong{font:700 19px var(--f-d);font-variant-numeric:tabular-nums;white-space:nowrap}
+.next{font:700 13px var(--f-u);color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* calculator */
+#calc{background:var(--panel-3);border:1px solid var(--line);border-radius:20px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+#calc h2{margin:0;font:700 17px var(--f-d);display:flex;align-items:center;justify-content:space-between;gap:8px}
+#calc h2 button{border:0;background:none;color:var(--ink-3);font:700 12px var(--f-u);cursor:pointer;padding:4px 6px}
+#tape{display:flex;flex-direction:column;gap:3px;min-height:22px;max-height:96px;overflow-y:auto}
+#tape button{display:flex;justify-content:space-between;gap:10px;border:0;background:none;color:var(--ink-3);font:700 12.5px/1.3 var(--f-u);padding:2px 4px;cursor:pointer;text-align:left;border-radius:6px;font-variant-numeric:tabular-nums}
+#tape button:hover{background:rgba(255,255,255,.07);color:var(--ink)}
+#tape button span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+#tape button b{color:var(--ink-2);white-space:nowrap}
+#tape .none{font:600 12.5px/1.4 var(--f-u);color:var(--ink-3);padding:2px 4px}
+#cin{width:100%;background:rgba(2,10,24,.7);border:2px solid var(--line);border-radius:12px;color:var(--ink);font:700 20px var(--f-d);padding:9px 11px;outline:0;text-align:right;font-variant-numeric:tabular-nums;min-width:0}
+#cin:focus{border-color:var(--aqua)}
+#cout{min-height:19px;font:700 13px/1.4 var(--f-u);color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#cout.err{color:#ff9aad;text-align:left}
+#keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#keys button{height:44px;border:0;border-radius:11px;background:rgba(255,255,255,.1);color:var(--ink);font:700 18px var(--f-d);cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;padding:0}
+#keys button:active{background:rgba(79,227,193,.35)}
+#keys button.op{background:rgba(255,209,102,.16);color:var(--sun)}
+#keys button.fn{background:rgba(255,255,255,.05);color:var(--ink-2);font-size:15px}
+#keys button.eq{background:var(--aqua);color:var(--aqua-ink)}
+#useBtn{width:100%;text-align:center}
+#calc.shut #calcBody{display:none}
+
+.arch{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.arch button{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);border-radius:12px;padding:9px 12px;font:700 14px var(--f-u);color:var(--ink);cursor:pointer;text-align:left}
+.arch button:hover{background:rgba(255,255,255,.1)}
+.arch button em{font-style:normal;color:var(--ink-3);font-size:13px;white-space:nowrap}
+.arch button em.done{color:var(--sun)}
+.lean{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.lean p{margin:0}
+.leanbar{position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,.1);margin:10px 0 4px}
+.leanbar::before{content:"";position:absolute;left:50%;top:-4px;width:2px;height:16px;background:var(--ink-3)}
+.leanbar i{position:absolute;top:-3px;width:14px;height:14px;border-radius:50%;background:var(--sun);transform:translateX(-50%)}
+.leancap{display:flex;justify-content:space-between;font:700 11px var(--f-u);color:var(--ink-3)}
+
+@media (max-width:820px){
+  #stage{grid-template-columns:minmax(0,1fr)}
+  #wrap{padding:10px 12px 20px;gap:10px}
+  .card{padding:14px 14px 14px;border-radius:18px}
+  #keys button{height:46px}
+}
+@media (max-width:560px){#top h1 span{display:none}}
+@media (max-width:420px){
+  .pair{grid-template-columns:1fr}
+  .gbox input{font-size:22px}
+  .env{padding:40px 14px 14px}
+  .env li{font-size:15px;padding-left:32px}
+}
+/* a phone held sideways: question on the left, calculator on the right, both short */
+@media (max-height:520px) and (min-aspect-ratio:6/5){
+  #stage{grid-template-columns:minmax(0,1fr) 264px}
+  #wrap{padding:8px max(12px,env(safe-area-inset-right,0px)) 14px max(12px,env(safe-area-inset-left,0px));gap:8px}
+  .card{padding:12px 14px;gap:9px}
+  .qtext{font-size:19px}
+  #keys button{height:34px;font-size:16px}
+  #calc{padding:10px;gap:6px}
+  #tape{max-height:44px}
+}
+@media (prefers-reduced-motion:reduce){.mult{animation:none}.meter .you{transition:none}}
+</style>
+</head>
+<body>
+<main id="game">
+  <div id="wrap">
+    <div id="modeSlot"></div>
+    <div id="stage">
+      <section id="qcol" aria-live="polite"></section>
+      <aside id="calc" aria-label="Calculator">
+        <h2><span>Calculator</span><button type="button" id="calcToggle" aria-expanded="true">Hide</button></h2>
+        <div id="calcBody">
+          <div id="tape" aria-label="Earlier sums"></div>
+          <input id="cin" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Sum" placeholder="70 × 60 × 24">
+          <div id="cout" role="status"></div>
+          <div id="keys"></div>
+          <button type="button" class="ghost" id="useBtn">Use this as my guess ↑</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+</main>
+<script src="/e63334287a3deaa3/wordplay/kit.js"></script>
+<script src="/e63334287a3deaa3/thereabouts/core.js"></script>
+<script src="/e63334287a3deaa3/thereabouts/questions.js"></script>
+<script>
+'use strict';
+(function () {
+const K = Kit, h = K.h, $ = K.$, C = window.TBCore, DATA = window.THEREABOUTS || { list: [], checked: '' };
+// Language (lang.js): the page's words are in es.js and text built in code goes through TR(); NUM() writes big numbers
+// with Spanish number words ("2.5 millones", "3 mil millones") when Spanish is on. The questions, workings, notes and
+// sources are English by design (data-noi18n); units are translated where es.js has them. Typing still uses the same
+// number formats as before (a dot for decimals, English number words), so the scoring never changes.
+const TR = window.BackRoomLang ? BackRoomLang.t : (s, v) => s.replace(/\{(\w+)\}/g, (m, n) => v && v[n] != null ? v[n] : m);
+const ES = () => !!(window.BackRoomLang && BackRoomLang.get() === 'es');
+const NUM = v => { const t = C.fmtNum(v); return ES() ? t.replace(/ quadrillion$/, ' mil billones').replace(/ trillion$/, ' billones').replace(/ billion$/, ' mil millones').replace(/ million$/, Math.abs(v) < 1.5e6 ? ' millón' : ' millones') : t; };
+const U = u => TR(u);
+// grade words: 'Close' is also the shared word for a Close button, so its Spanish is given here
+const GW = w => w === 'Close' ? (ES() ? 'Cerca' : w) : TR(w);
+const L = DATA.list, BY = {}; L.forEach((q, i) => { BY[q.id] = i; });
+const SLUG = 'thereabouts', NAME = 'Thereabouts';
+const CAT = { everyday: 'Everyday life', food: 'Food', sport: 'Sport', body: 'The body', nature: 'Nature', space: 'Space', tech: 'Technology', transport: 'Transport', geo: 'Geography' };
+const DIFF = ['', 'Easy', 'Medium', 'Hard'];
+const KIND = {
+  measured: ['Measured', 'This answer is a published count or measurement.'],
+  calculated: ['Calculated', 'This answer is worked out exactly from the figures shown.'],
+  estimated: ['Estimated', 'This answer is itself an estimate, so nobody knows it exactly.']
+};
+// how good a miss is: [up to, word, colour class]
+const GRADE = [[1.02, 'Spot on', 'g0'], [1.1, 'Dead on', 'g0'], [1.25, 'Sharp', 'g1'], [1.5, 'Close', 'g1'], [2, 'Right area', 'g2'], [3.5, 'Roughly', 'g2'], [10, 'Wide of it', 'g3'], [Infinity, 'Way out', 'g4']];
+const DISTK = [[1.25, 'a', '≤1.25×'], [1.5, 'b', '≤1.5×'], [2, 'c', '≤2×'], [3.5, 'd', '≤3.5×'], [10, 'e', '≤10×'], [Infinity, 'f', '>10×']];
+function grade(m) { for (const g of GRADE) if (m <= g[0]) return g; return GRADE[GRADE.length - 1]; }
+function bucket(m) { for (const d of DISTK) if (m <= d[0]) return d[1]; return 'f'; }
+const HOW = () => TR('<p>Three questions a day. Each answer is a number that <b>nobody knows off by heart</b>, and you are not supposed to. The game is to <b>work it out roughly</b> from things you do know.</p>') +
+  TR('<ul><li>Break the question into smaller guesses you can make, then multiply them up. The <b>calculator</b> is there to be used.</li>') +
+  TR('<li>Type your number and <b>Lock in</b>. You get one guess per question.</li>') +
+  TR('<li>Your score is <b>how many times out you were</b>. If the answer is 100, a guess of 200 scores 2× and so does a guess of 50. A perfect guess is 1×, and lower is better.</li>') +
+  TR('<li>Then you see the answer and a short <b>back of the envelope</b> working that gets close to it, with where the numbers came from.</li></ul>') +
+  TR('<p>Big numbers can be typed as <b>2,500,000</b>, <b>2.5 million</b>, <b>40k</b> or <b>3e6</b>. The day\'s score is the average of your three.</p>');
+const FOOT = { toString: () => ' ' + (DATA.checked ? TR('Answers were checked against the sources listed under each one on {d}.', { d: longDate(DATA.checked.replace(/-/g, '')) }) : TR('Answers were checked against the sources listed under each one.')) };
+
+let st = null, calcAns = null, tape = [];
+const S = K.shell({ slug: SLUG, name: NAME, sub: 'three estimates a day', how: { toString: HOW }, foot: FOOT, dist: [], shareText: () => shareText() });
+// the kit's Statistics window counts wins and losses; this game has its own, so the button is swapped for one that opens it
+(function () { const b = $('statsBtn'), nb = b.cloneNode(true); b.replaceWith(nb); nb.addEventListener('click', () => openStats()); })();
+const mb = K.modeBar($('modeSlot'), m => start(m));
+const archBtn = h('button', { type: 'button', class: 'ghost', id: 'archBtn', text: 'Past days', onclick: () => openArchive() });
+mb.el.insertBefore(archBtn, mb.info);
+const qcol = $('qcol');
+
+function longDate(k) { try { return new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8), 12).toLocaleDateString(ES() ? 'es-AR' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); } catch (e) { return k; } }
+function shortDate(k) { try { return new Date(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8), 12).toLocaleDateString(ES() ? 'es-AR' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' }); } catch (e) { return k; } }
+function idsFor(day) { return C.daySet(L, K.dayNum(day) - 1).map(i => L[i].id); }
+function q(i) { return L[BY[st.ids[i]]]; }
+function okGuess(v) { return typeof v === 'number' && isFinite(v) && v > 0; }
+function mults() { return st.ids.map((id, i) => okGuess(st.g[i]) ? C.score(st.g[i], q(i).a) : null); }
+function average() { const m = mults(); return m.every(x => x != null) ? m.reduce((a, b) => a + b, 0) / m.length : null; }
+function validIds(ids, n) { return Array.isArray(ids) && ids.length === n && ids.every(id => typeof id === 'string' && BY[id] != null); }
+
+// ------------------------------------------------------------------ saving
+// thereabouts:day   today's game { day, ids, g }            thereabouts:arch  past days played from the archive { days: { YYYYMMDD: { ids, g } } }
+// thereabouts:stats this player's own numbers (daily only)   thereabouts:free  the last questions seen in Unlimited { recent: [ids] }
+function save() {
+  if (st.mode === 'daily') K.store.set(SLUG + ':day', { day: st.day, ids: st.ids, g: st.g });
+  else if (st.mode === 'arch') {
+    const a = loadArch(); a.days[st.day] = { ids: st.ids, g: st.g };
+    const keys = Object.keys(a.days).sort(); while (keys.length > 90) delete a.days[keys.shift()];
+    K.store.set(SLUG + ':arch', a);
+  }
+}
+function loadArch() { const a = K.store.get(SLUG + ':arch', null); return a && typeof a === 'object' && a.days && typeof a.days === 'object' ? a : { days: {} }; }
+function loadStats() {
+  const s = K.store.get(SLUG + ':stats', null), o = { v: 1, games: 0, sum: 0, best: 0, bestDay: '', nq: 0, slog: 0, hi: 0, lo: 0, last: '' };
+  if (s && typeof s === 'object' && s.v === 1) for (const k in o) if (typeof s[k] === typeof o[k] && (typeof s[k] !== 'number' || isFinite(s[k]))) o[k] = s[k];
+  return o;
+}
+function finishDaily() {
+  const avg = average(); if (avg == null) return;
+  const s = loadStats();
+  if (s.last !== st.day) {
+    s.games++; s.sum += avg; if (!s.best || avg < s.best) { s.best = avg; s.bestDay = st.day; }
+    st.ids.forEach((id, i) => { const lg = Math.log10(st.g[i] / q(i).a); s.nq++; s.slog += lg; if (lg > 0.0022) s.hi++; else if (lg < -0.0022) s.lo++; });
+    s.last = st.day; K.store.set(SLUG + ':stats', s);
+  }
+  // the shared daily record the Daily Puzzles page reads: score is the day's average × 100 (137 = 1.37×)
+  K.Daily.finish(SLUG, st.day, { win: true, score: Math.round(avg * 100), dist: bucket(avg) });
+}
+
+// ------------------------------------------------------------------ starting a game
+function saved(o, day) {
+  if (!o || o.day !== day && day) return null;
+  if (!validIds(o.ids, 3) || !Array.isArray(o.g)) return null;
+  return { ids: o.ids.slice(), g: [0, 1, 2].map(i => okGuess(o.g[i]) ? o.g[i] : null) };
+}
+function firstOpen() { const i = st.g.findIndex(v => !okGuess(v)); return i < 0 ? -1 : i; }
+function start(m, day) {
+  if (m === 'daily') {
+    const d = K.today(), sv = saved(K.store.get(SLUG + ':day', null), d);
+    st = { mode: 'daily', day: d, ids: sv ? sv.ids : idsFor(d), g: sv ? sv.g : [null, null, null] };
+    if (firstOpen() < 0) finishDaily(); // finished earlier today (or the record was cleared): make sure it is counted
+  } else if (m === 'arch') {
+    const a = loadArch().days[day], sv = a ? saved({ day, ids: a.ids, g: a.g }, day) : null;
+    st = { mode: 'arch', day, ids: sv ? sv.ids : idsFor(day), g: sv ? sv.g : [null, null, null] };
+  } else {
+    st = { mode: 'free', day: '', ids: [freePick()], g: [null], n: st && st.mode === 'free' ? st.n : 0, sum: st && st.mode === 'free' ? st.sum : 0 };
+  }
+  st.i = firstOpen(); st.err = '';
+  mb.set(m === 'arch' ? 'none' : m, true);
+  render(true);
+}
+// Unlimited: a random question, not one seen lately, and never one from today's set or the next six days' sets
+function freePick() {
+  const f = K.store.get(SLUG + ':free', null), recent = f && Array.isArray(f.recent) ? f.recent.filter(id => BY[id] != null) : [];
+  const no = new Set(recent.slice(-45)), t = K.today();
+  for (let d = 0; d < 7; d++) idsFor(K.addDays(t, d)).forEach(id => no.add(id));
+  let pool = L.filter(x => !no.has(x.id)); if (!pool.length) pool = L.filter(x => recent.slice(-1)[0] !== x.id);
+  const id = pool[Math.floor(Math.random() * pool.length)].id;
+  recent.push(id); K.store.set(SLUG + ':free', { recent: recent.slice(-60) });
+  return id;
+}
+
+// ------------------------------------------------------------------ drawing
+function info() {
+  if (st.mode === 'free') mb.info.innerHTML = st.n ? TR('<span>Practice: </span><b>{n}</b> answered, average <b>{a}</b>', { n: st.n, a: C.fmtMult(st.sum / st.n) }) : TR('Practice: nothing here counts');
+  else if (st.mode === 'arch') mb.info.innerHTML = TR('Past day <b>#{n}</b> · {d}', { n: K.dayNum(st.day), d: shortDate(st.day) });
+  else { const n = st.g.filter(okGuess).length; mb.info.innerHTML = n === 3 ? TR('Today: <b>{a}</b>', { a: C.fmtMult(average()) }) : TR('Question <b>{n}</b> of 3', { n: Math.min(3, n + 1) }); }
+}
+function dots() {
+  if (st.mode === 'free') return null;
+  const open = firstOpen(), row = h('div', { class: 'dots', role: 'group', 'aria-label': 'Questions' });
+  st.ids.forEach((id, i) => {
+    const done = okGuess(st.g[i]), can = done || i === open;
+    row.appendChild(h('button', { type: 'button', class: 'dot' + (st.i === i ? ' on' : '') + (done ? ' done' : ''), disabled: can ? null : '', 'aria-current': st.i === i ? 'true' : null,
+      'aria-label': TR('Question {n}', { n: i + 1 }) + (done ? ', ' + C.fmtMult(C.score(st.g[i], q(i).a)) : ''), onclick: () => { st.i = i; st.err = ''; render(true); } },
+      [h('i', { text: String(i + 1) }), done ? C.fmtMult(C.score(st.g[i], q(i).a)) : (i === open ? 'Now' : 'Next')]));
+  });
+  if (open < 0) row.appendChild(h('button', { type: 'button', class: 'dot sum' + (st.i < 0 ? ' on' : ''), text: 'Result', onclick: () => { st.i = -1; render(true); } }));
+  return row;
+}
+function tags(x) {
+  return h('div', { class: 'tags' }, [h('span', { class: 'tag cat', text: CAT[x.c] || x.c }), h('span', { class: 'tag d' + x.d, text: DIFF[x.d] || '' })]);
+}
+function render(top) {
+  info(); qcol.innerHTML = '';
+  const d = dots(); if (d) qcol.appendChild(d);
+  if (st.i < 0) qcol.appendChild(viewSummary());
+  else if (okGuess(st.g[st.i])) qcol.appendChild(viewAnswer(st.i));
+  else qcol.appendChild(viewQuestion(st.i));
+  $('useBtn').hidden = !(st.i >= 0 && !okGuess(st.g[st.i]));
+  if (top) $('wrap').scrollTop = 0;
+}
+
+function viewQuestion(i) {
+  const x = q(i);
+  const input = h('input', { id: 'guess', type: 'text', inputmode: 'decimal', autocomplete: 'off', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', placeholder: TR('Your estimate'), 'aria-label': TR('Your estimate, in {u}', { u: U(x.u) }), 'aria-describedby': 'read', enterkeyhint: 'done' });
+  const box = h('div', { class: 'gbox' }, [input, h('span', { class: 'unit', text: U(x.u) })]);
+  const read = h('p', { class: 'read', id: 'read', role: 'status' });
+  function show() {
+    const t = input.value; box.classList.remove('bad'); read.className = 'read';
+    if (!t.trim()) { read.textContent = ''; return; }
+    const r = C.parseGuess(t, x.u);
+    if (r.err) { read.textContent = '…'; return; }
+    read.innerHTML = ''; read.append(TR('Read as') + ' ', h('b', { text: C.fmtFull(r.v) + ' ' + U(x.u) }), r.v >= 1e6 ? ' (' + NUM(r.v) + ')' : '');
+  }
+  function go() {
+    const r = C.parseGuess(input.value, x.u);
+    if (r.err) { box.classList.add('bad'); read.className = 'read err'; read.textContent = r.err; input.focus(); return; }
+    lock(i, r.v);
+  }
+  input.addEventListener('input', show);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  const chips = h('div', { class: 'chips' }, [h('span', { text: 'Add:' })].concat(['thousand', 'million', 'billion', 'trillion'].map(w => h('button', { type: 'button', class: 'chip-b', text: w, 'data-noi18n': '', title: TR('Adds the English word "{w}", which the box reads', { w: w }), onclick: () => {
+    const v = input.value.replace(/\s*(thousand|million|billion|trillion|quadrillion)s?\s*$/i, '').trim(); input.value = (v || '1') + ' ' + w; show(); if (!K.touch) input.focus();
+  } }))));
+  const card = h('div', { class: 'card' }, [
+    tags(x), h('h2', { class: 'qtext', text: x.q, 'data-noi18n': '' }),
+    h('div', { class: 'ask' }, [box, h('button', { type: 'button', class: 'cta wide', id: 'lockBtn', text: 'Lock in', onclick: go })]),
+    read, chips,
+    h('p', { class: 'tip', text: 'One guess. Split it into smaller guesses and multiply them up: the calculator is part of the game.' })
+  ]);
+  if (!K.touch && !S.isOpen()) setTimeout(() => { try { input.focus({ preventScroll: true }); } catch (e) {} }, 30);
+  return card;
+}
+function lock(i, v) {
+  if (okGuess(st.g[i])) return;
+  st.g[i] = v; save();
+  if (st.mode === 'free') { st.n++; st.sum += C.score(v, q(i).a); }
+  if (st.mode === 'daily' && firstOpen() < 0) finishDaily();
+  render(true);
+}
+
+function meter(g, a) {
+  const lg = Math.log10(g / a), span = 3, pos = Math.max(-span, Math.min(span, lg)), pct = v => (50 + v / span * 50) + '%';
+  const m = h('div', { class: 'meter', role: 'img', 'aria-label': TR(lg > 0 ? 'Your guess was {m} too high' : lg < 0 ? 'Your guess was {m} too low' : 'Your guess was {m}', { m: C.fmtMult(C.score(g, a)) }) });
+  m.appendChild(h('div', { class: 'track' }));
+  [[-3, '÷1,000'], [-2, '÷100'], [-1, '÷10'], [0, 'answer'], [1, '×10'], [2, '×100'], [3, '×1,000']].forEach(t => {
+    if (Math.abs(t[0]) < 3) m.appendChild(h('div', { class: 'tick', style: 'left:' + pct(t[0]) }));
+    if (t[0] % 2 === 0 || t[0] === 0 || innerWidth > 520) m.appendChild(h('div', { class: 'lab' + (t[0] === 0 ? ' mid' : ''), style: 'left:' + pct(t[0] * (Math.abs(t[0]) === 3 ? 0.955 : 1)), text: t[1] }));
+  });
+  const you = h('div', { class: 'you', style: 'left:50%' }, [h('span', { text: Math.abs(lg) > span ? (lg > 0 ? 'you ›' : '‹ you') : 'you' }), h('i')]);
+  m.appendChild(you); requestAnimationFrame(() => requestAnimationFrame(() => { you.style.left = 'calc(' + pct(pos) + ')'; }));
+  return m;
+}
+function viewAnswer(i) {
+  const x = q(i), g = st.g[i], m = C.score(g, x.a), gr = grade(m), dir = Math.abs(Math.log10(g / x.a)) < 0.0022 ? 0 : g > x.a ? 1 : -1;
+  const words = dir === 0 ? TR('Right on the accepted answer.') : TR(dir > 0 ? 'Your guess was {m} times too high.' : 'Your guess was {m} times too low.', { m: C.fmtMult(m).replace('×', '') });
+  const kind = KIND[x.k] || KIND.estimated;
+  const exact = v => v >= 1e6 && v < 1e21 ? C.fmtFull(v) : '';
+  const routeDiffers = x.r != null && C.score(x.r, x.a) > 1.015;
+  const src = x.src && x.src.length ? h('details', null, [h('summary', { text: TR('Sources ({n})', { n: x.src.length }) + (DATA.checked ? ', ' + TR('checked {d}', { d: longDate(DATA.checked.replace(/-/g, '')) }) : '') }),
+    h('ul', { 'data-noi18n': '' }, x.src.map(s => h('li', null, [h('a', { href: s[1], target: '_blank', rel: 'noopener noreferrer', text: s[0] }), s[2] ? ': ' + s[2] : ''])))]) : null;
+  const last = st.mode !== 'free' && i === 2;
+  const nextBtn = st.mode === 'free'
+    ? h('button', { type: 'button', class: 'cta', id: 'nextBtn', text: 'Another question', onclick: () => start('free') })
+    : h('button', { type: 'button', class: 'cta', id: 'nextBtn', text: last ? 'See the result' : 'Next question', onclick: () => { st.i = last ? -1 : (okGuess(st.g[i + 1]) ? i + 1 : firstOpen()); render(true); } });
+  if (!K.touch) setTimeout(() => { try { nextBtn.focus({ preventScroll: true }); } catch (e) {} }, 30);
+  return h('div', { class: 'card' }, [
+    tags(x), h('h2', { class: 'qtext', text: x.q, 'data-noi18n': '' }),
+    h('div', { class: 'verdict' }, [h('div', { class: 'mult ' + gr[2], text: C.fmtMult(m) }), h('div', { class: 'vwords' }, [h('b', { text: GW(gr[1]) + (dir > 0 ? ' · ' + TR('too high') : dir < 0 ? ' · ' + TR('too low') : '') }), h('span', { text: words })])]),
+    h('div', { class: 'pair' }, [
+      h('div', { class: 'fact' }, [h('small', { text: 'Your guess' }), h('b', { text: NUM(g) + ' ' + U(x.u) }), exact(g) ? h('em', { text: exact(g) }) : null]),
+      h('div', { class: 'fact ans' }, [h('small', { text: 'Accepted answer' }), h('b', { text: NUM(x.a) + ' ' + U(x.u) }), h('em', { text: (exact(x.a) ? exact(x.a) + ' · ' : '') + TR(kind[0]) })])
+    ]),
+    meter(g, x.a),
+    h('p', { class: 'meter-cap' }, [h('span', { text: '← too low' }), h('span', { text: 'each mark is ten times' }), h('span', { text: 'too high →' })]),
+    h('div', { class: 'env' }, [
+      h('h3', null, [TR('Back of the envelope'), h('small', { text: TR(kind[0]) })]),
+      h('ol', { 'data-noi18n': '' }, x.s.map(t => h('li', { text: t }))),
+      h('p', { class: 'note' }, [h('b', { text: TR(kind[1]) + ' ' }), routeDiffers ? TR('This quick working lands on about {r}; the accepted answer is {a}.', { r: NUM(x.r), a: NUM(x.a) + ' ' + U(x.u) }) + ' ' : '', h('span', { 'data-noi18n': '', text: x.n })]),
+      src
+    ]),
+    h('div', { class: 'row' }, [nextBtn, st.mode === 'free' ? h('button', { type: 'button', class: 'ghost', text: 'Back to today', onclick: () => start('daily') }) : null])
+  ]);
+}
+function viewSummary() {
+  const avg = average(), gr = grade(avg), ms = mults();
+  const head = st.mode === 'arch' ? TR('Day #{n} · {d}', { n: K.dayNum(st.day), d: shortDate(st.day) }) : TR('Today\'s average');
+  const cd = h('span', { class: 'next', id: 'cdLine', text: '' });
+  const card = h('div', { class: 'card' }, [
+    h('div', { class: 'total' }, [h('div', { class: 'mult ' + gr[2], text: C.fmtMult(avg) }), h('div', { class: 'vwords' }, [h('small', { text: head }), h('b', { text: GW(gr[1]) }), h('span', { text: sayAverage(avg) })])]),
+    h('div', { class: 'lines' }, st.ids.map((id, i) => {
+      const x = q(i), up = st.g[i] > x.a;
+      return h('button', { type: 'button', class: 'line', 'aria-label': TR('Question {n}: {m}. Show the working', { n: i + 1, m: C.fmtMult(ms[i]) }), onclick: () => { st.i = i; render(true); } },
+        [h('i', { text: String(i + 1) }), h('span', null, [h('b', { text: x.q, 'data-noi18n': '' }), h('em', { text: TR('You {g} · answer {a}', { g: NUM(st.g[i]), a: NUM(x.a) + ' ' + U(x.u) }) })]), h('strong', { class: grade(ms[i])[2], style: 'color:' + ({ g0: 'var(--green)', g1: 'var(--aqua)', g2: 'var(--sun)', g3: '#ffa07a', g4: '#ff8fa3' })[grade(ms[i])[2]], text: (C.score(st.g[i], x.a) < 1.005 ? '' : up ? '▲ ' : '▼ ') + C.fmtMult(ms[i]) })]);
+    })),
+    h('div', { class: 'row' }, [
+      h('button', { type: 'button', class: 'cta', id: 'shareBtn', text: 'Share', onclick: () => S.share() }),
+      st.mode === 'daily' ? h('button', { type: 'button', class: 'ghost', text: 'My statistics', onclick: () => openStats() }) : h('button', { type: 'button', class: 'ghost', text: 'Back to today', onclick: () => start('daily') }),
+      h('button', { type: 'button', class: 'ghost', text: 'Practise more', onclick: () => start('free') }),
+      h('button', { type: 'button', class: 'ghost', text: 'Past days', onclick: () => openArchive() })
+    ]),
+    st.mode === 'daily' ? h('p', { class: 'tip' }, [TR('Three new questions in') + ' ', cd, TR('. Tap a line above to see its working again.')]) : h('p', { class: 'tip', text: 'Past days don\'t change your statistics or your streak.' })
+  ]);
+  if (st.mode === 'daily') { cd.textContent = K.countdown(); clearInterval(viewSummary.t); viewSummary.t = setInterval(() => { if (!cd.isConnected) { clearInterval(viewSummary.t); return; } cd.textContent = K.countdown(); }, 1000); }
+  return card;
+}
+function sayAverage(avg) {
+  if (avg <= 1.1) return TR('Almost nothing in it on all three.');
+  if (avg <= 1.5) return TR('On average you were within half as much again of the answer.');
+  if (avg <= 2) return TR('On average you were within double or half.');
+  if (avg <= 10) return TR('On average you were {m} times out. One big miss does that.', { m: C.fmtMult(avg).replace('×', '') });
+  return TR('On average you were {m} times out. Count the zeros twice next time.', { m: C.fmtMult(avg).replace('×', '') });
+}
+function shareText() {
+  if (!st || st.mode === 'free' || firstOpen() >= 0) return null;
+  const ms = mults(), avg = average();
+  const line = TR('average {m} ({g})', { m: C.fmtMult(avg), g: GW(grade(avg)[1]).toLowerCase() });
+  const grid = st.ids.map((id, i) => (ms[i] < 1.005 ? '● ' : st.g[i] > q(i).a ? '▲ ' : '▼ ') + C.fmtMult(ms[i])).join('   ') + '\n' + TR('▲ too high  ▼ too low  1× is perfect');
+  return K.shareText(NAME, K.dayNum(st.day), line, grid, 'daily').replace(' (preview)', ' ' + TR('(preview)'));
+}
+
+// ------------------------------------------------------------------ statistics and past days
+function openStats() {
+  const s = loadStats(), rec = K.Daily.load(SLUG);
+  const cell = (big, small) => h('div', { html: '<b>' + big + '</b><small>' + small + '</small>' });
+  const kids = [h('div', { class: 'st4' }, [cell(s.games, TR('Played')), cell(s.games ? C.fmtMult(s.sum / s.games) : '–', TR('Average')), cell(s.games ? C.fmtMult(s.best) : '–', TR('Best day')), cell(rec.streak, TR('Day streak'))])];
+  if (s.nq) {
+    const mean = s.slog / s.nq, f = Math.pow(10, Math.abs(mean)), txt = Math.abs(mean) < 0.03 ? TR('You don\'t lean either way: your guesses land high about as often as low.')
+      : mean > 0 ? TR('You tend to guess high: a typical guess of yours is {m} times the answer.', { m: C.fmtMult(f).replace('×', '') }) : TR('You tend to guess low: a typical guess of yours is the answer divided by {m}.', { m: C.fmtMult(f).replace('×', '') });
+    kids.push(h('h3', { text: 'High or low?' }), h('div', { class: 'lean' }, [h('p', { text: txt }),
+      h('div', { class: 'leanbar' }, [h('i', { style: 'left:' + (50 + Math.max(-1, Math.min(1, mean)) * 50) + '%' })]),
+      h('div', { class: 'leancap' }, [h('span', { text: '÷10 low' }), h('span', { text: TR('{l} low · {h} high · {s} spot on', { l: s.lo, h: s.hi, s: s.nq - s.lo - s.hi }) }), h('span', { text: 'high ×10' })])]));
+  } else kids.push(h('p', { style: 'margin-top:12px', text: 'Finish a day and your numbers will show up here: your average, your best day, and whether you tend to guess high or low.' }));
+  let max = 1; DISTK.forEach(d => { max = Math.max(max, rec.dist[d[1]] || 0); });
+  const mine = st && st.mode === 'daily' && firstOpen() < 0 ? bucket(average()) : '';
+  kids.push(h('h3', { text: 'Your daily averages' }), h('div', { class: 'dist' }, DISTK.map(d => { const n = rec.dist[d[1]] || 0; return h('div', null, [h('span', { style: 'width:58px', text: d[2] }), h('i', { class: d[1] === mine ? 'me' : '', style: 'width:' + Math.max(8, Math.round(100 * n / max)) + '%', text: String(n) })]); })));
+  kids.push(h('p', { class: 'foot', text: TR(rec.maxStreak === 1 ? 'Longest streak: {n} day.' : 'Longest streak: {n} days.', { n: rec.maxStreak }) + ' ' + TR('Only the daily game counts here; Unlimited and past days don\'t. Everything is kept in this browser and nowhere else.') }));
+  kids.push(h('h3', { text: 'Next questions in' }), h('div', { style: 'display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap' }, [h('span', { class: 'cd', id: 'cd', text: K.countdown() }), shareText() ? h('button', { class: 'cta', text: 'Share', onclick: () => S.share() }) : null]));
+  S.modal('Statistics', h('div', null, kids));
+  clearInterval(openStats.t); openStats.t = setInterval(() => { const c = $('cd'); if (!c) { clearInterval(openStats.t); return; } c.textContent = K.countdown(); }, 1000);
+}
+function openArchive() {
+  const t = K.today(), n = K.dayNum(t), a = loadArch(), rec = K.Daily.load(SLUG), rows = [];
+  for (let d = 1; d <= Math.min(60, n - 1); d++) {
+    const day = K.addDays(t, -d), got = a.days[day], sv = got ? saved({ day, ids: got.ids, g: got.g }, day) : null;
+    let label = 'Not played', done = false;
+    if (sv && sv.g.every(okGuess)) { label = TR('Played here:') + ' ' + C.fmtMult(sv.g.reduce((s, g, i) => s + C.score(g, L[BY[sv.ids[i]]].a), 0) / 3); done = true; }
+    else if (sv && sv.g.some(okGuess)) label = 'Started';
+    else if (rec.days[day] && rec.days[day].done && rec.days[day].score > 0) { label = TR('On the day:') + ' ' + C.fmtMult(rec.days[day].score / 100); done = true; }
+    rows.push(h('button', { type: 'button', onclick: () => { S.close(); start('arch', day); } }, [h('span', { text: '#' + K.dayNum(day) + ' · ' + shortDate(day) }), h('em', { class: done ? 'done' : '', text: label })]));
+  }
+  S.modal('Past days', h('div', null, [
+    h('p', { text: 'Play any earlier day\'s three questions. They don\'t count towards your statistics or your streak.' }),
+    rows.length ? h('div', { class: 'arch' }, rows) : h('p', { text: 'There are no earlier days yet. Come back tomorrow.' })
+  ]));
+}
+
+// ------------------------------------------------------------------ calculator
+const cin = $('cin'), cout = $('cout'), tapeEl = $('tape');
+if (K.touch) cin.setAttribute('inputmode', 'none'); // the page's own keys, not the phone's keyboard
+const KEYS = [['C', 'fn', 'Clear'], ['⌫', 'fn', 'Delete'], ['(', 'fn'], [')', 'fn'], ['7'], ['8'], ['9'], ['÷', 'op', 'Divide'], ['4'], ['5'], ['6'], ['×', 'op', 'Times'], ['1'], ['2'], ['3'], ['−', 'op', 'Minus'], ['0'], ['.'], ['^', 'op', 'To the power of'], ['+', 'op', 'Plus'], ['π', 'fn', 'Pi'], ['√', 'fn', 'Square root'], ['EE', 'fn', 'Times ten to the power of'], ['=', 'eq', 'Equals']];
+KEYS.forEach(k => $('keys').appendChild(h('button', { type: 'button', class: k[1] || '', 'aria-label': k[2] || k[0], 'data-k': k[0], text: k[0] })));
+// where the next key goes: the cursor if the sum box has been tapped or clicked, otherwise the end
+let caretAt = null;
+function caret() {
+  if (document.activeElement === cin && cin.selectionStart != null) return [cin.selectionStart, cin.selectionEnd == null ? cin.selectionStart : cin.selectionEnd];
+  const n = cin.value.length, p = caretAt == null ? n : Math.min(caretAt, n); return [p, p];
+}
+function insert(t) {
+  const c = caret(), a = c[0], b = c[1];
+  cin.value = cin.value.slice(0, a) + t + cin.value.slice(b); const p = a + t.length; caretAt = p;
+  try { cin.setSelectionRange(p, p); } catch (e) {}
+  live();
+}
+function live() {
+  cout.className = '';
+  if (!cin.value.trim()) { cout.textContent = ''; return null; }
+  try { const v = C.calcEval(cin.value, calcAns); cout.textContent = '= ' + C.fmtFull(v) + (Math.abs(v) >= 1e6 ? '  (' + NUM(v) + ')' : ''); return v; }
+  catch (e) { cout.textContent = ''; return null; }
+}
+function equals() {
+  if (!cin.value.trim()) return null;
+  let v; try { v = C.calcEval(cin.value, calcAns); } catch (e) { cout.className = 'err'; cout.textContent = e.message; return null; }
+  const expr = cin.value.trim(), res = C.plainResult(v);
+  if (expr !== res) { tape.push([expr, v]); if (tape.length > 12) tape.shift(); drawTape(); }
+  calcAns = v; cin.value = res; caretAt = null; try { cin.setSelectionRange(res.length, res.length); } catch (e) {}
+  cout.className = ''; cout.textContent = '= ' + C.fmtFull(v) + (Math.abs(v) >= 1e6 ? '  (' + NUM(v) + ')' : '');
+  return v;
+}
+function drawTape() {
+  tapeEl.innerHTML = '';
+  if (!tape.length) { tapeEl.appendChild(h('div', { class: 'none', text: 'Your sums stay here. Tap one to use its answer again.' })); return; }
+  tape.forEach(t => tapeEl.appendChild(h('button', { type: 'button', title: 'Put this answer into the sum', onclick: () => { insert(C.plainResult(t[1])); if (!K.touch) cin.focus(); } }, [h('span', { text: t[0] }), h('b', { text: '= ' + NUM(t[1]) })])));
+  tapeEl.scrollTop = tapeEl.scrollHeight;
+}
+$('keys').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return; const k = b.getAttribute('data-k');
+  if (k === 'C') { cin.value = ''; caretAt = null; live(); }
+  else if (k === '⌫') { const c = caret(), a = c[0], z = c[1], from = a !== z ? a : Math.max(0, a - 1); cin.value = cin.value.slice(0, from) + cin.value.slice(z); caretAt = from; try { cin.setSelectionRange(from, from); } catch (er) {} live(); }
+  else if (k === '=') equals();
+  else if (k === 'EE') insert('e');
+  else if (k === '−') insert('-');
+  else if (k === '×' || k === '÷' || k === '+' || k === '^') insert(' ' + k + ' ');
+  else insert(k);
+  if (!K.touch) cin.focus();
+});
+cin.addEventListener('input', () => { caretAt = null; live(); });
+['click', 'keyup', 'select', 'touchend'].forEach(ev => cin.addEventListener(ev, () => { if (cin.selectionStart != null) caretAt = cin.selectionStart; }));
+cin.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); equals(); } });
+$('useBtn').addEventListener('click', () => {
+  const g = $('guess'); if (!g) return;
+  const v = equals(); if (v == null) { if (!cin.value.trim()) { cout.className = 'err'; cout.textContent = 'Work something out first, then send it up.'; } return; }
+  g.value = C.plainResult(v); g.dispatchEvent(new Event('input')); if (!K.touch) g.focus();
+  g.scrollIntoView({ block: 'center', behavior: 'smooth' });
+});
+function setCalc(open) { $('calc').classList.toggle('shut', !open); $('calcToggle').textContent = open ? 'Hide' : 'Show'; $('calcToggle').setAttribute('aria-expanded', open); K.store.set(SLUG + ':set', { calc: open ? 1 : 0 }); }
+$('calcToggle').addEventListener('click', () => setCalc($('calc').classList.contains('shut')));
+(function () { const s = K.store.get(SLUG + ':set', null); if (s && s.calc === 0) setCalc(false); })();
+drawTape();
+
+// a new day while the page is open: move on to it once today's three are done or untouched
+document.addEventListener('visibilitychange', () => { if (!document.hidden && st && st.mode === 'daily' && st.day !== K.today()) start('daily'); });
+window.addEventListener('resize', () => { if (st && st.i >= 0 && okGuess(st.g[st.i])) { const m = qcol.querySelector('.meter'); if (m) m.replaceWith(meter(st.g[st.i], q(st.i).a)); } });
+
+if (!L.length) qcol.appendChild(h('div', { class: 'card' }, [h('p', { class: 'tip', text: 'The questions didn\'t load. Check your connection and reload the page.' })]));
+else start('daily');
+if (window.BackRoomLang) BackRoomLang.englishOnly(mb.info.parentNode);
+// a language switch redraws the card (questions stay English); a half-typed guess is kept
+document.addEventListener('backroom:lang', () => { if (!st) return; const g = $('guess'), v = g ? g.value : ''; render(); const g2 = $('guess'); if (g2 && v) { g2.value = v; g2.dispatchEvent(new Event('input')); } });
+
+if (navigator.webdriver) window.__tb = {
+  get st() { return st; }, start, lock: v => lock(st.i, v), type: t => { const g = $('guess'); g.value = t; g.dispatchEvent(new Event('input')); }, go: () => $('lockBtn').click(),
+  next: () => $('nextBtn').click(), idsFor, shareText, stats: loadStats, core: C, list: L
+};
+})();
+</script>
+</body>
+</html>

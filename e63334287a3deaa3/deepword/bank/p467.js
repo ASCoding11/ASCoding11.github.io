@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("~467","solid;liquid;gas;melting;freezing;evaporation;condensation;plasma;boiling;sublimation;deposition;vaporization;solidification;bose einstein condensate;ionization;recombination;liquefaction;crystallization;superfluid;supercritical fluid;liquid crystal;gel;colloid;thawing;fusion","xiu8zyybxct9qtnjuwkxk3o7mkp6fve8f1hhclp6goo1deqhlk");

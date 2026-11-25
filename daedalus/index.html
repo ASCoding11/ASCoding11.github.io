@@ -1,0 +1,1445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Project Daedalus: a one-stick Bluetooth controller you can build in a batch</title>
+<meta name="description" content="Project Daedalus: a compact one-stick Bluetooth game controller designed to be built in a batch of 30. Parts list, pin-by-pin wiring, firmware, circuit board and case guidance, costs at 10 to 200 units, and the honest trade-offs.">
+<link rel="canonical" href="https://ascoding11.github.io/daedalus/">
+<meta name="robots" content="index,follow">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Arjun's Projects">
+<meta property="og:title" content="Project Daedalus">
+<meta property="og:description" content="A compact one-stick Bluetooth game controller designed to be built in a batch of 30: parts, wiring, firmware, circuit board, case, costs and honest trade-offs.">
+<meta property="og:url" content="https://ascoding11.github.io/daedalus/">
+<meta property="og:image" content="https://ascoding11.github.io/daedalus/preview.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="/theme.js"></script> <!-- Auto / Light / Dark, before the page is drawn (see README) -->
+<link rel="stylesheet" href="../site.css">
+<style>
+/* This page only: drawings, wide tables that scroll sideways on a phone, and the code box. */
+.guide{max-width:74ch}
+.dd-fig{margin:22px 0 26px;padding:14px 14px 10px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.dd-fig svg{display:block;width:100%;height:auto}
+.dd-fig figcaption{font-size:14px;line-height:1.5;color:var(--ink-2);margin-top:8px}
+.dd-fig text{font-family:var(--mono);font-size:13px;fill:var(--ink-2)}
+.dd-fig .t-strong{fill:var(--ink);font-weight:600}
+.dd-fig .ln{fill:none;stroke:var(--ink);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.dd-fig .thin{fill:none;stroke:var(--ink-2);stroke-width:1.2}
+.dd-fig .dim{fill:none;stroke:var(--accent);stroke-width:1.2}
+.dd-fig .dimt{fill:var(--accent)}
+.dd-fig .fillp{fill:var(--panel-2);stroke:var(--ink);stroke-width:2.2;stroke-linejoin:round}
+.dd-fig .acc{fill:var(--accent)}
+.dd-fig .pw{fill:none;stroke:var(--accent);stroke-width:2.4}
+.dd-fig .box{fill:var(--panel-2);stroke:var(--ink);stroke-width:1.6}
+.dd-scroll{overflow-x:auto;margin:8px 0 18px;-webkit-overflow-scrolling:touch}
+.dd-scroll table{margin:0;min-width:560px}
+.dd-wide{overflow-x:auto;-webkit-overflow-scrolling:touch}
+/* the three parts tables: wider than the text column on a laptop, and they scroll sideways inside their box */
+.dd-bom{width:min(1040px,calc(100vw - 32px))}
+.dd-bom table{font-size:14px}
+.dd-bom td{padding:7px 9px}
+#ddBomBoard{min-width:1040px}
+#ddBomHand{min-width:1040px}
+#ddBomTools{min-width:900px}
+.dd-bom td.num{min-width:0}
+#ddBomBoard th:nth-child(4){width:14%}#ddBomBoard th:nth-child(5){width:10%}#ddBomBoard th:nth-child(6){width:24%}
+#ddBomHand th:nth-child(2){width:23%}#ddBomHand th:nth-child(5){width:17%}#ddBomHand th:nth-child(7){width:22%}
+#ddBomTools th:nth-child(2){width:26%}#ddBomTools th:nth-child(4){width:26%}
+.dd-bom .nw{white-space:nowrap}
+.dd-bom .tc{color:var(--down);font-weight:600}
+.dd-bom tfoot td{font-weight:600;border-bottom:0}
+.dd-why li{font-size:15.5px;line-height:1.6}
+.dd-wide svg{min-width:640px}
+.guide td.num,.guide th.num{text-align:right}
+.guide th.num{white-space:nowrap}
+.guide td.num{min-width:5.5em}
+.guide td code,.guide p code,.guide li code{font-family:var(--mono);font-size:.9em;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.dd-status{border-left-color:var(--down) !important}
+.dd-code{margin:10px 0 18px}
+.dd-code summary{cursor:pointer;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent)}
+.dd-code pre{margin:10px 0 0;max-height:520px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;font-family:var(--mono);font-size:12.5px;line-height:1.5;color:var(--ink);tab-size:2}
+.dd-toc{columns:2;column-gap:28px;padding-left:20px}
+.dd-files{columns:2;column-gap:28px;padding-left:20px}
+.dd-btn{font:600 13px var(--mono);letter-spacing:.04em;color:var(--accent);background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:9px 13px;cursor:pointer;margin:0 6px 8px 0}
+.dd-btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.dd-view{margin:6px 0 18px}
+.dd-view canvas{display:block;width:100%;aspect-ratio:16/10;background:var(--panel);border:1px solid var(--line);border-radius:12px;touch-action:none;cursor:grab}
+.dd-pad{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0 18px}
+.dd-pad p{font-size:15px;margin:0 0 10px}
+.dd-keys{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.dd-keys span{font:600 12px var(--mono);border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--ink-2)}
+.dd-keys span.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.dd-stick{position:relative;width:120px;height:120px;border:1px solid var(--line);border-radius:50%;background:var(--panel-2)}
+.dd-stick i{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--accent)}
+@media (max-width:560px){.dd-toc,.dd-files{columns:1}.dd-fig{padding:10px 8px 8px}.dd-fig text{font-size:15px}}
+/* ---- the workbench: step-by-step build, floor plan and the working. Dark on purpose, like a drawing board. ---- */
+.guide .wb{padding:0}
+.wb{--b0:#06101a;--b1:#0b1826;--b2:#102235;--bl:#1b3a55;--bt:#d9e8f3;--bd:#86a0b5;--bc:#67d9f2;--bg:#63d69c;--bw:#f0c35c;--br:#f58270;
+  width:min(1040px,calc(100vw - 32px));margin:30px 0 34px;background:var(--b0);color:var(--bt);border:1px solid var(--bl);border-radius:14px;overflow:hidden;font-size:15px;line-height:1.5}
+.wb *{box-sizing:border-box}
+.wb-head{padding:16px 18px 0;border-bottom:1px solid var(--bl)}
+.wb .wb-kick{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--bc);margin:0 0 4px}
+.wb .wb-head h2{margin:0 0 6px;font-size:24px;color:#fff;border:0;padding:0}
+.wb .wb-head p{margin:0 0 12px;color:var(--bd);max-width:70ch}
+.wb-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.wb-tabs button{font:inherit;font-size:15px;color:var(--bd);background:none;border:0;border-bottom:2px solid transparent;padding:10px 12px 9px;cursor:pointer;border-radius:6px 6px 0 0}
+.wb-tabs button b{font-family:var(--mono);font-weight:500;font-size:12px;margin-right:6px;color:var(--bd)}
+.wb-tabs button[aria-selected=true]{color:var(--bc);border-bottom-color:var(--bc);background:var(--b1)}
+.wb-tabs button:focus-visible,.wb button:focus-visible,.wb .it:focus-visible,.wb select:focus-visible,.wb input:focus-visible{outline:2px solid var(--bc);outline-offset:2px}
+.wb-panel{padding:16px 18px 18px}
+.wb-panel[hidden]{display:none}
+.wb-two{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:16px;align-items:start}
+.wb-box{background:var(--b1);border:1px solid var(--bl);border-radius:10px;min-width:0}
+.wb-bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--bl);font-family:var(--mono);font-size:12.5px;color:var(--bd)}
+.wb-bar label{display:flex;align-items:center;gap:7px}
+.wb-bar input[type=range]{width:110px;accent-color:var(--bc)}
+.wb-bar input[type=checkbox]{accent-color:var(--bc)}
+.wb .wbtn{font-family:var(--mono);font-size:12.5px;color:var(--bc);background:none;border:1px solid var(--bl);border-radius:6px;padding:5px 10px;cursor:pointer;min-height:32px}
+.wb .wbtn:hover{border-color:var(--bc)}
+.wb .wbtn[disabled]{opacity:.35;cursor:default}
+.wb .wbtn[aria-pressed=true]{background:var(--bc);color:#04202a;border-color:var(--bc)}
+.wb-stage{position:relative;aspect-ratio:16/10.5;background:radial-gradient(120% 90% at 50% 40%,#0e2233 0%,#06101a 70%)}
+.wb-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:pan-y}
+.wb .wb-note{position:absolute;left:0;right:0;top:10px;text-align:center;font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--bd);pointer-events:none;margin:0}
+.wb .wb-legend{position:absolute;left:12px;bottom:10px;right:12px;margin:0;font-family:var(--mono);font-size:12px;color:var(--bc);pointer-events:none}
+.wb-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bl)}
+.wb-nav span{font-family:var(--mono);font-size:13px;letter-spacing:.1em;color:var(--bc)}
+.wb .wb-steps{list-style:none;margin:0;padding:6px 0;border-bottom:1px solid var(--bl)}
+.wb .wb-steps li{margin:0}
+.wb-steps button{display:flex;gap:10px;width:100%;text-align:left;font:inherit;font-size:14px;color:var(--bt);background:none;border:0;border-left:2px solid transparent;padding:4px 12px;cursor:pointer}
+.wb-steps button i{font-family:var(--mono);font-style:normal;font-size:12px;color:var(--bd);min-width:1.6em;padding-top:1px}
+.wb-steps button[aria-current=step]{background:var(--b2);border-left-color:var(--bc);color:#fff}
+.wb-steps button.done{color:var(--bd)}
+.wb-text{padding:12px 14px 14px}
+.wb .wb-text .k{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--bc);margin:0}
+.wb .wb-text h3{margin:2px 0 6px;font-size:18px;color:#fff}
+.wb .wb-text p{margin:0 0 8px;color:var(--bt)}
+.wb .wb-text ol{margin:0 0 8px;padding-left:20px}
+.wb .wb-text li{margin:0 0 4px}
+.wb .wb-text .chk{border-left:2px solid var(--bg);padding:2px 0 2px 10px;color:var(--bt);margin:8px 0 0}
+.wb-text .warn{border-left-color:var(--bw)}
+.wb-text a,.wb-sheet a,.wb-work a{color:var(--bc)}
+/* floor plan */
+.wb-plan{display:block;width:100%;height:auto;background:
+  linear-gradient(var(--b0),var(--b0))}
+.wb-plan .grid{stroke:#0f2740;stroke-width:1}
+.wb-plan .grid5{stroke:#143350;stroke-width:1}
+.wb-plan .ol{fill:none;stroke:var(--bc);stroke-width:2;stroke-linejoin:round}
+.wb-plan .gh{fill:none;stroke:#2c5674;stroke-width:1.2;stroke-dasharray:5 4}
+.wb-plan .it{cursor:pointer}
+.wb-plan .it>*{fill:rgba(103,217,242,.08);stroke:var(--bc);stroke-width:1.5}
+.wb-plan .it:hover>*,.wb-plan .it:focus>*{fill:rgba(103,217,242,.25)}
+.wb-plan .it.sel>*{fill:rgba(240,195,92,.3);stroke:var(--bw);stroke-width:2.2}
+.wb-plan text{font-family:var(--mono);font-size:11px;fill:var(--bd);pointer-events:none}
+.wb-plan .dm{fill:none;stroke:var(--bd);stroke-width:1}
+.wb-plan .dt{fill:var(--bt);font-size:12px}
+.wb-plan .sw>*{stroke-dasharray:4 3;fill:rgba(240,195,92,.05);stroke:var(--bw)}
+.wb-layers{display:flex;flex-wrap:wrap;gap:6px}
+.wb-sheet{padding:12px 14px 14px}
+.wb .wb-sheet .k{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--bc);margin:0}
+.wb .wb-sheet h3{margin:2px 0 8px;font-size:18px;color:#fff}
+.wb-sheet dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:14px}
+.wb-sheet dt{font-family:var(--mono);font-size:12px;color:var(--bd);padding-top:2px}
+.wb-sheet dd{margin:0}
+.wb .wb-sheet p{margin:8px 0 0;color:var(--bd);font-size:14px}
+.wb .wb-list{list-style:none;margin:0;padding:8px 6px;border-top:1px solid var(--bl);display:flex;flex-wrap:wrap;gap:4px}
+.wb-list button{font-family:var(--mono);font-size:11.5px;color:var(--bd);background:none;border:1px solid var(--bl);border-radius:5px;padding:3px 7px;cursor:pointer}
+.wb-list button.sel{color:#04202a;background:var(--bw);border-color:var(--bw)}
+/* the working */
+.wb-ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 16px;padding:12px 14px}
+.wb-ctl label{display:block;font-family:var(--mono);font-size:12px;color:var(--bd)}
+.wb-ctl select,.wb-ctl input[type=range]{display:block;width:100%;margin-top:4px}
+.wb-ctl select{font:inherit;font-size:14px;color:var(--bt);background:var(--b0);border:1px solid var(--bl);border-radius:6px;padding:6px 8px;min-height:36px}
+.wb-ctl input[type=range]{accent-color:var(--bc)}
+.wb-ctl output{color:var(--bt)}
+.wb-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.wb-tile{background:var(--b1);border:1px solid var(--bl);border-radius:10px;padding:10px 12px}
+.wb .wb-tile .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--bd);margin:0}
+.wb .wb-tile .v{font-size:24px;color:#fff;margin:2px 0 0;font-variant-numeric:tabular-nums}
+.wb .wb-tile .s{font-size:12.5px;color:var(--bd);margin:0}
+.wb .wb-sum{font-family:var(--mono);font-size:13px;color:var(--bt);margin:0 0 8px}
+.wb-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--bl);border-radius:10px}
+.wb table{width:100%;border-collapse:collapse;font-size:14px;min-width:760px;margin:0}
+.wb th{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--bd);text-align:left;padding:8px 10px;border-bottom:1px solid var(--bl);background:var(--b1)}
+.wb td{padding:8px 10px;border-bottom:1px solid #12283b;vertical-align:top;color:var(--bt);background:none}
+.wb tr:last-child td{border-bottom:0}
+.wb td.w{font-family:var(--mono);font-size:12.5px;color:var(--bd)}
+.wb .st{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
+.wb .st.p{color:var(--bg)}.wb .st.m{color:var(--bw)}.wb .st.f{color:var(--br)}
+.wb .wb-foot{color:var(--bd);font-size:13.5px;margin:12px 0 0}
+@media (max-width:860px){.wb .wb-steps{display:none}.wb-two{grid-template-columns:minmax(0,1fr)}.wb-head h2{font-size:21px}.wb-panel{padding:12px}.wb-head{padding:14px 12px 0}}
+</style>
+<link rel="icon" href="/icons/app.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="../">Arjun</a>
+    <nav class="nav" aria-label="Site"><a href="../">Home</a><a href="../projects/">Web Development Projects</a><a href="../productivity/">Productivity</a><a href="../engineering/" aria-current="page">Engineering Projects</a><a href="../marketplace/">Marketplace</a></nav>
+  </div>
+  <header>
+    <p class="crumbs"><a href="../">Home</a> / <a href="../engineering/">Engineering Projects</a> / Project Daedalus</p>
+    <p class="kicker">Build plan · hardware, firmware and case</p>
+    <h1>Project Daedalus</h1>
+    <p class="intro">A compact Bluetooth game controller with one drift-free stick, designed from the start to be made in a batch of 30, for $23 to $28 of parts each.</p>
+  </header>
+  <article class="guide">
+
+<div class="callout dd-status">
+<p><b>Where this stands: a design, not yet a built controller.</b> No circuit board has been ordered and nothing here has been tested on hardware. The firmware compiles without errors; it has never run on a real board. Prices were looked up in November 2026 and some are marked as unconfirmed. The plan below starts with a breadboard and two prototype boards for exactly that reason: find the mistakes on $50 of parts, not on 30 boards.</p>
+</div>
+
+<h2>What it is</h2>
+<figure class="dd-fig">
+<svg viewBox="0 0 760 540" role="img" aria-label="Front view of the controller: a compact body whose shoulders sweep round in one curve into two short rounded grips. One stick on the left, four face buttons in a diamond on the right, and in the middle a small diamond of Select, Start, Home and a status light under the USB-C socket. Two shoulder buttons each side of the top edge, with the on/off switch between the left pair and the socket.">
+  <!-- top edge parts (positions as in case/daedalus_case.py: X = 380 + 5x, Y = 215 - 5y) -->
+  <rect class="fillp" x="157" y="68" width="61" height="14" rx="6"/><rect class="fillp" x="227" y="68" width="51" height="14" rx="6"/>
+  <rect class="fillp" x="542" y="68" width="61" height="14" rx="6"/><rect class="fillp" x="482" y="68" width="51" height="14" rx="6"/>
+  <rect class="fillp" x="357" y="71" width="46" height="11" rx="5"/><rect class="fillp" x="298" y="74" width="24" height="8" rx="3"/>
+  <!-- body -->
+  <path class="fillp" d="M682.0,182.5 L691.0,312.8 A130.0,130.0 0 0 1 686.5,356.5 L665.4,432.7 A45.0,45.0 0 0 1 616.6,465.3 L595.0,462.7 A45.0,45.0 0 0 1 561.3,440.3 L534.4,393.0 A85.0,85.0 0 0 0 460.5,350.0 L299.5,350.0 A85.0,85.0 0 0 0 225.6,393.0 L198.7,440.3 A45.0,45.0 0 0 1 165.0,462.7 L143.4,465.3 A45.0,45.0 0 0 1 94.6,432.7 L73.5,356.5 A130.0,130.0 0 0 1 69.0,312.8 L78.0,182.5 A110.0,110.0 0 0 1 187.7,80.0 L572.3,80.0 A110.0,110.0 0 0 1 682.0,182.5 Z"/>
+  <!-- stick -->
+  <circle class="ln" cx="230" cy="225" r="62"/><circle class="fillp" cx="230" cy="225" r="47"/><circle class="thin" cx="230" cy="225" r="29"/>
+  <!-- face buttons -->
+  <circle class="fillp" cx="530" cy="172" r="27"/><circle class="fillp" cx="598" cy="225" r="27"/><circle class="fillp" cx="530" cy="278" r="27"/><circle class="fillp" cx="462" cy="225" r="27"/>
+  <!-- select, start, home, light: a small diamond -->
+  <circle class="fillp" cx="340" cy="153" r="13"/><circle class="fillp" cx="420" cy="153" r="13"/>
+  <circle class="fillp" cx="380" cy="173" r="15.5"/><circle class="acc" cx="380" cy="133" r="4.5"/>
+  <!-- labels -->
+  <text x="187" y="54" text-anchor="middle">L1</text><text x="252" y="54" text-anchor="middle">L2</text>
+  <text x="572" y="54" text-anchor="middle">R1</text><text x="507" y="54" text-anchor="middle">R2</text>
+  <text x="380" y="58" text-anchor="middle">USB-C</text><text x="310" y="40" text-anchor="middle">on/off</text>
+  <path class="thin" d="M310,45 V72"/>
+  <text class="t-strong" x="230" y="318" text-anchor="middle">magnetic stick</text><text x="230" y="336" text-anchor="middle">click = L3</text>
+  <text x="322" y="134" text-anchor="end">Select</text><text x="438" y="134" text-anchor="start">Start</text>
+  <text x="380" y="208" text-anchor="middle">Home</text><text x="380" y="116" text-anchor="middle">light</text>
+  <text class="t-strong" x="530" y="334" text-anchor="middle">four face buttons</text>
+  <!-- dimensions -->
+  <path class="dim" d="M67.5,500 H692.5 M67.5,492 V508 M692.5,492 V508"/><text class="dimt" x="380" y="526" text-anchor="middle">125 mm</text>
+  <path class="dim" d="M722,80 V468 M714,80 H730 M714,468 H730"/><text class="dimt" x="726" y="274" text-anchor="middle" transform="rotate(90 726 274)">78 mm</text>
+</svg>
+<figcaption>Front view, drawn from the same numbers as the case model. The body is 22.2 mm thick in the middle, with a gently domed front and a back that swells into each palm; the <a href="#case">case section</a> has the side view. The exact button spacing is set by the rubber pad you buy, so measure the pad before drawing the board.</figcaption>
+</figure>
+<ul>
+<li><b>Inputs:</b> one magnetic stick with a click (L3), four face buttons, L1, R1, L2 and R2, plus Select, Start and Home. No d-pad and no right stick.</li>
+<li><b>Connection:</b> Bluetooth Low Energy, as a standard HID gamepad. Windows and macOS pair with it from their normal Bluetooth settings; nothing to install.</li>
+<li><b>Power:</b> a 1,200 mAh lithium-polymer cell charged through USB-C, a slide switch, and an estimated 30 hours of play per charge (worked out from the datasheets, not measured).</li>
+<li><b>Size:</b> 125 × 78 mm, 22.2 mm thick in the middle and 29.2 mm front to back at the grips, and roughly 100 g: narrower than a pair of Joy-Cons side by side, with short rounded grips that fill the palm. It is thicker than a Switch Lite because a full-size stick is 19.5 mm tall.</li>
+</ul>
+
+<section class="wb" id="bench" aria-label="Workbench">
+<div class="wb-head">
+<p class="wb-kick">Daedalus · workbench · case version 4 · nothing built yet</p>
+<h2>See it go together</h2>
+<p>Three views of the same design. Follow the build one step at a time, look at the floor plan of each layer and click any part to see what it is, or change a part and watch every number and check work itself out again.</p>
+<div class="wb-tabs" role="tablist" aria-label="Workbench views">
+<button type="button" role="tab" id="wbt-build" aria-controls="wb-build" aria-selected="true"><b>01</b>Build steps</button>
+<button type="button" role="tab" id="wbt-plan" aria-controls="wb-plan" aria-selected="false" tabindex="-1"><b>02</b>Floor plan</button>
+<button type="button" role="tab" id="wbt-work" aria-controls="wb-work" aria-selected="false" tabindex="-1"><b>03</b>The working</button>
+</div>
+</div>
+
+<div class="wb-panel" id="wb-build" role="tabpanel" aria-labelledby="wbt-build">
+<div class="wb-two">
+<div class="wb-box">
+<div class="wb-bar">
+<label>Pull apart <input type="range" id="wbExplode" min="0" max="100" value="0" aria-label="Pull the parts apart"></label>
+<label><input type="checkbox" id="wbGlass"> See-through case</label>
+<button type="button" class="wbtn" id="wbZoomOut" aria-label="Zoom out">−</button><button type="button" class="wbtn" id="wbZoomIn" aria-label="Zoom in">+</button>
+<button type="button" class="wbtn" id="wbReset">↺ View</button>
+</div>
+<div class="wb-stage"><canvas id="wbCanvas" aria-label="3D view of the controller for the current step. Drag to turn it."></canvas><p class="wb-note" id="wbNote">The 3D view loads when you scroll here</p><p class="wb-legend" id="wbLegend"></p></div>
+</div>
+<div class="wb-box">
+<div class="wb-nav"><button type="button" class="wbtn" id="wbPrev" aria-label="Previous step">◀</button><span id="wbCount">STEP 0 / 11</span><button type="button" class="wbtn" id="wbNext">Next ▶</button></div>
+<ol class="wb-steps" id="wbSteps"></ol>
+<div class="wb-text" id="wbText" aria-live="polite"></div>
+</div>
+</div>
+<p class="wb-foot">The bought parts (stick, battery, switches, sockets, radio module) are drawn as plain blocks at their datasheet sizes: they show where things go, not what they look like. The printed parts are the real shapes. The same steps are written out, with every detail, under <a href="#assembly">Assembly</a>.</p>
+</div>
+
+<div class="wb-panel" id="wb-plan" role="tabpanel" aria-labelledby="wbt-plan" hidden>
+<div class="wb-two">
+<div class="wb-box">
+<div class="wb-bar"><span>Layer</span><div class="wb-layers" id="wbLayers" role="group" aria-label="Which layer to show"></div></div>
+<div id="wbPlanHost"><p class="wb-foot" style="padding:14px">Loading the plan…</p></div>
+</div>
+<div class="wb-box">
+<div class="wb-sheet" id="wbSheet" aria-live="polite"><p class="k">PART</p><h3>Click any part</h3><p>Every outlined shape on the plan can be clicked or reached with the Tab key. This panel then says what the part is, which pin it uses, what it costs and what to watch for.</p></div>
+<ul class="wb-list" id="wbList" aria-label="Parts on this layer"></ul>
+</div>
+</div>
+<p class="wb-foot">Drawn from the case model's own numbers, so it always matches the files. Every layer is seen from the front, as you hold the controller. One square of the fine grid is 1 mm; the heavier lines are 5 mm apart. Positions are measured from the middle of the main bar.</p>
+</div>
+
+<div class="wb-panel wb-work" id="wb-work" role="tabpanel" aria-labelledby="wbt-work" hidden>
+<div class="wb-box"><div class="wb-ctl">
+<label>Battery size <output id="wbCapOut"></output><input type="range" id="wbCap" min="400" max="1600" step="100" value="1200"></label>
+<label>Stick sensor<select id="wbStick"><option value="hall">Hall (the plan), $1.69</option><option value="tmr">TMR, a tenth of the current, $2.62</option></select></label>
+<label>Time between radio slots<select id="wbSlot"><option value="7.5">7.5 ms (asked for first)</option><option value="11.25">11.25 ms (typical on a Mac)</option><option value="15">15 ms (the fallback)</option></select></label>
+<label>Charging current<select id="wbChg"><option value="0.25">0.25 A (5 kΩ resistor)</option><option value="0.37" selected>0.37 A (3 kΩ, the plan)</option><option value="0.58">0.58 A (2 kΩ)</option><option value="1">1.0 A (1.2 kΩ)</option></select></label>
+<label>Hours played a day <output id="wbHrsOut"></output><input type="range" id="wbHrs" min="0.5" max="6" step="0.5" value="2"></label>
+<label>How many you build<select id="wbQty"><option>10</option><option selected>30</option><option>50</option><option>200</option></select></label>
+<label>Battery price<select id="wbBatP"><option value="3">About $3 (marketplace, unconfirmed)</option><option value="7.41">$7.41 (cheapest confirmed)</option></select></label>
+<label>Rubber pads<select id="wbPad"><option value="2.99">$2.99 a set, bought singly</option><option value="2.25">$2.25 each in a lot of 100</option></select></label>
+</div><div class="wb-bar" style="border-top:1px solid var(--bl);border-bottom:0"><button type="button" class="wbtn" id="wbWorkReset">Reset to the plan</button><span>Every figure below is worked out from datasheets and price lists. None has been measured on a built controller.</span></div></div>
+<div class="wb-tiles" id="wbTiles"></div>
+<p class="wb-sum" id="wbSum"></p>
+<div class="wb-scroll"><table><thead><tr><th>Check</th><th>Value</th><th>Limit</th><th>Status</th><th>Why it matters</th><th>The working</th></tr></thead><tbody id="wbChecks"></tbody></table></div>
+<p class="wb-foot">The limits are this plan's own targets, not standards. "Marginal" means it works but leaves little room. Where a figure comes from is in <a href="#specs">Specifications</a> and <a href="#cost">Cost</a>.</p>
+</div>
+</section>
+
+<h2>On this page</h2>
+<ol class="dd-toc">
+<li><a href="#bench">The workbench: build steps, floor plan, the working</a></li>
+<li><a href="#specs">Specifications</a></li>
+<li><a href="#decisions">The five design decisions</a></li>
+<li><a href="#parts">Parts list</a></li>
+<li><a href="#shop">What to buy first, with links</a></li>
+<li><a href="#options">Options for each part</a></li>
+<li><a href="#wiring">Wiring and pin assignments</a></li>
+<li><a href="#firmware">Firmware</a></li>
+<li><a href="#test">Test a controller in the browser</a></li>
+<li><a href="#pcb">The circuit board</a></li>
+<li><a href="#case">The case</a></li>
+<li><a href="#assembly">Assembly, step by step</a></li>
+<li><a href="#cost">Cost at 10, 30, 50 and 200</a></li>
+<li><a href="#selling">If you sell them</a></li>
+<li><a href="#tradeoffs">Honest trade-offs</a></li>
+<li><a href="#order">What to do first</a></li>
+</ol>
+
+<h2 id="specs">Specifications</h2>
+<p>Design figures: what the drawings, datasheets and firmware say. None has been measured on a built controller yet. "Estimate" marks a figure worked out, not read from a datasheet.</p>
+<div class="dd-scroll"><table>
+<thead><tr><th>Group</th><th>Item</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td rowspan="4">Body</td><td>Size</td><td>125 × 78 mm; 22.2 mm thick in the middle, 29.2 mm from the crown of the front to the bottom of the palm swells (version 4; version 3 was a flat 21.7 mm)</td></tr>
+<tr><td>Weight</td><td>About 100 g (estimate: case 58 g, battery 21 g, board and parts 16 g, stick and cap 6 g, screws 2 g)</td></tr>
+<tr><td>Case</td><td>PETG, two shells, 2.0 mm walls, six M2 screws into brass inserts (four 8 mm long through the board, two 6 mm long in the grips)</td></tr>
+<tr><td>Print</td><td>About 46 cm³ of plastic (58 g) in 13 pieces, plus supports inside the two shells</td></tr>
+<tr><td rowspan="5">Controls</td><td>Stick</td><td>Magnetic (Hall), tilts 26° each way, about 120 gf to move, click at about 750 gf, rated 5 million movements and 1 million clicks; returns to centre within 6.3 %</td></tr>
+<tr><td>Face buttons</td><td>4, silicone domes with carbon contacts on gold board pads, 27 mm apart across and 21 mm top to bottom</td></tr>
+<tr><td>Shoulder buttons</td><td>4 (L1, R1, L2, R2), 160 gf, 0.12 mm travel, rated 500,000 presses</td></tr>
+<tr><td>Small buttons</td><td>Select, Start, Home: 160 gf, 0.2 mm travel, rated 100,000 presses</td></tr>
+<tr><td>Reported as</td><td>13 buttons, stick X and Y, and L2 / R2 again as fully pressed triggers</td></tr>
+<tr><td rowspan="5">Radio</td><td>Chip</td><td>ESP32-C6-WROOM-1-N8: Bluetooth 5 Low Energy, antenna on the module</td></tr>
+<tr><td>Profile</td><td>HID over GATT, gamepad. Pairs without a code and remembers the computer (bonding, LE Secure Connections)</td></tr>
+<tr><td>Time between radio slots</td><td>7.5 ms asked for first; 11.25 ms, then 15 ms if the computer refuses</td></tr>
+<tr><td>Transmit power</td><td>+3 dBm as set in the firmware (the module can do −16 to +19 dBm); receive sensitivity −98 dBm</td></tr>
+<tr><td>Range</td><td>Not measured. Expect ordinary same-room Bluetooth range; the antenna is closer to the case than Espressif recommends</td></tr>
+<tr><td rowspan="5">Response</td><td>Inputs read</td><td>About 1,000 times a second</td></tr>
+<tr><td>Button clean-up</td><td>First contact reported at once, then that button is ignored for 5 ms</td></tr>
+<tr><td>Stick</td><td>12-bit readings, smoothed over about 2 ms; round dead zone of 8 % at the centre (the stick is specified to re-centre within 6.3 %) and 4 % at the edge; sent as −32,767 to +32,767</td></tr>
+<tr><td>Report</td><td>12 bytes, sent only on change, at most one per radio slot (up to 133 a second at 7.5 ms)</td></tr>
+<tr><td>Added delay</td><td>Estimate: under 1 ms to notice a press, then 3.75 ms on average (7.5 ms at worst) waiting for the next radio slot at 7.5 ms</td></tr>
+<tr><td rowspan="9">Power</td><td>Battery</td><td>One lithium-polymer cell, 3.7 V, 1,200 mAh (4.4 Wh), 6 × 34 × 52 mm</td></tr>
+<tr><td>Charging</td><td>USB-C at 5 V, about 0.37 A (a 3 kΩ resistor on the charger chip); stops when the current falls to a tenth of that. Estimate: about 4 hours from empty</td></tr>
+<tr><td>Draw while playing</td><td>Estimate: about 35 mA. The chip with its radio idle is 14 to 30 mA by its datasheet, the radio adds a few milliamps at this report rate (it draws 130 mA sending and 73 mA listening, but only for a fraction of a millisecond per slot), and the Hall stick adds about 4 mA</td></tr>
+<tr><td>Play time</td><td>Estimate: about 30 hours on 1,200 mAh, about 12 on 500 mAh. A TMR stick saves about 3.6 mA</td></tr>
+<tr><td>Asleep</td><td>Estimate: about 75 µA (regulator 60, chip 7, protection 3, battery sensing 2, charger 1), so over a year on a full cell</td></tr>
+<tr><td>Switched off</td><td>Estimate: about 6 µA</td></tr>
+<tr><td>Battery protection</td><td>Cuts off above 4.30 V, below 2.40 V, and above about 3 A; the cell's own board does the same</td></tr>
+<tr><td>USB-C socket</td><td>Rated 10,000 insertions</td></tr>
+<tr><td>Temperature</td><td>Use −10 to 70 °C (the stick's limit); charge only between 0 and 45 °C (the battery's limit)</td></tr>
+<tr><td rowspan="4">Board</td><td>Size</td><td>108 × 46 × 1.2 mm with its top corners curved to follow the case, two layers, gold (ENIG) finish</td></tr>
+<tr><td>Parts</td><td>50, of 25 different kinds, all on the front, placed by the factory; the stick is soldered by hand</td></tr>
+<tr><td>Connectors</td><td>USB-C (16-pin, charging and data), JST-PH 2-pin for the battery</td></tr>
+<tr><td>Spare pins</td><td>GPIO11, GPIO16 and GPIO17 (test pads). L2 and R2 are on pins that can read a voltage, for analog triggers later</td></tr>
+<tr><td rowspan="3">Firmware</td><td>Built with</td><td>Arduino, esp32 board package 3.3.12, NimBLE-Arduino 2.5.2</td></tr>
+<tr><td>Size</td><td>719 KB of the 1,310 KB available (55 %); 24.7 KB of memory in use at start</td></tr>
+<tr><td>Saved on the chip</td><td>Stick calibration and the paired computers</td></tr>
+</tbody></table></div>
+
+<h2 id="decisions">The five design decisions</h2>
+
+<h3>1. The chip: ESP32-C6-WROOM-1</h3>
+<p>The controller is built around Espressif's ESP32-C6-WROOM-1 module. Four reasons:</p>
+<ul>
+<li><b>It is a finished, shielded radio with its own antenna and its own FCC ID.</b> You never design radio circuitry, and it matters a great deal if you ever sell a unit (see <a href="#selling">below</a>).</li>
+<li><b>It has USB built in.</b> Each board is flashed through its own USB-C socket. No programmer, no extra chip, which is what makes 30 units practical.</li>
+<li><b>It has enough pins.</b> Twelve buttons, two stick axes, battery sensing and a light need 16 pins. The ESP32-C3 module has 13 free, which would mean adding a second chip to read buttons, and it costs the same. The C6 has more than 20, so every button gets its own pin and the wiring stays simple.</li>
+<li><b>It is easy to program</b> with the free Arduino software, and at $3.49 it is among the cheapest modules that do all of the above.</li>
+</ul>
+<p>The smaller MINI version of the same chip would save space, but JLCPCB only fits it on its dearer "Standard" assembly service. The WROOM version is accepted on the cheap "Economic" one.</p>
+<p>What you give up: a Nordic nRF52840 uses roughly a tenth of the power and would run for weeks, not days. It costs about $2 more per unit and needs a separate programmer for every board. Battery life is last on this project's priority list and 25-plus hours is already more than most store-bought pads, so the ESP32-C6 wins. If you want month-long battery life later, the nRF52840 is the upgrade.</p>
+
+<h3>2. Shoulder inputs: four digital buttons, no analog triggers</h3>
+<p>Use two buttons a side, L1 / R1 and L2 / R2, all simple on/off switches. The firmware reports L2 and R2 both as buttons and as fully pressed triggers, so games that expect a trigger still respond.</p>
+<ul>
+<li><b>Analog triggers matter in two kinds of game:</b> racing games (how hard you press the throttle) and shooters. Shooters need a right stick, which this controller does not have. That leaves racing, where an on/off trigger still works; you just cannot feather the throttle.</li>
+<li><b>An analog trigger is the hardest mechanical part of a controller:</b> a pivoting lever, a return spring, a magnet and a sensor, twice. Printed in plastic by a first-time builder, it is the part most likely to break or stick in a backpack. Durability is this project's first priority.</li>
+<li><b>Four digital buttons cost about 40 cents</b> and are placed by the board factory.</li>
+</ul>
+<p>The two trigger pins were chosen from the ones that can also read a voltage, so a later board could swap the L2 and R2 switches for magnetic sensors without moving anything else.</p>
+
+<h3>3. The stick: a full-size magnetic module</h3>
+<p>Use a full-size stick that reads its position with magnets and no rubbing contacts, the same shape as the one in PlayStation and Xbox controllers: either a Hall-effect module or its newer cousin, TMR. Both sense a magnet without touching it, which is why they do not develop drift as they wear. The one this design is drawn around is the YTL 13-series, sold in a Hall version and a TMR version. Both datasheets confirm the stick runs on 3.3 V and has a built-in click switch rated for a million presses. The Hall version draws about 2 mA and is the cheaper one; the TMR version draws a tenth of that. Either is a small load next to the radio.</p>
+<p>The small Joy-Con style sticks would make the controller thinner, but they connect with a tiny ribbon and socket, screw to the case and not the board, and have no published datasheet. The full-size module is 14 ordinary solder joints and sits on the board by its own metal legs, which is far more forgiving for a first build and far stronger in a bag.</p>
+
+<h3>4. Face buttons: a silicone pad with carbon contacts</h3>
+<p>Store-bought controllers get their soft, quiet press from a moulded silicone dome with a carbon pill under it; pressing the button squashes the dome and the pill bridges two bare gold contacts on the board. This design does the same. The board has four gold contact patterns, and a replacement rubber pad made for a Super Nintendo style controller sits on top with a printed cap on each dome.</p>
+<p>That pad was chosen because it has been made unchanged for decades by many factories, and an open-hardware board design exists that shows its contact layout: the four contacts sit 27 mm apart left to right and 21 mm top to bottom. Select, Start and Home are small soft-press switches placed by the factory; the four shoulder buttons are side-facing switches, which do click lightly, as the bumpers on most commercial controllers do.</p>
+
+<h3>5. Power: charging that works whether the switch is on or off</h3>
+<p>A USB-C socket feeds a charger chip and the battery. A protection chip on the board cuts the battery off if it is over-charged, run flat or shorted, in addition to the one inside the cell. The slide switch does not carry the battery's current: it only tells the voltage regulator to turn on or off, so the switch's tiny contacts are never stressed and the controller draws almost nothing when off. A small transistor also switches the stick's power off when the controller sleeps.</p>
+
+<h2 id="parts">Parts list</h2>
+<p>Every part in one controller, down to the last resistor, then everything to buy for a batch of 30. Prices are in US dollars and were looked up on <span id="ddBomDate">16 November 2026</span>. For the parts on the board they are what JLCPCB's parts library charged that day for the quantity a batch of 30 uses. "C" numbers are LCSC part numbers, which JLCPCB's assembly service also uses. <b>To confirm</b> marks anything that could not be read from a listing or a datasheet. Stock changes weekly, so check every number again in the JLCPCB parts library when you order.</p>
+<p><b>Download:</b> <a id="ddBomCsv" href="daedalus-bom-jlcpcb.csv" download="daedalus-bom-jlcpcb.csv">daedalus-bom-jlcpcb.csv</a>, the board's parts in the four columns JLCPCB's assembly order asks for (Comment, Designator, Footprint, JLCPCB Part #), ready to upload as its parts list; and <a href="bom.json" download>bom.json</a>, everything in the three tables below. The tables and the CSV are both made from that one file, so they cannot disagree. JLCPCB also asks for a placement file; that comes out of the board drawing, which does not exist yet.</p>
+
+<h3>On the board, placed by the factory</h3>
+<p>One row for each different part. "Qty" is how many of it one board carries; "Each" is the price of one.</p>
+<div class="dd-scroll dd-bom"><table id="ddBomBoard">
+<thead><tr><th>Ref</th><th class="num">Qty</th><th>Part and value</th><th>Rating</th><th>Size</th><th>What it does here</th><th>Maker and part number</th><th>LCSC no.</th><th>JLCPCB class</th><th class="num">Each</th></tr></thead>
+<tbody><tr><td colspan="10">This table needs JavaScript. The same list is in the two files above.</td></tr></tbody>
+<tfoot></tfoot></table></div>
+<p id="ddBomBoardSum"></p>
+<p><b>Basic and Extended.</b> JLCPCB keeps its Basic parts loaded on the assembly machines and charges nothing extra for using them. Every different Extended part adds a one-off $3.07 to the order, however many boards are made. The exception is an Extended part marked "Preferred", which carries no fee on the Economic assembly service this plan uses. All the resistors, capacitors and lights here were chosen from the Basic list for that reason.</p>
+<p><b>Where each value comes from.</b> The page's wiring section fixes most of these. Where it did not, or where the reason matters, the working is here.</p>
+<ul id="ddBomWhy" class="dd-why"><li>This list needs JavaScript; the same notes are in bom.json.</li></ul>
+<p><b>The shoulder switches are still the parts most likely to wear out first.</b> Half a million presses is five times better than the first switch considered, but a heavily used R1 will get there one day. They are small and easy to re-solder. Their click is also very short, about 0.12 mm of travel, which is normal for this kind of switch.</p>
+
+<h3>Fitted by hand, and everything else in the box</h3>
+<p>What one finished controller holds besides the parts above, and what to buy for a batch of 30 with sensible spares. The 13 printed pieces are listed under <a href="#printing">Printing</a>; they come out of the filament in this table.</p>
+<div class="dd-scroll dd-bom"><table id="ddBomHand">
+<thead><tr><th>Item</th><th>Exactly what to buy</th><th>Where</th><th>For one controller</th><th>To buy for 30</th><th class="num">Cost in one</th><th>Notes</th></tr></thead>
+<tbody><tr><td colspan="7">This table needs JavaScript. The same list is in bom.json.</td></tr></tbody>
+<tfoot></tfoot></table></div>
+<p id="ddBomHandSum"></p>
+<p><b>What is left over after 30:</b> 3 sticks, 10 thumb caps, 2 batteries, 3 pad sets, 20 inserts, 80 of the longer screws and 40 of the shorter, most of the roll of tape, and whatever filament the failed prints did not use. The spare sticks, batteries and pads are the parts most likely to be needed for a repair later.</p>
+
+<h3 id="tools">Tools and consumables, bought once</h3>
+<p>Needed once for the whole batch, however many controllers are made. Borrow what you can.</p>
+<div class="dd-scroll dd-bom"><table id="ddBomTools">
+<thead><tr><th>Item</th><th>What to buy</th><th>Where</th><th>What it is for</th><th class="num">Price</th><th>Notes</th></tr></thead>
+<tbody><tr><td colspan="6">This table needs JavaScript. The same list is in bom.json.</td></tr></tbody>
+<tfoot></tfoot></table></div>
+<p id="ddBomToolsSum"></p>
+
+
+<h2 id="shop">What to buy first, with links</h2>
+<p>Real listings found on 14 November 2026. "Read" means the listing page itself was opened and showed that price; "search result" means the price was only seen in a search summary, because the shop's page would not load. Check each before you pay. Nothing here is sponsored.</p>
+
+<h3>For the breadboard prototype</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Item</th><th>Listing</th><th>Seller</th><th class="num">Price</th><th>Checked</th></tr></thead>
+<tbody>
+<tr><td>Development board, 1</td><td><a href="https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861" rel="noopener">ESP32-C6-DEVKITC-1-N8</a></td><td>DigiKey</td><td class="num">$9.00</td><td>Read; in stock</td></tr>
+<tr><td>Stick, 2</td><td><a href="https://www.lcsc.com/product-detail/C42410941.html" rel="noopener">YTL YHE-YG13-013</a> (Hall), LCSC no. C42410941</td><td>LCSC</td><td class="num">about $2.20 each</td><td>Part page read; price from a search result. The page does not say whether the click switch is fitted: check the datasheet</td></tr>
+<tr><td>Stick, quicker but dearer</td><td><a href="https://www.ifixit.com/products/ps4-dualshock-4-controller-gulikit-tmr-joystick" rel="noopener">GuliKit TMR Joystick for DualShock 4</a>, 2 sticks and 2 caps</td><td>iFixit</td><td class="num">$29.99</td><td>Read; ships from the US</td></tr>
+<tr><td>Rubber pads, 2 sets</td><td><a href="https://handheldlegend.com/products/super-nes-controller-silicone-membranes" rel="noopener">Super NES Controller Silicone Membranes</a></td><td>Hand Held Legend</td><td class="num">$2.99 a set</td><td>Read</td></tr>
+<tr><td>Breadboard</td><td><a href="https://www.adafruit.com/product/239" rel="noopener">Full Sized Premium Breadboard, 830 tie points</a></td><td>Adafruit</td><td class="num">$5.95</td><td>Read; in stock</td></tr>
+<tr><td>Jumper wires</td><td><a href="https://www.sparkfun.com/products/11026" rel="noopener">Jumper Wires Standard 7" M/M, 30 pack</a></td><td>SparkFun</td><td class="num">$3.50</td><td>Read; in stock</td></tr>
+<tr><td>Push buttons, 12</td><td><a href="https://www.sparkfun.com/products/97" rel="noopener">Mini Pushbutton Switch</a></td><td>SparkFun</td><td class="num">$0.50 each</td><td>Read; in stock</td></tr>
+<tr><td>USB-C cable that carries data</td><td><a href="https://www.adafruit.com/product/4474" rel="noopener">USB Type A to Type C Cable, 1 m</a></td><td>Adafruit</td><td class="num">$4.95</td><td>Read; in stock</td></tr>
+<tr><td>Thumb caps</td><td>PS4-style replacement thumbstick caps, 20 pack</td><td>eBay</td><td class="num">about $5.50</td><td>Search result only. Fit on a 4 mm D-shaped shaft not confirmed</td></tr>
+</tbody></table></div>
+<p>That is about $50 with the LCSC sticks. No ready-made adapter was found that lets this kind of stick plug into a breadboard, so the prototype starts with a first soldering job: eight thin wires onto the stick's pins.</p>
+
+<h3>Tools</h3>
+<p>The full list, with links and prices, is under <a href="#tools">Tools and consumables, bought once</a> in the parts list: about $180 if you own none of it. For the breadboard prototype the soldering iron, solder, cutters and the practice kit are enough.</p>
+
+<h3>For the two prototype units and the batch</h3>
+<ul>
+<li><b>Battery.</b> Still the weak point of the budget: see the <a href="#options">battery options</a>. The cheapest listing that could be read is $7.41 a cell in a pack of ten; about $3 from marketplace sellers is unconfirmed.</li>
+<li><b>Inserts:</b> <a href="https://www.prusa3d.com/product/heat-set-inserts-m2-short-100-pcs/" rel="noopener">Heat Set Inserts, M2 short, 100 pieces</a>, Prusa, $11.99 (read). Two packs for a batch of 30.</li>
+<li><b>Screws:</b> M2 socket head cap screws in two lengths, 8 mm and 6 mm (the <a href="#parts">parts list</a> says why). No price could be read from a listing page: about $10 a hundred from marketplace sellers, and $44.99 a hundred at Zoro in a search result.</li>
+<li><b>Filament:</b> <a href="https://www.prusa3d.com/product/prusament-petg-jet-black-1kg/" rel="noopener">Prusament PETG, 1 kg</a>, $23.99 to $29.99 (read). One spool makes about 13 cases, so a batch of 30 takes three.</li>
+<li><b>Rubber pads in bulk:</b> $2.99 a set from Hand Held Legend with no bulk price; an eBay lot of 100 sets for about $225 was seen in a search result only.</li>
+</ul>
+
+<h2 id="options">Options for each part</h2>
+<p>Two or three choices for everything you buy, with the one this plan assumes marked <b>Pick</b>. Prices are from the listing pages on 14 and 15 November 2026 unless a row says "search result", which means the shop's page would not load and the price is unconfirmed. The picks that go on the board were checked again in JLCPCB's parts library on 16 November.</p>
+
+<h3>Stick</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Option</th><th>Listing</th><th>Seller</th><th class="num">Per stick</th><th>Why you would choose it</th></tr></thead>
+<tbody>
+<tr><td><b>Pick</b>: cheapest</td><td><a href="https://www.lcsc.com/product-detail/C42410941.html" rel="noopener">YTL YHE-YG13-013 SH3B166A5</a>, Hall</td><td>LCSC</td><td class="num">$1.69 at 30; $1.47 at 80; $2.25 for one</td><td>The one the board's holes are drawn from, with a full datasheet. 460 in stock. Ships from China with the other LCSC parts</td></tr>
+<tr><td>Lower power</td><td><a href="https://www.lcsc.com/product-detail/C42411048.html" rel="noopener">YTL YTMR-YG13-006 SH3B174A5</a>, TMR</td><td>LCSC</td><td class="num">$2.62 at 30</td><td>Same holes and pin order, a tenth of the current. Only 22 in stock when checked, not enough for a batch; the better-stocked TMR, YTMR-YG13-010 SH3B174A3 (C52677831, $2.86 at 30), has its two sensors wired opposite ways round, so the board would need changing</td></tr>
+<tr><td>Small packs, quicker</td><td><a href="https://aknes.com" rel="noopener">AKNES HallPi V7 TMR Joysticks, without cap</a></td><td>AKNES</td><td class="num">$3.00 ($5.99 a pair)</td><td>Sold as controller repair parts. Check the pin order against the board before soldering: these are made for a PlayStation or Xbox board</td></tr>
+<tr><td>Best known brand</td><td>GuliKit V6 TMR Joystick, 1 pair (NS51)</td><td>AKNES; also <a href="https://handheldlegend.com" rel="noopener">Hand Held Legend</a> with caps at $16.49 a pair</td><td class="num">$5.50 to $8.25</td><td>The brand most repair guides use. Same caution about pin order</td></tr>
+</tbody></table></div>
+
+<h3>Parts on the board</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Job</th><th>Option</th><th>LCSC no.</th><th class="num">Each, at 30 to 50</th><th>Why you would choose it</th></tr></thead>
+<tbody>
+<tr><td rowspan="2">Radio module</td><td><b>Pick</b>: ESP32-C6-WROOM-1-N8</td><td>C5366877</td><td class="num">$3.49</td><td>Same module as the development board, 8 MB of storage, 4,200 in stock</td></tr>
+<tr><td>ESP32-C6-WROOM-1-N4</td><td>C6034714</td><td class="num">$3.26</td><td>Drops straight in and saves $0.27. Set Flash Size to 4 MB when flashing; the firmware needs 0.7 MB. The N16, the external-antenna and the MINI versions are not accepted on JLCPCB's cheap assembly service</td></tr>
+<tr><td rowspan="2">Shoulder switch</td><td><b>Pick</b>: SHOU HAN TS3819ZJ</td><td>C6386917</td><td class="num">$0.10</td><td>500,000 presses, the longest life found. Very short travel, 0.12 mm</td></tr>
+<tr><td>Alps SKRTLAE010, or Panasonic EVQP7C01P</td><td>C110293, C388883</td><td class="num">$0.12, $0.15</td><td>A little more travel (0.2 mm), but rated 100,000 presses. Different footprints</td></tr>
+<tr><td rowspan="2">Select, Start, Home</td><td><b>Pick</b>: XUNPU TS-1088-AR02016</td><td>C720477</td><td class="num">$0.04</td><td>A Basic part (no fee), 100,000 presses</td></tr>
+<tr><td>Panasonic EVQP2202M</td><td>C528967</td><td class="num">$0.30</td><td>1,000,000 presses. Slightly larger, 4.7 × 3.5 mm</td></tr>
+<tr><td rowspan="2">Charger</td><td><b>Pick</b>: TP4056 with a transistor and diode beside it</td><td>C16581</td><td class="num">$0.19 at 30; $0.15 at 50</td><td>Cheap, easy to solder and inspect, well understood. A "Preferred" Extended part, so no fee</td></tr>
+<tr><td>TI BQ24075</td><td>C2865459</td><td class="num">$0.97</td><td>Powers the controller and charges the battery at once by itself, replacing the transistor and diode. A tiny no-lead package, harder to check or rework</td></tr>
+<tr><td rowspan="2">3.3 V regulator</td><td><b>Pick</b>: ME6211C33</td><td>C82942</td><td class="num">$0.06</td><td>500 mA; uses 60 µA itself. An Extended part</td></tr>
+<tr><td>Richtek RT9080-33</td><td>C841192</td><td class="num">$0.10</td><td>Uses 2 µA itself, which would cut the sleeping drain from about 75 µA to about 17 µA. Input limit 5.5 V, which this circuit stays under. Check its pin order against the ME6211 before swapping</td></tr>
+<tr><td>USB protection</td><td>Worth adding: USBLC6-2SC6 (TECH PUBLIC)</td><td>C2827654</td><td class="num">$0.04</td><td>Shields the USB data pins from static when a cable is plugged in. Not in the first design; it adds one Extended part fee to the order (about 10 cents a board at 30)</td></tr>
+<tr><td rowspan="2">Battery socket</td><td><b>Pick</b>: XYECONN XY-S2B-PH-SM4-TB</td><td>C54582899</td><td class="num">$0.05</td><td>A copy of the JST part with the same pad positions on its drawing. 3,134 in stock at JLCPCB on 16 November 2026</td></tr>
+<tr><td>JST S2B-PH-SM4-TB(LF)(SN)</td><td>C295747</td><td class="num">$0.20</td><td>The original, and the one to use when it can be had. On 16 November 2026 JLCPCB had none and LCSC had 15, which is why it is no longer the pick</td></tr>
+<tr><td rowspan="2">Green charge light</td><td><b>Pick</b>: KENTO KT-0805G, size 0805</td><td>C2297</td><td class="num">$0.02</td><td>A Basic part, so no fee. One size larger than the other two lights</td></tr>
+<tr><td>KENTO KT-0603G, size 0603</td><td>C12624</td><td class="num">$0.01</td><td>The same size as the others, but an Extended part: it adds $3.07 to the order</td></tr>
+</tbody></table></div>
+
+<h3>Battery</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Option</th><th>Listing</th><th>Seller</th><th class="num">Each</th><th>Size, and what to know</th></tr></thead>
+<tbody>
+<tr><td><b>Pick</b>: fits the case</td><td><a href="https://pmdway.com/products/lithium-ion-polymer-battery-3-7v-1200mah" rel="noopener">Lithium Ion Polymer Battery 3.7 V 1200 mAh 603450</a></td><td>PMD Way</td><td class="num">$7.41 in a 10-pack ($74.11); $23.64 for one</td><td>50 × 34 × 6 mm, JST-PH 2.0 plug. Ships from China or Hong Kong in 3 to 4 weeks. The listing does not say whether a protection board is fitted or which way the plug is wired</td></tr>
+<tr><td>Confirmed and quick</td><td><a href="https://www.adafruit.com/product/1578" rel="noopener">Lithium Ion Polymer Battery 3.7 V 500 mAh</a></td><td>Adafruit</td><td class="num">$7.16 in tens; $7.95 for one</td><td>29 × 36 × 4.75 mm, protected, JST-PH, in stock in the US. Fits the pocket with room to spare, for roughly 12 hours of play</td></tr>
+<tr><td>Most capacity, wrong shape</td><td><a href="https://www.adafruit.com/product/258" rel="noopener">Lithium Ion Polymer Battery 3.7 V 1200 mAh</a></td><td>Adafruit</td><td class="num">$8.96 in tens</td><td>34 × 62 × 5 mm: 8 mm too long for the pocket as drawn. Usable only if you lengthen <code>battery_box</code> in the case model and check it clears the stick's pins</td></tr>
+<tr><td>Cheapest, unconfirmed</td><td>"603450 1200 mAh PH2.0" cells from Amazon or AliExpress sellers</td><td>Amazon, AliExpress</td><td class="num">about $3 to $5</td><td>Search results only. Often good value, but check for a protection board and test the plug's polarity on every one</td></tr>
+</tbody></table></div>
+<p>No US shop that could be checked stocks a protected 603450 cell with the right plug. Whichever you buy, test the plug with a multimeter before it goes near the board.</p>
+
+<h3>Development board for the breadboard prototype</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Option</th><th>Listing</th><th>Seller</th><th class="num">Price</th><th>Pins</th></tr></thead>
+<tbody>
+<tr><td><b>Pick</b></td><td><a href="https://www.digikey.com/en/products/detail/espressif-systems/ESP32-C6-DEVKITC-1-N8/17728861" rel="noopener">ESP32-C6-DEVKITC-1-N8</a></td><td>DigiKey (Adafruit lists it at $9.95, out of stock)</td><td class="num">$9.00</td><td>Carries the same module as the finished board and brings out every pin the firmware uses</td></tr>
+<tr><td>Smaller, cheaper</td><td>ESP32 C6 Supermini Dev Board</td><td>AmeriDroid</td><td class="num">$6.95</td><td>No GPIO10, so L1 has nowhere to go without changing the sketch</td></tr>
+<tr><td>Smallest</td><td>Seeed Studio XIAO ESP32-C6</td><td>Seeed Studio</td><td class="num">$5.20</td><td>Too few pins on its edges for this controller. Good for other projects, not this one</td></tr>
+</tbody></table></div>
+
+<h3>Rubber pad</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Option</th><th>Listing</th><th>Seller</th><th class="num">Per set</th><th>What is in it</th></tr></thead>
+<tbody>
+<tr><td><b>Pick</b></td><td><a href="https://handheldlegend.com/products/super-nes-controller-silicone-membranes" rel="noopener">Super NES Controller Silicone Membranes</a></td><td>Hand Held Legend</td><td class="num">$2.99</td><td>D-pad, the four-button pad this design uses, Start / Select, and both shoulder pads</td></tr>
+<tr><td>Same price</td><td>Silicone Pads for Super Nintendo</td><td>Retro Modding</td><td class="num">$2.99</td><td>D-pad, four-button pad and Start / Select</td></tr>
+<tr><td>Bulk</td><td>Lot of 100 replacement rubber button sets, SNES controller</td><td>eBay</td><td class="num">about $2.25</td><td>Search result only. Ask the seller for a photo of the four-button pad before buying a hundred</td></tr>
+</tbody></table></div>
+<p>Pads from different makers differ slightly: one buyer's review measured a 4 mm carbon pill where the original has 5.1 mm. Buy all the pads for a batch from one seller, after measuring a sample.</p>
+
+<h3>Inserts, screws and filament</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Item</th><th>Option</th><th>Seller</th><th class="num">Price</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td rowspan="2">M2 brass heat-set inserts</td><td><b>Pick</b>: <a href="https://www.prusa3d.com/product/heat-set-inserts-m2-short-100-pcs/" rel="noopener">Heat Set Inserts, M2 short, 100 pcs</a></td><td>Prusa</td><td class="num">$11.99</td><td>CNC Kitchen's design. The M2 × 3 insert is 3.0 mm long and 3.6 mm across, and wants the 3.2 mm hole the case already has</td></tr>
+<tr><td>ruthex Threaded Insert M2, 70 pieces, M2 × 4</td><td>3DJake</td><td class="num">$8.79</td><td>Search result only. 4 mm long: fits, since the holes are 4.5 mm deep</td></tr>
+<tr><td>M2 screws, 8 mm and 6 mm long</td><td><b>Pick</b>: socket head cap (ISO 4762), stainless, packs of 100. A pan head (ISO 7045) also fits</td><td>McMaster-Carr, Zoro, Amazon</td><td class="num">about $10 to $45 a hundred</td><td>Prices vary wildly for the same screw; none could be confirmed from a listing page. The socket head is 3.8 mm across and the pan head 4.0 mm, in a 4.4 mm recess, so the socket head has more room in a printed hole, and a hex key stays in it at the bottom of the deep grip holes</td></tr>
+<tr><td rowspan="3">PETG, 1 kg</td><td>Cheapest: Overture High Speed PETG</td><td>Overture</td><td class="num">$14.99</td><td></td></tr>
+<tr><td><b>Pick</b>: <a href="https://shop.polymaker.com/products/polymaker-petg" rel="noopener">Polymaker PETG</a></td><td>Polymaker</td><td class="num">$18.99</td><td></td></tr>
+<tr><td>Most consistent: <a href="https://www.prusa3d.com/product/prusament-petg-jet-black-1kg/" rel="noopener">Prusament PETG Jet Black</a></td><td>Prusa</td><td class="num">$23.99</td><td>Tight diameter tolerance, so clearances come out the same on every case</td></tr>
+<tr><td>Tougher in heat</td><td>Polymaker ASA</td><td>Polymaker</td><td class="num">$24.99</td><td>Holds its shape to about 100 °C. Needs an enclosed printer and ventilation</td></tr>
+<tr><td>Hides layer lines</td><td>Fiberon PETG-rCF08 (carbon-fibre filled)</td><td>Polymaker</td><td class="num">$19.99</td><td>Matt finish that hides layers well. Needs a hardened nozzle</td></tr>
+</tbody></table></div>
+
+<h3>Soldering and bench tools</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Item</th><th>Option</th><th>Seller</th><th class="num">Price</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td rowspan="4">Soldering iron</td><td>Cheapest: Soldering Iron, 30 W</td><td>SparkFun</td><td class="num">$11.50</td><td>No temperature control. Enough for the practice kit; not what you want for 30 sticks</td></tr>
+<tr><td><b>Pick</b>: <a href="https://www.adafruit.com/product/3685" rel="noopener">Adjustable 60W Pen-Style Soldering Iron</a></td><td>Adafruit</td><td class="num">$19.95</td><td>Adjustable, plugs into the wall</td></tr>
+<tr><td>Better: <a href="https://pine64.com/product/pinecil-smart-mini-portable-soldering-iron/" rel="noopener">Pinecil V2</a></td><td>Pine64</td><td class="num">$25.99</td><td>Heats in seconds and holds its temperature. Needs a USB-C charger that gives 20 V at 3 A, such as Pine64's PinePower 65 W ($24.99), and a cable</td></tr>
+<tr><td>Bench station: Weller WLSK3012A, or Hakko FX-888DX</td><td>SparkFun</td><td class="num">$64.95; about $125</td><td>Worth it only if you expect to keep soldering after this project. Hakko price from a search result</td></tr>
+<tr><td rowspan="2">Solder</td><td><b>Pick</b>: <a href="https://www.adafruit.com/product/734" rel="noopener">SAC305 lead-free, 0.031", rosin core, 100 g</a></td><td>Adafruit</td><td class="num">$29.95</td><td>Lead-free needs the iron about 20 °C hotter and flows less easily</td></tr>
+<tr><td>Leaded 63/37, 0.031", 100 g</td><td>SparkFun</td><td class="num">$24.95</td><td>Easier to learn with. This one has a water-soluble core: wash the joints with water afterwards. Wash your hands after handling leaded solder</td></tr>
+<tr><td>Flux and wick</td><td>Chip Quik no-clean flux pen; solder wick 0.8 mm</td><td>Adafruit</td><td class="num">$7.95; $2.95</td><td>Flux makes a reluctant joint flow; wick removes a mistake</td></tr>
+<tr><td rowspan="2">Multimeter</td><td><b>Pick</b>: <a href="https://www.sparkfun.com/products/12966" rel="noopener">Digital Multimeter - Basic</a></td><td>SparkFun</td><td class="num">$21.50</td><td></td></tr>
+<tr><td>Pocket Autoranging Digital Multimeter</td><td>Adafruit</td><td class="num">$24.95</td><td>Picks the range for you</td></tr>
+<tr><td rowspan="2">Calipers</td><td><b>Pick</b>: Solar Digital Calipers</td><td>Adafruit</td><td class="num">$14.95</td><td></td></tr>
+<tr><td>Digital Caliper, 0 to 150 mm</td><td>iFixit</td><td class="num">$39.95</td><td>Reads to 0.01 mm</td></tr>
+<tr><td>Holding the work</td><td>PCB clamp holder, Pro's Kit SN-390; or a "helping hands" stand</td><td>Adafruit</td><td class="num">$19.95; $6.95</td><td>The clamp is much the better of the two for a board this size</td></tr>
+<tr><td>Bench</td><td>Insulated silicone rework mat; safety glasses</td><td>Adafruit; SparkFun</td><td class="num">$9.95; $5.10</td><td>Wear the glasses when cutting leads: the offcuts fly</td></tr>
+<tr><td>Charger for the controller</td><td>Any 5 V USB charger or computer port; for example 5 V 1 A USB power supply</td><td>Adafruit</td><td class="num">$5.95</td><td>The controller takes under 0.4 A and does not need a fast charger</td></tr>
+</tbody></table></div>
+
+<h3>Who makes the board</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Service</th><th>Boards</th><th>Assembly</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><b>Pick</b>: JLCPCB</td><td>Yes</td><td>Yes, from its own parts stock</td><td>The parts list on this page uses its part numbers. Charges US import duty at checkout</td></tr>
+<tr><td>PCBWay</td><td>Yes; advertises $5 for 10 small boards</td><td>Yes; advertises $29 for 20 boards, 3 to 5 days, parts bought from DigiKey, Mouser and others</td><td>The nearest like-for-like alternative. The parts list would need re-matching to its suppliers</td></tr>
+<tr><td>Seeed Fusion</td><td>Yes; $9.90 for 10 small boards</td><td>Yes, from 7 working days, with free shipping on assembly orders</td><td>No minimum order</td></tr>
+<tr><td>Aisler</td><td>Yes, made in Europe, from €14.20</td><td>Yes, within 6 business days</td><td>Free worldwide shipping; made outside China, which may matter for duty</td></tr>
+<tr><td>OSH Park</td><td>Yes, made in the US, gold finish as standard: $5 per square inch for three boards, so about $43.50 for three of these</td><td>No</td><td>Good for the first three bare boards if you are willing to solder every part by hand, which is a hard first project</td></tr>
+</tbody></table></div>
+<p>None of these sites said how they handle US import duty, and none has quoted this board. The advertised prices are for small simple boards; treat them as a guide to which to ask for a quote.</p>
+
+<h2 id="wiring">Wiring and pin assignments</h2>
+<p>Every button connects its pin to ground when pressed; the chip's built-in pull-up resistors hold the pins high otherwise. These numbers are the ESP32-C6's GPIO numbers and are the ones the firmware uses. The letters in brackets (R6, C10 and so on) are the references in the <a href="#parts">parts list</a>.</p>
+<div class="dd-scroll"><table>
+<thead><tr><th>Pin</th><th>Connects to</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>GPIO0</td><td>L2 switch</td><td>Can also read a voltage, for a future analog trigger</td></tr>
+<tr><td>GPIO1</td><td>R2 switch</td><td>Same</td></tr>
+<tr><td>GPIO2</td><td>Stick X output</td><td>Through a 1 kΩ resistor (R16), with 100 nF (C10) from the pin to ground</td></tr>
+<tr><td>GPIO3</td><td>Stick Y output</td><td>Same filter (R17, C11)</td></tr>
+<tr><td>GPIO4</td><td>L3, the stick's click switch</td><td></td></tr>
+<tr><td>GPIO5</td><td>Home button</td><td>100 kΩ pull-up to 3.3 V (R6); wakes the controller from sleep</td></tr>
+<tr><td>GPIO6</td><td>Battery voltage</td><td>Battery + through 1 MΩ (R8), then 1 MΩ (R9) and 100 nF (C12) to ground, so the pin sees half the battery voltage</td></tr>
+<tr><td>GPIO7</td><td>Start button</td><td>100 kΩ pull-up to 3.3 V (R7); also wakes the controller</td></tr>
+<tr><td>GPIO8</td><td>Gate of the stick's power transistor (Q2)</td><td>10 kΩ pull-up to 3.3 V (R12). Low = stick powered. The chip also needs this pin high at start-up, which the pull-up provides</td></tr>
+<tr><td>GPIO9</td><td>BOOT button (inside the case)</td><td>10 kΩ pull-up (R11). Held at power-on, it forces the chip into flashing mode: the way back in if firmware ever goes wrong</td></tr>
+<tr><td>GPIO10</td><td>L1 switch</td><td></td></tr>
+<tr><td>GPIO12</td><td>USB D−</td><td>Straight to the USB-C socket</td></tr>
+<tr><td>GPIO13</td><td>USB D+</td><td>Straight to the USB-C socket</td></tr>
+<tr><td>GPIO15</td><td>Status light</td><td>Through 1 kΩ (R15) to the white LED (LED1), LED to ground. High = on</td></tr>
+<tr><td>GPIO16, 17</td><td>Test pads (serial TX, RX)</td><td>Not used by the firmware; handy for fault-finding</td></tr>
+<tr><td>GPIO18</td><td>Top face button (triangle position)</td><td>Gold contact pattern under the pad</td></tr>
+<tr><td>GPIO19</td><td>Right face button (circle position)</td><td>Same</td></tr>
+<tr><td>GPIO20</td><td>Bottom face button (cross position)</td><td>Same</td></tr>
+<tr><td>GPIO21</td><td>Left face button (square position)</td><td>Same</td></tr>
+<tr><td>GPIO22</td><td>R1 switch</td><td></td></tr>
+<tr><td>GPIO23</td><td>Select button</td><td></td></tr>
+<tr><td>EN</td><td>10 kΩ to 3.3 V (R10), 1 µF to ground (C6)</td><td>Holds the chip in reset for a moment at power-on</td></tr>
+<tr><td>3V3, GND</td><td>Regulator output, ground</td><td>22 µF (C5) and 100 nF (C7) right at the module's power pin</td></tr>
+</tbody></table></div>
+
+<figure class="dd-fig">
+<svg viewBox="0 0 760 400" role="img" aria-label="Power diagram. USB-C 5 volts goes to the charger chip, which charges the battery through a protection circuit. The system rail is fed from USB through a diode when the cable is in, and from the battery through transistor Q1 when it is not. The rail feeds a 3.3 volt regulator, which the slide switch turns on and off. The regulator powers the ESP32-C6, and through transistor Q2 the stick.">
+  <defs><marker id="dd-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 Z" class="acc"/></marker></defs>
+  <rect class="box" x="14" y="40" width="112" height="60" rx="8"/><text class="t-strong" x="70" y="66" text-anchor="middle">USB-C</text><text x="70" y="86" text-anchor="middle">5 V in</text>
+  <rect class="box" x="190" y="40" width="150" height="60" rx="8"/><text class="t-strong" x="265" y="66" text-anchor="middle">TP4056 charger</text><text x="265" y="86" text-anchor="middle">3 kΩ = 0.37 A</text>
+  <rect class="box" x="404" y="40" width="170" height="60" rx="8"/><text class="t-strong" x="489" y="66" text-anchor="middle">Battery 1,200 mAh</text><text x="489" y="86" text-anchor="middle">+ protection chip</text>
+  <rect class="box" x="190" y="160" width="150" height="50" rx="8"/><text class="t-strong" x="265" y="182" text-anchor="middle">D1 diode</text><text x="265" y="200" text-anchor="middle">USB to rail</text>
+  <rect class="box" x="404" y="160" width="170" height="50" rx="8"/><text class="t-strong" x="489" y="182" text-anchor="middle">Q1 transistor</text><text x="489" y="200" text-anchor="middle">battery to rail</text>
+  <rect class="box" x="296" y="270" width="170" height="60" rx="8"/><text class="t-strong" x="381" y="296" text-anchor="middle">3.3 V regulator</text><text x="381" y="316" text-anchor="middle">on/off pin = switch</text>
+  <rect class="box" x="14" y="270" width="150" height="60" rx="8"/><text class="t-strong" x="89" y="296" text-anchor="middle">Slide switch</text><text x="89" y="316" text-anchor="middle">carries no power</text>
+  <rect class="box" x="560" y="250" width="186" height="50" rx="8"/><text class="t-strong" x="653" y="281" text-anchor="middle">ESP32-C6 module</text>
+  <rect class="box" x="560" y="330" width="186" height="50" rx="8"/><text class="t-strong" x="653" y="352" text-anchor="middle">Q2, then the stick</text><text x="653" y="370" text-anchor="middle">off while asleep</text>
+  <path class="pw" marker-end="url(#dd-ar)" d="M126,70 H188"/>
+  <path class="pw" marker-end="url(#dd-ar)" d="M340,70 H402"/>
+  <path class="pw" marker-end="url(#dd-ar)" d="M158,70 V185 H188"/>
+  <path class="pw" marker-end="url(#dd-ar)" d="M489,100 V158"/>
+  <path class="pw" d="M265,210 V240 H489 V210"/>
+  <path class="pw" marker-end="url(#dd-ar)" d="M381,240 V268"/>
+  <path class="thin" marker-end="url(#dd-ar)" d="M164,300 H294"/>
+  <path class="pw" marker-end="url(#dd-ar)" d="M466,290 H520 V275 H558"/>
+  <path class="pw" marker-end="url(#dd-ar)" d="M520,290 V355 H558"/>
+  <text x="381" y="232" text-anchor="middle">system rail</text>
+  <text x="668" y="150" text-anchor="middle">battery + also feeds</text><text x="668" y="168" text-anchor="middle">GPIO6 (two 1 MΩ)</text>
+  <path class="thin" d="M574,84 H668 V132"/>
+</svg>
+<figcaption>How power flows. With the cable in, the controller runs from USB while the battery charges; with it out, Q1 connects the battery. Charging works with the switch off.</figcaption>
+</figure>
+
+<h3>The rest of the circuit, connection by connection</h3>
+<ul>
+<li><b>USB-C socket:</b> VBUS to the charger's input and to D1. CC1 and CC2 each through their own 5.1 kΩ resistor (R1, R2) to ground (without these, a USB-C to USB-C cable supplies no power). D− and D+ to GPIO12 and GPIO13. Shell and GND pins to ground. 10 µF (C1) from VBUS to ground.</li>
+<li><b>TP4056 charger:</b> VCC and CE to VBUS. PROG through 3 kΩ (R3) to ground (sets about 0.37 A, a gentle third of the cell's capacity; the current is 1,100 divided by the resistance in ohms). BAT to battery +, with 10 µF (C2) to ground. CHRG and STDBY each pull an LED (red = charging, green = full) through 1 kΩ from VBUS: LED2 with R13 on CHRG, LED3 with R14 on STDBY. TEMP to ground.</li>
+<li><b>Battery protection (XB5353A):</b> the cell's minus lead goes to the chip's GND pin (pin 2) and nowhere else. Pins 4 and 5 (VM) are the circuit's ground. Pin 3 (VDD) connects to battery + through 100 Ω (R4), with 100 nF (C8) from pin 3 to pin 2. Pin 1 is left unconnected. It cuts off above 4.30 V, below 2.40 V and at about 3 A.</li>
+<li><b>Q1 (AO3401A) and D1 (Schottky):</b> D1 from VBUS to the system rail. Q1's drain to battery +, source to the system rail, gate to VBUS with 100 kΩ (R5) from gate to ground. Cable in: the gate is high, Q1 is off, the rail runs from USB. Cable out: the gate falls, Q1 turns on.</li>
+<li><b>Regulator (ME6211C33):</b> input from the system rail with 10 µF (C3) to ground; output is the 3.3 V rail with 10 µF (C4) to ground. Its enable pin goes to the middle pin of the slide switch; the switch's two outer pins go to the system rail (on) and ground (off).</li>
+<li><b>Q2 (AO3401A):</b> source to 3.3 V, gate to GPIO8, drain to the stick's two supply pins, with 100 nF (C9) from the drain to ground.</li>
+<li><b>Stick:</b> each of its two sensors has three pins. On the Hall module listed here both sensors have blue housings and the order is pin 1 ground, pin 2 output, pin 3 supply. <b>Sensors with green housings are the other way round</b> (pin 1 supply, pin 3 ground), and some versions of the TMR module have one of each, so look at the colours of the part you actually receive. The click switch's four pins are two pairs: S1 and S2 are joined, S3 and S4 are joined; connect one pair to GPIO4 and the other to ground.</li>
+</ul>
+
+<h2 id="firmware">Firmware</h2>
+<p>One Arduino sketch, about 500 lines, with every setting at the top: <a href="firmware/daedalus/daedalus.ino" download>download daedalus.ino</a>.</p>
+<details class="dd-code"><summary>Show the code</summary><pre id="ddCode">Loading…</pre></details>
+
+<h3>What it does</h3>
+<ul>
+<li>Reads every input about a thousand times a second. A press is reported on its very first contact, then that button is ignored for 5 ms while the contact settles, so cleaning up the signal adds no delay.</li>
+<li>Sends a report only when something changed, and at most once per radio slot, so reports never queue up.</li>
+<li>Asks the computer for the shortest gap between radio slots: 7.5 ms, which Windows allows; if that is refused, 11.25 ms, then 15 ms, which are what Apple's rules allow.</li>
+<li>Remembers the stick's centre and range. Hold Start + Select for 3 seconds to calibrate: leave the stick alone while the light is solid, then roll it around its edge while the light flickers.</li>
+<li>Gives the stick a round dead zone, measured on how far it is pushed and not on each axis separately, so slow diagonal moves do not snap to up, down, left or right.</li>
+<li>Reports the battery level to the computer and double-blinks the light under 10 %.</li>
+<li>Sleeps after 10 minutes untouched or 3 minutes with no computer found. Home or Start wakes it. Hold Home for 5 seconds to forget every paired computer.</li>
+</ul>
+
+<h3>Settings at the top of the sketch</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Name</th><th>Set to</th><th>What it changes</th></tr></thead>
+<tbody>
+<tr><td><code>DEVICE_NAME</code></td><td>"Daedalus"</td><td>The name shown in Bluetooth settings</td></tr>
+<tr><td><code>STICK_INVERT_X</code>, <code>STICK_INVERT_Y</code>, <code>STICK_SWAP_XY</code></td><td>false</td><td>Flip these if a direction comes out backwards or the axes are swapped on your board</td></tr>
+<tr><td><code>INNER_DEADZONE</code></td><td>0.08</td><td>How much of the travel round the centre reads as zero. Set just above the 6.3 % the stick is specified to re-centre within; raise it if anything creeps with the stick at rest</td></tr>
+<tr><td><code>OUTER_DEADZONE</code></td><td>0.04</td><td>How close to the edge already reads as full</td></tr>
+<tr><td><code>STICK_CURVE</code></td><td>1.0</td><td>1.0 follows the stick exactly. 1.5 gives finer control near the centre</td></tr>
+<tr><td><code>DEBOUNCE_MS</code></td><td>5</td><td>How long a button is ignored after it changes. Raise to 8 if a worn button double-presses</td></tr>
+<tr><td><code>TX_POWER_DBM</code></td><td>3</td><td>Radio power. Raise for more range, at the cost of battery life</td></tr>
+<tr><td><code>IDLE_SLEEP_MS</code>, <code>SEARCH_SLEEP_MS</code></td><td>10 minutes, 3 minutes</td><td>How long before it sleeps when untouched, or when no computer is found</td></tr>
+</tbody></table></div>
+
+<h3>Setting up and flashing</h3>
+<ol>
+<li>Install the <a href="https://www.arduino.cc/en/software" rel="noopener">Arduino IDE 2</a>.</li>
+<li>In <b>Boards Manager</b>, install "esp32" by Espressif Systems (version 3). In <b>Library Manager</b>, install "NimBLE-Arduino" by h2zero (version 2).</li>
+<li>Put <code>daedalus.ino</code> in a folder with the same name, <code>daedalus</code>, and open it.</li>
+<li>Under <b>Tools</b>: Board "ESP32C6 Dev Module"; USB CDC On Boot "Enabled"; CPU Frequency "80MHz (WiFi)"; Flash Size "8MB (64Mb)".</li>
+<li>Plug the board in with a USB-C cable that carries data (many charge-only cables do not), pick its port under Tools &gt; Port, and press Upload.</li>
+<li>If the port does not appear or the upload fails: hold the BOOT button, switch the controller off and on, release BOOT, and upload again. On a finished controller that means taking the back off first; it should only ever be needed if firmware has gone badly wrong.</li>
+<li>Open Tools &gt; Serial Monitor. Twice a second the controller prints which buttons are down, the stick position and the battery level. Use this to check a board before it goes in a case.</li>
+<li>On the computer, open Bluetooth settings and add "Daedalus". On Windows, <code>joy.cpl</code> (Set up USB game controllers) shows every button and axis.</li>
+</ol>
+<p>If you prefer PlatformIO to the Arduino IDE, the folder also has a <a href="firmware/daedalus/platformio.ini" download>platformio.ini</a> that pins the exact versions: put it beside the sketch and run <code>pio run -t upload</code>.</p>
+
+<h3>On a breadboard first</h3>
+<ul>
+<li>The ESP32-C6-DevKitC-1's pins are labelled with the same GPIO numbers as the table above, so wire each push button from its pin to a ground rail.</li>
+<li>Power the stick straight from the board's 3V3 pin (the transistor that switches it off is only on the finished board). Each axis needs 3V3, ground and its output to GPIO2 or GPIO3; the click switch goes between GPIO4 and ground.</li>
+<li>For the status light, put any LED in series with a 1 kΩ resistor between GPIO15 and ground, long leg towards GPIO15.</li>
+<li>Leave GPIO6 unconnected: with no battery the level will read as empty, which is fine for testing.</li>
+<li>The development board has two USB-C sockets. Use the one marked USB, not UART.</li>
+</ul>
+
+<p>For the batch, flash the first board from the Arduino IDE, then use Sketch &gt; Export Compiled Binary and Espressif's free <code>esptool</code> to write that one file to the other 29. It takes about 20 seconds a board.</p>
+<div class="callout">
+<p><b>What "compiles" does and does not mean.</b> The sketch was built for the ESP32-C6 with version 3.3.12 of the esp32 board package and version 2.5.2 of NimBLE-Arduino, with no errors or warnings. That catches typing mistakes, not behaviour. Pairing, the report layout, sleep and calibration all still need checking on a real board, which is step one of <a href="#order">what to do first</a>.</p>
+</div>
+
+<h2 id="test">Test a controller in the browser</h2>
+<p>Pair the controller with this computer, press any button on it, and this box shows what the browser receives, using the controller's own button order. It works with any gamepad, so you can try it now with one you already own (the names will not match).</p>
+<div class="dd-pad" id="ddPad">
+<p id="ddPadState">No controller seen yet. Press a button on it.</p>
+<div class="dd-keys" id="ddKeys"></div>
+<div class="dd-stick" aria-hidden="true"><i id="ddDot"></i></div>
+<p id="ddAxes" style="margin:10px 0 0;font-family:var(--mono);font-size:13px"></p>
+</div>
+
+<h2 id="pcb">The circuit board</h2>
+<h3>Software</h3>
+<p>Use <b>EasyEDA</b> (free, runs in the browser). It is made by the same company as JLCPCB and the LCSC parts shop, so every part in the list below can be dropped in by its "C" number with a correct footprint, and the order files for assembly come out with one click. KiCad is the stronger tool and worth learning later, but for a first board that a factory will assemble, EasyEDA removes the two most common beginner mistakes: wrong footprints and wrong part rotations.</p>
+
+<h3>The board</h3>
+<ul>
+<li><b>Size and build:</b> 108 × 46 mm, its top corners curved to follow the inside of the case (import board.dxf for the exact edge), two copper layers, <b>1.2 mm thick</b> (the stick's legs are made for a 1.2 mm board), with <b>ENIG gold finish</b>. Gold is not optional: the face buttons press carbon onto bare board contacts, and the ordinary tin finish wears and tarnishes there.</li>
+<li><b>Everything the factory places goes on the front.</b> Assembly on one side is the cheap service; two sides roughly doubles the set-up cost.</li>
+<li><b>Radio module at the bottom edge, in the middle,</b> antenna end down, between the grips and away from both hands. The board has a 20 × 6 mm cut-out under the antenna, as Espressif's layout guide asks. Espressif also asks for 15 mm of clear space between the antenna and any housing, which a hand-held case cannot give, and the battery behind the board ends 1.6 mm short of the antenna; expect less range than the module's rated best until it is measured.</li>
+<li><b>USB-C socket in the middle of the top edge,</b> its mouth about 0.5 mm past the edge, with the two charge lights beside it and the slide switch to its left.</li>
+<li><b>Stick on the left, face contacts on the right.</b> The stick needs fourteen holes: four of 1.2 mm for the frame legs, six of 1.0 mm for the sensor pins, four of 0.9 mm for the switch. Their positions, taken from the datasheet, are in <a href="case/layout.json" download>layout.json</a>.</li>
+<li><b>Face contacts:</b> for each button, two interleaved combs of 0.3 mm fingers with 0.3 mm gaps, in a circle about 5.3 mm across, with the green solder mask removed over the whole circle. One comb goes to the pin, the other to ground. The spacing in the drawing below (27 mm left to right, 21 mm top to bottom) is taken from an <a href="https://codeberg.org/taylor-madeak/oshw-snes-controller-pcb" rel="noopener">open-hardware SNES controller board</a> by Taylor Madeak (CC BY-SA 4.0). <b>Check it against the pad you bought</b>, and check whether its domes sit square or slightly tilted, before ordering boards.</li>
+<li><b>Shoulder switches</b> along the top edge, their bodies flush with it and their push-buttons sticking out past it. Small switches for Select, Start and Home in a diamond with the status light, and BOOT near the bottom edge. BOOT has no hole in the case: it is only for recovering from bad firmware, and you open the case to reach it.</li>
+<li><b>Tracks:</b> 0.5 mm or wider for anything carrying battery or USB power, 0.25 mm for signals, the back layer one solid ground area. Keep the USB data pair short and side by side.</li>
+<li><b>Mounting:</b> four 2.2 mm holes for M2 screws, plus a notch in the bottom edge, left of the radio module, for the battery lead to pass to the back. Keep the back of the board clear of solder joints at the three support points in the table below.</li>
+<li><b>Test pads:</b> 3.3 V, ground, battery +, TX, RX, labelled in the white print.</li>
+</ul>
+
+<h3>Numbers to draw it to</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Item</th><th>Value</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Signal tracks</td><td>0.25 mm wide, 0.2 mm apart or more</td><td>Well inside what JLCPCB can make, so a small error still gets made correctly</td></tr>
+<tr><td>Power tracks</td><td>0.5 mm; 0.8 mm for USB power and the battery</td><td>The radio draws short bursts of a few hundred milliamps</td></tr>
+<tr><td>USB data pair</td><td>0.25 mm tracks side by side, under 20 mm long, same length within 1 mm</td><td>At this short length nothing more exact is needed</td></tr>
+<tr><td>Vias</td><td>0.3 mm hole, 0.6 mm pad</td><td></td></tr>
+<tr><td>Ground</td><td>Filled copper on both layers, stitched together with vias every 10 mm or so</td><td>Not under the antenna, and not under the face contacts' combs</td></tr>
+<tr><td>Copper to board edge</td><td>0.4 mm or more</td><td>Except the USB-C socket and shoulder switches, which sit at the edge by design</td></tr>
+<tr><td>Capacitors</td><td>22 µF + 100 nF (C5, C7) within 3 mm of the module's 3V3 pin; 10 µF at the regulator's input and output (C3, C4); 10 µF at the charger's input and at the battery (C1, C2); each 100 nF right beside the pin it serves</td><td></td></tr>
+<tr><td>White print</td><td>Label the battery socket + and −, every test pad, and the board's version</td><td>The + and − marks are what you check the battery plug against</td></tr>
+</tbody></table></div>
+
+<h3>Where everything goes</h3>
+<p>The case model and the board are drawn from one list of numbers, so they cannot drift apart. This drawing and table are read from that list (<a href="case/layout.json" download>layout.json</a>); <a href="case/board.dxf" download>board.dxf</a> is the board's outline and holes, ready to import into EasyEDA or KiCad as the board edge. Positions are in millimetres from the board's bottom-left corner, seen from the front.</p>
+<figure class="dd-fig"><div id="ddLayout" class="dd-wide"><p>The drawing needs JavaScript. The numbers are in layout.json.</p></div>
+<figcaption>Board, front side. Change a number in the case model, run it again, and this drawing, the board outline and the case all move together.</figcaption></figure>
+<div class="dd-scroll"><table id="ddLayoutTable"><thead><tr><th>Part</th><th class="num">X</th><th class="num">Y</th><th>Notes</th></tr></thead><tbody></tbody></table></div>
+
+<h3>Ordering from JLCPCB</h3>
+<ol>
+<li>In EasyEDA, run the design check until it reports no errors, then choose "Order at JLCPCB". (From KiCad: export Gerber files, a parts list and a placement file.)</li>
+<li>On the order form: base material FR-4; 2 layers; 108 × 46 mm; <b>thickness 1.2 mm</b>; <b>surface finish ENIG</b>; outer copper 1 oz; any colour; leave everything else as it is.</li>
+<li>Turn on <b>PCB Assembly</b>: "Economic", top side. For the first order choose 5 boards with 2 assembled; for the batch, assemble all.</li>
+<li>Check the parts list it matched, line by line, against the <a href="#parts">parts list</a> on this page. (If you drew the board outside EasyEDA, <a href="daedalus-bom-jlcpcb.csv" download>daedalus-bom-jlcpcb.csv</a> is that list as a file to upload.) "Basic" parts carry no extra fee; each different "Extended" part adds a small one-off fee to the order. If a part is out of stock, pick the suggested equivalent and check its footprint is the same.</li>
+<li><b>Look at the placement preview carefully.</b> Check the dot or notch on every chip, the direction of the diode and LEDs, and that the USB-C socket faces off the board. Wrong rotation is the classic first-order mistake.</li>
+<li>Pay. Boards usually arrive in one to two weeks. The price at checkout includes any import duty for your country: use that number, not an estimate.</li>
+</ol>
+
+<h2 id="case">The case</h2>
+<p>Two shells, front and back, that screw together with the board trapped between them. The fourth version is modelled and ready to download below. To change it, edit the numbers in the model and run it again. Version 4's shells are sculpted, so they exist only as printable STL files; versions 2 and 3, further down, also come as STEP files that open in any 3D design program (Onshape and Fusion are free for personal projects, and FreeCAD is free for any use, which matters if you sell).</p>
+<h3>Case files, version 4</h3>
+<div class="callout dd-status"><p><b>Drawn, not yet printed.</b> These files come from datasheets and estimates. Print <a href="case/coupon.stl" download>coupon.stl</a> first: a small test piece with one button hole, one Select hole, one insert post and the USB-C opening. Then check the sizes marked MEASURE in the model against your real stick, pad and switches before printing a whole case.</p></div>
+<ul class="dd-files">
+<li><a href="case/front_shell.stl" download>front_shell.stl</a>, print 1, rim on the plate, with supports</li>
+<li><a href="case/back_shell.stl" download>back_shell.stl</a>, print 1, turned over so its rim is on the plate, with supports</li>
+<li>Face buttons, print 1 of each: <a href="case/face_button_top.stl" download>top</a>, <a href="case/face_button_right.stl" download>right</a>, <a href="case/face_button_bottom.stl" download>bottom</a>, <a href="case/face_button_left.stl" download>left</a></li>
+<li><a href="case/select_start_button.stl" download>select_start_button.stl</a>, print 2</li>
+<li><a href="case/home_button.stl" download>home_button.stl</a>, print 1</li>
+<li><a href="case/shoulder_l1.stl" download>shoulder_l1.stl</a> and <a href="case/shoulder_r1.stl" download>shoulder_r1.stl</a>, print 1 of each, as drawn</li>
+<li><a href="case/shoulder_l2_r2.stl" download>shoulder_l2_r2.stl</a>, print 2, as drawn</li>
+<li><a href="case/template.svg" download>template.svg</a>, a full-size drawing of the front to print on paper</li>
+<li><a href="case/board.step" download>board.step</a>, the circuit board's outline and holes as a solid, for a 3D design program</li>
+<li><a href="case/daedalus_case.py" download>daedalus_case.py</a> and <a href="case/sculpt.py" download>sculpt.py</a>, the model itself</li>
+</ul>
+<p><b>What changed from version 3.</b> The outline, the board and every part position are the same; the surfaces are not. Version 3 was a flat slab with rounded edges. In version 4 the front is a shallow dome, highest between the stick and the buttons, falling 2.6 mm to each side and nearly 6 mm down the grips. The back is flat in the middle, where the battery lies, and swells 7 mm into each palm. Each edge rolls over in one curve, 5.5 mm on the front and 8 mm on the back, with no flat step. The wall is 2 mm thick everywhere, so the inside follows the outside. Each face button's top is cut to the curve where it sits, which is why there are now four different ones.</p>
+<figure class="dd-fig">
+<svg viewBox="50 40 630 385" role="img" aria-label="Two cross-sections of the case, cut from front to back: one through the middle, one through a grip">
+  <path class="box" fill-rule="evenodd" d="M150.5,91.4 L151.0,89.2 L151.5,87.5 L152.3,85.5 L153.0,83.9 L154.0,82.1 L155.0,80.5 L156.0,79.1 L157.0,77.8 L158.2,76.5 L159.5,75.2 L160.9,74.0 L162.2,73.0 L163.7,72.0 L165.3,71.0 L167.0,70.2 L168.5,69.5 L170.5,68.8 L172.5,68.2 L174.5,67.8 L177.0,67.5 L179.0,67.4 L181.5,67.3 L184.0,67.2 L186.5,67.1 L188.5,67.0 L191.0,66.9 L193.5,66.7 L196.0,66.6 L198.5,66.5 L200.5,66.5 L203.0,66.4 L205.5,66.3 L208.0,66.2 L210.5,66.1 L213.0,66.0 L215.0,65.9 L217.5,65.9 L220.0,65.8 L222.5,65.7 L225.0,65.7 L227.5,65.6 L230.0,65.5 L232.0,65.5 L234.5,65.4 L237.0,65.4 L239.5,65.3 L242.0,65.3 L244.5,65.2 L247.0,65.2 L249.5,65.2 L252.0,65.1 L254.5,65.1 L257.0,65.1 L259.5,65.1 L262.0,65.0 L264.5,65.0 L267.0,65.0 L269.5,65.0 L272.0,65.0 L274.5,65.0 L277.0,65.0 L279.5,65.0 L282.0,65.0 L284.5,65.0 L287.0,65.0 L289.5,65.1 L292.0,65.1 L294.5,65.1 L297.0,65.1 L299.5,65.2 L302.0,65.2 L304.5,65.2 L307.0,65.3 L309.5,65.3 L312.0,65.4 L314.5,65.4 L317.0,65.5 L319.0,65.5 L321.5,65.6 L324.0,65.6 L326.5,65.7 L329.0,65.8 L331.5,65.8 L334.0,65.9 L336.5,66.0 L338.5,66.1 L341.0,66.1 L343.5,66.2 L346.0,66.3 L348.5,66.4 L350.5,66.5 L353.0,66.6 L355.5,66.7 L358.0,66.8 L360.5,66.9 L362.5,67.0 L365.0,67.1 L367.5,67.3 L370.0,67.4 L372.5,67.5 L374.5,67.6 L377.0,67.7 L379.5,67.9 L381.8,68.0 L384.0,68.1 L386.5,68.3 L389.0,68.4 L391.0,68.5 L393.5,68.7 L395.6,69.0 L397.8,69.5 L399.5,70.0 L401.5,70.8 L403.0,71.5 L404.8,72.5 L406.4,73.5 L407.7,74.5 L409.0,75.5 L410.5,76.9 L411.5,78.0 L412.8,79.5 L414.0,81.0 L415.0,82.5 L415.9,84.0 L416.7,85.5 L417.5,87.2 L418.2,89.0 L418.9,91.0 L419.4,93.0 L419.7,95.0 L420.0,97.5 L420.0,99.5 L420.0,102.0 L420.0,104.5 L420.0,107.0 L420.0,109.5 L420.0,112.0 L420.0,114.5 L420.0,117.0 L420.0,119.5 L420.0,122.0 L420.0,124.5 L420.0,127.0 L420.0,129.5 L420.0,132.0 L420.0,134.5 L420.0,136.5 L419.9,139.0 L419.6,141.5 L419.3,143.5 L418.9,145.5 L418.3,147.5 L417.7,149.5 L417.0,151.2 L416.2,153.0 L415.5,154.5 L414.5,156.2 L413.5,157.9 L412.5,159.3 L411.5,160.7 L410.4,162.0 L409.0,163.5 L408.0,164.6 L406.5,166.0 L405.3,167.0 L404.0,168.0 L402.5,169.1 L401.0,170.0 L399.4,171.0 L397.5,172.0 L396.0,172.7 L394.0,173.5 L392.5,174.0 L390.5,174.6 L388.5,175.1 L386.3,175.5 L384.0,175.8 L381.5,176.0 L379.5,176.0 L377.0,176.0 L374.5,176.0 L372.0,176.0 L369.5,176.0 L367.0,176.0 L364.5,176.0 L362.0,176.0 L359.5,176.0 L357.0,176.0 L354.5,176.0 L352.0,176.0 L349.5,176.0 L347.0,176.0 L344.5,176.0 L342.0,176.0 L339.5,176.0 L337.0,176.0 L334.5,176.0 L332.0,176.0 L329.5,176.0 L327.0,176.0 L324.5,176.0 L322.0,176.0 L319.5,176.0 L317.0,176.0 L314.5,176.0 L312.0,176.0 L309.5,176.0 L307.0,176.0 L304.5,176.0 L302.0,176.0 L299.5,176.0 L297.0,176.0 L294.5,176.0 L292.0,176.0 L289.5,176.0 L287.0,176.0 L284.5,176.0 L282.0,176.0 L279.5,176.0 L277.0,176.0 L274.5,176.0 L272.0,176.0 L269.5,176.0 L267.0,176.0 L264.5,176.0 L262.0,176.0 L259.5,176.0 L257.0,176.0 L254.5,176.0 L252.0,176.0 L249.5,176.0 L247.0,176.0 L244.5,176.0 L242.0,176.0 L239.5,176.0 L237.0,176.0 L234.5,176.0 L232.0,176.0 L229.5,176.0 L227.0,176.0 L224.5,176.0 L222.0,176.0 L219.5,176.0 L217.0,176.0 L214.5,176.0 L212.0,176.0 L209.5,176.0 L207.0,176.0 L204.5,176.0 L202.0,176.0 L199.5,176.0 L197.0,176.0 L194.5,176.0 L192.0,176.0 L190.0,176.0 L187.5,175.9 L185.0,175.7 L183.0,175.4 L181.0,175.0 L179.0,174.5 L177.0,173.8 L175.0,173.1 L173.5,172.4 L171.6,171.5 L170.0,170.6 L168.5,169.7 L167.0,168.7 L165.5,167.6 L164.1,166.5 L163.0,165.5 L161.5,164.1 L160.5,163.0 L159.2,161.5 L158.0,160.0 L157.0,158.6 L156.0,157.1 L155.1,155.5 L154.3,154.0 L153.5,152.4 L152.7,150.5 L152.0,148.5 L151.5,146.8 L151.0,144.9 L150.5,142.5 L150.3,140.5 L150.1,138.0 L150.0,135.5 L150.0,133.0 L150.0,130.5 L150.0,128.0 L150.0,125.5 L150.0,123.0 L150.0,120.5 L150.0,118.0 L150.0,115.5 L150.0,113.0 L150.0,110.5 L150.0,108.0 L150.0,105.5 L150.0,103.0 L150.0,100.5 L150.0,98.0 L150.0,95.5 L150.2,93.0 Z M160.5,91.8 L161.0,90.0 L161.9,88.0 L162.7,86.5 L163.7,85.0 L164.9,83.5 L166.0,82.4 L167.5,81.2 L169.0,80.2 L170.5,79.3 L172.5,78.5 L174.2,78.0 L176.5,77.6 L178.5,77.5 L181.0,77.3 L183.5,77.2 L186.0,77.1 L188.0,77.0 L190.5,76.9 L193.0,76.8 L195.5,76.7 L198.0,76.6 L200.0,76.5 L202.5,76.4 L205.0,76.3 L207.5,76.2 L210.0,76.1 L212.5,76.0 L214.5,76.0 L217.0,75.9 L219.5,75.8 L222.0,75.7 L224.5,75.7 L227.0,75.6 L229.5,75.5 L231.5,75.5 L234.0,75.4 L236.5,75.4 L239.0,75.3 L241.5,75.3 L244.0,75.3 L246.5,75.2 L249.0,75.2 L251.5,75.1 L254.0,75.1 L256.5,75.1 L259.0,75.1 L261.5,75.0 L264.0,75.0 L266.5,75.0 L269.0,75.0 L271.5,75.0 L274.0,75.0 L276.5,75.0 L279.0,75.0 L281.5,75.0 L284.0,75.0 L286.5,75.0 L289.0,75.1 L291.5,75.1 L294.0,75.1 L296.5,75.1 L299.0,75.2 L301.5,75.2 L304.0,75.2 L306.5,75.3 L309.0,75.3 L311.5,75.4 L314.0,75.4 L316.5,75.5 L318.6,75.5 L321.0,75.6 L323.5,75.6 L326.0,75.7 L328.5,75.8 L331.0,75.8 L333.5,75.9 L336.0,76.0 L338.0,76.0 L340.5,76.1 L343.0,76.2 L345.5,76.3 L348.0,76.4 L350.5,76.5 L352.5,76.6 L355.0,76.7 L357.5,76.8 L360.0,76.9 L362.2,77.0 L364.5,77.1 L367.0,77.2 L369.5,77.4 L372.0,77.5 L374.0,77.6 L376.5,77.7 L379.0,77.8 L381.5,78.0 L383.5,78.1 L386.0,78.2 L388.5,78.4 L390.5,78.5 L393.0,78.7 L395.1,79.0 L397.0,79.5 L399.0,80.3 L400.5,81.1 L402.0,82.1 L403.5,83.4 L404.7,84.5 L405.9,86.0 L407.0,87.5 L407.8,89.0 L408.5,90.5 L409.2,92.5 L409.7,94.5 L410.0,97.0 L410.0,99.0 L410.0,101.5 L410.0,104.0 L410.0,106.5 L410.0,109.0 L410.0,111.5 L410.0,114.0 L410.0,116.5 L410.0,119.0 L410.0,121.5 L410.0,124.0 L410.0,126.5 L410.0,129.0 L410.0,131.5 L410.0,134.0 L410.0,136.0 L409.9,138.5 L409.6,141.0 L409.2,143.0 L408.6,145.0 L408.0,146.8 L407.3,148.5 L406.5,150.1 L405.5,151.8 L404.5,153.3 L403.5,154.6 L402.4,156.0 L401.0,157.4 L399.8,158.5 L398.5,159.6 L397.0,160.7 L395.5,161.7 L394.0,162.5 L392.0,163.5 L390.5,164.1 L388.5,164.8 L386.5,165.3 L384.5,165.7 L382.0,165.9 L380.0,166.0 L377.5,166.0 L375.0,166.0 L372.5,166.0 L370.0,166.0 L367.5,166.0 L365.0,166.0 L362.5,166.0 L360.0,166.0 L357.5,166.0 L355.0,166.0 L352.5,166.0 L350.0,166.0 L347.5,166.0 L345.0,166.0 L342.5,166.0 L340.0,166.0 L337.5,166.0 L335.0,166.0 L332.5,166.0 L330.0,166.0 L327.5,166.0 L325.0,166.0 L322.5,166.0 L320.0,166.0 L317.5,166.0 L315.0,166.0 L312.5,166.0 L310.0,166.0 L307.5,166.0 L305.0,166.0 L302.5,166.0 L300.0,166.0 L297.5,166.0 L295.0,166.0 L292.5,166.0 L290.0,166.0 L287.5,166.0 L285.0,166.0 L282.5,166.0 L280.0,166.0 L277.5,166.0 L275.0,166.0 L272.5,166.0 L270.0,166.0 L267.5,166.0 L265.0,166.0 L262.5,166.0 L260.0,166.0 L257.5,166.0 L255.0,166.0 L252.5,166.0 L250.0,166.0 L247.5,166.0 L245.0,166.0 L242.5,166.0 L240.0,166.0 L237.5,166.0 L235.0,166.0 L232.5,166.0 L230.0,166.0 L227.5,166.0 L225.0,166.0 L222.5,166.0 L220.0,166.0 L217.5,166.0 L215.0,166.0 L212.5,166.0 L210.0,166.0 L207.5,166.0 L205.0,166.0 L202.5,166.0 L200.0,166.0 L197.5,166.0 L195.0,166.0 L192.5,166.0 L190.0,166.0 L188.0,165.9 L185.5,165.7 L183.5,165.3 L181.5,164.8 L179.5,164.1 L178.0,163.5 L176.0,162.5 L174.5,161.7 L173.0,160.7 L171.5,159.6 L170.2,158.5 L169.0,157.4 L167.6,156.0 L166.5,154.6 L165.5,153.3 L164.5,151.8 L163.5,150.1 L162.7,148.5 L162.0,146.8 L161.4,145.0 L160.8,143.0 L160.4,141.0 L160.1,138.5 L160.0,136.0 L160.0,133.5 L160.0,131.0 L160.0,128.5 L160.0,126.0 L160.0,123.5 L160.0,121.0 L160.0,118.5 L160.0,116.0 L160.0,113.5 L160.0,111.0 L160.0,108.5 L160.0,106.0 L160.0,103.5 L160.0,101.0 L160.0,98.5 L160.0,96.0 L160.2,93.5 Z"/>
+  <rect class="acc" x="162.0" y="120.0" width="230.0" height="6.0"/>
+  <text class="t-strong" x="150" y="51">Through the middle</text>
+  <path class="dim" d="M450,65.0 V176.0 M442,65.0 H458 M442,176.0 H458"/><text class="dimt" x="464" y="125.5">22.2 mm</text>
+  <path class="box" fill-rule="evenodd" d="M166.5,281.7 L166.9,279.5 L167.4,277.5 L168.0,275.8 L168.8,274.0 L169.5,272.5 L170.5,270.9 L171.5,269.4 L172.6,268.0 L173.9,266.5 L175.0,265.4 L176.5,264.1 L177.9,263.0 L179.3,262.0 L180.9,261.0 L182.5,260.1 L184.0,259.3 L185.9,258.5 L187.5,257.9 L189.5,257.2 L191.5,256.7 L193.5,256.2 L195.5,255.9 L198.0,255.6 L200.0,255.4 L202.5,255.3 L205.0,255.2 L207.5,255.1 L210.0,255.0 L212.0,255.0 L214.5,254.9 L217.0,254.8 L219.5,254.7 L222.0,254.7 L224.5,254.6 L227.0,254.5 L229.0,254.5 L231.5,254.4 L234.0,254.4 L236.5,254.3 L239.0,254.3 L241.5,254.2 L244.0,254.2 L246.5,254.1 L249.0,254.1 L251.5,254.1 L254.0,254.0 L256.5,254.0 L258.5,254.0 L261.0,254.0 L263.5,254.0 L266.0,253.9 L268.5,253.9 L271.0,253.9 L273.5,253.9 L276.0,253.9 L278.5,253.9 L281.0,253.9 L283.5,253.9 L286.0,254.0 L288.5,254.0 L291.0,254.0 L293.0,254.0 L295.5,254.0 L298.0,254.1 L300.5,254.1 L303.0,254.1 L305.5,254.2 L308.0,254.2 L310.5,254.3 L313.0,254.3 L315.5,254.4 L318.0,254.4 L320.5,254.5 L322.5,254.5 L325.0,254.6 L327.5,254.7 L330.0,254.7 L332.5,254.8 L335.0,254.9 L337.5,255.0 L339.5,255.0 L342.0,255.1 L344.5,255.2 L347.0,255.3 L349.5,255.4 L352.0,255.5 L354.0,255.6 L356.5,255.7 L359.0,255.8 L361.5,255.9 L363.7,256.0 L366.0,256.1 L368.5,256.2 L371.0,256.4 L373.5,256.5 L375.5,256.6 L378.0,256.7 L380.5,256.9 L383.0,257.0 L385.0,257.1 L387.5,257.3 L390.0,257.4 L392.0,257.5 L394.5,257.7 L397.0,257.9 L399.0,258.0 L401.5,258.2 L404.0,258.4 L406.0,258.6 L408.5,258.9 L410.5,259.2 L413.0,259.5 L415.0,259.7 L417.0,260.0 L419.5,260.4 L421.5,260.7 L423.7,261.0 L426.0,261.4 L428.0,261.7 L430.0,262.0 L432.5,262.5 L434.5,262.8 L436.5,263.2 L438.5,263.6 L440.7,264.0 L443.0,264.4 L445.0,264.8 L447.0,265.2 L449.0,265.6 L451.0,266.0 L453.2,266.5 L455.5,267.0 L457.5,267.4 L459.5,267.8 L461.5,268.3 L463.5,268.7 L465.5,269.1 L467.5,269.5 L469.6,270.0 L472.0,270.5 L474.0,270.9 L476.0,271.4 L478.0,271.8 L480.0,272.2 L482.0,272.6 L484.0,273.1 L486.1,273.5 L488.5,274.0 L490.5,274.4 L492.5,274.8 L494.5,275.2 L496.5,275.6 L498.5,276.0 L501.0,276.5 L503.0,276.8 L505.0,277.2 L507.0,277.6 L509.0,278.0 L511.0,278.6 L513.0,279.3 L514.7,280.0 L516.5,280.9 L518.0,281.7 L519.5,282.6 L521.0,283.6 L522.5,284.7 L524.0,286.0 L525.1,287.0 L526.5,288.4 L527.5,289.5 L528.7,291.0 L529.7,292.5 L530.7,294.0 L531.5,295.5 L532.5,297.5 L533.1,299.0 L533.7,301.0 L534.3,303.0 L534.6,305.0 L534.9,307.5 L534.9,310.0 L534.9,312.5 L534.9,315.0 L534.9,317.5 L534.9,320.0 L534.9,322.5 L534.9,325.0 L534.9,327.5 L534.9,330.0 L534.9,332.5 L534.9,335.0 L534.9,337.5 L534.9,340.0 L534.9,342.5 L534.9,345.0 L534.7,347.5 L534.5,349.5 L534.0,352.0 L533.6,354.0 L533.0,356.0 L532.5,357.6 L531.8,359.5 L531.0,361.5 L530.3,363.0 L529.5,364.7 L528.5,366.5 L527.7,368.0 L526.7,369.5 L525.7,371.0 L524.6,372.5 L523.5,373.9 L522.5,375.1 L521.3,376.5 L520.0,377.9 L518.8,379.0 L517.5,380.2 L516.0,381.5 L514.7,382.5 L513.3,383.5 L511.8,384.5 L510.1,385.5 L508.5,386.4 L507.0,387.1 L505.0,388.0 L503.5,388.5 L501.5,389.2 L499.5,389.7 L497.5,390.1 L495.0,390.4 L493.0,390.6 L490.5,390.8 L488.0,390.9 L485.5,391.0 L483.0,391.0 L480.5,390.9 L478.0,390.8 L475.5,390.7 L473.0,390.5 L471.0,390.3 L468.5,390.1 L466.5,389.8 L464.1,389.5 L462.0,389.2 L460.0,388.9 L457.8,388.5 L455.5,388.1 L453.5,387.7 L451.5,387.3 L449.5,386.9 L447.5,386.4 L445.5,385.9 L443.5,385.5 L441.5,385.0 L439.5,384.5 L437.5,383.9 L435.5,383.4 L433.5,382.8 L431.5,382.3 L429.5,381.7 L427.5,381.1 L425.5,380.6 L423.6,380.0 L421.9,379.5 L420.0,378.9 L418.0,378.3 L416.0,377.7 L414.0,377.1 L412.0,376.5 L410.2,376.0 L408.5,375.5 L406.5,374.9 L404.5,374.3 L402.5,373.7 L400.5,373.1 L398.5,372.6 L396.5,372.0 L394.7,371.5 L393.0,371.0 L391.0,370.5 L389.0,369.9 L387.0,369.4 L385.0,368.9 L383.0,368.4 L381.0,367.9 L379.0,367.4 L377.0,366.9 L375.0,366.4 L373.0,366.0 L370.8,365.5 L368.5,365.0 L366.5,364.6 L364.5,364.2 L362.5,363.8 L360.5,363.4 L358.1,363.0 L356.0,362.6 L354.0,362.3 L352.0,362.0 L349.5,361.6 L347.5,361.3 L345.5,361.0 L343.0,360.7 L341.0,360.4 L338.5,360.1 L336.5,359.9 L334.0,359.6 L332.0,359.4 L329.5,359.1 L327.5,358.9 L325.0,358.7 L322.5,358.5 L320.5,358.3 L318.0,358.2 L315.8,358.0 L313.5,357.8 L311.0,357.7 L308.5,357.6 L306.5,357.4 L304.0,357.3 L301.5,357.2 L299.0,357.1 L296.5,357.0 L294.5,356.9 L292.0,356.8 L289.5,356.8 L287.0,356.7 L284.5,356.6 L282.0,356.6 L279.5,356.5 L277.5,356.5 L275.0,356.4 L272.5,356.4 L270.0,356.3 L267.5,356.3 L265.0,356.3 L262.5,356.2 L260.0,356.2 L257.5,356.2 L255.0,356.2 L252.5,356.2 L250.0,356.1 L247.5,356.1 L245.0,356.1 L242.5,356.1 L240.0,356.1 L237.5,356.1 L235.0,356.1 L232.5,356.1 L230.0,356.1 L227.5,356.0 L225.0,356.0 L222.5,356.0 L220.0,356.0 L217.8,356.0 L215.5,355.9 L213.0,355.8 L210.5,355.6 L208.5,355.3 L206.1,355.0 L204.0,354.6 L202.0,354.2 L200.0,353.8 L198.0,353.2 L196.0,352.6 L194.3,352.0 L192.5,351.3 L190.6,350.5 L189.0,349.7 L187.5,349.0 L185.8,348.0 L184.2,347.0 L182.7,346.0 L181.3,345.0 L180.0,343.9 L178.5,342.6 L177.3,341.5 L176.0,340.1 L175.0,339.0 L173.8,337.5 L172.7,336.0 L171.7,334.5 L170.8,333.0 L170.0,331.4 L169.1,329.5 L168.5,327.9 L167.8,326.0 L167.3,324.0 L166.9,322.0 L166.5,319.5 L166.4,317.5 L166.3,315.0 L166.3,312.5 L166.3,310.0 L166.3,307.5 L166.3,305.0 L166.3,302.5 L166.3,300.0 L166.3,297.5 L166.3,295.0 L166.3,292.5 L166.3,290.0 L166.3,287.5 L166.3,285.0 L166.4,282.5 Z M178.5,281.7 L179.0,279.5 L179.6,278.0 L180.5,276.1 L181.5,274.6 L182.5,273.4 L183.8,272.0 L185.0,270.9 L186.5,269.8 L188.0,268.9 L189.7,268.0 L191.5,267.3 L193.5,266.6 L195.5,266.1 L197.5,265.7 L199.5,265.5 L202.0,265.3 L204.5,265.2 L207.0,265.1 L209.5,265.1 L211.5,265.0 L214.0,264.9 L216.5,264.8 L219.0,264.8 L221.5,264.7 L224.0,264.6 L226.5,264.5 L228.5,264.5 L231.0,264.4 L233.5,264.4 L236.0,264.3 L238.5,264.3 L241.0,264.2 L243.5,264.2 L246.0,264.1 L248.5,264.1 L251.0,264.1 L253.5,264.1 L256.0,264.0 L258.5,264.0 L260.5,264.0 L263.0,264.0 L265.5,264.0 L268.0,263.9 L270.5,263.9 L273.0,263.9 L275.5,263.9 L278.0,263.9 L280.5,263.9 L283.0,263.9 L285.5,264.0 L288.0,264.0 L290.5,264.0 L292.5,264.0 L295.0,264.0 L297.5,264.1 L300.0,264.1 L302.5,264.1 L305.0,264.2 L307.5,264.2 L310.0,264.3 L312.5,264.3 L315.0,264.3 L317.5,264.4 L320.0,264.5 L322.0,264.5 L324.5,264.6 L327.0,264.6 L329.5,264.7 L332.0,264.8 L334.5,264.9 L337.0,264.9 L339.0,265.0 L341.5,265.1 L344.0,265.2 L346.5,265.3 L349.0,265.4 L351.5,265.5 L353.5,265.6 L356.0,265.7 L358.5,265.8 L361.0,265.9 L363.5,266.0 L365.5,266.1 L368.0,266.2 L370.5,266.3 L373.0,266.5 L375.0,266.6 L377.5,266.7 L380.0,266.8 L382.5,267.0 L384.5,267.1 L387.0,267.2 L389.5,267.4 L391.5,267.5 L394.0,267.7 L396.5,267.8 L399.0,268.0 L401.0,268.2 L403.5,268.4 L405.5,268.6 L408.0,268.9 L410.0,269.1 L412.5,269.4 L414.5,269.7 L417.0,270.0 L419.0,270.3 L421.0,270.6 L423.5,271.0 L425.5,271.3 L427.5,271.6 L429.8,272.0 L432.0,272.4 L434.0,272.7 L436.0,273.1 L438.1,273.5 L440.5,274.0 L442.5,274.3 L444.5,274.7 L446.5,275.1 L448.5,275.5 L450.8,276.0 L453.0,276.5 L455.0,276.9 L457.0,277.3 L459.0,277.7 L461.0,278.1 L463.0,278.6 L465.0,279.0 L467.3,279.5 L469.5,280.0 L471.5,280.4 L473.5,280.8 L475.5,281.3 L477.5,281.7 L479.5,282.1 L481.5,282.5 L483.7,283.0 L486.0,283.5 L488.0,283.9 L490.0,284.3 L492.0,284.7 L494.0,285.1 L496.0,285.5 L498.5,286.0 L500.5,286.4 L502.5,286.8 L504.5,287.1 L506.6,287.5 L508.7,288.0 L510.5,288.6 L512.5,289.5 L514.0,290.3 L515.5,291.2 L517.0,292.4 L518.3,293.5 L519.5,294.8 L520.5,296.0 L521.6,297.5 L522.5,299.1 L523.4,301.0 L524.0,302.8 L524.5,304.9 L524.7,307.0 L524.7,309.5 L524.7,312.0 L524.7,314.5 L524.7,317.0 L524.7,319.5 L524.7,322.0 L524.7,324.5 L524.7,327.0 L524.7,329.5 L524.7,332.0 L524.7,334.5 L524.7,337.0 L524.7,339.5 L524.7,342.0 L524.7,344.5 L524.7,347.0 L524.5,349.5 L524.2,351.5 L523.8,353.5 L523.2,355.5 L522.6,357.5 L522.0,359.0 L521.0,361.0 L520.2,362.5 L519.4,364.0 L518.4,365.5 L517.3,367.0 L516.1,368.5 L515.0,369.8 L513.8,371.0 L512.5,372.3 L511.0,373.5 L509.7,374.5 L508.3,375.5 L506.6,376.5 L505.0,377.4 L503.5,378.1 L501.5,378.8 L499.5,379.5 L497.5,379.9 L495.5,380.3 L493.5,380.5 L491.0,380.7 L488.5,380.9 L486.0,381.0 L483.5,381.0 L481.0,380.9 L478.5,380.9 L476.0,380.7 L473.5,380.5 L471.5,380.4 L469.0,380.1 L467.0,379.9 L464.5,379.6 L462.5,379.3 L460.5,379.0 L458.0,378.5 L456.0,378.2 L454.0,377.8 L452.0,377.4 L450.0,377.0 L447.9,376.5 L445.7,376.0 L443.7,375.5 L441.6,375.0 L439.7,374.5 L437.8,374.0 L435.9,373.5 L434.0,373.0 L432.0,372.4 L430.0,371.9 L428.0,371.3 L426.0,370.7 L424.0,370.1 L422.0,369.5 L420.2,369.0 L418.5,368.5 L416.5,367.9 L414.5,367.3 L412.5,366.7 L410.5,366.1 L408.5,365.5 L406.8,365.0 L405.0,364.5 L403.0,363.9 L401.0,363.3 L399.0,362.7 L397.0,362.1 L395.0,361.6 L393.0,361.0 L391.1,360.5 L389.3,360.0 L387.4,359.5 L385.5,359.0 L383.5,358.5 L381.5,358.0 L379.5,357.5 L377.4,357.0 L375.3,356.5 L373.1,356.0 L371.0,355.5 L369.0,355.1 L367.0,354.7 L365.0,354.3 L363.0,353.9 L360.9,353.5 L358.5,353.1 L356.5,352.7 L354.5,352.4 L352.2,352.0 L350.0,351.7 L348.0,351.4 L345.5,351.0 L343.5,350.7 L341.5,350.5 L339.0,350.2 L337.0,349.9 L334.5,349.6 L332.5,349.4 L330.0,349.2 L328.0,349.0 L325.5,348.7 L323.0,348.5 L321.0,348.4 L318.5,348.2 L316.0,348.0 L314.0,347.9 L311.5,347.7 L309.0,347.6 L307.0,347.5 L304.5,347.3 L302.0,347.2 L299.5,347.1 L297.0,347.0 L295.0,346.9 L292.5,346.9 L290.0,346.8 L287.5,346.7 L285.0,346.6 L282.5,346.6 L280.0,346.5 L278.0,346.5 L275.5,346.4 L273.0,346.4 L270.5,346.4 L268.0,346.3 L265.5,346.3 L263.0,346.3 L260.5,346.2 L258.0,346.2 L255.5,346.2 L253.0,346.2 L250.5,346.1 L248.0,346.1 L245.5,346.1 L243.0,346.1 L240.5,346.1 L238.0,346.1 L235.5,346.1 L233.0,346.1 L230.5,346.1 L228.0,346.0 L225.5,346.0 L223.0,346.0 L220.5,346.0 L218.1,346.0 L216.0,345.9 L213.5,345.7 L211.2,345.5 L209.0,345.2 L207.0,344.8 L205.0,344.4 L203.0,343.9 L201.0,343.3 L199.0,342.6 L197.5,341.9 L195.5,341.0 L194.0,340.2 L192.5,339.4 L191.0,338.4 L189.5,337.3 L188.0,336.1 L186.8,335.0 L185.5,333.7 L184.5,332.5 L183.3,331.0 L182.3,329.5 L181.4,328.0 L180.5,326.1 L179.8,324.5 L179.2,322.5 L178.7,320.5 L178.5,318.5 L178.3,316.0 L178.3,313.5 L178.3,311.0 L178.3,308.5 L178.3,306.0 L178.3,303.5 L178.3,301.0 L178.3,298.5 L178.3,296.0 L178.3,293.5 L178.3,291.0 L178.3,288.5 L178.3,286.0 L178.3,283.5 Z"/>
+  <rect class="acc" x="180.3" y="300.0" width="211.7" height="6.0"/>
+  <text class="t-strong" x="150" y="240">Through a grip</text>
+  <path class="dim" d="M570,253.9 V391.0 M562,253.9 H578 M562,391.0 H578"/><text class="dimt" x="584" y="327.5">27.4 mm</text>
+  <text x="136" y="80" text-anchor="end">front</text><text x="136" y="170" text-anchor="end">back</text>
+  <text x="136" y="125" text-anchor="end">top edge</text>
+  <text x="515" y="413" text-anchor="middle">grip tip</text>
+  <text x="277" y="144" text-anchor="middle">board</text>
+</svg>
+<figcaption>The case cut from front to back, seen from the side, with the top edge on the left: through the middle, and through the right-hand grip 50 mm from the centre. The outer wall and the board only; posts and parts are left out. Drawn from the model.</figcaption>
+</figure>
+<p><b>What it costs.</b> A flat face can lie on the printer's plate; a curved one cannot. Both shells now print with the open rim on the plate and supports inside, which uses more plastic and time, and the gently sloping faces show fine contour lines, like a map's, where each layer ends. See <a href="#printing">Printing</a> for how to make the best of that. If the finish matters more than the shape, version 3 is still here.</p>
+<p>Earlier versions, kept for reference. Each model writes its own shells, buttons and board files when run.</p>
+<ul>
+<li><b>Version 3</b> (125 × 78 × 21.7 mm, flat faces, prints with no supports): <a href="case/v3/daedalus_case.step" download>STEP</a>, <a href="case/v3/daedalus_case.py" download>model</a>. Same board as version 4.</li>
+<li><b>Version 2</b> (140 × 85 × 22.7 mm, with a 122 mm board): <a href="case/v2/daedalus_case.step" download>STEP</a>, <a href="case/v2/daedalus_case.py" download>model</a>.</li>
+</ul>
+<p><b>Before any plastic:</b> open template.svg in a browser, print it at 100 % (the page has a 50 mm bar to check with a ruler), cut it out and hold it. It shows the real size and how far your thumbs have to reach.</p>
+<p>The model is a Python program in two files. It uses the free CadQuery library for the exact parts (holes, posts, slots, buttons) and four more free libraries (numpy, scipy, scikit-image and manifold3d) for the sculpted surfaces; the install command is at the top of the file. Every size is a named number: the button spacing, the height of the rubber domes, the insert diameter, the battery pocket, and the height and spread of the dome and the palm swells. Change a number, run it, and it writes every file above again in a few minutes.</p>
+<p>To turn the case round in 3D and watch it go together part by part, use the <a href="#bench">workbench</a> near the top of this page. Its "Floor plan" tab shows where every hole, post and part sits.</p>
+
+<h3>Dimensions</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Feature</th><th>Size</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Outside</td><td>125 wide × 78 tall; 22.2 mm thick in the middle; 29.2 mm from the crown to the bottom of the palm swells. Shoulders sweep round at a 22 mm radius; the sides flare 3.5 mm to the heel of the hand; grips end in full rounds</td><td>Fits any printer with a 130 mm bed</td></tr>
+<tr><td>Front face</td><td>A dome 11.0 mm above the board at its highest, 8.4 mm at the left and right ends, 10.2 mm at the top edge, and about 5.3 mm over the grips</td><td>Thumbs rest on a surface that falls away from them, as on a moulded controller</td></tr>
+<tr><td>Back face</td><td>Flat in the middle, 10.0 mm behind the board; a swell in each grip standing 7 mm further out, centred 50 mm from the middle</td><td>The swells fill the palms, so the fingers wrap round something</td></tr>
+<tr><td>Walls and edges</td><td>2.0 mm walls throughout. The front rolls into the sides at a 5.5 mm radius, the back at 8 mm. Hole rims eased by 0.5 mm</td><td>No flat step anywhere on the outside</td></tr>
+<tr><td>Front of board to inside of front shell</td><td>8.3 mm at the stick and the face buttons, 9.0 mm under the crown</td><td>Room for the stick's body and the button caps. Confirm against your stick</td></tr>
+<tr><td>Back of board to inside of back shell</td><td>8.0 mm in the middle, more in the grips</td><td>6 mm battery, 0.6 mm of tape under it, and 1.4 mm above it so it clears the USB-C socket's solder legs</td></tr>
+<tr><td>Stick opening</td><td>25 mm circle, its rim thickened to 4 mm by a ring inside the shell</td><td>The rim takes sideways knocks so the stick's solder joints do not</td></tr>
+<tr><td>Face button holes</td><td>Cap diameter + 0.5 mm; caps 10.6 mm across</td><td>Free movement without rattle. Print the coupon first</td></tr>
+<tr><td>Button caps</td><td>A base 2.4 mm wider than the hole, with one flat that runs against a rib in the shell. Each top follows the curve of the case, 2.6 mm proud</td><td>The base stops the cap coming out; the flat stops it turning, so its sloped top stays lined up with the case</td></tr>
+<tr><td>USB-C opening</td><td>9.4 × 3.6 mm, in a 13 × 6.6 mm pocket 1.4 mm deep</td><td>The socket's mouth sits just inside the wall, so the pocket lets the moulded end of a cable push fully home</td></tr>
+<tr><td>Slide switch</td><td>In a 9 × 4 mm pocket 1.4 mm deep; move it with a fingernail</td><td>So it cannot be knocked on in a bag</td></tr>
+<tr><td>Screws</td><td>Six M2 socket head screws into brass heat-set inserts: four, 8 mm long, pass through the board's holes; two, 6 mm long, sit in the grips, where there is no board between the shells. All six heads seat at the same depth, so the two in the grips are at the bottom of holes 4.4 mm wide and about 13 mm deep</td><td>Screws cut straight into printed plastic strip after a few openings; inserts do not. The deep holes need a hex key or driver with a thin shaft</td></tr>
+</tbody></table></div>
+
+<h3>How the parts mount</h3>
+<ul>
+<li><b>Board:</b> sits against four posts in the front shell, located by the four screws that pass through it, and is clamped by matching posts on the back shell. Three more posts on the back shell hold it up behind the stick and the face buttons so pressing them cannot bend it.</li>
+<li><b>Stick:</b> soldered to the board; the cap pushes onto its 4 mm D-shaped shaft after the case is closed.</li>
+<li><b>Face buttons:</b> caps drop into their holes from inside the front shell, the silicone pad lies over them with its pegs through the board, and the board holds the stack in place.</li>
+<li><b>Shoulder buttons:</b> each is a printed plunger sliding in a slot in the top edge, pressing the side-facing switch, with a small wing on each side, just behind the wall and wider than the slot, so it cannot pull out. Its outer end is cut to the curve of the shoulder, standing 2.2 mm out. No hinge and no spring: the switch returns it.</li>
+<li><b>Battery:</b> in a walled pocket in the back shell, held with thin foam tape. No screw posts, sharp edges or wire ends anywhere near it.</li>
+<li><b>Light:</b> a 2 mm hole over the status LED, filled with a drop of clear glue as a window.</li>
+</ul>
+
+<h3 id="printing">Printing</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Material</td><td>PETG</td><td>PLA softens at about 55 °C, which a car in summer reaches. PETG is tougher and bends before it snaps</td></tr>
+<tr><td>Nozzle and layers</td><td>0.4 mm nozzle; 0.12 mm layers for the shells and the face buttons, 0.2 mm for the rest. If the slicer has variable layer height, use it on the shells</td><td>The curved faces are built from steps one layer high. Thinner layers make the steps smaller and the contour lines closer and fainter, at the cost of a longer print</td></tr>
+<tr><td>Walls</td><td>4 perimeters, 5 top and 5 bottom layers</td><td>The 2 mm walls come out solid</td></tr>
+<tr><td>Infill</td><td>25 %, gyroid</td><td>Only the posts and button bases have any inside to fill</td></tr>
+<tr><td>Temperatures</td><td>Nozzle 235 to 245 °C, bed 75 to 85 °C; use the filament maker's figures</td><td></td></tr>
+<tr><td>Cooling and speed</td><td>Fan about 40 %; outer walls at 40 to 60 mm/s</td><td>PETG strings and goes brittle with too much fan</td></tr>
+<tr><td>Supports</td><td>Both shells: on, "from the build plate only", tree or organic style if the slicer has it. Buttons and coupon: none</td><td>Each shell is an upside-down bowl on the plate, so its whole roof needs holding up. Everything the supports touch is inside the case. The posts hang from the roof, so their ends are printed on supports too</td></tr>
+<tr><td>Plate</td><td>Any; textured PEI releases PETG most easily</td><td>Only the two rims touch the plate now, so the plate no longer sets the finish of the faces</td></tr>
+<tr><td>First layer</td><td>Turn on "elephant foot compensation", about 0.15 mm</td><td>Stops the two rims printing oversize, which would leave a ridge where the shells meet</td></tr>
+<tr><td>Top surface</td><td>Ironing off for the shells</td><td>Ironing only works on flat tops; on a curved face it leaves patches</td></tr>
+</tbody></table></div>
+<div class="dd-scroll"><table>
+<thead><tr><th>Part</th><th>How many</th><th>Which way up</th></tr></thead>
+<tbody>
+<tr><td>Front shell</td><td>1</td><td>As drawn: rim on the plate, front face up</td></tr>
+<tr><td>Back shell</td><td>1</td><td>Turned over: rim on the plate, back face up (use the slicer's "place on face" tool on the rim)</td></tr>
+<tr><td>Face buttons</td><td>1 each of top, right, bottom, left</td><td>As drawn, wide base on the plate. Mark each one underneath as it comes off the printer; they differ by less than a millimetre</td></tr>
+<tr><td>Select / Start button, Home button</td><td>2 and 1</td><td>As drawn, base on the plate</td></tr>
+<tr><td>Shoulder buttons</td><td>L1, R1, and 2 of the L2 / R2 part</td><td>As drawn, lying on the flat top face</td></tr>
+<tr><td>Coupon</td><td>1, first</td><td>Flat</td></tr>
+</tbody></table></div>
+<ul>
+<li>A whole case is about 58 g of filament plus supports (allow 75 g), so one 1 kg spool makes about 13. Print time depends on the printer; with supports and thin layers expect 6 to 8 hours a set (an estimate, not timed).</li>
+<li><b>After printing:</b> break out the supports, then flatten the ends of the posts with a small file so the board sits level; the four posts that touch the board set how far the buttons travel. Check that the six insert holes are clear.</li>
+<li><b>If the contour lines bother you,</b> the choices are: sand and paint (below), go back to version 3, or have the two shells made by a print service in powder-bed nylon (sold as MJF or SLS), which needs no supports and leaves an even matt grain. No price has been checked for that.</li>
+<li><b>For a smoother finish still:</b> sand the edges with 400 then 800 grit paper, wet. PETG does not smooth with acetone. A coat of filler primer and paint hides layer lines completely, at the cost of time per unit.</li>
+<li><b>For more grip:</b> some slicers have a "fuzzy skin" setting that roughens outside walls. Applied to the back shell only, it gives the grips a soft texture.</li>
+</ul>
+
+<h2 id="assembly">Assembly, step by step</h2>
+<p>The factory has already soldered every small part. Per controller, you solder one part (the stick) and assemble.</p>
+<ol>
+<li><b>Look the board over.</b> Check the USB-C socket and the module are flat and straight.</li>
+<li><b>Flash and test the bare board</b> before soldering anything. Plug it in, upload the firmware, open the Serial Monitor, and press each switch with a fingertip; bridge each gold face contact with the tip of a metal screwdriver. Every one should show up.</li>
+<li><b>Solder the stick.</b> Push it flat against the board, solder one frame leg, check it is still flat, then solder the other 13 joints. Iron at about 350 °C, 2 seconds a joint.</li>
+<li><b>Check the battery plug with a multimeter before it ever touches the board.</b> Red must line up with the pad marked +. Sellers do not agree on which way round this plug is wired, and a reversed battery destroys the board. If it is reversed, lift the two metal tabs out of the plug housing and swap them.</li>
+<li><b>Plug in the battery, switch on.</b> The light should blink slowly. Pair it with a computer and check every input in <code>joy.cpl</code> or a browser gamepad tester.</li>
+<li><b>Calibrate the stick:</b> hold Start + Select for 3 seconds and follow the light.</li>
+<li><b>Charge test:</b> plug in USB with the switch off. Red light on; it turns green when full.</li>
+<li><b>Set the six brass inserts</b> into the front shell's posts with the soldering iron at about 220 °C. Press gently and let the heat do the work.</li>
+<li><b>Load the front shell,</b> lying face-down: the four button caps, each in its own hole (top, right, bottom, left, as you hold the controller), the silicone pad, the four shoulder plungers, the small button caps, then lower the board onto its posts.</li>
+<li><b>Fit the battery</b> into the back shell with foam tape, bring its lead up through the notch in the board's bottom edge, plug it into the socket beside the notch (the plug goes in from the left), and close the case without trapping the lead. Six screws, the two shorter ones in the grips; snug, not tight.</li>
+<li><b>Push on the thumb cap</b> and run the full test once more.</li>
+</ol>
+<p><b>Time:</b> the first one will take over an hour. Once practised, expect about 20 to 25 minutes of hands-on work per controller, so roughly 12 hours for 30, plus about 200 hours of unattended printing and a few minutes each of support removal.</p>
+<p><b>Tools you need:</b> the list is under <a href="#tools">Tools and consumables, bought once</a>. Practise on a solder practice kit first; the stick is not the part to learn on.</p>
+
+<h2 id="cost">Cost at 10, 30, 50 and 200</h2>
+<div class="callout dd-status">
+<p><b>The $10 to $15 target is not met.</b> A realistic figure at 30 units is <b>$23.20 to $27.60 per controller with US import duty</b>, depending on the battery: $23.20 if a $3 cell from Amazon or AliExpress proves good, $27.60 with the cheapest cell whose price could be confirmed ($7.41). Even at 200 units it is about $15.50 before duty with the cheap cell. Four things set it: the radio module ($3.49), the battery, the rubber pad ($3), and the 35 % US import duty JLCPCB adds to boards and assembly at checkout.</p>
+</div>
+<div class="dd-scroll"><table>
+<thead><tr><th>Batch</th><th class="num">Per unit, before US duty</th><th class="num">Per unit, with duty</th><th class="num">Whole batch, with duty</th><th>Board assembly service</th></tr></thead>
+<tbody>
+<tr><td>10</td><td class="num">about $28</td><td class="num">about $32</td><td class="num">about $320</td><td>Economic</td></tr>
+<tr><td>30</td><td class="num">about $20.40</td><td class="num">about $23.20</td><td class="num">about $695</td><td>Economic</td></tr>
+<tr><td>50</td><td class="num">about $18.50</td><td class="num">about $21</td><td class="num">about $1,050</td><td>Economic (its limit)</td></tr>
+<tr><td>200</td><td class="num">about $15.50</td><td class="num">about $17.50</td><td class="num">about $3,500</td><td>Standard</td></tr>
+</tbody></table></div>
+<p>JLCPCB's cheap Economic assembly service stops at 50 boards. Beyond that it is the Standard service, which costs more to set up and needs edge rails added to a board this narrow; at 200 the larger quantity more than pays for that.</p>
+<p>The table assumes the $3 battery. With the $7.41 one, add $4.40 to every row. Treat every figure as within about $3 either way: shipping, the bare-board price and the screws' price are estimates too.</p>
+<p>These rows count the parts that go into each controller. Spares and part-used packs come on top: about $60 for a batch of 30, worked out under the <a href="#parts">parts list</a>, so expect to spend about $755 in all on 30.</p>
+<p><b>Revised on 16 November 2026,</b> when every part was listed and priced one by one. The rows went up by about $1, almost all of it in the case: six brass inserts cost $0.72 and six screws about $0.60, where the first estimate allowed $0.35 for both and the tape, and a case takes 75 g of filament, not 70 g. On the board the changes nearly cancel: the parts add up to 7 cents more, and the charger turned out to be a part with no Extended fee. Only the 30-unit row was added up again part by part; the other three were raised by the same dollar.</p>
+
+<h3>Where the $23.20 goes, at 30 units</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Item</th><th class="num">Per unit</th><th>How firm</th></tr></thead>
+<tbody>
+<tr><td>Parts on the board: all 50</td><td class="num">$5.07</td><td>JLCPCB's prices on 16 November 2026, added up in the <a href="#parts">parts list</a></td></tr>
+<tr><td>Factory fees: set-up $8.18, stencil $1.53, $3.07 for each of 7 Extended parts, and about $0.30 a board to solder some 170 joints</td><td class="num">$1.34</td><td>JLCPCB's published fees. The eighth Extended part, the charger, is a "Preferred" one and carries no fee</td></tr>
+<tr><td>Bare boards, 108 × 46 mm, 1.2 mm, gold finish</td><td class="num">$1.50</td><td>Estimate; the real figure comes from the quote page</td></tr>
+<tr><td>US import duty, 35 % of the three lines above</td><td class="num">$2.77</td><td>JLCPCB's stated rate; exactly what it is charged on is not stated</td></tr>
+<tr><td>Shipping the boards</td><td class="num">$1.65</td><td>A guess. JLCPCB only shows shipping at checkout, and one buyer reported $169 for express shipping on a 50-board assembled order in April 2026</td></tr>
+<tr><td>Stick and thumb cap</td><td class="num">$1.97</td><td>Listed price for the Hall module at 30 ($1.69), plus a cap at $0.28 from a search result</td></tr>
+<tr><td>Battery</td><td class="num">$3.00</td><td>Unconfirmed (Amazon or AliExpress). $7.41 from the cheapest listing that could be read</td></tr>
+<tr><td>Rubber pad</td><td class="num">$2.99</td><td>Listed price for one set</td></tr>
+<tr><td>Case: 75 g of filament, 6 inserts, 6 screws, tape and a drop of clear glue</td><td class="num">$2.89</td><td>Filament ($1.42) and inserts ($0.72) from listings; screws ($0.60), tape and glue to confirm</td></tr>
+<tr><td><b>Total</b></td><td class="num"><b>$23.18</b></td><td>Call it $23.20</td></tr>
+</tbody></table></div>
+<p><b>Ways to bring it down:</b> a 600 mAh battery saves about $1 and still gives several long evenings of play; buying pads in a lot of 100 saves about $0.75 each; ordering 50 boards instead of 30 saves about $2 a unit. Not worth cutting: the gold board finish, the protection chip, the brass inserts.</p>
+<p><b>One-off costs not in the table:</b> the breadboard prototype (about $50), the 5-board prototype order (roughly $70 to $110 with shipping and duty) and tools (about $180 if you have none).</p>
+
+<h3>Making the case in quantity</h3>
+<div class="dd-scroll"><table>
+<thead><tr><th>Batch</th><th>Cheapest method</th><th>What it takes</th></tr></thead>
+<tbody>
+<tr><td>10</td><td>Your own printer</td><td>About 35 hours of printing, $15 of filament</td></tr>
+<tr><td>30</td><td>Your own printer</td><td>About 100 hours: two weeks of printing a few a day</td></tr>
+<tr><td>50</td><td>Your own printer</td><td>About 175 hours. Print two cases per plate overnight</td></tr>
+<tr><td>200</td><td>Still printing, on two or three printers</td><td>About 700 printer-hours. A second budget printer pays for itself here</td></tr>
+</tbody></table></div>
+<p>Printing stays the cheapest method at every one of these quantities. A print service making the shells in nylon would cost several dollars a case; get a quote before deciding. Injection moulding needs steel tools costing thousands of dollars and only becomes the cheapest route at around a thousand units or more.</p>
+
+<h2 id="selling">If you sell them</h2>
+<p>This is the part most hobby write-ups leave out, and it changes the answer. This is general information, not legal advice.</p>
+<ul>
+<li><b>FCC.</b> Because the radio is a pre-certified module used as its maker intended, the controller does not need its own radio certification. It still needs testing as an ordinary electronic device (FCC Part 15, Subpart B) and a Supplier's Declaration of Conformity. Labs quote roughly <b>$1,500 to $2,500</b> for that; some quote up to $5,000. The case must be labelled "Contains FCC ID:" followed by the module's ID, and a person or company in the United States must be named as responsible. Without a certified module, radio certification runs about $8,000 to $25,000, which is the best argument for using one.</li>
+<li><b>Bluetooth.</b> The Bluetooth SIG requires every product that uses Bluetooth to be qualified under the seller's own membership before sale. Joining as an Adopter is free. The qualification fee, on the schedule in force since 1 March 2026, is <b>$12,000 per design</b>. Using a module that is already qualified removes the testing, not the fee, and no reduced fee for small makers could be found.</li>
+<li><b>So the cost of selling legally is about $13,500 to $14,500 before the first sale:</b> around $450 a unit at 30 units, or $70 a unit at 200. That is why small makers generally do not sell Bluetooth devices, and it is the honest answer for this project too.</li>
+<li><b>Thirty units for friends is not automatically exempt.</b> The FCC's exemption for home-built devices covers things that are not marketed and are built in quantities of five or fewer for personal use.</li>
+<li><b>Also on the list:</b> a lithium battery test summary (UN 38.3) from the cell's maker for shipping; California's embedded-battery recycling fee and labelling rules; and, if it is sold as a product for children 12 and under, third-party safety testing and a Children's Product Certificate.</li>
+<li><b>Looks and names.</b> Sony lists the PlayStation shapes (triangle, circle, cross, square) as its trademarks and has protected the shape of its controllers. On a unit you sell, use your own button markings and your own body shape, and do not describe it with another company's product names.</li>
+</ul>
+
+
+<h2 id="tradeoffs">Honest trade-offs against a store-bought controller</h2>
+<ul>
+<li><b>It will not save money.</b> A good budget Bluetooth controller with two sticks, a d-pad, rumble and motion sensing costs $20 to $30 in a shop. This one costs $23 to $28 in parts plus your time, tools and prints. Build it to learn how a controller works and to own a design you can change.</li>
+<li><b>"Standard gamepad" has limits on both systems.</b> Windows lists it as a game controller with no driver, and Steam, browsers and emulators use it directly. But many Windows games only listen for Xbox-style controllers and will need Steam Input or a similar remapper in between. On a Mac it pairs and works in Steam, browsers and emulators, but games that use Apple's own controller system only recognise Xbox, PlayStation and a few other named pads. Some hobby firmware gets around this by pretending to be an Xbox controller; this one does not, because copying another company's product identity is not something to ship.</li>
+<li><b>Latency is good, not the best.</b> At 7.5 ms between radio slots a press waits about 4 ms on average, 7.5 ms at worst, before it is sent. That is fine for fast games. A commercial pad on its own USB dongle, or wired, is quicker, and this controller has no wired mode. On a Mac the gap is 11 to 15 ms.</li>
+<li><b>Fewer inputs.</b> No right stick, no d-pad, no analog triggers, no rumble, no motion. Great for platformers, retro and arcade games; wrong for shooters.</li>
+<li><b>Feel.</b> The face buttons use the same rubber-dome method as commercial pads, so the press itself should feel right. The printed shell and caps will not: layer lines, a slightly rough surface and looser fits than injection-moulded plastic.</li>
+<li><b>Thicker than a handheld, and the curves cost finish.</b> About 22 mm in the middle, against 14 mm for a Switch Lite, because of the full-size stick. Version 4 has a domed front and grips that swell into the palm, but a home printer builds those slopes from steps, so the faces show contour lines that a flat version 3, or a moulded controller, does not. The supports inside leave rough patches that nobody sees but that take time to clean up.</li>
+<li><b>Durability is designed in but unproven.</b> PETG shells, brass inserts, a supported USB socket and a contact-free stick are the right choices. A printed case is still weaker between its layers than a moulded one, and none of this has been through a term in a backpack yet.</li>
+<li><b>No safety testing.</b> A commercial controller's battery circuit has been tested and certified. This one uses standard, well-proven parts, but nobody has tested this board. Do not charge the first units unattended.</li>
+</ul>
+
+<h2 id="order">What to do first</h2>
+<ol>
+<li><b>Breadboard it (about $50).</b> Buy one ESP32-C6-DevKitC-1 development board (it carries the same module), two sticks, one rubber pad set and a handful of push buttons. Wire them to the pins in the table, flash the firmware and get it working as a gamepad on your computer. This proves the firmware and tells you how the stick and pad feel before any money goes on boards. The <a href="#shop">shopping list</a> has every item.</li>
+<li><b>Measure, and print the coupon.</b> With calipers, measure the pad (dome spacing, pill size, peg positions) and the stick. Put those numbers into the case model, run it, and print the test coupon and one case.</li>
+<li><b>Draw the board and order 5, with 2 assembled (roughly $70 to $110 with shipping and duty).</b> Build two complete controllers with printed cases. Expect to find at least one mistake; that is what this order is for.</li>
+<li><b>Use those two for a few weeks,</b> in a bag, every day. Fix what breaks.</li>
+<li><b>Then order the 30.</b></li>
+</ol>
+
+<p class="meta">Sources for the figures on this page are the parts' datasheets, the JLCPCB and LCSC sites, the Bluetooth SIG fee schedule, Apple's Accessory Design Guidelines and Microsoft's Bluetooth accessory guidelines, read in November 2026. Prices and rules change: check them again before you order or sell.</p>
+
+  </article>
+  <footer>© 2026 Arjun · <a href="../about/">About</a> · <a href="../contact/">Contact</a> · <a href="../privacy.html">Privacy policy</a></footer>
+</div>
+<script>
+// Show the firmware in the "Show the code" box the first time it is opened.
+(function(){
+  var box=document.querySelector('.dd-code'),pre=document.getElementById('ddCode'),done=false;
+  if(!box||!pre)return;
+  box.addEventListener('toggle',function(){
+    if(!box.open||done)return;
+    done=true;
+    fetch('firmware/daedalus/daedalus.ino').then(function(r){if(!r.ok)throw 0;return r.text()})
+      .then(function(t){pre.textContent=t})
+      .catch(function(){pre.textContent='The code could not be loaded here. Use the download link above.'});
+  });
+})();
+
+// The board drawing and its table, read from case/layout.json (written by case/daedalus_case.py).
+(function(){
+  var host=document.getElementById('ddLayout'),tb=document.querySelector('#ddLayoutTable tbody');
+  if(!host||!tb)return;
+  fetch('case/layout.json').then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(L){
+    var W=L.board.width,H=L.board.height,k=5.6,m=34,svg=[],rows=[];
+    function X(x){return (m+x*k).toFixed(1)}
+    function Y(y){return (m+(H-y)*k).toFixed(1)}
+    function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+    function label(x,y,t,dy){svg.push('<text x="'+X(x)+'" y="'+(+Y(y)+(dy||0)).toFixed(1)+'" text-anchor="middle">'+esc(t)+'</text>')}
+    function circle(x,y,d,cls){svg.push('<circle class="'+(cls||'thin')+'" cx="'+X(x)+'" cy="'+Y(y)+'" r="'+(d/2*k).toFixed(1)+'"/>')}
+    function rect(x,y,w,h,cls){svg.push('<rect class="'+(cls||'thin')+'" x="'+X(x)+'" y="'+Y(y+h)+'" width="'+(w*k).toFixed(1)+'" height="'+(h*k).toFixed(1)+'" rx="3"/>')}
+    function row(n,x,y,note){rows.push([n,x,y,note||''])}
+    var x0=m,y0=m,x1=m+W*k,y1=m+H*k;
+    // the board's edge, point by point (its top corners follow the case, and the notches are part of it)
+    svg.push('<path class="fillp" d="M'+L.board_outline.map(function(q){return X(q[0])+','+Y(q[1])}).join(' L')+' Z"/>');
+    L.mounting_holes.centres.forEach(function(c,i){circle(c[0],c[1],L.mounting_holes.diameter,'ln');row('Mounting hole '+(i+1),c[0],c[1],L.mounting_holes.diameter+' mm, for an M2 screw')});
+    var s=L.stick_centre;rect(s[0]-6.55,s[1]-6.55,13.1,13.1,'thin');circle(s[0],s[1],4,'thin');label(s[0],s[1],'stick',-50);row('Stick, centre of the shaft',s[0],s[1],'14 holes round it, below');
+    (L.stick_holes||[]).forEach(function(h){circle(h.x,h.y,h.diameter,'ln');row('Stick hole: '+h.name,h.x,h.y,h.diameter+' mm')});
+    var names={north:'Top face button (GPIO18)',east:'Right face button (GPIO19)',south:'Bottom face button (GPIO20)',west:'Left face button (GPIO21)'};
+    Object.keys(names).forEach(function(n){var c=L.face_buttons[n];circle(c[0],c[1],L.face_contact_diameter||5.3,'ln');row(names[n],c[0],c[1],'Gold contact pattern, '+(L.face_contact_diameter||5.3)+' mm across')});
+    label((L.face_buttons.east[0]+L.face_buttons.west[0])/2,L.face_buttons.north[1],'face contacts',-26);
+    [['select','Select',-7.5,4],['start','Start',7,4],['home','Home',7,4]].forEach(function(a){var c=L[a[0]];rect(c[0]-2,c[1]-1.5,4,3,'ln');label(c[0]+a[2],c[1],a[1],a[3]);row(a[1]+' switch',c[0],c[1])});
+    circle(L.status_led[0],L.status_led[1],1.6,'acc');row('Status light',L.status_led[0],L.status_led[1],'White 0603 LED');
+    rect(L.boot_switch[0]-2,L.boot_switch[1]-1.5,4,3,'thin');label(L.boot_switch[0]+8,L.boot_switch[1],'BOOT',4);row('BOOT switch',L.boot_switch[0],L.boot_switch[1],'No hole in the case; open it to reach this');
+    var M=L.radio_module;rect(M.left,M.bottom,M.width,M.height,'ln');label(M.left+M.width/2,M.bottom+M.height/2,'radio',-2);label(M.left+M.width/2,M.bottom+M.height/2,'module',14);label(M.left+M.width/2,M.bottom+3,'antenna',4);row('Radio module, bottom-left corner',M.left,M.bottom,M.width+' × '+M.height+' mm, antenna at the '+M.antenna);
+    rect(L.usb_c_centre_x-4.5,H-6.85,9,7.35,'ln');label(L.usb_c_centre_x,H,'USB-C',-10);row('USB-C socket, centre',L.usb_c_centre_x,H,'On the top edge, facing off the board');
+    rect(L.slide_switch_centre_x-4,H-2.8,8,2.8,'ln');label(L.slide_switch_centre_x,H,'on/off',-10);row('Slide switch, centre',L.slide_switch_centre_x,H,'On the top edge');
+    row('Charge lights',L.charge_leds_x,H-1.6,'A red 0603 LED and a green 0805 LED, one above the other, at the top edge');
+    Object.keys(L.shoulder_switches_x).forEach(function(n){var x=L.shoulder_switches_x[n];rect(x-1.95,H-2.05,3.9,2.05,'ln');label(x,H,n,-10);row(n+' switch, centre',x,H,'On the top edge, facing off the board')});
+    var J=L.battery_socket;rect(J[0]-3.8,J[1]-3.95,7.6,7.9,'thin');label(J[0]-4,J[1],'battery',-28);row('Battery socket',J[0],J[1],L.battery_socket_note||'');
+    var N=L.battery_notch;row('Notch for the battery lead, centre',N.centre_x,0,N.width+' mm wide, '+N.depth+' mm deep');
+    var A=L.antenna_notch;if(A)row('Cut-out under the antenna, centre',A.centre_x,A.edge==='bottom'?0:H,A.width+' mm wide, '+A.depth+' mm deep, in the '+(A.edge||'top')+' edge');
+    (L.back_supports||[]).forEach(function(c,i){circle(c[0],c[1],4,'dim');row('Support point '+(i+1)+' (back of the board)',c[0],c[1],'Keep the back clear here')});
+    svg.push('<text class="dimt" x="'+X(W/2)+'" y="'+(y1+24)+'" text-anchor="middle">'+W+' mm</text><text class="dimt" x="'+(x0-14)+'" y="'+Y(H/2)+'" text-anchor="middle" transform="rotate(-90 '+(x0-14)+' '+Y(H/2)+')">'+H+' mm</text>');
+    host.innerHTML='<svg viewBox="0 0 '+(W*k+2*m)+' '+(H*k+2*m)+'" role="img" aria-label="Front of the circuit board with the position of every part marked. The same positions are listed in the table below.">'+svg.join('')+'</svg>';
+    tb.innerHTML=rows.map(function(r){return '<tr><td>'+esc(r[0])+'</td><td class="num">'+r[1]+'</td><td class="num">'+r[2]+'</td><td>'+esc(r[3])+'</td></tr>'}).join('');
+  }).catch(function(){host.innerHTML='<p>The drawing could not be loaded. The numbers are in layout.json.</p>'});
+})();
+
+// The three parts tables and the CSV download, all from bom.json (make_bom.py writes the same CSV to disk).
+(function(){
+  var tBoard=document.querySelector('#ddBomBoard tbody');
+  if(!tBoard)return;
+  function $(id){return document.getElementById(id)}
+  function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')}
+  function money(x){return '$'+(x>=1?x.toFixed(2):x>=.01?x.toFixed(3):x.toFixed(4))}
+  function refs(r){return r.length>3&&/\d+$/.test(r[0])?r[0]+' to '+r[r.length-1]:r.join(', ')}
+  function link(text,url){return url?'<a href="'+esc(url)+'" rel="noopener">'+esc(text)+'</a>':esc(text)}
+  function cell(t){t=String(t);return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t}
+  function csv(B){return [B.csv_columns.map(cell).join(',')].concat(B.board.map(function(p){return [p.comment,p.ref.join(','),p.footprint,p.lcsc].map(cell).join(',')})).join('\n')+'\n'}
+  function note(o){return (o.note?esc(o.note):'')+(o.fit?(o.note?' ':'')+esc(o.fit):'')+(o.confirm?((o.note||o.fit)?' ':'')+'<span class="tc">To confirm.</span> '+esc(o.confirm):'')}
+  fetch('bom.json').then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(B){
+    var n=0,sum=0,basic=0,fees=0;
+    tBoard.innerHTML=B.board.map(function(p){
+      n+=p.ref.length;sum+=p.ref.length*p.each;if(p.cls==='Basic')basic++;if(p.fee)fees++;
+      return '<tr><td class="nw">'+esc(refs(p.ref))+'</td><td class="num">'+p.ref.length+'</td><td>'+esc(p.value)+'</td><td>'+esc(p.rating)+'</td><td>'+esc(p.pkg)+'</td><td>'+esc(p.does)+'</td><td>'+esc(p.mfr)+' <span class="nw">'+esc(p.mpn)+'</span></td><td><a href="https://jlcpcb.com/partdetail/'+esc(p.lcsc)+'" rel="noopener">'+esc(p.lcsc)+'</a></td><td>'+esc(p.cls)+(p.cls==='Basic'?'':p.fee?': fee':': no fee')+'</td><td class="num">'+money(p.each)+'</td></tr>';
+    }).join('');
+    var ext=B.board.length-basic;
+    document.querySelector('#ddBomBoard tfoot').innerHTML='<tr><td>Total</td><td class="num">'+n+'</td><td colspan="7">parts on one board, of '+B.board.length+' different kinds</td><td class="num">'+money(sum)+'</td></tr>';
+    $('ddBomBoardSum').innerHTML='<b>'+n+' parts of '+B.board.length+' kinds: '+basic+' Basic and '+ext+' Extended.</b> '+fees+' of the Extended parts carry JLCPCB\'s fee'+(ext>fees?'; the other '+(ext-fees===1?'is a Preferred part and does':'are Preferred parts and do')+' not':'')+'. The parts for one board come to '+money(sum)+'. Each C number links to that part\'s page at JLCPCB, which shows today\'s price, stock and class.';
+    $('ddBomWhy').innerHTML=B.board.filter(function(p){return p.why||p.note}).map(function(p){return '<li><b>'+esc(refs(p.ref))+', '+esc(p.value)+'.</b> '+esc(p.why||p.note)+'</li>'}).join('');
+    var used=0,buy=0;
+    document.querySelector('#ddBomHand tbody').innerHTML=B.hand.map(function(h){
+      if(!h.board){used+=h.used;buy+=h.buy30}
+      return '<tr><td>'+esc(h.item)+'</td><td>'+esc(h.buy)+'</td><td>'+link(h.where,h.url)+'</td><td>'+esc(h.per)+'</td><td><b>'+esc(h.batch)+'</b>. '+esc(h.pack)+'</td><td class="num">'+esc(h.price)+'</td><td>'+note(h)+'</td></tr>';
+    }).join('');
+    var brd=B.hand.filter(function(h){return h.board})[0];
+    document.querySelector('#ddBomHand tfoot').innerHTML='<tr><td colspan="5">Everything in one controller'+(brd?': the board at '+money(brd.used)+' and the rest at '+money(used):'')+'</td><td class="num">'+money(used+(brd?brd.used:0))+'</td><td></td></tr>';
+    $('ddBomHandSum').innerHTML='<b>Without the board, the parts in one controller cost '+money(used)+'.</b> Bought for '+B.batch+' with the spares and whole packs in the table, they come to about $'+Math.round(buy)+', which is about $'+Math.round(buy-used*B.batch)+' more than '+B.batch+' exact sets. The <a href="#cost">Cost</a> section counts what goes into each controller, so allow that much on top for the batch.';
+    var tools=0,kind='';
+    document.querySelector('#ddBomTools tbody').innerHTML=B.tools.map(function(t){
+      tools+=t.cost||0;
+      var head=t.kind!==kind?'<tr><td colspan="6"><b>'+esc(t.kind==='Tool'?'Tools':'Used up as you go')+'</b></td></tr>':'';kind=t.kind;
+      return head+'<tr><td>'+esc(t.item)+'</td><td>'+link(t.buy,t.url)+'</td><td>'+esc(t.where||'')+'</td><td>'+esc(t['for'])+'</td><td class="num">'+esc(t.price)+'</td><td>'+note(t)+'</td></tr>';
+    }).join('');
+    document.querySelector('#ddBomTools tfoot').innerHTML='<tr><td colspan="4">Everything priced here</td><td class="num">about $'+Math.round(tools/5)*5+'</td><td></td></tr>';
+    $('ddBomToolsSum').innerHTML='About $'+Math.round(tools/5)*5+' if you own none of it, not counting a printer. The prices with links were read from the listing pages on 14 November 2026.';
+    if($('ddBomDate'))$('ddBomDate').textContent=B.checked;
+    // the download link hands over a CSV made here from the same data, so it always matches the table above
+    try{$('ddBomCsv').href=URL.createObjectURL(new Blob([csv(B)],{type:'text/csv'}))}catch(e){}
+    window.__ddBom={csv:csv(B),data:B};
+  }).catch(function(){
+    [].forEach.call(document.querySelectorAll('.dd-bom tbody td'),function(td){td.textContent='This table could not be loaded. The same list is in bom.json and the CSV file above.'});
+  });
+})();
+
+// ---------------------------------------------------------------------------------------------------------------
+// The workbench: build steps (3D), floor plan (drawn from case/view/plan.json) and the working (live checks).
+// ---------------------------------------------------------------------------------------------------------------
+(function(){
+  var wb=document.getElementById('bench');if(!wb)return;
+  function $(id){return document.getElementById(id)}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  var still=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- tabs
+  var tabs=[].slice.call(wb.querySelectorAll('[role=tab]')),opened={};
+  function openTab(t,focus){
+    tabs.forEach(function(b){var on=b===t;b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;$(b.getAttribute('aria-controls')).hidden=!on});
+    if(focus)t.focus();
+    var k=t.id.slice(4);if(!opened[k]){opened[k]=true;if(k==='plan')Plan.start();if(k==='work')Work.start()}
+    if(k==='build')Build.draw();
+  }
+  tabs.forEach(function(b,i){
+    b.addEventListener('click',function(){openTab(b)});
+    b.addEventListener('keydown',function(e){var d=e.key==='ArrowRight'?1:e.key==='ArrowLeft'?-1:0;if(d){e.preventDefault();openTab(tabs[(i+d+tabs.length)%tabs.length],true)}});
+  });
+
+  // ================================================================================================= build steps
+  // [file, colour, how far it moves when pulled apart (mm, towards the front), and up (mm)]
+  var PARTS=[['front_shell',0xaab5bf,40,0],['face_buttons',0xf1f3f5,29,0],['small_buttons',0x39424d,29,0],['shoulder_buttons',0x39424d,10,14],
+    ['pad',0x9aa5b1,19,0],['stick_cap',0x2a313a,56,0],['inserts',0xd9ad4c,31,0],['board',0x1f7a4d,0,0],['board_parts',0x3a4350,0,0],['stick',0x96a1ad,0,0],
+    ['battery',0x86a3d1,-13,0],['back_shell',0x5d6976,-30,0],['screws',0xd2d7dc,-50,0]];
+  var NAMES={front_shell:'front shell',face_buttons:'face buttons',small_buttons:'Select, Start and Home caps',shoulder_buttons:'shoulder buttons',pad:'rubber pad',
+    stick_cap:'thumb cap',inserts:'brass inserts',board:'circuit board',board_parts:'parts on the board',stick:'stick',battery:'battery',back_shell:'back shell',screws:'screws'};
+  var ALL=PARTS.map(function(p){return p[0]});
+  var PRINTED=['front_shell','back_shell','face_buttons','small_buttons','shoulder_buttons'];
+  var FRONT={rx:-1.0,rz:.45},INSIDE={rx:-2.25,rz:.5},BACK={rx:-2.35,rz:-.45},FLAT={rx:-.55,rz:.3};
+  // show = parts on screen, hi = parts picked out in light blue, e = how far pulled apart (0 to 1), cam = which way we look
+  var STEPS=[
+   {t:'Overview',show:ALL,hi:[],e:0,cam:FRONT,
+    d:'The finished controller: two printed shells screwed together with the circuit board trapped between them. Press Next to build it one step at a time, or drag "Pull apart" to see everything at once.',
+    l:['The factory solders 50 small parts to the board. You solder one: the stick.','Per controller there are 13 printed pieces, 6 brass inserts and 6 screws.','Allow over an hour for the first one, then about 20 to 25 minutes each.']},
+   {t:'Gather the parts',show:ALL,hi:[],e:1,cam:FRONT,
+    d:'Everything in one controller, pulled apart in the order it stacks. From the front: thumb cap, front shell, inserts, button caps, rubber pad, board with the stick, battery, back shell, screws.',
+    l:['<b>From the board factory:</b> the board with every small part already soldered.','<b>Bought:</b> stick, thumb cap, battery, rubber pad, inserts, screws, foam tape.','<b>Printed:</b> two shells, four face buttons, three small caps, four shoulder buttons.'],
+    c:'Lay one full set out and count it before starting. The full list, with quantities, is under <a href="#parts">Parts list</a>.'},
+   {t:'Print the case parts',show:PRINTED,hi:PRINTED,e:.75,cam:FRONT,
+    d:'Thirteen printed pieces. Print the small test coupon first: it checks one button hole, one insert post and the USB-C opening against your real parts before you spend six hours on a case.',
+    l:['PETG, 0.4 mm nozzle; 0.12 mm layers for the shells and face buttons.','Both shells print with the open rim on the plate and supports inside.','Mark each face button underneath as it comes off: top, right, bottom, left. They differ by less than a millimetre.','Break out the supports and file the ends of the posts flat.'],
+    c:'A face button should drop through its hole and fall back out under its own weight. Settings are under <a href="#printing">Printing</a>.'},
+   {t:'Test the bare board',show:['board','board_parts'],hi:['board_parts'],e:0,cam:FLAT,
+    d:'Before soldering anything, prove the factory\'s work. Plug the board into a computer with a USB-C cable and load the firmware.',
+    l:['Look it over: the USB-C socket and the radio module should sit flat and straight.','Upload the firmware and open the Serial Monitor.','Press each small switch with a fingertip. Bridge each gold face contact with the tip of a metal screwdriver.'],
+    c:'All 12 inputs show up by name. A board that fails here goes back in the box, not into a case.'},
+   {t:'Solder the stick',show:['board','board_parts','stick'],hi:['stick'],e:0,cam:FLAT,
+    d:'The only soldering in the build: 14 joints. The stick pushes through the board from the front and is soldered on the back.',
+    l:['Push the stick flat against the board.','Solder one of its metal frame legs, then check it is still flat.','Solder the other 13 joints: iron at about 350 °C, about 2 seconds each.'],
+    c:'No gap under the stick\'s body on any side. A tilted stick rubs on the case opening.',w:1},
+   {t:'Battery check and first power-up',show:['board','board_parts','stick','battery'],hi:['battery'],e:.8,cam:FLAT,
+    d:'The battery lies behind the board. Its plug goes into the socket on the front, next to a notch in the board\'s bottom edge that the lead passes through.',
+    l:['<b>Before it touches the board,</b> check the plug with a multimeter: red must line up with the pad marked +. Sellers wire this plug both ways round.','If it is reversed, lift the two metal tabs out of the plug housing and swap them.','Plug it in and slide the switch on: the light blinks slowly.','Pair with a computer and try every input. Hold Start and Select for 3 seconds to calibrate the stick.','Switch off, plug in USB: red light while charging, green when full.'],
+    c:'A reversed battery destroys the board. Do not skip the multimeter. Do not charge the first units unattended.',w:1},
+   {t:'Set the six brass inserts',show:['front_shell','inserts'],hi:['inserts'],e:.35,cam:INSIDE,
+    d:'Now the case, seen from inside the front shell. Six brass inserts are melted into the tops of its posts; the screws will thread into these, not into plastic.',
+    l:['Soldering iron at about 220 °C.','Stand an insert on a post, press gently and let the heat do the work until it is flush.','Four posts take the board\'s screws; two are in the grips.'],
+    c:'Each insert sits flush and upright, and its hole is clear of plastic.'},
+   {t:'Load the buttons and the pad',show:['front_shell','inserts','face_buttons','small_buttons','shoulder_buttons','pad'],hi:['face_buttons','small_buttons','shoulder_buttons','pad'],e:.55,cam:INSIDE,
+    d:'With the front shell lying face-down, everything loose drops in from the back, in this order.',
+    l:['Four face buttons, each in its own hole, flat side against the rib.','The rubber pad over them, domes down into the buttons.','Select, Start and Home caps.','Four shoulder buttons into their slots in the top edge: L1 and R1 outermost.'],
+    c:'Tip the shell slightly: nothing should fall out of place, and each button should move freely.'},
+   {t:'Lower the board in',show:['front_shell','inserts','face_buttons','small_buttons','shoulder_buttons','pad','board','board_parts','stick'],hi:['board'],e:.3,cam:INSIDE,
+    d:'The board goes in parts-side down, the stick passing through the big opening. It rests on four posts and its four holes line up with four of the inserts.',
+    l:['Lower it straight, USB-C socket towards the top edge.','The pad\'s pegs pass through the board\'s holes and hold the pad in place.','Check each shoulder button sits against its switch.'],
+    c:'Press each face button from outside: you should feel the dome collapse and spring back.'},
+   {t:'Fit the battery and the back shell',show:ALL.filter(function(n){return n!=='screws'&&n!=='stick_cap'}),hi:['battery','back_shell'],e:.45,cam:BACK,
+    d:'The battery sits in a walled pocket in the back shell, held with thin foam tape, clear of every post and solder joint.',
+    l:['Tape the battery into its pocket.','Bring the lead up through the notch in the board\'s bottom edge and plug it in. The plug goes in from the left.','Close the back shell without trapping the lead.'],
+    c:'The two rims meet all the way round with no gap. If they do not, something is trapped: open it and look.',w:1},
+   {t:'Six screws',show:ALL.filter(function(n){return n!=='stick_cap'}),hi:['screws'],e:.3,cam:BACK,
+    d:'Six M2 screws go in from the back. Four, 8 mm long, pass through the board; two, 6 mm long, hold the grips. The two in the grips sit at the bottom of holes about 13 mm deep.',
+    l:['Start all six before tightening any.','Snug, not tight: the inserts are in plastic.','The two shorter screws go in the grips. A 1.5 mm hex key reaches them.'],
+    c:'Nothing rattles when you shake it.'},
+   {t:'Thumb cap and final test',show:ALL,hi:['stick_cap'],e:0,cam:FRONT,
+    d:'Push the thumb cap onto the stick\'s D-shaped shaft, and test the finished controller the way a player will use it.',
+    l:['Pair it and open the tester further down this page, or <code>joy.cpl</code> on Windows.','Press every button; move the stick in full circles; click it.','Leave it 10 minutes: it should go to sleep, and wake on Home or Start.'],
+    c:'Every input registers, the stick rests at zero, and the charge light works. Then build the next one.'}
+  ];
+  var Build=(function(){
+    var cv=$('wbCanvas'),note=$('wbNote'),T,renderer,scene,camera,group,meshes={},step=0,loaded=false,started=false;
+    var pose={rx:FRONT.rx,rz:FRONT.rz,e:0,dist:250},want={rx:FRONT.rx,rz:FRONT.rz,e:0},anim=0,glass=false;
+    var ol=$('wbSteps');
+    STEPS.forEach(function(s,i){var li=document.createElement('li'),b=document.createElement('button');b.type='button';b.innerHTML='<i>'+(i<10?'0':'')+i+'</i><span>'+esc(s.t)+'</span>';b.addEventListener('click',function(){go(i)});li.appendChild(b);ol.appendChild(li)});
+    function text(){
+      var s=STEPS[step];
+      $('wbCount').textContent='STEP '+step+' / '+(STEPS.length-1);
+      $('wbPrev').disabled=step===0;$('wbNext').disabled=step===STEPS.length-1;
+      [].forEach.call(ol.querySelectorAll('button'),function(b,i){if(i===step)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');b.className=i<step?'done':''});
+      $('wbText').innerHTML='<p class="k">STEP '+step+'</p><h3>'+esc(s.t)+'</h3><p>'+s.d+'</p>'+(s.l?'<ol>'+s.l.map(function(x){return '<li>'+x+'</li>'}).join('')+'</ol>':'')+(s.c?'<p class="chk'+(s.w?' warn':'')+'"><b>'+(s.w?'Careful: ':'Check: ')+'</b>'+s.c+'</p>':'');
+      $('wbLegend').textContent=s.hi.length?'Lit: '+s.hi.map(function(n){return NAMES[n]}).join(', '):'';
+    }
+    function go(i){
+      step=Math.max(0,Math.min(STEPS.length-1,i));var s=STEPS[step];
+      want={rx:s.cam.rx,rz:s.cam.rz,e:s.e};$('wbExplode').value=Math.round(s.e*100);
+      text();apply();move();
+    }
+    function apply(){
+      if(!loaded)return;var s=STEPS[step];
+      PARTS.forEach(function(p){
+        var m=meshes[p[0]];if(!m)return;var on=s.show.indexOf(p[0])>=0,hi=s.hi.indexOf(p[0])>=0,shell=p[0]==='front_shell'||p[0]==='back_shell';
+        m.visible=on;
+        var c=new T.Color(p[1]);if(s.hi.length&&!hi)c.lerp(new T.Color(0x2a3644),.45);
+        m.material.color.copy(c);m.material.emissive.setHex(hi?0x1f6f86:0x000000);
+        var see=glass&&shell&&!hi;m.material.transparent=see;m.material.opacity=see?.22:1;m.material.depthWrite=!see;m.material.needsUpdate=true;
+      });
+    }
+    function place(){
+      PARTS.forEach(function(p){var m=meshes[p[0]];if(m)m.position.set(0,p[3]*pose.e,p[2]*pose.e)});
+      group.rotation.set(pose.rx,0,pose.rz);camera.position.set(0,0,pose.dist+pose.e*60);
+    }
+    function draw(){
+      if(!loaded||$('wb-build').hidden)return;
+      var w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;
+      if(cv.width!==Math.round(w*renderer.getPixelRatio())||cv.height!==Math.round(h*renderer.getPixelRatio())){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+      place();renderer.render(scene,camera);
+    }
+    function move(){
+      if(!loaded)return;cancelAnimationFrame(anim);
+      if(still){pose.rx=want.rx;pose.rz=want.rz;pose.e=want.e;draw();return}
+      (function tick(){
+        var k=.16,dx=want.rx-pose.rx,dz=want.rz-pose.rz,de=want.e-pose.e;
+        pose.rx+=dx*k;pose.rz+=dz*k;pose.e+=de*k;
+        if(Math.abs(dx)+Math.abs(dz)+Math.abs(de)<.004){pose.rx=want.rx;pose.rz=want.rz;pose.e=want.e;draw();return}
+        draw();anim=requestAnimationFrame(tick);
+      })();
+    }
+    function parseSTL(buf){
+      var dv=new DataView(buf),n=dv.getUint32(80,true),pos=new Float32Array(n*9),o=84,i,k;
+      for(i=0;i<n;i++){o+=12;for(k=0;k<9;k++){pos[i*9+k]=dv.getFloat32(o,true);o+=4}o+=2}
+      var g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(pos,3));g.computeVertexNormals();return g;
+    }
+    function boot(){
+      T=window.THREE;
+      try{renderer=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:true})}catch(e){note.textContent='This browser could not start 3D graphics. The steps on the right still work.';return}
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.setClearColor(0x000000,0);
+      scene=new T.Scene();
+      scene.add(new T.HemisphereLight(0xdcefff,0x1a2a3a,.6));
+      var d1=new T.DirectionalLight(0xffffff,.55);d1.position.set(70,110,220);scene.add(d1);
+      var d2=new T.DirectionalLight(0x8fd8ff,.3);d2.position.set(-120,-60,-160);scene.add(d2);
+      camera=new T.PerspectiveCamera(30,16/10.5,1,3000);
+      group=new T.Group();scene.add(group);
+      var pivot=new T.Group();pivot.position.set(0,12,0);group.add(pivot);
+      note.textContent='Loading the parts…';
+      Promise.all(PARTS.map(function(p){return fetch('case/view/'+p[0]+'.stl').then(function(r){if(!r.ok)throw 0;return r.arrayBuffer()}).then(function(b){
+        var m=new T.Mesh(parseSTL(b),new T.MeshStandardMaterial({color:p[1],roughness:p[0]==='inserts'||p[0]==='screws'?.35:.75,metalness:p[0]==='inserts'||p[0]==='screws'?.7:0,side:T.DoubleSide,flatShading:p[0]!=='front_shell'&&p[0]!=='back_shell'&&p[0]!=='face_buttons'&&p[0]!=='small_buttons'}));
+        meshes[p[0]]=m;pivot.add(m);
+      })})).then(function(){loaded=true;note.textContent='Drag to turn · + and − to zoom';pose.e=want.e;pose.rx=want.rx;pose.rz=want.rz;apply();draw()})
+        .catch(function(){note.textContent='The 3D parts could not be loaded. The steps on the right still work.'});
+      var down=null;
+      cv.addEventListener('pointerdown',function(e){down=[e.clientX,e.clientY];try{cv.setPointerCapture(e.pointerId)}catch(x){}cv.style.cursor='grabbing';cancelAnimationFrame(anim)});
+      cv.addEventListener('pointermove',function(e){if(!down)return;pose.rz+=(e.clientX-down[0])*.01;pose.rx=Math.max(-3.1,Math.min(0,pose.rx+(e.clientY-down[1])*.01));want.rx=pose.rx;want.rz=pose.rz;down=[e.clientX,e.clientY];draw()});
+      ['pointerup','pointercancel'].forEach(function(n){cv.addEventListener(n,function(){down=null;cv.style.cursor='grab'})});
+      window.addEventListener('resize',draw);
+    }
+    function start(){
+      if(started)return;started=true;
+      if(window.THREE){boot();return}
+      var sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+      sc.onload=boot;sc.onerror=function(){note.textContent='The 3D viewer could not be loaded. The steps on the right still work.'};
+      document.head.appendChild(sc);
+    }
+    $('wbPrev').addEventListener('click',function(){go(step-1)});
+    $('wbNext').addEventListener('click',function(){go(step+1)});
+    $('wbExplode').addEventListener('input',function(){want.e=pose.e=this.value/100;draw()});
+    $('wbGlass').addEventListener('change',function(){glass=this.checked;apply();draw()});
+    $('wbZoomIn').addEventListener('click',function(){pose.dist=Math.max(130,pose.dist-30);draw()});
+    $('wbZoomOut').addEventListener('click',function(){pose.dist=Math.min(430,pose.dist+30);draw()});
+    $('wbReset').addEventListener('click',function(){pose.dist=250;go(step)});
+    $('wb-build').addEventListener('keydown',function(e){if(e.target.tagName==='INPUT')return;if(e.key==='ArrowRight'){go(step+1)}else if(e.key==='ArrowLeft'){go(step-1)}});
+    text();
+    if('IntersectionObserver' in window){var io=new IntersectionObserver(function(en){if(en[0].isIntersecting){io.disconnect();start()}},{rootMargin:'200px'});io.observe(wb)}else start();
+    window.__ddBench={ready:function(){return loaded},step:function(){return step},go:go,shown:function(){return ALL.filter(function(n){return meshes[n]&&meshes[n].visible})},steps:STEPS.length};
+    return {draw:draw,start:start};
+  })();
+
+  // ================================================================================================== floor plan
+  // What the side panel says about each part: [name, {rows}, note]
+  var INFO={
+   case:['Front shell',{What:'Printed PETG, 2 mm walls',Size:'125 × 78 mm outline; domed, 11 mm above the board at its highest',File:'<a href="case/front_shell.stl" download>front_shell.stl</a>'},'Holds the six brass inserts. Prints rim-down with supports inside.'],
+   back:['Back shell',{What:'Printed PETG, 2 mm walls',Size:'Flat in the middle, 10 mm behind the board, with a 7 mm swell in each grip',File:'<a href="case/back_shell.stl" download>back_shell.stl</a>'},'Carries the battery pocket and three posts that support the board behind the stick and the face buttons.'],
+   stickopen:['Stick opening',{What:'25 mm hole in the front shell',Position:'30 mm left of centre, 2 mm below the middle'},'Its rim is thickened to 4 mm so sideways knocks go into the case, not into the stick\'s solder joints.'],
+   stick:['Stick',{Part:'YTL YHE-YG13-013, Hall sensor',Price:'$1.69 at 30 (LCSC C42410941)',Pins:'X on GPIO2, Y on GPIO3, click (L3) on GPIO4; powered through GPIO8',Size:'13.1 mm square body, shaft 19.45 mm tall'},'The one part soldered by hand: 14 joints. Its power is switched off in sleep.'],
+   stickcap:['Thumb cap',{What:'Replacement cap for a 4 mm D-shaped shaft',Price:'About $0.28 (unconfirmed), or printed'},'Pushed on last, after the case is closed.'],
+   facehole:['Face button hole',{What:'Hole in the front shell',Size:'Cap diameter plus 0.5 mm'},'A rib beside each hole runs against the flat on the button so its sloped top stays lined up with the case.'],
+   face_north:['Top face button',{Part:'Printed cap on a rubber dome, over a gold contact',Pin:'GPIO18',File:'<a href="case/face_button_top.stl" download>face_button_top.stl</a>'},'Reported to the computer as "Top face".'],
+   face_east:['Right face button',{Part:'Printed cap on a rubber dome, over a gold contact',Pin:'GPIO19',File:'<a href="case/face_button_right.stl" download>face_button_right.stl</a>'},'Reported as "Right face".'],
+   face_south:['Bottom face button',{Part:'Printed cap on a rubber dome, over a gold contact',Pin:'GPIO20',File:'<a href="case/face_button_bottom.stl" download>face_button_bottom.stl</a>'},'Reported as "Bottom face": the main action button.'],
+   face_west:['Left face button',{Part:'Printed cap on a rubber dome, over a gold contact',Pin:'GPIO21',File:'<a href="case/face_button_left.stl" download>face_button_left.stl</a>'},'Reported as "Left face".'],
+   contact:['Gold face contact',{What:'A pattern of two interleaved gold fingers on the board, 5.3 mm across',Finish:'ENIG gold'},'A carbon pill in the rubber dome bridges the two fingers when the button is pressed. Gold is what keeps this working for years.'],
+   pad:['Rubber pad',{Part:'Conductive rubber pad for a Super Nintendo style controller',Price:'$2.99 a set, or about $2.25 in a lot of 100',Spacing:'27 mm across, 21 mm top to bottom'},'Buy one and measure it before drawing the board: the pad sets the button spacing.'],
+   select:['Select',{Part:'Push switch TS-1088 under a printed cap',Pin:'GPIO23',Price:'$0.04'},'Hold Start and Select for 3 seconds to calibrate the stick.'],
+   start:['Start',{Part:'Push switch TS-1088 under a printed cap',Pin:'GPIO7',Price:'$0.04'},'Also wakes the controller from sleep.'],
+   home:['Home',{Part:'Push switch TS-1088 under a printed cap',Pin:'GPIO5',Price:'$0.04'},'Also wakes the controller from sleep.'],
+   led:['Status light',{Part:'White 0603 LED, KT-0603W, under a 2 mm hole',Pin:'GPIO15',Price:'$0.01'},'Slow blink: waiting to pair. Steady: connected. The hole is filled with a drop of clear glue as a window.'],
+   boot:['BOOT switch',{Part:'Push switch TS-1088, no cap',Pin:'GPIO9'},'Only for loading firmware onto a blank chip. It has no hole in the case.'],
+   module:['Radio module',{Part:'ESP32-C6-WROOM-1-N8',Price:'$3.49 (LCSC C5366877)',Size:'18 × 25.5 × 3.1 mm',Radio:'Bluetooth 5 Low Energy'},'The whole computer and radio. Its antenna is the bottom 6 mm; the board has a cut-out under it.'],
+   antenna:['Antenna keep-out',{What:'A notch in the board under the module\'s antenna'},'No copper and no battery here. The battery sits 1.6 mm from this area, closer than the chip maker recommends, so range is the first thing to test.'],
+   usb:['USB-C socket',{Part:'TYPE-C-31-M-12, 16-pin',Price:'$0.19 (LCSC C165948)',Pins:'Data on GPIO12 and GPIO13',Does:'Charging and loading firmware'},'Four legs go through the board for strength. Its mouth sits just inside the wall, in a pocket so a cable pushes fully home.'],
+   slide:['Power switch',{Part:'Slide switch MSK12C02',Price:'$0.05 (LCSC C431540)'},'Rated only 50 mA, so it switches the regulator on and off rather than carrying the power. Sits in a pocket so it cannot be knocked on in a bag.'],
+   L1:['L1',{Part:'Side-facing switch TS3819ZJ behind a printed plunger',Pin:'GPIO10',Price:'$0.10'},'Rated 500,000 presses. The plunger\'s outer end follows the curve of the shoulder.'],
+   L2:['L2',{Part:'Side-facing switch TS3819ZJ behind a printed plunger',Pin:'GPIO0',Price:'$0.10'},'On a pin that can read a voltage, so an analog trigger could replace it later.'],
+   R2:['R2',{Part:'Side-facing switch TS3819ZJ behind a printed plunger',Pin:'GPIO1',Price:'$0.10'},'On a pin that can read a voltage, so an analog trigger could replace it later.'],
+   R1:['R1',{Part:'Side-facing switch TS3819ZJ behind a printed plunger',Pin:'GPIO22',Price:'$0.10'},'Rated 500,000 presses. Likely the first part to wear out; easy to re-solder.'],
+   jst:['Battery socket',{Part:'JST-PH pattern, 2-pin, XYECONN XY-S2B-PH-SM4-TB',Price:'$0.05 (LCSC C54582899)'},'The plug goes in from the left. Check the battery lead\'s polarity with a multimeter first.'],
+   notch:['Battery lead notch',{What:'A cut in the board\'s bottom edge'},'The battery lead comes up through here from the back of the board to the socket on the front.'],
+   board:['Circuit board',{Size:'108 × 46 mm, 1.2 mm thick, two layers',Finish:'ENIG gold',Made:'By JLCPCB, with 50 parts already soldered'},'Its top corners curve to follow the inside of the case. The exact edge is in <a href="case/board.dxf" download>board.dxf</a>.'],
+   hole:['Board screw',{What:'M2 × 8 mm socket head screw through a 2.2 mm hole in the board, into a brass insert in the front shell'},'Four of these locate the board and clamp it between the posts of the two shells.'],
+   grip:['Grip screw',{What:'M2 × 6 mm socket head screw into a brass insert in the front shell'},'Holds the tips of the grips together. Its head sits at the bottom of a hole about 13 mm deep. Shorter than the board screws because there is no board between the shells here.'],
+   battery:['Battery',{Part:'Lithium-polymer cell, size 603450, 3.7 V, 1,200 mAh',Size:'6 × 34 × 52 mm, about 21 g',Price:'$3 (unconfirmed) to $7.41'},'Held in a walled pocket with foam tape. 1.4 mm clear of the board so it cannot touch the USB socket\'s solder legs.'],
+   support:['Support post',{What:'A post on the back shell that touches the back of the board'},'Stops the board bending when the stick or a face button is pressed hard.'],
+   swell:['Palm swell',{What:'The back shell bulges 7 mm here',Centre:'50 mm from the middle, in each grip'},'What makes the grip fill the palm. It is also why the back shell needs supports to print.'],
+   plunger:['Shoulder button',{Part:'Printed plunger, held in by a small wing each side'},'Slides in a slot in the top edge and presses the side-facing switch. No hinge and no spring.']
+  };
+  var Plan=(function(){
+    var host=$('wbPlanHost'),k=6,cx=420,cy=228,layer='c',data=null;
+    var LAYERS=[['a','A · Front shell'],['b','B · Buttons and pad'],['c','C · Circuit board'],['d','D · Battery and back shell']];
+    function X(x){return (cx+x*k).toFixed(1)}function Y(y){return (cy-y*k).toFixed(1)}
+    function path(pts){return 'M'+pts.map(function(q){return X(q[0])+','+Y(q[1])}).join(' L')+' Z'}
+    function it(id,shape,label){return '<g class="it'+(id==='swell'?' sw':'')+'" data-id="'+id+'" tabindex="0" role="button" aria-label="'+esc(label||INFO[id][0])+'">'+shape+'</g>'}
+    function circ(x,y,d){return '<circle cx="'+X(x)+'" cy="'+Y(y)+'" r="'+(d/2*k).toFixed(1)+'"/>'}
+    function rect(x,y,w,h,r){return '<rect x="'+X(x-w/2)+'" y="'+Y(y+h/2)+'" width="'+(w*k).toFixed(1)+'" height="'+(h*k).toFixed(1)+'" rx="'+((r||0)*k).toFixed(1)+'"/>'}
+    function txt(x,y,s,cls,anchor){return '<text x="'+X(x)+'" y="'+Y(y)+'" text-anchor="'+(anchor||'middle')+'"'+(cls?' class="'+cls+'"':'')+'>'+esc(s)+'</text>'}
+    function build(){
+      var d=data,o=[],top=d.pcb_top_y,i;
+      o.push('<svg class="wb-plan" viewBox="0 0 840 590" role="group" aria-label="Plan of the controller, one layer at a time">');
+      var g='';for(i=-70;i<=70;i++)g+='<path class="'+(i%5?'grid':'grid5')+'" d="M'+X(i)+',0 V590"/>';for(i=-60;i<=38;i++)g+='<path class="'+(i%5?'grid':'grid5')+'" d="M0,'+Y(i)+' H840"/>';o.push(g);
+      var ghostCase='<path class="gh" d="'+path(d.case)+'"/>',ghostBoard='<path class="gh" d="'+path(d.board)+'"/>';
+      // A: front shell
+      var a='<g data-ly="a">'+it('case','<path d="'+path(d.case)+'"/>');
+      a+=it('stickopen',circ(d.stick.xy[0],d.stick.xy[1],d.stick.opening));
+      for(var n in d.face)a+=it('facehole',circ(d.face[n][0],d.face[n][1],d.face_cap+.5),'Hole for the '+n+' face button');
+      a+=it('select',circ(d.select[0],d.select[1],d.select_cap+.5))+it('start',circ(d.start[0],d.start[1],d.select_cap+.5))+it('home',circ(d.home[0],d.home[1],d.home_cap+.5))+it('led',circ(d.led[0],d.led[1],2));
+      d.shoulders.forEach(function(s){a+=it(s[0],rect(s[1],27-1,s[2]+.5,2.6),'Slot for '+s[0])});
+      a+=it('usb',rect(d.usb_x,27-1,9.4,2.6,.8))+it('slide',rect(d.switch_x,27-1,9,2.6));
+      a+=txt(d.stick.xy[0],d.stick.xy[1]+.6,'stick')+txt(d.face.south[0],d.face.south[1]-9.5,'face buttons')+txt(0,d.led[1]+3.2,'light')+txt(0,34,'TOP EDGE: L1 · L2 · switch · USB-C · R2 · R1');
+      a+='<path class="dm" d="M'+X(-62.5)+','+Y(-56)+' H'+X(62.5)+' M'+X(-62.5)+','+Y(-54.5)+' V'+Y(-57.5)+' M'+X(62.5)+','+Y(-54.5)+' V'+Y(-57.5)+'"/>'+txt(0,-58.6,'125 mm','dt');
+      a+='<path class="dm" d="M'+X(67)+','+Y(27)+' V'+Y(-51)+' M'+X(65.5)+','+Y(27)+' H'+X(68.5)+' M'+X(65.5)+','+Y(-51)+' H'+X(68.5)+'"/>'+'<text class="dt" text-anchor="middle" transform="translate('+X(69.6)+','+Y(-12)+') rotate(90)">78 mm</text></g>';
+      // B: buttons and pad
+      var b='<g data-ly="b">'+ghostCase+it('pad',rect(d.pad[0],d.pad[1],d.pad[2],d.pad[3],3));
+      var fn={north:'face_north',east:'face_east',south:'face_south',west:'face_west'};
+      for(n in d.face)b+=it(fn[n],circ(d.face[n][0],d.face[n][1],d.face_cap));
+      b+=it('select',circ(d.select[0],d.select[1],d.select_cap))+it('start',circ(d.start[0],d.start[1],d.select_cap))+it('home',circ(d.home[0],d.home[1],d.home_cap))+it('stickcap',circ(d.stick.xy[0],d.stick.xy[1],19));
+      d.shoulders.forEach(function(s){b+=it('plunger',rect(s[1],27-.4,s[2],5.6,.6),s[0]+' plunger')+txt(s[1],31.8,s[0])});
+      b+=txt(d.stick.xy[0],d.stick.xy[1]+.6,'cap')+txt(d.select[0],d.select[1]-5.4,'Sel')+txt(d.start[0],d.start[1]-5.4,'Start')+txt(d.home[0],d.home[1]-6,'Home')+'</g>';
+      // C: the board
+      var m=d.module,c='<g data-ly="c">'+ghostCase+it('board','<path d="'+path(d.board)+'"/>');
+      c+=it('module',rect(m[0]+m[2]/2,m[1]+m[3]/2,m[2],m[3],.5))+it('antenna',rect(m[0]+m[2]/2,m[1]+3,m[2],6));
+      c+=it('stick',rect(d.stick.xy[0],d.stick.xy[1],19.5,19.5,1));
+      for(n in d.face)c+=it('contact',circ(d.face[n][0],d.face[n][1],5.3),'Gold contact for the '+n+' face button');
+      c+=it('select',rect(d.select[0],d.select[1],5,3,.4))+it('start',rect(d.start[0],d.start[1],5,3,.4))+it('home',rect(d.home[0],d.home[1],5,3,.4))+it('boot',rect(d.boot[0],d.boot[1],5,3,.4))+it('led',rect(d.led[0],d.led[1],1.8,1.2));
+      c+=it('usb',rect(d.usb_x,top+.5-3.7,8.94,7.35,.6))+it('slide',rect(d.switch_x,top-1,8,2.8));
+      d.shoulders.forEach(function(s){c+=it(s[0],rect(s[1],top-1,3.9,2.05))+txt(s[1],top-4.2,s[0])});
+      c+=it('jst',rect(d.jst[0],d.jst[1],7.6,7.9,.4))+it('notch',rect(d.battery_notch[0],top-d.pcb_h+d.battery_notch[2]/2,d.battery_notch[1],d.battery_notch[2]));
+      d.pcb_holes.forEach(function(h){c+=it('hole',circ(h[0],h[1],2.2))});
+      c+=txt(m[0]+m[2]/2,m[1]+m[3]/2+3,'radio')+txt(m[0]+m[2]/2,m[1]+1.6,'antenna')+txt(d.stick.xy[0],d.stick.xy[1]-.8,'stick')+txt(d.usb_x,top-4,'USB-C')+txt(d.switch_x,top-4.2,'switch')+txt(d.jst[0]-5,d.jst[1]-.6,'battery socket',null,'end')+txt(d.boot[0],d.boot[1]-3.6,'BOOT')+txt(d.face.south[0],d.face.south[1]-5.6,'contacts');
+      c+='<path class="dm" d="M'+X(-54)+','+Y(-27.5)+' H'+X(54)+' M'+X(-54)+','+Y(-26)+' V'+Y(-29)+' M'+X(54)+','+Y(-26)+' V'+Y(-29)+'"/>'+txt(30,-30.2,'board 108 × 46 mm','dt')+'</g>';
+      // D: battery and back shell
+      var bt=d.battery,dd='<g data-ly="d">'+it('back','<path d="'+path(d.case)+'"/>')+ghostBoard;
+      dd+=it('swell','<ellipse cx="'+X(d.swell.xy[0])+'" cy="'+Y(d.swell.xy[1])+'" rx="'+(d.swell.size[0]*k*.8).toFixed(1)+'" ry="'+(d.swell.size[1]*k*.62).toFixed(1)+'"/>','Right palm swell')+it('swell','<ellipse cx="'+X(-d.swell.xy[0])+'" cy="'+Y(d.swell.xy[1])+'" rx="'+(d.swell.size[0]*k*.8).toFixed(1)+'" ry="'+(d.swell.size[1]*k*.62).toFixed(1)+'"/>','Left palm swell');
+      dd+=it('battery',rect(bt.xy[0],bt.xy[1],bt.size[0],bt.size[1],2));
+      d.supports.forEach(function(s){dd+=it('support',circ(s[0],s[1],4))});
+      d.pcb_holes.forEach(function(h){dd+=it('hole',circ(h[0],h[1],4.4))});d.grip_screws.forEach(function(h){dd+=it('grip',circ(h[0],h[1],4.4))});
+      dd+=txt(bt.xy[0],bt.xy[1]+.6,'battery 52 × 34.5')+txt(d.swell.xy[0],d.swell.xy[1]+15.5,'swell')+txt(-d.swell.xy[0],d.swell.xy[1]+15.5,'swell')+txt(0,34,'SEEN FROM THE FRONT, THROUGH THE BOARD')+'</g>';
+      o.push(a,b,c,dd,'</svg>');host.innerHTML=o.join('');
+      var lb=$('wbLayers');LAYERS.forEach(function(l){var bn=document.createElement('button');bn.type='button';bn.className='wbtn';bn.textContent=l[1];bn.setAttribute('data-l',l[0]);bn.addEventListener('click',function(){show(l[0])});lb.appendChild(bn)});
+      host.addEventListener('click',function(e){var t=e.target.closest('.it');if(t)pick(t.getAttribute('data-id'),t)});
+      host.addEventListener('keydown',function(e){if(e.key!=='Enter'&&e.key!==' ')return;var t=e.target.closest('.it');if(t){e.preventDefault();pick(t.getAttribute('data-id'),t)}});
+      show(layer);
+    }
+    function show(l){
+      layer=l;[].forEach.call(host.querySelectorAll('[data-ly]'),function(g){g.style.display=g.getAttribute('data-ly')===l?'':'none'});
+      [].forEach.call($('wbLayers').children,function(b){b.setAttribute('aria-pressed',b.getAttribute('data-l')===l?'true':'false')});
+      var seen={},list=$('wbList');list.innerHTML='';
+      [].forEach.call(host.querySelectorAll('[data-ly="'+l+'"] .it'),function(g){var id=g.getAttribute('data-id');if(seen[id])return;seen[id]=1;
+        var li=document.createElement('li'),b=document.createElement('button');b.type='button';b.textContent=INFO[id][0];b.setAttribute('data-id',id);b.addEventListener('click',function(){pick(id,g)});li.appendChild(b);list.appendChild(li)});
+      pick(null);
+    }
+    function pick(id,el){
+      [].forEach.call(host.querySelectorAll('.it.sel'),function(g){g.classList.remove('sel')});
+      [].forEach.call($('wbList').querySelectorAll('button'),function(b){b.className=b.getAttribute('data-id')===id?'sel':''});
+      var sh=$('wbSheet');
+      if(!id||!INFO[id]){sh.innerHTML='<p class="k">PART</p><h3>Click any part</h3><p>Every outlined shape on the plan can be clicked, or reached with the Tab key. This panel then says what the part is, which pin it uses, what it costs and what to watch for.</p>';return}
+      [].forEach.call(host.querySelectorAll('[data-ly="'+layer+'"] .it[data-id="'+id+'"]'),function(g){g.classList.add('sel')});
+      var inf=INFO[id],rows='';for(var key in inf[1])rows+='<dt>'+esc(key)+'</dt><dd>'+inf[1][key]+'</dd>';
+      sh.innerHTML='<p class="k">LAYER '+layer.toUpperCase()+'</p><h3>'+esc(inf[0])+'</h3><dl>'+rows+'</dl><p>'+inf[2]+'</p>';
+    }
+    function start(){fetch('case/view/plan.json').then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){data=j;build()}).catch(function(){host.innerHTML='<p class="wb-foot" style="padding:14px">The plan could not be loaded. The same positions are listed under <a href="#pcb">The circuit board</a>.</p>'})}
+    window.__ddPlan={ready:function(){return !!data},show:function(l){show(l)},pick:function(id){pick(id)},layer:function(){return layer},items:function(){return host.querySelectorAll('[data-ly="'+layer+'"] .it').length}};
+    return {start:start};
+  })();
+
+  // ================================================================================================= the working
+  var Work=(function(){
+    var ids=['wbCap','wbStick','wbSlot','wbChg','wbHrs','wbQty','wbBatP','wbPad'],DEF={};
+    // per unit at each batch size: [before US duty, with duty], with the $3 battery, the Hall stick and $2.99 pads
+    var COST={10:[28,32],30:[20.4,23.2],50:[18.5,21],200:[15.5,17.5]};
+    function f(x,d){return x.toFixed(d===undefined?1:d)}
+    function money(x){return '$'+(Math.abs(x-Math.round(x))<.005?Math.round(x):x.toFixed(2))}
+    function calc(){
+      var cap=+$('wbCap').value,tmr=$('wbStick').value==='tmr',slot=+$('wbSlot').value,chg=+$('wbChg').value,hrs=+$('wbHrs').value,qty=+$('wbQty').value,batP=+$('wbBatP').value,pad=+$('wbPad').value;
+      var chip=28,radio=3*7.5/slot,stick=tmr?.4:4,draw=chip+radio+stick,usable=.875,play=cap*usable/draw;
+      var sleepPerDay=.075*(24-hrs),perDay=draw*hrs+sleepPerDay,days=cap*usable/perDay;
+      var chargeH=cap/(chg*1000)*1.3,rate=chg*1000/cap;
+      var avg=1+slot/2,worst=1+slot;
+      var batG=21*cap/1200,weight=58+batG+16+6+2;
+      var extra=(batP-3)+(tmr?.93:0)+(pad-2.99)+(cap<=600&&batP===3?-1:0),unit=COST[qty][1]+extra,pre=COST[qty][0]+extra;
+      var shelf=cap*usable/.075/24/365;
+      return {cap:cap,tmr:tmr,slot:slot,chg:chg,hrs:hrs,qty:qty,batP:batP,pad:pad,chip:chip,radio:radio,stick:stick,draw:draw,play:play,days:days,chargeH:chargeH,rate:rate,avg:avg,worst:worst,batG:batG,weight:weight,unit:unit,pre:pre,extra:extra,shelf:shelf,perDay:perDay};
+    }
+    function st(v,pass,marg,low){var ok=low?v<=pass:v>=pass,mid=low?v<=marg:v>=marg;return ok?['p','● Pass']:mid?['m','▲ Marginal']:['f','✕ Fail']}
+    function render(){
+      var r=calc();
+      $('wbCapOut').textContent=r.cap.toLocaleString('en-US')+' mAh';$('wbHrsOut').textContent=f(r.hrs,1)+' h';
+      var fits=r.cap<=1200;
+      var rows=[
+       ['Play time on a charge',f(r.play,0)+' h','≥ 20 h (≥ 10 marginal)',st(r.play,20,10),'A controller that needs charging every other evening gets left on the charger and forgotten.',
+        'Draw = chip '+r.chip+' + radio '+f(r.radio)+' + stick '+f(r.stick)+' = '+f(r.draw)+' mA. '+r.cap+' mAh × 0.875 usable ÷ '+f(r.draw)+' mA = '+f(r.play,1)+' h'],
+       ['Days between charges',f(r.days,0)+' days','≥ 7 days (≥ 3 marginal)',st(r.days,7,3),'At '+f(r.hrs,1)+' hours of play a day, with the rest of the day asleep.',
+        'Per day = '+f(r.draw)+' mA × '+f(r.hrs,1)+' h + 0.075 mA × '+f(24-r.hrs,1)+' h asleep = '+f(r.perDay,1)+' mAh. '+r.cap+' × 0.875 ÷ '+f(r.perDay,1)+' = '+f(r.days,1)+' days'],
+       ['Charging rate',f(r.rate,2)+' C','≤ 0.5 C (≤ 1 C marginal)',st(r.rate,.5,1,true),'Charging a small cell too fast shortens its life and warms it. 1 C means a current that would fill it in one hour.',
+        f(r.chg*1000,0)+' mA ÷ '+r.cap+' mAh = '+f(r.rate,2)+' C'],
+       ['Time to charge from empty',f(r.chargeH,1)+' h','≤ 5 h (≤ 8 marginal)',st(r.chargeH,5,8,true),'Overnight is fine; longer than that and a flat controller misses the next day.',
+        r.cap+' mAh ÷ '+f(r.chg*1000,0)+' mA × 1.3 (the slow last part) = '+f(r.chargeH,1)+' h'],
+       ['Battery fits the pocket',fits?'Fits':'Too big','≤ 1,200 mAh in size 603450',fits?['p','● Pass']:['f','✕ Fail'],'The pocket is drawn for a 6 × 34 × 52 mm cell. A bigger cell needs a thicker case.',
+        'Cells above about 1,200 mAh are longer, wider or thicker than 6 × 34 × 52 mm'],
+       ['Delay added by the radio, worst case',f(r.worst,1)+' ms','≤ 9 ms (≤ 17 marginal)',st(r.worst,9,17,true),'A press waits for the next radio slot. At 60 frames a second one frame is 16.7 ms.',
+        'Up to 1 ms to notice the press + up to '+r.slot+' ms waiting for a slot = '+f(r.worst,1)+' ms; on average 1 + '+r.slot+' ÷ 2 = '+f(r.avg,1)+' ms'],
+       ['Regulator load','about 160 mA peak','≤ 500 mA',['p','● Pass'],'The 3.3 V regulator must cover the radio while it is sending.',
+        'Radio sending 130 mA + chip about '+r.chip+' mA + stick '+f(r.stick)+' mA, against the ME6211\'s 500 mA'],
+       ['Asleep on a shelf',f(r.shelf,1)+' years','≥ 1 year',st(r.shelf,1,.5),'A controller left in a drawer should still wake up.',
+        r.cap+' mAh × 0.875 ÷ 0.075 mA asleep = '+f(r.cap*.875/.075/24,0)+' days'],
+       ['Battery to antenna','1.6 mm','As far as possible',['m','▲ Marginal'],'Metal near the antenna shortens range. There is no room for more in a case this small.',
+        'Fixed by the layout. Range is the first thing to measure on a real unit'],
+       ['Weight',f(r.weight,0)+' g','≤ 120 g',st(r.weight,120,150,true),'Light enough to hold for hours. A Joy-Con pair is about 100 g.',
+        'Case 58 + battery '+f(r.batG,0)+' + board 16 + stick and cap 6 + screws 2 = '+f(r.weight,0)+' g'],
+       ['Cost of each, with US duty',money(r.unit),'≤ $15 target',st(r.unit,15,20,true),'The budget this project started with.',
+        'Table price at '+r.qty+' units '+money(COST[r.qty][1])+(r.extra?' '+(r.extra>0?'+ ':'− ')+money(Math.abs(r.extra))+' for the choices above':'')+' = '+money(r.unit)]
+      ];
+      var n={p:0,m:0,f:0};rows.forEach(function(x){n[x[3][0]]++});
+      $('wbChecks').innerHTML=rows.map(function(x){return '<tr><td>'+x[0]+'</td><td>'+x[1]+'</td><td>'+x[2]+'</td><td class="st '+x[3][0]+'">'+x[3][1]+'</td><td>'+x[4]+'</td><td class="w">'+x[5]+'</td></tr>'}).join('');
+      $('wbSum').textContent=n.p+' of '+rows.length+' checks pass · '+n.m+' marginal · '+n.f+' failing';
+      var tiles=[['Play time',f(r.play,0)+' h',f(r.draw)+' mA while playing'],['Between charges',f(r.days,0)+' days','at '+f(r.hrs,1)+' h a day'],['Full charge',f(r.chargeH,1)+' h','at '+f(r.chg,2)+' A'],
+        ['Added delay',f(r.avg,1)+' ms','average; '+f(r.worst,1)+' ms at worst'],['Weight',f(r.weight,0)+' g','battery '+f(r.batG,0)+' g'],['Each',money(r.unit),money(r.pre)+' before US duty'],['Whole batch',money(Math.round(r.unit*r.qty/5)*5),r.qty+' controllers, with duty']];
+      $('wbTiles').innerHTML=tiles.map(function(t){return '<div class="wb-tile"><p class="k">'+t[0]+'</p><p class="v">'+t[1]+'</p><p class="s">'+t[2]+'</p></div>'}).join('');
+    }
+    function start(){
+      ids.forEach(function(id){DEF[id]=$(id).value;$(id).addEventListener('input',render);$(id).addEventListener('change',render)});
+      $('wbWorkReset').addEventListener('click',function(){ids.forEach(function(id){$(id).value=DEF[id]});render()});
+      render();
+    }
+    window.__ddWork={calc:calc,set:function(id,v){$(id).value=v;render()}};
+    return {start:start};
+  })();
+})();
+
+// Controller tester: shows what the browser receives, with this controller's button order.
+(function(){
+  var keys=document.getElementById('ddKeys'),state=document.getElementById('ddPadState'),dot=document.getElementById('ddDot'),axes=document.getElementById('ddAxes');
+  if(!keys||!navigator.getGamepads){if(state)state.textContent='This browser cannot read game controllers.';return}
+  var NAMES=['Left face','Bottom face','Right face','Top face','L1','R1','L2','R2','Select','Start','L3','(unused)','Home'],spans=[],running=false;
+  NAMES.forEach(function(n){var s=document.createElement('span');s.textContent=n;keys.appendChild(s);spans.push(s)});
+  function tick(){
+    var pads=navigator.getGamepads(),p=null,i;
+    for(i=0;i<pads.length;i++)if(pads[i]){p=pads[i];break}
+    if(!p){state.textContent='No controller seen yet. Press a button on it.';running=false;return}
+    state.textContent='Connected: '+p.id;
+    for(i=0;i<spans.length;i++)spans[i].className=p.buttons[i]&&p.buttons[i].pressed?'on':'';
+    var x=p.axes[0]||0,y=p.axes[1]||0;
+    dot.style.transform='translate('+(x*50).toFixed(1)+'px,'+(y*50).toFixed(1)+'px)';
+    axes.textContent='stick x '+x.toFixed(2)+'   y '+y.toFixed(2)+'   ('+p.buttons.length+' buttons, '+p.axes.length+' axes reported)';
+    requestAnimationFrame(tick);
+  }
+  function go(){if(!running){running=true;requestAnimationFrame(tick)}}
+  window.addEventListener('gamepadconnected',go);
+  window.addEventListener('gamepaddisconnected',go);
+  go();
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="daedalus" defer></script>
+<script src="/account/account.js" defer></script>
+</body>
+</html>

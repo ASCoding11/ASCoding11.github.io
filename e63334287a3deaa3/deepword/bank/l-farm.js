@@ -1,0 +1,2 @@
+/* Deepword answer data, built by tools/build.js from prompts.js and free data (see tools/SOURCES.md). Do not edit by hand. */
+DW_EXT.add("farm","cow;pig;chicken;sheep;horse;goat;duck;turkey;donkey;goose;rooster;rabbit;llama;alpaca;ox;bull;mule;hen;lamb;calf;piglet;chick;foal;pony;guinea fowl;peacock;emu;ostrich;bison;yak;water buffalo;camel;reindeer;dog;cat;bee;quail;pheasant;pigeon;fish;deer;elk;mink;silkworm;zebu;highland cow;shetland pony;clydesdale;guinea pig","zlxpygxcz7tov5szm9oyngspi7eug1qgjentnwgsjskwdfmbcoh5dshwj1e6ejlak5srmsp0fnbxmernnihjfaewasb6cabjia");

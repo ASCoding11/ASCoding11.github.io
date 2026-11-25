@@ -1,0 +1,1681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Admin</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+/* The Back Room admin page (opened through door.js). Not linked from anywhere. The folder name is the digest of the
+   number code; the page then needs the password too. Saved chat and feedback are sealed to the admin key
+   (../adminkey.js), and only the two codes together unwrap its private key, here in the browser. */
+[hidden]{display:none!important}
+/* Theme: near-black with a faint field of light-blue binary (the canvas #bits), white text on dark translucent panels.
+   The same in light and dark mode. Body text #f1f5f9 / #c3cedb on ~#0a1119 is well above WCAG AA. */
+:root,:root:not([data-x]){color-scheme:dark;--ground:#04070b;--panel:rgba(10,17,26,.9);--panel-2:rgba(19,32,46,.92);--ink:#f1f5f9;--ink-2:#c3cedb;--line:rgba(125,211,252,.24);
+  --accent:#7dd3fc;--accent-ink:#04121c;--up:#86efac;--down:#fca5a5}
+body{background:var(--ground)}
+#bits{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:block}
+.wrap{position:relative;z-index:1}
+.topbar,header{border-color:var(--line)}
+.wordmark{color:var(--ink)}
+.kicker{color:var(--accent)}
+h1{font-family:var(--mono);font-weight:600;font-size:clamp(40px,7vw,72px);letter-spacing:.04em;color:var(--ink);text-shadow:0 0 24px rgba(56,189,248,.25)}
+.card h2,.notice h2{font-family:var(--mono);font-weight:600;font-size:16px;letter-spacing:.08em;text-transform:uppercase}
+.card h2{color:var(--accent)}
+.kpi .v{font-family:var(--mono);font-weight:600;font-size:30px;color:var(--ink)}
+.btn.primary{background:#38bdf8;border-color:#38bdf8;color:var(--accent-ink)}
+.welcome{margin:14px 0 0;font-family:var(--mono);font-size:15px;color:var(--ink-2)}
+.welcome b{color:var(--accent);font-weight:600}
+.welcome form{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0}
+.welcome input{font:inherit;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-height:38px;width:14ch}
+.topbar .me{margin-left:auto;display:flex;align-items:center;gap:10px;min-width:0;font-size:14px;color:var(--ink-2)}
+.topbar .me span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+header{padding:40px 0 26px}
+h1{font-size:clamp(48px,9vw,88px)}
+button,input,select{font:inherit;color:inherit}
+.sm{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;min-height:38px;cursor:pointer;flex:none}
+.sm:hover{color:var(--ink);border-color:var(--ink-2)}
+.sm[disabled]{opacity:.55;cursor:default}
+.sm.danger{color:var(--down)}
+.sm.danger:hover{border-color:var(--down)}
+.gate{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.gate p{margin:0;color:var(--ink-2);max-width:60ch}
+.gate button.btn{cursor:pointer;font-size:16px}
+.gate form{display:flex;flex-direction:column;gap:12px;align-items:flex-start;margin:0;width:100%;max-width:340px}
+.gate label{display:flex;flex-direction:column;gap:4px;width:100%;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.gate input{font-family:var(--body);font-size:17px;letter-spacing:0;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-height:44px;width:100%}
+.gate input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.gate .status{margin:0}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px;border-bottom:1px solid var(--line);padding-bottom:12px}
+.tabs button{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);background:none;border:1px solid transparent;border-radius:8px;padding:8px 14px;min-height:40px;cursor:pointer}
+.tabs button:hover{color:var(--ink);border-color:var(--line)}
+.tabs button[aria-selected="true"]{color:var(--accent);border-color:var(--accent);background:rgba(56,189,248,.1)}
+.filters{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end;margin-bottom:14px}
+.filters label{display:flex;flex-direction:column;gap:4px;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);min-width:0}
+.filters label.chk{flex-direction:row;align-items:center;gap:8px;min-height:38px}
+.filters select,.filters input[type=search]{font-family:var(--body);font-size:15px;letter-spacing:0;text-transform:none;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-height:38px;max-width:100%}
+.filters input[type=search]{width:16em}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);margin:0;flex:none}
+.sum{margin:0 0 14px;font-size:14px;color:var(--ink-2)}
+.status{margin:0 0 14px;font-size:14px;color:var(--ink-2);overflow-wrap:anywhere}
+.status:empty{display:none}
+.status.err{color:var(--down)}
+.notice{background:var(--panel);border:1px solid var(--down);border-radius:12px;padding:16px 18px;margin:0 0 16px}
+.notice h2{font-size:22px;margin:0 0 6px;color:var(--down)}
+.notice p{margin:0 0 8px;color:var(--ink-2);max-width:70ch}
+.notice p:last-child{margin-bottom:0}
+code{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:0 5px;color:var(--ink)}
+.cap{background:var(--panel);border:1px dashed var(--ink-2);border-radius:10px;padding:10px 14px;margin:0 0 14px;font-size:14px;color:var(--ink-2)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.kpi .l{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.kpi .v{font-family:var(--display);font-weight:800;font-size:34px;line-height:1.05;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12.5px;color:var(--ink-2)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:0 0 14px;min-width:0}
+.card h2{font-size:24px;margin:0 0 4px}
+.hint{margin:0 0 12px;font-size:13.5px;color:var(--ink-2)}
+.bars{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.bars button{display:grid;grid-template-columns:minmax(0,11em) minmax(0,1fr) auto;gap:6px 12px;align-items:center;width:100%;background:none;border:1px solid transparent;border-radius:8px;padding:6px 8px;text-align:left;cursor:pointer}
+.bars button:hover{border-color:var(--line);background:var(--panel-2)}
+.bars button[aria-pressed="true"]{border-color:var(--accent)}
+.bars .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars .nm small{font-weight:400;color:var(--ink-2)}
+.bars .tr{height:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;overflow:hidden;min-width:40px}
+.bars .tr i{display:block;height:100%;background:var(--accent)}
+.bars .n{font-family:var(--mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.bars .n small{font-weight:500;color:var(--ink-2)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14.5px}
+th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+th button{background:none;border:0;padding:0;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:pointer}
+th button[data-dir]::after{content:' \2193'}
+th button[data-dir="asc"]::after{content:' \2191'}
+td.num,th.num{text-align:right;white-space:nowrap}
+tr.prow{cursor:pointer}
+tr.prow:hover td{background:var(--panel-2)}
+tr.prow td:first-child{overflow-wrap:anywhere}
+tr.prow .who{font-weight:600}
+tr.prow .who::before{content:'\25B8 ';color:var(--ink-2)}
+tr.prow.open .who::before{content:'\25BE '}
+tr.prow small{display:block;color:var(--ink-2);font-size:12.5px;font-weight:400}
+tr.pdet td{background:var(--panel-2)}
+tr.pdet .bars button{cursor:default}
+tr.pdet .bars button:hover{background:none;border-color:transparent}
+.more{margin-top:10px}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.item.report{border-color:var(--down)}
+.item.done{opacity:.62}
+.fb .item{cursor:pointer;flex-direction:row;align-items:flex-start;gap:12px}
+.fb .item:hover{border-color:var(--ink-2)}
+.fb .item > input{margin-top:3px}
+.fb .main{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.fb .item.busy{opacity:.5;pointer-events:none}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:13px;color:var(--ink-2)}
+.meta b{color:var(--ink);font-weight:600}
+.badge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:2px 9px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2)}
+.badge.bug,.badge.report{color:var(--down);border-color:var(--down)}
+.badge.idea,.badge.google{color:var(--accent);border-color:var(--accent)}
+tr.prow .badge{margin-left:6px;vertical-align:1px;padding:1px 7px;font-size:10px}
+tr.prow .who .bra-av{margin-right:7px;vertical-align:-7px}
+tr.prow .bra-tier{margin-left:6px;vertical-align:1px}
+.det{display:grid;gap:12px;padding:2px 0 4px}
+.det h3{margin:0 0 6px;font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.det .bars{gap:2px}
+.bests{margin:0 0 4px 8px;font-size:12.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:2px 14px;overflow-wrap:anywhere}
+.bests b{color:var(--ink);font-weight:500}
+.act{display:flex;gap:2px;align-items:flex-end;height:44px;max-width:480px;padding-top:4px}
+.act i{flex:1 1 0;min-width:0;height:100%;background:var(--accent);border-radius:2px 2px 0 0;opacity:.9}
+.act i.z{background:var(--line);height:2px!important}
+.act i.t{outline:1px solid var(--ink)}
+.actl{display:flex;justify-content:space-between;max-width:480px;font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:4px}
+.badge.ok{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;font-size:15px;line-height:1.5;max-height:24em;overflow:auto}
+.from{font-size:13px;color:var(--ink-2);overflow-wrap:anywhere;display:flex;flex-wrap:wrap;gap:4px 12px}
+.from b{color:var(--ink);font-weight:600}
+.from a{color:var(--accent)}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.dup{flex-direction:row!important;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 14px!important}
+.dup .meta{flex:1 1 280px}
+.acts .sm{min-height:32px;padding:4px 10px}
+/* Merging: a tick box on each People row, a bar for the ticked accounts, and the scored "Same person?" suggestions. */
+td.pick,th.pick{width:34px;padding-right:0;text-align:center}
+td.pick input,th.pick input{width:18px;height:18px;margin:0;cursor:pointer;accent-color:var(--accent)}
+tr.prow.sel td{background:rgba(125,211,252,.08)}
+.selbar{position:sticky;top:0;z-index:3;margin:0 0 10px;padding:10px 12px;border:1px solid var(--accent);border-radius:12px;background:var(--panel-2);display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.selbar .chips{display:flex;flex-wrap:wrap;gap:6px;flex:1 1 260px;min-width:0}
+.chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;background:var(--panel);font-size:13px;overflow-wrap:anywhere}
+.chip button{border:0;background:none;color:var(--ink-2);font-size:16px;line-height:1;padding:2px 6px;min-height:0;cursor:pointer}
+.chip.keep{border-color:var(--accent);color:var(--ink)}
+.selbar label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2)}
+.selbar select{max-width:16em}
+.dup .pair{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:3px;text-align:left}
+@media (max-width:600px){.selbar label{flex:1 1 100%}.selbar select{flex:1;min-width:0;max-width:none;width:100%}}
+.dup .side{display:flex;align-items:center;gap:8px;min-width:0;overflow-wrap:anywhere}
+.dup .side small{color:var(--ink-2)}
+.dup .arrow{color:var(--ink-2);font-size:12.5px;padding-left:34px}
+.why{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.why span{font-size:12px;border:1px solid var(--line);border-radius:6px;padding:1px 7px;color:var(--ink-2)}
+.why span.neg{border-color:var(--down);color:var(--down)}
+.badge.likely{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+.matches{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.matches .m{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.matches .m > span{flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
+.gbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 14px;font-size:14px;color:var(--ink-2)}
+.gbar b{color:var(--ink)}
+.gacct{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font-size:13.5px;color:var(--ink-2)}
+.gbar .err,.gacct .err{color:var(--down)}
+.gacct .em,.matches .em{font-family:var(--mono);font-size:14px;color:var(--ink);user-select:all;overflow-wrap:anywhere}
+.ro{margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;background:var(--panel);font-size:14px;color:var(--ink-2)}
+#pTable code.uid{font-size:11.5px;white-space:nowrap;user-select:all}
+.det code.uid{user-select:all;overflow-wrap:anywhere}
+.pchart{max-width:760px;min-width:0}
+#pTable small.ponly{display:none}
+@media (min-width:601px){#pTable tr.prow td:first-child{min-width:13em}}
+@media (max-width:600px){#pTable small.ponly{display:block}#pTable .det .meta{flex-direction:column;align-items:flex-start}}
+.pchart canvas{display:block;width:100%;height:150px;touch-action:pan-y;cursor:crosshair}
+.pchart-tip{margin:6px 0 0;font-family:var(--mono);font-size:12px;color:var(--ink);min-height:1.4em;overflow-wrap:anywhere}
+.pchart-note{margin:2px 0 0;font-size:12.5px;color:var(--ink-2)}
+.empty-l{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:22px;color:var(--ink-2);text-align:center}
+@media (max-width:600px){
+  header{padding:26px 0 18px}
+  .filters label{flex:1 1 40%}
+  .filters select,.filters input[type=search]{width:100%}
+  .kpi .v{font-size:28px}
+  .card{padding:14px 12px}
+  .bars button{grid-template-columns:minmax(0,1fr) auto;padding:6px 4px}
+  .bars .tr{grid-column:1 / -1;grid-row:2}
+  th.opt,td.opt{display:none}
+  .act{max-width:none}.actl{max-width:none}
+  th,td{padding:8px 6px}
+  .item{padding:12px}
+}
+</style>
+</head>
+<body>
+<canvas id="bits" aria-hidden="true"></canvas>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="/">Arjun</a>
+    <div class="me" id="me" hidden><span id="who"></span><button class="sm" id="out" type="button">Lock</button></div>
+  </div>
+  <header>
+    <p class="kicker">Back Room</p>
+    <h1>Admin</h1>
+    <p class="welcome" id="welcome" hidden></p>
+  </header>
+  <section style="padding-top:24px">
+    <div class="gate" id="gate">
+      <form id="unlock" autocomplete="off" novalidate>
+        <label id="numL">Number<input id="num" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off"></label>
+        <label>Password<input id="pw" type="password" autocomplete="current-password"></label>
+        <button class="btn primary" id="go" type="submit">Unlock</button>
+        <p class="status err" id="gateMsg" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div id="app" hidden>
+      <p style="margin:0 0 12px"><a class="btn" id="ivPreview" href="/e63334287a3deaa3/ironveil/" target="_blank" rel="noopener" onclick="try{sessionStorage.setItem('ironveil:preview','1');localStorage.setItem('ironveil:preview','1')}catch(e){}">Midnight Ops (preview)</a> <a class="btn" id="iwPreview" href="/e63334287a3deaa3/ironwing/" target="_blank" rel="noopener" onclick="try{sessionStorage.setItem('ironwing:preview','1');localStorage.setItem('ironwing:preview','1')}catch(e){}">Ironwing (preview)</a></p> <!-- unreleased games: each button sets that game's preview flag (see README, Midnight Ops and Ironwing) -->
+      <div class="tabs" role="tablist" aria-label="Admin">
+        <button type="button" role="tab" id="t-stats" aria-controls="p-stats" data-tab="stats">Stats</button>
+        <button type="button" role="tab" id="t-players" aria-controls="p-players" data-tab="players">Players</button>
+        <button type="button" role="tab" id="t-chat" aria-controls="p-chat" data-tab="chat">Chat</button>
+        <button type="button" role="tab" id="t-fb" aria-controls="p-fb" data-tab="fb">Feedback</button>
+        <button type="button" role="tab" id="t-aisles" aria-controls="p-aisles" data-tab="aisles">Aisles</button>
+      </div>
+
+      <!-- Stats: the Leaderboards' data (rooms/lb-all/players, written by stats.js inside each game), one read, checked like leaderboard.js. -->
+      <div role="tabpanel" id="p-stats" aria-labelledby="t-stats" hidden>
+        <div class="filters">
+          <label>Dates<select id="sRange"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="all">All time</option></select></label>
+          <label>Game<select id="sGame"></select></label>
+          <label class="chk"><input type="checkbox" id="sGoogle"> Google accounts only</label>
+          <button class="sm" id="sRefresh" type="button">Refresh</button>
+        </div>
+        <p class="status" id="sStatus" role="status" aria-live="polite"></p>
+        <div class="kpis" id="sKpis"></div>
+        <div class="card">
+          <h2>Hours by game</h2>
+          <p class="hint">Play time (tab visible and someone playing) in each game, every account together. Tap a game to show only it below.</p>
+          <ul class="bars" id="sGames"></ul>
+        </div>
+        <div class="card">
+          <h2>People</h2>
+          <p class="hint" id="sPeopleHint"></p>
+          <div class="filters"><label>Find<input type="search" id="sFind" placeholder="Name, seat or account"></label></div>
+          <p class="hint">To merge accounts yourself, tick them (search for each one in turn; ticks stay while you search, and a search finds every account, not just the ones in this date range), choose which one to keep, then Merge.</p>
+          <div class="selbar" id="sSel" hidden></div>
+          <div class="scroll"><table id="sPeople"></table></div>
+          <button class="sm more" id="sMore" type="button" hidden>Show more</button>
+        </div>
+        <div class="card" id="sAvisCard" hidden>
+          <h2 id="sAvisH">Avis miles claims</h2>
+          <p class="hint">Players who say they booked a car through Avis (avismiles.js, from the Online panel). Check the confirmation number with Avis (or ask for the confirmation email), then approve to add the miles or turn it down. Both are signed with the admin key like a merge, so only this page can grant miles; the player sees the result in their Avis miles box. The booking details are sealed to the admin key, so only this page can read them.</p>
+          <ul class="list" id="sAvis"></ul>
+          <div class="acts" style="margin-top:10px"><button class="sm" id="sAvisDone" type="button" hidden></button></div>
+        </div>
+        <div class="card" id="sDupCard" hidden>
+          <h2 id="sDupH">Same person?</h2>
+          <p class="hint">Pairs of accounts that look like one person, best first, with the reasons under each. Names count most (the same name, the same name but for numbers or capitals, a Google name's first name, a typo apart), then the same custom avatar, one account stopping as the other started, and one holding nothing the other doesn't; both playing on the same days counts against. Merge keeps the second name (⇄ swaps which one stays) and shows them as one row on every board, with the hours, counts and miles each account earned added back (time and counts two accounts could share in one browser count once) and the better bests. Names aren't unique, so check before merging; you can undo it from the merged account's details. "Not the same" hides a pair in this browser.</p>
+          <ul class="list" id="sDups"></ul>
+          <div class="acts" style="margin-top:10px"><button class="sm" id="sDupMore" type="button" hidden>Show more</button><button class="sm" id="sDupBack" type="button" hidden></button></div>
+        </div>
+      </div>
+
+      <!-- Players: every account in the Leaderboards' nodes, one at a time in detail. Read-only. -->
+      <div role="tabpanel" id="p-players" aria-labelledby="t-players" hidden>
+        <p class="ro">Read-only. Everything here is what the play-time nodes (<code>rooms/lb-all</code>), the account saves (<code>rooms/sv-saves</code>, size only) and the Online panel's status fields already hold, all readable by any signed-in browser: no messages, nothing else. The one exception is a Google player's email: their game stats carry it sealed to the admin key (only the two admin codes open it, like the chat log), so it shows here, under their name, and a search finds it. Accounts that haven't played signed in since this was added don't have it yet; their details can look it up in the site's sign-in records instead (that needs a Google sign-in with the account the analytics dashboard uses).</p>
+        <div class="gbar" id="pG"></div>
+        <div class="filters">
+          <label>Find<input type="search" id="pFind" placeholder="Name, email or account id"></label>
+          <label class="chk"><input type="checkbox" id="pMerged"> Show merged accounts</label>
+          <button class="sm" id="pRefresh" type="button">Refresh</button>
+        </div>
+        <p class="status" id="pStatus" role="status" aria-live="polite"></p>
+        <p class="sum" id="pSum"></p>
+        <div class="card">
+          <h2>Players</h2>
+          <p class="hint">One row per person: accounts merged into one person (on the Stats tab, or by their owner at a Google sign-in) are folded into the account kept, whose play time, tier and bests include them (tick Show merged accounts to list each one, marked). Type is Google when the node carries stats.js's Google mark, else Anonymous (nodes from before the mark was added count as Anonymous). Tap a row for their games, bests, the last 60 days, whether they're online now and the size of their account save.</p>
+          <div class="scroll"><table id="pTable"></table></div>
+          <button class="sm more" id="pMore" type="button" hidden>Show more</button>
+        </div>
+      </div>
+
+      <!-- Chat: the safety log (Firestore chatlog) written by social.js. -->
+      <div role="tabpanel" id="p-chat" aria-labelledby="t-chat" hidden>
+        <div class="notice" id="cDenied" hidden>
+          <h2>Can't read the chat log</h2>
+          <p>Firestore said <b>permission denied</b>: the <code>chatlog</code> block hasn't been added to the Firestore rules yet. Copy it from the admin page entry in the repo's <code>README.md</code>, paste it into Firebase console → Firestore Database → Rules and publish. Until it's added, nothing is saved.</p>
+        </div>
+        <div class="filters">
+          <label>Dates<select id="cRange"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option><option value="all">All time</option></select></label>
+          <label>Kind<select id="cKind"><option value="all">Everything</option><option value="cabin">Cabin chat</option><option value="report">Reports</option></select></label>
+          <label>Person<select id="cWho"></select></label>
+          <label>Search<input type="search" id="cFind" placeholder="Words in a message"></label>
+          <button class="sm" id="cRefresh" type="button">Refresh</button>
+        </div>
+        <p class="sum" id="cSum"></p>
+        <p class="status" id="cStatus" role="status" aria-live="polite"></p>
+        <p class="cap" id="cCap" hidden></p>
+        <ol class="list" id="cList"></ol>
+        <button class="sm more" id="cMore" type="button" hidden>Show more</button>
+      </div>
+
+      <!-- Feedback: the feedback box's notes (Firestore feedback) as a to-do list. -->
+      <div role="tabpanel" id="p-fb" aria-labelledby="t-fb" class="fb" hidden>
+        <div class="notice" id="fDenied" hidden>
+          <h2>Can't read feedback</h2>
+          <p>Firestore said <b>permission denied</b>: the new <code>feedback</code> block (it replaces the old one) hasn't been added to the Firestore rules yet. Copy it from the admin page entry in the repo's <code>README.md</code>, paste it into Firebase console → Firestore Database → Rules and publish.</p>
+        </div>
+        <div class="filters">
+          <label>Game<select id="fGame"></select></label>
+          <label>Kind<select id="fKind"></select></label>
+          <label class="chk"><input type="checkbox" id="fDone"> Show done</label>
+          <button class="sm" id="fRefresh" type="button">Refresh</button>
+          <button class="sm" id="fUnhide" type="button" hidden></button>
+        </div>
+        <p class="sum" id="fSum"></p>
+        <p class="status" id="fStatus" role="status" aria-live="polite"></p>
+        <ol class="list" id="fList"></ol>
+      </div>
+
+      <!-- Aisles (aisles.js): every Aisle, and Remove for an Aisle with a bad name (Captains only, signed with the admin key). -->
+      <div role="tabpanel" id="p-aisles" aria-labelledby="t-aisles" hidden></div>
+    </div>
+  </section>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="/e63334287a3deaa3/feedback.js" data-list-only></script>
+<script src="/e63334287a3deaa3/leaderboard.js" data-lib></script>
+<script src="/e63334287a3deaa3/avatar.js"></script>
+<script src="/e63334287a3deaa3/miles.js"></script>
+<script src="/e63334287a3deaa3/adminkey.js"></script>
+<script src="/e63334287a3deaa3/captains.js"></script>
+<script src="/e63334287a3deaa3/aisles.js" data-admin></script>
+<script>
+(function(){
+  'use strict';
+  var CFG={apiKey:'AIzaSyDZD_Ku8cixteXfwkDYzGv3GKiZFF8sRSM',authDomain:'rumblekarts.firebaseapp.com',databaseURL:'https://rumblekarts-default-rtdb.firebaseio.com',projectId:'rumblekarts'};
+  var CHAT_CAP=2000,FB_CAP=500,PAGE=100;
+  var $=function(id){return document.getElementById(id)};
+
+  // ---------- Names ----------
+  var info=window.BackRoomFeedback||{games:[],kinds:[]};
+  var GAME={},KIND={};
+  info.games.forEach(function(g){GAME[g[0]]=g[1]});
+  info.kinds.forEach(function(k){KIND[k[0]]=k[1]});
+  // Feedback notes name their game by folder; the archived games keep their names here.
+  var SITE=Object.assign({'starhop':'Starhop','quarry':'Quarry','kartwheel':'Kartwheel','abyssal':'Abyssal','hail-mary':'Hail Mary','spire':'Spire'},GAME);
+  delete SITE.other;
+
+  // ---------- Helpers ----------
+  function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+  function opt(sel,v,t){var o=el('option',null,t);o.value=v;sel.appendChild(o);return o}
+  function str(v,n){return typeof v==='string'?(v.length>n?v.slice(0,n)+'… (cut)':v):''}
+  function toDate(v){if(!v)return null;if(typeof v.toDate==='function')return v.toDate();if(v instanceof Date)return v;var d=new Date(v);return isNaN(d)?null:d}
+  function isDenied(e){return !!e&&(e.code==='permission-denied'||/permission/i.test(e.message||''))}
+  function fmtN(n){return Number(n).toLocaleString()}
+  function fmtDur(s){
+    s=Math.round(s||0);
+    if(s<60)return s+'s';
+    if(s<3600)return Math.floor(s/60)+'m';
+    return Math.floor(s/3600)+'h '+String(Math.floor(s%3600/60)).padStart(2,'0')+'m';
+  }
+  function hours(s){var h=s/3600;return (h>=100?Math.round(h):h.toFixed(1))+' h'}
+  function ago(d){
+    if(!d)return '';
+    var s=Math.round((Date.now()-d.getTime())/1000);
+    if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+' min ago';if(s<86400)return Math.floor(s/3600)+' h ago';
+    if(s<86400*30)return Math.floor(s/86400)+' d ago';
+    return d.toLocaleDateString();
+  }
+  function timeEl(d){var t=el('time',null,ago(d));if(d){t.dateTime=d.toISOString();t.title=d.toLocaleString()}return t}
+  function since(v){if(v==='all')return null;var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(+v-1));return d}
+  function say(id,t,err){var e=$(id);e.textContent=t||'';e.classList.toggle('err',!!err)}
+  function shortId(u){var c=el('code',null,String(u).slice(0,6));c.title=u;return c}
+  function store(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+  function unb64(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+
+  // ---------- The admin key: both codes unwrap its private key, here, in memory only ----------
+  var PRIV=null,PRIVS=null;   // the admin key for opening boxes (ECDH) and for signing hours resets (ECDSA)
+  async function digest(n){
+    var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ascoding11-admin:'+n));
+    return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('').slice(0,16);
+  }
+  async function unwrap(num,pw){
+    var K=window.BackRoomAdminKey;if(!K)throw new Error('nokey');
+    var base=await crypto.subtle.importKey('raw',new TextEncoder().encode(num+':'+pw),'PBKDF2',false,['deriveKey']);
+    var wk=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:unb64(K.salt),iterations:600000},base,{name:'AES-GCM',length:256},false,['decrypt']);
+    var raw;
+    try{raw=new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(K.iv)},wk,unb64(K.wrapped)))}catch(e){throw new Error('wrong')}
+    try{PRIVS=await crypto.subtle.importKey('pkcs8',raw,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);return await crypto.subtle.importKey('pkcs8',raw,{name:'ECDH',namedCurve:'P-256'},false,['deriveKey'])}finally{raw.fill(0)}
+  }
+  // Opens a box made by BackRoomSeal (adminkey.js): '1.' + ephemeral public key + '.' + iv + '.' + ciphertext.
+  async function openBox(box){
+    var p=String(box).split('.');
+    if(p.length!==4||p[0]!=='1')throw new Error('format');
+    var eph=await crypto.subtle.importKey('raw',unb64(p[1]),{name:'ECDH',namedCurve:'P-256'},false,[]);
+    var k=await crypto.subtle.deriveKey({name:'ECDH',public:eph},PRIV,{name:'AES-GCM',length:256},false,['decrypt']);
+    var o=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(p[2])},k,unb64(p[3]))));
+    if(!o||typeof o!=='object')throw new Error('format');
+    return o;
+  }
+  function tryOpen(box){return typeof box==='string'&&box?openBox(box).catch(function(){return null}):Promise.resolve(null)}
+
+  // ---------- Cleaning what Firestore returns (anyone signed in can write chatlog and feedback) ----------
+  async function openChat(id,x){
+    x=x||{};var o=await tryOpen(x.box)||{};
+    return {id:String(id),kind:x.kind==='report'?'report':'cabin',uid:str(x.uid,128),ts:toDate(x.ts),opened:!!o.text||!!o.name,
+      name:str(o.name,60),seat:str(o.seat,4),text:typeof o.text==='string'?str(o.text,5000):'(couldn\'t open this entry)',
+      about:str(o.about,128),aboutName:str(o.aboutName,60),aboutSeat:str(o.aboutSeat,4)};
+  }
+  async function openFb(id,x){
+    x=x||{};var sealed=typeof x.box==='string',o=sealed?(await tryOpen(x.box)):x;
+    var bad=sealed&&!o;o=o||{};
+    return {id:String(id),sealed:sealed,msg:bad?'(couldn\'t open this note)':str(o.msg,5000),game:str(x.game,60)||'other',kind:str(x.kind,20)||'other',
+      name:str(o.name,120),contact:str(o.contact,200),page:str(o.page,200),uid:str(x.uid,128),ts:toDate(x.ts),done:x.done===true};
+  }
+  function all(docs,fn){return Promise.all(docs.map(function(d){return fn(d.id,d.data())}))}
+
+  // ---------- Firestore and the Realtime Database, with the same anonymous account the games use in this browser ----------
+  var auth=null,db=null,rtdb=null,stubbed=false,booting=null;
+  function boot(){
+    if(booting)return booting;
+    booting=(async function(){
+      if(!window.firebase)throw new Error('Couldn\'t load Firebase. Check your connection and reload.');
+      var app=firebase.apps.filter(function(a){return a.name==='[DEFAULT]'})[0]||firebase.initializeApp(CFG);
+      auth=app.auth();db=app.firestore();rtdb=app.database(CFG.databaseURL);
+      await new Promise(function(r){var s=auth.onAuthStateChanged(function(){s();r()})});
+      if(!auth.currentUser)await auth.signInAnonymously();
+      return auth.currentUser.uid;
+    })();
+    booting.catch(function(){booting=null});
+    return booting;
+  }
+  var gAppP=null;
+  function gApp(){
+    if(!gAppP)gAppP=(async function(){
+      if(!window.firebase)throw new Error('Couldn\'t load Firebase. Check your connection and reload.');
+      var a=firebase.apps.filter(function(x){return x.name==='admin-google'})[0]||firebase.initializeApp(CFG,'admin-google');
+      await new Promise(function(r){var s=a.auth().onAuthStateChanged(function(){s();r()})});
+      return a;
+    })();
+    gAppP.catch(function(){gAppP=null});
+    return gAppP;
+  }
+  function ts(d){return firebase.firestore.Timestamp.fromDate(d)}
+  function bounded(col,start,cap){var q=db.collection(col);if(start)q=q.where('ts','>=',ts(start));return q.orderBy('ts','desc').limit(cap).get()}
+  var api={
+    // The leaderboard nodes and the server's clock (for the staleness checks), or an error after 15 seconds.
+    lb:function(){
+      var t,read=Promise.all([rtdb.ref(LB.PATH).once('value'),rtdb.ref('.info/serverTimeOffset').once('value')])
+        .then(function(r){return {val:r[0].val(),now:Date.now()+(r[1].val()||0)}});
+      var late=new Promise(function(_,rej){t=setTimeout(function(){rej(new Error('The game database didn\'t answer in 15 seconds. A school or work network may be blocking it.'))},15000)});
+      return Promise.race([read,late]).finally(function(){clearTimeout(t)});
+    },
+    chat:function(start,cap){return bounded('chatlog',start,cap).then(function(s){return all(s.docs,openChat)})},
+    fbList:function(){return db.collection('feedback').orderBy('ts','desc').limit(FB_CAP).get().then(function(s){return all(s.docs,openFb)})},
+    fbDone:function(id,v){return db.collection('feedback').doc(id).update({done:v})},
+    // One read of one Realtime Database path (the Players tab's details), or an error after 15 seconds.
+    one:function(path){
+      var t,read=rtdb.ref(path).once('value').then(function(s){return s.val()});
+      var late=new Promise(function(_,rej){t=setTimeout(function(){rej(new Error('no answer in 15 seconds'))},15000)});
+      return Promise.race([read,late]).finally(function(){clearTimeout(t)});
+    },
+    // The Google account behind a Google sign-in (Firestore members/{uid}, written by account/account.js), read with a
+    // Google sign-in on a second Firebase app ('admin-google'), so the default app's account (the anonymous one this page
+    // and the games use in this browser) never changes. The Firestore rules decide whose Google account may read members.
+    gUser:function(){return gApp().then(function(a){var u=a.auth().currentUser;return u&&!u.isAnonymous?u.email||u.displayName||'a Google account':''})},
+    gSignIn:function(){return gApp().then(function(a){var pr=new firebase.auth.GoogleAuthProvider();pr.setCustomParameters({prompt:'select_account'});return a.auth().signInWithPopup(pr)}).then(function(r){return r.user.email||r.user.displayName||'a Google account'})},
+    gSignOut:function(){return gApp().then(function(a){return a.auth().signOut()})},
+    member:function(uid){return gApp().then(function(a){return a.firestore().collection('members').doc(uid).get()}).then(function(d){return d.exists?d.data():null})},
+    // The signed resets (hours resets, removals, merges), saved in this browser's own admin node.
+    saveResets:async function(r,sig,now){var me=await boot();await rtdb.ref(LB.RS_PATH+'/'+me).set({n:'Admin',c:'#7dd3fc',x:0,z:0,h:0,ts:now,v:1,r:r,sig:sig})}
+  };
+
+  // ---------- Tabs ----------
+  var TABS=['stats','players','chat','fb','aisles'],tab=TABS.indexOf(store('bra:tab'))>=0?store('bra:tab'):'stats',loaded={};
+  function showTab(t){
+    tab=t;store('bra:tab',t);
+    TABS.forEach(function(x){var b=$('t-'+x),on=x===t;b.setAttribute('aria-selected',on?'true':'false');b.tabIndex=on?0:-1;$('p-'+x).hidden=!on});
+    if(!loaded[t]){loaded[t]=1;({stats:loadStats,players:loadPlayers,chat:loadChat,fb:loadFb,aisles:loadAisles})[t]()}
+  }
+  document.querySelector('.tabs').addEventListener('click',function(e){var b=e.target.closest('[data-tab]');if(b)showTab(b.dataset.tab)});
+  document.querySelector('.tabs').addEventListener('keydown',function(e){
+    if(e.key!=='ArrowRight'&&e.key!=='ArrowLeft')return;
+    var i=(TABS.indexOf(tab)+(e.key==='ArrowRight'?1:TABS.length-1))%TABS.length;showTab(TABS[i]);$('t-'+TABS[i]).focus();
+  });
+
+  // ================= Aisles (aisles.js draws the tab; removals are signed here with the admin key) =================
+  function loadAisles(){
+    var A=window.BackRoomAisles;if(!A||!A.admin){$('p-aisles').textContent='Couldn\'t load aisles.js.';return}
+    A.admin($('p-aisles'),{boot:function(){return boot().then(function(u){return {db:rtdb,uid:u}})},now:Date.now.bind(Date),
+      sign:async function(r){if(!PRIVS)throw new Error('Unlock the page again to remove or put back an Aisle.');var g=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},PRIVS,new TextEncoder().encode(r)));var s='';for(var i=0;i<g.length;i++)s+=String.fromCharCode(g[i]);return btoa(s)}});
+  }
+
+  // ================= Stats =================
+  // From the Leaderboards' nodes (rooms/lb-all/players, written by stats.js inside each game): read once, checked the way
+  // leaderboard.js checks them (BackRoomBoards, so what's shown here is what the boards would accept), plus the fields the
+  // boards don't show: ga/gn (a Google sign-in and its display name) and d (seconds per day per game for the last 30 days).
+  var LB=window.BackRoomBoards||null,DAYS=30,DAY_GAMES=12;
+  if(LB&&LB.showHidden)LB.showHidden(true);   // list accounts removed from the boards too (marked), so they can be put back
+  var S={nodes:null,now:0,people:[],skipped:0,sort:'hours',dir:'desc',open:{},show:PAGE,seq:0,sel:{},keep:'',dupShow:20,dupBack:false};
+  function dayKey(d){return String(d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate())}
+  function dayAgo(n){var d=new Date();d.setDate(d.getDate()-n);return dayKey(d)}
+  function dayDate(k){return new Date(+k.slice(0,4),+k.slice(4,6)-1,+k.slice(6,8))}
+  function gameName(d){return LB&&LB.BY[d]?LB.BY[d].n:String(d)}
+  // One account's node. Null for anything the boards would skip (stale, from the future, too big, over the caps, wrong shape).
+  // A node's av is the player's edited avatar as a code; avatar.js checks it and keeps their own avatar if it's anything else.
+  function learnAv(uid,v){var A=window.BackRoomAvatar;if(A&&A.learn&&v&&typeof v==='object'&&typeof v.av==='string'){try{A.learn(uid,v.av)}catch(e){}}}
+  function person(uid,v,now){
+    var p=LB.parse(uid,v,now);if(!p)return null;
+    learnAv(uid,v);
+    p.ts=new Date(v.ts);p.ga=v.ga===1||v.ga===true;
+    p.gn=p.ga?LB.mask(cleanName(v.gn,40)):'';
+    p.name=p.gn||p.n;
+    p.av=typeof v.av==='string'&&v.av.length<=400?v.av:'';   // an edited avatar's code (empty when they kept their own)
+    // Seconds per day: the last 30 days (and tomorrow, for another time zone), real dates, games the boards know, whole
+    // seconds, and no more in a day than 24 hours or than that game's all-time total.
+    p.d={};var src=v.d,lo=dayAgo(DAYS-1),hi=dayAgo(-1);
+    if(p.reset){var rd=dayKey(new Date(p.reset));if(rd>lo)lo=rd}   // after an hours reset, only the days from then on
+    if(src&&typeof src==='object'&&!Array.isArray(src)){
+      Object.keys(src).filter(function(k){return /^\d{8}$/.test(k)&&k>=lo&&k<=hi&&dayKey(dayDate(k))===k}).sort().slice(-DAYS).forEach(function(k){
+        var g=src[k],o={},tot=0,m=0;if(!g||typeof g!=='object'||Array.isArray(g))return;
+        Object.keys(g).forEach(function(gk){
+          if(m>=DAY_GAMES||tot>=86400||!p.g[gk])return;
+          var x=typeof g[gk]==='number'&&isFinite(g[gk])?Math.floor(g[gk]):0;
+          x=Math.min(x,p.g[gk].s,86400-tot);if(!(x>0))return;
+          o[gk]=x;tot+=x;m++;
+        });
+        if(m)p.d[k]=o;
+      });
+    }
+    return p;
+  }
+  // Who is first on the Miles board (all time, this week), for the "#1" tags miles.js puts by the tier badges: worked
+  // out from the nodes just read, as the boards themselves would (leaderboard.js topsOf: no removed or merged accounts).
+  function tellTops(nodes,now){try{if(LB&&LB.topsOf&&window.BackRoomMiles&&BackRoomMiles.setTops)BackRoomMiles.setTops(LB.topsOf(nodes,now))}catch(e){}}
+  async function loadStats(){
+    var seq=++S.seq;say('sStatus','Loading…');$('sRefresh').disabled=true;
+    if(!LB){say('sStatus','Couldn\'t load leaderboard.js, which holds the checks for this data. Reload the page.',true);$('sRefresh').disabled=false;return}
+    try{var r=await api.lb();if(rtdb)await LB.readResets(rtdb);if(seq!==S.seq)return;S.nodes=r.val&&typeof r.val==='object'?r.val:{};S.now=r.now;S.loadedAt=Date.now();tellTops(S.nodes,S.now);say('sStatus','')}
+    catch(e){if(seq!==S.seq)return;S.nodes={};S.now=Date.now();S.loadedAt=Date.now();say('sStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
+    var keys=Object.keys(S.nodes),out=[],skip=0;
+    for(var i=0;i<keys.length;i++){if(i>=LB.MAX_NODES){skip++;continue}var p=person(keys[i],S.nodes[keys[i]],S.now);if(p)out.push(p);else skip++}
+    // One row per person where that's proven (an owner's merge) or the admin merged them: merged entries stay listed, marked.
+    if(LB.collapse)out=LB.collapse(out);
+    S.people=out;S.skipped=skip;
+    $('sRefresh').disabled=false;S.open={};S.show=PAGE;fillGames();renderStats();
+  }
+  function fillGames(){
+    var sel=$('sGame'),cur=sel.value||'all';
+    sel.textContent='';opt(sel,'all','All games');
+    if(LB)LB.GAMES.forEach(function(g){opt(sel,g.d,g.n)});
+    sel.value=cur==='all'||(LB&&LB.BY[cur])?cur:'all';
+  }
+  // The day keys in a range ('1', '7', '30'), or null for all time.
+  function daysIn(range){if(range==='all')return null;var n=Math.max(1,Math.min(DAYS,+range||1)),set={};for(var i=0;i<n;i++)set[dayAgo(i)]=1;return set}
+  // Seconds p spent in game ('all' for every game) within days (null: all time, from the totals). A range's sum for a game
+  // can't be more than that game's all-time total (two devices on one account keep the larger day, not the sum).
+  function secs(p,game,days){
+    if(!days)return game==='all'?p.total:(p.g[game]?p.g[game].s:0);
+    if(game==='all'){var t=0;Object.keys(p.g).forEach(function(d){t+=secs(p,d,days)});return t}
+    if(!p.g[game])return 0;
+    var s=0;Object.keys(p.d).forEach(function(k){if(days[k])s+=p.d[k][game]||0});
+    return Math.min(s,p.g[game].s);
+  }
+  function whenText(range){return range==='all'?'all time':range==='1'?'today':'the last '+range+' days'}
+  function computeStats(){
+    var range=$('sRange').value,gv=$('sGame').value,gOnly=$('sGoogle').checked,days=daysIn(range);
+    var gs={},gp={},list=[],idle=[],total=0,google=0;
+    S.people.forEach(function(p){
+      if(gOnly&&!p.ga)return;
+      var per={},top='',topS=0;
+      LB.GAMES.forEach(function(g){var s=secs(p,g.d,days);if(s>0){per[g.d]=s;if(s>topS){topS=s;top=g.n}}});
+      var v=gv==='all'?secs(p,'all',days):(per[gv]||0);
+      // The status tier ("miles with us", miles.js) from this same checked node.
+      var mi=null;if(window.BackRoomMiles){try{mi=BackRoomMiles.of(p)}catch(e){mi=null}}
+      var row={p:p,v:v,per:per,top:top,n:Object.keys(per).length,mi:mi,miles:mi?mi.miles:0};
+      // No time in the range: not listed or counted, but a search still finds it (to tick it for a merge).
+      if(!(v>0)&&!p.reset&&!p.hidden&&!p.into){idle.push(row);return}
+      list.push(row);
+      // accounts removed from the boards or merged into another are listed (to undo it) but left out of the totals
+      if(p.hidden||p.into)return;
+      Object.keys(per).forEach(function(d){gs[d]=(gs[d]||0)+per[d];gp[d]=(gp[d]||0)+1});
+      total+=v;if(p.ga)google++;
+    });
+    var games=LB.GAMES.filter(function(g){return gs[g.d]>0}).map(function(g){return {d:g.d,n:g.n,s:gs[g.d],people:gp[g.d]}}).sort(function(a,b){return b.s-a.s||b.people-a.people});
+    return {range:range,gv:gv,gOnly:gOnly,days:days,list:list,idle:idle,games:games,total:total,google:google};
+  }
+  var last=null;
+  function renderStats(){
+    if(!LB)return;
+    var st=last=computeStats(),when=whenText(st.range),where=st.gv==='all'?'all games':gameName(st.gv);
+    var k=$('sKpis');k.textContent='';
+    function kpi(l,v,s){var d=el('div','kpi');d.append(el('div','l',l),el('div','v',v),el('div','s',s||''));k.appendChild(d)}
+    kpi('Hours',hours(st.total),where+' · '+when);
+    kpi('Players',fmtN(st.list.length),'with play time '+when+(st.gOnly?' (Google only)':''));
+    kpi('Google accounts',fmtN(st.google),st.list.length?Math.round(100*st.google/st.list.length)+'% of these players':'signed in with Google');
+    kpi('Accounts',fmtN(S.people.length),S.skipped?fmtN(S.skipped)+(S.skipped===1?' node':' nodes')+' skipped (stale or malformed)':'on the leaderboards, all time');
+    var ul=$('sGames');ul.textContent='';
+    var max=st.games.reduce(function(a,g){return Math.max(a,g.s)},0);
+    if(!st.games.length)ul.appendChild(el('li','empty-l',S.people.length?'No play time '+when+(st.gOnly?' from Google accounts':'')+'.':'Nobody is on the leaderboards yet.'));
+    st.games.forEach(function(g){
+      var li=el('li'),b=el('button');b.type='button';b.dataset.game=g.d;b.setAttribute('aria-pressed',st.gv===g.d?'true':'false');
+      var tr=el('span','tr'),i=el('i');i.style.width=(max?Math.max(1,100*g.s/max):0)+'%';tr.appendChild(i);
+      var n=el('span','n',fmtDur(g.s)+' ');n.appendChild(el('small',null,'· '+fmtN(g.people)+(g.people===1?' player':' players')));
+      b.append(el('span','nm',g.n),tr,n);li.appendChild(b);ul.appendChild(li);
+    });
+    $('sPeopleHint').textContent='One row per account: the Google name when the account signed in with Google (the badge), else the Online name, with the seat tag the Online panel shows, and the status tier with its miles (all time, self-reported like everything here). Hours are '+when+(st.gv==='all'?'':' in '+where)+'. Tap a row for their games, bests and the last 30 days.';
+    renderPeople(st);renderDups();renderAvis();
+  }
+  // ---------- Same person? ----------
+  // Pairs of accounts that look like one person, scored from what the nodes hold. Only suggestions: the admin decides, and
+  // a merge is signed like a reset. Names count most; the rest only adds to (or takes from) a name or avatar match.
+  var NOBODY=/^(player|guest|anon|anonymous|user|me|test|unknown|noname|name|nobody|someone|admin)$/;
+  function norm(s){s=String(s||'');try{s=s.normalize('NFKD').replace(/[̀-ͯ]/g,'')}catch(e){}return s.toLowerCase().replace(/[^a-z0-9]+/g,'')}
+  function bareName(s){return s.replace(/\d+$/,'')||s}
+  // The names one account goes by: the Online name, the Google name and its first name (normalized, never a default name).
+  function namesOf(p){
+    var out=[];
+    function add(x,kind,raw){var b=bareName(x);if(x.length<2||NOBODY.test(b)||/^\d+$/.test(x))return;if(!out.some(function(o){return o.v===x}))out.push({v:x,b:b,kind:kind,raw:raw})}
+    add(norm(p.n),'n',p.n);
+    if(p.gn){add(norm(p.gn),'g',p.gn);var f=String(p.gn).trim().split(/\s+/)[0];if(f&&f!==p.gn)add(norm(f),'f',f)}
+    return out;
+  }
+  // Edit distance, giving up past max.
+  function lev(a,b,max){
+    if(Math.abs(a.length-b.length)>max)return max+1;
+    var prev=[],cur,i,j;for(j=0;j<=b.length;j++)prev[j]=j;
+    for(i=1;i<=a.length;i++){cur=[i];var lo=cur[0];for(j=1;j<=b.length;j++){cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a.charCodeAt(i-1)===b.charCodeAt(j-1)?0:1));if(cur[j]<lo)lo=cur[j]}if(lo>max)return max+1;prev=cur}
+    return prev[b.length];
+  }
+  // The best name match between two accounts: {s: points, w: why}, or null.
+  function nameMatch(a,b){
+    var A=namesOf(a),B=namesOf(b),best=null;
+    function q(x){return '“'+x+'”'}
+    function take(s,w){if(!best||s>best.s)best={s:s,w:w}}
+    A.forEach(function(x){B.forEach(function(y){
+      var first=x.kind==='f'||y.kind==='f';
+      if(x.v===y.v){
+        // A name of three letters or fewer ("Sam", "Max") is shared by too many people to count fully.
+        var exact=String(x.raw).trim()===String(y.raw).trim(),short=x.v.length<=3;
+        if(!first)take((exact?55:52)-(short?12:0),(exact?'Same name':'Same name apart from capitals or spaces')+(short?' (a short one)':''));
+        else take(x.v.length>=4?40:32,q(x.kind==='f'?x.raw:y.raw)+' is the first name of the Google name '+q(x.kind==='f'?a.gn:b.gn));
+        return;
+      }
+      if(x.b===y.b&&x.b.length>=3){take(first?30:44,'Same name apart from numbers ('+q(x.raw)+', '+q(y.raw)+')');return}
+      var L=Math.min(x.b.length,y.b.length),d=L>=8?2:L>=4?1:0;
+      if(d&&lev(x.b,y.b,d)<=d){take(first?24:34,'Names a letter or two apart ('+q(x.raw)+', '+q(y.raw)+')');return}
+      var sh=x.b.length<=y.b.length?x.b:y.b,lg=sh===x.b?y.b:x.b;
+      if(sh.length>=4&&lg.indexOf(sh)===0&&sh.length>=lg.length*.5)take(first?18:24,'One name starts the other ('+q(x.raw)+', '+q(y.raw)+')');
+    })});
+    return best;
+  }
+  function firstDay(p){var k=Object.keys(p.d).sort()[0];return k||''}
+  function lastDay(p){var k=Object.keys(p.d).sort();return k[k.length-1]||''}
+  // Which of two accounts to keep: a Google sign-in, else the one with more hours, else the one seen last.
+  function keeperOf(a,b){if(!!a.ga!==!!b.ga)return a.ga?a:b;if(a.total!==b.total)return a.total>b.total?a:b;return +a.ts>=+b.ts?a:b}
+  // How alike two accounts are: {s, w: [reasons], neg: [reasons against]}, or null when there's nothing to go on.
+  function likeness(a,b){
+    if(a.ga&&b.ga&&norm(a.gn)!==norm(b.gn))return null;           // two different Google sign-ins are two people
+    var nm=nameMatch(a,b),av=a.av&&a.av===b.av,s=0,w=[],neg=[];
+    if(!nm&&!av)return null;
+    if(nm){s+=nm.s;w.push(nm.w)}
+    if(av){s+=nm?25:30;w.push('Same custom avatar')}
+    if(a.ga&&b.ga){s+=10;w.push('Same Google name on both')}
+    // One holds nothing the other doesn't (every game, with no more hours): the usual trace of an account left behind.
+    var ag=Object.keys(a.g),bg=Object.keys(b.g);
+    function inside(x,y,xg){return xg.length&&xg.every(function(d){return y.g[d]&&y.g[d].s>=x.g[d].s})}
+    if(inside(a,b,ag)||inside(b,a,bg)){s+=15;w.push('One has nothing the other doesn\'t')}
+    else{var both=ag.filter(function(d){return b.g[d]}).length,un=ag.length+bg.length-both;if(un>=2&&both/un>=.6){s+=6;w.push('Play mostly the same games')}}
+    // One stopped as the other started (within 3 days), from the last 30 days.
+    var o=+a.ts<=+b.ts?[a,b]:[b,a],la=lastDay(o[0]),fb=firstDay(o[1]);
+    if(la&&fb&&fb>=la&&(dayDate(fb)-dayDate(la))<=3*864e5){s+=12;w.push('One stopped playing as the other started')}
+    // Both playing on the same days is more like two people (or one person on two devices).
+    var same=Object.keys(a.d).filter(function(k){return b.d[k]}).length;
+    if(same>=3){s-=Math.min(20,4*same);neg.push('Both played on '+same+' of the same days')}
+    return {s:s,w:w,neg:neg};
+  }
+  var DUP_MIN=45,DUP_LIKELY=70;
+  function pairKey(a,b){return a<b?a+'|'+b:b+'|'+a}
+  function notSame(){try{var v=JSON.parse(localStorage.getItem('bra:notsame')||'[]');return Array.isArray(v)?v.filter(function(x){return typeof x==='string'}):[]}catch(e){return []}}
+  function setNotSame(list){try{localStorage.setItem('bra:notsame',JSON.stringify(list.slice(-2000)))}catch(e){}}
+  // Accounts to compare: not merged, not removed. Only accounts that share a name key (the whole name, the name without
+  // numbers, its first three letters) or an avatar are compared, so this stays quick with thousands of accounts.
+  function candidates(){return S.people.filter(function(p){return !p.into&&!p.hidden})}
+  function dupPairs(all){
+    var ps=candidates(),blocks={},seen={},out=[],no={};
+    if(!all)notSame().forEach(function(k){no[k]=1});
+    ps.forEach(function(p,i){
+      var keys={};namesOf(p).forEach(function(x){keys['n:'+x.v]=1;keys['b:'+x.b]=1;if(x.b.length>=4)keys['p:'+x.b.slice(0,3)]=1});
+      if(p.av)keys['a:'+p.av]=1;
+      Object.keys(keys).forEach(function(k){(blocks[k]=blocks[k]||[]).push(i)});
+    });
+    Object.keys(blocks).forEach(function(k){
+      var g=blocks[k];if(g.length<2||g.length>80)return;           // a huge block (a common first three letters) says nothing
+      for(var i=0;i<g.length;i++)for(var j=i+1;j<g.length;j++){
+        var a=ps[g[i]],b=ps[g[j]],pk=pairKey(a.uid,b.uid);if(seen[pk])continue;seen[pk]=1;
+        var L=likeness(a,b);if(!L||L.s<DUP_MIN)continue;
+        var t=keeperOf(a,b),x=t===a?b:a;
+        out.push({x:x,t:t,s:L.s,w:L.w,neg:L.neg,k:pk,no:!!no[pk]});
+      }
+    });
+    return out.sort(function(a,b){return b.s-a.s||(b.t.total+b.x.total)-(a.t.total+a.x.total)});
+  }
+  function who2(p){return p.name+' · '+p.seat+' · account '+p.uid.slice(0,6)+(p.ga?' (Google)':'')}
+  function side(p){
+    var d=el('span','side');
+    if(window.BackRoomAvatar){try{d.appendChild(BackRoomAvatar.el(p.uid,24))}catch(e){}}
+    var t=el('span');t.appendChild(el('b',null,p.name));if(p.ga){var g=el('span','badge google','Google');g.style.marginLeft='6px';t.appendChild(g)}
+    t.appendChild(el('small',null,' '+p.seat+' · account '+p.uid.slice(0,6)+' · '+fmtDur(p.total)+' · '+Object.keys(p.g).length+(Object.keys(p.g).length===1?' game':' games')+' · seen '+ago(p.ts)));
+    d.appendChild(t);return d;
+  }
+  function whyEl(d){var w=el('div','why');d.w.forEach(function(x){w.appendChild(el('span',null,x))});d.neg.forEach(function(x){w.appendChild(el('span','neg',x))});return w}
+  var swapped={};
+  function renderDups(){
+    var all=dupPairs(true),ps=all.filter(function(d){return !d.no}),hid=all.length-ps.length,ul=$('sDups');ul.textContent='';
+    if(S.dupBack)ps=all.filter(function(d){return d.no});
+    $('sDupCard').hidden=!all.length;
+    $('sDupH').textContent=S.dupBack?'Same person? · hidden pairs ('+fmtN(hid)+')':'Same person? ('+fmtN(ps.length)+')';
+    if(!ps.length)ul.appendChild(el('li','empty-l',S.dupBack?'No hidden pairs.':'Nothing new to check: every pair that looked alike is merged or marked not the same.'));
+    ps.slice(0,S.dupShow).forEach(function(d){
+      var x=d.x,t=d.t;if(swapped[d.k]){x=d.t;t=d.x}
+      var li=el('li','item dup'),m=el('div','meta pair');
+      var head=el('div');var bd=el('span','badge'+(d.s>=DUP_LIKELY?' likely':''),d.s>=DUP_LIKELY?'Likely':'Possible');bd.title='Score '+d.s;head.appendChild(bd);
+      m.append(head,side(x),el('span','arrow','merges into ↓ (this name stays)'),side(t),whyEl(d));
+      var acts=el('div','acts');
+      if(S.dupBack){var rb=el('button','sm','Show again');rb.type='button';rb.dataset.a='same';rb.dataset.k=d.k;acts.appendChild(rb)}
+      else{
+        var b=el('button','sm','Merge');b.type='button';b.dataset.a='merge';b.dataset.u=x.uid;b.dataset.t=t.uid;
+        var sw=el('button','sm','⇄');sw.type='button';sw.dataset.a='swap';sw.dataset.k=d.k;sw.title='Keep the other name instead';sw.setAttribute('aria-label','Swap which account stays');
+        var ns=el('button','sm','Not the same');ns.type='button';ns.dataset.a='notsame';ns.dataset.k=d.k;
+        acts.append(b,sw,ns);
+      }
+      li.append(m,acts);ul.appendChild(li);
+    });
+    $('sDupMore').hidden=ps.length<=S.dupShow;$('sDupMore').textContent='Show more ('+fmtN(ps.length-S.dupShow)+' left)';
+    $('sDupBack').hidden=!hid&&!S.dupBack;$('sDupBack').textContent=S.dupBack?'Back to suggestions':'Show pairs marked not the same ('+fmtN(hid)+')';
+  }
+  // The likeliest matches for one account (for its details), looser than the suggestions list.
+  function matchesFor(p){
+    if(p.into||p.hidden)return [];
+    return candidates().filter(function(q){return q!==p}).map(function(q){var L=likeness(p,q);return L&&L.s>=30?{q:q,L:L}:null}).filter(Boolean)
+      .sort(function(a,b){return b.L.s-a.L.s}).slice(0,4);
+  }
+  // Everything a game's stats say about one person, as text: the boards' stats, and for Slipstream the lap and course records.
+  function bestsOf(p,d){
+    var o=p.g[d],meta=LB.BY[d],out=[];if(!o||!meta)return out;
+    meta.st.forEach(function(st){if(o[st.k]!=null)out.push([st.chip||st.l,LB.fmt(st,o[st.k])])});
+    if(meta.laps)Object.keys(o).sort().forEach(function(k){
+      var m=/^(lap|rec):([a-z0-9-]+)(?::(\d+))?$/.exec(k),t=m&&LB.TRACKS[m[2]];if(!t)return;
+      out.push([m[1]==='lap'?'Fastest lap · '+t[0]:t[0]+' · '+m[3]+(m[3]==='1'?' lap':' laps'),LB.fmt({f:'lap'},o[k])]);
+    });
+    return out;
+  }
+  function detail(r,st){
+    var p=r.p,box=el('div','det'),when=whenText(st.range);
+    var sec1=el('div');sec1.appendChild(el('h3',null,'Hours by game · '+when));
+    var ul=el('ul','bars'),ds=Object.keys(r.per).sort(function(a,b){return r.per[b]-r.per[a]}),mx=ds.length?r.per[ds[0]]:0;
+    ds.forEach(function(d){
+      var li=el('li'),b=el('button');b.type='button';b.tabIndex=-1;
+      var tr=el('span','tr'),i=el('i');i.style.width=(mx?Math.max(1,100*r.per[d]/mx):0)+'%';tr.appendChild(i);
+      var n=el('span','n',fmtDur(r.per[d]));
+      if(st.days&&p.g[d])n.appendChild(el('small',null,' · '+fmtDur(p.g[d].s)+' all time'));
+      b.append(el('span','nm',gameName(d)),tr,n);li.appendChild(b);
+      var bests=bestsOf(p,d);
+      if(bests.length){var bl=el('div','bests');bests.forEach(function(x){var s=el('span',null,x[0]+': ');s.appendChild(el('b',null,x[1]));bl.appendChild(s)});li.appendChild(bl)}
+      ul.appendChild(li);
+    });
+    sec1.appendChild(ul);box.appendChild(sec1);
+    // The last 30 days as bars, one a day (the chosen game only when one is picked); today is outlined.
+    var sec2=el('div');sec2.appendChild(el('h3',null,'Last 30 days · '+(st.gv==='all'?'all games':gameName(st.gv))));
+    var act=el('div','act'),vals=[],amax=0,today=dayAgo(0);
+    for(var i=DAYS-1;i>=0;i--){var k=dayAgo(i),g=p.d[k]||{},v=0;if(st.gv==='all')Object.keys(g).forEach(function(x){v+=g[x]});else v=g[st.gv]||0;vals.push([k,v]);amax=Math.max(amax,v)}
+    vals.forEach(function(x){var b=el('i',(x[1]>0?'':'z')+(x[0]===today?' t':''));b.style.height=(x[1]>0?Math.max(6,100*x[1]/amax):2)+'%';b.title=dayDate(x[0]).toLocaleDateString()+': '+(x[1]>0?fmtDur(x[1]):'nothing');act.appendChild(b)});
+    act.setAttribute('role','img');act.setAttribute('aria-label','Play time per day over the last 30 days: '+vals.filter(function(x){return x[1]>0}).length+' active days');
+    var lab=el('div','actl');lab.append(el('span',null,dayDate(vals[0][0]).toLocaleDateString()),el('span',null,'Today'));
+    sec2.append(act,lab);box.appendChild(sec2);
+    // Hours reset: counts this account's play time from zero from now on (personal bests stay). Signed with the admin key.
+    var sec3=el('div','acts');
+    if(p.reset){sec3.appendChild(el('span',null,'Hours counted from '+new Date(p.reset).toLocaleString()+' '));var u=el('button','sm','Undo hours reset');u.type='button';u.dataset.a='unreset';u.dataset.u=p.uid;sec3.appendChild(u)}
+    else{var rb=el('button','sm','Reset hours to 0');rb.type='button';rb.dataset.a='reset';rb.dataset.u=p.uid;sec3.appendChild(rb)}
+    box.appendChild(sec3);
+    // Merged into another entry: by its owner (stats.js, at a Google sign-in) or by the admin (undo here).
+    if(p.into){
+      var t=S.people.filter(function(x){return x.uid===p.into})[0],sec5=el('div','acts');
+      sec5.appendChild(el('span',null,'Merged into '+(t?who2(t):'account '+p.into.slice(0,6))+(p.intoOwn?' by its owner at a Google sign-in (its hours are in that entry). ':' (shown as one row). ')));
+      if(!p.intoOwn){var ux=el('button','sm','Undo merge');ux.type='button';ux.dataset.a='unmerge';ux.dataset.u=p.uid;sec5.appendChild(ux)}
+      box.appendChild(sec5);
+    }
+    // The likeliest other accounts for this person, each with a Merge (the one to keep chosen as in the suggestions).
+    var ms=matchesFor(p);
+    if(ms.length){
+      var sec6=el('div');sec6.appendChild(el('h3',null,'Might also be'));var mw=el('div','matches');
+      ms.forEach(function(m){
+        var keep=keeperOf(p,m.q),gone=keep===p?m.q:p,row=el('div','m'),t=el('span');
+        t.appendChild(el('b',null,m.q.name));t.appendChild(document.createTextNode(' · '+m.q.seat+' · account '+m.q.uid.slice(0,6)+(m.q.ga?' (Google)':'')+' · '+fmtDur(m.q.total)));
+        t.appendChild(whyEl({w:m.L.w,neg:m.L.neg}));
+        var b=el('button','sm','Merge (keep '+(keep===p?'this one':'theirs')+')');b.type='button';b.dataset.a='merge';b.dataset.u=gone.uid;b.dataset.t=keep.uid;
+        var tk=el('button','sm',S.sel[m.q.uid]?'Ticked':'Tick both');tk.type='button';tk.dataset.a='tick';tk.dataset.u=p.uid;tk.dataset.t=m.q.uid;
+        row.append(t,b,tk);mw.appendChild(row);
+      });
+      sec6.appendChild(mw);box.appendChild(sec6);
+    }
+    // Remove from the leaderboards (fake or junk accounts): every board skips this account. Also signed with the admin key.
+    var sec4=el('div','acts');
+    if(p.hidden){sec4.appendChild(el('span',null,'Removed from the leaderboards '+new Date(p.hidden).toLocaleString()+' '));var ub=el('button','sm','Put back on the leaderboards');ub.type='button';ub.dataset.a='unhide';ub.dataset.u=p.uid;sec4.appendChild(ub)}
+    else{var hb=el('button','sm','Remove from the leaderboards');hb.type='button';hb.dataset.a='hide';hb.dataset.u=p.uid;sec4.appendChild(hb)}
+    box.appendChild(sec4);
+    return box;
+  }
+  // Save the hours resets: the ones in force (from every admin node) plus these changes, signed, in this browser's own node.
+  // Each change: {uid, what, to}. what: 'reset' / 'unreset' (hours from zero), 'hide' / 'unhide' (removed from the
+  // leaderboards) or 'merge' / 'unmerge' (shown as one row with the account `to`). The boards only fold an account into one
+  // that isn't itself merged, so a merge goes to the end of `to`'s chain, and accounts already merged into `uid` move with it.
+  async function setResets(changes){
+    if(!PRIVS)throw new Error('Unlock the page again to change resets.');
+    var all={},cur=LB.resets;Object.keys(cur).forEach(function(u){var e={t:cur[u].t};if(cur[u].b)e.b=cur[u].b;if(cur[u].h)e.h=1;if(cur[u].a)e.a=cur[u].a;if(cur[u].m)e.m=cur[u].m;if(cur[u].mt){e.mt=cur[u].mt;e.mr=cur[u].mr?1:0}all[u]=e});
+    var now=Math.round(S.now+(Date.now()-S.loadedAt)),by={};S.people.forEach(function(p){by[p.uid]=p});
+    function ent(u){var e=all[u]?{b:all[u].b,h:all[u].h,a:all[u].a,m:all[u].m,mt:all[u].mt,mr:all[u].mr}:{};all[u]=e;return e}
+    function rootOf(u){for(var i=0;i<10;i++){var p=by[u];if(p&&p.into&&p.intoOwn&&p.into!==u){u=p.into;continue}if(all[u]&&all[u].a&&all[u].a!==u){u=all[u].a;continue}break}return u}
+    var touched={};
+    changes.forEach(function(c){
+      var uid=c.uid,what=c.what,to=c.to,e;
+      if(what==='merge'){
+        if(!/^[A-Za-z0-9_-]{6,128}$/.test(to||'')||to===uid)throw new Error('No account to merge into.');
+        if(by[uid]&&by[uid].intoOwn)return;                          // already folded in by its owner
+        if(rootOf(to)===uid&&all[to]){delete all[to].a;touched[to]=1}  // `to` was merged into `uid`: turn it around
+        to=rootOf(to);if(to===uid)throw new Error('Those accounts are already one person.');
+        Object.keys(all).forEach(function(u){if(all[u].a===uid){if(u===to)delete all[u].a;else all[u].a=to;touched[u]=1}});
+        e=ent(uid);e.a=to;
+      }else{
+        e=ent(uid);
+        if(what==='reset'){var v=S.nodes[uid],g=v&&v.g,bb={};if(g&&typeof g==='object')Object.keys(g).forEach(function(k){var x=g[k]&&Math.floor(+g[k].s);if(LB.BY[k]&&x>0)bb[k]=x});e.b=bb}
+        else if(what==='unreset')delete e.b;
+        else if(what==='hide')e.h=1;
+        else if(what==='unmerge')delete e.a;
+        // Avis miles (avismiles.js): approve a claim (add c.miles) or turn it down; either way it's decided up to c.at.
+        else if(what==='avis'){var add=Math.floor(+c.miles);if(!(add>0&&add<=100000))throw new Error('Enter the miles to add (1 to 100,000).');e.m=Math.min(1e6,(e.m||0)+add);e.mt=+c.at;e.mr=1}
+        else if(what==='avisno'){e.mt=+c.at;e.mr=0}
+        else delete e.h;
+      }
+      touched[uid]=1;
+    });
+    Object.keys(touched).forEach(function(u){var e=all[u];if(!e)return;e.t=now;if(!e.b)delete e.b;if(!e.h)delete e.h;if(!e.a)delete e.a;if(!e.m)delete e.m;if(!e.mt){delete e.mt;delete e.mr}});
+    Object.keys(all).forEach(function(u){if(all[u].t==null)all[u].t=now});
+    var r=JSON.stringify(all);
+    var sig=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},PRIVS,new TextEncoder().encode(r)));
+    var s='';for(var i=0;i<sig.length;i++)s+=String.fromCharCode(sig[i]);
+    await api.saveResets(r,btoa(s),now);
+  }
+  // The bar over the People table for the ticked accounts: who's ticked (even when a search hides them), which one to
+  // keep (the likeliest by default) and Merge.
+  function tickedPeople(){return Object.keys(S.sel).map(function(u){return S.people.filter(function(p){return p.uid===u})[0]}).filter(Boolean)}
+  function renderSel(){
+    var bar=$('sSel'),ps=tickedPeople();bar.textContent='';
+    S.sel={};ps.forEach(function(p){S.sel[p.uid]=1});
+    bar.hidden=!ps.length;if(!ps.length)return;
+    var auto=ps.filter(function(p){return !p.into}).reduce(function(a,p){return a?keeperOf(a,p):p},null)||ps[0];
+    if(!S.sel[S.keep])S.keep='';var keep=S.keep||auto.uid;
+    var chips=el('div','chips');
+    ps.forEach(function(p){
+      var c=el('span','chip'+(p.uid===keep?' keep':''),p.name+' · '+p.seat+(p.ga?' · Google':'')+(p.into?' · merged':''));
+      var x=el('button',null,'×');x.type='button';x.dataset.a='untick';x.dataset.u=p.uid;x.setAttribute('aria-label','Untick '+p.name);c.appendChild(x);chips.appendChild(c);
+    });
+    bar.appendChild(chips);
+    if(ps.length<2){bar.appendChild(el('span','hint',ps.length+' ticked: tick at least one more to merge.'))}
+    else{
+      var lab=el('label',null,'Keep');var sel=el('select');sel.id='sKeep';
+      ps.forEach(function(p){opt(sel,p.uid,p.name+' · '+p.seat+(p.ga?' (Google)':'')+' · '+fmtDur(p.total))});sel.value=keep;lab.appendChild(sel);
+      var mb=el('button','sm','Merge '+ps.length+' into one');mb.type='button';mb.dataset.a='mergesel';
+      bar.append(lab,mb);
+    }
+    var cl=el('button','sm','Clear');cl.type='button';cl.dataset.a='clearsel';bar.appendChild(cl);
+  }
+  function renderPeople(st){
+    var q=$('sFind').value.trim().toLowerCase();
+    // A search also finds accounts with no time in this range, so any account can be ticked for a merge.
+    var list=(q?st.list.concat(st.idle):st.list).filter(function(r){var p=r.p;return !q||(p.name+' '+p.n+' '+p.seat+' '+p.uid).toLowerCase().indexOf(q)>=0});
+    var dir=S.dir==='asc'?1:-1,key=S.sort;
+    list.sort(function(a,b){
+      var x,y;
+      if(key==='name'||key==='top'){x=(key==='name'?a.p.name:a.top).toLowerCase();y=(key==='name'?b.p.name:b.top).toLowerCase();return x<y?-dir:x>y?dir:(b.v-a.v)}
+      if(key==='games'){x=a.n;y=b.n}else if(key==='last'){x=+a.p.ts;y=+b.p.ts}else if(key==='miles'){x=a.miles;y=b.miles}else{x=a.v;y=b.v}
+      return (x-y)*dir||(b.v-a.v);
+    });
+    var t=$('sPeople');t.textContent='';
+    var head=el('tr');head.appendChild(el('th','pick'));
+    [['name','Person',''],['hours','Hours','num'],['miles','Miles','num opt'],['games','Games','num opt'],['top','Top game','opt'],['last','Last seen','']].forEach(function(c){
+      var th=el('th',c[2]),b=el('button',null,c[1]);b.type='button';b.dataset.sort=c[0];if(S.sort===c[0])b.dataset.dir=S.dir;th.appendChild(b);head.appendChild(th);
+    });
+    var thead=el('thead');thead.appendChild(head);t.appendChild(thead);
+    var tb=el('tbody');t.appendChild(tb);
+    if(!list.length){var tr0=el('tr'),td0=el('td',null,st.list.length?'Nobody matches.':'Nobody in this range.');td0.colSpan=7;tr0.appendChild(td0);tb.appendChild(tr0)}
+    list.slice(0,S.show).forEach(function(r){
+      var p=r.p,tr=el('tr','prow'+(S.open[p.uid]?' open':'')+(S.sel[p.uid]?' sel':''));tr.dataset.k=p.uid;tr.tabIndex=0;tr.setAttribute('aria-expanded',S.open[p.uid]?'true':'false');
+      var tp=el('td','pick'),cb=el('input');cb.type='checkbox';cb.dataset.a='tickrow';cb.dataset.u=p.uid;cb.checked=!!S.sel[p.uid];cb.setAttribute('aria-label','Tick '+p.name+' to merge');tp.appendChild(cb);
+      var td=el('td'),who=el('span','who');
+      // The avatar (avatar.js, from the uid), the name, then the Google badge and the status tier with its miles (miles.js).
+      if(window.BackRoomAvatar){try{who.appendChild(BackRoomAvatar.el(p.uid,26))}catch(e){}}
+      who.appendChild(document.createTextNode(p.name));
+      if(p.hidden){var hd=el('span','badge','Removed');hd.title='Removed from the leaderboards: no board shows this account';who.appendChild(hd)}
+      if(p.into){var mg=el('span','badge','Merged');mg.title='Shown as one person with another account (see details)';who.appendChild(mg)}
+      if(p.ga){var bd=el('span','badge google','Google');bd.title='Signed in with Google';who.appendChild(bd)}
+      if(r.mi){try{who.appendChild(BackRoomMiles.badge(r.mi,{miles:true}))}catch(e){}}
+      td.appendChild(who);
+      td.appendChild(el('small',null,p.seat+(p.gn&&p.n!==p.gn?' · Online name: '+p.n:'')+' · Account '+p.uid.slice(0,6)));
+      var tt=el('td','opt',r.top);
+      var tl=el('td');tl.appendChild(timeEl(p.ts));
+      tr.append(tp,td,el('td','num',fmtDur(r.v)),el('td','num opt',r.mi?fmtN(r.miles):'–'),el('td','num opt',fmtN(r.n)),tt,tl);
+      tb.appendChild(tr);
+      if(S.open[p.uid]){var dr=el('tr','pdet'),dd=el('td');dd.colSpan=7;dd.appendChild(detail(r,st));dr.appendChild(dd);tb.appendChild(dr)}
+    });
+    $('sMore').hidden=list.length<=S.show;$('sMore').textContent='Show more ('+fmtN(list.length-S.show)+' left)';
+    renderSel();
+  }
+  $('sRefresh').addEventListener('click',loadStats);
+  ['sRange','sGame','sGoogle'].forEach(function(id){$(id).addEventListener('change',function(){S.show=PAGE;renderStats()})});
+  $('sFind').addEventListener('input',function(){S.show=PAGE;if(last)renderPeople(last)});
+  $('sMore').addEventListener('click',function(){S.show+=PAGE;if(last)renderPeople(last)});
+  $('sGames').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-game]');if(!b)return;
+    $('sGame').value=$('sGame').value===b.dataset.game?'all':b.dataset.game;S.show=PAGE;renderStats();
+  });
+  // ---------- Avis miles claims ----------
+  // A node's claim (ac, sealed by avismiles.js; act, when it was sent), opened with the admin key; waiting while it's newer
+  // than the last decision in the signed resets (mt).
+  var AV={open:{},showDone:false};
+  function avisRows(){
+    var out=[];
+    Object.keys(S.nodes||{}).forEach(function(u){
+      var v=S.nodes[u];if(!v||typeof v.ac!=='string'||!(+v.act>0))return;
+      var r=LB.resets[u]||{},act=+v.act;
+      out.push({uid:u,ac:v.ac,act:act,done:+(r.mt||0)>=act,ok:r.mr===1,granted:r.m||0,ge:typeof v.ge==='string'?v.ge:'',name:cleanName(v.gn||v.n,40)||'Player'});
+    });
+    return out.sort(function(a,b){return b.act-a.act});
+  }
+  function renderAvis(){
+    var rows=avisRows(),wait=rows.filter(function(r){return !r.done}),done=rows.length-wait.length,ul=$('sAvis');ul.textContent='';
+    $('sAvisCard').hidden=!rows.length;
+    $('sAvisH').textContent='Avis miles claims'+(wait.length?' ('+fmtN(wait.length)+' waiting)':'');
+    var show=AV.showDone?rows:wait;
+    if(!show.length)ul.appendChild(el('li','empty-l','Nothing waiting. Every claim so far has been decided.'));
+    show.forEach(function(r){
+      var li=el('li','item'),m=el('div','meta'),acts=el('div','acts'),key=r.uid+':'+r.act,o=AV.open[key];
+      var head=el('span');head.appendChild(el('b',null,r.name));head.appendChild(document.createTextNode(' · '+LB.seatOf(r.uid)+' · account '+r.uid.slice(0,6)+' · sent '+new Date(r.act).toLocaleString()));
+      m.appendChild(head);
+      if(o===undefined){m.appendChild(el('span',null,'Opening…'))}
+      else if(!o||o.k!=='ac'){m.appendChild(el('span','err','Couldn\'t open this claim (it wasn\'t sealed to this admin key).'))}
+      else{
+        m.appendChild(el('span',null,'Confirmation number: '));m.lastChild.appendChild(el('code','uid',String(o.c||'').slice(0,24)));
+        m.appendChild(el('span',null,'Pick-up date: '+String(o.d||'').slice(0,10)));
+        if(o.em)m.appendChild(el('span',null,'Google account: '+o.em));
+        if(o.n)m.appendChild(el('span',null,'Note: '+String(o.n).slice(0,120)));
+        if(o.u!==r.uid)m.appendChild(el('span','err','This claim names a different account, so it may have been copied from someone else.'));
+      }
+      if(r.granted)m.appendChild(el('span',null,'Avis miles granted so far: '+fmtN(r.granted)));
+      if(r.done){m.appendChild(el('span','badge'+(r.ok?' ok':''),r.ok?'Approved':'Not approved'))}
+      else{
+        var lab=el('label',null,'Miles '),inp=el('input');inp.type='number';inp.min='1';inp.max='100000';inp.step='100';inp.value=String((window.BackRoomAvisMiles&&BackRoomAvisMiles.MILES)||1000);inp.style.width='7em';inp.id='avm-'+r.uid;lab.appendChild(inp);
+        var ap=el('button','sm','Approve');ap.type='button';ap.dataset.av='yes';ap.dataset.u=r.uid;ap.dataset.t=String(r.act);
+        var no=el('button','sm','Not approved');no.type='button';no.dataset.av='no';no.dataset.u=r.uid;no.dataset.t=String(r.act);
+        acts.append(lab,ap,no);
+      }
+      li.append(m,acts);ul.appendChild(li);
+      if(!(key in AV.open)){
+        AV.open[key]=undefined;                       // opening (shown as "Opening…" until it's done)
+        Promise.all([tryOpen(r.ac),r.ge?tryOpen(r.ge):Promise.resolve(null)]).then(function(x){
+          var c=x[0];if(c&&x[1]&&x[1].k==='ge'&&x[1].u===r.uid&&typeof x[1].e==='string')c.em=cleanName(x[1].e,200);
+          AV.open[key]=c||null;renderAvis();
+        });
+      }
+    });
+    $('sAvisDone').hidden=!done;$('sAvisDone').textContent=AV.showDone?'Hide decided claims':'Show decided claims ('+fmtN(done)+')';
+  }
+  $('sAvisDone').addEventListener('click',function(){AV.showDone=!AV.showDone;renderAvis()});
+  $('sAvis').addEventListener('click',async function(e){
+    var b=e.target.closest('button[data-av]');if(!b)return;
+    var u=b.dataset.u,at=+b.dataset.t,yes=b.dataset.av==='yes',n=yes?Math.floor(+($('avm-'+u)||{}).value):0,r=avisRows().filter(function(x){return x.uid===u})[0];
+    if(yes&&!(n>0&&n<=100000)){say('sStatus','Enter the miles to add (1 to 100,000).',true);return}
+    if(!confirm(yes?'Approve this Avis claim and add '+fmtN(n)+' miles to '+(r?r.name:'this player')+'?':'Turn down this Avis claim from '+(r?r.name:'this player')+'? They can send another.'))return;
+    await save([{uid:u,what:yes?'avis':'avisno',miles:n,at:at}],yes?'Adding the miles…':'Saving…',b);
+  });
+  function byUid(u){return S.people.filter(function(x){return x.uid===u})[0]}
+  async function save(changes,msg,ab){
+    if(ab)ab.disabled=true;say('sStatus',msg);
+    try{await setResets(changes)}
+    catch(err){if(ab)ab.disabled=false;say('sStatus','Couldn\'t save the change: '+((err&&err.message)||'error'),true);return false}
+    say('sStatus','');await loadStats();if(loaded.players)loadPlayers();return true;
+  }
+  async function onAct(ab){
+    var what=ab.dataset.a,r=byUid(ab.dataset.u),who=r?r.name+' · '+r.seat:'this account';
+    var t=ab.dataset.t&&byUid(ab.dataset.t);
+    // Things that only change this page: ticks, swapping a suggestion, hiding one in this browser.
+    if(what==='tickrow'){if(ab.checked)S.sel[ab.dataset.u]=1;else delete S.sel[ab.dataset.u];var row=ab.closest('tr');if(row)row.classList.toggle('sel',ab.checked);renderSel();return}
+    if(what==='tick'){S.sel[ab.dataset.u]=1;S.sel[ab.dataset.t]=1;if(last)renderPeople(last);$('sSel').scrollIntoView({block:'nearest'});return}
+    if(what==='untick'){delete S.sel[ab.dataset.u];if(last)renderPeople(last);return}
+    if(what==='clearsel'){S.sel={};S.keep='';if(last)renderPeople(last);return}
+    if(what==='swap'){swapped[ab.dataset.k]=!swapped[ab.dataset.k];renderDups();return}
+    if(what==='notsame'){var ns=notSame();if(ns.indexOf(ab.dataset.k)<0)ns.push(ab.dataset.k);setNotSame(ns);renderDups();return}
+    if(what==='same'){setNotSame(notSame().filter(function(k){return k!==ab.dataset.k}));renderDups();return}
+    if(what==='mergesel'){
+      var ps=tickedPeople(),keep=byUid($('sKeep')?$('sKeep').value:S.keep)||ps[0],rest=ps.filter(function(p){return p!==keep&&p.into!==keep.uid});
+      if(!rest.length){say('sStatus','Those accounts are already shown as one.');return}
+      if(!confirm('Show these '+(rest.length+1)+' accounts as one person on every board, kept as '+who2(keep)+'?\n\nMerging in:\n'+rest.map(function(p){return '• '+who2(p)+' ('+fmtDur(p.total)+')'}).join('\n')+'\n\nYou can undo each one from its details.'))return;
+      if(await save(rest.map(function(p){return {uid:p.uid,what:'merge',to:keep.uid}}),'Merging…',ab)){S.sel={};S.keep='';renderSel()}
+      return;
+    }
+    if(what==='reset'&&!confirm('Reset the hours for '+who+' to 0? Their personal bests stay, and you can undo this.'))return;
+    if(what==='hide'&&!confirm('Remove '+who+' from the leaderboards? Every board will skip this account, and you can put it back.'))return;
+    if(what==='merge'&&!confirm('Show these two as one person on every board?\n\nMerging in: '+(r?who2(r):'this account')+'\nKept as: '+(t?who2(t):'that account')+'\n\nYou can undo this.'))return;
+    await save([{uid:ab.dataset.u,what:what,to:ab.dataset.t}],{reset:'Resetting…',unreset:'Undoing…',hide:'Removing…',unhide:'Putting back…',merge:'Merging…',unmerge:'Undoing…'}[what],ab);
+  }
+  var ACTS='[data-a]';
+  $('sDups').addEventListener('click',function(e){var ab=e.target.closest(ACTS);if(ab)onAct(ab)});
+  $('sSel').addEventListener('click',function(e){var ab=e.target.closest('button[data-a]');if(ab)onAct(ab)});
+  $('sSel').addEventListener('change',function(e){if(e.target.id==='sKeep'){S.keep=e.target.value;renderSel()}});
+  $('sDupMore').addEventListener('click',function(){S.dupShow+=20;renderDups()});
+  $('sDupBack').addEventListener('click',function(){S.dupBack=!S.dupBack;S.dupShow=20;renderDups()});
+  $('sPeople').addEventListener('click',async function(e){
+    var ab=e.target.closest(ACTS);
+    if(ab){onAct(ab);return}
+    if(e.target.closest('td.pick'))return;
+    var sb=e.target.closest('button[data-sort]');
+    if(sb){var k=sb.dataset.sort;if(S.sort===k)S.dir=S.dir==='asc'?'desc':'asc';else{S.sort=k;S.dir=k==='name'||k==='top'?'asc':'desc'}if(last)renderPeople(last);return}
+    var tr=e.target.closest('tr.prow');if(!tr)return;
+    if(S.open[tr.dataset.k])delete S.open[tr.dataset.k];else S.open[tr.dataset.k]=1;
+    if(last)renderPeople(last);
+    var again=$('sPeople').querySelector('tr.prow[data-k="'+CSS.escape(tr.dataset.k)+'"]');if(again)again.focus({preventScroll:true});
+  });
+  $('sPeople').addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.matches('tr.prow')){e.preventDefault();e.target.click()}});
+
+  // ================= Players =================
+  // One row per account seen in the Leaderboards' nodes (rooms/lb-all/players), read-only. Details read two more things,
+  // one account at a time: its account save (rooms/sv-saves/players/<uid>, only its size is shown, never its contents) and
+  // a few fields of its Online node (rooms/ol-lobby/players/<uid>: heartbeat, party size, party leader, game), read field by
+  // field so the node's messages are never downloaded. Nothing in this section writes anything.
+  var P={rows:[],now:0,loadedAt:0,sort:'last',dir:'desc',open:'',show:PAGE,seq:0,extra:{}},P_DAYS=60,ONLINE_STALE=75000;
+  // Game names for the Online node's g (the invite prefixes, social.js's GAMES).
+  var OL_GAMES={sc:'Shell Crackers',rk:'Rumble Karts',ss:'Slipstream',bb:'Boostball',cl:'Coil',sd:'Showdown',br:'Backrooms 1v1–4v4',cf:'Chromaflage',tw:'Spire',sr:'Turbo Trail',er:'Escapade',up:'Updraft',ph:'Odd One Out',ko:'Tumble Trials',dw:'Deepword',pf:'Puffer Party',bs:'Blockstorm',lh:'Lanternhold',hp:'Blackwade',vq:'Sky Duel',qg:'Putterby',tv:'Trivium',hm:'Hail Mary',qy:'Quarry',kw:'Kartwheel',st:'Starhop',ab:'Abyssal',bx:'Boxed',hc:'Hype Cycle Exchange'};
+  function pNow(){return P.now+(Date.now()-P.loadedAt)}
+  function okNum(x){return typeof x==='number'&&isFinite(x)}
+  // Play seconds per day for the last P_DAYS days from the node's d, checked like the Stats tab: real dates, games the boards
+  // know (plus '_', stats.js's "other games" bucket), whole seconds, at most 24 hours a day. After an hours reset, only the
+  // days from then on.
+  function daysOf(p,src){
+    var out={},lo=dayAgo(P_DAYS-1),hi=dayAgo(-1);
+    if(p&&p.reset){var rd=dayKey(new Date(p.reset));if(rd>lo)lo=rd}
+    if(!src||typeof src!=='object'||Array.isArray(src))return out;
+    Object.keys(src).filter(function(k){return /^\d{8}$/.test(k)&&k>=lo&&k<=hi&&dayKey(dayDate(k))===k}).forEach(function(k){
+      var g=src[k],o={},tot=0;if(!g||typeof g!=='object'||Array.isArray(g))return;
+      Object.keys(g).slice(0,40).forEach(function(gk){
+        if(gk!=='_'&&!(LB.BY[gk]))return;
+        var x=okNum(g[gk])?Math.floor(g[gk]):0;x=Math.min(x,86400-tot);if(!(x>0))return;
+        o[gk]=(o[gk]||0)+x;tot+=x;
+      });
+      if(tot>0){o.$=tot;out[k]=o}
+    });
+    return out;
+  }
+  // One row for every node, even the ones the boards skip (stale, malformed, over the caps): those are marked and show
+  // only what can be read safely (name, last seen).
+  function playerRow(uid,v,now){
+    var p=null;try{p=LB.parse(uid,v,now)}catch(e){p=null}
+    if(p)learnAv(uid,v);
+    var ga=!!(v&&typeof v==='object'&&(v.ga===1||v.ga===true));
+    var gn=ga?LB.mask(cleanName(v.gn,40)):'';
+    var ts=v&&okNum(v.ts)&&v.ts>0&&v.ts<now+864e5?new Date(v.ts):null;
+    var n=p?p.n:(LB.mask(LB.cleanName(v&&v.n))||'Player');
+    var mi=null;if(p&&window.BackRoomMiles){try{mi=BackRoomMiles.of(p,uid,now)}catch(e){mi=null}}
+    return {uid:uid,p:p,ok:!!p,n:n,gn:gn,name:gn||n,ga:ga,seat:LB.seatOf(uid),ts:ts,total:p?p.total:0,week:p?(p.week||0):0,ge:ga&&v&&typeof v.ge==='string'&&v.ge.length<=900?v.ge:'',email:'',emailOk:true,
+      mi:mi,miles:mi?mi.miles:-1,tierK:mi?mi.tier.k:'',to:p&&p.to?p.to:'',hidden:p?p.hidden:0,reset:p?p.reset:0};
+  }
+  async function loadPlayers(){
+    var seq=++P.seq;say('pStatus','Loading…');$('pRefresh').disabled=true;
+    if(!LB){say('pStatus','Couldn\'t load leaderboard.js, which holds the checks for this data. Reload the page.',true);$('pRefresh').disabled=false;return}
+    var nodes={};
+    try{var r=await api.lb();if(rtdb)await LB.readResets(rtdb);if(seq!==P.seq)return;nodes=r.val&&typeof r.val==='object'?r.val:{};P.now=r.now;P.loadedAt=Date.now();tellTops(nodes,P.now);say('pStatus','')}
+    catch(e){if(seq!==P.seq)return;P.now=Date.now();P.loadedAt=Date.now();say('pStatus','Couldn\'t load the play-time data: '+((e&&e.message)||'error'),true)}
+    P.nodes=nodes;
+    P.rows=Object.keys(nodes).slice(0,LB.MAX_NODES).filter(function(u){return /^[A-Za-z0-9_-]{6,128}$/.test(u)}).map(function(u){return playerRow(u,nodes[u],P.now)});
+    foldPlayers();
+    P.extra={};P.open='';P.show=PAGE;$('pRefresh').disabled=false;
+    gCheckOnce();renderG();
+    renderPlayers();
+    openEmails(seq);
+  }
+  // Merged accounts, as the boards show them (leaderboard.js collapse): each account merged into another (by the admin, a
+  // signed a; or by its owner at a Google sign-in, to + al) is marked into, and the account kept gets its play time, this
+  // week, bests and miles folded in (the same rules the boards and the Online badges use) and a list of the merged ones (kids).
+  function foldPlayers(){
+    var by={};P.rows.forEach(function(r){by[r.uid]=r;r.into='';r.intoOwn=false;r.kids=[]});
+    var ps=P.rows.filter(function(r){return r.p}).map(function(r){return r.p});
+    try{if(LB.collapse)LB.collapse(ps)}catch(e){}
+    P.rows.forEach(function(r){var p=r.p;if(!p||!p.into)return;var t=by[p.into];if(!t)return;r.into=p.into;r.intoOwn=!!p.intoOwn;t.kids.push(r)});
+    P.rows.forEach(function(r){
+      if(!r.kids.length||!r.p)return;
+      var p=r.p;r.total=p.total;r.week=p.week||0;
+      var mi=null;if(window.BackRoomMiles){try{mi=BackRoomMiles.of(p,r.uid,P.now)}catch(e){mi=null}}
+      r.mi=mi;r.miles=mi?mi.miles:-1;r.tierK=mi?mi.tier.k:'';
+      // the latest last-seen of the person's accounts
+      r.kids.forEach(function(k){if(k.ts&&(!r.ts||k.ts>r.ts))r.ts=k.ts});
+    });
+  }
+  // ---- Google accounts (who signed in): the email and details from members/{uid}, one read per account opened ----
+  var G={who:null,busy:false,err:'',cache:{}};
+  function gCheck(){api.gUser().then(function(w){G.who=w||'';renderG();if(P.open)renderPlayers()},function(){G.who='';renderG()})}
+  function renderG(){
+    var b=$('pG');b.textContent='';b.hidden=!G.who&&!G.err;
+    if(G.who){
+      var t=el('span',null,'Sign-in records: signed in as ');t.appendChild(el('b',null,G.who));t.appendChild(document.createTextNode(' (only needed for accounts whose email isn\'t in their game stats yet).'));
+      var o=el('button','sm','Sign out');o.type='button';o.dataset.g='out';b.append(t,o);
+    }
+    if(G.err)b.appendChild(el('span','err',G.err));
+  }
+  function gClick(bt){
+    G.err='';
+    if(bt.dataset.g==='in'){G.busy=true;renderPlayers();api.gSignIn().then(function(w){G.busy=false;G.who=w;G.cache={};renderG();renderPlayers()},function(err){G.busy=false;G.err=err&&err.code==='auth/popup-closed-by-user'?'':'Couldn\'t sign in: '+((err&&err.message)||'error');renderG();renderPlayers()})}
+    else api.gSignOut().then(function(){G.who='';G.cache={};renderG();renderPlayers()});
+  }
+  $('pG').addEventListener('click',function(e){var bt=e.target.closest('button[data-g]');if(bt)gClick(bt)});
+  function gNum(v){return v&&typeof v.toMillis==='function'?v.toMillis():typeof v==='number'?v:typeof v==='string'&&/^\d+$/.test(v)?+v:0}
+  function memberOf(uid){
+    if(G.cache[uid])return G.cache[uid];
+    var x=G.cache[uid]={state:'loading'};
+    api.member(uid).then(function(v){
+      if(!v){x.state='none';return}
+      x.state='ok';x.email=str(v.email,200);x.name=str(v.name,100);x.first=gNum(v.first);x.last=gNum(v.last);
+      x.visits=typeof v.visits==='number'?v.visits:+v.visits||0;
+    },function(e){x.state='err';x.err=e&&e.code==='permission-denied'?'denied':((e&&e.message)||'error')}).then(function(){if(P.open)renderPlayers()});
+    return x;
+  }
+  // The "Google account" section of a player's details: the email from their game stats (sealed, opened with the admin
+  // key), else, optionally, from the sign-in records (members/{uid}, which needs a Google sign-in the rules allow).
+  function googleBox(r){
+    var sec=el('div');sec.appendChild(el('h3',null,'Google account'));
+    var d=el('div','gacct');sec.appendChild(d);
+    if(r.email){
+      d.appendChild(el('span','em',r.email));
+      if(r.gn)d.appendChild(el('span',null,r.gn));
+      if(!r.emailOk)d.appendChild(el('span','err','This sealed email names a different account, so it may have been copied from someone else\'s stats.'));
+      return sec;
+    }
+    if(r.ge){d.appendChild(el('span',null,'Opening…'));return sec}
+    if(!G.who){
+      d.appendChild(el('span',null,'Their email isn\'t in their game stats yet: it\'s saved (sealed) the next time they play a Back Room game signed in with Google.'));
+      var lb=el('button','sm',G.busy?'Signing in…':'Look it up in the sign-in records');lb.type='button';lb.dataset.g='in';lb.disabled=G.busy;lb.title='Needs a Google sign-in with the account the analytics dashboard uses';d.appendChild(lb);
+      return sec;
+    }
+    var x=memberOf(r.uid);
+    if(x.state==='loading')d.appendChild(el('span',null,'Looking it up…'));
+    else if(x.state==='none')d.appendChild(el('span',null,'No sign-in record either: this account was never signed in on a page with the site\'s Google sign-in. Its Google name is '+(r.gn||'not known')+'.'));
+    else if(x.state==='err')d.appendChild(el('span','err',x.err==='denied'?'Firestore said permission denied: '+G.who+' isn\'t allowed to read the sign-in records. Sign in with the account the analytics dashboard uses.':'Couldn\'t read it: '+x.err));
+    else{
+      d.appendChild(el('span','em',x.email||'(no email saved)'));
+      if(x.name)d.appendChild(el('span',null,x.name));
+      if(x.first)d.appendChild(el('span',null,'first signed in '+new Date(x.first).toLocaleDateString()));
+      if(x.last){var l=el('span',null,'last on the site ');l.appendChild(timeEl(new Date(x.last)));d.appendChild(l)}
+      if(x.visits)d.appendChild(el('span',null,fmtN(x.visits)+(x.visits===1?' page visit':' page visits')+' signed in'));
+      d.appendChild(el('span',null,'(from the sign-in records)'));
+    }
+    return sec;
+  }
+  // Google players' emails: the node's ge, sealed to the admin key by stats.js, opened here with the key unwrapped at the door.
+  // A box that names another account (copied from someone else's node) is shown with a warning.
+  function openEmails(seq){
+    var rows=P.rows.filter(function(r){return r.ge});if(!rows.length)return;
+    Promise.all(rows.map(function(r){return tryOpen(r.ge).then(function(o){
+      if(!o||o.k!=='ge'||typeof o.e!=='string')return;
+      r.email=cleanName(o.e,200);r.emailOk=o.u===r.uid;
+    })})).then(function(){if(seq===P.seq)renderPlayers()});
+  }
+  function typeText(r){return r.ga?'Google':'Anonymous'}
+  function renderPlayers(){
+    var q=$('pFind').value.trim().toLowerCase(),all=P.rows,showM=$('pMerged').checked;
+    var rows=all.filter(function(r){return !r.into}),mg=all.length-rows.length;
+    var g=rows.filter(function(r){return r.ga}).length,act=rows.filter(function(r){return r.week>0}).length,sk=rows.filter(function(r){return !r.ok}).length;
+    $('pSum').textContent=all.length?fmtN(rows.length)+(rows.length===1?' person':' people')+(mg?' ('+fmtN(all.length)+' accounts, '+fmtN(mg)+' merged into another)':'')+' · '+fmtN(g)+' Google · '+fmtN(rows.length-g)+' anonymous · '+fmtN(act)+' played this week'+(sk?' · '+fmtN(sk)+' the boards skip (stale or malformed)':''):'';
+    // A search also finds merged accounts (by their own name or id), shown marked.
+    var list=(showM||q?all:rows).filter(function(r){return !q||(r.name+' '+r.n+' '+r.gn+' '+r.uid+' '+r.seat+' '+(r.emailOk?r.email:'')).toLowerCase().indexOf(q)>=0});
+    var dir=P.dir==='asc'?1:-1,key=P.sort;
+    list.sort(function(a,b){
+      var x,y;
+      if(key==='name'||key==='uid'||key==='type'){x=(key==='name'?a.name:key==='uid'?a.uid:typeText(a)).toLowerCase();y=(key==='name'?b.name:key==='uid'?b.uid:typeText(b)).toLowerCase();return x<y?-dir:x>y?dir:(+b.ts||0)-(+a.ts||0)}
+      if(key==='tier'){x=a.miles;y=b.miles}else if(key==='last'){x=+a.ts||0;y=+b.ts||0}else if(key==='week'){x=a.week;y=b.week}else{x=a.total;y=b.total}
+      return (x-y)*dir||((+b.ts||0)-(+a.ts||0));
+    });
+    var t=$('pTable');t.textContent='';
+    var head=el('tr');
+    [['name','Player',''],['uid','Account','opt'],['type','Type','opt'],['tier','Tier','opt'],['last','Last seen',''],['total','Play time','num'],['week','This week','num opt']].forEach(function(c){
+      var th=el('th',c[2]),b=el('button',null,c[1]);b.type='button';b.dataset.sort=c[0];if(P.sort===c[0])b.dataset.dir=P.dir;th.appendChild(b);head.appendChild(th);
+    });
+    var thead=el('thead');thead.appendChild(head);t.appendChild(thead);
+    var tb=el('tbody');t.appendChild(tb);
+    if(!list.length){var tr0=el('tr'),td0=el('td',null,rows.length?'Nobody matches.':'No accounts yet.');td0.colSpan=7;tr0.appendChild(td0);tb.appendChild(tr0)}
+    list.slice(0,P.show).forEach(function(r){
+      var open=P.open===r.uid,tr=el('tr','prow'+(open?' open':''));tr.dataset.k=r.uid;tr.tabIndex=0;tr.setAttribute('aria-expanded',open?'true':'false');
+      var td=el('td'),who=el('span','who');
+      if(window.BackRoomAvatar){try{who.appendChild(BackRoomAvatar.el(r.uid,26))}catch(e){}}
+      who.appendChild(document.createTextNode(r.name));
+      if(!r.ok){var sk=el('span','badge','Skipped');sk.title='The leaderboards skip this node (stale, malformed or over the caps)';who.appendChild(sk)}
+      if(r.hidden){var hd=el('span','badge','Removed');hd.title='Removed from the leaderboards';who.appendChild(hd)}
+      if(r.into){var into=P.rows.filter(function(y){return y.uid===r.into})[0],mg=el('span','badge','Merged');mg.title='Merged into '+(into?into.name+' · '+into.seat:'account '+r.into.slice(0,6))+(r.intoOwn?' by its owner at a Google sign-in':' on the Stats tab');who.appendChild(mg)}
+      else if(r.to){var mg2=el('span','badge','Merged');mg2.title='Merged by its owner into another account at a Google sign-in';who.appendChild(mg2)}
+      if(r.kids&&r.kids.length){var kb2=el('span','badge','+'+r.kids.length+' merged');kb2.title='Play time, tier and bests include '+r.kids.length+(r.kids.length===1?' account':' accounts')+' merged into this one (see details)';who.appendChild(kb2)}
+      td.appendChild(who);
+      td.appendChild(el('small',null,r.seat+(r.gn&&r.n!==r.gn?' · Online name: '+r.n:'')+(r.email&&r.emailOk?' · '+r.email:'')));
+      // on a phone the Account, Type, Tier and This week columns are hidden: the type and tier go under the name
+      var ph=el('small','ponly',typeText(r)+(r.mi?' · '+(r.mi.tier&&r.mi.tier.n||r.tierK)+' · '+fmtN(r.mi.miles)+' mi':''));td.appendChild(ph);
+      var tu=el('td','opt'),cu=el('code','uid',r.uid);tu.appendChild(cu);
+      var ty=el('td','opt'),tb2=el('span','badge'+(r.ga?' google':''),typeText(r));ty.appendChild(tb2);
+      var tt=el('td','opt');if(r.mi){try{tt.appendChild(BackRoomMiles.badge(r.mi,{miles:true}))}catch(e){tt.textContent=r.tierK}}else tt.textContent='–';
+      var tl=el('td');tl.appendChild(timeEl(r.ts));
+      tr.append(td,tu,ty,tt,tl,el('td','num',r.ok?fmtDur(r.total):'–'),el('td','num opt',r.ok?fmtDur(r.week):'–'));
+      tb.appendChild(tr);
+      if(open){var dr=el('tr','pdet'),dd=el('td');dd.colSpan=7;dd.appendChild(playerDetail(r));dr.appendChild(dd);tb.appendChild(dr)}
+    });
+    $('pMore').hidden=list.length<=P.show;$('pMore').textContent='Show more ('+fmtN(list.length-P.show)+' left)';
+    drawOpenChart();
+  }
+  // The extra reads for one account, once per load: the account save's size and the Online presence fields.
+  function extraOf(uid){
+    if(P.extra[uid])return P.extra[uid];
+    var x=P.extra[uid]={save:null,saveErr:'',ol:null,olErr:'',done:false};
+    var sv=api.one('rooms/sv-saves/players/'+uid).then(function(v){
+      if(v==null){x.save={none:true};return}
+      var s='';try{s=JSON.stringify(v)}catch(e){}
+      var d=v&&typeof v.d==='object'&&v.d?Object.keys(v.d).length:0;
+      x.save={bytes:new Blob([s]).size,keys:d,ts:okNum(v.ts)?new Date(v.ts):null};
+    },function(e){x.saveErr=(e&&e.message)||'error'});
+    var base='rooms/ol-lobby/players/'+uid+'/';
+    var ol=Promise.all(['ts','p','g','pl'].map(function(f){return api.one(base+f)})).then(function(a){
+      x.ol={ts:okNum(a[0])?a[0]:0,p:okNum(a[1])?Math.max(0,Math.floor(a[1])):0,g:typeof a[2]==='string'?a[2].slice(0,20):'',pl:typeof a[3]==='string'?a[3].slice(0,128):''};
+    },function(e){x.olErr=(e&&e.message)||'error'});
+    Promise.all([sv,ol]).then(function(){x.done=true;if(P.open===uid)renderPlayers()});
+    return x;
+  }
+  function kb(n){return n<1024?fmtN(n)+' bytes':(n/1024).toFixed(n<10240?1:0)+' KB'}
+  function playerDetail(r){
+    var box=el('div','det'),v=P.nodes[r.uid],p=r.p,x=extraOf(r.uid);
+    // Who
+    var s0=el('div');s0.appendChild(el('h3',null,'Account'));
+    var m=el('div','meta');
+    m.append(el('b',null,r.name),el('span',null,r.seat),el('span',null,typeText(r)+(r.ga?' (signed in with Google)':' (no Google sign-in on this node)')));
+    if(r.gn&&r.n!==r.gn)m.appendChild(el('span',null,'Online name: '+r.n));
+    var cu=el('code','uid',r.uid);m.appendChild(cu);
+    if(r.mi)m.appendChild(el('span',null,(r.mi.tier&&r.mi.tier.n||r.tierK)+' · '+fmtN(r.mi.miles)+' miles'));
+    if(r.ts){var lsn=el('span',null,'Last seen ');lsn.appendChild(timeEl(r.ts));lsn.appendChild(document.createTextNode(' ('+r.ts.toLocaleString()+')'));m.appendChild(lsn)}
+    if(r.to&&!r.into)m.appendChild(el('span',null,'Merged by its owner into account '+r.to.slice(0,6)));
+    if(r.reset)m.appendChild(el('span',null,'Hours counted from '+new Date(r.reset).toLocaleString()));
+    s0.appendChild(m);box.appendChild(s0);
+    if(r.ga)box.appendChild(googleBox(r));
+    // Merged: into whom, or which accounts are folded into this one
+    if(r.into){
+      var t=P.rows.filter(function(y){return y.uid===r.into})[0],sm=el('div','acts');
+      sm.appendChild(el('span',null,'Merged into '+(t?t.name+' · '+t.seat:'account '+r.into.slice(0,6))+(r.intoOwn?' by its owner at a Google sign-in.':' on the Stats tab.')+' The numbers below are this account\'s own; that person\'s row includes them. '));
+      if(t){var ob=el('button','sm','Open '+t.name);ob.type='button';ob.dataset.open=t.uid;sm.appendChild(ob)}
+      box.appendChild(sm);
+    }
+    if(r.kids&&r.kids.length){
+      var sk0=el('div');sk0.appendChild(el('h3',null,'Merged accounts ('+r.kids.length+')'));
+      sk0.appendChild(el('p','hint','Play time, this week, tier and bests below include these accounts (added back as on the leaderboards). Each line is that account on its own.'));
+      var kl=el('div','matches');
+      r.kids.slice().sort(function(a,b){return b.total-a.total}).forEach(function(k){
+        var row=el('div','m'),tx=el('span');
+        tx.appendChild(el('b',null,k.name));
+        tx.appendChild(document.createTextNode(' · '+k.seat+' · '+typeText(k)+' · '+(k.ok?fmtDur(k.total):'skipped')+(k.mi?' · '+fmtN(k.mi.miles)+' mi':'')+' · '+(k.intoOwn?'by its owner':'by the admin')+' · seen '+(k.ts?ago(k.ts):'never')+' · '));
+        tx.appendChild(el('code','uid',k.uid));
+        var kem=k.email;if(!kem&&k.ga&&G.who){var km=memberOf(k.uid);if(km.state==='ok')kem=km.email}
+        if(kem){tx.appendChild(document.createTextNode(' · '));tx.appendChild(el('span','em',kem))}
+        var ob2=el('button','sm','Open');ob2.type='button';ob2.dataset.open=k.uid;
+        row.append(tx,ob2);kl.appendChild(row);
+      });
+      sk0.appendChild(kl);box.appendChild(sk0);
+    }
+    // Online now
+    var s1=el('div');s1.appendChild(el('h3',null,'Online now'));
+    var ol=el('p','hint');ol.style.margin='0';
+    if(x.olErr)ol.textContent='Couldn\'t read the Online panel: '+x.olErr;
+    else if(!x.ol)ol.textContent='Checking…';
+    else if(!x.ol.ts)ol.textContent='Not online (no Online panel open).';
+    else if(pNow()-x.ol.ts>ONLINE_STALE)ol.textContent='Not online (last heartbeat '+ago(new Date(x.ol.ts))+').';
+    else{
+      var bits=['Online now'];
+      if(x.ol.p>0){var lead=x.ol.pl&&x.ol.pl!==r.uid?P.rows.filter(function(y){return y.uid===x.ol.pl})[0]:null;bits.push('in a party of '+x.ol.p+(x.ol.pl===r.uid?' (the leader)':lead?' led by '+lead.name+' · '+lead.seat:''))}
+      else bits.push('not in a party');
+      bits.push(x.ol.g?'playing '+(OL_GAMES[x.ol.g]||x.ol.g):'not in a game');
+      ol.textContent=bits.join(', ')+'.';
+    }
+    s1.appendChild(ol);box.appendChild(s1);
+    // Account save
+    var s2=el('div');s2.appendChild(el('h3',null,'Account save mirror'));
+    var sv=el('p','hint');sv.style.margin='0';
+    if(x.saveErr)sv.textContent='Couldn\'t read the account save: '+x.saveErr;
+    else if(!x.save)sv.textContent='Checking…';
+    else if(x.save.none)sv.textContent='No account save (it only exists for accounts that signed in with Google on a hub page).';
+    else sv.textContent=kb(x.save.bytes)+' · '+fmtN(x.save.keys)+(x.save.keys===1?' saved setting or record':' saved settings and records')+(x.save.ts?' · last saved '+ago(x.save.ts):'')+'. Contents not shown.';
+    s2.appendChild(sv);box.appendChild(s2);
+    if(!p){box.appendChild(el('p','hint','The leaderboards skip this node (stale, malformed or over the caps), so no play time or bests are shown.'));return box}
+    // Per game: all-time time, this week and bests
+    var s3=el('div');s3.appendChild(el('h3',null,'Games · all time'));
+    var ds=Object.keys(p.g).filter(function(d){return p.g[d].s>0||bestsOf(p,d).length}).sort(function(a,b){return p.g[b].s-p.g[a].s});
+    var mx=ds.length?p.g[ds[0]].s:0,ul=el('ul','bars');
+    if(!ds.length)ul.appendChild(el('li','hint','No play time recorded.'));
+    ds.forEach(function(d){
+      var li=el('li'),b=el('button');b.type='button';b.tabIndex=-1;
+      var tr=el('span','tr'),i=el('i');i.style.width=(mx?Math.max(1,100*p.g[d].s/mx):0)+'%';tr.appendChild(i);
+      var n=el('span','n',fmtDur(p.g[d].s));var wk=p.wk&&p.wk[d];if(wk>0)n.appendChild(el('small',null,' · '+fmtDur(wk)+' this week'));
+      b.append(el('span','nm',gameName(d)),tr,n);li.appendChild(b);
+      var bests=bestsOf(p,d);
+      if(bests.length){var bl=el('div','bests');bests.forEach(function(q){var s=el('span',null,q[0]+': ');s.appendChild(el('b',null,q[1]));bl.appendChild(s)});li.appendChild(bl)}
+      ul.appendChild(li);
+    });
+    s3.appendChild(ul);box.appendChild(s3);
+    // Day by day, last 60 days (a canvas, drawn by drawOpenChart once it's in the page)
+    var days=daysOf(p,v&&v.d),s4=el('div');
+    // A person's chart adds the days of the accounts merged into them (each day at most 24 hours).
+    (r.kids||[]).forEach(function(k){
+      if(!k.p)return;var kd=daysOf(k.p,P.nodes[k.uid]&&P.nodes[k.uid].d);
+      Object.keys(kd).forEach(function(day){
+        var o=days[day]||(days[day]={$:0}),room=86400-o.$;
+        Object.keys(kd[day]).forEach(function(gk){if(gk==='$'||room<=0)return;var x=Math.min(kd[day][gk],room);o[gk]=(o[gk]||0)+x;o.$+=x;room-=x});
+        if(!o.$)delete days[day];
+      });
+    });
+    var act=Object.keys(days).length,sum=Object.keys(days).reduce(function(a,k){return a+days[k].$},0);
+    s4.appendChild(el('h3',null,'Play time per day · last '+P_DAYS+' days'));
+    var wrap=el('div','pchart'),cv=el('canvas');cv.setAttribute('role','img');
+    cv.setAttribute('aria-label','Play time per day over the last '+P_DAYS+' days: '+act+' active days, '+fmtDur(sum)+' in all');
+    wrap.appendChild(cv);s4.appendChild(wrap);
+    var tip=el('p','pchart-tip',act?act+' active '+(act===1?'day':'days')+', '+fmtDur(sum)+' in all. Point at a day for its games.':'No play time on record in these days.');
+    s4.appendChild(tip);
+    s4.appendChild(el('p','pchart-note','stats.js keeps each account\'s last 30 days, so days before that are always empty here.'+(p.reset?' Days before the hours reset are left out.':'')));
+    cv._days=days;cv._tip=tip;cv._idle=tip.textContent;
+    box.appendChild(s4);
+    return box;
+  }
+  // The 60-day chart: one bar a day, today outlined, faint gridlines at the top value and half of it, dates under it.
+  function drawOpenChart(){
+    var cv=document.querySelector('#pTable .pchart canvas');if(!cv)return;
+    var w=Math.max(200,Math.floor(cv.parentNode.clientWidth)),h=150,r=Math.min(2,window.devicePixelRatio||1);
+    cv.width=w*r;cv.height=h*r;cv.style.width=w+'px';cv.style.height=h+'px';
+    var cx=cv.getContext('2d');cx.setTransform(r,0,0,r,0,0);cx.clearRect(0,0,w,h);
+    var cs=getComputedStyle(document.documentElement),acc=cs.getPropertyValue('--accent').trim()||'#7dd3fc',ink2=cs.getPropertyValue('--ink-2').trim()||'#c3cedb',line=cs.getPropertyValue('--line').trim()||'rgba(125,211,252,.24)',ink=cs.getPropertyValue('--ink').trim()||'#f1f5f9';
+    var days=cv._days||{},keys=[],max=0;
+    for(var i=P_DAYS-1;i>=0;i--){var k=dayAgo(i);keys.push(k);if(days[k])max=Math.max(max,days[k].$)}
+    var L=46,R=6,T=10,B=24,pw=w-L-R,ph=h-T-B,bw=pw/P_DAYS;
+    // the scale: a round number of minutes or hours just above the top day
+    var steps=[600,1800,3600,7200,10800,14400,21600,28800,43200,86400],top=steps.filter(function(s){return s>=max})[0]||86400;
+    cx.font='500 11px "IBM Plex Mono",ui-monospace,monospace';cx.textBaseline='middle';cx.textAlign='right';
+    [0,.5,1].forEach(function(f){var y=T+ph-ph*f;cx.strokeStyle=line;cx.lineWidth=1;cx.beginPath();cx.moveTo(L,Math.round(y)+.5);cx.lineTo(w-R,Math.round(y)+.5);cx.stroke();cx.fillStyle=ink2;cx.fillText(f?fmtDur(top*f):'0',L-6,y)});
+    // the days stats.js no longer keeps (older than 30), shaded
+    var cut=P_DAYS-30;cx.fillStyle='rgba(125,211,252,.05)';cx.fillRect(L,T,cut*bw,ph);
+    keys.forEach(function(k,j){
+      var v=days[k]?days[k].$:0,x=L+j*bw,bh=v>0?Math.max(2,ph*v/top):0;
+      if(bh){cx.fillStyle=acc;cx.fillRect(x+Math.max(.5,bw*.12),T+ph-bh,Math.max(1,bw*.76),bh)}
+      if(j===P_DAYS-1){cx.strokeStyle=ink;cx.lineWidth=1;cx.strokeRect(x+Math.max(.5,bw*.12)-.5,T+.5,Math.max(1,bw*.76)+1,ph-1)}
+    });
+    cx.fillStyle=ink2;cx.textBaseline='top';
+    function lab(j,t,al){cx.textAlign=al;cx.fillText(t,L+j*bw+(al==='left'?0:al==='right'?bw:bw/2),T+ph+7)}
+    function short(k){var d=dayDate(k);return d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}
+    lab(0,short(keys[0]),'left');lab(cut,short(keys[cut]),'center');if(w>420)lab(45,short(keys[45]),'center');lab(P_DAYS-1,'Today','right');
+    if(!cv._wired){
+      cv._wired=1;
+      var show=function(e){
+        var b=cv.getBoundingClientRect(),j=Math.floor((e.clientX-b.left-L)/bw);
+        if(j<0||j>=P_DAYS){cv._tip.textContent=cv._idle;return}
+        var k=keys[j],o=cv._days[k],d=dayDate(k).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+        if(!o){cv._tip.textContent=d+': nothing';return}
+        var g=Object.keys(o).filter(function(q){return q!=='$'}).sort(function(a,b2){return o[b2]-o[a]}).map(function(q){return (q==='_'?'other games':gameName(q))+' '+fmtDur(o[q])});
+        cv._tip.textContent=d+': '+fmtDur(o.$)+' ('+g.join(', ')+')';
+      };
+      cv.addEventListener('pointermove',show);cv.addEventListener('pointerdown',show);
+      cv.addEventListener('pointerleave',function(e){if(e.pointerType==='mouse')cv._tip.textContent=cv._idle});   // a tap keeps its day shown
+    }
+  }
+  var pRz=0;addEventListener('resize',function(){clearTimeout(pRz);pRz=setTimeout(drawOpenChart,150)});
+  $('pRefresh').addEventListener('click',loadPlayers);
+  $('pFind').addEventListener('input',function(){P.show=PAGE;renderPlayers()});
+  $('pMerged').addEventListener('change',function(){P.show=PAGE;renderPlayers()});
+  var gChecked=false;function gCheckOnce(){if(gChecked)return;gChecked=true;gCheck()}
+  $('pMore').addEventListener('click',function(){P.show+=PAGE;renderPlayers()});
+  $('pTable').addEventListener('click',function(e){
+    var sb=e.target.closest('button[data-sort]');
+    if(sb){var k=sb.dataset.sort;if(P.sort===k)P.dir=P.dir==='asc'?'desc':'asc';else{P.sort=k;P.dir=k==='name'||k==='uid'||k==='type'?'asc':'desc'}renderPlayers();return}
+    var gb=e.target.closest('button[data-g]');if(gb){gClick(gb);return}
+    // Open another account (a merged one, or the person it's merged into): shows merged accounts if needed.
+    var jb=e.target.closest('button[data-open]');
+    if(jb){
+      var u=jb.dataset.open,tr0=P.rows.filter(function(y){return y.uid===u})[0];if(!tr0)return;
+      if(tr0.into)$('pMerged').checked=true;
+      $('pFind').value='';P.open=u;P.show=Math.max(P.show,P.rows.length);renderPlayers();
+      var at=$('pTable').querySelector('tr.prow[data-k="'+CSS.escape(u)+'"]');if(at){at.scrollIntoView({block:'center'});at.focus({preventScroll:true})}
+      return;
+    }
+    if(e.target.closest('.pdet'))return;
+    var tr=e.target.closest('tr.prow');if(!tr)return;
+    if(getSelection&&String(getSelection())&&tr.contains(getSelection().anchorNode))return;   // selecting a uid to copy it
+    P.open=P.open===tr.dataset.k?'':tr.dataset.k;renderPlayers();
+    var again=$('pTable').querySelector('tr.prow[data-k="'+CSS.escape(tr.dataset.k)+'"]');if(again)again.focus({preventScroll:true});
+  });
+  $('pTable').addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.matches('tr.prow')){e.preventDefault();e.target.click()}});
+
+  // ================= Chat =================
+  var C={rows:[],capped:false,show:PAGE,seq:0};
+  async function loadChat(){
+    var seq=++C.seq;
+    say('cStatus','Loading…');$('cRefresh').disabled=true;
+    try{
+      var rows=await api.chat(since($('cRange').value),CHAT_CAP);
+      if(seq!==C.seq)return;
+      C.rows=rows;C.capped=rows.length>=CHAT_CAP;$('cDenied').hidden=true;
+      var bad=rows.filter(function(r){return !r.opened}).length;
+      say('cStatus',bad?bad+' entr'+(bad===1?'y':'ies')+' couldn\'t be opened (written by something other than this site, or sealed to another key).':'');
+    }catch(e){
+      if(seq!==C.seq)return;
+      C.rows=[];C.capped=false;
+      if(isDenied(e)){$('cDenied').hidden=false;say('cStatus','')}else say('cStatus','Couldn\'t load the chat log: '+((e&&e.message)||'error'),true);
+    }
+    $('cRefresh').disabled=false;C.show=PAGE;fillWho();renderChat();
+  }
+  function fillWho(){
+    var sel=$('cWho'),cur=sel.value||'all',names={};
+    C.rows.forEach(function(r){
+      if(r.uid&&!names[r.uid])names[r.uid]=(r.name||'Guest')+(r.seat?' · '+r.seat:'');
+      if(r.about&&!names[r.about])names[r.about]=(r.aboutName||'Guest')+(r.aboutSeat?' · '+r.aboutSeat:'');
+    });
+    sel.textContent='';opt(sel,'all','Everyone');
+    Object.keys(names).sort(function(a,b){return names[a].localeCompare(names[b])}).forEach(function(u){opt(sel,u,names[u]+' ('+u.slice(0,6)+')')});
+    sel.value=names[cur]?cur:'all';
+  }
+  function chatShown(){
+    var kv=$('cKind').value,wv=$('cWho').value,q=$('cFind').value.trim().toLowerCase();
+    return C.rows.filter(function(r){
+      if(kv!=='all'&&r.kind!==kv)return false;
+      if(wv!=='all'&&r.uid!==wv&&r.about!==wv)return false;
+      if(q&&(r.text+'\n'+r.name+'\n'+r.aboutName).toLowerCase().indexOf(q)<0)return false;
+      return true;
+    });
+  }
+  function renderChat(){
+    var shown=chatShown(),list=$('cList'),reports=C.rows.filter(function(r){return r.kind==='report'}).length;
+    $('cSum').textContent=C.rows.length?(fmtN(C.rows.length-reports)+' cabin messages · '+fmtN(reports)+' reports'+(shown.length!==C.rows.length?' · '+fmtN(shown.length)+' match':'')):'';
+    $('cCap').hidden=!C.capped;
+    if(C.capped)$('cCap').textContent='Only the newest '+fmtN(CHAT_CAP)+' entries in this date range were loaded. Pick a shorter range to see older ones.';
+    list.textContent='';
+    if(!shown.length){list.appendChild(el('li','empty-l',C.rows.length?'Nothing matches these filters.':'Nothing saved in this date range.'))}
+    shown.slice(0,C.show).forEach(function(r){
+      var li=el('li','item'+(r.kind==='report'?' report':''));li.dataset.id=r.id;
+      var meta=el('div','meta');
+      meta.appendChild(el('span','badge '+r.kind,r.kind==='report'?'Report':'Cabin'));
+      var who=el('span');who.appendChild(el('b',null,r.name||'Guest'));if(r.seat)who.appendChild(document.createTextNode(' · '+r.seat));meta.appendChild(who);
+      if(r.kind==='report'){var ab=el('span');ab.appendChild(document.createTextNode('reported '));ab.appendChild(el('b',null,r.aboutName||'Guest'));if(r.aboutSeat)ab.appendChild(document.createTextNode(' · '+r.aboutSeat));meta.appendChild(ab)}
+      meta.appendChild(timeEl(r.ts));
+      li.appendChild(meta);
+      li.appendChild(el('p','text',r.text||'(empty)'));
+      var from=el('div','from');
+      if(r.uid){var s1=el('span');s1.append('Account ',shortId(r.uid));from.appendChild(s1)}
+      if(r.about){var s2=el('span');s2.append('Reported account ',shortId(r.about));from.appendChild(s2)}
+      li.appendChild(from);
+      var acts=el('div','acts');
+      if(r.uid){var o=el('button','sm','Only this person');o.type='button';o.dataset.a='who';o.dataset.u=r.uid;acts.appendChild(o)}
+      if(r.about){var o2=el('button','sm','Only the reported person');o2.type='button';o2.dataset.a='who';o2.dataset.u=r.about;acts.appendChild(o2)}
+      if(acts.firstChild)li.appendChild(acts);
+      list.appendChild(li);
+    });
+    $('cMore').hidden=shown.length<=C.show;$('cMore').textContent='Show more ('+fmtN(shown.length-C.show)+' left)';
+  }
+  $('cRange').addEventListener('change',loadChat);
+  $('cRefresh').addEventListener('click',loadChat);
+  ['cKind','cWho'].forEach(function(id){$(id).addEventListener('change',function(){C.show=PAGE;renderChat()})});
+  $('cFind').addEventListener('input',function(){C.show=PAGE;renderChat()});
+  $('cMore').addEventListener('click',function(){C.show+=PAGE;renderChat()});
+  $('cList').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-a="who"]');if(!b)return;
+    $('cWho').value=b.dataset.u;if($('cWho').value!==b.dataset.u)$('cWho').value='all';C.show=PAGE;renderChat();
+  });
+
+  // ================= Feedback =================
+  var F={rows:[],busy:false};
+  // Senders hidden with "Hide this sender" (by uid), kept only in this browser (same key the old inbox used).
+  var HKEY='fbk-admin:hidden',hiddenSenders={};
+  try{(JSON.parse(store(HKEY)||'[]')||[]).forEach(function(u){if(typeof u==='string')hiddenSenders[u]=1})}catch(e){}
+  function saveHidden(){var k=Object.keys(hiddenSenders);store(HKEY,k.length?JSON.stringify(k):null)}
+  function fillFb(){
+    var g=$('fGame'),k=$('fKind'),gv=g.value||'all',kv=k.value||'all';
+    g.textContent='';k.textContent='';
+    opt(g,'all','All games');
+    var seen={};info.games.forEach(function(x){seen[x[0]]=1;opt(g,x[0],x[1])});
+    F.rows.forEach(function(r){if(!seen[r.game]){seen[r.game]=1;opt(g,r.game,r.game)}});
+    opt(k,'all','All kinds');info.kinds.forEach(function(x){opt(k,x[0],x[1])});
+    g.value=seen[gv]?gv:'all';k.value=KIND[kv]?kv:'all';
+  }
+  function renderFb(){
+    var gv=$('fGame').value,kv=$('fKind').value,showDone=$('fDone').checked,list=$('fList');
+    var open=F.rows.filter(function(r){return !r.done}).length;
+    var nh=Object.keys(hiddenSenders).length,hiddenRows=F.rows.filter(function(r){return r.uid&&hiddenSenders[r.uid]}).length;
+    $('fSum').textContent=F.rows.length?(open+' open · '+(F.rows.length-open)+' done'+(F.rows.length>=FB_CAP?' (newest '+FB_CAP+')':'')+(hiddenRows?' · '+hiddenRows+' hidden':'')):'';
+    $('fUnhide').hidden=!nh;$('fUnhide').textContent='Show hidden senders ('+nh+')';
+    var shown=F.rows.filter(function(r){
+      return !(r.uid&&hiddenSenders[r.uid])&&(gv==='all'||r.game===gv)&&(kv==='all'||r.kind===kv)&&(showDone||!r.done);
+    }).sort(function(a,b){return (a.done-b.done)||((b.ts||0)-(a.ts||0))});
+    list.textContent='';
+    if(!shown.length){list.appendChild(el('li','empty-l',F.rows.length?(open||showDone?'Nothing matches these filters.':'All done. Nothing open.'):'No feedback yet.'));return}
+    shown.forEach(function(r){
+      var li=el('li','item'+(r.done?' done':''));li.dataset.id=r.id;
+      var cb=el('input');cb.type='checkbox';cb.checked=r.done;cb.setAttribute('aria-label',r.done?'Done (click to reopen)':'Mark done');
+      var main=el('div','main');
+      var meta=el('div','meta');
+      meta.appendChild(el('span','badge '+(KIND[r.kind]?r.kind:''),KIND[r.kind]||r.kind));
+      meta.appendChild(el('b',null,GAME[r.game]||SITE[r.game]||r.game));
+      meta.appendChild(timeEl(r.ts));
+      if(r.done)meta.appendChild(el('span','badge ok','Done'));
+      if(!r.sealed){var ns=el('span','badge','Not sealed');ns.title='Sent before notes were sealed: anyone signed in can read this one.';meta.appendChild(ns)}
+      main.appendChild(meta);
+      main.appendChild(el('p','text',r.msg||'(empty)'));
+      var from=el('div','from');
+      var who=el('span');who.appendChild(document.createTextNode('From '));who.appendChild(el('b',null,r.name||'no name'));from.appendChild(who);
+      if(r.contact){
+        var c=el('span');c.appendChild(document.createTextNode('Reply: '));
+        if(/^[^\s@<>"'()\\,;:]+@[^\s@<>"'()\\,;:]+\.[A-Za-z]{2,}$/.test(r.contact)){var a=el('a',null,r.contact);a.href='mailto:'+r.contact;c.appendChild(a)}
+        else c.appendChild(el('b',null,r.contact));
+        from.appendChild(c);
+      }
+      if(r.page)from.appendChild(el('span',null,'Page: '+r.page));
+      if(r.uid){var sd=el('span');sd.append('Sender ',shortId(r.uid));from.appendChild(sd)}
+      main.appendChild(from);
+      if(r.uid){var acts=el('div','acts'),hs=el('button','sm','Hide this sender');hs.type='button';hs.dataset.a='hide';acts.appendChild(hs);main.appendChild(acts)}
+      li.append(cb,main);list.appendChild(li);
+    });
+  }
+  function loadFb(){
+    if(F.busy)return;F.busy=true;say('fStatus','Loading…');$('fRefresh').disabled=true;
+    api.fbList().then(function(r){F.rows=r;$('fDenied').hidden=true;say('fStatus','')},function(e){
+      F.rows=[];
+      if(isDenied(e)){$('fDenied').hidden=false;say('fStatus','')}else say('fStatus','Couldn\'t load feedback: '+((e&&e.message)||'error'),true);
+    }).then(function(){F.busy=false;$('fRefresh').disabled=false;fillFb();renderFb()});
+  }
+  $('fList').addEventListener('click',function(e){
+    var li=e.target.closest('.item');if(!li)return;
+    var id=li.dataset.id,r=F.rows.filter(function(x){return x.id===id})[0];if(!r)return;
+    var b=e.target.closest('button[data-a]');
+    if(b){if(b.dataset.a==='hide'&&r.uid){hiddenSenders[r.uid]=1;saveHidden();say('fStatus','');renderFb()}return}
+    // A click anywhere else on the note (or its checkbox) marks it done or open again; links and selected text don't.
+    if(e.target.closest('a'))return;
+    var sel=window.getSelection&&String(getSelection());if(sel&&e.target.type!=='checkbox')return;
+    if(e.target.type==='checkbox')e.preventDefault();
+    li.classList.add('busy');
+    api.fbDone(id,!r.done).then(function(){r.done=!r.done;say('fStatus','');renderFb()},function(err){
+      li.classList.remove('busy');
+      say('fStatus',isDenied(err)?'Couldn\'t change it: permission denied. The feedback rules block (README) allows changing only the done field.':'Couldn\'t change it: '+((err&&err.message)||'error'),true);
+    });
+  });
+  ['fGame','fKind','fDone'].forEach(function(id){$(id).addEventListener('change',renderFb)});
+  $('fRefresh').addEventListener('click',loadFb);
+  $('fUnhide').addEventListener('click',function(){hiddenSenders={};saveHidden();renderFb()});
+
+  // ---------- Background: a slow, faint field of binary digits on one canvas (static with reduced motion) ----------
+  (function(){
+    var cv=$('bits'),cx=cv.getContext&&cv.getContext('2d');if(!cx)return;
+    var CELL=18,cols=0,rows=0,still=matchMedia('(prefers-reduced-motion: reduce)');
+    function cell(x,y){
+      cx.fillStyle='#04070b';cx.fillRect(x*CELL,y*CELL,CELL,CELL);
+      var a=Math.random();if(a<.35)return;
+      cx.fillStyle='rgba(125,211,252,'+(0.05+0.13*Math.random()).toFixed(3)+')';
+      cx.fillText(Math.random()<.5?'0':'1',x*CELL+CELL/2,y*CELL+CELL/2+1);
+    }
+    function size(){
+      var r=Math.min(window.devicePixelRatio||1,1.5);
+      cv.width=Math.ceil(innerWidth*r);cv.height=Math.ceil(innerHeight*r);cx.setTransform(r,0,0,r,0,0);
+      cols=Math.ceil(innerWidth/CELL);rows=Math.ceil(innerHeight/CELL);
+      cx.font='600 12px "IBM Plex Mono",ui-monospace,monospace';cx.textAlign='center';cx.textBaseline='middle';
+      for(var y=0;y<rows;y++)for(var x=0;x<cols;x++)cell(x,y);
+    }
+    var rt=0;addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(size,150)});
+    size();
+    // About eight frames a second, a few dozen cells each: cheap, and nothing at all while the tab is hidden.
+    setInterval(function(){
+      if(still.matches||document.hidden)return;
+      for(var i=0;i<Math.max(8,cols*rows/60|0);i++)cell(Math.random()*cols|0,Math.random()*rows|0);
+    },125);
+  })();
+
+  // ---------- Welcome: the saved Online name, else a party or game name, else ask once and keep it here ----------
+  function cleanName(v,n){return String(v==null?'':v).replace(/[<>\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/\s+/g,' ').trim().slice(0,n||30)}
+  function savedName(){
+    var keys=['ol:name','party:name','coil:name','ss:name','sd:name','spire:name','updraft:name','boostball-name','shellcr-name','br1v1-name','rk_name','chroma-name','oddone-name','tumble-name','bra:name'];
+    for(var i=0;i<keys.length;i++){var v=store(keys[i]);if(!v)continue;try{if(v.charAt(0)==='"')v=JSON.parse(v)}catch(e){}v=cleanName(v);if(v)return v}
+    return '';
+  }
+  function welcome(){
+    var w=$('welcome'),n=savedName();w.textContent='';w.hidden=false;
+    if(n){w.append('Welcome, ',el('b',null,n));return}
+    var f=el('form'),i=el('input');i.type='text';i.maxLength=30;i.placeholder='Your name';i.setAttribute('aria-label','Your name');i.autocomplete='nickname';
+    var b=el('button','sm','Save');b.type='submit';
+    f.append('What should we call you? ',i,b);w.appendChild(f);
+    f.addEventListener('submit',function(e){e.preventDefault();var v=cleanName(i.value);if(!v){i.focus();return}store('bra:name',v);welcome()});
+  }
+
+  // ---------- Unlock ----------
+  // The door (door.js) hands over the number it checked, once; a direct visit asks for both codes.
+  var handed='';
+  try{handed=sessionStorage.getItem('bra:n')||'';sessionStorage.removeItem('bra:n')}catch(e){}
+  if(!/^[0-9]{1,12}$/.test(handed))handed='';
+  $('numL').hidden=!!handed;
+  setTimeout(function(){(handed?$('pw'):$('num')).focus()},0);
+  var folder=(/\/([0-9a-f]{16})\/(?:index\.html)?$/.exec(location.pathname)||[])[1]||'';
+  $('unlock').addEventListener('submit',async function(e){
+    e.preventDefault();
+    var num=handed||$('num').value.replace(/\s+/g,''),pw=$('pw').value;
+    if(!num||!/^[0-9]+$/.test(num)){say('gateMsg','Wrong number',true);$('num').value='';$('num').focus();return}
+    if(!pw){$('pw').focus();return}
+    $('go').disabled=true;say('gateMsg','Checking…');$('gateMsg').classList.remove('err');
+    try{
+      if(!handed&&(await digest(num))!==folder){say('gateMsg','Wrong number',true);$('num').value='';$('num').focus();return}
+      PRIV=await unwrap(num,pw);
+    }catch(err){
+      say('gateMsg',err&&err.message==='nokey'?'Couldn\'t load the admin key. Reload the page.':'Wrong password',true);$('pw').value='';$('pw').focus();return;
+    }finally{$('go').disabled=false;num='';pw=''}
+    $('pw').value='';$('num').value='';say('gateMsg','');
+    $('gate').hidden=true;
+    if(!stubbed){
+      try{await boot()}catch(err){$('gate').hidden=false;say('gateMsg',(err&&err.message)||'Couldn\'t connect.',true);PRIV=null;return}
+    }
+    $('app').hidden=false;$('me').hidden=false;$('who').textContent='Unlocked';welcome();
+    loaded={};showTab(tab);
+  });
+  $('out').addEventListener('click',function(){PRIV=PRIVS=null;location.reload()});
+  fillGames();fillWho();fillFb();
+
+  // Test hook for automated browsers only: stub() swaps Firestore and the leaderboard read for data held in the page (the
+  // codes are still needed to open sealed ones).
+  if(navigator.webdriver){
+    window.__admin={
+      stub:function(data,o){
+        o=o||{};data=data||{};
+        var deny=function(){var e=new Error('Missing or insufficient permissions.');e.code='permission-denied';return Promise.reject(e)};
+        var d=function(x){return Object.assign({},x,{ts:x.ts!=null?new Date(x.ts):null,last:x.last!=null?new Date(x.last):null})};
+        var chat=(data.chat||[]).map(d),fb=(data.feedback||[]).map(d);
+        function range(list,start,cap){return list.filter(function(x){return !start||(x.ts&&x.ts>=start)}).sort(function(a,b){return (b.ts||0)-(a.ts||0)}).slice(0,cap)}
+        function docs(list){return list.map(function(x){return {id:x.id,data:function(){return x}}})}
+        api={
+          lb:function(){return o.denyLb?deny():Promise.resolve({val:data.lb||{},now:data.now||Date.now()})},
+          chat:function(s,c){return o.denyChat?deny():all(docs(range(chat,s,c)),openChat)},
+          fbList:function(){return o.denyFb?deny():all(docs(range(fb,null,FB_CAP)),openFb)},
+          fbDone:function(id,v){if(o.denyWrite)return deny();fb.forEach(function(x){if(x.id===id)x.done=v});return Promise.resolve()},
+          one:function(path){var v=(data.paths||{})[path];return Promise.resolve(v===undefined?null:JSON.parse(JSON.stringify(v)))},
+          saveResets:o.denyWrite?deny:api.saveResets,
+          gUser:function(){return Promise.resolve(gUserT)},
+          gSignIn:function(){gUserT=data.gUser||'admin@example.com';return Promise.resolve(gUserT)},
+          gSignOut:function(){gUserT='';return Promise.resolve()},
+          member:function(uid){if(o.denyMembers)return deny();var m=(data.members||{})[uid];return Promise.resolve(m?JSON.parse(JSON.stringify(m)):null)}
+        };
+        var gUserT='';
+        stubbed=true;
+        if(PRIV){loaded={};showTab(tab)}
+      },
+      get unlocked(){return !!PRIV},
+      get stats(){return last&&{total:last.total,players:last.list.length,google:last.google,accounts:S.people.length,skipped:S.skipped,games:last.games.map(function(g){return [g.d,g.s,g.people]}),
+        people:last.list.map(function(r){return {into:r.p.into||'',uid:r.p.uid,name:r.p.name,n:r.p.n,gn:r.p.gn,ga:r.p.ga,seat:r.p.seat,v:r.v,top:r.top,n_games:r.n,days:Object.keys(r.p.d).length,miles:r.miles,tier:r.mi?r.mi.tier.k:''}})}},
+      get players(){return {rows:P.rows.length,open:P.open,shown:$('pTable').querySelectorAll('tr.prow').length,list:P.rows.map(function(r){return {uid:r.uid,name:r.name,ga:r.ga,ok:r.ok,total:r.total,week:r.week,miles:r.miles,ts:r.ts?+r.ts:0,into:r.into||'',kids:(r.kids||[]).map(function(k){return k.uid})}}),
+        shownUids:[].map.call($('pTable').querySelectorAll('tr.prow'),function(t){return t.dataset.k})}},
+      get dups(){return dupPairs().filter(function(d){return !d.no}).map(function(d){return [d.x.uid,d.t.uid,d.s]})},
+      get chat(){return {rows:C.rows.length,shown:chatShown().length,capped:C.capped,unopened:C.rows.filter(function(r){return !r.opened}).length}},
+      get feedback(){return F.rows.map(function(r){return {id:r.id,done:r.done,sealed:r.sealed,msg:r.msg}})}
+    };
+  }
+})();
+</script>
+</body>
+</html>
