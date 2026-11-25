@@ -3322,7 +3322,7 @@ const LEG_GEO=(()=>{fitLegGeo(0);const S=FIT_LEG_SHAPE,z=S.zm.array,c=new Float3
 const STD_LEGS={pat:1,a:[0x2f3a4a,0x2f3a4a,0x2f3a4a,0x2f3a4a],shoe:0x1b1d22};   // the standard legs' colours, for the Locker's pictures
 function fitBase(B,c,torso,sleeve,hand,shoulder,o){   // o.hair false: no hair (hoods, bald costume heads); o.torso false: the outfit adds its own painted torso
   if(!o||o.torso!==false)bagRBox(B,0,1.22,0,.7,.72,.42,torso);
-  BW=1;bagRLo(B,0,1.57,0,.22,.14,.22,c.skin);bagRBox(B,0,1.79,0,.48,.48,.48,c.skin);if(!o||o.hair!==false)hairOf(B,c.hair,o&&o.hair==='top');BW=0;   // neck, head, hair (bodyRig leaves them alone)
+  BW=1;bagRLo(B,0,1.57,0,.22,.14,.22,c.skin);if(!o||o.head!==false)bagRBox(B,0,1.79,0,.48,.48,.48,c.skin);if(!o||o.hair!==false)hairOf(B,c.hair,o&&o.hair==='top');BW=0;   // neck, head, hair (bodyRig leaves them alone)
   bagRBox(B,-.41,1.46,0,.17,.2,.26,shoulder);bagRBox(B,.41,1.46,0,.17,.2,.26,shoulder);
   armsOf(B,sleeve,hand);
 }
@@ -3331,6 +3331,13 @@ function fitBase(B,c,torso,sleeve,hand,shoulder,o){   // o.hair false: no hair (
 // were, so every weapon's grip still sits in the right hand.
 const ROUND_ARM=(()=>{const g=new THREE.BoxGeometry(1,1,1,3,3,8).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new V3(),u=new V3(),f=new V3();
   for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);f.fromBufferAttribute(n,i);u.copy(v).normalize();v.lerp(u.clone().multiplyScalar(.62),.4);p.setXYZ(i,v.x,v.y,v.z);f.lerp(u,.55).normalize();n.setXYZ(i,f.x,f.y,f.z)}return g})();
+// A head (the Noob's, November 2026): rounder than ROUND_BOX (pulled further toward a ball) and cut into fewer squares
+// (132 triangles instead of 192), a little taller than wide, with ears and a small nose, so a bald head reads as a head
+// and not a block. Drawn at the old head's place; bodyRig then makes it smaller like every head.
+const ROUND_HEAD=(()=>{const g=new THREE.BoxGeometry(1,1,1,3,4,3).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new V3(),u=new V3(),f=new V3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);f.fromBufferAttribute(n,i);u.copy(v).normalize();v.lerp(u.clone().multiplyScalar(.6),.62);p.setXYZ(i,v.x,v.y,v.z);f.lerp(u,.8).normalize();n.setXYZ(i,f.x,f.y,f.z)}return g})();
+function headOf(B,skin,nose){const b0=BW;BW=1;_q.set(0,0,0,1);_m4.compose(_p.set(0,1.8,0),_q,_s.set(.5,.56,.52));bagAdd(B,ROUND_HEAD,_m4,skin);
+  const ear=shadeOf(skin,.92);bagBox(B,-.255,1.78,.02,.05,.12,.1,ear);bagBox(B,.255,1.78,.02,.05,.12,.1,ear);if(nose)bagBox(B,0,1.765,-.29,.07,.09,.06,shadeOf(skin,.94));BW=b0}
 function armsOf(B,sleeve,hand){const b0=BW;BW=2;
   for(const [x,z,r] of [[-.27,-.24,-.4],[.3,-.22,0]]){_e.set(0,r,0);_q.setFromEuler(_e);_m4.compose(_p.set(x,1.36,z),_q,_s.set(.165*1.12,.165*1.12,.6*1.12));bagAdd(B,ROUND_ARM,_m4,sleeve)}
   bagRLo(B,-.1,1.355,-.505,.125,.14,.15,hand,-.4);bagRLo(B,.3,1.355,-.505,.125,.14,.15,hand);                    // the hands
@@ -3374,8 +3381,8 @@ const OUTFITS=(()=>{
       fan(7,1.32,.74,1.02,.3,.27,[0xb5382a,T_ORANGE,0xf6a53a,0xf6a53a],1);fan(5,1.1,.54,.76,.34,.25,[GOLD,GOLD,0xffd65a],1);fan(5,1.05,.36,.5,.38,.22,[0xc23a2c,C_RED,C_RED],0)}},
   // The Noob is what everyone starts as. So that players can still be told apart, it carries the player's own colour where
   // it shows from every side: a backpack (as deep as the standard one), its straps over the shoulders and a belt.
-  {id:'noob',name:'Noob',skin:N_YEL,legs:()=>[1,N_TRS,N_TRS,N_TRS,N_TRS,SHOE],
-    body(B,c){fitBase(B,c,N_BLUE,N_YEL,N_YEL,N_YEL,{hair:false});c.face||eyes(B);
+  {id:'noob',name:'Noob',skin:N_YEL,face:{y:1.8,cell:.034,box:[1.8,.03,.4,.44,.52]},legs:()=>[1,N_TRS,N_TRS,N_TRS,N_TRS,SHOE],
+    body(B,c){fitBase(B,c,N_BLUE,N_YEL,N_YEL,N_YEL,{hair:false,head:false});headOf(B,c.skin,!c.face);c.face||eyes(B,1.82,-.3);
       back(B,c,()=>{pack(B,c.hex);L(B,0,1.52,.31,.46,.06,.22,CREAM)});L(B,0,.9,0,.73,.1,.45,c.hex);                  // backpack, its roll, belt
       for(const x of [-.17,.17]){X(B,x,1.34,-.25,.07,.52,.05,c.hex);X(B,x,1.52,.25,.07,.26,.05,c.hex);X(B,x,1.655,0,.07,.05,.5,c.hex)}}},   // straps: front, back, over the shoulder
   {id:'feathercap',name:'Feathercap',face:{y:1.795,cell:.034},legs:()=>[1,F_TRS,F_TRS,F_TRS,F_TRS,0x3a2a22],
