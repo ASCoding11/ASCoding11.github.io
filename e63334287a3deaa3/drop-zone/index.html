@@ -2925,7 +2925,7 @@ function bodyGeo(hex,skin,fit,face,pk){
    don't change. Then each corner gets its bone: the parts of an arm (sleeve, cuff, band, hand: anything centred on an arm's
    line at shoulder height, ARM_SEG) follow that arm; the rest blends from the hips (below 0.96) to the chest (above 1.12),
    so the chest can turn over the hips without a seam. The model's units are the unscaled ones (BS scales the group). */
-const BODY_W=[[.7,1],[.84,.99],[.93,.99],[1.0,.88],[1.08,.76],[1.2,.82],[1.32,.96],[1.44,1.06],[1.75,1.06]];
+const BODY_W=[[.7,1],[.84,.99],[.93,.97],[1.0,.84],[1.08,.72],[1.2,.8],[1.32,.96],[1.44,1.07],[1.75,1.07]];
 const BACK_Z=.21,BACK_K=.72,SQ_Y=1.42,sqK=x=>.45+.35*clamp((Math.abs(x)-.12)/.25,0,1),SPINE_Y=1.04,ARM_P=[[-.36,1.38,0],[.35,1.38,0]];
 const ARM_SEG=[[-.398,.064,-.142,-.544],[.3,.08,.3,-.57]];   // each arm's line seen from above (x, z to x, z), at y 1.36 (the left hand, at -0.1, -0.5, is just off its line)
 const tabAt=(T,y)=>{if(y<=T[0][0])return T[0][1];for(let i=1;i<T.length;i++)if(y<=T[i][0]){const a=T[i-1],b=T[i];return a[1]+(b[1]-a[1])*(y-a[0])/(b[0]-a[0])}return T[T.length-1][1]};
@@ -2960,7 +2960,7 @@ const FIT_BUILD=(()=>{const T={},add=(c,ids)=>{for(const i of ids.split(' '))T[i
   return T})();
 let BLD={b:BODY_BUILDS[1],f:FRAMES[0]};
 function buildOf(hex,fit){const O=fit?OUTFITS[fit]:null;let c=O&&FIT_BUILD[O.id];
-  if(!c){if(O)c=[1,0];else{let h=(hex|0)>>>0;h=Math.imul(h^h>>>15,0x2c1b3c6d)>>>0;h=Math.imul(h^h>>>12,0x297a2d39)>>>0;h=(h^h>>>15)>>>0;c=[h%3,(h>>>4)%2]}}   // the Noob: from its colour
+  if(!c){if(O&&O.id!=='noob'&&O.id!=='std')c=[1,0];else{let h=(hex|0)>>>0;h=Math.imul(h^h>>>15,0x2c1b3c6d)>>>0;h=Math.imul(h^h>>>12,0x297a2d39)>>>0;h=(h^h>>>15)>>>0;c=[h%3,(h>>>4)%2]}}   // the Noob and the standard look: from the player's colour
   return{b:BODY_BUILDS[c[0]],f:FRAMES[c[1]],c}}
 const legBuild=(hex,fit)=>buildOf(hex,fit).b.l;
 // The head (November 2026): drawn as before (a 0.48 rounded box at 1.79 with its hair, face and headwear), then made
@@ -2971,7 +2971,7 @@ const legBuild=(hex,fit)=>buildOf(hex,fit).b.l;
 // a narrower elbow, a forearm, a slim wrist; the hands keep their size), the torso is rounder in cross-section, and the
 // shoulders are kept inside the body's hit area (SH_MAX).
 const HEAD_S=.68,HEAD_Y=1.79,HEAD_DY=2.085-(HEAD_Y+.27*HEAD_S),SH_MAX=.452;
-const ARM_TAPER=[[0,1.04],[.2,1],[.36,.9],[.5,.8],[.62,.84],[.74,.82],[.9,.7],[1,.7]];
+const ARM_TAPER=[[0,1],[.2,.94],[.36,.84],[.5,.74],[.62,.78],[.74,.75],[.9,.64],[1,.66]];
 function bodyRig(B,nb){
   const n=B.p.length/3,bone=new Uint8Array(n).fill(1),warp=new Uint8Array(n),hd=new Uint8Array(n).fill(2),hand=new Uint8Array(n),P=B.p,N=B.n,pt=B.pt||[],bl=BLD.b,fr=BLD.f;
   for(let v=nb;v<n;v++)hd[v]=1;   // headwear and the drawn face
