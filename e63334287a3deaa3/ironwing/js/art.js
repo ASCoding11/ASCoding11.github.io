@@ -476,15 +476,27 @@
     m.name = name; m.userData.linear = true; return (GM[key] = m);
   }
   function tinted(m, team, table) {
-    if (!team || !m.color || m.name === 'glass' || m.name === 'deck') return m;
+    if (!team || !m.color || m.name === 'glass' || m.name === 'deck' || m.name === 'tex_deck') return m;
     const key = m.uuid + team; if (GM[key]) return GM[key];
     const c = m.clone(); c.color.copy(table[team] || table.blue); c.userData.linear = true; return (GM[key] = c);
+  }
+  // the hero models' baked sets (tools/vehicles/texbake.py): albedo (sRGB), normal and ORM maps come with the file;
+  // only the environment strength is set here, once per set, so every clone shares one material
+  const TEXM = {};
+  function texMat(m, group) {
+    const key = m.name; if (TEXM[key]) return TEXM[key];
+    m.envMapIntensity = key === 'tex_deck' ? 0.35 : group === 'air' ? 0.8 : 0.6; m.vertexColors = false;
+    if (m.map) m.map.anisotropy = 4;
+    // Low keeps only the colour map: the normal and ORM lookups over a screen full of deck doubled the frame time in
+    // the software renderer, and Low is for the slowest machines
+    if (IW.world.Q && IW.world.Q.name === 'low') { m.normalMap = m.roughnessMap = m.metalnessMap = m.aoMap = null; m.roughness = key === 'tex_deck' ? 0.85 : 0.55; m.metalness = key === 'tex_deck' ? 0.05 : 0.2; }
+    m.userData.linear = true; return (TEXM[key] = m);
   }
   function prep(root, group) {
     root.traverse(o => {
       if (!o.isMesh) return;
       const name = (o.material && o.material.name || 'paint').replace(/\.\d+$/, '');
-      o.material = gm(name, group); o.geometry.userData.shared = true;
+      o.material = /^tex_/.test(name) ? texMat(o.material, group) : gm(name, group); o.geometry.userData.shared = true;
       o.castShadow = group !== 'ground' || !/_dead$/.test(o.name); o.receiveShadow = group !== 'air';
     });
   }
@@ -512,6 +524,9 @@
     root.children.filter(o => /_gun[LR]\d+$/.test(o.name)).sort((a, b) => +a.name.match(/\d+$/)[0] - +b.name.match(/\d+$/)[0]).forEach(g => parts.guns.push(g));
     parts.cockpitEye = get('_cockpitEye');
     for (const side of ['L', 'R']) { const g = get('_gear' + side); if (g) parts.legs.push({ piv: g, side: Math.sign(g.position.x) || 1 }); }
+    // moving parts that only some types have: the sliding hood (the player's type) and the bomb-bay doors
+    parts.canopy = get('_canopy'); parts.bays = [get('_bayL'), get('_bayR')].filter(Boolean);
+    const cz0 = parts.canopy ? parts.canopy.position.z : 0, cy0 = parts.canopy ? parts.canopy.position.y : 0;
     if (hero) {
       parts.aileronL = get('_aileronL'); parts.aileronR = get('_aileronR'); parts.rudder = get('_rudder');
       parts.elevators = [get('_elevatorL'), get('_elevatorR')].filter(Boolean); parts.flaps = [get('_flapsL'), get('_flapsR')].filter(Boolean);
@@ -520,9 +535,20 @@
     if (lod) lod.visible = false;
     root.userData.kind = kind;
     root.traverse(o => { if (o.isMesh) o.castShadow = true; });
-    let spin = 0, far = false;
+    // the outer left wing panel can tear off (A.breakup); keep where it and the aileron on it belong
+    const wo = parts.wingOut = get('_wingOut'); parts.hi = hi;
+    const home = o => o && { o, p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() };
+    parts.home = [home(wo), home(parts.aileronL)].filter(Boolean);
+    let spin = 0, far = false, gearK = -1, hoodK = 0, bayK = 0;
+    const ease = k => k * k * (3 - 2 * k);
     return {
       root, parts,
+      // put back a torn-off wing (the player's aircraft is reused after a crash)
+      reset() {
+        if (!parts.broken) return; parts.broken = false; root.scale.x = 1;
+        for (const h of parts.home) { IW.fx.release(h.o); root.add(h.o); h.o.position.copy(h.p); h.o.quaternion.copy(h.q); h.o.scale.copy(h.s); }
+        if (wo && !hi.includes(wo)) hi.push(wo);
+      },
       animate(dt, rpm, ctl) {
         // the reduced copy far away (never for your own aircraft)
         const isFar = !!(!hero && lod && root.position.distanceToSquared(IW.world.camera.position) > 450 * 450);
@@ -536,10 +562,34 @@
           if (parts.rudder) parts.rudder.rotation.y = ctl.yaw * 0.4;
           for (const f of parts.flaps) f.rotation.x = ctl.flaps * 0.6;
         }
-        const k = ctl ? ctl.gear : 0;
-        for (const L of parts.legs) { L.piv.visible = k > 0.02; L.piv.rotation.z = (1 - k) * L.side * Math.PI / 2 * 0.98; }
+        // the gear folds inward into the wing roots, easing in and out of each end of its travel; the legs vanish
+        // only once they are inside the wing
+        // (the player's ctl.gear already moves over the gear time; an AI aircraft gives only where it wants the gear)
+        const want = ctl ? ctl.gear : 0; if (gearK < 0) gearK = want;
+        gearK = ctl && ctl.ai ? IW.clamp(gearK + Math.sign(want - gearK) * dt / 2.4, 0, 1) : want;
+        const e = ease(IW.clamp(gearK, 0, 1));
+        for (const L of parts.legs) { L.piv.visible = e > 0.015; L.piv.rotation.z = -(1 - e) * L.side * Math.PI / 2 * 0.97; }
+        // the hood slides back on the deck and closes for flight; the bay doors swing open for a bombing run
+        if (parts.canopy) { hoodK = IW.clamp(hoodK + Math.sign((ctl && ctl.canopy ? 1 : 0) - hoodK) * dt / 1.4, 0, 1); const h = ease(hoodK); parts.canopy.position.z = cz0 - h * 0.62; parts.canopy.position.y = cy0 + h * 0.03; }
+        if (parts.bays.length) { bayK = IW.clamp(bayK + Math.sign((ctl && ctl.bay ? 1 : 0) - bayK) * dt / 1.6, 0, 1); const b = ease(bayK) * 1.45; parts.bays[0].rotation.z = b; if (parts.bays[1]) parts.bays[1].rotation.z = -b; }
       }
     };
+  };
+  // a shot-down aircraft loses its outer wing panel (doIt: the caller's dice). Half the time the whole aircraft is
+  // mirrored first, so it is the right wing that goes. Returns { side: the roll direction toward the missing wing
+  // (+1 rolls right), at: the break in the aircraft's own frame, for the smoke } or null.
+  A.breakup = function (model, vel, doIt) {
+    const P = model.parts, wo = P && P.wingOut; if (!doIt || !wo || P.broken || !wo.parent) return null;
+    P.broken = true; const mir = Math.random() < 0.5; if (mir) model.root.scale.x = -1;
+    if (P.aileronL) wo.attach(P.aileronL);
+    const i = P.hi.indexOf(wo); if (i >= 0) P.hi.splice(i, 1);
+    wo.visible = true;
+    model.root.updateMatrixWorld(true);
+    const out = new THREE.Vector3(mir ? -1 : 1, 0, 0).applyQuaternion(model.root.quaternion);
+    const h = P.home[0].p, at = new THREE.Vector3(mir ? -h.x : h.x, h.y, h.z);
+    if (IW.fx.tearFlash) IW.fx.tearFlash(wo.getWorldPosition(new THREE.Vector3()));
+    IW.fx.detach(wo, vel.clone().addScaledVector(out, 7).add(new THREE.Vector3(0, 4, 0)), 3 + Math.random() * 4);
+    return { side: mir ? 1 : -1, at };
   };
   A.ship = function (kind, team) {
     const root = clone(kind); if (!root) return SA.ship(kind, team);
@@ -553,6 +603,7 @@
     }
     const lod = get('_lod1'), hi = root.children.filter(o => o !== lod && (o.isMesh || o.type === 'Group'));
     if (lod) { lod.visible = false; root.onBeforeRender = null; out.lod = { lod, hi, far: false }; }
+    out.radars = root.children.filter(o => /_radar\d+$/.test(o.name));   // turned by the ship (units.js)
     return out;
   };
   A.shipLod = function (art, dist) {   // called by the ship each frame
