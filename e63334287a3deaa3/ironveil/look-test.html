@@ -88,9 +88,9 @@
       const c0 = performance.now(); W.renderer.compile(W.scene, W.camera);
       L.meta[m] = { loadS: +((performance.now() - tm) / 1000).toFixed(1), compileMs: Math.round(performance.now() - c0), programs: W.renderer.info.programs.length };
       log(m + ' ready ' + L.meta[m].loadS + ' s');
-      // ?gov=1: feed the frame-time governor 70 ms frames for 9 s and record what it does to the internal buffers
+      // ?gov=1: feed the frame-time governor 70 ms frames for 12 s and record what it does to the internal buffers
       if (qs.get('gov')) { const before = W.post ? W.post.size.slice() : null; W.govStart(); const t1 = performance.now();
-        while (performance.now() - t1 < 9000) { W.govFrame(0.07); await sleep(40); }
+        while (performance.now() - t1 < 12000) { W.govFrame(0.07); const t2 = performance.now(); while (performance.now() - t2 < 20) {} }   // 20 ms steps in real time (a timer-driven loop ran too slowly in the frame)
         L.meta[m + '-gov'] = { before, after: W.post ? W.post.size : null, scale: W.post ? +W.post.scale.toFixed(2) : null, log: W.gov.log.slice(-8) };
         log(m + ' gov ' + JSON.stringify(L.meta[m + '-gov'])); }
       for (const [name, v] of VIEWS[m]) {
