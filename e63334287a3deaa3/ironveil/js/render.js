@@ -31,7 +31,7 @@
     night: { sat: 0.8, shadow: [0.94, 0.98, 1.06], high: [1.04, 1.0, 0.94], curve: 0.22, lift: [0.010, 0.013, 0.020], vig: 0.6, grain: 0.018, bloom: 0.05 },
     rain: { sat: 0.7, shadow: [0.9, 0.98, 1.1], high: [1.04, 1.0, 0.95], curve: 0.18, lift: [0.011, 0.013, 0.017], vig: 0.55, grain: 0.018, bloom: 0.05 },
     dawn: { sat: 0.86, shadow: [0.92, 0.98, 1.08], high: [1.07, 1.0, 0.9], curve: 0.18, lift: [0.010, 0.010, 0.012], vig: 0.5, grain: 0.016, bloom: 0.045 },
-    day: { sat: 0.96, shadow: [0.97, 0.99, 1.03], high: [1.03, 1.0, 0.96], curve: 0.28, lift: [0.008, 0.009, 0.011], vig: 0.45, grain: 0.014, bloom: 0.035 }
+    day: { sat: 0.96, shadow: [0.97, 0.99, 1.03], high: [1.03, 1.0, 0.96], curve: 0.12, lift: [0.013, 0.014, 0.016], vig: 0.45, grain: 0.014, bloom: 0.035 }
   };
   if (window.IVEnv) IVEnv.GRADES = R.GRADES;
 

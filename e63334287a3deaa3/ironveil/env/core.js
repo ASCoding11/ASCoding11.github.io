@@ -30,7 +30,7 @@
     // roofed boxes (x0, z0, x1, z1) and their roof heights: inside them rain does not reach (IVEnv.setRoofs)
     uRoof: { value: [] }, uRoofY: { value: [] }, uRoofN: { value: 0 },
     // openings (windows, doors) of the rooms near the camera: the light that comes in through them (IVEnv.setPortals)
-    uWin: { value: [] }, uWinN: { value: [] }, uWinNum: { value: 0 }, uWinC: { value: new THREE.Color(0.3, 0.32, 0.36) }, uProbeK: { value: 0 },
+    uWin: { value: [] }, uWinN: { value: [] }, uWinNum: { value: 0 }, uWinC: { value: new THREE.Color(0.3, 0.32, 0.36) }, uProbeK: { value: 0 }, uRoomAmb: { value: new THREE.Color(0.036, 0.038, 0.043) },
     uRim: { value: new THREE.Color(0, 0, 0) }   // the edge light on soldiers (IVEnv.rimPatch), set by the atmosphere
   };
   for (let i = 0; i < 8; i++) { U.uWin.value.push(new THREE.Vector4()); U.uWinN.value.push(new THREE.Vector4()); }
@@ -80,7 +80,7 @@
       float inside = ivInside(wp); if (inside <= 0.0) return;
       vec3 nW = inverseTransformDirection(nV, viewMatrix);
       rl.indirectDiffuse *= mix(1.0, 0.2, inside); rl.indirectSpecular *= mix(1.0, 0.6, inside);
-      rl.indirectDiffuse += inside * albedo * (ivWindows(wp, nW) * 10.0 + uWinC * 0.12);
+      rl.indirectDiffuse += inside * albedo * (ivWindows(wp, nW) * 10.0 + uRoomAmb);
       // bounce: the room's own light probe (js/world.js renders one when the camera walks into a room), its most
       // blurred level along the normal
       #if defined( USE_ENVMAP ) && defined( STANDARD )
@@ -90,10 +90,10 @@
       rl.directDiffuse *= mix(1.0, 0.15, inside); rl.directSpecular *= mix(1.0, 0.15, inside);
       #endif
     }`;
-  E.GLSL.interiorUniforms = 'uniform vec4 uWin[8]; uniform vec4 uWinN[8]; uniform int uWinNum; uniform vec3 uWinC; uniform float uProbeK;\n';
+  E.GLSL.interiorUniforms = 'uniform vec4 uWin[8]; uniform vec4 uWinN[8]; uniform int uWinNum; uniform vec3 uWinC; uniform float uProbeK; uniform vec3 uRoomAmb;\n';
   // the same for a material that is not an IVEnv one (the kit's, js/world.js): adds the world position and uniforms
   E.interiorPatch = function (sh, tag) {
-    Object.assign(sh.uniforms, { uRoof: U.uRoof, uRoofY: U.uRoofY, uRoofN: U.uRoofN, uWin: U.uWin, uWinN: U.uWinN, uWinNum: U.uWinNum, uWinC: U.uWinC, uProbeK: U.uProbeK });
+    Object.assign(sh.uniforms, { uRoof: U.uRoof, uRoofY: U.uRoofY, uRoofN: U.uRoofN, uWin: U.uWin, uWinN: U.uWinN, uWinNum: U.uWinNum, uWinC: U.uWinC, uProbeK: U.uProbeK, uRoomAmb: U.uRoomAmb });
     E.patch(sh, 'vertex', '#include <project_vertex>', `#include <project_vertex>
       { vec4 ivp = vec4(transformed, 1.0);
       #ifdef USE_INSTANCING
@@ -404,7 +404,7 @@
       uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime, uDust: U.uDust, uNight: U.uNight,
       uIdAmt: { value: R.id || 0 }, uMacroAmt: { value: R.macro || 0.15 }, uTexSize: { value: S },
       uRoof: U.uRoof, uRoofY: U.uRoofY, uRoofN: U.uRoofN, uWetK: { value: new THREE.Vector3().fromArray(R.wet || [0.38, 0.45, 0]) },
-      uWin: U.uWin, uWinN: U.uWinN, uWinNum: U.uWinNum, uWinC: U.uWinC, uProbeK: U.uProbeK, uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: R.scan && /brick|fieldstone|ashlar|roof_tile|slate/.test(R.tex) ? 1.0 : 0.85 }
+      uWin: U.uWin, uWinN: U.uWinN, uWinNum: U.uWinNum, uWinC: U.uWinC, uProbeK: U.uProbeK, uRoomAmb: U.uRoomAmb, uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: R.scan && /brick|fieldstone|ashlar|roof_tile|slate/.test(R.tex) ? 1.0 : 0.85 }
     };
     m.userData.uniforms = uni;
     m.onBeforeCompile = function (sh) {
@@ -495,16 +495,16 @@
       // the foot of a wall: a dark damp band rising 20 to 45 cm with a ragged top and a faint tide line above it,
       // moss in its hollows, and splashed-up mud in the bottom 10 to 25 cm
       float foot = vEnvA.w > 0.5 ? vEnvA.w - 1.0 : 99.0;
-      float dampH = 0.24 + 0.24 * m2 + 0.14 * m1;
+      float dampH = 0.3 + 0.26 * m2 + 0.16 * m1;
       float damp = (1.0 - smoothstep(dampH - 0.1, dampH + 0.03, foot)) * uGrime;
       float tide = smoothstep(0.045, 0.0, abs(foot - dampH - 0.03)) * uGrime;
       float moss = damp * smoothstep(0.6, 0.2, envH + m1 * 0.35 - 0.15);
-      envAlb = mix(envAlb, envAlb * vec3(0.34, 0.32, 0.26), damp * 0.92);
-      envAlb = mix(envAlb, envAlb * vec3(0.82, 0.8, 0.72), tide * 0.5);
+      envAlb = mix(envAlb, envAlb * vec3(0.3, 0.28, 0.22), damp * 0.95);
+      envAlb = mix(envAlb, envAlb * vec3(0.7, 0.66, 0.56), tide * 0.7);
       envAlb = mix(envAlb, vec3(0.03, 0.045, 0.015), moss * 0.8);
       envRough = mix(envRough, envRough * 0.7, damp);
-      float splash = (1.0 - smoothstep(0.0, 0.14 + 0.16 * m1, foot)) * uGrime * smoothstep(0.3, 0.6, texture2D(uMacro, wp.xz * 2.1 + wp.y * 3.0).g + 0.25);
-      envAlb = mix(envAlb, vec3(0.05, 0.038, 0.026), splash * 0.85);
+      float splash = (1.0 - smoothstep(0.0, 0.2 + 0.22 * m1, foot)) * uGrime * smoothstep(0.3, 0.6, texture2D(uMacro, wp.xz * 2.1 + wp.y * 3.0).g + 0.3);
+      envAlb = mix(envAlb, vec3(0.045, 0.034, 0.022), splash * 0.9); envRough = mix(envRough, 0.5, splash * 0.5);
     }
     #endif
     // weathering shared by every material, lined up in world space: rain streaks down walls, sun fading, and dust
@@ -537,14 +537,14 @@
       float hf = texture2D(uMacro, wp.xy * 1.3 + wp.zz * 0.9 + 0.11).b * 0.6 + texture2D(uMacro, (wp.zy + wp.xx) * 3.1).r * 0.4;
       #ifdef ENV_PAINT
       // chipped and flaking paint: bare grey timber or rusted steel shows through in ragged flakes
-      { float chip = smoothstep(0.6, 0.66, hf + m2 * 0.12 + (1.0 - envH) * 0.12);
+      { float chip = smoothstep(0.68, 0.74, hf + m2 * 0.1 + (1.0 - envH) * 0.08);
         envAlb = mix(envAlb, ENV_PAINT_UNDER * (0.7 + 0.6 * m1), chip * 0.85); envRough = mix(envRough, 0.85, chip); }
       #endif
       #ifdef ENV_RUST
       // rust runs bleeding down from bolts, seams and edges, and rusty blotches
       { float rr = texture2D(uMacro, vec2((wp.x + wp.z) * 2.3, wp.y * 0.14)).g;
-        float run = smoothstep(0.58, 0.8, rr) * (0.35 + 0.65 * vt), blot = smoothstep(0.55, 0.75, hf);
-        envAlb = mix(envAlb, vec3(0.2, 0.085, 0.035) * (0.7 + 0.6 * m1), clamp(run * 0.65 + blot * 0.45, 0.0, 0.9)); envRough = mix(envRough, 0.9, max(run, blot) * 0.7); }
+        float run = smoothstep(0.62, 0.84, rr) * (0.35 + 0.65 * vt), blot = smoothstep(0.62, 0.8, hf);
+        envAlb = mix(envAlb, vec3(0.2, 0.085, 0.035) * (0.7 + 0.6 * m1), clamp(run * 0.5 + blot * 0.35, 0.0, 0.75)); envRough = mix(envRough, 0.9, max(run, blot) * 0.7); }
       #endif
       #ifdef ENV_TIMBER
       // weathered timber: silvered grey patches and darker damp-rotted ends

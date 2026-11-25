@@ -52,9 +52,9 @@
     // shapes with a lit edge toward it; the fill is lower than before so things have weight; haze separates the range,
     // the hedge line and the hills.
     day_overcast: {
-      skyTop: 0x6f7d8c, skyHor: 0xb6b8b3, ground: 0x4b4a44, fog: 0xa7aaa8, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
-      sunDir: [0.55, 0.32, -0.77], sunCol: 0xf3dcb6, sunI: 1.7, sunShadow: true, soft: 4, moon: 0, stars: 0, cloud: 0.72, cloudCol: 0x8f9396, glow: 1.6, cscale: 0.75,
-      hemiSky: 0x9fb0c4, hemiGround: 0x8a7f68, hemiI: 1.0, env: 0.8, exposure: 0.95, wind: 0.6, wet: 0.0, rain: 0, grade: 'day', rim: 0.08, cloudShadow: 1
+      skyTop: 0x6a7a8c, skyHor: 0xaeb4b7, ground: 0x4b4a44, fog: 0xa3a9ac, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
+      sunDir: [0.55, 0.36, -0.77], sunCol: 0xece0c8, sunI: 1.3, sunShadow: true, soft: 4, moon: 0, stars: 0, cloud: 0.8, cloudCol: 0x80868c, glow: 0.8, cscale: 0.75,
+      hemiSky: 0xa3b3c6, hemiGround: 0x8a7f68, hemiI: 1.7, env: 0.8, exposure: 1.0, wind: 0.6, wet: 0.0, rain: 0, grade: 'day', rim: 0.08, cloudShadow: 1
     }
   };
 
@@ -288,10 +288,14 @@
       u.top.value.copy(L(P.skyTop)); u.hor.value.copy(L(P.skyHor)); u.gnd.value.copy(L(P.ground)); u.moonDir.value.copy(A.dir);
       u.moonAmt.value = P.moon; u.starAmt.value = P.stars; u.cloud.value = P.cloud; u.glow.value = P.glow != null ? P.glow : 0.3; u.cscale.value = P.cscale || 1.3; u.cloudCol.value.copy(L(P.cloudCol)); u.gap.value = P.gap || 0;
       if (!P.moon) u.moonCol.value.copy(L(P.sunCol)); else u.moonCol.value.set(0xdde6ff).convertSRGBToLinear();
-      sun.color.copy(L(P.sunCol)); sun.intensity = P.sunI; sun.shadow.radius = (P.soft || 3) * (Q.name === 'high' ? 1.25 : 1);   // shadow edge width in map texels (js/render.js widens the kernel) sun.castShadow = opts.shadows !== false && !!P.sunShadow && (P.shadowHi < 0.5 || !P.shadowHi || Q.name === 'high');
+      sun.color.copy(L(P.sunCol)); sun.intensity = P.sunI; sun.shadow.radius = (P.soft || 3) * (Q.name === 'high' ? 1.25 : 1);   // shadow edge width in map texels (js/render.js widens the kernel)
+      sun.castShadow = opts.shadows !== false && !!P.sunShadow && (P.shadowHi < 0.5 || !P.shadowHi || Q.name === 'high');
       hemi.color.copy(L(P.hemiSky)); hemi.groundColor.copy(L(P.hemiGround)); hemi.intensity = P.hemiI;
       E.U.uRim.value.copy(L(P.rimCol || P.hemiSky)).multiplyScalar(P.rim != null ? P.rim : 0.1);
       E.U.uWinC.value.copy(L(P.hemiSky)).multiplyScalar(P.hemiI).add(L(P.sunCol).multiplyScalar(P.sunI * 0.12));   // the light coming in at windows and doors
+      // a room's own scattered light: by day a little of the window light; at night more, and warm from the lamps in the
+      // rooms (moonlit windows alone left a hall near black and blue)
+      if (P.grade === 'night' || P.grade === 'rain') E.U.uRoomAmb.value.copy(E.U.uWinC.value).multiplyScalar(0.2).add(new THREE.Color(0.05, 0.034, 0.018)); else E.U.uRoomAmb.value.copy(E.U.uWinC.value).multiplyScalar(0.12);
       fog.color.copy(L(P.fog)); fog.near = (opts.fogD || P.fogD) * (opts.fogMul || 1);   // opts.fogD: a map's own haze in place of the preset's fog.far = packMist(A.mistBase + P.mistTop - 1.8, P.mist * 0.99);
       scene.background = null;
       renderer.toneMappingExposure = P.exposure * (A.brightness || 1) * (E.Q.post ? 1 : P.grade === 'day' ? 1.2 : 1.0);   // Low has no grade/lift pass

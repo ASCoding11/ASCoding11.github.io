@@ -309,7 +309,8 @@
       sc.remove(o);
       o.traverse(n => { if (n.geometry && !n.userData.keepGeo) n.geometry.dispose(); });
     }
-    W.colliders = []; W.hash = new Map(); W.lamps = []; W.flashes = []; W.roofs = []; W.portals = []; if (window.IVEnv && IVEnv.setPortals) IVEnv.setPortals([]); PR.key = ''; PR.sky = null; if (window.IVEnv && IVEnv.marks && IVEnv.marks.area) IVEnv.marks.area(-190, -190, 380, 512);   // ground marks start clean each level if (window.IVEnv && IVEnv.U) IVEnv.U.uProbeK.value = 0; W.waterPolys = []; W.cullList = [];
+    W.colliders = []; W.hash = new Map(); W.lamps = []; W.flashes = []; W.roofs = []; W.portals = []; if (window.IVEnv && IVEnv.setPortals) IVEnv.setPortals([]); PR.key = ''; PR.sky = null; if (window.IVEnv && IVEnv.marks && IVEnv.marks.area) IVEnv.marks.area(-190, -190, 380, 512);   // ground marks start clean each level
+    if (window.IVEnv && IVEnv.U) IVEnv.U.uProbeK.value = 0; W.waterPolys = []; W.cullList = [];
     IV.art && IV.art.reset();
     W.statics = new THREE.Group(); W.dynamic = new THREE.Group(); sc.add(W.statics); sc.add(W.dynamic);
   };
