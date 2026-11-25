@@ -90,6 +90,10 @@
       'The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can\'t promise.',
       'The privacy policy now also explains Prompted, buying items, the Marketplace and what we ask of players under 13.',
       'Both are linked at the bottom of every main page.']},
+    {date: '2026-11-25', version: '1.51.3', title: 'A proper "page not found"', kind: 'fix',
+     items: [
+      'A mistyped or old link now shows a "Page not found" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.',
+      'It shows the address you tried, and has a button to tell us about the broken link.']},
     {date: '2026-11-25', version: '1.51.2', title: 'Showcase traffic chart fixed', kind: 'fix',
      items: [
       'The visitors-per-day chart on the showcase page is readable again: a bot that loaded the page about 11,000 times in three days no longer counts as visitors.',
