@@ -1,5 +1,5 @@
 // Replace some weapons in the packed weapons.glb by newly exported ones, keeping every other weapon untouched.
-// usage: GT_MODULES=/path/to/node_modules node swap.mjs weapons.glb out.glb new1.glb [new2.glb ...]
+// usage: GT_MODULES=/path/to/node_modules node swap.mjs weapons.glb out.glb new1.glb [new2.glb ...] [--skip root,root] [--add {...}]
 // Every root node of the new files replaces the root of the same name (and its subtree) in weapons.glb.
 // New textures are written as WebP like pack.mjs; textures already in the file are not re-encoded.
 import path from 'path';
@@ -15,6 +15,9 @@ const args = process.argv.slice(2);
 // --add '{"smg_sightRear":["smg",[x,y,z]], ...}' adds empty nodes (glTF frame) under existing roots
 let ADD = {};
 const ai = args.indexOf('--add'); if (ai >= 0) { ADD = JSON.parse(args[ai + 1]); args.splice(ai, 2); }
+// --skip 'pistol,rifleScopedLod' leaves those roots of the new files out (the shipped ones are kept)
+let SKIP = [];
+const si = args.indexOf('--skip'); if (si >= 0) { SKIP = args[si + 1].split(','); args.splice(si, 2); }
 const [src, dst, ...news] = args;
 await MeshoptEncoder.ready; await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS)
@@ -25,7 +28,10 @@ const oldTex = new Set(doc.getRoot().listTextures());
 const newRoots = [];
 for (const f of news) {
   const d = await io.read(f);
-  for (const sc of d.getRoot().listScenes()) for (const n of sc.listChildren()) newRoots.push(n.getName());
+  for (const sc of d.getRoot().listScenes()) for (const n of sc.listChildren()) {
+    if (SKIP.includes(n.getName())) { const all = []; n.traverse((c) => all.push(c)); for (const c of all) { const me = c.getMesh(); c.dispose(); if (me) me.dispose(); } }
+    else newRoots.push(n.getName());
+  }
   mergeDocuments(doc, d);
 }
 for (const n of main.listChildren()) if (newRoots.includes(n.getName())) { const all = []; n.traverse((c) => all.push(c)); for (const c of all) { const me = c.getMesh(); c.dispose(); if (me) me.dispose(); } }
