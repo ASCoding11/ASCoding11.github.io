@@ -13,11 +13,12 @@
  *   aj  when they joined       ap  proof of an invite code (only while waiting to be let in by code)
  *   ad  { K: time }            invites they declined (the leader's browser then drops the invite)
  *   L   { K: record }          Aisles this player founded or led. A record is
- *       { f, ld, q, nm, tg, cl, m: { uid: t }, iv: { uid: t }, kx: { uid: t }, ch, t0, dis }
+ *       { f, ld, q, nm, tg, cl, em, mo, m: { uid: t }, iv: { uid: t }, kx: { uid: t }, ch, t0, dis }
  *       f   only in the founder's record: the number that, with the founder's uid, gives the id (K = akey(uid, f))
  *       ld  the leader: this player while they lead, else whoever they handed over to
  *       q   the record's version: every new leader's copy is one higher
- *       nm, tg, cl   name, tag, colour (index into COLS)
+ *       nm, tg, cl   name, tag, colour (index into COLS); the leader can change all three later (Customize)
+ *       em  emblem shown in the tag (index into EMB; absent or 0 for none)    mo  motto, one short line (absent if none)
  *       m   members (the Aisle's half of the membership), iv  open invites (7 days), kx  people removed
  *       ch  SHA-256 of the current invite code (the code itself stays in the leader's browser, localStorage aisle:code:K)
  *       dis 1 once disbanded
@@ -50,6 +51,11 @@
   var COLS = [['#1F3A5F', '#FFFFFF', 'Navy'], ['#1D6A4B', '#FFFFFF', 'Forest'], ['#B42318', '#FFFFFF', 'Red'], ['#B4501F', '#FFFFFF', 'Orange'],
     ['#8A5A00', '#FFFFFF', 'Gold'], ['#1E7676', '#FFFFFF', 'Teal'], ['#5B3A99', '#FFFFFF', 'Purple'], ['#8E2F84', '#FFFFFF', 'Magenta'],
     ['#2F6FB0', '#FFFFFF', 'Sky'], ['#4F5E22', '#FFFFFF', 'Olive'], ['#4A5751', '#FFFFFF', 'Slate'], ['#16201B', '#FFFFFF', 'Black']];
+  // Emblems an Aisle can put in its tag, before the letters. Like the colours only an index is stored. Add new ones at
+  // the end (never reorder or remove: the index is what's saved). [symbol, name]; 0 is none.
+  var EMB = [['', 'None'], ['✈', 'Plane'], ['★', 'Star'], ['⚡', 'Bolt'], ['♛', 'Crown'], ['♥', 'Heart'], ['☀', 'Sun'], ['☾', 'Moon'],
+    ['❄', 'Snowflake'], ['⚓', 'Anchor'], ['♞', 'Knight'], ['☘', 'Clover'], ['✦', 'Spark'], ['◆', 'Diamond'], ['☂', 'Umbrella'], ['♪', 'Note']];
+  var MOTTO_MAX = 48;
 
   // ---------------- Small helpers ----------------
   function num(v) { return typeof v === 'number' && isFinite(v) ? v : NaN; }
@@ -96,6 +102,7 @@
     return {
       ld: r.ld, q: q >= 1 && q < 1e6 ? q : 1, f: f >= 0 && f < 100 ? f : -1,
       nm: cleanAisleName(r.nm) || 'Aisle', tg: TAG_RE.test(tg) ? tg : '??', cl: cl >= 0 && cl < COLS.length ? cl : 0,
+      em: (function (e) { return e > 0 && e < EMB.length ? e : 0; })(Math.floor(num(r.em))), mo: byFilter(strip(r.mo, MOTTO_MAX)),
       m: times(r.m, 40), iv: times(r.iv, 40), kx: times(r.kx, 60),
       ch: typeof r.ch === 'string' && HEX16.test(r.ch) ? r.ch : '', t0: num(r.t0) > 0 ? r.t0 : 0, dis: r.dis === 1
     };
@@ -133,7 +140,7 @@
         if (rec.dis) return;
         var removed = !!(bans[K] && bans[K].x);
         if (removed && !keepRemoved) return;
-        var A = { K: K, founder: u, holder: cur, leader: rec.ld, rec: rec, nm: rec.nm, tg: rec.tg, cl: rec.cl, removed: removed, members: [], pend: [], inv: [] };
+        var A = { K: K, founder: u, holder: cur, leader: rec.ld, rec: rec, nm: rec.nm, tg: rec.tg, cl: rec.cl, em: rec.em, mo: rec.mo, removed: removed, members: [], pend: [], inv: [] };
         Object.keys(nodes).forEach(function (w) {
           var nd = nodes[w]; if (nd.a !== K) return;
           if (w === rec.ld || rec.m[w] || (rec.iv[w] && now - rec.iv[w] < INV_TTL)) A.members.push(w);
@@ -259,6 +266,9 @@
     '.ais-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}' +
     '.ais-sw{display:flex;flex-wrap:wrap;gap:6px}.ais-sw button{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}' +
     '.ais-sw button[aria-checked="true"]{border-color:var(--ink,#16201B);box-shadow:0 0 0 2px var(--panel,#fff) inset}' +
+    '.ais-em button{background:var(--panel,#fff);color:var(--ink,#16201B);border:1px solid var(--line,#D3DAD2);font:inherit;font-size:15px;line-height:1;width:34px;height:34px}' +
+    '.ais-em button[aria-checked="true"]{border:2px solid var(--ink,#16201B);box-shadow:none;background:var(--panel-2,#F6F8F4)}' +
+    '.ais-mo{font-style:italic;overflow-wrap:anywhere}' +
     '.ais-msg{margin:0;font-size:14px}.ais-msg:empty{display:none}.ais-msg.err{color:var(--down,#B42318)}' +
     '.ais-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}' +
     '.ais-st{background:var(--panel-2,#F6F8F4);border:1px solid var(--line,#D3DAD2);border-radius:10px;padding:10px 12px;min-width:0}' +
@@ -280,7 +290,7 @@
   document.head.appendChild(css);
 
   function tagEl(A, big) {
-    var c = COLS[A.cl] || COLS[0], t = el('span', 'ais-tag' + (big ? ' ais-big' : ''), A.tg);
+    var c = COLS[A.cl] || COLS[0], e = EMB[A.em] && EMB[A.em][0], t = el('span', 'ais-tag' + (big ? ' ais-big' : ''), (e ? e + ' ' : '') + A.tg);
     t.style.background = c[0]; t.style.color = c[1];
     t.title = 'Aisle: ' + A.nm; t.setAttribute('aria-label', 'Aisle ' + A.tg + ', ' + A.nm + '.');
     return t;
@@ -289,7 +299,7 @@
   function paint(e) {
     var u = e.getAttribute('data-aisle-u'), A = aisleOf(u), t = e.firstElementChild && e.firstElementChild.classList.contains('ais-tag') ? e.firstElementChild : null;
     if (!A) { if (t) t.remove(); return; }
-    var sig = A.K + ':' + A.tg + ':' + A.cl + ':' + A.nm;
+    var sig = A.K + ':' + A.tg + ':' + A.cl + ':' + (A.em || 0) + ':' + A.nm;
     if (t && t.getAttribute('data-s') === sig) return;
     var n = tagEl(A); n.setAttribute('data-s', sig);
     if (t) e.replaceChild(n, t); else e.insertBefore(n, e.firstChild);
@@ -482,6 +492,8 @@
   function trimTimes(o, cap) { var ks = Object.keys(o || {}).sort(function (a, b) { return o[b] - o[a]; }); var out = {}; ks.slice(0, cap).forEach(function (k) { out[k] = o[k]; }); return out; }
   function recOut(r) {
     var o = { ld: r.ld, q: r.q, nm: r.nm, tg: r.tg, cl: r.cl, t0: r.t0 || Math.round(now()) };
+    if (r.em > 0) o.em = r.em;
+    if (r.mo) o.mo = r.mo;
     if (r.f >= 0) o.f = r.f;
     if (Object.keys(r.m || {}).length) o.m = r.m;
     if (Object.keys(r.iv || {}).length) o.iv = r.iv;
@@ -572,15 +584,21 @@
     if (p && p.n) return p.n;
     return nodes[u] ? nodes[u].n : 'Player';
   }
-  async function create(nm, tg, cl) {
-    await start();
-    var my = nodes[uid];
-    if (my && my.a && aisles[my.a]) throw new Error('You’re already in an Aisle. Leave it first.');
-    var name = strip(nm, NAME_MAX), tag = cleanTag(tg);
+  // The checks a name and tag (and a motto) must pass, when an Aisle is started and when its leader changes them.
+  function checkLook(nm, tg, mo) {
+    var name = strip(nm, NAME_MAX), tag = cleanTag(tg), motto = strip(mo, MOTTO_MAX);
     if (name.length < 3) throw new Error('Give your Aisle a name of at least 3 characters.');
     if (!TAG_RE.test(tag)) throw new Error('The tag is 2 to 4 letters or digits.');
     if (bad(name) || cleanAisleName(name) !== name) throw new Error('Please pick another name for your Aisle.');
     if (badTag(tag)) throw new Error('Please pick another tag.');
+    if (motto && (bad(motto) || byFilter(motto) !== motto)) throw new Error('Please pick another motto.');
+    return { nm: name, tg: tag, mo: motto };
+  }
+  async function create(nm, tg, cl, em) {
+    await start();
+    var my = nodes[uid];
+    if (my && my.a && aisles[my.a]) throw new Error('You’re already in an Aisle. Leave it first.');
+    var name = checkLook(nm, tg, '').nm, tag = cleanTag(tg);
     var n = -1;
     for (var i = 0; i < 100; i++) { var K = akey(uid, i); if (!aisles[K] && !(my && my.L[K])) { n = i; break; } }
     if (n < 0) throw new Error('You’ve started too many Aisles.');
@@ -591,7 +609,7 @@
       // Room for the new record: forget disbanded ones first, then the oldest.
       var ks = Object.keys(o.L);
       if (ks.length >= L_MAX) ks.sort(function (a, b) { return (o.L[a].dis ? 0 : 1) - (o.L[b].dis ? 0 : 1) || (o.L[a].t0 || 0) - (o.L[b].t0 || 0); }).slice(0, ks.length - L_MAX + 1).forEach(function (k) { delete o.L[k]; });
-      o.L[K2] = { f: n, ld: uid, q: 1, nm: name, tg: tag, cl: cl >= 0 && cl < COLS.length ? cl : 0, m: (function () { var m = {}; m[uid] = t; return m; })(), ch: ch, t0: t };
+      o.L[K2] = { f: n, ld: uid, q: 1, nm: name, tg: tag, cl: cl >= 0 && cl < COLS.length ? cl : 0, em: em > 0 && em < EMB.length ? em : 0, m: (function () { var m = {}; m[uid] = t; return m; })(), ch: ch, t0: t };
       o.a = K2; o.aj = t; delete o.ap;
     });
     return K2;
@@ -603,6 +621,16 @@
     if (A.members.indexOf(u) >= 0) throw new Error('They’re already in your Aisle.');
     if (A.members.length + A.inv.length >= MAX) throw new Error('Your Aisle is full (' + MAX + ' seats, invites included).');
     await putRec(A, function (r) { r.iv = clone(r.iv); r.iv[u] = Math.round(now()); r.kx = clone(r.kx); delete r.kx[u]; });
+  }
+  // The leader renames the Aisle or changes its tag, colour, emblem or motto. Members keep their seats; every tag on
+  // the page changes as soon as the record does.
+  async function customize(nm, tg, cl, em, mo) {
+    var A = mine();
+    if (!isLeader(A)) throw new Error('Only the leader can change the Aisle.');
+    var c = checkLook(nm, tg, mo);
+    cl = cl >= 0 && cl < COLS.length ? cl : A.cl; em = em >= 0 && em < EMB.length ? em : 0;
+    if (c.nm === A.nm && c.tg === A.tg && cl === A.cl && em === (A.em || 0) && c.mo === (A.mo || '')) throw new Error('Nothing has changed yet.');
+    await putRec(A, function (r) { r.nm = c.nm; r.tg = c.tg; r.cl = cl; r.em = em; r.mo = c.mo; });
   }
   async function uninvite(u) { var A = mine(); if (!isLeader(A)) return; await putRec(A, function (r) { r.iv = clone(r.iv); delete r.iv[u]; }); }
   async function accept(K) {
@@ -689,7 +717,7 @@
   }
 
   // ---------------- The Aisle page (a window over the page) ----------------
-  var dlg = null, box = null, view = { K: '' }, msg = { t: '', err: false }, arm = { k: '', t: 0 }, form = { nm: '', tg: '', cl: 0, code: '' }, codeShown = { K: '', code: '' };
+  var dlg = null, box = null, view = { K: '' }, msg = { t: '', err: false }, arm = { k: '', t: 0 }, form = { nm: '', tg: '', cl: 0, em: 0, code: '' }, ed = { K: '' }, codeShown = { K: '', code: '' };
   function say(t, err) { msg = { t: t || '', err: !!err }; var m = box && box.querySelector('.ais-msg'); if (m) { m.textContent = msg.t; m.classList.toggle('err', msg.err); } }
   function run(p, ok) { say(''); return p.then(function (x) { if (ok) say(typeof ok === 'function' ? ok(x) : ok); drawDlg(); }, function (e) { say(e && e.message ? e.message : 'That didn’t work. Try again.', true); drawDlg(); }); }
   // Destructive buttons ask twice: the first press arms them for 4 seconds.
@@ -748,6 +776,7 @@
     var d = boardsData(), s = statsOf(A, d), lead = isMine && isLeader(A), parts = [];
     parts.push(head(A.nm, A));
     var leadName = nameOf(A.leader);
+    if (A.mo) { var mo = el('p', 'ais-sub ais-mo', '“' + A.mo + '”'); parts.push(mo); }
     parts.push(el('p', 'ais-sub', s.n + (s.n === 1 ? ' seat' : ' seats') + ' of ' + MAX + ' · led by ' + leadName + (A.leader === uid ? ' (you)' : '') + (A.holder !== A.leader ? ' (taking over)' : '')));
     var st = el('div', 'ais-stats');
     if (d) {
@@ -762,6 +791,7 @@
     s.per.forEach(function (x) { ul.append(memberRow(x, A, lead)); });
     parts.push(ul);
     if (isMine) {
+      if (lead) parts.push(customizeCard(A));
       if (lead) {
         var ic = el('div', 'ais-card'); ic.append(el('h3', '', 'Invite people'));
         ic.append(el('p', 'ais-note', 'Tap someone in the Online panel and press Invite to Aisle, or send this link or code. Someone who uses the code is let in by your browser the next time you have the Back Room open.'));
@@ -812,6 +842,57 @@
     vw.addEventListener('click', function () { view = { K: A.K }; drawDlg(); });
     r.append(ac, dc, vw); c.append(p, r); return c;
   }
+  // Name, tag, colour and emblem (and with motto, the motto) for an Aisle, with a preview of the tag. st holds what's
+  // typed or picked, so it survives the dialog being redrawn when the room changes.
+  function lookFields(st, motto) {
+    var out = [], g = el('div', 'ais-grid'), f1 = el('label', 'ais-f'), f2 = el('label', 'ais-f');
+    var inN = el('input'); inN.maxLength = NAME_MAX; inN.placeholder = 'Window Seat Society'; inN.value = st.nm; inN.autocomplete = 'off'; inN.spellcheck = false;
+    var inT = el('input'); inT.maxLength = 4; inT.placeholder = 'WSS'; inT.value = st.tg; inT.autocomplete = 'off'; inT.spellcheck = false; inT.style.textTransform = 'uppercase';
+    var prev = el('span', 'ais-tag ais-big');
+    function paintPrev() { var c = COLS[st.cl] || COLS[0], e = EMB[st.em] && EMB[st.em][0]; prev.textContent = (e ? e + ' ' : '') + (st.tg || 'TAG'); prev.style.background = c[0]; prev.style.color = c[1]; }
+    inN.addEventListener('input', function () { st.nm = inN.value; });
+    inT.addEventListener('input', function () { var v = cleanTag(inT.value); if (v !== inT.value) inT.value = v; st.tg = v; paintPrev(); });
+    f1.append('Name (3–' + NAME_MAX + ')', inN); f2.append('Tag (2–4)', inT); g.append(f1, f2); out.push(g);
+    if (motto) {
+      var f3 = el('label', 'ais-f'), inM = el('input'); inM.maxLength = MOTTO_MAX; inM.placeholder = 'Always by the window'; inM.value = st.mo || ''; inM.autocomplete = 'off';
+      inM.addEventListener('input', function () { st.mo = inM.value; });
+      f3.append('Motto (optional, up to ' + MOTTO_MAX + ')', inM); out.push(f3);
+    }
+    var sw = el('div', 'ais-sw'); sw.setAttribute('role', 'radiogroup'); sw.setAttribute('aria-label', 'Colour');
+    COLS.forEach(function (c, i) {
+      var b = el('button'); b.type = 'button'; b.style.background = c[0]; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', c[2]); b.setAttribute('aria-checked', String(st.cl === i));
+      b.addEventListener('click', function () { st.cl = i; [].forEach.call(sw.children, function (x, j) { x.setAttribute('aria-checked', String(j === i)); }); paintPrev(); });
+      sw.append(b);
+    });
+    var es = el('div', 'ais-sw ais-em'); es.setAttribute('role', 'radiogroup'); es.setAttribute('aria-label', 'Emblem');
+    EMB.forEach(function (e, i) {
+      var b = el('button', '', e[0] || '–'); b.type = 'button'; b.title = e[1]; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', e[1]); b.setAttribute('aria-checked', String((st.em || 0) === i));
+      b.addEventListener('click', function () { st.em = i; [].forEach.call(es.children, function (x, j) { x.setAttribute('aria-checked', String(j === i)); }); paintPrev(); });
+      es.append(b);
+    });
+    paintPrev();
+    var r1 = el('div', 'ais-row'); r1.append(el('span', 'ais-note', 'Tag preview'), prev); out.push(r1);
+    out.push(el('span', 'ais-note', 'Colour'), sw, el('span', 'ais-note', 'Emblem'), es);
+    return out;
+  }
+  // The leader's Customize card: rename the Aisle, change its tag, colour and emblem, and give it a motto.
+  function customizeCard(A) {
+    var c = el('div', 'ais-card');
+    if (ed.K !== A.K) {
+      var hd = el('div', 'ais-row'), ob = btn('Customize');
+      hd.append(el('h3', '', 'Name and look'), ob); hd.firstChild.style.flex = '1';
+      ob.addEventListener('click', function () { ed = { K: A.K, nm: A.nm, tg: A.tg, cl: A.cl, em: A.em || 0, mo: A.mo || '' }; drawDlg(); });
+      c.append(hd, el('p', 'ais-note', 'Rename your Aisle, or change its tag, colour, emblem and motto. Everyone sees the change straight away.'));
+      return c;
+    }
+    c.append(el('h3', '', 'Customize your Aisle'));
+    lookFields(ed, true).forEach(function (x) { c.append(x); });
+    var r = el('div', 'ais-row'), sv = btn('Save changes', 'pri'), cn = btn('Cancel');
+    sv.addEventListener('click', function () { sv.disabled = true; run(customize(ed.nm, ed.tg, ed.cl, ed.em, ed.mo).then(function () { ed = { K: '' }; }), 'Saved. Your Aisle has its new look.').then(function () { sv.disabled = false; }); });
+    cn.addEventListener('click', function () { ed = { K: '' }; say(''); drawDlg(); });
+    r.append(sv, cn); c.append(r);
+    return c;
+  }
   function startView() {
     var parts = [head('Aisles')], my = nodes[uid];
     parts.push(el('p', 'ais-sub', 'An Aisle is a crew of up to ' + MAX + ' seats. Its tag shows by every member’s name, and Aisles rank by miles and Elo on the Leaderboards. One Aisle at a time, invite only.'));
@@ -833,24 +914,9 @@
     }
     // Create
     var cr = el('div', 'ais-card'); cr.append(el('h3', '', 'Start an Aisle'));
-    var g = el('div', 'ais-grid'), f1 = el('label', 'ais-f'), f2 = el('label', 'ais-f');
-    var inN = el('input'); inN.maxLength = NAME_MAX; inN.placeholder = 'Window Seat Society'; inN.value = form.nm; inN.autocomplete = 'off'; inN.spellcheck = false;
-    var inT = el('input'); inT.maxLength = 4; inT.placeholder = 'WSS'; inT.value = form.tg; inT.autocomplete = 'off'; inT.spellcheck = false; inT.style.textTransform = 'uppercase';
-    inN.addEventListener('input', function () { form.nm = inN.value; });
-    inT.addEventListener('input', function () { var v = cleanTag(inT.value); if (v !== inT.value) inT.value = v; form.tg = v; prev.textContent = v || 'TAG'; });
-    f1.append('Name (3–' + NAME_MAX + ')', inN); f2.append('Tag (2–4)', inT); g.append(f1, f2); cr.append(g);
-    var sw = el('div', 'ais-sw'); sw.setAttribute('role', 'radiogroup'); sw.setAttribute('aria-label', 'Colour');
-    var prev = el('span', 'ais-tag ais-big', form.tg || 'TAG');
-    function paintPrev() { prev.style.background = COLS[form.cl][0]; prev.style.color = COLS[form.cl][1]; }
-    COLS.forEach(function (c, i) {
-      var b = el('button'); b.type = 'button'; b.style.background = c[0]; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', c[2]); b.setAttribute('aria-checked', String(form.cl === i));
-      b.addEventListener('click', function () { form.cl = i; [].forEach.call(sw.children, function (x, j) { x.setAttribute('aria-checked', String(j === i)); }); paintPrev(); });
-      sw.append(b);
-    });
-    paintPrev();
-    var r1 = el('div', 'ais-row'); r1.append(el('span', 'ais-note', 'Colour'), prev); cr.append(r1, sw);
+    lookFields(form, false).forEach(function (x) { cr.append(x); });
     var cb2 = btn('Create Aisle', 'pri');
-    cb2.addEventListener('click', function () { cb2.disabled = true; run(create(inN.value, inT.value, form.cl).then(function (K) { form = { nm: '', tg: '', cl: 0, code: '' }; notice = ''; return K; }), 'Your Aisle is ready. Invite people from the Online panel or with the link.'); });
+    cb2.addEventListener('click', function () { cb2.disabled = true; run(create(form.nm, form.tg, form.cl, form.em).then(function (K) { form = { nm: '', tg: '', cl: 0, em: 0, code: '' }; notice = ''; return K; }), 'Your Aisle is ready. Invite people from the Online panel or with the link.'); });
     cr.append(cb2); parts.push(cr);
     // Join with a code
     var jc = el('div', 'ais-card'); jc.append(el('h3', '', 'Have an invite code?'));
@@ -891,7 +957,7 @@
       obtn.addEventListener('click', function () { open(); });
       top.append(obtn);
     }
-    var A = mine(), inv = ready ? invitesForMe().length : 0, sig = (A ? A.K + A.tg + A.cl + A.nm : '') + ':' + inv;
+    var A = mine(), inv = ready ? invitesForMe().length : 0, sig = (A ? A.K + A.tg + A.cl + ':' + (A.em || 0) + A.nm : '') + ':' + inv;
     if (obtn.getAttribute('data-s') === sig) return;
     obtn.setAttribute('data-s', sig); obtn.textContent = '';
     if (A && A.members.indexOf(uid) >= 0) obtn.append(tagEl(A));
@@ -1010,5 +1076,5 @@
   takeLink();
   start().catch(function () {});
 
-  if (navigator.webdriver) window.__aisles = { get uid() { return uid; }, get nodes() { return nodes; }, get aisles() { return aisles; }, get bans() { return bans; }, put: put, create: create, invite: invite, accept: accept, decline: decline, joinCode: joinCode, leave: leave, kick: kick, handOver: handOver, disband: disband, newCode: newCode, recompute: recompute };
+  if (navigator.webdriver) window.__aisles = { get uid() { return uid; }, get nodes() { return nodes; }, get aisles() { return aisles; }, get bans() { return bans; }, put: put, create: create, customize: customize, invite: invite, accept: accept, decline: decline, joinCode: joinCode, leave: leave, kick: kick, handOver: handOver, disband: disband, newCode: newCode, recompute: recompute };
 })();
