@@ -176,7 +176,8 @@
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, skinning: true, bumpMap: clothTexture(), bumpScale: 0.0025 });
     m.onBeforeCompile = sh => { // the cloth texture as a subtle detail multiply (keeps vertex colours as the hue)
       sh.uniforms.tCloth = { value: clothTexture() };
-      sh.fragmentShader = 'uniform sampler2D tCloth;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= 0.78 + texture2D(tCloth, vUv * 2.0).r * 0.44;');
+      IVEnv.patch(sh, 'fragment', '#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= 0.78 + texture2D(tCloth, vUv * 2.0).r * 0.44;', 'js/chars-standin cloth');
+      sh.fragmentShader = 'uniform sampler2D tCloth;\n' + sh.fragmentShader;
     };
     m.defines = { USE_UV: '' };
     return (matCache.body = m);

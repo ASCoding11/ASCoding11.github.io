@@ -43,7 +43,8 @@
   // SUNSET WEEK: from the first date to the second, both included, [year, month, day] on the viewer's own clock, the
   // sunset look takes the place of fall (only on days that would be fall). Change the dates to move or extend it;
   // make it [] to remove it. After the last date this is never used.
-  var SUNSET_WEEK=[[2026,11,19],[2026,11,23]];
+  // Off for now: fall's Thanksgiving scene (Turkey Week) runs to Thanksgiving, then the holiday look takes over.
+  var SUNSET_WEEK=[];
 
   function sunsetWeek(d){
     if(SUNSET_WEEK.length<2)return false;

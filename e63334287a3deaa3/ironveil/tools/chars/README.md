@@ -1,6 +1,6 @@
 # Character build scripts
 
-These scripts rebuild everything in `../../assets/` except the three.js loader copies in `assets/lib/`: the hero, ally
+These scripts rebuild everything in `../../assets/` except the meshopt decoder in `assets/lib/`: the hero, ally
 and enemy models (`hero.glb`, `ally.glb`, `enemy.glb`), every animation clip (`anims.glb` plus `anims.json`) and the
 weapons (`weapons.glb`, now maintained on the weapons branch). The game never runs them; they are kept so the files
 can be rebuilt or changed later. Nothing downloaded is committed: `fetch.sh` gets the sources, and `../../CREDITS.md`
