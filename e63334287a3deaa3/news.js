@@ -85,7 +85,7 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-20', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
+    {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
      tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
       'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
       'Type a list like "London, Kyoto, Machu Picchu" to log a whole trip at once, and keep a striped wishlist of places to go next.',
