@@ -1,8 +1,8 @@
-/* Flipline in Spanish: this game's own words for lang.js (see the comment at the top of ../lang.js).
+/* Chromeline (formerly Flipline) in Spanish: this game's own words for lang.js (see the comment at the top of ../lang.js).
    Level, vehicle, rider and place names stay in English as names; everything else is translated. */
 if (window.BackRoomLang) BackRoomLang.add({
   // page and HUD
-  'Flipline game view': 'Vista del juego Flipline', 'Distance': 'Distancia', 'Score': 'Puntos', 'Time': 'Tiempo', 'Flips': 'Giros', 'Pause': 'Pausa',
+  'Chromeline game view': 'Vista del juego Chromeline', 'Distance': 'Distancia', 'Score': 'Puntos', 'Time': 'Tiempo', 'Flips': 'Giros', 'Pause': 'Pausa',
   'combo': 'combo', 'Best': 'Récord', 'best': 'récord', 'Hold {k} to ride': 'Mantén {k} para avanzar', 'Touch and hold to ride': 'Toca y mantén para avanzar',
   'Replay: slow motion': 'Repetición: cámara lenta',
   // arrow-key flips and gravity (November 2026)
@@ -33,11 +33,18 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Land on your wheels': 'Aterriza sobre las ruedas', ', close to the slope of the ground. Nearly level is a': ', con la inclinación del suelo. Casi paralelo es un',
   'clean landing': 'aterrizaje limpio', ': it keeps your combo going and multiplies the next trick.': ': mantiene tu combo y multiplica el truco siguiente.',
   'Red and cream with teeth': 'Rojo y crema con dientes', 'means danger: spikes, swinging balls, saws, crushers and low beams. Gold rounds are coins.': 'significa peligro: pinchos, bolas que se balancean, sierras, prensas y vigas bajas. Los círculos dorados son monedas.',
+  'means danger: spikes, the swinging mace, saws, crushers, low beams and laser gates. Gold rounds are coins; a gold': 'significa peligro: pinchos, la maza que se balancea, sierras, prensas, vigas bajas y barreras láser. Los círculos dorados son monedas; un',
+  'doubles your trick points for a while.': 'dorado duplica tus puntos de trucos durante un rato.',
+  'Loops': 'Los rizos', 'need speed: keep the gas on all the way round. Glowing chevrons are': 'necesitan velocidad: no sueltes el acelerador en toda la vuelta. Las flechas brillantes son',
+  'boost strips': 'turbos', '; cracked amber platforms drop away, so don’t stop on them.': '; las plataformas ámbar agrietadas se caen, así que no te pares en ellas.',
+  'Moving traps and laser gates are timed for a bike at a good pace: keep your speed up and they open for you.': 'Las trampas que se mueven y las barreras láser están sincronizadas para una moto a buen ritmo: mantén la velocidad y se abren a tu paso.',
+  'Press Space to ride now': 'Pulsa Espacio para salir ya', 'Press and hold the city to ride now': 'Mantén pulsada la ciudad para salir ya', '· formerly Flipline': '· antes Flipline',
+  'First clean landing!': '¡Primer aterrizaje limpio!', 'Clean': 'Limpio', 'Loop!': '¡Rizo!', 'First loop!': '¡Primer rizo!', '×2 points for {n} s': '×2 puntos durante {n} s', '×2 points': '×2 puntos',
   'Moving traps are timed for a bike at a good pace: keep your speed up and they swing out of your way.': 'Las trampas que se mueven están sincronizadas para una moto a buen ritmo: mantén la velocidad y se apartan de tu camino.',
   'restarts,': 'reinicia,', 'pauses.': 'pausa.', 'After a crash, tap to go again.': 'Después de un choque, toca para volver a empezar.',
   // levels
   '← Back': '← Volver', 'Reach the finish line. Each level has three medals: finish it, land enough flips, and beat the time.': 'Llega a la meta. Cada nivel tiene tres medallas: terminarlo, hacer suficientes giros y ganarle al tiempo.',
-  'Tier 1: the basics': 'Nivel 1: lo básico', 'Tier 2: the mesas': 'Nivel 2: las mesetas', 'Tier 3: the machines': 'Nivel 3: las máquinas', 'Tier 4: the big stuff': 'Nivel 4: lo grande',
+  'Tier 1: the basics': 'Nivel 1: lo básico', 'Tier 2: the grid': 'Nivel 2: la red', 'Tier 3: the machines': 'Nivel 3: las máquinas', 'Tier 4: the big stuff': 'Nivel 4: lo grande',
   'Flips: {f} · Time: {t}': 'Giros: {f} · Tiempo: {t}',
   // garage
   'Vehicles': 'Vehículos', 'Riders': 'Pilotos', 'Places': 'Lugares',
@@ -62,7 +69,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Music': 'Música', 'Sound effects': 'Efectos de sonido', 'Mute everything': 'Silenciar todo', 'Fewer effects (no shake, streaks or confetti)': 'Menos efectos (sin sacudidas, estelas ni confeti)',
   'Show my best run as a ghost in levels': 'Mostrar mi mejor carrera como fantasma en los niveles', 'Language': 'Idioma', 'Keys': 'Teclas', 'Controls': 'Controles',
   'Start over': 'Empezar de cero', 'Erase my progress': 'Borrar mi progreso', 'Music volume': 'Volumen de la música', 'Sound effects volume': 'Volumen de los efectos',
-  'Erase all your coins, medals, unlocks and settings in Flipline on this device?': '¿Borrar todas tus monedas, medallas, desbloqueos y ajustes de Flipline en este dispositivo?',
+  'Erase all your coins, medals, unlocks and settings in Chromeline on this device?': '¿Borrar todas tus monedas, medallas, desbloqueos y ajustes de Chromeline en este dispositivo?',
   'Progress erased.': 'Progreso borrado.', 'Ride / flip': 'Avanzar / girar', 'Hold on the ground to ride, hold in the air to flip': 'Mantén en el suelo para avanzar y en el aire para girar',
   'Restart': 'Reiniciar', 'Ride': 'Andar',
   // editor

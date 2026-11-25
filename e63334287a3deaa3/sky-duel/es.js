@@ -81,7 +81,7 @@
     'Repairs': 'Reparación', 'Missiles': 'Misiles', 'Flares': 'Bengalas', '+45 hull': '+45 de casco',
     'LOCKING': 'FIJANDO', 'HOT': 'CALIENTE', 'Take off in {n}': 'Despegue en {n}',
     'Duel, first to {n}': 'Duelo, meta {n}', 'Free-for-all, first to {n}': 'Todos contra todos, meta {n}', '2v2, first to {n}': '2v2, meta {n}',
-    'MISSILE': 'MISIL', 'STALL: nose down, throttle up': 'PÉRDIDA: baja la nariz y acelera', 'PULL UP': 'SUBE', 'TURN BACK {n}': 'VUELVE {n}',
+    'MISSILE': 'MISIL', 'ON YOUR TAIL: break!': 'TE PERSIGUEN: ¡gira!', 'STALL: nose down, throttle up': 'PÉRDIDA: baja la nariz y acelera', 'PULL UP': 'SUBE', 'TURN BACK {n}': 'VUELVE {n}',
     'Guns overheated': 'Armas recalentadas', 'Thin air: the engine is fading': 'Aire fino: el motor pierde fuerza', 'Autopilot': 'Piloto automático',
     'Back in the air in {n}': 'De vuelta en el aire en {n}', 'Watching: you fly in the next match': 'Mirando: vuelas en la próxima partida',
     // the Change keys panel (keybinds.js) and its action names

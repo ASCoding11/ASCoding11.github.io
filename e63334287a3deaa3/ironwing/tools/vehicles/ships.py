@@ -83,6 +83,7 @@ def mast(name, x, y, z, h, yard=6.0, radar=True):
     yd = cyl(name + '_yard', 0.08, -yard / 2, yard / 2, axis='X', c=(x, y, z + h * 0.72), n=6); part(yd, DARK, 'dark'); out.append(yd)
     if radar:
         rb = box(name + '_radar', (x, y, z + h * 0.86), (2.4, 0.3, 1.0), bev=0.03); part(rb, '#565c62', 'dark'); out.append(rb)
+        rb['radar'] = (x, y, z + h * 0.86)    # turns: build_all makes it a `<kind>_radar<i>` pivot
     for s in (1, -1):    # tripod legs
         lg = sweep(name + '_leg', [(x + s * 1.6, y + 1.4, z), (x, y, z + h * 0.6)], dict(w=0.18, h=0.18, e=2), n=6); part(lg, DARK, 'dark'); out.append(lg)
     return out
@@ -145,8 +146,9 @@ def warship(kind):
     if big:
         cr = cyl(kind + '_crane', 0.3, deckz + 2, deckz + 12, axis='Z', c=(B * 0.2, L * 0.12, 0), n=8); part(cr, DARK, 'dark'); parts.append(cr)
         jib = sweep(kind + '_jib', [(B * 0.2, L * 0.12, deckz + 11), (B * 0.45, L * 0.12 + 6, deckz + 7)], dict(w=0.25, h=0.25, e=2), n=6); part(jib, DARK, 'dark'); parts.append(jib)
+    radars = [p for p in parts if 'radar' in p.keys()]; parts = [p for p in parts if 'radar' not in p.keys()]
     h = join(parts, kind + '_hull'); h.parent = root
-    return root, h, None, light, heavy, fun, L, D
+    return root, h, None, light, heavy, fun, L, D, radars
 
 def carrier():
     kind = 'carrier'; L, B, D = 236, 28, 15
@@ -169,6 +171,7 @@ def carrier():
     parts += funnel('carrier_fun', ix - 0.3, iy + 8, D + 11, 2.6, 9.0, rake=14)
     parts += mast('carrier_mast', ix, iy - 8, D + 15.7, 13, yard=7.0)
     dish = sphere('carrier_dish', 1.4, c=(ix, iy - 8, D + 26), n=12, m=8, sy=0.35); part(dish, '#565c62', 'dark'); parts.append(dish)
+    dish['radar'] = (ix, iy - 8, D + 26)
     light, heavy = [], []
     for y in (-96, -60, 60, 96):
         for sx in (1, -1):
@@ -184,6 +187,7 @@ def carrier():
     for sx in (1, -1):
         for k in range(3):
             parts.append(boat('carrier_boat', sx * 15.8, 40 + k * 14, 10.5, 8, 2.0))
+    radars = [p for p in parts if 'radar' in p.keys()]; parts = [p for p in parts if 'radar' not in p.keys()]
     h = join(parts, 'carrier_hull'); h.parent = root
     # the flight deck (its own material and UVs: the game paints planks and markings on it)
     dk = box('carrier_deck', (0, 0, D + 1.7), (34, 232, 0.8), bev=0.0, seg=1)
@@ -195,23 +199,48 @@ def carrier():
             uv.data[li].uv = ((c.x + 17) / 34, (-c.y + 116) / 232 * 6.8)
     dk.parent = root; dk.name = 'carrier_deck'; dk.data.name = 'carrier_deck'
     fun = [(ix - 0.3, iy + 6.5, D + 20.5)]
-    return root, h, dk, light, heavy, fun, L, D
+    return root, h, dk, light, heavy, fun, L, D, radars
 
-def build_all(out):
+def build_all(out, tex=0, texdir=None):
+    """tex: texture size for the carrier's baked set (0 = vertex colours only, as the other ships)."""
     import bpy, os, time
     for kind in ('carrier', 'destroyer', 'cruiser'):
         lib.reset(); t = time.time()
-        root, h, deck, light, heavy, fun, L, D = carrier() if kind == 'carrier' else warship(kind)
+        root, h, deck, light, heavy, fun, L, D, radars = carrier() if kind == 'carrier' else warship(kind)
+        baked = tex and kind == 'carrier'
+        if baked:
+            import texbake; texbake.keep_base([h])
         lib.ao([h], [h] + ([deck] if deck else []), dist=7.0, rays=24, strength=0.75, ground=-1.0)
         for i, p in enumerate(light): empty(kind + '_aaL' + str(i), p, root)
         for i, p in enumerate(heavy): empty(kind + '_aaH' + str(i), p, root)
         for i, p in enumerate(fun): empty(kind + '_funnel' + str(i), p, root)
+        for i, r in enumerate(radars):     # radar aerials turn about the game's Y axis
+            lib.pivot(r, r['radar'], root); r.name = kind + '_radar' + str(i); r.data.name = r.name
         empty(kind + '_wakeStern', (0, L / 2, 0), root)
         empty(kind + '_bridgeEye', (0, -L * 0.16, D + 8), root)
         lo = dup(h, kind + '_lod1'); lo.parent = root
         if deck:
             d2 = dup(deck, 'dk'); lo = join([lo, d2], kind + '_lod1'); lo.parent = root
         decimate(lo, 0.2)
-        lib.finish([h], uv=3.0); lib.finish([lo], uv=3.0)
+        lib.finish([lo] + radars, uv=3.0)
+        if baked:
+            texbake.bake(kind, [h], tex, texdir, hide=[lo] + radars, edge_r=0.12, ao_near=0.6, ao_far=9.0, strength=1.0,
+                         island_fn=carrier_islands(D), painter=texbake.carrier_painter(D, L),
+                         cut_fn=lambda c: int((c.y + L / 2) // (L / 5)))
+            dm = texbake.deck_set(1024, texdir); deck.data.materials.clear(); deck.data.materials.append(dm)
+            for a in list(deck.data.color_attributes): deck.data.color_attributes.remove(a)
+        else:
+            lib.finish([h], uv=3.0)
         lib.export([root], os.path.join(out, 'ship_' + kind + '.glb'))
         print('built', kind, lib.stats([root]), 'hull', lib.tris(h), '%.1fs' % (time.time() - t))
+
+def carrier_islands(D):
+    """Texture space by place: almost none under water, more on the island the camera sees up close."""
+    def f(c, n):
+        if c.z < -1.0: return 0.12
+        if abs(c.x) < 18.6 and D - 1.2 < c.z < D + 2.6 and n.z > 0.7: return 0.06   # under the flight deck: never seen
+        if abs(c.x) < 13.5 and -0.5 < c.z < D - 0.2 and abs(n.x) < 0.5 and abs(c.y) < 105: return 0.06   # inside the hull
+        if c.x < -11.5 and c.z > D + 1.0: return 1.8
+        if abs(n.z) > 0.8 and c.z < D - 2: return 0.6     # undersides and floors of the galleries
+        return 1.0
+    return f
