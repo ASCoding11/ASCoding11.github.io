@@ -69,7 +69,9 @@
 
   // ---------------------------------------------------------------- aim assist
   const diff = () => (IV.mission && IV.mission.diff) || 0;
-  function assistScale() { return IV.settings.assist * (IV.touch ? T.assist.touchMul : 1); }
+  // aim assist is for thumbs: with a mouse there is none on any difficulty, whatever the Settings value says
+  function assistScale() { return IV.touch ? (+IV.settings.assist || 0) * T.assist.touchMul : 0; }
+  C.assistScale = assistScale;
   // the best enemy to snap toward: visible, alive, within the cone, closest to the centre of the view
   C.findTarget = function (cone, maxRange) {
     const AI = IV.ai; if (!AI) return null;

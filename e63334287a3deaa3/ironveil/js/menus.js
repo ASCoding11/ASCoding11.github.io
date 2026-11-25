@@ -88,7 +88,11 @@
     $('rMedalTx').textContent = IV.t(s.medal === 'gold' ? 'Gold' : s.medal === 'silver' ? 'Silver' : 'Bronze');
     $('rDiff').textContent = IV.t(IV.mission.DIFF[s.diff].name);
     $('rCrit').innerHTML = s.crit.map(c => `<li class="${c.ok ? 'ok' : ''}">${c.text}</li>`).join('');
-    const rows = [['Time', IV.fmtTime(s.time)], ['Accuracy', s.shots ? s.acc + '%' : '—'], ['Times spotted', s.spotted], ['Enemies down', s.kills], ['Takedowns', s.takedowns], ['Optional objectives', s.optional + ' / ' + s.optionalTotal]];
+    const P = s.scoreParts || {}, pt = v => v != null ? ` <small style="opacity:.6">+${v}</small>` : '';
+    const rows = [['Skill rating', `<b>${s.score}</b> / 1000` + (s.newBest && s.prevBest ? ` <small style="color:var(--warn)">${IV.t('new best')}</small>` : s.prevBest ? ` <small style="opacity:.6">${IV.t('best {n}', { n: s.prevBest })}</small>` : '')],
+      ['Accuracy', (s.shots ? s.acc + '%' : '—') + pt(P.acc)], ['Head shots', (s.hits ? s.headPct + '% (' + s.headHits + ')' : '—') + pt(P.head)],
+      ['Time', IV.fmtTime(s.time) + ` <small style="opacity:.6">${IV.t('par {t}', { t: IV.fmtTime(s.par) })}</small>` + pt(P.time)], ['Deaths', s.deaths + pt(P.deaths)], ['Times spotted', s.spotted + pt(P.spotted)],
+      ['Enemies down', s.kills], ['Takedowns', s.takedowns], ['Optional objectives', s.optional + ' / ' + s.optionalTotal]];
     $('rStats').innerHTML = rows.map(r => `<span>${IV.t(r[0])}</span><span>${r[1]}</span>`).join('');
     const next = IV.missions.list.find(d => d.num === def.num + 1 && IV.playable(d.id));
     $('rNext').hidden = false;
