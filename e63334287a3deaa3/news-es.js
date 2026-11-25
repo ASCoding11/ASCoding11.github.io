@@ -6,6 +6,17 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Putterby fixes": "Arreglos en Putterby",
+    "Sliding gates no longer squash your ball through the rail and cost you an out-of-bounds stroke while you wait to putt.": "Las compuertas que se deslizan ya no empujan tu bola a través de la baranda ni te cuestan un golpe por salirte mientras esperas para tirar.",
+    "On the daily hole, Card now shows the daily hole instead of an empty nine-hole card, and your result can't be closed by accident.": "En el hoyo del día, el botón Card ahora muestra el hoyo del día en vez de una tarjeta de nueve hoyos vacía, y tu resultado ya no se cierra por accidente.",
+    "The scorecard at the end of a round stays open when you press Card or Tab.": "La tarjeta del final de una ronda se queda abierta cuando pulsas Card o Tab.",
+    "Online, you only see \"You win!\" when you beat someone who played every hole.": "En línea, solo ves \"¡Ganaste!\" cuando le ganas a alguien que jugó todos los hoyos.",
+    "The hole name fits on phones: it sits on its own line above the hole number, par and shot.": "El nombre del hoyo cabe en los teléfonos: va en su propia línea, encima del número de hoyo, el par y el golpe.",
+    "Aisles: rename and customize": "Aisles: cambia el nombre y personaliza",
+    "Aisle leaders can now rename their Aisle and change its tag and colour any time: open your Aisle and press Customize.": "Quien lidera un Aisle ahora puede cambiarle el nombre, la etiqueta y el color cuando quiera: abre tu Aisle y pulsa Customize.",
+    "Pick an emblem to show in your tag, like a plane, a crown or a lightning bolt.": "Elige un emblema para tu etiqueta, como un avión, una corona o un rayo.",
+    "Give your Aisle a motto. It shows under the name when anyone opens it.": "Ponle un lema a tu Aisle. Se ve debajo del nombre cuando alguien lo abre.",
+    "Members keep their seats, miles and ranks; everyone sees the new look straight away.": "Los miembros conservan sus asientos, millas y puestos; todos ven el nuevo aspecto al instante.",
     "Shell Crackers: bigger bangs, livelier blocks": "Shell Crackers: explosiones más grandes, bloques con más vida",
     "On Pretty graphics, yolk bombs go off in a soft glowing fireball and a rolling cloud, shots kick up puffs of dust or yolk, and muzzle flashes glow.": "Con gráficos Lindo, las bombas de yema estallan en una bola de fuego suave y brillante y una nube que se levanta, los disparos levantan polvo o yema y los fogonazos brillan.",
     "Grass, sand, snow and dirt show a gentle two-tone block grid, and shadows have softer edges.": "El césped, la arena, la nieve y la tierra muestran una cuadrícula suave de dos tonos, y las sombras tienen bordes más suaves.",

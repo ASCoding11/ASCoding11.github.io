@@ -85,6 +85,19 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-25', version: '1.51.1', title: 'Putterby fixes', kind: 'fix',
+     tags: ['Putterby'], items: [
+      'Sliding gates no longer squash your ball through the rail and cost you an out-of-bounds stroke while you wait to putt.',
+      'On the daily hole, Card now shows the daily hole instead of an empty nine-hole card, and your result can\'t be closed by accident.',
+      'The scorecard at the end of a round stays open when you press Card or Tab.',
+      'Online, you only see "You win!" when you beat someone who played every hole.',
+      'The hole name fits on phones: it sits on its own line above the hole number, par and shot.']},
+    {date: '2026-11-25', version: '1.51', title: 'Aisles: rename and customize', kind: 'feature',
+     tags: ['Aisles'], items: [
+      'Aisle leaders can now rename their Aisle and change its tag and colour any time: open your Aisle and press Customize.',
+      'Pick an emblem to show in your tag, like a plane, a crown or a lightning bolt.',
+      'Give your Aisle a motto. It shows under the name when anyone opens it.',
+      'Members keep their seats, miles and ranks; everyone sees the new look straight away.']},
     {date: '2026-11-23', version: '1.50', title: 'Shell Crackers: bigger bangs, livelier blocks', kind: 'feature',
      tags: ['Shell Crackers', 'Graphics'], items: [
       'On Pretty graphics, yolk bombs go off in a soft glowing fireball and a rolling cloud, shots kick up puffs of dust or yolk, and muzzle flashes glow.',
