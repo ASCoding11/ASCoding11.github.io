@@ -19,6 +19,13 @@
     'Sketch map of the area': 'Croquis de la zona', 'Game view': 'Vista del juego',
     'PAUSED': 'PAUSA', 'Resume': 'Seguir', 'Restart from checkpoint': 'Volver al punto de control', 'Restart mission': 'Reiniciar la misión', 'Quit to map table': 'Salir a la mesa de mapas',
     'Game': 'Juego', 'Video': 'Video', 'Audio': 'Audio', 'Look sensitivity': 'Sensibilidad de la vista', 'Aim sensitivity': 'Sensibilidad al apuntar', 'While aiming or scoped': 'Al apuntar o con la mira',
+    // ---- shooting (aim assist only on touch screens, debrief rating, hit and ammo cues)
+    'Enemies slow to notice and miss more. Strong aim assist on touch screens.': 'Los enemigos tardan en verte y fallan más. Mucha ayuda de puntería en pantallas táctiles.',
+    'A fair fight. Light aim assist on touch screens.': 'Una pelea pareja. Poca ayuda de puntería en pantallas táctiles.',
+    'Sharp eyes, hard hits. Faint aim assist on touch screens.': 'Ven bien y pegan fuerte. Una pizca de ayuda de puntería en pantallas táctiles.',
+    'Touch screens only (never with a mouse). 0 turns it off.': 'Solo en pantallas táctiles (nunca con ratón). 0 la apaga.',
+    'Skill rating': 'Nota de habilidad', 'Skill rating of {n} or better': 'Nota de habilidad de {n} o más', 'Head shots': 'Tiros a la cabeza', 'Deaths': 'Muertes',
+    'new best': 'nuevo récord', 'best {n}': 'récord {n}', 'par {t}': 'referencia {t}',
     'Invert look up and down': 'Invertir la vista arriba y abajo', 'Aim assist strength': 'Fuerza de la ayuda de puntería', "Multiplies the difficulty's assist. 0 turns it off.": 'Multiplica la ayuda de la dificultad. 0 la apaga.',
     'Auto-fire on target': 'Disparo automático sobre el blanco', 'Touch screens: fires when the reticle is on an enemy': 'Pantallas táctiles: dispara cuando la mira está sobre un enemigo',
     'Subtitle size': 'Tamaño de subtítulos', 'Small': 'Chico', 'Medium': 'Mediano', 'Large': 'Grande', 'Blood effects': 'Efectos de sangre', 'Off: hits show dust puffs instead': 'Apagado: los impactos muestran polvo',
@@ -139,6 +146,16 @@
     'Hold to cook and aim (the arc shows where it lands), let go to throw. Tap throws at once': 'Mantén para quitar el seguro y apuntar (el arco muestra dónde cae), suelta para tirar. Un toque la tira enseguida',
     'Hold to aim (the arc shows where it lands), let go to throw. Guards go to look': 'Mantén para apuntar (el arco muestra dónde cae), suelta para tirar. Los guardias van a mirar',
     'Jump': 'Saltar',
-    'Jump / vault / stand up': 'Saltar / pasar por encima / pararse'
+    'Jump / vault / stand up': 'Saltar / pasar por encima / pararse',
+    // ---- enemy calls (js/ai.js): what they are about to do
+    'Loading!': '¡Cargando!', 'Changing magazine!': '¡Cambio de cargador!',
+    'I am working round him!': '¡Lo rodeo por el costado!', 'Moving to flank!': '¡Voy por el flanco!',
+    'Pull back! Pull back!': '¡Atrás! ¡Atrás!', 'Too many of them, back!': '¡Son demasiados, atrás!',
+    'Grenade out!': '¡Granada va!', 'Throwing one in!': '¡Le tiro una!', 'Smoke him out!': '¡Hay que sacarlo de ahí!',
+    'Keep his head down!': '¡Que no asome la cabeza!', 'Covering fire!': '¡Fuego de cobertura!', 'Pin him there!': '¡Déjenlo clavado ahí!',
+    'I am hit!': '¡Me dieron!', 'Ah! Hit!': '¡Ah! ¡Herido!', 'My leg!': '¡Mi pierna!', 'I am hit in the leg!': '¡Me dieron en la pierna!',
+    'Where did he go?': '¿Adónde se fue?', 'Lost him!': '¡Lo perdí!', 'I cannot see him!': '¡No lo veo!',
+    'Move up on him! Slowly!': '¡Avancen hacia él! ¡Despacio!', 'You two, check where he was!': '¡Ustedes dos, revisen donde estaba!',
+    'Man down!': '¡Hombre caído!', 'He is down!': '¡Cayó!', 'Hold still...': 'Quieto...', 'Got you now...': 'Ya te tengo...'
   });
 })();

@@ -9,6 +9,7 @@
   const P = IV.player;
   const diff = () => (IV.mission && IV.mission.diff) || 0;
   AL.NAME = 'Cpl. Dunning';
+  AL.accMul = 0.55;   // share of T.ally.acc he hits with (useful, never the one who wins the fight)
 
   AL.spawn = function (x, z, yaw) {
     AL.remove();
@@ -67,8 +68,10 @@
     if (!e.target) e.bodyYaw = IV.turnToward(e.bodyYaw, IV.yawTo(dx, dz), T.move.turnRate * 0.8, dt);
     return false;
   }
+  // who he fights: first the soldier whose turn it is to fire at you (weapon up, about to shoot), so his fire spoils that
+  // man's aim; otherwise the nearest one he can see
   function visibleEnemy(e) {
-    let best = null, bd = 70;
+    let best = null, bd = 70, tok = null;
     const free = AL.mode === 'fire' || IV.ai.loud;
     if (!free) return null;
     for (const q of IV.ai.list) {
@@ -76,13 +79,15 @@
       if (AL.mode !== 'fire' && q.state !== 'combat') continue;
       const d = Math.hypot(q.pos.x - e.pos.x, q.pos.z - e.pos.z); if (d > bd) continue;
       if (!W.clear(e.pos.x, e.pos.y + 1.45, e.pos.z, q.pos.x, q.pos.y + q.chestH(), q.pos.z, F.BULLET)) continue;
+      if (IV.ai.tokens && IV.ai.tokens.has(q) && !tok) tok = q;
       bd = d; best = q;
     }
-    return best;
+    return tok || best;
   }
   function shoot(e, q) {
     const d = Math.hypot(q.pos.x - e.pos.x, q.pos.z - e.pos.z);
-    const p = T.ally.acc * IV.clamp(14 / Math.max(5, d), 0.25, 1.2) * (q.stance === 'crouch' ? 0.7 : 1);
+    // he keeps heads down more than he kills: about half the hit rate of the tuning value, more against a man in the open
+    const p = T.ally.acc * AL.accMul * IV.clamp(14 / Math.max(5, d), 0.25, 1.2) * (q.stance === 'crouch' ? 0.7 : 1) * (q.cover ? 0.8 : 1);
     const muz = e.weapon.userData.muzzle.getWorldPosition(new THREE.Vector3());
     const tp = { x: q.pos.x, y: q.pos.y + q.chestH() + (Math.random() - 0.5) * 0.3, z: q.pos.z };
     if (Math.random() > p) { const a = Math.random() * 6.28, r = 0.6 + Math.random() * 1.6; tp.x += Math.cos(a) * r; tp.y += 0.3 + Math.sin(a) * 0.5; tp.z += Math.sin(a) * r; }
@@ -129,7 +134,8 @@
     if (q) {
       e.bodyYaw = IV.dampA(e.bodyYaw, IV.yawTo(q.pos.x - e.pos.x, q.pos.z - e.pos.z), 8, dt);
       e.actor.setUpper('aimIdle');
-      if (e.shotT <= 0) { shoot(e, q); e.burst = (e.burst || 0) + 1; e.shotT = e.burst % 4 === 0 ? 0.9 + Math.random() * 0.6 : 0.11; }
+      // short bursts of three with a pause to re-aim: steady covering fire rather than a wall of lead
+      if (e.shotT <= 0) { shoot(e, q); e.burst = (e.burst || 0) + 1; e.shotT = e.burst % 3 === 0 ? 1.4 + Math.random() * 0.8 : 0.11; }
     } else {
       e.actor.setUpper(sc && sc.aim ? 'aimIdle' : null);
       if (arrived && sc && sc.yaw != null) e.bodyYaw = IV.dampA(e.bodyYaw, sc.yaw, 6, dt);

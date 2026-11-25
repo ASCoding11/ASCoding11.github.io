@@ -85,13 +85,17 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-25', version: '1.52', title: 'Blackwade: it hunts every hall', kind: 'feature',
+    {date: '2026-11-25', version: '1.56', title: 'Blackwade: it hunts every hall', kind: 'feature',
      img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
       'The monster follows you into every hall and comes up out of the water ahead of you soon after you arrive, so you know it\'s there.',
       'The water gives you away: going in is heard across the whole hall, and every step you wade calls it closer.',
       'It gets a little sharper each hall further in: it hears farther, reacts faster and moves quicker. Easy stays gentle; Hard does not.',
       'Standing still and quiet on a tile is still safe, and pebbles, bottles, toys and flares pull it away.'
     ]},
+    {date: '2026-11-25', version: '1.51.3', title: 'A proper "page not found"', kind: 'fix',
+     items: [
+      'A mistyped or old link now shows a "Page not found" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.',
+      'It shows the address you tried, and has a button to tell us about the broken link.']},
     {date: '2026-11-25', version: '1.51.2', title: 'Showcase traffic chart fixed', kind: 'fix',
      items: [
       'The visitors-per-day chart on the showcase page is readable again: a bot that loaded the page about 11,000 times in three days no longer counts as visitors.',
