@@ -2899,7 +2899,7 @@ function bodyGeo(hex,skin,fit,face,pk){
   face=faceOf(face);   // a drawn face (see "drawn faces", below), or '' for the outfit's own eyes and mouth
   // an outfit (OUTFITS, below): its own body pieces, then its headwear, or the event's hat in its place, then the drawn face
   const O=fit?OUTFITS[fit]:null;
-  B.pt=[];BW=0;   // every part is recorded, so bodyRig can give the body its shape and its bones
+  B.pt=[];BW=0;BLD=buildOf(hex,fit);   // every part is recorded, so bodyRig can give the body its shape and its bones; BLD: this body's build
   PACK_NOW=LX?pk|0:0;PACK_DONE=0;
   if(O&&O.body){const c={hex,dark,lite,skin:O.skin!=null?O.skin:skin,hair:HAIR[SKINS.indexOf(skin)%HAIR.length]||HAIR[0],face:!!face};O.body(B,c);BW=0;if(PACK_NOW&&!PACK_DONE)LX.pack(B,PACK_NOW,hex);PACK_NOW=0;const nb=B.p.length/3;if(TKON)eventHat(B);else if(O.hat)O.hat(B,c);
     if(face)bagFace(B,faceSpot(fit),face);return bodyRig(B,nb)}
@@ -2926,7 +2926,7 @@ function bodyGeo(hex,skin,fit,face,pk){
    line at shoulder height, ARM_SEG) follow that arm; the rest blends from the hips (below 0.96) to the chest (above 1.12),
    so the chest can turn over the hips without a seam. The model's units are the unscaled ones (BS scales the group). */
 const BODY_W=[[.7,1],[.84,.99],[.93,.99],[1.0,.88],[1.08,.76],[1.2,.82],[1.32,.96],[1.44,1.06],[1.75,1.06]];
-const BACK_Z=.21,BACK_K=.72,SQ_Y=1.42,sqK=x=>.2+.6*clamp((Math.abs(x)-.12)/.25,0,1),SPINE_Y=1.04,ARM_P=[[-.36,1.38,0],[.35,1.38,0]];
+const BACK_Z=.21,BACK_K=.72,SQ_Y=1.42,sqK=x=>.45+.35*clamp((Math.abs(x)-.12)/.25,0,1),SPINE_Y=1.04,ARM_P=[[-.36,1.38,0],[.35,1.38,0]];
 const ARM_SEG=[[-.398,.064,-.142,-.544],[.3,.08,.3,-.57]];   // each arm's line seen from above (x, z to x, z), at y 1.36 (the left hand, at -0.1, -0.5, is just off its line)
 const tabAt=(T,y)=>{if(y<=T[0][0])return T[0][1];for(let i=1;i<T.length;i++)if(y<=T[i][0]){const a=T[i-1],b=T[i];return a[1]+(b[1]-a[1])*(y-a[0])/(b[0]-a[0])}return T[T.length-1][1]};
 function armOf(x,y,z){if(Math.abs(y-1.36)>.025)return 0;if(Math.abs(x+.1)<.02&&Math.abs(z+.5)<.02)return 2;
@@ -2945,23 +2945,64 @@ const ARM_K=1.3,ARM_H0=[[-.1,1.36,-.5],[.3,1.36,-.5]];
 const ARM_H=ARM_H0.map((h,k)=>h.map((v,i)=>ARM_P[k][i]+(v-ARM_P[k][i])*ARM_K)),ARM_E=ARM_H.map((h,k)=>h.map((v,i)=>(v+ARM_P[k][i])/2));
 const ARM_AX=ARM_H.map((h,k)=>{const d=new V3(h[0]-ARM_E[k][0],0,h[2]-ARM_E[k][2]).normalize();return new V3(-d.z,0,d.x)});
 const ARM_L1=ARM_E.map((e,k)=>Math.hypot(e[0]-ARM_P[k][0],e[1]-ARM_P[k][1],e[2]-ARM_P[k][2])),ARM_L2=ARM_E.map((e,k)=>Math.hypot(e[0]-ARM_H[k][0],e[1]-ARM_H[k][1],e[2]-ARM_H[k][2]));
+/* Builds (November 2026): the same height, pose and hit areas, but not everyone is the same shape. A build is a body type
+   (BODY_BUILDS: lean, average, broad: the torso's width at the chest and hips, the waist, the depth, the arms' and legs'
+   thickness) and a frame (FRAMES: even, or V, shoulders wider and hips narrower). The outfit decides it (FIT_BUILD, by
+   outfit id: two characters, the build and the frame), so nothing new is saved or sent; the Noob, which most players and
+   every bot wear, takes one from its colour (which is sent anyway), so a lobby of Noobs is a mix of shapes. */
+const BODY_BUILDS=[{w:.86,wa:.8,d:.86,a:.8,l:.86},{w:1,wa:1,d:1,a:1,l:1},{w:1.1,wa:1.2,d:1.14,a:1.2,l:1.14}],FRAMES=[{sh:.94,hp:1.04},{sh:1.08,hp:.93}];
+const FIT_BUILD=(()=>{const T={},add=(c,ids)=>{for(const i of ids.split(' '))T[i]=[c.charCodeAt(0)-48,c.charCodeAt(1)-48]};
+  add('20','robot boxbot junkbot vacbot goldbot arcadebot windup space astronaut hazmat farmer chef headchef mascot coach catcher bowler pcaptain pcook don banana shark unicorn dino burger hotdog hgoalie');
+  add('21','soldier knight castleknight gridiron rugby boxer bodyguard wrestler hero samurai goldknight firefighter lumberjack boss starhero hockey builder');
+  add('11','pilot golden varsity jet lifeguard goalie slugger tuxedo pinstripe pqueen firstmate rocketeer mechpilot');
+  add('01','soccer-rb soccer-red hoops volley swimmer sprinter surfer karate ninja agent');
+  add('00','feathercap tennis cyclist golfer skater fencer cheer jockey skeleton scarecrow wizard android detective getaway dealer plookout deckhand jester disco rockstar racer racedriver ghostpirate');
+  return T})();
+let BLD={b:BODY_BUILDS[1],f:FRAMES[0]};
+function buildOf(hex,fit){const O=fit?OUTFITS[fit]:null;let c=O&&FIT_BUILD[O.id];
+  if(!c){if(O)c=[1,0];else{let h=(hex|0)>>>0;h=Math.imul(h^h>>>15,0x2c1b3c6d)>>>0;h=Math.imul(h^h>>>12,0x297a2d39)>>>0;h=(h^h>>>15)>>>0;c=[h%3,(h>>>4)%2]}}   // the Noob: from its colour
+  return{b:BODY_BUILDS[c[0]],f:FRAMES[c[1]],c}}
+const legBuild=(hex,fit)=>buildOf(hex,fit).b.l;
+// The head (November 2026): drawn as before (a 0.48 rounded box at 1.79 with its hair, face and headwear), then made
+// smaller (HEAD_S) and raised so its top stays at the top of the head's hit area, with the jaw a little narrower than the
+// crown; the neck is slimmed and lengthened to meet it. Everything that belongs to the head moves with it: the neck, head
+// and hair (BW 1), the headwear and drawn face (drawn after the body), and an outfit's own parts above 1.68 or in front
+// of the face (eyes, beaks, beards, masks). The arms taper (ARM_TAPER, along each arm from the shoulder: a full upper arm,
+// a narrower elbow, a forearm, a slim wrist; the hands keep their size), the torso is rounder in cross-section, and the
+// shoulders are kept inside the body's hit area (SH_MAX).
+const HEAD_S=.68,HEAD_Y=1.79,HEAD_DY=2.085-(HEAD_Y+.27*HEAD_S),SH_MAX=.452;
+const ARM_TAPER=[[0,1.04],[.2,1],[.36,.9],[.5,.8],[.62,.84],[.74,.82],[.9,.7],[1,.7]];
 function bodyRig(B,nb){
-  const n=B.p.length/3,bone=new Uint8Array(n).fill(1),warp=new Uint8Array(n),P=B.p,N=B.n,pt=B.pt||[];
+  const n=B.p.length/3,bone=new Uint8Array(n).fill(1),warp=new Uint8Array(n),hd=new Uint8Array(n).fill(2),hand=new Uint8Array(n),P=B.p,N=B.n,pt=B.pt||[],bl=BLD.b,fr=BLD.f;
+  for(let v=nb;v<n;v++)hd[v]=1;   // headwear and the drawn face
   for(let i=0;i<pt.length;i+=6){const s0=pt[i],c=pt[i+1],x=pt[i+2],y=pt[i+3],z=pt[i+4],a=pt[i+5]===2?(x<0?2:3):pt[i+5]?0:armOf(x,y,z);
-    const w=!a&&!pt[i+5]&&s0<nb&&y<1.7&&z<.27&&!(y>1.5&&z<-.2&&Math.abs(x)<.22),back=!a&&!pt[i+5]&&s0<nb&&z>=.27&&y>.6&&y<1.75;
-    for(let v=s0;v<s0+c;v++){bone[v]=a||1;warp[v]=w?1:back?2:0}}
+    const fc=y>1.5&&z<-.26&&Math.abs(x)<.22,w=!a&&!pt[i+5]&&s0<nb&&y<1.7&&z<.27&&!(y>1.5&&z<-.2&&Math.abs(x)<.22),back=!a&&!pt[i+5]&&s0<nb&&z>=.27&&y>.6&&y<1.75;
+    const h=s0>=nb?1:pt[i+5]===1?(y<1.66?3:1):!a&&(y>1.68||fc)?1:0;   // 1 the head, 3 the neck
+    const hn=a&&Math.hypot(x-ARM_H0[a-2][0],y-ARM_H0[a-2][1],z-ARM_H0[a-2][2])<.09;
+    for(let v=s0;v<s0+c;v++){bone[v]=a||1;warp[v]=w&&!h?1:back&&!h?2:0;hd[v]=h;hand[v]=hn?1:0}}
+  for(let v=0;v<n;v++)if(hd[v]===2)hd[v]=P[v*3+1]>1.5?1:0;   // corners no part claims (a drawn face): the head's if high enough
+  // torso width at a height for this build: hips, waist, chest
+  const WB=[[.9,bl.w*fr.hp],[1.08,bl.wa*(fr.hp+fr.sh)/2],[1.3,bl.w*fr.sh],[1.8,bl.w*fr.sh]];
   const si=new Uint16Array(n*4),sw=new Float32Array(n*4);
   for(let v=0;v<n;v++){const o=v*3,y=P[o+1];
+    if(hd[v]===1){const j=.88+.12*clamp((P[o+1]-1.62)/.24,0,1);P[o]=P[o]*j*HEAD_S;P[o+1]=HEAD_Y+(P[o+1]-HEAD_Y)*HEAD_S+HEAD_DY;P[o+2]*=HEAD_S;
+      const nx=N[o]/j,l=Math.hypot(nx,N[o+1],N[o+2])||1;N[o]=nx/l;N[o+1]/=l;N[o+2]/=l}
+    else if(hd[v]===3){P[o]*=.74;P[o+2]*=.74;if(P[o+1]>1.5)P[o+1]=1.5+(P[o+1]-1.5)*1.75}
     if(bone[v]>1&&ARM_K!==1){const k=bone[v]-2,S=ARM_P[k],H=ARM_H0[k],ax=H[0]-S[0],ay=H[1]-S[1],az=H[2]-S[2],L2=ax*ax+ay*ay+az*az,t0=((P[o]-S[0])*ax+(y-S[1])*ay+(P[o+2]-S[2])*az)/L2,s=(ARM_K-1)*clamp(t0,0,1);
       P[o]+=ax*s;P[o+1]+=ay*s;P[o+2]+=az*s;
       if(t0>0&&t0<1){const L=Math.sqrt(L2),nd=(N[o]*ax+N[o+1]*ay+N[o+2]*az)/L*(1-1/ARM_K);N[o]-=ax/L*nd;N[o+1]-=ay/L*nd;N[o+2]-=az/L*nd;const l=Math.hypot(N[o],N[o+1],N[o+2])||1;N[o]/=l;N[o+1]/=l;N[o+2]/=l}}
     if(bone[v]>1){const y=P[o+1],k=bone[v]-2,S=ARM_P[k],H=ARM_H[k],hx=H[0]-S[0],hy=H[1]-S[1],hz=H[2]-S[2],t=((P[o]-S[0])*hx+(y-S[1])*hy+(P[o+2]-S[2])*hz)/(hx*hx+hy*hy+hz*hz),q=clamp((t-.38)/.24,0,1),f=q*q*(3-2*q);
+      if(!hand[v]){const r=tabAt(ARM_TAPER,t)*(1+(bl.a-1)*clamp(1.2-t,0,1)),ox=S[0]+hx*t,oy=S[1]+hy*t,oz=S[2]+hz*t;P[o]=ox+(P[o]-ox)*r;P[o+1]=oy+(P[o+1]-oy)*r;P[o+2]=oz+(P[o+2]-oz)*r}
       si[v*4]=bone[v];sw[v*4]=1-f;si[v*4+1]=bone[v]+2;sw[v*4+1]=f;continue}
     const t=clamp((y-.96)/.16,0,1),k=t*t*(3-2*t);si[v*4]=1;sw[v*4]=k;si[v*4+1]=0;sw[v*4+1]=1-k;   // chest, hips
     if(!warp[v])continue;
-    if(warp[v]===2){P[o+2]=BACK_Z+(P[o+2]-BACK_Z)*BACK_K;const nz=N[o+2]/BACK_K,l=Math.hypot(N[o],N[o+1],nz)||1;N[o]/=l;N[o+1]/=l;N[o+2]=nz/l;continue}   // packs and anything else on the back, pulled in
-    const f=tabAt(BODY_W,y),kq=sqK(P[o]);P[o]*=f;let ny=N[o+1];if(y>SQ_Y){P[o+1]=SQ_Y+(y-SQ_Y)*kq;ny/=kq}
-    const nx=N[o]/f,nz=N[o+2],l=Math.hypot(nx,ny,nz)||1;N[o]=nx/l;N[o+1]=ny/l;N[o+2]=nz/l}
+    if(warp[v]===2){P[o+2]=BACK_Z*bl.d+(P[o+2]-BACK_Z)*BACK_K;const nz=N[o+2]/BACK_K,l=Math.hypot(N[o],N[o+1],nz)||1;N[o]/=l;N[o+1]/=l;N[o+2]=nz/l;continue}   // packs and anything else on the back, pulled in
+    const f=tabAt(BODY_W,y)*tabAt(WB,y),kq=sqK(P[o]);P[o]*=f;P[o+2]*=bl.d;let ny=N[o+1];if(y>SQ_Y){P[o+1]=SQ_Y+(y-SQ_Y)*kq;ny/=kq}
+    // a rounder cross-section: the torso's corners (seen from above) drawn in toward an oval
+    const ua=P[o]/(.4*f),ub=P[o+2]/(.24*bl.d),m=Math.max(Math.abs(ua),Math.abs(ub)),e=Math.hypot(ua,ub);
+    if(e>.3&&e<1.6&&y<1.66){const r=1+.65*(m/e-1);P[o]*=r;P[o+2]*=r}
+    const ax=Math.abs(P[o]);if(ax>SH_MAX-.06)P[o]=Math.sign(P[o])*(SH_MAX-.06+.06*Math.tanh((ax-SH_MAX+.06)/.06));   // the shoulders stay inside the hit area
+    const nx=N[o]/f,nz=N[o+2]/bl.d,l=Math.hypot(nx,ny,nz)||1;N[o]=nx/l;N[o+1]=ny/l;N[o+2]=nz/l}
   const g=bagGeo(B);g.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4));return g}
 // The event's headwear, the same for every outfit (it takes the place of the outfit's own): Turkey Week's pilgrim hat (brim, crown, band, buckle).
 function eventHat(B){bagRBox(B,0,2.05,0,.84,.07,.84,0x3a2a22);bagRBox(B,0,2.27,0,.46,.4,.46,0x3a2a22);bagRBox(B,0,2.13,0,.49,.1,.49,0x8a5a2b);bagBox(B,0,2.13,-.25,.15,.12,.02,0xffc93c)}
@@ -3263,8 +3304,10 @@ function fitLegGeo(n){
       let cx=0,cy=0,cz=0;for(let k=0;k<18;k+=3){cx+=raw[q*18+k]/6;cy+=raw[q*18+k+1]/6;cz+=raw[q*18+k+2]/6}
       const spot=b>2&&b<9&&(h===0||h===4||h===7)?1+(side+cell.i+b)%3:0,cam=b<3?3:camoAt(cx*.3,cy*.9-.43,cz*.3);
       for(let k=0;k<6;k++){const o=q*18+k*3;v.set(P[o],P[o+1],P[o+2]).applyMatrix4(m);pos.push(v.x*legTx(v.y),v.y,v.z*legTz(v.y));v.set(N[o],N[o+1],N[o+2]).applyMatrix3(nm).normalize();nor.push(v.x,v.y,v.z);zm.push(KIT[b],TWO[b],spot,cam)}}
-    const m2=new THREE.Matrix4().compose(new V3(0,-.79,-.03),new THREE.Quaternion(),new V3(.3*1.12,.16*1.12,.36*1.12)),nm2=new THREE.Matrix3().getNormalMatrix(m2),SP=ROUND_BOX.attributes.position,SN=ROUND_BOX.attributes.normal;
-    for(let i=0;i<SP.count;i++){v.fromBufferAttribute(SP,i).applyMatrix4(m2);pos.push(v.x,v.y,v.z);v.fromBufferAttribute(SN,i).applyMatrix3(nm2).normalize();nor.push(v.x,v.y,v.z);zm.push(4,4,4,4)}
+    // the boot (November 2026): an ankle and heel, a lower toe out in front, and a flat sole a little wider than both
+    for(const [G,c,sz] of [[ROUND_LO,[0,-.755,.01],[.27,.2,.27]],[ROUND_LO,[0,-.805,-.135],[.25,.11,.22]],[UNIT_BOX,[0,-.848,-.055],[.29,.03,.45]]]){
+      const k=G===UNIT_BOX?1:1.12,m2=new THREE.Matrix4().compose(new V3(c[0],c[1],c[2]),new THREE.Quaternion(),new V3(sz[0]*k,sz[1]*k,sz[2]*k)),nm2=new THREE.Matrix3().getNormalMatrix(m2),SP=G.attributes.position,SN=G.attributes.normal;
+      for(let i=0;i<SP.count;i++){v.fromBufferAttribute(SP,i).applyMatrix4(m2);pos.push(v.x,v.y,v.z);v.fromBufferAttribute(SN,i).applyMatrix3(nm2).normalize();nor.push(v.x,v.y,v.z);zm.push(4,4,4,4)}}
     FIT_LEG_SHAPE={pos:new THREE.Float32BufferAttribute(pos,3),nor:new THREE.Float32BufferAttribute(nor,3),col:new THREE.Float32BufferAttribute(new Float32Array(pos.length).fill(1),3),zm:new THREE.Float32BufferAttribute(zm,4)};
   }
   const S=FIT_LEG_SHAPE,g=new THREE.BufferGeometry();g.setAttribute('position',S.pos);g.setAttribute('normal',S.nor);g.setAttribute('color',S.col);g.setAttribute('lzmap',S.zm);
@@ -4166,7 +4209,7 @@ function makeModel(hex,skinIx,fit,face){
   for(let k=0;k<2;k++){bones[k+2].position.set(ARM_P[k][0],ARM_P[k][1]-SPINE_Y,ARM_P[k][2]);bones[1].add(bones[k+2]);
     bones[k+4].position.set(ARM_E[k][0]-ARM_P[k][0],ARM_E[k][1]-ARM_P[k][1],ARM_E[k][2]-ARM_P[k][2]);bones[k+2].add(bones[k+4])}
   bones[1].rotation.order='YXZ';body.add(bones[0]);
-  const legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);l.k=0;g.add(l);return l});   // k: the knee's bend
+  const lb=legBuild(hex,fit),legs=[-.17,.17].map(x=>{const l=new THREE.Object3D();l.position.set(x,.86,0);l.scale.set(lb,1,lb);l.k=0;g.add(l);return l});   // k: the knee's bend; scale: the build's thickness
   const gun=new THREE.Object3D();gun.position.set(.3,1.36,-.62);
   const glider=new THREE.SkinnedMesh(gliderSkin(GLIDER_GEO),BMAT);glider.position.set(0,GLIDE_Y,0);glider.visible=false;glider.frustumCulled=false;
   const gb=[0,1,2,3,4,5,6].map(()=>new THREE.Bone());gb[1].position.set(-GL_HX,GL_HY,0);gb[2].position.set(GL_HX,GL_HY,0);for(let i=1;i<7;i++)gb[0].add(gb[i]);glider.add(gb[0]);
@@ -4175,7 +4218,7 @@ function makeModel(hex,skinIx,fit,face){
     pk:0,pb:new Float32Array(POSE_N),pf:new Float32Array(POSE_N),pit:0,roll:0,glk:0};limbModels.add(g);
   return g;
 }
-function setModelColor(model,hex,skinIx,fit,face){const u=model.userData;fit=fitOf(fit);face=faceOf(face);const pk=LX?u.lxPk|0:0;if(u.hex===hex&&u.fit===fit&&u.face===face&&u.pk===pk)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.face=face;u.pk=pk;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face,pk)}   // (the body is built again only when something about it changed)
+function setModelColor(model,hex,skinIx,fit,face){const u=model.userData;fit=fitOf(fit);face=faceOf(face);const pk=LX?u.lxPk|0:0;if(u.hex===hex&&u.fit===fit&&u.face===face&&u.pk===pk)return;u.hex=hex;u.skinIx=skinIx|0;u.fit=fit;u.face=face;u.pk=pk;u.leg=legSpec(hex,SKINS[(skinIx|0)%SKINS.length],fit);const lb=legBuild(hex,fit);for(const l of u.legs)l.scale.set(lb,1,lb);u.body.geometry.dispose();u.body.geometry=bodyGeo(hex,SKINS[(skinIx|0)%SKINS.length],fit,face,pk)}   // (the body is built again only when something about it changed)
 function setHeldModel(model,key,rar){const u=model.userData;const k=GUN_GEO[key]?key:HEALS[key]?(HEALS[key].sh?'sh':'hp'):'cb';u.gr=WEAP[k]&&rar>=0&&rar<5?rar|0:-1;if(u.gk===k)return;u.gk=k;u.sw=1}   // sw: the new item swings up into the hands (animModel)
 function disposeModel(m){if(m)limbModels.delete(m);if(m&&m.userData.body){m.userData.body.geometry.dispose();if(m.userData.body.skeleton)m.userData.body.skeleton.dispose()}}
 // Entities: you, the other players (remotes) and, in Practice only, bots. local: moved by this browser's physics (you, and Practice bots).
@@ -7755,7 +7798,7 @@ const Face={open:false,close(){},cam(){},sync(){}};
     b.appendChild(cv);b.addEventListener('click',()=>{if(faceStr(bits)===st.face)return;keep();bits=faceBits(st.face);changed()});$('fcStamps').appendChild(b)});
   // the colour under the drawing (the face, a visor, a helmet), for the grid: looked up on the body itself
   function tint(){let g=null;try{const S=faceSpot(mySkin);g=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],mySkin,'gAAAAAAAAAAAAAAAAAAA');
-    const h=new THREE.Raycaster(new V3(.11,(S.y||FACE0.y)+.07,-3),new V3(0,0,1)).intersectObject(new THREE.Mesh(g,MAT))[0];
+    const h=new THREE.Raycaster(new V3(.11*HEAD_S,HEAD_Y+((S.y||FACE0.y)+.07-HEAD_Y)*HEAD_S+HEAD_DY,-3),new V3(0,0,1)).intersectObject(new THREE.Mesh(g,MAT))[0];
     if(h){const c=g.attributes.color,i=h.face.a;sec.style.setProperty('--fc-skin','#'+_col.setRGB(c.getX(i),c.getY(i),c.getZ(i)).getHexString())}}catch(e){}if(g)g.dispose()}
   function measure(){const a=$('app').getBoundingClientRect(),r=stage.getBoundingClientRect();rect={cx:r.left-a.left+r.width/2,cy:r.top-a.top+r.height/2,w:Math.max(40,r.width),h:Math.max(40,r.height)};vo=''}
   function show(){
@@ -7826,7 +7869,7 @@ function buildLocker(){
     const body=new THREE.Mesh(LEG_GEO,mat),lg=fitLegGeo(2),legs=new THREE.InstancedMesh(lg,FLMAT,2),lp=new THREE.Matrix4();legs.frustumCulled=false;sc.add(body,legs);
     legs.setMatrixAt(0,lp.makeTranslation(-.17,.86,0));legs.setMatrixAt(1,lp.makeTranslation(.17,.86,0));
     try{for(let n=0;n<list.length;n++){const i=list[n];
-      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i,faces?faces[n]:'',pk),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);
+      const geo=bodyGeo(player.hex,SKINS[tone6()%SKINS.length],i,faces?faces[n]:'',pk),L=legSpec(player.hex,SKINS[tone6()%SKINS.length],i)||STD_LEGS;body.geometry=geo;legPut(lg,0,L);legPut(lg,1,L);const lb=legBuild(player.hex,i);legs.setMatrixAt(0,lp.makeScale(lb,1,lb).setPosition(-.17,.86,0));legs.setMatrixAt(1,lp.makeScale(lb,1,lb).setPosition(.17,.86,0));legs.instanceMatrix.needsUpdate=true;
       renderer.setRenderTarget(rt);renderer.clear();renderer.render(sc,cam);renderer.readRenderTargetPixels(rt,0,0,W,HH,buf);
       for(let y=0;y<HH;y++)img.data.set(buf.subarray((HH-1-y)*W*4,(HH-y)*W*4),y*W*4);
       g.putImageData(img,0,0);out.push(cv.toDataURL('image/png'));geo.dispose();
