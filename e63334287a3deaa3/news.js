@@ -85,6 +85,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-25', version: '1.51.2', title: 'Showcase traffic chart fixed', kind: 'fix',
+     items: [
+      'The visitors-per-day chart on the showcase page is readable again: a bot that loaded the page about 11,000 times in three days no longer counts as visitors.',
+      'The showcase now shows total engaged hours instead of the average engaged time.']},
     {date: '2026-11-25', version: '1.51.1', title: 'Putterby fixes', kind: 'fix',
      tags: ['Putterby'], items: [
       'Sliding gates no longer squash your ball through the rail and cost you an out-of-bounds stroke while you wait to putt.',
