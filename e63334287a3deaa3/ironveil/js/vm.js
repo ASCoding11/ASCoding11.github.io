@@ -45,8 +45,9 @@
   const F4 = (c, sp) => ({ curl: c, spread: sp || 0 });
   const OPEN = { index: F4([0.1, 0.1, 0.05], 0.05), middle: F4([0.1, 0.1, 0.05], 0.01), ring: F4([0.1, 0.1, 0.05], -0.03), little: F4([0.15, 0.1, 0.05], -0.07) };
   const HK = (c, sp) => ({ curl: c, spread: sp, fixed: true });
-  // a closed hand round a magazine (fixed: the solver left the rifle's fingers splayed off its short box)
-  const CLOSED = { index: HK([0.85, 1.05, 0.7], 0.02), middle: HK([0.95, 1.15, 0.75], 0.0), ring: HK([1.05, 1.25, 0.8], 0.03), little: HK([1.15, 1.35, 0.85], 0.06) };
+  // a fist round the rifle's short magazine (fixed: the solver left the fingers splayed off its small box, and a
+  // looser close read as an open mitt while the hand carried it out of view)
+  const CLOSED = { index: HK([1.25, 1.45, 0.95], 0.02), middle: HK([1.3, 1.5, 1.0], 0.0), ring: HK([1.35, 1.5, 1.0], -0.02), little: HK([1.4, 1.5, 1.0], -0.05) };
   const HOOK = { index: HK([0.35, 1.35, 0.9], 0.04), middle: HK([0.35, 1.4, 0.95], 0.01), ring: HK([0.4, 1.45, 1.0], -0.03), little: HK([0.5, 1.5, 1.0], -0.07) };
   const GRIPS = VM.GRIPS = {
     smg: {
@@ -100,7 +101,7 @@
         pose: { cup: 0.55, fingers: OPEN, thumb: { close: true }, sleeve: 0.70 } },
       mag: { side: 'l', solveObj: 'mag', anchor: [0, 0.05, -0.014], at: [0.0105, -0.052, 0.078], fwd: [0, -0.1, 1], back: [1, 0, 0],
         forearmGun: [0.3, -0.45, -0.85], thumbGun: [[0.15, 0.75, 0.6], [0.05, 0.9, 0.4], [0, 0.95, 0.3]], nailGun: [1, 0, -0.3], towardGun: [-1, 0, 0],
-        pose: { cup: 0.5, fingers: CLOSED, thumb: { close: true }, sleeve: 0.70 } },
+        pose: { cup: 0.6, fingers: CLOSED, thumb: { close: true }, sleeve: 0.70 } },
       // reaching over to the bolt knob on the right side: knob pinched between thumb and the side of the bent index
       // the bolt knob pinched: fingers up past its outside and hooked over it, thumb up its front, ring and little tucked
       bolt: { side: 'l', part: 'bolt', solveObj: 'bolt', anchor: [0, 0.07, -0.013], at: [-0.047, -0.004, 0.064], fwd: [0.1, 1, 0.08], back: [-1, 0.1, 0],
@@ -127,7 +128,7 @@
   };
   // a grip written as another plus changes ('like')
   for (const k in GRIPS) for (const n in GRIPS[k]) { const g = GRIPS[k][n]; if (g.like) { const b = GRIPS[k][g.like]; const pose = Object.assign({}, b.pose, { fingers: Object.assign({}, b.pose.fingers, g.index ? { index: g.index } : {}) }); GRIPS[k][n] = Object.assign({}, b, { pose, like: g.like }); } }
-  const BAKED = VM.BAKED = {"smg":{"grip":{"curls":{"middle":[1.226,1.4,0.857],"ring":[1.183,1.387,0.847],"little":[0.6,1.387,0.847]},"thumb":[[-0.3791,0.1951,-0.9045],[-0.3659,0.8152,-0.449],[-0.3219,0.9391,-0.1203]]},"fore":{"curls":{"index":[0.651,0.804,0.962],"middle":[0.91,1.135,0.77],"ring":[1.018,1.273,0.866],"little":[1.5,1.75,1.25]},"thumb":[[-0.9441,0.2883,-0.1599],[-0.2474,0.8465,-0.4714],[0.0161,0.8424,-0.5386]]},"mag":{"curls":{"index":[1.126,1.411,0.962],"middle":[1.191,1.494,1.02],"ring":[0.953,1.549,1.058],"little":[0.182,1.452,0.991]},"thumb":[[-0.8291,0.5374,0.1543],[-0.9485,0.3128,-0.0493],[-0.9712,0.2032,-0.1247]]},"charge":{"curls":{"index":[0.35,0.6,0.4],"middle":[0.35,0.6,0.4],"ring":[0.4,0.6,0.4],"little":[0.5,0.6,0.4]},"thumb":[[-0.8644,0.4925,-0.101],[-0.5492,0.2358,-0.8017],[-0.4332,0.1345,-0.8912]]}},"props":{"grenade":{"curls":{"index":[0.824,1.025,0.693],"middle":[0.867,1.08,0.732],"ring":[0.867,1.08,0.732],"little":[0.938,1.107,0.751]},"thumb":[[-0.9117,0.3419,-0.2279],[0.208,0.1293,-0.9695],[0.8416,0,-0.54]]},"binoL":{"curls":{"index":[0.1,1.273,0.866],"middle":[0.1,1.425,0.972],"ring":[0.1,1.728,1.183],"little":[0.15,1.521,1.039]},"thumb":[[-0.8,-0.48,-0.36],[-0.8794,0.4726,-0.0578],[-0.5956,0.7928,0.1293]]},"binoR":{"curls":{"index":[0.1,1.273,0.866],"middle":[0.1,1.425,0.972],"ring":[0.1,1.728,1.183],"little":[0.15,1.521,1.039]},"thumb":[[-0.8,-0.48,-0.36],[-0.8794,0.4726,-0.0578],[-0.5956,0.7928,0.1293]]},"knife":{"curls":{"index":[1.18,1.48,1.01],"middle":[1.234,1.549,1.058],"ring":[1.256,1.577,1.077],"little":[0.55,1.563,1.068]},"thumb":[[-0.7454,0.5963,-0.2981],[-0.7454,0.2981,-0.5963],[-0.7071,0,-0.7071]]}},"pistol":{"grip":{"curls":{"middle":[0.6,0.6,1.25],"ring":[1.216,1.387,0.847],"little":[0.751,1.4,0.857]},"thumb":[[-0.3961,0.1755,-0.9013],[-0.2691,0.8505,-0.452],[-0.1984,0.9727,-0.1203]]},"cup":{"curls":{"index":[0.716,0.887,0.597],"middle":[0.888,1.107,0.751],"ring":[0.899,1.121,0.76],"little":[1.5,1.75,1.25]},"thumb":[[-0.843,0.5377,-0.018],[-0.3931,0.6818,-0.617],[-0.2145,0.6419,-0.7362]]},"mag":{"curls":{"index":[1.5,1.75,1.25],"middle":[0.888,1.107,0.751],"ring":[1.342,1.687,1.154],"little":[1.5,1.75,1.25]},"thumb":[[-0.6317,0.5745,-0.5205],[0.3186,0.693,-0.6467],[0.6129,0.565,-0.5524]]},"slide":{"curls":{"index":[0.932,1.163,0.789],"middle":[0.878,1.094,0.741],"ring":[0.748,0.928,0.626],"little":[0.668,0.762,0.511]},"thumb":[[0.7038,-0.1301,-0.6984],[0.4175,0.5964,-0.6856],[0.0878,0.8398,-0.5358]]}},"rifleScoped":{"grip":{"curls":{"middle":[0.5,0.5,1.25],"ring":[1.224,1.425,0.943],"little":[1.17,1.356,0.895]},"thumb":[[-0.7118,0.0301,-0.7018],[-0.4273,0.7745,-0.4664],[-0.3123,0.9467,0.0785]]},"fore":{"curls":{"index":[0.737,0.914,0.616],"middle":[0.91,1.135,0.77],"ring":[0.996,1.245,0.847],"little":[1.122,1.342,0.914]},"thumb":[[-0.9441,0.2883,-0.1599],[-0.1224,0.837,-0.5334],[0.1683,0.7821,-0.6]]},"mag":{"curls":{"index":[0.543,1.673,1.144],"middle":[0.597,1.75,1.25],"ring":[0.359,1.701,1.164],"little":[1.5,1.75,1.25]},"thumb":[[-0.8291,0.5374,0.1543],[-0.6414,0.2115,-0.7374],[-0.444,0.0929,-0.8912]]},"bolt":{"curls":{"index":[0.613,0.9,0.578],"middle":[0.732,1.052,0.684]},"thumb":[[-0.7664,0.6351,-0.0962],[-0.2773,0.2558,-0.9261],[0.0547,0.0841,-0.995]]}}};   // BAKED-END
+  const BAKED = VM.BAKED = {"smg":{"grip":{"curls":{"middle":[1.226,1.4,0.857],"ring":[1.183,1.387,0.847],"little":[0.6,1.387,0.847]},"thumb":[[-0.3791,0.1951,-0.9045],[-0.3659,0.8152,-0.449],[-0.3219,0.9391,-0.1203]]},"fore":{"curls":{"index":[0.651,0.804,0.962],"middle":[0.91,1.135,0.77],"ring":[1.018,1.273,0.866],"little":[1.5,1.75,1.25]},"thumb":[[-0.9441,0.2883,-0.1599],[-0.2474,0.8465,-0.4714],[0.0161,0.8424,-0.5386]]},"mag":{"curls":{"index":[1.126,1.411,0.962],"middle":[1.191,1.494,1.02],"ring":[0.953,1.549,1.058],"little":[0.182,1.452,0.991]},"thumb":[[-0.8291,0.5374,0.1543],[-0.9485,0.3128,-0.0493],[-0.9712,0.2032,-0.1247]]},"charge":{"curls":{"index":[0.35,0.6,0.4],"middle":[0.35,0.6,0.4],"ring":[0.4,0.6,0.4],"little":[0.5,0.6,0.4]},"thumb":[[-0.8644,0.4925,-0.101],[-0.5492,0.2358,-0.8017],[-0.4332,0.1345,-0.8912]]}},"props":{"grenade":{"curls":{"index":[0.824,1.025,0.693],"middle":[0.867,1.08,0.732],"ring":[0.867,1.08,0.732],"little":[0.938,1.107,0.751]},"thumb":[[-0.9117,0.3419,-0.2279],[0.208,0.1293,-0.9695],[0.8416,0,-0.54]]},"binoL":{"curls":{"index":[0.1,1.273,0.866],"middle":[0.1,1.425,0.972],"ring":[0.1,1.728,1.183],"little":[0.15,1.521,1.039]},"thumb":[[-0.8,-0.48,-0.36],[-0.8794,0.4726,-0.0578],[-0.5956,0.7928,0.1293]]},"binoR":{"curls":{"index":[0.1,1.273,0.866],"middle":[0.1,1.425,0.972],"ring":[0.1,1.728,1.183],"little":[0.15,1.521,1.039]},"thumb":[[-0.8,-0.48,-0.36],[-0.8794,0.4726,-0.0578],[-0.5956,0.7928,0.1293]]},"knife":{"curls":{"index":[1.18,1.48,1.01],"middle":[1.234,1.549,1.058],"ring":[1.256,1.577,1.077],"little":[0.55,1.563,1.068]},"thumb":[[-0.7454,0.5963,-0.2981],[-0.7454,0.2981,-0.5963],[-0.7071,0,-0.7071]]}},"pistol":{"grip":{"curls":{"middle":[0.6,0.6,1.25],"ring":[1.216,1.387,0.847],"little":[0.751,1.4,0.857]},"thumb":[[-0.3961,0.1755,-0.9013],[-0.2691,0.8505,-0.452],[-0.1984,0.9727,-0.1203]]},"cup":{"curls":{"index":[0.716,0.887,0.597],"middle":[0.888,1.107,0.751],"ring":[0.899,1.121,0.76],"little":[1.5,1.75,1.25]},"thumb":[[-0.843,0.5377,-0.018],[-0.3931,0.6818,-0.617],[-0.2145,0.6419,-0.7362]]},"mag":{"curls":{"index":[1.5,1.75,1.25],"middle":[0.888,1.107,0.751],"ring":[1.342,1.687,1.154],"little":[1.5,1.75,1.25]},"thumb":[[-0.6317,0.5745,-0.5205],[0.3186,0.693,-0.6467],[0.6129,0.565,-0.5524]]},"slide":{"curls":{"index":[0.932,1.163,0.789],"middle":[0.878,1.094,0.741],"ring":[0.748,0.928,0.626],"little":[0.668,0.762,0.511]},"thumb":[[0.7038,-0.1301,-0.6984],[0.4175,0.5964,-0.6856],[0.0878,0.8398,-0.5358]]}},"rifleScoped":{"grip":{"curls":{"middle":[0.5,0.5,1.25],"ring":[1.224,1.425,0.943],"little":[1.17,1.356,0.895]},"thumb":[[-0.7118,0.0301,-0.7018],[-0.4273,0.7745,-0.4664],[-0.3123,0.9467,0.0785]]},"fore":{"curls":{"index":[0.737,0.914,0.616],"middle":[0.91,1.135,0.77],"ring":[0.996,1.245,0.847],"little":[1.122,1.342,0.914]},"thumb":[[-0.9441,0.2883,-0.1599],[-0.1224,0.837,-0.5334],[0.1683,0.7821,-0.6]]},"mag":{"curls":{"index":[0.543,1.673,1.144],"middle":[0.597,1.75,1.25],"ring":[0.359,1.701,1.164],"little":[1.5,1.75,1.25]},"thumb":[[-0.9117,0.3419,-0.2279],[0.208,0.1293,-0.9695],[0.8416,0,-0.54]]},"bolt":{"curls":{"index":[0.613,0.9,0.578],"middle":[0.732,1.052,0.684]},"thumb":[[-0.7664,0.6351,-0.0962],[-0.2773,0.2558,-0.9261],[0.0547,0.0841,-0.995]]}}};   // BAKED-END
 
   const _x = new T.Vector3(), _y = new T.Vector3(), _z = new T.Vector3();
   // the hand-to-gun matrix of a grip
@@ -183,7 +184,7 @@
     // about 17 %, pistol 10.9 %), its rear leaving through the bottom right; aimed (ads, rig units) is unchanged on screen
     smg:         { scale: 1.5, hip: { p: [0.0777, -0.0763, -0.1369], r: [0.0292, 0.0595, 0.03] }, ads: 0.29, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.022, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
     pistol:      { scale: 1.3, hip: { p: [0.0746, -0.0634, -0.2135], r: [-0.0768, 0.2807, -0.3] }, ads: 0.46, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.019, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
-    rifleScoped: { scale: 1.7, hip: { p: [0.0722, -0.0725, -0.1424], r: [0.0558, -0.0012, 0.03] }, ads: 0.10, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.02, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] }
+    rifleScoped: { scale: 1.7, hip: { p: [0.142, -0.07, -0.13], r: [0.06, 0.06, 0.15] }, ads: 0.10, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.02, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] }
   };
 
   // ------------------------------------------------------------------ timeline engine
@@ -312,7 +313,7 @@
     if (grips.mag) {
       // the reference's reload pose: up, muzzle up, rolled so the well faces the eye; the pistol its own: kept up and to
       // the right of the crosshair, muzzle up and turned in a little, rolled less
-      const cant = kind === 'pistol' ? [-0.05, 0.0, 0.0, -0.30, 0.10, 0.45] : [0.03, 0.04, 0.12, -0.46, 0.22, 0.80];   // (pushed out along the barrel: the gun is drawn 1.5-1.7x)
+      const cant = (VM.RELOADCANT[kind] || VM.RELOADCANT.other).slice();
       const cantB = cant.slice(); cantB[1] += 0.008; cantB[3] -= 0.04; cantB[5] += 0.03;
       const away = kind === 'pistol' ? [0.05, -0.32, 0.05] : [0.05, -0.30, 0.08];   // where the hand goes for the fresh one: down and out of view
       const R = (dur, extra) => {
@@ -453,6 +454,7 @@
   const CACHE = {};   // built hand geometries by key (shared by every vm)
   const MATCACHE = {};   // the viewmodel's weapon material copies, per gun
   function handGeo(key, mk) { return CACHE[key] || (CACHE[key] = mk()); }
+  VM.clearCache = function () { for (const k in CACHE) delete CACHE[k]; for (const k in CLIPCACHE) delete CLIPCACHE[k]; };   // tests: after editing GRIPS / FRAME
   const _v = new T.Vector3(), _v2 = new T.Vector3(), _q2 = new T.Quaternion(), _mg = new T.Matrix4(), _mh = new T.Matrix4(), _mE = new T.Matrix4();
   const _pa = new T.Vector3(), _pb = new T.Vector3(), _qa2 = new T.Quaternion(), _qb2 = new T.Quaternion();
   function mixMatrix(out, a, b, k) {
@@ -476,6 +478,10 @@
 
   // the viewmodel's copies of the gun materials: a light darkening (the models carry their own wear, dust and stamps,
   // which a heavier one crushed into a black mirror) and a little more of the arms' sky cube on steel; roughness as modelled
+  // the reload pose, an offset of the hip pose in the gun frame [x, y, z, pitch, yaw, roll] (see the clips): up, muzzle
+  // up, rolled so the magazine well faces the eye
+  VM.RELOADCANT = { pistol: [-0.04, 0.08, 0.0, -0.85, 0.15, 0.6], other: [0.03, 0.04, 0.12, -0.46, 0.22, 0.80] };
+  VM.HANDFADE = [0.35, 0.85];   // the ads progress over which the hands fade out
   VM.MATTUNE = { metal: 0.8, other: 0.85, env: 1.2 };
   VM.create = function (kind, opts) {
     opts = opts || {};
@@ -483,7 +489,9 @@
     const grips = GRIPS[kind], fr = FRAME[kind];
     if (!grips || !fr) return null;
     const gun = mkWeapon(kind); if (!gun) return null;
-    const M = H.materials();
+    // this vm's own copies of the glove and sleeve materials (shared maps): aimed, both hands fade out by opacity
+    const M0 = H.materials(), M = { glove: M0.glove.clone(), sleeve: M0.sleeve.clone() };
+    M.sleeve.alphaHash = false;
     const group = new T.Group(); group.name = 'vm_' + kind;
     // rig: everything below, scaled about the eye by FRAME[kind].scale. A scale about the eye alone changes nothing on
     // screen; with the hip pose given in the rig's own units it draws the gun and hands that much bigger at the same
@@ -554,7 +562,7 @@
     }
     const bP = new T.Vector3(), bQ = new T.Quaternion();
     // --- state
-    let fadeK2 = -1, cur = null, curName = null, t = 0, speed = 1, loop = false, fadeIn = 1, fadeK = 1, outK = 0, outFade = 0.12, stopping = false, propKind = 'grenade';
+    let handsOn = true, fadeK2 = -1, cur = null, curName = null, t = 0, speed = 1, loop = false, fadeIn = 1, fadeK = 1, outK = 0, outFade = 0.12, stopping = false, propKind = 'grenade';
     const st = { ads: 0, sprint: 0, crouch: 0, prone: 0 };
     // build blends
     const bl = { L: { cur: baseB, to: baseB, k: 1, from: null }, R: { press: 0, shown: 0 }, P: { cur: firstP, to: firstP, k: 1, from: null } };
@@ -673,10 +681,17 @@
         _m2.makeTranslation(pg.kk.x, pg.kk.y, pg.kk.z).multiply(pg.grip).premultiply(gunNode.matrix);   // from the grip's own place
         if (o.ph[0] >= 1) _mh.copy(_m2); else mixMatrix(_mh, _mh, _m2, o.ph[0]);
       }
-      handL.matrix.copy(_mh); handL.matrixWorldNeedsUpdate = true;
-      // aimed: both sleeves fade out a few centimetres up from the cuff (the view shows the gun and the gloves only)
+      handL.matrix.copy(_mh); handL.matrixWorldNeedsUpdate = true; handL.visible = handsOn || o.hs[0] > 0.5;
+      // aimed: both hands fade out (blended, not dithered) over the second half of the raise, so the aimed view is
+      // the gun alone, as in the reference; hidden once gone
       const fk = Math.round(st.ads * 50) / 50;
-      if (fk !== fadeK2) { fadeK2 = fk; H.sleeveFade(handL.geometry, fk, 0.045, 0.075); H.sleeveFade(handR.geometry, fk, 0.045, 0.075); }
+      if (fk !== fadeK2) {
+        fadeK2 = fk;
+        const x = Math.min(1, Math.max(0, (fk - VM.HANDFADE[0]) / (VM.HANDFADE[1] - VM.HANDFADE[0]))), op = 1 - x * x * (3 - 2 * x);
+        for (const m of [M.glove, M.sleeve]) { const tr = op < 0.999; if (m.transparent !== tr) { m.transparent = tr; m.needsUpdate = true; } m.opacity = op; }
+        handsOn = op > 0.01;
+      }
+      handR.visible = handsOn;
       gunNode.visible = o.gunVis[0] > 0.5;
       setBuild('L', handL, sBuilds, o.build); stepBuild('L', handL, sBuilds, dt);
       // magazine: at its seat (plus offset) or in the hand

@@ -224,9 +224,10 @@
     const r = renderer(); w = w || 480; h = h || 270;
     const bg = scene.background, env = scene.environment; scene.background = new THREE.Color(0); scene.environment = null;
     const skies = []; scene.traverse(o => { if (o.userData.sky && o.visible) { skies.push(o); o.visible = false; } });
-    // white on black; a dithered (alphaHash) material keeps its vertex alpha so a faded sleeve counts only where drawn
-    const W1 = VMT._white || (VMT._white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })), WA = VMT._whiteA || (VMT._whiteA = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, vertexColors: true, alphaHash: true }));
-    const swapped = []; scene.traverse(o => { if (!o.isMesh || o.userData.sky) return; swapped.push([o, o.material]); o.material = Array.isArray(o.material) ? o.material.map(m => m.alphaHash ? WA : W1) : (o.material.alphaHash ? WA : W1); });
+    // white on black; a material faded below half opacity (the aimed hands) counts as not drawn
+    const W1 = VMT._white || (VMT._white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })), WH = VMT._hid || (VMT._hid = new THREE.MeshBasicMaterial({ visible: false }));
+    const pick = m => m.transparent && m.opacity < 0.5 ? WH : W1;
+    const swapped = []; scene.traverse(o => { if (!o.isMesh || o.userData.sky) return; swapped.push([o, o.material]); o.material = Array.isArray(o.material) ? o.material.map(pick) : pick(o.material); });
     const om = scene.overrideMaterial;
     r.setSize(w, h); r.setScissorTest(false); r.setViewport(0, 0, w, h); cam.aspect = w / h; cam.updateProjectionMatrix();
     const tm = r.toneMapping; r.toneMapping = THREE.NoToneMapping; r.render(scene, cam); r.toneMapping = tm;
@@ -262,6 +263,8 @@
   // pose a vm: state { ads, sprint, crouch, prone }, then clip `clip` advanced to time t (60 Hz steps, events kept)
   VMT.pose = function (kind, clip, t, state, opts) {
     opts = opts || {};
+    if (opts.cant) { IVVM.RELOADCANT[kind === 'pistol' ? 'pistol' : 'other'] = opts.cant; IVVM.clearCache(); delete VMS[kind]; }
+    if (opts.grip) { for (const n in opts.grip) { Object.assign(IVVM.GRIPS[kind][n], opts.grip[n]); const pr = IVVM.GRIPS[kind][n + 'Press']; if (pr && pr.like === n) Object.assign(pr, opts.grip[n], { pose: pr.pose }); } IVVM.clearCache(); delete VMS[kind]; }
     if (opts.hip || opts.frame) { const F = IVVM.FRAME[kind]; if (opts.hip) F.hip = opts.hip; if (opts.frame) Object.assign(F, opts.frame); delete VMS[kind]; }
     const V = VMT.vm(kind), vm = V.vm;
     if (opts.prop) vm.setProp(opts.prop);

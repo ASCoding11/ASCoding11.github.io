@@ -88,9 +88,10 @@
     }
     return rings.concat(out);
   }
-  // vertex tints (linear multipliers of the glove map's 58, 60, 64): the knuckle panel a worn tan-grey (sRGB about 85, 83,
-  // 77) and the back seams a little lighter (about 92, 90, 86), so the back of the hand reads against the dark gun
-  const TINT = { panel: [2.1, 1.85, 1.45], rib: [2.6, 2.35, 1.9] };
+  // vertex tints (linear multipliers of the glove map's 47, 48, 50): the knuckle panel and the low ribs on the back a
+  // little lighter than the charcoal leather (sRGB about 70-75), so the back of the hand reads without the ribs looking
+  // like metal rods
+  const TINT = { panel: [1.4, 1.36, 1.28], rib: [1.6, 1.55, 1.45] };
   const tintOf = t => Array.isArray(t) ? t : [t || 1, t || 1, t || 1];
   function Builder(R) { this.R = R; this.pos = [[], []]; this.nrm = [[], []]; this.uv = [[], []]; this.idx = [[], []]; this.col = [[], []]; }
   Builder.prototype.tube = function (rings, o) {
@@ -144,7 +145,7 @@
         N.push(mirror ? -this.nrm[m][i] : this.nrm[m][i], this.nrm[m][i + 1], this.nrm[m][i + 2]);
       }
       for (let i = 0; i < this.uv[m].length; i++) U.push(this.uv[m][i]);
-      for (let i = 0; i < this.col[m].length; i++) { const t = this.col[m][i]; C.push(t[0], t[1], t[2], 1); }   // rgb tint, alpha (the sleeve's aimed fade)
+      for (let i = 0; i < this.col[m].length; i++) { const t = this.col[m][i]; C.push(t[0], t[1], t[2], 1); }   // rgb tint, alpha
       const ix = this.idx[m];
       for (let i = 0; i < ix.length; i += 3) { if (mirror) I.push(ix[i] + n0, ix[i + 2] + n0, ix[i + 1] + n0); else I.push(ix[i] + n0, ix[i + 1] + n0, ix[i + 2] + n0); }
       g.addGroup(i0, I.length - i0, m);
@@ -405,7 +406,7 @@
     for (const sx of [-0.021, -0.007, 0.007, 0.021]) {
       const pts = [];
       for (let i = 0; i <= 5; i++) { const y = 0.012 + i * 0.011; const x = sx * (0.75 + 0.25 * i / 5); pts.push(V(x - 0.0008, y, seamZ(y) - cup * 0.0015 * (x / 0.03) * (x / 0.03))); }
-      B.tube(cordRings(pts, 0.0022, V(0, 0, 1)), { radial: 6, capStart: true, tint: TINT.rib });
+      B.tube(cordRings(pts, 0.0015, V(0, 0, 1)), { radial: 6, capStart: true, tint: TINT.rib });
     }
     {
       const pr = [];
@@ -436,18 +437,6 @@
     return info;
   };
 
-  // the sleeve's aimed fade: vertex alpha (dithered by the sleeve material's alphaHash) falls from 1 at a0 to 0 at a1
-  // metres up the sleeve from the cuff, by k (0 none .. 1 full), so aimed the forearms melt away toward the eye
-  // instead of crossing the bottom of the view; the glove and the first few centimetres of wool stay
-  H.sleeveFade = function (g, k, a0, a1) {
-    const v0 = g.userData.sleeveV0; if (v0 == null) return;
-    const C = g.attributes.color, U = g.attributes.uv, n = C.count, A = C.array;
-    for (let i = v0; i < n; i++) {
-      const s = U.array[i * 2 + 1] / 12, x = Math.min(1, Math.max(0, (s - a0) / (a1 - a0)));
-      A[i * 4 + 3] = 1 - k * x * x * (3 - 2 * x);
-    }
-    C.needsUpdate = true;
-  };
   // per-vertex mix of two builds with the same topology into dst (positions and normals)
   H.blend = function (dst, a, b, k) {
     const P = dst.attributes.position.array, N = dst.attributes.normal.array, pa = a.attributes.position.array, pb = b.attributes.position.array, na = a.attributes.normal.array, nb = b.attributes.normal.array;
@@ -511,7 +500,7 @@
     const gloveC = canvasTex(W, W, d => {
       for (let i = 0; i < W * W; i++) {
         const m = mott[i], g = grain[i], k = 0.8 + m * 0.32 + (g - 0.5) * 0.06;
-        d[i * 4] = 58 * k; d[i * 4 + 1] = 60 * k; d[i * 4 + 2] = 64 * k; d[i * 4 + 3] = 255;
+        d[i * 4] = 47 * k; d[i * 4 + 1] = 48 * k; d[i * 4 + 2] = 50 * k; d[i * 4 + 3] = 255;
       }
     });
     gloveC.encoding = T.sRGBEncoding;
@@ -524,7 +513,7 @@
     const sleeveN = normalFromHeight(hw, W, W, 0.9);
     const sleeveC = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const k = 0.86 + wm[i] * 0.22 + (wn[i] - 0.5) * 0.06; d[i * 4] = 42 * k; d[i * 4 + 1] = 42 * k; d[i * 4 + 2] = 39 * k; d[i * 4 + 3] = 255; } });
     sleeveC.encoding = T.sRGBEncoding;
-    const sleeve = new T.MeshStandardMaterial({ name: 'vmSleeve', side: T.DoubleSide, vertexColors: true, alphaHash: true, map: sleeveC, normalMap: sleeveN, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
+    const sleeve = new T.MeshStandardMaterial({ name: 'vmSleeve', side: T.DoubleSide, vertexColors: true, map: sleeveC, normalMap: sleeveN, roughness: 0.95, metalness: 0, envMapIntensity: 0.35 });
     sleeve.normalScale.set(0.5, 0.5);
     MATS = { glove, sleeve };
     return MATS;
