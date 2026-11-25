@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Showcase traffic chart fixed": "Arreglado el gráfico de visitas de la vitrina",
+    "The visitors-per-day chart on the showcase page is readable again: a bot that loaded the page about 11,000 times in three days no longer counts as visitors.": "El gráfico de visitantes por día de la página de vitrina se puede leer otra vez: un bot que cargó la página unas 11.000 veces en tres días ya no cuenta como visitante.",
+    "The showcase now shows total engaged hours instead of the average engaged time.": "La vitrina ahora muestra el total de horas de uso activo en vez del tiempo medio.",
     "Putterby fixes": "Arreglos en Putterby",
     "Sliding gates no longer squash your ball through the rail and cost you an out-of-bounds stroke while you wait to putt.": "Las compuertas que se deslizan ya no empujan tu bola a través de la baranda ni te cuestan un golpe por salirte mientras esperas para tirar.",
     "On the daily hole, Card now shows the daily hole instead of an empty nine-hole card, and your result can't be closed by accident.": "En el hoyo del día, el botón Card ahora muestra el hoyo del día en vez de una tarjeta de nueve hoyos vacía, y tu resultado ya no se cierra por accidente.",
