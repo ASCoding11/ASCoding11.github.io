@@ -144,8 +144,8 @@
       const ex = e.pos.x - x0, ez = e.pos.z - z0, along = ex * ux + ez * uz;
       if (along < -2 || along > len + 2) continue;
       const lat = Math.abs(ex * uz - ez * ux); if (lat > 2.2) continue;
-      WP.spheres(e, sph);
-      for (const s of sph) { const t = segSphere(x0, y0, z0, ux, uy, uz, best, s[0], s[1], s[2], s[3]); if (t >= 0 && t < best) { best = t; hitEnt = e; hitZone = s[4]; } }
+      if (e !== b.spare) { WP.spheres(e, sph);
+      for (const s of sph) { const t = segSphere(x0, y0, z0, ux, uy, uz, best, s[0], s[1], s[2], s[3]); if (t >= 0 && t < best) { best = t; hitEnt = e; hitZone = s[4]; } } }   // spare: an enemy round rolled as a miss at this man (see ai.js shoot)
       // near miss: suppression and the crack of a passing round
       if (!hitEnt || hitEnt !== e) {
         const cx = e.pos.x, cy = e.pos.y + e.chestH(), cz = e.pos.z;

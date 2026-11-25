@@ -436,11 +436,13 @@
     const muz = e.weapon.userData.muzzle.getWorldPosition(new THREE.Vector3());
     const tp = targetPoint(tgt);
     // a hit lands on the body; only close in (under 20 m) can it stray up to the head, and never on a warning round
+    // a miss can never wound the man it was aimed at (spare): close in, his muzzle is almost inside you, so otherwise
+    // nearly any round he fires would land whatever the roll said; it still flies past, cracks and suppresses
     if (hit) { tp.y += d < 20 ? (Math.random() - 0.45) * 0.45 : (Math.random() - 0.6) * 0.35; }
     else { const a = Math.random() * 6.28, r = 0.7 + Math.random() * 2; tp.x += Math.cos(a) * r; tp.y += Math.sin(a) * r * 0.5 + 0.3; tp.z += Math.sin(a) * r; }
     const dx = tp.x - muz.x, dy = tp.y - muz.y, dz = tp.z - muz.z, l = Math.hypot(dx, dy, dz), v = 720;
     const dmg = e.kind === 'sniper' ? A.sniperDmg[diff()] : A.dmg[diff()] * (e.wkind === 'enemySmg' || e.wkind === 'pistol' ? A.smgDmg : 1) * (isP ? 1 : 0.6);
-    IV.weapons.spawnBullet({ x: muz.x, y: muz.y, z: muz.z, vx: dx / l * v, vy: dy / l * v + (l / v) * 4.9, vz: dz / l * v, drag: 0, dmg, flat: true, owner: e, team: 'them', tracer: !W.day && (e.kind === 'gunner' || Math.random() < 0.45), enemy: true, life: 1.4 });
+    IV.weapons.spawnBullet({ x: muz.x, y: muz.y, z: muz.z, vx: dx / l * v, vy: dy / l * v + (l / v) * 4.9, vz: dz / l * v, drag: 0, dmg, flat: true, owner: e, spare: hit ? null : tgt, team: 'them', tracer: !W.day && (e.kind === 'gunner' || Math.random() < 0.45), enemy: true, life: 1.4 });
     IV.fx.muzzle(muz.x, muz.y, muz.z, dx / l, dy / l, dz / l, e.kind !== 'officer');
     if (IV.weapons.gunShot) IV.weapons.gunShot(e.weapon, e.wkind); e.lastShotT = IV.time;
     IV.audio && IV.audio.play(e.kind === 'gunner' ? 'mg' : e.kind === 'officer' ? 'epistol' : e.kind === 'sniper' ? 'erifle' : (e.wkind === 'enemySmg' ? 'esmg' : 'erifle'), { x: muz.x, z: muz.z });
