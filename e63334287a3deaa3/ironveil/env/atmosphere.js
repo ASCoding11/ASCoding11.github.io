@@ -52,8 +52,8 @@
     // shapes with a lit edge toward it; the fill is lower than before so things have weight; haze separates the range,
     // the hedge line and the hills.
     day_overcast: {
-      skyTop: 0x6a7a8c, skyHor: 0xaeb4b7, ground: 0x4b4a44, fog: 0xa3a9ac, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
-      sunDir: [0.55, 0.36, -0.77], sunCol: 0xece0c8, sunI: 1.3, sunShadow: true, soft: 4, moon: 0, stars: 0, cloud: 0.8, cloudCol: 0x80868c, glow: 0.8, cscale: 0.75,
+      skyTop: 0x5f6f80, skyHor: 0xaeb4b7, ground: 0x4b4a44, fog: 0xa3a9ac, fogD: 0.0042, mist: 0.0, mistTop: 1.0,
+      sunDir: [0.55, 0.36, -0.77], sunCol: 0xece0c8, sunI: 1.3, sunShadow: true, soft: 4, moon: 0, stars: 0, cloud: 1.0, cloudCol: 0x6a7076, glow: 0.6, cscale: 0.75,
       hemiSky: 0xa3b3c6, hemiGround: 0x8a7f68, hemiI: 1.7, env: 0.8, exposure: 1.0, wind: 0.6, wet: 0.0, rain: 0, grade: 'day', rim: 0.08, cloudShadow: 1
     }
   };
