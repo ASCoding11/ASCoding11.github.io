@@ -6,6 +6,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A proper \"page not found\"": "Una página de \"no encontrada\" de verdad",
+    "A mistyped or old link now shows a \"Page not found\" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.": "Un enlace mal escrito o antiguo ahora muestra una página de \"Página no encontrada\" con botones para volver a la página de inicio, los juegos y las herramientas de estudio, en vez de un error sin más o la página de inicio.",
+    "It shows the address you tried, and has a button to tell us about the broken link.": "Muestra la dirección que intentaste abrir y tiene un botón para avisarnos del enlace roto.",
     "Showcase traffic chart fixed": "Arreglado el gráfico de visitas de la vitrina",
     "The visitors-per-day chart on the showcase page is readable again: a bot that loaded the page about 11,000 times in three days no longer counts as visitors.": "El gráfico de visitantes por día de la página de vitrina se puede leer otra vez: un bot que cargó la página unas 11.000 veces en tres días ya no cuenta como visitante.",
     "The showcase now shows total engaged hours instead of the average engaged time.": "La vitrina ahora muestra el total de horas de uso activo en vez del tiempo medio.",
