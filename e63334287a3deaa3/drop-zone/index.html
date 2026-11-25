@@ -2040,7 +2040,7 @@ skyDome.material.onBeforeCompile=sh=>{sh.uniforms.sSun={value:SUN_V_N()};sh.unif
       c+=vec3(1.,.9,.7)*(s16*s8*.22+s256*.6);
       // soft high cloud: smooth noise laid on a flat layer above, thinning toward the horizon, lit on the sun's side
       vec2 cp=d.xz/(d.y+.25);float cn=texture2D(sTex,cp*.17+sT*vec2(.0011,.0004)).g*.66+texture2D(sTex,cp*.5+vec2(.31,.17)-sT*vec2(.0007,.0013)).g*.34;
-      float ck=smoothstep(.57,.65,cn)*smoothstep(.06,.3,y);
+      float ck=smoothstep(.54,.68,cn)*smoothstep(.06,.3,y);   // (a wide, soft edge: a narrow one read as hard splotches)
       c=mix(c,mix(vec3(.78,.85,.94),vec3(1.,1.,.98),smoothstep(.57,.72,cn)*.8+s2*s*.3),ck*.92);
       c=mix(c,vec3(${new THREE.Color(SKY).toArray().map(v=>v.toFixed(3)).join(',')}),1.-smoothstep(-.02,.0,y));
       diffuseColor.rgb*=c;}`)};
@@ -4268,7 +4268,7 @@ function cbImpact(p,mt,d,v){const F=CB_FX[mt]||CB_FX.stone,near=p.distanceToSqua
     bit(p,v_,F.c[i%F.c.length],F.sz*(.7+Math.random()*.6),F.hot?.18+Math.random()*.12:.45+Math.random()*.3,F.hot?16:13)}
   if(F.du&&!RM)for(let i=0;i<2;i++)bit(p.clone().addScaledVector(d,-.1),rv(1.2,1.1),F.du,.2+Math.random()*.1,.5,-1)}
 // a shot landing on a player: a bigger star and a pop of confetti (blue off a shield, the player's own colour otherwise)
-function hitPop(p,hex,head){flash(p,null,head?0xffe36a:0xffffff,head?1.15:.85,.11);for(let i=0;i<(head?8:5);i++)bit(p,rv(6,5),i%2?hex:0xffffff,.1,.38,13)}
+function hitPop(p,hex,head){flash(p,null,head?0xffe36a:0xffffff,head?1.15:.85,.11);for(let i=0;i<(head?8:5);i++)bit(p,rv(6,5),i%2?hex:0xffffff,.1,.38,13);hitSpark(p,hex,head)}
 function debris(p,hex,n){for(let i=0;i<(n||8);i++)bit(p.clone().add(new V3((Math.random()-.5)*2.4,(Math.random()-.5)*2,(Math.random()-.5)*2.4)),new V3((Math.random()-.5)*5,Math.random()*5,(Math.random()-.5)*5),hex||0xc7955a,.35,.9,14)}
 // a knockout: a burst of stars, confetti in the player's colour and a few pale puffs that drift up (no mess)
 // (November 2026: a bigger pop: a white star inside a wider flash of the player's colour, confetti thrown up and a ring of
@@ -4327,6 +4327,10 @@ function drawBeams(dt){
       _o.position.set(k.x,k.y,k.z);_o.rotation.set(0,0,0);_o.scale.set(1.1+.5*(1-u),7+3*(1-u),.9*u*u);_o.updateMatrix();beamIM.setMatrixAt(n,_o.matrix);beamIM.setColorAt(n++,_col.setHex(k.hex))}}
   _o.scale.set(1,1,1);beamIM.count=n;beamIM.visible=n>0;if(n){beamIM.instanceMatrix.needsUpdate=true;beamIM.instanceColor.needsUpdate=true}
 }
+// A shot landing on a player (Pretty, not with reduced motion): a quick flat ring of fine sparks in the hit colour (shield
+// blue, the player's colour, gold on a headshot) on top of the usual pop, so a hit reads at fighting distance. Bits only.
+function hitSpark(p,hex,head){if(!lookOn||RM)return;const n=head?8:6,o=fxR()*6.283;
+  for(let i=0;i<n;i++){const a=o+i/n*6.283,v=7+fxR()*3;bit(p,new V3(Math.cos(a)*v,(fxR()-.3)*2.5,Math.sin(a)*v),head?(i%2?0xffe36a:0xfff6c8):(i%2?hex:0xffffff),.06,.16+fxR()*.06,4)}}
 // A build or an edit settling: a little pale dust kicked out along the piece's foot (Pretty, close by, not with reduced motion)
 function buildDust(s,edit){if(!lookOn||RM)return;const b=pieceBox(s),cx=(b.min[0]+b.max[0])/2,cz=(b.min[2]+b.max[2])/2;
   if((cx-camera.position.x)**2+(cz-camera.position.z)**2>40*40)return;
