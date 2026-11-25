@@ -2,6 +2,7 @@
  * Spanish for the What's new entries (news.js): their titles, tags and bullet points, in our own words. Game names
  * stay in English. news.js loads this file only while Spanish is on; lang.js translates the list as it appears.
  * When you add an entry to NEWS, add its lines here too (English: Spanish). A line with no Spanish shows in English.
+ * Pull requests put their Spanish in the entry's file in news/ (its "es"), and the merge adds it here.
  */
 (function () {
   if (!window.BackRoomLang) return;

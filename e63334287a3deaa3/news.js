@@ -13,8 +13,10 @@
  * (--accent, --panel, --ink…), so it fits the light Back Room page and the dark phone page.
  *
  * ---- Adding an entry ----
- * Add an object to the TOP of NEWS below (newest first) when your pull request changes
- * something players will notice:
+ * In a pull request, DON'T edit NEWS below: add your entry as its own file in news/ (see news/README.md). When the
+ * pull request is merged, a workflow gives it the next version and the merge date and puts it at the top of NEWS
+ * here in this same format, so open pull requests never conflict on these lines. Only a commit pushed straight to
+ * main (or a typo fix in an old entry) edits NEWS directly: add an object to the TOP (newest first):
  *
  *   {date: '2026-10-22', version: '1.7', title: 'Short headline', kind: 'game',
  *    games: ['Deepword'], items: ['One short sentence per change, in plain words.', '…']},
