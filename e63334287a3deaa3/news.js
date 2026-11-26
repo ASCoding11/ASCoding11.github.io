@@ -32,6 +32,9 @@
  *   version  a new game or a big feature bumps the minor number and drops the patch
  *            (1.6 -> 1.7, and 1.7.2 -> 1.8); a fix-only release adds or bumps a patch
  *            number (1.7 -> 1.7.1 -> 1.7.2). Never reuse a version.
+ *            From the winter update (27 November 2026) the numbers restart at 2.01 and count up the same way,
+ *            always with two digits in the middle: 2.01 -> 2.02 ... 2.09 -> 2.10, fixes 2.01.1, 2.01.2. Write
+ *            '2.01', never '2.1'. Entries before that keep their 1.x numbers.
  *            An entry added afterwards for something that already went out (like the four puzzle
  *            games of Oct 23) can leave version out; it then shows as just "New game".
  *   title    a few words; it's what the strip shows while it's the latest entry
@@ -87,6 +90,23 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '1.61', title: 'Top player badges: 3 per player', kind: 'feature',
+     tags: ['Leaderboards', 'Badges'], items: [
+      'One player can now hold at most 3 of the small Top player shields at a time.',
+      'If you are first in more than 3 games, you are still first on every one of those boards. The 3 that count are the first 3 in the Leaderboards\' game order.',
+      'The other games\' shields go to nobody: they don\'t pass to second place.',
+      'Each game\'s main board tells you whether that one counts for you and which 3 do.']},
+    {date: '2026-11-26', version: '1.60', title: 'Fourteen quiet puzzles retired', kind: 'feature',
+     tags: ['Daily puzzles', 'Leaderboards'], items: [
+      'Fourteen daily puzzles hardly anyone played have left the Back Room: Top Bins, Crosslet, Outline, Sleight, Scout Report, Teamsheet, Deadline Day, Crossbar, Journeyman, Stat Duel, Quartets, Unfurl, Overland and Back Four.',
+      'They came off the puzzle lists on 18 November. Now their boards are out of the Leaderboards menu too, and their top-player badges and weekly titles have ended.',
+      'Your saved progress is kept, your daily streak is not affected, and an old link or bookmark to one of them still opens it.']},
+    {date: '2026-11-26', version: '1.59', title: 'New game: Leaf Sweep', kind: 'game',
+     games: ['Leaf Sweep:windrow'], img: 'm/thumbs/windrow.jpg', tags: ['Leaf Sweep', 'Garden sim'], items: [
+      'Leaf Sweep: a calm first-person game where you clear autumn leaves out of five walled gardens.',
+      'Every leaf is real: gather them into your sack, drag them with the rake or push them with the blower.',
+      'Earn acorns at compost bins and mulch chutes, then buy better tools and open the next gate.',
+      'Works on phones too, and your gardens save themselves.']},
     {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
      tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
       'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',

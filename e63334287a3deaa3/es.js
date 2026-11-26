@@ -72,7 +72,7 @@
   L.add(
   {
     "ou found it": "a lo encontraste",
-    "Thirty-one games and ten daily puzzles that aren't on the main site.": "Treinta y un juegos y diez puzles diarios que no están en el sitio principal.",
+    "Thirty games and ten daily puzzles that aren't on the main site.": "Treinta juegos y diez puzles diarios que no están en el sitio principal.",
     "On a phone? Open the phone version →": "¿En el celular? Abre la versión para celular →",
     "Every game, made for touch, and you can add it to your home screen.": "Todos los juegos, hechos para pantallas táctiles, y puedes agregarla a tu pantalla de inicio.",
     "Cars": "Autos",
