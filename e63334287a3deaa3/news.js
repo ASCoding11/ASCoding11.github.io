@@ -87,6 +87,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-25', version: '1.56', title: 'Blackwade: it hunts every hall', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'The monster follows you into every hall and comes up out of the water ahead of you soon after you arrive, so you know it\'s there.',
+      'The water gives you away: going in is heard across the whole hall, and every step you wade calls it closer.',
+      'It gets a little sharper each hall further in: it hears farther, reacts faster and moves quicker. Easy stays gentle; Hard does not.',
+      'Standing still and quiet on a tile is still safe, and pebbles, bottles, toys and flares pull it away.'
+    ]},
     {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
      tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
       'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
