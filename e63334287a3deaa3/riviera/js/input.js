@@ -19,8 +19,11 @@
   var state = {}, prev = {}, now = {};
   function set(a, v) { state[a] = v; }
   I.down = function (a) { return !!now[a]; };
-  I.pressed = function (a) { return !!now[a] && !prev[a]; };
-  I.released = function (a) { return !now[a] && !!prev[a]; };
+  // edges are latched until a simulation step has run (RP.In.clearEdges), so a quick tap on a frame with no step isn't lost
+  var edgeP = {}, edgeR = {};
+  I.pressed = function (a) { return !!edgeP[a]; };
+  I.released = function (a) { return !!edgeR[a]; };
+  I.clearEdges = function () { edgeP = {}; edgeR = {}; };
   I.consume = function (a) { prev[a] = now[a]; };
 
   I.init = function (canvas) {
@@ -105,6 +108,7 @@
     for (k in state) now[k] = state[k];
     for (k in touch.btn) if (touch.btn[k]) now[k] = true;
     I._now = now;
+    I._edges = function () { for (var k in now) if (now[k] && !prev[k]) edgeP[k] = true; for (k in prev) if (prev[k] && !now[k]) edgeR[k] = true; };
     if (now.aimfire) { now.aim = true; now.fire = true; }
     var mx = (now.right ? 1 : 0) - (now.left ? 1 : 0), my = (now.up ? 1 : 0) - (now.down ? 1 : 0);
     var L = Math.hypot(mx, my); if (L > 1) { mx /= L; my /= L; }

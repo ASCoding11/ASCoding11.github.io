@@ -18,7 +18,7 @@
   RP.missions.register({
     id: 'villa', num: 1, title: 'Lemon Light', where: 'Villa Calcara, Amalfi · dusk',
     blurb: 'Halcyon Group\'s fixer is hosting a party on the terrace of Villa Calcara. His ledger of payments sits in the study. Slip in from the lemon terraces, take it, and leave by the cliff steps. Going unseen earns the Ghost rating.',
-    atmos: 'dusk', night: true, start: { x: -146, z: -14, y: 16.5, yaw: -2.6 }, alert: true,
+    atmos: 'dusk', night: true, start: { x: -146, z: -14, y: 16.5, yaw: -0.65 }, alert: true,
     loadout: { knife: 0, corsa: 45, vespa: 96, smoke: 2, frag: 1, _start: 'corsa' },
     spawns: [{ x: -128, z: 31 }, { x: -150, z: -10 }, { x: -92, z: 35 }, { x: -176, z: 2 }],
     setup: function (m) {

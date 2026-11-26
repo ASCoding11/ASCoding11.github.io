@@ -405,7 +405,7 @@
     var mz = g.model ? g.model.userData.muzzle.getWorldPosition(_m) : g.actor.chest(_m);
     // hit chance: accuracy x distance x player speed x cover x warm-up
     var range = d.range ? d.range[1] : 40;
-    var pk = g.ty.acc * df.acc * M.clamp(1.15 - dP / (range * 1.2), 0.15, 1) * (p.speed > 4 ? 0.55 : p.speed > 1.8 ? 0.75 : 1) * (p.state === 'cover' ? 0.55 : 1) * (p.state === 'roll' ? 0.3 : 1) * Math.min(1, (RP.G.time - g.lastSeenT < 0.1 ? 0.5 : 0.5) + g.burst * 0.12);
+    var pk = 0.75 * g.ty.acc * df.acc * M.clamp(1.15 - dP / (range * 1.2), 0.15, 1) * (p.speed > 4 ? 0.55 : p.speed > 1.8 ? 0.75 : 1) * (p.state === 'cover' ? 0.55 : 1) * (p.state === 'roll' ? 0.3 : 1) * Math.min(1, (RP.G.time - g.lastSeenT < 0.1 ? 0.5 : 0.5) + g.burst * 0.12);
     var tgt = p.actor.chest(new T.Vector3());
     if (Math.random() > pk) {
       // a near miss: somewhere round the player
@@ -413,7 +413,7 @@
       tgt.add(off);
     }
     var dir = tgt.sub(mz).normalize();
-    RP.Combat.fire(g, mz.clone(), dir, d, { spread: 0.4, dmgMul: 0.8 });
+    RP.Combat.fire(g, mz.clone(), dir, d, { spread: 0.4, dmgMul: 0.5 });
     RP.FX.muzzle(mz, dir, d.dmg > 50 || d.pellets);
     RP.Audio.shot(d.snd, mz.clone(), { gain: 0.9 });
     g.actor.playUpper(d.oneHand ? 'firePistol' : 'fire', { fade: 0.03, speed: 1.3 });

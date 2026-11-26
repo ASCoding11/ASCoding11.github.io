@@ -427,7 +427,7 @@
         .replace('#include <normal_fragment_maps>', '#ifdef USE_NORMALMAP\n vec3 nmA = texture2D(normalMap, vWP.zy*0.11).xyz*2.0-1.0; vec3 nmB = texture2D(normalMap, vWP.xz*0.09).xyz*2.0-1.0; vec3 nmC = texture2D(normalMap, vWP.xy*0.11).xyz*2.0-1.0;\n vec3 bwn = pow(abs(vWN), vec3(4.0)); bwn /= (bwn.x+bwn.y+bwn.z);\n vec3 wn = normalize(vWN + (vec3(0.0, nmA.y, nmA.x)*bwn.x + vec3(nmB.x, 0.0, nmB.y)*bwn.y + vec3(nmC.x, nmC.y, 0.0)*bwn.z) * 0.6);\n normal = normalize((viewMatrix * vec4(wn, 0.0)).xyz);\n#endif');
     };
     mat.customProgramCacheKey = function () { return 'terrain-tri'; };
-    var m = new T.Mesh(g, mat); m.receiveShadow = true; m.castShadow = RP.R.q.shadow > 0;
+    var m = new T.Mesh(g, mat); m.receiveShadow = true; m.castShadow = false;   // the hills would double the shadow pass for little gain
     m.matrixAutoUpdate = false;
     RP.R.scene.add(m);
     return m;

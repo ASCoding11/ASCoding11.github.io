@@ -636,10 +636,10 @@
     if (HWG) return HWG;
     HWG = {};
     // short hair: a skull cap that follows the head (front hairline lifted)
-    var hair = new T.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62);
+    var hair = new T.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
     var p = hair.attributes.position;
     for (var i = 0; i < p.count; i++) { var x = p.getX(i), y = p.getY(i), z = p.getZ(i); if (z > 0.3) p.setY(i, y + (z - 0.3) * 0.35); }
-    hair.scale(0.104, 0.1, 0.118); hair.computeVertexNormals(); HWG.hair = hair;
+    hair.scale(0.096, 0.085, 0.108); hair.computeVertexNormals(); HWG.hair = hair;
     var beanie = new T.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55); beanie.scale(0.112, 0.125, 0.122); HWG.beanie = beanie;
     var cap = new T.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.52); cap.scale(0.11, 0.1, 0.12);
     var brim = new T.CylinderGeometry(0.09, 0.09, 0.008, 16, 1, false, -Math.PI / 2, Math.PI); brim.scale(1, 1, 0.9); brim.translate(0, 0.005, 0.07);

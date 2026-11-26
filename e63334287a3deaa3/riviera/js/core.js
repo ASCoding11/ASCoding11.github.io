@@ -47,7 +47,7 @@
     regenRate: 6,              // hp/s
     // camera
     camDist: 3.1, camHeight: 1.62, camShoulder: 0.62, camFov: 62,
-    aimDist: 1.45, aimShoulder: 0.58, aimFov: 46, aimHeight: 1.6,
+    aimDist: 1.85, aimShoulder: 0.62, aimFov: 46, aimHeight: 1.6,
     sprintDist: 3.5, sprintFov: 68,
     coverDist: 2.7,
     sens: 0.0023,              // rad per mouse pixel

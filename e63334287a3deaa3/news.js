@@ -85,6 +85,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '1.55', title: 'New game: Riviera Protocol', kind: 'game',
+     games: ['Riviera Protocol:riviera'], img: 'm/thumbs/riviera.jpg', tags: ['Spy action', 'Single player', 'Stealth'],
+     items: [
+      'A secret agent game set in a hand-built Amalfi: the cathedral steps, pastel houses up the cliffs, the harbour and the coast road.',
+      'Two story missions: sneak into a villa party at dusk to steal a ledger, then a firefight in Piazza Duomo. Plus free roam of the whole town.',
+      'Take cover, aim over the shoulder, roll, vault, climb, brawl, and pick from eight kinds of weapons on a wheel.',
+      'Guards see and hear you and call for help; an alert level brings more of them until you break away. Bystanders run for cover and can\'t be hurt.']},
     {date: '2026-11-25', version: '1.51.3', title: 'A proper "page not found"', kind: 'fix',
      items: [
       'A mistyped or old link now shows a "Page not found" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.',

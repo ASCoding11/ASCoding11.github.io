@@ -215,6 +215,7 @@
   }
   function tick(dt) {
     RP.In.update(dt);
+    RP.In._edges();
     var p = G.player;
     if (G.running && p) {
       if (RP.In.pressed('pause')) pause(!G.paused);
@@ -225,6 +226,7 @@
         acc += sdt; var n = 0;
         while (acc >= STEP && n < 6) { simStep(STEP); acc -= STEP; n++; }
         if (n >= 6) acc = 0;
+        if (n > 0) RP.In.clearEdges();
         RP.Cam.update(dt, p);
         RP.Player.frame(p, sdt);
         RP.AI.frame(sdt);
@@ -236,9 +238,10 @@
       }
       R.followSun(p.pos);
     } else if (!G.running) { menuCamera(dt); RP.FX.update(dt); }
+    if (!G.running || G.paused) RP.In.clearEdges();
     RP.windU.value += dt;
     RP.Sea.update(G.time + (G.running ? 0 : performance.now() / 1000), R.camera);
-    R.draw(dt);
+    if (!RP._noDraw) R.draw(dt);
     perf(dt);
   }
   function simStep(dt) {
@@ -304,6 +307,7 @@
     window.__RP__ = {
       start: function (id, step) { Run.start(id, step); return true; },
       step: function (n, dt) { dt = dt || 1 / 60; for (var i = 0; i < (n || 1); i++) { for (var k in held) RP._fake[k] = held[k]; tick(dt); } return this.state(); },
+      sim: function (n) { RP._noDraw = true; try { this.step(n); } finally { RP._noDraw = false; } this.step(1); return this.state(); },
       press: function (a, on) { held[a] = on; RP._fake = RP._fake || {}; RP._fake[a] = on; },
       move: function (x, y) { RP._fakeMove = { x: x, y: y }; },
       look: function (dx, dy) { RP.In.mouseDX += dx; RP.In.mouseDY += dy; },

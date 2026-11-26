@@ -6,6 +6,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "New game: Riviera Protocol": "Juego nuevo: Riviera Protocol",
+    "Spy action": "Acción de espías", "Single player": "Un jugador", "Stealth": "Sigilo",
+    "A secret agent game set in a hand-built Amalfi: the cathedral steps, pastel houses up the cliffs, the harbour and the coast road.": "Un juego de agente secreto en una Amalfi hecha a mano: las escaleras de la catedral, casas de colores pastel en los acantilados, el puerto y la carretera de la costa.",
+    "Two story missions: sneak into a villa party at dusk to steal a ledger, then a firefight in Piazza Duomo. Plus free roam of the whole town.": "Dos misiones de historia: cuélate al atardecer en una fiesta en una villa para robar un libro de cuentas, y luego un tiroteo en la Piazza Duomo. Además, recorre libremente todo el pueblo.",
+    "Take cover, aim over the shoulder, roll, vault, climb, brawl, and pick from eight kinds of weapons on a wheel.": "Cúbrete, apunta por encima del hombro, rueda, salta muros, trepa, pelea y elige entre ocho tipos de armas en una rueda.",
+    "Guards see and hear you and call for help; an alert level brings more of them until you break away. Bystanders run for cover and can't be hurt.": "Los guardias te ven, te oyen y piden ayuda; un nivel de alerta trae a más hasta que logras escapar. Los transeúntes corren a esconderse y no pueden salir heridos.",
     "A proper \"page not found\"": "Una página de \"no encontrada\" de verdad",
     "A mistyped or old link now shows a \"Page not found\" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.": "Un enlace mal escrito o antiguo ahora muestra una página de \"Página no encontrada\" con botones para volver a la página de inicio, los juegos y las herramientas de estudio, en vez de un error sin más o la página de inicio.",
     "It shows the address you tried, and has a button to tell us about the broken link.": "Muestra la dirección que intentaste abrir y tiene un botón para avisarnos del enlace roto.",

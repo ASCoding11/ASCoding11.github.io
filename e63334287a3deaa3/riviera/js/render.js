@@ -22,7 +22,8 @@
 
   // ------------------------------------------------------------------ renderer
   R.init = function (canvas) {
-    var name = RP.settings.quality;
+    var name = RP.settings.quality, qm = /[?&]q=(low|medium|high)/.exec(location.search);
+    if (qm) name = qm[1];
     if (!Q[name]) name = RP.touch ? 'low' : 'medium';
     R.qname = name; R.q = Q[name];
     var r = R.renderer = new T.WebGLRenderer({ canvas: canvas, antialias: R.q.aa, powerPreference: 'high-performance', stencil: false, preserveDrawingBuffer: !!RP.test });
@@ -102,13 +103,13 @@
   // atmosphere presets: colours authored in sRGB
   R.ATMOS = {
     afternoon: { sun: [0.55, 0.42, 0.62], sunCol: '#fff0d6', sunI: 2.6, zenith: '#3f7fd1', horizon: '#cfe0ee', ground: '#6d7b86',
-      hemiSky: '#c4dcff', hemiGround: '#9a8466', hemiI: 0.5, fog: '#c3d3e2', fogD: 0.0017, haze: 1, exposure: 0.82,
+      hemiSky: '#d2e0f5', hemiGround: '#b89b78', hemiI: 0.95, fog: '#c3d3e2', fogD: 0.0017, haze: 1, exposure: 0.82,
       grade: { sat: 1.14, warm: 0.04, cool: 0.04, lift: 0.008, contrast: 1.08 } },
     golden: { sun: [-0.62, 0.2, 0.56], sunCol: '#ffc98e', sunI: 2.5, zenith: '#4a78bf', horizon: '#f3d2ad', ground: '#6b6058',
-      hemiSky: '#b9c9ea', hemiGround: '#a57d5a', hemiI: 0.55, fog: '#e9cfb2', fogD: 0.0022, haze: 1.5, exposure: 1.02,
+      hemiSky: '#d6dbe8', hemiGround: '#c29a72', hemiI: 0.95, fog: '#e9cfb2', fogD: 0.0022, haze: 1.5, exposure: 1.02,
       grade: { sat: 1.12, warm: 0.08, cool: 0.05, lift: 0.015, contrast: 1.06 } },
-    dusk: { sun: [-0.72, 0.035, 0.42], sunCol: '#ff9a63', sunI: 1.2, zenith: '#223a6e', horizon: '#e79a74', ground: '#3b3440',
-      hemiSky: '#6d7fb8', hemiGround: '#5b4636', hemiI: 0.5, fog: '#9c8a96', fogD: 0.0026, haze: 2, exposure: 1.18,
+    dusk: { sun: [-0.72, 0.1, 0.42], sunCol: '#ffb07a', sunI: 1.9, zenith: '#2c4a86', horizon: '#f0a47a', ground: '#4a4250',
+      hemiSky: '#a3acd6', hemiGround: '#9a7458', hemiI: 1.05, fog: '#b8a2a0', fogD: 0.0022, haze: 2, exposure: 1.3,
       grade: { sat: 1.1, warm: 0.06, cool: 0.1, lift: 0.02, contrast: 1.05 } }
   };
 
