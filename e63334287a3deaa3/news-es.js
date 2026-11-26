@@ -7,6 +7,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Leaf Sweep: a new start": "Leaf Sweep: un nuevo comienzo",
+    "Leaf Sweep": "Leaf Sweep",
+    "Leaf Sweep now starts in a small front yard by a garden house, with just your hands and one thing to do at a time.": "Leaf Sweep ahora empieza en un pequeño jardín delantero junto a una casa, solo con tus manos y una cosa por hacer a la vez.",
+    "Clear the yard and the gate to the big gardens opens. The rake arrives in the first couple of minutes.": "Limpia el jardín y se abre el portón a los jardines grandes. El rastrillo llega en los primeros minutos.",
+    "New look: a house, fuller trees, soft shadows, a real sky, and gloves that actually hold the rake and blower.": "Nuevo aspecto: una casa, árboles más frondosos, sombras suaves, un cielo de verdad y guantes que realmente sostienen el rastrillo y la sopladora.",
+    "Leaves fly in the blower's wind and burst when you jump into a heap. Your old progress is kept.": "Las hojas vuelan con el viento de la sopladora y saltan cuando te lanzas a un montón. Tu progreso anterior se conserva.",
     "Chromeline: one button and 26 new pieces": "Chromeline: un solo botón y 26 piezas nuevas",
     "Chromeline": "Chromeline",
     "Chromeline is now one button: hold to ride on the ground, hold in the air to flip backwards, let go to stop the spin. The arrow keys and the two round touch buttons are gone.": "Chromeline ahora se juega con un solo botón: mantén para avanzar en el suelo, mantén en el aire para girar hacia atrás y suelta para frenar el giro. Ya no están las flechas ni los dos botones redondos táctiles.",

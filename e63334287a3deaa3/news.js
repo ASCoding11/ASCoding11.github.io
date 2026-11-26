@@ -90,6 +90,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.03', title: 'Leaf Sweep: a new start', kind: 'feature',
+     img: 'm/thumbs/windrow.jpg', tags: ['Leaf Sweep'], items: [
+      'Leaf Sweep now starts in a small front yard by a garden house, with just your hands and one thing to do at a time.',
+      'Clear the yard and the gate to the big gardens opens. The rake arrives in the first couple of minutes.',
+      'New look: a house, fuller trees, soft shadows, a real sky, and gloves that actually hold the rake and blower.',
+      'Leaves fly in the blower\'s wind and burst when you jump into a heap. Your old progress is kept.']},
     {date: '2026-11-26', version: '2.02', title: 'Chromeline: one button and 26 new pieces', kind: 'feature',
      tags: ['Chromeline'], items: [
       'Chromeline is now one button: hold to ride on the ground, hold in the air to flip backwards, let go to stop the spin. The arrow keys and the two round touch buttons are gone.',
