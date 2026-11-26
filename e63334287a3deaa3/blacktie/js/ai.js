@@ -326,8 +326,8 @@
     if (!seen && lastT > 9) { g.state = 'search'; g.cover = null; if (Math.random() < 0.5) say(g, 'lost'); return; }
     // reload
     if (g.mag <= 0) {
-      if (g.reloadT <= 0) { g.reloadT = d.reload * 1.3; g.actor.playUpper('reload', { speed: 2.4 / g.reloadT }); if (Math.random() < 0.4) say(g, 'reload'); RP.Audio.mech('magOut', g.pos); }
-      g.reloadT -= dt;
+      if (g.reloadT <= 0) { g.reloadT = d.reload * 1.3; g.reloadT0 = g.reloadT; if (Math.random() < 0.4) say(g, 'reload'); RP.Audio.mech('magOut', g.pos); }
+      g.reloadT -= dt; g.actor.reloadU = g.reloadT > 0 && g.reloadT0 ? 1 - g.reloadT / g.reloadT0 : -1;
       if (g.reloadT <= 0) { g.mag = d.mag; RP.Audio.mech('magIn', g.pos); }
     }
     // melee up close

@@ -574,8 +574,7 @@
     var d = def(p), inv = p.inv[p.cur]; if (!d.mag || inv.mag >= d.mag || inv.reserve <= 0 || p.reload) return;
     var r = p.reload = { type: d.rtype, t: 0, dur: d.reload, ev: 0, heavy: d.rtype === 'belt' };
     if (r.type === 'shell') { r.per = d.reload; p.actor.move('shellLoad', { speed: 0.48 / r.per }); }
-    else if (r.type === 'revolver') { r.dur = d.reload; p.actor.playUpper('reload', { speed: 2.4 / r.dur, fade: 0.12 }); }
-    else p.actor.playUpper('reload', { speed: 2.4 / r.dur, fade: 0.12 });
+    else if (r.type === 'revolver') r.dur = d.reload;   // the hands are driven by the actor's reload path (chars.js)
     RP.emit('reload', p);
   }
   function stepReload(p, dt) {
@@ -765,6 +764,12 @@
     }
     if (!(cv && p.cover.blind) && a.moveOf('blindFire')) a.endMove('blindFire');
     a.weaponAim = aimingPose ? 1 : 0; a.weaponPitch = RP.Cam.pitch;
+    a.reloadU = p.reload && !p.swap ? (p.reload.type === 'shell' ? p.reload.t / p.reload.per : p.reload.t / p.reload.dur) : -1;
+    a.airborne = p.state === 'air' || p.state === 'vault' || p.state === 'climb' || p.state === 'roll';
+    // braking: letting go of the stick at a run plants a foot and leans back
+    var moving = p.speed > 3.2 && p.state === 'move';
+    if (p._wasFast && p.state === 'move' && p.accel < -6 && p.speed < 3 && !a.moveOf('brake') && !p.melee) a.move('brake', { stack: true });
+    p._wasFast = moving;
     a.drive({ speed: p.speed, dir: p.moveDir || 0, strafe: (p.aiming || p.hipT > 0 || cv || fighting) ? 1 : 0, stealth: stealthW,
       sprint: p.sprinting ? 1 : 0, turnRate: p.turnRate || 0, accel: p.accel || 0 });
     // aim offsets: pitch from the camera, yaw from the gap between body and crosshair

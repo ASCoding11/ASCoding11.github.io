@@ -14,7 +14,7 @@
   var IT = RP.Items = { list: [] };
   var TOUCH_R = 1.0, PROMPT_R = 1.6, GRAV = 9.8;
 
-  IT.clear = function () { IT.list.forEach(function (it) { if (it.g.parent) it.g.parent.remove(it.g); }); IT.list = []; };
+  IT.clear = function () { IT.list.forEach(function (it) { if (it.g.parent) it.g.parent.remove(it.g); if (it.hl && it.hl.parent) it.hl.parent.remove(it.hl); }); IT.list = []; (IT.debrisList || []).forEach(function (d) { d.g.parent && d.g.parent.remove(d.g); }); IT.debrisList = []; };
 
   function ring(col) {
     var m = new T.Mesh(new T.RingGeometry(0.36, 0.42, 28), new T.MeshBasicMaterial({ color: RP.col(col).multiplyScalar(1.6), transparent: true, opacity: 0.5, side: T.DoubleSide, depthWrite: false }));
@@ -109,11 +109,32 @@
   };
   function remove(it) { it.gone = true; if (it.g.parent) it.g.parent.remove(it.g); if (it.hl && it.hl.parent) it.hl.parent.remove(it.hl); }
 
+  // small things that fall and vanish (an empty magazine): a copy of the object, from a world position
+  IT.debrisList = [];
+  IT.debris = function (obj, worldPos) {
+    if (IT.debrisList.length > 12) { var o = IT.debrisList.shift(); o.g.parent && o.g.parent.remove(o.g); }
+    var g = obj.clone(true); obj.getWorldQuaternion(g.quaternion); g.position.copy(worldPos); g.visible = true;
+    RP.R.scene.add(g);
+    IT.debrisList.push({ g: g, vy: -0.4, t: 0, sx: (Math.random() - 0.5) * 6 });
+  };
+  function stepDebris(dt) {
+    for (var i = 0; i < IT.debrisList.length; i++) {
+      var d = IT.debrisList[i]; d.t += dt;
+      if (!d.rest) {
+        d.vy -= GRAV * dt; d.g.position.y += d.vy * dt; d.g.rotation.x += d.sx * dt;
+        var gy = W.ground(d.g.position.x, d.g.position.z, d.g.position.y + 0.4).y + 0.02;
+        if (d.g.position.y <= gy) { d.g.position.y = gy; d.rest = true; d.g.rotation.set(Math.PI / 2, d.g.rotation.y, 0); RP.Audio.mech && RP.Audio.mech('shell', d.g.position); }
+      }
+      if (d.t > 20) { d.g.parent && d.g.parent.remove(d.g); d.gone = true; }
+    }
+    IT.debrisList = IT.debrisList.filter(function (d) { return !d.gone; });
+  }
   // ---- per frame
   var _q = new T.Quaternion(), _q2 = new T.Quaternion(), _e = new T.Euler();
   IT.near = null;
   IT.update = function (dt) {
     var p = RP.G.player, best = null, bd = 1e9;
+    stepDebris(dt);
     for (var i = 0; i < IT.list.length; i++) {
       var it = IT.list[i]; if (it.gone) continue;
       it.t += dt;

@@ -249,6 +249,8 @@
   // that the combat code reads, and a recovery end.
   var D = Math.PI / 180;
   var MOVES = {
+    // braking from a run: plant, lean back, settle
+    brake: { dur: 0.42, keys: [[0, {}], [0.12, { spine_01: [['x', -9 * D]], spine_02: [['x', -5 * D]], thigh_r: [['x', -22 * D]], calf_r: [['x', 12 * D]], thigh_l: [['x', 8 * D]], calf_l: [['x', 18 * D]], root: [['lift', -0.05]], upperarm_l: [['x', -14 * D]], upperarm_r: [['x', -14 * D]] }], [0.42, {}]] },
     jab: { dur: 0.42, hit: [0.1, 0.18], keys: [
       [0, {}],
       [0.08, { spine_02: [['y', 12 * D]], upperarm_r: [['x', 10 * D]] }],
@@ -722,9 +724,38 @@
       else want = aimingPose ? 1 : 0;
       if (this.lhWant != null) want = this.lhWant;
       if (this.moves.length) want *= 0.25;
-      if (this.reloading) want = 0;
     }
     this.lhW = this._snap ? want : M.approach(this.lhW, want, 7, dt);
+    // reloading: the gun tips up and rolls a little in the right hand, and the left hand works the magazine by IK:
+    // to the magazine well, down to the belt with the old one (it drops), back up with a fresh one, home to the grip
+    var ru = this.reloadU == null ? -1 : this.reloadU, mag = held && held.userData.mag;
+    if (mag && (ru < 0 || !held)) { if (mag.userData.out) { mag.position.set(0, 0, 0); mag.visible = true; mag.userData.out = false; } }
+    if (ru >= 0 && held && !held.userData.oneHandMelee && b.upperarm_l) {
+      var bell = Math.sin(Math.min(1, ru / 0.9) * Math.PI);
+      rotWorld(b.hand_r, _q.setFromAxisAngle(_lhD.set(0, 0, 1).applyQuaternion(held.getWorldQuaternion(_wq)), -0.45 * bell));
+      rotWorld(b.lowerarm_r, _q.setFromAxisAngle(ax.x, -0.3 * bell));
+      held.updateMatrixWorld(true);
+      // points: the well (on the gun), the belt (on the body), home (fore-grip or pistol support)
+      var well = _rlA, belt = _rlB, home = _rlC, pist = held.userData.oneHand;
+      if (mag) { if (!mag.userData.c) { mag.userData.c = new T.Box3().setFromObject(mag).getCenter(new T.Vector3()); held.worldToLocal(mag.userData.c); mag.userData.c.y -= 0.03; } well.copy(mag.userData.c); }
+      else well.set(0, pist ? 0.03 : 0.02, pist ? 0.02 : 0.1);
+      well.applyMatrix4(held.matrixWorld);
+      belt.set(0.2, this.height * 0.56, 0.1).applyMatrix4(this.root.matrixWorld);
+      if (held.userData.gripL) held.userData.gripL.getWorldPosition(home); else home.set(0.034, -0.045, -0.01).applyMatrix4(held.matrixWorld);
+      var tp2 = _lhT, s1 = M.smooth(M.clamp(ru / 0.2, 0, 1)), s2 = M.smooth(M.clamp((ru - 0.22) / 0.2, 0, 1)), s3 = M.smooth(M.clamp((ru - 0.44) / 0.18, 0, 1)), s4 = M.smooth(M.clamp((ru - 0.7) / 0.25, 0, 1));
+      tp2.copy(home).lerp(well, s1).lerp(belt, s2 * (1 - s3)).lerp(home, s4);
+      b.upperarm_l.getWorldPosition(_lhP); _lhP.add(_lhD.set(0.45, -0.9, -0.15).applyQuaternion(this.root.quaternion));
+      ikPole(b.upperarm_l, b.lowerarm_l, b.hand_l, tp2, _lhP, 1);
+      this.lhW = 1;
+      if (mag) {
+        var inHand = ru > 0.2 && ru < 0.62;
+        if (inHand) {
+          if (!mag.userData.out) { mag.userData.out = true; if (RP.Items && RP.Items.debris && this.lodLevel === 0) RP.Items.debris(mag, well); }
+          mag.visible = ru > 0.42;      // the fresh magazine appears at the belt
+          if (mag.visible) { _rlA.copy(tp2); held.worldToLocal(_rlA); mag.position.copy(_rlA).sub(mag.userData.c); }
+        } else if (mag.userData.out) { mag.userData.out = false; mag.visible = true; mag.position.set(0, 0, 0); }
+      }
+    } else
     if (this.lhW > 0.02 && held && b.upperarm_l) {
       held.updateMatrixWorld(true);
       var tp = _lhT;
@@ -736,8 +767,40 @@
       _lhP.add(_lhD.set(0.45, -0.9, -0.15).applyQuaternion(rq2));
       ikPole(b.upperarm_l, b.lowerarm_l, b.hand_l, tp, _lhP, this.lhW);
     }
+    this._feet(dt, F);
   };
-  var _lhT = new T.Vector3(), _lhP = new T.Vector3(), _lhD = new T.Vector3();
+  // Feet on the real ground: each foot is dropped or raised to the surface under it (stairs, kerbs, slopes), the hips
+  // come down so the lower foot can reach, and each leg is re-solved with the knee kept pointing forward. Only for
+  // people near the camera who are standing or moving on the ground (not rolling, vaulting, falling or ragdolled).
+  var _fp = new T.Vector3(), _ft = new T.Vector3(), _fk = new T.Vector3(), _fg = {};
+  AP._feet = function (dt, F) {
+    var b = this.bones;
+    if (!RP.W || !b.foot_l || this.noFootIK || this.lodLevel > 0 || F > 0.4 || this.airborne) { this._pelOff = 0; this._fd = null; return; }
+    for (var i = 0; i < this.moves.length; i++) if (this.moves[i].def.spinRoot || this.moves[i].name === 'climb') return;
+    var fd = this._fd || (this._fd = { l: 0, r: 0 }), ry = this.root.position.y, sides = ['l', 'r'], k = this._snap ? 1 : Math.min(1, dt * 16);
+    for (i = 0; i < 2; i++) {
+      var s = sides[i]; b['foot_' + s].getWorldPosition(_fp);
+      var g = RP.W.ground(_fp.x, _fp.z, ry + 0.55, 0.05, _fg).y;
+      var d = M.clamp(g - ry, -0.5, 0.5);
+      if (_fp.y - ry > 0.25) d *= 0.4;                 // a foot swinging high through the air mostly keeps its arc
+      fd[s] += (d - fd[s]) * k;
+    }
+    var po = Math.min(fd.l, fd.r, 0);
+    this._pelOff = po;
+    if (Math.abs(fd.l) < 0.004 && Math.abs(fd.r) < 0.004) return;
+    this.model.position.y += po; this.model.updateMatrixWorld(true);
+    for (i = 0; i < 2; i++) {
+      s = sides[i]; var lift = fd[s] - po; if (lift < 0.004) continue;
+      var foot = b['foot_' + s]; foot.getWorldPosition(_ft); foot.getWorldQuaternion(_wq);
+      _ft.y += lift;
+      b['thigh_' + s].getWorldPosition(_fk); _fk.add(_lhD.set(0, -0.3, 1).applyQuaternion(this.root.quaternion));
+      ikPole(b['thigh_' + s], b['calf_' + s], foot, _ft, _fk, 1);
+      // keep the foot's own tilt
+      foot.parent.getWorldQuaternion(_rq); foot.quaternion.copy(_rq.invert().multiply(_wq)); foot.updateMatrixWorld(true);
+    }
+  };
+  var _rq = new T.Quaternion();
+  var _lhT = new T.Vector3(), _lhP = new T.Vector3(), _lhD = new T.Vector3(), _rlA = new T.Vector3(), _rlB = new T.Vector3(), _rlC = new T.Vector3();
   // Two-bone IK with a pole: the elbow (knee) is placed in the plane through the root, the target and the pole point,
   // then the upper and lower bones are swung onto it (their twist is kept from the animation).
   var _ia = new T.Vector3(), _ib = new T.Vector3(), _ic = new T.Vector3(), _it = new T.Vector3(), _ie = new T.Vector3(), _iu = new T.Vector3(), _iv = new T.Vector3(), _iq = new T.Quaternion(), _iq0 = new T.Quaternion(), _iq1 = new T.Quaternion();
