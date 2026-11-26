@@ -7,6 +7,15 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "New: Where Have You Been?": "Nuevo: Where Have You Been?",
+    "Travel map": "Mapa de viajes",
+    "Wishlist": "Lista de deseos",
+    "Friends": "Amigos",
+    "Open the map": "Abrir el mapa",
+    "Where Have You Been? is a travel map logbook: colour in every country, state and city you've been to on a globe or a flat map.": "Where Have You Been? es un diario de viajes en un mapa: colorea cada país, estado y ciudad que has visitado en un globo o en un mapa plano.",
+    "Type a list like \"London, Kyoto, Machu Picchu\" to log a whole trip at once, and keep a striped wishlist of places to go next.": "Escribe una lista como «London, Kyoto, Machu Picchu» para apuntar un viaje entero de una vez, y guarda una lista de deseos a rayas con los sitios a los que quieres ir.",
+    "Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.": "Colecciona 469 monumentos, cada uno con su propio dibujo pixelado, y añade amigos para ver quién ha estado en más sitios.",
+    "Find it under Web Development Projects on the home page.": "Lo encontrarás en Web Development Projects, en la página principal.",
     "Site rules and privacy, in plain words": "Las reglas del sitio y la privacidad, en palabras sencillas",
     "Read the terms": "Lee los términos",
     "The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can't promise.": "El sitio ahora tiene una página de Términos de uso: cómo jugar limpio, qué puedes publicar, cómo funcionan el Marketplace y la compra de objetos, y qué podemos y qué no podemos prometer.",
