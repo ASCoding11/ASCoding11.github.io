@@ -90,6 +90,9 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.04.1', title: 'Leaf Sweep: a calmer start', kind: 'fix',
+     tags: ['Leaf Sweep'], items: [
+      'Leaf Sweep\'s start is calmer: your hands gather leaves more gently, and the rake is back to 60 acorns.']},
     {date: '2026-11-26', version: '2.04', title: 'Flood Crew, rebuilt', kind: 'feature',
      img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew'], items: [
       'Flood Crew starts in the flooded yard now, rake in hand, with one short instruction at a time. The depot and the gear shop turn up later.',

@@ -7,6 +7,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Leaf Sweep: a calmer start": "Leaf Sweep: un comienzo más tranquilo",
+    "Leaf Sweep": "Leaf Sweep",
+    "Leaf Sweep's start is calmer: your hands gather leaves more gently, and the rake is back to 60 acorns.": "El comienzo de Leaf Sweep es más tranquilo: tus manos juntan las hojas con más calma y el rastrillo vuelve a costar 60 bellotas.",
     "Flood Crew, rebuilt": "Flood Crew, rehecho",
     "Flood Crew": "Flood Crew",
     "Flood Crew starts in the flooded yard now, rake in hand, with one short instruction at a time. The depot and the gear shop turn up later.": "Flood Crew ahora empieza en el patio inundado, con el rastrillo en la mano y una instrucción corta por vez. El depósito y la tienda de equipo aparecen más adelante.",
