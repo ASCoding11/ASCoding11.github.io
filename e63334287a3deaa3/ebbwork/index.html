@@ -117,6 +117,30 @@ kbd{font:700 12.5px var(--f-b);background:var(--panel-2);border:1px solid var(--
 .sum{display:grid;grid-template-columns:1fr auto;gap:5px 16px;font-size:15.5px;margin:10px 0;color:var(--tx-2)}
 .sum b{color:var(--tx);text-align:right}
 
+/* ---------- depot panels ---------- */
+.fine{font-size:13px!important;color:var(--tx-3)!important;margin-top:12px!important}
+.coin{font-family:var(--f-d);font-weight:700;font-size:21px;color:var(--warn);letter-spacing:.03em;white-space:nowrap}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px;margin-top:10px}
+.split .jobs{margin:0;align-content:start}
+.info{background:var(--panel-2);border-radius:10px;padding:12px 14px;font-size:14.5px;color:var(--tx-2);line-height:1.45}
+.info b{color:var(--tx)}.info h3{margin:0 0 4px;color:var(--tx);font-size:23px}
+.info .sum{font-size:14.5px;margin:8px 0 0}
+.job:disabled{opacity:.5}
+.gear,.load{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:12px;max-height:min(56vh,460px);overflow:auto;padding-right:2px}
+.gi{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;text-align:left}
+.gi b{font-family:var(--f-d);font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--tx)}
+.gi small{font-size:13px;color:var(--tx-2);line-height:1.35;flex:1}
+.gi .btn{font-size:16px;min-height:38px;padding:5px 12px;align-self:flex-start}
+.gi .own{font-weight:700;font-size:13px;color:var(--ok)}
+.gi.sel{border-color:var(--hi);box-shadow:inset 0 0 0 1px var(--hi)}
+button.gi{min-height:64px}
+#guide{position:absolute;left:50%;top:calc(64px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:min(480px,88vw);text-align:center;font-weight:700;font-size:15px;line-height:1.35;border-color:var(--hi)}
+body.touch #guide{top:calc(124px + env(safe-area-inset-top,0px))}
+body.touch #toast{top:calc(190px + env(safe-area-inset-top,0px))}
+#tRot{width:50px;height:50px;right:calc(178px + env(safe-area-inset-right,0px));bottom:calc(78px + env(safe-area-inset-bottom,0px));font-size:12px}
+@media (max-width:640px){.split{grid-template-columns:1fr}}
+@media (orientation:landscape) and (max-height:440px){body.touch #guide{top:calc(66px + env(safe-area-inset-top,0px))}body.touch #toast{top:calc(120px + env(safe-area-inset-top,0px))}.gear,.load{max-height:44vh}}
+
 /* ---------- touch ---------- */
 #touch{display:none;position:absolute;inset:0;pointer-events:none;font-family:var(--f-d)}
 body.touch #touch{display:block}
@@ -162,11 +186,12 @@ body.touch #toast{top:calc(124px + env(safe-area-inset-top,0px))}
     <div id="cross"></div>
     <div id="stat" class="pill">
       <div class="pl" id="plName" data-noi18n></div>
-      <div class="lbl"><span>Water left</span><span id="pct" data-noi18n>100%</span></div>
+      <div class="lbl" id="statLbl"><span>Water left</span><span id="pct" data-noi18n>100%</span></div>
       <div id="gauge"><i id="gaugeFill"></i><u></u></div>
       <div id="inflow" hidden>Water is still coming in</div>
     </div>
     <div id="right">
+      <div class="pill coin" id="coins" data-noi18n>0</div>
       <div class="pill" id="clock" data-noi18n>0:00</div>
       <button class="tbtn" id="bScan" data-no-ad-refresh aria-label="Scan for water" title="Scan for water"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M4.5 12a7.5 7.5 0 0 1 15 0M2 12a10 10 0 0 1 20 0" opacity=".7"/><path d="M12 15v6"/></svg></button>
       <button class="tbtn" id="bJournal" data-no-ad-refresh aria-label="Journal" title="Journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></button>
@@ -174,6 +199,7 @@ body.touch #toast{top:calc(124px + env(safe-area-inset-top,0px))}
     </div>
     <div id="prompt" class="pill" hidden><span id="promptTx" data-noi18n></span><div class="bar" id="promptBar" hidden><i></i></div></div>
     <div id="toast" class="pill off" data-noi18n></div>
+    <div id="guide" class="pill" data-noi18n hidden></div>
     <div id="tip" class="kbonly" data-noi18n></div>
     <div id="hot" data-noi18n></div>
     <div id="touch" aria-hidden="true">
@@ -183,20 +209,45 @@ body.touch #toast{top:calc(124px + env(safe-area-inset-top,0px))}
       <button class="tb" id="tJump" data-no-ad-refresh>Jump</button>
       <button class="tb" id="tAct" data-no-ad-refresh hidden>Do</button>
       <button class="tb" id="tCrouch" data-no-ad-refresh>Duck</button>
+      <button class="tb" id="tRot" data-no-ad-refresh hidden>Turn</button>
     </div>
   </div>
 
   <div id="menu" class="overlay solid">
-    <div class="card wide">
+    <div class="card">
       <div class="logo">Ebb<i>work</i></div>
       <p class="tag">The storm has gone but the water has not. Find out why each place flooded, then get it dry.</p>
-      <h3>Jobs</h3>
-      <div class="jobs" id="jobList"></div>
-      <button class="btn big" id="bStart">Start job</button>
+      <button class="btn big" id="bStart">Go to the depot</button>
       <div class="row end">
         <button class="btn alt" id="bHow">How to play</button>
         <button class="btn alt" id="bSet1">Settings</button>
       </div>
+      <p class="fine">Your progress saves by itself in this browser.</p>
+    </div>
+  </div>
+
+  <div id="board" class="overlay" hidden>
+    <div class="card wide">
+      <h2>Job board</h2>
+      <div class="split"><div class="jobs" id="jobList"></div><div id="jobInfo" class="info"></div></div>
+      <div class="row end"><button class="btn alt" id="bBoardX">Close</button><button class="btn" id="bTake">Take this job</button></div>
+    </div>
+  </div>
+
+  <div id="shop" class="overlay" hidden>
+    <div class="card wide">
+      <div class="row" style="justify-content:space-between"><h2>Gear</h2><b class="coin" id="shopCoins" data-noi18n></b></div>
+      <div class="gear" id="gearList"></div>
+      <div class="row end"><button class="btn" id="bShopX">Done</button></div>
+    </div>
+  </div>
+
+  <div id="van" class="overlay" hidden>
+    <div class="card wide">
+      <h2>Load the van</h2>
+      <p id="vanJob" data-noi18n></p>
+      <div class="load" id="loadList"></div>
+      <div class="row end"><button class="btn alt" id="bVanX">Not yet</button><button class="btn" id="bGo">Drive to the job</button></div>
     </div>
   </div>
 
@@ -210,6 +261,7 @@ body.touch #toast{top:calc(124px + env(safe-area-inset-top,0px))}
         <button class="btn alt" id="bHow2">How to play</button>
         <button class="btn alt" id="bRestart">Start this job again</button>
         <button class="btn alt" id="bQuit">Leave the job</button>
+        <button class="btn alt" id="bTitle">Back to the title</button>
       </div>
     </div>
   </div>
@@ -267,7 +319,7 @@ body.touch #toast{top:calc(124px + env(safe-area-inset-top,0px))}
       <h2>Job done</h2>
       <div class="stars" id="rStars" data-noi18n></div>
       <div class="sum" id="rSum" data-noi18n></div>
-      <div class="row end"><button class="btn alt" id="bAgain">Do it again</button><button class="btn" id="bBack">Back to jobs</button></div>
+      <div class="row end"><button class="btn alt" id="bAgain">Do it again</button><button class="btn" id="bBack">Back to the depot</button></div>
     </div>
   </div>
 </div>
