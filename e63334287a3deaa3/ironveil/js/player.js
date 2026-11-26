@@ -184,7 +184,8 @@
     const toggleSprint = IV.settings.sprintToggle && !IV.touch;
     if (toggleSprint) { if (I.pressed('sprint')) P.sprintLatch = !P.sprintLatch; } else P.sprintLatch = false;
     const sprintKey = toggleSprint ? P.sprintLatch : I.held('sprint');
-    const blockSprint = aiming || I.held('aim') || binoc || !!(W8 && W8.busyThrow) || I.held('fire') || P.stance !== 'stand' || P.inWater;
+    const shotLately = W8 && ((W8.fireBuf != null && IV.time - W8.fireBuf < 0.3) || IV.time - (W8.lastFire == null ? -9 : W8.lastFire) < 0.35);   // a click out of a sprint gets its shot before the sprint picks up again
+    const blockSprint = aiming || I.held('aim') || shotLately || binoc || !!(W8 && W8.busyThrow) || I.held('fire') || P.stance !== 'stand' || P.inWater;
     const wantSprint = sprintKey && my > 0.5 && Math.abs(mx) < 0.75 && !blockSprint;
     if (P.sprintLatch && (my <= 0.5 || blockSprint)) P.sprintLatch = false;
     const sprint = wantSprint && (P.grounded ? Math.hypot(P.vel.x, P.vel.z) > MV.run * 0.6 : P.sprinting);

@@ -390,7 +390,7 @@
     for (; i < Math.min(300, steps); i++) {
       if (i % 2 === 0) pts.push(g.x, g.y, g.z);
       const h = flyStep(g, dt);
-      if (h) { pts.push(h.x, h.y, h.z); arcOut.hit = h; break; }
+      if (h) { pts.push(h.x, h.y, h.z); arcOut.hit = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, surf: h.surf }; break; }   // a copy: the raycast's result object is reused by the next raycast
     }
     if (!arcOut.hit && bt.kind === 'grenade' && i < 300) { pts.push(g.x, g.y, g.z); arcOut.hit = { x: g.x, y: g.y, z: g.z, nx: 0, ny: 1, nz: 0, air: true }; arcOut.air = true; }
     arcOut.t = i * dt;
