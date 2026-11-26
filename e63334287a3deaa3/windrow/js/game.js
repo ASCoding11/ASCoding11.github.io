@@ -442,7 +442,8 @@
         h += '</div>' + (un ? '' : '<button class="btn sm buy" data-unlock="' + i + '"' + (need || state.acorns < a.cost ? ' disabled' : '') + '>' + T('Open') + ' · ' + a.cost + '</button>') + '</div>';
       });
     } else {
-      UP.filter(shedShows).forEach(function (u) {
+      // cheapest next purchase first, things already at their best last
+      UP.filter(shedShows).sort(function (x, y) { var cx = state.up[x.id] >= x.costs.length ? 1e9 : x.costs[state.up[x.id]], cy = state.up[y.id] >= y.costs.length ? 1e9 : y.costs[state.up[y.id]]; return cx - cy; }).forEach(function (u) {
         var lv = state.up[u.id], max = u.costs.length, lockd = u.needs && !state.up[u.needs];
         h += '<div class="item"><div class="tx"><b>' + T(u.name) + (max > 1 ? pips(lv, max) : '') + '</b><small>' + T(u.text) + '</small></div>';
         h += lv >= max ? '<small class="done">✓ ' + T(max > 1 ? 'Best' : 'Owned') + '</small>' : '<button class="btn sm buy" data-buy="' + u.id + '"' + (lockd || state.acorns < u.costs[lv] ? ' disabled' : '') + '>' + u.costs[lv] + '</button>';
