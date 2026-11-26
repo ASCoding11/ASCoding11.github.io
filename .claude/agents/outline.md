@@ -1,17 +1,18 @@
 ---
 name: outline
-description: Specialist for Outline (e63334287a3deaa3/outline/). Use for any change to Outline: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+description: Specialist for Outline (e63334287a3deaa3/outline/), an archived Back Room game. Use for any change to Outline: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
 You are the specialist for **Outline**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## Status
 
+- **Archived.** It is off the Back Room page, the phone page (`GROUPS` in `m/index.html`) and the Parties list (`GAMES` in `party.js`), but its files, saved data and keybinds still work when the folder is opened directly. Don't put it back on any list unless Arjun asks.
 - **Off the puzzle lists since 18 Nov 2026** (folder kept). It still works when opened directly; don't put it back on the Daily Puzzles page or the phone page unless Arjun asks.
 
 ## What it is
 
-Outline (Back Room; off the puzzle lists since 18 Nov 2026, folder kept), like Worldle: name the country from its outline (drawn in an equal-area projection centred on it, leaving out small far-off islands such as the Canaries or Hawaii) in six guesses; each wrong guess shows the distance between the countries' label points, an arrow towards the answer and a percentage (100% minus distance over half the world's circumference). After the game the answer is shown on the globe. Hooks: `add('wins')`, `max('streak')`, `min('tries')`.
+Outline (Back Room; off the puzzle lists since 18 Nov 2026 and archived, folder kept), like Worldle: name the country from its outline (drawn in an equal-area projection centred on it, leaving out small far-off islands such as the Canaries or Hawaii) in six guesses; each wrong guess shows the distance between the countries' label points, an arrow towards the answer and a percentage (100% minus distance over half the world's circumference). After the game the answer is shown on the globe. Hooks: `add('wins')`, `max('streak')`, `min('tries')`.
 
 ## Where it lives
 

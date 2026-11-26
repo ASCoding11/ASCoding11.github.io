@@ -1,17 +1,18 @@
 ---
 name: crosslet
-description: Specialist for Crosslet (e63334287a3deaa3/crosslet/). Use for any change to Crosslet: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+description: Specialist for Crosslet (e63334287a3deaa3/crosslet/), an archived Back Room game. Use for any change to Crosslet: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
 You are the specialist for **Crosslet**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## Status
 
+- **Archived.** It is off the Back Room page, the phone page (`GROUPS` in `m/index.html`) and the Parties list (`GAMES` in `party.js`), but its files, saved data and keybinds still work when the folder is opened directly. Don't put it back on any list unless Arjun asks.
 - **Off the puzzle lists since 18 Nov 2026** (folder kept). It still works when opened directly; don't put it back on the Daily Puzzles page or the phone page unless Arjun asks.
 
 ## What it is
 
-Crosslet (Back Room; off the puzzle lists since 18 Nov 2026, folder kept), a daily mini crossword like the NYT Mini: 5 × 5 grids with black corners (and some open 4 × 4s), the clue bar above the grid (tap it to switch direction), the clue lists beside the grid on wide screens, an on-screen keyboard on touch screens; letters auto-advance, Backspace steps back, arrows move (a sideways arrow first switches direction), Space switches, Tab/Enter go to the next clue; Check and Reveal by square, word or puzzle; a timer that starts at the first letter and pauses when paused, hidden or behind a dialog. A daily "win" is a clean solve (no reveals); the best clean daily time is kept in `crosslet:best`. **`puzzles.js`** holds 64 grids (`g` rows with `#` for black squares, `a`/`d` clue lists in number order).
+Crosslet (Back Room; off the puzzle lists since 18 Nov 2026 and archived, folder kept), a daily mini crossword like the NYT Mini: 5 × 5 grids with black corners (and some open 4 × 4s), the clue bar above the grid (tap it to switch direction), the clue lists beside the grid on wide screens, an on-screen keyboard on touch screens; letters auto-advance, Backspace steps back, arrows move (a sideways arrow first switches direction), Space switches, Tab/Enter go to the next clue; Check and Reveal by square, word or puzzle; a timer that starts at the first letter and pauses when paused, hidden or behind a dialog. A daily "win" is a clean solve (no reveals); the best clean daily time is kept in `crosslet:best`. **`puzzles.js`** holds 64 grids (`g` rows with `#` for black squares, `a`/`d` clue lists in number order).
 
 ## Where it lives
 
