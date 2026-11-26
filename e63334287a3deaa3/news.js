@@ -90,6 +90,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '1.62', title: 'New game: Flood Crew', kind: 'game',
+     games: ['Flood Crew'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
+      'Flood Crew is in Arcade: a first-person game about getting flooded places dry.',
+      'Work out why each place flooded: a buried drain, a leak, a broken bank, or ground with nowhere to run to.',
+      'The water really flows. Rake a drain clear, dig a trench, lay sandbags or set up a pump, and watch where it goes.',
+      'Six jobs, a depot with gear to buy, and up to three stars a job. Your progress saves by itself.',
+      'Plays with a keyboard and mouse, or with touch on a phone.']},
     {date: '2026-11-26', version: '1.61', title: 'Top player badges: 3 per player', kind: 'feature',
      tags: ['Leaderboards', 'Badges'], items: [
       'One player can now hold at most 3 of the small Top player shields at a time.',
