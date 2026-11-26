@@ -1,6 +1,8 @@
-# Every pull request that changes something players can see must add a What's new entry
-# (e63334287a3deaa3/news.js) - see CLAUDE.md. Changes to only docs (README, CLAUDE.md, comments in .github) pass
-# without one, and a pull request labelled "no-news" skips the check.
+# Every pull request that changes something players can see must add a What's new entry as its own file,
+# e63334287a3deaa3/news/<name>.json (see e63334287a3deaa3/news/README.md and CLAUDE.md). The entry gets its version
+# and date when it is merged (whats-new-publish.yml), so pull requests never edit the same lines of news.js.
+# Changes to only docs (README, CLAUDE.md, .github) pass without one, and a pull request labelled "no-news" skips
+# the check.
 name: What's new entry
 on:
   pull_request:
@@ -11,7 +13,7 @@ jobs:
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-news') }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with: { fetch-depth: 0, persist-credentials: false }
       - name: Check for a What's new entry
         run: |
           base="${{ github.event.pull_request.base.sha }}"
@@ -19,9 +21,13 @@ jobs:
           echo "$files"
           visible="$(echo "$files" | grep -vE '^(README\.md|CLAUDE\.md|\.github/)' || true)"
           if [ -z "$visible" ]; then echo "Docs only: no entry needed."; exit 0; fi
-          if echo "$files" | grep -qx 'e63334287a3deaa3/news.js' && git diff "$base"...HEAD -- e63334287a3deaa3/news.js | grep -qE "^\+\s*\{date: '"; then
-            echo "What's new entry found."
-          else
-            echo "::error file=e63334287a3deaa3/news.js::Add an entry to the top of NEWS in e63334287a3deaa3/news.js for this change (see CLAUDE.md), or label the pull request no-news if players can't notice it."
+          if git diff "$base"...HEAD -- e63334287a3deaa3/news.js | grep -qE "^\+\s*\{date: '"; then
+            echo "::error file=e63334287a3deaa3/news.js::Don't add entries to news.js directly: it makes open pull requests conflict. Put the entry in its own file in e63334287a3deaa3/news/ instead (see the README there); it is added to news.js with its version and date when this is merged."
             exit 1
           fi
+          entries="$(git diff --name-only --diff-filter=AM "$base"...HEAD -- 'e63334287a3deaa3/news/*.json' | grep -v '/_' || true)"
+          if [ -z "$entries" ]; then
+            echo "::error::Add a What's new entry for this change as a new file in e63334287a3deaa3/news/ (copy _example.json; see the README there), or label the pull request no-news if players can't notice it."
+            exit 1
+          fi
+          node .github/scripts/news.js check $entries

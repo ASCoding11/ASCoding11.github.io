@@ -2,6 +2,7 @@
  * Spanish for the What's new entries (news.js): their titles, tags and bullet points, in our own words. Game names
  * stay in English. news.js loads this file only while Spanish is on; lang.js translates the list as it appears.
  * When you add an entry to NEWS, add its lines here too (English: Spanish). A line with no Spanish shows in English.
+ * Pull requests put their Spanish in the entry's file in news/ (its "es"), and the merge adds it here.
  */
 (function () {
   if (!window.BackRoomLang) return;
@@ -11,6 +12,11 @@
     "The water gives you away: going in is heard across the whole hall, and every step you wade calls it closer.": "El agua te delata: caer al agua se oye en toda la sala, y cada paso que das dentro lo trae más cerca.",
     "It gets a little sharper each hall further in: it hears farther, reacts faster and moves quicker. Easy stays gentle; Hard does not.": "Se vuelve un poco más atento en cada sala: oye desde más lejos, reacciona antes y se mueve más rápido. Fácil sigue siendo suave; Difícil no.",
     "Standing still and quiet on a tile is still safe, and pebbles, bottles, toys and flares pull it away.": "Quedarte quieto y en silencio sobre una baldosa sigue siendo seguro, y las piedras, botellas, juguetes y bengalas lo alejan.",
+    "Site rules and privacy, in plain words": "Las reglas del sitio y la privacidad, en palabras sencillas",
+    "Read the terms": "Lee los términos",
+    "The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can't promise.": "El sitio ahora tiene una página de Términos de uso: cómo jugar limpio, qué puedes publicar, cómo funcionan el Marketplace y la compra de objetos, y qué podemos y qué no podemos prometer.",
+    "The privacy policy now also explains Prompted, buying items, the Marketplace and what we ask of players under 13.": "La política de privacidad ahora también explica Prompted, la compra de objetos, el Marketplace y lo que pedimos a los jugadores menores de 13 años.",
+    "Both are linked at the bottom of every main page.": "Las dos están enlazadas al final de cada página principal.",
     "A proper \"page not found\"": "Una página de \"no encontrada\" de verdad",
     "A mistyped or old link now shows a \"Page not found\" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.": "Un enlace mal escrito o antiguo ahora muestra una página de \"Página no encontrada\" con botones para volver a la página de inicio, los juegos y las herramientas de estudio, en vez de un error sin más o la página de inicio.",
     "It shows the address you tried, and has a button to tell us about the broken link.": "Muestra la dirección que intentaste abrir y tiene un botón para avisarnos del enlace roto.",

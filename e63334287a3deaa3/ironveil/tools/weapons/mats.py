@@ -4,7 +4,7 @@
 #   edges and corners go bright, hands polish and darken, things that slide get scratches along the slide,
 #   recesses keep dust and a little rust. Metal amount goes out through a value node named METAL.
 # Colours are linear RGB.
-import bpy, math
+import bpy, math, os
 
 class NB:
     def __init__(self, name, mask_img=None):
@@ -198,6 +198,95 @@ def _hand(nb, W, extra=()):
         h = nb.add(h, nb.zone(*e))
     return nb.clamp(h)
 
+# ======================================================================================== field dirt (player SMG)
+# Weapons whose zones carry 'mud' get the field layers: grime and old oil packed into cavities and occluded corners,
+# dust on the faces that look up (rubbed off where the hands go), dried mud flecks and smears low on the stock and the
+# magazine, darker oily finger smudges round the action. Others are left as they were.
+def _normal(nb):
+    tc = nb.nt.nodes.new('ShaderNodeTexCoord')
+    return nb.xyz(tc.outputs['Normal'])
+
+def _dirty(nb, W, c, r, metal, h, surf='metal'):
+    z = W.zones
+    if 'mud' not in z:
+        return c, r, metal, h
+    P = nb.P
+    x, y, zz = nb.xyz()
+    nx, ny, nz = _normal(nb)
+    cav, occ = nb.cavity(), nb.occl()
+    hand = _hand(nb, W)
+    gn = nb.noise(P, 55, 4, 0.6, w=41)
+    grime = nb.clamp(nb.add(nb.mul(nb.ss(cav, 0.10, 0.55), 0.95), nb.mul(nb.ss(occ, 0.80, 0.40), 0.65)))
+    grime = nb.mul(grime, nb.ss(gn, 0.28, 0.52))
+    oily = nb.ss(nb.noise(P, 18, 3, 0.5, w=43), 0.45, 0.65)
+    gcol = nb.mixc(oily, (0.052, 0.042, 0.030), (0.018, 0.015, 0.012))
+    c = nb.mixc(nb.mul(grime, 0.88), c, gcol)
+    r = nb.lerp(grime, r, nb.lerp(oily, 0.84, 0.36))
+    metal = nb.mul(metal, nb.inv(nb.mul(grime, 0.85)))
+    h = nb.add(h, nb.mul(grime, nb.noise(P, 700, 2, 0.5, w=44), 0.25))
+    # dust: faces that look up, patchy, not where hands rub
+    up = nb.ss(nz, 0.15, 0.85)
+    dust = nb.mul(up, nb.ss(nb.noise(P, 32, 5, 0.65, w=47), 0.40, 0.72), nb.inv(nb.mul(hand, 0.9)), 0.70 * z.get('dustk', 1.0))
+    dust = nb.add(dust, nb.mul(nb.ss(cav, 0.3, 0.8), 0.25 * z.get('cavdust', 1.0)))   # scans: their cavity mask is unreliable
+    dust = nb.clamp(nb.mul(dust, nb.ss(nb.noise(P, 300, 2, 0.5, w=48), 0.25, 0.55)))
+    c = nb.mixc(dust, c, (0.205, 0.185, 0.150))
+    r = nb.lerp(dust, r, 0.90)
+    metal = nb.mul(metal, nb.inv(dust))
+    # mud: in the mud zones and generally low on the gun, flecks plus smears
+    low = nb.clamp(nb.add(nb.zone(*z['mud']), nb.zone(*z['mud2']), nb.mul(nb.ss(zz, -0.06, -0.13), 0.45)))
+    splat = nb.mul(nb.ss(nb.vor(P, 230, 'F1', 1.0), 0.30, 0.12), nb.ss(nb.noise(P, 45, 3, 0.5, w=51), 0.50, 0.60))
+    fine = nb.mul(nb.ss(nb.vor(P, 900, 'F1', 1.0), 0.22, 0.05), nb.ss(nb.noise(P, 60, 3, 0.5, w=52), 0.45, 0.58))
+    smear = nb.ss(nb.noise(nb.mapping(P, scale=(1, 0.35, 1)), 26, 5, 0.7, w=53), 0.60, 0.72)
+    mud = nb.clamp(nb.mul(low, nb.mx(nb.mx(splat, fine), nb.mul(smear, 0.6))))
+    mcol = nb.mixc(nb.ss(nb.noise(P, 120, 3, 0.5, w=55), 0.35, 0.7), (0.050, 0.038, 0.025), (0.105, 0.082, 0.052))
+    c = nb.mixc(mud, c, mcol)
+    r = nb.lerp(mud, r, 0.93)
+    metal = nb.mul(metal, nb.inv(mud))
+    h = nb.add(h, nb.mul(mud, 0.7))
+    # dry film and old oil in patches: roughness never uniform, so light breaks up on the flats
+    film = nb.ss(nb.noise(P, 11, 4, 0.6, w=59), 0.35, 0.70)
+    r = nb.lerp(nb.mul(film, 0.7), r, nb.add(r, 0.22))
+    c = nb.mixc(nb.mul(film, metal, 0.25), c, nb.cmul(nb.mixc(0.5, c, (0.16, 0.15, 0.13)), 1.0))   # greyed film on steel only
+    if surf == 'metal':   # oily finger smudges round the action and where the hands hold
+        oz = nb.clamp(nb.add(nb.zone(*z['oil']), nb.mul(hand, 0.6)))
+        sm = nb.mul(nb.ss(nb.noise(P, 90, 3, 0.6, w=57), 0.48, 0.68), oz)
+        c = nb.mixc(nb.mul(sm, 0.55), c, nb.cmul(c, 0.55))
+        r = nb.lerp(sm, r, 0.22)
+    return c, r, metal, h
+
+_STAMPS = {}
+def _stamp(nb, W):
+    """Stamped markings (stamps.py) projected on the weapon's left side (+x faces): 0..1, 1 = struck in."""
+    if not W.zones.get('stampSide'):
+        return None
+    import numpy as np, stamps
+    if W.kind not in _STAMPS:
+        import tempfile
+        from PIL import Image
+        path = os.path.join(tempfile.gettempdir(), 'ivstamp_%s.png' % W.kind)     # Cycles reads images from files
+        Image.fromarray(np.clip(stamps.smg_left() * 65535, 0, 65535).astype(np.uint16)).save(path)
+        img = bpy.data.images.load(path, check_existing=False); img.colorspace_settings.name = 'Non-Color'
+        _STAMPS[W.kind] = (img, stamps.SMG_REGION)
+    img, (u0, v0, span) = _STAMPS[W.kind]
+    x, y, z = nb.xyz()
+    n = nb.nt.nodes.new('ShaderNodeCombineXYZ')
+    nb._in(n.inputs[0], nb.mul(nb.sub(y, u0), 1.0 / span)); nb._in(n.inputs[1], nb.mul(nb.sub(z, v0), 1.0 / span))
+    t = nb.nt.nodes.new('ShaderNodeTexImage'); t.image = img; t.interpolation = 'Linear'; t.extension = 'CLIP'
+    nb._in(t.inputs[0], n.outputs[0])
+    nx, ny, nz = _normal(nb)
+    gate = nb.mul(nb.ss(nx, 0.55, 0.85), nb.ss(x, 0.010, 0.013))
+    return nb.mul(t.outputs['Color'], gate)
+
+def _stamped(nb, W, c, r, metal, h):
+    st = _stamp(nb, W)
+    if st is None:
+        return c, r, metal, h
+    c = nb.mixc(nb.mul(st, 0.80), c, (0.030, 0.026, 0.021))     # struck in, dirt packed into the strokes
+    r = nb.lerp(st, r, 0.78)
+    metal = nb.mul(metal, nb.inv(nb.mul(st, 0.6)))
+    h = nb.sub(h, nb.mul(st, 1.4))
+    return c, r, metal, h
+
 def _axis(W):
     s = W.zones.get('slide', (0, 1, 0))
     return 'Z' if abs(s[2]) > 0.5 else 'Y'
@@ -243,6 +332,13 @@ def blued(name, W, mask, seed=0.0, tint=(0.060, 0.066, 0.082), worn=1.0):
         cm = nb.mul(nb.ss(y, y0 - 0.0005, y0 + 0.0008), nb.inv(nb.ss(nb.edge(), 0.1, 0.4)))
         ch = nb.mul(nb.checker('X', 'Z', 0.0020), cm, nb.inv(nb.mul(wear, 0.8)))
         h = nb.add(h, nb.mul(ch, 0.7))
+    if 'rib' in W.zones:   # anti-glare cross serrations on the sighting rib's top
+        x, y, z = nb.xyz(); y0, y1, zt = W.zones['rib']
+        m = nb.mul(nb.ss(nb.math('ABSOLUTE', x), 0.0056, 0.0048), nb.ss(z, zt - 0.0008, zt - 0.0002), nb.ss(y, y0, y0 + 0.002), nb.ss(y, y1, y1 - 0.002))
+        g = nb.ss(nb.math('ABSOLUTE', nb.math('SINE', nb.mul(y, 2 * math.pi / 0.0016))), 0.25, 0.85)
+        h = nb.add(h, nb.mul(g, m, 0.9)); c = nb.mixc(nb.mul(nb.inv(g), m, 0.5), c, nb.cmul(c, 0.5))
+    c, r, metal, h = _stamped(nb, W, c, r, metal, h)
+    c, r, metal, h = _dirty(nb, W, c, r, metal, h)
     h, r = _machining(nb, W, h, r)
     return nb.finish(c, r, metal, h, bump_dist=0.00035 * worn)
 
@@ -315,6 +411,7 @@ def steel(name, W, mask, seed=0.0):
     r = nb.lerp(rust, r, 0.85)
     metal = nb.clamp(nb.sub(1.0, nb.add(rust, nb.mul(grime, 0.8))))
     h = nb.add(nb.mul(scr, -0.22), nb.mul(nb.noise(nb.mapping(P, scale=(1, 0.04, 1)), 1800, 1, 0.5), 0.025))
+    c, r, metal, h = _dirty(nb, W, c, r, metal, h)
     return nb.finish(c, r, metal, h, bump_dist=0.0002)
 
 def brass(name, W, mask, seed=0.0):
@@ -404,7 +501,8 @@ def wood(name, W, mask, seed=0.0, kind='walnut'):
     h = nb.add(nb.mul(latew, -0.10), nb.mul(pores, -0.25), nb.mul(dent, -1.0), nb.mul(gouge, -0.8), nb.mul(scr, -0.35),
                nb.mul(nb.noise(nb.mapping(q, scale=(1, 0.06, 1)), 2200, 1, 0.5), 0.06))
     if scan is not None: h = nb.add(h, nb.mul(scan[2], 0.5))
-    return nb.finish(c, r, 0.0, h, bump_dist=0.0005)
+    c, r, metal, h = _dirty(nb, W, c, r, 0.0, h, 'wood')
+    return nb.finish(c, r, metal, h, bump_dist=0.0005)
 
 def _wood_scan(nb, q, kind):
     """Grain-aligned triplanar sampling of a scanned wood set. WOOD_SCAN = folder holding <name>_diff_2k.jpg,
@@ -464,7 +562,8 @@ def leather(name, W, mask, seed=0.0, col=(0.040, 0.024, 0.014)):
     r = nb.lerp(edgeW, r, 0.75)
     r = nb.lerp(crease, r, 0.70)
     h = nb.add(nb.mul(grain, 0.25), nb.mul(crease, -0.7), nb.mul(scr, -0.4))
-    return nb.finish(c, r, 0.0, h, bump_dist=0.0005)
+    c, r, metal, h = _dirty(nb, W, c, r, 0.0, h, 'soft')
+    return nb.finish(c, r, metal, h, bump_dist=0.0005)
 
 def canvas(name, W, mask, seed=0.0):
     nb = NB(name, mask)
@@ -480,7 +579,8 @@ def canvas(name, W, mask, seed=0.0):
     c = nb.mixc(nb.mul(edge, 0.7), c, (0.24, 0.21, 0.14))
     c = nb.mixc(nb.mul(nb.ss(nb.cavity(), 0.2, 0.9), 0.8), c, (0.04, 0.035, 0.025))
     r = nb.lerp(stain, 0.90, 0.78)
-    return nb.finish(c, r, 0.0, nb.add(nb.mul(wv, 0.12), nb.mul(n1, 0.2)), bump_dist=0.0004)
+    c, r, metal, h = _dirty(nb, W, c, r, 0.0, nb.add(nb.mul(wv, 0.12), nb.mul(n1, 0.2)), 'soft')
+    return nb.finish(c, r, metal, h, bump_dist=0.0004)
 
 def bakelite(name, W, mask, seed=0.0, col=(0.030, 0.015, 0.008)):
     nb = NB(name, mask)
@@ -608,7 +708,7 @@ def blade(name, W, mask, seed=0.0):
 
 def make(t, name, W, mask, seed=0.0):
     if t == 'blued': return blued(name, W, mask, seed)
-    if t == 'blued2': return blued(name, W, mask, seed, tint=(0.115, 0.118, 0.130), worn=1.35)   # worn blued steel, gone grey
+    if t == 'blued2': return blued(name, W, mask, seed, tint=(0.105, 0.108, 0.118), worn=1.6)    # worn blued steel, gone grey
     if t == 'park': return parkerized(name, W, mask, seed, serr=W.zones.get('serr'))
     if t == 'steel': return steel(name, W, mask, seed)
     if t == 'brass': return brass(name, W, mask, seed)
