@@ -68,7 +68,7 @@
       for (i = 0; i < 4; i++) RP.AI.spawnCiv({ x: -2 + i * 2, z: -10 }, { wander: 6 });
       m.wave = 0; m.waves = [
         [['sentry', -3, -27], ['sentry', 6, -29], ['enforcer', 2, -34], ['sentry', -10, -36], ['enforcer', 8, -14], ['sentry', -15, -16]],
-        [['enforcer', -6, -52], ['shotgunner', -2, -50], ['enforcer', 4, -54], ['sentry', -9, -58], ['marksman', 33, -30, 13]],
+        [['enforcer', -6, -52], ['shotgunner', -2, -50], ['enforcer', 4, -54], ['sentry', -9, -58], ['marksman', 30, -27, 13]],
         [['elite', 28, -14, 13], ['elite', 28, -26, 13], ['gunner', 32, -20, 13], ['elite', 20, -12, 9.5]]
       ];
       pickup('armour', -14, 12, 2.6); pickup('mod:grip', 3.2, 12.5, 2.6); pickup('mod:extmag', -2.4, 12.5, 2.6); pickup('ammo', -16, -10, 5); pickup('health', 9, -40, 5); pickup('ammo', 12, -6, 5);
@@ -101,6 +101,45 @@
     RP.Alert.set(Math.max(RP.Alert.level, 2 + i));
   }
   function waveDone(m, i) { return m.waveGuards && m.waveGuards[i] && m.waveGuards[i].every(function (g) { return !g.alive; }); }
+
+  // ------------------------------------------------------------------ mission 3: the coast road
+  function chasers() { return RP.Vehicles.list.filter(function (v) { return v.ai && !v.dead && !v.ai.out; }).length; }
+  function pursuit(m, dt, want, level) {
+    // keep Halcyon on your tail: up to `want` cars, a new one every so often from behind; the alert stays up
+    m.chT = (m.chT == null ? 4 : m.chT) - dt;
+    if (m.chT <= 0 && chasers() < want && RP.G.player.vehicle) { RP.Vehicles.chaser(75 + Math.random() * 30); m.chT = 11 + Math.random() * 6; RP.AI.line && RP.emit('sub', 'Radio: ' + ['He is on the coast road, heading east!', 'Second car, close up on him!', 'Run him off the road!'][Math.floor(Math.random() * 3)], 3); }
+    m.alT = (m.alT || 0) - dt; if (m.alT <= 0) { m.alT = 2; if (RP.Alert.level < level) RP.Alert.set(level); RP.Alert.seen(RP.G.player.pos); }
+  }
+  function ensureCar(yaw) { var p = RP.G.player; if (!p.vehicle && !RP.Vehicles.near(p)) RP.Vehicles.spawn('spider', p.pos.x + 3, p.pos.z + 1, yaw || Math.PI / 2, '#8f1d22'); }
+  RP.missions.register({
+    id: 'chase', num: 3, title: 'Coast Road', where: 'Amalfi to the far town · early evening',
+    blurb: 'You have the ledger and Halcyon knows it. A Brezza Spider is waiting on the waterfront: take the coast road east, through the tunnels and over the viaduct, down into the next town, and out to sea on the launch at its pier. Their saloons will be on your tail and they have a helicopter.',
+    atmos: 'golden', start: { x: 24, z: 20.5, y: 2.6, yaw: 0.9 }, alert: true, reinforce: false, armour: 100,
+    loadout: { corsa: 90, vespa: 192, frag: 2, _start: 'corsa' },
+    setup: function (m) {
+      pickup('mod:extmag', 22, 22, 2.6); pickup('health', 468, 39, 33.8); pickup('armour', 1456, -58, 20); pickup('health', 1392, -27, 7.6); pickup('ammo', 1420, 0, 3.4);
+      for (var i = 0; i < 5; i++) RP.AI.spawnCiv({ x: 4 + i * 3, z: 24 + (i % 2) * 2 }, { wander: 6 });
+    },
+    steps: [
+      { text: 'Get in the Brezza Spider', sub: 'F by the door. W/S drive, A/D steer, Space handbrake.', at: V(30, 17.5, 2.9),
+        check: function (m) { return !!RP.G.player.vehicle; } },
+      { text: 'Take the coast road east', sub: 'Through the first tunnel to the belvedere', at: V(466, 36, 33.8), checkpoint: true,
+        enter: function (m) { ensureCar(); m.chT = 9; },
+        check: function (m, dt) { pursuit(m, dt, 1, 2); return RP.G.player.pos.x > 440; } },
+      { text: 'Keep going: over the viaduct', sub: 'They have called in the helicopter', at: V(880, 16, 32), checkpoint: true,
+        enter: function (m) { ensureCar(); m.chT = 3; },
+        check: function (m, dt) { pursuit(m, dt, 2, 4); return RP.G.player.pos.x > 870; } },
+      { text: 'Through the second tunnel and down into the town', sub: 'Follow the street down to the piazzetta', at: V(1458, -56, 20), checkpoint: true,
+        enter: function (m) { ensureCar(); m.chT = 3; },
+        check: function (m, dt) { pursuit(m, dt, 2, 4); return near(RP.G.player, { x: 1458, z: -56 }, 16); } },
+      { text: 'Get down to the pier', sub: 'The stair lane by the piazzetta leads to the church and the beach', at: V(1360.6, 36, 1), checkpoint: true,
+        enter: function (m) { RP.Alert.set(Math.max(RP.Alert.level, 3)); },
+        check: function (m) { var p = RP.G.player; return !!(p.vehicle && p.vehicle.ty.water); } },
+      { text: 'Head out to sea', sub: 'South, away from the coast', at: V(1360, 210, 0),
+        check: function (m) { return RP.G.player.pos.z > 190; } }
+    ],
+    rate: function (m) { var p = RP.G.player; return [['Defeated', p.kills], ['Time', RP.Run.time()]]; }
+  });
 
   // ------------------------------------------------------------------ free roam
   RP.missions.register({

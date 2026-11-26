@@ -49,7 +49,8 @@
   };
   function placeName(p) {
     var S = RP.map && RP.map.spots, best = 'town', bd = 1e9;
-    var names = { piazza: 'piazza', steps: 'cathedral steps', marina: 'waterfront', harbour: 'harbour', villaTerrace: 'villa terrace', villaGate: 'villa gate', lemons: 'lemon terraces', mainStreet: 'main street', tower: 'watchtower', villaStudy: 'villa' };
+    var names = { piazza: 'piazza', steps: 'cathedral steps', marina: 'waterfront', harbour: 'harbour', villaTerrace: 'villa terrace', villaGate: 'villa gate', lemons: 'lemon terraces', mainStreet: 'main street', tower: 'watchtower', villaStudy: 'villa',
+      tunnel1: 'first tunnel', belvedere: 'belvedere', terraces: 'lemon farm', coveBridge: 'viaduct', cove: 'cove', busStop: 'bus stop', tunnel2: 'second tunnel', bowlTop: 'top road', piazzetta: 'piazzetta', churchSquare: 'church square', bowlBeach: 'beach' };
     for (var k in names) { var s = S[k]; if (!s) continue; var d = Math.hypot(p.x - s.x, p.z - s.z); if (d < bd) { bd = d; best = names[k]; } }
     return best;
   }
@@ -61,7 +62,7 @@
     var ty = TYPES[type] || TYPES.sentry, df = RP.diff();
     var a = RP.Chars.spawn(ty.kind);
     RP.R.scene.add(a.root);
-    var y = spot.y != null ? spot.y : W.ground(spot.x, spot.z, 200).y;
+    var y = spot.y != null ? spot.y : W.ground(spot.x, spot.z, W.terrainH(spot.x, spot.z) + 1.4).y   /* street level, not a roof above it */;
     var g = {
       actor: a, team: 'guard', type: type, ty: ty, alive: true, radius: TU.radius, pos: new T.Vector3(spot.x, y, spot.z), yaw: spot.yaw || 0,
       hp: ty.hp * df.hp, maxHp: ty.hp * df.hp, armour: ty.armour, weapon: opts.weapon || ty.weapon, mag: 0, aware: 0, state: opts.patrol ? 'patrol' : 'idle',
@@ -81,7 +82,7 @@
     opts = opts || {};
     var a = RP.Chars.spawn('guest', opts);
     RP.R.scene.add(a.root);
-    var y = spot.y != null ? spot.y : W.ground(spot.x, spot.z, 200).y;
+    var y = spot.y != null ? spot.y : W.ground(spot.x, spot.z, W.terrainH(spot.x, spot.z) + 1.4).y   /* street level, not a roof above it */;
     var c = { actor: a, team: 'civ', alive: true, radius: TU.radius, pos: new T.Vector3(spot.x, y, spot.z), yaw: spot.yaw == null ? Math.random() * 6.28 : spot.yaw, state: 'idle',
       home: { x: spot.x, z: spot.z }, wander: opts.wander == null ? 6 : opts.wander, wait: Math.random() * 6, path: null, pathI: 0, speed: 0, fear: 0, think: Math.random(), talk: opts.talk };
     c.takeDamage = function (amt, info) { c.scare(info && info.point || c.pos, 4); };

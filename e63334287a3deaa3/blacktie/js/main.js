@@ -146,7 +146,6 @@
       html += '<button class="mcard" data-m="' + id + '"><span class="mnum">' + (m.free ? 'Open world' : 'Mission ' + m.num) + '</span><b>' + m.title + '</b><em>' + m.where + '</em><p>' + m.blurb + '</p>' +
         (rec.done ? '<span class="mdone">Completed' + (rec.ghost ? ' · Ghost' : '') + '</span>' : '') + '</button>';
     });
-    html += '<div class="mcard soon"><span class="mnum">Mission 3 · coming next</span><b>Coast Road</b><em>The Amalfi coast road · evening</em><p>The chase down the cliffs to the harbour arrives with vehicles and boats in the next update.</p></div>';
     list.innerHTML = html;
     list.querySelectorAll('[data-m]').forEach(function (b) { b.onclick = function () { RP.Audio.init(); Run.start(b.getAttribute('data-m')); }; });
     $('btnPlay').onclick = function () { RP.Audio.init(); showScreen('missions'); };
@@ -261,7 +260,7 @@
     var bar = $('loadBar');
     $('loadText').textContent = 'Loading people and animation';
     RP.Chars.load(function (k) { bar.style.width = Math.round(k * 80) + '%'; }).then(function () {
-      $('loadText').textContent = 'Building Amalfi';
+      $('loadText').textContent = 'Building the coast';
       bar.style.width = '85%';
       return new Promise(function (res) { setTimeout(res, 30); });
     }).then(function () {

@@ -130,7 +130,7 @@
     { x0: -4.6, z0: -3.4, x1: 5.6, z1: 9.6, y: 2.25, cut: true },        // under the ramp through the Porta della Marina
     { x0: -180.2, z0: 65, x1: -175.8, z1: 89, y: 2.4, cut: true },         // the slot the villa's cliff steps go down
     { cx: 466, cz: 36, r: 13, y: 33.8, blend: 6 },                       // the belvedere lay-by
-    { cx: 846.5, cz: 17, r: 4.5, y: 32, blend: 4 },                      // the landing at the top of the fjord steps
+    { cx: 848.5, cz: 13.5, r: 3.6, y: 32, blend: 3 },                      // the landing at the top of the fjord steps
     { x0: 868, z0: -64, x1: 893, z1: -42, y: 2.3, blend: 4 },            // the fishing hamlet's yard behind its beach
     { cx: 1012, cz: 62, r: 11, y: 38, blend: 6 },                        // bus lay-by on the headland
     { x0: 1376, z0: -44, x1: 1432, z1: -16, y: 7.6, blend: 5, n: 'church' },          // the bowl town: church square
@@ -155,7 +155,7 @@
     { w: 3, mat: 'paving', steps: true, pts: [[-12, -118, 15], [-34, -124, 21], [-50, -118, 26]] },
     { w: 3, mat: 'paving', steps: true, pts: [[-3, -60, 7], [18, -64, 11.5], [26, -52, 13]] },
     // 7 steps from the coast road down the fjord's west wall to the hamlet
-    { w: 3.6, mat: 'paving', steps: true, blend: 2.2, name: 'coveSteps', pts: [[848.5, 21.4, 32], [849, 12, 32], [851, 2, 27], [856, -10, 20.5], [860, -22, 14], [864, -34, 8], [869, -44, 3.2], [872, -50, 2.4]] },
+    { w: 3.6, mat: 'paving', steps: true, blend: 2.2, name: 'coveSteps', pts: [[849, 13, 32], [849.4, 9.5, 31.2], [851, 2, 27], [856, -10, 20.5], [860, -22, 14], [864, -34, 8], [869, -44, 3.2], [872, -50, 2.4]] },
     // 8 the bowl town's street: down from the coast road in three legs and two hairpins to the piazzetta
     { w: 5.5, mat: 'basalt', name: 'descent', pave: 1.7, pts: smoothPts([[1385, -146, 57.6], [1420, -138, 53.5], [1455, -128, 48.6], [1467, -120, 46.2], [1458, -113, 43.6], [1420, -107, 39.5], [1382, -100, 36], [1369, -93, 33.8], [1380, -86, 31.3], [1415, -76, 27], [1450, -66, 22.8], [1458, -58, 20]], 3) },
     // 9-14 its stair lanes
@@ -809,7 +809,7 @@
     // a rail along the outside of the cliff steps
     var S = ROADS[7].pts;
     for (i = 0; i < S.length - 1; i++) K.railing(S[i][0] + 2.25, S[i][1], S[i][2], S[i + 1][0] + 2.25, S[i + 1][1], S[i + 1][2]);
-    K.lamp(846.6, 19, 32);
+    K.lamp(846.2, 12.6, 32);
   }
 
   // ---- the bowl town (in the manner of Positano): church and beach at the bottom, houses stacked to the coast road
@@ -1019,6 +1019,9 @@
         ['city', 470, 33.6, Math.PI / 2 + 0.1], ['boat', 880, -2, 0], ['city', 1019, 58.6, Math.PI / 2], ['spider', 1393, -149.6, 1.72], ['city', 1457, -61.6, 1.4], ['boat', 1360.6, 40, 0]];
       RP.map.minimap = K.minimap(LAND, { squares: [[-19, -38, 12, -2], [1376, -44, 1432, -16]] });
       RP.map.onRoad = LAND.onRoad;
+      // the driving line east from Amalfi's waterfront: the coast road, then the bowl town's street down to its piazzetta
+      var descent = ROADS.filter(function (r) { return r.name === 'descent'; })[0];
+      RP.map.driveLine = coastPts.filter(function (p) { return p[0] <= 1380; }).concat(descent ? descent.pts : []).map(function (p) { return [p[0], p[1]]; });
       return RP.map;
     }
   });

@@ -377,9 +377,11 @@
     var gg = x.createLinearGradient(0, 0, 0, gy); gg.addColorStop(0, '#e2bd5c'); gg.addColorStop(1, '#b98a2c'); x.fillStyle = gg; x.fill();
     x.strokeStyle = '#7a5a22'; x.lineWidth = n / 90; x.stroke();
     for (var k = 0; k < 220; k++) { x.fillStyle = k % 3 ? 'rgba(255,236,160,0.35)' : 'rgba(120,80,20,0.25)'; var tx = n * (0.1 + M.hash2(k, 1) * 0.8), ty = n * 0.06 + M.hash2(k, 2) * (gy - n * 0.1); if (Math.abs(tx - n / 2) < (ty - n * 0.04) * 1.35) x.fillRect(tx, ty, n / 90, n / 90); }
-    x.fillStyle = '#243a66'; x.beginPath(); x.arc(n / 2, gy * 0.62, n * 0.075, 0, 6.283); x.fill();
+    x.fillStyle = '#efe6cf'; x.beginPath(); x.arc(n / 2, gy * 0.62, n * 0.075, 0, 6.283); x.fill();
     x.strokeStyle = '#f0d98a'; x.lineWidth = n / 120; x.stroke();
-    x.fillStyle = '#e9d28a'; for (k = 0; k < 8; k++) { var a = k / 8 * 6.283; x.beginPath(); x.arc(n / 2 + Math.cos(a) * n * 0.045, gy * 0.62 + Math.sin(a) * n * 0.045, n * 0.008, 0, 6.283); x.fill(); }
+    // a plain rosette in the roundel: petals round a boss (no ring of stars, which would read as a real emblem)
+    x.fillStyle = '#b9482f'; for (k = 0; k < 6; k++) { var a = k / 6 * 6.283; x.beginPath(); x.ellipse(n / 2 + Math.cos(a) * n * 0.034, gy * 0.62 + Math.sin(a) * n * 0.034, n * 0.026, n * 0.012, a, 0, 6.283); x.fill(); }
+    x.fillStyle = '#e9d28a'; x.beginPath(); x.arc(n / 2, gy * 0.62, n * 0.014, 0, 6.283); x.fill();
     // cornice between gable and front
     x.fillStyle = '#efe9da'; x.fillRect(0, gy - n * 0.02, n, n * 0.035); x.fillStyle = 'rgba(40,30,20,0.35)'; x.fillRect(0, gy + n * 0.015, n, n * 0.012);
     // blind arcade: slim columns and interlaced pointed arches

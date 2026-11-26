@@ -21,6 +21,7 @@
   V.TYPES = {
     city:   { name: 'Lucciola', len: 3.45, wid: 1.56, h: 1.42, wheelR: 0.28, wb: 2.25, track: 1.32, top: 27, accel: 6.2, brake: 15, grip: 0.95, seat: [0.36, 0.56, -0.25], doorZ: -0.1, cols: ['#c8402f', '#e9e2cf', '#7fb2c4', '#e2b23a', '#3d6b4f'] },
     spider: { name: 'Brezza Spider', len: 4.15, wid: 1.74, h: 1.16, wheelR: 0.32, wb: 2.45, track: 1.46, top: 46, accel: 10.5, brake: 19, grip: 1.2, open: true, seat: [0.38, 0.4, -0.62], doorZ: -0.4, cols: ['#8f1d22', '#1c2a3f', '#d9d4c6', '#1d1d1f'] },
+    berlina: { name: 'Halcyon saloon', len: 4.4, wid: 1.76, h: 1.44, wheelR: 0.31, wb: 2.7, track: 1.5, top: 40, accel: 8, brake: 17, grip: 1.05, seat: [0.38, 0.54, -0.2], doorZ: -0.1, cols: ['#15171a', '#1d2026'] },
     boat:   { name: 'Marea launch', len: 6.4, wid: 2.1, h: 1.1, top: 19, accel: 5.5, brake: 5, grip: 0.6, water: true, seat: [0.4, 0.66, -0.62], doorZ: -0.6, cols: ['#6b4026'] }
   };
 
@@ -147,8 +148,71 @@
     RP.R.scene.add(g);
     v.box = W.addBox({ x: x, z: z, y0: y - (ty.water ? 0.5 : 0), y1: y + ty.h, hx: ty.wid / 2, hz: ty.len / 2, yaw: v.yaw, mat: 'car', cover: !ty.water, kind: 'car', dyn: true });
     v.box._cells = cellsOf(v.box);
+    // bullets on the bodywork: sparks, damage; a finished car smokes and its engine dies
+    v.box.onHit = function (hit, dir, def) { if (v.dead) return; v.hp -= (def && def.dmg || 10) * (v.ai ? 0.55 : 0.22); if (v.hp <= 0) kill(v); };
     V.list.push(v); return v;
   };
+  function kill(v) {
+    v.dead = true; v.hp = 0;
+    if (v.driver) RP.emit('toast', 'The ' + v.ty.name + ' is finished');
+    if (v.ai && !v.ai.out) bailOut(v);
+  }
+  // the crew of a wrecked or cornered Halcyon car get out and fight on foot
+  function bailOut(v) {
+    v.ai.out = true;
+    var c = Math.cos(v.yaw), s = Math.sin(v.yaw);
+    [1, -1].forEach(function (sd, i) {
+      var x = v.pos.x + sd * (v.ty.wid / 2 + 0.7) * c, z = v.pos.z - sd * (v.ty.wid / 2 + 0.7) * s;
+      var g = RP.AI.spawnGuard(i ? 'sentry' : 'enforcer', { x: x, z: z, y: v.pos.y, yaw: v.yaw });
+      if (g && RP.AI.alertGuard) RP.AI.alertGuard(g, RP.G.player.pos, false);
+    });
+  }
+  // ---- pursuit: Halcyon cars follow the driving line after the player, close in, and a passenger fires bursts
+  V.chaser = function (behind) {
+    var line = RP.map && RP.map.driveLine, p = RP.G.player; if (!line || !p) return null;
+    var pi = nearestIdx(line, p.pos.x, p.pos.z, 0, line.length - 1), i = pi, d = 0;
+    while (i > 0 && d < behind) { d += Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]); i--; }
+    var a = line[i], b = line[Math.min(line.length - 1, i + 1)];
+    var v = V.spawn('berlina', a[0], a[1], Math.atan2(b[0] - a[0], b[1] - a[1]));
+    v.ai = { team: 'guard', alive: true, pos: v.pos, idx: i, gunT: 2 + Math.random() * 2, burst: 0, stuck: 0 }; v.hp = 160; v.v = 14;
+    return v;
+  };
+  function nearestIdx(line, x, z, i0, i1) { var best = i0, bd = 1e9; for (var i = i0; i <= i1; i++) { var d = (line[i][0] - x) * (line[i][0] - x) + (line[i][1] - z) * (line[i][1] - z); if (d < bd) { bd = d; best = i; } } return best; }
+  var CGUN = { name: 'Car gun', dmg: 8, range: [40, 110], minFrac: 0.5, snd: 'smg', cat: 'smg' };
+  function stepAI(v, dt) {
+    var a = v.ai, p = RP.G.player, line = RP.map.driveLine;
+    if (v.dead || a.out || !p || !p.alive) { drive(v, dt, 0, 0, true); return; }
+    a.idx = nearestIdx(line, v.pos.x, v.pos.z, Math.max(0, a.idx - 2), Math.min(line.length - 1, a.idx + 4));
+    var pIdx = nearestIdx(line, p.pos.x, p.pos.z, 0, line.length - 1), dP = Math.hypot(p.pos.x - v.pos.x, p.pos.z - v.pos.z);
+    var onFoot = !p.vehicle, tx, tz, want;
+    if (dP < 16 && Math.abs(p.pos.y - v.pos.y) < 4) { tx = p.pos.x; tz = p.pos.z; want = onFoot ? 0 : Math.abs(p.vehicle.v) + 3; }      // close: go for the player
+    else {
+      var ahead = pIdx >= a.idx, ti = M.clamp(a.idx + (ahead ? 2 : -2), 0, line.length - 1); tx = line[ti][0]; tz = line[ti][1];
+      want = M.clamp((p.vehicle ? Math.abs(p.vehicle.v) : 4) + (dP - 14) * 0.3, 7, v.ty.top * 0.92);
+      if (!ahead) { want = 9; }
+    }
+    // the player on foot nearby: pull up and get out
+    if (onFoot && dP < 26) { drive(v, dt, 0, 0, true); if (Math.abs(v.v) < 1.5) bailOut(v); return; }
+    var err = M.wrap(Math.atan2(tx - v.pos.x, tz - v.pos.z) - v.yaw);
+    if (Math.abs(err) > 2.2) { drive(v, dt, -0.7, -Math.sign(err), false); }     // facing the wrong way: back round
+    else { want *= M.clamp(1.25 - Math.abs(err) * 0.9, 0.35, 1); drive(v, dt, v.v < want ? 1 : (v.v > want + 3 ? -0.6 : 0), M.clamp(err * 2.2, -1, 1), false); }
+    hitPeople(v);
+    // stuck against something: reverse out
+    a.stuck = Math.abs(v.v) < 0.6 ? a.stuck + dt : 0; if (a.stuck > 2.5) { v.v = -5; a.stuck = 0; }
+    // the passenger's gun
+    a.gunT -= dt;
+    if (a.burst > 0) {
+      a.shotT -= dt;
+      if (a.shotT <= 0) {
+        a.shotT = 0.09; a.burst--;
+        _a.set(v.pos.x, v.pos.y + 1.15, v.pos.z); _b.set(p.pos.x, p.pos.y + 1.0, p.pos.z).sub(_a).normalize();
+        v.box.off = true; RP.Combat.fire(a, _a.clone().addScaledVector(_b, 1.2), _b.clone(), CGUN, { spread: 3.2 + Math.abs(v.v) * 0.12 + (p.vehicle ? Math.abs(p.vehicle.v) * 0.1 : 0), dmgMul: 0.6 }); v.box.off = false;
+        RP.FX.muzzle(_a.clone().addScaledVector(_b, 1.2), _b, false); RP.Audio.shot('smg', _a.clone(), { gain: 0.8 });
+        if (a.burst === 0) a.gunT = 2.2 + Math.random() * 2;
+      }
+    } else if (a.gunT <= 0 && dP < 55 && W.los(v.pos.x, v.pos.y + 1.2, v.pos.z, p.pos.x, p.pos.y + 1.1, p.pos.z)) { a.burst = 4 + Math.floor(Math.random() * 4); a.shotT = 0; }
+    if (v.hit > 8) { v.hp -= v.hit * 2; if (v.hp <= 0) kill(v); } v.hit = 0;
+  }
   V.clear = function () {
     V.list.forEach(function (v) { if (v.g.parent) v.g.parent.remove(v.g); v.box.off = true; });
     V.list = []; stopEngine();
@@ -221,6 +285,7 @@
   var _g = {}, _f = new T.Vector3(), _r = new T.Vector3();
   function drive(v, dt, thr, st, hb) {
     var ty = v.ty, top = ty.top;
+    if (v.dead) { thr = 0; hb = true; }
     // throttle, brake, reverse
     if (thr > 0.05) { if (v.v < -0.5) v.v += ty.brake * dt; else v.v += ty.accel * thr * (1 - M.clamp(v.v / top, 0, 1) * 0.92) * dt; }
     else if (thr < -0.05) { if (v.v > 0.6) v.v -= ty.brake * -thr * dt; else v.v = Math.max(-top * 0.28, v.v + ty.accel * 0.7 * thr * dt); }
@@ -258,8 +323,7 @@
         else v.v *= 1 - hitK * 0.3;
       }
     }
-    v.box.off = false;
-    v.pos.x = (_f.x + _r.x) / 2; v.pos.z = (_f.z + _r.z) / 2;
+    v.pos.x = (_f.x + _r.x) / 2; v.pos.z = (_f.z + _r.z) / 2;   // (its own box stays out of the ground queries below: a low car would climb onto itself)
     var ny = Math.atan2(_f.x - _r.x, _f.z - _r.z); v.yaw += M.wrap(ny - v.yaw);
     // the ground under the wheels: height, pitch, roll; falling
     if (ty.water) {
@@ -278,9 +342,11 @@
       if (hf < W.water - 0.35 && hr < W.water - 0.35) { v.dead = true; v.v = 0; if (v.driver) { RP.emit('toast', 'Flooded'); V.exit(v.driver); } }
     }
     v._lv = v.v;
+    v.box.off = false;
   }
   // people in the way
   function hitPeople(v) {
+    var pl = RP.G.player;
     var sp = Math.abs(v.v); if (sp < 0.8) return;
     var c = Math.cos(v.yaw), s = Math.sin(v.yaw), hx = v.ty.wid / 2 + 0.3, hz = v.ty.len / 2 + 0.3, dir = Math.sign(v.v);
     function local(e) { var dx = e.pos.x - v.pos.x, dz = e.pos.z - v.pos.z; _a.set(dx * c - dz * s, 0, dx * s + dz * c); return Math.abs(_a.x) < hx && Math.abs(_a.z) < hz && Math.abs(e.pos.y - v.pos.y) < 1.6; }
@@ -290,6 +356,12 @@
       if (sp > 4) { g.takeDamage(sp * 7, { dir: imp.clone().normalize(), force: Math.min(6, sp * 0.4), from: v.driver, vehicle: true }); v.v *= 0.9; RP.Cam.shake(0.25); RP.Audio.impact && RP.Audio.impact('car', g.pos, 1.5); }
       else { g.pos.x += Math.sign(_a.x || 1) * c * 0.06; g.pos.z -= Math.sign(_a.x || 1) * s * 0.06; }
     });
+    // a Halcyon car into the player on foot
+    if (v.ai && pl && pl.alive && !pl.vehicle && pl.state !== 'ragdoll' && local(pl) && sp > 4) {
+      pl.takeDamage(sp * 3.5, { dir: new T.Vector3(Math.sin(v.yaw) * dir, 0, Math.cos(v.yaw) * dir) });
+      if (pl.alive && RP.Player.tumble) RP.Player.tumble(pl, new T.Vector3(Math.sin(v.yaw) * dir * sp * 0.5, 2.5, Math.cos(v.yaw) * dir * sp * 0.5));
+      v.v *= 0.7;
+    }
     RP.G.civilians.forEach(function (cv) {
       if (cv.pos.distanceTo(v.pos) < 9 && sp > 3 && cv.scare) cv.scare(v.pos, 4);
       if (!local(cv)) return;
@@ -315,7 +387,9 @@
     var p = RP.G.player;
     for (var i = 0; i < V.list.length; i++) {
       var v = V.list[i];
-      if (!v.driver && (Math.abs(v.v) > 0.05 || v.air)) { drive(v, dt, 0, 0, true); hitPeople(v); v.hit = 0; }   // rolls to a stop
+      if (v.ai) stepAI(v, dt);
+      else if (!v.driver && (Math.abs(v.v) > 0.05 || v.air)) { drive(v, dt, 0, 0, true); hitPeople(v); v.hit = 0; }   // rolls to a stop
+      if (v.dead && !v.ty.water) { v.smokeT = (v.smokeT || 0) - dt; if (v.smokeT <= 0) { v.smokeT = 0.14; RP.FX.dust(v.pos.x + Math.sin(v.yaw) * 1.3, v.pos.y + 0.9, v.pos.z + Math.cos(v.yaw) * 1.3, 0, 1, 0, '#2b2b2b', 1, 1.1, 0.8); } }
       var g = v.g; g.position.copy(v.pos); g.rotation.set(v.pitch, v.yaw, v.roll, 'YXZ');
       v.spinA += v.v * dt / (v.ty.wheelR || 1);
       for (var k = 0; k < g.userData.wheels.length; k++) { var w = g.userData.wheels[k]; w.spin.rotation.x = v.spinA; if (w.front) w.piv.rotation.y = v.steer; }
