@@ -39,6 +39,18 @@ character build scripts are in `tools/chars/` (see its README; needs `bvenv` wit
 - Mission 3 `chase` (Coast Road): Spider from the waterfront east to the piazzetta, on foot to the pier, launch out
   to sea; `RP.Vehicles.chaser()` saloons follow `driveLine` and fire; cars take bullet and crash damage.
 
+## Stopped here (pick up from this)
+- An autopilot drive of mission 3 (`~/rpwork/w/drive.js`: follows `RP.map.driveLine` from the waterfront to the
+  piazzetta, logs position / speed / car hp / stuck points) was being re-run and had NOT yet passed after three
+  fixes: the Spider climbed onto its own box (fixed), the cove steps' railing and lamp crossed the road at the
+  viaduct x 849 (moved in `maps/amalfi.js`, not yet seen on screen), crash damage drained the car (softened).
+  Run it again first; anything it reports as STUCK is a map or handling bug. The first run (flying car) did show
+  the mission steps advance, chasers spawn and the helicopter arrive.
+- Checkouts: main `/home/user/ASCoding11.github.io` on `agent-game` (everything is here and pushed). The worktree
+  `/home/user/bt-work` (branch `bt-work`) is merged and can be removed; remote branch `agent-game-map-wip` is an old
+  snapshot, safe to delete. Harness scripts: `~/rpwork/*.js` use port 8765 (main checkout), `~/rpwork/w/*.js`
+  were for the worktree (8766; `w/probe.js` and `w/drive.js` were pointed back at 8765).
+
 ## Next
 1. Play mission 3 with real controls; tune chaser speed/aggression and the helicopter; check the pursuit in the
    tunnels and hairpins; traffic and parked cars along the road.
