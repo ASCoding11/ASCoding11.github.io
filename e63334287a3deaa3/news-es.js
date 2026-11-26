@@ -2,6 +2,7 @@
  * Spanish for the What's new entries (news.js): their titles, tags and bullet points, in our own words. Game names
  * stay in English. news.js loads this file only while Spanish is on; lang.js translates the list as it appears.
  * When you add an entry to NEWS, add its lines here too (English: Spanish). A line with no Spanish shows in English.
+ * Pull requests put their Spanish in the entry's file in news/ (its "es"), and the merge adds it here.
  */
 (function () {
   if (!window.BackRoomLang) return;
@@ -15,6 +16,11 @@
     "Type a list like \"London, Kyoto, Machu Picchu\" to log a whole trip at once, and keep a striped wishlist of places to go next.": "Escribe una lista como «London, Kyoto, Machu Picchu» para apuntar un viaje entero de una vez, y guarda una lista de deseos a rayas con los sitios a los que quieres ir.",
     "Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.": "Colecciona 469 monumentos, cada uno con su propio dibujo pixelado, y añade amigos para ver quién ha estado en más sitios.",
     "Find it under Web Development Projects on the home page.": "Lo encontrarás en Web Development Projects, en la página principal.",
+    "Site rules and privacy, in plain words": "Las reglas del sitio y la privacidad, en palabras sencillas",
+    "Read the terms": "Lee los términos",
+    "The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can't promise.": "El sitio ahora tiene una página de Términos de uso: cómo jugar limpio, qué puedes publicar, cómo funcionan el Marketplace y la compra de objetos, y qué podemos y qué no podemos prometer.",
+    "The privacy policy now also explains Prompted, buying items, the Marketplace and what we ask of players under 13.": "La política de privacidad ahora también explica Prompted, la compra de objetos, el Marketplace y lo que pedimos a los jugadores menores de 13 años.",
+    "Both are linked at the bottom of every main page.": "Las dos están enlazadas al final de cada página principal.",
     "A proper \"page not found\"": "Una página de \"no encontrada\" de verdad",
     "A mistyped or old link now shows a \"Page not found\" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.": "Un enlace mal escrito o antiguo ahora muestra una página de \"Página no encontrada\" con botones para volver a la página de inicio, los juegos y las herramientas de estudio, en vez de un error sin más o la página de inicio.",
     "It shows the address you tried, and has a button to tell us about the broken link.": "Muestra la dirección que intentaste abrir y tiene un botón para avisarnos del enlace roto.",
