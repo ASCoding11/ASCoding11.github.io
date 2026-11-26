@@ -166,7 +166,7 @@
     right.set(Math.cos(yaw), 0, -Math.sin(yaw));
     // FOV
     const sprintK = P.sprinting ? 1 : 0;
-    C._spr = IV.damp(C._spr || 0, sprintK, 6, dt);
+    C._spr = IV.damp(C._spr || 0, sprintK, sprintK ? 6 : 12, dt);   // eases in, lets go fast so a sprint-to-aim zoom does not drift
     let fov = S.fov + C._spr * CT.sprintFov;
     C.fovBase = fov;
     const fp1 = IV.fp && IV.fp.on();
