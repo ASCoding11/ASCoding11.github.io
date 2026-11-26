@@ -7,6 +7,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Blackwade's shop is open again": "La tienda de Blackwade vuelve a estar abierta",
+    "Blackwade": "Blackwade",
+    "You can buy equipment and upgrades in Blackwade again. They are how you get further, so that shop stays open.": "Ya puedes volver a comprar equipo y mejoras en Blackwade. Son la forma de avanzar, así que esa tienda sigue abierta.",
+    "Your coins and everything you owned were never touched.": "Tus monedas y todo lo que tenías no se tocaron nunca.",
+    "The shops that only sell looks (Chromeline, Spire's coin hats, Asteroid Run and Starhop) stay closed for now.": "Las tiendas que solo venden aspectos (Chromeline, los sombreros de monedas de Spire, Asteroid Run y Starhop) siguen cerradas por ahora.",
     "Game shops are closed for now": "Las tiendas de los juegos están cerradas por ahora",
     "Chromeline": "Chromeline",
     "Spire": "Spire",

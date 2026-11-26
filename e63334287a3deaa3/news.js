@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '1.65.2', title: 'Blackwade\'s shop is open again', kind: 'fix',
+     tags: ['Blackwade'], items: [
+      'You can buy equipment and upgrades in Blackwade again. They are how you get further, so that shop stays open.',
+      'Your coins and everything you owned were never touched.',
+      'The shops that only sell looks (Chromeline, Spire\'s coin hats, Asteroid Run and Starhop) stay closed for now.']},
     {date: '2026-11-26', version: '1.65.1', title: 'Game shops are closed for now', kind: 'fix',
      tags: ['Chromeline', 'Spire', 'Asteroid Run', 'Blackwade'], items: [
       'For now nothing can be bought inside the games: Chromeline\'s garage, Spire\'s coin hats, Asteroid Run\'s runners and trails, Blackwade\'s equipment and upgrades, and Starhop\'s skins.',
