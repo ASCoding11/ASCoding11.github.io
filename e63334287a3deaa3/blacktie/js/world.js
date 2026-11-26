@@ -9,6 +9,8 @@
  *   ramp: [topAtBack, topAtFront] makes the top slope along the box's local z (stairs, ramps): y1 is then the max.
  *   mat: 'stone' | 'plaster' | 'metal' | 'wood' | 'glass' | 'dirt' | 'water' | 'car' | 'cloth' (impact effects + sound)
  *   cover: true to make AI cover points along its sides. kind: free text ('house', 'wall', 'crate', ...).
+ *   deck: true for a bridge or pier deck: the navigation grid stands on it even where the ground is far below.
+ *   see: true for things sight lines pass (railings, foliage). nocol: true for boxes that only stop bullets.
  */
 (function () {
   'use strict';
@@ -16,8 +18,26 @@
   var W = RP.W = {};
   var CELL = 8;   // m, broad-phase grid
 
+  // The broad phase is a flat array of lists, one per 8 m cell over the map bounds (plus a margin), so a lookup is an
+  // index, not a string key: the long coast map makes a million of them while it builds its navigation grid.
+  var GX0 = 0, GZ0 = 0, GW = 1, GH = 1, GRID = [];
+  function cellList(gx, gz) { return gx < GX0 || gz < GZ0 || gx >= GX0 + GW || gz >= GZ0 + GH ? null : GRID[(gz - GZ0) * GW + (gx - GX0)]; }
+  function keyIdx(k) {
+    if (typeof k !== 'string') return -1;
+    var c = k.indexOf(','); if (c < 0) return -1;
+    var gx = +k.slice(0, c), gz = +k.slice(c + 1);
+    return gx >= GX0 && gz >= GZ0 && gx < GX0 + GW && gz < GZ0 + GH ? (gz - GZ0) * GW + (gx - GX0) : -1;
+  }
   W.reset = function (bounds) {
-    W.boxes = []; W.grid = {}; W.bounds = bounds;   // {x0, z0, x1, z1}
+    W.boxes = []; W.bounds = bounds;   // {x0, z0, x1, z1}
+    GX0 = Math.floor(bounds.x0 / CELL) - 2; GZ0 = Math.floor(bounds.z0 / CELL) - 2;
+    GW = Math.ceil(bounds.x1 / CELL) + 2 - GX0; GH = Math.ceil(bounds.z1 / CELL) + 2 - GZ0;
+    GRID = new Array(GW * GH);
+    // W.grid['gx,gz'] still reads and writes a cell's list (vehicles move their box through it this way)
+    W.grid = new Proxy({}, {
+      get: function (t, k) { var i = keyIdx(k); return i < 0 ? undefined : GRID[i]; },
+      set: function (t, k, v) { var i = keyIdx(k); if (i >= 0) GRID[i] = v; return true; }
+    });
     W.hf = null; W.coverPts = []; W.coverGrid = {}; W.nav = null; W.water = -1e9; W.zones = [];
     W._q = 0;
   };
@@ -32,10 +52,18 @@
     W.boxes.push(b);
     var gx0 = Math.floor((b.x - b.r) / CELL), gx1 = Math.floor((b.x + b.r) / CELL);
     var gz0 = Math.floor((b.z - b.r) / CELL), gz1 = Math.floor((b.z + b.r) / CELL);
+    gx0 = Math.max(gx0, GX0); gz0 = Math.max(gz0, GZ0); gx1 = Math.min(gx1, GX0 + GW - 1); gz1 = Math.min(gz1, GZ0 + GH - 1);
     for (var gx = gx0; gx <= gx1; gx++) for (var gz = gz0; gz <= gz1; gz++) {
-      var k = gx + ',' + gz; (W.grid[k] = W.grid[k] || []).push(b);
+      var k = (gz - GZ0) * GW + (gx - GX0); (GRID[k] = GRID[k] || []).push(b);
     }
     return b;
+  };
+  // after changing a box's x, z, yaw or size: put it in the right broad-phase cells again (moving things)
+  W.moveBox = function (b) {
+    for (var i = 0; i < GRID.length; i++) { var l = GRID[i]; if (l) { var k = l.indexOf(b); if (k >= 0) l.splice(k, 1); } }
+    b.c = Math.cos(b.yaw || 0); b.s = Math.sin(b.yaw || 0); b.r = Math.sqrt(b.hx * b.hx + b.hz * b.hz);
+    var gx0 = Math.max(Math.floor((b.x - b.r) / CELL), GX0), gx1 = Math.min(Math.floor((b.x + b.r) / CELL), GX0 + GW - 1), gz0 = Math.max(Math.floor((b.z - b.r) / CELL), GZ0), gz1 = Math.min(Math.floor((b.z + b.r) / CELL), GZ0 + GH - 1);
+    for (var gx = gx0; gx <= gx1; gx++) for (var gz = gz0; gz <= gz1; gz++) { var q = (gz - GZ0) * GW + (gx - GX0); (GRID[q] = GRID[q] || []).push(b); }
   };
   // local coordinates of a world point in box b
   function toLocal(b, x, z, out) { var dx = x - b.x, dz = z - b.z; out.x = dx * b.c - dz * b.s; out.z = dx * b.s + dz * b.c; return out; }
@@ -53,7 +81,7 @@
     out = out || []; out.length = 0; _stamp++;
     var gx0 = Math.floor((x - r) / CELL), gx1 = Math.floor((x + r) / CELL), gz0 = Math.floor((z - r) / CELL), gz1 = Math.floor((z + r) / CELL);
     for (var gx = gx0; gx <= gx1; gx++) for (var gz = gz0; gz <= gz1; gz++) {
-      var l = W.grid[gx + ',' + gz]; if (!l) continue;
+      var l = cellList(gx, gz); if (!l) continue;
       for (var i = 0; i < l.length; i++) { var b = l[i]; if (b._st === _stamp || b.off) continue; b._st = _stamp; out.push(b); }
     }
     return out;
@@ -205,7 +233,7 @@
       if (tt > bt + CELL) break;
       var cx = Math.floor((ox + dx * tt) / CELL), cz = Math.floor((oz + dz * tt) / CELL);
       for (var gx = cx - 1; gx <= cx + 1; gx++) for (var gz = cz - 1; gz <= cz + 1; gz++) {
-        var l = W.grid[gx + ',' + gz]; if (!l) continue;
+        var l = cellList(gx, gz); if (!l) continue;
         for (var k = 0; k < l.length; k++) {
           var b = l[k]; if (b._st === _stamp || b.off) continue; b._st = _stamp;
           if (opts && opts.skip && opts.skip(b)) continue;
@@ -255,6 +283,7 @@
   function skipSoft(b) { return b.see; }   // see-through boxes (railings, foliage) don't block sight
 
   // ------------------------------------------------------------------ navigation grid (1 m cells) + A*
+  var NAV_RISE = 0.72;   // m between neighbouring cells that can still be walked: stepped lanes and stairs climb about 0.6 per metre
   W.buildNav = function (cell) {
     cell = cell || 1;
     var B = W.bounds, nx = Math.ceil((B.x1 - B.x0) / cell), nz = Math.ceil((B.z1 - B.z0) / cell);
@@ -263,7 +292,11 @@
       var x = B.x0 + (i + 0.5) * cell, z = B.z0 + (j + 0.5) * cell;
       var th = W.terrainH(x, z), g = th, wall = false;
       var l = W.near(x, z, 0.4, _nb);
-      // stand on the highest surface reachable from the terrain (or from a box top we step onto)
+      if (!l.length) {   // nothing built here: open ground or open sea
+        h[j * nx + i] = g; ok[j * nx + i] = g < W.water + 0.05 ? 0 : 1; continue;
+      }
+      // stand on the highest surface reachable from the terrain (or from a box top we step onto); a bridge or pier
+      // deck (b.deck) is stood on however far below it the ground is
       for (var pass = 0; pass < 2; pass++) {
         for (var k = 0; k < l.length; k++) {
           var b = l[k]; if (b.nocol) continue;
@@ -271,7 +304,7 @@
           if (Math.abs(_l.x) > b.hx + 0.3 || Math.abs(_l.z) > b.hz + 0.3) continue;
           var inside = Math.abs(_l.x) <= b.hx && Math.abs(_l.z) <= b.hz;
           var top = topAt(b, M.clamp(_l.z, -b.hz, b.hz));
-          if (inside && top <= g + 0.45 && top > g) g = top;
+          if (inside && top > g && (top <= g + 0.45 || b.deck)) g = top;
         }
       }
       for (k = 0; k < l.length; k++) {
@@ -331,7 +364,7 @@
       for (var k = 0; k < 8; k++) {
         var x = cx + DX[k], z = cz + DZ[k]; if (x < 0 || z < 0 || x >= N.nx || z >= N.nz) continue;
         var nc = z * N.nx + x; if (!N.ok[nc] || closedS[nc] === stampA) continue;
-        if (Math.abs(N.h[nc] - ch) > 0.5) continue;
+        if (Math.abs(N.h[nc] - ch) > NAV_RISE) continue;
         if (k >= 4 && (!N.ok[cz * N.nx + x] || !N.ok[z * N.nx + cx])) continue;   // no corner cutting
         var ng = gScore[cur] + DC[k] + Math.max(0, N.h[nc] - ch) * 0.5;
         if (visit.get(nc) === stampA && ng >= gScore[nc]) continue;
@@ -356,7 +389,7 @@
     var n = Math.max(Math.abs(bx - ax), Math.abs(bz - az)), ph = N.h[a];
     for (var i = 1; i <= n; i++) {
       var x = Math.round(ax + (bx - ax) * i / n), z = Math.round(az + (bz - az) * i / n), c = z * N.nx + x;
-      if (!N.ok[c] || Math.abs(N.h[c] - ph) > 0.5) return false;
+      if (!N.ok[c] || Math.abs(N.h[c] - ph) > NAV_RISE) return false;
       ph = N.h[c];
     }
     return true;

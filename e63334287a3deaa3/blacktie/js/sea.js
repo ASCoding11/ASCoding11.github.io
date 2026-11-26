@@ -3,6 +3,7 @@
  * from summed waves in the fragment shader, Fresnel reflection of the same sky function the sky dome uses, a sun glint,
  * colour by depth (turquoise over the shallows, deep blue offshore) from a texture of the terrain heights, and foam
  * where the water meets the shore. One function (RP.Sea.height) gives the swell height for floating things.
+ * RP.Sea.update runs every frame, so it also drives the map's chunk streaming (RP.B.stream).
  */
 (function () {
   'use strict';
@@ -22,7 +23,14 @@
   };
   S.build = function (hf) {
     var q = R.q.sea, seg = q === 2 ? 220 : q === 1 ? 150 : 80;
-    var g = new T.PlaneGeometry(1800, 1800, seg, seg); g.rotateX(-Math.PI / 2);
+    // a square grid that is fine under the camera and stretches toward the horizon (6 km across), so the far coast
+    // of the long map still has sea in front of it
+    var g = new T.PlaneGeometry(2, 2, seg, seg); g.rotateX(-Math.PI / 2);
+    var gp = g.attributes.position, INNER = 420, OUTER = 3000;
+    for (var gi = 0; gi < gp.count; gi++) {
+      var ux = gp.getX(gi), uz = gp.getZ(gi);
+      gp.setX(gi, ux * INNER + ux * ux * ux * (OUTER - INNER)); gp.setZ(gi, uz * INNER + uz * uz * uz * (OUTER - INNER));
+    }
     // pack the terrain heights into a float texture for the depth colour
     var tex = null;
     if (hf) {
@@ -94,14 +102,16 @@
         '}'
       ].join('\n')
     });
-    S.step = 1800 / seg;
+    S.step = INNER * 2 / seg;
     var m = S.mesh = new T.Mesh(g, mat);
     m.frustumCulled = false; m.renderOrder = 2;
     R.scene.add(m);
     return m;
   };
-  S.atmos = function () {};
+  // called when the time of day changes: street lamps and lit windows glow at dusk, barely by day
+  S.atmos = function () { if (RP.MapTex) RP.MapTex.glowU.value = R.atmosName === 'dusk' ? 1 : R.atmosName === 'golden' ? 0.3 : 0.06; };
   S.update = function (t, cam) {
+    if (RP.B && RP.B.stream) RP.B.stream(cam);   // the map's chunks follow the camera too (see build.js)
     if (!S.mesh) return;
     S.mat.uniforms.uTime.value = t;
     var st = S.step;
