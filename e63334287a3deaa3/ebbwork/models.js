@@ -105,6 +105,8 @@ function thing(B,b,seed,cx,cz){var x0=b.x0,x1=b.x1,z0=b.z0,z1=b.z1,y0=b.y0,y1=b.
   else B.plain.box(x0,y0,z0,x1,y1,z1,c)}
 function deco(B,w,d){var gy=w.groundAt(d.x,d.z),s=d.s,r=rnd(Math.floor(d.x*31+d.z*17)+5),k;
   if(d.kind==='bush'){var cols=[0x4f7a3c,0x5b8a3f,0x44693a];for(k=0;k<3;k++)B.plain.blob(d.x+(r()-0.5)*0.6*s,gy+(0.35+r()*0.25)*s,d.z+(r()-0.5)*0.6*s,(0.45+r()*0.2)*s,(0.4+r()*0.2)*s,(0.45+r()*0.2)*s,cols[k],r()*3)}
+  else if(d.kind==='pegs'){var px=null,py=0;for(var x=d.x;x<=d.x1+0.01;x+=1.4){var g=w.groundAt(x,d.z);B.wood.box(x-0.03,g-0.05,d.z-0.03,x+0.03,g+0.62,d.z+0.03,0xc9a36a);B.plain.box(x-0.035,g+0.5,d.z-0.035,x+0.035,g+0.64,d.z+0.035,0xff6a10);
+      if(px!==null)B.plain.rod(px,py,d.z,x,g+0.58,d.z,0.008,0xff8a2a);px=x;py=g+0.58}}   // survey pegs with a string between them: where to dig
   else if(d.kind==='pot'){B.plain.cone(d.x,gy,d.z,0.2*s,0.34*s,0xa5553a);B.plain.blob(d.x,gy+0.48*s,d.z,0.24*s,0.22*s,0.24*s,0x4f7f3d);B.plain.blob(d.x+0.06,gy+0.66*s,d.z,0.07,0.06,0.07,0xd94f4f)}}
 
 function signTex(text,bg,fg){var c=document.createElement('canvas');c.width=256;c.height=64;var x=c.getContext('2d');x.fillStyle=bg||'#f1ead2';x.fillRect(0,0,256,64);x.strokeStyle=fg||'#1d2a33';x.lineWidth=5;x.strokeRect(3,3,250,58);
@@ -142,6 +144,9 @@ function level(w,opt){
   w.pipes.forEach(function(p){for(var k=0;k<p.pts.length-1;k++){var a=p.pts[k],b=p.pts[k+1],ya=w.groundAt(a[0],a[1])+p.y,yb=w.groundAt(b[0],b[1])+p.y;B.plain.rod(a[0],ya,a[1],b[0],yb,b[1],0.035,0xb87333);
       var len=Math.hypot(b[0]-a[0],b[1]-a[1]);for(var t=1;t<len;t+=2){var u=t/len,px=a[0]+(b[0]-a[0])*u,pz=a[1]+(b[1]-a[1])*u;B.plain.box(px-0.05,ya-0.05,pz-0.05,px+0.05,ya+0.05,pz+0.05,0x6d7478)}}});
   // drains: an iron frame with bars over a dark pit
+  // a culvert with `pipe`: a concrete pipe from the grate through the bank, its mouth showing on the far side
+  w.drains.forEach(function(d){if(!d.pipe)return;var y0=S.g[d.i]+0.16,x1=d.pipe[1],y1=Math.max(w.groundAt(x1,d.z),-0.3)+0.2;B.plain.rod(d.x+0.45,y0,d.z,d.pipe[0],y0+0.02,d.z,0.26,0x8f918b);B.plain.rod(x1-0.7,y1+0.02,d.z,x1,y1,d.z,0.26,0x8f918b);
+    B.plain.box(x1-0.02,y1-0.2,d.z-0.2,x1+0.01,y1+0.2,d.z+0.2,0x101214);B.plain.box(d.pipe[0]-0.1,y0-0.32,d.z-0.5,d.pipe[0]+0.12,y0+0.38,d.z+0.5,0x9a9b95);B.plain.box(d.pipe[0]-0.13,y0-0.22,d.z-0.22,d.pipe[0]-0.1,y0+0.22,d.z+0.22,0x101214)});
   L.drains=w.drains.map(function(d){var gy=S.g[d.i],sc=d.kind==='culvert'?1.35:1,h=0.38*sc;B.plain.box(d.x-h-0.05,gy-0.02,d.z-h-0.05,d.x+h+0.05,gy+0.016,d.z+h+0.05,0x3a4045);
     var hole=new THREE.Mesh(new THREE.PlaneGeometry(h*2,h*2),new THREE.MeshBasicMaterial({color:0x050607}));hole.rotation.x=-Math.PI/2;hole.position.set(d.x,gy+0.018,d.z);grp.add(hole);
     for(var k=0;k<6;k++){var bx=d.x-h+0.05+k*(h*2-0.1)/5;B.plain.box(bx-0.025,gy+0.012,d.z-h,bx+0.025,gy+0.034,d.z+h,0x596268)}
