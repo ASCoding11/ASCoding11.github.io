@@ -90,6 +90,21 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.03', title: 'Leaf Sweep: a new start', kind: 'feature',
+     img: 'm/thumbs/windrow.jpg', tags: ['Leaf Sweep'], items: [
+      'Leaf Sweep now starts in a small front yard by a garden house, with just your hands and one thing to do at a time.',
+      'Clear the yard and the gate to the big gardens opens. The rake arrives in the first couple of minutes.',
+      'New look: a house, fuller trees, soft shadows, a real sky, and gloves that actually hold the rake and blower.',
+      'Leaves fly in the blower\'s wind and burst when you jump into a heap. Your old progress is kept.']},
+    {date: '2026-11-26', version: '2.02', title: 'Chromeline: one button and 26 new pieces', kind: 'feature',
+     tags: ['Chromeline'], items: [
+      'Chromeline is now one button: hold to ride on the ground, hold in the air to flip backwards, let go to stop the spin. The arrow keys and the two round touch buttons are gone.',
+      '26 new track pieces, from easy to very hard: spike ceilings, glowing posts, floating triangles, wavy ground, broken track, steep ramps, triple loops, a giant loop, fast-dropping platforms and more.',
+      'Loops now pay: gems sit inside them, a gold crown waits at the top of some, and every loop raises your run multiplier, which multiplies every trick and gem.',
+      'Endless gets hard much sooner and keeps getting harder, and level time targets are tighter.',
+      'Flips take a little more skill: a slightly slower spin and a stricter clean landing.',
+      'The riders are gone: the bike rides alone now. If you owned or had picked a rider, your save still loads and nothing else changes.',
+      'The Volt Hopper has a new look: a sharper shell, a headlight beam, arcs of light when it flips and a pulse of light where it lands.']},
     {date: '2026-11-26', version: '1.65.2', title: 'Blackwade\'s shop is open again', kind: 'fix',
      tags: ['Blackwade'], items: [
       'You can buy equipment and upgrades in Blackwade again. They are how you get further, so that shop stays open.',

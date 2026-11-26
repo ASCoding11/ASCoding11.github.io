@@ -59,7 +59,7 @@ var sun=new THREE.DirectionalLight(0xffd7a0,0.95);sun.castShadow=true;sun.shadow
 var torch=new THREE.PointLight(0xffe9c4,0,18,1);camera.add(torch);
 // Auto starts High on computers and Low on touch screens and Chromebooks, and steps down for the rest of the visit
 // (never back up) if frames stay slow even after ../autores.js has lowered the resolution.
-var autoLow=/CrOS/.test(navigator.userAgent),slowN=0,fpsT=0,fpsN=0;
+var autoLow=/CrOS/.test(navigator.userAgent),mirrorOff=false,slowN=0,fpsT=0,fpsN=0; // mirrorOff: the next step down after Low, for slow phones: the water stops mirroring the site and shows the sky
 function quality(){var q=save.set.q;return q==='auto'?(touchUI||autoLow?'low':'high'):q}
 function resize(){var w=innerWidth,h=innerHeight,pr=Math.min(devicePixelRatio||1,quality()==='high'||touchUI?2:1); // phones ask for up to 2 so that ../autores.js, which can halve it, never takes them under 1
   renderer.setPixelRatio(pr);renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?86:74;camera.updateProjectionMatrix()}
@@ -137,7 +137,7 @@ function rebuildDyn(){dynDirty=false;if(lv.dyn){lv.grp.remove(lv.dyn);EWLook.dis
 // makes the water read as water, so every tier gets it: 512 x 320 every frame on High, 256 x 160 every other frame on Low.
 var reflN=0,reflSize=0,reflRT=null,reflCam=new THREE.PerspectiveCamera(),reflPlane=new THREE.Plane(new THREE.Vector3(0,1,0),1e4),waterH=0,waterHT=0; // the plane sits on the walls' materials all the time; it only bites during the mirror pass
 function renderReflection(){
-  if(!lv){U.uRefl.value=0;return}var hi=quality()==='high',sz=hi?512:256;
+  if(!lv||(mirrorOff&&save.set.q==='auto')){U.uRefl.value=0;return}var hi=quality()==='high',sz=hi?512:256;
   if(!hi&&(reflN++&1)&&reflRT)return;
   if(!reflRT||reflSize!==sz){if(reflRT)reflRT.dispose();reflRT=new THREE.WebGLRenderTarget(sz,sz*0.625);reflSize=sz;U.tR.value=reflRT.texture}
   reflCam.fov=camera.fov;reflCam.aspect=camera.aspect;reflCam.near=0.1;reflCam.far=320;reflCam.updateProjectionMatrix();
@@ -601,7 +601,8 @@ function frame(now){
   }
   audioTick();
   if(state==='menu')return;
-  if(state==='play'&&!autoLow&&save.set.q==='auto'){fpsT+=dt;fpsN++;if(fpsT>=3){var fps=fpsN/fpsT;fpsT=0;fpsN=0;slowN=fps<34?slowN+1:0;if(slowN>=3){autoLow=true;resize();fitShadow()}}}
+  // On Auto, when frames stay poor for nine seconds: first High drops to Low, then Low drops the mirror pass. It never steps back up.
+  if(state==='play'&&save.set.q==='auto'&&!mirrorOff){fpsT+=dt;fpsN++;if(fpsT>=3){var fps=fpsN/fpsT;fpsT=0;fpsN=0;slowN=fps<(quality()==='high'?34:27)?slowN+1:0;if(slowN>=3){slowN=0;if(quality()==='high'){autoLow=true;resize();fitShadow()}else mirrorOff=true}}}
   U.uT.value=now/1000;U.uCam.value.copy(camera.position);skyDome.position.copy(camera.position);renderReflection();
   renderer.render(scene,camera);
 }
@@ -609,5 +610,5 @@ show('menu');requestAnimationFrame(frame);
 // for tests and tuning from the console
 window.__ew={ff:function(sec){for(var k=0;k<sec*30;k++)world.step(STEP);updateWaterMesh()},get world(){return world},get lv(){return lv},pl:pl,inp:inp,save:save,persist:persist,
   start:function(id){if(id!=='depot')selJob=id;enter(id==='depot'?EWMaps.depot:jobBy(id))},get state(){return state},get simMs(){return simMs},renderer:renderer,scan:scan,use:useTool,select:selectTool,
-  get bar(){return bar},get inv(){return inv},get aim(){return aim},setRot:function(r){rot=r},rest:function(){cool=0},open:openStation,get tut(){return tutK},quality:quality};
+  get bar(){return bar},get inv(){return inv},get aim(){return aim},setRot:function(r){rot=r},rest:function(){cool=0},open:openStation,get tut(){return tutK},quality:quality,get mirrorOff(){return mirrorOff}};
 })();

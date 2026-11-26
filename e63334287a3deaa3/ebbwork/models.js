@@ -211,8 +211,13 @@ function hands(camera){
   function box(w,h,d,m,x,y,z){var b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x||0,y||0,z||0);return b}
   function rod(a,b,r0,r1,m){var d=new THREE.Vector3().subVectors(b,a),l=d.length(),c=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,l,10),m);c.position.copy(a).addScaledVector(d,0.5);c.quaternion.setFromUnitVectors(UP,d.normalize());return c}
   // a gloved fist round a handle whose direction is `dir`, with a forearm running back to `elbow`
-  function grip(at,dir,elbow,left){var g=new THREE.Group(),h=new THREE.Group();g.add(h);
-    h.add(box(0.1,0.05,0.1,glove,0,0.045,0));h.add(box(0.084,0.012,0.07,knuck,0,0.074,0.005));h.add(box(0.1,0.035,0.1,palm,0,-0.035,0));for(var k=0;k<4;k++)h.add(box(0.021,0.085,0.03,glove,-0.036+k*0.024,0,-0.055));h.add(box(0.03,0.03,0.08,glove,left?0.062:-0.062,0.03,-0.01));h.add(box(0.104,0.092,0.05,palm,0,0.004,0.07));
+  function ball(rx,ry,rz,mat,x,y,z){var b=new THREE.Mesh(new THREE.IcosahedronGeometry(1,2),mat);b.scale.set(rx,ry,rz);b.position.set(x||0,y||0,z||0);return b}
+  function grip(at,dir,elbow,left){var g=new THREE.Group(),h=new THREE.Group(),k;g.add(h);
+    // a closed fist: a rounded back of the hand, four curled fingers, a thumb across them, and a cuff
+    h.add(ball(0.056,0.04,0.06,glove,0,0.022,0.012));h.add(ball(0.05,0.03,0.05,palm,0,-0.03,0.012));
+    for(k=0;k<4;k++){var fx=-0.036+k*0.024;h.add(ball(0.0135,0.026,0.02,glove,fx,0.012,-0.05));h.add(ball(0.013,0.022,0.018,glove,fx,-0.028,-0.045));h.add(ball(0.0125,0.012,0.014,knuck,fx,0.05,-0.028))}
+    var th=ball(0.016,0.016,0.04,glove,left?0.05:-0.05,0.0,-0.02);th.rotation.y=left?-0.5:0.5;h.add(th);
+    var cuff=new THREE.Mesh(new THREE.CylinderGeometry(0.047,0.05,0.05,12),palm);cuff.rotation.x=Math.PI/2;cuff.position.set(0,0.002,0.075);h.add(cuff);
     h.position.copy(at);var zAxis=new THREE.Vector3().subVectors(elbow,at).normalize(),xAxis=dir.clone().normalize(),yAxis=new THREE.Vector3().crossVectors(zAxis,xAxis).normalize();zAxis.crossVectors(xAxis,yAxis).normalize();h.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis,yAxis,zAxis));
     var wrist=at.clone().addScaledVector(zAxis,0.09);g.add(rod(wrist,elbow,0.052,0.04,sleeve));g.add(rod(wrist,wrist.clone().lerp(elbow,0.12),0.044,0.042,band));return g}
   function pole(head,len,headZ){var g=new THREE.Group(),a=new THREE.Vector3(0.36,-0.36,-0.3),b=new THREE.Vector3(0.0,-0.6,-0.3-len),d=new THREE.Vector3().subVectors(b,a).normalize();
