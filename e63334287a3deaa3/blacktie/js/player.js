@@ -630,6 +630,9 @@
     // soft lock: turn to the nearest enemy in front
     var tgt = nearestEnemy(p, 3.2, 120);
     if (tgt) p.yaw = Math.atan2(tgt.pos.x - p.pos.x, tgt.pos.z - p.pos.z);
+    p.melee.tgt = tgt && tgt.pos.distanceTo(p.pos) < 2 ? tgt : null;
+    // step in so the blow lands: close most of the gap beyond arm's length
+    if (tgt && move !== 'runPunch') { var gap = tgt.pos.distanceTo(p.pos) - 0.78; if (gap > 0.05 && gap < 1.6) p.lunge = Math.max(p.lunge || 0, Math.min(1, gap * 0.9)); }
     if (move === 'runPunch') p.lunge = 1.6;
     RP.Audio.mech('swing', p.pos);
   }
@@ -646,6 +649,9 @@
   function stepMelee(p, dt) {
     var m = p.melee; m.t += dt * m.speed;
     var hw = m.def.hit;
+    // where the blow should land: the victim's head for punches (chest for a body shot), tracked while it flies
+    if (m.tgt && m.tgt.actor && !m.tgt.actor.rag) { p.actor.strikeAt = (p.actor.strikeAt || new T.Vector3()); (m.move === 'hook' || m.move === 'kick' || m.move === 'stab' ? m.tgt.actor.chest(p.actor.strikeAt) : m.tgt.actor.head(p.actor.strikeAt)); }
+    else p.actor.strikeAt = null;
     if (p.lunge) { var k = Math.max(0, p.lunge); W.move(p.pos, Math.sin(p.yaw) * k * 4 * dt, Math.cos(p.yaw) * k * 4 * dt, p.radius, 1.7); p.lunge -= dt * 4; if (p.lunge <= 0) p.lunge = 0; }
     if (hw && !m.hit && m.t >= hw[0] && m.t <= hw[1] + 0.02) {
       var bonus = p.counterT > 0 && p.countered ? 2 : 1;
@@ -653,7 +659,7 @@
       if (e) { m.hit = true; RP.Cam.shake(0.12 * m.knock); RP.G.hitstop = 0.05; RP.emit('hitmark', e.alive ? 'hit' : 'kill'); p.countered = false; }
     }
     if (m.t >= m.def.dur) {
-      var q = m.queued; p.melee = null;
+      var q = m.queued; p.melee = null; p.actor.strikeAt = null;
       if (q) startMelee(p);
     }
   }

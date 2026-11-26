@@ -354,11 +354,24 @@
     // let a weapon fall from the hand: arm out and down, a flick of the wrist
     dropW: { dur: 0.45, keys: [[0, {}], [0.15, { upperarm_r: [['x', -35 * D]], lowerarm_r: [['x', -20 * D]], hand_r: [['x', 30 * D]] }], [0.45, {}]] },
     shellLoad: { dur: 0.48, keys: [[0, {}], [0.2, { upperarm_l: [['x', 20 * D]], lowerarm_l: [['x', -30 * D]] }], [0.34, { upperarm_l: [['x', -30 * D]], lowerarm_l: [['x', -70 * D]] }], [0.48, {}]] },
-    guard: { dur: 1, keys: [[0, { upperarm_l: [['x', -55 * D], ['y', 20 * D]], lowerarm_l: [['x', -120 * D]], upperarm_r: [['x', -45 * D], ['y', -20 * D]], lowerarm_r: [['x', -125 * D]], spine_02: [['y', -12 * D]] }], [1, { upperarm_l: [['x', -55 * D], ['y', 20 * D]], lowerarm_l: [['x', -120 * D]], upperarm_r: [['x', -45 * D], ['y', -20 * D]], lowerarm_r: [['x', -125 * D]], spine_02: [['y', -12 * D]] }]], hold: true },
+    // boxing guard: a bladed torso; the fists are held up by IK (holdReach below): lead hand out, rear hand by the chin
+    guard: { dur: 1, keys: [[0, { spine_02: [['y', -14 * D]], spine_01: [['x', 4 * D]] }], [1, { spine_02: [['y', -14 * D]], spine_01: [['x', 4 * D]] }]], hold: true, holdReach: [{ limb: 'arm_l', p: [0.1, 1.43, 0.36] }, { limb: 'arm_r', p: [-0.16, 1.36, 0.2] }] },
     stumble: { dur: 0.9, keys: [[0, {}], [0.2, { spine_01: [['x', -20 * D]], spine_02: [['x', -15 * D]], upperarm_l: [['z', 60 * D]], upperarm_r: [['z', -60 * D]] }], [0.5, { spine_01: [['x', 10 * D]], upperarm_l: [['z', 30 * D]], upperarm_r: [['z', -30 * D]] }], [0.9, {}]] },
     coverHigh: { dur: 1, keys: [[0, { spine_01: [['x', -4 * D]], Head: [['y', 10 * D]] }], [1, { spine_01: [['x', -4 * D]], Head: [['y', 10 * D]] }]], hold: true },
     blindFire: { dur: 1, keys: [[0, { upperarm_r: [['x', -150 * D]], lowerarm_r: [['x', -10 * D]], spine_01: [['x', 15 * D]], Head: [['x', 25 * D]] }], [1, { upperarm_r: [['x', -150 * D]], lowerarm_r: [['x', -10 * D]], spine_01: [['x', 15 * D]], Head: [['x', 25 * D]] }]], hold: true }
   };
+  // Strikes land by IK: where the fist (or foot, or the weapon hand) should be at contact, in the character's own
+  // frame for a 1.8 m person [x left, y up, z forward], and the time window [start, contact, end] over which the limb
+  // is pulled onto it and let go. With a target in reach (actor.strikeAt, a world point on the victim) the limb goes
+  // there instead, so punches connect with the head or chest in front of them.
+  var REACH = {
+    jab: { limb: 'arm_r', p: [-0.1, 1.44, 0.7], t: [0.05, 0.15, 0.32] }, cross: { limb: 'arm_l', p: [0.06, 1.44, 0.74], t: [0.09, 0.21, 0.4] },
+    hook: { limb: 'arm_r', p: [0.1, 1.46, 0.52], t: [0.15, 0.27, 0.44] }, uppercut: { limb: 'arm_r', p: [-0.04, 1.52, 0.44], t: [0.17, 0.29, 0.46] },
+    runPunch: { limb: 'arm_r', p: [-0.06, 1.42, 0.78], t: [0.08, 0.21, 0.42] }, gunWhip: { limb: 'arm_r', p: [0, 1.48, 0.6], t: [0.13, 0.26, 0.42] },
+    stab: { limb: 'arm_r', p: [-0.06, 1.2, 0.72], t: [0.07, 0.18, 0.32] }, kick: { limb: 'leg_r', p: [-0.1, 0.98, 0.9], t: [0.18, 0.32, 0.5] },
+    stomp: { limb: 'leg_r', p: [-0.12, 0.08, 0.45], t: [0.24, 0.35, 0.5] }
+  };
+  Object.keys(REACH).forEach(function (k) { if (MOVES[k]) MOVES[k].reach = REACH[k]; });
   C.MOVES = MOVES;
 
   var AXES = { x: new T.Vector3(1, 0, 0), y: new T.Vector3(0, 1, 0), z: new T.Vector3(0, 0, 1) };
@@ -684,6 +697,38 @@
           if (m.side < 0 && axn !== 'x') angv = -angv;
           rotWorld(m.side < 0 ? (b[mirror(bn)] || bone) : bone, _q.setFromAxisAngle(axis, angv));
         }
+      }
+    }
+    // held stances (the boxing guard): hands kept at their points, elbows down
+    for (i = 0; i < this.moves.length; i++) {
+      var hm = this.moves[i], hr = hm.def.holdReach; if (!hr || hm.done) continue;
+      var hw2 = hm.w * (hm.fadeOut > 0 ? Math.max(0, 1 - (hm.fadeT || 0) / hm.fadeOut) : 1) * M.smooth(Math.min(1, hm.t / 0.18));
+      for (var hi = 0; hi < hr.length; hi++) {
+        var s2 = hr[hi].limb.slice(-1), hs2 = this.height / 1.8;
+        _rlA.set(hr[hi].p[0], hr[hi].p[1] * hs2, hr[hi].p[2] * hs2).applyMatrix4(this.root.matrixWorld);
+        b['upperarm_' + s2].getWorldPosition(_lhP); _lhP.add(_lhD.set(s2 === 'r' ? -0.35 : 0.35, -1, 0.1).applyQuaternion(rq));
+        ikPole(b['upperarm_' + s2], b['lowerarm_' + s2], b['hand_' + s2], _rlA, _lhP, hw2);
+      }
+    }
+    // strikes: pull the striking limb onto its contact point through the hit window
+    for (i = 0; i < this.moves.length; i++) {
+      var mv = this.moves[i], rc = mv.def.reach; if (!rc || mv.done) continue;
+      var tt = mv.t, rw = tt < rc.t[1] ? M.smooth(M.clamp((tt - rc.t[0]) / (rc.t[1] - rc.t[0]), 0, 1)) : 1 - M.smooth(M.clamp((tt - rc.t[1]) / (rc.t[2] - rc.t[1]), 0, 1));
+      rw *= mv.w; if (rw < 0.01) continue;
+      var sd = rc.limb.slice(-1), flip = mv.side < 0; if (flip) sd = sd === 'r' ? 'l' : 'r';
+      var hs = this.height / 1.8;
+      _rlA.set(rc.p[0] * (flip ? -1 : 1), rc.p[1] * hs, rc.p[2] * hs).applyMatrix4(this.root.matrixWorld);
+      if (this.strikeAt && rc.limb !== 'leg_r' || this.strikeAt && mv.name === 'kick') {
+        // a victim in reach: go for the point on them (kept within arm's length of the authored contact point)
+        _rlB.copy(this.strikeAt); if (mv.name === 'kick') _rlB.y -= 0.45 * hs; if (mv.name === 'stab') _rlB.y -= 0.25 * hs;
+        if (_rlB.distanceTo(_rlA) < 0.55) _rlA.copy(_rlB);
+      }
+      if (rc.limb.charAt(0) === 'a') {
+        b['upperarm_' + sd].getWorldPosition(_lhP); _lhP.add(_lhD.set(sd === 'r' ? -0.5 : 0.5, -0.8, -0.2).applyQuaternion(rq));
+        ikPole(b['upperarm_' + sd], b['lowerarm_' + sd], b['hand_' + sd], _rlA, _lhP, rw);
+      } else {
+        b['thigh_' + sd].getWorldPosition(_lhP); _lhP.add(_lhD.set(0, 0.6, 1).applyQuaternion(rq));
+        ikPole(b['thigh_' + sd], b['calf_' + sd], b['foot_' + sd], _rlA, _lhP, rw);
       }
     }
     this.moves = this.moves.filter(function (m) { return !m.done; });
