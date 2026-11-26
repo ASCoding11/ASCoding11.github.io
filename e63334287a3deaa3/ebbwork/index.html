@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ebbwork</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#11171a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@500;600;700&display=swap">
+<style>
+/* Ebbwork. Layout: a full-screen WebGL view (#view). In a job the HUD hugs the edges: the place and the water
+   gauge top left, clock and coins top right, the tool bar bottom centre (top centre on touch screens, so the
+   thumbs have the bottom corners), the E prompt under the crosshair. Panels (menu, pause, settings, journal,
+   results) are flat dark cards centred over a dimmed view. Touch screens get a stick and buttons in #touch. */
+:root{
+  --ink:#11171a;--panel:#1a2327;--panel-2:#243036;--line:rgba(225,238,240,.14);
+  --tx:#eef4f3;--tx-2:#b3c2c4;--tx-3:#7c8d90;
+  --hi:#ff8a1f;--water:#56c7cf;--ok:#8fd66a;--warn:#ffcf4a;--bad:#ff6257;
+  --f-d:'Barlow Condensed','Arial Narrow',Impact,system-ui,sans-serif;
+  --f-b:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--ink);color:var(--tx);font-family:var(--f-b);font-weight:500;-webkit-font-smoothing:antialiased}
+body{user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden}
+#view{display:block;width:100%;height:100%;touch-action:none;outline:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--water);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+h1,h2,h3{font-family:var(--f-d);font-weight:700;letter-spacing:.02em;margin:0;text-transform:uppercase}
+
+/* ---------- panels ---------- */
+.overlay{position:absolute;inset:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:max(14px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));background:rgba(10,15,17,.62)}
+.overlay.solid{background:linear-gradient(180deg,#1b262b,#0f1517)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;width:min(560px,100%);margin:auto;box-shadow:0 18px 50px rgba(0,0,0,.4)}
+.card.wide{width:min(760px,100%)}
+.card h2{font-size:30px;line-height:1}
+.card h3{font-size:19px;color:var(--tx-2);margin:14px 0 6px}
+.card p{margin:8px 0;line-height:1.45;color:var(--tx-2);font-size:15px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--f-d);font-weight:700;font-size:19px;letter-spacing:.04em;text-transform:uppercase;padding:9px 18px;border:0;border-radius:9px;background:var(--hi);color:#1b1206;min-height:44px}
+.btn:hover:not(:disabled){filter:brightness(1.08)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn.alt{background:var(--panel-2);color:var(--tx);border:1px solid var(--line)}
+.btn.big{width:100%;font-size:23px;padding:12px 18px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end;margin-top:14px}
+.setting{display:flex;align-items:center;gap:12px;margin:12px 0 0;font-weight:600;font-size:15px;flex-wrap:wrap}
+.setting>span:first-child{min-width:128px;color:var(--tx-2)}
+.setting input[type=range]{flex:1;min-width:140px;accent-color:var(--hi);height:28px}
+.seg{display:inline-flex;border-radius:9px;overflow:hidden;background:var(--panel-2);border:1px solid var(--line)}
+.seg button{border:0;background:transparent;padding:8px 13px;font-weight:700;font-size:14px;color:var(--tx-2);min-height:40px}
+.seg button[aria-pressed="true"]{background:var(--water);color:#06262a}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:14.5px;color:var(--tx-2);margin:6px 0}
+.keys b{color:var(--tx);font-weight:700;white-space:nowrap}
+kbd{font:700 12.5px var(--f-b);background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--tx)}
+
+/* ---------- menu ---------- */
+#menu .logo{font-family:var(--f-d);font-weight:700;font-size:clamp(54px,13vw,92px);line-height:.86;letter-spacing:.01em;text-transform:uppercase;color:var(--tx)}
+#menu .logo i{font-style:normal;color:var(--water)}
+#menu .tag{font-size:16px;color:var(--tx-2);margin:10px 0 16px;max-width:44ch}
+.jobs{display:grid;gap:8px;margin:10px 0 14px}
+.job{display:flex;align-items:center;gap:12px;text-align:left;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:56px}
+.job[aria-pressed="true"]{border-color:var(--hi);box-shadow:inset 0 0 0 1px var(--hi)}
+.job b{font-family:var(--f-d);font-size:21px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;display:block;line-height:1.05}
+.job small{color:var(--tx-3);font-size:13px;font-weight:600}
+.job .st{margin-left:auto;font-size:17px;letter-spacing:2px;color:var(--warn);white-space:nowrap}
+.job .st s{text-decoration:none;color:#44545a}
+
+/* ---------- HUD ---------- */
+#hud{position:absolute;inset:0;pointer-events:none}
+#cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 0 0 1.5px rgba(0,0,0,.45)}
+#cross.act{background:var(--hi);transform:scale(1.5)}
+.pill{background:rgba(14,20,23,.74);border:1px solid var(--line);border-radius:10px;padding:7px 11px}
+#stat{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px));min-width:190px;max-width:46vw}
+#stat .pl{font-family:var(--f-d);font-weight:700;font-size:18px;letter-spacing:.05em;text-transform:uppercase;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#stat .lbl{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700;color:var(--tx-2);margin-top:6px}
+#gauge{height:9px;border-radius:5px;background:#0b1113;margin-top:4px;overflow:hidden;position:relative}
+#gauge i{position:absolute;left:0;top:0;bottom:0;background:var(--water);border-radius:5px;width:100%}
+#gauge u{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ok);left:3%}
+#inflow{margin-top:6px;font-size:12.5px;font-weight:700;color:var(--warn)}
+#right{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:8px;align-items:center}
+#clock{font-family:var(--f-d);font-weight:700;font-size:21px;letter-spacing:.04em;min-width:62px;text-align:center}
+#prompt{position:absolute;left:50%;top:calc(50% + 34px);transform:translateX(-50%);font-weight:700;font-size:15px;white-space:nowrap;text-align:center}
+#prompt .bar{height:4px;border-radius:2px;background:#0b1113;margin-top:5px;overflow:hidden}
+#prompt .bar i{display:block;height:100%;background:var(--hi);width:0}
+#toast{position:absolute;left:50%;top:22%;transform:translateX(-50%);max-width:min(520px,86vw);text-align:center;font-weight:600;font-size:15.5px;line-height:1.35;transition:opacity .3s}
+#toast.off{opacity:0}
+#hot{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:6px;pointer-events:auto}
+#hot button{width:62px;height:58px;border-radius:10px;border:1px solid var(--line);background:rgba(14,20,23,.74);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:0;position:relative;color:var(--tx-2)}
+#hot button[aria-pressed="true"]{border-color:var(--hi);color:var(--tx);box-shadow:inset 0 0 0 1px var(--hi);background:rgba(40,30,16,.86)}
+#hot button svg{width:26px;height:26px}
+#hot button span{font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+#hot button em{position:absolute;left:5px;top:3px;font:700 10.5px var(--f-b);font-style:normal;color:var(--tx-3)}
+#hot button u{position:absolute;right:4px;top:3px;font:700 10.5px var(--f-b);text-decoration:none;color:var(--water)}
+#tip{position:absolute;left:50%;bottom:calc(82px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);font-size:13px;font-weight:600;color:var(--tx-2);white-space:nowrap;text-shadow:0 1px 2px #000}
+#scanfx{position:absolute;inset:0;box-shadow:inset 0 0 120px rgba(86,199,207,.5);opacity:0;transition:opacity .4s}
+#scanfx.on{opacity:1}
+.tbtn{pointer-events:auto;width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:rgba(14,20,23,.74);display:flex;align-items:center;justify-content:center;padding:0}
+.tbtn svg{width:22px;height:22px}
+
+/* ---------- journal ---------- */
+#journal .card{width:min(460px,100%)}
+.tasks{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:7px}
+.tasks li{display:flex;gap:10px;align-items:flex-start;background:var(--panel-2);border-radius:9px;padding:9px 11px;font-size:15px;line-height:1.3;font-weight:600}
+.tasks li::before{content:'';flex:0 0 16px;height:16px;border-radius:4px;border:2px solid var(--tx-3);margin-top:1px}
+.tasks li.done{color:var(--tx-3)}
+.tasks li.done::before{background:var(--ok);border-color:var(--ok)}
+.tasks li small{display:block;color:var(--tx-3);font-weight:600;font-size:13px;margin-top:2px}
+.stars{font-size:44px;letter-spacing:6px;color:var(--warn);line-height:1;margin:8px 0}
+.stars s{text-decoration:none;color:#44545a}
+.sum{display:grid;grid-template-columns:1fr auto;gap:5px 16px;font-size:15.5px;margin:10px 0;color:var(--tx-2)}
+.sum b{color:var(--tx);text-align:right}
+
+/* ---------- touch ---------- */
+#touch{display:none;position:absolute;inset:0;pointer-events:none;font-family:var(--f-d)}
+body.touch #touch{display:block}
+body.touch .kbonly{display:none!important}
+body:not(.touch) .tonly{display:none!important}
+#stick{position:absolute;width:118px;height:118px;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:rgba(14,20,23,.3);left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px))}
+#stick i{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:rgba(255,255,255,.5)}
+.tb{position:absolute;pointer-events:auto;border-radius:50%;border:2px solid rgba(255,255,255,.3);background:rgba(14,20,23,.5);color:#fff;font-weight:700;font-size:15px;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;touch-action:none;padding:0}
+.tb.on{background:rgba(255,138,31,.75);border-color:#fff}
+#tUse{width:80px;height:80px;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));background:rgba(255,138,31,.4)}
+#tAlt{width:60px;height:60px;right:calc(108px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+#tJump{width:60px;height:60px;right:calc(24px + env(safe-area-inset-right,0px));bottom:calc(114px + env(safe-area-inset-bottom,0px))}
+#tAct{width:62px;height:62px;right:calc(104px + env(safe-area-inset-right,0px));bottom:calc(92px + env(safe-area-inset-bottom,0px));background:rgba(86,199,207,.55)}
+#tCrouch{width:50px;height:50px;right:calc(178px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));font-size:12px}
+body.touch #hot{bottom:auto;top:calc(64px + env(safe-area-inset-top,0px))}
+body.touch #hot button{width:52px;height:50px}
+body.touch #hot button svg{width:22px;height:22px}
+body.touch #hot button span,body.touch #hot button em{display:none}
+body.touch #tip{display:none}
+body.touch #toast{top:calc(124px + env(safe-area-inset-top,0px))}
+@media (orientation:portrait){
+  body.touch #stat{min-width:0;max-width:calc(100vw - 186px - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px))}
+  body.touch #clock{display:none}
+  body.touch #stick{bottom:calc(46px + env(safe-area-inset-bottom,0px))}
+}
+@media (orientation:landscape) and (max-height:440px){
+  body.touch #hot{top:calc(10px + env(safe-area-inset-top,0px))}
+  body.touch #toast{top:calc(70px + env(safe-area-inset-top,0px))}
+  body.touch #stat{min-width:150px;max-width:26vw}
+  body.touch #stat .lbl{font-size:11px}
+  .card{padding:13px 15px}
+  .card h2{font-size:24px}
+}
+@media (max-width:420px){.card{padding:15px 14px}#hot button{width:54px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="view" tabindex="0" aria-label="Ebbwork game view"></canvas>
+
+  <div id="hud" hidden>
+    <div id="scanfx"></div>
+    <div id="cross"></div>
+    <div id="stat" class="pill">
+      <div class="pl" id="plName" data-noi18n></div>
+      <div class="lbl"><span>Water left</span><span id="pct" data-noi18n>100%</span></div>
+      <div id="gauge"><i id="gaugeFill"></i><u></u></div>
+      <div id="inflow" hidden>Water is still coming in</div>
+    </div>
+    <div id="right">
+      <div class="pill" id="clock" data-noi18n>0:00</div>
+      <button class="tbtn" id="bScan" data-no-ad-refresh aria-label="Scan for water" title="Scan for water"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M4.5 12a7.5 7.5 0 0 1 15 0M2 12a10 10 0 0 1 20 0" opacity=".7"/><path d="M12 15v6"/></svg></button>
+      <button class="tbtn" id="bJournal" data-no-ad-refresh aria-label="Journal" title="Journal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></button>
+      <button class="tbtn" id="bPause" data-no-ad-refresh aria-label="Pause" title="Pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    </div>
+    <div id="prompt" class="pill" hidden><span id="promptTx" data-noi18n></span><div class="bar" id="promptBar" hidden><i></i></div></div>
+    <div id="toast" class="pill off" data-noi18n></div>
+    <div id="tip" class="kbonly" data-noi18n></div>
+    <div id="hot" data-noi18n></div>
+    <div id="touch" aria-hidden="true">
+      <div id="stick"><i></i></div>
+      <button class="tb" id="tUse" data-no-ad-refresh>Use</button>
+      <button class="tb" id="tAlt" data-no-ad-refresh>Alt</button>
+      <button class="tb" id="tJump" data-no-ad-refresh>Jump</button>
+      <button class="tb" id="tAct" data-no-ad-refresh hidden>Do</button>
+      <button class="tb" id="tCrouch" data-no-ad-refresh>Duck</button>
+    </div>
+  </div>
+
+  <div id="menu" class="overlay solid">
+    <div class="card wide">
+      <div class="logo">Ebb<i>work</i></div>
+      <p class="tag">The storm has gone but the water has not. Find out why each place flooded, then get it dry.</p>
+      <h3>Jobs</h3>
+      <div class="jobs" id="jobList"></div>
+      <button class="btn big" id="bStart">Start job</button>
+      <div class="row end">
+        <button class="btn alt" id="bHow">How to play</button>
+        <button class="btn alt" id="bSet1">Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pause" class="overlay" hidden>
+    <div class="card">
+      <h2>Paused</h2>
+      <div class="row" style="margin-top:14px;flex-direction:column;align-items:stretch">
+        <button class="btn big" id="bResume">Back to work</button>
+        <button class="btn alt" id="bJournal2">Journal</button>
+        <button class="btn alt" id="bSet2">Settings</button>
+        <button class="btn alt" id="bHow2">How to play</button>
+        <button class="btn alt" id="bRestart">Start this job again</button>
+        <button class="btn alt" id="bQuit">Leave the job</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings" class="overlay" hidden>
+    <div class="card">
+      <h2>Settings</h2>
+      <label class="setting"><span>Look speed</span><input type="range" id="sSens" min="0.3" max="2.5" step="0.05"></label>
+      <label class="setting"><span>Sound</span><input type="range" id="sVol" min="0" max="1" step="0.05"></label>
+      <div class="setting"><span>Graphics</span><div class="seg" id="sQ"><button data-v="low">Low</button><button data-v="auto">Auto</button><button data-v="high">High</button></div></div>
+      <div class="setting"><span>Look up/down</span><div class="seg" id="sInv"><button data-v="0">Normal</button><button data-v="1">Flipped</button></div></div>
+      <div class="row end"><button class="btn alt" id="bFull">Full screen</button><button class="btn" id="bSetDone">Done</button></div>
+    </div>
+  </div>
+
+  <div id="how" class="overlay" hidden>
+    <div class="card">
+      <h2>How to play</h2>
+      <p>Every job is a flooded place. Something is keeping it wet: a blocked drain, a leak, ground with nowhere to run to. Work out what, fix it, and get the water under the green mark on the gauge.</p>
+      <div class="keys kbonly">
+        <b><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></b><span>Walk</span>
+        <b>Mouse</b><span>Look</span>
+        <b><kbd>Space</kbd> <kbd>Shift</kbd> <kbd>C</kbd></b><span>Jump, run, duck</span>
+        <b>Left click</b><span>Use the tool in your hands</span>
+        <b>Right click</b><span>The tool's other use</span>
+        <b><kbd>E</kbd></b><span>Hold to work a valve or other fitting</span>
+        <b><kbd>1</kbd>–<kbd>9</kbd> / wheel</b><span>Change tool</span>
+        <b><kbd>R</kbd></b><span>Turn something before you put it down</span>
+        <b><kbd>F</kbd></b><span>Scan: shows the water that is left</span>
+        <b><kbd>Tab</kbd></b><span>Journal</span>
+        <b><kbd>Esc</kbd></b><span>Pause</span>
+      </div>
+      <div class="keys tonly">
+        <b>Left thumb</b><span>Walk (push all the way to run)</span>
+        <b>Drag</b><span>Look</span>
+        <b>Use / Alt</b><span>The tool in your hands, and its other use</span>
+        <b>Do</b><span>Hold to work a valve or other fitting</span>
+        <b>Tool bar</b><span>Tap a tool to hold it</span>
+      </div>
+      <div class="row end"><button class="btn" id="bHowDone">Got it</button></div>
+    </div>
+  </div>
+
+  <div id="journal" class="overlay" hidden>
+    <div class="card">
+      <h2 id="jTitle" data-noi18n></h2>
+      <p id="jBrief" data-noi18n></p>
+      <ul class="tasks" id="jTasks" data-noi18n></ul>
+      <div class="row end"><button class="btn" id="bJDone">Close</button></div>
+    </div>
+  </div>
+
+  <div id="result" class="overlay" hidden>
+    <div class="card">
+      <h2>Job done</h2>
+      <div class="stars" id="rStars" data-noi18n></div>
+      <div class="sum" id="rSum" data-noi18n></div>
+      <div class="row end"><button class="btn alt" id="bAgain">Do it again</button><button class="btn" id="bBack">Back to jobs</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="/lib/three/r187/three.min.js"></script>
+<script src="../autores.js"></script>
+<script src="core.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
