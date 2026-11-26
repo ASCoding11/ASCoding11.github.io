@@ -209,7 +209,9 @@ var EW=(function(){
   // drawn only, no collision (y0,y1 are above the ground at its centre)
   P.box=function(x0,z0,x1,z1,y0,y1,col,kind){var gy=this.groundAt((x0+x1)/2,(z0+z1)/2);var b={x0:x0,z0:z0,x1:x1,z1:z1,y0:gy+y0,y1:gy+y1,col:col,kind:kind||'deco'};this.boxes.push(b);return b};
   P.boxAbs=function(x0,z0,x1,z1,y0,y1,col,kind){var b={x0:x0,z0:z0,x1:x1,z1:z1,y0:y0,y1:y1,col:col,kind:kind||'deco'};this.boxes.push(b);return b};
-  P.drain=function(x,z,o){o=o||{};var d={x:x,z:z,i:this.cell(x,z),rate:o.rate||0.12,cap:o.cap||10,clear:1,flow:0,n:0,kind:o.kind||'grate'};this.drains.push(d);return d};
+  P.catchment=function(dr){var w=this,S=w.S,out=[],x0=dr.i%w.W,z0=(dr.i-x0)/w.W,r=Math.max(2,Math.round(1.0/S.cs)),a,b,i;
+    for(b=-r;b<=r;b++)for(a=-r;a<=r;a++){if(!a&&!b)continue;if(a*a+b*b>r*r+1)continue;var x=x0+a,z=z0+b;if(x<0||z<0||x>=w.W||z>=w.H)continue;i=z*w.W+x;if(!S.solid[i])out.push(i)}return out};
+  P.drain=function(x,z,o){o=o||{};var d={x:x,z:z,i:this.cell(x,z),rate:o.rate||0.12,cap:o.cap||10,clear:1,flow:0,n:0,kind:o.kind||'grate',pipe:o.pipe||null};this.drains.push(d);return d};
   P.sinkArea=function(x0,z0,x1,z1){var w=this;w.each(x0,z0,x1,z1,function(i){w.sink[i]=1})};
   P.noJob=function(x0,z0,x1,z1){var w=this;w.each(x0,z0,x1,z1,function(i){w.mask[i]=0})};
   P.river=function(x0,z0,x1,z1,level){var w=this;w.each(x0,z0,x1,z1,function(i){w.hold[i]=level})};
@@ -222,7 +224,7 @@ var EW=(function(){
   // something the player notices when they get near (r metres): shown once and kept in the journal
   P.spot=function(x,z,r,text){this.spots.push({x:x,z:z,r:r,text:text,seen:false})};
   // drawn only: a garden thing with no collision (kind: 'bush', 'pot'), and a pipe run along a wall
-  P.deco=function(x,z,kind,o){o=o||{};this.decos.push({x:x,z:z,kind:kind,s:o.s||1,r:o.r||0})};
+  P.deco=function(x,z,kind,o){o=o||{};this.decos.push({x:x,z:z,kind:kind,s:o.s||1,r:o.r||0,x1:o.x1})};
   P.pipe=function(pts,y){this.pipes.push({pts:pts,y:y==null?0.75:y})};
   P.sign=function(x,z,text,o){o=o||{};this.signs.push({x:x,z:z,text:text,y:o.y==null?1.4:o.y,nx:o.nx||0,nz:o.nz||0})};
   P.litter=function(x,z,r,n,kind){var w=this;for(var k=0;k<n;k++){var a=w.rand()*6.283,q=Math.sqrt(w.rand())*r,px=x+Math.cos(a)*q,pz=z+Math.sin(a)*q,i=w.cell(px,pz);
@@ -241,8 +243,11 @@ var EW=(function(){
     for(k=0;k<w.holdList.length;k++){i=w.holdList[k];var want=w.hold[i]-S.g[i]-S.bar[i];if(want<0)want=0;var df=want-d[i];if(df>1e-5||df<-1e-5){if(df>0)w._hin+=df*AREA;d[i]=want;S.wake(i)}}
     for(k=0;k<w.pumps.length;k++)w.pumpStep(w.pumps[k],dt);
     if(w.tick%6===0)w.clog();
-    for(k=0;k<w.drains.length;k++){var dr=w.drains[k],dd=d[dr.i],eff=0.03+0.97*Math.pow(dr.clear,1.25),q=dr.rate*eff*dt*(dd<0.05?dd/0.05:1),got=S.take(dr.i,q);
-      if(got<q*0.999){var nb=[dr.i-1,dr.i+1,dr.i-w.W,dr.i+w.W];for(var m=0;m<4&&got<q;m++){i=nb[m];if(i>=0&&i<S.n&&!S.solid[i]&&S.g[i]+S.bar[i]+d[i]>S.g[dr.i]+0.004)got+=S.take(i,Math.min((q-got),d[i]*AREA*0.5))}}
+    for(k=0;k<w.drains.length;k++){var dr=w.drains[k],dd=d[dr.i],eff=0.03+0.97*Math.pow(dr.clear,1.25),q=dr.rate*World.DRAINX*eff*dt*(dd<0.05?dd/0.05:1),got=S.take(dr.i,q);
+      // a grate collects from the ground round it (about a metre across), not just its own cell, so a cleared drain
+      // pulls the level down within seconds instead of waiting for the water to crawl into one cell
+      if(got<q*0.999){var cat=dr.cat||(dr.cat=w.catchment(dr)),tot=0,m;for(m=0;m<cat.length;m++){i=cat[m];if(S.g[i]+S.bar[i]+d[i]>S.g[dr.i]+0.004)tot+=d[i]}
+        if(tot>0){var want=q-got;for(m=0;m<cat.length&&got<q;m++){i=cat[m];if(S.g[i]+S.bar[i]+d[i]>S.g[dr.i]+0.004)got+=S.take(i,Math.min(want*d[i]/tot,d[i]*AREA*0.5))}}}
       dr.flow+=((got/dt)-dr.flow)*0.2;w.removed+=got}
     for(k=0;k<w.sinkList.length;k++){i=w.sinkList[k];if(d[i]>0){w.removed+=d[i]*AREA;d[i]=0}}
     S.step(dt);
@@ -328,12 +333,13 @@ var EW=(function(){
     if(!p.src&&w.tick%15===0)w.autoPower(p);
     if(p.src&&p.src.gen){p.src.dead=S.d[p.src.i]>0.14}
     if(!p.on)p.why='off';else if(!p.src)p.why='power';else if(p.src.gen&&p.src.dead)p.why='wetgen';else if(!p.hose)p.why='hose';else{
-      var q=w.pumpRate*dt,got=S.take(p.i,q),nb=[p.i-1,p.i+1,p.i-w.W,p.i+w.W];
+      var q=w.pumpRate*World.PUMPX*dt,got=S.take(p.i,q),nb=[p.i-1,p.i+1,p.i-w.W,p.i+w.W];
       for(var m=0;m<4&&got<q*0.999;m++){var i=nb[m];if(i>=0&&i<S.n&&!S.solid[i]&&S.g[i]+S.bar[i]+S.d[i]>S.g[p.i]+0.004)got+=S.take(i,Math.min(q-got,S.d[i]*AREA*0.5))}
       if(got>0){if(w.sink[p.hose.i]||w.hold[p.hose.i]>-1e8){w.removed+=got;p.away=true}else{S.add(p.hose.i,got);p.away=false}}
       p.flow+=(got/dt-p.flow)*0.2;p.run=true;p.why=got>q*0.05?'':'dry';return}
     p.flow*=0.8};
-  World.DONE=0.03;World.SKIN=0.008;World.DIGMAX=0.64;World.BARH=0.36;World.T=T;World.CS=CS;World.vnoise=vnoise;
+  World.DONE=0.03;World.DRAINX=2.5;World.PUMPX=2; // DRAINX, PUMPX: every drain and pump runs this many times its listed rate (raised 26 Nov 2026: draining felt slow)
+  World.SKIN=0.008;World.DIGMAX=0.9;World.BARH=0.36;World.T=T;World.CS=CS;World.vnoise=vnoise;
   return {World:World,T:T,CS:CS};
 })();
 // The jobs. Sizes are in metres; x runs east, z runs south. Each build() lays out one place.
@@ -345,7 +351,7 @@ var EWMaps=(function(){
   MAPS.push({id:'yard',name:'Marlow Row',sub:'Back yard',w:22,h:18,seed:11,pay:60,par:210,sky:'day',
     brief:'The back yard has been under water since the storm, and it is not going down.',
     build:function(b){
-      b.ground(function(x,z){return 0.02*dist(x,z,8,6.5)+Math.max(0,z-9)*0.04});
+      b.ground(function(x,z){var h=dist(x,z,7,14.2);return 0.02*dist(x,z,8,6.5)+Math.max(0,z-9)*0.04-0.11*Math.max(0,1-h*h/0.81)+0.05*bump((h-1.15)/0.35)});   // and a hollow on the lawn with a lip round it: a puddle that cannot drain
       b.surf(0,0,22,9,T.PAVE);b.surf(0,9,22,18,T.GRASS,1);b.surf(17,0,22,3,T.GRAVEL);
       b.noise(0.006,1.7,0,0,22,9);b.noise(0.02,2.3,0,9,22,18);
       b.wall(0,0,17,3,5.2,0xb9aa94,'house');
@@ -354,12 +360,14 @@ var EWMaps=(function(){
       b.wall(1,10,3.5,11,0.5,0x7a5a3c,'planter');b.wall(12.5,3,14,3.5,0.55,0x4c5b66,'bin');b.wall(14.5,3,15.5,3.5,0.9,0x3f6b4c,'bin');
       b.wall(5,13.5,6.5,14.5,0.72,0x8a8f93,'table');
       b.drain(8,6.5,{rate:0.62,cap:12});
+      b.drain(19.25,5.25,{rate:0.15,cap:6});   // a second, smaller drain by the side path, also blocked
       b.valve(17.02,1.75,'tap',{nx:1,y:0.95});
       b.leak(4.25,3.25,{rate:0.05,valve:'tap',y:0.95,nz:1,pz:3.02,label:'Garden tap pipe'});
+      b.leak(11.25,3.25,{rate:0.006,wrench:true,y:0.95,nz:1,pz:3.04,label:'Dripping joint'});   // a joint on the same pipe, for the wrench
       b.pipe([[5.2,3.04],[16.96,3.04]],0.95);b.pipe([[17.04,3.0],[17.04,1.75]],0.95);
       b.wall(18.5,15.2,19,15.7,3.2,0x5b4630,'tree');b.deco(2.2,15.6,'bush',{s:1.2});b.deco(3.6,16.4,'bush',{s:0.9});b.deco(10.5,16.6,'bush',{s:1.1});b.deco(14.2,16.5,'bush',{s:0.8});b.deco(1.4,8.2,'pot');b.deco(16.2,3.5,'pot');b.deco(20.6,6,'bush',{s:0.8});
       b.sign(17.02,2.45,'STOP TAP',{nx:1,y:1.5});
-      b.litter(8,6.5,0.8,18);b.litter(8,6.5,5,4);b.litter(13,12,5,10);b.litter(4,6,3,2);
+      b.litter(8,6.5,0.8,18);b.litter(8,6.5,5,4);b.litter(19.25,5.25,0.6,9);b.litter(13,12,5,10);b.litter(4,6,3,2);
       b.flood(0,0,22,18,0.50);   // shin to knee deep over the whole patio and half the lawn: it has to look like a flood
       b.spawnAt(12.6,11.0,0.80);
     }});
@@ -391,15 +399,17 @@ var EWMaps=(function(){
   MAPS.push({id:'field',name:'Tanners Field',sub:'Allotments',w:34,h:24,seed:31,pay:160,par:420,sky:'day',needs:['shovel','rake'],
     brief:'The allotments sit in a hollow. The water came in and has nowhere to go.',
     build:function(b){
-      b.ground(function(x,z){if(x>=30.5)return -0.6;var g=0.30+0.015*dist(x,z,22,12)+0.36*bump((x-28.75)/1.25);if(x>30)g=g+(x-30)*2*(-0.6-g);return g});
+      b.ground(function(x,z){var dt=-0.5-0.025*z;if(x>=30.5)return dt-0.12*bump((x-32)/1.5);var g=0.30+0.012*dist(x,z,22,12)+0.012*Math.max(0,22-x)/6+0.035*Math.min(1,Math.abs(z-12.25)/4)+0.30*bump((x-28.75)/1.25);if(x>30)g=g+(x-30)*2*(dt-g);return g});
       b.surf(0,0,34,24,T.GRASS,1);
       for(var k=0;k<4;k++)for(var j=0;j<3;j++)b.surf(3+k*6,5+j*6,7.5+k*6,9.5+j*6,T.SOIL,1);
       b.surf(30.5,0,34,24,T.GRAVEL,0);
-      b.noise(0.005,2.2,0,0,30,24);
+      b.noise(0.002,2.2,0,0,30,24);
       b.wall(0,0,34,0.5,1.6,0x4b6a3e,'hedge');b.wall(0,23.5,34,24,1.6,0x4b6a3e,'hedge');b.wall(0,0.5,0.5,23.5,1.6,0x4b6a3e,'hedge');b.wall(33.5,0.5,34,23.5,1.6,0x4b6a3e,'hedge');
       b.wall(2,1,6,3,2.2,0x6f5b47,'shed');b.wall(8,1,9,2,1.1,0x3e6f8a,'butt');b.wall(12,1,14,2.5,0.9,0x6a563f,'crate');b.wall(1,18,2.5,21,1.0,0x6a563f,'crate');
-      b.sinkArea(30.5,0.5,33.5,23.5);
-      b.drain(26.25,18.25,{rate:0.05,cap:9,kind:'culvert'});
+      b.noJob(30.5,0.5,33.5,23.5);   // water in the ditch is on its way out: it does not count
+      b.sinkArea(30.5,22.5,33.5,23.5);   // the ditch runs south along the hedge and leaves under it at the far end, so water can be seen running along it
+      b.drain(26.25,18.25,{rate:0.05,cap:9,kind:'culvert',pipe:[27.0,30.9]});   // pipe: drawn from the grate through the bank (x from, x to)
+      b.deco(21.5,11.5,'pegs',{x1:30.2});b.deco(21.5,13.0,'pegs',{x1:30.2});   // orange pegs and string either side of where the trench should go
       b.valve(6.02,2,'sp',{nx:1,y:0.8});b.leak(6.75,2.25,{rate:0.03,valve:'sp',y:0.7,nx:1,px:6.02,pz:2.5,label:'Standpipe'});
       b.sign(6.02,1.4,'STANDPIPE',{nx:1,y:1.4});
       b.litter(26.25,18.25,0.75,12);b.litter(22,12,8,14);
