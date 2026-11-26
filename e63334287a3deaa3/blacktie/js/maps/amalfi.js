@@ -1015,7 +1015,7 @@
         { x: 1060, z: coast0(1060) - OFF }, { x: 1206, z: coast0(1206) - OFF }, { x: 880, z: -56 }, { x: 1300, z: -40 }, { x: 1420, z: -152 }, { x: 1540, z: -96 }, { x: 1458, z: -56 }, { x: 1400, z: -104 }, { x: 1390, z: -28 }, { x: 1470, z: -2 }];
       S.ledger = RP.map.spots.ledger || S.ledger;
       // cars and launches to take (RP.Vehicles, main.js): [type, x, z, yaw]
-      RP.map.vehicles = [['city', -16, 15.5, Math.PI / 2], ['spider', 30, 17.5, -Math.PI / 2], ['boat', 30, 52, Math.PI / 2], ['boat', -178, 91, Math.PI / 2],
+      RP.map.vehicles = [['city', -16, 15.5, Math.PI / 2], ['spider', 30, 17.5, Math.PI / 2], ['boat', 30, 52, Math.PI / 2], ['boat', -178, 91, Math.PI / 2],
         ['city', 470, 33.6, Math.PI / 2 + 0.1], ['boat', 880, -2, 0], ['city', 1019, 58.6, Math.PI / 2], ['spider', 1393, -149.6, 1.72], ['city', 1457, -61.6, 1.4], ['boat', 1360.6, 40, 0]];
       RP.map.minimap = K.minimap(LAND, { squares: [[-19, -38, 12, -2], [1376, -44, 1432, -16]] });
       RP.map.onRoad = LAND.onRoad;

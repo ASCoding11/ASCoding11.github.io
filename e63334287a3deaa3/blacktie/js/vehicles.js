@@ -321,7 +321,7 @@
         var hitK = M.clamp(lost / Math.max(1e-3, sp * dt), 0, 1);
         // an impact is speed lost at once: only a real hit (more than 3 m/s gone) shakes and damages the car;
         // leaning on a wall or scraping a parapet just slows it
-        if (hitK > 0.35 && sp * hitK > 3) { v.hit = sp * hitK; v.hp -= sp * hitK * 1.6; if (v.hp <= 0 && !v.dead) kill(v); }
+        if (hitK > 0.35 && sp * hitK > 3) { v.hit = sp * hitK; v.hp -= (sp * hitK - 3) * 0.8; if (v.hp <= 0 && !v.dead) kill(v); }
         v.v *= 1 - hitK * (hitK > 0.35 ? 0.8 : 0.3);
       }
     }
