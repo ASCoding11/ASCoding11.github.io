@@ -70,11 +70,11 @@
   /* The Front Yard: a small buried lawn with a stone path, between the garden house and Gatehouse Court. Written in
      real metres (not scaled). Finishing it opens the gate to the court by itself. `dense` thickens its leaves. */
   var YARD = { x0: -4, x1: 4, z0: 16, z1: 23 }, HOUSE = { x0: -5, x1: 5, z0: 23.25, z1: 28.45 }, PATHS = [[-0.9, 0.9, 16.25, 23]], POTS = [[-1.3, 22.7], [1.3, 22.7]];
-  WR.AREAS.push({ id: 'yard', name: 'Front Yard', x0: YARD.x0, x1: YARD.x1, z0: YARD.z0, z1: YARD.z1, ground: LAWN, leaves: 220, units: 140, cost: 0, need: null, bonus: 30, dense: 1.5,
+  WR.AREAS.push({ id: 'yard', name: 'Front Yard', x0: YARD.x0, x1: YARD.x1, z0: YARD.z0, z1: YARD.z1, ground: LAWN, leaves: 170, units: 120, cost: 0, need: null, bonus: 30, dense: 1.5,
     reward: 'gate', rewardName: 'The garden gate', rewardText: 'Gatehouse Court is open', pal: ['#d9a23a', '#cf7a2a', '#b8552a', '#e6c04e', '#9a5a2a'] });
   WR.YARD = 5; WR.ORDER = [5, 0, 1, 2, 3, 4];
   WR.GATES.push({ area: 0, axis: 'x', x: 0, z: 16 });
-  WR.BINS.push({ area: 5, x: 2.9, z: 17.35 });
+  WR.BINS.push({ area: 5, x: 2.9, z: 16.95 });   // flush against the wall: a gap behind a bin traps leaves
   TREES.push([-2.9, 18.2, 0.62]);
   WR.SPAWN = { x: 0, z: 21.9, yaw: 0 }; WR.HOUSE = HOUSE; WR.PATHS = PATHS;
   WR.HEDGES = HEDGES; WR.GLASS = GLASS; WR.POND = POND; WR.FOUNTAIN = FOUNTAIN;

@@ -54,6 +54,8 @@
   A.gate = function () { tone('sawtooth', 90, 140, 0.7, 0.05); burst(500, 3, 0.7, 0.08); };
   A.step = function (wood) { if (wood) { tone('sine', 150, 90, 0.07, 0.07); burst(900, 1, 0.04, 0.04); } else burst(260 + Math.random() * 120, 0.9, 0.07, 0.07); };
   A.jump = function () { burst(500, 0.6, 0.12, 0.05); };
+  A.grab = function (v) { burst(3600 + Math.random() * 1800, 1.6, 0.09 + 0.08 * (v || 0), 0.1 + 0.08 * (v || 0)); tone('sine', 900 + Math.random() * 200, 600, 0.05, 0.035); };
+  A.miss = function () { burst(2400, 2, 0.05, 0.04); };
   A.thud = function (v) { tone('sine', 170, 80, 0.12, 0.06 + 0.1 * (v || 0)); burst(1800, 0.7, 0.14, 0.05 + 0.08 * (v || 0)); };
   A.burst = function (v) { burst(4200, 0.5, 0.5, 0.12 + 0.2 * (v || 0)); burst(1500, 0.6, 0.3, 0.1 + 0.12 * (v || 0)); tone('sine', 140, 60, 0.18, 0.12); };
 })();

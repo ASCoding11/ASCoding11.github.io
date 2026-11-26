@@ -91,6 +91,10 @@
     };
     // the ring that shows where the hands reach
     var ring = vm.ring = new THREE.Mesh(new THREE.RingGeometry(.955, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .5, depthWrite: false, fog: false })); ring.rotation.x = -Math.PI / 2; ring.visible = false; scene.add(ring);
+    // the grab circle keeps a rim about 3 cm wide and a faint fill, whatever its size, so even the smallest one shows
+    var ringR = -1, disc = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .1, depthWrite: false, fog: false })); disc.position.z = -.002; ring.add(disc);
+    ring.material.depthTest = false; disc.material.depthTest = false; ring.renderOrder = disc.renderOrder = 5;   // drawn over the leaves, which would hide it in a deep carpet
+    vm.setRing = function (r) { if (Math.abs(r - ringR) < 1e-4) return; ringR = r; ring.geometry.dispose(); ring.geometry = new THREE.RingGeometry(Math.max(.02, r - .03), r, 48); disc.scale.setScalar(r - .03); };
     // finder beacons
     vm.beacons = []; var bg = new THREE.CylinderGeometry(.05, .05, 7, 6, 1, true); bg.translate(0, 3.5, 0); var bm = new THREE.MeshBasicMaterial({ color: lin('#ffe27a'), transparent: true, opacity: .5, depthWrite: false, fog: false });
     for (i = 0; i < 8; i++) { var be = new THREE.Mesh(bg, bm); be.visible = false; scene.add(be); vm.beacons.push(be); }

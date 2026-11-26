@@ -88,6 +88,12 @@ body.touch .slot kbd,body.touch .kbonly{display:none}
 #tJump{right:calc(126px + var(--sr));bottom:calc(22px + var(--sb));width:62px;height:62px}
 #tSprint{right:calc(122px + var(--sr));bottom:calc(100px + var(--sb));width:54px;height:54px;font-size:11px}
 #tKneel{right:calc(30px + var(--sr));bottom:calc(134px + var(--sb));width:54px;height:54px;font-size:11px}
+#tMode{right:calc(30px + var(--sr));bottom:calc(200px + var(--sb));width:54px;height:54px;font-size:11px;background:rgba(63,107,82,.75)}
+#intro{position:absolute;left:50%;top:30%;transform:translateX(-50%);width:min(88vw,460px);background:rgba(246,236,212,.94);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:14px 18px;text-align:center;box-shadow:0 8px 26px rgba(0,0,0,.25);animation:hintIn .5s}
+#intro b{display:block;font-family:var(--f-d);font-size:20px;line-height:1.25}
+#intro span{display:block;margin-top:6px;font-size:16px;color:var(--ink-2)}
+#rakeMode{position:absolute;left:50%;bottom:calc(70px + var(--sb));transform:translateX(-50%);font-size:13px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+#rakeMode kbd{font:inherit;background:var(--gold);color:var(--ink);border-radius:5px;padding:0 6px;margin-right:5px;text-shadow:none}
 #tAct{left:50%;bottom:calc(84px + var(--sb));transform:translateX(-50%);border-radius:14px;width:auto;height:48px;padding:0 18px;font-size:15px;background:rgba(224,181,58,.95);color:var(--ink);border-color:#fff;white-space:nowrap}
 #tTop{position:absolute;right:calc(10px + var(--sr));top:calc(10px + var(--st));display:flex;gap:8px}
 #tTop .tb{position:static;width:46px;height:46px;border-radius:12px;font-size:11px}
@@ -99,8 +105,9 @@ body.touch .slot{width:56px;height:50px}
   body.touch #hTools{bottom:calc(172px + var(--sb))}
   body.touch #hArea{top:calc(96px + var(--st))}
   body.touch #toasts{top:34%}
-  body.touch #hint,body.touch #hPrompt{bottom:calc(238px + var(--sb))}
-  body.touch #tAct{bottom:calc(234px + var(--sb))}
+  body.touch #hint,body.touch #hPrompt{bottom:calc(270px + var(--sb))}
+  #intro{top:calc(160px + var(--st))}
+  body.touch #tAct{bottom:calc(266px + var(--sb))}
 }
 @media (orientation:landscape) and (max-height:480px){
   #hArea{padding:4px 12px 5px;min-width:170px}#hArea b{font-size:15px}
@@ -109,6 +116,8 @@ body.touch .slot{width:56px;height:50px}
   body.touch #tJump{right:calc(110px + var(--sr));bottom:calc(12px + var(--sb));width:56px;height:56px}
   body.touch #tSprint{right:calc(108px + var(--sr));bottom:calc(80px + var(--sb));width:48px;height:48px}
   body.touch #tKneel{right:calc(26px + var(--sr));bottom:calc(106px + var(--sb));width:48px;height:48px}
+  body.touch #tMode{right:calc(26px + var(--sr));bottom:calc(160px + var(--sb));width:48px;height:48px}
+  #intro{top:36%;padding:10px 14px}#intro b{font-size:17px}#intro span{font-size:14px}
   body.touch #hTools{bottom:calc(8px + var(--sb))}
   body.touch .slot{width:52px;height:44px;font-size:10px}body.touch .slot svg{width:20px;height:20px}
   #hPrompt,#hint{bottom:calc(64px + var(--sb));font-size:15px;padding:6px 14px;max-width:46vw}
@@ -164,6 +173,7 @@ ol.how li{margin-bottom:5px}
 @media (max-height:480px){.card{padding:12px 16px}#title h1{font-size:40px}.stack{margin-top:8px;flex-direction:row;flex-wrap:wrap;justify-content:center}.tag{font-size:15px;margin:4px 0}#jSide{max-height:56vh}#jBody{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}}
 @media (prefers-reduced-motion:reduce){.toast,#acN.pop{animation:none}}
 </style>
+<script src="/e63334287a3deaa3/captains.js"></script>
 <script src="/e63334287a3deaa3/stats.js" data-game="windrow" data-board-in="#title .card" defer></script>
 </head>
 <body>
@@ -181,6 +191,8 @@ ol.how li{margin-bottom:5px}
     <div id="gain" data-noi18n></div>
     <div id="cross"></div>
     <div id="hint" hidden data-noi18n></div>
+    <div id="intro" hidden><b>The old gardens are buried in leaves. Clear every last one.</b><span id="introDo" data-noi18n></span></div>
+    <div id="rakeMode" class="kbonly" hidden data-noi18n></div>
     <div id="toasts" aria-live="polite"></div>
     <div id="hPrompt" hidden data-noi18n></div>
     <div id="hTools">
@@ -194,6 +206,7 @@ ol.how li{margin-bottom:5px}
       <button class="tb" id="tJump" type="button" data-no-ad-refresh>Jump</button>
       <button class="tb" id="tSprint" type="button" hidden data-no-ad-refresh>Run</button>
       <button class="tb" id="tKneel" type="button" hidden data-no-ad-refresh>Kneel</button>
+      <button class="tb" id="tMode" type="button" hidden data-noi18n data-no-ad-refresh>Push</button>
       <button class="tb" id="tAct" type="button" hidden data-noi18n data-no-ad-refresh></button>
       <div id="tTop">
         <button class="tb" id="tFind" type="button" aria-label="Leaf finder" data-no-ad-refresh><svg viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6" stroke="currentColor" stroke-width="2.200" fill="none"/><path d="M15 15l6 6" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"/></svg></button>
