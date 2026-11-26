@@ -921,19 +921,23 @@ function pause() { if (G.state !== 'play') return; G.state = 'paused'; $('#pScor
 function resume() { if (G.state !== 'paused') return; G.state = 'play'; showScreen(null); last = performance.now(); }
 function quitRun() { finalizeRun(); rollMissions(); run = null; G.state = 'idle'; showMenu(); }
 
+// The hangar shop is closed for now (the owner's call): skins can't be bought with shards, skins already owned stay yours to equip,
+// and shards still add up. Set this to true to open buying again.
+const SHOP_OPEN = false;
 function renderHangar() {
   $('#hShards').textContent = save.shards;
   $('#skins').innerHTML = SKINS.map(k => {
     const owned = save.owned.includes(k.id), eq = save.skin === k.id;
-    const st = eq ? '<span class="st">Equipped</span>' : owned ? '<span class="st">Equip</span>' : `<span class="st cost">${SHARD_SVG}${k.cost}${save.shards >= k.cost ? ' · Unlock' : ''}</span>`;
+    const st = eq ? '<span class="st">Equipped</span>' : owned ? '<span class="st">Equip</span>' : !SHOP_OPEN ? '<span class="st">Coming soon</span>' : `<span class="st cost">${SHARD_SVG}${k.cost}${save.shards >= k.cost ? ' · Unlock' : ''}</span>`;
     const glow = k.trail === 'rainbow' ? '#FFFFFF' : k.trail[0];
-    return `<button class="skin ${eq ? 'eq' : ''} ${owned ? '' : save.shards >= k.cost ? 'locked afford' : 'locked'}" data-id="${k.id}" style="--tr:${trailCss(k)};--b:${k.body};--g:${glow}"><span class="sw"></span><span class="nm">${k.name}</span>${st}</button>`;
+    return `<button class="skin ${eq ? 'eq' : ''} ${owned ? '' : SHOP_OPEN && save.shards >= k.cost ? 'locked afford' : 'locked'}" data-id="${k.id}" style="--tr:${trailCss(k)};--b:${k.body};--g:${glow}"><span class="sw"></span><span class="nm">${k.name}</span>${st}</button>`;
   }).join('');
 }
 $('#skins').addEventListener('click', e => {
   const btn = e.target.closest('.skin'); if (!btn) return;
   const k = skinById(btn.dataset.id);
   if (save.owned.includes(k.id)) { save.skin = k.id; sfx.click(); }
+  else if (!SHOP_OPEN) { sfx.deny(); toast('The hangar shop is closed for now. Coming soon.'); return; }
   else if (save.shards >= k.cost) { save.shards -= k.cost; save.owned.push(k.id); save.skin = k.id; sfx.buy(); toast(`${k.name} unlocked`, 'gold'); }
   else { sfx.deny(); btn.classList.remove('shake'); void btn.offsetWidth; btn.classList.add('shake'); toast(`Need ${k.cost - save.shards} more shards`); return; }
   persist(); renderHangar();

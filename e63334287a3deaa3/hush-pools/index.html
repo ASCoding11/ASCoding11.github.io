@@ -483,13 +483,19 @@ const runCoins = (df, rooms, escaped) => rooms * roomCoins(df) + (escaped ? esca
 const hardUnlocked = s => s.nw >= 2;
 function upgradeOpen(s, k) { const u = UPGRADES.find(x => x.k === k); return !!u && (!u.need || !!s.ever[u.need]); }
 function upgradeCost(s, k) { const l = s.up[k]; return l >= 3 ? null : UP_COST[l]; }
+// The shop is closed for now (the owner's call): no equipment or upgrades can be bought. What a save already owns still comes on runs,
+// upgrade levels are kept, and coins still add up. Set this to true to open buying again.
+const SHOP_OPEN = false;
+const SHOP_CLOSED_MSG = 'The shop is closed for now. Coming soon.';
 function buyUpgrade(s, k) {
+  if (!SHOP_OPEN) return SHOP_CLOSED_MSG;
   if (!upgradeOpen(s, k)) return 'Locked: own that item first.';
   const c = upgradeCost(s, k); if (c == null) return 'Already at level 3.';
   if (s.coins < c) return 'Not enough coins.';
   s.coins -= c; s.up[k]++; return '';
 }
 function buyItem(s, k) {
+  if (!SHOP_OPEN) return SHOP_CLOSED_MSG;
   if (!(k in SHOP)) return 'Not for sale.';
   if (s.own[k] >= CARRY_MAX) return 'You can carry ' + CARRY_MAX + '.';
   if (s.coins < SHOP[k]) return 'Not enough coins.';
@@ -2755,16 +2761,16 @@ function renderShop() {
   const tab = G.shopTab;
   [...document.querySelectorAll('#shop .tabs button')].forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   $('shopH').textContent = tab === 'equip' ? 'Equipment' : 'Upgrades';
-  $('shopWallet').innerHTML = 'You have <b>' + SAVE.coins + ' coins</b>. Earn more by clearing rooms; everything stays in this browser.';
+  $('shopWallet').innerHTML = 'You have <b>' + SAVE.coins + ' coins</b>. Earn more by clearing rooms; everything stays in this browser.' + (SHOP_OPEN ? '' : ' <b>' + SHOP_CLOSED_MSG + '</b>');
   let h = '';
   if (tab === 'equip') {
     h += '<div class="it">' + ICONS[0] + '<div><b>Pebbles</b><small>Free: you start every run with ' + START_PEBBLES + ', and gray stones give ' + STONE_GIVES + ' more. Skip one across the water to lure it away.</small></div></div>';
     const D = { bottle: 'One loud smash, and an echo after. A bigger decoy than a pebble.', toy: 'Rattles for ' + toyTimeOf(SAVE.up) + ' s where it lands. Keeps it busy.', flare: 'Stuns it for 5 s if it\'s within ' + flareRadiusOf(SAVE.up) + ' m, and frees a teammate it\'s holding.', rope: 'Pulls a downed teammate out from up to ' + ropeRangeOf(SAVE.up) + ' m away.' };
-    ['bottle', 'toy', 'flare', 'rope'].forEach((k, i) => { h += '<div class="it">' + ICONS[i + 1] + '<div><b>' + ITEM_NAMES[i + 1] + ' <span class="mono" style="font-size:12px;color:#9fbcb9">' + SAVE.own[k] + '/' + CARRY_MAX + '</span></b><small>' + D[k] + '</small></div><button class="btn" type="button" data-buy="' + k + '"' + (SAVE.own[k] >= CARRY_MAX || SAVE.coins < SHOP[k] ? ' disabled' : '') + '>' + SHOP[k] + ' coins</button></div>'; });
+    ['bottle', 'toy', 'flare', 'rope'].forEach((k, i) => { h += '<div class="it">' + ICONS[i + 1] + '<div><b>' + ITEM_NAMES[i + 1] + ' <span class="mono" style="font-size:12px;color:#9fbcb9">' + SAVE.own[k] + '/' + CARRY_MAX + '</span></b><small>' + D[k] + '</small></div><button class="btn" type="button" data-buy="' + k + '"' + (!SHOP_OPEN || SAVE.own[k] >= CARRY_MAX || SAVE.coins < SHOP[k] ? ' disabled' : '') + '>' + (SHOP_OPEN ? SHOP[k] + ' coins' : 'Coming soon') + '</button></div>'; });
   } else {
     UPGRADES.forEach(u => { const open = upgradeOpen(SAVE, u.k), c = upgradeCost(SAVE, u.k), l = SAVE.up[u.k];
       h += '<div class="it"><div><b>' + u.n + '<span class="pips">' + [0, 1, 2].map(i => '<i class="' + (i < l ? 'on' : '') + '"></i>').join('') + '</span></b><small>' + (open ? u.d : 'Own a ' + ITEM_NAMES[ITEMS.indexOf(u.need)].toLowerCase() + ' first.') + '</small></div>' +
-        '<button class="btn" type="button" data-up="' + u.k + '"' + (!open || c == null || SAVE.coins < c ? ' disabled' : '') + '>' + (!open ? 'Locked' : c == null ? 'Max' : c + ' coins') + '</button></div>'; });
+        '<button class="btn" type="button" data-up="' + u.k + '"' + (!SHOP_OPEN || !open || c == null || SAVE.coins < c ? ' disabled' : '') + '>' + (!open ? 'Locked' : c == null ? 'Max' : SHOP_OPEN ? c + ' coins' : 'Coming soon') + '</button></div>'; });
   }
   $('shopList').innerHTML = h;
   [...$('shopList').querySelectorAll('[data-buy]')].forEach(b => b.onclick = () => { const r = buyItem(SAVE, b.dataset.buy); $('shopMsg').textContent = r || 'Bought. It comes with you on your next run.'; if (!r) { saveSave(); sfx('ok'); } renderShop(); });
