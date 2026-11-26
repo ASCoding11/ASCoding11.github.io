@@ -93,7 +93,8 @@
              'Loops now pay: gems sit inside them, a gold crown waits at the top of some, and every loop raises your run multiplier, which multiplies every trick and gem.',
              'Endless gets hard much sooner and keeps getting harder, and level time targets are tighter.',
              'Flips take a little more skill: a slightly slower spin and a stricter clean landing.',
-             'The rider is gone: it is just the bike now, a little smaller and more modern.']},
+             'The rider is gone: it is just the bike now, a little smaller and more modern.',
+             'The garage shop is closed for now: nothing can be bought yet. Anything you already own is still yours to choose, and your coins keep adding up from playing.']},
     {date: '2026-11-25', version: '1.51.4', title: 'Site rules and privacy, in plain words', kind: 'fix',
      link: {text: 'Read the terms', href: '/terms/'}, items: [
       'The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can\'t promise.',

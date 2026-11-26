@@ -14,6 +14,7 @@
     "Endless gets hard much sooner and keeps getting harder, and level time targets are tighter.": "El modo Infinito se pone difícil mucho antes y sigue endureciéndose, y los tiempos objetivo de los niveles son más ajustados.",
     "Flips take a little more skill: a slightly slower spin and a stricter clean landing.": "Los giros piden un poco más de habilidad: el giro es algo más lento y el aterrizaje limpio es más exigente.",
     "The rider is gone: it is just the bike now, a little smaller and more modern.": "Ya no hay piloto: ahora es solo la moto, un poco más pequeña y más moderna.",
+    "The garage shop is closed for now: nothing can be bought yet. Anything you already own is still yours to choose, and your coins keep adding up from playing.": "La tienda del garaje está cerrada por ahora: todavía no se puede comprar nada. Lo que ya tienes sigue siendo tuyo para elegirlo, y tus monedas se siguen sumando al jugar.",
     "Site rules and privacy, in plain words": "Las reglas del sitio y la privacidad, en palabras sencillas",
     "Read the terms": "Lee los términos",
     "The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can't promise.": "El sitio ahora tiene una página de Términos de uso: cómo jugar limpio, qué puedes publicar, cómo funcionan el Marketplace y la compra de objetos, y qué podemos y qué no podemos prometer.",

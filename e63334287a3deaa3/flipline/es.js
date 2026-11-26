@@ -51,7 +51,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Every vehicle and rider rides exactly the same: same speed, same grip, same flips. They only look different. Coins come from playing; nothing here costs real money.':
     'Todos los vehículos y pilotos andan exactamente igual: misma velocidad, mismo agarre, mismos giros. Solo cambia el aspecto. Las monedas se ganan jugando; nada cuesta dinero real.',
   'Your place is used in Endless and the editor; levels and the Daily run bring their own.': 'Tu lugar se usa en Infinito y en el editor; los niveles y la carrera del día traen el suyo.',
-  'Secret': 'Secreto', 'Riding': 'En uso', 'Yours': 'Tuyo', '{c} coins': '{c} monedas', 'Chosen': 'Elegido', 'Choose': 'Elegir', 'Locked': 'Bloqueado', 'Buy': 'Comprar',
+  'Secret': 'Secreto', 'Riding': 'En uso', 'Yours': 'Tuyo', '{c} coins': '{c} monedas', 'Chosen': 'Elegido', 'Choose': 'Elegir', 'Locked': 'Bloqueado', 'Buy': 'Comprar', 'Coming soon': 'Próximamente',
   '{n} is yours!': '¡{n} es tuyo!', 'Land a quadruple flip': 'Haz un giro cuádruple', 'Ride 1,000 m without a flip': 'Recorre 1000 m sin girar', 'Finish all 24 levels': 'Termina los 24 niveles',
   // challenges
   'Three at a time. Finish one and the next takes its place.': 'Tres a la vez. Completa uno y el siguiente ocupa su lugar.',
