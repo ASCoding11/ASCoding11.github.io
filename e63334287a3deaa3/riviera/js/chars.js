@@ -1,0 +1,685 @@
+/*
+ * Characters (RP.Chars): loads the rigged people and the animation clips, and drives them.
+ *
+ * Assets (assets/, copied unchanged from Midnight Ops' build; licences in CREDITS.md): hero.glb (the agent's body),
+ * enemy.glb (four outfits on one body, used for the guards and, recoloured, for guests), anims.glb (71 clips on the
+ * shared skeleton) and anims.json (stride and speed of the motion-capture loops). The clothes are recoloured in the
+ * shader (skin, eyes and hair keep their colours), so the agent wears dark navy, the guards black or grey, the guests
+ * light summer colours.
+ *
+ * Actor (1 unit = 1 m, feet at the origin, facing +Z, +X is the character's left):
+ *   a.root                           Group to place in the world (position = feet, rotation.y = yaw)
+ *   a.drive(st)                      the locomotion graph input, once per frame:
+ *       st.speed (m/s along the ground), st.dir (move direction relative to facing, rad, +left),
+ *       st.strafe (0..1: 8-way strafing vs. turning to the move direction), st.stealth (0..1), st.sprint (0..1),
+ *       st.turnRate (rad/s, for steps in place and lean), st.accel (m/s^2 forward, for lean)
+ *   a.setUpper(name|null, fade)      a held upper-body pose (holdRifle, holdPistol, aimIdle, aimPistol, crouchAim, ...)
+ *   a.playUpper(name, {speed, fade}) one-shot over the upper body (fire, firePistol, reload, throw, melee ...)
+ *   a.playFull(name, {speed, fade, hold}) one-shot over the whole body (vault, takedown, deathFront, stagger, hit ...)
+ *   a.move(name, {speed, side})      a code-authored move on top of everything (punches, kicks, roll, dodge, jump,
+ *                                    climb, get-up, melee swings, draw, holster, pistol whip): see MOVES
+ *   a.setAim(pitch, yaw)             aim offset over the spine, neck and head (rad; yaw +left)
+ *   a.hold(weaponObject|null)        put a weapon in the right hand (on the weapon_r prop bone); its userData.gripL
+ *                                    (Object3D) pulls the left hand on by IK when a two-handed pose is up
+ *   a.flinch(dirX, dirZ, k)          a quick additive hit reaction (world direction the hit came FROM)
+ *   a.update(dt)                     advance (call once per rendered frame after drive)
+ *   a.bone(name), a.head(), a.chest(): world positions for aiming, hit boxes and sight lines
+ */
+(function () {
+  'use strict';
+  var T = THREE, M = RP.M;
+  var C = RP.Chars = { info: { loaded: false, errors: [], bytes: 0 }, lod: [12, 30] };
+  var ASSETS = 'assets/', VERSION = '1';
+  var gltf = {}, META = {}, CLIPS = {}, UPPER = {}, LOWER = {}, TEMPLATES = {};
+
+  // ------------------------------------------------------------------ outfits (sRGB): which mesh, cloth colours
+  var KINDS = {
+    agent:    { file: 'hero', meshes: ['Hero', 'HeroHair', 'HeroEyes'], lod: ['HeroLOD1', 'HeroLOD2'], cloth: '#1f2a3d', cloth2: '#2b2b2e', h: 1.79, hw: ['hair', '#2a1d16'] },
+    sentry:   { file: 'enemy', meshes: ['Rifleman', 'EnemyHair', 'EnemyEyes'], lod: ['RiflemanLOD1', 'RiflemanLOD2'], cloth: '#4a4b4e', cloth2: '#1e1e20', h: 1.8, hw: ['beanie', '#1a1a1c'] },
+    enforcer: { file: 'enemy', meshes: ['Gunner', 'EnemyHair', 'EnemyEyes'], lod: ['GunnerLOD1', 'GunnerLOD2'], cloth: '#1c1c1f', cloth2: '#3a2f26', h: 1.8, hw: ['cap', '#141416'] },
+    elite:    { file: 'enemy', meshes: ['Gunner', 'EnemyHair', 'EnemyEyes'], lod: ['GunnerLOD1', 'GunnerLOD2'], cloth: '#26282d', cloth2: '#0d0d0f', h: 1.82, hw: ['hair', '#121010'], glasses: true },
+    marksman: { file: 'enemy', meshes: ['Sniper', 'EnemyHair', 'EnemyEyes'], lod: ['SniperLOD1', 'SniperLOD2'], cloth: '#4d4a3f', cloth2: '#2a2a26', h: 1.8, hw: ['cap', '#3b3a33'] },
+    guest:    { file: 'enemy', meshes: ['Sniper', 'EnemyHair', 'EnemyEyes'], lod: ['SniperLOD1', 'SniperLOD2'], cloth: '#efe8d8', cloth2: '#e2d8c4', h: 1.8, civ: true, hw: ['hair', '#3a2a20'] }
+  };
+  var GUEST_COLS = [['#efe8d8', '#ddd3bf'], ['#a9c4dd', '#94adc4'], ['#e8b4a0', '#d29f8b'], ['#f4f1ea', '#e3ded4'], ['#c8d6b0', '#b3c19c'], ['#2f3f5a', '#25324a'], ['#d9d2c4', '#c4bcae']];
+
+  // ------------------------------------------------------------------ loading
+  function addScript(src) {
+    return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = function () { rej(new Error(src)); }; document.head.appendChild(s); });
+  }
+  function loadGLB(name, prog) {
+    return new Promise(function (res, rej) {
+      var l = new T.GLTFLoader(); if (window.MeshoptDecoder) l.setMeshoptDecoder(window.MeshoptDecoder);
+      l.load(ASSETS + name + '.glb?v=' + VERSION, res, function (e) { prog(name, e.loaded, e.total); }, rej);
+    });
+  }
+  C.load = function (onProgress) {
+    if (C._p) return C._p;
+    var seen = {}, totals = { hero: 3.06e6, enemy: 4.23e6, anims: 2.89e6 };
+    function prog(n, a, b) { seen[n] = a; if (b) totals[n] = b; var x = 0, y = 0; for (var k in totals) { x += Math.min(seen[k] || 0, totals[k]); y += totals[k]; } if (onProgress) onProgress(Math.min(0.99, x / y)); }
+    C._p = (window.MeshoptDecoder ? Promise.resolve() : addScript(ASSETS + 'lib/meshopt_decoder.js')).then(function () { return window.MeshoptDecoder && MeshoptDecoder.ready; })
+      .then(function () {
+        return Promise.all(['hero', 'enemy', 'anims'].map(function (n) { return loadGLB(n, prog).then(function (g) { gltf[n] = g; }); }))
+          .then(function () { return fetch(ASSETS + 'anims.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { META = j; }); });
+      }).then(function () {
+        prepClips(gltf.anims.animations);
+        Object.keys(KINDS).forEach(function (k) { TEMPLATES[k] = template(k); });
+        C.info.loaded = true; for (var k in seen) C.info.bytes += seen[k];
+        return C;
+      }).catch(function (e) { C.info.errors.push(String(e && e.message || e)); throw e; });
+    return C._p;
+  };
+
+  var upperSet = {};
+  function prepClips(anims) {
+    ['spine_01', 'spine_02', 'spine_03', 'neck_01', 'Head', 'weapon_r'].forEach(function (b) { upperSet[b] = 1; });
+    anims.forEach(function (c) {
+      c.tracks = c.tracks.filter(function (t) {
+        var bn = t.name.split('.')[0], pr = t.name.split('.')[1];
+        if (/(clavicle|upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)_/.test(bn)) upperSet[bn] = 1;
+        if (pr === 'scale') return false;
+        if (pr === 'position' && bn !== 'pelvis') return false;
+        return true;
+      });
+    });
+    anims.forEach(function (c) {
+      CLIPS[c.name] = c;
+      UPPER[c.name] = new T.AnimationClip(c.name + '#U', c.duration, c.tracks.filter(function (t) { return upperSet[t.name.split('.')[0]]; }));
+      LOWER[c.name] = new T.AnimationClip(c.name + '#L', c.duration, c.tracks.filter(function (t) { return !upperSet[t.name.split('.')[0]]; }));
+    });
+    C.clips = Object.keys(CLIPS);
+  }
+  function meshName(o) { var n = o.name || ''; if (o.parent && o.parent.isGroup && o.parent.name && !o.parent.isBone) n = o.parent.name; return n.replace(/_\d+$/, ''); }
+  function template(kind) {
+    var def = KINDS[kind], g = gltf[def.file]; if (!g) return null;
+    var keep = {}; def.meshes.concat(def.lod).forEach(function (n) { keep[n] = 1; });
+    var root = T.SkeletonUtils.clone(g.scene), drop = [];
+    root.traverse(function (o) { if (o.isMesh && !keep[meshName(o)]) drop.push(o); });
+    drop.forEach(function (o) { o.parent.remove(o); });
+    root.traverse(function (o) {
+      if (!o.isMesh) return;
+      o.castShadow = true; o.receiveShadow = true; o.frustumCulled = true;
+      o.geometry.boundingSphere = new T.Sphere(new T.Vector3(0, 0.9, 0), 1.5);
+      o.userData.lod = def.lod.indexOf(meshName(o)) + 1;
+      o.userData.part = /Hair/.test(o.name) ? 'hair' : /Eye/.test(o.name) ? 'eye' : 'body';
+      if (o.userData.part === 'body' && o.isSkinnedMesh) o.geometry = bodyGeo(o, def);
+    });
+    return root;
+  }
+  // Per body mesh: an 'aSkin' attribute (1 on the head and hands, from the bone weights) so the recolour shader keeps
+  // skin and recolours everything else, and the military headgear removed (helmet, beret, cap: vertices weighted to
+  // the head that sit outside the skull or above the hairline collapse to the head centre, so their triangles vanish;
+  // the hair mesh then shows). Results cached per source geometry.
+  var _bodyGeo = new Map();
+  function bodyGeo(mesh, def) {
+    var src = mesh.geometry, key = src.uuid + (def.hat ? 'h' : '');
+    if (_bodyGeo.has(key)) return _bodyGeo.get(key);
+    var g = src.clone(), sk = mesh.skeleton, bones = sk.bones;
+    var idx = {}; bones.forEach(function (b, i) { idx[b.name] = i; });
+    var skinB = {}; bones.forEach(function (b, i) { if (/^(Head|neck_01|hand_[lr]|(thumb|index|middle|ring|pinky)_0\d_[lr])/.test(b.name)) skinB[i] = 1; });
+    var SI = g.attributes.skinIndex, SW = g.attributes.skinWeight, P = g.attributes.position, n = P.count;
+    var skin = new Float32Array(n);
+    var headI = idx.Head, hp = new T.Vector3().setFromMatrixPosition(new T.Matrix4().copy(sk.boneInverses[headI]).invert());
+    var v = new T.Vector3(), inv = new T.Matrix4().copy(mesh.bindMatrix).invert(), removed = 0;
+    // measured on these meshes (head-bone origin, y up, z forward): the face reaches r 0.14 at z > 0.07, the hair
+    // r 0.144 up to y 0.12; helmets and caps stand outside that (r up to 0.166, y up to 0.24)
+    var centre = new T.Vector3(hp.x, hp.y + 0.05, hp.z - 0.01).applyMatrix4(inv);
+    for (var i = 0; i < n; i++) {
+      var hw = 0, sw = 0;
+      for (var k = 0; k < 4; k++) { var bi = SI.getComponent(i, k), w = SW.getComponent(i, k); if (skinB[bi]) sw += w; if (bi === headI) hw += w; }
+      skin[i] = sw > 0.5 ? 1 : 0;
+      if (!def.hat && hw > 0.5) {
+        v.fromBufferAttribute(P, i).applyMatrix4(mesh.bindMatrix).sub(hp);
+        var r = Math.hypot(v.x, v.z);
+        if (v.y > 0.125 || (r > 0.139 && v.z < 0.07 && v.y > -0.06) || (v.y > 0.06 && r > 0.112 && v.z < 0.075) || (v.y > -0.03 && r > 0.117 && v.z < 0.06)) { P.setXYZ(i, centre.x, centre.y, centre.z); removed++; }
+      }
+    }
+    g.setAttribute('aSkin', new T.BufferAttribute(skin, 1));
+    g.userData.removed = removed;
+    _bodyGeo.set(key, g);
+    return g;
+  }
+
+  // ------------------------------------------------------------------ cloth recolour shader
+  // Texels that look like skin (warm: red over green over blue, fairly saturated) or very dark (eyes, boots) keep
+  // their colour; the rest (uniform cloth, webbing) keeps its light and shade but takes the outfit's colour: the
+  // lighter half of the cloth takes uCloth, darker straps and gear take uCloth2.
+  function recolour(m, c1, c2) {
+    m.userData.cols = { uCloth: { value: RP.col(c1) }, uCloth2: { value: RP.col(c2) } };
+    m.onBeforeCompile = function (sh) {
+      sh.uniforms.uCloth = m.userData.cols.uCloth; sh.uniforms.uCloth2 = m.userData.cols.uCloth2;
+      sh.vertexShader = 'attribute float aSkin; varying float vSkin;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vSkin = aSkin;');
+      sh.fragmentShader = 'uniform vec3 uCloth; uniform vec3 uCloth2; varying float vSkin;\n' + sh.fragmentShader.replace('#include <map_fragment>', [
+        '#include <map_fragment>',
+        '{ vec3 c = diffuseColor.rgb; float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));',
+        '  float sat = (mx - mn) / max(mx, 1e-4);',
+        '  float skin = smoothstep(0.18, 0.32, (c.r - c.b) / max(c.r, 1e-4)) * smoothstep(0.08, 0.16, (c.r - c.g) / max(c.r, 1e-4)) * step(c.b, c.g) * smoothstep(0.03, 0.08, c.r);',
+        '  float l = dot(c, vec3(0.3, 0.59, 0.11));',
+        '  float gear = smoothstep(0.06, 0.025, l);',
+        '  vec3 cloth = mix(uCloth, uCloth2, gear) * clamp(l / 0.09, 0.35, 1.8);',
+        '  diffuseColor.rgb = mix(cloth, c, clamp(vSkin * (0.4 + skin), 0.0, 1.0)); }'
+      ].join('\n'));
+    };
+    m.customProgramCacheKey = function () { return 'rp-cloth'; };
+  }
+
+  // ------------------------------------------------------------------ helpers
+  var _q = new T.Quaternion(), _q2 = new T.Quaternion(), _v = new T.Vector3(), _v2 = new T.Vector3(), _m = new T.Matrix4();
+  function worldQuat(o, out) { return o.getWorldQuaternion(out); }
+  function worldPos(o, out) { return o.getWorldPosition(out); }
+  // rotate a bone by a world-space rotation q (keeps its parent)
+  function rotWorld(b, q) {
+    var pq = worldQuat(b.parent, _q2), bw = _q.copy(pq).multiply(b.quaternion);
+    bw.premultiply(q);
+    b.quaternion.copy(pq.invert().multiply(bw));
+    b.updateMatrixWorld(true);
+  }
+  C.rotWorld = rotWorld;
+  // two-bone IK: put the end of a-b-c on target (world), pole hint (world dir) keeps the elbow/knee plane
+  var _a = new T.Vector3(), _b = new T.Vector3(), _c = new T.Vector3(), _t = new T.Vector3();
+  function twoBone(A, Bn, Cn, target, w, pole) {
+    if (w <= 0) return;
+    worldPos(A, _a); worldPos(Bn, _b); worldPos(Cn, _c);
+    var la = _a.distanceTo(_b), lb = _b.distanceTo(_c);
+    _t.copy(target);
+    var d = M.clamp(_t.distanceTo(_a), Math.abs(la - lb) + 1e-3, la + lb - 1e-3);
+    // current and wanted angle at the middle joint
+    var cur = Math.acos(M.clamp(_v.subVectors(_a, _b).normalize().dot(_v2.subVectors(_c, _b).normalize()), -1, 1));
+    var want = Math.acos(M.clamp((la * la + lb * lb - d * d) / (2 * la * lb), -1, 1));
+    var axis = new T.Vector3().crossVectors(_v.subVectors(_b, _a), _v2.subVectors(_c, _b));
+    if (axis.lengthSq() < 1e-8) axis.copy(pole || new T.Vector3(1, 0, 0)); axis.normalize();
+    rotWorld(Bn, _q.setFromAxisAngle(axis, (cur - want) * w));
+    // swing the root so the end points at the target
+    worldPos(Cn, _c); worldPos(A, _a);
+    var from = _v.subVectors(_c, _a).normalize(), to = _v2.subVectors(_t, _a).normalize();
+    var q = new T.Quaternion().setFromUnitVectors(from, to);
+    if (w < 1) q.slerp(new T.Quaternion(), 1 - w);
+    rotWorld(A, q);
+  }
+  C.twoBone = twoBone;
+
+  // ------------------------------------------------------------------ code-authored moves
+  // Keys: [time s, {bone: [[axis, angle], ...]}] with axes in the character's own frame: 'x' its left, 'y' up,
+  // 'z' forward. Angles are added on top of the animated pose and eased between keys. 'root' moves the whole body
+  // (y lift and z forward in metres via 'lift'/'push', pitch via axis x). Each move has a hit window [start, end] (s)
+  // that the combat code reads, and a recovery end.
+  var D = Math.PI / 180;
+  var MOVES = {
+    jab: { dur: 0.42, hit: [0.1, 0.18], keys: [
+      [0, {}],
+      [0.08, { spine_02: [['y', 12 * D]], upperarm_r: [['x', 10 * D]] }],
+      [0.15, { spine_02: [['y', -22 * D]], spine_03: [['y', -10 * D]], clavicle_r: [['y', -12 * D]], upperarm_r: [['x', -75 * D], ['y', -20 * D]], lowerarm_r: [['x', -50 * D]] }],
+      [0.42, {}]] },
+    cross: { dur: 0.5, hit: [0.14, 0.24], keys: [
+      [0, {}],
+      [0.1, { spine_02: [['y', -16 * D]], upperarm_l: [['x', 10 * D]] }],
+      [0.2, { spine_01: [['y', 14 * D]], spine_02: [['y', 24 * D]], clavicle_l: [['y', 12 * D]], upperarm_l: [['x', -80 * D], ['y', 20 * D]], lowerarm_l: [['x', -45 * D]] }],
+      [0.5, {}]] },
+    hook: { dur: 0.6, hit: [0.2, 0.3], keys: [
+      [0, {}],
+      [0.14, { spine_01: [['y', 18 * D]], spine_02: [['y', 22 * D]], upperarm_r: [['z', 30 * D]] }],
+      [0.26, { spine_01: [['y', -20 * D]], spine_02: [['y', -32 * D]], upperarm_r: [['x', -60 * D], ['z', -70 * D]], lowerarm_r: [['y', 70 * D]] }],
+      [0.6, {}]] },
+    uppercut: { dur: 0.62, hit: [0.22, 0.32], keys: [
+      [0, {}],
+      [0.16, { spine_01: [['x', 14 * D]], spine_02: [['y', 14 * D]], upperarm_r: [['x', 30 * D]], root: [['lift', -0.12]] }],
+      [0.28, { spine_01: [['x', -10 * D]], spine_02: [['y', -20 * D]], upperarm_r: [['x', -110 * D]], lowerarm_r: [['x', -80 * D]], root: [['lift', 0.03]] }],
+      [0.62, {}]] },
+    kick: { dur: 0.72, hit: [0.26, 0.38], keys: [
+      [0, {}],
+      [0.16, { thigh_r: [['x', -55 * D]], calf_r: [['x', 70 * D]], spine_01: [['x', -8 * D]] }],
+      [0.3, { thigh_r: [['x', -85 * D]], calf_r: [['x', 5 * D]], spine_01: [['x', -18 * D]], spine_02: [['x', -8 * D]], upperarm_l: [['z', 25 * D]] }],
+      [0.48, { thigh_r: [['x', -40 * D]], calf_r: [['x', 60 * D]] }],
+      [0.72, {}]] },
+    runPunch: { dur: 0.55, hit: [0.14, 0.26], push: 1.2, keys: [
+      [0, {}],
+      [0.1, { spine_02: [['y', 18 * D], ['x', 10 * D]], upperarm_r: [['x', 30 * D]] }],
+      [0.22, { spine_01: [['x', 12 * D]], spine_02: [['y', -30 * D]], upperarm_r: [['x', -90 * D], ['y', -15 * D]], lowerarm_r: [['x', -20 * D]] }],
+      [0.55, {}]] },
+    stomp: { dur: 0.7, hit: [0.3, 0.4], keys: [
+      [0, {}],
+      [0.2, { thigh_r: [['x', -70 * D]], calf_r: [['x', 80 * D]], spine_01: [['x', 15 * D]] }],
+      [0.34, { thigh_r: [['x', -20 * D]], calf_r: [['x', 20 * D]], spine_01: [['x', 25 * D]], root: [['lift', -0.1]] }],
+      [0.7, {}]] },
+    gunWhip: { dur: 0.6, hit: [0.2, 0.3], keys: [
+      [0, {}],
+      [0.14, { spine_02: [['y', 20 * D]], upperarm_r: [['x', -80 * D], ['z', 40 * D]], lowerarm_r: [['x', -40 * D]] }],
+      [0.26, { spine_02: [['y', -30 * D]], upperarm_r: [['x', -60 * D], ['z', -40 * D]], lowerarm_r: [['x', -10 * D]] }],
+      [0.6, {}]] },
+    // melee weapons: one-handed horizontal swing, overhead chop, two-handed swing (bat/club), stab
+    swing: { dur: 0.7, hit: [0.24, 0.36], keys: [
+      [0, {}],
+      [0.18, { spine_01: [['y', 25 * D]], spine_02: [['y', 30 * D]], upperarm_r: [['x', -70 * D], ['z', 60 * D]], lowerarm_r: [['x', -60 * D]] }],
+      [0.32, { spine_01: [['y', -25 * D]], spine_02: [['y', -35 * D]], upperarm_r: [['x', -80 * D], ['z', -50 * D]], lowerarm_r: [['x', -5 * D]] }],
+      [0.7, {}]] },
+    chop: { dur: 0.75, hit: [0.3, 0.4], keys: [
+      [0, {}],
+      [0.22, { spine_01: [['x', -8 * D]], upperarm_r: [['x', -150 * D]], lowerarm_r: [['x', -70 * D]] }],
+      [0.36, { spine_01: [['x', 18 * D]], spine_02: [['x', 10 * D]], upperarm_r: [['x', -50 * D]], lowerarm_r: [['x', -5 * D]] }],
+      [0.75, {}]] },
+    bigSwing: { dur: 0.95, hit: [0.36, 0.5], keys: [
+      [0, {}],
+      [0.3, { spine_01: [['y', 40 * D]], spine_02: [['y', 35 * D]], upperarm_r: [['x', -90 * D], ['z', 70 * D]], upperarm_l: [['x', -60 * D], ['z', -20 * D]], lowerarm_r: [['x', -70 * D]], lowerarm_l: [['x', -60 * D]] }],
+      [0.46, { spine_01: [['y', -35 * D]], spine_02: [['y', -40 * D]], upperarm_r: [['x', -85 * D], ['z', -50 * D]], upperarm_l: [['x', -80 * D], ['z', -40 * D]], lowerarm_r: [['x', -10 * D]], lowerarm_l: [['x', -30 * D]] }],
+      [0.95, {}]] },
+    stab: { dur: 0.48, hit: [0.14, 0.22], keys: [
+      [0, {}],
+      [0.08, { upperarm_r: [['x', 20 * D]], lowerarm_r: [['x', -90 * D]] }],
+      [0.18, { spine_02: [['y', -18 * D]], upperarm_r: [['x', -70 * D]], lowerarm_r: [['x', -15 * D]] }],
+      [0.48, {}]] },
+    // movement moves
+    dodge: { dur: 0.42, keys: [
+      [0, {}], [0.1, { spine_01: [['x', 14 * D]], spine_02: [['x', 10 * D]], root: [['lift', -0.18]] }],
+      [0.28, { spine_01: [['x', 10 * D]], root: [['lift', -0.12]] }], [0.42, {}]] },
+    roll: { dur: 0.62, keys: [
+      [0, {}], [0.08, { root: [['lift', -0.35], ['x', 30 * D]], spine_01: [['x', 30 * D]], spine_02: [['x', 25 * D]], thigh_l: [['x', -70 * D]], thigh_r: [['x', -70 * D]], calf_l: [['x', 100 * D]], calf_r: [['x', 100 * D]] }],
+      [0.32, { root: [['lift', -0.55], ['x', 200 * D]], spine_01: [['x', 35 * D]], spine_02: [['x', 30 * D]], Head: [['x', 30 * D]], thigh_l: [['x', -110 * D]], thigh_r: [['x', -110 * D]], calf_l: [['x', 130 * D]], calf_r: [['x', 130 * D]] }],
+      [0.5, { root: [['lift', -0.35], ['x', 360 * D]], spine_01: [['x', 20 * D]], thigh_l: [['x', -60 * D]], thigh_r: [['x', -50 * D]], calf_l: [['x', 90 * D]], calf_r: [['x', 70 * D]] }],
+      [0.62, { root: [['x', 360 * D]] }]], spinRoot: true },
+    jump: { dur: 0.5, keys: [[0, {}], [0.12, { thigh_l: [['x', -40 * D]], calf_l: [['x', 60 * D]], thigh_r: [['x', 10 * D]], calf_r: [['x', 30 * D]], upperarm_l: [['x', -30 * D]], upperarm_r: [['x', 20 * D]] }], [0.5, { thigh_l: [['x', -30 * D]], calf_l: [['x', 50 * D]], thigh_r: [['x', -10 * D]], calf_r: [['x', 40 * D]] }]], hold: true },
+    land: { dur: 0.32, keys: [[0, { root: [['lift', -0.22]], spine_01: [['x', 12 * D]], thigh_l: [['x', -35 * D]], thigh_r: [['x', -35 * D]], calf_l: [['x', 60 * D]], calf_r: [['x', 60 * D]] }], [0.32, {}]] },
+    hardLand: { dur: 0.7, keys: [[0, { root: [['lift', -0.5]], spine_01: [['x', 30 * D]], spine_02: [['x', 15 * D]], thigh_l: [['x', -80 * D]], thigh_r: [['x', -80 * D]], calf_l: [['x', 120 * D]], calf_r: [['x', 120 * D]] }], [0.35, { root: [['lift', -0.4]], spine_01: [['x', 22 * D]], thigh_l: [['x', -60 * D]], thigh_r: [['x', -60 * D]], calf_l: [['x', 95 * D]], calf_r: [['x', 95 * D]] }], [0.7, {}]] },
+    climb: { dur: 0.95, keys: [
+      [0, { upperarm_l: [['x', -160 * D]], upperarm_r: [['x', -160 * D]], root: [['lift', -1.2]] }],
+      [0.35, { upperarm_l: [['x', -120 * D]], upperarm_r: [['x', -120 * D]], lowerarm_l: [['x', -60 * D]], lowerarm_r: [['x', -60 * D]], thigh_l: [['x', -90 * D]], calf_l: [['x', 100 * D]], spine_01: [['x', 25 * D]], root: [['lift', -0.6]] }],
+      [0.7, { upperarm_l: [['x', -30 * D]], upperarm_r: [['x', -30 * D]], thigh_l: [['x', -70 * D]], calf_l: [['x', 90 * D]], spine_01: [['x', 30 * D]], root: [['lift', -0.2]] }],
+      [0.95, {}]] },
+    getUp: { dur: 1.1, keys: [
+      [0, { root: [['lift', -0.85], ['x', 70 * D]], spine_01: [['x', 30 * D]], thigh_l: [['x', -100 * D]], thigh_r: [['x', -60 * D]], calf_l: [['x', 120 * D]], calf_r: [['x', 100 * D]] }],
+      [0.5, { root: [['lift', -0.5], ['x', 25 * D]], spine_01: [['x', 25 * D]], thigh_l: [['x', -80 * D]], calf_l: [['x', 100 * D]], thigh_r: [['x', -20 * D]], calf_r: [['x', 50 * D]] }],
+      [1.1, {}]] },
+    draw: { dur: 0.42, keys: [[0, { upperarm_r: [['x', 30 * D], ['z', 20 * D]], lowerarm_r: [['x', -80 * D]] }], [0.2, { upperarm_r: [['x', 20 * D]], lowerarm_r: [['x', -60 * D]] }], [0.42, {}]] },
+    holster: { dur: 0.38, keys: [[0, {}], [0.2, { upperarm_r: [['x', 30 * D], ['z', 20 * D]], lowerarm_r: [['x', -80 * D]] }], [0.38, { upperarm_r: [['x', 25 * D], ['z', 15 * D]], lowerarm_r: [['x', -70 * D]] }]] },
+    shellLoad: { dur: 0.48, keys: [[0, {}], [0.2, { upperarm_l: [['x', 20 * D]], lowerarm_l: [['x', -30 * D]] }], [0.34, { upperarm_l: [['x', -30 * D]], lowerarm_l: [['x', -70 * D]] }], [0.48, {}]] },
+    guard: { dur: 1, keys: [[0, { upperarm_l: [['x', -55 * D], ['y', 20 * D]], lowerarm_l: [['x', -120 * D]], upperarm_r: [['x', -45 * D], ['y', -20 * D]], lowerarm_r: [['x', -125 * D]], spine_02: [['y', -12 * D]] }], [1, { upperarm_l: [['x', -55 * D], ['y', 20 * D]], lowerarm_l: [['x', -120 * D]], upperarm_r: [['x', -45 * D], ['y', -20 * D]], lowerarm_r: [['x', -125 * D]], spine_02: [['y', -12 * D]] }]], hold: true },
+    stumble: { dur: 0.9, keys: [[0, {}], [0.2, { spine_01: [['x', -20 * D]], spine_02: [['x', -15 * D]], upperarm_l: [['z', 60 * D]], upperarm_r: [['z', -60 * D]] }], [0.5, { spine_01: [['x', 10 * D]], upperarm_l: [['z', 30 * D]], upperarm_r: [['z', -30 * D]] }], [0.9, {}]] },
+    coverHigh: { dur: 1, keys: [[0, { spine_01: [['x', -4 * D]], Head: [['y', 10 * D]] }], [1, { spine_01: [['x', -4 * D]], Head: [['y', 10 * D]] }]], hold: true },
+    blindFire: { dur: 1, keys: [[0, { upperarm_r: [['x', -150 * D]], lowerarm_r: [['x', -10 * D]], spine_01: [['x', 15 * D]], Head: [['x', 25 * D]] }], [1, { upperarm_r: [['x', -150 * D]], lowerarm_r: [['x', -10 * D]], spine_01: [['x', 15 * D]], Head: [['x', 25 * D]] }]], hold: true }
+  };
+  C.MOVES = MOVES;
+
+  var AXES = { x: new T.Vector3(1, 0, 0), y: new T.Vector3(0, 1, 0), z: new T.Vector3(0, 0, 1) };
+
+  // ------------------------------------------------------------------ locomotion graph nodes
+  var DIRS = [['F', 0], ['FL', 45], ['L', 90], ['BL', 135], ['B', 180], ['BR', -135], ['R', -90], ['FR', -45]];
+  var GAITS = ['walk', 'jog', 'crouch'];
+  function stride(name) { var m = META[name]; return m && m.stride ? m.stride : 1.6; }
+
+  // ------------------------------------------------------------------ the actor
+  function Actor(kind, opts) {
+    opts = opts || {};
+    var def = KINDS[kind];
+    this.kind = kind; this.def = def;
+    this.root = new T.Group();
+    var model = this.model = T.SkeletonUtils.clone(TEMPLATES[kind]);
+    this.root.add(model);
+    var bones = this.bones = {}, meshes = this.meshes = [], lods = this.lods = [];
+    var cols = opts.cols || [def.cloth, def.cloth2];
+    var matCache = {};
+    model.traverse(function (o) {
+      if (o.isBone) bones[o.name] = o;
+      if (o.isMesh) {
+        var key = o.material.name;
+        if (!matCache[key]) {
+          var m = o.material.clone();
+          if (o.userData.part === 'hair') { m.alphaTest = 0.5; m.transparent = false; m.depthWrite = true; }
+          else if (o.userData.part === 'body') { m.metalness = 0; recolour(m, cols[0], cols[1]); }
+          if (m.map) m.map.anisotropy = 4;
+          matCache[key] = m;
+        }
+        o.material = matCache[key];
+        (o.userData.lod ? lods : meshes).push(o);
+      }
+    });
+    lods.forEach(function (m) { m.visible = false; });
+    // the original hair was shaped to sit under the removed helmets: the code-made headwear replaces it
+    meshes.forEach(function (m) { if (m.userData.part === 'hair') { m.visible = false; m.userData.off = true; } });
+    this.lodLevel = 0;
+    this.height = def.h;
+    this.mixer = new T.AnimationMixer(model);
+    this.nodes = {}; this.upper = []; this.fulls = [];
+    this.phase = Math.random(); this.st = { speed: 0, dir: 0, strafe: 0, stealth: 0, sprint: 0, turnRate: 0, accel: 0 };
+    this._strafeW = 0; this._stealthW = 0; this._sprintW = 0; this._lean = 0; this._pitchLean = 0; this._turnW = 0; this._idleT = 0;
+    this.aimP = 0; this.aimY = 0; this.aimPT = 0; this.aimYT = 0; this.aimW = 1;
+    this.moves = []; this.held = null; this.lhW = 0; this.lhWant = null;
+    this._flinch = new T.Vector3(); this._fl = 0;
+    this.visibleFlag = true; this.rag = null;
+    var self = this;
+    this.mixer.addEventListener('finished', function (e) { self._finished(e.action); });
+    this.setUpper(null, 0);
+    this._snap = true; this.update(0); this._snap = false;
+  }
+  var AP = Actor.prototype;
+  AP.bone = function (n) { return this.bones[n]; };
+  AP._node = function (name) {
+    var n = this.nodes[name];
+    if (!n) {
+      if (!CLIPS[name]) return null;
+      var full = this.mixer.clipAction(CLIPS[name]), low = this.mixer.clipAction(LOWER[name]);
+      full.play(); low.play(); full.setEffectiveWeight(0); low.setEffectiveWeight(0); full.timeScale = 0; low.timeScale = 0;
+      n = this.nodes[name] = { name: name, full: full, low: low, w: 0, dur: CLIPS[name].duration, stride: stride(name), t: Math.random() * CLIPS[name].duration };
+    }
+    return n;
+  };
+  AP.drive = function (st) { for (var k in st) this.st[k] = st[k]; return this; };
+
+  // held upper-body pose (looping)
+  AP.setUpper = function (name, fade) {
+    if (this._upperName === name) return;
+    this._upperName = name;
+    fade = fade == null ? 0.2 : fade;
+    for (var i = 0; i < this.upper.length; i++) if (!this.upper[i].once) { this.upper[i].target = 0; this.upper[i].rate = 1 / Math.max(0.01, fade); }
+    if (name && UPPER[name]) {
+      var a = this.mixer.clipAction(UPPER[name]); a.reset(); a.setLoop(T.LoopRepeat); a.play(); a.setEffectiveWeight(0);
+      this.upper = this.upper.filter(function (u) { return u.action !== a; });
+      this.upper.push({ name: name, action: a, w: 0, target: 1, rate: 1 / Math.max(0.01, fade), once: false });
+    }
+  };
+  AP.playUpper = function (name, o) {
+    o = o || {}; if (!UPPER[name]) return 0;
+    var a = this.mixer.clipAction(UPPER[name]);
+    a.reset(); a.setLoop(T.LoopOnce, 1); a.clampWhenFinished = true; a.timeScale = o.speed || 1; a.play();
+    var fade = o.fade == null ? 0.08 : o.fade;
+    var e = null;
+    for (var i = 0; i < this.upper.length; i++) if (this.upper[i].action === a) e = this.upper[i];
+    if (!e) { e = { name: name, action: a, w: 0, once: true }; this.upper.push(e); }
+    e.target = 1; e.rate = 1 / Math.max(0.01, fade); e.once = true; e.hold = !!o.hold; e.outFade = o.outFade || 0.18;
+    if (fade === 0) e.w = 1;
+    return CLIPS[name].duration / (o.speed || 1);
+  };
+  AP.stopUpper = function (name, fade) {
+    for (var i = 0; i < this.upper.length; i++) { var u = this.upper[i]; if (u.once && (!name || u.name === name)) { u.target = 0; u.rate = 1 / (fade || 0.15); } }
+  };
+  AP.playFull = function (name, o) {
+    o = o || {}; if (!CLIPS[name]) return 0;
+    var a = this.mixer.clipAction(CLIPS[name]);
+    a.reset(); a.setLoop(o.loop ? T.LoopRepeat : T.LoopOnce, o.loop ? Infinity : 1); a.clampWhenFinished = true; a.timeScale = o.speed || 1; a.play();
+    if (o.start) a.time = o.start;
+    var fade = o.fade == null ? 0.15 : o.fade;
+    this.fulls = this.fulls.filter(function (f) { return f.action !== a; });
+    this.fulls.forEach(function (f) { f.target = 0; f.rate = 1 / Math.max(0.01, fade); });
+    this.fulls.push({ name: name, action: a, w: fade === 0 ? 1 : 0, target: 1, rate: 1 / Math.max(0.01, fade), hold: !!o.hold, loop: !!o.loop, outFade: o.outFade || 0.25 });
+    this.fullName = name;
+    return CLIPS[name].duration / (o.speed || 1);
+  };
+  AP.stopFull = function (fade) { this.fulls.forEach(function (f) { f.target = 0; f.rate = 1 / (fade || 0.25); }); this.fullName = null; };
+  AP._finished = function (a) {
+    for (var i = 0; i < this.upper.length; i++) { var u = this.upper[i]; if (u.action === a && u.once && !u.hold) { u.target = 0; u.rate = 1 / u.outFade; } }
+    for (i = 0; i < this.fulls.length; i++) { var f = this.fulls[i]; if (f.action === a && !f.hold) { f.target = 0; f.rate = 1 / f.outFade; if (this.fullName === f.name) this.fullName = null; } }
+    if (this.onFinished) this.onFinished(a.getClip().name.replace(/#.$/, ''));
+  };
+  AP.isFull = function (name) { return this.fullName === name; };
+
+  // code-authored moves: a.move('jab') -> {t, dur, def}; several can run (they add)
+  AP.move = function (name, o) {
+    var def = MOVES[name]; if (!def) return null;
+    o = o || {};
+    if (!o.stack) this.moves = this.moves.filter(function (m) { return m.hold && m.name !== name; });
+    var m = { name: name, def: def, t: 0, speed: o.speed || 1, side: o.side || 1, w: o.w == null ? 1 : o.w, hold: !!def.hold, fadeOut: 0 };
+    this.moves.push(m);
+    return m;
+  };
+  AP.endMove = function (name) { this.moves.forEach(function (m) { if (!name || m.name === name) m.fadeOut = 0.15; }); };
+  AP.moveOf = function (name) { for (var i = 0; i < this.moves.length; i++) if (this.moves[i].name === name) return this.moves[i]; return null; };
+
+  AP.setAim = function (p, y) { this.aimPT = p; this.aimYT = y; };
+  AP.flinch = function (fx, fz, k) {
+    // hit FROM direction (world): bend away from it
+    var yaw = this.root.rotation.y, c = Math.cos(yaw), s = Math.sin(yaw);
+    var lx = fx * c - fz * s, lz = fx * s + fz * c;
+    this._flinch.set(lx, 0, lz).normalize().multiplyScalar(Math.min(1, k)); this._fl = 1;
+  };
+  AP.hold = function (obj) {
+    if (this.held && this.held.parent) this.held.parent.remove(this.held);
+    this.held = obj;
+    if (obj) { (this.bones.weapon_r || this.bones.hand_r).add(obj); obj.position.set(0, 0, 0); obj.quaternion.identity(); }
+  };
+  AP.setVisible = function (v) { this.root.visible = v; this.visibleFlag = v; };
+
+  var _cam = new T.Vector3();
+  AP.update = function (dt) {
+    if (this.rag) { this.rag.pose(this); return; }
+    var st = this.st, i, k;
+    // ---- LOD by camera distance
+    var cam = RP.R && RP.R.camera;
+    if (cam) {
+      var d = cam.position.distanceTo(this.root.position), L = RP.R.q ? RP.R.q.lod : C.lod;
+      var lvl = d < L[0] || this.isPlayer ? 0 : d < L[1] ? 1 : 2;
+      if (lvl !== this.lodLevel) {
+        this.lodLevel = lvl;
+        this.meshes.forEach(function (m) { m.visible = !m.userData.off && (lvl === 0 || m.userData.part === 'eye'); });
+        this.lods.forEach(function (m) { m.visible = m.userData.lod === lvl; });
+      }
+      // far actors update every other frame
+      this._skip = !this._skip && d > 45 && !this.isPlayer;
+      if (this._skip) { this._acc = (this._acc || 0) + dt; return; }
+      dt += this._acc || 0; this._acc = 0;
+    }
+    // ---- locomotion weights
+    this._strafeW = M.approach(this._strafeW, st.strafe, 5, dt);
+    this._stealthW = M.approach(this._stealthW, st.stealth, 4, dt);
+    this._sprintW = M.approach(this._sprintW, st.sprint, 3.5, dt);
+    var s = st.speed, TU = RP.TUNING;
+    var wIdle = 1 - M.smooth(s / 0.55), wWalk, wJog, wSprint = 0;
+    if (s <= TU.walk) { wWalk = 1 - wIdle; wJog = 0; }
+    else if (s <= TU.jog) { var t = (s - TU.walk) / (TU.jog - TU.walk); wWalk = 1 - t; wJog = t; }
+    else { var t2 = M.clamp((s - TU.jog) / (TU.sprint - TU.jog), 0, 1); wWalk = 0; wJog = 1 - t2; wSprint = t2; }
+    // turn steps in place
+    var turning = Math.abs(st.turnRate || 0);
+    this._turnW = M.approach(this._turnW, wIdle > 0.6 && turning > 0.8 ? 1 : 0, 6, dt);
+    // direction weights (8-way) for strafing
+    var dirW = [0, 0, 0, 0, 0, 0, 0, 0];
+    var ang = M.wrap(st.dir || 0) * 180 / Math.PI;
+    for (i = 0; i < 8; i++) {
+      var dd = Math.abs(M.wrap((ang - DIRS[i][1]) * Math.PI / 180)) * 180 / Math.PI;
+      dirW[i] = Math.max(0, 1 - dd / 45);
+    }
+    var want = {};
+    var stealth = this._stealthW, strafe = this._strafeW;
+    function add(n, w) { if (w > 0.0005) want[n] = (want[n] || 0) + w; }
+    add('idle', wIdle * (1 - stealth) * (1 - this._turnW));
+    add('crouchIdle', wIdle * stealth * (1 - this._turnW));
+    add('turnStep', wIdle * (1 - stealth) * this._turnW); add('crouchTurnStep', wIdle * stealth * this._turnW);
+    for (i = 0; i < 8; i++) {
+      var dw = dirW[i] * strafe + (i === 0 ? 1 - strafe : 0);
+      if (dw <= 0) continue;
+      var dn = DIRS[i][0];
+      add('walk' + dn, wWalk * dw * (1 - stealth));
+      add('jog' + dn, (wJog + (i === 0 ? 0 : wSprint)) * dw * (1 - stealth));
+      add('crouch' + dn, (wWalk + wJog + wSprint) * dw * stealth);
+    }
+    add('sprintF', wSprint * (1 - strafe) * (1 - stealth));
+    // phase: shared by every moving clip so feet stay in step while blending
+    var sw = 0, sStride = 0;
+    for (k in want) { var nd = this._node(k); if (!nd) continue; if (k !== 'idle' && k !== 'crouchIdle' && !/turn/i.test(k)) { sw += want[k]; sStride += want[k] * nd.stride; } }
+    var strideL = sw > 0 ? sStride / sw : 1.6;
+    if (stealth > 0.5) strideL *= 0.85;
+    if (s > 0.05) this.phase = (this.phase + dt * s / Math.max(0.5, strideL)) % 1;
+    // full-body one-shots and the upper layer weights
+    var F = 0;
+    for (i = 0; i < this.fulls.length; i++) { var f = this.fulls[i]; f.w = M.approach(f.w, f.target, f.rate, dt); f.action.setEffectiveWeight(f.w); F = Math.max(F, f.w); }
+    this.fulls = this.fulls.filter(function (f) { if (f.w <= 0 && f.target === 0) { f.action.stop(); return false; } return true; });
+    var U = 0;
+    for (i = 0; i < this.upper.length; i++) { var u = this.upper[i]; u.w = M.approach(u.w, u.target, u.rate, dt); U += u.w; }
+    var Uc = Math.min(1, U);
+    // a one-shot upper clip over a held pose: the one-shot wins in proportion to its weight
+    var onceW = 0; for (i = 0; i < this.upper.length; i++) if (this.upper[i].once) onceW = Math.max(onceW, this.upper[i].w);
+    for (i = 0; i < this.upper.length; i++) { u = this.upper[i]; u.action.setEffectiveWeight(u.once ? u.w * (1 - F) : u.w * (1 - onceW) * (1 - F)); }
+    this.upper = this.upper.filter(function (u) { if (u.w <= 0 && u.target === 0) { u.action.stop(); return false; } return true; });
+    // apply graph node weights (full vs lower-only split by the upper layer weight)
+    for (k in this.nodes) {
+      var n = this.nodes[k], w = want[k] || 0;
+      n.w = this._snap ? w : M.approach(n.w, w, 8, dt);
+      var ew = n.w * (1 - F);
+      n.full.setEffectiveWeight(ew * (1 - Uc)); n.low.setEffectiveWeight(ew * Uc);
+      if (n.w > 0) {
+        if (k === 'idle' || k === 'crouchIdle') n.t = (n.t + dt) % n.dur;
+        else if (/turn/i.test(k)) n.t = (n.t + dt * M.clamp(turning / 2, 0.6, 1.6)) % n.dur;
+        else n.t = this.phase * n.dur;
+        n.full.time = n.t; n.low.time = n.t;
+      }
+    }
+    // three.js only re-writes a bone when its mixed value changes; mark last frame's values unknown so the
+    // post-process edits below (aim, lean, moves, IK) never accumulate on a held pose
+    var bs = this.mixer._bindings, ai = this.mixer._accuIndex;
+    if (bs && ai != null) for (i = 0; i < bs.length; i++) { var pm = bs[i]; if (pm.buffer) pm.buffer[(ai + 1) * pm.valueSize] = NaN; }
+    // the graph actions' times are set by hand: update the mixer with dt for one-shots, then restore graph times
+    this.mixer.update(dt);
+    // after a ragdoll: blend from the lying pose back into animation
+    if (this._blendFrom) {
+      this._blendT -= dt; var bu = M.smooth(Math.max(0, this._blendT / this._blendMax));
+      for (k in this._blendFrom) { var bb0 = this.bones[k]; if (bb0) bb0.quaternion.slerp(this._blendFrom[k], bu); }
+      if (this._blendPel) this.bones.pelvis.position.lerp(this._blendPel, bu);
+      if (this._blendT <= 0) this._blendFrom = null;
+    }
+    this.model.position.set(0, 0, 0); this.model.rotation.set(0, 0, 0);
+    this.root.updateMatrixWorld(true);
+    this._post(dt, F);
+  };
+
+  // lean, code moves, flinch, aim offset, left-hand IK
+  AP._post = function (dt, F) {
+    var b = this.bones, st = this.st;
+    var rq = this.root.quaternion, ax = {};
+    for (var key in AXES) ax[key] = AXES[key].clone().applyQuaternion(rq);
+    // lean into turns (roll) and with acceleration (pitch), more when sprinting
+    var leanT = M.clamp(-(st.turnRate || 0) * st.speed * 0.035, -0.32, 0.32) * (1 - this._strafeW * 0.7);
+    this._lean = M.damp(this._lean, leanT, 6, dt);
+    var pitchT = M.clamp((st.accel || 0) * 0.025 + this._sprintW * 0.12, -0.18, 0.25);
+    this._pitchLean = M.damp(this._pitchLean, pitchT, 5, dt);
+    if (b.spine_01 && (Math.abs(this._lean) > 0.002 || Math.abs(this._pitchLean) > 0.002)) {
+      rotWorld(b.spine_01, _q.setFromAxisAngle(ax.z, this._lean * 0.6));
+      rotWorld(b.spine_01, _q.setFromAxisAngle(ax.x, this._pitchLean));
+    }
+    // code moves
+    var rootLift = 0, rootPitch = 0;
+    for (var i = 0; i < this.moves.length; i++) {
+      var m = this.moves[i], def = m.def;
+      m.t += dt * m.speed;
+      var w = m.w;
+      if (m.fadeOut > 0) { m.fadeT = (m.fadeT || 0) + dt; w *= Math.max(0, 1 - m.fadeT / m.fadeOut); if (m.fadeT >= m.fadeOut) { m.done = true; continue; } }
+      if (m.t >= def.dur && !m.hold) { m.done = true; continue; }
+      var t = Math.min(m.t, def.dur), K = def.keys, a = K[0], c = K[K.length - 1];
+      for (var j = 0; j < K.length - 1; j++) if (t >= K[j][0] && t <= K[j + 1][0]) { a = K[j]; c = K[j + 1]; break; }
+      var u = c[0] > a[0] ? M.smooth((t - a[0]) / (c[0] - a[0])) : 1;
+      var bonesSeen = {};
+      for (var bn in a[1]) bonesSeen[bn] = 1; for (bn in c[1]) bonesSeen[bn] = 1;
+      for (bn in bonesSeen) {
+        var ra = a[1][bn] || [], rc = c[1][bn] || [], vals = {};
+        ra.forEach(function (r) { vals[r[0]] = (vals[r[0]] || 0) + r[1] * (1 - u); });
+        rc.forEach(function (r) { vals[r[0]] = (vals[r[0]] || 0) + r[1] * u; });
+        if (bn === 'root') { rootLift += (vals.lift || 0) * w; rootPitch += (vals.x || 0) * w; continue; }
+        var bone = b[bn]; if (!bone) continue;
+        // mirror left/right for side -1 (moves authored for the right side)
+        for (var axn in vals) {
+          if (axn === 'lift') continue;
+          var angv = vals[axn] * w, axis = ax[axn];
+          if (m.side < 0 && axn !== 'x') angv = -angv;
+          rotWorld(m.side < 0 ? (b[mirror(bn)] || bone) : bone, _q.setFromAxisAngle(axis, angv));
+        }
+      }
+    }
+    this.moves = this.moves.filter(function (m) { return !m.done; });
+    this.model.position.y = rootLift;
+    if (rootPitch) {
+      // spin about the hips (roll): pivot at pelvis height
+      var pv = 0.55;
+      this.model.position.y += pv - pv * Math.cos(rootPitch) ; this.model.position.z = Math.sin(rootPitch) * pv * 0.4;
+      this.model.rotation.x = rootPitch;
+    }
+    if (rootLift || rootPitch) this.model.updateMatrixWorld(true);
+    // flinch
+    if (this._fl > 0) {
+      this._fl = Math.max(0, this._fl - dt * 5);
+      var k = Math.sin(this._fl * Math.PI) * 0.35, fl = this._flinch;
+      if (b.spine_02) { rotWorld(b.spine_02, _q.setFromAxisAngle(ax.x, -fl.z * k)); rotWorld(b.spine_02, _q.setFromAxisAngle(ax.z, fl.x * k)); }
+      if (b.Head) rotWorld(b.Head, _q.setFromAxisAngle(ax.x, -fl.z * k * 0.8));
+    }
+    // aim offset
+    var kk = 1 - Math.exp(-dt * 16);
+    this.aimP += (this.aimPT - this.aimP) * kk; this.aimY += (this.aimYT - this.aimY) * kk;
+    var aw = this.aimW * (1 - F * 0.85);
+    if (aw > 0.01 && (Math.abs(this.aimP) > 1e-3 || Math.abs(this.aimY) > 1e-3)) {
+      var AY = [['spine_01', 0.18], ['spine_02', 0.22], ['spine_03', 0.3], ['neck_01', 0.12], ['Head', 0.18]];
+      var AP2 = [['spine_01', 0.15], ['spine_02', 0.2], ['spine_03', 0.35], ['neck_01', 0.12], ['Head', 0.18]];
+      for (i = 0; i < AY.length; i++) { var bb = b[AY[i][0]]; if (bb) rotWorld(bb, _q.setFromAxisAngle(ax.y, this.aimY * AY[i][1] * aw)); }
+      var l2 = ax.x.clone().applyAxisAngle(ax.y, this.aimY * 0.7 * aw);
+      for (i = 0; i < AP2.length; i++) { bb = b[AP2[i][0]]; if (bb) rotWorld(bb, _q.setFromAxisAngle(l2, -this.aimP * AP2[i][1] * aw)); }
+    }
+    // left hand onto the weapon's fore-grip
+    var held = this.held, want = 0;
+    if (held && held.userData.gripL) {
+      var up = this._upperName || '';
+      want = /aim|hold|fire|Cover|crouchAim|sprintRifle/i.test(up) || /aim|fire/i.test(this.fullName || '') ? 1 : 0;
+      if (held.userData.oneHand && !/aim|fire/i.test(up)) want = 0;
+      if (this.lhWant != null) want = this.lhWant;
+      if (this.moves.length) want *= 0.3;
+    }
+    this.lhW = M.approach(this.lhW, want, 6, dt);
+    if (this.lhW > 0.02 && held && b.upperarm_l) {
+      held.updateMatrixWorld(true);
+      var tp = held.userData.gripL.getWorldPosition(new T.Vector3());
+      twoBone(b.upperarm_l, b.lowerarm_l, b.hand_l, tp, this.lhW);
+    }
+  };
+  function mirror(n) { return n.replace(/_r$/, '_X').replace(/_l$/, '_r').replace(/_X$/, '_l'); }
+
+  // world-space points for gameplay
+  AP.head = function (out) { return worldPos(this.bones.Head, out || new T.Vector3()); };
+  AP.chest = function (out) { return worldPos(this.bones.spine_03, out || new T.Vector3()); };
+  AP.pelvis = function (out) { return worldPos(this.bones.pelvis, out || new T.Vector3()); };
+  AP.dispose = function () { this.mixer.stopAllAction(); if (this.root.parent) this.root.parent.remove(this.root); };
+
+  // ------------------------------------------------------------------ headwear made in code (replaces the removed military hats)
+  var HWG = null;
+  function hwGeos() {
+    if (HWG) return HWG;
+    HWG = {};
+    // short hair: a skull cap that follows the head (front hairline lifted)
+    var hair = new T.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62);
+    var p = hair.attributes.position;
+    for (var i = 0; i < p.count; i++) { var x = p.getX(i), y = p.getY(i), z = p.getZ(i); if (z > 0.3) p.setY(i, y + (z - 0.3) * 0.35); }
+    hair.scale(0.104, 0.1, 0.118); hair.computeVertexNormals(); HWG.hair = hair;
+    var beanie = new T.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55); beanie.scale(0.112, 0.125, 0.122); HWG.beanie = beanie;
+    var cap = new T.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.52); cap.scale(0.11, 0.1, 0.12);
+    var brim = new T.CylinderGeometry(0.09, 0.09, 0.008, 16, 1, false, -Math.PI / 2, Math.PI); brim.scale(1, 1, 0.9); brim.translate(0, 0.005, 0.07);
+    HWG.cap = B2([cap, brim]);
+    var crown = new T.CylinderGeometry(0.095, 0.11, 0.1, 18); crown.translate(0, 0.07, 0);
+    var fb = new T.CylinderGeometry(0.19, 0.19, 0.008, 22); fb.translate(0, 0.02, 0);
+    HWG.fedora = B2([crown, fb]);
+    var gl = new T.BoxGeometry(0.13, 0.035, 0.01); gl.translate(0, 0, 0); HWG.glasses = gl;
+    return HWG;
+  }
+  function B2(list) { return RP.B && RP.B.mergeGeos ? RP.B.mergeGeos(list.map(function (g) { return g.index ? g : g; })) : list[0]; }
+  var HW_MAT = {};
+  function hwMat(hex, rough) { var k = hex + rough; return HW_MAT[k] || (HW_MAT[k] = new T.MeshStandardMaterial({ color: RP.col(hex), roughness: rough })); }
+  function addHeadwear(a, def, opts) {
+    var hb = a.bones.Head; if (!hb || !def.hw) return;
+    var G = hwGeos(), kind = opts.hw || def.hw[0], hex = opts.hwCol || def.hw[1];
+    // place in the idle pose: level with the character's root, offset in the root's frame, then parented to the head
+    a.root.updateMatrixWorld(true);
+    var hq = hb.getWorldQuaternion(new T.Quaternion()), rq = a.root.getWorldQuaternion(new T.Quaternion()), hpw = hb.getWorldPosition(new T.Vector3());
+    var iq = hq.clone().invert();
+    function put(geo, mat, off) {
+      var m = new T.Mesh(geo, mat); m.castShadow = true;
+      m.quaternion.copy(iq).multiply(rq);
+      var wpos = new T.Vector3(off[0], off[1], off[2]).applyQuaternion(rq).add(hpw);
+      m.position.copy(hb.worldToLocal(wpos));
+      hb.add(m); return m;
+    }
+    var y = kind === 'fedora' ? 0.13 : kind === 'beanie' ? 0.045 : 0.05;
+    a.hat = put(G[kind] || G.hair, hwMat(hex, kind === 'hair' ? 0.75 : 0.85), [0, y, -0.012]);
+    if (def.glasses || opts.glasses) put(G.glasses, hwMat('#0b0b0c', 0.15), [0, 0.045, 0.118]);
+  }
+
+  C.spawn = function (kind, opts) {
+    if (!TEMPLATES[kind]) kind = 'sentry';
+    opts = opts || {};
+    if (kind === 'guest' && !opts.cols) opts.cols = GUEST_COLS[Math.floor(Math.random() * GUEST_COLS.length)];
+    if (kind === 'guest' && !opts.hw) { var r = Math.random(); opts.hw = r < 0.3 ? 'fedora' : 'hair'; opts.hwCol = opts.hw === 'fedora' ? ['#d8c79a', '#efe6d0', '#3b3b3b'][Math.floor(Math.random() * 3)] : ['#2a1d16', '#5a4030', '#121010', '#8a8580', '#b08a50'][Math.floor(Math.random() * 5)]; opts.glasses = Math.random() < 0.3; }
+    var a = new Actor(kind, opts);
+    addHeadwear(a, KINDS[kind], opts);
+    return a;
+  };
+  C.KINDS = KINDS; C._gltf = gltf;
+})();
