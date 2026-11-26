@@ -11,9 +11,9 @@
 
   /* ---------- upgrades (the shed) ---------- */
   var UP = WR.UPGRADES = [
-    { id: 'sack', name: 'Bigger sack', text: 'Carry more leaves before a trip to the bin', costs: [35, 110, 260, 600, 1300] },
-    { id: 'hands', name: 'Quick hands', text: 'Gather faster and reach wider', costs: [15, 60, 180, 480] },
-    { id: 'rake', name: 'Rake', text: 'Drags a whole row of leaves toward you with every stroke', costs: [40] },
+    { id: 'sack', name: 'Bigger sack', text: 'Carry more leaves before a trip to the bin', costs: [40, 110, 260, 600, 1300] },
+    { id: 'hands', name: 'Quick hands', text: 'Gather faster and reach wider', costs: [25, 80, 200, 500] },
+    { id: 'rake', name: 'Rake', text: 'Drags a whole row of leaves toward you with every stroke', costs: [60] },
     { id: 'rakeW', name: 'Wider rake', text: 'A broader head moves more leaves a stroke', costs: [120, 320, 800], needs: 'rake' },
     { id: 'blower', name: 'Leaf blower', text: 'Pushes leaves away in a cone of wind', costs: [350] },
     { id: 'power', name: 'Stronger motor', text: 'The blower pushes harder', costs: [300, 700, 1500], needs: 'blower' },
@@ -21,7 +21,7 @@
     { id: 'value', name: 'Rich compost', text: 'Every leaf pays 15% more', costs: [90, 220, 500, 1100, 2400] },
     { id: 'shoes', name: 'Light boots', text: 'Walk 10% faster', costs: [70, 190, 450] }
   ];
-  var SACK = [30, 55, 90, 140, 210, 320], HAND_RATE = [9, 14, 21, 30, 42], HAND_REACH = [0.95, 1.1, 1.25, 1.45, 1.7];
+  var SACK = [30, 55, 90, 140, 210, 320], HAND_RATE = [4, 9, 17, 27, 40], HAND_REACH = [0.95, 1.1, 1.25, 1.45, 1.7];
   var RAKE_W = [1.0, 1.4, 1.9, 2.5], BLOW_P = [20, 28, 38, 50], BLOW_R = [4.5, 5.8, 7.2, 9], BLOW_H = [0.3, 0.36, 0.42, 0.5];
   WR.sackCap = function (s) { return SACK[s.up.sack]; }; WR.rakeWidth = function (s) { return RAKE_W[s.up.rakeW]; };
   var TOOL_NAMES = ['Hands', 'Rake', 'Blower'];
@@ -210,7 +210,7 @@
         if (room <= 0) { fullT -= dt; if (fullT <= 0) { fullT = 2.5; Au.full(); $('hBag').classList.remove('shake'); void $('hBag').offsetWidth; $('hBag').classList.add('shake'); } }
         else {
           handAcc += HAND_RATE[state.up.hands] / per * (kneeling ? 2 : 1) * dt * 1.15; var n = Math.floor(handAcc);
-          if (n > 0) { handAcc -= n; var took = leaves.scoop(tx, tz, reach, Math.min(n, room), p.x, p.z, leaves.alive[curArea] <= 6); if (took) { handAnim = 1; if (!state.seen.grab) { grabbed += took; if (grabbed >= 25) { state.seen.grab = 1; hudT = 0; } } } }
+          if (n > 0) { handAcc -= n; var took = leaves.scoop(tx, tz, reach, Math.min(n, room), p.x, p.z, leaves.alive[curArea] <= 6); if (took) { handAnim = 1; if (!state.seen.grab && state.bagFill >= cap * 0.5) { state.seen.grab = 1; hudT = 0; } } }
         }
       } else handAcc = 0;
       handAnim = Math.max(0, handAnim - dt * 3);
