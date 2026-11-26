@@ -7,6 +7,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Flood Crew: more to do, faster water": "Flood Crew: más que hacer, agua más rápida",
+    "Flood Crew": "Flood Crew",
+    "The first job has more to learn: shut the tap, tighten a dripping joint with the wrench, clear a second drain and bucket out a puddle that has nowhere to go.": "El primer trabajo enseña más: cierra la llave, aprieta una junta que gotea con la llave inglesa, despeja un segundo desagüe y saca con el cubo un charco que no tiene salida.",
+    "Drains and pumps work much faster, so a cleared drain pulls the water down within seconds. Every job is quicker now.": "Los desagües y las bombas van mucho más rápido: un desagüe despejado baja el agua en segundos. Todos los trabajos son más cortos.",
+    "Tanners Field shows you what to do: orange pegs mark where to dig, the old pipe in the bank is easy to see, and a few short lines guide your first visit.": "Tanners Field te muestra qué hacer: unas estacas naranjas marcan dónde cavar, el viejo caño del talud se ve bien y unas frases cortas te guían la primera vez.",
+    "Water now runs into the ditch at Tanners Field and flows away along it, instead of vanishing.": "En Tanners Field el agua ahora entra en la zanja y corre por ella, en vez de desaparecer.",
     "Flood Crew: new water": "Flood Crew: agua nueva",
     "Flood Crew": "Flood Crew",
     "The flood moves like real water now: currents carry on round corners, swirl behind walls and settle down instead of shimmering.": "La inundación se mueve como agua de verdad: las corrientes siguen al doblar las esquinas, giran detrás de los muros y se calman en vez de temblar.",
