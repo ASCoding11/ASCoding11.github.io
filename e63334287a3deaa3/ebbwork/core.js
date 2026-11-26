@@ -1,4 +1,4 @@
-/* Ebbwork: everything that is not drawing. Three parts, in order: EWSim (the water), EW.World (a job site and what
+/* Flood Crew (first built as Ebbwork; the folder and the save key keep that name): everything that is not drawing. Three parts, in order: EWSim (the water), EW.World (a job site and what
    each tool does to it) and EWMaps (the jobs). No DOM and no three.js, so `node` can load this file and play a job
    by calling the same functions the page does (see the README section). index.html loads it with one script tag. */
 // The water. A grid of square cells. Each has a ground height g (+ bar, a barrier laid on top), a water depth d, and a

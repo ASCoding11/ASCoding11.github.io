@@ -1,4 +1,4 @@
-/* Ebbwork: drawing, controls, sound, HUD and menus. The rules of the water and of every tool are in core.js. */
+/* Flood Crew (first built as Ebbwork): drawing, controls, sound, HUD and menus. The rules of the water and of every tool are in core.js. */
 (function(){
 'use strict';
 var $=function(id){return document.getElementById(id)};

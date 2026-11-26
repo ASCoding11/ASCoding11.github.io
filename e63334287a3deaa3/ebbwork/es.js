@@ -1,5 +1,5 @@
-/* Ebbwork in Spanish: this game's own words for lang.js (see the comment at the top of ../lang.js).
-   The game's name and the place names (Marlow Row, Pell Street...) stay in English as names; the signs painted
+/* Flood Crew (first built as Ebbwork; the folder and save key keep that name) in Spanish: this game's own words
+   for lang.js (see the comment at the top of ../lang.js). The game's name and the place names (Marlow Row, Pell Street...) stay in English as names; the signs painted
    on walls inside the jobs stay in English too. Everything else is translated. */
 if (window.BackRoomLang) BackRoomLang.add({
   // title, menus
@@ -12,7 +12,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Walk': 'Caminar', 'Mouse': 'Mouse', 'Look': 'Mirar', 'Jump, run, duck': 'Saltar, correr, agacharse', 'Left click': 'Clic izquierdo', 'Use the tool in your hands': 'Usar la herramienta que llevas', 'Right click': 'Clic derecho', "The tool's other use": 'El otro uso de la herramienta',
   'Hold to work a valve or other fitting': 'Mantén para accionar una llave u otra pieza', '/ wheel': '/ rueda', 'Change tool': 'Cambiar de herramienta', 'Turn something before you put it down': 'Girar algo antes de colocarlo', 'Scan: shows the water that is left': 'Escanear: muestra el agua que queda', 'Pause': 'Pausa',
   'Left thumb': 'Pulgar izquierdo', 'Walk (push all the way to run)': 'Caminar (empuja hasta el fondo para correr)', 'Drag': 'Arrastrar', 'Use / Alt': 'Usar / Alt', 'The tool in your hands, and its other use': 'La herramienta que llevas y su otro uso', 'Tool bar': 'Barra de herramientas', 'Tap a tool to hold it': 'Toca una herramienta para tomarla', 'Got it': 'Entendido',
-  'Job done': 'Trabajo terminado', 'Do it again': 'Hacerlo de nuevo', 'Back to the depot': 'Volver al depósito', 'Ebbwork game view': 'Vista del juego Ebbwork', 'Scan for water': 'Buscar agua',
+  'Job done': 'Trabajo terminado', 'Do it again': 'Hacerlo de nuevo', 'Back to the depot': 'Volver al depósito', 'Flood Crew game view': 'Vista del juego Flood Crew', 'Scan for water': 'Buscar agua',
   // HUD and touch buttons
   'Water left': 'Agua restante', 'Water is still coming in': 'Sigue entrando agua', 'Use': 'Usar', 'Alt': 'Alt', 'Jump': 'Saltar', 'Duck': 'Agachar', 'Turn': 'Girar', 'Do': 'Hacer',
   'Hold Do': 'Mantén Hacer', 'Hold E': 'Mantén E', 'Hold Use': 'Mantén Usar', 'Hold click': 'Mantén el clic',

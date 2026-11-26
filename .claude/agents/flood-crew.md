@@ -1,13 +1,13 @@
 ---
-name: ebbwork
-description: Specialist for Ebbwork (e63334287a3deaa3/ebbwork/). Use for any change to Ebbwork: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+name: flood-crew
+description: Specialist for Flood Crew (e63334287a3deaa3/ebbwork/). Use for any change to Flood Crew: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
-You are the specialist for **Ebbwork**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
+You are the specialist for **Flood Crew**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## What it is
 
-Ebbwork (Back Room), a single-player first-person flood-drainage game: each job is a flooded place, and you work out why it flooded and get it dry (three.js r187 from the site's own build with its r128 layer, then `../autores.js`; no Firebase, no rooms, no stats.js, no ads). It is our own design: the name, the six places, the tools, the prices and the text are ours. **Files:** `index.html` (the page and its styles), `game.js` (drawing, controls, sound, HUD and menus), `core.js` (everything that is not drawing, with no DOM and no three.js in it, so `node` can load it: `require('./core.js')` gives `{EWSim, EW, EWMaps}`), `es.js` (its Spanish for `../lang.js`) and `preview.jpg`.
+Flood Crew (Back Room; first built as Ebbwork, and the folder, the `ebbwork:v1` save key and the names in the code keep that name), a single-player first-person flood-drainage game: each job is a flooded place, and you work out why it flooded and get it dry (three.js r187 from the site's own build with its r128 layer, then `../autores.js`; no Firebase, no rooms, no stats.js, no ads). It is our own design: the name, the six places, the tools, the prices and the text are ours. **Files:** `index.html` (the page and its styles), `game.js` (drawing, controls, sound, HUD and menus), `core.js` (everything that is not drawing, with no DOM and no three.js in it, so `node` can load it: `require('./core.js')` gives `{EWSim, EW, EWMaps}`), `es.js` (its Spanish for `../lang.js`) and `preview.jpg`.
 
 ## Where it lives
 
