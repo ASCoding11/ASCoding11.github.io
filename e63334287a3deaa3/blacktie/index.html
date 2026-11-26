@@ -2,6 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script>
+/* PREVIEW GATE. While BT_PREVIEW is true the game is a private preview: it runs only in a browser that holds the
+   preview flag (sessionStorage or localStorage 'blacktie:preview' = '1', set by the "Black Tie (preview)" button on the
+   admin page), or on localhost (development and tests). Without the flag the page shows "Not available yet" and loads
+   none of the game's scripts. Set it to false to open the game to everyone (then add its Back Room card, phone row and
+   What's new entry; see README). Page-only gating like Midnight Ops': it is not security. */
+window.BT_PREVIEW = true;
+(function () {
+  if (!window.BT_PREVIEW) return;
+  var ok = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  try { ok = ok || sessionStorage.getItem('blacktie:preview') === '1' || localStorage.getItem('blacktie:preview') === '1'; } catch (e) {}
+  if (ok) { try { sessionStorage.setItem('blacktie:preview', '1'); } catch (e) {} return; }
+  window.BT_LOCKED = true;
+})();
+</script>
 <script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Black Tie</title>
@@ -213,6 +228,7 @@ body.touch #prompt{bottom:auto;top:30%} body.touch #subs{bottom:auto;top:38%;fon
 </div>
 <div id="fps" hidden></div>
 
+<div id="btLocked" style="display:none;position:fixed;inset:0;z-index:99;place-items:center;background:#0d1220;color:#f6f1e7;font:600 18px system-ui,sans-serif;text-align:center;padding:24px"><div>Not available yet.<br><a href="/" style="color:#e8c46a;font-weight:500;font-size:15px">Back to the site</a></div></div>
 <div id="loading"><div class="in"><h1>Black Tie</h1><p id="loadText">Loading</p><div class="lbar"><div id="loadBar"></div></div></div></div>
 
 <div class="screen" id="note" hidden><div class="card">
@@ -293,6 +309,7 @@ body.touch #prompt{bottom:auto;top:30%} body.touch #subs{bottom:auto;top:38%;fon
 <script>
 /* the game's scripts, in order (dynamic scripts with async=false run in insertion order) */
 (function () {
+  if (window.BT_LOCKED) { document.getElementById('btLocked').style.display = 'grid'; document.getElementById('loading').hidden = true; return; }
   if (window.matchMedia && matchMedia('(pointer:coarse)').matches) document.body.classList.add('touch');
   var L = ['/lib/three/r187/three.min.js', '../autores.js', '/lib/three/r187/three-addons.min.js', 'js/core.js', 'js/audio.js', 'js/input.js', 'js/render.js', 'js/world.js', 'js/build.js', 'js/sea.js',
     'js/maps/amalfi.js', 'js/chars.js', 'js/ragdoll.js', 'js/gunmodels.js', 'js/weapons.js', 'js/items.js', 'js/fx.js', 'js/combat.js', 'js/player.js', 'js/camera.js', 'js/ai.js', 'js/hud.js', 'js/missions.js', 'js/main.js'];
