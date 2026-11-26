@@ -30,6 +30,8 @@ var GEARBY={};GEAR.forEach(function(g){GEARBY[g.id]=g});
 var SAVE_KEY='ebbwork:v1';
 var save={v:1,coins:0,gear:{rake:1,bucket:1,wrench:1},load:['rake','bucket','wrench'],jobs:{},set:{sens:1,vol:0.8,q:'auto',inv:0},tut:0,seen:{}};
 (function(){try{var o=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(o&&o.v===1){for(var k in o)if(k==='set'||k==='gear'||k==='jobs'||k==='seen'){for(var j in o[k])save[k][j]=o[k][j]}else save[k]=o[k]}}catch(e){}
+  // a save from before the rebuilt start (no `seen` in it) already knows the depot: keep its gear bench open
+  try{var raw=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(raw&&!raw.seen&&raw.jobs&&raw.jobs.yard&&raw.jobs.yard.stars)save.seen.shop=save.seen.shopSaid=1}catch(e){}
   if(!Array.isArray(save.load))save.load=['rake','bucket','wrench'];save.load=save.load.filter(function(t){return GEARBY[t]&&GEARBY[t].slot&&save.gear[t]})})();
 function persist(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(save))}catch(e){}}
 function slots(){return save.gear.rack?7:5}
@@ -59,7 +61,7 @@ var torch=new THREE.PointLight(0xffe9c4,0,18,1);camera.add(torch);
 // (never back up) if frames stay slow even after ../autores.js has lowered the resolution.
 var autoLow=/CrOS/.test(navigator.userAgent),slowN=0,fpsT=0,fpsN=0;
 function quality(){var q=save.set.q;return q==='auto'?(touchUI||autoLow?'low':'high'):q}
-function resize(){var w=innerWidth,h=innerHeight,pr=Math.min(devicePixelRatio||1,quality()==='high'?2:touchUI?1.5:1);
+function resize(){var w=innerWidth,h=innerHeight,pr=Math.min(devicePixelRatio||1,quality()==='high'||touchUI?2:1); // phones ask for up to 2 so that ../autores.js, which can halve it, never takes them under 1
   renderer.setPixelRatio(pr);renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w<h?86:74;camera.updateProjectionMatrix()}
 addEventListener('resize',resize);resize();
 function fitShadow(){if(!world)return;var dw=world.def.w,dh=world.def.h,r=Math.hypot(dw,dh)*0.5+3,c=sun.shadow.camera,s=quality()==='high'?2048:1024;
@@ -114,13 +116,13 @@ var waterMat=new THREE.ShaderMaterial({uniforms:U,transparent:true,depthWrite:fa
     'vec3 N=normalize(vec3(nn.x*amp,1.0,nn.y*amp));vec3 V=normalize(uCam-vW);'+
     'float fres=0.08+0.92*pow(1.0-max(dot(N,V),0.0),3.2);'+
     'float murk=1.0-exp(-max(vD,0.0)*7.5);vec3 tv=uCam-vW;float tl=uTorch*1.5/(1.0+dot(tv,tv)*0.10);float lit=uDay+tl;'+
-    'vec3 body=mix(vec3(0.52,0.45,0.31),vec3(0.33,0.25,0.13),murk)*lit;float al=mix(0.22,0.97,murk);'+
+    'vec3 body=mix(vec3(0.55,0.44,0.27),vec3(0.38,0.27,0.13),murk)*lit;float al=mix(0.22,0.98,murk);'+
     'vec3 R=reflect(-V,N);vec3 skyc=mix(uHor,uSky,clamp(R.y*1.25,0.0,1.0));skyc=mix(vec3(0.20,0.21,0.17)*lit,skyc,smoothstep(0.04,0.30,R.y+nn.x*0.05))+vec3(0.05,0.07,0.08)*uTorch;'+
     'if(uRefl>0.5){vec2 ruv=vR.xy/vR.w*0.5+0.5+nn*0.03*calm;skyc=texture2D(tR,clamp(ruv,0.003,0.997)).rgb;}'+
     'vec3 col=mix(body,skyc,fres);al=mix(al,1.0,fres*0.85);'+
     'float sd=max(dot(R,uSun),0.0);col+=uSunC*(pow(sd,90.0)*1.3+pow(sd,14.0)*0.10*step(0.62,fine.b));col+=vec3(1.0,0.93,0.8)*tl*pow(max(dot(R,V),0.0),10.0)*0.5;'+
     'float foam=smoothstep(0.18,0.8,sp)*smoothstep(0.50,0.74,m.b)*calm;col=mix(col,vec3(0.95,0.93,0.86)*lit,foam*0.75);al=max(al,foam*0.75);'+
-    'float lap=0.5+0.5*sin(uT*1.7+m.r*9.0);float edge=(1.0-smoothstep(0.004+0.012*lap,0.03+0.02*lap,vD));col=mix(col,vec3(0.96,0.93,0.84)*lit,edge*0.62);al=max(al,edge*0.7);'+
+    'float lap=0.5+0.5*sin(uT*1.7+m.r*9.0);float edge=(1.0-smoothstep(0.006+0.014*lap,0.045+0.025*lap,vD));col=mix(col,vec3(1.0,0.97,0.88)*lit,edge*0.8);al=max(al,edge*0.85);'+
     'al*=smoothstep(0.003,0.009,vD);'+
     'float sc=uScan*step(0.009,vD)*(0.6+0.4*sin(uT*9.0-length(vW.xz-uCam.xz)*1.6));col=mix(col,vec3(0.25,1.0,0.92),sc*0.8);al=max(al,sc*0.85);'+
     'gl_FragColor=vec4(col,al);'+FOGF+'}'});
@@ -220,7 +222,7 @@ function floorAt(x,z,feet){var w=world,S=w.S,gy=w.groundAt(x,z),ci=w.cell(x,z);i
 function movePlayer(dt){
   var f=inp.mz,s=inp.mx,l=Math.hypot(f,s);if(l>1){f/=l;s/=l;l=1}
   var dep=Math.max(0,world.depthAt(pl.x,pl.z)-Math.max(0,pl.y-floorAt(pl.x,pl.z,pl.y)));
-  var slow=1-Math.min(0.62,dep*(save.gear.waders?0.45:1.25));
+  var slow=1-Math.min(0.55,dep*(save.gear.waders?0.4:0.85));
   var crouching=inp.crouch;pl.crouch+=((crouching?1:0)-pl.crouch)*Math.min(1,dt*12);
   var sp=(crouching?1.9:inp.sprint&&f>0.2?5.7:3.7)*slow;
   var sy=Math.sin(pl.yaw),cy=Math.cos(pl.yaw),vx=(-sy*f+cy*s)*sp,vz=(-cy*f-sy*s)*sp,ox=pl.x,oz=pl.z;

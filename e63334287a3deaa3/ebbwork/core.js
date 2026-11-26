@@ -310,15 +310,15 @@ var EWMaps=(function(){
       b.wall(13.5,13,16.5,16,2.2,0x5d7a6a,'shed');
       b.wall(1,10,3.5,11,0.5,0x7a5a3c,'planter');b.wall(12.5,3,14,3.5,0.55,0x4c5b66,'bin');b.wall(14.5,3,15.5,3.5,0.9,0x3f6b4c,'bin');
       b.wall(5,13.5,6.5,14.5,0.72,0x8a8f93,'table');
-      b.drain(8,6.5,{rate:0.2,cap:12});
-      b.valve(17.02,1.75,'tap',{nx:1,y:0.8});
-      b.leak(4.25,3.25,{rate:0.03,valve:'tap',y:0.75,nz:1,pz:3.02,label:'Garden tap pipe'});
-      b.pipe([[5.2,3.04],[16.96,3.04]],0.75);b.pipe([[17.04,3.0],[17.04,1.75]],0.75);
+      b.drain(8,6.5,{rate:0.62,cap:12});
+      b.valve(17.02,1.75,'tap',{nx:1,y:0.95});
+      b.leak(4.25,3.25,{rate:0.05,valve:'tap',y:0.95,nz:1,pz:3.02,label:'Garden tap pipe'});
+      b.pipe([[5.2,3.04],[16.96,3.04]],0.95);b.pipe([[17.04,3.0],[17.04,1.75]],0.95);
       b.wall(18.5,15.2,19,15.7,3.2,0x5b4630,'tree');b.deco(2.2,15.6,'bush',{s:1.2});b.deco(3.6,16.4,'bush',{s:0.9});b.deco(10.5,16.6,'bush',{s:1.1});b.deco(14.2,16.5,'bush',{s:0.8});b.deco(1.4,8.2,'pot');b.deco(16.2,3.5,'pot');b.deco(20.6,6,'bush',{s:0.8});
-      b.sign(17.02,2.4,'STOP TAP',{nx:1,y:1.35});
+      b.sign(17.02,2.45,'STOP TAP',{nx:1,y:1.5});
       b.litter(8,6.5,0.8,18);b.litter(8,6.5,5,4);b.litter(13,12,5,10);b.litter(4,6,3,2);
-      b.flood(0,0,22,18,0.235);
-      b.spawnAt(12.2,10.6,0.80);
+      b.flood(0,0,22,18,0.50);   // shin to knee deep over the whole patio and half the lawn: it has to look like a flood
+      b.spawnAt(12.6,11.0,0.80);
     }});
   function bump(u){return u<-1||u>1?0:1-u*u}
   // 2. Pell Street: shops, a forecourt, and a road whose gullies have vanished under the storm's leftovers.
