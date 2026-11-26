@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/e63334287a3deaa3/lang.js"></script>
+<script src="es.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Leaf Sweep</title>
+<meta name="description" content="A calm first-person garden game: gather, rake and blow thousands of real leaves out of five walled gardens.">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#2c3a2a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito:wght@600;700;800&display=swap">
+<style>
+/* Leaf Sweep: a full-screen 3D view of the gardens with a small paper-and-ink HUD over it. Menus are cream cards.
+   Touch controls (#touch and the round buttons) only show once a finger touches the screen (body.touch). */
+:root{--paper:#f6ecd4;--paper-2:#eadbb8;--ink:#2e2416;--ink-2:#5d4c36;--green:#3f6b52;--green-2:#2c4a3a;--rust:#c4552d;--gold:#e0b53a;--line:rgba(46,36,22,.18);
+  --f-d:'Fraunces',Georgia,serif;--f-b:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:#2c3a2a;color:var(--ink);font-family:var(--f-b);font-weight:700;-webkit-font-smoothing:antialiased}
+body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+[hidden]{display:none!important}
+#app{position:fixed;inset:0;overflow:hidden}
+#view{display:block;width:100%;height:100%;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-d);margin:0;font-weight:800}
+
+/* HUD */
+#hud{position:absolute;inset:0;pointer-events:none}
+.chip{display:flex;align-items:center;gap:7px;background:rgba(246,236,212,.92);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+#hTop{position:absolute;left:calc(10px + var(--sl));top:calc(10px + var(--st));display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+#hAcorns svg{width:18px;height:18px}
+#acN{min-width:2ch;font-variant-numeric:tabular-nums}
+#acN.pop{animation:pop .3s}
+@keyframes pop{40%{transform:scale(1.25);color:var(--rust)}}
+#hBag .meter{width:74px}
+.meter{height:9px;border-radius:9px;background:rgba(46,36,22,.16);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--green);border-radius:9px;transition:width .15s}
+#hBag.full .meter i{background:var(--rust)}
+#hBag small,#hArea small{font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+#hArea{position:absolute;left:50%;top:calc(10px + var(--st));transform:translateX(-50%);flex-direction:column;gap:3px;border-radius:14px;padding:6px 14px 7px;min-width:190px;text-align:center}
+#hArea b{font-family:var(--f-d);font-size:17px;white-space:nowrap}
+#hArea .row{display:flex;align-items:center;gap:8px;width:100%}
+#hArea .meter{flex:1}
+#hArea .meter i{background:linear-gradient(90deg,var(--gold),var(--rust))}
+#hKeys{position:absolute;right:calc(12px + var(--sr));top:calc(12px + var(--st));font-size:13px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7);text-align:right;line-height:1.5;opacity:.9}
+#hKeys kbd{font:inherit;background:rgba(0,0,0,.35);border-radius:4px;padding:0 5px}
+#cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.45);opacity:.85}
+#hTools{position:absolute;left:50%;bottom:calc(12px + var(--sb));transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto}
+.slot{position:relative;width:62px;height:54px;border-radius:12px;border:2px solid var(--line);background:rgba(246,236,212,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:0;color:var(--ink)}
+.slot svg{width:24px;height:24px}
+.slot kbd{position:absolute;left:5px;top:2px;font:inherit;font-size:11px;color:var(--ink-2)}
+.slot.on{background:var(--paper);border-color:var(--rust);box-shadow:0 0 0 2px rgba(196,85,45,.35),0 3px 10px rgba(0,0,0,.25);transform:translateY(-3px)}
+.slot.locked{opacity:.45}
+#hPrompt{position:absolute;left:50%;top:60%;transform:translateX(-50%);background:rgba(30,24,14,.78);color:#fff;border-radius:10px;padding:7px 14px;font-size:16px;text-align:center;max-width:min(88vw,460px)}
+#hPrompt kbd{font:inherit;background:var(--gold);color:var(--ink);border-radius:5px;padding:0 7px;margin-right:4px}
+#toasts{position:absolute;left:50%;top:22%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;width:min(92vw,520px)}
+.toast{background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--rust);border-radius:10px;padding:8px 14px;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,.25);animation:rise .3s;text-align:center}
+.toast.big{font-family:var(--f-d);font-size:22px;border-left-color:var(--gold);padding:12px 18px}
+.toast small{display:block;font-family:var(--f-b);font-size:14px;color:var(--ink-2);font-weight:700}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+#hTut{position:absolute;left:50%;top:calc(74px + var(--st));transform:translateX(-50%);width:max-content;background:rgba(44,74,58,.92);color:#fff;border-radius:12px;padding:8px 14px;font-size:15px;max-width:min(90vw,440px);text-align:center;pointer-events:auto;display:flex;gap:10px;align-items:center}
+#hTut button{background:none;border:1px solid rgba(255,255,255,.4);border-radius:8px;color:#fff;font-size:12px;padding:3px 8px;flex:none}
+#gain{position:absolute;left:calc(14px + var(--sl));top:calc(88px + var(--st));font-size:15px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);opacity:0;transition:opacity .4s}
+#gain.on{opacity:1}
+
+/* touch controls: hidden until a finger touches the screen */
+#touch{display:none;position:absolute;inset:0;pointer-events:none}
+body.touch #touch{display:block}
+body.touch #hKeys,body.touch .slot kbd,body.touch .kbonly{display:none}
+#tStick{position:absolute;left:calc(22px + var(--sl));bottom:calc(26px + var(--sb));width:124px;height:124px;border-radius:50%;background:rgba(246,236,212,.2);border:2px solid rgba(255,255,255,.45);pointer-events:auto;touch-action:none}
+#tStick i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;border-radius:50%;background:rgba(246,236,212,.85);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.tb{position:absolute;pointer-events:auto;touch-action:none;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(30,24,14,.5);color:#fff;font-size:12px;letter-spacing:.05em;display:flex;align-items:center;justify-content:center;padding:0;text-transform:uppercase}
+.tb.down,.tb.on{background:rgba(224,181,58,.85);color:var(--ink);border-color:#fff}
+#tUse{right:calc(22px + var(--sr));bottom:calc(30px + var(--sb));width:92px;height:92px;font-size:15px}
+#tJump{right:calc(126px + var(--sr));bottom:calc(22px + var(--sb));width:62px;height:62px}
+#tSprint{right:calc(122px + var(--sr));bottom:calc(100px + var(--sb));width:54px;height:54px;font-size:11px}
+#tKneel{right:calc(30px + var(--sr));bottom:calc(134px + var(--sb));width:54px;height:54px;font-size:11px}
+#tAct{left:50%;top:60%;transform:translateX(-50%);border-radius:14px;width:auto;height:48px;padding:0 18px;font-size:15px;background:rgba(224,181,58,.95);color:var(--ink);border-color:#fff;white-space:nowrap}
+#tTop{position:absolute;right:calc(10px + var(--sr));top:calc(10px + var(--st));display:flex;gap:8px}
+#tTop .tb{position:static;width:46px;height:46px;border-radius:12px;font-size:11px}
+#tTop svg{width:22px;height:22px}
+body.touch #hPrompt.act{display:none}
+body.touch #hTools{bottom:calc(14px + var(--sb))}
+body.touch .slot{width:56px;height:50px}
+@media (orientation:portrait){
+  body.touch #hTools{bottom:calc(172px + var(--sb))}
+  body.touch #hArea{top:calc(96px + var(--st))}
+  body.touch #hTut{top:calc(164px + var(--st))}
+  body.touch #toasts{top:34%}
+  body.touch #gain{top:calc(92px + var(--st));left:auto;right:calc(14px + var(--sr))}
+}
+@media (orientation:landscape) and (max-height:480px){
+  #hArea{padding:4px 12px 5px;min-width:170px}#hArea b{font-size:15px}
+  body.touch #tStick{width:108px;height:108px;bottom:calc(16px + var(--sb))}
+  body.touch #tUse{width:80px;height:80px;bottom:calc(18px + var(--sb))}
+  body.touch #tJump{right:calc(110px + var(--sr));bottom:calc(12px + var(--sb));width:56px;height:56px}
+  body.touch #tSprint{right:calc(108px + var(--sr));bottom:calc(80px + var(--sb));width:48px;height:48px}
+  body.touch #tKneel{right:calc(26px + var(--sr));bottom:calc(106px + var(--sb));width:48px;height:48px}
+  body.touch #hTools{bottom:calc(8px + var(--sb))}
+  body.touch .slot{width:52px;height:44px;font-size:10px}body.touch .slot svg{width:20px;height:20px}
+  #hTut{top:calc(68px + var(--st));font-size:13px;padding:5px 10px}
+  #hPrompt,#tAct{top:52%}
+  #toasts{top:30%}
+}
+
+/* menus */
+.overlay{position:absolute;inset:0;overflow:auto;padding:max(14px,var(--st)) max(14px,var(--sr)) max(14px,var(--sb)) max(14px,var(--sl));display:flex;background:rgba(30,26,16,.45);touch-action:pan-y}
+.card{margin:auto;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:20px 22px;box-shadow:0 18px 50px rgba(0,0,0,.4);width:min(460px,100%)}
+.card.wide{width:min(900px,100%)}
+.card p{margin:8px 0;line-height:1.4;color:var(--ink-2)}
+#title .card{text-align:center;background:linear-gradient(180deg,#f9f1dc,#eedfb9)}
+#title h1{font-size:clamp(38px,10vw,68px);color:var(--green-2);letter-spacing:-.01em;line-height:1}
+#title h1 span{color:var(--rust)}
+.tag{font-size:17px}
+.stack{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:800;font-size:17px;padding:10px 16px;border:1px solid var(--line);border-radius:12px;background:var(--paper-2);color:var(--ink)}
+.btn:hover:not(:disabled){filter:brightness(1.05)}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn.go{background:var(--green);border-color:var(--green-2);color:#fff;font-size:20px;padding:12px 18px}
+.btn.sm{font-size:14px;padding:6px 11px;border-radius:9px}
+.btn.buy{background:var(--gold);border-color:#b98e1e;min-width:84px}
+.btn:disabled{opacity:.5;cursor:default}
+.head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.tabs{display:flex;gap:6px}
+.tabs .btn.on{background:var(--green);color:#fff;border-color:var(--green-2)}
+#jBody{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px}
+#map{width:100%;height:auto;border-radius:10px;border:1px solid var(--line);background:#cfc3a2;display:block}
+#jSide{max-height:min(62vh,520px);overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-right:2px}
+.item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.item:last-child{border-bottom:0}
+.item .tx{flex:1;min-width:0}
+.item b{font-size:16px;display:block}
+.item small{font-size:13px;color:var(--ink-2);display:block;line-height:1.25}
+.pips{display:inline-flex;gap:3px;margin-left:6px;vertical-align:middle}
+.pips i{width:8px;height:8px;border-radius:50%;background:rgba(46,36,22,.2)}
+.pips i.on{background:var(--rust)}
+.done{color:var(--green);font-size:13px}
+#jPurse{font-size:16px}
+label.set{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:16px}
+label.set input[type=range]{width:150px;accent-color:var(--green)}
+label.set select{font:inherit;padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:#fff}
+.note{font-size:13px;color:var(--ink-2)}
+ol.how{margin:8px 0;padding-left:20px;color:var(--ink-2);line-height:1.4}
+ol.how li{margin-bottom:5px}
+@media (max-width:700px){#jBody{grid-template-columns:1fr}#jSide{max-height:none}.card{padding:15px 14px}}
+@media (max-height:480px){.card{padding:12px 16px}#title h1{font-size:40px}.stack{margin-top:8px;flex-direction:row;flex-wrap:wrap;justify-content:center}.tag{font-size:15px;margin:4px 0}#jSide{max-height:56vh}#jBody{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}}
+@media (prefers-reduced-motion:reduce){.toast,#acN.pop{animation:none}}
+</style>
+<script src="/e63334287a3deaa3/stats.js" data-game="windrow" data-board-in="#title .card" defer></script>
+</head>
+<body>
+<div id="app">
+  <canvas id="view" aria-label="Leaf Sweep game view"></canvas>
+
+  <div id="hud" hidden>
+    <div id="hTop">
+      <div class="chip" id="hAcorns" title="Acorns"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9c0-3 3-5 7-5s7 2 7 5z" fill="#7a4a1e"/><path d="M6.5 10h11c0 6-3 10-5.5 10S6.5 16 6.5 10z" fill="#d9a23a"/><rect x="11.2" y="1.5" width="1.6" height="3" rx=".8" fill="#5a3a1a"/></svg><span id="acN" data-noi18n>0</span></div>
+      <div class="chip" id="hBag"><span>Sack</span><div class="meter"><i id="bagBar"></i></div><small id="bagN" data-noi18n>0/30</small></div>
+    </div>
+    <div class="chip" id="hArea"><b id="arName" data-noi18n></b><div class="row"><div class="meter"><i id="arBar"></i></div><small id="arPct" data-noi18n>0%</small></div><small id="arLeft" data-noi18n hidden></small></div>
+    <div id="hKeys" data-noi18n></div>
+    <div id="gain" data-noi18n></div>
+    <div id="cross"></div>
+    <div id="hTut" hidden><span id="tutText" data-noi18n></span><button id="tutSkip" type="button" data-no-ad-refresh>Skip</button></div>
+    <div id="toasts" aria-live="polite"></div>
+    <div id="hPrompt" hidden data-noi18n></div>
+    <div id="hTools">
+      <button class="slot" type="button" data-tool="0" data-no-ad-refresh><kbd>1</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 21c-2-3-3-6-2-9l1-5c.3-1 1.800-1 2 .2V11l.8-7c.2-1.200 1.900-1.200 2 0l.4 6.500.9-7c.2-1.200 1.900-1.100 2 .1l-.2 7.200 1.300-5.300c.3-1.100 1.900-.8 1.800.4L16.500 14c1-1.500 2-2.600 3.200-2.200.8.300.6 1.200.1 1.900-1.500 2-2.300 5-4.800 7.300z" fill="currentColor"/></svg><span>Hands</span></button>
+      <button class="slot" type="button" data-tool="1" data-no-ad-refresh><kbd>2</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v11M5 13h14M5 13v7M8.500 13v8M12 13v9M15.500 13v8M19 13v7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg><span>Rake</span></button>
+      <button class="slot" type="button" data-tool="2" data-no-ad-refresh><kbd>3</kbd><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h8v7H3zM11 10.500l9-2v8l-9-2z" fill="currentColor"/><path d="M5 9V6h4v3" stroke="currentColor" stroke-width="2" fill="none"/></svg><span>Blower</span></button>
+    </div>
+    <div id="touch" aria-hidden="true">
+      <div id="tStick"><i></i></div>
+      <button class="tb" id="tUse" type="button" data-no-ad-refresh>Use</button>
+      <button class="tb" id="tJump" type="button" data-no-ad-refresh>Jump</button>
+      <button class="tb" id="tSprint" type="button" hidden data-no-ad-refresh>Run</button>
+      <button class="tb" id="tKneel" type="button" hidden data-no-ad-refresh>Kneel</button>
+      <button class="tb" id="tAct" type="button" hidden data-noi18n data-no-ad-refresh></button>
+      <div id="tTop">
+        <button class="tb" id="tFind" type="button" aria-label="Leaf finder" data-no-ad-refresh><svg viewBox="0 0 24 24"><circle cx="10.500" cy="10.500" r="6" stroke="currentColor" stroke-width="2.200" fill="none"/><path d="M15 15l6 6" stroke="currentColor" stroke-width="2.400" stroke-linecap="round"/></svg></button>
+        <button class="tb" id="tJournal" type="button" aria-label="Journal" data-no-ad-refresh><svg viewBox="0 0 24 24"><path d="M5 3h12a2 2 0 012 2v16H7a2 2 0 01-2-2zM9 8h7M9 12h7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button>
+        <button class="tb" id="tPause" type="button" aria-label="Pause" data-no-ad-refresh>❚❚</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="title">
+    <div class="card">
+      <h1>Leaf <span>Sweep</span></h1>
+      <p class="tag">The old gardens are buried in autumn. Gather, rake and blow every last leaf away, one walled garden at a time.</p>
+      <div class="stack">
+        <button class="btn go" id="playBtn" type="button">Start sweeping</button>
+        <button class="btn" id="howBtn" type="button">How to play</button>
+        <button class="btn" id="setBtn" type="button">Settings</button>
+      </div>
+      <p class="note" id="saveNote">Your garden saves itself in this browser.</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="pause" hidden>
+    <div class="card">
+      <h2>Paused</h2>
+      <div class="stack">
+        <button class="btn go" id="resumeBtn" type="button">Back to the leaves</button>
+        <button class="btn" id="pJournal" type="button">Journal and shed</button>
+        <button class="btn" id="pSet" type="button">Settings</button>
+        <button class="btn" id="pHow" type="button">How to play</button>
+        <button class="btn" id="pTitle" type="button">Save and leave</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="journal" hidden>
+    <div class="card wide">
+      <div class="head">
+        <div class="tabs"><button class="btn sm on" data-tab="areas" type="button">Gardens</button><button class="btn sm" data-tab="shed" type="button">Shed</button></div>
+        <div class="row"><span class="chip" id="jPurse" data-noi18n></span><button class="btn sm" id="jClose" type="button">Close</button></div>
+      </div>
+      <div id="jBody">
+        <canvas id="map" width="760" height="500" aria-label="Map of the gardens"></canvas>
+        <div id="jSide"></div>
+      </div>
+      <p class="note">Brown dots on the map are leaves still on the ground. Red flags are compost bins, yellow squares are mulch chutes.</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="settings" hidden>
+    <div class="card">
+      <div class="head"><h2>Settings</h2><button class="btn sm" id="sClose" type="button">Done</button></div>
+      <label class="set"><span>Look speed</span><input id="sSens" type="range" min="0.3" max="2.5" step="0.05"></label>
+      <label class="set"><span>Sound</span><input id="sVol" type="range" min="0" max="1" step="0.05"></label>
+      <label class="set"><span>Leaves and detail</span><select id="sQ"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+      <label class="set"><span>Flip up and down look</span><input id="sInv" type="checkbox"></label>
+      <p class="note">Changing detail redraws the leaves that are left, in new places. What you have cleared and earned stays the same.</p>
+      <div class="row" style="margin-top:10px"><button class="btn sm" id="sFull" type="button">Full screen</button><button class="btn sm kbonly" id="sKeys" type="button">Controls</button><div data-lang-toggle></div></div>
+      <div class="row" style="margin-top:10px"><button class="btn sm" id="sReset" type="button">Start the gardens over</button></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="how" hidden>
+    <div class="card">
+      <div class="head"><h2>How to play</h2><button class="btn sm" id="hClose" type="button">Got it</button></div>
+      <ol class="how">
+        <li>Every leaf is real. Nothing vanishes until it is in a compost bin or down a mulch chute.</li>
+        <li>Hands: hold to gather the leaves in the ring into your sack, then empty the sack at a bin with a red flag.</li>
+        <li>Rake: each stroke drags leaves toward you. Pull them into heaps, or straight over a yellow grate.</li>
+        <li>Blower: pushes leaves away in a cone, strongest close up and in the middle. Walls stop the wind and catch the leaves.</li>
+        <li>Acorns pay for bigger and better tools in the shed, and open the next garden gate.</li>
+        <li>Clear a garden completely for a bonus and a new trick. The leaf finder points at the last few.</li>
+      </ol>
+      <p class="note kbonly" id="howKeys" data-noi18n></p>
+      <p class="note" id="howTouch" hidden>Left thumb walks, drag anywhere else to look, hold Use to work. Tap a tool at the bottom to switch.</p>
+    </div>
+  </div>
+</div>
+
+<script src="/lib/three/r187/three.min.js"></script>
+<script src="../autores.js"></script>
+<script src="../keybinds.js"></script>
+<script src="js/world.js"></script>
+<script src="js/leaves.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/models.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
