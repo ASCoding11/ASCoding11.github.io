@@ -404,7 +404,7 @@
       'Clicking on people in the Online panel works again, even with your own layout.',
       'The list no longer jumps back to the top while you scroll it.'
     ]},
-    {date: '2026-11-27', version: '1.30', title: 'Happy holidays: the cabin is open', kind: 'feature',
+    {date: '2026-11-27', version: '2.01', title: 'Happy holidays: the cabin is open', kind: 'feature',
      tags: ['Back Room', 'Holidays', 'Retro TV'], items: [
       'The Back Room now opens on a log cabin at Christmas: a fire, a tree, snow at the window, and an old TV in the middle. Click the TV to step through to the games.',
       'Retro TV look: the whole page as if on that old set, with pixel letters, big-pixel game pictures and faint scan lines. The Retro TV switch at the top right turns it off.',
