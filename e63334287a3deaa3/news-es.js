@@ -7,6 +7,13 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Flood Crew, rebuilt": "Flood Crew, rehecho",
+    "Flood Crew": "Flood Crew",
+    "Flood Crew starts in the flooded yard now, rake in hand, with one short instruction at a time. The depot and the gear shop turn up later.": "Flood Crew ahora empieza en el patio inundado, con el rastrillo en la mano y una instrucción corta por vez. El depósito y la tienda de equipo aparecen más adelante.",
+    "It looks new: proper houses with roofs and windows, fences, trees, evening light with shadows, and water that mirrors what is around it, on phones too.": "Se ve nuevo: casas de verdad con techos y ventanas, cercas, árboles, luz de atardecer con sombras y agua que refleja lo que la rodea, también en el celular.",
+    "Raking splashes, a cleared drain gulps and pulls a whirlpool, and the ground comes up clean as the water drops.": "Al rastrillar salpica, un desagüe destapado traga y forma un remolino, y el suelo aparece limpio a medida que baja el agua.",
+    "Much less on screen: one water bar, your tool, and one line of words.": "Mucho menos en pantalla: una barra de agua, tu herramienta y una línea de texto.",
+    "The two longest jobs are a good deal shorter, and raked leaves stay put for a while before they can float back.": "Los dos trabajos más largos son bastante más cortos, y las hojas rastrilladas se quedan quietas un rato antes de poder volver flotando.",
     "Leaf Sweep: a new start": "Leaf Sweep: un nuevo comienzo",
     "Leaf Sweep": "Leaf Sweep",
     "Leaf Sweep now starts in a small front yard by a garden house, with just your hands and one thing to do at a time.": "Leaf Sweep ahora empieza en un pequeño jardín delantero junto a una casa, solo con tus manos y una cosa por hacer a la vez.",

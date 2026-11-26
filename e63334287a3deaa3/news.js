@@ -90,6 +90,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.04', title: 'Flood Crew, rebuilt', kind: 'feature',
+     img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew'], items: [
+      'Flood Crew starts in the flooded yard now, rake in hand, with one short instruction at a time. The depot and the gear shop turn up later.',
+      'It looks new: proper houses with roofs and windows, fences, trees, evening light with shadows, and water that mirrors what is around it, on phones too.',
+      'Raking splashes, a cleared drain gulps and pulls a whirlpool, and the ground comes up clean as the water drops.',
+      'Much less on screen: one water bar, your tool, and one line of words.',
+      'The two longest jobs are a good deal shorter, and raked leaves stay put for a while before they can float back.']},
     {date: '2026-11-26', version: '2.03', title: 'Leaf Sweep: a new start', kind: 'feature',
      img: 'm/thumbs/windrow.jpg', tags: ['Leaf Sweep'], items: [
       'Leaf Sweep now starts in a small front yard by a garden house, with just your hands and one thing to do at a time.',
