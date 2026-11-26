@@ -78,54 +78,128 @@ var noiseTex=(function(){var N=128,c=document.createElement('canvas');c.width=c.
   var t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t})();
 
 var U={uT:{value:0},uCam:{value:new THREE.Vector3()},uSun:{value:SKY.sun},uSunC:{value:SKY.sunC},uSky:{value:SKY.zen},uHor:{value:SKY.hor},
-  uFog:{value:SKY.fog},uFogN:{value:45},uFogF:{value:210},tN:{value:noiseTex},uScan:{value:0},uTorch:{value:0},uDay:{value:1},tR:{value:null},uRefl:{value:0},uReflVP:{value:new THREE.Matrix4()}};
+  uFog:{value:SKY.fog},uFogN:{value:45},uFogF:{value:210},tN:{value:noiseTex},uScan:{value:0},uTorch:{value:0},uDay:{value:1},tR:{value:null},uRefl:{value:0},uReflVP:{value:new THREE.Matrix4()},
+  tRip:{value:null},uRipOn:{value:0},uMap:{value:new THREE.Vector2(1,1)},uRipPx:{value:new THREE.Vector2(0.1,0.1)},uLerp:{value:1},
+  uNoSun:{value:0},uRipDbg:{value:0},uHi:{value:1},uDr:{value:[new THREE.Vector4(),new THREE.Vector4(),new THREE.Vector4(),new THREE.Vector4()]}};
 var skyDome=new THREE.Mesh(new THREE.SphereGeometry(260,24,12),new THREE.ShaderMaterial({uniforms:U,side:THREE.BackSide,depthWrite:false,fog:false,
   vertexShader:'varying vec3 vDir;void main(){vDir=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-  fragmentShader:'precision highp float;uniform sampler2D tN;uniform float uT;uniform vec3 uSun,uSunC,uSky,uHor;varying vec3 vDir;'+
+  fragmentShader:'precision highp float;uniform sampler2D tN;uniform float uT,uNoSun;uniform vec3 uSun,uSunC,uSky,uHor;varying vec3 vDir;'+
     'void main(){vec3 d=normalize(vDir);float h=max(d.y,0.0);float sd=max(dot(d,uSun),0.0);vec3 c=mix(uHor,uSky,pow(h,0.55));c=mix(c,vec3(1.0,0.86,0.62),pow(sd,5.0)*0.55*(1.0-h*0.6));'+
     'vec2 uv=d.xz/(d.y+0.3);float n=texture2D(tN,uv*0.10+vec2(uT*0.0016,0.0)).b*0.62+texture2D(tN,uv*0.29-vec2(0.0,uT*0.0022)).r*0.38;'+
     'float cl=smoothstep(0.50,0.72,n)*smoothstep(0.0,0.2,h);vec3 cc=mix(vec3(1.0,0.95,0.86),vec3(0.62,0.66,0.74),smoothstep(0.58,0.9,n));cc=mix(cc,vec3(1.0,0.82,0.6),pow(sd,3.0)*0.5);c=mix(c,cc,cl*0.85);'+
-    'c+=uSunC*pow(sd,260.0)*1.4+uSunC*pow(sd,22.0)*0.22;gl_FragColor=vec4(c,1.0);}'}));
+    'c+=(uSunC*pow(sd,260.0)*1.4+uSunC*pow(sd,22.0)*0.22)*(1.0-uNoSun);gl_FragColor=vec4(c,1.0);}'}));
 skyDome.renderOrder=-10;skyDome.frustumCulled=false;scene.add(skyDome);
 var FOGF='float fd=length(uCam-vW);gl_FragColor.rgb=mix(gl_FragColor.rgb,uFog,smoothstep(uFogN,uFogF,fd));';
 
 // The ground is three's own lit material (so it takes the sun's shadows and the torch), with our patterns added:
 // grain, paving joints, and wet ground that is darker and shines until it dries.
 var terrainMat=new THREE.MeshLambertMaterial({vertexColors:true});
-terrainMat.onBeforeCompile=function(sh){sh.uniforms.tN=U.tN;sh.uniforms.uHorC=U.uHor;
-  sh.vertexShader=sh.vertexShader.replace('#include <common>','attribute float aPat;attribute float aWet;varying float vPat;varying float vWet;varying vec3 vWp;\n#include <common>').replace('#include <begin_vertex>','#include <begin_vertex>\nvPat=aPat;vWet=aWet;vWp=position;');
-  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','uniform sampler2D tN;uniform vec3 uHorC;varying float vPat;varying float vWet;varying vec3 vWp;\n#include <common>')
+terrainMat.onBeforeCompile=function(sh){sh.uniforms.tN=U.tN;sh.uniforms.uHorC=U.uHor;sh.uniforms.uT=U.uT;sh.uniforms.uSunC=U.uSunC;sh.uniforms.uDay=U.uDay;sh.uniforms.uHi=U.uHi;
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','attribute float aPat;attribute float aWet;attribute float aWd;varying float vPat;varying float vWet;varying float vWd;varying vec3 vWp;\n#include <common>').replace('#include <begin_vertex>','#include <begin_vertex>\nvPat=aPat;vWet=aWet;vWd=aWd;vWp=position;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','uniform sampler2D tN;uniform vec3 uHorC,uSunC;uniform float uT,uDay,uHi;varying float vPat;varying float vWet;varying float vWd;varying vec3 vWp;\n#include <common>')
     .replace('#include <color_fragment>','#include <color_fragment>\nvec3 g_=texture2D(tN,vWp.xz*0.43).rgb;float big_=texture2D(tN,vWp.xz*0.071+0.3).b;diffuseColor.rgb*=(0.80+0.34*g_.b)*(0.84+0.32*big_);'+
       'if(vPat>0.02){vec2 q_=vWp.xz/vPat;vec2 f_=abs(fract(q_)-0.5);float j_=smoothstep(0.455,0.492,max(f_.x,f_.y));vec2 id_=floor(q_);float h_=fract(sin(dot(id_,vec2(12.9898,78.233)))*43758.5453);diffuseColor.rgb*=(0.90+0.18*h_)*(1.0-0.45*j_);}'+
       'else{diffuseColor.rgb*=0.86+0.34*texture2D(tN,vWp.xz*1.9).r;}'+
-      'float wet_=clamp(vWet,0.0,1.0);diffuseColor.rgb*=mix(1.0,0.52,wet_);')
-    .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\nfloat fr_=pow(1.0-abs(dot(normalize(vNormal),normalize(vViewPosition))),3.0);totalEmissiveRadiance+=uHorC*fr_*wet_*0.38;')};
+      'float wet_=clamp(vWet,0.0,1.0);diffuseColor.rgb*=mix(1.0,0.52,wet_);'+
+      // under water the ground takes on the colour of the silt in it
+      'float uw_=smoothstep(0.0,0.18,vWd);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.32,0.25,0.15),uw_*0.55);')
+    .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+
+      // wet paving shines a little at a low angle; grass does not
+      'float fr_=pow(1.0-abs(dot(normalize(vNormal),normalize(vViewPosition))),4.0);totalEmissiveRadiance+=uHorC*fr_*wet_*0.14*step(0.02,vPat)*(1.0-uw_);'+
+      // caustics: sunlight focused by the ripples into a moving net of bright lines on the bottom of shallow water
+      'if(uHi>0.5&&vWd>0.004&&vWd<0.3){vec2 cp_=vWp.xz*1.25;float c1_=texture2D(tN,cp_*0.61+vec2(uT*0.031,uT*0.019)).b;float c2_=texture2D(tN,cp_*0.73-vec2(uT*0.023,-uT*0.029)+0.5).b;'+
+      'float ca_=pow(max(0.0,1.0-abs(c1_-c2_)*3.2),6.0);totalEmissiveRadiance+=uSunC*uDay*ca_*0.55*smoothstep(0.004,0.03,vWd)*exp(-vWd*11.0);}')};
 
-// The water. Brown where it is deep, clear where it is thin, a pale moving line where it meets the ground, ripples that
-// run with the current, and the sky (or on High, a mirror picture of the site) on its surface.
+// The water. Its vertices sit at the cell centres; they glide between two simulation steps (uLerp) so the surface
+// never jumps. Brown and opaque where deep, clearer where thin; a crisp foam line at the shore; patches of silt that
+// drift with the current; ripples from a second, finer simulation on the graphics card (tRip: footsteps, drips,
+// rake strokes, pours); a whirlpool over every running drain (uDr); and the sky, or a mirror picture of the site, on top.
 var waterMat=new THREE.ShaderMaterial({uniforms:U,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-3,
-  vertexShader:'attribute float aDepth;attribute vec2 aFlow;uniform mat4 uReflVP;varying float vD;varying vec2 vF;varying vec3 vW;varying vec4 vR;'+
-    'void main(){vD=aDepth;vF=aFlow;vW=position;vR=uReflVP*vec4(position,1.0);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-  fragmentShader:'precision highp float;uniform sampler2D tN,tR;uniform float uT,uScan,uFogN,uFogF,uTorch,uDay,uRefl;uniform vec3 uCam,uSun,uSunC,uSky,uHor,uFog;varying float vD;varying vec2 vF;varying vec3 vW;varying vec4 vR;'+
+  vertexShader:'attribute float aDepth;attribute vec2 aFlow;attribute vec2 aPrev;attribute vec2 aSlope;uniform mat4 uReflVP;uniform float uLerp,uT;uniform vec4 uDr[4];varying float vD;varying vec2 vF;varying vec2 vS;varying vec3 vW;varying vec4 vR;'+
+    'void main(){vec3 p=position;p.y=mix(aPrev.x,p.y,uLerp);vD=mix(aPrev.y,aDepth,uLerp);vF=aFlow;vS=aSlope;'+
+    'for(int i=0;i<4;i++){vec4 d=uDr[i];if(d.z<=0.0)continue;vec2 e=p.xz-d.xy;p.y-=d.z*0.11*exp(-dot(e,e)/0.30)*smoothstep(0.02,0.12,vD);}'+
+    'vW=p;vR=uReflVP*vec4(p,1.0);gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.0);}',
+  fragmentShader:'precision highp float;uniform sampler2D tN,tR,tRip;uniform float uT,uScan,uFogN,uFogF,uTorch,uDay,uRefl,uRipOn,uRipDbg,uHi;uniform vec2 uMap,uRipPx;uniform vec4 uDr[4];uniform vec3 uCam,uSun,uSunC,uSky,uHor,uFog;varying float vD;varying vec2 vF;varying vec2 vS;varying vec3 vW;varying vec4 vR;'+
     'void main(){if(vD<0.003)discard;'+
-    'vec2 uv=vW.xz*0.30;vec2 fl=clamp(vF,-1.6,1.6)*0.6;float sp=length(vF);'+
+    'vec2 xz=vW.xz;float swirl=0.0,eye=0.0,spiral=0.0;'+
+    // whirlpools: twist the surface pattern round each running drain, darken its eye, and draw spiral streaks
+    'for(int i=0;i<4;i++){vec4 d=uDr[i];if(d.z<=0.0)continue;vec2 e=vW.xz-d.xy;float r=length(e);if(r>1.2)continue;float st=d.z*smoothstep(1.2,0.15,r);'+
+    'float an=st*2.2/(r+0.22)+uT*d.z*3.0;float cs=cos(an),sn=sin(an);xz=d.xy+vec2(cs*e.x-sn*e.y,sn*e.x+cs*e.y);swirl=max(swirl,st);eye=max(eye,d.z*exp(-r*r/0.06));'+
+    'float ang=atan(e.y,e.x);spiral=max(spiral,st*st*smoothstep(0.82,0.99,sin(ang*3.0+log(r+0.04)*7.0+uT*d.z*9.0))*smoothstep(0.04,0.2,r)*smoothstep(0.9,0.3,r));}'+
+    'vec2 uv=xz*0.30;vec2 fl=clamp(vF,-1.6,1.6)*0.6;float sp=length(vF);'+
     'float p0=fract(uT*0.35),p1=fract(uT*0.35+0.5);'+
     'vec3 a=texture2D(tN,uv-fl*p0+vec2(uT*0.021,uT*0.013)).rgb;vec3 b=texture2D(tN,uv*1.07+0.37-fl*p1-vec2(uT*0.017,-uT*0.019)).rgb;'+
-    'vec3 m=mix(a,b,abs(1.0-2.0*p0));vec3 fine=texture2D(tN,vW.xz*1.3+vec2(-uT*0.05,uT*0.04)).rgb;vec2 nn=(m.xy*2.0-1.0)+(fine.xy*2.0-1.0)*0.35;'+
-    'float calm=smoothstep(0.0,0.04,vD);float amp=(0.20+min(sp,1.2)*0.6)*calm;'+
-    'vec3 N=normalize(vec3(nn.x*amp,1.0,nn.y*amp));vec3 V=normalize(uCam-vW);'+
-    'float fres=0.08+0.92*pow(1.0-max(dot(N,V),0.0),3.2);'+
-    'float murk=1.0-exp(-max(vD,0.0)*7.5);vec3 tv=uCam-vW;float tl=uTorch*1.5/(1.0+dot(tv,tv)*0.10);float lit=uDay+tl;'+
-    'vec3 body=mix(vec3(0.55,0.44,0.27),vec3(0.38,0.27,0.13),murk)*lit;float al=mix(0.22,0.98,murk);'+
+    'vec3 m=mix(a,b,abs(1.0-2.0*p0));vec3 fine=vec3(0.5,0.5,0.75),chop=vec3(0.5);if(uHi>0.5){fine=texture2D(tN,xz*1.3+vec2(-uT*0.05,uT*0.04)).rgb;chop=texture2D(tN,xz*3.7+vec2(uT*0.09,-uT*0.07)).rgb;}'+
+    'float near=1.0-smoothstep(4.0,18.0,length(uCam.xz-vW.xz));vec2 nn=(m.xy*2.0-1.0)+(fine.xy*2.0-1.0)*0.45+(chop.xy*2.0-1.0)*0.3*near;'+
+    'float calm=smoothstep(0.0,0.04,vD);float amp=(0.2+min(sp,1.2)*0.55+swirl*0.5)*calm;'+
+    'vec3 N=normalize(vec3(nn.x*amp-vS.x*3.0*calm,1.0,nn.y*amp-vS.y*3.0*calm));float crest=0.0;vec2 rg=vec2(0.0);'+
+    // ripples: slope of the ripple height field, sampled one texel either side
+    'if(uRipOn>0.5){vec2 ru=vW.xz/uMap;vec2 o=uRipPx/uMap;float hr=texture2D(tRip,ru+vec2(o.x,0.0)).r,hu=texture2D(tRip,ru+vec2(0.0,o.y)).r,hl,hd;'+
+    'if(uHi>0.5){hl=texture2D(tRip,ru-vec2(o.x,0.0)).r;hd=texture2D(tRip,ru-vec2(0.0,o.y)).r;}else{hl=texture2D(tRip,ru).r;hd=hl;hr+=hr-hl;hu+=hu-hd;}'+
+    'vec2 gr=vec2(hr-hl,hu-hd)/(2.0*uRipPx);rg=gr;N=normalize(N+vec3(-gr.x,0.0,-gr.y)*5.0);crest=smoothstep(0.12,0.3,length(gr));}'+
+    'vec3 V=normalize(uCam-vW);'+
+    'float fres=0.06+0.94*pow(1.0-max(dot(N,V),0.0),4.0);'+
+    'float murk=1.0-exp(-max(vD,0.0)*8.0);vec3 tv=uCam-vW;float tl=uTorch*1.5/(1.0+dot(tv,tv)*0.10);float lit=uDay+tl;'+
+    // silt: lighter and darker clouds in the water that drift with the flow
+    'float silt=m.r;if(uHi>0.5)silt=texture2D(tN,uv*0.45-fl*p0*0.5+0.11).b*0.6+m.r*0.4;'+
+    'vec3 body=mix(vec3(0.50,0.45,0.31),vec3(0.27,0.22,0.13),murk)*(0.86+0.28*silt)*lit;body*=1.0-eye*0.55;vec2 sl=-rg-vS*1.5;body*=1.0+clamp(dot(sl,normalize(uSun.xz+vec2(1e-4)))*4.0,-0.4,0.4)*calm;float al=mix(0.18,0.97,murk);'+
     'vec3 R=reflect(-V,N);vec3 skyc=mix(uHor,uSky,clamp(R.y*1.25,0.0,1.0));skyc=mix(vec3(0.20,0.21,0.17)*lit,skyc,smoothstep(0.04,0.30,R.y+nn.x*0.05))+vec3(0.05,0.07,0.08)*uTorch;'+
-    'if(uRefl>0.5){vec2 ruv=vR.xy/vR.w*0.5+0.5+nn*0.03*calm;skyc=texture2D(tR,clamp(ruv,0.003,0.997)).rgb;}'+
-    'vec3 col=mix(body,skyc,fres);al=mix(al,1.0,fres*0.85);'+
-    'float sd=max(dot(R,uSun),0.0);col+=uSunC*(pow(sd,90.0)*1.3+pow(sd,14.0)*0.10*step(0.62,fine.b));col+=vec3(1.0,0.93,0.8)*tl*pow(max(dot(R,V),0.0),10.0)*0.5;'+
-    'float foam=smoothstep(0.18,0.8,sp)*smoothstep(0.50,0.74,m.b)*calm;col=mix(col,vec3(0.95,0.93,0.86)*lit,foam*0.75);al=max(al,foam*0.75);'+
-    'float lap=0.5+0.5*sin(uT*1.7+m.r*9.0);float edge=(1.0-smoothstep(0.006+0.014*lap,0.045+0.025*lap,vD));col=mix(col,vec3(1.0,0.97,0.88)*lit,edge*0.8);al=max(al,edge*0.85);'+
-    'al*=smoothstep(0.003,0.009,vD);'+
+    'if(uRefl>0.5){vec2 ruv=vR.xy/vR.w*0.5+0.5+N.xz*0.12*calm;skyc=mix(skyc,texture2D(tR,clamp(ruv,0.003,0.997)).rgb,0.88);}'+
+    'vec3 col=mix(body,skyc,fres*calm);al=mix(al,1.0,fres*0.8*calm);'+
+    'float sd=max(dot(R,uSun),0.0);col+=uSunC*(pow(sd,900.0)*(1.0+2.0*uHi)+pow(sd,60.0)*0.18+pow(sd,40.0)*0.22*smoothstep(0.8,0.92,chop.b)*near)*calm;col+=vec3(1.0,0.93,0.8)*tl*pow(max(dot(R,V),0.0),10.0)*0.5;'+
+    // foam: streaks where the current is quick, on ripple crests, and in the whirlpool's arms
+    'float foam=smoothstep(0.12,0.6,sp)*smoothstep(0.52,0.76,m.b)*calm;foam=max(foam,crest*0.35*calm);foam=max(foam,spiral*0.5);'+
+    // the shore: a foam line a few centimetres wide whatever the slope, broken up and lapping
+    'vec2 gD=vec2(dFdx(vD),dFdy(vD));vec2 gx=vec2(length(dFdx(vW.xz)),length(dFdy(vW.xz)));float dslope=length(gD)/max(length(gx),1e-4);'+
+    'float shoreDist=vD/max(dslope,0.015);float lap=0.5+0.5*sin(uT*1.6+m.r*8.0);float edge=(1.0-smoothstep(0.03+0.05*lap,0.16+0.06*lap,shoreDist))*smoothstep(0.35,0.62,fine.b+0.25)*(1.0-smoothstep(0.03,0.09,vD));'+
+    'foam=max(foam,edge*0.9);col=mix(col,vec3(0.96,0.94,0.87)*lit,foam);al=max(al,foam*0.92);'+
+    'al*=smoothstep(0.003,0.008,vD);'+
     'float sc=uScan*step(0.009,vD)*(0.6+0.4*sin(uT*9.0-length(vW.xz-uCam.xz)*1.6));col=mix(col,vec3(0.25,1.0,0.92),sc*0.8);al=max(al,sc*0.85);'+
-    'gl_FragColor=vec4(col,al);'+FOGF+'}'});
+    'gl_FragColor=vec4(col,al);'+FOGF+'if(uRipDbg>0.5){float h=texture2D(tRip,vW.xz/uMap).r;gl_FragColor=vec4(0.5+h*60.0,0.5,0.5-h*60.0,1.0);}}'});
+
+// ---------------------------------------------------------------- ripples: a wave simulation on the graphics card
+// A height field a few centimetres a texel over the whole site (R = height now, G = height a step ago). Each 1/60 s:
+// the wave equation, damped, held at zero where there is no water (the flood simulation's depths come in through
+// tSim) so ripples bounce off walls and die on the shore. Each bump has a dip round it, so it makes rings rather than
+// a swell. (Carrying the ripples along with the current was tried: the resampling blurred them away within a second.) Anything that touches the water
+// adds a bump (rip()). Needs half-float render targets; without them the flat rings in fx do the job instead.
+var RIP={ok:false,a:null,b:null,sim:null,simData:null,scene:null,cam:null,mat:null,acc:0,imp:[],n:0,W:0,H:0,px:0.1,dt:1/60};
+(function(){var gl=renderer.getContext();RIP.ok=!!(renderer.capabilities.isWebGL2&&(renderer.extensions.has('EXT_color_buffer_float')||renderer.extensions.has('EXT_color_buffer_half_float')));
+  if(!RIP.ok)return;void gl;
+  var imp=[];for(var k=0;k<16;k++)imp.push(new THREE.Vector4());RIP.imp=imp;
+  RIP.mat=new THREE.ShaderMaterial({uniforms:{tPrev:{value:null},tSim:{value:null},uTex:{value:new THREE.Vector2()},uMap:U.uMap,uK:{value:0.04},uDamp:{value:0.992},uDt:{value:1/60},uImp:{value:imp},uImpN:{value:0}},
+    vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}',
+    fragmentShader:'precision highp float;uniform sampler2D tPrev,tSim;uniform vec2 uTex,uMap;uniform float uK,uDamp,uDt;uniform vec4 uImp[16];uniform int uImpN;varying vec2 vUv;'+
+      'void main(){vec4 s=texture2D(tSim,vUv);vec2 a=vUv;vec4 c=texture2D(tPrev,a);'+
+      'float sum=texture2D(tPrev,a+vec2(uTex.x,0.0)).r+texture2D(tPrev,a-vec2(uTex.x,0.0)).r+texture2D(tPrev,a+vec2(0.0,uTex.y)).r+texture2D(tPrev,a-vec2(0.0,uTex.y)).r;'+
+      'float h=(2.0*c.r-c.g+uK*(sum-4.0*c.r))*uDamp;vec2 w=vUv*uMap;'+
+      'for(int i=0;i<16;i++){if(i>=uImpN)break;vec4 p=uImp[i];vec2 e=w-p.xy;float q=dot(e,e)/(p.z*p.z);h+=p.w*(exp(-q)-0.25*exp(-q*0.25));}'+
+      'h*=smoothstep(0.008,0.03,s.r);h=clamp(h,-0.08,0.08);gl_FragColor=vec4(h,c.r,0.0,1.0);}',depthTest:false,depthWrite:false});
+  RIP.scene=new THREE.Scene();RIP.cam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);RIP.scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),RIP.mat));
+})();
+function ripSetup(){
+  if(!RIP.ok){U.uRipOn.value=0;return}
+  var hi=quality()==='high',px=hi?0.07:0.12,W=Math.min(400,Math.ceil(world.def.w/px)),H=Math.min(400,Math.ceil(world.def.h/px));px=Math.max(world.def.w/W,world.def.h/H);
+  if(RIP.a){RIP.a.dispose();RIP.b.dispose()}if(RIP.sim)RIP.sim.dispose();
+  var o={type:THREE.HalfFloatType,format:THREE.RGBAFormat,minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:false,stencilBuffer:false,wrapS:THREE.ClampToEdgeWrapping,wrapT:THREE.ClampToEdgeWrapping};
+  RIP.a=new THREE.WebGLRenderTarget(W,H,o);RIP.b=new THREE.WebGLRenderTarget(W,H,o);RIP.W=W;RIP.H=H;RIP.px=px;
+  var cl=new THREE.Color(0,0,0);renderer.setClearColor(cl,0);[RIP.a,RIP.b].forEach(function(t){renderer.setRenderTarget(t);renderer.clear()});renderer.setRenderTarget(null);renderer.setClearColor(SKY.fog,1);
+  RIP.simData=new Uint16Array(world.W*world.H*4);RIP.sim=new THREE.DataTexture(RIP.simData,world.W,world.H,THREE.RGBAFormat,THREE.HalfFloatType);RIP.sim.minFilter=RIP.sim.magFilter=THREE.LinearFilter;RIP.sim.needsUpdate=true;
+  U.uMap.value.set(world.def.w,world.def.h);U.uRipPx.value.set(px,px);RIP.mat.uniforms.uTex.value.set(1/W,1/H);RIP.mat.uniforms.tSim.value=RIP.sim;
+  var c=2.1,dt=hi?1/60:1/30;RIP.dt=dt;RIP.mat.uniforms.uDamp.value=hi?0.99:0.98;RIP.mat.uniforms.uK.value=Math.min(0.45,(c*dt/px)*(c*dt/px));RIP.n=0;RIP.acc=0;U.uRipOn.value=1;U.tRip.value=RIP.a.texture;
+}
+// a bump on the water at (x, z) metres, r metres across, a metres high (negative: a dip)
+function rip(x,z,r,a){if(!RIP.ok||RIP.n>=16)return;RIP.imp[RIP.n++].set(x,z,Math.max(r,RIP.px*0.8),a)}
+function ripSim(){ // copy the flood's depths into tSim (ripples only live where there is water)
+  if(!RIP.ok)return;var S=world.S,n=S.n,D=RIP.simData,h=THREE.DataUtils.toHalfFloat,i;
+  for(i=0;i<n;i++)D[i*4]=h(S.solid[i]?0:S.d[i]);
+  RIP.sim.needsUpdate=true}
+function ripStep(dt){
+  if(!RIP.ok||!world)return;var st=RIP.dt;RIP.acc=Math.min(RIP.acc+dt,st*(st<0.02?4:2));var did=0;
+  while(RIP.acc>=st){RIP.acc-=st;RIP.mat.uniforms.tPrev.value=RIP.a.texture;RIP.mat.uniforms.uImpN.value=did?0:RIP.n;
+    renderer.setRenderTarget(RIP.b);renderer.render(RIP.scene,RIP.cam);var t=RIP.a;RIP.a=RIP.b;RIP.b=t;did=1}
+  renderer.setRenderTarget(null);if(did)RIP.n=0;U.tRip.value=RIP.a.texture;
+}
 function setEnv(kind){var c=kind==='cellar';
   SKY.fog.setHex(c?0x0d1113:0xe9dcc4);SKY.zen.setHex(c?0x1a2023:0x4f86c0);SKY.hor.setHex(c?0x20272a:0xf3dfbd);SKY.sunC.setHex(c?0x000000:0xffd7a0);
   scene.fog.color.copy(SKY.fog);scene.fog.near=U.uFogN.value=c?5:45;scene.fog.far=U.uFogF.value=c?30:210;hemi.intensity=c?0.2:0.6;sun.intensity=c?0:0.95;sun.castShadow=!c;torch.intensity=c?1.3:0;U.uTorch.value=c?1:0;U.uDay.value=c?0.1:1;skyDome.visible=!c}
@@ -134,22 +208,24 @@ function setEnv(kind){var c=kind==='cellar';
 var world=null,def=null,lv=null,dynDirty=false,dynEnds=[];
 function rebuildDyn(){dynDirty=false;if(lv.dyn){lv.grp.remove(lv.dyn);EWLook.dispose(lv.dyn,[lv.mats.plain])}var d=EWLook.dyn(world,lv);lv.dyn=d.grp;dynEnds=d.ends;lv.grp.add(d.grp);renderer.shadowMap.needsUpdate=true}
 // A mirror picture of the site for the water to reflect: the scene drawn once more from under the water level. It is what
-// makes the water read as water, so every tier gets it: 512 x 320 every frame on High, 256 x 160 every other frame on Low.
+// makes the water read as water, so every tier gets it: half the screen's resolution with smoothed edges every frame on
+// High, a third of it every other frame on Low.
 var reflN=0,reflSize=0,reflRT=null,reflCam=new THREE.PerspectiveCamera(),reflPlane=new THREE.Plane(new THREE.Vector3(0,1,0),1e4),waterH=0,waterHT=0; // the plane sits on the walls' materials all the time; it only bites during the mirror pass
 function renderReflection(){
-  if(!lv||(mirrorOff&&save.set.q==='auto')){U.uRefl.value=0;return}var hi=quality()==='high',sz=hi?512:256;
+  if(!lv||(mirrorOff&&save.set.q==='auto')){U.uRefl.value=0;return}var hi=quality()==='high',db=renderer.getDrawingBufferSize(new THREE.Vector2()),f=hi?0.5:0.34,rw=Math.max(256,Math.round(db.x*f)),rh=Math.max(160,Math.round(db.y*f)),sz=rw*10000+rh;
   if(!hi&&(reflN++&1)&&reflRT)return;
-  if(!reflRT||reflSize!==sz){if(reflRT)reflRT.dispose();reflRT=new THREE.WebGLRenderTarget(sz,sz*0.625);reflSize=sz;U.tR.value=reflRT.texture}
+  if(!reflRT||reflSize!==sz){if(reflRT)reflRT.dispose();reflRT=new THREE.WebGLRenderTarget(rw,rh);reflSize=sz;U.tR.value=reflRT.texture}
   reflCam.fov=camera.fov;reflCam.aspect=camera.aspect;reflCam.near=0.1;reflCam.far=320;reflCam.updateProjectionMatrix();
   reflCam.position.set(camera.position.x,2*waterH-camera.position.y,camera.position.z);reflCam.rotation.order='YXZ';reflCam.rotation.set(-camera.rotation.x,camera.rotation.y,0);reflCam.updateMatrixWorld(true);
   reflCam.matrixWorldInverse.copy(reflCam.matrixWorld).invert();U.uReflVP.value.multiplyMatrices(reflCam.projectionMatrix,reflCam.matrixWorldInverse);
   reflPlane.constant=-(waterH+0.02);lv.wm.visible=false;var hv=hands.root.visible;hands.root.visible=false;ghost.visible=false;fx.visible=false;U.uRefl.value=0;
-  renderer.setRenderTarget(reflRT);renderer.render(scene,reflCam);renderer.setRenderTarget(null);
+  U.uNoSun.value=1;renderer.setRenderTarget(reflRT);renderer.render(scene,reflCam);renderer.setRenderTarget(null);U.uNoSun.value=0;
   reflPlane.constant=1e4;lv.wm.visible=true;hands.root.visible=hv;ghost.visible=true;fx.visible=true;U.uRefl.value=1;
 }
 var vv=[0,0],dummy=new THREE.Object3D();
 function updateWaterMesh(){
   var S=world.S,W=lv.W,H=lv.H,g=S.g,bar=S.bar,d=S.d,solid=S.solid,wp=lv.wp,wd=lv.wd,wf=lv.wf,wet=lv.wet,x,z,i,j,hs=0,hw=0,k;
+  var pv=lv.prev;for(i=0;i<S.n;i++){pv[i*2]=wp[i*3+1];pv[i*2+1]=wd[i]}
   for(z=0;z<H;z++)for(x=0;x<W;x++){i=z*W+x;var dd=d[i],zb=g[i]+bar[i];
     if(!solid[i]&&dd>0.03&&world.mask[i]){var wq=dd/(1+((x*CS-pl.x)*(x*CS-pl.x)+(z*CS-pl.z)*(z*CS-pl.z))*0.02);hs+=(zb+dd)*wq;hw+=wq}
     if(!solid[i]&&dd>0.0015){wp[i*3+1]=zb+dd;wd[i]=dd;S.vel(i,vv);wf[i*2]=vv[0];wf[i*2+1]=vv[1];wet[i]=1}
@@ -157,11 +233,15 @@ function updateWaterMesh(){
       if(c){var y=s/c;wp[i*3+1]=y;wd[i]=solid[i]?sd/c:Math.min(y-zb,0.012)}else{wp[i*3+1]=zb-0.03;wd[i]=-0.03}
       wf[i*2]=0;wf[i*2+1]=0;if(wet[i]>0)wet[i]=Math.max(0,wet[i]-0.0011)}   // ground the water has left stays dark for about half a minute
   }
-  // a working drain pulls a dip into the surface above it
-  for(k=0;k<world.drains.length;k++){var dr=world.drains[k];if(dr.flow<0.006)continue;var cx=Math.floor(dr.x/CS),cz=Math.floor(dr.z/CS);
-    for(z=cz-3;z<=cz+3;z++)for(x=cx-3;x<=cx+3;x++){if(x<0||z<0||x>=W||z>=H)continue;i=z*W+x;if(wd[i]<=0.01)continue;var ex=(x+0.5)*CS-dr.x,ez=(z+0.5)*CS-dr.z;wp[i*3+1]-=Math.min(wd[i]*0.7,dr.flow*0.42/(0.22+ex*ex+ez*ez))}}
+  // running drains: where the whirlpools go (the four strongest)
+  var dl=world.drains.slice().sort(function(p,q){return q.flow-p.flow});for(k=0;k<4;k++){var dr=dl[k],ud=U.uDr.value[k];if(dr&&dr.flow>0.006&&S.d[dr.i]>0.02)ud.set(dr.x,dr.z,clamp(dr.flow*5,0.15,1),0);else ud.set(0,0,0,0)}
+  ripSim();
+  // surface slope at each vertex, from the neighbours either side (water only)
+  var sl=lv.slope;for(z=0;z<H;z++)for(x=0;x<W;x++){i=z*W+x;if(wd[i]<=0.003){sl[i*2]=0;sl[i*2+1]=0;continue}
+    var l=x>0&&wd[i-1]>0.003?i-1:i,r=x<W-1&&wd[i+1]>0.003?i+1:i,u=z>0&&wd[i-W]>0.003?i-W:i,dn=z<H-1&&wd[i+W]>0.003?i+W:i;
+    sl[i*2]=r!==l?(wp[r*3+1]-wp[l*3+1])/((r-l)*CS):0;sl[i*2+1]=dn!==u?(wp[dn*3+1]-wp[u*3+1])/(((dn-u)/W)*CS):0}
   if(hw>0)waterHT=hs/hw;waterH+=(waterHT-waterH)*0.15;
-  lv.wg.attributes.position.needsUpdate=true;lv.wg.attributes.aDepth.needsUpdate=true;lv.wg.attributes.aFlow.needsUpdate=true;lv.tg.attributes.aWet.needsUpdate=true;
+  lv.wg.attributes.position.needsUpdate=true;lv.wg.attributes.aDepth.needsUpdate=true;lv.wg.attributes.aFlow.needsUpdate=true;lv.wg.attributes.aPrev.needsUpdate=true;lv.wg.attributes.aSlope.needsUpdate=true;lv.tg.attributes.aWet.needsUpdate=true;
   if(world.dirty.length){var seenV={};world.dirty.forEach(function(i){[i,i-1,i+1,i-W,i+W].forEach(function(k){if(k>=0&&k<S.n&&!seenV[k]){seenV[k]=1;lv.vert(k)}})});world.dirty.length=0;
     lv.tg.attributes.position.needsUpdate=true;lv.tg.attributes.normal.needsUpdate=true;lv.tg.attributes.color.needsUpdate=true}
 }
@@ -170,17 +250,18 @@ function updateWaterMesh(){
 var fx=new THREE.Group();scene.add(fx);
 var ringTex=(function(){var c=document.createElement('canvas');c.width=c.height=128;var x=c.getContext('2d'),g=x.createRadialGradient(64,64,30,64,64,62);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(0.72,'rgba(255,255,255,.1)');g.addColorStop(0.88,'rgba(255,255,255,.95)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,128,128);return new THREE.CanvasTexture(c)})();
 var rings=[];(function(){var g=new THREE.PlaneGeometry(1,1);g.rotateX(-Math.PI/2);for(var k=0;k<18;k++){var m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:ringTex,transparent:true,opacity:0,depthWrite:false,color:0xf4efe2}));m.visible=false;m.renderOrder=7;fx.add(m);rings.push({m:m,t:1,s:1,d:1})}})();
-function ring(x,y,z,size,dur){var best=rings[0];for(var k=0;k<rings.length;k++)if(rings[k].t>=1){best=rings[k];break}else if(rings[k].t>best.t)best=rings[k];best.t=0;best.s=size||1;best.d=dur||0.9;best.m.position.set(x,y+0.012,z);best.m.visible=true}
+function ring(x,y,z,size,dur){if(RIP.ok){rip(x,z,Math.max(0.05,size*0.06),Math.min(0.008,0.0015+size*0.0022));return}var best=rings[0];for(var k=0;k<rings.length;k++)if(rings[k].t>=1){best=rings[k];break}else if(rings[k].t>best.t)best=rings[k];best.t=0;best.s=size||1;best.d=dur||0.9;best.m.position.set(x,y+0.012,z);best.m.visible=true}
 var ND=160,dropP=new Float32Array(ND*3),dropV=new Float32Array(ND*3),dropL=new Float32Array(ND),dropC=new Float32Array(ND*3),dropK=0,dropGeo=new THREE.BufferGeometry();
 dropGeo.setAttribute('position',new THREE.BufferAttribute(dropP,3));dropGeo.setAttribute('color',new THREE.BufferAttribute(dropC,3));
-var drops=new THREE.Points(dropGeo,new THREE.PointsMaterial({size:0.075,vertexColors:true,transparent:true,opacity:0.95,depthWrite:false}));drops.frustumCulled=false;fx.add(drops);
+var dotTex=(function(){var c=document.createElement('canvas');c.width=c.height=32;var x=c.getContext('2d'),g=x.createRadialGradient(16,16,0,16,16,15);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(0.55,'rgba(255,255,255,.85)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,32,32);return new THREE.CanvasTexture(c)})();
+var drops=new THREE.Points(dropGeo,new THREE.PointsMaterial({size:0.07,map:dotTex,vertexColors:true,transparent:true,opacity:0.95,depthWrite:false}));drops.frustumCulled=false;fx.add(drops);
 for(var dk=0;dk<ND;dk++)dropP[dk*3+1]=-99;
 function drop(x,y,z,vx,vy,vz,life,dirt){var k=dropK;dropK=(dropK+1)%ND;dropP[k*3]=x;dropP[k*3+1]=y;dropP[k*3+2]=z;dropV[k*3]=vx;dropV[k*3+1]=vy;dropV[k*3+2]=vz;dropL[k]=life;
   if(dirt){dropC[k*3]=0.34;dropC[k*3+1]=0.25;dropC[k*3+2]=0.16}else{dropC[k*3]=0.95;dropC[k*3+1]=0.96;dropC[k*3+2]=0.93}}
 function splash(x,y,z,n,power,dirt){for(var k=0;k<n;k++){var a=Math.random()*6.283,r=(0.4+Math.random())*power;drop(x+Math.cos(a)*0.08,y+0.03,z+Math.sin(a)*0.08,Math.cos(a)*r,1.4*power+Math.random()*1.6*power,Math.sin(a)*r,0.5+Math.random()*0.35,dirt)}}
 // pale flecks that ride the surface, so you can see which way the water is going
 var NF=70,fleckP=new Float32Array(NF*3),fleckA=new Float32Array(NF),fleckGeo=new THREE.BufferGeometry();fleckGeo.setAttribute('position',new THREE.BufferAttribute(fleckP,3));
-var flecks=new THREE.Points(fleckGeo,new THREE.PointsMaterial({size:0.03,color:0xf1ecdd,transparent:true,opacity:0.6,depthWrite:false}));flecks.frustumCulled=false;flecks.renderOrder=6;fx.add(flecks);
+var flecks=new THREE.Points(fleckGeo,new THREE.PointsMaterial({size:0.035,map:dotTex,color:0xf1ecdd,transparent:true,opacity:0.55,depthWrite:false}));flecks.frustumCulled=false;flecks.renderOrder=6;fx.add(flecks);
 function fleckSpawn(k){var S=world.S,tries=8,x,z,i;while(tries--){if(world.drains.length&&Math.random()<0.6){var d=world.drains[(Math.random()*world.drains.length)|0],a=Math.random()*6.283,r=0.6+Math.random()*4.5;x=d.x+Math.cos(a)*r;z=d.z+Math.sin(a)*r}else{x=pl.x+(Math.random()-0.5)*14;z=pl.z+(Math.random()-0.5)*14}
     i=world.cell(x,z);if(i>=0&&!S.solid[i]&&S.d[i]>0.03){S.vel(i,vv);var near=false;for(var q=0;q<world.drains.length;q++){var dr=world.drains[q];if(dr.flow>0.01&&Math.hypot(dr.x-x,dr.z-z)<3.5)near=true}if(!near&&vv[0]*vv[0]+vv[1]*vv[1]<0.0036)continue;fleckP[k*3]=x;fleckP[k*3+2]=z;fleckA[k]=1.5+Math.random()*3;return}}fleckP[k*3+1]=-99;fleckA[k]=0.4+Math.random()}
 function updateFx(dt,time){
@@ -237,6 +318,11 @@ function movePlayer(dt){
   if(moving){pl.bob+=dt*sp*l*1.9;pl.step+=dt*sp*l;if(pl.step>1.5){pl.step=0;var w2=dep>0.03;sfx(w2?'wade':'step',w2?0.35+Math.min(0.5,dep):0.35);if(w2){ring(pl.x-sy*0.3,pl.y+dep,pl.z-cy*0.3,0.9+dep*2,0.9);splash(pl.x-sy*0.3,pl.y+dep,pl.z-cy*0.3,3+Math.round(dep*14),0.55+dep)}}}
   pl.dep=dep;if(pl.kick>0)pl.kick=Math.max(0,pl.kick-dt*5);
 }
+// Wading: the legs shove the flood (a bow wave and a wake in the simulation itself), and stir ripples round the shins.
+var wadeT=0;
+function wade(dt,vx,vz){if(!world||pl.dep<0.04||!pl.ground)return;var sp=Math.hypot(vx,vz),S=world.S;
+  if(sp>0.2){S.push(pl.x/CS,pl.z/CS,vx,vz,1.7,4.5,dt);wadeT-=dt;if(wadeT<=0){wadeT=0.04;var nx=vx/sp,nz=vz/sp,a=Math.min(0.012,0.006+pl.dep*0.012)*Math.min(1,sp/2.2);
+    rip(pl.x+nx*0.12-nz*0.14,pl.z+nz*0.12+nx*0.14,0.06,a);rip(pl.x+nx*0.12+nz*0.14,pl.z+nz*0.12-nx*0.14,0.06,a)}}}
 function placeCamera(){camera.position.set(pl.x,pl.y+EYE-pl.crouch*0.55+(pl.speed>0?Math.sin(pl.bob)*0.035:0),pl.z);camera.rotation.set(pl.pitch+pl.kick*0.02,pl.yaw,0)}
 // where the player is pointing on the ground or the water, within reach
 var aim={x:0,y:0,z:0,i:-1,ok:false,dx:0,dz:0};
@@ -471,6 +557,7 @@ function enter(d){
   def=d;setEnv(def.sky);
   world=new EW.World(def,{hoseLen:save.gear.hose2?16:9,cableLen:save.gear.reel?18:8});lv=EWLook.level(world,{terrainMat:terrainMat,waterMat:waterMat,T:T,clip:reflPlane});scene.add(lv.grp);
   lv.stations.forEach(function(s){s.g.visible=stationOn(s.s.kind)});
+  lv.prev=new Float32Array(world.S.n*2);lv.wg.setAttribute('aPrev',new THREE.BufferAttribute(lv.prev,2));lv.slope=new Float32Array(world.S.n*2);lv.wg.setAttribute('aSlope',new THREE.BufferAttribute(lv.slope,2));lv.tg.setAttribute('aWd',lv.wg.attributes.aDepth);ripSetup();
   pl.x=world.spawn.x;pl.z=world.spawn.z;pl.y=world.groundAt(pl.x,pl.z);pl.yaw=world.spawn.yaw;pl.pitch=def.depot?0:-0.16;pl.vy=0;pl.ground=true;pl.walked=0;sway.lx=pl.yaw;sway.ly=pl.pitch;
   var first=firstJob(),own=owned();
   bar=def.depot?[]:first?['rake']:vanNeeded()?save.load.filter(function(t){return save.gear[t]}):own;
@@ -483,7 +570,7 @@ function enter(d){
   if(!def.depot){var r=save.jobs[def.id]||(save.jobs[def.id]={stars:0,best:0,n:0});r.seen=1;persist()}
   depotSay=def.depot?(shopOpen()&&!save.seen.shopSaid?T('You have pay to spend. The gear bench is on the right'):T('Pick your next job from the board')):'';
   if(def.depot&&shopOpen()&&!save.seen.shopSaid){save.seen.shopSaid=1;persist()}
-  fitShadow();updateWaterMesh();for(var k=0;k<NF;k++)fleckSpawn(k);placeCamera();state='play';show(null);lockPointer();
+  fitShadow();updateWaterMesh();updateWaterMesh();for(var k=0;k<NF;k++)fleckSpawn(k);placeCamera();state='play';show(null);lockPointer();
   if(!def.depot&&tutK<0)toast(T(def.brief),4.5);
 }
 function finishJob(){
@@ -592,9 +679,10 @@ function frame(now){
   var dt=Math.min(0.25,(now-last)/1000);last=now; // a slow frame is caught up (to a quarter of a second) rather than played in slow motion
   if(document.hidden||!world)return;
   if(state==='play'){
-    readKeys();var mn=Math.ceil(dt/0.04),mk;for(mk=0;mk<mn;mk++)movePlayer(dt/mn); // walk in short steps so a slow frame cannot carry you through a wall
+    readKeys();var ox=pl.x,oz=pl.z,mn=Math.ceil(dt/0.04),mk;for(mk=0;mk<mn;mk++)movePlayer(dt/mn); // walk in short steps so a slow frame cannot carry you through a wall
+    wade(dt,(pl.x-ox)/Math.max(dt,1e-3),(pl.z-oz)/Math.max(dt,1e-3));
     placeCamera();
-    acc+=dt;var n=0,t0=performance.now();while(acc>=STEP&&n<8){world.step(STEP);acc-=STEP;n++}if(n){updateWaterMesh();simMs+=(performance.now()-t0-simMs)*0.1}if(acc>STEP)acc=0;
+    acc+=dt;var n=0,t0=performance.now();while(acc>=STEP&&n<8){world.step(STEP);acc-=STEP;n++}if(n){updateWaterMesh();simMs+=(performance.now()-t0-simMs)*0.1}if(acc>STEP)acc=0;U.uLerp.value=clamp(acc/STEP,0,1);U.uHi.value=quality()==='high'?1:0;
     var hid=tool();if(useHeld&&(hid==='rake'||hid==='shovel'||hid==='squeegee'))useTool(false);
     updateThings(dt,now/1000);updateFx(dt,now/1000);updateGhost();animView(dt);updateHud(dt);
     if(!def.depot&&state==='play'&&world.isDone()){endT+=dt;if(endT>2.2)finishJob()}else endT=0;
@@ -603,12 +691,12 @@ function frame(now){
   if(state==='menu')return;
   // On Auto, when frames stay poor for nine seconds: first High drops to Low, then Low drops the mirror pass. It never steps back up.
   if(state==='play'&&save.set.q==='auto'&&!mirrorOff){fpsT+=dt;fpsN++;if(fpsT>=3){var fps=fpsN/fpsT;fpsT=0;fpsN=0;slowN=fps<(quality()==='high'?34:27)?slowN+1:0;if(slowN>=3){slowN=0;if(quality()==='high'){autoLow=true;resize();fitShadow()}else mirrorOff=true}}}
-  U.uT.value=now/1000;U.uCam.value.copy(camera.position);skyDome.position.copy(camera.position);renderReflection();
+  U.uT.value=now/1000;U.uCam.value.copy(camera.position);skyDome.position.copy(camera.position);if(state==='play')ripStep(dt);renderReflection();
   renderer.render(scene,camera);
 }
 show('menu');requestAnimationFrame(frame);
 // for tests and tuning from the console
 window.__ew={ff:function(sec){for(var k=0;k<sec*30;k++)world.step(STEP);updateWaterMesh()},get world(){return world},get lv(){return lv},pl:pl,inp:inp,save:save,persist:persist,
   start:function(id){if(id!=='depot')selJob=id;enter(id==='depot'?EWMaps.depot:jobBy(id))},get state(){return state},get simMs(){return simMs},renderer:renderer,scan:scan,use:useTool,select:selectTool,
-  get bar(){return bar},get inv(){return inv},get aim(){return aim},setRot:function(r){rot=r},rest:function(){cool=0},open:openStation,get tut(){return tutK},quality:quality,get mirrorOff(){return mirrorOff}};
+  get bar(){return bar},get inv(){return inv},get aim(){return aim},setRot:function(r){rot=r},rest:function(){cool=0},open:openStation,get tut(){return tutK},quality:quality,RIP:RIP,rip:rip,U:U,get mirrorOff(){return mirrorOff}};
 })();
