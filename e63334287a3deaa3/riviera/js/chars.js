@@ -432,7 +432,7 @@
   AP.hold = function (obj) {
     if (this.held && this.held.parent) this.held.parent.remove(this.held);
     this.held = obj;
-    if (obj) { (this.bones.weapon_r || this.bones.hand_r).add(obj); obj.position.set(0, 0, 0); obj.quaternion.identity(); }
+    if (obj) { this.root.add(obj); this._wAim = 0; }
   };
   AP.setVisible = function (v) { this.root.visible = v; this.visibleFlag = v; };
 
@@ -606,6 +606,9 @@
       var l2 = ax.x.clone().applyAxisAngle(ax.y, this.aimY * 0.7 * aw);
       for (i = 0; i < AP2.length; i++) { bb = b[AP2[i][0]]; if (bb) rotWorld(bb, _q.setFromAxisAngle(l2, -this.aimP * AP2[i][1] * aw)); }
     }
+    // the held weapon: grip at the right hand, pointing along the aim (lowered when carried); melee weapons and
+    // throwables follow the forearm so swings carry them round
+    if (this.held) this._placeWeapon(dt);
     // left hand onto the weapon's fore-grip
     var held = this.held, want = 0;
     if (held && held.userData.gripL) {
@@ -615,12 +618,37 @@
       if (this.lhWant != null) want = this.lhWant;
       if (this.moves.length) want *= 0.3;
     }
+    want = 0;   // left-hand IK off for now: with the code-placed guns the elbow solves upward (see README)
     this.lhW = M.approach(this.lhW, want, 6, dt);
     if (this.lhW > 0.02 && held && b.upperarm_l) {
       held.updateMatrixWorld(true);
       var tp = held.userData.gripL.getWorldPosition(new T.Vector3());
       twoBone(b.upperarm_l, b.lowerarm_l, b.hand_l, tp, this.lhW);
     }
+  };
+  var _wq = new T.Quaternion(), _wm = new T.Matrix4(), _wf = new T.Vector3(), _wu = new T.Vector3(), _wr = new T.Vector3(), _wh = new T.Vector3(), _we = new T.Vector3();
+  AP._placeWeapon = function (dt) {
+    var w = this.held, b = this.bones, rq = this.root.quaternion;
+    b.hand_r.getWorldPosition(_wh);
+    if (w.userData.oneHand && (w.userData.id === 'knife' || w.userData.id === 'bat' || w.userData.id === 'crowbar' || w.userData.id === 'hammer' || w.userData.id === 'club' || w.userData.id === 'machete' || w.userData.id === 'frag' || w.userData.id === 'sticky' || w.userData.id === 'smoke')) {
+      b.lowerarm_r.getWorldPosition(_we);
+      _wf.subVectors(_wh, _we).normalize();
+      _wu.set(0, 1, 0);
+      _wf.addScaledVector(_wu, 0.9).normalize();
+    } else {
+      this._wAim = M.approach(this._wAim || 0, this.weaponAim || 0, 6, dt);
+      var yaw = this.root.rotation.y + this.aimY * 0.6;
+      var pitch = M.lerp(w.userData.oneHand ? -1.1 : -0.55, (this.weaponPitch || 0), this._wAim);
+      _wf.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+      if (!w.userData.oneHand) _wf.x += Math.cos(yaw) * 0.12 * (1 - this._wAim), _wf.z -= Math.sin(yaw) * 0.12 * (1 - this._wAim);   // carried across the body
+      _wf.normalize();
+    }
+    _wr.crossVectors(_wf, new T.Vector3(0, 1, 0)).normalize(); _wu.crossVectors(_wr, _wf).normalize();
+    _wm.makeBasis(_wr.negate(), _wu, _wf);   // +X = weapon left, +Y up, +Z barrel
+    _wq.setFromRotationMatrix(_wm);
+    w.quaternion.copy(rq).invert().multiply(_wq);
+    w.position.copy(this.root.worldToLocal(_wh.clone()));
+    w.updateMatrixWorld(true);
   };
   function mirror(n) { return n.replace(/_r$/, '_X').replace(/_l$/, '_r').replace(/_X$/, '_l'); }
 

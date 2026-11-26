@@ -122,7 +122,7 @@
     var gap = Math.max(3, spread / RP.Cam.fov * window.innerHeight * 0.9);
     e.cross.style.setProperty('--gap', gap.toFixed(1) + 'px');
     e.cross.className = (showX ? 'on' : '') + (d.melee || !showX ? ' dot' : '') + (H.overEnemy ? ' enemy' : '') + (RP.Cam.lock ? ' lock' : '');
-    document.body.classList.toggle('scoped', RP.Cam.scoped);
+    document.body.classList.toggle('scoped', !!RP.Cam.scoped);
     // bars
     e.hp.style.width = (p.hp / RP.TUNING.maxHealth * 100).toFixed(1) + '%';
     e.hp.parentNode.classList.toggle('low', p.hp < 35);

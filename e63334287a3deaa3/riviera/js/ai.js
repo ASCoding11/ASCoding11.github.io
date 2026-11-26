@@ -480,8 +480,8 @@
       a.drive({ speed: g.speed, dir: rel, strafe: g.state === 'combat' ? 1 : 0, stealth: g.crouch || 0, sprint: 0, turnRate: 0 });
       if (g.state === 'combat' && g.lastSeen) {
         var e = g.actor.chest(new T.Vector3()), t = RP.G.player.actor.chest(new T.Vector3()), dy = t.y - e.y, dh = Math.hypot(t.x - e.x, t.z - e.z);
-        a.setAim(Math.atan2(dy, dh), 0);
-      } else a.setAim(0, 0);
+        a.setAim(Math.atan2(dy, dh), 0); a.weaponAim = g.actor._up === 'aimIdle' || g.actor._up === 'aimPistol' ? 1 : 0; a.weaponPitch = Math.atan2(dy, dh);
+      } else { a.setAim(0, 0); a.weaponAim = 0; a.weaponPitch = 0; }
       a.update(dt);
     });
     RP.G.civilians.forEach(function (c) {

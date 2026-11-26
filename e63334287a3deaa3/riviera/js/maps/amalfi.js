@@ -36,11 +36,12 @@
   }
   // flattened pads (piazzas, terraces) and road beds: [kind, ...]
   var PADS = [
-    { x0: -30, z0: 6, x1: 24, z1: 22, y: 2.6, blend: 6 },                // waterfront square + road
-    { x0: -19, z0: -38, x1: 12, z1: -2, y: 5, blend: 5 },                // Piazza Duomo
-    { x0: 26, z0: -46, x1: 66, z1: -6, y: 13, blend: 6 },                // the cathedral's terrace
-    { x0: 8, z0: 22, x1: 44, z1: 34, y: 1.6, blend: 3 },                 // harbour quay
-    { cx: -168, cz: 40, r: 32, y: 24, blend: 14 },                       // villa plateau
+    { x0: -30, z0: 6, x1: 24, z1: 22, y: 2.4, blend: 6 },                // waterfront square + road
+    { x0: -19, z0: -38, x1: 12, z1: -2, y: 4.75, blend: 5 },                // Piazza Duomo
+    { x0: 26, z0: -46, x1: 66, z1: -6, y: 12.75, blend: 6 },
+    { x0: 11, z0: -30, x1: 26.5, z1: -10, y: 4.6, cut: true },        // under the cathedral steps (the steps are boxes)                // the cathedral's terrace
+    { x0: 8, z0: 22, x1: 44, z1: 34, y: 1.4, blend: 3 },                 // harbour quay
+    { cx: -168, cz: 40, r: 32, y: 23.85, blend: 14 },                       // villa plateau
     { cx: -176, cz: 2, r: 13, y: 20, blend: 8 },                         // lemon terrace 1 (below the villa, north)
     { cx: -150, cz: -10, r: 12, y: 16.5, blend: 8 },                     // lemon terrace 2
     { cx: 140, cz: 54, r: 9, y: 22, blend: 8 }                           // the watchtower's rock
@@ -68,6 +69,7 @@
     var h = baseH(x, z);
     for (var i = 0; i < PADS.length; i++) {
       var p = PADS[i], m;
+      if (p.cut) { if (x >= p.x0 && x <= p.x1 && z >= p.z0 && z <= p.z1) h = Math.min(h, p.y); continue; }
       if (p.r) { var d = Math.hypot(x - p.cx, z - p.cz); m = M.smooth((p.r + p.blend - d) / p.blend); }
       else { var ex = Math.max(p.x0 - x, 0, x - p.x1), ez = Math.max(p.z0 - z, 0, z - p.z1); m = M.smooth((p.blend - Math.hypot(ex, ez)) / p.blend); }
       if (m > 0) h = M.lerp(h, p.y, m);
@@ -458,12 +460,12 @@
 
     // paved squares
     PADS.forEach(function (p, k) {
-      if (k > 3) return;
+      if (k > 4 || p.cut) return;
       occMark((p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2, p.x1 - p.x0, p.z1 - p.z0, 0, 0);
     });
-    B.box('paving', -3.5, 4.9, -20, 31, 0.1, 36, 0, { col: col('#c9c2b6'), ao: 0, uvs: 3 });   // Piazza Duomo
-    B.box('paving', -3, 2.5, 14, 54, 0.1, 16, 0, { col: col('#bdb6aa'), ao: 0, uvs: 3 });     // waterfront square
-    B.box('paving', 26, 1.5, 28, 36, 0.1, 12, 0, { col: col('#b4aca0'), ao: 0, uvs: 3 });     // quay
+    B.box('paving', -3.5, 4.85, -20, 31, 0.15, 36, 0, { col: col('#e6dfd2'), ao: 0, uvs: 3, collide: 'stone', kind: 'floor' });   // Piazza Duomo
+    B.box('paving', -3, 2.45, 14, 54, 0.15, 16, 0, { col: col('#d6cfc2'), ao: 0, uvs: 3, collide: 'stone', kind: 'floor' });     // waterfront square
+    B.box('paving', 26, 1.45, 28, 36, 0.15, 12, 0, { col: col('#c9c1b4'), ao: 0, uvs: 3, collide: 'stone', kind: 'floor' });     // quay
     W.addBox({ x: 26, z: 34.2, y0: -3, y1: 1.6, hx: 18, hz: 0.3, mat: 'stone' });   // quay edge (nothing to stand on beyond)
     // roads and lanes as strips over the flattened ground
     ROADS.forEach(function (r) {
@@ -577,7 +579,7 @@
     var n = 46, run = (sx1 - sx0) / n;
     for (var i = 0; i < n; i++) {
       var yy = yP + (yT - yP) * (i + 1) / n, xx = sx0 + run * (i + 0.5);
-      B.box('stone', xx, yy - 0.5, (z0 + z1) / 2, run + 0.01, 0.5, z1 - z0, 0, { col: col(i % 2 ? '#ddd5c6' : '#d5ccbc'), ao: 0.05, uvs: 1.5 });
+      B.box('stone', xx, yP - 0.5, (z0 + z1) / 2, run + 0.01, yy - yP + 0.5, z1 - z0, 0, { col: col(i % 2 ? '#ddd5c6' : '#d5ccbc'), ao: 0.05, uvs: 1.5 });
     }
     // side walls of the stair (cover going up)
     [z0 - 0.4, z1 + 0.4].forEach(function (z) {
@@ -587,7 +589,7 @@
       }
     });
     // terrace in front of the church
-    B.box('paving', 46, yT - 0.1, -26, 40, 0.1, 40, 0, { col: col('#cfc8bb'), uvs: 3 });
+    B.box('paving', 46, yT - 0.15, -26, 40, 0.15, 40, 0, { col: col('#ddd6c9'), uvs: 3, collide: 'stone', kind: 'floor' });
     occMark(40, -26, 54, 44, 0, 0);
     // porch: five pointed arches on slim columns, striped
     var fx = 29, fz0 = -31, fz1 = -9;
@@ -604,7 +606,7 @@
     // interlaced blind arches (dark recesses) across the front
     for (i = 0; i < 7; i++) {
       var az = fz0 + 1.5 + i * 3.1;
-      B.box('dark', fx + 1.28, frontY + 1.5, az, 0.05, 3.6, 1.6, 0, {});
+      B.box('stone', fx + 1.28, frontY + 1.5, az, 0.05, 3.6, 1.4, 0, { col: col('#cfc6b6'), ao: 0 });
     }
     // the gable with its golden mosaic
     var gab = new T.CylinderGeometry(0.0001, 1, 1, 3, 1); gab.rotateZ(0);
@@ -735,7 +737,7 @@
     B.box('wood', -162, y, 21, 1.6, 1.1, 0.8, 0, { col: col('#2a1c14'), collide: 'wood', cover: true, kind: 'cabinet' });
     RP.map.spots.ledger = { x: -178, y: y + 0.85, z: 20.2 };
     // the terrace: paving, balustrade on the cliff edge, the bar, tables, string lights, pergola with vines
-    B.box('paving', -168, y - 0.1, 50, 40, 0.12, 28, 0, { col: col('#e4dccd'), uvs: 2 });
+    B.box('paving', -168, y - 0.15, 50, 40, 0.15, 28, 0, { col: col('#e4dccd'), uvs: 2, collide: 'stone', kind: 'floor' });
     balustrade(-188, 64, -148, 64, y); balustrade(-188, 36, -188, 64, y); balustrade(-148, 44, -148, 64, y);
     B.box('wood', -152, y, 40, 1.0, 1.15, 6, 0, { col: col('#efe9dc'), collide: 'wood', cover: true, kind: 'bar' });
     B.box('stone', -152, y + 1.15, 40, 1.2, 0.08, 6.2, 0, { col: col('#2b2a28') });

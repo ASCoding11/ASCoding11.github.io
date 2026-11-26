@@ -103,9 +103,9 @@
   // ------------------------------------------------------------------ per frame
   var PADB = { 0: 'jump', 1: 'melee', 2: 'reload', 3: 'interact', 4: 'wheel', 5: 'cover', 6: 'aim', 7: 'fire', 8: 'pause', 9: 'pause', 10: 'stealth', 11: 'camera', 13: 'throw', 12: 'prev' };
   I.update = function (dt) {
-    for (var k in now) prev[k] = now[k];
+    prev = now;
     now = {};
-    for (k in state) now[k] = state[k];
+    for (var k in state) now[k] = state[k];
     for (k in touch.btn) if (touch.btn[k]) now[k] = true;
     I._now = now;
     I._edges = function () { for (var k in now) if (now[k] && !prev[k]) edgeP[k] = true; for (k in prev) if (prev[k] && !now[k]) edgeR[k] = true; };

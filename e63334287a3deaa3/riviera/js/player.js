@@ -749,11 +749,12 @@
       if (p.cover.blind && !a.moveOf('blindFire')) a.move('blindFire', { stack: true });
     }
     if (!(cv && p.cover.blind) && a.moveOf('blindFire')) a.endMove('blindFire');
+    a.weaponAim = aimingPose ? 1 : 0; a.weaponPitch = RP.Cam.pitch;
     a.drive({ speed: p.speed, dir: p.moveDir || 0, strafe: (p.aiming || p.hipT > 0 || cv || fighting) ? 1 : 0, stealth: stealthW,
       sprint: p.sprinting ? 1 : 0, turnRate: p.turnRate || 0, accel: p.accel || 0 });
     // aim offsets: pitch from the camera, yaw from the gap between body and crosshair
-    if (aimingPose || fighting) a.setAim(-RP.Cam.pitch + (p.recoilP || 0) * 0.5, M.clamp(M.wrap(RP.Cam.yaw - p.yaw), -0.9, 0.9) * (aimingPose ? 1 : 0.3));
-    else a.setAim(-RP.Cam.pitch * 0.35, M.clamp(M.wrap(RP.Cam.yaw - p.yaw), -1, 1) * 0.35);   // head follows the camera a little
+    if (aimingPose || fighting) a.setAim(RP.Cam.pitch + (p.recoilP || 0) * 0.5, M.clamp(M.wrap(RP.Cam.yaw - p.yaw), -0.9, 0.9) * (aimingPose ? 1 : 0.3));
+    else a.setAim(RP.Cam.pitch * 0.35, M.clamp(M.wrap(RP.Cam.yaw - p.yaw), -1, 1) * 0.35);   // head follows the camera a little
     a.update(dt);
   };
 })();
