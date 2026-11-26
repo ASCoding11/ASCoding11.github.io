@@ -13,8 +13,10 @@
  * (--accent, --panel, --ink…), so it fits the light Back Room page and the dark phone page.
  *
  * ---- Adding an entry ----
- * Add an object to the TOP of NEWS below (newest first) when your pull request changes
- * something players will notice:
+ * In a pull request, DON'T edit NEWS below: add your entry as its own file in news/ (see news/README.md). When the
+ * pull request is merged, a workflow gives it the next version and the merge date and puts it at the top of NEWS
+ * here in this same format, so open pull requests never conflict on these lines. Only a commit pushed straight to
+ * main (or a typo fix in an old entry) edits NEWS directly: add an object to the TOP (newest first):
  *
  *   {date: '2026-10-22', version: '1.7', title: 'Short headline', kind: 'game',
  *    games: ['Deepword'], items: ['One short sentence per change, in plain words.', '…']},
@@ -95,6 +97,11 @@
      items: ['On every setting: a new sky with soft clouds, a clearer view of the island as you drop, a sea that fades into the horizon, warm layered cliffs and more varied grass and dirt.',
        'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
        'Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, a column of colour where a player is knocked out, a ring of sparks when your shots land and a puff of dust when you build.']},
+    {date: '2026-11-25', version: '1.51.4', title: 'Site rules and privacy, in plain words', kind: 'fix',
+     link: {text: 'Read the terms', href: '/terms/'}, items: [
+      'The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can\'t promise.',
+      'The privacy policy now also explains Prompted, buying items, the Marketplace and what we ask of players under 13.',
+      'Both are linked at the bottom of every main page.']},
     {date: '2026-11-25', version: '1.51.3', title: 'A proper "page not found"', kind: 'fix',
      items: [
       'A mistyped or old link now shows a "Page not found" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.',
