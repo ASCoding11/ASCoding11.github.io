@@ -7,6 +7,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Leaf Sweep: one handful at a time": "Leaf Sweep: un puñado a la vez",
+    "Leaf Sweep": "Leaf Sweep",
+    "Leaf Sweep now starts with a short note on what to do, and you pick up leaves one handful at a time: each click or tap grabs what is in a small circle.": "Leaf Sweep ahora empieza con una nota breve sobre qué hacer, y recoges las hojas un puñado a la vez: cada clic o toque agarra lo que hay en un círculo pequeño.",
+    "Bigger handfuls widens that circle, and Steady hands later lets you hold to keep grabbing.": "Puñados más grandes agranda ese círculo, y más adelante Manos firmes te deja mantener pulsado para seguir agarrando.",
+    "The rake pulls at first; Rake push lets it push leaves away too. If you already had the rake, you keep pushing.": "Al principio el rastrillo solo tira; el empuje del rastrillo te deja también empujar las hojas. Si ya tenías el rastrillo, sigues pudiendo empujar.",
     "Flood Crew: more to do, faster water": "Flood Crew: más que hacer, agua más rápida",
     "Flood Crew": "Flood Crew",
     "The first job has more to learn: shut the tap, tighten a dripping joint with the wrench, clear a second drain and bucket out a puddle that has nowhere to go.": "El primer trabajo enseña más: cierra la llave, aprieta una junta que gotea con la llave inglesa, despeja un segundo desagüe y saca con el cubo un charco que no tiene salida.",

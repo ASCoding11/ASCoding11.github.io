@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.07', title: 'Leaf Sweep: one handful at a time', kind: 'feature',
+     tags: ['Leaf Sweep'], items: [
+      'Leaf Sweep now starts with a short note on what to do, and you pick up leaves one handful at a time: each click or tap grabs what is in a small circle.',
+      'Bigger handfuls widens that circle, and Steady hands later lets you hold to keep grabbing.',
+      'The rake pulls at first; Rake push lets it push leaves away too. If you already had the rake, you keep pushing.']},
     {date: '2026-11-26', version: '2.06', title: 'Flood Crew: more to do, faster water', kind: 'feature',
      tags: ['Flood Crew'], items: [
       'The first job has more to learn: shut the tap, tighten a dripping joint with the wrench, clear a second drain and bucket out a puddle that has nowhere to go.',
