@@ -121,7 +121,7 @@
       'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
       'Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, a column of colour where a player is knocked out, a ring of sparks when your shots land and a puff of dust when you build.']},
     {date: '2026-11-26', version: '1.62', title: 'New game: Flood Crew', kind: 'game',
-     games: ['Flood Crew'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
+     games: ['Flood Crew:ebbwork'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
       'Flood Crew is in Arcade: a first-person game about getting flooded places dry.',
       'Work out why each place flooded: a buried drain, a leak, a broken bank, or ground with nowhere to run to.',
       'The water really flows. Rake a drain clear, dig a trench, lay sandbags or set up a pump, and watch where it goes.',
