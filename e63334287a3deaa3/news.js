@@ -90,6 +90,24 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '1.65', title: 'Blackwade: it hunts every hall', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'The monster follows you into every hall and comes up out of the water ahead of you soon after you arrive, so you know it\'s there.',
+      'The water gives you away: going in is heard across the whole hall, and every step you wade calls it closer.',
+      'It gets a little sharper each hall further in: it hears farther, reacts faster and moves quicker. Easy stays gentle; Hard does not.',
+      'Standing still and quiet on a tile is still safe, and pebbles, bottles, toys and flares pull it away.']},
+    {date: '2026-11-26', version: '1.64', title: 'Driftfall characters get real builds', kind: 'feature',
+     tags: ['Driftfall'], items: [
+      'Characters look more like people and less like blocks: a smaller head on a neck, arms that taper to the wrist, a narrower waist and boots with a toe and a sole.',
+      'Not everyone is the same shape any more: lean, average and broad builds, some with wider shoulders. Your outfit picks yours, and the Noob gets one from your colour.',
+      'The Noob has a rounder head with ears and a nose, and keeps its colours, backpack and straps.',
+      'Every outfit was re-fitted to the new body and still looks like itself.',
+      'Same height, same hit areas, same moves and controls as before.']},
+    {date: '2026-11-26', version: '1.63', title: 'Driftfall looks brighter', kind: 'feature',
+     tags: ['Driftfall'], items: [
+      'On every setting: a new sky with soft clouds, a clearer view of the island as you drop, a sea that fades into the horizon, warm layered cliffs and more varied grass and dirt.',
+      'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
+      'Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, a column of colour where a player is knocked out, a ring of sparks when your shots land and a puff of dust when you build.']},
     {date: '2026-11-26', version: '1.62', title: 'New game: Flood Crew', kind: 'game',
      games: ['Flood Crew'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
       'Flood Crew is in Arcade: a first-person game about getting flooded places dry.',
