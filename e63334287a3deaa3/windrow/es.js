@@ -70,5 +70,18 @@ if (window.BackRoomLang) BackRoomLang.add({
   // controls panel
   'Move': 'Moverse', 'Work': 'Trabajar', 'Walk forward': 'Caminar adelante', 'Walk back': 'Caminar atrás', 'Step left': 'Paso a la izquierda', 'Step right': 'Paso a la derecha',
   'Sprint': 'Correr', 'After you earn the running shoes': 'Cuando ganes las zapatillas para correr', 'After you earn the knee pads': 'Cuando ganes las rodilleras',
-  'Empty sack or open a gate': 'Vaciar el saco o abrir un portón', 'Next tool': 'Siguiente herramienta'
+  'Empty sack or open a gate': 'Vaciar el saco o abrir un portón', 'Next tool': 'Siguiente herramienta',
+  // the new start: one line of instruction at a time, and the Front Yard
+  'Clear every last leaf.': 'Limpia hasta la última hoja.', 'Play': 'Jugar', 'Carry on': 'Continuar', 'Shed and map': 'Cobertizo y mapa',
+  'Front Yard': 'Jardín Delantero', 'The garden gate': 'El portón del jardín', 'Gatehouse Court is open': 'El Patio de la Portería está abierto',
+  'Hold Use to gather leaves': 'Mantén Usar para juntar hojas', 'Hold the left mouse button to gather leaves': 'Mantén el botón izquierdo del mouse para juntar hojas',
+  'Your sack is full: empty it in the bin': 'Tu saco está lleno: vacíalo en la compostera',
+  'Tap the shed button to spend your acorns': 'Toca el botón del cobertizo para gastar tus bellotas', 'Press {k} to spend your acorns in the shed': 'Pulsa {k} para gastar tus bellotas en el cobertizo',
+  'You can afford the rake: tap the shed button': 'Ya te alcanza para el rastrillo: toca el botón del cobertizo', 'You can afford the rake: press {k}': 'Ya te alcanza para el rastrillo: pulsa {k}',
+  'Bought the rake: hold to drag leaves into a pile': 'Compraste el rastrillo: mantén pulsado para juntar las hojas en un montón',
+  'Bought the blower: hold to push leaves away': 'Compraste la sopladora: mantén pulsado para empujar las hojas',
+  'The gate is open: the next garden is waiting': 'El portón está abierto: el siguiente jardín te espera',
+  'Leaves that reach a yellow grate are paid at once': 'Las hojas que llegan a una rejilla amarilla se pagan al instante',
+  'Clear every leaf in the yard and this gate opens': 'Limpia todas las hojas de este jardín y el portón se abre',
+  '{m} to walk, mouse to look, hold the left button to work, {j} to jump. {a} to switch tools, {e} at a bin or gate, {t} for the shed and map, {f} for the leaf finder.': '{m} para caminar, mouse para mirar, mantén el botón izquierdo para trabajar y {j} para saltar. {a} para cambiar de herramienta, {e} en una compostera o portón, {t} para el cobertizo y el mapa y {f} para el buscador de hojas.'
 });
