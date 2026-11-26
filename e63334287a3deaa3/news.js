@@ -32,6 +32,9 @@
  *   version  a new game or a big feature bumps the minor number and drops the patch
  *            (1.6 -> 1.7, and 1.7.2 -> 1.8); a fix-only release adds or bumps a patch
  *            number (1.7 -> 1.7.1 -> 1.7.2). Never reuse a version.
+ *            From the winter update (27 November 2026) the numbers restart at 2.01 and count up the same way,
+ *            always with two digits in the middle: 2.01 -> 2.02 ... 2.09 -> 2.10, fixes 2.01.1, 2.01.2. Write
+ *            '2.01', never '2.1'. Entries before that keep their 1.x numbers.
  *            An entry added afterwards for something that already went out (like the four puzzle
  *            games of Oct 23) can leave version out; it then shows as just "New game".
  *   title    a few words; it's what the strip shows while it's the latest entry
