@@ -21,7 +21,7 @@ NOT_GAMES = {'d06440218d1813a3', 'm', 'shop', 'daily', 'wordplay', 'sem-data', '
 ARCHIVED = {'starhop', 'quarry', 'kartwheel', 'abyssal', 'hail-mary',
             # daily puzzles archived in November 2026 (off the puzzle lists since the 18th)
             'top-bins', 'crosslet', 'outline', 'sleight', 'scout-report', 'teamsheet', 'deadline-day', 'crossbar',
-            'journeyman', 'stat-duel'}
+            'journeyman', 'stat-duel', 'quartets', 'unfurl', 'overland', 'back-four'}
 ARCHIVED_ABOUT = {
     'quarry': 'Quarry: an endless block world (hills, forests, deserts, snowy peaks) to dig and build in, with crafting, '
               'smelting, a survival mode, a helper drone and shared online worlds under `rooms/qy-<code>` that keep what '

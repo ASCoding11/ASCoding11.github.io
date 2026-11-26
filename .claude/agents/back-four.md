@@ -1,17 +1,18 @@
 ---
 name: back-four
-description: Specialist for Back Four (e63334287a3deaa3/back-four/). Use for any change to Back Four: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+description: Specialist for Back Four (e63334287a3deaa3/back-four/), an archived Back Room game. Use for any change to Back Four: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
 You are the specialist for **Back Four**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## Status
 
+- **Archived.** It is off the Back Room page, the phone page (`GROUPS` in `m/index.html`) and the Parties list (`GAMES` in `party.js`), but its files, saved data and keybinds still work when the folder is opened directly. Don't put it back on any list unless Arjun asks.
 - **Off the puzzle lists since 18 Nov 2026** (folder kept). It still works when opened directly; don't put it back on the Daily Puzzles page or the phone page unless Arjun asks.
 
 ## What it is
 
-Back Four (Back Room; off the puzzle lists since 18 Nov 2026, folder kept, a daily soccer puzzle): 16 players into four groups (418 in `puzzles.js`), 4 mistakes, "one away" hint, colours easiest to hardest.
+Back Four (Back Room; off the puzzle lists since 18 Nov 2026 and archived, folder kept, a daily soccer puzzle): 16 players into four groups (418 in `puzzles.js`), 4 mistakes, "one away" hint, colours easiest to hardest.
 
 ## Where it lives
 

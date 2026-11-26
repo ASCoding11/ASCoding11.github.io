@@ -352,7 +352,7 @@
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'fewest', l: 'Fewest guesses in a daily win', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 4, hi: 9, low: 1 }] },
-    { d: 'quartets', n: 'Quartets', grp: 'Daily Puzzles', st: [
+    { d: 'quartets', n: 'Quartets', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'perfect', l: 'Perfect days (no mistakes)', chip: 'Perfect days', f: 'n', u: 'day', rate: 1 / 10 }] },
@@ -380,11 +380,11 @@
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'tries', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 6, low: 1 }] },
-    { d: 'unfurl', n: 'Unfurl', grp: 'Daily Puzzles', st: [
+    { d: 'unfurl', n: 'Unfurl', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'tries', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 6, low: 1 }] },
-    { d: 'overland', n: 'Overland', grp: 'Daily Puzzles', st: [
+    { d: 'overland', n: 'Overland', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'perfect', l: 'Perfect routes', chip: 'Perfect routes', f: 'n', u: 'route', rate: 1 / 10 }] },
@@ -418,7 +418,7 @@
       { k: 'spare', l: 'Most guesses to spare (of 5)', chip: 'Guesses to spare', f: 'n', hi: 5 },
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
-    { d: 'back-four', n: 'Back Four', grp: 'Daily Puzzles', st: [
+    { d: 'back-four', n: 'Back Four', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'clean', l: 'Most mistakes to spare (of 4)', chip: 'Mistakes to spare', f: 'n', hi: 4 },
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
