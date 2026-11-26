@@ -7,6 +7,15 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Chromeline: one button and 26 new pieces": "Chromeline: un solo botón y 26 piezas nuevas",
+    "Chromeline": "Chromeline",
+    "Chromeline is now one button: hold to ride on the ground, hold in the air to flip backwards, let go to stop the spin. The arrow keys and the two round touch buttons are gone.": "Chromeline ahora se juega con un solo botón: mantén para avanzar en el suelo, mantén en el aire para girar hacia atrás y suelta para frenar el giro. Ya no están las flechas ni los dos botones redondos táctiles.",
+    "26 new track pieces, from easy to very hard: spike ceilings, glowing posts, floating triangles, wavy ground, broken track, steep ramps, triple loops, a giant loop, fast-dropping platforms and more.": "26 piezas de pista nuevas, de fáciles a muy difíciles: techos de pinchos, postes brillantes, triángulos flotantes, suelo ondulado, pista rota, rampas empinadas, rizos triples, un rizo gigante, plataformas que caen enseguida y más.",
+    "Loops now pay: gems sit inside them, a gold crown waits at the top of some, and every loop raises your run multiplier, which multiplies every trick and gem.": "Los rizos ahora valen la pena: tienen gemas dentro, algunos esconden una corona dorada arriba y cada rizo sube tu multiplicador de la carrera, que multiplica cada truco y cada gema.",
+    "Endless gets hard much sooner and keeps getting harder, and level time targets are tighter.": "El modo Infinito se pone difícil mucho antes y sigue endureciéndose, y los tiempos objetivo de los niveles son más ajustados.",
+    "Flips take a little more skill: a slightly slower spin and a stricter clean landing.": "Los giros piden un poco más de habilidad: el giro es algo más lento y el aterrizaje limpio es más exigente.",
+    "The riders are gone: the bike rides alone now. If you owned or had picked a rider, your save still loads and nothing else changes.": "Ya no hay pilotos: ahora la moto va sola. Si tenías o habías elegido un piloto, tu partida se carga igual y no cambia nada más.",
+    "The Volt Hopper has a new look: a sharper shell, a headlight beam, arcs of light when it flips and a pulse of light where it lands.": "La Volt Hopper tiene un aspecto nuevo: un carenado más afilado, un haz de luz en el faro, arcos de luz cuando gira y un pulso de luz donde aterriza.",
     "Blackwade's shop is open again": "La tienda de Blackwade vuelve a estar abierta",
     "Blackwade": "Blackwade",
     "You can buy equipment and upgrades in Blackwade again. They are how you get further, so that shop stays open.": "Ya puedes volver a comprar equipo y mejoras en Blackwade. Son la forma de avanzar, así que esa tienda sigue abierta.",
