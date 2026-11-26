@@ -94,6 +94,12 @@
       'Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.',
       'Find it under Web Development Projects on the home page.'
     ]},
+    {date: '2026-11-25', version: '1.53', title: 'Driftfall characters get real builds', kind: 'feature', tags: ['Driftfall'],
+     items: ['Characters look more like people and less like blocks: a smaller head on a neck, arms that taper to the wrist, a narrower waist and boots with a toe and a sole.',
+       'Not everyone is the same shape any more: lean, average and broad builds, some with wider shoulders. Your outfit picks yours, and the Noob gets one from your colour.',
+       'The Noob has a rounder head with ears and a nose, and keeps its colours, backpack and straps.',
+       'Every outfit was re-fitted to the new body and still looks like itself.',
+       'Same height, same hit areas, same moves and controls as before.']},
     {date: '2026-11-25', version: '1.52', title: 'Driftfall looks brighter', kind: 'feature', tags: ['Driftfall'],
      items: ['On every setting: a new sky with soft clouds, a clearer view of the island as you drop, a sea that fades into the horizon, warm layered cliffs and more varied grass and dirt.',
        'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
