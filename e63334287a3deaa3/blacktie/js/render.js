@@ -108,9 +108,11 @@
     golden: { sun: [-0.62, 0.2, 0.56], sunCol: '#ffc98e', sunI: 2.5, zenith: '#4a78bf', horizon: '#f3d2ad', ground: '#6b6058',
       hemiSky: '#d6dbe8', hemiGround: '#c29a72', hemiI: 0.95, fog: '#e9cfb2', fogD: 0.0022, haze: 1.5, exposure: 1.02,
       grade: { sat: 1.12, warm: 0.08, cool: 0.05, lift: 0.015, contrast: 1.06 } },
-    dusk: { sun: [-0.72, 0.1, 0.42], sunCol: '#ffb07a', sunI: 1.9, zenith: '#2c4a86', horizon: '#f0a47a', ground: '#4a4250',
-      hemiSky: '#a3acd6', hemiGround: '#9a7458', hemiI: 1.05, fog: '#b8a2a0', fogD: 0.0022, haze: 2, exposure: 1.3,
-      grade: { sat: 1.1, warm: 0.06, cool: 0.1, lift: 0.02, contrast: 1.05 } }
+    // dusk: the sun is just above the sea in the west, most of the town is in the hills' shadow, so the sky does the
+    // lighting: a strong lavender-to-peach fill from above, warm bounce from below, lamps and windows carry the rest
+    dusk: { sun: [-0.74, 0.17, 0.44], sunCol: '#ffb27c', sunI: 2.3, zenith: '#34508f', horizon: '#f4ad82', ground: '#5a4c52',
+      hemiSky: '#c3c0e6', hemiGround: '#b98a66', hemiI: 1.75, fog: '#c7a9a2', fogD: 0.0019, haze: 2, exposure: 1.42,
+      grade: { sat: 1.12, warm: 0.07, cool: 0.07, lift: 0.022, contrast: 1.04 } }
   };
 
   R.setAtmos = function (name) {
