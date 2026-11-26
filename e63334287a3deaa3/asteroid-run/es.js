@@ -46,6 +46,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Weaves a glowing bridge over the holes ahead (Ability key or button, recharges).': 'Teje un puente brillante sobre los agujeros de adelante (tecla o botón de Habilidad, se recarga).',
   'Cracked tiles hold': 'No rompe baldosas', 'Double jump': 'Doble salto', 'Glide': 'Planeo', 'Crystal magnet': 'Imán de cristales', 'Top speed, slides': 'Máxima velocidad, resbala',
   'Biggest jump': 'El salto más grande', 'All-rounder': 'Equilibrado', '{n} (locked)': '{n} (bloqueado)', '(locked)': '(bloqueado)',
+  'The shop is closed for now. Coming soon.': 'La tienda está cerrada por ahora. Próximamente.', 'Coming soon': 'Próximamente', 'Locked': 'Bloqueado',
   'Speed': 'Velocidad', 'Sidestep': 'Esquive', 'Grip': 'Agarre', 'Unlock free: {x}.': 'Desbloqueo gratis: {x}.', 'clear {n} levels': 'supera {n} niveles', 'clear level {l} ({n})': 'supera el nivel {l} ({n})',
   'Unlock now for ◆{n}': 'Desbloquear ya por ◆{n}', 'you have ◆{n}': 'tienes ◆{n}', 'Endless best: {d}': 'Récord infinito: {d}',
   'None': 'Ninguna', 'Sparks': 'Chispas', 'Comet': 'Cometa', 'Embers': 'Brasas', 'Rainbow': 'Arcoíris',
