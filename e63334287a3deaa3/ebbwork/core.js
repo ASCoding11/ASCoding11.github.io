@@ -303,7 +303,7 @@ var EWMaps=(function(){
       b.surf(0,0,22,9,T.PAVE);b.surf(0,9,22,18,T.GRASS,1);b.surf(17,0,22,3,T.GRAVEL);
       b.noise(0.006,1.7,0,0,22,9);b.noise(0.02,2.3,0,9,22,18);
       b.wall(0,0,17,3,5.2,0xb9aa94,'house');
-      b.wall(17,0,22,0.5,1.9,0x6b5a45,'fence');b.wall(21.5,0,22,18,1.9,0x6b5a45,'fence');b.wall(0,17.5,22,18,1.9,0x6b5a45,'fence');b.wall(0,3,0.5,18,1.9,0x6b5a45,'fence');
+      b.wall(17,0,22,0.5,1.9,0x8f6f58,'fence');b.wall(21.5,0,22,18,1.9,0x8f6f58,'fence');b.wall(0,17.5,22,18,1.9,0x8f6f58,'fence');b.wall(0,3,0.5,18,1.9,0x8f6f58,'fence');
       b.wall(16.5,12.5,20.5,16,2.3,0x5d7a6a,'shed');
       b.wall(1,10,3.5,11,0.5,0x7a5a3c,'planter');b.wall(12.5,3,14,3.5,0.55,0x4c5b66,'bin');b.wall(14.5,3,15.5,3.5,0.9,0x3f6b4c,'bin');
       b.wall(5,13.5,6.5,14.5,0.72,0x8a8f93,'table');
@@ -430,7 +430,7 @@ var EWMaps=(function(){
     build:function(b){
       b.ground(function(x,z){return 0.05+0.012*dist(x,z,4.5,8.5)-0.05*bump(dist(x,z,4.5,8.5)/2.5)});
       b.surf(0,0,16,12,T.CONC);b.surf(0.5,6,8,11.5,T.PAVE);b.surf(11,5,15.5,11.5,T.GRAVEL);b.noise(0.004,1.7);
-      b.wall(0,0,16,2.5,3.6,0x5f7d8c,'house');b.wall(0,2.5,0.5,12,2.0,0x6b5a45,'fence');b.wall(15.5,2.5,16,12,2.0,0x6b5a45,'fence');b.wall(0,11.5,16,12,2.0,0x6b5a45,'fence');
+      b.wall(0,0,16,2.5,3.6,0x5f7d8c,'house');b.wall(0,2.5,0.5,12,2.0,0x8f6f58,'fence');b.wall(15.5,2.5,16,12,2.0,0x8f6f58,'fence');b.wall(0,11.5,16,12,2.0,0x8f6f58,'fence');
       b.wall(8,2.5,10.5,3.5,0.9,0x7a5a3c,'bench');b.wall(12,6,14.5,10.5,2.1,0xe9e4d6,'van');b.wall(1,2.5,2,3.5,1.0,0x7b6a55,'crate');
       b.station(4.5,2.52,'board',{nz:1,y:1.5});b.station(9.25,3.5,'shop',{nz:1,y:1.1});b.station(12,8.25,'van',{nx:-1,y:1.2});
       b.drain(4.5,8.5,{rate:0.08,cap:6});b.litter(4.5,8.5,0.7,7);b.litter(6,8,2.5,5);

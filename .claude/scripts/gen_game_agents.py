@@ -76,6 +76,7 @@ GENRE = {
     'patchwork-tower': ['create-game-assets', 'game-feel'],
     'flickerwood': ['game-ai', 'level-design', 'create-game-assets'],
     'lanternhold': ['tower-defense', 'game-ai'],
+    'ebbwork': ['level-design', 'physics-tuning', 'audio-design'],
     'ninefold': ['puzzle'], 'quartets': ['puzzle'], 'crosslet': ['puzzle'], 'sleight': ['puzzle'],
     'poopdle': ['puzzle'], 'back-four': ['puzzle'],
     'starhop': ['game-feel'], 'quarry': ['survival-crafting', 'procedural-gen'],
