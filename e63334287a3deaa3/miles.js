@@ -116,9 +116,9 @@
       // Top player in a game (mini badges). Game names stay in English.
       'Top player in {g}': 'Mejor jugador en {g}', 'Also top player in: {l}': 'También mejor jugador en: {l}', 'Top player in: {l}': 'Mejor jugador en: {l}',
       'Top player in a game': 'Mejor jugador de un juego', 'Top player in': 'Mejor jugador en',
-      'Small shields, after everything else. One player can hold several.': 'Escudos pequeños, después de todo lo demás. Un jugador puede tener varios.',
-      'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead.':
-        'Se gana: lidera la tabla principal de un juego (su Elo, o su mejor puntaje, tiempo o racha) para ganar su insignia. Pasa a quien tome la delantera.', 'Most Shell Crackers kills: {n}': 'Más bajas en Shell Crackers: {n}',
+      'Small shields, after everything else. One player can hold up to 3.': 'Escudos pequeños, después de todo lo demás. Un jugador puede tener hasta 3.',
+      'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead. One player holds at most 3: someone first in more games holds the first 3 in the Leaderboards’ game order, and the others are held by nobody until someone else takes the lead.':
+        'Se gana: lidera la tabla principal de un juego (su Elo, o su mejor puntaje, tiempo o racha) para ganar su insignia. Pasa a quien tome la delantera. Un jugador tiene como máximo 3: quien esté primero en más juegos tiene las 3 primeras según el orden de juegos de las Tablas de posiciones, y las demás no son de nadie hasta que otro tome la delantera.', 'Most Shell Crackers kills: {n}': 'Más bajas en Shell Crackers: {n}',
       'Ranked #{p} in miles, all time': 'Puesto #{p} en millas, histórico', 'Ranked #{p} in miles, this week': 'Puesto #{p} en millas, esta semana',
       'Ranked #{p} in miles, all time (tied for first)': 'Puesto #{p} en millas, histórico (empatado en el primero)', 'Ranked #{p} in miles, this week (tied for first)': 'Puesto #{p} en millas, esta semana (empatado en el primero)'
     });
@@ -226,7 +226,7 @@
   // ---- Top player in a game: mini badges ----
   // Whoever is first on a game's main board (leaderboard.js topBoards: its Elo board, or its best score, time or streak)
   // holds that game's mini badge: a small shield after every other badge, one per game they lead, so one player can hold
-  // several. Nobody is listed here: leaderboard.js works the holders out after every read of the boards and hands them over
+  // several, up to 3 (leaderboard.js's capTops leaves anyone past their three out of the answer). Nobody is listed here: leaderboard.js works the holders out after every read of the boards and hands them over
   // in the same answer as the #1 tags (setTops: mini). The words come from the game's name in leaderboard.js's GAMES
   // ("Top player in Stackfall (Sand)"), so a renamed game takes its badge with it. This table is only how each one looks: the
   // shield's colour (c) and a simple mark that hints at the game (e), SVG in a 16 x 16 box drawn inside the shield, light
@@ -833,10 +833,10 @@
         : k === 'shellcrackers' ? 'Earned: have more Shell Crackers kills of all time than anyone else, ' + CRACK_MIN + ' or more. It moves to whoever takes the lead.' : AWARD_KINDS[k].tip + '.');
     });
     // Top player in a game: one line for the rule, then every game's shield (each with its tooltip), from the boards' own list.
-    l = gSec(box, 'Top player in a game', 'Small shields, after everything else. One player can hold several.');
+    l = gSec(box, 'Top player in a game', 'Small shields, after everything else. One player can hold up to 3.');
     var B = LB(), ids = [];
     try { ids = B && B.topBoards ? B.topBoards().map(function (b) { return b.id; }) : Object.keys(MINI); } catch (e) { ids = Object.keys(MINI); }
-    gRow(l, [miniTag(ids[0] || 'stackfall')], 'Top player in a game', 'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead.');
+    gRow(l, [miniTag(ids[0] || 'stackfall')], 'Top player in a game', 'Earned: lead a game’s main board (its Elo, or its best score, time or streak) to earn its badge. It moves to whoever takes the lead. One player holds at most 3: someone first in more games holds the first 3 in the Leaderboards’ game order, and the others are held by nobody until someone else takes the lead.');
     var all = gEl('li', 'bra-g-r bra-g-mn'), wrap = gEl('div', 'bra-g-b');
     ids.forEach(function (id) { wrap.appendChild(miniTag(id, 20)); });
     all.appendChild(wrap); l.appendChild(all);
