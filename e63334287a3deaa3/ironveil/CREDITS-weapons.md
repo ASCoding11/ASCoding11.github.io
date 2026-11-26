@@ -29,6 +29,10 @@ What was changed (`tools/weapons/demark.py`, `tools/weapons/scanned.py`; downloa
 The SMG also got `_sightRear` and `_sightFront` empties (`tools/weapons/swap.mjs --add`).
 On 23 Nov the SMG was rebuilt from the same scripts (worn blued steel, a dropped stock, cross pins); no new outside
 source was used, the walnut grain is still the Poly Haven scan below.
+Late on 23 Nov the SMG was rebuilt again from the scripts (new receiver, jacket, sights, stock; field dirt) and got
+stamped markings drawn from code (`tools/weapons/stamps.py`): an invented pattern mark, serial number and selector
+symbols, no real maker's names, proof marks or insignia. The scanned rifle and pistol got field wear baked into their
+own maps (`tools/weapons/scanwear.py`); their meshes are unchanged and no new outside source was used.
 
 ## Poly Haven texture (CC0)
 

@@ -1,0 +1,44 @@
+# After a pull request with a What's new entry (a file in e63334287a3deaa3/news/) is merged, this gives the entry
+# the next version number and today's date (New York time), puts it at the top of NEWS in e63334287a3deaa3/news.js
+# with its Spanish in news-es.js, deletes the file and pushes the result to main. That way pull requests never edit
+# the same lines of news.js, so they don't conflict with each other there. See e63334287a3deaa3/news/README.md.
+name: "What's new: publish"
+on:
+  push:
+    branches: [main]
+    paths: ['e63334287a3deaa3/news/*.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: whats-new-publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 200 }
+      - name: Publish waiting entries
+        id: news
+        env: { NEWS_TZ: America/New_York }
+        run: node .github/scripts/news.js publish
+      - name: Push to main
+        # The titles come from pull requests, so they reach the shell only as an environment variable, never pasted into the script.
+        env: { SUMMARY: "${{ steps.news.outputs.summary }}" }
+        run: |
+          git add -A e63334287a3deaa3
+          if git diff --cached --quiet; then echo "Nothing to publish."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "What's new: $SUMMARY"
+          # If something else reached main meanwhile, redo the publish on top of it so versions stay in order.
+          for i in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            git fetch origin main && git reset --hard origin/main
+            node .github/scripts/news.js publish
+            git add -A e63334287a3deaa3
+            git diff --cached --quiet && exit 0
+            git commit -m "What's new: published waiting entries"
+          done
+          exit 1
