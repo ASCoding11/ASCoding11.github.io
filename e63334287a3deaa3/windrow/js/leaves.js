@@ -9,7 +9,7 @@
 (function () {
   'use strict';
   var WR = window.WR, CELL = WR.CELL, GW = WR.GW, GH = WR.GH, X0 = WR.X0, Z0 = WR.Z0;
-  var CAP = 16, HARD = 34, LH = 0.014, BASE = 0.014;
+  var CAP = 16, HARD = 34, LH = 0.014, BASE = 0.024;
   var DEAD = 0, SLEEP = 1, AWAKE = 2, TOBAG = 3, SINK = 4;
   var SHAPES = [
     { pts: [[0, -.5], [.22, -.15], [.2, .25]], big: 1 },                                  // oval, 6 triangles
@@ -54,7 +54,7 @@
       for (var k = 0; k < counts[ai]; k++, i++) {
         var q = r(), s2 = q < .34 ? 0 : q < .6 ? 1 : q < .8 ? 2 : 3;
         area[i] = ai; meshOf[i] = base + s2; slot[i] = perMesh[base + s2]++;
-        scl[i] = (0.2 + r() * 0.12) * SHAPES[s2].big; off[i] = r() * 0.012; rp[i] = (r() - .5) * .5; rr[i] = (r() - .5) * .5;
+        scl[i] = (0.2 + r() * 0.12) * SHAPES[s2].big * (mul < 1 ? 1.15 : 1); off[i] = r() * 0.012; rp[i] = (r() - .5) * .5; rr[i] = (r() - .5) * .5;
         col.set(a.pal[(r() * a.pal.length) | 0]); var b = 0.8 + r() * 0.35; cols.push(col.r * b, col.g * b, col.b * b);
       }
       for (s = 0; s < 4; s++) {
@@ -68,6 +68,28 @@
     for (i = 0; i < N; i++) { col.setRGB(cols[i * 3], cols[i * 3 + 1], cols[i * 3 + 2]); meshes[meshOf[i]].setColorAt(slot[i], col); }
     meshes.forEach(function (m) { if (m.instanceColor) m.instanceColor.needsUpdate = true; });
 
+    /* Leaf litter: the crumbs and dust that lie wherever leaves do. One see-through sheet over the whole garden whose
+       opacity comes from a small texture with one pixel per grid cell (how many leaves are in it). It fades out about a
+       second after a cell is emptied, which is what shows the clean lawn, paving and decking coming back. */
+    var litterDirty = true, litterT = 0, lit = new Uint8Array(GW * GH * 4), litTex = new THREE.DataTexture(lit, GW, GH, THREE.RGBAFormat);
+    litTex.magFilter = litTex.minFilter = THREE.LinearFilter; litTex.needsUpdate = true;
+    var litC = document.createElement('canvas'); litC.width = litC.height = 256;
+    (function (g) { var q = WR.rng(5150), cols = ['#8a5a2a', '#a06a2e', '#6f4a26', '#b9822f', '#7a4a22', '#c08a3a', '#5e4126'];
+      for (var k = 0; k < 1500; k++) { g.fillStyle = cols[(q() * cols.length) | 0]; g.globalAlpha = 0.6 + q() * 0.4; g.beginPath(); g.ellipse(q() * 256, q() * 256, 1.5 + q() * 5, 1 + q() * 2.6, q() * 3.14, 0, 6.3); g.fill(); }
+      g.globalAlpha = 0.7; g.strokeStyle = '#5a4026'; g.lineWidth = 1; for (k = 0; k < 60; k++) { var x = q() * 256, y = q() * 256; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (q() - .5) * 16, y + (q() - .5) * 16); g.stroke(); } })(litC.getContext('2d'));
+    var litMap = new THREE.CanvasTexture(litC); litMap.wrapS = litMap.wrapT = THREE.RepeatWrapping; litMap.repeat.set(GW * CELL / 1.7, GH * CELL / 1.7); litMap.anisotropy = 4;
+    var litGeo = new THREE.PlaneGeometry(GW * CELL, GH * CELL); litGeo.rotateX(-Math.PI / 2);
+    (function (uv) { for (var k = 0; k < uv.count; k++) uv.setY(k, 1 - uv.getY(k)); })(litGeo.attributes.uv);
+    var litter = new THREE.Mesh(litGeo, new THREE.MeshLambertMaterial({ map: litMap, alphaMap: litTex, transparent: true, depthWrite: false }));
+    litter.position.set(X0 + GW * CELL / 2, 0.016, Z0 + GH * CELL / 2); litter.receiveShadow = true; litter.renderOrder = 1; scene.add(litter);
+    function litterUpdate(dt, all) {
+      litterT += dt; if (!all && (!litterDirty || litterT < 0.12)) return; litterT = 0;
+      var moving = false;
+      for (var c = GW, o = GW * 4 + 1, end = cnt.length - GW; c < end; c++, o += 4) { var want = (cnt[c] * 2 + cnt[c - 1] + cnt[c + 1] + cnt[c - GW] + cnt[c + GW]) * 70; if (want > 255) want = 255; var have = lit[o]; if (have === want) continue;
+        if (all) have = want; else if (have < want) have = Math.min(want, have + 70); else { have = Math.max(want, have - 30); } lit[o] = have; if (have !== want) moving = true; }
+      litterDirty = moving; litTex.needsUpdate = true;
+    }
+
     function cellOf(x, z) { var ci = Math.floor((x - X0) / CELL), cj = Math.floor((z - Z0) / CELL); return (ci < 0 || cj < 0 || ci >= GW || cj >= GH) ? -1 : ci + cj * GW; }
     function write(i, s) {
       var m = meshOf[i], a = meshes[m].instanceMatrix.array, o = slot[i] * 16; dirty[m] = true;
@@ -78,12 +100,12 @@
       a[o + 8] = sy * cp * k; a[o + 9] = -sp * k; a[o + 10] = cy * cp * k; a[o + 11] = 0;
       a[o + 12] = px[i]; a[o + 13] = py[i]; a[o + 14] = pz[i]; a[o + 15] = 1;
     }
-    function link(i, c) { lcell[i] = c; next[i] = head[c]; prev[i] = -1; if (head[c] >= 0) prev[head[c]] = i; head[c] = i; rank[i] = cnt[c]; cnt[c]++; }
+    function link(i, c) { lcell[i] = c; next[i] = head[c]; prev[i] = -1; if (head[c] >= 0) prev[head[c]] = i; head[c] = i; rank[i] = cnt[c]; cnt[c]++; litterDirty = true; }
     function unlink(i) {
       var c = lcell[i], rk = rank[i]; if (c < 0) return;
       if (prev[i] >= 0) next[prev[i]] = next[i]; else head[c] = next[i];
       if (next[i] >= 0) prev[next[i]] = prev[i];
-      cnt[c]--; lcell[i] = -1;
+      cnt[c]--; lcell[i] = -1; litterDirty = true;
       for (var j = head[c]; j >= 0; j = next[j]) if (rank[j] > rk) { rank[j]--; if (st[j] === SLEEP) { py[j] -= LH; write(j); } }
     }
     function wake(i) { if (st[i] !== SLEEP) return; st[i] = AWAKE; idle[i] = 0; aidx[i] = awakeN; awake[awakeN++] = i; }
@@ -144,6 +166,7 @@
         } else { scatter(ai, Math.max(0, 1 - done)); self.touched[ai] = done > 0; }
         first += counts[ai];
       });
+      litterUpdate(0, true);
     })();
     // share of an area's leaves that are out of the garden for good (not on the ground, not in the sack)
     this.share = function (ai) { return Math.max(0, Math.min(1, 1 - (this.alive[ai] * this.w[ai] + (state.bagUnits[ai] || 0)) / A[ai].units)); };
@@ -204,7 +227,7 @@
         } else idle[i] = 0;
         write(i);
       }
-      this.moved = moved;
+      this.moved = moved; litterUpdate(dt);
       for (var m = 0; m < meshes.length; m++) if (dirty[m]) { meshes[m].instanceMatrix.needsUpdate = true; dirty[m] = false; }
     };
 
@@ -290,7 +313,9 @@
     };
     this.eachAlive = function (fn) { for (var k = 0; k < N; k++) if (st[k] === SLEEP || st[k] === AWAKE) fn(px[k], pz[k], area[k]); };
     this.countIn = function (x, z, rad) { var n = 0; eachIn(x - rad, z - rad, x + rad, z + rad, function (l) { if (st[l] <= AWAKE && (px[l] - x) * (px[l] - x) + (pz[l] - z) * (pz[l] - z) < rad * rad) n++; }); return n; };
-    this.dispose = function () { meshes.forEach(function (m) { scene.remove(m); m.dispose && m.dispose(); }); geos.forEach(function (g) { g.dispose(); }); mat.dispose(); };
+    // test scripts only: take every leaf of an area off the ground except `keep` of them
+    this._testClear = function (ai, keep) { var first = 0, k, left = 0; for (k = 0; k < ai; k++) first += counts[k]; for (k = first; k < first + counts[ai]; k++) if (st[k] === SLEEP || st[k] === AWAKE) { if (left < keep) left++; else kill(k); } self.touched[ai] = true; dirty.fill(true); };
+    this.dispose = function () { scene.remove(litter); litGeo.dispose(); litTex.dispose(); litMap.dispose(); litter.material.dispose(); meshes.forEach(function (m) { scene.remove(m); m.dispose && m.dispose(); }); geos.forEach(function (g) { g.dispose(); }); mat.dispose(); };
   }
   WR.Leaves = Leaves;
 

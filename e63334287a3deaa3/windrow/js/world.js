@@ -23,7 +23,7 @@
     { id: 'maze', name: 'Maze Lawn', x0: -40, x1: -12, z0: -30, z1: 20, ground: LAWN, leaves: 3600, units: 9000, cost: 2800, need: [1, 0.5], bonus: 2000,
       reward: 'crown', rewardName: 'Keeper of Windrow', rewardText: 'The gardens are open again', pal: ['#8e2f3a', '#a8402c', '#6f2a3a', '#c25a2e', '#7a3a24'] }
   ];
-  WR.QUALITY = { low: 0.6, medium: 1.4, high: 2.8 };   // times each area's `leaves`: 6,900 / 16,100 / 32,200 in all
+  WR.QUALITY = { low: 0.8, medium: 1.4, high: 2.8 };   // times each area's `leaves`: 9,200 / 16,100 / 32,200 in all
 
   // gates: the gap in a wall that opens when `area` is unlocked. axis 'x' = the gap runs along x.
   WR.GATES = [

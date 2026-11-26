@@ -22,7 +22,7 @@
     { id: 'shoes', name: 'Light boots', text: 'Walk 10% faster', costs: [70, 190, 450] }
   ];
   var SACK = [30, 55, 90, 140, 210, 320], HAND_RATE = [9, 14, 21, 30, 42], HAND_REACH = [0.95, 1.1, 1.25, 1.45, 1.7];
-  var RAKE_W = [1.0, 1.4, 1.9, 2.5], BLOW_P = [15, 22, 31, 42], BLOW_R = [4.5, 5.8, 7.2, 9], BLOW_H = [0.3, 0.36, 0.42, 0.5];
+  var RAKE_W = [1.0, 1.4, 1.9, 2.5], BLOW_P = [20, 28, 38, 50], BLOW_R = [4.5, 5.8, 7.2, 9], BLOW_H = [0.3, 0.36, 0.42, 0.5];
   WR.sackCap = function (s) { return SACK[s.up.sack]; }; WR.rakeWidth = function (s) { return RAKE_W[s.up.rakeW]; };
   var TOOL_NAMES = ['Hands', 'Rake', 'Blower'];
 
@@ -482,7 +482,7 @@
   WR.test = { state: function () { return state; }, p: p, start: function () { resume(); }, hold: function (on) { mouseUse = !!on; }, key: function (c, on) { if (on) keys.add(c); else keys.delete(c); },
     mul: function (m) { WR.QUALITY.bench = m; state.set.q = 'bench'; applyQuality(); }, auto: function (on) { autoDrive = on; },
     bench: function (steps) { var t0 = performance.now(), mx = 0, sum = 0; for (var i = 0; i < steps; i++) { update(1 / 60); var a = leaves.awakeCount(); sum += a; if (a > mx) mx = a; } return { ms: (performance.now() - t0) / steps, maxAwake: mx, avgAwake: Math.round(sum / steps), n: leaves.N }; },
-    refresh: function () { hudStatic(); },
+    refresh: function () { hudStatic(); }, beacons: function () { return vm.beacons.filter(function (b) { return b.visible; }).length; },
     step: function (n) { for (var i = 0; i < n; i++) update(1 / 60); },
     tool: setTool, give: function (n) { state.acorns += n; acDirty = true; }, buy: buy, unlock: unlock, interact: interact, open: open, close: closeTop, save: save, touch: setTouch,
     info: function () { return { awake: leaves.awakeCount(), n: leaves.N, alive: leaves.alive.slice(), acorns: state.acorns, bag: state.bagFill, playing: playing(), prompt: prompt && prompt.text }; } };
