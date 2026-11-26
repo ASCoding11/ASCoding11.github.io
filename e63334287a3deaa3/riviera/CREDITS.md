@@ -3,19 +3,26 @@
 Every outside asset in this game, where it came from and its licence. Everything else (the town, buildings, sea, sky,
 textures, weapons, props, sounds, the extra animation moves, the headwear and the recolouring) is made in code in `js/`.
 
-## Characters and animation (`assets/`)
+## Characters (`assets/agent.glb`, `suit.glb`, `tac.glb`, `civm1.glb`, `civm2.glb`, `civf1.glb`, `civf2.glb`)
 
-These files are byte-for-byte copies of Midnight Ops' build (`../ironveil/assets/`), copied so this game does not
-depend on another game's folder. Their sources and licences are listed in full in `../ironveil/CREDITS.md`; in short:
+Built for this game by `tools/chars/` (Blender as a Python module) from these sources:
 
-| File | Built from | Licence |
+| What | Source | Licence |
 |---|---|---|
-| `hero.glb`, `enemy.glb` | MakeHuman base mesh, targets, rig and skins (MPFB 2 data and the MakeHuman system assets) | CC0 |
-| `anims.glb`, `anims.json` | Universal Animation Library (Standard) by Quaternius; CMU Graphics Lab Motion Capture Database trials 07_01, 09_01, 09_12, 102_05, 143_40, 143_41 | CC0 (Quaternius); CMU: free to use, copy, modify and redistribute |
-| `lib/meshopt_decoder.js` | three.js examples (Arseny Kapoulkine) | MIT |
+| MakeHuman base mesh (hm08), shape targets, `game_engine` rig and skin weights | MPFB 2 data, https://files.makehumancommunity.org/plugins/mpfb2-latest.zip (data files only, not the GPL add-on code) | CC0 (https://static.makehumancommunity.org/about/license.html) |
+| MakeHuman system assets: skins, eyes, eyebrows, eyelashes, hair (`short01-04`, `ponytail01`, `bob02`), clothes (`male_elegantsuit01`, `male_casualsuit01`, `male_casualsuit06`, `female_elegantsuit01`, `female_casualsuit01`) and shoes (`shoes01`, `03`, `04`, `05`, `06`) | https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 (each file: "explicitly released as CC0 in september 2020") |
+| Skeleton bone names and rest orientations | the Universal Animation Library skeleton by Quaternius, taken from Midnight Ops' `hero.glb` | CC0 |
 
-Changes made by this game at load time (the files are not edited): the military helmets and caps are removed from the
-meshes, the original hair is hidden and replaced by code-made hair and hats, and the clothes are recoloured in the shader.
+Every clothes texture is recomputed in code from the MakeHuman UV layouts (recoloured fabric, satin lapels, shirt
+front and studs, linen slub, stripes; source prints and logos are flattened out); the bow tie and the plate carrier
+are modelled in code. No real person is modelled; faces are mixes of MakeHuman's generic shape targets.
+
+## Animation (`assets/anims.glb`, `anims.json`)
+
+Byte-for-byte copies of Midnight Ops' build (`../ironveil/assets/`); sources and licences in full in
+`../ironveil/CREDITS.md`. In short: Universal Animation Library (Standard) by Quaternius (CC0) and the CMU Graphics
+Lab Motion Capture Database trials 07_01, 09_01, 09_12, 102_05, 143_40, 143_41 (free to use, copy, modify and
+redistribute). `lib/meshopt_decoder.js`: three.js examples (Arseny Kapoulkine), MIT.
 
 ## Code
 

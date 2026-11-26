@@ -44,6 +44,10 @@ if bow:
     for d in bow.data.uv_layers['UVMap'].data: d.uv = (u, v)
     cloth.append(bow)
 nsz = min(size, 1024); osz = min(size, 512)
+# real white cloth reflects about 80 % of light: soft-knee the brightest texels so shirts do not bloom in the sun
+a = np.asarray(atlas).astype(np.float32) / 255
+a = np.where(a > 0.62, 0.62 + (a - 0.62) * 0.55, a)
+atlas = Image.fromarray(np.clip(a * 255 + 0.5, 0, 255).astype(np.uint8))
 atlas.save(TD + '/cloth_albedo.jpg', quality=90); natl.resize((nsz, nsz), Image.LANCZOS).save(TD + '/cloth_normal.jpg', quality=90)
 oatl.resize((osz, osz), Image.LANCZOS).save(TD + '/cloth_orm.jpg', quality=88)
 cm = P.material(NAME + 'Cloth', TD + '/cloth_albedo.jpg', TD + '/cloth_normal.jpg', TD + '/cloth_orm.jpg')

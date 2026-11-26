@@ -36,11 +36,14 @@
   var KINDS = {
     // 'real' kinds are the MakeHuman-built people (tools/chars): their own clothes textures, hair and eyes, no recolour
     agent:    { file: 'agent', meshes: ['Agent', 'AgentHair', 'AgentEyes'], lod: ['AgentLOD1', 'AgentLOD2'], h: 1.84, real: true },
-    sentry:   { file: 'enemy', meshes: ['Rifleman', 'EnemyHair', 'EnemyEyes'], lod: ['RiflemanLOD1', 'RiflemanLOD2'], cloth: '#4a4b4e', cloth2: '#1e1e20', h: 1.8, hw: ['beanie', '#1a1a1c'] },
-    enforcer: { file: 'enemy', meshes: ['Gunner', 'EnemyHair', 'EnemyEyes'], lod: ['GunnerLOD1', 'GunnerLOD2'], cloth: '#1c1c1f', cloth2: '#3a2f26', h: 1.8, hw: ['cap', '#141416'] },
-    elite:    { file: 'enemy', meshes: ['Gunner', 'EnemyHair', 'EnemyEyes'], lod: ['GunnerLOD1', 'GunnerLOD2'], cloth: '#26282d', cloth2: '#0d0d0f', h: 1.82, hw: ['hair', '#121010'], glasses: true },
-    marksman: { file: 'enemy', meshes: ['Sniper', 'EnemyHair', 'EnemyEyes'], lod: ['SniperLOD1', 'SniperLOD2'], cloth: '#4d4a3f', cloth2: '#2a2a26', h: 1.8, hw: ['cap', '#3b3a33'] },
-    guest:    { file: 'enemy', meshes: ['Sniper', 'EnemyHair', 'EnemyEyes'], lod: ['SniperLOD1', 'SniperLOD2'], cloth: '#efe8d8', cloth2: '#e2d8c4', h: 1.8, civ: true, hw: ['hair', '#3a2a20'] }
+    sentry:   { file: 'tac', meshes: ['Tac', 'TacHair', 'TacEyes'], lod: ['TacLOD1', 'TacLOD2'], h: 1.82, real: true },
+    enforcer: { file: 'tac', meshes: ['Tac', 'TacHair', 'TacEyes'], lod: ['TacLOD1', 'TacLOD2'], h: 1.82, real: true, hw: ['cap', '#141416'] },
+    elite:    { file: 'suit', meshes: ['Suit', 'SuitHair', 'SuitEyes'], lod: ['SuitLOD1', 'SuitLOD2'], h: 1.84, real: true, glasses: true },
+    marksman: { file: 'tac', meshes: ['Tac', 'TacHair', 'TacEyes'], lod: ['TacLOD1', 'TacLOD2'], h: 1.82, real: true, hw: ['beanie', '#2a2b28'] },
+    civm1:    { file: 'civm1', meshes: ['CivM1', 'CivM1Hair', 'CivM1Eyes'], lod: ['CivM1LOD1', 'CivM1LOD2'], h: 1.78, real: true, civ: true },
+    civm2:    { file: 'civm2', meshes: ['CivM2', 'CivM2Hair', 'CivM2Eyes'], lod: ['CivM2LOD1', 'CivM2LOD2'], h: 1.76, real: true, civ: true },
+    civf1:    { file: 'civf1', meshes: ['CivF1', 'CivF1Hair', 'CivF1Eyes'], lod: ['CivF1LOD1', 'CivF1LOD2'], h: 1.64, real: true, civ: true },
+    civf2:    { file: 'civf2', meshes: ['CivF2', 'CivF2Hair', 'CivF2Eyes'], lod: ['CivF2LOD1', 'CivF2LOD2'], h: 1.56, real: true, civ: true }
   };
   var GUEST_COLS = [['#efe8d8', '#ddd3bf'], ['#a9c4dd', '#94adc4'], ['#e8b4a0', '#d29f8b'], ['#f4f1ea', '#e3ded4'], ['#c8d6b0', '#b3c19c'], ['#2f3f5a', '#25324a'], ['#d9d2c4', '#c4bcae']];
 
@@ -56,7 +59,7 @@
   }
   C.load = function (onProgress) {
     if (C._p) return C._p;
-    var seen = {}, totals = { agent: 1.78e6, enemy: 4.23e6, anims: 2.89e6 };
+    var seen = {}, totals = { agent: 1.78e6, tac: 1.88e6, suit: 1.68e6, civm1: 1.66e6, civm2: 1.7e6, civf1: 1.84e6, civf2: 1.38e6, anims: 2.89e6 };
     var files = ['anims']; Object.keys(KINDS).forEach(function (k) { if (files.indexOf(KINDS[k].file) < 0) files.push(KINDS[k].file); });
     function prog(n, a, b) { seen[n] = a; if (b) totals[n] = b; var x = 0, y = 0; for (var k in totals) { x += Math.min(seen[k] || 0, totals[k]); y += totals[k]; } if (onProgress) onProgress(Math.min(0.99, x / y)); }
     C._p = (window.MeshoptDecoder ? Promise.resolve() : addScript(ASSETS + 'lib/meshopt_decoder.js')).then(function () { return window.MeshoptDecoder && MeshoptDecoder.ready; })
@@ -91,11 +94,31 @@
     });
     C.clips = Object.keys(CLIPS);
   }
+  // The clips carry the hip height of the body they were made on (pelvis 0.995 m above the feet). People of other
+  // heights get a copy with the pelvis track scaled to their own hips (and their stride with it), so legs keep the
+  // authored bend instead of crouching (taller) or stretching off the ground (shorter).
+  var REF_PELVIS = 0.995, SETS = {};
+  function clipSet(r) {
+    var key = r.toFixed(3);
+    if (SETS[key]) return SETS[key];
+    if (Math.abs(r - 1) < 0.005) return (SETS[key] = { C: CLIPS, L: LOWER, r: 1 });
+    var cs = { C: {}, L: {}, r: r };
+    Object.keys(CLIPS).forEach(function (n) {
+      var c = CLIPS[n], tracks = c.tracks.map(function (t) {
+        if (t.name !== 'pelvis.position') return t;
+        var t2 = t.clone(); for (var i = 0; i < t2.values.length; i++) t2.values[i] *= r; return t2;
+      });
+      cs.C[n] = new T.AnimationClip(c.name, c.duration, tracks);
+      cs.L[n] = new T.AnimationClip(c.name + '#L', c.duration, tracks.filter(function (t) { return !upperSet[t.name.split('.')[0]]; }));
+    });
+    return (SETS[key] = cs);
+  }
   function meshName(o) { var n = o.name || ''; if (o.parent && o.parent.isGroup && o.parent.name && !o.parent.isBone) n = o.parent.name; return n.replace(/_\d+$/, ''); }
   function template(kind) {
     var def = KINDS[kind], g = gltf[def.file]; if (!g) return null;
     var keep = {}; def.meshes.concat(def.lod).forEach(function (n) { keep[n] = 1; });
     var root = T.SkeletonUtils.clone(g.scene), drop = [];
+    root.traverse(function (o) { if (o.isBone && o.name === 'pelvis' && def.real) root.userData.pelvisR = o.position.length() / REF_PELVIS; });
     root.traverse(function (o) { if (o.isMesh && !keep[meshName(o)]) drop.push(o); });
     drop.forEach(function (o) { o.parent.remove(o); });
     root.traverse(function (o) {
@@ -331,6 +354,7 @@
     this.kind = kind; this.def = def;
     this.root = new T.Group();
     var model = this.model = T.SkeletonUtils.clone(TEMPLATES[kind]);
+    this.cs = clipSet(TEMPLATES[kind].userData.pelvisR || 1);
     this.root.add(model);
     var bones = this.bones = {}, meshes = this.meshes = [], lods = this.lods = [];
     var cols = opts.cols || [def.cloth, def.cloth2];
@@ -374,10 +398,10 @@
   AP._node = function (name) {
     var n = this.nodes[name];
     if (!n) {
-      if (!CLIPS[name]) return null;
-      var full = this.mixer.clipAction(CLIPS[name]), low = this.mixer.clipAction(LOWER[name]);
+      if (!this.cs.C[name]) return null;
+      var full = this.mixer.clipAction(this.cs.C[name]), low = this.mixer.clipAction(this.cs.L[name]);
       full.play(); low.play(); full.setEffectiveWeight(0); low.setEffectiveWeight(0); full.timeScale = 0; low.timeScale = 0;
-      n = this.nodes[name] = { name: name, full: full, low: low, w: 0, dur: CLIPS[name].duration, stride: stride(name), t: Math.random() * CLIPS[name].duration };
+      n = this.nodes[name] = { name: name, full: full, low: low, w: 0, dur: this.cs.C[name].duration, stride: stride(name) * this.cs.r, t: Math.random() * this.cs.C[name].duration };
     }
     return n;
   };
@@ -405,14 +429,14 @@
     if (!e) { e = { name: name, action: a, w: 0, once: true }; this.upper.push(e); }
     e.target = 1; e.rate = 1 / Math.max(0.01, fade); e.once = true; e.hold = !!o.hold; e.outFade = o.outFade || 0.18;
     if (fade === 0) e.w = 1;
-    return CLIPS[name].duration / (o.speed || 1);
+    return this.cs.C[name].duration / (o.speed || 1);
   };
   AP.stopUpper = function (name, fade) {
     for (var i = 0; i < this.upper.length; i++) { var u = this.upper[i]; if (u.once && (!name || u.name === name)) { u.target = 0; u.rate = 1 / (fade || 0.15); } }
   };
   AP.playFull = function (name, o) {
-    o = o || {}; if (!CLIPS[name]) return 0;
-    var a = this.mixer.clipAction(CLIPS[name]);
+    o = o || {}; if (!this.cs.C[name]) return 0;
+    var a = this.mixer.clipAction(this.cs.C[name]);
     a.reset(); a.setLoop(o.loop ? T.LoopRepeat : T.LoopOnce, o.loop ? Infinity : 1); a.clampWhenFinished = true; a.timeScale = o.speed || 1; a.play();
     if (o.start) a.time = o.start;
     var fade = o.fade == null ? 0.15 : o.fade;
@@ -420,7 +444,7 @@
     this.fulls.forEach(function (f) { f.target = 0; f.rate = 1 / Math.max(0.01, fade); });
     this.fulls.push({ name: name, action: a, w: fade === 0 ? 1 : 0, target: 1, rate: 1 / Math.max(0.01, fade), hold: !!o.hold, loop: !!o.loop, outFade: o.outFade || 0.25 });
     this.fullName = name;
-    return CLIPS[name].duration / (o.speed || 1);
+    return this.cs.C[name].duration / (o.speed || 1);
   };
   AP.stopFull = function (fade) { this.fulls.forEach(function (f) { f.target = 0; f.rate = 1 / (fade || 0.25); }); this.fullName = null; };
   AP._finished = function (a) {
@@ -702,9 +726,8 @@
   var HW_MAT = {};
   function hwMat(hex, rough) { var k = hex + rough; return HW_MAT[k] || (HW_MAT[k] = new T.MeshStandardMaterial({ color: RP.col(hex), roughness: rough })); }
   function addHeadwear(a, def, opts) {
-    var hb = a.bones.Head; if (!hb || !(opts.hw || def.hw)) return;
-    if (def.real && !opts.hw) return;
-    var G = hwGeos(), kind = opts.hw || def.hw[0], hex = opts.hwCol || def.hw[1];
+    var hb = a.bones.Head; if (!hb) return;
+    var G = hwGeos(), kind = opts.hw || (def.hw && def.hw[0]), hex = opts.hwCol || (def.hw && def.hw[1]);
     // place in the idle pose: level with the character's root, offset in the root's frame, then parented to the head
     a.root.updateMatrixWorld(true);
     var hq = hb.getWorldQuaternion(new T.Quaternion()), rq = a.root.getWorldQuaternion(new T.Quaternion()), hpw = hb.getWorldPosition(new T.Vector3());
@@ -717,15 +740,19 @@
       hb.add(m); return m;
     }
     var y = kind === 'fedora' ? 0.13 : kind === 'beanie' ? 0.045 : 0.05;
-    a.hat = put(G[kind] || G.hair, hwMat(hex, kind === 'hair' ? 0.75 : 0.85), [0, y, -0.012]);
-    if (def.glasses || opts.glasses) put(G.glasses, hwMat('#0b0b0c', 0.15), [0, 0.045, 0.118]);
+    if (def.real) y += 0.035;
+    if (kind && !(def.real && kind === 'hair')) a.hat = put(G[kind] || G.hair, hwMat(hex, kind === 'hair' ? 0.75 : 0.85), [0, y, -0.012]);
+    if (def.glasses || opts.glasses) put(G.glasses, hwMat('#0b0b0c', 0.15), def.real ? [0, 0.075, 0.105] : [0, 0.045, 0.118]);
   }
 
   C.spawn = function (kind, opts) {
-    if (!TEMPLATES[kind]) kind = 'sentry';
     opts = opts || {};
-    if (kind === 'guest' && !opts.cols) opts.cols = GUEST_COLS[Math.floor(Math.random() * GUEST_COLS.length)];
-    if (kind === 'guest' && !opts.hw) { var r = Math.random(); opts.hw = r < 0.3 ? 'fedora' : 'hair'; opts.hwCol = opts.hw === 'fedora' ? ['#d8c79a', '#efe6d0', '#3b3b3b'][Math.floor(Math.random() * 3)] : ['#2a1d16', '#5a4030', '#121010', '#8a8580', '#b08a50'][Math.floor(Math.random() * 5)]; opts.glasses = Math.random() < 0.3; }
+    if (kind === 'guest') {
+      kind = ['civm1', 'civm2', 'civf1', 'civf2'][Math.floor(Math.random() * 4)];
+      if (/civm/.test(kind) && Math.random() < 0.25) { opts.hw = 'fedora'; opts.hwCol = ['#d8c79a', '#efe6d0', '#3b3b3b'][Math.floor(Math.random() * 3)]; }
+      opts.glasses = Math.random() < 0.3;
+    }
+    if (!TEMPLATES[kind]) kind = 'sentry';
     var a = new Actor(kind, opts);
     addHeadwear(a, KINDS[kind], opts);
     return a;
