@@ -90,6 +90,28 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.04', title: 'Flood Crew, rebuilt', kind: 'feature',
+     img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew'], items: [
+      'Flood Crew starts in the flooded yard now, rake in hand, with one short instruction at a time. The depot and the gear shop turn up later.',
+      'It looks new: proper houses with roofs and windows, fences, trees, evening light with shadows, and water that mirrors what is around it, on phones too.',
+      'Raking splashes, a cleared drain gulps and pulls a whirlpool, and the ground comes up clean as the water drops.',
+      'Much less on screen: one water bar, your tool, and one line of words.',
+      'The two longest jobs are a good deal shorter, and raked leaves stay put for a while before they can float back.']},
+    {date: '2026-11-26', version: '2.03', title: 'Leaf Sweep: a new start', kind: 'feature',
+     img: 'm/thumbs/windrow.jpg', tags: ['Leaf Sweep'], items: [
+      'Leaf Sweep now starts in a small front yard by a garden house, with just your hands and one thing to do at a time.',
+      'Clear the yard and the gate to the big gardens opens. The rake arrives in the first couple of minutes.',
+      'New look: a house, fuller trees, soft shadows, a real sky, and gloves that actually hold the rake and blower.',
+      'Leaves fly in the blower\'s wind and burst when you jump into a heap. Your old progress is kept.']},
+    {date: '2026-11-26', version: '2.02', title: 'Chromeline: one button and 26 new pieces', kind: 'feature',
+     tags: ['Chromeline'], items: [
+      'Chromeline is now one button: hold to ride on the ground, hold in the air to flip backwards, let go to stop the spin. The arrow keys and the two round touch buttons are gone.',
+      '26 new track pieces, from easy to very hard: spike ceilings, glowing posts, floating triangles, wavy ground, broken track, steep ramps, triple loops, a giant loop, fast-dropping platforms and more.',
+      'Loops now pay: gems sit inside them, a gold crown waits at the top of some, and every loop raises your run multiplier, which multiplies every trick and gem.',
+      'Endless gets hard much sooner and keeps getting harder, and level time targets are tighter.',
+      'Flips take a little more skill: a slightly slower spin and a stricter clean landing.',
+      'The riders are gone: the bike rides alone now. If you owned or had picked a rider, your save still loads and nothing else changes.',
+      'The Volt Hopper has a new look: a sharper shell, a headlight beam, arcs of light when it flips and a pulse of light where it lands.']},
     {date: '2026-11-26', version: '1.65.2', title: 'Blackwade\'s shop is open again', kind: 'fix',
      tags: ['Blackwade'], items: [
       'You can buy equipment and upgrades in Blackwade again. They are how you get further, so that shop stays open.',
@@ -121,7 +143,7 @@
       'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
       'Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, a column of colour where a player is knocked out, a ring of sparks when your shots land and a puff of dust when you build.']},
     {date: '2026-11-26', version: '1.62', title: 'New game: Flood Crew', kind: 'game',
-     games: ['Flood Crew'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
+     games: ['Flood Crew:ebbwork'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
       'Flood Crew is in Arcade: a first-person game about getting flooded places dry.',
       'Work out why each place flooded: a buried drain, a leak, a broken bank, or ground with nowhere to run to.',
       'The water really flows. Rake a drain clear, dig a trench, lay sandbags or set up a pump, and watch where it goes.',
