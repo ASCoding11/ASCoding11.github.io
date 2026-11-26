@@ -114,11 +114,11 @@
   // reads on a soldier 30 m away would cover a third of the screen, so it is drawn much smaller and for a shorter time.
   FX.muzzle = function (x, y, z, dx, dy, dz, big, near) {
     const s = flashSprites.find(s => !s.visible) || flashSprites[0];
-    s.position.set(x + dx * 0.05, y + dy * 0.05, z + dz * 0.05); const k = (big ? 0.7 : 0.45) * (near ? 0.36 : 1); s.scale.set(k * rr(0.8, 1.2), k * rr(0.8, 1.2), 1); s.material.rotation = R() * 6.28; s.material.opacity = 1; s.visible = true; s.userData.t = s.userData.t0 = near ? 0.035 : 0.05;
+    s.position.set(x + dx * 0.05, y + dy * 0.05, z + dz * 0.05); const k = (big ? 0.7 : 0.45) * (near ? 0.36 : 1); s.scale.set(k * rr(0.8, 1.2), k * rr(0.8, 1.2), 1); s.material.rotation = R() * 6.28; s.material.opacity = 1; s.visible = true; s.userData.t = s.userData.t0 = near ? rr(0.036, 0.056) : 0.05;   // first person: 36-56 ms, a little different each shot
     flashes.push(s);
     for (let i = 0; i < (big ? 6 : 3); i++) add.emit(x + dx * 0.1, y + dy * 0.1, z + dz * 0.1, dx * rr(2, 6) + rr(-0.5, 0.5), dy * rr(2, 6) + rr(-0.5, 0.5), dz * rr(2, 6) + rr(-0.5, 0.5), rr(0.04, 0.08), 0.12, 0.05, 1, 0.75, 0.4, 1, 3, 0);
     for (let i = 0; i < (big ? 2 : 1); i++) norm.emit(x + dx * 0.15, y + dy * 0.15, z + dz * 0.15, dx * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.2, 0.6), dz * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.6, 1.2), 0.15, 0.6, 0.55, 0.55, 0.55, big ? 0.35 : 0.2, 1.5, -0.2);
-    W.flashAt(x, y, z, big ? 9 : 6, 1, 0.06);
+    W.flashAt(x, y, z, big ? 9 : 6, 1, near ? s.userData.t0 : 0.06);
   };
   FX.tracer = function (b) { tracers.push(b); }; // reads b.x,y,z,vx,vy,vz each frame while b.alive
   FX.casing = function (x, y, z, vx, vy, vz) {

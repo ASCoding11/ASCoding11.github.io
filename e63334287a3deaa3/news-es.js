@@ -2,6 +2,7 @@
  * Spanish for the What's new entries (news.js): their titles, tags and bullet points, in our own words. Game names
  * stay in English. news.js loads this file only while Spanish is on; lang.js translates the list as it appears.
  * When you add an entry to NEWS, add its lines here too (English: Spanish). A line with no Spanish shows in English.
+ * Pull requests put their Spanish in the entry's file in news/ (its "es"), and the merge adds it here.
  */
 (function () {
   if (!window.BackRoomLang) return;
@@ -10,6 +11,11 @@
     "On every setting: a new sky with soft clouds, a clearer view of the island as you drop, a sea that fades into the horizon, warm layered cliffs and more varied grass and dirt.": "Con cualquier ajuste: un cielo nuevo con nubes suaves, una vista más clara de la isla al caer, un mar que se funde con el horizonte, acantilados de piedra cálida en capas y hierba y tierra más variadas.",
     "Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.": "Solo con gráficos Bonitos: nubes que se mueven y un brillo alrededor del sol, agua que se ondula y destella al sol, colores un poco más intensos y una línea brillante donde la tormenta toca el suelo.",
     "Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, a column of colour where a player is knocked out, a ring of sparks when your shots land and a puff of dust when you build.": "Solo con gráficos Bonitos: haces de luz sobre las armas raras, épicas y legendarias del suelo, una columna de color donde cae eliminado un jugador, un anillo de chispas cuando aciertas un disparo y una nube de polvo al construir.",
+    "Site rules and privacy, in plain words": "Las reglas del sitio y la privacidad, en palabras sencillas",
+    "Read the terms": "Lee los términos",
+    "The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can't promise.": "El sitio ahora tiene una página de Términos de uso: cómo jugar limpio, qué puedes publicar, cómo funcionan el Marketplace y la compra de objetos, y qué podemos y qué no podemos prometer.",
+    "The privacy policy now also explains Prompted, buying items, the Marketplace and what we ask of players under 13.": "La política de privacidad ahora también explica Prompted, la compra de objetos, el Marketplace y lo que pedimos a los jugadores menores de 13 años.",
+    "Both are linked at the bottom of every main page.": "Las dos están enlazadas al final de cada página principal.",
     "A proper \"page not found\"": "Una página de \"no encontrada\" de verdad",
     "A mistyped or old link now shows a \"Page not found\" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.": "Un enlace mal escrito o antiguo ahora muestra una página de \"Página no encontrada\" con botones para volver a la página de inicio, los juegos y las herramientas de estudio, en vez de un error sin más o la página de inicio.",
     "It shows the address you tried, and has a button to tell us about the broken link.": "Muestra la dirección que intentaste abrir y tiene un botón para avisarnos del enlace roto.",
