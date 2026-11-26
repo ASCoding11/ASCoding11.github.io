@@ -1385,6 +1385,12 @@ let tracePat=null;
 const glowCache={};
 function glowSprite(col){let c=glowCache[col];if(c)return c;c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
   const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,hexA(col,0.9));gr.addColorStop(0.25,hexA(col,0.45));gr.addColorStop(1,hexA(col,0));g.fillStyle=gr;g.fillRect(0,0,64,64);return glowCache[col]=c}
+// a headlight beam: a soft cone, made once per colour (drawn upside down or not, it is symmetric)
+const beamCache={};function beamSprite(col){let c=beamCache[col];if(c)return c;c=document.createElement('canvas');c.width=128;c.height=64;const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,128,0);gr.addColorStop(0,hexA(col,0.55));gr.addColorStop(0.35,hexA(col,0.2));gr.addColorStop(1,hexA(col,0));g.fillStyle=gr;
+  g.beginPath();g.moveTo(0,29);g.lineTo(128,2);g.lineTo(128,62);g.lineTo(0,35);g.closePath();g.fill();
+  const g2=g.createLinearGradient(0,0,0,64);g2.addColorStop(0,'rgba(0,0,0,1)');g2.addColorStop(0.3,'rgba(0,0,0,0)');g2.addColorStop(0.7,'rgba(0,0,0,0)');g2.addColorStop(1,'rgba(0,0,0,1)');
+  g.globalCompositeOperation='destination-out';g.fillStyle=g2;g.fillRect(0,0,128,64);return beamCache[col]=c}
 function glow(x,y,r,col,a){cx.globalAlpha=a;cx.drawImage(glowSprite(col),x-r,y-r,r*2,r*2);cx.globalAlpha=1}
 
 // ======================= GAME STATE =======================
@@ -1538,7 +1544,8 @@ function drawLoops(tr,th,x0,x1,t,s){
     if(s&&s.lp&&s.lp[L.i]===2){glow(L.cx,L.cy+R+0.45,0.9,th.acc2,0.8)}
   }
 }
-function shade(hex,k){const n=parseInt(hex.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;const f=k<0?0:255,t=Math.abs(k);r=Math.round(r+(f-r)*t);g=Math.round(g+(f-g)*t);b=Math.round(b+(f-b)*t);return'#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1)}
+const shadeMemo={};function shade(hex,k){const key=hex+k;return shadeMemo[key]||(shadeMemo[key]=shade0(hex,k))}
+function shade0(hex,k){const n=parseInt(hex.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;const f=k<0?0:255,t=Math.abs(k);r=Math.round(r+(f-r)*t);g=Math.round(g+(f-g)*t);b=Math.round(b+(f-b)*t);return'#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1)}
 // trackside props: light posts, data pylons, holo sign posts, cable reels; never next to hazards
 function drawProps(tr,th,x0,x1,t){
   world();
@@ -1692,21 +1699,32 @@ function circ(x,y,r,col){cx.beginPath();cx.arc(x,y,r,0,TAU);cx.fillStyle=col;cx.
 // wheels: dark tyres with a lit rim in the vehicle's light colour
 function wheel(x,y,rot,c){cx.strokeStyle=INK;cx.lineWidth=0.05;circ(x,y,0.36,'#141729');cx.fillStyle='#2e3352';for(let i=0;i<10;i++){const a=rot+i*TAU/10;cx.beginPath();cx.arc(x+Math.cos(a)*0.315,y+Math.sin(a)*0.315,0.03,0,TAU);cx.fill()}
   cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA(c,0.35);cx.lineWidth=0.13;cx.beginPath();cx.arc(x,y,0.25,0,TAU);cx.stroke();cx.globalCompositeOperation='source-over';
-  cx.strokeStyle=c;cx.lineWidth=0.045;cx.stroke();cx.strokeStyle='#6a7096';cx.lineWidth=0.03;cx.beginPath();for(let i=0;i<5;i++){const a=rot+i*TAU/5;cx.moveTo(x,y);cx.lineTo(x+Math.cos(a)*0.22,y+Math.sin(a)*0.22)}cx.stroke();
+  cx.strokeStyle=c;cx.lineWidth=0.045;cx.stroke();cx.strokeStyle='#f4fdff';cx.lineWidth=0.04;cx.beginPath();cx.arc(x,y,0.25,rot,rot+0.7);cx.moveTo(x+Math.cos(rot+Math.PI)*0.25,y+Math.sin(rot+Math.PI)*0.25);cx.arc(x,y,0.25,rot+Math.PI,rot+Math.PI+0.7);cx.stroke();
+  cx.strokeStyle='#6a7096';cx.lineWidth=0.03;cx.beginPath();for(let i=0;i<5;i++){const a=rot+i*TAU/5;cx.moveTo(x,y);cx.lineTo(x+Math.cos(a)*0.22,y+Math.sin(a)*0.22)}cx.stroke();
   cx.strokeStyle=INK;cx.lineWidth=0.04;circ(x,y,0.065,'#c9cbe0')}
+// the Volt Hopper's shapes (made once, not every frame)
+const HB=[[-0.34,-0.2,-0.38,0.1,0.3,0.14,0.38,-0.12,0.2,-0.24],[-0.26,-0.2,0.2,-0.24,0.36,-0.14,0.3,-0.3,-0.14,-0.3],[-1.08,0.52,-0.84,0.3,-0.52,0.2,-0.2,0.14,0.14,0.02,0.5,0.04,0.84,0.16,0.7,0.3,0.44,0.46,0.16,0.5,-0.04,0.36,-0.52,0.34,-0.8,0.4],[-0.52,0.2,-0.2,0.14,0.14,0.02,0.5,0.04,0.84,0.16,0.5,0.17,0.1,0.15,-0.3,0.24],[0.2,0.49,0.44,0.46,0.62,0.36,0.3,0.36],[-0.6,0.35,-0.08,0.36,-0.16,0.28,-0.56,0.27],[0.62,0.27,0.84,0.17,0.8,0.12,0.6,0.2],[-1.08,0.52,-0.96,0.41,-0.9,0.44]];
+const hexA45Memo={};function hexA45(c){return hexA45Memo[c]||(hexA45Memo[c]=hexA(c,0.45))}
 const BODY={
-  dirt(c,t){ // 1.54: a modern electric sport bike with no rider: a low faired shell, a light strip nose to tail, a slit headlight
-    line(-0.66,-0.3,-0.08,-0.1,0.1,'#2a2f4c');line(-0.66,-0.3,-0.08,-0.1,0.035,c[1]);                       // swingarm with a lit edge
-    line(0.66,-0.3,0.36,0.36,0.08,'#c9ced6');line(0.6,-0.17,0.4,0.27,0.03,'#ffffff');                      // fork
-    pfill([-0.3,-0.17,-0.3,0.1,0.26,0.12,0.3,-0.14],c[2]);cx.fillStyle=c[1];for(let i=0;i<4;i++)cx.fillRect(-0.24+i*0.13,-0.1,0.08,0.13);glow(0,-0.03,0.45,c[1],0.4); // battery
-    pfill([-1.0,0.34,-0.6,0.27,-0.12,0.27,0.04,0.4,0.36,0.42,0.62,0.26,0.66,0.12,0.4,0.0,0.12,-0.04,-0.18,0.12,-0.5,0.12],c[0]); // fairing
-    pfill([0.06,0.4,0.36,0.42,0.5,0.35,0.2,0.33],shade(c[0],-0.25));                                     // screen
-    pfill([-0.62,0.27,-0.14,0.27,-0.2,0.2,-0.58,0.2],c[2]);                                              // seat
-    cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA(c[1],0.45);cx.lineWidth=0.11;cx.beginPath();cx.moveTo(-0.96,0.3);cx.lineTo(-0.5,0.17);cx.lineTo(0.12,0.08);cx.lineTo(0.6,0.17);cx.stroke();cx.globalCompositeOperation='source-over';
-    cx.strokeStyle=c[1];cx.lineWidth=0.035;cx.stroke();cx.strokeStyle=INK;cx.lineWidth=0.05;                 // light strip
-    pfill([0.5,0.22,0.66,0.16,0.65,0.12,0.5,0.16],'#f4fdff');glow(0.66,0.17,0.45,c[1],0.7);              // headlight
-    cx.fillStyle=c[1];cx.fillRect(-1.0,0.3,0.12,0.05);glow(-0.98,0.32,0.3,c[1],0.5);                    // tail light
-    line(0.36,0.38,0.24,0.46,0.045,INK)},
+  dirt(c,t,pop,gas,ghost){ // 1.54: a riderless electric superbike: a dark chassis, a sharp two-tone shell, one hard light blade nose to tail, a slit headlight that throws a beam
+    const hot=gas?1:0;
+    if(!ghost){cx.globalCompositeOperation='lighter';cx.globalAlpha=0.5;cx.drawImage(beamSprite(c[1]),0.74,-0.36,2.3,1.02);cx.globalAlpha=1;cx.globalCompositeOperation='source-over'} // headlight beam
+    line(-0.66,-0.3,-0.06,-0.06,0.12,'#23284a');line(-0.62,-0.33,-0.1,-0.12,0.03,c[1]);                       // swingarm with a lit lower edge
+    line(-0.4,-0.2,-0.3,0.16,0.07,'#3a4066');line(-0.385,-0.14,-0.32,0.1,0.035,c[1]);                           // rear shock
+    line(0.66,-0.3,0.52,0.0,0.06,'#dfe6f0');line(0.52,0.0,0.4,0.3,0.1,'#23284a');                              // upside-down fork: bright slider, dark upper
+    pfill(HB[0],c[2]);                                          // battery case
+    cx.fillStyle=c[1];for(let i=0;i<4;i++)cx.fillRect(-0.27+i*0.14,-0.13,0.09,0.15);glow(0.0,-0.05,0.5,c[1],0.35+0.25*hot); // cells (brighter on the gas)
+    pfill(HB[1],shade(c[0],-0.45));                            // belly pan
+    pfill(HB[2],c[0]); // shell: tail kicks up, nose points forward
+    {const st=cx.strokeStyle;cx.strokeStyle='rgba(0,0,0,0)';pfill(HB[3],shade(c[0],-0.3));cx.strokeStyle=st} // the shell's shaded underside
+    pfill(HB[4],'#141a3a');                                                 // tinted screen
+    pfill(HB[5],c[2]);                                                 // seat pad
+    cx.strokeStyle='rgba(255,255,255,0.75)';cx.lineWidth=0.025;cx.beginPath();cx.moveTo(-1.0,0.47);cx.lineTo(-0.8,0.37);cx.moveTo(0.02,0.4);cx.lineTo(0.16,0.47);cx.lineTo(0.4,0.445);cx.stroke(); // top edge catches the light
+    cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA45(c[1]);cx.lineWidth=0.12;cx.beginPath();cx.moveTo(-1.04,0.48);cx.lineTo(-0.78,0.31);cx.lineTo(-0.3,0.22);cx.lineTo(0.14,0.13);cx.lineTo(0.5,0.14);cx.lineTo(0.8,0.17);cx.stroke();cx.globalCompositeOperation='source-over';
+    cx.strokeStyle=c[1];cx.lineWidth=0.04;cx.stroke();cx.strokeStyle='#f4fdff';cx.lineWidth=0.012;cx.stroke();cx.strokeStyle=INK;cx.lineWidth=0.05; // the light blade: glow, colour, white core
+    pfill(HB[6],'#f4fdff');glow(0.8,0.17,0.5,c[1],0.8);                      // slit headlight
+    pfill(HB[7],c[1]);glow(-1.02,0.47,0.34,c[1],0.55+0.3*hot);                    // tail light
+    line(0.4,0.42,0.26,0.5,0.045,INK)},
   scooter(c){pfill([-0.88,-0.06,-0.78,0.2,-0.46,0.33,-0.04,0.3,0.0,0.05,-0.2,-0.13,-0.7,-0.13],c[0]);pfill([0.0,-0.13,0.0,0.0,0.32,0.0,0.32,-0.13],c[1]);
     pfill([0.28,-0.12,0.44,-0.06,0.5,0.56,0.36,0.6,0.3,0.2],c[0]);pfill([-0.62,0.31,-0.12,0.37,-0.1,0.28,-0.56,0.24],c[2]);circ(0.49,0.6,0.06,'#fff3c4');
     pfill([0.52,0.05,0.82,0.08,0.86,-0.02,0.58,-0.04],c[0]);line(0.42,0.58,0.3,0.62,0.05,INK);cx.beginPath();cx.ellipse(-0.45,0.12,0.16,0.08,0,0,TAU);cx.fillStyle=c[1];cx.fill();cx.stroke()},
@@ -1748,7 +1766,9 @@ function drawBike(pose,v,r,t,opt){
   if(opt.ghost){cx.globalAlpha=0.38}
   const cR=Math.min(pose.dR||0,0.13)/k,cF=Math.min(pose.dF||0,0.13)/k,wr=pose.wr||0;
   wheel(-0.66,-0.3+cR,wr,v.c[1]);wheel(0.66,-0.3+cF,wr,v.c[1]);
-  (BODY[v.k]||BODY.dirt)(v.c,t,G.popT);
+  if(pose.gas&&!opt.ghost)glow(-0.66,-0.3+cR,0.62,v.c[1],0.35);                                              // the rear hub lights up on the gas
+  const cr=pose.crouch||0,ln=pose.lean||0;if(cr||ln){cx.translate(-0.66,-0.3);cx.rotate(ln*0.05);cx.translate(0.66,0.3-0.07*cr)}
+  (BODY[v.k]||BODY.dirt)(v.c,t,G.popT,pose.gas,opt.ghost);
   cx.restore();cx.globalAlpha=1;
 }
 function groundShadow(tr,x,y){const gy=FL.groundTop(tr,x);if(gy==null)return;const hgt=y-gy;if(hgt>8)return;world();const k=clamp(1-hgt/8,0,1);
@@ -1768,7 +1788,7 @@ function newRun(mode,opt){
 const lvCache={};function levelTrack(i){return lvCache[i]||(lvCache[i]=FL.level(LV[i]))}
 function restart(){
   G.s=FL.newState(G.tr);G.prev=snap(G.s,{});G.phase=G.mode==='demo'?'run':'ready';G.toggles=[];G.inQ.length=0;G.endAt=0;G.shown=false;G.pops.length=0;G.minis.length=0;G.runCoins=0;
-  G.replay=null;G.rec.length=0;G.newBest=false;G.simIn=FL.inCode(0,0);pnum=0;scarfPts=null;G.trail.length=0;G.flash=0;G.firsts={};G.combo=0;G.lastFin=null;G.crouch=0;G.lean=0;
+  G.replay=null;G.rec.length=0;G.newBest=false;G.simIn=FL.inCode(0,0);pnum=0;scarfPts=null;G.trail.length=0;G.rings=[];G.lastA=null;G.spin=0;G.flash=0;G.firsts={};G.combo=0;G.lastFin=null;G.crouch=0;G.lean=0;
   G.gs=G.ghost?FL.newState(G.tr):null;if(G.gs)G.gs.noPick=true;G.gk=0;G.gc=FL.inCode(0,0);
   const s=G.s;G.cam.x=s.x+camLead();G.cam.y=s.y+1.5;G.cam.z=1;G.cam.vx=0;
   hideAll();if(G.mode!=='demo'){$('hud').hidden=false;$('levelBar').hidden=!G.L;}
@@ -1819,7 +1839,7 @@ function handleEvents(s){
   for(const e of s.ev){
     if(G.mode==='demo'){if(e.k==='bank'&&e.n)confetti(s.x,s.y,10);continue}
     switch(e.k){
-      case'touch':{const imp=e.imp||0;const gy=s.y-0.6;dust(s.x,gy,fx()?Math.round(6+imp*3):4,2.5+imp*0.7,theme().acc2);AU.S.land(imp+(e.air||0)*2);AU.S.chirp();G.crouch=Math.min(1,0.4+imp*0.12+e.air*0.3);
+      case'touch':{const imp=e.imp||0;const gy=s.y-0.6;dust(s.x,gy,fx()?Math.round(6+imp*3):4,2.5+imp*0.7,theme().acc2);AU.S.land(imp+(e.air||0)*2);AU.S.chirp();if(fx()&&(imp>1.2||e.air>0.35)){(G.rings=G.rings||[]).push({x:s.x,y:gy+0.04,t:0,p:Math.min(1.6,0.6+imp*0.12+(e.air||0)*0.5),c:veh().c[1]});if(G.rings.length>4)G.rings.shift()}G.crouch=Math.min(1,0.4+imp*0.12+e.air*0.3);
         if(fx())G.shake=Math.max(G.shake,Math.min(0.5,imp*0.05+e.air*0.06));G.popT=1;break}
       case'bank':{let txt='',col='#f4f7ff',big=false;
         if(e.n>0){txt=e.n===1?(e.back?TX('Backflip!'):TX('Front flip!')):e.n===2?TX('Double flip!'):e.n===3?TX('Triple flip!'):e.n===4?TX('Quadruple flip!'):TX('{n}× flip!',{n:e.n});big=true;AU.S.flip(e.n,e.combo)}
@@ -1982,6 +2002,17 @@ function render(now,dtReal){
   if(s&&!G.replay){const air=!(s.cR||s.cF);G.crouch=Math.max(0,G.crouch-dtReal*2.5);
     G.lean+=(clamp((!air&&s.hold&&spd<12&&!s.lean?0.6:0)-(s.lean||0)*0.9,-1,1)-G.lean)*Math.min(1,dtReal*(s.lean?10:6));G.popT=Math.max(0,G.popT-dtReal*2.5);G.ear=clamp(spd/16,0,1)}
   pose.lean=G.lean;pose.crouch=Math.max(G.crouch,s&&!(s.cR||s.cF)&&s.lean?0.5:0);pose.wr=-(pose.x/P.WR);pose.ear=G.ear;
+  pose.gas=!!(s&&!G.replay&&s.hold&&(s.cR||s.cF)&&!pose.crash&&G.phase==='run');
+  // spin arcs: in a flip the nose and the tail leave short arcs of light, so the turn reads without a rider
+  {const da=pose.a-(G.lastA==null?pose.a:G.lastA);G.lastA=pose.a;const rate=dtReal>0&&Math.abs(da)<1?da/dtReal:0;G.spin=(G.spin||0)+(rate-(G.spin||0))*Math.min(1,dtReal*12);
+    const air=s&&!(s.cR||s.cF),w=Math.abs(G.spin);
+    if(fx()&&air&&!pose.crash&&!G.replay&&w>1.6){world();cx.globalCompositeOperation='lighter';cx.lineCap='round';const sg=G.spin>0?1:-1,sw=Math.min(1.5,w*0.16),al=clamp((w-1.6)/2.2,0,1);
+      for(let e=0;e<2;e++){const a0=pose.a+0.2+e*Math.PI,R=e?0.98:0.8;for(let i=0;i<3;i++){const f0=i/3,f1=(i+1)/3;cx.strokeStyle=hexA(v.c[1],0.8*al*(1-f0));cx.lineWidth=0.13-0.035*i;cx.beginPath();
+        cx.arc(pose.x,pose.y,R,a0-sg*sw*f0,a0-sg*sw*f1,sg>0);cx.stroke()}}
+      cx.globalCompositeOperation='source-over'}}
+  // landing rings: a flat pulse of light runs out along the ground where the wheels came down
+  if(G.rings&&G.rings.length){world();cx.globalCompositeOperation='lighter';for(let i=G.rings.length-1;i>=0;i--){const r=G.rings[i];r.t+=dtReal;const f=r.t/0.38;if(f>=1){G.rings.splice(i,1);continue}
+      cx.strokeStyle=hexA(r.c,0.55*(1-f)*(1-f));cx.lineWidth=0.1*(1-f)+0.02;cx.beginPath();cx.ellipse(r.x,r.y,0.4+r.p*f*1.9,0.05+0.12*f,0,0,TAU);cx.stroke()}cx.globalCompositeOperation='source-over'}
   drawBike(pose,v,r,tAnim); // (1.54: no rider, so no streamer and no tumbling rider after a crash)
   // particles: sparks (additive streaks), light shards, bits
   world();cx.globalCompositeOperation='lighter';for(let i=0;i<pnum;i++){const a=clamp(pl[i]/pm[i],0,1);cx.globalAlpha=Math.min(1,a*1.6);cx.fillStyle=pc[i];
