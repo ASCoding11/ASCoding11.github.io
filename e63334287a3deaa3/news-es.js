@@ -7,6 +7,16 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Game shops are closed for now": "Las tiendas de los juegos están cerradas por ahora",
+    "Chromeline": "Chromeline",
+    "Spire": "Spire",
+    "Asteroid Run": "Asteroid Run",
+    "Blackwade": "Blackwade",
+    "For now nothing can be bought inside the games: Chromeline's garage, Spire's coin hats, Asteroid Run's runners and trails, Blackwade's equipment and upgrades, and Starhop's skins.": "Por ahora no se puede comprar nada dentro de los juegos: el garaje de Chromeline, los sombreros de monedas de Spire, los corredores y estelas de Asteroid Run, el equipo y las mejoras de Blackwade y los aspectos de Starhop.",
+    "Everything you already own is still yours to use, and nothing was taken away.": "Todo lo que ya tienes sigue siendo tuyo para usarlo, y no se ha quitado nada.",
+    "Your coins, crystals and shards are untouched and keep adding up as you play.": "Tus monedas, cristales y fragmentos no se tocan y siguen sumándose mientras juegas.",
+    "Things you unlock by playing, like Chromeline's secret vehicles, Spire's level hats and Asteroid Run's free runners, still unlock the same way.": "Lo que se desbloquea jugando, como los vehículos secretos de Chromeline, los sombreros por nivel de Spire y los corredores gratis de Asteroid Run, se sigue desbloqueando igual.",
+    "In Blackwade, equipment you carry is still used up on a run and can't be restocked until the shop opens again.": "En Blackwade, el equipo que llevas se sigue gastando en cada partida y no se puede reponer hasta que la tienda vuelva a abrir.",
     "Blackwade: it hunts every hall": "Blackwade: caza en todas las salas",
     "Blackwade": "Blackwade",
     "The monster follows you into every hall and comes up out of the water ahead of you soon after you arrive, so you know it's there.": "El monstruo te sigue a todas las salas y sale del agua delante de ti poco después de que llegas, para que sepas que está ahí.",

@@ -90,6 +90,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '1.65.1', title: 'Game shops are closed for now', kind: 'fix',
+     tags: ['Chromeline', 'Spire', 'Asteroid Run', 'Blackwade'], items: [
+      'For now nothing can be bought inside the games: Chromeline\'s garage, Spire\'s coin hats, Asteroid Run\'s runners and trails, Blackwade\'s equipment and upgrades, and Starhop\'s skins.',
+      'Everything you already own is still yours to use, and nothing was taken away.',
+      'Your coins, crystals and shards are untouched and keep adding up as you play.',
+      'Things you unlock by playing, like Chromeline\'s secret vehicles, Spire\'s level hats and Asteroid Run\'s free runners, still unlock the same way.',
+      'In Blackwade, equipment you carry is still used up on a run and can\'t be restocked until the shop opens again.']},
     {date: '2026-11-26', version: '1.65', title: 'Blackwade: it hunts every hall', kind: 'feature',
      img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
       'The monster follows you into every hall and comes up out of the water ahead of you soon after you arrive, so you know it\'s there.',
