@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Midnight Ops: look test</title>
+<style>
+  html, body { margin: 0; background: #050608; color: #c9ccd0; font: 13px/1.35 system-ui, sans-serif; }
+  #game { border: 0; display: block; }
+  #log { position: fixed; right: 6px; top: 6px; white-space: pre; background: rgba(0,0,0,.6); padding: 4px 6px; max-width: 40vw; pointer-events: none; }
+  #sheet { display: none; }
+</style>
+</head>
+<body>
+<!-- The look test: the real game page in a frame (so every shader, light and pass is exactly the game's), driven
+     through its ?test hooks. With the simulation paused and Math.random seeded (by the test runner), it jumps through
+     the fixed cameras below and lays every frame out on ONE contact sheet per quality.
+     ?q=0|1|2  quality       ?m=nightdrop,bootcamp  missions      ?v=lane,yard  only these views
+     ?w=960&h=540  frame size     ?x=1  also the extra views (guard at 25 m, grenade smoke, explosion)
+     ?set={"night_moon":{"sunI":1.2}}  preset values applied before the shots (JSON, URL-encoded)
+     Results: window.LOOK = { done, ms, sheet (JPEG data URL), cells {name: data URL}, meta, log } -->
+<iframe id="game"></iframe>
+<div id="log"></div>
+<canvas id="sheet"></canvas>
+<script>
+(function () {
+  'use strict';
+  const qs = new URLSearchParams(location.search);
+  const Q = /^[012]$/.test(qs.get('q') || '') ? +qs.get('q') : 1;
+  const FW = +(qs.get('w') || 960), FH = +(qs.get('h') || 540);
+  const MISSIONS = (qs.get('m') || 'nightdrop,bootcamp').split(',').filter(Boolean);
+  const ONLY = (qs.get('v') || '').split(',').filter(Boolean), EXTRA = qs.get('x') === '1';
+  let SET = null; try { SET = qs.get('set') ? JSON.parse(qs.get('set')) : null; } catch (e) { SET = null; }
+  const L = window.LOOK = { done: false, ms: 0, sheet: null, cells: {}, meta: {}, log: [], errors: [] };
+  const logEl = document.getElementById('log');
+  const log = (s) => { L.log.push(s); logEl.textContent = L.log.slice(-14).join('\n'); };
+  const t0 = performance.now();
+  // the same fixed cameras as the stills runner (cam: [x, height above ground, z], at likewise)
+  const VIEWS = {
+    bootcamp: [
+      ['wide', { cam: [-30, 22, 190], at: [10, 0, 110] }], ['street', { cam: [0, 1.7, 152], at: [0, 1.4, 115] }],
+      ['interior', { cam: [19.5, 1.9, 141.5], at: [12, 1.4, 139.5] }], ['foliage', { cam: [-42, 1.7, 134], at: [-48, 3.0, 137.5] }],
+      ['puddle', { cam: [0, 1.3, 74], at: [0, 0, 70] }], ['ground', { cam: [1.6, 1.1, 24.2], at: [0, 0, 22] }],
+      ['range', { cam: [0, 1.7, 46], at: [0, 1, 20] }], ['char', { spawn: [4, 152] }],
+      ['fp-hip', { fp: [0, 150, Math.PI] }], ['fp-aim', { fp: [0, 150, Math.PI], aim: 1 }],
+      ['x-smoke', { extra: 1, cam: [0, 1.7, 46], at: [0, 1.2, 30], smoke: [0, 30], steps: 150 }],
+      ['x-blast', { extra: 1, cam: [0, 1.7, 46], at: [0, 1.2, 30], blast: [0, 30], steps: 25 }],
+      ['x-ceiling', { extra: 1, cam: [16, 1.6, 141], at: [13, 3.6, 139.5] }],
+      ['x-door', { extra: 1, cam: [8.3, 1.5, 141.2], at: [11, 0.7, 140] }], ['x-wallfoot', { extra: 1, cam: [14, 1.2, 147.5], at: [16, 0.5, 143.2] }], ['x-yardsurf', { extra: 1, cam: [1.5, 1.4, 28.5], at: [0, 0, 24] }],
+      ['x-guard30', { extra: 1, spawnAt: [4, 152], guard: 'still30', dist: 30 }]],
+    nightdrop: [
+      ['wide', { cam: [70, 14, -40], at: [100, 0, -85] }], ['lane', { cam: [-60, 1.7, 19], at: [-80, 1.4, 19] }],
+      ['yard', { cam: [90, 1.7, -60], at: [104, 0.5, -72] }], ['interior', { room: ['hall', 'kitchen'] }], ['foliage', { cam: [38, 1.7, -84], at: [48, 2.2, -86] }],
+      ['puddle', { cam: [105.8, 1.2, -68.5], at: [104, 0, -70] }], ['char', { ent: 'g1' }],
+      ['fp-hip', { fp: [96, -64, -1.2] }], ['fp-aim', { fp: [96, -64, -1.2], aim: 1 }],
+      ['x-guard25', { extra: 1, guard: 'g1', dist: 25 }], ['x-guard30', { extra: 1, guard: 'g1', dist: 30 }],
+      ['x-door', { extra: 1, door: 1 }],
+      // a guard out in the open field, no lamp near, with field, hedge and sky behind (not the lit farmhouse)
+      ['x-field30', { extra: 1, spawnAt: [62.6, -101.2], enemy: 1, cam: [38, 1.7, -84], at: [62.6, 1.1, -101.2] }], ['x-field40', { extra: 1, spawnAt: [70.8, -106.9], enemy: 1, cam: [38, 1.7, -84], at: [70.8, 1.1, -106.9] }],
+      ['x-wallfoot', { extra: 1, wallfoot: 1 }], ['x-lanesurf', { extra: 1, cam: [-60, 1.5, 19], at: [-64.5, 0, 19.3] }],
+      ['x-smoke', { extra: 1, cam: [90, 1.7, -60], at: [100, 1.2, -68], smoke: [100, -68], steps: 150 }],
+      ['x-blast', { extra: 1, cam: [90, 1.7, -60], at: [100, 1.2, -68], blast: [100, -68], steps: 25 }]]
+  };
+  const frame = document.getElementById('game');
+  frame.style.width = FW + 'px'; frame.style.height = FH + 'px';
+  frame.src = 'index.html?test&q=' + Q + (qs.get('gov') ? '&gov=1' : '');
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  async function until(fn, ms, what) { const end = performance.now() + ms; while (performance.now() < end) { try { if (fn()) return; } catch (e) {} await sleep(250); } throw new Error('timed out waiting for ' + what); }
+  const shots = [];
+  async function run() {
+    await until(() => frame.contentWindow.__IV__ && frame.contentWindow.__IV__.state() === 'menu', 1500000, 'menu');
+    const G = frame.contentWindow, IV = G.__IV__.IV, api = G.__IV__;
+    log('menu at ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s');
+    if (G.AutoRes) G.AutoRes.off();
+    for (const m of MISSIONS) {
+      const tm = performance.now();
+      if (G.__reseed) G.__reseed(777);
+      api.start(m, 0);
+      await until(() => api.state() === 'play', 900000, m);
+      api.pauseLoop(true);
+      const W = IV.world; IV.mission.on = false; IV.player.cine = null; IV.player.frozen = false; IV.ai.ignorePlayer = true;
+      if (G.AutoRes) G.AutoRes.off(); W.resize();
+      // preset overrides for this run (the atmosphere object re-applies a copy of its preset)
+      if (SET && G.IVEnv && G.IVEnv.atmo) { const A = G.IVEnv.atmo, p = SET[A.preset]; if (p) { A.apply(Object.assign({}, A.P, p), A.preset); } }
+      if (SET && SET.js) try { log('js: ' + String(G.eval(SET.js)).slice(0, 300)); } catch (e) { log('set.js: ' + e.message); }
+      api.step(10); api.render();
+      const c0 = performance.now(); W.renderer.compile(W.scene, W.camera);
+      L.meta[m] = { loadS: +((performance.now() - tm) / 1000).toFixed(1), compileMs: Math.round(performance.now() - c0), programs: W.renderer.info.programs.length };
+      log(m + ' ready ' + L.meta[m].loadS + ' s');
+      // ?gov=1: feed the frame-time governor 70 ms frames for 12 s and record what it does to the internal buffers
+      if (qs.get('gov')) { const before = W.post ? W.post.size.slice() : null; W.govStart(); const t1 = performance.now();
+        while (performance.now() - t1 < 12000) { W.govFrame(0.07); const t2 = performance.now(); while (performance.now() - t2 < 20) {} }   // 20 ms steps in real time (a timer-driven loop ran too slowly in the frame)
+        L.meta[m + '-gov'] = { before, after: W.post ? W.post.size : null, scale: W.post ? +W.post.scale.toFixed(2) : null, log: W.gov.log.slice(-8) };
+        log(m + ' gov ' + JSON.stringify(L.meta[m + '-gov'])); }
+      for (const [name, v] of VIEWS[m]) {
+        if (v.extra && !EXTRA) continue;
+        if (ONLY.length && !ONLY.includes(name)) continue;
+        const note = setView(G, IV, api, v);
+        for (let k = 0; k < (+qs.get('warm') || 2); k++) { api.render(); await sleep(350); }
+        const R = W.renderer; api.render(); R.info.autoReset = false; R.info.reset(); const tr = performance.now(); api.render(); const ms = performance.now() - tr; const i = R.info.render;
+        // ?perf=N: N frames timed to completion (a 1-pixel read waits for the GPU), for before/after frame cost
+        let perf = null;
+        if (+qs.get('perf') > 0) { const gl = R.getContext(), px = new Uint8Array(4), n = +qs.get('perf'), ts = [];
+          for (let k = 0; k < n; k++) { const a = performance.now(); api.render(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); ts.push(performance.now() - a); }
+          ts.sort((a, b) => a - b); perf = { median: Math.round(ts[n >> 1]), min: Math.round(ts[0]), passes: G.IVRender && G.IVRender.info ? G.IVRender.info.passes : 1, size: G.IVRender && G.IVRender.info ? G.IVRender.info.size : [R.domElement.width, R.domElement.height] }; }
+        const url = R.domElement.toDataURL('image/jpeg', 0.92);
+        R.info.autoReset = true;
+        const key = 'q' + Q + '-' + m + '-' + name;
+        L.cells[key] = url;
+        L.meta[key] = { note, perf, calls: i.calls, tris: i.triangles, programs: R.info.programs.length, ms: Math.round(ms), scene: G.IVEnv && G.IVEnv.sceneInfo };
+        shots.push([key, url]);
+        log(key + ' ' + note + ' ' + Math.round(ms) + ' ms' + (perf ? ' perf ' + JSON.stringify(perf) : '') + ' calls ' + i.calls + ' tris ' + i.triangles + ' programs ' + R.info.programs.length);
+      }
+      IV.camera.override = null; api.press('aim', false); IV.__spawned = null; api.pauseLoop(false); IV.app.quit(); await sleep(1200);
+    }
+    await sheet();
+    L.ms = Math.round(performance.now() - t0); L.done = true; log('done ' + (L.ms / 1000).toFixed(1) + ' s');
+  }
+  function setView(G, IV, api, v) {
+    if (G.__reseed) G.__reseed(4242);
+    const THREE = G.THREE, W = IV.world, P = IV.player, M = IV.mission, gy = (x, z) => W.height(x, z);
+    let note = '', cam, at;
+    IV.camera.override = null; api.press('aim', false);
+    if (v.fp) { api.teleport(v.fp[0], v.fp[1], v.fp[2]); P.pitch = -0.05; try { IV.weapons.equip('smg'); } catch (e) {} if (v.aim) api.press('aim', true); api.step(40); return 'fp'; }
+    if (v.cam) { cam = [v.cam[0], gy(v.cam[0], v.cam[2]) + v.cam[1], v.cam[2]]; at = [v.at[0], gy(v.at[0], v.at[2]) + v.at[1], v.at[2]]; }
+    if (v.room) { const a = M.rooms[v.room[0]], b = M.rooms[v.room[1]], fy = (M.houseFy != null ? M.houseFy : gy(a[0], a[1]) + 0.3); cam = [a[0], fy + 1.6, a[1]]; at = [b[0], fy + 1.1, b[1]]; note = 'floor ' + fy.toFixed(2); }
+    if (v.spawnAt) { { const old = IV.ai.list.find(e => e.name === 'still30'); if (old) { old.pos.x = v.spawnAt[0]; old.pos.z = v.spawnAt[1]; } const e = old || IV.ai.spawn(Object.assign(v.enemy ? {} : { kind: 'ally', weapon: 'smg' }, { x: v.spawnAt[0], z: v.spawnAt[1], yaw: Math.PI, noShoot: true, fixed: true, name: 'still30' })); if (e) e.hp = 9999; note = 'spawned ' + !!e + ' at ' + (e ? e.pos.x.toFixed(1) + ',' + e.pos.z.toFixed(1) : '-'); } api.step(30); }
+    if (v.wallfoot) { const d = M.houseDoorS, hx = 98, hz = -92, dx = d.x - hx, dz = d.z - hz, L = Math.hypot(dx, dz) || 1, fy = M.houseFy || gy(d.x, d.z), px = -dz / L, pz = dx / L; cam = [d.x + dx / L * 2.2 + px * 3.2, gy(d.x, d.z) + 1.1, d.z + dz / L * 2.2 + pz * 3.2]; at = [d.x + px * 3.2, gy(d.x, d.z) + 0.35, d.z + pz * 3.2]; note = 'wallfoot'; }
+    if (v.door) { const d = M.houseDoorS, hx = 98, hz = -92, dx = d.x - hx, dz = d.z - hz, L = Math.hypot(dx, dz) || 1, fy = M.houseFy || gy(d.x, d.z); cam = [d.x + dx / L * 2.6 + 0.6, fy + 1.3, d.z + dz / L * 2.6]; at = [d.x, fy + 0.6, d.z]; note = 'door'; }
+    if (v.spawn) { if (!IV.__spawned) { IV.__spawned = IV.ai.spawn({ kind: 'ally', weapon: 'smg', x: v.spawn[0], z: v.spawn[1], yaw: 0, noShoot: true, fixed: true, name: 'still' }); IV.__spawned.hp = 9999; } api.step(30); }
+    if (v.ent || v.spawn) { const e = v.spawn ? IV.__spawned : IV.ai.list.find(e => e.name === v.ent || e.id === v.ent); if (!e) return 'NO ENT'; cam = [e.pos.x + 1.5, e.pos.y + 1.6, e.pos.z + 1.6]; at = [e.pos.x, e.pos.y + 1.3, e.pos.z]; note = 'ent'; }
+    if (v.guard) {
+      const e = IV.ai.list.find(e => e.name === v.guard || e.id === v.guard); if (!e) return 'NO GUARD';
+      // the first direction (of 16) with a clear line from a standing eye to the guard's chest, at v.dist metres
+      let best = null;
+      for (let k = 0; k < 16 && !best; k++) { const a = k / 16 * 6.283, x = e.pos.x + Math.cos(a) * v.dist, z = e.pos.z + Math.sin(a) * v.dist, y = gy(x, z) + 1.6; if (W.clear(x, y, z, e.pos.x, e.pos.y + 1.3, e.pos.z)) best = [x, y, z]; }
+      if (!best) return 'NO LINE';
+      cam = best; at = [e.pos.x, e.pos.y + 1.1, e.pos.z]; note = 'guard ' + v.dist + ' m';
+    }
+    if (v.smoke || v.blast) {
+      const p = v.smoke || v.blast, y = gy(p[0], p[1]);
+      if (IV.fx.clear) IV.fx.clear();
+      if (v.smoke) { if (IV.fx.smokeGrenade) IV.fx.smokeGrenade(p[0], y, p[1]); else IV.fx.smoke(p[0], y + 0.2, p[1], 14, 0.8); }
+      else IV.fx.explosion(p[0], y, p[1], false);
+      for (let k = 0; k < (v.steps || 1); k++) { IV.time += 1 / 60; IV.fx.frame(1 / 60); }   // the effects advance per drawn frame
+    }
+    IV.camera.override = (c) => { c.position.set(cam[0], cam[1], cam[2]); c.lookAt(at[0], at[1], at[2]); c.fov = 60; c.updateProjectionMatrix(); };
+    api.teleport(cam[0] + 0.01, cam[2] + 0.01); api.step(2);
+    return note || 'cam';
+  }
+  async function sheet() {
+    const n = shots.length; if (!n) return;
+    const cw = 480, ch = Math.round(cw * FH / FW), cols = n <= 4 ? n : n <= 9 ? 3 : 4, rows = Math.ceil(n / cols);
+    const c = document.getElementById('sheet'); c.width = cw * cols; c.height = ch * rows;
+    const g = c.getContext('2d'); g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < n; i++) {
+      const [key, url] = shots[i], img = new Image(); img.src = url; await img.decode();
+      const x = (i % cols) * cw, y = Math.floor(i / cols) * ch; g.drawImage(img, x, y, cw, ch);
+      g.font = '600 13px system-ui, sans-serif'; g.fillStyle = 'rgba(0,0,0,.55)'; const tw = g.measureText(key).width; g.fillRect(x, y, tw + 10, 18); g.fillStyle = '#e8e2c8'; g.fillText(key, x + 5, y + 13);
+    }
+    L.sheet = c.toDataURL('image/jpeg', 0.9);
+  }
+  run().catch(e => { L.error = String(e && e.stack || e); log('ERROR ' + e.message); L.done = true; });
+})();
+</script>
+</body>
+</html>

@@ -1,17 +1,18 @@
 ---
 name: top-bins
-description: Specialist for Top Bins (e63334287a3deaa3/top-bins/). Use for any change to Top Bins: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+description: Specialist for Top Bins (e63334287a3deaa3/top-bins/), an archived Back Room game. Use for any change to Top Bins: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
 You are the specialist for **Top Bins**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## Status
 
+- **Archived.** It is off the Back Room page, the phone page (`GROUPS` in `m/index.html`) and the Parties list (`GAMES` in `party.js`), but its files, saved data and keybinds still work when the folder is opened directly. Don't put it back on any list unless Arjun asks.
 - **Off the puzzle lists since 18 Nov 2026** (folder kept). It still works when opened directly; don't put it back on the Daily Puzzles page or the phone page unless Arjun asks.
 
 ## What it is
 
-Top Bins (Back Room; off the puzzle lists since 18 Nov 2026, folder kept, a daily soccer puzzle): name a whole list (14 in `lists.js`: Ballon d'Or winners by decade, most Ballon d'Or wins, World Cup Golden Ball / Golden Boot, Euro and Copa América winners, first ten European Cup winners, Premier League all-time scorers at the end of 2024-25, England's top scorers, Spain's and Italy's most-capped, Premier League champions, Zlatan's clubs) in 3 minutes; the daily list repeats every 14 days.
+Top Bins (Back Room; off the puzzle lists since 18 Nov 2026 and archived, folder kept, a daily soccer puzzle): name a whole list (14 in `lists.js`: Ballon d'Or winners by decade, most Ballon d'Or wins, World Cup Golden Ball / Golden Boot, Euro and Copa América winners, first ten European Cup winners, Premier League all-time scorers at the end of 2024-25, England's top scorers, Spain's and Italy's most-capped, Premier League champions, Zlatan's clubs) in 3 minutes; the daily list repeats every 14 days.
 
 ## Where it lives
 

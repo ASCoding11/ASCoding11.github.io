@@ -111,6 +111,7 @@
     }
     if (m.normalMap) m.normalScale.set(1, 1);
     if (m.map) m.map.anisotropy = 4;
+    if (window.IVEnv && IVEnv.rimPatch) IVEnv.rimPatch(m);   // edge light so a soldier reads against the dark (env/rooms.js)
   }
 
   // ---------- clips

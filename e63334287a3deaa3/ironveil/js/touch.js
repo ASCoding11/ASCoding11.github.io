@@ -48,7 +48,7 @@
       if (id === 'pause') { IV.emit('escape'); return; }
       if (id === 'order') { I.sim('order', true); setTimeout(() => I.sim('order', false), 60); return; }
       if (id === 'swap') { I.sim('swap', true); setTimeout(() => I.sim('swap', false), 60); return; }
-      if (id in toggles) { setToggle(id, !toggles[id]); return; }
+      if (id in toggles) { setToggle(id, !toggles[id]); if (id === 'aim' && toggles.aim && toggles.sprint) setToggle('sprint', false); else if (id === 'sprint' && toggles.sprint && toggles.aim) setToggle('aim', false); return; }   // aim and run cancel each other: never both on
       if (id === 'use') { I.sim('knife', true); }
       I.sim(id, true); b.classList.add('on');
     });

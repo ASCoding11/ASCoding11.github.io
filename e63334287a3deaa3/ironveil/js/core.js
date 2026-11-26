@@ -52,7 +52,7 @@
       eye: { stand: 1.62, crouch: 1.08, prone: 0.42 }, // m eye height above the feet by stance
       cadence: { walk: 1.7, run: 2.6, sprint: 3.1, crouch: 1.45, crouchRun: 2.0, prone: 0.8 }, // footfalls per second by gait:
                                          //   the guards hear one per footfall, so noise follows gait and stance, not raw speed
-      sprintOut: 0.22,                   // s after a sprint before the weapon can fire or aim
+      sprintOut: 0.16,                   // s after a sprint before the weapon can fire (a shot asked for sooner is kept and goes then)
       waterMul: 0.55                     // speed in the stream
     },
     cam: {
@@ -114,7 +114,7 @@
       headMul: 2.6, limbMul: 0.65,
       grenade: { fuse: 4.0, radius: 7, dmg: 220, throwV: 16, count: 2 },
       rock: { throwV: 15, noise: 15, count: 99 },
-      takedownRange: 2.0, takedownAngle: 1.9   // m, rad (|angle between enemy facing and you| must be > this behind them)
+      takedownRange: 2.2, takedownAngle: 1.35  // m; rad: you must be outside his clear view (where his head points, fovH 1.15 + margin), never in front of his body
     },
     noise: {                       // m, how far a sound carries in quiet night air
       sprint: 16, run: 9.5, walk: 5, crouchRun: 4.5, crouch: 2.4, prone: 1.2, vault: 6, land: 7,
@@ -133,7 +133,9 @@
       gain: [0.55, 0.85, 1.25], // awareness gained per second at point blank (difficulty)
       decay: 0.12,              // awareness lost per second when nothing is seen
       suspicious: 0.3, investigate: 0.62, spotted: 1.0,
-      hearGain: 0.45,           // awareness from one footstep heard at the edge
+      hearGain: 0.45,           // awareness from one footstep heard right beside him (x k^2 x 1.6, k = 1 - d / earshot)
+      stepCap: 0.85,            // footsteps alone never take awareness past this (below 'spotted': only sight starts a fight)
+      listenTime: 0.5,          // s a suspicious guard stands listening before he turns toward the sound
       reaction: [0.55, 0.47, 0.4], // s of continuous sight before he may act on seeing you (open fire, call it in)
       // accuracy: hit chance per shot = acc * exposure ramp * range * your stance/movement * light * his own state.
       // Exposure is seconds of continuous sight of you: the ramp is 1 - exp(-t / expoTau), from expoFloor at first sight
@@ -250,7 +252,7 @@
   //   cp: { mission, diff, idx, data } (the last checkpoint, so Continue resumes there), tut: boot camp finished once }
   const KEY = 'ironveil:save';
   const DEF_SETTINGS = { sens: 1, aimSens: 0.75, invert: false, assist: IV.touch ? 1 : 0, auto: IV.touch, sub: 1, motion: IV.reducedMotion, blood: true, bob: true,
-    quality: IV.touch ? 0 : 1, view: 'first', crouchHold: false, fov: 74, bright: 1, vol: 0.8, sfx: 1, mus: 0.55, mute: false };
+    quality: IV.touch ? 0 : 1, view: 'first', crouchHold: false, sprintToggle: false, fov: 74, bright: 1, vol: 0.8, sfx: 1, mus: 0.55, mute: false };
   function load() {
     let s = null;
     try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }

@@ -18,7 +18,10 @@ invites = dict(re.findall(r'href="/%s/([^/"]+)/"[^>]*data-invite="([a-z]*)"' % B
 # Back Room folders that are not games of their own (shared data, hubs, admin, redirects).
 NOT_GAMES = {'d06440218d1813a3', 'm', 'shop', 'daily', 'wordplay', 'sem-data', 'geo-data',
              'football-data', 'hivefix'}
-ARCHIVED = {'starhop', 'quarry', 'kartwheel', 'abyssal', 'hail-mary'}
+ARCHIVED = {'starhop', 'quarry', 'kartwheel', 'abyssal', 'hail-mary',
+            # daily puzzles archived in November 2026 (off the puzzle lists since the 18th)
+            'top-bins', 'crosslet', 'outline', 'sleight', 'scout-report', 'teamsheet', 'deadline-day', 'crossbar',
+            'journeyman', 'stat-duel', 'quartets', 'unfurl', 'overland', 'back-four'}
 ARCHIVED_ABOUT = {
     'quarry': 'Quarry: an endless block world (hills, forests, deserts, snowy peaks) to dig and build in, with crafting, '
               'smelting, a survival mode, a helper drone and shared online worlds under `rooms/qy-<code>` that keep what '
@@ -76,6 +79,8 @@ GENRE = {
     'patchwork-tower': ['create-game-assets', 'game-feel'],
     'flickerwood': ['game-ai', 'level-design', 'create-game-assets'],
     'lanternhold': ['tower-defense', 'game-ai'],
+    'windrow': ['physics-tuning', 'game-feel', 'audio-design'],
+    'ebbwork': ['level-design', 'physics-tuning', 'audio-design'],
     'ninefold': ['puzzle'], 'quartets': ['puzzle'], 'crosslet': ['puzzle'], 'sleight': ['puzzle'],
     'poopdle': ['puzzle'], 'back-four': ['puzzle'],
     'starhop': ['game-feel'], 'quarry': ['survival-crafting', 'procedural-gen'],

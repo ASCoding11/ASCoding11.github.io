@@ -2982,20 +2982,24 @@ const HAT_ICON={
   wizard:'<path d="M12 1 17.2 12.6H6.8z" fill="#3730a3"/><rect x="4.4" y="12" width="15.2" height="1.9" rx=".9" fill="#3730a3"/><circle cx="12" cy="8.2" r="1.2" fill="#fde047"/>'};
 function hatIcon(id){return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="13" width="10" height="9" rx="1.6" fill="#f6d2a2" stroke="#18163a" stroke-width="1.3"/><rect x="9" y="16.2" width="1.6" height="2.2" fill="#18163a"/><rect x="13.4" y="16.2" width="1.6" height="2.2" fill="#18163a"/>'+
   (HAT_ICON[id]||'').replace(/"C"/g,'"'+myColor+'"').replace(/"D"/g,'"'+shade(myColor,-.35)+'"')+'</svg>'}
+// The hat shop is closed for now (the owner's call): the four coin hats can't be bought, hats already bought stay yours to wear, level hats
+// still unlock by level, and coins still add up. Set this to true to open buying again.
+const HAT_SHOP_OPEN=false;
 function hatMsg(html){const m=$('hatMsg');m.hidden=!html;m.innerHTML=html||''}
 function wearHat(id){myHat=id;store.set('hat',id);if(G.av)G.av.setHat(id);if(Net.refs)Net.upd({k:id});renderHats()}
 function renderHats(){
   const box=$('hats');box.innerHTML='';
   for(const h of HATS){
-    const own=hatOwned(h),b=document.createElement('button'),lbl=T(h.n)+(own?'':h.coins?T(', {c} coins',{c:h.coins}):T(', level {l}',{l:h.lv}));
+    const own=hatOwned(h),b=document.createElement('button'),lbl=T(h.n)+(own?'':h.coins?(HAT_SHOP_OPEN?T(', {c} coins',{c:h.coins}):', '+T('Coming soon')):T(', level {l}',{l:h.lv}));
     b.type='button';b.className=own?'':'locked';b.setAttribute('aria-pressed',String(h.id===myHat));b.setAttribute('aria-label',lbl);b.title=lbl;
-    b.innerHTML=hatIcon(h.id)+(own?'':'<small>'+(h.coins?'<i class="coin"></i>'+h.coins:'Lv '+h.lv)+'</small>');
+    b.innerHTML=hatIcon(h.id)+(own?'':'<small>'+(h.coins?(HAT_SHOP_OPEN?'<i class="coin"></i>'+h.coins:esc(T('Soon'))):'Lv '+h.lv)+'</small>');
     b.onclick=()=>{sfx('ui');
       if(own){wearHat(h.id);hatMsg('');return}
       if(!h.coins){hatMsg('Reach level '+h.lv+' to wear the '+esc(T(h.n))+'. You\'re level '+levelOf(profile.xp).l+'.');return}
+      if(!HAT_SHOP_OPEN){hatMsg(esc(T('The hat shop is closed for now. Coming soon.')));return}
       if(profile.coins<h.coins){hatMsg('The '+esc(T(h.n))+' costs '+h.coins+' coins and you have '+profile.coins+'. Grab the coins on the way up, and finish towers for more.');return}
       hatMsg('<span>Buy the '+esc(T(h.n))+' for '+h.coins+' coins?</span> <button class="btn sm" type="button" id="hatBuy">Buy</button>');
-      $('hatBuy').onclick=()=>{if(profile.coins<h.coins||hatOwned(h))return;profile.coins-=h.coins;profile.hats.push(h.id);saveProfile();sfx('coin');wearHat(h.id);renderProfile();hatMsg('The '+esc(T(h.n))+' is yours.')}};
+      $('hatBuy').onclick=()=>{if(!HAT_SHOP_OPEN||profile.coins<h.coins||hatOwned(h))return;profile.coins-=h.coins;profile.hats.push(h.id);saveProfile();sfx('coin');wearHat(h.id);renderProfile();hatMsg('The '+esc(T(h.n))+' is yours.')}};
     box.appendChild(b);
   }
 }

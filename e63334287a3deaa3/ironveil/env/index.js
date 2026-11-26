@@ -4,7 +4,7 @@
    code at load time (env/texgen.js, in Web Workers when the page is served over http).
 
    Load order (plain script tags, after three.min.js):
-     env/texgen.js env/core.js env/atmosphere.js env/grass.js env/ground.js env/builder.js env/build.js env/nature.js
+     env/texgen.js env/core.js env/rooms.js env/atmosphere.js env/grass.js env/ground.js env/builder.js env/build.js env/nature.js
      env/props.js env/decals.js env/post.js env/index.js
    Typical frame:  IVEnv.update(dt, camera); post ? post.render(dt) : renderer.render(scene, camera);
 

@@ -83,7 +83,11 @@
   function hut(kitFn, spec, x, z, rot) {
     if (!IV.art.envOn() || !IVEnv.building) return kitFn();
     IV.kit.noMesh = true; let r; try { r = kitFn(); } finally { IV.kit.noMesh = false; }
-    try { const bd = IVEnv.building(spec); bd.group.position.set(x, W.height(x, z), z); bd.group.rotation.y = rot; (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(bd.group); } catch (e) { console.warn('hut', e); }
+    try { const bd = IVEnv.building(spec); bd.group.position.set(x, W.height(x, z), z); bd.group.rotation.y = rot; (W.envRoot && W.envRoot.parent ? W.envRoot : W.statics).add(bd.group);
+      // its windows light the room inside (outward normals in the building's frame, turned to the world and flipped)
+      const c = Math.cos(rot), s = Math.sin(rot), y0 = W.height(x, z);
+      for (const w of bd.windows || []) W.addPortal({ x: x + w.x * c + w.z * s, y: y0 + w.y, z: z - w.x * s + w.z * c, nx: -(w.nx * c + w.nz * s), nz: -(-w.nx * s + w.nz * c), w: w.w, h: w.h });
+    } catch (e) { console.warn('hut', e); }
     return r;
   }
   // camp dressing drawn by IVEnv, with its colliders handed to the world (the nav grid is built after this)
@@ -160,6 +164,8 @@
       for (const s of [-1, 1]) for (const t of [-1, 1]) K.add(b, 'wood', K.GEO.box, -30 + s * 1.5, W.height(-30, 100) + 4, 100 + t * 1.5, 0.25, 8, 0.25, 0, 0, 0, 0x6e5a44);
       K.add(b, 'wood', K.GEO.cyl12, -30, W.height(-30, 100) + 9.2, 100, 4.2, 2.6, 4.2, 0, 0, 0, 0x7a6450);
     }
+    // trodden mud at the hut doors, the gates, the muddy spots and the firing point (ground marks: drawing only)
+    if (W.dirtPatch) { W.dirtPatch(10.4, 140, 2.0, 55); W.dirtPatch(10.4, 120, 2.0, 55); W.dirtPatch(-10.6, 130, 2.2, 55); W.dirtPatch(0, 24, 3.2, 90); W.dirtPatch(0, 46, 2.5, 50); for (const g of WET.gates) W.dirtPatch(g[0], g[1], g[2], Math.round(g[2] * 20)); }
     // the lived-in camp: parade mast and notice board by the start, duckboards to the hut doors, tent lines with
     // a wash line, fuel drums and stores by the tower, sandbagged bays by the SMG point, spare frames at the butts
     dress('flagpole', -9.5, 145, 0); dress('noticeboard', -4.2, 154, Math.PI / 2 + 0.1);

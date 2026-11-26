@@ -1049,6 +1049,9 @@ if(save.mig){delete save.mig;saveNow()}   // keep the runners an old save had, f
 const clearedCount=()=>Object.keys(save.lv).length;
 const crystalTotal=()=>{let n=save.bank;for(const k in save.lv)n+=bits(save.lv[k].c);return n};
 const wallet=()=>Math.max(0,crystalTotal()-save.spent);
+// The shop is closed for now (the owner's call): runners and trails can't be bought with crystals. Runners still unlock free by playing,
+// what a save already owns stays owned, and crystals still add up. Set this to true to open buying again.
+const SHOP_OPEN=false;
 const isOpen=i=>i===0||!!save.lv[i]||PRED[i].some(p=>!!save.lv[p]);
 const freeMet=ch=>!!ch.free&&(ch.free.lv!=null?clearedCount()>=ch.free.lv:!!save.lv[ch.free.at]);
 const unlocked=ch=>ch.id==='pip'||save.own.includes(ch.id)||freeMet(ch);
@@ -1543,7 +1546,7 @@ const abilityOf=ch=>ch.heavy?'Cracked tiles hold':ch.dbl?'Double jump':ch.glide?
 function renderChars(){
   const box=$('chars');box.innerHTML='';
   for(const ch of CHARS){const b=document.createElement('button');b.type='button';const ok=unlocked(ch);
-    b.innerHTML=charSvg(ch)+'<b></b><small></small>';b.querySelector('b').textContent=ch.name;b.querySelector('small').textContent=ok?abilityOf(ch):'◆'+ch.cost;
+    b.innerHTML=charSvg(ch)+'<b></b><small></small>';b.querySelector('b').textContent=ch.name;b.querySelector('small').textContent=ok?abilityOf(ch):SHOP_OPEN?'◆'+ch.cost:TX('Locked');
     if(!ok)b.classList.add('locked');b.setAttribute('aria-pressed',String(save.ch===ch.id));b.setAttribute('aria-label',ch.name+(ok?'':' (locked)'));
     b.addEventListener('click',()=>{sfx.click();G.viewCh=ch.id;if(ok&&save.ch!==ch.id){save.ch=ch.id;saveNow();if(G.mode==='menu')startDemo()}renderChars()});box.append(b)}
   const ch=charById(G.viewCh||save.ch),ok=unlocked(ch);
@@ -1552,16 +1555,17 @@ function renderChars(){
   info.innerHTML='<b></b> <em></em> <span></span><div class="bars">'+bar('Speed',(ch.speed-10.5)/4.5)+bar('Sidestep',(ch.lat-6)/3.8)+bar('Grip',ch.accG/110)+bar('Jump',(ch.jh-1.6)/1.8)+'</div><div class="buy"></div>';
   info.querySelector('b').textContent=ch.name;info.querySelector('em').textContent=abilityOf(ch);
   info.querySelector('span').textContent=TX(ch.desc)+(ok?'':' '+TX('Unlock free: {x}.',{x:freeText(ch)}));
-  if(!ok){const can=wallet()>=ch.cost,bb=addBtn(info.querySelector('.buy'),'Unlock now for ◆'+ch.cost,'btn sm '+(can?'lime':'alt'),()=>{
-      if(wallet()<ch.cost)return;save.own.push(ch.id);save.spent+=ch.cost;save.ch=ch.id;saveNow();sfx.unlock();renderMenu();if(G.mode==='menu')startDemo()});
+  if(!ok&&!SHOP_OPEN){const sm=document.createElement('small');sm.textContent=TX('The shop is closed for now. Coming soon.');info.querySelector('.buy').append(sm)}
+  else if(!ok){const can=wallet()>=ch.cost,bb=addBtn(info.querySelector('.buy'),'Unlock now for ◆'+ch.cost,'btn sm '+(can?'lime':'alt'),()=>{
+      if(!SHOP_OPEN||wallet()<ch.cost)return;save.own.push(ch.id);save.spent+=ch.cost;save.ch=ch.id;saveNow();sfx.unlock();renderMenu();if(G.mode==='menu')startDemo()});
     bb.disabled=!can;if(!can){const sm=document.createElement('small');sm.textContent=' you have ◆'+wallet();info.querySelector('.buy').append(sm)}}
   else if(save.bestBy[ch.id]){const sm=document.createElement('small');sm.textContent='Endless best: '+fmtM(save.bestBy[ch.id]);info.querySelector('.buy').append(sm)}
 }
 function renderTrails(){
   const box=$('trails');box.innerHTML='';
   for(const t of TRAILS){const own=save.trails.includes(t.id),b=document.createElement('button');b.type='button';
-    b.textContent=TX(t.name)+(own?'':' ◆'+t.cost);b.setAttribute('aria-pressed',String(save.trail===t.id));if(!own&&wallet()<t.cost)b.disabled=true;
-    b.addEventListener('click',()=>{sfx.click();if(!own){if(wallet()<t.cost)return;save.trails.push(t.id);save.spent+=t.cost;sfx.unlock()}save.trail=t.id;saveNow();renderMenu()});box.append(b)}
+    b.textContent=TX(t.name)+(own?'':SHOP_OPEN?' ◆'+t.cost:' · '+TX('Coming soon'));b.setAttribute('aria-pressed',String(save.trail===t.id));if(!own&&(!SHOP_OPEN||wallet()<t.cost))b.disabled=true;
+    b.addEventListener('click',()=>{sfx.click();if(!own){if(!SHOP_OPEN||wallet()<t.cost)return;save.trails.push(t.id);save.spent+=t.cost;sfx.unlock()}save.trail=t.id;saveNow();renderMenu()});box.append(b)}
 }
 function nextLevel(){for(const i of ORDER)if(isOpen(i)&&!save.lv[i]&&!zoneOf(i).gift)return i;for(const i of ORDER)if(isOpen(i)&&!save.lv[i])return i;return -1}
 function renderMenu(){

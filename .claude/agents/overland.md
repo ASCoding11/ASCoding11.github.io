@@ -1,17 +1,18 @@
 ---
 name: overland
-description: Specialist for Overland (e63334287a3deaa3/overland/). Use for any change to Overland: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+description: Specialist for Overland (e63334287a3deaa3/overland/), an archived Back Room game. Use for any change to Overland: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
 You are the specialist for **Overland**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## Status
 
+- **Archived.** It is off the Back Room page, the phone page (`GROUPS` in `m/index.html`) and the Parties list (`GAMES` in `party.js`), but its files, saved data and keybinds still work when the folder is opened directly. Don't put it back on any list unless Arjun asks.
 - **Off the puzzle lists since 18 Nov 2026** (folder kept). It still works when opened directly; don't put it back on the Daily Puzzles page or the phone page unless Arjun asks.
 
 ## What it is
 
-Overland (Back Room; off the puzzle lists since 18 Nov 2026, folder kept), like Travle: get from the start country to the end one by naming countries joined by land borders; you have the shortest route's length plus 4 guesses and win as soon as your countries join up. Guesses are green (on a shortest route), yellow (a detour of one or two countries) or red (off track or no land link); at the end one shortest route (alphabetical at ties) is shown on the map. Hooks: `add('wins')`, `max('streak')`, `add('perfect')` when the route is as short as possible.
+Overland (Back Room; off the puzzle lists since 18 Nov 2026 and archived, folder kept), like Travle: get from the start country to the end one by naming countries joined by land borders; you have the shortest route's length plus 4 guesses and win as soon as your countries join up. Guesses are green (on a shortest route), yellow (a detour of one or two countries) or red (off track or no land link); at the end one shortest route (alphabetical at ties) is shown on the map. Hooks: `add('wins')`, `max('streak')`, `add('perfect')` when the route is as short as possible.
 
 ## Where it lives
 
