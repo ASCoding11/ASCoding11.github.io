@@ -90,6 +90,31 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '1.65', title: 'Blackwade: it hunts every hall', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'The monster follows you into every hall and comes up out of the water ahead of you soon after you arrive, so you know it\'s there.',
+      'The water gives you away: going in is heard across the whole hall, and every step you wade calls it closer.',
+      'It gets a little sharper each hall further in: it hears farther, reacts faster and moves quicker. Easy stays gentle; Hard does not.',
+      'Standing still and quiet on a tile is still safe, and pebbles, bottles, toys and flares pull it away.']},
+    {date: '2026-11-26', version: '1.64', title: 'Driftfall characters get real builds', kind: 'feature',
+     tags: ['Driftfall'], items: [
+      'Characters look more like people and less like blocks: a smaller head on a neck, arms that taper to the wrist, a narrower waist and boots with a toe and a sole.',
+      'Not everyone is the same shape any more: lean, average and broad builds, some with wider shoulders. Your outfit picks yours, and the Noob gets one from your colour.',
+      'The Noob has a rounder head with ears and a nose, and keeps its colours, backpack and straps.',
+      'Every outfit was re-fitted to the new body and still looks like itself.',
+      'Same height, same hit areas, same moves and controls as before.']},
+    {date: '2026-11-26', version: '1.63', title: 'Driftfall looks brighter', kind: 'feature',
+     tags: ['Driftfall'], items: [
+      'On every setting: a new sky with soft clouds, a clearer view of the island as you drop, a sea that fades into the horizon, warm layered cliffs and more varied grass and dirt.',
+      'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
+      'Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, a column of colour where a player is knocked out, a ring of sparks when your shots land and a puff of dust when you build.']},
+    {date: '2026-11-26', version: '1.62', title: 'New game: Flood Crew', kind: 'game',
+     games: ['Flood Crew'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
+      'Flood Crew is in Arcade: a first-person game about getting flooded places dry.',
+      'Work out why each place flooded: a buried drain, a leak, a broken bank, or ground with nowhere to run to.',
+      'The water really flows. Rake a drain clear, dig a trench, lay sandbags or set up a pump, and watch where it goes.',
+      'Six jobs, a depot with gear to buy, and up to three stars a job. Your progress saves by itself.',
+      'Plays with a keyboard and mouse, or with touch on a phone.']},
     {date: '2026-11-26', version: '1.61', title: 'Top player badges: 3 per player', kind: 'feature',
      tags: ['Leaderboards', 'Badges'], items: [
       'One player can now hold at most 3 of the small Top player shields at a time.',
@@ -107,13 +132,6 @@
       'Every leaf is real: gather them into your sack, drag them with the rake or push them with the blower.',
       'Earn acorns at compost bins and mulch chutes, then buy better tools and open the next gate.',
       'Works on phones too, and your gardens save themselves.']},
-    {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
-     tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
-      'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
-      'Type a list like "London, Kyoto, Machu Picchu" to log a whole trip at once, and keep a striped wishlist of places to go next.',
-      'Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.',
-      'Find it under Web Development Projects on the home page.'
-    ]},
     {date: '2026-11-25', version: '1.51.4', title: 'Site rules and privacy, in plain words', kind: 'fix',
      link: {text: 'Read the terms', href: '/terms/'}, items: [
       'The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can\'t promise.',

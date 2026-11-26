@@ -428,6 +428,12 @@ const TUNING = {
   monIdle: 1.3, monInvestigate: 4.2, monHunt: 14, react: 0.6, grabTime: 1.6, monCooldown: 4.5, linger: 2.6,
   // when nobody's left in its room it goes down the drains (travel s) and comes up where the party is (rise s)
   followAfter: 1.5, travel: 2.6, rise: 1.3, riseFar: 11,
+  // it shows itself in every hall: firstRise s into a run (or a retry), and each time it follows the party, it comes up
+  // in view on the way ahead, showNear to showFar m from the nearest player (the mist starts hiding it at about 17 m)
+  firstRise: 2.5, showNear: 10, showFar: 14,
+  // the water carries: going in (fall) is heard anywhere in the hall; wading carries waterCarry times as far as other
+  // noises of the same loudness (clip, a quick dip, too)
+  waterCarry: 2.8, hallHear: 200,
   // co-op
   reviveTime: 2.6, reviveRange: 2.4, shield: 3, ropeRange: 8, ropeTime: 0.9, wipeTime: 3.5, rejoin: 60,
   // rooms
@@ -441,10 +447,11 @@ const TUNING = {
   maxSpeed: 14, floatFor: 1.8
 };
 // speed: the monster's speeds; react: how long it freezes before it rushes
+// ramp: how much sharper it gets each hall further in (see hallK): its hearing of you, and its reactions, by ramp a hall; its speed by half that
 const DIFFS = [
-  { k: 'easy', n: 'Easy', scale: 1.22, hear: 0.8, speed: 0.8, react: 1.4, coin: 0.5 },
-  { k: 'normal', n: 'Normal', scale: 1, hear: 1, speed: 1, react: 1, coin: 1 },
-  { k: 'hard', n: 'Hard', scale: 0.86, hear: 1.2, speed: 1.2, react: 0.75, coin: 1.6 }
+  { k: 'easy', n: 'Easy', scale: 1.22, hear: 0.8, speed: 0.8, react: 1.4, coin: 0.5, ramp: 0.025 },
+  { k: 'normal', n: 'Normal', scale: 1, hear: 1, speed: 1, react: 1, coin: 1, ramp: 0.04 },
+  { k: 'hard', n: 'Hard', scale: 0.86, hear: 1.2, speed: 1.2, react: 0.75, coin: 1.6, ramp: 0.05 }
 ];
 const ITEMS = ['pebble', 'bottle', 'toy', 'flare', 'rope'];
 const ITEM_NAMES = ['Pebbles', 'Bottle', 'Wind-up toy', 'Flare', 'Rescue rope'];
@@ -512,9 +519,22 @@ const flareRadiusOf = u => TUNING.flareRadius + 2 * (u.flare | 0);
 const ropeRangeOf = u => TUNING.ropeRange + 3 * (u.reach | 0);
 
 // ---- Noise ----
-const hearRadius = (loud, df) => loud * TUNING.baseRadius * DIFFS[df].hear;
+// The same monster in every hall, a little sharper each hall further in: 1 in the first hall, 1 + ramp × (hall number - 1)
+// in the others (Normal: 1.32 in the last). How far it hears you (your body: water, landings, running, climbing, bumps)
+// and how fast it reacts scale by it, its speed by half as much. Machinery and thrown things (valves, the keypad,
+// bottles, toys, pebbles) carry the same in every hall, so the valve hall stays as loud as it always was.
+const BODY_SRC = { fall: 1, clip: 1, wade: 1, wadeRun: 1, wadeCreep: 1, hard: 1, edge: 1, climb: 1, sprint: 1, bump: 1, struggle: 1 };
+const hallK = (df, room) => 1 + DIFFS[df].ramp * clamp(room | 0, 0, ROOMS.length - 1);
+const WATER_SRC = { fall: 1, clip: 1, wade: 1, wadeRun: 1, wadeCreep: 1 };
+// How far a sound carries: loudness × baseRadius × the difficulty's hear (× the hall's hallK for body noises); water noises (src) carry
+// waterCarry times as far, and going into the water (fall) is heard anywhere in the hall. src and room are optional.
+function hearRadius(loud, df, src, room) {
+  const T = TUNING;
+  if (src === 'fall') return T.hallHear;
+  return loud * T.baseRadius * DIFFS[df].hear * (BODY_SRC[src] ? hallK(df, room) : 1) * (WATER_SRC[src] ? T.waterCarry : 1);
+}
 // How strongly a monster at distance d hears a sound (0 = not at all): full at the source, nothing at the edge of its radius.
-function heard(loud, d, df) { const R = hearRadius(loud, df); return d >= R ? 0 : loud * (1 - d / R); }
+function heard(loud, d, df, src, room) { const R = hearRadius(loud, df, src, room); return d >= R ? 0 : loud * (1 - d / R); }
 // A remembered sound fades to nothing over TUNING.memory seconds.
 const memWeight = (p, age) => age >= TUNING.memory ? 0 : p * (1 - age / TUNING.memory);
 
@@ -1053,7 +1073,7 @@ function spawnMons(W, S, room) {
 function startRun(S, W, df, seed, ids) {
   Object.assign(S, { ph: 'run', g: S.g + 1, df, seed, t: 0, cp: 0, valves: [0, 0], vt: [0, 0], vOpen: -1, door: 0, noise: [], proj: [], toys: [], flares: [], echoes: [], wipeT: 0, endT: 0, kpBad: 0, cleared: 0 });
   S.stoneCd = W.stones.map(() => 0);
-  S.mons = spawnMons(W, S, 0);
+  S.mons = spawnMons(W, S, 0); S.mons.forEach(m => surface(m, 0, TUNING.firstRise));
   ids.forEach((u, k) => {
     const P = S.pl[u]; if (!P) return; const sp = spawnAt(W, 0, k);
     Object.assign(P, { st: 0, coins: 0, downs: 0, revives: 0, help: 0, rv: 0, ropeT: 0, sh: 0, li: null, lastNoise: -99, inv: P.pack ? P.pack.slice() : [START_PEBBLES, 0, 0, 0, 0] });
@@ -1066,7 +1086,7 @@ function emit(S, W, x, y, z, loud, src, u) {
   if (u && S.pl[u]) S.pl[u].lastNoise = S.t;
   for (const m of S.mons) {
     if (m.room !== R.i || m.st === 4 || m.st === 5 || m.st === 6) continue;
-    const d = Math.hypot(m.x - x, m.z - z), p = heard(loud, d, S.df);
+    const d = Math.hypot(m.x - x, m.z - z), p = heard(loud, d, S.df, src, R.i);
     if (p > 0) { m.mem.push({ x, z, p, t: S.t, near: d <= TUNING.huntRange, id: ev.id }); if (m.mem.length > 10) m.mem.shift(); }
   }
   return ev;
@@ -1128,6 +1148,26 @@ function partyRoom(S) {
   for (const k in n) if (n[k] > bn || (n[k] === bn && +k > best)) { bn = n[k]; best = +k; }
   return best;
 }
+// Under the water, coming up in room after t seconds (in view of the party: showSpot).
+function surface(m, room, t) { Object.assign(m, { st: 5, t, to: room, away: 0, ret: 0 }); forget(m); }
+// Where it shows itself when it arrives in a room: open water on the way ahead of the party, showNear to showFar m
+// from the nearest player up in that room, near the route if it can (so you see it standing in the mist where you
+// have to go). Falls back to riseSpot if nobody's there yet or no cell fits.
+function showSpot(S, R, rnd) {
+  const T = TUNING, ppl = Object.values(S.pl).filter(P => !P.gone && P.st === 0 && P.has && P.room === R.i);
+  if (!ppl.length) return riseSpot(S, R, rnd);
+  let pz = 0; for (const P of ppl) pz += P.z; pz /= ppl.length;
+  let best = null, bs = -1e9;
+  for (let i = 0; i < 160; i++) {
+    const c = freeCell(R, R.grid.list[Math.floor(rnd() * R.grid.list.length)]);
+    let d = 99; for (const P of ppl) d = Math.min(d, Math.hypot(P.x - c[0], P.z - c[1]));
+    if (d < T.showNear || d > T.showFar) continue;
+    let ds = 99; for (const st of R.stops) if (st.z > pz) ds = Math.min(ds, Math.hypot(st.x - c[0], st.z - c[1]));
+    const sc = (c[1] > pz + 4 ? 6 : 0) - Math.min(ds, 12) * 0.5 - Math.abs(d - (T.showNear + T.showFar) / 2) * 0.3 + rnd();
+    if (sc > bs) { bs = sc; best = c; }
+  }
+  return best || riseSpot(S, R, rnd);
+}
 function freeCell(R, k) { const G = R.grid, ci = k % G.nx, cj = (k - ci) / G.nx; return [G.x0 + (ci + 0.5) * CELL, G.z0 + (cj + 0.5) * CELL]; }
 // Where it comes up in a room: open water as far as it can get from everyone (out of 40 tries), at least riseFar if it can.
 function riseSpot(S, R, rnd) {
@@ -1145,7 +1185,7 @@ function monStep(S, W, m, dt) {
   const T = TUNING, D = DIFFS[S.df];
   if (m.st === 5) {   // under: comes up in the party's room
     m.t -= dt; if (m.t > 0) return;
-    const R = W.rooms[m.to] || W.rooms[m.room], c = riseSpot(S, R, m.rnd);
+    const R = W.rooms[m.to] || W.rooms[m.room], c = showSpot(S, R, m.rnd);
     Object.assign(m, { room: R.i, x: c[0], z: c[1], hx: c[0], hz: c[1], tx: c[0], tz: c[1], st: 6, t: T.rise, to: -1 }); forget(m); return;
   }
   if (m.st === 6) { m.t -= dt; if (m.t <= 0) { m.st = 0; m.path = null; } return; }
@@ -1174,7 +1214,7 @@ function monStep(S, W, m, dt) {
   if (best && m.cd <= 0 && best !== m.cur) {
     const d = Math.hypot(best.x - m.x, best.z - m.z);
     // something fresh and close: it freezes (and shrieks), then rushes; already rushing, it just turns
-    if (S.t - best.t < 1.2 && d <= T.huntRange) { if (m.st !== 2 && m.st !== 7) { m.st = 7; m.t = T.react * D.react; } }
+    if (S.t - best.t < 1.2 && d <= T.huntRange) { if (m.st !== 2 && m.st !== 7) { m.st = 7; m.t = T.react * D.react / hallK(S.df, m.room); } }
     else if (m.st !== 2 && m.st !== 7) m.st = 1;
     m.cur = best; m.tx = best.x; m.tz = best.z; m.path = null; m.linger = T.linger; m.ret = 0;
   }
@@ -1189,7 +1229,7 @@ function monStep(S, W, m, dt) {
     if (ppl.length && m.rnd() < 0.5) { const P = ppl[Math.floor(m.rnd() * ppl.length)], a = m.rnd() * 6.283, r = 3 + m.rnd() * 6; c = [P.x + Math.cos(a) * r, P.z + Math.sin(a) * r]; }
     m.tx = clamp(c[0], -R.hw + 1, R.hw - 1); m.tz = clamp(c[1], R.z0 + 1, R.z1 - 1); m.path = null;
   }
-  const sp = (m.st === 2 ? T.monHunt : m.st === 1 || m.ret ? T.monInvestigate : T.monIdle) * D.speed;
+  const sp = (m.st === 2 ? T.monHunt : m.st === 1 || m.ret ? T.monInvestigate : T.monIdle) * D.speed * (1 + (hallK(S.df, m.room) - 1) / 2);
   const arrived = monMove(m, R, sp, dt);
   if (arrived) {
     if (m.st === 2) m.st = 1;
@@ -1342,7 +1382,7 @@ function retryFromCheckpoint(S, W) {
   S.ph = 'run';
   let k = 0;
   for (const u in S.pl) { const P = S.pl[u]; if (P.gone) continue; const sp = spawnAt(W, S.cp, k++); P.st = 0; P.rv = 0; P.ropeT = 0; P.sh = S.t + TUNING.shield; P.hold = ''; teleport(P, sp.x, sp.y, sp.z, S.t); }
-  S.mons = spawnMons(W, S, S.cp);
+  S.mons = spawnMons(W, S, S.cp); S.mons.forEach(m => surface(m, S.cp, TUNING.firstRise + TUNING.shield));
   if (S.cp >= W.rooms.length - 1) { S.valves = [0, 0]; S.vOpen = -1; S.door = 0; }
   S.proj.length = 0; S.toys.length = 0; S.echoes.length = 0; S.noise.length = 0;
 }
@@ -2236,6 +2276,10 @@ function sfx(name, x, y, z, k) {
     case 'throw': nz(d, t, 0.12, 'bandpass', 700, 1, 0.12, 1400); break;
     case 'screech': tn(d, t, 240, 1500, 0.9, 'sawtooth', 0.42); tn(d, t, 250, 1450, 0.9, 'sawtooth', 0.3); nz(d, t, 1.0, 'bandpass', 2600, 1.2, 0.55, 1200); tn(d, t, 60, 35, 1.2, 'sine', 0.6); break;
     // it heard something: a short torn shriek from where it stands
+    // it shows itself in a hall: a long, low call that rises into a rasp (from where it stands; softer with gentler scare)
+    case 'call': { const ds = SET.soft ? d : distort(d);
+      tn(d, t, 62, 92, 1.5, 'sawtooth', 0.22 * k); tn(d, t + 0.05, 93, 131, 1.4, 'sine', 0.2 * k);
+      tn(ds, t + 0.7, 330, 250, 0.9, 'sawtooth', 0.07 * k); nz(ds, t + 0.6, 1.0, 'bandpass', 1400, 3, 0.16 * k, 700); break; }
     case 'shriek': { const ds = distort(d); [880, 1175, 1390].forEach((f, i) => tn(ds, t, f, f * 1.45, 0.55, 'sawtooth', 0.16 * k)); nz(ds, t, 0.5, 'bandpass', 3200, 2, 0.4 * k, 1800); tn(d, t, 110, 70, 0.35, 'sine', 0.35 * k); break; }
     // caught: everything at once, right in your ears
     case 'scare': { const ds = distort(AU.sfx);
@@ -2888,7 +2932,8 @@ const TIPS = {
   air: ['land', 'The ring under you is where you\'ll land: <i>pale is quiet</i>, <b>amber is loud</b>, red is water.'],
   rim: ['land', '<b>Loud landing.</b> Come down on the worn middle of a tile, not its dark rim.'],
   run: ['steps', TOUCH ? '<b>Running is loud.</b> Turn RUN off to walk silently.' : '<b>Running is loud.</b> Let go of Shift to walk silently.'],
-  wet: ['drop', '<b>Water is loud.</b> Going in splashes, and every step you wade splashes again. Get back onto a tile.'],
+  wet: ['drop', '<b>Water is loud.</b> Going in is heard across the whole hall, and every step you wade calls it closer. Get back onto a tile.'],
+  hunt: ['ring', 'It follows you into <b>every hall</b>, and gets sharper each hall further in. <i>Stay on the tiles and stay quiet.</i>'],
   climb: ['land', 'Pulling yourself up onto a tile is <b>a little noisy</b>. Jump long enough to land on top.'],
   ring: ['ring', 'Rings on the water show how far a sound carried. <i>Outside the ring, it didn\'t hear.</i>'],
   still: ['bump', 'It\'s close. <i>Stand still and quiet</i>: it can\'t see you.']
@@ -2905,13 +2950,18 @@ function tipFrame(dt) {
 }
 // The "How noise works" card: every cause from loudest to quietest, with how far each carries on this difficulty.
 function renderNoiseHelp() {
-  const df = G.V && G.V.ph !== 'lobby' && G.V.ph !== 'count' ? G.V.df : (G.S.df || 1), L = TUNING.loud, top = hearRadius(L.bottle, df);
-  const row = (ic, t, l, d, wet) => '<div class="r' + (l ? '' : ' s') + '">' + NIC[ic] + '<b>' + t + '</b><div class="m">' + (l ? '<i style="width:' + Math.round(hearRadius(l, df) / top * 100) + '%;background:' + (wet ? 'var(--wet)' : l >= 0.4 ? 'var(--loud)' : '#b8a679') + '"></i>' : '') + '</div><small>' + d + (l ? ' Heard up to ' + Math.round(hearRadius(l, df)) + ' m away.' : '') + '</small></div>';
-  $('nhelpList').innerHTML = '<h3>What you do · ' + DIFFS[df].n + '</h3>' +
-    row('drop', 'Going into the water', L.fall, 'Stepping, falling or coming up short into it. (Out again before anyone heard the splash: feet touching water, ' + Math.round(hearRadius(L.clip, df)) + ' m.)', 1) +
-    row('wave', 'Running in the water', L.wadeRun, 'Every ' + TUNING.wadeStep + ' m you wade at a run.', 1) +
-    row('wave', 'Wading', L.wade, 'Every ' + TUNING.wadeStep + ' m you wade at a walk.', 1) +
-    row('wave', 'Wading slowly (creeping)', L.wadeCreep, 'Every ' + TUNING.wadeStep + ' m you creep through it. Quieter, never silent.', 1) +
+  const inRun = G.V && G.V.ph !== 'lobby' && G.V.ph !== 'count', df = inRun ? G.V.df : (G.S.df || 1), L = TUNING.loud;
+  // the numbers for the hall you're in (the first hall from the lobby): it hears a little farther each hall further in
+  const hall = inRun && G.W ? Math.max(0, roomAt(G.W, G.body.z).i) : 0, hr = (l, src) => hearRadius(l, df, src, hall);
+  const top = Math.max(hr(L.bottle), hr(L.wadeRun, 'wadeRun'));
+  const row = (ic, t, l, d, wet, src) => '<div class="r' + (l ? '' : ' s') + '">' + NIC[ic] + '<b>' + t + '</b><div class="m">' + (l ? '<i style="width:' + Math.min(100, Math.round(hr(l, src) / top * 100)) + '%;background:' + (wet ? 'var(--wet)' : l >= 0.4 ? 'var(--loud)' : '#b8a679') + '"></i>' : '') + '</div><small>' + d + (l ? (src === 'fall' ? ' Heard anywhere in the hall.' : ' Heard up to ' + Math.round(hr(l, src)) + ' m away.') : '') + '</small></div>';
+  const ramp = Math.round((hallK(df, ROOMS.length - 1) - 1) * 100), now = Math.round((hallK(df, hall) - 1) * 100);
+  $('nhelpList').innerHTML = '<h3>What you do · ' + DIFFS[df].n + (inRun ? ' · hall ' + (hall + 1) + ' of ' + ROOMS.length : '') + '</h3>' +
+    '<p class="sub" style="margin:0 0 4px">The water carries sound: wading is heard from much farther away than anything on the tiles. The same monster follows you into every hall, and each hall further in it hears farther, reacts faster and moves quicker (' + (now ? now + '% sharper here than in the first hall, ' : '') + 'up to ' + ramp + '% in the last).</p>' +
+    row('drop', 'Going into the water', L.fall, 'Stepping, falling or coming up short into it. (Out again before anyone heard the splash: feet touching water, ' + Math.round(hr(L.clip, 'clip')) + ' m.)', 1, 'fall') +
+    row('wave', 'Running in the water', L.wadeRun, 'Every ' + TUNING.wadeStep + ' m you wade at a run.', 1, 'wadeRun') +
+    row('wave', 'Wading', L.wade, 'Every ' + TUNING.wadeStep + ' m you wade at a walk.', 1, 'wade') +
+    row('wave', 'Wading slowly (creeping)', L.wadeCreep, 'Every ' + TUNING.wadeStep + ' m you creep through it. Quieter, never silent.', 1, 'wadeCreep') +
     row('bump', 'Bumping into it', L.bump, 'Walking right into it.') +
     row('land', 'Edge or hard landing', L.hard, 'Landing with your middle on a tile\'s dark rim, or a big drop. The ring under you shows it before you land.') +
     row('land', 'Pulling yourself up onto a tile', L.climb, 'Out of the water, or after a jump that comes up just short.') +
@@ -3097,7 +3147,7 @@ function runEvents(dt) {
   // noises: a ring on the water, the sound, and the meter if it was you
   for (const e of V.noise) {
     if (e.id <= G.lastNoise) continue; G.lastNoise = e.id;
-    const R = hearRadius(e.l, V.df);
+    const R = Math.min(80, hearRadius(e.l, V.df, e.src, roomAt(W, e.z).i));
     G.rings.push({ x: e.x, z: e.z, R, t: 0, l: e.l }); if (G.rings.length > RINGS) G.rings.shift();
     sfx(e.src === 'toy' ? 'toy' : e.src === 'echo' ? 'echo' : e.src, e.x, e.y, e.z, 1);
     if (['fall', 'pebble', 'bottle', 'skip', 'struggle', 'wade', 'wadeRun', 'wadeCreep'].includes(e.src)) splash(e.x, e.y, e.z, e.src === 'fall' ? 26 : e.src === 'bottle' ? 18 : e.src === 'wadeRun' ? 12 : 6, e.src === 'fall' ? 5 : e.src.startsWith('wade') ? 2 : 3);
@@ -3157,7 +3207,11 @@ function monsterMoods(V, me) {
       if (performance.now() - (G.myNoiseT || -1e9) < 1400 && me.st === 0) { const a = $('alarm'); a.textContent = 'IT HEARD YOU'; a.classList.remove('on'); void a.offsetWidth; a.classList.add('on'); }
     }
     if (m.st === 5 && m.room === room) { sfx('gurgle', m.x, 0, m.z); toast('It went under. You hear it in the drains…', 2.2); }
-    if (m.st === 6 && m.room === room) { sfx('gurgle', m.x, 0, m.z, 1.4); toast('Something came up out of the water.', 2.2); }
+    if (m.st === 6 && m.room === room) {
+      // it shows itself in every hall: up out of the water ahead, with a long low call from where it stands
+      sfx('gurgle', m.x, 0, m.z, 1.4); sfx('call', m.x, 2.8, m.z, SET.soft ? 0.55 : 1);
+      toast('It\'s here: up out of the water ahead, listening.', 2.6); tip('hunt');
+    }
   });
 }
 // Co-op is rated against your own team: whoever did more for the party (rescues, valves, the keypad; going down
