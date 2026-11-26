@@ -251,20 +251,8 @@
 
   // ---- jump / vault / climb decision
   function traverseOrJump(p, dir) {
-    var ob = probeAhead(p, dir, 0.95);
-    if (ob && ob.top <= TU.climbMax) {
-      // where would we end up?
-      var n = new T.Vector3(-ob.nx, 0, -ob.nz);   // into the obstacle
-      var topY = p.pos.y + ob.top;
-      // depth of the obstacle along the move: vault over if there's floor within ~1.6 m on the other side at a lower level
-      var over = p.pos.clone().addScaledVector(n, ob.dist + 1.4);
-      var gOver = W.ground(over.x, over.z, topY + 0.1, 0.1);
-      var onTop = p.pos.clone().addScaledVector(n, ob.dist + 0.45);
-      if (ob.top <= TU.vaultMax && gOver.y < topY - 0.3 && !W.blocked(over.x, gOver.y, over.z, 0.3, 1.6)) {
-        startTraverse(p, 'vault', n, over, gOver.y, 1.0); return;
-      }
-      if (!W.blocked(onTop.x, topY, onTop.z, 0.28, 1.6)) { startTraverse(p, ob.top <= TU.vaultMax ? 'climbLow' : 'climb', n, onTop, topY, ob.top <= TU.vaultMax ? 0.6 : 0.95); return; }
-    }
+    // reach further the faster you're going (running at a wall and pressing jump a stride away still vaults it)
+    if (tryTraverse(p, dir, 0.95 + M.clamp(p.speed, 0, 6) * 0.22, TU.climbMax)) return;
     // a plain jump, keeping momentum
     setState(p, 'air'); p.fallStart = p.pos.y;
     var f = fwdOf(p.yaw);
@@ -273,9 +261,28 @@
     p.actor.move('jump');
     RP.Audio.step(p.gmat, p.pos, 1.5);
   }
-  function startTraverse(p, kind, n, to, toY, dur) {
+  // vault over or climb onto what is in front, if it is in reach and there's room: true if it started
+  function tryTraverse(p, dir, reach, maxTop) {
+    var ob = probeAhead(p, dir, reach);
+    if (ob && ob.top <= maxTop) {
+      // where would we end up?
+      var n = new T.Vector3(-ob.nx, 0, -ob.nz);   // into the obstacle
+      var topY = p.pos.y + ob.top;
+      // depth of the obstacle along the move: vault over if there's floor within ~1.6 m on the other side at a lower level
+      var over = p.pos.clone().addScaledVector(n, ob.dist + 1.4);
+      var gOver = W.ground(over.x, over.z, topY + 0.1, 0.1);
+      var onTop = p.pos.clone().addScaledVector(n, ob.dist + 0.45);
+      if (ob.top <= TU.vaultMax && gOver.y < topY - 0.3 && !W.blocked(over.x, gOver.y, over.z, 0.3, 1.6)) {
+        startTraverse(p, 'vault', n, over, gOver.y, 1.0, topY); return true;
+      }
+      if (!W.blocked(onTop.x, topY, onTop.z, 0.28, 1.6)) { startTraverse(p, ob.top <= TU.vaultMax ? 'climbLow' : 'climb', n, onTop, topY, ob.top <= TU.vaultMax ? 0.6 : 0.95); return true; }
+    }
+    return false;
+  }
+  function startTraverse(p, kind, n, to, toY, dur, overY) {
     setState(p, kind === 'vault' ? 'vault' : 'climb');
-    p.trav = { kind: kind, from: p.pos.clone(), to: new T.Vector3(to.x, toY, to.z), dur: dur, top: Math.max(p.pos.y, toY) + (kind === 'vault' ? 0.0 : 0) };
+    // a vault's feet clear the obstacle's top (overY) at the middle of the move
+    p.trav = { kind: kind, from: p.pos.clone(), to: new T.Vector3(to.x, toY, to.z), dur: dur, top: Math.max(p.pos.y, toY, overY == null ? -1e9 : overY - 0.55) };
     p.yaw = Math.atan2(n.x, n.z);
     if (kind === 'vault') p.actor.playFull('vault', { fade: 0.08, speed: 1.1 / dur });
     else p.actor.move(kind === 'climb' ? 'climb' : 'land', { speed: kind === 'climb' ? 1 : 1.6 });
@@ -289,8 +296,8 @@
     p.pos.x = t.from.x + (t.to.x - t.from.x) * hx; p.pos.z = t.from.z + (t.to.z - t.from.z) * hx;
     if (t.kind === 'vault') {
       // up and over the top, then down to the far ground
-      var arc = Math.sin(Math.min(1, u) * Math.PI) * 0.35;
-      var topY = Math.max(t.from.y, t.to.y) + 0.0;
+      var arc = Math.sin(Math.min(1, u) * Math.PI) * 0.12;
+      var topY = t.top;   // (the vault clip lifts the legs over; the root rides the obstacle's top less the hip clearance)
       p.pos.y = (u < 0.5 ? M.lerp(t.from.y, topY, hy) : M.lerp(topY, t.to.y, M.smooth((u - 0.5) / 0.5))) + arc;
     } else p.pos.y = M.lerp(t.from.y, t.to.y, hy);
     p.speed = 0;
@@ -347,6 +354,8 @@
     if (Math.abs(p.pos.z - oz - p.vel.z * dt) > 0.001) p.vel.z *= 0.3;
     p.pos.y += p.vel.y * dt;
     p.fallStart = Math.max(p.fallStart, p.pos.y);
+    // jumped into a low wall while pushing toward it: go over it (a mantle), as on the ground
+    if (p.st > 0.06 && wish.lengthSq() > 0.09 && p.pos.y - p.fallStart > -0.6 && tryTraverse(p, fwdOf(p.yaw), 0.9, TU.vaultMax + 0.25)) { p.actor.endMove('jump'); return; }
     // grab a ledge in front while falling or near the top of a jump
     if (I.down('jump') && p.vel.y < 2 && p.st > 0.12) {
       var ob = probeAhead(p, fwdOf(p.yaw), 0.6);
