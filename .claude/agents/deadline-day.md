@@ -1,17 +1,18 @@
 ---
 name: deadline-day
-description: Specialist for Deadline Day (e63334287a3deaa3/deadline-day/). Use for any change to Deadline Day: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+description: Specialist for Deadline Day (e63334287a3deaa3/deadline-day/), an archived Back Room game. Use for any change to Deadline Day: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
 You are the specialist for **Deadline Day**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## Status
 
+- **Archived.** It is off the Back Room page, the phone page (`GROUPS` in `m/index.html`) and the Parties list (`GAMES` in `party.js`), but its files, saved data and keybinds still work when the folder is opened directly. Don't put it back on any list unless Arjun asks.
 - **Off the puzzle lists since 18 Nov 2026** (folder kept). It still works when opened directly; don't put it back on the Daily Puzzles page or the phone page unless Arjun asks.
 
 ## What it is
 
-Deadline Day (Back Room; off the puzzle lists since 18 Nov 2026, folder kept, a daily soccer puzzle): a famous transfer (from, to, year, reported fee from `transfers.js`, 169 of them) → name the player in 6; misses unlock nationality, position, age that year and initials.
+Deadline Day (Back Room; off the puzzle lists since 18 Nov 2026 and archived, folder kept, a daily soccer puzzle): a famous transfer (from, to, year, reported fee from `transfers.js`, 169 of them) → name the player in 6; misses unlock nationality, position, age that year and initials.
 
 ## Where it lives
 

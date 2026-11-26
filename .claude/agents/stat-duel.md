@@ -1,17 +1,18 @@
 ---
 name: stat-duel
-description: Specialist for Stat Duel (e63334287a3deaa3/stat-duel/). Use for any change to Stat Duel: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+description: Specialist for Stat Duel (e63334287a3deaa3/stat-duel/), an archived Back Room game. Use for any change to Stat Duel: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
 You are the specialist for **Stat Duel**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## Status
 
+- **Archived.** It is off the Back Room page, the phone page (`GROUPS` in `m/index.html`) and the Parties list (`GAMES` in `party.js`), but its files, saved data and keybinds still work when the folder is opened directly. Don't put it back on any list unless Arjun asks.
 - **Off the puzzle lists since 18 Nov 2026** (folder kept). It still works when opened directly; don't put it back on the Daily Puzzles page or the phone page unless Arjun asks.
 
 ## What it is
 
-Stat Duel (Back Room; off the puzzle lists since 18 Nov 2026, folder kept, a daily soccer puzzle): higher or lower on finished totals (international caps or goals of players retired from international football, Premier League goals of players who left it); daily run of 10 (ends on a miss) built from the date, plus an endless unlimited streak.
+Stat Duel (Back Room; off the puzzle lists since 18 Nov 2026 and archived, folder kept, a daily soccer puzzle): higher or lower on finished totals (international caps or goals of players retired from international football, Premier League goals of players who left it); daily run of 10 (ends on a miss) built from the date, plus an endless unlimited streak.
 
 ## Where it lives
 
