@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.05', title: 'Flood Crew: new water', kind: 'feature',
+     tags: ['Flood Crew'], items: [
+      'The flood moves like real water now: currents carry on round corners, swirl behind walls and settle down instead of shimmering.',
+      'Wading pushes a bow wave ahead of you and leaves a wake, and splashes send out rings of ripples.',
+      'Working drains pull a proper whirlpool, the reflections are sharper, and sunlight sparkles on the surface.']},
     {date: '2026-11-26', version: '2.04.1', title: 'Leaf Sweep: a calmer start', kind: 'fix',
      tags: ['Leaf Sweep'], items: [
       'Leaf Sweep\'s start is calmer: your hands gather leaves more gently, and the rake is back to 60 acorns.']},

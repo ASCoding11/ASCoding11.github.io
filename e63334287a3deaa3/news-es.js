@@ -7,6 +7,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Flood Crew: new water": "Flood Crew: agua nueva",
+    "Flood Crew": "Flood Crew",
+    "The flood moves like real water now: currents carry on round corners, swirl behind walls and settle down instead of shimmering.": "La inundación se mueve como agua de verdad: las corrientes siguen al doblar las esquinas, giran detrás de los muros y se calman en vez de temblar.",
+    "Wading pushes a bow wave ahead of you and leaves a wake, and splashes send out rings of ripples.": "Al caminar por el agua empujas una ola por delante y dejas una estela, y las salpicaduras forman anillos de ondas.",
+    "Working drains pull a proper whirlpool, the reflections are sharper, and sunlight sparkles on the surface.": "Los desagües que funcionan forman un remolino de verdad, los reflejos son más nítidos y el sol destella en la superficie.",
     "Leaf Sweep: a calmer start": "Leaf Sweep: un comienzo más tranquilo",
     "Leaf Sweep": "Leaf Sweep",
     "Leaf Sweep's start is calmer: your hands gather leaves more gently, and the rake is back to 60 acorns.": "El comienzo de Leaf Sweep es más tranquilo: tus manos juntan las hojas con más calma y el rastrillo vuelve a costar 60 bellotas.",
