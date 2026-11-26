@@ -152,7 +152,7 @@ var waterMat=new THREE.ShaderMaterial({uniforms:U,transparent:true,depthWrite:fa
     'vec3 col=mix(body,skyc,fres*calm);al=mix(al,1.0,fres*0.8*calm);'+
     'float sd=max(dot(R,uSun),0.0);col+=uSunC*(pow(sd,900.0)*(1.0+2.0*uHi)+pow(sd,60.0)*0.18+pow(sd,40.0)*0.22*smoothstep(0.8,0.92,chop.b)*near)*calm;col+=vec3(1.0,0.93,0.8)*tl*pow(max(dot(R,V),0.0),10.0)*0.5;'+
     // foam: streaks where the current is quick, on ripple crests, and in the whirlpool's arms
-    'float foam=smoothstep(0.12,0.6,sp)*smoothstep(0.52,0.76,m.b)*calm;foam=max(foam,crest*0.35*calm);foam=max(foam,spiral*0.5);'+
+    'float foam=smoothstep(0.2,1.1,sp)*smoothstep(0.6,0.82,m.b)*calm*0.55;foam=max(foam,crest*0.35*calm);foam=max(foam,spiral*0.5);'+
     // the shore: a foam line a few centimetres wide whatever the slope, broken up and lapping
     'vec2 gD=vec2(dFdx(vD),dFdy(vD));vec2 gx=vec2(length(dFdx(vW.xz)),length(dFdy(vW.xz)));float dslope=length(gD)/max(length(gx),1e-4);'+
     'float shoreDist=vD/max(dslope,0.015);float lap=0.5+0.5*sin(uT*1.6+m.r*8.0);float edge=(1.0-smoothstep(0.03+0.05*lap,0.16+0.06*lap,shoreDist))*smoothstep(0.35,0.62,fine.b+0.25)*(1.0-smoothstep(0.03,0.09,vD));'+
