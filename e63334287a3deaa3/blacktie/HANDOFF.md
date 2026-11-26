@@ -39,17 +39,13 @@ character build scripts are in `tools/chars/` (see its README; needs `bvenv` wit
 - Mission 3 `chase` (Coast Road): Spider from the waterfront east to the piazzetta, on foot to the pier, launch out
   to sea; `RP.Vehicles.chaser()` saloons follow `driveLine` and fire; cars take bullet and crash damage.
 
-## Stopped here (pick up from this)
-- An autopilot drive of mission 3 (`~/rpwork/w/drive.js`: follows `RP.map.driveLine` from the waterfront to the
-  piazzetta, logs position / speed / car hp / stuck points) was being re-run and had NOT yet passed after three
-  fixes: the Spider climbed onto its own box (fixed), the cove steps' railing and lamp crossed the road at the
-  viaduct x 849 (moved in `maps/amalfi.js`, not yet seen on screen), crash damage drained the car (softened).
-  Run it again first; anything it reports as STUCK is a map or handling bug. The first run (flying car) did show
-  the mission steps advance, chasers spawn and the helicopter arrive.
-- Checkouts: main `/home/user/ASCoding11.github.io` on `agent-game` (everything is here and pushed). The worktree
-  `/home/user/bt-work` (branch `bt-work`) is merged and can be removed; remote branch `agent-game-map-wip` is an old
-  snapshot, safe to delete. Harness scripts: `~/rpwork/*.js` use port 8765 (main checkout), `~/rpwork/w/*.js`
-  were for the worktree (8766; `w/probe.js` and `w/drive.js` were pointed back at 8765).
+## Mission 3 drive test: passes
+`~/rpwork/w/drive.js` (autopilot along `RP.map.driveLine`, steering ~14 m ahead by distance) drives the whole coast
+road from the waterfront to the bowl town's piazzetta at ~24 m/s in ~45 s with no stuck points; chasers and the
+helicopter arrive. Fixes that got it there: the car no longer rides on its own collision box; the cove steps no longer
+cross the road at the viaduct; crash damage only for real impacts; terrain steeper than ~35 degrees stops a car like
+a wall (no driving up hillsides); chasers steer ~16 m ahead by distance. Checkouts: everything is in the main checkout
+on `agent-game`; the `/home/user/bt-work` worktree and the remote branch `agent-game-map-wip` are merged leftovers.
 
 ## Next
 1. Play mission 3 with real controls; tune chaser speed/aggression and the helicopter; check the pursuit in the

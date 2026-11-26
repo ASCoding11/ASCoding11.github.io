@@ -187,7 +187,11 @@
     var onFoot = !p.vehicle, tx, tz, want;
     if (dP < 16 && Math.abs(p.pos.y - v.pos.y) < 4) { tx = p.pos.x; tz = p.pos.z; want = onFoot ? 0 : Math.abs(p.vehicle.v) + 3; }      // close: go for the player
     else {
-      var ahead = pIdx >= a.idx, ti = M.clamp(a.idx + (ahead ? 2 : -2), 0, line.length - 1); tx = line[ti][0]; tz = line[ti][1];
+      // steer for a point about 16 m further along the line (by distance: the line's points are 10-26 m apart, and
+      // two points ahead cut every bend onto the hillside)
+      var ahead = pIdx >= a.idx, st2 = ahead ? 1 : -1, ti = a.idx, acc = 0;
+      while (ti + st2 >= 0 && ti + st2 < line.length && acc < 16) { acc += Math.hypot(line[ti + st2][0] - line[ti][0], line[ti + st2][1] - line[ti][1]); ti += st2; }
+      tx = line[ti][0]; tz = line[ti][1];
       want = M.clamp((p.vehicle ? Math.abs(p.vehicle.v) : 4) + (dP - 14) * 0.3, 7, v.ty.top * 0.92);
       if (!ahead) { want = 9; }
     }
@@ -315,7 +319,19 @@
       if (gf > W.water - 0.45 || gr > W.water - 0.45) { v.v *= -0.25; v.hit = Math.abs(v.v); }
       else { _f.x = fx; _f.z = fz; _r.x = rx; _r.z = rz; }
     } else {
+      var fy0 = W.ground(_f.x, _f.z, v.pos.y + 0.7, 0.5).y, ry0 = W.ground(_r.x, _r.z, v.pos.y + 0.7, 0.5).y;
+      var ox0 = _f.x, oz0 = _f.z, ox1 = _r.x, oz1 = _r.z;
       W.move(_f, dx, dz, rad, 1.2, 0.32); W.move(_r, dx, dz, rad, 1.2, 0.32);
+      // no driving up hillsides and cliffs: ground ahead rising steeper than about 35 degrees stops the car like a wall
+      // (stairs and kerbs are boxes and are handled by the step height above; this is the terrain itself)
+      if (!v.air) {
+        var lead = v.v >= 0 ? _f : _r, lx0 = v.v >= 0 ? ox0 : ox1, lz0 = v.v >= 0 ? oz0 : oz1, ly0 = v.v >= 0 ? fy0 : ry0;
+        var run = Math.hypot(lead.x - lx0, lead.z - lz0);
+        if (run > 1e-4) {
+          var ly1 = W.ground(lead.x, lead.z, v.pos.y + 0.7, 0.5).y;
+          if ((ly1 - ly0) / run > 0.7) { _f.x = ox0; _f.z = oz0; _r.x = ox1; _r.z = oz1; if (sp > 3) v.hit = sp * 0.6; v.v *= 0.4; }
+        }
+      }
       var lost = Math.hypot(_f.x - fx, _f.z - fz) + Math.hypot(_r.x - rx, _r.z - rz);
       if (lost > 0.02 * Math.max(1, sp * dt * 20)) {
         var hitK = M.clamp(lost / Math.max(1e-3, sp * dt), 0, 1);
