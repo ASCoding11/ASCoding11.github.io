@@ -457,6 +457,8 @@
         { a: [-7.5, 0], b: [-2.5, 0], doors: [{ at: 2.5, w: 0.95 }] }, { a: [2.5, 0], b: [7.5, 0] }],
       roof: { pitch: 0.85, over: 0.45 } });
     const fy = H.fy, L = H.L2W;
+    // the windows light the rooms inside (inward normal: toward the house's middle along the wall's axis)
+    for (const w of H.wins) { const dx = w.x - HOUSE.x, dz = w.z - HOUSE.z, ax = Math.abs(dx) / (HOUSE.w / 2), az = Math.abs(dz) / (HOUSE.d / 2); W.addPortal({ x: w.x, y: w.y, z: w.z, nx: ax > az ? -Math.sign(dx) : 0, nz: ax > az ? 0 : -Math.sign(dz), w: 1.0, h: 1.3 }); }
     // lit windows glow softly into the fog
     // warm spill from the lit windows onto the yard and the walls outside (visual only: the AI's light test skips these)
     for (const w of H.wins) if (w.lit) { const dx = w.x - HOUSE.x, dz = w.z - HOUSE.z, ax = Math.abs(dx) / (HOUSE.w / 2), az = Math.abs(dz) / (HOUSE.d / 2), ox = ax > az ? Math.sign(dx) : 0, oz = ax > az ? 0 : Math.sign(dz); W.addLamp({ x: w.x + ox * 1.1, y: w.y - 0.2, z: w.z + oz * 1.1, r: 6, i: 0, power: 1.5, color: 0xff9a48, flicker: true, los: false, visual: true }); }
@@ -472,6 +474,8 @@
     // interior lights (kitchen, office) and the doors' positions for the script
     [[-5, 2.2], [5.4, 2.0], [-5, -2.2]].forEach((q, i) => { const p = L(q[0], q[1]); W.addLamp({ x: p[0], y: fy + 2.4, z: p[1], r: 6.5, i: 0.8, power: 1.2, color: 0xffa850, flicker: true }); });
     M.houseDoorN = { x: L(0, -5.3)[0], z: L(0, -5.3)[1] }; M.houseDoorS = { x: L(0, 5.3)[0], z: L(0, 5.3)[1] }; M.houseFy = fy;
+    // trodden mud at the doors, the farm gates and the field gateways (ground marks: drawing only)
+    if (W.dirtPatch) { W.dirtPatch(M.houseDoorN.x, M.houseDoorN.z, 2.2, 60); W.dirtPatch(M.houseDoorS.x, M.houseDoorS.z, 2.2, 60); for (const g of WET.gates) W.dirtPatch(g[0], g[1], g[2], Math.round(g[2] * 22)); W.dirtPatch(BARN.x - BARN.w / 2 - 1.5, BARN.z, 3.5, 80); }
     M.rooms = { kitchen: L(-5, 2.6), parlour: L(-5, -2.4), office: L(5, 2.2), bedroom: L(5, -2.2), hall: L(0, 0) };
     // barn: tall wooden walls on a stone base, loft over the north half, hay door high on the west wall
     const BB = IV.art.building(b, { x: BARN.x, z: BARN.z, w: BARN.w, d: BARN.d, y: farmH - 0.1, h: 6.2, floor: 0.12, mat: 'wood', color: 0x8a7458, floorMat: 'stone', floorCol: 0x6a6258, beams: false,

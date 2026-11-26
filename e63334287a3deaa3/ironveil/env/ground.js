@@ -35,7 +35,7 @@
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, normalMap: T[0].nri, envMapIntensity: 1 });
     m.userData.linear = true;
     const uni = {
-      uMacro: E.U.uMacro, uWet: E.U.uWet, uRain: E.U.uRain, uTime: E.U.uTime,
+      uMacro: E.U.uMacro, uWet: E.U.uWet, uRain: E.U.uRain, uTime: E.U.uTime, uNight: E.U.uNight,
       uA0: { value: T[0].alb }, uA1: { value: T[1].alb }, uA2: { value: T[2].alb }, uA3: { value: T[3].alb }, uA4: { value: T[4].alb },
       uN0: { value: T[0].nri }, uN1: { value: T[1].nri }, uN2: { value: T[2].nri }, uN3: { value: T[3].nri }, uN4: { value: T[4].nri },
       uSz: { value: LAYERS.map((n, i) => 1 / ((E.RECIPES[n] && E.RECIPES[n].size) || [2.5, 3.0, 3.0, 0.85, 2.0][i])) },   // each layer at its real size
@@ -53,9 +53,9 @@
       sh.vertexShader = 'attribute vec4 aW0; attribute vec4 aW1; attribute vec4 aGC;\nvarying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;\n' + sh.vertexShader;
       // the sRGB layers are sampled raw and decoded here (sRGBTransferEOTF is r128's sRGBToLinear); the ground's normal
       // map UV is vNormalMapUv (r128's vUv)
-      const HEAD = `
+      const HEAD = (LOW ? "#define IV_GROUND_LOW\n" : "") + `
         uniform sampler2D uMarks; uniform vec4 uMarksRect; uniform sampler2D uWetMap; uniform vec4 uWetRect;
-        uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime, uTl0; uniform vec2 uCarry;
+        uniform sampler2D uMacro, uA0, uA1, uA2, uA3, uA4, uN0, uN1, uN2, uN3, uN4; uniform float uSz[5]; uniform float uWet, uRain, uTime, uTl0, uNight; uniform vec2 uCarry;
         vec2 ivRipple(vec2 p, float t) { vec2 cell = floor(p), f = fract(p) - 0.5; float r = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453); float ph = fract(t * 1.4 + r * 7.0);
           vec2 d = f - (vec2(fract(r * 13.1), fract(r * 27.7)) - 0.5) * 0.5; float dist = length(d); float ring = sin((dist - ph * 0.45) * 45.0) * smoothstep(0.06, 0.0, abs(dist - ph * 0.45)) * (1.0 - ph); return normalize(d + 1e-5) * ring; }
         varying vec4 vW0; varying vec4 vW1; varying vec4 vGC; varying vec3 vGW;
@@ -90,6 +90,8 @@
           vec3 galb = sRGBTransferEOTF(vec4(ga.rgb, 1.0)).rgb;
           float gh = ga.a, grough = gn.b;
           galb *= mix(0.72, 1.18, mA) * mix(0.9, 1.08, mC);
+          // at night the soil reads as dark, damp earth: darker and warmer (pale ground under a blue sky light read as snow)
+          galb *= mix(vec3(1.0), vec3(0.7, 0.64, 0.55), uNight);
           // far grass colour carried by the ground (blades end, colour does not)
           float gd = length(vGW - cameraPosition);
           float carry = vGC.a * 0.95;
@@ -116,13 +118,13 @@
           float pud = smoothstep(0.0, 0.035, wd), soak = smoothstep(-0.1, 0.0, wd);
           float damp = max(max(wm.g, smoothstep(-0.32, -0.1, wd)), clamp(vW1.y * 0.5 + uWet * 0.55, 0.0, 1.0));
           galb *= 1.0 - damp * 0.26 - soak * 0.18;
-          galb = mix(galb, vec3(0.055, 0.045, 0.032), wm.b * 0.45);   // churned mud along ruts and through gateways
-          grough = mix(grough, 0.46 + 0.1 * mB, damp); grough = mix(grough, 0.15, soak);
-          galb = mix(galb, galb * 0.45, pud);
+          galb = mix(galb, vec3(0.05, 0.038, 0.026), wm.b * 0.7); grough = mix(grough, mix(0.62, 0.35, uNight), wm.b * 0.6);   // churned mud along ruts and through gateways (by day drier: a low sun turned it to an oily sheen)
+          grough = mix(grough, mix(0.68, 0.46, uNight) + 0.1 * mB, damp); grough = mix(grough, 0.15, soak);
+          galb = mix(galb, galb * 0.6, pud);
           grough = mix(grough, 0.055 - 0.02 * smoothstep(0.035, 0.22, wd), pud);
           float ivPud = pud;
           { vec2 mu = (vGW.xz - uMarksRect.xy) / uMarksRect.zw; if (mu.x > 0.0 && mu.y > 0.0 && mu.x < 1.0 && mu.y < 1.0) { vec4 mk = texture2D(uMarks, mu);
-            galb *= 1.0 - mk.r * 0.38; galb = mix(galb, vec3(0.06, 0.045, 0.03), mk.b * 0.55); grough = mix(grough, 0.25, mk.g); } }   // stamped marks: prints in mud, tracked mud, wet ruts
+            galb = mix(galb, vec3(0.05, 0.038, 0.026), mk.r * 0.55); galb *= 1.0 - mk.r * 0.3; grough = mix(grough, mix(0.58, 0.3, uNight), mk.r * 0.6); galb = mix(galb, vec3(0.06, 0.045, 0.03), mk.b * 0.55); grough = mix(grough, 0.25, mk.g); } }   // stamped marks: prints in mud, tracked mud, wet ruts
           diffuseColor.rgb *= galb;`);
       P('fragment', '#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(grough, 0.03, 1.0);');
       P('fragment', '#include <normal_fragment_maps>', `
@@ -134,7 +136,22 @@
           if (uRain > 0.0 && ivPud > 0.01) { vec2 rp = ivRipple(vGW.xz * 3.0, uTime) + ivRipple(vGW.xz * 5.3 + 7.0, uTime * 1.13) * 0.7; normal = normalize(normal + (viewMatrix * vec4(rp.x, 0.0, rp.y, 0.0)).xyz * 0.35 * ivPud * uRain); }`);
       P('fragment', '#include <aomap_fragment>', `
           float gao = 0.45 + 0.55 * smoothstep(0.05, 0.6, gh);
-          reflectedLight.indirectDiffuse *= gao; reflectedLight.indirectSpecular *= mix(gao, 1.0, ivPud);`);
+          reflectedLight.indirectDiffuse *= gao; reflectedLight.indirectSpecular *= mix(gao, 2.2 + 7.0 * uNight, ivPud);   // (the sky cube is stored dimmed; standing water shows the sky at its own brightness, and at night a little more, so a puddle reads as water and not a hole)
+          // at night the moon's sheen on damp (not flooded) ground is held down: a broad pale sheen read as frost or snow
+          reflectedLight.directSpecular *= mix(1.0, mix(0.55, 0.85, ivPud), uNight);
+          // by day a low sun behind thin cloud: a soft sheen on the ground toward it, not a glare across the whole field
+          reflectedLight.directSpecular *= mix(mix(0.5, 1.0, ivPud), 1.0, uNight);
+          #ifndef USE_SHADOWMAP
+          // Low (no shadow map): the moon lights everything, so its sheen and the soil's brightness come down further
+          reflectedLight.directSpecular *= mix(1.0, 0.35, uNight); reflectedLight.directDiffuse *= mix(1.0, 0.8, uNight);
+          #endif
+          // standing water mirrors the lamps: a soft reflected image of each pooled light (the GGX highlight alone is a
+          // pin-prick at this roughness), so a puddle shows the lamp instead of going black
+          #if NUM_POINT_LIGHTS > 0 && !defined(IV_GROUND_LOW)
+          if (ivPud > 0.02) { vec3 ivR = reflect(normalize(-vViewPosition), normal);
+            for (int i = 0; i < NUM_POINT_LIGHTS; i++) { vec3 ld = pointLights[i].position + vViewPosition; float dl = length(ld);
+              float c = dot(ivR, ld / dl); reflectedLight.indirectSpecular += pointLights[i].color * exp((c - 1.0) * 700.0) * ivPud * 0.6 / (1.0 + dl * dl * 0.004); } }
+          #endif`);
       sh.fragmentShader = E.withPerturb(HEAD + sh.fragmentShader);
     };
     m.customProgramCacheKey = () => 'ivground' + (LOW ? 'L' : '');
