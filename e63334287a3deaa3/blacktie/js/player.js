@@ -558,9 +558,15 @@
     RP.FX.muzzle(mz, dir, big);
     RP.Audio.shot(d.snd, mz.clone());
     if (d.rtype !== 'shell' && d.rtype !== 'break' && d.rtype !== 'revolver' && !d.proj) RP.FX.shell(p.model ? p.model.userData.eject.getWorldPosition(new T.Vector3()) : mz, dir, new T.Vector3(-dir.z, 0, dir.x).negate());
-    var kick = d.recoil[0] * (p.aiming ? 0.75 : 1) * (p.stealth ? 0.85 : 1);
-    p.recoilP += kick * D2R; p.recoilY += (Math.random() - 0.45) * d.recoil[1] * 2 * D2R;
-    RP.Cam.kick(kick * D2R, (Math.random() - 0.5) * d.recoil[1] * D2R);
+    // recoil: the first rounds of a burst climb hard, then the muzzle settles into a smaller, weaving pattern
+    // (a learnable spray, not noise); a pause of a quarter second starts a new burst with a new weave
+    var nowT = RP.G.time || 0;
+    if (nowT - (p.lastShotT || -9) > 0.25) { p.burstN = 0; p.burstPh = Math.random() * 6.28; }
+    p.lastShotT = nowT; var bn = p.burstN++;
+    var kick = d.recoil[0] * (p.aiming ? 0.75 : 1) * (p.stealth ? 0.85 : 1) * (bn < 7 ? 1 : 0.5) * (0.85 + Math.random() * 0.3);
+    var side = (bn < 3 ? (Math.random() - 0.5) * 0.6 : Math.sin(bn * 0.57 + p.burstPh)) * d.recoil[1];
+    p.recoilP += kick * D2R; p.recoilY += side * D2R;
+    RP.Cam.kick(kick * D2R, side * 0.5 * D2R);
     p.bloom = Math.min(6, p.bloom + d.recoil[0] * 0.5);
     p.actor.playUpper(p.aiming && /pistol/.test(d.cat) ? 'firePistol' : d.oneHand ? 'firePistol' : (p.stealth ? 'fireCrouch' : 'fire'), { fade: 0.03, speed: 1.4 });
     if (d.pump) { setTimeout(function () { RP.Audio.mech('pump', p.pos); }, 250); p.fireCd = Math.max(p.fireCd, d.pump); }

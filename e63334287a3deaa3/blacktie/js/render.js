@@ -222,12 +222,15 @@
     }
     P.comp = fsMat([
       'uniform sampler2D tScene; uniform sampler2D tBloom; uniform sampler2D tAO; uniform float uAO; uniform vec2 uTexel;',
-      'uniform float uExposure; uniform float uSat; uniform float uWarm; uniform float uCool; uniform float uLift; uniform float uContrast; uniform float uBloom; uniform float uTime; uniform float uVig; uniform vec3 uFlash;',
+      'uniform vec2 uPx; uniform float uSharp; uniform float uGrain; uniform float uExposure; uniform float uSat; uniform float uWarm; uniform float uCool; uniform float uLift; uniform float uContrast; uniform float uBloom; uniform float uTime; uniform float uVig; uniform vec3 uFlash;',
       'varying vec2 vUv;',
       'vec3 aces(vec3 x){ x *= 0.6; return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14), 0.0, 1.0); }',
       'vec3 toSRGB(vec3 c){ return mix(c*12.92, 1.055*pow(c, vec3(1.0/2.4)) - 0.055, step(0.0031308, c)); }',
       'void main(){',
       '  vec3 c = texture2D(tScene, vUv).rgb;',
+      // unsharp mask on flat-ish areas only (edges already have contrast), before anything else touches the colour
+      '  { vec3 bl = (texture2D(tScene, vUv + vec2(uPx.x, 0.)).rgb + texture2D(tScene, vUv - vec2(uPx.x, 0.)).rgb + texture2D(tScene, vUv + vec2(0., uPx.y)).rgb + texture2D(tScene, vUv - vec2(0., uPx.y)).rgb) * 0.25;',
+      '    vec3 dd = c - bl; float ct = length(dd); c += dd * uSharp * (1.0 - smoothstep(0.05, 0.3, ct)); c = max(c, 0.0); }',
       '  if (uAO > 0.0) { vec2 o = uTexel*1.5; float ao = (texture2D(tAO, vUv).r*2.0 + texture2D(tAO, vUv+vec2(o.x,0.)).r + texture2D(tAO, vUv-vec2(o.x,0.)).r + texture2D(tAO, vUv+vec2(0.,o.y)).r + texture2D(tAO, vUv-vec2(0.,o.y)).r)/6.0; c *= mix(1.0, ao, uAO); }',
       '  c += texture2D(tBloom, vUv).rgb * uBloom;',
       '  c += uFlash;',
@@ -236,16 +239,17 @@
       '  c = mix(vec3(l), c, uSat);',
       '  c += vec3(uWarm, uWarm*0.45, -uWarm*0.3) * smoothstep(0.35, 1.0, l);',     // warm highlights
       '  c += vec3(-uCool*0.4, uCool*0.05, uCool) * (1.0 - smoothstep(0.0, 0.4, l)) * 0.5;',   // cool shadows
-      '  c = (c - 0.5) * uContrast + 0.5; c = max(c, 0.0) + uLift * (1.0 - c);',
+      '  c = (c - 0.5) * uContrast + 0.5; c = clamp(c, 0.0, 1.0); c = mix(c, c*c*(3.0 - 2.0*c), 0.18); c = c + uLift * (1.0 - c);',   // contrast, a gentle S-curve, lifted blacks
       '  vec2 q = vUv - 0.5; c *= 1.0 - uVig * dot(q, q) * 1.6;',
       '  c = toSRGB(clamp(c, 0.0, 1.0));',
+      '  { float n = fract(sin(dot(gl_FragCoord.xy * 0.7 + uTime * 3.1, vec2(41.3, 289.1))) * 1731.7) - 0.5; float ll = dot(c, vec3(0.299, 0.587, 0.114)); c += n * uGrain * (1.0 - 0.7 * smoothstep(0.25, 0.9, ll)); }',   // film grain, strongest in the mid-darks
       '  c += (fract(sin(dot(gl_FragCoord.xy + uTime, vec2(12.9898, 78.233)))*43758.5453) - 0.5) * (1.5/255.0);',   // dither
       '  gl_FragColor = vec4(c, 1.0);',
       '}'
     ].join('\n'), {
       tScene: { value: null }, tBloom: { value: null }, tAO: { value: null }, uAO: { value: 0 }, uTexel: { value: new T.Vector2() },
       uExposure: { value: 1 }, uSat: { value: 1 }, uWarm: { value: 0 }, uCool: { value: 0 }, uLift: { value: 0 }, uContrast: { value: 1 },
-      uBloom: { value: 0.65 }, uTime: { value: 0 }, uVig: { value: 0.35 }, uFlash: { value: new T.Vector3() }
+      uBloom: { value: 0.4 }, uPx: { value: new T.Vector2(1 / 1280, 1 / 720) }, uSharp: { value: 0.28 }, uGrain: { value: 0.022 }, uTime: { value: 0 }, uVig: { value: 0.35 }, uFlash: { value: new T.Vector3() }
     });
     P.size = function () {
       var r = R.renderer, v = r.getDrawingBufferSize(new T.Vector2()), w = Math.max(4, v.x), h = Math.max(4, v.y);
@@ -253,7 +257,7 @@
       var lw = w, lh = h;
       for (var i = 0; i < P.levels.length; i++) { lw = Math.max(2, lw >> 1); lh = Math.max(2, lh >> 1); P.levels[i].setSize(lw, lh); if (i < 3) P.ups[i].setSize(lw, lh); }
       if (P.aoRT) P.aoRT.setSize(Math.max(4, w >> 1), Math.max(4, h >> 1));
-      P.w = w; P.h = h;
+      P.w = w; P.h = h; P.comp.uniforms.uPx.value.set(1 / w, 1 / h);
     };
     P.setGrade = function (g, exp) {
       var u = P.comp.uniforms; u.uSat.value = g.sat; u.uWarm.value = g.warm; u.uCool.value = g.cool; u.uLift.value = g.lift; u.uContrast.value = g.contrast; u.uExposure.value = exp;

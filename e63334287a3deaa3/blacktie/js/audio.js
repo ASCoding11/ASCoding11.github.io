@@ -83,6 +83,16 @@
     noise(lp, t0, 0.012, 'highpass', 4000, 0.5, P[1] * 0.6 * (1 - far));
     tone(lp, t0, 0.09 + P[3] * 0.2, P[2] * 1.6, P[2] * 0.5, 'sine', 1.1);
     noise(lp, t0 + 0.01, P[3], 'lowpass', 500, 0.5, 0.5);
+    // the tail: the report rolling off the cliffs and house fronts. One tail per burst (at most every 0.28 s), so
+    // automatic fire is a run of dry cracks followed by a single long echo rather than a wash of overlapping ones.
+    if (!o.suppressed && t0 - (A._tailT || -9) > 0.28) {
+      A._tailT = t0;
+      var tg = out(pos, P[4] * 0.55 * (1 - far * 0.3), 1.0), L = 0.7 + P[3] * 2.2;
+      noise(tg, t0 + 0.03, L, 'lowpass', 900 - far * 400, 0.4, 0.32, 0.03);
+      noise(tg, t0 + 0.19 + Math.random() * 0.04, L * 0.7, 'lowpass', 1300, 0.6, 0.2, 0.02);      // first slap back
+      noise(tg, t0 + 0.43 + Math.random() * 0.08, L * 0.6, 'lowpass', 700, 0.5, 0.12, 0.04);       // far wall
+      if (P[2] < 100) tone(tg, t0, 0.35, P[2] * 0.9, 34, 'sine', 0.5);                              // big guns thump
+    }
   };
   A.dry = function (pos) { if (!A.ok) return; var t = ctx.currentTime, d = out(pos, 0.5); noise(d, t, 0.03, 'highpass', 3000, 1, 0.6); };
   A.mech = function (kind, pos) {   // reload and handling noises: magOut, magIn, slide, bolt, shell, pump, open, close, pin, swing
