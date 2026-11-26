@@ -97,6 +97,7 @@
     smoke: function (M) { var p = []; part(p, M.alu, cyl(0.03, 0.12), 0, 0, 0.04); return assemble(p, { oneHand: true }); }
   };
   W.model = function (id) {
+    if (RP.GunModels) { var gm = RP.GunModels.build(id); if (gm) return gm; }
     var f = BUILD[id]; if (!f) return null;
     var g = f(mats()); g.userData.id = id; g.userData.long = !g.userData.oneHand;
     return g;

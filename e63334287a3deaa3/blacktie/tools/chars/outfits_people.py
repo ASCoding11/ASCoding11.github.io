@@ -69,6 +69,7 @@ def dress(kind, spec, H, worn, td):
         elif item.startswith('shoes'): a, n, o = tex_shoes(item, td + '/' + item, size, spec)
         else: a, n, o = tex_generic(item, td + '/' + item, size, spec, ob, H)
         P.set_mat(ob, P.material(kind + '_' + item, a, n, o))
+        if item == 'male_elegantsuit01': print('jacket tail verts', jacket_tail(ob, H))
         if item == 'male_elegantsuit01' and spec['suit'].get('tie') == 'front':
             masks = np.load(td + '/' + item + '_masks.npy').astype(np.float32)
             print('tie flattened', flatten_tie(ob, masks[2] > 0.5, H))
@@ -379,3 +380,34 @@ def plate_carrier(top, H, td, spec):
     P.save(np.stack([np.ones_like(rough), rough, np.zeros_like(rough)], -1), td + '/vest_orm.jpg')
     P.set_mat(ob, P.material('vest', td + '/vest_albedo.jpg', td + '/vest_normal.jpg', td + '/vest_orm.jpg'))
     return ob
+
+def jacket_tail(ob, H):
+    """A jacket's skirt hangs from the waist: below the waist its vertices take most of their weight from the pelvis
+    instead of the thighs (MakeHuman's fitted weights make it hug the hips like a skirt). The trousers, a separate
+    piece of the mesh, keep their own weights."""
+    me = ob.data
+    # connected pieces: the biggest is the jacket and shirt, the other the trousers
+    par = list(range(len(me.vertices)))
+    def f(x):
+        while par[x] != x: par[x] = par[par[x]]; x = par[x]
+        return x
+    for e in me.edges: par[f(e.vertices[0])] = f(e.vertices[1])
+    import collections
+    cnt = collections.Counter(f(i) for i in range(len(me.vertices)))
+    jacket = cnt.most_common(1)[0][0]
+    pz = H['J']['pelvis'][0].z
+    gi = {g.index: g.name for g in ob.vertex_groups}
+    pel = ob.vertex_groups.get('pelvis') or ob.vertex_groups.new(name='pelvis')
+    legs = ('thigh_l', 'thigh_r', 'calf_l', 'calf_r', 'thigh_twist_01_l', 'thigh_twist_01_r')
+    n = 0
+    for v in me.vertices:
+        if f(v.index) != jacket: continue
+        t = min(1.0, max(0.0, (pz + 0.12 - v.co.z) / 0.16))
+        t = t * t * (3 - 2 * t) * 0.8
+        if t <= 0: continue
+        moved = 0.0
+        for g in v.groups:
+            if gi[g.group] in legs:
+                d = g.weight * t; ob.vertex_groups[g.group].add([v.index], g.weight - d, 'REPLACE'); moved += d
+        if moved > 0: pel.add([v.index], moved, 'ADD'); n += 1
+    return n
