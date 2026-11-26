@@ -625,7 +625,7 @@ function updateThings(dt,time){
 
 // ---------------------------------------------------------------- the player
 var pl={x:0,y:0,z:0,vy:0,yaw:0,pitch:0,ground:true,crouch:0,bob:0,step:0,speed:0,dep:0};
-var inp={mx:0,mz:0,jump:false,sprint:false,crouch:false,act:false};
+var inp={mx:0,mz:0,jump:false,sprint:false,crouch:false,act:false,tap:false}; // tap: E or Do was pressed since the last frame, however briefly
 var keys={};
 var EYE=1.62,RAD=0.3;
 function blocked(x,z,feet){var w=world,S=w.S;for(var a=-1;a<=1;a+=2)for(var b=-1;b<=1;b+=2){var i=w.cell(x+a*RAD,z+b*RAD);if(i<0)return true;if(S.solid[i]&&w.sh[i]>feet+0.45)return true}return false}
@@ -873,10 +873,11 @@ function updateHud(dt){
     else if(focus.kind==='station')txt=tap+': '+(o.kind==='board'?T('look at the job board'):o.kind==='shop'?T('buy gear'):T('load the van'));
     $('promptTx').textContent=txt;p.hidden=false;$('promptBar').hidden=hold<=0;$('promptBar').firstChild.style.width=clamp(hold,0,1)*100+'%'}else{p.hidden=true;hold=0}
   $('cross').classList.toggle('act',!!focus);$('tAct').hidden=!(focus&&focus.kind!=='leak');
-  if(focus&&inp.act&&(focus.kind==='pump'||focus.kind==='station')){inp.act=false;if(focus.kind==='pump'){focus.o.on=!focus.o.on;sfx('tick',1)}else openStation(focus.o.kind)}
+  if(focus&&(inp.act||inp.tap)&&(focus.kind==='pump'||focus.kind==='station')){inp.act=false;if(focus.kind==='pump'){focus.o.on=!focus.o.on;sfx('tick',1)}else openStation(focus.o.kind)}
   var working=focus&&((focus.kind==='valve'&&inp.act)||(focus.kind==='leak'&&tool()==='wrench'&&useHeld));
   if(working){hold+=dt/(focus.kind==='valve'?1.0:1.8);if(hold>=1){hold=0;inp.act=false;if(focus.kind==='valve'){world.setValve(focus.o,!focus.o.closed);sfx('valve',0.9);toast(focus.o.closed?T('Stop tap shut.'):T('Stop tap open.'),2.2)}else{world.fixLeak(focus.o);sfx('valve',0.8);toast(T('Joint tightened.'),2.2)}}}
   else if(hold>0)hold=Math.max(0,hold-dt*2);
+  inp.tap=false;
 }
 
 // ---------------------------------------------------------------- screens
@@ -962,7 +963,7 @@ addEventListener('keydown',function(e){
     if(e.code==='Space'){inp.jump=true;e.preventDefault()}
     else if(e.code==='Tab'||e.code==='KeyJ'){e.preventDefault();openSub('journal')}
     else if(e.code==='KeyF')scan();
-    else if(e.code==='KeyE'){if(!e.repeat)inp.act=true}
+    else if(e.code==='KeyE'){if(!e.repeat){inp.act=true;inp.tap=true}}
     else if(e.code==='KeyR'){rot=(rot+1)%4;sfx('tick',0.5)}
     else if(e.code==='KeyP')pause();
     else if(/^Digit[1-9]$/.test(e.code))selectTool(+e.code.slice(5)-1);
@@ -999,7 +1000,7 @@ function readKeys(){if(touchUI)return;inp.mz=(keys.KeyW||keys.ArrowUp?1:0)-(keys
   btn('tUse',function(){useHeld=true;useTool(false)},function(){useHeld=false});
   btn('tAlt',function(){altHeld=true;useTool(true)},function(){altHeld=false});
   btn('tJump',function(){inp.jump=true});
-  btn('tAct',function(){inp.act=true},function(){inp.act=false});
+  btn('tAct',function(){inp.act=true;inp.tap=true},function(){inp.act=false});
   btn('tRot',function(){rot=(rot+1)%4;sfx('tick',0.5)});
   var cr=$('tCrouch');cr.addEventListener('touchstart',function(e){e.preventDefault();inp.crouch=!inp.crouch;cr.classList.toggle('on',inp.crouch)},{passive:false});
 })();
