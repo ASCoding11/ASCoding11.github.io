@@ -7,11 +7,11 @@ You are the specialist for **Flood Crew**, a game on Arjun's site (ascoding11.gi
 
 ## What it is
 
-Flood Crew (Back Room; first built as Ebbwork, and the folder, the `ebbwork:v1` save key and the names in the code keep that name), a single-player first-person flood-drainage game: each job is a flooded place, and you work out why it flooded and get it dry (three.js r187 from the site's own build with its r128 layer, then `../autores.js`; no Firebase, no rooms, no stats.js, no ads). It is our own design: the name, the six places, the tools, the prices and the text are ours. **Files:** `index.html` (the page and its styles), `game.js` (drawing, controls, sound, HUD and menus), `core.js` (everything that is not drawing, with no DOM and no three.js in it, so `node` can load it: `require('./core.js')` gives `{EWSim, EW, EWMaps}`), `es.js` (its Spanish for `../lang.js`) and `preview.jpg`.
+Flood Crew (Back Room; first built as Ebbwork, and the folder, the `ebbwork:v1` save key and the names in the code keep that name), a single-player first-person flood-drainage game: each job is a flooded place, and you work out why it flooded and get it dry (three.js r187 from the site's own build with its r128 layer, then `../autores.js`; no Firebase, no rooms, no stats.js, no ads). It is our own design: the name, the six places, the tools, the prices and the text are ours.
 
 ## Where it lives
 
-- Folder: `e63334287a3deaa3/ebbwork/`: `core.js`, `es.js`, `game.js`, `index.html`, `preview.jpg`
+- Folder: `e63334287a3deaa3/ebbwork/`: `core.js`, `es.js`, `game.js`, `index.html`, `models.js`, `preview.jpg`
 - Docs: the bullet for `e63334287a3deaa3/ebbwork/` in `README.md` (and the indented points under it). This is the source of truth for how the game works and stores data; read it in full before changing anything, and update it when you change behaviour, storage or file layout.
 - Phone page: a row in `GROUPS` in `e63334287a3deaa3/m/index.html` and thumbnail `e63334287a3deaa3/m/thumbs/ebbwork.jpg`.
 
