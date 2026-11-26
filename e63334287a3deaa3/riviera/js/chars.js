@@ -34,7 +34,8 @@
 
   // ------------------------------------------------------------------ outfits (sRGB): which mesh, cloth colours
   var KINDS = {
-    agent:    { file: 'hero', meshes: ['Hero', 'HeroHair', 'HeroEyes'], lod: ['HeroLOD1', 'HeroLOD2'], cloth: '#1f2a3d', cloth2: '#2b2b2e', h: 1.79, hw: ['hair', '#2a1d16'] },
+    // 'real' kinds are the MakeHuman-built people (tools/chars): their own clothes textures, hair and eyes, no recolour
+    agent:    { file: 'agent', meshes: ['Agent', 'AgentHair', 'AgentEyes'], lod: ['AgentLOD1', 'AgentLOD2'], h: 1.84, real: true },
     sentry:   { file: 'enemy', meshes: ['Rifleman', 'EnemyHair', 'EnemyEyes'], lod: ['RiflemanLOD1', 'RiflemanLOD2'], cloth: '#4a4b4e', cloth2: '#1e1e20', h: 1.8, hw: ['beanie', '#1a1a1c'] },
     enforcer: { file: 'enemy', meshes: ['Gunner', 'EnemyHair', 'EnemyEyes'], lod: ['GunnerLOD1', 'GunnerLOD2'], cloth: '#1c1c1f', cloth2: '#3a2f26', h: 1.8, hw: ['cap', '#141416'] },
     elite:    { file: 'enemy', meshes: ['Gunner', 'EnemyHair', 'EnemyEyes'], lod: ['GunnerLOD1', 'GunnerLOD2'], cloth: '#26282d', cloth2: '#0d0d0f', h: 1.82, hw: ['hair', '#121010'], glasses: true },
@@ -55,11 +56,12 @@
   }
   C.load = function (onProgress) {
     if (C._p) return C._p;
-    var seen = {}, totals = { hero: 3.06e6, enemy: 4.23e6, anims: 2.89e6 };
+    var seen = {}, totals = { agent: 1.78e6, enemy: 4.23e6, anims: 2.89e6 };
+    var files = ['anims']; Object.keys(KINDS).forEach(function (k) { if (files.indexOf(KINDS[k].file) < 0) files.push(KINDS[k].file); });
     function prog(n, a, b) { seen[n] = a; if (b) totals[n] = b; var x = 0, y = 0; for (var k in totals) { x += Math.min(seen[k] || 0, totals[k]); y += totals[k]; } if (onProgress) onProgress(Math.min(0.99, x / y)); }
     C._p = (window.MeshoptDecoder ? Promise.resolve() : addScript(ASSETS + 'lib/meshopt_decoder.js')).then(function () { return window.MeshoptDecoder && MeshoptDecoder.ready; })
       .then(function () {
-        return Promise.all(['hero', 'enemy', 'anims'].map(function (n) { return loadGLB(n, prog).then(function (g) { gltf[n] = g; }); }))
+        return Promise.all(files.map(function (n) { return loadGLB(n, prog).then(function (g) { gltf[n] = g; }); }))
           .then(function () { return fetch(ASSETS + 'anims.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { META = j; }); });
       }).then(function () {
         prepClips(gltf.anims.animations);
@@ -102,7 +104,7 @@
       o.geometry.boundingSphere = new T.Sphere(new T.Vector3(0, 0.9, 0), 1.5);
       o.userData.lod = def.lod.indexOf(meshName(o)) + 1;
       o.userData.part = /Hair/.test(o.name) ? 'hair' : /Eye/.test(o.name) ? 'eye' : 'body';
-      if (o.userData.part === 'body' && o.isSkinnedMesh) o.geometry = bodyGeo(o, def);
+      if (o.userData.part === 'body' && o.isSkinnedMesh && !def.real) o.geometry = bodyGeo(o, def);
     });
     return root;
   }
@@ -161,6 +163,23 @@
       ].join('\n'));
     };
     m.customProgramCacheKey = function () { return 'rp-cloth'; };
+  }
+
+  // Materials of the MakeHuman-built people: cloth keeps its maps (ORM: roughness in G); skin gets a soft wrap and
+  // a warm subsurface tint where light falls off, so faces do not look like painted plastic; eyes are glossy.
+  function realMat(m, o) {
+    m.metalness = 0; if (m.metalnessMap) m.metalnessMap = null;
+    if (/Skin/.test(m.name)) {
+      m.roughness = 1;
+      m.onBeforeCompile = function (sh) {
+        sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_end>', [
+          '#include <lights_fragment_end>',
+          '{ float wrap = clamp(dot(normal, normalize(vec3(0.2, 1.0, 0.3))) * 0.5 + 0.5, 0.0, 1.0);',
+          '  reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.20, 0.06, 0.03) * (1.0 - wrap) * 0.6; }'].join('\n'));
+      };
+      m.customProgramCacheKey = function () { return 'rp-skin'; };
+    } else if (/Eye/.test(m.name)) { m.roughness = 0.08; }
+    else m.roughness = 1;
   }
 
   // ------------------------------------------------------------------ helpers
@@ -322,7 +341,8 @@
         var key = o.material.name;
         if (!matCache[key]) {
           var m = o.material.clone();
-          if (o.userData.part === 'hair') { m.alphaTest = 0.5; m.transparent = false; m.depthWrite = true; }
+          if (o.userData.part === 'hair') { m.alphaTest = def.real ? 0.4 : 0.5; m.transparent = false; m.depthWrite = true; m.side = T.DoubleSide; }
+          else if (def.real) realMat(m, o);
           else if (o.userData.part === 'body') { m.metalness = 0; recolour(m, cols[0], cols[1]); }
           if (m.map) m.map.anisotropy = 4;
           matCache[key] = m;
@@ -333,7 +353,7 @@
     });
     lods.forEach(function (m) { m.visible = false; });
     // the original hair was shaped to sit under the removed helmets: the code-made headwear replaces it
-    meshes.forEach(function (m) { if (m.userData.part === 'hair') { m.visible = false; m.userData.off = true; } });
+    if (!def.real) meshes.forEach(function (m) { if (m.userData.part === 'hair') { m.visible = false; m.userData.off = true; } });
     this.lodLevel = 0;
     this.height = def.h;
     this.mixer = new T.AnimationMixer(model);
@@ -682,7 +702,8 @@
   var HW_MAT = {};
   function hwMat(hex, rough) { var k = hex + rough; return HW_MAT[k] || (HW_MAT[k] = new T.MeshStandardMaterial({ color: RP.col(hex), roughness: rough })); }
   function addHeadwear(a, def, opts) {
-    var hb = a.bones.Head; if (!hb || !def.hw) return;
+    var hb = a.bones.Head; if (!hb || !(opts.hw || def.hw)) return;
+    if (def.real && !opts.hw) return;
     var G = hwGeos(), kind = opts.hw || def.hw[0], hex = opts.hwCol || def.hw[1];
     // place in the idle pose: level with the character's root, offset in the root's frame, then parented to the head
     a.root.updateMatrixWorld(true);
