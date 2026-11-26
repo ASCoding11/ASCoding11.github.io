@@ -154,6 +154,9 @@
   // Daily Puzzles group together). le: a best single round, which can't be more than
   // this all-time count (and is dropped without it). sum: 1 marks a running count without a rate (one that only goes up as
   // you play: hands, towers, crowns…), so an admin merge of two devices adds it up like the counts with a rate. hide: checked and kept (the admin page shows it) but not a board.
+  // gone: 1 on a game's row: an archived game (README: Archived Back Room games). Its numbers are still checked and still
+  // count toward hours and miles, and its own page still shows its boards, but it is left out of the Board menu here and
+  // has no mini badge (topBoards), so no weekly title either. Take the flag off to bring the game back.
   // kd: a ratio worked out here from two checked counts, kills / max(1, deaths) to 2 decimals and at most `hi`, ranked
   // only with at least `min` kills; the node's own kd is never read. Its kills are `kdkills`, counted from the same
   // moment as deaths (so kills from before deaths were counted can't inflate it), and no more than the all-time count.
@@ -353,11 +356,11 @@
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'perfect', l: 'Perfect days (no mistakes)', chip: 'Perfect days', f: 'n', u: 'day', rate: 1 / 10 }] },
-    { d: 'crosslet', n: 'Crosslet', grp: 'Daily Puzzles', st: [
+    { d: 'crosslet', n: 'Crosslet', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'wins', l: 'Clean daily solves', f: 'n', u: 'solve', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'fastest', l: 'Fastest clean daily solve', chip: 'Fastest', f: 'time', lo: 5, hi: 36000 }] },
-    { d: 'sleight', n: 'Sleight', grp: 'Daily Puzzles', st: [
+    { d: 'sleight', n: 'Sleight', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'wins', l: 'Daily clues solved', f: 'n', u: 'clue', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'clean', l: 'Solved with no hints', chip: 'No hints', f: 'n', u: 'clue', rate: 1 / 10 }] },
@@ -373,7 +376,7 @@
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'guesses', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 230, low: 1 }] },
-    { d: 'outline', n: 'Outline', grp: 'Daily Puzzles', st: [
+    { d: 'outline', n: 'Outline', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'tries', l: 'Fewest guesses (daily)', chip: 'Fewest guesses', f: 'n', u: 'guess', lo: 1, hi: 6, low: 1 }] },
@@ -395,23 +398,23 @@
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 },
       { k: 'perfect', l: 'Par days (no hints)', chip: 'Par days', f: 'n', u: 'day', rate: 1 / 10 }] },
-    { d: 'deadline-day', n: 'Deadline Day', grp: 'Daily Puzzles', st: [
+    { d: 'deadline-day', n: 'Deadline Day', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'spare', l: 'Most guesses to spare (of 6)', chip: 'Guesses to spare', f: 'n', hi: 6 },
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
-    { d: 'journeyman', n: 'Journeyman', grp: 'Daily Puzzles', st: [
+    { d: 'journeyman', n: 'Journeyman', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'spare', l: 'Most guesses to spare (of 6)', chip: 'Guesses to spare', f: 'n', hi: 6 },
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
-    { d: 'scout-report', n: 'Scout Report', grp: 'Daily Puzzles', st: [
+    { d: 'scout-report', n: 'Scout Report', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'spare', l: 'Most guesses to spare (of 8)', chip: 'Guesses to spare', f: 'n', hi: 8 },
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
-    { d: 'crossbar', n: 'Crossbar', grp: 'Daily Puzzles', st: [
+    { d: 'crossbar', n: 'Crossbar', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'cells', l: 'Most squares filled (of 9)', chip: 'Squares', f: 'n', hi: 9 },
       { k: 'wins', l: 'Daily wins (6+ squares)', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
-    { d: 'teamsheet', n: 'Teamsheet', grp: 'Daily Puzzles', st: [
+    { d: 'teamsheet', n: 'Teamsheet', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'spare', l: 'Most guesses to spare (of 5)', chip: 'Guesses to spare', f: 'n', hi: 5 },
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
@@ -419,12 +422,12 @@
       { k: 'clean', l: 'Most mistakes to spare (of 4)', chip: 'Mistakes to spare', f: 'n', hi: 4 },
       { k: 'wins', l: 'Daily wins', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
-    { d: 'stat-duel', n: 'Stat Duel', grp: 'Daily Puzzles', st: [
+    { d: 'stat-duel', n: 'Stat Duel', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'run', l: 'Best daily run (of 10)', chip: 'Daily run', f: 'n', hi: 10 },
       { k: 'streakbest', l: 'Best unlimited streak', chip: 'Unlimited streak', f: 'n', hi: 500 },
       { k: 'wins', l: 'Daily wins (5+)', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] },
-    { d: 'top-bins', n: 'Top Bins', grp: 'Daily Puzzles', st: [
+    { d: 'top-bins', n: 'Top Bins', grp: 'Daily Puzzles', gone: 1, st: [
       { k: 'found', l: 'Most entries found', chip: 'Found', f: 'n', hi: 10 },
       { k: 'wins', l: 'Daily wins (half or more)', f: 'n', u: 'win', rate: 1 / 10 },
       { k: 'streak', l: 'Best daily streak', f: 'days', hi: 3660 }] }
@@ -992,7 +995,7 @@
     if (topB0) return topB0;
     var out = topB0 = [];
     GAMES.forEach(function (g) {
-      if (TOP_SKIP[g.d]) return;
+      if (TOP_SKIP[g.d] || g.gone) return;
       var vis = g.st.filter(function (s) { return !s.hide; }), keys = TOP_MODES[g.d];
       function stat(k) { return vis.filter(function (s) { return s.k === k; })[0] || null; }
       if (!keys) { var k = TOP_PICK[g.d]; keys = [k && stat(k) ? k : stat('elo') ? 'elo' : vis[0] && vis[0].k]; }
@@ -1171,7 +1174,7 @@
   $sel.append(new Option('Miles (all games)', 'all'));
   // Games without a grp first, under "Games", then each group (Daily Puzzles) as its own optgroup, in GAMES order.
   var groups = {}, gorder = [];
-  GAMES.forEach(function (g) { var k = g.grp || 'Games'; if (!groups[k]) { groups[k] = el('optgroup'); groups[k].label = k; gorder.push(k); } groups[k].append(new Option(g.n, g.d)); });
+  GAMES.forEach(function (g) { if (g.gone && g.d !== GAME) return; var k = g.grp || 'Games'; if (!groups[k]) { groups[k] = el('optgroup'); groups[k].label = k; gorder.push(k); } groups[k].append(new Option(g.n, g.d)); });
   gorder.forEach(function (k) { $sel.append(groups[k]); });
   // The Aisle boards (aisles.js draws them from these same rows), not in a game's own panel. They have their own tab,
   // Players | Aisles, above the controls (the hub only): Players shows the Board menu, Aisles shows Aisle Miles | Aisle Elo.
@@ -1269,6 +1272,9 @@
     var pv = sv && sv.p;
     if (pv && (pv.g === 'all' || BY[pv.g])) lastPlayers = { g: pv.g, b: typeof pv.b === 'string' ? pv.b.slice(0, 40) : 's', t: typeof pv.t === 'string' && TRACKS[pv.t] ? pv.t : '' };
   } catch (e) {}
+  // a board remembered from before its game was archived: back to Miles (the game's own page still opens its own)
+  if (BY[view.g] && BY[view.g].gone && view.g !== GAME) view = { g: 'all', b: 's', t: '' };
+  if (BY[lastPlayers.g] && BY[lastPlayers.g].gone && lastPlayers.g !== GAME) lastPlayers = { g: 'all', b: 's', t: '' };
   if (GAME && BY[GAME] && view.g !== GAME) view = { g: GAME, b: '', t: '' };
   $sel.value = view.g;
   view.span = ls('lb:span') === 'all' ? 'all' : 'week';   // This week unless this browser picked All time
