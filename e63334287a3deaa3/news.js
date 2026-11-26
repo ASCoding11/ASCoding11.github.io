@@ -90,6 +90,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.06', title: 'Flood Crew: more to do, faster water', kind: 'feature',
+     tags: ['Flood Crew'], items: [
+      'The first job has more to learn: shut the tap, tighten a dripping joint with the wrench, clear a second drain and bucket out a puddle that has nowhere to go.',
+      'Drains and pumps work much faster, so a cleared drain pulls the water down within seconds. Every job is quicker now.',
+      'Tanners Field shows you what to do: orange pegs mark where to dig, the old pipe in the bank is easy to see, and a few short lines guide your first visit.',
+      'Water now runs into the ditch at Tanners Field and flows away along it, instead of vanishing.']},
     {date: '2026-11-26', version: '2.05', title: 'Flood Crew: new water', kind: 'feature',
      tags: ['Flood Crew'], items: [
       'The flood moves like real water now: currents carry on round corners, swirl behind walls and settle down instead of shimmering.',
