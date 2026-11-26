@@ -210,8 +210,10 @@
   function worldQuat(o, out) { return o.getWorldQuaternion(out); }
   function worldPos(o, out) { return o.getWorldPosition(out); }
   // rotate a bone by a world-space rotation q (keeps its parent)
+  // (own scratch quaternions: callers pass the shared _q as q, which must not be overwritten here)
+  var _rw1 = new T.Quaternion(), _rw2 = new T.Quaternion();
   function rotWorld(b, q) {
-    var pq = worldQuat(b.parent, _q2), bw = _q.copy(pq).multiply(b.quaternion);
+    var pq = worldQuat(b.parent, _rw2), bw = _rw1.copy(pq).multiply(b.quaternion);
     bw.premultiply(q);
     b.quaternion.copy(pq.invert().multiply(bw));
     b.updateMatrixWorld(true);
@@ -630,6 +632,21 @@
     var b = this.bones, st = this.st;
     var rq = this.root.quaternion, ax = {};
     for (var key in AXES) ax[key] = AXES[key].clone().applyQuaternion(rq);
+    // posture: the motion-capture loops lean far forward (jog ~25, sprint 35-80 degrees from hips to head); a
+    // GTA-style run is nearly upright. Measure the lean after the clips and pull it to a target by speed
+    // (walk 3, jog 9, sprint 15 degrees), and take out sideways roll, over spine_01 and spine_02.
+    if (b.Head && b.spine_02 && !this.rag) {
+      var pw = (1 - F) * M.clamp(st.speed / 1.2, 0, 1);
+      if (pw > 0.01) {
+        b.pelvis.getWorldPosition(_pv); b.Head.getWorldPosition(_hv); _hv.sub(_pv);
+        var len = _hv.length(); _hv.divideScalar(len);
+        var fz = _hv.dot(ax.z), tgt = (st.speed < 2 ? 3 : st.speed < 4.5 ? 3 + (st.speed - 2) / 2.5 * 6 : 9 + Math.min(1, (st.speed - 4.5) / 2) * 6) * Math.PI / 180;
+        _wv.copy(ax.y).multiplyScalar(Math.cos(tgt)).addScaledVector(ax.z, (fz >= 0 ? 1 : -1) * Math.sin(tgt));
+        _pq.setFromUnitVectors(_hv, _wv);
+        _q.copy(_qI).slerp(_pq, 0.55 * pw); rotWorld(b.spine_01, _q);
+        _q.copy(_qI).slerp(_pq, 0.45 * pw); rotWorld(b.spine_02, _q);
+      }
+    }
     // lean into turns (roll) and with acceleration (pitch), more when sprinting
     var leanT = M.clamp(-(st.turnRate || 0) * st.speed * 0.035, -0.32, 0.32) * (1 - this._strafeW * 0.7);
     this._lean = M.damp(this._lean, leanT, 6, dt);
@@ -748,6 +765,7 @@
   // weapon_r's own frame (measured on the aim clips): X to the character's right, Y down, Z forward and raised by the
   // grip's rake. A gun model (X its left, Y up, Z barrel) sits in it turned half round its X axis and tipped back by
   // the rake: about 33 degrees for the long guns' clips, 21 for the pistol clips.
+  var _pv = new T.Vector3(), _hv = new T.Vector3(), _wv = new T.Vector3(), _pq = new T.Quaternion();
   var _qI = new T.Quaternion(), _wq = new T.Quaternion(), _wm = new T.Matrix4(), _wf = new T.Vector3(), _wu = new T.Vector3(), _wr = new T.Vector3(), _wh = new T.Vector3(), _we = new T.Vector3();
   var _gq = {};
   function gripQuat(deg) {
