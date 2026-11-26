@@ -5,7 +5,7 @@
  *   right button, as on foot). Guards hit at speed go flying; bystanders are shoved clear and never hurt.
  * Every make and model is invented (Lucciola city car, Brezza Spider, Marea launch); no real cars, badges or brands.
  *
- * Model: made in code (extruded side profiles for the body and the glasshouse, lathe wheels, lamps), front toward +Z.
+ * Model: made in code (a body lofted through cross-sections, see loftBody; lathe wheels, lamps), front toward +Z.
  * Handling: an arcade bicycle model: speed along the heading, steering lock that shrinks with speed, a slip angle that
  * opens when cornering force passes the tyres' grip or the handbrake is on (the tail steps out, speed scrubs off).
  * The body follows the ground under its four wheels (pitch and roll), falls when the ground drops away, and is moved
@@ -33,7 +33,9 @@
     MAT = { tyre: std('#141414', 0.9), rim: std('#b9bdc2', 0.3, 0.9), dark: std('#1a1a1c', 0.7, 0.1), chrome: std('#d5d8dc', 0.15, 1), seat: std('#5b3a26', 0.75),
       glass: new T.MeshPhysicalMaterial({ color: RP.col('#1c2a30'), roughness: 0.05, metalness: 0, transparent: true, opacity: 0.55, envMapIntensity: 1.5 }),
       head: std('#fff6dc', 0.2, 0, { emissive: RP.col('#fff1c8'), emissiveIntensity: 0.6 }), tail: std('#8a1010', 0.3, 0, { emissive: RP.col('#c01a1a'), emissiveIntensity: 0.5 }),
-      wood: std('#7a4a2a', 0.35), deck: std('#c9a26b', 0.5), hull: std('#f1ede3', 0.35) };
+      wood: std('#7a4a2a', 0.35), deck: std('#c9a26b', 0.5), hull: std('#f1ede3', 0.35),
+      well: std('#0c0c0d', 0.95, 0, { side: T.DoubleSide }), grille: std('#101113', 0.55, 0.5) };
+    MAT.glass.userData.farCol = RP.col('#26343c');
     return MAT;
   }
   function paint(hex) { return new T.MeshPhysicalMaterial({ color: RP.col(hex), roughness: 0.55, metalness: 0.1, clearcoat: 0.5, clearcoatRoughness: 0.2, envMapIntensity: 0.6 }); }
@@ -69,46 +71,199 @@
     var g = new T.ExtrudeGeometry(sh, { depth: Math.max(0.01, width - 2 * bevel), bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel * 0.6, bevelSegments: 3, curveSegments: 12 });
     g.rotateY(-Math.PI / 2); g.translate((width - 2 * bevel) / 2, 0, 0); return g;
   }
+  // ------------------------------------------------------------------ lofted car bodies
+  // A car body is one smooth surface lofted through cross-sections along its length (front toward +Z):
+  //   plan:  the half-width at each station follows a superellipse, so the corners are rounded seen from above;
+  //   side:  `top` is the silhouette (bumper, bonnet, windscreen, roof, rear window, boot) and `belt` the waistline
+  //          where the glass starts; the sill rises over each wheel, which cuts real arches into the side;
+  //   section: a tucked sill, a flank that bulges a little, a shoulder at the waist, and a cabin that leans in toward
+  //          the roof (tumblehome).
+  // Faces are then sorted into paint, glass (windscreen, side and rear windows, leaving the pillars painted), dark
+  // underside, or nothing (an open car's cockpit). Nose and tail are raked back above bumper height.
+  var BODY = {
+    city: { p: 7, tumble: 0.24, rakeF: 0.22, rakeR: 0.1, bPillar: -0.32, cockpit: null,
+      top: [[-1.725, 0.5], [-1.7, 0.92], [-1.66, 1.2], [-1.56, 1.35], [-1.38, 1.41], [-0.4, 1.42], [0.04, 1.4], [0.18, 1.35], [0.74, 0.93], [1.2, 0.87], [1.52, 0.8], [1.68, 0.67], [1.725, 0.48]],
+      belt: [[-1.725, 0.86], [0.74, 0.9], [1.725, 0.9]] },
+    spider: { p: 6, tumble: 0, rakeF: 0.3, rakeR: 0.18, bPillar: null, cockpit: [-0.98, 0.32],
+      top: [[-2.075, 0.42], [-2.04, 0.6], [-1.92, 0.72], [-1.5, 0.78], [-0.98, 0.79], [0.4, 0.77], [1.2, 0.71], [1.78, 0.63], [2.0, 0.54], [2.075, 0.38]],
+      belt: [[-2.075, 2], [2.075, 2]] },
+    berlina: { p: 7, tumble: 0.2, rakeF: 0.2, rakeR: 0.14, bPillar: -0.12, cockpit: null,
+      top: [[-2.2, 0.55], [-2.17, 0.8], [-2.08, 0.9], [-1.7, 0.94], [-1.28, 0.96], [-1.06, 1.04], [-0.76, 1.36], [-0.5, 1.43], [0.3, 1.44], [0.48, 1.41], [0.64, 1.33], [1.14, 0.96], [1.6, 0.91], [2.0, 0.84], [2.15, 0.71], [2.2, 0.52]],
+      belt: [[-2.2, 0.93], [1.14, 0.96], [2.2, 0.96]] }
+  };
+  function sstep(a, b, x) { var t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+  function lerpPts(pts, z) {
+    if (z <= pts[0][0]) return pts[0][1];
+    for (var i = 1; i < pts.length; i++) if (z <= pts[i][0]) { var a = pts[i - 1], b = pts[i]; return a[1] + (b[1] - a[1]) * (z - a[0]) / (b[0] - a[0]); }
+    return pts[pts.length - 1][1];
+  }
+  function bodyKit(ty, bd) {
+    var L = ty.len, hl = L / 2, hw = ty.wid / 2, R = ty.wheelR, Ra = R + 0.08, b0 = 0.17, axles = [ty.wb / 2, -ty.wb / 2];
+    var K = {
+      hw: hw, hl: hl, p: bd.p,
+      plan: function (z) { var t = Math.min(1, Math.abs(z) / hl); return Math.pow(Math.max(0, 1 - Math.pow(t, bd.p)), 1 / bd.p); },
+      top: function (z) { return lerpPts(bd.top, z); },
+      belt: function (z) { return Math.min(lerpPts(bd.top, z), lerpPts(bd.belt, z)); },
+      sill: function (z) {
+        var y = b0;
+        axles.forEach(function (za) { var d = Math.abs(z - za); if (d < Ra) y = Math.max(y, R + Math.sqrt(Ra * Ra - d * d) * 0.96); });
+        return y;
+      },
+      // nose and tail lean back above bumper height
+      rake: function (z, y) {
+        var zs = hl - 0.62, k;
+        if (z > zs) { k = 1 - bd.rakeF * sstep(0.42, 0.95, y); return zs + (z - zs) * k; }
+        if (z < -zs) { k = 1 - bd.rakeR * sstep(0.5, 1.1, y); return -zs + (z + zs) * k; }
+        return z;
+      }
+    };
+    // half cross-section at station z: [x, y] from the bottom middle round to the top middle (13 points)
+    K.section = function (z) {
+      var pl = K.plan(z), w = hw * pl, top = K.top(z), belt = K.belt(z), yb = Math.min(K.sill(z), belt - 0.02), cab = Math.max(0, top - belt);
+      var bulge = 0.028 * pl, crown = 0.035 * pl, wt = Math.max(0, w - 0.05 - bd.tumble * cab), rr = Math.min(0.07, 0.02 + cab * 0.12);
+      var pts = [[0, yb], [w * 0.86, yb], [w - 0.035 * pl, yb + 0.045], [w, yb + 0.13], [w + bulge, (yb + belt) / 2], [w + bulge * 0.4, belt - 0.07], [w - 0.02 * pl, belt],
+        [M.lerp(w - 0.03 * pl, wt, 0.33), belt + cab * 0.33], [M.lerp(w - 0.03 * pl, wt, 0.66), belt + cab * 0.66], [wt, belt + Math.max(0, cab - rr)],
+        [Math.max(0, wt - rr * 0.7), belt + Math.max(0, cab - rr * 0.25)], [wt * 0.5, top + crown], [0, top + crown]];
+      for (var i = 1; i < pts.length; i++) { if (pts[i][1] < pts[i - 1][1]) pts[i][1] = pts[i - 1][1]; if (i <= 6 && pts[i][1] > belt) pts[i][1] = belt; }
+      return pts;
+    };
+    // where along the body the plan's edge is at height y, for lamps and trim on the nose and tail: z for a given x
+    K.endZ = function (x, front, y) {
+      var t = Math.min(0.999, Math.abs(x) / hw), z = hl * Math.pow(1 - Math.pow(t, bd.p), 1 / bd.p);
+      return K.rake(front ? z : -z, y);
+    };
+    return K;
+  }
+  // stations along the body: close together at the rounded ends and over the arches
+  function stations(K, ty) {
+    var zs = [], n = 40, Ra = ty.wheelR + 0.08;
+    for (var i = 0; i <= n; i++) zs.push(-K.hl * Math.cos(Math.PI * i / n));
+    [ty.wb / 2, -ty.wb / 2].forEach(function (za) { for (var d = -Ra - 0.04; d <= Ra + 0.04; d += 0.07) zs.push(za + d); });
+    zs.sort(function (a, b) { return a - b; });
+    return zs.filter(function (z, i) { return i === 0 || z - zs[i - 1] > 0.018; });
+  }
+  function loftBody(ty, bd) {
+    var K = bodyKit(ty, bd), zs = stations(K, ty), NS = 13, RING = 2 * NS - 2;
+    var pos = [], info = [];
+    zs.forEach(function (z) {
+      var h = K.section(z), ring = [];
+      for (var i = 0; i < NS; i++) ring.push([h[i][0], h[i][1], i]);
+      for (i = NS - 2; i >= 1; i--) ring.push([-h[i][0], h[i][1], i]);
+      ring.forEach(function (q) { pos.push(q[0], q[1], K.rake(z, q[1])); info.push(z, q[2]); });
+    });
+    var geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    var all = []; for (var s = 0; s < zs.length - 1; s++) for (var r = 0; r < RING; r++) {
+      var a = s * RING + r, b = s * RING + (r + 1) % RING, c = (s + 1) * RING + r, d = (s + 1) * RING + (r + 1) % RING;
+      all.push(a, b, c, b, d, c);
+    }
+    geo.setIndex(all); geo.computeVertexNormals();
+    // sort the quads
+    var P = geo.attributes.position, lists = { paint: [], glass: [], dark: [] }, e1 = new T.Vector3(), e2 = new T.Vector3(), nn = new T.Vector3(), va = new T.Vector3(), vb = new T.Vector3();
+    for (var q = 0; q < all.length; q += 6) {
+      // corners: i0 (station s, ring r), i1 (s, r+1), i2 (s+1, r), i3 (s+1, r+1); outward normal from the diagonals
+      var i0 = all[q], i1 = all[q + 1], i2 = all[q + 2], i3 = all[q + 4];
+      e1.subVectors(vb.fromBufferAttribute(P, i1), va.fromBufferAttribute(P, i2)); e2.subVectors(vb.fromBufferAttribute(P, i3), va.fromBufferAttribute(P, i0));
+      nn.crossVectors(e1, e2);
+      if (nn.lengthSq() < 1e-12) continue;
+      nn.normalize();
+      var z = (info[i0 * 2] + info[i2 * 2]) / 2, row = Math.max(info[i0 * 2 + 1], info[i1 * 2 + 1]), rowLo = Math.min(info[i0 * 2 + 1], info[i1 * 2 + 1]);
+      var cx = (P.getX(i0) + P.getX(i1) + P.getX(i2) + P.getX(i3)) / 4, cy = (P.getY(i0) + P.getY(i1) + P.getY(i2) + P.getY(i3)) / 4;
+      var belt = K.belt(z), top = K.top(z), cab = top - belt, sec = K.section(z), wt = sec[9][0];
+      var which = 'paint';
+      if (nn.y < -0.55 || rowLo === 0 && row <= 1) which = 'dark';
+      else if (bd.cockpit && z > bd.cockpit[0] && z < bd.cockpit[1] && rowLo >= 10 && Math.abs(cx) < sec[6][0] - 0.12) which = null;
+      else if (cab > 0.2 && rowLo >= 6 && row <= 10) {
+        // side windows: between the pillars, clear of the waist and the roof rail
+        var cabB = K.top(z - 0.11) - K.belt(z - 0.11), cabF = K.top(z + 0.11) - K.belt(z + 0.11);
+        var side = Math.abs(nn.x) > 0.42 && rowLo >= 6 && row <= 9 && cabB > 0.3 && cabF > 0.3 && !(bd.bPillar != null && Math.abs(z - bd.bPillar) < 0.06);
+        if (side && cy > belt + 0.035 && cy < top - 0.05) which = 'glass';
+      }
+      if (which === 'paint' && cab > 0.12 && rowLo >= 10 && cy > belt + 0.04 && Math.abs(cx) < wt - 0.06) {
+        if (nn.z > 0.38 || nn.z < -0.38) which = 'glass';        // windscreen and rear window, inside their pillars
+      }
+      if (which) lists[which].push(all[q], all[q + 1], all[q + 2], all[q + 3], all[q + 4], all[q + 5]);
+    }
+    var out = {};
+    Object.keys(lists).forEach(function (k) { if (!lists[k].length) return; var g = geo.clone(); g.setIndex(lists[k]); out[k] = g; });
+    out.K = K;
+    return out;
+  }
+  // a band of trim that follows the plan of the nose or tail (bumpers, grille, lamps): x from x0 to x1 (|x| as a
+  // fraction of the half-width; negative x0 mirrors across the middle), y0..y1, standing `off` proud of the body
+  function endBand(K, front, x0, x1, y0, y1, off, bulge) {
+    var n = 16, pos = [], idx = [], rows = [y0, (y0 + y1) / 2, y1], cap = Math.pow(1 - Math.pow(0.88, K.p), 1 / K.p);
+    x0 = Math.max(-cap, Math.min(cap, x0)); x1 = Math.max(-cap, Math.min(cap, x1));
+    for (var i = 0; i <= n; i++) {
+      var f = x0 + (x1 - x0) * i / n, x = f * K.hw;
+      rows.forEach(function (y, j) {
+        var z = K.endZ(x, front, y), o = off + (j === 1 ? bulge : 0);
+        // push outward along the plan normal (approximated from the neighbouring point)
+        var z2 = K.endZ(x + 0.01, front, y), tz = z2 - z, l = Math.hypot(0.01, tz), nx = -tz / l, nz = 0.01 / l;
+        if (nz * (front ? 1 : -1) < 0) { nx = -nx; nz = -nz; }
+        pos.push(x + nx * o, y, z + nz * o);
+      });
+    }
+    for (i = 0; i < n; i++) for (var j = 0; j < 2; j++) {
+      var a = i * 3 + j, b = a + 1, c = a + 3, d = c + 1;
+      if (front) idx.push(a, c, b, b, c, d); else idx.push(a, b, c, b, d, c);
+    }
+    var g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    return g;
+  }
   function buildCar(ty, hex) {
     var g = new T.Group(), M0 = mats(), P = paint(hex), L = ty.len, hw = ty.wid / 2, R = ty.wheelR, f = L / 2, r = -L / 2, H = ty.h, b0 = 0.17;
-    var yb = ty.open ? 0.72 : 0.88, top;
-    if (ty.open) {
-      // low two-seat roadster: long bonnet, cut-down doors, a short rounded tail
-      top = [[r + 0.06, b0 + 0.12], [r, 0.42], [r + 0.05, yb - 0.08, r + 0.45, yb - 0.02], [-0.2, yb], [0.38, yb], [f - 0.55, yb - 0.05, f - 0.06, 0.56], [f, 0.38], [f - 0.07, b0 + 0.08]];
-    } else {
-      // small rounded hatchback
-      top = [[r + 0.06, b0 + 0.12], [r, 0.48], [r + 0.03, yb - 0.08, r + 0.16, yb], [0.62, yb], [f - 0.32, yb - 0.08, f - 0.03, 0.62], [f, 0.42], [f - 0.06, b0 + 0.1]];
+    var yb = ty.open ? 0.72 : 0.88, type = ty.open ? 'spider' : ty.wb > 2.6 ? 'berlina' : 'city', bd = BODY[type];
+    var body = loftBody(ty, bd), K = body.K;
+    P.side = T.DoubleSide;    // the inside of the pillars and roof, seen through the far window
+    g.add(mesh(body.paint, P));
+    if (body.glass) g.add(mesh(body.glass, M0.glass));
+    if (body.dark) g.add(mesh(body.dark, M0.dark));
+    // wheel wells (dark liners over each tyre) and the cabin tub that hides the hollow body behind the glass
+    [ty.wb / 2, -ty.wb / 2].forEach(function (za) {
+      var wl = new T.Mesh(new T.CylinderGeometry(R + 0.07, R + 0.07, ty.wid - 0.08, 14, 1, true, 0, Math.PI), M0.well);
+      wl.rotation.z = Math.PI / 2; wl.position.set(0, R, za); g.add(wl);
+    });
+    var cz0 = ty.open ? bd.cockpit[0] : r + 0.5, cz1 = ty.open ? bd.cockpit[1] + 0.1 : ty.wb / 2 - 0.15;
+    g.add(mesh(new T.BoxGeometry(ty.wid - 0.22, yb - b0 - 0.2, cz1 - cz0), M0.dark, 0, (yb + b0 + 0.05) / 2, (cz0 + cz1) / 2));
+    // seats: two buckets in front, a bench behind in the closed cars
+    [-1, 1].forEach(function (s) {
+      var bh = ty.open ? 0.72 : 0.92;
+      g.add(mesh(prof([[-0.5, 0], [-0.47, bh], [-0.33, bh + 0.02], [-0.34, 0.13], [0.14, 0.15], [0.16, 0]], 0.46, 0.05), M0.seat, s * 0.38, ty.seat[1] - 0.2, ty.seat[2]));
+    });
+    if (!ty.open) {
+      // the rear bench's back, kept under the roof line where the rear window slopes down
+      var zb = ty.seat[2] - 0.78, bt = Math.min(K.top(zb) - 0.16, K.belt(zb) + 0.32), by0 = ty.seat[1] - 0.15;
+      g.add(mesh(new T.BoxGeometry(ty.wid - 0.36, bt - by0, 0.14), M0.seat, 0, (bt + by0) / 2, zb));
+      g.add(mesh(new T.BoxGeometry(ty.wid - 0.36, 0.12, 0.45), M0.seat, 0, by0 + 0.06, zb + 0.28));
     }
-    g.add(mesh(extrude(bodyShape(top, f, r, b0, R, ty.wb), ty.wid, 0.1), P));
-    g.add(mesh(new T.BoxGeometry(ty.wid - 0.3, 0.2, L - 0.5), M0.dark, 0, b0 + 0.12, 0));        // floor pan / wheel wells
+    // dashboard under the windscreen
+    var zd = ty.open ? 0.3 : (type === 'city' ? 0.62 : 0.98);
+    g.add(mesh(new T.BoxGeometry(ty.wid - 0.3, 0.14, 0.34), M0.dark, 0, yb - 0.02, zd));
     if (ty.open) {
       var ws = prof([[0.33, yb - 0.02], [0.4, yb - 0.02], [0.08, H], [0.03, H]], ty.wid - 0.34, 0.012); g.add(mesh(ws, M0.glass));
       g.add(mesh(new T.BoxGeometry(ty.wid - 0.36, 0.03, 0.045), M0.chrome, 0, H, 0.055));
-      g.add(mesh(new T.BoxGeometry(ty.wid - 0.4, 0.06, 1.2), M0.dark, 0, yb - 0.015, -0.42));     // the cockpit opening
-      [-1, 1].forEach(function (s) { g.add(mesh(prof([[-1.0, yb - 0.35], [-0.98, yb + 0.2], [-0.86, yb + 0.2], [-0.78, yb - 0.25], [-0.32, yb - 0.28], [-0.32, yb - 0.35]], 0.46, 0.05), M0.seat, s * 0.38, 0, 0)); });
-      g.add(mesh(new T.BoxGeometry(ty.wid - 0.5, 0.05, 0.3), M0.dark, 0, yb + 0.01, 0.2));       // dash top
-    } else {
-      // the glasshouse: glass body, painted roof and pillars
-      g.add(mesh(prof([[r + 0.2, yb - 0.02], [r + 0.36, H - 0.07, r + 0.62, H - 0.03], [0.04, H - 0.03], [0.64, yb - 0.02]], ty.wid - 0.2, 0.09), M0.glass));
-      g.add(mesh(prof([[r + 0.5, H - 0.05], [r + 0.62, H], [0.02, H], [0.1, H - 0.05]], ty.wid - 0.24, 0.05), P));
-      [[-0.28, 0.07], [r + 0.42, 0.12], [0.33, 0.05]].forEach(function (pz, i) { var hgt = H - yb - 0.04; var pm = mesh(new T.BoxGeometry(ty.wid - 0.185, hgt, pz[1]), P, 0, yb + hgt / 2, pz[0]); if (i === 2) pm.rotation.x = -0.62; if (i === 1) pm.rotation.x = 0.35; g.add(pm); });
-      g.add(mesh(new T.BoxGeometry(ty.wid - 0.5, 0.3, 1.1), M0.dark, 0, yb - 0.2, -0.3));
+      [-1, 1].forEach(function (s) { g.add(mesh(new T.CylinderGeometry(0.06, 0.08, 0.26, 10), P, s * 0.38, yb + 0.1, -0.98)); });   // roll hoops
     }
-    // steering wheel (for the hands), lamps, grille, bumpers, plates, mirrors, door lines and handles
+    // steering wheel (for the hands)
     var sw = new T.Mesh(new T.TorusGeometry(0.17, 0.016, 6, 16), M0.dark); sw.position.set(ty.seat[0], yb - (ty.open ? 0.02 : 0.1), ty.seat[2] + 0.44); sw.rotation.x = -0.45; g.add(sw); g.userData.wheel = sw;
+    // nose: grille, headlamps in chrome rims, a bumper band; tail: wrap-round lamps, bumper, number plates, exhaust
+    var bump = ty.open ? M0.chrome : M0.dark, lampY = ty.open ? 0.52 : type === 'city' ? 0.6 : 0.66;
+    g.add(mesh(endBand(K, true, -0.36, 0.36, lampY - 0.17, lampY - 0.04, 0.004, 0.006), M0.grille));
+    g.add(mesh(endBand(K, true, -0.97, 0.97, b0 + 0.07, b0 + 0.2, 0.012, 0.022), bump));
+    g.add(mesh(endBand(K, false, -0.97, 0.97, b0 + 0.08, b0 + 0.22, 0.012, 0.022), bump));
     [-1, 1].forEach(function (s) {
-      g.add(mesh(new T.SphereGeometry(0.095, 12, 8).scale(1, 0.85, 0.5), M0.head, s * (hw - 0.26), ty.open ? 0.5 : 0.56, f - 0.07));
-      g.add(mesh(new T.SphereGeometry(0.1, 12, 6).scale(1.02, 0.87, 0.3), M0.chrome, s * (hw - 0.26), ty.open ? 0.5 : 0.56, f - 0.085));
-      g.add(mesh(new T.BoxGeometry(0.22, 0.08, 0.05), M0.tail, s * (hw - 0.24), ty.open ? 0.5 : 0.62, r + 0.035));
-      g.add(mesh(new T.BoxGeometry(0.11, 0.07, 0.05), ty.open ? M0.chrome : M0.dark, s * (hw + 0.045), yb + 0.05, 0.5));
-      g.add(mesh(new T.BoxGeometry(0.008, yb - b0 - 0.12, 0.012), M0.dark, s * (hw + 0.001), (yb + b0) / 2 + 0.02, 0.48));
-      g.add(mesh(new T.BoxGeometry(0.008, yb - b0 - 0.12, 0.012), M0.dark, s * (hw + 0.001), (yb + b0) / 2 + 0.02, -0.52));
-      g.add(mesh(new T.BoxGeometry(0.014, 0.022, 0.1), M0.chrome, s * (hw + 0.004), yb - 0.1, -0.38));
+      var lx = s * (hw - 0.27), lz = K.endZ(lx, true, lampY);
+      g.add(mesh(new T.SphereGeometry(0.1, 14, 8).scale(1, 0.8, 0.45), M0.head, lx, lampY, lz - 0.03));
+      g.add(mesh(new T.TorusGeometry(0.098, 0.012, 6, 18), M0.chrome, lx, lampY, lz - 0.005));
+      var tl = s > 0 ? [0.5, 0.995] : [-0.995, -0.5];
+      g.add(mesh(endBand(K, false, tl[0], tl[1], lampY - 0.05, lampY + 0.07, 0.006, 0.004), M0.tail));
+      g.add(mesh(new T.BoxGeometry(0.1, 0.06, 0.12), ty.open ? M0.chrome : M0.dark, s * (hw + 0.05), yb + 0.07, ty.open ? 0.42 : (type === 'city' ? 0.62 : 0.92)));   // mirrors
+      g.add(mesh(new T.BoxGeometry(0.06, 0.03, 0.04), M0.dark, s * (hw - 0.04), yb + 0.06, ty.open ? 0.42 : (type === 'city' ? 0.66 : 0.96)));     // mirror arms
+      g.add(mesh(new T.BoxGeometry(0.03, 0.022, 0.11), M0.chrome, s * (hw + 0.026), yb - 0.1, ty.seat[2] - 0.18));   // door handle
     });
-    g.add(mesh(new T.BoxGeometry(ty.wid * 0.42, 0.11, 0.04), M0.dark, 0, ty.open ? 0.36 : 0.44, f - 0.015));
-    g.add(mesh(new T.BoxGeometry(ty.wid - 0.14, 0.085, 0.09), ty.open ? M0.chrome : M0.dark, 0, b0 + 0.11, f - 0.01)); g.add(mesh(new T.BoxGeometry(ty.wid - 0.14, 0.085, 0.09), ty.open ? M0.chrome : M0.dark, 0, b0 + 0.11, r + 0.01));
-    g.add(mesh(new T.BoxGeometry(0.34, 0.09, 0.012), M0.hull, 0, b0 + 0.24, r - 0.005)); g.add(mesh(new T.BoxGeometry(0.3, 0.08, 0.012), M0.hull, 0, b0 + 0.11, f + 0.04));
-    g.add(mesh(new T.CylinderGeometry(0.025, 0.025, 0.14, 8).rotateX(Math.PI / 2), M0.chrome, -hw + 0.32, b0 + 0.02, r + 0.03));
+    g.add(mesh(new T.BoxGeometry(0.34, 0.09, 0.012), M0.hull, 0, b0 + 0.3, K.endZ(0, false, b0 + 0.3) - 0.008));
+    g.add(mesh(new T.BoxGeometry(0.3, 0.08, 0.012), M0.hull, 0, b0 + 0.14, K.endZ(0, true, b0 + 0.14) + 0.026));
+    g.add(mesh(new T.CylinderGeometry(0.025, 0.025, 0.14, 8).rotateX(Math.PI / 2), M0.chrome, -hw + 0.32, b0 + 0.04, K.endZ(-hw + 0.32, false, b0) + 0.02));
     // wheels (children so they can spin and steer), set just inside the arches
     g.userData.wheels = [];
     [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(function (k) {
@@ -167,6 +322,8 @@
     // the fixed parts become one mesh per material; each wheel becomes two (rubber and metal); the steering wheel stays
     mergeChildren(g, g.userData.wheel ? [g.userData.wheel] : []);
     g.userData.wheels.forEach(function (w) { mergeChildren(w.spin); });
+    // the far car: the whole thing as one mesh (wheels and all), shown past FAR_D and hidden past the draw range
+    g.userData.far = RP.farMesh(g); g.add(g.userData.far);
     var y = ty.water ? W.water : W.ground(x, z, (W.terrainH ? W.terrainH(x, z) : 0) + 1.2).y;   // on the street, not on a roof above it
     var v = { type: type, ty: ty, g: g, pos: new T.Vector3(x, y, z), yaw: yaw || 0, v: 0, slip: 0, steer: 0, vy: 0, pitch: 0, roll: 0, air: false, driver: null, hp: 100, spinA: 0, bobT: Math.random() * 6 };
     g.position.copy(v.pos); g.rotation.set(0, v.yaw, 0, 'YXZ');
@@ -426,10 +583,21 @@
     p.noise = Math.abs(v.v) > 2 ? 22 : 8;
     if (I.pressed('enter') || I.pressed('interact')) V.exit(p, true);
   };
+  // level of detail by camera distance: 0 the full car, 1 one mesh, 2 not drawn
+  var FAR_D = { low: 30, medium: 50, high: 80 };
+  function setLod(v, lvl) {
+    if (v.lod === lvl) return; v.lod = lvl;
+    var g = v.g, far = g.userData.far;
+    g.visible = lvl < 2;
+    g.children.forEach(function (c) { c.visible = c === far ? lvl === 1 : lvl === 0; });
+  }
   V.update = function (dt) {
-    var p = RP.G.player;
+    var p = RP.G.player, cam = RP.R.camera, qn = RP.R.qname, farD = FAR_D[qn] || 50;
+    var hideD = Math.max(160, ((RP.B && RP.B.range && RP.B.range.civ) || 240) * 1.5);
     for (var i = 0; i < V.list.length; i++) {
       var v = V.list[i];
+      var cd = cam.position.distanceTo(v.pos);
+      setLod(v, v.driver === p || cd < farD ? 0 : cd < hideD ? 1 : 2);
       if (v.ai) stepAI(v, dt);
       else if (!v.driver && (Math.abs(v.v) > 0.05 || v.air)) { drive(v, dt, 0, 0, true); hitPeople(v); v.hit = 0; }   // rolls to a stop
       if (v.dead && !v.ty.water) { v.smokeT = (v.smokeT || 0) - dt; if (v.smokeT <= 0) { v.smokeT = 0.14; RP.FX.dust(v.pos.x + Math.sin(v.yaw) * 1.3, v.pos.y + 0.9, v.pos.z + Math.cos(v.yaw) * 1.3, 0, 1, 0, '#2b2b2b', 1, 1.1, 0.8); } }

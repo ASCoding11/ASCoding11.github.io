@@ -124,6 +124,33 @@
   // sRGB hex authored colour -> linear THREE.Color (the r187 page runs with colour management off, like r128)
   RP.col = function (hex) { return new THREE.Color(hex).convertSRGBToLinear(); };
 
+  // A one-draw-call stand-in for a model seen from a distance: every mesh under `root` (except skinned ones, meshes
+  // named 'far*' and any in `skip`) merged into one mesh in root's own space, coloured per vertex from its material
+  // (o.userData.farCol overrides, for textured parts). Hidden until the caller shows it; add it to root.
+  var FARMAT = null;
+  RP.farMat = function () { return FARMAT || (FARMAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.3 })); };
+  RP.farMesh = function (root, skip) {
+    var T = THREE, pos = [], nrm = [], col = [], inv = new T.Matrix4(), mx = new T.Matrix4(), nm = new T.Matrix3();
+    var v = new T.Vector3(), n = new T.Vector3();
+    root.updateMatrixWorld(true); inv.copy(root.matrixWorld).invert();
+    root.traverse(function (o) {
+      if (!o.isMesh || o.isSkinnedMesh || /^far/.test(o.name) || (skip && skip.indexOf(o) >= 0) || !o.geometry.attributes.normal) return;
+      var c = o.userData.farCol || (o.material && o.material.userData && o.material.userData.farCol) || (o.material && o.material.color) || RP.col('#808080');
+      mx.multiplyMatrices(inv, o.matrixWorld); nm.getNormalMatrix(mx);
+      var P = o.geometry.attributes.position, N = o.geometry.attributes.normal, idx = o.geometry.index, cnt = idx ? idx.count : P.count;
+      for (var i = 0; i < cnt; i++) {
+        var j = idx ? idx.getX(i) : i;
+        v.fromBufferAttribute(P, j).applyMatrix4(mx); n.fromBufferAttribute(N, j).applyMatrix3(nm).normalize();
+        pos.push(v.x, v.y, v.z); nrm.push(n.x, n.y, n.z); col.push(c.r, c.g, c.b);
+      }
+    });
+    var g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(nrm, 3)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+    g.computeBoundingSphere();
+    var m = new T.Mesh(g, RP.farMat()); m.name = 'far'; m.castShadow = false; m.visible = false;
+    return m;
+  };
+
   // ------------------------------------------------------------------ registries
   RP.maps = { list: {}, register: function (m) { this.list[m.id] = m; } };
   RP.missions = { list: {}, order: [], register: function (m) { this.list[m.id] = m; this.order.push(m.id); } };

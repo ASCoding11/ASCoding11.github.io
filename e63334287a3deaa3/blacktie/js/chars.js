@@ -517,7 +517,7 @@
     if (this.held && this.held.parent) this.held.parent.remove(this.held);
     this.held = obj;
     if (obj) {
-      if (obj.userData.far && RP.GunModels) RP.GunModels.setFar(obj, this.lodLevel >= 1);
+      if (obj.userData.far && RP.GunModels) RP.GunModels.setFar(obj, this.lodLevel || 0);
       var id = obj.userData.id, d = RP.Weapons && RP.Weapons.DEFS[id];
       obj.userData.oneHandMelee = !!(d && (d.melee || d.cat === 'throw'));
       this.root.add(obj); this._wAim = 0;
@@ -541,6 +541,7 @@
     var local = new T.Matrix4().copy(this.bones.spine_03.matrixWorld).invert().multiply(this.root.matrixWorld).multiply(want);
     local.decompose(m.position, m.quaternion, m.scale);
     this.bones.spine_03.add(m); this._back = m;
+    if (m.userData.far && RP.GunModels) RP.GunModels.setFar(m, this.lodLevel || 0);
   };
   AP.setVisible = function (v) { this.root.visible = v; this.visibleFlag = v; };
 
@@ -558,7 +559,8 @@
         // far people are one mesh each (skin, clothes and a solid hair shape on one small atlas: see export_people.py)
         this.meshes.forEach(function (m) { m.visible = !m.userData.off && lvl === 0; });
         this.lods.forEach(function (m) { m.visible = m.userData.lod === lvl; });
-        if (this.held && this.held.userData.far) RP.GunModels.setFar(this.held, lvl >= 1);
+        if (this.held && this.held.userData.far) RP.GunModels.setFar(this.held, lvl);
+        if (this._back && this._back.userData.far) RP.GunModels.setFar(this._back, lvl);
       }
       // far actors update every other frame
       this._skip = !this._skip && d > 45 && !this.isPlayer;

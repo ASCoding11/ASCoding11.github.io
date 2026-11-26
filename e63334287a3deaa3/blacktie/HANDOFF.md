@@ -47,12 +47,18 @@ cross the road at the viaduct; crash damage only for real impacts; terrain steep
 a wall (no driving up hillsides); chasers steer ~16 m ahead by distance. Checkouts: everything is in the main checkout
 on `agent-game`; the `/home/user/bt-work` worktree and the remote branch `agent-game-map-wip` are merged leftovers.
 
+## Budget (worst view found by ~/rpwork/w/tribreak.js, which also breaks the triangles down by kind)
+Low 92 calls / 264k tris, Medium 198 / 526k, High 267 / 715k (targets 180/250k, 300/600k, 450/1.2M). Far people
+are one draw call with hair; guns have a merged far mesh (LOD 1) and boxes (LOD 2); cars have a one-mesh far
+version past 30/50/80 m and are hidden past 1.5x the bystander range; pickups hidden past 40/70/110 m.
+Car bodies are lofted (vehicles.js `BODY`, `loftBody`), ~5.2k tris and 23 calls near.
+
 ## Next
 1. Play mission 3 with real controls; tune chaser speed/aggression and the helicopter; check the pursuit in the
    tunnels and hairpins; traffic and parked cars along the road.
-2. Known rough: car bodies low-poly; faces MakeHuman-level; no start/stop clips (only a brake move); vault/climb/
+2. Known rough: cars have no panel lines or interior detail beyond seats and a dash; faces MakeHuman-level; no start/stop clips (only a brake move); vault/climb/
    corner swing not re-checked since the rotWorld fix; cliffs are a 2 m heightfield with a few spiky fins; terraces
-   read as grass steps; detail pops at 72-250 m; Low/Medium over the draw-call target in Amalfi; first-person view
+   read as grass steps; detail pops at 72-250 m; Low triangles ~6% over 250k at the worst Amalfi view (calls fine); first-person view
    untested with the new characters; nothing tested on a real GPU or phone yet.
 3. Balance, then the What's new entry (JSON in git history, commit 89b8771) and card/phone row when it leaves
    preview. Later maps: Chicago, a Greek island (new files under `maps/` using `RP.Kit`).

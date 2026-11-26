@@ -144,11 +144,16 @@
   var _q = new T.Quaternion(), _q2 = new T.Quaternion(), _e = new T.Euler();
   IT.near = null;
   IT.update = function (dt) {
-    var p = RP.G.player, best = null, bd = 1e9;
+    var p = RP.G.player, best = null, bd = 1e9, cam = RP.R.camera, qn = RP.R.qname;
+    var showD = qn === 'low' ? 40 : qn === 'high' ? 110 : 70, show2 = showD * showD;
     stepDebris(dt);
     for (var i = 0; i < IT.list.length; i++) {
       var it = IT.list[i]; if (it.gone) continue;
       it.t += dt;
+      // small things are not drawn from far off; a weapon on the ground uses the gun's cheaper versions with distance
+      var c2 = cam.position.distanceToSquared(it.g.position);
+      it.g.visible = c2 < show2;
+      if (it.model && it.model.userData.far && RP.GunModels) RP.GunModels.setFar(it.model, c2 < 196 ? 0 : c2 < 900 ? 1 : 2);
       if (it.kind === 'weapon' && !it.rest) stepFall(it, dt);
       if (it.kind !== 'weapon') { it.g.rotation.y += dt * 0.8; }
       if (it.hl) { it.hl.position.set(it.g.position.x, it.gy != null ? it.gy + 0.015 : it.g.position.y, it.g.position.z); }
