@@ -1,72 +1,162 @@
 /* Windrow: the leaves. Every leaf is a real thing with a place, a speed and a tumble; nothing is deleted by pointing.
-   To stay cheap with thousands of them:
+   To stay cheap with tens of thousands of them:
    - leaves that have come to rest are "asleep" and cost nothing until a tool, a foot or a neighbour wakes them;
    - each leaf lives in one 0.25 m grid cell (a linked list per cell), so tools only look at the cells they reach;
    - leaves do not collide with each other one by one. A cell holds a stack: the more leaves in it, the higher the next
      one rests, a full cell turns sliding leaves away, and a leaf on a tall stack slides off onto a lower neighbour.
      That is what makes heaps against walls and windrows in front of the rake.
-   They are drawn as instanced meshes: one per area and leaf shape, so a whole area is four draw calls. */
+   - a leaf is two triangles: a flat card with one of four leaf shapes cut out of it by a small texture drawn here.
+   They are drawn as instanced meshes, one per area and leaf shape, so a whole area is four draw calls. Each mesh keeps
+   its leaves in the order of the 4 m tile they started in, and only the tiles where something moved are sent to the
+   graphics card each frame. */
 (function () {
   'use strict';
   var WR = window.WR, CELL = WR.CELL, GW = WR.GW, GH = WR.GH, X0 = WR.X0, Z0 = WR.Z0;
-  var CAP = 16, HARD = 34, LH = 0.014, BASE = 0.024;
+  var CAP = 26, HARD = 40, LH = 0.014, BASE = 0.024, MAXSTEP = 0.22;
   var DEAD = 0, SLEEP = 1, AWAKE = 2, TOBAG = 3, SINK = 4;
+  var TILE = 4, TW = Math.ceil(GW * CELL / TILE), TH = Math.ceil(GH * CELL / TILE), TILES = TW * TH;
+  // half outlines (x across, z along), mirrored to make each shape
   var SHAPES = [
-    { pts: [[0, -.5], [.22, -.15], [.2, .25]], big: 1 },                                  // oval, 6 triangles
-    { pts: [[0, -.55], [.09, -.05]], big: .95 },                                          // long and narrow, 4
-    { pts: [[0, -.5], [.12, -.28], [.38, -.28], [.24, -.02], [.4, .16]], big: 1.2 },      // five points, 10
-    { pts: [[0, -.5], [.15, -.3], [.1, -.12], [.24, .04], [.16, .3]], big: 1.1 }          // lobed, 10
+    { pts: [[0, -.5], [.17, -.34], [.27, -.08], [.25, .18], [.13, .4], [0, .47]], big: 1 },                                           // oval
+    { pts: [[0, -.5], [.07, -.32], [.11, -.02], [.08, .28], [0, .47]], big: 1.05 },                                                   // long and narrow
+    { pts: [[0, -.5], [.09, -.3], [.3, -.38], [.22, -.14], [.44, -.06], [.27, .1], [.33, .3], [.1, .27], [0, .44]], big: 1.25 },      // five points
+    { pts: [[0, -.5], [.13, -.4], [.1, -.26], [.23, -.16], [.14, -.02], [.25, .1], [.14, .24], [.18, .36], [0, .47]], big: 1.15 }     // lobed
   ];
-  function leafGeo(sh) {
-    var out = sh.pts.slice(), i; for (i = sh.pts.length - 1; i >= 1; i--) out.push([-sh.pts[i][0], sh.pts[i][1]]);
-    out.splice(sh.pts.length, 0, [0, .47]);
-    var p = [], c = [], n = out.length;
-    function y(x, z) { return 0.5 * x * x * 1.6 + 0.12 * z * z + 0.02; }
-    for (i = 0; i < n; i++) { var a = out[i], b = out[(i + 1) % n];
-      p.push(0, .012, 0, b[0], y(b[0], b[1]), b[1], a[0], y(a[0], a[1]), a[1]); c.push(.72, .7, .66, 1, 1, 1, 1, 1, 1); }
-    var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); g.computeVertexNormals(); return g;
+  var atlas = null;
+  function leafAtlas() {
+    if (atlas) return atlas;
+    var c = document.createElement('canvas'), n = 128; c.width = c.height = n * 2; var g = c.getContext('2d');
+    SHAPES.forEach(function (sh, k) {
+      var ox = (k % 2) * n + n / 2, oz = ((k / 2) | 0) * n + n / 2, sc = n * 0.98, P = sh.pts, i;
+      g.save(); g.translate(ox, oz); g.beginPath(); g.moveTo(P[0][0] * sc, P[0][1] * sc);
+      for (i = 1; i < P.length; i++) g.lineTo(P[i][0] * sc, P[i][1] * sc);
+      for (i = P.length - 2; i >= 1; i--) g.lineTo(-P[i][0] * sc, P[i][1] * sc);
+      g.closePath();
+      var gr = g.createLinearGradient(-n / 2, 0, n / 2, 0); gr.addColorStop(0, '#d9d9d9'); gr.addColorStop(.5, '#ffffff'); gr.addColorStop(1, '#cfcfcf');
+      g.fillStyle = gr; g.fill(); g.lineJoin = 'round'; g.lineWidth = 3; g.strokeStyle = '#ffffff'; g.stroke(); g.clip();
+      g.strokeStyle = 'rgba(70,50,30,.55)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(0, -n * .46); g.lineTo(0, n * .47); g.stroke();
+      g.lineWidth = 1.4; g.strokeStyle = 'rgba(70,50,30,.38)'; for (i = -3; i <= 3; i++) { if (!i) continue; var z0 = i * n * .11; g.beginPath(); g.moveTo(0, z0 + n * .08); g.lineTo(n * .3, z0 - n * .06); g.moveTo(0, z0 + n * .08); g.lineTo(-n * .3, z0 - n * .06); g.stroke(); }
+      g.restore();
+    });
+    atlas = new THREE.CanvasTexture(c); atlas.anisotropy = 4; return atlas;
   }
+  // a flat card 1 long and 1 wide, showing shape k of the atlas
+  function leafGeo(k) {
+    var u0 = (k % 2) * .5, v0 = 1 - ((k / 2) | 0) * .5, g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([-.5, 0, -.5, -.5, 0, .5, .5, 0, .5, -.5, 0, -.5, .5, 0, .5, .5, 0, -.5], 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute([u0, v0, u0, v0 - .5, u0 + .5, v0 - .5, u0, v0, u0 + .5, v0 - .5, u0 + .5, v0], 2));
+    return g;
+  }
+  function leafMaterial() { return new THREE.MeshLambertMaterial({ map: leafAtlas(), alphaTest: 0.45, side: THREE.DoubleSide }); }
 
   function Leaves(scene, state, mul) {
-    var self = this, A = WR.AREAS, counts = A.map(function (a) { return Math.max(40, Math.round(a.leaves * mul)); }), N = counts.reduce(function (s, v) { return s + v; }, 0);
-    this.N = N; this.counts = counts; this.mul = mul; this.scene = scene;
-    this.w = A.map(function (a, i) { return a.units / counts[i]; });
+    var self = this, A = WR.AREAS, solid = WR.solid, gtype = WR.gtype, inlet = WR.inlet, FR = WR.GROUND_FRICTION, c0;
+    // open ground of each area in square metres, and so how many leaves it gets at this quality (`mul` a square metre)
+    var open = A.map(function () { return 0; });
+    for (c0 = 0; c0 < GW * GH; c0++) if (!solid[c0] && WR.areaOf[c0] >= 0 && inlet[c0] < 0) open[WR.areaOf[c0]] += CELL * CELL;
+    var counts = open.map(function (m2) { return Math.max(40, Math.round(m2 * mul)); }), N = counts.reduce(function (s, v) { return s + v; }, 0);
+    this.N = N; this.counts = counts; this.mul = mul; this.scene = scene; this.open = open;
+    this.w = A.map(function (a, i) { return a.units / counts[i]; });        // acorn worth of one leaf, before upgrades
+    this.fill = A.map(function (a, i) { return a.leaves / counts[i]; });    // how much sack one leaf takes
     this.alive = A.map(function () { return 0; });
     var px = this.px = new Float32Array(N), py = this.py = new Float32Array(N), pz = this.pz = new Float32Array(N);
     var vx = new Float32Array(N), vy = new Float32Array(N), vz = new Float32Array(N);
     var yaw = new Float32Array(N), pit = new Float32Array(N), rol = new Float32Array(N), spin = new Float32Array(N), rp = new Float32Array(N), rr = new Float32Array(N);
     var scl = new Float32Array(N), off = new Float32Array(N), idle = new Float32Array(N), tmr = new Float32Array(N);
-    var st = this.st = new Uint8Array(N), area = this.area = new Uint8Array(N), rank = new Uint8Array(N), aux = new Int16Array(N);
-    var lcell = new Int32Array(N), next = new Int32Array(N), prev = new Int32Array(N), aidx = new Int32Array(N).fill(-1);
-    var meshOf = new Uint8Array(N), slot = new Uint16Array(N);
+    var st = this.st = new Uint8Array(N), area = this.area = new Uint8Array(N), rank = new Uint8Array(N), aux = new Int16Array(N), shape = new Uint8Array(N);
+    var lcell = new Int32Array(N).fill(-1), next = new Int32Array(N), prev = new Int32Array(N), aidx = new Int32Array(N).fill(-1);
+    var meshOf = new Uint8Array(N), slot = new Uint16Array(N), tileOf = new Uint16Array(N);
     var head = new Int32Array(GW * GH).fill(-1), cnt = this.cnt = new Uint8Array(GW * GH);
-    var solid = WR.solid, gtype = WR.gtype, inlet = WR.inlet, FR = WR.GROUND_FRICTION;
     var awake = new Int32Array(N), awakeN = 0;
     this.awakeCount = function () { return awakeN; };
-    var meshes = this.meshes = [], dirty = [];
-    var mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-    var geos = SHAPES.map(leafGeo);
+    var meshes = this.meshes = [], meshDirty = [], tileDirty = [], tileStart = [], mat = leafMaterial(), geos = [0, 1, 2, 3].map(leafGeo);
+    this.touched = A.map(function () { return false; });
+    function cellOf(x, z) { var ci = Math.floor((x - X0) / CELL), cj = Math.floor((z - Z0) / CELL); return (ci < 0 || cj < 0 || ci >= GW || cj >= GH) ? -1 : ci + cj * GW; }
 
-    // which shape, size, colour and mesh slot each leaf has (the same every visit: seeded by its number)
-    var r = WR.rng(4242), i = 0, perMesh = [], col = new THREE.Color(), cols = [];
-    A.forEach(function (a, ai) {
-      var base = meshes.length; for (var s = 0; s < 4; s++) perMesh.push(0);
-      for (var k = 0; k < counts[ai]; k++, i++) {
-        var q = r(), s2 = q < .34 ? 0 : q < .6 ? 1 : q < .8 ? 2 : 3;
-        area[i] = ai; meshOf[i] = base + s2; slot[i] = perMesh[base + s2]++;
-        scl[i] = (0.2 + r() * 0.12) * SHAPES[s2].big * (mul < 1 ? 1.15 : 1); off[i] = r() * 0.012; rp[i] = (r() - .5) * .5; rr[i] = (r() - .5) * .5;
-        col.set(a.pal[(r() * a.pal.length) | 0]); var b = 0.8 + r() * 0.35; cols.push(col.r * b, col.g * b, col.b * b);
+    /* 1. where every leaf starts: from the save, or scattered (drifts under trees and along the edges, a thinner
+          layer everywhere else). `want[i]` = 1 if leaf i is on the ground. */
+    var want = new Uint8Array(N), tmpCnt = new Uint8Array(GW * GH);
+    function b64(u8) { var t = ''; for (var k = 0; k < u8.length; k += 8192) t += String.fromCharCode.apply(null, u8.subarray(k, k + 8192)); return btoa(t); }
+    function unb64(t) { var b = atob(t), u = new Uint8Array(b.length); for (var k = 0; k < b.length; k++) u[k] = b.charCodeAt(k); return u; }
+    function scatter(ai, first, keepShare) {
+      var a = A[ai], q = WR.rng(900 + ai * 31 + counts[ai]), spots = [], k, lim = Math.max(8, Math.round(mul * 0.55));
+      WR.TREES.forEach(function (t) { if (t[0] > a.x0 && t[0] < a.x1 && t[1] > a.z0 && t[1] < a.z1) { spots.push([t[0], t[1], 2.2]); spots.push([t[0], t[1], 1.2]); } });
+      var extra = 8 + Math.round((a.x1 - a.x0) * (a.z1 - a.z0) / 30);
+      for (k = 0; k < extra; k++) { var e = q(), ex = a.x0 + 1 + q() * (a.x1 - a.x0 - 2), ez = a.z0 + 1 + q() * (a.z1 - a.z0 - 2);
+        if (e < .6) { if (q() < .5) ex = q() < .5 ? a.x0 + .7 : a.x1 - .7; else ez = q() < .5 ? a.z0 + .7 : a.z1 - .7; }
+        spots.push([ex, ez, 0.9 + q() * 1.5]); }
+      for (k = 0; k < counts[ai]; k++) {
+        var id = first + k, keep = q() < keepShare, tries = 0, x, z, c, ok;
+        do {
+          if (tries < 40 && q() < .5) { var sp = spots[(q() * spots.length) | 0], g = Math.sqrt(-2 * Math.log(1 - q() * .999)) * sp[2] * .6, th = q() * 6.283; x = sp[0] + Math.cos(th) * g; z = sp[1] + Math.sin(th) * g; }
+          else { x = a.x0 + .3 + q() * (a.x1 - a.x0 - .6); z = a.z0 + .3 + q() * (a.z1 - a.z0 - .6); }
+          c = cellOf(x, z); tries++; ok = c >= 0 && !solid[c] && inlet[c] < 0 && WR.areaOf[c] === ai && (tmpCnt[c] < lim || tries > 40);
+        } while (!ok && tries < 400);
+        yaw[id] = q() * 6.283; px[id] = x; pz[id] = z;
+        if (keep && ok) { want[id] = 1; tmpCnt[c]++; }
       }
-      for (s = 0; s < 4; s++) {
-        var m = new THREE.InstancedMesh(geos[s], mat, Math.max(1, perMesh[base + s])); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        m.frustumCulled = true; m.receiveShadow = true; m.matrixAutoUpdate = false;
-        m.boundingSphere = new THREE.Sphere(new THREE.Vector3((a.x0 + a.x1) / 2, 0, (a.z0 + a.z1) / 2), Math.hypot(a.x1 - a.x0, a.z1 - a.z0) / 2 + 9);
-        m.instanceMatrix.array.fill(0);
-        meshes.push(m); dirty.push(true); scene.add(m);
-      }
-    });
-    for (i = 0; i < N; i++) { col.setRGB(cols[i * 3], cols[i * 3 + 1], cols[i * 3 + 2]); meshes[meshOf[i]].setColorAt(slot[i], col); }
-    meshes.forEach(function (m) { if (m.instanceColor) m.instanceColor.needsUpdate = true; });
+    }
+    (function () {
+      var saved = state.leaves && state.leafMul === mul ? state.leaves : null, first = 0;
+      A.forEach(function (a, ai) {
+        var sv = saved && saved[ai], done = (state.bagUnits[ai] || 0) / a.units + (state.gone[ai] || 0), loaded = false;
+        if (sv) {
+          try {
+            var u = new Uint16Array(unb64(sv).buffer); if (u.length !== counts[ai] * 2) throw 0;
+            for (var k = 0; k < counts[ai]; k++) { var id = first + k; yaw[id] = (id * 2.399) % 6.283; px[id] = (a.x0 + a.x1) / 2; pz[id] = (a.z0 + a.z1) / 2;
+              if (u[k * 2] === 65535) continue;
+              var x = X0 + u[k * 2] / 100, z = Z0 + u[k * 2 + 1] / 100, c = cellOf(x, z);
+              // saved to the nearest centimetre, which can round a leaf lying against a wall into the wall: step it back out
+              for (var nq = 0; nq < 8 && (c < 0 || solid[c]); nq++) { var nx2 = x + [.03, -.03, 0, 0, .03, -.03, .03, -.03][nq], nz2 = z + [0, 0, .03, -.03, .03, -.03, -.03, .03][nq], c9 = cellOf(nx2, nz2); if (c9 >= 0 && !solid[c9]) { x = nx2; z = nz2; c = c9; } }
+              if (c < 0 || solid[c]) continue;
+              px[id] = x; pz[id] = z; want[id] = 1; }
+            loaded = true; self.touched[ai] = true;
+          } catch (e) { loaded = false; }
+        }
+        if (!loaded) { scatter(ai, first, Math.max(0, 1 - done)); self.touched[ai] = done > 0; }
+        first += counts[ai];
+      });
+    })();
+    this.serialize = function () {
+      var out = [], first = 0;
+      A.forEach(function (a, ai) {
+        if (!self.touched[ai]) { out.push(''); first += counts[ai]; return; }
+        var u = new Uint16Array(counts[ai] * 2);
+        for (var k = 0; k < counts[ai]; k++) { var id = first + k; if (st[id] !== SLEEP && st[id] !== AWAKE) { u[k * 2] = u[k * 2 + 1] = 65535; } else { u[k * 2] = Math.round((px[id] - X0) * 100); u[k * 2 + 1] = Math.round((pz[id] - Z0) * 100); } }
+        out.push(b64(new Uint8Array(u.buffer))); first += counts[ai];
+      });
+      return out;
+    };
+
+    /* 2. shape, size, colour, and a slot in a mesh. Slots go tile by tile, so leaves that lie together sit together
+          in the buffer and a tool working in one corner only re-sends that corner. */
+    (function () {
+      var r = WR.rng(4242), i = 0, col = new THREE.Color(), first = 0;
+      A.forEach(function (a, ai) {
+        var base = meshes.length, lists = [[], [], [], []], k, s2;
+        for (k = 0; k < counts[ai]; k++, i++) {
+          var q = r(); s2 = q < .34 ? 0 : q < .56 ? 1 : q < .8 ? 2 : 3; area[i] = ai; shape[i] = s2; meshOf[i] = base + s2;
+          scl[i] = (0.2 + r() * 0.11) * SHAPES[s2].big * (mul < 20 ? 1.12 : 1); off[i] = r() * 0.012; rp[i] = (r() - .5) * .55; rr[i] = (r() - .5) * .55;
+          tileOf[i] = Math.min(TW - 1, Math.max(0, Math.floor((px[i] - X0) / TILE))) + Math.min(TH - 1, Math.max(0, Math.floor((pz[i] - Z0) / TILE))) * TW;
+          lists[s2].push(i);
+        }
+        for (s2 = 0; s2 < 4; s2++) {
+          var L = lists[s2]; L.sort(function (p, q2) { return tileOf[p] - tileOf[q2]; });
+          var starts = new Int32Array(TILES + 1), t = 0;
+          for (k = 0; k < L.length; k++) { while (t <= tileOf[L[k]]) starts[t++] = k; slot[L[k]] = k; }
+          while (t <= TILES) starts[t++] = L.length;
+          var m = new THREE.InstancedMesh(geos[s2], mat, Math.max(1, L.length)); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+          m.frustumCulled = true; m.receiveShadow = true; m.matrixAutoUpdate = false; m.instanceMatrix.array.fill(0);
+          m.boundingSphere = new THREE.Sphere(new THREE.Vector3((a.x0 + a.x1) / 2, 0, (a.z0 + a.z1) / 2), Math.hypot(a.x1 - a.x0, a.z1 - a.z0) / 2 + 9);
+          var q3 = WR.rng(77 + ai * 13 + s2);
+          for (k = 0; k < L.length; k++) { col.set(a.pal[(q3() * a.pal.length) | 0]); var b = 0.8 + q3() * 0.35; col.r *= b; col.g *= b; col.b *= b; m.setColorAt(k, col); }
+          if (m.instanceColor) m.instanceColor.needsUpdate = true;
+          meshes.push(m); meshDirty.push(false); tileDirty.push(new Uint8Array(TILES)); tileStart.push(starts); scene.add(m);
+        }
+        first += counts[ai];
+      });
+    })();
 
     /* Leaf litter: the crumbs and dust that lie wherever leaves do. One see-through sheet over the whole garden whose
        opacity comes from a small texture with one pixel per grid cell (how many leaves are in it). It fades out about a
@@ -90,9 +180,8 @@
       litterDirty = moving; litTex.needsUpdate = true;
     }
 
-    function cellOf(x, z) { var ci = Math.floor((x - X0) / CELL), cj = Math.floor((z - Z0) / CELL); return (ci < 0 || cj < 0 || ci >= GW || cj >= GH) ? -1 : ci + cj * GW; }
     function write(i, s) {
-      var m = meshOf[i], a = meshes[m].instanceMatrix.array, o = slot[i] * 16; dirty[m] = true;
+      var m = meshOf[i], a = meshes[m].instanceMatrix.array, o = slot[i] * 16; meshDirty[m] = true; tileDirty[m][tileOf[i]] = 1;
       if (s === 0) { a[o] = a[o + 5] = a[o + 10] = 0; a[o + 1] = a[o + 2] = a[o + 4] = a[o + 6] = a[o + 8] = a[o + 9] = 0; a[o + 13] = -50; return; }
       var k = scl[i] * (s || 1), cy = Math.cos(yaw[i]), sy = Math.sin(yaw[i]), cp = Math.cos(pit[i]), sp = Math.sin(pit[i]), cr = Math.cos(rol[i]), sr = Math.sin(rol[i]);
       a[o] = (cy * cr + sy * sp * sr) * k; a[o + 1] = cp * sr * k; a[o + 2] = (-sy * cr + cy * sp * sr) * k; a[o + 3] = 0;
@@ -114,60 +203,12 @@
     function rest(i) { return BASE + rank[i] * LH + off[i]; }
     this.wake = wake;
 
-    function place(i, x, z) { px[i] = x; pz[i] = z; link(i, cellOf(x, z)); py[i] = rest(i); pit[i] = rp[i]; rol[i] = rr[i]; st[i] = SLEEP; self.alive[area[i]]++; write(i); }
-    // scatter an area: drifts under trees and along the edges, a thinner layer everywhere else
-    function scatter(ai, keepShare) {
-      var a = A[ai], rr2 = WR.rng(900 + ai * 31 + counts[ai]), spots = [], k, first = 0;
-      for (k = 0; k < ai; k++) first += counts[k];
-      WR.TREES.forEach(function (t) { if (t[0] > a.x0 && t[0] < a.x1 && t[1] > a.z0 && t[1] < a.z1) { spots.push([t[0], t[1], 2.4]); spots.push([t[0], t[1], 1.4]); } });
-      var extra = 6 + Math.round((a.x1 - a.x0) * (a.z1 - a.z0) / 60);
-      for (k = 0; k < extra; k++) { var e = rr2(), ex = a.x0 + 1 + rr2() * (a.x1 - a.x0 - 2), ez = a.z0 + 1 + rr2() * (a.z1 - a.z0 - 2);
-        if (e < .5) { if (rr2() < .5) ex = rr2() < .5 ? a.x0 + .9 : a.x1 - .9; else ez = rr2() < .5 ? a.z0 + .9 : a.z1 - .9; }
-        spots.push([ex, ez, 1.1 + rr2() * 1.6]); }
-      for (k = 0; k < counts[ai]; k++) {
-        var id = first + k, keep = rr2() < keepShare, tries = 0, x, z, c;
-        do {
-          if (rr2() < .62) { var s = spots[(rr2() * spots.length) | 0], g = Math.sqrt(-2 * Math.log(1 - rr2() * .999)) * s[2] * .6, th = rr2() * 6.283; x = s[0] + Math.cos(th) * g; z = s[1] + Math.sin(th) * g; }
-          else { x = a.x0 + .4 + rr2() * (a.x1 - a.x0 - .8); z = a.z0 + .4 + rr2() * (a.z1 - a.z0 - .8); }
-          c = cellOf(x, z); tries++;
-        } while (tries < 30 && (c < 0 || solid[c] || inlet[c] >= 0 || WR.areaOf[c] !== ai || cnt[c] >= 7));
-        yaw[id] = rr2() * 6.283;
-        if (keep && tries < 30) place(id, x, z); else { st[id] = DEAD; lcell[id] = -1; write(id, 0); }
-      }
+    /* 3. put the leaves that are on the ground into their cells */
+    for (var li = 0; li < N; li++) {
+      if (want[li]) { link(li, cellOf(px[li], pz[li])); py[li] = rest(li); pit[li] = rp[li]; rol[li] = rr[li]; st[li] = SLEEP; self.alive[area[li]]++; write(li); }
+      else { st[li] = DEAD; }
     }
-    // saved places: two 16-bit numbers a leaf (centimetres from the corner of the garden), 65535 for a leaf that is gone
-    function b64(u8) { var s = ''; for (var k = 0; k < u8.length; k += 8192) s += String.fromCharCode.apply(null, u8.subarray(k, k + 8192)); return btoa(s); }
-    function unb64(s) { var b = atob(s), u = new Uint8Array(b.length); for (var k = 0; k < b.length; k++) u[k] = b.charCodeAt(k); return u; }
-    this.serialize = function () {
-      var out = [], first = 0;
-      A.forEach(function (a, ai) {
-        if (self.alive[ai] === counts[ai] && !self.touched[ai]) { out.push(''); first += counts[ai]; return; }
-        var u = new Uint16Array(counts[ai] * 2);
-        for (var k = 0; k < counts[ai]; k++) { var id = first + k; if (st[id] === DEAD || st[id] === SINK) { u[k * 2] = u[k * 2 + 1] = 65535; } else if (st[id] === TOBAG) { u[k * 2] = u[k * 2 + 1] = 65535; } else { u[k * 2] = Math.round((px[id] - X0) * 100); u[k * 2 + 1] = Math.round((pz[id] - Z0) * 100); } }
-        out.push(b64(new Uint8Array(u.buffer))); first += counts[ai];
-      });
-      return out;
-    };
-    this.touched = A.map(function () { return false; });
-    (function init() {
-      var saved = state.leaves && state.leafMul === mul ? state.leaves : null, first = 0;
-      A.forEach(function (a, ai) {
-        var s = saved && saved[ai], done = (state.bagUnits[ai] || 0) / a.units + (state.gone[ai] || 0);
-        if (s) {
-          try {
-            var u = new Uint16Array(unb64(s).buffer); if (u.length !== counts[ai] * 2) throw 0;
-            for (var k = 0; k < counts[ai]; k++) { var id = first + k; yaw[id] = (id * 2.399) % 6.283;
-              if (u[k * 2] === 65535) { st[id] = DEAD; lcell[id] = -1; write(id, 0); continue; }
-              var x = X0 + u[k * 2] / 100, z = Z0 + u[k * 2 + 1] / 100, c = cellOf(x, z);
-              if (c < 0 || solid[c]) { st[id] = DEAD; lcell[id] = -1; write(id, 0); continue; }
-              place(id, x, z); }
-            self.touched[ai] = true;
-          } catch (e) { scatter(ai, 1 - done); self.touched[ai] = done > 0; }
-        } else { scatter(ai, Math.max(0, 1 - done)); self.touched[ai] = done > 0; }
-        first += counts[ai];
-      });
-      litterUpdate(0, true);
-    })();
+    litterUpdate(0, true); meshDirty.fill(false); tileDirty.forEach(function (t) { t.fill(0); });
     // share of an area's leaves that are out of the garden for good (not on the ground, not in the sack)
     this.share = function (ai) { return Math.max(0, Math.min(1, 1 - (this.alive[ai] * this.w[ai] + (state.bagUnits[ai] || 0)) / A[ai].units)); };
 
@@ -201,10 +242,13 @@
         yaw[i] += spin[i] * dt;
         var sp2 = vx[i] * vx[i] + vz[i] * vz[i];
         if (sp2 > 1e-5 || !ground) {
-          var nx = px[i] + vx[i] * dt, nz = pz[i] + vz[i] * dt, c1 = cellOf(nx, pz[i]);
+          var mvx = vx[i] * dt, mvz = vz[i] * dt, mv = mvx * mvx + mvz * mvz;
+          if (mv > MAXSTEP * MAXSTEP) { mv = MAXSTEP / Math.sqrt(mv); mvx *= mv; mvz *= mv; }   // never more than one cell a step, so nothing skips through a wall
+          // (rounded to what the arrays can hold first, so the cell tested is the cell the leaf really ends in)
+          var nx = Math.fround(px[i] + mvx), nz = Math.fround(pz[i] + mvz), c1 = cellOf(nx, pz[i]);
           if (c1 < 0 || solid[c1]) { vx[i] *= -0.12; nx = px[i]; }
           var c2 = cellOf(nx, nz);
-          if (c2 < 0 || solid[c2]) { vz[i] *= -0.12; nz = pz[i]; c2 = cellOf(nx, nz); }
+          if (c2 < 0 || solid[c2]) { vz[i] *= -0.12; nz = pz[i]; c2 = cellOf(nx, nz); if (c2 < 0 || solid[c2]) { nx = px[i]; c2 = c; } }
           py[i] += vy[i] * dt;
           if (c2 !== c) {
             var full = cnt[c2] >= HARD || ((ground || py[i] < BASE + cnt[c2] * LH) && cnt[c2] >= CAP && cnt[c2] >= cnt[c]);
@@ -228,7 +272,15 @@
         write(i);
       }
       this.moved = moved; litterUpdate(dt);
-      for (var m = 0; m < meshes.length; m++) if (dirty[m]) { meshes[m].instanceMatrix.needsUpdate = true; dirty[m] = false; }
+      for (var m = 0; m < meshes.length; m++) {
+        if (!meshDirty[m]) continue; meshDirty[m] = false;
+        var at = meshes[m].instanceMatrix, td = tileDirty[m], ts = tileStart[m], from = -1;
+        for (var t2 = 0; t2 <= TILES; t2++) {
+          var on = t2 < TILES && td[t2] === 1; if (on) td[t2] = 0;
+          if (on && from < 0) from = ts[t2]; else if (!on && from >= 0) { if (ts[t2] > from) at.addUpdateRange(from * 16, (ts[t2] - from) * 16); from = -1; }
+        }
+        at.needsUpdate = true;
+      }
     };
 
     /* ---------- what tools do to leaves ---------- */
@@ -312,17 +364,18 @@
         if (out.length < n * 3) out.push(px[k], pz[k], d); else { var worst = 2; for (var q = 5; q < out.length; q += 3) if (out[q] > out[worst]) worst = q; if (d < out[worst]) { out[worst - 2] = px[k]; out[worst - 1] = pz[k]; out[worst] = d; } } }
       return out;
     };
-    this.eachAlive = function (fn) { for (var k = 0; k < N; k++) if (st[k] === SLEEP || st[k] === AWAKE) fn(px[k], pz[k], area[k]); };
+    this.eachAlive = function (fn, stride) { for (var k = 0; k < N; k += stride || 1) if (st[k] === SLEEP || st[k] === AWAKE) fn(px[k], pz[k], area[k]); };
     this.countIn = function (x, z, rad) { var n = 0; eachIn(x - rad, z - rad, x + rad, z + rad, function (l) { if (st[l] <= AWAKE && (px[l] - x) * (px[l] - x) + (pz[l] - z) * (pz[l] - z) < rad * rad) n++; }); return n; };
     // test scripts only: take every leaf of an area off the ground except `keep` of them
-    this._testClear = function (ai, keep) { var first = 0, k, left = 0; for (k = 0; k < ai; k++) first += counts[k]; for (k = first; k < first + counts[ai]; k++) if (st[k] === SLEEP || st[k] === AWAKE) { if (left < keep) left++; else kill(k); } self.touched[ai] = true; dirty.fill(true); };
+    this._testClear = function (ai, keep) { var first = 0, k, left = 0; for (k = 0; k < ai; k++) first += counts[k]; for (k = first; k < first + counts[ai]; k++) if (st[k] === SLEEP || st[k] === AWAKE) { if (left < keep) left++; else kill(k); } self.touched[ai] = true; };
+    this._cellOfLeaf = function (k) { return st[k] === SLEEP || st[k] === AWAKE ? lcell[k] : -1; };
     this.dispose = function () { scene.remove(litter); litGeo.dispose(); litTex.dispose(); litMap.dispose(); litter.material.dispose(); meshes.forEach(function (m) { scene.remove(m); m.dispose && m.dispose(); }); geos.forEach(function (g) { g.dispose(); }); mat.dispose(); };
   }
   WR.Leaves = Leaves;
 
   /* Loose leaves that are only for show: the ones poured out of the sack, puffs at a chute, a few drifting off the trees. */
   function Fx(scene, max) {
-    var geo = leafGeo(SHAPES[0]), mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), max);
+    var geo = leafGeo(2), mesh = new THREE.InstancedMesh(geo, leafMaterial(), max);
     mesh.frustumCulled = false; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(mesh);
     var P = [], m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(), col = new THREE.Color(), nextSlot = 0;
     for (var i = 0; i < max; i++) { P.push({ life: 0 }); m4.makeScale(0, 0, 0); mesh.setMatrixAt(i, m4); mesh.setColorAt(i, col.set('#c8822c')); }

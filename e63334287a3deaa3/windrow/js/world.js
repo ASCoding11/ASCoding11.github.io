@@ -5,12 +5,12 @@
 (function () {
   'use strict';
   var WR = window.WR = window.WR || {};
-  var CELL = WR.CELL = 0.25, X0 = WR.X0 = -41, Z0 = WR.Z0 = -31, GW = WR.GW = 312, GH = WR.GH = 208;
+  var CELL = WR.CELL = 0.25, X0 = WR.X0 = -33, Z0 = WR.Z0 = -25, GW = WR.GW = 248, GH = WR.GH = 168;
   var LAWN = 0, PAVE = 1, DECK = 2, GRAVEL = 3;
   WR.GROUND_FRICTION = [7.5, 3.2, 4.2, 6.0];
 
   /* The five areas. `units` is what all of an area's leaves are worth together before upgrades, however many leaves
-     the quality setting draws; `leaves` is the count before the quality setting multiplies it (WR.QUALITY). `need` = [area, share cleared] to be allowed to unlock. */
+     the quality setting draws; `leaves` is the area's size in sack units (the sack and the hands are measured in these, so they do not depend on how many leaves the quality setting draws). `need` = [area, share cleared] to be allowed to unlock. */
   WR.AREAS = [
     { id: 'court', name: 'Gatehouse Court', x0: -12, x1: 12, z0: 0, z1: 20, ground: PAVE, leaves: 1500, units: 500, cost: 0, need: null, bonus: 100,
       reward: 'sprint', rewardName: 'Running shoes', rewardText: 'Hold Shift to sprint', pal: ['#d9a23a', '#c9822c', '#b8692a', '#e3bd55', '#8f5a2a'] },
@@ -23,7 +23,7 @@
     { id: 'maze', name: 'Maze Lawn', x0: -40, x1: -12, z0: -30, z1: 20, ground: LAWN, leaves: 3600, units: 9000, cost: 2800, need: [1, 0.5], bonus: 2000,
       reward: 'crown', rewardName: 'Keeper of Windrow', rewardText: 'The gardens are open again', pal: ['#8e2f3a', '#a8402c', '#6f2a3a', '#c25a2e', '#7a3a24'] }
   ];
-  WR.QUALITY = { low: 0.8, medium: 1.4, high: 2.8 };   // times each area's `leaves`: 9,200 / 16,100 / 32,200 in all
+  WR.QUALITY = { low: 14, medium: 24, high: 40 };   // leaves per square metre of open ground
 
   // gates: the gap in a wall that opens when `area` is unlocked. axis 'x' = the gap runs along x.
   WR.GATES = [
@@ -57,6 +57,16 @@
   var GLASS = [[15.5, 21.5, -25, -9], [26.5, 32.5, -25, -9]];
   var BENCHES = [[4, 1.1, 0], [-3.6, 18.9, 0], [18, 1.1, 0], [35, 8, 1], [-11, 9.5, 1], [-0.0, -29, 0], [13, -22, 1], [-39, 8, 1], [-24.5, -29, 0]];
   WR.SPAWN = { x: 0, z: 16.5, yaw: 0 };
+  /* The plan above was drawn at full size and then tightened: every position is multiplied by S, so the gardens are
+     smaller and the same leaves lie thicker. Sizes of things (walls, gates, benches, bins, chutes) are not scaled. */
+  var S = WR.S = 0.8;
+  WR.AREAS.forEach(function (a) { a.x0 *= S; a.x1 *= S; a.z0 *= S; a.z1 *= S; });
+  [WR.GATES, WR.BINS, WR.CHUTES, [FOUNTAIN, POND, WR.SPAWN]].forEach(function (l) { l.forEach(function (o) { o.x *= S; o.z *= S; }); });
+  [TREES, BENCHES].forEach(function (l) { l.forEach(function (o) { o[0] *= S; o[1] *= S; }); });
+  [HEDGES, LAWNS, GRAVELS, GLASS].forEach(function (l) { l.forEach(function (o) { for (var k = 0; k < 4; k++) o[k] *= S; }); });
+  FOUNTAIN.r = 1.8; POND.r = 3.1;
+  var SHED = [6.3, 9.3, 14.1, 15.7];
+  WR.HEDGES = HEDGES; WR.GLASS = GLASS; WR.POND = POND; WR.FOUNTAIN = FOUNTAIN;
 
   var solid = WR.solid = new Uint8Array(GW * GH), gtype = WR.gtype = new Uint8Array(GW * GH);
   var inlet = WR.inlet = new Int8Array(GW * GH).fill(-1), areaOf = WR.areaOf = new Int8Array(GW * GH).fill(-1);
@@ -89,19 +99,47 @@
     LAWNS.forEach(function (r) { rect(gtype, r[0], r[1], r[2], r[3], LAWN); });
     GRAVELS.forEach(function (r) { rect(gtype, r[0], r[1], r[2], r[3], GRAVEL); });
     WALLS.length = 0;
-    wallX(-30, -40.25, 36.25); wallX(20, -40.25, 36.25); wallZ(-40, -30, 20); wallZ(36, -30, 20);
-    wallZ(-12, -30, 20, [-15]); wallZ(12, -30, 20, [-15, 10]); wallX(0, -12, 12, [0]); wallX(0, 12, 36);
+    var Wx = -40 * S, Ex = 36 * S, Nz = -30 * S, Sz = 20 * S, x1 = -12 * S, x2 = 12 * S;
+    wallX(Nz, Wx - .25, Ex + .25); wallX(Sz, Wx - .25, Ex + .25); wallZ(Wx, Nz, Sz); wallZ(Ex, Nz, Sz);
+    wallZ(x1, Nz, Sz, [-15 * S]); wallZ(x2, Nz, Sz, [-15 * S, 10 * S]); wallX(0, x1, x2, [0]); wallX(0, x2, Ex);
     WALLS.forEach(function (w) { rect(solid, w[0], w[1], w[2], w[3], 1); });
-    WR.GATES.forEach(function (g) { var b = gateBox(g); rect(solid, b[0], b[1], b[2], b[3], unlocked && unlocked[g.area] ? 0 : 1); rect(gtype, b[0], b[1], b[2], b[3], GRAVEL); });
+    WR.GATES.forEach(function (g) { var b = gateBox(g); rect(solid, b[0], b[1], b[2], b[3], 0); rect(gtype, b[0], b[1], b[2], b[3], GRAVEL); });
     HEDGES.forEach(function (h) { rect(solid, h[0], h[1], h[2], h[3], 1); });
     GLASS.forEach(function (h) { rect(solid, h[0], h[1], h[2], h[3], 1); });
     TREES.forEach(function (t) { disc(solid, t[0], t[1], 0.38 * t[2], 1); });
     disc(solid, FOUNTAIN.x, FOUNTAIN.z, FOUNTAIN.r, 1); disc(solid, POND.x, POND.z, POND.r, 1);
     BENCHES.forEach(function (b) { if (b[2]) rect(solid, b[0] - .3, b[0] + .3, b[1] - .9, b[1] + .9, 1); else rect(solid, b[0] - .9, b[0] + .9, b[1] - .3, b[1] + .3, 1); });
-    rect(solid, 8.2, 11.7, 17.6, 19.7, 1);   // potting shed
+    rect(solid, SHED[0], SHED[1], SHED[2], SHED[3], 1);   // potting shed
     WR.BINS.forEach(function (b) { rect(solid, b.x - .7, b.x + .7, b.z - .7, b.z + .7, 1); });
+    WR.sealed = seal();
+    WR.GATES.forEach(function (g) { if (!(unlocked && unlocked[g.area])) { var b = gateBox(g); rect(solid, b[0], b[1], b[2], b[3], 1); } });
     WR.CHUTES.forEach(function (c, n) { rect(inlet, c.x - WR.CHUTE_HALF, c.x + WR.CHUTE_HALF, c.z - WR.CHUTE_HALF, c.z + WR.CHUTE_HALF, n); });
   };
+  /* No leaf may rest where no tool can clear it. With every gate open, find the cells a player can stand in (walking
+     from the start), then keep a free cell only if some standing spot within 2 m has a clear line to it (what the
+     hands need). Any other free cell (a slot behind a bench, a pocket between props) is made solid, so leaves and
+     feet simply cannot get in. Returns how many cells that was. */
+  function seal() {
+    var n = GW * GH, stand = new Uint8Array(n), seen = new Uint8Array(n), q = [], c, i, j, k, sealed = 0, R = 8, pt = { x: 0, z: 0 };
+    for (c = 0; c < n; c++) if (!solid[c]) { pt.x = X0 + (c % GW + .5) * CELL; pt.z = Z0 + (((c / GW) | 0) + .5) * CELL; if (!WR.collide(pt, 0.34)) stand[c] = 1; }
+    c = WR.cellOf(WR.SPAWN.x, WR.SPAWN.z); seen[c] = 1; q.push(c);
+    while (q.length) { c = q.pop(); for (k = 0; k < 4; k++) { var d = c + [1, -1, GW, -GW][k]; if (d >= 0 && d < n && stand[d] && !seen[d]) { seen[d] = 1; q.push(d); } } }
+    var bad = [];
+    for (c = 0; c < n; c++) {
+      if (solid[c] || seen[c]) continue;
+      var ci = c % GW, cj = (c / GW) | 0, ok = false;
+      for (j = -R; j <= R && !ok; j++) for (i = -R; i <= R && !ok; i++) {
+        var ni = ci + i, nj = cj + j; if (ni < 0 || nj < 0 || ni >= GW || nj >= GH || !seen[ni + nj * GW]) continue;
+        var dist = Math.hypot(i, j) * CELL; if (dist > 2) continue;
+        var steps = Math.ceil(dist / 0.1), clear = true;
+        for (k = 1; k < steps && clear; k++) { var t = k / steps; if (solid[Math.floor(ni + .5 - i * t) + Math.floor(nj + .5 - j * t) * GW]) clear = false; }
+        ok = clear;
+      }
+      if (!ok) bad.push(c);
+    }
+    for (k = 0; k < bad.length; k++) { solid[bad[k]] = 1; sealed++; }
+    return sealed;
+  }
   WR.openGate = function (area) {
     WR.GATES.forEach(function (g) { if (g.area === area) { var b = gateBox(g); rect(solid, b[0], b[1], b[2], b[3], 0); g.open = true; } });
   };
@@ -238,7 +276,7 @@
       B.blob(x - 1.1 * s, hgt + 0.5 * s, z - 0.8 * s, 1.5 * s, canopy[(n + 4) % canopy.length], 0.8, n + 61);
     });
     // beyond the walls: a ring of trees so the horizon is not empty
-    for (var k = 0; k < 46; k++) { var ang = k / 46 * 6.283 + r() * .1, rad = 62 + r() * 30, tx = -2 + Math.cos(ang) * rad * 1.15, tz = -5 + Math.sin(ang) * rad * .9, ss = 2.2 + r() * 1.6;
+    for (var k = 0; k < 46; k++) { var ang = k / 46 * 6.283 + r() * .1, rad = 62 + r() * 30, tx = -2 + Math.cos(ang) * rad * .95, tz = -4 + Math.sin(ang) * rad * .78, ss = 2.2 + r() * 1.6;
       B.cyl(tx, 2 * ss, tz, .25 * ss, .4 * ss, 4 * ss, '#5a4634', 5); B.blob(tx, 5.2 * ss, tz, 2.6 * ss, canopy[k % canopy.length], .9, k + 200); }
     BENCHES.forEach(function (b) { var ry = b[2] ? Math.PI / 2 : 0; B.box(b[0], .42, b[1], 1.8, .08, .5, '#8a5a34', ry); B.box(b[0], .2, b[1], 1.5, .4, .1, '#3d3a36', ry);
       var ox = b[2] ? .24 : 0, oz = b[2] ? 0 : .24; B.box(b[0] + ox, .72, b[1] + oz, 1.8, .34, .07, '#8a5a34', ry); });
@@ -254,7 +292,7 @@
     GLASS.forEach(function (g, n) {
       var cx = (g[0] + g[1]) / 2, cz = (g[2] + g[3]) / 2, w = g[1] - g[0], d = g[3] - g[2];
       B.box(cx, .3, cz, w, .6, d, '#9a6a4a');
-      for (var zz = g[2]; zz <= g[3] + .01; zz += d / 4) { B.box(g[0] + .06, 1.5, zz, .12, 1.9, .12, '#f1efe6'); B.box(g[1] - .06, 1.5, zz, .12, 1.9, .12, '#f1efe6'); B.box(cx, 3.35, zz, .1, .1, .1, '#f1efe6'); }
+      for (var zz = g[2], zi = 0; zi < 5; zi++, zz += d / 4) { B.box(g[0] + .06, 1.5, zz, .12, 1.9, .12, '#f1efe6'); B.box(g[1] - .06, 1.5, zz, .12, 1.9, .12, '#f1efe6'); B.box(cx, 3.35, zz, .1, .1, .1, '#f1efe6'); }
       B.box(cx, 3.42, cz, .14, .14, d, '#f1efe6'); B.box(g[0] + .06, 2.45, cz, .12, .12, d, '#f1efe6'); B.box(g[1] - .06, 2.45, cz, .12, .12, d, '#f1efe6');
       glassB.box(cx, 1.5, cz, w - .1, 1.9, d - .1, '#cfe9ee');
       var rl = Math.sqrt(w * w / 4 + 1), ra = Math.atan2(1, w / 2), g1 = new THREE.BoxGeometry(rl, .04, d); g1.rotateZ(ra); glassB.add(g1, '#cfe9ee', cx - w / 4, 2.95, cz);
@@ -263,10 +301,10 @@
     });
     var glass = glassB.mesh(new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: .26, depthWrite: false })); scene.add(glass);
     // potting shed by the start
-    B.box(9.95, 1.15, 18.65, 3.5, 2.3, 2.1, '#7c8f6a'); B.box(9.95, 2.45, 18.65, 3.9, .22, 2.6, '#4b3a2c'); B.box(9.2, 1.0, 17.58, .9, 1.9, .06, '#5a4532'); B.box(10.8, 1.5, 17.58, .9, .7, .05, '#d9ecf0');
+    var shx = (SHED[0] + SHED[1]) / 2, shz = (SHED[2] + SHED[3]) / 2; B.box(shx, 1.15, shz, 3, 2.3, 1.6, '#7c8f6a'); B.box(shx, 2.45, shz, 3.4, .22, 2.1, '#4b3a2c'); B.box(shx - .7, 1.0, SHED[2] - .02, .9, 1.9, .06, '#5a4532'); B.box(shx + .8, 1.5, SHED[2] - .02, .8, .7, .05, '#d9ecf0');
     // lamp posts
     [[-11, 1], [11, 1], [-2.6, -1.2], [2.6, -1.2], [13.2, 12.6], [13.2, -12.6], [-13.2, -12.4], [35, 19], [35, -29], [-39, -29], [-39, 19], [-11, -29], [11, -29]].forEach(function (l) {
-      B.cyl(l[0], 1.5, l[1], .05, .08, 3, '#2f2f33', 6); B.blob(l[0], 3.1, l[1], .2, '#fff1c4', 1, 3);
+      B.cyl(l[0] * S, 1.5, l[1] * S, .05, .08, 3, '#2f2f33', 6); B.blob(l[0] * S, 3.1, l[1] * S, .2, '#fff1c4', 1, 3);
     });
     // chutes: a dark grate with a painted border
     WR.CHUTES.forEach(function (c) {
@@ -305,8 +343,8 @@
     };
     // light: a low warm sun, soft sky fill
     var hemi = new THREE.HemisphereLight(0xcfe0ee, 0x7a6a48, 0.62); scene.add(hemi);
-    var dir = new THREE.DirectionalLight(0xffe0b0, 0.78); dir.position.set(-38, 46, 44); dir.target.position.set(-2, 0, -5); scene.add(dir); scene.add(dir.target);
-    var cam = dir.shadow.camera; cam.left = -52; cam.right = 52; cam.top = 46; cam.bottom = -46; cam.near = 5; cam.far = 150; dir.shadow.mapSize.set(2048, 2048); dir.shadow.bias = -0.0012;
+    var dir = new THREE.DirectionalLight(0xffe0b0, 0.78); dir.position.set(-38, 46, 44); dir.target.position.set(-1.6, 0, -4); scene.add(dir); scene.add(dir.target);
+    var cam = dir.shadow.camera; cam.left = -42; cam.right = 42; cam.top = 38; cam.bottom = -38; cam.near = 5; cam.far = 150; dir.shadow.mapSize.set(2048, 2048); dir.shadow.bias = -0.0012;
     out.sun = dir; out.sunDir = dir.position.clone().sub(dir.target.position).normalize();
     return out;
   };

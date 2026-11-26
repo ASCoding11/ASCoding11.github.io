@@ -59,7 +59,7 @@
   var needRender = true;
   function onGone(ar, w, how, idx) {
     dirty = true;
-    if (how === 'bag') { state.bagUnits[ar] += w; state.bagFill += 1 / leaves.mul; Au.pick(); bagDirty = true; }
+    if (how === 'bag') { state.bagUnits[ar] += w; state.bagFill += leaves.fill[ar]; Au.pick(); bagDirty = true; }
     else { pay(w, 1); Au.chute(); var c = WR.CHUTES[idx]; if (Math.random() < .3) fx.spawn(c.x + (Math.random() - .5), .1, c.z + (Math.random() - .5), 0, 1.2, 0, .5, A[ar].pal[0], .16); if (state.tut === 4) tutNext(5); }
   }
   function applyQuality() {
@@ -197,12 +197,12 @@
       if (fwd.y < -0.05) d = Math.min(maxD, Math.max(0.5, (p.y + p.eye) / -fwd.y * Math.hypot(fwd.x, fwd.z)));
       var tx = p.x + fx2 * d, tz = p.z + fz2 * d;
       vm.ring.visible = true; vm.ring.position.set(tx, 0.035, tz); vm.ring.scale.setScalar(reach);
-      var room = Math.floor((cap - state.bagFill) * leaves.mul + 1e-6);
+      var per = leaves.fill[curArea], room = Math.floor((cap - state.bagFill) / per + 1e-6);
       if (using) {
         if (room <= 0) { fullT -= dt; if (fullT <= 0) { fullT = 2.5; toast(T('Sack full. Empty it at a bin with a red flag')); Au.full(); } }
         else {
-          handAcc += HAND_RATE[state.up.hands] * leaves.mul * (kneeling ? 2 : 1) * dt * 1.15; var n = Math.floor(handAcc);
-          if (n > 0) { handAcc -= n; var took = leaves.scoop(tx, tz, reach, Math.min(n, room), p.x, p.z, leaves.alive[curArea] <= 6); if (took) { handAnim = 1; tutPicked += took / leaves.mul; if (state.tut === 1 && tutPicked >= 12) tutNext(2); } }
+          handAcc += HAND_RATE[state.up.hands] / per * (kneeling ? 2 : 1) * dt * 1.15; var n = Math.floor(handAcc);
+          if (n > 0) { handAcc -= n; var took = leaves.scoop(tx, tz, reach, Math.min(n, room), p.x, p.z, leaves.alive[curArea] <= 6); if (took) { handAnim = 1; tutPicked += took * per; if (state.tut === 1 && tutPicked >= 12) tutNext(2); } }
         }
       } else handAcc = 0;
       handAnim = Math.max(0, handAnim - dt * 3);
@@ -419,15 +419,15 @@
     drawMap();
   }
   function drawMap() {
-    var c = $('map'), g = c.getContext('2d'), S = 10; function X(x) { return (x + 40) * S; } function Z(z) { return (z + 30) * S; }
+    var c = $('map'), g = c.getContext('2d'), S = 12.5; function X(x) { return (x + 32) * S; } function Z(z) { return (z + 24) * S; }
     g.fillStyle = '#8c6a4a'; g.fillRect(0, 0, c.width, c.height);
     var gc = ['#86a85c', '#c9c2b0', '#c79a62', '#d6c8a4'];
     A.forEach(function (a, i) { g.fillStyle = gc[a.ground]; g.fillRect(X(a.x0) + 3, Z(a.z0) + 3, (a.x1 - a.x0) * S - 6, (a.z1 - a.z0) * S - 6); });
-    g.fillStyle = '#5f93a0'; g.beginPath(); g.arc(X(24), Z(10), 38, 0, 7); g.fill(); g.beginPath(); g.arc(X(0), Z(9), 21, 0, 7); g.fill();
-    g.fillStyle = 'rgba(207,233,238,.9)'; g.fillRect(X(15.5), Z(-25), 60, 160); g.fillRect(X(26.5), Z(-25), 60, 160);
-    g.fillStyle = '#3c6a36'; [[-34, -18, -21, -20], [-34, -33, -20, -6], [-28, -12.25, -9, -8], [-22, -21, -8, 6], [-40, -28, 4, 5], [-21, -16, 5, 6], [-30, -29, 10, 20], [-16, -15, -2, 14]].forEach(function (h) { g.fillRect(X(h[0]), Z(h[2]), (h[1] - h[0]) * S, (h[3] - h[2]) * S); });
+    g.fillStyle = '#5f93a0'; [WR.POND, WR.FOUNTAIN].forEach(function (o) { g.beginPath(); g.arc(X(o.x), Z(o.z), o.r * S, 0, 7); g.fill(); });
+    g.fillStyle = 'rgba(207,233,238,.9)'; WR.GLASS.forEach(function (h) { g.fillRect(X(h[0]), Z(h[2]), (h[1] - h[0]) * S, (h[3] - h[2]) * S); });
+    g.fillStyle = '#3c6a36'; WR.HEDGES.forEach(function (h) { g.fillRect(X(h[0]), Z(h[2]), (h[1] - h[0]) * S, (h[3] - h[2]) * S); });
     g.fillStyle = 'rgba(190,110,40,.55)'; WR.TREES.forEach(function (t) { g.beginPath(); g.arc(X(t[0]), Z(t[1]), 13 * t[2], 0, 7); g.fill(); });
-    g.fillStyle = '#6b3d1c'; leaves.eachAlive(function (x, z, ar) { if (state.unlocked[ar]) g.fillRect(X(x) - 1, Z(z) - 1, 2.4, 2.4); });
+    g.fillStyle = 'rgba(107,61,28,.8)'; leaves.eachAlive(function (x, z, ar) { if (state.unlocked[ar]) g.fillRect(X(x) - 1, Z(z) - 1, 2.2, 2.2); }, leaves.N > 30000 ? 3 : 2);
     WR.CHUTES.forEach(function (ch) { g.fillStyle = '#e0b53a'; g.fillRect(X(ch.x) - 8, Z(ch.z) - 8, 16, 16); g.fillStyle = '#17130f'; g.fillRect(X(ch.x) - 5, Z(ch.z) - 5, 10, 10); });
     WR.BINS.forEach(function (b) { g.fillStyle = '#6f4a2a'; g.fillRect(X(b.x) - 7, Z(b.z) - 7, 14, 14); g.fillStyle = '#e2572f'; g.beginPath(); g.moveTo(X(b.x), Z(b.z) - 20); g.lineTo(X(b.x) + 13, Z(b.z) - 14); g.lineTo(X(b.x), Z(b.z) - 8); g.fill(); g.fillRect(X(b.x) - 1, Z(b.z) - 20, 2, 16); });
     g.textAlign = 'center'; g.font = '800 17px Nunito, sans-serif';
@@ -453,7 +453,7 @@
     Au.frame(dt, leaves.moved, scraping, blowing, state.up.power);
     state.secs += dt; saveT += dt; if (dirty && saveT > 8) save();
     // a few leaves drifting off the trees, only for show
-    if (frameN % 50 === 0 && state.set.q !== 'low') { var t = WR.TREES[(Math.random() * WR.TREES.length) | 0]; if (Math.abs(t[0] - p.x) < 25 && Math.abs(t[1] - p.z) < 25) fx.spawn(t[0] + (Math.random() - .5) * 3, 3.5 + Math.random() * 1.5, t[1] + (Math.random() - .5) * 3, (Math.random() - .5) * .6, 0, (Math.random() - .5) * .6, 3.2, '#d98a2b', .22, 0.03); }
+    if (frameN % 50 === 0 && state.set.q !== 'low') { var t = WR.TREES[(Math.random() * WR.TREES.length) | 0]; if (Math.abs(t[0] - p.x) < 20 && Math.abs(t[1] - p.z) < 25) fx.spawn(t[0] + (Math.random() - .5) * 3, 3.5 + Math.random() * 1.5, t[1] + (Math.random() - .5) * 3, (Math.random() - .5) * .6, 0, (Math.random() - .5) * .6, 3.2, '#d98a2b', .22, 0.03); }
   }
   function draw() {
     renderer.clear(); renderer.render(scene, camera);
@@ -469,7 +469,7 @@
       // still slow after the resolution has already dropped, and the player never chose: use fewer leaves
       if (avgMs > 36 && (!window.AutoRes || AutoRes.scale <= 0.5) && !state.set.picked && state.set.q !== 'low') { slowT += dt; if (slowT > 8) { slowT = 0; avgMs = 16; state.set.q = state.set.q === 'high' ? 'medium' : 'low'; applyQuality(); toast(T('Fewer leaves drawn to keep things smooth. You can change this in Settings')); save(); } } else slowT = 0;
     } else if (!inGame) {
-      if (frameN % 2 === 0) { var a = now * 0.00004; camera.position.set(Math.sin(a) * 4.5, 7.4, 14.5 + Math.cos(a) * 3); camera.lookAt(0, 0.6, 5); vm.ring.visible = vm.rake.visible = vm.handle.visible = vm.air.visible = false; draw(); }
+      if (frameN % 2 === 0) { var a = now * 0.00004; camera.position.set(Math.sin(a) * 3.6, 6.4, 12 + Math.cos(a) * 2.4); camera.lookAt(0, 0.6, 4); vm.ring.visible = vm.rake.visible = vm.handle.visible = vm.air.visible = false; draw(); }
     } else if (needRender) { draw(); }
     needRender = false;
   }
@@ -485,7 +485,7 @@
     mul: function (m) { WR.QUALITY.bench = m; state.set.q = 'bench'; applyQuality(); }, auto: function (on) { autoDrive = on; },
     bench: function (steps) { var t0 = performance.now(), mx = 0, sum = 0; for (var i = 0; i < steps; i++) { update(1 / 60); var a = leaves.awakeCount(); sum += a; if (a > mx) mx = a; } return { ms: (performance.now() - t0) / steps, maxAwake: mx, avgAwake: Math.round(sum / steps), n: leaves.N }; },
     refresh: function () { hudStatic(); }, beacons: function () { return vm.beacons.filter(function (b) { return b.visible; }).length; },
-    step: function (n) { for (var i = 0; i < n; i++) update(1 / 60); },
+    step: function (n, dt) { for (var i = 0; i < n; i++) update(dt || 1 / 60); },
     tool: setTool, give: function (n) { state.acorns += n; acDirty = true; }, buy: buy, unlock: unlock, interact: interact, open: open, close: closeTop, save: save, touch: setTouch,
     info: function () { return { awake: leaves.awakeCount(), n: leaves.N, alive: leaves.alive.slice(), acorns: state.acorns, bag: state.bagFill, playing: playing(), prompt: prompt && prompt.text }; } };
 })();
