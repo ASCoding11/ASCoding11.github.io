@@ -158,7 +158,7 @@
   function inView(e, x, y, z, d) {
     const face = e.bodyYaw + e.headYaw, a = Math.abs(IV.wrapA(IV.yawTo(x - e.pos.x, z - e.pos.z) - face));
     let k = a < A.fovH ? 1 : a < A.fovPeriph ? 0.35 : 0;
-    if (d < 0.9 && k === 0) k = 0.3;      // bumping into him (a takedown from behind at 1.7 m still works)
+    if (d < 0.55 && k === 0) k = 0.3;     // bumping right into him (the takedown reaches 2.2 m, so it never needs this close)
     if (k === 0) return 0;
     const ey = e.eye();
     if (!W.clear(e.pos.x, ey, e.pos.z, x, y, z, F.SIGHT)) return 0;
@@ -191,8 +191,10 @@
         if (k && smokeK(e.pos.x, e.pos.z, P.pos.x, P.pos.z) === 0) k = 0;   // thick smoke between: nothing to see
         if (k) {
           e.seeing = true;
+          // the close-range boost is for what he looks straight at; at the edge of his eye (k < 1) a figure close by
+          // is a movement he half-notices, so it builds suspicion (he turns to look) rather than spotting you outright
           const close = 1 - d / r;
-          const gain = A.gain[diff()] * (0.6 + 3.2 * close * close) * k * (e.alerted ? 1.35 : 1) * (IV.mission.awareMul || 1);
+          const gain = A.gain[diff()] * (0.6 + 3.2 * close * close * (k >= 1 ? 1 : 0.25)) * k * (e.alerted ? 1.35 : 1) * (IV.mission.awareMul || 1);
           e.aw = Math.min(1.2, e.aw + gain * dt);
           e.lkp = { x: P.pos.x, z: P.pos.z, t: IV.time };
         }
@@ -251,7 +253,12 @@
       const k = 1 - d / r;
       if (type === 'step') {
         if (src === P && AI.ignorePlayer) continue;
-        e.aw = Math.min(1.1, e.aw + A.hearGain * (0.4 + k) * (A.gain[diff()] / 0.85));
+        // A footstep is a sound, not a sighting: it builds with how close and loud it was (k squared, so steps at the
+        // edge of earshot barely register) and can make him suspicious or send him to look, but never past
+        // stepCap: only his eyes put him into a fight. Before, each step added 0.45 x (0.4 + k) with no cap, so two
+        // jogging steps behind a guard took him straight to 'spotted' and every knife approach failed.
+        const cap = A.stepCap;
+        if (e.state !== 'combat' && e.aw < cap) e.aw = Math.min(cap, e.aw + A.hearGain * k * k * 1.6 * (A.gain[diff()] / 0.85));
         e.interest = { x: x + (Math.random() - 0.5) * d * 0.3, z: z + (Math.random() - 0.5) * d * 0.3 };
         if (e.state === 'combat') e.lkp = { x, z, t: IV.time };
         IV.emit('heard', { e, type });
@@ -502,7 +509,9 @@
     },
     suspicious(e, dt) {
       e.speed = IV.damp(e.speed, 0, 8, dt);
-      const at = e.interest || e.lkp; if (at) faceTo(e, at.x, at.z, 4, dt);
+      // he stops and listens for a moment, then turns toward it at a wary pace (about 1.5 s for a half turn), which
+      // leaves a window to finish a takedown from behind
+      const at = e.interest || e.lkp; if (at && e.stateT > A.listenTime) faceTo(e, at.x, at.z, 2.4, dt);
       e.headYaw = Math.sin(e.stateT * 1.3) * 0.25;
       if (e.stateT > 4 && e.aw < A.suspicious) { AI.bark(e, 'lost'); e.setState(e.home ? 'returning' : 'unaware'); }
     },

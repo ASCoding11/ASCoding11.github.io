@@ -177,7 +177,16 @@
     const W8 = IV.weapons, aiming = W8 && (W8.aiming || W8.scoped), binoc = W8 && W8.binoc;
     // sprint: standing, keys forward or forward-diagonal, not aiming, throwing or firing. Shift crouched = quieter crouch-run.
     const mx = I.moveX, my = I.moveY, ml = Math.min(1, Math.hypot(mx, my));
-    const wantSprint = I.held('sprint') && my > 0.5 && Math.abs(mx) < 0.75 && !aiming && !binoc && !(W8 && W8.busyThrow) && !I.held('fire') && P.stance === 'stand' && !P.inWater;
+    // Aim and fire are asked for with the button, not read back from the weapon: the weapon only aims once the sprint
+    // has stopped, so reading W8.aiming here left Shift + aim stuck sprinting (neither side would give way).
+    // Keyboard: hold Shift (default) or press it once (Settings 'Sprint: Toggle'; the latch lets go when you stop
+    // pushing forward, aim, fire, throw or change stance). Touch keeps its own Run button (a toggle, cleared by the stick).
+    const toggleSprint = IV.settings.sprintToggle && !IV.touch;
+    if (toggleSprint) { if (I.pressed('sprint')) P.sprintLatch = !P.sprintLatch; } else P.sprintLatch = false;
+    const sprintKey = toggleSprint ? P.sprintLatch : I.held('sprint');
+    const blockSprint = aiming || I.held('aim') || binoc || !!(W8 && W8.busyThrow) || I.held('fire') || P.stance !== 'stand' || P.inWater;
+    const wantSprint = sprintKey && my > 0.5 && Math.abs(mx) < 0.75 && !blockSprint;
+    if (P.sprintLatch && (my <= 0.5 || blockSprint)) P.sprintLatch = false;
     const sprint = wantSprint && (P.grounded ? Math.hypot(P.vel.x, P.vel.z) > MV.run * 0.6 : P.sprinting);
     if (P.sprinting && !sprint) P.sprintOutT = MV.sprintOut;   // the weapon needs a moment to come up after a sprint
     P.sprintOutT = Math.max(0, (P.sprintOutT || 0) - dt);

@@ -325,7 +325,7 @@
     else if (cap > 1 && inv.mag <= Math.max(1, Math.floor(cap * 0.27)) && !WP.lowCued[k]) { WP.lowCued[k] = true; IV.emit('ammo', { kind: k, state: 'low', res: inv.res }); }
     if (inv.mag > Math.floor(cap * 0.27)) WP.lowCued[k] = false;
   }
-  // a reload can be broken off (sprint, switch weapons, or pull the trigger with rounds still in the gun); whatever
+  // a reload can be broken off (switch weapons, aim or pull the trigger with rounds still in the gun); whatever
   // stage it finished stays done: once the new magazine is in (magIn: the arms' clip event in first person, 60 % of
   // the reload time otherwise) its rounds are in the gun
   WP.cancelReload = function () {
@@ -364,12 +364,16 @@
     return l > 0 ? W.raycast(x0, y0, z0, dx / l, dy / l, dz / l, l + 0.06, F.SOLID | F.BULLET) : null;
   }
   WP.flyStep = flyStep;
-  let throwD = 12;   // m, the last predicted landing distance (the heading converges on the crosshair line there)
+  // The heading converges on the crosshair's line at the distance the throw comes down. That distance used to be the
+  // LAST frame's predicted landing point, so the heading and the landing chased each other: the ring crept after every
+  // turn and jumped back and forth wherever the arc grazed an edge (a wall top, a fence), and the release used a
+  // different heading from the arc drawn a moment before. Now it is worked out from the view alone (flat ground at the
+  // feet, closed form), so the same view always gives the same arc and the throw lands exactly where the ring was.
   function throwVel(kind, o) {
     const d = IV.camera.lookDir, v = kind === 'grenade' ? WT.grenade.throwV : WT.rock.throwV, c = W.camera.position;
     const up = 0.32 + Math.max(0, d.y) * 0.3;
-    // heading: from the hand toward the point on the crosshair's line, over the ground, where the throw comes down
-    const hl = Math.hypot(d.x, d.z) || 1, D = Math.max(2, throwD);
+    const hl = Math.hypot(d.x, d.z) || 1, vh = hl * v, vy = d.y * v + v * up, h0 = Math.max(0.2, o.y - P.pos.y);
+    const D = Math.max(2, Math.min(60, vh * (vy + Math.sqrt(Math.max(0, vy * vy + 2 * GRAV * h0))) / GRAV));
     let hx = c.x + d.x / hl * D - o.x, hz = c.z + d.z / hl * D - o.z; const ll = Math.hypot(hx, hz) || 1; hx /= ll; hz /= ll;
     return { x: hx * hl * v, y: d.y * v + v * up, z: hz * hl * v };
   }
@@ -390,13 +394,11 @@
     }
     if (!arcOut.hit && bt.kind === 'grenade' && i < 300) { pts.push(g.x, g.y, g.z); arcOut.hit = { x: g.x, y: g.y, z: g.z, nx: 0, ny: 1, nz: 0, air: true }; arcOut.air = true; }
     arcOut.t = i * dt;
-    if (arcOut.hit) throwD = Math.hypot(arcOut.hit.x - W.camera.position.x, arcOut.hit.z - W.camera.position.z);
     return pts;
   };
   WP.arcInfo = () => arcOut;
   function release() {
     const bt = WP.busyThrow; if (!bt) return;
-    WP.arc();   // the heading uses this frame's landing distance
     const o = throwOrigin(), v = throwVel(bt.kind, o);
     WP.throws.push({ kind: bt.kind, x: o.x, y: o.y, z: o.z, vx: v.x, vy: v.y, vz: v.z, fuse: bt.kind === 'grenade' ? WT.grenade.fuse - (IV.time - bt.t0) : 99, rest: false, bounced: 0 });
     if (bt.kind === 'grenade') WP.inv.grenades--;
@@ -455,7 +457,9 @@
     }
   }
 
-  // knife takedown: from behind, close, the soldier not already fighting you
+  // knife takedown: close, from behind or the side, the soldier not already fighting you. "Behind" is judged the way
+  // his eyes work (js/ai.js inView): from where his HEAD points, so the prompt shows exactly where he can't see you
+  // clearly. Any calm, suspicious, searching or investigating guard qualifies; one in a fight never does.
   WP.findTakedown = function () {
     if (!IV.ai) return null;
     let best = null, bd = WT.takedownRange;
@@ -463,10 +467,10 @@
       if (!e.alive || e.state === 'combat' || e.busy) continue;
       const dx = P.pos.x - e.pos.x, dz = P.pos.z - e.pos.z, d = Math.hypot(dx, dz);
       if (d > bd || Math.abs(P.pos.y - e.pos.y) > 0.8) continue;
-      // angle between where he faces and where you are
-      const rel = Math.abs(IV.wrapA(IV.yawTo(dx, dz) - e.bodyYaw));
-      if (rel < WT.takedownAngle && e.state !== 'suspicious') continue;
-      if (rel < 1.2) continue;   // never from the front
+      const to = IV.yawTo(dx, dz);
+      if (Math.abs(IV.wrapA(to - e.bodyYaw - (e.headYaw || 0))) < WT.takedownAngle) continue;   // he is looking at you
+      if (Math.abs(IV.wrapA(to - e.bodyYaw)) < 1.2) continue;   // never from in front of his body
+      if (!W.clear(P.pos.x, P.pos.y + 1, P.pos.z, e.pos.x, e.pos.y + 1, e.pos.z, F.SOLID)) continue;   // not through a wall or fence
       best = e; bd = d;
     }
     return best;
@@ -497,7 +501,7 @@
     IV.camera.stepRecoil && IV.camera.stepRecoil(dt);
     WP.cool = Math.max(-T.step, WP.cool - dt); WP.throwCool = Math.max(0, (WP.throwCool || 0) - dt);
     if (WP.boltT > 0) { WP.boltT -= dt; if (WP.boltT <= 0) P.actor.setUpper(WP.aiming ? 'aimIdle' : null); }
-    if (WP.reloadT > 0 && P.sprinting) WP.cancelReload();   // sprinting breaks off a reload (a magazine already in stays in)
+    // a reload carries on while you sprint (the arms keep working the magazine; js/fp.js holds the sprint carry off)
     if (WP.reloadT > 0) {
       WP.reloadT -= dt;
       // no arms clip to say when the magazine goes in: it goes in at 60 % of the reload time
@@ -533,13 +537,18 @@
       const cookedOut = bt.kind === 'grenade' && IV.time - bt.t0 > WT.grenade.fuse - 0.35;
       // first person: the throw leaves the hand when the arms' clip reaches its release (js/fp.js holds the cocked pose while the key is held)
       // first person waits for the arms' release frame, but never more than 0.25 s, so a tap still throws at once
-      if (!held || cookedOut) { if (!(bt.kind === 'grenade' && IV.fp && IV.fp.throwSync && IV.fp.throwSync(bt, cookedOut) && IV.time - (bt.relT == null ? IV.time : bt.relT) < 0.25)) release(); }
+      // (rocks too: they used to leave on key-up with the arm still cocked, so the stone appeared with no swing)
+      if (!held || cookedOut) { if (!(IV.fp && IV.fp.throwSync && IV.fp.throwSync(bt, cookedOut) && IV.time - (bt.relT == null ? IV.time : bt.relT) < 0.25)) release(); }
       return;
     }
     // takedown (F), shown as a prompt by the HUD when available
     WP.takedownTarget = WP.findTakedown();
     if (I.pressed('knife') && WP.takedownTarget) { takedown(WP.takedownTarget); return; }
-    // aim
+    // aim. A fresh aim press during a reload with rounds still in the gun breaks the reload off (the magazine already
+    // seated stays in) and raises the sights; on an empty gun the aim waits and comes up the moment the reload ends.
+    if (I.pressed('aim') && WP.reloadT > 0 && !P.sprinting) {
+      if (WP.inv[WP.cur].mag > 0) WP.cancelReload();
+    }
     const wantAim = I.held('aim') && WP.reloadT <= 0 && !P.sprinting;
     if (wantAim && !WP.aiming) IV.camera.onAimStart(WP.cur === 'rifle');
     WP.aiming = wantAim && WP.cur !== 'rifle';
@@ -554,7 +563,11 @@
     // fire
     const auto = WT[WP.cur].rpm >= 400;
     const trig = auto ? I.held('fire') : I.pressed('fire');
-    if (trig && WP.cool <= 1e-6 && WP.reloadT <= 0 && WP.boltT <= 0 && !P.sprinting && !(P.sprintOutT > 0)) fire();
+    // a click while the gun is still coming up out of a sprint is kept and fires the moment it can (within 0.3 s),
+    // so a semi-auto shot out of a sprint is never swallowed
+    if (!auto && I.pressed('fire') && (P.sprinting || P.sprintOutT > 0)) WP.fireBuf = IV.time;
+    const buffered = !auto && WP.fireBuf != null && IV.time - WP.fireBuf < 0.3;
+    if ((trig || buffered) && WP.cool <= 1e-6 && WP.reloadT <= 0 && WP.boltT <= 0 && !P.sprinting && !(P.sprintOutT > 0)) { WP.fireBuf = null; fire(); }
     else if (trig && P.sprinting) P.sprinting = false;
   };
 

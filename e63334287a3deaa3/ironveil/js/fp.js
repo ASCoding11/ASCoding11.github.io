@@ -297,7 +297,7 @@
     else if (e === 'eject') caseFrom(v);
     else if (e === 'shot' && v.kind !== 'rifleScoped') caseFrom(v);
     else if (e === 'charge' || e === 'slide') A && A.play('click', { f: 2900, vol: 0.45 });
-    else if (e === 'pin') A && A.play('pin');
+    else if (e === 'pin') { if (!(WP.busyThrow && WP.busyThrow.kind === 'rock')) A && A.play('pin'); }   // a rock has no pin
   }
   // a socket of the arms (viewmodel camera frame) as the world point in front of which it is drawn
   // The arms pass has its own 55 degree camera, the world camera 60-95 (more while sprinting). A point in the arms'
@@ -356,7 +356,9 @@
     const aiming = !!(W8.aiming || W8.scoped), a = IV.clamp(C.adsE || 0, 0, 1);
     FP.vmAim = a;
     // the sprint carry lets go quickly when aiming is asked for straight out of a sprint
-    FP.vmSpr = IV.damp(FP.vmSpr || 0, P.sprinting ? 1 : 0, P.sprinting ? 7 : aiming ? 20 : 10, dt);
+    // (and stays off while the hands are busy: a reload or a throw carried on at a sprint keeps the gun up to work it)
+    const carry = P.sprinting && !(W8.reloadT > 0) && !W8.busyThrow;
+    FP.vmSpr = IV.damp(FP.vmSpr || 0, carry ? 1 : 0, carry ? 8 : aiming ? 22 : 12, dt);
     if (W8.binoc && FP.lastEvent && FP.lastEvent.e === 'atEye') FP.atEye = true;
     if (W8.binoc && !FP.atEye && v.current === 'binoculars' && FP.binocT == null) FP.binocT = IV.time;
     if (W8.binoc && FP.binocT != null && IV.time - FP.binocT > rig.len('binoculars') + 0.05) FP.atEye = true;   // no 'atEye' event: the end of the clip
