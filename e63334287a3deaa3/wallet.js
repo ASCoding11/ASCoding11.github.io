@@ -441,7 +441,8 @@
   // ---------------- Rewards and gifts ----------------
   // Weekly titles: whoever is ranked 1 (ties all count) on a game's main board (the first board leaderboard.js lists for
   // it, all time) gets TITLE_PAY mangos for that game for each week, claimed by their own page at its first scan after the
-  // week ends (judged from the boards as they stand then: there is no record of how they stood on Sunday night).
+  // week ends (judged from the boards as they stand then: there is no record of how they stood on Sunday night). At most
+  // 3 games a week are paid to one player (claimTitles); the rest pay nobody.
   // Weekly Aisle reward: the Aisle(s) that won last week's contest (aisles.js) share AISLE_POT, floor(100 / members) each,
   // leftover mangos unpaid; claimed by each member's own page on the Back Room page (it needs aisles.js).
   // Gifts: the sender pays, and the gift is written into the sender's own w.gs (players can only write their own node);
@@ -515,6 +516,7 @@
    * THIS FUNCTION MUST MOVE SERVER-SIDE (a Cloud Function that checks the boards, the Aisle and the sender's payment and
    * writes a ledger players can't write), and this page would only read the result.
    *   'title' { week, games: [game folder] }   10 mangos for each game whose main board this player topped that week
+   *                                             (claimTitles hands over at most 3 games: the weekly cap)
    *   'aisle' { week, K, each }                 this player's share of the weekly Aisle pot
    *   'gift'  { from, id, gift }                a gift addressed to this player (the item into the locker, a chest
    *                                             opened, anything already owned paid back as the duplicate refund)
@@ -569,6 +571,7 @@
     var all = []; Object.keys(val).slice(0, 5000).forEach(function (u) { try { var p = B.parse(u, val[u], now); if (p) all.push(p); } catch (e) {} });
     var list = B.collapse(all).filter(function (p) { return p && !p.hidden && !p.into; }), out = {};
     B.GAMES.forEach(function (g) {
+      if (g.gone) return;                                    // an archived game has no title
       var st = (g.st || []).filter(function (x) { return !x.hide; })[0]; if (!st) return;
       var r = B.rows({ g: g.d, st: st }, list), ids = [];
       for (var i = 0; i < r.length && r[i].rank === 1; i++) ids.push(r[i].p.uid);
@@ -578,9 +581,14 @@
   }
   // Claim last week's titles: every game where this player is ranked 1 (ties all count). A captain at the top of a board
   // is not paid and nobody else is paid for that board (leaderboard.js shows captains like anyone, so they keep the top).
+  // At most TITLE_CAP (3) games are paid, so 30 mangos a week: for a player at the top of more, the first three in
+  // leaderboard.js's game order (its capGames, the same rule as the mini badges' cap; archived games never count). The
+  // others pay nobody: second place is not paid for them.
   function claimTitles(tops, me, week) {
     if (!tops || !okUid(me)) return false;
     var games = Object.keys(tops).filter(function (g) { return tops[g].indexOf(me) >= 0; });
+    var B = window.BackRoomBoards;
+    games = B && B.capGames ? B.capGames(games) : games.slice(0, 3);
     return grant('title', { week: week || lastWeek(), games: games, me: me });
   }
   // Claim the weekly Aisle reward: winners as BackRoomAisles.lastWinners() gives them ([{ K, members }]).

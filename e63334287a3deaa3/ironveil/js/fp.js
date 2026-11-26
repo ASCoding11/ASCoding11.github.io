@@ -28,6 +28,7 @@
 
   // ---------------------------------------------------------------- camera
   const right = new THREE.Vector3(), tmp = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), hv = new THREE.Vector3();
+  const TD_EYE = 0.55;   // m, closest the eye comes to a takedown victim's head
   FP.frame = function (cam, dt, dir, yaw, pitch) {
     const S = IV.settings, W8 = IV.weapons, pr = P.render;
     // eye height by stance, eased (a slight overshoot coming up)
@@ -100,7 +101,16 @@
       if (cl > 1e-3) { const h = W.raycast(pr.x + f.x * 0.08, ey, pr.z + f.z * 0.08, cx / cl, 0, cz / cl, cl + 0.15, F.SOLID | F.SIGHT, true); if (h) { const k = Math.max(0, h.t - 0.15) / cl; cx *= k; cz *= k; } }
       cx *= FP.crK * (1 - bk); cz *= FP.crK * (1 - bk);
     }
-    const exo = f.x * 0.08 * (1 - bk) + (FP.hx || 0) * bk + cx, ezo = f.z * 0.08 * (1 - bk) + (FP.hz || 0) * bk + cz, eyo = (ey - pr.y) * (1 - bk) + (FP.hy != null ? FP.hy : ey - pr.y) * bk;
+    let exo = f.x * 0.08 * (1 - bk) + (FP.hx || 0) * bk + cx, ezo = f.z * 0.08 * (1 - bk) + (FP.hz || 0) * bk + cz; const eyo = (ey - pr.y) * (1 - bk) + (FP.hy != null ? FP.hy : ey - pr.y) * bk;
+    // knife takedown: the hero's clip lunges the head forward into the guard, and the eye rides that head bone, so the
+    // eye ended up inside his helmet. Keep the eye at least TD_EYE m (level) from the guard's head the whole move, so the
+    // knife hand and the guard stay in view in front of you.
+    const vic = W8.takedownVictim;
+    if (vic && P.cineClip && vic.actor) {
+      const vb = vic.actor.bone && vic.actor.bone('Head'); if (vb) vb.getWorldPosition(tmp); else tmp.set(vic.pos.x, vic.pos.y + 1.6, vic.pos.z);
+      const dx = pr.x + exo - tmp.x, dz = pr.z + ezo - tmp.z, d = Math.hypot(dx, dz);
+      if (d < TD_EYE) { const k = d > 1e-3 ? (TD_EYE - d) / d : 0; if (k) { exo += dx * k; ezo += dz * k; } else { exo -= fb.x * TD_EYE; ezo -= fb.z * TD_EYE; } }
+    }
     cam.position.set(pr.x + right.x * (FP.lean * 0.3 + bx) + exo, pr.y + eyo + by + (C.bobY || 0) - Math.abs(FP.lean) * 0.04, pr.z + right.z * (FP.lean * 0.3 + bx) + ezo);
     // never into the ground: the drawn ground's flat triangles sit above the true height in dips (up to ~0.3 m), so
     // prone, with the eye about 0.3 m up, the near plane could cut into it and show the underside. Keep the eye 15 cm
@@ -297,7 +307,7 @@
     else if (e === 'eject') caseFrom(v);
     else if (e === 'shot' && v.kind !== 'rifleScoped') caseFrom(v);
     else if (e === 'charge' || e === 'slide') A && A.play('click', { f: 2900, vol: 0.45 });
-    else if (e === 'pin') A && A.play('pin');
+    else if (e === 'pin') { if (!(WP.busyThrow && WP.busyThrow.kind === 'rock')) A && A.play('pin'); }   // a rock has no pin
   }
   // a socket of the arms (viewmodel camera frame) as the world point in front of which it is drawn
   // The arms pass has its own 55 degree camera, the world camera 60-95 (more while sprinting). A point in the arms'
@@ -356,7 +366,9 @@
     const aiming = !!(W8.aiming || W8.scoped), a = IV.clamp(C.adsE || 0, 0, 1);
     FP.vmAim = a;
     // the sprint carry lets go quickly when aiming is asked for straight out of a sprint
-    FP.vmSpr = IV.damp(FP.vmSpr || 0, P.sprinting ? 1 : 0, P.sprinting ? 7 : aiming ? 20 : 10, dt);
+    // (and stays off while the hands are busy: a reload or a throw carried on at a sprint keeps the gun up to work it)
+    const carry = P.sprinting && !(W8.reloadT > 0) && !W8.busyThrow;
+    FP.vmSpr = IV.damp(FP.vmSpr || 0, carry ? 1 : 0, carry ? 8 : aiming ? 22 : 12, dt);
     if (W8.binoc && FP.lastEvent && FP.lastEvent.e === 'atEye') FP.atEye = true;
     if (W8.binoc && !FP.atEye && v.current === 'binoculars' && FP.binocT == null) FP.binocT = IV.time;
     if (W8.binoc && FP.binocT != null && IV.time - FP.binocT > rig.len('binoculars') + 0.05) FP.atEye = true;   // no 'atEye' event: the end of the clip

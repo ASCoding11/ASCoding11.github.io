@@ -34,14 +34,14 @@
   // ------------------------------------------------------------------ dimensions (gloved adult hand)
   const FINGERS = {
     //          MCP joint (x, y, z)        segment lengths            radius knuckle..tip    depth/width
-    index:  { m: [-0.0315, 0.0860, 0.0], L: [0.044, 0.026, 0.022], r: [0.0096, 0.0076], d: 0.92 },
-    middle: { m: [-0.0105, 0.0900, 0.0], L: [0.049, 0.030, 0.023], r: [0.0096, 0.0076], d: 0.92 },
-    ring:   { m: [0.0105, 0.0865, -0.0005], L: [0.045, 0.028, 0.022], r: [0.0094, 0.0074], d: 0.92 },
-    little: { m: [0.0315, 0.0770, -0.0020], L: [0.035, 0.021, 0.020], r: [0.0084, 0.0066], d: 0.93 }
+    index:  { m: [-0.0315, 0.0860, 0.0], L: [0.045, 0.027, 0.022], r: [0.0096, 0.0071], d: 0.90 },
+    middle: { m: [-0.0105, 0.0900, 0.0], L: [0.050, 0.031, 0.023], r: [0.0097, 0.0072], d: 0.90 },
+    ring:   { m: [0.0105, 0.0865, -0.0005], L: [0.046, 0.029, 0.022], r: [0.0093, 0.0069], d: 0.90 },
+    little: { m: [0.0315, 0.0770, -0.0020], L: [0.036, 0.022, 0.020], r: [0.0082, 0.0061], d: 0.92 }
   };
   const ORDER = ['index', 'middle', 'ring', 'little'];
   const THUMB = { base: [-0.0225, 0.0175, -0.0075], L: [0.044, 0.031, 0.027], r: [0.0108, 0.0086] };
-  const BULGE = [0.0014, 0.0012, 0.0010];   // extra dorsal depth at the MCP, PIP and DIP knuckles
+  const BULGE = [0.0024, 0.0017, 0.0012];   // extra dorsal depth at the MCP, PIP and DIP knuckles (gloved knuckles read as bumps)   // extra dorsal depth at the MCP, PIP and DIP knuckles
 
   // ------------------------------------------------------------------ small vector helpers (load time only)
   const V = (x, y, z) => new T.Vector3(x, y, z);
@@ -91,7 +91,7 @@
   // vertex tints (linear multipliers of the glove map's 47, 48, 50): the knuckle panel and the low ribs on the back a
   // little lighter than the charcoal leather (sRGB about 70-75), so the back of the hand reads without the ribs looking
   // like metal rods
-  const TINT = { panel: [1.4, 1.36, 1.28], rib: [1.6, 1.55, 1.45] };
+  const TINT = { panel: [0.95, 0.94, 0.93], rib: [1.6, 1.55, 1.45] };
   const tintOf = t => Array.isArray(t) ? t : [t || 1, t || 1, t || 1];
   function Builder(R) { this.R = R; this.pos = [[], []]; this.nrm = [[], []]; this.uv = [[], []]; this.idx = [[], []]; this.col = [[], []]; }
   Builder.prototype.tube = function (rings, o) {
@@ -400,14 +400,9 @@
     info.thumbDirs = (tpose.dirs || []).map(d => { const v = V(d[0], d[1], d[2]).normalize(); return [+v.x.toFixed(4), +v.y.toFixed(4), +v.z.toFixed(4)]; });
     B.tube(thumbRings(th), { capStart: true, u0: 0.25 });
     B.tube(webRings(th, chains.index, cup), { radial: 8, capStart: true });
-    // the back of the glove: three raised seams from the cuff toward the gaps between the knuckles, and a stitched
-    // knuckle panel (a flat pad over the knuckle line)
-    const seamZ = y => 0.0118 + (y > 0.06 ? -0.0004 : 0.0003);
-    for (const sx of [-0.021, -0.007, 0.007, 0.021]) {
-      const pts = [];
-      for (let i = 0; i <= 5; i++) { const y = 0.012 + i * 0.011; const x = sx * (0.75 + 0.25 * i / 5); pts.push(V(x - 0.0008, y, seamZ(y) - cup * 0.0015 * (x / 0.03) * (x / 0.03))); }
-      B.tube(cordRings(pts, 0.0015, V(0, 0, 1)), { radial: 6, capStart: true, tint: TINT.rib });
-    }
+    // the back of the glove: a flat stitched knuckle panel (a thin pad over the knuckle line, a little darker). The
+    // raised cords that used to run up the back read as claw marks at arm's length and are gone; the stitching is in
+    // the normal map.
     {
       const pr = [];
       const knk = ORDER.map(n => chains[n].joints[0]);
@@ -418,7 +413,7 @@
         pr.push(V(x, 0.078 - 0.006 * Math.abs(k - 0.4), zi + 0.0118));
       }
       const rings = cordRings(pr, 0, V(0, 0, 1));
-      rings.forEach((r, i) => { const k = Math.sin((i / 6) * Math.PI); r.hw = 0.0085 + 0.0015 * k; r.hd = 0.0017; r.hp = 0.0017; r.e = 3; });
+      rings.forEach((r, i) => { const k = Math.sin((i / 6) * Math.PI); r.hw = 0.0075 + 0.0012 * k; r.hd = 0.0009; r.hp = 0.0009; r.e = 3.2; });
       B.tube(rings, { radial: 8, capStart: true, tint: TINT.panel });
     }
     // glove cuff, and the sleeve with its turned-back end
@@ -426,6 +421,21 @@
     B.tube(armRings(fa, pose.sleeve || 0.12, 'glove'), { radial: R + 4, capStart: true, capEnd: true });
     let sEnd = null;
     if (!pose.noSleeve) { const sr = armRings(fa, pose.sleeve || 0.12, 'sleeve'); B.tube(sr, { radial: R + 4, mat: 1, capEnd: false, capStart: true, vScale: 12 }); sEnd = sr[sr.length - 1]; }
+    // wear: leather rubs pale and dry over the knuckles, along the finger backs and at the tips, and stays dark and
+    // oiled in the palm's creases (vertex colour multiplies the leather map; glove only)
+    {
+      const spots = [];
+      for (const n of ORDER) { const j = chains[n].joints, fr = chains[n].frames; for (let q = 0; q < 3; q++) spots.push([j[q].clone().addScaledVector(fr[q].Z, 0.009), q ? 0.006 : 0.008, q ? 0.32 : 0.42]); spots.push([j[3], 0.007, 0.3]); }
+      spots.push([th.joints[1].clone(), 0.008, 0.25], [th.joints[3].clone(), 0.007, 0.3]);
+      const P = B.pos[0], C = B.col[0], pv = new T.Vector3();
+      for (let i = 0, vi = 0; i < P.length; i += 3, vi++) {
+        pv.set(P[i], P[i + 1], P[i + 2]);
+        let w = 0; for (const [c, r, a] of spots) { const d2 = pv.distanceToSquared(c); if (d2 < r * r * 9) w += a * Math.exp(-d2 / (r * r)); }
+        const palm = pv.z < -0.006 && pv.y > 0.0 && pv.y < 0.085 ? 0.88 : 1;
+        const k = Math.min(1.45, 1 + w) * palm, t = C[vi];
+        C[vi] = [t[0] * k, t[1] * k * 0.985, t[2] * k * 0.96];
+      }
+    }
     const g = B.geometry(pose.side === 'l');
     if (sEnd) {   // the sleeve's open end (tests check it never shows on screen): its centre and frame, and its vertices
       info.sleeveEndVerts = [g.attributes.position.count - (R + 6), R + 5];   // the last ring (the start cap's centre vertex comes after it)
@@ -500,11 +510,11 @@
     const gloveC = canvasTex(W, W, d => {
       for (let i = 0; i < W * W; i++) {
         const m = mott[i], g = grain[i], k = 0.8 + m * 0.32 + (g - 0.5) * 0.06;
-        d[i * 4] = 47 * k; d[i * 4 + 1] = 48 * k; d[i * 4 + 2] = 50 * k; d[i * 4 + 3] = 255;
+        d[i * 4] = 64 * k; d[i * 4 + 1] = 49 * k; d[i * 4 + 2] = 38 * k; d[i * 4 + 3] = 255;   // worn brown leather (service gloves), not grey rubber
       }
     });
     gloveC.encoding = T.sRGBEncoding;
-    const gloveR = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const v = (0.78 + (mott[i] - 0.55) * 0.15 + (grain[i] - 0.5) * 0.08) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } });
+    const gloveR = canvasTex(W, W, d => { for (let i = 0; i < W * W; i++) { const v = (0.7 + (mott[i] - 0.55) * 0.22 + (grain[i] - 0.5) * 0.12) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } });
     const glove = new T.MeshStandardMaterial({ name: 'vmGlove', color: 0xffffff, vertexColors: true, map: gloveC, normalMap: gloveN, roughnessMap: gloveR, roughness: 0.82, metalness: 0, envMapIntensity: 0.5 });
     glove.normalScale.set(0.9, 0.9);
     // wool serge: field drab, darker than grass; a fine diagonal weave and fibre noise only (no ribs)

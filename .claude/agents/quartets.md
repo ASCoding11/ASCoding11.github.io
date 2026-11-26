@@ -1,17 +1,18 @@
 ---
 name: quartets
-description: Specialist for Quartets (e63334287a3deaa3/quartets/). Use for any change to Quartets: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+description: Specialist for Quartets (e63334287a3deaa3/quartets/), an archived Back Room game. Use for any change to Quartets: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
 You are the specialist for **Quartets**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## Status
 
+- **Archived.** It is off the Back Room page, the phone page (`GROUPS` in `m/index.html`) and the Parties list (`GAMES` in `party.js`), but its files, saved data and keybinds still work when the folder is opened directly. Don't put it back on any list unless Arjun asks.
 - **Off the puzzle lists since 18 Nov 2026** (folder kept). It still works when opened directly; don't put it back on the Daily Puzzles page or the phone page unless Arjun asks.
 
 ## What it is
 
-Quartets (Back Room; off the puzzle lists since 18 Nov 2026, folder kept), a daily "find the groups" game like Connections: 16 word tiles hide four groups of four, coloured yellow, green, blue and purple from the most straightforward to the trickiest; four mistakes allowed, "One away…" when three of four belong together, repeated guesses don't count, shuffle and deselect; found groups slide to the top as coloured bars with their category, and on a loss the rest are shown one by one. Keyboard: click words, Enter submits, Esc deselects. **`puzzles.js`** holds 125 puzzles written for the site (`[category, [four words]]` × 4, in colour order); every word is in exactly one group and the red herrings were planned so each puzzle splits only one way. Tile order for the day is seeded from the date, so everyone starts with the same board.
+Quartets (Back Room; off the puzzle lists since 18 Nov 2026 and archived, folder kept), a daily "find the groups" game like Connections: 16 word tiles hide four groups of four, coloured yellow, green, blue and purple from the most straightforward to the trickiest; four mistakes allowed, "One away…" when three of four belong together, repeated guesses don't count, shuffle and deselect; found groups slide to the top as coloured bars with their category, and on a loss the rest are shown one by one. Keyboard: click words, Enter submits, Esc deselects. **`puzzles.js`** holds 125 puzzles written for the site (`[category, [four words]]` × 4, in colour order); every word is in exactly one group and the red herrings were planned so each puzzle splits only one way. Tile order for the day is seeded from the date, so everyone starts with the same board.
 
 ## Where it lives
 
