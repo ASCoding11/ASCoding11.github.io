@@ -11,24 +11,24 @@ You are the specialist for **Midnight Ops**, a game on Arjun's site (ascoding11.
 
 ## What it is
 
-Midnight Ops (**preview, admin page only**; Back Room folder; the folder keeps the working title `ironveil`, and the display name lives in ONE constant, `IV.GAME_NAME` in `js/core.js`, which fills the page title, the logo, the content note and the "turn your phone" card, so the name can change without touching anything else), a single-player first-person Second World War campaign (an over-the-shoulder view stays in Settings as "View") (three.js r187 from the site's own build, `/lib/three/r187/three.min.js` plus `three-addons.min.js` for GLTFLoader and SkeletonUtils, see `lib/three/README.md`; plus `../autores.js`, `../keybinds.js`, `/e63334287a3deaa3/lang.js` with its own `es.js`, `stats.js`; Web Audio; no Firebase, nothing online).
+Midnight Ops (**preview, admin page only**; folder `ironveil`, display name `MO.GAME_NAME` in `js/core.js`) is a single-player first-person Second World War shooter, rebuilt from scratch so that every model, texture and sound is made in code when the page opens (no asset files). One mission so far, Night Drop: spike three flak guns in a Norman hamlet at night in the rain, then reach the rally point. The README entry lists every file and what it does.
 
-The README entry has 8 more detailed sub-points under it; read them before touching those areas.
 
 ## Where it lives
 
-- Folder: `e63334287a3deaa3/ironveil/`: `CREDITS-env.md`, `CREDITS-weapons.md`, `CREDITS.md`, `assets/`, `chars-test.html`, `chars.js`, `env/`, `env-test.html`, `es.js`, `index.html`, `js/`, `preview.jpg`, `tools/`
+- Folder: `e63334287a3deaa3/ironveil/`: `index.html`, `es.js`, `js/` (the whole game: `core`, `geo`, `tex`, `render`, `sky`, `ground`, `phys`, `props`, `level`, `fx`, `audio`, `input`, `player`, `gunmodel`, `weapon`, `enemy`, `hud`, `mission`, `main`), `preview.jpg`. `env/core.js`, `env/post.js`, `env/texgen.js`, `env/scans/`, `CREDITS-env.md` and `assets/lib/meshopt_decoder.js` are kept only because Ironwing loads them: don't delete or change them for this game.
 - Docs: the bullet for `e63334287a3deaa3/ironveil/` in `README.md` (and the indented points under it). This is the source of truth for how the game works and stores data; read it in full before changing anything, and update it when you change behaviour, storage or file layout.
 
 ## What it uses (detected from the code)
 
-- three.js (global r128 build from cdnjs, not ES modules)
+- three.js r187 as a plain global (`/lib/three/r187/three.min.js`, with the r128 compatibility layer: colour management off, lights times pi; the game does its own HDR tone mapping and writes sRGB itself)
 - `../autores.js` loaded straight after three.min.js (automatic resolution)
-- Firebase (shared `rumblekarts` project)
-- `../stats.js` for play time / Leaderboards
-- `../keybinds.js` rebindable controls (keep its `keybinds:<id>` storage key)
 
 ## Must stay true
+
+- Everything stays generated in code: no model, image or sound files. New art goes through `MO.Builder` (`js/geo.js`) and a material preset or texture family in `js/tex.js`; new sounds are recipes in `js/audio.js`.
+- The techniques follow those documented for the game Saltline, but none of its code may be copied in: it has no licence.
+- Test long sequences with `window.__mo.step(n)` (runs n frames without drawing); the headless browser draws under one frame a second.
 
 - Keep every storage path, room prefix, localStorage key, stats/leaderboard id and saved-data format working exactly as it is, so players' saved progress, settings, ratings and invite links carry over. Old names mentioned above (folder, keys, ids) are kept on purpose: never "tidy" them.
 - Don't change Firebase security rules or the Firebase config, and don't create a new Firebase project. If a change needs storage the rules don't allow, stop and say so instead.

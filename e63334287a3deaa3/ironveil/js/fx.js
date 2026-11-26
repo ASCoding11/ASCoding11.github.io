@@ -1,420 +1,160 @@
-/* Ironveil effects: pooled particles (one additive and one normal system, one draw call each), tracers as camera-facing
-   quads, muzzle flashes, ejected casings, decals (bullet marks and blood, capped and fading), impacts by surface,
-   explosions with a shockwave ring and lingering fire, and drifting illumination flares. Blood follows the Settings
-   switch: off turns every blood effect into dust. */
+/* Midnight Ops: effects, on fixed budgets. Background effects (rain) run entirely in a vertex shader with no state
+   on the CPU. Gameplay effects (sparks, smoke, tracers, splashes, fire) are two pools of instanced quads simulated
+   on the CPU: one additive, one lit and alpha-blended. Plus a ring of bullet-hole decals, bouncing brass, and three
+   point lights shared by every flash. */
 (function () {
   'use strict';
-  const W = IV.world;
-  const FX = IV.fx = {};
-  const V = new THREE.Vector3(), V2 = new THREE.Vector3();
-
-  // ---------------------------------------------------------------- particle systems
-  function PSys(cap, additive, tex) {
-    this.cap = cap; this.n = 0;
-    this.d = new Float32Array(cap * 16); // x y z vx vy vz life max s0 s1 r g b a drag grav
-    const g = this.geo = new THREE.BufferGeometry();
-    this.pos = new Float32Array(cap * 3); this.col = new Float32Array(cap * 4); this.size = new Float32Array(cap);
-    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('pcol', new THREE.BufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('psize', new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage));
-    g.setDrawRange(0, 0);
-    const m = this.mat = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-      uniforms: { tex: { value: tex }, uScale: { value: 400 }, fogC: { value: new THREE.Color() }, fogD: { value: 0.01 } },
-      vertexShader: 'attribute vec4 pcol; attribute float psize; uniform float uScale; varying vec4 vC; varying float vF;\n' +
-        'void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv; gl_PointSize = min(psize * uScale / max(0.1, -mv.z), 220.0); vC = pcol; vF = -mv.z; }',
-      fragmentShader: 'uniform sampler2D tex; uniform vec3 fogC; uniform float fogD; varying vec4 vC; varying float vF;\n' +
-        'void main(){ vec4 t = texture2D(tex, gl_PointCoord); float f = exp(-fogD*fogD*vF*vF); ' +
-        (additive ? 'gl_FragColor = vec4(vC.rgb * t.rgb * t.a * vC.a * f, 1.0);' : 'gl_FragColor = vec4(mix(fogC, vC.rgb, f), t.a * vC.a);') + ' }'
-    });
-    this.pts = new THREE.Points(g, m); this.pts.frustumCulled = false; this.pts.renderOrder = additive ? 6 : 5;
-  }
-  PSys.prototype.emit = function (x, y, z, vx, vy, vz, life, s0, s1, r, g, b, a, drag, grav) {
-    let i = this.n; if (i >= this.cap) i = (Math.random() * this.cap) | 0; else this.n++;
-    const d = this.d, k = i * 16;
-    d[k] = x; d[k + 1] = y; d[k + 2] = z; d[k + 3] = vx; d[k + 4] = vy; d[k + 5] = vz; d[k + 6] = 0; d[k + 7] = life;
-    d[k + 8] = s0; d[k + 9] = s1; d[k + 10] = r; d[k + 11] = g; d[k + 12] = b; d[k + 13] = a; d[k + 14] = drag || 0; d[k + 15] = grav || 0;
-  };
-  PSys.prototype.update = function (dt) {
-    const d = this.d;
-    for (let i = 0; i < this.n; i++) {
-      const k = i * 16;
-      d[k + 6] += dt;
-      if (d[k + 6] >= d[k + 7]) { // swap-remove
-        const last = (this.n - 1) * 16; for (let j = 0; j < 16; j++) d[k + j] = d[last + j]; this.n--; i--; continue;
+  const MO = window.MO, F = MO.fx = { shake: 0 };
+  const quad = () => { const g = new THREE.InstancedBufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0]), 3)); g.setIndex([0, 1, 2, 0, 2, 3]); return g; };
+  const PV = `attribute vec3 iPos; attribute vec4 iData; attribute vec3 iCol; attribute vec3 iVel; varying vec2 vUv; varying vec4 vCol; varying float vKind; varying float vD;
+    void main(){ vec4 mv = viewMatrix * vec4(iPos, 1.0); float s = iData.x, r = iData.y; vec2 c = position.xy;
+      if (iData.w > 1.5) { mv = viewMatrix * vec4(iPos + vec3(c.x, 0.0, c.y) * s, 1.0); }                 // flat on the ground
+      else if (iData.w > 0.5) { vec3 vv = (viewMatrix * vec4(iVel, 0.0)).xyz; vec2 d = normalize(vv.xy + vec2(1e-5)); mv.xy += d * c.y * s * (1.0 + length(vv)) + vec2(-d.y, d.x) * c.x * max(s * 0.22, -mv.z * 0.0012); }   // stretched along its motion
+      else { mv.xy += vec2(c.x * cos(r) - c.y * sin(r), c.x * sin(r) + c.y * cos(r)) * s; }
+      gl_Position = projectionMatrix * mv; vUv = position.xy + 0.5; vCol = vec4(iCol, iData.z); vKind = iData.w; vD = -mv.z; }`;
+  class Pool {
+    constructor(n, additive) {
+      this.n = n; this.live = 0; const f = (k) => new Float32Array(n * k);
+      this.p = f(3); this.v = f(3); this.life = f(1); this.max = f(1); this.size = f(1); this.grow = f(1); this.rot = f(1); this.spin = f(1); this.col = f(3); this.a = f(1); this.kind = f(1); this.drag = f(1); this.grav = f(1); this.fade = f(1);
+      const g = this.geo = quad(); const at = (k) => { const a = new THREE.InstancedBufferAttribute(new Float32Array(n * k), k); a.setUsage(THREE.DynamicDrawUsage); return a; };
+      g.setAttribute('iPos', this.aP = at(3)); g.setAttribute('iData', this.aD = at(4)); g.setAttribute('iCol', this.aC = at(3)); g.setAttribute('iVel', this.aV = at(3));
+      const m = new THREE.ShaderMaterial({ vertexShader: PV, transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, uniforms: { uFog: { value: MO.sky.fogColor } },
+        fragmentShader: additive ? `precision highp float; varying vec2 vUv; varying vec4 vCol; varying float vKind;
+          void main(){ float d = length(vUv - 0.5) * 2.0; float a = vKind > 1.5 ? smoothstep(0.16, 0.0, abs(d - 0.78)) : (vKind > 0.5 ? pow(max(0.0, 1.0 - abs(vUv.x - 0.5) * 2.0), 2.0) * smoothstep(0.0, 0.12, vUv.y) * smoothstep(1.0, 0.55, vUv.y) : pow(max(0.0, 1.0 - d), 2.2));
+            gl_FragColor = vec4(vCol.rgb * a * vCol.a, 1.0); }`
+          : `precision highp float; varying vec2 vUv; varying vec4 vCol; varying float vD; uniform vec3 uFog;
+          float h(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+          float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
+          void main(){ float d = length(vUv - 0.5) * 2.0; float a = smoothstep(1.0, 0.15, d + 0.45 * (n(vUv * 4.0 + vCol.a * 7.0) - 0.5) + 0.2 * (n(vUv * 9.0) - 0.5)) * vCol.a;
+            vec3 c = vCol.rgb * (0.75 + 0.5 * (vUv.y)); float f = 1.0 - exp(-vD * vD * 0.00011); gl_FragColor = vec4(mix(c, uFog, f), a * smoothstep(0.15, 0.7, vD)); }` });
+      this.mesh = new THREE.Mesh(g, m); this.mesh.frustumCulled = false; this.mesh.renderOrder = additive ? 20 : 15; MO.R.scene.add(this.mesh);
+    }
+    /* o: x,y,z, vx,vy,vz, life, size, grow, r,g,b, a, kind (0 billboard, 1 streak, 2 ground ring), drag, grav, spin, fade (1 = fade in too) */
+    add(o) {
+      let i = this.live; if (i >= this.n) { i = (Math.random() * this.n) | 0; } else this.live++;
+      this.p[i * 3] = o.x; this.p[i * 3 + 1] = o.y; this.p[i * 3 + 2] = o.z; this.v[i * 3] = o.vx || 0; this.v[i * 3 + 1] = o.vy || 0; this.v[i * 3 + 2] = o.vz || 0;
+      this.life[i] = this.max[i] = o.life || 1; this.size[i] = o.size || 0.1; this.grow[i] = o.grow || 0; this.rot[i] = Math.random() * 6.28; this.spin[i] = o.spin || 0;
+      this.col[i * 3] = o.r; this.col[i * 3 + 1] = o.g; this.col[i * 3 + 2] = o.b; this.a[i] = o.a === undefined ? 1 : o.a; this.kind[i] = o.kind || 0; this.drag[i] = o.drag || 0; this.grav[i] = o.grav || 0; this.fade[i] = o.fade || 0;
+    }
+    update(dt) {
+      const p = this.p, v = this.v, P = this.aP.array, D = this.aD.array, C = this.aC.array, V = this.aV.array;
+      for (let i = 0; i < this.live; i++) {
+        this.life[i] -= dt;
+        if (this.life[i] <= 0) { const l = --this.live; if (i !== l) { for (const k of ['p', 'v', 'col']) { this[k][i * 3] = this[k][l * 3]; this[k][i * 3 + 1] = this[k][l * 3 + 1]; this[k][i * 3 + 2] = this[k][l * 3 + 2]; }
+          for (const k of ['life', 'max', 'size', 'grow', 'rot', 'spin', 'a', 'kind', 'drag', 'grav', 'fade']) this[k][i] = this[k][l]; } i--; continue; }
+        const dr = Math.exp(-this.drag[i] * dt); v[i * 3] *= dr; v[i * 3 + 1] = v[i * 3 + 1] * dr - this.grav[i] * dt; v[i * 3 + 2] *= dr;
+        p[i * 3] += v[i * 3] * dt; p[i * 3 + 1] += v[i * 3 + 1] * dt; p[i * 3 + 2] += v[i * 3 + 2] * dt;
+        if (this.grav[i] > 0 && p[i * 3 + 1] < 0.02 && this.kind[i] < 2) { p[i * 3 + 1] = 0.02; v[i * 3 + 1] *= -0.3; v[i * 3] *= 0.5; v[i * 3 + 2] *= 0.5; }
+        this.size[i] += this.grow[i] * dt; this.rot[i] += this.spin[i] * dt;
+        const t = this.life[i] / this.max[i], al = this.a[i] * (this.fade[i] ? Math.min(1, (1 - t) * 6) * Math.min(1, t * 1.6) : Math.min(1, t * 2.5));
+        P[i * 3] = p[i * 3]; P[i * 3 + 1] = p[i * 3 + 1]; P[i * 3 + 2] = p[i * 3 + 2]; D[i * 4] = this.size[i]; D[i * 4 + 1] = this.rot[i]; D[i * 4 + 2] = al; D[i * 4 + 3] = this.kind[i];
+        C[i * 3] = this.col[i * 3]; C[i * 3 + 1] = this.col[i * 3 + 1]; C[i * 3 + 2] = this.col[i * 3 + 2]; V[i * 3] = v[i * 3] * 0.012; V[i * 3 + 1] = v[i * 3 + 1] * 0.012; V[i * 3 + 2] = v[i * 3 + 2] * 0.012;
       }
-      const dr = Math.exp(-d[k + 14] * dt);
-      d[k + 3] *= dr; d[k + 5] *= dr; d[k + 4] = d[k + 4] * dr - d[k + 15] * dt;
-      d[k] += d[k + 3] * dt; d[k + 1] += d[k + 4] * dt; d[k + 2] += d[k + 5] * dt;
-      if (d[k + 15] > 0 && d[k + 1] < W.height(d[k], d[k + 2]) + 0.02) { d[k + 1] = W.height(d[k], d[k + 2]) + 0.02; d[k + 4] *= -0.25; d[k + 3] *= 0.5; d[k + 5] *= 0.5; }
+      this.geo.instanceCount = this.live; this.aP.needsUpdate = this.aD.needsUpdate = this.aC.needsUpdate = this.aV.needsUpdate = true;
     }
-    const p = this.pos, c = this.col, s = this.size;
-    for (let i = 0; i < this.n; i++) {
-      const k = i * 16, t = d[k + 6] / d[k + 7];
-      p[i * 3] = d[k]; p[i * 3 + 1] = d[k + 1]; p[i * 3 + 2] = d[k + 2];
-      c[i * 4] = d[k + 10]; c[i * 4 + 1] = d[k + 11]; c[i * 4 + 2] = d[k + 12];
-      c[i * 4 + 3] = d[k + 13] * (t < 0.1 ? t * 10 : 1 - (t - 0.1) / 0.9);
-      s[i] = d[k + 8] + (d[k + 9] - d[k + 8]) * t;
-    }
-    this.geo.attributes.position.needsUpdate = true; this.geo.attributes.pcol.needsUpdate = true; this.geo.attributes.psize.needsUpdate = true;
-    this.geo.setDrawRange(0, this.n);
-  };
+  }
+  const rr = (a) => (Math.random() - 0.5) * a, R01 = Math.random;
+  let add, smoke, rain, decals, shells, lights = [], dPtr = 0;
 
-  // Smoke, dust and steam: camera-facing quads (one instanced draw), soft against the scene's depth on Medium and High
-  // (js/render.js draws them in their own pass after the world, layer IVRender.SOFT), lit by the scene's key light and
-  // sky fill plus the brightest live flash, fogged like the world, faded when a puff reaches the camera. Same emit()
-  // and update() as PSys; a puff's size s is about its width in metres / 0.7 (PSys's old point-size scale).
-  function SoftSys(cap) {
-    PSys.call(this, 1, false, null);   // (the CPU-side store and emit/update; its point mesh is not used)
-    this.cap = cap; this.d = new Float32Array(cap * 16);
-    const g = this.geo = new THREE.InstancedBufferGeometry(), pl = new THREE.PlaneGeometry(1, 1);
-    g.index = pl.index; g.setAttribute('position', pl.attributes.position); g.setAttribute('uv', pl.attributes.uv);
-    this.pos = new Float32Array(cap * 3); this.col = new Float32Array(cap * 4); this.size = new Float32Array(cap);
-    g.setAttribute('iPos', new THREE.InstancedBufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('iCol', new THREE.InstancedBufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('iSize', new THREE.InstancedBufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage));
-    // keep PSys.update's attribute names working
-    g.attributes.pcol = g.attributes.iCol; g.attributes.psize = g.attributes.iSize; g.attributes.position = g.attributes.position;
-    g.instanceCount = 0; this.posAttr = g.attributes.iPos;
-    const U = this.u = { tex: { value: puffTex() }, tLin: { value: null }, uFull: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 },
-      uKeyDir: { value: new THREE.Vector3(0, 1, 0) }, uKeyCol: { value: new THREE.Color() }, uAmbUp: { value: new THREE.Color() }, uAmbDn: { value: new THREE.Color() },
-      uFlash: { value: new THREE.Vector4() }, uFlashC: { value: new THREE.Color() }, fogC: { value: new THREE.Color() }, fogD: { value: 0.01 } };
-    this.mat = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, uniforms: U,
-      vertexShader: `attribute vec3 iPos; attribute vec4 iCol; attribute float iSize; varying vec2 vUv; varying vec4 vC; varying float vZ; varying vec3 vVP; varying float vRot;
-        void main(){ vUv = uv; vC = iCol; vec4 mv = viewMatrix * vec4(iPos, 1.0);
-          float s = iSize * 0.7, a = fract(sin(dot(iPos.xz, vec2(12.9898, 78.233))) * 43758.5) * 6.2832; vRot = a;
-          vec2 q = position.xy * s; mv.xy += vec2(cos(a) * q.x - sin(a) * q.y, sin(a) * q.x + cos(a) * q.y);
-          vZ = -mv.z; vVP = mv.xyz; gl_Position = projectionMatrix * mv; }`,
-      fragmentShader: `uniform sampler2D tex, tLin; uniform vec2 uFull; uniform float uSoft, fogD; uniform vec3 uKeyDir, uKeyCol, uAmbUp, uAmbDn, uFlashC, fogC; uniform vec4 uFlash;
-        varying vec2 vUv; varying vec4 vC; varying float vZ; varying vec3 vVP; varying float vRot;
-        void main(){
-          vec4 t = texture2D(tex, vUv); float a = t.a * vC.a;
-          if (uSoft > 0.5) { float sz = texture2D(tLin, gl_FragCoord.xy / uFull).r; a *= clamp((sz - vZ) / 0.9, 0.0, 1.0); }
-          a *= smoothstep(0.25, 1.4, vZ);
-          if (a < 0.004) discard;
-          // a rounded normal across the puff (turned with the quad) so the side toward the key is lighter
-          vec2 p = vUv * 2.0 - 1.0; p = vec2(cos(vRot) * p.x - sin(vRot) * p.y, sin(vRot) * p.x + cos(vRot) * p.y);
-          vec3 n = normalize(vec3(p * 0.9, 0.55 + 0.45 * t.r));
-          float k = clamp(dot(n, uKeyDir) * 0.5 + 0.5, 0.0, 1.0);
-          vec3 lit = mix(uAmbDn, uAmbUp, clamp(n.y * 0.5 + 0.5, 0.0, 1.0)) + uKeyCol * (0.2 + 0.8 * k * k);
-          vec3 fd = uFlash.xyz - vVP; lit += uFlashC * uFlash.w / (1.0 + dot(fd, fd) * 0.08);
-          vec3 col = vC.rgb * lit * (0.75 + 0.25 * t.g);
-          col = mix(fogC, col, exp(-fogD * fogD * vZ * vZ));
-          gl_FragColor = vec4(col, a);
-        }`
-    });
-    this.pts = new THREE.Mesh(g, this.mat); this.pts.frustumCulled = false; this.pts.renderOrder = 5;
-    if (window.IVRender) { this.pts.layers.set(IVRender.SOFT); IVRender.addSoft(this); }
-  }
-  SoftSys.prototype = Object.create(PSys.prototype);
-  SoftSys.prototype.live = function () { return this.n; };
-  SoftSys.prototype.update = function (dt) {
-    PSys.prototype.update.call(this, dt);
-    this.geo.attributes.iPos.needsUpdate = true; this.geo.instanceCount = this.n; this.geo.setDrawRange(0, Infinity);
+  F.init = () => {
+    const S = MO.R.scene;
+    add = F.add = new Pool(900, true); smoke = F.smoke = new Pool(320, false);
+    // --- rain: every drop's position is a function of a seed and the time, wrapped in a box around the camera
+    const n = Math.floor(9000 * MO.R.Q.rain), g = quad(), seed = new Float32Array(n * 4); for (let i = 0; i < n * 4; i++) seed[i] = Math.random();
+    g.setAttribute('aSeed', new THREE.InstancedBufferAttribute(seed, 4)); g.instanceCount = n;
+    const dry = []; for (let i = 0; i < 3; i++) dry.push(new THREE.Vector4(1e6, 1e6, 1e6, 1e6));
+    rain = F.rain = new THREE.Mesh(g, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uTime: MO.shared.uTime, uDry: { value: dry }, uDryY: { value: 6 }, uK: { value: 1 } },
+      vertexShader: `attribute vec4 aSeed; uniform float uTime; uniform vec4 uDry[3]; uniform float uDryY; varying float vA; varying vec2 vUv;
+        void main(){ vec3 box = vec3(30.0, 20.0, 30.0), vel = vec3(2.6, -(17.0 + 5.0 * aSeed.w), 0.9);
+          vec3 p = aSeed.xyz * box + vel * uTime; p = mod(p - cameraPosition + 0.5 * box, box) - 0.5 * box + cameraPosition;
+          float a = 1.0; for (int i = 0; i < 3; i++) { if (p.x > uDry[i].x && p.x < uDry[i].z && p.z > uDry[i].y && p.z < uDry[i].w && p.y < uDryY) a = 0.0; } if (p.y < 0.0) a = 0.0;
+          vec4 mv = viewMatrix * vec4(p, 1.0); vec3 vv = (viewMatrix * vec4(normalize(vel), 0.0)).xyz; vec2 d = normalize(vv.xy + vec2(1e-5));
+          float len = 0.38 + 0.25 * aSeed.w, w = max(0.006, -mv.z * 0.0011);
+          mv.xy += d * position.y * len + vec2(-d.y, d.x) * position.x * w; gl_Position = projectionMatrix * mv;
+          vA = a * (0.006 / w) * smoothstep(0.3, 1.4, -mv.z) * smoothstep(15.0, 9.0, -mv.z) * (0.5 + 0.5 * aSeed.w); vUv = position.xy + 0.5; }`,
+      fragmentShader: 'precision highp float; uniform float uK; varying float vA; varying vec2 vUv; void main(){ float a = (1.0 - abs(vUv.x - 0.5) * 2.0) * smoothstep(0.0, 0.3, vUv.y) * smoothstep(1.0, 0.6, vUv.y); gl_FragColor = vec4(vec3(0.42, 0.52, 0.7) * a * vA * 1.5 * uK, 1.0); }' }));
+    rain.frustumCulled = false; rain.renderOrder = 18; S.add(rain);
+    MO.on('reflect', (on) => { rain.visible = !on; add.mesh.visible = !on; });
+    // --- bullet holes: a ring buffer of quads laid on the surface
+    const DN = 140, dg = new THREE.BufferGeometry(); dg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(DN * 12), 3)); dg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(DN * 8), 2)); dg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(DN * 12), 3));
+    const idx = []; for (let i = 0; i < DN; i++) idx.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3); dg.setIndex(idx);
+    decals = F.decals = new THREE.Mesh(dg, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, vertexColors: true,
+      vertexShader: 'varying vec2 vUv; varying vec3 vC; void main(){ vUv = uv; vC = color; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `precision highp float; varying vec2 vUv; varying vec3 vC; float h(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+        void main(){ vec2 q = vUv - 0.5; float d = length(q) * 2.0, an = atan(q.y, q.x); float ray = 0.5 + 0.5 * sin(an * 9.0 + vC.g * 20.0) * sin(an * 4.0 + vC.g * 9.0);
+          float hole = smoothstep(0.34, 0.2, d), chip = smoothstep(0.95, 0.3, d + 0.35 * ray) * 0.75; float a = max(hole, chip * vC.r) * vC.b;
+          gl_FragColor = vec4(mix(vec3(0.03, 0.028, 0.025), vec3(0.0), hole), a); }` }));
+    decals.frustumCulled = false; decals.renderOrder = 5; decals.userData.n = DN; S.add(decals);
+    // --- spent brass
+    const sg = MO.lathe([[0, 0], [0.0057, 0], [0.0057, 0.018], [0.0052, 0.023], [0, 0.023]], 6); sg.translate(0, -0.011, 0);
+    shells = F.shells = new THREE.InstancedMesh(sg, MO.mat('brass'), 40); shells.frustumCulled = false; shells.count = 40; shells.userData = { i: 0, s: [] };
+    for (let i = 0; i < 40; i++) { shells.userData.s.push({ p: new THREE.Vector3(0, -50, 0), v: new THREE.Vector3(), q: new THREE.Quaternion(), w: new THREE.Vector3(), life: 0, b: 0 }); }
+    S.add(shells);
+    for (let i = 0; i < 3; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 2); l.layers.enableAll(); l.userData = { t: 0, d: 1, i: 0 }; S.add(l); lights.push(l); }
   };
-  // the scene's light, for the smoke (called each frame)
-  const _kd = new THREE.Vector3(), _q = new THREE.Quaternion();
-  SoftSys.prototype.light = function (cam) {
-    const U = this.u, sun = W.sun, hemi = W.hemi, R = window.IVRender, info = R && R.lin;
-    U.uSoft.value = info && W.post ? 1 : 0; if (info) { U.tLin.value = info.tex; U.uFull.value.set(info.w, info.h); }
-    if (sun) { _kd.copy(sun.position).sub(sun.target.position).normalize().applyQuaternion(_q.copy(cam.quaternion).invert()); U.uKeyDir.value.copy(_kd); U.uKeyCol.value.copy(sun.color).multiplyScalar(sun.intensity); }
-    if (hemi) { U.uAmbUp.value.copy(hemi.color).multiplyScalar(hemi.intensity); U.uAmbDn.value.copy(hemi.groundColor).multiplyScalar(hemi.intensity); }
-    const fl = W.flashLight; if (fl && fl.intensity > 0) { _kd.copy(fl.position).applyMatrix4(cam.matrixWorldInverse); U.uFlash.value.set(_kd.x, _kd.y, _kd.z, fl.intensity * 0.7); U.uFlashC.value.copy(fl.color); } else U.uFlash.value.w = 0;
-    const f = W.scene.fog; if (f) { U.fogC.value.copy(f.color); U.fogD.value = f.near != null && f.near < 0.5 && f.near > 0 ? f.near : (f.density || 0.01); }
+  F.setDry = (boxes) => { const u = rain.material.uniforms.uDry.value; for (let i = 0; i < 3; i++) { const b = boxes[i]; if (b) u[i].set(b.minX, b.minZ, b.maxX, b.maxZ); else u[i].set(1e6, 1e6, 1e6, 1e6); } };
+  /* a short flash of light: x, y, z, [r,g,b], intensity, reach, seconds */
+  F.light = (x, y, z, c, i, d, dur) => { let best = lights[0]; for (const l of lights) if (l.userData.t <= 0) { best = l; break; } else if (l.userData.t < best.userData.t) best = l;
+    best.position.set(x, y, z); best.color.setRGB(c[0], c[1], c[2]); best.distance = d; best.userData.t = best.userData.d = dur; best.userData.i = i; best.intensity = i; };
+  const M4 = new THREE.Matrix4(), T = new THREE.Vector3(), B = new THREE.Vector3(), Nn = new THREE.Vector3(), SC = new THREE.Vector3(1, 1, 1), E = new THREE.Euler(), dq = new THREE.Quaternion();
+  F.decal = (x, y, z, nx, ny, nz, size, chip) => {
+    const g = decals.geometry, P = g.attributes.position.array, U = g.attributes.uv.array, C = g.attributes.color.array, i = dPtr; dPtr = (dPtr + 1) % decals.userData.n;
+    Nn.set(nx, ny, nz); T.set(Math.abs(ny) > 0.9 ? 1 : 0, Math.abs(ny) > 0.9 ? 0 : 1, 0).cross(Nn).normalize(); B.crossVectors(Nn, T);
+    const a = R01() * 6.28, ca = Math.cos(a) * size, sa = Math.sin(a) * size, s = R01();
+    const c = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    for (let k = 0; k < 4; k++) { const u = c[k][0] * ca - c[k][1] * sa, v = c[k][0] * sa + c[k][1] * ca, o = (i * 4 + k) * 3;
+      P[o] = x + T.x * u + B.x * v + nx * 0.004; P[o + 1] = y + T.y * u + B.y * v + ny * 0.004; P[o + 2] = z + T.z * u + B.z * v + nz * 0.004;
+      U[(i * 4 + k) * 2] = (c[k][0] + 1) / 2; U[(i * 4 + k) * 2 + 1] = (c[k][1] + 1) / 2; C[o] = chip === undefined ? 1 : chip; C[o + 1] = s; C[o + 2] = 1; }
+    g.attributes.position.needsUpdate = g.attributes.uv.needsUpdate = g.attributes.color.needsUpdate = true;
   };
-  // a puff: soft round body with ragged, lumpy edges (alpha), light in its middle (r), small-scale texture (g)
-  let puffT = null;
-  function puffTex() {
-    if (puffT) return puffT;
-    const N = 128, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), img = g.createImageData(N, N), R = IV.rng(23);
-    const oct = [];
-    for (let o = 0; o < 4; o++) { const n = 4 << o, a = new Float32Array((n + 1) * (n + 1)); for (let i = 0; i < a.length; i++) a[i] = R(); for (let j = 0; j <= n; j++) a[j * (n + 1) + n] = a[j * (n + 1)]; for (let i = 0; i <= n; i++) a[n * (n + 1) + i] = a[i]; oct.push([n, a]); }
-    const noise = (u, v) => { let s = 0, w = 0.5, tw = 0; for (const [n, a] of oct) { const x = u * n, y = v * n, i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), k = (ii, jj) => a[(jj % (n + 1)) * (n + 1) + (ii % (n + 1))];
-      s += w * ((k(i, j) * (1 - sx) + k(i + 1, j) * sx) * (1 - sy) + (k(i, j + 1) * (1 - sx) + k(i + 1, j + 1) * sx) * sy); tw += w; w *= 0.5; } return s / tw; };
-    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-      const u = x / N, v = y / N, dx = u - 0.5, dy = v - 0.5, r = Math.hypot(dx, dy) * 2, n = noise(u, v), n2 = noise(u * 2 + 0.3, v * 2 + 0.7);
-      const edge = 1 - Math.min(1, Math.max(0, (r - 0.35 + (n - 0.5) * 0.7) / 0.6));
-      const al = Math.pow(Math.max(0, edge), 1.2) * (0.7 + 0.3 * n2), q = (y * N + x) * 4;
-      img.data[q] = Math.round(255 * Math.max(0, 1 - r) ); img.data[q + 1] = Math.round(255 * n2); img.data[q + 2] = 0; img.data[q + 3] = Math.round(255 * Math.min(1, al));
-    }
-    g.putImageData(img, 0, 0); puffT = new THREE.CanvasTexture(c); puffT.premultiplyAlpha = false; return puffT;
-  }
-
-  let add, norm, tracerMesh, tracerPos, tracers = [], casings = [], casingIM, decals = [], decalIM, holes = [], holeIM, flashes = [], flashSprites = [], rings = [], fires = [], flares = [];
-  FX.init = function () {
-    // capped by quality: soft particles cost fill rate, the first thing a school laptop runs out of
-    add = new PSys([500, 800, 1100][W.quality], true, W.tex.glow());
-    if (window.IVRender) IVRender.clearSoft();
-    norm = new SoftSys([350, 700, 1000][W.quality]);
-    W.scene.add(add.pts); W.scene.add(norm.pts);
-    // tracers: up to 48 quads in one dynamic mesh
-    const g = new THREE.BufferGeometry(); tracerPos = new Float32Array(48 * 6 * 3);
-    const tc = new Float32Array(48 * 6 * 3);
-    g.setAttribute('position', new THREE.BufferAttribute(tracerPos, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('color', new THREE.BufferAttribute(tc, 3).setUsage(THREE.DynamicDrawUsage));
-    tracerMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false }));
-    tracerMesh.frustumCulled = false; tracerMesh.renderOrder = 7; W.scene.add(tracerMesh);
-    // casings
-    casingIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.006, 0.006, 0.05, 6).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xb08a3a, metalness: 0.8, roughness: 0.35 }), 40);
-    casingIM.count = 0; casingIM.frustumCulled = false; W.scene.add(casingIM);
-    // decals: blood (soft red splat) and bullet marks (dark), each one instanced mesh
-    const splat = makeSplatTex();
-    decalIM = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ map: splat, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, roughness: 0.4, color: 0x7a0c08 }), IV.TUNING.blood.decals + DECAL_SPARE);
-    decalIM.count = 0; decalIM.frustumCulled = false; decalIM.renderOrder = 2; W.scene.add(decalIM);
-    holeIM = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: W.tex.glow(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, color: 0x000000, opacity: 0.8 }), HOLES + DECAL_SPARE);
-    holeIM.count = 0; holeIM.frustumCulled = false; holeIM.renderOrder = 2; W.scene.add(holeIM);
-    // muzzle flash sprites (pool of 8)
-    const ft = makeFlashTex();
-    flashSprites = [];
-    for (let i = 0; i < 8; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: ft, color: 0xffd8a0, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false })); s.visible = false; W.scene.add(s); flashSprites.push(s); }
-    tracers = []; casings = []; decals = []; holes = []; flashes = []; rings = []; fires = []; flares = [];
+  F.shell = (x, y, z, vx, vy, vz) => { const u = shells.userData, s = u.s[u.i]; u.i = (u.i + 1) % 40; s.p.set(x, y, z); s.v.set(vx, vy, vz); s.w.set(rr(30), rr(30), rr(30)); s.life = 6; s.b = 0; };
+  F.tracer = (x0, y0, z0, x1, y1, z1, hot) => { const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0, d = Math.hypot(dx, dy, dz); if (d < 2) return; const sp = 260, k = hot ? 1 : 0.55;
+    add.add({ x: x0 + dx / d * 1.2, y: y0 + dy / d * 1.2, z: z0 + dz / d * 1.2, vx: dx / d * sp, vy: dy / d * sp, vz: dz / d * sp, life: Math.max(0.02, (d - 1.2) / sp), size: 0.42, r: 2.6 * k, g: 1.8 * k, b: 0.8 * k, a: 1, kind: 1 }); };
+  /* what a bullet does to what it hits */
+  F.impact = (x, y, z, nx, ny, nz, tag) => {
+    const water = tag === 'puddle', dust = (n, c, sz, up) => { for (let i = 0; i < n; i++) smoke.add({ x: x + nx * 0.05, y: y + ny * 0.05, z: z + nz * 0.05, vx: nx * (0.6 + R01()) + rr(0.9), vy: ny * (0.6 + R01()) + rr(0.9) + (up || 0.3), vz: nz * (0.6 + R01()) + rr(0.9), life: 0.5 + R01() * 0.7, size: sz * (0.6 + R01() * 0.6), grow: 0.9, r: c[0], g: c[1], b: c[2], a: 0.5, drag: 2.5, grav: -0.2, spin: rr(2) }); };
+    const sparks = (n, c, sp) => { for (let i = 0; i < n; i++) add.add({ x: x, y: y, z: z, vx: nx * sp * R01() + rr(sp), vy: ny * sp * R01() + rr(sp) + 1, vz: nz * sp * R01() + rr(sp), life: 0.12 + R01() * 0.3, size: 0.035, r: c[0], g: c[1], b: c[2], kind: 1, grav: 12, drag: 1 }); };
+    if (tag === 'flesh') { if (MO.settings.blood) { for (let i = 0; i < 5; i++) smoke.add({ x: x, y: y, z: z, vx: nx * 1.5 + rr(1.6), vy: 0.6 + rr(1.4), vz: nz * 1.5 + rr(1.6), life: 0.35 + R01() * 0.3, size: 0.07 + R01() * 0.08, grow: 0.5, r: 0.12, g: 0.004, b: 0.004, a: 0.85, drag: 3, grav: 4 }); } else dust(3, [0.2, 0.19, 0.17], 0.12); return; }
+    if (water) { for (let i = 0; i < 7; i++) add.add({ x: x, y: 0.02, z: z, vx: rr(1.6), vy: 1.5 + R01() * 2.5, vz: rr(1.6), life: 0.3 + R01() * 0.25, size: 0.03, r: 0.5, g: 0.62, b: 0.8, kind: 1, grav: 12 });
+      add.add({ x: x, y: 0.015, z: z, life: 0.5, size: 0.15, grow: 1.6, r: 0.3, g: 0.38, b: 0.5, kind: 2 }); dust(2, [0.25, 0.3, 0.38], 0.16, 1.2); return; }
+    if (tag === 'metal') { sparks(9, [3.5, 2.2, 0.8], 5); dust(1, [0.12, 0.12, 0.13], 0.1); F.light(x + nx * 0.1, y + ny * 0.1, z + nz * 0.1, [1, 0.7, 0.3], 1.2, 4, 0.06); }
+    else if (tag === 'wood') { dust(3, [0.19, 0.15, 0.1], 0.13); for (let i = 0; i < 4; i++) smoke.add({ x: x, y: y, z: z, vx: nx * 2 + rr(2.5), vy: ny * 2 + 1.5 + rr(2), vz: nz * 2 + rr(2.5), life: 0.5, size: 0.03, r: 0.3, g: 0.22, b: 0.12, a: 1, grav: 9 }); }
+    else if (tag === 'leaf') { for (let i = 0; i < 5; i++) smoke.add({ x: x, y: y, z: z, vx: rr(2), vy: rr(1.5), vz: rr(2), life: 0.8 + R01() * 0.6, size: 0.035, r: 0.03, g: 0.07, b: 0.02, a: 1, grav: 2.5, drag: 2, spin: rr(9) }); return; }
+    else if (tag === 'dirt' || tag === 'mud' || tag === 'grass' || tag === 'cloth') { dust(4, tag === 'grass' ? [0.07, 0.075, 0.045] : [0.1, 0.08, 0.06], 0.15, 0.9); for (let i = 0; i < 5; i++) smoke.add({ x: x, y: y, z: z, vx: nx * 1.5 + rr(2.2), vy: 2 + R01() * 2, vz: nz * 1.5 + rr(2.2), life: 0.6, size: 0.035, r: 0.06, g: 0.045, b: 0.03, a: 1, grav: 10 }); }
+    else { dust(4, [0.2, 0.19, 0.17], 0.14); sparks(2, [2.5, 1.6, 0.7], 3); for (let i = 0; i < 3; i++) smoke.add({ x: x, y: y, z: z, vx: nx * 2 + rr(2.5), vy: ny * 2 + 1 + rr(2), vz: nz * 2 + rr(2.5), life: 0.6, size: 0.03, r: 0.22, g: 0.2, b: 0.18, a: 1, grav: 10 }); }
+    if (tag !== 'cloth') F.decal(x, y, z, nx, ny, nz, 0.055 + R01() * 0.03, tag === 'metal' ? 0.3 : 1);
   };
-  function makeSplatTex() {
-    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), R = IV.rng(3);
-    for (let i = 0; i < 14; i++) { const a = R() * 6.28, r = R() * 18, x = 32 + Math.cos(a) * r, y = 32 + Math.sin(a) * r, s = R.range(4, 12); const gr = g.createRadialGradient(x, y, 0, x, y, s); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(0.7, 'rgba(255,255,255,.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
-    const t = new THREE.CanvasTexture(c); return t;
-  }
-  // The flash is a hot core with a few soft, uneven tongues of flame (fat at the root, tapering out), not a star of thin
-  // straight spokes: each tongue is a stretched radial gradient, so nothing in it has a hard edge.
-  function makeFlashTex() {
-    const N = 128, H = N / 2, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), R = IV.rng(11);
-    g.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 7; i++) {
-      const a = i / 7 * 6.283 + R.range(-0.3, 0.3), len = H * R.range(0.45, 0.95), wid = H * R.range(0.1, 0.2);
-      g.save(); g.translate(H, H); g.rotate(a); g.translate(len * 0.45, 0); g.scale(len * 0.55, wid);
-      const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, 'rgba(255,214,150,.75)'); gr.addColorStop(0.5, 'rgba(255,160,70,.32)'); gr.addColorStop(1, 'rgba(255,110,30,0)');
-      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, 6.283); g.fill(); g.restore();
-    }
-    const gr = g.createRadialGradient(H, H, 0, H, H, H * 0.5); gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(0.35, 'rgba(255,214,140,.7)'); gr.addColorStop(1, 'rgba(255,130,40,0)'); g.fillStyle = gr; g.fillRect(0, 0, N, N);
-    return new THREE.CanvasTexture(c);
-  }
-
-  // ---------------------------------------------------------------- emitters
-  const R = () => Math.random(), rr = (a, b) => a + Math.random() * (b - a);
-  // near: the player's own gun in first person. The sprite is then about half a metre from the eye, where the size that
-  // reads on a soldier 30 m away would cover a third of the screen, so it is drawn much smaller and for a shorter time.
-  FX.muzzle = function (x, y, z, dx, dy, dz, big, near) {
-    const s = flashSprites.find(s => !s.visible) || flashSprites[0];
-    s.position.set(x + dx * 0.05, y + dy * 0.05, z + dz * 0.05); const k = (big ? 0.7 : 0.45) * (near ? 0.36 : 1); s.scale.set(k * rr(0.8, 1.2), k * rr(0.8, 1.2), 1); s.material.rotation = R() * 6.28; s.material.opacity = 1; s.visible = true; s.userData.t = s.userData.t0 = near ? rr(0.036, 0.056) : 0.05;   // first person: 36-56 ms, a little different each shot
-    flashes.push(s);
-    for (let i = 0; i < (big ? 6 : 3); i++) add.emit(x + dx * 0.1, y + dy * 0.1, z + dz * 0.1, dx * rr(2, 6) + rr(-0.5, 0.5), dy * rr(2, 6) + rr(-0.5, 0.5), dz * rr(2, 6) + rr(-0.5, 0.5), rr(0.04, 0.08), 0.12, 0.05, 1, 0.75, 0.4, 1, 3, 0);
-    for (let i = 0; i < (big ? 2 : 1); i++) norm.emit(x + dx * 0.15, y + dy * 0.15, z + dz * 0.15, dx * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.2, 0.6), dz * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.6, 1.2), 0.15, 0.6, 0.55, 0.55, 0.55, big ? 0.35 : 0.2, 1.5, -0.2);
-    W.flashAt(x, y, z, big ? 9 : 6, 1, near ? s.userData.t0 : 0.06);
+  F.muzzleSmoke = (x, y, z, dx, dy, dz) => { smoke.add({ x: x, y: y, z: z, vx: dx * 2.5 + rr(0.4), vy: dy * 2.5 + 0.4, vz: dz * 2.5 + rr(0.4), life: 0.6 + R01() * 0.5, size: 0.08, grow: 0.7, r: 0.3, g: 0.3, b: 0.32, a: 0.16, drag: 3, grav: -0.3 }); };
+  F.explosion = (x, y, z, s) => {
+    s = s || 1; F.light(x, y + 1.2, z, [1, 0.6, 0.25], 60 * s, 42 * s, 0.7); F.shake = Math.max(F.shake, 1.2 * s * MO.sat(1.4 - Math.hypot(x - MO.player.pos.x, z - MO.player.pos.z) / 40));
+    for (let i = 0; i < 26; i++) add.add({ x: x + rr(1), y: y + 0.4 + R01() * 1.2, z: z + rr(1), vx: rr(9) * s, vy: (2 + R01() * 8) * s, vz: rr(9) * s, life: 0.35 + R01() * 0.5, size: (0.9 + R01() * 1.4) * s, grow: 3.5, r: 7, g: 3.2, b: 0.8, a: 1, drag: 3.5 });
+    for (let i = 0; i < 70; i++) add.add({ x: x, y: y + 0.6, z: z, vx: rr(34) * s, vy: (3 + R01() * 20) * s, vz: rr(34) * s, life: 0.7 + R01() * 1.3, size: 0.05 + R01() * 0.05, r: 5, g: 2.4, b: 0.6, kind: 1, grav: 13, drag: 0.8 });
+    for (let i = 0; i < 30; i++) smoke.add({ x: x + rr(1.6), y: y + 0.5 + R01() * 1.6, z: z + rr(1.6), vx: rr(5) * s, vy: (1.5 + R01() * 5) * s, vz: rr(5) * s, life: 2.5 + R01() * 3.5, size: (1.1 + R01() * 1.2) * s, grow: 1.5, r: 0.06, g: 0.055, b: 0.055, a: 0.75, drag: 1.4, grav: -0.5, spin: rr(0.8), fade: 1 });
+    add.add({ x: x, y: 0.03, z: z, life: 0.45, size: 1.5, grow: 34, r: 1.4, g: 1.0, b: 0.6, kind: 2 });
+    for (let i = 0; i < 5; i++) F.decal(x + rr(3), 0, z + rr(3), 0, 1, 0, 1.2 + R01() * 1.6, 1);
   };
-  FX.tracer = function (b) { tracers.push(b); }; // reads b.x,y,z,vx,vy,vz each frame while b.alive
-  FX.casing = function (x, y, z, vx, vy, vz) {
-    if (casings.length >= 40) casings.shift();
-    casings.push({ x, y, z, vx, vy, vz, rx: R() * 6, ry: R() * 6, sx: rr(10, 22), sy: rr(6, 14), life: 6, rest: false, b: 0 });
+  let fireT = 0, splashT = 0;
+  F.update = (dt, time) => {
+    add.update(dt); smoke.update(dt);
+    F.shake = Math.max(0, F.shake - dt * 1.6);
+    for (const l of lights) { const u = l.userData; if (u.t > 0) { u.t -= dt; l.intensity = u.t > 0 ? u.i * (u.t / u.d) * (u.t / u.d) : 0; } }
+    // brass
+    const u = shells.userData;
+    for (let i = 0; i < 40; i++) { const s = u.s[i]; if (s.life <= 0) continue; s.life -= dt;
+      if (s.b < 4) { s.v.y -= 9.8 * dt; s.p.addScaledVector(s.v, dt); E.set(s.w.x * dt, s.w.y * dt, s.w.z * dt); s.q.multiply(dq.setFromEuler(E));
+        const fl = MO.phys.floor(s.p.x, s.p.y + 0.3, s.p.z, 0.02) + 0.006; if (s.p.y < fl) { s.p.y = fl; s.v.y *= -0.38; s.v.x *= 0.55; s.v.z *= 0.55; s.w.multiplyScalar(0.5); s.b++; if (s.b === 1) MO.audio && MO.audio.play('shell', { x: s.p.x, y: s.p.y, z: s.p.z, vol: 0.5 }); if (s.b >= 4) E.set(Math.PI / 2, R01() * 6, 0), s.q.setFromEuler(E); } }
+      if (s.life <= 0) s.p.y = -50; M4.compose(s.p, s.q, SC); shells.setMatrixAt(i, M4); }
+    shells.instanceMatrix.needsUpdate = true;
+    // rain splashes around the player: little crowns where drops land
+    splashT += dt; const pp = MO.player.pos;
+    while (splashT > 0.012) { splashT -= 0.012; const a = R01() * 6.28, d = 1 + R01() * 11, sx = pp.x + Math.cos(a) * d, sz = pp.z + Math.sin(a) * d, g = MO.ground.at(sx, sz);
+      if (g.kind === 'grass') continue; add.add({ x: sx, y: 0.012, z: sz, life: 0.22, size: 0.03, grow: 0.5, r: 0.12, g: 0.15, b: 0.2, kind: 2 });
+      if (g.kind === 'puddle' || R01() < 0.3) add.add({ x: sx, y: 0.02, z: sz, vy: 1.1, life: 0.12, size: 0.02, r: 0.22, g: 0.27, b: 0.36, kind: 1, grav: 9 }); }
+    // fires
+    fireT += dt;
+    if (fireT > 0.045) { fireT = 0; for (const f of MO.props.fires) { if (Math.hypot(f.x - pp.x, f.z - pp.z) > 80) continue; const s = f.s;
+      add.add({ x: f.x + rr(0.9) * s, y: f.y + R01() * 0.3, z: f.z + rr(0.9) * s, vx: rr(0.5), vy: 1.6 + R01() * 1.6, vz: rr(0.5), life: 0.5 + R01() * 0.5, size: (0.5 + R01() * 0.5) * s, grow: -0.5, r: 3.2, g: 1.25, b: 0.25, a: 0.9, fade: 1 });
+      if (R01() < 0.5) add.add({ x: f.x + rr(0.8) * s, y: f.y + 0.4, z: f.z + rr(0.8) * s, vx: rr(1.5) + 0.8, vy: 2 + R01() * 3, vz: rr(1.5), life: 1 + R01() * 1.6, size: 0.03, r: 4, g: 1.6, b: 0.3, kind: 1, grav: -0.6, drag: 0.5 });
+      if (R01() < 0.35) smoke.add({ x: f.x + rr(0.6) * s, y: f.y + 1.2, z: f.z + rr(0.6) * s, vx: 0.9 + rr(0.4), vy: 1.6 + R01(), vz: 0.3 + rr(0.4), life: 4 + R01() * 3, size: 0.8 * s, grow: 0.7, r: 0.05, g: 0.045, b: 0.045, a: 0.55, drag: 0.3, spin: rr(0.5), fade: 1 }); } }
   };
-  // what a case lands on: a floor or something standing (wood), a puddle or the stream, or the ground's own kind
-  const CASE_KIND = { road: 'stone', yard: 'stone', cobbles: 'stone', floor: 'wood', water: 'water', mud: 'mud', field: 'crops', meadow: 'tallgrass' };
-  function caseSurface(x, z, y) {
-    if (W.underRoof(x, z)) return 'wood';
-    if (y > W.height(x, z) + 0.05) return 'wood';   // on a crate, a step, a cart
-    if (puddleAt(x, z, 1)) return 'water';
-    return CASE_KIND[W.surfaceAt ? W.surfaceAt(x, z) : 'grass'] || 'grass';
-  }
-  // surface impact. nx,ny,nz: surface normal. dir: bullet direction. The spray leaves along the bullet's reflection
-  // off the surface blended with the normal (a grazing hit throws its dirt on along the way, a square hit straight
-  // back); a puddle throws a crown splash; metal gives sparks and a short flash of light (at most one per 0.09 s);
-  // past 55 m from the camera every count is halved (too small to see, still costs).
-  let lastMetalFlash = -1;
-  const RF = new THREE.Vector3();
-  function puddleAt(x, z, ny) {
-    const E = window.IVEnv; if (ny < 0.7 || !E || !E.ready || !E.groundInfo || W.underRoof(x, z)) return false;
-    try { return E.groundInfo(x, z).puddle > 0.5; } catch (e) { return false; }
-  }
-  FX.impact = function (x, y, z, nx, ny, nz, surf, dir) {
-    const c = cam(), far = Math.hypot(x - c.position.x, y - c.position.y, z - c.position.z) > 55, h = far ? 0.5 : 1, N = k => Math.max(1, Math.round(k * h));
-    // spray direction: reflect(dir, n) blended 60/40 with the normal
-    if (dir) { const dn = dir.x * nx + dir.y * ny + dir.z * nz; RF.set(dir.x - 2 * dn * nx, dir.y - 2 * dn * ny, dir.z - 2 * dn * nz).multiplyScalar(0.6).add(V2.set(nx, ny, nz).multiplyScalar(0.4)).normalize(); }
-    else RF.set(nx, ny, nz);
-    const rx = RF.x, ry = RF.y, rz = RF.z;
-    if (surf === 'water' || puddleAt(x, z, ny)) { FX.crown(x, y, z, h, surf === 'water' ? 1 : 0.7); if (surf !== 'water') FX.hole(x, y, z, nx, ny, nz, 0.06); return; }
-    let col = [0.42, 0.36, 0.27];
-    if (surf === 'stone') col = [0.55, 0.53, 0.5]; else if (surf === 'wood') col = [0.45, 0.33, 0.2]; else if (surf === 'foliage') col = [0.18, 0.26, 0.1];
-    else if (surf === 'gravel') col = [0.5, 0.48, 0.44]; else if (surf === 'cloth') col = [0.6, 0.55, 0.4]; else if (surf === 'metal') col = [0.4, 0.4, 0.42];
-    // the puff of dust and fibres, along the spray
-    for (let i = 0; i < N(4); i++) { const s = rr(0.6, 2.4); norm.emit(x + nx * 0.05, y + ny * 0.05, z + nz * 0.05, rx * s + rr(-0.5, 0.5), ry * s + rr(0.1, 0.8), rz * s + rr(-0.5, 0.5), rr(0.5, 1.1), 0.08, 0.5, col[0], col[1], col[2], 0.55, 2.2, 0.6); }
-    // chunks with gravity, thrown along the spray
-    for (let i = 0; i < N(3); i++) { const s = rr(1.5, 4); norm.emit(x, y, z, rx * s + rr(-0.8, 0.8), ry * s + rr(0.8, 2.5), rz * s + rr(-0.8, 0.8), rr(0.4, 0.8), 0.04, 0.03, col[0] * 0.6, col[1] * 0.6, col[2] * 0.6, 0.9, 0.5, 9.8); }
-    if (surf === 'stone' || surf === 'metal' || surf === 'gravel') {
-      const n = surf === 'metal' ? 14 : 3;
-      for (let i = 0; i < N(n); i++) { const s = rr(3, 8); add.emit(x, y, z, rx * s + rr(-1.5, 1.5), ry * s + rr(-0.5, 2), rz * s + rr(-1.5, 1.5), rr(0.06, 0.22), 0.05, 0.02, 1, 0.75, 0.4, 1, 1, 9.8); }
-      if (surf === 'metal') {
-        for (let i = 0; i < N(2); i++) add.emit(x, y, z, rx * 2 + rr(-1, 1), rr(1, 3), rz * 2 + rr(-1, 1), rr(0.5, 0.9), 0.07, 0.03, 1, 0.8, 0.45, 1, 0.2, 9.8);   // bouncers that glow a little longer
-        if (IV.time - lastMetalFlash > 0.09) { lastMetalFlash = IV.time; W.flashAt(x + nx * 0.2, y + ny * 0.2, z + nz * 0.2, 3, 0.6, 0.045, 0xffd8a0); }
-      }
-    }
-    if (surf === 'mud') for (let i = 0; i < N(6); i++) { const s = rr(1, 3); norm.emit(x, y, z, rx * s + rr(-1, 1), ry * s + rr(1.5, 3), rz * s + rr(-1, 1), rr(0.4, 0.7), 0.05, 0.04, 0.16, 0.12, 0.08, 1, 0.4, 9.8); }   // mud flecks
-    if (surf === 'foliage') for (let i = 0; i < N(5); i++) norm.emit(x, y, z, rx + rr(-1, 1), rr(0, 1), rz + rr(-1, 1), rr(1.2, 2.2), 0.06, 0.06, 0.22, 0.3, 0.12, 0.9, 2.5, 1.2);
-    if (surf !== 'foliage' && surf !== 'cloth') FX.hole(x, y, z, nx, ny, nz, surf === 'wood' ? 0.07 : 0.09);
-  };
-  // a crown splash on water or in a puddle: thin upright sheets round the hole, droplets thrown up and out in a ring,
-  // a central column, and two rings spreading on the surface. k scales the size (a puddle is shallower than the stream)
-  FX.crown = function (x, y, z, h, k) {
-    h = h || 1; k = k || 1;
-    const nd = Math.max(4, Math.round(14 * h)), ns = Math.max(2, Math.round(5 * h));
-    for (let i = 0; i < ns; i++) { const a = i / ns * 6.283 + rr(-0.3, 0.3); norm.emit(x + Math.cos(a) * 0.04, y + 0.02, z + Math.sin(a) * 0.04, Math.cos(a) * 0.6 * k, rr(1.6, 2.4) * k, Math.sin(a) * 0.6 * k, rr(0.18, 0.26), 0.05 * k, 0.16 * k, 0.72, 0.76, 0.8, 0.55, 1.5, 9); }
-    for (let i = 0; i < nd; i++) { const a = rr(0, 6.283), o = rr(0.8, 1.8) * k; norm.emit(x, y + 0.03, z, Math.cos(a) * o, rr(2.2, 3.8) * k, Math.sin(a) * o, rr(0.35, 0.6), 0.02, 0.015, 0.7, 0.74, 0.78, 0.8, 0.4, 9.8); }
-    for (let i = 0; i < Math.max(2, Math.round(4 * h)); i++) norm.emit(x + rr(-0.02, 0.02), y + 0.02, z + rr(-0.02, 0.02), rr(-0.15, 0.15), rr(2.8, 4.2) * k, rr(-0.15, 0.15), rr(0.3, 0.45), 0.035, 0.02, 0.75, 0.78, 0.82, 0.85, 0.3, 9.8);
-    for (let i = 0; i < 2; i++) ripple(x, y + 0.015, z, 0.5 + i * 0.35, 0.18 * k, i * 0.07);
-  };
-  const ripples = [];
-  let ringGeo = null, ringMat = null;
-  function ripple(x, y, z, life, size, delay) {
-    if (ripples.length >= 12) { const o = ripples.shift(); W.scene.remove(o.m); }
-    if (!ringGeo) { ringGeo = new THREE.RingGeometry(0.82, 1, 28).rotateX(-Math.PI / 2); ringMat = new THREE.MeshBasicMaterial({ color: 0xd8e2ea, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }); }
-    const m = new THREE.Mesh(ringGeo, ringMat.clone()); m.position.set(x, y, z); m.scale.setScalar(0.001); m.renderOrder = 3; W.scene.add(m);
-    ripples.push({ m, t: -delay, life, size });
-  }
-  // footsteps: mud clods kicked up behind the boot, and a small splash from a puddle (no decal, no hole)
-  FX.clods = function (x, y, z, n, dx, dz) { for (let i = 0; i < (n || 4); i++) norm.emit(x, y + 0.03, z, -(dx || 0) * rr(0.3, 1.2) + rr(-0.4, 0.4), rr(0.8, 1.8), -(dz || 0) * rr(0.3, 1.2) + rr(-0.4, 0.4), rr(0.35, 0.6), 0.025, 0.02, 0.17, 0.13, 0.09, 1, 0.5, 9); };
-  FX.splash = function (x, y, z, k) { const n = Math.round(5 + 5 * (k || 1)); for (let i = 0; i < n; i++) norm.emit(x + rr(-0.1, 0.1), y + 0.04, z + rr(-0.1, 0.1), rr(-0.5, 0.5), rr(0.9, 2) * (k || 1), rr(-0.5, 0.5), rr(0.3, 0.5), 0.05, 0.12, 0.6, 0.65, 0.68, 0.5, 0.8, 9); };
-  // blood: a hit puff, a short spray along the bullet, and a decal on what's behind (ground or a wall) within 3 m
-  FX.blood = function (x, y, z, dx, dy, dz, heavy) {
-    if (!IV.settings.blood) { FX.impact(x, y, z, -dx, -dy, -dz, 'cloth'); for (let i = 0; i < 6; i++) norm.emit(x, y, z, dx * rr(0.5, 2) + rr(-0.5, 0.5), rr(0.2, 1), dz * rr(0.5, 2) + rr(-0.5, 0.5), rr(0.5, 1), 0.1, 0.45, 0.5, 0.46, 0.4, 0.5, 2, 0.4); return; }
-    for (let i = 0; i < (heavy ? 10 : 6); i++) norm.emit(x, y, z, dx * rr(0.5, 2.5) + rr(-0.4, 0.4), dy * rr(0.5, 2) + rr(-0.2, 0.6), dz * rr(0.5, 2.5) + rr(-0.4, 0.4), rr(0.25, 0.5), 0.05, 0.3, 0.38, 0.02, 0.02, 0.85, 3, 2);
-    for (let i = 0; i < (heavy ? 12 : 7); i++) norm.emit(x, y, z, dx * rr(2, 5) + rr(-0.7, 0.7), dy * rr(1, 3) + rr(0, 1), dz * rr(2, 5) + rr(-0.7, 0.7), rr(0.3, 0.6), 0.025, 0.02, 0.3, 0.01, 0.01, 1, 0.6, 9.8);
-    // decal behind the target
-    const h = W.raycast(x, y, z, dx, dy - 0.35, dz, 3.2, IV.CF.BULLET);
-    if (h) FX.decal(h.x, h.y, h.z, h.nx, h.ny, h.nz, rr(0.3, 0.6));
-    else { const gy = W.height(x + dx, z + dz); FX.decal(x + dx * 0.8, gy, z + dz * 0.8, 0, 1, 0, rr(0.3, 0.55)); }
-  };
-  FX.bloodPool = function (x, z) { // a small stain under a fallen soldier (blood switch respected)
-    if (!IV.settings.blood) return;
-    FX.decal(x, W.height(x, z), z, 0, 1, 0, rr(0.6, 0.9));
-  };
-  const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), S4 = new THREE.Vector3(), Z = new THREE.Vector3(0, 0, 1);
-  // At the cap the oldest few start a short fade (0.4 s) instead of vanishing on the spot; the instanced meshes have
-  // room for the fading ones on top of the cap (DECAL_SPARE), and only past that is the oldest dropped at once.
-  const DECAL_SPARE = 16;
-  function placeDecal(im, list, cap, x, y, z, nx, ny, nz, s, life) {
-    if (list.length >= cap + DECAL_SPARE - 1) list.shift();
-    if (list.length >= cap) { let k = 0; for (let i = 0; i < list.length && k < 8; i++) { const d = list[i]; if (d.fd === 5) { d.fd = 0.4; d.life = Math.min(d.life, d.t + 0.4); } k++; } }
-    V.set(nx, ny, nz).normalize();
-    Q4.setFromUnitVectors(Z, V); Q4.multiply(new THREE.Quaternion().setFromAxisAngle(Z, Math.random() * 6.28));
-    list.push({ p: new THREE.Vector3(x + nx * 0.015, y + ny * 0.015, z + nz * 0.015), q: Q4.clone(), s, t: 0, life, fd: 5 });
-  }
-  FX.decal = (x, y, z, nx, ny, nz, s) => placeDecal(decalIM, decals, IV.TUNING.blood.decals, x, y, z, nx, ny, nz, s, IV.TUNING.blood.decalLife);
-  FX.hole = (x, y, z, nx, ny, nz, s) => placeDecal(holeIM, holes, HOLES, x, y, z, nx, ny, nz, s, 60);
-  const HOLES = 60;
-  FX.dust = function (x, y, z, n, s) { for (let i = 0; i < (n || 10); i++) norm.emit(x + rr(-0.4, 0.4), y + rr(0, 0.2), z + rr(-0.4, 0.4), rr(-0.8, 0.8), rr(0.1, 0.6), rr(-0.8, 0.8), rr(1, 2), (s || 0.4) * 0.6, (s || 0.4) * 2, 0.4, 0.37, 0.32, 0.4, 1.5, -0.05); };
-  FX.smoke = function (x, y, z, n, s, dark) { for (let i = 0; i < n; i++) norm.emit(x + rr(-0.5, 0.5), y, z + rr(-0.5, 0.5), rr(-0.3, 0.3), rr(0.8, 2), rr(-0.3, 0.3), rr(3, 6), s, s * 4, dark ? 0.12 : 0.4, dark ? 0.11 : 0.39, dark ? 0.1 : 0.37, 0.5, 0.4, -0.15); };
-  // big explosion: flash light, fireball, sparks, debris, smoke column, ground dust ring and a shockwave ring
-  FX.explosion = function (x, y, z, big) {
-    const k = big ? 1.8 : 1;
-    W.flashAt(x, y + 1, z, 40 * k, 3, big ? 1.2 : 0.5, 0xffb060);
-    for (let i = 0; i < 40 * k; i++) { const a = R() * 6.28, e = R() * 1.4, sp = rr(4, 14) * k; add.emit(x, y + 0.5, z, Math.cos(a) * Math.cos(e) * sp, Math.sin(e) * sp + 2, Math.sin(a) * Math.cos(e) * sp, rr(0.2, 0.5), rr(0.5, 1.0) * k, rr(1.2, 2.0) * k, 1, rr(0.45, 0.7), 0.2, 0.8, 3.5, -1); }
-    for (let i = 0; i < 30 * k; i++) add.emit(x, y + 0.5, z, rr(-18, 18), rr(4, 22), rr(-18, 18), rr(0.5, 1.5), 0.08, 0.04, 1, 0.7, 0.3, 1, 0.5, 9.8);
-    for (let i = 0; i < 26 * k; i++) norm.emit(x, y + 0.5, z, rr(-9, 9), rr(5, 16), rr(-9, 9), rr(1.2, 2.6), rr(0.06, 0.18), 0.1, 0.12, 0.1, 0.08, 1, 0.3, 9.8);
-    for (let i = 0; i < 30 * k; i++) norm.emit(x + rr(-1, 1), y + rr(0.5, 2), z + rr(-1, 1), rr(-2, 2), rr(2, 7), rr(-2, 2), rr(4, 9), rr(0.9, 1.5) * k, rr(3, 5) * k, 0.13, 0.12, 0.11, 0.7, 0.6, -0.2);
-    for (let i = 0; i < 28; i++) { const a = i / 28 * 6.28 + rr(-0.12, 0.12), sp = rr(5, 13) * k; norm.emit(x, W.height(x, z) + rr(0.2, 0.9), z, Math.cos(a) * sp, rr(0.3, 1.6), Math.sin(a) * sp, rr(1.5, 2.5), 0.7, 2.6 * k, 0.36, 0.32, 0.27, 0.4, 1.8, 0); }
-    // smoke lit from inside by the fireball, then the scorch left on the ground
-    for (let i = 0; i < 10 * k; i++) norm.emit(x + rr(-0.6, 0.6), y + rr(0.3, 1.2), z + rr(-0.6, 0.6), rr(-1.5, 1.5), rr(2, 5), rr(-1.5, 1.5), rr(1.0, 1.8), rr(0.7, 1.2) * k, rr(2.2, 3.4) * k, 0.3, 0.17, 0.08, 0.6, 0.8, -0.3);
-    FX.hole(x, W.height(x, z) + 0.02, z, 0, 1, 0, 2.6 * k);
-    // (no drawn shockwave ring: a hard additive ring read as a cream arc over everything; the dust ring above is it)
-  };
-  // a lingering fire: flickering light and embers + smoke for a while
-  FX.fire = function (x, y, z, dur, r) {
-    const lamp = W.addLamp({ x, y: y + 1.2, z, r: r || 16, i: 1, power: 4, color: 0xff8a30, flicker: true, los: false });
-    fires.push({ x, y, z, t: dur || 60, lamp, acc: 0 });
-  };
-  // an illumination flare: drifts down slowly under its parachute, lighting a big pool (bad for stealth)
-  FX.flare = function (x, y, z) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: W.tex.glow(), color: 0xfff0d0, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false }));
-    s.scale.set(6, 6, 1); s.position.set(x, y, z); W.scene.add(s);
-    const lamp = W.addLamp({ x, y, z, r: 60, i: 0.9, power: 7, color: 0xfff0d0, los: false });
-    flares.push({ s, lamp, t: 25, vy: -1.1, vx: (Math.random() - 0.5) * 0.6 });
-  };
-  FX.clear = function () {
-    add.n = 0; norm.n = 0; tracers.length = 0; casings.length = 0; decals.length = 0; holes.length = 0;
-    for (const r of rings) W.scene.remove(r.m); rings.length = 0;
-    for (const f of flares) W.scene.remove(f.s); flares.length = 0; fires.length = 0;
-    for (const r of ripples) W.scene.remove(r.m); ripples.length = 0;
-  };
-
-  // ---------------------------------------------------------------- per frame
-  const cam = () => W.camera;
-  FX.frame = function (dt) {
-    const c = cam();
-    const scale = W.renderer.domElement.height / (2 * Math.tan(c.fov * Math.PI / 360));
-    add.mat.uniforms.uScale.value = scale; if (W.scene.fog) { add.mat.uniforms.fogC.value.copy(W.scene.fog.color); add.mat.uniforms.fogD.value = W.scene.fog.density || 0.01; } add.update(dt);
-    norm.update(dt); norm.light(c);
-    for (let i = flashes.length - 1; i >= 0; i--) { const s = flashes[i]; s.userData.t -= dt; s.material.opacity = Math.max(0, s.userData.t / s.userData.t0) * 0.6 + 0.4; if (s.userData.t <= 0) { s.visible = false; flashes.splice(i, 1); } }
-    // tracers
-    let q = 0; const cp = c.position, tp = tracerPos, tcol = tracerMesh.geometry.attributes.color.array;
-    for (let i = tracers.length - 1; i >= 0; i--) {
-      const b = tracers[i]; if (!b.alive || q >= 48) { tracers.splice(i, 1); continue; }
-      const sp = Math.hypot(b.vx, b.vy, b.vz) || 1, len = Math.min(b.travelled, b.enemy ? 7 : 9);
-      let ax = b.x, ay = b.y, az = b.z, bx = ax - b.vx / sp * len, by = ay - b.vy / sp * len, bz = az - b.vz / sp * len;
-      if (b.vis) {   // the player's rounds: drawn from the visible muzzle, merging onto the true path over 12 m
-        const wh = Math.max(0, 1 - b.travelled / 12), wt = Math.max(0, 1 - (b.travelled - len) / 12), o = b.vis;
-        ax += o.x * wh; ay += o.y * wh; az += o.z * wh; bx += o.x * wt; by += o.y * wt; bz += o.z * wt;
-      }
-      // side vector: perpendicular to the segment and to the view
-      V.set(ax - bx, ay - by, az - bz); V2.set(ax - cp.x, ay - cp.y, az - cp.z); V.cross(V2).normalize().multiplyScalar(0.035 + 0.0012 * V2.length());
-      const k = q * 18;
-      const P = [ax + V.x, ay + V.y, az + V.z, ax - V.x, ay - V.y, az - V.z, bx - V.x, by - V.y, bz - V.z, ax + V.x, ay + V.y, az + V.z, bx - V.x, by - V.y, bz - V.z, bx + V.x, by + V.y, bz + V.z];
-      for (let j = 0; j < 18; j++) tp[k + j] = P[j];
-      const cr = b.enemy ? [1.0, 0.55, 0.25] : [1.0, 0.8, 0.45], head = 1.2, tail = 0.05;
-      const C = [head, head, tail, head, tail, tail];
-      for (let j = 0; j < 6; j++) { tcol[k + j * 3] = cr[0] * C[j]; tcol[k + j * 3 + 1] = cr[1] * C[j]; tcol[k + j * 3 + 2] = cr[2] * C[j]; }
-      q++;
-    }
-    tracerMesh.geometry.setDrawRange(0, q * 6);
-    tracerMesh.geometry.attributes.position.needsUpdate = true; tracerMesh.geometry.attributes.color.needsUpdate = true;
-    // casings
-    for (let i = casings.length - 1; i >= 0; i--) if (casings[i].life <= 0) casings.splice(i, 1);
-    for (let i = 0; i < casings.length; i++) {
-      const s = casings[i]; s.life -= dt;
-      if (!s.rest) {
-        s.vy -= 9.8 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.rx += dt * s.sx; s.ry += dt * s.sy;
-        const g = W.groundAt(s.x, s.z, s.y + 0.1, 0.2);
-        if (s.y < g + 0.006) {
-          // bounce off the real surface: the terrain's normal (flat on floors and objects), restitution 0.32-0.48,
-          // friction along it, at most 4 bounces, then it lies on its side; the first two make their own sound
-          s.y = g + 0.006;
-          const onObj = g > W.height(s.x, s.z) + 0.05, n = onObj ? V2.set(0, 1, 0) : W.normal(s.x, s.z, V2), vn = s.vx * n.x + s.vy * n.y + s.vz * n.z;
-          const surf = s.b < 2 ? caseSurface(s.x, s.z, g) : null;
-          if (vn < -0.6 && s.b < 4 && surf !== 'mud' && surf !== 'water') {
-            const e = rr(0.32, 0.48), f = 0.55;
-            s.vx = (s.vx - vn * n.x) * f - vn * n.x * e; s.vy = (s.vy - vn * n.y) * f - vn * n.y * e; s.vz = (s.vz - vn * n.z) * f - vn * n.z * e;
-            s.sx *= -0.7; s.sy *= 0.7; s.b++;
-            if (surf) IV.audio && IV.audio.play('casing', { x: s.x, z: s.z, surf });
-          } else {
-            if (surf === 'water' && s.b < 2) { IV.audio && IV.audio.play('casing', { x: s.x, z: s.z, surf }); FX.splash(s.x, g, s.z, 0.15); }
-            s.rest = true; s.rx = Math.PI / 2; s.ry = Math.atan2(s.vx, s.vz) + rr(-0.5, 0.5); if (surf === 'water' || surf === 'mud') s.y = g - 0.004;
-          }
-        }
-      }
-      Q4.setFromEuler(new THREE.Euler(s.rx, s.ry, 0)); M4.compose(V.set(s.x, s.y, s.z), Q4, S4.set(1, 1, 1)); casingIM.setMatrixAt(i, M4);
-    }
-    casingIM.count = casings.length; casingIM.instanceMatrix.needsUpdate = true;
-    // decals fade at the end of their life
-    updDecals(decalIM, decals, dt); updDecals(holeIM, holes, dt);
-    for (let i = ripples.length - 1; i >= 0; i--) { const r = ripples[i]; r.t += dt; const k = IV.clamp(r.t / r.life, 0, 1); r.m.visible = r.t > 0; r.m.scale.setScalar(Math.max(0.001, r.size * (0.3 + 2.2 * Math.sqrt(k)))); r.m.material.opacity = 0.35 * (1 - k); if (r.t >= r.life) { W.scene.remove(r.m); r.m.material.dispose(); ripples.splice(i, 1); } }
-    for (let i = rings.length - 1; i >= 0; i--) { const r = rings[i]; r.t += dt; const s = 1 + r.t * 40 * r.k; r.m.scale.set(s, s, 1); r.m.material.opacity = Math.max(0, 0.5 * (1 - r.t / 0.55)); if (r.t > 0.55) { W.scene.remove(r.m); rings.splice(i, 1); } }
-    for (let i = fires.length - 1; i >= 0; i--) {
-      const f = fires[i]; f.t -= dt; f.acc += dt;
-      while (f.acc > 0.05) { f.acc -= 0.05; add.emit(f.x + rr(-1, 1), f.y + rr(0, 1), f.z + rr(-1, 1), rr(-0.3, 0.3), rr(1.5, 3.5), rr(-0.3, 0.3), rr(0.4, 0.9), rr(0.6, 1.2), 0.1, 1, rr(0.4, 0.6), 0.15, 1, 0.5, -0.5); if (Math.random() < 0.4) norm.emit(f.x + rr(-0.8, 0.8), f.y + 2, f.z + rr(-0.8, 0.8), rr(-0.3, 0.3), rr(1, 2.2), rr(-0.3, 0.3), rr(4, 7), 1, 5, 0.08, 0.08, 0.07, 0.55, 0.3, -0.1); }
-      f.lamp.power = 3 + Math.sin(IV.time * 13 + i) * 0.6 + Math.sin(IV.time * 31) * 0.4;
-      if (f.t <= 0) { f.lamp.on = false; fires.splice(i, 1); }
-    }
-    for (let i = flares.length - 1; i >= 0; i--) {
-      const f = flares[i]; f.t -= dt; f.s.position.y += f.vy * dt; f.s.position.x += f.vx * dt;
-      f.lamp.x = f.s.position.x; f.lamp.y = f.s.position.y; f.lamp.z = f.s.position.z; f.lamp.power = 7 * Math.min(1, f.t / 4) * (0.9 + 0.1 * Math.sin(IV.time * 20));
-      f.lamp.i = 0.9 * Math.min(1, f.t / 4);
-      if (Math.random() < 0.3) norm.emit(f.s.position.x, f.s.position.y + 0.3, f.s.position.z, 0, 0.2, 0, 3, 0.3, 1.2, 0.5, 0.5, 0.5, 0.3, 0.2, 0);
-      if (f.t <= 0 || f.s.position.y < W.height(f.s.position.x, f.s.position.z) + 1) { W.scene.remove(f.s); f.lamp.on = false; flares.splice(i, 1); }
-    }
-  };
-  function updDecals(im, list, dt) {
-    for (let i = list.length - 1; i >= 0; i--) { const d = list[i]; d.t += dt; if (d.t > d.life) list.splice(i, 1); }
-    for (let i = 0; i < list.length; i++) { const d = list[i], fade = Math.min(1, (d.life - d.t) / (d.fd || 5)), grow = Math.min(1, d.t * 4 + 0.3); M4.compose(d.p, d.q, S4.set(d.s * grow * fade, d.s * grow * fade, 1)); im.setMatrixAt(i, M4); }
-    im.count = list.length; im.instanceMatrix.needsUpdate = true;
-  }
-  FX.sys = () => ({ add, norm });   // the two particle systems, for checks
-  FX.counts = () => ({ add: add.n, norm: norm.n, tracers: tracers.length, decals: decals.length, holes: holes.length, holesFading: holes.filter(d => d.fd < 5).length, casings: casings.length, casingsResting: casings.filter(c => c.rest).length, ripples: ripples.length });
 })();
