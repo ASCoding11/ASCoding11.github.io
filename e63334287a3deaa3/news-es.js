@@ -7,6 +7,13 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "New game: Leaf Sweep": "Juego nuevo: Leaf Sweep",
+    "Leaf Sweep": "Leaf Sweep",
+    "Garden sim": "Simulador de jardín",
+    "Leaf Sweep: a calm first-person game where you clear autumn leaves out of five walled gardens.": "Leaf Sweep: un juego tranquilo en primera persona donde limpias hojas de otoño en cinco jardines amurallados.",
+    "Every leaf is real: gather them into your sack, drag them with the rake or push them with the blower.": "Cada hoja es de verdad: júntalas en tu saco, arrástralas con el rastrillo o empújalas con la sopladora.",
+    "Earn acorns at compost bins and mulch chutes, then buy better tools and open the next gate.": "Gana bellotas en las composteras y las rejillas de mantillo, luego compra mejores herramientas y abre el siguiente portón.",
+    "Works on phones too, and your gardens save themselves.": "También funciona en teléfonos, y tus jardines se guardan solos.",
     "New: Where Have You Been?": "Nuevo: Where Have You Been?",
     "Travel map": "Mapa de viajes",
     "Wishlist": "Lista de deseos",

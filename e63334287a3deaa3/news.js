@@ -87,6 +87,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '1.59', title: 'New game: Leaf Sweep', kind: 'game',
+     games: ['Leaf Sweep:windrow'], img: 'm/thumbs/windrow.jpg', tags: ['Leaf Sweep', 'Garden sim'], items: [
+      'Leaf Sweep: a calm first-person game where you clear autumn leaves out of five walled gardens.',
+      'Every leaf is real: gather them into your sack, drag them with the rake or push them with the blower.',
+      'Earn acorns at compost bins and mulch chutes, then buy better tools and open the next gate.',
+      'Works on phones too, and your gardens save themselves.']},
     {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
      tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
       'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
