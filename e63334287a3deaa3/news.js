@@ -114,13 +114,6 @@
       'Every leaf is real: gather them into your sack, drag them with the rake or push them with the blower.',
       'Earn acorns at compost bins and mulch chutes, then buy better tools and open the next gate.',
       'Works on phones too, and your gardens save themselves.']},
-    {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
-     tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
-      'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
-      'Type a list like "London, Kyoto, Machu Picchu" to log a whole trip at once, and keep a striped wishlist of places to go next.',
-      'Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.',
-      'Find it under Web Development Projects on the home page.'
-    ]},
     {date: '2026-11-25', version: '1.51.4', title: 'Site rules and privacy, in plain words', kind: 'fix',
      link: {text: 'Read the terms', href: '/terms/'}, items: [
       'The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can\'t promise.',
