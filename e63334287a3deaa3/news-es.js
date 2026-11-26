@@ -7,6 +7,19 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Top player badges: 3 per player": "Insignias de mejor jugador: 3 por jugador",
+    "Leaderboards": "Tablas de posiciones",
+    "Badges": "Insignias",
+    "One player can now hold at most 3 of the small Top player shields at a time.": "Ahora un jugador puede tener como máximo 3 de los escudos pequeños de Mejor jugador a la vez.",
+    "If you are first in more than 3 games, you are still first on every one of those boards. The 3 that count are the first 3 in the Leaderboards' game order.": "Si estás primero en más de 3 juegos, sigues primero en todas esas tablas. Las 3 que cuentan son las 3 primeras según el orden de juegos de las Tablas de posiciones.",
+    "The other games' shields go to nobody: they don't pass to second place.": "Los escudos de los otros juegos no son de nadie: no pasan al segundo puesto.",
+    "Each game's main board tells you whether that one counts for you and which 3 do.": "La tabla principal de cada juego te dice si esa te cuenta y cuáles son las 3 que cuentan.",
+    "Fourteen quiet puzzles retired": "Catorce puzles poco jugados se retiran",
+    "Daily puzzles": "Puzles diarios",
+    "Leaderboards": "Tablas de posiciones",
+    "Fourteen daily puzzles hardly anyone played have left the Back Room: Top Bins, Crosslet, Outline, Sleight, Scout Report, Teamsheet, Deadline Day, Crossbar, Journeyman, Stat Duel, Quartets, Unfurl, Overland and Back Four.": "Catorce puzles diarios que casi nadie jugaba se han ido del Back Room: Top Bins, Crosslet, Outline, Sleight, Scout Report, Teamsheet, Deadline Day, Crossbar, Journeyman, Stat Duel, Quartets, Unfurl, Overland y Back Four.",
+    "They came off the puzzle lists on 18 November. Now their boards are out of the Leaderboards menu too, and their top-player badges and weekly titles have ended.": "Salieron de las listas de puzles el 18 de noviembre. Ahora sus tablas tampoco están en el menú de Tablas de posiciones, y sus insignias de mejor jugador y sus títulos semanales se han acabado.",
+    "Your saved progress is kept, your daily streak is not affected, and an old link or bookmark to one of them still opens it.": "Tu progreso guardado se conserva, tu racha diaria no cambia, y un enlace o marcador antiguo a cualquiera de ellos sigue abriéndolo.",
     "New game: Leaf Sweep": "Juego nuevo: Leaf Sweep",
     "Leaf Sweep": "Leaf Sweep",
     "Garden sim": "Simulador de jardín",
