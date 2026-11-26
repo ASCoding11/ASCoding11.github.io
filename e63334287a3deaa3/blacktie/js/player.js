@@ -150,6 +150,7 @@
       case 'takedown': stepTakedown(p, dt); break;
       case 'ragdoll': stepRagdoll(p, dt); break;
       case 'drive': RP.Vehicles.stepDriver(p, dt); break;
+      case 'swim': stepSwim(p, dt); break;
       case 'getup': if (p.st > 0.95) setState(p, 'move'); groundSnap(p, dt); break;
     }
     // ---- weapons, melee, throwing (any state that allows the upper body)
@@ -179,6 +180,8 @@
   function groundSnap(p, dt) {
     var g = W.ground(p.pos.x, p.pos.z, p.pos.y + 0.05, TU.stepUp + 0.05, _g);
     p.gmat = g.mat;
+    // out of your depth: swim
+    if (g.y < W.water - SWIM_DEPTH && p.pos.y < W.water + 0.6 && (p.state === 'move' || p.state === 'cover')) { startSwim(p); return false; }
     if (p.pos.y - g.y > 0.45) { if (p.state === 'move' || p.state === 'cover') { setState(p, 'air'); p.fallStart = p.pos.y; p.vel.y = 0; p.actor.move('jump', { w: 0.6 }); } return false; }
     // smooth stepping up and down stairs
     p.pos.y = g.y > p.pos.y ? M.approach(p.pos.y, g.y, 4.5, dt) : M.damp(p.pos.y, g.y, 30, dt);
@@ -297,6 +300,41 @@
     }
   }
 
+  // ---- swimming: the head above water, slow, no weapons; out again where it is shallow enough to stand
+  var SWIM_DEPTH = 1.3, SWIM_Y = 1.32;   // water deeper than this is swum; the feet hang this far below the surface
+  function startSwim(p) {
+    setState(p, 'swim'); p.cover = null; p.reload = null; p.melee = null; p.aiming = false; p.sprinting = false; p.stealth = false;
+    p.vel.y = 0; p.speed = Math.min(p.speed, 2);
+    if (p.cur !== 'fists') { p.swimHeld = p.cur; equip(p, 'fists', true); }
+    RP.FX.splash(p.pos.x, W.water, p.pos.z, 1.2); RP.Audio.impact('water', p.pos, 1);
+  }
+  P.startSwim = startSwim;
+  function stepSwim(p, dt) {
+    var I = RP.In, wish = wishDir(_v), mag = Math.min(1, wish.length());
+    if (mag > 0.01) wish.divideScalar(Math.max(mag, 1e-3));
+    var target = (I.down('sprint') ? 2.7 : 1.7) * mag;
+    p.speed = M.approach(p.speed, target, 2.2, dt);
+    if (mag > 0.05) p.yaw = M.approachAngle(p.yaw, Math.atan2(wish.x, wish.z), 3.5, dt);
+    var dir = fwdOf(p.yaw, _v2), ox = p.pos.x, oz = p.pos.z;
+    W.move(p.pos, dir.x * p.speed * dt, dir.z * p.speed * dt, p.radius, 1.2, 0.1);
+    p.vel.set((p.pos.x - ox) / dt, 0, (p.pos.z - oz) / dt);
+    p.pos.y = M.damp(p.pos.y, W.water - SWIM_Y + M.clamp(p.speed / 1.7, 0, 1) * 0.3 + Math.sin(RP.G.time * 2.2) * 0.04, 6, dt);   // a swimmer moving forward rides higher
+    p.noise = p.speed > 2 ? 8 : 3; p.vis = 0.75;
+    // splashes now and then while swimming
+    p._swT = (p._swT || 0) - dt; if (p.speed > 0.6 && p._swT <= 0) { p._swT = 0.55; RP.FX.splash(p.pos.x + dir.x * 0.6, W.water, p.pos.z + dir.z * 0.6, 0.4); }
+    // shallow enough to stand: walk out
+    var g = W.ground(p.pos.x, p.pos.z, W.water + 0.5, 0.3, _g);
+    if (g.y > W.water - SWIM_DEPTH + 0.12) {
+      p.pos.y = Math.max(p.pos.y, g.y); setState(p, 'move'); p.vel.set(0, 0, 0);
+      if (p.swimHeld && p.inv[p.swimHeld]) equip(p, p.swimHeld); p.swimHeld = null;
+      return;
+    }
+    // a quay or a boat side in front: climb out (Space), as on land
+    if (I.pressed('jump')) traverseOrJump(p, mag > 0.2 ? wish : fwdOf(p.yaw));
+    // get into a boat alongside
+    if (I.pressed('enter') || I.pressed('interact')) { var bt = RP.Vehicles.near(p); if (bt) { p.state = 'move'; p.st = 1; if (!RP.Vehicles.enter(p, bt)) setState(p, 'swim'); } }
+  }
+
   // ---- in the air: gravity, keep momentum, land by height
   function stepAir(p, dt) {
     p.vel.y -= TU.gravity * dt;
@@ -315,11 +353,13 @@
       if (ob && ob.top > 0.4 && ob.top < 1.9) { var n = new T.Vector3(-ob.nx, 0, -ob.nz), to = p.pos.clone().addScaledVector(n, ob.dist + 0.45); if (!W.blocked(to.x, p.pos.y + ob.top, to.z, 0.28, 1.6)) { p.actor.endMove('jump'); startTraverse(p, 'climb', n, to, p.pos.y + ob.top, 0.8); return; } }
     }
     var g = W.ground(p.pos.x, p.pos.z, p.pos.y + 0.3, 0.3, _g);
+    if (g.y < W.water - SWIM_DEPTH && p.pos.y <= W.water - SWIM_Y && p.vel.y <= 0) { RP.FX.splash(p.pos.x, W.water, p.pos.z, 1.5); RP.Audio.impact('water', p.pos, 1.5); startSwim(p); return; }
     if (p.pos.y <= g.y && p.vel.y <= 0) {
       p.pos.y = g.y; var h = p.fallStart - g.y;
       p.actor.endMove('jump');
       p.speed = Math.hypot(p.vel.x, p.vel.z) * 0.7; p.vel.set(0, 0, 0);
       if (g.water) { RP.FX.splash(p.pos.x, W.water, p.pos.z, 1.5); RP.Audio.impact('water', p.pos, 1.5); }
+      if (g.y < W.water - SWIM_DEPTH) { startSwim(p); return; }   // into deep water: no landing, no fall damage
       if (h > TU.fallLethal) { takeDamage(p, 999, { fall: true }); return; }
       if (h > TU.fallRagdoll) { takeDamage(p, (h - TU.fallRagdoll) * 9 + 15, { fall: true }); startRagdoll(p, new T.Vector3(0, -2, 0)); return; }
       if (h > TU.fallStagger) { p.actor.move('hardLand'); setState(p, 'getup'); p.st = 0.35; takeDamage(p, (h - TU.fallStagger) * 4, { fall: true }); RP.Audio.thud(p.pos, 1); RP.Cam.shake(0.4); return; }
@@ -759,6 +799,17 @@
     a.setBack(backGun(p));
     a.root.position.copy(p.pos); a.root.rotation.y = p.yaw;
     if (p.state === 'dead' || p.state === 'ragdoll') { a.update(dt); return; }
+    if (p.state === 'swim') {
+      // breaststroke when moving (body tipped forward, arms and legs sweeping), treading water when still
+      var sw = M.clamp(p.speed / 1.7, 0, 1);
+      a.setUpper(null, 0.2); a.weaponAim = 0; a.reloadU = -1; a.airborne = true;
+      if (!a.moveOf('swim')) a.move('swim', { stack: true });
+      var mv = a.moveOf('swim'); mv.w = 1; mv.speed = 0.8 + sw * 0.6; mv.pitch = sw;
+      a.drive({ speed: 0, dir: 0, strafe: 0, stealth: 0, sprint: 0, turnRate: 0, accel: 0 });
+      a.setAim(0, 0); a.update(dt);
+      return;
+    }
+    if (a.moveOf('swim')) a.endMove('swim');
     if (p.state === 'drive' && p.vehicle) {
       // at the wheel: seated, hands on the wheel; a one-handed gun comes up over the door when aimed or fired
       var shooting = p.aiming || p.hipT > 0;

@@ -249,6 +249,12 @@
   // that the combat code reads, and a recovery end.
   var D = Math.PI / 180;
   var MOVES = {
+    // swimming (looping): arms sweep out and back, legs kick; the body's forward tip comes from the move's pitch (0..1)
+    swim: { dur: 1.3, loop: true, hold: true, keys: [
+      [0, { upperarm_l: [['x', -150 * D], ['z', 10 * D]], upperarm_r: [['x', -150 * D], ['z', -10 * D]], lowerarm_l: [['x', -10 * D]], lowerarm_r: [['x', -10 * D]], thigh_l: [['x', -15 * D]], thigh_r: [['x', -15 * D]], calf_l: [['x', 40 * D]], calf_r: [['x', 40 * D]] }],
+      [0.45, { upperarm_l: [['x', -95 * D], ['z', 65 * D]], upperarm_r: [['x', -95 * D], ['z', -65 * D]], lowerarm_l: [['x', -30 * D]], lowerarm_r: [['x', -30 * D]], thigh_l: [['x', -55 * D], ['z', 25 * D]], thigh_r: [['x', -55 * D], ['z', -25 * D]], calf_l: [['x', 95 * D]], calf_r: [['x', 95 * D]] }],
+      [0.8, { upperarm_l: [['x', -40 * D], ['z', 25 * D]], upperarm_r: [['x', -40 * D], ['z', -25 * D]], lowerarm_l: [['x', -110 * D]], lowerarm_r: [['x', -110 * D]], thigh_l: [['x', -5 * D]], thigh_r: [['x', -5 * D]], calf_l: [['x', 10 * D]], calf_r: [['x', 10 * D]] }],
+      [1.3, { upperarm_l: [['x', -150 * D], ['z', 10 * D]], upperarm_r: [['x', -150 * D], ['z', -10 * D]], lowerarm_l: [['x', -10 * D]], lowerarm_r: [['x', -10 * D]], thigh_l: [['x', -15 * D]], thigh_r: [['x', -15 * D]], calf_l: [['x', 40 * D]], calf_r: [['x', 40 * D]] }]] },
     // braking from a run: plant, lean back, settle
     brake: { dur: 0.42, keys: [[0, {}], [0.12, { spine_01: [['x', -9 * D]], spine_02: [['x', -5 * D]], thigh_r: [['x', -22 * D]], calf_r: [['x', 12 * D]], thigh_l: [['x', 8 * D]], calf_l: [['x', 18 * D]], root: [['lift', -0.05]], upperarm_l: [['x', -14 * D]], upperarm_r: [['x', -14 * D]] }], [0.42, {}]] },
     jab: { dur: 0.42, hit: [0.1, 0.18], keys: [
@@ -678,7 +684,9 @@
       m.t += dt * m.speed;
       var w = m.w;
       if (m.fadeOut > 0) { m.fadeT = (m.fadeT || 0) + dt; w *= Math.max(0, 1 - m.fadeT / m.fadeOut); if (m.fadeT >= m.fadeOut) { m.done = true; continue; } }
+      if (def.loop && m.t >= def.dur) m.t %= def.dur;
       if (m.t >= def.dur && !m.hold) { m.done = true; continue; }
+      if (m.pitch) rootPitch += m.pitch * 0.7 * w;   // swimming: the body tipped toward horizontal
       var t = Math.min(m.t, def.dur), K = def.keys, a = K[0], c = K[K.length - 1];
       for (var j = 0; j < K.length - 1; j++) if (t >= K[j][0] && t <= K[j + 1][0]) { a = K[j]; c = K[j + 1]; break; }
       var u = c[0] > a[0] ? M.smooth((t - a[0]) / (c[0] - a[0])) : 1;
