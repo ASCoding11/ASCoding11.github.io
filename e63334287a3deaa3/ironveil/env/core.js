@@ -314,13 +314,19 @@
     if (R.pom && E.Q.pom && !R.glass && (!E.Q.pomOnly || E.Q.pomOnly.test(R.tex || ''))) { defs.ENV_POM = ''; defs.ENV_POM_STEPS = (+E.Q.pom).toFixed(1); defs.ENV_POM_FAR = (+(E.Q.pomFar || 8)).toFixed(1); /* GLSL floats: '5.5', never '5.5.0' */ }
     if (!R.noFoot) defs.ENV_FOOT = '';
     if (R.interior) defs.ENV_INTERIOR = '';
+    // wear layers (MAP_FRAG): chipped paint (with what shows under it), rust runs, weathered timber, scuffed floors,
+    // stained plaster, mottled sandbags
+    // (not on Low: Low must not cost more than it did before them)
+    const lowQ = E.Q.name === 'low';
+    if (lowQ) defs.ENV_LOW = ''; else { if (R.paintUnder) defs.ENV_PAINT_UNDER = R.paintUnder; if (R.paintUnder) defs.ENV_PAINT = '';
+      if (R.rust) defs.ENV_RUST = ''; if (R.timber) defs.ENV_TIMBER = ''; if (R.floor) defs.ENV_FLOOR = ''; if (R.stain) defs.ENV_STAIN = ''; if (R.bag) defs.ENV_BAG = ''; }
     if (R.wet && R.wet[2] > 0) defs.ENV_BEADS = '';
     m.defines = Object.assign(m.defines || {}, defs);
     const uni = {
       uMacro: U.uMacro, uWet: U.uWet, uGrime: U.uGrime, uDust: U.uDust, uNight: U.uNight,
       uIdAmt: { value: R.id || 0 }, uMacroAmt: { value: R.macro || 0.15 }, uTexSize: { value: S },
       uRoof: U.uRoof, uRoofY: U.uRoofY, uRoofN: U.uRoofN, uWetK: { value: new THREE.Vector3().fromArray(R.wet || [0.38, 0.45, 0]) },
-      uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: R.scan && /brick|fieldstone|ashlar|roof_tile|slate/.test(R.tex) ? 1.0 : 0.85 }
+      uWin: U.uWin, uWinN: U.uWinN, uWinNum: U.uWinNum, uWinC: U.uWinC, uProbeK: U.uProbeK, uRoomAmb: U.uRoomAmb, uNS: { value: R.ns || 1 }, uPomDepth: { value: R.pom ? R.pom / R.size : 0 }, uAOAmt: { value: R.scan && /brick|fieldstone|ashlar|roof_tile|slate/.test(R.tex) ? 1.0 : 0.85 }
     };
     m.userData.uniforms = uni;
     m.onBeforeCompile = function (sh) {
@@ -349,11 +355,12 @@
       P('fragment', '#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (m.userData.gapLit ? '{ float gx = vMapUv.x * 8.0; float gd = min(fract(gx), 1.0 - fract(gx)); float gw = max(0.035, fwidth(gx) * 0.9); float on = step(0.62, fract(sin(floor(gx + 0.5) * 12.9898) * 43758.5)) * smoothstep(0.35, 0.65, texture2D(uMacro, vec2(gx * 0.13, vMapUv.y * 0.6)).g); totalEmissiveRadiance += vec3(1.0, 0.5, 0.18) * 0.38 * uNight * on * smoothstep(gw, 0.0, gd) * (0.6 + 0.4 * smoothstep(0.2, 0.07, envH)); }' : ''));
       P('fragment', '#include <aomap_fragment>', `
             float envAO = mix(1.0, 0.3 + 0.7 * smoothstep(0.05, 0.75, envH), uAOAmt);
-            reflectedLight.indirectDiffuse *= envAO; reflectedLight.indirectSpecular *= envAO * envAO;`);
-      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN; uniform vec3 uWetK;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' +
-        E.withPerturb(sh.fragmentShader);
+            reflectedLight.indirectDiffuse *= envAO; reflectedLight.indirectSpecular *= envAO * envAO;
+            ivInteriorLight(reflectedLight, diffuseColor.rgb, vEnvW, normal);`);
+      sh.fragmentShader = 'uniform sampler2D uMacro; uniform float uDust, uNight; uniform float uWet, uGrime, uIdAmt, uMacroAmt, uTexSize, uNS, uPomDepth, uAOAmt; uniform vec4 uRoof[16]; uniform float uRoofY[16]; uniform int uRoofN; uniform vec3 uWetK;\nvarying vec4 vEnvA;\nvarying vec3 vEnvW;\n' + E.GLSL.interiorUniforms +
+        E.withPerturb(sh.fragmentShader).replace('void main() {', E.GLSL.interior + '\nvoid main() {');
     };
-    m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).map(k => k + defs[k]).join(',') + (m.userData.gapLit ? 'gap' : '');
+    m.customProgramCacheKey = () => 'ivenv' + Object.keys(defs).map(k => k + defs[k]).join(',') + (m.userData.gapLit ? 'gap' : '') + (lowQ ? 'L' : '');
   }
   const MAP_FRAG = `
     vec2 envUv = vMapUv;
@@ -407,14 +414,23 @@
     envAlb *= envTint;
     #ifdef ENV_FOOT
     {
+      // the foot of a wall: a dark damp band rising 20 to 45 cm with a ragged top and a faint tide line above it,
+      // moss in its hollows, and splashed-up mud in the bottom 10 to 25 cm
       float foot = vEnvA.w > 0.5 ? vEnvA.w - 1.0 : 99.0;
-      float damp = (1.0 - smoothstep(0.0, 0.25 + 0.7 * m2, foot)) * uGrime;
+      float dampH = 0.3 + 0.26 * m2 + 0.16 * m1;
+      float damp = (1.0 - smoothstep(dampH - 0.1, dampH + 0.03, foot)) * uGrime;
+      float tide = smoothstep(0.045, 0.0, abs(foot - dampH - 0.03)) * uGrime;
       float moss = damp * smoothstep(0.6, 0.2, envH + m1 * 0.35 - 0.15);
-      envAlb = mix(envAlb, envAlb * vec3(0.5, 0.5, 0.44), damp * 0.85);
+      envAlb = mix(envAlb, envAlb * vec3(0.3, 0.28, 0.22), damp * 0.95);
+      envAlb = mix(envAlb, envAlb * vec3(0.7, 0.66, 0.56), tide * 0.7);
       envAlb = mix(envAlb, vec3(0.03, 0.045, 0.015), moss * 0.8);
       envRough = mix(envRough, envRough * 0.7, damp);
-      float splash = (1.0 - smoothstep(0.0, 0.12 + 0.2 * m1, foot)) * uGrime;
-      envAlb = mix(envAlb, vec3(0.05, 0.04, 0.03), splash * 0.6);
+      #ifdef ENV_LOW
+      float splash = (1.0 - smoothstep(0.0, 0.2 + 0.22 * m1, foot)) * uGrime * 0.7;
+      #else
+      float splash = (1.0 - smoothstep(0.0, 0.2 + 0.22 * m1, foot)) * uGrime * smoothstep(0.3, 0.6, texture2D(uMacro, wp.xz * 2.1 + wp.y * 3.0).g + 0.3);
+      #endif
+      envAlb = mix(envAlb, vec3(0.045, 0.034, 0.022), splash * 0.9); envRough = mix(envRough, 0.5, splash * 0.5);
     }
     #endif
     // weathering shared by every material, lined up in world space: rain streaks down walls, sun fading, and dust
@@ -423,14 +439,21 @@
       vec3 wn = inverseTransformDirection(normalize(vNormal), viewMatrix);
       float vert = 1.0 - abs(wn.y);
       float streak = texture2D(uMacro, vec2((wp.x + wp.z) * 0.33, wp.y * 0.05)).a;
-      envAlb *= 1.0 - vert * smoothstep(0.55, 0.9, streak) * 0.22 * uGrime;
+      // green-black run-off streaks down walls (under sills, gutters, eaves), several per few metres
+      #ifdef ENV_LOW
+      float streak2 = 0.0;
+      #else
+      float streak2 = texture2D(uMacro, vec2((wp.x + wp.z) * 0.9, wp.y * 0.07 + 0.2)).a;
+      #endif
+      float runs = vert * max(smoothstep(0.55, 0.9, streak), smoothstep(0.62, 0.86, streak2) * 0.8) * uGrime;
+      envAlb = mix(envAlb, envAlb * vec3(0.5, 0.55, 0.44), runs * 0.55);
       // patches that cross many stones or boards (a wall reads as one weathered surface first): lichen and green
       // on the lower and middle wall, soot and old dirt in others, a slow 1-3 m scale, on vertical faces only
       float pat = texture2D(uMacro, vec2(wp.x + wp.z, wp.y * 1.3) * 0.19 + 0.13).b;
       float pat2 = texture2D(uMacro, vec2(wp.x - wp.z, wp.y) * 0.07 + 0.41).r;
       float lich = vert * smoothstep(0.6, 0.82, pat) * smoothstep(0.3, 0.7, envH + 0.25) * uGrime;
       envAlb = mix(envAlb, envAlb * vec3(0.86, 1.04, 0.66), lich * 0.75);
-      envAlb *= 1.0 - vert * smoothstep(0.34, 0.1, pat) * 0.32 * uGrime;
+      envAlb *= 1.0 - vert * smoothstep(0.36, 0.08, pat) * 0.42 * uGrime;
       envAlb *= mix(0.8, 1.1, pat2 * vert + (1.0 - vert) * 0.7) * mix(vec3(1.0), vec3(1.05, 1.0, 0.92), smoothstep(0.4, 0.8, pat2) * vert);   // warmer and cooler areas a few metres across
       float lum = dot(envAlb, vec3(0.3, 0.55, 0.15));
       envAlb = mix(envAlb, vec3(lum) * vec3(1.04, 1.0, 0.94), 0.12);
@@ -438,6 +461,45 @@
       envAlb = mix(envAlb, vec3(0.30, 0.235, 0.155) * (0.8 + 0.4 * m1), dustAmt * 0.7);
       envRough = mix(envRough, 1.0, dustAmt);
     }
+    // material wear, all in world space so it never repeats with the texture
+    #if defined(ENV_PAINT) || defined(ENV_RUST) || defined(ENV_TIMBER) || defined(ENV_FLOOR) || defined(ENV_STAIN) || defined(ENV_BAG)
+    {
+      vec3 wn3 = inverseTransformDirection(normalize(vNormal), viewMatrix); float vt = 1.0 - abs(wn3.y);
+      float hf = texture2D(uMacro, wp.xy * 1.3 + wp.zz * 0.9 + 0.11).b * 0.6 + texture2D(uMacro, (wp.zy + wp.xx) * 3.1).r * 0.4;
+      #ifdef ENV_PAINT
+      // chipped and flaking paint: bare grey timber or rusted steel shows through in ragged flakes
+      { float chip = smoothstep(0.68, 0.74, hf + m2 * 0.1 + (1.0 - envH) * 0.08);
+        envAlb = mix(envAlb, ENV_PAINT_UNDER * (0.7 + 0.6 * m1), chip * 0.85); envRough = mix(envRough, 0.85, chip); }
+      #endif
+      #ifdef ENV_RUST
+      // rust runs bleeding down from bolts, seams and edges, and rusty blotches
+      { float rr = texture2D(uMacro, vec2((wp.x + wp.z) * 2.3, wp.y * 0.14)).g;
+        float run = smoothstep(0.62, 0.84, rr) * (0.35 + 0.65 * vt), blot = smoothstep(0.62, 0.8, hf);
+        envAlb = mix(envAlb, vec3(0.2, 0.085, 0.035) * (0.7 + 0.6 * m1), clamp(run * 0.5 + blot * 0.35, 0.0, 0.75)); envRough = mix(envRough, 0.9, max(run, blot) * 0.7); }
+      #endif
+      #ifdef ENV_TIMBER
+      // weathered timber: silvered grey patches and darker damp-rotted ends
+      { float l = dot(envAlb, vec3(0.3, 0.55, 0.15)); float g = smoothstep(0.35, 0.75, m1 * 0.7 + hf * 0.3);
+        envAlb = mix(envAlb, vec3(l) * vec3(0.98, 0.98, 0.95) * 1.05, g * 0.55); envAlb *= mix(1.0, 0.72, smoothstep(0.6, 0.8, hf) * (1.0 - g)); }
+      #endif
+      #ifdef ENV_FLOOR
+      // scuffed boards: dirt packed into the gaps, a dusty grey film and darker worn paths
+      { envAlb *= mix(0.4, 1.0, smoothstep(0.08, 0.42, envH));
+        envAlb = mix(envAlb, vec3(0.2, 0.18, 0.15), smoothstep(0.45, 0.8, m1) * 0.35);
+        envAlb *= mix(1.0, 0.7, smoothstep(0.5, 0.75, m2)); envRough = mix(envRough, 0.95, 0.5); }
+      #endif
+      #ifdef ENV_STAIN
+      // old plaster: brown water stains and grey grime blotches
+      { float st = smoothstep(0.55, 0.8, texture2D(uMacro, vec2(wp.x + wp.z, wp.y * 0.6) * 0.23 + 0.7).g);
+        envAlb = mix(envAlb, envAlb * vec3(0.72, 0.62, 0.48), st * 0.7); envAlb *= mix(1.0, 0.75, smoothstep(0.6, 0.85, hf)); }
+      #endif
+      #ifdef ENV_BAG
+      // sandbags: each a different tan, grey or brown, with damp and mud stains
+      { envAlb *= mix(vec3(0.75, 0.72, 0.66), vec3(1.08, 1.0, 0.86), m1) * mix(0.75, 1.1, hf);
+        envAlb = mix(envAlb, vec3(0.08, 0.065, 0.045), smoothstep(0.62, 0.82, m2) * 0.6); }
+      #endif
+    }
+    #endif
     // rain by exposure and material: upward faces soak; vertical faces wet in streaks plus a splash band at the foot;
     // undersides (soffits, eave bottoms, sill undersides) stay dry; nothing inside a roofed box gets more than a trace
     float envWetUp = 0.0;

@@ -13,8 +13,10 @@
  * (--accent, --panel, --ink…), so it fits the light Back Room page and the dark phone page.
  *
  * ---- Adding an entry ----
- * Add an object to the TOP of NEWS below (newest first) when your pull request changes
- * something players will notice:
+ * In a pull request, DON'T edit NEWS below: add your entry as its own file in news/ (see news/README.md). When the
+ * pull request is merged, a workflow gives it the next version and the merge date and puts it at the top of NEWS
+ * here in this same format, so open pull requests never conflict on these lines. Only a commit pushed straight to
+ * main (or a typo fix in an old entry) edits NEWS directly: add an object to the TOP (newest first):
  *
  *   {date: '2026-10-22', version: '1.7', title: 'Short headline', kind: 'game',
  *    games: ['Deepword'], items: ['One short sentence per change, in plain words.', '…']},
@@ -85,13 +87,18 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-26', version: '1.55', title: 'New game: Riviera Protocol', kind: 'game',
-     games: ['Riviera Protocol:riviera'], img: 'm/thumbs/riviera.jpg', tags: ['Spy action', 'Single player', 'Stealth'],
-     items: [
-      'A secret agent game set in a hand-built Amalfi: the cathedral steps, pastel houses up the cliffs, the harbour and the coast road.',
-      'Two story missions: sneak into a villa party at dusk to steal a ledger, then a firefight in Piazza Duomo. Plus free roam of the whole town.',
-      'Take cover, aim over the shoulder, roll, vault, climb, brawl, and pick from eight kinds of weapons on a wheel.',
-      'Guards see and hear you and call for help; an alert level brings more of them until you break away. Bystanders run for cover and can\'t be hurt.']},
+    {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
+     tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
+      'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
+      'Type a list like "London, Kyoto, Machu Picchu" to log a whole trip at once, and keep a striped wishlist of places to go next.',
+      'Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.',
+      'Find it under Web Development Projects on the home page.'
+    ]},
+    {date: '2026-11-25', version: '1.51.4', title: 'Site rules and privacy, in plain words', kind: 'fix',
+     link: {text: 'Read the terms', href: '/terms/'}, items: [
+      'The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can\'t promise.',
+      'The privacy policy now also explains Prompted, buying items, the Marketplace and what we ask of players under 13.',
+      'Both are linked at the bottom of every main page.']},
     {date: '2026-11-25', version: '1.51.3', title: 'A proper "page not found"', kind: 'fix',
      items: [
       'A mistyped or old link now shows a "Page not found" page with buttons back to the home page, the games and the study tools, instead of a plain error or the home page.',

@@ -60,11 +60,93 @@
     this.geo.setDrawRange(0, this.n);
   };
 
+  // Smoke, dust and steam: camera-facing quads (one instanced draw), soft against the scene's depth on Medium and High
+  // (js/render.js draws them in their own pass after the world, layer IVRender.SOFT), lit by the scene's key light and
+  // sky fill plus the brightest live flash, fogged like the world, faded when a puff reaches the camera. Same emit()
+  // and update() as PSys; a puff's size s is about its width in metres / 0.7 (PSys's old point-size scale).
+  function SoftSys(cap) {
+    PSys.call(this, 1, false, null);   // (the CPU-side store and emit/update; its point mesh is not used)
+    this.cap = cap; this.d = new Float32Array(cap * 16);
+    const g = this.geo = new THREE.InstancedBufferGeometry(), pl = new THREE.PlaneGeometry(1, 1);
+    g.index = pl.index; g.setAttribute('position', pl.attributes.position); g.setAttribute('uv', pl.attributes.uv);
+    this.pos = new Float32Array(cap * 3); this.col = new Float32Array(cap * 4); this.size = new Float32Array(cap);
+    g.setAttribute('iPos', new THREE.InstancedBufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('iCol', new THREE.InstancedBufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('iSize', new THREE.InstancedBufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage));
+    // keep PSys.update's attribute names working
+    g.attributes.pcol = g.attributes.iCol; g.attributes.psize = g.attributes.iSize; g.attributes.position = g.attributes.position;
+    g.instanceCount = 0; this.posAttr = g.attributes.iPos;
+    const U = this.u = { tex: { value: puffTex() }, tLin: { value: null }, uFull: { value: new THREE.Vector2(1, 1) }, uSoft: { value: 0 },
+      uKeyDir: { value: new THREE.Vector3(0, 1, 0) }, uKeyCol: { value: new THREE.Color() }, uAmbUp: { value: new THREE.Color() }, uAmbDn: { value: new THREE.Color() },
+      uFlash: { value: new THREE.Vector4() }, uFlashC: { value: new THREE.Color() }, fogC: { value: new THREE.Color() }, fogD: { value: 0.01 } };
+    this.mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, uniforms: U,
+      vertexShader: `attribute vec3 iPos; attribute vec4 iCol; attribute float iSize; varying vec2 vUv; varying vec4 vC; varying float vZ; varying vec3 vVP; varying float vRot;
+        void main(){ vUv = uv; vC = iCol; vec4 mv = viewMatrix * vec4(iPos, 1.0);
+          float s = iSize * 0.7, a = fract(sin(dot(iPos.xz, vec2(12.9898, 78.233))) * 43758.5) * 6.2832; vRot = a;
+          vec2 q = position.xy * s; mv.xy += vec2(cos(a) * q.x - sin(a) * q.y, sin(a) * q.x + cos(a) * q.y);
+          vZ = -mv.z; vVP = mv.xyz; gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform sampler2D tex, tLin; uniform vec2 uFull; uniform float uSoft, fogD; uniform vec3 uKeyDir, uKeyCol, uAmbUp, uAmbDn, uFlashC, fogC; uniform vec4 uFlash;
+        varying vec2 vUv; varying vec4 vC; varying float vZ; varying vec3 vVP; varying float vRot;
+        void main(){
+          vec4 t = texture2D(tex, vUv); float a = t.a * vC.a;
+          if (uSoft > 0.5) { float sz = texture2D(tLin, gl_FragCoord.xy / uFull).r; a *= clamp((sz - vZ) / 0.9, 0.0, 1.0); }
+          a *= smoothstep(0.25, 1.4, vZ);
+          if (a < 0.004) discard;
+          // a rounded normal across the puff (turned with the quad) so the side toward the key is lighter
+          vec2 p = vUv * 2.0 - 1.0; p = vec2(cos(vRot) * p.x - sin(vRot) * p.y, sin(vRot) * p.x + cos(vRot) * p.y);
+          vec3 n = normalize(vec3(p * 0.9, 0.55 + 0.45 * t.r));
+          float k = clamp(dot(n, uKeyDir) * 0.5 + 0.5, 0.0, 1.0);
+          vec3 lit = mix(uAmbDn, uAmbUp, clamp(n.y * 0.5 + 0.5, 0.0, 1.0)) + uKeyCol * (0.2 + 0.8 * k * k);
+          vec3 fd = uFlash.xyz - vVP; lit += uFlashC * uFlash.w / (1.0 + dot(fd, fd) * 0.08);
+          vec3 col = vC.rgb * lit * (0.75 + 0.25 * t.g);
+          col = mix(fogC, col, exp(-fogD * fogD * vZ * vZ));
+          gl_FragColor = vec4(col, a);
+        }`
+    });
+    this.pts = new THREE.Mesh(g, this.mat); this.pts.frustumCulled = false; this.pts.renderOrder = 5;
+    if (window.IVRender) { this.pts.layers.set(IVRender.SOFT); IVRender.addSoft(this); }
+  }
+  SoftSys.prototype = Object.create(PSys.prototype);
+  SoftSys.prototype.live = function () { return this.n; };
+  SoftSys.prototype.update = function (dt) {
+    PSys.prototype.update.call(this, dt);
+    this.geo.attributes.iPos.needsUpdate = true; this.geo.instanceCount = this.n; this.geo.setDrawRange(0, Infinity);
+  };
+  // the scene's light, for the smoke (called each frame)
+  const _kd = new THREE.Vector3(), _q = new THREE.Quaternion();
+  SoftSys.prototype.light = function (cam) {
+    const U = this.u, sun = W.sun, hemi = W.hemi, R = window.IVRender, info = R && R.lin;
+    U.uSoft.value = info && W.post ? 1 : 0; if (info) { U.tLin.value = info.tex; U.uFull.value.set(info.w, info.h); }
+    if (sun) { _kd.copy(sun.position).sub(sun.target.position).normalize().applyQuaternion(_q.copy(cam.quaternion).invert()); U.uKeyDir.value.copy(_kd); U.uKeyCol.value.copy(sun.color).multiplyScalar(sun.intensity); }
+    if (hemi) { U.uAmbUp.value.copy(hemi.color).multiplyScalar(hemi.intensity); U.uAmbDn.value.copy(hemi.groundColor).multiplyScalar(hemi.intensity); }
+    const fl = W.flashLight; if (fl && fl.intensity > 0) { _kd.copy(fl.position).applyMatrix4(cam.matrixWorldInverse); U.uFlash.value.set(_kd.x, _kd.y, _kd.z, fl.intensity * 0.7); U.uFlashC.value.copy(fl.color); } else U.uFlash.value.w = 0;
+    const f = W.scene.fog; if (f) { U.fogC.value.copy(f.color); U.fogD.value = f.near != null && f.near < 0.5 && f.near > 0 ? f.near : (f.density || 0.01); }
+  };
+  // a puff: soft round body with ragged, lumpy edges (alpha), light in its middle (r), small-scale texture (g)
+  let puffT = null;
+  function puffTex() {
+    if (puffT) return puffT;
+    const N = 128, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), img = g.createImageData(N, N), R = IV.rng(23);
+    const oct = [];
+    for (let o = 0; o < 4; o++) { const n = 4 << o, a = new Float32Array((n + 1) * (n + 1)); for (let i = 0; i < a.length; i++) a[i] = R(); for (let j = 0; j <= n; j++) a[j * (n + 1) + n] = a[j * (n + 1)]; for (let i = 0; i <= n; i++) a[n * (n + 1) + i] = a[i]; oct.push([n, a]); }
+    const noise = (u, v) => { let s = 0, w = 0.5, tw = 0; for (const [n, a] of oct) { const x = u * n, y = v * n, i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy), k = (ii, jj) => a[(jj % (n + 1)) * (n + 1) + (ii % (n + 1))];
+      s += w * ((k(i, j) * (1 - sx) + k(i + 1, j) * sx) * (1 - sy) + (k(i, j + 1) * (1 - sx) + k(i + 1, j + 1) * sx) * sy); tw += w; w *= 0.5; } return s / tw; };
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const u = x / N, v = y / N, dx = u - 0.5, dy = v - 0.5, r = Math.hypot(dx, dy) * 2, n = noise(u, v), n2 = noise(u * 2 + 0.3, v * 2 + 0.7);
+      const edge = 1 - Math.min(1, Math.max(0, (r - 0.35 + (n - 0.5) * 0.7) / 0.6));
+      const al = Math.pow(Math.max(0, edge), 1.2) * (0.7 + 0.3 * n2), q = (y * N + x) * 4;
+      img.data[q] = Math.round(255 * Math.max(0, 1 - r) ); img.data[q + 1] = Math.round(255 * n2); img.data[q + 2] = 0; img.data[q + 3] = Math.round(255 * Math.min(1, al));
+    }
+    g.putImageData(img, 0, 0); puffT = new THREE.CanvasTexture(c); puffT.premultiplyAlpha = false; return puffT;
+  }
+
   let add, norm, tracerMesh, tracerPos, tracers = [], casings = [], casingIM, decals = [], decalIM, holes = [], holeIM, flashes = [], flashSprites = [], rings = [], fires = [], flares = [];
   FX.init = function () {
     // capped by quality: soft particles cost fill rate, the first thing a school laptop runs out of
     add = new PSys([500, 800, 1100][W.quality], true, W.tex.glow());
-    norm = new PSys([350, 700, 1000][W.quality], false, W.tex.smoke());
+    if (window.IVRender) IVRender.clearSoft();
+    norm = new SoftSys([350, 700, 1000][W.quality]);
     W.scene.add(add.pts); W.scene.add(norm.pts);
     // tracers: up to 48 quads in one dynamic mesh
     const g = new THREE.BufferGeometry(); tracerPos = new Float32Array(48 * 6 * 3);
@@ -114,11 +196,11 @@
   // reads on a soldier 30 m away would cover a third of the screen, so it is drawn much smaller and for a shorter time.
   FX.muzzle = function (x, y, z, dx, dy, dz, big, near) {
     const s = flashSprites.find(s => !s.visible) || flashSprites[0];
-    s.position.set(x + dx * 0.05, y + dy * 0.05, z + dz * 0.05); const k = (big ? 0.7 : 0.45) * (near ? 0.36 : 1); s.scale.set(k * rr(0.8, 1.2), k * rr(0.8, 1.2), 1); s.material.rotation = R() * 6.28; s.material.opacity = 1; s.visible = true; s.userData.t = s.userData.t0 = near ? 0.035 : 0.05;
+    s.position.set(x + dx * 0.05, y + dy * 0.05, z + dz * 0.05); const k = (big ? 0.7 : 0.45) * (near ? 0.36 : 1); s.scale.set(k * rr(0.8, 1.2), k * rr(0.8, 1.2), 1); s.material.rotation = R() * 6.28; s.material.opacity = 1; s.visible = true; s.userData.t = s.userData.t0 = near ? rr(0.036, 0.056) : 0.05;   // first person: 36-56 ms, a little different each shot
     flashes.push(s);
     for (let i = 0; i < (big ? 6 : 3); i++) add.emit(x + dx * 0.1, y + dy * 0.1, z + dz * 0.1, dx * rr(2, 6) + rr(-0.5, 0.5), dy * rr(2, 6) + rr(-0.5, 0.5), dz * rr(2, 6) + rr(-0.5, 0.5), rr(0.04, 0.08), 0.12, 0.05, 1, 0.75, 0.4, 1, 3, 0);
     for (let i = 0; i < (big ? 2 : 1); i++) norm.emit(x + dx * 0.15, y + dy * 0.15, z + dz * 0.15, dx * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.2, 0.6), dz * rr(0.5, 1.5) + rr(-0.2, 0.2), rr(0.6, 1.2), 0.15, 0.6, 0.55, 0.55, 0.55, big ? 0.35 : 0.2, 1.5, -0.2);
-    W.flashAt(x, y, z, big ? 9 : 6, 1, 0.06);
+    W.flashAt(x, y, z, big ? 9 : 6, 1, near ? s.userData.t0 : 0.06);
   };
   FX.tracer = function (b) { tracers.push(b); }; // reads b.x,y,z,vx,vy,vz each frame while b.alive
   FX.casing = function (x, y, z, vx, vy, vz) {
@@ -224,17 +306,15 @@
   FX.explosion = function (x, y, z, big) {
     const k = big ? 1.8 : 1;
     W.flashAt(x, y + 1, z, 40 * k, 3, big ? 1.2 : 0.5, 0xffb060);
-    for (let i = 0; i < 40 * k; i++) { const a = R() * 6.28, e = R() * 1.4, sp = rr(4, 14) * k; add.emit(x, y + 0.5, z, Math.cos(a) * Math.cos(e) * sp, Math.sin(e) * sp + 2, Math.sin(a) * Math.cos(e) * sp, rr(0.3, 0.8), rr(0.8, 1.6) * k, rr(2, 3.5) * k, 1, rr(0.45, 0.7), 0.2, 1, 3.5, -1); }
+    for (let i = 0; i < 40 * k; i++) { const a = R() * 6.28, e = R() * 1.4, sp = rr(4, 14) * k; add.emit(x, y + 0.5, z, Math.cos(a) * Math.cos(e) * sp, Math.sin(e) * sp + 2, Math.sin(a) * Math.cos(e) * sp, rr(0.2, 0.5), rr(0.5, 1.0) * k, rr(1.2, 2.0) * k, 1, rr(0.45, 0.7), 0.2, 0.8, 3.5, -1); }
     for (let i = 0; i < 30 * k; i++) add.emit(x, y + 0.5, z, rr(-18, 18), rr(4, 22), rr(-18, 18), rr(0.5, 1.5), 0.08, 0.04, 1, 0.7, 0.3, 1, 0.5, 9.8);
     for (let i = 0; i < 26 * k; i++) norm.emit(x, y + 0.5, z, rr(-9, 9), rr(5, 16), rr(-9, 9), rr(1.2, 2.6), rr(0.06, 0.18), 0.1, 0.12, 0.1, 0.08, 1, 0.3, 9.8);
-    for (let i = 0; i < 30 * k; i++) norm.emit(x + rr(-1, 1), y + rr(0.5, 2), z + rr(-1, 1), rr(-2, 2), rr(2, 7), rr(-2, 2), rr(4, 9), rr(1, 2) * k, rr(5, 9) * k, 0.1, 0.09, 0.08, 0.75, 0.6, -0.2);
-    for (let i = 0; i < 36; i++) { const a = i / 36 * 6.28; norm.emit(x, W.height(x, z) + 0.3, z, Math.cos(a) * 12 * k, 0.3, Math.sin(a) * 12 * k, rr(1.5, 2.5), 0.8, 3.5 * k, 0.42, 0.38, 0.32, 0.5, 1.8, 0); }
+    for (let i = 0; i < 30 * k; i++) norm.emit(x + rr(-1, 1), y + rr(0.5, 2), z + rr(-1, 1), rr(-2, 2), rr(2, 7), rr(-2, 2), rr(4, 9), rr(0.9, 1.5) * k, rr(3, 5) * k, 0.13, 0.12, 0.11, 0.7, 0.6, -0.2);
+    for (let i = 0; i < 28; i++) { const a = i / 28 * 6.28 + rr(-0.12, 0.12), sp = rr(5, 13) * k; norm.emit(x, W.height(x, z) + rr(0.2, 0.9), z, Math.cos(a) * sp, rr(0.3, 1.6), Math.sin(a) * sp, rr(1.5, 2.5), 0.7, 2.6 * k, 0.36, 0.32, 0.27, 0.4, 1.8, 0); }
     // smoke lit from inside by the fireball, then the scorch left on the ground
-    for (let i = 0; i < 10 * k; i++) norm.emit(x + rr(-0.6, 0.6), y + rr(0.3, 1.2), z + rr(-0.6, 0.6), rr(-1.5, 1.5), rr(2, 5), rr(-1.5, 1.5), rr(1.2, 2.2), rr(0.8, 1.4) * k, rr(3, 5) * k, 0.42, 0.24, 0.11, 0.7, 0.8, -0.3);
+    for (let i = 0; i < 10 * k; i++) norm.emit(x + rr(-0.6, 0.6), y + rr(0.3, 1.2), z + rr(-0.6, 0.6), rr(-1.5, 1.5), rr(2, 5), rr(-1.5, 1.5), rr(1.0, 1.8), rr(0.7, 1.2) * k, rr(2.2, 3.4) * k, 0.3, 0.17, 0.08, 0.6, 0.8, -0.3);
     FX.hole(x, W.height(x, z) + 0.02, z, 0, 1, 0, 2.6 * k);
-    // shockwave ring
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffe6c0, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(x, W.height(x, z) + 0.4, z); W.scene.add(ring); rings.push({ m: ring, t: 0, k });
+    // (no drawn shockwave ring: a hard additive ring read as a cream arc over everything; the dust ring above is it)
   };
   // a lingering fire: flickering light and embers + smoke for a while
   FX.fire = function (x, y, z, dur, r) {
@@ -260,7 +340,8 @@
   FX.frame = function (dt) {
     const c = cam();
     const scale = W.renderer.domElement.height / (2 * Math.tan(c.fov * Math.PI / 360));
-    for (const s of [add, norm]) { s.mat.uniforms.uScale.value = scale; if (W.scene.fog) { s.mat.uniforms.fogC.value.copy(W.scene.fog.color); s.mat.uniforms.fogD.value = W.scene.fog.density || 0.01; } s.update(dt); }
+    add.mat.uniforms.uScale.value = scale; if (W.scene.fog) { add.mat.uniforms.fogC.value.copy(W.scene.fog.color); add.mat.uniforms.fogD.value = W.scene.fog.density || 0.01; } add.update(dt);
+    norm.update(dt); norm.light(c);
     for (let i = flashes.length - 1; i >= 0; i--) { const s = flashes[i]; s.userData.t -= dt; s.material.opacity = Math.max(0, s.userData.t / s.userData.t0) * 0.6 + 0.4; if (s.userData.t <= 0) { s.visible = false; flashes.splice(i, 1); } }
     // tracers
     let q = 0; const cp = c.position, tp = tracerPos, tcol = tracerMesh.geometry.attributes.color.array;

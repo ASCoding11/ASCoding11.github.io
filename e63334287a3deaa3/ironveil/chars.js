@@ -13,26 +13,7 @@
  *   actor.onFinished = fn(name) for one-shot clips, actor.leftHandIK (0..1 override, default automatic).
  * If any file fails, a code-made skinned human with procedural animation is used instead (info.fallback = true).
  *
- * First person (fp.glb + fp.json, loaded by load()):
- *   IVChars.viewmodel(kind) -> vm | null   kind 'rifleScoped' | 'smg' | 'pistol'
- *     vm.group     THREE.Group: add it to the viewmodel camera. Its origin is the eye; it looks down -Z, +Y up, +X right
- *                  (the camera's own frame), metres. Drawn with FOV ~55 and near 0.01 (nearest vertex in any clip: fp.json).
- *     vm.drive(state, dt) -> events[]   call once per frame. state = { ads: 0..1, sprint: 0..1 } blends the looping
- *                  base clips idle / ads / sprint; a one-shot from play() fades in over them and back out when it ends.
- *                  Returns the clip events crossed this frame: [{ clip, name, time }] (also vm.onEvent(name, clip)).
- *     vm.play(name, { fade, speed, loop }) -> seconds   one-shot clips (names in vm.clips):
- *                  fire (fireAds is picked automatically when state.ads > 0.5), reload, reloadEmpty, boltCycle (rifle),
- *                  charge (SMG), draw, holster, sprintIn, sprintOut, grenade, melee, interact, binoculars (holds at the
- *                  eye until binocularsLower). Events: shot; magOut, magIn, done; boltUp, boltBack, eject, boltForward,
- *                  boltDown; charge; slide; pin, release (throw the grenade from vm.sockets.prop at 'release'); hit;
- *                  touch; atEye; ready.
- *     vm.stop(fade), vm.isPlaying(name), vm.current, vm.clipLength(name), vm.events(name)
- *     vm.sockets   { muzzle, ejection, scopeEye (rifle), sightRear, sightFront, handR, handL, prop, weapon }: Object3Ds,
- *                  read their world matrices after drive(). vm.muzzle, vm.ejection, vm.scopeEye are the same objects.
- *     vm.adsOffset { position, quaternion }: the group transform that moves the hip pose onto the sight line, for a
- *                  game that moves the group itself instead of blending to the ads clip (do one or the other).
- *     vm.weapon (the weapon model; moving parts ride on bones w_bolt, w_mag ...), vm.bones, vm.mixer, vm.tris(),
- *     vm.setVisible(b), vm.dispose(). IVChars.fpClips(kind) lists the clip names.
+ * First person: the gun and hands the player sees are js/vm.js and js/hands.js (not this file).
  *   actor.setFirstPerson(true|false)   the player's body for looking down: no head, neck or arms, eyes/hair and the
  *                  held weapon hidden, a full shadow kept (an invisible copy casts it); call after attach().
  *
@@ -67,7 +48,7 @@
 
   // ---------- kinds and files
   var FILES = {
-    hero: 'hero.glb', ally: 'ally.glb', enemy: 'enemy.glb', anims: 'anims.glb', weapons: 'weapons.glb', fp: 'fp.glb'
+    hero: 'hero.glb', ally: 'ally.glb', enemy: 'enemy.glb', anims: 'anims.glb', weapons: 'weapons.glb'
   };
   // which meshes of which file make each kind (enemy.glb holds all four enemy outfits + their LODs on one body)
   var KINDS = {
@@ -130,6 +111,7 @@
     }
     if (m.normalMap) m.normalScale.set(1, 1);
     if (m.map) m.map.anisotropy = 4;
+    if (window.IVEnv && IVEnv.rimPatch) IVEnv.rimPatch(m);   // edge light so a soldier reads against the dark (env/rooms.js)
   }
 
   // ---------- clips
@@ -222,7 +204,7 @@
   // ---------- load
   IV.load = function (onProgress) {
     if (IV._loading) return IV._loading;
-    var seen = {}, totals = { hero: 2.9e6, ally: 2.9e6, enemy: 3.2e6, anims: 1.2e6, weapons: 8e6, fp: 3e6 };
+    var seen = {}, totals = { hero: 2.9e6, ally: 2.9e6, enemy: 3.2e6, anims: 1.2e6, weapons: 8e6 };
     function prog(name, loaded, total) {
       seen[name] = loaded; if (total) totals[name] = total;
       var a = 0, b = 0;
@@ -238,10 +220,8 @@
       }));
     }).then(function () {
       if (gltf.anims) prepClips(gltf.anims.animations);
-      if (gltf.fp) prepFP(gltf.fp);
       return Promise.all([
-        fetch(ASSETS + 'anims.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { META = j; }, function () { META = {}; }),
-        fetch(ASSETS + 'fp.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { FPMETA = j; }, function () { FPMETA = null; })
+        fetch(ASSETS + 'anims.json?v=' + VERSION).then(function (r) { return r.json(); }).then(function (j) { META = j; }, function () { META = {}; })
       ]);
     }).then(function () {
       if (gltf.weapons) prepWeapons(gltf.weapons);
@@ -286,234 +266,6 @@
     o.userData.long = !!LONG[kind];
     return o;
   };
-
-  // ---------- first-person viewmodel (fp.glb + fp.json)
-  // Arms and hands from the hero's body with rolled smock sleeves and a wristwatch, on their own skeleton whose
-  // origin is the eye (looking down -Z, +Y up, +X right: the camera's frame). The weapon is a clone of the normal
-  // weapon model whose moving parts ride on skeleton bones (w_root, w_bolt, w_boltHandle, w_mag, w_trigger,
-  // w_hammer, w_charging) and a w_prop bone carries the grenade or the binoculars. Every clip is per weapon kind.
-  var FPMETA = null, FPCLIPS = {};
-  var FP_PARTS = ['bolt', 'boltHandle', 'mag', 'trigger', 'hammer', 'charging'];
-  var FP_BASE = { idle: 1, ads: 1, sprint: 1 };
-  function prepFP(g) {
-    g.animations.forEach(function (c) {
-      c.tracks.forEach(function (t) { if (/\.scale$/.test(t.name) && !/^w_(mag|prop)\./.test(t.name)) t._drop = true; });
-      c.tracks = c.tracks.filter(function (t) { return !t._drop; });
-      FPCLIPS[c.name] = c;
-    });
-    g.scene.traverse(function (o) { if (o.isMesh) { prepMaterial(o.material); if (o.material.map) o.material.map.anisotropy = 8; gloveMaterial(o.material); } });
-  }
-  // The gloves: the arms' atlas (tools/chars/fp_tex.py) already paints dark brown leather with lighter polished
-  // knuckles and fingertips; this shader only takes the brown texels (red over green over blue; the smock sleeve is
-  // green-grey, the watch steel grey) a little darker and greyer, and holds their roughness at 0.46-0.62 so the
-  // knuckles and the back of the hand catch a soft highlight instead of reading as one flat dark shape. The arms'
-  // normal map is run at 1.7 so seams, folds and the sleeve's weave show at arm's length. IV.fpGloveWet (0..1, set
-  // by the game from the rain, eased down under a roof) darkens the leather a little more and makes it glossier,
-  // like the ground and walls when wet. Material only: no asset change.
-  IV.fpGloveWet = { value: 0 };
-  function gloveMaterial(m) {
-    if (!m || m.userData.glove) return; m.userData.glove = true;
-    m.onBeforeCompile = function (sh) {
-      sh.uniforms.uGloveWet = IV.fpGloveWet;
-      IVEnv.patch(sh, 'fragment', '#include <map_fragment>',
-        '#include <map_fragment>\n' +
-        '  float gl = smoothstep(0.18, 0.36, (diffuseColor.r - diffuseColor.g) / max(diffuseColor.r, 1e-4)) * step(diffuseColor.b, diffuseColor.g * 1.15);\n' +
-        '  vec3 lea = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11))), 0.2) * vec3(0.90, 0.85, 0.80);\n' +
-        '  lea *= 1.0 - 0.22 * uGloveWet;\n' +
-        '  diffuseColor.rgb = mix(diffuseColor.rgb, lea, gl);\n' +
-        '  float gloveK = gl;', 'chars glove');
-      IVEnv.patch(sh, 'fragment', '#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' +
-        '  roughnessFactor = mix(roughnessFactor, mix(clamp(roughnessFactor, 0.46, 0.62), 0.32, uGloveWet), gloveK);', 'chars glove');
-      sh.fragmentShader = 'uniform float uGloveWet;\n' + sh.fragmentShader;
-    };
-    m.customProgramCacheKey = function () { return 'fpglove3'; };
-    if (m.normalMap) m.normalScale.set(1.7, 1.7);   // seams, knuckle folds and the sleeve's weave read at arm's length
-  }
-  IV.fpClips = function (kind) {
-    return Object.keys(FPCLIPS).filter(function (n) { return n.indexOf(kind + '.') === 0; }).map(function (n) { return n.slice(kind.length + 1); });
-  };
-  IV.viewmodel = function (kind) {
-    var g = gltf.fp;
-    if (!g || !WTEMPLATES[kind] || !FPCLIPS[kind + '.idle']) return null;
-    var root = T.SkeletonUtils.clone(g.scene);
-    var group = new T.Group(); group.name = 'viewmodel_' + kind; group.add(root);
-    var bones = {}, meshes = [];
-    root.traverse(function (o) {
-      if (o.isBone) bones[o.name] = o;
-      if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; meshes.push(o); }
-    });
-    var gun = IV.weapon(kind);
-    var parts = {};
-    FP_PARTS.forEach(function (p) { var n = gun.getObjectByName(kind + '_' + p); if (n) parts[p] = n; });
-    bones.w_root.add(gun); gun.position.set(0, 0, 0); gun.quaternion.identity();
-    FP_PARTS.forEach(function (p) {
-      var n = parts[p], b = bones['w_' + p];
-      if (!n || !b) return;
-      b.add(n); n.position.set(0, 0, 0); n.quaternion.identity(); n.scale.set(1, 1, 1);
-    });
-    gun.traverse(function (o) { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } });
-    // contact shading: the gun darkens where the hands sit (palms, knuckle lines, thumbs), so hands and gun read as
-    // touching. Own material copies for this viewmodel; six points in view space, updated in drive().
-    var occPts = []; for (var oi = 0; oi < 6; oi++) occPts.push(new T.Vector3(0, -99, 0));
-    var occBones = ['hand_r', 'middle_01_r', 'thumb_02_r', 'hand_l', 'middle_01_l', 'thumb_02_l'];
-    gun.traverse(function (o) {
-      if (!o.isMesh) return;
-      var mats = Array.isArray(o.material) ? o.material : [o.material];
-      mats = mats.map(function (m0) {
-        var m = m0.clone();
-        // steel reflects the arms' own sky cube a little harder than the world does (js/fp.js vmEnv), so a
-        // highlight runs along the receiver and barrel; wood and the glass keep the default
-        if (m.metalnessMap && !/glass/.test(m.name)) m.envMapIntensity = 1.5;
-        m.onBeforeCompile = function (sh) {
-          sh.uniforms.uOccPts = { value: occPts };
-          IVEnv.patch(sh, 'vertex', '#include <project_vertex>', '#include <project_vertex>\n  vOccPos = (modelMatrix * vec4(transformed, 1.0)).xyz;', 'chars viewmodel contact shading');
-          sh.vertexShader = 'varying vec3 vOccPos;\n' + sh.vertexShader;
-          var f = 'uniform vec3 uOccPts[6];\nvarying vec3 vOccPos;\n' +
-            'float vmOcc() { float o = 0.0; for (int i = 0; i < 6; i++) { vec3 d = vOccPos - uOccPts[i]; o += exp(-dot(d, d) / 0.0009); } return 1.0 - 0.5 * clamp(o, 0.0, 1.0); }\n';
-          // r187: the final write is the opaque_fragment chunk (r128: output_fragment)
-          IVEnv.patch(sh, 'fragment', '#include <opaque_fragment>', 'outgoingLight *= vmOcc();\n#include <opaque_fragment>', 'chars viewmodel contact shading');
-          sh.fragmentShader = f + sh.fragmentShader;
-        };
-        m.customProgramCacheKey = function () { return 'vmocc'; };
-        return m;
-      });
-      o.material = Array.isArray(o.material) ? mats : mats[0];
-    });
-    var sling = gun.getObjectByName(kind + '_sling'); if (sling) sling.visible = false;   // a loose sling would hang across the view
-    var props = {};
-    ['grenade', 'binoculars'].forEach(function (k) {
-      if (!WTEMPLATES[k]) return;
-      var o = IV.weapon(k); o.visible = false; bones.w_prop.add(o); props[k] = o;
-      o.traverse(function (m) { if (m.isMesh) m.frustumCulled = false; });
-    });
-    var mixer = new T.AnimationMixer(root);
-    var meta = (FPMETA && FPMETA.clips) || {}, kmeta = (FPMETA && FPMETA.kinds && FPMETA.kinds[kind]) || {};
-    var base = {}, one = null, oneName = null, oneT = 0, fired = {};
-    Object.keys(FP_BASE).forEach(function (n) {
-      var c = FPCLIPS[kind + '.' + n]; if (!c) return;
-      var a = mixer.clipAction(c); a.setLoop(T.LoopRepeat, Infinity); a.play(); a.setEffectiveWeight(n === 'idle' ? 1 : 0); base[n] = a;
-    });
-    // the hip-to-sights raise: a solved clip held at time = ads (blending the hip and ADS loops in the mixer swings
-    // the hands off the gun half way)
-    var raise = null, raiseC = FPCLIPS[kind + '.adsRaise'];
-    if (raiseC) { raise = mixer.clipAction(raiseC); raise.setLoop(T.LoopOnce, 1); raise.clampWhenFinished = true; raise.timeScale = 0; raise.play(); raise.setEffectiveWeight(0); }
-    function sstep(a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); }
-    var oneW = 0, oneFade = 0.1, oneOut = false, st = { ads: 0, sprint: 0 };
-    // Bones that drive() turns after the mixer (dropElbow: upper arms and hands; aimThumb: thumbs). three.js's
-    // PropertyMixer only writes a bone when the blended value differs from the previous frame's, so on a held pose
-    // (constant tracks) these turns were never undone: after a shot the firing hand kept the fire pose's turn and
-    // drifted, fingers standing up over the pistol's sights. Each frame they get the mixer's last value back first.
-    var procB = ['upperarm_l', 'upperarm_r', 'hand_l', 'hand_r', 'thumb_01_l', 'thumb_01_r'].map(function (n) { return bones[n]; }).filter(Boolean);
-    var procQ = procB.map(function (b) { return b.quaternion.clone(); });
-    function find(o, n) { return o.getObjectByName(kind + '_' + n) || null; }
-    var ao = kmeta.adsOffset;
-    var vm = {
-      kind: kind, group: group, weapon: gun, bones: bones, mixer: mixer,
-      clips: IV.fpClips(kind),
-      muzzle: find(gun, 'muzzle'), ejection: find(gun, 'ejection'), scopeEye: find(gun, 'scopeEye'),
-      sockets: { muzzle: find(gun, 'muzzle'), ejection: find(gun, 'ejection'), scopeEye: find(gun, 'scopeEye'),
-                 sightRear: find(gun, 'sightRear'), sightFront: find(gun, 'sightFront'),
-                 handR: bones.hand_r, handL: bones.hand_l, prop: bones.w_prop, weapon: bones.w_root },
-      adsOffset: ao ? { position: new T.Vector3().fromArray(ao.position), quaternion: new T.Quaternion().fromArray(ao.quaternion) } : null,
-      current: null, onEvent: null,
-      clipLength: function (n) { var c = FPCLIPS[kind + '.' + n]; return c ? c.duration : 0; },
-      events: function (n) { var m = meta[kind + '.' + n]; return m ? m.events : {}; },
-      isPlaying: function (n) { return !!one && oneName === n && !oneOut; },
-      play: function (name, o) {
-        o = o || {};
-        if (name === 'fire' && st.ads > 0.5 && FPCLIPS[kind + '.fireAds']) name = 'fireAds';
-        var c = FPCLIPS[kind + '.' + name];
-        if (!c) return 0;
-        if (one && one.getClip() !== c) one.stop();
-        one = mixer.clipAction(c); oneName = name; oneT = 0; fired = {}; oneOut = false;
-        one.reset(); one.setLoop(o.loop ? T.LoopRepeat : T.LoopOnce, o.loop ? Infinity : 1); one.clampWhenFinished = true;
-        one.timeScale = o.speed || 1; one.play();
-        oneFade = o.fade != null ? o.fade : (/^(fire|fireAds)$/.test(name) ? 0.02 : 0.1);
-        if (oneFade <= 0) oneW = 1;
-        var pm = meta[kind + '.' + name], pr = pm && pm.prop;
-        Object.keys(props).forEach(function (k) { props[k].visible = k === pr; });
-        vm.current = name;
-        return c.duration / (one.timeScale || 1);
-      },
-      stop: function (fade) { if (one) { oneOut = true; oneFade = fade != null ? fade : 0.15; } },
-      drive: function (state, dt) {
-        state = state || {};
-        st.ads = Math.max(0, Math.min(1, state.ads || 0)); st.sprint = Math.max(0, Math.min(1, state.sprint || 0));
-        // one-shot weight: fade in, hold, and fade out to the base layer when finished (binoculars hold until lowered)
-        if (one) {
-          var len = one.getClip().duration, m = meta[kind + '.' + oneName] || {};
-          if (!oneOut && !m.hold && !m.loop && one.time >= len - 1e-4 && oneT > 0) { oneOut = true; oneFade = 0.12; }
-          oneW = oneOut ? Math.max(0, oneW - dt / oneFade) : Math.min(1, oneW + dt / Math.max(1e-3, oneFade));
-          if (oneOut && oneW <= 0) { one.stop(); one = null; oneName = null; vm.current = null; Object.keys(props).forEach(function (k) { props[k].visible = false; }); }
-        }
-        var bw = 1 - (one ? oneW : 0);
-        var wa = st.ads * (1 - st.sprint), ws = st.sprint, wi = Math.max(0, 1 - wa - ws), wr = 0;
-        if (raise) {   // near either end blend with the breathing loops, in between hold the solved raise
-          var ns = 1 - ws, lo = 1 - sstep(0, 0.12, st.ads), hi = sstep(0.88, 1, st.ads);
-          wi = ns * lo; wa = ns * hi; wr = ns * Math.max(0, 1 - lo - hi);
-          raise.time = Math.min(raiseC.duration - 1e-4, st.ads * raiseC.duration);
-          raise.setEffectiveWeight(wr * bw);
-        }
-        if (base.idle) base.idle.setEffectiveWeight(wi * bw);
-        if (base.ads) base.ads.setEffectiveWeight(wa * bw);
-        if (base.sprint) base.sprint.setEffectiveWeight(ws * bw);
-        if (one) one.setEffectiveWeight(oneW);
-        var t0 = one ? one.time : 0;
-        for (var pi = 0; pi < procB.length; pi++) procB[pi].quaternion.copy(procQ[pi]);
-        mixer.update(dt || 0);
-        for (pi = 0; pi < procB.length; pi++) procQ[pi].copy(procB[pi].quaternion);
-        root.updateMatrixWorld(true);
-        if (vm.elbows) { dropElbow(bones, 'l', vm.elbows.l || 0, vm.elbows.out || 0); dropElbow(bones, 'r', vm.elbows.r || 0, vm.elbows.out || 0); }
-        // (vm.thumbL is no longer applied: the pistol clips curl both thumbs down against the grip, below the slide;
-        // laid forward by aimThumb the support thumb rose to the sight line)
-        for (var bi = 0; bi < 6; bi++) { var bb = bones[occBones[bi]]; if (bb) occPts[bi].setFromMatrixPosition(bb.matrixWorld); }
-        if (bones.hand_r && bones.middle_01_r) { occPts[0].lerp(occPts[1], 0.5); occPts[3].lerp(occPts[4], 0.5); }   // palm centres
-        var out = [];
-        if (one) {
-          oneT += dt;
-          var ev = (meta[kind + '.' + oneName] || {}).events || {}, t1 = one.time;
-          for (var e in ev) if (!fired[e] && t1 >= ev[e]) { fired[e] = 1; out.push({ clip: oneName, name: e, time: ev[e] }); if (vm.onEvent) try { vm.onEvent(e, oneName); } catch (x) {} }
-        }
-        return out;
-      },
-      setVisible: function (b) { group.visible = b; },
-      tris: function () { var n = 0; group.traverse(function (o) { if (o.isMesh && o.visible) { var gg = o.geometry; n += (gg.index ? gg.index.count : gg.attributes.position.count) / 3; } }); return Math.round(n); },
-      dispose: function () { mixer.stopAllAction(); mixer.uncacheRoot(root); if (group.parent) group.parent.remove(group); }
-    };
-    vm.drive({}, 0);
-    return vm;
-  };
-
-  // vm.elbows = { l: 0..1, r: 0..1, out }: the game can swing each elbow down (and `out` sideways) about the line
-  // from the shoulder to the hand, by that share of the way, after the clip is applied. The hand keeps its place and
-  // its turn, so the grip on the gun is untouched; only the forearm's path changes. With the elbows level the
-  // forearms ran forward along the view under a pistol held at the eye (two sleeves up the middle of the screen);
-  // dropped, they fall away steeply out of the bottom of the frame.
-  var _ea = new T.Vector3(), _es = new T.Vector3(), _eh = new T.Vector3(), _ee = new T.Vector3(), _ed = new T.Vector3(), _ex = new T.Vector3();
-  var _eq = new T.Quaternion(), _eq2 = new T.Quaternion();
-  function dropElbow(bones, s, k, out) {
-    var ua = bones['upperarm_' + s], la = bones['lowerarm_' + s], h = bones['hand_' + s];
-    if (!ua || !la || !h || !(k > 0.001)) return;
-    worldPos(ua, _es); worldPos(h, _eh); worldPos(la, _ee);
-    _ea.copy(_eh).sub(_es); if (_ea.lengthSq() < 1e-8) return; _ea.normalize();
-    _ee.sub(_es); _ee.addScaledVector(_ea, -_ee.dot(_ea)); if (_ee.lengthSq() < 1e-8) return; _ee.normalize();
-    _ed.set(s === 'l' ? -out : out, -1, 0); _ed.addScaledVector(_ea, -_ed.dot(_ea)); if (_ed.lengthSq() < 1e-8) return; _ed.normalize();
-    var ang = Math.atan2(_ex.crossVectors(_ee, _ed).dot(_ea), _ee.dot(_ed));
-    worldQuat(h, _eq2);
-    rotWorld(ua, _eq.setFromAxisAngle(_ea, ang * Math.min(1, k)));
-    setWorldQuat(h, _eq2);
-  }
-
-  // vm.thumbL = 0..1: the support thumb laid forward along the frame (a thumbs-forward pistol grip) by that share;
-  // the clip's pistol grip left it sticking straight out sideways from the hands
-  var _tq = new T.Quaternion();
-  function aimThumb(bones, s, k) {
-    var t1 = bones['thumb_01_' + s], tip = bones['thumb_04_leaf_' + s] || bones['thumb_03_' + s]; if (!t1 || !tip) return;
-    worldPos(t1, _es); worldPos(tip, _eh); _ed.copy(_eh).sub(_es); if (_ed.lengthSq() < 1e-8) return; _ed.normalize();
-    _ex.set(s === 'l' ? 0.3 : -0.3, 0.1, -1).normalize();
-    _tq.setFromUnitVectors(_ed, _ex); _eq.identity().slerp(_tq, Math.min(1, k));
-    rotWorld(t1, _eq);
-  }
 
   // ---------- math helpers
   var _v1 = new T.Vector3(), _v2 = new T.Vector3(), _v3 = new T.Vector3(), _v4 = new T.Vector3(), _v5 = new T.Vector3();
@@ -595,7 +347,7 @@
   // closing into the clip's fist through them. Right: round the wrist of the stock or the pistol grip with the
   // index finger laid along the trigger guard (on the trigger while firing). Left: cupping the fore-end from
   // below with the thumb up the side. Joint split per finger: base, middle, tip.
-  var GRIPF = {   // fitted with tools/chars/gripopt.js: right/left hand offsets (weapon frame) and curl scales
+  var GRIPF = {   // right/left hand offsets (weapon frame) and curl scales for the third-person bodies
     rifle: { r: { index: 0.088, middle: 0.44, ring: 0.475, pinky: 0.51, thumb: 0.132, trigger: 0.334, off: [0.041, 0.04, 0] },
             l: { index: 0.18, middle: 0.34, ring: 0.38, pinky: 0.42, thumb: 0.05, off: [-0.016, -0.016, 0.01] } },
     enemyRifle: { r: { index: 0.091, middle: 0.455, ring: 0.491, pinky: 0.528, thumb: 0.137, trigger: 0.346, off: [0.035, 0.044, 0] },
