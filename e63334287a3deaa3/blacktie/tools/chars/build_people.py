@@ -24,5 +24,7 @@ H['chest_bvh'] = G.bvh_of(body)
 print('delete', len(dele), 'removed', P.delete_body_verts(body, H['used'], dele))
 TD = L.WORK + '/tex_' + KIND; os.makedirs(TD, exist_ok=True)
 O.dress(KIND, SPEC, H, worn, TD)
+for o in [body] + [w for _, w in worn] + ([bpy.data.objects['C_vest']] if bpy.data.objects.get('C_vest') else []):
+    print('shoulders', o.name, P.smooth_shoulders(o, H))
 bpy.ops.wm.save_as_mainfile(filepath=L.WORK + '/%s.blend' % KIND)
 print('saved', KIND)

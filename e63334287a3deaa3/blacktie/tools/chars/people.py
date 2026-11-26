@@ -114,3 +114,42 @@ def material(name, albedo, normal=None, orm=None, alpha=False, rough=0.6):
 def set_mat(ob, m):
     ob.data.materials.clear(); ob.data.materials.append(m)
     for p in ob.data.polygons: p.material_index = 0
+
+
+def smooth_shoulders(ob, H, radius=0.2, iters=10):
+    """The rest pose is a T-pose; with the arms down, MakeHuman's tight shoulder weights fold the deltoid into the
+    chest and leave the top of the shoulder standing as a ridge (boxy jacket shoulders). Average every vertex group's
+    weights with the neighbours' for the vertices round each shoulder joint, so the bend is spread over the shoulder."""
+    me = ob.data
+    centres = [H['J']['upperarm_l'][0], H['J']['upperarm_r'][0]]
+    sel = [v.index for v in me.vertices if min((v.co - c).length for c in centres) < radius]
+    if not sel: return 0
+    selset = set(sel)
+    adj = {i: set() for i in sel}
+    for e in me.edges:
+        a, b = e.vertices
+        if a in selset: adj[a].add(b)
+        if b in selset: adj[b].add(a)
+    ng = len(ob.vertex_groups)
+    W = {}
+    need = set(sel)
+    for i in sel: need |= adj[i]
+    for i in need:
+        W[i] = {g.group: g.weight for g in me.vertices[i].groups}
+    for _ in range(iters):
+        new = {}
+        for i in sel:
+            acc = dict(W[i]); n = 1
+            for j in adj[i]:
+                for g, w in W[j].items(): acc[g] = acc.get(g, 0) + w
+                n += 1
+            # blend less at the edge of the region so it joins the untouched weights
+            k = max(0.0, 1 - min((me.vertices[i].co - c).length for c in centres) / radius)
+            k = min(1.0, k * 2.5) * 0.7
+            new[i] = {g: W[i].get(g, 0) * (1 - k) + (w / n) * k for g, w in acc.items()}
+        for i in sel: W[i] = new[i]
+    for i in sel:
+        tot = sum(W[i].values()) or 1
+        for g, w in W[i].items():
+            ob.vertex_groups[g].add([i], w / tot, 'REPLACE')
+    return len(sel)
