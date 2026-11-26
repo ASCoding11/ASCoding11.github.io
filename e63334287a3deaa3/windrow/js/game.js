@@ -64,7 +64,7 @@
   }
   function applyQuality() {
     var q = state.set.q;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q === 'high' ? 2 : q === 'medium' ? 1.5 : 1));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, q === 'high' ? 2 : q === 'medium' || touchDev ? 1.5 : 1));
     world.sun.castShadow = q === 'high'; world.blobs.visible = q !== 'high'; world.sun.shadow.needsUpdate = true;
     if (leaves) { state.gone = A.map(function (a, i) { return leaves.share(i); }); leaves.dispose(); state.leaves = null; }
     leaves = WR.leaves = new WR.Leaves(scene, state, WR.QUALITY[q]); leaves.onGone = onGone; needRender = true;
@@ -87,6 +87,7 @@
   function playing() { return inGame && !ov.length; }
   function setTouch() { if (touchUI) return; touchUI = true; document.body.classList.add('touch'); $('howTouch').hidden = false; hudStatic(); }
   addEventListener('touchstart', setTouch, { passive: true });
+  addEventListener('contextmenu', function (e) { if (inGame) e.preventDefault(); });
   addEventListener('keydown', function (e) {
     if (KB.busy()) return;
     if (e.code === 'Escape') { if (ov.length && ov[0] !== 'title' || ov.length > 1) closeTop(); else if (playing()) pause(); return; }
@@ -201,12 +202,12 @@
         if (room <= 0) { fullT -= dt; if (fullT <= 0) { fullT = 2.5; toast(T('Sack full. Empty it at a bin with a red flag')); Au.full(); } }
         else {
           handAcc += HAND_RATE[state.up.hands] * leaves.mul * (kneeling ? 2 : 1) * dt * 1.15; var n = Math.floor(handAcc);
-          if (n > 0) { handAcc -= n; var took = leaves.scoop(tx, tz, reach, Math.min(n, room), p.x, p.z); if (took) { handAnim = 1; tutPicked += took / leaves.mul; if (state.tut === 1 && tutPicked >= 12) tutNext(2); } }
+          if (n > 0) { handAcc -= n; var took = leaves.scoop(tx, tz, reach, Math.min(n, room), p.x, p.z, leaves.alive[curArea] <= 6); if (took) { handAnim = 1; tutPicked += took / leaves.mul; if (state.tut === 1 && tutPicked >= 12) tutNext(2); } }
         }
       } else handAcc = 0;
       handAnim = Math.max(0, handAnim - dt * 3);
       var sw = using ? Math.sin(toolT * 13) : 0;
-      vm.rh.position.set(0.25 - handAnim * 0.06, -0.24 - (using ? 0.05 : 0) + sw * 0.03 + (raise - 1) * 0.3, -0.5 - (using ? 0.12 : 0) - sw * 0.04);
+      vm.rh.position.set(0.25 - handAnim * 0.06, -0.2 - (using ? 0.05 : 0) + sw * 0.03 + (raise - 1) * 0.3, -0.5 - (using ? 0.12 : 0) - sw * 0.04);
       vm.ring.material.opacity = using ? 0.8 : 0.4;
     } else if (tool === 1) {
       // a stroke: reach out with the head lifted, drop it, drag it back along the ground
@@ -278,8 +279,9 @@
   function buy(id) {
     var u = UP.filter(function (x) { return x.id === id; })[0], lv = state.up[id]; if (!u || lv >= u.costs.length) return;
     if (u.needs && !state.up[u.needs]) return; var c = u.costs[lv]; if (state.acorns < c) { Au.no(); return; }
-    state.acorns -= c; state.up[id]++; Au.buy(); acDirty = bagDirty = true; vm.refresh(); hudStatic();
-    if (id === 'rake') { tool = state.tool = 1; toast(T('Rake bought. Hold to pull leaves toward you')); } if (id === 'blower') { tool = state.tool = 2; toast(T('Blower bought. Hold to push leaves away')); }
+    state.acorns -= c; state.up[id]++; Au.buy(); acDirty = bagDirty = true; vm.refresh();
+    if (id === 'rake') { tool = state.tool = 1; toolT = 0; toast(T('Rake bought. Hold to pull leaves toward you')); } if (id === 'blower') { tool = state.tool = 2; toolT = 0; toast(T('Blower bought. Hold to push leaves away')); }
+    hudStatic();
     if (state.tut === 3) tutNext(4);
     save(); renderJournal();
   }

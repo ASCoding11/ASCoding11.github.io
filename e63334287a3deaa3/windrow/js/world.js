@@ -284,7 +284,7 @@
     });
     var props = B.mesh(); props.castShadow = props.receiveShadow = true; scene.add(props);
     // tree blob shadows, shown when real shadows are off
-    var blobG = new THREE.CircleGeometry(1, 16), blobM = new THREE.MeshBasicMaterial({ color: 0x1c1a10, transparent: true, opacity: .28, depthWrite: false });
+    var blobG = new THREE.CircleGeometry(1, 30), blobM = new THREE.MeshBasicMaterial({ color: 0x1c1a10, transparent: true, opacity: .2, depthWrite: false });
     out.blobs = new THREE.Group(); TREES.forEach(function (t) { var m = new THREE.Mesh(blobG, blobM); m.rotation.x = -Math.PI / 2; m.position.set(t[0] + .8, .02, t[1] - .5); m.scale.set(3 * t[2], 2.4 * t[2], 1); out.blobs.add(m); }); scene.add(out.blobs);
     // gates: two slatted leaves that swing open, and a sign over each
     WR.GATES.forEach(function (g) {
@@ -293,7 +293,8 @@
         var gb = new Builder(); for (var q = 0; q < 5; q++) gb.box(side * -(0.16 + q * .29), 1.0, 0, .2, 1.9 + (q === 4 ? .2 : 0), .07, q % 2 ? '#3f6b52' : '#386049'); gb.box(side * -.72, .5, .05, 1.4, .1, .05, '#2c4a3a'); gb.box(side * -.72, 1.6, .05, 1.4, .1, .05, '#2c4a3a');
         var m = gb.mesh(); m.castShadow = true; var piv = new THREE.Group(); piv.position.x = side * 1.5; piv.add(m); grp.add(piv); leaves.push({ piv: piv, side: side });
       });
-      var a = WR.AREAS[g.area], sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide })); sign.position.y = 2.75; grp.add(sign);
+      var a = WR.AREAS[g.area], sign = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ transparent: true })); sign.position.set(0, 2.75, .02); grp.add(sign);
+      var back = new THREE.Mesh(sign.geometry, sign.material); back.position.set(0, 2.75, -.02); back.rotation.y = Math.PI; grp.add(back);   // readable from both sides
       grp.position.set(g.x, 0, g.z); if (g.axis === 'z') grp.rotation.y = Math.PI / 2; scene.add(grp);
       out.gates.push({ def: g, leaves: leaves, sign: sign, open: 0, target: 0 });
     });

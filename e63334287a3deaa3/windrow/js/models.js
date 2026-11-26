@@ -11,11 +11,19 @@
 
     // hands and sack
     var hands = vm.hands = new THREE.Group();
-    function glove(side) { var b = new Builder(); b.blob(0, 0, 0, .075, '#d8b27c', .8, 5); b.box(0, -.01, .1, .1, .09, .1, '#c4552d'); b.box(side * -.06, .0, -.03, .04, .04, .08, '#d8b27c'); b.cyl(0, -.01, .22, .045, .05, .16, "#6b7a55", 8); var m = b.mesh(); return m; }
-    var rh = vm.rh = glove(1); rh.position.set(.25, -.24, -.5); rh.rotation.set(-.3, .25, -.2); rh.scale.setScalar(.8); hands.add(rh);
-    var lh = glove(-1); lh.position.set(-.27, -.27, -.5); lh.rotation.set(-.2, -.3, .2); lh.scale.setScalar(.8); hands.add(lh);
+    function glove(side) {
+      var b = new Builder(), tan = '#d8b27c', dark = '#c29a64';
+      b.box(0, 0, 0, .1, .04, .11, tan);                                              // palm
+      for (var f = 0; f < 4; f++) b.box(-.036 + f * .024, .002, -.09 - (f === 1 || f === 2 ? .008 : 0), .02, .032, .075, f % 2 ? dark : tan, (f - 1.5) * -.06);
+      b.box(side * -.062, -.004, -.02, .026, .03, .07, dark, side * -.5);            // thumb
+      b.box(0, 0, .075, .112, .05, .05, '#c4552d');                                   // cuff
+      b.box(0, -.004, .2, .095, .075, .2, '#6b7a55');                                 // sleeve
+      return b.mesh();
+    }
+    var rh = vm.rh = glove(1); rh.position.set(.25, -.2, -.5); rh.rotation.set(-.35, .22, -.12); hands.add(rh);
+    var lh = glove(-1); lh.position.set(-.2, -.24, -.46); lh.rotation.set(-.5, -.5, .3); hands.add(lh);
     var sackB = new Builder(); sackB.blob(0, 0, 0, .16, '#b99a66', 1.15, 9); sackB.cyl(0, .17, 0, .1, .12, .06, '#8f7447', 10); sackB.cyl(0, .2, 0, .085, .085, .01, '#3a2a18', 10);
-    var sack = vm.sack = sackB.mesh(); sack.position.set(-.33, -.46, -.6); hands.add(sack);
+    var sack = vm.sack = sackB.mesh(); sack.position.set(-.3, -.43, -.6); hands.add(sack);
     var fillB = new Builder(); fillB.blob(0, 0, 0, .09, '#c8822c', .6, 21); var fill = vm.sackFill = fillB.mesh(); fill.position.set(0, .2, 0); sack.add(fill);
     vm.scene.add(hands);
 

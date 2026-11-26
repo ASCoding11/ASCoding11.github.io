@@ -83,7 +83,7 @@
     var litter = new THREE.Mesh(litGeo, new THREE.MeshLambertMaterial({ map: litMap, alphaMap: litTex, transparent: true, depthWrite: false }));
     litter.position.set(X0 + GW * CELL / 2, 0.016, Z0 + GH * CELL / 2); litter.receiveShadow = true; litter.renderOrder = 1; scene.add(litter);
     function litterUpdate(dt, all) {
-      litterT += dt; if (!all && (!litterDirty || litterT < 0.12)) return; litterT = 0;
+      litterT += dt; if (!all && (!litterDirty || litterT < 0.2)) return; litterT = 0;
       var moving = false;
       for (var c = GW, o = GW * 4 + 1, end = cnt.length - GW; c < end; c++, o += 4) { var want = (cnt[c] * 2 + cnt[c - 1] + cnt[c + 1] + cnt[c - GW] + cnt[c + GW]) * 70; if (want > 255) want = 255; var have = lit[o]; if (have === want) continue;
         if (all) have = want; else if (have < want) have = Math.min(want, have + 70); else { have = Math.max(want, have - 30); } lit[o] = have; if (have !== want) moving = true; }
@@ -275,14 +275,15 @@
     };
     // hands: the nearest leaves inside the circle fly to the sack. Returns how many were taken.
     var cand = [];
-    this.scoop = function (cx, cz, rad, max, ex, ez) {
+    // (`reachOver`: for the last few leaves of a garden the clear-line rule is dropped, so none can be stranded behind a bench)
+    this.scoop = function (cx, cz, rad, max, ex, ez, reachOver) {
       cand.length = 0;
       eachIn(cx - rad, cz - rad, cx + rad, cz + rad, function (l) { if (st[l] > AWAKE) return; var d = (px[l] - cx) * (px[l] - cx) + (pz[l] - cz) * (pz[l] - cz); if (d < rad * rad) cand.push(l, d); });
       var took = 0;
       while (took < max && cand.length) {
         var best = 1, k; for (k = 3; k < cand.length; k += 2) if (cand[k] < cand[best]) best = k;
         var l = cand[best - 1]; cand[best - 1] = cand[cand.length - 2]; cand[best] = cand[cand.length - 1]; cand.length -= 2;
-        var dx = px[l] - ex, dz = pz[l] - ez, d = Math.hypot(dx, dz) || 1; if (freeDist(ex, ez, dx / d, dz / d, d) < d - 0.05) continue;
+        var dx = px[l] - ex, dz = pz[l] - ez, d = Math.hypot(dx, dz) || 1; if (!reachOver && freeDist(ex, ez, dx / d, dz / d, d) < d - 0.05) continue;
         if (st[l] === SLEEP) { st[l] = AWAKE; aidx[l] = awakeN; awake[awakeN++] = l; }
         unlink(l); st[l] = TOBAG; tmr[l] = 0; took++; self.touched[area[l]] = true;
       }
