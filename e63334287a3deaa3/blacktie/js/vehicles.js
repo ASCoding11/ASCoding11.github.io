@@ -19,9 +19,9 @@
   var CELL = 8;   // RP.W's broad-phase cell (world.js)
 
   V.TYPES = {
-    city:   { name: 'Lucciola', len: 3.45, wid: 1.56, h: 1.42, wheelR: 0.28, wb: 2.25, track: 1.32, top: 27, accel: 6.2, brake: 15, grip: 0.95, seat: [0.36, 0.42, -0.1], doorZ: 0.0, cols: ['#c8402f', '#e9e2cf', '#7fb2c4', '#e2b23a', '#3d6b4f'] },
-    spider: { name: 'Brezza Spider', len: 4.15, wid: 1.74, h: 1.16, wheelR: 0.32, wb: 2.45, track: 1.46, top: 46, accel: 10.5, brake: 19, grip: 1.2, open: true, seat: [0.38, 0.3, -0.42], doorZ: -0.3, cols: ['#8f1d22', '#1c2a3f', '#d9d4c6', '#1d1d1f'] },
-    boat:   { name: 'Marea launch', len: 6.4, wid: 2.1, h: 1.1, top: 19, accel: 5.5, brake: 5, grip: 0.6, water: true, seat: [0.4, 0.55, -0.4], doorZ: -0.6, cols: ['#6b4026'] }
+    city:   { name: 'Lucciola', len: 3.45, wid: 1.56, h: 1.42, wheelR: 0.28, wb: 2.25, track: 1.32, top: 27, accel: 6.2, brake: 15, grip: 0.95, seat: [0.36, 0.56, -0.25], doorZ: -0.1, cols: ['#c8402f', '#e9e2cf', '#7fb2c4', '#e2b23a', '#3d6b4f'] },
+    spider: { name: 'Brezza Spider', len: 4.15, wid: 1.74, h: 1.16, wheelR: 0.32, wb: 2.45, track: 1.46, top: 46, accel: 10.5, brake: 19, grip: 1.2, open: true, seat: [0.38, 0.4, -0.62], doorZ: -0.4, cols: ['#8f1d22', '#1c2a3f', '#d9d4c6', '#1d1d1f'] },
+    boat:   { name: 'Marea launch', len: 6.4, wid: 2.1, h: 1.1, top: 19, accel: 5.5, brake: 5, grip: 0.6, water: true, seat: [0.4, 0.66, -0.62], doorZ: -0.6, cols: ['#6b4026'] }
   };
 
   // ------------------------------------------------------------------ models
@@ -35,7 +35,7 @@
       wood: std('#7a4a2a', 0.35), deck: std('#c9a26b', 0.5), hull: std('#f1ede3', 0.35) };
     return MAT;
   }
-  function paint(hex) { return new T.MeshPhysicalMaterial({ color: RP.col(hex), roughness: 0.38, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.08 }); }
+  function paint(hex) { return new T.MeshPhysicalMaterial({ color: RP.col(hex), roughness: 0.55, metalness: 0.1, clearcoat: 0.5, clearcoatRoughness: 0.2, envMapIntensity: 0.6 }); }
   // side profile [z, y] extruded across the width (rounded edges), centred on x = 0
   function prof(pts, width, bevel) {
     var sh = new T.Shape(); sh.moveTo(pts[0][0], pts[0][1]);
@@ -48,40 +48,70 @@
   function wheel(R, wdt) {
     var g = new T.Group(), M0 = mats();
     var tyre = new T.Mesh(new T.CylinderGeometry(R, R, wdt, 20), M0.tyre); tyre.rotation.z = Math.PI / 2; tyre.castShadow = true; g.add(tyre);
-    var rim = new T.Mesh(new T.CylinderGeometry(R * 0.62, R * 0.62, wdt * 1.04, 14), M0.rim); rim.rotation.z = Math.PI / 2; g.add(rim);
+    var rim = new T.Mesh(new T.CylinderGeometry(R * 0.64, R * 0.64, wdt * 1.03, 16), M0.rim); rim.rotation.z = Math.PI / 2; g.add(rim);
+    var hub = new T.Mesh(new T.CylinderGeometry(R * 0.2, R * 0.2, wdt * 1.1, 10), M0.dark); hub.rotation.z = Math.PI / 2; g.add(hub);
+    for (var i = 0; i < 5; i++) { var sp = new T.Mesh(new T.BoxGeometry(wdt * 1.06, R * 0.52, R * 0.1), M0.dark); sp.rotation.x = i / 5 * Math.PI * 2; sp.position.set(0, Math.cos(i / 5 * Math.PI * 2) * R * 0.36, Math.sin(i / 5 * Math.PI * 2) * R * 0.36); g.add(sp); }
     return g;
   }
+  // the lower body's outline (clockwise from the rear bumper, over the top, back along the sills) with the two
+  // wheel arches cut into the sill line, so the extrusion has real wheel wells
+  function bodyShape(top, f, r, b0, R, wb) {
+    var sh = new T.Shape(), Ra = R + 0.075, zf = wb / 2, zr = -wb / 2;
+    sh.moveTo(top[0][0], top[0][1]);
+    for (var i = 1; i < top.length; i++) { var p = top[i]; if (p.length === 4) sh.quadraticCurveTo(p[0], p[1], p[2], p[3]); else sh.lineTo(p[0], p[1]); }
+    sh.lineTo(f - 0.14, b0); sh.lineTo(zf + Ra, b0); sh.lineTo(zf + Ra, R); sh.absarc(zf, R, Ra, 0, Math.PI, false);
+    sh.lineTo(zf - Ra, b0); sh.lineTo(zr + Ra, b0); sh.lineTo(zr + Ra, R); sh.absarc(zr, R, Ra, 0, Math.PI, false);
+    sh.lineTo(zr - Ra, b0); sh.lineTo(r + 0.12, b0); sh.closePath();
+    return sh;
+  }
+  function extrude(sh, width, bevel) {
+    var g = new T.ExtrudeGeometry(sh, { depth: Math.max(0.01, width - 2 * bevel), bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel * 0.6, bevelSegments: 3, curveSegments: 12 });
+    g.rotateY(-Math.PI / 2); g.translate((width - 2 * bevel) / 2, 0, 0); return g;
+  }
   function buildCar(ty, hex) {
-    var g = new T.Group(), M0 = mats(), P = paint(hex), L = ty.len, hw = ty.wid / 2, R = ty.wheelR, f = L / 2, r = -L / 2, by = R * 0.75, H = ty.h;
-    var body;
+    var g = new T.Group(), M0 = mats(), P = paint(hex), L = ty.len, hw = ty.wid / 2, R = ty.wheelR, f = L / 2, r = -L / 2, H = ty.h, b0 = 0.17;
+    var yb = ty.open ? 0.72 : 0.88, top;
     if (ty.open) {
-      // low two-seat roadster: long bonnet, cut-down doors, short tail
-      body = prof([[r, by + 0.12], [r + 0.08, by + 0.42], [r + 0.9, by + 0.52], [-0.2, by + 0.5], [0.25, by + 0.52], [f - 0.5, by + 0.44, f - 0.06, by + 0.3], [f, by + 0.1], [f - 0.1, by - 0.02], [r + 0.1, by - 0.02]], ty.wid, 0.12);
-      g.add(mesh(body, P));
-      var ws = prof([[0.22, by + 0.5], [0.3, by + 0.52], [-0.05, H], [-0.1, H]], ty.wid - 0.3, 0.01); g.add(mesh(ws, M0.glass));
-      g.add(mesh(new T.BoxGeometry(ty.wid - 0.34, 0.03, 0.04), M0.chrome, 0, H, -0.08));
-      // cockpit tub, seats, wheel
-      g.add(mesh(new T.BoxGeometry(ty.wid - 0.36, 0.3, 1.25), M0.dark, 0, by + 0.38, -0.55));
-      [-1, 1].forEach(function (s) { g.add(mesh(prof([[-1.0, by + 0.2], [-0.95, by + 0.82], [-0.82, by + 0.82], [-0.72, by + 0.34], [-0.25, by + 0.3], [-0.25, by + 0.2]], 0.46, 0.04), M0.seat, s * 0.38, 0, 0)); });
+      // low two-seat roadster: long bonnet, cut-down doors, a short rounded tail
+      top = [[r + 0.06, b0 + 0.12], [r, 0.42], [r + 0.05, yb - 0.08, r + 0.45, yb - 0.02], [-0.2, yb], [0.38, yb], [f - 0.55, yb - 0.05, f - 0.06, 0.56], [f, 0.38], [f - 0.07, b0 + 0.08]];
     } else {
       // small rounded hatchback
-      body = prof([[r, by + 0.16], [r + 0.03, by + 0.52], [r + 0.2, by + 0.6], [0.55, by + 0.6], [f - 0.35, by + 0.54, f - 0.04, by + 0.36], [f, by + 0.12], [f - 0.08, by - 0.02], [r + 0.08, by - 0.02]], ty.wid, 0.12);
-      g.add(mesh(body, P));
-      var cab = prof([[r + 0.12, by + 0.58], [r + 0.3, H - 0.04, r + 0.55, H], [0.1, H], [0.75, by + 0.6]], ty.wid - 0.16, 0.08); g.add(mesh(cab, P));
-      var gl = prof([[r + 0.2, by + 0.64], [r + 0.38, H - 0.09, r + 0.6, H - 0.05], [0.06, H - 0.05], [0.64, by + 0.64]], ty.wid - 0.13, 0.02); g.add(mesh(gl, M0.glass));
+      top = [[r + 0.06, b0 + 0.12], [r, 0.48], [r + 0.03, yb - 0.08, r + 0.16, yb], [0.62, yb], [f - 0.32, yb - 0.08, f - 0.03, 0.62], [f, 0.42], [f - 0.06, b0 + 0.1]];
     }
-    // steering wheel (for the hands), lamps, bumpers, mirrors
-    var sw = new T.Mesh(new T.TorusGeometry(0.17, 0.016, 6, 16), M0.dark); sw.position.set(ty.seat[0], by + (ty.open ? 0.62 : 0.72), ty.seat[2] + 0.42); sw.rotation.x = -0.45; g.add(sw); g.userData.wheel = sw;
+    g.add(mesh(extrude(bodyShape(top, f, r, b0, R, ty.wb), ty.wid, 0.1), P));
+    g.add(mesh(new T.BoxGeometry(ty.wid - 0.3, 0.2, L - 0.5), M0.dark, 0, b0 + 0.12, 0));        // floor pan / wheel wells
+    if (ty.open) {
+      var ws = prof([[0.33, yb - 0.02], [0.4, yb - 0.02], [0.08, H], [0.03, H]], ty.wid - 0.34, 0.012); g.add(mesh(ws, M0.glass));
+      g.add(mesh(new T.BoxGeometry(ty.wid - 0.36, 0.03, 0.045), M0.chrome, 0, H, 0.055));
+      g.add(mesh(new T.BoxGeometry(ty.wid - 0.4, 0.06, 1.2), M0.dark, 0, yb - 0.015, -0.42));     // the cockpit opening
+      [-1, 1].forEach(function (s) { g.add(mesh(prof([[-1.0, yb - 0.35], [-0.98, yb + 0.2], [-0.86, yb + 0.2], [-0.78, yb - 0.25], [-0.32, yb - 0.28], [-0.32, yb - 0.35]], 0.46, 0.05), M0.seat, s * 0.38, 0, 0)); });
+      g.add(mesh(new T.BoxGeometry(ty.wid - 0.5, 0.05, 0.3), M0.dark, 0, yb + 0.01, 0.2));       // dash top
+    } else {
+      // the glasshouse: glass body, painted roof and pillars
+      g.add(mesh(prof([[r + 0.2, yb - 0.02], [r + 0.36, H - 0.07, r + 0.62, H - 0.03], [0.04, H - 0.03], [0.64, yb - 0.02]], ty.wid - 0.2, 0.09), M0.glass));
+      g.add(mesh(prof([[r + 0.5, H - 0.05], [r + 0.62, H], [0.02, H], [0.1, H - 0.05]], ty.wid - 0.24, 0.05), P));
+      [[-0.28, 0.07], [r + 0.42, 0.12], [0.33, 0.05]].forEach(function (pz, i) { var hgt = H - yb - 0.04; var pm = mesh(new T.BoxGeometry(ty.wid - 0.185, hgt, pz[1]), P, 0, yb + hgt / 2, pz[0]); if (i === 2) pm.rotation.x = -0.62; if (i === 1) pm.rotation.x = 0.35; g.add(pm); });
+      g.add(mesh(new T.BoxGeometry(ty.wid - 0.5, 0.3, 1.1), M0.dark, 0, yb - 0.2, -0.3));
+    }
+    // steering wheel (for the hands), lamps, grille, bumpers, plates, mirrors, door lines and handles
+    var sw = new T.Mesh(new T.TorusGeometry(0.17, 0.016, 6, 16), M0.dark); sw.position.set(ty.seat[0], yb - (ty.open ? 0.02 : 0.1), ty.seat[2] + 0.44); sw.rotation.x = -0.45; g.add(sw); g.userData.wheel = sw;
     [-1, 1].forEach(function (s) {
-      g.add(mesh(new T.SphereGeometry(0.085, 10, 8).scale(1, 0.8, 0.4), M0.head, s * (hw - 0.22), by + 0.33, f - 0.05));
-      g.add(mesh(new T.BoxGeometry(0.2, 0.07, 0.04), M0.tail, s * (hw - 0.2), by + 0.36, r + 0.01));
-      g.add(mesh(new T.BoxGeometry(0.1, 0.06, 0.04), M0.dark, s * (hw + 0.04), by + 0.64, 0.42));
+      g.add(mesh(new T.SphereGeometry(0.095, 12, 8).scale(1, 0.85, 0.5), M0.head, s * (hw - 0.26), ty.open ? 0.5 : 0.56, f - 0.07));
+      g.add(mesh(new T.SphereGeometry(0.1, 12, 6).scale(1.02, 0.87, 0.3), M0.chrome, s * (hw - 0.26), ty.open ? 0.5 : 0.56, f - 0.085));
+      g.add(mesh(new T.BoxGeometry(0.22, 0.08, 0.05), M0.tail, s * (hw - 0.24), ty.open ? 0.5 : 0.62, r + 0.035));
+      g.add(mesh(new T.BoxGeometry(0.11, 0.07, 0.05), ty.open ? M0.chrome : M0.dark, s * (hw + 0.045), yb + 0.05, 0.5));
+      g.add(mesh(new T.BoxGeometry(0.008, yb - b0 - 0.12, 0.012), M0.dark, s * (hw + 0.001), (yb + b0) / 2 + 0.02, 0.48));
+      g.add(mesh(new T.BoxGeometry(0.008, yb - b0 - 0.12, 0.012), M0.dark, s * (hw + 0.001), (yb + b0) / 2 + 0.02, -0.52));
+      g.add(mesh(new T.BoxGeometry(0.014, 0.022, 0.1), M0.chrome, s * (hw + 0.004), yb - 0.1, -0.38));
     });
-    g.add(mesh(new T.BoxGeometry(ty.wid - 0.1, 0.09, 0.08), ty.open ? M0.chrome : M0.dark, 0, by + 0.06, f)); g.add(mesh(new T.BoxGeometry(ty.wid - 0.1, 0.09, 0.08), ty.open ? M0.chrome : M0.dark, 0, by + 0.06, r));
-    // wheels (children so they can spin and steer)
+    g.add(mesh(new T.BoxGeometry(ty.wid * 0.42, 0.11, 0.04), M0.dark, 0, ty.open ? 0.36 : 0.44, f - 0.015));
+    g.add(mesh(new T.BoxGeometry(ty.wid - 0.14, 0.085, 0.09), ty.open ? M0.chrome : M0.dark, 0, b0 + 0.11, f - 0.01)); g.add(mesh(new T.BoxGeometry(ty.wid - 0.14, 0.085, 0.09), ty.open ? M0.chrome : M0.dark, 0, b0 + 0.11, r + 0.01));
+    g.add(mesh(new T.BoxGeometry(0.34, 0.09, 0.012), M0.hull, 0, b0 + 0.24, r - 0.005)); g.add(mesh(new T.BoxGeometry(0.3, 0.08, 0.012), M0.hull, 0, b0 + 0.11, f + 0.04));
+    g.add(mesh(new T.CylinderGeometry(0.025, 0.025, 0.14, 8).rotateX(Math.PI / 2), M0.chrome, -hw + 0.32, b0 + 0.02, r + 0.03));
+    // wheels (children so they can spin and steer), set just inside the arches
     g.userData.wheels = [];
     [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(function (k) {
-      var wl = wheel(R, 0.19), piv = new T.Group(); piv.position.set(k[0] * ty.track / 2, R, k[1] * ty.wb / 2); piv.add(wl); g.add(piv);
+      var wl = wheel(R, 0.2), piv = new T.Group(); piv.position.set(k[0] * (hw - 0.115), R, k[1] * ty.wb / 2); piv.add(wl); g.add(piv);
       g.userData.wheels.push({ piv: piv, spin: wl, front: k[1] > 0 });
     });
     return g;
@@ -111,7 +141,7 @@
     var ty = V.TYPES[type]; if (!ty) return null;
     hex = hex || ty.cols[Math.floor(Math.random() * ty.cols.length)];
     var g = ty.water ? buildBoat(ty, hex) : buildCar(ty, hex);
-    var y = ty.water ? W.water : W.ground(x, z, 500).y;
+    var y = ty.water ? W.water : W.ground(x, z, (W.terrainH ? W.terrainH(x, z) : 0) + 1.2).y;   // on the street, not on a roof above it
     var v = { type: type, ty: ty, g: g, pos: new T.Vector3(x, y, z), yaw: yaw || 0, v: 0, slip: 0, steer: 0, vy: 0, pitch: 0, roll: 0, air: false, driver: null, hp: 100, spinA: 0, bobT: Math.random() * 6 };
     g.position.copy(v.pos); g.rotation.set(0, v.yaw, 0, 'YXZ');
     RP.R.scene.add(g);
@@ -276,7 +306,7 @@
     v.hit = 0;
     // the player rides in the seat
     var c = Math.cos(v.yaw), s = Math.sin(v.yaw), se = v.ty.seat;
-    p.pos.set(v.pos.x + se[0] * c + se[2] * s, v.pos.y + se[1] - 0.42, v.pos.z - se[0] * s + se[2] * c);
+    p.pos.set(v.pos.x + se[0] * c + se[2] * s, v.pos.y + se[1] - 0.63 * (p.actor.height / 1.8) * 1.04, v.pos.z - se[0] * s + se[2] * c);   // seat height is where the hips sit (the sitting clip's hips are 0.63 m above its root)
     p.yaw = v.yaw; p.speed = 0; p.vel.set(Math.sin(v.yaw) * v.v, 0, Math.cos(v.yaw) * v.v); p.onGround = true;
     p.noise = Math.abs(v.v) > 2 ? 22 : 8;
     if (I.pressed('enter') || I.pressed('interact')) V.exit(p, true);
@@ -309,6 +339,15 @@
     _hl.set(0.16, 0.02, 0).applyMatrix4(w.matrixWorld); _hr.set(-0.16, 0.02, 0).applyMatrix4(w.matrixWorld);
     var rq = a.root.quaternion;
     b.upperarm_l.getWorldPosition(_pl).add(_a.set(0.4, -1, 0).applyQuaternion(rq)); RP.Chars.ikPole(b.upperarm_l, b.lowerarm_l, b.hand_l, _hl, _pl, 1);
+    // feet to the pedals, knees up (the sitting clip is a chair; a car seat is lower with the legs out in front)
+    var c = Math.cos(v.yaw), sn = Math.sin(v.yaw), se = v.ty.seat, fy = v.pos.y + (v.ty.water ? 0.36 : 0.26);
+    ['l', 'r'].forEach(function (sd, i) {
+      var lx = se[0] + (i ? -0.11 : 0.13), lz = se[2] + 0.78;
+      _hl.set(v.pos.x + lx * c + lz * sn, fy, v.pos.z - lx * sn + lz * c);
+      b['thigh_' + sd].getWorldPosition(_pl).add(_a.set(0, 1, 0.6).applyQuaternion(rq));
+      RP.Chars.ikPole(b['thigh_' + sd], b['calf_' + sd], b['foot_' + sd], _hl, _pl, 1);
+    });
+    w.updateMatrixWorld(true); _hl.set(0.16, 0.02, 0).applyMatrix4(w.matrixWorld);
     if (!p.aiming && !(p.hipT > 0)) { b.upperarm_r.getWorldPosition(_pl).add(_a.set(-0.4, -1, 0).applyQuaternion(rq)); RP.Chars.ikPole(b.upperarm_r, b.lowerarm_r, b.hand_r, _hr, _pl, 1); }
   };
 

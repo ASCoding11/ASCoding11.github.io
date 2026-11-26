@@ -91,7 +91,7 @@
   }
 
   C.update = function (dt, p) {
-    var I = RP.In, d = RP.Weapons.DEFS[p.cur];
+    var I = RP.In, d = RP.Player.def(p);
     if (I.pressed('camera')) { C.fp = !C.fp; RP.settings.firstPerson = C.fp; }
     // look
     var fr = C.friction || 1; C.friction = 1;
@@ -107,6 +107,7 @@
     C.scoped = p.aiming && d.scope && p.aimW > 0.85;
     var dist = M.lerp(TU.camDist, TU.aimDist, aim), fov = M.lerp(TU.camFov, TU.aimFov, aim) + (RP.settings.fov || 0);
     var sh = M.lerp(TU.camShoulder, TU.aimShoulder, aim), h = M.lerp(TU.camHeight, TU.aimHeight, aim);
+    if (d.zoom) fov = M.lerp(fov, fov * d.zoom, aim);   // a fitted scope brings the view closer
     if (sprint) { dist = M.lerp(dist, TU.sprintDist, 0.8); fov = M.lerp(fov, TU.sprintFov, 0.8); }
     if (cover && !p.aiming) { dist = TU.coverDist; if (p.cover.low) h -= 0.35; }
     if (p.stealth && !p.aiming) h -= 0.25;

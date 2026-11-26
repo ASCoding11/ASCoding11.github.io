@@ -40,7 +40,7 @@
       var groups = [[-178, 48], [-170, 54], [-160, 50], [-182, 58], [-166, 60]];
       groups.forEach(function (g, i) { for (var k = 0; k < 3; k++) { var a = k / 3 * 6.28 + i; RP.AI.spawnCiv({ x: g[0] + Math.cos(a) * 0.9, z: g[1] + Math.sin(a) * 0.9, yaw: a + Math.PI }, { talk: k !== 1, wander: 0 }); } });
       for (var i = 0; i < 4; i++) RP.AI.spawnCiv({ x: -186 + i * 7, z: 42 }, { wander: 5 });
-      pickup('armour', -150, -6, 16.5); pickup('health', -176, 6, 20);
+      pickup('armour', -150, -6, 16.5); pickup('health', -176, 6, 20); pickup('mod:suppressor', -144.5, -11.5, 16.5);
       m.unseen = true;
       RP.on('alert', function (l) { if (l > 0 && RP.G.mission === m) m.unseen = false; });
     },
@@ -71,7 +71,7 @@
         [['enforcer', -6, -52], ['shotgunner', -2, -50], ['enforcer', 4, -54], ['sentry', -9, -58], ['marksman', 33, -30, 13]],
         [['elite', 28, -14, 13], ['elite', 28, -26, 13], ['gunner', 32, -20, 13], ['elite', 20, -12, 9.5]]
       ];
-      pickup('armour', -14, 12, 2.6); pickup('ammo', -16, -10, 5); pickup('health', 9, -40, 5); pickup('ammo', 12, -6, 5);
+      pickup('armour', -14, 12, 2.6); pickup('mod:grip', 3.2, 12.5, 2.6); pickup('mod:extmag', -2.4, 12.5, 2.6); pickup('ammo', -16, -10, 5); pickup('health', 9, -40, 5); pickup('ammo', 12, -6, 5);
     },
     steps: [
       { text: 'Go through the Porta della Marina', sub: 'Halcyon\'s men are waiting in the piazza.', at: V(0.5, -2, 5),
@@ -118,7 +118,7 @@
       for (var i = 0; i < 8; i++) RP.AI.spawnCiv({ x: -13 + (i % 2) * 2.5, z: -32 + i * 3 }, { talk: i % 3 !== 0, wander: 4 });
       for (i = 0; i < 8; i++) RP.AI.spawnCiv({ x: -30 + i * 7, z: 18 + (i % 2) * 4 }, { wander: 10 });
       for (i = 0; i < 5; i++) RP.AI.spawnCiv({ x: -6 - i * 1.5, z: -60 - i * 12 }, { wander: 8 });
-      pickup('armour', 12, 20, 2.6); pickup('health', -16, -10, 5); pickup('ammo', 26, 27, 1.6); pickup('health', -150, -6, 16.5); pickup('armour', 28, -20, 13); pickup('ammo', -9, -100, 13);
+      pickup('armour', 12, 20, 2.6); pickup('mod:suppressor', -7, 19, 2.6); pickup('mod:scope', -3, 19.5, 2.6); pickup('mod:grip', 1, 19.5, 2.6); pickup('mod:extmag', 5, 19, 2.6); pickup('health', -16, -10, 5); pickup('ammo', 26, 27, 1.6); pickup('health', -150, -6, 16.5); pickup('armour', 28, -20, 13); pickup('ammo', -9, -100, 13);
     },
     steps: [{ text: 'Free roam', sub: 'Tab: weapons · Esc: menu', at: null, check: function () { return false; } }]
   });

@@ -31,7 +31,7 @@
   function clearWorld() {
     G.ents.forEach(function (e) { if (e.actor) e.actor.dispose(); });
     G.ents = []; G.guards = []; G.civilians = []; G.player = null;
-    Run.pickups.forEach(function (p) { R.scene.remove(p.g); }); Run.pickups = []; Run.interact = null; RP.Items.clear(); RP.Vehicles.clear();
+    Run.pickups.forEach(function (p) { R.scene.remove(p.g); }); Run.pickups = []; Run.interact = null; RP.Items.clear(); RP.Vehicles.clear(); RP.Heli.clear();
     RP.Combat.projs.forEach(function (p) { R.scene.remove(p.m); }); RP.Combat.projs = []; RP.Combat.noises = [];
     RP.Rag.list = []; RP.FX.smokes = [];
   }
@@ -89,6 +89,7 @@
     if (Run.interact && p.alive && p.pos.distanceTo(Run.interact.p) < Run.interact.r) RP.HUD.interact = Run.interact.label;
     RP.Items.update(dt);
     RP.Vehicles.update(dt);
+    RP.Heli.update(dt);
   }
   RP.on('interact', function (p) {
     if (RP.Items.interact(p)) return;
