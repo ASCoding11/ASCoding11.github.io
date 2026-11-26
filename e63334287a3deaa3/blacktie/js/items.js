@@ -63,6 +63,7 @@
       var hd = new T.Mesh(new T.BoxGeometry(0.1, 0.025, 0.03), std('#202020', 0.5, 0.3)); hd.position.y = 0.215; g.add(hd);
     }
     g.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
+    if (RP.Vehicles && RP.Vehicles.mergeChildren) RP.Vehicles.mergeChildren(g);
     g.add(ring({ health: '#d64b3c', armour: '#3c7bd6', ammo: '#c9a34a' }[kind]));
     g.position.set(x, y, z); g.rotation.y = Math.random() * 6.28;
     return add({ kind: kind, g: g, rest: true, t: 0 });

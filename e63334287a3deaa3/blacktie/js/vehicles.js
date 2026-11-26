@@ -137,11 +137,36 @@
     return g;
   }
 
+  // merge a group's direct mesh children by material (one draw call per material); `skip` meshes stay as they are
+  function mergeChildren(g, skip) {
+    var by = new Map(), drop = [];
+    g.children.forEach(function (o) {
+      if (!o.isMesh || (skip && skip.indexOf(o) >= 0)) return;
+      o.updateMatrix(); var geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); geo.applyMatrix4(o.matrix);
+      ['uv', 'uv1', 'uv2', 'color'].forEach(function (k) { if (geo.attributes[k] && k !== 'uv') geo.deleteAttribute(k); });
+      if (!geo.attributes.uv) geo.setAttribute('uv', new T.Float32BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+      if (!by.has(o.material)) by.set(o.material, []); by.get(o.material).push(geo); drop.push(o);
+    });
+    drop.forEach(function (o) { g.remove(o); });
+    by.forEach(function (list, mat) {
+      var n = 0; list.forEach(function (q) { n += q.attributes.position.count; });
+      var P = new Float32Array(n * 3), N = new Float32Array(n * 3), U = new Float32Array(n * 2), k = 0;
+      list.forEach(function (q) { P.set(q.attributes.position.array, k * 3); N.set(q.attributes.normal.array, k * 3); U.set(q.attributes.uv.array, k * 2); k += q.attributes.position.count; });
+      var mg = new T.BufferGeometry(); mg.setAttribute('position', new T.BufferAttribute(P, 3)); mg.setAttribute('normal', new T.BufferAttribute(N, 3)); mg.setAttribute('uv', new T.BufferAttribute(U, 2));
+      var m = new T.Mesh(mg, mat); m.castShadow = true; g.add(m);
+    });
+    return g;
+  }
+  V.mergeChildren = mergeChildren;
+
   // ------------------------------------------------------------------ spawn
   V.spawn = function (type, x, z, yaw, hex) {
     var ty = V.TYPES[type]; if (!ty) return null;
     hex = hex || ty.cols[Math.floor(Math.random() * ty.cols.length)];
     var g = ty.water ? buildBoat(ty, hex) : buildCar(ty, hex);
+    // the fixed parts become one mesh per material; each wheel becomes two (rubber and metal); the steering wheel stays
+    mergeChildren(g, g.userData.wheel ? [g.userData.wheel] : []);
+    g.userData.wheels.forEach(function (w) { mergeChildren(w.spin); });
     var y = ty.water ? W.water : W.ground(x, z, (W.terrainH ? W.terrainH(x, z) : 0) + 1.2).y;   // on the street, not on a roof above it
     var v = { type: type, ty: ty, g: g, pos: new T.Vector3(x, y, z), yaw: yaw || 0, v: 0, slip: 0, steer: 0, vy: 0, pitch: 0, roll: 0, air: false, driver: null, hp: 100, spinA: 0, bobT: Math.random() * 6 };
     g.position.copy(v.pos); g.rotation.set(0, v.yaw, 0, 'YXZ');

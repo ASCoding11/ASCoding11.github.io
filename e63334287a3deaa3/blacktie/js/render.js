@@ -14,7 +14,7 @@
   var Q = RP.QUALITY = {
     //          pixel ratio cap, canvas AA, shadow map, post, msaa, ssao, bloom, sea detail, draw distance, char LOD (mid, far), foliage density
     low:    { pr: 0.85, aa: false, shadow: 0,    post: false, msaa: 0, ssao: false, sea: 0, far: 420, lod: [8, 22],  fol: 0.45, decals: 40,  particles: 0.5 },
-    medium: { pr: 1.0,  aa: true,  shadow: 1024, post: true,  msaa: 0, ssao: false, sea: 1, far: 650, lod: [12, 30], fol: 0.75, decals: 90,  particles: 0.8 },
+    medium: { pr: 1.0,  aa: true,  shadow: 1024, post: true,  msaa: 0, ssao: false, sea: 1, far: 650, lod: [10, 28], fol: 0.75, decals: 90,  particles: 0.8 },
     high:   { pr: 1.5,  aa: true,  shadow: 2048, post: true,  msaa: 4, ssao: true,  sea: 2, far: 900, lod: [14, 40], fol: 1.0,  decals: 160, particles: 1 }
   };
 

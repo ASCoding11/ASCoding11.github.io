@@ -106,8 +106,27 @@
     g.userData.eject = pt('eject', opts.eject || [0.02, 0.05, 0.05]);
     if (opts.oneHand) g.userData.oneHand = true;
     g.userData.len = opts.len || 0.5;
+    // the far version: every part in one mesh, coloured per vertex from its material (one draw call at a distance)
+    var pos = [], nrm = [], colr = [];
+    g.traverse(function (o) {
+      if (!o.isMesh) return;
+      o.updateMatrix(); var geo = o.geometry, P = geo.attributes.position, N = geo.attributes.normal;
+      var c = o.material.map ? RP.col('#5a3a22') : o.material.color, mx = o.parent === g ? o.matrix : new T.Matrix4().multiplyMatrices(o.parent.matrix, o.matrix);
+      var v = new T.Vector3(), n = new T.Vector3(), nm = new T.Matrix3().getNormalMatrix(mx);
+      for (var i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(mx); n.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); pos.push(v.x, v.y, v.z); nrm.push(n.x, n.y, n.z); colr.push(c.r, c.g, c.b); }
+    });
+    var fg = new T.BufferGeometry(); fg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); fg.setAttribute('normal', new T.Float32BufferAttribute(nrm, 3)); fg.setAttribute('color', new T.Float32BufferAttribute(colr, 3));
+    var far = new T.Mesh(fg, FARMAT || (FARMAT = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.35 })));
+    far.visible = false; far.name = 'far'; g.add(far); g.userData.far = far;
     return g;
   }
+  var FARMAT = null;
+  // show the one-mesh version (far) or the full model (near)
+  GM.setFar = function (g, on) {
+    if (!g.userData.far || g.userData._isFar === on) return;
+    g.userData._isFar = on;
+    g.children.forEach(function (c) { if (c.isMesh) c.visible = c === g.userData.far ? on : !on; else if (c.name === 'mag') c.visible = !on; });
+  };
 
   // the raked pistol grip shared by most long guns (origin at its middle)
   function pistolGrip(top, rake) {
