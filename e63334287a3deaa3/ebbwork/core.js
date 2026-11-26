@@ -26,8 +26,8 @@ var EWSim=(function(){
     this.act=new Uint8Array(nb);this.proc=new Uint8Array(nb);this.was=new Uint8Array(nb);
     this.nProc=0;
     this.mann=0.018;   // Manning's n: about right for paving and short grass
-    this.film=0.00012;  // drag on thin water (m^2/s): a 1 cm film barely moves, 10 cm flows freely
-    this.drag=0.35;    // a little drag on everything (1/s): rubbish, grass and rough ground in the water. Waves die down in seconds, not minutes
+    this.film=0.00006;  // drag on thin water (m^2/s): a 1 cm film barely moves, 10 cm flows freely
+    this.drag=0.2;     // a little drag on everything (1/s): rubbish, grass and rough ground in the water. Waves die down in seconds, not minutes
   }
   var P=Sim.prototype;
   P.idx=function(x,z){return z*this.W+x};
@@ -388,7 +388,7 @@ var EWMaps=(function(){
       b.spawnAt(2,9,-Math.PI/2);
     }});
   // 3. Tanners Field: allotments in a hollow. No drain at all: the only way out is over, or through, the bank.
-  MAPS.push({id:'field',name:'Tanners Field',sub:'Allotments',w:34,h:24,seed:31,pay:160,par:540,sky:'day',needs:['shovel','rake'],
+  MAPS.push({id:'field',name:'Tanners Field',sub:'Allotments',w:34,h:24,seed:31,pay:160,par:420,sky:'day',needs:['shovel','rake'],
     brief:'The allotments sit in a hollow. The water came in and has nowhere to go.',
     build:function(b){
       b.ground(function(x,z){if(x>=30.5)return -0.6;var g=0.30+0.015*dist(x,z,22,12)+0.36*bump((x-28.75)/1.25);if(x>30)g=g+(x-30)*2*(-0.6-g);return g});
@@ -449,7 +449,7 @@ var EWMaps=(function(){
       b.spawnAt(10.5,1.6,Math.PI);
     }});
   // 6. Mill Lane: the stream has broken its bank and is still coming.
-  MAPS.push({id:'mill',name:'Mill Lane',sub:'Lane by the stream',w:30,h:24,seed:67,pay:400,par:600,sky:'day',needs:['sandbags','rake','pump','generator','shovel'],
+  MAPS.push({id:'mill',name:'Mill Lane',sub:'Lane by the stream',w:30,h:24,seed:67,pay:400,par:540,sky:'day',needs:['sandbags','rake','pump','generator','shovel'],
     brief:'The mill stream is through its bank and the whole lane is under. Start with whatever is still feeding it.',
     build:function(b){
       b.ground(function(x,z){
