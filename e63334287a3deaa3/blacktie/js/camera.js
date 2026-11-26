@@ -111,6 +111,13 @@
     if (cover && !p.aiming) { dist = TU.coverDist; if (p.cover.low) h -= 0.35; }
     if (p.stealth && !p.aiming) h -= 0.25;
     if (p.state === 'ragdoll' || p.state === 'dead') { dist = 4; h = 0.8; }
+    if (p.vehicle) {
+      // chase view: further back and higher, wider with speed; swings in behind the car when the look is left alone
+      var vs = Math.abs(p.vehicle.v) / p.vehicle.ty.top;
+      dist = (p.vehicle.ty.water ? 9 : 6.2) + vs * 1.6 - aim * 2.2; h = 1.55 + (p.vehicle.ty.water ? 0.9 : 0.35); sh = aim * 0.5; fov += vs * 9;
+      C._idleLook = Math.abs(I.look.x) + Math.abs(I.look.y) > 1e-4 || p.aiming ? 0 : (C._idleLook || 0) + dt;
+      if (C._idleLook > 1.1 && Math.abs(p.vehicle.v) > 2) { C.yaw = M.dampAngle(C.yaw, p.vehicle.yaw + (p.vehicle.v < -1 ? Math.PI : 0), 2.2, dt); C.pitch = M.damp(C.pitch, -0.16, 1.5, dt); }
+    }
     // shoulder side: in cover, the side the player faces; otherwise right
     var side = cover ? (p.cover.side > 0 ? -1 : 1) : 1;
     C.side = M.damp(C.side, side, 6, dt);

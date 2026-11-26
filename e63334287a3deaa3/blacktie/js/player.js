@@ -147,10 +147,11 @@
       case 'cover': stepCover(p, dt); break;
       case 'takedown': stepTakedown(p, dt); break;
       case 'ragdoll': stepRagdoll(p, dt); break;
+      case 'drive': RP.Vehicles.stepDriver(p, dt); break;
       case 'getup': if (p.st > 0.95) setState(p, 'move'); groundSnap(p, dt); break;
     }
     // ---- weapons, melee, throwing (any state that allows the upper body)
-    var upperFree = p.state === 'move' || p.state === 'cover' || (p.state === 'air' && !d.melee);
+    var upperFree = p.state === 'move' || p.state === 'cover' || (p.state === 'air' && !d.melee) || (p.state === 'drive' && !d.melee);
     if (upperFree && !p.wheelOpen) { stepWeapon(p, dt); stepThrow(p, dt); }
     if (p.melee) stepMelee(p, dt);
     // ---- health regen, stamina, noise, visibility
@@ -165,6 +166,7 @@
     p.vis = (p.stealth ? 0.55 : 1) * (RP.G.night ? 0.7 : 1) * (p.state === 'cover' && !p.aiming ? 0.6 : 1);
     // interact (objectives, weapon swaps), drop the weapon in hand
     if (I.pressed('interact')) RP.emit('interact', p);
+    if (I.pressed('enter') && p.state === 'move' && !p.swap) RP.Vehicles.interact(p);
     if (I.pressed('drop') && p.state === 'move' && !p.swap && !p.reload) RP.Items.playerDrop(p);
   };
 
@@ -518,7 +520,7 @@
     }
     if (p.sprinting && I.down('fire')) { p.sprinting = false; }
     var c = p.cover;
-    var canFire = !p.sprinting && (p.state === 'move' || p.state === 'air' || (p.state === 'cover' && !c.entering && (p.aiming ? c.peek > 0.7 || c.low && c.peek > 0.5 : c.blind)));
+    var canFire = !p.sprinting && (p.state === 'move' || p.state === 'air' || p.state === 'drive' || (p.state === 'cover' && !c.entering && (p.aiming ? c.peek > 0.7 || c.low && c.peek > 0.5 : c.blind)));
     var trig = d.auto ? I.down('fire') : I.pressed('fire');
     if (trig && canFire && p.fireCd <= 0) {
       if (inv.mag <= 0) {
@@ -702,6 +704,7 @@
     if (info && (info.explosion || (info.melee && info.force > 2.4) || info.car) && p.state !== 'ragdoll') startRagdoll(p, info.dir ? info.dir.clone().multiplyScalar(info.force || 4).setY(info.explosion ? 4 : 1.5) : null);
     else if (info && info.melee && info.force > 1.2 && p.state === 'move') { p.actor.playFull('stagger', { fade: 0.08, speed: 1.4 }); p.speed = 0; }
   }
+  P.tumble = function (p, imp) { startRagdoll(p, imp); };
   function startRagdoll(p, imp) {
     if (p.cover) p.cover = null;
     p.melee = null; p.reload = null;
@@ -754,6 +757,16 @@
     a.setBack(backGun(p));
     a.root.position.copy(p.pos); a.root.rotation.y = p.yaw;
     if (p.state === 'dead' || p.state === 'ragdoll') { a.update(dt); return; }
+    if (p.state === 'drive' && p.vehicle) {
+      // at the wheel: seated, hands on the wheel; a one-handed gun comes up over the door when aimed or fired
+      var shooting = p.aiming || p.hipT > 0;
+      a.setUpper(shooting && p.model ? 'aimPistol' : null, 0.15);
+      a.weaponAim = shooting ? 1 : 0; a.weaponPitch = RP.Cam.pitch; a.reloadU = -1; a.airborne = true; a.setBack(null);
+      a.drive({ speed: 0, dir: 0, strafe: 0, stealth: 0, sprint: 0, turnRate: 0, accel: 0 });
+      a.setAim(shooting ? RP.Cam.pitch : 0, shooting ? M.clamp(M.wrap(RP.Cam.yaw - p.yaw), -1.5, 1.5) : M.clamp(M.wrap(RP.Cam.yaw - p.yaw), -1, 1) * 0.4);
+      a.update(dt); RP.Vehicles.pose(p);
+      return;
+    }
     var aimingPose = p.aiming || p.hipT > 0 || (p.cover && (p.cover.peek > 0.3 || p.cover.blind));
     // upper body: held weapon pose, aim pose, fight guard, cover lean
     var up = null, cv = p.cover && !p.cover.entering;

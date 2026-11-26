@@ -31,7 +31,7 @@
   function clearWorld() {
     G.ents.forEach(function (e) { if (e.actor) e.actor.dispose(); });
     G.ents = []; G.guards = []; G.civilians = []; G.player = null;
-    Run.pickups.forEach(function (p) { R.scene.remove(p.g); }); Run.pickups = []; Run.interact = null; RP.Items.clear();
+    Run.pickups.forEach(function (p) { R.scene.remove(p.g); }); Run.pickups = []; Run.interact = null; RP.Items.clear(); RP.Vehicles.clear();
     RP.Combat.projs.forEach(function (p) { R.scene.remove(p.m); }); RP.Combat.projs = []; RP.Combat.noises = [];
     RP.Rag.list = []; RP.FX.smokes = [];
   }
@@ -51,6 +51,8 @@
     RP.Cam.reset(p);
     RP.Alert.reset(m.alert);
     m.setup(mm);
+    // cars and a launch to take (map data: RP.map.vehicles = [[type, x, z, yaw], ...]; a mission can add its own)
+    ((RP.map && RP.map.vehicles) || [['city', -16, 15.5, Math.PI / 2], ['spider', 30, 17.5, -Math.PI / 2], ['boat', 30, 52, Math.PI / 2]]).concat(m.vehicles || []).forEach(function (v) { RP.Vehicles.spawn(v[0], v[1], v[2], v[3], v[4]); });
     // skip to a checkpoint: run the earlier steps' enter() so the world matches, put the player where they were
     if (fromStep) {
       for (var i = 0; i < fromStep; i++) if (m.steps[i].enter) m.steps[i].enter(mm);
@@ -86,9 +88,11 @@
     RP.HUD.interact = null;
     if (Run.interact && p.alive && p.pos.distanceTo(Run.interact.p) < Run.interact.r) RP.HUD.interact = Run.interact.label;
     RP.Items.update(dt);
+    RP.Vehicles.update(dt);
   }
   RP.on('interact', function (p) {
     if (RP.Items.interact(p)) return;
+    if (p.state === 'move' && RP.Vehicles.interact(p)) return;
     if (Run.interact && p.pos.distanceTo(Run.interact.p) < Run.interact.r) { var f = Run.interact.fn; Run.interact = null; f(); }
   });
   RP.on('guardDown', function (g, info) { if (info && info.takedown) Run.stats.takedowns++; });
