@@ -28,6 +28,7 @@
 
   // ---------------------------------------------------------------- camera
   const right = new THREE.Vector3(), tmp = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), hv = new THREE.Vector3();
+  const TD_EYE = 0.55;   // m, closest the eye comes to a takedown victim's head
   FP.frame = function (cam, dt, dir, yaw, pitch) {
     const S = IV.settings, W8 = IV.weapons, pr = P.render;
     // eye height by stance, eased (a slight overshoot coming up)
@@ -100,7 +101,16 @@
       if (cl > 1e-3) { const h = W.raycast(pr.x + f.x * 0.08, ey, pr.z + f.z * 0.08, cx / cl, 0, cz / cl, cl + 0.15, F.SOLID | F.SIGHT, true); if (h) { const k = Math.max(0, h.t - 0.15) / cl; cx *= k; cz *= k; } }
       cx *= FP.crK * (1 - bk); cz *= FP.crK * (1 - bk);
     }
-    const exo = f.x * 0.08 * (1 - bk) + (FP.hx || 0) * bk + cx, ezo = f.z * 0.08 * (1 - bk) + (FP.hz || 0) * bk + cz, eyo = (ey - pr.y) * (1 - bk) + (FP.hy != null ? FP.hy : ey - pr.y) * bk;
+    let exo = f.x * 0.08 * (1 - bk) + (FP.hx || 0) * bk + cx, ezo = f.z * 0.08 * (1 - bk) + (FP.hz || 0) * bk + cz; const eyo = (ey - pr.y) * (1 - bk) + (FP.hy != null ? FP.hy : ey - pr.y) * bk;
+    // knife takedown: the hero's clip lunges the head forward into the guard, and the eye rides that head bone, so the
+    // eye ended up inside his helmet. Keep the eye at least TD_EYE m (level) from the guard's head the whole move, so the
+    // knife hand and the guard stay in view in front of you.
+    const vic = W8.takedownVictim;
+    if (vic && P.cineClip && vic.actor) {
+      const vb = vic.actor.bone && vic.actor.bone('Head'); if (vb) vb.getWorldPosition(tmp); else tmp.set(vic.pos.x, vic.pos.y + 1.6, vic.pos.z);
+      const dx = pr.x + exo - tmp.x, dz = pr.z + ezo - tmp.z, d = Math.hypot(dx, dz);
+      if (d < TD_EYE) { const k = d > 1e-3 ? (TD_EYE - d) / d : 0; if (k) { exo += dx * k; ezo += dz * k; } else { exo -= fb.x * TD_EYE; ezo -= fb.z * TD_EYE; } }
+    }
     cam.position.set(pr.x + right.x * (FP.lean * 0.3 + bx) + exo, pr.y + eyo + by + (C.bobY || 0) - Math.abs(FP.lean) * 0.04, pr.z + right.z * (FP.lean * 0.3 + bx) + ezo);
     // never into the ground: the drawn ground's flat triangles sit above the true height in dips (up to ~0.3 m), so
     // prone, with the eye about 0.3 m up, the near plane could cut into it and show the underside. Keep the eye 15 cm

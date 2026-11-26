@@ -479,7 +479,10 @@
     WP.stats.takedowns++; WP.stats.kills++;
     P.frozen = true; WP.aiming = WP.scoped = false;
     const f = IV.fwd(e.bodyYaw);
-    const gap = IVChars.takedownGap || (IVChars.standin ? 0.75 : 0.42);   // chars.js clips want 0.42 m
+    // chars.js clips want 0.42 m; in first person the body is not seen, so start a little further back (the eye is also
+    // kept off his head in js/fp.js) and the knife hand and the guard stay in view
+    const gap = Math.max(IVChars.takedownGap || (IVChars.standin ? 0.75 : 0.42), IV.camera && IV.camera.mode === 'first' ? 0.65 : 0);
+    WP.takedownVictim = e;
     const tx = e.pos.x - f.x * gap, tz = e.pos.z - f.z * gap;
     const sx = P.pos.x, sz = P.pos.z; let t = 0;
     P.bodyYaw = e.bodyYaw; P.yaw = e.bodyYaw;
