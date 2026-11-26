@@ -18,15 +18,30 @@ character build scripts are in `tools/chars/` (see its README; needs `bvenv` wit
 - **Bug fixed**: `rotWorld` used the shared `_q` scratch that callers pass in, so every code move, lean and aim
   offset was wrong since phase 1. Posture correction after the clips (walk 3, jog 9, sprint 15 degrees).
 
-## Next (owner's list, in order)
-1. Movement/fighting pass: starts/stops (stop animation), foot IK on slopes/steps, turn-in-place, per-weapon reload
-   moves (mag out/in with the left hand on `userData.mag`), guard melee, smoother weightier melee (hit-stop,
-   lunge, reaction), vault/climb/corner swing check, jacket shoulders bunch up (spread clavicle weights).
-2. Dusk lighting; balance.
-3. Map: much bigger Amalfi Coast (Positano, SS163 with tunnels, harbour, villas), chunk streaming, LODs; plan
-   Chicago and a Greek island as later maps (`maps/` + `RP.maps.register`).
-4. Phase 2: cars, boat, drive-by, coastal chase mission, alert helicopter, weapon mods.
-5. Performance budget per preset (draw calls / tris / memory), phone touch layout check, README section rewrite.
+- Preview: `window.BT_PREVIEW` gate in index.html + "Black Tie (preview)" button on the admin page; no Back Room
+  card / phone row / news file while it is a preview (the news JSON to restore is in git history, commit 89b8771).
+- Animation layer since: reload hand path with the magazine (`reloadU`), foot IK (`_feet`), brake step, strikes by
+  IK (`REACH`, `strikeAt`), boxing guard by IK (`holdReach`), standing holds use their own legs.
+- Feel: burst recoil pattern, gunshot tails, final-pass sharpen / S-curve / grain, dusk lit by the sky.
+- Phase 2 so far: `vehicles.js` (Lucciola, Brezza Spider, Marea launch; F in/out; arcade handling; chase camera;
+  drive-by with one-handed guns/SMGs), weapon mods as pickups (`mod:suppressor|extmag|scope|grip`, `RP.Weapons.eff`
+  / `dress`), `heli.js` (alert >= 4).
+- Phone check: 11 touch controls, no overlaps in portrait or landscape (scripted), Low by default.
+
+## In progress when this was written
+- A helper agent was rebuilding the map (bigger Amalfi Coast, chunk streaming, `mapkit.js`) in the main checkout
+  `/home/user/ASCoding11.github.io` (uncommitted there); the rest of the work went on in the worktree
+  `/home/user/bt-work` (branch `bt-work`, pushed to `origin/agent-game`). Merge: commit the map work in the main
+  checkout, then `git merge bt-work` there (or cherry-pick the map commit onto bt-work) and push.
+
+## Next
+1. Land the map; put `RP.map.vehicles` spots on its roads; fix anything the map moved (mission anchors).
+2. Mission 3: the coast-road chase (drive the Spider west-to-east with Halcyon cars and the helicopter after you);
+   guards arriving by car as reinforcements; traffic.
+3. Still rough: car bodies are low-poly; faces are MakeHuman-level; no start/stop clips (only a brake move);
+   vault/climb/corner swing not re-checked since the rotWorld fix; the HUD ammo block sits close under the
+   pause button on short phones; first-person view untested with the new characters.
+4. Balance, a per-preset performance table on the new map, then a real play-through with a mouse and on a phone.
 
 ## Test harness (in ~/rpwork, recreate if lost)
 Playwright with swiftshader against `python3 -m http.server 8765` at the repo root; `?test` exposes `__RP__`
