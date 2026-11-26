@@ -182,9 +182,9 @@
     // scale: the whole viewmodel about the eye (rig units below). hip: fitted on screen (vm-test.html, 16:9, FOV 54) so
     // the muzzle sits about 55 % across and 60 % down and the gun covers about a fifth of the view (SMG about 20 %, rifle
     // about 17 %, pistol 10.9 %), its rear leaving through the bottom right; aimed (ads, rig units) is unchanged on screen
-    smg:         { scale: 1.5, hip: { p: [0.0777, -0.0763, -0.1369], r: [0.0292, 0.0595, 0.03] }, ads: 0.29, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.022, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
-    pistol:      { scale: 1.3, hip: { p: [0.0746, -0.0634, -0.2135], r: [-0.0768, 0.2807, -0.3] }, ads: 0.46, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.019, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
-    rifleScoped: { scale: 1.7, hip: { p: [0.142, -0.07, -0.13], r: [0.06, 0.06, 0.15] }, ads: 0.10, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.02, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] }
+    smg:         { scale: 1.5, hip: { p: [0.0792, -0.0484, -0.19], r: [0.12, -0.02, 0.03] }, ads: 0.29, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.022, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
+    pistol:      { scale: 1.3, hip: { p: [0.077, -0.0535, -0.25], r: [0.02, 0.22, -0.3] }, ads: 0.46, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.019, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] },
+    rifleScoped: { scale: 1.7, hip: { p: [0.0978, -0.0532, -0.18], r: [0.16, -0.1, 0.15] }, ads: 0.10, sprint: { d: [0.035, 0.004, 0.02], r: [0.04, 0.62, -0.26] }, pivot: [0, 0.02, 0.07], crouch: [0.0, 0.008, 0.01], prone: [-0.01, 0.02, -0.01] }
   };
 
   // ------------------------------------------------------------------ timeline engine
@@ -481,7 +481,8 @@
   // the reload pose, an offset of the hip pose in the gun frame [x, y, z, pitch, yaw, roll] (see the clips): up, muzzle
   // up, rolled so the magazine well faces the eye
   VM.RELOADCANT = { pistol: [-0.04, 0.08, 0.0, -0.85, 0.15, 0.6], other: [0.03, 0.04, 0.12, -0.46, 0.22, 0.80] };
-  VM.HANDFADE = [0.35, 0.85];   // the ads progress over which the hands fade out
+  VM.HANDFADE = [2, 3];   // the ads progress over which the hands would fade out: never (an aimed gun with no hands on it read as
+                         // floating); the aimed poses keep both hands below the sight line instead (vm-test checks handTopPx)
   VM.MATTUNE = { metal: 0.8, other: 0.85, env: 1.2 };
   VM.create = function (kind, opts) {
     opts = opts || {};
@@ -682,8 +683,7 @@
         if (o.ph[0] >= 1) _mh.copy(_m2); else mixMatrix(_mh, _mh, _m2, o.ph[0]);
       }
       handL.matrix.copy(_mh); handL.matrixWorldNeedsUpdate = true; handL.visible = handsOn || o.hs[0] > 0.5;
-      // aimed: both hands fade out (blended, not dithered) over the second half of the raise, so the aimed view is
-      // the gun alone, as in the reference; hidden once gone
+      // aimed: the hands used to fade out here (VM.HANDFADE); they now stay on the gun in every state
       const fk = Math.round(st.ads * 50) / 50;
       if (fk !== fadeK2) {
         fadeK2 = fk;
