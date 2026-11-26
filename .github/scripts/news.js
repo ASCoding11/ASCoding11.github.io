@@ -60,17 +60,28 @@ function read(file) {
 }
 
 // ---- versions ----
+// The numbering restarts with the winter update: the first entry published on or after ERA_START (the first day of
+// winter on the site, the day after FALL_TO in e63334287a3deaa3/seasons.js) is ERA_MAJOR.01, and later ones count up
+// from there: 2.02, 2.03 ... 2.09, 2.10, with fixes in between as 2.01.1, 2.01.2. From ERA_MAJOR on, the middle
+// number is always written with at least two digits ("2.01", never "2.1"). Entries published before that day keep
+// the old numbering (1.58 -> 1.59, 1.58.1), and nothing already in news.js is ever renumbered.
+const ERA_START = '2026-11-27';
+const ERA_MAJOR = 2;
 const parseV = (s) => s.split('.').map(Number);
 const cmpV = (a, b) => { for (let i = 0; i < 3; i++) { const d = (a[i] || 0) - (b[i] || 0); if (d) return d; } return 0; };
 function latestVersion(src) {
+  // compared number by number, so 2.01 is after every 1.x and 2.10 is after 2.09 (never as text or as a decimal)
   const all = [...src.matchAll(/\bversion:\s*'(\d+(?:\.\d+){1,2})'/g)].map((m) => parseV(m[1]));
   if (!all.length) throw new Error(`no versions found in ${NEWS_JS}`);
   return all.sort(cmpV).pop();
 }
-function bump(v, kind) {
+const minorText = (major, minor) => (major >= ERA_MAJOR ? String(minor).padStart(2, '0') : String(minor));
+function bump(v, kind, publishedOn) {
+  // the first entry of the new numbering, whatever its kind
+  if (v[0] < ERA_MAJOR && publishedOn >= ERA_START) return `${ERA_MAJOR}.01`;
   // a new game or a big feature bumps the minor number and drops the patch; a fix (or a teaser) bumps the patch
-  if (kind === 'game' || kind === 'feature') return `${v[0]}.${(v[1] || 0) + 1}`;
-  return `${v[0]}.${v[1] || 0}.${(v[2] || 0) + 1}`;
+  if (kind === 'game' || kind === 'feature') return `${v[0]}.${minorText(v[0], (v[1] || 0) + 1)}`;
+  return `${v[0]}.${minorText(v[0], v[1] || 0)}.${(v[2] || 0) + 1}`;
 }
 
 // ---- writing in news.js's own style ----
@@ -96,6 +107,8 @@ function insertAfter(src, marker, text, file) {
 }
 
 function today() {
+  // NEWS_TODAY=YYYY-MM-DD pretends it is that day, for trying a publish out by hand; the workflow never sets it
+  if (/^\d{4}-\d{2}-\d{2}$/.test(process.env.NEWS_TODAY || '')) return process.env.NEWS_TODAY;
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
@@ -132,7 +145,8 @@ function publish() {
   const done = [];
   for (const f of files) {
     const e = read(f).entry;
-    const version = e.noVersion ? null : bump(latestVersion(js), e.kind);
+    // the numbering goes by the day the entry is published, not by a "date" the file sets for itself
+    const version = e.noVersion ? null : bump(latestVersion(js), e.kind, today());
     const date = e.date || today();
     js = insertAfter(js, 'var NEWS = [', render(e, date, version), NEWS_JS);
     const pairs = Object.entries(e.es || {});

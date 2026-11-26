@@ -47,6 +47,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   '{h}, {c} coins': '{h}, {c} monedas', ', {c} coins': ', {c} monedas', ', level {l}': ', nivel {l}', 'Lv {l}': 'Nv {l}',
   "Reach level {l} to wear the {h}. You're level {m}.": 'Llega al nivel {l} para usar: {h}. Estás en el nivel {m}.',
   'The {h} costs {c} coins and you have {m}. Grab the coins on the way up, and finish towers for more.': '{h} cuesta {c} monedas y tienes {m}. Junta monedas mientras subes y termina torres para ganar más.',
+  'Coming soon': 'Próximamente', 'Soon': 'Pronto', 'The hat shop is closed for now. Coming soon.': 'La tienda de sombreros está cerrada por ahora. Próximamente.',
   'Buy the {h} for {c} coins?': '¿Comprar {h} por {c} monedas?', 'Buy': 'Comprar', 'The {h} is yours.': '¡{h} ya es tuyo!',
   // menu
   'Climb to the top of the tower. Anything glowing red sends you back.': 'Escala hasta la cima de la torre. Todo lo que brilla en rojo te hace volver.',

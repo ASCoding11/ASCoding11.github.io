@@ -9,10 +9,28 @@ When the pull request is merged into `main`, the "What's new: publish" workflow
 
 - the **next version number** (a `game` or `feature` bumps the minor number, 1.51.4 → 1.52; a `fix` or `soon` bumps
   the patch, 1.52 → 1.52.1), worked out from what's in `news.js` at that moment, so it's never a guess or a repeat;
+  from the winter update the numbers restart at 2.01 (see below);
 - **today's date** (New York time), unless the file sets one;
 
 then puts it at the top of `NEWS`, adds its Spanish to `../news-es.js`, and deletes the file. Merged together, the
 entries go out in the order they reached `main`.
+
+## Version numbers from the winter update
+
+The first entry published on or after **27 November 2026** (the first day of winter on the site, the day after
+`FALL_TO` in `../seasons.js`) gets **2.01**, whatever its kind. After that the same rule as before applies on the new
+base, with the middle number always written with two digits:
+
+- a `game` or `feature`: 2.01 → 2.02 → … → 2.09 → 2.10 (and 2.01.3 → 2.02);
+- a `fix` or `soon`: 2.01 → 2.01.1 → 2.01.2.
+
+It goes by the day the entry is published (New York time), not by a `date` the file sets. Entries published before
+that day keep the old numbering (1.58 → 1.59), and nothing already in `news.js` is renumbered. The start date and the
+"2" are `ERA_START` and `ERA_MAJOR` in `.github/scripts/news.js`. If you ever add an entry to `news.js` by hand, keep
+the two digits: write `2.01`, never `2.1` (the script would read 2.1 and 2.01 as the same number).
+
+To try a publish without waiting for the day, in a throwaway copy of the repo:
+`NEWS_TODAY=2026-11-27 node .github/scripts/news.js publish` (never push the result).
 
 ## How to add one
 

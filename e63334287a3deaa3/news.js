@@ -32,6 +32,9 @@
  *   version  a new game or a big feature bumps the minor number and drops the patch
  *            (1.6 -> 1.7, and 1.7.2 -> 1.8); a fix-only release adds or bumps a patch
  *            number (1.7 -> 1.7.1 -> 1.7.2). Never reuse a version.
+ *            From the winter update (27 November 2026) the numbers restart at 2.01 and count up the same way,
+ *            always with two digits in the middle: 2.01 -> 2.02 ... 2.09 -> 2.10, fixes 2.01.1, 2.01.2. Write
+ *            '2.01', never '2.1'. Entries before that keep their 1.x numbers.
  *            An entry added afterwards for something that already went out (like the four puzzle
  *            games of Oct 23) can leave version out; it then shows as just "New game".
  *   title    a few words; it's what the strip shows while it's the latest entry
@@ -87,13 +90,60 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
-     tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
-      'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
-      'Type a list like "London, Kyoto, Machu Picchu" to log a whole trip at once, and keep a striped wishlist of places to go next.',
-      'Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.',
-      'Find it under Web Development Projects on the home page.'
-    ]},
+    {date: '2026-11-26', version: '1.65.2', title: 'Blackwade\'s shop is open again', kind: 'fix',
+     tags: ['Blackwade'], items: [
+      'You can buy equipment and upgrades in Blackwade again. They are how you get further, so that shop stays open.',
+      'Your coins and everything you owned were never touched.',
+      'The shops that only sell looks (Chromeline, Spire\'s coin hats, Asteroid Run and Starhop) stay closed for now.']},
+    {date: '2026-11-26', version: '1.65.1', title: 'Game shops are closed for now', kind: 'fix',
+     tags: ['Chromeline', 'Spire', 'Asteroid Run', 'Blackwade'], items: [
+      'For now nothing can be bought inside the games: Chromeline\'s garage, Spire\'s coin hats, Asteroid Run\'s runners and trails, Blackwade\'s equipment and upgrades, and Starhop\'s skins.',
+      'Everything you already own is still yours to use, and nothing was taken away.',
+      'Your coins, crystals and shards are untouched and keep adding up as you play.',
+      'Things you unlock by playing, like Chromeline\'s secret vehicles, Spire\'s level hats and Asteroid Run\'s free runners, still unlock the same way.',
+      'In Blackwade, equipment you carry is still used up on a run and can\'t be restocked until the shop opens again.']},
+    {date: '2026-11-26', version: '1.65', title: 'Blackwade: it hunts every hall', kind: 'feature',
+     img: 'm/thumbs/hush-pools.jpg', tags: ['Blackwade'], items: [
+      'The monster follows you into every hall and comes up out of the water ahead of you soon after you arrive, so you know it\'s there.',
+      'The water gives you away: going in is heard across the whole hall, and every step you wade calls it closer.',
+      'It gets a little sharper each hall further in: it hears farther, reacts faster and moves quicker. Easy stays gentle; Hard does not.',
+      'Standing still and quiet on a tile is still safe, and pebbles, bottles, toys and flares pull it away.']},
+    {date: '2026-11-26', version: '1.64', title: 'Driftfall characters get real builds', kind: 'feature',
+     tags: ['Driftfall'], items: [
+      'Characters look more like people and less like blocks: a smaller head on a neck, arms that taper to the wrist, a narrower waist and boots with a toe and a sole.',
+      'Not everyone is the same shape any more: lean, average and broad builds, some with wider shoulders. Your outfit picks yours, and the Noob gets one from your colour.',
+      'The Noob has a rounder head with ears and a nose, and keeps its colours, backpack and straps.',
+      'Every outfit was re-fitted to the new body and still looks like itself.',
+      'Same height, same hit areas, same moves and controls as before.']},
+    {date: '2026-11-26', version: '1.63', title: 'Driftfall looks brighter', kind: 'feature',
+     tags: ['Driftfall'], items: [
+      'On every setting: a new sky with soft clouds, a clearer view of the island as you drop, a sea that fades into the horizon, warm layered cliffs and more varied grass and dirt.',
+      'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
+      'Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, a column of colour where a player is knocked out, a ring of sparks when your shots land and a puff of dust when you build.']},
+    {date: '2026-11-26', version: '1.62', title: 'New game: Flood Crew', kind: 'game',
+     games: ['Flood Crew'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
+      'Flood Crew is in Arcade: a first-person game about getting flooded places dry.',
+      'Work out why each place flooded: a buried drain, a leak, a broken bank, or ground with nowhere to run to.',
+      'The water really flows. Rake a drain clear, dig a trench, lay sandbags or set up a pump, and watch where it goes.',
+      'Six jobs, a depot with gear to buy, and up to three stars a job. Your progress saves by itself.',
+      'Plays with a keyboard and mouse, or with touch on a phone.']},
+    {date: '2026-11-26', version: '1.61', title: 'Top player badges: 3 per player', kind: 'feature',
+     tags: ['Leaderboards', 'Badges'], items: [
+      'One player can now hold at most 3 of the small Top player shields at a time.',
+      'If you are first in more than 3 games, you are still first on every one of those boards. The 3 that count are the first 3 in the Leaderboards\' game order.',
+      'The other games\' shields go to nobody: they don\'t pass to second place.',
+      'Each game\'s main board tells you whether that one counts for you and which 3 do.']},
+    {date: '2026-11-26', version: '1.60', title: 'Fourteen quiet puzzles retired', kind: 'feature',
+     tags: ['Daily puzzles', 'Leaderboards'], items: [
+      'Fourteen daily puzzles hardly anyone played have left the Back Room: Top Bins, Crosslet, Outline, Sleight, Scout Report, Teamsheet, Deadline Day, Crossbar, Journeyman, Stat Duel, Quartets, Unfurl, Overland and Back Four.',
+      'They came off the puzzle lists on 18 November. Now their boards are out of the Leaderboards menu too, and their top-player badges and weekly titles have ended.',
+      'Your saved progress is kept, your daily streak is not affected, and an old link or bookmark to one of them still opens it.']},
+    {date: '2026-11-26', version: '1.59', title: 'New game: Leaf Sweep', kind: 'game',
+     games: ['Leaf Sweep:windrow'], img: 'm/thumbs/windrow.jpg', tags: ['Leaf Sweep', 'Garden sim'], items: [
+      'Leaf Sweep: a calm first-person game where you clear autumn leaves out of five walled gardens.',
+      'Every leaf is real: gather them into your sack, drag them with the rake or push them with the blower.',
+      'Earn acorns at compost bins and mulch chutes, then buy better tools and open the next gate.',
+      'Works on phones too, and your gardens save themselves.']},
     {date: '2026-11-25', version: '1.51.4', title: 'Site rules and privacy, in plain words', kind: 'fix',
      link: {text: 'Read the terms', href: '/terms/'}, items: [
       'The site now has a Terms of use page: how to play fair, what you can post, how the Marketplace and buying items work, and what we can and can\'t promise.',

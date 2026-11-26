@@ -1117,6 +1117,9 @@ const TIERS=['Tier 1: the basics','Tier 2: the grid','Tier 3: the machines','Tie
 
 // ======================= SAVE =======================
 const SAVE_KEY='flipline:save',SAVE_V=1;
+// The garage shop is closed for now (the owner's call): nothing can be bought, what a save already owns stays owned and can be chosen,
+// and coins still add up from play. Set this to true to open buying again; nothing else needs to change.
+const SHOP_OPEN=false;
 function freshSave(){return{v:SAVE_V,coins:0,veh:'hopper',rid:'sol',thm:'canyon',own:{hopper:1,sol:1,canyon:1},
   best:{dist:0,score:0},daily:{d:'',dist:0,score:0,plays:0},lv:{},ch:{act:[0,1,2],next:3,done:0,prog:{}},
   tot:{flips:0,dist:0,runs:0,crashes:0},feat:{},set:{mus:0.5,sfx:0.8,mute:0,fx:0,ghost:1},track:''}}
@@ -2044,10 +2047,10 @@ function buildShop(){
   for(const it of list){const own=owned(it.id),sel=it.id===cur;const d=document.createElement('div');d.className='item'+(sel?' sel':'')+(own?'':' locked');
     const c=document.createElement('canvas');c.width=300;c.height=200;d.appendChild(c);
     const nm=document.createElement('b');nm.textContent=it.feat&&!own?'???':it.n;nm.setAttribute('data-noi18n','');d.appendChild(nm);
-    const sm=document.createElement('small');sm.textContent=it.feat?(own?TX('Secret'):TX(FEAT[it.feat])):own?(sel?TX('Riding'):TX('Yours')):TX('{c} coins',{c:NUM(it.cost)});d.appendChild(sm);
+    const sm=document.createElement('small');sm.textContent=it.feat?(own?TX('Secret'):TX(FEAT[it.feat])):own?(sel?TX('Riding'):TX('Yours')):SHOP_OPEN?TX('{c} coins',{c:NUM(it.cost)}):TX('Coming soon');d.appendChild(sm);
     const b=document.createElement('button');b.type='button';b.className='btn sm'+(sel?'':own?' teal':' clay');
-    b.textContent=sel?TX('Chosen'):own?TX('Choose'):it.feat?TX('Locked'):TX('Buy');b.disabled=sel||(!own&&(it.feat||save.coins<it.cost));
-    b.onclick=()=>{if(!own){if(it.feat||save.coins<it.cost)return;save.coins-=it.cost;save.own[it.id]=1;AU.S.buy();toast(TX('{n} is yours!',{n:it.n}))}else AU.S.ui();
+    b.textContent=sel?TX('Chosen'):own?TX('Choose'):it.feat||!SHOP_OPEN?TX('Locked'):TX('Buy');b.disabled=sel||(!own&&(!SHOP_OPEN||it.feat||save.coins<it.cost));
+    b.onclick=()=>{if(!own){if(!SHOP_OPEN||it.feat||save.coins<it.cost)return;save.coins-=it.cost;save.own[it.id]=1;AU.S.buy();toast(TX('{n} is yours!',{n:it.n}))}else AU.S.ui();
       if(garTab==='veh')save.veh=it.id;else if(garTab==='rid')save.rid=it.id;else{save.thm=it.id;bgCache=null}persist();buildShop()};
     d.appendChild(b);box.appendChild(d);
     previewCard(c,it,garTab,own)}
