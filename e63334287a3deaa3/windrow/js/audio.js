@@ -1,4 +1,4 @@
-/* Windrow: every sound is made here in code with the Web Audio API. Nothing is downloaded.
+/* Leaf Sweep: every sound is made here in code with the Web Audio API. Nothing is downloaded.
    Three sounds run all the time and are only turned up and down (leaf rustle, rake scrape, blower); the rest are
    short one-off notes and thumps. Starts on the first tap or key, as browsers require. */
 (function () {

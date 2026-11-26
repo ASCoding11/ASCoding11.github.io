@@ -1,4 +1,4 @@
-/* Windrow: the garden. Areas, the collision grid, and everything that stands still (ground, walls, hedges, trees,
+/* Leaf Sweep: the garden. Areas, the collision grid, and everything that stands still (ground, walls, hedges, trees,
    bins, chutes, gates). All shapes and textures are made here in code; nothing is downloaded.
    The whole garden is flat and sits on one grid of 0.25 m cells (WR.CELL): `solid` blocks the player and the leaves,
    `gtype` says what the ground is (how far a leaf slides on it), `inlet` marks the cells of a mulch chute. */
@@ -21,7 +21,7 @@
     { id: 'glass', name: 'Glasshouse Row', x0: 12, x1: 36, z0: -30, z1: 0, ground: PAVE, leaves: 2200, units: 4200, cost: 1200, need: [1, 0.5], bonus: 900,
       reward: 'magnet', rewardName: 'Draught grates', rewardText: 'Chutes pull in leaves from farther away', pal: ['#b07a3c', '#96602c', '#c79a52', '#7d5630', '#d4ae6a'] },
     { id: 'maze', name: 'Maze Lawn', x0: -40, x1: -12, z0: -30, z1: 20, ground: LAWN, leaves: 3600, units: 9000, cost: 2800, need: [1, 0.5], bonus: 2000,
-      reward: 'crown', rewardName: 'Keeper of Windrow', rewardText: 'The gardens are open again', pal: ['#8e2f3a', '#a8402c', '#6f2a3a', '#c25a2e', '#7a3a24'] }
+      reward: 'crown', rewardName: 'Keeper of the gardens', rewardText: 'The gardens are open again', pal: ['#8e2f3a', '#a8402c', '#6f2a3a', '#c25a2e', '#7a3a24'] }
   ];
   WR.QUALITY = { low: 14, medium: 24, high: 40 };   // leaves per square metre of open ground
 

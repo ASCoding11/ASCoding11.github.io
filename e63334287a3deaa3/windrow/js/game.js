@@ -1,4 +1,4 @@
-/* Windrow: the game itself. The player, the three tools, bins, chutes and gates, acorns and upgrades, the HUD and
+/* Leaf Sweep: the game itself. The player, the three tools, bins, chutes and gates, acorns and upgrades, the HUD and
    menus, saving, and the frame loop.
    Everything is saved in this browser under localStorage 'windrow:v1' (see README): acorns, upgrades, which gardens
    are open and finished, what is in the sack, settings, and where every leaf still on the ground is lying. */

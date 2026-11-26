@@ -1,4 +1,4 @@
-/* Windrow: the leaves. Every leaf is a real thing with a place, a speed and a tumble; nothing is deleted by pointing.
+/* Leaf Sweep: the leaves. Every leaf is a real thing with a place, a speed and a tumble; nothing is deleted by pointing.
    To stay cheap with tens of thousands of them:
    - leaves that have come to rest are "asleep" and cost nothing until a tool, a foot or a neighbour wakes them;
    - each leaf lives in one 0.25 m grid cell (a linked list per cell), so tools only look at the cells they reach;

@@ -1,8 +1,8 @@
-/* Windrow in Spanish: this game's own words for lang.js (see the comment at the top of ../lang.js).
-   The name Windrow stays as it is; the gardens, tools and everything else are translated. */
+/* Leaf Sweep in Spanish: this game's own words for lang.js (see the comment at the top of ../lang.js).
+   The name Leaf Sweep stays as it is; the gardens, tools and everything else are translated. */
 if (window.BackRoomLang) BackRoomLang.add({
   // title and menus
-  'Windrow game view': 'Vista del juego Windrow',
+  'Leaf Sweep game view': 'Vista del juego Leaf Sweep',
   'The old gardens are buried in autumn. Gather, rake and blow every last leaf away, one walled garden at a time.': 'Los viejos jardines están enterrados bajo el otoño. Junta, rastrilla y sopla hasta la última hoja, un jardín amurallado a la vez.',
   'Start sweeping': 'Empezar a barrer', 'Carry on sweeping': 'Seguir barriendo', 'How to play': 'Cómo se juega', 'Settings': 'Ajustes',
   'Your garden saves itself in this browser.': 'Tu jardín se guarda solo en este navegador.',
@@ -56,7 +56,7 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Knee pads': 'Rodilleras', 'Hold C to kneel: hands gather twice as fast': 'Mantén C para arrodillarte: las manos juntan el doble de rápido', 'Tap Kneel: hands gather twice as fast': 'Toca Arrodillarse: las manos juntan el doble de rápido',
   'Spring heels': 'Tacones con resorte', 'Jump half as high again': 'Saltas una vez y media más alto',
   'Draught grates': 'Rejillas con tiro', 'Chutes pull in leaves from farther away': 'Las rejillas atraen las hojas desde más lejos',
-  'Keeper of Windrow': 'Guardián de Windrow', 'The gardens are open again': 'Los jardines vuelven a estar abiertos',
+  'Keeper of the gardens': 'Guardián de los jardines', 'The gardens are open again': 'Los jardines vuelven a estar abiertos',
   // shed
   'Bigger sack': 'Saco más grande', 'Carry more leaves before a trip to the bin': 'Lleva más hojas antes de ir a la compostera',
   'Quick hands': 'Manos rápidas', 'Gather faster and reach wider': 'Juntas más rápido y alcanzas más lejos',

@@ -1,4 +1,4 @@
-/* Windrow: what you see of yourself. The gloves, sack and blower are drawn in a small scene of their own on top of
+/* Leaf Sweep: what you see of yourself. The gloves, sack and blower are drawn in a small scene of their own on top of
    the garden (so they never poke through a wall); the rake is a real object in the garden, because its head is out
    on the ground where the leaves are. Upgrades change these models: the sack swells, the rake head widens, the
    blower's pipe grows. */

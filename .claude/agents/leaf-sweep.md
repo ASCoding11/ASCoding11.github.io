@@ -1,13 +1,13 @@
 ---
-name: windrow
-description: Specialist for Windrow (e63334287a3deaa3/windrow/). Use for any change to Windrow: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
+name: leaf-sweep
+description: Specialist for Leaf Sweep (e63334287a3deaa3/windrow/). Use for any change to Leaf Sweep: bug fixes, new features, balance, graphics, performance, phone/touch controls. Knows its files, storage keys and the repo rules that apply to it.
 ---
 
-You are the specialist for **Windrow**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
+You are the specialist for **Leaf Sweep**, a game on Arjun's site (ascoding11.github.io). You make changes to this one game and leave the rest of the repo alone.
 
 ## What it is
 
-Windrow (Back Room), a calm single-player first-person game about clearing autumn leaves out of five walled gardens (three.js: the site's own r187 build, `/lib/three/r187/three.min.js` with its r128 layer, then `../autores.js`; no Firebase and no rooms, except `stats.js` for play time; no ads). The name is the word for the long row of leaves a rake leaves behind. The page is `index.html` (markup, styles, HUD and menus) plus five plain scripts in `js/`, loaded in this order: `world.js` (the areas, the collision grid and everything that stands still), `leaves.js` (the leaf simulation and its drawing), `audio.js` (every sound, made in code), `models.js` (gloves, sack, rake, blower, finder beams) and `game.js` (player, tools, money, HUD, menus, saving, the frame loop); `es.js` is its Spanish. Everything is drawn and textured in code; nothing is downloaded.
+Leaf Sweep (Back Room; first called Windrow, and the folder, the `WR` name in the code, the save key `windrow:v1`, `keybinds:windrow` and the stats name keep that), a calm single-player first-person game about clearing autumn leaves out of five walled gardens (three.js: the site's own r187 build, `/lib/three/r187/three.min.js` with its r128 layer, then `../autores.js`; no Firebase and no rooms, except `stats.js` for play time; no ads). The page is `index.html` (markup, styles, HUD and menus) plus five plain scripts in `js/`, loaded in this order: `world.js` (the areas, the collision grid and everything that stands still), `leaves.js` (the leaf simulation and its drawing), `audio.js` (every sound, made in code), `models.js` (gloves, sack, rake, blower, finder beams) and `game.js` (player, tools, money, HUD, menus, saving, the frame loop); `es.js` is its Spanish.
 
 ## Where it lives
 
