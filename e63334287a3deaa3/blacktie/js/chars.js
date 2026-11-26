@@ -476,7 +476,11 @@
   AP.hold = function (obj) {
     if (this.held && this.held.parent) this.held.parent.remove(this.held);
     this.held = obj;
-    if (obj) { this.root.add(obj); this._wAim = 0; }
+    if (obj) {
+      var id = obj.userData.id, d = RP.Weapons && RP.Weapons.DEFS[id];
+      obj.userData.oneHandMelee = !!(d && (d.melee || d.cat === 'throw'));
+      this.root.add(obj); this._wAim = 0;
+    }
   };
   AP.setVisible = function (v) { this.root.visible = v; this.visibleFlag = v; };
 
@@ -653,26 +657,90 @@
     // the held weapon: grip at the right hand, pointing along the aim (lowered when carried); melee weapons and
     // throwables follow the forearm so swings carry them round
     if (this.held) this._placeWeapon(dt);
-    // left hand onto the weapon's fore-grip
-    var held = this.held, want = 0;
-    if (held && held.userData.gripL) {
-      var up = this._upperName || '';
-      want = /aim|hold|fire|Cover|crouchAim|sprintRifle/i.test(up) || /aim|fire/i.test(this.fullName || '') ? 1 : 0;
-      if (held.userData.oneHand && !/aim|fire/i.test(up)) want = 0;
+    // left hand onto the weapon's fore-grip (long guns whenever they are held up; pistols two-handed when aimed)
+    var held = this.held, want = 0, up = this._upperName || '';
+    if (held && !held.userData.oneHandMelee) {
+      var aimingPose = /aim|fire|Cover|crouchAim/i.test(up) || /aim|fire/i.test(this.fullName || '');
+      if (!held.userData.oneHand) want = /hold|aim|fire|Cover|crouchAim/i.test(up) || aimingPose ? 1 : 0;
+      else want = aimingPose ? 1 : 0;
       if (this.lhWant != null) want = this.lhWant;
-      if (this.moves.length) want *= 0.3;
+      if (this.moves.length) want *= 0.25;
+      if (this.reloading) want = 0;
     }
-    want = 0;   // left-hand IK off for now: with the code-placed guns the elbow solves upward (see README)
-    this.lhW = M.approach(this.lhW, want, 6, dt);
+    this.lhW = this._snap ? want : M.approach(this.lhW, want, 7, dt);
     if (this.lhW > 0.02 && held && b.upperarm_l) {
       held.updateMatrixWorld(true);
-      var tp = held.userData.gripL.getWorldPosition(new T.Vector3());
-      twoBone(b.upperarm_l, b.lowerarm_l, b.hand_l, tp, this.lhW);
+      var tp = _lhT;
+      if (held.userData.gripL) held.userData.gripL.getWorldPosition(tp);
+      else tp.set(0.034, -0.045, -0.01).applyMatrix4(held.matrixWorld);   // pistols: the support hand wraps the grip
+      // elbow pole: down and out to the left of the character, a little behind the hand
+      var rq2 = this.root.quaternion;
+      b.upperarm_l.getWorldPosition(_lhP);
+      _lhP.add(_lhD.set(0.45, -0.9, -0.15).applyQuaternion(rq2));
+      ikPole(b.upperarm_l, b.lowerarm_l, b.hand_l, tp, _lhP, this.lhW);
     }
   };
-  var _wq = new T.Quaternion(), _wm = new T.Matrix4(), _wf = new T.Vector3(), _wu = new T.Vector3(), _wr = new T.Vector3(), _wh = new T.Vector3(), _we = new T.Vector3();
+  var _lhT = new T.Vector3(), _lhP = new T.Vector3(), _lhD = new T.Vector3();
+  // Two-bone IK with a pole: the elbow (knee) is placed in the plane through the root, the target and the pole point,
+  // then the upper and lower bones are swung onto it (their twist is kept from the animation).
+  var _ia = new T.Vector3(), _ib = new T.Vector3(), _ic = new T.Vector3(), _it = new T.Vector3(), _ie = new T.Vector3(), _iu = new T.Vector3(), _iv = new T.Vector3(), _iq = new T.Quaternion(), _iq0 = new T.Quaternion(), _iq1 = new T.Quaternion();
+  function ikPole(A, Bn, Cn, target, pole, w) {
+    if (w <= 0) return;
+    _iq0.copy(A.quaternion); _iq1.copy(Bn.quaternion);
+    worldPos(A, _ia); worldPos(Bn, _ib); worldPos(Cn, _ic);
+    var la = _ia.distanceTo(_ib), lb = _ib.distanceTo(_ic);
+    _it.subVectors(target, _ia); var d = _it.length(); if (d < 1e-4) return;
+    d = Math.min(d, (la + lb) * 0.999); _it.normalize();
+    var x = (la * la - lb * lb + d * d) / (2 * d), h = Math.sqrt(Math.max(0, la * la - x * x));
+    _iu.subVectors(pole, _ia); _iu.addScaledVector(_it, -_iu.dot(_it));
+    if (_iu.lengthSq() < 1e-8) _iu.set(0, -1, 0); _iu.normalize();
+    _ie.copy(_ia).addScaledVector(_it, x).addScaledVector(_iu, h);        // wanted elbow
+    // swing the upper bone so its end lands on the elbow
+    _iv.subVectors(_ib, _ia).normalize(); _iu.subVectors(_ie, _ia).normalize();
+    rotWorld(A, _iq.setFromUnitVectors(_iv, _iu));
+    // swing the lower bone so the hand lands on the target
+    worldPos(Bn, _ib); worldPos(Cn, _ic);
+    _iv.subVectors(_ic, _ib).normalize(); _iu.subVectors(_ia.copy(_it).multiplyScalar(d).add(worldPos(A, _ie)), _ib).normalize();
+    rotWorld(Bn, _iq.setFromUnitVectors(_iv, _iu));
+    if (w < 1) { A.quaternion.copy(_iq0.slerp(A.quaternion, w)); Bn.quaternion.copy(_iq1.slerp(Bn.quaternion, w)); A.updateMatrixWorld(true); }
+  }
+  C.ikPole = ikPole;
+  // weapon_r's own frame (measured on the aim clips): X to the character's right, Y down, Z forward and raised by the
+  // grip's rake. A gun model (X its left, Y up, Z barrel) sits in it turned half round its X axis and tipped back by
+  // the rake: about 33 degrees for the long guns' clips, 21 for the pistol clips.
+  var _qI = new T.Quaternion(), _wq = new T.Quaternion(), _wm = new T.Matrix4(), _wf = new T.Vector3(), _wu = new T.Vector3(), _wr = new T.Vector3(), _wh = new T.Vector3(), _we = new T.Vector3();
+  var _gq = {};
+  function gripQuat(deg) {
+    if (_gq[deg]) return _gq[deg];
+    var a = deg * Math.PI / 180, s = Math.sin(a), c = Math.cos(a);
+    var m = new T.Matrix4().makeBasis(new T.Vector3(-1, 0, 0), new T.Vector3(0, -c, s), new T.Vector3(0, s, c));
+    return (_gq[deg] = new T.Quaternion().setFromRotationMatrix(m));
+  }
   AP._placeWeapon = function (dt) {
     var w = this.held, b = this.bones, rq = this.root.quaternion;
+    if (b.weapon_r && !w.userData.oneHandMelee) {
+      // guns ride the clips' weapon_r prop bone (barrel +Z, up +Y, origin at the right-hand grip), so the
+      // authored hold, aim, fire and reload poses carry them exactly as they were made
+      if (w.parent !== b.weapon_r) { b.weapon_r.add(w); w.position.set(0, 0, 0); w.quaternion.copy(gripQuat(w.userData.oneHand ? 21 : 33)); }
+      w.updateMatrixWorld(true);
+      // aimed: the wrist turns so the barrel lies exactly on the aim line (as in GTA, the gun points where the
+      // crosshair is), up to 50 degrees; clips that hold the gun a little off-line are corrected this way
+      this._wAim = this._snap ? (this.weaponAim || 0) : M.approach(this._wAim || 0, this.weaponAim || 0, 7, dt);
+      if (this._wAim > 0.01) {
+        var yaw = this.root.rotation.y + this.aimY, pitch = this.weaponPitch != null ? this.weaponPitch : this.aimP;
+        _wf.set(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+        w.getWorldQuaternion(_wq); _wu.set(0, 0, 1).applyQuaternion(_wq);
+        var ang = _wu.angleTo(_wf);
+        if (ang > 1e-3) {
+          _wq.setFromUnitVectors(_wu, _wf);
+          var k = Math.min(1, 0.87 / ang) * this._wAim;
+          if (k < 1) _wq.slerp(_qI, 1 - k);
+          rotWorld(b.hand_r, _wq);
+          w.updateMatrixWorld(true);
+        }
+      }
+      return;
+    }
     b.hand_r.getWorldPosition(_wh);
     if (w.userData.oneHand && (w.userData.id === 'knife' || w.userData.id === 'bat' || w.userData.id === 'crowbar' || w.userData.id === 'hammer' || w.userData.id === 'club' || w.userData.id === 'machete' || w.userData.id === 'frag' || w.userData.id === 'sticky' || w.userData.id === 'smoke')) {
       b.lowerarm_r.getWorldPosition(_we);
