@@ -28,20 +28,26 @@ character build scripts are in `tools/chars/` (see its README; needs `bvenv` wit
   / `dress`), `heli.js` (alert >= 4).
 - Phone check: 11 touch controls, no overlaps in portrait or landscape (scripted), Low by default.
 
-## In progress when this was written
-- A helper agent was rebuilding the map (bigger Amalfi Coast, chunk streaming, `mapkit.js`) in the main checkout
-  `/home/user/ASCoding11.github.io` (uncommitted there); the rest of the work went on in the worktree
-  `/home/user/bt-work` (branch `bt-work`, pushed to `origin/agent-game`). Merge: commit the map work in the main
-  checkout, then `git merge bt-work` there (or cherry-pick the map commit onto bt-work) and push.
+- Map landed (helper agent): 1.9 km of coast, bounds x -256..1664: Amalfi (unchanged anchors), coast road with
+  tunnels at x 312-358 and 1138-1182, belvedere (466, 36), lemon terraces x 560-800, viaduct x 852-908 with a cove
+  hamlet at (880, -50), bowl town centred x 1420 (street down from (1385, -146) to the piazzetta (1458, -56), domed
+  church (1414, -31), beach, pier). `mapkit.js` = shared builders (RP.Kit) for later cities, `maptex.js` = town
+  texture array; `build.js` streams chunks by distance in three detail classes; `RP.map.driveLine` is the road
+  centreline east from the waterfront; `RP.map.vehicles`, `RP.map.spots`, `RP.map.spawns`.
+  Helper's budget table (calls / tris, worst view): Low 227 / 293k, Medium 347 / 711k, High 372 / 879k; over
+  target only in busy Amalfi (characters make most of the calls there).
+- Mission 3 `chase` (Coast Road): Spider from the waterfront east to the piazzetta, on foot to the pier, launch out
+  to sea; `RP.Vehicles.chaser()` saloons follow `driveLine` and fire; cars take bullet and crash damage.
 
 ## Next
-1. Land the map; put `RP.map.vehicles` spots on its roads; fix anything the map moved (mission anchors).
-2. Mission 3: the coast-road chase (drive the Spider west-to-east with Halcyon cars and the helicopter after you);
-   guards arriving by car as reinforcements; traffic.
-3. Still rough: car bodies are low-poly; faces are MakeHuman-level; no start/stop clips (only a brake move);
-   vault/climb/corner swing not re-checked since the rotWorld fix; the HUD ammo block sits close under the
-   pause button on short phones; first-person view untested with the new characters.
-4. Balance, a per-preset performance table on the new map, then a real play-through with a mouse and on a phone.
+1. Play mission 3 with real controls; tune chaser speed/aggression and the helicopter; check the pursuit in the
+   tunnels and hairpins; traffic and parked cars along the road.
+2. Known rough: car bodies low-poly; faces MakeHuman-level; no start/stop clips (only a brake move); vault/climb/
+   corner swing not re-checked since the rotWorld fix; cliffs are a 2 m heightfield with a few spiky fins; terraces
+   read as grass steps; detail pops at 72-250 m; Low/Medium over the draw-call target in Amalfi; first-person view
+   untested with the new characters; nothing tested on a real GPU or phone yet.
+3. Balance, then the What's new entry (JSON in git history, commit 89b8771) and card/phone row when it leaves
+   preview. Later maps: Chicago, a Greek island (new files under `maps/` using `RP.Kit`).
 
 ## Test harness (in ~/rpwork, recreate if lost)
 Playwright with swiftshader against `python3 -m http.server 8765` at the repo root; `?test` exposes `__RP__`

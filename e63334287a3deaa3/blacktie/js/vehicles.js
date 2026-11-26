@@ -319,8 +319,10 @@
       var lost = Math.hypot(_f.x - fx, _f.z - fz) + Math.hypot(_r.x - rx, _r.z - rz);
       if (lost > 0.02 * Math.max(1, sp * dt * 20)) {
         var hitK = M.clamp(lost / Math.max(1e-3, sp * dt), 0, 1);
-        if (hitK > 0.35) { v.hit = sp * hitK; v.v *= 1 - hitK * 0.8; v.hp -= sp * hitK * 1.2; }
-        else v.v *= 1 - hitK * 0.3;
+        // an impact is speed lost at once: only a real hit (more than 3 m/s gone) shakes and damages the car;
+        // leaning on a wall or scraping a parapet just slows it
+        if (hitK > 0.35 && sp * hitK > 3) { v.hit = sp * hitK; v.hp -= sp * hitK * 1.6; if (v.hp <= 0 && !v.dead) kill(v); }
+        v.v *= 1 - hitK * (hitK > 0.35 ? 0.8 : 0.3);
       }
     }
     v.pos.x = (_f.x + _r.x) / 2; v.pos.z = (_f.z + _r.z) / 2;   // (its own box stays out of the ground queries below: a low car would climb onto itself)
