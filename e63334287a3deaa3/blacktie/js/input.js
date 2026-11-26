@@ -14,7 +14,7 @@
   var KEYS = {
     KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right', ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
     ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', ControlLeft: 'stealth', KeyC: 'stealth', KeyQ: 'cover', KeyR: 'reload', Tab: 'wheel',
-    KeyV: 'camera', KeyG: 'throw', KeyE: 'interact', KeyX: 'prev', Escape: 'pause', KeyP: 'pause', KeyF: 'enter', KeyT: 'melee', AltLeft: 'walk', KeyZ: 'walk'
+    KeyV: 'camera', KeyG: 'throw', KeyE: 'interact', KeyX: 'prev', Escape: 'pause', KeyP: 'pause', KeyF: 'enter', KeyB: 'drop', KeyT: 'melee', AltLeft: 'walk', KeyZ: 'walk'
   };
   var state = {}, prev = {}, now = {};
   function set(a, v) { state[a] = v; }
@@ -101,7 +101,7 @@
   I.setTouchToggle = function (act, v) { touch.btn[act] = v; var b = document.querySelector('#touch [data-act="' + act + '"]'); if (b) b.classList.toggle('on', !!v); };
 
   // ------------------------------------------------------------------ per frame
-  var PADB = { 0: 'jump', 1: 'melee', 2: 'reload', 3: 'interact', 4: 'wheel', 5: 'cover', 6: 'aim', 7: 'fire', 8: 'pause', 9: 'pause', 10: 'stealth', 11: 'camera', 13: 'throw', 12: 'prev' };
+  var PADB = { 0: 'jump', 1: 'melee', 2: 'reload', 3: 'interact', 4: 'wheel', 5: 'cover', 6: 'aim', 7: 'fire', 8: 'pause', 9: 'pause', 10: 'stealth', 11: 'camera', 13: 'throw', 12: 'prev', 14: 'drop' };
   I.update = function (dt) {
     prev = now;
     now = {};

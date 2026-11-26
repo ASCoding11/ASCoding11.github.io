@@ -15,7 +15,8 @@
   // ------------------------------------------------------------------ the mission runner
   var Run = RP.Run = { stats: { takedowns: 0 }, pickups: [], interact: null };
   Run.time = function () { var s = Math.round(G.time); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); };
-  Run.pickup = function (kind, x, z, y) {
+  Run.pickup = function (kind, x, z, y) { return RP.Items.pickup(kind, x, z, y); };
+  Run._oldPickup = function (kind, x, z, y) {
     y = y == null ? W.ground(x, z, 200).y : y;
     var col = { health: '#d64b3c', armour: '#3c7bd6', ammo: '#c9a34a' }[kind];
     var g = new T.Group();
@@ -30,7 +31,7 @@
   function clearWorld() {
     G.ents.forEach(function (e) { if (e.actor) e.actor.dispose(); });
     G.ents = []; G.guards = []; G.civilians = []; G.player = null;
-    Run.pickups.forEach(function (p) { R.scene.remove(p.g); }); Run.pickups = []; Run.interact = null;
+    Run.pickups.forEach(function (p) { R.scene.remove(p.g); }); Run.pickups = []; Run.interact = null; RP.Items.clear();
     RP.Combat.projs.forEach(function (p) { R.scene.remove(p.m); }); RP.Combat.projs = []; RP.Combat.noises = [];
     RP.Rag.list = []; RP.FX.smokes = [];
   }
@@ -80,35 +81,14 @@
       if (mm.step >= mm.def.steps.length) { finish(true); return; }
       enterStep(mm);
     }
-    // pickups
     var p = G.player;
-    Run.pickups.forEach(function (k) {
-      if (k.taken) return;
-      k.g.rotation.y += dt * 1.5;
-      if (p.alive && p.pos.distanceTo(k.p) < 1.1) {
-        k.taken = true; R.scene.remove(k.g);
-        if (k.kind === 'health') { p.hp = Math.min(TU.maxHealth, p.hp + 50); RP.emit('toast', '+ Health'); }
-        if (k.kind === 'armour') { p.armour = TU.maxArmour; RP.emit('toast', '+ Armour'); }
-        if (k.kind === 'ammo') { Object.keys(p.inv).forEach(function (id) { var d = RP.Weapons.DEFS[id]; if (d.reserve && d.cat !== 'throw') p.inv[id].reserve = Math.min(d.reserve * 2, p.inv[id].reserve + Math.ceil(d.mag * 2)); }); RP.emit('toast', '+ Ammo'); }
-        RP.Audio.ui('ok');
-      }
-    });
-    // dropped guard weapons: walk over for ammo
-    G.guards.forEach(function (g) {
-      if (g.alive || g.looted || !g.def || g.ko && !g.actor.rag) return;
-      if (p.alive && p.pos.distanceTo(g.pos) < 1.4) {
-        g.looted = true; var id = g.weapon;
-        var had = !!p.inv[id];
-        RP.Player.give(p, id, Math.ceil(g.def.mag * (had ? 1 : 1.5)));
-        RP.emit('toast', (had ? '+ ' : 'Picked up ') + g.def.name + (had ? ' ammo' : ''));
-        RP.Audio.mech('magIn', p.pos);
-      }
-    });
-    // interactables
+    // interactables (set first; a weapon swap prompt from RP.Items wins)
     RP.HUD.interact = null;
     if (Run.interact && p.alive && p.pos.distanceTo(Run.interact.p) < Run.interact.r) RP.HUD.interact = Run.interact.label;
+    RP.Items.update(dt);
   }
   RP.on('interact', function (p) {
+    if (RP.Items.interact(p)) return;
     if (Run.interact && p.pos.distanceTo(Run.interact.p) < Run.interact.r) { var f = Run.interact.fn; Run.interact = null; f(); }
   });
   RP.on('guardDown', function (g, info) { if (info && info.takedown) Run.stats.takedowns++; });

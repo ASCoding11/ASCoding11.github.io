@@ -54,9 +54,16 @@
     if (!p.inv[id] || WP.DEFS[id].cat === 'throw') return;
     if (id === p.cur && !instant) return;
     if (p.reload) p.reload = null;
-    if (!instant) { p.prevW = p.cur; p.swap = { to: id, t: 0, out: 0.22, inn: 0.32 * (WP.DEFS[id].aimTime ? 1 + WP.DEFS[id].aimTime : 1) }; p.actor.move('holster'); RP.Audio.mech('holster', p.pos); return; }
+    if (!instant) { p.prevW = p.cur; p.swap = { to: id, t: 0, out: p.cur === 'fists' ? 0.05 : 0.24, inn: 0.32 * (WP.DEFS[id].aimTime ? 1 + WP.DEFS[id].aimTime : 1) }; if (p.cur !== 'fists') p.actor.move(stowMove(p.cur, false)); RP.Audio.mech('holster', p.pos); return; }
     setHeld(p, id);
   }
+  // where each weapon is carried: pistols in a shoulder holster under the jacket, long guns slung on the back,
+  // knives and throwables in pockets
+  function stowMove(id, draw) {
+    var d = WP.DEFS[id], m = d.cat === 'pistol' ? 'Chest' : (d.cat === 'melee' || d.cat === 'throw') ? '' : 'Back';
+    return (draw ? 'draw' : 'holster') + m;
+  }
+  P.stowMove = stowMove;
   function setHeld(p, id) {
     p.cur = id;
     var m = id === 'fists' ? null : WP.model(id);
@@ -128,7 +135,7 @@
     // ---- weapon switching (holster -> draw)
     if (p.swap) {
       p.swap.t += dt;
-      if (p.swap.t >= p.swap.out && !p.swap.drawn) { p.swap.drawn = true; setHeld(p, p.swap.to); p.actor.move('draw'); }
+      if (p.swap.t >= p.swap.out && !p.swap.drawn) { p.swap.drawn = true; setHeld(p, p.swap.to); p.actor.move(stowMove(p.swap.to, true)); }
       if (p.swap.t >= p.swap.out + p.swap.inn) p.swap = null;
     }
     // ---- states
@@ -156,8 +163,9 @@
     p.noise = p.stealth ? (sp > 0.3 ? TU.noiseStealth : 0) : sp > 5 ? TU.noiseSprint : sp > 2.5 ? TU.noiseJog : sp > 0.4 ? TU.noiseWalk : 0;
     footsteps(p, dt);
     p.vis = (p.stealth ? 0.55 : 1) * (RP.G.night ? 0.7 : 1) * (p.state === 'cover' && !p.aiming ? 0.6 : 1);
-    // interact (objectives, pickups)
+    // interact (objectives, weapon swaps), drop the weapon in hand
     if (I.pressed('interact')) RP.emit('interact', p);
+    if (I.pressed('drop') && p.state === 'move' && !p.swap && !p.reload) RP.Items.playerDrop(p);
   };
 
   function setState(p, s) { p.state = s; p.st = 0; }
@@ -724,8 +732,15 @@
   }
 
   // ------------------------------------------------------------------ per rendered frame: pose
+  // the long gun you are not holding hangs on its sling across your back (rifle first, then SMG, shotgun, sniper)
+  function backGun(p) {
+    var order = ['rifle', 'smg', 'shotgun', 'sniper', 'heavy'];
+    for (var i = 0; i < order.length; i++) { var id = RP.Items.slotOf(p, order[i]); if (id && id !== p.cur && !(p.swap && !p.swap.drawn && p.swap.to === id)) return id; }
+    return null;
+  }
   P.frame = function (p, dt) {
     var a = p.actor, d = def(p);
+    a.setBack(backGun(p));
     a.root.position.copy(p.pos); a.root.rotation.y = p.yaw;
     if (p.state === 'dead' || p.state === 'ragdoll') { a.update(dt); return; }
     var aimingPose = p.aiming || p.hipT > 0 || (p.cover && (p.cover.peek > 0.3 || p.cover.blind));

@@ -46,7 +46,12 @@
       var a = (i / 8) * 360 - 90;
       html += '<button class="wslot" data-cat="' + c + '" data-no-ad-refresh style="--a:' + a + 'deg"><span class="wcat">' + WP.CAT_NAMES[c] + '</span><span class="witem"></span><span class="wammo"></span></button>';
     });
+    html += '<button class="wdrop" id="wDrop" data-no-ad-refresh title="Drop this weapon (B)">Drop</button>';
     w.innerHTML = html;
+    w.querySelector('#wDrop').addEventListener('click', function (e) {
+      e.stopPropagation(); var p = RP.G.player, id = H.wheelPick[H.wheelSel];
+      if (p && id && H.wheelSel !== 'melee' || p && id && id !== 'fists') { H.closeWheel(false); RP.Items.playerDrop(p, id); }
+    });
     w.querySelectorAll('.wslot').forEach(function (b) {
       b.addEventListener('click', function () { H.wheelSel = b.getAttribute('data-cat'); H.closeWheel(true); });
       b.addEventListener('mouseenter', function () { if (!RP.In.locked) H.wheelSel = b.getAttribute('data-cat'); });

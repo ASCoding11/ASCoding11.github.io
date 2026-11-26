@@ -122,7 +122,12 @@
     if (!g.actor.rag) { g.actor._vel = new T.Vector3(Math.sin(g.yaw), 0, Math.cos(g.yaw)).multiplyScalar(g.speed); RP.Rag.start(g.actor, imp.setY(Math.max(imp.y, 0.5)), info && info.point, { dead: true }); }
     else g.actor.rag.alive = false;
     // drop the weapon as an ammo pickup
-    if (g.model) { g.actor.hold(null); }
+    if (g.model) {
+      var hp = g.actor.bones.hand_r ? g.actor.bones.hand_r.getWorldPosition(new T.Vector3()) : g.pos.clone().setY(g.pos.y + 1);
+      g.actor.hold(null); g.model = null;
+      var dv = imp.clone().multiplyScalar(0.6).add(new T.Vector3((Math.random() - 0.5) * 1.5, 1.5, (Math.random() - 0.5) * 1.5));
+      RP.Items.dropWeapon(g.weapon, hp, dv, { mag: g.mag || 0, reserve: Math.ceil(g.def.mag * (0.5 + Math.random())) }, g.yaw);
+    }
     RP.emit('guardDown', g, info);
     if (info && info.from && info.from.team === 'player') { RP.G.player.kills++; RP.Alert.event('kill', g); }
     // nearby guards react

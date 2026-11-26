@@ -330,8 +330,25 @@
       [0, { root: [['lift', -0.85], ['x', 70 * D]], spine_01: [['x', 30 * D]], thigh_l: [['x', -100 * D]], thigh_r: [['x', -60 * D]], calf_l: [['x', 120 * D]], calf_r: [['x', 100 * D]] }],
       [0.5, { root: [['lift', -0.5], ['x', 25 * D]], spine_01: [['x', 25 * D]], thigh_l: [['x', -80 * D]], calf_l: [['x', 100 * D]], thigh_r: [['x', -20 * D]], calf_r: [['x', 50 * D]] }],
       [1.1, {}]] },
+    // pistol from the shoulder holster under the jacket: right hand across to the left side of the chest and out
+    drawChest: { dur: 0.45, keys: [[0, { upperarm_r: [['x', -25 * D], ['y', 55 * D]], lowerarm_r: [['x', -115 * D]], hand_r: [['y', 20 * D]], spine_02: [['y', 8 * D]] }],
+      [0.18, { upperarm_r: [['x', -35 * D], ['y', 40 * D]], lowerarm_r: [['x', -95 * D]] }], [0.45, {}]] },
+    holsterChest: { dur: 0.4, keys: [[0, {}], [0.22, { upperarm_r: [['x', -25 * D], ['y', 55 * D]], lowerarm_r: [['x', -115 * D]], hand_r: [['y', 20 * D]], spine_02: [['y', 8 * D]] }],
+      [0.4, { upperarm_r: [['x', -25 * D], ['y', 50 * D]], lowerarm_r: [['x', -110 * D]] }]] },
+    // long gun from the sling on the back: reach over the right shoulder, pull it round
+    drawBack: { dur: 0.55, keys: [[0, { upperarm_r: [['x', -150 * D], ['z', 20 * D]], lowerarm_r: [['x', -110 * D]], spine_02: [['y', -12 * D]] }],
+      [0.25, { upperarm_r: [['x', -90 * D]], lowerarm_r: [['x', -70 * D]] }], [0.55, {}]] },
+    holsterBack: { dur: 0.45, keys: [[0, {}], [0.25, { upperarm_r: [['x', -150 * D], ['z', 20 * D]], lowerarm_r: [['x', -110 * D]], spine_02: [['y', -12 * D]] }],
+      [0.45, { upperarm_r: [['x', -140 * D], ['z', 15 * D]], lowerarm_r: [['x', -100 * D]] }]] },
     draw: { dur: 0.42, keys: [[0, { upperarm_r: [['x', 30 * D], ['z', 20 * D]], lowerarm_r: [['x', -80 * D]] }], [0.2, { upperarm_r: [['x', 20 * D]], lowerarm_r: [['x', -60 * D]] }], [0.42, {}]] },
     holster: { dur: 0.38, keys: [[0, {}], [0.2, { upperarm_r: [['x', 30 * D], ['z', 20 * D]], lowerarm_r: [['x', -80 * D]] }], [0.38, { upperarm_r: [['x', 25 * D], ['z', 15 * D]], lowerarm_r: [['x', -70 * D]] }]] },
+    // crouch and grab something from the ground with the right hand, then stand
+    pickup: { dur: 0.75, keys: [[0, {}],
+      [0.28, { root: [['lift', -0.42]], spine_01: [['x', 32 * D]], spine_02: [['x', 18 * D]], thigh_l: [['x', -75 * D]], thigh_r: [['x', -40 * D]], calf_l: [['x', 95 * D]], calf_r: [['x', 70 * D]], upperarm_r: [['x', 35 * D]], lowerarm_r: [['x', -10 * D]] }],
+      [0.4, { root: [['lift', -0.42]], spine_01: [['x', 30 * D]], spine_02: [['x', 18 * D]], thigh_l: [['x', -75 * D]], thigh_r: [['x', -40 * D]], calf_l: [['x', 95 * D]], calf_r: [['x', 70 * D]], upperarm_r: [['x', 25 * D]], lowerarm_r: [['x', -35 * D]] }],
+      [0.75, {}]] },
+    // let a weapon fall from the hand: arm out and down, a flick of the wrist
+    dropW: { dur: 0.45, keys: [[0, {}], [0.15, { upperarm_r: [['x', -35 * D]], lowerarm_r: [['x', -20 * D]], hand_r: [['x', 30 * D]] }], [0.45, {}]] },
     shellLoad: { dur: 0.48, keys: [[0, {}], [0.2, { upperarm_l: [['x', 20 * D]], lowerarm_l: [['x', -30 * D]] }], [0.34, { upperarm_l: [['x', -30 * D]], lowerarm_l: [['x', -70 * D]] }], [0.48, {}]] },
     guard: { dur: 1, keys: [[0, { upperarm_l: [['x', -55 * D], ['y', 20 * D]], lowerarm_l: [['x', -120 * D]], upperarm_r: [['x', -45 * D], ['y', -20 * D]], lowerarm_r: [['x', -125 * D]], spine_02: [['y', -12 * D]] }], [1, { upperarm_l: [['x', -55 * D], ['y', 20 * D]], lowerarm_l: [['x', -120 * D]], upperarm_r: [['x', -45 * D], ['y', -20 * D]], lowerarm_r: [['x', -125 * D]], spine_02: [['y', -12 * D]] }]], hold: true },
     stumble: { dur: 0.9, keys: [[0, {}], [0.2, { spine_01: [['x', -20 * D]], spine_02: [['x', -15 * D]], upperarm_l: [['z', 60 * D]], upperarm_r: [['z', -60 * D]] }], [0.5, { spine_01: [['x', 10 * D]], upperarm_l: [['z', 30 * D]], upperarm_r: [['z', -30 * D]] }], [0.9, {}]] },
@@ -482,6 +499,25 @@
       this.root.add(obj); this._wAim = 0;
     }
   };
+  // a long gun slung across the back on spine_03: butt low behind the right hip, muzzle over the left shoulder blade
+  var _slung = null;
+  AP.setBack = function (id) {
+    if (this._backId === id) return;
+    this._backId = id;
+    if (this._back) { this._back.parent && this._back.parent.remove(this._back); this._back = null; }
+    if (!id || !this.bones.spine_03) return;
+    var m = RP.Weapons.model(id); if (!m) return;
+    if (!_slung) {
+      var z = new T.Vector3(-0.36, 0.93, 0).normalize(), y = new T.Vector3(0, 0.05, -1).normalize(), x = new T.Vector3().crossVectors(y, z).normalize();
+      y.crossVectors(z, x); _slung = new T.Matrix4().makeBasis(x, y, z);
+    }
+    // the carry pose in the character's frame, put on the bone through the bone's current world matrix
+    this.root.updateMatrixWorld(true);
+    var h = this.height || 1.8, want = _slung.clone().setPosition(0.03, h * 0.6, -0.19);
+    var local = new T.Matrix4().copy(this.bones.spine_03.matrixWorld).invert().multiply(this.root.matrixWorld).multiply(want);
+    local.decompose(m.position, m.quaternion, m.scale);
+    this.bones.spine_03.add(m); this._back = m;
+  };
   AP.setVisible = function (v) { this.root.visible = v; this.visibleFlag = v; };
 
   var _cam = new T.Vector3();
@@ -525,7 +561,11 @@
     var want = {};
     var stealth = this._stealthW, strafe = this._strafeW;
     function add(n, w) { if (w > 0.0005) want[n] = (want[n] || 0) + w; }
-    add('idle', wIdle * (1 - stealth) * (1 - this._turnW));
+    // standing with a weapon up: the hold/aim clip's own legs (square to its upper body), not the relaxed idle's
+    // shifted hips, which twisted the body against the held pose
+    var idleN = this._upperName && /^(hold|aim)/.test(this._upperName) && this.cs.C[this._upperName] ? this._upperName : 'idle';
+    this._idleN = idleN;
+    add(idleN, wIdle * (1 - stealth) * (1 - this._turnW));
     add('crouchIdle', wIdle * stealth * (1 - this._turnW));
     add('turnStep', wIdle * (1 - stealth) * this._turnW); add('crouchTurnStep', wIdle * stealth * this._turnW);
     for (i = 0; i < 8; i++) {
@@ -539,7 +579,7 @@
     add('sprintF', wSprint * (1 - strafe) * (1 - stealth));
     // phase: shared by every moving clip so feet stay in step while blending
     var sw = 0, sStride = 0;
-    for (k in want) { var nd = this._node(k); if (!nd) continue; if (k !== 'idle' && k !== 'crouchIdle' && !/turn/i.test(k)) { sw += want[k]; sStride += want[k] * nd.stride; } }
+    for (k in want) { var nd = this._node(k); if (!nd) continue; if (k !== 'idle' && k !== 'crouchIdle' && k !== idleN && !/turn/i.test(k)) { sw += want[k]; sStride += want[k] * nd.stride; } }
     var strideL = sw > 0 ? sStride / sw : 1.6;
     if (stealth > 0.5) strideL *= 0.85;
     if (s > 0.05) this.phase = (this.phase + dt * s / Math.max(0.5, strideL)) % 1;
@@ -561,7 +601,7 @@
       var ew = n.w * (1 - F);
       n.full.setEffectiveWeight(ew * (1 - Uc)); n.low.setEffectiveWeight(ew * Uc);
       if (n.w > 0) {
-        if (k === 'idle' || k === 'crouchIdle') n.t = (n.t + dt) % n.dur;
+        if (k === 'idle' || k === 'crouchIdle' || k === this._idleN) n.t = (n.t + dt) % n.dur;
         else if (/turn/i.test(k)) n.t = (n.t + dt * M.clamp(turning / 2, 0.6, 1.6)) % n.dur;
         else n.t = this.phase * n.dur;
         n.full.time = n.t; n.low.time = n.t;
