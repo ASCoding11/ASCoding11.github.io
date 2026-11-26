@@ -42,7 +42,13 @@
   C.hitEnts = function (o, d, maxT, ignore) {
     var best = null, bt = maxT, ents = RP.G.ents;
     for (var i = 0; i < ents.length; i++) {
-      var e = ents[i]; if (e === ignore || !e.actor || e.ghost) continue;
+      var e = ents[i]; if (e === ignore || e.ghost) continue;
+      if (e.hitSphere) {   // big simple targets (the helicopter)
+        if (!e.alive) continue;
+        var ts = raySphere(o, d, e.hitSphere.c, e.hitSphere.r); if (ts > 0 && ts < bt) { bt = ts; best = { ent: e, t: ts, region: 'body', mult: 1 }; }
+        continue;
+      }
+      if (!e.actor) continue;
       // broad phase: distance from the ray to the body's centre
       _o.copy(e.pos); _o.y += 1;
       var t0 = _o.clone().sub(o).dot(d); if (t0 < -1 || t0 > bt + 1.5) continue;
@@ -83,7 +89,7 @@
         var dist = eh.t, fall = def.range ? M.clamp((dist - def.range[0]) / Math.max(1, def.range[1] - def.range[0]), 0, 1) : 0;
         var dmg = def.dmg * (1 - fall * (1 - (def.minFrac || 0.5))) * eh.mult * (opts.dmgMul || 1);
         eh.ent.takeDamage(dmg, { from: shooter, dir: d, point: end, region: eh.region, weapon: def, bullet: true, force: (def.pellets ? 1.4 : def.dmg > 80 ? 4 : 1.8) });
-        RP.FX.impact({ x: end.x, y: end.y, z: end.z, nx: -d.x, ny: -d.y, nz: -d.z, mat: 'flesh' }, d.x, d.y, d.z);
+        RP.FX.impact({ x: end.x, y: end.y, z: end.z, nx: -d.x, ny: -d.y, nz: -d.z, mat: eh.ent.hitMat || 'flesh' }, d.x, d.y, d.z);
         last = { point: end, ent: eh.ent };
       } else if (wh) {
         end = new T.Vector3(wh.x, wh.y, wh.z);
@@ -145,7 +151,7 @@
     RP.FX.explosion(pos, radius);
     C.noise(pos, 160, 'explosion', owner);
     RP.G.ents.forEach(function (e) {
-      if (!e.alive && !e.actor.rag) return;
+      if (!e.alive && !(e.actor && e.actor.rag)) return;
       var c = e.pos.clone(); c.y += 1; var d = c.distanceTo(pos);
       if (d > radius) return;
       // walls shield
