@@ -80,8 +80,8 @@
   };
   AI.spawnCiv = function (spot, opts) {
     opts = opts || {};
-    var a = RP.Chars.spawn('guest', opts);
-    RP.R.scene.add(a.root);
+    var a = opts.actor || RP.Chars.spawn('guest', opts);   // (a traffic driver getting out keeps their own actor)
+    if (!a.root.parent) RP.R.scene.add(a.root);
     var y = spot.y != null ? spot.y : W.ground(spot.x, spot.z, W.terrainH(spot.x, spot.z) + 1.4).y   /* street level, not a roof above it */;
     var c = { actor: a, team: 'civ', alive: true, radius: TU.radius, pos: new T.Vector3(spot.x, y, spot.z), yaw: spot.yaw == null ? Math.random() * 6.28 : spot.yaw, state: 'idle',
       home: { x: spot.x, z: spot.z }, wander: opts.wander == null ? 6 : opts.wander, wait: Math.random() * 6, path: null, pathI: 0, speed: 0, fear: 0, think: Math.random(), talk: opts.talk };

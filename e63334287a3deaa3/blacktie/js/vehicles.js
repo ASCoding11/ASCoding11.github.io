@@ -329,9 +329,12 @@
     g.position.copy(v.pos); g.rotation.set(0, v.yaw, 0, 'YXZ');
     RP.R.scene.add(g);
     v.box = W.addBox({ x: x, z: z, y0: y - (ty.water ? 0.5 : 0), y1: y + ty.h, hx: ty.wid / 2, hz: ty.len / 2, yaw: v.yaw, mat: 'car', cover: !ty.water, kind: 'car', dyn: true });
-    v.box._cells = cellsOf(v.box);
+    v.box._cells = cellsOf(v.box); v.box.veh = v;
     // bullets on the bodywork: sparks, damage; a finished car smokes and its engine dies
-    v.box.onHit = function (hit, dir, def) { if (v.dead) return; v.hp -= (def && def.dmg || 10) * (v.ai ? 0.55 : 0.22); if (v.hp <= 0) kill(v); };
+    v.box.onHit = function (hit, dir, def) {
+      if (v.dead) return; v.hp -= (def && def.dmg || 10) * (v.ai ? 0.55 : 0.22); if (v.hp <= 0) kill(v);
+      if (v.traffic && RP.Traffic) RP.Traffic.hit(v, v.pos.clone().addScaledVector(dir || _a.set(0, 0, 1), -10));
+    };
     V.list.push(v); return v;
   };
   function kill(v) {
@@ -399,6 +402,12 @@
     } else if (a.gunT <= 0 && dP < 55 && W.los(v.pos.x, v.pos.y + 1.2, v.pos.z, p.pos.x, p.pos.y + 1.1, p.pos.z)) { a.burst = 4 + Math.floor(Math.random() * 4); a.shotT = 0; }
     if (v.hit > 8) { v.hp -= v.hit * 2; if (v.hp <= 0) kill(v); } v.hit = 0;
   }
+  // take one vehicle out of the world (traffic leaving)
+  V.remove = function (v) {
+    if (v.g.parent) v.g.parent.remove(v.g); v.box.off = true;
+    (v.box._cells || []).forEach(function (k) { var l = W.grid[k]; if (l) { var i = l.indexOf(v.box); if (i >= 0) l.splice(i, 1); } });
+    var i = V.list.indexOf(v); if (i >= 0) V.list.splice(i, 1);
+  };
   V.clear = function () {
     V.list.forEach(function (v) { if (v.g.parent) v.g.parent.remove(v.g); v.box.off = true; });
     V.list = []; stopEngine();
@@ -425,7 +434,7 @@
   V.near = function (p) {
     var best = null, bd = 2.3;
     V.list.forEach(function (v) {
-      if (v.driver || v.dead) return;
+      if (v.driver || v.dead || (v.traffic && Math.abs(v.v) > 3)) return;
       var d = Math.min(doorPoint(v, _dp).distanceTo(p.pos), Math.hypot(v.pos.x - p.pos.x, v.pos.z - p.pos.z) - v.ty.wid / 2);
       if (Math.abs(v.pos.y - p.pos.y) < 1.8 && d < bd) { bd = d; best = v; }
     });
@@ -433,6 +442,7 @@
   };
   V.enter = function (p, v) {
     if (p.state !== 'move' || v.driver || p.st < 0.3) return false;   // (not on the frame you got out)
+    if (v.traffic && RP.Traffic) RP.Traffic.eject(v, p.pos);           // the driver is pulled out and runs
     v.driver = p; p.vehicle = v; RP.Player.setState(p, 'drive');
     p.speed = 0; p.cover = null; p.reload = null; p.melee = null; p.stealth = false; p.sprinting = false;
     // only one-handed guns and SMGs can be used at the wheel
@@ -503,7 +513,7 @@
     } else {
       var fy0 = W.ground(_f.x, _f.z, v.pos.y + 0.7, 0.5).y, ry0 = W.ground(_r.x, _r.z, v.pos.y + 0.7, 0.5).y;
       var ox0 = _f.x, oz0 = _f.z, ox1 = _r.x, oz1 = _r.z;
-      W.move(_f, dx, dz, rad, 1.2, 0.32); W.move(_r, dx, dz, rad, 1.2, 0.32);
+      W.move(_f, dx, dz, rad, 1.2, 0.32); var hitBox = W.lastHit.box; W.move(_r, dx, dz, rad, 1.2, 0.32); hitBox = hitBox || W.lastHit.box;
       // no driving up hillsides and cliffs: ground ahead rising steeper than about 35 degrees stops the car like a wall
       // (stairs and kerbs are boxes and are handled by the step height above; this is the terrain itself)
       if (!v.air) {
@@ -519,7 +529,16 @@
         var hitK = M.clamp(lost / Math.max(1e-3, sp * dt), 0, 1);
         // an impact is speed lost at once: only a real hit (more than 3 m/s gone) shakes and damages the car;
         // leaning on a wall or scraping a parapet just slows it
-        if (hitK > 0.35 && sp * hitK > 3) { v.hit = sp * hitK; v.hp -= (sp * hitK - 3) * 0.8; if (v.hp <= 0 && !v.dead) kill(v); }
+        if (hitK > 0.35 && sp * hitK > 3) {
+          // the player's car is tougher than the rest (it has to last a chase); a car you hit takes the knock too
+          v.hit = sp * hitK; v.hp -= (sp * hitK - 3) * (v.driver === RP.G.player ? 0.4 : 0.8); if (v.hp <= 0 && !v.dead) kill(v);
+          var ov = hitBox && hitBox.veh;
+          if (ov && ov !== v && !ov.ty.water) {
+            ov.hit = Math.max(ov.hit || 0, sp * hitK); ov.hp -= (sp * hitK - 3) * 0.6; if (ov.hp <= 0 && !ov.dead) kill(ov);
+            ov.v += Math.cos(ov.yaw - v.yaw) * sp * hitK * 0.35;   // shunted along its own heading
+            if (ov.traffic && RP.Traffic) RP.Traffic.hit(ov, v.pos.clone());
+          }
+        }
         v.v *= 1 - hitK * (hitK > 0.35 ? 0.8 : 0.3);
       }
     }
@@ -553,7 +572,7 @@
     RP.G.guards.forEach(function (g) {
       if (!g.alive || !local(g)) return;
       var imp = new T.Vector3(Math.sin(v.yaw) * dir, 0.45, Math.cos(v.yaw) * dir).multiplyScalar(Math.min(9, sp * 0.7));
-      if (sp > 4) { g.takeDamage(sp * 7, { dir: imp.clone().normalize(), force: Math.min(6, sp * 0.4), from: v.driver, vehicle: true }); v.v *= 0.9; RP.Cam.shake(0.25); RP.Audio.impact && RP.Audio.impact('car', g.pos, 1.5); }
+      if (sp > 4 && !v.traffic) { g.takeDamage(sp * 7, { dir: imp.clone().normalize(), force: Math.min(6, sp * 0.4), from: v.driver, vehicle: true }); v.v *= 0.9; RP.Cam.shake(0.25); RP.Audio.impact && RP.Audio.impact('car', g.pos, 1.5); }
       else { g.pos.x += Math.sign(_a.x || 1) * c * 0.06; g.pos.z -= Math.sign(_a.x || 1) * s * 0.06; }
     });
     // a Halcyon car into the player on foot
@@ -563,7 +582,7 @@
       v.v *= 0.7;
     }
     RP.G.civilians.forEach(function (cv) {
-      if (cv.pos.distanceTo(v.pos) < 9 && sp > 3 && cv.scare) cv.scare(v.pos, 4);
+      if (!v.traffic && cv.pos.distanceTo(v.pos) < 9 && sp > 3 && cv.scare) cv.scare(v.pos, 4);
       if (!local(cv)) return;
       var sd = Math.sign(_a.x || 1); cv.pos.x += sd * c * (hx - Math.abs(_a.x) + 0.05); cv.pos.z -= sd * s * (hx - Math.abs(_a.x) + 0.05);   // shoved clear, never hurt
     });
@@ -598,7 +617,8 @@
       var v = V.list[i];
       var cd = cam.position.distanceTo(v.pos);
       setLod(v, v.driver === p || cd < farD ? 0 : cd < hideD ? 1 : 2);
-      if (v.ai) stepAI(v, dt);
+      if (v.traffic && RP.Traffic) RP.Traffic.step(v, dt);
+      else if (v.ai) stepAI(v, dt);
       else if (!v.driver && (Math.abs(v.v) > 0.05 || v.air)) { drive(v, dt, 0, 0, true); hitPeople(v); v.hit = 0; }   // rolls to a stop
       if (v.dead && !v.ty.water) { v.smokeT = (v.smokeT || 0) - dt; if (v.smokeT <= 0) { v.smokeT = 0.14; RP.FX.dust(v.pos.x + Math.sin(v.yaw) * 1.3, v.pos.y + 0.9, v.pos.z + Math.cos(v.yaw) * 1.3, 0, 1, 0, '#2b2b2b', 1, 1.1, 0.8); } }
       var g = v.g; g.position.copy(v.pos); g.rotation.set(v.pitch, v.yaw, v.roll, 'YXZ');
@@ -608,12 +628,13 @@
       syncBox(v);
     }
     // prompt
-    if (p && p.alive && p.state === 'move' && !RP.HUD.interact) { var nv = V.near(p); V._near = nv; if (nv) RP.HUD.interact = (nv.ty.water ? 'Take the ' : 'Drive the ') + nv.ty.name; } else V._near = null;
+    if (p && p.alive && p.state === 'move' && !RP.HUD.interact) { var nv = V.near(p); V._near = nv; if (nv) RP.HUD.interact = (nv.ty.water || nv.traffic ? 'Take the ' : 'Drive the ') + nv.ty.name; } else V._near = null;
     // a driver who was killed or thrown out leaves the car
     V.list.forEach(function (v) { if (v.driver && (v.driver.state !== 'drive' || !v.driver.alive)) { v.driver.vehicle = null; v.driver = null; stopEngine(); } });
     engine(p && p.vehicle, dt);
     speedo(p && p.vehicle);
   };
+  V.drive = drive; V.hitPeople = hitPeople; V.syncBox = syncBox;
   V.interact = function (p) { if (p.vehicle) return false; var v = V._near || V.near(p); return v ? V.enter(p, v) : false; };
 
   // the driver's hands on the wheel (called after the actor's pose is made)

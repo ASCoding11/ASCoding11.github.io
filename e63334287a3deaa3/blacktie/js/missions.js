@@ -114,7 +114,7 @@
   RP.missions.register({
     id: 'chase', num: 3, title: 'Coast Road', where: 'Amalfi to the far town · early evening',
     blurb: 'You have the ledger and Halcyon knows it. A Brezza Spider is waiting on the waterfront: take the coast road east, through the tunnels and over the viaduct, down into the next town, and out to sea on the launch at its pier. Their saloons will be on your tail and they have a helicopter.',
-    atmos: 'golden', start: { x: 24, z: 20.5, y: 2.6, yaw: 0.9 }, alert: true, reinforce: false, armour: 100,
+    atmos: 'golden', start: { x: 24, z: 20.5, y: 2.6, yaw: 0.9 }, alert: true, reinforce: false, armour: 100, traffic: true,
     loadout: { corsa: 90, vespa: 192, frag: 2, _start: 'corsa' },
     setup: function (m) {
       pickup('mod:extmag', 22, 22, 2.6); pickup('health', 468, 39, 33.8); pickup('armour', 1456, -58, 20); pickup('health', 1392, -27, 7.6); pickup('ammo', 1420, 0, 3.4);
@@ -145,7 +145,7 @@
   RP.missions.register({
     id: 'free', num: 0, title: 'Free Roam', where: 'Amalfi · afternoon', free: true,
     blurb: 'The whole town, no objectives. Halcyon\'s guards hold the villa, the harbour, the piazza and the coast road. Start trouble and the alert level climbs; break line of sight and stay out of the search circle to shake them off.',
-    atmos: 'afternoon', start: { x: -4, z: 16, y: 2.6, yaw: Math.PI }, alert: true, armour: 50,
+    atmos: 'afternoon', start: { x: -4, z: 16, y: 2.6, yaw: Math.PI }, alert: true, armour: 50, traffic: true,
     loadout: { knife: 0, bat: 0, crowbar: 0, hammer: 0, club: 0, machete: 0, corsa: 90, bastion: 36, vespa: 192, tern: 180, gale: 150, breaker: 42, twinbore: 30, longreach: 30, mauler: 200, thumper: 8, hornet: 4, frag: 4, sticky: 3, smoke: 3, _start: 'corsa' },
     setup: function (m) {
       guard('sentry', 8, -30, -2.4); guard('sentry', -12, -8, 2.6, { patrol: [V(-12, -8), V(6, -8), V(6, -34), V(-12, -34)] });

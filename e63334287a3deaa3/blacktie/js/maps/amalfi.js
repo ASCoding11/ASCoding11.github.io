@@ -1021,7 +1021,9 @@
       RP.map.onRoad = LAND.onRoad;
       // the driving line east from Amalfi's waterfront: the coast road, then the bowl town's street down to its piazzetta
       var descent = ROADS.filter(function (r) { return r.name === 'descent'; })[0];
-      RP.map.driveLine = coastPts.filter(function (p) { return p[0] <= 1380; }).concat(descent ? descent.pts : []).map(function (p) { return [p[0], p[1]]; });
+      // [x, z, road height, road width]
+      RP.map.driveLine = coastPts.filter(function (p) { return p[0] <= 1380; }).map(function (p) { return [p[0], p[1], p[2], 7]; })
+        .concat((descent ? descent.pts : []).map(function (p) { return [p[0], p[1], p[2], descent.w]; }));
       return RP.map;
     }
   });

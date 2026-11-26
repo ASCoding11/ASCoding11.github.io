@@ -67,6 +67,19 @@
     o.connect(g); g.connect(dest); o.start(t0); o.stop(t0 + dur + 0.02);
   }
 
+  // a car horn at pos: two detuned square notes through a low-pass (a small Italian car's double beep when `twice`)
+  A.horn = function (pos, len, twice) {
+    if (!A.ok) return;
+    var t0 = ctx.currentTime, dest = out(pos, 0.32, 0.4), lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1900; lp.connect(dest);
+    (twice ? [0, 0.22] : [0]).forEach(function (dt) {
+      [415, 523].forEach(function (f) {
+        var o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'square'; o.frequency.value = f;
+        g.gain.setValueAtTime(0, t0 + dt); g.gain.linearRampToValueAtTime(0.5, t0 + dt + 0.015); g.gain.setValueAtTime(0.5, t0 + dt + (len || 0.3)); g.gain.linearRampToValueAtTime(0, t0 + dt + (len || 0.3) + 0.04);
+        o.connect(g); g.connect(lp); o.start(t0 + dt); o.stop(t0 + dt + (len || 0.3) + 0.06);
+      });
+    });
+  };
+
   // ------------------------------------------------------------------ weapons
   var GUN = {   // crack (noise band Hz, gain), body (thump Hz), tail length, loudness
     pistol: [2600, 0.9, 150, 0.18, 1], revolver: [1800, 1.1, 110, 0.3, 1.3], smg: [3000, 0.8, 170, 0.14, 0.9], rifle: [2200, 1.0, 120, 0.22, 1.2], rifle2: [1900, 1.1, 105, 0.26, 1.3],

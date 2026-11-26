@@ -53,6 +53,13 @@ are one draw call with hair; guns have a merged far mesh (LOD 1) and boxes (LOD 
 version past 30/50/80 m and are hidden past 1.5x the bystander range; pickups hidden past 40/70/110 m.
 Car bodies are lofted (vehicles.js `BODY`, `loftBody`), ~5.2k tris and 23 calls near.
 
+## Traffic (traffic.js)
+Bystanders' cars on `RP.map.driveLine` (free roam and mission 3), right-hand lane, bends, braking, horn, overtaking
+stopped cars, spawn/despawn out of sight; F carjacks (driver flees via `RP.AI.spawnCiv({..}, {actor})`); shot,
+rammed (impacts now pass to the car you hit) or a fight on foot within 45 m at alert 3+ makes drivers bail.
+Test: `~/rpwork/w/traffic.js` (flow, braking for the player, horn, carjack); `w/drive.js` now keeps right and
+overtakes. The player's car takes half the crash damage of other cars.
+
 ## Next
 1. Play mission 3 with real controls; tune chaser speed/aggression and the helicopter; check the pursuit in the
    tunnels and hairpins; traffic and parked cars along the road.
