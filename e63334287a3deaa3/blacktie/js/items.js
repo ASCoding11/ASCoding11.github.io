@@ -40,6 +40,15 @@
     y = y == null ? W.ground(x, z, 200).y : y;
     var g = new T.Group(), mats = RP.GunModels && RP.GunModels.mats ? null : null;
     var std = function (hex, r, m) { return new T.MeshStandardMaterial({ color: RP.col(hex), roughness: r, metalness: m || 0 }); };
+    if (/^mod:/.test(kind)) {
+      // a weapon mod in a small hard case with a coloured band
+      var mk = kind.slice(4), band = { suppressor: '#9aa0a6', extmag: '#c9a34a', scope: '#6aa7e8', grip: '#7fcf8a' }[mk] || '#ffffff';
+      var cs = new T.Mesh(new T.BoxGeometry(0.3, 0.09, 0.2), std('#1b1c1e', 0.6, 0.2)); cs.position.y = 0.045; g.add(cs);
+      var bd = new T.Mesh(new T.BoxGeometry(0.305, 0.03, 0.06), std(band, 0.5)); bd.position.y = 0.07; g.add(bd);
+      g.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
+      g.add(ring(band)); g.position.set(x, y, z); g.rotation.y = Math.random() * 6.28;
+      return add({ kind: 'mod', mod: mk, g: g, rest: true, t: 0 });
+    }
     if (kind === 'health') {
       var c = new T.Mesh(new T.BoxGeometry(0.34, 0.2, 0.12), std('#e9e5dc', 0.5)); c.position.y = 0.1; g.add(c);
       var x1 = new T.Mesh(new T.BoxGeometry(0.12, 0.035, 0.125), std('#c8352a', 0.5)); x1.position.y = 0.11; g.add(x1);
@@ -84,6 +93,7 @@
     var d = WP.DEFS[it.id];
     var e = p.inv[it.id] = { mag: d.cat === 'throw' ? 0 : Math.min(d.mag || 0, it.ammo.mag || 0), reserve: d.cat === 'throw' ? Math.max(1, rounds(it)) : (it.ammo.reserve || 0) };
     if (d.cat !== 'throw' && e.mag === 0 && e.reserve > 0) { var k = Math.min(d.mag, e.reserve); e.mag = k; e.reserve -= k; }
+    if (it.mods) e.mods = it.mods;
     RP.emit('toast', 'Picked up ' + d.name); RP.Audio.mech('holster', p.pos);
     remove(it);
     // grab it from the ground
@@ -99,7 +109,7 @@
     var e = p.inv[id], fwd = new T.Vector3(Math.sin(p.yaw), 0, Math.cos(p.yaw));
     var hand = p.actor.bones.hand_r ? p.actor.bones.hand_r.getWorldPosition(new T.Vector3()) : p.pos.clone().setY(p.pos.y + 1);
     var dr = IT.dropWeapon(id, hand, fwd.multiplyScalar(1.6).setY(1.2).add(p.vel || new T.Vector3()), { mag: e.mag, reserve: e.reserve }, p.yaw);
-    if (dr) dr.noAuto = true;   // something you dropped on purpose is only picked up again with E
+    if (dr) { dr.noAuto = true; dr.mods = e.mods || null; WP.dress(dr.model, dr.mods); }   // something you dropped on purpose is only picked up again with E
     delete p.inv[id];
     if (p.cur === id) { RP.Player.equip(p, 'fists', true); }
     if (p.throwId === id) p.throwId = Object.keys(p.inv).filter(function (k) { return WP.DEFS[k].cat === 'throw'; })[0] || null;
@@ -175,6 +185,16 @@
   };
   function touchPickup(p, it) {
     var TU = RP.TUNING;
+    if (it.kind === 'mod') {
+      var md = WP.MODS[it.mod], e = p.inv[p.cur];
+      if (!WP.canFit(p.cur, it.mod) || (e.mods && e.mods[it.mod])) {
+        if ((it.sayT || 0) < RP.G.time) { it.sayT = RP.G.time + 4; RP.emit('toast', md.name + ': hold a weapon it fits'); }
+        return;
+      }
+      e.mods = Object.assign({}, e.mods); e.mods[it.mod] = true;
+      RP.Player.refit(p); RP.emit('toast', md.name + ' fitted to ' + WP.DEFS[p.cur].name); RP.Audio.mech('slide', p.pos); RP.emit('inventory', p);
+      remove(it); return;
+    }
     if (it.kind === 'health') { if (p.hp >= TU.maxHealth) return; p.hp = Math.min(TU.maxHealth, p.hp + 50); RP.emit('toast', '+ Health'); }
     if (it.kind === 'armour') { if (p.armour >= TU.maxArmour) return; p.armour = TU.maxArmour; RP.emit('toast', '+ Armour'); }
     if (it.kind === 'ammo') { Object.keys(p.inv).forEach(function (id) { var d = WP.DEFS[id]; if (d.reserve && d.cat !== 'throw') p.inv[id].reserve = Math.min(d.reserve * 2, p.inv[id].reserve + Math.ceil(d.mag * 2)); }); RP.emit('toast', '+ Ammo'); }

@@ -116,7 +116,7 @@
 
   // ------------------------------------------------------------------ per frame
   H.update = function (dt, p) {
-    var e = H.el, d = WP.DEFS[p.cur], inv = p.inv[p.cur];
+    var e = H.el, d = RP.Player.def(p), inv = p.inv[p.cur];
     // fade out of combat
     var active = RP.G.time - H.lastAction < 6 || p.aiming || RP.Alert.level > 0 || p.hp < 60 || H.wheelOn;
     H.fade = M.approach(H.fade, active ? 1 : 0.18, active ? 4 : 0.6, dt);

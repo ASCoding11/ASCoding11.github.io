@@ -47,7 +47,8 @@
   }
   P.give = giveWeapon;
   function bestWeapon(p) { var pref = ['tern', 'vespa', 'corsa', 'knife', 'fists']; for (var i = 0; i < pref.length; i++) if (p.inv[pref[i]]) return pref[i]; return 'fists'; }
-  function def(p) { return WP.DEFS[p.cur]; }
+  function def(p) { var e = p.inv[p.cur]; return e && e.mods ? WP.eff(p.cur, e.mods) : WP.DEFS[p.cur]; }
+  P.def = def;
 
   // ------------------------------------------------------------------ equip / holster
   function equip(p, id, instant) {
@@ -66,11 +67,12 @@
   P.stowMove = stowMove;
   function setHeld(p, id) {
     p.cur = id;
-    var m = id === 'fists' ? null : WP.model(id);
+    var m = id === 'fists' ? null : WP.dress(WP.model(id), p.inv[id] && p.inv[id].mods);
     p.actor.hold(m); p.model = m;
     RP.emit('weapon', p);
   }
   P.equip = equip;
+  P.refit = function (p) { if (p.cur !== 'fists') setHeld(p, p.cur); };
 
   // ------------------------------------------------------------------ helpers
   function camYaw() { return RP.Cam.yaw; }
@@ -552,13 +554,13 @@
       RP.Combat.throwProj(d.proj, p, mz.clone().addScaledVector(dir, 0.3), v, d);
       RP.Combat.noise(p.pos, 60, 'shot', p);
     } else {
-      var res = RP.Combat.fire(p, mz.clone(), dir, d, { spread: spread });
+      var res = RP.Combat.fire(p, mz.clone(), dir, d, { spread: spread, suppressed: d.suppressed });
       if (res && res.ent) { p.hits++; RP.emit('hitmark', res.ent.alive ? 'hit' : 'kill'); }
     }
     // feedback
     var big = d.dmg > 50 || d.pellets || d.cat === 'heavy';
-    RP.FX.muzzle(mz, dir, big);
-    RP.Audio.shot(d.snd, mz.clone());
+    if (!d.suppressed || Math.random() < 0.3) RP.FX.muzzle(mz, dir, big && !d.suppressed);
+    RP.Audio.shot(d.snd, mz.clone(), { suppressed: d.suppressed });
     if (d.rtype !== 'shell' && d.rtype !== 'break' && d.rtype !== 'revolver' && !d.proj) RP.FX.shell(p.model ? p.model.userData.eject.getWorldPosition(new T.Vector3()) : mz, dir, new T.Vector3(-dir.z, 0, dir.x).negate());
     // recoil: the first rounds of a burst climb hard, then the muzzle settles into a smaller, weaving pattern
     // (a learnable spray, not noise); a pause of a quarter second starts a new burst with a new weave

@@ -96,6 +96,42 @@
     sticky: function (M) { var p = []; part(p, M.yellow, box(0.08, 0.05, 0.06), 0, 0, 0.03); part(p, M.black, box(0.03, 0.02, 0.03), 0, 0.03, 0.03); return assemble(p, { oneHand: true }); },
     smoke: function (M) { var p = []; part(p, M.alu, cyl(0.03, 0.12), 0, 0, 0.04); return assemble(p, { oneHand: true }); }
   };
+  // ------------------------------------------------------------------ mods (found as pickups; fitted to the gun in hand)
+  W.MODS = {
+    suppressor: { name: 'Suppressor', cats: ['pistol', 'smg', 'rifle', 'sniper'], not: ['bastion'] },
+    extmag:     { name: 'Extended magazine', cats: ['pistol', 'smg', 'rifle'], not: ['bastion'] },
+    scope:      { name: 'Marksman scope', cats: ['smg', 'rifle'], not: [] },
+    grip:       { name: 'Foregrip', cats: ['smg', 'rifle', 'shotgun', 'heavy'], not: ['twinbore', 'hornet', 'thumper'] }
+  };
+  W.canFit = function (id, mod) { var d = W.DEFS[id], m = W.MODS[mod]; return !!(d && m && m.cats.indexOf(d.cat) >= 0 && m.not.indexOf(id) < 0); };
+  // the weapon's numbers with its mods on (cached per combination). Each mod trades something:
+  //   suppressor: quiet (guards hear it from 18 m, not 80), a little less damage and reach
+  //   extended magazine: half as many rounds again, a slower reload
+  //   scope: tighter aimed fire and a closer view when aimed, slower to bring up
+  //   foregrip: less climb and a steadier hip, a touch slower to aim
+  var _eff = {};
+  W.eff = function (id, mods) {
+    var base = W.DEFS[id]; if (!mods) return base;
+    var key = id + ':' + Object.keys(mods).filter(function (k) { return mods[k]; }).sort().join('+');
+    if (_eff[key]) return _eff[key];
+    var d = Object.create(base); d.mods = mods;
+    if (mods.suppressor) { d.suppressed = true; d.dmg = Math.round(base.dmg * 0.92); d.range = [base.range[0] * 0.9, base.range[1] * 0.9]; }
+    if (mods.extmag) { d.mag = Math.round(base.mag * 1.5); d.reload = base.reload * 1.12; }
+    if (mods.scope) { d.spread = [base.spread[0], base.spread[1] * 0.55]; d.zoom = 0.62; d.aimTime = base.aimTime * 1.2; }
+    if (mods.grip) { d.recoil = [base.recoil[0] * 0.72, base.recoil[1] * 0.8]; d.spread = [(d.spread || base.spread)[0] * 0.85, (d.spread || base.spread)[1]]; d.aimTime = (d.aimTime || base.aimTime) * 1.05; }
+    return (_eff[key] = d);
+  };
+  // put the mods on a model
+  W.dress = function (g, mods) {
+    if (!g || !mods) return g;
+    var mat = new T.MeshStandardMaterial({ color: RP.col('#18191b'), roughness: 0.5, metalness: 0.6 }), mz = g.userData.muzzle;
+    function add(geo, x, y, z) { var m = new T.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; g.add(m); return m; }
+    if (mods.suppressor && mz) { var c = new T.CylinderGeometry(0.017, 0.017, 0.16, 12); c.rotateX(Math.PI / 2); add(c, mz.position.x, mz.position.y, mz.position.z + 0.075); mz.position.z += 0.16; }
+    if (mods.scope) { var s = new T.CylinderGeometry(0.016, 0.019, 0.2, 12); s.rotateX(Math.PI / 2); add(s, 0, 0.115, 0.03); add(new T.BoxGeometry(0.016, 0.03, 0.05), 0, 0.085, 0.03); }
+    if (mods.grip && g.userData.gripL) { var gp = g.userData.gripL.position; add(new T.BoxGeometry(0.024, 0.085, 0.026), gp.x, gp.y - 0.055, gp.z); gp.y -= 0.06; }
+    if (mods.extmag && g.userData.mag) { g.userData.mag.scale.y = 1.32; }
+    return g;
+  };
   W.model = function (id) {
     if (RP.GunModels) { var gm = RP.GunModels.build(id); if (gm) return gm; }
     var f = BUILD[id]; if (!f) return null;
