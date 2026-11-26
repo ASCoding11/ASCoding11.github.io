@@ -1,21 +1,33 @@
 /* Flood Crew (first built as Ebbwork; the folder and the save key keep that name): everything that is not drawing. Three parts, in order: EWSim (the water), EW.World (a job site and what
    each tool does to it) and EWMaps (the jobs). No DOM and no three.js, so `node` can load this file and play a job
    by calling the same functions the page does (see the README section). index.html loads it with one script tag. */
-// The water. A grid of square cells. Each has a ground height g (+ bar, a barrier laid on top), a water depth d, and a
-// flow through its right and bottom edge (fx, fy, m3/s, signed). Each step: every edge's flow speeds up by the
-// difference in surface height across it (and slows by friction), no cell may give more than it holds, then
-// depths change by what flowed. Nothing is added or removed here except through add() and take(), so volume is
-// conserved. Blocks of 8 x 8 cells go to sleep when nothing in or next to them is changing.
+// The water: the shallow-water equations on a grid of square cells (0.5 m). Each cell has a ground height g (+ bar, a
+// barrier laid on top) and a water depth d. Each edge between two cells has a water speed (u across a cell's east
+// edge, v across its south edge, m/s), so the water carries momentum: a current keeps going round a corner, piles up
+// against a wall and swirls behind it. Each step:
+//   1. the speeds are carried along by the flow itself (semi-Lagrangian advection: look back along the current to
+//      where this water came from, and take the speed it had there),
+//   2. they speed up downhill on the water surface (gravity),
+//   3. friction slows them: Manning's law for the ground, plus a strong drag on thin films so a wet floor creeps
+//      rather than racing,
+//   4. each edge passes speed x upwind depth x width of water (fx, fy, m3/s); no cell may give more than it holds,
+//   5. depths change by what flowed in and out.
+// Nothing is added or removed here except through add() and take(), so volume is conserved exactly. Blocks of 8 x 8
+// cells go to sleep when nothing in or next to them is changing.
 var EWSim=(function(){
-  var BS=8,FILM=0.003,GRAV=9.0,AWAKE=45;
+  var BS=8,FILM=0.003,GRAV=9.81,AWAKE=45;
   function Sim(W,H,cs){
     this.W=W;this.H=H;this.cs=cs;var n=W*H;this.n=n;
     this.g=new Float32Array(n);this.bar=new Float32Array(n);this.solid=new Uint8Array(n);
     this.d=new Float64Array(n);this.fx=new Float32Array(n);this.fy=new Float32Array(n);
+    this.u=new Float32Array(n);this.v=new Float32Array(n);this.u2=new Float32Array(n);this.v2=new Float32Array(n);
     this.k=new Float32Array(n);
     this.BW=Math.ceil(W/BS);this.BH=Math.ceil(H/BS);var nb=this.BW*this.BH;
     this.act=new Uint8Array(nb);this.proc=new Uint8Array(nb);this.was=new Uint8Array(nb);
-    this.nProc=0;this.fric=0.004;this.damp=0.4;
+    this.nProc=0;
+    this.mann=0.018;   // Manning's n: about right for paving and short grass
+    this.film=0.00006;  // drag on thin water (m^2/s): a 1 cm film barely moves, 10 cm flows freely
+    this.drag=0.2;     // a little drag on everything (1/s): rubbish, grass and rough ground in the water. Waves die down in seconds, not minutes
   }
   var P=Sim.prototype;
   P.idx=function(x,z){return z*this.W+x};
@@ -25,53 +37,73 @@ var EWSim=(function(){
   P.take=function(i,vol){var a=this.cs*this.cs,have=this.d[i]*a,t=vol<have?vol:have;if(t<=0)return 0;this.d[i]-=t/a;if(this.d[i]<0)this.d[i]=0;this.wake(i);return t};
   P.volume=function(mask){var s=0,d=this.d,n=this.n,i;if(mask){for(i=0;i<n;i++)if(mask[i])s+=d[i]}else for(i=0;i<n;i++)s+=d[i];return s*this.cs*this.cs};
   P.surf=function(i){return this.g[i]+this.bar[i]+this.d[i]};
+  // bilinear sample of an edge-speed field. F is u (x-edges, sitting at (x+1, z+0.5)) or v (y-edges, at (x+0.5, z+1)),
+  // all in cell units.
+  function samp(F,W,H,px,pz){var x0=Math.floor(px),z0=Math.floor(pz),fx=px-x0,fz=pz-z0;
+    if(x0<0){x0=0;fx=0}else if(x0>W-2){x0=W-2;fx=1}if(z0<0){z0=0;fz=0}else if(z0>H-2){z0=H-2;fz=1}
+    var i=z0*W+x0;return (F[i]*(1-fx)+F[i+1]*fx)*(1-fz)+(F[i+W]*(1-fx)+F[i+W+1]*fx)*fz}
   P.step=function(dt){
     var W=this.W,H=this.H,BW=this.BW,BH=this.BH,g=this.g,bar=this.bar,solid=this.solid,d=this.d,fx=this.fx,fy=this.fy,k=this.k;
-    var act=this.act,proc=this.proc,was=this.was,bx,bz,b,x,z,i,x0,x1,z0,z1,np=0;
-    var cs=this.cs,area=cs*cs,cdt=dt*GRAV,fr=this.fric*dt,lim=area/dt,dm=1+this.damp*dt;
+    var u=this.u,v=this.v,u2=this.u2,v2=this.v2;
+    var act=this.act,proc=this.proc,was=this.was,bx,bz,b,x,z,i,j,x0,x1,z0,z1,np=0;
+    var cs=this.cs,area=cs*cs,lim=area/dt,gdc=GRAV*dt/cs,s=dt/cs,vmax=0.45*cs/dt,mf=GRAV*this.mann*this.mann*dt,ff=this.film*dt,dr=1+this.drag*dt;
     // which blocks to work on: awake ones and their neighbours
     for(bz=0;bz<BH;bz++)for(bx=0;bx<BW;bx++){
       b=bz*BW+bx;
       var on=act[b]||(bx>0&&act[b-1])||(bx<BW-1&&act[b+1])||(bz>0&&act[b-BW])||(bz<BH-1&&act[b+BW])?1:0;
       if(!on&&was[b]){ // just fell asleep: stop its flows
         x0=bx*BS;x1=Math.min(W,x0+BS);z0=bz*BS;z1=Math.min(H,z0+BS);
-        for(z=z0;z<z1;z++)for(x=x0;x<x1;x++){i=z*W+x;fx[i]=0;fy[i]=0}
+        for(z=z0;z<z1;z++)for(x=x0;x<x1;x++){i=z*W+x;fx[i]=0;fy[i]=0;u[i]=0;v[i]=0}
       }
       proc[b]=on;if(on)np++;
     }
     this.nProc=np;
-    // 1. flows
+    // 1. carry the speeds along with the water
+    for(bz=0;bz<BH;bz++)for(bx=0;bx<BW;bx++){
+      b=bz*BW+bx;if(!proc[b])continue;
+      x0=bx*BS;x1=Math.min(W,x0+BS);z0=bz*BS;z1=Math.min(H,z0+BS);
+      for(z=z0;z<z1;z++)for(x=x0;x<x1;x++){
+        i=z*W+x;var a=u[i],c=v[i],vb,ub;
+        if(a!==0){vb=0.25*(c+(x<W-1?v[i+1]:0)+(z>0?v[i-W]+(x<W-1?v[i-W+1]:0):0));u2[i]=samp(u,W,H,x-a*s,z-vb*s)}else u2[i]=0;
+        if(c!==0){ub=0.25*(a+(z<H-1?u[i+W]:0)+(x>0?u[i-1]+(z<H-1?u[i+W-1]:0):0));v2[i]=samp(v,W,H,x-ub*s,z-c*s)}else v2[i]=0;
+      }
+    }
+    // 2-4. gravity, friction, and how much each edge carries
     for(bz=0;bz<BH;bz++)for(bx=0;bx<BW;bx++){
       b=bz*BW+bx;if(!proc[b])continue;
       x0=bx*BS;x1=Math.min(W,x0+BS);z0=bz*BS;z1=Math.min(H,z0+BS);
       // an edge into a block that is not being worked on carries nothing this step, but wakes this block so the
       // neighbour is worked on from the next step (otherwise water would vanish across that edge)
       var xe=(bx<BW-1&&!proc[b+1])?x1-1:-1,ze=(bz<BH-1&&!proc[b+BW])?z1-1:-1;
-      for(z=z0;z<z1;z++){
-        for(x=x0;x<x1;x++){
-          i=z*W+x;
-          if(solid[i]){fx[i]=0;fy[i]=0;continue}
-          var zi=g[i]+bar[i],di=d[i],hi=zi+di,j,zj,hj,up,f,sill;
-          if(x<W-1&&!solid[j=i+1]){
-            zj=g[j]+bar[j];hj=zj+d[j];sill=zi>zj?zi:zj;up=(hi>hj?hi:hj)-sill-FILM;
-            if(up>0){if(x===xe){fx[i]=0;act[b]=AWAKE}else{f=(fx[i]+cdt*up*(hi-hj))/(dm+fr/(up+0.01));fx[i]=f}}else fx[i]=0;
-          }else fx[i]=0;
-          if(z<H-1&&!solid[j=i+W]){
-            zj=g[j]+bar[j];hj=zj+d[j];sill=zi>zj?zi:zj;up=(hi>hj?hi:hj)-sill-FILM;
-            if(up>0){if(z===ze){fy[i]=0;act[b]=AWAKE}else{f=(fy[i]+cdt*up*(hi-hj))/(dm+fr/(up+0.01));fy[i]=f}}else fy[i]=0;
-          }else fy[i]=0;
-        }
+      for(z=z0;z<z1;z++)for(x=x0;x<x1;x++){
+        i=z*W+x;
+        if(solid[i]){fx[i]=0;fy[i]=0;u[i]=0;v[i]=0;continue}
+        var zi=g[i]+bar[i],hi=zi+d[i],zj,hj,sill,dw,sp;
+        // east edge
+        if(x<W-1&&!solid[j=i+1]){zj=g[j]+bar[j];hj=zj+d[j];sill=zi>zj?zi:zj;
+          if((hi>hj?hi:hj)-sill>FILM){if(x===xe){u[i]=0;fx[i]=0;act[b]=AWAKE}else{
+            sp=u2[i]-gdc*(hj-hi);dw=sp>0?hi-sill:hj-sill;
+            if(dw<=FILM){sp=0;fx[i]=0}else{var h43=Math.pow(dw,1.3333);sp=sp/(dr+mf*(sp<0?-sp:sp)/h43+ff/(dw*dw));if(sp>vmax)sp=vmax;else if(sp<-vmax)sp=-vmax;fx[i]=sp*dw*cs}
+            u[i]=sp}}else{u[i]=0;fx[i]=0}
+        }else{u[i]=0;fx[i]=0}
+        // south edge
+        if(z<H-1&&!solid[j=i+W]){zj=g[j]+bar[j];hj=zj+d[j];sill=zi>zj?zi:zj;
+          if((hi>hj?hi:hj)-sill>FILM){if(z===ze){v[i]=0;fy[i]=0;act[b]=AWAKE}else{
+            sp=v2[i]-gdc*(hj-hi);dw=sp>0?hi-sill:hj-sill;
+            if(dw<=FILM){sp=0;fy[i]=0}else{var h43b=Math.pow(dw,1.3333);sp=sp/(dr+mf*(sp<0?-sp:sp)/h43b+ff/(dw*dw));if(sp>vmax)sp=vmax;else if(sp<-vmax)sp=-vmax;fy[i]=sp*dw*cs}
+            v[i]=sp}}else{v[i]=0;fy[i]=0}
+        }else{v[i]=0;fy[i]=0}
       }
     }
-    // 2. no cell gives more than it holds
+    // no cell gives more than it holds (outflows are scaled down together, and so are their speeds)
     for(bz=0;bz<BH;bz++)for(bx=0;bx<BW;bx++){
       if(!proc[bz*BW+bx])continue;
       x0=bx*BS;x1=Math.min(W,x0+BS);z0=bz*BS;z1=Math.min(H,z0+BS);
       for(z=z0;z<z1;z++)for(x=x0;x<x1;x++){
-        i=z*W+x;var out=0,v;
-        v=fx[i];if(v>0)out+=v;v=fy[i];if(v>0)out+=v;
-        if(x>0){v=fx[i-1];if(v<0)out-=v}
-        if(z>0){v=fy[i-W];if(v<0)out-=v}
+        i=z*W+x;var out=0,q;
+        q=fx[i];if(q>0)out+=q;q=fy[i];if(q>0)out+=q;
+        if(x>0){q=fx[i-1];if(q<0)out-=q}
+        if(z>0){q=fy[i-W];if(q<0)out-=q}
         var can=d[i]*lim;k[i]=out>can?(out>0?can/out:0):1;
       }
     }
@@ -79,14 +111,14 @@ var EWSim=(function(){
       if(!proc[bz*BW+bx])continue;
       x0=bx*BS;x1=Math.min(W,x0+BS);z0=bz*BS;z1=Math.min(H,z0+BS);
       for(z=z0;z<z1;z++)for(x=x0;x<x1;x++){
-        i=z*W+x;var a=fx[i];
-        if(a>0)fx[i]=a*k[i];else if(a<0)fx[i]=a*(proc[(((z/BS)|0))*BW+(((x+1)/BS)|0)]?k[i+1]:0);
-        a=fy[i];
-        if(a>0)fy[i]=a*k[i];else if(a<0)fy[i]=a*(proc[(((z+1)/BS)|0)*BW+((x/BS)|0)]?k[i+W]:0);
+        i=z*W+x;var a2=fx[i],kk;
+        if(a2>0){kk=k[i];fx[i]=a2*kk;u[i]*=kk}else if(a2<0){kk=proc[(((z/BS)|0))*BW+(((x+1)/BS)|0)]?k[i+1]:0;fx[i]=a2*kk;u[i]*=kk}
+        a2=fy[i];
+        if(a2>0){kk=k[i];fy[i]=a2*kk;v[i]*=kk}else if(a2<0){kk=proc[(((z+1)/BS)|0)*BW+((x/BS)|0)]?k[i+W]:0;fy[i]=a2*kk;v[i]*=kk}
       }
     }
-    // 3. depths
-    var q=dt/area;
+    // 5. depths
+    var q2=dt/area;
     for(bz=0;bz<BH;bz++)for(bx=0;bx<BW;bx++){
       b=bz*BW+bx;if(!proc[b])continue;
       x0=bx*BS;x1=Math.min(W,x0+BS);z0=bz*BS;z1=Math.min(H,z0+BS);
@@ -94,7 +126,7 @@ var EWSim=(function(){
       for(z=z0;z<z1;z++)for(x=x0;x<x1;x++){
         i=z*W+x;var net=-fx[i]-fy[i];
         if(x>0)net+=fx[i-1];if(z>0)net+=fy[i-W];
-        net*=q;var nd=d[i]+net;if(nd<0)nd=0;d[i]=nd;
+        net*=q2;var nd=d[i]+net;if(nd<0)nd=0;d[i]=nd;
         if(net<0)net=-net;if(net>mx)mx=net;
       }
       if(mx>4e-5)act[b]=AWAKE;else if(act[b]>0)act[b]--;
@@ -104,11 +136,22 @@ var EWSim=(function(){
   };
   // speed of the water in a cell (m/s), written into out[0], out[1]
   P.vel=function(i,out){
-    var W=this.W,x=i%W,dd=this.d[i];if(dd<0.004){out[0]=0;out[1]=0;return}
-    var a=this.fx[i]+(x>0?this.fx[i-1]:0),b=this.fy[i]+(i>=W?this.fy[i-W]:0),s=0.5/(this.cs*(dd+0.02));
-    out[0]=a*s;out[1]=b*s;
+    var W=this.W,x=i%W;if(this.d[i]<0.004){out[0]=0;out[1]=0;return}
+    out[0]=0.5*(this.u[i]+(x>0?this.u[i-1]:0));out[1]=0.5*(this.v[i]+(i>=W?this.v[i-W]:0));
   };
-  Sim.FILM=FILM;Sim.BS=BS;
+  // Something moving through the water (a person wading) shoves it: the water in front is pushed along and out to
+  // the sides, which makes a bow wave and a wake. Only speeds change, so no water is made or lost.
+  // (x, z) in cells, (vx, vz) in m/s, r in cells, f = how much of the mover's speed the water takes on per second.
+  P.push=function(x,z,vx,vz,r,f,dt){
+    var W=this.W,H=this.H,u=this.u,v=this.v,d=this.d,solid=this.solid,sp=Math.sqrt(vx*vx+vz*vz);if(sp<0.05)return;
+    var nx=vx/sp,nz=vz/sp,ax=Math.max(0,Math.floor(x-r)),bx=Math.min(W-2,Math.ceil(x+r)),az=Math.max(0,Math.floor(z-r)),bz=Math.min(H-2,Math.ceil(z+r)),cx,cz,i,q,w,ex,ez,ahead,k=f*dt;
+    for(cz=az;cz<=bz;cz++)for(cx=ax;cx<=bx;cx++){i=cz*W+cx;if(solid[i]||d[i]<0.02)continue;
+      ex=cx+0.5-x;ez=cz+0.5-z;q=Math.sqrt(ex*ex+ez*ez);if(q>r)continue;w=1-q/r;w*=w;
+      ahead=(ex*nx+ez*nz)/(q+0.3);                                   // in front of the mover: pushed along; beside: pushed out
+      var px=vx*Math.max(0,ahead)+ex/(q+0.3)*sp*0.6,pz=vz*Math.max(0,ahead)+ez/(q+0.3)*sp*0.6;
+      u[i]+=(px-u[i])*k*w;v[i]+=(pz-v[i])*k*w;this.wake(i)}
+  };
+  Sim.FILM=FILM;Sim.BS=BS;Sim.GRAV=GRAV;
   return Sim;
 })();
 // The job site: ground, walls, drains, leaks, valves, debris, pumps, barriers, and what each tool does to them.
