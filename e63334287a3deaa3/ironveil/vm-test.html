@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Midnight Ops: viewmodel test</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #202326; overflow: hidden; font: 13px/1.35 system-ui, sans-serif; color: #c9ccd0; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script src="/lib/three/r187/three.min.js"></script>
+<script src="/lib/three/r187/three-addons.min.js"></script>
+<script src="assets/lib/meshopt_decoder.js"></script>
+<script src="js/hands.js"></script>
+<script src="js/vm.js"></script>
+<script>
+/* Viewmodel test page (no game): loads three.js, assets/weapons.glb, js/hands.js and js/vm.js only.
+   Probe helpers for the first build step. */
+(function () {
+  'use strict';
+  const Q = new URLSearchParams(location.search);
+  const WT = {};
+  window.VMT = { Q, WT };
+  VMT.weapon = function (k) {
+    const t = WT[k]; if (!t) return null;
+    const o = t.clone(true); o.position.set(0, 0, 0); o.quaternion.identity(); o.scale.set(1, 1, 1);
+    o.userData.kind = k; o.userData.muzzle = o.getObjectByName(k + '_muzzle') || o;
+    return o;
+  };
+  // vertex extents of a gun (its own frame) for z in [z0, z1]: { n, x0, x1, y0, y1 }
+  VMT.section = function (k, z0, z1, yMin, yMax) {
+    const g = VMT.weapon(k); g.updateMatrixWorld(true);
+    const v = new THREE.Vector3(), r = { n: 0, x0: 9, x1: -9, y0: 9, y1: -9 };
+    g.traverse(o => {
+      if (!o.isMesh || /sling/.test(o.name)) return; const p = o.geometry.attributes.position, a = p.array, st = p.isInterleavedBufferAttribute ? p.data.stride : 3, of = p.offset || 0;
+      const d = p.normalized ? (a instanceof Int16Array ? 32767 : a instanceof Uint16Array ? 65535 : a instanceof Int8Array ? 127 : a instanceof Uint8Array ? 255 : 1) : 1;
+      for (let i = 0; i < p.count; i++) {
+        v.set(a[i * st + of] / d, a[i * st + of + 1] / d, a[i * st + of + 2] / d).applyMatrix4(o.matrixWorld);
+        if (v.z < z0 || v.z > z1) continue; if (yMin != null && (v.y < yMin || v.y > yMax)) continue;
+        r.n++; r.x0 = Math.min(r.x0, v.x); r.x1 = Math.max(r.x1, v.x); r.y0 = Math.min(r.y0, v.y); r.y1 = Math.max(r.y1, v.y);
+      }
+    });
+    for (const q of ['x0', 'x1', 'y0', 'y1']) r[q] = Math.round(r[q] * 1000) / 1000;
+    return r;
+  };
+  // vertex extents in a box: [x0,x1,y0,y1,z0,z1] -> { n, x0, x1, y0, y1, z0, z1 }
+  VMT.box = function (k, b, skip) {
+    const t = VMT.gunTris(k), r = { n: 0, x0: 9, x1: -9, y0: 9, y1: -9, z0: 9, z1: -9 };
+    for (let i = 0; i < t.length; i += 3) { const x = t[i], y = t[i + 1], z = t[i + 2]; if (x < b[0] || x > b[1] || y < b[2] || y > b[3] || z < b[4] || z > b[5]) continue; r.n++; r.x0 = Math.min(r.x0, x); r.x1 = Math.max(r.x1, x); r.y0 = Math.min(r.y0, y); r.y1 = Math.max(r.y1, y); r.z0 = Math.min(r.z0, z); r.z1 = Math.max(r.z1, z); }
+    for (const q of ['x0', 'x1', 'y0', 'y1', 'z0', 'z1']) r[q] = Math.round(r[q] * 1000) / 1000;
+    return r;
+  };
+  VMT.parts = function (k) {
+    const g = VMT.weapon(k); g.updateMatrixWorld(true); const out = [];
+    g.traverse(o => { if (o.isMesh) { const b = new THREE.Box3().setFromObject(o); out.push([o.name, b.min.toArray().map(x => +x.toFixed(3)), b.max.toArray().map(x => +x.toFixed(3)), o.geometry.attributes.position.count]); } });
+    return out;
+  };
+  // orthographic gun drawings with a 1 cm grid (gun frame: barrel +Z, up +Y): VMT.ortho(kind, view, cx, cy, half)
+  VMT.ortho = function (k, view, cx, cy, half) {
+    const W = 1000, H = 700, r = VMT.r || (VMT.r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }));
+    r.setSize(W, H); if (!r.domElement.parentNode) document.body.appendChild(r.domElement);
+    const sc = new THREE.Scene(); sc.background = new THREE.Color(0xe8e8e8);
+    sc.add(new THREE.HemisphereLight(0xffffff, 0x808080, 1.2)); const d = new THREE.DirectionalLight(0xffffff, 0.8); d.position.set(1, 2, 1.5); sc.add(d);
+    const g = VMT.weapon(k); g.traverse(o => { if (/sling/.test(o.name)) o.visible = false; }); sc.add(g);
+    const a = W / H, c = new THREE.OrthographicCamera(-half * a, half * a, half, -half, -5, 5);
+    // side: looking from +X (the gun's left as seen from behind is -X) toward -X: +Z to the left... use from -X so +Z (muzzle) is right
+    if (view === 'side') { c.position.set(-1, cy, cx); c.up.set(0, 1, 0); c.lookAt(0, cy, cx); }
+    else if (view === 'top') { c.position.set(cy, 1, cx); c.up.set(1, 0, 0); c.lookAt(cy, 0, cx); }
+    else if (view === 'front') { c.position.set(cx, cy, 2); c.lookAt(cx, cy, 0); }
+    sc.add(c);
+    const grid = new THREE.Group(), m1 = new THREE.LineBasicMaterial({ color: 0x9090c0, depthTest: false, transparent: true, opacity: 0.35 }), m5 = new THREE.LineBasicMaterial({ color: 0xc04040, depthTest: false, transparent: true, opacity: 0.6 });
+    for (let i = -100; i <= 100; i++) {
+      const v = i / 100, mm = i % 5 === 0 ? m5 : m1;
+      grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-2, v, 0), new THREE.Vector3(2, v, 0)]), mm));
+      grid.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(v, -2, 0), new THREE.Vector3(v, 2, 0)]), mm));
+    }
+    grid.renderOrder = 9; grid.children.forEach(l => l.renderOrder = 9);
+    if (view === 'side') grid.rotation.y = -Math.PI / 2; else if (view === 'top') grid.rotation.x = -Math.PI / 2;
+    sc.add(grid);
+    r.render(sc, c);
+    return r.domElement.toDataURL('image/png');
+  };
+
+  // ---------------------------------------------------------------- gun triangles and distances (gun frame)
+  const TRIS = {};
+  VMT.gunTris = function (k, only) {
+    const key = k + (only || '');
+    if (TRIS[key]) return TRIS[key];
+    const g = VMT.weapon(k); g.updateMatrixWorld(true); const out = [], v = new THREE.Vector3();
+    g.traverse(o => {
+      if (!o.isMesh || /sling/.test(o.name)) return;
+      if (only && o.name.indexOf(k + '_' + only) !== 0) return;
+      const p = o.geometry.attributes.position, a = p.array, st = p.isInterleavedBufferAttribute ? p.data.stride : 3, of = p.offset || 0;
+      const d = p.normalized ? (a instanceof Int16Array ? 32767 : a instanceof Uint16Array ? 65535 : a instanceof Int8Array ? 127 : a instanceof Uint8Array ? 255 : 1) : 1;
+      const P = []; for (let i = 0; i < p.count; i++) { v.set(a[i * st + of] / d, a[i * st + of + 1] / d, a[i * st + of + 2] / d).applyMatrix4(o.matrixWorld); P.push(v.x, v.y, v.z); }
+      const ix = o.geometry.index ? o.geometry.index.array : null, n = ix ? ix.length : p.count;
+      for (let i = 0; i < n; i++) { const j = ix ? ix[i] : i; out.push(P[j * 3], P[j * 3 + 1], P[j * 3 + 2]); }
+    });
+    return (TRIS[key] = new Float32Array(out));
+  };
+  // closest point on triangle (Ericson); returns squared distance, fills c and the face normal n
+  function closestTri(px, py, pz, t, i, c) {
+    const ax = t[i], ay = t[i + 1], az = t[i + 2], bx = t[i + 3], by = t[i + 4], bz = t[i + 5], cx = t[i + 6], cy = t[i + 7], cz = t[i + 8];
+    const abx = bx - ax, aby = by - ay, abz = bz - az, acx = cx - ax, acy = cy - ay, acz = cz - az, apx = px - ax, apy = py - ay, apz = pz - az;
+    const d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+    let rx, ry, rz;
+    if (d1 <= 0 && d2 <= 0) { rx = ax; ry = ay; rz = az; }
+    else {
+      const bpx = px - bx, bpy = py - by, bpz = pz - bz, d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+      if (d3 >= 0 && d4 <= d3) { rx = bx; ry = by; rz = bz; }
+      else {
+        const vc = d1 * d4 - d3 * d2;
+        if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); rx = ax + abx * v; ry = ay + aby * v; rz = az + abz * v; }
+        else {
+          const cpx = px - cx, cpy = py - cy, cpz = pz - cz, d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+          if (d6 >= 0 && d5 <= d6) { rx = cx; ry = cy; rz = cz; }
+          else {
+            const vb = d5 * d2 - d1 * d6;
+            if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); rx = ax + acx * w; ry = ay + acy * w; rz = az + acz * w; }
+            else {
+              const va = d3 * d6 - d5 * d4;
+              if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); rx = bx + (cx - bx) * w; ry = by + (cy - by) * w; rz = bz + (cz - bz) * w; }
+              else { const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; rx = ax + abx * v + acx * w; ry = ay + aby * v + acy * w; rz = az + abz * v + acz * w; }
+            }
+          }
+        }
+      }
+    }
+    c[0] = rx; c[1] = ry; c[2] = rz;
+    return (px - rx) * (px - rx) + (py - ry) * (py - ry) + (pz - rz) * (pz - rz);
+  }
+  // triangles of a gun near a point (for the solver and the checks)
+  VMT.near = function (k, cx, cy, cz, rad, only) {
+    const t = VMT.gunTris(k, only), out = [];
+    for (let i = 0; i < t.length; i += 9) {
+      const mx = (t[i] + t[i + 3] + t[i + 6]) / 3, my = (t[i + 1] + t[i + 4] + t[i + 7]) / 3, mz = (t[i + 2] + t[i + 5] + t[i + 8]) / 3;
+      const r2 = Math.max((t[i] - mx) ** 2 + (t[i + 1] - my) ** 2 + (t[i + 2] - mz) ** 2, (t[i + 3] - mx) ** 2 + (t[i + 4] - my) ** 2 + (t[i + 5] - mz) ** 2, (t[i + 6] - mx) ** 2 + (t[i + 7] - my) ** 2 + (t[i + 8] - mz) ** 2);
+      if (Math.hypot(mx - cx, my - cy, mz - cz) - Math.sqrt(r2) < rad) for (let j = 0; j < 9; j++) out.push(t[i + j]);
+    }
+    return new Float32Array(out);
+  };
+  // signed distance to a triangle soup: unsigned distance, negative when the point is behind the nearest face
+  const _c = [0, 0, 0];
+  VMT.sdfOf = function (tris) {
+    return p => {
+      let best = 1e9, bi = -1, bc = [0, 0, 0];
+      for (let i = 0; i < tris.length; i += 9) { const d = closestTri(p.x, p.y, p.z, tris, i, _c); if (d < best) { best = d; bi = i; bc[0] = _c[0]; bc[1] = _c[1]; bc[2] = _c[2]; } }
+      if (bi < 0) return 1;
+      const t = tris, i = bi;
+      const ux = t[i + 3] - t[i], uy = t[i + 4] - t[i + 1], uz = t[i + 5] - t[i + 2], vx = t[i + 6] - t[i], vy = t[i + 7] - t[i + 1], vz = t[i + 8] - t[i + 2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const s = (p.x - bc[0]) * nx + (p.y - bc[1]) * ny + (p.z - bc[2]) * nz;
+      const d = Math.sqrt(best);
+      return s < 0 && d < 0.006 ? -d : d;   // only trust 'inside' near the surface (the soup is not closed everywhere)
+    };
+  };
+
+  // ---------------------------------------------------------------- scene and cameras
+  let R = null, ENV = null;
+  function renderer() {
+    if (R) return R;
+    R = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.0;
+    R.setPixelRatio(1); document.body.appendChild(R.domElement);
+    // a neutral studio sky for reflections: grey-blue above, warm grey below, a soft bright key
+    const es = new THREE.Scene(), geo = new THREE.SphereGeometry(5, 32, 16), col = [];
+    const pa = geo.attributes.position;
+    for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) / 5, x = pa.getX(i) / 5; const k = Math.max(0, y); let r = 0.55 - 0.25 * k, g = 0.52 - 0.22 * k, b = 0.5 - 0.15 * k; if (y < 0) { r = 0.16; g = 0.15; b = 0.13; } const key = Math.max(0, -0.6 * x + 0.3 * y - 0.5 * pa.getZ(i) / 5); r += key ** 6 * 0.8; g += key ** 6 * 0.65; b += key ** 6 * 0.45; col.push(r, g, b); }
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    es.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+    const pm = new THREE.PMREMGenerator(R); ENV = pm.fromScene(es, 0.02).texture;
+    return R;
+  }
+  function stage(bg) {
+    const sc = new THREE.Scene(); sc.environment = ENV;
+    if (bg) sc.background = new THREE.Color(bg); else { const sk = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 16), new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, depthWrite: false })); const pa = sk.geometry.attributes.position, c = []; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i) / 15; if (y > -0.02) { const k = Math.min(1, y * 2.5); c.push(0.78 - 0.45 * k, 0.72 - 0.42 * k, 0.62 - 0.28 * k); } else c.push(0.30, 0.27, 0.23); } sk.geometry.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); sk.renderOrder = -1; sk.userData.sky = true; sc.add(sk); }
+    sc.add(new THREE.HemisphereLight(0xc8d4e0, 0x403830, 0.55));
+    const key = new THREE.DirectionalLight(0xffe8cc, 1.1); key.position.set(-0.8, 0.5, -0.6); sc.add(key);
+    const rim = new THREE.DirectionalLight(0x9fb4d8, 0.5); rim.position.set(0.5, 0.6, -1); sc.add(rim);
+    return sc;
+  }
+  VMT.stage = stage; VMT.renderer = renderer;
+  // orbit camera about point c (eye frame): view name -> direction from c to the camera
+  const ODIR = { left: [-1, 0.15, 0.1], right: [1, 0.15, 0.1], top: [0.05, 1, 0.25], under: [0.05, -1, 0.2], front: [0.1, 0.2, -1], back: [0.15, 0.35, 1] };
+  VMT.camera = function (view, c, dist, aspect) {
+    if (view === 'eye') { const cam = new THREE.PerspectiveCamera(IVVM.FOV || 55, aspect, 0.01, 20); cam.updateMatrixWorld(true); return cam; }
+    const d = new THREE.Vector3().fromArray(ODIR[view]).normalize(), cam = new THREE.PerspectiveCamera(30, aspect, 0.01, 20);
+    cam.position.copy(c).addScaledVector(d, dist); cam.up.set(0, 1, 0); if (view === 'top' || view === 'under') cam.up.set(0, 0, -1);
+    cam.lookAt(c); cam.updateMatrixWorld(true);
+    return cam;
+  };
+  // draw several scenes into one canvas: cells = [{ scene, cam, label }], cols, cell size
+  VMT.grid = function (cells, cols, cw, ch, title) {
+    const r = renderer(), rows = Math.ceil(cells.length / cols), top = title ? 26 : 0;
+    r.setSize(cw * cols, ch * rows + top); r.setScissorTest(true); r.setClearColor(0x111111); r.clear();
+    cells.forEach((c, i) => {
+      const x = (i % cols) * cw, y = Math.floor(i / cols) * ch;
+      r.setViewport(x, ch * rows - y - ch, cw, ch); r.setScissor(x, ch * rows - y - ch, cw, ch);
+      c.cam.aspect = cw / ch; c.cam.updateProjectionMatrix();
+      r.render(c.scene, c.cam);
+    });
+    r.setScissorTest(false);
+    // labels on a 2D canvas over the WebGL picture
+    const out = document.createElement('canvas'); out.width = cw * cols; out.height = ch * rows + top;
+    const x2 = out.getContext('2d'); x2.fillStyle = '#111'; x2.fillRect(0, 0, out.width, out.height);
+    x2.drawImage(r.domElement, 0, 0, cw * cols, ch * rows + top, 0, top, cw * cols, ch * rows + top);
+    x2.font = '14px monospace';
+    if (title) { x2.fillStyle = '#eee'; x2.fillText(title, 8, 18); }
+    cells.forEach((c, i) => {
+      const x = (i % cols) * cw, y = Math.floor(i / cols) * ch + top;
+      x2.strokeStyle = '#000'; x2.strokeRect(x + 0.5, y + 0.5, cw - 1, ch - 1);
+      if (c.label) { x2.fillStyle = 'rgba(0,0,0,0.55)'; x2.fillRect(x, y, x2.measureText(c.label).width + 10, 20); x2.fillStyle = '#fff'; x2.fillText(c.label, x + 5, y + 15); }
+      if (c.draw) c.draw(x2, x, y, cw, ch);
+    });
+    return out.toDataURL('image/jpeg', 0.9);
+  };
+
+
+  // share of a 16:9 frame covered by a scene's meshes (rendered white on black), and their screen box
+  VMT.coverage = function (scene, cam, w, h) {
+    const r = renderer(); w = w || 480; h = h || 270;
+    const bg = scene.background, env = scene.environment; scene.background = new THREE.Color(0); scene.environment = null;
+    const skies = []; scene.traverse(o => { if (o.userData.sky && o.visible) { skies.push(o); o.visible = false; } });
+    // white on black; a material faded below half opacity (the aimed hands) counts as not drawn
+    const W1 = VMT._white || (VMT._white = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })), WH = VMT._hid || (VMT._hid = new THREE.MeshBasicMaterial({ visible: false }));
+    const pick = m => m.transparent && m.opacity < 0.5 ? WH : W1;
+    const swapped = []; scene.traverse(o => { if (!o.isMesh || o.userData.sky) return; swapped.push([o, o.material]); o.material = Array.isArray(o.material) ? o.material.map(pick) : pick(o.material); });
+    const om = scene.overrideMaterial;
+    r.setSize(w, h); r.setScissorTest(false); r.setViewport(0, 0, w, h); cam.aspect = w / h; cam.updateProjectionMatrix();
+    const tm = r.toneMapping; r.toneMapping = THREE.NoToneMapping; r.render(scene, cam); r.toneMapping = tm;
+    const gl = r.getContext(), px = new Uint8Array(w * h * 4); gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    scene.background = bg; scene.environment = env; scene.overrideMaterial = om; skies.forEach(o => { o.visible = true; }); swapped.forEach(([o, m]) => { o.material = m; });
+    let n = 0, x0 = w, x1 = 0, y0 = h, y1 = 0, centre = 0, aboveH = 0;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (px[(y * w + x) * 4] > 20) {
+      n++; const yy = h - 1 - y; x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, yy); y1 = Math.max(y1, yy);
+      if (Math.abs(x - w / 2) < w * 0.06 && Math.abs(yy - h / 2) < h * 0.06) centre++;
+      if (yy < h / 2) aboveH++;
+    }
+    return { cover: +(n / (w * h) * 100).toFixed(1), box: [+(x0 / w).toFixed(3), +(y0 / h).toFixed(3), +(x1 / w).toFixed(3), +(y1 / h).toFixed(3)], centrePx: centre, aboveHorizonPx: aboveH };
+  };
+  // the eye view big, with the screen centre and the horizon marked
+  VMT.eyeShot = function (scene, w, h, label) {
+    const cam = VMT.camera('eye', null, 0, w / h);
+    const cov = VMT.coverage(scene, cam);
+    const img = VMT.grid([{ scene, cam, label: (label || 'eye') + '  cover ' + cov.cover + '%  box ' + cov.box.join(','), draw: (c, x, y, cw, ch) => {
+      c.strokeStyle = 'rgba(255,80,80,0.8)'; c.beginPath(); c.moveTo(x + cw / 2 - 10, y + ch / 2); c.lineTo(x + cw / 2 + 10, y + ch / 2); c.moveTo(x + cw / 2, y + ch / 2 - 10); c.lineTo(x + cw / 2, y + ch / 2 + 10); c.stroke();
+      c.strokeStyle = 'rgba(255,255,255,0.25)'; c.beginPath(); c.moveTo(x, y + ch / 2); c.lineTo(x + cw, y + ch / 2); c.stroke();
+    } }], 1, w, h);
+    return { img, cov };
+  };
+
+  // ---------------------------------------------------------------- the real vm (js/vm.js)
+  const VMS = {};
+  VMT.vm = function (kind) {
+    if (VMS[kind] && VMS[kind].raw === !!VMT.rawMats) return VMS[kind];
+    const sc = stage(), vm = IVVM.create(kind, { weapon: VMT.weapon, rawMaterials: !!VMT.rawMats });   // VMT.rawMats: the gun's own materials
+    sc.add(vm.group);
+    return (VMS[kind] = { vm, scene: sc, raw: !!VMT.rawMats });
+  };
+  // pose a vm: state { ads, sprint, crouch, prone }, then clip `clip` advanced to time t (60 Hz steps, events kept)
+  VMT.pose = function (kind, clip, t, state, opts) {
+    opts = opts || {};
+    if (opts.cant) { IVVM.RELOADCANT[kind === 'pistol' ? 'pistol' : 'other'] = opts.cant; IVVM.clearCache(); delete VMS[kind]; }
+    if (opts.grip) { for (const n in opts.grip) { Object.assign(IVVM.GRIPS[kind][n], opts.grip[n]); const pr = IVVM.GRIPS[kind][n + 'Press']; if (pr && pr.like === n) Object.assign(pr, opts.grip[n], { pose: pr.pose }); } IVVM.clearCache(); delete VMS[kind]; }
+    if (opts.hip || opts.frame) { const F = IVVM.FRAME[kind]; if (opts.hip) F.hip = opts.hip; if (opts.frame) Object.assign(F, opts.frame); delete VMS[kind]; }
+    const V = VMT.vm(kind), vm = V.vm;
+    if (opts.prop) vm.setProp(opts.prop);
+    vm.stop(0); for (let i = 0; i < 30; i++) vm.drive(state, 1 / 60);
+    const ev = [];
+    if (clip && clip !== 'idle') {
+      if (opts.pre) { vm.play(opts.pre); let tt = 0; const L = vm.clipLength(opts.pre); while (tt < L) { vm.drive(state, 1 / 60); tt += 1 / 60; } }
+      vm.play(clip, opts.play); let tt = 0; const step = 1 / 60;
+      while (tt + step <= t + 1e-6) { ev.push(...vm.drive(state, step).map(e => e.name)); tt += step; }
+      if (t - tt > 1e-6) ev.push(...vm.drive(state, t - tt).map(e => e.name));
+    } else vm.drive(state, 0);
+    return { V, vm, ev };
+  };
+  // point of interest for the orbit views: the support hand's palm, or the gun's middle
+  VMT.focus = function (vm, what) {
+    const v = new THREE.Vector3();
+    if (what === 'gun') { const b = new THREE.Box3().setFromObject(vm.weapon); return b.getCenter(v); }
+    const h = what === 'right' ? vm.hands.handR : what === 'prop' ? vm.hands.handP : vm.hands.handL;
+    return v.set(0, 0.06, 0).applyMatrix4(h.matrixWorld);
+  };
+  // screen-space checks for the current pose (eye camera 16:9, FOV 55): sight-line clearance of every hand vertex,
+  // sleeve ends on screen, coverage
+  VMT.checks = function (kind) {
+    const V = VMT.vm(kind), vm = V.vm, cam = VMT.camera('eye', null, 0, 16 / 9), v = new THREE.Vector3();
+    let handTop = 1e9, sleeveOn = 0;
+    for (const m of [vm.hands.handL, vm.hands.handR, vm.hands.handP]) {
+      if (!m || !m.visible) continue;
+      const P = m.geometry.attributes.position;
+      for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); if (v.z > -0.01) continue; v.project(cam); if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1) handTop = Math.min(handTop, (1 - v.y) / 2 * 720); }
+    }
+    const ends = vm.sleeveEnds([]);
+    for (const e of ends) { if (e.z > -0.01) continue; const q = e.clone().project(cam); if (Math.abs(q.x) < 1 && Math.abs(q.y) < 1) sleeveOn++; }
+    // the gun's top line at the screen centre column: sight line when aimed
+    return { handTopPx: handTop === 1e9 ? null : Math.round(handTop * 10) / 10, sightPx: 360, sleeveEndsOnScreen: sleeveOn, tris: vm.tris() };
+  };
+  // sheet: rows of { gun, clip, t, ads, sprint, label }, columns of views; returns a JPEG data URL and per-row checks
+  VMT.sheet = function (rows, opts) {
+    opts = opts || {};
+    const cols = opts.cols || ['eye', 'left', 'right', 'top', 'under'], cw = opts.cw || 384, ch = opts.ch || 216, cells = [], info = [];
+    // one scene per row: each row is drawn into its cells before the next row is posed
+    const r = renderer(), W = cw * cols.length, Hh = ch * rows.length + 26;
+    const out = document.createElement('canvas'); out.width = W; out.height = Hh;
+    const c2 = out.getContext('2d'); c2.fillStyle = '#111'; c2.fillRect(0, 0, W, Hh); c2.font = '13px monospace';
+    if (opts.title) { c2.fillStyle = '#eee'; c2.fillText(opts.title, 8, 18); }
+    rows.forEach((row, ri) => {
+      const st = { ads: row.ads || 0, sprint: row.sprint || 0, crouch: row.crouch || 0, prone: row.prone || 0 };
+      VMT.rawMats = !!row.raw;
+      const { V, vm, ev } = VMT.pose(row.gun, row.clip, row.t || 0, st, row);
+      const chk = VMT.checks(row.gun), cov = VMT.coverage(V.scene, VMT.camera('eye', null, 0, 16 / 9));
+      info.push(Object.assign({ row: row.label || (row.gun + ' ' + (row.clip || 'idle') + ' ' + (row.t || 0)), ev }, chk, cov));
+      const f = VMT.focus(vm, row.focus || 'left');
+      r.setSize(W, ch); r.setScissorTest(true); r.setClearColor(0x111111);
+      cols.forEach((view, ci) => {
+        const cam = VMT.camera(view, f, row.dist || 0.42, cw / ch);
+        r.setViewport(ci * cw, 0, cw, ch); r.setScissor(ci * cw, 0, cw, ch); r.render(V.scene, cam);
+      });
+      r.setScissorTest(false);
+      c2.drawImage(r.domElement, 0, 0, W, ch, 0, 26 + ri * ch, W, ch);
+      cols.forEach((view, ci) => {
+        const x = ci * cw, y = 26 + ri * ch;
+        c2.strokeStyle = '#000'; c2.strokeRect(x + 0.5, y + 0.5, cw - 1, ch - 1);
+        if (view === 'eye') {
+          c2.strokeStyle = 'rgba(255,80,80,0.9)'; c2.beginPath(); c2.moveTo(x + cw / 2 - 6, y + ch / 2); c2.lineTo(x + cw / 2 + 6, y + ch / 2); c2.moveTo(x + cw / 2, y + ch / 2 - 6); c2.lineTo(x + cw / 2, y + ch / 2 + 6); c2.stroke();
+        }
+        const lab = ci === 0 ? (row.label || (row.gun + ' ' + (row.clip || 'idle') + ' t' + (row.t || 0) + (st.ads ? ' ads' + st.ads : '') + (st.sprint ? ' spr' : ''))) + '  ' + cov.cover + '%' : view;
+        c2.fillStyle = 'rgba(0,0,0,0.6)'; c2.fillRect(x, y, c2.measureText(lab).width + 8, 17); c2.fillStyle = '#fff'; c2.fillText(lab, x + 4, y + 13);
+      });
+    });
+    return { img: out.toDataURL('image/jpeg', 0.88), info };
+  };
+  // bake: close every grip of a gun (and the prop grips) onto the real meshes; returns the BAKED table entries
+  VMT.bake = function (kind) {
+    const out = {}, src = kind === 'props' ? IVVM.PROPGRIPS : IVVM.GRIPS[kind], built = {};
+    for (const n in src) {
+      const g = src[n]; if (typeof g !== "object" || g.like) continue;
+      const obj = kind === 'props' ? g.object : kind; if (!obj) continue;
+      const M0 = IVVM.gripMatrix(g), c = new THREE.Vector3(0, 0.06, 0).applyMatrix4(M0);
+      let tris = VMT.near(obj, c.x, c.y, c.z, 0.13, g.solveObj);
+      for (const w of g.solveWith || []) {   // another hand already on the gun (the firing hand under a pistol's support hand)
+        const b2 = built[w]; if (!b2) continue;
+        const m = IVVM.gripMatrix(src[w]), P = b2.geometry.attributes.position, I = b2.geometry.index.array, v = new THREE.Vector3(), add = [];
+        for (let i = 0; i < I.length; i++) { v.fromBufferAttribute(P, I[i]).applyMatrix4(m); add.push(v.x, v.y, v.z); }
+        const all = new Float32Array(tris.length + add.length); all.set(tris); all.set(add, tris.length); tris = all;
+      }
+      const sdf = VMT.sdfOf(tris);
+      const b = IVHands.build(IVVM.gripPose(g, kind, n, sdf)); built[n] = b;
+      const curls = {}; for (const f in b.curls) if (!(g.pose.fingers && g.pose.fingers[f] && g.pose.fingers[f].fixed)) curls[f] = b.curls[f];
+      out[n] = { curls }; if (g.pose.thumb && g.pose.thumb.close) out[n].thumb = b.thumbDirs;
+    }
+    return out;
+  };
+
+  // sweep every clip of a gun at 30 Hz (hip, and aimed for fire / fireAds and the raise): sleeve ends on screen, the
+  // highest hand vertex aimed (px from the top of a 1280x720 frame; must be below the 360 sight line), events seen
+  VMT.sweep = function (kind) {
+    const V = VMT.vm(kind), vm = V.vm, out = {}, cam = VMT.camera('eye', null, 0, 16 / 9), v = new THREE.Vector3();
+    const handTop = () => { let top = 1e9; for (const m of [vm.hands.handL, vm.hands.handR, vm.hands.handP]) { if (!m || !m.visible) continue; const P = m.geometry.attributes.position; for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m.matrixWorld); if (v.z > -0.01) continue; v.project(cam); if (Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1) top = Math.min(top, (1 - v.y) / 2 * 720); } } return top; };
+    const ends = () => { let n = 0; for (const e of vm.sleeveEnds([])) { if (e.z > -0.01) continue; const q = e.clone().project(cam); if (Math.abs(q.x) < 1 && Math.abs(q.y) < 1) n++; } return n; };
+    const clips = vm.clips.filter(n => !/^(idle|ads|sprint|adsRaise)$/.test(n));
+    for (const c of clips) for (const ads of (/^fire/.test(c) ? [0, 1] : [0])) {
+      const st = { ads }; vm.stop(0); for (let i = 0; i < 40; i++) vm.drive(st, 1 / 60);
+      vm.play(c); const L = vm.clipLength(c), evs = []; let worstEnds = 0, top = 1e9, frames = 0; const badT = [];
+      for (let t = 0; t < L + 0.2; t += 1 / 30) { evs.push(...vm.drive(st, 1 / 30).map(e => e.name)); { const e = ends(); if (e) badT.push(+t.toFixed(2)); worstEnds = Math.max(worstEnds, e); } if (ads) top = Math.min(top, handTop()); frames++; }
+      out[c + (ads ? '@ads' : '')] = { len: L, events: evs.join(','), sleeveEndsMax: worstEnds, at: badT.length ? badT.join(' ') : undefined, handTopAds: ads ? +top.toFixed(1) : undefined, frames };
+    }
+    // the raise and aimed idle: every 1/30 s of the 0.19 s smootherstep, plus aimed idle
+    vm.stop(0); let top = 1e9, worst = 0;
+    for (let i = 0; i <= 12; i++) { const k = i / 12, a = k * k * k * (k * (k * 6 - 15) + 10); vm.drive({ ads: a }, 1 / 60); if (a > 0.97) top = Math.min(top, handTop()); worst = Math.max(worst, ends()); }
+    out.raise = { handTopAds: +top.toFixed(1), sleeveEndsMax: worst };
+    for (const sp of [1]) { vm.stop(0); for (let i = 0; i < 30; i++) vm.drive({ sprint: sp }, 1 / 60); out.sprint = { sleeveEndsMax: ends() }; }
+    return out;
+  };
+  // ---------------------------------------------------------------- hand study (step 1): one grip on a gun
+  // provisional placement of the gun in the eye frame until the framing table exists
+  VMT.gunPose = { smg: { p: [0.17, -0.19, -0.25], r: [0.16, Math.PI + 0.26, -0.06] } };
+  VMT.handStudy = function (kind, gripNames, opts) {
+    opts = opts || {};
+    const sc = stage(), root = new THREE.Group(), gp = (opts.pose || VMT.gunPose[kind]);
+    root.position.fromArray(gp.p); root.rotation.set(gp.r[0], gp.r[1], gp.r[2], 'YXZ');
+    const gun = VMT.weapon(kind); gun.traverse(o => { if (/sling/.test(o.name)) o.visible = false; }); root.add(gun);
+    const M = IVHands.materials(), info = {};
+    for (const gn of gripNames) {
+      const g = VMT.GR(kind, gn);
+      let sdf = null;
+      if (opts.solve) { const M0 = IVVM.gripMatrix(g), c = new THREE.Vector3(0, 0.06, 0).applyMatrix4(M0); sdf = VMT.sdfOf(VMT.near(kind, c.x, c.y, c.z, 0.13)); }
+      const b = IVVM.buildGrip(g, sdf);
+      const mesh = new THREE.Mesh(b.geometry, [M.glove, M.sleeve]); IVVM.gripMatrix(g, mesh.matrix); mesh.matrixAutoUpdate = false;
+      root.add(mesh);
+      info[gn] = { tris: b.tris, curls: b.curls, touch: b.fingers ? Object.fromEntries(Object.entries(b.fingers).map(([k, v]) => [k, v.touch])) : null, mesh };
+    }
+    sc.add(root); root.updateMatrixWorld(true);
+    return { scene: sc, root, gun, info };
+  };
+  VMT.GR = (kind, gn) => IVVM.GRIPS[kind][gn];
+  // contact check of a hand mesh against its gun: penetration depth (max, mm) and how many vertices are inside
+  VMT.contact = function (kind, mesh, root) {
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), m = new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld);
+    const P = mesh.geometry.attributes.position, v = new THREE.Vector3();
+    const c = new THREE.Vector3(); mesh.geometry.computeBoundingSphere(); c.copy(mesh.geometry.boundingSphere.center).applyMatrix4(m);
+    const sdf = VMT.sdfOf(VMT.near(kind, c.x, c.y, c.z, mesh.geometry.boundingSphere.radius + 0.02));
+    let pen = 0, nIn = 0, near = 0;
+    for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(P, i).applyMatrix4(m); const d = sdf(v); if (d < 0) { nIn++; pen = Math.max(pen, -d); } if (d < 0.002) near++; }
+    return { penMM: +(pen * 1000).toFixed(1), inside: nIn, within2mm: near, verts: P.count };
+  };
+  VMT.Q = Q;
+  const l = new THREE.GLTFLoader(); if (window.MeshoptDecoder) l.setMeshoptDecoder(MeshoptDecoder);
+  (window.MeshoptDecoder ? MeshoptDecoder.ready : Promise.resolve()).then(() => l.load('assets/weapons.glb?v=12', g => {
+    g.scene.updateMatrixWorld(true);
+    for (const k of ['rifleScoped', 'smg', 'pistol', 'grenade', 'binoculars', 'knife']) { const o = g.scene.getObjectByName(k); if (o) WT[k] = o; }
+    window.__loaded = true;
+  }, null, e => { window.__err = String(e); }));
+})();
+</script>
+</body>
+</html>
