@@ -94,13 +94,6 @@
       'It gets a little sharper each hall further in: it hears farther, reacts faster and moves quicker. Easy stays gentle; Hard does not.',
       'Standing still and quiet on a tile is still safe, and pebbles, bottles, toys and flares pull it away.'
     ]},
-    {date: '2026-11-25', version: '1.58', title: 'New: Where Have You Been?', kind: 'feature',
-     tags: ['Travel map', 'Wishlist', 'Friends'], link: {text: 'Open the map', href: '/where-have-you-been/'}, items: [
-      'Where Have You Been? is a travel map logbook: colour in every country, state and city you\'ve been to on a globe or a flat map.',
-      'Type a list like "London, Kyoto, Machu Picchu" to log a whole trip at once, and keep a striped wishlist of places to go next.',
-      'Collect 469 landmarks, each with its own pixel sprite, and add friends to see who has been to more places.',
-      'Find it under Web Development Projects on the home page.'
-    ]},
     {date: '2026-11-25', version: '1.53', title: 'Driftfall characters get real builds', kind: 'feature', tags: ['Driftfall'],
      items: ['Characters look more like people and less like blocks: a smaller head on a neck, arms that taper to the wrist, a narrower waist and boots with a toe and a sole.',
        'Not everyone is the same shape any more: lean, average and broad builds, some with wider shoulders. Your outfit picks yours, and the Noob gets one from your colour.',
