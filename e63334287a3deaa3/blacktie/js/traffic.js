@@ -5,6 +5,7 @@
  *   - Cars appear and leave out of sight in a window around the player (how many depends on the quality preset).
  *   - F by a slow or stopped one pulls the driver out: they run off (unhurt, like every bystander) and the car is yours.
  *   - Shooting a car, ramming it, or a fight nearby (alert 3+) makes the driver stop, get out and run.
+ * Traffic runs on the 7 m coast road only, not down the bowl town's narrow street.
  * Drivers are ordinary bystander actors seated with the player's driving pose (RP.Vehicles.pose). Missions turn
  * traffic on with `traffic: true` (free roam and the coast-road chase).
  */
@@ -22,7 +23,9 @@
     if (!line || line.length < 2) { line = null; return false; }
     cum = [0];
     for (var i = 1; i < line.length; i++) cum.push(cum[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
-    TR.len = cum[cum.length - 1];
+    // traffic keeps to the coast road itself (7 m); the bowl town's narrow hairpin street is left to the player
+    var last = line.length - 1; while (last > 1 && (line[last][3] || 7) < 7) last--;
+    TR.len = cum[last];
     return true;
   }
   // the line at arc length s: point, road height and heading (toward increasing s)
@@ -152,6 +155,7 @@
   function ahead(v, t, look) {
     // the nearest thing in this car's lane ahead: returns the gap in metres (Infinity when clear)
     var c = Math.cos(v.yaw), s = Math.sin(v.yaw), fx = Math.sin(v.yaw), fz = Math.cos(v.yaw), half = v.ty.len / 2, gap = Infinity, who = null;
+    t.whoObj = null;
     function test(x, z, y, rad, halfLen, what, obj) {
       if (Math.abs(y - v.pos.y) > 3) return;
       if (t.passT > 0 && obj && obj === t.passing) return;
@@ -161,7 +165,7 @@
       var g = fw - half - halfLen; if (g < gap) { gap = g; who = what; t.whoObj = obj; }
     }
     var p = RP.G.player;
-    if (p && p.alive) { if (p.vehicle) { if (p.vehicle !== v) test(p.vehicle.pos.x, p.vehicle.pos.z, p.vehicle.pos.y, p.vehicle.ty.wid / 2, p.vehicle.ty.len / 2, 'player'); } else test(p.pos.x, p.pos.z, p.pos.y, 0.4, 0.4, 'player'); }
+    if (p && p.alive) { if (p.vehicle) { if (p.vehicle !== v) test(p.vehicle.pos.x, p.vehicle.pos.z, p.vehicle.pos.y, p.vehicle.ty.wid / 2, p.vehicle.ty.len / 2, 'player', p.vehicle); } else test(p.pos.x, p.pos.z, p.pos.y, 0.4, 0.4, 'player'); }
     RP.Vehicles.list.forEach(function (o) { if (o !== v && o !== (p && p.vehicle)) test(o.pos.x, o.pos.z, o.pos.y, o.ty.wid / 2, o.ty.len / 2, 'car', o); });
     RP.G.guards.forEach(function (g) { if (g.alive) test(g.pos.x, g.pos.z, g.pos.y, 0.4, 0.4, 'person'); });
     RP.G.civilians.forEach(function (cv) { test(cv.pos.x, cv.pos.z, cv.pos.y, 0.4, 0.4, 'person'); });
@@ -189,12 +193,18 @@
     var want = Math.min(t.cruise, M.clamp(16 - bend * 13, 5.5, 16));
     var gap = ahead(v, t, 6 + sp * 1.3);
     if (gap < Infinity) want = Math.min(want, Math.max(0, (gap - 2.2) * 0.85));
-    var blk = t.whoObj;
-    if (gap < 10 && t.who === 'car' && blk && !blk.traffic && !blk.driver && !blk.ai && Math.abs(blk.v) < 0.5) {
+    // a car standing in the lane (abandoned, parked, the player's car nose to nose with us, a Halcyon car): after a
+    // moment go round it in the other lane, backing off first if we are touching; a queue of traffic is waited out longer
+    var blk = t.who ? t.whoObj : null;
+    if (gap < 10 && blk && blk.ty && Math.abs(blk.v) < 0.5 && t.passT <= 0) {
       t.blockT = (t.blockT || 0) + dt;
-      if (t.blockT > 1.5) { t.passing = blk; t.passT = 5; t.blockT = 0; }
-    } else t.blockT = 0;
+      if (t.blockT > (blk.traffic ? 5 : 2)) { t.passing = blk; t.passT = 6; t.blockT = 0; t.backT = gap < 2 ? 1.1 : 0; }
+    } else if (t.passT <= 0) t.blockT = 0;
     if (t.passT > 0) want = Math.min(want, 7);
+    if (t.backT > 0) {
+      t.backT -= dt;
+      V.drive(v, dt, -0.8, -M.clamp(err * 2.4, -1, 1), false); V.hitPeople(v); v.hit = 0; seat(v, t, dt); return;
+    }
     // someone standing in front: wait, then sound the horn
     if (gap < 9 && t.who === 'player' && !(p && p.vehicle) && sp < 1) {
       t.waitT += dt; t.hornT -= dt;

@@ -57,8 +57,12 @@ Car bodies are lofted (vehicles.js `BODY`, `loftBody`), ~5.2k tris and 23 calls 
 Bystanders' cars on `RP.map.driveLine` (free roam and mission 3), right-hand lane, bends, braking, horn, overtaking
 stopped cars, spawn/despawn out of sight; F carjacks (driver flees via `RP.AI.spawnCiv({..}, {actor})`); shot,
 rammed (impacts now pass to the car you hit) or a fight on foot within 45 m at alert 3+ makes drivers bail.
-Test: `~/rpwork/w/traffic.js` (flow, braking for the player, horn, carjack); `w/drive.js` now keeps right and
-overtakes. The player's car takes half the crash damage of other cars.
+Traffic stays on the 7 m coast road (not the bowl town's hairpin street). A car blocked by anything standing in its
+lane (abandoned, parked, the player's car nose to nose, a chaser) backs off and goes round it.
+Test: `~/rpwork/w/traffic.js` (flow both ways, braking for the player, horn, carjack). `w/drive.js` keeps right,
+overtakes and passes stopped or oncoming cars: with traffic on it reaches the piazzetta in ~50 s with ~40 hp left
+(it prints progress as it goes; give it up to ~25 min under swiftshader). The player's car takes half the crash
+damage of other cars.
 
 ## Next
 1. Play mission 3 with real controls; tune chaser speed/aggression and the helicopter; check the pursuit in the
