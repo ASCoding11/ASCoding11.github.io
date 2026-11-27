@@ -16,7 +16,7 @@
  *    between the TV and Skip, Esc skips, and keys do not reach the page behind.
  * 2. The retro TV look ("Retro TV" switch, top right of the page, on by default; localStorage "holiday:tv" = "0"
  *    when switched off). The page looks as if it is on that old TV: pixel fonts, square corners, the game pictures
- *    in big pixels, faint scan lines with a slow band rolling down, and the snow and decorations behind the page
+ *    in big pixels, scan lines of alternating darker and lighter bands with a slow band rolling down, and the snow and decorations behind the page
  *    drawn in big pixels too (BackRoomSeasons.pixel). Everything stays readable and works as usual.
  *    Switched off, the page is the plain winter look from seasons.js: blue, snow, the tree, the snowman, the
  *    menorah, the diya, gingerbread and lights.
@@ -49,7 +49,7 @@
     'html.tv-on h1{font-size:clamp(22px,4.6vw,50px)!important;line-height:1.25!important}'+
     'html.tv-on h2{font-size:clamp(13px,1.9vw,19px)!important;line-height:1.35!important}'+
     'html.tv-on h3{font-size:12px!important;line-height:1.4!important}'+
-    'html.tv-on .br-games .gc.wide h3,html.tv-on .br-games .gc-daily h3{font-size:15px!important}'+
+    'html.tv-on .br-games .gc-grid:not([data-ev]) > .gc.wide h3,html.tv-on .br-games .gc[data-ev-w] h3,html.tv-on .br-games .gc-daily h3{font-size:15px!important}'+
     'html.tv-on .br-games .pz h3{font-family:"Pixelify Sans",monospace!important;font-size:11px!important;text-transform:uppercase}'+
     'html.tv-on .gs-nb b{font-family:"Press Start 2P",monospace;font-size:11px;letter-spacing:0}'+
     '@media (max-width:719px){html.tv-on .gs-nb b{font-family:"Pixelify Sans",sans-serif;font-size:12px}html.tv-on #lists .tile strong{font-size:17px}}'+
@@ -60,8 +60,8 @@
     'html.tv-on .br-games .gc:hover{transform:translate(-2px,-2px)!important;box-shadow:6px 6px 0 rgba(4,14,40,.5)!important}'+
     'html.tv-on .btn,html.tv-on button{font-family:"Pixelify Sans",sans-serif}'+
     'html.tv-on img[data-hol-src]{image-rendering:pixelated;image-rendering:crisp-edges}'+
-    // the glass: scan lines, a slow rolling band and darker corners; it never takes a click
-    '#hol-crt{position:fixed;inset:0;z-index:900;pointer-events:none;overflow:hidden;background:repeating-linear-gradient(to bottom,rgba(0,8,30,.17) 0,rgba(0,8,30,.17) 1px,transparent 1px,transparent 3px)}'+
+    // the glass: scan lines (alternating darker and lighter bands, like an old TV, never pure black or white), a slow rolling band and darker corners; it never takes a click
+    '#hol-crt{position:fixed;inset:0;z-index:900;pointer-events:none;overflow:hidden;background:repeating-linear-gradient(to bottom,rgba(0,8,30,.24) 0,rgba(0,8,30,.24) 2px,rgba(190,215,255,.06) 2px,rgba(190,215,255,.06) 4px)}'+
     '#hol-crt::before{content:"";position:absolute;left:0;right:0;top:0;height:120px;background:linear-gradient(to bottom,transparent,rgba(255,255,255,.07) 45%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.07) 55%,transparent);animation:hol-roll 7s linear infinite}'+
     '#hol-crt::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 58%,rgba(0,6,24,.34) 100%);box-shadow:inset 0 0 0 3px rgba(0,6,24,.5)}'+
     '@keyframes hol-roll{from{transform:translateY(-130px)}to{transform:translateY(105vh)}}'+

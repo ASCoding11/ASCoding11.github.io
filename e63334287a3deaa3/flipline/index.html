@@ -52,13 +52,13 @@ body:not(.touch) .touchonly{display:none!important}
 #levelBar{position:absolute;left:50%;bottom:max(10px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(60vw,520px);height:8px;border:2px solid var(--edge);border-radius:999px;background:rgba(9,12,32,.8);overflow:hidden}
 #levelBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan-d),var(--cyan));box-shadow:0 0 8px var(--cyan)}
 #levelBar:not([hidden])~#hint{bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px))}
-/* touch screens: two lean buttons bottom-left (touch anywhere else is the gas); the hint sits above them */
-#lean{position:absolute;left:max(14px,env(safe-area-inset-left));bottom:max(34px,calc(env(safe-area-inset-bottom) + 26px));display:flex;gap:14px;pointer-events:auto}
-#lean button{width:74px;height:74px;border-radius:50%;background:rgba(9,12,32,.72);border:2px solid var(--edge);box-shadow:inset 0 -3px 0 rgba(54,231,255,.35);color:var(--cyan);display:grid;place-items:center;padding:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-#lean button svg{width:34px;height:34px;pointer-events:none}
-#lean button.on{background:var(--cyan);color:#04121c;border-color:#9ff6ff;transform:translateY(2px);box-shadow:0 0 14px rgba(54,231,255,.6)}
-body.touch #hint,body.touch #levelBar:not([hidden])~#hint{bottom:max(124px,calc(env(safe-area-inset-bottom) + 116px))}
-@media (max-height:440px) and (orientation:landscape){#lean button{width:64px;height:64px}body.touch #hint,body.touch #levelBar:not([hidden])~#hint{bottom:max(108px,calc(env(safe-area-inset-bottom) + 100px))}}
+/* 1.54: the multiplier badge in the score pill and the gem counter next to the coins */
+#hudMultV{margin-left:6px;font-family:var(--f-d);font-size:15px;color:#04121c;background:var(--cyan);border-radius:8px;padding:0 6px;box-shadow:0 0 10px rgba(54,231,255,.55)}
+#hudMultV.hot{background:var(--gold);box-shadow:0 0 12px rgba(255,200,58,.6)}
+.gem-i{width:14px;height:14px;transform:rotate(45deg);background:linear-gradient(135deg,#ffffff,#8ff7ff 45%,#2bb8d6);border:2px solid #06303a;flex:none;box-shadow:0 0 8px rgba(143,247,255,.7);margin:0 2px}
+#hudPk{display:flex;gap:8px}
+@media (max-width:600px){#hudPk{flex-direction:column;align-items:flex-end;gap:6px}}
+@media (max-width:380px){#hud .pill{font-size:15px;padding:3px 8px;gap:5px}#hudMultV{font-size:13px;padding:0 4px;margin-left:3px}}
 
 /* ---------- overlays: dark glass panels ---------- */
 .overlay{position:absolute;inset:0;overflow:auto;padding:max(14px,env(safe-area-inset-top)) 14px max(16px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center}
@@ -184,19 +184,15 @@ details.help b{color:var(--txt)}
   <div id="hud" hidden>
     <div id="hudL" data-noi18n>
       <span class="pill" id="hudDist"><small id="hudDistL">Distance</small><span id="hudDistV">0 m</span></span>
-      <span class="pill" id="hudScore"><small id="hudScoreL">Score</small><span id="hudScoreV">0</span></span>
+      <span class="pill" id="hudScore"><small id="hudScoreL">Score</small><span id="hudScoreV">0</span><span id="hudMultV" title="Run multiplier">×1</span></span>
     </div>
     <div id="combo" data-noi18n hidden></div>
     <div id="hudR">
-      <span class="pill" data-noi18n><span class="coin-i"></span><span id="hudCoins">0</span></span>
+      <div id="hudPk"><span class="pill" data-noi18n><span class="coin-i"></span><span id="hudCoins">0</span></span><span class="pill" data-noi18n><span class="gem-i"></span><span id="hudGems">0</span></span></div>
       <button id="pauseBtn" type="button" aria-label="Pause"><svg viewBox="0 0 20 20"><rect x="3" y="2" width="5" height="16" rx="1.5" fill="currentColor"/><rect x="12" y="2" width="5" height="16" rx="1.5" fill="currentColor"/></svg></button>
     </div>
     <div id="levelBar" hidden><i></i></div>
     <div id="hint" hidden></div>
-    <div id="lean" class="touchonly">
-      <button type="button" data-lean="-1" data-no-ad-refresh aria-label="Lean back / backflip"><svg viewBox="0 0 24 24"><path d="M9 6a7.5 7.5 0 1 1-4.5 8" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M12.5 2.5 8.5 6l4 3.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <button type="button" data-lean="1" data-no-ad-refresh aria-label="Lean forward / front flip"><svg viewBox="0 0 24 24"><path d="M15 6a7.5 7.5 0 1 0 4.5 8" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M11.5 2.5 15.5 6l-4 3.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    </div>
   </div>
 
   <section id="menu" class="overlay" hidden>
@@ -218,24 +214,25 @@ details.help b{color:var(--txt)}
         <path d="M70 113 H442" stroke="#f4fdff" stroke-width="1.5" stroke-linecap="round"/>
         <circle cx="356" cy="113" r="13" fill="#36e7ff" opacity=".28"/><circle cx="356" cy="113" r="6" fill="#f4fdff"/>
       </svg>
-      <p class="tagline">Hold to ride. Flip with ← →. Land it clean.</p>
+      <p class="tagline">Hold to ride. Hold in the air to flip. Land it clean.</p>
       <p class="formerly"><span class="kbonly">Press Space to ride now</span><span class="touchonly">Press and hold the city to ride now</span> · formerly Flipline</p>
       <div class="grid2">
         <button class="btn clay mode" id="mEndless" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 16c3-8 6-8 8 0s5 8 8 0" fill="none" stroke="#2b2230" stroke-width="2.6" stroke-linecap="round"/></svg></span><span><b>Endless</b><span id="mEndlessS" data-noi18n>best 0 m</span></span></button>
         <button class="btn teal mode" id="mDaily" type="button"><span class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="3" fill="none" stroke="#2b2230" stroke-width="2.4"/><path d="M4 10h16M9 3v4M15 3v4" stroke="#2b2230" stroke-width="2.4" stroke-linecap="round"/></svg></span><span><b>Daily run</b><span id="mDailyS" data-noi18n>same course for everyone</span></span></button>
         <button class="btn mode" id="mLevels" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 21V4M6 4h11l-3 4 3 4H6" fill="none" stroke="#2b2230" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg></span><span><b>Levels</b><span id="mLevelsS" data-noi18n>0 of 72 medals</span></span></button>
         <button class="btn mode" id="mChal" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z" fill="none" stroke="#2b2230" stroke-width="2.2" stroke-linejoin="round"/></svg></span><span><b>Challenges</b><span id="mChalS" data-noi18n>3 to do</span></span></button>
-        <button class="btn mode" id="mGarage" type="button"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="6" cy="16" r="3.5" fill="none" stroke="#2b2230" stroke-width="2.4"/><circle cx="18" cy="16" r="3.5" fill="none" stroke="#2b2230" stroke-width="2.4"/><path d="M6 16l4-6h5l3 6M10 10l-1-3h-2" fill="none" stroke="#2b2230" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg></span><span><b>Garage</b><span>vehicles, riders, places</span></span></button>
+        <button class="btn mode" id="mGarage" type="button"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="6" cy="16" r="3.5" fill="none" stroke="#2b2230" stroke-width="2.4"/><circle cx="18" cy="16" r="3.5" fill="none" stroke="#2b2230" stroke-width="2.4"/><path d="M6 16l4-6h5l3 6M10 10l-1-3h-2" fill="none" stroke="#2b2230" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/></svg></span><span><b>Garage</b><span>vehicles, places</span></span></button>
         <button class="btn mode" id="mEditor" type="button"><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="#2b2230" stroke-width="2.4" stroke-linejoin="round"/></svg></span><span><b>Track editor</b><span>build and share</span></span></button>
       </div>
       <details class="help" style="margin-top:12px">
         <summary>How to play</summary>
         <ul>
-          <li><b>Gas:</b> <span class="kbonly">Space, the up arrow, or the mouse.</span><span class="touchonly">touch anywhere except the two round buttons.</span> Hold it to ride, let go to coast.</li>
-          <li><b>Flip with the arrows:</b> <span class="kbonly"><kbd>←</kbd> spins you backwards, <kbd>→</kbd> forwards.</span><span class="touchonly">hold the left round button to spin backwards, the right one to spin forwards.</span> On the ground they pop a wheelie or lean you over the bars.</li>
-          <li><b>Gravity is on.</b> Nobody levels the bike for you: a spin keeps going until you stop it, and the heavy front end drops the nose. Steer with the arrows to land on your wheels.</li>
+          <li><b>One button:</b> <span class="kbonly">Space (or the up arrow, W, or the mouse).</span><span class="touchonly">touch and hold anywhere on the screen.</span> On the ground, holding is the gas; let go to coast.</li>
+          <li><b>In the air, holding flips you backwards.</b> Let go and the spin slows down and the heavy front end drops the nose, so let go in time to land on your wheels.</li>
           <li><b>Land on your wheels</b>, close to the slope of the ground. Nearly level is a <b>clean landing</b>: it keeps your combo going and multiplies the next trick.</li>
-          <li><b>Red and cream with teeth</b> means danger: spikes, the swinging mace, saws, crushers, low beams and laser gates. Gold rounds are coins; a gold <b>×2</b> doubles your trick points for a while.</li>
+          <li><b>Red and cream with teeth</b> means danger: spikes, spike ceilings, glowing posts, floating triangles, the swinging mace, saws, crushers, low beams and laser gates. Gold rounds are coins; a gold <b>×2</b> doubles your trick points for a while.</li>
+          <li><b>The run multiplier</b> (the badge by your score) multiplies every trick and gem. Loops raise it most, clean landings and flips raise it a little, a gold crown at the top of a loop adds +0.5, and flips from a lit <b>flip zone</b> count three times. A sloppy landing halves it.</li>
+          <li><b>Gems</b> sit inside loops, over big jumps and under ceilings: some can only be reached by riding the loop.</li>
           <li><b>Loops</b> need speed: keep the gas on all the way round. Glowing chevrons are <b>boost strips</b>; cracked amber platforms drop away, so don’t stop on them.</li>
           <li>Moving traps and laser gates are timed for a bike at a good pace: keep your speed up and they open for you.</li>
           <li><span class="kbonly"><kbd>R</kbd> restarts, <kbd>Esc</kbd> pauses.</span><span class="touchonly">After a crash, tap to go again.</span></li>
@@ -259,11 +256,11 @@ details.help b{color:var(--txt)}
       <h2>Garage</h2>
       <div class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="veh" aria-selected="true">Vehicles</button>
-        <button type="button" role="tab" data-tab="rid" aria-selected="false">Riders</button>
+        <button type="button" role="tab" data-tab="rid" aria-selected="false" hidden>Riders</button>
         <button type="button" role="tab" data-tab="thm" aria-selected="false">Places</button>
       </div>
       <div class="shop" id="shop"></div>
-      <p class="note" id="garNote">Every vehicle and rider rides exactly the same: same speed, same grip, same flips. They only look different. Coins come from playing; nothing here costs real money.</p>
+      <p class="note" id="garNote">Every vehicle rides exactly the same: same speed, same grip, same flips. They only look different. Coins come from playing; nothing here costs real money.</p>
       <p class="note">Your place is used in Endless and the editor; levels and the Daily run bring their own.</p>
     </div>
   </section>
@@ -353,33 +350,38 @@ const P={
   DT:1/240,          // fixed physics step (s): 240 steps a second whatever the screen does
   G:12,              // gravity (m/s²), a little above Earth's: snappy but with time to flip
   I:0.42,            // chassis moment of inertia per kg (m²)
-  WX:0.66,           // wheel centres sit ±WX ahead of / behind the centre of mass (m)
-  WY:-0.30,          // ... and WY below it (m)
-  WR:0.36,           // wheel radius (m)
-  K:230, C:15,       // tyre + suspension spring (per kg, 1/s²) and damper (1/s)
-  TRAVEL:0.13,       // suspension travel (m); past it the contact turns rigid (an impulse)
-  REST:0.04,         // bounce on a rigid hit
+  WX:0.60,           // wheel centres sit ±WX ahead of / behind the centre of mass (m) (Chromeline 1.54: the bike alone, 9% smaller than 0.66)
+  WY:-0.273,         // ... and WY below it (m)
+  WR:0.327,          // wheel radius (m)
+  K:900, C:60,       // tyre contact spring (per kg, 1/s²) and damper (1/s). hard update: rigid, the owner's request: stiff and over-damped, so the
+                     // wheels stay fixed to the frame and a landing doesn't bob or bounce (was 230 and 15: soft, springy suspension)
+  TRAVEL:0.04,       // how far a contact can sink before it turns fully rigid (an impulse) (m) (was 0.13)
+  REST:0,            // bounce on a rigid hit (was 0.04)
   DRIVE:11.9,        // rear-wheel push from a standstill (m/s²) while held on the ground (was 10.5: +13%)
   VMAX:19.2,         // the push fades to nothing at this ground speed (m/s) (was 17: +13%; flat-ground top speed 15.3 → 17.1)
   BOOST:26, BOOST_V:25, // on a boost strip the wheels push this much more (m/s²), up to this speed (m/s), held or not
   MU:1.25,           // grip: the push never exceeds MU × the rear wheel's load
   CRR:0.018,         // rolling resistance (× load) when coasting
   DRAG:0.0035,       // air drag (1/m): slows by DRAG × speed²
-  AIR_ACC:18,        // an arrow held in the air: spin builds this way at this rate (rad/s²); ← backwards, → forwards
-  AIR_WMAX:8,        // ... up to this spin (rad/s), about 460°/s
-  AIR_DAMP:1.2,      // no arrow in the air: spin fades by this fraction per second (it keeps going for a while; nothing levels the bike for you)
+  AIR_ACC:16,        // one button: holding in the air spins the bike backwards at this rate (rad/s²) (18 with the arrows: flips take a little longer)
+  AIR_WMAX:7.4,      // ... up to this spin (rad/s), about 420°/s (was 8)
+  AIR_DAMP:2.6,      // let go in the air: the spin fades by this fraction per second, so letting go is how you stop a flip
   GRAV_PITCH:2.4,    // in the air the heavy front end drops: nose-down spin builds at this × cos(angle) (rad/s²)
-  LEAN_G:9,          // an arrow held on the ground leans the rider back or forward (rad/s²): wheelies and nose-downs
   WHEELIE:0.75, WHEELIE_K:28, REAR_DAMP:6, // on the back wheel past 43° the rider leans forward (torque per rad)
-  TILT:1.31,         // touching down more than 75° off the ground's angle is a crash
-  CLEAN:0.26,        // within 15° of the ground's angle is a clean landing
-  ASSIST:0.32, ASSIST_K:26, ASSIST_C:5, ASSIST_MAX:0.7, // after touchdown: settle toward the ground (s, gains, within 40°)
+  TILT:0.92,         // touching down more than 53° off the ground's angle is a crash (hard update, harder: was 70°, and 75° before 1.54)
+  CLEAN:0.16,        // within 9° of the ground's angle is a clean landing (hard update: was 12.6°, and 15° before 1.54)
+  ASSIST:0.22, ASSIST_K:26, ASSIST_C:5, ASSIST_MAX:0.45, // after touchdown: settle toward the ground (s, gains, within 26°) (hard update: was 0.32 s within 40°)
   FLIP_SLACK:0.9,    // a flip counts from 360° − 52° of rotation (measured against the change in ground slope)
   SETTLE:0.22,       // tricks are banked after this long back on the wheels
   AIRBORNE:0.12,     // off the ground this long counts as a jump
-  HEAD:[-0.08,1.0,0.21], TORSO:[-0.22,0.55,0.22], // rider crash circles (local x, y, radius)
+  HEAD:[0.12,0.36,0.17], TORSO:[-0.3,0.3,0.18], // crash circles on the top of the bike (no rider since 1.54): the tank and the seat
+  BIKE_H:0.62,       // how far the bike's top sits above its centre of mass (m), for the checker
   LOOP_PTS:200,      // a full loop: points before the combo multiplier; it also adds to the combo
-  MUL_T:8            // an x2 token doubles trick points for this long (s)
+  MUL_T:8,           // an x2 token doubles trick points for this long (s)
+  // the run multiplier (the badge under the score): it multiplies every trick, loop and gem, it builds as you ride and it is
+  // cut by a sloppy landing. Loops are where it grows fastest, which is the point of riding them.
+  RM_LOOP:0.3, RM_CLEAN:0.1, RM_FLIP:0.15, RM_CROWN:0.5, RM_MAX:6, RM_SLOP:0.5,
+  GEM_PTS:25         // a gem, before the run multiplier
 };
 const TAU=Math.PI*2, rad=d=>d*Math.PI/180;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -391,7 +393,7 @@ function hashStr(s){let h=2166136261>>>0;for(let i=0;i<s.length;i++){h^=s.charCo
 const BW=4;
 function newTrack(kind){
   return{kind,ex0:[],ey0:[],ex1:[],ey1:[],enx:[],eny:[],eg:[],eb:[],bk:[],low:[],polys:[],hz:[],coins:[],mv:[],nMv:0,lips:[],bridges:[],
-    loops:[],boosts:[],pk:[],drops:[],gate:-1,boost:0,
+    loops:[],boosts:[],pk:[],drops:[],gate:-1,boost:0,gems:[],fzs:[],cols:[],
     run:null,runWall:false,cx:0,cy:0,finish:Infinity,start:6,marks:[],mods:[],deco:[],seed:0,r:null,genX:0,last:[],vs:null,rej:0,fails:[],bad:[]};
 }
 // tr.gate (loops: which half of which loop an edge belongs to, -1 for none) and tr.boost (1 on a boost strip) tag the edges added while set
@@ -428,6 +430,7 @@ function ease(tr,L,dy,n){n=n||Math.max(8,Math.ceil(L/1.2));const x0=tr.cx,y0=tr.
 function bump(tr,L,h,n){n=n||Math.max(10,Math.ceil(L/0.7));const x0=tr.cx,y0=tr.cy;for(let i=1;i<=n;i++){const u=i/n;pt(tr,x0+L*u,y0+h*(1-Math.cos(TAU*u))/2)}}
 function arcUp(tr,ang,h){const R=h/(1-Math.cos(ang)),n=Math.max(6,Math.ceil(ang/0.05)),x0=tr.cx,y0=tr.cy;for(let i=1;i<=n;i++){const a=ang*i/n;pt(tr,x0+R*Math.sin(a),y0+R*(1-Math.cos(a)))}}
 // from slope s0 (dy/dx) back to level over L metres (a quadratic bend)
+function sine(tr,L,A,n){n=n||Math.max(12,Math.ceil(L/0.6));const x0=tr.cx,y0=tr.cy;for(let i=1;i<=n;i++){const u=i/n;pt(tr,x0+L*u,y0+A*Math.sin(TAU*u))}}
 function bend(tr,L,s0){const n=Math.max(8,Math.ceil(L/1)),x0=tr.cx,y0=tr.cy;for(let i=1;i<=n;i++){const u=i/n;pt(tr,x0+L*u,y0+s0*L*(u-u*u/2))}}
 function lip(tr){tr.lips.push({x:tr.cx,y:tr.cy})}
 function gapTo(tr,w,dy){runEnd(tr,true);tr.cx+=w;tr.cy+=dy;runStart(tr,true)}
@@ -435,7 +438,19 @@ function solid(tr,x0,x1,top,kind,bed){bed=bed==null?top-3:bed;addPath(tr,[x0,bed
 function coin(tr,x,y){tr.coins.push({x,y})}
 function coinArc(tr,x0,y0,vx,vy,n,dt){for(let i=1;i<=n;i++){const t=i*dt;coin(tr,x0+vx*t,y0+vy*t-P.G*t*t/2+0.7)}}
 function coinLine(tr,x0,x1,y,n){for(let i=0;i<n;i++)coin(tr,x0+(x1-x0)*i/Math.max(1,n-1),y)}
-function hazard(tr,h){h.i=tr.hz.length;if(h.k!=='spk'&&h.k!=='beam')h.D=HZ_D;tr.hz.push(h)}
+const STATIC_HZ={spk:1,beam:1,ceil:1,post:1,tri:1};
+function hazard(tr,h){h.i=tr.hz.length;if(!STATIC_HZ[h.k])h.D=HZ_D;tr.hz.push(h)}
+// gems (1.54): cyan diamonds worth points × the run multiplier; k 'crown' is a crown that adds to the multiplier instead
+function gem(tr,x,y,k){tr.gems.push({x,y,k:k||'g'})}
+function gemArc(tr,x0,y0,vx,vy,n,dt){for(let i=1;i<=n;i++){const t=i*dt;gem(tr,x0+vx*t,y0+vy*t-P.G*t*t/2+0.6)}}
+function gemLine(tr,x0,x1,y,n){for(let i=0;i<n;i++)gem(tr,x0+(x1-x0)*i/Math.max(1,n-1),y)}
+// a red spike ceiling hanging from dark columns: its teeth's tips are h metres above the ground at the cursor
+function ceil(tr,x0,x1,y){hazard(tr,{k:'ceil',x0,x1,y,r:0.2})}
+// a short glowing post standing on the ground (or rising out of a pit from y0) up to y1
+function post(tr,x,y0,y1){hazard(tr,{k:'post',x0:x-0.22,x1:x+0.22,x,y0,y1,r:0.2})}
+// a floating triangle outline (point up or down) centred at x,y with side a
+function tri(tr,x,y,a,dn){const h=a*0.866,u=dn?-1:1;hazard(tr,{k:'tri',x0:x-a/2,x1:x+a/2,x,y,a,dn:!!dn,
+  p:[x-a/2,y-u*h/3,x+a/2,y-u*h/3,x,y+u*2*h/3],r:0.12})}
 function mover(tr,m){m.i=tr.mv.length;if(m.k==='see'){m.si=tr.nMv;tr.nMv+=3}else if(m.k==='drop'){m.si=tr.nMv;tr.nMv+=1}tr.mv.push(m);
   const e=m.le=[],p=m.pts;for(let i=0;i<p.length/2-1;i++){const ax=p[2*i],ay=p[2*i+1],bx=p[2*i+2],by=p[2*i+3],L=Math.hypot(bx-ax,by-ay);e.push(ax,ay,bx,by,-(by-ay)/L,(bx-ax)/L)}}
 
@@ -450,7 +465,7 @@ const LOOP_CR=P.WR-P.WY; // centre of mass to the riding surface (m)
 // takes you over the top. Measured with the real physics (arrow-key version: no auto-levelling, gravity on the nose), with the gas on
 // all the way round, the lowest entry speeds that still go round are about 10.0 (R 3), 11.5 (R 4), 13.6 (R 5) and 15.6 m/s (R 6);
 // this asks for about 1.2 m/s more (a bike that just landed has lost some). Off the gas in the loop you need more: 11.9 (R 3), 13.9 (R 4), 15.6 (R 5), 17.2 m/s (R 6).
-function loopVmin(R){return Math.max(11,2*R+4.7)}
+function loopVmin(R){return Math.max(11,2*R+5)}
 function loopRing(tr,R){
   const li=tr.loops.length,ax=tr.cx,ay=tr.cy,cx=ax,cy=ay+R;
   flush(tr);
@@ -460,7 +475,8 @@ function loopRing(tr,R){
   }
   tr.gate=-1;
   tr.loops.push({i:li,x:ax,y:ay,R,cx,cy,x0:cx-R,x1:cx+R,vmin:loopVmin(R)});
-  const r=R-LOOP_CR-0.3;for(const a of[60,90,120])coin(tr,cx+r*Math.cos(rad(a)),cy+r*Math.sin(rad(a))-0.3);
+  // gems round the inside of the ring: only a bike riding the loop can reach them (1.54: loops pay)
+  const r=R-LOOP_CR-0.3;for(const a of[180,150,120,90,60,30,0])gem(tr,cx+r*Math.cos(rad(a)),cy+r*Math.sin(rad(a)));
 }
 // x2 token: trick points count double for a while after you ride through one
 function token(tr,x,y,k){tr.pk.push({x,y,k:k||'x2'})}
@@ -472,8 +488,8 @@ const MOD={
   flat:{f(tr,L=20){seg(tr,L,0)}},
   // ----- set pieces (Chromeline) -----
   // a loop of radius R after a run-up (metres), the last `boost` metres of it a boost strip; tok 1 puts an x2 token at the top
-  loop:{need:1,f(tr,R=4,run=16,boost=0,tok=0){seg(tr,Math.max(3,run-boost),0);if(boost>0)boostSeg(tr,boost);seg(tr,2,0);const x=tr.cx,y=tr.cy;loopRing(tr,R);
-    if(tok)token(tr,x,y+2*R-LOOP_CR-0.3);seg(tr,R+7,0)}},
+  loop:{need:1,f(tr,R=4,run=16,boost=0,tok=0,crown=0){seg(tr,Math.max(3,run-boost),0);if(boost>0)boostSeg(tr,boost);seg(tr,2,0);const x=tr.cx,y=tr.cy;loopRing(tr,R);
+    if(tok)token(tr,x,y+2*R-LOOP_CR-0.3);if(crown)gem(tr,x+0.15,y+2*R-LOOP_CR-0.25,'crown');seg(tr,R+7,0)}},
   // a jump straight into a loop: land it clean and keep holding, or you won't have the speed to get over the top
   jumploop:{need:1,f(tr,h=1.1,R=4,run=6){seg(tr,RUNUP*0.7,0);arcUp(tr,rad(22),h);lip(tr);const x=tr.cx,y=tr.cy;gapTo(tr,5,-h+0.4);ease(tr,8,-0.4);
     coinArc(tr,x,y,15*Math.cos(rad(22)),15*Math.sin(rad(22)),3,0.16);MOD.loop.f(tr,R,run,0)}},
@@ -489,9 +505,9 @@ const MOD={
   // boost strip on its own (with a coin line): speed you have to manage
   boost:{f(tr,L=10){seg(tr,4,0);const x=tr.cx;boostSeg(tr,L);coinLine(tr,x+1,x+L-1,tr.cy+0.9,4);seg(tr,8,0)}},
   // platforms over a pit that drop 0.45 s after you touch them: the whole bike has to be off by then, so keep moving
-  crumble:{need:1,f(tr,n=3,pw=4.5,g=1.6){seg(tr,RUNUP,0);arcUp(tr,rad(14),0.4);lip(tr);let x=tr.cx+g*0.6,y=tr.cy-0.25;runEnd(tr,true);
-    for(let i=0;i<n;i++){mover(tr,{k:'drop',x0:x,x1:x+pw,bx:x+pw/2,by:y,wait:0.45,g:14,pts:[-pw/2,-0.55,-pw/2,0,pw/2,0,pw/2,-0.55]});tr.bridges.push([x,y,x+pw,y]);
-      tr.drops.push({x0:x,y,need:(pw+1.5)/0.45});coin(tr,x+pw/2,y+1.2);x+=pw+g}
+  crumble:{need:1,f(tr,n=3,pw=4.5,g=1.6,wait=0.45){seg(tr,RUNUP,0);arcUp(tr,rad(14),0.4);lip(tr);let x=tr.cx+g*0.6,y=tr.cy-0.25;runEnd(tr,true);
+    for(let i=0;i<n;i++){mover(tr,{k:'drop',x0:x,x1:x+pw,bx:x+pw/2,by:y,wait,g:14,pts:[-pw/2,-0.55,-pw/2,0,pw/2,0,pw/2,-0.55]});tr.bridges.push([x,y,x+pw,y]);
+      tr.drops.push({x0:x,y,need:(pw+1.5)/wait});coin(tr,x+pw/2,y+1.2);x+=pw+g}
     tr.cx=x;tr.cy=y;runStart(tr,true);seg(tr,10,0)}},
   // laser gates on a timer, each off as a bike at a good pace (VD) reaches it
   gates:{f(tr,n=2,T=2.2,sp=9,sk=0){seg(tr,8,0);const y=tr.cy;for(let i=0;i<n;i++){const x=tr.cx+3;hazard(tr,{k:'gate',x0:x-0.3,x1:x+0.3,x,y,hgt:3.6,T,off:1.1,sk:sk*(i%2?-1:1),r:0.13});seg(tr,sp,0)}seg(tr,6,0)}},
@@ -501,6 +517,67 @@ const MOD={
     gapTo(tr,g,-dh);ease(tr,8,-0.5);seg(tr,10,0)}},
   // rare: an overdrive stretch, a long boost strip with coins and an x2 token
   rush:{f(tr,L=26){seg(tr,4,0);const x=tr.cx;boostSeg(tr,L);coinLine(tr,x+2,x+L-2,tr.cy+0.9,8);token(tr,x+L*0.5,tr.cy+1.0);seg(tr,10,0)}},
+  // ----- 1.54: new pieces, easiest first (README has the list with difficulty) -----
+  // a row of gems just above a flat stretch
+  gemrow:{f(tr,L=16,n=6){seg(tr,4,0);const x=tr.cx;seg(tr,L,0);gemLine(tr,x+1,x+L-1,tr.cy+0.8,n);seg(tr,4,0)}},
+  // a small kicker with an arc of gems: the top ones need a full-speed jump
+  gemhop:{f(tr,h=1.0,ang=24){seg(tr,4,0);arcUp(tr,rad(ang),h);lip(tr);const x=tr.cx,y=tr.cy;seg(tr,h/Math.tan(rad(50)),-h);
+    gemArc(tr,x,y,14*Math.cos(rad(ang)),14*Math.sin(rad(ang)),5,0.12);seg(tr,14,0)}},
+  // wavy ground: n sine waves whose height grows from a0 to a1 (m) over wavelength w
+  wave:{f(tr,n=4,a0=0.3,a1=0.8,w=9){seg(tr,4,0);for(let i=0;i<n;i++)sine(tr,w,a0+(a1-a0)*i/Math.max(1,n-1));seg(tr,6,0)}},
+  // a flat line under a red spike ceiling (c metres up) on dark columns; a bump before it tempts you into the air
+  ceiling:{f(tr,L=14,c=1.9,bh=0){seg(tr,6,0);if(bh>0){bump(tr,6,bh);seg(tr,7,0)}seg(tr,3,0);const x=tr.cx,y=tr.cy;seg(tr,L,0);ceil(tr,x,x+L,y+c);gemLine(tr,x+1.5,x+L-1.5,y+0.75,Math.max(2,Math.round(L/3)));seg(tr,6,0)}},
+  // rolling ground under a spike ceiling: at speed the crests lift you towards the teeth
+  ceilwave:{f(tr,n=3,h=0.4,w=6,c=1.9){seg(tr,6,0);const x=tr.cx,y=tr.cy;for(let i=0;i<n;i++)bump(tr,w,h);ceil(tr,x,tr.cx,y+h+c);seg(tr,6,0)}},
+  // a kicker with a short glowing post just past the lip: keep your speed to clear it
+  post:{need:1,f(tr,h=1.0,ang=26,d=2.4,ph=0.1){seg(tr,RUNUP*0.6,0);arcUp(tr,rad(ang),h);lip(tr);const x=tr.cx,y=tr.cy;seg(tr,h/Math.tan(rad(50)),-h);
+    post(tr,x+d,y-h,y+ph);gem(tr,x+d,y+ph+1.2);seg(tr,14,0)}},
+  // three kicker-and-post pairs in a row: a rhythm to hold
+  postrow:{need:1,f(tr,n=3,ph=0.1,sp=9){seg(tr,RUNUP*0.6,0);for(let i=0;i<n;i++){arcUp(tr,rad(24),0.9);lip(tr);const x=tr.cx,y=tr.cy;seg(tr,0.9/Math.tan(rad(50)),-0.9);
+    post(tr,x+3,y-0.9,y+ph);seg(tr,sp,0)}seg(tr,6,0)}},
+  // a long jump with floating triangle outlines above and below the line: fly between them
+  tris:{need:1,f(tr,w=12,n=2,lo=0.6){seg(tr,RUNUP,0);arcUp(tr,rad(24),1.0);lip(tr);const x=tr.cx,y=tr.cy;gapTo(tr,w,-0.1);ease(tr,8,-0.9);
+    tri(tr,x+w*0.55,y-lo-0.95,1.6,0);if(n>1)tri(tr,x+w*0.4,y+4.3,1.6,1);if(n>2)tri(tr,x+w*0.85,y-lo-1.2,1.4,0);gemArc(tr,x,y,13.5*Math.cos(rad(24)),13.5*Math.sin(rad(24)),4,0.18);seg(tr,10,0)}},
+  // a long steep ramp with gems above it, a big launch and a long ramp down: the nose has to come round before you land
+  steep:{need:1,f(tr,L=8,ang=30,drop=6){seg(tr,RUNUP+4,0);arcUp(tr,rad(ang),1.2);const x0=tr.cx,y0=tr.cy,dx=L*Math.cos(rad(ang)),dy=L*Math.sin(rad(ang));seg(tr,dx,dy);
+    for(let i=0;i<4;i++){const gx=x0+1+(dx-2)*i/3;gem(tr,gx,y0+1.1+dy*(gx-x0)/dx)}
+    lip(tr);gapTo(tr,4,-1.2);const s=Math.tan(rad(30)),Ld=(drop+dy)/s;seg(tr,Ld,-s*Ld);bend(tr,10,-s);seg(tr,10,0)}},
+  // the track breaks into short gaps with no ramps: speed carries you across
+  breaks:{f(tr,n=3,g=1.6,pl=4){seg(tr,6,0);for(let i=0;i<n;i++){gapTo(tr,g,-0.1-0.09*g);seg(tr,pl,0)}seg(tr,6,0)}},
+  // a loop with a crown at the very top: riding round it adds +0.5 to the run multiplier
+  crownloop:{need:1,f(tr,R=4.2,run=14,boost=0){MOD.loop.f(tr,R,run,boost,0,1)}},
+  // three loops in a row with boost strips between
+  loop3:{need:1,f(tr,R1=3.6,R2=4,R3=4.4){MOD.loop.f(tr,R1,16,R1>4.2?8:0);MOD.loop.f(tr,R2,12,8);MOD.loop.f(tr,R3,12,8,0,1)}},
+  // a giant loop after a long boost: worth double to the multiplier, and the crown at the top
+  bigloop:{need:1,f(tr,R=6,bl=12){MOD.loop.f(tr,R,bl+8,bl,0,1)}},
+  // a loop that drops you straight onto a kicker over a gap: the speed you keep round the loop is the jump you get
+  loopgap:{need:1,f(tr,R=4,w=6){MOD.loop.f(tr,R,14,R>4.2?8:0);arcUp(tr,rad(22),0.7);lip(tr);const x=tr.cx,y=tr.cy;gapTo(tr,w,0.2);ease(tr,8,-0.9);gemArc(tr,x,y,12.5,5,3,0.16);seg(tr,10,0)}},
+  // a low, flat jump over a gap with a spike ceiling above it
+  lowjump:{need:1,f(tr,w=6,c=2.6){seg(tr,RUNUP,0);arcUp(tr,rad(14),0.5);lip(tr);const x=tr.cx,y=tr.cy;gapTo(tr,w,-0.4);ease(tr,6,-0.4);ceil(tr,x-1,x+w+1,y+c);seg(tr,10,0)}},
+  // stairs down with spikes on every other step: carry speed so you fly past them
+  stairspike:{f(tr,n=4,h=0.8,w=4.5,sw=0.5){seg(tr,6,0);for(let i=0;i<n;i++){pt(tr,tr.cx+0.03,tr.cy-h);const x=tr.cx,y=tr.cy;seg(tr,w,0);if(i%2===0)hazard(tr,{k:'spk',x0:x,x1:x+w*sw,y,r:0.26})}seg(tr,6,0)}},
+  // drop platforms that fall after only 0.3 s
+  snap:{need:1,f(tr,n=3,pw=4,g=1.6){MOD.crumble.f(tr,n,pw,g,0.3)}},
+  // a steep kicker up onto a ledge high above, across a gap
+  ledge:{need:1,f(tr,w=4,dy=2.6){seg(tr,6,0);boostSeg(tr,6);seg(tr,4,0);arcUp(tr,rad(34),1.4);lip(tr);gapTo(tr,w,dy-1.4+0.6);ease(tr,6,-0.6);seg(tr,12,0)}},
+  // waves whose crests are broken by gaps: leave each crest flat and land on the far side
+  wavegap:{need:1,f(tr,n=3,h=1.2,w=10,g=3){seg(tr,6,0);for(let i=0;i<n;i++){ease(tr,w/2,h);lip(tr);gapTo(tr,g,-0.1);ease(tr,w/2,-h+0.1)}seg(tr,8,0)}},
+  // a boost strip under a spike ceiling, with a little roll at the end
+  boostceil:{f(tr,L=12,c=2,bh=0.2){seg(tr,4,0);const x=tr.cx,y=tr.cy;boostSeg(tr,L);if(bh>0)bump(tr,5,bh);seg(tr,2,0);ceil(tr,x+2,tr.cx,y+bh+c);gemLine(tr,x+2,x+L,y+0.75,4);seg(tr,8,0)}},
+  // a big kicker with a lit flip zone: a flip that takes off there adds three times as much to the run multiplier
+  flipzone:{need:1,f(tr,h=2,ang=34,drop=4){MOD.bigkick.f(tr,h,ang,drop,14);const L=tr.lips[tr.lips.length-1];tr.fzs.push({x0:L.x-6,x1:L.x,y:L.y})}},
+  // the needle: a jump between a glowing post on the ground and a spike block hanging over the landing
+  needle:{need:1,f(tr,h=1.0,ph=0.1,c=3.2){seg(tr,RUNUP*0.6,0);arcUp(tr,rad(24),h);lip(tr);const x=tr.cx,y=tr.cy;seg(tr,h/Math.tan(rad(50)),-h);
+    post(tr,x+2.3,y-h,y+ph);ceil(tr,x+6,x+8.5,y+c);gem(tr,x+4.2,y+1.6);seg(tr,14,0)}},
+  // a gap with a glowing post rising out of the pit: too slow and you clip it
+  postgap:{need:1,f(tr,w=8,ph=0.3){seg(tr,RUNUP,0);arcUp(tr,rad(22),0.7);lip(tr);const x=tr.cx,y=tr.cy;gapTo(tr,w,0.2);ease(tr,8,-0.9);post(tr,x+w*0.5,y-9,y+ph);seg(tr,10,0)}},
+  // step up, drop down, step up again, quickly
+  zigzag:{need:1,f(tr,n=2,h=1.4,w=2.6){seg(tr,RUNUP*0.7,0);for(let i=0;i<n;i++){arcUp(tr,rad(30),h+0.6);lip(tr);gapTo(tr,w,-0.6);seg(tr,5,0);pt(tr,tr.cx+0.03,tr.cy-h);seg(tr,7,0)}seg(tr,4,0)}},
+  // a big kicker with a row of gems high above the landing: only a full-speed jump reaches them
+  gemsky:{need:1,f(tr,h=2,ang=34,drop=3){MOD.bigkick.f(tr,h,ang,drop,14);const L=tr.lips[tr.lips.length-1];gemLine(tr,L.x+4,L.x+9,L.y+2.1,4)}},
+  // spikes on the floor and a spike ceiling, one after the other: hop the floor spikes but stay low under the ceiling
+  chicane:{need:1,f(tr,n=2,c=1.9,w=3){seg(tr,RUNUP*0.6,0);for(let i=0;i<n;i++){arcUp(tr,rad(17),0.55);lip(tr);seg(tr,0.55/Math.tan(rad(50)),-0.55);const x=tr.cx,y=tr.cy;
+    hazard(tr,{k:'spk',x0:x+1,x1:x+1+w,y,r:0.26});seg(tr,w+12,0);const x2=tr.cx;seg(tr,8,0);ceil(tr,x2,x2+8,y+c);seg(tr,4,0)}seg(tr,4,0)}},
   recover:{f(tr,L=28){const x=tr.cx;seg(tr,L,0);coinLine(tr,x+6,x+L-6,tr.cy+0.9,5)}},
   roll:{f(tr,n=3,h=0.5,w=6){for(let i=0;i<n;i++)bump(tr,w,h);seg(tr,4,0)}},
   whoop:{f(tr,n=6,h=0.8,w=4.2){seg(tr,6,0);for(let i=0;i<n;i++)bump(tr,w,h);seg(tr,6,0)}},
@@ -601,33 +678,65 @@ const PICK=[
   ['gates',4,0.15,(d,r)=>[1+(d>0.5&&r()<0.5?1:0)+(d>1.1&&r()<0.4?1:0),R_(r,2.0,2.4),R_(r,8,11),R_(r,-0.08,0.08)*D1(d)]],
   ['pads',4,0.25,(d,r)=>[2+Math.floor(r()*2)+(d>1&&r()<0.5?1:0),R_(r,4.4,5)-0.8*D1(d),R_(r,3.5,4+1.2*d),R_(r,0.8,1.2)]],
   ['rush',1,0.3,(d,r)=>[R_(r,22,30)]],
+  // 1.54
+  ['gemrow',2,0,(d,r)=>[R_(r,10,18),5+Math.floor(r()*3)]],
+  ['gemhop',2,0,(d,r)=>[R_(r,0.9,1.2),R_(r,22,28)]],
+  ['wave',3,0,(d,r)=>[3+Math.floor(r()*3),R_(r,0.25,0.35),R_(r,0.5,0.6+0.5*D1(d)),R_(r,8,10)]],
+  ['ceiling',4,0.05,(d,r)=>[R_(r,10,14+6*D1(d)),R_(r,2.1,2.3)-0.4*D1(d),d>0.5&&r()<0.5?R_(r,0.5,0.9):0]],
+  ['ceilwave',3,0.35,(d,r)=>[2+Math.floor(r()*2),R_(r,0.3,0.4+0.2*D1(d)),R_(r,5.5,7),R_(r,2.0,2.2)-0.35*D1(d)]],
+  ['post',4,0.1,(d,r)=>[R_(r,0.9,1.1),R_(r,24,28),R_(r,2.2,2.8),R_(r,0,0.15+0.3*D1(d))]],
+  ['postrow',3,0.45,(d,r)=>[2+(d>1||r()<0.4?1:0),R_(r,0,0.1+0.2*D1(d)),R_(r,8,11)]],
+  ['tris',3,0.4,(d,r)=>[R_(r,10,12+4*D1(d)),1+(d>0.6?1:0)+(d>1.2&&r()<0.5?1:0),R_(r,0.6,1.0)-0.4*D1(d)]],
+  ['steep',3,0.3,(d,r)=>[R_(r,6,8+3*D1(d)),R_(r,28,32),R_(r,5,8)]],
+  ['breaks',4,0.1,(d,r)=>[2+Math.floor(r()*3),R_(r,1.4,1.8+0.8*D1(d)),R_(r,3,5)]],
+  ['crownloop',3,0.15,(d,r)=>{const R=R_(r,3.8,4.4+0.8*D1(d));return[R,R_(r,12,16),R>4.2?Math.round(R*2):0]}],
+  ['loop3',2,0.6,(d,r)=>[R_(r,3.4,3.8),R_(r,3.8,4.2),R_(r,4.0,4.6+0.4*D1(d))]],
+  ['bigloop',2,0.5,(d,r)=>[R_(r,5.6,6+0.8*D1(d)),R_(r,12,14)]],
+  ['loopgap',3,0.4,(d,r)=>[R_(r,3.6,4.2+0.4*D1(d)),R_(r,5,6+3*D1(d))]],
+  ['lowjump',3,0.35,(d,r)=>[R_(r,5,6+3*D1(d)),R_(r,2.9,3.1)-0.5*D1(d)]],
+  ['stairspike',3,0.3,(d,r)=>[3+Math.floor(r()*2),R_(r,0.7,0.9),R_(r,4,5),R_(r,0.4,0.5+0.15*D1(d))]],
+  ['snap',2,0.8,(d,r)=>[2+Math.floor(r()*2),R_(r,2.6,3.0),R_(r,1.3,1.6+0.6*D1(d))]],
+  ['ledge',2,0.5,(d,r)=>[R_(r,3,4+1.5*D1(d)),R_(r,2.2,2.6+1.0*D1(d))]],
+  ['wavegap',3,0.45,(d,r)=>[2+Math.floor(r()*2),R_(r,1,1.4),R_(r,9,11),R_(r,2,2.5+2*D1(d))]],
+  ['boostceil',2,0.5,(d,r)=>[R_(r,10,14),R_(r,2.1,2.3)-0.3*D1(d),R_(r,0.15,0.3)]],
+  ['flipzone',4,0.1,(d,r)=>[R_(r,1.8,2.4),R_(r,32,36),R_(r,3,5)]],
+  ['needle',3,0.6,(d,r)=>[R_(r,0.9,1.1),R_(r,0,0.1+0.3*D1(d)),R_(r,3.4,3.6)-0.5*D1(d)]],
+  ['postgap',3,0.45,(d,r)=>[R_(r,7,8+3*D1(d)),R_(r,0,0.2+0.3*D1(d))]],
+  ['zigzag',3,0.25,(d,r)=>[2+(r()<0.4?1:0),R_(r,1.2,1.4+0.4*D1(d)),R_(r,2.4,3+0.8*D1(d))]],
+  ['gemsky',2,0.05,(d,r)=>[R_(r,1.9,2.3),R_(r,32,35),R_(r,2,4)]],
+  ['chicane',3,0.7,(d,r)=>[2+(d>1.2?1:0),R_(r,2.0,2.1)-0.3*D1(d),R_(r,2.5,3+0.8*D1(d))]],
 ];
-const BIG={bigkick:1,lpipe:1,dropin:1,gapdown:1,longjump:1,stepdown:1,tabletop:1,gap2:1,loop:1,loop2:1,hpipe:1,launch:1,pads:1,crumble:1};
-const ENDLESS_RAMP=1100;    // metres (after the opening) until the full mix; difficulty keeps rising after that, to 1.5 at 3,600 m
-const OPEN_X=150;           // the scripted opening ends about here
+// the easy pieces thin out as the run goes on (1.54), so a long run keeps getting harder
+const EASY={flat:1,recover:1,roll:1,whoop:1,hill:1,valley:1,hump:1,kick:1,dkick:1,tabletop:1,gemrow:1,gemhop:1,boost:1,stepdown:1,stairsdown:1,stairsup:1};
+const pickW=(p,d)=>p[1]*(p[2]>0?0.6+0.8*d:1)*(EASY[p[0]]?Math.max(0.3,1-0.45*d):1);
+const BIG={steep:1,tris:1,bigloop:1,loop3:1,loopgap:1,crownloop:1,ledge:1,flipzone:1,gemsky:1,wavegap:1,needle:1,bigkick:1,lpipe:1,dropin:1,gapdown:1,longjump:1,stepdown:1,tabletop:1,gap2:1,loop:1,loop2:1,hpipe:1,launch:1,pads:1,crumble:1};
+const ENDLESS_RAMP=300;     // metres (after the opening) until the full mix (hard update: was 650, and 1,100 before 1.54); difficulty keeps rising after that, to 2 at about 1,500 m
+const OPEN_X=270;           // the scripted opening ends about here (hard update: it is longer and denser)
+const ENDLESS_D0=0.45;      // hard update: difficulty straight after the opening (it used to start from 0), so the hard pieces turn up at once
 
-function startTrack(tr){tr.cx=0;tr.cy=0;runStart(tr,true);seg(tr,tr.kind==="endless"?20:24,0)}
+function startTrack(tr){tr.cx=0;tr.cy=0;runStart(tr,true);seg(tr,tr.kind==="endless"?12:24,0)}
 function build(tr,name,args){
   const m=MOD[name];if(!m)throw new Error('no module '+name);
   const x0=tr.cx;m.f(tr,...args);tr.mods.push({n:name,x0,x1:tr.cx,a:args});
 }
 // keep a copy of the array lengths so a module that fails the checker can be taken back out
-function mark(tr){return{e:tr.ex0.length,p:tr.polys.length,h:tr.hz.length,c:tr.coins.length,m:tr.mv.length,nMv:tr.nMv,l:tr.lips.length,b:tr.bridges.length,lo:tr.loops.length,bo:tr.boosts.length,pk:tr.pk.length,dr:tr.drops.length,
+function mark(tr){return{e:tr.ex0.length,p:tr.polys.length,h:tr.hz.length,c:tr.coins.length,m:tr.mv.length,nMv:tr.nMv,l:tr.lips.length,b:tr.bridges.length,lo:tr.loops.length,bo:tr.boosts.length,pk:tr.pk.length,dr:tr.drops.length,gm:tr.gems.length,fz:tr.fzs.length,
   md:tr.mods.length,cx:tr.cx,cy:tr.cy,run:tr.run&&tr.run.slice(),rw:tr.runWall,low:tr.low.slice()}}
 function rollback(tr,k){
-  for(const a of['ex0','ey0','ex1','ey1','enx','eny','eg','eb'])tr[a].length=k.e;tr.loops.length=k.lo;tr.boosts.length=k.bo;tr.pk.length=k.pk;tr.drops.length=k.dr;tr.gate=-1;tr.boost=0;
+  for(const a of['ex0','ey0','ex1','ey1','enx','eny','eg','eb'])tr[a].length=k.e;tr.loops.length=k.lo;tr.boosts.length=k.bo;tr.pk.length=k.pk;tr.drops.length=k.dr;tr.gems.length=k.gm;tr.fzs.length=k.fz;tr.gate=-1;tr.boost=0;
   for(let b=0;b<tr.bk.length;b++){const L=tr.bk[b];if(L)while(L.length&&L[L.length-1]>=k.e)L.pop()}
   tr.polys.length=k.p;tr.hz.length=k.h;tr.coins.length=k.c;tr.mv.length=k.m;tr.nMv=k.nMv;tr.lips.length=k.l;tr.bridges.length=k.b;tr.mods.length=k.md;
   tr.cx=k.cx;tr.cy=k.cy;tr.run=k.run;tr.runWall=k.rw;tr.low=k.low;
 }
-// difficulty 0..1 over ENDLESS_RAMP metres after the opening, then on up to 1.5 (wider gaps, more hazards, more of the hard pieces)
-function endlessD(x){const u=(x-OPEN_X)/ENDLESS_RAMP;return u<=1?clamp(u,0,1):Math.min(1.5,1+(u-1)*ENDLESS_RAMP/5000)}
+// difficulty from ENDLESS_D0 to 1 over ENDLESS_RAMP metres after the opening, then on up to 2 (wider gaps, more hazards, more of the hard pieces)
+function endlessD(x){const u=(x-OPEN_X)/ENDLESS_RAMP;return u<=1?ENDLESS_D0+(1-ENDLESS_D0)*clamp(u,0,1):Math.min(2,1+(u-1)*ENDLESS_RAMP/1200)}
 function endless(seed){
   const tr=newTrack('endless');tr.seed=seed>>>0;tr.r=rng(seed);startTrack(tr);
-  // the opening: a little kick at ~26 m (under 3 s), a big kicker over a drop at ~45 m (about 4 s; with no arrows the nose drops
-  // and you land on your head), a forgiving loop (in at about 9 s, round by about 10.5 s), a short spike run, then at about 13 s a steep launch
-  // (a quarter-pipe or a half-pipe, by seed) that you have to steer round to land
-  build(tr,'kick',[0.9,24,10]);build(tr,'bigkick',[1.8,32,2,8]);build(tr,'loop',[3.4,6,0,0]);build(tr,'spikes',[2.5]);build(tr,(seed&1)?'lpipe':'hpipe',(seed&1)?[3.3,64,9]:[3.2,68,2.9,9]);flush(tr);
+  // the opening (hard update, hard from the first second; the owner's request): a tall kick at ~12 m (1 s), a boosted launch over a
+  // pit at ~4.5 s whose flat landing needs a short hold in the air (no hold, and the nose drops short), the steeper quarter-pipe or
+  // the half-pipe at ~8-10 s, a big kicker over a deep drop, a wide spike strip, a bigger loop and a post past a kicker by ~20 s
+  build(tr,'kick',[1.3,28,7]);build(tr,'launch',[14,0.4,26,5]);build(tr,(seed&1)?'lpipe':'hpipe',(seed&1)?[3.4,70,10]:[3.4,69,2.7,10]);
+  build(tr,'bigkick',[2.4,36,4,6]);build(tr,'spikes',[4.2]);build(tr,'loop',[4,14,0,0]);build(tr,'post',[1.1,26,2.6,0.25]);flush(tr);
   tr.vs=[vInit(tr,1),vInit(tr,0.85)];vRun(tr,tr.cx,null);tr.snaps=[{x:tr.cx,vs:vCopy(tr.vs)}];return tr;
 }
 const vCopy=vs=>vs.map(v=>Object.assign({},v,{trig:Object.assign({},v.trig)}));
@@ -644,11 +753,11 @@ function extend(tr,x){
       if(tries>=3){name='flat';args=[14]}
       else{
         const opts=PICK.filter(p=>p[2]<=d+1e-9&&tr.last[0]!==p[0]&&!(BIG[p[0]]&&BIG[tr.last[0]]));
-        let tot=0;for(const p of opts)tot+=p[1]*(p[2]>0?0.6+0.8*d:1);
-        let q=r()*tot;let pk=opts[0];for(const p of opts){q-=p[1]*(p[2]>0?0.6+0.8*d:1);if(q<=0){pk=p;break}}
+        let tot=0;for(const p of opts)tot+=pickW(p,d);
+        let q=r()*tot;let pk=opts[0];for(const p of opts){q-=pickW(p,d);if(q<=0){pk=p;break}}
         // keep the course from drifting too far up or down
-        if(tr.cy<-60&&/stepdown|dropin|gapdown|stairsdown|valley|hpipe|lpipe/.test(pk[0]))pk=PICK.find(p=>p[0]==='hill');
-        if(tr.cy>60&&/stepup|gapup|stairsup/.test(pk[0]))pk=PICK.find(p=>p[0]==='stepdown');
+        if(tr.cy<-60&&/stepdown|dropin|gapdown|stairsdown|valley|hpipe|lpipe|steep|stairspike/.test(pk[0]))pk=PICK.find(p=>p[0]==='hill');
+        if(tr.cy>60&&/stepup|gapup|stairsup|ledge/.test(pk[0]))pk=PICK.find(p=>p[0]==='stepdown');
         name=pk[0];args=pk[3](d,r).map(v=>Math.round(v*100)/100);
       }
       build(tr,name,args);
@@ -665,35 +774,35 @@ function dailySeed(date){const d=date||new Date();const s=d.getUTCFullYear()+'-'
 // ---------- levels: name, theme, flips target, time target (s), then the course as module:arg:arg tokens ----------
 const LEVELS=[
   // Tier 1: one idea each (ids are the original ones so medals already earned stay attached; courses rebuilt for Chromeline).
-  // f and t were set by the bot on these courses and on the arrow-key physics: t = its time + 12% + 1 s, f = what a flip-seeking
-  // version of it managed.
-  {id:'first-gear',n:'First Gear',th:0,f:4,t:21,c:'kick:1:24:12 bigkick:1.8:32:2:12 loop:3.4:12 spikes:2.5 flat:6 hump:1.4:8'},
-  {id:'let-go',n:'Let Go',th:0,f:4,t:23,c:'kick:1:26:14 bigkick:2:34:3:14 stepdown:3 gap:5:0:0.7 beams:2:7 loop:3.6:12'},
-  {id:'over-you-go',n:'Over You Go',th:0,f:4,t:28,c:'bigkick:2.2:36:4:14 lpipe:3.2:58:9 bigkick:2.2:36:4:14 hpipe:3.2:68:2.9:9'},
-  {id:'feet-first',n:'Feet First',th:0,f:4,t:23,c:'kick:1.1:26:14 stepdown:3 tabletop:1.6:6 gap:5:0:0.7 pads:3:4.6:4:1 stepup:2:3'},
-  {id:'twice-round',n:'Twice Round',th:0,f:3,t:24,c:'loop:3.4:14 flat:4 loop2:3.6:4.2:12 dropin:7 loop:4.6:12:6'},
-  {id:'swing-time',n:'Swing Time',th:0,f:2,t:18,c:'flat:18 pend:1:2.6:0 kick:1:24:12 pend:2:2.6:0.1 spikes:3 rotor:1:1.3:0 gates:1:2.2:9:0'},
+  // f was set by a flip-seeking version of the bot on the arrow-key physics. t was set again in 1.54 (one button, smaller bike) and
+  // made tighter: the bot's time + 8% + 0.5 s (it was + 12% + 1 s).
+  {id:'first-gear',n:'First Gear',th:0,f:4,t:20,c:'kick:1:24:12 bigkick:1.8:32:2:12 loop:3.4:12 spikes:2.5 flat:6 hump:1.4:8'},
+  {id:'let-go',n:'Let Go',th:0,f:4,t:22,c:'kick:1:26:14 bigkick:2:34:3:14 stepdown:3 gap:5:0:0.7 beams:2:7 loop:3.6:12'},
+  {id:'over-you-go',n:'Over You Go',th:0,f:4,t:27,c:'bigkick:2.2:36:4:14 lpipe:3.2:58:9 bigkick:2.2:36:4:14 hpipe:3.2:68:2.9:9'},
+  {id:'feet-first',n:'Feet First',th:0,f:4,t:22,c:'kick:1.1:26:14 stepdown:3 tabletop:1.6:6 gap:5:0:0.7 pads:3:4.6:4:1 stepup:2:3'},
+  {id:'twice-round',n:'Twice Round',th:0,f:3,t:22,c:'loop:3.4:14 flat:4 loop2:3.6:4.2:12 dropin:7 loop:4.6:12:6'},
+  {id:'swing-time',n:'Swing Time',th:0,f:2,t:17,c:'flat:18 pend:1:2.6:0 kick:1:24:12 pend:2:2.6:0.1 spikes:3 rotor:1:1.3:0 gates:1:2.2:9:0'},
   // Tier 2
-  {id:'mesa-hop',n:'Grid Hop',th:1,f:5,t:22,c:'gap:5:0:0.7 launch:16:0:24:6 gapup:3:1.2 crumble:3:4.2:1.3 gapdown:8:-3'},
-  {id:'washboard',n:'Washboard',th:1,f:3,t:28,c:'whoop:6:0.8:4.2 boost:10 loop:4.2:10 roll:4:0.7:6 bigkick:2:34:3:14 whoop:5:0.9:4.4'},
-  {id:'stair-master',n:'Stair Master',th:1,f:2,t:24,c:'stairsup:3:0.6:5 stepup:2:3 stairsdown:4:0.8:4 stepdown:4 pads:3:4.4:4:1 tabletop:1.8:7'},
-  {id:'low-bridge',n:'Low Bridge',th:1,f:2,t:20,c:'beams:3:6 kick:1.1:26:14 gates:2:2.2:9:0 bridge:5:3 bigkick:2:34:3:12 beams:2:6'},
-  {id:'teeter',n:'Teeter',th:1,f:2,t:20,c:'seesaw:10:1.2 kick:1:24:14 seesaw:11:1.3 crumble:3:4.6:1.4 dropin:6 seesaw:9:1.1'},
-  {id:'stepping-stones',n:'Stepping Stones',th:1,f:1,t:22,c:'pillars:4:2.8:0.7:-0.3 pads:3:4.4:4.2:1 bigkick:2:34:3:14 pillars:5:2.6:0.8:-0.35 crumble:3:4.4:1.5'},
+  {id:'mesa-hop',n:'Grid Hop',th:1,f:5,t:21,c:'gap:5:0:0.7 launch:16:0:24:6 gapup:3:1.2 crumble:3:4.2:1.3 gapdown:8:-3'},
+  {id:'washboard',n:'Washboard',th:1,f:3,t:27,c:'whoop:6:0.8:4.2 boost:10 loop:4.2:10 roll:4:0.7:6 bigkick:2:34:3:14 whoop:5:0.9:4.4'},
+  {id:'stair-master',n:'Stair Master',th:1,f:2,t:22,c:'stairsup:3:0.6:5 stepup:2:3 stairsdown:4:0.8:4 stepdown:4 pads:3:4.4:4:1 tabletop:1.8:7'},
+  {id:'low-bridge',n:'Low Bridge',th:1,f:2,t:19,c:'beams:3:6 kick:1.1:26:14 gates:2:2.2:9:0 bridge:5:3 bigkick:2:34:3:12 beams:2:6'},
+  {id:'teeter',n:'Teeter',th:1,f:2,t:19,c:'seesaw:10:1.2 kick:1:24:14 seesaw:11:1.3 crumble:3:4.6:1.4 dropin:6 seesaw:9:1.1'},
+  {id:'stepping-stones',n:'Stepping Stones',th:1,f:1,t:21,c:'pillars:4:2.8:0.7:-0.3 pads:3:4.4:4.2:1 bigkick:2:34:3:14 pillars:5:2.6:0.8:-0.35 crumble:3:4.4:1.5'},
   // Tier 3
-  {id:'clockwork',n:'Clockwork',th:2,f:1,t:20,c:'flat:14 rotor:1:1.3:0 crusher:1:2.8:0 kick:1.2:28:14 gates:2:2.2:9:0.05 pend:2:2.6:-0.05 crusher:2:2.8:0.05 rotor:2:1.4:0.05'},
-  {id:'ferry',n:'Ferry',th:2,f:5,t:27,c:'shuttle:8:0 lift:5:1 shuttle:8:2 launch:18:-2:24:6 lift:6:3 loop:4:12'},
-  {id:'sawmill',n:'Sawmill',th:2,f:5,t:26,c:'flat:10 saw:4.5:2.4:0 spikes:3 saw:5:2.3:0.05 spikeroll:3:3:1 saw:5:2.4:-0.05 gates:1:2.2:9:0'},
-  {id:'big-sky',n:'Big Sky',th:3,f:6,t:32,c:'lpipe:3.4:60:10 hpipe:3.2:68:2.9:9 loop:4.8:14:6 lpipe:3.3:58:10 launch:22:-3:26:6'},
-  {id:'long-way-down',n:'Long Way Down',th:3,f:6,t:27,c:'dropin:6 stepdown:4 launch:18:-4:24:6 stairsdown:4:1:4 gapdown:9:-5 hpipe:3.2:68:2.9:10'},
-  {id:'spine',n:'Spine',th:2,f:3,t:37,c:'spikeroll:3:3:1 gap2:5:6:9 loop2:3.4:4:12 spikeroll:2:3.5:1 longjump:9 crumble:3:4.4:1.6'},
+  {id:'clockwork',n:'Clockwork',th:2,f:1,t:19,c:'flat:14 rotor:1:1.3:0 crusher:1:2.8:0 kick:1.2:28:14 gates:2:2.2:9:0.05 pend:2:2.6:-0.05 crusher:2:2.8:0.05 rotor:2:1.4:0.05'},
+  {id:'ferry',n:'Ferry',th:2,f:5,t:26,c:'shuttle:8:0 lift:5:1 shuttle:8:2 launch:18:-2:24:6 lift:6:3 loop:4:12'},
+  {id:'sawmill',n:'Sawmill',th:2,f:5,t:24,c:'flat:10 saw:4.5:2.4:0 spikes:3 saw:5:2.3:0.05 spikeroll:3:3:1 saw:5:2.4:-0.05 gates:1:2.2:9:0'},
+  {id:'big-sky',n:'Big Sky',th:3,f:6,t:31,c:'lpipe:3.4:60:10 hpipe:3.2:68:2.9:9 loop:4.8:14:6 lpipe:3.3:58:10 launch:22:-3:26:6'},
+  {id:'long-way-down',n:'Long Way Down',th:3,f:6,t:25,c:'dropin:6 stepdown:4 launch:18:-4:24:6 stairsdown:4:1:4 gapdown:9:-5 hpipe:3.2:68:2.9:10'},
+  {id:'spine',n:'Spine',th:2,f:3,t:35,c:'spikeroll:3:3:1 gap2:5:6:9 loop2:3.4:4:12 spikeroll:2:3.5:1 longjump:9 crumble:3:4.4:1.6'},
   // Tier 4
-  {id:'gauntlet',n:'Gauntlet',th:4,f:3,t:30,c:'kick:1.2:28:14 flat:10 pend:1:2.6:-0.1 gap:6:0:0.7 loop:4.4:12:6 rotor:1:1.4:0 gates:2:2.1:9:0.05 crusher:1:2.7:0 bigkick:2.4:35:4:14 saw:5:2.3:0'},
-  {id:'tightrope',n:'Tightrope',th:4,f:3,t:30,c:'bridge:6:3 pads:4:4.2:4.5:1 crumble:4:4.4:1.4 gap2:6:6.5:8 pillars:4:2.4:0.9:-0.4 seesaw:10:1.3 bigkick:2.4:35:4:14'},
-  {id:'switchback',n:'Switchback',th:3,f:7,t:36,c:'stepup:2.4:3.5 dropin:7 hpipe:3.2:68:2.9:9 gapup:3.5:1.6 lpipe:3.3:60:10 launch:20:1:26:6 gapdown:9:-4'},
-  {id:'mechanical',n:'Mechanical',th:5,f:2,t:28,c:'lift:6:0 seesaw:10:1.2 shuttle:8:1 crusher:2:2.8:0 gates:2:2.2:9:0 rotor:2:1.4:0 crumble:3:4.4:1.5 shuttle:8:2'},
-  {id:'skyline',n:'Skyline',th:4,f:5,t:37,c:'lpipe:3.4:62:10 loop2:4:4.6:12 launch:22:-2:26:6 hpipe:3.2:68:2.9:10 loop:5.2:14:6 dropin:10'},
-  {id:'the-works',n:'The Works',th:5,f:7,t:57,c:'gap:6:0:0.7 pend:2:2.6:0 spikes:5 loop:4.4:12:6 seesaw:10:1.2 lpipe:3.4:60:10 gates:2:2.2:9:0 crusher:2:2.7:0.05 pads:3:4.2:4.5:1 saw:5.5:2.3:0 hpipe:3.2:68:2.9:9 rotor:2:1.4:0 loop2:3.6:4.4:12 longjump:10'},
+  {id:'gauntlet',n:'Gauntlet',th:4,f:3,t:28,c:'kick:1.2:28:14 flat:10 pend:1:2.6:-0.1 gap:6:0:0.7 loop:4.4:12:6 rotor:1:1.4:0 gates:2:2.1:9:0.05 crusher:1:2.7:0 bigkick:2.4:35:4:14 saw:5:2.3:0'},
+  {id:'tightrope',n:'Tightrope',th:4,f:3,t:29,c:'bridge:6:3 pads:4:4.2:4.5:1 crumble:4:4.4:1.4 gap2:6:6.5:8 pillars:4:2.4:0.9:-0.4 seesaw:10:1.3 bigkick:2.4:35:4:14'},
+  {id:'switchback',n:'Switchback',th:3,f:7,t:34,c:'stepup:2.4:3.5 dropin:7 hpipe:3.2:68:2.9:9 gapup:3.5:1.6 lpipe:3.3:60:10 launch:20:1:26:6 gapdown:9:-4'},
+  {id:'mechanical',n:'Mechanical',th:5,f:2,t:27,c:'lift:6:0 seesaw:10:1.2 shuttle:8:1 crusher:2:2.8:0 gates:2:2.2:9:0 rotor:2:1.4:0 crumble:3:4.4:1.5 shuttle:8:2'},
+  {id:'skyline',n:'Skyline',th:4,f:5,t:35,c:'lpipe:3.4:62:10 loop2:4:4.6:12 launch:22:-2:26:6 hpipe:3.2:68:2.9:10 loop:5.2:14:6 dropin:10'},
+  {id:'the-works',n:'The Works',th:5,f:7,t:55,c:'gap:6:0:0.7 pend:2:2.6:0 spikes:5 loop:4.4:12:6 seesaw:10:1.2 lpipe:3.4:60:10 gates:2:2.2:9:0 crusher:2:2.7:0.05 pads:3:4.2:4.5:1 saw:5.5:2.3:0 hpipe:3.2:68:2.9:9 rotor:2:1.4:0 loop2:3.6:4.4:12 longjump:10'},
 ];
 function parseCourse(c){return c.trim().split(/\s+/).map(t=>{const p=t.split(':');return[p[0],p.slice(1).map(Number)]})}
 function level(L){
@@ -716,6 +825,9 @@ function hzCaps(h,t){
   switch(h.k){
     case'spk':c[0]=h.x0+0.25;c[1]=h.y+0.22;c[2]=h.x1-0.25;c[3]=h.y+0.22;c[4]=h.r;return 1;
     case'beam':c[0]=h.x0;c[1]=h.y+h.r;c[2]=h.x1;c[3]=h.y+h.r;c[4]=h.r;return 1;
+    case'ceil':c[0]=h.x0+0.1;c[1]=h.y+h.r;c[2]=h.x1-0.1;c[3]=h.y+h.r;c[4]=h.r;return 1;
+    case'post':c[0]=c[2]=h.x;c[1]=h.y0;c[3]=h.y1-h.r;c[4]=h.r;return 1;
+    case'tri':{const p=h.p;for(let k=0;k<3;k++){const j=(k+1)%3;c[5*k]=p[2*k];c[5*k+1]=p[2*k+1];c[5*k+2]=p[2*j];c[5*k+3]=p[2*j+1];c[5*k+4]=h.r}return 3}
     case'pend':{const a=pendA(h,t),x=h.px+h.L*Math.sin(a),y=h.py-h.L*Math.cos(a);c[0]=c[2]=x;c[1]=c[3]=y;c[4]=h.r;return 1}
     case'rot':{const a=h.sp*(t+h.sk-0.05),dx=Math.cos(a)*h.L,dy=Math.sin(a)*h.L;c[0]=h.px-dx;c[1]=h.py-dy;c[2]=h.px+dx;c[3]=h.py+dy;c[4]=h.r;return 1}
     case'saw':{const y=sawY(h,t);c[0]=c[2]=h.x;c[1]=c[3]=y;c[4]=h.r;return 1}
@@ -771,29 +883,30 @@ function floorAt(tr,x){const b=Math.floor(x/BW);let m=Infinity;for(let i=b-4;i<=
 // ---------- the run ----------
 function newState(tr){
   const x=tr.start,y=groundTop(tr,x);
-  return{t:0,n:0,x,y:(y==null?0:y)-P.WY+P.WR-0.035,a:0,vx:0,vy:0,w:0,hold:false,lean:0,
+  return{t:0,n:0,x,y:(y==null?0:y)-P.WY+P.WR-0.01,a:0,vx:0,vy:0,w:0,hold:false,lean:0,
     cR:false,cF:false,air:0,jump:false,jt:0,rot:0,pend:null,since:9,imp:0,lastImp:0,gslope:0,
     crash:null,crashT:0,done:false,doneT:0,maxX:x,stall:0,mvI:0,hzI:0,cI:0,mvs:[],mvT:[],hzT:{},
     ts:0,combo:0,toSl:0,dist:0,score:0,nmI:-1,nmD:9,coins:0,got:null,noPick:false,ev:[],
     st:{flips:0,maxN:0,front:0,clean:0,maxCombo:0,cleanFlips:0,doubles:0,cleanRow:0,cleanBest:0,near:0,maxAir:0,rel:false,lastFlipX:x,noFlip:0,landed:0,sloppy:0,coins:0},
-    rag:null,helm:null,dR:0,dF:0,started:false,lp:[],loopI:0,mulT:0,pkI:0,pkGot:null,boostT:0,loops:0};
+    rag:null,helm:null,dR:0,dF:0,started:false,lp:[],loopI:0,mulT:0,pkI:0,pkGot:null,boostT:0,loops:0,rm:1,gems:0,gI:0,gGot:null,fz:0};
 }
 function clone(s){
   const c=Object.assign({},s);c.mvs=s.mvs.slice();c.hzT=Object.assign({},s.hzT);c.mvT=s.mvT.slice();c.st=Object.assign({},s.st);c.pend=s.pend&&Object.assign({},s.pend);
   c.ev=[];c.lp=s.lp.slice();c.rag=s.rag&&Object.assign({},s.rag);c.helm=s.helm&&Object.assign({},s.helm);return c;
 }
 const C_={d:0,nx:0,ny:0,qx:0,qy:0,vx:0,vy:0,m:-1,e:-1};
-const PROBES=[[-P.WX,P.WY,P.WR,0],[P.WX,P.WY,P.WR,1],[0,-0.12,0.2,2]];
+const PROBES=[[-P.WX,P.WY,P.WR,0],[P.WX,P.WY,P.WR,1],[0,-0.11,0.18,2]];
 function crash(s,why){if(s.crash)return;s.crash=why;s.crashT=s.t;s.pend=null;s.combo=0;
   const ca=Math.cos(s.a),sa=Math.sin(s.a),hx=s.x-sa*0.7,hy=s.y+ca*0.7;
   s.rag={x:hx,y:hy,vx:s.vx*0.8-sa*2,vy:s.vy*0.6+3.5,a:s.a,w:s.w*0.6-3};
   s.helm={x:hx-sa*0.35,y:hy+ca*0.35,vx:s.vx*0.7+1.2,vy:s.vy*0.5+5.5,a:s.a,w:-7};
   s.ev.push({k:'crash',why});
 }
-// hold: the gas (true/false); lean: -1 an arrow back (←), 1 forward (→), 0 neither
+// one button (1.54): hold is the only input. On the ground it is the gas; in the air holding spins the bike backwards and
+// letting go lets the spin fade. The lean argument is kept so old callers still work, but it does nothing.
 function step(tr,s,hold,lean){
   if(s.done){s.t+=P.DT;s.n++;s.doneT+=P.DT;return}
-  const dt=P.DT;s.hold=hold&&!s.crash;lean=s.crash?0:(lean|0);s.lean=lean;
+  const dt=P.DT;s.hold=hold&&!s.crash;lean=0;s.lean=0;
   const ca=Math.cos(s.a),sa=Math.sin(s.a);
   while(s.mvI<tr.mv.length&&tr.mv[s.mvI].x1<s.x-30)s.mvI++;
   let fx=-P.DRAG*s.vx*Math.abs(s.vx),fy=-P.G-P.DRAG*s.vy*Math.abs(s.vy),tq=0;
@@ -832,14 +945,12 @@ function step(tr,s,hold,lean){
   let rel=0;
   if(wheels){const gl=Math.hypot(gnx,gny);gnx/=gl;gny/=gl;s.gslope=Math.atan2(-gnx,gny);rel=wrap(s.a-s.gslope)}
   if(!s.crash){
-    if(!wheels){ // in the air: the arrows spin the bike, nothing levels it, and the front end drops
-      if(lean<0){if(s.w<P.AIR_WMAX){s.w+=P.AIR_ACC*dt;if(s.w>P.AIR_WMAX)s.w=P.AIR_WMAX}}
-      else if(lean>0){if(s.w>-P.AIR_WMAX){s.w-=P.AIR_ACC*dt;if(s.w<-P.AIR_WMAX)s.w=-P.AIR_WMAX}}
+    if(!wheels){ // in the air: holding spins the bike backwards, letting go lets the spin fade, and the front end drops
+      if(s.hold){if(s.w<P.AIR_WMAX){s.w+=P.AIR_ACC*dt;if(s.w>P.AIR_WMAX)s.w=P.AIR_WMAX}}
       else s.w*=1-P.AIR_DAMP*dt;
       s.w-=P.GRAV_PITCH*Math.cos(s.a)*dt}
     else{
-      if(lean)tq-=lean*P.LEAN_G*P.I;
-      if(cR&&!cF){if(rel>P.WHEELIE&&lean>=0)tq-=P.WHEELIE_K*(rel-P.WHEELIE);if(s.w>0&&lean>=0)tq-=P.REAR_DAMP*s.w*P.I}
+      if(cR&&!cF){if(rel>P.WHEELIE)tq-=P.WHEELIE_K*(rel-P.WHEELIE);if(s.w>0)tq-=P.REAR_DAMP*s.w*P.I}
       if(s.since<P.ASSIST&&Math.abs(rel)<P.ASSIST_MAX)tq+=(-P.ASSIST_K*rel-P.ASSIST_C*s.w)*P.I;
     }
   }
@@ -856,8 +967,8 @@ function step(tr,s,hold,lean){
   for(let i=s.loopI;i<tr.loops.length;i++){const L=tr.loops[i];if(L.x0>s.x+4)break;const f=s.lp[i]|0;
     if(f===0){if(s.x<L.cx&&s.y>L.cy&&Math.hypot(s.x-L.cx,s.y-L.cy)<L.R+1)s.lp[i]=1}
     else if(f===1&&!s.crash&&s.x>L.cx+0.3&&s.y<L.cy-L.R*0.45&&(cR||cF)){s.lp[i]=2;s.loops++;s.st.loops=(s.st.loops||0)+1;
-      s.combo++;if(s.combo>s.st.maxCombo)s.st.maxCombo=s.combo;const mult=comboMult(s.combo),pts=Math.round(P.LOOP_PTS*mult*(s.mulT>0?2:1));s.ts+=pts;
-      s.ev.push({k:'loop',pts,combo:s.combo,mult,R:L.R})}}
+      s.combo++;if(s.combo>s.st.maxCombo)s.st.maxCombo=s.combo;const mult=comboMult(s.combo),pts=Math.round(P.LOOP_PTS*mult*(s.mulT>0?2:1)*s.rm);s.ts+=pts;
+      const rm0=s.rm;rmAdd(s,P.RM_LOOP*(L.R>=5.5?2:1));s.ev.push({k:'loop',pts,combo:s.combo,mult,R:L.R,rm:s.rm,rmUp:s.rm-rm0})}}
   if(s.mulT>0)s.mulT-=dt;if(s.boostT>0)s.boostT-=dt;
   s.t+=dt;s.n++;s.since+=dt;
   if(s.crash){ragStep(tr,s,s.rag,0.3,0.35);ragStep(tr,s,s.helm,0.2,0.55);return}
@@ -884,7 +995,7 @@ function step(tr,s,hold,lean){
     s.air=0;if(!s.pend)s.rot=0;
   }else{
     s.air+=dt;s.rot+=s.w*dt;
-    if(!s.jump&&s.air>=P.AIRBORNE){s.jump=true;s.jt=s.air;if(s.pend){s.rot+=s.pend.rot;s.jt+=s.pend.air;s.pend=null}else s.toSl=s.gslope;s.ev.push({k:'air'})}
+    if(!s.jump&&s.air>=P.AIRBORNE){s.jump=true;s.jt=s.air;s.fz=0;for(const z of tr.fzs)if(s.x>=z.x0-2&&s.x<=z.x1+2)s.fz=1;if(s.pend){s.rot+=s.pend.rot;s.jt+=s.pend.air;s.pend=null}else s.toSl=s.gslope;s.ev.push({k:'air'})}
     else if(s.jump)s.jt+=dt;
   }
   if(!s.hold)s.st.rel=true;
@@ -897,12 +1008,21 @@ function step(tr,s,hold,lean){
   if(!s.noPick){while(s.pkI<tr.pk.length&&tr.pk[s.pkI].x<s.x-6)s.pkI++;
     for(let i=s.pkI;i<tr.pk.length;i++){const c=tr.pk[i];if(c.x>s.x+3)break;if(s.pkGot&&s.pkGot[i])continue;
       const dx=c.x-s.x,dy=c.y-(s.y+0.3);if(dx*dx+dy*dy<1.8){(s.pkGot||(s.pkGot=[]))[i]=1;s.mulT=P.MUL_T;s.st.tokens=(s.st.tokens||0)+1;s.ev.push({k:'x2',i})}}}
+  // gems: worth GEM_PTS × the run multiplier, counted in the HUD; many sit where only a loop or a big jump takes you
+  // (the list is only roughly in x order, so the window is wide)
+  if(!s.noPick){while(s.gI<tr.gems.length&&tr.gems[s.gI].x<s.x-16)s.gI++;
+    for(let i=s.gI;i<tr.gems.length;i++){const c=tr.gems[i];if(c.x>s.x+16)break;if(c.x>s.x+2||c.x<s.x-2||(s.gGot&&s.gGot[i]))continue;
+      const dx=c.x-(s.x-Math.sin(s.a)*0.25),dy=c.y-(s.y+Math.cos(s.a)*0.25);if(dx*dx+dy*dy<1.1){(s.gGot||(s.gGot=[]))[i]=1;s.gems++;s.st.gems=(s.st.gems||0)+1;
+        if(c.k==='crown'){const rm0=s.rm;rmAdd(s,P.RM_CROWN);s.ev.push({k:'crown',i,rm:s.rm,rmUp:s.rm-rm0})}
+        else{const p=Math.round(P.GEM_PTS*s.rm);s.ts+=p;s.ev.push({k:'gem',i,pts:p})}}}}
+  // flip zones: a flip that takes off inside one (s.fz set on take-off) adds a bigger step to the run multiplier when it lands
   // progress
   if(s.x>s.maxX+0.02){s.maxX=s.x;s.stall=0}else{s.stall+=dt;if(s.stall>5){crash(s,'stuck');return}}
   s.dist=s.maxX-tr.start;s.score=s.ts+Math.floor(s.dist);
   s.st.noFlip=Math.max(s.st.noFlip,s.maxX-s.st.lastFlipX);
   if(s.x>=tr.finish){s.done=true;s.ev.push({k:'finish'})}
 }
+function rmAdd(s,v){s.rm=Math.min(P.RM_MAX,Math.round((s.rm+v)*100)/100);if(s.rm>(s.st.maxRm||1))s.st.maxRm=s.rm}
 // clean landings and loops build the combo: ×1.5, ×2 … up to ×8 on the next trick, until a sloppy landing
 function comboMult(c){return c>1?Math.min(8,1+0.5*(c-1)):1}
 function bank(s,p){
@@ -913,11 +1033,14 @@ function bank(s,p){
   if(p.air>s.st.maxAir)s.st.maxAir=p.air;
   const big=p.air>0.55;
   let mult=1;
+  const rm0=s.rm;
   if(big){s.st.landed++;
     if(p.clean){s.combo++;if(s.combo>s.st.maxCombo)s.st.maxCombo=s.combo;if(n>0)s.st.cleanFlips+=n;pts+=75*(1+n);s.st.clean++;s.st.cleanRow++;if(s.st.cleanRow>s.st.cleanBest)s.st.cleanBest=s.st.cleanRow;mult=comboMult(s.combo)}
-    else{s.combo=0;s.st.cleanRow=0;s.st.sloppy++}}
-  const x2=s.mulT>0;pts=Math.round(pts*mult*(x2?2:1));s.ts+=pts;
-  if(pts>0||n>0||big)s.ev.push({k:'bank',n,back,clean:p.clean&&big,air:p.air,pts,combo:s.combo,mult,x2});
+    else{s.combo=0;s.st.cleanRow=0;s.st.sloppy++;s.rm=Math.round((1+(s.rm-1)*P.RM_SLOP)*100)/100}}
+  const x2=s.mulT>0;pts=Math.round(pts*mult*(x2?2:1)*rm0);s.ts+=pts;
+  if(big&&p.clean)rmAdd(s,P.RM_CLEAN+P.RM_FLIP*n*(s.fz?3:1));
+  if(pts>0||n>0||big)s.ev.push({k:'bank',n,back,clean:p.clean&&big,air:p.air,pts,combo:s.combo,mult,x2,rm:s.rm,rmUp:s.rm-rm0,fz:s.fz&&n>0});
+  s.fz=0;
 }
 function ragStep(tr,s,b,r,e){
   const dt=P.DT;b.vy-=P.G*dt;b.vx*=1-0.2*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;b.a+=b.w*dt;
@@ -974,7 +1097,7 @@ function vRun(tr,toX,log){
       while(S.hi<tr.hz.length&&tr.hz[S.hi].x1<S.x-3)S.hi++;
       for(let i=S.hi;i<tr.hz.length;i++){const h=tr.hz[i];if(h.x0>S.x+HZ_D+8)break;if(h.D&&S.trig[i]==null&&S.x>=h.x-h.D)S.trig[i]=S.t;if(h.x1<S.x-2||h.x0>S.x+2)continue;
         const n=hzCaps(h,h.D?(S.t-S.trig[i])-h.D/VD:0);let hit=false;
-        for(let j=0;j<n&&!hit;j++)for(const oy of[0.1,0.55,1.0,1.55]){if(segDist(S.x+(oy>0.3?-0.15:0),S.y+oy,CAP[5*j],CAP[5*j+1],CAP[5*j+2],CAP[5*j+3])<CAP[5*j+4]*0.85+0.3){hit=true;break}}
+        for(let j=0;j<n&&!hit;j++)for(const oy of[0.1,0.5,0.95]){if(segDist(S.x+(oy>0.3?-0.15:0),S.y+oy,CAP[5*j],CAP[5*j+1],CAP[5*j+2],CAP[5*j+3])<CAP[5*j+4]*0.85+0.3){hit=true;break}}
         if(hit){fails.push({x:S.x,k:h.k,p:k});break}}
     }
   }
@@ -986,21 +1109,21 @@ function vRun(tr,toX,log){
 // inputs are one small number: bit 0 the gas, bits 1-2 the lean + 1 (0 back, 1 none, 2 forward)
 const inCode=(h,l)=>(h?1:0)|((l|0)+1)<<1, inHold=c=>!!(c&1), inLean=c=>(c>>1)-1;
 // a plan: gas h0 for sw seconds then h1; in the air, lean f (-1 back, 1 forward) for the first ft seconds of air, then level the bike
+// one button (1.54): in the air the bot can only hold (spin back) or let go (the spin fades and the nose drops)
 const PLANS=[[1,9,1,0,0],[0,9,0,0,0],[1,0.12,0,0,0],[0,0.12,1,0,0],[1,0.3,0,0,0],[0,0.3,1,0,0],[1,0.6,0,0,0],[0,0.6,1,0,0],[1,1.0,0,0,0],[0,1.0,1,0,0],
-  [1,9,1,-1,0.35],[1,9,1,-1,0.7],[1,9,1,-1,1.1],[1,9,1,1,0.5],[0,9,0,-1,0.5]];
-function botLevel(tr,s){ // steer the bike in the air toward the slope it will land on, allowing for the nose dropping
+  [1,9,1,-1,0.35],[1,9,1,-1,0.7],[1,9,1,-1,1.1],[1,9,1,-1,1.5],[0,9,0,-1,0.5]];
+function botLevel(tr,s){ // which way the bike should turn to meet the slope it will land on, allowing for the nose dropping (1 forward, -1 back)
   const gx=s.x+s.vx*0.25,sl=slopeAt(tr,gx),err=wrap(s.a-sl)+0.22*s.w;
   return err>0.12?1:err<-0.12?-1:0;
 }
-function botPolicy(tr,s){ // a plain fallback: gas on the ground, level the bike in the air
+function botPolicy(tr,s){ // a plain fallback: gas on the ground; in the air hold only to turn the nose back up
   if(s.cR||s.cF)return inCode(1,0);
-  return inCode(0,botLevel(tr,s));
+  return inCode(botLevel(tr,s)<0,0);
 }
 function botIn(tr,s,plan,i,sw){
   const h=i<sw?plan[0]:plan[2];
   if(s.cR||s.cF)return inCode(h,0);
-  const l=plan[3]&&s.air<plan[4]?plan[3]:botLevel(tr,s);
-  return inCode(h,l);
+  return inCode(plan[3]&&s.air<plan[4]?true:botLevel(tr,s)<0,0);
 }
 function botEval(tr,s0,plan,H,H2,flipW){
   const s=clone(s0);s.noPick=true;const x0=s.x;const n1=Math.round(H/P.DT),n2=Math.round(H2/P.DT),sw=Math.round(plan[1]/P.DT);
@@ -1085,7 +1208,7 @@ const VEH=[
   {id:'comet',n:'Comet',feat:'all',k:'comet',c:['#dfe6f0','#5a8cff','#121a2a']},
 ];
 const FEAT={quad:'Land a quadruple flip',noflip:'Ride 1,000 m without a flip',all:'Finish all 24 levels'};
-// Riders: everyone wears a full helmet with a lit visor (v); what sticks out of the helmet tells them apart by shape.
+// Riders: no longer drawn since 1.54 (the bike rides alone); kept so saves that chose one still load. Their tab in the garage is hidden.
 const RID=[
   {id:'sol',n:'Sol',cost:0,k:'kid',c:{j:'#2a3a8a',p:'#151a3a',h:'#eef3ff',s:'#36e7ff',k:'#e9b08a',v:'#36e7ff'}},
   {id:'nana',n:'Nana Ro',cost:200,k:'gran',c:{j:'#7a4bd0',p:'#221a3a',h:'#e9e2ff',s:'#ff8fd0',k:'#efc4a2',v:'#ff8fd0'}},
@@ -1243,8 +1366,8 @@ function resize(){
   DPR=Math.min(window.devicePixelRatio||1,1.5);
   W=Math.max(1,window.innerWidth);H=Math.max(1,window.innerHeight);
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
-  // pixels per metre: about 22 m across in landscape, 11 m in portrait, at least 11 m tall
-  const across=W>H?22:11;PPM=Math.min(W/across,H/11);
+  // pixels per metre: about 30 m across in landscape, 15 m in portrait, at least 14 m tall (hard update: zoomed out from 22, 11 and 11)
+  const across=W>H?30:15;PPM=Math.min(W/across,H/14);
   bgCache=null;layerCache=null;overCache=null;
 }
 window.addEventListener('resize',resize);
@@ -1265,12 +1388,13 @@ let tracePat=null;
 const glowCache={};
 function glowSprite(col){let c=glowCache[col];if(c)return c;c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
   const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,hexA(col,0.9));gr.addColorStop(0.25,hexA(col,0.45));gr.addColorStop(1,hexA(col,0));g.fillStyle=gr;g.fillRect(0,0,64,64);return glowCache[col]=c}
+// a headlight beam: a soft cone, made once per colour (drawn upside down or not, it is symmetric)
 function glow(x,y,r,col,a){cx.globalAlpha=a;cx.drawImage(glowSprite(col),x-r,y-r,r*2,r*2);cx.globalAlpha=1}
 
 // ======================= GAME STATE =======================
 const G={mode:'menu',phase:'idle',tr:null,s:null,prev:null,L:null,lvIndex:-1,seed:0,paused:false,held:false,inC:2,inQ:[],rt:0,toggles:[],
   ghost:null,gs:null,cam:{x:0,y:0,z:1,vx:0},demo:false,endAt:0,shown:false,replay:null,rec:[],pops:[],shake:0,flash:0,hint:'',lastEv:[],
-  runCoins:0,custom:null,scarf:null,ear:0,popT:0,crouch:0,lean:0,newBest:false,startT:0,trail:[],flashC:null,firsts:{}};
+  runCoins:0,minis:[],custom:null,scarf:null,ear:0,popT:0,crouch:0,lean:0,newBest:false,startT:0,trail:[],flashC:null,firsts:{}};
 const theme=()=>THEMES.find(t=>t.id===(G.themeOverride||save.thm))||THEMES[0];
 const veh=()=>VEH.find(v=>v.id===save.veh)||VEH[0];
 const rid=()=>RID.find(r=>r.id===save.rid)||RID[0];
@@ -1418,7 +1542,8 @@ function drawLoops(tr,th,x0,x1,t,s){
     if(s&&s.lp&&s.lp[L.i]===2){glow(L.cx,L.cy+R+0.45,0.9,th.acc2,0.8)}
   }
 }
-function shade(hex,k){const n=parseInt(hex.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;const f=k<0?0:255,t=Math.abs(k);r=Math.round(r+(f-r)*t);g=Math.round(g+(f-g)*t);b=Math.round(b+(f-b)*t);return'#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1)}
+const shadeMemo={};function shade(hex,k){const key=hex+k;return shadeMemo[key]||(shadeMemo[key]=shade0(hex,k))}
+function shade0(hex,k){const n=parseInt(hex.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;const f=k<0?0:255,t=Math.abs(k);r=Math.round(r+(f-r)*t);g=Math.round(g+(f-g)*t);b=Math.round(b+(f-b)*t);return'#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1)}
 // trackside props: light posts, data pylons, holo sign posts, cable reels; never next to hazards
 function drawProps(tr,th,x0,x1,t){
   world();
@@ -1453,6 +1578,13 @@ function drawHazards(tr,s,x0,x1,t){
       case'spk':glow((h.x0+h.x1)/2,h.y+0.25,Math.max(1,(h.x1-h.x0)*0.6),HZ_G,0.35);cx.fillStyle=HZ_R;cx.fillRect(h.x0,h.y-0.02,h.x1-h.x0,0.14);cx.strokeRect(h.x0,h.y-0.02,h.x1-h.x0,0.14);teeth(h.x0,h.x1,h.y+0.12,0.42,1);break;
       case'beam':{const y=h.y;cx.strokeStyle='#3a3f5c';cx.lineWidth=0.08;for(const xx of[h.x0+0.2,h.x1-0.2]){cx.beginPath();cx.moveTo(xx,y+0.4);cx.lineTo(xx,y+9);cx.stroke()}
         glow((h.x0+h.x1)/2,y+0.2,1.2,HZ_G,0.35);cx.strokeStyle=INK;cx.lineWidth=0.06;cx.fillStyle=HZ_R;cx.fillRect(h.x0,y,h.x1-h.x0,0.42);stripes(h.x0,y,h.x1,y+0.42,0.4);cx.strokeRect(h.x0,y,h.x1-h.x0,0.42);teeth(h.x0,h.x1,y,0.22,-1);break}
+      case'ceil':{const y=h.y,top=y+0.62;cx.fillStyle='#14182e';for(let xx=h.x0+0.5;xx<h.x1;xx+=3){cx.fillRect(xx-0.25,top,0.5,9);cx.strokeRect(xx-0.25,top,0.5,9)}
+        glow((h.x0+h.x1)/2,y+0.3,Math.max(1.2,(h.x1-h.x0)*0.55),HZ_G,0.35);cx.fillStyle=HZ_R;cx.fillRect(h.x0,y+0.34,h.x1-h.x0,0.28);stripes(h.x0,y+0.34,h.x1,y+0.62,0.45);cx.strokeRect(h.x0,y+0.34,h.x1-h.x0,0.28);
+        cx.fillStyle=HZ_C;const n=Math.max(2,Math.round((h.x1-h.x0)/0.45)),w=(h.x1-h.x0)/n;cx.beginPath();for(let i=0;i<n;i++){const xa=h.x0+i*w,dd=(i%2?0.26:0.34);cx.moveTo(xa,y+0.34);cx.lineTo(xa+w/2,y+0.34-dd);cx.lineTo(xa+w,y+0.34)}cx.fillStyle=HZ_R;cx.fill();cx.stroke();break}
+      case'post':{const p=0.5+0.5*Math.sin(t*5+h.i);glow(h.x,(h.y0+h.y1)/2,Math.min(2.2,(h.y1-h.y0)*0.5+0.6),HZ_G,0.3+0.2*p);cx.fillStyle=HZ_R;cx.fillRect(h.x-0.2,h.y0,0.4,h.y1-h.y0);stripes(h.x-0.2,h.y0,h.x+0.2,h.y1,0.4);cx.strokeRect(h.x-0.2,h.y0,0.4,h.y1-h.y0);
+        cx.globalCompositeOperation='lighter';cx.fillStyle=hexA('#ffffff',0.35+0.3*p);cx.fillRect(h.x-0.05,h.y0,0.1,h.y1-h.y0);cx.globalCompositeOperation='source-over';teeth(h.x-0.2,h.x+0.2,h.y1,0.2,1);break}
+      case'tri':{const p=h.p;glow(h.x,h.y,1.4,HZ_G,0.35);cx.beginPath();cx.moveTo(p[0],p[1]);cx.lineTo(p[2],p[3]);cx.lineTo(p[4],p[5]);cx.closePath();cx.lineWidth=0.3;cx.strokeStyle=INK;cx.stroke();
+        cx.lineWidth=0.2;cx.strokeStyle=HZ_R;cx.stroke();cx.lineWidth=0.06;cx.strokeStyle=HZ_C;cx.setLineDash([0.25,0.18]);cx.lineDashOffset=-t*1.5;cx.stroke();cx.setLineDash([]);break}
       case'pend':{const a=FL.pendA(h,u),bx=h.px+h.L*Math.sin(a),by=h.py-h.L*Math.cos(a);
         cx.fillStyle='#2a2f4c';cx.fillRect(h.px-0.5,h.py-0.1,1,0.3);cx.fillRect(h.px-0.12,h.py,0.24,8);cx.fillStyle=HZ_R;cx.fillRect(h.px-0.5,h.py+0.17,1,0.05);
         cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA(HZ_G,0.25);cx.lineWidth=0.22;cx.beginPath();cx.moveTo(h.px,h.py);cx.lineTo(bx,by);cx.stroke();cx.globalCompositeOperation='source-over';
@@ -1514,6 +1646,24 @@ function drawCoins(tr,s,x0,x1,t){
     glow(c.x,y,1.4,'#ffc83a',0.5+0.2*Math.sin(t*6));cx.save();cx.translate(c.x,y);cx.rotate(Math.sin(t*1.5)*0.15);cx.beginPath();for(let k=0;k<6;k++){const a=k/6*TAU+Math.PI/6;cx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}cx.closePath();
     cx.fillStyle='#1a1630';cx.fill();cx.lineWidth=0.09;cx.strokeStyle='#ffc83a';cx.stroke();cx.scale(1,-1);cx.fillStyle='#fff3c4';cx.font='0.46px "Lilita One",sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText('×2',0,0.02);cx.restore()}
 }
+// 1.54: gems are white-cyan diamonds; a crown (top of some loops) is gold; flip zones are a lit band on the run-up
+const GEM_C='#8ff7ff';
+function drawGems(tr,s,x0,x1,t){
+  world();cx.lineWidth=0.05;cx.strokeStyle=INK;
+  for(const z of tr.fzs){if(z.x1<x0-2||z.x0>x1+2)continue;const gy=FL.groundTop(tr,(z.x0+z.x1)/2);const pl=0.5+0.5*Math.sin(t*6);
+    cx.globalCompositeOperation='lighter';for(let i=0;i<4;i++){const xx=z.x0+0.6+i*1.4,yy=(FL.groundTop(tr,xx)||z.y)+0.35;cx.strokeStyle=hexA(GEM_C,0.35+0.4*((i+Math.floor(t*6))%4===0?1:pl*0.4));cx.lineWidth=0.12;
+      cx.beginPath();cx.moveTo(xx-0.3,yy+0.35);cx.lineTo(xx+0.15,yy);cx.lineTo(xx-0.3,yy-0.35);cx.stroke()}cx.globalCompositeOperation='source-over';
+    if(gy!=null){cx.save();cx.translate(z.x0+3,gy+2.2);cx.scale(1,-1);cx.font='0.5px "Lilita One",sans-serif';cx.textAlign='center';cx.lineWidth=0.12;cx.strokeStyle=INK;cx.strokeText(TX('FLIP ZONE ×3'),0,0);cx.fillStyle=GEM_C;cx.fillText(TX('FLIP ZONE ×3'),0,0);cx.restore()}}
+  for(let i=0;i<tr.gems.length;i++){const c=tr.gems[i];if(c.x<x0-1||c.x>x1+1)continue;if(s&&s.gGot&&s.gGot[i])continue;const bob=Math.sin(t*3+i)*0.06,y=c.y+bob;
+    if(c.k==='crown'){glow(c.x,y,1.3,'#ffc83a',0.55);cx.fillStyle='#ffc83a';cx.beginPath();cx.moveTo(c.x-0.42,y-0.25);cx.lineTo(c.x-0.42,y+0.2);cx.lineTo(c.x-0.2,y);cx.lineTo(c.x,y+0.32);cx.lineTo(c.x+0.2,y);cx.lineTo(c.x+0.42,y+0.2);cx.lineTo(c.x+0.42,y-0.25);cx.closePath();cx.fill();cx.stroke();
+      cx.fillStyle='#fff3c4';cx.fillRect(c.x-0.36,y-0.2,0.72,0.08);continue}
+    const sp=0.55+0.45*Math.abs(Math.cos(t*2.2+i*0.9)),r=0.26;glow(c.x,y,0.7,GEM_C,0.45);cx.beginPath();cx.moveTo(c.x,y+r*1.25);cx.lineTo(c.x+r*sp,y);cx.lineTo(c.x,y-r*1.25);cx.lineTo(c.x-r*sp,y);cx.closePath();cx.fillStyle='#2bb8d6';cx.fill();cx.stroke();
+    cx.beginPath();cx.moveTo(c.x,y+r*1.1);cx.lineTo(c.x+r*sp*0.8,y);cx.lineTo(c.x,y);cx.closePath();cx.fillStyle='#ffffff';cx.fill();cx.beginPath();cx.moveTo(c.x,y-r*1.1);cx.lineTo(c.x-r*sp*0.8,y);cx.lineTo(c.x,y);cx.closePath();cx.fillStyle=GEM_C;cx.fill()}
+  // little "+25" numbers that float up from picked gems
+  for(let i=G.minis.length-1;i>=0;i--){const m=G.minis[i];m.t+=1/60;if(m.t>0.9){G.minis.splice(i,1);continue}cx.save();cx.translate(m.x,m.y+m.t*1.2);cx.scale(1,-1);cx.globalAlpha=m.t>0.6?1-(m.t-0.6)/0.3:1;
+    cx.font='0.42px "Lilita One",sans-serif';cx.textAlign='center';cx.lineWidth=0.1;cx.strokeStyle=INK;cx.strokeText(m.text,0,0);cx.fillStyle=m.col;cx.fillText(m.text,0,0);cx.restore()}
+  cx.globalAlpha=1;
+}
 function star(x,y,r){cx.beginPath();for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,rr_=i%2?r*0.45:r;cx.lineTo(x+Math.cos(a)*rr_,y+Math.sin(a)*rr_)}cx.closePath();cx.fill()}
 function drawFlags(tr,th,x0,x1){
   world();
@@ -1544,19 +1694,25 @@ function drawOverlay(){
 function line(x0,y0,x1,y1,w,col){cx.lineWidth=w+0.06;cx.strokeStyle=INK;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();cx.lineWidth=w;cx.strokeStyle=col;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke()}
 function pfill(pts,col){cx.beginPath();cx.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)cx.lineTo(pts[i],pts[i+1]);cx.closePath();cx.fillStyle=col;cx.fill();cx.stroke()}
 function circ(x,y,r,col){cx.beginPath();cx.arc(x,y,r,0,TAU);cx.fillStyle=col;cx.fill();cx.stroke()}
-// wheels: dark tyres with a lit rim in the vehicle's light colour
-function wheel(x,y,rot,c){cx.strokeStyle=INK;cx.lineWidth=0.05;circ(x,y,P.WR,'#141729');cx.fillStyle='#2e3352';for(let i=0;i<10;i++){const a=rot+i*TAU/10;cx.beginPath();cx.arc(x+Math.cos(a)*0.315,y+Math.sin(a)*0.315,0.03,0,TAU);cx.fill()}
-  cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA(c,0.35);cx.lineWidth=0.13;cx.beginPath();cx.arc(x,y,0.25,0,TAU);cx.stroke();cx.globalCompositeOperation='source-over';
-  cx.strokeStyle=c;cx.lineWidth=0.045;cx.stroke();cx.strokeStyle='#6a7096';cx.lineWidth=0.03;cx.beginPath();for(let i=0;i<5;i++){const a=rot+i*TAU/5;cx.moveTo(x,y);cx.lineTo(x+Math.cos(a)*0.22,y+Math.sin(a)*0.22)}cx.stroke();
-  cx.strokeStyle=INK;cx.lineWidth=0.04;circ(x,y,0.065,'#c9cbe0')}
+// wheels (hard update, simpler): a dark tyre, a lit rim in the vehicle's light colour, two bright arcs so the spin shows, a hub
+function wheel(x,y,rot,c){cx.strokeStyle=INK;cx.lineWidth=0.05;circ(x,y,0.36,'#141729');
+  cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA(c,0.3);cx.lineWidth=0.12;cx.beginPath();cx.arc(x,y,0.25,0,TAU);cx.stroke();cx.globalCompositeOperation='source-over';
+  cx.strokeStyle=c;cx.lineWidth=0.05;cx.stroke();cx.strokeStyle='#f4fdff';cx.lineWidth=0.045;cx.beginPath();cx.arc(x,y,0.25,rot,rot+0.8);cx.moveTo(x+Math.cos(rot+Math.PI)*0.25,y+Math.sin(rot+Math.PI)*0.25);cx.arc(x,y,0.25,rot+Math.PI,rot+Math.PI+0.8);cx.stroke();
+  cx.strokeStyle=INK;cx.lineWidth=0.04;circ(x,y,0.07,c)}
+// the Volt Hopper's shapes (made once, not every frame). hard update, simpler: one shell from tail to nose, one light line along it
+const HB=[[-0.3,-0.14,-0.66,0.06,-1.06,0.42,-0.98,0.47,-0.58,0.4,-0.18,0.36,0.08,0.5,0.4,0.49,0.7,0.3,0.88,0.15,0.62,0.04,0.32,-0.14],
+  [0.73,0.25,0.88,0.15,0.8,0.12,0.66,0.2],[-1.06,0.42,-0.98,0.47,-0.9,0.44,-0.98,0.39]];
+const hexA45Memo={};function hexA45(c){return hexA45Memo[c]||(hexA45Memo[c]=hexA(c,0.45))}
 const BODY={
-  dirt(c,t){ // electric trail bike: slim shell, a battery block with lit cells, a headlight
-    line(-0.66,-0.3,-0.05,-0.12,0.09,c[2]);
-    pfill([-0.62,0.08,-0.38,0.26,0.02,0.26,0.28,0.4,0.46,0.34,0.3,0.02,-0.06,-0.16,-0.4,-0.06],c[0]);
-    pfill([-0.3,-0.16,-0.28,0.1,0.2,0.1,0.22,-0.14],c[2]);cx.fillStyle=c[1];for(let i=0;i<3;i++)cx.fillRect(-0.24+i*0.14,-0.08,0.1,0.12);glow(-0.03,-0.02,0.4,c[1],0.4);
-    pfill([-0.6,0.12,-0.38,0.31,-0.02,0.31,-0.04,0.22,-0.38,0.22],c[2]);pfill([-0.98,-0.02,-0.66,0.13,-0.38,0.09,-0.62,0.04],c[0]);cx.fillStyle=c[1];cx.fillRect(-0.95,0.0,0.22,0.04);
-    line(0.66,-0.3,0.4,0.46,0.07,'#c9ced6');pfill([0.5,0.13,0.8,0.1,0.88,0.02,0.62,0.06],c[0]);
-    cx.beginPath();cx.ellipse(0.38,0.27,0.1,0.08,0.3,0,TAU);cx.fillStyle='#f4fdff';cx.fill();cx.stroke();glow(0.42,0.28,0.35,c[1],0.6);line(0.4,0.46,0.3,0.6,0.05,INK)},
+  dirt(c,t,pop,gas,ghost){ // hard update, simpler: a riderless electric sport bike drawn as a few clean parts: swingarm, fork, one shell, one light line, two lamps
+    const hot=gas?1:0;
+    line(-0.66,-0.3,-0.12,-0.06,0.1,c[2]);                       // swingarm
+    line(0.66,-0.3,0.44,0.34,0.08,c[2]);                         // fork
+    pfill(HB[0],c[0]);                                           // the shell: tail kicks up, seat, tank, nose
+    cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA45(c[1]);cx.lineWidth=0.11;cx.beginPath();cx.moveTo(-0.96,0.4);cx.lineTo(-0.55,0.22);cx.lineTo(0.1,0.17);cx.lineTo(0.72,0.17);cx.stroke();cx.globalCompositeOperation='source-over';
+    cx.strokeStyle=c[1];cx.lineWidth=0.045;cx.stroke();cx.strokeStyle=INK;cx.lineWidth=0.05; // the light line: glow, then colour
+    pfill(HB[1],'#f4fdff');if(!ghost)glow(0.82,0.18,0.45,c[1],0.75); // headlight
+    pfill(HB[2],c[1]);if(!ghost)glow(-0.99,0.43,0.3,c[1],0.5+0.3*hot)},
   scooter(c){pfill([-0.88,-0.06,-0.78,0.2,-0.46,0.33,-0.04,0.3,0.0,0.05,-0.2,-0.13,-0.7,-0.13],c[0]);pfill([0.0,-0.13,0.0,0.0,0.32,0.0,0.32,-0.13],c[1]);
     pfill([0.28,-0.12,0.44,-0.06,0.5,0.56,0.36,0.6,0.3,0.2],c[0]);pfill([-0.62,0.31,-0.12,0.37,-0.1,0.28,-0.56,0.24],c[2]);circ(0.49,0.6,0.06,'#fff3c4');
     pfill([0.52,0.05,0.82,0.08,0.86,-0.02,0.58,-0.04],c[0]);line(0.42,0.58,0.3,0.62,0.05,INK);cx.beginPath();cx.ellipse(-0.45,0.12,0.16,0.08,0,0,TAU);cx.fillStyle=c[1];cx.fill();cx.stroke()},
@@ -1591,84 +1747,17 @@ const BODY={
   comet(c,t){const f=0.7+0.3*Math.sin(t*40);pfill([-0.98,0.02,-1.4-0.4*f,0.12,-0.98,0.22],'#f2b632');pfill([-0.98,0.06,-1.2-0.25*f,0.12,-0.98,0.18],'#fff1dc');
     pfill([-0.98,-0.06,-0.6,0.34,0.5,0.3,0.92,0.12,0.5,-0.1,-0.6,-0.12],c[0]);pfill([-0.9,0.12,-1.05,0.45,-0.7,0.3],c[1]);circ(0.4,0.14,0.1,'#cfe9f6');cx.fillStyle=c[1];cx.fillRect(-0.6,0.0,1.0,0.07);line(0.5,0.3,0.32,0.6,0.05,INK)},
 };
-// rider: hip on the seat, hands on the bars; lean (-1 forward .. 1 back), crouch (0..1) from landings and tucks
-function drawRider(r,lean,crouch,t,vx,crashed,ear){
-  const c=r.c;const hipX=-0.22,hipY=0.34;const tor=0.5-0.14*crouch;
-  const sx=hipX+0.12-lean*0.12+crouch*0.08,sy=hipY+tor;const hx=sx+0.06-lean*0.04,hy=sy+0.2;
-  // legs
-  line(hipX,hipY,0.12,0.2-crouch*0.04,0.13,c.p);line(0.12,0.2-crouch*0.04,0.02,-0.04,0.12,c.p);cx.fillStyle=INK;cx.beginPath();cx.ellipse(0.06,-0.06,0.1,0.05,0,0,TAU);cx.fill();
-  // scarf trails from the neck (world-space verlet, drawn here in bike space)
-  drawScarf(c.s);
-  // torso and arms
-  line(hipX,hipY,sx,sy,0.24,c.j);line(sx,sy-0.02,0.12,0.42-crouch*0.05,0.1,c.j);line(0.12,0.42-crouch*0.05,0.32,0.6,0.09,c.j);circ(0.32,0.6,0.055,c.k);
-  drawHead(r,hx,hy,t,lean,crashed,ear);
-  return{hx,hy,nx:sx-0.02,ny:sy+0.05};
-}
-function drawHead(r,x,y,t,lean,crashed,ear){
-  const c=r.c;cx.lineWidth=0.05;cx.strokeStyle=INK;
-  if(crashed){ // the helmet has come off: the face underneath
-    switch(r.k){
-      case'dog':circ(x,y,0.18,c.k);cx.beginPath();cx.ellipse(x+0.17,y-0.04,0.1,0.07,0,0,TAU);cx.fillStyle='#e9c79a';cx.fill();cx.stroke();circ(x+0.26,y-0.02,0.035,INK);break;
-      case'robot':cx.fillStyle=c.k;cx.fillRect(x-0.17,y-0.16,0.34,0.32);cx.strokeRect(x-0.17,y-0.16,0.34,0.32);cx.fillStyle=c.v;cx.fillRect(x+0.05,y,0.1,0.05);break;
-      case'frog':circ(x,y,0.19,c.k);circ(x+0.06,y+0.17,0.07,c.k);circ(x+0.18,y+0.14,0.07,c.k);break;
-      case'fox':circ(x,y,0.18,c.k);pfill([x+0.06,y+0.02,x+0.3,y-0.04,x+0.04,y-0.12],'#fff6ea');break;
-      case'penguin':circ(x,y,0.19,c.k);cx.beginPath();cx.ellipse(x+0.07,y-0.02,0.1,0.12,0,0,TAU);cx.fillStyle='#ffffff';cx.fill();pfill([x+0.15,y,x+0.3,y-0.04,x+0.15,y-0.08],'#f29a2e');break;
-      default:circ(x,y,0.18,c.k);circ(x+0.1,y+0.01,0.025,INK);if(r.k==='gran')circ(x-0.16,y+0.06,0.08,'#cfc8e0');
-    }
-    return}
-  // what sticks out of the helmet, so riders are told apart by shape and not only colour
-  switch(r.k){
-    case'dog':{cx.save();cx.translate(x-0.16,y+0.06);cx.rotate(-0.5-ear*0.9);cx.beginPath();cx.ellipse(-0.14,0,0.17,0.08,0,0,TAU);cx.fillStyle='#7a4e2a';cx.fill();cx.stroke();cx.restore();break}
-    case'fox':for(const dx of[-0.1,0.05]){pfill([x+dx-0.06,y+0.15,x+dx,y+0.38,x+dx+0.07,y+0.16],c.k)}break;
-    case'frog':circ(x-0.04,y+0.21,0.08,c.k);circ(x+0.1,y+0.21,0.08,c.k);circ(x-0.02,y+0.23,0.035,INK);circ(x+0.12,y+0.23,0.035,INK);break;
-    case'robot':line(x,y+0.2,x,y+0.36,0.03,'#5d6872');circ(x,y+0.38,0.05,c.v);glow(x,y+0.38,0.18,c.v,0.6);break;
-    case'gran':circ(x-0.21,y+0.1,0.08,'#cfc8e0');break;
-    case'captain':cx.beginPath();cx.moveTo(x-0.16,y+0.12);cx.quadraticCurveTo(x-0.05,y+0.42,x+0.12,y+0.18);cx.closePath();cx.fillStyle=c.s;cx.fill();cx.stroke();break;
-  }
-  // the full helmet: shell, chin bar, a stripe over the crown, and the lit visor
-  cx.beginPath();cx.ellipse(x,y+0.01,0.215,0.2,0,0,TAU);cx.fillStyle=c.h;cx.fill();cx.stroke();
-  pfill([x+0.03,y-0.08,x+0.205,y-0.06,x+0.16,y-0.185,x-0.01,y-0.18],shade(c.h,-0.4));
-  cx.strokeStyle=c.s;cx.lineWidth=0.04;cx.beginPath();cx.arc(x,y+0.01,0.165,Math.PI*0.3,Math.PI*0.95);cx.stroke();cx.strokeStyle=INK;cx.lineWidth=0.05;
-  glow(x+0.13,y+0.03,0.3,c.v,0.55);
-  cx.beginPath();cx.moveTo(x+0.03,y+0.1);cx.quadraticCurveTo(x+0.19,y+0.11,x+0.222,y+0.03);cx.lineTo(x+0.205,y-0.045);cx.quadraticCurveTo(x+0.1,y-0.035,x+0.03,y-0.02);cx.closePath();cx.fillStyle=c.v;cx.fill();cx.stroke();
-  cx.fillStyle='rgba(255,255,255,0.8)';cx.fillRect(x+0.08,y+0.06,0.09,0.018);
-  if(r.k==='penguin')pfill([x+0.16,y-0.07,x+0.32,y-0.11,x+0.16,y-0.15],'#f29a2e');
-}
-// scarf: a little chain of points in world space, pulled back by the wind
-let scarfPts=null,scarfAnchor={x:0,y:0};
-function scarfStep(ax,ay,vx,vy,dt){
-  const n=7,seg=0.13;if(!scarfPts){scarfPts=[];for(let i=0;i<n;i++)scarfPts.push({x:ax-i*seg,y:ay,ox:ax-i*seg,oy:ay})}
-  scarfPts[0].x=ax;scarfPts[0].y=ay;scarfPts[0].ox=ax;scarfPts[0].oy=ay;
-  const wx=-vx*0.9,wy=-vy*0.4-3;
-  for(let i=1;i<n;i++){const p=scarfPts[i];const nx=p.x+(p.x-p.ox)*0.86+wx*dt*dt*6+Math.sin(performance.now()/90+i)*0.0015,ny=p.y+(p.y-p.oy)*0.86+wy*dt*dt*6;p.ox=p.x;p.oy=p.y;p.x=nx;p.y=ny}
-  for(let k=0;k<3;k++)for(let i=1;i<n;i++){const a=scarfPts[i-1],b=scarfPts[i],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1e-6,f=(d-seg)/d;b.x-=dx*f;b.y-=dy*f}
-}
-let scarfLocal=null;
-// the streamer: a ribbon of light from the back of the helmet (the old scarf's rope, drawn as light)
-function drawScarf(col){if(!scarfLocal)return;const q=scarfLocal;cx.lineCap='round';cx.lineJoin='round';
-  cx.beginPath();cx.moveTo(q[0],q[1]);for(let i=2;i<q.length;i+=2)cx.lineTo(q[i],q[i+1]);cx.globalCompositeOperation='lighter';cx.lineWidth=0.2;cx.strokeStyle=hexA(col,0.3);cx.stroke();cx.globalCompositeOperation='source-over';
-  cx.lineWidth=0.07;cx.strokeStyle=col;cx.stroke();cx.lineWidth=0.025;cx.strokeStyle='#ffffff';cx.stroke()}
-function drawScarfOld(col){if(!scarfLocal)return;const q=scarfLocal;cx.lineCap='round';cx.lineJoin='round';
-  cx.lineWidth=0.15;cx.strokeStyle=INK;cx.beginPath();cx.moveTo(q[0],q[1]);for(let i=2;i<q.length;i+=2)cx.lineTo(q[i],q[i+1]);cx.stroke();
-  cx.lineWidth=0.09;cx.strokeStyle=col;cx.stroke();cx.lineWidth=0.03;cx.strokeStyle='rgba(255,255,255,0.55)';cx.stroke()}
+let scarfPts=null,scarfLocal=null; // (the rider and its light streamer were removed in 1.54: the bike rides alone)
 function drawBike(pose,v,r,t,opt){
-  opt=opt||{};world();cx.save();cx.translate(pose.x,pose.y);cx.rotate(pose.a);cx.lineJoin='round';cx.lineCap='round';cx.strokeStyle=INK;cx.lineWidth=0.05;
+  // 1.54: the bike alone, no rider, drawn in the old 0.66 m wheelbase units and scaled down to the physics' (P.WX)
+  opt=opt||{};world();cx.save();cx.translate(pose.x,pose.y);cx.rotate(pose.a);const k=P.WX/0.66;cx.scale(k,k);cx.lineJoin='round';cx.lineCap='round';cx.strokeStyle=INK;cx.lineWidth=0.05;
   if(opt.ghost){cx.globalAlpha=0.38}
-  const cR=Math.min(pose.dR||0,0.13),cF=Math.min(pose.dF||0,0.13),wr=pose.wr||0;
-  wheel(-P.WX,P.WY+cR,wr,v.c[1]);wheel(P.WX,P.WY+cF,wr,v.c[1]);
-  (BODY[v.k]||BODY.dirt)(v.c,t,G.popT);
-  if(!pose.crash)drawRider(r,pose.lean||0,pose.crouch||0,t,pose.vx||0,false,pose.ear||0);
+  // hard update: rigid, the owner's request: the wheels stay fixed to the frame (no spring travel, no crouch or lean after a landing)
+  const wr=pose.wr||0;
+  wheel(-0.66,-0.3,wr,v.c[1]);wheel(0.66,-0.3,wr,v.c[1]);
+  if(pose.gas&&!opt.ghost)glow(-0.66,-0.3,0.62,v.c[1],0.35);                                              // the rear hub lights up on the gas
+  (BODY[v.k]||BODY.dirt)(v.c,t,G.popT,pose.gas,opt.ghost);
   cx.restore();cx.globalAlpha=1;
-}
-function drawRag(s,r,t){world();const g=s.rag,c=r.c;if(!g)return;
-  cx.save();cx.translate(g.x,g.y);cx.rotate(g.a);cx.lineCap='round';cx.lineJoin='round';cx.strokeStyle=INK;
-  line(0,0,0.35,-0.42,0.12,c.p);line(0,0,-0.3,-0.45,0.12,c.p);line(0,0,0,0.42,0.24,c.j);line(0,0.36,0.34,0.6,0.1,c.j);line(0,0.36,-0.34,0.56,0.1,c.j);
-  drawHead(r,0,0.62,t,0,true,0);cx.restore();
-  // helmet bouncing on its own
-  const h=s.helm;cx.save();cx.translate(h.x,h.y);cx.rotate(h.a);cx.strokeStyle=INK;cx.lineWidth=0.05;cx.beginPath();cx.ellipse(0,0,0.215,0.2,0,0,TAU);cx.fillStyle=c.h;cx.fill();cx.stroke();
-  cx.fillStyle=c.v;cx.beginPath();cx.moveTo(0.03,0.1);cx.quadraticCurveTo(0.19,0.11,0.222,0.03);cx.lineTo(0.205,-0.045);cx.quadraticCurveTo(0.1,-0.035,0.03,-0.02);cx.closePath();cx.fill();cx.stroke();cx.restore();
-  // dizzy stars over the rider for a moment
-  const k=s.t-s.crashT;if(k<2.2){for(let i=0;i<3;i++){const a=t*4+i*TAU/3;cx.fillStyle=i%2?'#f6efe2':'#f2b632';cx.save();cx.translate(g.x+Math.cos(a)*0.35,g.y+0.95+Math.sin(a)*0.12);cx.strokeStyle=INK;cx.lineWidth=0.03;cx.beginPath();for(let j=0;j<10;j++){const b=Math.PI/2+j*Math.PI/5,rr_=j%2?0.05:0.12;cx.lineTo(Math.cos(b)*rr_,Math.sin(b)*rr_)}cx.closePath();cx.fill();cx.stroke();cx.restore()}}
 }
 function groundShadow(tr,x,y){const gy=FL.groundTop(tr,x);if(gy==null)return;const hgt=y-gy;if(hgt>8)return;world();const k=clamp(1-hgt/8,0,1);
   cx.fillStyle='rgba(0,0,8,'+(0.5*k)+')';cx.beginPath();cx.ellipse(x,gy+0.02,1.1*(0.6+0.4*k),0.14*k+0.04,0,0,TAU);cx.fill();glow(x,gy+0.05,1.3*(0.6+0.4*k),veh().c[1],0.25*k)}
@@ -1679,15 +1768,15 @@ function newRun(mode,opt){
   if(mode==='endless'){G.seed=opt.seed!=null?opt.seed:((Date.now()^(Math.random()*1e9))>>>0);G.tr=FL.endless(G.seed);FL.extend(G.tr,320);G.themeOverride=null}
   else if(mode==='daily'){G.seed=FL.dailySeed();G.tr=FL.endless(G.seed);FL.extend(G.tr,320);G.themeOverride=THEMES[G.seed%THEMES.length].id}
   else if(mode==='level'){G.lvIndex=opt.i;G.L=LV[opt.i];G.tr=levelTrack(opt.i);G.themeOverride=THEMES[G.L.th].id;
-    const rec=save.lv[G.L.id];if(rec&&rec.g&&rec.gv===3&&save.set.ghost)G.ghost=rec.g} // gv 3: a ghost of gas + lean on the Chromeline courses (gv 2 ghosts were on Flipline's courses)
+    const rec=save.lv[G.L.id];if(rec&&rec.g&&rec.gv===4&&save.set.ghost)G.ghost=rec.g} // gv 4: a one-button ghost (1.54); gv 3 was gas + arrows, gv 2 Flipline's courses
   else if(mode==='custom'){G.L={id:'custom',n:TX('Your track'),c:opt.code,f:0,t:0,th:0};G.tr=FL.level(G.L);G.themeOverride=null}
-  else if(mode==='demo'){G.tr=FL.endless(opt.seed||4242);FL.extend(G.tr,320)}
+  else if(mode==='demo'){G.tr=levelTrack((opt.seed||0)%6)} // hard update: the menu demo rides the first six level courses (the Endless opening is now too hard for its little bot)
   restart();
 }
 const lvCache={};function levelTrack(i){return lvCache[i]||(lvCache[i]=FL.level(LV[i]))}
 function restart(){
-  G.s=FL.newState(G.tr);G.prev=snap(G.s,{});G.phase=G.mode==='demo'?'run':'ready';G.toggles=[];G.inQ.length=0;G.endAt=0;G.shown=false;G.pops.length=0;G.runCoins=0;
-  G.replay=null;G.rec.length=0;G.newBest=false;G.simIn=FL.inCode(0,0);pnum=0;scarfPts=null;G.trail.length=0;G.flash=0;G.firsts={};G.combo=0;G.lastFin=null;G.crouch=0;G.lean=0;
+  G.s=FL.newState(G.tr);G.prev=snap(G.s,{});G.phase=G.mode==='demo'?'run':'ready';G.toggles=[];G.inQ.length=0;G.endAt=0;G.shown=false;G.pops.length=0;G.minis.length=0;G.runCoins=0;
+  G.replay=null;G.rec.length=0;G.newBest=false;G.simIn=FL.inCode(0,0);pnum=0;scarfPts=null;G.trail.length=0;G.rings=[];G.lastA=null;G.spin=0;G.flash=0;G.firsts={};G.combo=0;G.lastFin=null;G.crouch=0;G.lean=0;
   G.gs=G.ghost?FL.newState(G.tr):null;if(G.gs)G.gs.noPick=true;G.gk=0;G.gc=FL.inCode(0,0);
   const s=G.s;G.cam.x=s.x+camLead();G.cam.y=s.y+1.5;G.cam.z=1;G.cam.vx=0;
   hideAll();if(G.mode!=='demo'){$('hud').hidden=false;$('levelBar').hidden=!G.L;}
@@ -1695,9 +1784,9 @@ function restart(){
   AU.song(THEMES.indexOf(theme()));
   if(G.held&&G.mode!=='demo')beginRun(performance.now());
 }
-function readyHint(){return touchUI?TX('Touch and hold to ride. ◀ ▶ flip'):TX('Hold {k} to ride. {b} {f} to flip',{k:keyName('go'),b:keyName('back'),f:keyName('front')})}
+function readyHint(){return touchUI?TX('Touch and hold to ride. Hold in the air to flip'):TX('Hold {k} to ride. Hold it in the air to flip',{k:keyName('go')})}
 function beginRun(t){if(G.phase!=='ready')return;G.phase='run';G.rt=t;G.startT=t;G.inQ.push({t,c:G.inC});setHint('');AU.S.go()}
-function camLead(){return Math.min(W/PPM*0.17,5)}
+function camLead(){return Math.min(W/PPM*0.2,7)} // hard update: the bike sits further left, so more of the track ahead is in view (was 0.17 of the width, at most 5 m)
 function snap(s,o){o.x=s.x;o.y=s.y;o.a=s.a;o.dR=s.dR;o.dF=s.dF;o.t=s.t;return o}
 
 // fixed-step simulation: each queued input (with its real timestamp) takes effect on the step it falls in,
@@ -1726,17 +1815,19 @@ function stepGhost(){const g=G.gs;if(!g)return;while(G.gk<G.ghost.length&&(G.gho
 function record(s){G.rec.push({x:s.x,y:s.y,a:s.a,dR:s.dR,dF:s.dF,t:s.t,rag:s.rag&&{x:s.rag.x,y:s.rag.y,a:s.rag.a},helm:s.helm&&{x:s.helm.x,y:s.helm.y,a:s.helm.a},crash:s.crash,crashT:s.crashT,hold:s.hold});if(G.rec.length>60*6)G.rec.shift()}
 // the demo behind the menu: a light version of the test bot
 let demoNext=0,demoP=null,demoK=0;
-const DEMO_PLANS=[[1,9,1,0,0],[0,9,0,0,0],[1,0.3,0,0,0],[0,0.3,1,0,0],[1,0.7,0,0,0],[1,9,1,-1,0.4],[1,9,1,-1,0.8],[1,9,1,1,0.5]];
+const DEMO_PLANS=[[1,9,1,0,0],[0,9,0,0,0],[1,0.3,0,0,0],[0,0.3,1,0,0],[1,0.7,0,0,0],[1,9,1,-1,0.4],[1,9,1,-1,0.8],[1,9,1,-1,1.2]];
 function demoIn(s){if(s.n>=demoNext||!demoP){demoNext=s.n+30;demoK=0;let best=-1e9;for(const p of DEMO_PLANS){const c=FL.clone(s);c.noPick=true;let sc=0;const x0=c.x,sw=Math.round(p[1]/DT);
   for(let i=0;i<360;i++){const k=demoCode(c,p,i,sw);FL.step(G.tr,c,FL.inHold(k),FL.inLean(k));if(c.crash){sc=-1000+i;break}}if(!c.crash)sc=c.x-x0+c.st.flips*30+(c.cR||c.cF?0:-Math.abs(FL.wrap(c.a))*6);if(sc>best){best=sc;demoP=p}}}
-  if(s.crash&&s.t-s.crashT>1.6){newRun('demo',{seed:(Math.random()*1e9)>>>0})}return demoCode(s,demoP,demoK++,Math.round(demoP[1]/DT))}
-function demoCode(s,p,i,sw){const h=i<sw?p[0]:p[2];if(s.cR||s.cF)return FL.inCode(h,0);return FL.inCode(h,p[3]&&s.air<p[4]?p[3]:FL.botLevel(G.tr,s))}
+  if((s.crash&&s.t-s.crashT>1.6)||(s.done&&s.doneT>1)){newRun('demo',{seed:(Math.random()*1e9)>>>0})}return demoCode(s,demoP,demoK++,Math.round(demoP[1]/DT))}
+function demoCode(s,p,i,sw){const h=i<sw?p[0]:p[2];if(s.cR||s.cF)return FL.inCode(h,0);return FL.inCode(p[3]&&s.air<p[4]?true:FL.botLevel(G.tr,s)<0,0)}
 
+// the run multiplier going up (or down after a sloppy landing) shows as a small number over the bike
+function rmMini(s,e){if(!e.rmUp||Math.abs(e.rmUp)<0.01)return;G.minis.push({x:s.x,y:s.y+1.5,t:0,text:(e.rmUp>0?(e.fz?TX('Flip zone')+' ':'')+'×'+e.rm+' ▲':'×'+e.rm+' ▼'),col:e.rmUp>0?'#ffc83a':'#ffd0dc'})}
 function handleEvents(s){
   for(const e of s.ev){
     if(G.mode==='demo'){if(e.k==='bank'&&e.n)confetti(s.x,s.y,10);continue}
     switch(e.k){
-      case'touch':{const imp=e.imp||0;const gy=s.y-0.6;dust(s.x,gy,fx()?Math.round(6+imp*3):4,2.5+imp*0.7,theme().acc2);AU.S.land(imp+(e.air||0)*2);AU.S.chirp();G.crouch=Math.min(1,0.4+imp*0.12+e.air*0.3);
+      case'touch':{const imp=e.imp||0;const gy=s.y-0.6;dust(s.x,gy,fx()?Math.round(6+imp*3):4,2.5+imp*0.7,theme().acc2);AU.S.land(imp+(e.air||0)*2);AU.S.chirp();if(fx()&&(imp>1.2||e.air>0.35)){(G.rings=G.rings||[]).push({x:s.x,y:gy+0.04,t:0,p:Math.min(1.6,0.6+imp*0.12+(e.air||0)*0.5),c:veh().c[1]});if(G.rings.length>4)G.rings.shift()}G.crouch=Math.min(1,0.4+imp*0.12+e.air*0.3);
         if(fx())G.shake=Math.max(G.shake,Math.min(0.5,imp*0.05+e.air*0.06));G.popT=1;break}
       case'bank':{let txt='',col='#f4f7ff',big=false;
         if(e.n>0){txt=e.n===1?(e.back?TX('Backflip!'):TX('Front flip!')):e.n===2?TX('Double flip!'):e.n===3?TX('Triple flip!'):e.n===4?TX('Quadruple flip!'):TX('{n}× flip!',{n:e.n});big=true;AU.S.flip(e.n,e.combo)}
@@ -1746,11 +1837,13 @@ function handleEvents(s){
         if(!e.n&&!e.clean&&e.pts>0)txt=TX('Big air');
         if(txt)pop(txt+(e.pts>0?'  +'+NUM(e.pts):'')+(e.x2?'  ×2':''),e.x2?'#ffc83a':col,big);
         if(e.n>=4){save.feat.quad=1}
-        break}
+        rmMini(s,e);break}
       case'near':pop(TX('Close shave!')+'  +'+e.pts,'#ffd0dc');AU.S.near();break;
       case'loop':{const first=!G.firsts.loop;pop((first?TX('First loop!'):TX('Loop!'))+'  +'+NUM(e.pts)+(e.mult>1?'  ×'+e.mult:''),first?'#7dffcf':'#e6fbff',true);AU.S.loop(e.combo);confetti(s.x,s.y,18);
-        if(first){G.firsts.loop=1;G.flash=1;G.flashC=theme().acc2}if(fx())G.shake=Math.max(G.shake,0.25);break}
+        if(first){G.firsts.loop=1;G.flash=1;G.flashC=theme().acc2}if(fx())G.shake=Math.max(G.shake,0.25);rmMini(s,e);break}
       case'x2':pop(TX('×2 points for {n} s',{n:P.MUL_T}),'#ffc83a',true);AU.S.token();G.flash=0.7;G.flashC='#ffc83a';break;
+      case'gem':{AU.S.coin();const c=G.tr.gems[e.i];G.minis.push({x:c.x,y:c.y+0.3,t:0,text:'+'+e.pts,col:GEM_C});for(let i=0;i<6;i++){const a=i/6*TAU;emit(c.x,c.y,Math.cos(a)*2.5,Math.sin(a)*2.5,0.35,0.08,GEM_C,2)}break}
+      case'crown':{AU.S.loop(4);const c=G.tr.gems[e.i];pop(TX('Crown!')+'  ×'+e.rm,'#ffc83a',true);confetti(c.x,c.y,14);break}
       case'coin':G.runCoins++;AU.S.coin();{const c=G.tr.coins[e.i];for(let i=0;i<6;i++){const a=i/6*TAU;emit(c.x,c.y,Math.cos(a)*2.5,Math.sin(a)*2.5,0.35,0.08,'#ffc83a',2)}}break;
       case'crash':AU.S.crash();if(fx())G.shake=0.8;G.flash=0;dust(s.x,s.y-0.4,fx()?18:6,4,'#ff6b85');dust(s.x,s.y-0.4,fx()?10:3,3,'#f4fdff');save.tot.crashes++;G.endAt=performance.now()+1100;setHint(touchUI?TX('Tap to go again'):TX('{k} to go again',{k:keyName('go')}));break;
       case'finish':AU.S.finish();confetti(s.x,s.y+1,40);G.endAt=performance.now()+900;break;
@@ -1776,7 +1869,8 @@ function endRun(silent){
     // a best time or ghost from Flipline's old course (no gv) is replaced by the first finish on the new one; medals already earned stay
     // a best time or ghost from before Chromeline (no gv, or gv 2: Flipline's courses) is replaced by the first finish on the new
     // course; medals already earned stay
-    if(!rec.t||s.t<rec.t||rec.gv!==3){newBest=!!old&&!!rec.t&&rec.gv===3;rec.t=+s.t.toFixed(2);rec.g=G.toggles.slice(0,6000);rec.gv=3}
+    // (1.54: the same for gv 3, the arrow-key ghosts, which can't be replayed with one button)
+    if(!rec.t||s.t<rec.t||rec.gv!==4){newBest=!!old&&!!rec.t&&rec.gv===4;rec.t=+s.t.toFixed(2);rec.g=G.toggles.slice(0,6000);rec.gv=4}
     if(st.flips>rec.f)rec.f=st.flips;rec.m=m;medals=m;
     for(const b of[1,2,4])if((m&b)&&!(old&b)){medalsNew++;earned+=15}
     if(medalsNew)AU.S.medal();statsHook('max','medals',medalCount());
@@ -1818,6 +1912,7 @@ function showResults(sum,earned,newBest,medals,medalsNew,chMsgs,feats){
   const cells=G.mode==='level'||G.mode==='custom'?
     [[s.done?fmtTime(s.t):Math.floor(s.dist)+' m',s.done?TX('Time'):TX('Distance')],[NUM(s.st.flips),TX('Flips')],[NUM(s.score),TX('Score')]]:
     [[NUM(Math.floor(s.dist))+' m',TX('Distance')],[NUM(s.score),TX('Score')],[NUM(s.st.flips),TX('Flips')]];
+  if(s.gems)cells.push([NUM(s.gems),TX('Gems')],['×'+(s.st.maxRm||1),TX('Best multiplier')]);
   $('resStats').innerHTML=cells.map(c=>'<div class="stat"><b>'+esc(c[0])+'</b><span>'+esc(c[1])+'</span></div>').join('');
   let more='';
   if(newBest)more+='<p class="unlock">'+esc(G.mode==='level'?TX('New best time!'):TX('New best!'))+'</p>';
@@ -1877,7 +1972,7 @@ function render(now,dtReal){
   const x0=cam.x-vwH-2,x1=cam.x+vwH+2;
   drawSky(th);drawLayers(th,cam.x,cam.y,tAnim);drawMotes(th,cam.x,cam.y,tAnim);
   const hs=G.replay?{t:pose.t,hzT:s.hzT,mvs:s.mvs,lp:s.lp}:s;
-  drawFlags(G.tr,th,x0,x1);drawProps(G.tr,th,x0,x1,tAnim);drawLoops(G.tr,th,x0,x1,tAnim,hs);drawMovers(G.tr,hs,x0,x1,th,tAnim);drawGround(G.tr,th,x0,x1,tAnim);drawHazards(G.tr,hs,x0,x1,tAnim);drawCoins(G.tr,s,x0,x1,tAnim);
+  drawFlags(G.tr,th,x0,x1);drawProps(G.tr,th,x0,x1,tAnim);drawLoops(G.tr,th,x0,x1,tAnim,hs);drawMovers(G.tr,hs,x0,x1,th,tAnim);drawGround(G.tr,th,x0,x1,tAnim);drawHazards(G.tr,hs,x0,x1,tAnim);drawCoins(G.tr,s,x0,x1,tAnim);drawGems(G.tr,s,x0,x1,tAnim);
   // speed streaks in the place's light colour
   if(fx()&&spd>12.5&&!G.replay&&s&&!s.crash){screen();cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA(th.acc2,clamp((spd-12.5)/7,0,0.45));cx.lineWidth=1.5;cx.beginPath();
     for(let i=0;i<11;i++){const y=(hash(i*11+Math.floor(tAnim*7))*H);const x=((hash(i*5+Math.floor(tAnim*7))*W*1.2+tAnim*1100)%(W*1.2))-W*0.1;cx.moveTo(x,y);cx.lineTo(x-70-spd*5,y)}cx.stroke();cx.globalCompositeOperation='source-over'}
@@ -1895,13 +1990,18 @@ function render(now,dtReal){
   if(s&&!G.replay){const air=!(s.cR||s.cF);G.crouch=Math.max(0,G.crouch-dtReal*2.5);
     G.lean+=(clamp((!air&&s.hold&&spd<12&&!s.lean?0.6:0)-(s.lean||0)*0.9,-1,1)-G.lean)*Math.min(1,dtReal*(s.lean?10:6));G.popT=Math.max(0,G.popT-dtReal*2.5);G.ear=clamp(spd/16,0,1)}
   pose.lean=G.lean;pose.crouch=Math.max(G.crouch,s&&!(s.cR||s.cF)&&s.lean?0.5:0);pose.wr=-(pose.x/P.WR);pose.ear=G.ear;
-  // streamer: anchor at the back of the helmet in world space, then convert to the bike's frame for drawing
-  {const ca=Math.cos(pose.a),sa=Math.sin(pose.a),nx=-0.2,ny=1.0-0.14*pose.crouch;const ax=pose.x+ca*nx-sa*ny,ay=pose.y+sa*nx+ca*ny;
-    scarfStep(ax,ay,(s&&!pose.crash)?s.vx:0,(s&&!pose.crash)?s.vy:0,Math.min(dtReal,0.05));
-    scarfLocal=[];for(const p of scarfPts){const dx=p.x-pose.x,dy=p.y-pose.y;scarfLocal.push(ca*dx+sa*dy,-sa*dx+ca*dy)}}
-  if(pose.crash){scarfLocal=null}
-  drawBike(pose,v,r,tAnim);
-  if(pose.crash){if(G.replay){const rr_=G.rec[G.replay.i];drawRag({rag:rr_.rag,helm:rr_.helm,t:rr_.t,crashT:rr_.crashT},r,tAnim)}else drawRag(s,r,tAnim)}
+  pose.gas=!!(s&&!G.replay&&s.hold&&(s.cR||s.cF)&&!pose.crash&&G.phase==='run');
+  // spin arcs: in a flip the nose and the tail leave short arcs of light, so the turn reads without a rider
+  {const da=pose.a-(G.lastA==null?pose.a:G.lastA);G.lastA=pose.a;const rate=dtReal>0&&Math.abs(da)<1?da/dtReal:0;G.spin=(G.spin||0)+(rate-(G.spin||0))*Math.min(1,dtReal*12);
+    const air=s&&!(s.cR||s.cF),w=Math.abs(G.spin);
+    if(fx()&&air&&!pose.crash&&!G.replay&&w>1.6){world();cx.globalCompositeOperation='lighter';cx.lineCap='round';const sg=G.spin>0?1:-1,sw=Math.min(1.5,w*0.16),al=clamp((w-1.6)/2.2,0,1);
+      for(let e=0;e<2;e++){const a0=pose.a+0.2+e*Math.PI,R=e?0.98:0.8;for(let i=0;i<3;i++){const f0=i/3,f1=(i+1)/3;cx.strokeStyle=hexA(v.c[1],0.8*al*(1-f0));cx.lineWidth=0.13-0.035*i;cx.beginPath();
+        cx.arc(pose.x,pose.y,R,a0-sg*sw*f0,a0-sg*sw*f1,sg>0);cx.stroke()}}
+      cx.globalCompositeOperation='source-over'}}
+  // landing rings: a flat pulse of light runs out along the ground where the wheels came down
+  if(G.rings&&G.rings.length){world();cx.globalCompositeOperation='lighter';for(let i=G.rings.length-1;i>=0;i--){const r=G.rings[i];r.t+=dtReal;const f=r.t/0.38;if(f>=1){G.rings.splice(i,1);continue}
+      cx.strokeStyle=hexA(r.c,0.55*(1-f)*(1-f));cx.lineWidth=0.1*(1-f)+0.02;cx.beginPath();cx.ellipse(r.x,r.y,0.4+r.p*f*1.9,0.05+0.12*f,0,0,TAU);cx.stroke()}cx.globalCompositeOperation='source-over'}
+  drawBike(pose,v,r,tAnim); // (1.54: no rider, so no streamer and no tumbling rider after a crash)
   // particles: sparks (additive streaks), light shards, bits
   world();cx.globalCompositeOperation='lighter';for(let i=0;i<pnum;i++){const a=clamp(pl[i]/pm[i],0,1);cx.globalAlpha=Math.min(1,a*1.6);cx.fillStyle=pc[i];
     if(pk[i]===1){cx.save();cx.translate(px[i],py[i]);cx.rotate(pr[i]);cx.fillRect(-ps[i],-ps[i]*0.5,ps[i]*2,ps[i]);cx.restore()}
@@ -1936,6 +2036,8 @@ function updateHud(force){
   if(force||hudLast.b!==b){$('hudScoreV').textContent=b;hudLast.b=b}
   if(force||hudLast.lvl!==lvl){$('hudDistL').textContent=lvl?TX('Time'):TX('Distance');$('hudScoreL').textContent=lvl?TX('Flips'):TX('Score');hudLast.lvl=lvl}
   const c=String(G.runCoins);if(force||hudLast.c!==c){$('hudCoins').textContent=c;hudLast.c=c}
+  const gm=String(s.gems);if(force||hudLast.gm!==gm){$('hudGems').textContent=gm;hudLast.gm=gm}
+  const rm='×'+(Math.round(s.rm*10)/10);if(force||hudLast.rm!==rm){const el=$('hudMultV');el.textContent=rm;el.classList.toggle('hot',s.rm>=2);hudLast.rm=rm}
   const cm=(s.combo>1&&!s.crash?'×'+FL.comboMult(s.combo)+' '+TX('combo'):'')+(s.mulT>0&&!s.crash?(s.combo>1?' · ':'')+TX('×2 points')+' '+Math.ceil(s.mulT)+' s':'');
   if(force||hudLast.cm!==cm){const el=$('combo');el.hidden=!cm;el.textContent=cm;hudLast.cm=cm}
   if(G.L&&G.tr.finish<Infinity){const f=clamp((s.maxX-G.tr.start)/(G.tr.finish-G.tr.start),0,1);$('levelBar').firstChild.style.width=(f*100).toFixed(1)+'%'}
@@ -1945,15 +2047,13 @@ let toastT=0;function toast(t){const el=$('toast');el.textContent=t;el.hidden=fa
 
 // ======================= INPUT =======================
 const KB=Keybinds.create({game:'flipline',actions:[
-  {id:'go',label:'Gas',note:'Hold to ride, let go to coast',group:'Ride',keys:['Space','ArrowUp','KeyW']},
-  {id:'back',label:'Lean back / backflip',note:'In the air: spin backwards. On the ground: wheelie',group:'Ride',keys:['ArrowLeft','KeyA']},
-  {id:'front',label:'Lean forward / front flip',note:'In the air: spin forwards. On the ground: lean over the bars',group:'Ride',keys:['ArrowRight','KeyD']},
+  {id:'go',label:'Gas / flip',note:'On the ground: hold to ride, let go to coast. In the air: hold to flip backwards',group:'Ride',keys:['Space','ArrowUp','KeyW']},
   {id:'restart',label:'Restart',group:'Ride',keys:['KeyR']},
   {id:'pause',label:'Pause',group:'Ride',keys:['Escape','KeyP']}],classes:{button:'btn sm',primary:'btn clay sm'}});
 function keyName(a){try{return KB.short(a)}catch(e){return a}}
-const keys=new Set();let ptrs=new Set();const leanPtrs=new Map(); // leanPtrs: touch pointer → -1 back / 1 forward (the on-screen lean buttons)
+const keys=new Set();let ptrs=new Set(); // one button (1.54): the gas on the ground, a backflip in the air
 function computeHeld(){return KB.held('go',keys)||ptrs.size>0}
-function computeLean(){let b=KB.held('back',keys),f=KB.held('front',keys);for(const d of leanPtrs.values()){if(d<0)b=true;else f=true}return b&&!f?-1:f&&!b?1:0}
+function computeLean(){return 0}
 function inputChanged(t){const h=computeHeld(),l=computeLean(),c=FL.inCode(h,l);if(c===G.inC)return;const pressed=h&&!G.held;G.held=h;G.inC=c;AU.resume();
   if(G.replay){if(pressed){G.replay=null;setHint('');$('results').hidden=false}return}
   if(G.mode==='demo')return;
@@ -1973,23 +2073,18 @@ addEventListener('keydown',e=>{
   if(KB.busy())return;if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
   const acts=KB.actionsFor(e.code);
   if(acts.includes('go')&&!$('menu').hidden&&onlyMenu()&&!e.repeat){e.preventDefault();quickStart();keys.add(e.code);inputChanged(e.timeStamp||performance.now());return}
-  if(acts.includes('go')||acts.includes('back')||acts.includes('front')){if(!overlaysClosed())return;e.preventDefault();if(e.repeat)return;keys.add(e.code);inputChanged(e.timeStamp||performance.now());return}
+  if(acts.includes('go')){if(!overlaysClosed())return;e.preventDefault();if(e.repeat)return;keys.add(e.code);inputChanged(e.timeStamp||performance.now());return}
   if(acts.includes('restart')&&G.mode!=='menu'&&G.mode!=='demo'&&overlaysClosed()){e.preventDefault();AU.resume();if(G.replay){G.replay=null}if(G.s&&(G.s.crash||G.s.done)&&!G.shown)endRun(true);restartSame();return}
   if(acts.includes('pause')||e.code==='Escape'){e.preventDefault();if(!$('pause').hidden)resume();else if(G.mode!=='demo'&&G.mode!=='menu'&&overlaysClosed()&&!G.shown)pause();else if(e.code==='Escape')backFromOverlay();return}
   if(e.code==='Backquote'&&TEST)G.dbg=!G.dbg;
 });
-addEventListener('keyup',e=>{keys.delete(e.code);if(KB.is('go',e.code)||KB.is('back',e.code)||KB.is('front',e.code))inputChanged(e.timeStamp||performance.now())});
-addEventListener('blur',()=>{keys.clear();ptrs.clear();leanPtrs.clear();inputChanged(performance.now());if(G.phase==='run'&&!G.shown&&G.mode!=='demo')pause()});
+addEventListener('keyup',e=>{keys.delete(e.code);if(KB.is('go',e.code))inputChanged(e.timeStamp||performance.now())});
+addEventListener('blur',()=>{keys.clear();ptrs.clear();inputChanged(performance.now());if(G.phase==='run'&&!G.shown&&G.mode!=='demo')pause()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){AU.suspend(true);if(G.phase==='run'&&!G.shown&&G.mode!=='demo')pause()}else if(!G.paused)AU.suspend(false)});
 cv.addEventListener('pointerdown',e=>{e.preventDefault();ptrs.add(e.pointerId);try{cv.setPointerCapture(e.pointerId)}catch(_){}inputChanged(e.timeStamp||performance.now())});
 const up=e=>{if(ptrs.delete(e.pointerId))inputChanged(e.timeStamp||performance.now())};
 cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);cv.addEventListener('lostpointercapture',up);
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-// the on-screen lean buttons (touch screens only): hold ◀ to lean back / backflip, ▶ to lean forward / front flip
-document.querySelectorAll('#lean button').forEach(b=>{const d=+b.dataset.lean;
-  b.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();leanPtrs.set(e.pointerId,d);b.classList.add('on');try{b.setPointerCapture(e.pointerId)}catch(_){}inputChanged(e.timeStamp||performance.now())});
-  const off=e=>{if(leanPtrs.delete(e.pointerId)){if(![...leanPtrs.values()].includes(d))b.classList.remove('on');inputChanged(e.timeStamp||performance.now())}};
-  b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('lostpointercapture',off);b.addEventListener('contextmenu',e=>e.preventDefault())});
 // tapping the results backdrop (not its buttons) goes again
 $('results').addEventListener('pointerdown',e=>{if(e.target===$('results')){e.preventDefault();ptrs.add(e.pointerId);inputChanged(e.timeStamp||performance.now())}});
 $('results').addEventListener('pointerup',up);
@@ -2016,7 +2111,7 @@ $('mEditor').onclick=()=>{AU.resume();AU.S.ui();openEditor()};
 $('setBtn').onclick=()=>{AU.resume();AU.S.ui();menuFrom='menu';openSettings()};
 $('pauseBtn').onclick=e=>{e.stopPropagation();AU.S.ui();if(G.shown)return;pause()};
 $('pResume').onclick=()=>{AU.S.ui();resume()};$('pRestart').onclick=()=>{AU.S.ui();G.paused=false;restartSame()};$('pMenu').onclick=()=>{AU.S.ui();toMenu()};
-function pause(){if(G.mode==='demo'||G.mode==='menu')return;G.paused=true;keys.clear();ptrs.clear();leanPtrs.clear();document.querySelectorAll('#lean button').forEach(b=>b.classList.remove('on'));G.held=false;G.inC=FL.inCode(0,0);if(G.phase==='run')G.inQ.push({t:performance.now(),c:G.inC});
+function pause(){if(G.mode==='demo'||G.mode==='menu')return;G.paused=true;keys.clear();ptrs.clear();G.held=false;G.inC=FL.inCode(0,0);if(G.phase==='run')G.inQ.push({t:performance.now(),c:G.inC});
   $('pMusic').value=save.set.mus;$('pSfx').value=save.set.sfx;hideAll();$('pause').hidden=false;$('hud').hidden=false}
 function resume(){$('pause').hidden=true;G.paused=false;G.rt=performance.now();$('hud').hidden=false}
 function openLevels(){
@@ -2127,9 +2222,9 @@ if(TEST)window.__fl={FL,G,get save(){return save},set save(v){save=v},persist,lo
   // manual stepping for frame strips: n physics steps with the button held or not, then one drawn frame
   advance(n,hold,draw,lean){G.manual=true;if(G.phase==='ready')G.phase='run';const s=G.s;for(let i=0;i<n;i++){snap(s,G.prev);FL.step(G.tr,s,hold,lean|0);stepGhost();if(G.tr.kind==='endless'&&s.n%60===0)FL.extend(G.tr,s.x+220);if(s.n%4===0)record(s);handleEvents(s)}
     stepParticles(n*DT);setHint('');if(draw!==false){G.rt=performance.now()-DT*1000;render(performance.now(),Math.max(n*DT,1/60));try{updateHud()}catch(e){}}return{x:s.x,y:s.y,a:s.a,crash:s.crash,done:s.done,air:!(s.cR||s.cF),flips:s.st.flips,t:s.t}},
-  // policy stepping: gas on the ground; in the air lean back for X s after take-off (X<0: never), then level the bike like the bot
+  // policy stepping (one button): gas on the ground; in the air hold for X s after take-off (X<0: never), then hold only to bring the nose up like the bot
   advanceP(n,X,draw){const s=G.s;let r;for(let i=0;i<n;i++){const air=!(s.cR||s.cF);if(air&&G._airAt==null)G._airAt=s.t;if(!air)G._airAt=null;
-      const l=!air?0:(X>=0&&s.t-G._airAt<X)?-1:FL.botLevel(G.tr,s);r=__fl.advance(1,!air,draw!==false&&i%4===3,l)}if(draw!==false)r=__fl.advance(0,false,true);return r},
+      const h=!air||(X>=0&&s.t-G._airAt<X)||FL.botLevel(G.tr,s)<0;r=__fl.advance(1,h,draw!==false&&i%4===3,0)}if(draw!==false)r=__fl.advance(0,false,true);return r},
   audioState(){return AU.ctx?AU.ctx.state:'none'},
   screenPos(){return{x:(OX+G.s.x*K)/DPR,y:(OY-G.s.y*K)/DPR,ppm:K/DPR}}};
 boot();
