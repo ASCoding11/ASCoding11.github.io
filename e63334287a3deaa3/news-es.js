@@ -7,6 +7,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Flood Crew: tougher jobs, fewer hints": "Flood Crew: trabajos más duros, menos pistas",
+    "Flood Crew": "Flood Crew",
+    "The first job says much less: just a few short lines, and you find the rest yourself.": "El primer trabajo dice mucho menos: solo unas frases cortas, y el resto lo descubres tú.",
+    "Tanners Field has no pegs or step-by-step lines any more, but it can always be finished now: if water sits in your trench, dig the high part deeper.": "Tanners Field ya no tiene estacas ni instrucciones paso a paso, pero ahora siempre se puede terminar: si el agua se queda en tu canal, cava más hondo la parte alta.",
+    "Pell Street is harder: deeper water and more rubbish that washes back onto the drains.": "Pell Street es más difícil: el agua es más profunda y hay más basura que vuelve a tapar los desagües.",
+    "Water drains a little slower, and the target times for three stars are tighter.": "El agua baja un poco más despacio y los tiempos para tres estrellas son más ajustados.",
     "Type a game's name to open it": "Escribe el nombre de un juego para abrirlo",
     "Every game now has an address you can type: ascoding11.com/ followed by its name, like ascoding11.com/slipstream or ascoding11.com/driftfall.": "Ahora cada juego tiene una dirección que puedes escribir: ascoding11.com/ seguido de su nombre, como ascoding11.com/slipstream o ascoding11.com/driftfall.",
     "ascoding11.com/backroom opens the whole Back Room.": "ascoding11.com/backroom abre todo el Back Room.",

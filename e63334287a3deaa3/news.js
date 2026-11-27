@@ -90,6 +90,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.15', title: 'Flood Crew: tougher jobs, fewer hints', kind: 'feature',
+     tags: ['Flood Crew'], items: [
+      'The first job says much less: just a few short lines, and you find the rest yourself.',
+      'Tanners Field has no pegs or step-by-step lines any more, but it can always be finished now: if water sits in your trench, dig the high part deeper.',
+      'Pell Street is harder: deeper water and more rubbish that washes back onto the drains.',
+      'Water drains a little slower, and the target times for three stars are tighter.']},
     {date: '2026-11-27', version: '2.14', title: 'Type a game\'s name to open it', kind: 'feature',
      tags: ['Back Room'], items: [
       'Every game now has an address you can type: ascoding11.com/ followed by its name, like ascoding11.com/slipstream or ascoding11.com/driftfall.',
