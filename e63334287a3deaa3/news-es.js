@@ -7,6 +7,13 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Replay clips": "Clips de repetición",
+    "Slipstream": "Slipstream",
+    "Boostball": "Boostball",
+    "Driftfall": "Driftfall",
+    "Slipstream, Boostball and Driftfall now save the last 15 seconds or so of every race or match as a video.": "Slipstream, Boostball y Driftfall ahora guardan como video los últimos 15 segundos más o menos de cada carrera o partida.",
+    "When it ends, tap Share replay to send it to friends or post it, or Save video to keep it. It ends with a card that says where to play.": "Al terminar, toca Compartir para enviarlo a tus amigos o publicarlo, o Guardar video para quedártelo. Termina con una tarjeta que dice dónde jugar.",
+    "The clip is made on your own device and never uploaded. If recording ever slows your game down, it switches itself off, and you can turn replays off any time.": "El clip se hace en tu propio dispositivo y nunca se sube. Si grabar alguna vez hace más lento tu juego, se apaga solo, y puedes desactivar las repeticiones cuando quieras.",
     "Chromeline: a bigger bike on upright phones": "Chromeline: una moto más grande con el móvil en vertical",
     "Chromeline": "Chromeline",
     "With your phone held upright, the camera comes in closer, so the bike is about twice the size it was.": "Con el móvil en vertical, la cámara se acerca más, así que la moto se ve casi el doble de grande.",

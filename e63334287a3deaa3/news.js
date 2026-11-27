@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.19', title: 'Replay clips', kind: 'feature',
+     tags: ['Slipstream', 'Boostball', 'Driftfall'], items: [
+      'Slipstream, Boostball and Driftfall now save the last 15 seconds or so of every race or match as a video.',
+      'When it ends, tap Share replay to send it to friends or post it, or Save video to keep it. It ends with a card that says where to play.',
+      'The clip is made on your own device and never uploaded. If recording ever slows your game down, it switches itself off, and you can turn replays off any time.']},
     {date: '2026-11-27', version: '2.18.1', title: 'Chromeline: a bigger bike on upright phones', kind: 'fix',
      tags: ['Chromeline'], items: [
       'With your phone held upright, the camera comes in closer, so the bike is about twice the size it was.',
