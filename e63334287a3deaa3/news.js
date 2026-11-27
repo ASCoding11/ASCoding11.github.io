@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.13.1', title: 'Chromeline: a new start every run', kind: 'fix',
+     tags: ['Chromeline'], items: [
+      'Endless now starts differently every run: the first jumps, their order and their heights change each time, and it is still hard from the first seconds.',
+      'The Daily run is still the same for everyone on the same day.',
+      'Trick and landing messages are much smaller and quicker, and they stay by the bike instead of covering the track ahead.']},
     {date: '2026-11-26', version: '2.13', title: 'Retro TV switch tip', kind: 'feature',
      tags: ['Holidays'], items: [
       'A short note now shows you where the Retro TV switch is, the first time you visit this holiday season.',
