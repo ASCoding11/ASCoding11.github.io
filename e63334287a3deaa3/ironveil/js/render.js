@@ -63,7 +63,7 @@
         vec3 t = aces(c); float tl = dot(t, vec3(0.2126, 0.7152, 0.0722)); t = mix(vec3(tl), t, 0.9 - 0.25 * smoothstep(0.6, 1.0, tl));
         t += vec3(-0.012, 0.004, 0.022) * (1.0 - smoothstep(0.0, 0.35, tl));      // cool shadows
         t *= mix(vec3(1.0), vec3(1.05, 1.0, 0.93), smoothstep(0.45, 1.0, tl));     // warm highlights
-        float vig = smoothstep(0.95, 0.25, sqrt(r2) * (1.25 + 0.25 * uAim)); t *= mix(0.42, 1.0, vig);
+        float vig = smoothstep(0.95, 0.25, sqrt(r2) * (1.25 - 0.15 * uAim)); t *= mix(0.42, 1.0, vig);
         float tg = dot(t, vec3(0.299, 0.587, 0.114)); t = mix(t, vec3(tg) * vec3(1.0, 0.9, 0.88), uLow * 0.6);
         t = mix(t, vec3(0.5, 0.02, 0.0) * (0.4 + tg), uHurt * smoothstep(0.1, 0.5, r2 * 1.6));
         t = pow(max(t, 0.0), vec3(1.0 / 2.2));

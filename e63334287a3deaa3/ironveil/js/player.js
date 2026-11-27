@@ -57,7 +57,7 @@
     P.eye = MO.lerp(1.66, 1.02, P.crouchK) - land * 0.09 - dead * 1.1;
     cam.position.set(P.pos.x + Math.cos(P.yaw) * bx, P.pos.y + Math.max(0.22, P.eye + by), P.pos.z - Math.sin(P.yaw) * bx);
     cam.rotation.set(P.pitch + kp, P.yaw + ky, roll + dead * 0.9 + Math.sin(bob) * 0.004 * amp, 'YXZ');
-    const fov = S.fov + 5 * P.sprintK - (S.fov - 52) * P.aimK * 0.62; if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    const fov = S.fov + 5 * P.sprintK - (S.fov - 50) * P.aimK * 0.72; if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); }
     const u = MO.R.mFinal.uniforms; u.uHurt.value = MO.damp(u.uHurt.value, hurtK, 10, dt); u.uLow.value = MO.damp(u.uLow.value, P.alive ? MO.sat((45 - P.hp) / 45) : 1, 6, dt); u.uAim.value = P.aimK;
     P.bob = bob; P.bobAmp = amp; P.landK = land;
   };

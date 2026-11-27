@@ -1,4 +1,4 @@
-/* Midnight Ops: the Thompson. 30 rounds, about 700 a minute, 26 damage a round (head x2.2), hits are instant.
+/* Midnight Ops: the Thompson. 30 rounds, about 700 a minute, 26 damage a round, a headshot always kills, hits are instant.
    The gun's motion is a handful of damped springs kicked by impulses (recoil, look sway, landing), plus a walk bob
    tied to the player's stride. The reload is hand-written keyframes for the left hand and the magazine; its sounds
    fire at set times in the same timeline. */
@@ -58,7 +58,7 @@
     // the gun's camera has a narrower field of view than the world's: bring the muzzle point to where it appears
     const ex = eh ? ox + v1.x * eh.t : ox + v1.x * d, ey = eh ? oy + v1.y * eh.t : oy + v1.y * d, ez = eh ? oz + v1.z * eh.t : oz + v1.z * d;
     MO.fx.tracer(v2.x, v2.y, v2.z, ex, ey, ez, true);
-    if (eh) { P.hits++; const dmg = DMG * (eh.head ? 2.2 : 1) * (eh.t > 60 ? 0.75 : 1); MO.fx.impact(ex, ey, ez, -v1.x, 0.2, -v1.z, 'flesh'); A && A.play('hit_flesh', { x: ex, y: ey, z: ez, vol: 0.8 });
+    if (eh) { P.hits++; const dmg = eh.head ? 999 : DMG * (eh.t > 60 ? 0.75 : 1);     // a headshot always kills MO.fx.impact(ex, ey, ez, -v1.x, 0.2, -v1.z, 'flesh'); A && A.play('hit_flesh', { x: ex, y: ey, z: ez, vol: 0.8 });
       const killed = eh.e.hit(dmg, eh.head, v1.x, v1.z); MO.emit('hit', eh.head, killed); }
     else if (wh) { tag = hit.box ? hit.box.tag : MO.ground.at(hit.x, hit.z).kind; if (tag === 'stone' && !hit.box) tag = 'stone';
       MO.fx.impact(hit.x, hit.y, hit.z, hit.nx, hit.ny, hit.nz, tag);
@@ -110,7 +110,7 @@
     const aim = P.aimK, run = P.sprintK * (1 - aim), bobA = P.bobAmp * (1 - 0.85 * aim), bx = Math.cos(P.bob) * 0.006 * bobA * (1 + run), by = Math.abs(Math.sin(P.bob)) * -0.008 * bobA * (1 + run * 1.5), t = MO.time;
     const br = Math.sin(t * 1.3) * 0.0016 * (1 - 0.6 * aim), br2 = Math.sin(t * 0.9 + 1) * 0.0012;
     // aim: bring the rear sight onto the eye line
-    const ax = -M.sight.x, ay = -M.sight.y, az = -0.09 - M.sight.z;
+    const ax = -M.sight.x, ay = -M.sight.y, az = -0.24 - M.sight.z;     // eye well behind the rear sight, so the sights stay small and the view open
     root.position.set(MO.lerp(HIP.p[0], ax, aim) + bx + sx * 0.0035 - run * 0.05 + rx,
       MO.lerp(HIP.p[1], ay, aim) + by + br + dy * 0.02 - drop - run * 0.035 - P.crouchK * 0.008 * (1 - aim) + sy * -0.003,
       MO.lerp(HIP.p[2], az, aim) + kz * 0.016 * (1 - 0.45 * aim) + run * 0.06);
