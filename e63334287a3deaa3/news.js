@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.14', title: 'Type a game\'s name to open it', kind: 'feature',
+     tags: ['Back Room'], items: [
+      'Every game now has an address you can type: ascoding11.com/ followed by its name, like ascoding11.com/slipstream or ascoding11.com/driftfall.',
+      'ascoding11.com/backroom opens the whole Back Room.',
+      'Clicking around the site still keeps the address the same as before.']},
     {date: '2026-11-27', version: '2.13.6', title: 'Tidier top of the phone page', kind: 'fix',
      tags: ['Phone'], items: [
       'On a phone held upright, the games count now sits right under the ASCoding Games title on one or two lines, instead of in a thin column with one word per line.',
