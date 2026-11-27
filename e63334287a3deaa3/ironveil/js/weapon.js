@@ -6,6 +6,7 @@
   'use strict';
   const MO = window.MO, W = MO.weapon = { ammo: 30, reserve: 150, mag: 30, reloading: false, name: 'M1A1 THOMPSON' };
   const HIP = { p: [0.105, -0.082, -0.37], r: [0.05, 0.07, -0.10] }, RPM = 700, DMG = 26, RANGE = 300;
+  let meleeT = 0, meleeCool = 0;
   let M, root, flash, flashMat, cool = 0, rT = 0, rDur = 0, rEmpty = false, rStage = 0, flashT = 0, lBase, magBase, boltZ = 0, trig = 0, heat = 0, dryT = 0;
   const sp = { kz: MO.spring(260, 22), kp: MO.spring(200, 18), ky: MO.spring(160, 16), kr: MO.spring(140, 14), sx: MO.spring(90, 14), sy: MO.spring(90, 14), dy: MO.spring(120, 14) };
   const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), hit = {}, q1 = new THREE.Quaternion();
@@ -39,7 +40,7 @@
     flash.position.copy(M.muzzle); flash.position.z -= 0.03; root.add(flash); flash.visible = false;
     W.reset();
   };
-  W.reset = () => { W.ammo = W.mag; W.reserve = 150; W.reloading = false; cool = 0; rT = 0; heat = 0; if (M) { M.mag.position.copy(magBase); M.mag.rotation.set(0, 0, 0); M.mag.visible = true; M.lhand.position.copy(lBase); } };
+  W.reset = () => { W.nades = 2; W.inspT = 0; meleeT = 0; meleeCool = 0; W.ammo = W.mag; W.reserve = 150; W.reloading = false; cool = 0; rT = 0; heat = 0; if (M) { M.mag.position.copy(magBase); M.mag.rotation.set(0, 0, 0); M.mag.visible = true; M.lhand.position.copy(lBase); } };
   W.addAmmo = (n) => { W.reserve = Math.min(210, W.reserve + n); };
   W.startReload = () => { if (W.reloading || W.ammo >= W.mag || W.reserve <= 0) return; W.reloading = true; rEmpty = W.ammo === 0; rDur = rEmpty ? 2.72 : 2.1; rT = 0; rStage = 0; };
 
@@ -77,12 +78,29 @@
     boltZ = 0.045; P.noise = 1; MO.emit('shot', P.pos.x, P.pos.z);
   }
 
+  /* melee (F): a jab with the gun. Silent; it kills outright from behind or on a soldier who hasn't seen you,
+     and hurts (70) otherwise. */
+  function melee() {
+    const P = MO.player, A = MO.audio; meleeCool = 0.75; meleeT = 0.42; A && A.play('cloth', { vol: 0.9 }); sp.kp.v -= 1.2; sp.ky.v += 0.6;
+    const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw); let best = null, bd = 2.2;
+    for (const s of MO.enemies.list) { if (!s.alive) continue; const dx = s.x - P.pos.x, dz = s.z - P.pos.z, d = Math.hypot(dx, dz); if (d < bd && d > 0.01 && (dx * fx + dz * fz) / d > 0.5) { bd = d; best = s; } }
+    if (!best) return;
+    const tx = (P.pos.x - best.x) / bd, tz = (P.pos.z - best.z) / bd, behind = Math.sin(best.h) * tx + Math.cos(best.h) * tz < 0.15, unaware = best.state !== 'combat';
+    const killed = best.hit(behind || unaware ? 999 : 70, false, fx, fz, true);
+    A && A.play('hit_flesh', { x: best.x, y: 1.2, z: best.z, vol: 1 }); MO.fx.impact(best.x - fx * 0.3, 1.25, best.z - fz * 0.3, -fx, 0.2, -fz, 'flesh'); MO.emit('hit', false, killed);
+    if (killed && (behind || unaware)) MO.emit('msg', MO.T('Silent takedown'));
+  }
+  W.throwKick = () => { sp.dy.v -= 1.4; sp.kp.v -= 1.6; sp.kr.v += 1.2; };
   W.update = (dt) => {
     const P = MO.player, I = MO.input, A = MO.audio;
-    cool = Math.max(-0.02, cool - dt); heat = Math.max(0, heat - dt * 1.6); dryT -= dt;
+    cool = Math.max(-0.02, cool - dt); heat = Math.max(0, heat - dt * 1.6); dryT -= dt; meleeT = Math.max(0, meleeT - dt); meleeCool -= dt; W.inspT = Math.max(0, W.inspT - dt);
     if (P.alive && !MO.R.hideWeapon) {
       if (I.reloadP) W.startReload();
-      const can = !W.reloading && P.sprintK < 0.35;
+      if (I.meleeP && meleeCool <= 0 && !W.reloading) melee();
+      if (I.inspectP && !W.reloading && P.aimK < 0.2 && W.inspT <= 0) W.inspT = 2.6;
+      if (I.fire || I.aim || W.reloading || P.sprintK > 0.5 || meleeT > 0) W.inspT = 0;
+      if (MO.settings.autoReload && W.ammo === 0 && W.reserve > 0 && !W.reloading && cool <= 0.05) W.startReload();     // automatic reload when the magazine runs dry
+      const can = !W.reloading && P.sprintK < 0.35 && meleeT <= 0;
       if (I.fire && can) { if (W.ammo > 0) { let n = 0; while (cool <= 0 && W.ammo > 0 && n++ < 3) fire(); } else if (dryT <= 0) { dryT = 0.35; A && A.play('dry', { vol: 0.7 }); if (W.reserve > 0) W.startReload(); } }
       trig = MO.damp(trig, I.fire && can ? 1 : 0, 30, dt);
     }
@@ -117,6 +135,9 @@
     root.rotation.set(MO.lerp(HIP.r[0], 0, aim) + kp * 0.022 * (1 - 0.5 * aim) + sy * -0.004 - run * 0.38 + tiltP + br2,
       MO.lerp(HIP.r[1], 0, aim) + tiltY + ky * 0.012 + sx * 0.006 + run * 0.62,
       MO.lerp(HIP.r[2], 0, aim) + kr * 0.012 + sx * 0.01 * (1 - aim) + tiltR + run * 0.12 - I.mx * 0.02 * (1 - aim), 'YXZ');
+    if (meleeT > 0) { const k = Math.sin(Math.PI * MO.sat(1 - meleeT / 0.42)); root.position.z -= 0.16 * k; root.position.y += 0.03 * k; root.rotation.x -= 0.22 * k; root.rotation.z += 0.35 * k; }
+    if (W.inspT > 0) { const t = 2.6 - W.inspT, k = MO.smoother(t / 0.45) * MO.smoother(W.inspT / 0.45), sw = Math.sin(t * 2.4);
+      root.position.x -= 0.07 * k; root.position.y += 0.035 * k; root.position.z += 0.06 * k; root.rotation.y += (0.85 + 0.25 * sw) * k; root.rotation.z -= (0.45 + 0.35 * sw) * k; root.rotation.x += 0.12 * k; }
     root.visible = !MO.R.hideWeapon;
     flashT -= dt; flash.visible = flashT > 0; flashMat.uniforms.uA.value = MO.sat(flashT / 0.05);
     const u = MO.R.mFinal.uniforms; u.uFlash.value = MO.damp(u.uFlash.value, 0, 40, dt);

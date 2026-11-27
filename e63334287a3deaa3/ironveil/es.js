@@ -27,6 +27,14 @@
     // ---- settings
     'Graphics': 'Gráficos', 'Auto': 'Automático', 'Low': 'Bajos', 'Medium': 'Medios', 'High': 'Altos', 'Look speed': 'Velocidad de la mira', 'Field of view': 'Campo de visión', 'Volume': 'Volumen',
     'Invert look up and down': 'Invertir mirar arriba y abajo', 'Blood effects': 'Efectos de sangre', 'Language': 'Idioma', 'A change to Graphics takes effect when the page is opened again.': 'El cambio de Gráficos se aplica al volver a abrir la página.',
+    // ---- keys and new actions
+    'Mouse / trackpad': 'Ratón / panel táctil', 'Left Shift (hold)': 'Mayús izq. (mantén)', 'Left Shift': 'Mayús izq.', 'Left Control (hold)': 'Control izq. (mantén)', 'Left Control': 'Control izq.',
+    'Right click (hold)': 'Clic derecho (mantén)', 'Shift (hold)': 'Mayús (mantén)', 'Shift': 'Mayús', 'Tab / Caps Lock': 'Tab / Bloq Mayús', 'Space': 'Espacio', 'Esc': 'Esc',
+    'Aim down the sights (right click too)': 'Apuntar con la mira (también clic derecho)', 'Crouch (toggle); while sprinting: slide': 'Agacharse (alterna); corriendo: deslizarse', 'Prone (toggle)': 'Cuerpo a tierra (alterna)', 'Prone': 'Cuerpo a tierra',
+    'Reload (automatic when empty)': 'Recargar (automático al vaciarse)', 'Hold to plant a charge': 'Mantén para poner una carga', 'Melee: silent, kills from behind': 'Cuerpo a cuerpo: silencioso, mata por la espalda', 'Melee': 'Cuerpo a cuerpo',
+    'Throw a grenade': 'Lanzar una granada', 'Inspect weapon': 'Revisar el arma', 'Map': 'Mapa', 'Plant charge': 'Poner carga', 'Grenade': 'Granada', 'Ping a spot': 'Marcar un punto', 'Status': 'Estado',
+    'Keys': 'Teclas', 'Mac: Shift aims, Control sprints': 'Mac: Mayús apunta, Control corre', 'Classic: Shift sprints, right click aims': 'Clásico: Mayús corre, clic derecho apunta', 'Automatic reload': 'Recarga automática',
+    'Grenades': 'Granadas', 'Ammunition': 'Munición', 'No grenades left': 'No quedan granadas', '+20 rounds, +1 grenade': '+20 balas, +1 granada', 'Silent takedown': 'Eliminación silenciosa', 'M to close': 'M para cerrar', 'Nade': 'Grana',
     // ---- campaign
     'Full screen': 'Pantalla completa', 'Exit full screen': 'Salir de pantalla completa', 'For full screen on iPhone: tap the aA button in the address bar, then Hide Toolbar. Turn the phone sideways for the widest view.': 'Para pantalla completa en iPhone: toca el botón aA de la barra de direcciones y luego Ocultar barra de herramientas. Gira el teléfono para ver más.',
     'Missions': 'Misiones', 'Ready': 'Lista', 'Play': 'Jugar', 'Locked': 'Bloqueada', 'Coming soon': 'Muy pronto', 'Done': 'Hecha', 'Next mission': 'Siguiente misión', 'Next: {t}': 'Siguiente: {t}', 'Building the map': 'Construyendo el mapa',

@@ -16,7 +16,7 @@
       await later(() => { MO.R.init(canvas); MO.emit('boot'); MO.sky.init(); bootStep(0.15, 'Raising the storm'); });
       const def = MO.missions.pick(); MO.save.last = def.id; MO.store(); titleText(def);
       await later(() => { MO.level.build(def); bootStep(0.7, 'Building the map'); });
-      await later(() => { MO.fx.init(); MO.fx.setDry(MO.props.dry); MO.weapon.init(); MO.hud.init(); MO.input.init(canvas); bootStep(0.95, 'Checking the weapon'); });
+      await later(() => { MO.fx.init(); MO.fx.setDry(MO.props.dry); MO.weapon.init(); MO.actions.init(); MO.hud.init(); MO.input.init(canvas); bootStep(0.95, 'Checking the weapon'); });
       await later(() => { MO.R.hideWeapon = true; MO.player.pos.set(-2, 0, 22); ui(); booted = true; bootStep(1); window.__ready = true;
         let ok = false; try { ok = localStorage.getItem('ironveil:terms') === '1'; } catch (e) {}
         M.state = 'title'; show(ok ? 'title' : 'note'); $('boot').classList.add('done'); requestAnimationFrame(frame); });
@@ -51,6 +51,22 @@
   }
   /* another mission: its world is built at start-up, so reload the page with it chosen */
   function go(id) { MO.save.last = id; MO.store(); const u = new URL(location.href); u.searchParams.set('m', id); location.href = u.toString(); }
+  /* the controls, written out for the chosen key layout: the Controls card in full, the title a short list */
+  function keyRows() {
+    const mac = MO.settings.keys === 'mac';
+    // [key, what it does, short title label or '' to leave it off the title]
+    return [['W A S D', 'Move', 'Move'], ['Mouse / trackpad', 'Look (arrow keys also work)', 'Look'], ['Left click', 'Fire', 'Fire'],
+      mac ? ['Left Shift (hold)', 'Aim down the sights (right click too)', 'Aim'] : ['Right click (hold)', 'Aim down the sights', 'Aim'],
+      mac ? ['Left Control (hold)', 'Sprint', 'Sprint'] : ['Shift (hold)', 'Sprint', 'Sprint'],
+      ['Space', 'Jump', 'Jump'], ['C', 'Crouch (toggle); while sprinting: slide', 'Crouch'], ['Z', 'Prone (toggle)', ''], ['R', 'Reload (automatic when empty)', 'Reload'],
+      ['E', 'Hold to plant a charge', 'Plant charge'], ['F', 'Melee: silent, kills from behind', 'Melee'], ['G', 'Throw a grenade', 'Grenade'], ['T', 'Inspect weapon', ''], ['M', 'Map', 'Map'],
+      ['V', 'Ping a spot', ''], ['Tab / Caps Lock', 'Status', ''], ['Esc', 'Pause', '']];
+  }
+  function keyLists() {
+    const ctl = $('ctl-list'), tk = $('t-keys'); ctl.textContent = ''; tk.textContent = '';
+    for (const r of keyRows()) { const b = document.createElement('b'), k = document.createElement('kbd'), sp = document.createElement('span'); k.textContent = MO.T(r[0]); b.appendChild(k); sp.textContent = MO.T(r[1]); ctl.appendChild(b); ctl.appendChild(sp);
+      if (r[2]) { const s = document.createElement('span'), kk = document.createElement('kbd'); kk.textContent = MO.T(r[0].replace(' (hold)', '')); s.appendChild(kk); s.appendChild(document.createTextNode(MO.T(r[2]))); tk.appendChild(s); } }
+  }
   function ui() {
     const S = MO.settings, on = (id, fn) => $(id).addEventListener('click', fn);
     on('b-accept', () => { try { localStorage.setItem('ironveil:terms', '1'); } catch (e) {} show('title'); });
@@ -70,7 +86,10 @@
     $('s-q').addEventListener('change', (e) => { S.quality = e.target.value; MO.store(); });
     $('s-sens').addEventListener('input', (e) => { S.sens = +e.target.value; }); $('s-fov').addEventListener('input', (e) => { S.fov = +e.target.value; });
     $('s-vol').addEventListener('input', (e) => { S.vol = +e.target.value; if (MO.audio.ready) MO.audio.setVolume(S.vol); });
-    $('s-inv').addEventListener('change', (e) => { S.invertY = e.target.checked; }); $('s-blood').addEventListener('change', (e) => { S.blood = e.target.checked; });
+    $('s-inv').addEventListener('change', (e) => { S.invertY = e.target.checked; });
+    $('s-keys').value = S.keys; $('s-auto').checked = S.autoReload !== false; keyLists();
+    $('s-keys').addEventListener('change', (e) => { S.keys = e.target.value; MO.store(); keyLists(); MO.input.reset(); });
+    $('s-auto').addEventListener('change', (e) => { S.autoReload = e.target.checked; MO.store(); }); $('s-blood').addEventListener('change', (e) => { S.blood = e.target.checked; });
     document.querySelectorAll('.btn').forEach((b) => b.addEventListener('pointerenter', () => { if (MO.audio.ready) MO.audio.play('ui_hover', { vol: 0.4 }); }));
     document.addEventListener('visibilitychange', () => { if (document.hidden && (M.state === 'play' || M.state === 'intro')) pause(true); });
     if (window.BackRoomLang && BackRoomLang.apply) BackRoomLang.apply(document.body);
@@ -87,7 +106,7 @@
       I.poll(dt); if (st === 'intro') { I.fire = false; }
       if (I.pauseP && (st === 'play' || st === 'intro')) { I.endFrame(); pause(true); return; }
       if (st === 'done') { I.mx = I.my = 0; I.fire = false; }
-      P.update(dt); MO.weapon.update(dt); MO.enemies.update(dt); M.update(dt); if (st === 'play' || st === 'intro') MO.hud.update(dt);
+      P.update(dt); MO.weapon.update(dt); MO.actions.update(dt); MO.enemies.update(dt); M.update(dt); if (st === 'play' || st === 'intro') MO.hud.update(dt);
       I.endFrame();
     } else {      // title: a slow drift past three views of the hamlet
       const TV = MO.missions.current.views; tvt += dt; if (tvt > 14) { tvt = 0; tvi = (tvi + 1) % TV.length; } const v = TV[tvi % TV.length], k = tvt / 14;
