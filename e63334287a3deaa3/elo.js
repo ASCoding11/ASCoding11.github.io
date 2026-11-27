@@ -28,7 +28,8 @@
  *
  * BackRoomElo.get() gives { r, g, wn, pk }; a 'backroom:elo' event on document carries { game, before, after, delta }.
  * After a rated match a small pill at the top of the page shows the new rating for a few seconds (BackRoomElo.quiet = true
- * turns that off for a game that shows it itself).
+ * turns that off for a game that shows it itself). Then flex.js is loaded to offer a share card when the match took the
+ * player to a new Elo tier or into the game's top 100 (BackRoomElo.noFlex = true turns that off).
  */
 (function () {
   'use strict';
@@ -115,6 +116,18 @@
     } catch (e) {}
   }
 
+  // ---------------- Rank-up share card ----------------
+  // After a rated match, flex.js (loaded only now) checks for a new tier or a top-100 place and offers a share card.
+  function flex(res) {
+    try {
+      if (api.noFlex) return;
+      var go = function () { try { window.BackRoomFlex && BackRoomFlex.check(res); } catch (e) {} };
+      if (window.BackRoomFlex) return go();
+      var s = document.createElement('script'); s.src = '/e63334287a3deaa3/flex.js'; s.onload = go;
+      (document.head || document.documentElement).appendChild(s);
+    } catch (e) {}
+  }
+
   // ---------------- Reporting a match ----------------
   var lastId = null; try { lastId = sessionStorage.getItem('elo:last:' + GAME); } catch (e) {}
   var busy = false;
@@ -151,6 +164,7 @@
         var res = { game: GAME, before: before, after: Math.round(rank.r), delta: Math.round(rank.r) - before, humans: humans.length, w: w };
         show(res.before, res.after, res.delta);
         try { document.dispatchEvent(new CustomEvent('backroom:elo', { detail: res })); } catch (e) {}
+        flex(res);
         busy = false; return res;
       }).catch(function () { busy = false; return null; });
     } catch (e) { busy = false; return Promise.resolve(null); }
