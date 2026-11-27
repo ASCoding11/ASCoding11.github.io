@@ -28,6 +28,7 @@
     'Graphics': 'Gráficos', 'Auto': 'Automático', 'Low': 'Bajos', 'Medium': 'Medios', 'High': 'Altos', 'Look speed': 'Velocidad de la mira', 'Field of view': 'Campo de visión', 'Volume': 'Volumen',
     'Invert look up and down': 'Invertir mirar arriba y abajo', 'Blood effects': 'Efectos de sangre', 'Language': 'Idioma', 'A change to Graphics takes effect when the page is opened again.': 'El cambio de Gráficos se aplica al volver a abrir la página.',
     // ---- campaign
+    'Full screen': 'Pantalla completa', 'Exit full screen': 'Salir de pantalla completa', 'For full screen on iPhone: tap the aA button in the address bar, then Hide Toolbar. Turn the phone sideways for the widest view.': 'Para pantalla completa en iPhone: toca el botón aA de la barra de direcciones y luego Ocultar barra de herramientas. Gira el teléfono para ver más.',
     'Missions': 'Misiones', 'Ready': 'Lista', 'Play': 'Jugar', 'Locked': 'Bloqueada', 'Coming soon': 'Muy pronto', 'Done': 'Hecha', 'Next mission': 'Siguiente misión', 'Next: {t}': 'Siguiente: {t}', 'Building the map': 'Construyendo el mapa',
     'Bridge at Dawn': 'El puente al amanecer', 'Take the river bridge, then hold it through three counter-attacks.': 'Toma el puente del río y aguanta tres contraataques.',
     'The Clocktower': 'La torre del reloj', 'Sniper overwatch over an occupied town while a courier crosses the square.': 'Cubre con el fusil de precisión a un mensajero que cruza la plaza de un pueblo ocupado.',
