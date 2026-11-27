@@ -607,9 +607,9 @@
       B.box('stone', -138, by, gz, 1, 3.2, 1, 0, { col: C('#d7cbb6'), collide: 'stone', kind: 'pier', cls: 'shell', uvs: 1.5 });
       B.box('stone', -138, by + 3.2, gz, 1.25, 0.18, 1.25, 0, { col: C('#ebe4d5'), cls: 'detail', ao: 0, uvs: 1.5 }); B.geo('stone', B.geos.sphere, -138, by + 3.7, gz, 0, 0.6, 0.6, 0.6, C('#ebe4d5'), { cls: 'detail' });
     });
-    // (the booth stands just south of the gateway, clear of the pool)
-    B.box('aged', -142, by, 8.6, 2.2, 2.6, 2.2, 0, { col: C('#efe6d6'), collide: 'plaster', cover: true, kind: 'booth', cls: 'shell', uvs: 3 });
-    B.geo('roof', K.hipGeo(2.8, 2.8, 0.8), -142, by + 2.6, 8.6, 0, 1, 1, 1, C('#ffffff'), { cls: 'shell' });
+    // (the booth stands inside the gateway on its south side, on level ground and clear of the pool)
+    B.box('aged', -142.8, by, 11.6, 2.2, 2.6, 2.2, 0, { col: C('#efe6d6'), collide: 'plaster', cover: true, kind: 'booth', cls: 'shell', uvs: 3 });
+    B.geo('roof', K.hipGeo(2.8, 2.8, 0.8), -142.8, by + 2.6, 11.6, 0, 1, 1, 1, C('#ffffff'), { cls: 'shell' });
     K.lamp(-136, 8.6, null); K.lamp(-136, 17.4, null);
     // gardens inside the walls: cypress avenue, umbrella pines, hedges (block sight), lemon trees
     for (i = 0; i < 6; i++) { K.tree('cypress', -192, 10 + i * 4.4); }

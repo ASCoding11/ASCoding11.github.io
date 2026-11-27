@@ -84,7 +84,7 @@ damage of other cars.
 ## Next
 1. Play mission 3 with real controls and tune from feel: chaser speed, the helicopter's accuracy, car toughness.
 2. Known rough: cars have no panel lines or interior detail beyond seats and a dash; faces MakeHuman-level; no
-   start/stop clips (only a brake move); vault/climb/corner swing not re-checked since the rotWorld fix; cliffs are a
+   start/stop clips (only a brake move); vault/climb not re-checked since the rotWorld fix (corner swing fixed and tested Nov 27: ~/rpwork/w/corner.js walks round the villa booth's four corners); cliffs are a
    2 m heightfield with a few spiky fins; terraces read as grass steps; detail pops at 72-250 m; Low triangles ~6%
    over 250k at the worst Amalfi view (calls fine); the cathedral steps read as a blank stone block from the cut
    under them; cove boats are crude; nothing tested on a real GPU or phone yet.

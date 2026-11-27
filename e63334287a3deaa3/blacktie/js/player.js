@@ -447,8 +447,11 @@
     // stick: along the wall relative to the camera
     var wish = wishDir(_v), along = wish.dot(tan), away = wish.dot(c.n);
     var I2 = RP.In;
+    // just swung round a corner: finish turning the camera, and don't read the held stick as "leave"
+    if (c.camTurn) { var ct = c.camTurn * Math.min(1, dt * 6); if (Math.abs(c.camTurn) < 0.01) ct = c.camTurn; RP.Cam.yaw += ct; c.camTurn -= ct; }
+    if (c.swingT > 0) c.swingT -= dt;
     // leave cover: Q, sprint away, or holding away from the wall
-    if (away > 0.6) c.out += dt; else c.out = 0;
+    if (away > 0.6 && !(c.swingT > 0)) c.out += dt; else c.out = 0;
     if (I2.pressed('cover') || c.out > 0.22 || (I2.down('sprint') && away > 0.3)) { exitCover(p); return; }
     if (Math.abs(along) > 0.2) c.side = along > 0 ? 1 : -1;
     // slide along the wall while there's wall behind the new spot
@@ -499,16 +502,20 @@
   function cornerSwing(p, c, tan) {
     // try the side face round the corner: new normal = the tangent direction
     var newN = tan.clone().multiplyScalar(c.side);
-    var probe = p.pos.clone().addScaledVector(tan, c.side * 0.7).addScaledVector(c.n, -0.6);
+    // a point just past the corner and half a metre along the side face, then a ray back toward that face
+    // (the old probe started ~1.5 m out with a 1.2 m ray, so it never reached the face and the swing never happened)
+    var from = p.pos.clone().addScaledVector(tan, c.side * 0.95).addScaledVector(c.n, -0.5);
     var dir = newN.clone().negate();
-    var l = W.near(probe.x, probe.z, 1.5, []);
+    var l = W.near(from.x, from.z, 1.5, []);
     for (var i = 0; i < l.length; i++) {
       var b = l[i]; if (b.nocol) continue;
-      var from = probe.clone().addScaledVector(newN, 0.8);
-      var h = rayBoxH(b, from.x, p.pos.y + 0.6, from.z, dir.x, dir.z, 1.2);
+      var h = rayBoxH(b, from.x, p.pos.y + 0.6, from.z, dir.x, dir.z, 1.6);
       if (h) {
         c.enterFrom = p.pos.clone(); c.target = from.clone().addScaledVector(dir, h.t - p.radius - 0.06); c.target.y = p.pos.y;
+        var oldFace = Math.atan2(-c.n.x, -c.n.z);
         c.n = new T.Vector3(h.nx, 0, h.nz); c.entering = true; c.dur = 0.35; c.edge = 0; c.edgeT = 0; c.box = b; p.st = 0;
+        // the camera turns with you round the corner, so the stick held the same way keeps you moving along the new face
+        c.camTurn = M.wrap(Math.atan2(-c.n.x, -c.n.z) - oldFace); c.swingT = 0.8;
         return true;
       }
     }
