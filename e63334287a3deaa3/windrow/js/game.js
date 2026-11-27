@@ -15,7 +15,6 @@
     { id: 'hands', name: 'Bigger handfuls', text: 'Each grab picks up more leaves', costs: [20, 60, 160, 420] },
     { id: 'rake', name: 'Rake', text: 'Drags a whole row of leaves toward you with every stroke', costs: [50] },
     { id: 'rakePush', name: 'Rake push', text: 'Turn the rake round to push leaves away as well as pull them', costs: [60], needs: 'rake' },
-    { id: 'hold', name: 'Steady hands', text: 'Hold to keep grabbing instead of one grab a click', costs: [120], needs: 'rake' },
     { id: 'rakeW', name: 'Wider rake', text: 'A broader head moves more leaves a stroke', costs: [120, 320, 800], needs: 'rake' },
     { id: 'blower', name: 'Leaf blower', text: 'Pushes leaves away in a cone of wind', costs: [350] },
     { id: 'power', name: 'Stronger motor', text: 'The blower pushes harder', costs: [300, 700, 1500], needs: 'blower' },
@@ -23,7 +22,7 @@
     { id: 'value', name: 'Rich compost', text: 'Every leaf pays 15% more', costs: [90, 220, 500, 1100, 2400] },
     { id: 'shoes', name: 'Light boots', text: 'Walk 10% faster', costs: [70, 190, 450] }
   ];
-  var SACK = [30, 55, 90, 140, 210, 320], GRAB_R = [0.2, 0.36, 0.52, 0.72, 0.95], GRAB_GAP = 0.18, HOLD_GAP = 0.32;   // radius of one grab (m) per level; shortest time between grabs; between held grabs
+  var SACK = [30, 55, 90, 140, 210, 320], GRAB_R = [0.2, 0.36, 0.52, 0.72, 0.95], GRAB_GAP = 0.18, BIN_R = 3.2;   // radius of one grab (m) per level; shortest time between grabs; how near a bin's middle you can empty the sack (it is 1.4 m across)
   var RAKE_W = [1.0, 1.4, 1.9, 2.5], BLOW_P = [20, 28, 38, 50], BLOW_R = [4.5, 5.8, 7.2, 9], BLOW_H = [0.3, 0.36, 0.42, 0.5];
   WR.sackCap = function (s) { return SACK[s.up.sack]; }; WR.rakeWidth = function (s) { return RAKE_W[s.up.rakeW]; };
   var TOOL_NAMES = ['Hands', 'Rake', 'Blower'];
@@ -36,17 +35,19 @@
   }
   var state = fresh();
   try { var raw = JSON.parse(localStorage.getItem(KEY) || 'null'); if (raw && raw.v === 1) { var f = fresh(); for (var k in f) if (raw[k] != null) state[k] = raw[k];
-    // nobody loses an ability: a save from before grabbing one handful at a time kept gathering by holding, and a rake bought before push was split off could push
-    if (raw.up && raw.up.hold == null && raw.earned > 0) state.up.hold = 1;
+    // nobody loses an ability: a rake bought before push was split off could push
     if (raw.up && raw.up.rakePush == null && raw.up.rake) state.up.rakePush = 1;
     for (k in f.up) if (state.up[k] == null) state.up[k] = 0; for (k in f.set) if (state.set[k] == null) state.set[k] = f.set[k]; } } catch (e) {}
   // a save from before the Front Yard existed has five gardens: it keeps them as they were and gets the yard, open, as a sixth
   ['unlocked', 'done', 'bagUnits', 'gone'].forEach(function (key) { if (!Array.isArray(state[key])) state[key] = fresh()[key]; while (state[key].length < A.length) state[key].push(key === 'unlocked' && state[key].length === WR.YARD ? 1 : 0); });
+  /* Steady hands (the upgrade id `hold`: keep grabbing while the button is held) was taken out, so every handful is its
+     own click or tap. Whoever had it gets its 120 acorns back, once; `up.hold` stays in the save, always 0. */
+  var holdBack = 0; if (state.up.hold) { holdBack = 120; state.acorns += holdBack; state.up.hold = 0; }
   if (state.unlocked[0] && !state.seen.grab) state.seen = { grab: 1, bin: 1, chute: 1, shop: 1, intro: 1 };
   if (state.earned > 0) state.seen.intro = 1;
   var touchDev = window.matchMedia && matchMedia('(pointer:coarse)').matches, touchUI = false;
   if (!state.set.q) state.set.q = touchDev ? 'low' : 'medium';
-  var dirty = false, saveT = 0;
+  var dirty = holdBack > 0, saveT = 0;
   function save() {
     if (!leaves) return;
     state.pos = { x: +p.x.toFixed(2), z: +p.z.toFixed(2), yaw: +p.yaw.toFixed(3) };
@@ -224,18 +225,19 @@
     if (tool !== 1) vm.poseRake(tmp, tmp2, camera.position, rx, rz, false);
     var raise = Math.min(1, toolT * 5);
     if (tool === 0) {
-      // one grab a click or tap: the leaves in a small circle where you are looking go into the sack. Bigger handfuls
-      // widens the circle; Steady hands (a later upgrade) keeps grabbing while the button is held.
-      var reach = GRAB_R[state.up.hands], maxD = 2.5, d = maxD;
+      // one grab a click or tap, never more for holding the button: the leaves in a small circle where you are looking
+      // go into the sack. Bigger handfuls widens the circle; kneeling (the knee pads) makes it hold twice as many.
+      var reach = GRAB_R[state.up.hands] * (kneeling ? 1.41 : 1), maxD = 2.5, d = maxD;
       if (fwd.y < -0.05) d = Math.min(maxD, Math.max(0.45, (p.y + p.eye) / -fwd.y * Math.hypot(fwd.x, fwd.z)));
       var tx = p.x + fx2 * d, tz = p.z + fz2 * d;
       vm.ring.visible = true; vm.ring.position.set(tx, 0.04, tz); vm.setRing(reach);
       var per = leaves.fill[curArea], room = Math.floor((cap - state.bagFill) / per + 1e-6);
       grabT -= dt;
-      var want = grabQ || (using && state.up.hold && grabT <= -(HOLD_GAP - GRAB_GAP));
-      if (want && grabT <= 0) {
+      if (grabQ && grabT <= 0) {
         grabQ = false; grabT = GRAB_GAP;
-        if (room <= 0) { Au.full(); $('hBag').classList.remove('shake'); void $('hBag').offsetWidth; $('hBag').classList.add('shake'); }
+        // a full sack at a bin: the click empties it, the same as the Use key
+        if (room <= 0 && prompt && prompt.type === 'bin' && prompt.ok) emptyBag(prompt.i);
+        else if (room <= 0) { Au.full(); $('hBag').classList.remove('shake'); void $('hBag').offsetWidth; $('hBag').classList.add('shake'); }
         else {
           // the circle always takes at least the one leaf nearest its middle, so the very first grab is never empty-handed
           var last = leaves.alive[curArea] <= 24, took = leaves.scoop(tx, tz, reach, Math.min(room, 400), p.x, p.z, last);
@@ -299,7 +301,7 @@
   var acDirty = true;
   function findPrompt() {
     var best = null, i, d;
-    if (state.bagFill > 0.01) for (i = 0; i < WR.BINS.length; i++) { var b = WR.BINS[i]; d = Math.hypot(b.x - p.x, b.z - p.z); if (d < 2.6 && (!best || d < best.d)) best = { type: 'bin', i: i, d: d, ok: true, text: T('Empty your sack') }; }
+    if (state.bagFill > 0.01) for (i = 0; i < WR.BINS.length; i++) { var b = WR.BINS[i]; d = Math.hypot(b.x - p.x, b.z - p.z); if (d < BIN_R && (!best || d < best.d)) best = { type: 'bin', i: i, d: d, ok: true, text: T('Empty your sack') }; }
     for (i = 0; i < WR.GATES.length; i++) { var g = WR.GATES[i], a = A[g.area]; if (isOpen(g.area)) continue; d = Math.hypot(g.x - p.x, g.z - p.z); if (d > (g.area === 0 ? 2.3 : 3.6) || (best && best.d < d)) continue;
       if (g.area === 0) { best = { type: 'gate', d: d, ok: false, text: T('Clear every leaf in the yard and this gate opens') }; continue; }
       var need = a.need && leaves.share(a.need[0]) < a.need[1];
@@ -336,7 +338,7 @@
     state.seen.shop = 1;
     if (id === 'rake') { tool = state.tool = 1; toolT = 0; say(T('Bought the rake: hold to drag leaves into a pile'), 14); } else if (id === 'blower') { tool = state.tool = 2; toolT = 0; say(T('Bought the blower: hold to push leaves away'), 12); }
     else if (id === 'rakePush') { state.rakeMode = 'push'; tool = state.tool = 1; toolT = 0; say(touchUI ? T('Rake push: tap Push or Pull to switch') : T('Rake push: press {k} to switch between pull and push', { k: KB.short('rakeMode') }), 12); }
-    else if (id === 'hold') { say(touchUI ? T('Steady hands: hold Grab to keep picking up') : T('Steady hands: hold the mouse button to keep picking up'), 10); } else toast(T(u.name) + ' ✓');
+    else toast(T(u.name) + ' ✓');
     hudStatic(); pulse(id === 'sack' || id === 'hands' ? 'hBag' : 'hTools');
     save(); renderJournal();
   }
@@ -390,7 +392,7 @@
     $('tFind').hidden = !isOpen(0);
     $('hArea').hidden = !shedOpen() && !capOpen; $('arName').hidden = false;
     $('pJournal').hidden = !shedOpen();
-    $('howKeys').textContent = T('{m} to walk, mouse to look, hold the left button to work, {j} to jump. {a} to switch tools, {e} at a bin or gate, {t} for the shed and map, {f} for the leaf finder.', { m: KB.label(['fwd', 'left', 'back', 'right'], ' ', '', 1), j: KB.short('jump'), a: '1 2 3', e: KB.short('use'), t: shedKey(), f: KB.short('find') });
+    $('howKeys').textContent = T('{m} to walk, mouse to look, click once for each handful, hold the left button to rake or blow, {j} to jump. {a} to switch tools, {e} at a bin or gate, {t} for the shed and map, {f} for the leaf finder.', { m: KB.label(['fwd', 'left', 'back', 'right'], ' ', '', 1), j: KB.short('jump'), a: '1 2 3', e: KB.short('use'), t: shedKey(), f: KB.short('find') });
   }
   KB.onChange(hudStatic);
   // the one line at the bottom: what to do right now, or nothing
@@ -419,12 +421,14 @@
     al.hidden = !show; if (show) al.textContent = left > 0 ? T(left === 1 ? '1 leaf left' : '{n} leaves left', { n: left }) : T('The last leaves are in your sack');
     prompt = findPrompt();
     var hp = $('hPrompt'), ta = $('tAct'), hint = $('hint'), cap2 = SACK[state.up.sack];
-    if (prompt && (state.seen.intro || !inGame)) { hp.hidden = false; hp.classList.toggle('act', !!prompt.ok); hp.innerHTML = (prompt.ok ? '<kbd>' + KB.short('use') + '</kbd>' : '') + prompt.text; ta.hidden = !prompt.ok; if (prompt.ok) ta.textContent = prompt.text; hint.hidden = true; }
-    var intro = $('intro'), showIntro = inGame && !state.seen.intro && !$('toasts').children.length;   // never on screen with a notification intro.hidden = !showIntro; if (showIntro) { $('introDo').textContent = touchUI ? T('Start here: tap Grab to pick up the leaves at your feet.') : T('Start here: click to pick up the leaves at your feet.'); }
+    // the opening card first; then what you can do right here (a bin or a gate: on touch its own button); else the hint
+    var intro = $('intro'), showIntro = inGame && !state.seen.intro && !$('toasts').children.length;   // never on screen with a notification
+    intro.hidden = !showIntro; if (showIntro) { $('introDo').textContent = touchUI ? T('Start here: tap Grab to pick up the leaves at your feet.') : T('Start here: click to pick up the leaves at your feet.'); }
     if (showIntro) { hp.hidden = true; ta.hidden = true; hint.hidden = true; }
+    else if (prompt && (state.seen.intro || !inGame)) { hp.hidden = false; hp.classList.toggle('act', !!prompt.ok); hp.innerHTML = (prompt.ok ? '<kbd>' + KB.short('use') + '</kbd>' : '') + prompt.text; ta.hidden = !prompt.ok; if (prompt.ok) ta.textContent = prompt.text; hint.hidden = true; }
     else { hp.hidden = true; ta.hidden = true; var tx = hintText(); hint.hidden = !tx; if (tx && hint.textContent !== tx) { hint.textContent = tx; pulse('hint'); } }
     var needBin = state.bagFill >= cap2 * (state.seen.bin ? 0.985 : 0.6), mk = vm.marker;
-    if (needBin) { var best = null, bd = 1e9; WR.BINS.forEach(function (b) { var d = Math.hypot(b.x - p.x, b.z - p.z) + (b.area === curArea ? 0 : 60); if (d < bd) { bd = d; best = b; } }); mk.visible = bd > 2.2; mk.position.x = best.x; mk.position.z = best.z; } else mk.visible = false;
+    if (needBin) { var best = null, bd = 1e9; WR.BINS.forEach(function (b) { var d = Math.hypot(b.x - p.x, b.z - p.z) + (b.area === curArea ? 0 : 60); if (d < bd) { bd = d; best = b; } }); mk.visible = bd > BIN_R; mk.position.x = best.x; mk.position.z = best.z; } else mk.visible = false;
     if (!state.seen.chute && state.unlocked[0] && (state.up.rake || state.up.blower)) WR.CHUTES.forEach(function (ch) { if (!state.seen.chute && Math.hypot(ch.x - p.x, ch.z - p.z) < 5) { state.seen.chute = 1; say(T('Leaves that reach a yellow grate are paid at once'), 9); } });
     checkDone();
   }
@@ -442,7 +446,8 @@
     showOv(); Au.click(); if (!ov.length) resume();
   }
   function pause() { if (!playing()) return; open('pause'); }
-  function resume() { ov.length = 0; inGame = true; showOv(); Au.init(); lock(); last = performance.now(); hudStatic(); acDirty = bagDirty = true; hudT = 0; }
+  function resume() { ov.length = 0; inGame = true; showOv(); Au.init(); lock(); last = performance.now(); hudStatic(); acDirty = bagDirty = true; hudT = 0;
+    if (holdBack) { toast(T('Steady hands is gone: every handful is one click or tap now.') + '<small>' + T('You get its {n} acorns back.', { n: holdBack }) + '</small>', true, 7); holdBack = 0; } }
   $('playBtn').addEventListener('click', function () { world.refreshSigns(openView()); resume(); });
   $('resumeBtn').addEventListener('click', function () { closeTop(); });
   $('pHow').addEventListener('click', function () { open('how'); });
@@ -468,7 +473,7 @@
   // journal: the map, the gardens and the shed
   var tab = 'shed';
   // the shed shows what is useful now: three things at first, more as tools and gardens arrive
-  function shedShows(u) { if (u.id === 'sack' || u.id === 'hands' || u.id === 'rake') return true; if (u.id === 'hold') return !!state.up.rake; if (u.id === 'blower') return isOpen(0); if (u.needs) return !!state.up[u.needs]; return !!state.up.rake; }
+  function shedShows(u) { if (u.id === 'sack' || u.id === 'hands' || u.id === 'rake') return true; if (u.id === 'blower') return isOpen(0); if (u.needs) return !!state.up[u.needs]; return !!state.up.rake; }
   Array.prototype.forEach.call(document.querySelectorAll('.tabs .btn'), function (b) { b.addEventListener('click', function () { tab = b.dataset.tab; renderJournal(); Au.click(); }); });
   function pips(lv, max) { var s = '<span class="pips">'; for (var i = 0; i < max; i++) s += '<i' + (i < lv ? ' class="on"' : '') + '></i>'; return s + '</span>'; }
   function renderJournal() {

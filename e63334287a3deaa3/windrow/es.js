@@ -92,13 +92,16 @@ if (window.BackRoomLang) BackRoomLang.add({
   'Click to pick up the leaves in the circle': 'Haz clic para recoger las hojas del círculo', 'Tap Grab to pick up the leaves in the circle': 'Toca Agarrar para recoger las hojas del círculo',
   'Bigger handfuls': 'Puñados más grandes', 'Each grab picks up more leaves': 'Cada vez que agarras recoges más hojas',
   'Rake push': 'Empujar con el rastrillo', 'Turn the rake round to push leaves away as well as pull them': 'Da vuelta el rastrillo para empujar las hojas además de tirar de ellas',
-  'Steady hands': 'Manos firmes', 'Hold to keep grabbing instead of one grab a click': 'Mantén pulsado para seguir agarrando en vez de un puñado por clic',
   'Buy rake push in the shed to push leaves away': 'Compra el empuje del rastrillo en el cobertizo para empujar las hojas',
   'Rake: push': 'Rastrillo: empujar', 'Rake: pull': 'Rastrillo: tirar', 'Rake pushes': 'El rastrillo empuja', 'Rake pulls': 'El rastrillo tira',
   'Rake push: tap Push or Pull to switch': 'Empuje del rastrillo: toca Empujar o Tirar para cambiar',
   'Rake push: press {k} to switch between pull and push': 'Empuje del rastrillo: pulsa {k} para cambiar entre tirar y empujar',
-  'Steady hands: hold Grab to keep picking up': 'Manos firmes: mantén Agarrar para seguir recogiendo',
-  'Steady hands: hold the mouse button to keep picking up': 'Manos firmes: mantén el botón del mouse para seguir recogiendo',
   'Rake: pull or push': 'Rastrillo: tirar o empujar', 'After you buy rake push': 'Cuando compres el empuje del rastrillo',
-  'Captain: every garden is open for testing': 'Capitán: todos los jardines están abiertos para probar'
+  'Captain: every garden is open for testing': 'Capitán: todos los jardines están abiertos para probar',
+  // one click or tap for each handful (Steady hands taken out)
+  'Hands: click or tap once for each handful of leaves in the ring, then empty the sack at a bin with a red flag.': 'Manos: haz clic o toca una vez por cada puñado de hojas del aro y luego vacía el saco en una compostera con bandera roja.',
+  'Left thumb walks, drag anywhere else to look. Tap Grab once for each handful; hold Rake or Blow to work them. Tap a tool at the bottom to switch.': 'El pulgar izquierdo camina, arrastra en cualquier otro lado para mirar. Toca Agarrar una vez por cada puñado; mantén Rastrillo o Soplar para usarlos. Toca una herramienta abajo para cambiar.',
+  '{m} to walk, mouse to look, click once for each handful, hold the left button to rake or blow, {j} to jump. {a} to switch tools, {e} at a bin or gate, {t} for the shed and map, {f} for the leaf finder.': '{m} para caminar, mouse para mirar, un clic por cada puñado, mantén el botón izquierdo para rastrillar o soplar y {j} para saltar. {a} para cambiar de herramienta, {e} en una compostera o un portón, {t} para el cobertizo y el mapa y {f} para el buscador de hojas.',
+  'Steady hands is gone: every handful is one click or tap now.': 'Ya no hay manos firmes: cada puñado es un clic o un toque.',
+  'You get its {n} acorns back.': 'Te devolvemos sus {n} bellotas.'
 });
