@@ -7,6 +7,15 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Type a game's name to open it": "Escribe el nombre de un juego para abrirlo",
+    "Every game now has an address you can type: ascoding11.com/ followed by its name, like ascoding11.com/slipstream or ascoding11.com/driftfall.": "Ahora cada juego tiene una dirección que puedes escribir: ascoding11.com/ seguido de su nombre, como ascoding11.com/slipstream o ascoding11.com/driftfall.",
+    "ascoding11.com/backroom opens the whole Back Room.": "ascoding11.com/backroom abre todo el Back Room.",
+    "Clicking around the site still keeps the address the same as before.": "Al hacer clic por el sitio, la dirección sigue igual que antes.",
+    "Back Room": "Back Room",
+    "Tidier top of the phone page": "La parte de arriba de la página para teléfonos, más ordenada",
+    "Phone": "Teléfono",
+    "On a phone held upright, the games count now sits right under the ASCoding Games title on one or two lines, instead of in a thin column with one word per line.": "Con el teléfono en vertical, el número de juegos ahora aparece justo debajo del título ASCoding Juegos en una o dos líneas, en vez de en una columna estrecha con una palabra por línea.",
+    "The theme, language and Main site buttons now go on their own line under the title, so nothing at the top overlaps any more, in English or Spanish.": "Los botones de tema, idioma y Sitio principal ahora van en su propia línea debajo del título, así que ya nada se encima en la parte de arriba, en inglés o en español.",
     "The site is called ASCoding everywhere": "El sitio se llama ASCoding en todas partes",
     "The name at the top and bottom of every page now reads ASCoding, on the main site, the Back Room and the phone page.": "El nombre arriba y abajo de cada página ahora dice ASCoding, en el sitio principal, el Back Room y la página para celular.",
     "The phone page keeps the name ASCoding games when you add it to your home screen.": "La página para celular conserva el nombre ASCoding games cuando la agregas a tu pantalla de inicio.",
