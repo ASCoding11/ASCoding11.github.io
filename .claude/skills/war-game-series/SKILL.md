@@ -5,6 +5,11 @@ description: Build or extend a game in Arjun's realistic war-game series (Midnig
 
 # War-game series
 
+> **Midnight Ops was rebuilt from scratch.** It no longer uses model files, the `IVEnv` environment kit, the Blender
+> tools in `ironveil/tools/` or the old `IV.*` modules described below: everything is generated in code on a
+> `window.MO` namespace (see its README entry for the files). Where this skill names an old Midnight Ops file or
+> pipeline, treat it as history; Ironwing still uses `ironveil/env/core.js`, `post.js` and `texgen.js`.
+
 Midnight Ops (`e63334287a3deaa3/ironveil/`) is the reference game for the series. Every new entry (a tank
 game, a dogfight game, a naval game, more Midnight Ops missions) should feel like part of the same family: the same
 render stack and look, the same quality tiers, the same way of separating gameplay from art, and the same rules on

@@ -5,9 +5,9 @@
 <script>
 /* PREVIEW GATE. While IV_PREVIEW is true the game is a private preview: it runs only in a browser that holds the
    preview flag (sessionStorage or localStorage 'ironveil:preview' = '1', set by the "Midnight Ops (preview)" button on
-   the admin page), and only Boot Camp can be played. Without the flag the page shows "Not available yet" and loads
-   none of the game's scripts or assets. Set it to false to open the game to everyone. This is page-only gating, like
-   the site's other hidden features: anyone who reads the source can set the flag. It is not security. */
+   the admin page). Without the flag the page shows "Not available yet" and loads none of the game's scripts. Set it
+   to false to open the game to everyone. This is page-only gating, like the site's other hidden features: anyone who
+   reads the source can set the flag. It is not security. */
 window.IV_PREVIEW = true;
 (function () {
   if (!window.IV_PREVIEW) return;
@@ -18,444 +18,281 @@ window.IV_PREVIEW = true;
 })();
 </script>
 <script src="/e63334287a3deaa3/lang.js"></script> <!-- English / Español (see README) -->
-<script>if (!window.IV_LOCKED) document.write('<script src="es.js"><\/script>');</script> <!-- this game's own Spanish words (not while the preview gate is closed) -->
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>if (!window.IV_LOCKED) document.write('<script src="es.js"><\/script>');</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Midnight Ops</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
 <script>if (!window.IV_LOCKED) document.write('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@600;800&family=Special+Elite&family=Barlow+Condensed:wght@400;500;600;700&display=swap">');</script>
 <style>
-/* Midnight Ops (folder ironveil/; the display name lives in IV.GAME_NAME in js/core.js). Layout: full-bleed WebGL scene; menus are paper and olive panels over the live world; the HUD keeps to the
-   corners (objective top left, compass top centre, weapon bottom right, stance bottom left) so the middle stays clear. */
+/* Midnight Ops. A full-bleed 3D view; the HUD keeps to the corners (objective top left, compass top centre, ammunition
+   bottom right, health bottom left and only while hurt) so the middle stays clear. Menus are stencilled type and
+   typewriter notes over the live scene. */
 :root{
-  --ink:#dcd4bf;          /* parchment text, kept dim: the darkest game on the site */
-  --ink-dim:rgba(220,212,191,.58);
-  --paper:#e6dac0;        /* briefing paper */
-  --paper-ink:#2a2619;
-  --olive:#4b5320;
-  --olive-d:#2c3115;
-  --khaki:#c3b091;
-  --brass:#d0a84c;        /* accent: selection, objectives */
-  --warn:#e8c547;         /* suspicious */
-  --danger:#cf4630;       /* combat, damage */
-  --night:#0d1013;
-  --panel:rgba(10,11,8,.82);
-  --line:rgba(236,227,204,.18);
-  --f-stencil:'Big Shoulders Stencil Display','Impact',sans-serif;
-  --f-type:'Special Elite','Courier New',monospace;
-  --f-ui:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  --ink:#e4dcc6; --dim:rgba(228,220,198,.62); --faint:rgba(228,220,198,.22); --line:rgba(228,220,198,.2);
+  --brass:#d9ad4e; --brass-hot:#f0c96a; --danger:#e0503a; --night:#090b0d; --plate:rgba(9,11,13,.62); --solid:rgba(9,11,13,.92);
+  --f-stencil:'Big Shoulders Stencil Display','Impact','Arial Narrow',sans-serif; --f-type:'Special Elite','Courier New',monospace; --f-ui:'Barlow Condensed','Arial Narrow',system-ui,sans-serif;
+  --gl:max(16px,env(safe-area-inset-left,0px)); --gr:max(16px,env(safe-area-inset-right,0px)); --gt:max(12px,env(safe-area-inset-top,0px)); --gb:max(12px,env(safe-area-inset-bottom,0px));
+  --shadow:0 0 2px rgba(0,0,0,.8),0 1px 6px rgba(0,0,0,.6);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden;background:var(--night);color:var(--ink)}
-body{font-family:var(--f-ui);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+body{font-family:var(--f-ui);-webkit-font-smoothing:antialiased;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 #app{position:fixed;inset:0;overflow:hidden;background:var(--night)}
-#view{display:block;position:absolute;inset:0;width:100%;height:100%;touch-action:none}
-#hudc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-button{font:inherit;color:inherit;cursor:pointer}
+#view{display:block;position:absolute;inset:0;width:100%;height:100%;touch-action:none;outline:none}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0;padding:0}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--brass);outline-offset:3px}
-.grain{pointer-events:none;position:absolute;inset:0;opacity:.07;mix-blend-mode:overlay;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-body.envpost .grain,body.envpost .vignette{display:none}
-.vignette{pointer-events:none;position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
 
-/* ---------------- HUD ---------------- */
-#hud{position:absolute;inset:0;pointer-events:none;font-variant-numeric:tabular-nums}
-#hud .pad{position:absolute;inset:calc(14px + env(safe-area-inset-top,0px)) calc(18px + env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) calc(18px + env(safe-area-inset-left,0px))}
-#obj{position:absolute;left:0;top:0;max-width:min(360px,42vw);display:flex;flex-direction:column;gap:6px}
-#obj .head{font-family:var(--f-stencil);font-weight:800;letter-spacing:.14em;font-size:13px;color:var(--brass);text-transform:uppercase}
-#obj .o{display:flex;gap:8px;align-items:flex-start;font-size:17px;line-height:1.15;text-shadow:0 1px 2px #000,0 0 8px rgba(0,0,0,.6)}
-#obj .o i{flex:0 0 12px;height:12px;margin-top:3px;border:1.5px solid var(--ink);transform:rotate(45deg) scale(.8)}
-#obj .o.done{opacity:.55;text-decoration:line-through}
-#obj .o.done i{background:var(--ink)}
-#obj .o.opt{color:var(--khaki)}
-#obj .o.opt i{border-style:dashed}
-#obj .o.new{animation:objin .9s ease-out}
-@keyframes objin{0%{transform:translateX(-12px);opacity:0;color:var(--brass)}60%{color:var(--brass)}100%{transform:none;opacity:1}}
-/* first person: the gun fills the lower right, so the weapon and ammo sit bottom left, beside the stance */
-#wpn{position:absolute;left:150px;bottom:0;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-shadow:0 1px 2px #000}
-#wpn .name{font-family:var(--f-stencil);font-weight:800;font-size:16px;letter-spacing:.16em;text-transform:uppercase;color:var(--khaki)}
-#wpn .ammo{font-size:40px;font-weight:700;line-height:.95}
-#wpn .ammo small{font-size:20px;color:var(--ink-dim);font-weight:500}
-#wpn .gear{display:flex;gap:12px;font-size:15px;color:var(--ink-dim);letter-spacing:.06em}
-#wpn .gear b{color:var(--ink);font-weight:600}
-#stance{position:absolute;left:0;bottom:0;display:flex;align-items:flex-end;gap:12px;text-shadow:0 1px 2px #000}
-#stance svg{width:34px;height:44px;opacity:.9}
-#stance .lbl{display:flex;flex-direction:column;font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim)}
-#stance .lbl b{color:var(--ink);font-size:16px;font-weight:600}
-#noise{display:flex;gap:3px;margin-top:4px}
-#noise i{width:7px;height:10px;background:rgba(236,227,204,.2)}
-#noise i.on{background:var(--ink)}
-#noise i.on.hi{background:var(--warn)}
-#squad{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-top:6px}
-#squad b{color:var(--khaki);font-weight:600}
-/* first person: the gun owns the lower right and the centre is for aiming, so subtitles sit lower left of centre */
-#sub{position:absolute;left:calc(50% - min(330px,30vw));bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);max-width:min(520px,40vw);text-align:left;
-  font-family:var(--f-type);font-size:calc(19px * var(--subscale,1));line-height:1.35;background:rgba(10,11,8,.62);padding:8px 16px;border-left:3px solid var(--brass);color:#f1ead6}
-#sub .who{color:var(--brass);margin-right:.5em}
-#prompt{position:absolute;left:42%;top:64%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;font-size:19px;letter-spacing:.04em;text-shadow:0 1px 3px #000}
-#prompt kbd{font:600 15px var(--f-ui);border:1.5px solid var(--ink);padding:2px 8px;border-radius:3px;background:rgba(0,0,0,.35);min-width:28px;text-align:center;text-transform:uppercase}
-#prompt .bar{width:120px;height:4px;background:rgba(236,227,204,.25)}
-#prompt .bar i{display:block;height:100%;width:0;background:var(--brass)}
-#toast{position:absolute;right:0;top:0;font-family:var(--f-stencil);font-weight:800;letter-spacing:.18em;font-size:15px;color:var(--khaki);text-transform:uppercase;text-shadow:0 1px 2px #000;opacity:0;transition:opacity .4s}
-#toast.on{opacity:1}
-#dmg{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(120,10,0,.55) 85%,rgba(90,0,0,.8) 100%)}
-#flash{position:absolute;inset:0;pointer-events:none;background:#fff8e6;opacity:0}
-#fade{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;transition:opacity .6s}
-#flecks{position:absolute;inset:0;pointer-events:none;opacity:0}
-.letterbox::before,.letterbox::after{content:"";position:absolute;left:0;right:0;height:9vh;background:#000;z-index:2}
-.letterbox::before{top:0}.letterbox::after{bottom:0}
+/* ---- boot ---- */
+#boot{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--night);transition:opacity .7s ease}
+#boot.done{opacity:0;pointer-events:none}
+.boot-mark{font-family:var(--f-stencil);font-weight:800;font-size:clamp(38px,9vw,92px);letter-spacing:.12em;margin-right:-.12em;line-height:1}
+.boot-sub{font-family:var(--f-type);font-size:13px;letter-spacing:.12em;color:var(--dim);text-align:center;padding:0 20px}
+.boot-bar{width:min(320px,60vw);height:2px;background:var(--faint)}.boot-bar i{display:block;height:100%;width:0;background:var(--brass);transition:width .25s ease}
 
-/* ---------------- Screens ---------------- */
-.screen{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow:auto}
-.dim{background:linear-gradient(90deg,rgba(8,9,6,.92) 0%,rgba(8,9,6,.72) 46%,rgba(8,9,6,.25) 100%)}
-.dimc{background:rgba(8,9,6,.72)}
-.logo{font-family:var(--f-stencil);font-weight:800;font-size:clamp(56px,11vw,128px);line-height:.85;letter-spacing:.06em;color:var(--khaki);
-  text-shadow:0 2px 0 #3a3420,0 6px 24px rgba(0,0,0,.6);margin:0}
-.tag{font-family:var(--f-type);font-size:clamp(15px,2vw,19px);color:var(--ink-dim);margin:10px 0 0;letter-spacing:.04em}
-#title{justify-content:flex-start}
-#title .col{width:min(440px,100%);margin-left:clamp(0px,6vw,90px);display:flex;flex-direction:column;gap:22px}
-.menu{display:flex;flex-direction:column;gap:4px;margin-top:8px}
-.mi{display:flex;align-items:baseline;gap:12px;background:none;border:0;border-left:3px solid transparent;text-align:left;padding:9px 14px;font-size:24px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);transition:background .12s,border-color .12s,padding .12s}
-.mi small{font-size:15px;font-weight:400;letter-spacing:.02em;text-transform:none;color:var(--ink-dim)}
-.mi:hover,.mi:focus-visible,.mi.sel{background:linear-gradient(90deg,rgba(208,168,76,.18),transparent);border-left-color:var(--brass);padding-left:20px;outline:none}
-.mi:disabled{opacity:.42;cursor:default}
-.foot{font-size:13px;color:var(--ink-dim);letter-spacing:.04em;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-.foot a{color:var(--ink-dim)}
-.panel{background:var(--panel);border:1px solid var(--line);padding:22px 24px;width:min(760px,100%);max-height:100%;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.panel h2{font-family:var(--f-stencil);font-weight:800;font-size:30px;letter-spacing:.12em;margin:0 0 4px;color:var(--khaki);text-transform:uppercase}
-.panel .sub{color:var(--ink-dim);margin:0 0 16px;font-size:16px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.btn{background:transparent;border:1.5px solid var(--ink-dim);color:var(--ink);padding:9px 18px;font-size:18px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
-.btn:hover{border-color:var(--ink);background:rgba(236,227,204,.06)}
-.btn.cta{background:var(--brass);border-color:var(--brass);color:#1b1810}
-.btn.cta:hover{background:#e0b95a}
-.btn.ghost{border-color:transparent;color:var(--ink-dim)}
-/* campaign */
-.missions{display:flex;flex-direction:column;gap:6px;margin:6px 0 16px}
-.ms{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;text-align:left;background:rgba(236,227,204,.03);border:1px solid var(--line);padding:10px 14px;color:var(--ink)}
-.ms:not(:disabled):hover,.ms.sel{border-color:var(--brass);background:rgba(208,168,76,.09)}
-.ms .n{font-family:var(--f-stencil);font-size:26px;font-weight:800;color:var(--khaki);text-align:center}
-.ms .t{font-size:20px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-.ms .d{display:block;font-size:15px;color:var(--ink-dim);font-weight:400;letter-spacing:0;text-transform:none;margin-top:2px}
-.ms .st{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-dim);text-align:right}
-.ms:disabled{cursor:default}
-.ms:disabled .t,.ms:disabled .n{opacity:.5}
-.medal{display:inline-block;width:16px;height:16px;border-radius:50%;vertical-align:-3px;margin-left:6px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.25)}
-.medal.gold{background:#d9b44a}.medal.silver{background:#b9bec4}.medal.bronze{background:#b0763f}
-.diff{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 16px}
-.diff button{background:rgba(236,227,204,.03);border:1px solid var(--line);padding:10px;text-align:left}
-.diff button b{display:block;font-size:19px;letter-spacing:.08em;text-transform:uppercase}
-.diff button span{font-size:14px;color:var(--ink-dim)}
-.diff button[aria-pressed=true]{border-color:var(--brass);background:rgba(208,168,76,.14)}
-/* briefing: paper dossier */
-#briefing .dossier{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:0;width:min(1060px,100%);background:var(--paper);color:var(--paper-ink);box-shadow:0 30px 80px rgba(0,0,0,.6);transform:rotate(-.4deg);max-height:100%;overflow:auto}
-#briefing .map{position:relative;background:#ddd0b2;border-right:1px dashed rgba(42,38,25,.35);min-height:300px}
-#briefing canvas{display:block;width:100%;height:100%;aspect-ratio:1}
-#briefing .txt{padding:22px 26px;font-family:var(--f-type);font-size:16px;line-height:1.45;display:flex;flex-direction:column;gap:10px}
-#briefing .stamp{font-family:var(--f-stencil);font-weight:800;color:#8a2a1c;border:3px solid #8a2a1c;display:inline-block;padding:2px 10px;letter-spacing:.2em;transform:rotate(-4deg);align-self:flex-start;opacity:.85;font-size:18px}
-#briefing h3{font-family:var(--f-stencil);font-weight:800;font-size:34px;letter-spacing:.1em;margin:0;text-transform:uppercase}
-#briefing ul{margin:0;padding-left:20px}
-#briefing li.opt{color:#5a5238}
-#briefing .btn{color:var(--paper-ink);border-color:var(--paper-ink)}
-#briefing .btn.cta{background:var(--olive);border-color:var(--olive);color:var(--paper)}
-/* settings */
-.set{display:grid;grid-template-columns:1fr minmax(160px,240px);gap:10px 18px;align-items:center;margin:8px 0 18px}
-.set label{font-size:17px}
-.set label small{display:block;color:var(--ink-dim);font-size:13px}
-.set input[type=range]{width:100%;accent-color:var(--brass)}
-.set select{background:#1d1f17;color:var(--ink);border:1px solid var(--line);padding:6px;font:inherit;font-size:16px}
-.set input[type=checkbox]{width:22px;height:22px;accent-color:var(--brass);justify-self:start}
-.tabs{display:flex;gap:4px;margin-bottom:6px}
-.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;font-size:17px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-dim)}
-.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--brass)}
-/* results */
-#results .panel{width:min(620px,100%)}
-.res{display:grid;grid-template-columns:1fr auto;gap:6px 18px;font-size:18px;margin:10px 0 16px}
-.res span:nth-child(even){text-align:right;font-weight:600}
-.big-medal{display:flex;align-items:center;gap:16px;margin:4px 0 8px}
-.big-medal .m{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-stencil);font-weight:800;font-size:26px;color:#1b1810;box-shadow:inset 0 -4px 0 rgba(0,0,0,.25),0 4px 18px rgba(0,0,0,.4)}
-.crit{list-style:none;padding:0;margin:0 0 14px;display:flex;flex-direction:column;gap:4px;font-size:16px}
-.crit li::before{content:"○ ";color:var(--ink-dim)}
-.crit li.ok::before{content:"● ";color:var(--brass)}
-/* loading */
-#loading{flex-direction:column;gap:16px;background:var(--night)}
-#loading .bar{width:min(360px,70vw);height:3px;background:rgba(236,227,204,.15)}
-#loading .bar i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
-#loading p{font-family:var(--f-type);color:var(--ink-dim);margin:0;font-size:15px}
-#portrait{z-index:30;background:var(--night);flex-direction:column;gap:14px;text-align:center}
-#portrait svg{width:90px;height:90px;animation:rot 2.4s ease-in-out infinite}
-@keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
-#portrait p{max-width:300px;font-size:18px;margin:0}
-#err{position:absolute;left:12px;bottom:12px;max-width:80vw;background:#3a120c;color:#ffd9cf;padding:8px 12px;font-size:14px;z-index:40}
+/* ---- HUD ---- */
+#hud{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .4s ease;text-shadow:var(--shadow)}
+#hud.on{opacity:1}
+.h-obj{position:absolute;left:var(--gl);top:var(--gt);max-width:min(340px,46vw);border-left:2px solid var(--brass);padding:2px 0 3px 10px}
+.h-obj small{display:block;font-family:var(--f-type);font-size:10px;letter-spacing:.2em;color:var(--dim)}
+.h-obj b{display:block;font-family:var(--f-stencil);font-weight:800;font-size:clamp(17px,2.3vw,23px);letter-spacing:.05em;line-height:1.05;text-transform:uppercase}
+.h-obj span{display:flex;align-items:center;gap:6px;font-family:var(--f-type);font-size:11px;letter-spacing:.14em;color:var(--dim);margin-top:4px}
+.h-obj i{display:inline-block;width:9px;height:9px;border:1px solid var(--ink);opacity:.8}.h-obj i.on{background:var(--brass);border-color:var(--brass)}
+.h-clock{position:absolute;left:var(--gl);top:calc(var(--gt) + 92px);font-family:var(--f-stencil);font-weight:800;font-size:20px;letter-spacing:.08em;color:var(--danger);opacity:0;transition:opacity .3s}.h-clock.on{opacity:1}
+.h-obj.flash b{animation:objf .9s ease}
+@keyframes objf{0%{color:var(--brass-hot);transform:translateX(6px)}100%{color:var(--ink);transform:none}}
+#compass{position:absolute;left:50%;top:var(--gt);transform:translateX(-50%);width:min(420px,44vw);height:58px}
+.h-alert{position:absolute;left:50%;top:calc(var(--gt) + 62px);transform:translateX(-50%);font-family:var(--f-type);font-size:11px;letter-spacing:.24em;color:var(--brass);opacity:0;transition:opacity .25s}
+.h-alert.on{opacity:1}.h-alert.hot{color:var(--danger)}
+.h-alert u{display:inline-block;vertical-align:middle;width:70px;height:3px;margin-left:8px;background:var(--faint);text-decoration:none}.h-alert u s{display:block;height:100%;background:currentColor;width:0}
+.h-wave{position:absolute;left:50%;top:22%;transform:translateX(-50%);font-family:var(--f-stencil);font-weight:800;font-size:clamp(20px,3.4vw,34px);letter-spacing:.2em;color:var(--danger);opacity:0;white-space:nowrap}
+.h-wave.on{animation:wave 3.4s ease forwards}
+@keyframes wave{0%{opacity:0;letter-spacing:.5em}12%{opacity:1;letter-spacing:.2em}80%{opacity:1}100%{opacity:0}}
+#cross{position:absolute;left:50%;top:50%;width:0;height:0;transition:opacity .12s}
+#cross i{position:absolute;background:var(--ink);box-shadow:0 0 2px rgba(0,0,0,.9)}
+#cross .u,#cross .d{width:2px;height:9px;left:-1px}#cross .l,#cross .r{width:9px;height:2px;top:-1px}
+#cross .c{width:2px;height:2px;left:-1px;top:-1px;opacity:.7}
+#hitm{position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;opacity:0}
+#hitm::before,#hitm::after{content:'';position:absolute;left:12px;top:0;width:2px;height:26px;background:linear-gradient(var(--ink) 0 32%,transparent 32% 68%,var(--ink) 68%)}
+#hitm::before{transform:rotate(45deg)}#hitm::after{transform:rotate(-45deg)}
+#hitm.on{animation:hm .22s ease-out}#hitm.kill::before,#hitm.kill::after{background:linear-gradient(var(--danger) 0 32%,transparent 32% 68%,var(--danger) 68%)}
+@keyframes hm{0%{opacity:1;transform:scale(.7)}100%{opacity:0;transform:scale(1.25)}}
+.h-dmg{position:absolute;left:50%;top:50%;width:0;height:0}
+.h-dmg i{position:absolute;left:-70px;top:-150px;width:140px;height:26px;border-radius:50%/100% 100% 0 0;border-top:5px solid var(--danger);opacity:0;transform-origin:70px 150px;filter:blur(1px)}
+.h-dmg i.on{animation:dmg 1.1s ease-out}
+@keyframes dmg{0%{opacity:.95}100%{opacity:0}}
+.h-prompt{position:absolute;left:50%;top:62%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;opacity:0;transition:opacity .15s}
+.h-prompt.on{opacity:1}
+.h-prompt span{font-family:var(--f-ui);font-weight:600;font-size:16px;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap}
+.h-prompt kbd{font-family:var(--f-type);font-size:13px;border:1px solid var(--ink);padding:1px 7px 0;margin-right:8px;background:var(--plate)}
+.h-prompt u{display:block;width:160px;height:3px;background:var(--faint)}.h-prompt u s{display:block;height:100%;width:0;background:var(--brass)}
+.h-msg{position:absolute;left:50%;top:70%;transform:translateX(-50%);font-family:var(--f-ui);font-weight:600;font-size:15px;letter-spacing:.16em;text-transform:uppercase;opacity:0;white-space:nowrap}
+.h-msg.on{animation:msg 2.6s ease forwards}
+@keyframes msg{0%{opacity:0;transform:translate(-50%,6px)}10%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0}}
+.h-fuse{position:absolute;left:50%;top:14%;transform:translateX(-50%);font-family:var(--f-stencil);font-weight:800;font-size:28px;letter-spacing:.1em;color:var(--brass-hot);opacity:0}
+.h-fuse.on{opacity:1}
+.h-hp{position:absolute;left:var(--gl);bottom:var(--gb);width:min(190px,34vw);opacity:0;transition:opacity .4s}
+.h-hp.on{opacity:1}.h-hp small{font-family:var(--f-type);font-size:10px;letter-spacing:.2em;color:var(--dim)}
+.h-hp u{display:block;height:5px;background:var(--faint);margin-top:4px}.h-hp u s{display:block;height:100%;background:var(--ink);transition:width .15s}.h-hp.low u s{background:var(--danger)}
+.h-ammo{position:absolute;right:var(--gr);bottom:var(--gb);text-align:right}
+.h-ammo b{font-family:var(--f-stencil);font-weight:800;font-size:clamp(40px,6vw,62px);line-height:.9;letter-spacing:.02em}
+.h-ammo b.low{color:var(--danger)}
+.h-ammo em{font-style:normal;font-family:var(--f-type);font-size:15px;color:var(--dim);margin-left:6px}
+.h-ammo .pips{display:flex;justify-content:flex-end;gap:2px;margin-top:5px}.h-ammo .pips i{width:3px;height:9px;background:var(--ink)}.h-ammo .pips i.off{background:var(--faint)}
+.h-ammo small{display:block;font-family:var(--f-type);font-size:10px;letter-spacing:.2em;color:var(--dim);margin-top:5px}
+.h-mark{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--f-type);font-size:10px;letter-spacing:.1em;color:var(--brass);will-change:transform}
+.h-mark i{width:11px;height:11px;border:1.5px solid var(--brass);transform:rotate(45deg);margin:3px}.h-mark.exit i{background:var(--brass)}.h-mark.opt{color:var(--dim)}.h-mark.opt i{border-style:dashed;border-color:var(--dim)}.h-mark b{font-family:var(--f-stencil);font-size:13px}
+#radio{position:absolute;left:50%;bottom:calc(var(--gb) + 74px);transform:translateX(-50%);width:min(640px,76vw);text-align:center;opacity:0;transition:opacity .3s;text-shadow:var(--shadow);pointer-events:none}
+#radio.on{opacity:1}#radio b{font-family:var(--f-ui);font-weight:700;font-size:13px;letter-spacing:.2em;color:var(--brass);text-transform:uppercase;margin-right:8px}
+#radio span{font-family:var(--f-type);font-size:clamp(14px,1.7vw,17px);line-height:1.35}
 
-/* ---------------- Touch ---------------- */
-#touch{position:absolute;inset:0;pointer-events:none;display:none}
-body.touch #touch{display:block}
-#tLook{position:absolute;right:0;top:0;bottom:0;width:58%;pointer-events:auto;touch-action:none}
-#tStick{position:absolute;left:calc(26px + env(safe-area-inset-left,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;border:2px solid rgba(236,227,204,.28);background:rgba(10,11,8,.18);pointer-events:auto;touch-action:none}
-#tStick i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(236,227,204,.35);border:2px solid rgba(236,227,204,.6)}
-.tb{position:absolute;width:58px;height:58px;border-radius:50%;border:2px solid rgba(236,227,204,.45);background:rgba(10,11,8,.35);color:var(--ink);font:600 12px var(--f-ui);letter-spacing:.06em;text-transform:uppercase;pointer-events:auto;touch-action:none;display:grid;place-items:center;padding:0}
-/* the right-hand cluster sits over the gun and hands in first person: see-through until pressed */
-#touch .tb[data-t]:not([data-t=pause]):not([data-t=order]):not([data-t=swap]){opacity:.62}
-#touch .tb.on{opacity:1!important}
-.tb.on{background:rgba(208,168,76,.45);border-color:var(--brass)}
-.tb.big{width:76px;height:76px;font-size:13px}
-.tb.sm{width:46px;height:46px;font-size:11px}
-#tTop{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto}
-#tTop .tb{position:static;border-radius:6px;width:auto;height:40px;padding:0 12px}
-body.touch #wpn{bottom:auto;top:0;left:auto;right:0;text-align:right;align-items:flex-end}
-body.touch #wpn .ammo{font-size:30px}
-body.touch #wGear{display:none}
-body.touch #tTop{top:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px))}
-body.touch #stance{left:auto;right:0;bottom:auto;top:132px;display:none}
-body.touch #sub{bottom:auto;top:calc(60px + env(safe-area-inset-top,0px));font-size:15px;max-width:52vw;left:50%;text-align:center}
-body.touch #prompt{top:31%;bottom:auto;left:max(110px,14%)}
-body.touch #obj{max-width:34vw}
-body.touch #obj .o{font-size:14px}
-/* phones held upright (after "Play upright anyway"): the same controls re-laid so nothing overlaps at 390 x 844 */
-@media (orientation:portrait){
-  body.touch #tStick{width:120px;height:120px;left:calc(18px + env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px))}
-  body.touch #touch [data-t="fire"]{right:18px!important;bottom:120px!important}
-  body.touch #touch [data-t="aim"]{right:104px!important;bottom:150px!important}
-  body.touch #touch [data-t="crouch"]{right:18px!important;bottom:24px!important}
-  body.touch #touch [data-t="prone"]{right:86px!important;bottom:24px!important}
-  body.touch #touch [data-t="reload"]{right:154px!important;bottom:24px!important}
-  body.touch #touch [data-t="use"]{right:104px!important;bottom:86px!important}
-  body.touch #touch [data-t="sprint"]{left:18px!important;bottom:160px!important}
-  body.touch #touch [data-t="vault"]{left:72px!important;bottom:160px!important}
-  body.touch #touch [data-t="leanLeft"]{left:18px!important;bottom:214px!important}
-  body.touch #touch [data-t="leanRight"]{left:72px!important;bottom:214px!important}
-  body.touch #touch [data-t="binoc"]{right:18px!important;bottom:206px!important}
-  body.touch #touch [data-t="grenade"]{right:72px!important;bottom:222px!important}
-  body.touch #touch [data-t="rock"]{right:126px!important;bottom:222px!important}
-  body.touch #touch [data-t="breath"]{right:180px!important;bottom:150px!important}
-  body.touch #tTop{top:calc(114px + env(safe-area-inset-top,0px));bottom:auto;left:auto;right:12px;transform:none}
-  body.touch #sub{top:calc(162px + env(safe-area-inset-top,0px));bottom:auto;width:max-content;max-width:84vw;left:50%;text-align:center}
-  body.touch #prompt{bottom:auto;top:34%}
-  body.touch #obj{max-width:56vw;top:40px}
-  body.touch #wpn{top:40px}   /* below the compass, which is half the width of an upright screen */
+/* ---- touch controls (touch screens only) ---- */
+#touch{position:absolute;inset:0;display:none;touch-action:none}
+body.touch #touch.on{display:block}
+#t-stick{position:absolute;width:128px;height:128px;margin:-64px 0 0 -64px;border:1.5px solid var(--faint);border-radius:50%;opacity:0;pointer-events:none;left:110px;top:70%}
+#t-stick.on{opacity:1}#t-nub{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;background:rgba(228,220,198,.28);transform:translate(-50%,-50%)}
+.tb{position:absolute;width:58px;height:58px;border-radius:50%;border:1.5px solid rgba(228,220,198,.4);background:rgba(9,11,13,.38);font-family:var(--f-ui);font-weight:600;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink);touch-action:none}
+.tb.on{background:rgba(217,173,78,.4)}.tb.held{border-color:var(--brass);color:var(--brass)}
+#t-fire{width:84px;height:84px;right:calc(var(--gr) + 14px);bottom:calc(var(--gb) + 86px);font-size:14px}
+#t-aim{right:calc(var(--gr) + 110px);bottom:calc(var(--gb) + 70px)}
+#t-jump{right:calc(var(--gr) + 14px);bottom:calc(var(--gb) + 182px)}
+#t-reload{right:calc(var(--gr) + 96px);bottom:calc(var(--gb) + 146px)}
+#t-crouch{right:calc(var(--gr) + 178px);bottom:calc(var(--gb) + 22px)}
+#t-use{left:50%;margin-left:-44px;width:88px;top:calc(62% + 44px);border-radius:8px;height:44px;display:none;border-color:var(--brass);color:var(--brass)}
+#t-use.show{display:block}
+#t-pause{right:var(--gr);top:var(--gt);width:42px;height:42px;border-radius:6px;font-size:16px}
+body.touch .h-ammo{bottom:auto;top:calc(var(--gt) + 50px)}body.touch .h-ammo b{font-size:34px}body.touch .h-ammo .pips{display:none}
+body.touch .h-hp{bottom:auto;top:calc(var(--gt) + 64px)}body.touch #radio{bottom:auto;top:calc(var(--gt) + 110px)}
+body.touch .h-prompt kbd{display:none}
+
+/* ---- menus ---- */
+.screen{position:absolute;inset:0;display:none;z-index:20}
+.screen.on{display:flex}
+#title{flex-direction:column;justify-content:flex-end;padding:0 var(--gr) calc(var(--gb) + 26px) calc(var(--gl) + clamp(8px,4vw,56px));background:linear-gradient(90deg,rgba(9,11,13,.88) 0,rgba(9,11,13,.6) 38%,rgba(9,11,13,0) 70%),linear-gradient(0deg,rgba(9,11,13,.7),rgba(9,11,13,0) 45%)}
+.t-tag{display:flex;align-items:center;gap:10px;font-family:var(--f-type);font-size:12px;letter-spacing:.22em;color:var(--dim)}
+.t-tag b{font-family:var(--f-ui);font-weight:700;background:var(--brass);color:#14110a;padding:1px 7px;letter-spacing:.1em}
+.t-logo{font-family:var(--f-stencil);font-weight:800;font-size:clamp(54px,13.5vw,176px);line-height:.86;letter-spacing:.03em;margin:10px 0 0 -4px;text-transform:uppercase}
+.t-rule{width:70px;height:3px;background:var(--brass);margin:18px 0 14px}
+.t-line{font-family:var(--f-type);font-size:clamp(14px,1.7vw,18px);line-height:1.45;max-width:30em;color:var(--ink);margin:0}
+.t-btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.btn{font-family:var(--f-ui);font-weight:700;font-size:17px;letter-spacing:.22em;text-transform:uppercase;padding:13px 26px 12px;border:1.5px solid var(--line);background:var(--plate);color:var(--ink);min-height:48px;transition:background .15s,border-color .15s,color .15s}
+.btn:hover{border-color:var(--ink)}.btn.go{background:var(--brass);border-color:var(--brass);color:#14110a}.btn.go:hover{background:var(--brass-hot)}
+.t-foot{font-family:var(--f-type);font-size:11px;letter-spacing:.06em;color:var(--dim);margin-top:18px;max-width:34em;line-height:1.5}
+.t-keys{position:absolute;right:var(--gr);bottom:calc(var(--gb) + 26px);display:grid;grid-template-columns:repeat(2,auto);gap:5px 22px;font-family:var(--f-type);font-size:11px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+.t-keys kbd,.ctl kbd{font-family:var(--f-type);font-size:10px;border:1px solid var(--line);padding:1px 5px 0;margin-right:6px;color:var(--ink)}
+body.touch .t-keys{display:none}
+.card-wrap{align-items:center;justify-content:center;background:rgba(9,11,13,.72);padding:20px}
+.card{width:min(460px,100%);max-height:100%;overflow:auto;border:1px solid var(--line);border-top:3px solid var(--brass);background:var(--solid);padding:26px 28px 24px}
+.card.wide{width:min(600px,100%)}
+.ms{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:14px;width:100%;text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);background:none;color:var(--ink)}
+.ms:hover:not(:disabled){background:rgba(217,173,78,.08)}.ms:disabled{opacity:.45;cursor:default}.ms.cur{background:rgba(217,173,78,.12)}
+.ms .n{font-family:var(--f-stencil);font-weight:800;font-size:30px;color:var(--brass);text-align:center}.ms .t{display:block;font-family:var(--f-ui);font-weight:700;font-size:18px;letter-spacing:.12em;text-transform:uppercase}
+.ms .d{display:block;font-family:var(--f-type);font-size:12px;line-height:1.4;color:var(--dim);margin-top:3px}.ms .st{font-family:var(--f-type);font-size:11px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;text-align:right;white-space:nowrap}
+@media (max-width:520px){.ms{grid-template-columns:32px 1fr}.ms .st{grid-column:2}.ms .n{font-size:24px}}
+.card h2{font-family:var(--f-stencil);font-weight:800;font-size:clamp(30px,6vw,46px);letter-spacing:.06em;margin:0 0 6px;line-height:1;text-transform:uppercase}
+.card p{font-family:var(--f-type);font-size:14px;line-height:1.5;color:var(--dim);margin:0 0 14px}
+.card .t-btns{margin-top:16px}
+.stats{display:grid;grid-template-columns:1fr auto;gap:7px 18px;font-family:var(--f-type);font-size:14px;margin:14px 0 4px;border-top:1px solid var(--line);padding-top:14px}
+.stats dt{color:var(--dim);letter-spacing:.1em;text-transform:uppercase;font-size:12px}.stats dd{margin:0;text-align:right}
+.grade{font-family:var(--f-stencil);font-weight:800;font-size:44px;color:var(--brass);letter-spacing:.08em;line-height:1;text-transform:uppercase}
+.row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);font-size:16px;letter-spacing:.08em;text-transform:uppercase}
+.row input[type=range]{width:150px;accent-color:var(--brass)}.row select{background:var(--night);color:var(--ink);border:1px solid var(--line);font:inherit;padding:4px 6px}
+.row input[type=checkbox]{width:20px;height:20px;accent-color:var(--brass)}
+.ctl{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;font-family:var(--f-type);font-size:13px;color:var(--dim);margin:10px 0}
+.ctl b{white-space:nowrap;color:var(--ink);font-weight:400}
+#intro{align-items:flex-end;padding:0 var(--gr) 18vh calc(var(--gl) + clamp(8px,4vw,56px));pointer-events:none}
+#intro div{border-left:3px solid var(--brass);padding-left:14px;animation:intro 4.2s ease forwards}
+#intro b{display:block;font-family:var(--f-stencil);font-weight:800;font-size:clamp(28px,5vw,54px);letter-spacing:.08em;line-height:1;text-transform:uppercase}
+#intro span{display:block;font-family:var(--f-type);font-size:14px;letter-spacing:.18em;color:var(--dim);margin-top:8px;text-transform:uppercase}
+@keyframes intro{0%{opacity:0;transform:translateX(-12px)}14%{opacity:1;transform:none}82%{opacity:1}100%{opacity:0}}
+#fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s ease;z-index:15}#fade.on{opacity:1}
+@media (max-width:640px){
+  #title{padding-bottom:calc(var(--gb) + 18px)}.t-btns{gap:8px}.btn{padding:12px 16px 11px;font-size:15px;letter-spacing:.16em}.t-foot{display:none}
+  .h-obj{max-width:calc(100vw - 150px)}.h-obj b{font-size:16px}
+  #compass{width:46vw;top:calc(var(--gt) + 62px)}.h-alert{top:calc(var(--gt) + 110px)}
+  body.touch .h-ammo{top:calc(var(--gt) + 52px)}body.touch .h-ammo b{font-size:26px}body.touch .h-ammo em{font-size:12px}body.touch .h-ammo small{display:none}
+  body.touch .h-hp{top:calc(var(--gt) + 128px);width:90px}body.touch #radio{top:calc(var(--gt) + 168px);width:88vw}
+  .t-tag{flex-wrap:wrap;gap:4px 10px;font-size:11px;letter-spacing:.14em}
+  .h-clock{left:auto;right:var(--gr);top:calc(var(--gt) + 134px);font-size:15px;text-align:right}
 }
-@media (max-height:430px){
-  #obj .o{font-size:14px}
-  .panel{padding:14px 16px}
-  .panel h2{font-size:24px}
-  .mi{font-size:19px;padding:6px 12px}
-  #title .col{gap:10px}
-  .logo{font-size:64px}
+@media (max-height:460px){
+  .h-obj{max-width:calc(28vw - 20px)}.h-obj b{font-size:15px}.h-clock{top:calc(var(--gt) + 84px);font-size:16px}
+  .t-logo{font-size:clamp(40px,15vh,90px)}.t-rule{margin:8px 0}.t-btns{margin-top:10px}.t-foot{display:none}.t-line{font-size:13px}
+  #t-jump{bottom:calc(var(--gb) + 14px);right:calc(var(--gr) + 112px)}#t-fire{bottom:calc(var(--gb) + 60px)}#t-aim{right:calc(var(--gr) + 112px);bottom:calc(var(--gb) + 82px)}#t-reload{right:calc(var(--gr) + 186px);bottom:calc(var(--gb) + 46px)}#t-crouch{right:calc(var(--gr) + 250px);bottom:calc(var(--gb) + 6px);width:50px;height:50px}
+  .card{padding:16px 20px}.h-prompt{top:58%}
 }
-@media (max-width:720px){
-  #briefing .dossier{grid-template-columns:1fr}
-  #briefing .map{min-height:0}
-  .set{grid-template-columns:1fr}
-}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition-duration:.01s!important}}
 </style>
 </head>
 <body>
 <div id="app">
-  <canvas id="view" aria-label="Game view"></canvas>
-  <canvas id="hudc" aria-hidden="true"></canvas>
-  <div class="vignette"></div>
-  <div class="grain"></div>
-  <div id="dmg"></div>
-  <canvas id="flecks"></canvas>
-  <div id="flash"></div>
+  <canvas id="view" tabindex="0"></canvas>
   <div id="fade"></div>
 
-  <div id="hud" hidden data-noi18n>
-    <div class="pad">
-      <div id="obj"></div>
-      <div id="toast"></div>
-      <div id="stance">
-        <svg id="stanceIc" viewBox="0 0 34 44" aria-hidden="true"></svg>
-        <div class="lbl"><b id="stanceTx">Standing</b><div id="noise"><i></i><i></i><i></i><i></i><i></i></div><div id="squad"></div></div>
-      </div>
-      <div id="wpn"><div class="name" id="wName"></div><div class="ammo" id="wAmmo"></div><div class="gear" id="wGear"></div></div>
-      <div id="prompt" hidden></div>
-      <div id="sub" hidden></div>
-    </div>
+  <div id="hud" data-noi18n>
+    <div class="h-obj" id="h-obj"><small id="h-objl"></small><b id="h-objt"></b><span id="h-objs"></span></div>
+    <div class="h-clock" id="h-clock"></div>
+    <canvas id="compass"></canvas>
+    <div class="h-alert" id="h-alert"><span></span><u><s></s></u></div>
+    <div class="h-wave" id="h-wave"></div>
+    <div class="h-fuse" id="h-fuse"></div>
+    <div id="cross"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i><i class="c"></i></div>
+    <div id="hitm"></div>
+    <div class="h-dmg"><i></i><i></i><i></i></div>
+    <div class="h-prompt" id="h-prompt"><span><kbd>E</kbd><em id="h-pt" style="font-style:normal"></em></span><u><s id="h-pb"></s></u></div>
+    <div class="h-msg" id="h-msg"></div>
+    <div class="h-hp" id="h-hp"><small id="h-hpl"></small><u><s id="h-hpb"></s></u></div>
+    <div class="h-ammo"><b id="h-am">30</b><em id="h-ar">/ 150</em><div class="pips" id="h-pips"></div><small id="h-wn"></small></div>
+    <div id="marks"></div>
+  </div>
+  <div id="radio" data-noi18n><b id="r-who"></b><span id="r-txt"></span></div>
+
+  <div id="touch">
+    <div id="t-stick"><div id="t-nub"></div></div>
+    <button class="tb" id="t-fire" data-no-ad-refresh>Fire</button>
+    <button class="tb" id="t-aim" data-no-ad-refresh>Aim</button>
+    <button class="tb" id="t-jump" data-no-ad-refresh>Jump</button>
+    <button class="tb" id="t-reload" data-no-ad-refresh>Load</button>
+    <button class="tb" id="t-crouch" data-no-ad-refresh>Duck</button>
+    <button class="tb" id="t-use" data-no-ad-refresh>Hold</button>
+    <button class="tb" id="t-pause" data-no-ad-refresh aria-label="Pause">II</button>
   </div>
 
-  <div id="touch" aria-hidden="true">
-    <div id="tLook"></div>
-    <div id="tStick"><i></i></div>
-    <div id="tTop">
-      <button class="tb" data-t="pause">❚❚</button>
-      <button class="tb" data-t="order">Order</button>
-      <button class="tb" data-t="swap">Swap</button>
-    </div>
-    <button class="tb big" data-t="fire" style="right:calc(30px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px))">Fire</button>
-    <button class="tb" data-t="aim" style="right:calc(108px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px))">Aim</button>
-    <button class="tb" data-t="crouch" style="right:calc(176px + env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px))">Crouch</button>
-    <button class="tb" data-t="prone" style="right:calc(176px + env(safe-area-inset-right,0px));bottom:calc(80px + env(safe-area-inset-bottom,0px))">Prone</button>
-    <button class="tb" data-t="reload" style="right:calc(110px + env(safe-area-inset-right,0px));bottom:calc(110px + env(safe-area-inset-bottom,0px))">Reload</button>
-    <button class="tb" data-t="use" style="right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(116px + env(safe-area-inset-bottom,0px))">Use</button>
-    <button class="tb sm" data-t="sprint" style="left:calc(170px + env(safe-area-inset-left,0px));bottom:calc(120px + env(safe-area-inset-bottom,0px))">Run</button>
-    <button class="tb sm" data-t="leanLeft" style="left:calc(170px + env(safe-area-inset-left,0px));bottom:calc(176px + env(safe-area-inset-bottom,0px))">Lean L</button>
-    <button class="tb sm" data-t="leanRight" style="left:calc(224px + env(safe-area-inset-left,0px));bottom:calc(120px + env(safe-area-inset-bottom,0px))">Lean R</button>
-    <button class="tb sm" data-t="vault" style="left:calc(170px + env(safe-area-inset-left,0px));bottom:calc(64px + env(safe-area-inset-bottom,0px))">Jump</button>
-    <button class="tb sm" data-t="binoc" style="right:calc(22px + env(safe-area-inset-right,0px));bottom:calc(186px + env(safe-area-inset-bottom,0px))">Bino</button>
-    <button class="tb sm" data-t="grenade" style="right:calc(180px + env(safe-area-inset-right,0px));bottom:calc(150px + env(safe-area-inset-bottom,0px))">Nade</button>
-    <button class="tb sm" data-t="rock" style="right:calc(120px + env(safe-area-inset-right,0px));bottom:calc(172px + env(safe-area-inset-bottom,0px))">Rock</button>
-    <button class="tb sm" data-t="breath" style="right:calc(72px + env(safe-area-inset-right,0px));bottom:calc(196px + env(safe-area-inset-bottom,0px))" hidden>Breath</button>
+  <div class="screen" id="intro"><div><b id="i-a"></b><span id="i-b"></span></div></div>
+
+  <div class="screen" id="title">
+    <div class="t-tag"><b id="t-num">M1</b><span id="t-title"></span><span id="t-place"></span></div>
+    <h1 class="t-logo" id="logo">Midnight Ops</h1>
+    <div class="t-rule"></div>
+    <p class="t-line" id="t-line"></p>
+    <div class="t-btns"><button class="btn go" id="b-deploy">Deploy</button><button class="btn" id="b-missions">Missions</button><button class="btn" id="b-settings">Settings</button><button class="btn" id="b-controls">Controls</button><a class="btn" href="/e63334287a3deaa3/" style="text-decoration:none;display:inline-flex;align-items:center">Back</a></div>
+    <p class="t-foot">Every stone, weapon and sound is made in your browser as the game starts. More missions are on the way.</p>
+    <div class="t-keys"><span><kbd>W A S D</kbd>Move</span><span><kbd>Mouse</kbd>Look</span><span><kbd>Left</kbd>Fire</span><span><kbd>Right</kbd>Aim</span><span><kbd>R</kbd>Reload</span><span><kbd>E</kbd>Plant charge</span><span><kbd>Shift</kbd>Sprint</span><span><kbd>C</kbd>Crouch</span><span><kbd>Space</kbd>Jump</span><span><kbd>Esc</kbd>Pause</span></div>
   </div>
 
-  <!-- Loading -->
-  <div id="loading" class="screen">
-    <div class="logo" style="font-size:54px" data-gname-line></div>
-    <div class="bar"><i id="loadBar"></i></div>
-    <p id="loadTx">Loading…</p>
-  </div>
+  <div class="screen card-wrap" id="missions"><div class="card wide">
+    <h2>Missions</h2>
+    <div id="m-list"></div>
+    <div class="t-btns"><button class="btn" id="b-mclose">Back</button></div>
+  </div></div>
 
-  <!-- Content note, shown before the title until accepted (localStorage ironveil:terms) -->
-  <div id="gate" class="screen dimc" hidden>
-    <div class="panel" style="width:min(520px,100%)">
-      <h2>Before you play</h2>
-      <p style="font-size:20px;margin:6px 0 10px" id="gateTx"></p>
-      <ul style="font-size:17px;line-height:1.5;margin:0 0 18px;padding-left:20px">
-        <li>Realistic Second World War weapons</li>
-        <li>Enemy soldiers are shot and killed</li>
-        <li>Blood effects (they can be turned off in Settings)</li>
-      </ul>
-      <div class="row"><button class="btn cta" id="gateOk">I understand, continue</button><a class="btn ghost" href="/e63334287a3deaa3/" target="_top" style="text-decoration:none">Back</a></div>
-    </div>
-  </div>
+  <div class="screen card-wrap" id="note"><div class="card">
+    <h2>Before you play</h2>
+    <p>Midnight Ops is a war game set in 1944. It shows soldiers shooting at each other, and some blood. You can turn the blood off in Settings.</p>
+    <div class="t-btns"><button class="btn go" id="b-accept">I understand, continue</button><a class="btn" href="/e63334287a3deaa3/" style="text-decoration:none;display:inline-flex;align-items:center">Back</a></div>
+  </div></div>
 
-  <!-- Title -->
-  <div id="title" class="screen dim" hidden>
-    <div class="col">
-      <div>
-        <h1 class="logo" data-gname-logo></h1>
-        <p class="tag">Behind the lines, Normandy country, 1944.</p>
-      </div>
-      <nav class="menu" id="mainMenu">
-        <button class="mi" data-go="continue" id="miContinue">Continue <small id="contTx"></small></button>
-        <button class="mi" data-go="campaign">Campaign</button>
-        <button class="mi" data-go="settings">Settings</button>
-        <button class="mi" data-go="controls">Controls</button>
-      </nav>
-      <div class="foot"><span data-lang-toggle></span><span>Single player · progress saves in this browser</span><a href="/e63334287a3deaa3/" target="_top">Back Room</a></div>
-    </div>
-  </div>
+  <div class="screen card-wrap" id="pause"><div class="card">
+    <h2>Paused</h2><p id="p-obj" data-noi18n></p>
+    <div class="t-btns"><button class="btn go" id="b-resume">Resume</button><button class="btn" id="b-psettings">Settings</button><button class="btn" id="b-pcontrols">Controls</button><button class="btn" id="b-restart">Restart mission</button><button class="btn" id="b-quit">Quit</button></div>
+  </div></div>
 
-  <!-- Campaign map table -->
-  <div id="campaign" class="screen dimc" hidden>
-    <div class="panel">
-      <h2>The Farmhouse</h2>
-      <p class="sub">Map table. Pick an operation. Each one can be replayed for a better rating.</p>
-      <div class="missions" id="missionList"></div>
-      <div style="font-size:15px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:6px">Difficulty</div>
-      <div class="diff" id="diffPick">
-        <button data-d="0"><b>Recruit</b><span>Enemies slow to notice and miss more. Strong aim assist on touch screens.</span></button>
-        <button data-d="1"><b>Regular</b><span>A fair fight. Light aim assist on touch screens.</span></button>
-        <button data-d="2"><b>Veteran</b><span>Sharp eyes, hard hits. Faint aim assist on touch screens.</span></button>
-      </div>
-      <div class="row"><button class="btn" data-go="back">Back</button></div>
-    </div>
-  </div>
+  <div class="screen card-wrap" id="dead"><div class="card">
+    <h2>Killed in action</h2><p id="d-line" data-noi18n></p>
+    <div class="t-btns"><button class="btn go" id="b-retry">Try again</button><button class="btn" id="b-dquit">Quit</button></div>
+  </div></div>
 
-  <!-- Briefing -->
-  <div id="briefing" class="screen dimc" hidden>
-    <div class="dossier">
-      <div class="map"><canvas id="sketch" width="900" height="900" aria-label="Sketch map of the area"></canvas></div>
-      <div class="txt">
-        <span class="stamp" id="bStamp">Secret</span>
-        <h3 id="bTitle"></h3>
-        <div id="bBody"></div>
-        <div><b>Objectives</b><ul id="bObj"></ul></div>
-        <div class="row" style="margin-top:auto"><button class="btn" data-go="campaign">Back</button><button class="btn cta" id="bGo">Begin</button><button class="btn" id="bSkip" hidden>Skip tutorial</button></div>
-      </div>
-    </div>
-  </div>
+  <div class="screen card-wrap" id="done"><div class="card">
+    <h2>Mission complete</h2><p id="g-line" data-noi18n></p>
+    <div class="grade" id="g-grade" data-noi18n></div>
+    <dl class="stats" data-noi18n><dt id="g-l1"></dt><dd id="g-time"></dd><dt id="g-l2"></dt><dd id="g-acc"></dd><dt id="g-l3"></dt><dd id="g-kills"></dd><dt id="g-l4"></dt><dd id="g-tries"></dd></dl>
+    <div class="t-btns"><button class="btn go" id="b-next" hidden>Next mission</button><button class="btn" id="b-again">Play again</button><button class="btn" id="b-gquit">Title</button></div>
+  </div></div>
 
-  <!-- Pause -->
-  <div id="pause" class="screen dim" hidden>
-    <div style="width:min(420px,100%);margin-right:auto;margin-left:clamp(0px,6vw,90px)">
-      <div class="logo" style="font-size:56px">PAUSED</div>
-      <p class="tag" id="pauseObj"></p>
-      <nav class="menu">
-        <button class="mi" data-go="resume">Resume</button>
-        <button class="mi" data-go="checkpoint">Restart from checkpoint</button>
-        <button class="mi" data-go="restart">Restart mission</button>
-        <button class="mi" data-go="settings">Settings</button>
-        <button class="mi" data-go="controls">Controls</button>
-        <button class="mi" data-go="quit">Quit to map table</button>
-      </nav>
-      <p class="tag" id="pauseMsg" style="font-size:14px"></p>
-    </div>
-  </div>
+  <div class="screen card-wrap" id="settings"><div class="card">
+    <h2>Settings</h2>
+    <label class="row"><span>Graphics</span><select id="s-q"><option value="auto">Auto</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+    <label class="row"><span>Look speed</span><input type="range" id="s-sens" min="0.3" max="2.5" step="0.05"></label>
+    <label class="row"><span>Field of view</span><input type="range" id="s-fov" min="60" max="95" step="1"></label>
+    <label class="row"><span>Volume</span><input type="range" id="s-vol" min="0" max="1" step="0.05"></label>
+    <label class="row"><span>Invert look up and down</span><input type="checkbox" id="s-inv"></label>
+    <label class="row"><span>Blood effects</span><input type="checkbox" id="s-blood"></label>
+    <div class="row"><span>Language</span><span data-lang-toggle></span></div>
+    <p style="margin-top:12px">A change to Graphics takes effect when the page is opened again.</p>
+    <div class="t-btns"><button class="btn go" id="b-sclose">Done</button></div>
+  </div></div>
 
-  <!-- Settings -->
-  <div id="settings" class="screen dimc" hidden>
-    <div class="panel">
-      <h2>Settings</h2>
-      <div class="tabs" role="tablist">
-        <button role="tab" data-tab="game" aria-selected="true">Game</button>
-        <button role="tab" data-tab="video">Video</button>
-        <button role="tab" data-tab="audio">Audio</button>
-      </div>
-      <div class="set" data-pane="game">
-        <label for="sSens">Look sensitivity</label><input id="sSens" type="range" min="0.2" max="3" step="0.05">
-        <label for="sAimSens">Aim sensitivity<small>While aiming or scoped</small></label><input id="sAimSens" type="range" min="0.2" max="2" step="0.05">
-        <label for="sInvert">Invert look up and down</label><input id="sInvert" type="checkbox">
-        <label for="sAssist">Aim assist strength<small>Touch screens only (never with a mouse). 0 turns it off.</small></label><input id="sAssist" type="range" min="0" max="1.5" step="0.05">
-        <label for="sAuto">Auto-fire on target<small>Touch screens: fires when the reticle is on an enemy</small></label><input id="sAuto" type="checkbox">
-        <label for="sSub">Subtitle size</label><select id="sSub"><option value="0.85">Small</option><option value="1">Medium</option><option value="1.25">Large</option></select>
-        <label for="sBlood">Blood effects<small>Off: hits show dust puffs instead</small></label><input id="sBlood" type="checkbox">
-        <label for="sView">View<small>First person, or the camera over your shoulder</small></label><select id="sView"><option value="first">First person</option><option value="third">Over the shoulder</option></select>
-        <label for="sCrouch">Crouch<small>Toggle: press to crouch, again to stand. Hold: crouched while the key is down</small></label><select id="sCrouch"><option value="0">Toggle</option><option value="1">Hold</option></select>
-        <label for="sSprint">Sprint<small>Hold: sprint while the key is down. Toggle: press once, it stops when you stop or aim</small></label><select id="sSprint"><option value="0">Hold</option><option value="1">Toggle</option></select>
-        <label for="sBob">Camera bob<small>A small step bob and a dip when you land</small></label><input id="sBob" type="checkbox">
-        <label for="sMotion">Reduced motion<small>Less camera shake and sway, no lightning flashes</small></label><input id="sMotion" type="checkbox">
-      </div>
-      <div class="set" data-pane="video" hidden>
-        <label for="sQual">Quality<small>Low is best for school laptops and phones</small></label><select id="sQual"><option value="0">Low</option><option value="1">Medium</option><option value="2">High</option></select>
-        <label for="sFov">Field of view</label><input id="sFov" type="range" min="55" max="100" step="1">
-        <label for="sBright">Brightness</label><input id="sBright" type="range" min="0.7" max="1.6" step="0.05">
-      </div>
-      <div class="set" data-pane="audio" hidden>
-        <label for="sVol">Master volume</label><input id="sVol" type="range" min="0" max="1" step="0.05">
-        <label for="sSfx">Effects</label><input id="sSfx" type="range" min="0" max="1" step="0.05">
-        <label for="sMus">Music</label><input id="sMus" type="range" min="0" max="1" step="0.05">
-        <label for="sMute">Mute (M)</label><input id="sMute" type="checkbox">
-      </div>
-      <div class="row"><button class="btn cta" data-go="back">Done</button><button class="btn ghost" data-go="controls">Change keys</button></div>
-    </div>
-  </div>
+  <div class="screen card-wrap" id="controls"><div class="card">
+    <h2>Controls</h2>
+    <div class="ctl"><b><kbd>W A S D</kbd></b><span>Move</span><b><kbd>Mouse</kbd></b><span>Look (arrow keys also work)</span><b><kbd>Left click</kbd></b><span>Fire</span><b><kbd>Right click</kbd></b><span>Aim down the sights</span><b><kbd>R</kbd></b><span>Reload</span><b><kbd>E</kbd></b><span>Hold to plant a charge on a gun</span><b><kbd>Shift</kbd></b><span>Sprint</span><b><kbd>C</kbd></b><span>Crouch (harder to see and to hit)</span><b><kbd>Space</kbd></b><span>Jump</span><b><kbd>Esc</kbd></b><span>Pause</span></div>
+    <p>On a phone or tablet: drag the left side of the screen to move, drag the right side to look, and use the buttons on the right. Push the move stick far forward to sprint.</p>
+    <div class="t-btns"><button class="btn go" id="b-cclose">Done</button></div>
+  </div></div>
 
-  <!-- Results -->
-  <div id="results" class="screen dimc" hidden>
-    <div class="panel">
-      <h2 id="rTitle">Mission complete</h2>
-      <div class="big-medal"><div class="m" id="rMedal"></div><div><div id="rMedalTx" style="font-size:22px;font-weight:600;letter-spacing:.08em;text-transform:uppercase"></div><div id="rDiff" style="color:var(--ink-dim)"></div></div></div>
-      <ul class="crit" id="rCrit"></ul>
-      <div class="res" id="rStats"></div>
-      <div class="row"><button class="btn cta" id="rNext">Continue</button><button class="btn" id="rRetry">Replay</button><button class="btn ghost" data-go="campaign">Map table</button></div>
-    </div>
-  </div>
-
-  <div id="portrait" class="screen" hidden>
-    <svg viewBox="0 0 48 48" fill="none" stroke="#ece3cc" stroke-width="2.5" stroke-linecap="round"><rect x="15" y="6" width="18" height="36" rx="3"/><path d="M22 37h4"/></svg>
-    <p id="portraitTx"></p>
-    <button class="btn" id="portraitGo" style="pointer-events:auto">Play upright anyway</button>
-  </div>
-  <div id="err" hidden></div>
+  <div id="boot"><div class="boot-mark">MIDNIGHT OPS</div><div class="boot-sub" id="boot-sub">Building the hamlet</div><div class="boot-bar"><i id="boot-bar"></i></div></div>
 </div>
-<div id="ivLocked" style="position:fixed;inset:0;z-index:99;display:none;place-items:center;background:#0b0c0a;color:#ece3cc;font:500 18px/1.4 system-ui,sans-serif;text-align:center;padding:24px">
+
+<div id="locked" style="display:none;position:fixed;inset:0;z-index:99;background:#0a0a08;color:#e6dac0;font:17px/1.5 system-ui,sans-serif;align-items:center;justify-content:center;text-align:center;padding:24px">
   <div><p style="font-size:26px;font-weight:700;margin:0 0 10px">Not available yet</p><p style="margin:0 0 18px;opacity:.75">This game is still being made.</p><a href="/e63334287a3deaa3/" style="color:#d0a84c">Back to the Back Room</a></div>
 </div>
-
 <script>
-/* the game's scripts, in order (dynamic scripts with async=false run in insertion order). Not loaded at all while the
-   preview gate is closed; play-time counting (stats.js) only once the game is public. */
-(function () {
-  if (window.IV_LOCKED) { var l = document.getElementById('ivLocked'); l.style.display = 'grid'; document.getElementById('app') && (document.getElementById('app').hidden = true); return; }
-  var L = ['/lib/three/r187/three.min.js', '../autores.js', '/lib/three/r187/three-addons.min.js', '../keybinds.js', 'env/texgen.js', 'env/core.js', 'env/rooms.js', 'env/atmosphere.js', 'env/grass.js', 'env/ground.js', 'env/builder.js', 'env/build.js', 'env/nature.js', 'env/props.js', 'env/decals.js', 'env/labels.js', 'env/index.js', 'js/render.js', 'js/core.js', 'js/audio.js', 'js/input.js', 'js/world.js', 'js/kit.js', 'js/art.js', 'js/nav.js', 'js/fx.js', 'js/player.js', 'js/camera.js', 'js/hands.js', 'js/vm.js', 'js/fp.js', 'js/weapons.js', 'js/ai.js', 'js/ally.js', 'js/ambience.js', 'js/mission.js', 'js/missions/bootcamp.js', 'js/missions/nightdrop.js', 'js/hud.js', 'js/touch.js', 'js/menus.js', 'js/main.js', '/analytics/tracker.js'];
-  if (!window.IV_PREVIEW) L.unshift('/e63334287a3deaa3/stats.js');
-  L.forEach(function (src) { var s = document.createElement('script'); s.src = src; s.async = false; if (/stats\.js$/.test(src)) s.setAttribute('data-game', 'ironveil'); document.body.appendChild(s); });
-})();
+if (window.IV_LOCKED) { document.getElementById('app').remove(); document.getElementById('locked').style.display = 'flex'; }
+else {
+  var files = ['/lib/three/r187/three.min.js', '../autores.js', 'js/core.js', 'js/geo.js', 'js/tex.js', 'js/render.js', 'js/sky.js', 'js/ground.js', 'js/phys.js', 'js/props.js', 'js/missions.js', 'js/maps/hamlet.js', 'js/maps/compound.js', 'js/level.js', 'js/fx.js', 'js/audio.js', 'js/input.js', 'js/player.js', 'js/gunmodel.js', 'js/weapon.js', 'js/enemy.js', 'js/hud.js', 'js/mission.js', 'js/main.js'];
+  for (var i = 0; i < files.length; i++) document.write('<script src="' + files[i] + '"><\/script>');
+}
 </script>
 </body>
 </html>
