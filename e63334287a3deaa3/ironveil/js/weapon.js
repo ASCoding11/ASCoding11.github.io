@@ -110,7 +110,7 @@
     const aim = P.aimK, run = P.sprintK * (1 - aim), bobA = P.bobAmp * (1 - 0.85 * aim), bx = Math.cos(P.bob) * 0.006 * bobA * (1 + run), by = Math.abs(Math.sin(P.bob)) * -0.008 * bobA * (1 + run * 1.5), t = MO.time;
     const br = Math.sin(t * 1.3) * 0.0016 * (1 - 0.6 * aim), br2 = Math.sin(t * 0.9 + 1) * 0.0012;
     // aim: bring the rear sight onto the eye line
-    const ax = -M.sight.x, ay = -M.sight.y, az = -0.24 - M.sight.z;     // eye well behind the rear sight, so the sights stay small and the view open
+    const ax = -M.sight.x, ay = -M.sight.y - 0.078, az = -0.3 - M.sight.z;     // aimed: the gun drops low and forward so the view stays open; the reticle marks the aim     // eye well behind the rear sight, so the sights stay small and the view open
     root.position.set(MO.lerp(HIP.p[0], ax, aim) + bx + sx * 0.0035 - run * 0.05 + rx,
       MO.lerp(HIP.p[1], ay, aim) + by + br + dy * 0.02 - drop - run * 0.035 - P.crouchK * 0.008 * (1 - aim) + sy * -0.003,
       MO.lerp(HIP.p[2], az, aim) + kz * 0.016 * (1 - 0.45 * aim) + run * 0.06);
