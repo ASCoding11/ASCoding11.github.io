@@ -27,6 +27,28 @@
     // ---- settings
     'Graphics': 'Gráficos', 'Auto': 'Automático', 'Low': 'Bajos', 'Medium': 'Medios', 'High': 'Altos', 'Look speed': 'Velocidad de la mira', 'Field of view': 'Campo de visión', 'Volume': 'Volumen',
     'Invert look up and down': 'Invertir mirar arriba y abajo', 'Blood effects': 'Efectos de sangre', 'Language': 'Idioma', 'A change to Graphics takes effect when the page is opened again.': 'El cambio de Gráficos se aplica al volver a abrir la página.',
+    // ---- campaign
+    'Missions': 'Misiones', 'Ready': 'Lista', 'Play': 'Jugar', 'Locked': 'Bloqueada', 'Coming soon': 'Muy pronto', 'Done': 'Hecha', 'Next mission': 'Siguiente misión', 'Next: {t}': 'Siguiente: {t}', 'Building the map': 'Construyendo el mapa',
+    'Bridge at Dawn': 'El puente al amanecer', 'Take the river bridge, then hold it through three counter-attacks.': 'Toma el puente del río y aguanta tres contraataques.',
+    'The Clocktower': 'La torre del reloj', 'Sniper overwatch over an occupied town while a courier crosses the square.': 'Cubre con el fusil de precisión a un mensajero que cruza la plaza de un pueblo ocupado.',
+    'Rail Yard': 'La playa de vías', 'Charges on a fuel train, a fuse already burning, and a truck out of the yard.': 'Cargas en un tren de combustible, una mecha ya encendida y un camión para salir de la estación.',
+    'Exit': 'Salida', 'Treeline': 'Arboleda', 'Radio': 'Radio', 'Mast': 'Mástil', 'Power': 'Corriente', 'Charges': 'Cargas',
+    // ---- mission 2, The Radio Mast
+    'The Radio Mast': 'El mástil de radio', 'Normandy, France. 6 June 1944, 04:10': 'Normandía, Francia. 6 de junio de 1944, 04:10',
+    'A signals compound with three ways in. Silence the transmitter before it calls in the guns, then bring down the mast.': 'Un recinto de transmisiones con tres entradas. Calla el transmisor antes de que llame a la artillería y luego derriba el mástil.',
+    'Silence the transmitter': 'Calla el transmisor', 'Bring down the mast': 'Derriba el mástil', 'Get to the treeline': 'Llega a la arboleda',
+    'That mast is how they call the guns down on the beaches. Kill the transmitter in the bunker, then drop the mast.': 'Con ese mástil dirigen los cañones contra las playas. Destruye el transmisor del búnker y luego tira el mástil.',
+    'Three ways in: the main gate, the drainage ditch on the west side, or the broken fence behind the generator.': 'Tres entradas: la puerta principal, la zanja de desagüe del lado oeste o la cerca rota detrás del generador.',
+    'If they see you, that radio starts calling for artillery. Keep out of the searchlight.': 'Si te ven, esa radio empezará a pedir artillería. No te metas en el reflector.',
+    'Radio is dead. That is both. Get to the treeline, north-west. Go!': 'La radio está muerta. Ya están los dos. Ve a la arboleda, al noroeste. ¡Vamos!',
+    'Transmitter is scrap. Now the mast, or they will have a spare set talking by morning.': 'El transmisor es chatarra. Ahora el mástil, o por la mañana tendrán otro equipo hablando.',
+    'Down she comes! Get to the treeline, north-west. Go!': '¡Ahí cae! Ve a la arboleda, al noroeste. ¡Vamos!',
+    'The mast is down, but that radio can still talk on a short aerial. Finish it.': 'El mástil cayó, pero esa radio aún puede hablar con una antena corta. Acaba con ella.',
+    'Lights out. That will make them jumpy, and half blind.': 'Sin luces. Eso los pondrá nerviosos y medio ciegos.',
+    'They are on the set. Calling the guns. You have two and a half minutes.': 'Están en la radio. Llaman a los cañones. Tienes dos minutos y medio.',
+    'Guns called: {t}': 'Cañones pedidos: {t}', 'Incoming!': '¡Obuses!', 'Spotted by the searchlight!': '¡Te vio el reflector!', 'The guns found you.': 'Los cañones te encontraron.',
+    'You go back in from your last charge.': 'Vuelves a entrar desde tu última carga.', 'You go back in from the woods.': 'Vuelves a entrar desde el bosque.',
+    'The mast is down and the radio is silent. The guns stay blind until dawn.': 'El mástil cayó y la radio calla. Los cañones siguen ciegos hasta el amanecer.',
     // ---- HUD and radio
     'Objective': 'Objetivo', 'Spike the three flak guns': 'Inutiliza los tres cañones antiaéreos', 'Reach the rally point': 'Llega al punto de reunión', 'Guns': 'Cañones', 'Rally': 'Reunión',
     'Hold to plant the charge': 'Mantén para poner la carga', 'Charge set. Get clear!': '¡Carga puesta. Aléjate!', 'Reinforcements': 'Refuerzos', 'Reloading': 'Recargando', 'Health': 'Salud', 'Seen': 'Te ven', 'Under fire': 'Bajo fuego', '+20 rounds': '+20 balas',

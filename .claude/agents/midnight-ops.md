@@ -11,12 +11,12 @@ You are the specialist for **Midnight Ops**, a game on Arjun's site (ascoding11.
 
 ## What it is
 
-Midnight Ops (**preview, admin page only**; folder `ironveil`, display name `MO.GAME_NAME` in `js/core.js`) is a single-player first-person Second World War shooter, rebuilt from scratch so that every model, texture and sound is made in code when the page opens (no asset files). One mission so far, Night Drop: spike three flak guns in a Norman hamlet at night in the rain, then reach the rally point. The README entry lists every file and what it does.
+Midnight Ops (**preview, admin page only**; folder `ironveil`, display name `MO.GAME_NAME` in `js/core.js`) is a single-player first-person Second World War shooter, rebuilt from scratch so that every model, texture and sound is made in code when the page opens (no asset files). A campaign of missions, one file each in `js/maps/` (Night Drop: spike three flak guns in a Norman hamlet; The Radio Mast: silence a transmitter and topple a mast in a fenced compound before the artillery clock runs out). The README entry lists every file and what it does.
 
 
 ## Where it lives
 
-- Folder: `e63334287a3deaa3/ironveil/`: `index.html`, `es.js`, `js/` (the whole game: `core`, `geo`, `tex`, `render`, `sky`, `ground`, `phys`, `props`, `level`, `fx`, `audio`, `input`, `player`, `gunmodel`, `weapon`, `enemy`, `hud`, `mission`, `main`), `preview.jpg`. `env/core.js`, `env/post.js`, `env/texgen.js`, `env/scans/`, `CREDITS-env.md` and `assets/lib/meshopt_decoder.js` are kept only because Ironwing loads them: don't delete or change them for this game.
+- Folder: `e63334287a3deaa3/ironveil/`: `index.html`, `es.js`, `js/` (the whole game: `core`, `geo`, `tex`, `render`, `sky`, `ground`, `phys`, `props`, `level`, `fx`, `audio`, `input`, `player`, `gunmodel`, `weapon`, `enemy`, `hud`, `missions`, `mission`, `main`, and `maps/` with one file per mission), `preview.jpg`. `env/core.js`, `env/post.js`, `env/texgen.js`, `env/scans/`, `CREDITS-env.md` and `assets/lib/meshopt_decoder.js` are kept only because Ironwing loads them: don't delete or change them for this game.
 - Docs: the bullet for `e63334287a3deaa3/ironveil/` in `README.md` (and the indented points under it). This is the source of truth for how the game works and stores data; read it in full before changing anything, and update it when you change behaviour, storage or file layout.
 
 ## What it uses (detected from the code)
