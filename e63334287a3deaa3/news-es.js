@@ -7,6 +7,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Account save fix": "Arreglo del guardado de la cuenta",
+    "Account": "Cuenta",
+    "Account save no longer pauses with “signed in as someone else” on phones.": "El guardado de la cuenta ya no se pausa con “otra sesión iniciada” en los teléfonos.",
+    "Signing in with Google from the phone version now starts saving to your account right away.": "Al iniciar sesión con Google desde la versión para teléfono, tu cuenta empieza a guardarse enseguida.",
     "Chromeline: a new start every run": "Chromeline: un comienzo nuevo en cada carrera",
     "Chromeline": "Chromeline",
     "Endless now starts differently every run: the first jumps, their order and their heights change each time, and it is still hard from the first seconds.": "Infinito ahora empieza distinto en cada carrera: los primeros saltos, su orden y su altura cambian cada vez, y sigue siendo difícil desde los primeros segundos.",

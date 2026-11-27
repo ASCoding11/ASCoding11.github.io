@@ -90,6 +90,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.13.2', title: 'Account save fix', kind: 'fix',
+     tags: ['Account'], items: [
+      'Account save no longer pauses with “signed in as someone else” on phones.',
+      'Signing in with Google from the phone version now starts saving to your account right away.']},
     {date: '2026-11-26', version: '2.13.1', title: 'Chromeline: a new start every run', kind: 'fix',
      tags: ['Chromeline'], items: [
       'Endless now starts differently every run: the first jumps, their order and their heights change each time, and it is still hard from the first seconds.',
