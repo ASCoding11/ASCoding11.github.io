@@ -675,9 +675,10 @@
         p.combo = p.comboT > 0 ? (p.combo + 1) % seq.length : 0;
         move = seq[p.combo]; dmg = [12, 15, 20, 26][p.combo]; reach = 1.05; knock = p.combo === 3 ? 2.6 : p.combo === 2 ? 1.3 : 0.8;
       }
-    } else { move = d.move; dmg = d.dmg; reach = d.reach; knock = d.knock || 1; speed = d.speed || 1; }
+    } else if (d.move && RP.Chars.MOVES[d.move]) { move = d.move; dmg = d.dmg; reach = d.reach; knock = d.knock || 1; speed = d.speed || 1; }
+    else { withGun = true; move = 'gunWhip'; dmg = 22; reach = 1.15; knock = 1.2; }   // a gun with no strike of its own: the butt
     var md = RP.Chars.MOVES[move];
-    p.melee = { move: move, def: md, t: 0, speed: speed, dmg: dmg, reach: reach, knock: knock, hit: false, blade: !!(d.id === 'knife' || d.id === 'machete'), weapon: d };
+    p.melee = { move: move, def: md, t: 0, speed: speed, dmg: dmg, reach: reach, knock: knock, hit: false, blade: !!(d.id === 'knife' || d.id === 'machete'), weapon: d, withGun: !!withGun };
     p.actor.move(move, { speed: speed, side: 1 });
     p.guardT = 3; p.comboT = md.dur / speed + 0.45;
     // soft lock: turn to the nearest enemy in front
@@ -713,7 +714,7 @@
     }
     if (m.t >= m.def.dur) {
       var q = m.queued; p.melee = null; p.actor.strikeAt = null;
-      if (q) startMelee(p);
+      if (q) startMelee(p, m.withGun);
     }
   }
 

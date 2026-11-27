@@ -287,7 +287,7 @@
   W.buildNav = function (cell) {
     cell = cell || 1;
     var B = W.bounds, nx = Math.ceil((B.x1 - B.x0) / cell), nz = Math.ceil((B.z1 - B.z0) / cell);
-    var h = new Float32Array(nx * nz), ok = new Uint8Array(nx * nz);
+    var h = new Float32Array(nx * nz), ok = new Uint8Array(nx * nz), boxy = new Uint8Array(nx * nz);
     for (var j = 0; j < nz; j++) for (var i = 0; i < nx; i++) {
       var x = B.x0 + (i + 0.5) * cell, z = B.z0 + (j + 0.5) * cell;
       var th = W.terrainH(x, z), g = th, wall = false;
@@ -295,6 +295,7 @@
       if (!l.length) {   // nothing built here: open ground or open sea
         h[j * nx + i] = g; ok[j * nx + i] = g < W.water + 0.05 ? 0 : 1; continue;
       }
+      boxy[j * nx + i] = 1;
       // stand on the highest surface reachable from the terrain (or from a box top we step onto); a bridge or pier
       // deck (b.deck) is stood on however far below it the ground is
       for (var pass = 0; pass < 2; pass++) {
@@ -317,7 +318,26 @@
       h[j * nx + i] = g;
       ok[j * nx + i] = wall || g < W.water + 0.05 ? 0 : 1;
     }
-    W.nav = { cell: cell, nx: nx, nz: nz, h: h, ok: ok, x0: B.x0, z0: B.z0 };
+    W.nav = { cell: cell, nx: nx, nz: nz, h: h, ok: ok, x0: B.x0, z0: B.z0, edge: new Uint8Array(nx * nz * 8), boxy: boxy };
+    W.nav.warmI = 0;
+  };
+  // check ledge-like edges a little at a time (from main.js, ~1.5 ms a frame) so path searches rarely meet an unchecked
+  // one; any they do meet are checked on the spot (edgeOk)
+  var WDX = [1, -1, 0, 0, 1, 1, -1, -1], WDZ = [0, 0, 1, -1, 1, -1, 1, -1];
+  W.navWarm = function (ms) {
+    var N = W.nav; if (!N || N.warmI >= N.nx * N.nz) return;
+    var t0 = performance.now(), n = N.nx * N.nz;
+    while (N.warmI < n) {
+      var c = N.warmI++;
+      if (N.ok[c] && N.boxy[c]) {
+        var i = c % N.nx, j = (c / N.nx) | 0;
+        for (var k = 0; k < 8; k++) {
+          var xi = i + WDX[k], zj = j + WDZ[k]; if (xi < 0 || zj < 0 || xi >= N.nx || zj >= N.nz) continue;
+          var nc = zj * N.nx + xi; if (N.ok[nc] && Math.abs(N.h[nc] - N.h[c]) <= NAV_RISE) edgeOk(c, nc, k);
+        }
+      }
+      if ((c & 63) === 0 && performance.now() - t0 > ms) return;
+    }
   };
   W.navCell = function (x, z) {
     var N = W.nav, i = Math.floor((x - N.x0) / N.cell), j = Math.floor((z - N.z0) / N.cell);
@@ -364,7 +384,7 @@
       for (var k = 0; k < 8; k++) {
         var x = cx + DX[k], z = cz + DZ[k]; if (x < 0 || z < 0 || x >= N.nx || z >= N.nz) continue;
         var nc = z * N.nx + x; if (!N.ok[nc] || closedS[nc] === stampA) continue;
-        if (Math.abs(N.h[nc] - ch) > NAV_RISE) continue;
+        if (Math.abs(N.h[nc] - ch) > NAV_RISE || !edgeOk(cur, nc, k)) continue;
         if (k >= 4 && (!N.ok[cz * N.nx + x] || !N.ok[z * N.nx + cx])) continue;   // no corner cutting
         var ng = gScore[cur] + DC[k] + Math.max(0, N.h[nc] - ch) * 0.5;
         if (visit.get(nc) === stampA && ng >= gScore[nc]) continue;
@@ -383,14 +403,37 @@
     out.push(cellPt(cells[cells.length - 1]));
     return out;
   };
+  // a rise between neighbouring cells is fine on stairs (several small steps in a metre) but not at a ledge the walker
+  // can't step onto (a slab edge on rising ground reads as a gentle slope in the cell heights): such edges are walked
+  // once with the real mover (W.move, the player's radius and step) and the answer is cached per edge
+  var _ep = new THREE.Vector3();
+  function edgeOk(a, b, k) {
+    var N = W.nav, dh = N.h[b] - N.h[a]; if (Math.abs(dh) <= 0.3 || !(N.boxy[a] || N.boxy[b])) return true;   // (bare hillside: the mover climbs whatever the grid allows)
+    var e = N.edge[a * 8 + k]; if (e) return e === 1;
+    var pa = cellPt(a), pb = cellPt(b), p = _ep.set(pa.x, pa.y, pa.z), ok = false;
+    for (var i = 0; i < 16; i++) {
+      var dx = pb.x - p.x, dz = pb.z - p.z, d = Math.hypot(dx, dz);
+      if (d < 0.12) { ok = Math.abs(p.y - pb.y) < 0.5; break; }
+      var st = Math.min(d, 0.2); W.move(p, dx / d * st, dz / d * st, TUN.radius, 1.7);
+      var g = W.ground(p.x, p.z, p.y + 0.05).y; if (p.y - g > 1.3) break; p.y = g;
+    }
+    N.edge[a * 8 + k] = ok ? 1 : 2;
+    return ok;
+  }
   function cellPt(c) { var N = W.nav; return { x: N.x0 + ((c % N.nx) + 0.5) * N.cell, z: N.z0 + (((c / N.nx) | 0) + 0.5) * N.cell, y: N.h[c] }; }
+  // can a walker go straight from cell a's centre to cell b's? The line is swept with the walker's width (every
+  // cell under a 0.7-cell square at quarter-cell steps), so a shortcut never grazes a wall the cells only just clear
   function walkLine(a, b) {
-    var N = W.nav, ax = a % N.nx, az = (a / N.nx) | 0, bx = b % N.nx, bz = (b / N.nx) | 0;
-    var n = Math.max(Math.abs(bx - ax), Math.abs(bz - az)), ph = N.h[a];
+    var N = W.nav, ax = a % N.nx + 0.5, az = ((a / N.nx) | 0) + 0.5, bx = b % N.nx + 0.5, bz = ((b / N.nx) | 0) + 0.5;
+    var n = Math.max(1, Math.ceil(Math.max(Math.abs(bx - ax), Math.abs(bz - az)) * 4)), ph = N.h[a], R = 0.35;
     for (var i = 1; i <= n; i++) {
-      var x = Math.round(ax + (bx - ax) * i / n), z = Math.round(az + (bz - az) * i / n), c = z * N.nx + x;
-      if (!N.ok[c] || Math.abs(N.h[c] - ph) > NAV_RISE) return false;
-      ph = N.h[c];
+      var px = ax + (bx - ax) * i / n, pz = az + (bz - az) * i / n;
+      for (var cz = Math.floor(pz - R); cz <= Math.floor(pz + R); cz++) for (var cx = Math.floor(px - R); cx <= Math.floor(px + R); cx++) {
+        if (cx < 0 || cz < 0 || cx >= N.nx || cz >= N.nz) return false;
+        var c = cz * N.nx + cx;
+        if (!N.ok[c] || Math.abs(N.h[c] - ph) > 0.45) return false;   // (height changes keep their waypoints: stairs and ledges are checked edge by edge)
+      }
+      ph = N.h[Math.floor(pz) * N.nx + Math.floor(px)];
     }
     return true;
   }

@@ -89,6 +89,7 @@
     RP.HUD.interact = null;
     if (Run.interact && p.alive && p.pos.distanceTo(Run.interact.p) < Run.interact.r) RP.HUD.interact = Run.interact.label;
     RP.Items.update(dt);
+    RP.W.navWarm(1.5);
     RP.Traffic.update(dt);
     RP.Vehicles.update(dt);
     RP.Heli.update(dt);

@@ -126,7 +126,7 @@
     var spread = d.spread ? M.lerp(d.spread[0], d.spread[1], p.aimW) + p.bloom + Math.min(1.5, p.speed * 0.35) * (1 - p.aimW * 0.6) : 1;
     var gap = Math.max(3, spread / RP.Cam.fov * window.innerHeight * 0.9);
     e.cross.style.setProperty('--gap', gap.toFixed(1) + 'px');
-    e.cross.className = (showX ? 'on' : '') + (d.melee || !showX ? ' dot' : '') + (H.overEnemy ? ' enemy' : '') + (RP.Cam.lock ? ' lock' : '');
+    e.cross.className = (showX ? 'on' : '') + (d.melee || !showX ? ' dot' : '') + (H.overEnemy ? ' enemy' : '') + (RP.Cam.lock ? ' lock' : '') + (H.blocked && showX ? ' blocked' : '');
     document.body.classList.toggle('scoped', !!RP.Cam.scoped);
     // bars
     e.hp.style.width = (p.hp / RP.TUNING.maxHealth * 100).toFixed(1) + '%';
@@ -159,9 +159,17 @@
     if (showX && H._xt > 0.1) {
       H._xt = 0; var r = RP.Cam.aimRay(), hit = RP.Combat.hitEnts(r.o, r.dir, 150, p);
       H.overEnemy = !!(hit && hit.ent.team === 'guard' && hit.ent.alive && RP.W.los(r.o.x, r.o.y, r.o.z, hit.point.x, hit.point.y, hit.point.z));
+      // the gun can't see what the camera sees (a wall edge or the step in front of the muzzle): grey it out with an x,
+      // since the shot would hit that instead (bullets go from the muzzle to the point under the crosshair)
+      H.blocked = false;
+      if (p.model && p.model.userData.muzzle && !d.proj) {
+        var ap = RP.Cam.aimPoint(r, 300), mz = p.model.userData.muzzle.getWorldPosition(_mz), L = ap.distanceTo(mz);
+        if (L > 1.5) { var dv = _md.subVectors(ap, mz).divideScalar(L), wh = RP.W.ray(mz.x, mz.y, mz.z, dv.x, dv.y, dv.z, L - 0.6, { noWater: true }); H.blocked = !!(wh && wh.t < 40); }
+      }
     }
     drawMinimap(p);
   };
+  var _mz = new THREE.Vector3(), _md = new THREE.Vector3();
   function keyName(a) {
     if (RP.In.lastDevice === 'touch') return '';
     if (RP.In.lastDevice === 'pad') return { fire: '[RT]', interact: '[Y]', cover: '[RB]', jump: '[A]' }[a] || '';
