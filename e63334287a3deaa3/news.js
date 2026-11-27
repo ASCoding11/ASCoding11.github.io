@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.18.1', title: 'Chromeline: a bigger bike on upright phones', kind: 'fix',
+     tags: ['Chromeline'], items: [
+      'With your phone held upright, the camera comes in closer, so the bike is about twice the size it was.',
+      'Small arrows on the right edge warn you about hazards and jumps just past the screen, as early as before.',
+      'Trick and landing words are bigger on phones and stay clear of the bike.']},
     {date: '2026-11-27', version: '2.18', title: 'Hot right now', kind: 'feature',
      tags: ['Back Room'], items: [
       'A new Hot right now row at the top of the Back Room shows the games the most people are playing this minute.',

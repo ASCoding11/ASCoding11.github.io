@@ -7,6 +7,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Chromeline: a bigger bike on upright phones": "Chromeline: una moto más grande con el móvil en vertical",
+    "Chromeline": "Chromeline",
+    "With your phone held upright, the camera comes in closer, so the bike is about twice the size it was.": "Con el móvil en vertical, la cámara se acerca más, así que la moto se ve casi el doble de grande.",
+    "Small arrows on the right edge warn you about hazards and jumps just past the screen, as early as before.": "Unas flechitas en el borde derecho avisan de peligros y saltos que vienen justo fuera de la pantalla, con la misma antelación que antes.",
+    "Trick and landing words are bigger on phones and stay clear of the bike.": "Los textos de trucos y aterrizajes son más grandes en el móvil y no tapan la moto.",
     "Hot right now": "Lo más jugado ahora",
     "Back Room": "Back Room",
     "A new Hot right now row at the top of the Back Room shows the games the most people are playing this minute.": "Una nueva fila, Lo más jugado ahora, arriba del Back Room muestra los juegos con más gente jugando en este momento.",
