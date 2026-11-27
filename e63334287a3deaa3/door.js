@@ -9,9 +9,9 @@
  *      lowercased) must be WORD below;
  *   3. a number on the keypad, then the password on the admin page.
  * On the phone page (m/) the same three steps work with different places: a second word typed into the Your school
- * search box (school.js) without pressing Enter (checked the same way against WORD_S below; its "No school matches"
- * note is hidden once the word is recognised, and Enter does nothing), then three taps on the "s" of "Arjun's" in the
- * page title (a <span data-door> with extra invisible padding), then the keypad and the password. Inside the home
+ * search box (school.js) without pressing Enter (the Party box's word, or a second one, WORD_S; its "No school matches"
+ * note is hidden once the word is recognised, and Enter does nothing), then three taps on the "ASC" of "ASCoding games"
+ * in the page title (a <span data-door> with extra invisible padding), then the keypad and the password. Inside the home
  * page's phone frame the admin page opens in the whole tab, not in the frame.
  * Without the word, the triple tap does nothing visible. Step 2 opens a small number keypad (big buttons for phones; a computer's number keys, Backspace, Enter and Escape
  * work too). The number is checked the same way the home page checks the Back Room's code: the first 16 hex characters
@@ -57,9 +57,9 @@
   // The Y that opens the keypad: <p class="kicker"><span data-door>Y</span>ou found it</p> in the Back Room's header.
   // Anywhere on that line counts, not just the Y, so it's easy to hit.
   function kicker(e) {
-    // the phone page: the "s" of "Arjun's" in its title; the keypad opens under the title
+    // the phone page: the "ASC" of "ASCoding games" in its title; the keypad opens under the title
     var s = e.target && e.target.closest && e.target.closest('#home header h1 > [data-door]');
-    if (s && s.textContent === 's') return s.closest('h1').parentNode;
+    if (s && s.textContent === 'ASC') return s.closest('h1').parentNode;
     var k = e.target && e.target.closest && e.target.closest('header .kicker');
     var y = k && k.querySelector(':scope > [data-door]');
     return y && y.textContent === 'Y' && k.firstChild === y && k.textContent.trim().indexOf('You found it') === 0 ? k : null;
@@ -68,7 +68,8 @@
   // which: WORD for the Party code box, WORD_S for the phone page's school search box.
   function isWord(v, which) {
     v = String(v || '').trim().toLowerCase();
-    return v ? h(v, 'ascoding11-door:').then(function (d) { return d === (which || WORD); }) : Promise.resolve(false);
+    // the school box takes the Party box's word too, so the same word works on a computer and a phone
+    return v ? h(v, 'ascoding11-door:').then(function (d) { return d === (which || WORD) || (which === WORD_S && d === WORD); }) : Promise.resolve(false);
   }
   function isBox(el) { return !!el && (el.id === 'ptyCode' || !!(el.classList && el.classList.contains('sch-q') && el.closest('#home'))); }
   function wordFor(el) { return el.id === 'ptyCode' ? WORD : WORD_S; }

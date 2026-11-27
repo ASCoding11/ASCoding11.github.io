@@ -493,8 +493,7 @@
   // The phone page (m/index.html) loads this file too: its own rows, tiles, tips and the frame bar.
   L.add({
     "Arjun's": "Los juegos",
-    "Arjun'": "Los juego",   // the title is split around its "s" (door.js), so "Los juego" + "s" still reads "Los juegos"
-    "games": "de Arjun",
+    "games": "juegos",   // the phone page title: "ASCoding juegos"
     "Racing and car games": "Carreras y autos",
     "22-car open-wheel races. Draft, brake late, pass.": "Carreras de monoplazas con 22 autos. Ve al rebufo, frena tarde, adelanta.",
     "↻ Best sideways": "↻ Mejor en horizontal",
