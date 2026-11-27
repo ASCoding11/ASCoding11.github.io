@@ -90,6 +90,9 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.09', title: 'The home page is now ASCoding', kind: 'feature',
+     tags: ['Home page'], items: [
+      'The home page now goes by ASCoding, with a cleaner, more professional look.']},
     {date: '2026-11-26', version: '2.08', title: 'A new look for the home page', kind: 'feature',
      tags: ['Home page'], items: [
       'The home page has a whole new design, with a dark blueprint look and a gallery of the engineering projects.',

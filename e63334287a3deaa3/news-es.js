@@ -7,6 +7,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "The home page is now ASCoding": "La página principal ahora es ASCoding",
+    "Home page": "Página principal",
+    "The home page now goes by ASCoding, with a cleaner, more professional look.": "La página principal ahora se llama ASCoding, con un aspecto más limpio y profesional.",
     "A new look for the home page": "Un nuevo diseño para la página principal",
     "Home page": "Página principal",
     "The home page has a whole new design, with a dark blueprint look and a gallery of the engineering projects.": "La página principal tiene un diseño totalmente nuevo, con un estilo de plano oscuro y una galería de los proyectos de ingeniería.",
