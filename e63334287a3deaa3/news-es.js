@@ -7,6 +7,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Retro TV switch tip": "Aviso del interruptor TV retro",
+    "Holidays": "Fiestas",
+    "A short note now shows you where the Retro TV switch is, the first time you visit this holiday season.": "Una nota corta te muestra dónde está el interruptor TV retro la primera vez que entras en estas fiestas.",
+    "You can turn the Retro TV look on or off right from the note.": "Puedes activar o desactivar el estilo TV retro desde la misma nota.",
     "Chromeline gets tough": "Chromeline se pone difícil",
     "Chromeline": "Chromeline",
     "Endless and the Daily run are much harder: the first jumps come within seconds, and the first big launch needs a short hold in the air or you come up short.": "Infinito y la carrera del día son mucho más difíciles: los primeros saltos llegan en segundos, y el primer gran lanzamiento pide mantener pulsado un momento en el aire o te quedas corto.",

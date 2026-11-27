@@ -90,6 +90,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.13', title: 'Retro TV switch tip', kind: 'feature',
+     tags: ['Holidays'], items: [
+      'A short note now shows you where the Retro TV switch is, the first time you visit this holiday season.',
+      'You can turn the Retro TV look on or off right from the note.']},
     {date: '2026-11-26', version: '2.12', title: 'Chromeline gets tough', kind: 'feature',
      tags: ['Chromeline'], items: [
       'Endless and the Daily run are much harder: the first jumps come within seconds, and the first big launch needs a short hold in the air or you come up short.',
