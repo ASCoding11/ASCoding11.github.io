@@ -90,6 +90,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.20.1', title: 'Cleaner home page', kind: 'fix',
+     items: [
+      'A new animation at the top of the home page.',
+      'Shorter, plainer wording at the top.']},
     {date: '2026-11-27', version: '2.20', title: 'New look for the home page', kind: 'feature',
      items: [
       'The home page has a cleaner, calmer design.',

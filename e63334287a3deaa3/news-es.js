@@ -7,6 +7,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Cleaner home page": "Página de inicio más limpia",
+    "A new animation at the top of the home page.": "Una nueva animación en la parte de arriba de la página de inicio.",
+    "Shorter, plainer wording at the top.": "Textos más cortos y sencillos arriba.",
     "New look for the home page": "Nuevo diseño para la página de inicio",
     "The home page has a cleaner, calmer design.": "La página de inicio tiene un diseño más limpio y tranquilo.",
     "Its top shows air flowing past a wing, worked out live: move your pointer up or down to tilt it.": "Arriba se ve el aire pasando por un ala, calculado en vivo: mueve el puntero arriba o abajo para inclinarla.",
