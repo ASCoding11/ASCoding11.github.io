@@ -138,8 +138,12 @@
       cam.fov = C.scoped ? 14 : 72;
       p.actor.root.visible = C.scoped ? false : true;
       if (p.actor.hat) p.actor.hat.visible = false;
+      // no head of your own in view (the run leans it past the eye): the head bone shrinks to nothing, taking the face,
+      // hair and eyes with it; its position (the eye) is unchanged
+      if (p.actor.bones.Head) p.actor.bones.Head.scale.setScalar(0.001);
     } else {
       p.actor.root.visible = true; if (p.actor.hat) p.actor.hat.visible = true;
+      if (p.actor.bones.Head && p.actor.bones.Head.scale.x !== 1) p.actor.bones.Head.scale.setScalar(1);
       want.copy(cur).addScaledVector(right, C.shoulder * C.side).addScaledVector(fwd, -C.dist);
       // sprint: a little bob and roll
       if (sprint && p.speed > 4) { var tb = RP.G.time * 11; want.y += Math.sin(tb) * 0.035; }

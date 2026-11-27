@@ -864,5 +864,24 @@
     if (aimingPose || fighting) a.setAim(RP.Cam.pitch + (p.recoilP || 0) * 0.5, M.clamp(M.wrap(RP.Cam.yaw - p.yaw), -0.9, 0.9) * (aimingPose ? 1 : 0.3));
     else a.setAim(RP.Cam.pitch * 0.35, M.clamp(M.wrap(RP.Cam.yaw - p.yaw), -1, 1) * 0.35);   // head follows the camera a little
     a.update(dt);
+    if (RP.Cam.fp && !RP.Cam.scoped && !aimingPose && !fighting && !p.melee && !p.reload) fpArms(p, a);
   };
+  // first person: the run and sprint clips pump the hands up to face height, right in front of the eye; keep them
+  // below the chest (arm IK onto the same point, lowered) so the view stays clear. Aiming, fighting and reloads are left alone.
+  var _fh = new T.Vector3(), _fc = new T.Vector3(), _fp = new T.Vector3(), _ff = new T.Vector3();
+  function fpArms(p, a) {
+    var b = a.bones; if (!b.hand_l || !RP.Chars.ikPole) return;
+    a.chest(_fc); _ff.set(Math.sin(p.yaw), 0, Math.cos(p.yaw));
+    var lim = _fc.y - 0.12;
+    ['l', 'r'].forEach(function (sd) {
+      var hand = b['hand_' + sd]; hand.getWorldPosition(_fh);
+      var ahead = (_fh.x - _fc.x) * _ff.x + (_fh.z - _fc.z) * _ff.z;
+      if (_fh.y <= lim || ahead < 0.05) return;
+      _fh.y = lim - Math.min(0.12, (_fh.y - lim) * 0.5);                      // down, keeping some of the swing
+      _fh.addScaledVector(_ff, -Math.min(0.12, ahead * 0.4));               // and a little back toward the body
+      b['upperarm_' + sd].getWorldPosition(_fp);
+      _fp.add(_ff.clone().multiplyScalar(-0.3)); _fp.y -= 0.4; _fp.x += (sd === 'l' ? 1 : -1) * Math.cos(p.yaw) * 0.25; _fp.z -= (sd === 'l' ? 1 : -1) * Math.sin(p.yaw) * 0.25;
+      RP.Chars.ikPole(b['upperarm_' + sd], b['lowerarm_' + sd], hand, _fh, _fp, 1);
+    });
+  }
 })();
