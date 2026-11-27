@@ -7,6 +7,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Flood Crew: better gloves": "Flood Crew: mejores guantes",
+    "Flood Crew": "Flood Crew",
+    "Your gloved hands look like hands now, with fingers wrapped round the handle.": "Tus manos con guantes ahora parecen manos, con los dedos rodeando el mango.",
     "Phone page renamed": "Nuevo nombre para la página del teléfono",
     "Phone": "Teléfono",
     "The phone page's title now reads ASCoding games.": "El título de la página del teléfono ahora dice ASCoding juegos.",

@@ -90,6 +90,9 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.13.4', title: 'Flood Crew: better gloves', kind: 'fix',
+     tags: ['Flood Crew'], items: [
+      'Your gloved hands look like hands now, with fingers wrapped round the handle.']},
     {date: '2026-11-27', version: '2.13.3', title: 'Phone page renamed', kind: 'fix',
      tags: ['Phone'], items: [
       'The phone page\'s title now reads ASCoding games.']},
