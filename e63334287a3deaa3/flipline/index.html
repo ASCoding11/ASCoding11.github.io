@@ -43,7 +43,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px soli
 #pauseBtn svg{width:20px;height:20px}
 body.touch #pauseBtn{width:58px;height:58px}
 body.touch #pauseBtn svg{width:24px;height:24px}
-#combo{position:absolute;left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);font-family:var(--f-d);font-size:26px;color:#fff;-webkit-text-stroke:2px #0a0c1c;paint-order:stroke;text-shadow:0 0 12px rgba(255,200,58,.8);letter-spacing:.04em;white-space:nowrap}
+#combo{position:absolute;left:50%;top:calc(max(10px,env(safe-area-inset-top)) + 9px);transform:translateX(-50%);font-family:var(--f-d);font-size:15px;color:#fff;opacity:.85;-webkit-text-stroke:1px #0a0c1c;paint-order:stroke;text-shadow:0 0 5px rgba(255,200,58,.45);letter-spacing:.03em;white-space:nowrap;pointer-events:none}
 #combo.x2{color:var(--gold)}
 #hint{position:absolute;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(9,12,32,.88);border:2px solid var(--cyan);border-radius:12px;padding:8px 16px;font-weight:800;font-size:15px;text-align:center;box-shadow:var(--sh);max-width:min(92vw,560px)}
 #hint kbd,.keys kbd{font-family:var(--f-b);font-weight:900;background:var(--glass-2);border:2px solid var(--edge);border-bottom-width:3px;border-radius:7px;padding:0 6px;font-size:13px;color:var(--txt)}
@@ -150,7 +150,7 @@ input[type=text]{width:100%;border:2px solid var(--edge);border-radius:10px;back
 details.help summary{cursor:pointer;font-weight:900;color:var(--cyan)}
 details.help ul{margin:8px 0 0;padding-left:20px;font-weight:700;font-size:14px;line-height:1.45;color:var(--txt-2)}
 details.help b{color:var(--txt)}
-@media (max-width:600px){#combo{top:calc(max(10px,env(safe-area-inset-top)) + 96px);font-size:22px}}
+@media (max-width:600px){#combo{top:calc(max(10px,env(safe-area-inset-top)) + 96px);font-size:13px}}
 @media (max-width:420px){h2{font-size:24px}.lvgrid{grid-template-columns:repeat(2,1fr)}.stat b{font-size:20px}.mode b{font-size:18px}}
 @media (max-height:440px) and (orientation:landscape){
   #menu .grid2{grid-template-columns:repeat(3,1fr)}
@@ -730,14 +730,43 @@ function rollback(tr,k){
 }
 // difficulty from ENDLESS_D0 to 1 over ENDLESS_RAMP metres after the opening, then on up to 2 (wider gaps, more hazards, more of the hard pieces)
 function endlessD(x){const u=(x-OPEN_X)/ENDLESS_RAMP;return u<=1?ENDLESS_D0+(1-ENDLESS_D0)*clamp(u,0,1):Math.min(2,1+(u-1)*ENDLESS_RAMP/1200)}
+// the opening (random since the tune-up: the owners got the same start five runs in a row). Every run builds it from this
+// pool of hard early pieces, seeded by the run (so the Daily run is the same for everyone that day): which piece comes first,
+// the order, the heights and the spacing all change. Each entry: name, weight, its numbers. 'c' marks a control check (a piece
+// you can't ride with the gas alone: the launch needs a short hold in the air, the pipes need the nose brought round), and
+// one of those always comes within the first three pieces. 's' marks the pieces that may come first (at about 1 s).
+// Each piece is checked like any other (vRun), and the launch's numbers stay in a narrow band the real bike was tested on.
+const OPEN_POOL=[
+  ['kick',3,'s',r=>[R_(r,1.2,1.5),R_(r,26,31),R_(r,5,9)]],
+  ['gap',3,'s',r=>[R_(r,5.5,7),R_(r,-0.8,0.2),R_(r,0.7,0.9)]],
+  ['spikes',3,'s',r=>[R_(r,3.6,4.6)]],
+  ['post',2,'s',r=>[R_(r,1.0,1.2),R_(r,25,28),R_(r,2.4,2.8),R_(r,0.15,0.3)]],
+  ['stepup',2,'s',r=>[R_(r,2.2,2.8),R_(r,3,4)]],
+  ['launch',4,'s',r=>[R_(r,13.6,14.1),R_(r,0.25,0.4),26,5]],
+  ['lpipe',3,'c',r=>[R_(r,3.3,3.5),R_(r,68,71),R_(r,8,11)]],
+  ['hpipe',3,'c',r=>[R_(r,3.3,3.5),R_(r,68,70),R_(r,2.6,2.8),R_(r,9,11)]],
+  ['bigkick',3,'',r=>[R_(r,2.2,2.6),R_(r,34,38),R_(r,3,5),R_(r,6,9)]],
+  ['spikeroll',2,'',r=>[2+Math.floor(r()*2),R_(r,2.8,3.4),R_(r,0.9,1.1)]],
+  ['loop',2,'',r=>[R_(r,3.8,4.3),R_(r,13,15),0,0]],
+  ['gapdown',2,'',r=>[R_(r,8,10),-R_(r,3,4.5)]],
+  ['ceiling',2,'',r=>[R_(r,10,14),R_(r,2.0,2.2),0]], // no bump here: you often meet it fast, straight off a pipe
+];
+function openPick(tr,r){
+  const k=tr.op|0,used=tr.opUsed||(tr.opUsed={});
+  const ctrl=Object.keys(used).some(n=>{const q=OPEN_POOL.find(p=>p[0]===n);return q&&q[2].includes("c")});
+  let opts=OPEN_POOL.filter(p=>!used[p[0]]&&tr.last[0]!==p[0]&&!(BIG[p[0]]&&BIG[tr.last[0]]));
+  if(k===0)opts=opts.filter(p=>p[2].includes('s'));
+  if(!ctrl&&(k===2||(k===1&&r()<0.5)))opts=OPEN_POOL.filter(p=>p[2].includes('c')); // the pipe comes even straight after another big piece
+  if(!opts.length)opts=OPEN_POOL.filter(p=>tr.last[0]!==p[0]);
+  let tot=0;for(const p of opts)tot+=p[1];let q=r()*tot,pk=opts[0];for(const p of opts){q-=p[1];if(q<=0){pk=p;break}}
+  return pk;
+}
 function endless(seed){
   const tr=newTrack('endless');tr.seed=seed>>>0;tr.r=rng(seed);startTrack(tr);
-  // the opening (hard update, hard from the first second; the owner's request): a tall kick at ~12 m (1 s), a boosted launch over a
-  // pit at ~4.5 s whose flat landing needs a short hold in the air (no hold, and the nose drops short), the steeper quarter-pipe or
-  // the half-pipe at ~8-10 s, a big kicker over a deep drop, a wide spike strip, a bigger loop and a post past a kicker by ~20 s
-  build(tr,'kick',[1.3,28,7]);build(tr,'launch',[14,0.4,26,5]);build(tr,(seed&1)?'lpipe':'hpipe',(seed&1)?[3.4,70,10]:[3.4,69,2.7,10]);
-  build(tr,'bigkick',[2.4,36,4,6]);build(tr,'spikes',[4.2]);build(tr,'loop',[4,14,0,0]);build(tr,'post',[1.1,26,2.6,0.25]);flush(tr);
-  tr.vs=[vInit(tr,1),vInit(tr,0.85)];vRun(tr,tr.cx,null);tr.snaps=[{x:tr.cx,vs:vCopy(tr.vs)}];return tr;
+  // a short random run-up (12 to 16 m), then the random opening (above) up to OPEN_X, then the usual mix
+  seg(tr,Math.round(tr.r()*4),0);flush(tr);
+  tr.vs=[vInit(tr,1),vInit(tr,0.85)];vRun(tr,tr.cx,null);tr.snaps=[{x:tr.cx,vs:vCopy(tr.vs)}];
+  extend(tr,OPEN_X);return tr;
 }
 const vCopy=vs=>vs.map(v=>Object.assign({},v,{trig:Object.assign({},v.trig)}));
 // grow an endless track until it reaches x (each module is checked; one that fails is taken out and another tried)
@@ -751,6 +780,7 @@ function extend(tr,x){
       let base=tr.snaps[0];for(const sn of tr.snaps)if(sn.x<=k.cx-36)base=sn;
       let name,args;
       if(tries>=3){name='flat';args=[14]}
+      else if(tr.cx<OPEN_X){const pk=openPick(tr,r);name=pk[0];args=pk[3](r).map(v=>Math.round(v*100)/100)}
       else{
         const opts=PICK.filter(p=>p[2]<=d+1e-9&&tr.last[0]!==p[0]&&!(BIG[p[0]]&&BIG[tr.last[0]]));
         let tot=0;for(const p of opts)tot+=pickW(p,d);
@@ -764,7 +794,7 @@ function extend(tr,x){
       if(BIG[name]||MOD[name].need)seg(tr,Math.max(2,4+Math.round(r()*4)-Math.round(2*D1(d))),0);
       flush(tr);
       tr.vs=vCopy(base.vs);const f=vRun(tr,tr.cx,null).filter(e=>e.x>=k.cx-1);
-      if(!f.length||tries>=6){if(f.length)tr.bad.push(f[0]);ok=true;tr.last.unshift(name);tr.last.length=3;tr.snaps.push({x:tr.cx,vs:vCopy(tr.vs)});while(tr.snaps.length>2&&tr.snaps[1].x<tr.cx-200)tr.snaps.shift()}
+      if(!f.length||tries>=6){if(f.length)tr.bad.push(f[0]);ok=true;if(k.cx<OPEN_X){tr.op=(tr.op|0)+1;(tr.opUsed||(tr.opUsed={}))[name]=1}tr.last.unshift(name);tr.last.length=3;tr.snaps.push({x:tr.cx,vs:vCopy(tr.vs)});while(tr.snaps.length>2&&tr.snaps[1].x<tr.cx-200)tr.snaps.shift()}
       else{tr.rej++;tr.fails.push({x:k.cx,n:name,a:args,f:f[0]});rollback(tr,k);tries++}
     }
   }
@@ -1660,8 +1690,8 @@ function drawGems(tr,s,x0,x1,t){
     const sp=0.55+0.45*Math.abs(Math.cos(t*2.2+i*0.9)),r=0.26;glow(c.x,y,0.7,GEM_C,0.45);cx.beginPath();cx.moveTo(c.x,y+r*1.25);cx.lineTo(c.x+r*sp,y);cx.lineTo(c.x,y-r*1.25);cx.lineTo(c.x-r*sp,y);cx.closePath();cx.fillStyle='#2bb8d6';cx.fill();cx.stroke();
     cx.beginPath();cx.moveTo(c.x,y+r*1.1);cx.lineTo(c.x+r*sp*0.8,y);cx.lineTo(c.x,y);cx.closePath();cx.fillStyle='#ffffff';cx.fill();cx.beginPath();cx.moveTo(c.x,y-r*1.1);cx.lineTo(c.x-r*sp*0.8,y);cx.lineTo(c.x,y);cx.closePath();cx.fillStyle=GEM_C;cx.fill()}
   // little "+25" numbers that float up from picked gems
-  for(let i=G.minis.length-1;i>=0;i--){const m=G.minis[i];m.t+=1/60;if(m.t>0.9){G.minis.splice(i,1);continue}cx.save();cx.translate(m.x,m.y+m.t*1.2);cx.scale(1,-1);cx.globalAlpha=m.t>0.6?1-(m.t-0.6)/0.3:1;
-    cx.font='0.42px "Lilita One",sans-serif';cx.textAlign='center';cx.lineWidth=0.1;cx.strokeStyle=INK;cx.strokeText(m.text,0,0);cx.fillStyle=m.col;cx.fillText(m.text,0,0);cx.restore()}
+  for(let i=G.minis.length-1;i>=0;i--){const m=G.minis[i];m.t+=1/60;if(m.t>0.7){G.minis.splice(i,1);continue}cx.save();cx.translate(m.x,m.y+m.t*0.8);cx.scale(1,-1);cx.globalAlpha=m.t>0.45?1-(m.t-0.45)/0.25:1;
+    cx.font='0.34px "Lilita One",sans-serif';cx.textAlign='center';cx.lineWidth=0.1;cx.strokeStyle=INK;cx.strokeText(m.text,0,0);cx.fillStyle=m.col;cx.fillText(m.text,0,0);cx.restore()}
   cx.globalAlpha=1;
 }
 function star(x,y,r){cx.beginPath();for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,rr_=i%2?r*0.45:r;cx.lineTo(x+Math.cos(a)*rr_,y+Math.sin(a)*rr_)}cx.closePath();cx.fill()}
@@ -1822,7 +1852,7 @@ function demoIn(s){if(s.n>=demoNext||!demoP){demoNext=s.n+30;demoK=0;let best=-1
 function demoCode(s,p,i,sw){const h=i<sw?p[0]:p[2];if(s.cR||s.cF)return FL.inCode(h,0);return FL.inCode(p[3]&&s.air<p[4]?true:FL.botLevel(G.tr,s)<0,0)}
 
 // the run multiplier going up (or down after a sloppy landing) shows as a small number over the bike
-function rmMini(s,e){if(!e.rmUp||Math.abs(e.rmUp)<0.01)return;G.minis.push({x:s.x,y:s.y+1.5,t:0,text:(e.rmUp>0?(e.fz?TX('Flip zone')+' ':'')+'×'+e.rm+' ▲':'×'+e.rm+' ▼'),col:e.rmUp>0?'#ffc83a':'#ffd0dc'})}
+function rmMini(s,e){if(!e.rmUp||Math.abs(e.rmUp)<0.01)return;G.minis.push({x:s.x-0.4,y:s.y+1.9,t:0,text:(e.rmUp>0?(e.fz?TX('Flip zone')+' ':'')+'×'+e.rm+' ▲':'×'+e.rm+' ▼'),col:e.rmUp>0?'#ffc83a':'#ffd0dc'})}
 function handleEvents(s){
   for(const e of s.ev){
     if(G.mode==='demo'){if(e.k==='bank'&&e.n)confetti(s.x,s.y,10);continue}
@@ -1831,7 +1861,7 @@ function handleEvents(s){
         if(fx())G.shake=Math.max(G.shake,Math.min(0.5,imp*0.05+e.air*0.06));G.popT=1;break}
       case'bank':{let txt='',col='#f4f7ff',big=false;
         if(e.n>0){txt=e.n===1?(e.back?TX('Backflip!'):TX('Front flip!')):e.n===2?TX('Double flip!'):e.n===3?TX('Triple flip!'):e.n===4?TX('Quadruple flip!'):TX('{n}× flip!',{n:e.n});big=true;AU.S.flip(e.n,e.combo)}
-        if(e.clean){const first=!G.firsts.clean;txt=(txt?txt+'  ':'')+(first?TX('First clean landing!'):TX('Clean'))+(e.mult>1?' ×'+e.mult:'');col=first?'#7dffcf':'#bff8ff';AU.S.clean(e.combo);confetti(s.x,s.y,e.n?26:12);
+        if(e.clean){const first=!G.firsts.clean;txt=(txt?txt+'  ':'')+(first?TX('First clean landing!'):TX('Clean'))+(e.mult>1?' ×'+e.mult:'');col=first?'#7dffcf':'#bff8ff';AU.S.clean(e.combo);if(e.n)confetti(s.x,s.y,12);
           if(first){G.firsts.clean=1;G.flash=1;G.flashC=theme().acc;big=true}}
         else if(e.air>0.55&&!e.n){AU.S.sloppy()}
         if(!e.n&&!e.clean&&e.pts>0)txt=TX('Big air');
@@ -1839,7 +1869,7 @@ function handleEvents(s){
         if(e.n>=4){save.feat.quad=1}
         rmMini(s,e);break}
       case'near':pop(TX('Close shave!')+'  +'+e.pts,'#ffd0dc');AU.S.near();break;
-      case'loop':{const first=!G.firsts.loop;pop((first?TX('First loop!'):TX('Loop!'))+'  +'+NUM(e.pts)+(e.mult>1?'  ×'+e.mult:''),first?'#7dffcf':'#e6fbff',true);AU.S.loop(e.combo);confetti(s.x,s.y,18);
+      case'loop':{const first=!G.firsts.loop;pop((first?TX('First loop!'):TX('Loop!'))+'  +'+NUM(e.pts)+(e.mult>1?'  ×'+e.mult:''),first?'#7dffcf':'#e6fbff',true);AU.S.loop(e.combo);confetti(s.x,s.y,8);
         if(first){G.firsts.loop=1;G.flash=1;G.flashC=theme().acc2}if(fx())G.shake=Math.max(G.shake,0.25);rmMini(s,e);break}
       case'x2':pop(TX('×2 points for {n} s',{n:P.MUL_T}),'#ffc83a',true);AU.S.token();G.flash=0.7;G.flashC='#ffc83a';break;
       case'gem':{AU.S.coin();const c=G.tr.gems[e.i];G.minis.push({x:c.x,y:c.y+0.3,t:0,text:'+'+e.pts,col:GEM_C});for(let i=0;i<6;i++){const a=i/6*TAU;emit(c.x,c.y,Math.cos(a)*2.5,Math.sin(a)*2.5,0.35,0.08,GEM_C,2)}break}
@@ -2012,14 +2042,18 @@ function render(now,dtReal){
   // reward pulse: a soft glow in from the screen edges (never a full-screen flash)
   if(G.flash>0){screen();const fc=G.flashC||th.acc;const g=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.3,W/2,H/2,Math.max(W,H)*0.7);g.addColorStop(0,hexA(fc,0));g.addColorStop(1,hexA(fc,0.32*G.flash));
     cx.fillStyle=g;cx.fillRect(0,0,W,H);G.flash=Math.max(0,G.flash-dtReal*2.2)}
-  // trick words rise from the rider
-  screen();const fs=Math.round(clamp(PPM*0.6,20,34));
-  for(let i=G.pops.length-1;i>=0;i--){const p=G.pops[i];p.t+=dtReal;if(p.t>1.5){G.pops.splice(i,1);continue}
-    p.x=pose.x;p.y=pose.y+2.3;p.attach=false;
-    const k_=p.t<0.12?0.6+p.t/0.12*0.45:p.t<0.22?1.05-(p.t-0.12)*0.5:1;const sx=clamp((OX+p.x*K)/DPR,Math.min(W/2,fs*5),Math.max(W/2,W-fs*5)),top=(touchUI?96:76)+fs;let sy=(OY-(p.y+p.t*0.6)*K)/DPR;if(sy<top)sy=(OY-(pose.y-1.6-p.t*0.6)*K)/DPR+fs; // no room above the bike: show it below
-    sy=clamp(sy,top,H-fs*1.2);
-    cx.save();cx.translate(sx,sy);cx.scale(k_,k_);cx.globalAlpha=p.t>1.1?1-(p.t-1.1)/0.4:1;cx.font=(p.big?fs:Math.round(fs*0.72))+'px "Lilita One","Arial Black",Impact,sans-serif';cx.textAlign='center';cx.lineJoin='round';
-    cx.lineWidth=5;cx.strokeStyle=INK;cx.strokeText(p.text,0,0);cx.fillStyle=p.col;cx.fillText(p.text,0,0);cx.restore()}
+  // trick words: small and short-lived, just above and behind the bike so they never cover the track ahead
+  // (subtle since the owner's feedback: they were 20-34 px with a scale pop and lasted 1.5 s)
+  screen();const fs=Math.round(clamp(PPM*0.3,11,14));
+  for(let i=G.pops.length-1;i>=0;i--){const p=G.pops[i];p.t+=dtReal;if(p.t>0.95){G.pops.splice(i,1);continue}
+    const f=p.big?fs+2:fs,bx=(OX+pose.x*K)/DPR,top=(touchUI?96:76)+f;
+    cx.font=f+'px "Lilita One","Arial Black",Impact,sans-serif';const tw=cx.measureText(p.text).width;
+    // right edge at the bike's nose, then kept inside the screen
+    const right=clamp(bx+0.5*K/DPR,Math.min(W-8,tw+8),W-8);
+    let sy=(OY-(pose.y+1.25+p.t*0.35)*K)/DPR;if(sy<top)sy=(OY-(pose.y-1.1)*K)/DPR+f; // no room above the bike: show it below
+    sy=clamp(sy,top,H-f*1.5);
+    cx.globalAlpha=0.92*(p.t<0.1?p.t/0.1:p.t>0.65?Math.max(0,1-(p.t-0.65)/0.3):1);cx.textAlign='right';cx.lineJoin='round';
+    cx.lineWidth=3;cx.strokeStyle=INK;cx.strokeText(p.text,right,sy);cx.fillStyle=p.col;cx.fillText(p.text,right,sy)}
   cx.globalAlpha=1;
   if(G.dbg){screen();cx.font='12px monospace';cx.fillStyle='#fff';cx.fillText('fps '+fps+' x '+(s?s.x.toFixed(1):'')+' v '+spd.toFixed(1)+' w '+(s?s.w.toFixed(2):'')+' hold '+(s&&s.hold),10,H-10)}
 }
