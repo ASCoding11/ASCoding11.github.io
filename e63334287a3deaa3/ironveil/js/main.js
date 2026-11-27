@@ -55,6 +55,12 @@
     const S = MO.settings, on = (id, fn) => $(id).addEventListener('click', fn);
     on('b-accept', () => { try { localStorage.setItem('ironveil:terms', '1'); } catch (e) {} show('title'); });
     on('b-deploy', () => deploy(false)); on('b-again', () => deploy(false)); on('b-retry', () => deploy(true)); on('b-restart', () => { MO.audio.pause(false); deploy(false); });
+    // full screen where the browser allows a page to do it (Android, iPad, computers); iPhone Safari doesn't, so it gets a tip
+    const de = document.documentElement, canFull = !!(de.requestFullscreen || de.webkitRequestFullscreen), isFull = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+    $('b-full').hidden = !canFull; $('p-tip').hidden = canFull || !MO.touch;
+    const fullText = () => { $('b-full').textContent = MO.T(isFull() ? 'Exit full screen' : 'Full screen'); };
+    on('b-full', () => { try { if (isFull()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); else { const p = (de.requestFullscreen || de.webkitRequestFullscreen).call(de, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); } } catch (e) {} setTimeout(() => { fullText(); if (!isFull()) $('p-tip').hidden = false; }, 500); });
+    document.addEventListener('fullscreenchange', fullText); document.addEventListener('webkitfullscreenchange', fullText); fullText();
     on('b-missions', missionList); on('b-mclose', () => show('title')); on('b-next', () => { const n = MO.missions.list.find((d) => d.num === MO.missions.current.num + 1); if (n) go(n.id); });
     on('b-resume', () => pause(false)); on('b-quit', toTitle); on('b-dquit', toTitle); on('b-gquit', toTitle);
     const open = (which) => () => { back = MO.screen; show(which); };

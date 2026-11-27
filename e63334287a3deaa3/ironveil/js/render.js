@@ -71,7 +71,13 @@
         gl_FragColor = vec4(t * uFade, 1.0); }`, { tA: { value: null }, tB: { value: null }, uPx: { value: new THREE.Vector2() }, uExp: { value: 1 }, uBloom: { value: 0.09 }, uTime: { value: 0 }, uHurt: { value: 0 }, uLow: { value: 0 }, uFade: { value: 1 }, uFlash: { value: 0 }, uAim: { value: 0 } });
     R.exposure = 1; R.hooks = []; R.w = 0; R.h = 0;
     R.resize();
-    window.addEventListener('resize', R.resize);
+    // iPhone Safari sends 'resize' before the page has its new size (hiding the toolbar, turning the phone), so also
+    // watch the game area itself, and check again a moment after anything that can change the size
+    const later = () => { R.resize(); setTimeout(R.resize, 120); setTimeout(R.resize, 400); setTimeout(R.resize, 900); };
+    window.addEventListener('resize', later); window.addEventListener('orientationchange', later);
+    document.addEventListener('fullscreenchange', later); document.addEventListener('webkitfullscreenchange', later);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', later);
+    if (window.ResizeObserver) new ResizeObserver(() => R.resize()).observe(canvas.parentElement);
     return r;
   };
 
@@ -85,6 +91,7 @@
   }
   R.resize = () => {
     const el = R.renderer.domElement.parentElement, w = el.clientWidth || innerWidth, h = el.clientHeight || innerHeight;
+    if (w === R.vw && h === R.vh && R.dpr === devicePixelRatio) return; R.dpr = devicePixelRatio;
     R.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MO.touch ? 1.5 : 1.25) * R.Q.scale);
     R.renderer.setSize(w, h, false);
     R.camera.aspect = R.wcam.aspect = w / h; R.camera.updateProjectionMatrix(); R.wcam.updateProjectionMatrix();
