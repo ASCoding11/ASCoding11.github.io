@@ -7,6 +7,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Phone page renamed": "Nuevo nombre para la página del teléfono",
+    "Phone": "Teléfono",
+    "The phone page's title now reads ASCoding games.": "El título de la página del teléfono ahora dice ASCoding juegos.",
     "Account save fix": "Arreglo del guardado de la cuenta",
     "Account": "Cuenta",
     "Account save no longer pauses with “signed in as someone else” on phones.": "El guardado de la cuenta ya no se pausa con “otra sesión iniciada” en los teléfonos.",

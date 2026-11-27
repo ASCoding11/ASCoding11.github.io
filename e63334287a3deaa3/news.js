@@ -90,6 +90,9 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.13.3', title: 'Phone page renamed', kind: 'fix',
+     tags: ['Phone'], items: [
+      'The phone page\'s title now reads ASCoding games.']},
     {date: '2026-11-27', version: '2.13.2', title: 'Account save fix', kind: 'fix',
      tags: ['Account'], items: [
       'Account save no longer pauses with “signed in as someone else” on phones.',
