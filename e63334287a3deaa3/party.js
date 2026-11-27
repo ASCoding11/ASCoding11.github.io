@@ -191,10 +191,26 @@
   function timeout(p, ms, msg) { var t; return Promise.race([p, new Promise(function (_, rej) { t = setTimeout(function () { rej(new Error(msg)); }, ms); })]).finally(function () { clearTimeout(t); }); }
   var NET = 'Couldn’t reach the game database. If you’re on a school or work network it may be blocking it; try another network.';
 
+  // The site's Google sign-in (account/account.js): this page's, or the home page's when this is its phone frame (same
+  // origin), as account-nudge.js finds it.
+  function site() {
+    if (window.SiteAccount && window.SiteAccount.boot) return window.SiteAccount;
+    try { var p = window.parent; if (p && p !== window && p.SiteAccount && p.SiteAccount.boot) return p.SiteAccount; } catch (e) {}
+    return null;
+  }
+  // The name of the home page's Firebase app (the one account.js uses) when this is its phone frame, so this frame's app
+  // shares its saved sign-in (Firebase keeps it per app name) and follows its Google sign-ins and sign-outs.
+  function parentAppName() {
+    try {
+      var p = window.parent; if (!p || p === window || !p.SiteAccount || !p.firebase || !p.firebase.apps) return '';
+      var a = p.firebase.apps.filter(function (x) { return x.options && x.options.apiKey === CFG.apiKey; })[0];
+      return a && a.name || '';
+    } catch (e) { return ''; }
+  }
   // A name to start from (after the Online name): the signed-in account, then the one used for parties before, then any
   // name a game saved. The same order as social.js's guessName.
   function guessName() {
-    var u = window.SiteAccount && SiteAccount.user && SiteAccount.user();
+    var A = site(), u = A && A.user && A.user();
     if (u && (u.displayName || u.email)) return cleanName((u.displayName || u.email).split(/[\s@]/)[0]);
     var s = store('party:name'); if (s) return cleanName(s);
     var keys = ['coil:name', 'ss:name', 'sd:name', 'spire:name', 'updraft:name', 'boostball-name', 'shellcr-name', 'br1v1-name', 'rk_name', 'chroma-name', 'oddone-name', 'tumble-name', 'kw:name', 'quarry:name'];
@@ -296,11 +312,15 @@
   function boot() {
     if (booting) return booting;
     booting = (async function () {
-      if (window.SiteAccount && SiteAccount.boot) { try { await timeout(SiteAccount.boot(), 12000, NET); } catch (e) {} }
+      // In the home page's phone frame the sign-in is the home page's: wait for it too, so a Google account it restores
+      // is what this frame finds (instead of signing in anonymously first).
+      var A = site();
+      if (A) { try { await timeout(A.boot(), 12000, NET); } catch (e) {} }
       if (!window.firebase || !firebase.auth) { await load(SDK + 'firebase-app-compat.js'); await load(SDK + 'firebase-auth-compat.js'); }
       if (!firebase.database) await load(SDK + 'firebase-database-compat.js');
+      var pn = firebase.apps.length ? '' : parentAppName();
       app = firebase.apps.filter(function (a) { return a.options.apiKey === CFG.apiKey; })[0] ||
-        firebase.initializeApp(CFG, firebase.apps.length ? 'party' : undefined);
+        firebase.initializeApp(CFG, firebase.apps.length ? 'party' : pn && pn !== '[DEFAULT]' ? pn : undefined);
       auth = app.auth();
       // Signing in can take 10-20 s on a slow phone on school Wi-Fi: give it 25 s, like the games.
       await timeout(new Promise(function (r) { var s = auth.onAuthStateChanged(function () { s(); r(); }); }), 25000, NET);
@@ -972,7 +992,7 @@
   // avatar.js and miles.js may load after the list was drawn, and every finished tier read is a redraw.
   document.addEventListener('backroom:avatar', function () { if (refs) { syncAvatar(); drawParty(); } });
   document.addEventListener('backroom:miles', function () { if (refs) drawParty(); });
-  if (window.SiteAccount && SiteAccount.onChange) SiteAccount.onChange(function () { if (!code && !store('party:name') && !store('ol:name')) { drawn = ''; drawIdle(); } });
+  var SA = site(); if (SA && SA.onChange) SA.onChange(function () { if (!code && !store('party:name') && !store('ol:name')) { drawn = ''; drawIdle(); } });
 
   // ---------------- Start ----------------
   drawIdle();
