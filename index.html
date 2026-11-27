@@ -65,24 +65,24 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
    page) the colours below replace site.css's; once the Back Room opens here (reveal() swaps out the header and the
    section), .hero is gone, so :has() stops matching and the Back Room looks exactly as before.
    Motion vocabulary: 160 ms for hovers, 700 ms ease-out for entrances, 70 ms stagger; one signature piece (the
-   flow figure in the hero, script at the bottom). */
+   ribbon behind the hero, script at the bottom). */
 :root:has(.hero){
   --ground:#F5F5F2; --panel:#FFFFFF; --panel-2:#EEEEEA; --ink:#121416; --ink-2:#5C6167; --ink-3:#8A8F95; --line:#E2E2DD;
   --accent:#2F4FC4; --accent-ink:#FFFFFF; --head:"Inter Tight",var(--body);
-  --fig-bg:#FBFBF9; --fig-ink:#16191D; --fig-fast:#2F4FC4; --fig-faint:rgba(22,25,29,.09);
+  --fx-a:#2F4FC4; --fx-b:#5B5BEA; --fx-c:#A57BF0; --fx-line:.9; --fx-glow:0;
   --ease:cubic-bezier(.2,.7,.2,1);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]):has(.hero){
     --ground:#0C0D0F; --panel:#131416; --panel-2:#1A1B1E; --ink:#ECEDEE; --ink-2:#9CA1A8; --ink-3:#6E737A; --line:#25272B;
     --accent:#93A8FF; --accent-ink:#0C0D0F;
-    --fig-bg:#101113; --fig-ink:#E6E8EB; --fig-fast:#93A8FF; --fig-faint:rgba(230,232,235,.08);
+    --fx-a:#7B93FF; --fx-b:#9A8BFF; --fx-c:#D9B4FF; --fx-line:.85; --fx-glow:.07;
   }
 }
 :root[data-theme="dark"]:has(.hero){
   --ground:#0C0D0F; --panel:#131416; --panel-2:#1A1B1E; --ink:#ECEDEE; --ink-2:#9CA1A8; --ink-3:#6E737A; --line:#25272B;
   --accent:#93A8FF; --accent-ink:#0C0D0F;
-  --fig-bg:#101113; --fig-ink:#E6E8EB; --fig-fast:#93A8FF; --fig-faint:rgba(230,232,235,.08);
+  --fx-a:#7B93FF; --fx-b:#9A8BFF; --fx-c:#D9B4FF; --fx-line:.85; --fx-glow:.07;
 }
 body:has(.hero){background:var(--ground);-webkit-font-smoothing:antialiased}
 body:has(.hero) .wrap{max-width:1180px}
@@ -103,9 +103,12 @@ body:has(.hero) footer{border-top:1px solid var(--line);margin-top:64px;padding-
 .hm-btn.go:hover{background:color-mix(in srgb,var(--ink) 86%,var(--ground))}
 .hm-btn .arr{transition:transform .16s var(--ease)}.hm-btn:hover .arr{transform:translateX(3px)}
 
-/* hero: copy on the left, the live flow figure on the right */
-header.hero{position:relative;padding:72px 0 80px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:24px 64px;align-items:center}
-.hero > #getapp{grid-column:1;justify-self:start;margin-top:-8px}
+/* hero: copy on the left; the ribbon (a WebGL canvas, script at the bottom) fills the hero behind it, full width,
+   and fades out under the text. On narrower screens it becomes a band above the copy. */
+:root:has(.hero){overflow-x:clip}   /* the ribbon is 100vw wide; never let a scrollbar's width add a sideways scroll */
+header.hero{position:relative;isolation:isolate;padding:88px 0 96px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:24px 64px;align-items:center}
+.hero-copy{position:relative;z-index:1}
+.hero > #getapp{grid-column:1;justify-self:start;margin-top:-8px;position:relative;z-index:1}
 .hero-kicker{display:flex;align-items:center;gap:10px;font:500 13px/1 var(--mono);letter-spacing:.02em;color:var(--ink-2);margin:0 0 28px}
 .hero-kicker::before{content:"";width:24px;height:1px;background:var(--ink-3)}
 .hero-title{font:600 clamp(36px,4.9vw,62px)/1.03 var(--head);letter-spacing:-.035em;margin:0;text-transform:none;color:var(--ink);text-wrap:balance}
@@ -117,40 +120,35 @@ header.hero{position:relative;padding:72px 0 80px;border-bottom:1px solid var(--
 .hero-stats b{font:600 30px/1 var(--head);letter-spacing:-.03em;color:var(--ink);font-variant-numeric:tabular-nums}
 .hero-stats span{font-size:13px;line-height:1.3;color:var(--ink-2)}
 
-.hero-fig{position:relative;margin:0;aspect-ratio:6/5;border:1px solid var(--line);border-radius:16px;background:var(--fig-bg);overflow:hidden;isolation:isolate}
-.hero-fig canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
-.hero-fig .lbl{position:absolute;z-index:1;font:500 11px/1.35 var(--mono);color:var(--ink-2);letter-spacing:.01em;pointer-events:none}
-.hero-fig .tl{top:16px;left:18px;right:18px}
-.hero-fig .tl b{display:block;font-weight:500;color:var(--ink)}
-.hero-fig .bl{bottom:16px;left:18px;display:flex;gap:18px;font-variant-numeric:tabular-nums}
-.hero-fig .bl i{font-style:normal;color:var(--ink-3)}
-.hero-fig .br{bottom:16px;right:18px;text-align:right;color:var(--ink-3)}
-@media (hover:none),(max-width:560px){.hero-fig .br{display:none}}
+.hero-field{position:absolute;z-index:0;top:0;bottom:0;left:calc(50% - 50vw);width:100vw;pointer-events:none}
+.hero-field canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* no WebGL: a soft still wash in the same colours */
+.hero-field.flat{background:radial-gradient(40% 46% at 74% 46%,color-mix(in srgb,var(--fx-b) 22%,transparent),transparent 70%)}
 
 @media (max-width:980px){
-  header.hero{grid-template-columns:minmax(0,1fr);padding:48px 0 56px;gap:40px}
-  .hero-fig{aspect-ratio:4/3}
+  header.hero{grid-template-columns:minmax(0,1fr);padding:0 0 56px;gap:0}
+  .hero-field{position:relative;grid-row:1;top:auto;bottom:auto;left:auto;margin-left:calc(50% - 50vw);height:clamp(180px,34vw,300px)}
+  .hero-field.flat{background:radial-gradient(60% 50% at 50% 50%,color-mix(in srgb,var(--fx-b) 22%,transparent),transparent 70%)}
+  .hero-copy{margin-top:8px}
+  .hero > #getapp{margin-top:24px}
   .hero-stats{margin-top:36px}
 }
 @media (max-width:480px){
-  header.hero{padding:36px 0 44px}
-  .hero-kicker{margin-bottom:20px}
+  header.hero{padding-bottom:44px}
+  .hero-field{height:156px}
+  .hero-kicker{margin-bottom:16px}
   .hero-kicker::before{display:none}
-  .hero-intro{font-size:16.5px;margin:18px 0 28px}
+  .hero-intro{font-size:16.5px;margin:16px 0 26px}
   .hero-cta .hm-btn{flex:1 1 auto;justify-content:center}
   .hero-stats{gap:24px}
   .hero-stats b{font-size:26px}
-  .hero-fig{aspect-ratio:1/1;border-radius:12px}
-  .hero-fig .tl{top:12px;left:14px}.hero-fig .bl{bottom:12px;left:14px;gap:14px}
 }
 
 /* hero entrance: copy settles in once, in reading order */
 @keyframes hm-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-@keyframes hm-fade{from{opacity:0}to{opacity:1}}
 .hero-copy > *{animation:hm-in .7s var(--ease) both}
 .hero-copy > :nth-child(2){animation-delay:.07s}.hero-copy > :nth-child(3){animation-delay:.14s}
 .hero-copy > :nth-child(4){animation-delay:.21s}.hero-copy > :nth-child(5){animation-delay:.28s}
-.hero-fig{animation:hm-fade .9s ease-out .1s both}
 
 /* sections */
 .hm-sec{padding-top:96px}
@@ -214,7 +212,7 @@ header.hero{position:relative;padding:72px 0 80px;border-bottom:1px solid var(--
 .js-in .rise{opacity:0;transform:translateY(16px);transition:opacity .7s ease-out,transform .7s var(--ease)}
 .js-in .rise.on{opacity:1;transform:none}
 @media (prefers-reduced-motion: reduce){
-  .hero-copy > *,.hero-fig{animation:none}
+  .hero-copy > *{animation:none}
   .eng img,#work .cat,#work .cat-art img,#work .cat-list a,.hm-btn,.hm-btn .arr{transition:none}
   .js-in .rise{opacity:1;transform:none;transition:none}
 }
@@ -229,9 +227,11 @@ header.hero{position:relative;padding:72px 0 80px;border-bottom:1px solid var(--
   <!-- The hero. Opening the Back Room here swaps this <header> for the Back Room's own (reveal() in the script below).
        It must stay the page's first <header>; install.js adds its "Install app" button at the end of it. -->
   <header class="hero">
+    <!-- The ribbon: a slow, twisting band of fine lines drawn with WebGL by the script at the bottom. Decoration only. -->
+    <div class="hero-field" aria-hidden="true"><canvas id="field"></canvas></div>
     <div class="hero-copy">
-      <p class="hero-kicker">ASCoding · Engineering &amp; software</p>
-      <h1 class="hero-title">Engineering design and web software, <em>built end to end.</em></h1>
+      <p class="hero-kicker">ASCoding</p>
+      <h1 class="hero-title">Engineering design <em>and web software.</em></h1>
       <p class="hero-intro">Vehicles, satellites and hardware designed in CAD with interactive 3D models, alongside web applications built for classrooms and study.</p>
       <div class="hero-cta">
         <a class="hm-btn go" href="#work">Explore projects <span class="arr" aria-hidden="true">→</span></a>
@@ -243,14 +243,6 @@ header.hero{position:relative;padding:72px 0 80px;border-bottom:1px solid var(--
         <li><b>2</b><span>Productivity<br>tools</span></li>
       </ul>
     </div>
-    <!-- The flow figure: air flowing past a Joukowsky airfoil (the shape Joukowsky Dynamics is named after), worked out
-         live from the potential-flow equations by the script at the bottom. The pointer's height sets the angle of attack. -->
-    <figure class="hero-fig" aria-label="Animated diagram: air flowing past a Joukowsky airfoil, computed live">
-      <canvas id="flow" aria-hidden="true"></canvas>
-      <figcaption class="lbl tl"><b>Fig. 1 — Flow past a Joukowsky airfoil</b>Potential flow, computed live</figcaption>
-      <div class="lbl bl" aria-hidden="true"><span><i>α</i> <span id="flowA">5.0°</span></span><span><i>C<sub>L</sub></i> <span id="flowL">–</span></span></div>
-      <div class="lbl br" aria-hidden="true">Move the pointer up or down<br>to change the angle of attack</div>
-    </figure>
   </header>
 
   <!-- When you add a project, add it to the matching list below and put its full card on projects/, productivity/ or engineering/.
@@ -260,7 +252,7 @@ header.hero{position:relative;padding:72px 0 80px;border-bottom:1px solid var(--
       <div class="hm-head">
         <div><span class="n">01 — Engineering</span><h2>Engineering projects</h2></div>
         <div>
-          <p>Designed end to end, with every part in CAD and the physics worked out: a road car whose wheels swing up into ducted rotors so it can fly, a radar satellite that watches ports through cloud, a floor mat that turns footsteps into electricity, and the circuits for a two-wheel robot.</p>
+          <p>Every part designed in CAD, with the physics worked out: a road car whose wheels swing up into ducted rotors so it can fly, a radar satellite that watches ports through cloud, a floor mat that turns footsteps into electricity, and the circuits for a two-wheel robot.</p>
           <a class="hm-link" href="engineering/">See all engineering <span aria-hidden="true">→</span></a>
         </div>
       </div>
@@ -333,135 +325,98 @@ header.hero{position:relative;padding:72px 0 80px;border-bottom:1px solid var(--
   document.querySelectorAll('.rise').forEach(function(el){io.observe(el)});
 })();
 
-// The hero figure: potential flow past a Joukowsky airfoil, drawn on a canvas.
-// A circle in the ζ-plane, with uniform flow and the circulation the Kutta condition asks for, is mapped to the
-// airfoil by z = ζ + c²/ζ. Particles are moved in the ζ-plane at the true (mapped) speed and drawn in the z-plane, so
-// what you see is the real flow: faster over the top (drawn in the accent colour), slower underneath.
-// Intro: the circle draws, then morphs into the airfoil (the map itself, t from 0 to 1), then the air starts moving.
-// Runs only while the figure is on screen and the tab is visible; with reduced motion it draws one still frame of
-// streamlines instead. Nothing is stored or sent.
+// The hero ribbon: one slow, twisting band of fine lines with a soft glow, drawn by a single WebGL fragment shader
+// (no libraries). It draws itself in from the left once, then drifts; a mouse over the hero bends it a little toward
+// the pointer (eased, never set directly). Runs only while the hero is on screen and the tab is visible, renders fewer
+// pixels on phones, and with reduced motion draws one still frame. No WebGL: .flat gives a still CSS wash instead.
 (function(){
-  var cv=document.getElementById('flow');if(!cv||!cv.getContext)return;
-  var fig=cv.parentNode,ctx=cv.getContext('2d'),outA=document.getElementById('flowA'),outL=document.getElementById('flowL');
+  var cv=document.getElementById('field');if(!cv)return;
+  var box=cv.parentNode,hero=box.closest('.hero')||box,copy=hero.querySelector('.hero-copy');
   var still=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var MX=-0.075,MY=0.1,R=Math.hypot(1-MX,MY),BETA=Math.atan2(MY,1-MX),DEG=Math.PI/180;
-  var A0=5*DEG,alpha=A0,aim=A0,W=0,H=0,dpr=1,S=1,OX=0,OY=0,col={},parts=[],K=28,head=0,N=0,raf=0,running=false,vis=true,last=0,t0=0,touched=0,lines=null,linesA=99,chord=4,shown=0;
-  // the airfoil outline (z-plane, for t=1) and its chord, worked out once
-  var SHAPE=[];(function(){var mn=1e9;for(var i=0;i<=180;i++){var th=i/180*2*Math.PI,x=MX+R*Math.cos(th),y=MY+R*Math.sin(th),d=x*x+y*y;SHAPE.push([x,y]);mn=Math.min(mn,x+x/d)}chord=2-mn})();
-  function map(x,y,t){var d=x*x+y*y;return[x+t*x/d,y-t*y/d]}           // z = ζ + t·c²/ζ (c = 1)
-  function toScreen(z){var ca=Math.cos(alpha),sa=Math.sin(alpha);      // turn the airfoil by α so the wind blows left to right
-    return[OX+(z[0]*ca+z[1]*sa)*S,OY-(-z[0]*sa+z[1]*ca)*S]}
-  function vel(x,y){                                                    // dζ/dt at ζ = (x,y)
-    var px=x-MX,py=y-MY,p2=px*px+py*py,ca=Math.cos(alpha),sa=Math.sin(alpha),G=4*Math.PI*R*Math.sin(alpha+BETA);
-    // dW/dζ = e^{-iα} - R² e^{iα}/ζ'² + iΓ/(2π ζ')
-    var ix=(px*px-py*py)/(p2*p2),iy=-2*px*py/(p2*p2);                   // 1/ζ'²
-    var ex=ca*ix-sa*iy,ey=ca*iy+sa*ix;                                  // e^{iα}/ζ'²
-    var ux=ca-R*R*ex,uy=-sa-R*R*ey;
-    var g=G/(2*Math.PI);ux+=g*py/p2;uy+=g*px/p2;                        // iΓ/(2πζ') = g·(py + i px)/|ζ'|²
-    var d=x*x+y*y,jx=1-(x*x-y*y)/(d*d),jy=2*x*y/(d*d),j2=Math.max(jx*jx+jy*jy,.05); // |dz/dζ|²
-    return[ux/j2,-uy/j2]}
-  function fromScreen(sx,sy){                                           // screen → ζ, outside the circle, or null
-    var ca=Math.cos(alpha),sa=Math.sin(alpha),X=(sx-OX)/S,Y=(OY-sy)/S,zx=X*ca-Y*sa,zy=X*sa+Y*ca;
-    var ax=zx*zx-zy*zy-4,ay=2*zx*zy,m=Math.hypot(ax,ay),rx=Math.sqrt((m+ax)/2),ry=(ay<0?-1:1)*Math.sqrt(Math.max(0,(m-ax)/2));
-    var c1=[(zx+rx)/2,(zy+ry)/2],c2=[(zx-rx)/2,(zy-ry)/2],o=Math.hypot(c1[0]-MX,c1[1]-MY)>Math.hypot(c2[0]-MX,c2[1]-MY)?c1:c2;
-    return Math.hypot(o[0]-MX,o[1]-MY)>R*1.01?o:null}
-  function colours(){var s=getComputedStyle(fig);col={bg:s.getPropertyValue('--fig-bg').trim()||'#fff',ink:s.getPropertyValue('--fig-ink').trim()||'#111',fast:s.getPropertyValue('--fig-fast').trim()||'#2F4FC4',faint:s.getPropertyValue('--fig-faint').trim()||'rgba(0,0,0,.08)'}}
-  function size(){
-    var r=fig.getBoundingClientRect();dpr=Math.min(window.devicePixelRatio||1,2);W=r.width;H=r.height;if(!W||!H)return;
-    cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
-    S=Math.min(W/5.6,H/3.6);OX=W*0.5;OY=H*0.52;
-    N=Math.round(Math.max(90,Math.min(320,W*H/1500)));parts=[];lines=null;
-    for(var i=0;i<N;i++)parts.push(spawn(true));
+  var phone=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+  var gl=null;try{gl=cv.getContext('webgl',{alpha:true,premultipliedAlpha:true,antialias:false,depth:false,stencil:false,powerPreference:'low-power'})}catch(e){}
+  if(!gl){box.classList.add('flat');return}
+  var VS='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+  var FS=[
+  '#ifdef GL_FRAGMENT_PRECISION_HIGH','precision highp float;','#else','precision mediump float;','#endif',
+  'uniform vec2 uRes;uniform float uT,uIn,uDpr,uLine,uGlow,uN;uniform vec3 uM,uA,uB,uC;uniform vec4 uLay,uFade;',
+  'float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}',
+  'void main(){',
+  ' vec2 f=gl_FragCoord.xy/uRes;vec2 p=gl_FragCoord.xy/uRes.y;',     // p: units of the canvas height
+  ' vec2 q=p-uLay.xy;float ca=cos(uLay.z),sa=sin(uLay.z);',
+  ' float u=ca*q.x+sa*q.y,v=-sa*q.x+ca*q.y,t=uT;',                     // u along the ribbon, v across it
+  ' float c=.15*sin(u*1.5+t*.15)+.06*sin(u*2.9-t*.12+1.3)+.025*sin(u*5.1+t*.21+.4);',
+  ' vec2 m=uM.xy-uLay.xy;float mu=ca*m.x+sa*m.y,mv=-sa*m.x+ca*m.y;',
+  ' c+=uM.z*clamp((mv-c)*.35,-.07,.07)*exp(-(u-mu)*(u-mu)*3.);',       // bend toward the pointer
+  ' float tw=u*1.15-t*.19+.7*sin(u*.6+t*.07),ct=cos(tw),face=abs(ct);',  // the twist: edge-on where cos(tw)=0
+  ' float w=(.24+.05*sin(u*.8-t*.12))*uLay.w,we=w*(.1+.9*face);',
+  ' float d=(v-c)/we,px=1./(we*uRes.y);',                              // d: -1..1 across; px: d per pixel
+  ' float N=uN,s=(d*.5+.5)*N,pw=px*N*.5;',                             // N strands; pw: strands per pixel
+  ' float l=1.-smoothstep(.45*uDpr*pw,.45*uDpr*pw+pw,abs(fract(s)-.5));',
+  ' l=mix(l,.38,smoothstep(.22,.55,pw));',                              // too dense to resolve: their average
+  ' float inside=1.-smoothstep(1.-px,1.+px,abs(d));',
+  ' float k=clamp(u*uLay.w*.32+.5+.12*sin(t*.05),0.,1.);',
+  ' vec3 col=mix(uA,uB,smoothstep(0.,.55,k));col=mix(col,uC,smoothstep(.45,1.,k));',
+  ' float lit=.3+.7*pow(face,.7);',
+  ' float a=l*inside*lit*uLine;',
+  ' float g=exp(-pow((v-c)/(w*1.15),2.))*uGlow*(.55+.45*face);',
+  ' float rv=smoothstep(0.,.5,mix(-uLay.w*uFade.w-.6,uLay.w*uFade.w+.6,uIn)-u);', // draw-in, left to right
+  ' float e=smoothstep(uFade.x,uFade.y,f.x)*smoothstep(0.,uFade.z,f.y)*smoothstep(0.,uFade.z,1.-f.y);', // keep clear of the text and edges
+  ' vec4 o=vec4(mix(uA,uB,k)*g,g);o=o*(1.-a)+vec4(col*a,a);o*=rv*e;',
+  ' o.rgb=clamp(o.rgb+(hash(gl_FragCoord.xy+t)-.5)/255.,0.,o.a);',
+  ' gl_FragColor=o;}'].join('\n');
+  function sh(type,src){var o=gl.createShader(type);gl.shaderSource(o,src);gl.compileShader(o);return o}
+  var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);
+  if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){box.classList.add('flat');return}
+  gl.useProgram(pr);
+  var buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  var loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+  var U={};['uRes','uT','uIn','uDpr','uLine','uGlow','uN','uM','uA','uB','uC','uLay','uFade'].forEach(function(n){U[n]=gl.getUniformLocation(pr,n)});
+  var W=0,H=0,dpr=1,t0=0,last=0,T=17,raf=0,running=false,vis=true,ptr={x:0,y:0,z:0},aim={x:0,y:0,z:0};
+  function hex(h){h=(h||'').trim().replace('#','');if(h.length===3)h=h.replace(/./g,'$&$&');var n=parseInt(h,16)||0;return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]}
+  function colours(){var s=getComputedStyle(hero);
+    gl.uniform3fv(U.uA,hex(s.getPropertyValue('--fx-a')));gl.uniform3fv(U.uB,hex(s.getPropertyValue('--fx-b')));gl.uniform3fv(U.uC,hex(s.getPropertyValue('--fx-c')));
+    var n=function(k,d){var v=parseFloat(s.getPropertyValue(k));return isNaN(v)?d:v};gl.uniform1f(U.uLine,n('--fx-line',.8));gl.uniform1f(U.uGlow,n('--fx-glow',0))}
+  function layout(){
+    var r=box.getBoundingClientRect();W=r.width;H=r.height;if(!W||!H)return;
+    dpr=Math.min(window.devicePixelRatio||1,phone?1.5:2);
+    cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);gl.viewport(0,0,cv.width,cv.height);
+    gl.uniform2f(U.uRes,cv.width,cv.height);gl.uniform1f(U.uDpr,dpr);gl.uniform1f(U.uN,Math.round(Math.max(16,Math.min(30,H/14))));  // fewer, wider-spaced strands in a short band
+    var asp=W/H,wide=getComputedStyle(box).position==='absolute';
+    if(wide){                                  // behind the hero: centred in the space right of the text, rising to the right
+      var cr=copy.getBoundingClientRect(),x0=(cr.right-r.left)/W,cx=(x0+1)/2;
+      gl.uniform4f(U.uLay,cx*asp,.54,.36,1);gl.uniform4f(U.uFade,x0-.04,x0+.18,.1,asp*(1-cx)+.3)}
+    else{                                      // a band above the copy: nearly level, full width
+      gl.uniform4f(U.uLay,asp*.5,.5,.1,Math.min(1.25,.9+asp*.03));gl.uniform4f(U.uFade,-1,0,.08,asp*.5)}
   }
-  function spawn(anywhere){
-    var p={x:0,y:0,age:0,life:4+Math.random()*5,tr:new Float32Array(K*2),v:0};
-    for(var k=0;k<40;k++){var sx=anywhere?Math.random()*W:-10-Math.random()*40,sy=Math.random()*H,z=fromScreen(sx,sy);if(z){p.x=z[0];p.y=z[1];break}}
-    var s=toScreen(map(p.x,p.y,1));for(var j=0;j<K;j++){p.tr[j*2]=s[0];p.tr[j*2+1]=s[1]}
-    if(anywhere)p.age=-Math.random()*1.2;                               // the first ones fade in, staggered
-    return p}
-  function step(p,dt){                                                  // midpoint step, so the paths hug the airfoil
-    var a=vel(p.x,p.y),mx=p.x+a[0]*dt/2,my=p.y+a[1]*dt/2,b=vel(mx,my);
-    p.x+=b[0]*dt;p.y+=b[1]*dt;
-    var px=p.x-MX,py=p.y-MY,d=Math.hypot(px,py);if(d<R*1.002){p.x=MX+px/d*R*1.002;p.y=MY+py/d*R*1.002}
-    var d2=p.x*p.x+p.y*p.y,jx=1-(p.x*p.x-p.y*p.y)/(d2*d2),jy=2*p.x*p.y/(d2*d2);
-    p.v=Math.hypot(b[0],b[1])*Math.sqrt(jx*jx+jy*jy)}                   // speed in the real (z) plane
-  function streamlines(){                                               // still lines for reduced motion, and a faint guide
-    lines=[];linesA=alpha;var n=Math.max(9,Math.round(H/26));
-    for(var i=0;i<n;i++){var z=fromScreen(-20,(i+.5)/n*H);if(!z)continue;var p={x:z[0],y:z[1],v:0},pts=[];
-      for(var s=0;s<900;s++){var q=toScreen(map(p.x,p.y,1));pts.push(q);if(q[0]>W+20||q[1]<-40||q[1]>H+40)break;step(p,.02)}
-      lines.push(pts)}}
-  function ease(x){return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2}
-  function draw(now){
-    var T=(now-t0)/1000,ink=col.ink;
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
-    var draw0=still?1:Math.min(1,T/0.7),morph=still?1:ease(Math.max(0,Math.min(1,(T-0.55)/1.1))),flow=still?0:Math.max(0,Math.min(1,(T-1.2)/0.9));
-    // faint streamlines and the chord line, once the shape has formed
-    if(morph>=1){
-      if(!lines||Math.abs(linesA-alpha)>0.25*DEG)streamlines();
-      ctx.lineWidth=1;ctx.strokeStyle=still?ink:col.faint;ctx.globalAlpha=still?.28:Math.min(1,flow*1.4);ctx.beginPath();
-      lines.forEach(function(l){l.forEach(function(q,i){i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])})});ctx.stroke();ctx.globalAlpha=1}
-    // moving air: trails bucketed by speed (3 tones) and fade (3 levels), so a frame is 9 strokes
-    if(flow>0){
-      var bk=[[],[],[],[],[],[],[],[],[]];
-      for(var i=0;i<parts.length;i++){var p=parts[i];if(p.age<0)continue;
-        var f=Math.min(1,p.age/.6,(p.life-p.age)/.8)*flow;if(f<=0.02)continue;
-        var sb=p.v>1.22?2:p.v>1.06?1:0,ab=f>.66?2:f>.33?1:0;bk[sb*3+ab].push(p)}
-      ctx.lineWidth=1;ctx.lineCap='round';ctx.lineJoin='round';
-      for(var b=0;b<9;b++){if(!bk[b].length)continue;var sb2=(b/3)|0,ab2=b%3;
-        ctx.strokeStyle=sb2===2?col.fast:ink;ctx.globalAlpha=[.15,.35,.6][ab2]*(sb2===0?.6:sb2===1?.85:1);ctx.beginPath();
-        bk[b].forEach(function(p){for(var k=0;k<K;k++){var j=((head+1+k)%K)*2;k?ctx.lineTo(p.tr[j],p.tr[j+1]):ctx.moveTo(p.tr[j],p.tr[j+1])}});
-        ctx.stroke()}
-      ctx.globalAlpha=1}
-    // keep the labels readable: the air fades out near the top and bottom edges
-    var fh=Math.min(64,H*.16),g;
-    ctx.globalCompositeOperation='destination-out';
-    g=ctx.createLinearGradient(0,0,0,fh);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,fh);
-    g=ctx.createLinearGradient(0,H,0,H-fh);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.fillRect(0,H-fh,W,fh);
-    ctx.globalCompositeOperation='source-over';
-    // the body: the circle draws, then the map bends it into the airfoil
-    ctx.beginPath();var end=Math.max(1,Math.round(SHAPE.length*draw0)),fst=null;
-    for(var s=0;s<end;s++){var q=toScreen(map(SHAPE[s][0],SHAPE[s][1],morph));if(!s){ctx.moveTo(q[0],q[1]);fst=q}else ctx.lineTo(q[0],q[1])}
-    if(draw0>=1)ctx.closePath();
-    ctx.fillStyle=col.bg;if(draw0>=1)ctx.fill();ctx.lineWidth=1.4;ctx.strokeStyle=ink;ctx.stroke();
-    // chord line and its ends
-    if(morph>0){var le=toScreen([2-chord,0]),te=toScreen([2,0]);ctx.globalAlpha=morph*.5;ctx.setLineDash([3,4]);ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(le[0]-14*(te[0]-le[0])/(chord*S),le[1]-14*(te[1]-le[1])/(chord*S));ctx.lineTo(te[0]+18*(te[0]-le[0])/(chord*S),te[1]+18*(te[1]-le[1])/(chord*S));ctx.stroke();ctx.setLineDash([]);
-      ctx.globalAlpha=morph;ctx.fillStyle=ink;[le,te].forEach(function(q){ctx.beginPath();ctx.arc(q[0],q[1],2.2,0,7);ctx.fill()});ctx.globalAlpha=1}
-  }
+  function render(now){
+    gl.uniform1f(U.uT,T);
+    var k=still?1:Math.min(1,(now-t0)/2200);gl.uniform1f(U.uIn,1-Math.pow(1-k,3));
+    gl.uniform3f(U.uM,ptr.x,ptr.y,ptr.z);
+    gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3)}
   function frame(now){
     raf=0;if(!running)return;
-    if(!cv.isConnected){running=false;return}                           // the Back Room replaced the hero
-    var dt=Math.min(.05,(now-(last||now))/1000);last=now;
-    // α: follows the pointer when there is one; otherwise breathes slowly around 5°
-    var target=(now-touched<4000)?aim:A0+Math.sin(now/3200)*1.2*DEG;
-    alpha+=(target-alpha)*(1-Math.exp(-dt*3));
-    if((now-t0)/1000>1.2){
-      head=(head+1)%K;var h2=head*2,sp=dt*1.6;
-      for(var i=0;i<parts.length;i++){var p=parts[i];p.age+=dt;
-        if(p.age>=0){step(p,sp);var s=toScreen(map(p.x,p.y,1));p.tr[h2]=s[0];p.tr[h2+1]=s[1];
-          if(p.age>p.life||s[0]>W+30||s[1]<-60||s[1]>H+60)parts[i]=spawn(false)}
-        else{var s0=toScreen(map(p.x,p.y,1));p.tr[h2]=s0[0];p.tr[h2+1]=s0[1]}}}
-    draw(now);
-    if(now-shown>120){shown=now;outA.textContent=(alpha/DEG).toFixed(1)+'°';
-      outL.textContent=(8*Math.PI*R*Math.sin(alpha+BETA)/chord).toFixed(2)}
-    raf=requestAnimationFrame(frame)}
-  function play(){var on=vis&&!document.hidden;if(on===running)return;running=on;last=0;if(on&&!raf)raf=requestAnimationFrame(frame)}
-  function redrawStill(){colours();size();t0=0;draw(1e9);outA.textContent=(alpha/DEG).toFixed(1)+'°';outL.textContent=(8*Math.PI*R*Math.sin(alpha+BETA)/chord).toFixed(2)}
+    if(!cv.isConnected){running=false;return}   // the Back Room replaced the hero
+    var dt=Math.min(50,now-(last||now));last=now;T+=dt/1000;
+    var a=1-Math.pow(1-.06,dt/16.667);ptr.x+=(aim.x-ptr.x)*a;ptr.y+=(aim.y-ptr.y)*a;ptr.z+=(aim.z-ptr.z)*a;
+    render(now);raf=requestAnimationFrame(frame)}
+  function play(){var on=!still&&vis&&!document.hidden;if(on===running)return;running=on;last=0;if(on&&!raf)raf=requestAnimationFrame(frame)}
+  function redraw(){layout();render(performance.now())}
   function start(){
-    colours();size();
-    if(still){redrawStill();if(window.ResizeObserver)new ResizeObserver(function(){redrawStill()}).observe(fig);return}
-    t0=performance.now();
-    if(window.ResizeObserver)new ResizeObserver(function(){var w=W,h=H;var r=fig.getBoundingClientRect();if(Math.abs(r.width-w)>1||Math.abs(r.height-h)>1)size()}).observe(fig);
-    if('IntersectionObserver' in window)new IntersectionObserver(function(es){vis=es[0].isIntersecting;play()}).observe(fig);
+    colours();layout();t0=performance.now();
+    if(window.ResizeObserver)new ResizeObserver(redraw).observe(box);else window.addEventListener('resize',redraw);
+    if(still){render(t0);return}
+    if('IntersectionObserver' in window)new IntersectionObserver(function(es){vis=es[0].isIntersecting;play()}).observe(box);
     document.addEventListener('visibilitychange',play);
-    // the pointer's height over the hero sets the angle of attack (-2° at the bottom, 11° at the top)
-    var hero=fig.closest('.hero')||fig;
-    hero.addEventListener('pointermove',function(e){if(e.pointerType==='touch')return;var r=fig.getBoundingClientRect(),k=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));aim=(11-13*k)*DEG;touched=performance.now()});
+    hero.addEventListener('pointermove',function(e){if(e.pointerType!=='mouse')return;var r=box.getBoundingClientRect();
+      aim.x=(e.clientX-r.left)/r.height;aim.y=(r.bottom-e.clientY)/r.height;aim.z=1});
+    hero.addEventListener('pointerleave',function(){aim.z=0});
+    cv.addEventListener('webglcontextlost',function(e){e.preventDefault();running=false;box.classList.add('flat')});
     play()}
-  function recolour(){colours();if(still)redrawStill()}
+  function recolour(){colours();if(still||!running)render(performance.now())}
   window.addEventListener('site-theme',function(){setTimeout(recolour,0)});
   if(matchMedia('(prefers-color-scheme: dark)').addEventListener)matchMedia('(prefers-color-scheme: dark)').addEventListener('change',recolour);
-  // after first paint, so the page never waits for the figure
+  // after first paint, so the page never waits for it
   if(document.readyState==='complete')requestAnimationFrame(start);else window.addEventListener('load',function(){requestAnimationFrame(start)});
 })();
 </script>
