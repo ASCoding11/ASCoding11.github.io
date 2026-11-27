@@ -58,6 +58,148 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
 <!-- AdSense site verification only: this tag proves ownership but loads no ads. Ads run only on the game pages. -->
 <meta name="google-site-verification" content="4qEsPr1dvvXcuAFGUawFU5YLBi94Nlymvn6gua0l2RY" />
 <meta name="google-adsense-account" content="ca-pub-1712937102765568">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* ---------- Home page look (2026 redesign) ----------
+   Everything here is scoped to the home page's own elements. While the home page is showing (its .hero is in the
+   page) the colours below replace site.css's; once the Back Room opens here (reveal() swaps out the header and the
+   section), .hero is gone, so :has() stops matching and the Back Room looks exactly as before. */
+:root:has(.hero){
+  --ground:#F3F5F9; --panel:#FFFFFF; --panel-2:#EEF2F7; --ink:#0B1220; --ink-2:#556173; --line:#DDE3EC;
+  --accent:#0A84B8; --accent-ink:#FFFFFF; --amber:#D9860B; --stage:#060A14; --stage-ink:#E7EEF8; --stage-2:#8FA0B8;
+  --glow:#3BE0FF; --head:"Space Grotesk",var(--body);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]):has(.hero){
+    --ground:#05080F; --panel:#0B111D; --panel-2:#101828; --ink:#E7EEF8; --ink-2:#8FA0B8; --line:#1B2538;
+    --accent:#3BE0FF; --accent-ink:#04121A; --amber:#F5A524;
+  }
+}
+:root[data-theme="dark"]:has(.hero){
+  --ground:#05080F; --panel:#0B111D; --panel-2:#101828; --ink:#E7EEF8; --ink-2:#8FA0B8; --line:#1B2538;
+  --accent:#3BE0FF; --accent-ink:#04121A; --amber:#F5A524;
+}
+body:has(.hero){background:var(--ground);background-image:radial-gradient(1200px 600px at 85% -10%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 70%)}
+body:has(.hero) .wrap{max-width:1160px}
+body:has(.hero) .topbar{border-bottom:0}
+body:has(.hero) .wordmark{font-family:var(--head);font-weight:700;letter-spacing:-.01em;text-transform:none;font-size:22px;display:inline-flex;align-items:center;gap:10px}
+body:has(.hero) .wordmark::before{content:"";width:12px;height:12px;border-radius:3px;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+body:has(.hero) .nav a{font-family:var(--body);text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;border-radius:999px}
+body:has(.hero) .nav a[aria-current="page"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+body:has(.hero) footer{border-top:1px solid var(--line)}
+
+.hm-btn{display:inline-flex;align-items:center;gap:10px;min-height:48px;padding:12px 22px;border-radius:999px;font:600 15px/1 var(--body);text-decoration:none;cursor:pointer;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:var(--stage-ink);transition:transform .15s,background .15s,box-shadow .15s}
+.hm-btn:hover{background:rgba(255,255,255,.12);transform:translateY(-1px)}
+.hm-btn.go{background:var(--glow);border-color:var(--glow);color:#04121A;box-shadow:0 0 0 0 rgba(59,224,255,.5),0 10px 30px -10px rgba(59,224,255,.7)}
+.hm-btn.go:hover{box-shadow:0 0 0 6px rgba(59,224,255,.15),0 14px 34px -10px rgba(59,224,255,.8)}
+.hm-btn .arr{transition:transform .15s}.hm-btn:hover .arr{transform:translateX(3px)}
+
+/* hero: a dark "blueprint" stage in both themes, since the engineering pictures are drawn that way */
+.hero{position:relative;margin-top:8px;padding:56px 48px;border-radius:28px;overflow:hidden;background:var(--stage);color:var(--stage-ink);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:40px;align-items:center;isolation:isolate}
+.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:
+  radial-gradient(700px 420px at 78% 40%,rgba(59,224,255,.16),transparent 70%),
+  radial-gradient(500px 300px at 10% 110%,rgba(245,165,36,.12),transparent 70%),
+  repeating-linear-gradient(0deg,transparent 0 39px,rgba(120,190,255,.07) 39px 40px),
+  repeating-linear-gradient(90deg,transparent 0 39px,rgba(120,190,255,.07) 39px 40px)}
+.hero-kicker{display:inline-flex;align-items:center;gap:10px;font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--glow);margin:0 0 22px;padding:8px 14px;border:1px solid rgba(59,224,255,.3);border-radius:999px;background:rgba(59,224,255,.06)}
+.hero-kicker i{width:7px;height:7px;border-radius:50%;background:var(--glow);box-shadow:0 0 10px var(--glow);animation:hm-pulse 2.4s ease-in-out infinite}
+@keyframes hm-pulse{50%{opacity:.35}}
+.hero-title{font:700 clamp(40px,6.2vw,76px)/.98 var(--head);letter-spacing:-.035em;margin:0;text-transform:none}
+.hero-title em{font-style:normal;background:linear-gradient(92deg,#3BE0FF,#8AF0FF 45%,#F5A524);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-intro{max-width:46ch;color:var(--stage-2);font-size:18px;margin:22px 0 30px}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px}
+.hero-stats{display:grid;grid-template-columns:repeat(4,auto);justify-content:start;gap:14px 32px;margin:36px 0 0;padding:22px 0 0;border-top:1px solid rgba(255,255,255,.1);list-style:none}
+.hero-stats li{display:flex;flex-direction:column;gap:2px}
+.hero-stats b{font:700 28px/1 var(--head);letter-spacing:-.02em;color:#fff}
+.hero-stats span{font:500 11px/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--stage-2)}
+
+.hero-art{position:relative;display:block;aspect-ratio:1/0.86;text-decoration:none;color:inherit;perspective:1400px}
+.hero-art figure{position:absolute;margin:0;border-radius:16px;overflow:hidden;border:1px solid rgba(120,200,255,.25);background:#0A1424;box-shadow:0 30px 60px -20px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.4);transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+.hero-art img{display:block;width:100%;height:100%;object-fit:cover}
+.hero-art figcaption{position:absolute;left:10px;bottom:10px;font:600 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#CFF6FF;background:rgba(4,10,20,.75);backdrop-filter:blur(6px);border:1px solid rgba(59,224,255,.35);border-radius:999px;padding:6px 10px}
+.hero-art .a{inset:4% 0 22% 8%;z-index:2;transform:rotateY(-8deg) rotateX(3deg)}
+.hero-art .a img{object-position:58% 45%;transform:scale(1.25)}
+.hero-art .b{width:46%;aspect-ratio:16/11;left:-2%;bottom:0;z-index:3;transform:rotate(-3deg)}
+.hero-art .b img{object-position:55% 40%;transform:scale(1.5)}
+.hero-art .c{width:42%;aspect-ratio:16/11;right:-3%;bottom:4%;z-index:3;transform:rotate(3deg)}
+.hero-art .c img{object-position:58% 50%;transform:scale(1.45)}
+.hero-art:hover .a{transform:rotateY(-3deg) rotateX(1deg) translateY(-6px)}
+.hero-art:hover .b{transform:rotate(-5deg) translate(-6px,4px)}
+.hero-art:hover .c{transform:rotate(5deg) translate(6px,4px)}
+@media (max-width:900px){
+  .hero{grid-template-columns:minmax(0,1fr);padding:36px 22px 28px;border-radius:22px;gap:28px}
+  .hero-art{max-width:560px;width:100%;justify-self:center}
+}
+@media (max-width:560px){.hero-stats{grid-template-columns:repeat(2,auto)}}
+@media (max-width:480px){.hero-stats b{font-size:24px}.hero-intro{font-size:16px}}
+
+/* sections */
+.hm-sec{padding-top:72px}
+.hm-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px 24px;flex-wrap:wrap;margin:0 0 24px}
+.hm-head .n{display:block;font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 10px}
+.hm-head h2{font:700 clamp(30px,4.2vw,46px)/1 var(--head);letter-spacing:-.03em;text-transform:none;margin:0}
+.hm-head p{margin:0;color:var(--ink-2);max-width:48ch}
+.hm-link{font:600 14px/1 var(--body);color:var(--accent);text-decoration:none;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.hm-link:hover{text-decoration:underline;text-underline-offset:4px}
+
+/* the two "use it now" cards (and the Games card that #new adds) */
+#work .cats{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+#work .cats.with-games{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:980px){#work .cats.with-games{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:720px){#work .cats,#work .cats.with-games{grid-template-columns:minmax(0,1fr)}}
+#work .cat{border-radius:22px;border-color:var(--line);background:var(--panel);transition:transform .25s,box-shadow .25s,border-color .25s}
+#work .cat:hover{transform:translateY(-4px);border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:0 24px 50px -28px color-mix(in srgb,var(--accent) 55%,transparent)}
+#work .cat-art{aspect-ratio:16/8;gap:0;background:var(--stage);padding:14px 14px 0;gap:10px;align-items:end}
+#work .cat-art img{border-radius:10px 10px 0 0;box-shadow:0 -10px 30px -12px rgba(0,0,0,.6);transition:transform .4s}
+#work .cat:hover .cat-art img{transform:translateY(-4px)}
+#work .cat .body{padding:24px 26px 26px;gap:12px}
+#work .cat .count{font:600 11px/1 var(--mono);letter-spacing:.12em;color:var(--accent)}
+#work .cat .body h3{font:700 30px/1.05 var(--head);letter-spacing:-.025em;text-transform:none}
+#work .cat-list{border-top:0;gap:6px}
+#work .cat-list li{border:0}
+#work .cat-list a{padding:12px 14px;border-radius:12px;background:var(--panel-2);border:1px solid transparent;align-items:center;transition:border-color .15s}
+#work .cat-list a:hover{border-color:var(--accent)}
+#work .cat-list a b{font:600 16px/1.2 var(--head);letter-spacing:-.01em;text-transform:none}
+#work .cat-list a span{font-size:13px}
+#work .cat .btn{border-radius:999px;min-height:46px;padding:12px 20px}
+
+/* engineering: a gallery of the build previews */
+.eng{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:14px}
+.eng a{position:relative;display:block;border-radius:18px;overflow:hidden;background:#0A1424;border:1px solid var(--line);text-decoration:none;color:#E7EEF8;aspect-ratio:16/11;isolation:isolate}
+.eng a.big{grid-column:span 2;grid-row:span 2;aspect-ratio:auto}
+.eng img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform .6s cubic-bezier(.2,.7,.2,1);z-index:-2}
+.eng a::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,transparent 40%,rgba(3,7,14,.92))}
+.eng a.big img{transform:scale(1.3);transform-origin:62% 55%}
+.eng a:hover img{transform:scale(1.06)}
+.eng a.big:hover img{transform:scale(1.36)}
+.eng a:hover{border-color:var(--accent)}
+.eng .cap{position:absolute;left:16px;right:16px;bottom:14px}
+.eng .cap b{display:block;font:700 18px/1.15 var(--head);letter-spacing:-.015em}
+.eng .big .cap b{font-size:28px}
+.eng .cap span{display:block;font-size:13px;color:#A9B8CC;margin-top:3px}
+.eng .tag{position:absolute;top:12px;left:12px;font:600 10px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:#CFF6FF;background:rgba(4,10,20,.7);border:1px solid rgba(59,224,255,.35);border-radius:999px;padding:6px 10px;backdrop-filter:blur(6px)}
+@media (max-width:900px){.eng{grid-template-columns:repeat(2,minmax(0,1fr))}.eng a.big{aspect-ratio:16/11}}
+@media (max-width:560px){.eng{grid-template-columns:minmax(0,1fr)}.eng a.big{grid-column:auto;grid-row:auto}.eng .big .cap b{font-size:22px}}
+
+/* the Back Room door */
+.br-door{position:relative;margin-top:72px;padding:40px 40px;border-radius:28px;overflow:hidden;background:var(--stage);color:var(--stage-ink);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px 32px;isolation:isolate}
+.br-door::before{content:"";position:absolute;inset:-40%;z-index:-1;background:conic-gradient(from 0deg at 50% 50%,transparent 0 60%,rgba(59,224,255,.22) 72%,rgba(245,165,36,.18) 80%,transparent 90%);animation:hm-spin 14s linear infinite}
+.br-door::after{content:"";position:absolute;inset:1px;z-index:-1;border-radius:27px;background:radial-gradient(600px 200px at 0% 0%,rgba(59,224,255,.12),transparent 70%),var(--stage)}
+@keyframes hm-spin{to{transform:rotate(1turn)}}
+.br-door h2{font:700 clamp(26px,3.4vw,38px)/1.05 var(--head);letter-spacing:-.03em;text-transform:none;margin:0 0 8px;color:#fff}
+.br-door p{margin:0;color:var(--stage-2);max-width:52ch}
+.br-door .k{display:block;font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--amber,#F5A524);margin:0 0 12px}
+@media (max-width:560px){.br-door{padding:28px 22px;border-radius:22px}.br-door .hm-btn{width:100%;justify-content:center}}
+
+/* scroll-in (only when scripts run and motion is allowed) */
+.js-in .rise{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+.js-in .rise.on{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){
+  .hero-kicker i,.br-door::before{animation:none}
+  .hero-art figure,.eng img,#work .cat,#work .cat-art img,.hm-btn{transition:none}
+  .js-in .rise{opacity:1;transform:none;transition:none}
+}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -65,76 +207,113 @@ if(/^(www\.)?ascoding11\.com$/.test(location.hostname)&&!location.hash&&!locatio
     <a class="wordmark" href="./">Arjun</a>
     <nav class="nav" aria-label="Site"><a href="./" aria-current="page">Home</a><a href="projects/">Web Development Projects</a><a href="productivity/">Productivity</a><a href="engineering/">Engineering Projects</a><a href="marketplace/">Marketplace</a></nav>
   </div>
-  <header>
-    <p class="kicker">Hi, I'm</p>
-    <h1>Arjun</h1>
-    <p class="intro">I build things that run in the browser: games you can play with your class, tools that make work faster, and engineering projects you can take apart in 3D.</p>
+  <!-- The hero. Opening the Back Room here swaps this <header> for the Back Room's own (reveal() in the script below). -->
+  <header class="hero">
+    <div class="hero-copy">
+      <p class="hero-kicker"><i></i>Hi, I'm Arjun</p>
+      <h1 class="hero-title">I build things that run in the <em>browser.</em></h1>
+      <p class="hero-intro">Games you can play with your class, tools that make work faster, and engineering projects you can take apart in 3D.</p>
+      <div class="hero-cta">
+        <a class="hm-btn go" href="#work">See my work <span class="arr" aria-hidden="true">→</span></a>
+        <button type="button" class="hm-btn" id="brOpenHero">Open the Back Room <span class="arr" aria-hidden="true">→</span></button>
+      </div>
+      <ul class="hero-stats">
+        <li><b>2</b><span>Web games</span></li>
+        <li><b>2</b><span>Productivity tools</span></li>
+        <li><b>5</b><span>Engineering builds</span></li>
+        <li><b>20+</b><span>Back Room games</span></li>
+      </ul>
+    </div>
+    <a class="hero-art" href="engineering/" aria-label="See engineering projects">
+      <figure class="a"><img src="joukowsky-dynamics/preview.jpg" alt="" width="1920" height="1200" fetchpriority="high"><figcaption>Joukowsky Dynamics</figcaption></figure>
+      <figure class="b"><img src="tideline/preview.jpg" alt="" width="1920" height="1200"><figcaption>Tideline</figcaption></figure>
+      <figure class="c"><img src="harvest-steps/preview.jpg" alt="" width="1920" height="1200"><figcaption>Harvest Steps</figcaption></figure>
+    </a>
   </header>
 
-  <!-- When you add a project, add it to the matching list below and put its full card on projects/ or productivity/. -->
-  <section aria-label="Sections">
-    <div class="cats">
-      <article class="cat">
-        <a class="cat-art" href="projects/" aria-label="See all web development projects" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-          <img src="hype-cycle-exchange/preview.png" alt="" loading="lazy" style="object-position:left top">
-          <img src="boxed/preview.jpg" alt="" loading="lazy" style="object-position:left top">
-        </a>
-        <div class="body">
-          <span class="count">2 projects · free to play</span>
-          <h3>Web Development Projects</h3>
-          <p>A stock market you can trade with your class and real competition math, both playable live with a whole room.</p>
-          <ul class="cat-list">
-            <li><a href="hype-cycle-exchange/"><b>Hype Cycle Exchange</b><span>Classroom stock market</span></a></li>
-            <li><a href="boxed/"><b>Boxed</b><span>Real AMC &amp; AIME problems</span></a></li>
-          </ul>
-          <div class="actions"><a class="btn primary" href="projects/">See all projects</a></div>
-        </div>
-      </article>
-      <article class="cat">
-        <a class="cat-art" href="productivity/" aria-label="See productivity tools" style="grid-template-columns:minmax(0,1fr)">
-          <img src="docket/preview.jpg" alt="" loading="lazy" style="object-position:center top">
-        </a>
-        <div class="body">
-          <span class="count">2 tools · free to use</span>
-          <h3>Productivity</h3>
-          <p>Tools I build to get work done faster, right in the browser. A planner that turns your Canvas assignments into a schedule, and a tracker for college supplemental essays.</p>
-          <ul class="cat-list">
-            <li><a href="docket/"><b>Docket</b><span>Study planner for Canvas</span></a></li>
-            <li><a href="prompted/"><b>Prompted</b><span>Supplemental essay tracker</span></a></li>
-          </ul>
-          <div class="actions"><a class="btn primary" href="productivity/">See productivity</a></div>
-        </div>
-      </article>
-      <article class="cat">
-        <a class="cat-art" href="engineering/" aria-label="See engineering projects" style="grid-template-columns:minmax(0,1fr)">
-          <img src="joukowsky-dynamics/preview.jpg" alt="" loading="lazy" style="object-position:62% 45%">
-        </a>
-        <div class="body">
-          <span class="count">5 projects · workbenches and build plans</span>
-          <h3>Engineering Projects</h3>
-          <p>Vehicles I design end to end, with every part in CAD and the physics worked out: a road car whose wheels swing up into ducted rotors so it can fly, a radar satellite that watches ports through cloud, a floor mat that turns footsteps into electricity, and the circuits for a two-wheel robot.</p>
-          <ul class="cat-list">
-            <li><a href="https://ascoding11.github.io/Joukowsky-Dynamics/"><b>Joukowsky Dynamics</b><span>Wheel-to-rotor flying car</span></a></li>
-            <li><a href="https://ascoding11.github.io/Joukowsky-Dynamics/satellite/"><b>Tideline</b><span>Radar satellite for ports and shipping lanes</span></a></li>
-            <li><a href="harvest-steps/"><b>Harvest Steps</b><span>Footstep-powered floor mat</span></a></li>
-            <li><a href="https://ascoding11.github.io/applied-robotics/"><b>Applied Robotics</b><span>Circuit sheets for a two-wheel rover</span></a></li>
-            <li><a href="daedalus/"><b>Project Daedalus</b><span>One-stick Bluetooth controller to build in a batch</span></a></li>
-          </ul>
-          <div class="actions"><a class="btn primary" href="engineering/">See engineering</a></div>
-        </div>
-      </article>
+  <!-- When you add a project, add it to the matching list below and put its full card on projects/, productivity/ or engineering/.
+       The .cats grid is also where #new adds its Games card (script below), so keep the .cat card markup the same. -->
+  <section aria-label="Sections" id="work" style="padding-top:0">
+    <div class="hm-sec rise">
+      <div class="hm-head">
+        <div><span class="n">01 · Play &amp; use</span><h2>Games and tools</h2></div>
+        <p>Free, in the browser, no install. Most of them work with a whole class at once.</p>
+      </div>
+      <div class="cats">
+        <article class="cat">
+          <a class="cat-art" href="projects/" aria-label="See all web development projects" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+            <img src="hype-cycle-exchange/preview.png" alt="" loading="lazy" style="object-position:left top">
+            <img src="boxed/preview.jpg" alt="" loading="lazy" style="object-position:left top">
+          </a>
+          <div class="body">
+            <span class="count">2 projects · free to play</span>
+            <h3>Web Development Projects</h3>
+            <p>A stock market you can trade with your class and real competition math, both playable live with a whole room.</p>
+            <ul class="cat-list">
+              <li><a href="hype-cycle-exchange/"><b>Hype Cycle Exchange</b><span>Classroom stock market</span></a></li>
+              <li><a href="boxed/"><b>Boxed</b><span>Real AMC &amp; AIME problems</span></a></li>
+            </ul>
+            <div class="actions"><a class="btn primary" href="projects/">See all projects</a></div>
+          </div>
+        </article>
+        <article class="cat">
+          <a class="cat-art" href="productivity/" aria-label="See productivity tools" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+            <img src="docket/preview.jpg" alt="" loading="lazy" style="object-position:center top">
+            <img src="prompted/preview.jpg" alt="" loading="lazy" style="object-position:left top">
+          </a>
+          <div class="body">
+            <span class="count">2 tools · free to use</span>
+            <h3>Productivity</h3>
+            <p>Tools I build to get work done faster. A planner that turns your Canvas assignments into a schedule, and a tracker for college supplemental essays.</p>
+            <ul class="cat-list">
+              <li><a href="docket/"><b>Docket</b><span>Study planner for Canvas</span></a></li>
+              <li><a href="prompted/"><b>Prompted</b><span>Supplemental essay tracker</span></a></li>
+            </ul>
+            <div class="actions"><a class="btn primary" href="productivity/">See productivity</a></div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="hm-sec rise">
+      <div class="hm-head">
+        <div><span class="n">02 · Engineering</span><h2>Things I design end to end</h2></div>
+        <a class="hm-link" href="engineering/">See all engineering <span aria-hidden="true">→</span></a>
+      </div>
+      <p style="margin:-8px 0 22px;color:var(--ink-2);max-width:72ch">Every part in CAD and the physics worked out: a road car whose wheels swing up into ducted rotors so it can fly, a radar satellite that watches ports through cloud, a floor mat that turns footsteps into electricity, and the circuits for a two-wheel robot.</p>
+      <div class="eng">
+        <a class="big" href="https://ascoding11.github.io/Joukowsky-Dynamics/"><img src="joukowsky-dynamics/preview.jpg" alt="" loading="lazy" style="object-position:62% 45%"><span class="tag">Flying car</span><span class="cap"><b>Joukowsky Dynamics</b><span>Wheels that swing up into ducted rotors</span></span></a>
+        <a href="https://ascoding11.github.io/Joukowsky-Dynamics/satellite/"><img src="tideline/preview.jpg" alt="" loading="lazy" style="object-position:52% 50%"><span class="tag">Satellite</span><span class="cap"><b>Tideline</b><span>Radar for ports and shipping lanes</span></span></a>
+        <a href="harvest-steps/"><img src="harvest-steps/preview.jpg" alt="" loading="lazy" style="object-position:58% 50%"><span class="tag">Energy</span><span class="cap"><b>Harvest Steps</b><span>Footstep-powered floor mat</span></span></a>
+        <a href="daedalus/"><img src="daedalus/preview.jpg" alt="" loading="lazy" style="object-position:50% 50%"><span class="tag">Hardware</span><span class="cap"><b>Project Daedalus</b><span>One-stick Bluetooth controller</span></span></a>
+        <a href="https://ascoding11.github.io/applied-robotics/"><img src="applied-robotics/preview.jpg" alt="" loading="lazy" style="object-position:50% 62%"><span class="tag">Robotics</span><span class="cap"><b>Applied Robotics</b><span>Circuit sheets for a two-wheel rover</span></span></a>
+      </div>
     </div>
   </section>
 
   <!-- The Back Room button: opens the Back Room here without the code (the script below), like the code does.
-       The code (triple-click the © in the footer) still works too. -->
-  <div class="br-door" style="margin-top:48px;display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px">
-    <p style="margin:0;color:var(--ink-2)">Want more games? The Back Room has over 20 more, most of them multiplayer.</p>
-    <button type="button" class="btn" id="brOpen" style="font:inherit;font-weight:600;cursor:pointer">Open the Back Room →</button>
+       The code (triple-click the © in the footer) still works too. The hero's "Open the Back Room" presses this one. -->
+  <div class="br-door rise">
+    <div>
+      <span class="k">03 · The Back Room</span>
+      <h2>Want more games?</h2>
+      <p>The Back Room has over 20 more, most of them multiplayer. Make a party, send invites and climb the leaderboards.</p>
+    </div>
+    <button type="button" class="hm-btn go" id="brOpen">Open the Back Room <span class="arr" aria-hidden="true">→</span></button>
   </div>
 
   <footer><span>©</span> 2026 Arjun · <a href="about/">About</a> · <a href="contact/">Contact</a> · <a href="privacy.html">Privacy policy</a> · <a href="terms/">Terms</a></footer>
 </div>
+<script>
+// Home page extras: the hero's Back Room button presses the real one (#brOpen, wired up below), and sections fade in as you scroll.
+(function(){
+  var b=document.getElementById('brOpenHero');if(b)b.addEventListener('click',function(){var r=document.getElementById('brOpen');if(r)r.click()});
+  if(!('IntersectionObserver' in window)||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  document.documentElement.classList.add('js-in');
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.rise').forEach(function(el){io.observe(el)});
+})();
+</script>
 <script src="/analytics/tracker.js" data-site="home" defer></script>
 <script src="/account/account.js" defer></script>
 <script src="/install.js" defer></script> <!-- "Install app" button (see README) -->
