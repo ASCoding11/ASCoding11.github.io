@@ -549,6 +549,10 @@
     for (var i = 0; i < 3; i++) { var p = new T.PlaneGeometry(1, 1); p.rotateY(i * Math.PI / 3); cards.push(p); }
     var h = new T.PlaneGeometry(1, 1); h.rotateX(-Math.PI / 2); h.translate(0, 0.12, 0); cards.push(h);
     G.clump = mergeGeos(cards);
+    // canopy normals: out from a point a little below the clump's centre, so the crown is lit like a rounded mass
+    var CP = G.clump.attributes.position, CN = G.clump.attributes.normal, cv = new T.Vector3();
+    for (i = 0; i < CP.count; i++) { cv.set(CP.getX(i), CP.getY(i) + 0.35, CP.getZ(i)).normalize(); CN.setXYZ(i, cv.x, cv.y, cv.z); }
+    CN.needsUpdate = true;
   };
   function mergeGeos(list) {
     var pos = [], nrm = [], uv = [], idx = [], base = 0;

@@ -109,6 +109,14 @@
     return m;
   };
   // called when the time of day changes: street lamps and lit windows glow at dusk, barely by day
+  // a still pool (the villa's): a glassy, see-through teal surface over a tiled basin built by the map
+  S.pool = function (x, y, z, w, d) {
+    var g = new T.PlaneGeometry(w, d, 1, 1); g.rotateX(-Math.PI / 2);
+    var m = new T.Mesh(g, new T.MeshPhysicalMaterial({ color: RP.col('#3f9aa0'), roughness: 0.04, metalness: 0, transparent: true, opacity: 0.62,
+      envMapIntensity: 1.1, clearcoat: 1, clearcoatRoughness: 0.02, depthWrite: false }));
+    m.position.set(x, y, z); m.renderOrder = 2; m.receiveShadow = true;
+    R.scene.add(m); return m;
+  };
   S.atmos = function () { if (RP.MapTex) RP.MapTex.glowU.value = R.atmosName === 'dusk' ? 1 : R.atmosName === 'golden' ? 0.3 : 0.06; };
   S.update = function (t, cam) {
     if (RP.B && RP.B.stream) RP.B.stream(cam);   // the map's chunks follow the camera too (see build.js)

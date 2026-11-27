@@ -123,6 +123,7 @@
     { x0: 11, z0: -30, x1: 26.5, z1: -10, y: 4.6, cut: true },           // 3 under the cathedral steps (the steps are boxes)
     { x0: 8, z0: 22, x1: 44, z1: 34, y: 1.4, blend: 3 },                 // 4 harbour quay
     { cx: -168, cz: 40, r: 32, y: 23.85, blend: 14 },                    // 5 villa plateau
+    { x0: -154, z0: 17.3, x1: -139.2, z1: 35, y: 23.2, cut: true },     // 5b under the villa's pool and its deck (the deck hides the edge)
     { cx: -133.5, cz: 12.5, r: 5.5, y: 23.7, blend: 5 },                 // the forecourt outside the villa gate
     { cx: -176, cz: 2, r: 13, y: 20, blend: 8 },                         // lemon terrace 1 (below the villa, north)
     { cx: -150, cz: -10, r: 12, y: 16.5, blend: 8 },                     // lemon terrace 2
@@ -577,10 +578,25 @@
       B.box('lamp', sx2, y + 3.6 - sag, sz2, 0.1, 0.1, 0.1, 0, { cls: 'flat' });
     }
     [-186, -150].forEach(function (x) { K.lamp(x, 38.5, y); K.lamp(x, 62, y); });
-    // the reflecting pool east of the house
-    B.box('stone', -146, y - 0.6, 26, 12, 0.7, 14, 0, { col: C('#e7e1d4'), ao: 0, cls: 'shell', uvs: 1.5 });
-    B.box('water', -146, y + 0.05, 26, 10.6, 0.06, 12.6, 0, { cls: 'flat', ao: 0 });
-    W.addBox({ x: -146, z: 26, y0: y - 0.7, y1: y + 0.3, hx: 6, hz: 7, mat: 'water', cover: false, kind: 'pool' });
+    // the reflecting pool east of the house: a pale tiled basin 0.6 m deep inside a stone rim, under a glassy surface
+    B.box('tiles', -146, y - 0.75, 26, 10.6, 0.12, 12.6, 0, { col: C('#d7eef0'), ao: 0, cls: 'flat', uvs: 0.6 });
+    [[-146, 19.35, 12, 0.7], [-146, 32.65, 12, 0.7], [-151.65, 26, 0.7, 12.6], [-140.35, 26, 0.7, 12.6]].forEach(function (r) {
+      B.box('stone', r[0], y - 0.75, r[1], r[2], 0.87, r[3], 0, { col: C('#e7e1d4'), ao: 0, cls: 'shell', uvs: 1.5 });
+    });
+    [[-146, 19.95, 10.6, 0.06], [-146, 32.05, 10.6, 0.06], [-151.25, 26, 0.06, 12.6], [-140.75, 26, 0.06, 12.6]].forEach(function (r) {
+      B.box('tiles', r[0], y - 0.65, r[1], r[2], 0.7, r[3], 0, { col: C('#bfe2e6'), ao: 0, cls: 'detail', uvs: 0.6 });   // the basin's tiled sides
+    });
+    RP.Sea && RP.Sea.pool && RP.Sea.pool(-146, y + 0.02, 26, 10.6, 12.6);
+    // the stone deck round it, over the cut in the ground (walkable at the plateau's level)
+    [[-146, 18.15, 15.8, 1.7], [-146, 33.85, 15.8, 2.3], [-153.15, 26, 1.7, 13.4], [-139.12, 26, 1.75, 13.4]].forEach(function (r) {
+      B.box('paving', r[0], y - 0.9, r[1], r[2], 0.92, r[3], 0, { col: C('#e9e3d6'), ao: 0, cls: 'shell', uvs: 1 });
+      W.addBox({ x: r[0], z: r[1], y0: y - 0.9, y1: y + 0.02, hx: r[2] / 2, hz: r[3] / 2, mat: 'stone', cover: false, kind: 'deck' });
+    });
+    // you can wade in: the floor is the basin's (water underfoot), the rim is a low kerb stepped over
+    W.addBox({ x: -146, z: 26, y0: y - 0.9, y1: y - 0.63, hx: 5.3, hz: 6.3, mat: 'water', cover: false, kind: 'pool' });
+    [[-146, 19.35, 6, 0.35], [-146, 32.65, 6, 0.35], [-151.65, 26, 0.35, 6.3], [-140.35, 26, 0.35, 6.3]].forEach(function (r) {
+      W.addBox({ x: r[0], z: r[1], y0: y - 0.9, y1: y + 0.12, hx: r[2], hz: r[3], mat: 'stone', cover: false, kind: 'kerb' });
+    });
     // boundary wall (2.2 m: climbable) with the front gate on the east and a service gate to the lemon terraces
     var by = y, WO = { cap: true };
     K.wall(-196, 6, -158, 6, by - 0.4, 2.6, 0.5, '#e6dccb', WO); K.wall(-154, 6, -138, 6, by - 0.4, 2.6, 0.5, '#e6dccb', WO);
@@ -591,8 +607,9 @@
       B.box('stone', -138, by, gz, 1, 3.2, 1, 0, { col: C('#d7cbb6'), collide: 'stone', kind: 'pier', cls: 'shell', uvs: 1.5 });
       B.box('stone', -138, by + 3.2, gz, 1.25, 0.18, 1.25, 0, { col: C('#ebe4d5'), cls: 'detail', ao: 0, uvs: 1.5 }); B.geo('stone', B.geos.sphere, -138, by + 3.7, gz, 0, 0.6, 0.6, 0.6, C('#ebe4d5'), { cls: 'detail' });
     });
-    B.box('aged', -142, by, 19, 2.2, 2.6, 2.2, 0, { col: C('#efe6d6'), collide: 'plaster', cover: true, kind: 'booth', cls: 'shell', uvs: 3 });
-    B.geo('roof', K.hipGeo(2.8, 2.8, 0.8), -142, by + 2.6, 19, 0, 1, 1, 1, C('#ffffff'), { cls: 'shell' });
+    // (the booth stands just south of the gateway, clear of the pool)
+    B.box('aged', -142, by, 8.6, 2.2, 2.6, 2.2, 0, { col: C('#efe6d6'), collide: 'plaster', cover: true, kind: 'booth', cls: 'shell', uvs: 3 });
+    B.geo('roof', K.hipGeo(2.8, 2.8, 0.8), -142, by + 2.6, 8.6, 0, 1, 1, 1, C('#ffffff'), { cls: 'shell' });
     K.lamp(-136, 8.6, null); K.lamp(-136, 17.4, null);
     // gardens inside the walls: cypress avenue, umbrella pines, hedges (block sight), lemon trees
     for (i = 0; i < 6; i++) { K.tree('cypress', -192, 10 + i * 4.4); }
@@ -602,7 +619,7 @@
       B.box('foliage', hx2, y - 0.2, 12, 4.4, 1.25, 1.0, 0, { col: C('#35522a'), collide: 'cloth', cover: true, kind: 'hedge', cls: 'shell' });
       K.leaf(hx2, y + 1.1, 12, 4.6, 0.8, 1.6, '#3f6131', 0); K.leaf(hx2, y + 0.6, 12, 4.6, 1.2, 1.5, '#3f6131', 0);
     }
-    for (i = 0; i < 4; i++) K.tree('lemon', -150 + (i % 2) * 5, 30 + Math.floor(i / 2) * 6);
+    [[-153.5, 37.6], [-146.5, 37.8], [-141, 37.6], [-141, 14.5]].forEach(function (t) { K.tree('lemon', t[0], t[1], y); });   // round the pool, not in it
     // lemon terraces below the villa (stealth route): dry-stone retaining walls and pergolas
     [[-176, 2, 20], [-150, -10, 16.5]].forEach(function (p) {
       for (var a = 0; a < 3; a++) for (var b = 0; b < 3; b++) {

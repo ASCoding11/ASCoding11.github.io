@@ -418,12 +418,14 @@
     var hsd = fbmT(N, 81, [12, 40, 128], [0.4, 0.4, 0.2]);
     TEX.sand = tex(paint(N, function (i, j) { var v = hsd[j * N + i]; var g = 170 + (v - 0.5) * 40; return [g + 12, g, g - 30]; }), true);
     // leaves: an alpha card of overlapping leaf blobs (trees, lemon groves, bougainvillea), tinted by vertex colour
-    var lc = canvas(256), lx = lc.getContext('2d'), rr = M.rng(5);
-    for (var k = 0; k < 260; k++) {
-      var x0 = 128 + (rr() - 0.5) * 220, y0 = 128 + (rr() - 0.5) * 220;
-      if ((x0 - 128) * (x0 - 128) + (y0 - 128) * (y0 - 128) > 108 * 108) continue;
-      var gg = 120 + rr() * 110; lx.fillStyle = 'rgb(' + (gg * 0.92 | 0) + ',' + (gg | 0) + ',' + (gg * 0.8 | 0) + ')';
-      lx.beginPath(); lx.ellipse(x0, y0, 5 + rr() * 9, 3 + rr() * 5, rr() * 3.14, 0, 6.29); lx.fill();
+    // (about 1100 leaves of 2-6 cm on a 2-3 m card: real leaf size, light and shade varying leaf to leaf)
+    var lc = canvas(512), lx = lc.getContext('2d'), rr = M.rng(5);
+    for (var k = 0; k < 1500; k++) {
+      var x0 = 256 + (rr() - 0.5) * 452, y0 = 256 + (rr() - 0.5) * 452, rd = (x0 - 256) * (x0 - 256) + (y0 - 256) * (y0 - 256);
+      if (rd > 222 * 222 || (rd > 170 * 170 && rr() < 0.55)) continue;   // a ragged edge, not a disc
+      var gg = 105 + rr() * 140; lx.fillStyle = 'rgb(' + (gg * 0.9 | 0) + ',' + (gg | 0) + ',' + (gg * 0.74 | 0) + ')';
+      lx.beginPath(); lx.ellipse(x0, y0, 4 + rr() * 6, 2 + rr() * 3, rr() * 3.14, 0, 6.29); lx.fill();
+      if (rr() < 0.5) { lx.fillStyle = 'rgba(255,255,235,0.25)'; lx.beginPath(); lx.ellipse(x0 - 1, y0 - 1, 2 + rr() * 2, 1, rr() * 3.14, 0, 6.29); lx.fill(); }   // a glint
     }
     TEX.leaves = tex(lc, true); TEX.leaves.wrapS = TEX.leaves.wrapT = T.ClampToEdgeWrapping;
     // soft round blob (contact shadows, smoke, dust)
@@ -467,6 +469,10 @@
       sh.uniforms.uWind = RP.windU;
       sh.vertexShader = 'uniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>',
         '#include <begin_vertex>\n vec4 wp0 = modelMatrix * vec4(position, 1.0); float sw = sin(uWind*1.7 + wp0.x*0.31 + wp0.z*0.23) + 0.5*sin(uWind*3.1 + wp0.x*0.9);\n transformed.x += sw * 0.045 * max(position.y, 0.0) * 0.3; transformed.z += sw * 0.03 * max(position.y, 0.0) * 0.3;');
+      // the clump's normals point out from its centre (build.js): use them as they are on both sides of each card, so
+      // a crown shades like a round mass instead of a set of flat panels (one of them always facing away, black)
+      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n normal = normalize(vNormal);');
     };
+    RP.mat.leaves.customProgramCacheKey = function () { return 'leaves2'; };
   };
 })();

@@ -25,7 +25,7 @@
       // gate
       guard('sentry', -134, 11, Math.PI / 2); guard('sentry', -134, 15.5, Math.PI / 2);
       // garden patrols
-      guard('sentry', -186, 10, 0, { patrol: [V(-186, 10), V(-160, 10), V(-150, 22), V(-186, 14)] });
+      guard('sentry', -186, 10, 0, { patrol: [V(-186, 10), V(-160, 10), V(-155.5, 22), V(-186, 14)] });
       guard('sentry', -192, 30, 0, { patrol: [V(-192, 30), V(-192, 12), V(-176, 12, null)] });
       // service gate on the north wall
       guard('sentry', -165, 3.5, Math.PI);
