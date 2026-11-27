@@ -313,6 +313,9 @@ body:has(.hero) footer{border-top:1px solid var(--line)}
   // An invite link (home page + #room) is held until the code is entered, and the address is tidied right away.
   // Backrooms 1v1 rooms start with br-, Shell Crackers rooms with sc-, Trivium contests with tv-, Hail Mary rooms with hm-, Coil rooms with cl-, Slipstream rooms with ss-, Boostball rooms with bb-, Quarry worlds with qy-, Kartwheel rooms with kw-, Showdown tables with sd-, Chromaflage rooms with cf-, Spire rooms with tw-, Updraft rooms with up-, Odd One Out rooms with ph-, Tumble Trials rooms with ko-, Deepword rooms with dw-, Turbo Trail races with sr-, Escapade rooms with er-, Puffer Party rooms with pf-, Driftfall rooms with dz-, Lokop rooms with gd-; every other room code is a Rumble Karts room.
   // Party invites start with pt-: they don't open a game, they join the party in the Back Room's Party panel (party.js).
+  // A typed game address (ascoding11.com/slipstream, or /backroom) arrives from 404.html as #play=<word>; see below.
+  var play=/^#play=([a-z0-9-]{1,40})$/.exec(location.hash);
+  if(play){play=play[1];history.replaceState(null,'',location.pathname+location.search)}else play='';
   var m=/^#([a-z0-9-]{1,20})$/.exec(location.hash);
   if(m&&m[1]!=='notrack'&&m[1]!=='track'){room=m[1];history.replaceState(null,'',location.pathname+location.search)}
   // A share link (home page + # + the hidden folder's name) opens the hidden page without the code. The folder name
@@ -355,6 +358,33 @@ body:has(.hero) footer{border-top:1px solid var(--line)}
     // The "Tell Arjun" feedback bar (feedback.js, in the Back Room folder) goes at the top of the page, so showcase
     // visitors can send a note before opening the games. reveal() loads it again later; it only draws the bar once.
     var fbs=document.createElement('script');fbs.src='/e63334287a3deaa3/feedback.js';document.body.appendChild(fbs);
+  }
+  // Typed addresses: /backroom (or /backrooms) opens the Back Room here; /<game> (the game's name in lower case with
+  // dashes, like /driftfall, or its folder, like /drop-zone) opens the Back Room and then that game in the game layer,
+  // as if its card were clicked (on a phone, inside the phone version). The typed address is put back in the address
+  // bar while that page or game is open; ← Back returns to the home page's address, and clicking never changes it.
+  if(play){
+    var pdir='/e63334287a3deaa3/',typed='/'+play;
+    var slug=function(s){return s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')};
+    fetch(pdir,{cache:'no-store'}).then(function(r){return r.ok?r.text():null}).then(function(html){
+      if(!html||shown)return;
+      var hit=null;
+      if(play!=='backroom'&&play!=='backrooms'){
+        var d=new DOMParser().parseFromString(html,'text/html'),sec=d.querySelector('section');
+        (sec?sec.querySelectorAll('a[href]'):[]).forEach(function(a){
+          if(hit)return;
+          var p=new URL(a.getAttribute('href'),location.origin).pathname,f=p.indexOf(pdir)===0&&/^([a-z0-9-]+)\/$/.exec(p.slice(pdir.length));
+          if(!f)return;
+          var art=a.closest('article'),h=art&&art.querySelector('h3'),n=h?h.textContent.trim():'';
+          if(f[1]===play||(n&&slug(n)===play))hit={path:p,folder:f[1],name:n};
+        });
+      }
+      var phone=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
+      if(hit&&phone)room='play='+hit.folder; // the phone version opens it (see m/index.html)
+      reveal(html,pdir);
+      if(hit&&!phone)openGame(hit.path,hit.name);
+      history.replaceState(history.state,'',typed);
+    }).catch(function(){});
   }
   // The Back Room button above the footer opens the hidden page without the code (on a phone, the phone version).
   var brBtn=document.getElementById('brOpen');

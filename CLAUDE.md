@@ -25,6 +25,7 @@ When adding a game:
 - 3D games using three.js load `../autores.js` straight after `three.min.js`, so they drop resolution automatically on slow laptops (see `README.md`).
 - Don't change Firebase security rules or the Firebase config. If a game needs storage the current rules don't allow, say so in the pull request instead.
 - If the game shows ads, follow the existing `AD_SLOT` pattern and leave `AD_SLOT` empty; Arjun fills it in, and load `/adrefresh.js` in the `<head>`. Mark in-game touch buttons that aren't inside `#touch` with `data-no-ad-refresh`, so tapping them during play never reloads an ad.
+- Add its name (lower case, dashes) and its folder to the `GO` list at the top of `404.html`, so typing ascoding11.com/<name> opens it (see Typed game addresses in `README.md`).
 - Add a section for the game to `README.md`, in the same style as the others: what it is, how it stores data, and anything a later editor needs to know.
 - Add a `kind: 'game'` What's new entry for it as a new file in `e63334287a3deaa3/news/` (see the README there), with the game in `games`, its phone thumbnail as `img` and its Spanish in `es`, so it appears in the "New games!" row.
 - Make it playable on a phone: on-screen touch controls shown only on touch screens (see how Shell Crackers or Kartwheel do it), with nothing overlapping in portrait or with the phone sideways. Then add it to the phone page: a row in `GROUPS` in `e63334287a3deaa3/m/index.html` and a 560 × 350 thumbnail in `e63334287a3deaa3/m/thumbs/`.
