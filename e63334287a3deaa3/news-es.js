@@ -7,6 +7,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A more professional home page": "Una página principal más profesional",
+    "Home page": "Página principal",
+    "The home page now leads with the engineering projects and web applications.": "La página principal ahora empieza con los proyectos de ingeniería y las aplicaciones web.",
+    "The games are one click away at the bottom of the home page.": "Los juegos están a un clic, al final de la página principal.",
     "Boostball: new card picture": "Boostball: nueva imagen de la tarjeta",
     "Boostball": "Boostball",
     "Boostball's card shows a real match now: the ball, the cars, both goals and the stadium.": "La tarjeta de Boostball ahora muestra un partido real: la pelota, los coches, las dos porterías y el estadio.",
