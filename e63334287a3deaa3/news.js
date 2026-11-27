@@ -90,6 +90,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.19.1', title: 'Leaf Sweep: the bin works again', kind: 'fix',
+     tags: ['Leaf Sweep'], items: [
+      'Walk up to a compost bin with leaves in your sack and a clear prompt shows again: press E or tap the button to empty it. You can stand a little farther away than before.',
+      'A full sack also empties with a click, or a tap on Grab, when you are next to a bin.',
+      'Picking up leaves is one click or tap for each handful: holding the button down no longer keeps grabbing. Steady hands is gone from the shed, and anyone who had it gets their 120 acorns back.',
+      'Kneeling with the knee pads makes each handful twice as big, as the reward promised.',
+      'The short note on what to do now shows when you start a new game.']},
     {date: '2026-11-27', version: '2.19', title: 'Replay clips', kind: 'feature',
      tags: ['Slipstream', 'Boostball', 'Driftfall'], items: [
       'Slipstream, Boostball and Driftfall now save the last 15 seconds or so of every race or match as a video.',

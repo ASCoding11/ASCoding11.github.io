@@ -7,6 +7,13 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Leaf Sweep: the bin works again": "Leaf Sweep: la compostera vuelve a funcionar",
+    "Leaf Sweep": "Leaf Sweep",
+    "Walk up to a compost bin with leaves in your sack and a clear prompt shows again: press E or tap the button to empty it. You can stand a little farther away than before.": "Acércate a una compostera con hojas en el saco y vuelve a aparecer un aviso claro: pulsa E o toca el botón para vaciarlo. Puedes quedarte un poco más lejos que antes.",
+    "A full sack also empties with a click, or a tap on Grab, when you are next to a bin.": "Un saco lleno también se vacía con un clic, o tocando Agarrar, cuando estás junto a una compostera.",
+    "Picking up leaves is one click or tap for each handful: holding the button down no longer keeps grabbing. Steady hands is gone from the shed, and anyone who had it gets their 120 acorns back.": "Recoger hojas es un clic o un toque por cada puñado: mantener pulsado el botón ya no sigue agarrando. Las manos firmes ya no están en el cobertizo, y quien las tenía recupera sus 120 bellotas.",
+    "Kneeling with the knee pads makes each handful twice as big, as the reward promised.": "Arrodillarte con las rodilleras hace cada puñado el doble de grande, como prometía el premio.",
+    "The short note on what to do now shows when you start a new game.": "La breve nota sobre qué hacer ahora aparece cuando empiezas una partida nueva.",
     "Replay clips": "Clips de repetición",
     "Slipstream": "Slipstream",
     "Boostball": "Boostball",
