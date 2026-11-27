@@ -14,19 +14,26 @@
  * live preview of the rows. A tap (or Enter) switches a game between big and small (back to the site's own size
  * forgets the choice, unless one was saved before the editor opened); each section also has All
  * small, All big and Default (its games back to the site's sizes). Reset on this tab puts every game back.
- *   Back Room page (and the home page's copy): big = .wide + .pw (two columns on computers, a whole row on
- *   phones, games.css), small = neither. A game the player hasn't chosen keeps the classes the page gave it.
- *   Phone page: big = .lay-big (two columns: a whole row upright, two of three sideways with the picture on the
- *   left); every tile is small by default. The Daily Puzzles card and row aren't sized.
+ *   Back Room page (and the home page's copy): big = .wide + .pw (.wide on computers and tablets, .pw on phones),
+ *   small = neither. A game the player hasn't chosen keeps the classes the page gave it.
+ *   Phone page: big = .lay-big; every tile is small by default. The Daily Puzzles card and row aren't sized.
  *   A game's key is its folder (from the card's links, or the tile's thumbs/<folder>.jpg), so every card on the
  *   page, including new ones, is picked up by itself, and a game on both pages is the same entry.
- *   Gaps: CSS grid starts a big card that doesn't fit in what's left of a row on the next row, leaving a gap. In a
- *   section where the player has chosen any size, the card before a gap stretches to fill its row (.lay-fill
- *   with an inline grid-column span; .lay-fw gives it the wide card's look when it was upright). The choice
- *   itself is kept, the editor shows which card stretches with a one-line note, and it's worked out again when
- *   the number of columns changes. A section the player hasn't touched is left exactly as the site has it.
- *   Each card's width is read from the page's own CSS (its computed grid-column), so the preview and the gaps
- *   follow games.css and the phone page's styles at every width.
+ *   Big and small are wishes: Even rows (below) has the last word on which cards are wide.
+ *
+ * Even rows (every player, saved sizes or not): every section's rows end flush, never 4 then 1. For each grid
+ * (Back Room .gc-grid and .pz-grid, phone page .grid) this counts the cards that are showing (the game search hides
+ * some with .gs-hide), reads the most columns the CSS allows at this width (--ev-max: games.css, the phone page's
+ * styles), and picks the number of columns (--ev-cols on the grid, up to --ev-max) and which cards are wide
+ * (data-ev-w: two columns, or a whole row in a grid of two) so that every row is full. evPlan() tries every
+ * column count and keeps the one with the fewest changes from the wished sizes plus 2 for each column fewer than
+ * the most, then fewer rows, then fewer wide cards, then wide cards nearer the top. So 4 games are a row of 4,
+ * 8 two rows of 4, 9 with three wished big 2 wide / 1 wide + 2 / 4, and 5 a wide card + 1 over a row of 3 (or
+ * 2 wide over 1 wide + 2 when three are wished big). Cards never change order. Anything else in a grid that spans
+ * the whole row (the puzzle tiles' .pz-wrap, the phone page's Daily Puzzles tile) splits it into parts that each
+ * end flush. It runs again when cards are shown, hidden or resized (a MutationObserver on class changes), when
+ * the window crosses a --ev-max width, and after a saved order or sizes are applied. The Game sizes tab previews
+ * the same plan; a dashed tile there is one that comes out another size than chosen.
  * *
  * The movable blocks:
  *   Back Room page and the home page's copy: party (the Party panel, party.js), online (the Online panel,
@@ -82,14 +89,14 @@
       'Every game back to its usual size': 'Todos los juegos a su tamaño normal', 'Back to the default order': 'Volver al orden de siempre',
       'At this window width every game takes one column; big games are wider on bigger and smaller screens.':
         'Con este ancho de ventana cada juego ocupa una columna; los juegos grandes son más anchos en pantallas más grandes y más chicas.',
-      'All small': 'Todos chicos', 'All big': 'Todos grandes', 'Default': 'Normal', 'Big': 'Grande', 'Small': 'Chico', 'Fills gap': 'Llena hueco',
+      'All small': 'Todos chicos', 'All big': 'Todos grandes', 'Default': 'Normal', 'Big': 'Grande', 'Small': 'Chico', 'Evens the rows': 'Empareja filas',
       'Make every game in {s} small': 'Hacer chicos todos los juegos de {s}', 'Make every game in {s} big': 'Hacer grandes todos los juegos de {s}',
       'Put {s} back to its usual sizes': 'Volver {s} a sus tamaños normales',
       '{n}: big{usual}{fill}. Tap to make it small.': '{n}: grande{usual}{fill}. Toca para hacerlo chico.',
       '{n}: small{usual}{fill}. Tap to make it big.': '{n}: chico{usual}{fill}. Toca para hacerlo grande.',
-      ' (usual size)': ' (tamaño normal)', ', stretched to fill its row': ', estirado para llenar su fila',
-      'This row has a gap, so {n} stretches to fill it.': 'Esta fila tiene un hueco, así que {n} se estira para llenarlo.',
-      'Some rows have gaps, so {a} and {b} stretch to fill them.': 'Algunas filas tienen huecos, así que {a} y {b} se estiran para llenarlos.',
+      ' (usual size)': ' (tamaño normal)', ', another size here so the rows stay even': ', con otro tamaño aquí para que las filas queden parejas',
+      'Every row is kept full, so at this screen width the dashed games come out another size than set here.':
+        'Cada fila queda completa, así que con este ancho de pantalla los juegos con borde punteado salen de otro tamaño que el marcado aquí.',
       '{n} is big now.': '{n} ahora es grande.', '{n} is small now.': '{n} ahora es chico.',
       'Every game in this section is big now.': 'Todos los juegos de esta sección ahora son grandes.',
       'Every game in this section is small now.': 'Todos los juegos de esta sección ahora son chicos.',
@@ -215,14 +222,12 @@
     // a custom order on the phone page: the rows sit outside #lists, so their headings get #lists h3's look here
     'html.lay-m-on .wrap > h3[data-lay]{font-family:var(--f-m);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);margin:18px 0 10px}' +
     'html.lay-m-on .wrap > .grid + #party,html.lay-m-on .wrap > .grid + #online{margin-top:26px}' +
-    // the player's card sizes. Back Room page: big is .wide + .pw (games.css). A card stretched to fill a gap in its
-    // row (.lay-fill, with an inline grid-column) gets the wide card's look when it spans two or more columns (.lay-fw).
-    '@media (min-width:561px){.br-games .gc.lay-fw{flex-direction:row}.br-games .gc.lay-fw .shot{flex:0 0 52%;aspect-ratio:auto;min-height:220px;margin:7px 0 7px 7px}.br-games .gc.lay-fw .shot img{position:absolute;inset:0}.br-games .gc.lay-fw .body{padding:16px 18px 16px;gap:9px}.br-games .gc.lay-fw h3{font-size:31px}.br-games .gc.lay-fw .gc-blurb{font-size:15px;-webkit-line-clamp:4;min-height:0}.br-games .gc.lay-fw .gc-more summary{right:auto;left:calc(52% - 31px)}.br-games .gc.lay-fw .gc-more[open] summary{left:auto;right:15px}}' +
-    '@media (max-width:560px){.br-games .gc.lay-fill h3{font-size:26px}.br-games .gc.lay-fill .gc-blurb{font-size:14px;min-height:0}.br-games .gc.gc.lay-fill .gc-chips li:nth-child(n+2){display:inline-flex}}' +
-    // phone page: big is .lay-big (two columns: a whole row upright, two of three sideways with the picture on the left)
-    '.grid[data-lay] > .tile.lay-big{grid-column:span 2}' +
-    '.grid[data-lay] > .tile.lay-big strong,.grid[data-lay] > .tile.lay-fw strong{font-size:25px}' +
-    '@media (min-width:600px){.grid[data-lay] > .tile.lay-big,.grid[data-lay] > .tile.lay-fw{flex-direction:row}.grid[data-lay] > .tile.lay-big img,.grid[data-lay] > .tile.lay-fw img{flex:0 0 52%;width:52%;min-width:0;aspect-ratio:auto;height:auto;min-height:150px}.grid[data-lay] > .tile.lay-big .t,.grid[data-lay] > .tile.lay-fw .t{padding:12px 14px}}';
+    // Even rows on the phone page (the Back Room's are in games.css): a wide tile is two columns (a whole row
+    // upright, two of three sideways with the picture on the left); puzzle tiles only stretch.
+    '.grid[data-ev]{grid-template-columns:repeat(var(--ev-cols,var(--ev-max,2)),minmax(0,1fr))}' +
+    '.grid[data-ev] > .tile[data-ev-w]{grid-column:span 2}' +
+    '.grid[data-ev]:not(.pz) > .tile[data-ev-w] strong{font-size:25px}' +
+    '@media (min-width:600px){.grid[data-ev]:not(.pz) > .tile[data-ev-w]{flex-direction:row}.grid[data-ev]:not(.pz) > .tile[data-ev-w] img{flex:0 0 52%;width:52%;min-width:0;aspect-ratio:auto;height:auto;min-height:150px}.grid[data-ev]:not(.pz) > .tile[data-ev-w] .t{padding:12px 14px}}';
   doc.head.appendChild(css);
 
   // ---------------- The page ----------------
@@ -304,68 +309,137 @@
     s = s.replace(/\[[^\]]*\]/g, ' ').trim();
     return s && s !== 'none' ? s.split(/\s+/).length : 1;
   }
-  function spanOf(e, C) {
-    var cs = getComputedStyle(e), st = cs.gridColumnStart, en = cs.gridColumnEnd, m;
-    if ((m = /span\s+(\d+)/.exec(en)) || (m = /span\s+(\d+)/.exec(st))) return Math.max(1, Math.min(C, +m[1]));
-    if (/^-?\d+$/.test(st) && /^-?\d+$/.test(en)) { var a = +st, b = +en; if (a < 0) a = C + 2 + a; if (b < 0) b = C + 2 + b; return Math.max(1, Math.min(C, Math.abs(b - a))); }
-    return 1;
+  // ---------------- Even rows ----------------
+  // want: for each card, true if it's wished big; C: the most columns allowed; cuts: indexes of cards that come
+  // right after a whole-row item, where a row must end. Returns {c, wide: [bool]} with every row full. A wide card
+  // spans 2 columns (a whole row when c is 2; nothing is wide when c is 1). Cards stay in their order.
+  var EV_PEN = 2;
+  function evPlan(want, C, cuts) {
+    var n = want.length, best = null, INF = 1e18;
+    C = Math.max(1, C | 0);
+    cuts = cuts || [];
+    for (var c = C; c >= 1; c--) {
+      var sp = c >= 2 ? 2 : 1;
+      // dp[col]: the cheapest way to place the cards so far with the next one starting at column col. A change from
+      // the wish costs 1e8; a wide card also costs a row's share (1e5), 1e3 and its index, so ties go to fewer rows,
+      // fewer wide cards and wide cards nearer the top.
+      var dp = [], from = [], k, i, col;
+      for (col = 0; col < c; col++) dp.push(col ? INF : 0);
+      for (i = 0; i < n; i++) {
+        if (cuts.indexOf(i) >= 0) for (col = 1; col < c; col++) dp[col] = INF;
+        var nd = [], nf = [];
+        for (col = 0; col < c; col++) { nd.push(INF); nf.push(null); }
+        for (col = 0; col < c; col++) {
+          if (dp[col] >= INF) continue;
+          for (k = 0; k < 2; k++) {
+            var w = k === 1, s = w ? sp : 1;
+            if ((w && c < 2) || col + s > c) continue;
+            var cost = dp[col] + (w !== !!want[i] ? 1e8 : 0) + (w ? (s - 1) / c * 1e5 + 1e3 + i : 0);
+            var to = (col + s) % c;
+            if (cost < nd[to]) { nd[to] = cost; nf[to] = [col, w]; }
+          }
+        }
+        dp = nd; from.push(nf);
+      }
+      if (dp[0] >= INF) continue;
+      var total = dp[0] + EV_PEN * (C - c) * 1e8 + n / c * 1e5;
+      if (!best || total < best.cost - 1e-6) {
+        var wide = [], at = 0;
+        for (i = n - 1; i >= 0; i--) { var f = from[i][at]; wide[i] = f[1]; at = f[0]; }
+        best = { cost: total, c: c, wide: wide };
+      }
+    }
+    return best || { c: C, wide: want.map(function () { return false; }) };
   }
-  // How a grid's rows come out (CSS grid's normal, in-order placement): a card that doesn't fit in what's left of a
-  // row starts the next one and leaves a gap. extra[i] is how many columns card i would need to stretch to close
-  // the gap after it; gaps lists those cards.
-  function plan(spans, C) {
-    var extra = spans.map(function () { return 0; }), gaps = [], c = 0, last = -1;
-    spans.forEach(function (s, i) {
-      s = Math.max(1, Math.min(C, s));
-      if (c > 0 && c + s > C) { extra[last] = C - c; gaps.push(last); c = 0; }
-      c += s; last = i; if (c >= C) c = 0;
+  function evMax(grid) {
+    var v = 0;
+    try { v = parseInt(getComputedStyle(grid).getPropertyValue('--ev-max'), 10); } catch (e) {}
+    return v > 0 ? v : 0;
+  }
+  function evShown(e) {
+    if (e.classList.contains('gs-hide')) return false;
+    try { return getComputedStyle(e).display !== 'none'; } catch (x) { return true; }
+  }
+  function evItem(e) { return e.classList.contains('gc') || e.classList.contains('pz') || e.classList.contains('tile'); }
+  // Wished big: on the Back Room page .wide (computers and tablets) or .pw (phones), on the phone page .lay-big.
+  function evWish(e) {
+    if (phone) return e.classList.contains('lay-big');
+    if (!e.classList.contains('gc') || e.classList.contains('gc-daily')) return false;
+    var narrow = false; try { narrow = matchMedia('(max-width:560px)').matches; } catch (x) {}
+    return e.classList.contains(narrow ? 'pw' : 'wide');
+  }
+  function evRoot() { return phone ? wrap : games && games.parentNode; }
+  function evGrids() {
+    var r = evRoot();
+    return r ? Array.prototype.slice.call(r.querySelectorAll(phone ? '.grid' : '.br-games .gc-grid, .br-games .pz-grid')) : [];
+  }
+  // A grid's shown cards, and where something that spans the whole row splits them.
+  function evParts(grid) {
+    var its = [], cuts = [];
+    Array.prototype.forEach.call(grid.children, function (e) {
+      if (!evShown(e)) return;
+      if (evItem(e) && !e.classList.contains('pz-all')) its.push(e);
+      else if (its.length && cuts.indexOf(its.length) < 0) cuts.push(its.length);
     });
-    if (c > 0 && last >= 0) { extra[last] = C - c; gaps.push(last); }
-    return { extra: extra, gaps: gaps };
+    return { its: its, cuts: cuts };
   }
-  function clearFill(e) {
-    if (!e.classList.contains('lay-fill')) return;
-    e.style.gridColumn = ''; if (!e.getAttribute('style')) e.removeAttribute('style');
-    e.classList.remove('lay-fill'); e.classList.remove('lay-fw');
-  }
-  // In a section where the player has chosen sizes, a card followed by a gap stretches to fill its row. The choice
-  // itself isn't changed: the editor says which card stretches, and it follows the screen width.
-  function fillGrid(grid, custom) {
-    var its = gridItems(grid);
-    its.forEach(clearFill);
-    if (!custom) return;
-    var C = colCount(grid); if (C < 2) return;
-    var spans = its.map(function (e) { return spanOf(e, C); }), p = plan(spans, C);
-    p.gaps.forEach(function (i) {
-      var e = its[i], n = Math.min(C, spans[i] + p.extra[i]);
-      var row = false; try { row = getComputedStyle(e).flexDirection === 'row'; } catch (x) {}
-      e.classList.add('lay-fill'); e.style.gridColumn = 'span ' + n;
-      if (!row) e.classList.add('lay-fw');
+  function evenGrid(grid) {
+    var C = evMax(grid); if (!C) return;
+    var p = evParts(grid);
+    if (!p.its.length) return;   // nothing showing (a search hid it all): nothing to even
+    var r = evPlan(p.its.map(evWish), C, p.cuts), c = String(r.c);
+    if (!grid.hasAttribute('data-ev')) grid.setAttribute('data-ev', '');
+    if (grid.style.getPropertyValue('--ev-cols') !== c) grid.style.setProperty('--ev-cols', c);
+    p.its.forEach(function (e, i) {
+      if (r.wide[i]) { if (!e.hasAttribute('data-ev-w')) e.setAttribute('data-ev-w', ''); }
+      else if (e.hasAttribute('data-ev-w')) e.removeAttribute('data-ev-w');
     });
+  }
+  var evSig = '', evObs = null;
+  function evSignature() {
+    var narrow = false; try { narrow = matchMedia('(max-width:560px)').matches; } catch (x) {}
+    return (narrow ? 'n' : 'w') + evGrids().map(evMax).join(',');
+  }
+  function evenAll() {
+    evGrids().forEach(evenGrid);
+    evSig = evSignature();
+  }
+  // Even again when a card is shown or hidden (the search), its size wish changes, or cards come and go. Only class
+  // changes and added or removed children are watched; evenGrid writes attributes and styles, never classes.
+  function evWatch() {
+    var r = evRoot();
+    if (evObs || !r || !window.MutationObserver) return;
+    evObs = new MutationObserver(function (ms) {
+      for (var i = 0; i < ms.length; i++) {
+        var t = ms[i].target, g = ms[i].type === 'childList' ? t : t.parentNode;
+        if (g && g.nodeType === 1 && (g.matches('.gc-grid, .pz-grid, .grid') || (ms[i].type === 'childList' && g.querySelector && g.querySelector('.gc-grid, .pz-grid, .grid')))) { evenAll(); return; }
+      }
+    });
+    evObs.observe(r, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
   }
   var sizeOn = false, sizeRaf = 0, sizeSig = '';
   // Puts the saved sizes on the page. No saved sizes (and none put on before): the page isn't touched.
   function applySizes(map) {
     var any = Object.keys(map).length > 0;
-    if (!any && !sizeOn) return;
-    sizeSections().forEach(function (s) {
-      var custom = false;
-      s.cards.forEach(function (c) { var w = map[c.key] || ''; if (w) custom = true; if (w || phone || c.e.hasAttribute('data-lay-sz')) setSize(c.e, w); });
-      fillGrid(s.grid, custom);
+    if (any || sizeOn) sizeSections().forEach(function (s) {
+      s.cards.forEach(function (c) { var w = map[c.key] || ''; if (w || phone || c.e.hasAttribute('data-lay-sz')) setSize(c.e, w); });
     });
     sizeOn = any;
     sizeSig = layoutSig();
+    evenAll();
   }
   // Only when a grid's number of columns (or the phone/computer card rules) changes: a phone's address bar
   // showing and hiding fires resize all the time.
   function layoutSig() {
     var narrow = false; try { narrow = matchMedia('(max-width:560px)').matches; } catch (x) {}
-    return (narrow ? 'n' : 'w') + (phone ? '' : innerWidth >= 960 ? 'x' : innerWidth >= 880 ? 'm' : '') + sizeSections().map(function (s) { return colCount(s.grid); }).join('');
+    return (narrow ? 'n' : 'w') + (phone ? '' : innerWidth >= 960 ? 'x' : innerWidth >= 880 ? 'm' : '') + sizeSections().map(function (s) { return evMax(s.grid) || colCount(s.grid); }).join('');
   }
   function onResize() {
-    if ((!sizeOn && !editing) || sizeRaf) return;
+    if (sizeRaf) return;
     sizeRaf = requestAnimationFrame(function () {
       sizeRaf = 0;
+      if (evSignature() !== evSig) evenAll();
+      if (!sizeOn && !editing) return;
       var sig = layoutSig(); if (sig === sizeSig) return; sizeSig = sig;
       if (sizeOn) applySizes(readSize());
       if (editing && tab === 'size') renderSizes();
@@ -694,17 +768,13 @@
   }
 
   // ---------------- The Game sizes tab ----------------
-  // Each section's games as tiles in the section's own number of columns, sized the way the player has chosen,
-  // so the rows come out here as they will on the page. Works out each card's width from the page's own CSS by
-  // trying the size on the (hidden) card and putting it back.
+  // Each section's games as tiles in the section's own number of columns, sized the way the player has chosen and
+  // then evened out (evPlan, with every game showing), so the rows come out here as they will on the page.
   function previewSpans(s) {
-    var its = gridItems(s.grid), C = colCount(s.grid), keep = its.map(function (e) { return [e, e.className, e.getAttribute('style')]; });
-    its.forEach(function (e) { e.classList.remove('lay-fill'); e.classList.remove('lay-fw'); e.style.gridColumn = ''; });
-    s.cards.forEach(function (c) { setSize(c.e, wsize[c.key] || ''); });
-    var spans = its.map(function (e) { return spanOf(e, C); });
+    var C = evMax(s.grid) || colCount(s.grid);
     var want = s.cards.map(function (c) { return wsize[c.key] || siteSize(c.e); });
-    keep.forEach(function (k) { if (k[0].className !== k[1]) k[0].className = k[1]; if (k[2] == null) k[0].removeAttribute('style'); else k[0].setAttribute('style', k[2]); });
-    return { C: C, its: its, spans: spans, want: want };
+    var r = evPlan(want.map(function (w) { return w === 'big'; }), C);
+    return { C: r.c, spans: r.wide.map(function (w) { return w ? 2 : 1; }), want: want };
   }
   function renderSizes(focusKey) {
     if (!szBox) return;
@@ -716,7 +786,7 @@
     one.hidden = true; szBox.appendChild(one);
     secs.forEach(function (s) {
       var pv = previewSpans(s), C = pv.C, custom = s.cards.some(function (c) { return wsize[c.key]; });
-      var spans = s.cards.map(function (c) { return pv.spans[pv.its.indexOf(c.e)]; }), p = plan(spans, C);
+      var spans = pv.spans;
       var box = el('div', 'lay-sz' + (phone ? '' : ' gs-' + s.id)); box.setAttribute('data-sec', s.id);
       if (phone) { var mh = modeHeads[s.mode] && modeHeads[s.mode].querySelector('h2'); try { if (mh) { box.style.setProperty('--gs-c', getComputedStyle(mh).color); box.style.setProperty('--gs-ink', '#15122a'); } } catch (e) {} }
       var h = el('div', 'lay-sz-h'), nm = el('b', '', s.name); nm.id = 'lay-sz-' + s.id;
@@ -731,24 +801,23 @@
       acts.append(allS, allB, def); h.append(nm, acts);
       var grid = el('div', 'lay-pv'); grid.style.setProperty('--lay-c', C); grid.setAttribute('role', 'group'); grid.setAttribute('aria-labelledby', nm.id);
       s.cards.forEach(function (c, i) {
-        var big = pv.want[i] === 'big', ext = custom ? p.extra[i] : 0;
+        var big = pv.want[i] === 'big', ext = C > 1 && big !== (spans[i] > 1);
         var t = el('button', 'lay-tl' + (big ? ' big' : '') + (ext ? ' fill' : '')); t.type = 'button';
         t.setAttribute('data-key', c.key); t.setAttribute('aria-pressed', big ? 'true' : 'false');
         t.setAttribute('aria-label', T(big ? '{n}: big{usual}{fill}. Tap to make it small.' : '{n}: small{usual}{fill}. Tap to make it big.',
-          { n: c.name, usual: wsize[c.key] ? '' : T(' (usual size)'), fill: ext ? T(', stretched to fill its row') : '' }));
-        if (spans[i] + ext > 1) t.style.gridColumn = 'span ' + Math.min(C, spans[i] + ext);
+          { n: c.name, usual: wsize[c.key] ? '' : T(' (usual size)'), fill: ext ? T(', another size here so the rows stay even') : '' }));
+        if (spans[i] > 1) t.style.gridColumn = 'span ' + Math.min(C, spans[i]);
         var im = el('img'); im.alt = ''; im.decoding = 'async';
         if (c.img2) im.addEventListener('error', function () { if (im.getAttribute('src') !== c.img2) im.src = c.img2; });
         im.src = c.img;
         var tx = el('span', 'lay-tl-t'); tx.append(el('b', '', c.name), el('span', 'lay-pill', big ? 'Big' : 'Small'));
         t.append(im, tx);
-        if (ext) t.appendChild(el('span', 'lay-fl', 'Fills gap'));
+        if (ext) t.appendChild(el('span', 'lay-fl', 'Evens the rows'));
         grid.appendChild(t);
       });
       box.append(h, grid);
-      var names = custom ? p.gaps.map(function (i) { return s.cards[i].name; }) : [];
-      if (names.length) box.appendChild(el('p', 'lay-gap', names.length === 1 ? 'This row has a gap, so ' + names[0] + ' stretches to fill it.' : 'Some rows have gaps, so ' + names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' stretch to fill them.'));
-      if (C > 1 && pv.want.some(function (w, i) { return w === 'big' && spans[i] < 2; })) one.hidden = false;
+      if (spans.some(function (n, i) { return C > 1 && (pv.want[i] === 'big') !== (n > 1); })) box.appendChild(el('p', 'lay-gap', 'Every row is kept full, so at this screen width the dashed games come out another size than set here.'));
+      if (C < 2 && pv.want.some(function (w) { return w === 'big'; })) one.hidden = false;
       szBox.appendChild(box);
     });
     if (focusKey) {
@@ -981,6 +1050,7 @@
     addButton();
     sync();
     observe();
+    evWatch();
     // The home page's reveal() hides the page until a saved order is in place.
     if (wrap.style.visibility === 'hidden') wrap.style.visibility = '';
     addEventListener('storage', function (e) { if (e.key === KEY && !editing) sync(); });
