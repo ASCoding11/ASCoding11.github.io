@@ -296,10 +296,13 @@ var EW=(function(){
   P.scoop=function(x,z,cap){var w=this,S=w.S,cells=[],tot=0;w.each(x-0.75,z-0.75,x+0.75,z+0.75,function(i){if(!S.solid[i]&&S.d[i]>0.001){cells.push(i);tot+=S.d[i]*AREA}});
     if(tot<=0)return 0;var take=Math.min(cap,tot*0.95),got=0;for(var k=0;k<cells.length;k++)got+=S.take(cells[k],take*S.d[cells[k]]*AREA/tot);return got};
   P.pour=function(x,z,vol){var i=this.cell(x,z);if(i<0||this.S.solid[i])return 0;if(this.sink[i]||this.hold[i]>-1e8){this.removed+=vol;return vol}return this.S.add(i,vol)};
-  P.canDig=function(x,z){var i=this.cell(x,z);return i>=0&&this.soft[i]&&!this.S.solid[i]&&!this.S.bar[i]&&this.S.g[i]>this.g0[i]-World.DIGMAX+0.01};
+  // how low a cell can be dug: DIGMAX below where it started, or a map's `digFloor` (a level in metres) if that is lower,
+  // so a high bank can be cut as deep as the ground beside it and a trench through it never has to be a pond
+  P.digLow=function(i){var a=this.g0[i]-World.DIGMAX,f=this.def.digFloor;return f!=null&&f<a?f:a};
+  P.canDig=function(x,z){var i=this.cell(x,z);return i>=0&&this.soft[i]&&!this.S.solid[i]&&!this.S.bar[i]&&this.S.g[i]>this.digLow(i)+0.01};
   P.dig=function(x,z){var w=this,S=w.S,i=w.cell(x,z);if(!w.canDig(x,z))return false;
-    S.g[i]=Math.max(w.g0[i]-World.DIGMAX,S.g[i]-0.24);w.type[i]=T.SOIL;w.spoil++;w.dirty.push(i);S.wake(i);
-    var nb=[i-1,i+1,i-w.W,i+w.W];for(var m=0;m<4;m++){var j=nb[m];if(j>=0&&j<S.n&&w.soft[j]&&!S.solid[j]&&!S.bar[j]&&S.g[j]>S.g[i]+0.04){S.g[j]=Math.max(w.g0[j]-World.DIGMAX,Math.max(S.g[i]+0.04,S.g[j]-0.16));w.type[j]=T.SOIL;w.dirty.push(j);S.wake(j)}}
+    S.g[i]=Math.max(w.digLow(i),S.g[i]-0.24);w.type[i]=T.SOIL;w.spoil++;w.dirty.push(i);S.wake(i);
+    var nb=[i-1,i+1,i-w.W,i+w.W];for(var m=0;m<4;m++){var j=nb[m];if(j>=0&&j<S.n&&w.soft[j]&&!S.solid[j]&&!S.bar[j]&&S.g[j]>S.g[i]+0.04){S.g[j]=Math.max(w.digLow(j),Math.max(S.g[i]+0.04,S.g[j]-0.16));w.type[j]=T.SOIL;w.dirty.push(j);S.wake(j)}}
     return true};
   P.canPile=function(x,z){var i=this.cell(x,z);return i>=0&&this.spoil>0&&this.soft[i]&&!this.S.solid[i]&&!this.S.bar[i]&&this.S.g[i]<this.g0[i]+0.36};
   P.pile=function(x,z){var w=this,i=w.cell(x,z);if(!w.canPile(x,z))return false;w.S.g[i]+=0.24;w.type[i]=T.SOIL;w.spoil--;w.dirty.push(i);w.S.wake(i);return true};
@@ -338,8 +341,8 @@ var EW=(function(){
       if(got>0){if(w.sink[p.hose.i]||w.hold[p.hose.i]>-1e8){w.removed+=got;p.away=true}else{S.add(p.hose.i,got);p.away=false}}
       p.flow+=(got/dt-p.flow)*0.2;p.run=true;p.why=got>q*0.05?'':'dry';return}
     p.flow*=0.8};
-  World.DONE=0.03;World.DRAINX=2.5;World.PUMPX=2; // DRAINX, PUMPX: every drain and pump runs this many times its listed rate (raised 26 Nov 2026: draining felt slow)
-  World.SKIN=0.008;World.DIGMAX=0.9;World.BARH=0.36;World.T=T;World.CS=CS;World.vnoise=vnoise;
+  World.DONE=0.03;World.DRAINX=2.1;World.PUMPX=1.8; // DRAINX, PUMPX: every drain and pump runs this many times its listed rate (raised 26 Nov 2026: draining felt slow)
+  World.SKIN=0.008;World.DIGMAX=0.64;World.BARH=0.36;World.T=T;World.CS=CS;World.vnoise=vnoise;
   return {World:World,T:T,CS:CS};
 })();
 // The jobs. Sizes are in metres; x runs east, z runs south. Each build() lays out one place.
@@ -348,7 +351,7 @@ var EWMaps=(function(){
   function dist(x,z,a,b){return Math.sqrt((x-a)*(x-a)+(z-b)*(z-b))}
   var MAPS=[];
   // 1. Marlow Row: a back yard. The patio drain is buried in leaves and the garden tap's pipe has split.
-  MAPS.push({id:'yard',name:'Marlow Row',sub:'Back yard',w:22,h:18,seed:11,pay:60,par:210,sky:'day',
+  MAPS.push({id:'yard',name:'Marlow Row',sub:'Back yard',w:22,h:18,seed:11,pay:60,par:150,sky:'day',
     brief:'The back yard has been under water since the storm, and it is not going down.',
     build:function(b){
       b.ground(function(x,z){var h=dist(x,z,7,14.2);return 0.02*dist(x,z,8,6.5)+Math.max(0,z-9)*0.04-0.11*Math.max(0,1-h*h/0.81)+0.05*bump((h-1.15)/0.35)});   // and a hollow on the lawn with a lip round it: a puddle that cannot drain
@@ -373,7 +376,7 @@ var EWMaps=(function(){
     }});
   function bump(u){return u<-1||u>1?0:1-u*u}
   // 2. Pell Street: shops, a forecourt, and a road whose gullies have vanished under the storm's leftovers.
-  MAPS.push({id:'street',name:'Pell Street',sub:'Shop fronts',w:24,h:20,seed:23,pay:110,par:300,sky:'day',needs:['rake','wrench'],
+  MAPS.push({id:'street',name:'Pell Street',sub:'Shop fronts',w:24,h:20,seed:23,pay:110,par:240,sky:'day',needs:['rake','wrench'],
     brief:'The road outside the shops is a pond and the loading bay has filled to the brim.',
     build:function(b){
       b.ground(function(x,z){
@@ -388,18 +391,18 @@ var EWMaps=(function(){
       b.wall(0,3,0.5,20,2.2,0x3d5a73,'fence');b.wall(23.5,3,24,20,2.2,0x3d5a73,'fence');b.wall(0,19.5,24,20,5.0,0x9b8f80,'houseN');
       b.wall(2,3,3.5,3.5,0.9,0x3f6b4c,'bin');b.wall(9,3,10,4,0.75,0x7a5a3c,'planter');b.wall(15,5,16,6,0.7,0x8a6a3a,'crate');b.wall(18.5,4.5,19.5,5.5,1.0,0x7b6a55,'crate');
       b.wall(14,4,14.5,8.5,1.0,0x6d7478,'rail');b.wall(19.5,4,20,8.5,1.0,0x6d7478,'rail');b.wall(14,4,20,4.5,1.0,0x6d7478,'rail');
-      b.drain(5,13.4,{rate:0.15,cap:12});b.drain(19,13.4,{rate:0.15,cap:12});b.drain(17,6.5,{rate:0.05,cap:8});
+      b.drain(5,13.4,{rate:0.15,cap:12});b.drain(19,13.4,{rate:0.15,cap:12});b.drain(17,6.5,{rate:0.035,cap:8});
       b.leak(16.75,4.75,{rate:0.012,wrench:true,y:1.1,nz:1,pz:4.52,label:'Dripping joint'});
-      b.litter(5,13.4,0.75,15);b.litter(19,13.4,0.75,14);b.litter(17,6.5,0.7,10);b.litter(12,15,7,16);b.litter(17,7,2,5);
-      b.flood(0,0,24,20,0.25);b.flood(6,6.5,10,9.5,0.275);
+      b.litter(5,13.4,0.75,15);b.litter(19,13.4,0.75,14);b.litter(17,6.5,0.7,10);b.litter(12,15,7,26);b.litter(17,7,2,8);b.litter(6,16,3,8);b.litter(18,17,3,8);   // plenty more floating about to wash back onto the gullies
+      b.flood(0,0,24,20,0.31);b.flood(6,6.5,10,9.5,0.31);
       b.spot(17,9.5,3,'The loading bay is lower than everything around it. It has a small drain of its own somewhere under that water.');b.spot(8,8,2.2,'A dip in the paving. It will hold a puddle whatever the drains do.');b.spot(12,13.4,4,'A road like this has gullies along the kerb. None are showing.');
       b.spawnAt(2,9,-Math.PI/2);
     }});
   // 3. Tanners Field: allotments in a hollow. No drain at all: the only way out is over, or through, the bank.
-  MAPS.push({id:'field',name:'Tanners Field',sub:'Allotments',w:34,h:24,seed:31,pay:160,par:420,sky:'day',needs:['shovel','rake'],
+  MAPS.push({id:'field',name:'Tanners Field',sub:'Allotments',w:34,h:24,seed:31,pay:160,par:380,digFloor:-0.5,sky:'day',needs:['shovel','rake'],
     brief:'The allotments sit in a hollow. The water came in and has nowhere to go.',
     build:function(b){
-      b.ground(function(x,z){var dt=-0.5-0.025*z;if(x>=30.5)return dt-0.12*bump((x-32)/1.5);var g=0.30+0.012*dist(x,z,22,12)+0.012*Math.max(0,22-x)/6+0.035*Math.min(1,Math.abs(z-12.25)/4)+0.30*bump((x-28.75)/1.25);if(x>30)g=g+(x-30)*2*(dt-g);return g});
+      b.ground(function(x,z){var dt=-0.5-0.025*z;if(x>=30.5)return dt-0.12*bump((x-32)/1.5);var g=0.30+0.015*dist(x,z,22,12)+0.30*bump((x-28.75)/1.25);if(x>30)g=g+(x-30)*2*(dt-g);return g});
       b.surf(0,0,34,24,T.GRASS,1);
       for(var k=0;k<4;k++)for(var j=0;j<3;j++)b.surf(3+k*6,5+j*6,7.5+k*6,9.5+j*6,T.SOIL,1);
       b.surf(30.5,0,34,24,T.GRAVEL,0);
@@ -409,16 +412,15 @@ var EWMaps=(function(){
       b.noJob(30.5,0.5,33.5,23.5);   // water in the ditch is on its way out: it does not count
       b.sinkArea(30.5,22.5,33.5,23.5);   // the ditch runs south along the hedge and leaves under it at the far end, so water can be seen running along it
       b.drain(26.25,18.25,{rate:0.05,cap:9,kind:'culvert',pipe:[27.0,30.9]});   // pipe: drawn from the grate through the bank (x from, x to)
-      b.deco(21.5,11.5,'pegs',{x1:30.2});b.deco(21.5,13.0,'pegs',{x1:30.2});   // orange pegs and string either side of where the trench should go
       b.valve(6.02,2,'sp',{nx:1,y:0.8});b.leak(6.75,2.25,{rate:0.03,valve:'sp',y:0.7,nx:1,px:6.02,pz:2.5,label:'Standpipe'});
       b.sign(6.02,1.4,'STANDPIPE',{nx:1,y:1.4});
       b.litter(26.25,18.25,0.75,12);b.litter(22,12,8,14);
-      b.flood(0,0,30,24,0.43);
+      b.flood(0,0,30,24,0.48);
       b.spot(22,12,4,'The lowest point of the field, and there is no drain anywhere on it.');b.spot(28,12,3,'A bank. On the far side the ground drops into a ditch that is nearly empty.');b.spot(26.25,18.25,3,'A small pipe runs under the bank here. It is choked, and it sits too high to empty the middle of the field.');
       b.spawnAt(4,5,Math.PI*0.75+Math.PI);
     }});
   // 4. Fenny Underpass: the road dips under a bridge. The sump pump is dead, so nothing leaves by itself.
-  MAPS.push({id:'under',name:'Fenny Underpass',sub:'Road under the bridge',w:12,h:30,seed:41,pay:220,par:380,sky:'day',needs:['pump','rake'],
+  MAPS.push({id:'under',name:'Fenny Underpass',sub:'Road under the bridge',w:12,h:30,seed:41,pay:220,par:290,sky:'day',needs:['pump','rake'],
     brief:'The road under the bridge is shut. The council says its pump has given up.',
     build:function(b){
       b.ground(function(x,z){var u=(z-15)/8;if(u>-1&&u<1)return -0.9*(1-u*u);if(z<=7)return -0.03*(7-z);return 0.02*(z-23)});
@@ -437,7 +439,7 @@ var EWMaps=(function(){
       b.spawnAt(6,3.5,Math.PI);
     }});
   // 5. Wharf Cellar: below the river's level. Water seeps in through the light well as fast as you take it out.
-  MAPS.push({id:'cellar',name:'Wharf Cellar',sub:'Warehouse cellar',w:16,h:14,seed:53,pay:280,par:400,sky:'cellar',needs:['pump','sandbags','wrench'],
+  MAPS.push({id:'cellar',name:'Wharf Cellar',sub:'Warehouse cellar',w:16,h:14,seed:53,pay:280,par:310,sky:'cellar',needs:['pump','sandbags','wrench'],
     brief:'The cellar under the old wharf keeps filling. The owner has bailed it twice already.',
     build:function(b){
       b.ground(function(x,z){if(x>=9.5&&x<11.5&&z<5){return z<1.5?1.5:0.07+(5-z)/3.5*1.43}if(x>=12)return 0;return 0.02*dist(x,z,7,8.5)});
@@ -459,7 +461,7 @@ var EWMaps=(function(){
       b.spawnAt(10.5,1.6,Math.PI);
     }});
   // 6. Mill Lane: the stream has broken its bank and is still coming.
-  MAPS.push({id:'mill',name:'Mill Lane',sub:'Lane by the stream',w:30,h:24,seed:67,pay:400,par:540,sky:'day',needs:['sandbags','rake','pump','generator','shovel'],
+  MAPS.push({id:'mill',name:'Mill Lane',sub:'Lane by the stream',w:30,h:24,seed:67,pay:400,par:480,sky:'day',needs:['sandbags','rake','pump','generator','shovel'],
     brief:'The mill stream is through its bank and the whole lane is under. Start with whatever is still feeding it.',
     build:function(b){
       b.ground(function(x,z){
