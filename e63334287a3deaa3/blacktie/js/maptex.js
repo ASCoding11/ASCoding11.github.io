@@ -524,7 +524,7 @@
     RP.mat.town = town;
 
     // ---- the terrain
-    var land = new T.MeshStandardMaterial({ roughness: 0.95, map: RP.tex.rock, normalMap: low ? null : RP.tex.rockN });
+    var land = new T.MeshStandardMaterial({ roughness: 0.95, map: RP.tex.rock, normalMap: low ? null : RP.tex.rockN }), LOW = !!low;
     X.landU = { tLandN: { value: null }, tLandC: { value: null }, tScrub: { value: RP.tex.ground }, uLB: { value: new T.Vector4(0, 0, 1, 1) } };
     land.onBeforeCompile = function (sh) {
       for (var u in X.landU) sh.uniforms[u] = X.landU[u];
@@ -553,9 +553,14 @@
           'float sy = vWP.y * 0.4 + (tri.r - 0.3) * 2.2 + big * 3.0 + sin(vWP.x * 0.021 + vWP.z * 0.017) * 1.2;',
           'float seam = 1.0 - smoothstep(0.0, 0.16, abs(fract(sy) - 0.5));',
           'float bed = lHash(vec2(floor(sy + 0.5), 3.7));',
-          'float fineD = texture2D(map, (vWP.xz + vWP.y * vec2(0.7, 0.3)) * 0.61).g;',
+          // fine grain, triplanar like the rest (a top-down lookup smeared into streaks down the cliffs)
+          'float fineD = texture2D(map, vWP.zy * 0.61).g * bw.x + texture2D(map, vWP.xz * 0.61).g * bw.y + texture2D(map, vWP.xy * 0.61).g * bw.z;',
           'vec3 rock = vec3(0.19, 0.172, 0.142) * (0.25 + 2.4 * tri) * (0.88 + 0.24 * bed) * (0.62 + 1.2 * fineD);',
           'rock *= 1.0 - 0.3 * seam * smoothstep(0.42, 0.7, slp);',
+          // close up: a third, finer octave (60 cm) so a cliff you stand against has grit and pits, not a blur
+          'float camD = length(vWP - cameraPosition), nearK = 1.0 - smoothstep(6.0, 30.0, camD);',
+          LOW ? '' : 'float det = texture2D(map, vWP.zy * 1.7).b * bw.x + texture2D(map, vWP.xz * 1.7).b * bw.y + texture2D(map, vWP.xy * 1.7).b * bw.z;',
+          LOW ? '' : 'rock *= 1.0 + clamp((det - 0.58) * 2.6, -0.35, 0.35) * nearK;',
           'float streak = lNoise(vec2(dot(vWP.xz, vec2(0.8, 0.6)) * 0.33, vWP.y * 0.035 + 3.0));',
           'rock = mix(rock, rock * vec3(0.48, 0.45, 0.42), smoothstep(0.5, 0.8, streak) * 0.7);',
           'rock = mix(rock, rock * vec3(1.25, 0.96, 0.66), smoothstep(0.55, 0.9, lNoise(vWP.xz * 0.043 + vWP.y * 0.09)) * 0.6);',
@@ -572,12 +577,15 @@
           '#ifdef USE_NORMALMAP',
           ' vec3 nmA = texture2D(normalMap, vWP.zy*0.11).xyz*2.0-1.0; vec3 nmB = texture2D(normalMap, vWP.xz*0.09).xyz*2.0-1.0; vec3 nmC = texture2D(normalMap, vWP.xy*0.11).xyz*2.0-1.0;',
           ' vec3 bwn = pow(abs(lWN), vec3(4.0)); bwn /= (bwn.x+bwn.y+bwn.z);',
-          ' lwn = normalize(lWN + (vec3(0.0, nmA.y, nmA.x)*bwn.x + vec3(nmB.x, 0.0, nmB.y)*bwn.y + vec3(nmC.x, nmC.y, 0.0)*bwn.z) * 0.55);',
+          ' vec3 nfA = texture2D(normalMap, vWP.zy*0.61).xyz*2.0-1.0; vec3 nfB = texture2D(normalMap, vWP.xz*0.61).xyz*2.0-1.0; vec3 nfC = texture2D(normalMap, vWP.xy*0.61).xyz*2.0-1.0;',
+          ' float nk = 1.0 - smoothstep(8.0, 40.0, length(vWP - cameraPosition));',
+          ' lwn = normalize(lWN + (vec3(0.0, nmA.y, nmA.x)*bwn.x + vec3(nmB.x, 0.0, nmB.y)*bwn.y + vec3(nmC.x, nmC.y, 0.0)*bwn.z) * 0.55',
+          '   + (vec3(0.0, nfA.y, nfA.x)*bwn.x + vec3(nfB.x, 0.0, nfB.y)*bwn.y + vec3(nfC.x, nfC.y, 0.0)*bwn.z) * 0.6 * nk);',
           '#endif',
           'normal = normalize((viewMatrix * vec4(lwn, 0.0)).xyz);'
         ].join('\n'));
     };
-    land.customProgramCacheKey = function () { return 'land2'; };
+    land.customProgramCacheKey = function () { return 'land3' + (LOW ? 'l' : ''); };
     RP.mat.land = land;
   };
 
