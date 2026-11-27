@@ -88,6 +88,13 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.21', title: 'A tidier Back Room', kind: 'feature',
+     tags: ['Back Room', 'Phone page'], items: [
+      'Edit your look from the pencil on your avatar in the corner of the Online panel: avatar, name tile colour, name and settings, all in one small popup.',
+      'Playing now, Party and Online are one card now, with less empty space.',
+      'What\'s new reads like the news: a headline, the date and the first points of the latest update.',
+      'Once you pick your school it shrinks to one line, with a pencil to change it.',
+      'Game cards are tighter, with no big gaps under the text.']},
     {date: '2026-11-27', version: '2.20.1', title: 'Cleaner home page', kind: 'fix',
      items: [
       'A new animation at the top of the home page.',

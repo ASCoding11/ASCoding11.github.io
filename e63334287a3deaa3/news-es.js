@@ -7,6 +7,14 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A tidier Back Room": "Un Back Room más ordenado",
+    "Back Room": "Back Room",
+    "Phone page": "Página para celular",
+    "Edit your look from the pencil on your avatar in the corner of the Online panel: avatar, name tile colour, name and settings, all in one small popup.": "Edita tu aspecto desde el lápiz de tu avatar en la esquina del panel En línea: avatar, color de placa, nombre y ajustes, todo en una ventanita.",
+    "Playing now, Party and Online are one card now, with less empty space.": "Jugando ahora, Grupo y En línea ahora son una sola tarjeta, con menos espacio vacío.",
+    "What's new reads like the news: a headline, the date and the first points of the latest update.": "Novedades se lee como una noticia: un titular, la fecha y los primeros puntos de la última actualización.",
+    "Once you pick your school it shrinks to one line, with a pencil to change it.": "Cuando eliges tu escuela se achica a una línea, con un lápiz para cambiarla.",
+    "Game cards are tighter, with no big gaps under the text.": "Las tarjetas de juegos son más compactas, sin grandes huecos debajo del texto.",
     "Cleaner home page": "Página de inicio más limpia",
     "A new animation at the top of the home page.": "Una nueva animación en la parte de arriba de la página de inicio.",
     "Shorter, plainer wording at the top.": "Textos más cortos y sencillos arriba.",
