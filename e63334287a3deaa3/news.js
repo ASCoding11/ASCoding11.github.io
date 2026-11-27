@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.17', title: 'Fastest climbing Aisles today', kind: 'feature',
+     tags: ['Aisles', 'Elo'], items: [
+      'A new board at the top of the Back Room shows which Aisles are climbing fastest today, with live green arrows.',
+      'It adds up the Elo every member wins in ranked games today, and names each Aisle\'s top climber.',
+      'It starts fresh every day, so any Aisle can top it.']},
     {date: '2026-11-27', version: '2.16', title: 'Show off your rank', kind: 'feature',
      tags: ['Elo'], items: [
       'Ranked games now have Elo tiers: Bronze, Silver (1100), Gold (1250), Platinum (1400), Diamond (1600) and Champion (1800).',

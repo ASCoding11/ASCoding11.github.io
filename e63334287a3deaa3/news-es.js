@@ -7,6 +7,12 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Fastest climbing Aisles today": "Los Aisles que más suben hoy",
+    "Aisles": "Aisles",
+    "Elo": "Elo",
+    "A new board at the top of the Back Room shows which Aisles are climbing fastest today, with live green arrows.": "Una nueva tabla arriba del Back Room muestra qué Aisles están subiendo más rápido hoy, con flechas verdes en vivo.",
+    "It adds up the Elo every member wins in ranked games today, and names each Aisle's top climber.": "Suma el Elo que cada miembro gana hoy en partidas con rango y nombra a quien más sube en cada Aisle.",
+    "It starts fresh every day, so any Aisle can top it.": "Empieza de cero cada día, así que cualquier Aisle puede llegar arriba.",
     "Show off your rank": "Presume tu rango",
     "Elo": "Elo",
     "Ranked games now have Elo tiers: Bronze, Silver (1100), Gold (1250), Platinum (1400), Diamond (1600) and Champion (1800).": "Los juegos con rango ahora tienen niveles de Elo: Bronce, Plata (1100), Oro (1250), Platino (1400), Diamante (1600) y Campeón (1800).",
