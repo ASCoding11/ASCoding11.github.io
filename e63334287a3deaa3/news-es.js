@@ -7,6 +7,14 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Chromeline gets tough": "Chromeline se pone difícil",
+    "Chromeline": "Chromeline",
+    "Endless and the Daily run are much harder: the first jumps come within seconds, and the first big launch needs a short hold in the air or you come up short.": "Infinito y la carrera del día son mucho más difíciles: los primeros saltos llegan en segundos, y el primer gran lanzamiento pide mantener pulsado un momento en el aire o te quedas corto.",
+    "The track gets hard far sooner, with the tough pieces turning up straight after the opening.": "La pista se pone difícil mucho antes: las partes duras aparecen justo después del comienzo.",
+    "Landings are stricter: tilt more than about 53° off the slope and you crash, and a clean landing must be within 9°.": "Los aterrizajes son más exigentes: si caes inclinado más de unos 53° respecto a la pendiente te estrellas, y un aterrizaje limpio debe quedar dentro de 9°.",
+    "The bike is rigid now: the wheels stay fixed to the frame, so it no longer bounces on landing.": "La moto ahora es rígida: las ruedas quedan fijas al cuadro, así que ya no rebota al aterrizar.",
+    "A simpler, cleaner bike.": "Una moto más sencilla y limpia.",
+    "The camera is zoomed out and sits further back, so you can see much more of the track ahead.": "La cámara está más alejada y se sitúa más atrás, así que ves mucho más de la pista por delante.",
     "Tidier game rows": "Filas de juegos más ordenadas",
     "Every section of games now fills its rows evenly, so you never get a row of four and then one game on its own.": "Cada sección de juegos ahora llena sus filas de forma pareja, así que nunca queda una fila de cuatro y luego un juego solo.",
     "Each section picks its own number of games per row, and one or two games get a bigger card where that keeps the rows full.": "Cada sección elige cuántos juegos van por fila, y uno o dos juegos tienen una tarjeta más grande cuando eso mantiene las filas completas.",

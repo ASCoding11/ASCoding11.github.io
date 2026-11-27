@@ -90,6 +90,14 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.12', title: 'Chromeline gets tough', kind: 'feature',
+     tags: ['Chromeline'], items: [
+      'Endless and the Daily run are much harder: the first jumps come within seconds, and the first big launch needs a short hold in the air or you come up short.',
+      'The track gets hard far sooner, with the tough pieces turning up straight after the opening.',
+      'Landings are stricter: tilt more than about 53° off the slope and you crash, and a clean landing must be within 9°.',
+      'The bike is rigid now: the wheels stay fixed to the frame, so it no longer bounces on landing.',
+      'A simpler, cleaner bike.',
+      'The camera is zoomed out and sits further back, so you can see much more of the track ahead.']},
     {date: '2026-11-26', version: '2.11', title: 'Tidier game rows', kind: 'feature',
      items: [
       'Every section of games now fills its rows evenly, so you never get a row of four and then one game on its own.',
