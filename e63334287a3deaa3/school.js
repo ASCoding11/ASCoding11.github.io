@@ -47,7 +47,8 @@
       'You’ve sent a lot of notes today. Try again tomorrow.': 'Hoy mandaste muchas notas. Inténtalo mañana.',
       'Requests aren’t switched on yet, so nothing was sent.': 'Los pedidos todavía no están activados, así que no se envió nada.',
       'Couldn’t send it. Check your connection and try again.': 'No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.',
-      'Use the suggestion box at the top of the page to ask for it.': 'Usa el buzón de sugerencias arriba de la página para pedirla.'
+      'Use the suggestion box at the top of the page to ask for it.': 'Usa el buzón de sugerencias arriba de la página para pedirla.',
+      'Change school': 'Cambiar escuela', 'Change your school': 'Cambia tu escuela', 'Done': 'Listo'
     });
     drawAll();
   })(0);
@@ -85,8 +86,20 @@
   // ---------------- Styles (colours from the page's own variables, so light, dark and the phone page all follow) ----------------
   var css = document.createElement('style');
   css.textContent =
-    '.sch{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin:16px 0 0;padding:14px 16px;max-width:720px;' +
+    '.sch{display:flex;flex-wrap:wrap;align-items:center;gap:12px 18px;margin:16px 0 0;padding:14px 16px;' +
       'background:var(--panel);border:1px solid var(--line);border-radius:14px;box-sizing:border-box}' +
+    // Choosing: on a wide screen the title, the search and the choices share one row across the whole column.
+    '@media (min-width:860px){.sch:not(.picked){display:grid;grid-template-columns:minmax(200px,auto) minmax(220px,1fr) auto;align-items:center}' +
+      '.sch:not(.picked) .sch-find{grid-column:2}.sch:not(.picked) .sch-none,.sch:not(.picked) .sch-form{grid-column:1/-1}}' +
+    // Picked: one small line, the school and a pencil; the search and the choices come back with the pencil.
+    '.sch.picked{display:inline-flex;flex-wrap:nowrap;gap:10px;max-width:100%;padding:6px 8px 6px 8px;border-radius:12px}' +
+    '.sch.picked .sch-find,.sch.picked .sch-opts,.sch.picked .sch-none,.sch.picked .sch-form{display:none!important}' +
+    '.sch.picked .sch-top{flex:0 1 auto;gap:10px}.sch.picked .sch-ic{width:30px;height:30px;border-radius:8px}.sch.picked .sch-ic svg{width:17px;height:17px}' +
+    '.sch.picked .sch-sub{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.sch-ed{flex:none;display:none;align-items:center;justify-content:center;gap:6px;min-width:36px;min-height:36px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);font:inherit;font-size:13px;font-weight:600;cursor:pointer}' +
+    '.sch-ed:hover{color:var(--ink);border-color:var(--ink-2)}.sch-ed:focus-visible{outline:2px solid var(--accent);outline-offset:2px}' +
+    '.sch.picked .sch-ed,.sch.editing .sch-ed{display:inline-flex}.sch.picked .sch-ed b{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}' +
+    '@media (min-width:860px){.sch.editing .sch-ed{grid-column:3;grid-row:1;justify-self:end}}' +
     '.sch-top{display:flex;align-items:center;gap:12px;flex:1 1 240px;min-width:0}' +
     '.sch-ic{flex:none;width:40px;height:40px;border-radius:10px;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink)}' +
     '.sch-tt{display:grid;gap:2px;min-width:0;line-height:1.25}' +
@@ -142,6 +155,8 @@
     el.innerHTML =
       '<div class="sch-top"><span class="sch-ic">' + ICON + '</span>' +
       '<div class="sch-tt"><p class="sch-h" id="' + id + '">Your school</p><p class="sch-sub" aria-live="polite"></p></div></div>' +
+      // Once a school is picked the section folds to one line; this pencil opens the choices again (and Done folds it).
+      '<button type="button" class="sch-ed" aria-expanded="false" title="Change school"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg><b>Change school</b></button>' +
       // Search: filters the schools below as you type; with no match, Add my school is the way on.
       '<label class="sch-find">' + SEARCH + '<input type="search" class="sch-q" placeholder="Search for your school" aria-label="Search schools" autocomplete="off" spellcheck="false"></label>' +
       '<div class="sch-opts" role="radiogroup" aria-labelledby="' + id + '">' +
@@ -182,6 +197,15 @@
     }
     q.addEventListener('input', filter);
     el._filter = filter;
+    // The pencil: open the choices (search first), or fold them away again.
+    var ed = el.querySelector('.sch-ed');
+    ed.addEventListener('click', function () {
+      el._editing = !el._editing; draw(el);
+      if (el._editing) q.focus(); else ed.focus();
+    });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !e.defaultPrevented && el._editing && current() && !q.value && form.hidden) { e.preventDefault(); el._editing = false; draw(el); ed.focus(); }
+    });
     q.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && q.value) { e.preventDefault(); q.value = ''; filter(); }
       if (e.key === 'Enter') { e.preventDefault(); var v = el.querySelector('.sch-opt[data-k]:not([hidden])'); if (v && q.value) { set(v.getAttribute('data-id')); v.focus(); } else openForm(); }
@@ -190,7 +214,8 @@
       var b = e.target.closest && e.target.closest('.sch-opt');
       if (!b || !el.contains(b)) return;
       if (b.getAttribute('data-id') === 'other') { openForm(); return; }
-      form.hidden = true; set(b.getAttribute('data-id'));
+      form.hidden = true; el._editing = false; set(b.getAttribute('data-id'));
+      if (current()) { draw(el); el.querySelector('.sch-ed').focus(); }
     });
     form.querySelector('.sch-x').addEventListener('click', function () { form.hidden = true; });
     form.addEventListener('submit', function (e) {
@@ -207,7 +232,7 @@
         store('other'); tell('other');
         msg.className = 'sch-msg'; msg.textContent = T('Thanks! We’ll add {s} soon.', { s: name });
         q.value = ''; filter(); drawAll();
-        setTimeout(function () { form.hidden = true; }, 2500);
+        setTimeout(function () { form.hidden = true; el._editing = false; draw(el); }, 2500);
       }, function (err) {
         var c = (err && err.code) || '';
         msg.className = 'sch-msg err';
@@ -234,7 +259,16 @@
       b.tabIndex = on ? 0 : -1; if (on) any = true;
     });
     if (!any) { var f = el.querySelector('.sch-opt'); if (f) f.tabIndex = 0; }
+    // Folded to one line while a school is picked, unless the pencil opened it (or a request is being written).
+    var form = el.querySelector('.sch-form'), ed = el.querySelector('.sch-ed'), fold = !!c && !el._editing && (!form || form.hidden);
+    el.classList.toggle('picked', fold); el.classList.toggle('editing', !!c && !fold);
+    if (ed) {
+      ed.setAttribute('aria-expanded', fold ? 'false' : 'true');
+      var lab = T(fold ? 'Change school' : 'Done'); ed.title = lab; ed.setAttribute('aria-label', fold ? T('Change your school') : lab);
+      ed.lastChild.textContent = lab; ed.lastChild.style.cssText = fold ? '' : 'position:static;width:auto;height:auto;clip:auto';
+    }
     if (!c) sub.textContent = 'Pick your school, or search for it.';
+    else if (fold && c !== OTHER) sub.textContent = c.name + ' \u00b7 ' + c.place;
     else if (c === OTHER && r) sub.textContent = T('You asked us to add {s} ({p}). We’ll add it soon.', { s: r.n, p: r.p });
     else if (c === OTHER) sub.textContent = 'Not listed yet. More schools are coming soon.';
     else sub.innerHTML = T('You go to {s}. More schools are coming soon.', { s: '<b>' + esc(c.name) + '</b>' });

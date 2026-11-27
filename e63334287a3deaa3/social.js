@@ -109,7 +109,8 @@
         'Todos los que están en The Back Room ahora. Toca a alguien para pedirle un chat (los de tu grupo te pueden escribir directo), invitarlo a tu grupo o mandarle un código de sala, o saluda a toda la cabaña.',
       'Cabin chat': 'Chat de la cabaña', 'Party chat': 'Chat del grupo', 'Badges': 'Insignias', 'Every badge and how to get it': 'Todas las insignias y cómo conseguirlas',
       'Your name in the Online list': 'Tu nombre en la lista En línea', 'Your seat: a tag that tells people apart when names match': 'Tu asiento: una etiqueta para distinguir a la gente con el mismo nombre',
-      'Edit avatar': 'Editar avatar', 'Name tile': 'Placa de nombre', 'Your card, as everyone else sees it': 'Tu tarjeta, como la ven los demás', 'You': 'Tú',
+      'Edit avatar': 'Editar avatar', 'Name tile': 'Placa de nombre', 'Hidden': 'Oculto', 'Close': 'Cerrar', 'Your look and settings': 'Tu aspecto y ajustes',
+      'You: {n}. Edit your avatar, name, name tile colour and settings': 'Tú: {n}. Edita tu avatar, nombre, color de placa y ajustes', 'Your card, as everyone else sees it': 'Tu tarjeta, como la ven los demás', 'You': 'Tú',
       'Hide me': 'Ocultarme', 'Show me': 'Mostrarme', 'Let people join my games': 'Dejar que se unan a mis juegos',
       'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)':
         'Cuando estás en un juego en línea, la gente de aquí lo ve y puede unirse (Jugando ahora, y un botón Unirse junto a tu nombre)',
@@ -350,6 +351,32 @@
     '.onl-b[disabled]{opacity:.5;cursor:default}' +
     '.onl-n{min-width:20px;height:20px;border-radius:10px;padding:0 6px;background:var(--down,#B42318);color:#fff;font-family:var(--mono,monospace);font-size:12px;font-weight:600;line-height:20px;text-align:center;letter-spacing:0}' +
     '.onl-n:empty{display:none}' +
+    // You: a small chip in the panel's top corner (your avatar with a pencil, your name and seat). It opens a popover
+    // with everything about you that used to be two rows of the panel: name, avatar, name tile colour, Hide me, Let
+    // people join. Closed by default; Esc, a click outside or the x close it.
+    '.onl{position:relative}' +
+    '.onl-sub{order:30;flex-basis:100%;font-size:14px}' +   // the line about the panel under the title row, so the row holds the title, the buttons and you
+    '.onl-you{position:relative;order:20;margin-left:auto;flex:none;display:flex}.onl-you[hidden]{display:none}' +
+    '.onl-yb{display:inline-flex;align-items:center;gap:9px;min-height:40px;max-width:240px;padding:3px 12px 3px 3px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2);color:var(--ink);font:inherit;font-family:var(--body,var(--f-b,sans-serif));text-align:left;cursor:pointer}' +
+    '.onl-yb:hover{border-color:var(--ink-2)}.onl-yb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.onl-yb[aria-expanded="true"]{border-color:var(--accent)}' +
+    '.onl-ya{position:relative;flex:none;display:inline-flex;line-height:0}' +
+    '.onl-ypen{position:absolute;right:-4px;bottom:-3px;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);box-shadow:0 0 0 2px var(--panel-2)}' +
+    '.onl-yt{display:grid;min-width:0;line-height:1.15}' +
+    '.onl-yn{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '.onl-ys{font-family:var(--mono,monospace);font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--accent);white-space:nowrap}' +
+    '.onl-pop{position:absolute;right:0;top:calc(100% + 8px);z-index:40;width:min(420px,calc(100vw - 32px));max-height:min(70vh,560px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;display:grid;gap:14px;padding:14px 16px 16px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 44px -14px rgba(0,0,0,.45)}' +
+    '.onl-pop[hidden]{display:none}' +
+    '.onl-poph{display:flex;align-items:center;gap:10px;margin:0 0 -4px}.onl-poph b{flex:1;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}' +
+    '.onl-pop .onl-x{width:34px;height:34px;font-size:18px}' +
+    '.onl-pop .onl-me{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px 12px}' +
+    '.onl-pop .onl-me > label{grid-column:2}.onl-pop .onl-me input[type=text]{width:100%;box-sizing:border-box}.onl-pop .onl-me .onl-lbl{display:none}' +
+    '.onl-pop .onl-meav{grid-row:1/3}.onl-pop .onl-seat{grid-column:2}.onl-pop .onl-tier{grid-column:1/-1;flex-wrap:wrap}.onl-pop .onl-me > .onl-b{grid-column:1/-1;justify-self:start}' +
+    '.onl-pop .onl-nt{display:grid;gap:8px}.onl-pop .onl-nt[hidden]{display:none}.onl-pop .onl-ntc{max-width:none}' +
+    '.onl-pop .onl-nts{display:grid;grid-template-columns:repeat(8,minmax(0,32px));gap:6px}.onl-pop .onl-nts label{width:auto;height:auto;aspect-ratio:1}' +
+    '.onl-pop .onl-nt.lock .onl-nts{display:flex}.onl-pop .onl-nt.lock .onl-nts label{width:14px;height:14px;aspect-ratio:auto}' +
+    '.onl-tg{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--line);font-size:14px;color:var(--ink)}.onl-tg label{display:flex;align-items:center;gap:10px}' +
+    '.onl-tg input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);margin:0;flex:none}' +
+    '@media (max-width:600px){.onl-top > .onl-b{order:2;margin-left:0}.onl-you{order:1;margin-left:auto}.onl-yb{max-width:170px}.onl-top{position:relative}.onl-you{position:static}.onl-pop{left:-6px;right:-6px;width:auto}}' +
     '.onl-me{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:14px;color:var(--ink-2)}' +
     '.onl-me label{display:flex;align-items:center;gap:8px;min-width:0}' +
     '.onl-me .onl-lbl{font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}' +
@@ -434,7 +461,7 @@
     '.onl-bar + #turn{margin-left:8px}' +
     '.onl-bar[hidden]{display:none}.onl-pbar:not([hidden]) + .onl-bar{margin-left:0}' +
     '.onl-wn{font:inherit;font-weight:700;color:var(--ink);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px}' +
-    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:none;overflow:visible}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}.onl-top > .onl-b ~ .onl-b{margin-left:0}.onl-top > h2{flex:1 0 calc(100% - 32px)}}' +
+    '@media (max-width:600px){.onl{padding:14px}.onl-list{grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-height:none;overflow:visible}.onl-sub{font-size:14px;order:3;flex-basis:100%}.onl-top > .onl-b{margin-left:auto}.onl-top > .onl-b ~ .onl-b{margin-left:0}.onl-top > h2{flex:1 1 auto}}' +
     '@media (max-width:600px){.onl-nt:not(.lock) .onl-nts{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));flex-basis:100%;max-width:400px}.onl-nt:not(.lock) .onl-nts label{width:auto;height:auto;aspect-ratio:1}.onl-nt .onl-b{flex:1 1 100%}}' +
     '@media (max-width:420px){.onl-list{grid-template-columns:minmax(0,1fr)}.onl-me .onl-lbl{display:none}.onl-me input[type=text]{width:10ch}.onl-nt.lock .onl-nts{gap:3px}.onl-nt.lock .onl-nts label{width:11px;height:11px}.onl-nt.lock .onl-nts span{border-radius:3px}}' +
     '@media (max-height:500px){.onl-ts{top:calc(40px + env(safe-area-inset-top,0px))}.onl-dh{padding:8px 12px}.onl-db{padding:8px 12px}.onl-df{padding:8px 12px}}';
@@ -464,7 +491,12 @@
   // Your avatar (filled in once we know who you are) and your status tier with your miles.
   // "Edit avatar" opens avatar.js's editor; both are filled in or shown once we know who you are and that script is here.
   var $meAv = el('span', 'onl-meav'), $tier = el('span', 'onl-tier'), $editAv = btn('Edit avatar'); $editAv.style.display = 'none';
-  $editAv.addEventListener('click', function () { if (uid && window.BackRoomAvatar && BackRoomAvatar.edit) BackRoomAvatar.edit(uid, $editAv); });
+  $editAv.addEventListener('click', function () {
+    if (!uid || !window.BackRoomAvatar || !BackRoomAvatar.edit) return;
+    // a guest gets nothing from edit() but the backroom:avatar-locked event, which shows the sign-in line here
+    if (BackRoomAvatar.google && !BackRoomAvatar.google(uid)) { BackRoomAvatar.edit(uid, $editAv); return; }
+    setPop(false, false); BackRoomAvatar.edit(uid, $yb);
+  });
   // The Name tile row (filled in by drawTile): a label, your card as others see it, the colours, and for a guest the
   // line and the button that opens the site's Google sign-in (or, on a page without it, a link to the main site).
   var ntRow = el('div', 'onl-nt'); ntRow.hidden = true;
@@ -477,7 +509,39 @@
   var hideLbl = el('label'); var $hide = el('input'); $hide.type = 'checkbox'; hideLbl.append($hide, 'Hide me');
   var joinLbl = el('label'); var $join = el('input'); $join.type = 'checkbox'; joinLbl.append($join, 'Let people join my games');
   joinLbl.title = 'When you’re in an online game, people here can see it and join you (Playing now, and a Join button by your name)';
-  meRow.append($meAv, nameLbl, $seat, $tier, hideLbl, joinLbl, $editAv);
+  meRow.append($meAv, nameLbl, $seat, $tier, $editAv);
+  // You: the chip in the top corner and the popover it opens (meRow, ntRow and the two switches live in it).
+  var $you = el('div', 'onl-you'); $you.hidden = true;
+  var $yb = el('button', 'onl-yb'); $yb.type = 'button'; $yb.setAttribute('aria-haspopup', 'dialog'); $yb.setAttribute('aria-expanded', 'false'); $yb.setAttribute('aria-controls', 'onl-pop');
+  var $ya = el('span', 'onl-ya'), $yav = el('span', ''), $ypen = el('span', 'onl-ypen'), $yt = el('span', 'onl-yt'), $yn = el('span', 'onl-yn'), $ys = el('span', 'onl-ys');
+  $ypen.setAttribute('aria-hidden', 'true'); $yn.setAttribute('data-noi18n', ''); $ys.setAttribute('data-noi18n', '');
+  $ypen.innerHTML = '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>';
+  $ya.append($yav, $ypen); $yt.append($yn, $ys); $yb.append($ya, $yt);
+  var $pop = el('div', 'onl-pop'); $pop.id = 'onl-pop'; $pop.hidden = true; $pop.setAttribute('role', 'dialog'); $pop.setAttribute('aria-label', 'Your look and settings');
+  var $popH = el('div', 'onl-poph'), $popX = el('button', 'onl-x', '✕'); $popX.type = 'button'; $popX.setAttribute('aria-label', 'Close');
+  $popH.append(el('b', '', 'You'), $popX);
+  var tgRow = el('div', 'onl-tg'); tgRow.append(hideLbl, joinLbl);
+  $pop.append($popH, meRow, ntRow, tgRow);
+  $you.append($yb, $pop); top.append($you);
+  function popOpen() { return !$pop.hidden; }
+  function setPop(o, back) {
+    $pop.hidden = !o; $yb.setAttribute('aria-expanded', o ? 'true' : 'false');
+    // on a phone the popover spans the panel, just under the chip (wherever the row wrapped it to)
+    $pop.style.top = o && getComputedStyle($you).position === 'static' ? ($yb.offsetTop + $yb.offsetHeight + 8) + 'px' : '';
+    if (o) { schedule(); try { ($name.offsetParent ? $name : $popX).focus({ preventScroll: true }); } catch (e) {} }
+    else if (back) { try { $yb.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  $yb.addEventListener('click', function () { setPop(!popOpen(), true); });
+  $popX.addEventListener('click', function () { setPop(false, true); });
+  $pop.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); e.stopPropagation(); setPop(false, true); } });
+  $yb.addEventListener('keydown', function (e) { if (e.key === 'Escape' && popOpen()) { e.preventDefault(); setPop(false, true); } });
+  document.addEventListener('pointerdown', function (e) {
+    if (!popOpen() || !e.target || $you.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.bra-ed, .bra-ed-bg')) return;   // avatar.js's editor, opened from here
+    setPop(false, false);
+  }, true);
+  // Focus leaving the popover (Tab past its end) closes it too, like a menu.
+  $you.addEventListener('focusout', function (e) { if (popOpen() && e.relatedTarget && !$you.contains(e.relatedTarget) && !(e.relatedTarget.closest && e.relatedTarget.closest('.bra-ed'))) setPop(false, false); });
   // Find: filters the whole Online list (not just the part in view) by name, seat or what they're doing ("In Coil", "party").
   var findRow = el('div', 'onl-find'), $find = el('input'); findRow.hidden = true;
   $find.type = 'search'; $find.placeholder = 'Find someone online: name, seat or game'; $find.autocomplete = 'off'; $find.spellcheck = false;
@@ -487,7 +551,7 @@
   var $msg = el('p', 'onl-msg'); $msg.setAttribute('role', 'status'); $msg.setAttribute('aria-live', 'polite');
   var fine = el('p', 'onl-fine'), plink = el('a', '', 'Privacy'); plink.href = '/privacy.html'; plink.target = '_blank'; plink.rel = 'noopener';
   fine.append(plink);
-  box.append(top, meRow, ntRow, findRow, $list, $msg, fine);
+  box.append(top, findRow, $list, $msg, fine);
   sec.append(box);
   function place() {
     var party = document.getElementById('party'), head = document.querySelector('header');
@@ -1702,10 +1766,16 @@
     // Editing is for Google accounts: a guest's button and avatar carry a padlock and lead to the sign-in line below.
     var locked = canEdit && !!BA.google && !BA.google(uid), avKey = uid + (BA ? ':a' + (BA.rev || 0) : '') + (locked ? ':l' : '');
     if (uid && $meAv.getAttribute('data-u') !== avKey) {
-      var hadFocus = $meAv.contains(document.activeElement), editB = null;
-      if (canEdit) { try { editB = BA.editButton(uid, 34); } catch (e) { editB = null; } }
-      $meAv.textContent = ''; $meAv.append(editB || avatarEl(uid, myName(), colorOf(uid), 34)); $meAv.setAttribute('data-u', avKey);
-      if (hadFocus && editB) editB.focus();
+      $meAv.textContent = ''; $meAv.append(avatarEl(uid, myName(), colorOf(uid), 44)); $meAv.setAttribute('data-u', avKey);
+      $yav.textContent = ''; $yav.append(avatarEl(uid, myName(), colorOf(uid), 32));
+    }
+    $you.hidden = !uid;
+    if (uid) {
+      // keep the chip last in the row (aisles.js adds its button after us), unless it holds the focus
+      if (top.lastElementChild !== $you && !$you.contains(document.activeElement)) top.appendChild($you);
+      $yn.textContent = myName(); $ys.textContent = hidden ? T('Hidden') : T('Seat {n}', { n: seatOf(uid) });
+      $yb.setAttribute('aria-label', T('You: {n}. Edit your avatar, name, name tile colour and settings', { n: myName() }));
+      $yb.title = T('Your look and settings');
     }
     $editAv.style.display = canEdit ? '' : 'none';
     if ($editAv.classList.contains('lock') !== locked) {
@@ -1786,6 +1856,7 @@
   // A guest tapped Edit avatar or their own avatar (avatar.js opens nothing for them): show them the way in.
   document.addEventListener('backroom:avatar-locked', function () {
     if (ntRow.hidden) return;
+    if (!popOpen()) setPop(true, false);
     var b = !$ntGo.hidden ? $ntGo : !$ntLink.hidden ? $ntLink : null;
     try { ntRow.scrollIntoView({ block: 'nearest' }); } catch (e) {}
     ntRow.classList.remove('flash'); void ntRow.offsetWidth; ntRow.classList.add('flash');
@@ -2288,7 +2359,7 @@
       // They signed in with the Name tile row's button: open the editor they asked for, on the look they had as a guest.
       if (wantEdit) {
         wantEdit = false;
-        carried.then(function () { var A = window.BackRoomAvatar; if (uid === u.uid && A && A.edit && A.google(uid)) A.edit(uid, $editAv); });
+        carried.then(function () { var A = window.BackRoomAvatar; if (uid === u.uid && A && A.edit && A.google(uid)) { setPop(false, false); A.edit(uid, $yb); } });
       }
       meRef = db.ref(PATH + '/' + uid); delete people[uid]; opened = {}; chains = {}; mine.d = {}; mine.i = {}; mine.pc = {};
       listRef.once('value', function (s) { s.forEach(function (c) { onNode(c); }); });

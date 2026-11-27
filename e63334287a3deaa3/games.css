@@ -73,8 +73,9 @@
    Even rows: layout.js counts each section's visible cards and picks how many columns it uses (--ev-cols, up to
    --ev-max) and which cards are wide (data-ev-w), so every row ends flush (see README: Even rows). Without it
    (the script not loaded yet) the grid uses --ev-max columns and the .wide / .pw cards below. */
-.gc-grid{--ev-max:4;display:grid;grid-template-columns:repeat(var(--ev-cols,var(--ev-max)),minmax(0,1fr));grid-auto-rows:1fr;gap:18px}
-@media (max-width:959px){.gc-grid{--ev-max:3;grid-auto-rows:auto}}
+/* Rows are as tall as their own cards (not all as tall as the tallest row), so a short row has no dead space. */
+.gc-grid{--ev-max:4;display:grid;grid-template-columns:repeat(var(--ev-cols,var(--ev-max)),minmax(0,1fr));grid-auto-rows:auto;gap:18px}
+@media (max-width:959px){.gc-grid{--ev-max:3}}
 @media (max-width:879px){.gc-grid{--ev-max:2;gap:14px}}
 @media (max-width:330px){.gc-grid{--ev-max:1}}
 
@@ -109,9 +110,10 @@
 .br-games .gc-grid[data-ev] > .gc[data-ev-w]{grid-column:span 2}
 @media (min-width:960px), (min-width:561px) and (max-width:879px){
   .br-games .gc-grid:not([data-ev]) > .gc.wide{flex-direction:row}
-  .br-games .gc-grid:not([data-ev]) > .gc.wide .shot{flex:0 0 52%;aspect-ratio:auto;min-height:220px;margin:7px 0 7px 7px}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .shot{flex:0 0 52%;aspect-ratio:auto;min-height:200px;margin:7px 0 7px 7px}
   .br-games .gc-grid:not([data-ev]) > .gc.wide .shot img{position:absolute;inset:0}
-  .br-games .gc-grid:not([data-ev]) > .gc.wide .body{padding:16px 18px 16px;gap:9px}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .body{padding:16px 22px 16px;gap:9px;justify-content:center}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .actions{margin-top:6px}
   .br-games .gc-grid:not([data-ev]) > .gc.wide h3{font-size:31px}
   .br-games .gc-grid:not([data-ev]) > .gc.wide .gc-blurb{font-size:15px;-webkit-line-clamp:4;min-height:0}
   .br-games .gc-grid:not([data-ev]) > .gc.wide .gc-more summary{right:auto;left:calc(52% - 31px)}
@@ -119,9 +121,10 @@
 }
 @media (min-width:561px){
   .br-games .gc-grid[data-ev] > .gc[data-ev-w]{flex-direction:row}
-  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .shot{flex:0 0 52%;aspect-ratio:auto;min-height:220px;margin:7px 0 7px 7px}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .shot{flex:0 0 52%;aspect-ratio:auto;min-height:200px;margin:7px 0 7px 7px}
   .br-games .gc-grid[data-ev] > .gc[data-ev-w] .shot img{position:absolute;inset:0}
-  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .body{padding:16px 18px 16px;gap:9px}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .body{padding:16px 22px 16px;gap:9px;justify-content:center}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .actions{margin-top:6px}
   .br-games .gc-grid[data-ev] > .gc[data-ev-w] h3{font-size:31px}
   .br-games .gc-grid[data-ev] > .gc[data-ev-w] .gc-blurb{font-size:15px;-webkit-line-clamp:4;min-height:0}
   .br-games .gc-grid[data-ev] > .gc[data-ev-w] .gc-more summary{right:auto;left:calc(52% - 31px)}
@@ -234,3 +237,18 @@
 .br-games .pz a:focus-visible{outline:3px solid var(--gs-c);outline-offset:2px}
 @media (hover: hover){.br-games .pz a:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--gs-c) 50%,var(--line))}}
 @media (max-width:560px){.br-games .pz img{width:46px;height:36px}.pz-t b{font-size:12.5px}}
+
+/* ---------- the live panels as one surface ----------
+   Hot right now, Fastest climbing, Playing now, Party and Online (hot.js, climb.js, playingnow.js, party.js, social.js)
+   sit one under another in the page's default order. Instead of five boxes with gaps between them they read as one
+   card with a hairline between its parts. Only while they're direct children of .wrap: a custom order from Edit layout
+   moves them into .br-games, where each keeps its own box. Each script's own styles are untouched. */
+.wrap > :is(#hotnow,#climbing,#playingnow,#party,#online){padding-top:0;margin-top:22px}
+.wrap > :is(#hotnow,#climbing,#playingnow,#party,#online):not([hidden]) ~ :is(#climbing,#playingnow,#party,#online){margin-top:0}
+.wrap > :is(#hotnow,#climbing,#playingnow,#party,#online):not([hidden]) ~ :is(#climbing,#playingnow,#party,#online) > :is(.pty,.onl){border-top-left-radius:0;border-top-right-radius:0;border-top:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.wrap > :is(#hotnow,#climbing,#playingnow,#party,#online):has(~ :is(#climbing,#playingnow,#party,#online):not([hidden])) > :is(.pty,.onl){border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom-width:0}
+html.tv-on .wrap > :is(#hotnow,#climbing,#playingnow,#party,#online):not([hidden]) ~ :is(#climbing,#playingnow,#party,#online) > :is(.pty,.onl){border-top-width:1px!important}
+html.tv-on .wrap > :is(#hotnow,#climbing,#playingnow,#party,#online):has(~ :is(#climbing,#playingnow,#party,#online):not([hidden])) > :is(.pty,.onl){border-bottom-width:0!important}
+/* the Online part takes the same hard shadow as the others on the Retro TV, so the card's edge is one line */
+html.tv-on .wrap > #online > .onl{box-shadow:4px 4px 0 rgba(4,14,40,.45);border-width:2px}
+html.tv-on .wrap > :is(#hotnow,#climbing,#playingnow,#party):not([hidden]) ~ #online > .onl{border-top-width:1px}

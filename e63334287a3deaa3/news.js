@@ -67,18 +67,16 @@
  * (localStorage `news:spot`, the spotlight's from|folder, removed again once the spotlight has ended), so a
  * new spotlight shows even to someone who closed the last one. Set SPOTLIGHT to null for none.
  *
- * ---- Ad tile ----
- * To change the ads, edit ADS (below SPOTLIGHT): one entry per tile, each with name, line, button, href, img, alt, art
- * and four colours; `on: false` hides that tile, and with none on the strip is full width again, exactly as without them.
- * Up to two tiles: side by side next to the strip on a wide screen, stacked beside it a little narrower, and side by side
- * under it (stacked on the narrowest phones) otherwise.
- * Each is a house ad: a link in a tile next to the strip (under it on an upright phone), marked "Sponsored", opened
- * in a new tab with rel="noopener sponsored". Nothing is loaded from the advertiser's site or anywhere else until
- * someone clicks: no script, no tracker, no cookie. The tile never makes the strip taller: it takes the strip's
- * height and arranges itself to fit (picture over text when there's room, one row when there isn't).
- *   img   optional: a picture the advertiser has said we may use, saved inside the Back Room folder (say
- *         'ads/<name>.png'): wide rather than tall, about 600 × 200 (twice its largest size on the page), a
- *         transparent .png or a .jpg/.webp, under about 60 KB. Left empty (or if the file is missing), the tile
+ * ---- Partner banner (the ADS list) ----
+ * To change it, edit ADS (below SPOTLIGHT): one entry per banner, each with name, line, button, href, img, alt, art
+ * and four colours, and optionally `strong`, a part of the name drawn in bold (Flux **Pre**formance, like its logo);
+ * `on: false` hides that banner. Up to two: side by side when there's room for both, stacked otherwise.
+ * Each is a partner's banner under the strip, full width: its photo on one side and the name, the line and the button
+ * on the other (photo on top on a phone). It carries no "Sponsored" or "Ad" tag (the owners' call: it's a partnership);
+ * it opens in a new tab with rel="noopener sponsored". Nothing is loaded from the partner's site or anywhere else until
+ * someone clicks: no script, no tracker, no cookie.
+ *   img   optional: a picture the partner has said we may use, saved inside the Back Room folder: wide, about
+ *         960 × 510 (the photo is cropped to fill its side, centred), a .jpg or .webp under about 120 KB. Left empty (or if the file is missing), the banner
  *         shows a little drawing made in code instead, chosen by `art` ('candy', a candy bar, 'car', a plain car,
  *         'video', a screen with a play button, or 'youtube', YouTube's own icon, only for a link to a YouTube channel,
  *         as YouTube's brand guidelines allow; never any other company's logo). `alt` says what the picture shows.
@@ -897,18 +895,18 @@
     tags: ['Up to 30 players', 'Drop in · loot · build', 'Last one standing']
   };
 
-  // The ad tiles next to the strip (see "Ad tile" above). To change an ad, edit its lines; on: false for no tile.
+  // The partner banner under the strip (see "Partner banner" above). To change it, edit its lines; on: false for none.
   var ADS = [
     {
       on: true,
-      name: 'Flux',                                           // the brand as its logo and site say it; the full name, Flux Preformance
-                                                              // ("pre-formance", on purpose), is too long for the tile and is cut off
-      line: 'Flux Preformance protein overnight oats. Not out yet.',   // one short line, in our own words (60 characters at most)
+      name: 'Flux Preformance',                               // the brand's full name ("pre-formance", on purpose); the banner has room for it
+      strong: 'Pre',                                          // drawn in bold inside the name, as in their logo: Flux **Pre**formance
+      line: 'Protein overnight oats in five flavours. Not out yet.',   // one short line, in our own words (60 characters at most)
       button: 'Reserve now',                                  // pre-launch: you reserve with your email, nothing is bought
       href: 'https://fluxpreformance.com/',                   // where the tile goes (https only), in a new tab; reserving is on the home page
-      img: 'flux-oats.png',       alt: 'Five pouches of Flux Preformance overnight oats, one per flavor',  // what that picture shows
+      img: 'flux-oats.webp',      alt: 'Five pouches of Flux Preformance overnight oats, one per flavor, one held up by a hand',  // the brand's own photo, cropped
       art: 'candy',                                           // the drawing used if there's no picture
-      bg: '#F7F3E8', ink: '#10233D', btn: '#246B67', btnInk: '#FFFFFF'   // the site's cream, navy and teal
+      bg: '#F8F3E9', ink: '#10233D', btn: '#246B67', btnInk: '#FFFFFF'   // the site's cream, navy and teal
     }
   ];
 
@@ -920,13 +918,14 @@
       'What\'s new': 'Novedades', ' (new)': ' (nuevo)', 'New game': 'Juego nuevo', 'Update': 'Actualización', 'Bug fix': 'Arreglos',
       'Coming soon': 'Muy pronto', 'Today': 'Hoy', 'Yesterday': 'Ayer', 'New game!': '¡Juego nuevo!', 'New games!': '¡Juegos nuevos!', 'New games': 'Juegos nuevos',
       'Show older': 'Ver anteriores', 'Show older (1 more day)': 'Ver anteriores (1 día más)', 'Show older ({n} more days)': 'Ver anteriores ({n} días más)',
-      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Open': 'Abrir', 'Sponsored': 'Patrocinado', 'Learn more': 'Más info',
-      'Ad for {n}: {l} {b} (opens in a new tab)': 'Anuncio de {n}: {l} {b} (se abre en una pestaña nueva)',
-      'Ad for {n}. {b} (opens in a new tab)': 'Anuncio de {n}. {b} (se abre en una pestaña nueva)',
+      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Open': 'Abrir', 'Read more': 'Leer más', 'Latest': 'Lo último', 'Learn more': 'Más info',
+      '{n}: {l} {b} (opens in a new tab)': '{n}: {l} {b} (se abre en una pestaña nueva)',
+      '{n}. {b} (opens in a new tab)': '{n}. {b} (se abre en una pestaña nueva)',
       // The spotlight and the ads' own words (brand names stay as they are).
       'New battle royale': 'Nuevo battle royale', 'New battle royale: {g}': 'Nuevo battle royale: {g}', 'Up to 30 players': 'Hasta 30 jugadores', 'Drop in · loot · build': 'Cae · saquea · construye',
       'Last one standing': 'El último en pie',
-      'Flux Preformance protein overnight oats. Not out yet.': 'Avena nocturna con proteína de Flux Preformance. Aún no está a la venta.', 'Reserve now': 'Reservar ahora',
+      'Flux Preformance protein overnight oats. Not out yet.': 'Avena nocturna con proteína de Flux Preformance. Aún no está a la venta.',
+      'Protein overnight oats in five flavours. Not out yet.': 'Avena nocturna con proteína en cinco sabores. Aún no está a la venta.', 'Reserve now': 'Reservar ahora',
       // Entry titles and tags shown on the strip (the entries' bullet points stay in English).
       'Something is coming': 'Algo se viene', 'Top secret': 'Alto secreto', 'Happy holidays: the cabin is open': 'Felices fiestas: la cabaña está abierta',
       'Three new daily puzzles': 'Tres puzles diarios nuevos'
@@ -1032,7 +1031,8 @@
     var txt = function (x, n) { return typeof x === 'string' ? x.trim().slice(0, n) : ''; };
     var hex = function (x, d) { return typeof x === 'string' && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(x) ? x : d; };
     if (!A || A.on !== true || !txt(A.name, 28) || typeof A.href !== 'string' || !/^https:\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?:\/[\w\-./?=&%#@]*)?$/i.test(A.href)) return null;
-    return { name: txt(A.name, 28), line: txt(A.line, 60), button: txt(A.button, 18) || 'Learn more', href: A.href, img: imgsOf(A)[0] || '', alt: txt(A.alt, 120),
+    var strong = txt(A.strong, 28);
+    return { name: txt(A.name, 28), strong: strong && txt(A.name, 28).indexOf(strong) >= 0 ? strong : '', line: txt(A.line, 60), button: txt(A.button, 18) || 'Learn more', href: A.href, img: imgsOf(A)[0] || '', alt: txt(A.alt, 120),
       art: A.art === 'car' || A.art === 'video' || A.art === 'youtube' ? A.art : 'candy',
       bg: hex(A.bg, '#FFD23F'), ink: hex(A.ink, '#2A1608'), btn: hex(A.btn, '#C2185B'), btnInk: hex(A.btnInk, '#FFFFFF') };
   }).filter(Boolean).slice(0, 2);
@@ -1140,24 +1140,33 @@
     // --ink, so it's darker than the hue on a light page and lighter on a dark one.
     var css = document.createElement('style');
     css.textContent =
-      '.nws{--nws-g:var(--accent,#1d6a4b);--nws-w:#C0562F;position:relative;margin:20px 0 0;border:1px solid color-mix(in srgb,var(--nws-g) 32%,var(--line,#d3dad2));border-radius:14px;' +
-        'background:linear-gradient(100deg,color-mix(in srgb,var(--nws-g) 10%,var(--panel,#fff)) 0%,var(--panel,#fff) 42%,var(--panel,#fff) 62%,color-mix(in srgb,var(--nws-w) 8%,var(--panel,#fff)) 100%);' +
-        'box-shadow:0 8px 22px -16px var(--nws-g);color:var(--ink,#16201b);font-family:var(--body,system-ui,sans-serif);font-size:14px;line-height:1.45}' +
+      // An editorial block: a crisp rule along the top, a plain page, square-ish corners; no glow, no gradient.
+      '.nws{--nws-g:var(--accent,#1d6a4b);--nws-w:#C0562F;position:relative;margin:20px 0 0;border:1px solid var(--line,#d3dad2);border-top:3px solid var(--ink,#16201b);border-radius:4px;' +
+        'background:var(--panel,#fff);color:var(--ink,#16201b);font-family:var(--body,system-ui,sans-serif);font-size:14px;line-height:1.45}' +
       '#home > .nws{margin:0 0 18px}' +
       '.nws *{box-sizing:border-box}.nws [hidden]{display:none!important}' +
-      '.nws.hot{box-shadow:0 0 0 3px color-mix(in srgb,var(--nws-g) 12%,transparent),0 10px 26px -14px var(--nws-g)}' +
-      '.nws-bar{display:flex;align-items:center;gap:10px;width:100%;min-height:46px;padding:8px 14px;background:none;border:0;border-radius:14px;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
-      '.nws-bar:hover .nws-t{text-decoration:underline}' +
+      // The bar is the masthead: a dateline (kicker, version, date), then the headline in the display face, with the
+      // latest entry's snapshot to its left; Read more on the right.
+      '.nws-bar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"snap meta chev" "snap t t";align-items:center;gap:4px 14px;width:100%;padding:12px 16px 6px;background:none;border:0;border-radius:0;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+      '.nws-bar:not(:has(.nws-snap)){grid-template-areas:"meta meta chev" "t t t"}' +
+      '.nws-meta{grid-area:meta;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;min-width:0}' +
+      '.nws-meta > * + *::before{content:"";display:inline-block;width:1px;height:11px;margin-right:10px;vertical-align:-1px;background:var(--line,#d3dad2)}' +
+      '.nws-bar:hover .nws-t{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}' +
       '.nws-bar:focus-visible{outline:2px solid var(--nws-g);outline-offset:2px}' +
-      '.nws-k{flex:none;display:inline-flex;align-items:center;gap:7px;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--nws-g);white-space:nowrap}' +
+      '.nws-k{flex:none;display:inline-flex;align-items:center;gap:7px;font-family:var(--mono,monospace);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink,#16201b);white-space:nowrap}' +
       '.nws-dot{width:8px;height:8px;border-radius:50%;background:var(--down,#b42318);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--down,#b42318) 25%,transparent);animation:nws-pulse 2s ease-in-out infinite}' +
       '@keyframes nws-pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--down,#b42318) 0%,transparent)}}' +
-      '.nws-v{flex:none;display:inline-flex;align-items:center;gap:5px;font-family:var(--mono,monospace);font-size:12px;font-weight:600;white-space:nowrap;border-radius:999px;padding:2px 9px 2px 6px;' +
-        'color:color-mix(in srgb,var(--kc) 55%,var(--ink,#16201b));background:color-mix(in srgb,var(--kc) 14%,transparent);border:1px solid color-mix(in srgb,var(--kc) 35%,transparent)}' +
+      '.nws-v{flex:none;display:inline-flex;align-items:center;gap:5px;font-family:var(--mono,monospace);font-size:12px;font-weight:600;white-space:nowrap;color:color-mix(in srgb,var(--kc) 60%,var(--ink,#16201b))}' +
       '.nws-ic{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-size:14px;line-height:1}' +
-      '.nws-t{flex:1 1 auto;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-      '.nws-d{flex:none;font-family:var(--mono,monospace);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--nws-g);background:color-mix(in srgb,var(--nws-g) 13%,transparent);border-radius:999px;padding:3px 9px}' +
-      '.nws-chev{flex:none;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2,#4a5751);border:1px solid var(--line,#d3dad2);background:var(--panel,#fff);border-radius:999px;padding:3px 10px}' +
+      '.nws-t{grid-area:t;min-width:0;font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:30px;line-height:1.02;letter-spacing:.01em;text-transform:uppercase;overflow-wrap:anywhere}' +
+      '.nws-d{flex:none;font-family:var(--mono,monospace);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--ink-2,#4a5751)}' +
+      '.nws-chev{grid-area:chev;justify-self:end;flex:none;display:inline-flex;align-items:center;gap:6px;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink,#16201b);border-bottom:2px solid currentColor;padding:2px 0}' +
+      // a peek at the latest entry: its first few points, so the strip reads like the top of a news page
+      '.nws-peek{margin:0;padding:2px 16px 12px calc(16px + var(--nws-sw,112px) + 14px);list-style:none;display:grid;gap:3px;color:var(--ink-2,#4a5751);font-size:14.5px;line-height:1.4;cursor:pointer}' +
+      '.nws-peek.nosnap{padding-left:16px}' +
+      '.nws-peek li{margin:0;position:relative;padding-left:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+      '.nws-peek li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:2px;background:var(--kc,var(--nws-g))}' +
+      '.nws[data-open] .nws-peek{display:none}' +
       '.nws-chev i{font-style:normal;display:none}' +
       '.nws-e.k-game,.nws-v.k-game{--kc:var(--nws-g)}.nws-e.k-feature,.nws-v.k-feature{--kc:#3E5BA9}.nws-e.k-fix,.nws-v.k-fix{--kc:#C0562F}' +
       // a teaser (kind 'soon'): a dark pill on the strip and a dark card with a big picture in the list, in both themes;
@@ -1173,34 +1182,32 @@
       '.nws-e.k-soon .nws-em::after{content:"";position:absolute;inset:0;border-radius:9px;pointer-events:none;mix-blend-mode:screen;' +
         'background:radial-gradient(ellipse 20% 36% at 50% 26%,rgba(196,178,255,.5),rgba(142,107,255,.16) 55%,transparent 75%);animation:nws-q 3s ease-in-out infinite}' +
       // "New games!" row
-      '.nws-fresh{display:flex;flex-wrap:wrap;align-items:center;gap:7px 8px;padding:0 14px 11px}' +
-      '.nws-fl{display:inline-flex;align-items:center;gap:6px;margin-right:2px;font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:19px;line-height:1;letter-spacing:.03em;text-transform:uppercase;' +
-        'background:linear-gradient(90deg,var(--nws-g),color-mix(in srgb,var(--nws-w) 85%,var(--nws-g)),var(--nws-g));background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:nws-sheen 6s linear infinite}' +
-      '.nws-fl .nws-ic{color:initial;-webkit-text-fill-color:initial;font-size:17px}' +
+      '.nws-fresh{display:flex;flex-wrap:wrap;align-items:center;gap:6px 6px;margin:0 16px;padding:9px 0 11px;border-top:1px solid var(--line,#d3dad2)}' +
+      '.nws-fl{display:inline-flex;align-items:center;gap:6px;margin-right:6px;font-family:var(--mono,monospace);font-weight:700;font-size:12px;line-height:1;letter-spacing:.1em;text-transform:uppercase;color:var(--ink,#16201b)}' +
+      '.nws-fl .nws-ic{font-size:14px}' +
       '@keyframes nws-sheen{to{background-position:-200% 0}}' +
-      '.nws-chip{--h:#1D6A4B;display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:4px 12px 4px 10px;border-radius:999px;font-weight:600;font-size:13.5px;line-height:1.1;text-decoration:none;white-space:nowrap;' +
-        'color:color-mix(in srgb,var(--h) 45%,var(--ink,#16201b));background:color-mix(in srgb,var(--h) 15%,var(--panel,#fff));border:1px solid color-mix(in srgb,var(--h) 42%,transparent);transition:transform .15s ease,background .15s ease}' +
-      'a.nws-chip:hover{transform:translateY(-1px);background:color-mix(in srgb,var(--h) 24%,var(--panel,#fff))}' +
+      '.nws-chip{--h:#1D6A4B;display:inline-flex;align-items:center;gap:7px;min-height:30px;padding:3px 10px 3px 4px;border-radius:3px;font-weight:600;font-size:13.5px;line-height:1.1;text-decoration:none;white-space:nowrap;' +
+        'color:var(--ink,#16201b);background:var(--panel-2,#f6f8f4);border:1px solid var(--line,#d3dad2);border-left:3px solid var(--h);transition:border-color .15s ease,background .15s ease}' +
+      'a.nws-chip:hover{border-color:var(--ink-2,#4a5751);border-left-color:var(--h)}' +
       'a.nws-chip:focus-visible{outline:2px solid var(--h);outline-offset:2px}' +
-      '.nws-th{flex:none;display:inline-grid;place-items:center;width:30px;height:19px;margin-left:-4px;border-radius:6px;background:var(--h) center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}' +
+      '.nws-th{flex:none;display:inline-grid;place-items:center;width:30px;height:19px;margin-left:0;border-radius:2px;background:var(--h) center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}' +
       '.nws-play{font-size:7px;line-height:1;width:14px;height:14px;border-radius:50%;display:inline-grid;place-items:center;padding-left:1px;background:color-mix(in srgb,var(--h) 70%,rgba(0,0,0,.5));color:#fff;box-shadow:0 0 0 1.5px rgba(255,255,255,.75)}' +
       // the latest entry's snapshot next to its headline
-      '.nws-snap{flex:none;display:block;width:40px;height:25px;border-radius:6px;object-fit:cover;background:color-mix(in srgb,var(--nws-g) 18%,var(--panel,#fff));box-shadow:0 0 0 1px color-mix(in srgb,var(--nws-g) 25%,transparent)}' +
+      '.nws-snap{grid-area:snap;align-self:start;flex:none;display:block;width:var(--nws-sw,112px);height:auto;aspect-ratio:16/10;border-radius:3px;object-fit:cover;background:color-mix(in srgb,var(--nws-g) 18%,var(--panel,#fff));box-shadow:0 0 0 1px var(--line,#d3dad2)}' +
       '.nws-brk{display:none}' +
       // the spotlight: one game pinned at the top
-      '.nws-spot{--sw:#D9663A;display:flex;align-items:center;gap:14px;padding:10px 10px 10px 10px;border-radius:13px 13px 0 0;border-bottom:1px solid color-mix(in srgb,var(--sw) 28%,var(--line,#d3dad2));' +
-        'background:linear-gradient(100deg,color-mix(in srgb,var(--sw) 17%,var(--panel,#fff)) 0%,color-mix(in srgb,var(--sw) 7%,var(--panel,#fff)) 55%,transparent 100%)}' +
-      '.nws-sth{flex:none;position:relative;display:block;width:120px;aspect-ratio:16/10;border-radius:9px;overflow:hidden;background:color-mix(in srgb,var(--sw) 30%,var(--panel,#fff));box-shadow:0 6px 14px -8px var(--sw),0 0 0 1px color-mix(in srgb,var(--sw) 35%,transparent)}' +
+      '.nws-spot{--sw:#D9663A;display:flex;align-items:center;gap:14px;padding:10px 12px 10px 12px;border-bottom:1px solid var(--line,#d3dad2);background:color-mix(in srgb,var(--sw) 8%,var(--panel,#fff))}' +
+      '.nws-sth{flex:none;position:relative;display:block;width:120px;aspect-ratio:16/10;border-radius:3px;overflow:hidden;background:color-mix(in srgb,var(--sw) 30%,var(--panel,#fff));box-shadow:0 6px 14px -8px var(--sw),0 0 0 1px color-mix(in srgb,var(--sw) 35%,transparent)}' +
       '.nws-sth img{display:block;width:100%;height:100%;object-fit:cover}' +
       '.nws-stx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}' +
       '.nws-sk{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono,monospace);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:color-mix(in srgb,var(--sw) 72%,var(--ink,#16201b))}' +
       '.nws-sk::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--sw);box-shadow:0 0 0 3px color-mix(in srgb,var(--sw) 25%,transparent);animation:nws-pulse 2s ease-in-out infinite}' +
       '.nws-sn{font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:28px;line-height:.95;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:none}' +
       '.nws .nws-kws{display:flex;flex-wrap:wrap;gap:5px;margin:1px 0 0;padding:0;list-style:none}' +
-      '.nws .nws-kws li{margin:0;display:inline-flex;align-items:center;font-size:12px;font-weight:600;line-height:1.15;white-space:nowrap;padding:3px 9px;border-radius:999px;' +
+      '.nws .nws-kws li{margin:0;display:inline-flex;align-items:center;font-size:12px;font-weight:600;line-height:1.15;white-space:nowrap;padding:3px 9px;border-radius:3px;' +
         'color:color-mix(in srgb,var(--kh,var(--nws-g)) 60%,var(--ink,#16201b));background:color-mix(in srgb,var(--kh,var(--nws-g)) 11%,transparent);border:1px solid color-mix(in srgb,var(--kh,var(--nws-g)) 32%,transparent)}' +
       '.nws-spot .nws-kws{--kh:var(--sw)}' +
-      '.nws-sp{flex:none;display:inline-flex;align-items:center;gap:7px;min-height:42px;padding:6px 20px;border-radius:999px;background:var(--sw);color:#fff;font-weight:700;font-size:15px;text-decoration:none;white-space:nowrap;box-shadow:0 8px 16px -10px var(--sw);transition:filter .15s ease,transform .15s ease}' +
+      '.nws-sp{flex:none;display:inline-flex;align-items:center;gap:7px;min-height:42px;padding:6px 20px;border-radius:4px;background:var(--sw);color:#fff;font-weight:700;font-size:15px;text-decoration:none;white-space:nowrap;box-shadow:0 8px 16px -10px var(--sw);transition:filter .15s ease,transform .15s ease}' +
       '.nws-sp:hover{filter:brightness(1.08);transform:translateY(-1px)}.nws-sp:active{transform:scale(.97)}' +
       '.nws-sp:focus-visible,.nws-sx:focus-visible,.nws-sth:focus-visible{outline:2px solid var(--sw);outline-offset:2px}' +
       '.nws-sx{flex:none;align-self:flex-start;display:grid;place-items:center;width:30px;height:30px;margin:-2px -2px 0 -6px;padding:0;border:0;border-radius:50%;background:none;color:var(--ink-2,#4a5751);font:600 19px/1 var(--mono,monospace);cursor:pointer}' +
@@ -1208,14 +1215,15 @@
       '@media (max-width:560px),(max-height:500px){.nws-spot{gap:10px;padding:7px 6px 7px 7px}.nws-sth{width:64px;border-radius:7px}.nws-stx{gap:2px}.nws-sk{font-size:10px;letter-spacing:.08em;gap:6px}.nws-sk::before{width:6px;height:6px}' +
         '.nws-sn{font-size:21px}.nws-spot .nws-kws{display:none}.nws-sp{min-height:36px;padding:5px 14px;font-size:14px}.nws-sx{align-self:center;width:28px;height:28px;margin:0 0 0 -4px}}' +
       '.nws-plus{font-size:13px;color:var(--ink-2,#4a5751)}' +
-      '@media (max-width:560px){.nws-bar{flex-wrap:wrap;row-gap:6px}.nws-brk{display:block;flex-basis:100%;height:0;order:4}.nws-snap{order:5;width:36px;height:22px}.nws-t{flex:1 1 0;order:6;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.nws-d{margin-left:auto}.nws-chev b{display:none}.nws-chev i{display:inline}.nws-chev{padding:2px 8px}' +
-        '.nws-fl{flex-basis:100%;font-size:18px}.nws-chip{font-size:13px;min-height:32px}}' +
+      '@media (max-width:560px){.nws{--nws-sw:72px}.nws-bar{padding:10px 12px 4px;column-gap:10px}.nws-t{font-size:22px}.nws-chev b{display:none}.nws-chev i{display:inline}.nws-chev{border:0;font-size:15px;padding:0 2px}' +
+        '.nws-peek{padding:2px 12px 10px;font-size:14px}.nws-peek li{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.nws-peek li:nth-child(n+3){display:none}' +
+        '.nws-fresh{margin:0 12px}.nws-fl{flex-basis:100%;margin-bottom:2px}.nws-chip{font-size:13px;min-height:32px}}' +
       // the open list
-      '.nws-body{border-top:1px solid color-mix(in srgb,var(--nws-g) 22%,var(--line,#d3dad2));padding:4px 14px 14px}' +
+      '.nws-body{border-top:1px solid var(--line,#d3dad2);margin:0 16px;padding:4px 0 14px}' +
       '.nws-day{padding:12px 0 2px}' +
       '.nws h3.nws-dh{margin:0 0 9px;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2,#4a5751)}' +
       '.nws-dh b{color:var(--nws-g);font-weight:600}' +
-      '.nws-e{--kc:var(--nws-g);margin:0 0 10px;padding:12px 14px 12px 15px;border-radius:12px;background:var(--panel-2,#f6f8f4);border:1px solid var(--line,#d3dad2);border-left:4px solid var(--kc)}' +
+      '.nws-e{--kc:var(--nws-g);margin:0 0 10px;padding:12px 14px 12px 15px;border-radius:4px;background:var(--panel-2,#f6f8f4);border:1px solid var(--line,#d3dad2);border-left:4px solid var(--kc)}' +
       '.nws-eh{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 6px}' +
       '.nws-tag{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono,monospace);font-size:11.5px;font-weight:600;letter-spacing:.04em;white-space:nowrap;border-radius:999px;padding:2px 9px 2px 6px;' +
         'color:color-mix(in srgb,var(--kc) 55%,var(--ink,#16201b));background:color-mix(in srgb,var(--kc) 14%,transparent);border:1px solid color-mix(in srgb,var(--kc) 35%,transparent)}' +
@@ -1233,39 +1241,31 @@
       '.nws-acts{display:flex;flex-wrap:wrap;gap:10px;padding-top:6px}' +
       '.nws-acts button{font:inherit;font-weight:600;font-size:14px;min-height:40px;padding:6px 16px;border-radius:999px;border:1px solid var(--line,#d3dad2);background:var(--panel-2,#f6f8f4);color:var(--ink,#16201b);cursor:pointer}' +
       '.nws-acts button:hover{border-color:var(--ink-2,#4a5751)}' +
-      // the ad tile: beside the strip when the block is 960 px wide or more (800 on a screen under 500 px tall, where
-      // the spotlight is one compact row), a slim banner under it otherwise (so always on the phone page). It's a size container, so beside the
-      // strip it takes the strip's height (it never adds any) and its contents follow its own width and height.
-      '.nws-row{container:nwsrow/inline-size;margin:20px 0 0}#home > .nws-row{margin:0 0 18px}' +
-      '.nws-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}.nws-cols > .nws{margin:0}' +
-      // the ads' own grid: one tile, or two side by side under the strip (stacked on the narrowest phones)
-      '.nws-ads{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}' +
-      '@container nwsrow (min-width:520px){.nws-ads.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}' +
-      '.nws-ad{container:nwsad/size;display:block;height:44px;min-width:0;border-radius:14px;overflow:hidden;text-decoration:none;color:var(--ad-ink);border:1px solid color-mix(in srgb,var(--ad-ink) 24%,var(--ad-bg));' +
-        'background:linear-gradient(115deg,color-mix(in srgb,#fff 34%,var(--ad-bg)) 0%,var(--ad-bg) 58%);box-shadow:0 8px 22px -16px var(--ad-ink);font-family:var(--body,system-ui,sans-serif);-webkit-tap-highlight-color:transparent}' +
-      '.nws-ad:focus-visible{outline:3px solid var(--ink,#16201b);outline-offset:2px}' +
-      '.nws-ad-in{display:flex;align-items:center;gap:9px;height:100%;padding:5px 8px}' +
-      '.nws-ad-pic{flex:0 0 28%;align-self:stretch;min-width:0;display:block}' +
-      '.nws-ad-pic img,.nws-ad-pic svg{display:block;width:100%;height:100%;object-fit:contain}' +
-      '.nws-ad-tx{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}' +
-      '.nws-ad-lab{font-family:var(--mono,monospace);font-size:9.5px;font-weight:700;line-height:1.1;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;color:color-mix(in srgb,var(--ad-ink) 82%,var(--ad-bg))}' +
-      '.nws-ad-n{font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:22px;line-height:.95;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-      '.nws-ad-l{display:none;flex:1 1 0;min-width:0;font-size:12.5px;font-weight:600;line-height:1.2}' +
-      '.nws-ad-btn{flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:4px 12px;border-radius:999px;background:var(--ad-btn);color:var(--ad-bi);font-weight:700;font-size:13px;line-height:1.1;white-space:nowrap;' +
-        'box-shadow:0 6px 12px -8px var(--ad-ink);transition:filter .15s ease,transform .15s ease}' +
+      // The sponsor: a wide banner under the strip, its photo on one side and the name, line and button on the other
+      // (photo on top on a phone). It's an inline-size container, so it follows its own width, not the screen's.
+      '.nws-row{margin:20px 0 0}#home > .nws-row{margin:0 0 18px}' +
+      '.nws-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}.nws-cols > .nws{margin:0}' +
+      '.nws-ads{container:nwsads/inline-size;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}' +
+      '@container nwsads (min-width:1000px){.nws-ads.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}' +
+      '.nws-ad{container:nwsad/inline-size;position:relative;display:block;min-width:0;border-radius:6px;overflow:hidden;text-decoration:none;color:var(--ad-ink);background:var(--ad-bg);' +
+        'border:1px solid color-mix(in srgb,var(--ad-ink) 18%,var(--ad-bg));box-shadow:0 1px 0 color-mix(in srgb,var(--ad-ink) 10%,transparent),0 14px 30px -22px var(--ad-ink);font-family:var(--body,system-ui,sans-serif);-webkit-tap-highlight-color:transparent}' +
+      '.nws-ad::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--ad-btn);z-index:1}' +
+      '.nws-ad:focus-visible{outline:3px solid var(--ink,#16201b);outline-offset:3px}' +
+      '.nws-ad-in{display:grid;grid-template-columns:minmax(0,1fr);align-items:center}' +
+      '.nws-ad-pic{display:block;min-width:0;aspect-ratio:960/510;overflow:hidden}' +
+      '.nws-ad-pic img,.nws-ad-pic svg{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 55%;transition:transform .5s cubic-bezier(.2,.7,.2,1)}' +
+      '.nws-ad:hover .nws-ad-pic img{transform:scale(1.03)}' +
+      '.nws-ad-tx{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-width:0;padding:16px 18px 18px}' +
+      '.nws-ad-n{font-family:var(--body,var(--f-b,system-ui,sans-serif));font-weight:400;font-size:clamp(28px,5.4cqi,48px);line-height:1;letter-spacing:-.01em;color:var(--ad-ink);overflow-wrap:anywhere}' +
+      '.nws-ad-n b{font-weight:700}' +
+      '.nws-ad-l{font-size:15.5px;font-weight:500;line-height:1.4;color:color-mix(in srgb,var(--ad-ink) 82%,var(--ad-bg));max-width:40ch}' +
+      '.nws-ad-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;margin-top:6px;padding:8px 22px;border-radius:4px;background:var(--ad-btn);color:var(--ad-bi);font-weight:700;font-size:15.5px;line-height:1.1;white-space:nowrap;' +
+        'box-shadow:0 8px 16px -10px var(--ad-btn);transition:filter .15s ease,transform .15s ease}' +
       '.nws-ad:hover .nws-ad-btn{filter:brightness(1.12);transform:translateY(-1px)}.nws-ad:active .nws-ad-btn{transform:scale(.97)}' +
-      '@container nwsad (min-width:520px){.nws-ad-pic{flex-basis:20%}.nws-ad-l{display:block}}' +
-      '@container nwsad (min-height:84px){.nws-ad-in{display:grid;grid-template:minmax(0,1fr) auto auto/minmax(0,1fr) auto;align-items:end;gap:0 8px;padding:9px 10px}' +
-        '.nws-ad-pic{grid-area:1/1/2/3;margin-bottom:6px}.nws-ad-tx{grid-area:2/1}.nws-ad-l{grid-area:3/1;display:none;margin-top:3px}.nws-ad-btn{grid-area:2/2/4/3;margin:0}}' +
-      '@container nwsad (min-height:130px) and (min-width:270px){.nws-ad-l{display:block}}' +
-      '@container nwsad (max-height:83.98px) and (max-width:340px){.nws-ad-in{gap:7px}.nws-ad-pic{flex-basis:54px}.nws-ad-n{font-size:20px}.nws-ad-btn{font-size:12.5px;padding:4px 10px}}' +
-      '@container nwsad (max-height:83.98px) and (max-width:240px){.nws-ad-pic{display:none}}' +
-      '@container nwsad (min-height:84px) and (max-width:240px){.nws-ad-n{font-size:17px}.nws-ad-btn{font-size:12px;padding:4px 9px}.nws-ad-btn > span{display:none}}' +
-      // beside the strip: the tiles take the strip's height (two stacked share it, or side by side on a wide screen)
-      '@container nwsrow (min-width:960px){.nws-cols{grid-template-columns:minmax(0,1fr) clamp(240px,27%,300px);gap:10px}.nws-ads{gap:10px}.nws-ads.two{grid-template-columns:minmax(0,1fr);grid-auto-rows:minmax(0,1fr)}.nws-ads > .nws-ad{height:auto}.nws-row.open .nws-ads{align-self:start;height:var(--adh,44px)}}' +
-      '@container nwsrow (min-width:1180px){.nws-cols.two{grid-template-columns:minmax(0,1fr) clamp(450px,44%,560px)}.nws-ads.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-auto-rows:auto}}' +
-      '@media (max-height:500px){@container nwsrow (min-width:800px) and (max-width:959.98px){.nws-cols{grid-template-columns:minmax(0,1fr) 210px;gap:10px}.nws-ads.two{grid-template-columns:minmax(0,1fr);grid-auto-rows:minmax(0,1fr)}.nws-ads > .nws-ad{height:auto}.nws-row.open .nws-ads{align-self:start;height:var(--adh,44px)}}}' +
-      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-fl,.nws-sk::before,.k-soon .nws-ic,.nws-e.k-soon .nws-em::after{animation:none}.nws-chip,.nws-sp,.nws-ad-btn{transition:none}}';
+      '@container nwsad (max-width:519.98px){.nws-ad-btn{align-self:stretch}}' +
+      '@container nwsad (min-width:520px){.nws-ad-in{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}.nws-ad-tx{padding:22px 28px 24px 8px;gap:10px}.nws-ad-pic{height:100%;aspect-ratio:auto;min-height:220px}}' +
+      '@container nwsad (min-width:880px){.nws-ad-tx{padding:28px 40px 30px 12px}.nws-ad-l{font-size:17px}}' +
+      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-sk::before,.k-soon .nws-ic,.nws-e.k-soon .nws-em::after{animation:none}.nws-chip,.nws-sp,.nws-ad-btn,.nws-ad-pic img{transition:none}.nws-ad:hover .nws-ad-pic img{transform:none}}';
     document.head.appendChild(css);
 
     var latest = list[0], fresh = unseen(), shown = 0, games = freshGames();
@@ -1281,11 +1281,16 @@
     var t = el('span', 'nws-t', latest.title);
     var d = el('span', 'nws-d'); d.setAttribute('data-noi18n', ''); d.setAttribute('data-nws-d', latest.date); drawDate(d);
     var chev = el('span', 'nws-chev'); chev.setAttribute('aria-hidden', 'true');
-    var chevB = el('b', '', 'Open'), chevI = el('i', '', '▾'); chev.append(chevB, chevI);
+    var chevB = el('b', '', 'Read more'), chevI = el('i', '', '▾'); chev.append(chevB, chevI);
     var snap = imgsOf(latest)[0];
-    bar.append(k, v, el('span', 'nws-brk'));
+    var meta = el('span', 'nws-meta'); meta.append(k, v, d);
+    bar.append(meta);
     if (snap) bar.append(pic(snap, 'nws-snap k-' + kindOf(latest)));
-    bar.append(t, d, chev);
+    bar.append(t, chev);
+    // The first few points of the latest entry under its headline; a click opens the full list, like the bar.
+    var peek = el('ul', 'nws-peek k-' + kindOf(latest) + (snap ? '' : ' nosnap'));
+    (latest.items || []).slice(0, 3).forEach(function (s) { if (typeof s === 'string' && s) peek.appendChild(el('li', '', s)); });
+    peek.addEventListener('click', function () { setOpen(true); });
 
     // The spotlight: one game pinned at the top, with its picture, keywords and a Play button; × hides it here.
     var spotRow = null;
@@ -1335,13 +1340,15 @@
     more.type = 'button'; shut.type = 'button'; acts.append(more, shut);
     body.append(days, acts);
     if (spotRow) box.append(spotRow);
-    box.append(bar, row, body);
+    box.append(bar);
+    if (peek.firstChild) box.append(peek);
+    box.append(row, body);
 
     var outer = box, adEl = null;   // adEl: the ads' grid (one tile or two)
     function tile(ad) {
       var t = el('a', 'nws-ad'); t.href = ad.href; t.target = '_blank'; t.rel = 'noopener sponsored';
       t.referrerPolicy = 'origin';  // the advertiser sees the site's name, never the page's address
-      t.setAttribute('aria-label', ad.line ? T('Ad for {n}: {l} {b} (opens in a new tab)', { n: ad.name, l: T(ad.line), b: T(ad.button) }) : T('Ad for {n}. {b} (opens in a new tab)', { n: ad.name, b: T(ad.button) }));
+      t.setAttribute('aria-label', ad.line ? T('{n}: {l} {b} (opens in a new tab)', { n: ad.name, l: T(ad.line), b: T(ad.button) }) : T('{n}. {b} (opens in a new tab)', { n: ad.name, b: T(ad.button) }));
       t.style.setProperty('--ad-bg', ad.bg); t.style.setProperty('--ad-ink', ad.ink); t.style.setProperty('--ad-btn', ad.btn); t.style.setProperty('--ad-bi', ad.btnInk);
       var aIn = el('span', 'nws-ad-in'), aPic = el('span', 'nws-ad-pic'), aTx = el('span', 'nws-ad-tx'), aBtn = el('span', 'nws-ad-btn', ad.button), aGo = el('span', '', '\u2192');
       var drawn = function () { aPic.innerHTML = ARTS[ad.art] || AD_ART; };  // no picture (or it's missing): the drawing made in code
@@ -1350,10 +1357,14 @@
         aPic.appendChild(aIm);
       } else drawn();
       aGo.setAttribute('aria-hidden', 'true'); aBtn.appendChild(aGo);
-      aTx.append(el('span', 'nws-ad-lab', 'Sponsored'), el('span', 'nws-ad-n', ad.name));
-      aIn.append(aPic, aTx);
-      if (ad.line) aIn.appendChild(el('span', 'nws-ad-l', ad.line));
-      aIn.appendChild(aBtn); t.appendChild(aIn);
+      // the name, with the part in `strong` (if any) in bold, like the partner's logo; plain text either way
+      var aN = el('span', 'nws-ad-n'), si = ad.strong ? ad.name.indexOf(ad.strong) : -1;
+      aN.setAttribute('data-noi18n', '');
+      if (si >= 0) aN.append(ad.name.slice(0, si), el('b', '', ad.strong), ad.name.slice(si + ad.strong.length)); else aN.textContent = ad.name;
+      aTx.append(aN);
+      if (ad.line) aTx.appendChild(el('span', 'nws-ad-l', ad.line));
+      aTx.appendChild(aBtn);
+      aIn.append(aPic, aTx); t.appendChild(aIn);
       return t;
     }
     // The ad tiles: links next to the strip in a row that takes the strip's place under the header (so the sign-in
@@ -1432,7 +1443,7 @@
       if (o && !shown) drawMore();
       body.hidden = !o; box.toggleAttribute('data-open', o);
       bar.setAttribute('aria-expanded', o ? 'true' : 'false');
-      chevB.textContent = o ? 'Close' : 'Open'; chevI.textContent = o ? '▴' : '▾';
+      chevB.textContent = o ? 'Close' : 'Read more'; chevI.textContent = o ? '▴' : '▾';
       if (o && fresh > 0) { fresh = 0; store(SEEN, key(latest)); showDot(); }
       if (!o) bar.focus({ preventScroll: true });
     }
