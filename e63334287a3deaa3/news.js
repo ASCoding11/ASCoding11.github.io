@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.16', title: 'Show off your rank', kind: 'feature',
+     tags: ['Elo'], items: [
+      'Ranked games now have Elo tiers: Bronze, Silver (1100), Gold (1250), Platinum (1400), Diamond (1600) and Champion (1800).',
+      'Reach a new tier, or break into a game\'s top 100, top 10, top 3 or #1, and a Share achievement button pops up with a picture of your rank.',
+      'Share it straight to your friends, save the picture, or copy a link that takes them to the game.']},
     {date: '2026-11-27', version: '2.15', title: 'Flood Crew: tougher jobs, fewer hints', kind: 'feature',
      tags: ['Flood Crew'], items: [
       'The first job says much less: just a few short lines, and you find the rest yourself.',
