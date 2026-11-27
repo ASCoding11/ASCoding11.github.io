@@ -93,10 +93,10 @@
 
 
       L.targets = [{ id: 'A', label: 'A', kind: 'flak', x: -18, z: 17, ry: 1.0 }, { id: 'B', label: 'B', kind: 'flak', x: 30, z: 15, ry: -1.3 }, { id: 'C', label: 'C', kind: 'flak', x: -16, z: -42.5, ry: 2.4 }];
-      L.spawn = { x: laneX(66) + 0.4, z: 66, yaw: 0 };
+      L.spawn = { x: -27, z: 67, yaw: -0.22 };      // the glider field, behind the hedgerow: a quiet start
       /* soldiers on the map at the start: kind, post, and a patrol route if they walk one */
       L.posts = [
-        { k: 'r', x: 0.5, z: 38, path: [[0.5, 38], [-1, 6], [0.8, 38]] }, { k: 'r', x: -1.5, z: 36, path: [[-1.5, 36], [1, 4], [-1.4, 36]], lag: 1.6 },
+        { k: 'r', x: 0.5, z: 30, path: [[0.5, 30], [-1, 6], [0.8, 30]] }, { k: 'r', x: -1.5, z: 28, path: [[-1.5, 28], [1, 4], [-1.4, 28]], lag: 1.6 },
         { k: 'r', x: -9, z: 20.5, face: 1.5 }, { k: 'r', x: -15.5, z: 20, face: 2.2 }, { k: 's', x: -21, z: 14, face: 0.8 },
         { k: 's', x: 4.8, z: -5.2, face: 0.2 }, { k: 'r', x: -4.6, z: -10.8, face: 0.1 },
         { k: 'r', x: 27.5, z: 18, face: -1.2 }, { k: 'r', x: 33, z: 12.5, face: -2.4 }, { k: 'r', x: 16, z: 28, path: [[16, 28], [42, 30], [44, 4], [14, 4]] },

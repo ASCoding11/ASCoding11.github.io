@@ -182,7 +182,7 @@
     return IK.qb;
   }
 
-  const hit = {}, tmp = { x: 0, z: 0 };
+  const hit = {}, tmp = { x: 0, z: 0 }, HV = new THREE.Vector3();
   class Soldier {
     constructor(kind, x, z, o) {
       o = o || {}; this.kind = kind; this.x = x; this.z = z; this.h = o.face || 0; this.hp = kind === 's' ? 140 : 45; this.alive = true;
@@ -209,6 +209,7 @@
         const fx = Math.sin(this.h), fz = Math.cos(this.h), dot = d > 0.01 ? (dx * fx + dz * fz) / d : 1;
         const range = (this.state === 'combat' ? 70 : 34) * (P.crouchK > 0.5 ? 0.62 : 1) * (1 + 0.5 * P.noise);
         this.los = P.alive && d < range && (dot > (this.state === 'combat' ? -0.3 : 0.25) || d < 2.5) && MO.phys.los(this.x, 1.55 - this.crouch * 0.5, this.z, px, P.pos.y + P.eye - 0.15, pz);
+        if (this.los && MO.mission.state === 'intro' && this.state !== 'combat') this.los = false;     // nobody notices you during the opening title
         if (this.los) { this.seen.x = px; this.seen.z = pz; this.seen.t = MO.time;
           if (this.state !== 'combat') { this.aware += (0.14 + 0.06) * (2.6 / Math.max(0.35, d / 9)) * (P.crouchK > 0.5 ? 0.55 : 1) * (1 + P.noise); if (this.aware >= 1) { this.alert(px, pz, true); EN.shout(this.x, this.z, 30, px, pz); MO.emit('spotted', this); } } }
         else if (this.state !== 'combat') this.aware = Math.max(0, this.aware - 0.05);
@@ -249,6 +250,9 @@
       else if (this.tok) { this.tok = false; EN.tokens--; }
       this.flinch = Math.max(0, this.flinch - dt * 4);
       this.pose(dt, sp, d);
+      // where the head and chest really are this frame, for hit tests (the head moves forward when aiming and kneeling)
+      this.group.updateMatrixWorld(true); HV.set(0, 0.13, 0.02).applyMatrix4(this.b.head.matrixWorld); this.hx = HV.x; this.hy = HV.y; this.hz = HV.z;
+      HV.set(0, 0, 0).applyMatrix4(this.b.chest.matrixWorld); this.cx = HV.x; this.cz = HV.z; this.ctop = Math.max(0.9, this.hy - 0.2);
     }
     shoot(d) {
       const P = MO.player, A = MO.audio, my = 1.42 - this.crouch * 0.45, mx = this.x + Math.sin(this.h) * 0.7, mz = this.z + Math.cos(this.h) * 0.7;
@@ -378,9 +382,10 @@
   EN.rayHit = (ox, oy, oz, dx, dy, dz, max) => {
     let best = max, be = null, head = false;
     for (const s of EN.list) { if (!s.alive) continue; const ex = s.x - ox, ez = s.z - oz; if (ex * dx + ez * dz < -1) continue;
-      const k = 1 - s.crouch * 0.3, hy = 1.66 * k - s.crouch * 0.1;
-      let t = segRay(ox, oy, oz, dx, dy, dz, s.x, 0.1, 1.42 * k, s.z, 0.25, best); if (t >= 0) { best = t; be = s; head = false; }
-      const cx = s.x - ox, cy = hy - oy, cz = s.z - oz, tc = cx * dx + cy * dy + cz * dz; if (tc > 0 && tc < best + 0.3) { const px = cx - dx * tc, py = cy - dy * tc, pz = cz - dz * tc, d2 = px * px + py * py + pz * pz; if (d2 < 0.0256) { const th = tc - Math.sqrt(0.0256 - d2); if (th < best + 0.25) { best = Math.min(best, th); be = s; head = true; } } } }
+      const k = 1 - s.crouch * 0.3, hx = s.hx === undefined ? s.x : s.hx, hy = s.hy === undefined ? 1.66 * k - s.crouch * 0.1 : s.hy, hz = s.hz === undefined ? s.z : s.hz;
+      const bx = s.cx === undefined ? s.x : (s.x + s.cx) / 2, bz = s.cz === undefined ? s.z : (s.z + s.cz) / 2;
+      let t = segRay(ox, oy, oz, dx, dy, dz, bx, 0.1, s.ctop || 1.42 * k, bz, 0.25, best); if (t >= 0) { best = t; be = s; head = false; }
+      const cx = hx - ox, cy = hy - oy, cz = hz - oz, tc = cx * dx + cy * dy + cz * dz; if (tc > 0 && tc < best + 0.3) { const px = cx - dx * tc, py = cy - dy * tc, pz = cz - dz * tc, d2 = px * px + py * py + pz * pz; if (d2 < 0.0256) { const th = tc - Math.sqrt(0.0256 - d2); if (th < best + 0.25) { best = Math.min(best, th); be = s; head = true; } } } }
     if (!be) return null; res.e = be; res.t = best; res.head = head; return res;
   };
   // ammunition pouches left by the fallen
