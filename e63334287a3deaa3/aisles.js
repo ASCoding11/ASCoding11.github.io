@@ -1062,6 +1062,9 @@
     start: start, open: open, close: close, board: board, unboard: unboard, inviteBtn: inviteBtn, admin: admin,
     of: function (u) { var A = aisleOf(u); return A ? { K: A.K, nm: A.nm, tg: A.tg, cl: A.cl, leader: A.leader, members: A.members.slice() } : null; },
     get mine() { var A = mine(); return A ? A.K : ''; },
+    // Every Aisle shown (removed ones left out), for climb.js: [{ K, nm, tg, cl, em, members: [uid] }]; and its tag element.
+    list: function () { return Object.keys(aisles).map(function (K) { var A = aisles[K]; return { K: K, nm: A.nm, tg: A.tg, cl: A.cl, em: A.em, members: A.members.slice() }; }); },
+    tag: function (K) { return aisles[K] ? tagEl(aisles[K]) : null; },
     get ready() { return ready; },
     onChange: function (f) { if (typeof f === 'function') listeners.push(f); },
     // Last week's contest winners (a tie: every Aisle ranked 1) from the boards' checked rows, for wallet.js's weekly

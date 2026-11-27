@@ -203,7 +203,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
 <canvas id="bits" aria-hidden="true"></canvas>
 <div class="wrap">
   <div class="topbar">
-    <a class="wordmark" href="/">Arjun</a>
+    <a class="wordmark" href="/">ASCoding</a>
     <div class="me" id="me" hidden><span id="who"></span><button class="sm" id="out" type="button">Lock</button></div>
   </div>
   <header>
@@ -222,7 +222,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
     </div>
 
     <div id="app" hidden>
-      <p style="margin:0 0 12px"><a class="btn" id="ivPreview" href="/e63334287a3deaa3/ironveil/" target="_blank" rel="noopener" onclick="try{sessionStorage.setItem('ironveil:preview','1');localStorage.setItem('ironveil:preview','1')}catch(e){}">Midnight Ops (preview)</a> <a class="btn" id="iwPreview" href="/e63334287a3deaa3/ironwing/" target="_blank" rel="noopener" onclick="try{sessionStorage.setItem('ironwing:preview','1');localStorage.setItem('ironwing:preview','1')}catch(e){}">Ironwing (preview)</a></p> <!-- unreleased games: each button sets that game's preview flag (see README, Midnight Ops and Ironwing) -->
+      <p style="margin:0 0 12px"><a class="btn" id="ivPreview" href="/e63334287a3deaa3/ironveil/" target="_blank" rel="noopener" onclick="try{sessionStorage.setItem('ironveil:preview','1');localStorage.setItem('ironveil:preview','1')}catch(e){}">Midnight Ops (preview)</a> <a class="btn" id="iwPreview" href="/e63334287a3deaa3/ironwing/" target="_blank" rel="noopener" onclick="try{sessionStorage.setItem('ironwing:preview','1');localStorage.setItem('ironwing:preview','1')}catch(e){}">Ironwing (preview)</a> <a class="btn" id="btPreview" href="/e63334287a3deaa3/blacktie/" target="_blank" rel="noopener" onclick="try{sessionStorage.setItem('blacktie:preview','1');localStorage.setItem('blacktie:preview','1')}catch(e){}">Black Tie (preview)</a></p> <!-- unreleased games: each button sets that game's preview flag (see README, Midnight Ops, Ironwing and Black Tie) -->
       <div class="tabs" role="tablist" aria-label="Admin">
         <button type="button" role="tab" id="t-stats" aria-controls="p-stats" data-tab="stats">Stats</button>
         <button type="button" role="tab" id="t-players" aria-controls="p-players" data-tab="players">Players</button>
@@ -560,8 +560,9 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
   function fillGames(){
     var sel=$('sGame'),cur=sel.value||'all';
     sel.textContent='';opt(sel,'all','All games');
-    if(LB)LB.GAMES.forEach(function(g){opt(sel,g.d,g.n)});
-    sel.value=cur==='all'||(LB&&LB.BY[cur])?cur:'all';
+    // Archived games (gone: 1 in leaderboard.js) are left out of the menu and the Hours by game list; their time still counts in the totals.
+    if(LB)LB.GAMES.forEach(function(g){if(!g.gone)opt(sel,g.d,g.n)});
+    sel.value=cur==='all'||(LB&&LB.BY[cur]&&!LB.BY[cur].gone)?cur:'all';
   }
   // The day keys in a range ('1', '7', '30'), or null for all time.
   function daysIn(range){if(range==='all')return null;var n=Math.max(1,Math.min(DAYS,+range||1)),set={};for(var i=0;i<n;i++)set[dayAgo(i)]=1;return set}
@@ -594,7 +595,7 @@ tr.prow.sel td{background:rgba(125,211,252,.08)}
       Object.keys(per).forEach(function(d){gs[d]=(gs[d]||0)+per[d];gp[d]=(gp[d]||0)+1});
       total+=v;if(p.ga)google++;
     });
-    var games=LB.GAMES.filter(function(g){return gs[g.d]>0}).map(function(g){return {d:g.d,n:g.n,s:gs[g.d],people:gp[g.d]}}).sort(function(a,b){return b.s-a.s||b.people-a.people});
+    var games=LB.GAMES.filter(function(g){return !g.gone&&gs[g.d]>0}).map(function(g){return {d:g.d,n:g.n,s:gs[g.d],people:gp[g.d]}}).sort(function(a,b){return b.s-a.s||b.people-a.people});
     return {range:range,gv:gv,gOnly:gOnly,days:days,list:list,idle:idle,games:games,total:total,google:google};
   }
   var last=null;

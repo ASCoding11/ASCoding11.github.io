@@ -28,7 +28,8 @@
  *
  * BackRoomElo.get() gives { r, g, wn, pk }; a 'backroom:elo' event on document carries { game, before, after, delta }.
  * After a rated match a small pill at the top of the page shows the new rating for a few seconds (BackRoomElo.quiet = true
- * turns that off for a game that shows it itself).
+ * turns that off for a game that shows it itself). Then flex.js is loaded to offer a share card when the match took the
+ * player to a new Elo tier or into the game's top 100 (BackRoomElo.noFlex = true turns that off).
  */
 (function () {
   'use strict';
@@ -115,6 +116,41 @@
     } catch (e) {}
   }
 
+  // ---------------- Today's climb ----------------
+  // Every rated match adds its change to rooms/elo-day/players/<uid> ({ d: the New York date, gm: { <folder>: change
+  // today }, t: the total }), started afresh on a new day. climb.js adds these up per Aisle for the Back Room's
+  // "Fastest climbing Aisles today". One small node per player, so the Back Room reads one place instead of every game's.
+  function nyDay() {
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+    catch (e) { return new Date().toISOString().slice(0, 10); }
+  }
+  function day(delta) {
+    var c = conn(); if (!c || !isFinite(delta)) return;
+    try {
+      var ref = c.db.ref('rooms/elo-day/players/' + c.uid);
+      timeout(ref.once('value'), 5000).then(function (s) {
+        if (!s) return;   // couldn't read: don't overwrite today's total with just this match
+        var v = s.val() || {}, d = nyDay(), gm = {};
+        if (v.d === d && v.gm && typeof v.gm === 'object') Object.keys(v.gm).forEach(function (k) { if (/^[a-z0-9-]{1,32}$/.test(k) && isFinite(+v.gm[k])) gm[k] = Math.round(+v.gm[k]); });
+        gm[GAME] = (gm[GAME] || 0) + Math.round(delta);
+        var t = 0; Object.keys(gm).forEach(function (k) { t += gm[k]; });
+        return ref.set({ n: myName(), c: '#8b95b8', x: 0, z: 0, h: 0, ts: c.F.database.ServerValue.TIMESTAMP, d: d, gm: gm, t: t });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  // ---------------- Rank-up share card ----------------
+  // After a rated match, flex.js (loaded only now) checks for a new tier or a top-100 place and offers a share card.
+  function flex(res) {
+    try {
+      if (api.noFlex) return;
+      var go = function () { try { window.BackRoomFlex && BackRoomFlex.check(res); } catch (e) {} };
+      if (window.BackRoomFlex) return go();
+      var s = document.createElement('script'); s.src = '/e63334287a3deaa3/flex.js'; s.onload = go;
+      (document.head || document.documentElement).appendChild(s);
+    } catch (e) {}
+  }
+
   // ---------------- Reporting a match ----------------
   var lastId = null; try { lastId = sessionStorage.getItem('elo:last:' + GAME); } catch (e) {}
   var busy = false;
@@ -151,6 +187,7 @@
         var res = { game: GAME, before: before, after: Math.round(rank.r), delta: Math.round(rank.r) - before, humans: humans.length, w: w };
         show(res.before, res.after, res.delta);
         try { document.dispatchEvent(new CustomEvent('backroom:elo', { detail: res })); } catch (e) {}
+        flex(res); day(res.delta);
         busy = false; return res;
       }).catch(function () { busy = false; return null; });
     } catch (e) { busy = false; return Promise.resolve(null); }

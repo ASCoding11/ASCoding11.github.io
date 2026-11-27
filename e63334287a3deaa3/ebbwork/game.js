@@ -508,30 +508,20 @@ function openJournal(){$('jTitle').textContent=def.name;$('jBrief').textContent=
   if(notes.length)h+='<li class="note"><div>'+esc(T('What you have noticed'))+notes.map(function(n){return'<small>• '+esc(n)+'</small>'}).join('')+'</div></li>';
   $('jTasks').innerHTML=h;show('journal')}
 // Guided jobs teach by doing: one short line at a time, gone as soon as it is done. The first job (Marlow Row) walks
-// through the starting tools one by one; Tanners Field, the first job with no drain at all, gets its own short guide.
+// through the starting tools one by one, in as few words as it can. Later jobs have no guide: their notes and the hint below.
 // A guide runs until the job has a star. A step's `give` adds that tool to the bar when the step starts, and the job
-// cannot finish while a guide is still running (its last step is "until it is dry").
+// cannot finish while a guide is still running (the yard waits for its lawn puddle).
 function hollowLeft(){var S=world.S,t=0;for(var z=26;z<31;z++)for(var x=11;x<17;x++){var i=z*world.W+x;if(Math.hypot((x+0.5)*0.5-7,(z+0.5)*0.5-14.2)<1.0)t+=S.d[i]}return t*0.25}
 var GUIDES={
   yard:[
     {t:'Move with W A S D. Look with the mouse.',tt:'Left thumb walks. Drag to look.',ok:function(){return pl.walked>2.5}},
-    {t:'Find the drain under the leaves',ok:function(){return seen.d0}},
-    {t:'Click to rake the leaves off the drain',tt:'Tap Use to rake the leaves off the drain',ok:function(){return world.drains[0].clear>0.85}},
-    {t:function(){var v=world.valves[0],nearTap=Math.hypot(v.x-pl.x,v.z-pl.z)<3.4;return nearTap?(touchUI?'Hold Do to shut the tap':'Hold E to shut the tap'):'Water is still pouring in. Follow the copper pipe to its tap'},ok:function(){return !world.leaks[0].on}},
-    {give:'wrench',t:'A joint on the copper pipe is dripping. Press 2 for the wrench and hold click on it',tt:'A joint on the copper pipe is dripping. Tap the wrench at the top, then hold Use on it',ok:function(){return world.leaks[1].fixed}},
-    {t:'Another drain is blocked, by the side path. Press 1 for the rake and clear it',tt:'Another drain is blocked, by the side path. Tap the rake and clear it',ok:function(){return world.drains[1].clear>0.85}},
-    {give:'bucket',t:'The puddle in the lawn has no way out. Press 3 for the bucket: fill it there, then tip it out over a drain',tt:'The puddle in the lawn has no way out. Tap the bucket: fill it there, then tip it out over a drain',ok:function(){return hollowLeft()<0.025}},
-    {t:'Keep the drains clear until the yard is dry',ok:function(){return world.isDone()}}
-  ],
-  field:[
-    {t:'Shut the standpipe by the shed first',ok:function(){return !world.leaks[0].on}},
-    {t:'This field has no drain. Follow the orange pegs to the bank',ok:function(){return Math.hypot(pl.x-26,pl.z-12.25)<3.5}},
-    {t:function(){return bar.indexOf('shovel')<0?'This job needs a shovel. Buy one at the gear bench in the depot':'Pick the shovel and dig between the pegs, right through the bank to the ditch'},ok:function(){return world.removed>0.25}},
-    {t:'Water is running into the ditch. Carry the trench back to the middle of the field: one dig deep is enough there',ok:function(){return world.fraction()<0.4}},
-    {t:'Keep the trench running until the field is dry',ok:function(){return world.isDone()}}
+    {t:'Rake the leaves off the drain',ok:function(){return world.drains[0].clear>0.85}},
+    {t:'Water is still coming in. Shut it off at the tap',ok:function(){return !world.leaks[0].on}},
+    {give:'wrench',t:'Something is still dripping. Wrench: key 2',tt:'Something is still dripping. Use the wrench',ok:function(){return world.leaks[1].fixed}},
+    {give:'bucket',t:'One puddle has no way out. Bucket: key 3',tt:'One puddle has no way out. Use the bucket',ok:function(){return hollowLeft()<0.025}}
   ]
 };
-var TUT=null,tutK=-1,depotSay='';
+var TUT=null,tutK=-1,depotSay='',stuck={t:0,f:1,said:0};
 function tutStart(){var st=TUT&&TUT[tutK];if(st&&st.give&&bar.indexOf(st.give)<0&&GEARBY[st.give]){bar.push(st.give);buildBar();hands.root.visible=true;$('hot').hidden=false}}
 var wasClear=[];
 function updateHud(dt){
@@ -547,6 +537,9 @@ function updateHud(dt){
   world.leaks.forEach(function(l,k){if(!seen['l'+k]&&l.on&&Math.hypot(l.x-pl.x,l.z-pl.z)<4.2){seen['l'+k]=1;if(tutK<0)toast(l.wrench?T('A joint is dripping steadily here.'):T('Water is pouring out of a split pipe here.'),3.5)}});
   if(tutK<0||def.id!=='yard')world.spots.forEach(function(s){if(!s.seen&&Math.hypot(s.x-pl.x,s.z-pl.z)<s.r){s.seen=true;notes.push(T(s.text));toast(T(s.text),5)}});
   // the one line of words
+  // the one hint later jobs get: the player has dug, nothing is coming in, and the level has not dropped for 40 seconds
+  if(!def.depot&&tutK<0&&world.spoil>0&&!stuck.said){var fr_=world.fraction();if(fr_<stuck.f-0.01){stuck.f=fr_;stuck.t=world.t}
+    if(world.t-stuck.t>40&&!world.incoming()&&!world.isDone()){stuck.said=1;toast(T('The water has stopped going down. Find where it stands in your trench and dig the high part deeper'),7)}}
   if(tutK>=0&&TUT[tutK].ok()){tutK++;sfx('good',0.8);if(tutK>=TUT.length){tutK=-1;if(def.id==='yard'){save.tut=1;persist()}}else tutStart()}
   if(toastT>0)toastT-=dt;
   var tl=tutK>=0?TUT[tutK]:null,line=tl?T(typeof tl.t==='function'?tl.t():touchUI&&tl.tt?tl.tt:tl.t):toastT>0?toastTx:def.depot?depotSay:'',sy=$('say');
@@ -554,7 +547,7 @@ function updateHud(dt){
   // prompt
   focus=findFocus();var p=$('prompt'),tap=touchUI?T('Do'):'E',act=touchUI?T('Hold Do'):T('Hold E'),txt='';
   if(focus){var o=focus.o;
-    if(focus.kind==='valve')txt=tutK>=0&&def.id==='yard'?'':act+': '+(o.closed?T('open the tap'):T('shut the tap'));
+    if(focus.kind==='valve')txt=act+': '+(o.closed?T('open the tap'):T('shut the tap'));
     else if(focus.kind==='leak')txt=tool()==='wrench'?(touchUI?T('Hold Use'):T('Hold click'))+': '+T('tighten the joint'):T('A dripping joint. It needs the wrench.');
     else if(focus.kind==='pump')txt=pumpWhy(o)+'  '+tap+': '+(o.on?T('switch off'):T('switch on'));
     else if(focus.kind==='station')txt=tap+': '+(o.kind==='board'?T('pick a job'):o.kind==='shop'?T('buy gear'):T('load the van'));
@@ -585,7 +578,7 @@ function enter(d){
   bar=def.depot?[]:first?['rake']:vanNeeded()?save.load.filter(function(t){return save.gear[t]}):own;
   if(!def.depot&&captain()){var need=def.needs||[];bar=GEAR.filter(function(g){return g.slot&&(bar.indexOf(g.id)>=0||need.indexOf(g.id)>=0)}).map(function(g){return g.id})}
   inv={};if(bar.indexOf('sandbags')>=0)inv.sandbags=save.gear.bags2?8:4;if(bar.indexOf('pump')>=0)inv.pump=save.gear.pump2?2:1;if(bar.indexOf('generator')>=0)inv.generator=1;if(bar.indexOf('sack')>=0)inv.sack=40;
-  cur=0;bucketVol=0;seen={};notes=[];endT=0;scanT=0;scanCool=0;hold=0;acc=0;rot=0;hosePump=null;dynDirty=true;inp.crouch=false;toastT=0;wasClear=world.drains.map(function(dr){return dr.clear>=0.55});
+  cur=0;bucketVol=0;seen={};stuck={t:0,f:1,said:0};notes=[];endT=0;scanT=0;scanCool=0;hold=0;acc=0;rot=0;hosePump=null;dynDirty=true;inp.crouch=false;toastT=0;wasClear=world.drains.map(function(dr){return dr.clear>=0.55});
   TUT=def.depot?null:GUIDES[def.id]||null;tutK=TUT&&!(save.jobs[def.id]&&save.jobs[def.id].stars)?0:-1;
   buildBar();hands.root.visible=bar.length>0;$('hud').hidden=false;coinsTx();
   $('bar').hidden=!!def.depot;$('place').hidden=!def.depot;$('coins').hidden=!(def.depot&&shopOpen());$('bScan').hidden=$('bJournal').hidden=!!def.depot||first;$('inflow').hidden=true;$('hot').hidden=!bar.length;

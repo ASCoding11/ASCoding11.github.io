@@ -90,6 +90,44 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.18', title: 'Hot right now', kind: 'feature',
+     tags: ['Back Room'], items: [
+      'A new Hot right now row at the top of the Back Room shows the games the most people are playing this minute.',
+      'Busy games get a flame badge on their card with how many people are in, and a game that\'s filling up fast says it\'s surging.',
+      'Tap one to jump straight in.']},
+    {date: '2026-11-27', version: '2.17', title: 'Fastest climbing Aisles today', kind: 'feature',
+     tags: ['Aisles', 'Elo'], items: [
+      'A new board at the top of the Back Room shows which Aisles are climbing fastest today, with live green arrows.',
+      'It adds up the Elo every member wins in ranked games today, and names each Aisle\'s top climber.',
+      'It starts fresh every day, so any Aisle can top it.']},
+    {date: '2026-11-27', version: '2.16', title: 'Show off your rank', kind: 'feature',
+     tags: ['Elo'], items: [
+      'Ranked games now have Elo tiers: Bronze, Silver (1100), Gold (1250), Platinum (1400), Diamond (1600) and Champion (1800).',
+      'Reach a new tier, or break into a game\'s top 100, top 10, top 3 or #1, and a Share achievement button pops up with a picture of your rank.',
+      'Share it straight to your friends, save the picture, or copy a link that takes them to the game.']},
+    {date: '2026-11-27', version: '2.15', title: 'Flood Crew: tougher jobs, fewer hints', kind: 'feature',
+     tags: ['Flood Crew'], items: [
+      'The first job says much less: just a few short lines, and you find the rest yourself.',
+      'Tanners Field has no pegs or step-by-step lines any more, but it can always be finished now: if water sits in your trench, dig the high part deeper.',
+      'Pell Street is harder: deeper water and more rubbish that washes back onto the drains.',
+      'Water drains a little slower, and the target times for three stars are tighter.']},
+    {date: '2026-11-27', version: '2.14', title: 'Type a game\'s name to open it', kind: 'feature',
+     tags: ['Back Room'], items: [
+      'Every game now has an address you can type: ascoding11.com/ followed by its name, like ascoding11.com/slipstream or ascoding11.com/driftfall.',
+      'ascoding11.com/backroom opens the whole Back Room.',
+      'Clicking around the site still keeps the address the same as before.']},
+    {date: '2026-11-27', version: '2.13.6', title: 'Tidier top of the phone page', kind: 'fix',
+     tags: ['Phone'], items: [
+      'On a phone held upright, the games count now sits right under the ASCoding Games title on one or two lines, instead of in a thin column with one word per line.',
+      'The theme, language and Main site buttons now go on their own line under the title, so nothing at the top overlaps any more, in English or Spanish.']},
+    {date: '2026-11-27', version: '2.13.5', title: 'The site is called ASCoding everywhere', kind: 'fix',
+     items: [
+      'The name at the top and bottom of every page now reads ASCoding, on the main site, the Back Room and the phone page.',
+      'The phone page keeps the name ASCoding games when you add it to your home screen.',
+      'The About page now says who makes the site: two students, working together as ASCoding.']},
+    {date: '2026-11-27', version: '2.13.4', title: 'Flood Crew: better gloves', kind: 'fix',
+     tags: ['Flood Crew'], items: [
+      'Your gloved hands look like hands now, with fingers wrapped round the handle.']},
     {date: '2026-11-27', version: '2.13.3', title: 'Phone page renamed', kind: 'fix',
      tags: ['Phone'], items: [
       'The phone page\'s title now reads ASCoding games.']},
