@@ -36,7 +36,7 @@
 
   // ---- settings and save. localStorage 'ironveil:save' = {v: 2, settings, missions: {id: {done, grade, best}}}
   const KEY = 'ironveil:save';
-  const DEF = { quality: 'auto', sens: 1, invertY: false, vol: 0.8, fov: 74, blood: true };
+  const DEF = { quality: 'auto', sens: 1, invertY: false, vol: 0.8, fov: 74, blood: true, keys: /Mac/i.test(navigator.platform || navigator.userAgent) ? 'mac' : 'classic', autoReload: true };
   const S = MO.save = { v: 2, settings: Object.assign({}, DEF), missions: {} };
   try {
     const j = JSON.parse(localStorage.getItem(KEY) || 'null');

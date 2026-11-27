@@ -32,7 +32,7 @@
       if (was) { if (t.optional) M.opt++; else M.done++; if (!t.destroyed) { t.k.blow(true); t.destroyed = true; } } else if (t.destroyed) { t.k.mend(); t.destroyed = false; } }
     st = cp ? Object.assign({}, cp.st) : {};
     if (!fromCp) { M.time = 0; M.retries = 0; P.reset(L.spawn); } else { P.reset(cp ? cp.pos : L.spawn); M.retries++; }
-    MO.weapon.reset();
+    MO.weapon.reset(); MO.actions.reset();
     for (const p of L.posts) { if (cp && L.targets.some((t) => t.planted && Math.hypot(t.x - p.x, t.z - p.z) < 16)) continue; if (Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 14) continue; MO.enemies.spawn(p.k, p.x, p.z, p); }
     if (def.onBegin) def.onBegin(M, st, !!cp);
     if (def.exitWhen ? def.exitWhen(M) : M.done >= L.targets.filter((t) => !t.optional).length) exitOn = true;

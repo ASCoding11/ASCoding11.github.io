@@ -1,28 +1,41 @@
 /* Midnight Ops: input. Keyboard and mouse (pointer lock) on computers; two thumbs on touch screens: the left half
    of the screen is a floating move stick, the right half looks, and the buttons sit in the corners. Arrow keys also
-   look, for browsers that refuse pointer lock. */
+   look, for browsers that refuse pointer lock.
+   Two key layouts (Settings): 'mac' (the default on Macs, for trackpads): hold Left Shift to aim, hold Left Control
+   to sprint; 'classic' (elsewhere): hold Shift to sprint, right click to aim. Control is not the default sprint
+   off Macs because Control+W closes the browser tab on Windows and Chromebooks, and a page can't stop that.
+   Both: C crouch (toggle; while sprinting it slides), Z prone (toggle), E plant / pick up, F melee, G grenade,
+   R reload, T inspect, M map, V ping, Tab or Caps Lock status, Esc pause. */
 (function () {
   'use strict';
-  const MO = window.MO, I = MO.input = { mx: 0, my: 0, lx: 0, ly: 0, fire: false, aim: false, sprint: false, crouch: false, use: false, jumpP: false, reloadP: false, pauseP: false, locked: false, active: false };
+  const MO = window.MO, I = MO.input = { mx: 0, my: 0, lx: 0, ly: 0, fire: false, aim: false, sprint: false, crouch: false, prone: false, use: false, status: false, jumpP: false, reloadP: false, pauseP: false, slideP: false, meleeP: false, nadeP: false, inspectP: false, mapP: false, pingP: false, locked: false, active: false };
   const keys = {}, K = (c) => !!keys[c];
-  let canvas, aimToggle = false;
+  let canvas, aimToggle = false, mouseAim = false, capsOn = false;
+  const mac = () => MO.settings.keys === 'mac';
   I.init = (cv) => {
     canvas = cv;
     addEventListener('keydown', (e) => {
+      if (e.code === 'CapsLock') capsOn = e.getModifierState ? e.getModifierState('CapsLock') : !capsOn;
       if (e.repeat) return; keys[e.code] = true;
       if (!I.active) return;
       if (e.code === 'Space') { I.jumpP = true; e.preventDefault(); }
       if (e.code === 'KeyR') I.reloadP = true;
-      if (e.code === 'KeyC') I.crouch = !I.crouch;
+      if (e.code === 'KeyC') { if (MO.player.sprintK > 0.5 && Math.hypot(I.mx, I.my) > 0.3) I.slideP = true; else { I.crouch = !I.crouch; I.prone = false; } }
+      if (e.code === 'KeyZ') { I.prone = !I.prone; if (I.prone) I.crouch = false; }
+      if (e.code === 'KeyF') I.meleeP = true;
+      if (e.code === 'KeyG') I.nadeP = true;
+      if (e.code === 'KeyT') I.inspectP = true;
+      if (e.code === 'KeyM') I.mapP = true;
+      if (e.code === 'KeyV') I.pingP = true;
       if (e.code === 'KeyP' || e.code === 'Escape') I.pauseP = true;
       if (e.code === 'Enter') I.fire = true;
-      if (e.code.startsWith('Arrow') || e.code === 'Tab') e.preventDefault();
+      if (e.code.startsWith('Arrow') || e.code === 'Tab' || (mac() && e.ctrlKey)) e.preventDefault();
     });
-    addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Enter') I.fire = false; });
-    addEventListener('blur', () => { for (const k in keys) keys[k] = false; I.fire = false; I.aim = false; });
+    addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Enter') I.fire = false; if (e.code === 'CapsLock') capsOn = e.getModifierState ? e.getModifierState('CapsLock') : false; });
+    addEventListener('blur', () => { for (const k in keys) keys[k] = false; I.fire = false; I.aim = false; mouseAim = false; });
     canvas.addEventListener('mousedown', (e) => { if (!I.active || MO.touch && !I.locked && e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-      if (!I.locked) { I.lock(); return; } if (e.button === 0) I.fire = true; if (e.button === 2) I.aim = true; });
-    addEventListener('mouseup', (e) => { if (e.button === 0) I.fire = false; if (e.button === 2) I.aim = false; });
+      if (!I.locked) { I.lock(); return; } if (e.button === 0 || (e.button === 2 && e.ctrlKey && mac())) I.fire = true; else if (e.button === 2) mouseAim = true; });
+    addEventListener('mouseup', (e) => { if (e.button === 0 || e.ctrlKey) I.fire = false; if (e.button === 2) { mouseAim = false; if (e.ctrlKey && mac()) I.fire = false; } });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     addEventListener('mousemove', (e) => { if (I.locked && I.active) { I.lx += e.movementX || 0; I.ly += e.movementY || 0; } });
     document.addEventListener('pointerlockchange', () => { const was = I.locked; I.locked = document.pointerLockElement === canvas; if (was && !I.locked && I.active) I.pauseP = true; });
@@ -35,10 +48,14 @@
     if (!MO.touch || !stick.on) { I.mx = (K('KeyD') ? 1 : 0) - (K('KeyA') ? 1 : 0); I.my = (K('KeyW') ? 1 : 0) - (K('KeyS') ? 1 : 0); }
     const l = Math.hypot(I.mx, I.my); if (l > 1) { I.mx /= l; I.my /= l; }
     const ks = 520 * dt; I.lx += ((K('ArrowRight') ? 1 : 0) - (K('ArrowLeft') ? 1 : 0)) * ks; I.ly += ((K('ArrowDown') ? 1 : 0) - (K('ArrowUp') ? 1 : 0)) * ks;
-    if (!MO.touch) { I.sprint = K('ShiftLeft') || K('ShiftRight'); I.use = K('KeyE') || K('KeyF'); if (K('ControlLeft')) I.crouch = true; }
+    if (!MO.touch || I.locked) {
+      if (mac()) { I.sprint = K('ControlLeft') || K('ControlRight'); I.aim = mouseAim || K('ShiftLeft') || K('ShiftRight'); }
+      else { I.sprint = K('ShiftLeft') || K('ShiftRight'); I.aim = mouseAim; if (K('ControlLeft')) { I.crouch = true; I.prone = false; } }
+      I.use = K('KeyE'); I.status = K('Tab') || capsOn;
+    }
   };
-  I.endFrame = () => { I.lx = 0; I.ly = 0; I.jumpP = false; I.reloadP = false; I.pauseP = false; };
-  I.reset = () => { I.fire = false; I.aim = false; I.crouch = false; I.use = false; aimToggle = false; I.endFrame(); };
+  I.endFrame = () => { I.lx = 0; I.ly = 0; I.jumpP = false; I.reloadP = false; I.pauseP = false; I.slideP = false; I.meleeP = false; I.nadeP = false; I.inspectP = false; I.mapP = false; I.pingP = false; };
+  I.reset = () => { I.fire = false; I.aim = false; mouseAim = false; I.crouch = false; I.prone = false; I.use = false; I.status = false; aimToggle = false; I.endFrame(); };
 
   // ---- touch
   const stick = { on: false, id: -1, ox: 0, oy: 0 }, look = { id: -1, x: 0, y: 0 };
@@ -54,7 +71,7 @@
     btn('t-aim', () => { aimToggle = !aimToggle; I.aim = aimToggle; document.getElementById('t-aim').classList.toggle('held', aimToggle); });
     btn('t-reload', () => { I.reloadP = true; }); btn('t-jump', () => { I.jumpP = true; });
     btn('t-crouch', () => { I.crouch = !I.crouch; document.getElementById('t-crouch').classList.toggle('held', I.crouch); });
-    btn('t-use', () => { I.use = true; }, () => { I.use = false; }); btn('t-pause', () => { I.pauseP = true; });
+    btn('t-use', () => { I.use = true; }, () => { I.use = false; }); btn('t-nade', () => { I.nadeP = true; }); btn('t-pause', () => { I.pauseP = true; });
     ui.addEventListener('pointerdown', (e) => {
       if (!I.active || e.target !== ui) return; e.preventDefault();
       if (e.clientX < innerWidth * 0.42 && stick.id < 0) { stick.id = e.pointerId; stick.on = true; stick.ox = e.clientX; stick.oy = e.clientY; base.style.left = e.clientX + 'px'; base.style.top = e.clientY + 'px'; base.classList.add('on'); nub.style.transform = 'translate(-50%,-50%)'; }

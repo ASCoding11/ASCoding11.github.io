@@ -193,11 +193,11 @@
     }
     goTo(x, z) { this.path = MO.phys.path(this.x, this.z, x, z); this.pi = 0; this.repath = 0.8 + Math.random() * 0.5; }
     alert(x, z, hard) { if (!this.alive) return; this.seen.x = x; this.seen.z = z; this.seen.t = MO.time; if (hard || this.state === 'combat') { if (this.state !== 'combat') { this.state = 'combat'; this.first = true; this.fireT = 0.7 + Math.random() * 0.9; this.path = null; } } else if (this.state !== 'combat') { this.state = 'alert'; this.goTo(x, z); this.searchT = 9; } }
-    hit(dmg, head, dx, dz) {
+    hit(dmg, head, dx, dz, silent) {
       if (!this.alive) return false; this.hp -= dmg; this.flinch = 1; const P = MO.player;
       if (this.hp <= 0) { this.alive = false; this.state = 'dead'; this.deadT = 0; this.fallDir = Math.random() < 0.5 ? 1 : -1; this.fallYaw = Math.atan2(dx, dz); if (this.tok) { this.tok = false; EN.tokens--; }
         EN.kills++; MO.audio && MO.audio.play('enemy_down', { x: this.x, y: 1, z: this.z, vol: 0.9 }); MO.emit('kill', this, head);
-        if (Math.random() < 0.55) EN.drop(this.x, this.z); EN.shout(this.x, this.z, 22, P.pos.x, P.pos.z); return true; }
+        if (Math.random() < 0.55) EN.drop(this.x, this.z); if (!silent) EN.shout(this.x, this.z, 22, P.pos.x, P.pos.z); return true; }
       this.alert(P.pos.x, P.pos.z, true); EN.shout(this.x, this.z, 26, P.pos.x, P.pos.z); return false;
     }
     update(dt) {
@@ -207,11 +207,11 @@
       this.think -= dt;
       if (this.think <= 0) { this.think = 0.14 + Math.random() * 0.06;
         const fx = Math.sin(this.h), fz = Math.cos(this.h), dot = d > 0.01 ? (dx * fx + dz * fz) / d : 1;
-        const range = (this.state === 'combat' ? 70 : 34) * (P.crouchK > 0.5 ? 0.62 : 1) * (1 + 0.5 * P.noise);
+        const range = (this.state === 'combat' ? 70 : 34) * (P.proneK > 0.5 ? 0.38 : P.crouchK > 0.5 ? 0.62 : 1) * (1 + 0.5 * P.noise);
         this.los = P.alive && d < range && (dot > (this.state === 'combat' ? -0.3 : 0.25) || d < 2.5) && MO.phys.los(this.x, 1.55 - this.crouch * 0.5, this.z, px, P.pos.y + P.eye - 0.15, pz);
         if (this.los && MO.mission.state === 'intro' && this.state !== 'combat') this.los = false;     // nobody notices you during the opening title
         if (this.los) { this.seen.x = px; this.seen.z = pz; this.seen.t = MO.time;
-          if (this.state !== 'combat') { this.aware += (0.14 + 0.06) * (2.6 / Math.max(0.35, d / 9)) * (P.crouchK > 0.5 ? 0.55 : 1) * (1 + P.noise); if (this.aware >= 1) { this.alert(px, pz, true); EN.shout(this.x, this.z, 30, px, pz); MO.emit('spotted', this); } } }
+          if (this.state !== 'combat') { this.aware += (0.14 + 0.06) * (2.6 / Math.max(0.35, d / 9)) * (P.proneK > 0.5 ? 0.3 : P.crouchK > 0.5 ? 0.55 : 1) * (1 + P.noise); if (this.aware >= 1) { this.alert(px, pz, true); EN.shout(this.x, this.z, 30, px, pz); MO.emit('spotted', this); } } }
         else if (this.state !== 'combat') this.aware = Math.max(0, this.aware - 0.05);
         if (this.state !== 'combat' && P.noise > 0.8 && d < 9 && P.alive) this.alert(px, pz, false);
       }
@@ -256,7 +256,7 @@
     }
     shoot(d) {
       const P = MO.player, A = MO.audio, my = 1.42 - this.crouch * 0.45, mx = this.x + Math.sin(this.h) * 0.7, mz = this.z + Math.cos(this.h) * 0.7;
-      let p = MO.clamp(0.78 - d * 0.013, 0.14, 0.72) * (P.speed > 4.5 ? 0.55 : 1) * (P.crouchK > 0.5 ? 0.8 : 1) * (this.first ? 0.35 : 1) * (this.kind === 's' ? 0.55 : 1) * (MO.diffK || 1); this.first = false;
+      let p = MO.clamp(0.78 - d * 0.013, 0.14, 0.72) * (P.speed > 4.5 ? 0.55 : 1) * (P.proneK > 0.5 ? 0.6 : P.crouchK > 0.5 ? 0.8 : 1) * (this.first ? 0.35 : 1) * (this.kind === 's' ? 0.55 : 1) * (MO.diffK || 1); this.first = false;
       const ty = P.pos.y + P.eye - 0.35; let hx = P.pos.x, hy = ty, hz = P.pos.z; const good = Math.random() < p;
       if (!good) { const a = Math.random() * 6.28, r = 0.6 + Math.random() * 1.6; hx += Math.cos(a) * r; hy += (Math.random() - 0.4) * 1.3; hz += Math.sin(a) * r; }
       let dx = hx - mx, dy = hy - my, dz = hz - mz; const l = Math.hypot(dx, dy, dz); dx /= l; dy /= l; dz /= l;
@@ -398,7 +398,7 @@
     for (const s of EN.list) s.update(dt);
     feed(dt);
     let dead = 0; for (let i = EN.list.length - 1; i >= 0; i--) { const s = EN.list[i]; if (!s.alive && s.deadT > 2) { dead++; if (dead > 7 || s.deadT > 60) { s.remove(); EN.list.splice(i, 1); } } }
-    const P = MO.player; for (const d of drops) if (d.on && Math.hypot(d.x - P.pos.x, d.z - P.pos.z) < 1.1 && MO.weapon.reserve < 210) { d.on = false; d.mesh.visible = false; MO.weapon.addAmmo(20); MO.audio && MO.audio.play('mag_in', { vol: 0.5, pitch: 1.3 }); MO.emit('msg', MO.T('+20 rounds')); }
+    const P = MO.player; for (const d of drops) if (d.on && Math.hypot(d.x - P.pos.x, d.z - P.pos.z) < 1.1 && MO.weapon.reserve < 210) { d.on = false; d.mesh.visible = false; MO.weapon.addAmmo(20); MO.audio && MO.audio.play('mag_in', { vol: 0.5, pitch: 1.3 }); if (MO.weapon.nades < 3 && Math.random() < 0.35) { MO.weapon.nades++; MO.emit('msg', MO.T('+20 rounds, +1 grenade')); } else MO.emit('msg', MO.T('+20 rounds')); }
     let c = 0; for (const s of EN.list) if (s.alive && s.state === 'combat') c++; EN.inCombat = c;
   };
 })();

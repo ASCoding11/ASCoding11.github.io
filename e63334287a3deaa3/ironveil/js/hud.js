@@ -16,7 +16,7 @@
     MO.on('msg', (t) => H.msg(t));
     if (MO.touch) document.body.classList.add('touch');
   };
-  H.show = (on) => { el.hud.classList.toggle('on', on); el.touch.classList.toggle('on', on); if (!on) { el.radio.classList.remove('on'); radioQ.length = 0; radioT = 0; } };
+  H.show = (on) => { el.hud.classList.toggle('on', on); el.touch.classList.toggle('on', on); if (!on) { mapOn = false; document.getElementById('h-map').classList.remove('on'); } if (!on) { el.radio.classList.remove('on'); radioQ.length = 0; radioT = 0; } };
   H.msg = (t) => { const m = el['h-msg']; m.textContent = t; m.className = 'h-msg'; void m.offsetWidth; m.className = 'h-msg on'; };
   H.wave = (t) => { const m = el['h-wave']; m.textContent = t; m.className = 'h-wave'; void m.offsetWidth; m.className = 'h-wave on'; };
   H.objective = (label, title, done, total, word) => {
@@ -29,6 +29,32 @@
   H.prompt = (text, k) => { const p = el['h-prompt']; if (!text) { if (last.pr) { last.pr = ''; p.classList.remove('on'); el['t-use'].classList.remove('show'); } return; }
     if (last.pr !== text) { last.pr = text; el['h-pt'].textContent = text; p.classList.add('on'); el['t-use'].classList.add('show'); } el['h-pb'].style.width = (k * 100).toFixed(0) + '%'; };
   H.clock = (t) => { const c = document.getElementById('h-clock'); if (last.ck === t) return; last.ck = t; c.textContent = t; c.classList.toggle('on', !!t); };
+  let pingEl = null, pingD = '';
+  H.ping = (p) => { pingEl = pingEl || document.getElementById('h-ping'); H.pingAt = p; if (!p) pingEl.style.display = 'none'; };
+  /* the map (M): a top-down sketch of the mission drawn from the same boxes that stop you, north at the top */
+  let mapOn = false, mapStatic = null;
+  const MAPR = 76, ms = (v, N) => (v + MAPR) / (2 * MAPR) * N;
+  function drawMap() {
+    const c = document.getElementById('h-mapc'), N = 640; if (c.width !== N) { c.width = N; c.height = N; }
+    const g = c.getContext('2d');
+    if (!mapStatic) { mapStatic = document.createElement('canvas'); mapStatic.width = mapStatic.height = N; const s = mapStatic.getContext('2d');
+      s.fillStyle = '#ddd3b6'; s.fillRect(0, 0, N, N);
+      const col = { leaf: '#7f8b5c', dirt: '#8f8a62', stone: '#6d675c', wood: '#7a5b3b', metal: '#3e3f40', cloth: '#80785c' };
+      for (const b of MO.phys.boxes) { if (b.dead || b.maxX - b.minX > 60 || b.maxZ - b.minZ > 60) continue; const x0 = ms(b.minX, N), x1 = ms(b.maxX, N), z0 = ms(b.minZ, N), z1 = ms(b.maxZ, N);
+        if (b.thin) { s.strokeStyle = '#4b4b4b'; s.setLineDash([3, 3]); s.strokeRect(x0, z0, Math.max(1, x1 - x0), Math.max(1, z1 - z0)); s.setLineDash([]); continue; }
+        s.fillStyle = col[b.tag] || '#6d675c'; s.globalAlpha = b.soft ? 0.5 : 0.9; s.fillRect(x0, z0, Math.max(1.5, x1 - x0), Math.max(1.5, z1 - z0)); s.globalAlpha = 1; }
+      s.strokeStyle = '#3a3326'; s.lineWidth = 2; s.strokeRect(1, 1, N - 2, N - 2);
+      s.fillStyle = '#3a3326'; s.font = '700 22px "Big Shoulders Stencil Display", Impact, sans-serif'; s.textAlign = 'center'; s.fillText('N', N / 2, 26); }
+    g.drawImage(mapStatic, 0, 0);
+    g.textAlign = 'center'; g.font = '700 16px "Barlow Condensed", sans-serif';
+    for (const t of MO.level.targets) { const x = ms(t.x, N), y = ms(t.z, N); g.strokeStyle = t.destroyed ? '#6b6b6b' : '#b3261e'; g.lineWidth = 3; g.beginPath(); g.moveTo(x - 7, y - 7); g.lineTo(x + 7, y + 7); g.moveTo(x + 7, y - 7); g.lineTo(x - 7, y + 7); g.stroke();
+      g.fillStyle = t.destroyed ? '#6b6b6b' : '#7a1610'; g.fillText(MO.T(t.label), x, y - 11); }
+    if (MO.mission.exitOpen && MO.mission.exitOpen()) { const x = ms(MO.level.exit.x, N), y = ms(MO.level.exit.z, N); g.strokeStyle = '#1f4f8a'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 9, 0, 6.283); g.stroke(); g.fillStyle = '#1f4f8a'; g.fillText(MO.T(MO.missions.current.exitLabel || 'Exit'), x, y - 13); }
+    if (H.pingAt) { g.fillStyle = '#2e78c7'; g.beginPath(); g.arc(ms(H.pingAt.x, N), ms(H.pingAt.z, N), 6, 0, 6.283); g.fill(); }
+    const P = MO.player, px = ms(P.pos.x, N), pz = ms(P.pos.z, N); g.save(); g.translate(px, pz); g.rotate(-P.yaw); g.fillStyle = '#d9ad4e'; g.strokeStyle = '#2a2619'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0, -12); g.lineTo(8, 9); g.lineTo(0, 4); g.lineTo(-8, 9); g.closePath(); g.fill(); g.stroke(); g.restore();
+  }
+  H.resetMap = () => { mapStatic = null; };
   H.fuse = (t) => { const f = el['h-fuse']; if (t <= 0) { if (last.fu) { last.fu = ''; f.classList.remove('on'); } return; } const s = t.toFixed(1); if (last.fu !== s) { last.fu = s; f.textContent = s; f.classList.add('on'); } };
 
   H.update = (dt) => {
@@ -72,6 +98,18 @@
       if (behind || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05 || dist < 3) { k.d.style.display = 'none'; continue; }
       k.d.style.display = ''; k.d.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * vw - 20).toFixed(1) + 'px,' + ((-v.y * 0.5 + 0.5) * vh - 34).toFixed(1) + 'px)'; k.d.style.opacity = MO.clamp(dist / 14, 0.25, 0.9) * (1 - 0.7 * P.aimK);
       const ds = Math.round(dist) + 'm'; if (k.ls !== ds) { k.ls = ds; k.s.textContent = ds; } }
+    // grenades, the ping, the map and the status panel
+    set('nd', el['h-nd'] || (el['h-nd'] = document.getElementById('h-nd')), MO.T('Grenades') + ' ' + '\u25CF'.repeat(Math.max(0, W.nades)) + (W.nades ? '' : ' 0'));
+    if (H.pingAt) { const p = H.pingAt; v.set(p.x, p.y, p.z).project(cam); pingEl = pingEl || document.getElementById('h-ping');
+      if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) pingEl.style.display = 'none'; else { pingEl.style.display = ''; pingEl.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * vw - 20).toFixed(1) + 'px,' + ((-v.y * 0.5 + 0.5) * vh - 34).toFixed(1) + 'px)';
+        const d = Math.round(Math.hypot(p.x - P.pos.x, p.z - P.pos.z)) + 'm'; if (pingD !== d) { pingD = d; pingEl.lastChild.textContent = d; } } }
+    if (MO.input.mapP) { mapOn = !mapOn; document.getElementById('h-map').classList.toggle('on', mapOn); document.getElementById('h-mapk').textContent = MO.T('M to close'); MO.audio && MO.audio.play('cloth', { vol: 0.4 }); }
+    if (mapOn) drawMap();
+    const so = MO.input.status; if (last.so !== so) { last.so = so; document.getElementById('h-status').classList.toggle('on', so); }
+    if (so) { const M = MO.mission, acc = P.shots ? Math.round(P.hits / P.shots * 100) + '%' : '-', tm = Math.floor(M.time / 60) + ':' + String(Math.floor(M.time % 60)).padStart(2, '0');
+      const rows = [[MO.T('Time'), tm], [MO.T('Ammunition'), W.ammo + ' / ' + W.reserve], [MO.T('Grenades'), W.nades], [MO.T('Enemies down'), MO.enemies.kills], [MO.T('Accuracy'), acc], [MO.T('Health'), Math.round(P.hp)]];
+      const key = rows.map((r) => r[1]).join('|'); if (last.sk !== key) { last.sk = key; document.getElementById('hs-t').textContent = MO.T(MO.missions.current.title); const dl = document.getElementById('hs-l'); dl.textContent = '';
+        for (const r of rows) { const dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = r[0]; dd.textContent = r[1]; dl.appendChild(dt); dl.appendChild(dd); } } }
     // radio
     if (radioT > 0) { radioT -= dt; if (radioT <= 0) el.radio.classList.remove('on'); }
     else if (radioQ.length) { const r = radioQ.shift(); el['r-who'].textContent = r.who; el['r-txt'].textContent = r.text; el.radio.classList.add('on'); radioT = r.dur; MO.audio && MO.audio.play('radio', { vol: 0.5 }); }
