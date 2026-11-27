@@ -441,6 +441,7 @@ body.touch.mbar #topc{top:calc(58px + env(safe-area-inset-top,0px))}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="drop-zone" defer></script>
 <script src="/e63334287a3deaa3/elo.js" data-game="drop-zone" defer></script>
+<script src="/e63334287a3deaa3/replay.js" data-game="drop-zone" defer></script> <!-- replay clips (../replay.js) -->
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 </head>
 <body>
@@ -7052,7 +7053,7 @@ function updateMap(dt){mapClock-=dt;if(mapClock>0)return;mapClock=.12;if(!mapBg)
 function setBigMap(on){bigMap=on;$('bigmap').hidden=!on;if(on){mapClock=0;updateMap(0)}}
 
 /* ---------- lobby, pause and results ---------- */
-function showHud(){Locker.close();Face.close();state='playing';paused=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=false;lastHud=''}
+function showHud(){if(window.BackRoomReplay)BackRoomReplay.start(renderer.domElement);   /* replay clips: record the match (../replay.js) */Locker.close();Face.close();state='playing';paused=false;$('menu').hidden=true;$('end').hidden=true;$('pause').hidden=true;$('hud').hidden=false;lastHud=''}
 function showLobby(){lobbyShown=true;$('lobby').hidden=false;$('hud').hidden=!inPlay();renderLobby();if(document.pointerLockElement)document.exitPointerLock()}
 function hideLobby(){lobbyShown=false;$('lobby').hidden=true;if(inMatch&&state==='playing'&&!touchUI)requestLock(false)}
 function renderLobby(){
@@ -7098,6 +7099,7 @@ function rankRows(){
 let endRedo=null;
 function showEnd(final){
   if(state==='menu')return;
+  if(window.BackRoomReplay)BackRoomReplay.end();   // offer the last ~15 s as a clip (once: knocked out or the match over)
   const r=myResult||{place:player.place||0,kills:myKills,dmg:Math.round(player.dmg),time:matchT(),win:false};
   const n=SQ?new Set(roster.map(teamOf)).size:roster.length;   // (Duos and Trios: teams)
   endRedo=()=>showEnd(final);   // (drawn again in the other language if it's switched while this is up)
@@ -7119,6 +7121,7 @@ function pauseText(){$('pauseRoom').textContent=(GM!=='br'?T(MODES[GM].name)+' Â
   $('toolsPause').hidden=!(GM==='cr'&&inMatch);$('endMode').hidden=!(online&&Net.amHost&&GM!=='br'&&inPlay())}
 function resumeGame(fromClick){if(!paused)return;$('pause').hidden=true;paused=false;requestLock(fromClick)}
 function toMenu(){
+  if(window.BackRoomReplay)BackRoomReplay.stop();
   Net.leave();practice=false;MS=null;if(curMatch)endMatchView();curMatch=0;clearBots();clearInput();setArena(null);modeHudOff();GM='br';SQ=0;teams=null;
   state='menu';paused=false;lobbyShown=false;setBigMap(false);
   for(const id of ['hud','lobby','pause','end'])$(id).hidden=true;$('menu').hidden=false;

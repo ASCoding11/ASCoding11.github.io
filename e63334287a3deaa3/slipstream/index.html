@@ -265,6 +265,7 @@ body.touch #keysMenu,body.touch #keysPause{display:none}
 </style>
 <script src="/e63334287a3deaa3/stats.js" data-game="slipstream" defer></script>
 <script src="/e63334287a3deaa3/elo.js" data-game="slipstream" defer></script>
+<script src="/e63334287a3deaa3/replay.js" data-game="slipstream" defer></script> <!-- replay clips (../replay.js) -->
 <script src="/e63334287a3deaa3/gamechat.js" defer></script>
 <script src="/adrefresh.js" defer></script>
 <script src="/e63334287a3deaa3/cosmetics.js" defer></script> <!-- switched off (see README): garage.js is only fetched when something needs it -->
@@ -2507,6 +2508,7 @@ function setupAttract(ti){
   setLights(0);ox.clearRect(0,0,W,H);
 }
 function toMenu(){
+  if(window.BackRoomReplay)BackRoomReplay.stop();
   if(mode==='online')Net.leave();
   mode='attract';state='menu';keys.clear();
   try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
@@ -2517,6 +2519,7 @@ function toMenu(){
 function saveName(){myName=cleanName($('name').value);store.set('name',myName)}
 function beginRaceView(){
   hideScreens();state='race';showHud(true);keys.clear();
+  if(window.BackRoomReplay)BackRoomReplay.start(cv);   // replay clips: record the race (../replay.js)
   lastLit=-1;goDone=raceT()>1;towerT=0;cam.watch=-1;cam.ready=false;cam.cut=0;cam.cutT=8;
   $('lights').hidden=true;$('banner').classList.remove('show');
   if(race.me){const p=race.me.gridPos;hint(touchUI?'Slide your thumb on the steering pad · it accelerates for you · BRAKE to slow':T('{u} throttle · {d} brake · {l} {r} steer · {b} boost · {e} DRS · {c} camera',{u:KB.label('up','/'),d:KB.label('down','/'),l:KB.short('left'),r:KB.short('right'),b:T(KB.short('boost')),e:T(KB.short('drs')),c:T(KB.short('cam'))}),6000);toast('Starting P'+p+' for '+TEAMS[race.me.team].n)}
@@ -2706,6 +2709,7 @@ $('mute').onclick=()=>setMuted(!muted);
 // ---------- results ----------
 function showResults(){
   state='results';$('touch').hidden=true;
+  if(window.BackRoomReplay)BackRoomReplay.end();   // offer the last ~15 s as a clip
   const o=order(),me=race.me,win=o[0];
   const myPos=me?o.indexOf(me)+1:0;
   // ranked rating (../elo.js): online races only, by finishing order (bots count for less)
