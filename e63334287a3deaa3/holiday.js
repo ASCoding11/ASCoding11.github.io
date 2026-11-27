@@ -49,7 +49,7 @@
     'html.tv-on h1{font-size:clamp(22px,4.6vw,50px)!important;line-height:1.25!important}'+
     'html.tv-on h2{font-size:clamp(13px,1.9vw,19px)!important;line-height:1.35!important}'+
     'html.tv-on h3{font-size:12px!important;line-height:1.4!important}'+
-    'html.tv-on .br-games .gc.wide h3,html.tv-on .br-games .gc-daily h3{font-size:15px!important}'+
+    'html.tv-on .br-games .gc-grid:not([data-ev]) > .gc.wide h3,html.tv-on .br-games .gc[data-ev-w] h3,html.tv-on .br-games .gc-daily h3{font-size:15px!important}'+
     'html.tv-on .br-games .pz h3{font-family:"Pixelify Sans",monospace!important;font-size:11px!important;text-transform:uppercase}'+
     'html.tv-on .gs-nb b{font-family:"Press Start 2P",monospace;font-size:11px;letter-spacing:0}'+
     '@media (max-width:719px){html.tv-on .gs-nb b{font-family:"Pixelify Sans",sans-serif;font-size:12px}html.tv-on #lists .tile strong{font-size:17px}}'+
