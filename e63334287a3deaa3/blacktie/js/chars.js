@@ -405,7 +405,11 @@
         var key = o.material.name;
         if (!matCache[key]) {
           var m = o.material.clone();
-          if (o.userData.part === 'hair') { m.alphaTest = def.real ? 0.4 : 0.5; m.transparent = false; m.depthWrite = true; m.side = T.DoubleSide; }
+          if (o.userData.part === 'hair') {
+            m.alphaTest = def.real ? 0.4 : 0.5; m.transparent = false; m.depthWrite = true; m.side = T.DoubleSide;
+            // dark hair at roughness 0.5 mirrored the blue sky and came out navy: a soft sheen, not a gloss
+            m.metalness = 0; m.roughness = 0.78; m.envMapIntensity = 0.3;
+          }
           else if (def.real) realMat(m, o);
           else if (o.userData.part === 'body') { m.metalness = 0; recolour(m, cols[0], cols[1]); }
           if (m.map) m.map.anisotropy = 4;
