@@ -901,23 +901,14 @@
   var ADS = [
     {
       on: true,
-      name: 'Gigantic',                                       // the brand, as the company writes it
-      line: 'Dark chocolate caramel candy bars.',             // one short line, in our own words
-      button: 'Find a store',
-      href: 'https://giganticcandy.com/pages/store-locator',  // where the tile goes (https only), in a new tab
-      img: 'gigantic-256.png',    alt: 'A Gigantic Candy Deluxe bar in its wrapper',                                               // what that picture shows
+      name: 'Flux',                                           // the brand as its logo and site say it; the full name, Flux Preformance
+                                                              // ("pre-formance", on purpose), is too long for the tile and is cut off
+      line: 'Flux Preformance protein overnight oats. Not out yet.',   // one short line, in our own words (60 characters at most)
+      button: 'Reserve now',                                  // pre-launch: you reserve with your email, nothing is bought
+      href: 'https://fluxpreformance.com/',                   // where the tile goes (https only), in a new tab; reserving is on the home page
+      img: 'flux-oats.png',       alt: 'Five pouches of Flux Preformance overnight oats, one per flavor',  // what that picture shows
       art: 'candy',                                           // the drawing used if there's no picture
-      bg: '#FFD23F', ink: '#2A1608', btn: '#C2185B', btnInk: '#FFFFFF'   // tile, text, button, button text
-    },
-    {
-      on: true,
-      name: 'Soul\u2019s_Type',                                // the YouTube channel, as its owner writes it
-      line: 'Souleymane\u2019s YouTube channel. Go watch and subscribe.',
-      button: 'Watch',                                        // short, so the channel name fits beside it
-      href: 'https://www.youtube.com/@souls_type',            // his channel page
-      img: '', alt: '',                                       // no picture: YouTube's own icon, drawn in code (art 'youtube')
-      art: 'youtube',
-      bg: '#0F0F0F', ink: '#FFFFFF', btn: '#FF0000', btnInk: '#FFFFFF'   // YouTube's near-black and red
+      bg: '#F7F3E8', ink: '#10233D', btn: '#246B67', btnInk: '#FFFFFF'   // the site's cream, navy and teal
     }
   ];
 
@@ -934,8 +925,8 @@
       'Ad for {n}. {b} (opens in a new tab)': 'Anuncio de {n}. {b} (se abre en una pestaña nueva)',
       // The spotlight and the ads' own words (brand names stay as they are).
       'New battle royale': 'Nuevo battle royale', 'New battle royale: {g}': 'Nuevo battle royale: {g}', 'Up to 30 players': 'Hasta 30 jugadores', 'Drop in · loot · build': 'Cae · saquea · construye',
-      'Last one standing': 'El último en pie', 'Dark chocolate caramel candy bars.': 'Barras de chocolate amargo con caramelo.', 'Find a store': 'Buscar tienda',
-      'Souleymane’s YouTube channel. Go watch and subscribe.': 'El canal de YouTube de Souleymane. Míralo y suscríbete.', 'Watch': 'Ver',
+      'Last one standing': 'El último en pie',
+      'Flux Preformance protein overnight oats. Not out yet.': 'Avena nocturna con proteína de Flux Preformance. Aún no está a la venta.', 'Reserve now': 'Reservar ahora',
       // Entry titles and tags shown on the strip (the entries' bullet points stay in English).
       'Something is coming': 'Algo se viene', 'Top secret': 'Alto secreto', 'Happy holidays: the cabin is open': 'Felices fiestas: la cabaña está abierta',
       'Three new daily puzzles': 'Tres puzles diarios nuevos'
