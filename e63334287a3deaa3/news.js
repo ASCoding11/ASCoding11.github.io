@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.18', title: 'Hot right now', kind: 'feature',
+     tags: ['Back Room'], items: [
+      'A new Hot right now row at the top of the Back Room shows the games the most people are playing this minute.',
+      'Busy games get a flame badge on their card with how many people are in, and a game that\'s filling up fast says it\'s surging.',
+      'Tap one to jump straight in.']},
     {date: '2026-11-27', version: '2.17', title: 'Fastest climbing Aisles today', kind: 'feature',
      tags: ['Aisles', 'Elo'], items: [
       'A new board at the top of the Back Room shows which Aisles are climbing fastest today, with live green arrows.',

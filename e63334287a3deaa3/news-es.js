@@ -7,6 +7,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Hot right now": "Lo más jugado ahora",
+    "Back Room": "Back Room",
+    "A new Hot right now row at the top of the Back Room shows the games the most people are playing this minute.": "Una nueva fila, Lo más jugado ahora, arriba del Back Room muestra los juegos con más gente jugando en este momento.",
+    "Busy games get a flame badge on their card with how many people are in, and a game that's filling up fast says it's surging.": "Los juegos con gente llevan una insignia de fuego en su tarjeta con cuántos están dentro, y un juego que se llena rápido dice que está subiendo.",
+    "Tap one to jump straight in.": "Toca uno para entrar directo.",
     "Fastest climbing Aisles today": "Los Aisles que más suben hoy",
     "Aisles": "Aisles",
     "Elo": "Elo",
