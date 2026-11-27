@@ -47,17 +47,24 @@ struct S { vec3 alb; float tint; float ao; float r; float m; float h; };
       s.alb = mix(vec3(0.045, 0.032, 0.022), vec3(0.12, 0.088, 0.058), n * 0.7 + f * 0.3);
       s.alb = mix(s.alb, vec3(0.17, 0.16, 0.145) * (0.6 + 0.6 * v.z), peb);
       s.r = mix(0.5, 0.92, smoothstep(0.3, 0.6, n)) - rut * 0.25; s.ao = 0.75 + 0.25 * n;` },
-    stone: { tile: 3, bump: 1.5, src: `
-      vec2 w = uv + 0.01 * vec2(fbm(uv, vec2(10.0), 3), fbm(uv + 0.4, vec2(10.0), 3));
-      vec2 p = w * vec2(8.0, 17.0); float row = floor(p.y); p.x += hash(vec2(mod(row, 17.0), 3.0)) * 3.0;
-      float cx = floor(p.x); vec2 f = fract(p); float id = hash(vec2(mod(cx, 8.0), mod(row, 17.0)));
-      float split = step(0.55, id); if (split > 0.5) { float h2 = step(0.5, f.x); id = fract(id * 7.3 + h2 * 0.37); f.x = fract(f.x * 2.0); f.x *= 0.5; }
-      float ex = min(f.x, (split > 0.5 ? 0.5 : 1.0) - f.x) * (17.0 / 8.0) * 0.45, ey = min(f.y, 1.0 - f.y);
-      float n = fbm(uv, vec2(40.0), 4); float e = min(ex, ey) + (n - 0.5) * 0.09, st = smoothstep(0.03, 0.13, e);
-      s.h = st * (0.5 + 0.4 * id) + n * 0.22;
-      vec3 c = mix(vec3(0.21, 0.19, 0.155), vec3(0.12, 0.115, 0.11), id); c = mix(c, vec3(0.30, 0.22, 0.15), step(0.82, id) * 0.6);
-      c *= 0.7 + 0.6 * n; c = mix(c, vec3(0.05, 0.07, 0.035), smoothstep(0.6, 0.85, fbm(uv, vec2(4.0), 4)) * 0.55);
-      s.alb = mix(vec3(0.115, 0.105, 0.09) * (0.6 + 0.6 * n), c, st); s.r = mix(0.95, 0.72 + 0.2 * n, st); s.ao = mix(0.6, 1.0, st);` },
+    stone: { tile: 3, bump: 2.6, src: `
+      vec2 w = uv + 0.018 * vec2(fbm(uv, vec2(9.0), 3) - 0.5, fbm(uv + 0.4, vec2(9.0), 3) - 0.5);
+      vec2 q = vec2(w.x, w.y);
+      // rubble: irregular stones, wider than tall, in loose courses
+      vec2 per = vec2(9.0, 14.0); vec2 p = q * per, i = floor(p), f = fract(p); float d1 = 9.0, d2 = 9.0, id = 0.0; vec2 cc = vec2(0.0);
+      for (int y = -1; y <= 1; y++) for (int x = -2; x <= 2; x++) { vec2 g = vec2(x, y), c = mod(i + g, per);
+        vec2 o = hash2(c) * vec2(0.7, 0.35) + vec2(0.15, 0.32); vec2 r = (g + o - f) * vec2(0.62, 1.0); float d = length(r);
+        if (d < d1) { d2 = d1; d1 = d; id = hash(c + 3.7); cc = r; } else if (d < d2) d2 = d; }
+      float n = fbm(uv, vec2(40.0), 4), nf = fbm(uv, vec2(110.0), 3);
+      float e = (d2 - d1) + (n - 0.5) * 0.16, st = smoothstep(0.05, 0.2, e);
+      float dome = smoothstep(0.0, 0.7, e);
+      s.h = st * (0.45 + 0.3 * dome + 0.18 * id) + nf * 0.2 + (1.0 - st) * n * 0.1;
+      vec3 c = mix(vec3(0.24, 0.215, 0.17), vec3(0.15, 0.145, 0.135), id);
+      c = mix(c, vec3(0.27, 0.2, 0.13), step(0.8, id) * 0.6); c = mix(c, vec3(0.1, 0.1, 0.105), step(id, 0.12) * 0.6);
+      c *= 0.72 + 0.5 * n + 0.18 * (nf - 0.5);
+      c = mix(c, vec3(0.05, 0.07, 0.035), smoothstep(0.62, 0.86, fbm(uv, vec2(4.0), 4)) * 0.6);     // lichen and damp
+      vec3 mortar = vec3(0.19, 0.175, 0.15) * (0.6 + 0.6 * nf);
+      s.alb = mix(mortar, c, st); s.r = mix(0.97, 0.7 + 0.22 * n, st); s.ao = mix(0.45, 1.0, st) * (0.85 + 0.15 * dome);` },
     plaster: { tile: 3, bump: 1.4, src: `
       float n = fbm(uv, vec2(5.0), 5), f = fbm(uv, vec2(40.0), 4), streak = fbm(uv, vec2(18.0, 2.0), 4);
       float gone = smoothstep(0.6, 0.66, fbm(uv + 0.21, vec2(4.0), 5) + 0.05 * f);
@@ -82,8 +89,8 @@ struct S { vec3 alb; float tint; float ao; float r; float m; float h; };
       c = mix(c, vec3(0.05, 0.075, 0.03), smoothstep(0.62, 0.8, fbm(uv, vec2(5.0), 4)) * 0.6);
       s.alb = c * (0.45 + 0.55 * gx * lip); s.r = 0.5 + 0.25 * n; s.ao = 0.55 + 0.45 * gx * lip;` },
     paint: { tile: 2, bump: 1.0, src: `
-      float n = fbm(uv, vec2(10.0), 5), f = fbm(uv + 0.3, vec2(64.0), 3);
-      float chip = smoothstep(0.6, 0.66, n + 0.12 * f), halo = smoothstep(0.5, 0.62, n + 0.12 * f) - chip;
+      float n = fbm(uv, vec2(26.0), 5) * 0.75 + fbm(uv, vec2(4.0), 3) * 0.25, f = fbm(uv + 0.3, vec2(90.0), 3);
+      float chip = smoothstep(0.62, 0.66, n + 0.1 * f), halo = (smoothstep(0.56, 0.62, n + 0.1 * f) - chip) * 0.4;
       float run = smoothstep(0.55, 0.9, fbm(uv, vec2(30.0, 3.0), 4)) * 0.5;
       s.tint = 1.0 - chip; s.alb = mix(vec3(0.62) * (0.82 + 0.3 * f) * (1.0 - 0.3 * halo - 0.35 * run), mix(vec3(0.16, 0.07, 0.03), vec3(0.07, 0.065, 0.06), f) , chip);
       s.m = chip * 0.55; s.r = mix(0.52 + 0.2 * f, 0.85, chip); s.h = 0.5 - chip * 0.25 + f * 0.04; s.ao = 1.0 - 0.2 * chip;` },

@@ -39,7 +39,7 @@
     // health: only while hurt
     const hp = Math.round(P.hp); if (last.hp !== hp) { last.hp = hp; el['h-hp'].classList.toggle('on', hp < 100); el['h-hp'].classList.toggle('low', hp < 40); el['h-hpb'].style.width = hp + '%'; set('hl', el['h-hpl'], MO.T('Health')); }
     // crosshair opens with spread, hides when aiming
-    const g = 5 + (W.spread || 0.03) * 520; el.cross.style.opacity = P.aimK > 0.5 || P.sprintK > 0.6 || !P.alive ? 0 : 0.85;
+    const g = 5 + (W.spread || 0.03) * 520; el.cross.style.opacity = P.aimK > 0.5 || P.sprintK > 0.6 || W.reloading || !P.alive ? 0 : 0.85;
     const gk = g | 0; if (last.g !== gk) { last.g = gk; el.ct[0].style.top = (-g - 9) + 'px'; el.ct[1].style.top = g + 'px'; el.ct[2].style.left = (-g - 9) + 'px'; el.ct[3].style.left = g + 'px'; }
     // being seen: a meter that fills while a soldier is working out what you are, red once the fight is on
     let aw = 0; for (const s of MO.enemies.list) if (s.alive && s.state !== 'combat' && s.aware > aw) aw = s.aware;

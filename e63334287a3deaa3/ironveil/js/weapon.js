@@ -87,13 +87,13 @@
       trig = MO.damp(trig, I.fire && can ? 1 : 0, 30, dt);
     }
     // reload timeline
-    let lx = 0, ly = 0, lz = 0, my = 0, mrx = 0, tiltR = 0, tiltP = 0, drop = 0;
+    let lx = 0, ly = 0, lz = 0, my = 0, mrx = 0, tiltR = 0, tiltP = 0, drop = 0, tiltY = 0, rx = 0;
     if (W.reloading) {
       rT += dt; const t = rT, S = MO.smoother;
       const down = S((t - 0.05) / 0.3) * (1 - S((t - (rDur - 0.45)) / 0.4));
-      tiltR = 0.42 * down; tiltP = 0.2 * down; drop = 0.035 * down;
+      tiltR = -0.55 * down; tiltP = 0.42 * down; tiltY = 0.22 * down; drop = -0.045 * down; rx = -0.07 * down;   // gun tips up and in, underside toward you
       const out = S((t - 0.45) / 0.22), back = S((t - 1.05) / 0.38);       // magazine leaves with the hand, comes back with a fresh one
-      my = -0.34 * out * (1 - back); mrx = 0.3 * out * (1 - back); ly = my * 0.95; lz = 0.05 * out * (1 - back);
+      my = -0.2 * out * (1 - back); mrx = 0.35 * out * (1 - back); ly = my * 0.9; lz = 0.04 * out * (1 - back);
       const reach = S((t - 0.12) / 0.3) * (1 - S((t - 1.6) / 0.3)); v1.copy(M.magWell).sub(lBase); lx = v1.x * reach; ly += (v1.y - 0.07) * reach; lz += v1.z * reach;
       if (rStage === 0 && t > 0.5) { rStage = 1; A && A.play('mag_out', { vol: 0.8 }); }
       if (rStage === 1 && t > 1.42) { rStage = 2; A && A.play('mag_in', { vol: 0.9 }); sp.kp.v -= 0.5; sp.dy.v += 0.4; }
@@ -111,11 +111,11 @@
     const br = Math.sin(t * 1.3) * 0.0016 * (1 - 0.6 * aim), br2 = Math.sin(t * 0.9 + 1) * 0.0012;
     // aim: bring the rear sight onto the eye line
     const ax = -M.sight.x, ay = -M.sight.y, az = -0.09 - M.sight.z;
-    root.position.set(MO.lerp(HIP.p[0], ax, aim) + bx + sx * 0.0035 - run * 0.05 + tiltR * 0.03,
+    root.position.set(MO.lerp(HIP.p[0], ax, aim) + bx + sx * 0.0035 - run * 0.05 + rx,
       MO.lerp(HIP.p[1], ay, aim) + by + br + dy * 0.02 - drop - run * 0.035 - P.crouchK * 0.008 * (1 - aim) + sy * -0.003,
       MO.lerp(HIP.p[2], az, aim) + kz * 0.016 * (1 - 0.45 * aim) + run * 0.06);
     root.rotation.set(MO.lerp(HIP.r[0], 0, aim) + kp * 0.022 * (1 - 0.5 * aim) + sy * -0.004 - run * 0.38 + tiltP + br2,
-      MO.lerp(HIP.r[1], 0, aim) + ky * 0.012 + sx * 0.006 + run * 0.62,
+      MO.lerp(HIP.r[1], 0, aim) + tiltY + ky * 0.012 + sx * 0.006 + run * 0.62,
       MO.lerp(HIP.r[2], 0, aim) + kr * 0.012 + sx * 0.01 * (1 - aim) + tiltR + run * 0.12 - I.mx * 0.02 * (1 - aim), 'YXZ');
     root.visible = !MO.R.hideWeapon;
     flashT -= dt; flash.visible = flashT > 0; flashMat.uniforms.uA.value = MO.sat(flashT / 0.05);
