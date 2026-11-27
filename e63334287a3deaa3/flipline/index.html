@@ -1389,15 +1389,20 @@ const AU=(()=>{
 
 // ======================= CANVAS =======================
 const cv=$('view');let cx=cv.getContext('2d',{alpha:false});
-let W=0,H=0,DPR=1,PPM=40;
+let W=0,H=0,DPR=1,PPM=40,PZ=1; // PZ: how much closer the portrait camera is than the old 15 m view (1 in landscape)
 const touchUI=matchMedia('(pointer: coarse)').matches&&!matchMedia('(any-pointer: fine)').matches;
 if(touchUI)document.body.classList.add('touch');
+const PORTRAIT_PPM=54; // pixels per metre on a portrait screen (the bike is 1.85 m long); lower it to see further ahead, raise it for a bigger bike
 function resize(){
   DPR=Math.min(window.devicePixelRatio||1,1.5);
   W=Math.max(1,window.innerWidth);H=Math.max(1,window.innerHeight);
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
   // pixels per metre: about 30 m across in landscape, 15 m in portrait, at least 14 m tall (hard update: zoomed out from 22, 11 and 11)
   const across=W>H?30:15;PPM=Math.min(W/across,H/14);
+  // portrait (phone fix): 15 m across left the bike ~40 px long on a phone held upright, so tall screens zoom in
+  // to PORTRAIT_PPM (the bike ~100 px long at rest, ~80 px at speed), never further out than before and still 14 m tall;
+  // the camera then keeps the bike near the left edge (PZ > 1 in render), so the track ahead loses as little as it can
+  const old=PPM;if(W<=H)PPM=Math.max(PPM,Math.min(PORTRAIT_PPM,H/14));PZ=PPM/old;
   bgCache=null;layerCache=null;overCache=null;
 }
 window.addEventListener('resize',resize);
@@ -1987,16 +1992,18 @@ function render(now,dtReal){
   // camera: look ahead with speed, pull out on big air, keep the landing spot in view
   const cam=G.cam,vx=s?s.vx:0,vy=s?s.vy:0;
   const lift=H/PPM*0.16,wk=Math.min(1,W/PPM/22);let tx=pose.x+camLead()+clamp(vx,0,20)*0.22*wk,ty=pose.y+lift,tz=1;
-  if(s&&!s.crash&&!(s.cR||s.cF)&&!G.replay){const land=predictLanding(G.tr,s);if(land){const dy=pose.y-land.y;ty=(pose.y+land.y)/2+lift*0.6;const need=(Math.abs(dy)+5)/(H/PPM*0.9);tz=clamp(1/need,H<500?0.5:0.62,1);tx=lerp(tx,(pose.x+land.x)/2+2*wk,0.5)}}
+  if(s&&!s.crash&&!(s.cR||s.cF)&&!G.replay){const land=predictLanding(G.tr,s);if(land){const dy=pose.y-land.y;ty=(pose.y+land.y)/2+lift*0.6;const need=(Math.abs(dy)+5)/(H/PPM*0.9);tz=clamp(1/need,H<500?0.5:0.62,1);if(PZ>1)tz=Math.min(tz,clamp(W/PPM*0.8/(Math.abs(land.x-pose.x)+2),0.5,1));tx=lerp(tx,(pose.x+land.x)/2+2*wk,0.5)}}
   // loops: pull back and centre on the loop so the whole circle is in view while you're on it
-  if(s&&!G.replay)for(const L of G.tr.loops){if(pose.x>L.x-7&&pose.x<L.x1+2&&pose.y<L.cy+L.R+2){const kk=clamp(1-Math.abs(pose.x-L.cx)/(L.R+9),0,1);
-    ty=lerp(ty,L.cy+0.6,kk);tx=lerp(tx,L.cx+1.5*wk,kk*0.7);tz=Math.min(tz,lerp(1,clamp((H/PPM*0.86)/(2*L.R+4.5),0.45,1),kk));break}}
+  let kL=0;if(s&&!G.replay)for(const L of G.tr.loops){if(pose.x>L.x-7&&pose.x<L.x1+2&&pose.y<L.cy+L.R+2){const kk=clamp(1-Math.abs(pose.x-L.cx)/(L.R+9),0,1);kL=kk;
+    ty=lerp(ty,L.cy+0.6,kk);tx=lerp(tx,L.cx+1.5*wk,kk*0.7);tz=Math.min(tz,lerp(1,clamp(Math.min((H/PPM*0.86)/(2*L.R+4.5),PZ>1?(W/PPM*0.9)/(2*L.R+3):1),0.45,1),kk));break}}
   // speed: the camera pulls back as you go faster (up to 18%), so speed reads as space opening up ahead
   const spd=Math.hypot(vx,vy);tz=Math.min(tz,1-clamp((spd-11)/14,0,0.18));
+  // portrait zoomed in: keep the bike near the left edge (15% in) so as much track ahead as possible stays in view
+  if(PZ>1)tx=Math.max(tx,lerp(pose.x+W/PPM/tz/2*0.7,tx,kL));
   if(G.forceZ){tz=G.forceZ;cam.z=tz;tx=pose.x+(G.forceDX||0);ty=pose.y+(G.forceDY||0);cam.x=tx;cam.y=ty}
   const k=1-Math.exp(-dtReal*(G.replay?6:4.5));cam.x+=(tx-cam.x)*Math.min(1,k*1.6);cam.y+=(ty-cam.y)*k;cam.z+=(tz-cam.z)*(1-Math.exp(-dtReal*2.2));
   // never let the bike leave the frame
-  const vwH=W/PPM/cam.z/2,vhH=H/PPM/cam.z/2;cam.x=clamp(cam.x,pose.x-vwH*0.2,pose.x+vwH*0.56);cam.y=clamp(cam.y,pose.y-vhH*0.42,pose.y+vhH*0.6);
+  const vwH=W/PPM/cam.z/2,vhH=H/PPM/cam.z/2;cam.x=clamp(cam.x,pose.x-vwH*0.2,pose.x+vwH*(PZ>1?0.7:0.56));cam.y=clamp(cam.y,pose.y-vhH*0.42,pose.y+vhH*0.6);
   let shx=0,shy=0;if(G.shake>0&&fx()){const q=G.shake*G.shake*0.25;shx=(Math.random()-0.5)*q;shy=(Math.random()-0.5)*q;G.shake=Math.max(0,G.shake-dtReal*2.2)}else G.shake=0;
   setCam(cam.x+shx,cam.y+shy,cam.z);
   const x0=cam.x-vwH-2,x1=cam.x+vwH+2;
@@ -2039,24 +2046,39 @@ function render(now,dtReal){
     else{cx.fillRect(px[i]-ps[i],py[i]-ps[i],ps[i]*2,ps[i]*2)}}
   cx.globalAlpha=1;cx.globalCompositeOperation='source-over';
   if(fx())drawOverlay();
+  if(PZ>1&&s&&!s.crash&&!G.replay&&G.mode!=='demo')edgeMarks(G.tr,s,pose,th,cam.x+vwH,vwH);
   // reward pulse: a soft glow in from the screen edges (never a full-screen flash)
   if(G.flash>0){screen();const fc=G.flashC||th.acc;const g=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.3,W/2,H/2,Math.max(W,H)*0.7);g.addColorStop(0,hexA(fc,0));g.addColorStop(1,hexA(fc,0.32*G.flash));
     cx.fillStyle=g;cx.fillRect(0,0,W,H);G.flash=Math.max(0,G.flash-dtReal*2.2)}
   // trick words: small and short-lived, just above and behind the bike so they never cover the track ahead
   // (subtle since the owner's feedback: they were 20-34 px with a scale pop and lasted 1.5 s)
-  screen();const fs=Math.round(clamp(PPM*0.3,11,14));
+  // phones (phone fix): at least 16 px, from the screen's short side (they were 11-13 px there); computers keep 11-14 px
+  screen();const fs=touchUI?Math.round(clamp(Math.min(W,H)*0.042,16,19)):Math.round(clamp(PPM*0.3,11,14));
   for(let i=G.pops.length-1;i>=0;i--){const p=G.pops[i];p.t+=dtReal;if(p.t>0.95){G.pops.splice(i,1);continue}
     const f=p.big?fs+2:fs,bx=(OX+pose.x*K)/DPR,top=(touchUI?96:76)+f;
     cx.font=f+'px "Lilita One","Arial Black",Impact,sans-serif';const tw=cx.measureText(p.text).width;
     // right edge at the bike's nose, then kept inside the screen
     const right=clamp(bx+0.5*K/DPR,Math.min(W-8,tw+8),W-8);
     let sy=(OY-(pose.y+1.25+p.t*0.35)*K)/DPR;if(sy<top)sy=(OY-(pose.y-1.1)*K)/DPR+f; // no room above the bike: show it below
+    if(touchUI){const by=(OY-pose.y*K)/DPR,cl=1.05*K/DPR+4;if(sy<by)sy=Math.min(sy,by-cl);sy=sy<top?by+cl+f:sy<by?sy:Math.max(sy,by+cl+f)} // the bigger text stays clear of the bike, even mid-flip
     sy=clamp(sy,top,H-f*1.5);
     cx.globalAlpha=0.92*(p.t<0.1?p.t/0.1:p.t>0.65?Math.max(0,1-(p.t-0.65)/0.3):1);cx.textAlign='right';cx.lineJoin='round';
     cx.lineWidth=3;cx.strokeStyle=INK;cx.strokeText(p.text,right,sy);cx.fillStyle=p.col;cx.fillText(p.text,right,sy)}
   cx.globalAlpha=1;
   if(G.dbg){screen();cx.font='12px monospace';cx.fillStyle='#fff';cx.fillText('fps '+fps+' x '+(s?s.x.toFixed(1):'')+' v '+spd.toFixed(1)+' w '+(s?s.w.toFixed(2):'')+' hold '+(s&&s.hold),10,H-10)}
 }
+// portrait zoom: the closer camera sees less track ahead, so what the old 15 m view would already have shown past the
+// right edge gets a small mark on that edge at its height (red: a hazard; the place's colour: a take-off), so it is
+// signalled at least as early in seconds as before; the mark brightens as it nears and is gone once the thing is in view
+function edgeMarks(tr,s,pose,th,edge,vwH){
+  const far=pose.x+vwH*PZ*1.62;if(far<=edge)return;screen();const ex=W-5,y0=touchUI?118:84,y1=H-30;cx.lineJoin='round';cx.lineWidth=2;cx.strokeStyle=INK;
+  const mark=(x,y,c)=>{const f=1-(x-edge)/(far-edge),sy=clamp((OY-y*K)/DPR,y0,y1),r=5+2*f;cx.globalAlpha=0.4+0.5*f;cx.fillStyle=c;
+    cx.beginPath();cx.moveTo(ex-r*1.6,sy);cx.lineTo(ex,sy-r);cx.lineTo(ex,sy+r);cx.closePath();cx.stroke();cx.fill()};
+  for(let i=s.hzI;i<tr.hz.length;i++){const h=tr.hz[i];if(h.x0>far+12)break;const x=h.x0;if(x<=edge||x>far)continue;
+    mark(x,h.y!=null?h.y+0.3:h.y0!=null?(h.y0+h.y1)/2:h.py!=null?h.py-(h.L||0)*0.7:h.ylo!=null?h.ylo:pose.y,HZ_R)}
+  let j=tr._mi||0;if(j>=tr.lips.length||(j>0&&tr.lips[j-1].x>edge))j=0;while(j<tr.lips.length&&tr.lips[j].x<=edge)j++;tr._mi=j;
+  for(;j<tr.lips.length;j++){const L=tr.lips[j];if(L.x>far)break;mark(L.x,L.y+0.4,th.acc)}
+  cx.globalAlpha=1}
 function predictLanding(tr,s){let x=s.x,y=s.y,vx=s.vx,vy=s.vy;for(let i=0;i<60;i++){vy-=P.G*0.05;x+=vx*0.05;y+=vy*0.05;const g=FL.groundTop(tr,x);if(g!=null&&y-0.6<=g)return{x,y:g};if(y<FL.floorAt(tr,x)-6)return{x,y}}return null}
 
 // ======================= HUD =======================
