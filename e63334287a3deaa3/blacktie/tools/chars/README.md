@@ -19,6 +19,7 @@ KIND=agent bvenv/bin/python build_people.py          # -> $CHARS_WORK/agent.blen
 bvenv/bin/python preview.py $CHARS_WORK/agent.blend out.png torso   # Cycles still: full, back, torso, face
 KIND=agent bvenv/bin/python export_people.py $CHARS_WORK/out_agent.glb
 npx gltf-transform meshopt $CHARS_WORK/out_agent.glb ../../assets/agent.glb --level high
+python3 -I webp_glb.py ../../assets/agent.glb                      # textures to WebP (EXT_texture_webp): about half the file
 ```
 
 - `outfits_people.py`: `SPECS` (body, face targets, skin, hair, clothes, texture size, atlas layout) and one
@@ -26,5 +27,7 @@ npx gltf-transform meshopt $CHARS_WORK/out_agent.glb ../../assets/agent.glb --le
   tuxedo turns MakeHuman's `male_elegantsuit01` black with satin-faced lapels (texture-space polygons), pleated
   shirt front with studs where the long tie was (the tie's vertices are pressed back onto the chest), patent
   `shoes04`, and a modelled bow tie.
+- `webp_glb.py`: re-encodes a .glb's images as WebP in place (quality 88, alpha kept) and repacks the binary chunk,
+  including the regions EXT_meshopt_compression points at. The seven character files went from 11.8 MB to 5.4 MB.
 - `export_people.py`: one cloth atlas per character, skin, a hair/brow/lash/eye atlas, LOD1 (6k tris) and LOD2
   (1.6k tris), meshes named `<Name>`, `<Name>Hair`, `<Name>Eyes`, `<Name>LOD1`, `<Name>LOD2`.
