@@ -212,17 +212,19 @@ function bake(group,side){group.updateMatrixWorld(true);var inv=new THREE.Matrix
 // Each tool is held the way you would hold it: long tools in two gloved hands, the rest carried in one.
 function hands(camera){
   var root=new THREE.Group();camera.add(root);var mods={};
-  var L=function(c){return new THREE.MeshLambertMaterial({color:c})},wood=L(0xa8804e),steel=L(0x9aa3a8),dark=L(0x2f3639),glove=L(0x565c62),palm=L(0x3c4146),sleeve=L(0x2c4558),band=L(0xe58a22),knuck=L(0xe58a22),or=L(0xe0701c),hess=L(0xb9a274);
+  var L=function(c){return new THREE.MeshLambertMaterial({color:c})},wood=L(0xa8804e),steel=L(0x9aa3a8),dark=L(0x2f3639),glove=L(0x5d6e7c),palm=L(0x3f4b57),sleeve=L(0x2c4558),band=L(0xe58a22),knuck=L(0xe58a22),or=L(0xe0701c),hess=L(0xb9a274);
   function box(w,h,d,m,x,y,z){var b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);b.position.set(x||0,y||0,z||0);return b}
   function rod(a,b,r0,r1,m){var d=new THREE.Vector3().subVectors(b,a),l=d.length(),c=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,l,10),m);c.position.copy(a).addScaledVector(d,0.5);c.quaternion.setFromUnitVectors(UP,d.normalize());return c}
   // a gloved fist round a handle whose direction is `dir`, with a forearm running back to `elbow`
   function ball(rx,ry,rz,mat,x,y,z){var b=new THREE.Mesh(new THREE.IcosahedronGeometry(1,2),mat);b.scale.set(rx,ry,rz);b.position.set(x||0,y||0,z||0);return b}
   function grip(at,dir,elbow,left){var g=new THREE.Group(),h=new THREE.Group(),k;g.add(h);
-    // a closed fist: a rounded back of the hand, four curled fingers, a thumb across them, and a cuff
-    h.add(ball(0.056,0.04,0.06,glove,0,0.022,0.012));h.add(ball(0.05,0.03,0.05,palm,0,-0.03,0.012));
-    for(k=0;k<4;k++){var fx=-0.036+k*0.024;h.add(ball(0.0135,0.026,0.02,glove,fx,0.012,-0.05));h.add(ball(0.013,0.022,0.018,glove,fx,-0.028,-0.045));h.add(ball(0.0125,0.012,0.014,knuck,fx,0.05,-0.028))}
-    var th=ball(0.016,0.016,0.04,glove,left?0.05:-0.05,0.0,-0.02);th.rotation.y=left?-0.5:0.5;h.add(th);
-    var cuff=new THREE.Mesh(new THREE.CylinderGeometry(0.047,0.05,0.05,12),palm);cuff.rotation.x=Math.PI/2;cuff.position.set(0,0.002,0.075);h.add(cuff);
+    // a work glove closed round the handle (the handle runs along x): a flat back of the hand, four fingers curling
+    // round the front of the handle in two joints each, a thumb across them, and a cuff
+    h.add(ball(0.054,0.034,0.056,glove,0,0.02,0.03));h.add(ball(0.048,0.026,0.045,palm,0,-0.022,0.036));
+    for(k=0;k<4;k++){var fx=-0.034+k*0.0225,fl=k===0||k===3?0.85:1;
+      for(var j=0;j<2;j++){var an=1.0+j*1.15,r=0.027,f=ball(0.0128*fl,0.017,0.022*fl,j?palm:glove,fx,r*Math.cos(an),-r*Math.sin(an)+0.006);f.rotation.x=an-1.57;h.add(f)}}
+    var th=ball(0.014,0.013,0.034,glove,left?0.046:-0.046,0.02,-0.012);th.rotation.y=left?-0.7:0.7;th.rotation.x=0.4;h.add(th);
+    var cuff=new THREE.Mesh(new THREE.CylinderGeometry(0.044,0.048,0.05,12),palm);cuff.rotation.x=Math.PI/2;cuff.position.set(0,0.004,0.085);h.add(cuff);
     h.position.copy(at);var zAxis=new THREE.Vector3().subVectors(elbow,at).normalize(),xAxis=dir.clone().normalize(),yAxis=new THREE.Vector3().crossVectors(zAxis,xAxis).normalize();zAxis.crossVectors(xAxis,yAxis).normalize();h.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis,yAxis,zAxis));
     var wrist=at.clone().addScaledVector(zAxis,0.09);g.add(rod(wrist,elbow,0.052,0.04,sleeve));g.add(rod(wrist,wrist.clone().lerp(elbow,0.12),0.044,0.042,band));return g}
   function pole(head,len,headZ){var g=new THREE.Group(),a=new THREE.Vector3(0.36,-0.36,-0.3),b=new THREE.Vector3(0.0,-0.6,-0.3-len),d=new THREE.Vector3().subVectors(b,a).normalize();
