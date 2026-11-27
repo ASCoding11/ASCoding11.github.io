@@ -7,6 +7,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "The site is called ASCoding everywhere": "El sitio se llama ASCoding en todas partes",
+    "The name at the top and bottom of every page now reads ASCoding, on the main site, the Back Room and the phone page.": "El nombre arriba y abajo de cada página ahora dice ASCoding, en el sitio principal, el Back Room y la página para celular.",
+    "The phone page keeps the name ASCoding games when you add it to your home screen.": "La página para celular conserva el nombre ASCoding games cuando la agregas a tu pantalla de inicio.",
+    "The About page now says who makes the site: two students, working together as ASCoding.": "La página Acerca de ahora dice quién hace el sitio: dos estudiantes que trabajan juntos como ASCoding.",
     "Flood Crew: better gloves": "Flood Crew: mejores guantes",
     "Flood Crew": "Flood Crew",
     "Your gloved hands look like hands now, with fingers wrapped round the handle.": "Tus manos con guantes ahora parecen manos, con los dedos rodeando el mango.",

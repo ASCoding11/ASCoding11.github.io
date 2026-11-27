@@ -90,6 +90,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.13.5', title: 'The site is called ASCoding everywhere', kind: 'fix',
+     items: [
+      'The name at the top and bottom of every page now reads ASCoding, on the main site, the Back Room and the phone page.',
+      'The phone page keeps the name ASCoding games when you add it to your home screen.',
+      'The About page now says who makes the site: two students, working together as ASCoding.']},
     {date: '2026-11-27', version: '2.13.4', title: 'Flood Crew: better gloves', kind: 'fix',
      tags: ['Flood Crew'], items: [
       'Your gloved hands look like hands now, with fingers wrapped round the handle.']},
