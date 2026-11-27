@@ -11,6 +11,7 @@
   PR.fires = [];       // {x, y, z, s}: places that burn
   const xf = MO.xf, PI = Math.PI, hyp = Math.hypot;
   const jit = (a) => (rnd() - 0.5) * a;
+  let LOW = false; MO.on('boot', () => { LOW = MO.R.Q.name === 'low'; });
 
   MO.on('boot', () => {
     MO.addMat('window_lit', new THREE.MeshBasicMaterial({ color: new THREE.Color(3.4, 1.75, 0.55) }), { noCast: true });
@@ -29,7 +30,7 @@
     b.add(MO.chamferBox(t, h, len, 0.05), mat, xf(mx, h / 2, mz, 0, a, 0));
     const n = Math.max(1, Math.round(len / 0.6));
     for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, gone = rnd() < 0.06;
-      if (!gone) b.add(MO.chamferBox(t + 0.08 + jit(0.06), 0.13 + rnd() * 0.07, len / n * 0.93, 0.04), mat, xf(x1 + (x2 - x1) * u, h + 0.06, z1 + (z2 - z1) * u, jit(0.06), a + jit(0.05), jit(0.09)), 0.8 + rnd() * 0.4); }
+      if (!gone) b.add(LOW ? new THREE.BoxGeometry(t + 0.08 + jit(0.06), 0.13 + rnd() * 0.07, len / n * 0.93) : MO.chamferBox(t + 0.08 + jit(0.06), 0.13 + rnd() * 0.07, len / n * 0.93, 0.04), mat, xf(x1 + (x2 - x1) * u, h + 0.06, z1 + (z2 - z1) * u, jit(0.06), a + jit(0.05), jit(0.09)), 0.8 + rnd() * 0.4); }
     b.colSeg(x1, z1, x2, z2, t, 0, h + 0.13, 'stone');
   };
   PR.hedge = (b, x1, z1, x2, z2, h, t) => {
@@ -38,9 +39,9 @@
     b.add(MO.chamferBox(t * 1.05, 1.2, len + 0.6, 0.5), 'grass', xf(mx, 0.45, mz, 0, a, 0), 0.55);
     const dxn = Math.cos(a), dzn = -Math.sin(a);       // across the hedge
     b.add(MO.chamferBox(t * 0.5, h - 1.35, len + 0.3, 0.25), 'hedge', xf(mx, 0.95 + (h - 1.35) / 2, mz, 0, a, 0), 0.1);
-    const n = Math.ceil(len * 26);
+    const n = Math.ceil(len * (LOW ? 13 : 26));
     for (let i = 0; i < n; i++) { const u = rnd(), th = -0.5 + rnd() * 4.14, lat = Math.cos(th) * t * 0.42, up = Math.max(-0.2, Math.sin(th)), y = 1.05 + up * (h - 1.5) + (h - 1.5) * 0.25 * (1 - Math.abs(Math.cos(th))) + jit(0.4) + (rnd() < 0.06 ? 0.7 : 0);
-      b.card('leafcard', 0.8 + rnd() * 0.6, x1 + (x2 - x1) * u + dxn * lat + jit(0.3), Math.max(0.7, y), z1 + (z2 - z1) * u + dzn * lat + jit(0.3), dxn * Math.cos(th), 0.3 + up, dzn * Math.cos(th), 0.45 + rnd() * 0.9); }
+      b.card('leafcard', (0.8 + rnd() * 0.6) * (LOW ? 1.3 : 1), x1 + (x2 - x1) * u + dxn * lat + jit(0.3), Math.max(0.7, y), z1 + (z2 - z1) * u + dzn * lat + jit(0.3), dxn * Math.cos(th), 0.3 + up, dzn * Math.cos(th), 0.45 + rnd() * 0.9); }
     b.colSeg(x1, z1, x2, z2, t * 0.75, 0, 1.15, 'dirt');
     b.colSeg(x1, z1, x2, z2, t * 0.7, 1.15, h - 0.2, 'leaf', true);
   };
@@ -61,7 +62,7 @@
     if (!bare) { const n = 7 + Math.floor(rnd() * 4);
       for (let i = 0; i < n; i++) { const a = rnd() * PI * 2, d = rnd() * 1.9 * s, r = (1.1 + rnd() * 0.9) * s;
         const cx = tx + Math.cos(a) * d, cy = th + 0.5 * s + rnd() * 2.2 * s, cz = tz + Math.sin(a) * d; b.blob('leaves', r * 0.85, cx, cy, cz, { i: i, sy: 0.7 + rnd() * 0.3, ry: rnd() * 6, rx: jit(0.6), col: 0.35 });
-        for (let k = 0; k < 16; k++) { const u1 = rnd() * 2 - 1, ph = rnd() * 6.283, q = Math.sqrt(1 - u1 * u1), nx = q * Math.cos(ph), ny = u1 * 0.8, nz = q * Math.sin(ph); b.card('leafcard', (0.8 + rnd() * 0.7) * s, cx + nx * r * 0.95, cy + ny * r * 0.8, cz + nz * r * 0.95, nx, ny + 0.2, nz, 0.45 + rnd() * 0.9); } } }
+        for (let k = 0; k < (LOW ? 9 : 16); k++) { const u1 = rnd() * 2 - 1, ph = rnd() * 6.283, q = Math.sqrt(1 - u1 * u1), nx = q * Math.cos(ph), ny = u1 * 0.8, nz = q * Math.sin(ph); b.card('leafcard', (0.8 + rnd() * 0.7) * s, cx + nx * r * 0.95, cy + ny * r * 0.8, cz + nz * r * 0.95, nx, ny + 0.2, nz, 0.45 + rnd() * 0.9); } } }
     b.col(x, th / 2, z, 0.5 * s, th, 0.5 * s, 'wood');
   };
 

@@ -89,7 +89,7 @@
       if (prev) for (const s of [-0.75, 0.75]) PR.wire(b, prev[0] + s, 7.66, prev[1], px + s, 7.66, z, 0.9); prev = [px, z]; }
     PR.backdrop(b, 118);
 
-    L.meshes = b.build(S);
+    L.meshes = b.build(S, { chunk: 40 });
     P.add(b.colliders);
     // the world's edge: you cannot leave the hamlet
     P.add([{ minX: -70, maxX: -61, minY: 0, maxY: 6, minZ: -90, maxZ: 90, tag: 'leaf' }, { minX: 61, maxX: 70, minY: 0, maxY: 6, minZ: -90, maxZ: 90, tag: 'leaf' }, { minX: -70, maxX: 70, minY: 0, maxY: 6, minZ: 77, maxZ: 86, tag: 'leaf' }, { minX: -70, maxX: 70, minY: 0, maxY: 6, minZ: -86, maxZ: -77, tag: 'leaf' }]);
@@ -100,10 +100,10 @@
       g.box = { minX: g.x - 0.75, maxX: g.x + 0.75, minY: 0, maxY: 1.7, minZ: g.z - 0.75, maxZ: g.z + 0.75, tag: 'metal' }; P.add([g.box]); g.upper.rotation.set(0, 0, 0); }
     P.buildNav();
 
-    // --- practical lights: the strongest few become real point lights
-    L.lights = [];
-    PR.lights.sort((a, c) => c.i * c.d - a.i * a.d).slice(0, R.Q.name === 'low' ? 7 : 10).forEach((q) => {
-      const l = new THREE.PointLight(new THREE.Color(q.c[0], q.c[1], q.c[2]), q.i, q.d, 2); l.position.set(q.x, q.y, q.z); l.layers.enableAll(); l.userData = { base: q.i, flicker: q.flicker || 0, ph: Math.random() * 9 }; S.add(l); L.lights.push(l); });
+    // --- practical lights: a small fixed pool of point lights that moves to the lamps nearest the player, so the
+    // cost per pixel stays the same however many lamps the map has (fewer on low quality)
+    L.lights = []; L.lightN = R.Q.name === 'low' ? 4 : R.Q.name === 'medium' ? 6 : 8; L.lightT = 0;
+    for (let i = 0; i < L.lightN; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 2); l.layers.enableAll(); l.userData = { src: null, ph: Math.random() * 9 }; S.add(l); L.lights.push(l); }
     grass(S);
 
     L.spawn = { x: laneX(66) + 0.4, z: 66, yaw: 0 };
@@ -137,5 +137,14 @@
       vbegin: 'float gw = sin(uTime * 1.3 + position.x * 0.21 + position.z * 0.17) * 0.6 + sin(uTime * 3.1 + position.x * 1.3) * 0.4; transformed.x += uv.y * (0.05 + 0.09 * gw); transformed.z += uv.y * 0.05 * gw;' });
     const mesh = new THREE.Mesh(geo, m); mesh.receiveShadow = true; mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; S.add(mesh); L.grass = mesh;
   }
-  L.update = (time) => { for (const l of L.lights) if (l.userData.flicker) l.intensity = l.userData.base * (0.75 + 0.25 * Math.sin(time * 9 + l.userData.ph) * Math.sin(time * 13.7) + 0.15 * Math.sin(time * 31)); };
+  L.update = (time) => {
+    const p = MO.player.pos;
+    if (time - L.lightT > 0.4 || time < L.lightT) { L.lightT = time;
+      const pick = MO.props.lights.map((q) => ({ q: q, s: Math.hypot(q.x - p.x, q.z - p.z) - q.d * 0.9 })).sort((a, c) => a.s - c.s).slice(0, L.lights.length).map((e) => e.q);
+      const free = L.lights.filter((l) => pick.indexOf(l.userData.src) < 0), used = L.lights.map((l) => l.userData.src);
+      for (const q of pick) if (used.indexOf(q) < 0) { const l = free.shift(); if (!l) break; l.userData.src = q; l.position.set(q.x, q.y, q.z); l.color.setRGB(q.c[0], q.c[1], q.c[2]); l.distance = q.d; l.intensity = 0; } }
+    for (const l of L.lights) { const q = l.userData.src; if (!q) continue;
+      const want = q.i * (q.flicker ? 0.75 + 0.25 * Math.sin(time * 9 + l.userData.ph) * Math.sin(time * 13.7) + 0.15 * Math.sin(time * 31) : 1);
+      l.intensity = q.flicker ? want : MO.lerp(l.intensity, want, 0.15); }
+  };
 })();

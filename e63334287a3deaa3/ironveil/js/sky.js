@@ -44,7 +44,7 @@
     S.fog = new THREE.FogExp2(K.fogColor, 0.0105);
     const L = K.light = new THREE.DirectionalLight(new THREE.Color(0.62, 0.74, 1.0), 1.15);
     L.castShadow = true; L.shadow.mapSize.set(MO.R.Q.shadow, MO.R.Q.shadow); L.shadow.bias = -0.0006; L.shadow.normalBias = 0.05;
-    L.layers.enableAll(); S.add(L); S.add(L.target);
+    L.layers.enableAll(); L.shadow.camera.layers.enable(2); S.add(L); S.add(L.target);
     K.hemi = new THREE.HemisphereLight(new THREE.Color(0.10, 0.14, 0.24), new THREE.Color(0.03, 0.028, 0.025), 0.8); K.hemi.layers.enableAll(); S.add(K.hemi);
     K.fit(0, 0, 80);
   };

@@ -90,7 +90,7 @@
     shells = F.shells = new THREE.InstancedMesh(sg, MO.mat('brass'), 40); shells.frustumCulled = false; shells.count = 40; shells.userData = { i: 0, s: [] };
     for (let i = 0; i < 40; i++) { shells.userData.s.push({ p: new THREE.Vector3(0, -50, 0), v: new THREE.Vector3(), q: new THREE.Quaternion(), w: new THREE.Vector3(), life: 0, b: 0 }); }
     S.add(shells);
-    for (let i = 0; i < 3; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 2); l.layers.enableAll(); l.userData = { t: 0, d: 1, i: 0 }; S.add(l); lights.push(l); }
+    for (let i = 0; i < (MO.R.Q.name === 'low' ? 2 : 3); i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 2); l.layers.enableAll(); l.userData = { t: 0, d: 1, i: 0 }; S.add(l); lights.push(l); }
   };
   F.setDry = (boxes) => { const u = rain.material.uniforms.uDry.value; for (let i = 0; i < 3; i++) { const b = boxes[i]; if (b) u[i].set(b.minX, b.minZ, b.maxX, b.maxZ); else u[i].set(1e6, 1e6, 1e6, 1e6); } };
   /* a short flash of light: x, y, z, [r,g,b], intensity, reach, seconds */

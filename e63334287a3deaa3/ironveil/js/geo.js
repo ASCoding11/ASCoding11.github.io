@@ -44,7 +44,7 @@
   const blobs = [];
   MO.blob = (i) => {
     i = i % 6; if (blobs[i]) return blobs[i];
-    const g = new THREE.IcosahedronGeometry(1, 2), p = g.attributes.position, nn = g.attributes.normal;
+    const g = new THREE.IcosahedronGeometry(1, MO.R && MO.R.Q.name === 'low' ? 1 : 2), p = g.attributes.position, nn = g.attributes.normal;
     for (let k = 0; k < p.count; k++) { V.fromBufferAttribute(p, k);
       const n = MO.fbm(V.x * 1.6 + i * 9.1 + 20, V.y * 1.6 + V.z * 1.3 + i * 3.7 + 20, 3), n2 = MO.fbm(V.x * 4.5 + V.z * 3.1 + 50, V.y * 4.5 - V.z * 2.0 + i * 5 + 50, 2);
       V.multiplyScalar(0.62 + 0.62 * n + 0.28 * (n2 - 0.5)); p.setXYZ(k, V.x, V.y, V.z); V.normalize(); nn.setXYZ(k, V.x, V.y, V.z); }
@@ -106,8 +106,8 @@
       for (let i = 0; i < (ax ? 1 : n); i++) { const a = ax ? 0 : i / n, b = ax ? 1 : (i + 1) / n, xa = x1 + (x2 - x1) * a, xb = x1 + (x2 - x1) * b, za = z1 + (z2 - z1) * a, zb = z1 + (z2 - z1) * b;
         this.col((xa + xb) / 2, (y0 + y1) / 2, (za + zb) / 2, Math.abs(xb - xa) + t, y1 - y0, Math.abs(zb - za) + t, tag, soft); }
       void sb; return this; }
-    merged(mat, ao) {
-      const L = this.b[mat]; let n = 0; L.forEach((q) => { n += q.P.length / 3; });
+    merged(mat, ao, list) {
+      const L = list || this.b[mat]; let n = 0; L.forEach((q) => { n += q.P.length / 3; });
       const P = new Float32Array(n * 3), Nn = new Float32Array(n * 3), U = new Float32Array(n * 2), C = new Float32Array(n * 3); let o = 0;
       L.forEach((q) => { P.set(q.P, o * 3); Nn.set(q.N, o * 3); U.set(q.U, o * 2); C.set(q.C, o * 3); o += q.P.length / 3; });
       if (ao !== false) {     // cheap baked shading: sky-facing brighter, a darker damp band along the ground, blotchy dirt
@@ -126,14 +126,32 @@
       return g;
     }
     /* build(parent, {cast, receive, ao, layer}) -> array of meshes, one per material */
+    /* build(parent, {cast, receive, ao, layer, dynamic, chunk}) -> meshes, one per material (per material and grid
+       cell when chunk is a cell size in metres, so the camera can skip what is behind it) */
     build(parent, o) {
       o = o || {}; const out = [];
       for (const mat in this.b) {
-        const mesh = new THREE.Mesh(this.merged(mat, o.ao), MO.mat(mat));
-        mesh.castShadow = o.cast !== false && !MO.matInfo(mat).noCast; mesh.receiveShadow = o.receive !== false;
-        if (o.layer) mesh.layers.set(o.layer);
-        mesh.matrixAutoUpdate = !!o.dynamic; mesh.updateMatrix();
-        if (parent) parent.add(mesh); out.push(mesh);
+        let groups = [this.b[mat]];
+        if (o.chunk) { const cells = {};
+          for (const q of this.b[mat]) { let x = 0, z = 0; const n = q.P.length / 3, st = Math.max(1, Math.floor(n / 6));
+            let c = 0; for (let i = 0; i < n; i += st) { x += q.P[i * 3]; z += q.P[i * 3 + 2]; c++; }
+            const k = Math.floor(x / c / o.chunk) + ',' + Math.floor(z / c / o.chunk); (cells[k] = cells[k] || []).push(q); }
+          groups = Object.keys(cells).map((k) => cells[k]); }
+        for (const list of groups) {
+          const mesh = new THREE.Mesh(this.merged(mat, o.ao, list), MO.mat(mat));
+          mesh.castShadow = !o.chunk && o.cast !== false && !MO.matInfo(mat).noCast; mesh.receiveShadow = o.receive !== false;
+          if (o.layer) mesh.layers.set(o.layer);
+          mesh.matrixAutoUpdate = !!o.dynamic; mesh.updateMatrix();
+          if (parent) parent.add(mesh); out.push(mesh);
+        }
+      }
+      if (o.chunk && o.cast !== false) {    // one merged copy of every shadow caster, seen only by the shadow pass (layer 2)
+        let n = 0; for (const mat in this.b) if (!MO.matInfo(mat).noCast) for (const q of this.b[mat]) n += q.P.length;
+        const P = new Float32Array(n); let k = 0;
+        for (const mat in this.b) if (!MO.matInfo(mat).noCast) for (const q of this.b[mat]) { P.set(q.P, k); k += q.P.length; }
+        const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.computeBoundingSphere();
+        const sm = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })); sm.castShadow = true; sm.layers.set(2); sm.matrixAutoUpdate = false; sm.frustumCulled = false;
+        if (parent) parent.add(sm); out.shadow = sm;
       }
       return out;
     }
