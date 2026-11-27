@@ -36,10 +36,10 @@ in r128) and shadow edges.
 
 ## Pages on r187
 
-Ironwing (`e63334287a3deaa3/ironwing/`) and Midnight Ops (`e63334287a3deaa3/ironveil/`: the game, `env-test.html` and
-`chars-test.html`). Midnight Ops also routes every built-in shader edit through `IVEnv.patch` (`ironveil/env/core.js`)
-and keeps r128's environment-map lighting for its plain cube render targets (`IVEnv.r128EnvCube` in
-`ironveil/env/atmosphere.js`: r187 would PMREM-filter them and add diffuse light from them).
+Ironwing (`e63334287a3deaa3/ironwing/`) and Midnight Ops (`e63334287a3deaa3/ironveil/`). Ironwing routes its built-in
+shader edits through `IVEnv.patch` (`ironveil/env/core.js`). Midnight Ops (rebuilt) renders to its own HDR target, does
+its own tone mapping, and edits `MeshStandardMaterial` with `MO.patchStd` (`ironveil/js/tex.js`), which only inserts
+text after `#include` lines that r187 still has.
 
 New games can use this file too, or load r187 as ES modules (`three.module.js`) without the layer and follow the
 three.js skills in `.claude/skills/`; with the layer, write code the r128 way so lighting and colour stay consistent.

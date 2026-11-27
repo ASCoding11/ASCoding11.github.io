@@ -1,117 +1,72 @@
-/* Ironveil input: rebindable keys (keybinds.js), mouse look with pointer lock, and one action map that keyboard, mouse
-   and the touch controls all feed. Game code asks IV.input.held('aim'), .pressed('fire') (this step only), etc. */
+/* Midnight Ops: input. Keyboard and mouse (pointer lock) on computers; two thumbs on touch screens: the left half
+   of the screen is a floating move stick, the right half looks, and the buttons sit in the corners. Arrow keys also
+   look, for browsers that refuse pointer lock. */
 (function () {
   'use strict';
-  const I = IV.input = { dx: 0, dy: 0, wheel: 0, locked: false, everLocked: false, fallback: false, moveX: 0, moveY: 0 };
-  const KB = I.KB = Keybinds.create({
-    game: 'ironveil', mouse: true,
-    actions: [
-      { id: 'forward', label: 'Move forward', group: 'Move', keys: ['KeyW', 'ArrowUp'] },
-      { id: 'back', label: 'Move back', group: 'Move', keys: ['KeyS', 'ArrowDown'] },
-      { id: 'left', label: 'Move left', group: 'Move', keys: ['KeyA', 'ArrowLeft'] },
-      { id: 'right', label: 'Move right', group: 'Move', keys: ['KeyD', 'ArrowRight'] },
-      { id: 'sprint', label: 'Sprint', note: 'Hold', group: 'Move', keys: ['ShiftLeft'] },
-      { id: 'crouch', label: 'Crouch', group: 'Move', keys: ['KeyC'] },   // not Ctrl by default: Ctrl+W closes the browser tab and no page can stop it
-      { id: 'prone', label: 'Go prone', group: 'Move', keys: ['KeyZ'] },
-      { id: 'vault', label: 'Jump / vault / stand up', group: 'Move', keys: ['Space'] },
-      { id: 'leanLeft', label: 'Lean left', note: 'Hold', group: 'Move', keys: ['KeyQ'] },
-      { id: 'leanRight', label: 'Lean right', note: 'Hold', group: 'Move', keys: ['KeyE'] },
-      { id: 'fire', label: 'Fire', group: 'Fight', keys: ['Mouse0'] },
-      { id: 'aim', label: 'Aim', note: 'Hold. The rifle goes to its scope', group: 'Fight', keys: ['Mouse2'] },
-      { id: 'breath', label: 'Hold breath (scoped)', group: 'Fight', ctx: 'scope', keys: ['ShiftLeft'] },
-      { id: 'reload', label: 'Reload', group: 'Fight', keys: ['KeyR'] },
-      { id: 'rifle', label: 'Scoped rifle', group: 'Fight', keys: ['Digit1'] },
-      { id: 'smg', label: 'Submachine gun', group: 'Fight', keys: ['Digit2'] },
-      { id: 'pistol', label: 'Pistol', group: 'Fight', keys: ['Digit3'] },
-      { id: 'grenade', label: 'Grenade', note: 'Hold to cook and aim (the arc shows where it lands), let go to throw. Tap throws at once', group: 'Fight', keys: ['KeyG'] },
-      { id: 'rock', label: 'Throw a rock', note: 'Hold to aim (the arc shows where it lands), let go to throw. Guards go to look', group: 'Fight', keys: ['KeyX'] },
-      { id: 'knife', label: 'Knife takedown', note: 'From behind, close up', group: 'Fight', keys: ['KeyV'] },
-      { id: 'binoc', label: 'Binoculars', note: 'Hold. Fire tags the soldier in the middle', group: 'Fight', keys: ['KeyB'] },
-      { id: 'use', label: 'Use / interact', note: 'Hold for longer jobs', group: 'Other', keys: ['KeyF'] },
-      { id: 'order', label: 'Squad order', note: 'Follow, hold, fire at will', group: 'Other', keys: ['KeyT'] },
-      { id: 'shoulder', label: 'Swap shoulder (over-the-shoulder view)', group: 'Other', keys: ['KeyH'] },
-      { id: 'mute', label: 'Mute', group: 'Other', keys: ['KeyM'] },
-      { id: 'pause', label: 'Pause', group: 'Other', keys: ['KeyP'], lock: ['Escape'] }
-    ],
-    classes: { button: 'btn', primary: 'cta' }
-  });
-  const keys = new Set(), edgesDown = new Set(), edgesUp = new Set();
-  const stepDown = new Set(), stepUp = new Set();
-  I.tAct = {};        // touch actions held
-  I.tEdge = new Set(); I.tEdgeUp = new Set();
-  I.held = id => !!I.tAct[id] || KB.held(id, keys);
-  I.pressed = id => stepDown.has(id);
-  I.released = id => stepUp.has(id);
-  I.label = id => KB.short ? KB.short(id) : KB.label(id);
-  // called at the start of each simulation step: move this frame's edges into the step's sets
-  I.beginStep = function () {
-    stepDown.clear(); stepUp.clear();
-    edgesDown.forEach(c => KB.actionsFor(c).forEach(a => stepDown.add(a)));
-    edgesUp.forEach(c => KB.actionsFor(c).forEach(a => stepUp.add(a)));
-    I.tEdge.forEach(a => stepDown.add(a)); I.tEdgeUp.forEach(a => stepUp.add(a));
-    edgesDown.clear(); edgesUp.clear(); I.tEdge.clear(); I.tEdgeUp.clear();
-    // movement axes
-    let x = (I.held('right') ? 1 : 0) - (I.held('left') ? 1 : 0), y = (I.held('forward') ? 1 : 0) - (I.held('back') ? 1 : 0);
-    if (I.stick && (I.stick.x || I.stick.y)) { x = I.stick.x; y = I.stick.y; }
-    const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
-    I.moveX = x; I.moveY = y;
+  const MO = window.MO, I = MO.input = { mx: 0, my: 0, lx: 0, ly: 0, fire: false, aim: false, sprint: false, crouch: false, use: false, jumpP: false, reloadP: false, pauseP: false, locked: false, active: false };
+  const keys = {}, K = (c) => !!keys[c];
+  let canvas, aimToggle = false;
+  I.init = (cv) => {
+    canvas = cv;
+    addEventListener('keydown', (e) => {
+      if (e.repeat) return; keys[e.code] = true;
+      if (!I.active) return;
+      if (e.code === 'Space') { I.jumpP = true; e.preventDefault(); }
+      if (e.code === 'KeyR') I.reloadP = true;
+      if (e.code === 'KeyC') I.crouch = !I.crouch;
+      if (e.code === 'KeyP' || e.code === 'Escape') I.pauseP = true;
+      if (e.code === 'Enter') I.fire = true;
+      if (e.code.startsWith('Arrow') || e.code === 'Tab') e.preventDefault();
+    });
+    addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Enter') I.fire = false; });
+    addEventListener('blur', () => { for (const k in keys) keys[k] = false; I.fire = false; I.aim = false; });
+    canvas.addEventListener('mousedown', (e) => { if (!I.active || MO.touch && !I.locked && e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+      if (!I.locked) { I.lock(); return; } if (e.button === 0) I.fire = true; if (e.button === 2) I.aim = true; });
+    addEventListener('mouseup', (e) => { if (e.button === 0) I.fire = false; if (e.button === 2) I.aim = false; });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    addEventListener('mousemove', (e) => { if (I.locked && I.active) { I.lx += e.movementX || 0; I.ly += e.movementY || 0; } });
+    document.addEventListener('pointerlockchange', () => { const was = I.locked; I.locked = document.pointerLockElement === canvas; if (was && !I.locked && I.active) I.pauseP = true; });
+    if (MO.touch) touch();
   };
-  // test hook: press/release an action by name
-  I.sim = function (id, on) { if (on) { if (!I.tAct[id]) I.tEdge.add(id); I.tAct[id] = true; } else { if (I.tAct[id]) I.tEdgeUp.add(id); I.tAct[id] = false; } };
-  I.clear = function () { keys.clear(); for (const k in I.tAct) I.tAct[k] = false; I.dx = I.dy = 0; };
+  I.lock = () => { if (MO.touch) return; try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} };
+  I.unlock = () => { try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {} };
+  /* called once per frame before the game reads the state */
+  I.poll = (dt) => {
+    if (!MO.touch || !stick.on) { I.mx = (K('KeyD') ? 1 : 0) - (K('KeyA') ? 1 : 0); I.my = (K('KeyW') ? 1 : 0) - (K('KeyS') ? 1 : 0); }
+    const l = Math.hypot(I.mx, I.my); if (l > 1) { I.mx /= l; I.my /= l; }
+    const ks = 520 * dt; I.lx += ((K('ArrowRight') ? 1 : 0) - (K('ArrowLeft') ? 1 : 0)) * ks; I.ly += ((K('ArrowDown') ? 1 : 0) - (K('ArrowUp') ? 1 : 0)) * ks;
+    if (!MO.touch) { I.sprint = K('ShiftLeft') || K('ShiftRight'); I.use = K('KeyE') || K('KeyF'); if (K('ControlLeft')) I.crouch = true; }
+  };
+  I.endFrame = () => { I.lx = 0; I.ly = 0; I.jumpP = false; I.reloadP = false; I.pauseP = false; };
+  I.reset = () => { I.fire = false; I.aim = false; I.crouch = false; I.use = false; aimToggle = false; I.endFrame(); };
 
-  const gameKey = c => KB.actionsFor(c).length > 0;
-  addEventListener('keydown', e => {
-    if (KB.busy()) return;
-    if (e.code === 'Escape') { IV.emit('escape'); return; }
-    if (!IV.playing()) { if (e.code === 'KeyM') IV.emit('mute'); return; }
-    if (gameKey(e.code) || e.code === 'Tab') e.preventDefault();
-    if (!e.repeat && !keys.has(e.code)) { keys.add(e.code); edgesDown.add(e.code); }
-  });
-  addEventListener('keyup', e => { if (keys.has(e.code)) { keys.delete(e.code); edgesUp.add(e.code); } });
-  addEventListener('blur', () => { keys.forEach(c => edgesUp.add(c)); keys.clear(); });
-  const view = IV.$('view');
-  view.addEventListener('mousedown', e => {
-    if (!IV.playing() || IV.touch) return;
-    if (!I.locked && !I.fallback) { I.requestLock(true); return; }
-    const c = 'Mouse' + e.button; if (!keys.has(c)) { keys.add(c); edgesDown.add(c); }
-    e.preventDefault();
-  });
-  addEventListener('mouseup', e => { const c = 'Mouse' + e.button; if (keys.has(c)) { keys.delete(c); edgesUp.add(c); } });
-  view.addEventListener('contextmenu', e => e.preventDefault());
-  addEventListener('wheel', e => { if (IV.playing()) I.wheel += Math.sign(e.deltaY); }, { passive: true });
-  // Mouse look. With the pointer locked (click the game) the mouse turns you freely. Without the lock (not clicked yet,
-  // the lock refused, or a school browser that blocks it) just moving the mouse or trackpad over the game still turns
-  // you, no button held: the cursor is hidden, and once it reaches the left or right edge of the window you keep
-  // turning that way (I.edgeTurn, called every rendered frame) so you can still spin all the way round.
-  I.cx = -1; I.cy = -1;
-  document.addEventListener('mousemove', e => {
-    I.cx = e.clientX; I.cy = e.clientY;
-    if (!IV.playing()) return;
-    if (!I.locked && IV.touch) return;
-    I.dx += e.movementX || 0; I.dy += e.movementY || 0;
-  });
-  document.addEventListener('mouseout', e => { if (!e.relatedTarget) I.cx = I.cy = -1; });   // left the window
-  const EDGE = 0.1, EDGE_SPEED = 900;   // edge band (share of the width) and turn rate at the very edge (pixels of mouse movement per second)
-  I.edgeTurn = function (dt) {
-    const free = IV.playing() && !I.locked && !IV.touch;
-    view.style.cursor = free ? 'none' : '';
-    if (!free || I.cx < 0) return;
-    const w = view.clientWidth || innerWidth, band = w * EDGE;
-    const k = I.cx < band ? -(1 - I.cx / band) : I.cx > w - band ? (I.cx - (w - band)) / band : 0;
-    if (k) I.dx += Math.sign(k) * Math.min(1, Math.abs(k)) * EDGE_SPEED * Math.min(dt, 0.1);
-  };
-  I.requestLock = function (fromClick) {
-    if (I.fallback || I.locked || IV.touch || IV.test) return;
-    I._fromClick = !!fromClick;
-    try { const r = view.requestPointerLock(); if (r && r.catch) r.catch(onLockError); } catch (e) { onLockError(); }
-  };
-  function onLockError() { if (!I.everLocked && I._fromClick) I.fallback = true; }
-  document.addEventListener('pointerlockerror', onLockError);
-  document.addEventListener('pointerlockchange', () => {
-    I.locked = document.pointerLockElement === view;
-    if (I.locked) I.everLocked = true;
-    else if (IV.playing() && !IV.test) IV.emit('lostlock');
-  });
-  I.unlock = function () { if (document.pointerLockElement) document.exitPointerLock(); };
+  // ---- touch
+  const stick = { on: false, id: -1, ox: 0, oy: 0 }, look = { id: -1, x: 0, y: 0 };
+  function touch() {
+    const ui = document.getElementById('touch'), nub = document.getElementById('t-nub'), base = document.getElementById('t-stick');
+    const btn = (id, down, up) => { const el = document.getElementById(id); if (!el) return;
+      el.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId); el.classList.add('on'); down(e); });
+      const end = (e) => { el.classList.remove('on'); if (up) up(e); }; el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end); };
+    // the fire button also looks while you hold it, so you can track a target with the same thumb
+    let fx = 0, fy = 0;
+    btn('t-fire', (e) => { I.fire = true; fx = e.clientX; fy = e.clientY; }, () => { I.fire = false; });
+    document.getElementById('t-fire').addEventListener('pointermove', (e) => { if (I.fire) { I.lx += (e.clientX - fx) * 2.2; I.ly += (e.clientY - fy) * 2.2; fx = e.clientX; fy = e.clientY; } });
+    btn('t-aim', () => { aimToggle = !aimToggle; I.aim = aimToggle; document.getElementById('t-aim').classList.toggle('held', aimToggle); });
+    btn('t-reload', () => { I.reloadP = true; }); btn('t-jump', () => { I.jumpP = true; });
+    btn('t-crouch', () => { I.crouch = !I.crouch; document.getElementById('t-crouch').classList.toggle('held', I.crouch); });
+    btn('t-use', () => { I.use = true; }, () => { I.use = false; }); btn('t-pause', () => { I.pauseP = true; });
+    ui.addEventListener('pointerdown', (e) => {
+      if (!I.active || e.target !== ui) return; e.preventDefault();
+      if (e.clientX < innerWidth * 0.42 && stick.id < 0) { stick.id = e.pointerId; stick.on = true; stick.ox = e.clientX; stick.oy = e.clientY; base.style.left = e.clientX + 'px'; base.style.top = e.clientY + 'px'; base.classList.add('on'); nub.style.transform = 'translate(-50%,-50%)'; }
+      else if (look.id < 0) { look.id = e.pointerId; look.x = e.clientX; look.y = e.clientY; }
+      ui.setPointerCapture(e.pointerId);
+    });
+    ui.addEventListener('pointermove', (e) => {
+      if (e.pointerId === stick.id) { let dx = e.clientX - stick.ox, dy = e.clientY - stick.oy; const l = Math.hypot(dx, dy), M = 56; if (l > M) { dx *= M / l; dy *= M / l; }
+        nub.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))'; I.mx = dx / M; I.my = -dy / M; I.sprint = l > M * 1.5 && -dy > Math.abs(dx); }
+      else if (e.pointerId === look.id) { I.lx += (e.clientX - look.x) * 2.2; I.ly += (e.clientY - look.y) * 2.2; look.x = e.clientX; look.y = e.clientY; }
+    });
+    const end = (e) => { if (e.pointerId === stick.id) { stick.id = -1; stick.on = false; I.mx = 0; I.my = 0; I.sprint = false; base.classList.remove('on'); } if (e.pointerId === look.id) look.id = -1; };
+    ui.addEventListener('pointerup', end); ui.addEventListener('pointercancel', end);
+  }
 })();

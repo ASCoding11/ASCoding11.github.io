@@ -38,7 +38,7 @@
       g.lineWidth = 1.4; g.strokeStyle = 'rgba(70,50,30,.38)'; for (i = -3; i <= 3; i++) { if (!i) continue; var z0 = i * n * .11; g.beginPath(); g.moveTo(0, z0 + n * .08); g.lineTo(n * .3, z0 - n * .06); g.moveTo(0, z0 + n * .08); g.lineTo(-n * .3, z0 - n * .06); g.stroke(); }
       g.restore();
     });
-    atlas = new THREE.CanvasTexture(c); atlas.anisotropy = 4; return atlas;
+    atlas = new THREE.CanvasTexture(c); atlas.anisotropy = 4; atlas.encoding = THREE.sRGBEncoding; return atlas;
   }
   // a flat card 1 long and 1 wide, showing shape k of the atlas
   function leafGeo(k) {
@@ -55,7 +55,7 @@
     // open ground of each area in square metres, and so how many leaves it gets at this quality (`mul` a square metre)
     var open = A.map(function () { return 0; });
     for (c0 = 0; c0 < GW * GH; c0++) if (!solid[c0] && WR.areaOf[c0] >= 0 && inlet[c0] < 0) open[WR.areaOf[c0]] += CELL * CELL;
-    var counts = open.map(function (m2) { return Math.max(40, Math.round(m2 * mul)); }), N = counts.reduce(function (s, v) { return s + v; }, 0);
+    var counts = open.map(function (m2, i) { return Math.max(40, Math.round(m2 * mul * (A[i].dense || 1))); }), N = counts.reduce(function (s, v) { return s + v; }, 0);
     this.N = N; this.counts = counts; this.mul = mul; this.scene = scene; this.open = open;
     this.w = A.map(function (a, i) { return a.units / counts[i]; });        // acorn worth of one leaf, before upgrades
     this.fill = A.map(function (a, i) { return a.leaves / counts[i]; });    // how much sack one leaf takes
@@ -80,7 +80,7 @@
     function b64(u8) { var t = ''; for (var k = 0; k < u8.length; k += 8192) t += String.fromCharCode.apply(null, u8.subarray(k, k + 8192)); return btoa(t); }
     function unb64(t) { var b = atob(t), u = new Uint8Array(b.length); for (var k = 0; k < b.length; k++) u[k] = b.charCodeAt(k); return u; }
     function scatter(ai, first, keepShare) {
-      var a = A[ai], q = WR.rng(900 + ai * 31 + counts[ai]), spots = [], k, lim = Math.max(8, Math.round(mul * 0.55));
+      var a = A[ai], q = WR.rng(900 + ai * 31 + counts[ai]), spots = [], k, lim = Math.max(8, Math.round(mul * 0.55 * (a.dense || 1)));
       WR.TREES.forEach(function (t) { if (t[0] > a.x0 && t[0] < a.x1 && t[1] > a.z0 && t[1] < a.z1) { spots.push([t[0], t[1], 2.2]); spots.push([t[0], t[1], 1.2]); } });
       var extra = 8 + Math.round((a.x1 - a.x0) * (a.z1 - a.z0) / 30);
       for (k = 0; k < extra; k++) { var e = q(), ex = a.x0 + 1 + q() * (a.x1 - a.x0 - 2), ez = a.z0 + 1 + q() * (a.z1 - a.z0 - 2);
@@ -150,7 +150,7 @@
           m.frustumCulled = true; m.receiveShadow = true; m.matrixAutoUpdate = false; m.instanceMatrix.array.fill(0);
           m.boundingSphere = new THREE.Sphere(new THREE.Vector3((a.x0 + a.x1) / 2, 0, (a.z0 + a.z1) / 2), Math.hypot(a.x1 - a.x0, a.z1 - a.z0) / 2 + 9);
           var q3 = WR.rng(77 + ai * 13 + s2);
-          for (k = 0; k < L.length; k++) { col.set(a.pal[(q3() * a.pal.length) | 0]); var b = 0.8 + q3() * 0.35; col.r *= b; col.g *= b; col.b *= b; m.setColorAt(k, col); }
+          for (k = 0; k < L.length; k++) { col.set(a.pal[(q3() * a.pal.length) | 0]).convertSRGBToLinear(); var b = 0.75 + q3() * 0.4; col.r *= b; col.g *= b; col.b *= b; m.setColorAt(k, col); }
           if (m.instanceColor) m.instanceColor.needsUpdate = true;
           meshes.push(m); meshDirty.push(false); tileDirty.push(new Uint8Array(TILES)); tileStart.push(starts); scene.add(m);
         }
@@ -167,7 +167,7 @@
     (function (g) { var q = WR.rng(5150), cols = ['#8a5a2a', '#a06a2e', '#6f4a26', '#b9822f', '#7a4a22', '#c08a3a', '#5e4126'];
       for (var k = 0; k < 1500; k++) { g.fillStyle = cols[(q() * cols.length) | 0]; g.globalAlpha = 0.6 + q() * 0.4; g.beginPath(); g.ellipse(q() * 256, q() * 256, 1.5 + q() * 5, 1 + q() * 2.6, q() * 3.14, 0, 6.3); g.fill(); }
       g.globalAlpha = 0.7; g.strokeStyle = '#5a4026'; g.lineWidth = 1; for (k = 0; k < 60; k++) { var x = q() * 256, y = q() * 256; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (q() - .5) * 16, y + (q() - .5) * 16); g.stroke(); } })(litC.getContext('2d'));
-    var litMap = new THREE.CanvasTexture(litC); litMap.wrapS = litMap.wrapT = THREE.RepeatWrapping; litMap.repeat.set(GW * CELL / 1.7, GH * CELL / 1.7); litMap.anisotropy = 4;
+    var litMap = new THREE.CanvasTexture(litC); litMap.encoding = THREE.sRGBEncoding; litMap.wrapS = litMap.wrapT = THREE.RepeatWrapping; litMap.repeat.set(GW * CELL / 1.7, GH * CELL / 1.7); litMap.anisotropy = 4;
     var litGeo = new THREE.PlaneGeometry(GW * CELL, GH * CELL); litGeo.rotateX(-Math.PI / 2);
     (function (uv) { for (var k = 0; k < uv.count; k++) uv.setY(k, 1 - uv.getY(k)); })(litGeo.attributes.uv);
     var litter = new THREE.Mesh(litGeo, new THREE.MeshLambertMaterial({ map: litMap, alphaMap: litTex, transparent: true, depthWrite: false }));
@@ -307,7 +307,7 @@
         // leaves low in a heap are sheltered by the ones on top
         var cov = cnt[lcell[l]] - 1 - rank[l]; if (cov > 2) f *= 2 / cov;
         wake(l); vx[l] += (hx * .72 + lx / hd * .28) * f; vz[l] += (hz * .72 + lz / hd * .28) * f;
-        vy[l] += f * (0.16 + ((l * 7919) % 13) / 13 * 0.3); spin[l] += (((l * 31) % 17) / 8.5 - 1) * f * 2.2; hit++;
+        vy[l] += f * (0.3 + ((l * 7919) % 13) / 13 * 0.55); spin[l] += (((l * 31) % 17) / 8.5 - 1) * f * 4; hit++;
         self.touched[area[l]] = true;
       });
       return hit;
@@ -350,6 +350,14 @@
         self.touched[area[l]] = true;
       });
     };
+    // landing in leaves: they jump up and outward from the feet
+    this.burst = function (x, z, rad, power) {
+      eachIn(x - rad, z - rad, x + rad, z + rad, function (l) {
+        if (st[l] > AWAKE) return; var qx = px[l] - x, qz = pz[l] - z, d = Math.sqrt(qx * qx + qz * qz); if (d > rad) return;
+        var k = power * (1 - d / rad * 0.6), j = ((l * 97) % 23) / 23; wake(l); d = d || 1;
+        vx[l] += qx / d * k * (1.2 + j); vz[l] += qz / d * k * (1.2 + j); vy[l] += k * (1.1 + j * 1.4); spin[l] += (j - .5) * 14; self.touched[area[l]] = true;
+      });
+    };
     // chutes with the Draught grates reward draw nearby leaves in
     this.pull = function (x, z, rad, power, dt) {
       eachIn(x - rad, z - rad, x + rad, z + rad, function (l) {
@@ -381,7 +389,7 @@
     for (var i = 0; i < max; i++) { P.push({ life: 0 }); m4.makeScale(0, 0, 0); mesh.setMatrixAt(i, m4); mesh.setColorAt(i, col.set('#c8822c')); }
     this.spawn = function (x, y, z, vx, vy, vz, life, color, size, floorY) {
       var p = P[nextSlot]; p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.life = p.max = life; p.s = size || .24; p.a = Math.random() * 6; p.b = Math.random() * 6; p.fl = floorY == null ? -1 : floorY;
-      mesh.setColorAt(nextSlot, col.set(color)); mesh.instanceColor.needsUpdate = true; nextSlot = (nextSlot + 1) % max;
+      mesh.setColorAt(nextSlot, col.set(color).convertSRGBToLinear()); mesh.instanceColor.needsUpdate = true; nextSlot = (nextSlot + 1) % max;
     };
     this.step = function (dt) {
       var any = false;

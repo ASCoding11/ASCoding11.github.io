@@ -61,6 +61,11 @@
  *
  * Firebase comes from party.js (window.Party.boot()), the same sign-in the panels use; it only
  * writes when that account is the Google account SiteAccount shows, and never signs anyone in.
+ * When they differ (normally only for a moment after signing in, while the panels switch from the
+ * anonymous account; in the home page's phone frame party.js follows the home page's sign-in) it
+ * shows "Connecting your account save…", waits for the panels' sign-in to become that account and
+ * syncs then; only if that takes over 15 s does it say the save is paused, and it still syncs once
+ * they match.
  *
  * 3. The leaderboard link. Signing in with Google makes a new account (the games had signed this
  *    browser in anonymously), so the anonymous account's Leaderboards entry would stay behind as a
@@ -90,6 +95,7 @@
       'Couldn’t save to your account. It’ll try again.': 'No se pudo guardar en tu cuenta. Lo volverá a intentar.',
       'Restored your skins and records from your account': 'Recuperamos tus skins y récords de tu cuenta',
       'Account save is paused: the panels are signed in as someone else.': 'El guardado está en pausa: los paneles tienen otra sesión iniciada.',
+      'Connecting your account save…': 'Conectando tu guardado…',
       'Account save needs the Party panel, which didn’t load.': 'El guardado necesita el panel de Grupo, que no cargó.',
       'Couldn’t reach your account save. Check your connection.': 'No se pudo llegar a tu guardado. Revisa tu conexión.'
     });
@@ -98,7 +104,7 @@
   var PATH = 'rooms/sv-saves/players';
   var DISMISS = 'sv:nudge', META = 'sv:meta', DAYS = 7, PROMPTED = 'sv:prompt';
   var MAX_VAL = 64000, MAX_NODE = 200000, MAX_KEYS = 400;
-  var POLL = 15000, DEBOUNCE = 2500, WAIT = 8000;
+  var POLL = 15000, DEBOUNCE = 2500, WAIT = 8000, MISMATCH = 15000;
   var COLORS = ['#1D6A4B', '#C0562F', '#3E5BA9', '#9A3F8F', '#B07A12', '#2A8A8A', '#B42318', '#5B6B2E'];
 
   // ---- What gets saved. Only things other players can already see in a game or on a leaderboard. ----
@@ -382,7 +388,7 @@
   }
 
   // ---- The save ----
-  var SY = { on: false, uid: '', user: null, conn: null, meta: null, timer: 0, poll: 0, busy: false, lastSave: 0, lastSig: '', restored: false, pending: null };
+  var SY = { on: false, uid: '', user: null, conn: null, meta: null, timer: 0, poll: 0, busy: false, lastSave: 0, lastSig: '', restored: false, pending: null, again: false, unwait: null, since: 0 };
 
   function localKeys() {
     var out = [];
@@ -492,17 +498,19 @@
   function connect() {
     return waitFor(function () { return window.Party && window.Party.boot ? window.Party : null; }, 15000).then(function (P) {
       if (!P) throw new Error('no-party');
-      return timeout(P.boot(), 20000).then(function (b) { return { db: b.db, uid: b.uid, now: P.now || Date.now }; });
+      return timeout(P.boot(), 20000).then(function (b) { return { db: b.db, uid: b.uid, app: b.app, now: P.now || Date.now }; });
     });
   }
   // Read the account's node, merge, write back. Once per sign-in.
   function sync() {
-    if (SY.busy || !SY.on) return;
-    SY.busy = true;
+    if (!SY.on) return;
+    if (SY.busy) { SY.again = true; return; }
+    SY.busy = true; SY.again = false;
     var uid = SY.uid;
     connect().then(function (c) {
       if (!SY.on || SY.uid !== uid) return;
-      if (c.uid !== uid) throw new Error('other-account');     // the panels are signed in as someone else: never write there
+      if (c.uid !== uid) { waitUid(c); throw new Error('other-account'); }     // the panels are signed in as someone else: never write there
+      unwaitUid();
       SY.conn = c;
       return timeout(c.db.ref(PATH + '/' + uid).once('value'), 15000).then(function (s) {
         if (!SY.on || SY.uid !== uid) return;
@@ -518,11 +526,26 @@
     }).catch(function (e) {
       if (!SY.on) return;
       var why = e && e.message;
-      if (why === 'other-account') showStatus('Account save is paused: the panels are signed in as someone else.', true);
+      if (why === 'other-account') {
+        // Normally just a moment: the panels (party.js) are still on the anonymous account and switch to the Google one
+        // by themselves (in the home page's phone frame their sign-in follows the home page's within a second or so).
+        if (Date.now() - SY.since < MISMATCH) showStatus('Connecting your account save…', false);
+        else showStatus('Account save is paused: the panels are signed in as someone else.', true);
+      }
       else if (why === 'no-party') showStatus('Account save needs the Party panel, which didn’t load.', true);
       else showStatus('Couldn’t reach your account save. Check your connection.', true);
-    }).then(function () { SY.busy = false; });
+    }).then(function () { SY.busy = false; if (SY.again && SY.on) sync(); });
   }
+  // The panels are signed in as someone else: try again as soon as their sign-in becomes this account (party.js rejoins
+  // on its own then), and once more after MISMATCH so the status tells the truth if it never does.
+  function waitUid(c) {
+    if (SY.unwait) return;
+    var a = null; try { a = c.app && c.app.auth ? c.app.auth() : null; } catch (e) {}
+    var uid = SY.uid, off = a ? a.onAuthStateChanged(function (u) { if (u && u.uid === uid && SY.uid === uid) { unwaitUid(); setTimeout(sync, 0); } }) : null;
+    var t = setTimeout(function () { if (SY.uid === uid && !SY.conn) sync(); }, MISMATCH + 500);
+    SY.unwait = function () { clearTimeout(t); if (typeof off === 'function') off(); };
+  }
+  function unwaitUid() { var f = SY.unwait; SY.unwait = null; if (f) f(); }
   // After the first sync: notice changes and write them, debounced.
   function check(now) {
     if (!SY.on || !SY.conn) return 0;
@@ -557,11 +580,11 @@
   function startSave(u) {
     if (SY.on && SY.uid === u.uid) return;
     stopSave();
-    SY.on = true; SY.uid = u.uid; SY.user = u; SY.meta = loadMeta(u.uid); SY.lastSig = ''; SY.restored = false;
+    SY.on = true; SY.uid = u.uid; SY.user = u; SY.meta = loadMeta(u.uid); SY.lastSig = ''; SY.restored = false; SY.since = Date.now();
     sync();
   }
   function stopSave() {
-    unwatch();
+    unwatch(); unwaitUid();
     SY.on = false; SY.uid = ''; SY.user = null; SY.conn = null; SY.meta = null; SY.lastSig = '';
     hideStatus();
   }

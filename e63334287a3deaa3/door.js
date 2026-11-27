@@ -8,6 +8,11 @@
  *      by its digest: the first 16 hex characters of SHA-256('ascoding11-door:' + the box's value, trimmed and
  *      lowercased) must be WORD below;
  *   3. a number on the keypad, then the password on the admin page.
+ * On the phone page (m/) the same three steps work with different places: a second word typed into the Your school
+ * search box (school.js) without pressing Enter (the Party box's word, or a second one, WORD_S; its "No school matches"
+ * note is hidden once the word is recognised, and Enter does nothing), then three taps on the "ASC" of "ASCoding games"
+ * in the page title (a <span data-door> with extra invisible padding), then the keypad and the password. Inside the home
+ * page's phone frame the admin page opens in the whole tab, not in the frame.
  * Without the word, the triple tap does nothing visible. Step 2 opens a small number keypad (big buttons for phones; a computer's number keys, Backspace, Enter and Escape
  * work too). The number is checked the same way the home page checks the Back Room's code: the first 16 hex characters
  * of SHA-256('ascoding11-admin:' + number) name a folder in the Back Room, and the browser goes there only if that
@@ -26,7 +31,7 @@
 
   var me = document.currentScript && document.currentScript.src;
   var DIR = (me ? new URL(me, location.href).pathname : '/e63334287a3deaa3/door.js').replace(/[^/]*$/, '');
-  var MAX = 12, WORD = '402f416a05bbb78d';
+  var MAX = 12, WORD = '402f416a05bbb78d', WORD_S = 'ca46192612230504';
   var t = [], pad = null, shown = null, val = '', miss = 0, busy = false, armed = 0, ARM_MS = 120000;
 
   var css = document.createElement('style');
@@ -41,7 +46,8 @@
     '.brd-k button:active{background:#13263a}' +
     '.brd-k .ok{background:#38bdf8;border-color:#38bdf8;color:#04121c;font-size:16px}' +
     '.brd-k .bk{font-size:18px}' +
-    '.brd:focus{outline:none}.brd[aria-busy=true]{opacity:.7}';
+    '.brd:focus{outline:none}.brd[aria-busy=true]{opacity:.7}' +
+    '.brd-w .sch-none{display:none!important}';
   document.head.appendChild(css);
 
   async function h(s, pre) {
@@ -51,23 +57,36 @@
   // The Y that opens the keypad: <p class="kicker"><span data-door>Y</span>ou found it</p> in the Back Room's header.
   // Anywhere on that line counts, not just the Y, so it's easy to hit.
   function kicker(e) {
+    // the phone page: the "ASC" of "ASCoding games" in its title; the keypad opens under the title
+    var s = e.target && e.target.closest && e.target.closest('#home header h1 > [data-door]');
+    if (s && s.textContent === 'ASC') return s.closest('h1').parentNode;
     var k = e.target && e.target.closest && e.target.closest('header .kicker');
     var y = k && k.querySelector(':scope > [data-door]');
     return y && y.textContent === 'Y' && k.firstChild === y && k.textContent.trim().indexOf('You found it') === 0 ? k : null;
   }
   // Remembers that the word was typed, so emptying the box afterwards (Enter, a redraw) doesn't undo step 1.
-  function isWord(v) {
+  // which: WORD for the Party code box, WORD_S for the phone page's school search box.
+  function isWord(v, which) {
     v = String(v || '').trim().toLowerCase();
-    return v ? h(v, 'ascoding11-door:').then(function (d) { return d === WORD; }) : Promise.resolve(false);
+    // the school box takes the Party box's word too, so the same word works on a computer and a phone
+    return v ? h(v, 'ascoding11-door:').then(function (d) { return d === (which || WORD) || (which === WORD_S && d === WORD); }) : Promise.resolve(false);
   }
+  function isBox(el) { return !!el && (el.id === 'ptyCode' || !!(el.classList && el.classList.contains('sch-q') && el.closest('#home'))); }
+  function wordFor(el) { return el.id === 'ptyCode' ? WORD : WORD_S; }
   document.addEventListener('input', function (e) {
-    if (!e.target || e.target.id !== 'ptyCode') return;
-    var v = e.target.value;
-    isWord(v).then(function (ok) { if (ok && e.target.value === v) armed = Date.now(); });
+    if (!isBox(e.target)) return;
+    var el = e.target, v = el.value, sch = el.id === 'ptyCode' ? null : el.closest('[data-school]');
+    if (sch) sch.classList.remove('brd-w');
+    isWord(v, wordFor(el)).then(function (ok) {
+      if (!ok || el.value !== v) return;
+      armed = Date.now();
+      // the school box: no "No school matches" note for the word (school.js redraws the note, so it's hidden by a class)
+      if (sch) sch.classList.add('brd-w');
+    });
   }, true);
-  // Enter with the word in the box would try to join a party called that; stop it.
+  // Enter with the word in the box would try to join a party called that (or open Add my school); stop it.
   document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Enter' || !e.target || e.target.id !== 'ptyCode') return;
+    if (e.key !== 'Enter' || !isBox(e.target)) return;
     if (armed && Date.now() - armed < ARM_MS) { e.preventDefault(); e.stopPropagation(); }
   }, true);
   function draw() {
@@ -100,7 +119,10 @@
       var r = await fetch(url, { cache: 'no-store' }).catch(function () { return { ok: false }; });
       if (r.ok) {
         try { sessionStorage.setItem('bra:n', n); } catch (e) {}
-        close(); location.href = url; return;
+        close();
+        // the phone page inside the home page's frame: open the admin page in the whole tab
+        try { if (window.top !== window && window.top.location.host === location.host) { window.top.location.href = url; return; } } catch (er) {}
+        location.href = url; return;
       }
       shake();
     } finally { busy = false; if (pad) pad.removeAttribute('aria-busy'); }
@@ -151,15 +173,18 @@
     if (t.length < 3) return;
     t = [];
     try { getSelection().removeAllRanges(); } catch (er) {}
-    // Step 1: the word has to be in the Party panel's code box now, or have been typed there in the last two minutes.
-    var box = document.getElementById('ptyCode');
+    // Step 1: the word has to be in the Party panel's code box (or, on the phone page, the school search box) now,
+    // or have been typed there in the last two minutes.
+    var box = document.getElementById('ptyCode'), sq = document.querySelector('#home [data-school] .sch-q');
     if (busy) return;
     busy = true;
-    isWord(box && box.value).then(function (ok) {
+    Promise.all([isWord(box && box.value), isWord(sq && sq.value, WORD_S)]).then(function (r) {
       busy = false;
-      if (!ok && !(armed && Date.now() - armed < ARM_MS)) return;
+      if (!r[0] && !r[1] && !(armed && Date.now() - armed < ARM_MS)) return;
       if (pad || !k.isConnected) return;
-      armed = 0; if (box) box.value = '';
+      armed = 0; if (box && r[0]) box.value = '';
+      if (sq && r[1]) { sq.value = ''; sq.dispatchEvent(new Event('input', { bubbles: true })); }
+      var sw = document.querySelector('.brd-w'); if (sw) sw.classList.remove('brd-w');
       open(k);
     }, function () { busy = false; });
   }

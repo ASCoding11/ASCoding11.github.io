@@ -90,6 +90,94 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.13.4', title: 'Flood Crew: better gloves', kind: 'fix',
+     tags: ['Flood Crew'], items: [
+      'Your gloved hands look like hands now, with fingers wrapped round the handle.']},
+    {date: '2026-11-27', version: '2.13.3', title: 'Phone page renamed', kind: 'fix',
+     tags: ['Phone'], items: [
+      'The phone page\'s title now reads ASCoding games.']},
+    {date: '2026-11-27', version: '2.13.2', title: 'Account save fix', kind: 'fix',
+     tags: ['Account'], items: [
+      'Account save no longer pauses with “signed in as someone else” on phones.',
+      'Signing in with Google from the phone version now starts saving to your account right away.']},
+    {date: '2026-11-26', version: '2.13.1', title: 'Chromeline: a new start every run', kind: 'fix',
+     tags: ['Chromeline'], items: [
+      'Endless now starts differently every run: the first jumps, their order and their heights change each time, and it is still hard from the first seconds.',
+      'The Daily run is still the same for everyone on the same day.',
+      'Trick and landing messages are much smaller and quicker, and they stay by the bike instead of covering the track ahead.']},
+    {date: '2026-11-26', version: '2.13', title: 'Retro TV switch tip', kind: 'feature',
+     tags: ['Holidays'], items: [
+      'A short note now shows you where the Retro TV switch is, the first time you visit this holiday season.',
+      'You can turn the Retro TV look on or off right from the note.']},
+    {date: '2026-11-26', version: '2.12', title: 'Chromeline gets tough', kind: 'feature',
+     tags: ['Chromeline'], items: [
+      'Endless and the Daily run are much harder: the first jumps come within seconds, and the first big launch needs a short hold in the air or you come up short.',
+      'The track gets hard far sooner, with the tough pieces turning up straight after the opening.',
+      'Landings are stricter: tilt more than about 53° off the slope and you crash, and a clean landing must be within 9°.',
+      'The bike is rigid now: the wheels stay fixed to the frame, so it no longer bounces on landing.',
+      'A simpler, cleaner bike.',
+      'The camera is zoomed out and sits further back, so you can see much more of the track ahead.']},
+    {date: '2026-11-26', version: '2.11', title: 'Tidier game rows', kind: 'feature',
+     items: [
+      'Every section of games now fills its rows evenly, so you never get a row of four and then one game on its own.',
+      'Each section picks its own number of games per row, and one or two games get a bigger card where that keeps the rows full.',
+      'Rows stay even on phones, on smaller screens, while you search, and with your own Edit layout sizes.',
+      'Flood Crew has its own card in Arcade now, instead of being squeezed inside Leaf Sweep\'s.']},
+    {date: '2026-11-26', version: '2.10', title: 'A more professional home page', kind: 'feature',
+     tags: ['Home page'], items: [
+      'The home page now leads with the engineering projects and web applications.',
+      'The games are one click away at the bottom of the home page.']},
+    {date: '2026-11-26', version: '2.09.1', title: 'Boostball: new card picture', kind: 'fix',
+     tags: ['Boostball'], items: [
+      'Boostball\'s card shows a real match now: the ball, the cars, both goals and the stadium.']},
+    {date: '2026-11-26', version: '2.09', title: 'The home page is now ASCoding', kind: 'feature',
+     tags: ['Home page'], items: [
+      'The home page now goes by ASCoding, with a cleaner, more professional look.']},
+    {date: '2026-11-26', version: '2.08', title: 'A new look for the home page', kind: 'feature',
+     tags: ['Home page'], items: [
+      'The home page has a whole new design, with a dark blueprint look and a gallery of the engineering projects.',
+      'The retro TV look for the holidays now has stronger scan lines, like an old TV.']},
+    {date: '2026-11-26', version: '2.07', title: 'Leaf Sweep: one handful at a time', kind: 'feature',
+     tags: ['Leaf Sweep'], items: [
+      'Leaf Sweep now starts with a short note on what to do, and you pick up leaves one handful at a time: each click or tap grabs what is in a small circle.',
+      'Bigger handfuls widens that circle, and Steady hands later lets you hold to keep grabbing.',
+      'The rake pulls at first; Rake push lets it push leaves away too. If you already had the rake, you keep pushing.']},
+    {date: '2026-11-26', version: '2.06', title: 'Flood Crew: more to do, faster water', kind: 'feature',
+     tags: ['Flood Crew'], items: [
+      'The first job has more to learn: shut the tap, tighten a dripping joint with the wrench, clear a second drain and bucket out a puddle that has nowhere to go.',
+      'Drains and pumps work much faster, so a cleared drain pulls the water down within seconds. Every job is quicker now.',
+      'Tanners Field shows you what to do: orange pegs mark where to dig, the old pipe in the bank is easy to see, and a few short lines guide your first visit.',
+      'Water now runs into the ditch at Tanners Field and flows away along it, instead of vanishing.']},
+    {date: '2026-11-26', version: '2.05', title: 'Flood Crew: new water', kind: 'feature',
+     tags: ['Flood Crew'], items: [
+      'The flood moves like real water now: currents carry on round corners, swirl behind walls and settle down instead of shimmering.',
+      'Wading pushes a bow wave ahead of you and leaves a wake, and splashes send out rings of ripples.',
+      'Working drains pull a proper whirlpool, the reflections are sharper, and sunlight sparkles on the surface.']},
+    {date: '2026-11-26', version: '2.04.1', title: 'Leaf Sweep: a calmer start', kind: 'fix',
+     tags: ['Leaf Sweep'], items: [
+      'Leaf Sweep\'s start is calmer: your hands gather leaves more gently, and the rake is back to 60 acorns.']},
+    {date: '2026-11-26', version: '2.04', title: 'Flood Crew, rebuilt', kind: 'feature',
+     img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew'], items: [
+      'Flood Crew starts in the flooded yard now, rake in hand, with one short instruction at a time. The depot and the gear shop turn up later.',
+      'It looks new: proper houses with roofs and windows, fences, trees, evening light with shadows, and water that mirrors what is around it, on phones too.',
+      'Raking splashes, a cleared drain gulps and pulls a whirlpool, and the ground comes up clean as the water drops.',
+      'Much less on screen: one water bar, your tool, and one line of words.',
+      'The two longest jobs are a good deal shorter, and raked leaves stay put for a while before they can float back.']},
+    {date: '2026-11-26', version: '2.03', title: 'Leaf Sweep: a new start', kind: 'feature',
+     img: 'm/thumbs/windrow.jpg', tags: ['Leaf Sweep'], items: [
+      'Leaf Sweep now starts in a small front yard by a garden house, with just your hands and one thing to do at a time.',
+      'Clear the yard and the gate to the big gardens opens. The rake arrives in the first couple of minutes.',
+      'New look: a house, fuller trees, soft shadows, a real sky, and gloves that actually hold the rake and blower.',
+      'Leaves fly in the blower\'s wind and burst when you jump into a heap. Your old progress is kept.']},
+    {date: '2026-11-26', version: '2.02', title: 'Chromeline: one button and 26 new pieces', kind: 'feature',
+     tags: ['Chromeline'], items: [
+      'Chromeline is now one button: hold to ride on the ground, hold in the air to flip backwards, let go to stop the spin. The arrow keys and the two round touch buttons are gone.',
+      '26 new track pieces, from easy to very hard: spike ceilings, glowing posts, floating triangles, wavy ground, broken track, steep ramps, triple loops, a giant loop, fast-dropping platforms and more.',
+      'Loops now pay: gems sit inside them, a gold crown waits at the top of some, and every loop raises your run multiplier, which multiplies every trick and gem.',
+      'Endless gets hard much sooner and keeps getting harder, and level time targets are tighter.',
+      'Flips take a little more skill: a slightly slower spin and a stricter clean landing.',
+      'The riders are gone: the bike rides alone now. If you owned or had picked a rider, your save still loads and nothing else changes.',
+      'The Volt Hopper has a new look: a sharper shell, a headlight beam, arcs of light when it flips and a pulse of light where it lands.']},
     {date: '2026-11-26', version: '1.65.2', title: 'Blackwade\'s shop is open again', kind: 'fix',
      tags: ['Blackwade'], items: [
       'You can buy equipment and upgrades in Blackwade again. They are how you get further, so that shop stays open.',
@@ -121,7 +209,7 @@
       'Pretty setting only: drifting clouds and a glow round the sun, water that ripples and sparkles in the sun, a little richer colour, and a glowing line where the storm meets the ground.',
       'Pretty setting only: beams of light over Rare, Epic and Legendary weapons on the floor, a column of colour where a player is knocked out, a ring of sparks when your shots land and a puff of dust when you build.']},
     {date: '2026-11-26', version: '1.62', title: 'New game: Flood Crew', kind: 'game',
-     games: ['Flood Crew'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
+     games: ['Flood Crew:ebbwork'], img: 'm/thumbs/ebbwork.jpg', tags: ['Flood Crew', 'Flood sim'], items: [
       'Flood Crew is in Arcade: a first-person game about getting flooded places dry.',
       'Work out why each place flooded: a buried drain, a leak, a broken bank, or ground with nowhere to run to.',
       'The water really flows. Rake a drain clear, dig a trench, lay sandbags or set up a pump, and watch where it goes.',
@@ -404,7 +492,7 @@
       'Clicking on people in the Online panel works again, even with your own layout.',
       'The list no longer jumps back to the top while you scroll it.'
     ]},
-    {date: '2026-11-27', version: '1.30', title: 'Happy holidays: the cabin is open', kind: 'feature',
+    {date: '2026-11-27', version: '2.01', title: 'Happy holidays: the cabin is open', kind: 'feature',
      tags: ['Back Room', 'Holidays', 'Retro TV'], items: [
       'The Back Room now opens on a log cabin at Christmas: a fire, a tree, snow at the window, and an old TV in the middle. Click the TV to step through to the games.',
       'Retro TV look: the whole page as if on that old set, with pixel letters, big-pixel game pictures and faint scan lines. The Retro TV switch at the top right turns it off.',

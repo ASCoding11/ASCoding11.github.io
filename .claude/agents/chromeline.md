@@ -7,7 +7,7 @@ You are the specialist for **Chromeline**, a game on Arjun's site (ascoding11.gi
 
 ## What it is
 
-Chromeline (Back Room; formerly Flipline, and the folder, saved data, stats keys and the leaderboard's `d: 'flipline'` keep the old name), a one-button side-view stunt bike game in a neon city at night (Canvas 2D and Web Audio, no Firebase except stats.js). Hold the gas to ride; flips are on the arrows (← spins backwards, → forwards; on the ground they lean the rider back into a wheelie or over the bars). Gravity is on: nothing levels the bike in the air, a spin carries on until the player stops it, and the heavy front end drops the nose. (Until 20 Nov 2026 it was one button: holding in the air tipped the bike backwards and letting go levelled it. Arjun's arrow-key and gravity change, pull request #282, came first; Chromeline's look and track are built on top of it.
+Chromeline (Back Room; formerly Flipline, and the folder, saved data, stats keys and the leaderboard's `d: 'flipline'` keep the old name), a one-button side-view stunt bike game in a neon city at night (Canvas 2D and Web Audio, no Firebase except stats.js). One button since 1.54: on the ground holding is the gas, in the air holding spins the bike backwards and letting go lets the spin fade; gravity drops the nose. There is no rider any more, just the bike. (Before 1.54 Arjun's pull request #282 had arrow keys for flips; Chromeline's look and track are built on top of that.
 
 ## Where it lives
 

@@ -1,201 +1,98 @@
-/* Ironveil missions: a mission is data plus a few script functions (see missions/*.js and the README). This file runs
-   them: objectives that appear, complete and change mid-mission, triggers (enter an area, kill, interact, timer, any
-   condition), timed and chained script beats, radio lines as subtitles, interactables with hold-to-use, checkpoints that
-   restore the dynamic world (soldiers, squadmate, flags, objectives, loadout), fail states and the results/medals. */
+/* Midnight Ops: the mission runner. The mission file (MO.missions.current) gives the map, the targets and the script
+   hooks; this runs the parts every mission shares: planting charges (stand at a target, look at it, hold E for
+   2.4 s; the fuse burns 6 s), the blast, checkpoints after each blast, the way out, music intensity, the heartbeat,
+   death, failing, and the graded debrief. */
 (function () {
   'use strict';
-  const W = IV.world, T = IV.TUNING;
-  IV.missions = { list: [], byId: {} };
-  IV.missions.register = function (def) { IV.missions.list.push(def); IV.missions.byId[def.id] = def; IV.missions.list.sort((a, b) => a.num - b.num); };
-  const DIFF = [
-    { name: 'Recruit', taken: 0.6, aware: 0.8, acc: 0.85 },
-    { name: 'Regular', taken: 1, aware: 1, acc: 1 },
-    { name: 'Veteran', taken: 1.45, aware: 1.25, acc: 1.15 }
-  ];
-  const M = IV.mission = { def: null, diff: 0, diffMul: DIFF[0], on: false, time: 0, objs: [], flags: {}, trigs: [], timers: [], inter: [], radioQ: [], cpIdx: 0, group: null, phase: '', failed: false, finished: false, noWeapons: false };
-  M.DIFF = DIFF;
+  const MO = window.MO, M = MO.mission = { state: 'boot', time: 0, retries: 0, done: 0, opt: 0 }, T = MO.T;
+  const HOLD = 2.4, FUSE = 6;
+  let prog = 0, active = null, fuses = [], cp = null, exitOn = false, tickT = 0, introT = 0, heartT = 0, st = {}, failLine = '';
+  const fwd = new THREE.Vector3();
+  const D = () => MO.missions.current;
 
-  // ---------------------------------------------------------------- objectives
-  M.obj = function (id, text, o) {
-    o = o || {};
-    let ob = M.objs.find(x => x.id === id);
-    if (!ob) { ob = { id, text, state: 'active', optional: !!o.optional, t: IV.time }; M.objs.push(ob); }
-    else { ob.text = text || ob.text; ob.state = 'active'; ob.t = IV.time; }
-    if (o.marker) ob.marker = o.marker; // {x,y,z} shown on the compass and in the world
-    ob.isNew = true;
-    if (!o.quiet) IV.audio && IV.audio.play('objective');
-    IV.emit('objectives');
-    return ob;
-  };
-  M.done = function (id) { const ob = M.objs.find(x => x.id === id); if (ob && ob.state === 'active') { ob.state = 'done'; ob.t = IV.time; IV.emit('objectives'); IV.audio && IV.audio.play('objDone'); } };
-  M.drop = function (id) { const ob = M.objs.find(x => x.id === id); if (ob) { ob.state = 'gone'; IV.emit('objectives'); } };
-  M.isDone = id => { const ob = M.objs.find(x => x.id === id); return !!ob && ob.state === 'done'; };
-  M.active = () => M.objs.filter(o => o.state === 'active' || (o.state === 'done' && IV.time - o.t < 4));
-  M.setMarker = function (id, m) { const ob = M.objs.find(x => x.id === id); if (ob) ob.marker = m; };
-
-  // ---------------------------------------------------------------- triggers, timers, interactables, radio
-  // when: () => bool, checked every step until it fires (once unless repeat)
-  M.when = function (when, fn, o) { const t = Object.assign({ when, fn, once: true, on: true }, o || {}); M.trigs.push(t); return t; };
-  M.after = function (sec, fn) { const t = { at: M.time + sec, fn }; M.timers.push(t); return t; };
-  M.area = function (x, z, r) { return () => Math.hypot(IV.player.pos.x - x, IV.player.pos.z - z) < r; };
-  M.box = function (x0, z0, x1, z1) { return () => { const p = IV.player.pos; return p.x > x0 && p.x < x1 && p.z > z0 && p.z < z1; }; };
-  // a thing to use: {id, x,y,z, r, text, hold (s), on (bool or fn), done(fn)}
-  M.interact = function (o) { o.prog = 0; if (o.on == null) o.on = true; M.inter.push(o); return o; };
-  M.interAt = null;
-  // radio / squad lines as subtitles, queued, each shown for dur seconds (default by length)
-  M.radio = function (who, text, dur, o) {
-    M.radioQ.push({ who, text, dur: dur || Math.max(2.2, text.length * 0.055), o: o || {} });
-  };
-  M.say = (text, dur) => M.radio(IV.ally.NAME, text, dur);
-  M.hq = (text, dur) => M.radio('Radio', text, dur, { squelch: true });
-  let radioCur = null;
-  function stepRadio(dt) {
-    if (radioCur) { radioCur.t -= dt; if (radioCur.t <= 0) { radioCur = null; IV.hud && IV.hud.subtitle(null); } }
-    if (!radioCur && M.radioQ.length) {
-      radioCur = M.radioQ.shift(); radioCur.t = radioCur.dur;
-      IV.hud && IV.hud.subtitle(radioCur.who, radioCur.text);
-      IV.audio && IV.audio.play(radioCur.o.squelch ? 'squelch' : 'squad');
-    }
+  M.say = (who, text, dur) => MO.hud.say(T(who), T(text), dur);
+  M.openExit = () => { exitOn = true; setObjective(); };
+  M.exitOpen = () => exitOn;
+  M.state_ = () => st;
+  /* the noise of a blast: everyone in the area comes, sirens, a banner */
+  M.alarm = (t) => { const P = MO.player; MO.enemies.shout(t.x, t.z, 200, P.pos.x, P.pos.z); MO.audio.play('alarm', { x: t.x + 20, y: 4, z: t.z - 20, vol: 0.8 }); MO.hud.wave(T('Reinforcements')); MO.audio.play('objective', { vol: 0.7, delay: 1.2 }); };
+  M.fail = (line) => { if (M.state !== 'play' && M.state !== 'intro') return; failLine = line; MO.player.god = false; MO.player.damage(9999, MO.player.pos.x, MO.player.pos.z); };
+  function setObjective() {
+    const o = D().objective(M), tg = MO.level.targets;
+    MO.hud.objective(T('Objective'), T(exitOn ? (D().exitTitle || o.title) : o.title), o.done || 0, o.total || 0, o.count ? T(o.count) : '');
+    MO.hud.setMarks(tg.map((t) => ({ x: t.x, z: t.z, y: t.my, label: T(t.label), opt: t.optional, get hide() { return t.planted || (t.hidden && t.hidden(M)); } }))
+      .concat([{ x: MO.level.exit.x, z: MO.level.exit.z, y: 1.8, label: T(D().exitLabel || 'Exit'), exit: true, get hide() { return !exitOn; } }]));
   }
-  M.radioBusy = () => !!radioCur || M.radioQ.length > 0;
+  M.objective = setObjective;
+  /* (re)start: from the top, or from the last checkpoint */
+  M.begin = (fromCp) => {
+    const L = MO.level, P = MO.player, def = D(); MO.enemies.clear(); fuses.length = 0; prog = 0; active = null; exitOn = false; M.done = 0; M.opt = 0; failLine = '';
+    if (!fromCp) cp = null;
+    for (const t of L.targets) { const was = !!(cp && cp.ids.indexOf(t.id) >= 0); t.planted = was;
+      if (was) { if (t.optional) M.opt++; else M.done++; if (!t.destroyed) { t.k.blow(true); t.destroyed = true; } } else if (t.destroyed) { t.k.mend(); t.destroyed = false; } }
+    st = cp ? Object.assign({}, cp.st) : {};
+    if (!fromCp) { M.time = 0; M.retries = 0; P.reset(L.spawn); } else { P.reset(cp ? cp.pos : L.spawn); M.retries++; }
+    MO.weapon.reset();
+    for (const p of L.posts) { if (cp && L.targets.some((t) => t.planted && Math.hypot(t.x - p.x, t.z - p.z) < 16)) continue; if (Math.hypot(p.x - P.pos.x, p.z - P.pos.z) < 14) continue; MO.enemies.spawn(p.k, p.x, p.z, p); }
+    if (def.onBegin) def.onBegin(M, st, !!cp);
+    if (def.exitWhen ? def.exitWhen(M) : M.done >= L.targets.filter((t) => !t.optional).length) exitOn = true;
+    setObjective(); MO.level.relight();
+    MO.input.reset(); MO.R.hideWeapon = false; P.shots = P.hits = 0;
+  };
+  M.intro = () => { const def = D(); M.state = 'intro'; introT = 4.2; document.getElementById('i-a').textContent = T(def.title); document.getElementById('i-b').textContent = T(def.stamp);
+    const s = document.getElementById('intro'); s.classList.remove('on'); void s.offsetWidth; s.classList.add('on'); MO.audio.play('mission_start', { vol: 0.8 }); MO.audio.setRain(1); MO.audio.setMusic(true);
+    if (def.intro) def.intro(M); };
 
-  // ---------------------------------------------------------------- lifecycle
-  // build the static world for a mission (kept while replaying the same mission)
-  M.loadWorld = async function (def, progress) {
-    M.def = def; M.worldId = null;
-    IV.R = IV.rng(1944 + def.num);
-    progress && progress(0.1, 'Laying out the country…');
-    await tick();
-    W.setupLevel(def.world);
-    progress && progress(0.35, 'Planting hedgerows…');
-    await tick();
-    def.build(M);
-    IV.art.flush();
-    IV.menus && IV.menus.applySettings();
-    W.lamps.forEach(l => { l.static = true; });
-    progress && progress(0.7, 'Walking the lanes…');
-    await tick();
-    IV.nav.build();
-    IV.fx.init();
-    W.linearize(W.scene);
-    progress && progress(0.95, 'Briefing the squad…');
-    await tick();
-    M.worldId = def.id;
-  };
-  M.setDiff = function (diff) { M.diff = diff; M.diffMul = DIFF[diff]; M.awareMul = DIFF[diff].aware; M.enemyAccMul = DIFF[diff].acc; };
-  const tick = () => new Promise(r => setTimeout(r, 16));
-  // (re)start the dynamic part from a checkpoint index (0 = mission start). data = saved state for that checkpoint.
-  M.begin = function (cpIdx, data) {
-    M.on = true; M.failed = false; M.finished = false; M.cpIdx = cpIdx; M.phase = '';
-    M.objs = []; M.trigs = []; M.timers = []; M.inter = []; M.radioQ = []; radioCur = null; IV.hud && IV.hud.subtitle(null);
-    M.flags = data ? JSON.parse(JSON.stringify(data.flags || {})) : {};
-    M.time = data ? data.time : 0;
-    M.noWeapons = false; IV.camera.reset(); IV.ai.reset(); IV.ally.remove(); IV.ambience && IV.ambience.clear(); IV.fx.clear && IV.fx.clear();
-    if (M.group) W.scene.remove(M.group);
-    M.group = new THREE.Group(); W.scene.add(M.group);
-    W.lamps = W.lamps.filter(l => l.static);
-    IV.audio && IV.audio.alarm(false);
-    IV.weapons.bullets.length = 0; IV.weapons.throws.length = 0; IV.targets = [];
-    M.def.setup(M, cpIdx, data);
-    if (data && data.stats) { IV.weapons.stats = Object.assign({}, data.stats); IV.ai.spottedCount = data.spotted || 0; }
-    if (data && data.objs) for (const o of data.objs) { const ob = M.objs.find(x => x.id === o.id); if (ob) { ob.state = o.state; ob.text = o.text; } else M.objs.push(Object.assign({}, o, { isNew: false })); }
-    if (data && data.inv) Object.assign(IV.weapons.inv, JSON.parse(JSON.stringify(data.inv)));
-    W.linearize(W.scene);
-    try { W.renderer.compile(W.scene, W.camera); } catch (e) {}   // compile shaders now, not on the first shot
-    IV.emit('objectives'); IV.emit('missionBegin', cpIdx);
-  };
-  M.checkpoint = function (idx) {
-    if (idx <= M.cpIdx && idx !== 0) return;
-    M.cpIdx = idx;
-    const data = { flags: JSON.parse(JSON.stringify(M.flags)), time: M.time, stats: Object.assign({}, IV.weapons.stats), spotted: IV.ai.spottedCount,
-      objs: M.objs.filter(o => o.state !== 'gone').map(o => ({ id: o.id, text: o.text, state: o.state, optional: o.optional })), inv: JSON.parse(JSON.stringify(IV.weapons.inv)) };
-    IV.save.cp = { mission: M.def.id, diff: M.diff, idx, data, v: 1 };
-    IV.persist();
-    IV.hud && IV.hud.toast(IV.t('Checkpoint reached'));
-    IV.emit('checkpoint', idx);
-  };
-  M.restoreCheckpoint = function () {
-    const cp = IV.save.cp;
-    const deaths = IV.weapons.stats.deaths || 0;   // a retry keeps counting this run's deaths
-    if (cp && cp.mission === M.def.id && cp.idx > 0) M.begin(cp.idx, cp.data); else M.begin(0, null);
-    IV.weapons.stats.deaths = Math.max(deaths, IV.weapons.stats.deaths || 0);
-  };
-  M.fail = function (reason) {
-    if (M.failed || M.finished) return;
-    M.failed = true; M.on = false;
-    IV.emit('missionFailed', reason);
-  };
-  // The skill rating (0-1000) on the debrief: what a better player does better, each part capped so no single one
-  // carries a run. Accuracy 250 (60 % of rounds on target is full marks), head shots 200 (40 % of hits), time 200
-  // (half the par time is full, par is 100, one and a half par is 0), deaths 200 (minus 100 each), times spotted 150
-  // (minus 50 each). A run without a shot fired keeps full accuracy and head-shot marks: a clean ghost is skill too.
-  M.RATE_GOLD = 700;
-  M.PAR = { bootcamp: 360, nightdrop: 900 };
-  M.rate = function (s, def) {
-    const par = def.par || M.PAR[def.id] || 600, cl = IV.clamp;
-    const p = {
-      acc: s.shots ? Math.round(250 * cl(s.hits / s.shots / 0.6, 0, 1)) : 250,
-      head: s.hits ? Math.round(200 * cl(s.headHits / s.hits / 0.4, 0, 1)) : 200,
-      time: Math.round(200 * cl((1.5 * par - s.time) / par, 0, 1)),
-      deaths: Math.max(0, 200 - 100 * s.deaths),
-      spotted: Math.max(0, 150 - 50 * (s.spotted || 0))
-    };
-    s.scoreParts = p; s.score = p.acc + p.head + p.time + p.deaths + p.spotted; s.par = par;
-    return s.score;
-  };
-  M.complete = function () {
-    if (M.finished || M.failed) return;
-    M.finished = true; M.on = false;
-    const st = IV.weapons.stats, def = M.def;
-    const s = { time: M.time, shots: st.shots, hits: st.hits, acc: st.shots ? Math.round(st.hits / st.shots * 100) : 0, kills: st.kills, heads: st.heads, takedowns: st.takedowns, spotted: IV.ai.spottedCount,
-      optional: M.objs.filter(o => o.optional && o.state === 'done').length, optionalTotal: def.optionalTotal || M.objs.filter(o => o.optional).length, diff: M.diff };
-    s.headHits = st.headHits || 0; s.deaths = st.deaths || 0; s.headPct = s.hits ? Math.round(s.headHits / s.hits * 100) : 0;
-    M.rate(s, def);
-    const crit = (def.medals || []).map(c => ({ text: IV.t(c.text, c.vars), ok: !!c.ok(s, M) }));
-    crit.push({ text: IV.t('Skill rating of {n} or better', { n: M.RATE_GOLD }), ok: s.score >= M.RATE_GOLD });
-    const n = crit.filter(c => c.ok).length;
-    s.medal = n >= crit.length ? 'gold' : n >= crit.length - 1 ? 'silver' : 'bronze'; s.crit = crit;
-    const rec = IV.save.missions[def.id] = IV.save.missions[def.id] || {};
-    const rank = { bronze: 1, silver: 2, gold: 3 };
-    rec.done = true; rec.last = s.medal;
-    if (!rec.medal || rank[s.medal] > rank[rec.medal]) rec.medal = s.medal;
-    if (!rec.best || s.time < rec.best) rec.best = Math.round(s.time);
-    // the best skill rating and the run that set it (fields added to the save; older saves simply lack them)
-    s.prevBest = rec.bestScore || 0; rec.lastScore = s.score;
-    if (!rec.bestScore || s.score > rec.bestScore) { rec.bestScore = s.score; rec.bestRun = { score: s.score, acc: s.acc, headPct: s.headPct, time: Math.round(s.time), deaths: s.deaths, spotted: s.spotted, diff: s.diff }; s.newBest = true; }
-    if (def.id === 'bootcamp') IV.save.tut = true;
-    if (IV.save.cp && IV.save.cp.mission === def.id) IV.save.cp = null;
-    IV.persist();
-    window.BackRoomStats && BackRoomStats.add('missions', 1);
-    window.BackRoomStats && BackRoomStats.min('time:' + def.id, Math.round(s.time));
-    IV.emit('missionComplete', s);
-  };
-
-  M.step = function (dt) {
-    if (!M.on) { stepRadio(dt); return; }
+  function blow(t) {
+    const P = MO.player, A = MO.audio, def = D();
+    MO.fx.explosion(t.x, 0.6, t.z, t.big || 1.2); A.play('explosion', { x: t.x, y: 1, z: t.z, vol: 1 }); t.k.blow(false); t.destroyed = true;
+    const d = Math.hypot(t.x - P.pos.x, t.z - P.pos.z); if (d < 7.5) P.damage(130 * (1 - d / 7.5), t.x, t.z);
+    for (const s of MO.enemies.list) if (s.alive && Math.hypot(s.x - t.x, s.z - t.z) < 5) s.hit(200, false, s.x - t.x, s.z - t.z);
+    if (t.optional) M.opt++; else M.done++;
+    cp = { ids: MO.level.targets.filter((q) => q.planted && q.destroyed).map((q) => q.id), pos: t.cp || { x: t.x + (t.x > 0 ? -9 : 9), z: t.z + 1, yaw: 0 }, st: null };
+    if (def.onBlow) def.onBlow(M, t, st);
+    cp.st = Object.assign({}, st);
+    setObjective();
+  }
+  M.update = (dt) => {
+    const P = MO.player, L = MO.level, I = MO.input, A = MO.audio, def = D();
+    if (M.state === 'intro') { introT -= dt; if (introT <= 0) { M.state = 'play'; document.getElementById('intro').classList.remove('on'); } }
+    if (M.state !== 'play' && M.state !== 'intro') return;
     M.time += dt;
-    for (let i = M.timers.length - 1; i >= 0; i--) { const t = M.timers[i]; if (M.time >= t.at) { M.timers.splice(i, 1); t.fn(); if (!M.on) return; } }
-    for (const t of M.trigs) { if (!t.on) continue; if (t.when()) { if (t.once) t.on = false; t.fn(); if (!M.on) return; } }
-    if (M.trigs.length > 60) M.trigs = M.trigs.filter(t => t.on);
-    // interactables: the nearest usable one in front of you
-    const P = IV.player, I = IV.input;
-    let best = null, bd = 9;
-    if (P.alive && !P.frozen) for (const o of M.inter) {
-      const on = typeof o.on === 'function' ? o.on() : o.on; if (!on || (P.cine && !o.cine)) continue;
-      const d = Math.hypot(P.pos.x - o.x, P.pos.z - o.z); if (d > (o.r || 1.6) || Math.abs((o.y != null ? o.y : P.pos.y) - P.pos.y - 0.8) > 2) continue;
-      if (d < bd) { bd = d; best = o; }
-    }
-    M.interAt = best;
-    for (const o of M.inter) if (o !== best) o.prog = 0;
-    if (best) {
-      if (I.held('use')) {
-        best.prog += dt / (best.hold || 0.01);
-        if (best.prog >= 1) { best.prog = 0; best.on = false; IV.emit('interacted', best); best.done && best.done(); }
-      } else best.prog = 0;
-    }
-    if (M.def.step) M.def.step(M, dt);
-    stepRadio(dt);
-    if (!P.alive && !M.failed) { M.deadT = (M.deadT || 0) + dt; if (M.deadT > 2.6) { M.deadT = 0; M.fail('You were killed.'); } } else M.deadT = 0;
-    if (IV.ally.ent && !IV.ally.ent.alive && !M.failed && M.def.needAlly) { M.allyT = (M.allyT || 0) + dt; if (M.allyT > 2) { M.allyT = 0; M.fail(IV.t('{n} is down.', { n: IV.ally.NAME })); } }
+    // --- planting
+    let near = null, best = 2.6; P.forward(fwd);
+    for (const t of L.targets) { if (t.planted || (t.locked && t.locked(M))) continue; const dx = t.x - P.pos.x, dz = t.z - P.pos.z, d = Math.hypot(dx, dz); if (d < (t.reach || best) && (d < 1.1 || (dx * fwd.x + dz * fwd.z) / d > 0.45)) { best = d; near = t; } }
+    if (near !== active) { active = near; prog = 0; }
+    if (active && P.alive) {
+      if (I.use) { prog += dt / HOLD; tickT -= dt; if (tickT <= 0) { tickT = 0.16; A.play('plant_tick', { vol: 0.6 }); } } else prog = Math.max(0, prog - dt * 1.6);
+      MO.hud.prompt(T(active.verb || 'Hold to plant the charge'), MO.sat(prog));
+      if (prog >= 1) { active.planted = true; fuses.push({ t: active, f: active.fuse || FUSE }); A.play('plant_done', { vol: 0.9 }); A.play('fuse', { x: active.x, y: 1, z: active.z }); MO.hud.msg(T('Charge set. Get clear!')); prog = 0; active = null; setObjective(); }
+    } else MO.hud.prompt('', 0);
+    // --- fuses
+    let ft = 0;
+    for (let i = fuses.length - 1; i >= 0; i--) { const f = fuses[i]; f.f -= dt; ft = Math.max(ft, f.f); if (f.f <= 0) { fuses.splice(i, 1); blow(f.t); } }
+    MO.hud.fuse(ft);
+    if (def.update) def.update(M, dt, st);
+    if (def.ambient) def.ambient(M, dt, st);
+    // --- the way out
+    if (exitOn && P.alive && Math.hypot(L.exit.x - P.pos.x, L.exit.z - P.pos.z) < 2.8) M.complete();
+    // --- mood: music follows the fight; a heartbeat when badly hurt
+    A.setIntensity(MO.enemies.inCombat > 0 ? MO.clamp(0.45 + MO.enemies.inCombat * 0.14, 0, 1) : MO.enemies.alerted ? 0.3 : 0.12);
+    if (P.alive && P.hp < 40) { heartT -= dt; if (heartT <= 0) { heartT = 0.75; A.play('heartbeat', { vol: 0.8 }); } }
   };
+  M.complete = () => {
+    if (M.state === 'done') return; M.state = 'done'; const P = MO.player, def = D(), acc = P.shots ? P.hits / P.shots : 0, par = def.par || [300, 450];
+    const pts = (M.time < par[0] ? 2 : M.time < par[1] ? 1 : 0) + (acc >= 0.45 ? 2 : acc >= 0.28 ? 1 : 0) + (M.retries === 0 ? 1 : 0);
+    const grade = ['Ragged', 'Loud', 'Steady', 'Clean', 'Sharp', 'Textbook'][pts];
+    const sv = MO.save.missions[def.id] || {}; sv.done = true; sv.best = Math.max(sv.best || 0, pts); sv.time = sv.time ? Math.min(sv.time, Math.round(M.time)) : Math.round(M.time); MO.save.missions[def.id] = sv; MO.store();
+    const $ = (id) => document.getElementById(id), mm = Math.floor(M.time / 60), ss = Math.floor(M.time % 60);
+    $('g-line').textContent = T(def.doneLine); $('g-grade').textContent = T(grade); $('g-l1').textContent = T('Time'); $('g-time').textContent = mm + ':' + (ss < 10 ? '0' : '') + ss; $('g-l2').textContent = T('Accuracy'); $('g-acc').textContent = Math.round(acc * 100) + '%';
+    $('g-l3').textContent = T('Enemies down'); $('g-kills').textContent = MO.enemies.kills; $('g-l4').textContent = T('Retries'); $('g-tries').textContent = M.retries;
+    const next = MO.missions.list.find((d) => d.num === def.num + 1); $('b-next').hidden = !next; if (next) $('b-next').textContent = T('Next: {t}', { t: T(next.title) });
+    MO.audio.play('mission_done', { vol: 0.9 }); MO.audio.setIntensity(0); MO.emit('state', 'done');
+  };
+  MO.on('dead', () => { if (M.state !== 'play' && M.state !== 'intro') return; M.state = 'dead'; MO.audio.play('mission_fail', { vol: 0.8 }); MO.audio.setIntensity(0);
+    const def = D(); document.getElementById('d-line').textContent = failLine ? T(failLine) + ' ' : '';
+    document.getElementById('d-line').textContent += cp ? T(def.cpLine) : T(def.startLine); setTimeout(() => MO.emit('state', 'dead'), 1500); });
+  M.hasCp = () => !!cp;
 })();

@@ -70,5 +70,35 @@ if (window.BackRoomLang) BackRoomLang.add({
   // controls panel
   'Move': 'Moverse', 'Work': 'Trabajar', 'Walk forward': 'Caminar adelante', 'Walk back': 'Caminar atrás', 'Step left': 'Paso a la izquierda', 'Step right': 'Paso a la derecha',
   'Sprint': 'Correr', 'After you earn the running shoes': 'Cuando ganes las zapatillas para correr', 'After you earn the knee pads': 'Cuando ganes las rodilleras',
-  'Empty sack or open a gate': 'Vaciar el saco o abrir un portón', 'Next tool': 'Siguiente herramienta'
+  'Empty sack or open a gate': 'Vaciar el saco o abrir un portón', 'Next tool': 'Siguiente herramienta',
+  // the new start: one line of instruction at a time, and the Front Yard
+  'Clear every last leaf.': 'Limpia hasta la última hoja.', 'Play': 'Jugar', 'Carry on': 'Continuar', 'Shed and map': 'Cobertizo y mapa',
+  'Front Yard': 'Jardín Delantero', 'The garden gate': 'El portón del jardín', 'Gatehouse Court is open': 'El Patio de la Portería está abierto',
+  'Hold Use to gather leaves': 'Mantén Usar para juntar hojas', 'Hold the left mouse button to gather leaves': 'Mantén el botón izquierdo del mouse para juntar hojas',
+  'Your sack is full: empty it in the bin': 'Tu saco está lleno: vacíalo en la compostera',
+  'Tap the shed button to spend your acorns': 'Toca el botón del cobertizo para gastar tus bellotas', 'Press {k} to spend your acorns in the shed': 'Pulsa {k} para gastar tus bellotas en el cobertizo',
+  'You can afford the rake: tap the shed button': 'Ya te alcanza para el rastrillo: toca el botón del cobertizo', 'You can afford the rake: press {k}': 'Ya te alcanza para el rastrillo: pulsa {k}',
+  'Bought the rake: hold to drag leaves into a pile': 'Compraste el rastrillo: mantén pulsado para juntar las hojas en un montón',
+  'Bought the blower: hold to push leaves away': 'Compraste la sopladora: mantén pulsado para empujar las hojas',
+  'The gate is open: the next garden is waiting': 'El portón está abierto: el siguiente jardín te espera',
+  'Leaves that reach a yellow grate are paid at once': 'Las hojas que llegan a una rejilla amarilla se pagan al instante',
+  'Clear every leaf in the yard and this gate opens': 'Limpia todas las hojas de este jardín y el portón se abre',
+  '{m} to walk, mouse to look, hold the left button to work, {j} to jump. {a} to switch tools, {e} at a bin or gate, {t} for the shed and map, {f} for the leaf finder.': '{m} para caminar, mouse para mirar, mantén el botón izquierdo para trabajar y {j} para saltar. {a} para cambiar de herramienta, {e} en una compostera o portón, {t} para el cobertizo y el mapa y {f} para el buscador de hojas.',
+  // grabbing one handful at a time, rake push, steady hands, the opening card, captains
+  'Grab': 'Agarrar', 'Blow': 'Soplar', 'Push': 'Empujar', 'Pull': 'Tirar',
+  'The old gardens are buried in leaves. Clear every last one.': 'Los viejos jardines están enterrados en hojas. Limpia hasta la última.',
+  'Start here: click to pick up the leaves at your feet.': 'Empieza aquí: haz clic para recoger las hojas a tus pies.',
+  'Start here: tap Grab to pick up the leaves at your feet.': 'Empieza aquí: toca Agarrar para recoger las hojas a tus pies.',
+  'Click to pick up the leaves in the circle': 'Haz clic para recoger las hojas del círculo', 'Tap Grab to pick up the leaves in the circle': 'Toca Agarrar para recoger las hojas del círculo',
+  'Bigger handfuls': 'Puñados más grandes', 'Each grab picks up more leaves': 'Cada vez que agarras recoges más hojas',
+  'Rake push': 'Empujar con el rastrillo', 'Turn the rake round to push leaves away as well as pull them': 'Da vuelta el rastrillo para empujar las hojas además de tirar de ellas',
+  'Steady hands': 'Manos firmes', 'Hold to keep grabbing instead of one grab a click': 'Mantén pulsado para seguir agarrando en vez de un puñado por clic',
+  'Buy rake push in the shed to push leaves away': 'Compra el empuje del rastrillo en el cobertizo para empujar las hojas',
+  'Rake: push': 'Rastrillo: empujar', 'Rake: pull': 'Rastrillo: tirar', 'Rake pushes': 'El rastrillo empuja', 'Rake pulls': 'El rastrillo tira',
+  'Rake push: tap Push or Pull to switch': 'Empuje del rastrillo: toca Empujar o Tirar para cambiar',
+  'Rake push: press {k} to switch between pull and push': 'Empuje del rastrillo: pulsa {k} para cambiar entre tirar y empujar',
+  'Steady hands: hold Grab to keep picking up': 'Manos firmes: mantén Agarrar para seguir recogiendo',
+  'Steady hands: hold the mouse button to keep picking up': 'Manos firmes: mantén el botón del mouse para seguir recogiendo',
+  'Rake: pull or push': 'Rastrillo: tirar o empujar', 'After you buy rake push': 'Cuando compres el empuje del rastrillo',
+  'Captain: every garden is open for testing': 'Capitán: todos los jardines están abiertos para probar'
 });
