@@ -26,6 +26,10 @@
  * for the scan lines (it ignores the pointer) and one small bar at the top of the page for the switch. Game pictures
  * are swapped for small copies of themselves (their own addresses are kept in data-hol-src and put back when the look
  * is switched off). With prefers-reduced-motion nothing moves: no rolling band, no zoom, a still cabin.
+ * 3. The winter tip. The first time someone opens one of these pages in a holiday season, a small note (top right,
+ *    once per browser per season: localStorage "holiday:tip" = the season's year) says the Retro TV look can be
+ *    switched at the top of the page, with a snapshot of that switch (holiday-tip.jpg, next to this file) and a working
+ *    copy of it. It waits until the cabin has gone and no game is open; Got it, x or Esc closes it. ?tip=1 shows it again.
  * Testing: ?season=holiday forces the holidays (seasons.js); add &nocabin=1 to skip the cabin or &cabin=1 to show it
  * even if it was already seen. BackRoomHoliday.cabin() shows it, BackRoomHoliday.tv(true|false) sets the look.
  */
@@ -38,7 +42,9 @@
   function ss(k,v){try{if(v===undefined)return sessionStorage.getItem(k);sessionStorage.setItem(k,v)}catch(e){return null}}
   var q={};try{new URLSearchParams(location.search).forEach(function(v,k){q[k]=v})}catch(e){}
 
-  var on=false,styleEl=null,fontEl=null,bar=null,sw=null,crt=null,cabin=null;
+  var on=false,styleEl=null,fontEl=null,bar=null,sw=null,crt=null,cabin=null,tipEl=null,tipSw=null,tipT=0,tipKey=null;
+  // where this file lives, for the tip's snapshot picture (the phone page loads it from the same folder)
+  var HERE=((doc.currentScript&&doc.currentScript.src)||'').replace(/[^\/]*$/,'')||'/e63334287a3deaa3/';
 
   /* ---------- the retro TV look ---------- */
   var CSS=
@@ -75,6 +81,21 @@
     '#hol-bar .hol-knob::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);transition:transform .15s}'+
     '#hol-bar [aria-checked="true"] .hol-knob{background:var(--accent,#2459c8)}'+
     '#hol-bar [aria-checked="true"] .hol-knob::after{transform:translateX(16px)}'+
+    // the winter tip (shown once a season)
+    '#hol-tip{position:fixed;z-index:2500;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:min(340px,calc(100vw - 24px));box-sizing:border-box;background:var(--panel,#fff);color:var(--ink,#16201b);border:2px solid var(--accent,#2459c8);border-radius:14px;box-shadow:0 18px 40px -12px rgba(4,14,40,.55);padding:14px 16px;font-family:var(--body,system-ui,sans-serif);font-size:14px;line-height:1.45;animation:hol-in .25s ease-out}'+
+    '#hol-tip b{display:block;font-size:16px;margin:0 28px 4px 0}'+
+    '#hol-tip p{margin:0;color:var(--ink-2,#4a5751)}'+
+    '#hol-tip img{display:block;width:100%;height:auto;margin:10px 0;border-radius:8px;border:1px solid var(--line,#d3dad2)}'+
+    '#hol-tip .hol-row{display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap}'+
+    '#hol-tip button{font:600 13px var(--body,system-ui,sans-serif);color:var(--ink,#16201b);background:var(--panel-2,#f6f8f4);border:1px solid var(--line,#d3dad2);border-radius:999px;min-height:38px;padding:6px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}'+
+    '#hol-tip button.hol-ok{background:var(--accent,#2459c8);border-color:var(--accent,#2459c8);color:var(--accent-ink,#fff)}'+
+    '#hol-tip .hol-x{position:absolute;top:8px;right:8px;min-height:32px;width:32px;padding:0;justify-content:center;font-size:18px;line-height:1}'+
+    '#hol-tip button:focus-visible{outline:2px solid var(--accent,#2459c8);outline-offset:2px}'+
+    '#hol-tip .hol-knob{position:relative;flex:none;width:34px;height:18px;border-radius:999px;background:var(--line,#b9c6d8);transition:background .15s}'+
+    '#hol-tip .hol-knob::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);transition:transform .15s}'+
+    '#hol-tip [aria-checked="true"] .hol-knob{background:var(--accent,#2459c8)}'+
+    '#hol-tip [aria-checked="true"] .hol-knob::after{transform:translateX(16px)}'+
+    '@media (prefers-reduced-motion: reduce){#hol-tip{animation:none}}'+
     // the cabin
     '#hol-cabin{position:fixed;inset:0;z-index:3000;background:#160c07;overflow:hidden;touch-action:manipulation;outline:0;animation:hol-in .22s ease-out}'+
     '@keyframes hol-in{from{opacity:0}}'+
@@ -142,6 +163,7 @@
     var tv=on&&tvWanted();
     root.classList.toggle('tv-on',tv);if(tv)addFonts();
     if(sw){sw.setAttribute('aria-checked',tv?'true':'false')}
+    if(tipSw){tipSw.setAttribute('aria-checked',tv?'true':'false')}
     if(tv&&!crt){crt=doc.createElement('div');crt.id='hol-crt';crt.setAttribute('aria-hidden','true');doc.body.appendChild(crt)}
     if(!tv&&crt){crt.remove();crt=null}
     if(window.BackRoomSeasons&&BackRoomSeasons.pixel)BackRoomSeasons.pixel(tv);
@@ -375,6 +397,40 @@
     goT=setTimeout(function(){goT=0;closeCabin(320)},950);
   }
 
+  /* ---------- the winter tip ---------- */
+  // The season is named by the year it starts in (late November), so a January visit counts as last year's season.
+  function season(){var d=new Date();return String(d.getMonth()>=9?d.getFullYear():d.getFullYear()-1)}
+  // Wait for the cabin to go and for no game to be open over the page, then show it once.
+  function maybeTip(){
+    clearTimeout(tipT);tipT=0;
+    if(!on||tipEl||(q.tip!=='1'&&ls('holiday:tip')===season()))return;
+    tipT=setTimeout(function(){tipT=0;if(!on||tipEl)return;if(cabin||inUse()){maybeTip();return}showTip()},cabin?1500:900);
+  }
+  function showTip(){
+    ls('holiday:tip',season());
+    var es=!!(window.BackRoomLang&&BackRoomLang.get&&BackRoomLang.get()==='es');
+    var T=es?{h:'Novedad de invierno: TV retro',p:'Durante las fiestas, la página parece una tele antigua. Actívalo o desactívalo cuando quieras con el interruptor «Retro TV» de arriba a la derecha:',alt:'El interruptor Retro TV arriba a la derecha de la página, junto a Cabin',ok:'Entendido',x:'Cerrar'}
+                :{h:'New for winter: Retro TV',p:'For the holidays the page looks like an old TV. Turn it on or off any time with the Retro TV switch at the top right of the page:',alt:'The Retro TV switch at the top right of the page, next to Cabin',ok:'Got it',x:'Close'};
+    tipEl=doc.createElement('div');tipEl.id='hol-tip';tipEl.setAttribute('role','dialog');tipEl.setAttribute('aria-label',T.h);
+    var h=doc.createElement('b');h.textContent=T.h;
+    var p=doc.createElement('p');p.textContent=T.p;
+    var im=doc.createElement('img');im.src=HERE+'holiday-tip.jpg';im.alt=T.alt;im.width=300;im.height=60;
+    tipSw=doc.createElement('button');tipSw.type='button';tipSw.setAttribute('role','switch');
+    var t=doc.createElement('span');t.textContent='Retro TV';var k=doc.createElement('span');k.className='hol-knob';k.setAttribute('aria-hidden','true');
+    tipSw.append(t,k);tipSw.setAttribute('aria-checked',root.classList.contains('tv-on')?'true':'false');
+    tipSw.addEventListener('click',function(){setTv(tipSw.getAttribute('aria-checked')!=='true')});
+    var ok=doc.createElement('button');ok.type='button';ok.className='hol-ok';ok.textContent=T.ok;ok.addEventListener('click',closeTip);
+    var x=doc.createElement('button');x.type='button';x.className='hol-x';x.textContent='\u00d7';x.setAttribute('aria-label',T.x);x.addEventListener('click',closeTip);
+    var row=doc.createElement('div');row.className='hol-row';row.append(tipSw,ok);
+    tipEl.append(x,h,p,im,row);doc.body.appendChild(tipEl);
+    doc.addEventListener('keydown',tipKey=function(e){if(e.key==='Escape'&&tipEl&&!cabin)closeTip()});
+  }
+  function closeTip(){
+    clearTimeout(tipT);tipT=0;
+    if(tipKey){doc.removeEventListener('keydown',tipKey);tipKey=null}
+    if(tipEl){tipEl.remove();tipEl=null;tipSw=null}
+  }
+
   // A game open over the page, or the visitor in the middle of typing: no time for the cabin to arrive.
   function inUse(){
     try{
@@ -387,12 +443,12 @@
   function start(busy){
     if(on)return;on=true;
     addStyle();addBar();applyTv();
-    if(q.nocabin==='1')return;
-    if(q.cabin==='1'||(ss('holiday:seen')!=='1'&&!busy&&!inUse()))showCabin();
+    if(q.nocabin!=='1'&&(q.cabin==='1'||(ss('holiday:seen')!=='1'&&!busy&&!inUse())))showCabin();
+    maybeTip();
   }
   function stop(){
     if(!on)return;on=false;
-    closeCabin(0);applyTv();
+    closeCabin(0);closeTip();applyTv();
     if(bar){bar.remove();bar=null;sw=null}
   }
   window.BackRoomHoliday={start:start,stop:stop,cabin:function(){showCabin()},tv:function(v){if(v===undefined)return on&&tvWanted();setTv(!!v)},get on(){return on},get inCabin(){return !!cabin}};
