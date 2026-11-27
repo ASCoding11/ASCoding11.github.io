@@ -69,11 +69,14 @@
 .gs-tt p{margin:5px 0 0;color:var(--ink-2);font-size:15px;line-height:1.4}
 .gs-n{flex:none;align-self:center;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;color:var(--gs-c);background:color-mix(in srgb,var(--gs-c) 13%,transparent);border-radius:999px;padding:5px 12px}
 
-/* ---------- the grid: 4 across on computers, 3 on small laptops, 2 on tablets and phones ---------- */
-.gc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:1fr;gap:18px}
-@media (max-width:959px){.gc-grid{grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:auto}}
-@media (max-width:879px){.gc-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}}
-@media (max-width:330px){.gc-grid{grid-template-columns:minmax(0,1fr)}}
+/* ---------- the grid: at most 4 across on computers, 3 on small laptops, 2 on tablets and phones ----------
+   Even rows: layout.js counts each section's visible cards and picks how many columns it uses (--ev-cols, up to
+   --ev-max) and which cards are wide (data-ev-w), so every row ends flush (see README: Even rows). Without it
+   (the script not loaded yet) the grid uses --ev-max columns and the .wide / .pw cards below. */
+.gc-grid{--ev-max:4;display:grid;grid-template-columns:repeat(var(--ev-cols,var(--ev-max)),minmax(0,1fr));grid-auto-rows:1fr;gap:18px}
+@media (max-width:959px){.gc-grid{--ev-max:3;grid-auto-rows:auto}}
+@media (max-width:879px){.gc-grid{--ev-max:2;gap:14px}}
+@media (max-width:330px){.gc-grid{--ev-max:1}}
 
 /* ---------- a game card ---------- */
 .br-games .gc{position:relative;display:flex;flex-direction:column;min-width:0;background:var(--panel);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);border-radius:var(--gc-r);overflow:hidden;box-shadow:var(--gc-shadow);transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
@@ -95,21 +98,34 @@
 .br-games .gc .btn.primary{width:100%;justify-content:center;min-height:42px;border-radius:11px;font-size:15px;background:var(--gs-c);border-color:var(--gs-c);color:var(--gs-ink);box-shadow:0 6px 14px -8px var(--gs-c);transition:filter .15s ease,transform .15s ease}
 .br-games .gc .btn.primary:active{transform:scale(.97)}
 
-/* Wide cards (two columns, picture on the left) keep each section's rows full on computers, four across: Shooters has
-   4 regular, Parkour 6 (2 wide + 4 = two rows), Arcade 5 (3 wide + 2 = two rows), Cars, Party and Puzzles
-   4 regular too. The wide ones
-   are each section's most played. Between 560 and 960 px a wide card takes a whole row of two, which keeps the other
-   cards in pairs. On phones (560 px and less) only .pw cards (Coil, so the others pair up) take a
-   whole row and the rest pair up. If a section's count changes, fix wide/pw. */
+/* Wide cards (two columns, picture on the left). .wide (computers and tablets) and .pw (phones) say which games the
+   site would like big, usually each section's most played; Edit layout (layout.js) can change that per player.
+   Those are wishes: layout.js keeps every row full, so it marks the cards that are actually wide with data-ev-w,
+   making a card wide or small where that's what keeps the rows even. In a grid of two columns a wide card is a
+   whole row. The .wide rules here only apply before layout.js has run (no data-ev on the grid). */
 @media (min-width:960px), (min-width:561px) and (max-width:879px){
-  .br-games .gc.wide{grid-column:span 2;flex-direction:row}
-  .br-games .gc.wide .shot{flex:0 0 52%;aspect-ratio:auto;min-height:220px;margin:7px 0 7px 7px}
-  .br-games .gc.wide .shot img{position:absolute;inset:0}
-  .br-games .gc.wide .body{padding:16px 18px 16px;gap:9px}
-  .br-games .gc.wide h3{font-size:31px}
-  .br-games .gc.wide .gc-blurb{font-size:15px;-webkit-line-clamp:4;min-height:0}
-  .br-games .gc.wide .gc-more summary{right:auto;left:calc(52% - 31px)}
-  .br-games .gc.wide .gc-more[open] summary{left:auto;right:15px}   /* open: the info covers the whole card, so the × goes back to its corner */
+  .br-games .gc-grid:not([data-ev]) > .gc.wide{grid-column:span 2}
+}
+.br-games .gc-grid[data-ev] > .gc[data-ev-w]{grid-column:span 2}
+@media (min-width:960px), (min-width:561px) and (max-width:879px){
+  .br-games .gc-grid:not([data-ev]) > .gc.wide{flex-direction:row}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .shot{flex:0 0 52%;aspect-ratio:auto;min-height:220px;margin:7px 0 7px 7px}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .shot img{position:absolute;inset:0}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .body{padding:16px 18px 16px;gap:9px}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide h3{font-size:31px}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .gc-blurb{font-size:15px;-webkit-line-clamp:4;min-height:0}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .gc-more summary{right:auto;left:calc(52% - 31px)}
+  .br-games .gc-grid:not([data-ev]) > .gc.wide .gc-more[open] summary{left:auto;right:15px}   /* open: the info covers the whole card, so the × goes back to its corner */
+}
+@media (min-width:561px){
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w]{flex-direction:row}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .shot{flex:0 0 52%;aspect-ratio:auto;min-height:220px;margin:7px 0 7px 7px}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .shot img{position:absolute;inset:0}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .body{padding:16px 18px 16px;gap:9px}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] h3{font-size:31px}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .gc-blurb{font-size:15px;-webkit-line-clamp:4;min-height:0}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .gc-more summary{right:auto;left:calc(52% - 31px)}
+  .br-games .gc-grid[data-ev] > .gc[data-ev-w] .gc-more[open] summary{left:auto;right:15px}
 }
 /* Hover and keyboard focus: lift the card, zoom and brighten the picture. */
 @media (hover: hover){
@@ -171,11 +187,12 @@
   .br-games .gc .gc-blurb{font-size:12.5px;line-height:1.35;-webkit-line-clamp:3;min-height:2.7em}
   .gc-chips{gap:4px}
   .gc-chips li{font-size:10.5px;padding:3px 7px;gap:5px}
-  .gc:not(.pw):not(.gc-daily) .gc-chips li:nth-child(n+2){display:none}
-  /* phones: only the first card of Puzzles, Parkour and Shooter / Action (.pw) stays a whole row; the others pair up */
-  .br-games .gc.pw{grid-column:1 / -1}
-  .br-games .gc.pw h3{font-size:26px}
-  .br-games .gc.pw .gc-blurb{font-size:14px;min-height:0}
+  .gc-grid:not([data-ev]) > .gc:not(.pw):not(.gc-daily) .gc-chips li:nth-child(n+2),
+  .gc-grid[data-ev] > .gc:not([data-ev-w]):not(.gc-daily) .gc-chips li:nth-child(n+2){display:none}
+  /* phones: a wide card (.pw before layout.js runs, data-ev-w after) is a whole row, picture on top; the others pair up */
+  .br-games .gc-grid:not([data-ev]) > .gc.pw{grid-column:1 / -1}
+  .br-games .gc-grid:not([data-ev]) > .gc.pw h3,.br-games .gc-grid[data-ev] > .gc[data-ev-w] h3{font-size:26px}
+  .br-games .gc-grid:not([data-ev]) > .gc.pw .gc-blurb,.br-games .gc-grid[data-ev] > .gc[data-ev-w] .gc-blurb{font-size:14px;min-height:0}
   .gc-chips li.on::before{width:6px;height:6px}
   .br-games .gc .btn.primary{min-height:38px;font-size:14px;border-radius:9px;padding:6px 10px}
   .gc-info{padding:12px 12px 14px;font-size:13px}
@@ -197,16 +214,16 @@
 .pz-wrap{grid-column:1 / -1;min-width:0}
 /* Puzzles' rows needn't all be as tall as its game cards: the tiles take only what they need */
 .gs-puzzles .gc-grid{grid-auto-rows:auto}
-/* Shooters: four regular cards, kept in one row of four down to 880 px (where other sections drop to three); 2 x 2 below that */
-@media (min-width:880px) and (max-width:959px){.br-games .gs-shooters .gc-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .pz-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin:2px 0 10px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--gs-c)}
 /* today's progress (hidden on the home page's copy, which doesn't run the script that fills it) and the way to the Daily Puzzles page */
 .pz-today{color:var(--ink-2);letter-spacing:.04em;text-transform:none}
 .pz-h a{margin-left:auto;color:var(--gs-c);text-underline-offset:3px}
-.pz-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
-@media (max-width:1100px){.pz-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media (max-width:879px){.pz-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:560px){.pz-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}}
+/* even rows here too (layout.js): with a search on, fewer tiles share the row or one or two tiles stretch */
+.pz-grid{--ev-max:6;display:grid;grid-template-columns:repeat(var(--ev-cols,var(--ev-max)),minmax(0,1fr));gap:10px}
+@media (max-width:1100px){.pz-grid{--ev-max:4}}
+@media (max-width:879px){.pz-grid{--ev-max:3}}
+@media (max-width:560px){.pz-grid{--ev-max:2;gap:8px}}
+.pz-grid[data-ev] > .pz[data-ev-w]{grid-column:span 2}
 .br-games .pz{min-width:0;margin:0}
 .br-games .pz a{display:flex;align-items:center;gap:9px;height:100%;min-height:58px;padding:6px 8px 6px 6px;border-radius:12px;text-decoration:none;color:var(--ink);background:var(--panel);border:1px solid color-mix(in srgb,var(--line) 80%,transparent);box-shadow:var(--gc-shadow);transition:transform .15s ease,border-color .15s ease}
 .br-games .pz img{flex:none;width:58px;height:44px;border-radius:8px;object-fit:cover;background:var(--tape)}
