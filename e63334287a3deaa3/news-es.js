@@ -7,6 +7,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "Boostball: new card picture": "Boostball: nueva imagen de la tarjeta",
+    "Boostball": "Boostball",
+    "Boostball's card shows a real match now: the ball, the cars, both goals and the stadium.": "La tarjeta de Boostball ahora muestra un partido real: la pelota, los coches, las dos porterías y el estadio.",
     "The home page is now ASCoding": "La página principal ahora es ASCoding",
     "Home page": "Página principal",
     "The home page now goes by ASCoding, with a cleaner, more professional look.": "La página principal ahora se llama ASCoding, con un aspecto más limpio y profesional.",

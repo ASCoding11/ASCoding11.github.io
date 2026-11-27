@@ -90,6 +90,9 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.09.1', title: 'Boostball: new card picture', kind: 'fix',
+     tags: ['Boostball'], items: [
+      'Boostball\'s card shows a real match now: the ball, the cars, both goals and the stadium.']},
     {date: '2026-11-26', version: '2.09', title: 'The home page is now ASCoding', kind: 'feature',
      tags: ['Home page'], items: [
       'The home page now goes by ASCoding, with a cleaner, more professional look.']},
