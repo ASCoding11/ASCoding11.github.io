@@ -90,6 +90,12 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.11', title: 'Tidier game rows', kind: 'feature',
+     items: [
+      'Every section of games now fills its rows evenly, so you never get a row of four and then one game on its own.',
+      'Each section picks its own number of games per row, and one or two games get a bigger card where that keeps the rows full.',
+      'Rows stay even on phones, on smaller screens, while you search, and with your own Edit layout sizes.',
+      'Flood Crew has its own card in Arcade now, instead of being squeezed inside Leaf Sweep\'s.']},
     {date: '2026-11-26', version: '2.10', title: 'A more professional home page', kind: 'feature',
      tags: ['Home page'], items: [
       'The home page now leads with the engineering projects and web applications.',
