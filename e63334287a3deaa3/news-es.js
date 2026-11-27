@@ -7,6 +7,9 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "New look for the home page": "Nuevo diseño para la página de inicio",
+    "The home page has a cleaner, calmer design.": "La página de inicio tiene un diseño más limpio y tranquilo.",
+    "Its top shows air flowing past a wing, worked out live: move your pointer up or down to tilt it.": "Arriba se ve el aire pasando por un ala, calculado en vivo: mueve el puntero arriba o abajo para inclinarla.",
     "Leaf Sweep: the bin works again": "Leaf Sweep: la compostera vuelve a funcionar",
     "Leaf Sweep": "Leaf Sweep",
     "Walk up to a compost bin with leaves in your sack and a clear prompt shows again: press E or tap the button to empty it. You can stand a little farther away than before.": "Acércate a una compostera con hojas en el saco y vuelve a aparecer un aviso claro: pulsa E o toca el botón para vaciarlo. Puedes quedarte un poco más lejos que antes.",

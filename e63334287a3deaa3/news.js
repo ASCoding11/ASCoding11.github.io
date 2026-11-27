@@ -90,6 +90,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.20', title: 'New look for the home page', kind: 'feature',
+     items: [
+      'The home page has a cleaner, calmer design.',
+      'Its top shows air flowing past a wing, worked out live: move your pointer up or down to tilt it.']},
     {date: '2026-11-27', version: '2.19.1', title: 'Leaf Sweep: the bin works again', kind: 'fix',
      tags: ['Leaf Sweep'], items: [
       'Walk up to a compost bin with leaves in your sack and a clear prompt shows again: press E or tap the button to empty it. You can stand a little farther away than before.',
