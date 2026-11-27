@@ -334,6 +334,11 @@
     v.box.onHit = function (hit, dir, def) {
       if (v.dead) return; v.hp -= (def && def.dmg || 10) * (v.ai ? 0.55 : 0.22); if (v.hp <= 0) kill(v);
       if (v.traffic && RP.Traffic) RP.Traffic.hit(v, v.pos.clone().addScaledVector(dir || _a.set(0, 0, 1), -10));
+      // through the glass (or over the side of an open car or the launch): the driver is hit too
+      var belt = v.ty.water ? 0.5 : v.ty.open ? 0.72 : 0.88;
+      if (v.driver && v.driver.alive && hit && hit.y > v.pos.y + belt && v.driver.takeDamage) {
+        v.driver.takeDamage((def && def.dmg || 10) * 0.6, { dir: dir, bullet: true, weapon: def, point: new T.Vector3(hit.x, hit.y, hit.z) });
+      }
     };
     V.list.push(v); return v;
   };
@@ -397,9 +402,9 @@
         _a.set(v.pos.x, v.pos.y + 1.15, v.pos.z); _b.set(p.pos.x, p.pos.y + 1.0, p.pos.z).sub(_a).normalize();
         v.box.off = true; RP.Combat.fire(a, _a.clone().addScaledVector(_b, 1.2), _b.clone(), CGUN, { spread: 3.2 + Math.abs(v.v) * 0.12 + (p.vehicle ? Math.abs(p.vehicle.v) * 0.1 : 0), dmgMul: 0.6 }); v.box.off = false;
         RP.FX.muzzle(_a.clone().addScaledVector(_b, 1.2), _b, false); RP.Audio.shot('smg', _a.clone(), { gain: 0.8 });
-        if (a.burst === 0) a.gunT = 2.2 + Math.random() * 2;
+        if (a.burst === 0) a.gunT = 1.7 + Math.random() * 1.7;
       }
-    } else if (a.gunT <= 0 && dP < 55 && W.los(v.pos.x, v.pos.y + 1.2, v.pos.z, p.pos.x, p.pos.y + 1.1, p.pos.z)) { a.burst = 4 + Math.floor(Math.random() * 4); a.shotT = 0; }
+    } else if (a.gunT <= 0 && dP < 75 && W.los(v.pos.x, v.pos.y + 1.2, v.pos.z, p.pos.x, p.pos.y + 1.1, p.pos.z)) { a.burst = 4 + Math.floor(Math.random() * 4); a.shotT = 0; }
     if (v.hit > 8) { v.hp -= v.hit * 2; if (v.hp <= 0) kill(v); } v.hit = 0;
   }
   // take one vehicle out of the world (traffic leaving)
@@ -444,6 +449,7 @@
     if (p.state !== 'move' || v.driver || p.st < 0.3) return false;   // (not on the frame you got out)
     if (v.traffic && RP.Traffic) RP.Traffic.eject(v, p.pos);           // the driver is pulled out and runs
     v.driver = p; p.vehicle = v; RP.Player.setState(p, 'drive');
+    v.box.see = true;   // sight passes through the glass to the driver (bullets still hit the bodywork; see onHit)
     p.speed = 0; p.cover = null; p.reload = null; p.melee = null; p.stealth = false; p.sprinting = false;
     // only one-handed guns and SMGs can be used at the wheel
     var d = RP.Weapons.DEFS[p.cur];
@@ -470,7 +476,7 @@
       return false;
     });
     if (!ok) { if (v.ty.water) { RP.emit('toast', 'Bring her alongside a quay to get out'); return; } p.pos.set(v.pos.x + (v.ty.wid / 2 + 0.6) * c, y, v.pos.z - (v.ty.wid / 2 + 0.6) * s); }
-    v.driver = null; p.vehicle = null; p.yaw = v.yaw;
+    v.driver = null; p.vehicle = null; p.yaw = v.yaw; v.box.see = false;
     p.actor.stopFull(0.2); RP.Player.setState(p, 'move');
     p.vel.set(Math.sin(v.yaw) * v.v, 0, Math.cos(v.yaw) * v.v);
     if (bail && Math.abs(v.v) > 5.5 && RP.Player.tumble) RP.Player.tumble(p, p.vel.clone().multiplyScalar(0.6));
@@ -593,7 +599,7 @@
     var v = p.vehicle, I = RP.In;
     var thr = I.move.y, st = -I.move.x, hb = I.down('jump');
     drive(v, dt, thr, st, hb); hitPeople(v);
-    if (v.hit > 3) { RP.Cam.shake(Math.min(0.9, v.hit * 0.05)); RP.Audio.impact && RP.Audio.impact('car', v.pos, Math.min(2, v.hit * 0.15)); if (v.hit > 14) p.takeDamage(v.hit * 1.2, {}); }
+    if (v.hit > 3) { RP.Cam.shake(Math.min(0.9, v.hit * 0.05)); RP.Audio.impact && RP.Audio.impact('car', v.pos, Math.min(2, v.hit * 0.15)); if (v.hit > 17) p.takeDamage((v.hit - 8) * 1.4, {}); }   // (a big smash hurts; scrapes and knocks don't)
     v.hit = 0;
     // the player rides in the seat
     var c = Math.cos(v.yaw), s = Math.sin(v.yaw), se = v.ty.seat;
@@ -630,7 +636,7 @@
     // prompt
     if (p && p.alive && p.state === 'move' && !RP.HUD.interact) { var nv = V.near(p); V._near = nv; if (nv) RP.HUD.interact = (nv.ty.water || nv.traffic ? 'Take the ' : 'Drive the ') + nv.ty.name; } else V._near = null;
     // a driver who was killed or thrown out leaves the car
-    V.list.forEach(function (v) { if (v.driver && (v.driver.state !== 'drive' || !v.driver.alive)) { v.driver.vehicle = null; v.driver = null; stopEngine(); } });
+    V.list.forEach(function (v) { if (v.driver && (v.driver.state !== 'drive' || !v.driver.alive)) { v.driver.vehicle = null; v.driver = null; v.box.see = false; stopEngine(); } });
     engine(p && p.vehicle, dt);
     speedo(p && p.vehicle);
   };

@@ -806,13 +806,50 @@
     g.computeVertexNormals();
     return (boatG[len] = g);
   }
+  // trim for a gozzo of length len, in the hull's own space (so a hauled-out boat's tilt carries it):
+  //   wood: the gunwale cap (outer rim to the inner hull) and two thwarts; band: the coloured strake under the rim and
+  //   the tall stem posts at bow and stern
+  var trimG = {};
+  function boatTrim(len) {
+    if (trimG[len]) return trimG[len];
+    var hl = len / 2, N = 40, wood = { p: [], n: [] }, band = { p: [], n: [] };
+    function rim(a) {   // the hull's top edge (boatGeo's equator after its pinch and sheer)
+      var t = Math.abs(Math.sin(a)), x = 1.05 * Math.cos(a) * (1 - Math.pow(t, 3) * 0.7), z = hl * Math.sin(a), y = 0.6 + t * t * 0.35;
+      var nx = x / (1.05 * 1.05), nz = z / (hl * hl), l = Math.hypot(nx, nz) || 1;
+      return { x: x, y: y, z: z, nx: nx / l, nz: nz / l };
+    }
+    function quad(o, a, b, c, d, n0, n1, out) {   // a b (top) c d (bottom), normals n0 for a/c, n1 for b/d; out: wind for an outside face
+      var vs = out ? [a, b, c, b, d, c] : [a, c, b, b, c, d], ns = out ? [n0, n1, n0, n1, n1, n0] : [n0, n0, n1, n1, n0, n1];
+      vs.forEach(function (v, i) { o.p.push(v[0], v[1], v[2]); var n = ns[i]; o.n.push(n[0], n[1], n[2]); });
+    }
+    for (var i = 0; i < N; i++) {
+      var A = rim(i / N * 6.2832), Bq = rim((i + 1) / N * 6.2832);
+      // cap: outer rim down to the inner hull (scaled 0.93, 0.92, 0.96, as K.boat draws it), facing up
+      quad(wood, [A.x, A.y + 0.01, A.z], [Bq.x, Bq.y + 0.01, Bq.z], [A.x * 0.93, A.y * 0.92, A.z * 0.96], [Bq.x * 0.93, Bq.y * 0.92, Bq.z * 0.96], [0, 1, 0], [0, 1, 0]);
+      // the coloured strake just under the rim, standing proud of the planking
+      var o = 0.018;
+      quad(band, [A.x + A.nx * o, A.y - 0.03, A.z + A.nz * o], [Bq.x + Bq.nx * o, Bq.y - 0.03, Bq.z + Bq.nz * o],
+        [A.x + A.nx * o * 0.6, A.y - 0.17, A.z + A.nz * o * 0.6], [Bq.x + Bq.nx * o * 0.6, Bq.y - 0.17, Bq.z + Bq.nz * o * 0.6], [A.nx, 0, A.nz], [Bq.nx, 0, Bq.nz], true);
+    }
+    function box(o, w, h, d, x, y, z, rx) {
+      var g = new T.BoxGeometry(w, h, d); if (rx) g.rotateX(rx); g.translate(x, y, z); g = g.toNonIndexed();
+      var P = g.attributes.position, Nn = g.attributes.normal;
+      for (var k = 0; k < P.count; k++) { o.p.push(P.getX(k), P.getY(k), P.getZ(k)); o.n.push(Nn.getX(k), Nn.getY(k), Nn.getZ(k)); }
+    }
+    [-0.12, 0.2].forEach(function (f) { var t = Math.abs(f) / 0.5, w = 2 * 1.05 * 0.9 * (1 - Math.pow(t, 3) * 0.7); box(wood, w, 0.05, 0.26, 0, 0.45, f * len); });
+    box(band, 0.07, 0.62, 0.08, 0, 1.0, hl * 0.985, -0.18);    // the bow's tall stem post, raked forward
+    box(band, 0.07, 0.42, 0.08, 0, 0.92, -hl * 0.985, 0.14);   // the stern post
+    function geo(o) { var g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(o.p, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(o.n, 3)); return g; }
+    return (trimG[len] = { wood: geo(wood), band: geo(band) });
+  }
   // a small wooden boat (gozzo): afloat (y = sea level) or hauled out on the sand (y given, tilt)
   K.boat = function (x, z, yaw, hex, len, y, tilt) {
     len = len || 6; y = y == null ? -0.1 : y;
-    var band = C(M.hash2(x, z) < 0.5 ? '#2f6fa8' : M.hash2(x, z) < 0.75 ? '#3a8b6f' : '#b8433a');
+    var band = C(M.hash2(x, z) < 0.5 ? '#2f6fa8' : M.hash2(x, z) < 0.75 ? '#3a8b6f' : '#b8433a'), O = { cls: 'detail', roll: tilt || 0 }, tr = boatTrim(len);
     B.geo('paint', boatGeo(len), x, y, z, yaw, 1, 1, 1, C(hex || '#f2efe8'), { cls: 'shell', roll: tilt || 0 });
-    B.box('wood', x, y + 0.5, z, 1.2, 0.06, len * 0.6, yaw, { col: C('#9a7650'), ao: 0, cls: 'detail' });
-    B.box('paint', x, y + 0.47, z, 2.04, 0.1, len * 0.84, yaw, { col: band, ao: 0, noTop: true, cls: 'detail' });
+    B.geo('wood', boatGeo(len), x, y, z, yaw, 0.93, 0.92, 0.96, C('#8a6a48'), { cls: 'detail', roll: tilt || 0, inside: true });   // the open hull inside
+    B.geo('wood', tr.wood, x, y, z, yaw, 1, 1, 1, C('#a88458'), O);
+    B.geo('paint', tr.band, x, y, z, yaw, 1, 1, 1, band, O);
     if (y > 0) W.addBox({ x: x, z: z, y0: y - 0.2, y1: y + 0.95, hx: 0.95, hz: len * 0.45, yaw: yaw, mat: 'wood', cover: true, kind: 'boat' });
   };
   // a heap of fishing nets with floats

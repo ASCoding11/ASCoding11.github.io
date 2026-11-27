@@ -64,13 +64,30 @@ overtakes and passes stopped or oncoming cars: with traffic on it reaches the pi
 (it prints progress as it goes; give it up to ~25 min under swiftshader). The player's car takes half the crash
 damage of other cars.
 
+## Recent fixes (Nov 27)
+- Melee crash with an empty gun (queued strike lost the gun flag) fixed.
+- Nav: string pulling sweeps the walker's width; ledge-like edges next to boxes are checked with the real mover
+  (cached, warmed in the background ~1.5 ms/frame; `W.navWarm`). Random-path walk: 1 stuck in 99 (was 17).
+- Crosshair greys out with a red x when the muzzle can't see the aim point.
+- First person: own head hidden (bone scaled to 0), hands kept below the chest while running.
+- Terrain: fine grain triplanar (no streaks down cliffs); close-range rock detail on Medium/High.
+- Villa pool: tiled basin you can wade into, glassy surface (`RP.Sea.pool`), deck over a terrain cut; the booth
+  and two lemon trees moved off it. Trees: canopy normals and a finer leaf card.
+
+- Chase threat: the car you drive is see-through for sight (`box.see`), so the helicopter, chasers and guards can
+  see you in it (it was blocking every LOS check: zero enemy shots in a whole chase); bullets above the waistline
+  reach the driver at 60%. The helicopter paces a car (30 m/s when behind, orbit point leads the target). Chasers
+  fire from 75 m. Autopilot chase now: ~60 enemy shots, ~35 on the car, ~80 damage to the driver through the glass.
+  Big crashes hurt the driver (impacts over 17 m/s), scrapes don't.
+- Cove boats: open wooden interior, thwarts, stem posts and a strake that follows the hull (K.boat, boatTrim).
+
 ## Next
-1. Play mission 3 with real controls; tune chaser speed/aggression and the helicopter; check the pursuit in the
-   tunnels and hairpins; traffic and parked cars along the road.
-2. Known rough: cars have no panel lines or interior detail beyond seats and a dash; faces MakeHuman-level; no start/stop clips (only a brake move); vault/climb/
-   corner swing not re-checked since the rotWorld fix; cliffs are a 2 m heightfield with a few spiky fins; terraces
-   read as grass steps; detail pops at 72-250 m; Low triangles ~6% over 250k at the worst Amalfi view (calls fine); first-person view
-   untested with the new characters; nothing tested on a real GPU or phone yet.
+1. Play mission 3 with real controls and tune from feel: chaser speed, the helicopter's accuracy, car toughness.
+2. Known rough: cars have no panel lines or interior detail beyond seats and a dash; faces MakeHuman-level; no
+   start/stop clips (only a brake move); vault/climb/corner swing not re-checked since the rotWorld fix; cliffs are a
+   2 m heightfield with a few spiky fins; terraces read as grass steps; detail pops at 72-250 m; Low triangles ~6%
+   over 250k at the worst Amalfi view (calls fine); the cathedral steps read as a blank stone block from the cut
+   under them; cove boats are crude; nothing tested on a real GPU or phone yet.
 3. Balance, then the What's new entry (JSON in git history, commit 89b8771) and card/phone row when it leaves
    preview. Later maps: Chicago, a Greek island (new files under `maps/` using `RP.Kit`).
 

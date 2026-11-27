@@ -82,14 +82,15 @@
         // orbit: a point on a circle round the player, well above the ground under the helicopter
         h.flipT -= dt; if (h.flipT <= 0) { h.flipT = 7 + Math.random() * 8; h.dirn *= -1; }
         h.ang += h.dirn * 0.24 * dt;
-        var R = 34, tx = p.pos.x + Math.cos(h.ang) * R, tz = p.pos.z + Math.sin(h.ang) * R;
+        // (round where the player will be in a second: a car is paced alongside rather than left behind)
+        var R = 34, lead = p.vehicle ? 1.1 : 0.4, tx = p.pos.x + (p.vel ? p.vel.x * lead : 0) + Math.cos(h.ang) * R, tz = p.pos.z + (p.vel ? p.vel.z * lead : 0) + Math.sin(h.ang) * R;
         var floor = Math.max(W.ground(h.pos.x, h.pos.z, 500).y, W.ground(tx, tz, 500).y, p.pos.y);
         _to.set(tx, Math.max(p.pos.y + 24, floor + 14), tz);
         if (h.state === 'in' && h.pos.distanceTo(_to) < 25) h.state = 'orbit';
       }
       // fly: accelerate toward the target point, with drag (a heavy machine)
       _d.subVectors(_to, h.pos); var dist = _d.length(); _d.normalize();
-      var want = Math.min(h.state === 'orbit' ? 12 : 26, dist * 0.9);
+      var want = Math.min(h.state === 'orbit' && dist < 30 ? 12 : 30, dist * 0.9);   // slow round its circle, fast to catch up
       h.vel.x += (_d.x * want - h.vel.x) * Math.min(1, dt * 0.9); h.vel.y += (_d.y * want - h.vel.y) * Math.min(1, dt * 1.2); h.vel.z += (_d.z * want - h.vel.z) * Math.min(1, dt * 0.9);
       h.pos.addScaledVector(h.vel, dt);
       // nose: along the flight when travelling, broadside to the player when orbiting (the gunner's door is on its left)
