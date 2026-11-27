@@ -121,6 +121,9 @@ struct S { vec3 alb; float tint; float ao; float r; float m; float h; };
         if (lf > 0.5 * cov + 0.01) { shade = 0.55 + 0.45 * smoothstep(0.0, 0.03, abs(d.y)) ; idd = id; } cov = max(cov, lf); }
       cov *= smoothstep(0.5, 0.4, length(uv - 0.5));
       s.tint = cov; s.alb = mix(vec3(0.014, 0.03, 0.01), vec3(0.05, 0.075, 0.022), idd) * shade * (0.7 + 0.6 * fbm(uv, vec2(5.0), 3)); s.r = 0.86; s.h = cov * shade; s.ao = 0.6 + 0.4 * shade;` },
+    chain: { tile: 2, bump: 0.5, src: `
+      vec2 q = vec2(uv.x + uv.y, uv.x - uv.y) * 30.0 * 0.7071; vec2 f = abs(fract(q) - 0.5); float line = smoothstep(0.36, 0.42, max(f.x, f.y));
+      float n = fbm(uv, vec2(8.0), 3); s.tint = line; s.alb = vec3(0.3, 0.29, 0.27) * (0.6 + 0.6 * n); s.alb = mix(s.alb, vec3(0.22, 0.1, 0.04), smoothstep(0.55, 0.75, n) * 0.7); s.m = 0.6; s.r = 0.6; s.h = line;` },
     grass: { tile: 4, bump: 2.0, src: `
       float n = fbm(uv, vec2(7.0), 5), b = ridge(uv, vec2(90.0, 60.0), 3), f = fbm(uv + 0.6, vec2(40.0), 3);
       s.alb = mix(vec3(0.016, 0.028, 0.01), vec3(0.05, 0.075, 0.025), b * 0.6 + f * 0.4) * (0.6 + 0.8 * n);
@@ -220,7 +223,7 @@ float vn3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
     brass: { f: 'steel', c: 0xc09a45, wet: 0.2, r: 0.7 }, rubber: { f: 'leather', c: 0x101010, wet: 0.6, r: 1.4 },
     canvas: { f: 'cloth', c: 0x5a573c, wet: 0.5 }, canvas_dark: { f: 'cloth', c: 0x32331f, wet: 0.5 }, silk: { f: 'cloth', c: 0xb9b59c, wet: 0.3, side: 2 },
     wool_grey: { f: 'cloth', c: 0x5d6660, wet: 0.35 }, wool_olive: { f: 'cloth', c: 0x4b4a30, wet: 0.35 }, wool_khaki: { f: 'cloth', c: 0x7a6a48, wet: 0.35 },
-    burlap: { f: 'burlap', wet: 0.6 }, bark: { f: 'bark', wet: 0.6 }, leaves: { f: 'leaves', wet: 0.2 }, hedge: { f: 'leaves', wet: 0.2 }, leafcard: { f: 'leafcard', wet: 0.0, alpha: true, side: 2, noCast: true, r: 1.0 },
+    burlap: { f: 'burlap', wet: 0.6 }, bark: { f: 'bark', wet: 0.6 }, leaves: { f: 'leaves', wet: 0.2 }, hedge: { f: 'leaves', wet: 0.2 }, chain: { f: 'chain', wet: 0.3, alpha: true, side: 2, noCast: true }, leafcard: { f: 'leafcard', wet: 0.0, alpha: true, side: 2, noCast: true, r: 1.0 },
     leather: { f: 'leather', c: 0x4a3018, wet: 0.5 }, leather_dark: { f: 'leather', c: 0x1c1410, wet: 0.5 }, glove: { f: 'leather', c: 0x6b4a28, wet: 0.4 },
     walnut: { f: 'walnut', wet: 0.3 }, skin: { f: 'skin', c: 0xc98c6a, wet: 0.15 }, skin_pale: { f: 'skin', c: 0xd7a084, wet: 0.15 }
   };

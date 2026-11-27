@@ -19,15 +19,16 @@
   H.show = (on) => { el.hud.classList.toggle('on', on); el.touch.classList.toggle('on', on); if (!on) { el.radio.classList.remove('on'); radioQ.length = 0; radioT = 0; } };
   H.msg = (t) => { const m = el['h-msg']; m.textContent = t; m.className = 'h-msg'; void m.offsetWidth; m.className = 'h-msg on'; };
   H.wave = (t) => { const m = el['h-wave']; m.textContent = t; m.className = 'h-wave'; void m.offsetWidth; m.className = 'h-wave on'; };
-  H.objective = (label, title, done, total) => {
+  H.objective = (label, title, done, total, word) => {
     set('ol', el['h-objl'], label); if (last.ot !== title) { last.ot = title; el['h-objt'].textContent = title; el['h-obj'].classList.remove('flash'); void el['h-obj'].offsetWidth; el['h-obj'].classList.add('flash'); }
-    const key = done + '/' + total; if (last.os !== key) { last.os = key; const s = el['h-objs']; s.textContent = ''; if (total) { s.appendChild(document.createTextNode(MO.T('Guns') + ' ')); for (let i = 0; i < total; i++) { const b = document.createElement('i'); if (i < done) b.className = 'on'; s.appendChild(b); } s.appendChild(document.createTextNode(' ' + done + '/' + total)); } }
+    const key = done + '/' + total + word; if (last.os !== key) { last.os = key; const s = el['h-objs']; s.textContent = ''; if (total) { s.appendChild(document.createTextNode((word || '') + ' ')); for (let i = 0; i < total; i++) { const b = document.createElement('i'); if (i < done) b.className = 'on'; s.appendChild(b); } s.appendChild(document.createTextNode(' ' + done + '/' + total)); } }
   };
   /* radio subtitles, queued: who, text, seconds */
   H.say = (who, text, dur) => { radioQ.push({ who: who, text: text, dur: dur || Math.max(3, text.length * 0.06) }); };
-  H.setMarks = (list) => { el.marks.textContent = ''; marks = list.map((m) => { const d = document.createElement('div'); d.className = 'h-mark' + (m.exit ? ' exit' : ''); d.innerHTML = '<b></b><i></i><span></span>'; d.firstChild.textContent = m.label; el.marks.appendChild(d); return { m: m, d: d, s: d.lastChild }; }); };
+  H.setMarks = (list) => { el.marks.textContent = ''; marks = list.map((m) => { const d = document.createElement('div'); d.className = 'h-mark' + (m.exit ? ' exit' : '') + (m.opt ? ' opt' : ''); d.innerHTML = '<b></b><i></i><span></span>'; d.firstChild.textContent = m.label; el.marks.appendChild(d); return { m: m, d: d, s: d.lastChild }; }); };
   H.prompt = (text, k) => { const p = el['h-prompt']; if (!text) { if (last.pr) { last.pr = ''; p.classList.remove('on'); el['t-use'].classList.remove('show'); } return; }
     if (last.pr !== text) { last.pr = text; el['h-pt'].textContent = text; p.classList.add('on'); el['t-use'].classList.add('show'); } el['h-pb'].style.width = (k * 100).toFixed(0) + '%'; };
+  H.clock = (t) => { const c = document.getElementById('h-clock'); if (last.ck === t) return; last.ck = t; c.textContent = t; c.classList.toggle('on', !!t); };
   H.fuse = (t) => { const f = el['h-fuse']; if (t <= 0) { if (last.fu) { last.fu = ''; f.classList.remove('on'); } return; } const s = t.toFixed(1); if (last.fu !== s) { last.fu = s; f.textContent = s; f.classList.add('on'); } };
 
   H.update = (dt) => {
@@ -58,10 +59,14 @@
     cctx.globalAlpha = 1; cctx.fillStyle = '#d9ad4e'; cctx.fillRect(w / 2 - 0.75, 0, 1.5, 10);
     // objective markers: on the compass and as diamonds in the world
     const vw = MO.R.vw, vh = MO.R.vh;
+    const cm = [];
+    for (const k of marks) { const m = k.m; if (m.hide) continue; const dx = m.x - P.pos.x, dz = m.z - P.pos.z, brg = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360; let rel = brg - heading; if (rel > 180) rel -= 360; if (rel < -180) rel += 360;
+      cm.push({ x: w / 2 + MO.clamp(rel, -span / 2 + 4, span / 2 - 4) * px, t: m.label + ' ' + Math.round(Math.hypot(dx, dz)) + 'm' }); }
+    cm.sort((a, b) => a.x - b.x); cctx.fillStyle = '#d9ad4e'; cctx.font = '700 11px "Barlow Condensed", sans-serif';
+    let px0 = -1e9, row = 0; for (const c of cm) { row = c.x - px0 < 56 ? 1 - row : 0; px0 = c.x;     // labels that would overlap take turns on two rows
+      cctx.save(); cctx.translate(c.x, 31); cctx.rotate(Math.PI / 4); cctx.fillRect(-3, -3, 6, 6); cctx.restore(); cctx.fillText(c.t, c.x, 43 + row * 12); }
     for (const k of marks) { const m = k.m; if (m.hide) { k.d.style.display = 'none'; continue; }
-      const dx = m.x - P.pos.x, dz = m.z - P.pos.z, dist = Math.hypot(dx, dz), brg = (Math.atan2(dx, -dz) * 180 / Math.PI + 360) % 360; let rel = brg - heading; if (rel > 180) rel -= 360; if (rel < -180) rel += 360;
-      const cx = w / 2 + MO.clamp(rel, -span / 2 + 4, span / 2 - 4) * px; cctx.fillStyle = '#d9ad4e'; cctx.font = '700 11px "Barlow Condensed", sans-serif';
-      cctx.save(); cctx.translate(cx, 31); cctx.rotate(Math.PI / 4); cctx.fillRect(-3, -3, 6, 6); cctx.restore(); cctx.fillText(m.label + ' ' + Math.round(dist) + 'm', cx, 43);
+      const dx = m.x - P.pos.x, dz = m.z - P.pos.z, dist = Math.hypot(dx, dz);
       v.set(m.x, m.y || 1.6, m.z).project(cam); const behind = v.z > 1;
       if (behind || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05 || dist < 3) { k.d.style.display = 'none'; continue; }
       k.d.style.display = ''; k.d.style.transform = 'translate(' + ((v.x * 0.5 + 0.5) * vw - 20).toFixed(1) + 'px,' + ((-v.y * 0.5 + 0.5) * vh - 34).toFixed(1) + 'px)'; k.d.style.opacity = MO.clamp(dist / 14, 0.25, 0.9) * (1 - 0.7 * P.aimK);

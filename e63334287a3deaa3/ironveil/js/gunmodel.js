@@ -71,7 +71,7 @@
   function wrap(P0, A, u, w, a, b) { return (t, deg, off) => { const r = deg * PI / 180; return P0.clone().addScaledVector(A, t).addScaledVector(u, (a + off) * Math.sin(r)).addScaledVector(w, (b + off) * Math.cos(r)); }; }
 
   // blued steel is nearly black at night, so lift it (and calm the walnut) with the vertex colour; finer leather and wool grain
-  const GAIN = { steel_blue: 3.6, steel_dark: 2.8, steel: 1.5, walnut: 0.5, glove: 0.8, wool_olive: 1, leather_dark: 1.6 };
+  const GAIN = { steel_blue: 1.9, steel_dark: 1.7, steel: 1.2, walnut: 0.5, glove: 0.8, wool_olive: 1, leather_dark: 1.6 };
   const UVS = { glove: 2.6, wool_olive: 1.8, walnut: 1.4, leather_dark: 2.2 };
   function newB() {
     const B = new MO.Builder(), add = B.add.bind(B);

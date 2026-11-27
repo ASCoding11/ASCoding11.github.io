@@ -60,7 +60,7 @@
       const L = grid[j * GN + i];
       if (L) for (let k = 0; k < L.length; k++) { const b = L[k];
         if (b.dead || stamp[b.id & 8191] === stampN && boxes.length < 8192) continue; stamp[b.id & 8191] = stampN;
-        if (skipSoft && b.soft) continue;
+        if (skipSoft && b.soft || b.thin) continue;
         let t0 = 0, t1 = best, n = 0, a, c;
         if (Math.abs(dx) < 1e-9) { if (ox < b.minX || ox > b.maxX) continue; } else { a = (b.minX - ox) / dx; c = (b.maxX - ox) / dx; let s = dx > 0 ? -1 : 1; if (a > c) { const q = a; a = c; c = q; } if (a > t0) { t0 = a; n = s; } if (c < t1) t1 = c; if (t0 > t1) continue; }
         if (Math.abs(dy) < 1e-9) { if (oy < b.minY || oy > b.maxY) continue; } else { a = (b.minY - oy) / dy; c = (b.maxY - oy) / dy; let s = dy > 0 ? -2 : 2; if (a > c) { const q = a; a = c; c = q; } if (a > t0) { t0 = a; n = s; } if (c < t1) t1 = c; if (t0 > t1) continue; }

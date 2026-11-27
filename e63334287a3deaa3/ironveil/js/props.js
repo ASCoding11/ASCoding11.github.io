@@ -311,5 +311,161 @@
     b.build(group, { dynamic: true }); u.build(upper, { dynamic: true, ao: false });
     return { group: group, upper: upper };
   };
+
+  /* objective targets. Each kind returns {group, r (collider half-size, 0 for none), h (collider height), my (marker
+     height), blow(instant), mend()} for a target t at its position. */
+  const darken = (group, k) => group.traverse((o) => { if (o.isMesh && !o.userData.burnt) { o.userData.burnt = 1; const c = o.geometry.attributes.color; if (c) { o.userData.orig = c.array.slice(); for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * k, c.getY(i) * k * 0.95, c.getZ(i) * k * 0.95); c.needsUpdate = true; } } });
+  const undarken = (group) => group.traverse((o) => { if (o.isMesh && o.userData.burnt) { o.userData.burnt = 0; const c = o.geometry.attributes.color; c.array.set(o.userData.orig); c.needsUpdate = true; } });
+  const burn = (t, y, s) => { if (!t.fire) { t.fire = { x: t.x, y: y, z: t.z, s: s }; PR.fires.push(t.fire); } };
+  const unburn = (t) => { if (t.fire) { const i = PR.fires.indexOf(t.fire); if (i >= 0) PR.fires.splice(i, 1); t.fire = null; } };
+  PR.target = {
+    flak: (t) => { const f = PR.flak();
+      return { group: f.group, r: 0.75, h: 1.7, my: 2.3,
+        blow: () => { f.upper.rotation.set(0.75, 0.3, 0.5); f.upper.position.y = 0.92; darken(f.group, 0.16); burn(t, 0.9, 0.8); },
+        mend: () => { f.upper.rotation.set(0, 0, 0); f.upper.position.y = 1.05; undarken(f.group); unburn(t); } }; }
+  };
+  PR.darken = darken; PR.undarken = undarken; PR.burn = burn; PR.unburn = unburn;
+
+  // ---- mission 2: the signals compound
+  /* a wire fence: posts with an outward-leaning arm, chain-link mesh and barbed strands. It stops you, but bullets and
+     eyes pass through it ('thin' collider). */
+  PR.wireFence = (b, x1, z1, x2, z2, o) => {
+    o = o || {}; const len = hyp(x2 - x1, z2 - z1), a = Math.atan2(x2 - x1, z2 - z1), n = Math.max(1, Math.round(len / 3)), ox = Math.cos(a) * (o.out || 1), oz = -Math.sin(a) * (o.out || 1);
+    for (let i = 0; i <= n; i++) { const u = i / n, px = x1 + (x2 - x1) * u, pz = z1 + (z2 - z1) * u;
+      b.box('concrete', 0.14, 2.3, 0.14, px, 1.15, pz, { ry: a, ch: 0.02, col: 0.75 + rnd() * 0.2 }); b.box('steel_dark', 0.05, 0.6, 0.05, px + ox * 0.2, 2.5, pz + oz * 0.2, { ry: a, rx: 0, rz: 0, ch: 0.008 }); }
+    for (let i = 0; i < n; i++) { const u0 = i / n, u1 = (i + 1) / n, mx = x1 + (x2 - x1) * (u0 + u1) / 2, mz = z1 + (z2 - z1) * (u0 + u1) / 2, sl = len / n;
+      if (o.gap && o.gap(i)) continue;
+      b.add(new THREE.PlaneGeometry(sl, 2.1), 'chain', xf(mx, 1.1, mz, 0, a + Math.PI / 2, 0), 0.8 + rnd() * 0.3); }
+    for (let k = 0; k < 3; k++) PR.wire(b, x1 + ox * (0.1 + k * 0.1), 2.25 + k * 0.17, z1 + oz * (0.1 + k * 0.1), x2 + ox * (0.1 + k * 0.1), 2.25 + k * 0.17, z2 + oz * (0.1 + k * 0.1), 0.05);
+    if (!o.noCol) for (let i = 0; i < n; i++) { if (o.gap && o.gap(i)) continue; const u0 = i / n, u1 = (i + 1) / n;
+      b.colSeg(x1 + (x2 - x1) * u0, z1 + (z2 - z1) * u0, x1 + (x2 - x1) * u1, z1 + (z2 - z1) * u1, 0.16, 0, 2.6, 'metal'); b.colliders[b.colliders.length - 1].thin = true; }
+  };
+  /* a wooden barrack hut on blocks, tar-paper roof, door on +Z, windows; lit: list of lit window indices */
+  PR.hut = (b, x, z, ry, w, d, lit) => {
+    w = w || 9; d = d || 5; const h = 2.7; b.at(x, 0, z, ry);
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) b.box('concrete', 0.4, 0.45, 0.4, -w / 2 + 0.4 + i * (w - 0.8) / 3, 0.22, (j ? 1 : -1) * (d / 2 - 0.3), { ch: 0.03 });
+    b.box('planks_dark', w, h, d, 0, 0.45 + h / 2, 0, { ch: 0.03 });
+    for (let i = 0; i < Math.floor(w / 0.32); i++) b.box('planks_dark', 0.05, h, 0.04, -w / 2 + 0.16 + i * 0.32, 0.45 + h / 2, d / 2 + 0.005, { ch: 0.004, col: 0.75 + rnd() * 0.5 });
+    b.add(MO.extrude([[-d / 2 - 0.35, 0], [d / 2 + 0.35, 0], [0, 1.25]], w + 0.6), 'paint_dark', xf(0, 0.45 + h, 0, 0, PI / 2, 0), 0.6);
+    for (const s of [-1, 1]) { b.box('planks', 0.06, 0.06, w + 0.6, 0, 0.45 + h + 0.62, s * 0.01, { ch: 0, col: 0.5 }); }
+    b.box('planks', 1.0, 2.0, 0.08, 0, 1.45, d / 2 + 0.03, { ch: 0.01, col: 0.7 }); b.box('planks_dark', 1.4, 0.18, 0.9, 0, 0.36, d / 2 + 0.45, { ch: 0.02 }); b.box('planks_dark', 1.4, 0.18, 0.5, 0, 0.14, d / 2 + 1.05, { ch: 0.02 });
+    let k = 0; for (const s of [-1, 1]) for (const fx of [-0.3, 0.3]) { const lt = (lit || []).indexOf(k++) >= 0;
+      b.box(lt ? 'window_lit' : 'glass', 0.9, 0.7, 0.04, fx * w, 1.9, s * (d / 2 + 0.01), { ch: 0 }); b.box('planks', 1.05, 0.08, 0.1, fx * w, 1.52, s * (d / 2 + 0.03), { ch: 0.01 });
+      if (lt) { const p = new THREE.Vector3(fx * w, 1.9, s * (d / 2 + 1)).applyMatrix4(b.base); PR.lights.push({ x: p.x, y: p.y, z: p.z, c: [1, 0.55, 0.22], i: 0.9, d: 7 }); } }
+    b.box('steel_dark', 0.12, 1.4, 0.12, w / 2 - 0.6, 3.9, 0, { ch: 0.01 });
+    b.col(0, (0.45 + h + 1.2) / 2, 0, w, 0.45 + h + 1.2, d, 'wood'); b.at();
+  };
+  /* the signals bunker: thick concrete, walk-in, the door on local +X; returns the inside centre in world space */
+  PR.bunker = (b, x, z, ry) => {
+    const W = 10, D = 7, H = 3.0, t = 0.5, dw = 1.5; b.at(x, 0, z, ry);
+    const slab = (sw, shh, sd, sx, sy, sz) => { b.box('concrete', sw, shh, sd, sx, sy, sz, { ch: 0.06 }); b.col(sx, sy, sz, sw, shh, sd, 'stone'); };
+    slab(W, H, t, 0, H / 2, -D / 2 + t / 2); slab(W, H, t, 0, H / 2, D / 2 - t / 2); slab(t, H, D, -W / 2 + t / 2, H / 2, 0);
+    const side = (D - dw) / 2; slab(t, H, side, W / 2 - t / 2, H / 2, -D / 2 + side / 2); slab(t, H, side, W / 2 - t / 2, H / 2, D / 2 - side / 2); slab(t, H - 2.2, dw, W / 2 - t / 2, 2.2 + (H - 2.2) / 2, 0);
+    b.box('concrete', W + 0.6, 0.45, D + 0.6, 0, H + 0.2, 0, { ch: 0.1, col: 0.9 }); b.col(0, H + 0.2, 0, W + 0.6, 0.45, D + 0.6, 'stone');
+    b.box('concrete', W - 2 * t, 0.06, D - 2 * t, 0, 0.03, 0, { ch: 0, col: 0.55 });
+    for (const s of [-1, 1]) PR.sandbags(b, W / 2 + 1.0, s * 1.4, W / 2 + 1.0, s * 3.9, 3);
+    for (let i = 0; i < 3; i++) b.add(new THREE.BoxGeometry(0.06, 0.2, 0.8), 'void', xf(-W / 2 + 0.02, 2.2, -2 + i * 2));
+    b.box('steel_dark', 0.06, 0.06, D - 1.2, 0, H - 0.25, 0, { ch: 0 });
+    b.cyl('steel_dark', 0.006, 0.006, 0.5, 0.6, H - 0.5, 0, { seg: 4 }); b.sph('glow_warm', 0.05, 0.6, H - 0.78, 0, { seg: 6, seg2: 4 }); b.cyl('paint_dark', 0.16, 0.04, 0.1, 0.6, H - 0.7, 0, { seg: 10 });
+    const lp = new THREE.Vector3(0.6, H - 0.9, 0).applyMatrix4(b.base); const light = { x: lp.x, y: lp.y, z: lp.z, c: [1, 0.55, 0.2], i: 1.6, d: 8 }; PR.lights.push(light);
+    const c0 = new THREE.Vector3(-W / 2, 0, -D / 2).applyMatrix4(b.base), c1 = new THREE.Vector3(W / 2, 0, D / 2).applyMatrix4(b.base);
+    PR.dry.push({ minX: Math.min(c0.x, c1.x), maxX: Math.max(c0.x, c1.x), minZ: Math.min(c0.z, c1.z), maxZ: Math.max(c0.z, c1.z), maxY: H });
+    b.at(); return { light: light };
+  };
+  /* a floodlight on a pole aimed at the ground; returns its light entry so the generator can switch it off */
+  PR.flood = (b, x, z, ry, h) => {
+    h = h || 6; b.cyl('planks_dark', 0.09, 0.13, h, x, h / 2, z, { seg: 8, col: 0.7 }); const ox = Math.sin(ry) * 0.45, oz = Math.cos(ry) * 0.45;
+    b.box('steel_dark', 0.06, 0.06, 0.55, x + ox / 2, h - 0.1, z + oz / 2, { ry: ry, ch: 0.01 });
+    b.add(MO.lathe([[0, 0.2], [0.12, 0.2], [0.22, 0.02], [0.24, -0.02], [0.2, -0.02], [0.1, 0.16], [0, 0.16]], 12), 'paint_grey', xf(x + ox, h - 0.25, z + oz, 0.5 * Math.cos(ry), 0, -0.5 * Math.sin(ry)));
+    const q = { x: x + ox * 2.2, y: h - 0.6, z: z + oz * 2.2, c: [1, 0.85, 0.6], i: 5.5, d: 22, grid: true, gx: x + ox, gy: h - 0.3, gz: z + oz }; PR.lights.push(q);
+    b.col(x, h / 2, z, 0.26, h, 0.26, 'wood'); return q;
+  };
+  /* the targets for mission 2 */
+  const mastGeo = (u, guy) => { const H = 32, B = 1.1, Tt = 0.3, seg = 16;
+    const w = (y) => MO.lerp(B, Tt, y / H);
+    for (let i = 0; i < seg; i++) { const y0 = i * H / seg, y1 = (i + 1) * H / seg, w0 = w(y0), w1 = w(y1);
+      for (const [sx, sz] of [[1, 1], [1, -1], [-1, -1], [-1, 1]]) {
+        u.add(MO.tube([[sx * w0, y0, sz * w0], [sx * w1, y1, sz * w1]], 0.045 * (1 - y0 / H * 0.5), 5), (i >> 1) % 2 ? 'paint_red' : 'paint_grey'); }
+      for (let e = 0; e < 4; e++) { const c = [[1, 1], [1, -1], [-1, -1], [-1, 1]], A = c[e], Bc = c[(e + 1) % 4];
+        u.add(MO.tube([[A[0] * w1, y1, A[1] * w1], [Bc[0] * w1, y1, Bc[1] * w1]], 0.022, 4), 'steel_dark');
+        u.add(MO.tube([[A[0] * w0, y0, A[1] * w0], [Bc[0] * w1, y1, Bc[1] * w1]], 0.016, 4), 'steel_dark'); } }
+    u.box('steel_dark', 0.1, 3.2, 0.1, 0, H + 1.5, 0, { ch: 0 }); for (let k = 0; k < 3; k++) u.box('steel_dark', 1.4 - k * 0.3, 0.05, 0.05, 0, H + 0.6 + k * 0.8, 0, { ry: k, ch: 0 });
+    u.box('paint_grey', 0.4, 0.3, 0.3, 0.3, 3, 0.3, { ch: 0.02 });
+    for (let k = 0; k < 3; k++) { const a = k * PI * 2 / 3 + 0.4; guy.add(MO.tube([[0, 26, 0], [Math.cos(a) * 7, 13, Math.sin(a) * 7], [Math.cos(a) * 14, 0.5, Math.sin(a) * 14]], 0.012, 3), 'steel_dark');
+      guy.add(MO.tube([[0, 16, 0], [Math.cos(a) * 14, 0.5, Math.sin(a) * 14]], 0.012, 3), 'steel_dark'); }
+  };
+  PR.target.mast = (t) => {
+    const group = new THREE.Group(), tower = new THREE.Group(), guys = new THREE.Group(), beacon = new THREE.Group(); group.add(tower); tower.add(guys); tower.add(beacon);
+    const u = new MO.Builder(), g = new MO.Builder(), base = new MO.Builder(), bc = new MO.Builder(); mastGeo(u, g);
+    base.box('concrete', 2.8, 0.5, 2.8, 0, 0.25, 0, { ch: 0.08 }); for (let k = 0; k < 3; k++) { const a = k * PI * 2 / 3 + 0.4; base.box('concrete', 0.9, 0.5, 0.9, Math.cos(a) * 14, 0.25, Math.sin(a) * 14, { ch: 0.06, ry: a }); }
+    PR.sandbagRing(base, 0, 0, 2.6, PI / 2, 2);
+    bc.sph('glow_red', 0.16, 0, 32.4, 0, { seg: 8, seg2: 6 });
+    u.build(tower, { dynamic: true, ao: false }); g.build(guys, { dynamic: true, ao: false, cast: false }); base.build(group, { dynamic: true }); bc.build(beacon, { dynamic: true, ao: false, cast: false });
+    tower.position.y = 0.5;
+    let fall = -1, w = 0, landed = false; const dir = t.fallDir || 0;
+    return { group: group, r: 1.4, h: 0.6, my: 3.2,
+      blow: (instant) => { guys.visible = false; beacon.visible = false; if (instant) { fall = 1.5; landed = true; } else { fall = 0.01; w = 0.05; landed = false; } tower.rotation.set(0, dir, 0); tower.rotateZ(-fall); PR.darken(tower, 0.35); },
+      mend: () => { fall = -1; guys.visible = true; beacon.visible = true; tower.rotation.set(0, 0, 0); PR.undarken(tower); },
+      update: (dt, time) => {
+        beacon.visible = fall < 0 && (time % 1.6) < 0.8;
+        if (fall < 0 || landed) return;
+        w += Math.sin(fall) * 1.6 * dt + 0.02 * dt; fall = Math.min(1.5, fall + w * dt); tower.rotation.set(0, dir, 0); tower.rotateZ(-fall);
+        if (fall >= 1.5) { landed = true; const fx = Math.cos(dir), fz = -Math.sin(dir);
+          for (let k = 4; k < 34; k += 5) MO.fx.explosion(t.x + fx * k, 0.2, t.z + fz * k, 0.35);
+          MO.audio.play('explosion_far', { x: t.x + fx * 18, y: 1, z: t.z + fz * 18, vol: 1 }); MO.fx.shake = Math.max(MO.fx.shake, 0.8); } } };
+  };
+  PR.target.radio = (t) => {
+    const group = new THREE.Group(), b = new MO.Builder();
+    for (let i = 0; i < 3; i++) { const z = (i - 1) * 0.72;
+      b.box('paint_grey', 0.5, 1.8, 0.66, 0, 0.9, z, { ch: 0.02, col: 0.8 }); b.box('paint_dark', 0.04, 1.6, 0.58, 0.26, 0.9, z, { ch: 0.006 });
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) { b.cyl('steel_dark', 0.035, 0.035, 0.03, 0.29, 0.5 + r * 0.32, z - 0.16 + c * 0.16, { rz: PI / 2, seg: 10 }); b.box('glass', 0.012, 0.05, 0.05, 0.31, 0.5 + r * 0.32, z - 0.16 + c * 0.16, { ch: 0 }); }
+      b.sph(i === 1 ? 'glow_red' : 'glow_warm', 0.018, 0.29, 1.66, z + 0.2, { seg: 5, seg2: 4 }); b.sph('glow_warm', 0.015, 0.29, 1.66, z + 0.12, { seg: 5, seg2: 4 }); }
+    b.box('planks', 0.7, 0.05, 1.5, 0.75, 0.78, 0, { ch: 0.01 }); for (const s of [-1, 1]) b.box('planks_dark', 0.05, 0.76, 0.05, 0.75, 0.38, s * 0.68, { ch: 0.005 });
+    b.box('steel_dark', 0.2, 0.04, 0.12, 0.7, 0.82, -0.3, { ch: 0.005 }); b.add(new THREE.TorusGeometry(0.08, 0.012, 5, 12, PI), 'rubber', xf(0.72, 0.86, 0.3, 0, PI / 2, 0));
+    b.add(MO.tube([[0.25, 1.75, -0.5], [0.3, 2.4, -0.5], [0.3, 2.75, -1.6]], 0.02, 4), 'rubber');
+    b.build(group, { dynamic: true, ao: false });
+    return { group: group, r: 0, h: 0, my: 2.0,
+      blow: () => { PR.darken(group, 0.12); PR.burn(t, 0.6, 0.45); if (t.light) t.light.off = true; MO.level.relight(); },
+      mend: () => { PR.undarken(group); PR.unburn(t); if (t.light) t.light.off = false; MO.level.relight(); } };
+  };
+  PR.target.generator = (t) => {
+    const group = new THREE.Group(), b = new MO.Builder();
+    b.box('concrete', 2.6, 0.3, 1.4, 0, 0.15, 0, { ch: 0.04 }); b.box('paint_olive', 1.5, 0.9, 0.9, -0.2, 0.75, 0, { ch: 0.05 }); b.box('paint_olive', 0.5, 0.7, 0.8, 0.9, 0.65, 0, { ch: 0.04, col: 0.85 });
+    b.box('steel_dark', 0.03, 0.6, 0.78, 1.16, 0.65, 0, { ch: 0 });
+    b.cyl('steel_dark', 0.36, 0.36, 0.12, -1.05, 0.75, 0, { rz: PI / 2, seg: 16 }); b.cyl('steel', 0.06, 0.06, 0.3, -0.95, 0.75, 0, { rz: PI / 2, seg: 8 });
+    b.add(MO.tube([[-0.4, 1.2, -0.2], [-0.4, 1.8, -0.2], [-0.4, 2.6, -0.4], [-0.4, 3.6, -0.4]], 0.05, 6), 'steel_dark');
+    for (let i = 0; i < 4; i++) b.cyl('steel_dark', 0.03, 0.03, 0.12, -0.7 + i * 0.3, 1.24, 0.15, { seg: 6 });
+    b.add(MO.tube([[0.2, 0.6, 0.45], [0.6, 0.2, 0.9], [1.6, 0.05, 1.4], [3, 0.05, 3]], 0.025, 4), 'rubber');
+    b.build(group, { dynamic: true });
+    return { group: group, r: 1.3, h: 1.2, my: 2.0,
+      blow: () => { PR.darken(group, 0.14); PR.burn(t, 1.0, 0.9); },
+      mend: () => { PR.undarken(group); PR.unburn(t); },
+      update: (dt, time) => { if (!t.destroyed && Math.random() < dt * 6) MO.fx.smoke.add({ x: t.x - 0.4 + Math.sin(t.ry || 0) * 0, y: 3.6, z: t.z - 0.4, vx: 0.3 + (Math.random() - 0.5) * 0.3, vy: 1.1, vz: (Math.random() - 0.5) * 0.3, life: 2.5, size: 0.2, grow: 0.5, r: 0.07, g: 0.068, b: 0.065, a: 0.35, drag: 0.4, fade: 1 }); } };
+  };
+  /* the searchlight tower: a wooden tower with a lamp that sweeps; returns {group, head, light, beam} */
+  PR.searchTower = (S, x, z) => {
+    const group = new THREE.Group(), head = new THREE.Group(), b = new MO.Builder(), hb = new MO.Builder(), H = 6.5;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box('planks_dark', 0.2, H + 0.1, 0.2, sx * 1.1, H / 2, sz * 1.1, { ch: 0.02, rx: -sz * 0.04, rz: sx * 0.04 });
+    for (let k = 0; k < 3; k++) for (let e = 0; e < 4; e++) { const a = e * PI / 2; b.box('planks', 0.08, 0.1, 2.5, Math.sin(a) * 1.12, 1 + k * 2, Math.cos(a) * 1.12, { ry: a + PI / 2, ch: 0.01, col: 0.7 }); }
+    b.box('planks', 3.0, 0.12, 3.0, 0, H, 0, { ch: 0.02 }); for (let e = 0; e < 4; e++) { const a = e * PI / 2; b.box('planks', 3.0, 0.9, 0.06, Math.sin(a) * 1.47, H + 0.5, Math.cos(a) * 1.47, { ry: a, ch: 0.01, col: 0.75 }); }
+    b.box('paint_dark', 3.4, 0.08, 3.4, 0, H + 2.4, 0, { ch: 0.02, rx: 0.06 }); for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.box('planks_dark', 0.1, 2.4, 0.1, sx * 1.4, H + 1.2, sz * 1.4, { ch: 0.01 });
+    for (let k = 0; k < 9; k++) b.box('steel_dark', 0.5, 0.03, 0.03, 0, 0.4 + k * 0.7, 1.25, { ch: 0 }); for (const s of [-1, 1]) b.box('steel_dark', 0.04, H, 0.04, s * 0.25, H / 2, 1.25, { ch: 0 });
+    b.build(group);
+    hb.cyl('paint_grey', 0.32, 0.36, 0.55, 0, 0, 0, { rx: PI / 2, seg: 16 }); hb.cyl('glow_warm', 0.29, 0.29, 0.02, 0, 0, 0.28, { rx: PI / 2, seg: 16, col: 0.6 });
+    for (const s of [-1, 1]) hb.box('steel_dark', 0.04, 0.5, 0.04, s * 0.4, -0.25, 0, { ch: 0 }); hb.box('steel_dark', 0.84, 0.05, 0.05, 0, -0.5, 0, { ch: 0 });
+    hb.build(head, { dynamic: true, ao: false });
+    head.position.set(0, H + 1.05, 0); group.add(head); group.position.set(x, 0, z); S.add(group);
+    const light = new THREE.SpotLight(new THREE.Color(1, 0.92, 0.75), 70, 70, 0.17, 0.35, 1.3); light.layers.enableAll(); light.position.set(0, 0, 0.3); head.add(light);
+    const tg = new THREE.Object3D(); tg.position.set(0, 0, 10); head.add(tg); light.target = tg;
+    // the visible beam: an open cone, brightest near the lamp and along its axis, fading with distance
+    const L = 48, cone = new THREE.CylinderGeometry(0.3, 0.3 + Math.tan(0.17) * L, L, 20, 1, true); cone.translate(0, -L / 2, 0); cone.rotateX(-PI / 2);
+    const beam = new THREE.Mesh(cone, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uK: { value: 1 } },
+      vertexShader: 'varying float vZ; varying vec3 vN; varying vec3 vV; void main(){ vZ = position.z / 48.0; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'precision highp float; uniform float uK; varying float vZ; varying vec3 vN; varying vec3 vV; void main(){ float e = pow(abs(dot(normalize(vN), normalize(vV))), 1.6); float f = (1.0 - vZ) * (1.0 - vZ); gl_FragColor = vec4(vec3(0.55, 0.52, 0.45) * e * f * 0.22 * uK, 1.0); }' }));
+    beam.frustumCulled = false; beam.renderOrder = 19; beam.position.z = 0.3; head.add(beam);
+    MO.phys.add([{ minX: x - 1.3, maxX: x + 1.3, minY: 0, maxY: H, minZ: z - 1.3, maxZ: z + 1.3, tag: 'wood', thin: true }]);
+    return { group: group, head: head, light: light, beam: beam, H: H };
+  };
+
   void jit;
 })();
