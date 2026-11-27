@@ -90,6 +90,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-26', version: '2.08', title: 'A new look for the home page', kind: 'feature',
+     tags: ['Home page'], items: [
+      'The home page has a whole new design, with a dark blueprint look and a gallery of the engineering projects.',
+      'The retro TV look for the holidays now has stronger scan lines, like an old TV.']},
     {date: '2026-11-26', version: '2.07', title: 'Leaf Sweep: one handful at a time', kind: 'feature',
      tags: ['Leaf Sweep'], items: [
       'Leaf Sweep now starts with a short note on what to do, and you pick up leaves one handful at a time: each click or tap grabs what is in a small circle.',

@@ -7,6 +7,10 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A new look for the home page": "Un nuevo diseño para la página principal",
+    "Home page": "Página principal",
+    "The home page has a whole new design, with a dark blueprint look and a gallery of the engineering projects.": "La página principal tiene un diseño totalmente nuevo, con un estilo de plano oscuro y una galería de los proyectos de ingeniería.",
+    "The retro TV look for the holidays now has stronger scan lines, like an old TV.": "El estilo de televisor retro de las fiestas ahora tiene líneas de barrido más marcadas, como una tele antigua.",
     "Leaf Sweep: one handful at a time": "Leaf Sweep: un puñado a la vez",
     "Leaf Sweep": "Leaf Sweep",
     "Leaf Sweep now starts with a short note on what to do, and you pick up leaves one handful at a time: each click or tap grabs what is in a small circle.": "Leaf Sweep ahora empieza con una nota breve sobre qué hacer, y recoges las hojas un puñado a la vez: cada clic o toque agarra lo que hay en un círculo pequeño.",
