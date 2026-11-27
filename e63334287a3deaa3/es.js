@@ -481,7 +481,7 @@
     "Mouse and keyboard (1 to 6 picks a tower, Space sends the wave), or touch on a phone: tap a tower, tap a tile, tap again to build. Works either way up.": "Mouse y teclado (1 a 6 elige una torre, Espacio manda la oleada), o táctil en el celular: toca una torre, toca una casilla y vuelve a tocar para construir. Funciona en vertical u horizontal.",
     "Want more games, or have an idea?": "¿Quieres más juegos o tienes una idea?",
     "Tell us in the suggestion box at the top of the page.": "Cuéntanos en el buzón de sugerencias, arriba de todo en la página.",
-    "© 2026 Arjun": "© 2026 Arjun",
+    "© 2026 ASCoding": "© 2026 ASCoding",
     "Colour theme": "Tema de colores",
     "Games": "Juegos",
     "Game types": "Tipos de juego",
@@ -492,7 +492,6 @@
 
   // The phone page (m/index.html) loads this file too: its own rows, tiles, tips and the frame bar.
   L.add({
-    "Arjun's": "Los juegos",
     "games": "juegos",   // the phone page title: "ASCoding juegos"
     "Racing and car games": "Carreras y autos",
     "22-car open-wheel races. Draft, brake late, pass.": "Carreras de monoplazas con 22 autos. Ve al rebufo, frena tarde, adelanta.",
@@ -538,7 +537,7 @@
     "A co-op horror obby for up to 4. Cross the flooded halls quietly: it hears every splash.": "Un obby de terror cooperativo para hasta 4. Cruza los pasillos inundados en silencio: oye cada salpicadura.",
     "A stock market game: trade the rumors, beat the index.": "Un juego de bolsa: opera con los rumores, gánale al índice.",
     "Every game works with touch: sticks, buttons and drag to look appear when you play.": "Todos los juegos funcionan con pantalla táctil: los sticks, botones y arrastrar para mirar aparecen cuando juegas.",
-    "© 2026 Arjun ·": "© 2026 Arjun ·",
+    "© 2026 ASCoding ·": "© 2026 ASCoding ·",
     "Privacy policy": "Política de privacidad",
     "‹ Games": "‹ Juegos",
     "Turn sideways ↻": "Gira el celular ↻",
