@@ -90,6 +90,10 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.13.6', title: 'Tidier top of the phone page', kind: 'fix',
+     tags: ['Phone'], items: [
+      'On a phone held upright, the games count now sits right under the ASCoding Games title on one or two lines, instead of in a thin column with one word per line.',
+      'The theme, language and Main site buttons now go on their own line under the title, so nothing at the top overlaps any more, in English or Spanish.']},
     {date: '2026-11-27', version: '2.13.5', title: 'The site is called ASCoding everywhere', kind: 'fix',
      items: [
       'The name at the top and bottom of every page now reads ASCoding, on the main site, the Back Room and the phone page.',
