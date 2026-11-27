@@ -353,9 +353,10 @@ const P={
   WX:0.60,           // wheel centres sit ±WX ahead of / behind the centre of mass (m) (Chromeline 1.54: the bike alone, 9% smaller than 0.66)
   WY:-0.273,         // ... and WY below it (m)
   WR:0.327,          // wheel radius (m)
-  K:230, C:15,       // tyre + suspension spring (per kg, 1/s²) and damper (1/s)
-  TRAVEL:0.13,       // suspension travel (m); past it the contact turns rigid (an impulse)
-  REST:0.04,         // bounce on a rigid hit
+  K:900, C:60,       // tyre contact spring (per kg, 1/s²) and damper (1/s). hard update: rigid, the owner's request: stiff and over-damped, so the
+                     // wheels stay fixed to the frame and a landing doesn't bob or bounce (was 230 and 15: soft, springy suspension)
+  TRAVEL:0.04,       // how far a contact can sink before it turns fully rigid (an impulse) (m) (was 0.13)
+  REST:0,            // bounce on a rigid hit (was 0.04)
   DRIVE:11.9,        // rear-wheel push from a standstill (m/s²) while held on the ground (was 10.5: +13%)
   VMAX:19.2,         // the push fades to nothing at this ground speed (m/s) (was 17: +13%; flat-ground top speed 15.3 → 17.1)
   BOOST:26, BOOST_V:25, // on a boost strip the wheels push this much more (m/s²), up to this speed (m/s), held or not
@@ -367,9 +368,9 @@ const P={
   AIR_DAMP:2.6,      // let go in the air: the spin fades by this fraction per second, so letting go is how you stop a flip
   GRAV_PITCH:2.4,    // in the air the heavy front end drops: nose-down spin builds at this × cos(angle) (rad/s²)
   WHEELIE:0.75, WHEELIE_K:28, REAR_DAMP:6, // on the back wheel past 43° the rider leans forward (torque per rad)
-  TILT:1.22,         // touching down more than 70° off the ground's angle is a crash (was 75°)
-  CLEAN:0.22,        // within 12.6° of the ground's angle is a clean landing (was 15°)
-  ASSIST:0.32, ASSIST_K:26, ASSIST_C:5, ASSIST_MAX:0.7, // after touchdown: settle toward the ground (s, gains, within 40°)
+  TILT:0.92,         // touching down more than 53° off the ground's angle is a crash (hard update, harder: was 70°, and 75° before 1.54)
+  CLEAN:0.16,        // within 9° of the ground's angle is a clean landing (hard update: was 12.6°, and 15° before 1.54)
+  ASSIST:0.22, ASSIST_K:26, ASSIST_C:5, ASSIST_MAX:0.45, // after touchdown: settle toward the ground (s, gains, within 26°) (hard update: was 0.32 s within 40°)
   FLIP_SLACK:0.9,    // a flip counts from 360° − 52° of rotation (measured against the change in ground slope)
   SETTLE:0.22,       // tricks are banked after this long back on the wheels
   AIRBORNE:0.12,     // off the ground this long counts as a jump
@@ -709,10 +710,11 @@ const PICK=[
 const EASY={flat:1,recover:1,roll:1,whoop:1,hill:1,valley:1,hump:1,kick:1,dkick:1,tabletop:1,gemrow:1,gemhop:1,boost:1,stepdown:1,stairsdown:1,stairsup:1};
 const pickW=(p,d)=>p[1]*(p[2]>0?0.6+0.8*d:1)*(EASY[p[0]]?Math.max(0.3,1-0.45*d):1);
 const BIG={steep:1,tris:1,bigloop:1,loop3:1,loopgap:1,crownloop:1,ledge:1,flipzone:1,gemsky:1,wavegap:1,needle:1,bigkick:1,lpipe:1,dropin:1,gapdown:1,longjump:1,stepdown:1,tabletop:1,gap2:1,loop:1,loop2:1,hpipe:1,launch:1,pads:1,crumble:1};
-const ENDLESS_RAMP=650;     // metres (after the opening) until the full mix (was 1,100); difficulty keeps rising after that, to 2 at about 2,800 m
-const OPEN_X=150;           // the scripted opening ends about here
+const ENDLESS_RAMP=300;     // metres (after the opening) until the full mix (hard update: was 650, and 1,100 before 1.54); difficulty keeps rising after that, to 2 at about 1,500 m
+const OPEN_X=270;           // the scripted opening ends about here (hard update: it is longer and denser)
+const ENDLESS_D0=0.45;      // hard update: difficulty straight after the opening (it used to start from 0), so the hard pieces turn up at once
 
-function startTrack(tr){tr.cx=0;tr.cy=0;runStart(tr,true);seg(tr,tr.kind==="endless"?20:24,0)}
+function startTrack(tr){tr.cx=0;tr.cy=0;runStart(tr,true);seg(tr,tr.kind==="endless"?12:24,0)}
 function build(tr,name,args){
   const m=MOD[name];if(!m)throw new Error('no module '+name);
   const x0=tr.cx;m.f(tr,...args);tr.mods.push({n:name,x0,x1:tr.cx,a:args});
@@ -726,14 +728,15 @@ function rollback(tr,k){
   tr.polys.length=k.p;tr.hz.length=k.h;tr.coins.length=k.c;tr.mv.length=k.m;tr.nMv=k.nMv;tr.lips.length=k.l;tr.bridges.length=k.b;tr.mods.length=k.md;
   tr.cx=k.cx;tr.cy=k.cy;tr.run=k.run;tr.runWall=k.rw;tr.low=k.low;
 }
-// difficulty 0..1 over ENDLESS_RAMP metres after the opening, then on up to 1.5 (wider gaps, more hazards, more of the hard pieces)
-function endlessD(x){const u=(x-OPEN_X)/ENDLESS_RAMP;return u<=1?clamp(u,0,1):Math.min(2,1+(u-1)*ENDLESS_RAMP/2000)}
+// difficulty from ENDLESS_D0 to 1 over ENDLESS_RAMP metres after the opening, then on up to 2 (wider gaps, more hazards, more of the hard pieces)
+function endlessD(x){const u=(x-OPEN_X)/ENDLESS_RAMP;return u<=1?ENDLESS_D0+(1-ENDLESS_D0)*clamp(u,0,1):Math.min(2,1+(u-1)*ENDLESS_RAMP/1200)}
 function endless(seed){
   const tr=newTrack('endless');tr.seed=seed>>>0;tr.r=rng(seed);startTrack(tr);
-  // the opening: a little kick at ~26 m (under 3 s), a big kicker over a drop at ~45 m (about 4 s; with no arrows the nose drops
-  // and you land on your head), a forgiving loop (in at about 9 s, round by about 10.5 s), a short spike run, then at about 13 s a steep launch
-  // (a quarter-pipe or a half-pipe, by seed) that you have to steer round to land
-  build(tr,'kick',[0.9,24,10]);build(tr,'bigkick',[1.8,32,2,8]);build(tr,'loop',[3.4,6,0,0]);build(tr,'spikes',[2.5]);build(tr,(seed&1)?'lpipe':'hpipe',(seed&1)?[3.3,64,9]:[3.2,68,2.9,9]);flush(tr);
+  // the opening (hard update, hard from the first second; the owner's request): a tall kick at ~12 m (1 s), a boosted launch over a
+  // pit at ~4.5 s whose flat landing needs a short hold in the air (no hold, and the nose drops short), the steeper quarter-pipe or
+  // the half-pipe at ~8-10 s, a big kicker over a deep drop, a wide spike strip, a bigger loop and a post past a kicker by ~20 s
+  build(tr,'kick',[1.3,28,7]);build(tr,'launch',[14,0.4,26,5]);build(tr,(seed&1)?'lpipe':'hpipe',(seed&1)?[3.4,70,10]:[3.4,69,2.7,10]);
+  build(tr,'bigkick',[2.4,36,4,6]);build(tr,'spikes',[4.2]);build(tr,'loop',[4,14,0,0]);build(tr,'post',[1.1,26,2.6,0.25]);flush(tr);
   tr.vs=[vInit(tr,1),vInit(tr,0.85)];vRun(tr,tr.cx,null);tr.snaps=[{x:tr.cx,vs:vCopy(tr.vs)}];return tr;
 }
 const vCopy=vs=>vs.map(v=>Object.assign({},v,{trig:Object.assign({},v.trig)}));
@@ -880,7 +883,7 @@ function floorAt(tr,x){const b=Math.floor(x/BW);let m=Infinity;for(let i=b-4;i<=
 // ---------- the run ----------
 function newState(tr){
   const x=tr.start,y=groundTop(tr,x);
-  return{t:0,n:0,x,y:(y==null?0:y)-P.WY+P.WR-0.035,a:0,vx:0,vy:0,w:0,hold:false,lean:0,
+  return{t:0,n:0,x,y:(y==null?0:y)-P.WY+P.WR-0.01,a:0,vx:0,vy:0,w:0,hold:false,lean:0,
     cR:false,cF:false,air:0,jump:false,jt:0,rot:0,pend:null,since:9,imp:0,lastImp:0,gslope:0,
     crash:null,crashT:0,done:false,doneT:0,maxX:x,stall:0,mvI:0,hzI:0,cI:0,mvs:[],mvT:[],hzT:{},
     ts:0,combo:0,toSl:0,dist:0,score:0,nmI:-1,nmD:9,coins:0,got:null,noPick:false,ev:[],
@@ -1363,8 +1366,8 @@ function resize(){
   DPR=Math.min(window.devicePixelRatio||1,1.5);
   W=Math.max(1,window.innerWidth);H=Math.max(1,window.innerHeight);
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
-  // pixels per metre: about 22 m across in landscape, 11 m in portrait, at least 11 m tall
-  const across=W>H?22:11;PPM=Math.min(W/across,H/11);
+  // pixels per metre: about 30 m across in landscape, 15 m in portrait, at least 14 m tall (hard update: zoomed out from 22, 11 and 11)
+  const across=W>H?30:15;PPM=Math.min(W/across,H/14);
   bgCache=null;layerCache=null;overCache=null;
 }
 window.addEventListener('resize',resize);
@@ -1386,11 +1389,6 @@ const glowCache={};
 function glowSprite(col){let c=glowCache[col];if(c)return c;c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d');
   const gr=g.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,hexA(col,0.9));gr.addColorStop(0.25,hexA(col,0.45));gr.addColorStop(1,hexA(col,0));g.fillStyle=gr;g.fillRect(0,0,64,64);return glowCache[col]=c}
 // a headlight beam: a soft cone, made once per colour (drawn upside down or not, it is symmetric)
-const beamCache={};function beamSprite(col){let c=beamCache[col];if(c)return c;c=document.createElement('canvas');c.width=128;c.height=64;const g=c.getContext('2d');
-  const gr=g.createLinearGradient(0,0,128,0);gr.addColorStop(0,hexA(col,0.55));gr.addColorStop(0.35,hexA(col,0.2));gr.addColorStop(1,hexA(col,0));g.fillStyle=gr;
-  g.beginPath();g.moveTo(0,29);g.lineTo(128,2);g.lineTo(128,62);g.lineTo(0,35);g.closePath();g.fill();
-  const g2=g.createLinearGradient(0,0,0,64);g2.addColorStop(0,'rgba(0,0,0,1)');g2.addColorStop(0.3,'rgba(0,0,0,0)');g2.addColorStop(0.7,'rgba(0,0,0,0)');g2.addColorStop(1,'rgba(0,0,0,1)');
-  g.globalCompositeOperation='destination-out';g.fillStyle=g2;g.fillRect(0,0,128,64);return beamCache[col]=c}
 function glow(x,y,r,col,a){cx.globalAlpha=a;cx.drawImage(glowSprite(col),x-r,y-r,r*2,r*2);cx.globalAlpha=1}
 
 // ======================= GAME STATE =======================
@@ -1696,35 +1694,25 @@ function drawOverlay(){
 function line(x0,y0,x1,y1,w,col){cx.lineWidth=w+0.06;cx.strokeStyle=INK;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke();cx.lineWidth=w;cx.strokeStyle=col;cx.beginPath();cx.moveTo(x0,y0);cx.lineTo(x1,y1);cx.stroke()}
 function pfill(pts,col){cx.beginPath();cx.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)cx.lineTo(pts[i],pts[i+1]);cx.closePath();cx.fillStyle=col;cx.fill();cx.stroke()}
 function circ(x,y,r,col){cx.beginPath();cx.arc(x,y,r,0,TAU);cx.fillStyle=col;cx.fill();cx.stroke()}
-// wheels: dark tyres with a lit rim in the vehicle's light colour
-function wheel(x,y,rot,c){cx.strokeStyle=INK;cx.lineWidth=0.05;circ(x,y,0.36,'#141729');cx.fillStyle='#2e3352';for(let i=0;i<10;i++){const a=rot+i*TAU/10;cx.beginPath();cx.arc(x+Math.cos(a)*0.315,y+Math.sin(a)*0.315,0.03,0,TAU);cx.fill()}
-  cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA(c,0.35);cx.lineWidth=0.13;cx.beginPath();cx.arc(x,y,0.25,0,TAU);cx.stroke();cx.globalCompositeOperation='source-over';
-  cx.strokeStyle=c;cx.lineWidth=0.045;cx.stroke();cx.strokeStyle='#f4fdff';cx.lineWidth=0.04;cx.beginPath();cx.arc(x,y,0.25,rot,rot+0.7);cx.moveTo(x+Math.cos(rot+Math.PI)*0.25,y+Math.sin(rot+Math.PI)*0.25);cx.arc(x,y,0.25,rot+Math.PI,rot+Math.PI+0.7);cx.stroke();
-  cx.strokeStyle='#6a7096';cx.lineWidth=0.03;cx.beginPath();for(let i=0;i<5;i++){const a=rot+i*TAU/5;cx.moveTo(x,y);cx.lineTo(x+Math.cos(a)*0.22,y+Math.sin(a)*0.22)}cx.stroke();
-  cx.strokeStyle=INK;cx.lineWidth=0.04;circ(x,y,0.065,'#c9cbe0')}
-// the Volt Hopper's shapes (made once, not every frame)
-const HB=[[-0.34,-0.2,-0.38,0.1,0.3,0.14,0.38,-0.12,0.2,-0.24],[-0.26,-0.2,0.2,-0.24,0.36,-0.14,0.3,-0.3,-0.14,-0.3],[-1.08,0.52,-0.84,0.3,-0.52,0.2,-0.2,0.14,0.14,0.02,0.5,0.04,0.84,0.16,0.7,0.3,0.44,0.46,0.16,0.5,-0.04,0.36,-0.52,0.34,-0.8,0.4],[-0.52,0.2,-0.2,0.14,0.14,0.02,0.5,0.04,0.84,0.16,0.5,0.17,0.1,0.15,-0.3,0.24],[0.2,0.49,0.44,0.46,0.62,0.36,0.3,0.36],[-0.6,0.35,-0.08,0.36,-0.16,0.28,-0.56,0.27],[0.62,0.27,0.84,0.17,0.8,0.12,0.6,0.2],[-1.08,0.52,-0.96,0.41,-0.9,0.44]];
+// wheels (hard update, simpler): a dark tyre, a lit rim in the vehicle's light colour, two bright arcs so the spin shows, a hub
+function wheel(x,y,rot,c){cx.strokeStyle=INK;cx.lineWidth=0.05;circ(x,y,0.36,'#141729');
+  cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA(c,0.3);cx.lineWidth=0.12;cx.beginPath();cx.arc(x,y,0.25,0,TAU);cx.stroke();cx.globalCompositeOperation='source-over';
+  cx.strokeStyle=c;cx.lineWidth=0.05;cx.stroke();cx.strokeStyle='#f4fdff';cx.lineWidth=0.045;cx.beginPath();cx.arc(x,y,0.25,rot,rot+0.8);cx.moveTo(x+Math.cos(rot+Math.PI)*0.25,y+Math.sin(rot+Math.PI)*0.25);cx.arc(x,y,0.25,rot+Math.PI,rot+Math.PI+0.8);cx.stroke();
+  cx.strokeStyle=INK;cx.lineWidth=0.04;circ(x,y,0.07,c)}
+// the Volt Hopper's shapes (made once, not every frame). hard update, simpler: one shell from tail to nose, one light line along it
+const HB=[[-0.3,-0.14,-0.66,0.06,-1.06,0.42,-0.98,0.47,-0.58,0.4,-0.18,0.36,0.08,0.5,0.4,0.49,0.7,0.3,0.88,0.15,0.62,0.04,0.32,-0.14],
+  [0.73,0.25,0.88,0.15,0.8,0.12,0.66,0.2],[-1.06,0.42,-0.98,0.47,-0.9,0.44,-0.98,0.39]];
 const hexA45Memo={};function hexA45(c){return hexA45Memo[c]||(hexA45Memo[c]=hexA(c,0.45))}
 const BODY={
-  dirt(c,t,pop,gas,ghost){ // 1.54: a riderless electric superbike: a dark chassis, a sharp two-tone shell, one hard light blade nose to tail, a slit headlight that throws a beam
+  dirt(c,t,pop,gas,ghost){ // hard update, simpler: a riderless electric sport bike drawn as a few clean parts: swingarm, fork, one shell, one light line, two lamps
     const hot=gas?1:0;
-    if(!ghost){cx.globalCompositeOperation='lighter';cx.globalAlpha=0.5;cx.drawImage(beamSprite(c[1]),0.74,-0.36,2.3,1.02);cx.globalAlpha=1;cx.globalCompositeOperation='source-over'} // headlight beam
-    line(-0.66,-0.3,-0.06,-0.06,0.12,'#23284a');line(-0.62,-0.33,-0.1,-0.12,0.03,c[1]);                       // swingarm with a lit lower edge
-    line(-0.4,-0.2,-0.3,0.16,0.07,'#3a4066');line(-0.385,-0.14,-0.32,0.1,0.035,c[1]);                           // rear shock
-    line(0.66,-0.3,0.52,0.0,0.06,'#dfe6f0');line(0.52,0.0,0.4,0.3,0.1,'#23284a');                              // upside-down fork: bright slider, dark upper
-    pfill(HB[0],c[2]);                                          // battery case
-    cx.fillStyle=c[1];for(let i=0;i<4;i++)cx.fillRect(-0.27+i*0.14,-0.13,0.09,0.15);glow(0.0,-0.05,0.5,c[1],0.35+0.25*hot); // cells (brighter on the gas)
-    pfill(HB[1],shade(c[0],-0.45));                            // belly pan
-    pfill(HB[2],c[0]); // shell: tail kicks up, nose points forward
-    {const st=cx.strokeStyle;cx.strokeStyle='rgba(0,0,0,0)';pfill(HB[3],shade(c[0],-0.3));cx.strokeStyle=st} // the shell's shaded underside
-    pfill(HB[4],'#141a3a');                                                 // tinted screen
-    pfill(HB[5],c[2]);                                                 // seat pad
-    cx.strokeStyle='rgba(255,255,255,0.75)';cx.lineWidth=0.025;cx.beginPath();cx.moveTo(-1.0,0.47);cx.lineTo(-0.8,0.37);cx.moveTo(0.02,0.4);cx.lineTo(0.16,0.47);cx.lineTo(0.4,0.445);cx.stroke(); // top edge catches the light
-    cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA45(c[1]);cx.lineWidth=0.12;cx.beginPath();cx.moveTo(-1.04,0.48);cx.lineTo(-0.78,0.31);cx.lineTo(-0.3,0.22);cx.lineTo(0.14,0.13);cx.lineTo(0.5,0.14);cx.lineTo(0.8,0.17);cx.stroke();cx.globalCompositeOperation='source-over';
-    cx.strokeStyle=c[1];cx.lineWidth=0.04;cx.stroke();cx.strokeStyle='#f4fdff';cx.lineWidth=0.012;cx.stroke();cx.strokeStyle=INK;cx.lineWidth=0.05; // the light blade: glow, colour, white core
-    pfill(HB[6],'#f4fdff');glow(0.8,0.17,0.5,c[1],0.8);                      // slit headlight
-    pfill(HB[7],c[1]);glow(-1.02,0.47,0.34,c[1],0.55+0.3*hot);                    // tail light
-    line(0.4,0.42,0.26,0.5,0.045,INK)},
+    line(-0.66,-0.3,-0.12,-0.06,0.1,c[2]);                       // swingarm
+    line(0.66,-0.3,0.44,0.34,0.08,c[2]);                         // fork
+    pfill(HB[0],c[0]);                                           // the shell: tail kicks up, seat, tank, nose
+    cx.globalCompositeOperation='lighter';cx.strokeStyle=hexA45(c[1]);cx.lineWidth=0.11;cx.beginPath();cx.moveTo(-0.96,0.4);cx.lineTo(-0.55,0.22);cx.lineTo(0.1,0.17);cx.lineTo(0.72,0.17);cx.stroke();cx.globalCompositeOperation='source-over';
+    cx.strokeStyle=c[1];cx.lineWidth=0.045;cx.stroke();cx.strokeStyle=INK;cx.lineWidth=0.05; // the light line: glow, then colour
+    pfill(HB[1],'#f4fdff');if(!ghost)glow(0.82,0.18,0.45,c[1],0.75); // headlight
+    pfill(HB[2],c[1]);if(!ghost)glow(-0.99,0.43,0.3,c[1],0.5+0.3*hot)},
   scooter(c){pfill([-0.88,-0.06,-0.78,0.2,-0.46,0.33,-0.04,0.3,0.0,0.05,-0.2,-0.13,-0.7,-0.13],c[0]);pfill([0.0,-0.13,0.0,0.0,0.32,0.0,0.32,-0.13],c[1]);
     pfill([0.28,-0.12,0.44,-0.06,0.5,0.56,0.36,0.6,0.3,0.2],c[0]);pfill([-0.62,0.31,-0.12,0.37,-0.1,0.28,-0.56,0.24],c[2]);circ(0.49,0.6,0.06,'#fff3c4');
     pfill([0.52,0.05,0.82,0.08,0.86,-0.02,0.58,-0.04],c[0]);line(0.42,0.58,0.3,0.62,0.05,INK);cx.beginPath();cx.ellipse(-0.45,0.12,0.16,0.08,0,0,TAU);cx.fillStyle=c[1];cx.fill();cx.stroke()},
@@ -1764,10 +1752,10 @@ function drawBike(pose,v,r,t,opt){
   // 1.54: the bike alone, no rider, drawn in the old 0.66 m wheelbase units and scaled down to the physics' (P.WX)
   opt=opt||{};world();cx.save();cx.translate(pose.x,pose.y);cx.rotate(pose.a);const k=P.WX/0.66;cx.scale(k,k);cx.lineJoin='round';cx.lineCap='round';cx.strokeStyle=INK;cx.lineWidth=0.05;
   if(opt.ghost){cx.globalAlpha=0.38}
-  const cR=Math.min(pose.dR||0,0.13)/k,cF=Math.min(pose.dF||0,0.13)/k,wr=pose.wr||0;
-  wheel(-0.66,-0.3+cR,wr,v.c[1]);wheel(0.66,-0.3+cF,wr,v.c[1]);
-  if(pose.gas&&!opt.ghost)glow(-0.66,-0.3+cR,0.62,v.c[1],0.35);                                              // the rear hub lights up on the gas
-  const cr=pose.crouch||0,ln=pose.lean||0;if(cr||ln){cx.translate(-0.66,-0.3);cx.rotate(ln*0.05);cx.translate(0.66,0.3-0.07*cr)}
+  // hard update: rigid, the owner's request: the wheels stay fixed to the frame (no spring travel, no crouch or lean after a landing)
+  const wr=pose.wr||0;
+  wheel(-0.66,-0.3,wr,v.c[1]);wheel(0.66,-0.3,wr,v.c[1]);
+  if(pose.gas&&!opt.ghost)glow(-0.66,-0.3,0.62,v.c[1],0.35);                                              // the rear hub lights up on the gas
   (BODY[v.k]||BODY.dirt)(v.c,t,G.popT,pose.gas,opt.ghost);
   cx.restore();cx.globalAlpha=1;
 }
@@ -1782,7 +1770,7 @@ function newRun(mode,opt){
   else if(mode==='level'){G.lvIndex=opt.i;G.L=LV[opt.i];G.tr=levelTrack(opt.i);G.themeOverride=THEMES[G.L.th].id;
     const rec=save.lv[G.L.id];if(rec&&rec.g&&rec.gv===4&&save.set.ghost)G.ghost=rec.g} // gv 4: a one-button ghost (1.54); gv 3 was gas + arrows, gv 2 Flipline's courses
   else if(mode==='custom'){G.L={id:'custom',n:TX('Your track'),c:opt.code,f:0,t:0,th:0};G.tr=FL.level(G.L);G.themeOverride=null}
-  else if(mode==='demo'){G.tr=FL.endless(opt.seed||4242);FL.extend(G.tr,320)}
+  else if(mode==='demo'){G.tr=levelTrack((opt.seed||0)%6)} // hard update: the menu demo rides the first six level courses (the Endless opening is now too hard for its little bot)
   restart();
 }
 const lvCache={};function levelTrack(i){return lvCache[i]||(lvCache[i]=FL.level(LV[i]))}
@@ -1798,7 +1786,7 @@ function restart(){
 }
 function readyHint(){return touchUI?TX('Touch and hold to ride. Hold in the air to flip'):TX('Hold {k} to ride. Hold it in the air to flip',{k:keyName('go')})}
 function beginRun(t){if(G.phase!=='ready')return;G.phase='run';G.rt=t;G.startT=t;G.inQ.push({t,c:G.inC});setHint('');AU.S.go()}
-function camLead(){return Math.min(W/PPM*0.17,5)}
+function camLead(){return Math.min(W/PPM*0.2,7)} // hard update: the bike sits further left, so more of the track ahead is in view (was 0.17 of the width, at most 5 m)
 function snap(s,o){o.x=s.x;o.y=s.y;o.a=s.a;o.dR=s.dR;o.dF=s.dF;o.t=s.t;return o}
 
 // fixed-step simulation: each queued input (with its real timestamp) takes effect on the step it falls in,
@@ -1830,7 +1818,7 @@ let demoNext=0,demoP=null,demoK=0;
 const DEMO_PLANS=[[1,9,1,0,0],[0,9,0,0,0],[1,0.3,0,0,0],[0,0.3,1,0,0],[1,0.7,0,0,0],[1,9,1,-1,0.4],[1,9,1,-1,0.8],[1,9,1,-1,1.2]];
 function demoIn(s){if(s.n>=demoNext||!demoP){demoNext=s.n+30;demoK=0;let best=-1e9;for(const p of DEMO_PLANS){const c=FL.clone(s);c.noPick=true;let sc=0;const x0=c.x,sw=Math.round(p[1]/DT);
   for(let i=0;i<360;i++){const k=demoCode(c,p,i,sw);FL.step(G.tr,c,FL.inHold(k),FL.inLean(k));if(c.crash){sc=-1000+i;break}}if(!c.crash)sc=c.x-x0+c.st.flips*30+(c.cR||c.cF?0:-Math.abs(FL.wrap(c.a))*6);if(sc>best){best=sc;demoP=p}}}
-  if(s.crash&&s.t-s.crashT>1.6){newRun('demo',{seed:(Math.random()*1e9)>>>0})}return demoCode(s,demoP,demoK++,Math.round(demoP[1]/DT))}
+  if((s.crash&&s.t-s.crashT>1.6)||(s.done&&s.doneT>1)){newRun('demo',{seed:(Math.random()*1e9)>>>0})}return demoCode(s,demoP,demoK++,Math.round(demoP[1]/DT))}
 function demoCode(s,p,i,sw){const h=i<sw?p[0]:p[2];if(s.cR||s.cF)return FL.inCode(h,0);return FL.inCode(p[3]&&s.air<p[4]?true:FL.botLevel(G.tr,s)<0,0)}
 
 // the run multiplier going up (or down after a sloppy landing) shows as a small number over the bike
