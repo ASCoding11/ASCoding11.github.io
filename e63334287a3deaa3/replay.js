@@ -165,8 +165,8 @@
   }
 
   // ---------------- The panel ----------------
-  var box = null, hideT = 0;
-  function close() { clearTimeout(hideT); if (box) { var b = box; box = null; b.style.opacity = '0'; setTimeout(function () { b.remove(); }, 250); } }
+  var box = null, hideT = 0, cleanup = null;   // cleanup: lets go of the finished clip's video so its memory is freed
+  function close() { clearTimeout(hideT); if (cleanup) { var c = cleanup; cleanup = null; c(); } if (box) { var b = box; box = null; b.style.opacity = '0'; setTimeout(function () { b.remove(); }, 250); } }
   function btn(label, primary) {
     var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.setAttribute('data-no-ad-refresh', '');
     b.style.cssText = 'font:700 14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;padding:10px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;' +
@@ -202,6 +202,8 @@
         h.textContent = '🎬 ' + T('Your replay is ready', 'Tu repetición está lista'); bar.remove();
         var v = document.createElement('video'); v.src = url; v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
         v.style.cssText = 'width:100%;border-radius:10px;display:block;background:#000;margin-bottom:10px;max-height:180px;object-fit:contain'; v.play().catch(function () {});
+        // When the panel closes: stop the preview and release the clip (~10 MB) after a moment, so a save in progress finishes.
+        cleanup = function () { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {} file = null; setTimeout(function () { URL.revokeObjectURL(url); }, 10000); };
         var row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
         var share = btn('↗ ' + T('Share replay', 'Compartir'), true), save = btn(T('Save video', 'Guardar video')), cp = btn(T('Copy game link', 'Copiar enlace'));
         var text = T('Watch this, then play it yourself: ', 'Mira esto y luego juégalo tú: ') + 'https://' + URL_TXT;
