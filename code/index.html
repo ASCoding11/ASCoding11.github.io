@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Source Code · ASCoding</title>
-<meta name="description" content="Browse the source code of the ASCoding site: every page, tool and project, with highlighted code, commit history and a ZIP download.">
-<!-- Kept out of search on purpose: the Games tab shows the Back Room's code (see README, Source code browser). -->
+<meta name="description" content="ASCoding team code browser.">
+<!-- Team only: not linked from any public page, kept out of search, and shown only to captains (see README, Source code browser). -->
+<script src="/e63334287a3deaa3/captains.js"></script> <!-- who counts as the team: BackRoomCaptains.captain() -->
 <meta name="robots" content="noindex,nofollow,noarchive">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -215,13 +216,13 @@ table.files{width:100%;border-collapse:collapse;font-size:14px}
     <nav class="nav" aria-label="Site"><a href="../">Home</a><a href="../projects/">Web Development Projects</a><a href="../productivity/">Productivity</a><a href="../engineering/">Engineering Projects</a><a href="../marketplace/">Marketplace</a></nav>
   </div>
   <header>
-    <p class="kicker">Open source · read-only</p>
+    <p class="kicker">Team only · read-only</p>
     <h1>Source Code</h1>
-    <p class="intro">Everything that runs this site, in one place: every page, tool and engineering file. Browse folders, read the code, see what changed in each update, or download the whole thing.</p>
-    <div class="repo-meta" id="meta" aria-live="polite"><span>Loading…</span></div>
+    <p class="intro">The company’s whole code base in one place: every page, game, tool and engineering file. Browse folders, read the code, see what changed in each update, or download the whole thing.</p>
+    <div class="repo-meta" id="meta" aria-live="polite" hidden><span>Loading…</span></div>
   </header>
 
-  <div class="bar">
+  <div class="bar" id="bar" hidden>
     <nav class="tabs" aria-label="Views">
       <a href="#/" id="tabCode">Code</a>
       <a href="#/games" id="tabGames">Games</a>
@@ -827,7 +828,23 @@ function route(){
     if(!sel)window.scrollTo(0,0);
   },function(e){view.innerHTML=failBox(e);$('#meta').innerHTML='<span>Couldn’t reach GitHub</span>'});
 }
-window.addEventListener('hashchange',route);
+// ---------- team-only gate ----------
+// Only captains (captains.js: the accounts in miles.js's OWNERS, signed in with Google on this site) see the browser;
+// everyone else gets a sign-in message and nothing is fetched. ?code=1 opens it for tests on localhost only.
+// THIS IS NOT A LOCK: it runs in the visitor's browser, and the files come from the public GitHub repo (see README).
+var opened=false;
+function gate(){
+  var C=window.BackRoomCaptains;
+  var ok=!!C&&(C.captain()||C.test('code','code:test'));
+  if(ok&&!opened){opened=true;$('#bar').hidden=false;$('#meta').hidden=false;window.addEventListener('hashchange',route);route();return}
+  if(ok)return;
+  if(opened){location.reload();return} // signed out while open
+  var checking=C&&!C.known();
+  view.innerHTML='<div class="box"><div class="msg"><h3>'+(checking?'Checking your account\u2026':'Team only')+'</h3>'+
+    (checking?'':'<p>This is the company\u2019s internal code browser. Sign in with your team Google account (Sign in, at the top of the page) to open it.</p>'+
+    (C&&C.account()?'<p>The account signed in here isn\u2019t on the team list.</p>':''))+'</div></div>';
+}
+if(window.BackRoomCaptains){BackRoomCaptains.onChange(gate);BackRoomCaptains.ready.then(gate,gate)}
 
 // ---------- toolbar ----------
 var pop=$('#clonePop'),cb=$('#cloneBtn');
@@ -838,10 +855,11 @@ $('#cloneUrl').value=GH+'.git';
 $('#zipBtn').href=GH+'/archive/refs/heads/'+BRANCH+'.zip';
 // "t" jumps to Go to file, like on GitHub.
 document.addEventListener('keydown',function(e){
+  if(!opened)return;
   if(e.key==='t'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){var f=$('#find');if(f){e.preventDefault();f.focus()}}
   if(e.key==='Escape'&&!pop.hidden){pop.hidden=true;cb.setAttribute('aria-expanded','false');cb.focus()}
 });
-route();
+gate();
 })();
 </script>
 <script src="/analytics/tracker.js" data-site="productivity" defer></script>
