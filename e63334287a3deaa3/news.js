@@ -92,6 +92,11 @@
  */
 (function () {
   var NEWS = [
+    {date: '2026-11-27', version: '2.22', title: 'What\'s new, one update at a time', kind: 'feature',
+     tags: ['Back Room', 'Phone page'], items: [
+      'What\'s new at the top of the Back Room now shows the latest updates one at a time, each with its picture, and moves on to the next by itself every few seconds.',
+      'Hover over it to hold it still, swipe it on a phone, or tap the number to see the next one. Tap an update to open the full list at that point.',
+      'On a phone the New games row is now one line you can scroll sideways, so the panel is shorter.']},
     {date: '2026-11-27', version: '2.21', title: 'A tidier Back Room', kind: 'feature',
      tags: ['Back Room', 'Phone page'], items: [
       'Edit your look from the pencil on your avatar in the corner of the Online panel: avatar, name tile colour, name and settings, all in one small popup.',
