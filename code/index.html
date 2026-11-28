@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Source Code · ASCoding</title>
 <meta name="description" content="Browse the source code of the ASCoding site: every page, tool and project, with highlighted code, commit history and a ZIP download.">
-<!-- Kept out of search on purpose: the files it shows mention the Back Room's folder (see README, Source code browser). -->
+<!-- Kept out of search on purpose: the Games tab shows the Back Room's code (see README, Source code browser). -->
 <meta name="robots" content="noindex,nofollow,noarchive">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -181,6 +181,22 @@ table.files{width:100%;border-collapse:collapse;font-size:14px}
 .fstat{font-family:var(--mono);font-size:12px;white-space:nowrap}
 .badge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--ink-2)}
 
+.ggroup h2{display:flex;align-items:baseline;gap:10px;margin:18px 0 14px}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));gap:16px}
+.gcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.gcard:hover{border-color:var(--ink-2)}
+.gthumb{display:block;aspect-ratio:16/10;background:var(--tape)}
+.gthumb img{display:block;width:100%;height:100%;object-fit:cover}
+.gbody{padding:12px 14px 14px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ggenre{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);min-height:1em}
+.gbody h3{font-family:var(--display);font-weight:800;font-size:26px;line-height:1;text-transform:uppercase;letter-spacing:.02em;margin:0}
+.gbody h3 a{text-decoration:none}
+.gbody h3 a:hover{color:var(--accent)}
+.gblurb{margin:0;font-size:14px;color:var(--ink-2)}
+.gblurb:empty{display:none}
+.gmeta{margin:0;font-size:12px;color:var(--ink-2)}
+.gact{display:flex;gap:8px;margin-top:auto;padding-top:6px}
+.gact .btn{min-height:38px;padding:7px 14px;font-size:14px;flex:1;justify-content:center}
 .skel{padding:20px 16px;display:flex;flex-direction:column;gap:12px}
 .skel i{display:block;height:12px;border-radius:6px;background:var(--panel-2);animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.45}}
@@ -208,6 +224,7 @@ table.files{width:100%;border-collapse:collapse;font-size:14px}
   <div class="bar">
     <nav class="tabs" aria-label="Views">
       <a href="#/" id="tabCode">Code</a>
+      <a href="#/games" id="tabGames">Games</a>
       <a href="#/commits" id="tabCommits">History</a>
     </nav>
     <div class="tools">
@@ -232,14 +249,34 @@ table.files{width:100%;border-collapse:collapse;font-size:14px}
 // (repo info, the branch's latest commit and one recursive tree: three calls) and file contents from
 // raw.githubusercontent.com, which has no rate limit. API answers are kept in localStorage with their ETag and
 // asked for again with If-None-Match, so a repeat visit is answered "not modified" and costs no requests.
-// HIDDEN folders (the Back Room) are dropped from the tree, search, stats and commit file lists.
+// HIDDEN folders are dropped from the tree, search, stats and commit file lists (none at the moment).
+// The Back Room (BR) is left out of the root folder list and shown game by game on the Games tab instead.
 (function(){
 'use strict';
 var OWNER='ASCoding11', REPO='ASCoding11.github.io', BRANCH='main';
-var HIDDEN=['e63334287a3deaa3'];
+var HIDDEN=[];
+var BR='e63334287a3deaa3';
+// Every game in the Back Room, one per folder: folder|display name|status ('' live, 'p' preview, 'a' archived).
+// Genres and blurbs are read from the Back Room page's own cards when the tab opens, so only names live here.
+// A new game folder that isn't listed still shows up (named after its folder); BR_SHARED folders are not games.
+var GAMES=('2048|2048|,asteroid-run|Asteroid Run|,backrooms-1v1|Backrooms 1v1–4v4|,beatvault|Pulsebox|,blockstorm|Blockstorm|,boostball|Boostball|,'+
+  'chromaflage|Chromaflage|,coil|Coil|,deepword|Deepword|,drop-zone|Driftfall|,ebbwork|Flood Crew|,escapade|Escapade|,flickerwood|Flickerwood|,'+
+  'flipline|Chromeline|,fourcast|Fourcast|,gridpop|Gridpop|,hotspot|Hotspot|,hunch|Hunch|,hush-pools|Blackwade|,lanternhold|Lanternhold|,'+
+  'lunge-line|Lokop|,mainstream|Mainstream|,melon-merge|Melon Merge|,nearword|Nearword|,ninefold|Ninefold|,odd-one-out|Odd One Out|,'+
+  'patchwork-tower|Patchwork Tower|,poopdle|Poopdle|,puffer-party|Puffer Party|,putterby|Putterby|,rampline|Rampline|,rollaway|Overdrop|,'+
+  'rumble-karts|Rumble Karts|,shell-crackers|Shell Crackers|,showdown|Showdown|,sky-duel|Sky Duel|,slipstream|Slipstream|,spire|Spire|,'+
+  'stackfall|Stackfall|,thereabouts|Thereabouts|,tidewick|Tidewick|,trivium|Trivium|,tumble-trials|Tumble Trials|,turbo-trail|Turbo Trail|,'+
+  'updraft|Updraft|,warmer|Warmer|,windrow|Leaf Sweep|,yardstick|Yardstick|,'+
+  'ironveil|Midnight Ops|p,ironwing|Ironwing|p,blacktie|Black Tie|p,'+
+  'abyssal|Abyssal|a,back-four|Back Four|a,crossbar|Crossbar|a,crosslet|Crosslet|a,deadline-day|Deadline Day|a,hail-mary|Hail Mary|a,'+
+  'journeyman|Journeyman|a,kartwheel|Kartwheel|a,outline|Outline|a,overland|Overland|a,quarry|Quarry|a,quartets|Quartets|a,'+
+  'scout-report|Scout Report|a,sleight|Sleight|a,starhop|Starhop|a,stat-duel|Stat Duel|a,teamsheet|Teamsheet|a,top-bins|Top Bins|a,unfurl|Unfurl|a'
+  ).split(',').map(function(x){x=x.split('|');return {f:x[0],n:x[1],s:x[2]}});
+// Back Room folders that aren't games: the phone page, admin page, shop, Daily Puzzles page, What's new queue, data, old redirects.
+var BR_SHARED=/^(m|d06440218d1813a3|shop|daily|news|wordplay|hivefix|[\w-]+-data)$/;
 var API='https://api.github.com/repos/'+OWNER+'/'+REPO;
 var GH='https://github.com/'+OWNER+'/'+REPO;
-var CACHE='code:'; // localStorage prefix
+var CACHE='code2:'; // localStorage prefix; change the number whenever what gets stored changes, so old copies are never reused
 
 var $=function(s,r){return (r||document).querySelector(s)};
 var view=$('#view');
@@ -492,10 +529,13 @@ function markdown(src,base){
 }
 
 // ---------- views ----------
-function setTab(which){[['#tabCode','code'],['#tabCommits','commits']].forEach(function(t){var el=$(t[0]);if(t[1]===which)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current')})}
+function setTab(which){[['#tabCode','code'],['#tabGames','games'],['#tabCommits','commits']].forEach(function(t){var el=$(t[0]);if(t[1]===which)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current')})}
 function crumbs(p,isFile){
   var parts=p?p.split('/'):[],s='<a href="#/">'+esc(REPO)+'</a>',acc='';
-  parts.forEach(function(x,j){acc+=(j?'/':'')+x;s+='<span class="sep">/</span>'+(j===parts.length-1?'<span>'+esc(x)+'</span>':'<a href="'+esc(linkFor(acc))+'">'+esc(x)+'</a>')});
+  parts.forEach(function(x,j){acc+=(j?'/':'')+x;
+    var label=x;
+    if(parts[0]===BR){if(j===0){s+='<span class="sep">/</span><a href="#/games">Games</a>';if(parts.length>1)return;label='Back Room'}else if(j===1){var g=gameOf(x);if(g)label=g.n}}
+    s+='<span class="sep">/</span>'+(j===parts.length-1?'<span>'+esc(label)+'</span>':'<a href="'+esc(linkFor(acc))+'">'+esc(label)+'</a>')});
   return '<div class="path">'+s+'</div>';
 }
 function finderHtml(){return '<div class="finder"><input type="search" id="find" placeholder="Go to file" autocomplete="off" spellcheck="false" aria-label="Go to file" aria-controls="hits"><kbd>t</kbd><div class="hits" id="hits" hidden role="listbox"></div></div>'}
@@ -511,7 +551,9 @@ function showTree(p){
   if(!list)return notFound(p);
   var rows='';
   if(p){var up=p.indexOf('/')<0?'':p.slice(0,p.lastIndexOf('/'));rows+='<tr><td class="ic"></td><td class="nm"><a href="'+esc(linkFor(up))+'" aria-label="Up one folder">..</a></td><td class="sz"></td></tr>'}
+  if(!p&&state.dirs[BR])rows+='<tr><td class="ic">'+ICO.dir+'</td><td class="nm"><a href="#/games"><b>Games</b></a> <span class="dim" style="font-size:13px">· every Back Room game as its own project</span></td><td class="sz">'+gameList().length+' games</td></tr>';
   list.forEach(function(it){
+    if(!p&&it.path===BR)return;
     var ico=it.dir?ICO.dir:IMG.test(it.name)?ICO.img:ICO.file;
     var cnt=(state.dirs[it.path]||[]).length,sz=it.dir?cnt+(cnt===1?' item':' items'):size(it.size);
     rows+='<tr><td class="ic">'+ico+'</td><td class="nm"><a href="'+esc(linkFor(it.path))+'">'+esc(it.name)+'</a></td><td class="sz">'+sz+'</td></tr>';
@@ -702,6 +744,65 @@ function showCommit(sha){
   }).catch(function(e){view.innerHTML=e.status===404||e.status===422?notFoundHtml(sha):failBox(e)});
 }
 
+// ---------- Games tab: each Back Room game as its own project ----------
+function gameOf(f){for(var i=0;i<GAMES.length;i++)if(GAMES[i].f===f)return GAMES[i];return null}
+function gameList(){
+  var dirs=(state.dirs&&state.dirs[BR])||[],out=[];
+  dirs.forEach(function(d){
+    if(!d.dir||BR_SHARED.test(d.name))return;
+    var g=gameOf(d.name)||{f:d.name,n:d.name.replace(/-/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase()}),s:''};
+    var files=0,bytes=0,pre=d.path+'/';
+    state.files.forEach(function(f){if(f.path.indexOf(pre)===0){files++;bytes+=f.size}});
+    out.push({f:g.f,n:g.n,s:g.s,path:d.path,files:files,bytes:bytes});
+  });
+  return out.sort(function(a,b){return a.n.localeCompare(b.n,undefined,{numeric:true})});
+}
+var cardInfo=null; // folder -> {genre, blurb}, read from the Back Room page's cards
+function loadCardInfo(){
+  if(cardInfo)return Promise.resolve(cardInfo);
+  return fetchText(BR+'/index.html').then(function(html){
+    var doc=new DOMParser().parseFromString(html,'text/html'),o={};
+    doc.querySelectorAll('article.project').forEach(function(a){
+      var link=a.querySelector('a[href*="/'+BR+'/"]');if(!link)return;
+      var m=new RegExp('/'+BR+'/([^/]+)/').exec(link.getAttribute('href'));if(!m)return;
+      var ge=a.querySelector('.gc-genre'),bl=a.querySelector('.gc-blurb')||a.querySelector('.body > p');
+      var own=function(el){if(!el)return '';el=el.cloneNode(true);el.querySelectorAll('*').forEach(function(k){k.remove()});return el.textContent.replace(/\s+/g,' ').trim()};
+      o[m[1]]={genre:own(ge),blurb:own(bl)};
+    });
+    return (cardInfo=o);
+  }).catch(function(){return (cardInfo={})});
+}
+function showGames(q){
+  setTab('games');
+  var all=gameList(),groups=[['','Games'],['p','Previews'],['a','Archived']];
+  var shared=((state.dirs[BR])||[]).filter(function(d){return !d.dir||BR_SHARED.test(d.name)}).length;
+  var html='<div class="crumbs-row"><div class="path"><a href="#/">'+esc(REPO)+'</a><span class="sep">/</span><span>Games</span></div>'+
+    '<div class="finder"><input type="search" id="gfind" placeholder="Filter games" autocomplete="off" spellcheck="false" aria-label="Filter games" value="'+esc(q||'')+'"></div></div>';
+  groups.forEach(function(gr){
+    var list=all.filter(function(g){return g.s===gr[0]});if(!list.length)return;
+    html+='<section class="ggroup" style="padding-top:8px"><h2>'+gr[1]+' <span class="dim mono" style="font-size:14px">'+list.length+'</span></h2><div class="ggrid">'+list.map(function(g){
+      return '<article class="gcard" data-q="'+esc((g.n+' '+g.f).toLowerCase())+'" data-f="'+esc(g.f)+'">'+
+        '<a class="gthumb" href="#/tree/'+encPath(g.path)+'" tabindex="-1" aria-hidden="true"><img src="'+esc(raw(BR+'/m/thumbs/'+g.f+'.jpg'))+'" alt="" loading="lazy" onerror="this.remove()"></a>'+
+        '<div class="gbody"><span class="ggenre"></span><h3><a href="#/tree/'+encPath(g.path)+'">'+esc(g.n)+'</a></h3><p class="gblurb"></p>'+
+        '<p class="gmeta mono">'+(g.f!==g.n.toLowerCase().replace(/ /g,'-')?esc(g.f)+'/ · ':'')+g.files+' file'+(g.files===1?'':'s')+' · '+size(g.bytes)+'</p>'+
+        '<div class="gact"><a class="btn primary" href="#/tree/'+encPath(g.path)+'">Code</a><a class="btn" href="#/commits/'+encPath(g.path)+'">History</a></div></div></article>';
+    }).join('')+'</div></section>';
+  });
+  html+='<p class="dim" style="font-size:14px;margin-top:22px">Shared Back Room files (the Back Room page, phone page, shared scripts like netsmooth.js, What\u2019s new and data): <a href="#/tree/'+BR+'">'+shared+' items</a>.</p>';
+  view.innerHTML=html;
+  var inp=$('#gfind');
+  function filter(){var v=inp.value.trim().toLowerCase();
+    document.querySelectorAll('.gcard').forEach(function(c){c.hidden=!!v&&c.dataset.q.indexOf(v)<0});
+    document.querySelectorAll('.ggroup').forEach(function(s){s.hidden=!s.querySelector('.gcard:not([hidden])')});
+    history.replaceState(null,'','#/games'+(v?'/'+encodeURIComponent(v):''))}
+  inp.addEventListener('input',filter);if(q)filter();
+  loadCardInfo().then(function(info){
+    document.querySelectorAll('.gcard').forEach(function(c){var i=info[c.dataset.f];if(!i)return;
+      c.querySelector('.ggenre').textContent=i.genre;c.querySelector('.gblurb').textContent=i.blurb;c.dataset.q+=' '+(i.genre+' '+i.blurb).toLowerCase()});
+    if(inp.value)filter();
+  });
+}
+
 function notFoundHtml(p){return '<div class="box"><div class="msg"><h3>Not found</h3><p>There’s nothing at <span class="mono">'+esc(p||'')+'</span>.</p><a class="btn" href="#/">Back to the files</a></div></div>'}
 function notFound(p){view.innerHTML=notFoundHtml(p)}
 
@@ -716,6 +817,7 @@ function route(){
   try{p=seg.map(decodeURIComponent).join('/').replace(/\/$/,'')}catch(e){p=seg.join('/')}
   if(kind==='commit'&&p){load().catch(function(){});showCommit(p);return window.scrollTo(0,0)}
   if(kind==='commits'){load().catch(function(){});showCommits(p);return}
+  if(kind==='games'){view.innerHTML=skel(9);load().then(function(){showGames(p)},function(e){view.innerHTML=failBox(e)});return}
   view.innerHTML=skel(9);
   load().then(function(){
     if(hidden(p))return notFound(p);
