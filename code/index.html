@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Source Code · ASCoding</title>
+<meta name="description" content="Browse the source code of the ASCoding site: every page, tool and project, with highlighted code, commit history and a ZIP download.">
+<!-- Kept out of search on purpose: the files it shows mention the Back Room's folder (see README, Source code browser). -->
+<meta name="robots" content="noindex,nofollow,noarchive">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<script src="/theme.js"></script> <!-- Auto / Light / Dark, before the page is drawn (see README) -->
+<link rel="stylesheet" href="../site.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<script src="/offline.js" defer></script>
+<meta name="theme-color" content="#10261C">
+<link rel="icon" href="/icons/app.svg" type="image/svg+xml">
+<link rel="icon" href="/icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<style>
+:root{
+  --tk-key:#8A3FB8; --tk-str:#0B6E4F; --tk-num:#B25B00; --tk-com:#7A8781; --tk-fn:#1F5FA8; --tk-tag:#B42318; --tk-attr:#8A5A00; --tk-prop:#1F5FA8;
+  --add-bg:#E3F5EA; --add-ink:#0B5A33; --del-bg:#FBE7E5; --del-ink:#8E1C12; --hunk:#EAF0F7;
+  --l1:#1D6A4B; --l2:#C7962B; --l3:#3A6FB0; --l4:#B4533A; --l5:#7A5BA8; --l6:#4C8C8C; --l7:#9AA59F;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --tk-key:#D19BF2; --tk-str:#7BD3A8; --tk-num:#F2B46B; --tk-com:#73827B; --tk-fn:#8DBBF2; --tk-tag:#F2867A; --tk-attr:#E8C27A; --tk-prop:#8DBBF2;
+    --add-bg:#12301F; --add-ink:#9FE6BE; --del-bg:#3A1A17; --del-ink:#F5B1A8; --hunk:#1A2533;
+    --l1:#4FB488; --l2:#E2B655; --l3:#6E9DDB; --l4:#DE7F66; --l5:#A98ADB; --l6:#6FB5B5; --l7:#6F7C75;
+  }
+}
+:root[data-theme="dark"]{
+  --tk-key:#D19BF2; --tk-str:#7BD3A8; --tk-num:#F2B46B; --tk-com:#73827B; --tk-fn:#8DBBF2; --tk-tag:#F2867A; --tk-attr:#E8C27A; --tk-prop:#8DBBF2;
+  --add-bg:#12301F; --add-ink:#9FE6BE; --del-bg:#3A1A17; --del-ink:#F5B1A8; --hunk:#1A2533;
+  --l1:#4FB488; --l2:#E2B655; --l3:#6E9DDB; --l4:#DE7F66; --l5:#A98ADB; --l6:#6FB5B5; --l7:#6F7C75;
+}
+.wrap{max-width:1180px}
+header{padding-bottom:24px}
+h1{font-size:clamp(48px,9vw,96px)}
+.repo-meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin:16px 0 0;font-family:var(--mono);font-size:13px;color:var(--ink-2)}
+.repo-meta b{color:var(--ink);font-weight:600}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;padding:18px 0 0}
+.tabs{display:flex;gap:6px}
+.tabs a{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;text-decoration:none;color:var(--ink-2);padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel)}
+.tabs a[aria-current="page"]{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;position:relative}
+.tools .btn{min-height:40px;padding:8px 14px;font-size:14px;cursor:pointer;font-family:var(--body)}
+.tools .btn:not(.primary){color:var(--ink)}
+.pop{position:absolute;right:0;top:calc(100% + 8px);z-index:20;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;width:min(380px,calc(100vw - 32px));box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.pop[hidden]{display:none}
+.pop label{display:block;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin:0 0 6px}
+.pop .row{display:flex;gap:6px}
+.pop input{flex:1;min-width:0}
+.pop p{margin:10px 0 0;font-size:13px;color:var(--ink-2)}
+input[type=text],input[type=search]{font:500 14px var(--mono);color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;min-height:40px}
+input:focus{outline:2px solid var(--accent);outline-offset:1px}
+
+main{padding-top:18px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+.box + .box{margin-top:18px}
+.box-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;justify-content:space-between;padding:12px 16px;background:var(--panel-2);border-bottom:1px solid var(--line);font-size:14px;min-width:0}
+.box-head .grow{flex:1;min-width:0}
+@media (max-width:560px){.box-head .grow{flex-basis:100%}}
+/* Inside a folder, file or update the header shrinks so the code starts near the top */
+body.sub header{padding:24px 0 18px}
+body.sub h1{font-size:clamp(36px,6vw,56px)}
+body.sub .intro{display:none}
+.ellip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.mono{font-family:var(--mono)}
+.dim{color:var(--ink-2)}
+.sha{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;background:var(--ground);border:1px solid var(--line);border-radius:6px;padding:1px 7px}
+.sha:hover{border-color:var(--accent)}
+
+.crumbs-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;margin:0 0 12px}
+.path{font-family:var(--mono);font-size:15px;font-weight:600;word-break:break-all}
+.path a{color:var(--accent);text-decoration:none}
+.path a:hover{text-decoration:underline}
+.path .sep{color:var(--ink-2);margin:0 4px}
+.finder{position:relative;flex:0 1 320px;min-width:200px}
+.finder input{width:100%}
+.finder kbd{position:absolute;right:9px;top:50%;transform:translateY(-50%);font:600 11px var(--mono);color:var(--ink-2);border:1px solid var(--line);border-radius:4px;padding:0 5px;pointer-events:none}
+.finder input:focus + kbd{display:none}
+.hits{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:15;background:var(--panel);border:1px solid var(--line);border-radius:10px;max-height:360px;overflow:auto;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.hits[hidden]{display:none}
+.hits a{display:block;padding:8px 12px;font:500 13px var(--mono);text-decoration:none;border-bottom:1px solid var(--line);word-break:break-all}
+.hits a:last-child{border-bottom:0}
+.hits a.on,.hits a:hover{background:var(--panel-2);color:var(--accent)}
+.hits mark{background:none;color:var(--accent);font-weight:600}
+.hits .none{padding:10px 12px;font-size:13px;color:var(--ink-2)}
+
+table.files{width:100%;border-collapse:collapse;font-size:14px}
+.files td{padding:9px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+.files tr:last-child td{border-bottom:0}
+.files tr:hover td{background:var(--panel-2)}
+.files td.ic{width:34px;padding-right:0}
+.files td.nm a{text-decoration:none;font-weight:500;word-break:break-all}
+.files td.nm a:hover{color:var(--accent);text-decoration:underline}
+.files td.sz{text-align:right;font-family:var(--mono);font-size:12px;color:var(--ink-2);white-space:nowrap;width:110px}
+@media (max-width:560px){.files td.sz{display:none}.files td{padding:9px 12px}}
+.ico{width:18px;height:18px;display:block;color:var(--ink-2)}
+.ico.dir{color:var(--accent)}
+
+.code{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);font:500 13px/1.6 var(--mono);overflow:auto;max-height:78vh;tab-size:2}
+.code .gut{user-select:none;text-align:right;color:var(--ink-2);background:var(--panel-2);border-right:1px solid var(--line);padding:10px 0;position:sticky;left:0;z-index:1}
+.code .gut a{display:block;padding:0 12px 0 16px;text-decoration:none;opacity:.75}
+.code .gut a:hover{opacity:1;color:var(--accent)}
+.code pre{margin:0;padding:10px 0;overflow:visible}
+.code .ln{display:block;padding:0 16px;white-space:pre;min-height:1.6em}
+.code .ln.sel{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.code.wrapon .ln{white-space:pre-wrap;word-break:break-all}
+.code.wrapon .gut{display:none}
+.code.wrapon{grid-template-columns:minmax(0,1fr)}
+.k{color:var(--tk-key)}.s{color:var(--tk-str)}.n{color:var(--tk-num)}.c{color:var(--tk-com);font-style:italic}.f{color:var(--tk-fn)}.t{color:var(--tk-tag)}.a{color:var(--tk-attr)}.p{color:var(--tk-prop)}
+
+.viewer{padding:24px;text-align:center;background:repeating-conic-gradient(var(--panel-2) 0 25%,var(--panel) 0 50%) 0 0/20px 20px}
+.viewer img{max-width:100%;max-height:70vh;height:auto}
+.msg{padding:28px 20px;text-align:center;color:var(--ink-2)}
+.msg h3{font-family:var(--display);font-size:26px;text-transform:uppercase;letter-spacing:.02em;color:var(--ink);margin:0 0 8px}
+.msg .btn{margin-top:12px}
+
+.md{padding:8px 28px 28px;font-size:15px;line-height:1.65;overflow-wrap:anywhere}
+@media (max-width:560px){.md{padding:4px 16px 20px}}
+.md h1,.md h2,.md h3,.md h4{font-family:var(--display);text-transform:none;letter-spacing:.01em;line-height:1.15;margin:26px 0 10px}
+.md h1{font-size:40px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.md h2{font-size:28px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.md h3{font-size:22px}.md h4{font-size:18px}
+.md p,.md ul,.md ol,.md blockquote,.md table,.md pre{margin:0 0 14px}
+.md ul,.md ol{padding-left:24px}
+.md li{margin:3px 0}
+.md a{color:var(--accent)}
+.md code{font:500 .88em var(--mono);background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+.md pre{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow:auto;font:500 13px/1.55 var(--mono)}
+.md pre code{background:none;border:0;padding:0;font-size:inherit}
+.md blockquote{border-left:4px solid var(--line);padding:2px 14px;color:var(--ink-2)}
+.md table{border-collapse:collapse;display:block;overflow:auto;max-width:100%}
+.md th,.md td{border:1px solid var(--line);padding:6px 10px;text-align:left}
+.md th{background:var(--panel-2)}
+.md img{max-width:100%}
+.md hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+.more-btn{display:flex;justify-content:center;padding:0 0 22px}
+
+.side{display:flex;flex-direction:column;gap:18px}
+.side .box{padding:16px}
+.side h2{font-size:20px;margin:0 0 10px}
+.side p{margin:0;font-size:14px;color:var(--ink-2)}
+.langbar{display:flex;height:9px;border-radius:999px;overflow:hidden;gap:2px;margin:0 0 12px;background:var(--line)}
+.langbar span{display:block;min-width:3px}
+.langs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.langs li{display:flex;align-items:center;gap:8px}
+.langs i{width:10px;height:10px;border-radius:50%;flex:none}
+.langs b{font-weight:600}
+.langs span{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.facts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;font-size:14px}
+.facts li{display:flex;justify-content:space-between;gap:10px}
+.facts span{color:var(--ink-2)}
+.facts b{font-family:var(--mono);font-size:13px;font-weight:600}
+
+.commits .day{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);padding:16px 2px 8px}
+.commits .day:first-child{padding-top:0}
+.cm{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-bottom:1px solid var(--line)}
+.cm:last-child{border-bottom:0}
+.cm img{width:28px;height:28px;border-radius:50%;flex:none;background:var(--panel-2)}
+.cm .grow{flex:1;min-width:0}
+.cm .ttl{font-weight:600;text-decoration:none;display:block;overflow-wrap:anywhere}
+.cm .ttl:hover{color:var(--accent);text-decoration:underline}
+.cm .who{font-size:13px;color:var(--ink-2);margin-top:2px}
+
+.cmsg{padding:16px;white-space:pre-wrap;font-size:14px;overflow-wrap:anywhere;margin:0;font-family:var(--body)}
+.cmsg b{font-size:17px}
+.cstat{display:flex;flex-wrap:wrap;gap:6px 16px;padding:0 16px 14px;font-size:13px;color:var(--ink-2)}
+.plus{color:var(--up);font-weight:600}.minus{color:var(--down);font-weight:600}
+.diff{font:500 12.5px/1.55 var(--mono);overflow:auto;max-height:70vh}
+.diff .ln{display:block;white-space:pre;padding:0 14px;min-height:1.55em}
+.diff .add{background:var(--add-bg);color:var(--add-ink)}
+.diff .del{background:var(--del-bg);color:var(--del-ink)}
+.diff .hk{background:var(--hunk);color:var(--ink-2)}
+.fstat{font-family:var(--mono);font-size:12px;white-space:nowrap}
+.badge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--ink-2)}
+
+.skel{padding:20px 16px;display:flex;flex-direction:column;gap:12px}
+.skel i{display:block;height:12px;border-radius:6px;background:var(--panel-2);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+@media (prefers-reduced-motion: reduce){.skel i{animation:none}}
+.error{border-color:var(--down)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--tape);color:var(--tape-ink);font:600 13px var(--mono);padding:10px 16px;border-radius:999px;z-index:50;pointer-events:none;opacity:0;transition:opacity .2s}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="wordmark" href="../">ASCoding</a>
+    <nav class="nav" aria-label="Site"><a href="../">Home</a><a href="../projects/">Web Development Projects</a><a href="../productivity/">Productivity</a><a href="../engineering/">Engineering Projects</a><a href="../marketplace/">Marketplace</a></nav>
+  </div>
+  <header>
+    <p class="kicker">Open source · read-only</p>
+    <h1>Source Code</h1>
+    <p class="intro">Everything that runs this site, in one place: every page, tool and engineering file. Browse folders, read the code, see what changed in each update, or download the whole thing.</p>
+    <div class="repo-meta" id="meta" aria-live="polite"><span>Loading…</span></div>
+  </header>
+
+  <div class="bar">
+    <nav class="tabs" aria-label="Views">
+      <a href="#/" id="tabCode">Code</a>
+      <a href="#/commits" id="tabCommits">History</a>
+    </nav>
+    <div class="tools">
+      <button type="button" class="btn" id="cloneBtn" aria-expanded="false" aria-controls="clonePop">Clone</button>
+      <a class="btn primary" id="zipBtn" href="#">Download ZIP</a>
+      <div class="pop" id="clonePop" hidden>
+        <label for="cloneUrl">Clone with Git</label>
+        <div class="row"><input type="text" id="cloneUrl" readonly><button type="button" class="btn" data-copy="#cloneUrl">Copy</button></div>
+        <p>Run <code class="mono">git clone</code> with this address. To send a change, fork it and open a pull request.</p>
+      </div>
+    </div>
+  </div>
+
+  <main id="view" aria-live="polite"></main>
+
+  <footer>© 2026 ASCoding · <a href="../about/">About</a> · <a href="../contact/">Contact</a> · <a href="../privacy.html">Privacy policy</a> · <a href="../terms/">Terms</a> · Files load from GitHub's public API.</footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+// Source code browser (see README, Source code browser). Reads the repo from GitHub's public REST API
+// (repo info, the branch's latest commit and one recursive tree: three calls) and file contents from
+// raw.githubusercontent.com, which has no rate limit. API answers are kept in localStorage with their ETag and
+// asked for again with If-None-Match, so a repeat visit is answered "not modified" and costs no requests.
+// HIDDEN folders (the Back Room) are dropped from the tree, search, stats and commit file lists.
+(function(){
+'use strict';
+var OWNER='ASCoding11', REPO='ASCoding11.github.io', BRANCH='main';
+var HIDDEN=['e63334287a3deaa3'];
+var API='https://api.github.com/repos/'+OWNER+'/'+REPO;
+var GH='https://github.com/'+OWNER+'/'+REPO;
+var CACHE='code:'; // localStorage prefix
+
+var $=function(s,r){return (r||document).querySelector(s)};
+var view=$('#view');
+var state={repo:null,head:null,tree:null,dirs:null,files:[],sha:null};
+
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function hidden(p){for(var i=0;i<HIDDEN.length;i++){var h=HIDDEN[i];if(p===h||p.indexOf(h+'/')===0)return true}return false}
+function encPath(p){return p.split('/').map(encodeURIComponent).join('/')}
+function raw(p){return 'https://raw.githubusercontent.com/'+OWNER+'/'+REPO+'/'+(state.sha||BRANCH)+'/'+encPath(p)}
+function size(b){if(b==null)return '';if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(b<10240?1:0)+' KB';return (b/1048576).toFixed(1)+' MB'}
+function ago(d){var s=(Date.now()-new Date(d))/1000;if(s<60)return 'just now';var m=s/60;if(m<60)return Math.floor(m)+' min ago';var h=m/60;if(h<24)return Math.floor(h)+' h ago';var dd=h/24;if(dd<30)return Math.floor(dd)+(Math.floor(dd)==1?' day ago':' days ago');return new Date(d).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})}
+function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove('on')},1600)}
+function copy(text){(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){toast('Copied')},function(){
+  var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Copy failed')}ta.remove()})}
+function lsGet(k){try{var v=localStorage.getItem(CACHE+k);return v?JSON.parse(v):null}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(CACHE+k,JSON.stringify(v))}catch(e){/* full or blocked: just skip caching */}}
+
+// GitHub API with ETag caching. `slim` shrinks a response before it's stored (the tree is ~800 KB raw).
+function api(path,slim){
+  var key=path, hit=lsGet(key), h={'Accept':'application/vnd.github+json'};
+  if(hit&&hit.etag)h['If-None-Match']=hit.etag;
+  return fetch(API+path,{headers:h}).then(function(r){
+    if(r.status===304&&hit)return hit.data;
+    if(r.ok)return r.json().then(function(d){var s=slim?slim(d):d;lsSet(key,{etag:r.headers.get('ETag'),data:s});return s});
+    if(hit)return hit.data; // offline-ish or limited: an older copy beats nothing
+    var err=new Error('GitHub answered '+r.status);err.status=r.status;
+    if((r.status===403||r.status===429)&&r.headers.get('x-ratelimit-remaining')==='0'){
+      err.limit=true;err.reset=+r.headers.get('x-ratelimit-reset')*1000;
+    }
+    throw err;
+  },function(e){if(hit)return hit.data;throw e});
+}
+
+function failBox(e){
+  var why=e&&e.limit
+    ?'GitHub lets each network look up '+'60 things an hour without signing in, and this one has used them up (school and library Wi-Fi share one count). It resets at '+new Date(e.reset).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'.'
+    :'The code couldn’t be loaded'+(e&&e.status?' (GitHub answered '+e.status+')':'')+'. Check your connection and try again.';
+  return '<div class="box error"><div class="msg"><h3>Can’t load right now</h3><p>'+esc(why)+'</p><a class="btn" href="'+GH+'" rel="noopener">Open on GitHub instead</a></div></div>';
+}
+function skel(n){var s='<div class="box"><div class="skel">';for(var i=0;i<(n||6);i++)s+='<i style="width:'+(40+((i*37)%55))+'%"></i>';return s+'</div></div>'}
+
+// ---------- loading the repo ----------
+var ready=null;
+function load(){
+  if(ready)return ready;
+  ready=Promise.all([
+    api('',function(d){return {description:d.description,stars:d.stargazers_count,forks:d.forks_count,watchers:d.subscribers_count,size:d.size,homepage:d.homepage,license:d.license&&d.license.name,pushed:d.pushed_at,html:d.html_url,clone:d.clone_url,branch:d.default_branch}}),
+    api('/commits/'+BRANCH,function(c){return slimCommit(c)})
+  ]).then(function(a){
+    state.repo=a[0];state.head=a[1];state.sha=a[1].sha;
+    return api('/git/trees/'+state.sha+'?recursive=1',function(t){
+      return {truncated:t.truncated,items:t.tree.filter(function(x){return !hidden(x.path)&&(x.type==='blob'||x.type==='tree')}).map(function(x){return [x.path,x.type==='tree'?1:0,x.size||0]})};
+    });
+  }).then(function(t){
+    var dirs={'':[]};
+    t.items.forEach(function(x){if(x[1])dirs[x[0]]=[]});
+    t.items.forEach(function(x){
+      var p=x[0],i=p.lastIndexOf('/'),parent=i<0?'':p.slice(0,i);
+      (dirs[parent]||(dirs[parent]=[])).push({path:p,name:p.slice(i+1),dir:!!x[1],size:x[2]});
+      if(!x[1])state.files.push({path:p,size:x[2]});
+    });
+    Object.keys(dirs).forEach(function(k){dirs[k].sort(function(a,b){return a.dir!==b.dir?(a.dir?-1:1):a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'})})});
+    state.dirs=dirs;state.truncated=t.truncated;
+    drawMeta();
+  }).catch(function(e){ready=null;throw e});
+  return ready;
+}
+function slimCommit(c){
+  return {sha:c.sha,msg:c.commit.message,date:c.commit.author&&c.commit.author.date,author:(c.author&&c.author.login)||(c.commit.author&&c.commit.author.name)||'unknown',avatar:c.author&&c.author.avatar_url,
+    stats:c.stats,parents:(c.parents||[]).map(function(p){return p.sha}),
+    files:c.files&&c.files.map(function(f){return {name:f.filename,status:f.status,add:f.additions,del:f.deletions,patch:f.patch,prev:f.previous_filename}})};
+}
+function drawMeta(){
+  var r=state.repo,h=state.head,total=0;state.files.forEach(function(f){total+=f.size});
+  $('#meta').innerHTML='<span><b>'+esc(OWNER)+'</b> / '+esc(REPO)+'</span><span>branch <b>'+esc(r.branch||BRANCH)+'</b></span><span><b>'+state.files.length.toLocaleString()+'</b> files · <b>'+size(total)+'</b></span><span>updated <b>'+ago(h.date)+'</b></span>';
+  $('#cloneUrl').value=r.clone||GH+'.git';
+  $('#zipBtn').href=GH+'/archive/refs/heads/'+encodeURIComponent(r.branch||BRANCH)+'.zip';
+}
+
+// ---------- icons ----------
+var ICO={
+  dir:'<svg class="ico dir" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1.75 2.5h4.1c.4 0 .78.16 1.06.44l.9.9c.1.1.22.16.36.16h6.08c.69 0 1.25.56 1.25 1.25v7.5c0 .69-.56 1.25-1.25 1.25H1.75C1.06 14 .5 13.44.5 12.75v-9C.5 3.06 1.06 2.5 1.75 2.5Z"/></svg>',
+  file:'<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.2" d="M3.5 1.5h6l3 3v10h-9z"/><path fill="none" stroke="currentColor" stroke-width="1.2" d="M9.5 1.5v3h3"/></svg>',
+  img:'<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="5.5" cy="6" r="1.3" fill="currentColor"/><path d="M2 12l4-4 3 3 2-2 3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>'
+};
+
+// ---------- file types ----------
+var IMG=/\.(png|jpe?g|gif|webp|svg|ico|avif|bmp)$/i;
+var BIN=/\.(stl|step|stp|glb|gltf|bin|mp3|ogg|wav|m4a|mp4|webm|woff2?|ttf|otf|eot|zip|gz|pdf|psd|blend|fbx|obj|3mf|dxf|xlsx?|docx?|pptx?)$/i;
+function langOf(p){
+  var n=p.split('/').pop().toLowerCase(),e=n.indexOf('.')>=0?n.split('.').pop():'';
+  if(/^(html?|xml|svg|xhtml|webmanifest)$/.test(e))return e==='webmanifest'?'json':'html';
+  if(/^(js|mjs|cjs|ts|jsx|tsx)$/.test(e))return 'js';
+  if(e==='css')return 'css';
+  if(e==='json')return 'json';
+  if(e==='md'||e==='markdown')return 'md';
+  if(/^(py|sh|bash|yml|yaml|toml|ini|cfg|gd|rb|r)$/.test(e)||n==='_redirects'||n==='.gitignore')return 'hash';
+  if(/^(c|h|cpp|hpp|ino|go|java|cs|rs|swift|kt|luau|lua|glsl|frag|vert)$/.test(e))return e==='luau'||e==='lua'?'lua':'cl';
+  return 'text';
+}
+var LANG_NAMES={html:'HTML',js:'JavaScript',css:'CSS',json:'JSON',md:'Markdown',py:'Python',go:'Go',gd:'GDScript',luau:'Luau',ino:'Arduino',yml:'YAML',yaml:'YAML',sh:'Shell'};
+
+// ---------- syntax highlighting (small regex tokenizer; no libraries) ----------
+var KW_JS='break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof let new of return static super switch this throw try typeof var void while with yield async await true false null undefined NaN Infinity';
+var KW_PY='and as assert async await break class continue def del elif else except False finally for from global if import in is lambda None nonlocal not or pass raise return True try while with yield self func extends var const signal export onready match';
+var KW_CL='auto bool break case char class const continue default do double else enum extern false float for func go goto if import inline int interface long map nil package private protected public range return short signed sizeof static struct switch this true type typedef uint8_t uint16_t uint32_t int16_t int32_t unsigned var void volatile while byte String void setup loop defer chan select fallthrough';
+var KW_LUA='and break do else elseif end false for function if in local nil not or repeat return then true until while continue type export';
+function kwset(s){var o={};s.split(' ').forEach(function(w){o[w]=1});return o}
+var KW={js:kwset(KW_JS),hash:kwset(KW_PY),cl:kwset(KW_CL),lua:kwset(KW_LUA)};
+var RULES={
+  js:[['c',/\/\*[\s\S]*?(?:\*\/|$)/y],['c',/\/\/[^\n]*/y],['s',/`(?:\\[\s\S]|[^\\`])*`?/y],['s',/"(?:\\.|[^"\\\n])*"?/y],['s',/'(?:\\.|[^'\\\n])*'?/y],['n',/\b(?:0[xX][\da-fA-F]+|\d[\d_]*\.?\d*(?:[eE][+-]?\d+)?)\b/y],['w',/[A-Za-z_$][\w$]*/y]],
+  css:[['c',/\/\*[\s\S]*?(?:\*\/|$)/y],['s',/"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?/y],['k',/@[\w-]+/y],['n',/#[\da-fA-F]{3,8}\b/y],['p',/[\w-]+(?=\s*:(?!:))/y],['n',/-?\d*\.?\d+(?:%|[a-z]+)?/y],['t',/[.#]?[A-Za-z_][\w-]*/y]],
+  json:[['p',/"(?:\\.|[^"\\\n])*"(?=\s*:)/y],['s',/"(?:\\.|[^"\\\n])*"?/y],['n',/-?\d+\.?\d*(?:[eE][+-]?\d+)?/y],['k',/\b(?:true|false|null)\b/y]],
+  hash:[['c',/#[^\n]*/y],['s',/"""[\s\S]*?(?:"""|$)|'''[\s\S]*?(?:'''|$)/y],['s',/"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?/y],['n',/\b\d[\d_]*\.?\d*\b/y],['w',/[A-Za-z_][\w]*/y]],
+  cl:[['c',/\/\*[\s\S]*?(?:\*\/|$)/y],['c',/\/\/[^\n]*/y],['k',/#\s*\w+/y],['s',/"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?|`[^`]*`?/y],['n',/\b(?:0[xX][\da-fA-F]+|\d+\.?\d*[fFuUlL]*)\b/y],['w',/[A-Za-z_][\w]*/y]],
+  lua:[['c',/--\[\[[\s\S]*?(?:\]\]|$)/y],['c',/--[^\n]*/y],['s',/\[\[[\s\S]*?(?:\]\]|$)/y],['s',/"(?:\\.|[^"\\\n])*"?|'(?:\\.|[^'\\\n])*'?/y],['n',/\b\d+\.?\d*\b/y],['w',/[A-Za-z_][\w]*/y]],
+  md:[['k',/^#{1,6} [^\n]*/my],['s',/^```[\s\S]*?(?:^```|$(?![\s\S]))/my],['s',/`[^`\n]+`/y],['p',/\*\*[^*\n]+\*\*/y],['f',/\[[^\]\n]*\]\([^)\n]*\)/y],['a',/^\s*(?:[-*+]|\d+\.)(?= )/my]]
+};
+// Tokens are [class,text]; class '' is plain.
+function lex(src,lang,out){
+  var rules=RULES[lang],kw=KW[lang],i=0,plain='',n=src.length;
+  if(!rules){out.push(['',src]);return out}
+  function flush(){if(plain){out.push(['',plain]);plain=''}}
+  while(i<n){
+    var m=null,cls=null;
+    for(var r=0;r<rules.length;r++){var re=rules[r][1];re.lastIndex=i;m=re.exec(src);if(m&&m[0].length){cls=rules[r][0];break}m=null}
+    if(!m){plain+=src[i++];continue}
+    var t=m[0];
+    if(cls==='w'){
+      if(kw&&kw[t])cls='k';
+      else if(src[i+t.length]==='(')cls='f';
+      else{plain+=t;i+=t.length;continue}
+    }
+    flush();out.push([cls,t]);i+=t.length;
+  }
+  flush();return out;
+}
+// HTML: tags and attributes, with <script> and <style> bodies handed to the JS and CSS lexers.
+function lexHtml(src){
+  var out=[],i=0,n=src.length,re=/<!--[\s\S]*?(?:-->|$)|<!\w[^>]*>?|<\/?[A-Za-z][\w:-]*(?:\s+[^\s=>\/]+(?:\s*=\s*(?:"[^"]*"?|'[^']*'?|[^\s>]+))?)*\s*\/?>?/g,m;
+  while((m=re.exec(src))){
+    if(m.index>i)out.push(['',src.slice(i,m.index)]);
+    var t=m[0];
+    if(t.indexOf('<!--')===0||t.indexOf('<!')===0)out.push(['c',t]);
+    else{
+      var tm=/^<\/?[\w:-]+/.exec(t);out.push(['t',tm[0]]);
+      var rest=t.slice(tm[0].length),ar=/(\s+)([^\s=>\/]+)(?:(\s*=\s*)("[^"]*"?|'[^']*'?|[^\s>]+))?|(\s*\/?>?)/g,am;
+      while((am=ar.exec(rest))&&am[0].length){
+        if(am[2]){out.push(['',am[1]]);out.push(['a',am[2]]);if(am[3]){out.push(['',am[3]]);out.push(['s',am[4]])}}
+        else out.push(['t',am[5]]);
+      }
+      var name=tm[0].slice(1).toLowerCase();
+      if((name==='script'||name==='style')&&!/\/>$/.test(t)){
+        var end=src.toLowerCase().indexOf('</'+name,re.lastIndex);if(end<0)end=n;
+        var body=src.slice(re.lastIndex,end);
+        var isJs=name==='script'&&!/type\s*=\s*["']?(?:text\/(?:html|template|plain)|x-shader|application\/ld\+json)/i.test(t);
+        if(name==='style')lex(body,'css',out);else if(isJs)lex(body,'js',out);else if(/ld\+json/i.test(t))lex(body,'json',out);else out.push(['',body]);
+        re.lastIndex=end;
+      }
+    }
+    i=re.lastIndex;
+  }
+  if(i<n)out.push(['',src.slice(i)]);
+  return out;
+}
+// Split tokens into lines of HTML, so each line can be its own element with a number.
+function toLines(tokens){
+  var lines=[],cur='';
+  tokens.forEach(function(tk){
+    var parts=tk[1].split('\n');
+    parts.forEach(function(part,j){
+      if(j>0){lines.push(cur);cur=''}
+      if(part)cur+=tk[0]?'<span class="'+tk[0]+'">'+esc(part)+'</span>':esc(part);
+    });
+  });
+  lines.push(cur);
+  return lines;
+}
+function highlight(src,lang){
+  src=src.replace(/\r\n?/g,'\n');
+  if(src.length>1500000)return toLines([['',src]]); // very big: plain text keeps the tab responsive
+  return toLines(lang==='html'?lexHtml(src):lex(src,lang==='text'?null:lang,[]));
+}
+
+// ---------- markdown (enough for READMEs: headings, lists, code, tables, quotes, links, images) ----------
+function resolve(base,href){
+  if(/^[a-z][\w+.-]*:|^#|^\/\//i.test(href))return null;
+  var stack=href.charAt(0)==='/'?[]:(base?base.split('/'):[]);
+  href.replace(/^\//,'').split('/').forEach(function(s){if(s==='..')stack.pop();else if(s&&s!=='.')stack.push(s)});
+  return stack.join('/');
+}
+function inline(s,base){
+  var codes=[];
+  s=s.replace(/`([^`]+)`/g,function(_,c){codes.push(c);return '\u0000'+(codes.length-1)+'\u0000'});
+  s=esc(s);
+  s=s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g,function(_,alt,src){var r=resolve(base,src.replace(/&amp;/g,'&'));return '<img alt="'+alt+'" loading="lazy" src="'+esc(r!=null?raw(r.split(/[?#]/)[0]):src.replace(/&amp;/g,'&'))+'">'});
+  s=s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,function(_,txt,href){
+    var h=href.replace(/&amp;/g,'&'),r=resolve(base,h);
+    if(r!=null){r=r.split(/[?#]/)[0].replace(/\/$/,'');if(hidden(r))return txt;return '<a href="'+esc(linkFor(r))+'">'+txt+'</a>'}
+    if(/^javascript:/i.test(h))return txt;
+    return '<a href="'+esc(h)+'" rel="noopener">'+txt+'</a>';
+  });
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/(^|[^\w*])\*([^*\s][^*]*)\*(?!\w)/g,'$1<i>$2</i>').replace(/(^|\W)_([^_\s][^_]*)_(?!\w)/g,'$1<i>$2</i>');
+  return s.replace(/\u0000(\d+)\u0000/g,function(_,i){return '<code>'+esc(codes[+i])+'</code>'});
+}
+function linkFor(p){
+  if(p==='')return '#/';
+  if(state.dirs&&state.dirs[p])return '#/tree/'+encPath(p);
+  return '#/blob/'+encPath(p);
+}
+function markdown(src,base){
+  var L=src.replace(/\r\n?/g,'\n').split('\n'),out=[],i=0;
+  function isBlockStart(l){return /^(#{1,6}\s|```|>|\s*[-*+]\s|\s*\d+\.\s|\s*\|.*\|\s*$|\s*([-*_])\s*\2\s*\2)/.test(l)}
+  while(i<L.length){
+    var l=L[i];
+    if(/^\s*$/.test(l)){i++;continue}
+    var m;
+    if((m=/^(#{1,6})\s+(.*?)\s*#*$/.exec(l))){out.push('<h'+m[1].length+'>'+inline(m[2],base)+'</h'+m[1].length+'>');i++;continue}
+    if(/^```/.test(l)){var lang=l.slice(3).trim(),code=[];i++;while(i<L.length&&!/^```/.test(L[i]))code.push(L[i++]);i++;
+      var lg=langOf('x.'+(lang||'txt'));out.push('<pre><code>'+highlight(code.join('\n'),lg).join('\n')+'</code></pre>');continue}
+    if(/^\s*([-*_])\s*\1\s*\1[\s\1]*$/.test(l)){out.push('<hr>');i++;continue}
+    if(/^>/.test(l)){var q=[];while(i<L.length&&/^>/.test(L[i]))q.push(L[i++].replace(/^>\s?/,''));out.push('<blockquote>'+markdown(q.join('\n'),base)+'</blockquote>');continue}
+    if(/^\s*\|.*\|\s*$/.test(l)&&i+1<L.length&&/^\s*\|?[\s:|-]+\|?\s*$/.test(L[i+1])&&/-/.test(L[i+1])){
+      var row=function(r){return r.trim().replace(/^\||\|$/g,'').split('|').map(function(c){return c.trim()})};
+      var hd=row(l),t='<table><thead><tr>'+hd.map(function(c){return '<th>'+inline(c,base)+'</th>'}).join('')+'</tr></thead><tbody>';i+=2;
+      while(i<L.length&&/^\s*\|.*\|\s*$/.test(L[i])){t+='<tr>'+row(L[i++]).map(function(c){return '<td>'+inline(c,base)+'</td>'}).join('')+'</tr>'}
+      out.push(t+'</tbody></table>');continue;
+    }
+    if((m=/^(\s*)([-*+]|\d+\.)\s+/.exec(l))){
+      var ordered=/\d/.test(m[2]),items=[],ind=m[1].length;
+      while(i<L.length){
+        var mm=/^(\s*)([-*+]|\d+\.)\s+(.*)$/.exec(L[i]);
+        if(mm&&mm[1].length<=ind+1){items.push([mm[3]]);i++;continue}
+        if(items.length&&L[i].trim()&&(/^\s{2,}/.test(L[i])||!isBlockStart(L[i]))){items[items.length-1].push(L[i].replace(/^\s{0,4}/,''));i++;continue}
+        break;
+      }
+      out.push('<'+(ordered?'ol':'ul')+'>'+items.map(function(it){
+        var first=it[0],rest=it.slice(1);
+        var nested=rest.length&&/^\s*([-*+]|\d+\.)\s/.test(rest[0])?markdown(rest.join('\n'),base):(rest.length?' '+inline(rest.join(' '),base):'');
+        var head=first.replace(/^\[( |x)\]\s/i,function(_,x){return (x===' '?'☐ ':'☑ ')});
+        return '<li>'+inline(head,base)+nested+'</li>';
+      }).join('')+'</'+(ordered?'ol':'ul')+'>');
+      continue;
+    }
+    var para=[];
+    while(i<L.length&&L[i].trim()&&!(para.length&&isBlockStart(L[i])))para.push(L[i++]);
+    out.push('<p>'+inline(para.join(' '),base)+'</p>');
+  }
+  return out.join('\n');
+}
+
+// ---------- views ----------
+function setTab(which){[['#tabCode','code'],['#tabCommits','commits']].forEach(function(t){var el=$(t[0]);if(t[1]===which)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current')})}
+function crumbs(p,isFile){
+  var parts=p?p.split('/'):[],s='<a href="#/">'+esc(REPO)+'</a>',acc='';
+  parts.forEach(function(x,j){acc+=(j?'/':'')+x;s+='<span class="sep">/</span>'+(j===parts.length-1?'<span>'+esc(x)+'</span>':'<a href="'+esc(linkFor(acc))+'">'+esc(x)+'</a>')});
+  return '<div class="path">'+s+'</div>';
+}
+function finderHtml(){return '<div class="finder"><input type="search" id="find" placeholder="Go to file" autocomplete="off" spellcheck="false" aria-label="Go to file" aria-controls="hits"><kbd>t</kbd><div class="hits" id="hits" hidden role="listbox"></div></div>'}
+
+function lastCommitBox(){
+  var h=state.head,title=(h.msg||'').split('\n')[0];
+  return '<div class="box-head"><span class="grow ellip"><b>'+esc(h.author)+'</b> <a href="#/commit/'+h.sha+'" style="text-decoration:none">'+esc(title)+'</a></span><span class="dim mono" style="font-size:12px"><a class="sha" href="#/commit/'+h.sha+'">'+h.sha.slice(0,7)+'</a> · '+ago(h.date)+' · <a href="#/commits">History</a></span></div>';
+}
+
+function showTree(p){
+  setTab('code');
+  var list=state.dirs[p];
+  if(!list)return notFound(p);
+  var rows='';
+  if(p){var up=p.indexOf('/')<0?'':p.slice(0,p.lastIndexOf('/'));rows+='<tr><td class="ic"></td><td class="nm"><a href="'+esc(linkFor(up))+'" aria-label="Up one folder">..</a></td><td class="sz"></td></tr>'}
+  list.forEach(function(it){
+    var ico=it.dir?ICO.dir:IMG.test(it.name)?ICO.img:ICO.file;
+    var cnt=(state.dirs[it.path]||[]).length,sz=it.dir?cnt+(cnt===1?' item':' items'):size(it.size);
+    rows+='<tr><td class="ic">'+ico+'</td><td class="nm"><a href="'+esc(linkFor(it.path))+'">'+esc(it.name)+'</a></td><td class="sz">'+sz+'</td></tr>';
+  });
+  var readme=list.filter(function(x){return !x.dir&&/^readme(\.md|\.markdown|\.txt)?$/i.test(x.name)})[0];
+  var main='<div class="crumbs-row">'+crumbs(p)+finderHtml()+'</div><div class="box">'+lastCommitBox()+'<table class="files"><tbody>'+rows+'</tbody></table></div>';
+  if(readme)main+='<div class="box" id="readme"><div class="box-head"><span class="grow mono"><a href="'+esc(linkFor(readme.path))+'" style="text-decoration:none">'+esc(readme.name)+'</a></span><span class="dim mono" style="font-size:12px">'+size(readme.size)+'</span></div><div class="skel"><i></i><i style="width:70%"></i><i style="width:85%"></i></div></div>';
+  if(state.truncated)main+='<p class="dim" style="font-size:13px">GitHub sent only part of the file list, so some files may be missing here. <a href="'+GH+'" rel="noopener">See every file on GitHub</a>.</p>';
+  view.innerHTML=p?main:'<div class="layout"><div>'+main+'</div>'+sideHtml()+'</div>';
+  wireFinder();
+  if(readme)fetchText(readme.path).then(function(txt){
+    var box=$('#readme');if(!box)return;
+    var LIMIT=60000,long=txt.length>LIMIT,body=long?txt.slice(0,txt.lastIndexOf('\n',LIMIT)):txt;
+    var dir=readme.path.indexOf('/')<0?'':readme.path.slice(0,readme.path.lastIndexOf('/'));
+    box.querySelector('.skel').outerHTML='<div class="md">'+(/\.md|\.markdown$/i.test(readme.name)||!/\./.test(readme.name)?markdown(body,dir):'<pre>'+esc(body)+'</pre>')+'</div>'+(long?'<div class="more-btn"><a class="btn" href="'+esc(linkFor(readme.path))+'">Read the whole file ('+size(readme.size)+')</a></div>':'');
+  }).catch(function(){var box=$('#readme');if(box)box.querySelector('.skel').outerHTML='<div class="msg">This README couldn’t be loaded.</div>'});
+}
+
+function sideHtml(){
+  var r=state.repo,by={},total=0,dirs=0;
+  Object.keys(state.dirs).forEach(function(k){if(k)dirs++});
+  state.files.forEach(function(f){
+    if(IMG.test(f.path)||BIN.test(f.path))return;
+    var e=(f.path.split('/').pop().match(/\.([^.]+)$/)||[,''])[1].toLowerCase();
+    if(e==='mjs')e='js';if(e==='yaml')e='yml';if(e==='htm')e='html';
+    var name=LANG_NAMES[e]||'Other';by[name]=(by[name]||0)+f.size;total+=f.size;
+  });
+  var langs=Object.keys(by).map(function(k){return [k,by[k]]}).sort(function(a,b){return b[1]-a[1]});
+  var top=langs.filter(function(l){return l[0]!=='Other'}).slice(0,6),other=total-top.reduce(function(s,l){return s+l[1]},0);
+  if(other>0)top.push(['Other',other]);
+  var bar='',li='';
+  top.forEach(function(l,j){var pct=l[1]/total*100,col=l[0]==='Other'?'var(--l7)':'var(--l'+(j+1)+')';
+    bar+='<span style="width:'+pct.toFixed(2)+'%;background:'+col+'" title="'+esc(l[0])+' '+pct.toFixed(1)+'%"></span>';
+    li+='<li><i style="background:'+col+'"></i><b>'+esc(l[0])+'</b><span>'+(pct<0.1?'<0.1':pct.toFixed(1))+'%</span></li>'});
+  return '<aside class="side">'+
+    '<div class="box"><h2>About</h2><p>'+esc(r.description||'The code behind ascoding11.com: plain HTML, CSS and JavaScript, with no build step.')+'</p>'+
+      '<ul class="facts" style="margin-top:12px"><li><span>Files</span><b>'+state.files.length.toLocaleString()+'</b></li><li><span>Folders</span><b>'+dirs.toLocaleString()+'</b></li>'+
+      (r.stars!=null?'<li><span>Stars</span><b>'+r.stars+'</b></li><li><span>Forks</span><b>'+r.forks+'</b></li>':'')+
+      (r.license?'<li><span>Licence</span><b>'+esc(r.license)+'</b></li>':'')+'</ul></div>'+
+    '<div class="box"><h2>Languages</h2><div class="langbar" role="img" aria-label="Share of code by language">'+bar+'</div><ul class="langs">'+li+'</ul></div>'+
+    '<div class="box"><h2>Contribute</h2><p>Found a bug or want to add something? Fork the repo, make your change and open a pull request. Every change is reviewed before it goes live.</p><div class="actions" style="margin-top:12px"><a class="btn" href="'+GH+'/fork" rel="noopener">Fork</a><a class="btn" href="'+GH+'/pulls" rel="noopener">Pull requests</a></div></div>'+
+  '</aside>';
+}
+
+function fetchText(p){
+  return fetch(raw(p)).then(function(r){if(!r.ok)throw new Error(r.status);return r.text()});
+}
+
+function showBlob(p,sel){
+  setTab('code');
+  var parent=p.indexOf('/')<0?'':p.slice(0,p.lastIndexOf('/'));
+  var f=(state.dirs[parent]||[]).filter(function(x){return x.path===p&&!x.dir})[0];
+  if(!f)return notFound(p);
+  var name=f.name,isImg=IMG.test(name),isBin=BIN.test(name),lang=langOf(name),isMd=lang==='md';
+  var head='<div class="box-head"><span class="grow mono" id="finfo">'+size(f.size)+'</span><span class="tools" style="gap:6px">'+
+    (isMd?'<button type="button" class="btn" id="mdToggle" aria-pressed="true">Code</button>':'')+
+    (!isImg&&!isBin?'<button type="button" class="btn" id="wrapBtn" aria-pressed="false">Wrap</button><button type="button" class="btn" id="copyBtn">Copy</button>':'')+
+    '<a class="btn" href="'+esc(raw(p))+'" target="_blank" rel="noopener">Raw</a>'+
+    '<a class="btn" href="'+esc(raw(p))+'" download="'+esc(name)+'">Download</a>'+
+    '<a class="btn" href="#/commits/'+encPath(p)+'">History</a></span></div>';
+  view.innerHTML='<div class="crumbs-row">'+crumbs(p,true)+finderHtml()+'</div><div class="box" id="fbox">'+head+'<div id="fbody">'+skel(8).replace('<div class="box">','<div>')+'</div></div>';
+  wireFinder();
+  var body=$('#fbody');
+  if(isImg){body.innerHTML='<div class="viewer"><img src="'+esc(raw(p))+'" alt="'+esc(name)+'"></div>';return}
+  if(isBin||f.size>8e6){body.innerHTML='<div class="msg"><h3>'+(isBin?'Not a text file':'Too big to show')+'</h3><p>'+esc(name)+' is '+size(f.size)+(isBin?' and can’t be shown as text here.':'.')+'</p><a class="btn primary" href="'+esc(raw(p))+'" download="'+esc(name)+'">Download it</a></div>';return}
+  fetchText(p).then(function(txt){
+    if(/\u0000/.test(txt.slice(0,8000))){body.innerHTML='<div class="msg"><h3>Not a text file</h3><a class="btn primary" href="'+esc(raw(p))+'" download="'+esc(name)+'">Download it</a></div>';return}
+    var lines=highlight(txt,lang),n=lines.length;
+    if(lines[n-1]===''&&n>1){lines.pop();n--}
+    $('#finfo').textContent=n.toLocaleString()+' lines · '+size(f.size)+' · '+(LANG_NAMES[(name.match(/\.([^.]+)$/)||[,''])[1].toLowerCase()]||'Text');
+    var gut='',code='';
+    for(var i=0;i<n;i++){gut+='<a href="#L'+(i+1)+'" data-l="'+(i+1)+'">'+(i+1)+'</a>';code+='<span class="ln" id="L'+(i+1)+'">'+(lines[i]||'')+'</span>'}
+    var codeHtml='<div class="code" id="codeView"><div class="gut" id="gut">'+gut+'</div><pre><code>'+code+'</code></pre></div>';
+    var dir=parent;
+    body.innerHTML=isMd?'<div class="md" id="mdView">'+markdown(txt,dir)+'</div>'+codeHtml.replace('class="code"','class="code" hidden'):codeHtml;
+    wireCode(p,sel);
+    var cb=$('#copyBtn');if(cb)cb.onclick=function(){copy(txt)};
+    var wb=$('#wrapBtn');if(wb)wb.onclick=function(){var on=$('#codeView').classList.toggle('wrapon');wb.setAttribute('aria-pressed',on)};
+    var mt=$('#mdToggle');if(mt)mt.onclick=function(){var showCode=$('#codeView').hidden;$('#codeView').hidden=!showCode;$('#mdView').hidden=showCode;mt.textContent=showCode?'Preview':'Code'};
+    if(isMd&&sel){$('#mdToggle').click()}
+  }).catch(function(){body.innerHTML='<div class="msg"><h3>Couldn’t load this file</h3><a class="btn" href="'+GH+'/blob/'+BRANCH+'/'+encPath(p)+'" rel="noopener">Open it on GitHub</a></div>'});
+}
+// Line numbers: click selects a line, shift-click a range; the selection goes in the address (…?L=10-20).
+function wireCode(p,sel){
+  var gut=$('#gut'),anchor=null;
+  function mark(a,b){
+    document.querySelectorAll('.ln.sel').forEach(function(x){x.classList.remove('sel')});
+    if(!a)return;if(b<a){var t=a;a=b;b=t}
+    for(var i=a;i<=b;i++){var el=document.getElementById('L'+i);if(el)el.classList.add('sel')}
+  }
+  gut.addEventListener('click',function(e){
+    var a=e.target.closest('a');if(!a)return;e.preventDefault();
+    var l=+a.dataset.l,from=l,to=l;
+    if(e.shiftKey&&anchor){from=Math.min(anchor,l);to=Math.max(anchor,l)}else anchor=l;
+    mark(from,to);
+    var h='#/blob/'+encPath(p)+'?L='+from+(to!==from?'-'+to:'');
+    history.replaceState(null,'',h);
+  });
+  if(sel){var m=/^(\d+)(?:-(\d+))?$/.exec(sel);if(m){var a=+m[1],b=+(m[2]||m[1]);anchor=a;mark(a,b);
+    var el=document.getElementById('L'+a),cv=$('#codeView');if(el&&cv){cv.scrollTop=el.offsetTop-cv.clientHeight/3;cv.scrollIntoView({block:'start'})}}}
+}
+
+function wireFinder(){
+  var inp=$('#find'),box=$('#hits');if(!inp)return;
+  var hits=[],on=0;
+  function score(path,q){
+    // Fuzzy: every letter of the query in order; matches in the file name and right after a / or - score higher.
+    var lp=path.toLowerCase(),name=lp.lastIndexOf('/')+1,j=0,s=0,prev=-2,pos=[];
+    for(var i=0;i<lp.length&&j<q.length;i++){if(lp[i]===q[j]){s+=(i===prev+1?3:1)+(i>=name?2:0)+('/-_.'.indexOf(lp[i-1])>=0||i===0?2:0);pos.push(i);prev=i;j++}}
+    return j===q.length?{s:s-path.length*0.01,pos:pos}:null;
+  }
+  function draw(){
+    var q=inp.value.trim().toLowerCase();
+    if(!q){box.hidden=true;inp.setAttribute('aria-expanded','false');return}
+    hits=[];
+    state.files.forEach(function(f){var r=score(f.path,q);if(r)hits.push({p:f.path,s:r.s,pos:r.pos})});
+    hits.sort(function(a,b){return b.s-a.s});hits=hits.slice(0,40);on=0;
+    box.innerHTML=hits.length?hits.map(function(h,k){
+      var out='',set={};h.pos.forEach(function(x){set[x]=1});
+      for(var i=0;i<h.p.length;i++)out+=set[i]?'<mark>'+esc(h.p[i])+'</mark>':esc(h.p[i]);
+      return '<a href="'+esc(linkFor(h.p))+'" role="option"'+(k===0?' class="on"':'')+'>'+out+'</a>';
+    }).join(''):'<div class="none">No files match.</div>';
+    box.hidden=false;inp.setAttribute('aria-expanded','true');
+  }
+  function move(d){var as=box.querySelectorAll('a');if(!as.length)return;as[on].classList.remove('on');on=(on+d+as.length)%as.length;as[on].classList.add('on');as[on].scrollIntoView({block:'nearest'})}
+  inp.addEventListener('input',draw);
+  inp.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'){e.preventDefault();move(1)}
+    else if(e.key==='ArrowUp'){e.preventDefault();move(-1)}
+    else if(e.key==='Enter'){var a=box.querySelectorAll('a')[on];if(a){e.preventDefault();location.hash=a.getAttribute('href')}}
+    else if(e.key==='Escape'){inp.value='';draw();inp.blur()}
+  });
+  inp.addEventListener('blur',function(){setTimeout(function(){box.hidden=true},150)});
+  inp.addEventListener('focus',draw);
+}
+
+// History: 30 commits a page, grouped by day; with a path, only commits that touched it.
+function showCommits(p){
+  setTab('commits');
+  if(p&&hidden(p))return notFound(p);
+  view.innerHTML=(p?'<div class="crumbs-row"><div class="path">History of '+crumbs(p).replace(/^<div class="path">|<\/div>$/g,'')+'</div></div>':'')+'<div class="commits" id="clist"></div><div class="more-btn" style="padding-top:16px"><button type="button" class="btn" id="moreC" hidden>Older updates</button></div>'+skel(10);
+  var page=1,list=$('#clist'),lastDay='',box=null;
+  function next(){
+    var q='/commits?sha='+encodeURIComponent(BRANCH)+'&per_page=30&page='+page+(p?'&path='+encodeURIComponent(p):'');
+    return api(q,function(a){return a.map(slimCommit)}).then(function(cs){
+      var sk=view.querySelector('.skel');if(sk)sk.parentNode.remove();
+      if(!cs.length&&page===1){list.innerHTML='<div class="box"><div class="msg">No history for this path.</div></div>';return}
+      cs.forEach(function(c){
+        var day=new Date(c.date).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'long',year:'numeric'});
+        if(day!==lastDay){lastDay=day;list.insertAdjacentHTML('beforeend','<div class="day">'+esc(day)+'</div><div class="box"></div>');box=list.lastElementChild}
+        var title=c.msg.split('\n')[0],merge=c.parents.length>1;
+        box.insertAdjacentHTML('beforeend','<div class="cm">'+(c.avatar?'<img src="'+esc(c.avatar)+'&s=56" alt="" loading="lazy">':'<img alt="">')+
+          '<div class="grow"><a class="ttl" href="#/commit/'+c.sha+'">'+esc(title)+'</a><div class="who"><b>'+esc(c.author)+'</b> · '+ago(c.date)+(merge?' · <span class="badge">merge</span>':'')+'</div></div>'+
+          '<a class="sha" href="#/commit/'+c.sha+'">'+c.sha.slice(0,7)+'</a></div>');
+      });
+      var mb=$('#moreC');if(mb){mb.hidden=cs.length<30;mb.disabled=false;mb.textContent='Older updates'}
+    });
+  }
+  next().catch(function(e){view.innerHTML=failBox(e)});
+  $('#moreC').onclick=function(){this.disabled=true;this.textContent='Loading…';page++;next().catch(function(e){toast(e.limit?'GitHub limit reached; try later':'Couldn’t load more')})};
+}
+
+function showCommit(sha){
+  setTab('commits');
+  view.innerHTML=skel(10);
+  api('/commits/'+encodeURIComponent(sha),slimCommit).then(function(c){
+    var lines=c.msg.split('\n'),title=lines.shift(),rest=lines.join('\n').trim();
+    var shown=(c.files||[]).filter(function(f){return !hidden(f.name)&&!(f.prev&&hidden(f.prev))}),hid=(c.files||[]).length-shown.length;
+    var add=0,del=0;shown.forEach(function(f){add+=f.add;del+=f.del});
+    var html='<div class="crumbs-row"><div class="path"><a href="#/commits">History</a><span class="sep">/</span><span>'+c.sha.slice(0,7)+'</span></div><a class="btn" href="'+GH+'/commit/'+c.sha+'" rel="noopener">View on GitHub</a></div>'+
+      '<div class="box"><pre class="cmsg"><b>'+esc(title)+'</b>'+(rest?'\n\n'+esc(rest):'')+'</pre>'+
+      '<div class="cstat"><span>'+(c.avatar?'<img src="'+esc(c.avatar)+'&s=40" alt="" style="width:18px;height:18px;border-radius:50%;vertical-align:-4px;margin-right:6px">':'')+'<b>'+esc(c.author)+'</b> · '+new Date(c.date).toLocaleString()+'</span>'+
+      '<span><b>'+shown.length+'</b> file'+(shown.length===1?'':'s')+' changed</span><span class="plus">+'+add.toLocaleString()+'</span><span class="minus">−'+del.toLocaleString()+'</span>'+
+      (c.parents.length?'<span>parent'+(c.parents.length>1?'s':'')+' '+c.parents.map(function(s){return '<a class="sha" href="#/commit/'+s+'">'+s.slice(0,7)+'</a>'}).join(' ')+'</span>':'')+
+      '<span>browse files at <a class="sha" href="'+GH+'/tree/'+c.sha+'" rel="noopener">'+c.sha.slice(0,7)+'</a></span></div></div>';
+    if(hid)html+='<p class="dim" style="font-size:13px;margin:14px 0 0">'+hid+' changed file'+(hid===1?' is':'s are')+' in a folder that isn’t shown here.</p>';
+    shown.forEach(function(f){
+      var exists=state.files.some(function(x){return x.path===f.name});
+      html+='<div class="box"><div class="box-head"><span class="grow mono ellip" style="font-size:13px">'+(exists?'<a href="'+esc(linkFor(f.name))+'" style="text-decoration:none">'+esc(f.name)+'</a>':esc(f.name))+(f.prev?' <span class="dim">(was '+esc(f.prev)+')</span>':'')+'</span>'+
+        '<span class="badge">'+esc(f.status)+'</span><span class="fstat"><span class="plus">+'+f.add+'</span> <span class="minus">−'+f.del+'</span></span></div>';
+      if(f.patch){
+        var out=f.patch.split('\n').slice(0,4000).map(function(l){var k=l[0]==='+'?'add':l[0]==='-'?'del':l.indexOf('@@')===0?'hk':'';return '<span class="ln'+(k?' '+k:'')+'">'+esc(l)+'</span>'}).join('');
+        html+='<div class="diff"><pre style="margin:0;padding:6px 0">'+out+'</pre></div>';
+      }else html+='<div class="msg" style="padding:16px">'+(f.add+f.del?'This change is too big or not text, so GitHub doesn’t show it line by line.':'No line changes (renamed or a binary file).')+'</div>';
+      html+='</div>';
+    });
+    view.innerHTML=html;
+  }).catch(function(e){view.innerHTML=e.status===404||e.status===422?notFoundHtml(sha):failBox(e)});
+}
+
+function notFoundHtml(p){return '<div class="box"><div class="msg"><h3>Not found</h3><p>There’s nothing at <span class="mono">'+esc(p||'')+'</span>.</p><a class="btn" href="#/">Back to the files</a></div></div>'}
+function notFound(p){view.innerHTML=notFoundHtml(p)}
+
+// ---------- routing: #/  #/tree/<dir>  #/blob/<file>?L=1-5  #/commits[/<path>]  #/commit/<sha> ----------
+function route(){
+  var h=location.hash.replace(/^#\/?/,''),q='',qi=h.indexOf('?');
+  if(/^L\d+$/.test(h))return; // a line-number link inside the code view
+  if(qi>=0){q=h.slice(qi+1);h=h.slice(0,qi)}
+  var sel=(/(?:^|&)L=([\d-]+)/.exec(q)||[])[1];
+  var seg=h.split('/'),kind=seg.shift(),p;
+  document.body.classList.toggle('sub',!!kind);
+  try{p=seg.map(decodeURIComponent).join('/').replace(/\/$/,'')}catch(e){p=seg.join('/')}
+  if(kind==='commit'&&p){load().catch(function(){});showCommit(p);return window.scrollTo(0,0)}
+  if(kind==='commits'){load().catch(function(){});showCommits(p);return}
+  view.innerHTML=skel(9);
+  load().then(function(){
+    if(hidden(p))return notFound(p);
+    if(kind==='blob')showBlob(p,sel);
+    else if(kind==='tree')showTree(p);
+    else showTree('');
+    if(!sel)window.scrollTo(0,0);
+  },function(e){view.innerHTML=failBox(e);$('#meta').innerHTML='<span>Couldn’t reach GitHub</span>'});
+}
+window.addEventListener('hashchange',route);
+
+// ---------- toolbar ----------
+var pop=$('#clonePop'),cb=$('#cloneBtn');
+cb.onclick=function(e){e.stopPropagation();pop.hidden=!pop.hidden;cb.setAttribute('aria-expanded',!pop.hidden);if(!pop.hidden)$('#cloneUrl').select()};
+document.addEventListener('click',function(e){if(!pop.hidden&&!pop.contains(e.target)&&e.target!==cb){pop.hidden=true;cb.setAttribute('aria-expanded','false')}
+  var c=e.target.closest('[data-copy]');if(c)copy($(c.dataset.copy).value)});
+$('#cloneUrl').value=GH+'.git';
+$('#zipBtn').href=GH+'/archive/refs/heads/'+BRANCH+'.zip';
+// "t" jumps to Go to file, like on GitHub.
+document.addEventListener('keydown',function(e){
+  if(e.key==='t'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){var f=$('#find');if(f){e.preventDefault();f.focus()}}
+  if(e.key==='Escape'&&!pop.hidden){pop.hidden=true;cb.setAttribute('aria-expanded','false');cb.focus()}
+});
+route();
+})();
+</script>
+<script src="/analytics/tracker.js" data-site="productivity" defer></script>
+<script src="/account/account.js" defer></script>
+</body>
+</html>
