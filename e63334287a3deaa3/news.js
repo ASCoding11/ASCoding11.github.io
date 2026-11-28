@@ -3,11 +3,15 @@
  *
  *   <script src="/e63334287a3deaa3/news.js" defer></script>
  *
- * Puts a slim "What's new" strip under the page header (above the Party panel) with the
- * latest entry's kind, version, title and day, and, while there are games less than a week
- * old, a "New games!" row of chips that open them. Tapping the strip opens the list of
- * changes as a card per release, grouped by day, five days at a time, or fewer once they hold
- * ten cards ("Show older" for more).
+ * Puts a "What's new" panel under the page header (above the Party panel): a slow reel of the
+ * latest SLIDES entries, one at a time (picture, kind, version and day, the title as a headline
+ * and its first points), easing to the next every DWELL ms, with a hairline along its foot that
+ * fills as the reel runs and a running index (03 / 10) that moves it on. It holds still while
+ * hovered, focused from the keyboard, scrolled away or in a hidden tab; swipe or the arrow keys
+ * move it; with reduced motion it never moves by itself and switches without sliding. While
+ * there are games less than a week old, a "New games!" row of chips opens them. Tapping the reel
+ * or All updates opens the list of changes as a card per release, grouped by day, five days at a
+ * time, or fewer once they hold ten cards ("Show older" for more).
  * A dot on the strip marks entries you haven't opened yet; it's remembered only in this
  * browser (localStorage `news:seen`). It takes its colours from the page's CSS variables
  * (--accent, --panel, --ink…), so it fits the light Back Room page and the dark phone page.
@@ -925,7 +929,8 @@
       'What\'s new': 'Novedades', ' (new)': ' (nuevo)', 'New game': 'Juego nuevo', 'Update': 'Actualización', 'Bug fix': 'Arreglos',
       'Coming soon': 'Muy pronto', 'Today': 'Hoy', 'Yesterday': 'Ayer', 'New game!': '¡Juego nuevo!', 'New games!': '¡Juegos nuevos!', 'New games': 'Juegos nuevos',
       'Show older': 'Ver anteriores', 'Show older (1 more day)': 'Ver anteriores (1 día más)', 'Show older ({n} more days)': 'Ver anteriores ({n} días más)',
-      'At a glance': 'De un vistazo', 'Hide this': 'Ocultar', 'Open': 'Abrir', 'Read more': 'Leer más', 'Latest': 'Lo último', 'Learn more': 'Más info',
+      'At a glance': 'De un vistazo', 'All updates': 'Ver todas', 'Next update': 'Siguiente novedad', 'Latest updates': 'Últimas novedades',
+      'Update {i} of {n}': 'Novedad {i} de {n}', 'Hide this': 'Ocultar', 'Open': 'Abrir', 'Read more': 'Leer más', 'Latest': 'Lo último', 'Learn more': 'Más info',
       '{n}: {l} {b} (opens in a new tab)': '{n}: {l} {b} (se abre en una pestaña nueva)',
       '{n}. {b} (opens in a new tab)': '{n}. {b} (se abre en una pestaña nueva)',
       // The spotlight and the ads' own words (brand names stay as they are).
@@ -940,6 +945,8 @@
   })(0);
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix', soon: 'Coming soon' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧', soon: '?' };
+  var SLIDES = 10;   // the latest entries the reel at the top runs through, one at a time
+  var DWELL = 7000;  // how long each one shows (ms) before the reel moves on
   var PAGE = 5;      // days shown at first, and added by each "Show older"...
   var CARDS = 10;    // ...or fewer, once those days hold this many cards (a day is never split), so a busy day doesn't make a very long list
   var NEW_DAYS = 7;  // how long an entry's games get the "New games!" row on the strip
@@ -1152,44 +1159,58 @@
         'background:var(--panel,#fff);color:var(--ink,#16201b);font-family:var(--body,system-ui,sans-serif);font-size:14px;line-height:1.45}' +
       '#home > .nws{margin:0 0 18px}' +
       '.nws *{box-sizing:border-box}.nws [hidden]{display:none!important}' +
-      // The bar is the masthead: a dateline (kicker, version, date), then the headline in the display face, with the
-      // latest entry's snapshot to its left; Read more on the right.
-      '.nws-bar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"snap meta chev" "snap t t";align-items:center;gap:4px 14px;width:100%;padding:12px 16px 6px;background:none;border:0;border-radius:0;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
-      '.nws-bar:not(:has(.nws-snap)){grid-template-areas:"meta meta chev" "t t t"}' +
-      '.nws-meta{grid-area:meta;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;min-width:0}' +
-      '.nws-meta > * + *::before{content:"";display:inline-block;width:1px;height:11px;margin-right:10px;vertical-align:-1px;background:var(--line,#d3dad2)}' +
-      '.nws-bar:hover .nws-t{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}' +
-      '.nws-bar:focus-visible{outline:2px solid var(--nws-g);outline-offset:2px}' +
-      '.nws-k{flex:none;display:inline-flex;align-items:center;gap:7px;font-family:var(--mono,monospace);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink,#16201b);white-space:nowrap}' +
-      '.nws-dot{width:8px;height:8px;border-radius:50%;background:var(--down,#b42318);flex:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--down,#b42318) 25%,transparent);animation:nws-pulse 2s ease-in-out infinite}' +
-      '@keyframes nws-pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--down,#b42318) 0%,transparent)}}' +
-      '.nws-v{flex:none;display:inline-flex;align-items:center;gap:5px;font-family:var(--mono,monospace);font-size:12px;font-weight:600;white-space:nowrap;color:color-mix(in srgb,var(--kc) 60%,var(--ink,#16201b))}' +
+      // The reel: the latest entries one at a time, large, each easing into the next after a few seconds (calm, like a
+      // slow slideshow); a hairline along its foot fills as the reel runs through them. Above it, one masthead line:
+      // What's new (with the unseen dot), the running index (03 / 10, a button that moves on) and All updates.
+      '.nws-hd{display:flex;align-items:center;gap:14px;min-height:32px;padding:9px 16px 0}' +
+      '.nws-k{flex:none;display:inline-flex;align-items:center;gap:8px;font-family:var(--mono,var(--f-m,monospace));font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink,#16201b);white-space:nowrap}' +
+      '.nws-dot{width:7px;height:7px;border-radius:50%;background:var(--down,#b42318);flex:none}' +
+      '.nws-idx,.nws-all{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0;border:0;border-radius:0;background:none;color:var(--ink-2,#4a5751);font:600 12px/1 var(--mono,var(--f-m,monospace));letter-spacing:.06em;white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}' +
+      '.nws-idx{margin-left:auto;font-variant-numeric:tabular-nums}.nws-idx b{font-weight:600;color:var(--ink,#16201b)}.nws-idx i{font-style:normal;transition:transform .2s ease}.nws-idx:hover i{transform:translateX(3px)}' +
+      '.nws-all{text-transform:uppercase;color:var(--ink,#16201b)}.nws-all span{padding:2px 0;border-bottom:1.5px solid currentColor}' +
+      '.nws-all:hover span{border-bottom-width:2.5px}.nws-idx:focus-visible,.nws-all:focus-visible{outline:2px solid var(--nws-g);outline-offset:3px}' +
+      '.nws-stage{--nws-fw:166px;position:relative;height:104px;margin:8px 16px 0;overflow:hidden;cursor:pointer;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;outline:0}' +
+      '.nws-stage:focus-visible{overflow:visible}.nws-stage:focus-visible .nws-sl.on{outline:2px solid var(--nws-g);outline-offset:4px}' +
+      '.nws-sl{--kc:var(--nws-g);position:absolute;inset:0;display:grid;grid-template-columns:var(--nws-fw) minmax(0,1fr);grid-template-rows:max-content max-content minmax(0,1fr);grid-template-areas:"f d" "f h" "f p";gap:0 20px;align-content:start;visibility:hidden}' +
+      '.nws-sl.on,.nws-sl.out{visibility:visible}.nws-sl.out{pointer-events:none}' +
+      '.nws-sl.k-feature{--kc:#3E5BA9}.nws-sl.k-fix{--kc:#C0562F}.nws-sl.k-soon{--kc:#8E6BFF}' +
+      '.nws-fig{grid-area:f;position:relative;display:block;aspect-ratio:16/10;overflow:hidden;border-radius:2px;background:color-mix(in srgb,var(--kc) 7%,var(--panel,#fff))}' +
+      '.nws-fig img{display:block;width:100%;height:100%;object-fit:cover}' +
+      // no picture: the version number set large, like an issue number
+      '.nws-num{position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 12px 9px;border-top:2px solid var(--kc);font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:42px;line-height:.85;letter-spacing:.01em;color:color-mix(in srgb,var(--kc) 62%,var(--ink,#16201b))}' +
+      '.nws-dl{grid-area:d;margin:0;display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;font-family:var(--mono,var(--f-m,monospace));font-size:11.5px;font-weight:600;line-height:16px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;color:var(--ink-2,#4a5751)}' +
+      '.nws-dl > *{flex:none}.nws-dl > * + *::before{content:"";display:inline-block;width:1px;height:10px;margin-right:10px;vertical-align:-1px;background:var(--line,#d3dad2)}' +
+      '.nws-kd{color:color-mix(in srgb,var(--kc) 72%,var(--ink,#16201b))}.nws-sl.nofig .nws-vn{display:none}.nws-nw{color:var(--down,#b42318)}' +
+      // no picture: the text takes the width and the version stands at the right as a tall hairline numeral, no box
+      '.nws-sl.nofig{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"d f" "h f" "p f"}' +
+      '.nws-sl.nofig .nws-fig{aspect-ratio:auto;align-self:stretch;overflow:visible;border-radius:0;background:none}' +
+      '.nws-sl.nofig .nws-num{position:static;height:100%;padding:0;border:0;font-size:128px;line-height:.78;letter-spacing:.005em;color:transparent;-webkit-text-stroke:1px color-mix(in srgb,var(--kc) 50%,var(--ink-2,#4a5751))}' +
+      '.nws-hl{grid-area:h;margin:5px 0 0;min-width:0;font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:31px;line-height:1.02;letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.nws-stage:hover .nws-sl.on .nws-hl{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:5px}' +
+      '.nws .nws-pts{grid-area:p;margin:6px 0 0;padding:0;overflow:hidden;list-style:none;display:grid;align-content:start;gap:3px;min-width:0;color:var(--ink-2,#4a5751);font-size:14.5px;line-height:1.4}' +
+      // each point wraps over the lines there's room for (fit()); a second point shows only when it fits whole
+      '.nws .nws-pts li{margin:0;position:relative;padding-left:14px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}' +
+      '.nws .nws-pts li.gone{display:none}' +
+      '.nws .nws-pts li::before{content:"";position:absolute;left:0;top:.68em;width:6px;height:1.5px;background:var(--kc)}' +
+      // the hairline: the whole reel end to end; its dark part grows through each entry's share while that entry shows
+      '.nws-run{position:relative;height:1px;margin:12px 16px 0;background:var(--line,#d3dad2)}' +
+      '.nws-run i{position:absolute;left:0;top:-.5px;width:100%;height:2px;background:var(--ink,#16201b);transform-origin:0 50%;transform:scaleX(0)}' +
+      '.nws[data-open] .nws-stage,.nws[data-open] .nws-run,.nws[data-open] .nws-idx{display:none}.nws[data-open] .nws-hd{padding-bottom:10px}' +
       '.nws-ic{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-size:14px;line-height:1}' +
-      '.nws-t{grid-area:t;min-width:0;font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:30px;line-height:1.02;letter-spacing:.01em;text-transform:uppercase;overflow-wrap:anywhere}' +
-      '.nws-d{flex:none;font-family:var(--mono,monospace);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:var(--ink-2,#4a5751)}' +
-      '.nws-chev{grid-area:chev;justify-self:end;flex:none;display:inline-flex;align-items:center;gap:6px;font-family:var(--mono,monospace);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink,#16201b);border-bottom:2px solid currentColor;padding:2px 0}' +
-      // a peek at the latest entry: its first few points, so the strip reads like the top of a news page
-      '.nws-peek{margin:0;padding:2px 16px 12px calc(16px + var(--nws-sw,112px) + 14px);list-style:none;display:grid;gap:3px;color:var(--ink-2,#4a5751);font-size:14.5px;line-height:1.4;cursor:pointer}' +
-      '.nws-peek.nosnap{padding-left:16px}' +
-      '.nws-peek li{margin:0;position:relative;padding-left:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-      '.nws-peek li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:2px;background:var(--kc,var(--nws-g))}' +
-      '.nws[data-open] .nws-peek{display:none}' +
-      '.nws-chev i{font-style:normal;display:none}' +
-      '.nws-e.k-game,.nws-v.k-game{--kc:var(--nws-g)}.nws-e.k-feature,.nws-v.k-feature{--kc:#3E5BA9}.nws-e.k-fix,.nws-v.k-fix{--kc:#C0562F}' +
-      // a teaser (kind 'soon'): a dark pill on the strip and a dark card with a big picture in the list, in both themes;
+      '.nws-e.k-game{--kc:var(--nws-g)}.nws-e.k-feature{--kc:#3E5BA9}.nws-e.k-fix{--kc:#C0562F}' +
+      // a teaser (kind 'soon'): a dark card with a big picture in the list, in both themes;
       // the "?" and a glow over the picture's question mark breathe slowly (opacity only, so nothing moves)
-      '.nws-e.k-soon,.nws-v.k-soon{--kc:#8E6BFF}' +
-      '.nws-v.k-soon{gap:6px;padding-left:9px;color:#ECE6FF;background:#15122E;border-color:#5B45C8}' +
+      '.nws-e.k-soon{--kc:#8E6BFF}' +
       '.k-soon .nws-ic{font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:15px;color:#fff;text-shadow:0 0 6px #A88BFF;animation:nws-q 3s ease-in-out infinite}' +
       '@keyframes nws-q{50%{opacity:.4}}' +
-      '.nws-bar .nws-snap.k-soon{background:#0B0A1C;box-shadow:0 0 0 1px #5B45C8,0 0 9px -1px #8E6BFF}' +
       '.nws-e.k-soon{--ink:#F3EFFF;--ink-2:#CFC8EA;--panel:#15122E;color:var(--ink);background:radial-gradient(120% 90% at 50% 0%,#1F1846 0%,#0C0A1C 72%);border-color:#2F2860;border-left-color:var(--kc)}' +
       '.nws-e.k-soon .nws-em{position:relative;display:block;width:min(100%,420px);border-radius:9px}' +
       '.nws-e.k-soon .nws-em img{width:100%;background:#0B0A1C;box-shadow:0 0 0 1px #3A3176,0 10px 26px -14px #8E6BFF}' +
       '.nws-e.k-soon .nws-em::after{content:"";position:absolute;inset:0;border-radius:9px;pointer-events:none;mix-blend-mode:screen;' +
         'background:radial-gradient(ellipse 20% 36% at 50% 26%,rgba(196,178,255,.5),rgba(142,107,255,.16) 55%,transparent 75%);animation:nws-q 3s ease-in-out infinite}' +
       // "New games!" row
-      '.nws-fresh{display:flex;flex-wrap:wrap;align-items:center;gap:6px 6px;margin:0 16px;padding:9px 0 11px;border-top:1px solid var(--line,#d3dad2)}' +
+      '.nws-fresh{display:flex;flex-wrap:wrap;align-items:center;gap:6px 6px;margin:0 16px;padding:10px 0 11px}' +
+      '.nws-run:has(+ .nws-fresh[hidden]),.nws-run:last-child{margin-bottom:14px}.nws[data-open] .nws-fresh{border-top:1px solid var(--line,#d3dad2)}' +
       '.nws-fl{display:inline-flex;align-items:center;gap:6px;margin-right:6px;font-family:var(--mono,monospace);font-weight:700;font-size:12px;line-height:1;letter-spacing:.1em;text-transform:uppercase;color:var(--ink,#16201b)}' +
       '.nws-fl .nws-ic{font-size:14px}' +
       '@keyframes nws-sheen{to{background-position:-200% 0}}' +
@@ -1199,15 +1220,13 @@
       'a.nws-chip:focus-visible{outline:2px solid var(--h);outline-offset:2px}' +
       '.nws-th{flex:none;display:inline-grid;place-items:center;width:30px;height:19px;margin-left:0;border-radius:2px;background:var(--h) center/cover no-repeat;box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}' +
       '.nws-play{font-size:7px;line-height:1;width:14px;height:14px;border-radius:50%;display:inline-grid;place-items:center;padding-left:1px;background:color-mix(in srgb,var(--h) 70%,rgba(0,0,0,.5));color:#fff;box-shadow:0 0 0 1.5px rgba(255,255,255,.75)}' +
-      // the latest entry's snapshot next to its headline
-      '.nws-snap{grid-area:snap;align-self:start;flex:none;display:block;width:var(--nws-sw,112px);height:auto;aspect-ratio:16/10;border-radius:3px;object-fit:cover;background:color-mix(in srgb,var(--nws-g) 18%,var(--panel,#fff));box-shadow:0 0 0 1px var(--line,#d3dad2)}' +
-      '.nws-brk{display:none}' +
       // the spotlight: one game pinned at the top
       '.nws-spot{--sw:#D9663A;display:flex;align-items:center;gap:14px;padding:10px 12px 10px 12px;border-bottom:1px solid var(--line,#d3dad2);background:color-mix(in srgb,var(--sw) 8%,var(--panel,#fff))}' +
       '.nws-sth{flex:none;position:relative;display:block;width:120px;aspect-ratio:16/10;border-radius:3px;overflow:hidden;background:color-mix(in srgb,var(--sw) 30%,var(--panel,#fff));box-shadow:0 6px 14px -8px var(--sw),0 0 0 1px color-mix(in srgb,var(--sw) 35%,transparent)}' +
       '.nws-sth img{display:block;width:100%;height:100%;object-fit:cover}' +
       '.nws-stx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}' +
       '.nws-sk{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono,monospace);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:color-mix(in srgb,var(--sw) 72%,var(--ink,#16201b))}' +
+      '@keyframes nws-pulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--sw,#D9663A) 0%,transparent)}}' +
       '.nws-sk::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--sw);box-shadow:0 0 0 3px color-mix(in srgb,var(--sw) 25%,transparent);animation:nws-pulse 2s ease-in-out infinite}' +
       '.nws-sn{font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:28px;line-height:.95;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:none}' +
       '.nws .nws-kws{display:flex;flex-wrap:wrap;gap:5px;margin:1px 0 0;padding:0;list-style:none}' +
@@ -1222,9 +1241,17 @@
       '@media (max-width:560px),(max-height:500px){.nws-spot{gap:10px;padding:7px 6px 7px 7px}.nws-sth{width:64px;border-radius:7px}.nws-stx{gap:2px}.nws-sk{font-size:10px;letter-spacing:.08em;gap:6px}.nws-sk::before{width:6px;height:6px}' +
         '.nws-sn{font-size:21px}.nws-spot .nws-kws{display:none}.nws-sp{min-height:36px;padding:5px 14px;font-size:14px}.nws-sx{align-self:center;width:28px;height:28px;margin:0 0 0 -4px}}' +
       '.nws-plus{font-size:13px;color:var(--ink-2,#4a5751)}' +
-      '@media (max-width:560px){.nws{--nws-sw:72px}.nws-bar{padding:10px 12px 4px;column-gap:10px}.nws-t{font-size:22px}.nws-chev b{display:none}.nws-chev i{display:inline}.nws-chev{border:0;font-size:15px;padding:0 2px}' +
-        '.nws-peek{padding:2px 12px 10px;font-size:14px}.nws-peek li{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.nws-peek li:nth-child(n+3){display:none}' +
-        '.nws-fresh{margin:0 12px}.nws-fl{flex-basis:100%;margin-bottom:2px}.nws-chip{font-size:13px;min-height:32px}}' +
+      // a phone: the picture small beside the dateline and a two-line headline, one point under them; the New games
+      // row is one line that scrolls sideways
+      '@media (max-width:560px){.nws-hd{padding:8px 12px 0;gap:12px}.nws-stage{--nws-fw:92px;height:118px;margin:8px 12px 0}' +
+        '.nws-sl{grid-template-rows:max-content max-content minmax(0,1fr);grid-template-areas:"f d" "f h" "p p";column-gap:12px}.nws-fig{align-self:start}' +
+        '.nws-num{font-size:26px;padding:0 8px 6px}.nws-dl{font-size:10.5px;letter-spacing:.06em;gap:8px}.nws-dl > * + *::before{margin-right:8px}' +
+        '.nws-hl{margin-top:3px;font-size:22px;line-height:1.03;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}' +
+        '.nws .nws-pts{margin-top:8px;font-size:14px}' +
+        '.nws-sl.nofig{grid-template-columns:minmax(0,1fr);grid-template-areas:"d" "h" "p"}.nws-sl.nofig .nws-fig{display:none}.nws-sl.nofig .nws-vn{display:inline}' +
+        '.nws-run{margin:12px 12px 0}' +
+        '.nws-fresh{margin:0 12px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}' +
+        '.nws-fresh::-webkit-scrollbar{display:none}.nws-fresh > *{flex:none}.nws-fresh > :last-child{margin-right:24px}.nws-chip{font-size:13px;min-height:32px}}' +
       // the open list
       '.nws-body{border-top:1px solid var(--line,#d3dad2);margin:0 16px;padding:4px 0 14px}' +
       '.nws-day{padding:12px 0 2px}' +
@@ -1272,32 +1299,167 @@
       '@container nwsad (max-width:519.98px){.nws-ad-btn{align-self:stretch}}' +
       '@container nwsad (min-width:520px){.nws-ad-in{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr)}.nws-ad-tx{padding:22px 28px 24px 8px;gap:10px}.nws-ad-pic{height:100%;aspect-ratio:auto;min-height:220px}}' +
       '@container nwsad (min-width:880px){.nws-ad-tx{padding:28px 40px 30px 12px}.nws-ad-l{font-size:17px}}' +
-      '@media (prefers-reduced-motion:reduce){.nws-dot,.nws-sk::before,.k-soon .nws-ic,.nws-e.k-soon .nws-em::after{animation:none}.nws-chip,.nws-sp,.nws-ad-btn,.nws-ad-pic img{transition:none}.nws-ad:hover .nws-ad-pic img{transform:none}}';
+      '@media (prefers-reduced-motion:reduce){.nws-idx i{transition:none}.nws-sk::before,.k-soon .nws-ic,.nws-e.k-soon .nws-em::after{animation:none}.nws-chip,.nws-sp,.nws-ad-btn,.nws-ad-pic img{transition:none}.nws-ad:hover .nws-ad-pic img{transform:none}}';
     document.head.appendChild(css);
 
     var latest = list[0], fresh = unseen(), shown = 0, games = freshGames();
     var box = el('div', 'nws' + (games.length || (spot && !spot.closed) ? ' hot' : '')); box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'What\'s new');
-    var bar = el('button', 'nws-bar'); bar.type = 'button'; bar.setAttribute('aria-expanded', 'false'); bar.setAttribute('aria-controls', 'nws-body');
+    // The masthead: What's new (with the unseen dot), the running index and All updates (opens the full list).
+    var hd = el('div', 'nws-hd');
     var k = el('span', 'nws-k'), dot = el('span', 'nws-dot'), dotTxt = el('span', '', ' (new)');
     dot.setAttribute('aria-hidden', 'true'); dotTxt.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)';
     k.append(dot, 'What\'s new', dotTxt);
-    var v = el('span', 'nws-v k-' + kindOf(latest)), vi = el('span', 'nws-ic', ICON[kindOf(latest)]);
-    vi.setAttribute('aria-hidden', 'true');
-    v.append(vi, shownVer(latest) ? 'v' + shownVer(latest) : KIND[kindOf(latest)]);
-    v.title = KIND[kindOf(latest)];
-    var t = el('span', 'nws-t', latest.title);
-    var d = el('span', 'nws-d'); d.setAttribute('data-noi18n', ''); d.setAttribute('data-nws-d', latest.date); drawDate(d);
-    var chev = el('span', 'nws-chev'); chev.setAttribute('aria-hidden', 'true');
-    var chevB = el('b', '', 'Read more'), chevI = el('i', '', '▾'); chev.append(chevB, chevI);
-    var snap = imgsOf(latest)[0];
-    var meta = el('span', 'nws-meta'); meta.append(k, v, d);
-    bar.append(meta);
-    if (snap) bar.append(pic(snap, 'nws-snap k-' + kindOf(latest)));
-    bar.append(t, chev);
-    // The first few points of the latest entry under its headline; a click opens the full list, like the bar.
-    var peek = el('ul', 'nws-peek k-' + kindOf(latest) + (snap ? '' : ' nosnap'));
-    (latest.items || []).slice(0, 3).forEach(function (s) { if (typeof s === 'string' && s) peek.appendChild(el('li', '', s)); });
-    peek.addEventListener('click', function () { setOpen(true); });
+    var SL = list.slice(0, SLIDES), n = SL.length, cur = 0;
+    var idx = el('button', 'nws-idx'), idxN = el('b'), idxOf = el('span', '', ' / ' + pad(n)), idxGo = el('i', '', '\u2192');
+    idx.type = 'button'; idx.setAttribute('aria-label', 'Next update'); idx.title = 'Next update';
+    idxN.setAttribute('data-noi18n', ''); idxOf.setAttribute('data-noi18n', ''); idxGo.setAttribute('aria-hidden', 'true');
+    idx.append(idxN, idxOf, idxGo); idx.hidden = n < 2;
+    var bar = el('button', 'nws-all'), barT = el('span', '', 'All updates');
+    bar.type = 'button'; bar.setAttribute('aria-expanded', 'false'); bar.setAttribute('aria-controls', 'nws-body'); bar.appendChild(barT);
+    hd.append(k, idx, bar);
+
+    // The reel: the latest SLIDES entries, one at a time. Each slide: a picture (the entry's own, else its first new
+    // game's, else a game named in its tags; with none, its version set large), a dateline (kind, version, day), the
+    // title as a headline and its first points. A tap opens the full list at that entry.
+    var stage = el('div', 'nws-stage'); stage.tabIndex = 0; stage.setAttribute('role', 'group'); stage.setAttribute('aria-label', 'Latest updates');
+    var runEl = el('div', 'nws-run'), fill = el('i'); runEl.setAttribute('aria-hidden', 'true'); runEl.appendChild(fill);
+    function figOf(e) {
+      var s0 = imgsOf(e)[0]; if (s0) return s0;
+      var g = gamesOf(e)[0]; if (g) return 'm/thumbs/' + g.d + '.jpg';
+      var tg = tagsOf(e);
+      for (var j = 0; j < tg.length; j++) {
+        var nm = tg[j].replace(/["\\]/g, ''), slug = nm.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        // a game card on this page that opens the game named in the tag (its folder can differ from its name)
+        var a = document.querySelector('a[aria-label$=" ' + nm + '"][href^="' + BASE + '"]') || (slug && document.querySelector('a[href="' + BASE + slug + '/"]'));
+        var m = a && a.getAttribute('href').slice(BASE.length).match(/^([a-z0-9-]{1,40})\/$/);
+        if (m) return 'm/thumbs/' + m[1] + '.jpg';
+      }
+      return '';
+    }
+    var slides = SL.map(function (e, i) {
+      var kd = kindOf(e), sl = el('article', 'nws-sl k-' + kd), fig = el('span', 'nws-fig');
+      sl.setAttribute('aria-label', 'Update ' + (i + 1) + ' of ' + n); fig.setAttribute('aria-hidden', 'true');
+      var none = function () {
+        fig.textContent = ''; sl.classList.add('nofig');
+        var nb = el('span', 'nws-num', shownVer(e) || (kd === 'soon' ? '?' : short(e.date))); nb.setAttribute('data-noi18n', ''); fig.appendChild(nb);
+      };
+      var src = figOf(e);
+      if (src) { var im = el('img'); im.alt = ''; im.decoding = 'async'; im.width = 560; im.height = 350; im.addEventListener('error', none); im.src = BASE + src; fig.appendChild(im); } else none();
+      var dl = el('p', 'nws-dl');
+      dl.appendChild(el('span', 'nws-kd', KIND[kd]));
+      if (shownVer(e)) { var vn = el('span', 'nws-vn', shownVer(e)); vn.setAttribute('data-noi18n', ''); dl.appendChild(vn); }
+      var dd = el('span', 'nws-d'); dd.setAttribute('data-noi18n', ''); dd.setAttribute('data-nws-d', e.date); drawDate(dd); dl.appendChild(dd);
+      if (i < fresh) dl.appendChild(el('span', 'nws-nw', 'New'));
+      var pts = el('ul', 'nws-pts');
+      e.items.slice(0, 2).forEach(function (x) { if (typeof x === 'string' && x) pts.appendChild(el('li', '', x)); });
+      sl.append(fig, dl, el('p', 'nws-hl', e.title), pts);
+      stage.appendChild(sl);
+      return sl;
+    });
+
+    // Moving on: the slide leaving drifts a little the way the reel goes and fades; the next one's picture, dateline,
+    // headline and points follow it in one after another. Reduced motion: a plain switch, and no automatic moving on.
+    var reduce = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var anim = !reduce && typeof stage.animate === 'function';
+    var EASE = 'cubic-bezier(.22,.61,.36,1)', run = null, live = [];
+    var hover = false, kbd = false, away = false;
+    function pad(x) { return (x < 10 ? '0' : '') + x; }
+    function mark() {
+      idxN.textContent = pad(cur + 1);
+      slides.forEach(function (sl, j) { var on = j === cur; sl.setAttribute('aria-hidden', on ? 'false' : 'true'); sl.inert = !on; });
+    }
+    function settle() {
+      live.forEach(function (x) { try { x.cancel(); } catch (er) {} }); live = [];
+      slides.forEach(function (sl, j) { sl.classList.toggle('on', j === cur); sl.classList.remove('out'); });
+    }
+    function show(j, dir) {
+      j = ((j % n) + n) % n;
+      if (j === cur || n < 2) return;
+      var from = slides[cur], to = slides[j];
+      settle(); cur = j; mark();
+      from.classList.remove('on'); to.classList.add('on');
+      if (anim && dir) {
+        from.classList.add('out');
+        var o = from.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(' + (-dir * 22) + 'px)' }], { duration: 480, easing: 'cubic-bezier(.4,0,.7,1)', fill: 'forwards' });
+        o.onfinish = function () { from.classList.remove('out'); o.cancel(); };
+        live.push(o);
+        [to.querySelector('.nws-fig'), to.querySelector('.nws-dl'), to.querySelector('.nws-hl'), to.querySelector('.nws-pts')].forEach(function (x, q) {
+          if (x) live.push(x.animate([{ opacity: 0, transform: 'translateX(' + (dir * (q ? 30 : 16)) + 'px)' }, { opacity: 1, transform: 'none' }], { duration: 950, delay: q ? 360 + q * 80 : 140, easing: EASE, fill: 'backwards' }));
+        });
+        // and its picture settles very slowly while it's up
+        var im = to.querySelector('.nws-fig img');
+        if (im) { if (im._kb) im._kb.cancel(); im._kb = im.animate([{ transform: 'scale(1.06)' }, { transform: 'none' }], { duration: DWELL + 1500, easing: 'ease-out', fill: 'forwards' }); }
+      }
+      tick();
+    }
+    // The hairline: the reel end to end; while a slide shows, the dark part grows from its start to its end, and the
+    // reel moves on when it gets there. Held (hovered, focused, tab hidden, scrolled away, list open): it waits.
+    function tick() {
+      var a0 = cur / n, b0 = (cur + 1) / n, m = /matrix\(([-\d.e]+)/.exec(getComputedStyle(fill).transform), now = m ? +m[1] : a0;
+      if (run) { run.cancel(); run = null; }
+      if (!anim || n < 2) { fill.style.transform = 'scaleX(' + b0 + ')'; return; }
+      if (held()) now = a0;  // held: show where it is at once, as it won't move until let go
+      fill.style.transform = 'scaleX(' + b0 + ')';
+      run = fill.animate([{ transform: 'scaleX(' + now + ')' }, { transform: 'scaleX(' + a0 + ')', offset: .07 }, { transform: 'scaleX(' + b0 + ')' }], { duration: DWELL, easing: 'linear' });
+      run.onfinish = function () { run = null; show(cur + 1, 1); };
+      hold();
+    }
+    function held() { return hover || kbd || away || document.hidden || !body.hidden; }
+    function hold() {
+      var stop = held();
+      stage.setAttribute('aria-live', stop || !anim ? 'polite' : 'off');
+      if (!run) { if (!stop && anim && n > 1 && body.hidden) tick(); return; }
+      if (stop && run.playState === 'running') run.pause(); else if (!stop && run.playState === 'paused') run.play();
+    }
+    slides[0].classList.add('on'); mark();
+    // Points: as many lines as the space under the headline holds (two on most slides, three at most). The first
+    // point gets them; the second shows only if it fits whole in what's left. Redone when the width, the fonts or the
+    // words (Spanish) change.
+    var fitQ = 0;
+    function fit() {
+      fitQ = 0;
+      var H = stage.clientHeight;
+      slides.forEach(function (sl) {
+        var ul = sl.querySelector('.nws-pts'), li = ul ? ul.querySelectorAll('li') : [];
+        if (!li.length || !H) return;
+        for (var j = 0; j < li.length; j++) { li[j].classList.remove('gone'); li[j].style.webkitLineClamp = ''; }
+        var cs = getComputedStyle(li[0]), lh = parseFloat(cs.lineHeight) || 20, gap = parseFloat(getComputedStyle(ul).rowGap) || 0;
+        var L = Math.max(1, Math.min(3, Math.floor((H - ul.offsetTop + 1) / lh)));
+        var lines = function (x) { return Math.round(x.scrollHeight / lh); };
+        li[0].style.webkitLineClamp = L;
+        var used = Math.min(L, lines(li[0]));
+        if (li[1]) {
+          var left = Math.floor((H - ul.offsetTop - used * lh - gap + 1) / lh);
+          if (left >= 1 && lines(li[1]) <= left) li[1].style.webkitLineClamp = left; else li[1].classList.add('gone');
+        }
+      });
+    }
+    function refit() { if (!fitQ) fitQ = requestAnimationFrame(fit); }
+    if (window.ResizeObserver) new ResizeObserver(refit).observe(stage); else window.addEventListener('resize', refit);
+    if (window.MutationObserver) new MutationObserver(refit).observe(stage, { characterData: true, childList: true, subtree: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+
+    var sx = null, sy = 0, swiped = false;
+    stage.addEventListener('pointerdown', function (e) { if (e.button) return; sx = e.clientX; sy = e.clientY; swiped = false; });
+    stage.addEventListener('pointercancel', function () { sx = null; });
+    stage.addEventListener('pointerup', function (e) {
+      if (sx == null) return;
+      var dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+      if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.2) { swiped = true; show(cur + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1); }
+    });
+    stage.addEventListener('click', function () { if (swiped) { swiped = false; return; } openAt(cur); });
+    stage.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); show(cur + (e.key === 'ArrowRight' ? 1 : -1), e.key === 'ArrowRight' ? 1 : -1); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openAt(cur); }
+    });
+    idx.addEventListener('click', function () { show(cur + 1, 1); });
+    box.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') { hover = true; hold(); } });
+    box.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') { hover = false; hold(); } });
+    // focus holds it only when it came from the keyboard, so a click or a tap doesn't stop the reel for good
+    box.addEventListener('focusin', function (e) { var v = false; try { v = e.target.matches(':focus-visible'); } catch (er) { v = true; } kbd = v; hold(); });
+    box.addEventListener('focusout', function (e) { if (!box.contains(e.relatedTarget)) { kbd = false; hold(); } });
+    document.addEventListener('visibilitychange', hold);
+    if (window.IntersectionObserver) new IntersectionObserver(function (es) { away = !es[es.length - 1].isIntersecting; hold(); }).observe(stage);
 
     // The spotlight: one game pinned at the top, with its picture, keywords and a Play button; × hides it here.
     var spotRow = null;
@@ -1347,9 +1509,7 @@
     more.type = 'button'; shut.type = 'button'; acts.append(more, shut);
     body.append(days, acts);
     if (spotRow) box.append(spotRow);
-    box.append(bar);
-    if (peek.firstChild) box.append(peek);
-    box.append(row, body);
+    box.append(hd, stage, runEl, row, body);
 
     var outer = box, adEl = null;   // adEl: the ads' grid (one tile or two)
     function tile(ad) {
@@ -1386,6 +1546,7 @@
 
     function showDot() { dot.hidden = dotTxt.hidden = fresh <= 0; }
     showDot();
+    tick();
 
     // Group by date (the list is newest first), then draw PAGE more days each time.
     var groups = [];
@@ -1404,6 +1565,7 @@
         day.appendChild(h);
         g.entries.forEach(function (it) {
           var e = it.e, kd = kindOf(e), art = el('article', 'nws-e k-' + kd), eh = el('p', 'nws-eh');
+          art.setAttribute('data-nws-k', key(e));
           var tag = el('span', 'nws-tag'), ti = el('span', 'nws-ic', ICON[kd]); ti.setAttribute('aria-hidden', 'true');
           tag.append(ti, label(e));
           eh.append(tag, el('span', 'nws-et', e.title));
@@ -1450,9 +1612,17 @@
       if (o && !shown) drawMore();
       body.hidden = !o; box.toggleAttribute('data-open', o);
       bar.setAttribute('aria-expanded', o ? 'true' : 'false');
-      chevB.textContent = o ? 'Close' : 'Read more'; chevI.textContent = o ? '▴' : '▾';
-      if (o && fresh > 0) { fresh = 0; store(SEEN, key(latest)); showDot(); }
+      barT.textContent = o ? 'Close' : 'All updates';
+      if (o && fresh > 0) { stage.querySelectorAll('.nws-nw').forEach(function (x) { x.remove(); }); fresh = 0; store(SEEN, key(latest)); showDot(); }
       if (!o) bar.focus({ preventScroll: true });
+      hold();
+    }
+    // Open the full list at slide i's entry.
+    function openAt(i) {
+      if (body.hidden) setOpen(true);
+      if (stage.contains(document.activeElement)) bar.focus({ preventScroll: true });  // the reel hides while the list is open
+      var art = i > 0 && days.querySelector('[data-nws-k="' + key(SL[i]).replace(/"/g, '') + '"]');
+      if (art) art.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
     }
     bar.addEventListener('click', function () { setOpen(body.hidden); });
     shut.addEventListener('click', function () { setOpen(false); });
