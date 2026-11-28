@@ -4,7 +4,7 @@
  *   <script src="/e63334287a3deaa3/news.js" defer></script>
  *
  * Puts a "What's new" panel under the page header (above the Party panel): a slow reel of the
- * latest SLIDES entries, one at a time (picture, kind, version and day, the title as a headline
+ * latest SLIDES game updates (site-wide news stays in All updates), one at a time (picture, kind, version and day, the title as a headline
  * and its first points), easing to the next every DWELL ms, with a hairline along its foot that
  * fills as the reel runs and a running index (03 / 10) that moves it on. It holds still while
  * hovered, focused from the keyboard, scrolled away or in a hidden tab; swipe or the arrow keys
@@ -94,21 +94,6 @@
  */
 (function () {
   var NEWS = [
-    {date: '2026-11-27', version: '2.21', title: 'A tidier Back Room', kind: 'feature',
-     tags: ['Back Room', 'Phone page'], items: [
-      'Edit your look from the pencil on your avatar in the corner of the Online panel: avatar, name tile colour, name and settings, all in one small popup.',
-      'Playing now, Party and Online are one card now, with less empty space.',
-      'What\'s new reads like the news: a headline, the date and the first points of the latest update.',
-      'Once you pick your school it shrinks to one line, with a pencil to change it.',
-      'Game cards are tighter, with no big gaps under the text.']},
-    {date: '2026-11-27', version: '2.20.1', title: 'Cleaner home page', kind: 'fix',
-     items: [
-      'A new animation at the top of the home page.',
-      'Shorter, plainer wording at the top.']},
-    {date: '2026-11-27', version: '2.20', title: 'New look for the home page', kind: 'feature',
-     items: [
-      'The home page has a cleaner, calmer design.',
-      'Its top shows air flowing past a wing, worked out live: move your pointer up or down to tilt it.']},
     {date: '2026-11-27', version: '2.19.1', title: 'Leaf Sweep: the bin works again', kind: 'fix',
      tags: ['Leaf Sweep'], items: [
       'Walk up to a compost bin with leaves in your sack and a clear prompt shows again: press E or tap the button to empty it. You can stand a little farther away than before.',
@@ -152,21 +137,9 @@
       'Every game now has an address you can type: ascoding11.com/ followed by its name, like ascoding11.com/slipstream or ascoding11.com/driftfall.',
       'ascoding11.com/backroom opens the whole Back Room.',
       'Clicking around the site still keeps the address the same as before.']},
-    {date: '2026-11-27', version: '2.13.6', title: 'Tidier top of the phone page', kind: 'fix',
-     tags: ['Phone'], items: [
-      'On a phone held upright, the games count now sits right under the ASCoding Games title on one or two lines, instead of in a thin column with one word per line.',
-      'The theme, language and Main site buttons now go on their own line under the title, so nothing at the top overlaps any more, in English or Spanish.']},
-    {date: '2026-11-27', version: '2.13.5', title: 'The site is called ASCoding everywhere', kind: 'fix',
-     items: [
-      'The name at the top and bottom of every page now reads ASCoding, on the main site, the Back Room and the phone page.',
-      'The phone page keeps the name ASCoding games when you add it to your home screen.',
-      'The About page now says who makes the site: two students, working together as ASCoding.']},
     {date: '2026-11-27', version: '2.13.4', title: 'Flood Crew: better gloves', kind: 'fix',
      tags: ['Flood Crew'], items: [
       'Your gloved hands look like hands now, with fingers wrapped round the handle.']},
-    {date: '2026-11-27', version: '2.13.3', title: 'Phone page renamed', kind: 'fix',
-     tags: ['Phone'], items: [
-      'The phone page\'s title now reads ASCoding games.']},
     {date: '2026-11-27', version: '2.13.2', title: 'Account save fix', kind: 'fix',
      tags: ['Account'], items: [
       'Account save no longer pauses with “signed in as someone else” on phones.',
@@ -188,26 +161,9 @@
       'The bike is rigid now: the wheels stay fixed to the frame, so it no longer bounces on landing.',
       'A simpler, cleaner bike.',
       'The camera is zoomed out and sits further back, so you can see much more of the track ahead.']},
-    {date: '2026-11-26', version: '2.11', title: 'Tidier game rows', kind: 'feature',
-     items: [
-      'Every section of games now fills its rows evenly, so you never get a row of four and then one game on its own.',
-      'Each section picks its own number of games per row, and one or two games get a bigger card where that keeps the rows full.',
-      'Rows stay even on phones, on smaller screens, while you search, and with your own Edit layout sizes.',
-      'Flood Crew has its own card in Arcade now, instead of being squeezed inside Leaf Sweep\'s.']},
-    {date: '2026-11-26', version: '2.10', title: 'A more professional home page', kind: 'feature',
-     tags: ['Home page'], items: [
-      'The home page now leads with the engineering projects and web applications.',
-      'The games are one click away at the bottom of the home page.']},
     {date: '2026-11-26', version: '2.09.1', title: 'Boostball: new card picture', kind: 'fix',
      tags: ['Boostball'], items: [
       'Boostball\'s card shows a real match now: the ball, the cars, both goals and the stadium.']},
-    {date: '2026-11-26', version: '2.09', title: 'The home page is now ASCoding', kind: 'feature',
-     tags: ['Home page'], items: [
-      'The home page now goes by ASCoding, with a cleaner, more professional look.']},
-    {date: '2026-11-26', version: '2.08', title: 'A new look for the home page', kind: 'feature',
-     tags: ['Home page'], items: [
-      'The home page has a whole new design, with a dark blueprint look and a gallery of the engineering projects.',
-      'The retro TV look for the holidays now has stronger scan lines, like an old TV.']},
     {date: '2026-11-26', version: '2.07', title: 'Leaf Sweep: one handful at a time', kind: 'feature',
      tags: ['Leaf Sweep'], items: [
       'Leaf Sweep now starts with a short note on what to do, and you pick up leaves one handful at a time: each click or tap grabs what is in a small circle.',
@@ -947,7 +903,7 @@
   })(0);
   var KIND = { game: 'New game', feature: 'Update', fix: 'Bug fix', soon: 'Coming soon' };
   var ICON = { game: '🎮', feature: '✨', fix: '🔧', soon: '?' };
-  var SLIDES = 10;   // the latest entries the reel at the top runs through, one at a time
+  var SLIDES = 10;   // the latest game updates the reel at the top runs through, one at a time (isGameNews())
   var DWELL = 7000;  // how long each one shows (ms) before the reel moves on
   var PAGE = 5;      // days shown at first, and added by each "Show older"...
   var CARDS = 10;    // ...or fewer, once those days hold this many cards (a day is never split), so a busy day doesn't make a very long list
@@ -1440,14 +1396,24 @@
       '@media (prefers-reduced-motion:reduce){.nws-idx i{transition:none}.nws-sk::before,.k-soon .nws-ic,.nws-e.k-soon .nws-em::after{animation:none}.nws-chip,.nws-sp,.nws-ad-btn,.nws-ad-pic img{transition:none}.nws-ad:hover .nws-ad-pic img{transform:none}}';
     document.head.appendChild(css);
 
-    var latest = list[0], fresh = unseen(), shown = 0, games = freshGames();
+    // The reel shows game updates only: a new game (kind 'game' or a `games` list), or an entry whose tags (just one game)
+    // or title name a game with a card on this page (cardOf()), or whose title starts "Game name:". Site-wide entries
+    // (and features shared by several games) stay in All updates. With no game updates at all, it shows the latest
+    // entries as before rather than nothing.
+    // The unseen dot and the reel's "New" marks count only the entries the reel shows; the open list still tags every
+    // unseen entry, and opening it marks them all seen (news:seen is the latest entry overall, as before).
+    var reel = list.filter(isGameNews);
+    if (!reel.length) reel = list;
+    var latest = list[0], seenUpTo = unseen(), shown = 0, games = freshGames();
+    var SL = reel.slice(0, SLIDES), n = SL.length, cur = 0;
+    var at = SL.map(function (e) { return list.indexOf(e); });  // each slide's place in the full list
+    var fresh = at.filter(function (x) { return x < seenUpTo; }).length;
     var box = el('div', 'nws' + (games.length || (spot && !spot.closed) ? ' hot' : '')); box.setAttribute('role', 'region'); box.setAttribute('aria-label', 'What\'s new');
     // The masthead: What's new (with the unseen dot), the running index and All updates (opens the full list).
     var hd = el('div', 'nws-hd');
     var k = el('span', 'nws-k'), dot = el('span', 'nws-dot'), dotTxt = el('span', '', ' (new)');
     dot.setAttribute('aria-hidden', 'true'); dotTxt.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)';
     k.append(dot, 'What\'s new', dotTxt);
-    var SL = list.slice(0, SLIDES), n = SL.length, cur = 0;
     var idx = el('button', 'nws-idx'), idxN = el('b'), idxOf = el('span', '', ' / ' + pad(n)), idxGo = el('i', '', '\u2192');
     idx.type = 'button'; idx.setAttribute('aria-label', 'Next update'); idx.title = 'Next update';
     idxN.setAttribute('data-noi18n', ''); idxOf.setAttribute('data-noi18n', ''); idxGo.setAttribute('aria-hidden', 'true');
@@ -1456,7 +1422,7 @@
     bar.type = 'button'; bar.setAttribute('aria-expanded', 'false'); bar.setAttribute('aria-controls', 'nws-body'); bar.appendChild(barT);
     hd.append(k, idx, bar);
 
-    // The reel: the latest SLIDES entries, one at a time. Each slide: a picture (the entry's own, else its first new
+    // The reel: the latest SLIDES game updates, one at a time. Each slide: a picture (the entry's own, else its first new
     // game's, else a game named in its tags, else one of the NEWS_ART drawings, picked by artOf()), a dateline (kind,
     // version, day), the title as a headline and its first points. A tap opens the full list at that entry.
     var stage = el('div', 'nws-stage'); stage.tabIndex = 0; stage.setAttribute('role', 'group'); stage.setAttribute('aria-label', 'Latest updates');
@@ -1465,14 +1431,57 @@
       var s0 = imgsOf(e)[0]; if (s0) return s0;
       var g = gamesOf(e)[0]; if (g) return 'm/thumbs/' + g.d + '.jpg';
       var tg = tagsOf(e);
-      for (var j = 0; j < tg.length; j++) {
-        var nm = tg[j].replace(/["\\]/g, ''), slug = nm.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-        // a game card on this page that opens the game named in the tag (its folder can differ from its name)
-        var a = document.querySelector('a[aria-label$=" ' + nm + '"][href^="' + BASE + '"]') || (slug && document.querySelector('a[href="' + BASE + slug + '/"]'));
-        var m = a && a.getAttribute('href').slice(BASE.length).match(/^([a-z0-9-]{1,40})\/$/);
-        if (m) return 'm/thumbs/' + m[1] + '.jpg';
-      }
+      for (var j = 0; j < tg.length; j++) { var d = cardOf(tg[j]); if (d) return 'm/thumbs/' + d + '.jpg'; }
       return '';
+    }
+    // The folder of a game card on this page that opens the game called nm (its folder can differ from its name), or ''.
+    function cardOf(nm) {
+      nm = String(nm).trim().replace(/["\\]/g, '');
+      var slug = nm.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      if (!nm) return '';
+      var a = document.querySelector('a[aria-label$=" ' + nm + '"][href^="' + BASE + '"]') || (slug && document.querySelector('a[href="' + BASE + slug + '/"]'));
+      var m = a && a.getAttribute('href').slice(BASE.length).match(/^([a-z0-9-]{1,40})\/$/);
+      return m ? m[1] : '';
+    }
+    // The phone page's game tiles are buttons, not links: <button class="tile" data-path="BASE<folder>/"> with the
+    // name in <strong>. Used only to tell game updates apart there (the reel's pictures still come from cardOf()).
+    function tileOf(nm) {
+      nm = String(nm).trim();
+      var slug = nm.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''), out = '';
+      if (!nm) return '';
+      document.querySelectorAll('.tile[data-path^="' + BASE + '"]').forEach(function (b) {
+        var d = b.getAttribute('data-path').slice(BASE.length).replace(/\/$/, ''), s = b.querySelector('strong');
+        if (!out && /^[a-z0-9-]{1,40}$/.test(d) && (d === slug || (s && s.textContent.trim() === nm))) out = d;
+      });
+      return out;
+    }
+    function gameCard(nm) { return cardOf(nm) || tileOf(nm); }
+    // The names on this page's game cards ("Open Leaf Sweep" -> Leaf Sweep, or a phone tile's name), for spotting a
+    // game named in a title.
+    var cardNames = null;
+    function namesOnPage() {
+      if (cardNames) return cardNames;
+      cardNames = [];
+      var add = function (nm) { nm = (nm || '').trim(); if (nm && cardNames.indexOf(nm) < 0) cardNames.push(nm); };
+      document.querySelectorAll('a[aria-label^="Open "][href^="' + BASE + '"]').forEach(function (a) { add(a.getAttribute('aria-label').slice(5)); });
+      document.querySelectorAll('.tile[data-path^="' + BASE + '"] strong').forEach(function (x) { add(x.textContent); });
+      return cardNames;
+    }
+    function namesGame(t) {
+      return namesOnPage().some(function (nm) {
+        var i = t.indexOf(nm), b = i > 0 ? t.charAt(i - 1) : '', c = t.charAt(i + nm.length);
+        return i >= 0 && !/[A-Za-z0-9]/.test(b) && !/[A-Za-z0-9]/.test(c);
+      });
+    }
+    // A game update: a new game, or news about a game that has a card here (see the reel above).
+    function isGameNews(e) {
+      if (e.kind === 'game' || gamesOf(e).length) return true;
+      // tags naming one game; tags naming several (Replay clips, Game shops closed) mark a site-wide change
+      var tg = {}; tagsOf(e).forEach(function (x) { var d = gameCard(x); if (d) tg[d] = 1; });
+      if (Object.keys(tg).length === 1) return true;
+      var c = e.title.indexOf(':');
+      if (c > 0 && gameCard(e.title.slice(0, c))) return true;
+      return namesGame(e.title);
     }
     var slides = SL.map(function (e, i) {
       var kd = kindOf(e), sl = el('article', 'nws-sl k-' + kd), fig = el('span', 'nws-fig');
@@ -1484,7 +1493,7 @@
       dl.appendChild(el('span', 'nws-kd', KIND[kd]));
       if (shownVer(e)) { var vn = el('span', 'nws-vn', shownVer(e)); vn.setAttribute('data-noi18n', ''); dl.appendChild(vn); }
       var dd = el('span', 'nws-d'); dd.setAttribute('data-noi18n', ''); dd.setAttribute('data-nws-d', e.date); drawDate(dd); dl.appendChild(dd);
-      if (i < fresh) dl.appendChild(el('span', 'nws-nw', 'New'));
+      if (at[i] < seenUpTo) dl.appendChild(el('span', 'nws-nw', 'New'));
       var pts = el('ul', 'nws-pts');
       e.items.slice(0, 2).forEach(function (x) { if (typeof x === 'string' && x) pts.appendChild(el('li', '', x)); });
       sl.append(fig, dl, el('p', 'nws-hl', e.title), pts);
@@ -1690,7 +1699,7 @@
       if (!g || g.date !== e.date) groups.push(g = { date: e.date, entries: [] });
       g.entries.push({ e: e, i: i });
     });
-    var newUpTo = fresh;  // entries above this index get a "New" tag in the open list
+    var newUpTo = seenUpTo;  // entries above this index get a "New" tag in the open list
     function drawMore() {
       var end = Math.min(groups.length, shown + PAGE), drawn = 0;
       for (; shown < end && drawn < CARDS; shown++) {
@@ -1748,7 +1757,7 @@
       body.hidden = !o; box.toggleAttribute('data-open', o);
       bar.setAttribute('aria-expanded', o ? 'true' : 'false');
       barT.textContent = o ? 'Close' : 'All updates';
-      if (o && fresh > 0) { stage.querySelectorAll('.nws-nw').forEach(function (x) { x.remove(); }); fresh = 0; store(SEEN, key(latest)); showDot(); }
+      if (o && seenUpTo > 0) { stage.querySelectorAll('.nws-nw').forEach(function (x) { x.remove(); }); fresh = seenUpTo = 0; store(SEEN, key(latest)); showDot(); }
       if (!o) bar.focus({ preventScroll: true });
       hold();
     }
@@ -1756,7 +1765,7 @@
     function openAt(i) {
       if (body.hidden) setOpen(true);
       if (stage.contains(document.activeElement)) bar.focus({ preventScroll: true });  // the reel hides while the list is open
-      var art = i > 0 && days.querySelector('[data-nws-k="' + key(SL[i]).replace(/"/g, '') + '"]');
+      var art = at[i] > 0 && days.querySelector('[data-nws-k="' + key(SL[i]).replace(/"/g, '') + '"]');
       if (art) art.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
     }
     bar.addEventListener('click', function () { setOpen(body.hidden); });
