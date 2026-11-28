@@ -234,22 +234,22 @@ table.files{width:100%;border-collapse:collapse;font-size:14px}
       <div class="pop" id="clonePop" hidden>
         <label for="cloneUrl">Clone with Git</label>
         <div class="row"><input type="text" id="cloneUrl" readonly><button type="button" class="btn" data-copy="#cloneUrl">Copy</button></div>
-        <p>Run <code class="mono">git clone</code> with this address. To send a change, fork it and open a pull request.</p>
+        <p>Run <code class="mono">git clone</code> with this address. It needs your own access to the repo on GitHub; this page doesn’t give any.</p>
       </div>
     </div>
   </div>
 
   <main id="view" aria-live="polite"></main>
 
-  <footer>© 2026 ASCoding · <a href="../about/">About</a> · <a href="../contact/">Contact</a> · <a href="../privacy.html">Privacy policy</a> · <a href="../terms/">Terms</a> · Files load from GitHub's public API.</footer>
+  <footer>© 2026 ASCoding · <a href="../about/">About</a> · <a href="../contact/">Contact</a> · <a href="../privacy.html">Privacy policy</a> · <a href="../terms/">Terms</a> · Files load through the site's server.</footer>
 </div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
-// Source code browser (see README, Source code browser). Reads the repo from GitHub's public REST API
-// (repo info, the branch's latest commit and one recursive tree: three calls) and file contents from
-// raw.githubusercontent.com, which has no rate limit. API answers are kept in localStorage with their ETag and
-// asked for again with If-None-Match, so a repeat visit is answered "not modified" and costs no requests.
+// Source code browser (see README, Source code browser). Reads the repo through functions/api/code/ (GitHub's REST API)
+// (repo info, the branch's latest commit and one recursive tree: three calls) and file contents, every request
+// carrying the Google sign-in's ID token. Answers are kept in sessionStorage for the tab with their ETag and asked
+// for again with If-None-Match, so going back to a view is a cheap "not modified".
 // HIDDEN folders are dropped from the tree, search, stats and commit file lists (none at the moment).
 // The Back Room (BR) is left out of the root folder list and shown game by game on the Games tab instead.
 (function(){
@@ -275,9 +275,11 @@ var GAMES=('2048|2048|,asteroid-run|Asteroid Run|,backrooms-1v1|Backrooms 1v1–
   ).split(',').map(function(x){x=x.split('|');return {f:x[0],n:x[1],s:x[2]}});
 // Back Room folders that aren't games: the phone page, admin page, shop, Daily Puzzles page, What's new queue, data, old redirects.
 var BR_SHARED=/^(m|d06440218d1813a3|shop|daily|news|wordplay|hivefix|[\w-]+-data)$/;
-var API='https://api.github.com/repos/'+OWNER+'/'+REPO;
+// Everything goes through the site's own server (functions/api/code/), which checks the captain sign-in and asks
+// GitHub with a token kept on Cloudflare, so the repo can be private. ascoding11.github.io calls ascoding11.com.
+var SERVER=/(^|\.)ascoding11\.com$/.test(location.hostname)||/^(localhost|127\.0\.0\.1)$/.test(location.hostname)?'/api/code/':'https://ascoding11.com/api/code/';
 var GH='https://github.com/'+OWNER+'/'+REPO;
-var CACHE='code2:'; // localStorage prefix; change the number whenever what gets stored changes, so old copies are never reused
+var CACHE='code3:'; // sessionStorage prefix (gone when the tab closes, so private code isn't left on shared laptops); change the number whenever what gets stored changes
 
 var $=function(s,r){return (r||document).querySelector(s)};
 var view=$('#view');
@@ -286,36 +288,50 @@ var state={repo:null,head:null,tree:null,dirs:null,files:[],sha:null};
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function hidden(p){for(var i=0;i<HIDDEN.length;i++){var h=HIDDEN[i];if(p===h||p.indexOf(h+'/')===0)return true}return false}
 function encPath(p){return p.split('/').map(encodeURIComponent).join('/')}
-function raw(p){return 'https://raw.githubusercontent.com/'+OWNER+'/'+REPO+'/'+(state.sha||BRANCH)+'/'+encPath(p)}
+function raw(p){return SERVER+'raw?ref='+encodeURIComponent(state.sha||'')+'&path='+encodeURIComponent(p)}
+// The Google sign-in's ID token (store.js, the same sign-in as the shop), sent with every request to the server.
+var storeP=null;
+function token(){
+  if(!storeP)storeP=new Promise(function(ok,no){if(window.Store)return ok(window.Store);var s=document.createElement('script');s.src='/store.js';s.onload=function(){ok(window.Store)};s.onerror=no;document.head.appendChild(s)});
+  return storeP.then(function(St){return St?St.user():null}).then(function(u){if(!u){var e=new Error('signin');e.status=401;e.reason='signin';throw e}return u.getIdToken()});
+}
+function authFetch(url,headers){
+  return token().then(function(t){return fetch(url,{headers:Object.assign({Authorization:'Bearer '+t},headers||{})})}).then(function(r){
+    if(r.ok||r.status===304)return r;
+    return r.json().catch(function(){return {}}).then(function(d){var e=new Error(d.error||('Answered '+r.status));e.status=r.status;e.reason=d.reason;throw e});
+  });
+}
+// Files as blob: addresses, so images, Raw and Download work without the file being reachable from outside.
+var blobs={};
+function blobUrl(p){if(!blobs[p]){blobs[p]=authFetch(raw(p)).then(function(r){return r.blob()}).then(function(b){return URL.createObjectURL(b)});blobs[p].catch(function(){delete blobs[p]})}return blobs[p]}
+function hydrate(root){(root||document).querySelectorAll('img[data-raw]').forEach(function(img){var p=img.getAttribute('data-raw');img.removeAttribute('data-raw');blobUrl(p).then(function(u){img.src=u},function(){img.remove()})})}
+function saveFile(p,name,open){blobUrl(p).then(function(u){if(open){window.open(u,'_blank','noopener');return}var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove()},function(){toast('Couldn\u2019t get the file')})}
 function size(b){if(b==null)return '';if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(b<10240?1:0)+' KB';return (b/1048576).toFixed(1)+' MB'}
 function ago(d){var s=(Date.now()-new Date(d))/1000;if(s<60)return 'just now';var m=s/60;if(m<60)return Math.floor(m)+' min ago';var h=m/60;if(h<24)return Math.floor(h)+' h ago';var dd=h/24;if(dd<30)return Math.floor(dd)+(Math.floor(dd)==1?' day ago':' days ago');return new Date(d).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})}
 function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove('on')},1600)}
 function copy(text){(navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject()).then(function(){toast('Copied')},function(){
   var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Copy failed')}ta.remove()})}
-function lsGet(k){try{var v=localStorage.getItem(CACHE+k);return v?JSON.parse(v):null}catch(e){return null}}
-function lsSet(k,v){try{localStorage.setItem(CACHE+k,JSON.stringify(v))}catch(e){/* full or blocked: just skip caching */}}
+function lsGet(k){try{var v=sessionStorage.getItem(CACHE+k);return v?JSON.parse(v):null}catch(e){return null}}
+function lsSet(k,v){try{sessionStorage.setItem(CACHE+k,JSON.stringify(v))}catch(e){/* full or blocked: just skip caching */}}
 
 // GitHub API with ETag caching. `slim` shrinks a response before it's stored (the tree is ~800 KB raw).
 function api(path,slim){
-  var key=path, hit=lsGet(key), h={'Accept':'application/vnd.github+json'};
+  var key=path, hit=lsGet(key), h={};
   if(hit&&hit.etag)h['If-None-Match']=hit.etag;
-  return fetch(API+path,{headers:h}).then(function(r){
+  return authFetch(SERVER+'api?path='+encodeURIComponent(path),h).then(function(r){
     if(r.status===304&&hit)return hit.data;
     if(r.ok)return r.json().then(function(d){var s=slim?slim(d):d;lsSet(key,{etag:r.headers.get('ETag'),data:s});return s});
-    if(hit)return hit.data; // offline-ish or limited: an older copy beats nothing
-    var err=new Error('GitHub answered '+r.status);err.status=r.status;
-    if((r.status===403||r.status===429)&&r.headers.get('x-ratelimit-remaining')==='0'){
-      err.limit=true;err.reset=+r.headers.get('x-ratelimit-reset')*1000;
-    }
-    throw err;
-  },function(e){if(hit)return hit.data;throw e});
+    var err=new Error('Answered '+r.status);err.status=r.status;throw err;
+  },function(e){if(hit&&!e.reason&&e.status!==401&&e.status!==403)return hit.data;throw e});
 }
 
 function failBox(e){
-  var why=e&&e.limit
-    ?'GitHub lets each network look up '+'60 things an hour without signing in, and this one has used them up (school and library Wi-Fi share one count). It resets at '+new Date(e.reset).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'.'
-    :'The code couldn’t be loaded'+(e&&e.status?' (GitHub answered '+e.status+')':'')+'. Check your connection and try again.';
-  return '<div class="box error"><div class="msg"><h3>Can’t load right now</h3><p>'+esc(why)+'</p><a class="btn" href="'+GH+'" rel="noopener">Open on GitHub instead</a></div></div>';
+  var r=e&&e.reason,why=r==='signin'||(e&&e.status===401)?'Your sign-in has run out. Sign out and in again at the top of the page.'
+    :r==='team'||(e&&e.status===403)?'The server says this account isn\u2019t on the team.'
+    :r==='setup'?'The code browser isn\u2019t set up yet: the GitHub token is missing on Cloudflare (see README, Source code browser).'
+    :e&&e.status===429?'Too many requests. Wait a minute and try again.'
+    :'The code couldn\u2019t be loaded'+(e&&e.status?' (the server answered '+e.status+')':'')+'. Check your connection and try again.';
+  return '<div class="box error"><div class="msg"><h3>Can\u2019t load right now</h3><p>'+esc(why)+'</p></div></div>';
 }
 function skel(n){var s='<div class="box"><div class="skel">';for(var i=0;i<(n||6);i++)s+='<i style="width:'+(40+((i*37)%55))+'%"></i>';return s+'</div></div>'}
 
@@ -354,7 +370,6 @@ function drawMeta(){
   var r=state.repo,h=state.head,total=0;state.files.forEach(function(f){total+=f.size});
   $('#meta').innerHTML='<span><b>'+esc(OWNER)+'</b> / '+esc(REPO)+'</span><span>branch <b>'+esc(r.branch||BRANCH)+'</b></span><span><b>'+state.files.length.toLocaleString()+'</b> files · <b>'+size(total)+'</b></span><span>updated <b>'+ago(h.date)+'</b></span>';
   $('#cloneUrl').value=r.clone||GH+'.git';
-  $('#zipBtn').href=GH+'/archive/refs/heads/'+encodeURIComponent(r.branch||BRANCH)+'.zip';
 }
 
 // ---------- icons ----------
@@ -473,7 +488,7 @@ function inline(s,base){
   var codes=[];
   s=s.replace(/`([^`]+)`/g,function(_,c){codes.push(c);return '\u0000'+(codes.length-1)+'\u0000'});
   s=esc(s);
-  s=s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g,function(_,alt,src){var r=resolve(base,src.replace(/&amp;/g,'&'));return '<img alt="'+alt+'" loading="lazy" src="'+esc(r!=null?raw(r.split(/[?#]/)[0]):src.replace(/&amp;/g,'&'))+'">'});
+  s=s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g,function(_,alt,src){var r=resolve(base,src.replace(/&amp;/g,'&'));return r!=null?'<img alt="'+alt+'" data-raw="'+esc(r.split(/[?#]/)[0])+'">':'<img alt="'+alt+'" loading="lazy" src="'+esc(src.replace(/&amp;/g,'&'))+'">'});
   s=s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,function(_,txt,href){
     var h=href.replace(/&amp;/g,'&'),r=resolve(base,h);
     if(r!=null){r=r.split(/[?#]/)[0].replace(/\/$/,'');if(hidden(r))return txt;return '<a href="'+esc(linkFor(r))+'">'+txt+'</a>'}
@@ -600,7 +615,7 @@ function sideHtml(){
 }
 
 function fetchText(p){
-  return fetch(raw(p)).then(function(r){if(!r.ok)throw new Error(r.status);return r.text()});
+  return authFetch(raw(p)).then(function(r){return r.text()});
 }
 
 function showBlob(p,sel){
@@ -612,16 +627,16 @@ function showBlob(p,sel){
   var head='<div class="box-head"><span class="grow mono" id="finfo">'+size(f.size)+'</span><span class="tools" style="gap:6px">'+
     (isMd?'<button type="button" class="btn" id="mdToggle" aria-pressed="true">Code</button>':'')+
     (!isImg&&!isBin?'<button type="button" class="btn" id="wrapBtn" aria-pressed="false">Wrap</button><button type="button" class="btn" id="copyBtn">Copy</button>':'')+
-    '<a class="btn" href="'+esc(raw(p))+'" target="_blank" rel="noopener">Raw</a>'+
-    '<a class="btn" href="'+esc(raw(p))+'" download="'+esc(name)+'">Download</a>'+
+    '<button type="button" class="btn" data-save="'+esc(p)+'" data-open="1">Raw</button>'+
+    '<button type="button" class="btn" data-save="'+esc(p)+'">Download</button>'+
     '<a class="btn" href="#/commits/'+encPath(p)+'">History</a></span></div>';
   view.innerHTML='<div class="crumbs-row">'+crumbs(p,true)+finderHtml()+'</div><div class="box" id="fbox">'+head+'<div id="fbody">'+skel(8).replace('<div class="box">','<div>')+'</div></div>';
   wireFinder();
   var body=$('#fbody');
-  if(isImg){body.innerHTML='<div class="viewer"><img src="'+esc(raw(p))+'" alt="'+esc(name)+'"></div>';return}
-  if(isBin||f.size>8e6){body.innerHTML='<div class="msg"><h3>'+(isBin?'Not a text file':'Too big to show')+'</h3><p>'+esc(name)+' is '+size(f.size)+(isBin?' and can’t be shown as text here.':'.')+'</p><a class="btn primary" href="'+esc(raw(p))+'" download="'+esc(name)+'">Download it</a></div>';return}
+  if(isImg){body.innerHTML='<div class="viewer"><img data-raw="'+esc(p)+'" alt="'+esc(name)+'"></div>';return}
+  if(isBin||f.size>8e6){body.innerHTML='<div class="msg"><h3>'+(isBin?'Not a text file':'Too big to show')+'</h3><p>'+esc(name)+' is '+size(f.size)+(isBin?' and can’t be shown as text here.':'.')+'</p><button type="button" class="btn primary" data-save="'+esc(p)+'">Download it</button></div>';return}
   fetchText(p).then(function(txt){
-    if(/\u0000/.test(txt.slice(0,8000))){body.innerHTML='<div class="msg"><h3>Not a text file</h3><a class="btn primary" href="'+esc(raw(p))+'" download="'+esc(name)+'">Download it</a></div>';return}
+    if(/\u0000/.test(txt.slice(0,8000))){body.innerHTML='<div class="msg"><h3>Not a text file</h3><button type="button" class="btn primary" data-save="'+esc(p)+'">Download it</button></div>';return}
     var lines=highlight(txt,lang),n=lines.length;
     if(lines[n-1]===''&&n>1){lines.pop();n--}
     $('#finfo').textContent=n.toLocaleString()+' lines · '+size(f.size)+' · '+(LANG_NAMES[(name.match(/\.([^.]+)$/)||[,''])[1].toLowerCase()]||'Text');
@@ -783,7 +798,7 @@ function showGames(q){
     var list=all.filter(function(g){return g.s===gr[0]});if(!list.length)return;
     html+='<section class="ggroup" style="padding-top:8px"><h2>'+gr[1]+' <span class="dim mono" style="font-size:14px">'+list.length+'</span></h2><div class="ggrid">'+list.map(function(g){
       return '<article class="gcard" data-q="'+esc((g.n+' '+g.f).toLowerCase())+'" data-f="'+esc(g.f)+'">'+
-        '<a class="gthumb" href="#/tree/'+encPath(g.path)+'" tabindex="-1" aria-hidden="true"><img src="'+esc(raw(BR+'/m/thumbs/'+g.f+'.jpg'))+'" alt="" loading="lazy" onerror="this.remove()"></a>'+
+        '<a class="gthumb" href="#/tree/'+encPath(g.path)+'" tabindex="-1" aria-hidden="true"><img data-raw="'+esc(BR+'/m/thumbs/'+g.f+'.jpg')+'" alt=""></a>'+
         '<div class="gbody"><span class="ggenre"></span><h3><a href="#/tree/'+encPath(g.path)+'">'+esc(g.n)+'</a></h3><p class="gblurb"></p>'+
         '<p class="gmeta mono">'+(g.f!==g.n.toLowerCase().replace(/ /g,'-')?esc(g.f)+'/ · ':'')+g.files+' file'+(g.files===1?'':'s')+' · '+size(g.bytes)+'</p>'+
         '<div class="gact"><a class="btn primary" href="#/tree/'+encPath(g.path)+'">Code</a><a class="btn" href="#/commits/'+encPath(g.path)+'">History</a></div></div></article>';
@@ -852,7 +867,11 @@ cb.onclick=function(e){e.stopPropagation();pop.hidden=!pop.hidden;cb.setAttribut
 document.addEventListener('click',function(e){if(!pop.hidden&&!pop.contains(e.target)&&e.target!==cb){pop.hidden=true;cb.setAttribute('aria-expanded','false')}
   var c=e.target.closest('[data-copy]');if(c)copy($(c.dataset.copy).value)});
 $('#cloneUrl').value=GH+'.git';
-$('#zipBtn').href=GH+'/archive/refs/heads/'+BRANCH+'.zip';
+$('#zipBtn').onclick=function(e){e.preventDefault();toast('Getting the ZIP\u2026');
+  authFetch(SERVER+'zip?ref='+encodeURIComponent((state.repo&&state.repo.branch)||BRANCH)).then(function(r){return r.json()}).then(function(d){if(d.url)location.href=d.url;else throw 0}).catch(function(){toast('Couldn\u2019t get the ZIP')})};
+// Raw / Download buttons, and images that load through the server (data-raw) whenever the view changes.
+document.addEventListener('click',function(e){var b=e.target.closest('[data-save]');if(b){var p=b.getAttribute('data-save');saveFile(p,p.split('/').pop(),!!b.getAttribute('data-open'))}});
+new MutationObserver(function(){if(view.querySelector('img[data-raw]'))hydrate(view)}).observe(view,{childList:true,subtree:true});
 // "t" jumps to Go to file, like on GitHub.
 document.addEventListener('keydown',function(e){
   if(!opened)return;
