@@ -1171,7 +1171,7 @@
       '.nws-all:hover span{border-bottom-width:2.5px}.nws-idx:focus-visible,.nws-all:focus-visible{outline:2px solid var(--nws-g);outline-offset:3px}' +
       '.nws-stage{--nws-fw:166px;position:relative;height:104px;margin:8px 16px 0;overflow:hidden;cursor:pointer;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;outline:0}' +
       '.nws-stage:focus-visible{overflow:visible}.nws-stage:focus-visible .nws-sl.on{outline:2px solid var(--nws-g);outline-offset:4px}' +
-      '.nws-sl{--kc:var(--nws-g);position:absolute;inset:0;display:grid;grid-template-columns:var(--nws-fw) minmax(0,1fr);grid-template-rows:auto auto 1fr;grid-template-areas:"f d" "f h" "f p";gap:0 20px;align-content:start;visibility:hidden}' +
+      '.nws-sl{--kc:var(--nws-g);position:absolute;inset:0;display:grid;grid-template-columns:var(--nws-fw) minmax(0,1fr);grid-template-rows:max-content max-content minmax(0,1fr);grid-template-areas:"f d" "f h" "f p";gap:0 20px;align-content:start;visibility:hidden}' +
       '.nws-sl.on,.nws-sl.out{visibility:visible}.nws-sl.out{pointer-events:none}' +
       '.nws-sl.k-feature{--kc:#3E5BA9}.nws-sl.k-fix{--kc:#C0562F}.nws-sl.k-soon{--kc:#8E6BFF}' +
       '.nws-fig{grid-area:f;position:relative;display:block;aspect-ratio:16/10;overflow:hidden;border-radius:2px;background:color-mix(in srgb,var(--kc) 7%,var(--panel,#fff))}' +
@@ -1181,10 +1181,16 @@
       '.nws-dl{grid-area:d;margin:0;display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;font-family:var(--mono,var(--f-m,monospace));font-size:11.5px;font-weight:600;line-height:16px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;color:var(--ink-2,#4a5751)}' +
       '.nws-dl > *{flex:none}.nws-dl > * + *::before{content:"";display:inline-block;width:1px;height:10px;margin-right:10px;vertical-align:-1px;background:var(--line,#d3dad2)}' +
       '.nws-kd{color:color-mix(in srgb,var(--kc) 72%,var(--ink,#16201b))}.nws-sl.nofig .nws-vn{display:none}.nws-nw{color:var(--down,#b42318)}' +
+      // no picture: the text takes the width and the version stands at the right as a tall hairline numeral, no box
+      '.nws-sl.nofig{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"d f" "h f" "p f"}' +
+      '.nws-sl.nofig .nws-fig{aspect-ratio:auto;align-self:stretch;overflow:visible;border-radius:0;background:none}' +
+      '.nws-sl.nofig .nws-num{position:static;height:100%;padding:0;border:0;font-size:128px;line-height:.78;letter-spacing:.005em;color:transparent;-webkit-text-stroke:1px color-mix(in srgb,var(--kc) 50%,var(--ink-2,#4a5751))}' +
       '.nws-hl{grid-area:h;margin:5px 0 0;min-width:0;font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:31px;line-height:1.02;letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
       '.nws-stage:hover .nws-sl.on .nws-hl{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:5px}' +
-      '.nws .nws-pts{grid-area:p;margin:6px 0 0;padding:0;list-style:none;display:grid;align-content:start;gap:3px;min-width:0;color:var(--ink-2,#4a5751);font-size:14.5px;line-height:1.4}' +
-      '.nws .nws-pts li{margin:0;position:relative;padding-left:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+      '.nws .nws-pts{grid-area:p;margin:6px 0 0;padding:0;overflow:hidden;list-style:none;display:grid;align-content:start;gap:3px;min-width:0;color:var(--ink-2,#4a5751);font-size:14.5px;line-height:1.4}' +
+      // each point wraps over the lines there's room for (fit()); a second point shows only when it fits whole
+      '.nws .nws-pts li{margin:0;position:relative;padding-left:14px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}' +
+      '.nws .nws-pts li.gone{display:none}' +
       '.nws .nws-pts li::before{content:"";position:absolute;left:0;top:.68em;width:6px;height:1.5px;background:var(--kc)}' +
       // the hairline: the whole reel end to end; its dark part grows through each entry's share while that entry shows
       '.nws-run{position:relative;height:1px;margin:12px 16px 0;background:var(--line,#d3dad2)}' +
@@ -1238,10 +1244,11 @@
       // a phone: the picture small beside the dateline and a two-line headline, one point under them; the New games
       // row is one line that scrolls sideways
       '@media (max-width:560px){.nws-hd{padding:8px 12px 0;gap:12px}.nws-stage{--nws-fw:92px;height:118px;margin:8px 12px 0}' +
-        '.nws-sl{grid-template-rows:auto auto 1fr;grid-template-areas:"f d" "f h" "p p";column-gap:12px}.nws-fig{align-self:start}' +
+        '.nws-sl{grid-template-rows:max-content max-content minmax(0,1fr);grid-template-areas:"f d" "f h" "p p";column-gap:12px}.nws-fig{align-self:start}' +
         '.nws-num{font-size:26px;padding:0 8px 6px}.nws-dl{font-size:10.5px;letter-spacing:.06em;gap:8px}.nws-dl > * + *::before{margin-right:8px}' +
         '.nws-hl{margin-top:3px;font-size:22px;line-height:1.03;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}' +
-        '.nws .nws-pts{margin-top:8px;font-size:14px}.nws .nws-pts li{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.nws .nws-pts li:nth-child(n+2){display:none}' +
+        '.nws .nws-pts{margin-top:8px;font-size:14px}' +
+        '.nws-sl.nofig{grid-template-columns:minmax(0,1fr);grid-template-areas:"d" "h" "p"}.nws-sl.nofig .nws-fig{display:none}.nws-sl.nofig .nws-vn{display:inline}' +
         '.nws-run{margin:12px 12px 0}' +
         '.nws-fresh{margin:0 12px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}' +
         '.nws-fresh::-webkit-scrollbar{display:none}.nws-fresh > *{flex:none}.nws-fresh > :last-child{margin-right:24px}.nws-chip{font-size:13px;min-height:32px}}' +
@@ -1405,6 +1412,32 @@
       if (stop && run.playState === 'running') run.pause(); else if (!stop && run.playState === 'paused') run.play();
     }
     slides[0].classList.add('on'); mark();
+    // Points: as many lines as the space under the headline holds (two on most slides, three at most). The first
+    // point gets them; the second shows only if it fits whole in what's left. Redone when the width, the fonts or the
+    // words (Spanish) change.
+    var fitQ = 0;
+    function fit() {
+      fitQ = 0;
+      var H = stage.clientHeight;
+      slides.forEach(function (sl) {
+        var ul = sl.querySelector('.nws-pts'), li = ul ? ul.querySelectorAll('li') : [];
+        if (!li.length || !H) return;
+        for (var j = 0; j < li.length; j++) { li[j].classList.remove('gone'); li[j].style.webkitLineClamp = ''; }
+        var cs = getComputedStyle(li[0]), lh = parseFloat(cs.lineHeight) || 20, gap = parseFloat(getComputedStyle(ul).rowGap) || 0;
+        var L = Math.max(1, Math.min(3, Math.floor((H - ul.offsetTop + 1) / lh)));
+        var lines = function (x) { return Math.round(x.scrollHeight / lh); };
+        li[0].style.webkitLineClamp = L;
+        var used = Math.min(L, lines(li[0]));
+        if (li[1]) {
+          var left = Math.floor((H - ul.offsetTop - used * lh - gap + 1) / lh);
+          if (left >= 1 && lines(li[1]) <= left) li[1].style.webkitLineClamp = left; else li[1].classList.add('gone');
+        }
+      });
+    }
+    function refit() { if (!fitQ) fitQ = requestAnimationFrame(fit); }
+    if (window.ResizeObserver) new ResizeObserver(refit).observe(stage); else window.addEventListener('resize', refit);
+    if (window.MutationObserver) new MutationObserver(refit).observe(stage, { characterData: true, childList: true, subtree: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
 
     var sx = null, sy = 0, swiped = false;
     stage.addEventListener('pointerdown', function (e) { if (e.button) return; sx = e.clientX; sy = e.clientY; swiped = false; });
