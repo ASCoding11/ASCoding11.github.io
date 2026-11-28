@@ -7,6 +7,11 @@
 (function () {
   if (!window.BackRoomLang) return;
   BackRoomLang.add({
+    "A picture for every update": "Una imagen para cada novedad",
+    "Back Room": "Back Room",
+    "Phone page": "Página para celular",
+    "Every update in What's new now has a picture, even ones without a game screenshot: a small drawing of the part of the site that changed.": "Ahora cada novedad tiene una imagen, incluso las que no tienen captura de un juego: un pequeño dibujo de la parte del sitio que cambió.",
+    "The pictures follow your light or dark theme and the Retro TV look.": "Las imágenes siguen tu tema claro u oscuro y el aspecto Retro TV.",
     "What's new, one update at a time": "Novedades, de a una",
     "Back Room": "Back Room",
     "Phone page": "Página para celular",
