@@ -53,7 +53,9 @@
  *            (use the game's phone thumbnail, 'm/thumbs/<folder>.jpg', 560 × 350). The latest entry's first
  *            snapshot sits next to its headline on the strip, and the open list shows them on the card.
  *            Only plain relative paths to .jpg/.png/.webp files are used (no http:, no ../), so every
- *            picture comes from the site's own folders.
+ *            picture comes from the site's own folders. In the reel, an entry with no picture (and no new game or
+ *            game named in its tags to borrow one from) gets one of the NEWS_ART drawings instead, picked from its
+ *            tags, title and points (artOf()), so every update has a picture without anyone having to make one.
  *   tags     optional: up to 4 short keywords shown as little tags on the card, like
  *            ['Battle royale', 'Up to 30 players', 'Build'] (each cut to 28 characters).
  *
@@ -1150,6 +1152,138 @@
     '<path d="M11.2 14.3 18.5 10l-7.3-4.3z" fill="#FFFFFF"/></g></svg>';
   var ARTS = { candy: AD_ART, car: CAR_ART, video: VIDEO_ART, youtube: YT_ART };
 
+  // ---- Pictures for updates that have none ----
+  // Every slide in the reel gets a picture. An entry's own `img`, its new game's thumbnail or a game named in its
+  // tags come first; otherwise it gets one of these little drawings, made in code in one style: a miniature, flat
+  // mock of the part of the site that changed (a page, a panel, a phone…) in fine lines on a ground tinted with the
+  // kind's colour. They're drawn with classes (.p paper, .o line, .oa accent line, .a accent, .a2 half accent,
+  // .s soft accent, .t text, .m faint text, .sh shadow, .pf paper with no line, .w a line in the paper's colour)
+  // whose colours come from the page's variables, so they suit the light and dark pages and Retro TV by themselves.
+  // 160 × 100, the reel's 16:10 picture slot. Which one an entry gets: artOf() below.
+  function R(x, y, w, h, c, rx) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"' + (rx ? ' rx="' + rx + '"' : '') + ' class="' + c + '"/>'; }
+  function C(x, y, r, c) { return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" class="' + c + '"/>'; }
+  function P(d, c) { return '<path d="' + d + '" class="' + c + '"/>'; }
+  // a page or window: offset shadow, paper, a hairline under its top bar and three small dots
+  function WIN(x, y, w, h) { return R(x + 4, y + 4, w, h, 'sh', 2) + R(x, y, w, h, 'p', 2) + P('M' + x + ' ' + (y + 8) + 'h' + w, 'o') + C(x + 5, y + 4, 1.3, 'm') + C(x + 9.5, y + 4, 1.3, 'm') + C(x + 14, y + 4, 1.3, 'm'); }
+  function CARD(x, y, w, h) { return R(x + 4, y + 4, w, h, 'sh', 2) + R(x, y, w, h, 'p', 2); }
+  // n rows of text: bars of the given widths, `gap` apart
+  function BARS(x, y, ws, gap, c, h) { return ws.map(function (w, i) { return R(x, y + i * gap, w, h || 2.6, c, 1); }).join(''); }
+  var NEWS_ART = {
+    // the home page: a page with a headline, a button and a house in its picture, over a row of cards
+    home: WIN(22, 12, 116, 76) + R(44, 15.2, 50, 2.6, 'm', 1.3) + BARS(30, 28, [46, 32], 8, 't', 5) + BARS(30, 46, [42, 34], 5, 'm') + R(30, 57, 18, 6, 'a', 3) +
+      R(86, 27, 44, 34, 's', 2) + P('M96 48 108 38l12 10', 'oa') + P('M99 46v11h18V46', 'oa') + R(105.5, 51, 5, 6, 'a') +
+      R(30, 68, 30, 13, 'm', 1.5) + R(65, 68, 30, 13, 'm', 1.5) + R(100, 68, 30, 13, 'm', 1.5),
+    // the home page's top: air flowing past a wing
+    wing: WIN(22, 12, 116, 76) + R(44, 15.2, 50, 2.6, 'm', 1.3) + BARS(30, 27, [34, 22], 6, 't', 3.4) +
+      P('M30 46c26 0 40-8 60-8s30 4 40 4', 'o') + P('M30 54c24 0 36-6 56-6s34 6 44 6', 'o') + P('M30 66c28 0 46 2 62 2s28-2 38-2', 'o') + P('M30 74c30 0 52 2 66 2s26-2 34-2', 'o') +
+      P('M56 60c10-8 34-10 52-5-14 4-38 7-52 5z', 'a'),
+    // the Back Room: its header, the one card of live panels and a grid of game cards
+    backroom: WIN(16, 10, 128, 80) + R(24, 22, 28, 4, 't', 1) + R(112, 21.5, 24, 5, 'm', 2.5) + R(24, 31, 112, 17, 'p', 1.5) + P('M61.3 31v17M98.6 31v17', 'o') +
+      C(30, 36.5, 2, 'a') + R(34, 35.2, 20, 2.6, 't', 1) + R(29, 41, 25, 2.4, 'm', 1) +
+      C(67.5, 37, 2.6, 'a2') + C(73, 37, 2.6, 's') + R(66, 42, 26, 2.4, 'm', 1) + C(104.5, 37, 2.6, 's') + R(110, 35.6, 18, 2.6, 't', 1) + R(104, 42, 24, 2.4, 'm', 1) +
+      [24, 53, 82, 111].map(function (x, i) { return R(x, 53, 25, 15, 'p', 1.5) + R(x + 1.5, 54.5, 22, 8, i === 1 ? 'a2' : 's', 1) + R(x + 2, 64.2, 14, 2, 'm', 1) + R(x, 72, 25, 15, 'p', 1.5) + R(x + 1.5, 73.5, 22, 8, 's', 1) + R(x + 2, 83.2, 12, 2, 'm', 1); }).join(''),
+    // What's new itself: the masthead, a slide (picture, dateline, headline, points), the hairline and the chips
+    news: R(18, 18, 132, 72, 'sh', 2) + R(14, 14, 132, 72, 'p', 2) + R(14, 14, 132, 2.6, 't') + C(21.5, 24, 1.8, 'a') + R(25.5, 22.7, 26, 2.8, 't', 1) + R(110, 22.7, 12, 2.8, 'm', 1) + R(126, 22.7, 13, 2.8, 't', 1) +
+      R(21, 31, 40, 25, 's', 1) + C(31, 38, 3, 'a') + P('M21 56l12-10 7 5 9-8 12 10v3z', 'a2') +
+      R(67, 32, 14, 2.4, 'a', 1) + R(85, 32, 10, 2.4, 'm', 1) + R(99, 32, 12, 2.4, 'm', 1) + BARS(67, 37.5, [64, 42], 7, 't', 4.6) +
+      R(67, 52.4, 3.5, 1.2, 'a') + R(73, 51.7, 58, 2.6, 'm', 1) + P('M21 64h118', 'o') + R(21, 63.3, 46, 1.4, 't') +
+      R(21, 71, 24, 8, 'm', 1) + R(21, 71, 2, 8, 'a') + R(49, 71, 26, 8, 'm', 1) + R(49, 71, 2, 8, 'a2') + R(79, 71, 21, 8, 'm', 1) + R(79, 71, 2, 8, 's'),
+    // a phone held upright, tapped, in front of one held sideways
+    phone: R(30, 34, 58, 34, 'sh', 5) + R(26, 30, 58, 34, 'p', 5) + R(33, 37, 20, 3, 't', 1) + R(33, 43, 14, 2.4, 'm', 1) + R(33, 48, 18, 2.4, 'm', 1) + R(56, 37, 18, 20, 's', 1.5) +
+      R(84, 14, 38, 80, 'sh', 6) + R(80, 10, 38, 80, 'p', 6) + R(93, 13.5, 12, 2.6, 'm', 1.3) + R(85, 20, 18, 3.4, 't', 1) +
+      R(85, 27, 28, 15, 's', 1.5) + R(85, 45, 26, 3, 't', 1) + R(85, 50, 18, 2.4, 'm', 1) + R(85, 57, 28, 15, 's', 1.5) + R(85, 75, 20, 3, 't', 1) + R(91, 85, 16, 1.6, 'm', .8) +
+      C(99, 34, 2.2, 'a') + C(99, 34, 5.5, 'oa') + C(99, 34, 9.5, 'oa f'),
+    // an account: avatar with a pencil, name, colour swatches and a switch
+    account: CARD(30, 12, 100, 76) + R(30.5, 12.5, 99, 17, 's', 1.5) + C(52, 31, 11, 'pf') + C(52, 31, 11, 'a2') + C(52, 28, 4.2, 'pf') + P('M44.3 38.8a7.7 6.4 0 0 1 15.4 0z', 'pf') + C(52, 31, 11, 'oa') +
+      C(61, 39.5, 3.6, 'a') + P('M59.6 40.9l2.8-2.8', 'w') + R(69, 33, 40, 5, 't', 1) + R(69, 41, 26, 2.6, 'm', 1) +
+      R(40, 53, 24, 2.6, 'm', 1) + C(44, 63.5, 4, 'a') + C(44, 63.5, 6.2, 'oa') + C(56, 63.5, 4, 'a2') + C(67, 63.5, 4, 's') + C(78, 63.5, 4, 't') + C(89, 63.5, 4, 'm') +
+      P('M38 72.5h84', 'o') + R(40, 78, 30, 2.6, 'm', 1) + R(104, 75.4, 16, 8, 'a', 4) + C(116, 79.4, 2.8, 'pf'),
+    // a shop: the balance, a row of items with prices (one picked) and a button
+    shop: WIN(16, 10, 128, 80) + R(24, 22, 30, 4, 't', 1) + C(119, 24, 3, 'a') + R(124, 22.7, 12, 2.6, 't', 1) +
+      [24, 53, 82, 111].map(function (x, i) { return R(x, 31, 25, 34, i === 1 ? 'p pa' : 'p', 1.5) + R(x + 3, 58, 10, 2.6, 'm', 1) + C(x + 19.5, 59.3, 1.8, 'a'); }).join('') +
+      C(36.5, 43, 6.5, 's') + P('M65.5 35.5l7.5 7.5-7.5 7.5-7.5-7.5z', 'a') + P('M94.5 36l7.5 13h-15z', 'a2') + C(123.5, 43, 6, 'oa') + C(123.5, 43, 2.4, 'a2') +
+      R(24, 72, 36, 9, 'a', 2) + BARS(66, 73, [40, 28], 5, 'm'),
+    // a partner's banner: an accent rule along its top, a picture on one side, name, line and button on the other
+    ads: CARD(14, 20, 132, 60) + R(15, 23, 64, 56, 's') + R(14, 20, 132, 3, 'a') + R(27, 44, 12, 28, 'a2', 2.5) + R(41, 37, 14, 35, 'a', 2.5) + R(57, 46, 12, 26, 'a2', 2.5) + P('M22 72h52', 'o') +
+      R(88, 35, 17, 6, 't', 1) + R(107, 35, 26, 6, 'm', 1) + BARS(88, 47, [46, 34], 5, 'm') + R(88, 61, 30, 9, 'a', 2),
+    // speed: a frame-time trace that is spiky and then smooth and low, under a dashed target line
+    speed: WIN(20, 12, 120, 76) + R(28, 27, 28, 4, 't', 1) + R(28, 34, 18, 2.6, 'm', 1) + R(104, 26, 28, 9, 's', 2) + R(108, 29.2, 14, 2.6, 'a', 1) +
+      P('M28 80h104', 'o') + P('M28 56h104', 'o d') + P('M28 50l5 16 5-22 5 26 5-18 5 14 5-10 5 20 6-6h69', 'oa'),
+    // online: the Online panel, live dot, a room code and players (one highlighted)
+    online: CARD(26, 10, 108, 80) + C(34, 21, 2, 'a') + R(39, 19.6, 26, 2.8, 't', 1) + [98, 105.5, 113, 120.5].map(function (x) { return R(x, 16.5, 6, 8, 'm', 1); }).join('') +
+      R(30, 42, 100, 13, 's', 1.5) +
+      [30, 44, 58, 72].map(function (y, i) { return C(41, y + 5, 4.6, i === 1 ? 'a2' : 's') + R(51, y + 2.4, i === 1 ? 40 : 32 - i * 3, 3, 't', 1) + R(51, y + 7.4, 20, 2.4, 'm', 1) + C(123, y + 5, 2, i < 3 ? 'a' : 'm') + (i ? P('M32 ' + (y - 1.5) + 'h96', 'o f') : ''); }).join(''),
+    // a leaderboard: ranks, names and scores, the climbers marked
+    board: CARD(24, 10, 112, 80) + R(32, 18, 30, 3.6, 't', 1) + R(104, 18, 24, 3.6, 'm', 1) +
+      [0, 1, 2, 3, 4].map(function (i) { var y = 28 + i * 11.5; return (i === 1 ? R(28, y - 2, 104, 11, 's', 1.5) : '') + R(32, y, 7, 7, i === 0 ? 'a' : 'm', 1) + R(43, y + 2.2, 30 - i * 2, 2.8, 't', 1) + R(78, y + 1.7, 34 - i * 5, 3.8, i === 1 ? 'a' : 'a2', 1) + (i === 1 || i === 3 ? P('M120 ' + (y + 5.2) + 'l3.2-3.2 3.2 3.2', 'oa') : P('M120 ' + (y + 3.5) + 'h6.4', 'o')); }).join(''),
+    // a rank: a tier badge and the tiers stepping up beside it
+    rank: P('M62 87c-14-6-23-17-23-31V28l23-8 23 8v28c0 14-9 25-23 31z', 'sh') + P('M58 83c-14-6-23-17-23-31V24l23-8 23 8v28c0 14-9 25-23 31z', 's') + P('M58 83c-14-6-23-17-23-31V24l23-8 23 8v28c0 14-9 25-23 31z', 'oa') +
+      P('M47 53l11-9 11 9', 'oa') + P('M47 62l11-9 11 9', 'oa') + P('M58 28l4 4-4 4-4-4z', 'a') +
+      R(98, 64, 9, 16, 'm', 1) + R(111, 55, 9, 25, 's', 1) + R(124, 42, 9, 38, 'a', 1) + P('M94 80.5h44', 'o'),
+    // what's hot: a row of game cards with player counts, the first one busiest, and a line going up
+    hot: C(24, 20, 2, 'a') + R(29, 18.6, 30, 2.8, 't', 1) + P('M110 23l7-3 6 2 8-6 7-3', 'oa') +
+      [20, 62, 104].map(function (x, i) { return CARD(x, 29, 36, 52) + R(x + 2, 31, 32, 22, i ? 's' : 'a2', 1) + R(x + 3, 57, 24 - i * 4, 3, 't', 1) + R(x + 3, 63, 16, 2.4, 'm', 1) + R(x + 3, 70, 18 - i * 3, 6, i ? 'm' : 'a', 3); }).join(''),
+    // a replay: a video with a play button and a scrubber
+    replay: CARD(24, 14, 112, 70) + R(28, 18, 104, 50, 's', 1.5) + P('M28 60l24-16 18 10 22-18 40 24v8H28z', 'a2') + C(80, 40, 9, 'pf') + P('M77 35v10l8.5-5z', 'a') +
+      P('M30 75h100', 'o') + R(30, 74.3, 56, 1.6, 'a') + C(86, 75, 2.6, 'a'),
+    // a fix: a page of code, one line mended and ticked
+    fix: WIN(22, 12, 116, 76) + R(27, 47.5, 106, 8, 's', 1) +
+      [28, 36, 44, 52, 60, 68, 76].map(function (y, i) { var w = [46, 60, 38, 52, 70, 44, 30][i], ind = [0, 8, 8, 16, 8, 8, 0][i]; return R(30, y + 1.2, 4, 2.4, 'm', 1) + R(40 + ind, y + 1, w, 2.8, i === 3 ? 'a' : i % 2 ? 'm' : 't', 1); }).join('') +
+      C(124, 51.5, 5, 'a') + P('M121.6 51.6l1.7 1.7 3.2-3.4', 'w'),
+    // coming soon: a stage with its curtains drawn and a sliver of light between them
+    soon: CARD(30, 12, 100, 74) + R(30.5, 12.5, 99, 6, 't') + P('M80 19v66', 'oa') +
+      P('M31 18.5h47c-3 22-2 46 1 66.5H31z', 's') + P('M129 18.5H82c3 22 2 46-1 66.5h48z', 's') + P('M44 19c-1 22 0 44 2 66M58 19c-1 22 0 44 3 66M116 19c1 22 0 44-2 66M102 19c1 22 0 44-3 66', 'o f') + P('M31 80h98', 'o'),
+    // a new game: its card, a play button on its picture
+    game: CARD(44, 12, 72, 76) + R(46, 14, 68, 42, 's', 1.5) + P('M46 56l18-14 12 8 14-12 24 18z', 'a2') + C(80, 33, 9, 'a') + P('M77 28.5v9l7.5-4.5z', 'pf') +
+      R(50, 62, 40, 5, 't', 1) + R(50, 72, 16, 6, 'm', 3) + R(70, 72, 18, 6, 'm', 3),
+    // anything else: release notes, a sheet on a sheet
+    generic: R(58, 10, 62, 78, 'p', 2) + R(46, 18, 62, 78, 'sh', 2) + R(42, 14, 62, 78, 'p', 2) + R(50, 22, 16, 4.4, 'a', 2.2) + BARS(50, 31, [44, 30], 7, 't', 4.6) +
+      [48, 56, 64, 72].map(function (y, i) { return R(50, y + .8, 3.5, 1.2, 'a') + R(56, y, [40, 34, 38, 26][i], 2.6, 'm', 1); }).join('')
+  };
+  // Which drawing an entry gets, when it has no picture of its own. The first rule that matches wins: first the
+  // entry's tags (except broad ones like 'Back Room' or 'Phone', which say where rather than what), then its title,
+  // then its points, then those broad tags, and last its kind. Keep the rules about what changed, not the wording of
+  // one entry: they pick the picture for every future entry too.
+  var ART_RULES = [
+    ['soon', /coming soon|\?\?\?|top secret/],
+    ['news', /what['’]?s new|\bnews\b|changelog/],
+    ['home', /home ?page|main site|front page/],
+    ['generic', /terms of use|privacy|site rules/],  // a page of writing: the release-notes sheet
+    ['ads', /partner|banner|sponsor|\bads?\b|advert/],
+    ['shop', /\bshop\b|marketplace|cosmetic|\bskins?\b|\boutfits?\b/],
+    ['replay', /replay|\bclips?\b|\bvideos?\b|recording/],
+    ['rank', /\belo\b|\branks?\b|\btiers?\b|achievement|\bbadges?\b/],
+    ['board', /leaderboard|climb|\baisles?\b|ranking|top 10|\bscores?\b/],
+    ['hot', /hot right now|trending|surging|most people|popular|playing now/],
+    ['account', /account|avatar|profile|sign(?:ed|s)? ?in|google|log ?in|name tile/],
+    ['speed', /(?:loads?|runs?|starts?) (?:faster|quicker)|\blag(?:gy)?\b|smoother|frame rate|\bfps\b|performance|stutter|loads? quick/],
+    ['online', /online|multiplayer|(?<!back )\brooms?\b|\bpart(?:y|ies)\b|invite|co-?op|\bchat\b|friends/],
+    ['phone', /\bphones?\b|touch|mobile|portrait|sideways|upright|tablet/],
+    ['backroom', /back ?room|layout|\bpanels?\b|game rows|\bcards?\b/]
+  ];
+  var ART_BROAD = /^(?:back ?room|phones?|phone page|every game|holidays|online)$/i;
+  var ART_KIND = { game: 'game', feature: 'generic', fix: 'fix', soon: 'soon' };
+  // a closer drawing of the same place, when the entry's words point to it (the home page's wing)
+  var ART_MORE = { home: ['wing', /\bwing\b|air ?flow/] };
+  function artIn(s) {
+    s = String(s || '').toLowerCase();
+    for (var i = 0; i < ART_RULES.length; i++) if (ART_RULES[i][1].test(s)) return ART_RULES[i][0];
+    return '';
+  }
+  function artOf(e) {
+    var tg = tagsOf(e), a = '', j;
+    for (j = 0; j < tg.length && !a; j++) if (!ART_BROAD.test(tg[j])) a = artIn(tg[j]);
+    a = a || artIn(e.title) || artIn(e.items.join(' \n '));
+    for (j = 0; j < tg.length && !a; j++) a = artIn(tg[j]);
+    a = a || ART_KIND[kindOf(e)];
+    var m = ART_MORE[a];
+    return m && m[1].test((e.title + ' ' + e.items.join(' ')).toLowerCase()) ? m[0] : a;
+  }
+  function artSvg(name) {
+    return '<svg class="nws-art" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">' + (NEWS_ART[name] || NEWS_ART.generic) + '</svg>';
+  }
+  window.BackRoomNews.entries.forEach(function (x, i) { x.art = artOf(list[i]); });
+
   function start() {
     if (document.getElementById('news')) return;
     var head = document.querySelector('header');
@@ -1180,16 +1314,21 @@
       '.nws-sl.on,.nws-sl.out{visibility:visible}.nws-sl.out{pointer-events:none}' +
       '.nws-sl.k-feature{--kc:#3E5BA9}.nws-sl.k-fix{--kc:#C0562F}.nws-sl.k-soon{--kc:#8E6BFF}' +
       '.nws-fig{grid-area:f;position:relative;display:block;aspect-ratio:16/10;overflow:hidden;border-radius:2px;background:color-mix(in srgb,var(--kc) 7%,var(--panel,#fff))}' +
-      '.nws-fig img{display:block;width:100%;height:100%;object-fit:cover}' +
-      // no picture: the version number set large, like an issue number
-      '.nws-num{position:absolute;inset:0;display:flex;align-items:flex-end;padding:0 12px 9px;border-top:2px solid var(--kc);font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:42px;line-height:.85;letter-spacing:.01em;color:color-mix(in srgb,var(--kc) 62%,var(--ink,#16201b))}' +
+      '.nws-fig img,.nws-fig svg{display:block;width:100%;height:100%;object-fit:cover}' +
+      // the drawings (NEWS_ART) for entries with no picture: flat shapes and hairlines in the page's own colours on the
+      // fig's tint; the lines stay one pixel at any size. Retro TV: square edges and slightly heavier lines.
+      '.nws-fig:has(.nws-art){background:color-mix(in srgb,var(--kc) 11%,var(--panel,#fff))}' +
+      '.nws-art{--al:color-mix(in srgb,var(--ink,#16201b) 34%,var(--panel,#fff));--ac:color-mix(in srgb,var(--kc) 78%,var(--ink,#16201b));overflow:hidden}' +
+      '.nws-art .p,.nws-art .pf{fill:var(--panel,#fff)}.nws-art .p{stroke:var(--al)}.nws-art .pa{stroke:var(--ac)}' +
+      '.nws-art .o,.nws-art .oa,.nws-art .w{fill:none;stroke:var(--al);stroke-linecap:round;stroke-linejoin:round}.nws-art .oa{stroke:var(--ac);stroke-width:1.5}.nws-art .w{stroke:var(--panel,#fff);stroke-width:1.4}' +
+      '.nws-art .p,.nws-art .o,.nws-art .oa,.nws-art .w{vector-effect:non-scaling-stroke}.nws-art .p,.nws-art .o{stroke-width:1}' +
+      '.nws-art .a{fill:var(--ac)}.nws-art .a2{fill:color-mix(in srgb,var(--kc) 48%,var(--panel,#fff))}.nws-art .s{fill:color-mix(in srgb,var(--kc) 20%,var(--panel,#fff))}' +
+      '.nws-art .t{fill:color-mix(in srgb,var(--ink,#16201b) 66%,var(--panel,#fff))}.nws-art .m{fill:color-mix(in srgb,var(--ink,#16201b) 16%,var(--panel,#fff))}' +
+      '.nws-art .sh{fill:color-mix(in srgb,var(--kc) 17%,transparent)}.nws-art .f{opacity:.45}.nws-art .d{stroke-dasharray:3 3}' +
+      'html.tv-on .nws-art rect{shape-rendering:crispEdges}html.tv-on .nws-art .p,html.tv-on .nws-art .o{stroke-width:1.5}' +
       '.nws-dl{grid-area:d;margin:0;display:flex;align-items:center;gap:10px;min-width:0;overflow:hidden;font-family:var(--mono,var(--f-m,monospace));font-size:11.5px;font-weight:600;line-height:16px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;color:var(--ink-2,#4a5751)}' +
       '.nws-dl > *{flex:none}.nws-dl > * + *::before{content:"";display:inline-block;width:1px;height:10px;margin-right:10px;vertical-align:-1px;background:var(--line,#d3dad2)}' +
-      '.nws-kd{color:color-mix(in srgb,var(--kc) 72%,var(--ink,#16201b))}.nws-sl.nofig .nws-vn{display:none}.nws-nw{color:var(--down,#b42318)}' +
-      // no picture: the text takes the width and the version stands at the right as a tall hairline numeral, no box
-      '.nws-sl.nofig{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"d f" "h f" "p f"}' +
-      '.nws-sl.nofig .nws-fig{aspect-ratio:auto;align-self:stretch;overflow:visible;border-radius:0;background:none}' +
-      '.nws-sl.nofig .nws-num{position:static;height:100%;padding:0;border:0;font-size:128px;line-height:.78;letter-spacing:.005em;color:transparent;-webkit-text-stroke:1px color-mix(in srgb,var(--kc) 50%,var(--ink-2,#4a5751))}' +
+      '.nws-kd{color:color-mix(in srgb,var(--kc) 72%,var(--ink,#16201b))}.nws-nw{color:var(--down,#b42318)}' +
       '.nws-hl{grid-area:h;margin:5px 0 0;min-width:0;font-family:var(--display,var(--f-d,"Arial Narrow",sans-serif));font-weight:800;font-size:31px;line-height:1.02;letter-spacing:.01em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
       '.nws-stage:hover .nws-sl.on .nws-hl{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:5px}' +
       '.nws .nws-pts{grid-area:p;margin:6px 0 0;padding:0;overflow:hidden;list-style:none;display:grid;align-content:start;gap:3px;min-width:0;color:var(--ink-2,#4a5751);font-size:14.5px;line-height:1.4}' +
@@ -1250,10 +1389,9 @@
       // row is one line that scrolls sideways
       '@media (max-width:560px){.nws-hd{padding:8px 12px 0;gap:12px}.nws-stage{--nws-fw:92px;height:118px;margin:8px 12px 0}' +
         '.nws-sl{grid-template-rows:max-content max-content minmax(0,1fr);grid-template-areas:"f d" "f h" "p p";column-gap:12px}.nws-fig{align-self:start}' +
-        '.nws-num{font-size:26px;padding:0 8px 6px}.nws-dl{font-size:10.5px;letter-spacing:.06em;gap:8px}.nws-dl > * + *::before{margin-right:8px}' +
+        '.nws-dl{font-size:10.5px;letter-spacing:.06em;gap:8px}.nws-dl > * + *::before{margin-right:8px}' +
         '.nws-hl{margin-top:3px;font-size:22px;line-height:1.03;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}' +
         '.nws .nws-pts{margin-top:8px;font-size:14px}' +
-        '.nws-sl.nofig{grid-template-columns:minmax(0,1fr);grid-template-areas:"d" "h" "p"}.nws-sl.nofig .nws-fig{display:none}.nws-sl.nofig .nws-vn{display:inline}' +
         '.nws-run{margin:12px 12px 0}' +
         '.nws-fresh{margin:0 12px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}' +
         '.nws-fresh::-webkit-scrollbar{display:none}.nws-fresh > *{flex:none}.nws-fresh > :last-child{margin-right:24px}.nws-chip{font-size:13px;min-height:32px}}' +
@@ -1324,8 +1462,8 @@
     hd.append(k, idx, bar);
 
     // The reel: the latest SLIDES entries, one at a time. Each slide: a picture (the entry's own, else its first new
-    // game's, else a game named in its tags; with none, its version set large), a dateline (kind, version, day), the
-    // title as a headline and its first points. A tap opens the full list at that entry.
+    // game's, else a game named in its tags, else one of the NEWS_ART drawings, picked by artOf()), a dateline (kind,
+    // version, day), the title as a headline and its first points. A tap opens the full list at that entry.
     var stage = el('div', 'nws-stage'); stage.tabIndex = 0; stage.setAttribute('role', 'group'); stage.setAttribute('aria-label', 'Latest updates');
     var runEl = el('div', 'nws-run'), fill = el('i'); runEl.setAttribute('aria-hidden', 'true'); runEl.appendChild(fill);
     function figOf(e) {
@@ -1344,10 +1482,7 @@
     var slides = SL.map(function (e, i) {
       var kd = kindOf(e), sl = el('article', 'nws-sl k-' + kd), fig = el('span', 'nws-fig');
       sl.setAttribute('aria-label', 'Update ' + (i + 1) + ' of ' + n); fig.setAttribute('aria-hidden', 'true');
-      var none = function () {
-        fig.textContent = ''; sl.classList.add('nofig');
-        var nb = el('span', 'nws-num', shownVer(e) || (kd === 'soon' ? '?' : short(e.date))); nb.setAttribute('data-noi18n', ''); fig.appendChild(nb);
-      };
+      var none = function () { fig.innerHTML = artSvg(artOf(e)); };  // no picture, or it's missing: its drawing
       var src = figOf(e);
       if (src) { var im = el('img'); im.alt = ''; im.decoding = 'async'; im.width = 560; im.height = 350; im.addEventListener('error', none); im.src = BASE + src; fig.appendChild(im); } else none();
       var dl = el('p', 'nws-dl');
@@ -1392,7 +1527,7 @@
           if (x) live.push(x.animate([{ opacity: 0, transform: 'translateX(' + (dir * (q ? 30 : 16)) + 'px)' }, { opacity: 1, transform: 'none' }], { duration: 950, delay: q ? 360 + q * 80 : 140, easing: EASE, fill: 'backwards' }));
         });
         // and its picture settles very slowly while it's up
-        var im = to.querySelector('.nws-fig img');
+        var im = to.querySelector('.nws-fig > *');
         if (im) { if (im._kb) im._kb.cancel(); im._kb = im.animate([{ transform: 'scale(1.06)' }, { transform: 'none' }], { duration: DWELL + 1500, easing: 'ease-out', fill: 'forwards' }); }
       }
       tick();
